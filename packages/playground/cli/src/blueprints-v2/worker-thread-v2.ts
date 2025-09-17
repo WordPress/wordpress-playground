@@ -3,15 +3,14 @@ import type { FileLockManager } from '@php-wasm/node';
 import { createNodeFsMountHandler, loadNodeRuntime } from '@php-wasm/node';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import type {
-	PHP,
 	FileTree,
+	PHP,
 	RemoteAPI,
 	SupportedPHPVersion,
 } from '@php-wasm/universal';
 import {
 	PHPExecutionFailureError,
 	PHPResponse,
-	PHPWorker,
 	consumeAPI,
 	consumeAPISync,
 	exposeAPI,
@@ -19,25 +18,24 @@ import {
 } from '@php-wasm/universal';
 import { sprintf } from '@php-wasm/util';
 import {
-	type BlueprintMessage,
 	runBlueprintV2,
-} from '@wp-playground/blueprints';
-import {
-	type ParsedBlueprintV2Declaration,
+	type BlueprintMessage,
 	type BlueprintV2Declaration,
+	type ParsedBlueprintV2Declaration,
 } from '@wp-playground/blueprints';
+import type {
+	PHPInstanceCreatedHook,
+	PhpIniOptions,
+} from '@wp-playground/wordpress';
 import { bootRequestHandler } from '@wp-playground/wordpress';
 import { existsSync } from 'fs';
 import path from 'path';
 import { rootCertificates } from 'tls';
-import { MessageChannel, type MessagePort, parentPort } from 'worker_threads';
-import type { Mount } from '../mounts';
 import { jspi } from 'wasm-feature-detect';
+import { MessageChannel, parentPort, type MessagePort } from 'worker_threads';
+import { PlaygroundCliWorker } from '../playground-cli-worker';
+import type { Mount } from '../mounts';
 import { type RunCLIArgs } from '../run-cli';
-import type {
-	PhpIniOptions,
-	PHPInstanceCreatedHook,
-} from '@wp-playground/wordpress';
 
 async function mountResources(php: PHP, mounts: Mount[]) {
 	for (const mount of mounts) {
@@ -154,7 +152,7 @@ export type WorkerBootRequestHandlerOptions = Omit<
 	onPHPInstanceCreated: PHPInstanceCreatedHook;
 };
 
-export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
+export class PlaygroundCliBlueprintV2Worker extends PlaygroundCliWorker {
 	booted = false;
 	blueprintTargetResolved = false;
 	phpInstancesThatNeedMountsAfterTargetResolved = new Set<PHP>();
@@ -469,11 +467,6 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 			setAPIError(e as Error);
 			throw e;
 		}
-	}
-
-	// Provide a named disposal method that can be invoked via comlink.
-	async dispose() {
-		await this[Symbol.asyncDispose]();
 	}
 }
 
