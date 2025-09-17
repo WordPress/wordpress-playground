@@ -352,8 +352,11 @@ RUN if [ "$WITH_MBREGEX" = "yes" ] && [ "${PHP_VERSION:0:3}" != "7.0" ]; \
 
 # Get and patch PHP
 COPY ./php/php*.patch /root/
+COPY ./php/apply-mysqlnd-patch.sh /root/
 RUN cd /root && \
 	git apply --no-index /root/php${PHP_VERSION:0:3}*.patch -v && \
+	chmod +x /root/apply-mysqlnd-patch.sh && \
+	/root/apply-mysqlnd-patch.sh && \
 	( [[ "${PHP_VERSION:0:3}" == '8.3' ]] && \
 		git apply --no-index /root/php-chunk-alloc-zend-assert-8.3.patch -v || \
 		( [[ "${PHP_VERSION:0:3}" == '8.4' ]] && \
@@ -366,6 +369,7 @@ RUN cd /root && \
 # Install Mysql support if needed
 RUN if [ "$WITH_MYSQL" = "yes" ]; then \
 		echo -n ' --enable-mysql --enable-pdo --with-mysql=mysqlnd --with-mysqli=mysqlnd --with-pdo-mysql=mysqlnd ' >> /root/.php-configure-flags; \
+		echo -n ' -DMYSQLND_FORCE_TCP_LOCALHOST ' >> /root/.emcc-php-wasm-flags; \
 	fi
 
 # Build the patched PHP

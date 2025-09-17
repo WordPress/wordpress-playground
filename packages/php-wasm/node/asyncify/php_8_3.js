@@ -8,7 +8,7 @@ import path from 'path';
 
 const dependencyFilename = path.join(__dirname, '8_3_25', 'php_8_3.wasm');
 export { dependencyFilename };
-export const dependenciesTotalSize = 26575785;
+export const dependenciesTotalSize = 26575874;
 const phpVersionString = '8.3.25';
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
@@ -831,7 +831,7 @@ export function init(RuntimeName, PHPLoader) {
 		},
 	};
 
-	var ___heap_base = 13876672;
+	var ___heap_base = 13876736;
 
 	var alignMemory = (size, alignment) => {
 		return Math.ceil(size / alignment) * alignment;
@@ -1786,13 +1786,13 @@ export function init(RuntimeName, PHPLoader) {
 		1024
 	);
 
-	var ___stack_high = 13876672;
+	var ___stack_high = 13876736;
 
-	var ___stack_low = 12828096;
+	var ___stack_low = 12828160;
 
 	var ___stack_pointer = new WebAssembly.Global(
 		{ value: 'i32', mutable: true },
-		13876672
+		13876736
 	);
 
 	var PATH = {
@@ -32115,13 +32115,13 @@ export function init(RuntimeName, PHPLoader) {
 	// End JS library code
 
 	var ASM_CONSTS = {
-		12632621: ($0) => {
+		12632685: ($0) => {
 			if (!$0) {
 				AL.alcErr = 0xa004;
 				return 1;
 			}
 		},
-		12632669: ($0) => {
+		12632733: ($0) => {
 			if (!AL.currentCtx) {
 				err('alGetProcAddress() called without a valid context');
 				return 1;
