@@ -1,14 +1,13 @@
 import test from '@playwright/test';
-// Important from '@php-wasm/universal' will crash the
-// test due to 'mime-type.json' import error in Node
+// Importing SupportedPHPVersions from '@php-wasm/universal' causes
+// tests to crash in Node due to a 'mime-type.json' import error
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { SupportedPHPVersions } from '../../../universal/src/lib/supported-php-versions';
 
-// To test PHP.wasm inside a browser, Playwright needs to
-// load necessary functions and classes and add them to
-// window by adding a script with page.addScriptTag.
-// 'page.evaluate' is then needed to run Vitest-like tests.
-// The whole process needs to be run inside evaluate.
+// To test PHP.wasm in the browser with Playwright, the required
+// functions and classes must first be injected into window using
+// page.addScriptTag. Tests can then be executed via page.evaluate,
+// which must wrap the entire process.
 SupportedPHPVersions.forEach((phpVersion) => {
 	test.describe(`Intl - PHP ${phpVersion}`, () => {
 		test.beforeEach(async ({ page }) => {
@@ -20,10 +19,8 @@ SupportedPHPVersions.forEach((phpVersion) => {
 			});
 		});
 
-		test.only('does not load dynamically by default', async ({ page }) => {
+		test('does not load dynamically by default', async ({ page }) => {
 			const result = await page.evaluate(async (phpVersion) => {
-				console.log('HELLO');
-
 				const php = new window.PHP(
 					await window.loadWebRuntime(phpVersion as any)
 				);

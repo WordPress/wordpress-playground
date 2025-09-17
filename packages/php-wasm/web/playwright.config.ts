@@ -8,7 +8,7 @@ export default defineConfig({
 	timeout: 5000,
 
 	// Comment this line for more debugging informations
-	// reporter: [[ './src/test/playwright/reporter.ts' ]],
+	reporter: [['./src/test/playwright/reporter.ts']],
 
 	projects: [
 		{

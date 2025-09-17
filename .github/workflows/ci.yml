@@ -154,7 +154,7 @@ jobs:
               with:
                   submodules: true
             - uses: ./.github/actions/prepare-playground
-              run: sudo npx playwright install chrome
+            - run: sudo npx playwright install chrome
             - run: sudo CI=true JSPI=true npx nx e2e php-wasm-web
     test-e2e-php-wasm-web-asyncify:
         runs-on: ubuntu-latest
