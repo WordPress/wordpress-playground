@@ -3,7 +3,6 @@ import { loadNodeRuntime } from '@php-wasm/node';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import type { RemoteAPI, SupportedPHPVersion } from '@php-wasm/universal';
 import {
-	PHPWorker,
 	consumeAPI,
 	consumeAPISync,
 	exposeAPI,
@@ -11,10 +10,11 @@ import {
 } from '@php-wasm/universal';
 import { sprintf } from '@php-wasm/util';
 import { RecommendedPHPVersion } from '@wp-playground/common';
-import { bootWordPress, bootRequestHandler } from '@wp-playground/wordpress';
+import { bootRequestHandler, bootWordPress } from '@wp-playground/wordpress';
 import { rootCertificates } from 'tls';
 import { jspi } from 'wasm-feature-detect';
-import { MessageChannel, type MessagePort, parentPort } from 'worker_threads';
+import { MessageChannel, parentPort, type MessagePort } from 'worker_threads';
+import { PlaygroundCliWorker } from '../playground-cli-worker';
 import { mountResources } from '../mounts';
 
 export interface Mount {
@@ -78,7 +78,7 @@ function tracePhpWasm(processId: number, format: string, ...args: any[]) {
 	);
 }
 
-export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
+export class PlaygroundCliBlueprintV1Worker extends PlaygroundCliWorker {
 	booted = false;
 	fileLockManager: RemoteAPI<FileLockManager> | FileLockManager | undefined;
 
@@ -292,11 +292,6 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 			setAPIError(e as Error);
 			throw e;
 		}
-	}
-
-	// Provide a named disposal method that can be invoked via comlink.
-	async dispose() {
-		await this[Symbol.asyncDispose]();
 	}
 }
 
