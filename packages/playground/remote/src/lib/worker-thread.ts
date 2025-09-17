@@ -44,6 +44,8 @@ import {
 	PHPResponse,
 	PHPWorker,
 	sandboxedSpawnHandlerFactory,
+	isPathToSharedFS,
+	proxyFileSystem,
 	SupportedPHPVersionsList,
 } from '@php-wasm/universal';
 import {
@@ -382,7 +384,29 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 						},
 					});
 				},
-				onPHPInstanceCreated: async (php: PHP) => {
+				onPHPInstanceCreated: async (php: PHP, { isPrimary }) => {
+					if (!isPrimary) {
+						const pathsToShareBetweenPhpInstances = [
+							'/tmp',
+							requestHandler.documentRoot,
+							'/internal/shared',
+							'/internal/symlinks',
+						];
+						const pathsToProxy =
+							pathsToShareBetweenPhpInstances.filter(
+								(path) => !isPathToSharedFS(php, path)
+							);
+
+						// TODO: Document that this shift is a breaking change.
+						// Proxy the filesystem for all secondary PHP instances to
+						// the primary one.
+						proxyFileSystem(
+							await requestHandler.getPrimaryPhp(),
+							php,
+							pathsToProxy
+						);
+					}
+
 					/**
 					 * Setup WP_HTTP_Fetch network transport. It must be done per PHP instance because
 					 * it binds a php.onMessage() handler which is scoped to PHP class instance. Calling

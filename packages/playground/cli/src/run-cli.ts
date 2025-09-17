@@ -15,12 +15,8 @@ import type {
 	BlueprintDeclaration,
 } from '@wp-playground/blueprints';
 import { runBlueprintSteps } from '@wp-playground/blueprints';
-import {
-	RecommendedPHPVersion,
-	unzipFile,
-	zipDirectory,
-} from '@wp-playground/common';
-import fs from 'fs';
+import { RecommendedPHPVersion } from '@wp-playground/common';
+import fs, { mkdirSync } from 'fs';
 import type { Server } from 'http';
 import { MessageChannel as NodeMessageChannel, Worker } from 'worker_threads';
 // @ts-ignore
@@ -48,6 +44,16 @@ import { resolveBlueprint } from './resolve-blueprint';
 import { BlueprintsV2Handler } from './blueprints-v2/blueprints-v2-handler';
 import { BlueprintsV1Handler } from './blueprints-v1/blueprints-v1-handler';
 import { startBridge } from '@php-wasm/xdebug-bridge';
+import path from 'path';
+import {
+	cleanupStalePlaygroundTempDirs,
+	createPlaygroundCliTempDir,
+} from './temp-dir';
+
+// Inlined worker URLs for static analysis by downstream bundlers
+// These are replaced at build time by the Vite plugin in vite.config.ts
+declare const __WORKER_V1_URL__: string;
+declare const __WORKER_V2_URL__: string;
 
 export const LogVerbosity = {
 	Quiet: { name: 'quiet', severity: LogSeverity.Fatal },
@@ -56,6 +62,8 @@ export const LogVerbosity = {
 } as const;
 
 type LogVerbosity = (typeof LogVerbosity)[keyof typeof LogVerbosity]['name'];
+
+export type WorkerType = 'v1' | 'v2';
 
 export async function parseOptionsAndRunCLI() {
 	try {
@@ -290,20 +298,6 @@ export async function parseOptionsAndRunCLI() {
 							'The --experimental-multi-worker flag must be a positive integer greater than 1.'
 						);
 					}
-
-					const isMountingWordPressDir = (mount: Mount) =>
-						mount.vfsPath === '/wordpress';
-					if (
-						!args.mount?.some(isMountingWordPressDir) &&
-						!(args['mount-before-install'] as any)?.some(
-							isMountingWordPressDir
-						)
-					) {
-						throw new Error(
-							'Please mount a real filesystem directory as the /wordpress directory before using the --experimental-multi-worker flag. For example: ' +
-								'--mount-dir-before-install ./empty-dir /wordpress'
-						);
-					}
 				}
 
 				if (args['experimental-blueprints-v2-runner'] === true) {
@@ -530,6 +524,80 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 				Number.MAX_SAFE_INTEGER / totalWorkerCount
 			);
 
+			/*
+			 * Use a real temp dir as a target for the following Playground paths
+			 * so that multiple worker threads can share the same files.
+			 *  - /internal
+			 *  - /tmp
+			 *  - /wordpress
+			 *
+			 * Sharing the same files leads to faster boot times and uses less memory
+			 * because we don't have to create or maintain multiple copies of the same files.
+			 */
+			const tempDirNameDelimiter = '-playground-cli-site-';
+			const nativeDirPath = await createPlaygroundCliTempDir(
+				tempDirNameDelimiter
+			);
+
+			// We do not know the system temp dir,
+			// but we can try to infer from the location of the current temp dir.
+			const tempDirRoot = path.dirname(nativeDirPath);
+
+			const twoDaysInMillis = 2 * 24 * 60 * 60 * 1000;
+			const tempDirStaleAgeInMillis = twoDaysInMillis;
+
+			// NOTE: This is an async operation, but we do not care to block on it.
+			// Let's let the cleanup happen as the main thread has time.
+			cleanupStalePlaygroundTempDirs(
+				tempDirNameDelimiter,
+				tempDirStaleAgeInMillis,
+				tempDirRoot
+			);
+
+			// NOTE: We do not add mount declarations for /internal here
+			// because it will be mounted as part of php-wasm init.
+			const nativeInternalDirPath = path.join(nativeDirPath, 'internal');
+			mkdirSync(nativeInternalDirPath);
+
+			const userProvidableNativeSubdirs = [
+				'wordpress',
+				// Note: These dirs are from Emscripten's "default dirs" list:
+				// https://github.com/emscripten-core/emscripten/blob/f431ec220e472e1f8d3db6b52fe23fb377facf30/src/lib/libfs.js#L1400-L1402
+				//
+				// Any Playground process with multiple workers may assume
+				// these are part of a shared filesystem, so let's recognize
+				// them explicitly here.
+				'tmp',
+				'home',
+			];
+
+			for (const subdirName of userProvidableNativeSubdirs) {
+				const isMountingSubdirName = (mount: Mount) =>
+					mount.vfsPath === `/${subdirName}`;
+				const thisSubdirHasAMount =
+					args['mount-before-install']?.some(isMountingSubdirName) ||
+					args['mount']?.some(isMountingSubdirName);
+				if (!thisSubdirHasAMount) {
+					// The user hasn't requested mounting a different native dir for this path,
+					// so let's create a mount from within our native temp dir.
+					const nativeSubdirPath = path.join(
+						nativeDirPath,
+						subdirName
+					);
+					mkdirSync(nativeSubdirPath);
+
+					if (args['mount-before-install'] === undefined) {
+						args['mount-before-install'] = [];
+					}
+
+					// Make the real mount first so any further subdirs are mounted into it.
+					args['mount-before-install'].unshift({
+						vfsPath: `/${subdirName}`,
+						hostPath: nativeSubdirPath,
+					});
+				}
+			}
+
 			let handler: BlueprintsV1Handler | BlueprintsV2Handler;
 			if (args['experimental-blueprints-v2-runner']) {
 				handler = new BlueprintsV2Handler(args, {
@@ -554,8 +622,8 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 			// Kick off worker threads now to save time later.
 			// There is no need to wait for other async processes to complete.
 			const promisedWorkers = spawnWorkerThreads(
-				handler.getWorkerUrl(),
 				totalWorkerCount,
+				handler.getWorkerType(),
 				({ exitCode, isMain, workerIndex }) => {
 					if (exitCode === 0) {
 						return;
@@ -587,7 +655,8 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 				// Boot the primary worker using the handler
 				playground = await handler.bootPrimaryWorker(
 					initialWorker.phpPort,
-					fileLockManagerPort
+					fileLockManagerPort,
+					nativeInternalDirPath
 				);
 				playgroundsToCleanUp.push({
 					playground,
@@ -629,13 +698,6 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 				) {
 					logger.log(`Preparing additional workers...`);
 
-					// Save /internal directory from initial worker so we can replicate it
-					// in each additional worker.
-					const internalZip = await zipDirectory(
-						playground,
-						'/internal'
-					);
-
 					// Boot additional workers using the handler
 					const initialWorkerProcessIdSpace = processIdSpaceLength;
 					await Promise.all(
@@ -652,6 +714,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 									worker,
 									fileLockManagerPort,
 									firstProcessId,
+									nativeInternalDirPath,
 								});
 
 							playgroundsToCleanUp.push({
@@ -659,28 +722,14 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 								worker: worker.worker,
 							});
 
-							// Replicate the Blueprint-initialized /internal directory
-							await additionalPlayground.writeFile(
-								'/tmp/internal.zip',
-								internalZip
-							);
-							await unzipFile(
-								additionalPlayground,
-								'/tmp/internal.zip',
-								'/internal'
-							);
-							await additionalPlayground.unlink(
-								'/tmp/internal.zip'
-							);
-
 							loadBalancer.addWorker(additionalPlayground);
 						})
 					);
-
-					logger.log(`Ready!`);
 				}
 
-				logger.log(`WordPress is running on ${serverUrl}`);
+				logger.log(
+					`WordPress is running on ${serverUrl} with ${totalWorkerCount} worker(s)`
+				);
 
 				if (args.experimentalDevtools && args.xdebug) {
 					const bridge = await startBridge({
@@ -756,20 +805,18 @@ export type SpawnedWorker = {
 	worker: Worker;
 	phpPort: NodeMessagePort;
 };
-function spawnWorkerThreads(
-	workerUrlString: string,
+async function spawnWorkerThreads(
 	count: number,
+	workerType: WorkerType,
 	onWorkerExit: (options: {
 		exitCode: number;
 		isMain: boolean;
 		workerIndex: number;
 	}) => void
 ): Promise<SpawnedWorker[]> {
-	const moduleWorkerUrl = new URL(workerUrlString, import.meta.url);
-
 	const promises = [];
 	for (let i = 0; i < count; i++) {
-		const worker = new Worker(moduleWorkerUrl);
+		const worker = await spawnWorkerThread(workerType);
 		const onExit: (code: number) => void = (code: number) => {
 			onWorkerExit({
 				exitCode: code,
@@ -791,11 +838,10 @@ function spawnWorkerThreads(
 					worker.once('error', function (e: Error) {
 						console.error(e);
 						const error = new Error(
-							`Worker failed to load at ${moduleWorkerUrl}. ${
+							`Worker failed to load worker. ${
 								e.message ? `Original error: ${e.message}` : ''
 							}`
 						);
-						(error as any).filename = moduleWorkerUrl;
 						reject(error);
 					});
 					worker.once('exit', onExit);
@@ -804,6 +850,38 @@ function spawnWorkerThreads(
 		);
 	}
 	return Promise.all(promises);
+}
+
+/**
+ * A statically analyzable function that spawns a worker thread of a given type.
+ *
+ * **Important:** This function builds to code that has the worker URL hardcoded
+ * inline, e.g. `new Worker(new URL('./worker-thread-v1.js', import.meta.url))`.
+ * This allows the downstream consumers to statically analyze the code, recognize
+ * it uses workers, create new entrypoints, and rewrite the new Worker() calls.
+ *
+ * @param workerType
+ * @returns
+ */
+async function spawnWorkerThread(workerType: 'v1' | 'v2') {
+	/**
+	 * When running the CLI from source via `node cli.ts`, the Vite-provided
+	 * __WORKER_V1_URL__ and __WORKER_V2_URL__ are undefined. Let's set them to
+	 * the correct paths.
+	 */
+	if (typeof __WORKER_V1_URL__ === 'undefined') {
+		// @ts-expect-error
+		globalThis['__WORKER_V1_URL__'] = './blueprints-v1/worker-thread-v1.ts';
+	}
+	if (typeof __WORKER_V2_URL__ === 'undefined') {
+		// @ts-expect-error
+		globalThis['__WORKER_V2_URL__'] = './blueprints-v2/worker-thread-v2.ts';
+	}
+	if (workerType === 'v1') {
+		return new Worker(new URL(__WORKER_V1_URL__, import.meta.url));
+	} else {
+		return new Worker(new URL(__WORKER_V2_URL__, import.meta.url));
+	}
 }
 
 /**

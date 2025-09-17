@@ -9,7 +9,6 @@ import type {
 import {
 	PHP,
 	PHPRequestHandler,
-	proxyFileSystem,
 	sandboxedSpawnHandlerFactory,
 	setPhpIniEntries,
 	withPHPIniValues,
@@ -33,11 +32,16 @@ export interface Hooks {
 	beforeDatabaseSetup?: Hook;
 }
 
+export type PHPInstanceCreatedHook = (
+	php: PHP,
+	{ isPrimary }: { isPrimary: boolean }
+) => Promise<void>;
+
 export type DatabaseType = 'sqlite' | 'mysql' | 'custom';
 
 export interface BootRequestHandlerOptions {
-	createPhpRuntime: () => Promise<number>;
-	onPHPInstanceCreated?: (php: PHP) => Promise<void>;
+	createPhpRuntime: (isPrimary?: boolean) => Promise<number>;
+	onPHPInstanceCreated?: PHPInstanceCreatedHook;
 	/**
 	 * PHP SAPI name to be returned by get_sapi_name(). Overriding
 	 * it is useful for running programs that check for this value,
@@ -231,7 +235,8 @@ export async function bootRequestHandler(options: BootRequestHandlerOptions) {
 		requestHandler: PHPRequestHandler,
 		isPrimary: boolean
 	) {
-		const php = new PHP(await options.createPhpRuntime());
+		const runtimeId = await options.createPhpRuntime(isPrimary);
+		const php = new PHP(runtimeId);
 		if (options.sapiName) {
 			php.setSapiName(options.sapiName);
 		}
@@ -248,7 +253,7 @@ export async function bootRequestHandler(options: BootRequestHandlerOptions) {
 		php.defineConstant('WP_SQLITE_AST_DRIVER', true);
 
 		/**
-		 * Set up mu-plugins in /internal/shared/mu-plugins
+		 * Set up mu-plugins in /internal/mu-plugins
 		 * using auto_prepend_file to provide platform-level
 		 * customization without altering the installed WordPress
 		 * site.
@@ -257,22 +262,29 @@ export async function bootRequestHandler(options: BootRequestHandlerOptions) {
 		 * the filesystem there is the source of truth
 		 * for all other PHP instances.
 		 */
-		if (isPrimary) {
+		if (
+			isPrimary &&
+			/**
+			 * Only the first PHP instance of the first worker created
+			 * during WordPress boot writes these files – otherwise we'll keep
+			 * overwriting them with concurrent writers living in other worker
+			 * threads.
+			 *
+			 * The `.boot-files-written` file is our primitive synchronization
+			 * mechanism. It works, because secondary workers are only booted
+			 * once the primary worker has fully booted.
+			 */
+			!php.isFile('/internal/.boot-files-written')
+		) {
 			await setupPlatformLevelMuPlugins(php);
 			await writeFiles(php, '/', options.createFiles || {});
 			await preloadPhpInfoRoute(
 				php,
 				joinPaths(new URL(options.siteUrl).pathname, 'phpinfo.php')
 			);
-		} else {
-			// Proxy the filesystem for all secondary PHP instances to
-			// the primary one.
-			proxyFileSystem(await requestHandler.getPrimaryPhp(), php, [
-				'/tmp',
-				requestHandler.documentRoot,
-				'/internal/shared',
-				'/internal/symlinks',
-			]);
+			await writeFiles(php, '/internal', {
+				'.boot-files-written': '',
+			});
 		}
 
 		// Spawn handler is responsible for spawning processes for all the
@@ -292,7 +304,7 @@ export async function bootRequestHandler(options: BootRequestHandlerOptions) {
 		});
 
 		if (options.onPHPInstanceCreated) {
-			await options.onPHPInstanceCreated(php);
+			await options.onPHPInstanceCreated(php, { isPrimary });
 		}
 
 		return php;

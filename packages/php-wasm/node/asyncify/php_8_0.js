@@ -8,7 +8,7 @@ import path from 'path';
 
 const dependencyFilename = path.join(__dirname, '8_0_30', 'php_8_0.wasm');
 export { dependencyFilename };
-export const dependenciesTotalSize = 24845949;
+export const dependenciesTotalSize = 24845917;
 const phpVersionString = '8.0.30';
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
@@ -831,7 +831,7 @@ export function init(RuntimeName, PHPLoader) {
 		},
 	};
 
-	var ___heap_base = 12842432;
+	var ___heap_base = 12842368;
 
 	var alignMemory = (size, alignment) => {
 		return Math.ceil(size / alignment) * alignment;
@@ -1786,13 +1786,13 @@ export function init(RuntimeName, PHPLoader) {
 		1024
 	);
 
-	var ___stack_high = 12842432;
+	var ___stack_high = 12842368;
 
-	var ___stack_low = 11793856;
+	var ___stack_low = 11793792;
 
 	var ___stack_pointer = new WebAssembly.Global(
 		{ value: 'i32', mutable: true },
-		12842432
+		12842368
 	);
 
 	var PATH = {
@@ -6621,7 +6621,7 @@ export function init(RuntimeName, PHPLoader) {
 		O_NONBLOCK: 2048,
 		POLLHUP: 16,
 		SETFL_MASK: 3072,
-		init: function () {
+		init: function (phpWasmInitOptions) {
 			Module['ENV'] = Module['ENV'] || {};
 			// Ensure a platform-level bin directory for a fallback `php` binary.
 			Module['ENV']['PATH'] = [
@@ -6631,28 +6631,48 @@ export function init(RuntimeName, PHPLoader) {
 				.filter(Boolean)
 				.join(':');
 
-			// The /internal directory is required by the C module. It's where the
+			// The /request directory is required by the C module. It's where the
 			// stdout, stderr, and headers information are written for the JavaScript
-			// code to read later on.
+			// code to read later on. This is per-request state that is isolated to a
+			// single PHP process.
+			FS.mkdir('/request');
+			// The /internal directory is shared amongst all PHP processes
+			// and contains wp-config.php, constants, etc.
 			FS.mkdir('/internal');
+
+			if (phpWasmInitOptions?.nativeInternalDirPath) {
+				FS.mount(
+					FS.filesystems.NODEFS,
+					{ root: phpWasmInitOptions.nativeInternalDirPath },
+					'/internal'
+				);
+			}
+
 			// The files from the shared directory are shared between all the
 			// PHP processes managed by PHPProcessManager.
-			FS.mkdir('/internal/shared');
+			FS.mkdirTree('/internal/shared');
+
 			// The files from the preload directory are preloaded using the
 			// auto_prepend_file php.ini directive.
-			FS.mkdir('/internal/shared/preload');
+			FS.mkdirTree('/internal/shared/preload');
 			// Platform-level bin directory for a fallback `php` binary. Without it,
 			// PHP may not populate the PHP_BINARY constant.
-			FS.mkdir('/internal/shared/bin');
+			FS.mkdirTree('/internal/shared/bin');
 			const originalOnRuntimeInitialized = Module['onRuntimeInitialized'];
 			Module['onRuntimeInitialized'] = () => {
-				// Dummy PHP binary for PHP to populate the PHP_BINARY constant.
-				FS.writeFile(
+				const { node: phpBinaryNode } = FS.lookupPath(
 					'/internal/shared/bin/php',
-					new TextEncoder().encode('#!/bin/sh\nphp "$@"')
+					{ noent_okay: true }
 				);
-				// It must be executable to be used by PHP.
-				FS.chmod('/internal/shared/bin/php', 0o755);
+				if (!phpBinaryNode) {
+					// Dummy PHP binary for PHP to populate the PHP_BINARY constant.
+					FS.writeFile(
+						'/internal/shared/bin/php',
+						new TextEncoder().encode('#!/bin/sh\nphp "$@"')
+					);
+					// It must be executable to be used by PHP.
+					FS.chmod('/internal/shared/bin/php', 0o755);
+				}
 				originalOnRuntimeInitialized();
 			};
 
@@ -6670,7 +6690,7 @@ export function init(RuntimeName, PHPLoader) {
 					return length;
 				},
 			});
-			FS.mkdev('/internal/stdout', FS.makedev(64, 0));
+			FS.mkdev('/request/stdout', FS.makedev(64, 0));
 
 			FS.registerDevice(FS.makedev(63, 0), {
 				open: () => {},
@@ -6682,7 +6702,7 @@ export function init(RuntimeName, PHPLoader) {
 					return length;
 				},
 			});
-			FS.mkdev('/internal/stderr', FS.makedev(63, 0));
+			FS.mkdev('/request/stderr', FS.makedev(63, 0));
 
 			FS.registerDevice(FS.makedev(62, 0), {
 				open: () => {},
@@ -6694,7 +6714,7 @@ export function init(RuntimeName, PHPLoader) {
 					return length;
 				},
 			});
-			FS.mkdev('/internal/headers', FS.makedev(62, 0));
+			FS.mkdev('/request/headers', FS.makedev(62, 0));
 
 			// Handle events.
 			PHPWASM.EventEmitter = ENVIRONMENT_IS_NODE
@@ -6926,34 +6946,37 @@ export function init(RuntimeName, PHPLoader) {
 	}
 
 	function _fd_close(fd) {
+		// We have to get the VFS path from the file descriptor
+		// before closing it.
+		const [vfsPath, vfsPathResolutionErrno] =
+			locking.get_vfs_path_from_fd(fd);
+
 		const fdCloseResult = _builtin_fd_close(fd);
 		if (fdCloseResult !== 0 || !locking.maybeLockedFds.has(fd)) {
 			_js_wasm_trace('fd_close(%d) result %d', fd, fdCloseResult);
 			return fdCloseResult;
 		}
 
-		try {
-			const [vfsPath, pathResolutionErrno] =
-				locking.get_vfs_path_from_fd(fd);
-			if (pathResolutionErrno !== 0) {
-				_js_wasm_trace(
-					'fd_close(%d) get_vfs_path_from_fd error %d',
-					fd,
-					pathResolutionErrno
-				);
-				/*
-				 * It looks like the file may have had an associated lock,
-				 * but since we cannot look up the path,
-				 * there is nothing more for us to do.
-				 *
-				 * NOTE: This seems possible for files that are locked and
-				 * then unlinked before close. It is an opportunity for a
-				 * lock to be orphaned in the lock manager.
-				 * @TODO: Explore how to ensure cleanup in this case.
-				 */
-				return fdCloseResult;
-			}
+		if (vfsPathResolutionErrno !== 0) {
+			_js_wasm_trace(
+				'fd_close(%d) get_vfs_path_from_fd error %d',
+				fd,
+				vfsPathResolutionErrno
+			);
+			/*
+			 * It looks like the file may have had an associated lock,
+			 * but since we cannot look up the path,
+			 * there is nothing more for us to do.
+			 *
+			 * NOTE: This seems possible for files that are locked and
+			 * then unlinked before close. It is an opportunity for a
+			 * lock to be orphaned in the lock manager.
+			 * @TODO: Explore how to ensure cleanup in this case.
+			 */
+			return fdCloseResult;
+		}
 
+		try {
 			const nativeFilePath =
 				locking.get_native_path_from_vfs_path(vfsPath);
 			PHPLoader.fileLockManager.releaseLocksForProcessFd(
@@ -32049,7 +32072,7 @@ export function init(RuntimeName, PHPLoader) {
 	if (ENVIRONMENT_IS_NODE) {
 		NODEFS.staticInit();
 	}
-	PHPWASM.init();
+	PHPWASM.init(PHPLoader?.phpWasmInitOptions);
 
 	Module['requestAnimationFrame'] = MainLoop.requestAnimationFrame;
 	Module['pauseMainLoop'] = MainLoop.pause;
@@ -32115,13 +32138,13 @@ export function init(RuntimeName, PHPLoader) {
 	// End JS library code
 
 	var ASM_CONSTS = {
-		11563981: ($0) => {
+		11563949: ($0) => {
 			if (!$0) {
 				AL.alcErr = 0xa004;
 				return 1;
 			}
 		},
-		11564029: ($0) => {
+		11563997: ($0) => {
 			if (!AL.currentCtx) {
 				err('alGetProcAddress() called without a valid context');
 				return 1;

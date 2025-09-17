@@ -52,6 +52,52 @@ const plugins = [
 		root: '../../../',
 	}),
 	/**
+	 * Inline worker URLs as string literals so downstream bundlers (e.g., webpack)
+	 * can statically analyze `new Worker(new URL('...'))`.
+	 *
+	 * We emit different extensions per output format:
+	 * - ES modules: .js
+	 * - CommonJS: .cjs
+	 */
+	{
+		name: 'inline-worker-url-literals',
+		renderChunk(code, _chunk, outputOptions) {
+			const format = (outputOptions as any).format as string | undefined;
+			const isCjs = format === 'cjs';
+			const v1 = isCjs
+				? './worker-thread-v1.cjs'
+				: './worker-thread-v1.js';
+			const v2 = isCjs
+				? './worker-thread-v2.cjs'
+				: './worker-thread-v2.js';
+			let transformed = code;
+			// Replace macro tokens if used
+			transformed = transformed
+				.split(/(?<!["'])__WORKER_V1_URL__(?!["'])/g)
+				.join(JSON.stringify(v1));
+			transformed = transformed
+				.split(/(?<!["'])__WORKER_V2_URL__(?!["'])/g)
+				.join(JSON.stringify(v2));
+			// Replace usages of imported worker URL strings inside new URL(...)
+			const patternV1 =
+				/new\s+URL\(\s*importedWorkerV1UrlString\s*,\s*import\.meta\.url\s*\)/g;
+			const patternV2 =
+				/new\s+URL\(\s*importedWorkerV2UrlString\s*,\s*import\.meta\.url\s*\)/g;
+			transformed = transformed.replace(
+				patternV1,
+				`new URL(${JSON.stringify(v1)}, import.meta.url)`
+			);
+			transformed = transformed.replace(
+				patternV2,
+				`new URL(${JSON.stringify(v2)}, import.meta.url)`
+			);
+			if (transformed !== code) {
+				return { code: transformed, map: null };
+			}
+			return null;
+		},
+	},
+	/**
 	 * In library mode, Vite bundles all `?url` imports as JS modules with a single,
 	 * base64 export. blueprints.phar is too large for that. We need to preserve it
 	 * as an actual file.
