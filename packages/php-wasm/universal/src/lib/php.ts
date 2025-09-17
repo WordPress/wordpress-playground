@@ -22,6 +22,7 @@ import {
 	getFunctionsMaybeMissingFromAsyncify,
 	improveWASMErrorReporting,
 } from './wasm-error-reporting';
+import { isPathToSharedFS } from './proxy-file-system';
 
 const STRING = 'string';
 const NUMBER = 'number';
@@ -1364,9 +1365,11 @@ export class PHP implements Disposable {
 			this.setSapiName(this.#sapiName);
 		}
 
-		// TODO: Only copy the /internal directory if it's not a shared filesystem.
-		// Copy the old /internal directory to the new filesystem
-		copyFS(oldFS, this[__private__dont__use].FS, '/internal');
+		if (!isPathToSharedFS(oldFS, '/internal')) {
+			// Since the underlying filesystem is not shared, we need to copy
+			// the old /internal directory to the new filesystem
+			copyFS(oldFS, this[__private__dont__use].FS, '/internal');
+		}
 
 		// Copy the MEMFS directory structure from the old FS to the new one
 		if (cwd) {
