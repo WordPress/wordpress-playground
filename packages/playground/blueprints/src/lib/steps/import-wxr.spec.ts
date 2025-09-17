@@ -11,6 +11,7 @@ import type { PHPRequestHandler } from '@php-wasm/universal';
 import { bootWordPress } from '@wp-playground/wordpress';
 import { loadNodeRuntime } from '@php-wasm/node';
 import { CorePluginResource } from '../resources';
+import { resetData } from './reset-data';
 
 describe('Blueprint step importWxr', () => {
 	let php: PHP;
@@ -237,5 +238,75 @@ describe('Blueprint step importWxr', () => {
 <!-- /wp:paragraph -->`;
 
 		expect(json.post_content).toEqual(expectedPostContent);
+	});
+
+	it('Should replace all post authors with admin user', async () => {
+		const fileData = await readFile(
+			__dirname + '/fixtures/import-wxr-comprehensive.xml'
+		);
+		const file = new File([fileData], 'import.wxr');
+
+		await resetData(php, {});
+		await importWxr(php, { file });
+
+		const result = await php.run({
+			code: `<?php
+			require getenv('DOCROOT') . '/wp-load.php';
+			
+			// Get all imported posts
+			$posts = get_posts([
+				'post_type' => ['post', 'page'],
+				'post_status' => 'any',
+				'numberposts' => -1,
+				'orderby' => 'ID',
+				'order' => 'ASC'
+			]);
+			
+			// Get admin user info
+			$admin_user = get_user_by('login', 'admin');
+			
+			$post_authors = [];
+			foreach ($posts as $post) {
+				$author = get_user_by('ID', $post->post_author);
+				$post_authors[] = [
+					'post_id' => $post->ID,
+					'post_title' => $post->post_title,
+					'post_type' => $post->post_type,
+					'author_id' => $post->post_author,
+					'author_login' => $author ? $author->user_login : null,
+					'author_display_name' => $author ? $author->display_name : null,
+				];
+			}
+			
+			echo json_encode([
+				'admin_user_id' => $admin_user ? $admin_user->ID : null,
+				'admin_user_login' => $admin_user ? $admin_user->user_login : null,
+				'total_posts' => count($posts),
+				'post_authors' => $post_authors,
+			]);
+			`,
+			env: {
+				DOCROOT: handler.documentRoot,
+			},
+		});
+		const json = result.json;
+
+		// Verify admin user exists
+		expect(json.admin_user_id).toBeTruthy();
+		expect(json.admin_user_login).toBe('admin');
+
+		// Verify we imported the expected posts (1 post + 1 page from comprehensive fixture)
+		expect(json.total_posts).toBe(2);
+
+		// Verify all imported posts are authored by admin
+		json.post_authors.forEach((postAuthor: any) => {
+			expect(postAuthor.author_id).toBe(json.admin_user_id + '');
+			expect(postAuthor.author_login).toBe('admin');
+		});
+
+		// Verify specific posts exist with correct titles
+		const postTitles = json.post_authors.map((p: any) => p.post_title);
+		expect(postTitles).toContain('Comprehensive Post');
+		expect(postTitles).toContain('Comprehensive Page');
 	});
 });

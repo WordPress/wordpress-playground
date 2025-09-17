@@ -78,6 +78,11 @@ async function importWithDefaultImporter(
 	 */
 	kses_remove_filters();
 
+	// Set current user for the importer to pick it up as the default
+	// post author.
+	$admin_id = get_users(array('role' => 'Administrator') )[0]->ID;
+	wp_set_current_user( $admin_id );
+
 	$wp_import                  = new WP_Import();
 	$import_data                = $wp_import->parse( getenv('IMPORT_FILE') );
 
