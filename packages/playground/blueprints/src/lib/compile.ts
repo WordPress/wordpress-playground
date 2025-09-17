@@ -286,9 +286,8 @@ function compileBlueprintJson(
 		blueprint.steps?.splice(importWxrStepIndex, 0, {
 			step: 'installPlugin',
 			pluginData: {
-				resource: 'url',
-				url: 'https://playground.wordpress.net/wordpress-importer.zip',
-				caption: 'Downloading the WordPress Importer plugin',
+				resource: 'wordpress.org/plugins',
+				slug: 'wordpress-importer',
 			},
 		});
 	}

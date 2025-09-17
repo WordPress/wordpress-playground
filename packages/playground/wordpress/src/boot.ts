@@ -262,15 +262,29 @@ export async function bootRequestHandler(options: BootRequestHandlerOptions) {
 		 * the filesystem there is the source of truth
 		 * for all other PHP instances.
 		 */
-		// TODO: Only write these files for the first PHP instance of the
-		// first worker created during WordPress boot
-		if (isPrimary) {
+		if (
+			isPrimary &&
+			/**
+			 * Only the first PHP instance of the first worker created
+			 * during WordPress boot writes these files – otherwise we'll keep
+			 * overwriting them with concurrent writers living in other worker
+			 * threads.
+			 *
+			 * The `.boot-files-written` file is our primitive synchronization
+			 * mechanism. It works, because secondary workers are only booted
+			 * once the primary worker has fully booted.
+			 */
+			!php.isFile('/internal/.boot-files-written')
+		) {
 			await setupPlatformLevelMuPlugins(php);
 			await writeFiles(php, '/', options.createFiles || {});
 			await preloadPhpInfoRoute(
 				php,
 				joinPaths(new URL(options.siteUrl).pathname, 'phpinfo.php')
 			);
+			await writeFiles(php, '/internal', {
+				'.boot-files-written': '',
+			});
 		}
 
 		// Spawn handler is responsible for spawning processes for all the
