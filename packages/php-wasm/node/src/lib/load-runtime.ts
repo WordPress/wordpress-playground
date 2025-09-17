@@ -151,10 +151,20 @@ export async function loadNodeRuntime(
 
 						const symlinkMountNode =
 							phpRuntime.FS.lookupPath(symlinkMountPath).node;
-						if (
+
+						/**
+						 * If another PHP instance has already resolved a symlink
+						 * to the same absolute path, a corresponding mount point will
+						 * exist in the shared filesystem, but we do not know whether
+						 * the target path has been mounted to this PHP's VFS.
+						 * If the VFS node at the symlink mount path has its own path
+						 * as the mount point, we know there is a mount at that path.
+						 */
+						const isSymlinkMounted =
 							symlinkMountNode.mount.mountpoint !==
-							symlinkMountPath
-						) {
+							symlinkMountPath;
+
+						if (!isSymlinkMounted) {
 							phpRuntime.FS.mount(
 								phpRuntime.FS.filesystems.NODEFS,
 								{ root: absoluteSourcePath },
