@@ -103,20 +103,32 @@ export async function resolve(
 		context.parentURL &&
 		context.parentURL.startsWith('file://')
 	) {
+		const [specifierPath, specifierSearchParams] = specifier.split('?');
+
 		const moduleDoingRelativeImport = fileURLToPath(context.parentURL!);
 		const relativeImportBase = dirname(moduleDoingRelativeImport);
 
-		let resolvedImportPath = resolvePath(relativeImportBase, specifier);
-
+		let resolvedImportPath = resolvePath(relativeImportBase, specifierPath);
 		if (
 			existsSync(resolvedImportPath) &&
 			lstatSync(resolvedImportPath).isDirectory()
 		) {
 			// This is a directory. Let's try the index file.
-			specifier = join(resolvedImportPath, 'index');
-		} else {
-			specifier = resolvedImportPath;
+			resolvedImportPath = join(resolvedImportPath, 'index');
 		}
+
+		const resolvedImportPathUrl = pathToFileURL(resolvedImportPath);
+
+		// Restore any search params used for customizing module resolution.
+		resolvedImportPathUrl.search = specifierSearchParams;
+
+		specifier = resolvedImportPathUrl.href;
+	}
+
+	if (!specifier.startsWith('file://')) {
+		// We've resolved aliases and relative paths, so let's assume anything that is not a
+		// file:// URL is outside our codebase and should be handled by the default resolver.
+		return nextResolve(specifier, context);
 	}
 
 	const specifierUrl = new URL(specifier, 'file://');
@@ -132,13 +144,15 @@ export async function resolve(
 	}
 
 	for (const extension of possibleModuleExtensions) {
-		const candidateFilePath = `${specifier}${extension}`;
+		const specifierPath = fileURLToPath(specifier);
+		const candidateFilePath = `${specifierPath}${extension}`;
 
 		if (
 			existsSync(candidateFilePath) &&
 			lstatSync(candidateFilePath).isFile()
 		) {
-			return nextResolve(candidateFilePath, context);
+			specifier = pathToFileURL(candidateFilePath).href;
+			return nextResolve(specifier, context);
 		}
 	}
 
