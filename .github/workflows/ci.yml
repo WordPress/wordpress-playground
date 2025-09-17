@@ -122,7 +122,11 @@ jobs:
                   MYSQL_USER: user
                   MYSQL_PASSWORD: password
     test-playground-cli:
-        runs-on: ubuntu-latest
+        strategy:
+            matrix:
+                os: [ubuntu-latest, windows-latest, macos-latest]
+        runs-on: ${{ matrix.os }}
+        name: 'test-playground-cli (${{ matrix.os }})'
         steps:
             - uses: actions/checkout@v4
               with:
