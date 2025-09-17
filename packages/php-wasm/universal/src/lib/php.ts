@@ -1365,11 +1365,11 @@ export class PHP implements Disposable {
 			this.setSapiName(this.#sapiName);
 		}
 
-		if (!isPathToSharedFS(oldFS, '/internal')) {
-			// Since the underlying filesystem is not shared, we need to copy
-			// the old /internal directory to the new filesystem
-			copyFS(oldFS, this[__private__dont__use].FS, '/internal');
-		}
+		// Since the underlying filesystem is not shared, we need to copy
+		// the old /internal directory to the new filesystem.
+		// This is safe, even when predominantly using NODEFS because
+		// copyFS only copies MEMFS nodes.
+		copyFS(oldFS, this[__private__dont__use].FS, '/internal');
 
 		// Copy the MEMFS directory structure from the old FS to the new one
 		if (cwd) {
