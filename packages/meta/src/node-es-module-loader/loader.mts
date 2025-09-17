@@ -1,5 +1,5 @@
 import { existsSync, readFileSync, lstatSync } from 'fs';
-import { fileURLToPath } from 'url';
+import { fileURLToPath, pathToFileURL } from 'url';
 import { join, resolve as resolvePath, dirname } from 'path';
 
 interface TsConfig {
@@ -23,12 +23,13 @@ const playgroundPackageRoot = resolvePath(
 	'..'
 );
 
-const aliasMap = new Map<string, string>();
+const aliasMap = new Map<string, URL>();
 for (const [alias, paths] of Object.entries(pathAliases)) {
 	// Our config is simple and doesn't use wildcards,
 	// so we can just use the first path
 	const resolvedPath = resolvePath(baseUrl, paths[0]);
-	aliasMap.set(alias, resolvedPath);
+	const resolvedPathUrl = pathToFileURL(resolvedPath);
+	aliasMap.set(alias, resolvedPathUrl);
 }
 
 interface ResolveContext {
@@ -52,17 +53,19 @@ export async function resolve(
 	) => Promise<ResolveResult>
 ): Promise<ResolveResult> {
 	// Resolve aliases to paths
-	for (const [alias, resolvedPath] of aliasMap.entries()) {
-		if (specifier === alias && resolvedPath.endsWith('.ts')) {
-			return nextResolve(resolvedPath, context);
+	for (const [alias, aliasTargetUrl] of aliasMap.entries()) {
+		if (specifier === alias && aliasTargetUrl.pathname.endsWith('.ts')) {
+			return nextResolve(aliasTargetUrl.href, context);
 		}
 
 		const aliasSubpathPrefix = `${alias}/`;
 		if (specifier.startsWith(aliasSubpathPrefix)) {
-			specifier = resolvePath(
-				resolvedPath,
+			const aliasTargetPath = fileURLToPath(aliasTargetUrl);
+			const resolvedPath = resolvePath(
+				aliasTargetPath,
 				`${specifier.slice(aliasSubpathPrefix.length)}`
 			);
+			specifier = pathToFileURL(resolvedPath).href;
 			break;
 		}
 	}
