@@ -1392,7 +1392,7 @@ export class PHP implements Disposable {
 				getNodeType(oldFS, path) === 'memfs' &&
 				['memfs', 'missing'].includes(getNodeType(newFs, path))
 			) {
-				copyFS(oldFS, newFs, path);
+				copyMEMFSNodes(oldFS, newFs, path);
 			}
 		}
 
@@ -1534,7 +1534,7 @@ export function normalizeHeaders(
  * Copies the MEMFS directory structure from one FS in another FS.
  * Non-MEMFS nodes are ignored.
  */
-function copyFS(
+function copyMEMFSNodes(
 	source: Emscripten.FileSystemInstance,
 	target: Emscripten.FileSystemInstance,
 	path: string
@@ -1576,7 +1576,7 @@ function copyFS(
 		.readdir(path)
 		.filter((name: string) => name !== '.' && name !== '..');
 	for (const filename of filenames) {
-		copyFS(source, target, joinPaths(path, filename));
+		copyMEMFSNodes(source, target, joinPaths(path, filename));
 	}
 }
 async function createInvertedReadableStream<T = BufferSource>(
