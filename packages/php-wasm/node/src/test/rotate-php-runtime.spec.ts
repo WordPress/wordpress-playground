@@ -111,7 +111,7 @@ describe.each([true, false])(
 
 			expect(recreateRuntimeSpy).toHaveBeenCalledTimes(1);
 
-			// Confirm the local NODEFS mount is lost
+			// Confirm the local NODEFS mount is not lost
 			expect(php.readFileAsText('/test-root/file')).toBe('playground');
 		});
 
