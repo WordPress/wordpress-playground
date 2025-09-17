@@ -101,10 +101,6 @@ async function importWithDefaultImporter(
 		'fetch_attachments' => $wp_import->fetch_attachments,
 	);
 
-	// if ( in_array( 'image_resize', $args['skip'], true ) ) {
-	// 	add_filter( 'intermediate_image_sizes_advanced', array( $this, 'filter_set_image_sizes' ) );
-	// }
-
 	$GLOBALS['wpcli_import_current_file'] = basename( $file );
 	$wp_import->import( getenv('IMPORT_FILE'), [
 		'rewrite_urls' => true,
