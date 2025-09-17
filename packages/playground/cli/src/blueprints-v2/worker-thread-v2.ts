@@ -34,7 +34,10 @@ import { MessageChannel, type MessagePort, parentPort } from 'worker_threads';
 import type { Mount } from '../mounts';
 import { jspi } from 'wasm-feature-detect';
 import { type RunCLIArgs } from '../run-cli';
-import type { PhpIniOptions } from '@wp-playground/wordpress';
+import type {
+	PhpIniOptions,
+	PHPInstanceCreatedHook,
+} from '@wp-playground/wordpress';
 
 async function mountResources(php: PHP, mounts: Mount[]) {
 	for (const mount of mounts) {
@@ -148,9 +151,7 @@ export type WorkerBootRequestHandlerOptions = Omit<
 	SecondaryWorkerBootArgs,
 	'mountsBeforeWpInstall' | 'mountsAfterWpInstall'
 > & {
-	onPHPInstanceCreated: Parameters<
-		typeof bootRequestHandler
-	>[0]['onPHPInstanceCreated'];
+	onPHPInstanceCreated: PHPInstanceCreatedHook;
 };
 
 export class PlaygroundCliBlueprintV2Worker extends PHPWorker {

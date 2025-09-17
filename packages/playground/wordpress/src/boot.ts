@@ -32,14 +32,16 @@ export interface Hooks {
 	beforeDatabaseSetup?: Hook;
 }
 
+export type PHPInstanceCreatedHook = (
+	php: PHP,
+	{ isPrimary }: { isPrimary: boolean }
+) => Promise<void>;
+
 export type DatabaseType = 'sqlite' | 'mysql' | 'custom';
 
 export interface BootRequestHandlerOptions {
 	createPhpRuntime: (isPrimary?: boolean) => Promise<number>;
-	onPHPInstanceCreated?: (
-		php: PHP,
-		{ isPrimary }: { isPrimary: boolean }
-	) => Promise<void>;
+	onPHPInstanceCreated?: PHPInstanceCreatedHook;
 	/**
 	 * PHP SAPI name to be returned by get_sapi_name(). Overriding
 	 * it is useful for running programs that check for this value,
