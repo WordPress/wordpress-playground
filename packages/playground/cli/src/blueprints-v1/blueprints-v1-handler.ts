@@ -146,7 +146,7 @@ export class BlueprintsV1Handler {
 
 		await playground.useFileLockManager(fileLockManagerPort);
 		await playground.bootAsPrimaryWorker({
-			php: this.phpVersion,
+			phpVersion: this.phpVersion,
 			wpVersion: compiledBlueprint.versions.wp,
 			siteUrl: this.siteUrl,
 			mountsBeforeWpInstall,
@@ -197,7 +197,7 @@ export class BlueprintsV1Handler {
 		await additionalPlayground.isConnected();
 		await additionalPlayground.useFileLockManager(fileLockManagerPort);
 		await additionalPlayground.bootAsSecondaryWorker({
-			php: this.phpVersion!,
+			phpVersion: this.phpVersion!,
 			siteUrl: this.siteUrl,
 			mountsBeforeWpInstall: this.args['mount-before-install'] || [],
 			mountsAfterWpInstall: this.args['mount'] || [],

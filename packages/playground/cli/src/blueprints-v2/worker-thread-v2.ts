@@ -114,7 +114,7 @@ const output = {
 };
 
 export type PrimaryWorkerBootArgs = RunCLIArgs & {
-	php: SupportedPHPVersion;
+	phpVersion: SupportedPHPVersion;
 	siteUrl: string;
 	firstProcessId: number;
 	processIdSpaceLength: number;
@@ -131,7 +131,7 @@ type WorkerRunBlueprintArgs = RunCLIArgs & {
 export type SecondaryWorkerBootArgs = {
 	siteUrl: string;
 	allow?: string;
-	php: SupportedPHPVersion;
+	phpVersion: SupportedPHPVersion;
 	phpIniEntries?: PhpIniOptions;
 	constants?: Record<string, string | number | boolean | null>;
 	createFiles?: FileTree;
@@ -404,7 +404,7 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 	async bootRequestHandler({
 		siteUrl,
 		allow,
-		php,
+		phpVersion,
 		createFiles,
 		constants,
 		phpIniEntries,
@@ -436,7 +436,7 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 						nextProcessId = firstProcessId;
 					}
 
-					return await loadNodeRuntime(php!, {
+					return await loadNodeRuntime(phpVersion, {
 						emscriptenOptions: {
 							fileLockManager: this.fileLockManager!,
 							processId,

@@ -23,7 +23,7 @@ export interface Mount {
 }
 
 export type WorkerBootOptions = {
-	php: SupportedPHPVersion;
+	phpVersion: SupportedPHPVersion;
 	siteUrl: string;
 	mountsBeforeWpInstall: Array<Mount>;
 	mountsAfterWpInstall: Array<Mount>;
@@ -53,7 +53,7 @@ export type PrimaryWorkerBootOptions = WorkerBootOptions & {
 interface WorkerBootRequestHandlerOptions {
 	siteUrl: string;
 	allow?: string;
-	php: SupportedPHPVersion;
+	phpVersion: SupportedPHPVersion;
 	firstProcessId: number;
 	processIdSpaceLength: number;
 	trace: boolean;
@@ -123,7 +123,7 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 		siteUrl,
 		mountsBeforeWpInstall,
 		mountsAfterWpInstall,
-		php = RecommendedPHPVersion,
+		phpVersion: php = RecommendedPHPVersion,
 		wordPressZip,
 		sqliteIntegrationPluginZip,
 		firstProcessId,
@@ -228,7 +228,7 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 	async bootRequestHandler({
 		siteUrl,
 		allow,
-		php,
+		phpVersion,
 		firstProcessId,
 		processIdSpaceLength,
 		trace,
@@ -257,7 +257,7 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 						nextProcessId = firstProcessId;
 					}
 
-					return await loadNodeRuntime(php!, {
+					return await loadNodeRuntime(phpVersion, {
 						emscriptenOptions: {
 							fileLockManager: this.fileLockManager!,
 							processId,
