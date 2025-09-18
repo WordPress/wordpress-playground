@@ -6,13 +6,13 @@ import {
 	getWordPressModule,
 } from '@wp-playground/wordpress-builds';
 import { RecommendedPHPVersion } from '@wp-playground/common';
-import { bootWordPress } from '@wp-playground/wordpress';
+import { bootWordPressAndRequestHandler } from '@wp-playground/wordpress';
 import { loadNodeRuntime } from '@php-wasm/node';
 
 describe('Sync tests', () => {
 	let php: PHP;
 	beforeEach(async () => {
-		const handler = await bootWordPress({
+		const handler = await bootWordPressAndRequestHandler({
 			createPhpRuntime: async () =>
 				await loadNodeRuntime(RecommendedPHPVersion),
 			siteUrl: 'http://playground-domain/',
