@@ -26,7 +26,11 @@ import {
 	parseMountWithDelimiterArguments,
 } from './mounts';
 import { startServer } from './start-server';
-import type { Mount } from './blueprints-v1/worker-thread-v1';
+import type {
+	Mount,
+	PlaygroundCliBlueprintV1Worker,
+} from './blueprints-v1/worker-thread-v1';
+import type { PlaygroundCliBlueprintV2Worker } from './blueprints-v2/worker-thread-v2';
 import { FileLockManagerForNode } from '@php-wasm/node';
 import { LoadBalancer } from './load-balancer';
 /* eslint-disable no-console */
@@ -45,7 +49,6 @@ import {
 	cleanupStalePlaygroundTempDirs,
 	createPlaygroundCliTempDir,
 } from './temp-dir';
-import type { PlaygroundCliWorker } from './playground-cli-worker';
 
 // Inlined worker URLs for static analysis by downstream bundlers
 // These are replaced at build time by the Vite plugin in vite.config.ts
@@ -72,17 +75,8 @@ export async function parseOptionsAndRunCLI() {
 			.usage('Usage: wp-playground <command> [options]')
 			.positional('command', {
 				describe: 'Command to run',
-				choices: [
-					'server',
-					'run-blueprint',
-					'build-snapshot',
-					'run-script',
-				] as const,
+				choices: ['server', 'run-blueprint', 'build-snapshot'] as const,
 				demandOption: true,
-			})
-			.option('script', {
-				describe: 'PHP script to run',
-				type: 'string',
 			})
 			.option('outfile', {
 				describe: 'When building, write to this output file.',
@@ -360,14 +354,7 @@ export async function parseOptionsAndRunCLI() {
 
 		const command = args._[0] as string;
 
-		if (
-			![
-				'run-blueprint',
-				'server',
-				'build-snapshot',
-				'run-script',
-			].includes(command)
-		) {
+		if (!['run-blueprint', 'server', 'build-snapshot'].includes(command)) {
 			yargsObject.showHelp();
 			process.exit(1);
 		}
@@ -407,13 +394,12 @@ export async function parseOptionsAndRunCLI() {
 
 export interface RunCLIArgs {
 	blueprint?: BlueprintDeclaration | BlueprintBundle;
-	command: 'server' | 'run-blueprint' | 'build-snapshot' | 'run-script';
+	command: 'server' | 'run-blueprint' | 'build-snapshot';
 	debug?: boolean;
 	login?: boolean;
 	mount?: Mount[];
 	'mount-before-install'?: Mount[];
 	outfile?: string;
-	script?: string;
 	php?: SupportedPHPVersion;
 	port?: number;
 	'site-url'?: string;
@@ -449,6 +435,10 @@ export interface RunCLIArgs {
 	'truncate-new-site-directory'?: boolean;
 	allow?: string;
 }
+
+type PlaygroundCliWorker =
+	| PlaygroundCliBlueprintV1Worker
+	| PlaygroundCliBlueprintV2Worker;
 
 export interface RunCLIServer extends AsyncDisposable {
 	playground: RemoteAPI<PlaygroundCliWorker>;
@@ -703,18 +693,6 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 				} else if (args.command === 'run-blueprint') {
 					logger.log(`Blueprint executed`);
 					process.exit(0);
-				} else if (args.command === 'run-script') {
-					const exitCode = await playground.runCLIScript(
-						['php', args.script as string],
-						{
-							env: {
-								SHELL_PIPE: '0',
-							},
-						}
-					);
-					// Wait until the next tick before exiting to ensure the output is flushed.
-					await new Promise((resolve) => setTimeout(resolve, 0));
-					process.exit(exitCode);
 				}
 
 				if (
@@ -861,6 +839,7 @@ async function spawnWorkerThreads(
 						}
 					});
 					worker.once('error', function (e: Error) {
+						console.error(e);
 						const error = new Error(
 							`Worker failed to load worker. ${
 								e.message ? `Original error: ${e.message}` : ''
