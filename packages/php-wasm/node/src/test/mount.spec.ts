@@ -4,6 +4,7 @@ import { type ErrnoError } from '@php-wasm/universal';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import path, { dirname } from 'path';
 import fs from 'fs';
+import os from 'os';
 
 describe('Mounting', () => {
 	let php: PHP;
@@ -537,5 +538,94 @@ describe('Mounting', () => {
 				expect(php.isDir(directoryMountPoint)).toBe(true);
 			});
 		});
+	});
+
+	interface DirectoryTree {
+		[key: string]: string | DirectoryTree;
+	}
+
+	function createFsFiles(root: string, tree: DirectoryTree) {
+		for (const [key, value] of Object.entries(tree)) {
+			if (typeof value === 'string') {
+				fs.writeFileSync(path.join(root, key), value);
+			} else {
+				fs.mkdirSync(path.join(root, key));
+				createFsFiles(path.join(root, key), value);
+			}
+		}
+	}
+
+	it('Should support nested directory mounts', async () => {
+		const tempBase = fs.mkdtempSync(
+			path.join(os.tmpdir(), 'playground-nested-')
+		);
+		createFsFiles(tempBase, {
+			root: {
+				'long-post-body.txt': 'long post body',
+			},
+			'overlay-1': {
+				'hello.txt': 'hello from overlay',
+				sub: {
+					'inner.txt': 'inner',
+				},
+			},
+			'overlay-2': {
+				'greet.txt': 'hello from overlay2',
+				deep: {
+					'note.txt': 'deep note',
+				},
+			},
+		});
+
+		// Mount the base directory
+		await php.mount(
+			'/mount-test',
+			createNodeFsMountHandler(`${tempBase}/root`)
+		);
+
+		try {
+			expect(php.listFiles('/mount-test')).toEqual([
+				'long-post-body.txt',
+			]);
+
+			// Mount the first overlay at a non-existing subpath – a new
+			// directory will be created.
+			await php.mount(
+				`/mount-test/overlay-1`,
+				createNodeFsMountHandler(`${tempBase}/overlay-1`)
+			);
+			expect(php.listFiles('/mount-test')).toEqual([
+				'long-post-body.txt',
+				'overlay-1',
+			]);
+			expect(php.listFiles('/mount-test/overlay-1')).toEqual([
+				'hello.txt',
+				'sub',
+			]);
+
+			// List a `sub` directory in the first overlay.
+			expect(php.listFiles('/mount-test/overlay-1/sub')).toEqual([
+				'inner.txt',
+			]);
+
+			// Now, let's mount the second overlay at the `sub` directory
+			// we've just inspected...
+			await php.mount(
+				'/mount-test/overlay-1/sub',
+				createNodeFsMountHandler(`${tempBase}/overlay-2`)
+			);
+			// ...and confirm listing the files shows the files from the second overlay.
+			expect(php.listFiles('/mount-test/overlay-1/sub')).toEqual([
+				'deep',
+				'greet.txt',
+			]);
+
+			// Let's read one of the files just for good measure.
+			expect(
+				php.readFileAsText('/mount-test/overlay-1/sub/greet.txt')
+			).toBe('hello from overlay2');
+		} finally {
+			fs.rmSync(tempBase, { recursive: true, force: true });
+		}
 	});
 });

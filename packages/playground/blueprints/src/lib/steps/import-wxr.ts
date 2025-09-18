@@ -1,6 +1,5 @@
 import type { StepHandler, StepProgress } from '.';
 import { writeFile } from './write-file';
-import { phpVar } from '@php-wasm/util';
 import type { UniversalPHP } from '@php-wasm/universal';
 
 /**
@@ -61,48 +60,60 @@ async function importWithDefaultImporter(
 		path: '/tmp/import.wxr',
 		data: file,
 	});
-	const docroot = await playground.documentRoot;
 	await playground.run({
 		code: `<?php
-	require ${phpVar(docroot)} . '/wp-load.php';
-	require ${phpVar(docroot)} . '/wp-admin/includes/admin.php';
+	define('WP_LOAD_IMPORTERS', true);
+	require 'wp-load.php';
+	require 'wp-admin/includes/admin.php';
 
+	/**
+	 * Disable all kses filters to prevent content sanitization during import.
+	 * It messes up Playground URL scheme by mangling transforming code such as:
+	 *
+	 *     <a href="/scope:kind-quiet-lake/index.php">Test</a>
+	 *
+	 * into:
+	 *
+	 *     <a href="kind-quiet-lake/index.php">Test</a>
+	 */
 	kses_remove_filters();
+
+	// Set current user for the importer to pick it up as the default
+	// post author.
 	$admin_id = get_users(array('role' => 'Administrator') )[0]->ID;
 	wp_set_current_user( $admin_id );
-	$importer = new WXR_Importer( array(
-		'fetch_attachments' => true,
-		'default_author' => $admin_id
-	) );
-	$logger = new WP_Importer_Logger_CLI();
-	$importer->set_logger( $logger );
-	// Slashes from the imported content are lost if we don't call wp_slash here.
-	add_action( 'wp_insert_post_data', function( $data ) {
-		return wp_slash($data);
-	});
 
-	// Ensure that Site Editor templates are associated with the correct taxonomy.
-	function wp_playground_import_post_terms_handler( $terms, $post_id ) {
-		foreach ( $terms as $term ) {
-			if ( 'wp_theme' !== $term['taxonomy'] ) continue;
-			$post_term = get_term_by('slug', $term['slug'], $term['taxonomy'] );
-			if ( ! $post_term ) {
-				$post_term = wp_insert_term(
-					$term['slug'],
-					$term['taxonomy']
-				);
-				$term_id = $post_term['term_id'];
-			} else {
-				$term_id = $post_term->term_id;
-			}
-			wp_set_object_terms( $post_id, $term_id, $term['taxonomy']) ;
-		}
-		return $terms;
-	}
+	$wp_import                  = new WP_Import();
+	$import_data                = $wp_import->parse( getenv('IMPORT_FILE') );
 
-	add_filter( 'wp_import_post_terms', 'wp_playground_import_post_terms_handler', 10, 2 );
+	// Prepare the data to be used in process_author_mapping();
+	$wp_import->get_authors_from_import( $import_data );
 
-	$result = $importer->import( '/tmp/import.wxr' );
+	// We no longer need the original data, so unset to avoid using excess
+	// memory.
+	unset( $import_data );
+
+	// Drive the import
+	$wp_import->fetch_attachments = getenv('FETCH_ATTACHMENTS') === 'true';
+
+	$_GET  = array(
+		'import' => 'wordpress',
+		'step'   => 2,
+	);
+	$_POST = array(
+		'imported_authors'  => array(),
+		'user_map'          => array(),
+		'fetch_attachments' => $wp_import->fetch_attachments,
+	);
+
+	$GLOBALS['wpcli_import_current_file'] = basename( $file );
+	$wp_import->import( getenv('IMPORT_FILE'), [
+		'rewrite_urls' => true,
+	] );
 	`,
+		env: {
+			IMPORT_FILE: '/tmp/import.wxr',
+			FETCH_ATTACHMENTS: 'true',
+		},
 	});
 }

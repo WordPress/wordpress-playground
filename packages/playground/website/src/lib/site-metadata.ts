@@ -9,7 +9,7 @@
 
 import type {
 	Blueprint,
-	BlueprintDeclaration,
+	BlueprintV1Declaration,
 	PHPConstants,
 } from '@wp-playground/blueprints';
 import { compileBlueprint } from '@wp-playground/blueprints';
@@ -55,7 +55,7 @@ export interface SiteMetadata {
 
 	// @TODO: Accept any string as a php version?
 	runtimeConfiguration: Pick<
-		Required<BlueprintDeclaration>,
+		Required<BlueprintV1Declaration>,
 		'features' | 'extraLibraries' | 'preferredVersions'
 	> & {
 		constants?: PHPConstants;

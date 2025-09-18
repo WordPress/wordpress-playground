@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { runCLI } from '../src/run-cli';
-import type { RunCLIServer } from '../src/run-cli';
+import type { RunCLIArgs, RunCLIServer } from '../src/run-cli';
 import type { MockInstance } from 'vitest';
 import { vi } from 'vitest';
 import { mkdtemp, writeFile } from 'node:fs/promises';
@@ -14,6 +14,7 @@ import {
 	symlinkSync,
 	unlinkSync,
 	existsSync,
+	lstatSync,
 } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { MinifiedWordPressVersionsList } from '@wp-playground/wordpress-builds';
@@ -155,6 +156,11 @@ describe.each(blueprintVersions)(
 		test('should be able to follow external symlinks in primary and secondary PHP instances', async ({
 			skip,
 		}) => {
+			const testArgs: Partial<RunCLIArgs> =
+				version === 2
+					? { allow: 'follow-symlinks' }
+					: { followSymlinks: true };
+
 			if (version === 2) {
 				// @TODO: Fix this feature for Blueprints v2 (or fix the test if it is just a test issue)
 				skip();
@@ -186,9 +192,9 @@ describe.each(blueprintVersions)(
 				symlinkSync(tmpDir, symlinkPath);
 				cliServer = await runCLI({
 					...suiteCliArgs,
+					...testArgs,
 					debug: true,
 					command: 'server',
-					followSymlinks: true,
 					'mount-before-install': [
 						{
 							hostPath: symlinkPath,
@@ -224,6 +230,8 @@ describe.each(blueprintVersions)(
 				}
 			}
 		});
+
+		// TODO: Testing mounting NODEFS within a NODEFS mount
 
 		if (version === 2) {
 			// @TODO: Test modes
@@ -307,9 +315,36 @@ describe.each(blueprintVersions)(
 					`<title>${expectedHomePageTitle}</title>`
 				);
 			});
+
+			test('should put WordPress in the document root', async () => {
+				const tmpDir = await mkdtemp(
+					path.join(tmpdir(), 'playground-test-')
+				);
+
+				// Create a new site so we can load it as an existing site later.
+				cliServer = await runCLI({
+					...suiteCliArgs,
+					'site-url': 'http://playground-domain/',
+					'db-engine': 'sqlite',
+					command: 'server',
+					mode: 'create-new-site',
+					'mount-before-install': [
+						{
+							hostPath: tmpDir,
+							vfsPath: '/wordpress',
+						},
+					],
+				});
+				const wpContentDirPath = path.join(tmpDir, 'wp-content');
+				expect(await lstatSync(wpContentDirPath)?.isDirectory()).toBe(
+					true
+				);
+			}, 60000);
 		}
 
-		// @TODO: Also test with Blueprints v2.
+		// TODO: Test resolving absolute symlinks within a mounted dir with and without follow-symlinks
+		// TODO: Test resolving relative symlinks within a mounted dir with and without follow-symlinks
+
 		describe('auto-mount', () => {
 			const getDirectoryChecksum = async (dir: string) => {
 				const hash = createHash('sha256');
@@ -531,7 +566,7 @@ describe.each(blueprintVersions)(
 							'Running the Blueprint...',
 							'Finished running the blueprint',
 							expect.stringMatching(
-								/^WordPress is running on http:\/\/127\.0\.0\.1:\d+$/
+								/^WordPress is running on http:\/\/127\.0\.0\.1:\d+ with \d+ worker\(s\)$/
 							),
 						])
 					);

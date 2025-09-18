@@ -8,7 +8,7 @@ import type {
 } from '../../lib/state/redux/store';
 import { useAppSelector, useAppDispatch } from '../../lib/state/redux/store';
 import { addCrashListener, logger } from '@php-wasm/logger';
-import type { BlueprintDeclaration } from '@wp-playground/blueprints';
+import type { BlueprintV1Declaration } from '@wp-playground/blueprints';
 import { useState, useEffect, useRef } from 'react';
 import { acquireOAuthTokenIfNeeded } from '../../github/acquire-oauth-token-if-needed';
 import { GithubExportModal } from '../../github/github-export-form';
@@ -113,7 +113,7 @@ export function Layout() {
  * over other modals (e.g. connect to GitHub). Discuss whether modals should be declared at the
  * top level, like here, or contextual to where the "Show modal" button is rendered.
  */
-function Modals(blueprint: BlueprintDeclaration) {
+function Modals(blueprint: BlueprintV1Declaration) {
 	const dispatch: PlaygroundDispatch = useAppDispatch();
 
 	const query = new URL(document.location.href).searchParams;

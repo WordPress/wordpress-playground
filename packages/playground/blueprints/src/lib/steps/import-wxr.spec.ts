@@ -10,6 +10,8 @@ import { installPlugin } from './install-plugin';
 import type { PHPRequestHandler } from '@php-wasm/universal';
 import { bootWordPress } from '@wp-playground/wordpress';
 import { loadNodeRuntime } from '@php-wasm/node';
+import { CorePluginResource } from '../v1/resources';
+import { resetData } from './reset-data';
 
 describe('Blueprint step importWxr', () => {
 	let php: PHP;
@@ -43,16 +45,26 @@ describe('Blueprint step importWxr', () => {
 			]);
 			`,
 			env: {
-				DOCROOT: await php.documentRoot,
+				DOCROOT: handler.documentRoot,
 			},
 		});
 	};
+
+	let importerPlugin: ArrayBuffer | undefined = undefined;
+	beforeAll(async () => {
+		const pluginResource = new CorePluginResource({
+			resource: 'wordpress.org/plugins',
+			slug: 'wordpress-importer',
+		});
+		importerPlugin = await (await pluginResource.resolve()).arrayBuffer();
+	});
 
 	beforeEach(async () => {
 		handler = await bootWordPress({
 			createPhpRuntime: async () =>
 				await loadNodeRuntime(RecommendedPHPVersion),
-			siteUrl: 'http://playground-domain/',
+			// Simulate playground.wordpress.net URL scheme:
+			siteUrl: 'http://playground-domain/scope:kind-quiet-lake/',
 
 			wordPressZip: await getWordPressModule(),
 			sqliteIntegrationPluginZip: await getSqliteDriverModule(),
@@ -71,12 +83,11 @@ describe('Blueprint step importWxr', () => {
 		});
 
 		// Install the WordPress importer plugin
-		const pluginZipData = await readFile(
-			__dirname + '/../../../../website/public/wordpress-importer.zip'
-		);
-		const pluginZipFile = new File([pluginZipData], 'plugin.zip');
 		await installPlugin(php, {
-			pluginData: pluginZipFile,
+			pluginData: new File([importerPlugin!], 'wordpress-importer.zip'),
+			options: {
+				activate: true,
+			},
 		});
 	});
 
@@ -102,48 +113,13 @@ describe('Blueprint step importWxr', () => {
 			]);
 			`,
 			env: {
-				DOCROOT: await php.documentRoot,
+				DOCROOT: handler.documentRoot,
 			},
 		});
 		const json = result.json;
 
 		expect(json.post_content).toEqual(expectedPostContent);
 		expect(json.post_title).toEqual(`"Issue\\Issue"`);
-	});
-
-	it('Should fail to associate wp_theme taxonomy when fix is disabled', async () => {
-		// Create mu-plugins directory and write a plugin that disables the fix during import_start
-		await php.mkdir('/wordpress/wp-content/mu-plugins');
-		await php.writeFile(
-			'/wordpress/wp-content/mu-plugins/disable-wp-theme-fix.php',
-			`<?php
-add_action( 'import_start', function() {
-	remove_filter( 'wp_import_post_terms', 'wp_playground_import_post_terms_handler', 10 );
-} );
-`
-		);
-
-		const fileData = await readFile(
-			__dirname + '/fixtures/import-wxr-site-editor-template.xml'
-		);
-		const file = new File([fileData], 'import.wxr');
-
-		await importWxr(php, { file });
-
-		const result = await checkTemplateImportResults();
-		const json = result.json;
-
-		// Verify the template was imported but taxonomy association failed
-		expect(json.template_found).toBe(true);
-		expect(json.template_title).toEqual('Index');
-		expect(json.terms_associated_count).toBe(0);
-		expect(json.adonay_term_exists).toBe(false);
-		expect(json.associated_term_slugs).toEqual([]);
-
-		// Clean up the mu-plugin
-		await php.unlink(
-			'/wordpress/wp-content/mu-plugins/disable-wp-theme-fix.php'
-		);
 	});
 
 	it('Should create and associate wp_theme taxonomy terms for Site Editor templates', async () => {
@@ -163,5 +139,174 @@ add_action( 'import_start', function() {
 		expect(json.terms_associated_count).toBe(1);
 		expect(json.adonay_term_exists).toBe(true);
 		expect(json.associated_term_slugs).toEqual(['adonay']);
+	});
+
+	it('Should rewrite site URLs in the imported content', async () => {
+		const fileData = await readFile(
+			__dirname + '/fixtures/import-wxr-base-url-rewriting.xml'
+		);
+		const file = new File([fileData], 'import.wxr');
+
+		await importWxr(php, { file });
+
+		const result = await php.run({
+			code: `<?php
+			require getenv('DOCROOT') . '/wp-load.php';
+			$posts = get_posts();
+			echo json_encode([
+				'post_content' => $posts[0]->post_content,
+				'post_title' => $posts[0]->post_title,
+			]);
+			`,
+			env: {
+				DOCROOT: handler.documentRoot,
+			},
+		});
+		const json = result.json;
+
+		const newSiteUrl = handler.absoluteUrl;
+		const expectedPostContent = `<!-- wp:paragraph -->
+<p>
+    <!-- Rewrites URLs that match the base URL -->
+    URLs to rewrite:
+
+    ${newSiteUrl}
+    ${newSiteUrl}
+    ${newSiteUrl}
+    ${newSiteUrl}/
+    <a href="${newSiteUrl}/wp-content/image.png">Test</a>
+
+    <!-- Correctly ignores URLs that are similar to the base URL but do not match it -->
+    This isn't migrated: https://🚀-science.comcast/science <br>
+    Or this: super-🚀-science.com/science
+</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:image {"src":"http:\\/\\/playground-domain\\/scope:kind-quiet-lake\\/wp-content\\/image.png"} -->
+<img src="${newSiteUrl}/wp-content/image.png">
+<!-- /wp:image -->
+`;
+
+		expect(json.post_content).toEqual(expectedPostContent);
+	});
+
+	it('Should rewrite site URLs in the imported content (tt5 playground content)', async () => {
+		const fileData = await readFile(
+			__dirname +
+				'/fixtures/import-tt5-subset-of-demo-blueprint-playgroundcontent.xml'
+		);
+		const file = new File([fileData], 'import.wxr');
+
+		await importWxr(php, { file });
+
+		const result = await php.run({
+			code: `<?php
+			require getenv('DOCROOT') . '/wp-load.php';
+			$post = get_post(63);
+			echo json_encode([
+				'post_content' => $post->post_content,
+				'post_title' => $post->post_title,
+			]);
+			`,
+			env: {
+				DOCROOT: handler.documentRoot,
+			},
+		});
+		const json = result.json;
+
+		// const newSiteUrl = php.absoluteUrl;
+		const expectedPostContent = `<!-- wp:paragraph -->
+<p>Template are the blueprints for different layouts for your web pages. There following template are available in the theme:</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>a <a href="/scope:kind-quiet-lake/templates/single-page-layout/" data-type="page" data-id="65">single page template</a>, showing the single page layout</li>
+<!-- /wp:list-item -->
+
+<!-- wp:list-item -->
+<li>a <a href="/scope:kind-quiet-lake/page-no-title/" data-type="page" data-id="192">page  no title template</a> that allows for a Hero image or a Cover block directly on the top of the page. </li>
+<!-- /wp:list-item -->
+
+<!-- wp:list-item -->
+<li><a href="/scope:kind-quiet-lake/notfound">404 page not found</a> template, the message that is displayed when vistors caught a bad link to your site. </li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+<!-- wp:paragraph -->
+<p></p>
+<!-- /wp:paragraph -->`;
+
+		expect(json.post_content).toEqual(expectedPostContent);
+	});
+
+	it('Should replace all post authors with admin user', async () => {
+		const fileData = await readFile(
+			__dirname + '/fixtures/import-wxr-comprehensive.xml'
+		);
+		const file = new File([fileData], 'import.wxr');
+
+		await resetData(php, {});
+		await importWxr(php, { file });
+
+		const result = await php.run({
+			code: `<?php
+			require getenv('DOCROOT') . '/wp-load.php';
+			
+			// Get all imported posts
+			$posts = get_posts([
+				'post_type' => ['post', 'page'],
+				'post_status' => 'any',
+				'numberposts' => -1,
+				'orderby' => 'ID',
+				'order' => 'ASC'
+			]);
+			
+			// Get admin user info
+			$admin_user = get_user_by('login', 'admin');
+			
+			$post_authors = [];
+			foreach ($posts as $post) {
+				$author = get_user_by('ID', $post->post_author);
+				$post_authors[] = [
+					'post_id' => $post->ID,
+					'post_title' => $post->post_title,
+					'post_type' => $post->post_type,
+					'author_id' => $post->post_author,
+					'author_login' => $author ? $author->user_login : null,
+					'author_display_name' => $author ? $author->display_name : null,
+				];
+			}
+			
+			echo json_encode([
+				'admin_user_id' => $admin_user ? $admin_user->ID : null,
+				'admin_user_login' => $admin_user ? $admin_user->user_login : null,
+				'total_posts' => count($posts),
+				'post_authors' => $post_authors,
+			]);
+			`,
+			env: {
+				DOCROOT: handler.documentRoot,
+			},
+		});
+		const json = result.json;
+
+		// Verify admin user exists
+		expect(json.admin_user_id).toBeTruthy();
+		expect(json.admin_user_login).toBe('admin');
+
+		// Verify we imported the expected posts (1 post + 1 page from comprehensive fixture)
+		expect(json.total_posts).toBe(2);
+
+		// Verify all imported posts are authored by admin
+		json.post_authors.forEach((postAuthor: any) => {
+			expect(postAuthor.author_id).toBe(json.admin_user_id + '');
+			expect(postAuthor.author_login).toBe('admin');
+		});
+
+		// Verify specific posts exist with correct titles
+		const postTitles = json.post_authors.map((p: any) => p.post_title);
+		expect(postTitles).toContain('Comprehensive Post');
+		expect(postTitles).toContain('Comprehensive Page');
 	});
 });

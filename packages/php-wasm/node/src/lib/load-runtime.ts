@@ -57,6 +57,18 @@ type PHPLoaderOptionsForNode = PHPLoaderOptions & {
 		 * @param args - Arguments to the format string.
 		 */
 		trace?: (processId: number, format: string, ...args: any[]) => void;
+
+		/**
+		 * An optional object to pass to the PHP-WASM library's `init` function.
+		 *
+		 * phpWasmInitOptions.nativeInternalDirPath is used to mount a
+		 * real, native directory as the php-wasm /internal directory.
+		 *
+		 * @see https://github.com/php-wasm/php-wasm/blob/main/compile/php/phpwasm-emscripten-library.js#L100
+		 */
+		phpWasmInitOptions?: {
+			nativeInternalDirPath?: string;
+		};
 	};
 };
 
@@ -111,32 +123,56 @@ export async function loadNodeRuntime(
 								phpRuntime.FS.filesystems.NODEFS.realPath(node)
 							)
 						);
-					const symlinkPath = joinPaths(
+					const symlinkMountPath = joinPaths(
 						`/internal/symlinks`,
 						absoluteSourcePath
 					);
-					if (
-						!FSHelpers.fileExists(phpRuntime.FS, symlinkPath) &&
-						fs.existsSync(absoluteSourcePath)
-					) {
-						const sourceStat = fs.statSync(absoluteSourcePath);
-						if (sourceStat.isDirectory()) {
-							phpRuntime.FS.mkdirTree(symlinkPath);
-						} else if (sourceStat.isFile()) {
-							phpRuntime.FS.mkdirTree(dirname(symlinkPath));
-							phpRuntime.FS.writeFile(symlinkPath, '');
-						} else {
-							throw new Error(
-								'Unsupported file type. PHP-wasm supports only symlinks that link to files, directories, or symlinks.'
+					if (fs.existsSync(absoluteSourcePath)) {
+						if (
+							!FSHelpers.fileExists(
+								phpRuntime.FS,
+								symlinkMountPath
+							)
+						) {
+							const sourceStat = fs.statSync(absoluteSourcePath);
+							if (sourceStat.isDirectory()) {
+								phpRuntime.FS.mkdirTree(symlinkMountPath);
+							} else if (sourceStat.isFile()) {
+								phpRuntime.FS.mkdirTree(
+									dirname(symlinkMountPath)
+								);
+								phpRuntime.FS.writeFile(symlinkMountPath, '');
+							} else {
+								throw new Error(
+									'Unsupported file type. PHP-wasm supports only symlinks that link to files, directories, or symlinks.'
+								);
+							}
+						}
+
+						const symlinkMountNode =
+							phpRuntime.FS.lookupPath(symlinkMountPath).node;
+
+						/**
+						 * If another PHP instance has already resolved a symlink
+						 * to the same absolute path, a corresponding mount point will
+						 * exist in the shared filesystem, but we do not know whether
+						 * the target path has been mounted to this PHP's VFS.
+						 * If the VFS node at the symlink mount path has its own path
+						 * as the mount point, we know there is a mount at that path.
+						 */
+						const isSymlinkMounted =
+							symlinkMountNode.mount.mountpoint ===
+							symlinkMountPath;
+
+						if (!isSymlinkMounted) {
+							phpRuntime.FS.mount(
+								phpRuntime.FS.filesystems.NODEFS,
+								{ root: absoluteSourcePath },
+								symlinkMountPath
 							);
 						}
-						phpRuntime.FS.mount(
-							phpRuntime.FS.filesystems.NODEFS,
-							{ root: absoluteSourcePath },
-							symlinkPath
-						);
 					}
-					return symlinkPath;
+					return symlinkMountPath;
 				};
 			}
 

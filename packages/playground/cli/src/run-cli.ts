@@ -12,15 +12,11 @@ import {
 } from '@php-wasm/universal';
 import type {
 	BlueprintBundle,
-	BlueprintDeclaration,
+	BlueprintV1Declaration,
 } from '@wp-playground/blueprints';
 import { runBlueprintSteps } from '@wp-playground/blueprints';
-import {
-	RecommendedPHPVersion,
-	unzipFile,
-	zipDirectory,
-} from '@wp-playground/common';
-import fs from 'fs';
+import { RecommendedPHPVersion } from '@wp-playground/common';
+import fs, { mkdirSync } from 'fs';
 import type { Server } from 'http';
 import { MessageChannel as NodeMessageChannel, Worker } from 'worker_threads';
 // @ts-ignore
@@ -48,6 +44,11 @@ import { resolveBlueprint } from './resolve-blueprint';
 import { BlueprintsV2Handler } from './blueprints-v2/blueprints-v2-handler';
 import { BlueprintsV1Handler } from './blueprints-v1/blueprints-v1-handler';
 import { startBridge } from '@php-wasm/xdebug-bridge';
+import path from 'path';
+import {
+	cleanupStalePlaygroundTempDirs,
+	createPlaygroundCliTempDir,
+} from './temp-dir';
 
 // Inlined worker URLs for static analysis by downstream bundlers
 // These are replaced at build time by the Vite plugin in vite.config.ts
@@ -297,20 +298,6 @@ export async function parseOptionsAndRunCLI() {
 							'The --experimental-multi-worker flag must be a positive integer greater than 1.'
 						);
 					}
-
-					const isMountingWordPressDir = (mount: Mount) =>
-						mount.vfsPath === '/wordpress';
-					if (
-						!args.mount?.some(isMountingWordPressDir) &&
-						!(args['mount-before-install'] as any)?.some(
-							isMountingWordPressDir
-						)
-					) {
-						throw new Error(
-							'Please mount a real filesystem directory as the /wordpress directory before using the --experimental-multi-worker flag. For example: ' +
-								'--mount-dir-before-install ./empty-dir /wordpress'
-						);
-					}
 				}
 
 				if (args['experimental-blueprints-v2-runner'] === true) {
@@ -406,7 +393,7 @@ export async function parseOptionsAndRunCLI() {
 }
 
 export interface RunCLIArgs {
-	blueprint?: BlueprintDeclaration | BlueprintBundle;
+	blueprint?: BlueprintV1Declaration | BlueprintBundle;
 	command: 'server' | 'run-blueprint' | 'build-snapshot';
 	debug?: boolean;
 	login?: boolean;
@@ -537,6 +524,80 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 				Number.MAX_SAFE_INTEGER / totalWorkerCount
 			);
 
+			/*
+			 * Use a real temp dir as a target for the following Playground paths
+			 * so that multiple worker threads can share the same files.
+			 *  - /internal
+			 *  - /tmp
+			 *  - /wordpress
+			 *
+			 * Sharing the same files leads to faster boot times and uses less memory
+			 * because we don't have to create or maintain multiple copies of the same files.
+			 */
+			const tempDirNameDelimiter = '-playground-cli-site-';
+			const nativeDirPath = await createPlaygroundCliTempDir(
+				tempDirNameDelimiter
+			);
+
+			// We do not know the system temp dir,
+			// but we can try to infer from the location of the current temp dir.
+			const tempDirRoot = path.dirname(nativeDirPath);
+
+			const twoDaysInMillis = 2 * 24 * 60 * 60 * 1000;
+			const tempDirStaleAgeInMillis = twoDaysInMillis;
+
+			// NOTE: This is an async operation, but we do not care to block on it.
+			// Let's let the cleanup happen as the main thread has time.
+			cleanupStalePlaygroundTempDirs(
+				tempDirNameDelimiter,
+				tempDirStaleAgeInMillis,
+				tempDirRoot
+			);
+
+			// NOTE: We do not add mount declarations for /internal here
+			// because it will be mounted as part of php-wasm init.
+			const nativeInternalDirPath = path.join(nativeDirPath, 'internal');
+			mkdirSync(nativeInternalDirPath);
+
+			const userProvidableNativeSubdirs = [
+				'wordpress',
+				// Note: These dirs are from Emscripten's "default dirs" list:
+				// https://github.com/emscripten-core/emscripten/blob/f431ec220e472e1f8d3db6b52fe23fb377facf30/src/lib/libfs.js#L1400-L1402
+				//
+				// Any Playground process with multiple workers may assume
+				// these are part of a shared filesystem, so let's recognize
+				// them explicitly here.
+				'tmp',
+				'home',
+			];
+
+			for (const subdirName of userProvidableNativeSubdirs) {
+				const isMountingSubdirName = (mount: Mount) =>
+					mount.vfsPath === `/${subdirName}`;
+				const thisSubdirHasAMount =
+					args['mount-before-install']?.some(isMountingSubdirName) ||
+					args['mount']?.some(isMountingSubdirName);
+				if (!thisSubdirHasAMount) {
+					// The user hasn't requested mounting a different native dir for this path,
+					// so let's create a mount from within our native temp dir.
+					const nativeSubdirPath = path.join(
+						nativeDirPath,
+						subdirName
+					);
+					mkdirSync(nativeSubdirPath);
+
+					if (args['mount-before-install'] === undefined) {
+						args['mount-before-install'] = [];
+					}
+
+					// Make the real mount first so any further subdirs are mounted into it.
+					args['mount-before-install'].unshift({
+						vfsPath: `/${subdirName}`,
+						hostPath: nativeSubdirPath,
+					});
+				}
+			}
+
 			let handler: BlueprintsV1Handler | BlueprintsV2Handler;
 			if (args['experimental-blueprints-v2-runner']) {
 				handler = new BlueprintsV2Handler(args, {
@@ -594,7 +655,8 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 				// Boot the primary worker using the handler
 				playground = await handler.bootPrimaryWorker(
 					initialWorker.phpPort,
-					fileLockManagerPort
+					fileLockManagerPort,
+					nativeInternalDirPath
 				);
 				playgroundsToCleanUp.push({
 					playground,
@@ -636,13 +698,6 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 				) {
 					logger.log(`Preparing additional workers...`);
 
-					// Save /internal directory from initial worker so we can replicate it
-					// in each additional worker.
-					const internalZip = await zipDirectory(
-						playground,
-						'/internal'
-					);
-
 					// Boot additional workers using the handler
 					const initialWorkerProcessIdSpace = processIdSpaceLength;
 					await Promise.all(
@@ -659,6 +714,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 									worker,
 									fileLockManagerPort,
 									firstProcessId,
+									nativeInternalDirPath,
 								});
 
 							playgroundsToCleanUp.push({
@@ -666,28 +722,14 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 								worker: worker.worker,
 							});
 
-							// Replicate the Blueprint-initialized /internal directory
-							await additionalPlayground.writeFile(
-								'/tmp/internal.zip',
-								internalZip
-							);
-							await unzipFile(
-								additionalPlayground,
-								'/tmp/internal.zip',
-								'/internal'
-							);
-							await additionalPlayground.unlink(
-								'/tmp/internal.zip'
-							);
-
 							loadBalancer.addWorker(additionalPlayground);
 						})
 					);
-
-					logger.log(`Ready!`);
 				}
 
-				logger.log(`WordPress is running on ${serverUrl}`);
+				logger.log(
+					`WordPress is running on ${serverUrl} with ${totalWorkerCount} worker(s)`
+				);
 
 				if (args.experimentalDevtools && args.xdebug) {
 					const bridge = await startBridge({

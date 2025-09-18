@@ -2,7 +2,7 @@ import type { StepHandler } from '.';
 import type { InstallAssetOptions } from './install-asset';
 import { installAsset } from './install-asset';
 import { activateTheme } from './activate-theme';
-import type { Directory } from '../resources';
+import type { Directory } from '../v1/resources';
 import { importThemeStarterContent } from './import-theme-starter-content';
 import { zipNameToHumanName } from '../utils/zip-name-to-human-name';
 import { writeFiles } from '@php-wasm/universal';
