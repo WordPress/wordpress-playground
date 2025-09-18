@@ -22,12 +22,12 @@ RUN set -euxo pipefail && \
 RUN source /root/emsdk/emsdk_env.sh && \
     cd openssl-$OPENSSL_VERSION && \
     sed -i 's|^CROSS_COMPILE.*$|CROSS_COMPILE=|g' Makefile && \
-    export JSPI_FLAGS=$(if [ "$JSPI" = "1" ]; then echo "-sJSPI=1 -sSUPPORT_LONGJMP=wasm -fwasm-exceptions -sJSPI_IMPORTS=close,fd_close,wasm_close -sJSPI_EXPORTS=close,fd_close,wasm_close"; else echo ""; fi) && \
+    export JSPI_FLAGS=$(if [ "$JSPI" = "1" ]; then echo "-sSUPPORT_LONGJMP=wasm -fwasm-exceptions"; else echo ""; fi) && \
     EMCC_FLAGS=" -sSIDE_MODULE $JSPI_FLAGS" EMCC_SKIP="-lz" emmake make -j 12 build_generated libssl.a libcrypto.a;
 
 RUN source /root/emsdk/emsdk_env.sh && \
     cd openssl-$OPENSSL_VERSION && \
-    export JSPI_FLAGS=$(if [ "$JSPI" = "1" ]; then echo "-sJSPI=1 -sJSPI_IMPORTS=close -sJSPI_EXPORTS=close,fd_close,wasm_close -sSUPPORT_LONGJMP=wasm -fwasm-exceptions"; else echo ""; fi) && \
+    export JSPI_FLAGS=$(if [ "$JSPI" = "1" ]; then echo "-sSUPPORT_LONGJMP=wasm -fwasm-exceptions"; else echo ""; fi) && \
     cp -RL include/openssl /root/lib/include && \
     cp libcrypto.a libssl.a /root/lib/lib && \
     EMCC_FLAGS=" -sSIDE_MODULE $JSPI_FLAGS" EMCC_SKIP="-lz" emmake make install_sw || true;

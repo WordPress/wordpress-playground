@@ -11,6 +11,6 @@ RUN source /root/emsdk/emsdk_env.sh && \
     emconfigure ./configure --prefix=/root/lib && \
     # emmake make fails, but only after it builds the library files.
     # Let's just ignore the errors and proceed with the built libraries.
-    export JSPI_FLAGS=$(if [ "$JSPI" = "1" ]; then echo "-sJSPI=1 -sJSPI_IMPORTS=close,fd_close,wasm_close -sJSPI_EXPORTS=close,fd_close,wasm_close -sSUPPORT_LONGJMP=wasm -fwasm-exceptions"; else echo ""; fi) && \
+    export JSPI_FLAGS=$(if [ "$JSPI" = "1" ]; then echo "-sSUPPORT_LONGJMP=wasm -fwasm-exceptions"; else echo ""; fi) && \
     (EMCC_FLAGS=" -D__x86_64__ -sSIDE_MODULE $JSPI_FLAGS" emmake make || true) && \
     EMCC_FLAGS=" -D__x86_64__ -sSIDE_MODULE $JSPI_FLAGS" emmake make install
