@@ -345,6 +345,7 @@ function playground_get_custom_response_headers( $requested_path ) {
 				'logger.php',
 				'oauth.php',
 				'wp-cli.phar',
+				'wordpress-importer.zip',
 			),
 			true
 		)
