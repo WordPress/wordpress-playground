@@ -307,6 +307,7 @@ function compileBlueprintJson(
 		throw e;
 	}
 
+	console.log('Valueda');
 	onBlueprintValidated(blueprint);
 
 	const steps = (blueprint.steps || []) as StepDefinition[];

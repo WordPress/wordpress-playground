@@ -29,7 +29,6 @@ import type {
 	Blueprint,
 	BlueprintV1Declaration,
 	OnStepCompleted,
-	StepDefinition,
 } from '@wp-playground/blueprints';
 import { compileBlueprint, runBlueprintSteps } from '@wp-playground/blueprints';
 import { consumeAPI } from '@php-wasm/web';
@@ -47,10 +46,7 @@ export interface StartPlaygroundOptions {
 	disableProgressBar?: boolean;
 	blueprint?: Blueprint;
 	onBlueprintStepCompleted?: OnStepCompleted;
-	// BC
-	onBlueprintValidated?: (
-		blueprint: BlueprintV1Declaration & { steps: StepDefinition[] }
-	) => void;
+	onBlueprintValidated?: (blueprint: BlueprintV1Declaration) => void;
 	/**
 	 * Called when the playground client is connected, but before the blueprint
 	 * steps are run.
@@ -107,6 +103,7 @@ export async function startPlaygroundWeb({
 	progressTracker = new ProgressTracker(),
 	disableProgressBar,
 	onBlueprintStepCompleted,
+	onBlueprintValidated,
 	onClientConnected = () => {},
 	sapiName,
 	mounts,
@@ -131,6 +128,7 @@ export async function startPlaygroundWeb({
 	const compiled = await compileBlueprint(blueprint, {
 		progress: progressTracker.stage(0.5),
 		onStepCompleted: onBlueprintStepCompleted,
+		onBlueprintValidated,
 		corsProxy,
 	});
 

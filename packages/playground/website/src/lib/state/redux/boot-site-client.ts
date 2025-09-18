@@ -119,7 +119,7 @@ export function bootSiteClient(
 				// code, password, URLs are never sent anywhere.
 				onBlueprintValidated: (blueprint) => {
 					for (const step of blueprint.steps || []) {
-						if (typeof step === 'object' && step.step) {
+						if (typeof step === 'object' && step?.step) {
 							logTrackingEvent('step', { step: step.step });
 						}
 					}
