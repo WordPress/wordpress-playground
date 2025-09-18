@@ -11,11 +11,11 @@ import type { Step, StepDefinition, WriteFileStep } from '../steps';
 import * as allStepHandlers from '../steps/handlers';
 import type {
 	BlueprintV1Declaration,
-	BlueprintBundle,
 	ExtraLibrary,
 	StreamBundledFile,
-	Blueprint,
+	BlueprintV1,
 } from './types';
+import type { BlueprintBundle } from '../types';
 import { logger } from '@php-wasm/logger';
 
 // @TODO: Configure this in the `wp-cli` step, not here.
@@ -42,9 +42,9 @@ const keyedStepHandlers = {
 import blueprintValidator from '../../../public/blueprint-schema-validator';
 import { defaultWpCliPath, defaultWpCliResource } from '../steps/wp-cli';
 
-export type CompiledStep = (php: UniversalPHP) => Promise<void> | void;
+export type CompiledV1Step = (php: UniversalPHP) => Promise<void> | void;
 
-export interface CompiledBlueprint {
+export interface CompiledBlueprintV1 {
 	/** The requested versions of PHP and WordPress for the blueprint */
 	versions: {
 		php: SupportedPHPVersion;
@@ -62,7 +62,7 @@ export interface CompiledBlueprint {
 
 export type OnStepCompleted = (output: any, step: StepDefinition) => any;
 
-export interface CompileBlueprintOptions {
+export interface CompileBlueprintV1Options {
 	/** Optional progress tracker to monitor progress */
 	progress?: ProgressTracker;
 	/** Optional semaphore to control access to a shared resource */
@@ -87,11 +87,11 @@ export interface CompileBlueprintOptions {
 	additionalSteps?: any[];
 }
 
-export async function compileBlueprint(
+export async function compileBlueprintV1(
 	input: BlueprintV1Declaration | BlueprintBundle,
-	options: Omit<CompileBlueprintOptions, 'streamBundledFile'> = {}
-): Promise<CompiledBlueprint> {
-	const finalOptions: CompileBlueprintOptions = {
+	options: Omit<CompileBlueprintV1Options, 'streamBundledFile'> = {}
+): Promise<CompiledBlueprintV1> {
+	const finalOptions: CompileBlueprintV1Options = {
 		...options,
 	};
 
@@ -113,7 +113,7 @@ export function isBlueprintBundle(input: any): input is BlueprintBundle {
 }
 
 export async function getBlueprintDeclaration(
-	blueprint: Blueprint
+	blueprint: BlueprintV1 | BlueprintBundle
 ): Promise<BlueprintV1Declaration> {
 	if (!isBlueprintBundle(blueprint)) {
 		return blueprint;
@@ -140,8 +140,8 @@ function compileBlueprintJson(
 		corsProxy,
 		streamBundledFile,
 		additionalSteps,
-	}: CompileBlueprintOptions = {}
-): CompiledBlueprint {
+	}: CompileBlueprintV1Options = {}
+): CompiledBlueprintV1 {
 	blueprint = structuredClone(blueprint);
 
 	blueprint = {
@@ -502,7 +502,7 @@ interface CompileStepArgsOptions {
 	/**
 	 * Proxy URL to use for cross-origin requests.
 	 *
-	 * @see CompileBlueprintOptions.corsProxy
+	 * @see CompileBlueprintV1Options.corsProxy
 	 */
 	corsProxy?: string;
 	/**
@@ -528,7 +528,7 @@ function compileStep<S extends StepDefinition>(
 		corsProxy,
 		streamBundledFile,
 	}: CompileStepArgsOptions
-): { run: CompiledStep; step: S; resources: Array<Resource<any>> } {
+): { run: CompiledV1Step; step: S; resources: Array<Resource<any>> } {
 	const stepProgress = rootProgressTracker.stage(
 		(step.progress?.weight || 1) / totalProgressWeight
 	);
@@ -615,8 +615,8 @@ async function resolveArguments<T extends Record<string, unknown>>(args: T) {
 	return resolved;
 }
 
-export async function runBlueprintSteps(
-	compiledBlueprint: CompiledBlueprint,
+export async function runBlueprintV1Steps(
+	compiledBlueprint: CompiledBlueprintV1,
 	playground: UniversalPHP
 ) {
 	await compiledBlueprint.run(playground);

@@ -14,7 +14,7 @@ import type {
 	BlueprintBundle,
 	BlueprintV1Declaration,
 } from '@wp-playground/blueprints';
-import { runBlueprintSteps } from '@wp-playground/blueprints';
+import { runBlueprintV1Steps } from '@wp-playground/blueprints';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import fs, { mkdirSync } from 'fs';
 import type { Server } from 'http';
@@ -678,7 +678,10 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 
 					if (compiledBlueprint) {
 						logger.log(`Running the Blueprint...`);
-						await runBlueprintSteps(compiledBlueprint, playground);
+						await runBlueprintV1Steps(
+							compiledBlueprint,
+							playground
+						);
 						logger.log(`Finished running the blueprint`);
 					}
 				}

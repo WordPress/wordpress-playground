@@ -6,7 +6,10 @@ import type {
 	BlueprintBundle,
 	BlueprintV1Declaration,
 } from '@wp-playground/blueprints';
-import { compileBlueprint, isBlueprintBundle } from '@wp-playground/blueprints';
+import {
+	compileBlueprintV1,
+	isBlueprintBundle,
+} from '@wp-playground/blueprints';
 import { RecommendedPHPVersion, zipDirectory } from '@wp-playground/common';
 import fs from 'fs';
 import path from 'path';
@@ -255,7 +258,7 @@ export class BlueprintsV1Handler {
 				progressReached100
 			);
 		});
-		return await compileBlueprint(blueprint as BlueprintV1Declaration, {
+		return await compileBlueprintV1(blueprint as BlueprintV1Declaration, {
 			progress: tracker,
 			additionalSteps: additionalBlueprintSteps,
 		});

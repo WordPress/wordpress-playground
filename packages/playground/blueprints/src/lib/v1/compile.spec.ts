@@ -1,7 +1,7 @@
 import { PHP } from '@php-wasm/universal';
 import {
-	compileBlueprint,
-	runBlueprintSteps,
+	compileBlueprintV1,
+	runBlueprintV1Steps,
 	validateBlueprint,
 } from './compile';
 import { defineWpConfigConsts } from '../steps/define-wp-config-consts';
@@ -26,8 +26,8 @@ describe('Blueprints', () => {
 	});
 
 	it('should run a basic blueprint', async () => {
-		await runBlueprintSteps(
-			await compileBlueprint({
+		await runBlueprintV1Steps(
+			await compileBlueprintV1({
 				steps: [
 					{
 						step: 'writeFile',
@@ -84,8 +84,8 @@ describe('Blueprints', () => {
 	});
 
 	it('Should boot with WP-CLI support if the wpCli feature is enabled', async () => {
-		await runBlueprintSteps(
-			await compileBlueprint({
+		await runBlueprintV1Steps(
+			await compileBlueprintV1({
 				extraLibraries: ['wp-cli'],
 			}),
 			php
@@ -101,9 +101,9 @@ describe('Blueprints', () => {
 		);
 		const zipData = fs.readFileSync(zipPath).buffer;
 		const zipBundle = ZipFilesystem.fromArrayBuffer(zipData);
-		const compiledBlueprint = await compileBlueprint(zipBundle);
+		const compiledBlueprint = await compileBlueprintV1(zipBundle);
 
-		await runBlueprintSteps(compiledBlueprint, php);
+		await runBlueprintV1Steps(compiledBlueprint, php);
 
 		expect(php.fileExists('/index.php')).toBe(true);
 		expect(php.readFileAsText('/index.php')).toContain('<?php echo');
@@ -130,9 +130,9 @@ describe('Blueprints', () => {
 				],
 			}),
 		});
-		const compiledBlueprint = await compileBlueprint(fileTreeBundle);
+		const compiledBlueprint = await compileBlueprintV1(fileTreeBundle);
 
-		await runBlueprintSteps(compiledBlueprint, php);
+		await runBlueprintV1Steps(compiledBlueprint, php);
 
 		expect(php.fileExists('/text_file.txt')).toBe(true);
 		expect(php.readFileAsText('/text_file.txt')).toContain(

@@ -25,7 +25,8 @@ export {
 export { phpVar, phpVars } from '@php-wasm/util';
 export type { PlaygroundClient, MountDescriptor };
 
-import type { Blueprint, OnStepCompleted } from '@wp-playground/blueprints';
+import type { BlueprintV1, OnStepCompleted } from '@wp-playground/blueprints';
+import { consumeAPI } from '@php-wasm/web';
 import { ProgressTracker } from '@php-wasm/progress';
 import type { MountDescriptor, PlaygroundClient } from '@wp-playground/remote';
 import { additionalRemoteOrigins } from './additional-remote-origins';
@@ -38,7 +39,7 @@ export interface StartPlaygroundOptions {
 	remoteUrl: string;
 	progressTracker?: ProgressTracker;
 	disableProgressBar?: boolean;
-	blueprint?: Blueprint;
+	blueprint?: BlueprintV1;
 	onBlueprintStepCompleted?: OnStepCompleted;
 	/**
 	 * Called when the playground client is connected, but before the blueprint
