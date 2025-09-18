@@ -10,7 +10,7 @@ import { installPlugin } from './install-plugin';
 import type { PHPRequestHandler } from '@php-wasm/universal';
 import { bootWordPress } from '@wp-playground/wordpress';
 import { loadNodeRuntime } from '@php-wasm/node';
-import { CorePluginResource } from '../resources';
+import { CorePluginResource } from '../v1/resources';
 import { resetData } from './reset-data';
 
 describe('Blueprint step importWxr', () => {

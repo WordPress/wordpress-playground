@@ -11,12 +11,22 @@ export type {
 	Blueprint,
 	BlueprintBundle,
 	BlueprintDeclaration,
+<<<<<<< HEAD
 } from './lib/types';
+=======
+	PHPConstants,
+} from './lib/v1/types';
+>>>>>>> trunk
 export {
 	BlueprintReflection,
 	isBlueprintBundle,
+<<<<<<< HEAD
 	getBlueprintDeclaration,
 } from './lib/reflection';
+=======
+	runBlueprintSteps,
+} from './lib/v1/compile';
+>>>>>>> trunk
 export type {
 	CompileBlueprintOptions,
 	CompiledBlueprintV1,
