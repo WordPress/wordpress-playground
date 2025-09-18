@@ -7,8 +7,8 @@ import type {
 	BlueprintV1Declaration,
 } from '@wp-playground/blueprints';
 import {
+	BlueprintReflection,
 	compileBlueprintV1,
-	isBlueprintBundle,
 } from '@wp-playground/blueprints';
 import { RecommendedPHPVersion, zipDirectory } from '@wp-playground/common';
 import { resolveWordPressRelease } from '@wp-playground/wordpress';
@@ -219,24 +219,25 @@ export class BlueprintsV1Handler {
 		 * 		 Also the Blueprint Builder tool does something similar.
 		 *       Perhaps all these cases could be handled by the same function?
 		 */
-		const blueprint: BlueprintV1Declaration | BlueprintBundle =
-			isBlueprintBundle(resolvedBlueprint)
-				? resolvedBlueprint
-				: {
-						login: args.login,
-						...(resolvedBlueprint || {}),
-						preferredVersions: {
-							php:
-								args.php ??
-								resolvedBlueprint?.preferredVersions?.php ??
-								RecommendedPHPVersion,
-							wp:
-								args.wp ??
-								resolvedBlueprint?.preferredVersions?.wp ??
-								'latest',
-							...(resolvedBlueprint?.preferredVersions || {}),
-						},
-				  };
+		const blueprint: BlueprintV1Declaration | BlueprintBundle = (
+			await BlueprintReflection.create(resolvedBlueprint)
+		).getBundle()
+			? resolvedBlueprint
+			: {
+					login: args.login,
+					...(resolvedBlueprint || {}),
+					preferredVersions: {
+						php:
+							args.php ??
+							resolvedBlueprint?.preferredVersions?.php ??
+							RecommendedPHPVersion,
+						wp:
+							args.wp ??
+							resolvedBlueprint?.preferredVersions?.wp ??
+							'latest',
+						...(resolvedBlueprint?.preferredVersions || {}),
+					},
+			  };
 
 		const tracker = new ProgressTracker();
 		let lastCaption = '';

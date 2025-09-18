@@ -10,7 +10,7 @@ import type { SiteMetadata } from '../../site-metadata';
 import type { SiteInfo } from '../redux/slice-sites';
 import { joinPaths } from '@php-wasm/util';
 import { logger } from '@php-wasm/logger';
-import { getBlueprintDeclaration } from '@wp-playground/blueprints';
+import { BlueprintReflection } from '@wp-playground/blueprints';
 
 const ROOT_PATH = '/sites';
 // TODO: Decide on metadata filename
@@ -155,7 +155,10 @@ async function metadataToStoredFormat(
 	return JSON.stringify(
 		{
 			slug,
-			originalBlueprint: await getBlueprintDeclaration(originalBlueprint),
+			// @TODO: Store even if it's a binary bundle.
+			originalBlueprint: (
+				await BlueprintReflection.create(originalBlueprint)
+			).getDeclaration(),
 			...metadata,
 		},
 		undefined,
