@@ -9,6 +9,7 @@
 
 import type {
 	Blueprint,
+	BlueprintV1,
 	BlueprintV1Declaration,
 	PHPConstants,
 } from '@wp-playground/blueprints';
@@ -60,7 +61,7 @@ export interface SiteMetadata {
 	> & {
 		constants?: PHPConstants;
 	};
-	originalBlueprint: Blueprint;
+	originalBlueprint: BlueprintV1;
 	originalBlueprintSource: BlueprintSource;
 }
 
