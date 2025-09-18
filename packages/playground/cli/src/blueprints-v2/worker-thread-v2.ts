@@ -23,8 +23,8 @@ import {
 	runBlueprintV2,
 } from '@wp-playground/blueprints';
 import {
-	type ParsedBlueprintV2Declaration,
-	type BlueprintV2Declaration,
+	type ParsedBlueprintV2String,
+	type RawBlueprintV2Data,
 } from '@wp-playground/blueprints';
 import { bootRequestHandler } from '@wp-playground/wordpress';
 import { existsSync } from 'fs';
@@ -122,13 +122,13 @@ export type PrimaryWorkerBootArgs = RunCLIArgs & {
 	firstProcessId: number;
 	processIdSpaceLength: number;
 	trace: boolean;
-	blueprint: BlueprintV2Declaration | ParsedBlueprintV2Declaration;
+	blueprint: RawBlueprintV2Data | ParsedBlueprintV2String;
 	nativeInternalDirPath: string;
 };
 
 type WorkerRunBlueprintArgs = RunCLIArgs & {
 	siteUrl: string;
-	blueprint: BlueprintV2Declaration | ParsedBlueprintV2Declaration;
+	blueprint: RawBlueprintV2Data | ParsedBlueprintV2String;
 };
 
 export type SecondaryWorkerBootArgs = {

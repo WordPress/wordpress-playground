@@ -12,7 +12,7 @@ import type {
 	BlueprintV1Declaration,
 	PHPConstants,
 } from '@wp-playground/blueprints';
-import { compileBlueprint } from '@wp-playground/blueprints';
+import { compileBlueprintV1 } from '@wp-playground/blueprints';
 import type { BlueprintSource } from './state/url/resolve-blueprint-from-url';
 import { resolveBlueprintFromURL } from './state/url/resolve-blueprint-from-url';
 
@@ -89,7 +89,7 @@ export async function createSiteMetadata(
 		blueprintSource = resolvedBlueprint.source;
 	}
 
-	const compiledBlueprint = await compileBlueprint(blueprint);
+	const compiledBlueprint = await compileBlueprintV1(blueprint);
 
 	return {
 		name,
