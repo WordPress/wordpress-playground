@@ -26,14 +26,12 @@ export { phpVar, phpVars } from '@php-wasm/util';
 export type { PlaygroundClient, MountDescriptor };
 
 import type { Blueprint, OnStepCompleted } from '@wp-playground/blueprints';
-import { compileBlueprint, runBlueprintSteps } from '@wp-playground/blueprints';
-import { consumeAPI } from '@php-wasm/web';
 import { ProgressTracker } from '@php-wasm/progress';
 import type { MountDescriptor, PlaygroundClient } from '@wp-playground/remote';
-import { collectPhpLogs, logger } from '@php-wasm/logger';
 import { additionalRemoteOrigins } from './additional-remote-origins';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { remoteDevServerHost, remoteDevServerPort } from '../../build-config';
+import { BlueprintsV1Handler } from './blueprints-v1-handler';
 
 export interface StartPlaygroundOptions {
 	iframe: HTMLIFrameElement;
@@ -91,21 +89,15 @@ export interface StartPlaygroundOptions {
  * @param options Options for loading the playground.
  * @returns A PlaygroundClient instance.
  */
-export async function startPlaygroundWeb({
-	iframe,
-	blueprint,
-	remoteUrl,
-	progressTracker = new ProgressTracker(),
-	disableProgressBar,
-	onBlueprintStepCompleted,
-	onClientConnected = () => {},
-	sapiName,
-	mounts,
-	scope,
-	corsProxy,
-	shouldInstallWordPress,
-	sqliteDriverVersion,
-}: StartPlaygroundOptions): Promise<PlaygroundClient> {
+export async function startPlaygroundWeb(
+	options: StartPlaygroundOptions
+): Promise<PlaygroundClient> {
+	const {
+		iframe,
+		progressTracker = new ProgressTracker(),
+		disableProgressBar,
+	} = options;
+	let { remoteUrl } = options;
 	assertLikelyCompatibleRemoteOrigin(remoteUrl);
 	allowStorageAccessByUserActivation(iframe);
 
@@ -114,59 +106,14 @@ export async function startPlaygroundWeb({
 	});
 	progressTracker.setCaption('Preparing WordPress');
 
-	// Set a default blueprint if none is provided.
-	if (!blueprint) {
-		blueprint = {};
-	}
-
-	const compiled = await compileBlueprint(blueprint, {
-		progress: progressTracker.stage(0.5),
-		onStepCompleted: onBlueprintStepCompleted,
-		corsProxy,
-	});
-
 	await new Promise((resolve) => {
 		iframe.src = remoteUrl;
 		iframe.addEventListener('load', resolve, false);
 	});
 
-	// Connect the Comlink API client to the remote worker,
-	// boot the playground, and run the blueprint steps.
-	const playground = consumeAPI<PlaygroundClient>(
-		iframe.contentWindow!,
-		iframe.ownerDocument!.defaultView!
-	) as PlaygroundClient;
-	await playground.isConnected();
-	progressTracker.pipe(playground);
-	const downloadPHPandWP = progressTracker.stage();
-	await playground.onDownloadProgress(downloadPHPandWP.loadingListener);
-	await playground.boot({
-		mounts,
-		sapiName,
-		scope: scope ?? Math.random().toFixed(16),
-		shouldInstallWordPress,
-		phpVersion: compiled.versions.php,
-		wpVersion: compiled.versions.wp,
-		withICU: compiled.features.intl,
-		withNetworking: compiled.features.networking,
-		corsProxyUrl: corsProxy,
-		sqliteDriverVersion,
-	});
-	await playground.isReady();
-	downloadPHPandWP.finish();
+	const handler = new BlueprintsV1Handler(options);
+	const playground = await handler.bootPlayground(iframe, progressTracker);
 
-	collectPhpLogs(logger, playground);
-	onClientConnected(playground);
-
-	await runBlueprintSteps(compiled, playground);
-	/**
-	 * Pre-fetch WordPress update checks to speed up the initial wp-admin load.
-	 *
-	 * @see https://github.com/WordPress/wordpress-playground/pull/2295
-	 */
-	if (compiled.features.networking) {
-		await playground.prefetchUpdateChecks();
-	}
 	progressTracker.finish();
 
 	return playground;
