@@ -7,9 +7,21 @@ export default defineConfig((env) =>
 		defineConfig({
 			assetsInclude: ['**/*.wasm', '**/*.so', '**/*.dat'],
 
-			logLevel: 'error',
-
 			plugins: [
+				{
+					name: 'virtual-index-page',
+					configureServer(server) {
+						server.middlewares.use((req, res, next) => {
+							if (req.url === '/') {
+								res.end(
+									`<!DOCTYPE html><html><head></head><body></body></html>`
+								);
+							} else {
+								next();
+							}
+						});
+					},
+				},
 				{
 					name: 'virtual-wasm-feature-detect',
 					resolveId(id) {
@@ -19,7 +31,7 @@ export default defineConfig((env) =>
 					load(id) {
 						if (id === 'virtual:wasm-feature-detect') {
 							return `export async function jspi() {
-									return ${!!process.env['JSPI']};
+									return ${process.env['JSPI'] === 'true'};
 								}`;
 						}
 						return null;

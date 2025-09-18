@@ -12,7 +12,9 @@ SupportedPHPVersions.forEach((phpVersion) => {
 	test.describe(`Intl - PHP ${phpVersion}`, () => {
 		test.beforeEach(async ({ page }) => {
 			page.on('console', (log) => console.log(log.text()));
+
 			await page.goto('/');
+
 			await page.addScriptTag({
 				type: 'module',
 				url: '/src/test/playwright/globals.ts',
@@ -34,7 +36,7 @@ SupportedPHPVersions.forEach((phpVersion) => {
 				php.exit();
 
 				return await response.stdoutText;
-			});
+			}, phpVersion);
 
 			test.expect(result).toEqual('bool(false)\nbool(false)\n');
 		});
@@ -56,7 +58,7 @@ SupportedPHPVersions.forEach((phpVersion) => {
 				php.exit();
 
 				return await response.stdoutText;
-			});
+			}, phpVersion);
 
 			test.expect(result).toEqual('bool(true)\nbool(true)\n');
 		});
@@ -76,7 +78,7 @@ SupportedPHPVersions.forEach((phpVersion) => {
 				php.exit();
 
 				return text;
-			});
+			}, phpVersion);
 
 			const expected = [
 				'extension=/internal/shared/extensions/intl.so',
@@ -98,7 +100,7 @@ SupportedPHPVersions.forEach((phpVersion) => {
 				php.exit();
 
 				return list;
-			});
+			}, phpVersion);
 
 			test.expect(result).toContain('icudt74l.dat');
 		});
@@ -123,7 +125,7 @@ SupportedPHPVersions.forEach((phpVersion) => {
 				php.exit();
 
 				return await response.stdoutText;
-			});
+			}, phpVersion);
 
 			test.expect(result).toEqual('$100.00100,00\xA0€');
 		});
@@ -153,7 +155,7 @@ SupportedPHPVersions.forEach((phpVersion) => {
 				php.exit();
 
 				return await response.stdoutText;
-			});
+			}, phpVersion);
 
 			test.expect(result).toEqual(
 				'array(3) {\n  ["Br"]=>\n  string(3) "Bar"\n  ["Bz"]=>\n  string(2) "Bz"\n  ["F"]=>\n  string(3) "Foo"\n}\n'
