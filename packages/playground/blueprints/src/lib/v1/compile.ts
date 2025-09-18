@@ -11,11 +11,11 @@ import type { Step, StepDefinition, WriteFileStep } from '../steps';
 import * as allStepHandlers from '../steps/handlers';
 import type {
 	BlueprintV1Declaration,
-	BlueprintBundle,
 	ExtraLibrary,
 	StreamBundledFile,
 	BlueprintV1,
 } from './types';
+import type { BlueprintBundle } from '../types';
 import { logger } from '@php-wasm/logger';
 
 // @TODO: Configure this in the `wp-cli` step, not here.
@@ -113,7 +113,7 @@ export function isBlueprintBundle(input: any): input is BlueprintBundle {
 }
 
 export async function getBlueprintDeclaration(
-	blueprint: BlueprintV1
+	blueprint: BlueprintV1 | BlueprintBundle
 ): Promise<BlueprintV1Declaration> {
 	if (!isBlueprintBundle(blueprint)) {
 		return blueprint;
