@@ -11,7 +11,10 @@ import {
 } from '@php-wasm/universal';
 import { sprintf } from '@php-wasm/util';
 import { RecommendedPHPVersion } from '@wp-playground/common';
-import { bootWordPress, bootRequestHandler } from '@wp-playground/wordpress';
+import {
+	bootRequestHandler,
+	bootWordPressAndRequestHandler,
+} from '@wp-playground/wordpress';
 import { rootCertificates } from 'tls';
 import { jspi } from 'wasm-feature-detect';
 import { MessageChannel, type MessagePort, parentPort } from 'worker_threads';
@@ -151,7 +154,7 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 					WP_DEBUG_DISPLAY: false,
 				};
 			let wordpressBooted = false;
-			const requestHandler = await bootWordPress({
+			const requestHandler = await bootWordPressAndRequestHandler({
 				siteUrl,
 				createPhpRuntime: async () => {
 					const processId = nextProcessId;

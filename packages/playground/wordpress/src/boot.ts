@@ -39,6 +39,14 @@ export type PHPInstanceCreatedHook = (
 
 export type DatabaseType = 'sqlite' | 'mysql' | 'custom';
 
+export async function bootWordPressAndRequestHandler(
+	options: BootRequestHandlerOptions & BootWordPressOptions
+) {
+	const requestHandler = await bootRequestHandler(options);
+	await bootWordPress(requestHandler, options);
+	return requestHandler;
+}
+
 export interface BootRequestHandlerOptions {
 	createPhpRuntime: (isPrimary?: boolean) => Promise<number>;
 	onPHPInstanceCreated?: PHPInstanceCreatedHook;
@@ -105,7 +113,7 @@ export interface BootRequestHandlerOptions {
 	cookieStore?: CookieStore | false;
 }
 
-export interface BootOptions extends BootRequestHandlerOptions {
+export interface BootWordPressOptions {
 	/**
 	 * Mounting and Copying is handled via hooks for starters.
 	 *
@@ -120,6 +128,15 @@ export interface BootOptions extends BootRequestHandlerOptions {
 	wordPressZip?: File | Promise<File> | undefined;
 	/** Preloaded SQLite integration plugin. */
 	sqliteIntegrationPluginZip?: File | Promise<File>;
+	/**
+	 * PHP constants to define for every request.
+	 */
+	constants?: Record<string, string | number | boolean | null>;
+	/**
+	 * URL to use as the site URL. This is used to set the WP_HOME
+	 * and WP_SITEURL constants in WordPress.
+	 */
+	siteUrl: string;
 }
 
 /**
@@ -137,9 +154,10 @@ export interface BootOptions extends BootRequestHandlerOptions {
  * @param options Boot configuration options
  * @return PHPRequestHandler instance with WordPress installed.
  */
-export async function bootWordPress(options: BootOptions) {
-	const requestHandler = await bootRequestHandler(options);
-
+export async function bootWordPress(
+	requestHandler: PHPRequestHandler,
+	options: BootWordPressOptions
+) {
 	const php = await requestHandler.getPrimaryPhp();
 	if (options.hooks?.beforeWordPressFiles) {
 		await options.hooks.beforeWordPressFiles(php);

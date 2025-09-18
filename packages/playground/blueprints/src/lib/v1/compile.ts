@@ -69,6 +69,8 @@ export interface CompileBlueprintV1Options {
 	semaphore?: Semaphore;
 	/** Optional callback with step output */
 	onStepCompleted?: OnStepCompleted;
+	/** Optional callback with blueprint validation result */
+	onBlueprintValidated?: (blueprint: BlueprintV1Declaration) => void;
 	/**
 	 * Proxy URL to use for cross-origin requests.
 	 *
@@ -137,6 +139,7 @@ function compileBlueprintJson(
 		progress = new ProgressTracker(),
 		semaphore = new Semaphore({ concurrency: 3 }),
 		onStepCompleted = () => {},
+		onBlueprintValidated = () => {},
 		corsProxy,
 		streamBundledFile,
 		additionalSteps,
@@ -303,6 +306,8 @@ function compileBlueprintJson(
 		(e as any).errors = errors;
 		throw e;
 	}
+
+	onBlueprintValidated(blueprint);
 
 	const steps = (blueprint.steps || []) as StepDefinition[];
 	const totalProgressWeight = steps.reduce(

@@ -17,6 +17,7 @@ export class BlueprintsV1Handler {
 	) {
 		const {
 			blueprint,
+			onBlueprintValidated,
 			onBlueprintStepCompleted,
 			corsProxy,
 			mounts,
@@ -37,6 +38,7 @@ export class BlueprintsV1Handler {
 		const compiled = await compileBlueprint(bp, {
 			progress: executionProgress,
 			onStepCompleted: onBlueprintStepCompleted,
+			onBlueprintValidated,
 			corsProxy,
 		});
 
