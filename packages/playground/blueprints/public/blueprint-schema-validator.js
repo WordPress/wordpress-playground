@@ -3,9 +3,9 @@ export const validate = validate10;
 export default validate10;
 const schema11 = {
 	$schema: 'http://json-schema.org/schema',
-	$ref: '#/definitions/BlueprintDeclaration',
+	$ref: '#/definitions/BlueprintV1Declaration',
 	definitions: {
-		BlueprintDeclaration: {
+		BlueprintV1Declaration: {
 			type: 'object',
 			properties: {
 				landingPage: {
