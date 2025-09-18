@@ -5,7 +5,10 @@ const BlueprintsApi = getModule('@wp-playground/blueprints');
 export const BlueprintSteps = BlueprintsApi.children
 	.filter((entry) => entry.name.match(/Step$/))
 	.filter(
-		(entry) => !['CompiledStep', 'GenericStep', 'Step'].includes(entry.name)
+		(entry) =>
+			!['CompiledStep', 'CompiledV1Step', 'GenericStep', 'Step'].includes(
+				entry.name
+			)
 	)
 	.filter((entry) => !entry?.flags?.isPrivate)
 	.map((entry) => entry.name)
