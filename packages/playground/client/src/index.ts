@@ -26,7 +26,7 @@ export { phpVar, phpVars } from '@php-wasm/util';
 export type { PlaygroundClient, MountDescriptor };
 
 import type {
-	Blueprint,
+	BlueprintV1,
 	BlueprintV1Declaration,
 	OnStepCompleted,
 } from '@wp-playground/blueprints';
