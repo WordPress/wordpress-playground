@@ -11,7 +11,7 @@ import type {
 	PlaygroundWorkerEndpoint,
 	WorkerBootOptions,
 	MountDescriptor,
-} from './worker-thread';
+} from './playground-worker-endpoint';
 export type { MountDescriptor, WorkerBootOptions };
 import type { WebClientMixin } from './playground-client';
 import type { ProgressBarOptions } from './progress-bar';
@@ -23,9 +23,9 @@ import ProgressBar from './progress-bar';
 const origin = new URL('/', (import.meta || {}).url).origin;
 
 // @ts-ignore
-import moduleWorkerUrl from './worker-thread?worker&url';
+import workerV1Url from './worker-thread?worker&url';
 
-export const workerUrl: string = new URL(moduleWorkerUrl, origin) + '';
+export const workerUrl: string = new URL(workerV1Url, origin) + '';
 
 // @ts-ignore
 import serviceWorkerPath from '../../service-worker.ts?worker&url';

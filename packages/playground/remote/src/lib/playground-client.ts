@@ -9,7 +9,7 @@ import type {
 	PlaygroundWorkerEndpoint,
 	MountDescriptor,
 	WorkerBootOptions,
-} from './worker-thread';
+} from './playground-worker-endpoint';
 
 export interface WebClientMixin extends ProgressReceiver {
 	/**
