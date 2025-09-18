@@ -7,7 +7,7 @@ export type {
 	PHPConstants,
 } from './lib/v1/types';
 export { compileBlueprintV1, runBlueprintV1Steps } from './lib/v1/compile';
-export { Blueprint, BlueprintBundle } from './lib/types';
+export type { Blueprint, BlueprintBundle } from './lib/types';
 export { BlueprintReflection } from './lib/reflection';
 
 export type {
