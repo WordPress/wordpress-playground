@@ -19,10 +19,19 @@ import {
 import { sprintf } from '@php-wasm/util';
 import { runBlueprintV2 } from '@wp-playground/blueprints';
 import {
+<<<<<<< HEAD
 	type RawBlueprintV2Data,
+=======
+	runBlueprintV2,
+>>>>>>> trunk
 	type BlueprintMessage,
 	type BlueprintV2Declaration,
+	type ParsedBlueprintV2Declaration,
 } from '@wp-playground/blueprints';
+import type {
+	PHPInstanceCreatedHook,
+	PhpIniOptions,
+} from '@wp-playground/wordpress';
 import { bootRequestHandler } from '@wp-playground/wordpress';
 import { existsSync } from 'fs';
 import path from 'path';

@@ -8,7 +8,7 @@ import path from 'path';
 
 const dependencyFilename = path.join(__dirname, '7_2_34', 'php_7_2.wasm');
 export { dependencyFilename };
-export const dependenciesTotalSize = 22384580;
+export const dependenciesTotalSize = 22384578;
 const phpVersionString = '7.2.34';
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
@@ -6594,7 +6594,7 @@ export function init(RuntimeName, PHPLoader) {
 			// single PHP process.
 			FS.mkdir('/request');
 			// The /internal directory is shared amongst all PHP processes
-			// and contains wp-config.php, constants, etc.
+			// and contains the php.ini, constants definitions, etc.
 			FS.mkdir('/internal');
 
 			if (phpWasmInitOptions?.nativeInternalDirPath) {
