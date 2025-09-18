@@ -25,7 +25,12 @@ export {
 export { phpVar, phpVars } from '@php-wasm/util';
 export type { PlaygroundClient, MountDescriptor };
 
-import type { Blueprint, OnStepCompleted } from '@wp-playground/blueprints';
+import type {
+	Blueprint,
+	BlueprintV1Declaration,
+	OnStepCompleted,
+	StepDefinition,
+} from '@wp-playground/blueprints';
 import { compileBlueprint, runBlueprintSteps } from '@wp-playground/blueprints';
 import { consumeAPI } from '@php-wasm/web';
 import { ProgressTracker } from '@php-wasm/progress';
@@ -42,6 +47,10 @@ export interface StartPlaygroundOptions {
 	disableProgressBar?: boolean;
 	blueprint?: Blueprint;
 	onBlueprintStepCompleted?: OnStepCompleted;
+	// BC
+	onBlueprintValidated?: (
+		blueprint: BlueprintV1Declaration & { steps: StepDefinition[] }
+	) => void;
 	/**
 	 * Called when the playground client is connected, but before the blueprint
 	 * steps are run.
