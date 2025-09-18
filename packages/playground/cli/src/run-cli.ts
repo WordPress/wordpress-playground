@@ -495,9 +495,6 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 
 	// Declare file lock manager outside scope of startServer
 	// so we can look at it when debugging request handling.
-	// @TODO: Restore fs-ext npm dependency or equivalent when we can
-	// get it to work with Windows. In the meantime,
-	// the dependency has been removed from package.json.
 	const nativeFlockSync = await import('fs-ext')
 		.then((m) => m.flockSync)
 		.catch(() => {
