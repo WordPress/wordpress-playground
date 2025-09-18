@@ -1,6 +1,5 @@
 import { createSpawnHandler } from '@php-wasm/util';
 import type { PHPProcessManager } from './php-process-manager';
-import { logger } from '@php-wasm/logger';
 
 /**
  * An isomorphic proc_open() handler that implements typical shell in TypeScript
@@ -91,7 +90,6 @@ export function sandboxedSpawnHandlerFactory(
 				);
 				processApi.exit(await result.exitCode);
 			} catch (e) {
-				logger.error(e);
 				// An exception here means the PHP runtime has crashed.
 				processApi.exit(1);
 				throw e;
