@@ -16,11 +16,9 @@ const tsconfig: TsConfig = JSON.parse(readFileSync(tsconfigPath, 'utf-8'));
 const pathAliases = tsconfig.compilerOptions.paths;
 const baseUrl = tsconfig.compilerOptions.baseUrl || '.';
 
-const playgroundPackageRoot = resolvePath(
-	import.meta.dirname,
-	'..',
-	'..',
-	'..'
+// Use a URL so we can compare more easily with file:// URLs during load.
+const playgroundPackageRootUrl = pathToFileURL(
+	resolvePath(import.meta.dirname, '..', '..', '..')
 );
 
 const aliasMap = new Map<string, URL>();
@@ -120,7 +118,9 @@ export async function resolve(
 		const resolvedImportPathUrl = pathToFileURL(resolvedImportPath);
 
 		// Restore any search params used for customizing module resolution.
-		resolvedImportPathUrl.search = specifierSearchParams;
+		if (specifierSearchParams !== undefined) {
+			resolvedImportPathUrl.search = specifierSearchParams;
+		}
 
 		specifier = resolvedImportPathUrl.href;
 	}
@@ -178,11 +178,11 @@ export async function load(
 	context: LoadContext,
 	nextLoad: LoaderNext
 ): Promise<LoadResult> {
-	const urlObj = new URL(url);
-
-	if (urlObj.protocol !== 'file:') {
+	if (!url.startsWith('file:/')) {
 		return nextLoad(url, context);
 	}
+
+	const urlObj = new URL(url);
 
 	if (context.format === 'url') {
 		urlObj.search = '';
@@ -198,7 +198,7 @@ export async function load(
 
 	if (context.format === 'raw') {
 		// Load raw file content
-		const content = readFileSync(urlObj.pathname, 'utf8');
+		const content = readFileSync(urlObj, 'utf8');
 		return {
 			format: 'module',
 			shortCircuit: true,
@@ -208,7 +208,7 @@ export async function load(
 
 	if (context.format === 'base64' || urlObj.searchParams.has('base64')) {
 		// Load binary file content and export as base64 string
-		const content = readFileSync(urlObj.pathname);
+		const content = readFileSync(urlObj);
 		const base64 = content.toString('base64');
 		return {
 			format: 'module',
@@ -220,7 +220,7 @@ export async function load(
 	}
 
 	if (context.format === 'json' || urlObj.pathname.endsWith('.json')) {
-		const source = readFileSync(urlObj.pathname, 'utf8');
+		const source = readFileSync(urlObj, 'utf8');
 		return {
 			format: 'json',
 			source,
@@ -230,7 +230,7 @@ export async function load(
 
 	const supportedModuleFormats = ['module', 'module-typescript'];
 	if (
-		urlObj.pathname.startsWith(playgroundPackageRoot) &&
+		urlObj.pathname.startsWith(playgroundPackageRootUrl.pathname) &&
 		supportedModuleFormats.includes(context.format!)
 	) {
 		const loadResult = await nextLoad(url, context);
@@ -246,7 +246,7 @@ export async function load(
 				/(?<!(?:const|var|let)\s*)\b__(dirname|filename)/g,
 				'import.meta.$1'
 			);
-			loadResult.source = Buffer.from(updatedSource, 'utf8');
+			loadResult.source = updatedSource;
 		}
 		return loadResult;
 	}
