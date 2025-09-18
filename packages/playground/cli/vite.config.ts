@@ -1,5 +1,6 @@
 /// <reference types="vitest" />
 import { join } from 'path';
+import { pathToFileURL } from 'url';
 import { type PluginOption, defineConfig } from 'vite';
 import dts from 'vite-plugin-dts';
 
@@ -219,10 +220,13 @@ export default defineConfig({
 					'--disable-warning=ExperimentalWarning',
 					// Use our own ESM loader to help resolve modules within the Worker script.
 					'--import',
-					join(
-						import.meta.dirname,
-						'../../meta/src/node-es-module-loader/register.mts'
-					),
+					// Convert path to file:// URL because it is required for running in Windows.
+					pathToFileURL(
+						join(
+							import.meta.dirname,
+							'../../meta/src/node-es-module-loader/register.mts'
+						)
+					).href,
 				],
 			},
 		},
