@@ -1,0 +1,65 @@
+<rss version="2.0"
+	xmlns:excerpt="http://wordpress.org/export/1.2/excerpt/"
+	xmlns:content="http://purl.org/rss/1.0/modules/content/"
+	xmlns:wfw="http://wellformedweb.org/CommentAPI/"
+	xmlns:dc="http://purl.org/dc/elements/1.1/"
+	xmlns:wp="http://wordpress.org/export/1.2/"
+>
+
+<channel>
+	<title>Site Editor Template Issue Test</title>
+	<link>https://example.com</link>
+	<description>Testing the specific GitHub issue with Site Editor template taxonomy association</description>
+	<pubDate>Mon, 01 Jan 2024 12:00:00 +0000</pubDate>
+	<language>en-US</language>
+	<wp:wxr_version>1.2</wp:wxr_version>
+	<wp:base_site_url>https://example.com</wp:base_site_url>
+	<wp:base_blog_url>https://example.com</wp:base_blog_url>
+
+	<wp:author><wp:author_id>1</wp:author_id><wp:author_login><![CDATA[admin]]></wp:author_login><wp:author_email><![CDATA[admin@localhost.com]]></wp:author_email><wp:author_display_name><![CDATA[admin]]></wp:author_display_name><wp:author_first_name><![CDATA[]]></wp:author_first_name><wp:author_last_name><![CDATA[]]></wp:author_last_name></wp:author>
+
+	<!-- Note: Deliberately NOT including the wp:term definition to reproduce the issue -->
+
+	<generator>https://wordpress.org/?v=6.5</generator>
+
+	<item>
+		<title><![CDATA[Index]]></title>
+		<link>https://example.com/wp_template/index</link>
+		<pubDate>Mon, 01 Jan 2024 12:00:00 +0000</pubDate>
+		<dc:creator><![CDATA[admin]]></dc:creator>
+		<guid isPermaLink="false">https://example.com/wp_template/index</guid>
+		<description></description>
+		<content:encoded><![CDATA[<!-- wp:template-part {"slug":"header","theme":"adonay"} /-->
+
+<!-- wp:group {"layout":{"type":"constrained"}} -->
+<div class="wp-block-group">
+<!-- wp:heading -->
+<h2 class="wp-block-heading">Welcome to the Adonay theme site</h2>
+<!-- /wp:heading -->
+</div>
+<!-- /wp:group -->
+
+<!-- wp:template-part {"slug":"footer","theme":"adonay"} /-->]]></content:encoded>
+		<excerpt:encoded><![CDATA[]]></excerpt:encoded>
+		<wp:post_id>10</wp:post_id>
+		<wp:post_date><![CDATA[2024-01-01 12:00:00]]></wp:post_date>
+		<wp:post_date_gmt><![CDATA[2024-01-01 12:00:00]]></wp:post_date_gmt>
+		<wp:post_modified><![CDATA[2024-01-01 12:00:00]]></wp:post_modified>
+		<wp:post_modified_gmt><![CDATA[2024-01-01 12:00:00]]></wp:post_modified_gmt>
+		<wp:comment_status><![CDATA[closed]]></wp:comment_status>
+		<wp:ping_status><![CDATA[closed]]></wp:ping_status>
+		<wp:post_name><![CDATA[index]]></wp:post_name>
+		<wp:status><![CDATA[publish]]></wp:status>
+		<wp:post_parent>0</wp:post_parent>
+		<wp:menu_order>0</wp:menu_order>
+		<wp:post_type><![CDATA[wp_template]]></wp:post_type>
+		<wp:post_password><![CDATA[]]></wp:post_password>
+		<wp:is_sticky>0</wp:is_sticky>
+		<category domain="wp_theme" nicename="adonay"><![CDATA[adonay]]></category>
+		<wp:postmeta>
+			<wp:meta_key><![CDATA[_wp_file_path]]></wp:meta_key>
+			<wp:meta_value><![CDATA[index]]></wp:meta_value>
+		</wp:postmeta>
+	</item>
+</channel>
+</rss>

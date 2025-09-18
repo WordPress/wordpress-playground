@@ -1,9 +1,9 @@
 {
 	"typescript.tsdk": "node_modules/typescript/lib",
-	"eslint.validate": [
-		"json"
-	],
 	"eslint.useFlatConfig": false,
+	"eslint.workingDirectories": [
+		{ "pattern": "./packages/*/" }
+	],
 	"files.associations": {
 		"*.embeddedhtml": "html",
 		"api-extractor-base.json": "jsonc",

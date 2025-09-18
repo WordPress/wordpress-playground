@@ -10,7 +10,7 @@
 const LibraryExample = {
 	// Emscripten dependencies:
 	$PHPWASM__deps: ['$allocateUTF8OnStack'],
-	$PHPWASM__postset: 'PHPWASM.init();',
+	$PHPWASM__postset: 'PHPWASM.init(PHPLoader?.phpWasmInitOptions);',
 
 	// Functions not exposed to C but available in the generated
 	// JavaScript library under the PHPWASM object:
@@ -28,7 +28,7 @@ const LibraryExample = {
 		// emscripten_O_NDELAY |
 		// emscripten_O_DIRECT |
 		// emscripten_O_NOATIME
-		init: function () {
+		init: function (phpWasmInitOptions) {
 			Module['ENV'] = Module['ENV'] || {};
 			// Ensure a platform-level bin directory for a fallback `php` binary.
 			Module['ENV']['PATH'] = [
@@ -38,28 +38,48 @@ const LibraryExample = {
 				.filter(Boolean)
 				.join(':');
 
-			// The /internal directory is required by the C module. It's where the
+			// The /request directory is required by the C module. It's where the
 			// stdout, stderr, and headers information are written for the JavaScript
-			// code to read later on.
+			// code to read later on. This is per-request state that is isolated to a
+			// single PHP process.
+			FS.mkdir('/request');
+			// The /internal directory is shared amongst all PHP processes
+			// and contains the php.ini, constants definitions, etc.
 			FS.mkdir('/internal');
+
+			if (phpWasmInitOptions?.nativeInternalDirPath) {
+				FS.mount(
+					FS.filesystems.NODEFS,
+					{ root: phpWasmInitOptions.nativeInternalDirPath },
+					'/internal'
+				);
+			}
+
 			// The files from the shared directory are shared between all the
 			// PHP processes managed by PHPProcessManager.
-			FS.mkdir('/internal/shared');
+			FS.mkdirTree('/internal/shared');
+
 			// The files from the preload directory are preloaded using the
 			// auto_prepend_file php.ini directive.
-			FS.mkdir('/internal/shared/preload');
+			FS.mkdirTree('/internal/shared/preload');
 			// Platform-level bin directory for a fallback `php` binary. Without it,
 			// PHP may not populate the PHP_BINARY constant.
-			FS.mkdir('/internal/shared/bin');
+			FS.mkdirTree('/internal/shared/bin');
 			const originalOnRuntimeInitialized = Module['onRuntimeInitialized'];
 			Module['onRuntimeInitialized'] = () => {
-				// Dummy PHP binary for PHP to populate the PHP_BINARY constant.
-				FS.writeFile(
+				const { node: phpBinaryNode } = FS.lookupPath(
 					'/internal/shared/bin/php',
-					new TextEncoder().encode('#!/bin/sh\nphp "$@"')
+					{ noent_okay: true },
 				);
-				// It must be executable to be used by PHP.
-				FS.chmod('/internal/shared/bin/php', 0o755);
+				if (!phpBinaryNode) {
+					// Dummy PHP binary for PHP to populate the PHP_BINARY constant.
+					FS.writeFile(
+						'/internal/shared/bin/php',
+						new TextEncoder().encode('#!/bin/sh\nphp "$@"')
+					);
+					// It must be executable to be used by PHP.
+					FS.chmod('/internal/shared/bin/php', 0o755);
+				}
 				originalOnRuntimeInitialized();
 			};
 
@@ -77,7 +97,7 @@ const LibraryExample = {
 					return length;
 				},
 			});
-			FS.mkdev('/internal/stdout', FS.makedev(64, 0));
+			FS.mkdev('/request/stdout', FS.makedev(64, 0));
 
 			FS.registerDevice(FS.makedev(63, 0), {
 				open: () => {},
@@ -89,7 +109,7 @@ const LibraryExample = {
 					return length;
 				},
 			});
-			FS.mkdev('/internal/stderr', FS.makedev(63, 0));
+			FS.mkdev('/request/stderr', FS.makedev(63, 0));
 
 			FS.registerDevice(FS.makedev(62, 0), {
 				open: () => {},
@@ -101,7 +121,7 @@ const LibraryExample = {
 					return length;
 				},
 			});
-			FS.mkdev('/internal/headers', FS.makedev(62, 0));
+			FS.mkdev('/request/headers', FS.makedev(62, 0));
 
 			// Handle events.
 			PHPWASM.EventEmitter = ENVIRONMENT_IS_NODE

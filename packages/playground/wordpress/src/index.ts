@@ -1,24 +1,26 @@
+import { logger } from '@php-wasm/logger';
 import type { PHP, UniversalPHP } from '@php-wasm/universal';
 import { joinPaths, phpVar } from '@php-wasm/util';
-import { unzipFile, createMemoizedFetch } from '@wp-playground/common';
-import { logger } from '@php-wasm/logger';
+import { createMemoizedFetch, unzipFile } from '@wp-playground/common';
 
 export {
-	bootWordPress,
 	bootJustWordPress,
 	bootRequestHandler,
+	bootWordPress,
 	getFileNotFoundActionForWordPress,
 } from './boot';
 export type {
+	BootJustWordPressOptions,
 	BootOptions,
 	BootRequestHandlerOptions,
-	BootJustWordPressOptions,
+	PHPInstanceCreatedHook,
+	PhpIniOptions,
 } from './boot';
 export { defineWpConfigConstants, ensureWpConfig } from './rewrite-wp-config';
 export { getLoadedWordPressVersion } from './version-detect';
 
-export * from './version-detect';
 export * from './rewrite-rules';
+export * from './version-detect';
 
 /**
  * Preloads the platform mu-plugins from /internal/shared/mu-plugins.

@@ -141,7 +141,7 @@ export async function startPlaygroundWeb({
 		);
 	}
 
-	let blueprintProgress = progressTracker.stage(0.5);
+	const blueprintProgress = progressTracker.stage(0.5);
 
 	// Connect the Comlink API client to the remote worker,
 	// boot the playground, and run the blueprint steps.

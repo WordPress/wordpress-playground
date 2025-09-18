@@ -3,6 +3,7 @@ import { createHash } from 'crypto';
 import { parseStringPromise } from 'xml2js';
 import type { DbgpSession } from './dbgp-session';
 import type { CDPServer } from './cdp-server';
+import type { ErrnoError } from '@php-wasm/universal';
 
 interface PendingCommand {
 	cdpId?: number;
@@ -182,46 +183,61 @@ export class XdebugCDPBridge {
 		const highlightUri = this.uriFromBridgeToCDPSyntaxHighlight(url);
 		const cdpUri = this.uriFromBridgeToCDP(url);
 
-		const phpContent = await this.readPHPFile(url);
-		const phpLines = phpContent.split('\n');
+		try {
+			const phpContent = await this.readPHPFile(url);
+			const phpLines = phpContent.split('\n');
 
-		// The first line is AAAA while the others are AACA.
-		// This is enough to set breakpoints with CDP and
-		// communicate with the DBGp protocol.
-		const mappings = phpLines
-			.map((_value, index) => (index === 0 ? 'AAAA' : 'AACA'))
-			.join(';');
+			// The first line is AAAA while the others are AACA.
+			// This is enough to set breakpoints with CDP and
+			// communicate with the DBGp protocol.
+			const mappings = phpLines
+				.map((_value, index) => (index === 0 ? 'AAAA' : 'AACA'))
+				.join(';');
 
-		const sourceMap = {
-			version: 3,
-			// File uri has to match the script parsed url
-			// While the sources url has to match the syntax
-			// highlighted file displayed in Devtools.
-			file: cdpUri,
-			sources: [highlightUri],
-			sourcesContent: [phpContent],
-			mappings,
-		};
+			const sourceMap = {
+				version: 3,
+				// File uri has to match the script parsed url
+				// While the sources url has to match the syntax
+				// highlighted file displayed in Devtools.
+				file: cdpUri,
+				sources: [highlightUri],
+				sourcesContent: [phpContent],
+				mappings,
+			};
 
-		const encodedMap = Buffer.from(
-			JSON.stringify(sourceMap),
-			'utf-8'
-		).toString('base64');
-		const sourceMapDataUri = `data:application/json;base64,${encodedMap}`;
+			const encodedMap = Buffer.from(
+				JSON.stringify(sourceMap),
+				'utf-8'
+			).toString('base64');
+			const sourceMapDataUri = `data:application/json;base64,${encodedMap}`;
 
-		this.cdp.sendMessage({
-			method: 'Debugger.scriptParsed',
-			params: {
-				scriptId: id,
-				url: cdpUri,
-				startLine: 0,
-				startColumn: 0,
-				endLine: phpLines.length,
-				endColumn: 0,
-				executionContextId: 1,
-				sourceMapURL: sourceMapDataUri,
-			},
-		});
+			this.cdp.sendMessage({
+				method: 'Debugger.scriptParsed',
+				params: {
+					scriptId: id,
+					url: cdpUri,
+					startLine: 0,
+					startColumn: 0,
+					endLine: phpLines.length,
+					endColumn: 0,
+					executionContextId: 1,
+					sourceMapURL: sourceMapDataUri,
+				},
+			});
+		} catch (error) {
+			// Parsing error, log error to console
+			this.cdp.sendMessage({
+				method: 'Log.entryAdded',
+				params: {
+					entry: {
+						source: 'other',
+						level: 'warning',
+						text: (error as ErrnoError).message,
+						timestamp: Date.now(),
+					},
+				},
+			});
+		}
 	}
 
 	private getOrCreateScriptId(url: string): string {

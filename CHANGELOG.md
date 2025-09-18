@@ -4,6 +4,57 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
+## [v2.0.22] (2025-09-16)
+
+### Enhancements
+
+-   Statically analyzable build. ([#2632](https://github.com/WordPress/wordpress-playground/pull/2632))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel
+
+## [v2.0.21] (2025-09-15)
+
+### Enhancements
+
+-   [CLI] Build worker thread with stable filenames. ([#2631](https://github.com/WordPress/wordpress-playground/pull/2631))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel
+
+## [v2.0.20] (2025-09-15)
+
+### Tools
+
+#### Blueprints
+
+-   Fix to ensure that Site Editor templates are associated with the correct taxonomy upon import. ([#2584](https://github.com/WordPress/wordpress-playground/pull/2584))
+
+### PHP WebAssembly
+
+-   Translate 'localhost' to 127.0.0.1 in MySQL connections. ([#2627](https://github.com/WordPress/wordpress-playground/pull/2627))
+-   [PHP] Rebuild with sync fd_close on the web. ([#2620](https://github.com/WordPress/wordpress-playground/pull/2620))
+
+### Website
+
+-   [Web Client] Remove onBeforeBlueprint. ([#2622](https://github.com/WordPress/wordpress-playground/pull/2622))
+
+### Internal
+
+-   [CI] Do not block CI tests on linter. ([#2619](https://github.com/WordPress/wordpress-playground/pull/2619))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @akirk
+
 ## [v2.0.19] (2025-09-11)
 
 ### PHP WebAssembly

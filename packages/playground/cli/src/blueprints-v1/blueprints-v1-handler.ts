@@ -22,9 +22,12 @@ import {
 } from './download';
 import type { PlaygroundCliBlueprintV1Worker } from './worker-thread-v1';
 import type { MessagePort as NodeMessagePort } from 'worker_threads';
-import { LogVerbosity, type RunCLIArgs, type SpawnedWorker } from '../run-cli';
-// @ts-ignore
-import importedWorkerV1UrlString from './worker-thread-v1?worker&url';
+import {
+	LogVerbosity,
+	type RunCLIArgs,
+	type SpawnedWorker,
+	type WorkerType,
+} from '../run-cli';
 
 /**
  * Boots Playground CLI workers using Blueprint version 1.
@@ -52,25 +55,14 @@ export class BlueprintsV1Handler {
 		this.processIdSpaceLength = options.processIdSpaceLength;
 	}
 
-	getWorkerUrl() {
-		if (
-			process.env['VITEST'] &&
-			importedWorkerV1UrlString.startsWith('/src/')
-		) {
-			// Work around issue where Vitest cannot find the worker script.
-			return path.join(
-				import.meta.dirname,
-				'..',
-				'..',
-				importedWorkerV1UrlString
-			);
-		}
-		return importedWorkerV1UrlString;
+	getWorkerType(): WorkerType {
+		return 'v1';
 	}
 
 	async bootPrimaryWorker(
 		phpPort: NodeMessagePort,
-		fileLockManagerPort: NodeMessagePort
+		fileLockManagerPort: NodeMessagePort,
+		nativeInternalDirPath: string
 	) {
 		const compiledBlueprint = await this.compileInputBlueprint(
 			this.args['additional-blueprint-steps'] || []
@@ -150,7 +142,7 @@ export class BlueprintsV1Handler {
 		await playground.bootAsPrimaryWorker({
 			phpVersion: this.phpVersion,
 			wpVersion: compiledBlueprint.versions.wp,
-			absoluteUrl: this.siteUrl,
+			siteUrl: this.siteUrl,
 			mountsBeforeWpInstall,
 			mountsAfterWpInstall,
 			wordPressZip: wordPressZip && (await wordPressZip!.arrayBuffer()),
@@ -162,6 +154,7 @@ export class BlueprintsV1Handler {
 			trace,
 			internalCookieStore: this.args.internalCookieStore,
 			withXdebug: this.args.xdebug,
+			nativeInternalDirPath,
 		});
 
 		if (
@@ -184,10 +177,12 @@ export class BlueprintsV1Handler {
 		worker,
 		fileLockManagerPort,
 		firstProcessId,
+		nativeInternalDirPath,
 	}: {
 		worker: SpawnedWorker;
 		fileLockManagerPort: NodeMessagePort;
 		firstProcessId: number;
+		nativeInternalDirPath: string;
 	}) {
 		const additionalPlayground = consumeAPI<PlaygroundCliBlueprintV1Worker>(
 			worker.phpPort
@@ -196,17 +191,10 @@ export class BlueprintsV1Handler {
 		await additionalPlayground.isConnected();
 		await additionalPlayground.useFileLockManager(fileLockManagerPort);
 		await additionalPlayground.bootAsSecondaryWorker({
-			phpVersion: this.phpVersion,
-			absoluteUrl: this.siteUrl,
+			phpVersion: this.phpVersion!,
+			siteUrl: this.siteUrl,
 			mountsBeforeWpInstall: this.args['mount-before-install'] || [],
 			mountsAfterWpInstall: this.args['mount'] || [],
-			// Skip WordPress zip because we share the /wordpress directory
-			// populated by the initial worker.
-			wordPressZip: undefined,
-			// Skip SQLite integration plugin for now because we
-			// will copy it from primary's `/internal` directory.
-			sqliteIntegrationPluginZip: undefined,
-			dataSqlPath: '/wordpress/wp-content/database/.ht.sqlite',
 			firstProcessId,
 			processIdSpaceLength: this.processIdSpaceLength,
 			followSymlinks: this.args.followSymlinks === true,
@@ -215,6 +203,7 @@ export class BlueprintsV1Handler {
 			//        will have a separate cookie store.
 			internalCookieStore: this.args.internalCookieStore,
 			withXdebug: this.args.xdebug,
+			nativeInternalDirPath,
 		});
 		await additionalPlayground.isReady();
 		return additionalPlayground;
