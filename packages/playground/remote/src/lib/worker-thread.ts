@@ -49,7 +49,7 @@ import {
 	SupportedPHPVersionsList,
 } from '@php-wasm/universal';
 import {
-	bootWordPress,
+	bootWordPressAndRequestHandler,
 	getFileNotFoundActionForWordPress,
 	getLoadedWordPressVersion,
 } from '@wp-playground/wordpress';
@@ -346,7 +346,7 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 				corsProxyUrl: corsProxyUrl,
 			});
 
-			const requestHandlerPromise = bootWordPress({
+			const requestHandlerPromise = bootWordPressAndRequestHandler({
 				siteUrl: setURLScope(wordPressSiteUrl, scope).toString(),
 				createPhpRuntime: async () => {
 					let wasmUrl = '';

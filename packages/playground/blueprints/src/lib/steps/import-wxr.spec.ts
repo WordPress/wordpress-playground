@@ -8,7 +8,7 @@ import { importWxr } from './import-wxr';
 import { readFile } from 'fs/promises';
 import { installPlugin } from './install-plugin';
 import type { PHPRequestHandler } from '@php-wasm/universal';
-import { bootWordPress } from '@wp-playground/wordpress';
+import { bootWordPressAndRequestHandler } from '@wp-playground/wordpress';
 import { loadNodeRuntime } from '@php-wasm/node';
 import { CorePluginResource } from '../v1/resources';
 import { resetData } from './reset-data';
@@ -60,7 +60,7 @@ describe('Blueprint step importWxr', () => {
 	});
 
 	beforeEach(async () => {
-		handler = await bootWordPress({
+		handler = await bootWordPressAndRequestHandler({
 			createPhpRuntime: async () =>
 				await loadNodeRuntime(RecommendedPHPVersion),
 			// Simulate playground.wordpress.net URL scheme:
