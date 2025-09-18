@@ -1,4 +1,4 @@
-import type { BlueprintDeclaration } from '../blueprint';
+import type { BlueprintDeclaration } from '../v1/types';
 
 export type BlueprintV2Declaration = string | BlueprintDeclaration | undefined;
 export type ParsedBlueprintV2Declaration =

@@ -7,15 +7,15 @@ import {
 } from '@php-wasm/universal';
 import type { FileReference } from './resources';
 import { isResourceReference, Resource } from './resources';
-import type { Step, StepDefinition, WriteFileStep } from './steps';
-import * as allStepHandlers from './steps/handlers';
+import type { Step, StepDefinition, WriteFileStep } from '../steps';
+import * as allStepHandlers from '../steps/handlers';
 import type {
 	BlueprintDeclaration,
 	BlueprintBundle,
 	ExtraLibrary,
 	StreamBundledFile,
 	Blueprint,
-} from './blueprint';
+} from './types';
 import { logger } from '@php-wasm/logger';
 
 // @TODO: Configure this in the `wp-cli` step, not here.
@@ -39,8 +39,8 @@ const keyedStepHandlers = {
  * `dts-bundle-generator` utility we use for type rollyps does not support
  * watching for changes.
  */
-import blueprintValidator from '../../public/blueprint-schema-validator';
-import { defaultWpCliPath, defaultWpCliResource } from './steps/wp-cli';
+import blueprintValidator from '../../../public/blueprint-schema-validator';
+import { defaultWpCliPath, defaultWpCliResource } from '../steps/wp-cli';
 
 export type CompiledStep = (php: UniversalPHP) => Promise<void> | void;
 

@@ -4,7 +4,7 @@ import {
 	runBlueprintSteps,
 	validateBlueprint,
 } from './compile';
-import { defineWpConfigConsts } from './steps/define-wp-config-consts';
+import { defineWpConfigConsts } from '../steps/define-wp-config-consts';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import { PHPRequestHandler } from '@php-wasm/universal';
 import { loadNodeRuntime } from '@php-wasm/node';

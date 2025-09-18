@@ -6,19 +6,19 @@ export type {
 	BlueprintBundle,
 	BlueprintDeclaration,
 	PHPConstants,
-} from './lib/blueprint';
+} from './lib/v1/types';
 export {
 	compileBlueprint,
 	getBlueprintDeclaration,
 	isBlueprintBundle,
 	runBlueprintSteps,
-} from './lib/compile';
+} from './lib/v1/compile';
 export type {
 	CompileBlueprintOptions,
 	CompiledBlueprint,
 	CompiledStep,
 	OnStepCompleted,
-} from './lib/compile';
+} from './lib/v1/compile';
 export type {
 	CachedResource,
 	CorePluginReference,
@@ -37,7 +37,7 @@ export type {
 	UrlResource,
 	VFSReference,
 	VFSResource,
-} from './lib/resources';
+} from './lib/v1/resources';
 export * from './lib/steps';
 export * from './lib/steps/handlers';
 export type {

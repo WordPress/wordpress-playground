@@ -8,7 +8,7 @@
 	"include": [
 		"src/**/*.ts",
 		"../blueprints/src/lib/steps/activate-plugin.ts",
-		"../blueprints/src/lib/compile.ts"
+		"../blueprints/src/lib/v1/compile.ts"
 	],
 	"exclude": [
 		"src/**/*.spec.ts",

@@ -1,6 +1,6 @@
 import { writeFiles as writeFilesToPhpWasm } from '@php-wasm/universal';
 import type { StepHandler } from '.';
-import type { Directory } from '../resources';
+import type { Directory } from '../v1/resources';
 import { logger } from '@php-wasm/logger';
 
 /**
