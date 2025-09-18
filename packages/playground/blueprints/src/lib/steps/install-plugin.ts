@@ -132,7 +132,7 @@ export const installPlugin: StepHandler<
 			// @TODO: Consider validating whether this is a zip file?
 			const zipFileName =
 				pluginData.name.split('/').pop() || 'plugin.zip';
-			assetNiceName = zipNameToHumanName(zipFileName);
+			assetNiceName = pluginData.name || zipNameToHumanName(zipFileName);
 
 			progress?.tracker.setCaption(
 				`Installing the ${assetNiceName} plugin`
@@ -144,7 +144,7 @@ export const installPlugin: StepHandler<
 				targetFolderName: targetFolderName,
 			});
 			assetFolderPath = assetResult.assetFolderPath;
-			assetNiceName = assetResult.assetFolderName;
+			assetNiceName = pluginData.name || assetResult.assetFolderName;
 		} else if (pluginData.name.endsWith('.php')) {
 			const destinationFilePath = joinPaths(
 				pluginsDirectoryPath,

@@ -47,12 +47,16 @@ export type CoreThemeReference = {
 	resource: 'wordpress.org/themes';
 	/** The slug of the WordPress Core theme */
 	slug: string;
+	/** The name of the WordPress Core theme */
+	name?: string;
 };
 export type CorePluginReference = {
 	/** Identifies the file resource as a WordPress Core plugin */
 	resource: 'wordpress.org/plugins';
 	/** The slug of the WordPress Core plugin */
 	slug: string;
+	/** The name of the WordPress Core plugin */
+	name?: string;
 };
 export type UrlReference = {
 	/** Identifies the file resource as a URL */
@@ -99,6 +103,8 @@ export type FileReference =
 export type DirectoryReference =
 	| GitDirectoryReference
 	| DirectoryLiteralReference;
+
+export type APIFetchableReference = CoreThemeReference | CorePluginReference;
 
 export function isResourceReference(ref: any): ref is FileReference {
 	return (
@@ -418,6 +424,90 @@ export abstract class FetchResource extends Resource<File> {
 }
 
 /**
+ * A base class for `FetchResource`s that require fetching data from an API prior.
+ */
+export abstract class APIBasedFetchResource extends FetchResource {
+	protected apiResult?: any;
+	protected resource: APIFetchableReference;
+
+	/**
+	 * Creates a new instance of `APIBasedFetchResource`.
+	 * @param resource The API fetchable reference.
+	 * @param progress The progress tracker.
+	 */
+	constructor(resource: APIFetchableReference, _progress?: ProgressTracker) {
+		super(_progress);
+
+		this.resource = resource;
+	}
+
+	/** @inheritDoc */
+	override async resolve() {
+		const url = this.getAPIURL();
+		try {
+			let response = await fetchWithCorsProxy(
+				url,
+				undefined,
+				undefined,
+				await this.playground?.absoluteUrl
+			);
+			if (response.ok) {
+				response = await cloneResponseMonitorProgress(
+					response,
+					this.progress?.loadingListener ?? noop
+				);
+			}
+
+			this.apiResult = await response.json();
+
+			this.resource.name = this.name;
+		} catch {
+			// swallow the error, we'll gracefully degrade to using the slug.
+		}
+
+		return await super.resolve();
+	}
+
+	/**
+	 * Gets the URL to fetch the data from.
+	 * @returns The URL.
+	 */
+	protected abstract getAPIURL(): string;
+
+	/**
+	 * Gets the caption for the progress tracker.
+	 * @returns The caption.
+	 */
+	protected override get caption() {
+		return `Fetching ${this.name}`;
+	}
+
+	override get name() {
+		return (
+			decodeAssetNameFromAPI(this.apiResult?.name) ||
+			this.resource.name ||
+			zipNameToHumanName(this.resource.slug)
+		);
+	}
+
+	getURL() {
+		return this.apiResult?.download_link;
+	}
+}
+
+/**
+ * The WordPress.org API returns asset names with HTML entities encoded. Decode them.
+ *
+ * @param str The string to decode.
+ * @returns The decoded string.
+ */
+function decodeAssetNameFromAPI(str?: string) {
+	return str?.replace(/&#([0-9]+);/g, (entity, entityNum) =>
+		String.fromCharCode(parseInt(entityNum, 10))
+	);
+}
+
+/**
  * Parses the Content-Disposition header to extract the filename.
  *
  * @param contentDisposition The Content-Disposition header value
@@ -632,42 +722,52 @@ export class LiteralDirectoryResource extends Resource<Directory> {
 /**
  * A `Resource` that represents a WordPress core theme.
  */
-export class CoreThemeResource extends FetchResource {
-	private resource: CoreThemeReference;
+export class CoreThemeResource extends APIBasedFetchResource {
+	override getAPIURL() {
+		return `https://api.wordpress.org/themes/info/1.2/?action=theme_information&slug=${encodeURIComponent(
+			zipNameToSlug(this.resource.slug)
+		)}`;
+	}
 
-	constructor(resource: CoreThemeReference, progress?: ProgressTracker) {
-		super(progress);
-		this.resource = resource;
-	}
-	override get name() {
-		return zipNameToHumanName(this.resource.slug);
-	}
-	getURL() {
-		const zipName = toDirectoryZipName(this.resource.slug);
-		return `https://downloads.wordpress.org/theme/${zipName}`;
+	override getURL() {
+		if (this.resource.slug.endsWith('.zip')) {
+			return `https://downloads.wordpress.org/themes/${encodeURIComponent(
+				this.resource.slug
+			)}`;
+		}
+
+		return (
+			this.apiResult?.download_link ||
+			`https://downloads.wordpress.org/themes/${encodeURIComponent(
+				toDirectoryZipName(this.resource.slug)
+			)}`
+		);
 	}
 }
 
 /**
  * A resource that fetches a WordPress plugin from wordpress.org.
  */
-export class CorePluginResource extends FetchResource {
-	private resource: CorePluginReference;
-
-	constructor(resource: CorePluginReference, progress?: ProgressTracker) {
-		super(progress);
-		this.resource = resource;
+export class CorePluginResource extends APIBasedFetchResource {
+	override getAPIURL() {
+		return `https://api.wordpress.org/plugins/info/1.2/?action=plugin_information&slug=${encodeURIComponent(
+			zipNameToSlug(this.resource.slug)
+		)}`;
 	}
 
-	/** @inheritDoc */
-	override get name() {
-		return zipNameToHumanName(this.resource.slug);
-	}
+	override getURL() {
+		if (this.resource.slug.endsWith('.zip')) {
+			return `https://downloads.wordpress.org/plugins/${encodeURIComponent(
+				this.resource.slug
+			)}`;
+		}
 
-	/** @inheritDoc */
-	getURL() {
-		const zipName = toDirectoryZipName(this.resource.slug);
-		return `https://downloads.wordpress.org/plugin/${zipName}`;
+		return (
+			this.apiResult?.download_link ||
+			`https://downloads.wordpress.org/plugins/${encodeURIComponent(
+				toDirectoryZipName(this.resource.slug)
+			)}`
+		);
 	}
 }
 
@@ -684,6 +784,17 @@ export function toDirectoryZipName(rawInput: string) {
 		return rawInput;
 	}
 	return rawInput + '.latest-stable.zip';
+}
+
+/**
+ * Transforms a plugin/theme ZIP name into a slug.
+ * WordPress.org Slugs never contain `.`, we can safely strip the extension.
+ *
+ * @param zipName The ZIP name to transform.
+ * @returns The slug derived from the ZIP name.
+ */
+export function zipNameToSlug(zipName: string) {
+	return zipName?.replace(/\..+$/g, '');
 }
 
 /**

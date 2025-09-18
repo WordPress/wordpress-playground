@@ -93,7 +93,7 @@ export const installTheme: StepHandler<
 	if (themeData instanceof File) {
 		// @TODO: Consider validating whether this is a zip file?
 		const zipFileName = themeData.name.split('/').pop() || 'theme.zip';
-		assetNiceName = zipNameToHumanName(zipFileName);
+		assetNiceName = themeData.name || zipNameToHumanName(zipFileName);
 
 		progress?.tracker.setCaption(`Installing the ${assetNiceName} theme`);
 		const assetResult = await installAsset(playground, {
@@ -125,6 +125,7 @@ export const installTheme: StepHandler<
 			playground,
 			{
 				themeFolderName: assetFolderName,
+				themeNiceName: assetNiceName,
 			},
 			progress
 		);
