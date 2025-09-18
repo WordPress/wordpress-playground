@@ -4,7 +4,7 @@ import { Spinner, TextControl } from '@wordpress/components';
 import css from './style.module.css';
 import { logger } from '@php-wasm/logger';
 import ModalButtons from '../../components/modal/modal-buttons';
-import type { BlueprintDeclaration } from '@wp-playground/blueprints';
+import type { BlueprintV1Declaration } from '@wp-playground/blueprints';
 
 interface PreviewPRFormProps {
 	onClose: () => void;
@@ -145,7 +145,7 @@ export default function PreviewPRForm({
 		}
 
 		// Redirect to the Playground site with the Blueprint to download and apply the PR
-		const blueprint: BlueprintDeclaration = {
+		const blueprint: BlueprintV1Declaration = {
 			landingPage: urlParams.get('url') || '/wp-admin',
 			login: true,
 			features: {

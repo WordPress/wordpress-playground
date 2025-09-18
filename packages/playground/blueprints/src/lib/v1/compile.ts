@@ -10,7 +10,7 @@ import { isResourceReference, Resource } from './resources';
 import type { Step, StepDefinition, WriteFileStep } from '../steps';
 import * as allStepHandlers from '../steps/handlers';
 import type {
-	BlueprintDeclaration,
+	BlueprintV1Declaration,
 	BlueprintBundle,
 	ExtraLibrary,
 	StreamBundledFile,
@@ -88,21 +88,21 @@ export interface CompileBlueprintOptions {
 }
 
 export async function compileBlueprint(
-	input: BlueprintDeclaration | BlueprintBundle,
+	input: BlueprintV1Declaration | BlueprintBundle,
 	options: Omit<CompileBlueprintOptions, 'streamBundledFile'> = {}
 ): Promise<CompiledBlueprint> {
 	const finalOptions: CompileBlueprintOptions = {
 		...options,
 	};
 
-	let blueprint: BlueprintDeclaration;
+	let blueprint: BlueprintV1Declaration;
 	if (isBlueprintBundle(input)) {
 		blueprint = await getBlueprintDeclaration(input);
 		finalOptions.streamBundledFile = function (...args: [any]) {
 			return input.read(...args);
 		};
 	} else {
-		blueprint = input as BlueprintDeclaration;
+		blueprint = input as BlueprintV1Declaration;
 	}
 
 	return compileBlueprintJson(blueprint, finalOptions);
@@ -114,7 +114,7 @@ export function isBlueprintBundle(input: any): input is BlueprintBundle {
 
 export async function getBlueprintDeclaration(
 	blueprint: Blueprint
-): Promise<BlueprintDeclaration> {
+): Promise<BlueprintV1Declaration> {
 	if (!isBlueprintBundle(blueprint)) {
 		return blueprint;
 	}
@@ -132,7 +132,7 @@ export async function getBlueprintDeclaration(
  * @returns The compiled blueprint
  */
 function compileBlueprintJson(
-	blueprint: BlueprintDeclaration,
+	blueprint: BlueprintV1Declaration,
 	{
 		progress = new ProgressTracker(),
 		semaphore = new Semaphore({ concurrency: 3 }),

@@ -1,5 +1,5 @@
 import type {
-	BlueprintDeclaration,
+	BlueprintV1Declaration,
 	BlueprintBundle,
 	Blueprint,
 	StepDefinition,
@@ -37,7 +37,7 @@ export async function resolveBlueprintFromURL(
 	const query = url.searchParams;
 	const fragment = decodeURI(url.hash || '#').substring(1);
 
-	let blueprint: BlueprintDeclaration | BlueprintBundle;
+	let blueprint: BlueprintV1Declaration | BlueprintBundle;
 	let source: BlueprintSource;
 
 	/**
@@ -145,9 +145,9 @@ export async function resolveBlueprintFromURL(
 }
 
 function applyQueryOverrides(
-	blueprint: BlueprintDeclaration,
+	blueprint: BlueprintV1Declaration,
 	query: URLSearchParams
-): BlueprintDeclaration {
+): BlueprintV1Declaration {
 	// PHP and WordPress versions
 	if (!blueprint.preferredVersions) {
 		blueprint.preferredVersions = {} as any;

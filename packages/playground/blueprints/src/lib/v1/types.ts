@@ -12,7 +12,7 @@ export type PHPConstants = Record<string, string | boolean | number>;
 
 export type StreamBundledFile = (relativePath: string) => Promise<StreamedFile>;
 
-export type Blueprint = BlueprintBundle | BlueprintDeclaration;
+export type Blueprint = BlueprintBundle | BlueprintV1Declaration;
 
 /**
  * A filesystem structure containing a /blueprint.json file and any
@@ -23,7 +23,7 @@ export type BlueprintBundle = Filesystem;
 /**
  * The Blueprint declaration, typically stored in a blueprint.json file.
  */
-export type BlueprintDeclaration = {
+export type BlueprintV1Declaration = {
 	/**
 	 * The URL to navigate to after the blueprint has been run.
 	 */

@@ -12,7 +12,7 @@ import {
 } from '@php-wasm/universal';
 import type {
 	BlueprintBundle,
-	BlueprintDeclaration,
+	BlueprintV1Declaration,
 } from '@wp-playground/blueprints';
 import { runBlueprintSteps } from '@wp-playground/blueprints';
 import { RecommendedPHPVersion } from '@wp-playground/common';
@@ -393,7 +393,7 @@ export async function parseOptionsAndRunCLI() {
 }
 
 export interface RunCLIArgs {
-	blueprint?: BlueprintDeclaration | BlueprintBundle;
+	blueprint?: BlueprintV1Declaration | BlueprintBundle;
 	command: 'server' | 'run-blueprint' | 'build-snapshot';
 	debug?: boolean;
 	login?: boolean;

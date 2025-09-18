@@ -4,7 +4,9 @@ import '@php-wasm/node-polyfills';
 export type {
 	Blueprint,
 	BlueprintBundle,
-	BlueprintDeclaration,
+	BlueprintV1Declaration,
+	// For backwards compatibility:
+	BlueprintV1Declaration as BlueprintDeclaration,
 	PHPConstants,
 } from './lib/v1/types';
 export {
