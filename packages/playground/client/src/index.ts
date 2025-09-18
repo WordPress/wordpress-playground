@@ -30,7 +30,10 @@ import type {
 	BlueprintV1Declaration,
 	OnStepCompleted,
 } from '@wp-playground/blueprints';
-import { compileBlueprint, runBlueprintSteps } from '@wp-playground/blueprints';
+import {
+	compileBlueprintV1,
+	runBlueprintV1Steps,
+} from '@wp-playground/blueprints';
 import { consumeAPI } from '@php-wasm/web';
 import { ProgressTracker } from '@php-wasm/progress';
 import type { MountDescriptor, PlaygroundClient } from '@wp-playground/remote';
@@ -44,7 +47,7 @@ export interface StartPlaygroundOptions {
 	remoteUrl: string;
 	progressTracker?: ProgressTracker;
 	disableProgressBar?: boolean;
-	blueprint?: Blueprint;
+	blueprint?: BlueprintV1;
 	onBlueprintStepCompleted?: OnStepCompleted;
 	onBlueprintValidated?: (blueprint: BlueprintV1Declaration) => void;
 	/**
@@ -125,7 +128,7 @@ export async function startPlaygroundWeb({
 		blueprint = {};
 	}
 
-	const compiled = await compileBlueprint(blueprint, {
+	const compiled = await compileBlueprintV1(blueprint, {
 		progress: progressTracker.stage(0.5),
 		onStepCompleted: onBlueprintStepCompleted,
 		onBlueprintValidated,
@@ -165,7 +168,7 @@ export async function startPlaygroundWeb({
 	collectPhpLogs(logger, playground);
 	onClientConnected(playground);
 
-	await runBlueprintSteps(compiled, playground);
+	await runBlueprintV1Steps(compiled, playground);
 	/**
 	 * Pre-fetch WordPress update checks to speed up the initial wp-admin load.
 	 *

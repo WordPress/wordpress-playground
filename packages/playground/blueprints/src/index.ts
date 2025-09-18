@@ -2,23 +2,29 @@
 import '@php-wasm/node-polyfills';
 
 export type {
-	Blueprint,
-	BlueprintBundle,
+	BlueprintV1,
 	BlueprintV1Declaration,
-	// For backwards compatibility:
-	BlueprintV1Declaration as BlueprintDeclaration,
 	PHPConstants,
 } from './lib/v1/types';
+export type {
+	Blueprint,
+	BlueprintBundle,
+	BlueprintDeclaration,
+} from './lib/types';
 export {
-	compileBlueprint,
 	getBlueprintDeclaration,
 	isBlueprintBundle,
-	runBlueprintSteps,
+	compileBlueprintV1,
+	runBlueprintV1Steps,
+
+	// BC:
+	compileBlueprintV1 as compileBlueprint,
+	runBlueprintV1Steps as runBlueprintSteps,
 } from './lib/v1/compile';
 export type {
-	CompileBlueprintOptions,
-	CompiledBlueprint,
-	CompiledStep,
+	CompileBlueprintV1Options,
+	CompiledBlueprintV1,
+	CompiledV1Step,
 	OnStepCompleted,
 } from './lib/v1/compile';
 export type {
@@ -43,8 +49,8 @@ export type {
 export * from './lib/steps';
 export * from './lib/steps/handlers';
 export type {
-	BlueprintV2Declaration,
-	ParsedBlueprintV2Declaration,
+	RawBlueprintV2Data,
+	ParsedBlueprintV2String,
 } from './lib/v2/blueprint-v2-declaration';
 export { getV2Runner } from './lib/v2/get-v2-runner';
 export { runBlueprintV2 } from './lib/v2/run-blueprint-v2';
