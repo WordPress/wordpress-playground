@@ -97,7 +97,7 @@ describe('Blueprints', () => {
 		// Load the real zip file from the test directory
 		const zipPath = path.resolve(
 			__dirname,
-			'../../tests/fixtures/blueprint.zip'
+			'../../../tests/fixtures/blueprint.zip'
 		);
 		const zipData = fs.readFileSync(zipPath).buffer;
 		const zipBundle = ZipFilesystem.fromArrayBuffer(zipData);
