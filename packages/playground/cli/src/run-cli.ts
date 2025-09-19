@@ -13,6 +13,7 @@ import {
 import type {
 	BlueprintBundle,
 	BlueprintV1Declaration,
+	BlueprintV2Declaration,
 } from '@wp-playground/blueprints';
 import { runBlueprintV1Steps } from '@wp-playground/blueprints';
 import { RecommendedPHPVersion } from '@wp-playground/common';
@@ -394,7 +395,10 @@ export async function parseOptionsAndRunCLI() {
 }
 
 export interface RunCLIArgs {
-	blueprint?: BlueprintV1Declaration | BlueprintBundle;
+	blueprint?:
+		| BlueprintV1Declaration
+		| BlueprintV2Declaration
+		| BlueprintBundle;
 	command: 'server' | 'run-blueprint' | 'build-snapshot';
 	debug?: boolean;
 	login?: boolean;

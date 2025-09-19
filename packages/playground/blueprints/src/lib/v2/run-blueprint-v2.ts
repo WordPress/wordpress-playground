@@ -7,9 +7,10 @@ import { phpVar } from '@php-wasm/util';
 import { getV2Runner } from './get-v2-runner';
 import {
 	type RawBlueprintV2Data,
-	type ParsedBlueprintV2String,
+	type ParsedBlueprintV1orV2String,
 	parseBlueprintDeclaration,
 } from './blueprint-v2-declaration';
+import type { BlueprintV1Declaration } from '../v1/types';
 
 export type PHPExceptionDetails = {
 	exception: string;
@@ -32,7 +33,10 @@ export type BlueprintMessage =
 interface RunV2Options {
 	php: UniversalPHP;
 	cliArgs?: string[];
-	blueprint: RawBlueprintV2Data | ParsedBlueprintV2String;
+	blueprint:
+		| RawBlueprintV2Data
+		| ParsedBlueprintV1orV2String
+		| BlueprintV1Declaration;
 	blueprintOverrides?: {
 		wordpressVersion?: string;
 		additionalSteps?: any[];
