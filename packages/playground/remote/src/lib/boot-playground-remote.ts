@@ -24,10 +24,23 @@ import { logger } from '@php-wasm/logger';
 import { PhpWasmError } from '@php-wasm/util';
 import { responseTo } from '@php-wasm/web-service-worker';
 
+// Select worker runtime (v1 or v2) based on query parameter
+// @ts-ignore
+import workerV1Url from './playground-worker-endpoint-blueprints-v1.ts?worker&url';
+// @ts-ignore
+import workerV2Url from './playground-worker-endpoint-blueprints-v2.ts?worker&url';
+
 // Avoid literal "import.meta.url" on purpose as vite would attempt
 // to resolve it during build time. This should specifically be
 // resolved by the browser at runtime to reflect the current origin.
 const origin = new URL('/', (import.meta || {}).url).origin;
+
+function getWorkerUrl(): string {
+	const runner = new URL(document.location.href).searchParams.get('blueprints-runner');
+	const isV2 = runner === 'v2';
+	const selected = isV2 ? workerV2Url : workerV1Url;
+	return new URL(selected, origin) + '';
+}
 
 export const serviceWorkerUrl = new URL(serviceWorkerPath, origin);
 
@@ -88,12 +101,7 @@ export async function bootPlaygroundRemote() {
 		logger.error('Failed to update service worker.', e);
 	}
 
-	// @ts-ignore
-	const workerV1Url = await import(
-		// @ts-ignore
-		'./playground-worker-endpoint-blueprints-v1.ts?worker&url'
-	);
-	const workerUrl = new URL(workerV1Url as any, origin) + '';
+	const workerUrl = new URL(getWorkerUrl(), origin) + '';
 
 	const phpWorkerApi = consumeAPI<PlaygroundWorkerEndpoint>(
 		await spawnPHPWorkerThread(workerUrl)
