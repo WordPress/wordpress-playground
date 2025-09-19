@@ -6,7 +6,6 @@ import type { PHPResponse, StreamedPHPResponse } from './php-response';
 import type {
 	MessageListener,
 	PHPEvent,
-	PHPEventListener,
 	PHPRequest,
 	PHPRunOptions,
 } from './universal-php';
@@ -24,8 +23,6 @@ export type LimitedPHPApi = Pick<
 	PHP,
 	| 'request'
 	| 'defineConstant'
-	| 'addEventListener'
-	| 'removeEventListener'
 	| 'mkdir'
 	| 'mkdirTree'
 	| 'readFileAsText'
@@ -43,8 +40,16 @@ export type LimitedPHPApi = Pick<
 > & {
 	documentRoot: PHP['documentRoot'];
 	absoluteUrl: PHP['absoluteUrl'];
+	addEventListener:
+		| PHP['addEventListener']
+		| ((event: string, listener: (event: any) => any) => void);
+	removeEventListener:
+		| PHP['removeEventListener']
+		| ((event: string, listener: (event: any) => any) => void);
 };
 
+export type PHPWorkerEvent = PHPEvent | { type: string };
+export type PHPWorkerEventListener = (event: PHPWorkerEvent) => void;
 /**
  * A PHP client that can be used to run PHP code in the browser.
  */
@@ -54,6 +59,9 @@ export class PHPWorker implements LimitedPHPApi, AsyncDisposable {
 	/** @inheritDoc @php-wasm/universal!RequestHandler.documentRoot  */
 	documentRoot = '';
 
+	#eventListeners: Map<string, Set<PHPWorkerEventListener>> = new Map();
+
+	onMessageListeners: MessageListener[] = [];
 	/** @inheritDoc */
 	constructor(
 		requestHandler?: PHPRequestHandler,
@@ -256,7 +264,12 @@ export class PHPWorker implements LimitedPHPApi, AsyncDisposable {
 
 	/** @inheritDoc @php-wasm/universal!/PHP.onMessage */
 	onMessage(listener: MessageListener) {
-		return _private.get(this)!.php!.onMessage(listener);
+		this.onMessageListeners.push(listener);
+		return async () => {
+			this.onMessageListeners = this.onMessageListeners.filter(
+				(l) => l !== listener
+			);
+		};
 	}
 
 	/** @inheritDoc @php-wasm/universal!/PHP.defineConstant */
@@ -266,18 +279,50 @@ export class PHPWorker implements LimitedPHPApi, AsyncDisposable {
 
 	/** @inheritDoc @php-wasm/universal!/PHP.addEventListener */
 	addEventListener(
-		eventType: PHPEvent['type'],
-		listener: PHPEventListener
+		eventType: PHPWorkerEvent['type'],
+		listener: PHPWorkerEventListener
 	): void {
-		_private.get(this)!.php!.addEventListener(eventType, listener);
+		if (!this.#eventListeners.has(eventType)) {
+			this.#eventListeners.set(eventType, new Set());
+		}
+		this.#eventListeners.get(eventType)!.add(listener);
 	}
 
-	/** @inheritDoc @php-wasm/universal!/PHP.removeEventListener */
+	/**
+	 * Removes an event listener for a PHP event.
+	 * @param eventType - The type of event to remove the listener from.
+	 * @param listener - The listener function to be removed.
+	 */
 	removeEventListener(
-		eventType: PHPEvent['type'],
-		listener: PHPEventListener
-	): void {
-		_private.get(this)!.php!.removeEventListener(eventType, listener);
+		eventType: PHPWorkerEvent['type'],
+		listener: PHPWorkerEventListener
+	) {
+		this.#eventListeners.get(eventType)?.delete(listener);
+	}
+
+	protected dispatchEvent<Event extends PHPWorkerEvent>(event: Event) {
+		const listeners = this.#eventListeners.get(event.type);
+		if (!listeners) {
+			return;
+		}
+		for (const listener of listeners) {
+			listener(event);
+		}
+	}
+
+	protected registerWorkerListeners(php: PHP) {
+		php.addEventListener('*', async (event) => {
+			this.dispatchEvent(event);
+		});
+		php.onMessage(async (message) => {
+			for (const listener of this.onMessageListeners) {
+				const returnData = await listener(message);
+				if (returnData) {
+					return returnData;
+				}
+			}
+			return '';
+		});
 	}
 
 	async [Symbol.asyncDispose]() {
