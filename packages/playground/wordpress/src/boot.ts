@@ -25,7 +25,7 @@ import {
 } from '.';
 import { basename, dirname, joinPaths } from '@php-wasm/util';
 import { logger } from '@php-wasm/logger';
-import { ensureWpConfig } from './rewrite-wp-config';
+import { ensureWpConfig } from './wp-config';
 
 export type PhpIniOptions = Record<string, string>;
 export type Hook = (php: PHP) => void | Promise<void>;

@@ -1,5 +1,5 @@
 import { PHP } from '@php-wasm/universal';
-import { defineWpConfigConstants, ensureWpConfig } from './rewrite-wp-config';
+import { defineWpConfigConstants, ensureWpConfig } from '../wp-config';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 // eslint-disable-next-line @nx/enforce-module-boundaries -- ignore test-related interdependencies so we can test.
 import { loadNodeRuntime } from '@php-wasm/node';
