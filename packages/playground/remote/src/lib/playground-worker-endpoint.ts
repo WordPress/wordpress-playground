@@ -28,11 +28,7 @@ import transportFetch from './playground-mu-plugin/playground-includes/wp_http_f
 /* @ts-ignore */
 import transportDummy from './playground-mu-plugin/playground-includes/wp_http_dummy.php?raw';
 import { logger } from '@php-wasm/logger';
-import type {
-	MessageListener,
-	PHP,
-	SupportedPHPVersion,
-} from '@php-wasm/universal';
+import type { PHP, SupportedPHPVersion } from '@php-wasm/universal';
 import {
 	PHPResponse,
 	PHPWorker,
@@ -98,7 +94,6 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 	 */
 	loadedWordPressVersion: string | undefined;
 
-	onMessageListeners: MessageListener[] = [];
 	blueprintMessageListeners: Array<(message: any) => void | Promise<void>> =
 		[];
 
@@ -242,15 +237,7 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 				if (withNetworking) {
 					await this.networkTransport!.setupMessageHandler(php);
 				}
-				php.onMessage(async (message) => {
-					for (const listener of this.onMessageListeners) {
-						const returnData = await listener(message);
-						if (returnData) {
-							return returnData;
-						}
-					}
-					return '';
-				});
+				this.registerWorkerListeners(php);
 			},
 			spawnHandler: sandboxedSpawnHandlerFactory,
 			sapiName,
@@ -420,15 +407,6 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		return await hasCachedStaticFilesRemovedFromMinifiedBuild(
 			this.__internal_getPHP()!
 		);
-	}
-
-	override onMessage(listener: MessageListener) {
-		this.onMessageListeners.push(listener);
-		return async () => {
-			this.onMessageListeners = this.onMessageListeners.filter(
-				(l) => l !== listener
-			);
-		};
 	}
 
 	// @TODO: Recycle addEventListener/removeEventListener instead of introducing another

@@ -277,7 +277,8 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 						followSymlinks: allow?.includes('follow-symlinks'),
 					});
 				},
-				async onPHPInstanceCreated(php) {
+				onPHPInstanceCreated: async (php) => {
+					this.registerWorkerListeners(php);
 					await mountResources(php, mountsBeforeWpInstall);
 					await mountResources(php, mountsAfterWpInstall);
 				},
