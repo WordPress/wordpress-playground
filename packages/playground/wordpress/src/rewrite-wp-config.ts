@@ -2,7 +2,7 @@ import { joinPaths, phpVars } from '@php-wasm/util';
 import type { UniversalPHP } from '@php-wasm/universal';
 
 /* @ts-ignore */
-import rewriteWpConfigToDefineConstants from './rewrite-wp-config-to-define-constants.php?raw';
+import wpConfigTransformer from './wp-config-transformer.php?raw';
 
 /**
  * Defines constants in a WordPress "wp-config.php" file.
@@ -23,18 +23,19 @@ export async function defineWpConfigConstants(
 ): Promise<void> {
 	const js = phpVars({ wpConfigPath, constants, whenAlreadyDefined });
 	const result = await php.run({
-		code: `<?php ob_start(); ?>
-			${rewriteWpConfigToDefineConstants}
-			$wp_config_path = ${js.wpConfigPath};
-			$wp_config = file_get_contents($wp_config_path);
-			$new_wp_config = rewrite_wp_config_to_define_constants($wp_config, ${js.constants}, ${js.whenAlreadyDefined});
-			$return_value = file_put_contents($wp_config_path, $new_wp_config);
-			ob_clean();
-			echo false === $return_value ? '0' : '1';
-			ob_end_flush();
+		code: `${wpConfigTransformer}
+		$wp_config_path = ${js.wpConfigPath};
+		$transformer = WP_Config_Transformer::from_file($wp_config_path);
+		foreach(${js.constants} as $name => $value) {
+			if ('skip' === ${js.whenAlreadyDefined} && $transformer->constant_exists($name)) {
+				continue;
+			}
+			$transformer->define_constant($name, $value);
+		}
+		$transformer->to_file($wp_config_path);
 		`,
 	});
-	if (result.text !== '1') {
+	if (result.errors.length > 0) {
 		throw new Error('Failed to rewrite constants in wp-config.php.');
 	}
 }
