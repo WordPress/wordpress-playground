@@ -71,10 +71,6 @@ export abstract class BlueprintReflection<
 	abstract getExtraLibraries(): ExtraLibrary[];
 }
 
-const VERSION_REGEX = new RegExp(
-	`^\\s*(\\d+)(?:\\.(\\d+))?(?:\\.(\\d+))?(?:[.\\-]?([a-zA-Z]+)(\\d*))?(?:[.\\-]src)?(?:[.\\-](\\d+))?\\s*$`
-);
-
 export class BlueprintV1Reflection extends BlueprintReflection<BlueprintV1Declaration> {
 	getPhpVersion() {
 		return this.getDeclaration().preferredVersions?.php;
@@ -88,14 +84,11 @@ export class BlueprintV1Reflection extends BlueprintReflection<BlueprintV1Declar
 		if (wpVersion === 'latest') {
 			return 'latest';
 		}
-		if (!VERSION_REGEX.test(wpVersion)) {
-			return 'custom';
-		}
 		return wpVersion;
 	}
 
 	getNetworking() {
-		return this.getDeclaration().features?.networking || true;
+		return this.getDeclaration().features?.networking ?? true;
 	}
 
 	getIntl() {
@@ -143,16 +136,13 @@ export class BlueprintV2Reflection extends BlueprintReflection<BlueprintV2Declar
 		if (wordpressVersion === 'latest') {
 			return 'latest';
 		}
-		if (!VERSION_REGEX.test(wordpressVersion)) {
-			return 'custom';
-		}
 		return wordpressVersion;
 	}
 
 	getNetworking() {
 		return (
 			this.getDeclaration().applicationOptions?.['wordpress-playground']
-				?.networkAccess || true
+				?.networkAccess ?? true
 		);
 	}
 
@@ -164,7 +154,7 @@ export class BlueprintV2Reflection extends BlueprintReflection<BlueprintV2Declar
 				this.getDeclaration().applicationOptions?.[
 					'wordpress-playground'
 				] as any
-			)?.intlExtension || true
+			)?.intlExtension ?? true
 		);
 	}
 
