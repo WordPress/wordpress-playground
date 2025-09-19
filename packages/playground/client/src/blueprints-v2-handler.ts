@@ -18,7 +18,8 @@ export class BlueprintsV2Handler {
 			sapiName,
 			scope,
 		} = this.options;
-		const downloadProgress = progressTracker!.stage();
+		const downloadProgress = progressTracker!.stage(0.25);
+		const executionProgress = progressTracker!.stage(0.75);
 
 		// Connect the Comlink API client to the remote worker,
 		// boot the playground, and run the blueprint steps.
@@ -31,6 +32,56 @@ export class BlueprintsV2Handler {
 
 		// Connect the Comlink API client to the remote worker download monitor
 		await playground.onDownloadProgress(downloadProgress.loadingListener);
+		await playground.addEventListener(
+			'blueprint.message',
+			({ message }: any) => {
+				switch (message.type) {
+					case 'blueprint.target_resolved': {
+						// @TODO: Evaluate consistenty with the CLI worker
+						// if (!this.blueprintTargetResolved) {
+						// 	this.blueprintTargetResolved = true;
+						// 	for (const php of this
+						// 		.phpInstancesThatNeedMountsAfterTargetResolved) {
+						// 		// console.log('mounting resources for php', php);
+						// 		this.phpInstancesThatNeedMountsAfterTargetResolved.delete(
+						// 			php
+						// 		);
+						// 		await mountResources(php, args.mount || []);
+						// 	}
+						// }
+						break;
+					}
+					case 'blueprint.progress': {
+						executionProgress.set(message.progress);
+						executionProgress.setCaption(message.caption);
+						break;
+					}
+					case 'blueprint.error': {
+						// @TODO: Error reporting.
+						const red = '\x1b[31m';
+						const bold = '\x1b[1m';
+						const reset = '\x1b[0m';
+						if (message.details) {
+							logger.error(
+								`${red}${bold}Fatal error:${reset} Uncaught ${message.details.exception}: ${message.details.message}\n` +
+									`  at ${message.details.file}:${message.details.line}\n` +
+									(message.details.trace
+										? message.details.trace + '\n'
+										: '')
+							);
+						} else {
+							logger.error(
+								`${red}${bold}Error:${reset} ${message.message}\n`
+							);
+						}
+
+						// TODO: Should we report the error like that?
+						throw new Error(message.message);
+						break;
+					}
+				}
+			}
+		);
 
 		await playground.boot({
 			mounts,
@@ -48,12 +99,16 @@ export class BlueprintsV2Handler {
 		collectPhpLogs(logger, playground);
 		onClientConnected?.(playground);
 
+		// @TODO: Get the landing page from the Blueprint.
+		playground.goTo('/');
+
 		/**
 		 * Pre-fetch WordPress update checks to speed up the initial wp-admin load.
 		 *
 		 * @see https://github.com/WordPress/wordpress-playground/pull/2295
 		 */
-		// @TODO
+		// @TODO get the enabled features somehow – probably using the same
+		//       resolveRuntimeConfiguration() logic as the redux site-slice.ts
 		// if (compiled.features.networking) {
 		// 	await playground.prefetchUpdateChecks();
 		// }

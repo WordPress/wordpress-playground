@@ -59,9 +59,10 @@ class PlaygroundWorkerEndpointV2 extends PlaygroundWorkerEndpoint {
 				cliArgs: ['--site-url=' + siteUrl],
 				blueprint: blueprint as BlueprintV2Declaration,
 				onMessage: async (message: any) => {
-					for (const listener of this.blueprintMessageListeners) {
-						await listener(message);
-					}
+					this.dispatchEvent({
+						type: 'blueprint.message',
+						message,
+					});
 				},
 			});
 			await streamed.finished;
