@@ -1,4 +1,5 @@
 import path from 'node:path';
+import os from 'node:os';
 import { runCLI } from '../src/run-cli';
 import type { RunCLIArgs, RunCLIServer } from '../src/run-cli';
 import type { MockInstance } from 'vitest';
@@ -483,51 +484,56 @@ describe.each(blueprintVersions)(
 				expect(response.text).toContain('Hello world');
 			});
 
-			test('should run a wordpress project using --auto-mount', async ({
-				skip,
-			}) => {
-				if (version === 2) {
-					// @TODO: Fix this test for Blueprints v2.
-					// It makes a valid complaint that the unzipped WP is not yet installed.
-					skip();
+			// NOTE: We have had trouble running the full test set on Windows
+			// due to Out of Memory errors. Until we debug and fix this,
+			// Let's pick this as the single test to run for Blueprints v1 and v2 on Windows
+			// because it integrates a good number of Playground CLI features.
+			(os.platform() === 'win32' ? test.only : test)(
+				'should run a wordpress project using --auto-mount',
+				async ({ skip }) => {
+					if (version === 2) {
+						// @TODO: Fix this test for Blueprints v2.
+						// It makes a valid complaint that the unzipped WP is not yet installed.
+						skip();
+					}
+
+					const tmpDir = await mkdtemp(
+						path.join(tmpdir(), 'playground-test-')
+					);
+					vi.spyOn(process, 'cwd').mockReturnValue(
+						path.join(tmpDir, 'wordpress')
+					);
+
+					const zip = await fetch('https://wordpress.org/latest.zip');
+					const zipPath = path.join(tmpDir, 'wp.zip');
+					await writeFile(
+						zipPath,
+						new Uint8Array(await zip.arrayBuffer())
+					);
+					await promisify(exec)(`unzip "${zipPath}" -d "${tmpDir}"`);
+
+					const checksum = await getDirectoryChecksum(tmpDir);
+
+					cliServer = await runCLI({
+						...suiteCliArgs,
+						command: 'server',
+						autoMount: '',
+					});
+					const response = await cliServer.playground.request({
+						url: '/',
+						method: 'GET',
+					});
+					expect(response.httpStatusCode).toBe(200);
+					expect(response.text).toContain(
+						`<title>${expectedHomePageTitle}</title>`
+					);
+
+					/**
+					 * Playground should not modify the mounted directory.
+					 */
+					expect(await getDirectoryChecksum(tmpDir)).toBe(checksum);
 				}
-
-				const tmpDir = await mkdtemp(
-					path.join(tmpdir(), 'playground-test-')
-				);
-				vi.spyOn(process, 'cwd').mockReturnValue(
-					path.join(tmpDir, 'wordpress')
-				);
-
-				const zip = await fetch('https://wordpress.org/latest.zip');
-				const zipPath = path.join(tmpDir, 'wp.zip');
-				await writeFile(
-					zipPath,
-					new Uint8Array(await zip.arrayBuffer())
-				);
-				await promisify(exec)(`unzip "${zipPath}" -d "${tmpDir}"`);
-
-				const checksum = await getDirectoryChecksum(tmpDir);
-
-				cliServer = await runCLI({
-					...suiteCliArgs,
-					command: 'server',
-					autoMount: '',
-				});
-				const response = await cliServer.playground.request({
-					url: '/',
-					method: 'GET',
-				});
-				expect(response.httpStatusCode).toBe(200);
-				expect(response.text).toContain(
-					`<title>${expectedHomePageTitle}</title>`
-				);
-
-				/**
-				 * Playground should not modify the mounted directory.
-				 */
-				expect(await getDirectoryChecksum(tmpDir)).toBe(checksum);
-			});
+			);
 		});
 
 		describe('verbosity', () => {
