@@ -3,7 +3,6 @@ import { FileLockManagerForNode } from '../lib/file-lock-manager-for-node';
 import { fork } from 'child_process';
 import type { ChildProcess } from 'child_process';
 import { join } from 'path';
-import os from 'os';
 import type {
 	FileLockManager,
 	WholeFileLockOp,
@@ -22,9 +21,6 @@ import { flockSync as nativeFlockSync } from 'fs-ext';
 
 const TEST_FILE1 = new URL('test1.txt', import.meta.url).pathname;
 const TEST_FILE2 = new URL('test2.txt', import.meta.url).pathname;
-
-// @TODO: Remove this condition once native file locking works with Windows.
-const shouldTestNativeLocking = os.platform() !== 'win32';
 
 describe('FileLockManagerForNode', () => {
 	let lockManager: FileLockManagerForNode;
@@ -1297,221 +1293,208 @@ describe('FileLockManagerForNode', () => {
 		});
 	});
 
-	describe.runIf(shouldTestNativeLocking)(
-		'integration with native OS file locking',
-		() => {
-			let childProcess: ChildProcess | undefined;
+	describe('integration with native OS file locking', () => {
+		let childProcess: ChildProcess | undefined;
 
-			afterEach(async () => {
-				if (childProcess) {
-					await killProcess(childProcess);
-					childProcess = undefined;
-				}
+		afterEach(async () => {
+			if (childProcess) {
+				await killProcess(childProcess);
+				childProcess = undefined;
+			}
+		});
+
+		it('cannot acquire exclusive lock when native exclusive lock exists', async () => {
+			// Child process gets native exclusive lock
+			const result1 = await spawnLockProcess(TEST_FILE1, 'exclusive');
+			expect(result1).toEqual({
+				success: true,
+				child: expect.any(Object),
 			});
+			childProcess = result1.child;
 
-			it('cannot acquire exclusive lock when native exclusive lock exists', async () => {
-				// Child process gets native exclusive lock
-				const result1 = await spawnLockProcess(TEST_FILE1, 'exclusive');
-				expect(result1).toEqual({
-					success: true,
-					child: expect.any(Object),
-				});
-				childProcess = result1.child;
-
-				// Try to get exclusive lock through lock manager
-				const result2 = lockManager.lockWholeFile(TEST_FILE1, {
-					type: 'exclusive',
-					pid: 1,
-					fd: 1,
-				});
-				expect(result2).toBe(false);
+			// Try to get exclusive lock through lock manager
+			const result2 = lockManager.lockWholeFile(TEST_FILE1, {
+				type: 'exclusive',
+				pid: 1,
+				fd: 1,
 			});
+			expect(result2).toBe(false);
+		});
 
-			it('cannot acquire shared lock when native exclusive lock exists', async () => {
-				// Child process gets native exclusive lock
-				const result1 = await spawnLockProcess(TEST_FILE1, 'exclusive');
-				expect(result1).toEqual({
-					success: true,
-					child: expect.any(Object),
-				});
-				childProcess = result1.child;
-
-				// Try to get shared lock through lock manager
-				const result2 = lockManager.lockWholeFile(TEST_FILE1, {
-					type: 'shared',
-					pid: 1,
-					fd: 1,
-				});
-				expect(result2).toBe(false);
+		it('cannot acquire shared lock when native exclusive lock exists', async () => {
+			// Child process gets native exclusive lock
+			const result1 = await spawnLockProcess(TEST_FILE1, 'exclusive');
+			expect(result1).toEqual({
+				success: true,
+				child: expect.any(Object),
 			});
+			childProcess = result1.child;
 
-			it('can acquire shared lock when native shared lock exists', async () => {
-				// Child process gets native shared lock
-				const result1 = await spawnLockProcess(TEST_FILE1, 'shared');
-				expect(result1).toEqual({
-					success: true,
-					child: expect.any(Object),
-				});
-				childProcess = result1.child;
-
-				// Try to get shared lock through lock manager
-				const result2 = lockManager.lockWholeFile(TEST_FILE1, {
-					type: 'shared',
-					pid: 1,
-					fd: 1,
-				});
-				expect(result2).toBe(true);
+			// Try to get shared lock through lock manager
+			const result2 = lockManager.lockWholeFile(TEST_FILE1, {
+				type: 'shared',
+				pid: 1,
+				fd: 1,
 			});
+			expect(result2).toBe(false);
+		});
 
-			it('cannot acquire exclusive lock when native shared lock exists', async () => {
-				// Child process gets native shared lock
-				const result1 = await spawnLockProcess(TEST_FILE1, 'shared');
-				expect(result1).toEqual({
-					success: true,
-					child: expect.any(Object),
-				});
-				childProcess = result1.child;
-
-				// Try to get exclusive lock through lock manager
-				const result2 = lockManager.lockWholeFile(TEST_FILE1, {
-					type: 'exclusive',
-					pid: 1,
-					fd: 1,
-				});
-				expect(result2).toBe(false);
+		it('can acquire shared lock when native shared lock exists', async () => {
+			// Child process gets native shared lock
+			const result1 = await spawnLockProcess(TEST_FILE1, 'shared');
+			expect(result1).toEqual({
+				success: true,
+				child: expect.any(Object),
 			});
+			childProcess = result1.child;
 
-			it('cannot acquire exclusive range lock when native exclusive lock exists', async () => {
-				// Child process gets native exclusive lock
-				const result1 = await spawnLockProcess(TEST_FILE1, 'exclusive');
-				expect(result1).toEqual({
-					success: true,
-					child: expect.any(Object),
-				});
-				childProcess = result1.child;
-
-				// Try to get exclusive range lock through lock manager
-				const result2 = lockManager.lockFileByteRange(TEST_FILE1, {
-					type: 'exclusive',
-					start: 0n,
-					end: 100n,
-					pid: 1,
-				});
-				expect(result2).toBe(false);
+			// Try to get shared lock through lock manager
+			const result2 = lockManager.lockWholeFile(TEST_FILE1, {
+				type: 'shared',
+				pid: 1,
+				fd: 1,
 			});
+			expect(result2).toBe(true);
+		});
 
-			it('cannot acquire shared range lock when native exclusive lock exists', async () => {
-				// Child process gets native exclusive lock
-				const result1 = await spawnLockProcess(TEST_FILE1, 'exclusive');
-				expect(result1).toEqual({
-					success: true,
-					child: expect.any(Object),
-				});
-				childProcess = result1.child;
-
-				// Try to get shared range lock through lock manager
-				const result2 = lockManager.lockFileByteRange(TEST_FILE1, {
-					type: 'shared',
-					start: 0n,
-					end: 100n,
-					pid: 1,
-				});
-				expect(result2).toBe(false);
+		it('cannot acquire exclusive lock when native shared lock exists', async () => {
+			// Child process gets native shared lock
+			const result1 = await spawnLockProcess(TEST_FILE1, 'shared');
+			expect(result1).toEqual({
+				success: true,
+				child: expect.any(Object),
 			});
+			childProcess = result1.child;
 
-			it('can acquire shared range lock when native shared lock exists', async () => {
-				// Child process gets native shared lock
-				const result1 = await spawnLockProcess(TEST_FILE1, 'shared');
-				expect(result1).toEqual({
-					success: true,
-					child: expect.any(Object),
-				});
-				childProcess = result1.child;
-
-				// Try to get shared range lock through lock manager
-				const result2 = lockManager.lockFileByteRange(TEST_FILE1, {
-					type: 'shared',
-					start: 0n,
-					end: 100n,
-					pid: 1,
-				});
-				expect(result2).toBe(true);
+			// Try to get exclusive lock through lock manager
+			const result2 = lockManager.lockWholeFile(TEST_FILE1, {
+				type: 'exclusive',
+				pid: 1,
+				fd: 1,
 			});
+			expect(result2).toBe(false);
+		});
 
-			it('cannot acquire exclusive range lock when native shared lock exists', async () => {
-				// Child process gets native shared lock
-				const result1 = await spawnLockProcess(TEST_FILE1, 'shared');
-				expect(result1).toEqual({
-					success: true,
-					child: expect.any(Object),
-				});
-				childProcess = result1.child;
-
-				// Try to get exclusive range lock through lock manager
-				const result2 = lockManager.lockFileByteRange(TEST_FILE1, {
-					type: 'exclusive',
-					start: 0n,
-					end: 100n,
-					pid: 1,
-				});
-				expect(result2).toBe(false);
+		it('cannot acquire exclusive range lock when native exclusive lock exists', async () => {
+			// Child process gets native exclusive lock
+			const result1 = await spawnLockProcess(TEST_FILE1, 'exclusive');
+			expect(result1).toEqual({
+				success: true,
+				child: expect.any(Object),
 			});
+			childProcess = result1.child;
 
-			// Helper function to spawn a child process that will attempt to acquire a lock
-			function spawnLockProcess(
-				filePath: string,
-				lockType: 'exclusive' | 'shared'
-			): Promise<{
-				success: boolean;
-				error?: string;
-				child?: ChildProcess;
-			}> {
-				return new Promise((resolve) => {
-					const child = fork(
-						join(__dirname, 'file-lock-test-worker.js')
-					);
+			// Try to get exclusive range lock through lock manager
+			const result2 = lockManager.lockFileByteRange(TEST_FILE1, {
+				type: 'exclusive',
+				start: 0n,
+				end: 100n,
+				pid: 1,
+			});
+			expect(result2).toBe(false);
+		});
 
-					child.on(
-						'message',
-						(message: {
-							type: 'success' | 'error';
-							fd?: number;
-							error?: string;
-						}) => {
-							if (message.type === 'success') {
-								resolve({ success: true, child });
-							} else {
-								resolve({
-									success: false,
-									error: message.error,
-									child,
-								});
-							}
+		it('cannot acquire shared range lock when native exclusive lock exists', async () => {
+			// Child process gets native exclusive lock
+			const result1 = await spawnLockProcess(TEST_FILE1, 'exclusive');
+			expect(result1).toEqual({
+				success: true,
+				child: expect.any(Object),
+			});
+			childProcess = result1.child;
+
+			// Try to get shared range lock through lock manager
+			const result2 = lockManager.lockFileByteRange(TEST_FILE1, {
+				type: 'shared',
+				start: 0n,
+				end: 100n,
+				pid: 1,
+			});
+			expect(result2).toBe(false);
+		});
+
+		it('can acquire shared range lock when native shared lock exists', async () => {
+			// Child process gets native shared lock
+			const result1 = await spawnLockProcess(TEST_FILE1, 'shared');
+			expect(result1).toEqual({
+				success: true,
+				child: expect.any(Object),
+			});
+			childProcess = result1.child;
+
+			// Try to get shared range lock through lock manager
+			const result2 = lockManager.lockFileByteRange(TEST_FILE1, {
+				type: 'shared',
+				start: 0n,
+				end: 100n,
+				pid: 1,
+			});
+			expect(result2).toBe(true);
+		});
+
+		it('cannot acquire exclusive range lock when native shared lock exists', async () => {
+			// Child process gets native shared lock
+			const result1 = await spawnLockProcess(TEST_FILE1, 'shared');
+			expect(result1).toEqual({
+				success: true,
+				child: expect.any(Object),
+			});
+			childProcess = result1.child;
+
+			// Try to get exclusive range lock through lock manager
+			const result2 = lockManager.lockFileByteRange(TEST_FILE1, {
+				type: 'exclusive',
+				start: 0n,
+				end: 100n,
+				pid: 1,
+			});
+			expect(result2).toBe(false);
+		});
+
+		// Helper function to spawn a child process that will attempt to acquire a lock
+		function spawnLockProcess(
+			filePath: string,
+			lockType: 'exclusive' | 'shared'
+		): Promise<{ success: boolean; error?: string; child?: ChildProcess }> {
+			return new Promise((resolve) => {
+				const child = fork(join(__dirname, 'file-lock-test-worker.js'));
+
+				child.on(
+					'message',
+					(message: {
+						type: 'success' | 'error';
+						fd?: number;
+						error?: string;
+					}) => {
+						if (message.type === 'success') {
+							resolve({ success: true, child });
+						} else {
+							resolve({
+								success: false,
+								error: message.error,
+								child,
+							});
 						}
-					);
+					}
+				);
 
-					child.on('error', (error) => {
-						resolve({
-							success: false,
-							error: error.message,
-							child,
-						});
-					});
-
-					child.send({ type: 'acquire', filePath, lockType });
+				child.on('error', (error) => {
+					resolve({ success: false, error: error.message, child });
 				});
-			}
 
-			// Helper function to kill a process
-			async function killProcess(child: ChildProcess): Promise<void> {
-				return new Promise((resolve) => {
-					child.send({ type: 'release' });
-					// Give the process a moment to clean up
-					child.on('exit', resolve);
-				});
-			}
+				child.send({ type: 'acquire', filePath, lockType });
+			});
 		}
-	);
+
+		// Helper function to kill a process
+		async function killProcess(child: ChildProcess): Promise<void> {
+			return new Promise((resolve) => {
+				child.send({ type: 'release' });
+				// Give the process a moment to clean up
+				child.on('exit', resolve);
+			});
+		}
+	});
 
 	const phpVersionsToTest =
 		'PHP' in process.env
