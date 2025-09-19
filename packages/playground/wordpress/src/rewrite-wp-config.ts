@@ -5,42 +5,6 @@ import type { UniversalPHP } from '@php-wasm/universal';
 import wpConfigTransformer from './wp-config-transformer.php?raw';
 
 /**
- * Defines constants in a WordPress "wp-config.php" file.
- *
- * @param php                The PHP instance.
- * @param wpConfigPath       The path to the "wp-config.php" file.
- * @param constants          The constants to define.
- * @param whenAlreadyDefined What to do if the constant is already defined.
- *                           Possible values are:
- *                             'rewrite' - Rewrite the constant, using the new value.
- *                             'skip'    - Skip the definition, keeping the existing value.
- */
-export async function defineWpConfigConstants(
-	php: UniversalPHP,
-	wpConfigPath: string,
-	constants: Record<string, unknown>,
-	whenAlreadyDefined: 'rewrite' | 'skip' = 'rewrite'
-): Promise<void> {
-	const js = phpVars({ wpConfigPath, constants, whenAlreadyDefined });
-	const result = await php.run({
-		code: `${wpConfigTransformer}
-		$wp_config_path = ${js.wpConfigPath};
-		$transformer = WP_Config_Transformer::from_file($wp_config_path);
-		foreach(${js.constants} as $name => $value) {
-			if ('skip' === ${js.whenAlreadyDefined} && $transformer->constant_exists($name)) {
-				continue;
-			}
-			$transformer->define_constant($name, $value);
-		}
-		$transformer->to_file($wp_config_path);
-		`,
-	});
-	if (result.errors.length > 0) {
-		throw new Error('Failed to rewrite constants in wp-config.php.');
-	}
-}
-
-/**
  * Ensures that the "wp-config.php" file exists and required constants are defined.
  *
  * When a required constant is missing, it will be defined with a default value.
@@ -83,5 +47,57 @@ export async function ensureWpConfig(
 		);
 	}
 
-	await defineWpConfigConstants(php, wpConfigPath, defaults, 'skip');
+	if (!php.fileExists(wpConfigPath)) {
+		return;
+	}
+
+	// Ensure required constants are defined.
+	const js = phpVars({ wpConfigPath, constants: defaults });
+	const result = await php.run({
+		code: `${wpConfigTransformer}
+		$wp_config_path = ${js.wpConfigPath};
+		$transformer    = WP_Config_Transformer::from_file($wp_config_path);
+		foreach ( ${js.constants} as $name => $value ) {
+			if ( ! $transformer->constant_exists( $name ) ) {
+				$transformer->define_constant($name, $value);
+			}
+		}
+		$transformer->to_file($wp_config_path);
+		`,
+	});
+	if (result.errors.length > 0) {
+		throw new Error('Failed to auto-configure wp-config.php.');
+	}
+}
+
+/**
+ * Defines constants in a WordPress "wp-config.php" file.
+ *
+ * This function modifies the "wp-config.php" file to define the given constants.
+ *
+ *   1. When a constant is already defined, the definition will be updated.
+ * 	 2. When a constant is not defined, it will be added in an appropriate
+ *      location within the file (typically before the "stop editing" line).
+ *
+ * @param php          The PHP instance.
+ * @param wpConfigPath The path to the "wp-config.php" file.
+ * @param constants    The constants to define.
+ */
+export async function defineWpConfigConstants(
+	php: UniversalPHP,
+	wpConfigPath: string,
+	constants: Record<string, unknown>
+): Promise<void> {
+	const js = phpVars({ wpConfigPath, constants });
+	const result = await php.run({
+		code: `${wpConfigTransformer}
+		$wp_config_path = ${js.wpConfigPath};
+		$transformer = WP_Config_Transformer::from_file($wp_config_path);
+		$transformer->define_constants(${js.constants});
+		$transformer->to_file($wp_config_path);
+		`,
+	});
+	if (result.errors.length > 0) {
+		throw new Error('Failed to rewrite constants in wp-config.php.');
+	}
 }
