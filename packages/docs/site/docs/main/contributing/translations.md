@@ -146,6 +146,7 @@ Follow these steps to translate a page:
 
 4. **Create a pull request with your changes**
 
+-   Add a prefix to the title `[i18n]` to help to identify the translations
 -   Describe the pages that you translated
 -   Request a review at `#playground` or `#polyglots` at `wordpress.slack.com`
 
@@ -255,6 +256,28 @@ You can use the following markdown in your tracking issue:
    - [ ] intro-devs.md
 </details>
 ```
+
+### Translating with GitHub UI
+
+Another way to contribute with translation if you are not technical, is using the GitHub UI. First you will need a GitHub account to reproduce the steps, with that you can update or add a new translation.
+
+**Updating an existing translation**
+
+1.  First you will need to locate the file that you would like to update on the repository, for example, for French all the files will be located at `packages/docs/site/i18n/fr/docusaurus-plugin-content-docs/current/`.
+2.  Select the file that you would like to update and click on edit.
+    ![Editing existing translation](@site/static/img/contributing/editing-translations.webp)
+3.  GitHub will ask you to fork the repository and create a new branch with your changes.
+4.  An Editor will open where you will add your changes
+5.  When you are done, click on Commit Changes button and submit a Pull Request.
+
+**Adding a new translation**
+
+1.  In case you are create a new translation the location of the file should match with the English version, for example, you would like to translate the document `packages/docs/site/docs/main/contributing/documentation.md`, you will need to add a new file at `packages/docs/site/i18n/fr/docusaurus-plugin-content-docs/current/main/contributing/` called `documentation.md` if the folder doesn't exist yet you can add on the file name, for example, `contributing/documentation.md` it will create a folder contributing on the place where the file was added.
+    ![Creating a new translation](@site/static/img/contributing/adding-file-github-ui.webp)
+2.  GitHub will ask you to fork the repository and create a new branch with your changes.
+3.  And Editor will open with an empty file, you can copy the english version and comment out with `<!-- English content -->` to help the reviewers, and the translated content bellow.
+    ![GitHub UI Editor](@site/static/img/contributing/editor-github.webp)
+4.  When you are done, click on Commit Changes button and submit a Pull Request.
 
 ## Review Process
 
