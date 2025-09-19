@@ -304,8 +304,7 @@ export function setTemporarySiteSpec(
 
 		const compiledBlueprint = await compileBlueprintV1(mergedBlueprint);
 
-		const newSiteInfo = {
-			name: siteName,
+		const newSiteInfo: SiteInfo = {
 			slug: deriveSlugFromSiteName(siteName),
 			originalUrlParams: newSiteUrlParams,
 			metadata: {
