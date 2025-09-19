@@ -23,7 +23,7 @@ import ProgressBar from './progress-bar';
 const origin = new URL('/', (import.meta || {}).url).origin;
 
 // @ts-ignore
-import workerV1Url from './worker-thread?worker&url';
+import workerV1Url from './playground-worker-endpoint-blueprints-v1?worker&url';
 
 export const workerUrl: string = new URL(workerV1Url, origin) + '';
 
