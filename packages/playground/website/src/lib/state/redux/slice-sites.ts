@@ -297,7 +297,6 @@ export function setTemporarySiteSpec(
 			);
 		}
 
-		// @TODO: Move the query overrides part to
 		const mergedBlueprint = await applyQueryOverrides(
 			resolvedBlueprint.blueprint,
 			playgroundUrlWithQueryApiArgs.searchParams
