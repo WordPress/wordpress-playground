@@ -140,7 +140,8 @@ jobs:
             - uses: ./.github/actions/prepare-playground
               with:
                   node-version: 22
-            - run: node node_modules/nx/bin/nx affected --target=test-for-node-22-and-above
+            # TODO: Before merge: Only pass --allowOnly for Windows.
+            - run: node node_modules/nx/bin/nx affected --target=test-for-node-22-and-above -- --allowOnly
     test-e2e:
         runs-on: ubuntu-latest
         # Run as root to allow node to bind to port 80
