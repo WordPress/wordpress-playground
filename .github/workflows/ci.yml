@@ -124,7 +124,12 @@ jobs:
     test-playground-cli:
         strategy:
             matrix:
-                os: [ubuntu-latest, windows-latest, macos-latest]
+                # NOTE: macOS is currently skipped because tests were running into
+                # "EMFILE: too many open files" errors when running within the GH runner.
+                # It would be great to fix the issue and add macOS testing here.
+                # In the meantime, many of the current developers test locally on macOS.
+                # @TODO: Fix issues and re-enable macOS testing.
+                os: [ubuntu-latest, windows-latest]
         continue-on-error: true
         runs-on: ${{ matrix.os }}
         name: 'test-playground-cli (${{ matrix.os }})'
