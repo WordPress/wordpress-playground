@@ -33,7 +33,7 @@ You can seamlessly integrate Playground into your development workflow to launch
 ## બ્લોક થીમ પર કરેલા ફેરફારો સાચવો અને GitHub Pull Requests બનાવો
 
 <!--
-## Save changes done on a Block Theme and create Github Pull Requests
+## Save changes done on a Block Theme and create GitHub Pull Requests
 -->
 
 તમે તમારી પ્લેગ્રાઉન્ડ ઇન્સ્ટન્સને GitHub રેપોઝિટરી સાથે કનેક્ટ કરી શકો છો અને વર્ડપ્રેસ UI મારફતે કરેલા ફેરફારો સાથે Pull Request બનાવી શકો છો,
@@ -70,7 +70,7 @@ Some more examples of this workflow:
 ## તમારા પ્લેગ્રાઉન્ડ ઇન્સ્ટન્સને લોકલ ફોલ્ડર સાથે સિંક્રોનાઈઝ કરો અને GitHub Pull Requests બનાવો
 
 <!--
-## Synchronize your playground instance with a local folder and create Github Pull Requests
+## Synchronize your playground instance with a local folder and create GitHub Pull Requests
 -->
 
 ![સ્ટોરેજ ટાઈપ ડિવાઈસ સ્નેપશોટ](@site/static/img/about/storage-type-device.webp)

@@ -23,7 +23,7 @@ There's a set of redirections in place to make it easier the access to some of t
 ## Frequently sought links
 
 -   [Demo](https://playground.wordpress.net/)
--   [Github Repository](https://github.com/WordPress/wordpress-playground)
+-   [GitHub Repository](https://github.com/WordPress/wordpress-playground)
 -   [Documentation](https://wordpress.github.io/wordpress-playground/)
 -   [Playground tools Repository](https://github.com/WordPress/playground-tools)
 
