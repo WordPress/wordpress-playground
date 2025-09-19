@@ -307,6 +307,7 @@ export function setTemporarySiteSpec(
 		const newSiteInfo = {
 			name: siteName,
 			slug: deriveSlugFromSiteName(siteName),
+			originalUrlParams: newSiteUrlParams,
 			metadata: {
 				name: siteName,
 				id: crypto.randomUUID(),
@@ -314,7 +315,6 @@ export function setTemporarySiteSpec(
 				storage: 'none' as const,
 				originalBlueprint: mergedBlueprint,
 				originalBlueprintSource: resolvedBlueprint.source!,
-				originalUrlParams: newSiteUrlParams,
 
 				runtimeConfiguration: {
 					preferredVersions: {
