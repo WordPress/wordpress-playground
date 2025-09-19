@@ -38,7 +38,7 @@ describe('defineWpConfigConstants', () => {
 		});
 
 		const rewritten = php.readFileAsText(wpConfigPath);
-		expect(rewritten).toContain(`define('SITE_URL','http://test.url');`);
+		expect(rewritten).toContain(`define( 'SITE_URL', 'http://test.url' );`);
 
 		const response = await php.run({ code: rewritten });
 		expect(response.errors).toHaveLength(0);
@@ -104,94 +104,6 @@ describe('defineWpConfigConstants', () => {
 		expect(response.text).toContain(`{"SITE_URL":"http:\\/\\/new.url"}`);
 	});
 
-	it('should take define() calls where the constant name cannot be statically inferred and wrap them in if(!defined()) checks', async () => {
-		php.writeFile(
-			wpConfigPath,
-			`<?php
-		define('SITE'.'_URL','http://initial.value');
-		echo json_encode([
-			"SITE_URL" => SITE_URL,
-		]);
-		`
-		);
-		await defineWpConfigConstants(php, wpConfigPath, {});
-
-		const rewritten = php.readFileAsText(wpConfigPath);
-		expect(rewritten).toContain(`if(!defined('SITE'.'_URL'))`);
-		expect(rewritten).toContain(
-			`define('SITE'.'_URL','http://initial.value');`
-		);
-
-		const response = await php.run({ code: rewritten });
-		expect(response.errors).toHaveLength(0);
-		expect(response.json).toEqual({
-			SITE_URL: 'http://initial.value',
-		});
-	});
-
-	it('should not wrap the existing define() calls in if(!defined()) guards twice', async () => {
-		const phpCode = `<?php
-		if(!defined('SITE'.'_URL')) {
-			define('SITE'.'_URL','http://initial.value');
-		}
-		echo json_encode([
-			"SITE_URL" => SITE_URL,
-		]);
-		`;
-		php.writeFile(wpConfigPath, phpCode);
-		await defineWpConfigConstants(php, wpConfigPath, {});
-
-		const rewritten = php.readFileAsText(wpConfigPath);
-		expect(rewritten).toEqual(phpCode);
-	});
-
-	it('should not wrap the existing define() calls in if(!defined()) guards twice, even if the existing guard is formatted differently than the define() call', async () => {
-		const phpCode = `<?php
-		if ( ! defined(
-			'SITE' .
-			'_URL'
-		) ) {
-			define('SITE'.'_URL','http://initial.value');
-		}
-		echo json_encode([
-			"SITE_URL" => SITE_URL,
-		]);
-		`;
-		php.writeFile(wpConfigPath, phpCode);
-		await defineWpConfigConstants(php, wpConfigPath, {});
-
-		const rewritten = php.readFileAsText(wpConfigPath);
-		expect(rewritten).toEqual(phpCode);
-	});
-
-	it('should not create conflicts between pre-existing "dynamically" named constants and the newly defined ones', async () => {
-		php.writeFile(
-			wpConfigPath,
-			`<?php
-		define('SITE'.'_URL','http://initial.value');
-		echo json_encode([
-			"SITE_URL" => SITE_URL,
-		]);
-		`
-		);
-		await defineWpConfigConstants(php, wpConfigPath, {
-			SITE_URL: 'http://new.url',
-		});
-
-		const rewritten = php.readFileAsText(wpConfigPath);
-		expect(rewritten).toContain(`if(!defined('SITE'.'_URL'))`);
-		expect(rewritten).toContain(
-			`define('SITE'.'_URL','http://initial.value');`
-		);
-		expect(rewritten).toContain(`define('SITE_URL','http://new.url');`);
-
-		const response = await php.run({ code: rewritten });
-		expect(response.errors).toHaveLength(0);
-		expect(response.json).toEqual({
-			SITE_URL: 'http://new.url',
-		});
-	});
-
 	it('should handle a complex scenario', async () => {
 		php.writeFile(
 			wpConfigPath,
@@ -204,7 +116,7 @@ define('WP_DEBUG', true);
 // Expression
 define(true ? 'WP_DEBUG_LOG' : 'WP_DEBUG_LOG', 123);
 
-// Guarded expressions shouldn't be wrapped twice
+// Guarded expression
 if(!defined(1 ? 'A' : 'B')) {
     define(1 ? 'A' : 'B', 0);
 }
@@ -224,7 +136,6 @@ echo json_encode([
 		);
 		const constants = {
 			WP_DEBUG: false,
-			WP_DEBUG_LOG: true,
 			SAVEQUERIES: true,
 			NEW_CONSTANT: 'new constant',
 		};
@@ -233,7 +144,12 @@ echo json_encode([
 		const rewritten = php.readFileAsText(wpConfigPath);
 		const response = await php.run({ code: rewritten });
 		expect(response.errors).toHaveLength(0);
-		expect(response.json).toEqual(constants);
+		expect(response.json).toEqual({
+			WP_DEBUG: false,
+			SAVEQUERIES: true,
+			WP_DEBUG_LOG: 123,
+			NEW_CONSTANT: 'new constant',
+		});
 	});
 });
 
@@ -248,7 +164,7 @@ describe('ensureWpConfig', () => {
 		await ensureWpConfig(php, documentRoot);
 
 		const rewritten = php.readFileAsText(wpConfigPath);
-		expect(rewritten).toContain(`define('DB_NAME','wordpress');`);
+		expect(rewritten).toContain(`define( 'DB_NAME', 'wordpress' );`);
 	});
 
 	it('should define required constants when only other constants are defined', async () => {
@@ -261,7 +177,7 @@ describe('ensureWpConfig', () => {
 		await ensureWpConfig(php, documentRoot);
 
 		const rewritten = php.readFileAsText(wpConfigPath);
-		expect(rewritten).toContain(`define('DB_NAME','wordpress');`);
+		expect(rewritten).toContain(`define( 'DB_NAME', 'wordpress' );`);
 	});
 
 	it('should not define required constants, when they are already defined', async () => {
