@@ -4,6 +4,7 @@ import '@php-wasm/node-polyfills';
 export type {
 	BlueprintV1,
 	BlueprintV1Declaration,
+	ExtraLibrary,
 	PHPConstants,
 } from './lib/v1/types';
 export type {
@@ -60,6 +61,7 @@ export type { BlueprintMessage } from './lib/v2/run-blueprint-v2';
 
 export { resolveRemoteBlueprint } from './lib/resolve-remote-blueprint';
 export { wpContentFilesExcludedFromExport } from './lib/utils/wp-content-files-excluded-from-exports';
+export { BlueprintReflection } from './lib/reflection';
 
 /**
  * @deprecated This function is a no-op. Playground no longer uses a proxy to download plugins and themes.
