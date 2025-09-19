@@ -1,3 +1,5 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import { PHP } from '@php-wasm/universal';
 import { defineWpConfigConstants, ensureWpConfig } from './rewrite-wp-config';
 import { RecommendedPHPVersion } from '@wp-playground/common';
@@ -7,6 +9,358 @@ import { joinPaths } from '@php-wasm/util';
 
 const documentRoot = '/tmp';
 const wpConfigPath = joinPaths(documentRoot, 'wp-config.php');
+
+const wpConfigSample = `
+<?php
+/**
+ * The base configuration for WordPress
+ *
+ * The wp-config.php creation script uses this file during the installation.
+ * You don't have to use the website, you can copy this file to "wp-config.php"
+ * and fill in the values.
+ *
+ * This file contains the following configurations:
+ *
+ * * Database settings
+ * * Secret keys
+ * * Database table prefix
+ * * ABSPATH
+ *
+ * @link https://developer.wordpress.org/advanced-administration/wordpress/wp-config/
+ *
+ * @package WordPress
+ */
+
+// ** Database settings - You can get this info from your web host ** //
+/** The name of the database for WordPress */
+define( 'DB_NAME', 'database_name_here' );
+
+/** Database username */
+define( 'DB_USER', 'username_here' );
+
+/** Database password */
+define( 'DB_PASSWORD', 'password_here' );
+
+/** Database hostname */
+define( 'DB_HOST', 'localhost' );
+
+/** Database charset to use in creating database tables. */
+define( 'DB_CHARSET', 'utf8' );
+
+/** The database collate type. Don't change this if in doubt. */
+define( 'DB_COLLATE', '' );
+
+/**#@+
+ * Authentication unique keys and salts.
+ *
+ * Change these to different unique phrases! You can generate these using
+ * the {@link https://api.wordpress.org/secret-key/1.1/salt/ WordPress.org secret-key service}.
+ *
+ * You can change these at any point in time to invalidate all existing cookies.
+ * This will force all users to have to log in again.
+ *
+ * @since 2.6.0
+ */
+define( 'AUTH_KEY',         'put your unique phrase here' );
+define( 'SECURE_AUTH_KEY',  'put your unique phrase here' );
+define( 'LOGGED_IN_KEY',    'put your unique phrase here' );
+define( 'NONCE_KEY',        'put your unique phrase here' );
+define( 'AUTH_SALT',        'put your unique phrase here' );
+define( 'SECURE_AUTH_SALT', 'put your unique phrase here' );
+define( 'LOGGED_IN_SALT',   'put your unique phrase here' );
+define( 'NONCE_SALT',       'put your unique phrase here' );
+
+/**#@-*/
+
+/**
+ * WordPress database table prefix.
+ *
+ * You can have multiple installations in one database if you give each
+ * a unique prefix. Only numbers, letters, and underscores please!
+ *
+ * At the installation time, database tables are created with the specified prefix.
+ * Changing this value after WordPress is installed will make your site think
+ * it has not been installed.
+ *
+ * @link https://developer.wordpress.org/advanced-administration/wordpress/wp-config/#table-prefix
+ */
+$table_prefix = 'wp_';
+
+/**
+ * For developers: WordPress debugging mode.
+ *
+ * Change this to true to enable the display of notices during development.
+ * It is strongly recommended that plugin and theme developers use WP_DEBUG
+ * in their development environments.
+ *
+ * For information on other constants that can be used for debugging,
+ * visit the documentation.
+ *
+ * @link https://developer.wordpress.org/advanced-administration/debug/debug-wordpress/
+ */
+define( 'WP_DEBUG', false );
+
+/* Add any custom values between this line and the "stop editing" line. */
+
+
+
+/* That's all, stop editing! Happy publishing. */
+
+/** Absolute path to the WordPress directory. */
+if ( ! defined( 'ABSPATH' ) ) {
+	define( 'ABSPATH', __DIR__ . '/' );
+}
+
+/** Sets up WordPress vars and included files. */
+require_once ABSPATH . 'wp-settings.php';
+`;
+
+describe('ensureWpConfig', () => {
+	let php: PHP;
+	beforeEach(async () => {
+		php = new PHP(await loadNodeRuntime(RecommendedPHPVersion));
+	});
+
+	it('should define required constants when they are missing', async () => {
+		php.writeFile(
+			wpConfigPath,
+			`<?php
+			echo json_encode([
+				'DB_NAME' => DB_NAME,
+				'DB_USER' => DB_USER,
+				'DB_PASSWORD' => DB_PASSWORD,
+				'DB_HOST' => DB_HOST,
+				'DB_CHARSET' => DB_CHARSET,
+				'DB_COLLATE' => DB_COLLATE,
+				'AUTH_KEY' => AUTH_KEY,
+				'SECURE_AUTH_KEY' => SECURE_AUTH_KEY,
+				'LOGGED_IN_KEY' => LOGGED_IN_KEY,
+				'NONCE_KEY' => NONCE_KEY,
+				'AUTH_SALT' => AUTH_SALT,
+				'SECURE_AUTH_SALT' => SECURE_AUTH_SALT,
+				'LOGGED_IN_SALT' => LOGGED_IN_SALT,
+				'NONCE_SALT' => NONCE_SALT,
+				'WP_DEBUG' => WP_DEBUG,
+			]);`
+		);
+		await ensureWpConfig(php, documentRoot);
+
+		const rewritten = php.readFileAsText(wpConfigPath);
+		expect(rewritten).toContain(
+			`define( 'DB_NAME', 'database_name_here' );`
+		);
+		expect(rewritten).toContain(`define( 'DB_USER', 'username_here' );`);
+		expect(rewritten).toContain(
+			`define( 'DB_PASSWORD', 'password_here' );`
+		);
+		expect(rewritten).toContain(`define( 'DB_HOST', 'localhost' );`);
+		expect(rewritten).toContain(`define( 'DB_CHARSET', 'utf8' );`);
+		expect(rewritten).toContain(`define( 'DB_COLLATE', '' );`);
+		expect(rewritten).toContain(
+			`define( 'AUTH_KEY', 'put your unique phrase here' );`
+		);
+		expect(rewritten).toContain(
+			`define( 'SECURE_AUTH_KEY', 'put your unique phrase here' );`
+		);
+		expect(rewritten).toContain(
+			`define( 'LOGGED_IN_KEY', 'put your unique phrase here' );`
+		);
+		expect(rewritten).toContain(
+			`define( 'NONCE_KEY', 'put your unique phrase here' );`
+		);
+		expect(rewritten).toContain(
+			`define( 'AUTH_SALT', 'put your unique phrase here' );`
+		);
+		expect(rewritten).toContain(
+			`define( 'SECURE_AUTH_SALT', 'put your unique phrase here' );`
+		);
+		expect(rewritten).toContain(
+			`define( 'LOGGED_IN_SALT', 'put your unique phrase here' );`
+		);
+		expect(rewritten).toContain(
+			`define( 'NONCE_SALT', 'put your unique phrase here' );`
+		);
+		expect(rewritten).toContain(`define( 'WP_DEBUG', false );`);
+
+		const response = await php.run({ code: rewritten });
+		expect(response.json).toEqual({
+			DB_NAME: 'database_name_here',
+			DB_USER: 'username_here',
+			DB_PASSWORD: 'password_here',
+			DB_HOST: 'localhost',
+			DB_CHARSET: 'utf8',
+			DB_COLLATE: '',
+			AUTH_KEY: 'put your unique phrase here',
+			SECURE_AUTH_KEY: 'put your unique phrase here',
+			LOGGED_IN_KEY: 'put your unique phrase here',
+			NONCE_KEY: 'put your unique phrase here',
+			AUTH_SALT: 'put your unique phrase here',
+			SECURE_AUTH_SALT: 'put your unique phrase here',
+			LOGGED_IN_SALT: 'put your unique phrase here',
+			NONCE_SALT: 'put your unique phrase here',
+			WP_DEBUG: false,
+		});
+	});
+
+	it('should only define missing constants', async () => {
+		php.writeFile(
+			wpConfigPath,
+			`<?php
+			define( 'DB_USER', 'unchanged' );
+			define( 'AUTH_KEY', 'unchanged' );
+			define( 'WP_DEBUG', true );
+			echo json_encode([
+				'DB_NAME' => DB_NAME,
+				'DB_USER' => DB_USER,
+				'DB_PASSWORD' => DB_PASSWORD,
+				'DB_COLLATE' => DB_COLLATE,
+				'AUTH_KEY' => AUTH_KEY,
+				'AUTH_SALT' => AUTH_SALT,
+				'NONCE_SALT' => NONCE_SALT,
+				'WP_DEBUG' => WP_DEBUG,
+			]);`
+		);
+		await ensureWpConfig(php, documentRoot);
+
+		const rewritten = php.readFileAsText(wpConfigPath);
+		expect(rewritten).toContain(
+			`define( 'DB_NAME', 'database_name_here' );`
+		);
+		expect(rewritten).toContain(`define( 'DB_USER', 'unchanged' );`);
+		expect(rewritten).not.toContain(
+			`define( 'DB_USER', 'username_here' );`
+		);
+		expect(rewritten).toContain(`define( 'AUTH_KEY', 'unchanged' );`);
+		expect(rewritten).not.toContain(
+			`define( 'AUTH_KEY', 'put your unique phrase here' );`
+		);
+		expect(rewritten).toContain(`define( 'WP_DEBUG', true );`);
+		expect(rewritten).not.toContain(`define( 'WP_DEBUG', false );`);
+
+		const response = await php.run({ code: rewritten });
+		expect(response.json).toEqual({
+			DB_NAME: 'database_name_here',
+			DB_USER: 'unchanged',
+			DB_PASSWORD: 'password_here',
+			DB_COLLATE: '',
+			AUTH_KEY: 'unchanged',
+			AUTH_SALT: 'put your unique phrase here',
+			NONCE_SALT: 'put your unique phrase here',
+			WP_DEBUG: true,
+		});
+	});
+
+	it('should not define required constants when they are already defined conditionally', async () => {
+		php.writeFile(
+			wpConfigPath,
+			`<?php
+			if(!defined('DB_NAME')) {
+				define('DB_NAME','defined-conditionally');
+			}
+			echo json_encode([
+				'DB_NAME' => DB_NAME,
+			]);`
+		);
+		await ensureWpConfig(php, documentRoot);
+
+		const rewritten = php.readFileAsText(wpConfigPath);
+		expect(rewritten).not.toContain(
+			`define( 'DB_NAME', 'database_name_here' );`
+		);
+
+		const response = await php.run({ code: rewritten });
+		expect(response.json).toEqual({
+			DB_NAME: 'defined-conditionally',
+		});
+	});
+
+	it('should define missing constants well-formatted', async () => {
+		php.writeFile(
+			wpConfigPath,
+			wpConfigSample
+				.replace("'DB_NAME'", "'UNKNOWN_CONSTANT'")
+				.replace("'DB_USER'", "'UNKNOWN_CONSTANT'")
+		);
+
+		await ensureWpConfig(php, documentRoot);
+
+		const rewritten = php.readFileAsText(wpConfigPath);
+		expect(rewritten).toContain(`
+/** Absolute path to the WordPress directory. */
+if ( ! defined( 'ABSPATH' ) ) {
+	define( 'ABSPATH', __DIR__ . '/' );
+}
+
+/*
+ * BEGIN: Added by WordPress Playground.
+ *
+ * WordPress Playground detected that some required WordPress configuration was
+ * missing in this file. Since the auto-configure mode was enabled, the missing
+ * configuration was automatically added with sensible default values below.
+ *
+ * It's safe to remove this block and define the missing configuration manually,
+ * or you can keep it, as it won't interfere with any existing configuration.
+ */
+if ( ! defined( 'DB_NAME' ) ) {
+	define( 'DB_NAME', 'database_name_here' );
+}
+if ( ! defined( 'DB_USER' ) ) {
+	define( 'DB_USER', 'username_here' );
+}
+/* END: Added by WordPress Playground. */
+
+/** Sets up WordPress vars and included files. */
+require_once ABSPATH . 'wp-settings.php';
+`);
+	});
+
+	it("should remove the injected configuration when it's no longer needed", async () => {
+		php.writeFile(
+			wpConfigPath,
+			wpConfigSample.replace("'DB_NAME'", "'UNKNOWN_CONSTANT'")
+		);
+		await ensureWpConfig(php, documentRoot);
+
+		// Inject configuration with the "DB_NAME" default value.
+		const rewritten1 = php.readFileAsText(wpConfigPath);
+		expect(rewritten1).toContain(`BEGIN: Added by WordPress Playground.`);
+		expect(rewritten1).toContain(`END: Added by WordPress Playground.`);
+		expect(rewritten1).toContain(
+			`define( 'DB_NAME', 'database_name_here' );`
+		);
+
+		php.writeFile(
+			wpConfigPath,
+			php
+				.readFileAsText(wpConfigPath)
+				.replace("'UNKNOWN_CONSTANT'", "'DB_NAME'")
+				.replace("'database_name_here'", "'my_database_name'")
+		);
+		await ensureWpConfig(php, documentRoot);
+
+		// Remove the injected configuration.
+		const rewritten2 = php.readFileAsText(wpConfigPath);
+		expect(rewritten2).not.toContain(
+			`START: Added by WordPress Playground.`
+		);
+		expect(rewritten2).not.toContain(`END: Added by WordPress Playground.`);
+		expect(rewritten2).not.toContain(
+			`define( 'DB_NAME', 'database_name_here' );`
+		);
+		expect(rewritten2).toContain(
+			`define( 'DB_NAME', 'my_database_name' );`
+		);
+		expect(rewritten2).toContain(`
+/** Absolute path to the WordPress directory. */
+if ( ! defined( 'ABSPATH' ) ) {
+	define( 'ABSPATH', __DIR__ . '/' );
+}
+
+/** Sets up WordPress vars and included files. */
+require_once ABSPATH . 'wp-settings.php';
+`);
+	});
+});
 
 describe('defineWpConfigConstants', () => {
 	let php: PHP;
@@ -24,14 +378,13 @@ describe('defineWpConfigConstants', () => {
 		expect(response.text).toContain('Constant SITE_URL already defined');
 	});
 
-	it('should prepend constants not already present in the PHP code', async () => {
+	it('should define a new constants', async () => {
 		php.writeFile(
 			wpConfigPath,
 			`<?php
-		echo json_encode([
-			"SITE_URL" => SITE_URL,
-		]);
-		`
+			echo json_encode([
+				"SITE_URL" => SITE_URL,
+			]);`
 		);
 		await defineWpConfigConstants(php, wpConfigPath, {
 			SITE_URL: 'http://test.url',
@@ -47,15 +400,14 @@ describe('defineWpConfigConstants', () => {
 		});
 	});
 
-	it('should rewrite the define() calls for the constants that are already defined in the PHP code', async () => {
+	it('should update an existing constant', async () => {
 		php.writeFile(
 			wpConfigPath,
 			`<?php
-		define('SITE_URL','http://initial.value');
-		echo json_encode([
-			"SITE_URL" => SITE_URL,
-		]);
-		`
+			define('SITE_URL','http://initial.value');
+			echo json_encode([
+				"SITE_URL" => SITE_URL,
+			]);`
 		);
 		await defineWpConfigConstants(php, wpConfigPath, {
 			SITE_URL: 'http://new.url',
@@ -78,11 +430,10 @@ describe('defineWpConfigConstants', () => {
 		php.writeFile(
 			wpConfigPath,
 			`<?php
-		define('SITE_URL','http://initial.value',true);
-		echo json_encode([
-			"SITE_URL" => SITE_URL,
-		]);
-		`
+			define('SITE_URL','http://initial.value',true);
+			echo json_encode([
+				"SITE_URL" => SITE_URL,
+			]);`
 		);
 		await defineWpConfigConstants(php, wpConfigPath, {
 			SITE_URL: 'http://new.url',
@@ -150,60 +501,5 @@ echo json_encode([
 			WP_DEBUG_LOG: 123,
 			NEW_CONSTANT: 'new constant',
 		});
-	});
-});
-
-describe('ensureWpConfig', () => {
-	let php: PHP;
-	beforeEach(async () => {
-		php = new PHP(await loadNodeRuntime(RecommendedPHPVersion));
-	});
-
-	it('should define required constants if they are not defined', async () => {
-		php.writeFile(wpConfigPath, '<?php');
-		await ensureWpConfig(php, documentRoot);
-
-		const rewritten = php.readFileAsText(wpConfigPath);
-		expect(rewritten).toContain(`define( 'DB_NAME', 'wordpress' );`);
-	});
-
-	it('should define required constants when only other constants are defined', async () => {
-		php.writeFile(
-			wpConfigPath,
-			`<?php
-		define('DB_USER','user');
-		`
-		);
-		await ensureWpConfig(php, documentRoot);
-
-		const rewritten = php.readFileAsText(wpConfigPath);
-		expect(rewritten).toContain(`define( 'DB_NAME', 'wordpress' );`);
-	});
-
-	it('should not define required constants, when they are already defined', async () => {
-		php.writeFile(
-			wpConfigPath,
-			`<?php
-		define('DB_NAME','already-defined');
-		`
-		);
-		await ensureWpConfig(php, documentRoot);
-
-		const rewritten = php.readFileAsText(wpConfigPath);
-		expect(rewritten).not.toContain(`define('DB_NAME','wordpress');`);
-	});
-
-	it('should not define required constants, when they are already defined conditionally', async () => {
-		php.writeFile(
-			wpConfigPath,
-			`<?php
-		if(!defined('DB_NAME')) {
-			define('DB_NAME','defined-conditionally');
-		}
-		`
-		);
-
-		const rewritten = php.readFileAsText(wpConfigPath);
-		expect(rewritten).not.toContain(`define('DB_NAME','wordpress');`);
 	});
 });

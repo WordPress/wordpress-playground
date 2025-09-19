@@ -62,12 +62,7 @@ export const defineWpConfigConsts: StepHandler<
 		case 'rewrite-wp-config': {
 			const documentRoot = await playground.documentRoot;
 			const wpConfigPath = joinPaths(documentRoot, '/wp-config.php');
-			await defineWpConfigConstants(
-				playground,
-				wpConfigPath,
-				consts,
-				'rewrite'
-			);
+			await defineWpConfigConstants(playground, wpConfigPath, consts);
 			break;
 		}
 		default:
