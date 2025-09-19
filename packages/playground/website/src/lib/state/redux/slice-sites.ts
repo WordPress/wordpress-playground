@@ -268,14 +268,60 @@ export function setTemporarySiteSpec(
 
 		// Then create a new temporary site
 		const siteName = siteInfo.metadata.name || randomSiteName();
+		const {
+			originalBlueprint,
+			originalBlueprintSource,
+			...remainingMetadata
+		} = siteInfo.metadata;
+
+		let blueprint: BlueprintV1 | undefined = originalBlueprint;
+		let blueprintSource: BlueprintSource | undefined =
+			originalBlueprintSource;
+		if (!blueprint) {
+			// TODO: This is a hack because we are just abusing a URL-oriented
+			// function to create a completely default Blueprint. Let's fix this by
+			// making default creation first-class.
+			const resolvedBlueprint = await resolveBlueprintFromURL(
+				new URL('https://w.org')
+			);
+			blueprint = resolvedBlueprint.blueprint;
+			blueprintSource = resolvedBlueprint.source;
+		}
+
+		const compiledBlueprint = await compileBlueprintV1(blueprint);
+
 		const newSiteInfo = {
 			...siteInfo,
 			slug: deriveSlugFromSiteName(siteName),
-			metadata: await createSiteMetadata({
-				...siteInfo.metadata,
+			metadata: {
 				name: siteName,
+				id: crypto.randomUUID(),
+				whenCreated: Date.now(),
 				storage: 'none' as const,
-			}),
+				originalBlueprint: blueprint,
+				originalBlueprintSource: blueprintSource!,
+
+				...remainingMetadata,
+
+				runtimeConfiguration: {
+					preferredVersions: {
+						wp: compiledBlueprint.versions.wp,
+						php: compiledBlueprint.versions.php,
+					},
+					features: compiledBlueprint.features,
+					extraLibraries: compiledBlueprint.extraLibraries,
+					/*
+					 * Constants don't matter so much for temporary sites so let's
+					 * use an empty object here. We can't easily figure out which
+					 * additional constants were applied via playground.defineConstant()
+					 * at this stage anyway.
+					 *
+					 * This property is only relevant for stored sites to ensure they're
+					 * consistently applied across page reloads.
+					 */
+					constants: {},
+				},
+			},
 		};
 		dispatch(sitesSlice.actions.addSite(newSiteInfo));
 		dispatch(sitesSlice.actions.setFirstTemporarySiteCreated());
@@ -328,71 +374,6 @@ export interface SiteMetadata {
 	};
 	originalBlueprint: BlueprintV1;
 	originalBlueprintSource: BlueprintSource;
-}
-/**
- * Manages site metadata, which is stored in a file called `site-info.json`
- *
- * Today, it's specific to Playground website. Tomorrow, it's meant to be
- * a standardized format for describing a Playground (or even WordPress?)
- * site's configuration, independent of the runtime, e.g. Playground website,
- * Playground CLI, Studio, WP-ENV, hosted environment etc.
- */
-async function createSiteMetadata(
-	initialMetadata: {
-		name: string;
-	} & Partial<Omit<SiteMetadata, 'runtimeConfiguration'>>
-): Promise<SiteMetadata> {
-	const {
-		name,
-		originalBlueprint,
-		originalBlueprintSource,
-		...remainingMetadata
-	} = initialMetadata;
-
-	let blueprint: BlueprintV1 | undefined = originalBlueprint;
-	let blueprintSource: BlueprintSource | undefined = originalBlueprintSource;
-	if (!blueprint) {
-		// TODO: This is a hack because we are just abusing a URL-oriented
-		// function to create a completely default Blueprint. Let's fix this by
-		// making default creation first-class.
-		const resolvedBlueprint = await resolveBlueprintFromURL(
-			new URL('https://w.org')
-		);
-		blueprint = resolvedBlueprint.blueprint;
-		blueprintSource = resolvedBlueprint.source;
-	}
-
-	const compiledBlueprint = await compileBlueprintV1(blueprint);
-
-	return {
-		name,
-		id: crypto.randomUUID(),
-		whenCreated: Date.now(),
-		storage: 'none',
-		originalBlueprint: blueprint,
-		originalBlueprintSource: blueprintSource!,
-
-		...remainingMetadata,
-
-		runtimeConfiguration: {
-			preferredVersions: {
-				wp: compiledBlueprint.versions.wp,
-				php: compiledBlueprint.versions.php,
-			},
-			features: compiledBlueprint.features,
-			extraLibraries: compiledBlueprint.extraLibraries,
-			/*
-			 * Constants don't matter so much for temporary sites so let's
-			 * use an empty object here. We can't easily figure out which
-			 * additional constants were applied via playground.defineConstant()
-			 * at this stage anyway.
-			 *
-			 * This property is only relevant for stored sites to ensure they're
-			 * consistently applied across page reloads.
-			 */
-			constants: {},
-		},
-	};
 }
 
 export const { setOPFSSitesLoadingState } = sitesSlice.actions;
