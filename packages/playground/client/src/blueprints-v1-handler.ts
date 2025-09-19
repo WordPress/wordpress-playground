@@ -2,8 +2,8 @@ import type { ProgressTracker } from '@php-wasm/progress';
 import {
 	type PlaygroundClient,
 	type StartPlaygroundOptions,
-	compileBlueprint,
-	runBlueprintSteps,
+	compileBlueprintV1,
+	runBlueprintV1Steps,
 } from '.';
 import { collectPhpLogs, logger } from '@php-wasm/logger';
 import { consumeAPI } from '@php-wasm/universal';
@@ -16,7 +16,6 @@ export class BlueprintsV1Handler {
 		progressTracker: ProgressTracker
 	) {
 		const {
-			blueprint,
 			onBlueprintValidated,
 			onBlueprintStepCompleted,
 			corsProxy,
@@ -31,11 +30,8 @@ export class BlueprintsV1Handler {
 		const downloadProgress = progressTracker!.stage();
 
 		// Set a default blueprint if none is provided.
-		let bp = blueprint as any;
-		if (!bp) {
-			bp = {} as any;
-		}
-		const compiled = await compileBlueprint(bp, {
+		const blueprint = this.options.blueprint || {};
+		const compiled = await compileBlueprintV1(blueprint, {
 			progress: executionProgress,
 			onStepCompleted: onBlueprintStepCompleted,
 			onBlueprintValidated,
@@ -70,7 +66,7 @@ export class BlueprintsV1Handler {
 		collectPhpLogs(logger, playground);
 		onClientConnected?.(playground);
 
-		await runBlueprintSteps(compiled, playground);
+		await runBlueprintV1Steps(compiled, playground);
 
 		/**
 		 * Pre-fetch WordPress update checks to speed up the initial wp-admin load.
