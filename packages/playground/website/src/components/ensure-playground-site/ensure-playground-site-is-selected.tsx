@@ -1,6 +1,4 @@
 import { useEffect, useState } from 'react';
-import type { ResolvedBlueprint } from '../../lib/state/url/resolve-blueprint-from-url';
-import { resolveBlueprintFromURL } from '../../lib/state/url/resolve-blueprint-from-url';
 import { useCurrentUrl } from '../../lib/state/url/router-hooks';
 import { opfsSiteStorage } from '../../lib/state/opfs/opfs-site-storage';
 import {
@@ -167,25 +165,11 @@ async function createNewTemporarySite(
 	// Lean on the Query API parameters and the Blueprint API to
 	// create the new site.
 	const newUrl = new URL(window.location.href);
-	const defaultBlueprint =
-		'https://raw.githubusercontent.com/WordPress/blueprints/refs/heads/trunk/blueprints/welcome/blueprint.json';
-	let resolvedBlueprint: ResolvedBlueprint | undefined = undefined;
-
-	try {
-		resolvedBlueprint = await resolveBlueprintFromURL(
-			newUrl,
-			defaultBlueprint
-		);
-	} catch (e) {
-		logger.error('Error resolving blueprint:', e);
-	}
 
 	// Create a new site otherwise
 	const newSiteInfo = await dispatch(
 		setTemporarySiteSpec({
 			metadata: {
-				originalBlueprint: resolvedBlueprint?.blueprint,
-				originalBlueprintSource: resolvedBlueprint?.source,
 				name: requestedSiteSlug
 					? deriveSiteNameFromSlug(requestedSiteSlug)
 					: undefined,
