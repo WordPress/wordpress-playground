@@ -68,7 +68,7 @@ class Wp_Config_Transformer {
 	 * @param string $path The path to the wp-config.php file.
 	 */
 	public function to_file( string $path ): void {
-		$result = file_put_contents( $path, $this->to_string(), LOCK_EX );
+		$result = file_put_contents( $path, $this->to_string() );
 		if ( false === $result ) {
 			throw new Exception( sprintf( "Failed to write to the '%s' file.", $path ) );
 		}
