@@ -312,7 +312,7 @@ const [setApiReady, setAPIError] = exposeAPI(
 	phpChannel.port1
 );
 
-parentPort!.postMessage(
+parentPort?.postMessage(
 	{
 		command: 'worker-script-initialized',
 		phpPort: phpChannel.port2,
