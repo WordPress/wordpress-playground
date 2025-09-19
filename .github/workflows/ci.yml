@@ -140,8 +140,15 @@ jobs:
             - uses: ./.github/actions/prepare-playground
               with:
                   node-version: 22
-            # TODO: Before merge: Only pass --allowOnly for Windows.
-            - run: node node_modules/nx/bin/nx affected --target=test-for-node-22-and-above -- --allowOnly
+            - name: Run full test suite
+              if: runner.os != 'windows-latest'
+              run: node node_modules/nx/bin/nx affected --target=test-for-node-22-and-above
+            # NOTE: We currently have to reduce the number of tests we run on Windows,
+            # and we do so by using Vitest's test.only() function. In order to use this
+            # within the `nx affected` command, we need to pass the Vitest arg --allowOnly.
+            - name: Run limited test suite on Windows
+              if: runner.os == 'windows-latest'
+              run: node node_modules/nx/bin/nx affected --target=test-for-node-22-and-above -- --allowOnly
     test-e2e:
         runs-on: ubuntu-latest
         # Run as root to allow node to bind to port 80
