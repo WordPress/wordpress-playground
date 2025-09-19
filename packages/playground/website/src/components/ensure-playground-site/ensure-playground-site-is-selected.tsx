@@ -19,6 +19,7 @@ import { usePrevious } from '../../lib/hooks/use-previous';
 import { modalSlugs } from '../layout';
 import { setActiveModal } from '../../lib/state/redux/slice-ui';
 import { selectClientBySiteSlug } from '../../lib/state/redux/slice-clients';
+import { randomSiteName } from '../../lib/state/redux/random-site-name';
 
 /**
  * Ensures the redux store always has an activeSite value.
@@ -149,36 +150,16 @@ export function EnsurePlaygroundSiteIsSelected({
 	return children;
 }
 
-function parseSearchParams(searchParams: URLSearchParams) {
-	const params: Record<string, any> = {};
-	for (const key of searchParams.keys()) {
-		const value = searchParams.getAll(key);
-		params[key] = value.length > 1 ? value : value[0];
-	}
-	return params;
-}
 async function createNewTemporarySite(
 	dispatch: ReturnType<typeof useAppDispatch>,
 	requestedSiteSlug?: string
 ) {
 	// If the site slug is missing, create a new temporary site.
-	// Lean on the Query API parameters and the Blueprint API to
-	// create the new site.
-	const newUrl = new URL(window.location.href);
-
-	// Create a new site otherwise
+	const siteName = requestedSiteSlug
+		? deriveSiteNameFromSlug(requestedSiteSlug)
+		: randomSiteName();
 	const newSiteInfo = await dispatch(
-		setTemporarySiteSpec({
-			metadata: {
-				name: requestedSiteSlug
-					? deriveSiteNameFromSlug(requestedSiteSlug)
-					: undefined,
-			},
-			originalUrlParams: {
-				searchParams: parseSearchParams(newUrl.searchParams),
-				hash: newUrl.hash,
-			},
-		})
+		setTemporarySiteSpec(siteName, new URL(window.location.href))
 	);
 	await dispatch(setActiveSite(newSiteInfo.slug));
 }

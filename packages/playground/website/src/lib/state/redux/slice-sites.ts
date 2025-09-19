@@ -7,7 +7,6 @@ import {
 import type { PlaygroundDispatch, PlaygroundReduxState } from './store';
 import { selectActiveSite, setActiveSite } from './store';
 import { opfsSiteStorage } from '../opfs/opfs-site-storage';
-import { randomSiteName } from './random-site-name';
 import {
 	type BlueprintV1,
 	type BlueprintV1Declaration,
@@ -17,7 +16,9 @@ import {
 import {
 	type BlueprintSource,
 	resolveBlueprintFromURL,
+	type ResolvedBlueprint,
 } from '../url/resolve-blueprint-from-url';
+import { logger } from '@php-wasm/logger';
 
 /**
  * The Site model used to represent a site within Playground.
@@ -237,21 +238,27 @@ export function removeSite(slug: string) {
  * @returns
  */
 export function setTemporarySiteSpec(
-	siteInfo: Omit<Partial<SiteInfo>, 'metadata'> & {
-		metadata: Partial<SiteMetadata>;
-	}
+	siteName: string,
+	playgroundUrlWithQueryApiArgs: URL
 ) {
 	return async (
 		dispatch: PlaygroundDispatch,
 		getState: () => PlaygroundReduxState
 	) => {
+		const newSiteUrlParams = {
+			searchParams: parseSearchParams(
+				playgroundUrlWithQueryApiArgs.searchParams
+			),
+			hash: playgroundUrlWithQueryApiArgs.hash,
+		};
+
 		const currentTemporarySite = selectTemporarySite(getState());
 		if (currentTemporarySite) {
 			// If the current temporary site is the same as the site we're setting,
 			// then we don't need to create a new site.
 			if (
 				JSON.stringify(currentTemporarySite.originalUrlParams) ===
-				JSON.stringify(siteInfo.originalUrlParams)
+				JSON.stringify(newSiteUrlParams)
 			) {
 				return currentTemporarySite;
 			}
@@ -267,41 +274,42 @@ export function setTemporarySiteSpec(
 		}
 
 		// Then create a new temporary site
-		const siteName = siteInfo.metadata.name || randomSiteName();
-		const {
-			originalBlueprint,
-			originalBlueprintSource,
-			...remainingMetadata
-		} = siteInfo.metadata;
+		const defaultBlueprint =
+			'https://raw.githubusercontent.com/WordPress/blueprints/refs/heads/trunk/blueprints/welcome/blueprint.json';
 
-		let blueprint: BlueprintV1 | undefined = originalBlueprint;
-		let blueprintSource: BlueprintSource | undefined =
-			originalBlueprintSource;
-		if (!blueprint) {
-			// TODO: This is a hack because we are just abusing a URL-oriented
-			// function to create a completely default Blueprint. Let's fix this by
+		let resolvedBlueprint: ResolvedBlueprint | undefined = undefined;
+		try {
+			resolvedBlueprint = await resolveBlueprintFromURL(
+				playgroundUrlWithQueryApiArgs,
+				defaultBlueprint
+			);
+		} catch (e) {
+			logger.error(
+				'Error resolving blueprint, fallink back to a blank blueprint.',
+				e
+			);
+			// TODO: This is a hack – we are just abusing a URL-oriented
+			// function to create a completely blank Blueprint. Let's fix this by
 			// making default creation first-class.
-			const resolvedBlueprint = await resolveBlueprintFromURL(
+			resolvedBlueprint = await resolveBlueprintFromURL(
 				new URL('https://w.org')
 			);
-			blueprint = resolvedBlueprint.blueprint;
-			blueprintSource = resolvedBlueprint.source;
 		}
 
-		const compiledBlueprint = await compileBlueprintV1(blueprint);
+		const compiledBlueprint = await compileBlueprintV1(
+			resolvedBlueprint.blueprint
+		);
 
 		const newSiteInfo = {
-			...siteInfo,
+			name: siteName,
 			slug: deriveSlugFromSiteName(siteName),
 			metadata: {
 				name: siteName,
 				id: crypto.randomUUID(),
 				whenCreated: Date.now(),
 				storage: 'none' as const,
-				originalBlueprint: blueprint,
-				originalBlueprintSource: blueprintSource!,
-
-				...remainingMetadata,
+				originalBlueprint: resolvedBlueprint.blueprint,
+				originalBlueprintSource: resolvedBlueprint.source!,
 
 				runtimeConfiguration: {
 					preferredVersions: {
@@ -328,6 +336,16 @@ export function setTemporarySiteSpec(
 		return newSiteInfo;
 	};
 }
+
+function parseSearchParams(searchParams: URLSearchParams) {
+	const params: Record<string, any> = {};
+	for (const key of searchParams.keys()) {
+		const value = searchParams.getAll(key);
+		params[key] = value.length > 1 ? value : value[0];
+	}
+	return params;
+}
+
 /**
  * The supported site storage types.
  *
