@@ -88,11 +88,12 @@ export async function bootPlaygroundRemote() {
 		logger.error('Failed to update service worker.', e);
 	}
 
+	// @ts-ignore
 	const workerV1Url = await import(
 		// @ts-ignore
 		'./playground-worker-endpoint-blueprints-v1.ts?worker&url'
 	);
-	const workerUrl = new URL(workerV1Url, origin) + '';
+	const workerUrl = new URL(workerV1Url as any, origin) + '';
 
 	const phpWorkerApi = consumeAPI<PlaygroundWorkerEndpoint>(
 		await spawnPHPWorkerThread(workerUrl)
