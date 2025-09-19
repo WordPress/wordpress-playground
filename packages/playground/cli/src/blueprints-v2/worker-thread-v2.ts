@@ -21,6 +21,7 @@ import { sprintf } from '@php-wasm/util';
 import {
 	type BlueprintMessage,
 	runBlueprintV2,
+	type BlueprintV1Declaration,
 } from '@wp-playground/blueprints';
 import {
 	type ParsedBlueprintV2String,
@@ -122,13 +123,19 @@ export type PrimaryWorkerBootArgs = RunCLIArgs & {
 	firstProcessId: number;
 	processIdSpaceLength: number;
 	trace: boolean;
-	blueprint: RawBlueprintV2Data | ParsedBlueprintV2String;
+	blueprint:
+		| RawBlueprintV2Data
+		| ParsedBlueprintV2String
+		| BlueprintV1Declaration;
 	nativeInternalDirPath: string;
 };
 
 type WorkerRunBlueprintArgs = RunCLIArgs & {
 	siteUrl: string;
-	blueprint: RawBlueprintV2Data | ParsedBlueprintV2String;
+	blueprint:
+		| RawBlueprintV2Data
+		| ParsedBlueprintV2String
+		| BlueprintV1Declaration;
 };
 
 export type SecondaryWorkerBootArgs = {

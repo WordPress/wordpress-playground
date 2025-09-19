@@ -1,7 +1,9 @@
 import type { Filesystem } from '@wp-playground/storage';
-import type { V2Schema } from './v2/wep-1-blueprint-v2-schema/appendix-A-blueprint-v2-schema';
 import type { BlueprintV1, BlueprintV1Declaration } from './v1/types';
-import type { RawBlueprintV2Data } from './v2/blueprint-v2-declaration';
+import type {
+	BlueprintV2,
+	BlueprintV2Declaration,
+} from './v2/blueprint-v2-declaration';
 
 /**
  * A filesystem structure containing a /blueprint.json file and any
@@ -9,5 +11,7 @@ import type { RawBlueprintV2Data } from './v2/blueprint-v2-declaration';
  */
 export type BlueprintBundle = Filesystem;
 
-export type BlueprintDeclaration = BlueprintV1Declaration | RawBlueprintV2Data;
-export type Blueprint = BlueprintV1 | V2Schema.BlueprintV2;
+export type BlueprintDeclaration =
+	| BlueprintV1Declaration
+	| BlueprintV2Declaration;
+export type Blueprint = BlueprintV1 | BlueprintV2;
