@@ -21,7 +21,8 @@ import {
 	applyQueryOverridesToDeclaration,
 } from '../url/resolve-blueprint-from-url';
 import { logger } from '@php-wasm/logger';
-import { type ExtraLibrary } from '@wp-playground/blueprints';
+import type { ExtraLibrary } from '@wp-playground/blueprints';
+import type { SupportedPHPVersion } from '@php-wasm/universal';
 
 /**
  * The Site model used to represent a site within Playground.
@@ -304,8 +305,6 @@ export function setTemporarySiteSpec(
 			playgroundUrlWithQueryApiArgs.searchParams
 		);
 
-		console.log('runtimeConfiguration', runtimeConfiguration);
-
 		const newSiteInfo: SiteInfo = {
 			slug: deriveSlugFromSiteName(siteName),
 			originalUrlParams: newSiteUrlParams,
@@ -440,7 +439,7 @@ export interface SiteMetadata {
 export type RuntimeConfiguration = {
 	preferredVersions: {
 		wp: string;
-		php: string;
+		php: SupportedPHPVersion;
 	};
 	features: {
 		intl: boolean;
