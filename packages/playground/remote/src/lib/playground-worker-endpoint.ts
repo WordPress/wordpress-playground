@@ -36,6 +36,8 @@ import type {
 import {
 	PHPResponse,
 	PHPWorker,
+	isPathToSharedFS,
+	proxyFileSystem,
 	sandboxedSpawnHandlerFactory,
 } from '@php-wasm/universal';
 import { certificateToPEM, generateCertificate } from '@php-wasm/web';
@@ -78,7 +80,7 @@ export type WorkerBootOptions = {
 };
 
 /** @inheritDoc PHPClient */
-export class PlaygroundWorkerEndpoint extends PHPWorker {
+export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 	booted = false;
 
 	/**
@@ -154,6 +156,8 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 		let tcpOverFetch: TCPOverFetchOptions | undefined = undefined;
 		let caBundleContent = '';
 		if (withNetworking) {
+			// @TODO: Is it fine this is only set in this code branch? That
+			//        makes sense and all, but the previous worker always created the transport.
 			this.networkTransport = new WordPressFetchNetworkTransport({
 				corsProxyUrl,
 			});
@@ -197,36 +201,44 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 						});
 					},
 					emscriptenOptions: {
-						instantiateWasm: (
+						instantiateWasm: async (
 							imports: any,
 							receiveInstance: any
 						) => {
-							const mf = this.memoizedFetch;
-							mf(wasmUrl, {
+							const response = await this.memoizedFetch(wasmUrl, {
 								credentials: 'same-origin',
-							})
-								.then((response) =>
-									WebAssembly.instantiateStreaming(
-										response as Response,
-										imports
-									)
-								)
-								.then(
-									(
-										wasm: WebAssembly.WebAssemblyInstantiatedSource
-									) => {
-										receiveInstance(
-											wasm.instance,
-											wasm.module
-										);
-									}
-								);
+							});
+							const wasm = await WebAssembly.instantiateStreaming(
+								response as Response,
+								imports
+							);
+							receiveInstance(wasm.instance, wasm.module);
 							return {} as any;
 						},
 					},
 				});
 			},
-			onPHPInstanceCreated: async (php: PHP) => {
+			onPHPInstanceCreated: async (php: PHP, { isPrimary }) => {
+				if (!isPrimary) {
+					const pathsToShareBetweenPhpInstances = [
+						'/tmp',
+						requestHandler.documentRoot,
+						'/internal/shared',
+						'/internal/symlinks',
+					];
+					const pathsToProxy = pathsToShareBetweenPhpInstances.filter(
+						(path) => !isPathToSharedFS(php, path)
+					);
+
+					// TODO: Document that this shift is a breaking change.
+					// Proxy the filesystem for all secondary PHP instances to
+					// the primary one.
+					proxyFileSystem(
+						await requestHandler.getPrimaryPhp(),
+						php,
+						pathsToProxy
+					);
+				}
 				if (withNetworking) {
 					await this.networkTransport!.setupMessageHandler(php);
 				}
@@ -257,12 +269,17 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 				if (!knownRemoteAssetPaths.has(relativeUri)) {
 					return getFileNotFoundActionForWordPress(relativeUri);
 				}
+				// This path is listed as a remote asset. Mark it as a static file
+				// so the service worker knows it can issue a real fetch() to the server.
 				return {
 					type: 'response',
 					response: new PHPResponse(
 						404,
 						{
 							'x-backfill-from': ['remote-host'],
+							// Include x-file-type header so remote asset
+							// retrieval continues to work for clients
+							// running a prior service worker version.
 							'x-file-type': ['static'],
 						},
 						new TextEncoder().encode('404 File not found')
@@ -284,9 +301,18 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 		const primaryPhp = await requestHandler.getPrimaryPhp();
 
 		if (withNetworking) {
+			/**
+			 * Only setup the network transport after WordPress have been installed. Otherwise,
+			 * the installer may send a network request to /wp-cron.php, which will fail because
+			 * the entire setup around network, SQLite, etc. is not complete yet.
+			 */
 			await this.networkTransport!.setEnabled(primaryPhp, true);
 		}
 
+		// NOTE: We need to derive the loaded WP version or we might assume WP loaded
+		// from browser storage is the default version when it is actually something else.
+		// Assuming an incorrect WP version would break remote asset retrieval for minified
+		// WP builds – we would download the wrong assets pack.
 		this.loadedWordPressVersion = await getLoadedWordPressVersion(
 			requestHandler
 		);
@@ -416,12 +442,12 @@ export class PlaygroundWorkerEndpoint extends PHPWorker {
 	}
 
 	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	async boot(_: any) {
-		throw new Error(
-			'PlaygroundWorkerEndpoint.boot() must be implemented in a concrete worker.'
-		);
-	}
+	abstract boot(_: any): Promise<void>;
 
+	/**
+	 * Pre-fetch the slow initial burst of wp_update_* requests to greatly
+	 * improve the first wp-admin load time.
+	 */
 	async prefetchUpdateChecks() {
 		const primaryPhp = this.__internal_getPHP()!;
 		await this.networkTransport!.prefetchUpdateChecks(primaryPhp);

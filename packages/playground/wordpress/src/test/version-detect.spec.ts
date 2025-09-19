@@ -6,7 +6,7 @@ import {
 import { RecommendedPHPVersion } from '@wp-playground/common';
 // eslint-disable-next-line @nx/enforce-module-boundaries -- ignore circular package dep so @php-wasm/node can test with the WP file-not-found callback
 import { loadNodeRuntime } from '@php-wasm/node';
-import { bootWordPress } from '../boot';
+import { bootWordPressAndRequestHandler } from '../boot';
 import {
 	getLoadedWordPressVersion,
 	versionStringToLoadedWordPressVersion,
@@ -17,7 +17,7 @@ describe('Test WP version detection', async () => {
 		MinifiedWordPressVersions
 	)) {
 		it(`detects WP ${expectedWordPressVersion} at runtime`, async () => {
-			const handler = await bootWordPress({
+			const handler = await bootWordPressAndRequestHandler({
 				createPhpRuntime: async () =>
 					await loadNodeRuntime(RecommendedPHPVersion),
 				siteUrl: 'http://playground-domain/',
@@ -34,7 +34,7 @@ describe('Test WP version detection', async () => {
 	}
 
 	it('errors when unable to read version at runtime', async () => {
-		const handler = await bootWordPress({
+		const handler = await bootWordPressAndRequestHandler({
 			createPhpRuntime: async () =>
 				await loadNodeRuntime(RecommendedPHPVersion),
 			siteUrl: 'http://playground-domain/',
@@ -52,7 +52,7 @@ describe('Test WP version detection', async () => {
 	});
 
 	it('errors on reading empty version at runtime', async () => {
-		const handler = await bootWordPress({
+		const handler = await bootWordPressAndRequestHandler({
 			createPhpRuntime: async () =>
 				await loadNodeRuntime(RecommendedPHPVersion),
 			siteUrl: 'http://playground-domain/',

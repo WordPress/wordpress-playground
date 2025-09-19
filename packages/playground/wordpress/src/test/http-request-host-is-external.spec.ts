@@ -1,6 +1,6 @@
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import { loadNodeRuntime } from '@php-wasm/node';
-import { bootWordPress } from '../boot';
+import { bootWordPressAndRequestHandler } from '../boot';
 import {
 	getSqliteDriverModule,
 	getWordPressModule,
@@ -8,7 +8,7 @@ import {
 
 describe('http_request_host_is_external filter', () => {
 	it('returns true after WordPress boot', async () => {
-		const handler = await bootWordPress({
+		const handler = await bootWordPressAndRequestHandler({
 			createPhpRuntime: async () =>
 				await loadNodeRuntime(RecommendedPHPVersion),
 			siteUrl: 'http://playground-domain/',

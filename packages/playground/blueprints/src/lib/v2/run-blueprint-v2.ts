@@ -6,8 +6,8 @@ import {
 import { phpVar } from '@php-wasm/util';
 import { getV2Runner } from './get-v2-runner';
 import {
-	type BlueprintV2Declaration,
-	type ParsedBlueprintV2Declaration,
+	type RawBlueprintV2Data,
+	type ParsedBlueprintV2String,
 	parseBlueprintDeclaration,
 } from './blueprint-v2-declaration';
 
@@ -32,7 +32,7 @@ export type BlueprintMessage =
 interface RunV2Options {
 	php: UniversalPHP;
 	cliArgs?: string[];
-	blueprint: BlueprintV2Declaration | ParsedBlueprintV2Declaration;
+	blueprint: RawBlueprintV2Data | ParsedBlueprintV2String;
 	blueprintOverrides?: {
 		wordpressVersion?: string;
 		additionalSteps?: any[];

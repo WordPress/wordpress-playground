@@ -1,16 +1,13 @@
 import type { BlueprintV1Declaration } from '../v1/types';
 
-export type BlueprintV2Declaration =
-	| string
-	| BlueprintV1Declaration
-	| undefined;
-export type ParsedBlueprintV2Declaration =
+export type RawBlueprintV2Data = string | BlueprintV1Declaration | undefined;
+export type ParsedBlueprintV2String =
 	| { type: 'inline-file'; contents: string }
 	| { type: 'file-reference'; reference: string };
 
 export function parseBlueprintDeclaration(
-	source: BlueprintV2Declaration | ParsedBlueprintV2Declaration
-): ParsedBlueprintV2Declaration {
+	source: RawBlueprintV2Data | ParsedBlueprintV2String
+): ParsedBlueprintV2String {
 	if (
 		typeof source === 'object' &&
 		'type' in source &&
