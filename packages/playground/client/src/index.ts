@@ -43,6 +43,10 @@ export interface StartPlaygroundOptions {
 	progressTracker?: ProgressTracker;
 	disableProgressBar?: boolean;
 	blueprint?: BlueprintV1;
+	/**
+	 * Prefer experimental Blueprints v2 PHP runner instead of TypeScript steps
+	 */
+	experimentalBlueprintsV2Runner?: boolean;
 	onBlueprintStepCompleted?: OnStepCompleted;
 	onBlueprintValidated?: (blueprint: BlueprintV1Declaration) => void;
 	/**

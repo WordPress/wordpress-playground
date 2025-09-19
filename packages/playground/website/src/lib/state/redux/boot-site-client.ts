@@ -109,6 +109,11 @@ export function bootSiteClient(
 				remoteUrl: getRemoteUrl().toString(),
 				scope: site.slug,
 				blueprint,
+				experimentalBlueprintsV2Runner:
+					!isWordPressInstalled &&
+					new URLSearchParams(window.location.search).get(
+						'experimental-blueprints-v2-runner'
+					) === 'yes',
 				// Intercept the Playground client even if the
 				// Blueprint fails.
 				onClientConnected: (playground) => {

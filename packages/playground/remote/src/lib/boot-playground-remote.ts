@@ -17,22 +17,18 @@ import type { WebClientMixin } from './playground-client';
 import type { ProgressBarOptions } from './progress-bar';
 import ProgressBar from './progress-bar';
 
-// Avoid literal "import.meta.url" on purpose as vite would attempt
-// to resolve it during build time. This should specifically be
-// resolved by the browser at runtime to reflect the current origin.
-const origin = new URL('/', (import.meta || {}).url).origin;
-
-// @ts-ignore
-import workerV1Url from './playground-worker-endpoint-blueprints-v1.ts?worker&url';
-
-export const workerUrl: string = new URL(workerV1Url, origin) + '';
-
 // @ts-ignore
 import serviceWorkerPath from '../../service-worker.ts?worker&url';
 import type { FilesystemOperation } from '@php-wasm/fs-journal';
 import { logger } from '@php-wasm/logger';
 import { PhpWasmError } from '@php-wasm/util';
 import { responseTo } from '@php-wasm/web-service-worker';
+
+// Avoid literal "import.meta.url" on purpose as vite would attempt
+// to resolve it during build time. This should specifically be
+// resolved by the browser at runtime to reflect the current origin.
+const origin = new URL('/', (import.meta || {}).url).origin;
+
 export const serviceWorkerUrl = new URL(serviceWorkerPath, origin);
 
 // Prevent Vite from hot-reloading this file – it would
@@ -91,6 +87,12 @@ export async function bootPlaygroundRemote() {
 		// functional service worker at this point because sw.register() succeeded.
 		logger.error('Failed to update service worker.', e);
 	}
+
+	const workerV1Url = await import(
+		// @ts-ignore
+		'./playground-worker-endpoint-blueprints-v1.ts?worker&url'
+	);
+	const workerUrl = new URL(workerV1Url, origin) + '';
 
 	const phpWorkerApi = consumeAPI<PlaygroundWorkerEndpoint>(
 		await spawnPHPWorkerThread(workerUrl)
