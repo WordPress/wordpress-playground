@@ -17,6 +17,7 @@ import {
 	type BlueprintSource,
 	resolveBlueprintFromURL,
 	type ResolvedBlueprint,
+	applyQueryOverrides,
 } from '../url/resolve-blueprint-from-url';
 import { logger } from '@php-wasm/logger';
 
@@ -296,9 +297,13 @@ export function setTemporarySiteSpec(
 			);
 		}
 
-		const compiledBlueprint = await compileBlueprintV1(
-			resolvedBlueprint.blueprint
+		// @TODO: Move the query overrides part to
+		const mergedBlueprint = await applyQueryOverrides(
+			resolvedBlueprint.blueprint,
+			playgroundUrlWithQueryApiArgs.searchParams
 		);
+
+		const compiledBlueprint = await compileBlueprintV1(mergedBlueprint);
 
 		const newSiteInfo = {
 			name: siteName,
@@ -308,7 +313,7 @@ export function setTemporarySiteSpec(
 				id: crypto.randomUUID(),
 				whenCreated: Date.now(),
 				storage: 'none' as const,
-				originalBlueprint: resolvedBlueprint.blueprint,
+				originalBlueprint: mergedBlueprint,
 				originalBlueprintSource: resolvedBlueprint.source!,
 
 				runtimeConfiguration: {
