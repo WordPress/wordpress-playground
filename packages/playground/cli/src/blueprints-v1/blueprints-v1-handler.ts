@@ -142,6 +142,7 @@ export class BlueprintsV1Handler {
 			mountsBeforeWpInstall,
 			mountsAfterWpInstall,
 			wordPressZip: wordPressZip && (await wordPressZip!.arrayBuffer()),
+			wpConfigDefaultConstants: this.args.wpConfigDefaultConstants,
 			sqliteIntegrationPluginZip:
 				await sqliteIntegrationPluginZip?.arrayBuffer(),
 			firstProcessId: 0,

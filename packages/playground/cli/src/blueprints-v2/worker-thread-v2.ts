@@ -27,7 +27,7 @@ import {
 	type ParsedBlueprintV2String,
 	type RawBlueprintV2Data,
 } from '@wp-playground/blueprints';
-import { bootRequestHandler } from '@wp-playground/wordpress';
+import { bootRequestHandler, ensureWpConfig } from '@wp-playground/wordpress';
 import { existsSync } from 'fs';
 import path from 'path';
 import { rootCertificates } from 'tls';
@@ -249,6 +249,17 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 			await mountResources(primaryPhp, args.mount || []);
 			return;
 		}
+
+		/*
+		 * Add required constants to "wp-config.php" if they are not already defined.
+		 * This is needed, because some WordPress backups and exports may not include
+		 * definitions for some of the necessary constants.
+		 */
+		await ensureWpConfig(
+			primaryPhp,
+			primaryPhp.requestHandler!.documentRoot,
+			args.wpConfigDefaultConstants
+		);
 
 		await this.runBlueprintV2(args);
 	}

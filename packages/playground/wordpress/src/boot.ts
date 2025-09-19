@@ -126,6 +126,10 @@ export interface BootWordPressOptions {
 	dataSqlPath?: string;
 	/** Zip with the WordPress installation to extract in /wordpress. */
 	wordPressZip?: File | Promise<File> | undefined;
+	/**
+	 * Default constant values to use in "wp-config.php", in case they are missing.
+	 */
+	wpConfigDefaultConstants?: Record<string, string | number | boolean | null>;
 	/** Preloaded SQLite integration plugin. */
 	sqliteIntegrationPluginZip?: File | Promise<File>;
 	/**
@@ -186,7 +190,11 @@ export async function bootWordPress(
 	 * This is needed, because some WordPress backups and exports may not include
 	 * definitions for some of the necessary constants.
 	 */
-	await ensureWpConfig(php, requestHandler.documentRoot);
+	await ensureWpConfig(
+		php,
+		requestHandler.documentRoot,
+		options.wpConfigDefaultConstants
+	);
 	// Run "before database" hooks to mount/copy more files in
 	if (options.hooks?.beforeDatabaseSetup) {
 		await options.hooks.beforeDatabaseSetup(php);

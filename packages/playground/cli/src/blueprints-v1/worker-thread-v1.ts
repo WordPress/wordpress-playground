@@ -50,6 +50,7 @@ export type WorkerBootOptions = {
 export type PrimaryWorkerBootOptions = WorkerBootOptions & {
 	wpVersion?: string;
 	wordPressZip?: ArrayBuffer;
+	wpConfigDefaultConstants?: Record<string, string | number | boolean | null>;
 	sqliteIntegrationPluginZip?: ArrayBuffer;
 	dataSqlPath?: string;
 };
@@ -129,6 +130,7 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 		mountsAfterWpInstall,
 		phpVersion: php = RecommendedPHPVersion,
 		wordPressZip,
+		wpConfigDefaultConstants,
 		sqliteIntegrationPluginZip,
 		firstProcessId,
 		processIdSpaceLength,
@@ -182,6 +184,7 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 					wordPressZip !== undefined
 						? new File([wordPressZip], 'wordpress.zip')
 						: undefined,
+				wpConfigDefaultConstants,
 				sqliteIntegrationPluginZip:
 					sqliteIntegrationPluginZip !== undefined
 						? new File(

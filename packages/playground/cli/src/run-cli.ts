@@ -153,6 +153,20 @@ export async function parseOptionsAndRunCLI() {
 				type: 'boolean',
 				default: false,
 			})
+			.option('wp-config-default-constants', {
+				describe:
+					'Configure default constant values to use in "wp-config.php", in case the constants are missing. Encoded as JSON string.',
+				type: 'string',
+				coerce: (value: string) => {
+					try {
+						return JSON.parse(value);
+					} catch (e /* eslint-disable-line @typescript-eslint/no-unused-vars */) {
+						throw new Error(
+							'Invalid JSON string for --wp-config-default-constants'
+						);
+					}
+				},
+			})
 			.option('skip-wordpress-setup', {
 				describe:
 					'Do not download, unzip, and install WordPress. Useful for mounting a pre-configured WordPress directory at /wordpress.',
@@ -420,6 +434,7 @@ export interface RunCLIArgs {
 	xdebug?: boolean;
 	experimentalDevtools?: boolean;
 	'experimental-blueprints-v2-runner'?: boolean;
+	wpConfigDefaultConstants?: Record<string, string | number | boolean | null>;
 
 	// --------- Blueprint V1 args -----------
 	skipWordPressSetup?: boolean;
