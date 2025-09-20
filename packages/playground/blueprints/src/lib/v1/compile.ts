@@ -1,17 +1,12 @@
 import { ProgressTracker } from '@php-wasm/progress';
 import { Semaphore } from '@php-wasm/util';
-import type { SupportedPHPVersion, UniversalPHP } from '@php-wasm/universal';
-import {
-	LatestSupportedPHPVersion,
-	SupportedPHPVersions,
-} from '@php-wasm/universal';
+import type { UniversalPHP } from '@php-wasm/universal';
 import type { FileReference } from './resources';
 import { isResourceReference, Resource } from './resources';
 import type { Step, StepDefinition, WriteFileStep } from '../steps';
 import * as allStepHandlers from '../steps/handlers';
 import type {
 	BlueprintV1Declaration,
-	ExtraLibrary,
 	StreamBundledFile,
 	BlueprintV1,
 } from './types';
@@ -45,17 +40,6 @@ import { defaultWpCliPath, defaultWpCliResource } from '../steps/wp-cli';
 export type CompiledV1Step = (php: UniversalPHP) => Promise<void> | void;
 
 export interface CompiledBlueprintV1 {
-	/** The requested versions of PHP and WordPress for the blueprint */
-	versions: {
-		php: SupportedPHPVersion;
-		wp: string;
-	};
-	features: {
-		intl: boolean;
-		/** Should boot with support for network request via wp_safe_remote_get? */
-		networking: boolean;
-	};
-	extraLibraries: ExtraLibrary[];
 	/** The compiled steps for the blueprint */
 	run: (playground: UniversalPHP) => Promise<void>;
 }
@@ -325,21 +309,6 @@ function compileBlueprintJson(
 	);
 
 	return {
-		versions: {
-			php: compileVersion(
-				blueprint.preferredVersions?.php,
-				SupportedPHPVersions,
-				LatestSupportedPHPVersion
-			),
-			wp: blueprint.preferredVersions?.wp || 'latest',
-		},
-		features: {
-			// Disable intl by default to reduce the transfer size
-			intl: blueprint.features?.intl ?? false,
-			// Enable network access by default
-			networking: blueprint.features?.networking ?? true,
-		},
-		extraLibraries: blueprint.extraLibraries || [],
 		run: async (playground: UniversalPHP) => {
 			try {
 				// Start resolving resources early
@@ -455,7 +424,7 @@ export function validateBlueprint(blueprintMaybe: object) {
  * @param latest The latest supported version
  * @returns The compiled version
  */
-function compileVersion<T>(
+export function compileVersion<T>(
 	value: string | undefined | null,
 	supported: readonly T[],
 	latest: string

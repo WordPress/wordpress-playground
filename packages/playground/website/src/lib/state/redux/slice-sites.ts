@@ -13,6 +13,7 @@ import {
 	type PHPConstants,
 	BlueprintReflection,
 	type Blueprint,
+	runtimeConfigurationFromBlueprintV1Declaration,
 } from '@wp-playground/blueprints';
 import {
 	type BlueprintSource,
@@ -335,17 +336,8 @@ async function resolveRuntimeConfiguration(
 			reflection.getDeclaration() as BlueprintV1Declaration,
 			searchParams
 		);
-		const mergedReflection = await BlueprintReflection.create(declaration);
 		return {
-			preferredVersions: {
-				wp: mergedReflection.getWpVersion() || 'latest',
-				php: mergedReflection.getPhpVersion() || 'latest',
-			},
-			features: {
-				intl: mergedReflection.getIntl(),
-				networking: mergedReflection.getNetworking(),
-			},
-			extraLibraries: mergedReflection.getExtraLibraries(),
+			...runtimeConfigurationFromBlueprintV1Declaration(declaration),
 			/*
 			 * Constants don't matter so much for temporary sites so let's
 			 * use an empty object here. We can't easily figure out which

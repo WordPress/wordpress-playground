@@ -1,6 +1,5 @@
-import type { SupportedPHPVersion } from '@php-wasm/universal';
 import type { Blueprint, BlueprintBundle } from './types';
-import type { BlueprintV1Declaration, ExtraLibrary } from './v1/types';
+import type { BlueprintV1Declaration } from './v1/types';
 import type { BlueprintV2Declaration } from './v2/blueprint-v2-declaration';
 
 export function isBlueprintBundle(input: any): input is BlueprintBundle {
@@ -20,145 +19,39 @@ export async function getBlueprintDeclaration(
 
 export type BlueprintType = 'bundle' | 'declaration';
 
-export abstract class BlueprintReflection<
-	T extends BlueprintV1Declaration | BlueprintV2Declaration
-> {
-	private updatedBundle?: BlueprintBundle;
-
+export class BlueprintReflection {
 	static async create(blueprint: Blueprint) {
 		const declaration = await getBlueprintDeclaration(blueprint);
-		const details = {
-			declaration,
-			bundle: isBlueprintBundle(blueprint) ? blueprint : undefined,
-			version: (declaration as any).version || 1,
-		};
-		if (details.version === 1) {
-			return new BlueprintV1Reflection(details as any);
-		} else if (details.version === 2) {
-			return new BlueprintV2Reflection(details as any);
-		} else {
-			throw new Error('Invalid blueprint version');
-		}
+		const bundle = isBlueprintBundle(blueprint) ? blueprint : undefined;
+		const version = (declaration as any).version || 1;
+		return new BlueprintReflection(declaration, bundle, version);
 	}
 
 	protected constructor(
-		private readonly details: {
-			declaration: T;
-			bundle: BlueprintBundle | undefined;
-			version: number;
-		}
+		private readonly declaration:
+			| BlueprintV1Declaration
+			| BlueprintV2Declaration,
+		private readonly bundle: BlueprintBundle | undefined,
+		private readonly version: number
 	) {}
 
 	getVersion() {
-		return this.details.version;
+		return this.version;
 	}
 
 	getDeclaration() {
-		return this.details.declaration;
+		return this.declaration;
+	}
+
+	isBundle() {
+		return this.bundle !== undefined;
 	}
 
 	getBundle() {
-		return this.updatedBundle || this.details.bundle;
+		return this.bundle;
 	}
 
 	getBlueprint(): Blueprint {
 		return this.getBundle() || this.getDeclaration();
-	}
-
-	abstract getPhpVersion(): SupportedPHPVersion | 'latest' | undefined;
-	abstract getWpVersion(): string | 'latest' | undefined;
-	abstract getNetworking(): boolean;
-	abstract getExtraLibraries(): ExtraLibrary[];
-}
-
-export class BlueprintV1Reflection extends BlueprintReflection<BlueprintV1Declaration> {
-	getPhpVersion() {
-		return this.getDeclaration().preferredVersions?.php;
-	}
-
-	getWpVersion() {
-		const wpVersion = this.getDeclaration().preferredVersions?.wp;
-		if (!wpVersion || typeof wpVersion !== 'string') {
-			return undefined;
-		}
-		if (wpVersion === 'latest') {
-			return 'latest';
-		}
-		return wpVersion;
-	}
-
-	getNetworking() {
-		return this.getDeclaration().features?.networking ?? true;
-	}
-
-	getIntl() {
-		return this.getDeclaration().features?.intl ?? false;
-	}
-
-	getExtraLibraries() {
-		return this.getDeclaration().extraLibraries || [];
-	}
-}
-
-export class BlueprintV2Reflection extends BlueprintReflection<BlueprintV2Declaration> {
-	getPhpVersion() {
-		const phpVersion = this.getDeclaration().phpVersion;
-		if (!phpVersion) {
-			return undefined;
-		}
-		if (typeof phpVersion === 'string') {
-			return phpVersion;
-		}
-		return (phpVersion.recommended ||
-			phpVersion.max ||
-			phpVersion.min) as any;
-	}
-
-	getWpVersion() {
-		const wordpressVersion = this.getDeclaration().wordpressVersion;
-		if (!wordpressVersion) {
-			return undefined;
-		}
-		if (typeof wordpressVersion !== 'string') {
-			if (
-				'preferred' in wordpressVersion ||
-				'max' in wordpressVersion ||
-				'min' in wordpressVersion
-			) {
-				return (
-					wordpressVersion.preferred ||
-					wordpressVersion.max ||
-					wordpressVersion.min
-				);
-			}
-			return 'custom';
-		}
-		if (wordpressVersion === 'latest') {
-			return 'latest';
-		}
-		return wordpressVersion;
-	}
-
-	getNetworking() {
-		return (
-			this.getDeclaration().applicationOptions?.['wordpress-playground']
-				?.networkAccess ?? true
-		);
-	}
-
-	getIntl() {
-		// @TODO: Find a useful way of declaring the desired PHP extensions
-		//        from a v2 Blueprint.
-		return (
-			(
-				this.getDeclaration().applicationOptions?.[
-					'wordpress-playground'
-				] as any
-			)?.intlExtension ?? true
-		);
-	}
-
-	getExtraLibraries() {
-		return [];
 	}
 }

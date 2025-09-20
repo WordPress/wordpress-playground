@@ -11,7 +11,10 @@ export type {
 	Blueprint,
 	BlueprintBundle,
 	BlueprintDeclaration,
+	RuntimeConfiguration,
 } from './lib/types';
+export { getRuntimeConfigurationFromBlueprintV1Declaration } from './lib/v1/get-runtime-configuration';
+export { getRuntimeConfigurationFromBlueprintV2Declaration } from './lib/v2/get-runtime-configuration';
 export {
 	getBlueprintDeclaration,
 	isBlueprintBundle,
