@@ -13,8 +13,7 @@ import {
 	type PHPConstants,
 	BlueprintReflection,
 	type Blueprint,
-	getRuntimeConfigurationFromBlueprintV1Declaration,
-	getRuntimeConfigurationFromBlueprintV2Declaration,
+	getRuntimeConfigurationFromBlueprintDeclaration,
 } from '@wp-playground/blueprints';
 import {
 	type BlueprintSource,
@@ -336,7 +335,7 @@ async function resolveRuntimeConfiguration(
 	const reflection = await BlueprintReflection.create(blueprint);
 	if (reflection.getVersion() === 1) {
 		return {
-			...getRuntimeConfigurationFromBlueprintV1Declaration(
+			...getRuntimeConfigurationFromBlueprintDeclaration(
 				reflection.getDeclaration() as BlueprintV1Declaration,
 				overrides
 			),
@@ -355,7 +354,7 @@ async function resolveRuntimeConfiguration(
 		// There's no applyQueryOverridesToDeclaration() for v2 blueprints so
 		// we're merging the basic parameters in here.
 		return {
-			...getRuntimeConfigurationFromBlueprintV2Declaration(
+			...getRuntimeConfigurationFromBlueprintDeclaration(
 				reflection.getDeclaration() as BlueprintV2Declaration,
 				overrides
 			),

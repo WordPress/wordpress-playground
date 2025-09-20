@@ -23,8 +23,18 @@ export class BlueprintReflection {
 	static async create(blueprint: Blueprint) {
 		const declaration = await getBlueprintDeclaration(blueprint);
 		const bundle = isBlueprintBundle(blueprint) ? blueprint : undefined;
-		const version = (declaration as any).version || 1;
-		return new BlueprintReflection(declaration, bundle, version);
+		return BlueprintReflection.createFromDeclaration(declaration, bundle);
+	}
+
+	static createFromDeclaration(
+		declaration: BlueprintV1Declaration | BlueprintV2Declaration,
+		bundle: BlueprintBundle | undefined = undefined
+	) {
+		return new BlueprintReflection(
+			declaration,
+			bundle,
+			(declaration as any).version || 1
+		);
 	}
 
 	protected constructor(

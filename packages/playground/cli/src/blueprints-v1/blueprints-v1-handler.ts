@@ -9,7 +9,7 @@ import type {
 import {
 	BlueprintReflection,
 	compileBlueprintV1,
-	getRuntimeConfigurationFromBlueprintV1Declaration,
+	getRuntimeConfigurationFromBlueprintDeclaration,
 	isBlueprintBundle,
 } from '@wp-playground/blueprints';
 import { zipDirectory } from '@wp-playground/common';
@@ -72,7 +72,7 @@ export class BlueprintsV1Handler {
 		const declaration =
 			reflection.getDeclaration() as BlueprintV1Declaration;
 		const runtimeConfiguration =
-			getRuntimeConfigurationFromBlueprintV1Declaration(declaration);
+			getRuntimeConfigurationFromBlueprintDeclaration(declaration);
 
 		this.phpVersion = runtimeConfiguration.preferredVersions.php;
 

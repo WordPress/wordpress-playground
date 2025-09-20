@@ -2,28 +2,18 @@ import type { RuntimeConfiguration } from '../types';
 import { type BlueprintV2Declaration } from './blueprint-v2-declaration';
 
 export function getRuntimeConfigurationFromBlueprintV2Declaration(
-	blueprint: BlueprintV2Declaration,
-	overrides = new URLSearchParams({})
+	blueprint: BlueprintV2Declaration
 ): RuntimeConfiguration {
 	const analyzer = new BlueprintV2DeclarationAnalyzer(blueprint);
 	return {
 		preferredVersions: {
-			wp: overrides.get('wp') || analyzer.getWpVersion() || 'latest',
-			php: overrides.get('php') || analyzer.getPhpVersion() || 'latest',
+			wp: analyzer.getWpVersion() || 'latest',
+			php: analyzer.getPhpVersion() || 'latest',
 		},
 		features: {
 			// @TODO: Enable intl by default in Node.js but not in the browser.
-			intl:
-				overrides.get('intl') === 'yes' ||
-				(analyzer.getIntl() ?? false),
-			networking:
-				/**
-				 * Networking is enabled by default, so we only need to disable it
-				 * if the query param is explicitly set to something other than "yes".
-				 */
-				overrides.get('networking') === 'no'
-					? false
-					: analyzer.getNetworking() ?? true,
+			intl: analyzer.getIntl() ?? false,
+			networking: analyzer.getNetworking() ?? true,
 		},
 		extraLibraries: analyzer.getExtraLibraries() || [],
 	};

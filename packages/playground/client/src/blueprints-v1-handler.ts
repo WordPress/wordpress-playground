@@ -4,7 +4,7 @@ import {
 	type StartPlaygroundOptions,
 	compileBlueprintV1,
 	runBlueprintV1Steps,
-	getRuntimeConfigurationFromBlueprintV1Declaration,
+	getRuntimeConfigurationFromBlueprintDeclaration,
 	BlueprintReflection,
 	type BlueprintV1Declaration,
 	type BlueprintV1,
@@ -47,7 +47,7 @@ export class BlueprintsV1Handler {
 		await playground.onDownloadProgress(downloadProgress.loadingListener);
 
 		const reflection = await BlueprintReflection.create(blueprint);
-		const runtime = getRuntimeConfigurationFromBlueprintV1Declaration(
+		const runtime = getRuntimeConfigurationFromBlueprintDeclaration(
 			reflection.getDeclaration() as BlueprintV1Declaration
 		);
 		await playground.boot({
