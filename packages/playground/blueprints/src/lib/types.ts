@@ -21,16 +21,12 @@ export type BlueprintDeclaration =
 	| BlueprintV2Declaration;
 export type Blueprint = BlueprintV1 | BlueprintV2;
 
-export interface RuntimeConfiguration {
+export interface RuntimeConfiguration<PHPVersion = SupportedPHPVersion> {
 	/** The requested versions of PHP and WordPress for the blueprint */
-	versions: {
-		php: SupportedPHPVersion;
-		wp: string;
-	};
-	features: {
-		intl: boolean;
-		/** Should boot with support for network request via wp_safe_remote_get? */
-		networking: boolean;
-	};
+	phpVersion: PHPVersion;
+	wpVersion: string;
+	intl: boolean;
+	/** Should boot with support for network request via wp_safe_remote_get? */
+	networking: boolean;
 	extraLibraries: ExtraLibrary[];
 }

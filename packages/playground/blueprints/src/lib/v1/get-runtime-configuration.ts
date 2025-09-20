@@ -1,29 +1,14 @@
-import {
-	LatestSupportedPHPVersion,
-	SupportedPHPVersions,
-} from '@php-wasm/universal';
-import type { BlueprintV1Declaration } from './types';
 import type { RuntimeConfiguration } from '../types';
-import { compileVersion } from './compile';
-import { RecommendedPHPVersion } from '@wp-playground/common';
+import type { BlueprintV1Declaration } from './types';
 
 export function getRuntimeConfigurationFromBlueprintV1Declaration(
 	blueprint: BlueprintV1Declaration
-): RuntimeConfiguration {
+): Partial<RuntimeConfiguration<string>> {
 	return {
-		versions: {
-			php:
-				compileVersion(
-					blueprint.preferredVersions?.php,
-					SupportedPHPVersions,
-					LatestSupportedPHPVersion
-				) || RecommendedPHPVersion,
-			wp: blueprint.preferredVersions?.wp || 'latest',
-		},
-		features: {
-			intl: blueprint.features?.intl ?? false,
-			networking: blueprint.features?.networking ?? true,
-		},
-		extraLibraries: blueprint.extraLibraries || [],
+		phpVersion: blueprint.preferredVersions?.php,
+		wpVersion: blueprint.preferredVersions?.wp,
+		intl: blueprint.features?.intl,
+		networking: blueprint.features?.networking,
+		extraLibraries: blueprint.extraLibraries,
 	};
 }

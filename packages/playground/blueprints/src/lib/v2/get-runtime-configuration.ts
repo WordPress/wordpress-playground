@@ -3,79 +3,41 @@ import { type BlueprintV2Declaration } from './blueprint-v2-declaration';
 
 export function getRuntimeConfigurationFromBlueprintV2Declaration(
 	blueprint: BlueprintV2Declaration
-): RuntimeConfiguration {
-	const analyzer = new BlueprintV2DeclarationAnalyzer(blueprint);
+): Partial<RuntimeConfiguration<string>> {
 	return {
-		versions: {
-			wp: analyzer.getWpVersion() || 'latest',
-			php: analyzer.getPhpVersion() || 'latest',
-		},
-		features: {
-			// @TODO: Enable intl by default in Node.js but not in the browser.
-			intl: analyzer.getIntl() ?? false,
-			networking: analyzer.getNetworking() ?? true,
-		},
-		extraLibraries: analyzer.getExtraLibraries() || [],
+		wpVersion: getWordPressVersion(blueprint),
+		phpVersion:
+			typeof blueprint.phpVersion === 'string'
+				? blueprint.phpVersion
+				: blueprint.phpVersion?.recommended ||
+				  blueprint.phpVersion?.max ||
+				  blueprint.phpVersion?.min,
+		intl: (blueprint.applicationOptions?.['wordpress-playground'] as any)
+			?.intlExtension,
+		networking:
+			blueprint.applicationOptions?.['wordpress-playground']
+				?.networkAccess,
 	};
 }
 
-class BlueprintV2DeclarationAnalyzer {
-	constructor(private readonly declaration: BlueprintV2Declaration) {}
-	getPhpVersion() {
-		const phpVersion = this.declaration.phpVersion;
-		if (!phpVersion) {
-			return undefined;
+function getWordPressVersion(blueprint: BlueprintV2Declaration) {
+	const wordpressVersion = blueprint.wordpressVersion;
+	if (!wordpressVersion) {
+		return undefined;
+	}
+	if (typeof wordpressVersion !== 'string') {
+		if (
+			'preferred' in wordpressVersion ||
+			'max' in wordpressVersion ||
+			'min' in wordpressVersion
+		) {
+			return (
+				wordpressVersion.preferred ||
+				wordpressVersion.max ||
+				wordpressVersion.min
+			);
 		}
-		if (typeof phpVersion === 'string') {
-			return phpVersion;
-		}
-		return (phpVersion.recommended ||
-			phpVersion.max ||
-			phpVersion.min) as any;
+		return 'custom';
 	}
-
-	getWpVersion() {
-		const wordpressVersion = this.declaration.wordpressVersion;
-		if (!wordpressVersion) {
-			return undefined;
-		}
-		if (typeof wordpressVersion !== 'string') {
-			if (
-				'preferred' in wordpressVersion ||
-				'max' in wordpressVersion ||
-				'min' in wordpressVersion
-			) {
-				return (
-					wordpressVersion.preferred ||
-					wordpressVersion.max ||
-					wordpressVersion.min
-				);
-			}
-			return 'custom';
-		}
-		return wordpressVersion;
-	}
-
-	getNetworking() {
-		return (
-			this.declaration.applicationOptions?.['wordpress-playground']
-				?.networkAccess ?? true
-		);
-	}
-
-	getIntl() {
-		// @TODO: Find a useful way of declaring the desired PHP extensions
-		//        from a v2 Blueprint.
-		return (
-			(
-				this.declaration.applicationOptions?.[
-					'wordpress-playground'
-				] as any
-			)?.intlExtension ?? true
-		);
-	}
-
-	getExtraLibraries() {
-		return [];
-	}
+	return wordpressVersion;
 }

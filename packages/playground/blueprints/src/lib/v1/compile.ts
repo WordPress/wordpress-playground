@@ -417,25 +417,6 @@ export function validateBlueprint(blueprintMaybe: object) {
 }
 
 /**
- * Compiles a preferred version string into a supported version
- *
- * @param value The value to compile
- * @param supported The list of supported versions
- * @param latest The latest supported version
- * @returns The compiled version
- */
-export function compileVersion<T>(
-	value: string | undefined | null,
-	supported: readonly T[],
-	latest: string
-): T {
-	if (value && supported.includes(value as any)) {
-		return value as T;
-	}
-	return latest as T;
-}
-
-/**
  * Determines if a step is a StepDefinition object
  *
  * @param step The object to test

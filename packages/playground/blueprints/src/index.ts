@@ -13,7 +13,7 @@ export type {
 	BlueprintDeclaration,
 	RuntimeConfiguration,
 } from './lib/types';
-export { getRuntimeConfigurationFromBlueprintDeclaration } from './lib/get-runtime-configuration';
+export { resolveRuntimeConfiguration } from './lib/get-runtime-configuration';
 export {
 	getBlueprintDeclaration,
 	isBlueprintBundle,

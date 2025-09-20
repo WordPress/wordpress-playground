@@ -11,7 +11,7 @@ import {
 	type BlueprintV1,
 	type PHPConstants,
 	BlueprintReflection,
-	getRuntimeConfigurationFromBlueprintDeclaration,
+	resolveRuntimeConfiguration,
 } from '@wp-playground/blueprints';
 import {
 	type BlueprintSource,
@@ -248,7 +248,7 @@ export function setTemporarySiteSpec(
 		getState: () => PlaygroundReduxState
 	) => {
 		const newSiteUrlParams = {
-			searchParams: searchParamsToRecord(
+			searchParams: urlToRuntimeOverrides(
 				playgroundUrlWithQueryApiArgs.searchParams
 			),
 			hash: playgroundUrlWithQueryApiArgs.hash,
@@ -298,17 +298,27 @@ export function setTemporarySiteSpec(
 			);
 		}
 
-		const overrides = searchParamsToRecord(
-			playgroundUrlWithQueryApiArgs.searchParams
-		);
+		const query = playgroundUrlWithQueryApiArgs.searchParams;
 		const reflection = await BlueprintReflection.create(
 			resolvedBlueprint.blueprint
 		);
-		const runtimeConfiguration =
-			getRuntimeConfigurationFromBlueprintDeclaration(
-				reflection.getDeclaration(),
-				overrides
-			);
+		const runtimeConfiguration = resolveRuntimeConfiguration({
+			blueprint: reflection.getDeclaration(),
+			defaults: {
+				phpVersion: '8.0',
+				wpVersion: 'latest',
+				intl: true,
+				networking: true,
+				extraLibraries: [],
+			},
+			overrides: {
+				phpVersion: query.get('php'),
+				wpVersion: query.get('wp'),
+				intl: query.get('intl') === 'yes' ? true : undefined,
+				networking:
+					query.get('networking') === 'no' ? false : undefined,
+			},
+		});
 
 		const newSiteInfo: SiteInfo = {
 			slug: deriveSlugFromSiteName(siteName),
@@ -321,12 +331,19 @@ export function setTemporarySiteSpec(
 				originalBlueprint: resolvedBlueprint.blueprint as BlueprintV1,
 				originalBlueprintSource: resolvedBlueprint.source!,
 
+				/**
+				 * @TODO: Use the RuntimeConfiguration type here. This requires a
+				 * migration path for all the stored OPFS sites.
+				 */
 				runtimeConfiguration: {
-					...runtimeConfiguration,
-					// @TODO: Use the ".versions" property instead of ".preferredVersions" to
-					//        be consistent with runtimeConfiguration.versions. This requires a
-					//        migration path for all the stored OPFS sites.
-					preferredVersions: runtimeConfiguration.versions,
+					preferredVersions: {
+						php: runtimeConfiguration.phpVersion,
+						wp: runtimeConfiguration.wpVersion,
+					},
+					features: {
+						intl: runtimeConfiguration.intl,
+						networking: runtimeConfiguration.networking,
+					},
 					/*
 					 * Constants don't matter so much for temporary sites so let's
 					 * use an empty object here. We can't easily figure out which
@@ -337,6 +354,7 @@ export function setTemporarySiteSpec(
 					 * consistently applied across page reloads.
 					 */
 					constants: {},
+					extraLibraries: runtimeConfiguration.extraLibraries,
 				},
 			},
 		};
@@ -346,7 +364,7 @@ export function setTemporarySiteSpec(
 	};
 }
 
-function searchParamsToRecord(searchParams: URLSearchParams) {
+function urlToRuntimeOverrides(searchParams: URLSearchParams) {
 	const params: Record<string, any> = {};
 	for (const key of searchParams.keys()) {
 		const value = searchParams.getAll(key);

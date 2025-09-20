@@ -9,10 +9,10 @@ import type {
 import {
 	BlueprintReflection,
 	compileBlueprintV1,
-	getRuntimeConfigurationFromBlueprintDeclaration,
+	resolveRuntimeConfiguration,
 	isBlueprintBundle,
 } from '@wp-playground/blueprints';
-import { zipDirectory } from '@wp-playground/common';
+import { RecommendedPHPVersion, zipDirectory } from '@wp-playground/common';
 import fs from 'fs';
 import path from 'path';
 import { resolveWordPressRelease } from '@wp-playground/wordpress';
@@ -71,10 +71,19 @@ export class BlueprintsV1Handler {
 		);
 		const declaration =
 			reflection.getDeclaration() as BlueprintV1Declaration;
-		const runtimeConfiguration =
-			getRuntimeConfigurationFromBlueprintDeclaration(declaration);
+		// @TODO: Compute this in the caller, incorporate overrides, pass it all down here
+		const runtimeConfiguration = resolveRuntimeConfiguration({
+			blueprint: declaration,
+			defaults: {
+				phpVersion: RecommendedPHPVersion,
+				wpVersion: 'latest',
+				intl: true,
+				networking: true,
+				extraLibraries: [],
+			},
+		});
 
-		this.phpVersion = runtimeConfiguration.versions.php;
+		this.phpVersion = runtimeConfiguration.phpVersion;
 
 		let wpDetails: any = undefined;
 		// @TODO: Rename to FetchProgressMonitor. There's nothing Emscripten
@@ -148,7 +157,7 @@ export class BlueprintsV1Handler {
 		await playground.useFileLockManager(fileLockManagerPort);
 		await playground.bootAsPrimaryWorker({
 			phpVersion: this.phpVersion,
-			wpVersion: runtimeConfiguration.versions.wp,
+			wpVersion: runtimeConfiguration.wpVersion,
 			siteUrl: this.siteUrl,
 			mountsBeforeWpInstall,
 			mountsAfterWpInstall,

@@ -4,13 +4,14 @@ import {
 	type StartPlaygroundOptions,
 	compileBlueprintV1,
 	runBlueprintV1Steps,
-	getRuntimeConfigurationFromBlueprintDeclaration,
+	resolveRuntimeConfiguration,
 	BlueprintReflection,
 	type BlueprintV1Declaration,
 	type BlueprintV1,
 } from '.';
 import { collectPhpLogs, logger } from '@php-wasm/logger';
 import { consumeAPI } from '@php-wasm/universal';
+import { RecommendedPHPVersion } from '@wp-playground/common';
 
 export class BlueprintsV1Handler {
 	constructor(private readonly options: StartPlaygroundOptions) {}
@@ -47,18 +48,26 @@ export class BlueprintsV1Handler {
 		await playground.onDownloadProgress(downloadProgress.loadingListener);
 
 		const reflection = await BlueprintReflection.create(blueprint);
-		const runtime = getRuntimeConfigurationFromBlueprintDeclaration(
-			reflection.getDeclaration() as BlueprintV1Declaration
-		);
+		const runtimeConfiguration = resolveRuntimeConfiguration({
+			blueprint: reflection.getDeclaration() as BlueprintV1Declaration,
+			defaults: {
+				phpVersion: RecommendedPHPVersion,
+				wpVersion: 'latest',
+				intl: false,
+				networking: true,
+				extraLibraries: [],
+			},
+			// @TODO: Pass over the URL overrides!
+		});
 		await playground.boot({
 			mounts,
 			sapiName,
 			scope: scope ?? Math.random().toFixed(16),
 			shouldInstallWordPress,
-			phpVersion: runtime.versions.php,
-			wpVersion: runtime.versions.wp,
-			withICU: runtime.features.intl,
-			withNetworking: runtime.features.networking,
+			phpVersion: runtimeConfiguration.phpVersion,
+			wpVersion: runtimeConfiguration.wpVersion,
+			withICU: runtimeConfiguration.intl,
+			withNetworking: runtimeConfiguration.networking,
 			corsProxyUrl: corsProxy,
 			sqliteDriverVersion,
 		});
@@ -84,7 +93,7 @@ export class BlueprintsV1Handler {
 		 *
 		 * @see https://github.com/WordPress/wordpress-playground/pull/2295
 		 */
-		if (runtime.features.networking) {
+		if (runtimeConfiguration.networking) {
 			await playground.prefetchUpdateChecks();
 		}
 
