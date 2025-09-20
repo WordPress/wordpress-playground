@@ -267,7 +267,7 @@ This guide will show you how to both update an existing translation and add a br
 
 #### Updating an Existing Translation
 
-1.  **Navigate to the file.** Go to the repository and find the file you want to update. Translation files are located in a folder named after their language code. For example, all French translations are in `packages/docs/site/i18n/fr/...`.
+1.  **Navigate to the file.** Go to the repository and find the file you want to update. Translation files are located in a folder named after their language code. For example, all French translations are in `packages/docs/site/i18n/fr/docusaurus-plugin-content-docs/current/`.
 
 2.  **Open the editor.** Select the file you wish to edit and click the pencil icon (**Edit this file**) in the upper right corner.
     ![Editing existing translation](@site/static/img/contributing/editing-translations.webp)
@@ -289,7 +289,7 @@ This guide will show you how to both update an existing translation and add a br
     -   **English original:** `packages/docs/site/docs/main/contributing/documentation.md`
     -   **French translation:** `packages/docs/site/i18n/fr/docusaurus-plugin-content-docs/current/main/contributing/documentation.md`
 
-2.  **Create the new file.** Navigate to the correct language folder (e.g., `.../current/`). Click **Add file** > **Create new file**.
+2.  **Create the new file.** Navigate to the correct language folder (e.g., `/packages/docs/site/i18n/fr/docusaurus-plugin-content-docs/current/`). Click **Add file** > **Create new file**.
     ![Creating a new translation](@site/static/img/contributing/adding-file-github-ui.webp)
 
     -   **Pro Tip:** In the filename box, you can create new folders by typing the folder name followed by a `/`. For example, typing `main/contributing/documentation.md` will create the `main` and `contributing` folders automatically.
