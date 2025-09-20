@@ -11,10 +11,14 @@ import {
 	updateClientInfo,
 } from './slice-clients';
 import { logTrackingEvent } from '../../tracking';
-import type { Blueprint } from '@wp-playground/blueprints';
+import type { BlueprintV1Declaration } from '@wp-playground/blueprints';
 import { logger } from '@php-wasm/logger';
 import { setupPostMessageRelay } from '@php-wasm/web';
-import { startPlaygroundWeb } from '@wp-playground/client';
+import {
+	BlueprintReflection,
+	resolveRuntimeConfiguration,
+	startPlaygroundWeb,
+} from '@wp-playground/client';
 import type { PlaygroundClient } from '@wp-playground/remote';
 import { getRemoteUrl } from '../../config';
 import { setActiveModal, setActiveSiteError } from './slice-ui';
@@ -23,6 +27,7 @@ import { selectSiteBySlug } from './slice-sites';
 // @ts-ignore
 import { corsProxyUrl } from 'virtual:cors-proxy-url';
 import { modalSlugs } from '../../../components/layout';
+import { RecommendedPHPVersion } from '@wp-playground/common';
 
 export function bootSiteClient(
 	siteSlug: string,
@@ -95,12 +100,27 @@ export function bootSiteClient(
 
 		logTrackingEvent('load');
 
-		let blueprint: Blueprint;
-		if (isWordPressInstalled) {
-			blueprint = site.metadata.runtimeConfiguration!;
-		} else {
-			blueprint = site.metadata.originalBlueprint;
-		}
+		const currentQuery = new URLSearchParams(window.location.search);
+		const reflection = await BlueprintReflection.create(
+			site.metadata.originalBlueprint
+		);
+		const runtimeConfiguration = resolveRuntimeConfiguration({
+			blueprint: reflection.getDeclaration() as BlueprintV1Declaration,
+			defaults: {
+				phpVersion: RecommendedPHPVersion,
+				wpVersion: 'latest',
+				intl: false,
+				networking: true,
+				extraLibraries: [],
+			},
+			overrides: {
+				phpVersion: currentQuery.get('php'),
+				wpVersion: currentQuery.get('wp'),
+				intl: currentQuery.get('intl') === 'yes' ? true : undefined,
+				networking:
+					currentQuery.get('networking') === 'no' ? false : undefined,
+			},
+		});
 
 		let playground: PlaygroundClient;
 		try {
@@ -108,12 +128,13 @@ export function bootSiteClient(
 				iframe: iframe!,
 				remoteUrl: getRemoteUrl().toString(),
 				scope: site.slug,
-				blueprint,
+				blueprint: isWordPressInstalled
+					? undefined
+					: site.metadata.originalBlueprint,
 				experimentalBlueprintsV2Runner:
 					!isWordPressInstalled &&
-					new URLSearchParams(window.location.search).get(
-						'experimental-blueprints-v2-runner'
-					) === 'yes',
+					currentQuery.get('experimental-blueprints-v2-runner') ===
+						'yes',
 				// Intercept the Playground client even if the
 				// Blueprint fails.
 				onClientConnected: (playground) => {
@@ -139,6 +160,7 @@ export function bootSiteClient(
 					: [],
 				shouldInstallWordPress: !isWordPressInstalled,
 				corsProxy: corsProxyUrl,
+				runtimeConfiguration,
 			});
 
 			// @TODO: Remove backcompat code after 2024-12-01.

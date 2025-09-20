@@ -29,6 +29,7 @@ import type {
 	BlueprintV1,
 	BlueprintV1Declaration,
 	OnStepCompleted,
+	RuntimeConfiguration,
 } from '@wp-playground/blueprints';
 import { ProgressTracker } from '@php-wasm/progress';
 import type { MountDescriptor, PlaygroundClient } from '@wp-playground/remote';
@@ -90,6 +91,10 @@ export interface StartPlaygroundOptions {
 	 * Defaults to the latest development version.
 	 */
 	sqliteDriverVersion?: string;
+	/**
+	 * The runtime configuration to use.
+	 */
+	runtimeConfiguration?: RuntimeConfiguration;
 }
 
 /**

@@ -11,11 +11,16 @@ import {
 	printDebugDetails,
 } from '@php-wasm/universal';
 import type {
+	Blueprint,
 	BlueprintBundle,
 	BlueprintV1Declaration,
 	BlueprintV2Declaration,
 } from '@wp-playground/blueprints';
-import { runBlueprintV1Steps } from '@wp-playground/blueprints';
+import {
+	BlueprintReflection,
+	resolveRuntimeConfiguration,
+	runBlueprintV1Steps,
+} from '@wp-playground/blueprints';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import fs, { mkdirSync } from 'fs';
 import type { Server } from 'http';
@@ -607,16 +612,36 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 				}
 			}
 
+			const reflection = await BlueprintReflection.create(
+				args.blueprint as Blueprint
+			);
+			const runtimeConfiguration = resolveRuntimeConfiguration({
+				blueprint: reflection.getDeclaration(),
+				defaults: {
+					phpVersion: RecommendedPHPVersion,
+					wpVersion: 'latest',
+					intl: true,
+					networking: true,
+					extraLibraries: [],
+				},
+				overrides: {
+					phpVersion: args.php,
+					wpVersion: args.wp,
+				},
+			});
+
 			let handler: BlueprintsV1Handler | BlueprintsV2Handler;
 			if (args['experimental-blueprints-v2-runner']) {
 				handler = new BlueprintsV2Handler(args, {
 					siteUrl,
 					processIdSpaceLength,
+					runtimeConfiguration,
 				});
 			} else {
 				handler = new BlueprintsV1Handler(args, {
 					siteUrl,
 					processIdSpaceLength,
+					runtimeConfiguration,
 				});
 
 				if (typeof args.blueprint === 'string') {

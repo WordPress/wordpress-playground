@@ -32,6 +32,7 @@ export class BlueprintsV2Handler {
 		// Connect the Comlink API client to the remote worker download monitor
 		await playground.onDownloadProgress(downloadProgress.loadingListener);
 
+		const runtimeConfiguration = this.options.runtimeConfiguration;
 		await playground.boot({
 			mounts,
 			sapiName,
@@ -40,6 +41,12 @@ export class BlueprintsV2Handler {
 			experimentalBlueprintsV2Runner: true,
 			// Pass the declaration directly – the worker runs the V2 runner.
 			blueprint: blueprint as any,
+
+			// @TODO: Pass just one argument: runtimeConfiguration
+			phpVersion: runtimeConfiguration?.phpVersion,
+			wpVersion: runtimeConfiguration?.wpVersion,
+			withICU: runtimeConfiguration?.intl,
+			withNetworking: runtimeConfiguration?.networking,
 		} as any);
 
 		await playground.isReady();

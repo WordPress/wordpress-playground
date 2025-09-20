@@ -1,4 +1,4 @@
-import type { RemoteAPI, SupportedPHPVersion } from '@php-wasm/universal';
+import type { RemoteAPI } from '@php-wasm/universal';
 import { consumeAPI } from '@php-wasm/universal';
 import type {
 	PlaygroundCliBlueprintV2Worker,
@@ -6,6 +6,7 @@ import type {
 } from './worker-thread-v2';
 import type { MessagePort as NodeMessagePort } from 'worker_threads';
 import type { RunCLIArgs, SpawnedWorker, WorkerType } from '../run-cli';
+import type { RuntimeConfiguration } from '@wp-playground/blueprints';
 
 /**
  * Boots Playground CLI workers using Blueprint version 2.
@@ -14,7 +15,7 @@ import type { RunCLIArgs, SpawnedWorker, WorkerType } from '../run-cli';
  * implemented in PHP and orchestrated by the worker thread.
  */
 export class BlueprintsV2Handler {
-	private phpVersion: SupportedPHPVersion;
+	private runtimeConfiguration: RuntimeConfiguration;
 	private lastProgressMessage = '';
 
 	private siteUrl: string;
@@ -26,12 +27,13 @@ export class BlueprintsV2Handler {
 		options: {
 			siteUrl: string;
 			processIdSpaceLength: number;
+			runtimeConfiguration: RuntimeConfiguration;
 		}
 	) {
 		this.args = args;
 		this.siteUrl = options.siteUrl;
 		this.processIdSpaceLength = options.processIdSpaceLength;
-		this.phpVersion = args.php as SupportedPHPVersion;
+		this.runtimeConfiguration = options.runtimeConfiguration;
 	}
 
 	getWorkerType(): WorkerType {
@@ -50,13 +52,16 @@ export class BlueprintsV2Handler {
 
 		const workerBootArgs = {
 			...this.args,
-			phpVersion: this.phpVersion,
+			phpVersion: this.runtimeConfiguration.phpVersion,
 			siteUrl: this.siteUrl,
 			firstProcessId: 1,
 			processIdSpaceLength: this.processIdSpaceLength,
 			trace: this.args.debug || false,
 			blueprint: this.args.blueprint!,
 			nativeInternalDirPath,
+			// @TODO: Pass this.runtimeConfiguration so the Blueprint
+			//        runner may choose a different WordPress version
+			//        if needed.
 		};
 
 		await playground.bootAsPrimaryWorker(workerBootArgs);
@@ -81,7 +86,7 @@ export class BlueprintsV2Handler {
 
 		const workerBootArgs: SecondaryWorkerBootArgs = {
 			...this.args,
-			phpVersion: this.phpVersion!,
+			phpVersion: this.runtimeConfiguration.phpVersion,
 			siteUrl: this.siteUrl,
 			firstProcessId,
 			processIdSpaceLength: this.processIdSpaceLength,

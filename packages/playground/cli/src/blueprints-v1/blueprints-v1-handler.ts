@@ -1,18 +1,16 @@
 import { logger } from '@php-wasm/logger';
 import { EmscriptenDownloadMonitor, ProgressTracker } from '@php-wasm/progress';
-import type { SupportedPHPVersion } from '@php-wasm/universal';
 import { consumeAPI } from '@php-wasm/universal';
 import type {
 	BlueprintBundle,
 	BlueprintV1Declaration,
+	RuntimeConfiguration,
 } from '@wp-playground/blueprints';
 import {
-	BlueprintReflection,
 	compileBlueprintV1,
-	resolveRuntimeConfiguration,
 	isBlueprintBundle,
 } from '@wp-playground/blueprints';
-import { RecommendedPHPVersion, zipDirectory } from '@wp-playground/common';
+import { zipDirectory } from '@wp-playground/common';
 import fs from 'fs';
 import path from 'path';
 import { resolveWordPressRelease } from '@wp-playground/wordpress';
@@ -38,7 +36,7 @@ import {
  * implemented in TypeScript and orchestrated by this class.
  */
 export class BlueprintsV1Handler {
-	private phpVersion: SupportedPHPVersion | undefined;
+	private runtimeConfiguration: RuntimeConfiguration;
 	private lastProgressMessage = '';
 
 	private siteUrl: string;
@@ -50,11 +48,13 @@ export class BlueprintsV1Handler {
 		options: {
 			siteUrl: string;
 			processIdSpaceLength: number;
+			runtimeConfiguration: RuntimeConfiguration;
 		}
 	) {
 		this.args = args;
 		this.siteUrl = options.siteUrl;
 		this.processIdSpaceLength = options.processIdSpaceLength;
+		this.runtimeConfiguration = options.runtimeConfiguration;
 	}
 
 	getWorkerType(): WorkerType {
@@ -66,25 +66,6 @@ export class BlueprintsV1Handler {
 		fileLockManagerPort: NodeMessagePort,
 		nativeInternalDirPath: string
 	) {
-		const reflection = await BlueprintReflection.create(
-			this.args.blueprint as BlueprintV1Declaration
-		);
-		const declaration =
-			reflection.getDeclaration() as BlueprintV1Declaration;
-		// @TODO: Compute this in the caller, incorporate overrides, pass it all down here
-		const runtimeConfiguration = resolveRuntimeConfiguration({
-			blueprint: declaration,
-			defaults: {
-				phpVersion: RecommendedPHPVersion,
-				wpVersion: 'latest',
-				intl: true,
-				networking: true,
-				extraLibraries: [],
-			},
-		});
-
-		this.phpVersion = runtimeConfiguration.phpVersion;
-
 		let wpDetails: any = undefined;
 		// @TODO: Rename to FetchProgressMonitor. There's nothing Emscripten
 		// about that class anymore.
@@ -156,8 +137,8 @@ export class BlueprintsV1Handler {
 
 		await playground.useFileLockManager(fileLockManagerPort);
 		await playground.bootAsPrimaryWorker({
-			phpVersion: this.phpVersion,
-			wpVersion: runtimeConfiguration.wpVersion,
+			phpVersion: this.runtimeConfiguration.phpVersion,
+			wpVersion: this.runtimeConfiguration.wpVersion,
 			siteUrl: this.siteUrl,
 			mountsBeforeWpInstall,
 			mountsAfterWpInstall,
@@ -207,7 +188,7 @@ export class BlueprintsV1Handler {
 		await additionalPlayground.isConnected();
 		await additionalPlayground.useFileLockManager(fileLockManagerPort);
 		await additionalPlayground.bootAsSecondaryWorker({
-			phpVersion: this.phpVersion!,
+			phpVersion: this.runtimeConfiguration.phpVersion,
 			siteUrl: this.siteUrl,
 			mountsBeforeWpInstall: this.args['mount-before-install'] || [],
 			mountsAfterWpInstall: this.args['mount'] || [],

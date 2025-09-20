@@ -4,14 +4,11 @@ import {
 	type StartPlaygroundOptions,
 	compileBlueprintV1,
 	runBlueprintV1Steps,
-	resolveRuntimeConfiguration,
 	BlueprintReflection,
-	type BlueprintV1Declaration,
 	type BlueprintV1,
 } from '.';
 import { collectPhpLogs, logger } from '@php-wasm/logger';
 import { consumeAPI } from '@php-wasm/universal';
-import { RecommendedPHPVersion } from '@wp-playground/common';
 
 export class BlueprintsV1Handler {
 	constructor(private readonly options: StartPlaygroundOptions) {}
@@ -47,29 +44,20 @@ export class BlueprintsV1Handler {
 
 		await playground.onDownloadProgress(downloadProgress.loadingListener);
 
-		const reflection = await BlueprintReflection.create(blueprint);
-		const runtimeConfiguration = resolveRuntimeConfiguration({
-			blueprint: reflection.getDeclaration() as BlueprintV1Declaration,
-			defaults: {
-				phpVersion: RecommendedPHPVersion,
-				wpVersion: 'latest',
-				intl: false,
-				networking: true,
-				extraLibraries: [],
-			},
-			// @TODO: Pass over the URL overrides!
-		});
+		const runtimeConfiguration = this.options.runtimeConfiguration;
 		await playground.boot({
 			mounts,
 			sapiName,
 			scope: scope ?? Math.random().toFixed(16),
 			shouldInstallWordPress,
-			phpVersion: runtimeConfiguration.phpVersion,
-			wpVersion: runtimeConfiguration.wpVersion,
-			withICU: runtimeConfiguration.intl,
-			withNetworking: runtimeConfiguration.networking,
 			corsProxyUrl: corsProxy,
 			sqliteDriverVersion,
+
+			// @TODO: Pass just one argument: runtimeConfiguration
+			phpVersion: runtimeConfiguration?.phpVersion,
+			wpVersion: runtimeConfiguration?.wpVersion,
+			withICU: runtimeConfiguration?.intl ?? false,
+			withNetworking: runtimeConfiguration?.networking ?? true,
 		});
 		await playground.isReady();
 		downloadProgress.finish();
@@ -77,6 +65,7 @@ export class BlueprintsV1Handler {
 		collectPhpLogs(logger, playground);
 		onClientConnected?.(playground);
 
+		const reflection = await BlueprintReflection.create(blueprint);
 		const compiled = await compileBlueprintV1(
 			reflection.getBlueprint() as BlueprintV1,
 			{
@@ -93,7 +82,7 @@ export class BlueprintsV1Handler {
 		 *
 		 * @see https://github.com/WordPress/wordpress-playground/pull/2295
 		 */
-		if (runtimeConfiguration.networking) {
+		if (runtimeConfiguration?.networking ?? true) {
 			await playground.prefetchUpdateChecks();
 		}
 
