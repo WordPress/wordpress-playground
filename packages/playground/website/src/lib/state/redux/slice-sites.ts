@@ -13,16 +13,20 @@ import {
 	type PHPConstants,
 	BlueprintReflection,
 	type Blueprint,
-	runtimeConfigurationFromBlueprintV1Declaration,
+	getRuntimeConfigurationFromBlueprintV1Declaration,
+	getRuntimeConfigurationFromBlueprintV2Declaration,
 } from '@wp-playground/blueprints';
 import {
 	type BlueprintSource,
 	resolveBlueprintFromURL,
 	type ResolvedBlueprint,
-	applyQueryOverridesToDeclaration,
+	applyQueryOverridesToBlueprintV1Declaration,
 } from '../url/resolve-blueprint-from-url';
 import { logger } from '@php-wasm/logger';
-import type { ExtraLibrary } from '@wp-playground/blueprints';
+import type {
+	BlueprintV2Declaration,
+	ExtraLibrary,
+} from '@wp-playground/blueprints';
 import type { SupportedPHPVersion } from '@php-wasm/universal';
 
 /**
@@ -331,13 +335,16 @@ async function resolveRuntimeConfiguration(
 	searchParams: URLSearchParams
 ) {
 	const reflection = await BlueprintReflection.create(blueprint);
+	let declaration = reflection.getDeclaration();
 	if (reflection.getVersion() === 1) {
-		const declaration = applyQueryOverridesToDeclaration(
-			reflection.getDeclaration() as BlueprintV1Declaration,
+		// @TODO: mirror v2 data flow and accept searchParams in the
+		//        getRuntime...() call.
+		declaration = applyQueryOverridesToBlueprintV1Declaration(
+			declaration as BlueprintV1Declaration,
 			searchParams
 		);
 		return {
-			...runtimeConfigurationFromBlueprintV1Declaration(declaration),
+			...getRuntimeConfigurationFromBlueprintV1Declaration(declaration),
 			/*
 			 * Constants don't matter so much for temporary sites so let's
 			 * use an empty object here. We can't easily figure out which
@@ -353,24 +360,10 @@ async function resolveRuntimeConfiguration(
 		// There's no applyQueryOverridesToDeclaration() for v2 blueprints so
 		// we're merging the basic parameters in here.
 		return {
-			preferredVersions: {
-				wp:
-					reflection.getWpVersion() ||
-					searchParams.get('wp') ||
-					'latest',
-				php:
-					reflection.getPhpVersion() ||
-					searchParams.get('php') ||
-					'latest',
-			},
-			features: {
-				intl:
-					reflection.getIntl() || searchParams.get('intl') === 'yes',
-				networking:
-					reflection.getNetworking() ||
-					searchParams.get('networking') === 'yes',
-			},
-			extraLibraries: reflection.getExtraLibraries() || [],
+			...getRuntimeConfigurationFromBlueprintV2Declaration(
+				declaration as BlueprintV2Declaration,
+				searchParams
+			),
 			constants: {},
 		};
 	}

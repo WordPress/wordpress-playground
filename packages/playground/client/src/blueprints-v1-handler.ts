@@ -4,6 +4,10 @@ import {
 	type StartPlaygroundOptions,
 	compileBlueprintV1,
 	runBlueprintV1Steps,
+	getRuntimeConfigurationFromBlueprintV1Declaration,
+	BlueprintReflection,
+	type BlueprintV1Declaration,
+	type BlueprintV1,
 } from '.';
 import { collectPhpLogs, logger } from '@php-wasm/logger';
 import { consumeAPI } from '@php-wasm/universal';
@@ -31,13 +35,6 @@ export class BlueprintsV1Handler {
 
 		// Set a default blueprint if none is provided.
 		const blueprint = this.options.blueprint || {};
-		const compiled = await compileBlueprintV1(blueprint, {
-			progress: executionProgress,
-			onStepCompleted: onBlueprintStepCompleted,
-			onBlueprintValidated,
-			corsProxy,
-		});
-
 		// Connect the Comlink API client to the remote worker,
 		// boot the playground, and run the blueprint steps.
 		const playground = consumeAPI<PlaygroundClient>(
@@ -48,15 +45,20 @@ export class BlueprintsV1Handler {
 		progressTracker.pipe(playground);
 
 		await playground.onDownloadProgress(downloadProgress.loadingListener);
+
+		const reflection = await BlueprintReflection.create(blueprint);
+		const runtime = getRuntimeConfigurationFromBlueprintV1Declaration(
+			reflection.getDeclaration() as BlueprintV1Declaration
+		);
 		await playground.boot({
 			mounts,
 			sapiName,
 			scope: scope ?? Math.random().toFixed(16),
 			shouldInstallWordPress,
-			phpVersion: compiled.versions.php,
-			wpVersion: compiled.versions.wp,
-			withICU: compiled.features.intl,
-			withNetworking: compiled.features.networking,
+			phpVersion: runtime.preferredVersions.php,
+			wpVersion: runtime.preferredVersions.wp,
+			withICU: runtime.features.intl,
+			withNetworking: runtime.features.networking,
 			corsProxyUrl: corsProxy,
 			sqliteDriverVersion,
 		});
@@ -66,6 +68,15 @@ export class BlueprintsV1Handler {
 		collectPhpLogs(logger, playground);
 		onClientConnected?.(playground);
 
+		const compiled = await compileBlueprintV1(
+			reflection.getBlueprint() as BlueprintV1,
+			{
+				progress: executionProgress,
+				onStepCompleted: onBlueprintStepCompleted,
+				onBlueprintValidated,
+				corsProxy,
+			}
+		);
 		await runBlueprintV1Steps(compiled, playground);
 
 		/**
@@ -73,7 +84,7 @@ export class BlueprintsV1Handler {
 		 *
 		 * @see https://github.com/WordPress/wordpress-playground/pull/2295
 		 */
-		if (compiled.features.networking) {
+		if (runtime.features.networking) {
 			await playground.prefetchUpdateChecks();
 		}
 

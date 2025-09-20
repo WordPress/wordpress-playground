@@ -132,7 +132,7 @@ export async function resolveBlueprintFromURL(
 	}
 }
 
-export async function applyQueryOverrides(
+export async function applyQueryOverridesToBlueprintV1(
 	blueprint: BlueprintV1Declaration | BlueprintBundle,
 	query: URLSearchParams
 ): Promise<BlueprintV1Declaration | BlueprintBundle> {
@@ -142,7 +142,7 @@ export async function applyQueryOverrides(
 	 */
 	if (isBlueprintBundle(blueprint)) {
 		let blueprintObject = await getBlueprintDeclaration(blueprint);
-		blueprintObject = applyQueryOverridesToDeclaration(
+		blueprintObject = applyQueryOverridesToBlueprintV1Declaration(
 			blueprintObject,
 			query
 		);
@@ -153,11 +153,11 @@ export async function applyQueryOverrides(
 			blueprint,
 		]);
 	} else {
-		return applyQueryOverridesToDeclaration(blueprint, query);
+		return applyQueryOverridesToBlueprintV1Declaration(blueprint, query);
 	}
 }
 
-export function applyQueryOverridesToDeclaration(
+export function applyQueryOverridesToBlueprintV1Declaration(
 	blueprint: BlueprintV1Declaration,
 	query: URLSearchParams
 ): BlueprintV1Declaration {

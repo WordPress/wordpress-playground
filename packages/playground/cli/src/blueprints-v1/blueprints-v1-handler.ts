@@ -7,10 +7,12 @@ import type {
 	BlueprintV1Declaration,
 } from '@wp-playground/blueprints';
 import {
+	BlueprintReflection,
 	compileBlueprintV1,
+	getRuntimeConfigurationFromBlueprintV1Declaration,
 	isBlueprintBundle,
 } from '@wp-playground/blueprints';
-import { RecommendedPHPVersion, zipDirectory } from '@wp-playground/common';
+import { zipDirectory } from '@wp-playground/common';
 import fs from 'fs';
 import path from 'path';
 import { resolveWordPressRelease } from '@wp-playground/wordpress';
@@ -64,10 +66,15 @@ export class BlueprintsV1Handler {
 		fileLockManagerPort: NodeMessagePort,
 		nativeInternalDirPath: string
 	) {
-		const compiledBlueprint = await this.compileInputBlueprint(
-			this.args['additional-blueprint-steps'] || []
+		const reflection = await BlueprintReflection.create(
+			this.args.blueprint as BlueprintV1Declaration
 		);
-		this.phpVersion = compiledBlueprint.versions.php;
+		const declaration =
+			reflection.getDeclaration() as BlueprintV1Declaration;
+		const runtimeConfiguration =
+			getRuntimeConfigurationFromBlueprintV1Declaration(declaration);
+
+		this.phpVersion = runtimeConfiguration.preferredVersions.php;
 
 		let wpDetails: any = undefined;
 		// @TODO: Rename to FetchProgressMonitor. There's nothing Emscripten
@@ -141,7 +148,7 @@ export class BlueprintsV1Handler {
 		await playground.useFileLockManager(fileLockManagerPort);
 		await playground.bootAsPrimaryWorker({
 			phpVersion: this.phpVersion,
-			wpVersion: compiledBlueprint.versions.wp,
+			wpVersion: runtimeConfiguration.preferredVersions.wp,
 			siteUrl: this.siteUrl,
 			mountsBeforeWpInstall,
 			mountsAfterWpInstall,
@@ -209,61 +216,6 @@ export class BlueprintsV1Handler {
 		return additionalPlayground;
 	}
 
-	async compileInputBlueprint(additionalBlueprintSteps: any[]) {
-		const args = this.args;
-		const resolvedBlueprint = args.blueprint as BlueprintV1Declaration;
-		/**
-		 * @TODO This looks similar to the resolveBlueprint() call in the website package:
-		 * 	     https://github.com/WordPress/wordpress-playground/blob/ce586059e5885d185376184fdd2f52335cca32b0/packages/playground/website/src/main.tsx#L41
-		 *
-		 * 		 Also the Blueprint Builder tool does something similar.
-		 *       Perhaps all these cases could be handled by the same function?
-		 */
-		const blueprint: BlueprintV1Declaration | BlueprintBundle =
-			isBlueprintBundle(resolvedBlueprint)
-				? resolvedBlueprint
-				: {
-						login: args.login,
-						...(resolvedBlueprint || {}),
-						preferredVersions: {
-							php:
-								args.php ??
-								resolvedBlueprint?.preferredVersions?.php ??
-								RecommendedPHPVersion,
-							wp:
-								args.wp ??
-								resolvedBlueprint?.preferredVersions?.wp ??
-								'latest',
-							...(resolvedBlueprint?.preferredVersions || {}),
-						},
-				  };
-
-		const tracker = new ProgressTracker();
-		let lastCaption = '';
-		let progressReached100 = false;
-		tracker.addEventListener('progress', (e: any) => {
-			if (progressReached100) {
-				return;
-			}
-			progressReached100 = e.detail.progress === 100;
-
-			// Use floor() so we don't report 100% until truly there.
-			const progressInteger = Math.floor(e.detail.progress);
-			lastCaption =
-				e.detail.caption || lastCaption || 'Running the Blueprint';
-			const message = `${lastCaption.trim()} – ${progressInteger}%`;
-			this.writeProgressUpdate(
-				process.stdout,
-				message,
-				progressReached100
-			);
-		});
-		return await compileBlueprintV1(blueprint as BlueprintV1Declaration, {
-			progress: tracker,
-			additionalSteps: additionalBlueprintSteps,
-		});
-	}
-
 	writeProgressUpdate(
 		writeStream: NodeJS.WriteStream,
 		message: string,
@@ -291,5 +243,49 @@ export class BlueprintsV1Handler {
 			// Fall back to writing one line per progress update
 			writeStream.write(`${message}\n`);
 		}
+	}
+
+	async compileInputBlueprint(additionalBlueprintSteps: any[]) {
+		const args = this.args;
+		const resolvedBlueprint = args.blueprint as BlueprintV1Declaration;
+		/**
+		 * @TODO This looks similar to the resolveBlueprint() call in the website package:
+		 * 	     https://github.com/WordPress/wordpress-playground/blob/ce586059e5885d185376184fdd2f52335cca32b0/packages/playground/website/src/main.tsx#L41
+		 *
+		 * 		 Also the Blueprint Builder tool does something similar.
+		 *       Perhaps all these cases could be handled by the same function?
+		 */
+		const blueprint: BlueprintV1Declaration | BlueprintBundle =
+			isBlueprintBundle(resolvedBlueprint)
+				? resolvedBlueprint
+				: {
+						login: args.login,
+						...(resolvedBlueprint || {}),
+				  };
+
+		const tracker = new ProgressTracker();
+		let lastCaption = '';
+		let progressReached100 = false;
+		tracker.addEventListener('progress', (e: any) => {
+			if (progressReached100) {
+				return;
+			}
+			progressReached100 = e.detail.progress === 100;
+
+			// Use floor() so we don't report 100% until truly there.
+			const progressInteger = Math.floor(e.detail.progress);
+			lastCaption =
+				e.detail.caption || lastCaption || 'Running the Blueprint';
+			const message = `${lastCaption.trim()} – ${progressInteger}%`;
+			this.writeProgressUpdate(
+				process.stdout,
+				message,
+				progressReached100
+			);
+		});
+		return await compileBlueprintV1(blueprint as BlueprintV1Declaration, {
+			progress: tracker,
+			additionalSteps: additionalBlueprintSteps,
+		});
 	}
 }
