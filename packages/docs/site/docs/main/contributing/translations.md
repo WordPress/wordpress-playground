@@ -257,27 +257,61 @@ You can use the following markdown in your tracking issue:
 </details>
 ```
 
-### Translating with GitHub UI
+### Translating with the GitHub Web Interface
 
-Another way to contribute with translation if you are not technical, is using the GitHub UI. First you will need a GitHub account to reproduce the steps, with that you can update or add a new translation.
+If you prefer not to use developer tools, you can easily contribute translations directly on the GitHub website. All you need is a free GitHub account.
 
-**Updating an existing translation**
+This guide will show you how to both update an existing translation and add a brand-new one.
 
-1.  First you will need to locate the file that you would like to update on the repository, for example, for French all the files will be located at `packages/docs/site/i18n/fr/docusaurus-plugin-content-docs/current/`.
-2.  Select the file that you would like to update and click on edit.
+---
+
+#### Updating an Existing Translation
+
+1.  **Navigate to the file.** Go to the repository and find the file you want to update. Translation files are located in a folder named after their language code. For example, all French translations are in `packages/docs/site/i18n/fr/...`.
+
+2.  **Open the editor.** Select the file you wish to edit and click the pencil icon (**Edit this file**) in the upper right corner.
     ![Editing existing translation](@site/static/img/contributing/editing-translations.webp)
-3.  GitHub will ask you to fork the repository and create a new branch with your changes.
-4.  An Editor will open where you will add your changes
-5.  When you are done, click on Commit Changes button and submit a Pull Request.
 
-**Adding a new translation**
+3.  **Fork the repository.** GitHub will automatically prompt you to **Fork this repository**. This creates a personal copy for you to edit safely. Click the button to proceed.
 
-1.  In case you are create a new translation the location of the file should match with the English version, for example, you would like to translate the document `packages/docs/site/docs/main/contributing/documentation.md`, you will need to add a new file at `packages/docs/site/i18n/fr/docusaurus-plugin-content-docs/current/main/contributing/` called `documentation.md` if the folder doesn't exist yet you can add on the file name, for example, `contributing/documentation.md` it will create a folder contributing on the place where the file was added.
+4.  **Make your changes.** The editor will open in your browser. Update the text with your improved translations.
+
+5.  **Propose your changes.** Once you are finished, scroll to the bottom of the page. Add a brief title and description of your changes (e.g., "Fixing typos in French translation") and click the **Propose changes** button.
+
+6.  **Create a Pull Request.** On the next screen, click the **Create pull request** button. This will submit your changes to the project maintainers for review.
+
+---
+
+#### Adding a New Translation
+
+1.  **Determine the correct file path.** The new file's path and name must mirror the original English file.
+
+    -   **English original:** `packages/docs/site/docs/main/contributing/documentation.md`
+    -   **French translation:** `packages/docs/site/i18n/fr/docusaurus-plugin-content-docs/current/main/contributing/documentation.md`
+
+2.  **Create the new file.** Navigate to the correct language folder (e.g., `.../current/`). Click **Add file** > **Create new file**.
     ![Creating a new translation](@site/static/img/contributing/adding-file-github-ui.webp)
-2.  GitHub will ask you to fork the repository and create a new branch with your changes.
-3.  And Editor will open with an empty file, you can copy the english version and comment out with `<!-- English content -->` to help the reviewers, and the translated content bellow.
+
+    -   **Pro Tip:** In the filename box, you can create new folders by typing the folder name followed by a `/`. For example, typing `main/contributing/documentation.md` will create the `main` and `contributing` folders automatically.
+
+3.  **Fork the repository.** Just like before, GitHub will prompt you to **Fork this repository**. Click the button to create your personal copy.
+
+4.  **Add the translated content.** The editor will open with an empty file. For the convenience of reviewers, please copy the content from the original English file and paste it into your new file, wrapping it in comment tags. Add your translation below it.
+
+    ```markdown
+    <!--
+    This is the original English content.
+    It helps reviewers understand the context of the translation.
+    -->
+
+    Ceci est le contenu traduit en français.
+    ```
+
     ![GitHub UI Editor](@site/static/img/contributing/editor-github.webp)
-4.  When you are done, click on Commit Changes button and submit a Pull Request.
+
+5.  **Commit the new file.** When you are done, scroll to the bottom. Add a title for your new file (e.g., "Add French translation for documentation.md") and click the **Commit new file** button.
+
+6.  **Create a Pull Request.** On the next screen, click **Create pull request** to submit your new translation for review.
 
 ## Review Process
 
