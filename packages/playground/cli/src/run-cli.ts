@@ -613,7 +613,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 			}
 
 			const reflection = await BlueprintReflection.create(
-				args.blueprint as Blueprint
+				(args.blueprint || {}) as Blueprint
 			);
 			const runtimeConfiguration = resolveRuntimeConfiguration({
 				blueprint: reflection.getDeclaration(),
