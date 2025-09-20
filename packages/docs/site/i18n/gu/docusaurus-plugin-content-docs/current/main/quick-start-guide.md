@@ -1,6 +1,7 @@
 ---
 title: ઝડપી પ્રારંભ માર્ગદર્શિકા
 slug: /quick-start-guide
+description: પ્લેગ્રાઉન્ડ શરૂ કરવા માટે 5 મિનિટની માર્ગદર્શિકા. પ્લગઇન્સનું પરીક્ષણ કેવી રીતે કરવું, થીમ્સ કેવી રીતે અજમાવવી અને વિવિધ WP/PHP વર્ઝનનો ઉપયોગ કેવી રીતે કરવો તે શીખો.
 ---
 
 import ThisIsQueryApi from '@site/docs/\_fragments/\_this_is_query_api.md';
