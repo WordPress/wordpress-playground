@@ -11,7 +11,6 @@ import {
 } from '@wp-playground/client';
 import { parseBlueprint } from './router';
 import { OverlayFilesystem, InMemoryFilesystem } from '@wp-playground/storage';
-import { RecommendedPHPVersion } from '@wp-playground/common';
 
 export type BlueprintSource =
 	| {
@@ -161,33 +160,6 @@ export function applyQueryOverridesToBlueprintV1Declaration(
 	blueprint: BlueprintV1Declaration,
 	query: URLSearchParams
 ): BlueprintV1Declaration {
-	/**
-	 * Allow overriding PHP and WordPress versions defined in a Blueprint
-	 * via query params.
-	 */
-	if (!blueprint.preferredVersions) {
-		blueprint.preferredVersions = {} as any;
-	}
-	blueprint.preferredVersions!.php =
-		(query.get('php') as any) ||
-		blueprint.preferredVersions!.php ||
-		RecommendedPHPVersion;
-	blueprint.preferredVersions!.wp =
-		query.get('wp') || blueprint.preferredVersions!.wp || 'latest';
-
-	// Features
-	if (!blueprint.features) {
-		blueprint.features = {};
-	}
-
-	/**
-	 * Networking is enabled by default, so we only need to disable it
-	 * if the query param is explicitly set to something other than "yes".
-	 */
-	if (query.get('networking') && query.get('networking') !== 'yes') {
-		blueprint.features['networking'] = false;
-	}
-
 	// Language
 	if (query.get('language')) {
 		if (

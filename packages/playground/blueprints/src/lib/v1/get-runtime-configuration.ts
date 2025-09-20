@@ -5,25 +5,38 @@ import {
 import type { BlueprintV1Declaration } from './types';
 import type { RuntimeConfiguration } from '../types';
 import { compileVersion } from './compile';
+import { RecommendedPHPVersion } from '@wp-playground/common';
 
 export function getRuntimeConfigurationFromBlueprintV1Declaration(
-	blueprint: BlueprintV1Declaration
+	blueprint: BlueprintV1Declaration,
+	overrides = new URLSearchParams({})
 ): RuntimeConfiguration {
 	return {
 		preferredVersions: {
 			php:
 				compileVersion(
-					blueprint.preferredVersions?.php,
+					overrides.get('php') || blueprint.preferredVersions?.php,
 					SupportedPHPVersions,
 					LatestSupportedPHPVersion
-				) || 'latest',
-			wp: blueprint.preferredVersions?.wp || 'latest',
+				) || RecommendedPHPVersion,
+			wp:
+				overrides.get('wp') ||
+				blueprint.preferredVersions?.wp ||
+				'latest',
 		},
 		features: {
-			// Disable intl by default to reduce the transfer size
-			intl: blueprint.features?.intl ?? false,
-			// Enable network access by default
-			networking: blueprint.features?.networking ?? true,
+			// @TODO: Enable intl by default in Node.js but not in the browser.
+			intl:
+				overrides.get('intl') === 'yes' ||
+				(blueprint.features?.intl ?? false),
+			networking:
+				/**
+				 * Networking is enabled by default, so we only need to disable it
+				 * if the query param is explicitly set to something other than "yes".
+				 */
+				overrides.get('networking') === 'no'
+					? false
+					: blueprint.features?.networking ?? true,
 		},
 		extraLibraries: blueprint.extraLibraries || [],
 	};

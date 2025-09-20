@@ -20,7 +20,6 @@ import {
 	type BlueprintSource,
 	resolveBlueprintFromURL,
 	type ResolvedBlueprint,
-	applyQueryOverridesToBlueprintV1Declaration,
 } from '../url/resolve-blueprint-from-url';
 import { logger } from '@php-wasm/logger';
 import type {
@@ -332,19 +331,15 @@ export function setTemporarySiteSpec(
 
 async function resolveRuntimeConfiguration(
 	blueprint: Blueprint,
-	searchParams: URLSearchParams
+	overrides: URLSearchParams
 ) {
 	const reflection = await BlueprintReflection.create(blueprint);
-	let declaration = reflection.getDeclaration();
 	if (reflection.getVersion() === 1) {
-		// @TODO: mirror v2 data flow and accept searchParams in the
-		//        getRuntime...() call.
-		declaration = applyQueryOverridesToBlueprintV1Declaration(
-			declaration as BlueprintV1Declaration,
-			searchParams
-		);
 		return {
-			...getRuntimeConfigurationFromBlueprintV1Declaration(declaration),
+			...getRuntimeConfigurationFromBlueprintV1Declaration(
+				reflection.getDeclaration() as BlueprintV1Declaration,
+				overrides
+			),
 			/*
 			 * Constants don't matter so much for temporary sites so let's
 			 * use an empty object here. We can't easily figure out which
@@ -361,8 +356,8 @@ async function resolveRuntimeConfiguration(
 		// we're merging the basic parameters in here.
 		return {
 			...getRuntimeConfigurationFromBlueprintV2Declaration(
-				declaration as BlueprintV2Declaration,
-				searchParams
+				reflection.getDeclaration() as BlueprintV2Declaration,
+				overrides
 			),
 			constants: {},
 		};
