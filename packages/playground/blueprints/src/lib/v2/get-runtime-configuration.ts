@@ -6,7 +6,7 @@ export function getRuntimeConfigurationFromBlueprintV2Declaration(
 ): RuntimeConfiguration {
 	const analyzer = new BlueprintV2DeclarationAnalyzer(blueprint);
 	return {
-		preferredVersions: {
+		versions: {
 			wp: analyzer.getWpVersion() || 'latest',
 			php: analyzer.getPhpVersion() || 'latest',
 		},

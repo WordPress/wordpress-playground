@@ -74,7 +74,7 @@ export class BlueprintsV1Handler {
 		const runtimeConfiguration =
 			getRuntimeConfigurationFromBlueprintDeclaration(declaration);
 
-		this.phpVersion = runtimeConfiguration.preferredVersions.php;
+		this.phpVersion = runtimeConfiguration.versions.php;
 
 		let wpDetails: any = undefined;
 		// @TODO: Rename to FetchProgressMonitor. There's nothing Emscripten
@@ -148,7 +148,7 @@ export class BlueprintsV1Handler {
 		await playground.useFileLockManager(fileLockManagerPort);
 		await playground.bootAsPrimaryWorker({
 			phpVersion: this.phpVersion,
-			wpVersion: runtimeConfiguration.preferredVersions.wp,
+			wpVersion: runtimeConfiguration.versions.wp,
 			siteUrl: this.siteUrl,
 			mountsBeforeWpInstall,
 			mountsAfterWpInstall,

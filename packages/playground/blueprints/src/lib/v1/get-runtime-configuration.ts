@@ -11,7 +11,7 @@ export function getRuntimeConfigurationFromBlueprintV1Declaration(
 	blueprint: BlueprintV1Declaration
 ): RuntimeConfiguration {
 	return {
-		preferredVersions: {
+		versions: {
 			php:
 				compileVersion(
 					blueprint.preferredVersions?.php,

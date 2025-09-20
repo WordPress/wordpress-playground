@@ -304,22 +304,11 @@ export function setTemporarySiteSpec(
 		const reflection = await BlueprintReflection.create(
 			resolvedBlueprint.blueprint
 		);
-		const runtimeConfiguration = {
-			...getRuntimeConfigurationFromBlueprintDeclaration(
+		const runtimeConfiguration =
+			getRuntimeConfigurationFromBlueprintDeclaration(
 				reflection.getDeclaration(),
 				overrides
-			),
-			/*
-			 * Constants don't matter so much for temporary sites so let's
-			 * use an empty object here. We can't easily figure out which
-			 * additional constants were applied via playground.defineConstant()
-			 * at this stage anyway.
-			 *
-			 * This property is only relevant for stored sites to ensure they're
-			 * consistently applied across page reloads.
-			 */
-			constants: {},
-		};
+			);
 
 		const newSiteInfo: SiteInfo = {
 			slug: deriveSlugFromSiteName(siteName),
@@ -332,7 +321,23 @@ export function setTemporarySiteSpec(
 				originalBlueprint: resolvedBlueprint.blueprint as BlueprintV1,
 				originalBlueprintSource: resolvedBlueprint.source!,
 
-				runtimeConfiguration,
+				runtimeConfiguration: {
+					...runtimeConfiguration,
+					// @TODO: Use the ".versions" property instead of ".preferredVersions" to
+					//        be consistent with runtimeConfiguration.versions. This requires a
+					//        migration path for all the stored OPFS sites.
+					preferredVersions: runtimeConfiguration.versions,
+					/*
+					 * Constants don't matter so much for temporary sites so let's
+					 * use an empty object here. We can't easily figure out which
+					 * additional constants were applied via playground.defineConstant()
+					 * at this stage anyway.
+					 *
+					 * This property is only relevant for stored sites to ensure they're
+					 * consistently applied across page reloads.
+					 */
+					constants: {},
+				},
 			},
 		};
 		dispatch(sitesSlice.actions.addSite(newSiteInfo));

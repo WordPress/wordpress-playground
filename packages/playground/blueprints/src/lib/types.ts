@@ -23,7 +23,7 @@ export type Blueprint = BlueprintV1 | BlueprintV2;
 
 export interface RuntimeConfiguration {
 	/** The requested versions of PHP and WordPress for the blueprint */
-	preferredVersions: {
+	versions: {
 		php: SupportedPHPVersion;
 		wp: string;
 	};
