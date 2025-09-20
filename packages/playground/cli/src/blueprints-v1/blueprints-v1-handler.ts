@@ -95,7 +95,9 @@ export class BlueprintsV1Handler {
 				);
 			}) as any);
 
-			wpDetails = await resolveWordPressRelease(this.args.wp);
+			wpDetails = await resolveWordPressRelease(
+				this.runtimeConfiguration.wpVersion
+			);
 			logger.log(
 				`Resolved WordPress release URL: ${wpDetails?.releaseUrl}`
 			);
@@ -150,6 +152,7 @@ export class BlueprintsV1Handler {
 			followSymlinks,
 			trace,
 			internalCookieStore: this.args.internalCookieStore,
+			// @TODO: Move this to runtimeConfiguration
 			withXdebug: this.args.xdebug,
 			nativeInternalDirPath,
 		});
@@ -244,6 +247,7 @@ export class BlueprintsV1Handler {
 		 *
 		 * 		 Also the Blueprint Builder tool does something similar.
 		 *       Perhaps all these cases could be handled by the same function?
+		 * @TODO: Actually reconcile this with the web version now, it's very easy now.
 		 */
 		const blueprint: BlueprintV1Declaration | BlueprintBundle =
 			isBlueprintBundle(resolvedBlueprint)
