@@ -9,10 +9,8 @@ import { selectActiveSite, setActiveSite } from './store';
 import { opfsSiteStorage } from '../opfs/opfs-site-storage';
 import {
 	type BlueprintV1,
-	type BlueprintV1Declaration,
 	type PHPConstants,
 	BlueprintReflection,
-	type Blueprint,
 	getRuntimeConfigurationFromBlueprintDeclaration,
 } from '@wp-playground/blueprints';
 import {
@@ -21,10 +19,7 @@ import {
 	type ResolvedBlueprint,
 } from '../url/resolve-blueprint-from-url';
 import { logger } from '@php-wasm/logger';
-import type {
-	BlueprintV2Declaration,
-	ExtraLibrary,
-} from '@wp-playground/blueprints';
+import type { ExtraLibrary } from '@wp-playground/blueprints';
 import type { SupportedPHPVersion } from '@php-wasm/universal';
 
 /**
@@ -253,7 +248,7 @@ export function setTemporarySiteSpec(
 		getState: () => PlaygroundReduxState
 	) => {
 		const newSiteUrlParams = {
-			searchParams: parseSearchParams(
+			searchParams: searchParamsToRecord(
 				playgroundUrlWithQueryApiArgs.searchParams
 			),
 			hash: playgroundUrlWithQueryApiArgs.hash,
@@ -303,10 +298,28 @@ export function setTemporarySiteSpec(
 			);
 		}
 
-		const runtimeConfiguration = await resolveRuntimeConfiguration(
-			resolvedBlueprint.blueprint,
+		const overrides = searchParamsToRecord(
 			playgroundUrlWithQueryApiArgs.searchParams
 		);
+		const reflection = await BlueprintReflection.create(
+			resolvedBlueprint.blueprint
+		);
+		const runtimeConfiguration = {
+			...getRuntimeConfigurationFromBlueprintDeclaration(
+				reflection.getDeclaration(),
+				overrides
+			),
+			/*
+			 * Constants don't matter so much for temporary sites so let's
+			 * use an empty object here. We can't easily figure out which
+			 * additional constants were applied via playground.defineConstant()
+			 * at this stage anyway.
+			 *
+			 * This property is only relevant for stored sites to ensure they're
+			 * consistently applied across page reloads.
+			 */
+			constants: {},
+		};
 
 		const newSiteInfo: SiteInfo = {
 			slug: deriveSlugFromSiteName(siteName),
@@ -328,42 +341,7 @@ export function setTemporarySiteSpec(
 	};
 }
 
-async function resolveRuntimeConfiguration(
-	blueprint: Blueprint,
-	overrides: URLSearchParams
-) {
-	const reflection = await BlueprintReflection.create(blueprint);
-	if (reflection.getVersion() === 1) {
-		return {
-			...getRuntimeConfigurationFromBlueprintDeclaration(
-				reflection.getDeclaration() as BlueprintV1Declaration,
-				overrides
-			),
-			/*
-			 * Constants don't matter so much for temporary sites so let's
-			 * use an empty object here. We can't easily figure out which
-			 * additional constants were applied via playground.defineConstant()
-			 * at this stage anyway.
-			 *
-			 * This property is only relevant for stored sites to ensure they're
-			 * consistently applied across page reloads.
-			 */
-			constants: {},
-		};
-	} else {
-		// There's no applyQueryOverridesToDeclaration() for v2 blueprints so
-		// we're merging the basic parameters in here.
-		return {
-			...getRuntimeConfigurationFromBlueprintDeclaration(
-				reflection.getDeclaration() as BlueprintV2Declaration,
-				overrides
-			),
-			constants: {},
-		};
-	}
-}
-
-function parseSearchParams(searchParams: URLSearchParams) {
+function searchParamsToRecord(searchParams: URLSearchParams) {
 	const params: Record<string, any> = {};
 	for (const key of searchParams.keys()) {
 		const value = searchParams.getAll(key);
