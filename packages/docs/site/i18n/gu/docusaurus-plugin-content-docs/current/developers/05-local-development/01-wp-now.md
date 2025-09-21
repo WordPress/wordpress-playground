@@ -49,7 +49,7 @@ Key Features:
 
 :::info **દસ્તાવેજીકરણ**
 
-`wp-now` એક અલગ GitHub રિપોઝીટરી, [પ્લેગ્રાઉન્ડ ટૂલ્સ] (https://github.com/WordPress/playground-tools/) માં જાળવવામાં આવે છે. તમે નવીનતમ દસ્તાવેજીકરણ [dedicated README ફાઇલ] (https://github.com/WordPress/playground-tools/blob/trunk/packages/wp-now/README.md) માં શોધી શકો છો.
+`wp-now` એક અલગ GitHub રિપોઝીટરી, [પ્લેગ્રાઉન્ડ ટૂલ્સ](https://github.com/WordPress/playground-tools/) માં જાળવવામાં આવે છે. તમે નવીનતમ દસ્તાવેજીકરણ [સમર્પિત README ફાઇલ](https://github.com/WordPress/playground-tools/blob/trunk/packages/wp-now/README.md) માં શોધી શકો છો.
 
 :::
 
