@@ -112,6 +112,7 @@ export function bootSiteClient(
 				intl: false,
 				networking: true,
 				extraLibraries: [],
+				constants: {},
 			},
 			overrides: {
 				phpVersion: currentQuery.get('php'),

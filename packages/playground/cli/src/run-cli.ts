@@ -623,6 +623,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 					intl: true,
 					networking: true,
 					extraLibraries: [],
+					constants: {},
 				},
 				overrides: {
 					phpVersion: args.php,

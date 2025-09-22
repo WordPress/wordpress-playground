@@ -51,5 +51,9 @@ export function resolveRuntimeConfiguration({
 			overrides.extraLibraries ??
 			configuration.extraLibraries ??
 			defaults.extraLibraries,
+		constants:
+			overrides.constants ??
+			configuration.constants ??
+			defaults.constants,
 	};
 }

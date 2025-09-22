@@ -1,17 +1,15 @@
 import { logger } from '@php-wasm/logger';
-import type { SupportedPHPVersion } from '@php-wasm/universal';
 import type { PayloadAction } from '@reduxjs/toolkit';
 import {
 	createEntityAdapter,
 	createSelector,
 	createSlice,
 } from '@reduxjs/toolkit';
-import type { ExtraLibrary } from '@wp-playground/blueprints';
+import type { RuntimeConfiguration } from '@wp-playground/blueprints';
 import {
 	BlueprintReflection,
 	resolveRuntimeConfiguration,
 	type BlueprintV1,
-	type PHPConstants,
 } from '@wp-playground/blueprints';
 import { opfsSiteStorage } from '../opfs/opfs-site-storage';
 import {
@@ -319,6 +317,7 @@ export function setTemporarySiteSpec(
 				intl: true,
 				networking: true,
 				extraLibraries: [],
+				constants: {},
 			},
 			overrides: {
 				phpVersion: query.get('php'),
@@ -345,14 +344,7 @@ export function setTemporarySiteSpec(
 				 * migration path for all the stored OPFS sites.
 				 */
 				runtimeConfiguration: {
-					preferredVersions: {
-						php: runtimeConfiguration.phpVersion,
-						wp: runtimeConfiguration.wpVersion,
-					},
-					features: {
-						intl: runtimeConfiguration.intl,
-						networking: runtimeConfiguration.networking,
-					},
+					...runtimeConfiguration,
 					/*
 					 * Constants don't matter so much for temporary sites so let's
 					 * use an empty object here. We can't easily figure out which
@@ -363,7 +355,6 @@ export function setTemporarySiteSpec(
 					 * consistently applied across page reloads.
 					 */
 					constants: {},
-					extraLibraries: runtimeConfiguration.extraLibraries,
 				},
 			},
 		};
@@ -424,19 +415,6 @@ export interface SiteMetadata {
 	originalBlueprint: BlueprintV1;
 	originalBlueprintSource: BlueprintSource;
 }
-
-export type RuntimeConfiguration = {
-	preferredVersions: {
-		wp: string;
-		php: SupportedPHPVersion;
-	};
-	features: {
-		intl: boolean;
-		networking: boolean;
-	};
-	extraLibraries: ExtraLibrary[];
-	constants: PHPConstants;
-};
 
 export const { setOPFSSitesLoadingState } = sitesSlice.actions;
 

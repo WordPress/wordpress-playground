@@ -3,6 +3,7 @@ import type {
 	BlueprintV1,
 	BlueprintV1Declaration,
 	ExtraLibrary,
+	PHPConstants,
 } from './v1/types';
 import type {
 	BlueprintV2,
@@ -29,4 +30,5 @@ export interface RuntimeConfiguration<PHPVersion = SupportedPHPVersion> {
 	/** Should boot with support for network request via wp_safe_remote_get? */
 	networking: boolean;
 	extraLibraries: ExtraLibrary[];
+	constants: PHPConstants;
 }

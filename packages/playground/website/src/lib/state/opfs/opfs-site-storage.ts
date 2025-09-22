@@ -10,7 +10,12 @@ import type { SiteMetadata } from '../redux/slice-sites';
 import type { SiteInfo } from '../redux/slice-sites';
 import { joinPaths } from '@php-wasm/util';
 import { logger } from '@php-wasm/logger';
-import { getBlueprintDeclaration } from '@wp-playground/blueprints';
+import {
+	type PHPConstants,
+	type ExtraLibrary,
+	getBlueprintDeclaration,
+} from '@wp-playground/blueprints';
+import { type SupportedPHPVersion } from '@php-wasm/universal';
 
 const ROOT_PATH = '/sites';
 // TODO: Decide on metadata filename
@@ -165,6 +170,30 @@ async function metadataToStoredFormat(
 
 function storedFormatToMetadata(data: string) {
 	const { slug, ...metadata } = JSON.parse(data) as StoredSiteMetadata;
+
+	// Migrate the legacy runtimeConfiguration data format to the new one
+	if ('preferredVersions' in metadata.runtimeConfiguration) {
+		const legacyConfiguration = metadata.runtimeConfiguration as any as {
+			preferredVersions: {
+				wp: string;
+				php: SupportedPHPVersion;
+			};
+			features: {
+				intl: boolean;
+				networking: boolean;
+			};
+			extraLibraries: ExtraLibrary[];
+			constants: PHPConstants;
+		};
+		metadata.runtimeConfiguration = {
+			phpVersion: legacyConfiguration.preferredVersions.php,
+			wpVersion: legacyConfiguration.preferredVersions.wp,
+			intl: legacyConfiguration.features.intl,
+			networking: legacyConfiguration.features.networking,
+			extraLibraries: legacyConfiguration.extraLibraries,
+			constants: legacyConfiguration.constants,
+		};
+	}
 
 	return {
 		slug,
