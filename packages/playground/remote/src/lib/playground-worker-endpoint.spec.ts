@@ -37,10 +37,14 @@ const createMockPHP = () => {
 			if (!listeners) {
 				return;
 			}
-			await Promise.all([...listeners].map((listener) => listener(event)));
+			await Promise.all(
+				[...listeners].map((listener) => listener(event))
+			);
 		},
 		emitMessage: async (message: unknown) => {
-			await Promise.all([...messageListeners].map((listener) => listener(message)));
+			await Promise.all(
+				[...messageListeners].map((listener) => listener(message))
+			);
 		},
 	};
 };
@@ -63,7 +67,7 @@ describe('PlaygroundWorkerEndpoint', () => {
 		const endpoint = new TestEndpoint();
 		const phpA = createMockPHP();
 		const phpB = createMockPHP();
-		const received: PhpEvent[] = [];
+		const received: any[] = [];
 
 		endpoint.addEventListener('worker.ready', (event) => {
 			received.push(event);
