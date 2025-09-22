@@ -234,7 +234,7 @@ export class BlueprintsV1Handler {
 		});
 	}
 
-	getEffectiveBlueprint() {
+	private getEffectiveBlueprint() {
 		const resolvedBlueprint = this.args.blueprint as BlueprintV1Declaration;
 		/**
 		 * @TODO This looks similar to the resolveBlueprint() call in the website package:
