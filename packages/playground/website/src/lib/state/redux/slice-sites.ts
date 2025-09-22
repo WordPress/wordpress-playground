@@ -12,6 +12,7 @@ import {
 	compileBlueprintV1,
 	type PHPConstants,
 	type ExtraLibrary,
+	BlueprintReflection,
 } from '@wp-playground/blueprints';
 import {
 	type BlueprintSource,
@@ -21,6 +22,7 @@ import {
 } from '../url/resolve-blueprint-from-url';
 import { logger } from '@php-wasm/logger';
 import type { SupportedPHPVersion } from '@php-wasm/universal';
+import { RecommendedPHPVersion } from '@wp-playground/common';
 
 /**
  * The Site model used to represent a site within Playground.
@@ -298,12 +300,48 @@ export function setTemporarySiteSpec(
 			);
 		}
 
-		const mergedBlueprint = await applyQueryOverrides(
-			resolvedBlueprint.blueprint,
-			playgroundUrlWithQueryApiArgs.searchParams
+		// Compute the runtime configuration based on the resolved Blueprint:
+		let runtimeConfiguration: RuntimeConfiguration | undefined = undefined;
+		const reflection = await BlueprintReflection.create(
+			resolvedBlueprint.blueprint
 		);
+		if (reflection.getVersion() === 1) {
+			resolvedBlueprint.blueprint = await applyQueryOverrides(
+				resolvedBlueprint.blueprint,
+				playgroundUrlWithQueryApiArgs.searchParams
+			);
 
-		const compiledBlueprint = await compileBlueprintV1(mergedBlueprint);
+			const compiledBlueprint = await compileBlueprintV1(
+				resolvedBlueprint.blueprint
+			);
+			runtimeConfiguration = {
+				wpVersion: compiledBlueprint.versions.wp,
+				phpVersion: compiledBlueprint.versions.php,
+				intl: compiledBlueprint.features.intl,
+				networking: compiledBlueprint.features.networking,
+				extraLibraries: compiledBlueprint.extraLibraries,
+				/*
+				 * Constants don't matter so much for temporary sites so let's
+				 * use an empty object here. We can't easily figure out which
+				 * additional constants were applied via playground.defineConstant()
+				 * at this stage anyway.
+				 *
+				 * This property is only relevant for stored sites to ensure they're
+				 * consistently applied across page reloads.
+				 */
+				constants: {},
+			};
+		} else {
+			// @TODO: actually compute the runtime configuration based on the resolved Blueprint v2
+			runtimeConfiguration = {
+				phpVersion: RecommendedPHPVersion,
+				wpVersion: 'latest',
+				intl: false,
+				networking: true,
+				constants: {},
+				extraLibraries: [],
+			};
+		}
 
 		const newSiteInfo: SiteInfo = {
 			slug: deriveSlugFromSiteName(siteName),
@@ -313,26 +351,10 @@ export function setTemporarySiteSpec(
 				id: crypto.randomUUID(),
 				whenCreated: Date.now(),
 				storage: 'none' as const,
-				originalBlueprint: mergedBlueprint,
+				originalBlueprint: resolvedBlueprint.blueprint,
 				originalBlueprintSource: resolvedBlueprint.source!,
 
-				runtimeConfiguration: {
-					wpVersion: compiledBlueprint.versions.wp,
-					phpVersion: compiledBlueprint.versions.php,
-					intl: compiledBlueprint.features.intl,
-					networking: compiledBlueprint.features.networking,
-					extraLibraries: compiledBlueprint.extraLibraries,
-					/*
-					 * Constants don't matter so much for temporary sites so let's
-					 * use an empty object here. We can't easily figure out which
-					 * additional constants were applied via playground.defineConstant()
-					 * at this stage anyway.
-					 *
-					 * This property is only relevant for stored sites to ensure they're
-					 * consistently applied across page reloads.
-					 */
-					constants: {},
-				},
+				runtimeConfiguration: runtimeConfiguration!,
 			},
 		};
 		dispatch(sitesSlice.actions.addSite(newSiteInfo));

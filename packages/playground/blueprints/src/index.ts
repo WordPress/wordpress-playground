@@ -12,6 +12,7 @@ export type {
 	BlueprintBundle,
 	BlueprintDeclaration,
 } from './lib/types';
+export { BlueprintReflection } from './lib/reflection';
 export {
 	getBlueprintDeclaration,
 	isBlueprintBundle,
