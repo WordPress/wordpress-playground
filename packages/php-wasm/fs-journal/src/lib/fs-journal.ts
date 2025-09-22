@@ -362,8 +362,13 @@ function normalizePath(path: string) {
  * @returns The normalized journal.
  */
 export function normalizeFilesystemOperations(
-	journal: FilesystemOperation[]
+	journal: FilesystemOperation[],
+	depth = 0
 ): FilesystemOperation[] {
+	if (depth > 40) {
+		logger.warn('Normalizing filesystem operations depth limit reached');
+		return journal;
+	}
 	const substitutions: Record<number, any> = {};
 	for (let i = journal.length - 1; i >= 0; i--) {
 		for (let j = i - 1; j >= 0; j--) {
@@ -470,7 +475,7 @@ export function normalizeFilesystemOperations(
 				}
 				return substitutions[index];
 			});
-			return normalizeFilesystemOperations(updated);
+			return normalizeFilesystemOperations(updated, depth + 1);
 		}
 	}
 	return journal;

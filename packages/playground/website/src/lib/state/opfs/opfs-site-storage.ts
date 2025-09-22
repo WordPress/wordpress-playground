@@ -11,11 +11,11 @@ import type { SiteInfo } from '../redux/slice-sites';
 import { joinPaths } from '@php-wasm/util';
 import { logger } from '@php-wasm/logger';
 import {
-	type PHPConstants,
-	type ExtraLibrary,
 	getBlueprintDeclaration,
+	resolveRuntimeConfiguration,
+	type BlueprintV1Declaration,
 } from '@wp-playground/blueprints';
-import { type SupportedPHPVersion } from '@php-wasm/universal';
+import { defaultRuntimeConfiguration } from '../redux/boot-site-client';
 
 const ROOT_PATH = '/sites';
 // TODO: Decide on metadata filename
@@ -172,27 +172,14 @@ function storedFormatToMetadata(data: string) {
 	const { slug, ...metadata } = JSON.parse(data) as StoredSiteMetadata;
 
 	// Migrate the legacy runtimeConfiguration data format to the new one
+	// @TODO: Somehow Playground re-downloads WordPress after this change when
+	//        loading an existing site.
 	if ('preferredVersions' in metadata.runtimeConfiguration) {
-		const legacyConfiguration = metadata.runtimeConfiguration as any as {
-			preferredVersions: {
-				wp: string;
-				php: SupportedPHPVersion;
-			};
-			features: {
-				intl: boolean;
-				networking: boolean;
-			};
-			extraLibraries: ExtraLibrary[];
-			constants: PHPConstants;
-		};
-		metadata.runtimeConfiguration = {
-			phpVersion: legacyConfiguration.preferredVersions.php,
-			wpVersion: legacyConfiguration.preferredVersions.wp,
-			intl: legacyConfiguration.features.intl,
-			networking: legacyConfiguration.features.networking,
-			extraLibraries: legacyConfiguration.extraLibraries,
-			constants: legacyConfiguration.constants,
-		};
+		metadata.runtimeConfiguration = resolveRuntimeConfiguration({
+			blueprint:
+				metadata.runtimeConfiguration as any as BlueprintV1Declaration,
+			defaults: defaultRuntimeConfiguration,
+		});
 	}
 
 	return {

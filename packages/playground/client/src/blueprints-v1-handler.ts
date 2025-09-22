@@ -31,8 +31,6 @@ export class BlueprintsV1Handler {
 		const executionProgress = progressTracker!.stage(0.5);
 		const downloadProgress = progressTracker!.stage();
 
-		// Set a default blueprint if none is provided.
-		const blueprint = this.options.blueprint || {};
 		// Connect the Comlink API client to the remote worker,
 		// boot the playground, and run the blueprint steps.
 		const playground = consumeAPI<PlaygroundClient>(
@@ -65,7 +63,14 @@ export class BlueprintsV1Handler {
 		collectPhpLogs(logger, playground);
 		onClientConnected?.(playground);
 
-		const reflection = await BlueprintReflection.create(blueprint);
+		/**
+		 * Always run a Blueprint, even en empty one. The landingPage
+		 * is handled by runBlueprintV1Steps() and without running the
+		 * Blueprint, Playground never renders WordPress homepage.
+		 */
+		const reflection = await BlueprintReflection.create(
+			this.options.blueprint || {}
+		);
 		const compiled = await compileBlueprintV1(
 			reflection.getBlueprint() as BlueprintV1,
 			{

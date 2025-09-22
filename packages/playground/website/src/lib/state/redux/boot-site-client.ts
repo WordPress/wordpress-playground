@@ -11,7 +11,10 @@ import {
 	updateClientInfo,
 } from './slice-clients';
 import { logTrackingEvent } from '../../tracking';
-import type { BlueprintV1Declaration } from '@wp-playground/blueprints';
+import type {
+	BlueprintV1Declaration,
+	RuntimeConfiguration,
+} from '@wp-playground/blueprints';
 import { logger } from '@php-wasm/logger';
 import { setupPostMessageRelay } from '@php-wasm/web';
 import {
@@ -28,6 +31,15 @@ import { selectSiteBySlug } from './slice-sites';
 import { corsProxyUrl } from 'virtual:cors-proxy-url';
 import { modalSlugs } from '../../../components/layout';
 import { RecommendedPHPVersion } from '@wp-playground/common';
+
+export const defaultRuntimeConfiguration = {
+	phpVersion: RecommendedPHPVersion,
+	wpVersion: 'latest',
+	intl: false,
+	networking: true,
+	extraLibraries: [],
+	constants: {},
+} as RuntimeConfiguration;
 
 export function bootSiteClient(
 	siteSlug: string,
@@ -104,24 +116,29 @@ export function bootSiteClient(
 		const reflection = await BlueprintReflection.create(
 			site.metadata.originalBlueprint
 		);
+
+		const storedConfig = site.metadata.runtimeConfiguration;
 		const runtimeConfiguration = resolveRuntimeConfiguration({
 			blueprint: reflection.getDeclaration() as BlueprintV1Declaration,
-			defaults: {
-				phpVersion: RecommendedPHPVersion,
-				wpVersion: 'latest',
-				intl: false,
-				networking: true,
-				extraLibraries: [],
-				constants: {},
-			},
+			defaults: defaultRuntimeConfiguration,
 			overrides: {
-				phpVersion: currentQuery.get('php'),
-				wpVersion: currentQuery.get('wp'),
-				intl: currentQuery.get('intl') === 'yes' ? true : undefined,
+				phpVersion: storedConfig.phpVersion || currentQuery.get('php'),
+				wpVersion: storedConfig.wpVersion || currentQuery.get('wp'),
+				intl:
+					storedConfig.intl || currentQuery.get('intl') === 'yes'
+						? true
+						: undefined,
 				networking:
-					currentQuery.get('networking') === 'no' ? false : undefined,
+					storedConfig.networking ||
+					currentQuery.get('networking') === 'no'
+						? false
+						: undefined,
+				extraLibraries: storedConfig.extraLibraries,
+				constants: storedConfig.constants,
 			},
 		});
+		console.log('final runtimeConfiguration', runtimeConfiguration);
+		console.log({ isWordPressInstalled });
 
 		let playground: PlaygroundClient;
 		try {
