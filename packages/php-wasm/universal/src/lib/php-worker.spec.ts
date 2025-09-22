@@ -1,17 +1,10 @@
-import type { EmscriptenDownloadMonitor } from '@php-wasm/progress';
-import type { PHP } from '@php-wasm/universal';
+import { PHPWorker } from './php-worker';
 import { describe, expect, test, vi } from 'vitest';
-
-import { PlaygroundWorkerEndpoint } from './playground-worker-endpoint';
+import type { PHP } from './php';
 
 type PhpEvent = { type: string; [key: string]: unknown };
 type PhpEventListener = (event: PhpEvent) => void | Promise<void>;
 type PhpMessageListener = (message: unknown) => unknown | Promise<unknown>;
-
-const createMonitor = () =>
-	({
-		addEventListener: vi.fn(),
-	} as unknown as EmscriptenDownloadMonitor);
 
 const createMockPHP = () => {
 	const eventListeners = new Map<string, Set<PhpEventListener>>();
@@ -49,11 +42,7 @@ const createMockPHP = () => {
 	};
 };
 
-class TestEndpoint extends PlaygroundWorkerEndpoint {
-	constructor() {
-		super(createMonitor());
-	}
-
+class TestEndpoint extends PHPWorker {
 	attachPhp(php: PHP) {
 		this.registerWorkerListeners(php);
 	}
