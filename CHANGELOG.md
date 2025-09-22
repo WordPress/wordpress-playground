@@ -4,6 +4,37 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
+## [v3.0.2] (2025-09-22) 
+
+### Blueprints
+
+- [Website] Split Playground remote initialization logic into Blueprint-version specific workers. ([#2652](https://github.com/WordPress/wordpress-playground/pull/2652))
+
+### Documentation
+
+- [i18n] Added Gujarati Translation for Local Development 01-wp-now.md file. ([#2664](https://github.com/WordPress/wordpress-playground/pull/2664))
+
+### Website
+
+
+#### Blueprints
+
+- Add Blueprint v2 handlers (noop). ([#2657](https://github.com/WordPress/wordpress-playground/pull/2657))
+- Declare the correct Blueprints v2 types. ([#2655](https://github.com/WordPress/wordpress-playground/pull/2655))
+- Isolate resolveBlueprintFromURL() calls. ([#2654](https://github.com/WordPress/wordpress-playground/pull/2654))
+- [Client] Expose Blueprints v2 runner via a feature flag. ([#2658](https://github.com/WordPress/wordpress-playground/pull/2658))
+
+### Various
+
+- [i18n] Added Missing Description in Intro and Quick Start Guide Pages for Gujarati Language. ([#2660](https://github.com/WordPress/wordpress-playground/pull/2660))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @shail-mehta
+
+
 ## [v3.0.1] (2025-09-19) 
 
 ### Blueprints

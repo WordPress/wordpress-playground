@@ -17,22 +17,31 @@ import type { WebClientMixin } from './playground-client';
 import type { ProgressBarOptions } from './progress-bar';
 import ProgressBar from './progress-bar';
 
-// Avoid literal "import.meta.url" on purpose as vite would attempt
-// to resolve it during build time. This should specifically be
-// resolved by the browser at runtime to reflect the current origin.
-const origin = new URL('/', (import.meta || {}).url).origin;
-
-// @ts-ignore
-import workerV1Url from './playground-worker-endpoint-blueprints-v1.ts?worker&url';
-
-export const workerUrl: string = new URL(workerV1Url, origin) + '';
-
 // @ts-ignore
 import serviceWorkerPath from '../../service-worker.ts?worker&url';
 import type { FilesystemOperation } from '@php-wasm/fs-journal';
 import { logger } from '@php-wasm/logger';
 import { PhpWasmError } from '@php-wasm/util';
 import { responseTo } from '@php-wasm/web-service-worker';
+
+// Select worker runtime (v1 or v2) based on query parameter
+// @ts-ignore
+import workerV1Url from './playground-worker-endpoint-blueprints-v1.ts?worker&url';
+// @ts-ignore
+import workerV2Url from './playground-worker-endpoint-blueprints-v2.ts?worker&url';
+
+// Avoid literal "import.meta.url" on purpose as vite would attempt
+// to resolve it during build time. This should specifically be
+// resolved by the browser at runtime to reflect the current origin.
+const origin = new URL('/', (import.meta || {}).url).origin;
+
+function getWorkerUrl(): string {
+	const runner = new URL(document.location.href).searchParams.get('blueprints-runner');
+	const isV2 = runner === 'v2';
+	const selected = isV2 ? workerV2Url : workerV1Url;
+	return new URL(selected, origin) + '';
+}
+
 export const serviceWorkerUrl = new URL(serviceWorkerPath, origin);
 
 // Prevent Vite from hot-reloading this file – it would
@@ -91,6 +100,8 @@ export async function bootPlaygroundRemote() {
 		// functional service worker at this point because sw.register() succeeded.
 		logger.error('Failed to update service worker.', e);
 	}
+
+	const workerUrl = new URL(getWorkerUrl(), origin) + '';
 
 	const phpWorkerApi = consumeAPI<PlaygroundWorkerEndpoint>(
 		await spawnPHPWorkerThread(workerUrl)

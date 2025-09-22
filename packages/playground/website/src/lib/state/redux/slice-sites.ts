@@ -11,7 +11,7 @@ import {
 	type BlueprintV1,
 	BlueprintReflection,
 	type RuntimeConfiguration,
-	resolveRuntimeConfiguration,
+	resolveRuntimeConfiguration
 } from '@wp-playground/blueprints';
 import {
 	type BlueprintSource,
@@ -20,6 +20,7 @@ import {
 	applyQueryOverrides,
 } from '../url/resolve-blueprint-from-url';
 import { logger } from '@php-wasm/logger';
+import type { SupportedPHPVersion } from '@php-wasm/universal';
 
 /**
  * The Site model used to represent a site within Playground.
@@ -318,7 +319,6 @@ export function setTemporarySiteSpec(
 				storage: 'none' as const,
 				originalBlueprint: resolvedBlueprint.blueprint,
 				originalBlueprintSource: resolvedBlueprint.source!,
-
 				runtimeConfiguration: await resolveRuntimeConfiguration(
 					resolvedBlueprint.blueprint
 				)!,
@@ -380,6 +380,15 @@ export interface SiteMetadata {
 	runtimeConfiguration: RuntimeConfiguration;
 	originalBlueprint: BlueprintV1;
 	originalBlueprintSource: BlueprintSource;
+}
+
+export interface RuntimeConfiguration {
+	phpVersion: SupportedPHPVersion;
+	wpVersion: string;
+	intl: boolean;
+	networking: boolean;
+	extraLibraries: ExtraLibrary[];
+	constants: PHPConstants;
 }
 
 export const { setOPFSSitesLoadingState } = sitesSlice.actions;

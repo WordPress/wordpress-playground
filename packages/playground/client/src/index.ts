@@ -36,6 +36,7 @@ import { additionalRemoteOrigins } from './additional-remote-origins';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { remoteDevServerHost, remoteDevServerPort } from '../../build-config';
 import { BlueprintsV1Handler } from './blueprints-v1-handler';
+import { BlueprintsV2Handler } from './blueprints-v2-handler';
 
 export interface StartPlaygroundOptions {
 	iframe: HTMLIFrameElement;
@@ -43,6 +44,10 @@ export interface StartPlaygroundOptions {
 	progressTracker?: ProgressTracker;
 	disableProgressBar?: boolean;
 	blueprint?: BlueprintV1;
+	/**
+	 * Prefer experimental Blueprints v2 PHP runner instead of TypeScript steps
+	 */
+	experimentalBlueprintsV2Runner?: boolean;
 	onBlueprintStepCompleted?: OnStepCompleted;
 	onBlueprintValidated?: (blueprint: BlueprintV1Declaration) => void;
 	/**
@@ -108,6 +113,9 @@ export async function startPlaygroundWeb(
 
 	remoteUrl = setQueryParams(remoteUrl, {
 		progressbar: !disableProgressBar,
+		'blueprints-runner': options.experimentalBlueprintsV2Runner
+			? 'v2'
+			: 'v1',
 	});
 	progressTracker.setCaption('Preparing WordPress');
 
@@ -116,7 +124,9 @@ export async function startPlaygroundWeb(
 		iframe.addEventListener('load', resolve, false);
 	});
 
-	const handler = new BlueprintsV1Handler(options);
+	const handler = options.experimentalBlueprintsV2Runner
+		? new BlueprintsV2Handler(options)
+		: new BlueprintsV1Handler(options);
 	const playground = await handler.bootPlayground(iframe, progressTracker);
 
 	progressTracker.finish();
