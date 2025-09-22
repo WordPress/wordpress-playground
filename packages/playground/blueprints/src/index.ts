@@ -5,6 +5,7 @@ export type {
 	BlueprintV1,
 	BlueprintV1Declaration,
 	PHPConstants,
+	ExtraLibrary,
 } from './lib/v1/types';
 export type {
 	Blueprint,

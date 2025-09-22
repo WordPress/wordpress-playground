@@ -9,9 +9,9 @@ import { selectActiveSite, setActiveSite } from './store';
 import { opfsSiteStorage } from '../opfs/opfs-site-storage';
 import {
 	type BlueprintV1,
-	type BlueprintV1Declaration,
-	type PHPConstants,
 	compileBlueprintV1,
+	type PHPConstants,
+	type ExtraLibrary,
 } from '@wp-playground/blueprints';
 import {
 	type BlueprintSource,
@@ -20,6 +20,7 @@ import {
 	applyQueryOverrides,
 } from '../url/resolve-blueprint-from-url';
 import { logger } from '@php-wasm/logger';
+import type { SupportedPHPVersion } from '@php-wasm/universal';
 
 /**
  * The Site model used to represent a site within Playground.
@@ -316,11 +317,10 @@ export function setTemporarySiteSpec(
 				originalBlueprintSource: resolvedBlueprint.source!,
 
 				runtimeConfiguration: {
-					preferredVersions: {
-						wp: compiledBlueprint.versions.wp,
-						php: compiledBlueprint.versions.php,
-					},
-					features: compiledBlueprint.features,
+					wpVersion: compiledBlueprint.versions.wp,
+					phpVersion: compiledBlueprint.versions.php,
+					intl: compiledBlueprint.features.intl,
+					networking: compiledBlueprint.features.networking,
 					extraLibraries: compiledBlueprint.extraLibraries,
 					/*
 					 * Constants don't matter so much for temporary sites so let's
@@ -388,14 +388,18 @@ export interface SiteMetadata {
 	//whenLastLoaded: number;
 
 	// @TODO: Accept any string as a php version?
-	runtimeConfiguration: Pick<
-		Required<BlueprintV1Declaration>,
-		'features' | 'extraLibraries' | 'preferredVersions'
-	> & {
-		constants?: PHPConstants;
-	};
+	runtimeConfiguration: RuntimeConfiguration;
 	originalBlueprint: BlueprintV1;
 	originalBlueprintSource: BlueprintSource;
+}
+
+export interface RuntimeConfiguration {
+	phpVersion: SupportedPHPVersion;
+	wpVersion: string;
+	intl: boolean;
+	networking: boolean;
+	extraLibraries: ExtraLibrary[];
+	constants: PHPConstants;
 }
 
 export const { setOPFSSitesLoadingState } = sitesSlice.actions;

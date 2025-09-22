@@ -97,7 +97,19 @@ export function bootSiteClient(
 
 		let blueprint: Blueprint;
 		if (isWordPressInstalled) {
-			blueprint = site.metadata.runtimeConfiguration!;
+			blueprint = {
+				preferredVersions: {
+					php: site.metadata.runtimeConfiguration.phpVersion,
+					wp: site.metadata.runtimeConfiguration.wpVersion,
+				},
+				features: {
+					intl: site.metadata.runtimeConfiguration.intl,
+					networking: site.metadata.runtimeConfiguration.networking,
+				},
+				extraLibraries: site.metadata.runtimeConfiguration
+					.extraLibraries as any[],
+				constants: site.metadata.runtimeConfiguration.constants,
+			};
 		} else {
 			blueprint = site.metadata.originalBlueprint;
 		}

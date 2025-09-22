@@ -10,7 +10,13 @@ import type { SiteMetadata } from '../redux/slice-sites';
 import type { SiteInfo } from '../redux/slice-sites';
 import { joinPaths } from '@php-wasm/util';
 import { logger } from '@php-wasm/logger';
-import { getBlueprintDeclaration } from '@wp-playground/blueprints';
+import {
+	type ExtraLibrary,
+	type PHPConstants,
+	getBlueprintDeclaration,
+} from '@wp-playground/blueprints';
+import type { SupportedPHPVersion } from '@php-wasm/universal';
+import { RecommendedPHPVersion } from '@wp-playground/common';
 
 const ROOT_PATH = '/sites';
 // TODO: Decide on metadata filename
@@ -165,6 +171,53 @@ async function metadataToStoredFormat(
 
 function storedFormatToMetadata(data: string) {
 	const { slug, ...metadata } = JSON.parse(data) as StoredSiteMetadata;
+
+	/**
+	 * Migrate the legacy runtimeConfiguration data format to the new, flat one.
+	 */
+	if ('preferredVersions' in metadata.runtimeConfiguration) {
+		const legacyConfig = metadata.runtimeConfiguration as {
+			/**
+			 * The preferred PHP and WordPress versions to use.
+			 */
+			preferredVersions?: {
+				/**
+				 * The preferred PHP version to use.
+				 * If not specified, the latest supported version will be used
+				 */
+				php: SupportedPHPVersion | 'latest';
+				/**
+				 * The preferred WordPress version to use.
+				 * If not specified, the latest supported version will be used
+				 */
+				wp: string | 'latest';
+			};
+			features?: {
+				intl?: boolean;
+				/** Should boot with support for network request via wp_safe_remote_get? */
+				networking?: boolean;
+			};
+			/**
+			 * Extra libraries to preload into the Playground instance.
+			 */
+			extraLibraries?: ExtraLibrary[];
+			/**
+			 * PHP Constants to define on every request
+			 */
+			constants?: PHPConstants;
+		};
+
+		metadata.runtimeConfiguration = {
+			phpVersion:
+				(legacyConfig.preferredVersions?.php as SupportedPHPVersion) ??
+				RecommendedPHPVersion,
+			wpVersion: legacyConfig.preferredVersions?.wp ?? 'latest',
+			intl: legacyConfig.features?.intl ?? false,
+			networking: legacyConfig.features?.networking ?? true,
+			extraLibraries: legacyConfig.extraLibraries as any[],
+			constants: legacyConfig.constants ?? {},
+		};
+	}
 
 	return {
 		slug,
