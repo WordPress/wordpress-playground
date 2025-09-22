@@ -1,26 +1,27 @@
+import { logger } from '@php-wasm/logger';
+import type { SupportedPHPVersion } from '@php-wasm/universal';
 import type { PayloadAction } from '@reduxjs/toolkit';
 import {
-	createSlice,
 	createEntityAdapter,
 	createSelector,
+	createSlice,
 } from '@reduxjs/toolkit';
-import type { PlaygroundDispatch, PlaygroundReduxState } from './store';
-import { selectActiveSite, setActiveSite } from './store';
-import { opfsSiteStorage } from '../opfs/opfs-site-storage';
+import type { ExtraLibrary } from '@wp-playground/blueprints';
 import {
-	type BlueprintV1,
-	type PHPConstants,
 	BlueprintReflection,
 	resolveRuntimeConfiguration,
+	type BlueprintV1,
+	type PHPConstants,
 } from '@wp-playground/blueprints';
+import { opfsSiteStorage } from '../opfs/opfs-site-storage';
 import {
-	type BlueprintSource,
+	applyQueryOverridesToBlueprintV1,
 	resolveBlueprintFromURL,
+	type BlueprintSource,
 	type ResolvedBlueprint,
 } from '../url/resolve-blueprint-from-url';
-import { logger } from '@php-wasm/logger';
-import type { ExtraLibrary } from '@wp-playground/blueprints';
-import type { SupportedPHPVersion } from '@php-wasm/universal';
+import type { PlaygroundDispatch, PlaygroundReduxState } from './store';
+import { selectActiveSite, setActiveSite } from './store';
 
 /**
  * The Site model used to represent a site within Playground.
@@ -302,6 +303,14 @@ export function setTemporarySiteSpec(
 		const reflection = await BlueprintReflection.create(
 			resolvedBlueprint.blueprint
 		);
+		if (reflection.getVersion() === 1) {
+			// @TODO: Support URL overrides for Blueprints v2.
+			resolvedBlueprint.blueprint =
+				await applyQueryOverridesToBlueprintV1(
+					resolvedBlueprint.blueprint as BlueprintV1,
+					playgroundUrlWithQueryApiArgs.searchParams
+				);
+		}
 		const runtimeConfiguration = resolveRuntimeConfiguration({
 			blueprint: reflection.getDeclaration(),
 			defaults: {
