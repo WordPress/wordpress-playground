@@ -307,7 +307,7 @@ This guide will show you how to both update an existing translation and add a br
     Ceci est le contenu traduit en français.
     ```
 
-    ![GitHub UI Editor](@site/static/img/contributing/editor-github.webp)
+    ![GitHub UI Editor](@site/static/img/contributing/editor-github-ui.webp)
 
 5.  **Commit the new file.** When you are done, scroll to the bottom. Add a title for your new file (e.g., "Add French translation for documentation.md") and click the **Commit new file** button.
 
