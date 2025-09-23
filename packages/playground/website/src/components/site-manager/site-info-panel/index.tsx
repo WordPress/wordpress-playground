@@ -33,6 +33,75 @@ import { setActiveModal } from '../../../lib/state/redux/slice-ui';
 import { modalSlugs } from '../../layout';
 import { removeSite } from '../../../lib/state/redux/slice-sites';
 import { BlueprintReflection } from '@wp-playground/blueprints';
+import React from 'react';
+
+function ViewBlueprintMenuItem({
+	site,
+	onClose,
+	offline,
+}: {
+	site: SiteInfo;
+	onClose: () => void;
+	offline: boolean;
+}) {
+	const [href, setHref] = React.useState<string | null>(null);
+	const [isLoading, setIsLoading] = React.useState(true);
+
+	React.useEffect(() => {
+		if (!site.metadata.originalBlueprint || offline) {
+			setIsLoading(false);
+			return;
+		}
+
+		const computeHref = async () => {
+			try {
+				const reflection = await BlueprintReflection.create(
+					site.metadata.originalBlueprint as any
+				);
+				const declaration = reflection.getDeclaration() as any;
+				const encoded = encodeStringAsBase64(
+					JSON.stringify(declaration) as string
+				);
+				const url = `/builder/builder.html#${encoded}`;
+				setHref(url);
+			} catch {
+				// Error computing blueprint URL - href will remain null
+			} finally {
+				setIsLoading(false);
+			}
+		};
+
+		computeHref();
+	}, [site.metadata.originalBlueprint, offline]);
+
+	if (isLoading || !href) {
+		return (
+			<MenuItem
+				icon={external}
+				iconPosition="right"
+				aria-label="View Blueprint (loading)"
+				disabled={true}
+			>
+				View Blueprint (loading)
+			</MenuItem>
+		);
+	}
+
+	return (
+		<MenuItem
+			href={href}
+			target="_blank"
+			rel="noopener noreferrer"
+			onClick={onClose}
+			icon={external}
+			iconPosition="right"
+			aria-label="View Blueprint"
+			disabled={offline}
+		>
+			View Blueprint
+		</MenuItem>
+	);
+}
 
 export function SiteInfoPanel({
 	className,
@@ -264,35 +333,11 @@ export function SiteInfoPanel({
 											/>
 										</MenuGroup>
 										<MenuGroup>
-											<MenuItem
-												onClick={async () => {
-													const reflection =
-														await BlueprintReflection.create(
-															site.metadata
-																.originalBlueprint as any
-														);
-													const declaration =
-														reflection.getDeclaration() as any;
-													const encoded =
-														encodeStringAsBase64(
-															JSON.stringify(
-																declaration
-															) as string
-														);
-													window.open(
-														`/builder/builder.html#${encoded}`,
-														'_blank',
-														'noopener,noreferrer'
-													);
-													onClose();
-												}}
-												icon={external}
-												iconPosition="right"
-												aria-label="View Blueprint"
-												disabled={offline}
-											>
-												View Blueprint
-											</MenuItem>
+											<ViewBlueprintMenuItem
+												site={site}
+												onClose={onClose}
+												offline={offline}
+											/>
 										</MenuGroup>
 										<MenuGroup>
 											<ReportError
