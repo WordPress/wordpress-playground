@@ -1,8 +1,6 @@
 ---
 slug: /contributing/documentation
-title: Documentation Contributions
 title: Contributions à la documentation
-description: A guide on how to contribute to the Playground documentation, from opening issues to submitting pull requests.
 description: Un guide sur la façon de contribuer à la documentation de Playground, depuis l'ouverture des issues jusqu'à la soumission des pull requests.
 ---
 
