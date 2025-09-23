@@ -32,6 +32,7 @@ import { getRelativeDate } from '../../../lib/get-relative-date';
 import { setActiveModal } from '../../../lib/state/redux/slice-ui';
 import { modalSlugs } from '../../layout';
 import { removeSite } from '../../../lib/state/redux/slice-sites';
+import { BlueprintReflection } from '@wp-playground/blueprints';
 
 export function SiteInfoPanel({
 	className,
@@ -264,15 +265,27 @@ export function SiteInfoPanel({
 										</MenuGroup>
 										<MenuGroup>
 											<MenuItem
-												// @ts-ignore
-												href={`/builder/builder.html#${encodeStringAsBase64(
-													JSON.stringify(
-														site.metadata
-															.originalBlueprint as any
-													) as string
-												)}`}
-												target="_blank"
-												rel="noopener noreferrer"
+												onClick={async () => {
+													const reflection =
+														await BlueprintReflection.create(
+															site.metadata
+																.originalBlueprint as any
+														);
+													const declaration =
+														reflection.getDeclaration() as any;
+													const encoded =
+														encodeStringAsBase64(
+															JSON.stringify(
+																declaration
+															) as string
+														);
+													window.open(
+														`/builder/builder.html#${encoded}`,
+														'_blank',
+														'noopener,noreferrer'
+													);
+													onClose();
+												}}
 												icon={external}
 												iconPosition="right"
 												aria-label="View Blueprint"
