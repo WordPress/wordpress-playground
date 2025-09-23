@@ -33,8 +33,6 @@ export class BlueprintsV2Handler {
 		// Connect the Comlink API client to the remote worker download monitor
 		await playground.onDownloadProgress(downloadProgress.loadingListener);
 		await playground.addEventListener(
-			// @TODO: Accept 'blueprint.message' as an argument here
-			// @ts-expect-error
 			'blueprint.message',
 			({ message }: any) => {
 				switch (message.type) {
