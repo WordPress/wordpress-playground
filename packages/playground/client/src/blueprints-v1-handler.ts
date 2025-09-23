@@ -4,6 +4,8 @@ import {
 	type StartPlaygroundOptions,
 	compileBlueprintV1,
 	runBlueprintV1Steps,
+	resolveRuntimeConfiguration,
+	BlueprintReflection,
 } from '.';
 import { collectPhpLogs, logger } from '@php-wasm/logger';
 import { consumeAPI } from '@php-wasm/universal';
@@ -31,12 +33,6 @@ export class BlueprintsV1Handler {
 
 		// Set a default blueprint if none is provided.
 		const blueprint = this.options.blueprint || {};
-		const compiled = await compileBlueprintV1(blueprint, {
-			progress: executionProgress,
-			onStepCompleted: onBlueprintStepCompleted,
-			onBlueprintValidated,
-			corsProxy,
-		});
 
 		// Connect the Comlink API client to the remote worker,
 		// boot the playground, and run the blueprint steps.
@@ -47,16 +43,19 @@ export class BlueprintsV1Handler {
 		await playground.isConnected();
 		progressTracker.pipe(playground);
 
+		const runtimeConfiguration = await resolveRuntimeConfiguration(
+			blueprint
+		);
 		await playground.onDownloadProgress(downloadProgress.loadingListener);
 		await playground.boot({
 			mounts,
 			sapiName,
 			scope: scope ?? Math.random().toFixed(16),
 			shouldInstallWordPress,
-			phpVersion: compiled.versions.php,
-			wpVersion: compiled.versions.wp,
-			withICU: compiled.features.intl,
-			withNetworking: compiled.features.networking,
+			phpVersion: runtimeConfiguration.phpVersion,
+			wpVersion: runtimeConfiguration.wpVersion,
+			withICU: runtimeConfiguration.intl,
+			withNetworking: runtimeConfiguration.networking,
 			corsProxyUrl: corsProxy,
 			sqliteDriverVersion,
 		});
@@ -66,14 +65,23 @@ export class BlueprintsV1Handler {
 		collectPhpLogs(logger, playground);
 		onClientConnected?.(playground);
 
-		await runBlueprintV1Steps(compiled, playground);
+		const reflection = await BlueprintReflection.create(blueprint);
+		if (reflection.getVersion() === 1) {
+			const compiled = await compileBlueprintV1(blueprint, {
+				progress: executionProgress,
+				onStepCompleted: onBlueprintStepCompleted,
+				onBlueprintValidated,
+				corsProxy,
+			});
+			await runBlueprintV1Steps(compiled, playground);
+		}
 
 		/**
 		 * Pre-fetch WordPress update checks to speed up the initial wp-admin load.
 		 *
 		 * @see https://github.com/WordPress/wordpress-playground/pull/2295
 		 */
-		if (compiled.features.networking) {
+		if (runtimeConfiguration.networking) {
 			await playground.prefetchUpdateChecks();
 		}
 

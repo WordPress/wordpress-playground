@@ -71,7 +71,10 @@ export class PHP implements Disposable {
 	#sapiName?: string;
 	#phpWasmInitCalled = false;
 	#wasmErrorsTarget: UnhandledRejectionsTarget | null = null;
-	#eventListeners: Map<string, Set<PHPEventListener>> = new Map();
+	#eventListeners: Map<string, Set<PHPEventListener>> = new Map([
+		// Listen to all events
+		['*', new Set()],
+	]);
 	#messageListeners: MessageListener[] = [];
 	#mounts: Record<string, MountObject> = {};
 	#rotationOptions: {
@@ -127,7 +130,10 @@ export class PHP implements Disposable {
 	 * @param eventType - The type of event to listen for.
 	 * @param listener - The listener function to be called when the event is triggered.
 	 */
-	addEventListener(eventType: PHPEvent['type'], listener: PHPEventListener) {
+	addEventListener(
+		eventType: PHPEvent['type'] | '*',
+		listener: PHPEventListener
+	) {
 		if (!this.#eventListeners.has(eventType)) {
 			this.#eventListeners.set(eventType, new Set());
 		}
@@ -140,14 +146,17 @@ export class PHP implements Disposable {
 	 * @param listener - The listener function to be removed.
 	 */
 	removeEventListener(
-		eventType: PHPEvent['type'],
+		eventType: PHPEvent['type'] | '*',
 		listener: PHPEventListener
 	) {
 		this.#eventListeners.get(eventType)?.delete(listener);
 	}
 
 	dispatchEvent<Event extends PHPEvent>(event: Event) {
-		const listeners = this.#eventListeners.get(event.type);
+		const listeners = [
+			...(this.#eventListeners.get(event.type) || []),
+			...(this.#eventListeners.get('*') || []),
+		];
 		if (!listeners) {
 			return;
 		}

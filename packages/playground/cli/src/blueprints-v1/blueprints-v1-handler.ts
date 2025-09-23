@@ -2,13 +2,11 @@ import { logger } from '@php-wasm/logger';
 import { EmscriptenDownloadMonitor, ProgressTracker } from '@php-wasm/progress';
 import type { SupportedPHPVersion } from '@php-wasm/universal';
 import { consumeAPI } from '@php-wasm/universal';
-import type {
-	BlueprintBundle,
-	BlueprintV1Declaration,
-} from '@wp-playground/blueprints';
+import type { BlueprintV1Declaration } from '@wp-playground/blueprints';
 import {
 	compileBlueprintV1,
 	isBlueprintBundle,
+	resolveRuntimeConfiguration,
 } from '@wp-playground/blueprints';
 import { RecommendedPHPVersion, zipDirectory } from '@wp-playground/common';
 import fs from 'fs';
@@ -64,11 +62,6 @@ export class BlueprintsV1Handler {
 		fileLockManagerPort: NodeMessagePort,
 		nativeInternalDirPath: string
 	) {
-		const compiledBlueprint = await this.compileInputBlueprint(
-			this.args['additional-blueprint-steps'] || []
-		);
-		this.phpVersion = compiledBlueprint.versions.php;
-
 		let wpDetails: any = undefined;
 		// @TODO: Rename to FetchProgressMonitor. There's nothing Emscripten
 		// about that class anymore.
@@ -138,10 +131,13 @@ export class BlueprintsV1Handler {
 
 		logger.log(`Booting WordPress...`);
 
+		const runtimeConfiguration = await resolveRuntimeConfiguration(
+			this.getEffectiveBlueprint()
+		);
 		await playground.useFileLockManager(fileLockManagerPort);
 		await playground.bootAsPrimaryWorker({
-			phpVersion: this.phpVersion,
-			wpVersion: compiledBlueprint.versions.wp,
+			phpVersion: runtimeConfiguration.phpVersion,
+			wpVersion: runtimeConfiguration.wpVersion,
 			siteUrl: this.siteUrl,
 			mountsBeforeWpInstall,
 			mountsAfterWpInstall,
@@ -210,33 +206,7 @@ export class BlueprintsV1Handler {
 	}
 
 	async compileInputBlueprint(additionalBlueprintSteps: any[]) {
-		const args = this.args;
-		const resolvedBlueprint = args.blueprint as BlueprintV1Declaration;
-		/**
-		 * @TODO This looks similar to the resolveBlueprint() call in the website package:
-		 * 	     https://github.com/WordPress/wordpress-playground/blob/ce586059e5885d185376184fdd2f52335cca32b0/packages/playground/website/src/main.tsx#L41
-		 *
-		 * 		 Also the Blueprint Builder tool does something similar.
-		 *       Perhaps all these cases could be handled by the same function?
-		 */
-		const blueprint: BlueprintV1Declaration | BlueprintBundle =
-			isBlueprintBundle(resolvedBlueprint)
-				? resolvedBlueprint
-				: {
-						login: args.login,
-						...(resolvedBlueprint || {}),
-						preferredVersions: {
-							php:
-								args.php ??
-								resolvedBlueprint?.preferredVersions?.php ??
-								RecommendedPHPVersion,
-							wp:
-								args.wp ??
-								resolvedBlueprint?.preferredVersions?.wp ??
-								'latest',
-							...(resolvedBlueprint?.preferredVersions || {}),
-						},
-				  };
+		const blueprint = this.getEffectiveBlueprint();
 
 		const tracker = new ProgressTracker();
 		let lastCaption = '';
@@ -262,6 +232,34 @@ export class BlueprintsV1Handler {
 			progress: tracker,
 			additionalSteps: additionalBlueprintSteps,
 		});
+	}
+
+	private getEffectiveBlueprint() {
+		const resolvedBlueprint = this.args.blueprint as BlueprintV1Declaration;
+		/**
+		 * @TODO This looks similar to the resolveBlueprint() call in the website package:
+		 * 	     https://github.com/WordPress/wordpress-playground/blob/ce586059e5885d185376184fdd2f52335cca32b0/packages/playground/website/src/main.tsx#L41
+		 *
+		 * 		 Also the Blueprint Builder tool does something similar.
+		 *       Perhaps all these cases could be handled by the same function?
+		 */
+		return isBlueprintBundle(resolvedBlueprint)
+			? resolvedBlueprint
+			: {
+					login: this.args.login,
+					...(resolvedBlueprint || {}),
+					preferredVersions: {
+						php:
+							this.args.php ??
+							resolvedBlueprint?.preferredVersions?.php ??
+							RecommendedPHPVersion,
+						wp:
+							this.args.wp ??
+							resolvedBlueprint?.preferredVersions?.wp ??
+							'latest',
+						...(resolvedBlueprint?.preferredVersions || {}),
+					},
+			  };
 	}
 
 	writeProgressUpdate(

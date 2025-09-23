@@ -220,6 +220,7 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 				'openssl.cafile': '/internal/shared/ca-bundle.crt',
 			},
 			onPHPInstanceCreated: async (php: PHP) => {
+				this.registerWorkerListeners(php);
 				await mountResources(php, args['mount-before-install'] || []);
 				if (this.blueprintTargetResolved) {
 					await mountResources(php, args.mount || []);
@@ -492,7 +493,7 @@ const [setApiReady, setAPIError] = exposeAPI(
 	phpChannel.port1
 );
 
-parentPort!.postMessage(
+parentPort?.postMessage(
 	{
 		command: 'worker-script-initialized',
 		phpPort: phpChannel.port2,

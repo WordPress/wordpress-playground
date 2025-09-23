@@ -277,7 +277,8 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 						followSymlinks: allow?.includes('follow-symlinks'),
 					});
 				},
-				async onPHPInstanceCreated(php) {
+				onPHPInstanceCreated: async (php) => {
+					this.registerWorkerListeners(php);
 					await mountResources(php, mountsBeforeWpInstall);
 					await mountResources(php, mountsAfterWpInstall);
 				},
@@ -311,7 +312,7 @@ const [setApiReady, setAPIError] = exposeAPI(
 	phpChannel.port1
 );
 
-parentPort!.postMessage(
+parentPort?.postMessage(
 	{
 		command: 'worker-script-initialized',
 		phpPort: phpChannel.port2,

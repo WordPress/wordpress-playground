@@ -11,7 +11,9 @@ export type {
 	Blueprint,
 	BlueprintBundle,
 	BlueprintDeclaration,
+	RuntimeConfiguration,
 } from './lib/types';
+export { BlueprintReflection } from './lib/reflection';
 export {
 	getBlueprintDeclaration,
 	isBlueprintBundle,
@@ -61,6 +63,7 @@ export type { BlueprintMessage } from './lib/v2/run-blueprint-v2';
 
 export { resolveRemoteBlueprint } from './lib/resolve-remote-blueprint';
 export { wpContentFilesExcludedFromExport } from './lib/utils/wp-content-files-excluded-from-exports';
+export { resolveRuntimeConfiguration } from './lib/resolve-runtime-configuration';
 
 /**
  * @deprecated This function is a no-op. Playground no longer uses a proxy to download plugins and themes.
