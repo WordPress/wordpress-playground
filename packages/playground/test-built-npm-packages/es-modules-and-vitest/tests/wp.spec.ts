@@ -107,4 +107,58 @@ describe(`PHP ${phpVersion}`, () => {
 			}
 		}
 	});
+
+	/**
+	 * This broke at one point in the built package. It bundler tried really hard to create an isomorphic
+	 * package, but ended shipping the following code which always returned false:
+	 *
+	 *    var z = {};
+	 *    if (i.object instanceof z.Buffer)
+	 *
+	 * This test confirms the git client still works after bundling.
+	 */
+	it(
+		'Should support git:directory resources',
+		{ timeout: 30000 },
+		async () => {
+			const cli = await runCLI({
+				command: 'server',
+				php: phpVersion,
+				quiet: true,
+				blueprint: {
+					steps: [
+						{
+							step: 'installPlugin',
+							options: {
+								activate: true,
+								targetFolderName: 'blocky-formats',
+							},
+							pluginData: {
+								resource: 'git:directory',
+								url: 'https://github.com/dmsnell/blocky-formats.git',
+								ref: 'HEAD',
+								path: '/',
+							},
+						},
+					],
+				},
+			});
+			try {
+				const response = await cli.playground.request({
+					method: 'GET',
+					url: '/',
+				});
+				assert.equal(response.httpStatusCode, 200);
+				const expectedText = 'My WordPress Website';
+				assert.ok(
+					response.text.includes(expectedText),
+					`Response text does not include '${expectedText}'`
+				);
+			} finally {
+				if (cli) {
+					await cli[Symbol.asyncDispose]();
+				}
+			}
+		}
+	);
 });
