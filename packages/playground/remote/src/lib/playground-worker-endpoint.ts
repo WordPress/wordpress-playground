@@ -171,6 +171,13 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 				CAroot,
 				corsProxyUrl,
 			};
+			phpIniEntries['disable_functions'] = (
+				phpIniEntries['disable_functions'] ?? ''
+			)
+				.split(',')
+				.concat(['curl_share_init'])
+				.filter((n) => n)
+				.join(',');
 		} else {
 			phpIniEntries['allow_url_fopen'] = '0';
 			phpIniEntries['disable_functions'] = (
