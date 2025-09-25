@@ -19,6 +19,7 @@ import { rootCertificates } from 'tls';
 import { jspi } from 'wasm-feature-detect';
 import { MessageChannel, type MessagePort, parentPort } from 'worker_threads';
 import { mountResources } from '../mounts';
+import { logger } from '@php-wasm/logger';
 
 export interface Mount {
 	hostPath: string;
@@ -303,6 +304,10 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 		await this[Symbol.asyncDispose]();
 	}
 }
+
+process.on('unhandledRejection', (e: any) => {
+	logger.error('Unhandled rejection:', e);
+});
 
 const phpChannel = new MessageChannel();
 

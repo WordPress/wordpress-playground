@@ -1,4 +1,4 @@
-import { errorLogPath } from '@php-wasm/logger';
+import { errorLogPath, logger } from '@php-wasm/logger';
 import type { FileLockManager } from '@php-wasm/node';
 import { createNodeFsMountHandler, loadNodeRuntime } from '@php-wasm/node';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
@@ -484,6 +484,10 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 		await this[Symbol.asyncDispose]();
 	}
 }
+
+process.on('unhandledRejection', (e: any) => {
+	logger.error('Unhandled rejection:', e);
+});
 
 const phpChannel = new MessageChannel();
 
