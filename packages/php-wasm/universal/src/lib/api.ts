@@ -343,12 +343,12 @@ function streamToPort(stream: ReadableStream<Uint8Array>): MessagePort {
 					try {
 						port1.postMessage({ t: 'close' });
 					} catch {
-						// Ignore
+						// Ignore error
 					}
 					try {
 						port1.close();
 					} catch {
-						// Ignore
+						// Ignore error
 					}
 					break;
 				}
@@ -376,13 +376,13 @@ function streamToPort(stream: ReadableStream<Uint8Array>): MessagePort {
 			try {
 				port1.postMessage({ t: 'error', m: e?.message || String(e) });
 			} catch {
-				// Ignore
+				// Ignore error
 			}
 		} finally {
 			try {
 				port1.close();
 			} catch {
-				// Ignore
+				// Ignore error
 			}
 		}
 	})();
@@ -415,42 +415,39 @@ function portToStream(port: MessagePort): ReadableStream<Uint8Array> {
 			};
 			const cleanup = () => {
 				try {
-					(port as any).removeEventListener?.(
-						'message',
-						onMessage as any
-					);
+					port.removeEventListener?.('message', onMessage as any);
 				} catch {
-					// Ignore
+					// Ignore error
 				}
 				try {
-					(port as any).onmessage = null;
+					port.onmessage = null;
 				} catch {
-					// Ignore
+					// Ignore error
 				}
 				try {
 					port.close();
 				} catch {
-					// Ignore
+					// Ignore error
 				}
 			};
-			if ((port as any).addEventListener) {
-				(port as any).addEventListener('message', onMessage as any);
+			if (port.addEventListener) {
+				port.addEventListener('message', onMessage as any);
 			} else if ((port as any).on) {
 				(port as any).on('message', (data: any) =>
 					onMessage({ data } as any)
 				);
 			} else {
-				(port as any).onmessage = onMessage as any;
+				port.onmessage = onMessage as any;
 			}
-			if (typeof (port as any).start === 'function') {
-				(port as any).start();
+			if (typeof port.start === 'function') {
+				port.start();
 			}
 		},
 		cancel() {
 			try {
 				port.close();
 			} catch {
-				// Ignore
+				// Ignore error
 			}
 		},
 	});
@@ -471,7 +468,7 @@ function promiseToPort(promise: Promise<any>): MessagePort {
 			try {
 				port1.postMessage({ t: 'resolve', v: value });
 			} catch {
-				// Ignore
+				// Ignore error
 			}
 		})
 		.catch((err) => {
@@ -481,14 +478,14 @@ function promiseToPort(promise: Promise<any>): MessagePort {
 					m: (err as any)?.message || String(err),
 				});
 			} catch {
-				// Ignore
+				// Ignore error
 			}
 		})
 		.finally(() => {
 			try {
 				port1.close();
 			} catch {
-				// Ignore
+				// Ignore error
 			}
 		});
 	return port2;
@@ -513,35 +510,32 @@ function portToPromise(port: MessagePort): Promise<any> {
 		};
 		const cleanup = () => {
 			try {
-				(port as any).removeEventListener?.(
-					'message',
-					onMessage as any
-				);
+				port.removeEventListener?.('message', onMessage as any);
 			} catch {
-				// Ignore
+				// Ignore error
 			}
 			try {
-				(port as any).onmessage = null;
+				port.onmessage = null;
 			} catch {
-				// Ignore
+				// Ignore error
 			}
 			try {
 				port.close();
 			} catch {
-				// Ignore
+				// Ignore error
 			}
 		};
-		if ((port as any).addEventListener) {
-			(port as any).addEventListener('message', onMessage as any);
+		if (port.addEventListener) {
+			port.addEventListener('message', onMessage as any);
 		} else if ((port as any).on) {
 			(port as any).on('message', (data: any) =>
 				onMessage({ data } as any)
 			);
 		} else {
-			(port as any).onmessage = onMessage as any;
+			port.onmessage = onMessage as any;
 		}
-		if (typeof (port as any).start === 'function') {
-			(port as any).start();
+		if (typeof port.start === 'function') {
+			port.start();
 		}
 	});
 }
