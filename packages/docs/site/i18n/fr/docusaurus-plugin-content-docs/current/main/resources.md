@@ -1,5 +1,4 @@
 ---
-<!-- title: Links and Resources -->
 title: Links and Resources
 slug: /resources
 ---
