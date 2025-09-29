@@ -77,7 +77,7 @@ jobs:
                     for origin in $CUSTOM_SUPPORTED_ORIGINS_SPACE_SEPARATED; do
                       if ! [[
                         $origin =~ ^https?:\/\/(?:[a-zA-Z0-9-]+\.)*[a-zA-Z0-9-]+\.[a-zA-Z]{2,}(?::\d{1,5})?$
-                      ]];; then
+                      ]]; then
                         echo "Unable to use CUSTOM_SUPPORTED_ORIGINS_SPACE_SEPARATED"
                         echo "Invalid origin: '$origin'"
                         exit -1;
