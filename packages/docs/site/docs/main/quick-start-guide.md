@@ -1,7 +1,7 @@
 ---
 title: Guide de démarrage rapide
 slug: /quick-start-guide
-description : Un guide de 5 minutes pour débuter avec Playground. Apprenez à tester des extensions, à essayer des thèmes et à utiliser différentes versions WP/PHP.
+description: Un guide de 5 minutes pour débuter avec Playground. Apprenez à tester des extensions, à essayer des thèmes et à utiliser différentes versions WP/PHP.
 ---
 
 import ThisIsQueryApi from '@site/docs/\_fragments/\_this_is_query_api.md';
