@@ -73,7 +73,6 @@ jobs:
                   if [[ -n "${CUSTOM_SUPPORTED_ORIGINS_SPACE_SEPARATED}" ]]; then
                     CUSTOM_ORIGINS_PHP="<?php define('PLAYGROUND_CORS_PROXY_SUPPORTED_ORIGINS', array("
 
-                    $origin_pattern = ''
                     for origin in $CUSTOM_SUPPORTED_ORIGINS_SPACE_SEPARATED; do
                       if ! [[
                         $origin =~ ^https?:\/\/(?:[a-zA-Z0-9-]+\.)*[a-zA-Z0-9-]+\.[a-zA-Z]{2,}(?::\d{1,5})?$
