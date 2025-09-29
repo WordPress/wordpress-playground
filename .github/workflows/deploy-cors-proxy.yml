@@ -75,11 +75,13 @@ jobs:
 
                     readarray -t CUSTOM_ORIGINS <<<"${CUSTOM_SUPPORTED_ORIGINS_NEWLINE_SEPARATED}"
                     for origin in "${CUSTOM_ORIGINS[@]}"; do
+
                       if ! [[
                         $origin =~ ^https?:\/\/(?:[a-zA-Z0-9-]+\.)*[a-zA-Z0-9-]+\.[a-zA-Z]{2,}(?::\d{1,5})?$
                       ]]; then
                         echo "Unable to use CUSTOM_SUPPORTED_ORIGINS_NEWLINE_SEPARATED"
                         echo "Invalid origin: '$origin'"
+                        echo "Full contents: '${CUSTOM_SUPPORTED_ORIGINS_NEWLINE_SEPARATED}'"
                         exit -1;
                       fi
 
