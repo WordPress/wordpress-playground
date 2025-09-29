@@ -10,18 +10,19 @@ jobs:
     build_and_deploy:
         # Only run this workflow from the trunk branch and when it's triggered by a maintainer listed below
         # TODO: Can we check for group membership?
-        if: >
-            github.ref == 'refs/heads/trunk' && (
-                github.event_name == 'workflow_run' ||
-                github.event_name == 'workflow_dispatch' ||
-                github.actor == 'adamziel' ||
-                github.actor == 'dmsnell' ||
-                github.actor == 'bgrgicak' ||
-                github.actor == 'brandonpayton' ||
-                github.actor == 'zaerl' ||
-                github.actor == 'akirk' ||
-                github.actor == 'janjakes'
-            )
+        # TODO: Re-enable this guard before merging.
+        # if: >
+        #     github.ref == 'refs/heads/trunk' && (
+        #         github.event_name == 'workflow_run' ||
+        #         github.event_name == 'workflow_dispatch' ||
+        #         github.actor == 'adamziel' ||
+        #         github.actor == 'dmsnell' ||
+        #         github.actor == 'bgrgicak' ||
+        #         github.actor == 'brandonpayton' ||
+        #         github.actor == 'zaerl' ||
+        #         github.actor == 'akirk' ||
+        #         github.actor == 'janjakes'
+        #     )
 
         # Specify runner + deployment step
         runs-on: ubuntu-latest
