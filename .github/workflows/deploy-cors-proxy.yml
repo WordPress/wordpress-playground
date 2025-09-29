@@ -45,7 +45,7 @@ jobs:
             - name: Deploy to CORS proxy server
               shell: bash
               env:
-                  CUSTOM_SUPPORTED_ORIGINS_SPACE_SEPARATED: ${{ vars.CUSTOM_SUPPORTED_ORIGINS_SPACE_SEPARATED }}
+                  CUSTOM_SUPPORTED_ORIGINS_NEWLINE_SEPARATED: ${{ vars.CUSTOM_SUPPORTED_ORIGINS_NEWLINE_SEPARATED }}
               run: |
                   mkdir -p ~/.ssh
                   echo "${{ secrets.DEPLOY_CORS_PROXY_TARGET_HOST_KEY }}" >> ~/.ssh/known_hosts
@@ -70,10 +70,11 @@ jobs:
                     -tt -C '~/cors-proxy-deployment/apply-update.sh'
 
                   # If configured, support CORS responses for a custom list of origins
-                  if [[ -n "${CUSTOM_SUPPORTED_ORIGINS_SPACE_SEPARATED}" ]]; then
+                  if [[ -n "${CUSTOM_SUPPORTED_ORIGINS_NEWLINE_SEPARATED}" ]]; then
                     CUSTOM_ORIGINS_PHP="<?php define('PLAYGROUND_CORS_PROXY_SUPPORTED_ORIGINS', array("
 
-                    for origin in $CUSTOM_SUPPORTED_ORIGINS_SPACE_SEPARATED; do
+                    readarray -t CUSTOM_ORIGINS <<< "${CUSTOM_SUPPORTED_ORIGINS_NEWLINE_SEPARATED}"
+                    for origin in $CUSTOM_ORIGINS; do
                       if ! [[
                         $origin =~ ^https?:\/\/(?:[a-zA-Z0-9-]+\.)*[a-zA-Z0-9-]+\.[a-zA-Z]{2,}(?::\d{1,5})?$
                       ]]; then
