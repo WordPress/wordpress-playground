@@ -73,7 +73,13 @@ jobs:
                   if [[ -n "${CUSTOM_SUPPORTED_ORIGINS_NEWLINE_SEPARATED}" ]]; then
                     CUSTOM_ORIGINS_PHP="<?php define('PLAYGROUND_CORS_PROXY_SUPPORTED_ORIGINS', array("
 
-                    echo "$CUSTOM_SUPPORTED_ORIGINS_NEWLINE_SEPARATED" | while read -r origin; do
+                    for origin in $CUSTOM_SUPPORTED_ORIGINS_NEWLINE_SEPARATED; do
+                      # Remove leading and trailing whitespace
+                      # NOTE: IIUC, this should already be happening as part of
+                      # string splitting, but it does not appear to be.
+                      origin="${origin##*([[:space:]])}"
+                      origin="${origin%%*([[:space:]])}"
+
                       if ! [[
                         $origin =~ ^https?:\/\/(?:[a-zA-Z0-9-]+\.)*[a-zA-Z0-9-]+\.[a-zA-Z]{2,}(?::\d{1,5})?$
                       ]]; then
