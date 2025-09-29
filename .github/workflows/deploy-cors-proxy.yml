@@ -45,7 +45,7 @@ jobs:
             - name: Deploy to CORS proxy server
               shell: bash
               env:
-                  CUSTOM_SUPPORTED_ORIGINS_NEWLINE_SEPARATED: ${{ vars.CUSTOM_SUPPORTED_ORIGINS_NEWLINE_SEPARATED }}
+                  CUSTOM_SUPPORTED_ORIGINS_SPACE_SEPARATED: ${{ vars.CUSTOM_SUPPORTED_ORIGINS_SPACE_SEPARATED }}
               run: |
                   mkdir -p ~/.ssh
                   echo "${{ secrets.DEPLOY_CORS_PROXY_TARGET_HOST_KEY }}" >> ~/.ssh/known_hosts
@@ -70,22 +70,16 @@ jobs:
                     -tt -C '~/cors-proxy-deployment/apply-update.sh'
 
                   # If configured, support CORS responses for a custom list of origins
-                  if [[ -n "${CUSTOM_SUPPORTED_ORIGINS_NEWLINE_SEPARATED}" ]]; then
+                  if [[ -n "${CUSTOM_SUPPORTED_ORIGINS_SPACE_SEPARATED}" ]]; then
                     CUSTOM_ORIGINS_PHP="<?php define('PLAYGROUND_CORS_PROXY_SUPPORTED_ORIGINS', array("
 
-                    for origin in $CUSTOM_SUPPORTED_ORIGINS_NEWLINE_SEPARATED; do
-                      # Remove leading and trailing whitespace
-                      # NOTE: IIUC, this should already be happening as part of
-                      # string splitting, but it does not appear to be.
-                      origin="${origin##*([[:space:]])}"
-                      origin="${origin%%*([[:space:]])}"
-
+                    for origin in $CUSTOM_SUPPORTED_ORIGINS_SPACE_SEPARATED; do
                       if ! [[
                         $origin =~ ^https?:\/\/(?:[a-zA-Z0-9-]+\.)*[a-zA-Z0-9-]+\.[a-zA-Z]{2,}(?::\d{1,5})?$
                       ]]; then
-                        echo "Unable to use CUSTOM_SUPPORTED_ORIGINS_NEWLINE_SEPARATED"
+                        echo "Unable to use CUSTOM_SUPPORTED_ORIGINS_SPACE_SEPARATED"
                         echo "Invalid origin: '$origin'"
-                        echo "Full contents: '${CUSTOM_SUPPORTED_ORIGINS_NEWLINE_SEPARATED}'"
+                        echo "Full contents: '${CUSTOM_SUPPORTED_ORIGINS_SPACE_SEPARATED}'"
                         exit -1;
                       fi
 
