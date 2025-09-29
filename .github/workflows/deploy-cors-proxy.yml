@@ -44,7 +44,7 @@ jobs:
             - name: Deploy to CORS proxy server
               shell: bash
               env:
-                  CUSTOM_SUPPORTED_ORIGINS_SPACE_SEPARATED: ${{ secrets.CUSTOM_SUPPORTED_ORIGINS_SPACE_SEPARATED }}
+                  CUSTOM_SUPPORTED_ORIGINS_SPACE_SEPARATED: ${{ vars.CUSTOM_SUPPORTED_ORIGINS_SPACE_SEPARATED }}
               run: |
                   mkdir -p ~/.ssh
                   echo "${{ secrets.DEPLOY_CORS_PROXY_TARGET_HOST_KEY }}" >> ~/.ssh/known_hosts
@@ -72,12 +72,11 @@ jobs:
                   if [[ -n "${CUSTOM_SUPPORTED_ORIGINS_SPACE_SEPARATED}" ]]; then
                     CUSTOM_ORIGINS_PHP="<?php define('PLAYGROUND_CORS_PROXY_SUPPORTED_ORIGINS', array("
 
+                    $origin_pattern = ''
                     for origin in $CUSTOM_SUPPORTED_ORIGINS_SPACE_SEPARATED; do
-                      if ! (
-                        [[ $origin =~ ^https?://([a-zA-Z0-9-]+\.)*[a-zA-Z]{2,}$ ]] ||
-                        [[ $origin =~ ^https?://([0-9]{1,3}\.){3}[0-9]{1,3}$ ]] ||
-                        [[ $origin =~ ^https?://^([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$ ]]
-                      ); then
+                      if ! [[
+                        $origin =~ ^https?:\/\/(?:[a-zA-Z0-9-]+\.)*[a-zA-Z0-9-]+\.[a-zA-Z]{2,}(?::\d{1,5})?$
+                      ]];; then
                         echo "Unable to use CUSTOM_SUPPORTED_ORIGINS_SPACE_SEPARATED"
                         echo "Invalid origin: '$origin'"
                         exit -1;
