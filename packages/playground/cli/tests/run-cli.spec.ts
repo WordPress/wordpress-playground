@@ -11,6 +11,7 @@ import { exec } from 'node:child_process';
 import {
 	mkdirSync,
 	readdirSync,
+	readFileSync,
 	writeFileSync,
 	symlinkSync,
 	unlinkSync,
@@ -129,6 +130,129 @@ describe.each(blueprintVersions)(
 			});
 			expect(response.httpStatusCode).toBe(200);
 			expect(response.text).toContain(oldestSupportedVersion);
+		});
+
+		test('should add missing constants to wp-config.php', async () => {
+			const tmpDir = await mkdtemp(
+				path.join(tmpdir(), 'playground-test-')
+			);
+
+			const args: RunCLIArgs = {
+				...suiteCliArgs,
+				command: 'server',
+				'mount-before-install': [
+					{
+						hostPath: tmpDir,
+						vfsPath: '/wordpress',
+					},
+				],
+				mode: 'create-new-site',
+			};
+
+			const newSiteArgs: RunCLIArgs =
+				version === 2
+					? {
+							...args,
+							'experimental-blueprints-v2-runner': true,
+							mode: 'create-new-site',
+					  }
+					: args;
+
+			const existingSiteArgs: RunCLIArgs =
+				version === 2
+					? {
+							...args,
+							'experimental-blueprints-v2-runner': true,
+							mode: 'apply-to-existing-site',
+					  }
+					: {
+							...args,
+							skipWordPressSetup: true,
+					  };
+
+			// Create a new site so we can load it as an existing site later.
+			cliServer = await runCLI(newSiteArgs);
+			const wpConfigPath = path.join(tmpDir, 'wp-config.php');
+			let wpConfig = readFileSync(wpConfigPath, 'utf8');
+			expect(wpConfig).toContain(
+				"define( 'DB_NAME', 'database_name_here' );"
+			);
+			expect(wpConfig).not.toContain(
+				'BEGIN: Added by WordPress Playground.'
+			);
+			expect(wpConfig).not.toContain(
+				'END: Added by WordPress Playground.'
+			);
+
+			// Remove the "DB_NAME" constant.
+			writeFileSync(
+				wpConfigPath,
+				wpConfig.replace("'DB_NAME'", "'UNKNOWN_CONSTANT'")
+			);
+			wpConfig = readFileSync(wpConfigPath, 'utf8');
+			expect(wpConfig).not.toContain(
+				"define( 'DB_NAME', 'database_name_here' );"
+			);
+
+			// Use the existing site and confirm the missing constant is added.
+			cliServer = await runCLI(existingSiteArgs);
+			wpConfig = readFileSync(wpConfigPath, 'utf8');
+			expect(wpConfig).toContain(
+				"define( 'DB_NAME', 'database_name_here' );"
+			);
+			expect(wpConfig).toContain('BEGIN: Added by WordPress Playground.');
+			expect(wpConfig).toContain('END: Added by WordPress Playground.');
+
+			// Ensure the "--wp-config-default-constants" argument works as well.
+			try {
+				cliServer = await runCLI({
+					...existingSiteArgs,
+					wpConfigDefaultConstants: {
+						DB_NAME: 'test_database_name',
+						CUSTOM_CONSTANT: 'test_custom_constant',
+					},
+				});
+				// eslint-disable-next-line @typescript-eslint/no-unused-vars
+			} catch (_) {
+				// The boot will fail due to incorrect database name,
+				// but the wp-config.php file should be updated.
+			}
+
+			wpConfig = readFileSync(wpConfigPath, 'utf8');
+			expect(wpConfig).not.toContain(
+				"define( 'DB_NAME', 'database_name_here' );"
+			);
+			expect(wpConfig).toContain(
+				"define( 'DB_NAME', 'test_database_name' );"
+			);
+			expect(wpConfig).toContain(
+				"define( 'CUSTOM_CONSTANT', 'test_custom_constant' );"
+			);
+			expect(wpConfig).toContain('BEGIN: Added by WordPress Playground.');
+			expect(wpConfig).toContain('END: Added by WordPress Playground.');
+
+			// Ensure the injected constants are removed when no longer needed.
+			writeFileSync(
+				wpConfigPath,
+				wpConfig.replace("'UNKNOWN_CONSTANT'", "'DB_NAME'")
+			);
+			await runCLI(existingSiteArgs);
+			wpConfig = readFileSync(wpConfigPath, 'utf8');
+			expect(wpConfig).toContain(
+				"define( 'DB_NAME', 'database_name_here' );"
+			);
+			expect(wpConfig).not.toContain(
+				"define( 'DB_NAME', 'test_database_name' );"
+			);
+			expect(wpConfig).not.toContain(
+				"define( 'CUSTOM_CONSTANT', 'test_custom_constant' );"
+			);
+			expect(wpConfig).not.toContain(
+				'BEGIN: Added by WordPress Playground.'
+			);
+			expect(wpConfig).not.toContain(
+				'END: Added by WordPress Playground.'
+			);
 		});
 
 		test('should run blueprint', async () => {
