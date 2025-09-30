@@ -205,6 +205,7 @@ export const FilePickerTree = forwardRef<
 		null
 	);
 	const dragExpandTimeoutsRef = useRef<Record<string, number>>({});
+	const rootAutoExpandedRef = useRef(false);
 
 	const containerRef = useRef<HTMLDivElement>(null);
 	const searchBufferTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -544,6 +545,10 @@ export const FilePickerTree = forwardRef<
 	const previousInitialPathRef = useRef(initialSelectedPath);
 
 	useEffect(() => {
+		rootAutoExpandedRef.current = false;
+	}, [normalizedRoot]);
+
+	useEffect(() => {
 		if (
 			initialSelectedPath &&
 			initialSelectedPath !== previousInitialPathRef.current
@@ -613,7 +618,11 @@ export const FilePickerTree = forwardRef<
 		if (rootNode?.type !== 'folder') {
 			return;
 		}
+		if (rootAutoExpandedRef.current) {
+			return;
+		}
 		const rootPath = rootNode.name;
+		rootAutoExpandedRef.current = true;
 		setExpanded((prev) =>
 			prev[rootPath] ? prev : { ...prev, [rootPath]: true }
 		);
@@ -623,7 +632,7 @@ export const FilePickerTree = forwardRef<
 		) {
 			void loadChildrenForPath(rootPath, rootNode);
 		}
-	}, [treeFiles, loadChildrenForPath]);
+	}, [treeFiles, loadChildrenForPath, normalizedRoot]);
 
 	useEffect(() => {
 		return () => {
