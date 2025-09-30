@@ -1,8 +1,8 @@
 import { expect, type Locator, type Page, test } from '@playwright/test';
-import type { AsyncFilesystem } from '@wp-playground/components';
+import type { AsyncWritableFilesystem } from '../../src/FilePickerTree';
 
 type HarnessFilesystem = Pick<
-	AsyncFilesystem,
+	AsyncWritableFilesystem,
 	'readFileAsText' | 'fileExists' | 'isDir'
 >;
 

@@ -11,6 +11,8 @@ import { DEFAULT_WORKSPACE_DIR } from '../../constants';
 
 const MAX_INLINE_BYTES = 1024 * 1024; // 1MB
 
+// @TODO: Examing the difference between this and normalize() and, likely, just migrate
+//        to normalize() and dirname() from @php-wasm/util.
 const normalizeFsPath = (path: string) => {
 	if (!path) {
 		return '/';
