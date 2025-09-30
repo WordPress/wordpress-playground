@@ -4,7 +4,7 @@ import clsx from 'clsx';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import type { ImperativePanelHandle } from 'react-resizable-panels';
 
-import styles from './layout.module.css';
+import styles from './Layout.module.css';
 import terminalStyles from './terminal/Terminal.module.css';
 import { Controls } from './Controls';
 import { EditorHost, type EditorHostHandle } from './EditorHost';
