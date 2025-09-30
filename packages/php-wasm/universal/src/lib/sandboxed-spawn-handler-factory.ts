@@ -1,6 +1,5 @@
 import { createSpawnHandler } from '@php-wasm/util';
 import type { PHPProcessManager } from './php-process-manager';
-import { logger } from '@php-wasm/logger';
 
 /**
  * An isomorphic proc_open() handler that implements typical shell in TypeScript
