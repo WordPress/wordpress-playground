@@ -7,7 +7,7 @@ import {
 import { mkdirSync, rmdirSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
-import { bootWordPress } from '../boot';
+import { bootWordPressAndRequestHandler } from '../boot';
 import { getLoadedWordPressVersion } from '../version-detect';
 
 describe('Test database', () => {
@@ -37,7 +37,7 @@ describe('Test database', () => {
 
 	it("should not start WordPress when SQLite ZIP not specified, the SQLite driver directory doesn't exist and MySQL can't be used", async () => {
 		await expect(async () => {
-			await bootWordPress({
+			await bootWordPressAndRequestHandler({
 				createPhpRuntime: async () =>
 					await loadNodeRuntime(RecommendedPHPVersion),
 				siteUrl: 'http://playground-domain/',
@@ -48,7 +48,7 @@ describe('Test database', () => {
 	});
 
 	it('hould install WordPress when SQL data path specified, even without SQLite ZIP path or SQLite driver directory', async () => {
-		const handler = await bootWordPress({
+		const handler = await bootWordPressAndRequestHandler({
 			createPhpRuntime: async () =>
 				await loadNodeRuntime(RecommendedPHPVersion),
 			siteUrl: 'http://playground-domain/',
@@ -66,7 +66,7 @@ describe('Test database', () => {
 
 	it("should fail when the SQLite driver directory exists, but doesn't contain a valid driver", async () => {
 		await expect(async () => {
-			await bootWordPress({
+			await bootWordPressAndRequestHandler({
 				createPhpRuntime: async () =>
 					await loadNodeRuntime(RecommendedPHPVersion),
 				siteUrl: 'http://playground-domain/',

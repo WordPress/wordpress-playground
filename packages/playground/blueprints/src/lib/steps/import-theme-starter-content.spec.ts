@@ -6,14 +6,14 @@ import {
 } from '@wp-playground/wordpress-builds';
 import { importThemeStarterContent } from './import-theme-starter-content';
 import type { PHPRequestHandler } from '@php-wasm/universal';
-import { bootWordPress } from '@wp-playground/wordpress';
+import { bootWordPressAndRequestHandler } from '@wp-playground/wordpress';
 import { loadNodeRuntime } from '@php-wasm/node';
 
 describe('Blueprint step importThemeStarterContent', () => {
 	let php: PHP;
 	let handler: PHPRequestHandler;
 	beforeEach(async () => {
-		handler = await bootWordPress({
+		handler = await bootWordPressAndRequestHandler({
 			createPhpRuntime: async () =>
 				await loadNodeRuntime(RecommendedPHPVersion),
 			siteUrl: 'http://playground-domain/',

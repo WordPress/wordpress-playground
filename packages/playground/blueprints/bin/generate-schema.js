@@ -8,7 +8,7 @@ import prettier from 'prettier';
 const config = {
 	path: 'packages/playground/blueprints/src/rollup.d.ts',
 	tsconfig: './tsconfig.base.json',
-	type: 'BlueprintDeclaration',
+	type: 'BlueprintV1Declaration',
 	skipTypeCheck: true,
 };
 
@@ -42,7 +42,7 @@ const schema = await exponentialBackoff(() =>
 );
 
 schema.$schema = 'http://json-schema.org/schema';
-schema.definitions.BlueprintDeclaration.properties.$schema = {
+schema.definitions.BlueprintV1Declaration.properties.$schema = {
 	type: 'string',
 };
 

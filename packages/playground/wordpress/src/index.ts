@@ -5,9 +5,11 @@ import { logger } from '@php-wasm/logger';
 
 export {
 	bootWordPress,
+	bootWordPressAndRequestHandler,
 	bootRequestHandler,
 	getFileNotFoundActionForWordPress,
 } from './boot';
+export type { PhpIniOptions, PHPInstanceCreatedHook } from './boot';
 export { defineWpConfigConstants, ensureWpConfig } from './rewrite-wp-config';
 export { getLoadedWordPressVersion } from './version-detect';
 

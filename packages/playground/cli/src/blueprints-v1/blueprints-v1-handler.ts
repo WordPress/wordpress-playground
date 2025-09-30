@@ -2,11 +2,12 @@ import { logger } from '@php-wasm/logger';
 import { EmscriptenDownloadMonitor, ProgressTracker } from '@php-wasm/progress';
 import type { SupportedPHPVersion } from '@php-wasm/universal';
 import { consumeAPI } from '@php-wasm/universal';
-import type {
-	BlueprintBundle,
-	BlueprintDeclaration,
+import type { BlueprintV1Declaration } from '@wp-playground/blueprints';
+import {
+	compileBlueprintV1,
+	isBlueprintBundle,
+	resolveRuntimeConfiguration,
 } from '@wp-playground/blueprints';
-import { compileBlueprint, isBlueprintBundle } from '@wp-playground/blueprints';
 import { RecommendedPHPVersion, zipDirectory } from '@wp-playground/common';
 import fs from 'fs';
 import path from 'path';
@@ -18,10 +19,13 @@ import {
 	readAsFile,
 } from './download';
 import type { PlaygroundCliBlueprintV1Worker } from './worker-thread-v1';
-// @ts-ignore
-import importedWorkerV1UrlString from './worker-thread-v1?worker&url';
 import type { MessagePort as NodeMessagePort } from 'worker_threads';
-import { LogVerbosity, type RunCLIArgs, type SpawnedWorker } from '../run-cli';
+import {
+	LogVerbosity,
+	type RunCLIArgs,
+	type SpawnedWorker,
+	type WorkerType,
+} from '../run-cli';
 
 /**
  * Boots Playground CLI workers using Blueprint version 1.
@@ -49,31 +53,15 @@ export class BlueprintsV1Handler {
 		this.processIdSpaceLength = options.processIdSpaceLength;
 	}
 
-	getWorkerUrl() {
-		if (
-			process.env['VITEST'] &&
-			importedWorkerV1UrlString.startsWith('/src/')
-		) {
-			// Work around issue where Vitest cannot find the worker script.
-			return path.join(
-				import.meta.dirname,
-				'..',
-				'..',
-				importedWorkerV1UrlString
-			);
-		}
-		return importedWorkerV1UrlString;
+	getWorkerType(): WorkerType {
+		return 'v1';
 	}
 
 	async bootPrimaryWorker(
 		phpPort: NodeMessagePort,
-		fileLockManagerPort: NodeMessagePort
+		fileLockManagerPort: NodeMessagePort,
+		nativeInternalDirPath: string
 	) {
-		const compiledBlueprint = await this.compileInputBlueprint(
-			this.args['additional-blueprint-steps'] || []
-		);
-		this.phpVersion = compiledBlueprint.versions.php;
-
 		let wpDetails: any = undefined;
 		// @TODO: Rename to FetchProgressMonitor. There's nothing Emscripten
 		// about that class anymore.
@@ -143,11 +131,14 @@ export class BlueprintsV1Handler {
 
 		logger.log(`Booting WordPress...`);
 
+		const runtimeConfiguration = await resolveRuntimeConfiguration(
+			this.getEffectiveBlueprint()
+		);
 		await playground.useFileLockManager(fileLockManagerPort);
 		await playground.bootAsPrimaryWorker({
-			phpVersion: this.phpVersion,
-			wpVersion: compiledBlueprint.versions.wp,
-			absoluteUrl: this.siteUrl,
+			phpVersion: runtimeConfiguration.phpVersion,
+			wpVersion: runtimeConfiguration.wpVersion,
+			siteUrl: this.siteUrl,
 			mountsBeforeWpInstall,
 			mountsAfterWpInstall,
 			wordPressZip: wordPressZip && (await wordPressZip!.arrayBuffer()),
@@ -159,6 +150,7 @@ export class BlueprintsV1Handler {
 			trace,
 			internalCookieStore: this.args.internalCookieStore,
 			withXdebug: this.args.xdebug,
+			nativeInternalDirPath,
 		});
 
 		if (
@@ -181,10 +173,12 @@ export class BlueprintsV1Handler {
 		worker,
 		fileLockManagerPort,
 		firstProcessId,
+		nativeInternalDirPath,
 	}: {
 		worker: SpawnedWorker;
 		fileLockManagerPort: NodeMessagePort;
 		firstProcessId: number;
+		nativeInternalDirPath: string;
 	}) {
 		const additionalPlayground = consumeAPI<PlaygroundCliBlueprintV1Worker>(
 			worker.phpPort
@@ -193,17 +187,10 @@ export class BlueprintsV1Handler {
 		await additionalPlayground.isConnected();
 		await additionalPlayground.useFileLockManager(fileLockManagerPort);
 		await additionalPlayground.bootAsSecondaryWorker({
-			phpVersion: this.phpVersion,
-			absoluteUrl: this.siteUrl,
+			phpVersion: this.phpVersion!,
+			siteUrl: this.siteUrl,
 			mountsBeforeWpInstall: this.args['mount-before-install'] || [],
 			mountsAfterWpInstall: this.args['mount'] || [],
-			// Skip WordPress zip because we share the /wordpress directory
-			// populated by the initial worker.
-			wordPressZip: undefined,
-			// Skip SQLite integration plugin for now because we
-			// will copy it from primary's `/internal` directory.
-			sqliteIntegrationPluginZip: undefined,
-			dataSqlPath: '/wordpress/wp-content/database/.ht.sqlite',
 			firstProcessId,
 			processIdSpaceLength: this.processIdSpaceLength,
 			followSymlinks: this.args.followSymlinks === true,
@@ -212,39 +199,14 @@ export class BlueprintsV1Handler {
 			//        will have a separate cookie store.
 			internalCookieStore: this.args.internalCookieStore,
 			withXdebug: this.args.xdebug,
+			nativeInternalDirPath,
 		});
 		await additionalPlayground.isReady();
 		return additionalPlayground;
 	}
 
 	async compileInputBlueprint(additionalBlueprintSteps: any[]) {
-		const args = this.args;
-		const resolvedBlueprint = args.blueprint as BlueprintDeclaration;
-		/**
-		 * @TODO This looks similar to the resolveBlueprint() call in the website package:
-		 * 	     https://github.com/WordPress/wordpress-playground/blob/ce586059e5885d185376184fdd2f52335cca32b0/packages/playground/website/src/main.tsx#L41
-		 *
-		 * 		 Also the Blueprint Builder tool does something similar.
-		 *       Perhaps all these cases could be handled by the same function?
-		 */
-		const blueprint: BlueprintDeclaration | BlueprintBundle =
-			isBlueprintBundle(resolvedBlueprint)
-				? resolvedBlueprint
-				: {
-						login: args.login,
-						...(resolvedBlueprint || {}),
-						preferredVersions: {
-							php:
-								args.php ??
-								resolvedBlueprint?.preferredVersions?.php ??
-								RecommendedPHPVersion,
-							wp:
-								args.wp ??
-								resolvedBlueprint?.preferredVersions?.wp ??
-								'latest',
-							...(resolvedBlueprint?.preferredVersions || {}),
-						},
-				  };
+		const blueprint = this.getEffectiveBlueprint();
 
 		const tracker = new ProgressTracker();
 		let lastCaption = '';
@@ -266,10 +228,38 @@ export class BlueprintsV1Handler {
 				progressReached100
 			);
 		});
-		return await compileBlueprint(blueprint as BlueprintDeclaration, {
+		return await compileBlueprintV1(blueprint as BlueprintV1Declaration, {
 			progress: tracker,
 			additionalSteps: additionalBlueprintSteps,
 		});
+	}
+
+	private getEffectiveBlueprint() {
+		const resolvedBlueprint = this.args.blueprint as BlueprintV1Declaration;
+		/**
+		 * @TODO This looks similar to the resolveBlueprint() call in the website package:
+		 * 	     https://github.com/WordPress/wordpress-playground/blob/ce586059e5885d185376184fdd2f52335cca32b0/packages/playground/website/src/main.tsx#L41
+		 *
+		 * 		 Also the Blueprint Builder tool does something similar.
+		 *       Perhaps all these cases could be handled by the same function?
+		 */
+		return isBlueprintBundle(resolvedBlueprint)
+			? resolvedBlueprint
+			: {
+					login: this.args.login,
+					...(resolvedBlueprint || {}),
+					preferredVersions: {
+						php:
+							this.args.php ??
+							resolvedBlueprint?.preferredVersions?.php ??
+							RecommendedPHPVersion,
+						wp:
+							this.args.wp ??
+							resolvedBlueprint?.preferredVersions?.wp ??
+							'latest',
+						...(resolvedBlueprint?.preferredVersions || {}),
+					},
+			  };
 	}
 
 	writeProgressUpdate(

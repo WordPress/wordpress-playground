@@ -22,7 +22,7 @@ import {
 	useAppDispatch,
 	useAppSelector,
 } from '../../../lib/state/redux/store';
-import type { SiteLogo } from '../../../lib/site-metadata';
+import type { SiteLogo } from '../../../lib/state/redux/slice-sites';
 import {
 	selectSortedSites,
 	selectTemporarySite,

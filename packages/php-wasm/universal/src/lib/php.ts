@@ -71,7 +71,10 @@ export class PHP implements Disposable {
 	#sapiName?: string;
 	#phpWasmInitCalled = false;
 	#wasmErrorsTarget: UnhandledRejectionsTarget | null = null;
-	#eventListeners: Map<string, Set<PHPEventListener>> = new Map();
+	#eventListeners: Map<string, Set<PHPEventListener>> = new Map([
+		// Listen to all events
+		['*', new Set()],
+	]);
 	#messageListeners: MessageListener[] = [];
 	#mounts: Record<string, MountObject> = {};
 	#rotationOptions: {
@@ -127,7 +130,10 @@ export class PHP implements Disposable {
 	 * @param eventType - The type of event to listen for.
 	 * @param listener - The listener function to be called when the event is triggered.
 	 */
-	addEventListener(eventType: PHPEvent['type'], listener: PHPEventListener) {
+	addEventListener(
+		eventType: PHPEvent['type'] | '*',
+		listener: PHPEventListener
+	) {
 		if (!this.#eventListeners.has(eventType)) {
 			this.#eventListeners.set(eventType, new Set());
 		}
@@ -140,14 +146,17 @@ export class PHP implements Disposable {
 	 * @param listener - The listener function to be removed.
 	 */
 	removeEventListener(
-		eventType: PHPEvent['type'],
+		eventType: PHPEvent['type'] | '*',
 		listener: PHPEventListener
 	) {
 		this.#eventListeners.get(eventType)?.delete(listener);
 	}
 
 	dispatchEvent<Event extends PHPEvent>(event: Event) {
-		const listeners = this.#eventListeners.get(event.type);
+		const listeners = [
+			...(this.#eventListeners.get(event.type) || []),
+			...(this.#eventListeners.get('*') || []),
+		];
 		if (!listeners) {
 			return;
 		}
@@ -1318,8 +1327,7 @@ export class PHP implements Disposable {
 			);
 		}
 		await this.hotSwapPHPRuntime(
-			await this.#rotationOptions.recreateRuntime(),
-			this.#rotationOptions.cwd
+			await this.#rotationOptions.recreateRuntime()
 		);
 		this.#rotationOptions.requestsMade = 0;
 		this.#rotationOptions.needsRotating = false;
@@ -1330,12 +1338,8 @@ export class PHP implements Disposable {
 	 * interrupting the operations of this PHP instance.
 	 *
 	 * @param runtime
-	 * @param cwd. Internal, the VFS path to recreate in the new runtime.
-	 *             This arg is temporary and will be removed once BasePHP
-	 *             is fully decoupled from the request handler and
-	 *             accepts a constructor-level cwd argument.
 	 */
-	async hotSwapPHPRuntime(runtime: number, cwd?: string) {
+	async hotSwapPHPRuntime(runtime: number) {
 		// Once we secure the lock and have the new runtime ready,
 		// the rest of the swap handler is synchronous to make sure
 		// no other operations acts on the old runtime or FS.
@@ -1345,6 +1349,7 @@ export class PHP implements Disposable {
 		// runtime.
 
 		const oldFS = this[__private__dont__use].FS;
+		const oldRootLevelPaths = this.listFiles('/').map((file) => `/${file}`);
 		const oldSpawnProcess = this[__private__dont__use].spawnProcess;
 
 		// Unmount all the mount handlers
@@ -1373,12 +1378,21 @@ export class PHP implements Disposable {
 			this.setSapiName(this.#sapiName);
 		}
 
-		// Copy the old /internal directory to the new filesystem
-		copyFS(oldFS, this[__private__dont__use].FS, '/internal');
-
-		// Copy the MEMFS directory structure from the old FS to the new one
-		if (cwd) {
-			copyFS(oldFS, this[__private__dont__use].FS, cwd);
+		/**
+		 * Ensure the new PHP instance has the same file structure as the old one.
+		 *
+		 * Catch: The underlying filesystems may be completely separate but they may be
+		 * partially shared via NODEFS or PROXYFS mounts. We need to be careful and only
+		 * recreate the MEMFS directories that aren't already shared – otherwise we'll
+		 * write data to shared paths that other, concurrent workers may be using.
+		 */
+		const newFs = this[__private__dont__use].FS;
+		for (const path of oldRootLevelPaths) {
+			// The /request directory holds per-request state that is isolated to a
+			// single PHP instance. Let's not copy it.
+			if (path && path !== '/request') {
+				copyMEMFSNodes(oldFS, newFs, path);
+			}
 		}
 
 		// Re-mount all the mount handlers
@@ -1519,38 +1533,19 @@ export function normalizeHeaders(
  * Copies the MEMFS directory structure from one FS in another FS.
  * Non-MEMFS nodes are ignored.
  */
-function copyFS(
+function copyMEMFSNodes(
 	source: Emscripten.FileSystemInstance,
 	target: Emscripten.FileSystemInstance,
 	path: string
 ) {
-	let oldNode;
-	try {
-		oldNode = source.lookupPath(path);
-	} catch {
-		return;
-	}
-	// MEMFS nodes have a `contents` property. NODEFS nodes don't.
-	// We only want to copy MEMFS nodes here.
-	if (!('contents' in oldNode.node)) {
+	if (
+		getNodeType(source, path) !== 'memfs' ||
+		!['memfs', 'missing'].includes(getNodeType(target, path))
+	) {
 		return;
 	}
 
-	// Let's be extra careful and only proceed if newFs doesn't
-	// already have a node at the given path.
-	try {
-		// @TODO: Figure out the right thing to do. In Parent -> child PHP case,
-		//        we indeed want to synchronize the entire filesystem. However,
-		//        this approach seems slow and inefficient. Instead of exhaustively
-		//        iterating, could we just mark directories as dirty on write? And
-		//        how do we sync in both directions?
-		// target = target.lookupPath(path);
-		// return;
-	} catch {
-		// There's no such node in the new FS. Good,
-		// we may proceed.
-	}
-
+	const oldNode = source.lookupPath(path);
 	if (!source.isDir(oldNode.node.mode)) {
 		target.writeFile(path, source.readFile(path));
 		return;
@@ -1561,7 +1556,7 @@ function copyFS(
 		.readdir(path)
 		.filter((name: string) => name !== '.' && name !== '..');
 	for (const filename of filenames) {
-		copyFS(source, target, joinPaths(path, filename));
+		copyMEMFSNodes(source, target, joinPaths(path, filename));
 	}
 }
 async function createInvertedReadableStream<T = BufferSource>(
@@ -1595,3 +1590,17 @@ async function createInvertedReadableStream<T = BufferSource>(
 		controller,
 	};
 }
+
+const getNodeType = (fs: Emscripten.FileSystemInstance, path: string) => {
+	try {
+		const target = fs.lookupPath(path, { follow: true });
+		return 'contents' in target.node
+			? 'memfs'
+			: /**
+			   * Could be NODEFS, PROXYFS, etc.
+			   */
+			  'not-memfs';
+	} catch {
+		return 'missing';
+	}
+};

@@ -15,15 +15,17 @@ import { GitPackIndex } from 'isomorphic-git/src/models/GitPackIndex.js';
 import { collect } from 'isomorphic-git/src/internal-apis.js';
 import { parseUploadPackResponse } from 'isomorphic-git/src/wire/parseUploadPackResponse.js';
 import { ObjectTypeError } from 'isomorphic-git/src/errors/ObjectTypeError.js';
-import { Buffer } from 'buffer';
+import { Buffer as BufferPolyfill } from 'buffer';
 
 /**
- * A polyfill for the Buffer class. We need it because isomorphic-git uses it internally.
- * The isomorphic-git version released via npm shipes a Buffer implementation, but we're
- * using a version cloned from the git repository which assumes a global Buffer is available.
+ * Polyfills the Buffer class in the browser.
+ *
+ * We need it because isomorphic-git uses Buffer internally. The isomorphic-git version
+ * released via npm shipes a Buffer implementation, but we're using a version cloned from
+ * the git repository which assumes a global Buffer is available.
  */
-if (typeof window !== 'undefined') {
-	window.Buffer = Buffer;
+if (typeof globalThis.Buffer === 'undefined') {
+	globalThis.Buffer = BufferPolyfill;
 }
 
 /**

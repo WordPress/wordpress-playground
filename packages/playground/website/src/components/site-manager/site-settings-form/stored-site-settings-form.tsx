@@ -33,15 +33,8 @@ export function StoredSiteSettingsForm({
 				changes: {
 					runtimeConfiguration: {
 						...siteInfo.metadata.runtimeConfiguration,
-						features: {
-							...siteInfo.metadata.runtimeConfiguration.features,
-							networking: data.withNetworking,
-						},
-						preferredVersions: {
-							...siteInfo.metadata.runtimeConfiguration
-								.preferredVersions,
-							php: data.phpVersion,
-						},
+						phpVersion: data.phpVersion,
+						networking: data.withNetworking,
 					},
 				},
 			})
@@ -54,10 +47,9 @@ export function StoredSiteSettingsForm({
 		() => ({
 			name: siteInfo.metadata.name,
 			// @TODO: Handle an unsupported PHP version coming up here
-			phpVersion: siteInfo.metadata.runtimeConfiguration.preferredVersions
-				.php as any,
-			withNetworking:
-				!!siteInfo.metadata.runtimeConfiguration.features.networking,
+			phpVersion: siteInfo.metadata.runtimeConfiguration
+				.phpVersion as any,
+			withNetworking: !!siteInfo.metadata.runtimeConfiguration.networking,
 		}),
 		[siteInfo]
 	);

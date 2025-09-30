@@ -15,7 +15,7 @@ import {
 	updateSiteMetadata,
 } from './slice-sites';
 import { PlaygroundRoute, redirectTo } from '../url/router';
-import type { SiteStorageType } from '../../site-metadata';
+import type { SiteStorageType } from './slice-sites';
 
 export function persistTemporarySite(
 	siteSlug: string,
