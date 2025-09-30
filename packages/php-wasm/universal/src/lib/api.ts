@@ -374,7 +374,13 @@ function streamToPort(stream: ReadableStream<Uint8Array>): MessagePort {
 			}
 		} catch (e: any) {
 			try {
-				port1.postMessage({ t: 'error', m: e?.message || String(e) });
+				const serialized = serializeForPort(e);
+				port1.postMessage({
+					t: 'error',
+					e: serialized,
+					// Legacy field for backwards compatibility
+					m: (e as any)?.message || JSON.stringify(e),
+				});
 			} catch {
 				// Ignore error
 			}
@@ -407,10 +413,43 @@ function portToStream(port: MessagePort): ReadableStream<Uint8Array> {
 						controller.close();
 						cleanup();
 						break;
-					case 'error':
-						controller.error(new Error(data.m || 'Stream error'));
+					case 'error': {
+						if (data.e) {
+							let errorValue: unknown;
+							try {
+								errorValue = deserializeForPort(
+									data.e,
+									'MessagePort bridged stream error'
+								);
+							} catch (deserializationError: any) {
+								// Fallback: if deserialization fails, surface a generic error
+								errorValue = new Error(
+									deserializationError?.message ||
+										'Stream error'
+								);
+							}
+							controller.error(errorValue as any);
+							cleanup();
+							break;
+						}
+						// Legacy fallback using stringified message
+						let error = '';
+						try {
+							error = JSON.parse(data.m);
+						} catch {
+							// Ignore error
+						}
+						if (!error) {
+							error = data.m;
+						}
+						if (typeof error === 'string') {
+							controller.error(new Error(error));
+						} else {
+							controller.error(error);
+						}
 						cleanup();
 						break;
+					}
 				}
 			};
 			const cleanup = () => {
@@ -473,9 +512,12 @@ function promiseToPort(promise: Promise<any>): MessagePort {
 		})
 		.catch((err) => {
 			try {
+				const serialized = serializeForPort(err);
 				port1.postMessage({
 					t: 'reject',
-					m: (err as any)?.message || String(err),
+					e: serialized,
+					// Legacy field for backwards compatibility
+					m: (err as any)?.message || JSON.stringify(err),
 				});
 			} catch {
 				// Ignore error
@@ -505,7 +547,35 @@ function portToPromise(port: MessagePort): Promise<any> {
 				resolve(data.v);
 			} else if (data.t === 'reject') {
 				cleanup();
-				reject(new Error(data.m || ''));
+				if (data.e) {
+					try {
+						const errorValue = deserializeForPort(
+							data.e,
+							'MessagePort bridged promise rejected'
+						);
+						reject(errorValue as any);
+					} catch (deserializationError: any) {
+						reject(
+							new Error(
+								deserializationError?.message ||
+									'Promise rejected'
+							)
+						);
+					}
+					return;
+				}
+				// Legacy fallback using stringified message
+				let error = '';
+				try {
+					error = JSON.parse(data.m);
+				} catch {
+					// Ignore error
+				}
+				if (typeof error === 'string') {
+					reject(new Error(error));
+				} else {
+					reject(error);
+				}
 			}
 		};
 		const cleanup = () => {
@@ -598,6 +668,42 @@ const throwTransferHandlerCustom: Comlink.TransferHandler<
 };
 
 Comlink.transferHandlers.set('throw', throwTransferHandlerCustom);
+
+// Utilities to serialize/deserialize thrown values over MessagePorts
+function serializeForPort(value: unknown): SerializedError {
+	let serialized: SerializedError;
+	if (value instanceof Error) {
+		serialized = {
+			isError: true,
+			value: ErrorSerializer.serializeError(value),
+		};
+		// Preserve the original error class name
+		(serialized.value as any)['originalErrorClassName'] = (
+			value as Error
+		).constructor.name;
+	} else {
+		serialized = { isError: false, value };
+	}
+	return serialized;
+}
+
+function deserializeForPort(
+	serialized: SerializedError,
+	additionalMessage: string
+): unknown {
+	if (serialized.isError) {
+		const error = ErrorSerializer.deserializeError(serialized.value);
+		// Chain host call stack at the bottom of the error chain
+		const additionalCallStack = new Error(additionalMessage);
+		let deepestError: any = error as any;
+		while (deepestError.cause) {
+			deepestError = deepestError.cause;
+		}
+		deepestError.cause = additionalCallStack;
+		return error;
+	}
+	return serialized.value;
+}
 
 function proxyClone(object: any): any {
 	return new Proxy(object, {
