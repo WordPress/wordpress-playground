@@ -33,7 +33,7 @@ There's a set of redirections in place to make it easier the access to some of t
 -   [@wp-playground/cli](https://www.npmjs.com/package/@wp-playground/cli) – a CLI tool for instant WordPress dev enviroment
 -   [WordPress Playground for VS Code](https://marketplace.visualstudio.com/items?itemName=WordPressPlayground.wordpress-playground)
 -   Live Translations: [App](https://translate.wordpress.org/projects/wp-plugins/friends/dev/pl/default/playground/), [announcement](https://make.wordpress.org/polyglots/2023/04/19/wp-translation-playground/), [more details](https://make.wordpress.org/polyglots/2023/05/08/translate-live-updates-to-the-translation-playground/)
--   [Interactive code block](https://wordpress.org/plugins/interactive-code-block/) which powers the [HTML Tag Processor tutorial](https://adamadam.blog/2023/02/16/how-to-modify-html-in-a-php-wordpress-plugin-using-the-new-tag-processor-api/) and the [Playground JS API tutorial](https://adamadam.blog/2023/04/12/interactive-intro-to-wordpress-playground-public-api/)
+-   [Interactive code block](https://wordpress.org/plugins/interactive-code-block/) which powers the [HTML Tag Processor tutorial](https://adamadam.blog/2023/02/16/how-to-modify-html-in-a-php-wordpress-plugin-using-the-new-tag-processor-api/) and the [Playground JS API tutorial](https://wordpress.github.io/wordpress-playground/developers/apis/javascript-api/)
 -   [Gutenberg Pull Request previewer](https://playground.wordpress.net/gutenberg.html)
 -   [Notifications plugin live demo](https://johnhooks.io/playground-experiment/)
 -   [GraphQL REPL](https://www.wpgraphql.com/2023/06/15/announcing-the-wpgraphql-repl)

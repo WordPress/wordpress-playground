@@ -4,6 +4,28 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
+## [v3.0.6] (2025-09-29) 
+
+### Documentation
+
+- [i18n] Add French translation for resources.md. ([#2680](https://github.com/WordPress/wordpress-playground/pull/2680))
+
+### Website
+
+- [Client] Enable calling playground.runStream() and .cli() from the client. ([#2688](https://github.com/WordPress/wordpress-playground/pull/2688))
+
+### Various
+
+- Update Playground JS API tutorial Link. ([#2685](https://github.com/WordPress/wordpress-playground/pull/2685))
+- [i18n] Add Japanese translations to Playground CLI. ([#2683](https://github.com/WordPress/wordpress-playground/pull/2683))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @beryl-dlg @jdahir0789 @shimotmk
+
+
 ## [v3.0.5] (2025-09-25) 
 
 ### Bug Fixes
