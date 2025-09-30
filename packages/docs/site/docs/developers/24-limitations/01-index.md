@@ -30,6 +30,19 @@ As Playground [streams rather than serves](/about#streamed-not-served) WordPress
 </figure>
 </blockquote>
 
+### Browser support
+
+WordPress Playground is designed to work across all major desktop and mobile browsers. This includes:
+
+- **Desktop browsers**: Chrome, Firefox, Safari, Edge, and other Chromium-based browsers
+- **Mobile browsers**: Safari (iOS), Chrome (Android), and other mobile browser variants
+
+Playground leverages modern web technologies and should function consistently across these browser environments. However, some advanced features may have varying levels of support depending on the specific browser and its version.
+
+<blockquote>
+<strong>Note:</strong> Opera Mini support is not currently confirmed.
+</blockquote>
+
 ## When developing with Playground
 
 ### Iframe quirks
