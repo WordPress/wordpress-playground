@@ -59,6 +59,8 @@ export class PHPWorker implements LimitedPHPApi, AsyncDisposable {
 	/** @inheritDoc @php-wasm/universal!RequestHandler.documentRoot  */
 	documentRoot = '';
 
+	private chroot: string | null = null;
+
 	#eventListeners: Map<string, Set<PHPWorkerEventListener>> = new Map();
 
 	onMessageListeners: MessageListener[] = [];
@@ -101,6 +103,7 @@ export class PHPWorker implements LimitedPHPApi, AsyncDisposable {
 	public __internal_setRequestHandler(requestHandler: PHPRequestHandler) {
 		this.absoluteUrl = requestHandler.absoluteUrl;
 		this.documentRoot = requestHandler.documentRoot;
+		this.chroot = this.documentRoot;
 		_private.set(this, {
 			..._private.get(this),
 			requestHandler,
@@ -177,9 +180,7 @@ export class PHPWorker implements LimitedPHPApi, AsyncDisposable {
 
 	/** @inheritDoc @php-wasm/universal!/PHP.run */
 	async run(request: PHPRunOptions): Promise<PHPResponse> {
-		const { php, reap } = await _private
-			.get(this)!
-			.requestHandler!.processManager.acquirePHPInstance();
+		const { php, reap } = await this.acquirePHPInstance();
 		try {
 			return await php.run(request);
 		} finally {
@@ -192,9 +193,7 @@ export class PHPWorker implements LimitedPHPApi, AsyncDisposable {
 		argv: string[],
 		options?: { env?: Record<string, string> }
 	): Promise<StreamedPHPResponse> {
-		const { php, reap } = await _private
-			.get(this)!
-			.requestHandler!.processManager.acquirePHPInstance();
+		const { php, reap } = await this.acquirePHPInstance();
 		try {
 			return await php.cli(argv, options);
 		} finally {
@@ -204,7 +203,27 @@ export class PHPWorker implements LimitedPHPApi, AsyncDisposable {
 
 	/** @inheritDoc @php-wasm/universal!/PHP.chdir */
 	chdir(path: string): void {
+		// Remember the new chroot for all PHP instances yet to be acquired.
+		this.chroot = path;
 		return _private.get(this)!.php!.chdir(path);
+	}
+
+	/** @inheritDoc @php-wasm/universal!/PHP.chdir */
+	cwd(): string {
+		return _private.get(this)!.php!.cwd();
+	}
+
+	/**
+	 * @returns A PHP instance with a consistent chroot.
+	 */
+	private async acquirePHPInstance() {
+		const { php, reap } = await _private
+			.get(this)!
+			.requestHandler!.processManager.acquirePHPInstance();
+		if (this.chroot !== null) {
+			php.chdir(this.chroot);
+		}
+		return { php, reap };
 	}
 
 	/** @inheritDoc @php-wasm/universal!/PHP.setSapiName */
