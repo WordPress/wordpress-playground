@@ -9,10 +9,10 @@ export {
 	normalizePath,
 	isParentOf,
 } from './paths';
-export { splitShellCommand } from './split-shell-command';
 export { createSpawnHandler } from './create-spawn-handler';
 export { randomString } from './random-string';
 export { randomFilename } from './random-filename';
+export { splitShellCommand } from './split-shell-command';
 export { WritablePolyfill, type WritableOptions } from './writable-polyfill';
 export { EventEmitterPolyfill } from './event-emitter-polyfill';
 export * from './php-vars';

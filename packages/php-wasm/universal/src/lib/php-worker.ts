@@ -58,6 +58,7 @@ export class PHPWorker implements LimitedPHPApi, AsyncDisposable {
 	absoluteUrl = '';
 	/** @inheritDoc @php-wasm/universal!RequestHandler.documentRoot  */
 	documentRoot = '';
+
 	private chroot: string | null = null;
 
 	#eventListeners: Map<string, Set<PHPWorkerEventListener>> = new Map();
@@ -102,6 +103,7 @@ export class PHPWorker implements LimitedPHPApi, AsyncDisposable {
 	public __internal_setRequestHandler(requestHandler: PHPRequestHandler) {
 		this.absoluteUrl = requestHandler.absoluteUrl;
 		this.documentRoot = requestHandler.documentRoot;
+		this.chroot = this.documentRoot;
 		_private.set(this, {
 			..._private.get(this),
 			requestHandler,
@@ -192,23 +194,11 @@ export class PHPWorker implements LimitedPHPApi, AsyncDisposable {
 		options?: { env?: Record<string, string> }
 	): Promise<StreamedPHPResponse> {
 		const { php, reap } = await this.acquirePHPInstance();
-		let response: StreamedPHPResponse;
 		try {
-			response = await php.cli(argv, options);
-		} catch (error) {
+			return await php.cli(argv, options);
+		} finally {
 			reap();
-			throw error;
 		}
-		/**
-		 * Register the reap() callback to run asynchronously once
-		 * the response is finished.
-		 *
-		 * We don't await for response.finished here. It is a
-		 * `StreamedPHPResponse` instance and the caller may want
-		 * to start processing the streamed data immediately.
-		 */
-		response.finished.finally(reap);
-		return response;
 	}
 
 	/** @inheritDoc @php-wasm/universal!/PHP.chdir */
@@ -223,6 +213,9 @@ export class PHPWorker implements LimitedPHPApi, AsyncDisposable {
 		return _private.get(this)!.php!.cwd();
 	}
 
+	/**
+	 * @returns A PHP instance with a consistent chroot.
+	 */
 	private async acquirePHPInstance() {
 		const { php, reap } = await _private
 			.get(this)!
@@ -261,11 +254,6 @@ export class PHPWorker implements LimitedPHPApi, AsyncDisposable {
 	/** @inheritDoc @php-wasm/universal!/PHP.writeFile */
 	writeFile(path: string, data: string | Uint8Array): void {
 		return _private.get(this)!.php!.writeFile(path, data);
-	}
-
-	/** @inheritDoc @php-wasm/universal!/PHP.symlink */
-	symlink(target: string, path: string): void {
-		_private.get(this)!.php!.symlink(target, path);
 	}
 
 	/** @inheritDoc @php-wasm/universal!/PHP.unlink */

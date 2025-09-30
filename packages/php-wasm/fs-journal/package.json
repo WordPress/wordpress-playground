@@ -1,6 +1,6 @@
 {
 	"name": "@php-wasm/fs-journal",
-	"version": "3.0.5",
+	"version": "3.0.6",
 	"description": "Bindings to journal the PHP filesystem",
 	"repository": {
 		"type": "git",

@@ -40,13 +40,11 @@ export function sandboxedSpawnHandlerFactory(
 			// @TODO: Do not hardcode this
 			processApi.stdout(`18 140`);
 			processApi.exit(0);
-			return;
 		} else if (binaryName === 'tput' && args[1] === 'cols') {
 			processApi.stdout(`140`);
 			processApi.exit(0);
-			return;
 		} else if (binaryName === 'less') {
-			processApi.on('stdin', (data: Uint8Array) => {
+			processApi.on('stdin', (data) => {
 				processApi.stdout(data);
 			});
 			// Exit after the stdin stream is exhausted.
@@ -59,61 +57,74 @@ export function sandboxedSpawnHandlerFactory(
 			return;
 		}
 
-		// Binaries requiring PHP to be running.
+		if (!['php', 'ls', 'pwd'].includes(binaryName ?? '')) {
+			// 127 is the exit code "for command not found".
+			processApi.exit(127);
+			return;
+		}
+
 		const { php, reap } = await processManager.acquirePHPInstance({
 			considerPrimary: false,
 		});
 
 		try {
-			if ('cwd' in options) {
-				php.chdir((options.cwd as string) ?? '/');
+			if (options.cwd) {
+				php.chdir(options.cwd as string);
 			}
 
 			const cwd = php.cwd();
-
-			if (binaryName === 'php') {
-				// Figure out more about setting env, putenv(), etc.
-				const result = await php.cli(args, {
-					env: {
-						...options.env,
-						SCRIPT_PATH: args[1],
-						// Set SHELL_PIPE to 0 to ensure WP-CLI formats
-						// the output as ASCII tables.
-						// @see https://github.com/wp-cli/wp-cli/issues/1102
-						SHELL_PIPE: '0',
-					},
-					cwd,
-				});
-
-				result.stdout.pipeTo(
-					new WritableStream({
-						write(chunk) {
-							processApi.stdout(chunk);
+			switch (binaryName) {
+				case 'php': {
+					// Figure out more about setting env, putenv(), etc.
+					const result = await php.cli(args, {
+						env: {
+							...options.env,
+							SCRIPT_PATH: args[1],
+							// Set SHELL_PIPE to 0 to ensure WP-CLI formats
+							// the output as ASCII tables.
+							// @see https://github.com/wp-cli/wp-cli/issues/1102
+							SHELL_PIPE: '0',
 						},
-					})
-				);
-				result.stderr.pipeTo(
-					new WritableStream({
-						write(chunk) {
-							processApi.stderr(chunk);
-						},
-					})
-				);
-				processApi.exit(await result.exitCode);
-			} else if (binaryName === 'ls') {
-				const files = php.listFiles(args[1] ?? cwd);
-				files.forEach((file) => {
-					processApi.stdout(file + '\n');
-				});
-				await new Promise((resolve) => setTimeout(resolve, 10));
-				processApi.exit(0);
-			} else if (binaryName === 'pwd') {
-				processApi.stdout(cwd + '\n');
-				await new Promise((resolve) => setTimeout(resolve, 10));
-				processApi.exit(0);
-			} else {
-				// 127 is the exit code for command not found.
-				processApi.exit(127);
+					});
+
+					result.stdout.pipeTo(
+						new WritableStream({
+							write(chunk) {
+								processApi.stdout(chunk as any as ArrayBuffer);
+							},
+						})
+					);
+					result.stderr.pipeTo(
+						new WritableStream({
+							write(chunk) {
+								processApi.stderr(chunk as any as ArrayBuffer);
+							},
+						})
+					);
+					processApi.exit(await result.exitCode);
+					break;
+				}
+				case 'ls': {
+					const files = php.listFiles(args[1] ?? cwd);
+					for (const file of files) {
+						processApi.stdout(file + '\n');
+					}
+					// Technical limitation of subprocesses – we need to
+					// wait before exiting to give consumer a chance to read
+					// the output.
+					await new Promise((resolve) => setTimeout(resolve, 10));
+					processApi.exit(0);
+					break;
+				}
+				case 'pwd': {
+					processApi.stdout(cwd + '\n');
+					// Technical limitation of subprocesses – we need to
+					// wait before exiting to give consumer a chance to read
+					// the output.
+					await new Promise((resolve) => setTimeout(resolve, 10));
+					processApi.exit(0);
+					break;
+				}
 			}
 		} catch (e) {
 			// An exception here means the PHP runtime has crashed.
