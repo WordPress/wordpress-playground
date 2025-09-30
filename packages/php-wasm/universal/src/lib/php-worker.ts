@@ -195,11 +195,23 @@ export class PHPWorker implements LimitedPHPApi, AsyncDisposable {
 		const { php, reap } = await _private
 			.get(this)!
 			.requestHandler!.processManager.acquirePHPInstance();
+		let response: StreamedPHPResponse;
 		try {
-			return await php.cli(argv, options);
-		} finally {
+			response = await php.cli(argv, options);
+		} catch (error) {
 			reap();
+			throw error;
 		}
+		/**
+		 * Register the reap() callback to run asynchronously once
+		 * the response is finished.
+		 *
+		 * We don't await for response.finished here. It is a
+		 * `StreamedPHPResponse` instance and the caller may want
+		 * to start processing the streamed data immediately.
+		 */
+		response.finished.finally(reap);
+		return response;
 	}
 
 	/** @inheritDoc @php-wasm/universal!/PHP.chdir */

@@ -10,7 +10,7 @@ interface TsConfig {
 }
 
 // Read and parse tsconfig.base.json
-const workspaceRoot = join(import.meta.dirname, '..', '..', '..', '..')
+const workspaceRoot = join(import.meta.dirname, '..', '..', '..', '..');
 const tsconfigPath = join(workspaceRoot, 'tsconfig.base.json');
 const tsconfig: TsConfig = JSON.parse(readFileSync(tsconfigPath, 'utf-8'));
 const pathAliases = tsconfig.compilerOptions.paths;
