@@ -3,7 +3,10 @@ import {
 	getPhpIniEntries,
 	loadPHPRuntime,
 	PHP,
+	PHPProcessManager,
+	sandboxedSpawnHandlerFactory,
 	setPhpIniEntries,
+	type SpawnedPHP,
 	SupportedPHPVersions,
 } from '@php-wasm/universal';
 import { createSpawnHandler, joinPaths, phpVar } from '@php-wasm/util';
@@ -21,6 +24,7 @@ import { vi } from 'vitest';
 import { getPHPLoaderModule, loadNodeRuntime } from '..';
 import type { PHPLoaderOptions } from '..';
 import { createNodeFsMountHandler } from '../lib/node-fs-mount';
+import { RecommendedPHPVersion } from '@wp-playground/common';
 
 const testDirPath = '/__test987654321';
 const testFilePath = '/__test987654321.txt';
@@ -2976,5 +2980,84 @@ phpLoaderOptions.forEach((options) => {
 				expect(response.text).toBe(expectedTotalDiskSpace.toString());
 			});
 		});
+	});
+});
+
+describe('sandboxedSpawnHandlerFactory', () => {
+	const phpVersion = RecommendedPHPVersion;
+	let php: PHP;
+	let spawnedPhp: SpawnedPHP;
+	let processManager: PHPProcessManager;
+	beforeEach(async () => {
+		processManager = new PHPProcessManager({
+			phpFactory: async () => {
+				const php = new PHP(
+					await loadNodeRuntime(phpVersion as any, {})
+				);
+				php.mkdir('/tmp/shared-test-directory');
+				php.chdir('/tmp/shared-test-directory');
+
+				php.writeFile(
+					'/tmp/shared-test-directory/README.md',
+					'Hello, world!'
+				);
+				php.mkdir('/tmp/shared-test-directory/code');
+				php.writeFile(
+					'/tmp/shared-test-directory/code/index.php',
+					'Hello, world!'
+				);
+				await php.setSpawnHandler(
+					sandboxedSpawnHandlerFactory(processManager)
+				);
+				return php;
+			},
+			maxPhpInstances: 5,
+		});
+		spawnedPhp = await processManager.acquirePHPInstance();
+		php = spawnedPhp.php;
+	});
+	afterEach(async () => {
+		await processManager[Symbol.asyncDispose]();
+		spawnedPhp?.reap();
+	});
+	it.each([
+		// Default cwd
+		{
+			command: 'ls',
+			expected: ['README.md', 'code', ''].join('\n'),
+		},
+		// Explicit path
+		{
+			command: 'ls /tmp/shared-test-directory',
+			expected: ['README.md', 'code', ''].join('\n'),
+		},
+		// Subdirectory – we expect a different output
+		{
+			command: 'ls /tmp/shared-test-directory/code',
+			expected: ['index.php', ''].join('\n'),
+		},
+		// pwd
+		{
+			command: 'pwd',
+			expected: '/tmp/shared-test-directory\n',
+		},
+	])('should be able to run "$command"', async ({ command, expected }) => {
+		const response = await php.run({
+			code: `<?php
+				$output = shell_exec(getenv('COMMAND'));
+				echo $output;
+			`,
+			env: {
+				COMMAND: command,
+			},
+		});
+		expect(response.text).toEqual(expected);
+	});
+
+	it('Should be able to run CLI commands via php.cli()', async () => {
+		const response = await php.cli(['ls', '/tmp/shared-test-directory']);
+		expect(await response.stdoutText).toEqual(
+			['README.md', 'code', ''].join('\n')
+		);
 	});
 });

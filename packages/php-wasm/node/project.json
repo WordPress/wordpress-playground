@@ -165,7 +165,8 @@
 					"php-dynamic-loading.spec.ts",
 					"php-request-handler.spec.ts",
 					"php.spec.ts",
-					"file-lock-manager-for-node.spec.ts"
+					"file-lock-manager-for-node.spec.ts",
+					"php-worker.spec.ts"
 				]
 			}
 		},
@@ -189,7 +190,8 @@
 					"php-dynamic-loading.spec.ts",
 					"php-request-handler.spec.ts",
 					"php.spec.ts",
-					"file-lock-manager-for-node.spec.ts"
+					"file-lock-manager-for-node.spec.ts",
+					"php-worker.spec.ts"
 				]
 			}
 		},

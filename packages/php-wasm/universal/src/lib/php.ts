@@ -1,5 +1,10 @@
 import { logger } from '@php-wasm/logger';
-import { Semaphore, createSpawnHandler, joinPaths } from '@php-wasm/util';
+import {
+	Semaphore,
+	basename,
+	createSpawnHandler,
+	joinPaths,
+} from '@php-wasm/util';
 import type { Emscripten } from './emscripten-types';
 import type { ListFilesOptions, RmDirOptions } from './fs-helpers';
 import { FSHelpers } from './fs-helpers';
@@ -9,6 +14,7 @@ import { getLoadedRuntime } from './load-php-runtime';
 import type { PHPRequestHandler } from './php-request-handler';
 import { PHPResponse, StreamedPHPResponse } from './php-response';
 import type {
+	ChildProcess,
 	MessageListener,
 	PHPEvent,
 	PHPEventListener,
@@ -395,6 +401,15 @@ export class PHP implements Disposable {
 	 */
 	chdir(path: string) {
 		this[__private__dont__use].FS.chdir(path);
+	}
+
+	/**
+	 * Gets the current working directory in the PHP filesystem.
+	 *
+	 * @returns The current working directory.
+	 */
+	cwd() {
+		return this[__private__dont__use].FS.cwd();
 	}
 
 	/**
@@ -1437,8 +1452,12 @@ export class PHP implements Disposable {
 	 */
 	async cli(
 		argv: string[],
-		options: { env?: Record<string, string> } = {}
+		options: { env?: Record<string, string>; cwd?: string } = {}
 	): Promise<StreamedPHPResponse> {
+		if (basename(argv[0] ?? '') !== 'php') {
+			return this.subProcess(argv, options);
+		}
+
 		if (this.#phpWasmInitCalled) {
 			this.#rotationOptions.needsRotating = true;
 		}
@@ -1472,6 +1491,79 @@ export class PHP implements Disposable {
 			.finally(() => {
 				this.#rotationOptions.needsRotating = true;
 			});
+	}
+
+	/**
+	 * Runs an arbitrary CLI command using the spawn handler associated
+	 * with this PHP instance.
+	 *
+	 * @param argv
+	 * @param options
+	 * @returns StreamedPHPResponse.
+	 */
+	private async subProcess(
+		argv: string[],
+		options: { env?: Record<string, string>; cwd?: string } = {}
+	): Promise<StreamedPHPResponse> {
+		const process = this[__private__dont__use].spawnProcess(
+			argv[0],
+			argv.slice(1),
+			{
+				env: options.env,
+				cwd: options.cwd ?? this.cwd(),
+			}
+		) as ChildProcess;
+
+		const stderrStream = await createInvertedReadableStream<Uint8Array>();
+		process.on('error', (error) => {
+			stderrStream.controller.error(error);
+		});
+		process.stderr.on('data', (data) => {
+			stderrStream.controller.enqueue(data);
+		});
+
+		const stdoutStream = await createInvertedReadableStream<Uint8Array>();
+		process.stdout.on('data', (data) => {
+			stdoutStream.controller.enqueue(data);
+		});
+
+		process.on('exit', () => {
+			// Delay until next tick to ensure we don't close the streams before
+			// emitting the error event on the stderrStream.
+			setTimeout(() => {
+				/**
+				 * Ignore any close() errors, e.g. "stream already closed". We just
+				 * need to try to call close() and forget about this subprocess.
+				 */
+				try {
+					stderrStream.controller.close();
+				} catch {
+					// Ignore error
+				}
+				try {
+					stdoutStream.controller.close();
+				} catch {
+					// Ignore error
+				}
+			}, 0);
+		});
+
+		return new StreamedPHPResponse(
+			// Headers stream
+			new ReadableStream({
+				start(controller) {
+					controller.close();
+				},
+			}),
+			stdoutStream.stream,
+			stderrStream.stream,
+			// Exit code
+			new Promise((resolve) => {
+				process.on('exit', (code) => {
+					resolve(code);
+				});
+			})
+		);
 	}
 
 	setSkipShebang(shouldSkip: boolean) {
