@@ -223,6 +223,7 @@ export class PHPWorker implements LimitedPHPApi, AsyncDisposable {
 		if (this.chroot !== null) {
 			php.chdir(this.chroot);
 		}
+		this.registerWorkerListeners(php);
 		return { php, reap };
 	}
 

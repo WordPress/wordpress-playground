@@ -244,7 +244,6 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 				if (withNetworking) {
 					await this.networkTransport!.setupMessageHandler(php);
 				}
-				this.registerWorkerListeners(php);
 			},
 			spawnHandler: sandboxedSpawnHandlerFactory,
 			sapiName,

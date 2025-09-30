@@ -279,7 +279,6 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 					});
 				},
 				onPHPInstanceCreated: async (php) => {
-					this.registerWorkerListeners(php);
 					await mountResources(php, mountsBeforeWpInstall);
 					await mountResources(php, mountsAfterWpInstall);
 				},

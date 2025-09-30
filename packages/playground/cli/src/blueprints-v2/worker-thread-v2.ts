@@ -220,7 +220,6 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 				'openssl.cafile': '/internal/shared/ca-bundle.crt',
 			},
 			onPHPInstanceCreated: async (php: PHP) => {
-				this.registerWorkerListeners(php);
 				await mountResources(php, args['mount-before-install'] || []);
 				if (this.blueprintTargetResolved) {
 					await mountResources(php, args.mount || []);
