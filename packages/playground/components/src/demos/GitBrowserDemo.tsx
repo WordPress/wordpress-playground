@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo } from 'react';
 import {
-	GitFileTree,
+	type GitFileTree,
 	listDescendantFiles,
 	listGitFiles,
 	sparseCheckout,
@@ -14,8 +14,7 @@ import {
 	Spinner,
 	__experimentalVStack as VStack,
 } from '@wordpress/components';
-import { FilePickerControl } from '../FilePickerControl';
-import { PromiseState, usePromise } from '../hooks/use-promise';
+import { type PromiseState, usePromise } from '../hooks/use-promise';
 import { joinPaths } from '@php-wasm/util';
 
 export default function GitBrowserDemo() {
@@ -169,7 +168,7 @@ interface PathMapping {
 
 function PathMappingRow({
 	value,
-	files,
+	// files,
 	onChange,
 	onRemove,
 }: {
@@ -249,13 +248,13 @@ function PathMappingRow({
 	return (
 		<Flex direction="row" gap={4} justify="flex-start" align="flex-start">
 			<FlexItem>
-				<FilePickerControl
+				{/* <FilePickerControl
 					files={files.data || []}
 					isLoading={files.isLoading}
 					error={files.error?.message || ''}
 					value={value.gitPath}
 					onChange={(path) => onChange({ ...value, gitPath: path })}
-				/>
+				/> */}
 			</FlexItem>
 			<FlexItem>
 				<SelectControl

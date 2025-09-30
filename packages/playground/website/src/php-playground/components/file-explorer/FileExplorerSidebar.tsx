@@ -2,7 +2,7 @@ import React, { useMemo, useRef, useState } from 'react';
 import styles from './FileExplorer.module.css';
 import { FilePickerTree } from '@wp-playground/components';
 import type {
-	AsyncFilesystem,
+	AsyncWritableFilesystem,
 	FilePickerTreeHandle,
 } from '@wp-playground/components';
 import { useAppDispatch } from '../../hooks';
@@ -65,7 +65,7 @@ export default function FileExplorerSidebar({
 	forceSelectedPath,
 	setForceSelectedPath,
 }: {
-	filesystem: AsyncFilesystem;
+	filesystem: AsyncWritableFilesystem;
 	currentPath: string | null;
 	selectedDirPath: string | null;
 	setSelectedDirPath: React.Dispatch<React.SetStateAction<string | null>>;

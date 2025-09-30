@@ -65,7 +65,7 @@ type FileSystemEntryLike =
 	| FileSystemFileEntryLike
 	| FileSystemDirectoryEntryLike;
 
-export interface AsyncFilesystem {
+export interface AsyncWritableFilesystem {
 	isDir: (path: string) => Promise<boolean>;
 	fileExists: (path: string) => Promise<boolean>;
 	readFileAsBuffer: (path: string) => Promise<Uint8Array>;
@@ -85,7 +85,7 @@ export type FileNode = {
 };
 
 export type FilePickerTreeProps = {
-	filesystem: AsyncFilesystem;
+	filesystem: AsyncWritableFilesystem;
 	root?: string; // default '/wordpress'
 	initialSelectedPath?: string;
 	onSelect?: (path: string | null) => void;
@@ -256,7 +256,7 @@ export const FilePickerTree = forwardRef<
 		return lazyChildren[path];
 	};
 
-	const listDir = async (fs: AsyncFilesystem, basePath: string) => {
+	const listDir = async (fs: AsyncWritableFilesystem, basePath: string) => {
 		const names = await fs.listFiles(basePath);
 		const results: { name: string; type: 'file' | 'folder' }[] = [];
 		for (const name of names) {
@@ -273,7 +273,7 @@ export const FilePickerTree = forwardRef<
 	};
 
 	const loadChildren = async (path: string): Promise<FileNode[]> => {
-		return await listDir(filesystem as AsyncFilesystem, path);
+		return await listDir(filesystem as AsyncWritableFilesystem, path);
 	};
 
 	const loadChildrenForPath = (path: string, node: FileNode) => {

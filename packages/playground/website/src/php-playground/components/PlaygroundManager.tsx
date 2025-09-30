@@ -18,6 +18,7 @@ import {
 import { setCurrentPath } from '../store';
 import { loadStateFromURL, saveStateToURL } from '../url-state';
 import { playgroundRuntime } from '../runtime';
+import { logger } from '@php-wasm/logger';
 
 export const PlaygroundManager = () => {
 	const dispatch = useAppDispatch();
@@ -117,7 +118,6 @@ export const PlaygroundManager = () => {
 			runCountRef.current = 0;
 
 			try {
-				console.log('Initializing');
 				const clientInstance = await startPlaygroundWeb({
 					iframe: previewIframe,
 					remoteUrl: DEFAULT_WP_REMOTE,
@@ -128,7 +128,6 @@ export const PlaygroundManager = () => {
 					// 	},
 					// },
 				});
-				console.log('Client initialized');
 
 				if (cancelled) {
 					try {
@@ -148,7 +147,7 @@ export const PlaygroundManager = () => {
 						dispatch(setWpVersion(latest));
 					}
 				} catch (error) {
-					console.warn(
+					logger.warn(
 						'Failed to load WordPress versions list from client',
 						error
 					);

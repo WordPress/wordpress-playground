@@ -1,12 +1,12 @@
-import { configureStore, createSlice, PayloadAction } from '@reduxjs/toolkit';
+import {
+	configureStore,
+	createSlice,
+	type PayloadAction,
+} from '@reduxjs/toolkit';
 import type { PlaygroundClient } from '@wp-playground/client';
 import { SupportedPHPVersionsList } from '@wp-playground/client';
 
-import {
-	DEFAULT_CODE,
-	DEFAULT_PHP_VERSION,
-	DEFAULT_WP_VERSION,
-} from './constants';
+import { DEFAULT_CODE, DEFAULT_PHP_VERSION } from './constants';
 
 export type BootStatus = 'idle' | 'booting' | 'ready' | 'error';
 

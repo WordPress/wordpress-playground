@@ -195,7 +195,6 @@ function assertLikelyCompatibleRemoteOrigin(remoteHtmlUrl: string) {
 		url.pathname === '/remote.html';
 
 	if (!validRemote) {
-		console.log('url.pathname', url.pathname);
 		throw new Error(
 			`Invalid remote URL: ${url}. ` +
 				'Expected remote URL to have a path of "/remote.html" based ' +

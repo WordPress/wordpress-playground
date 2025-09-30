@@ -1,4 +1,4 @@
-import { ChangeEvent, useMemo } from 'react';
+import { type ChangeEvent, useMemo } from 'react';
 
 import { useAppDispatch, useAppSelector } from '../hooks';
 import { queueRun, setPhpVersion, setWpVersion } from '../store';
