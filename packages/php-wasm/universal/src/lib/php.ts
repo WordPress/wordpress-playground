@@ -389,6 +389,15 @@ export class PHP implements Disposable {
 	}
 
 	/**
+	 * Gets the current working directory in the PHP filesystem.
+	 *
+	 * @returns The current working directory.
+	 */
+	cwd() {
+		return this[__private__dont__use].FS.cwd();
+	}
+
+	/**
 	 * Changes the permissions of a file or directory.
 	 * @param path - The path to the file or directory.
 	 * @param mode - The new permissions.
