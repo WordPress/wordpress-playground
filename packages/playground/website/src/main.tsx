@@ -9,13 +9,7 @@ import { EnsurePlaygroundSite } from './components/ensure-playground-site';
 
 collectWindowErrors(logger);
 
-const rootElement = document.getElementById('root');
-if (!rootElement) {
-	throw new Error('Root element not found');
-}
-
-const root = createRoot(rootElement);
-
+const root = createRoot(document.getElementById('root')!);
 root.render(
 	<Provider store={store}>
 		<EnsurePlaygroundSite>
