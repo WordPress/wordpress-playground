@@ -3018,4 +3018,11 @@ describe('sandboxedSpawnHandlerFactory', () => {
 		});
 		expect(response.text).toEqual(expected);
 	});
+
+	it('Should be able to run CLI commands via php.cli()', async () => {
+		const response = await php.cli(['ls', '/tmp/shared-test-directory']);
+		expect(await response.stdoutText).toEqual(
+			['README.md', 'code', ''].join('\n')
+		);
+	});
 });

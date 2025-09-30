@@ -1,5 +1,10 @@
 import { logger } from '@php-wasm/logger';
-import { Semaphore, createSpawnHandler, joinPaths } from '@php-wasm/util';
+import {
+	Semaphore,
+	basename,
+	createSpawnHandler,
+	joinPaths,
+} from '@php-wasm/util';
 import type { Emscripten } from './emscripten-types';
 import type { ListFilesOptions, RmDirOptions } from './fs-helpers';
 import { FSHelpers } from './fs-helpers';
@@ -1435,7 +1440,7 @@ export class PHP implements Disposable {
 		argv: string[],
 		options: { env?: Record<string, string>; cwd?: string } = {}
 	): Promise<StreamedPHPResponse> {
-		if (argv[0] !== 'php' && !argv[0].endsWith('/php')) {
+		if (basename(argv[0] ?? '') !== 'php') {
 			return this.subProcess(argv, options);
 		}
 
@@ -1491,7 +1496,7 @@ export class PHP implements Disposable {
 			argv.slice(1),
 			{
 				env: options.env,
-				cwd: this.cwd(),
+				cwd: options.cwd ?? this.cwd(),
 			}
 		) as ChildProcess;
 
