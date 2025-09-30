@@ -122,7 +122,17 @@ jobs:
                   MYSQL_USER: user
                   MYSQL_PASSWORD: password
     test-playground-cli:
-        runs-on: ubuntu-latest
+        strategy:
+            matrix:
+                # NOTE: macOS is currently skipped because tests were running into
+                # "EMFILE: too many open files" errors when running within the GH runner.
+                # It would be great to fix the issue and add macOS testing here.
+                # In the meantime, many of the current developers test locally on macOS.
+                # @TODO: Fix issues and re-enable macOS testing.
+                os: [ubuntu-latest, windows-latest]
+        continue-on-error: true
+        runs-on: ${{ matrix.os }}
+        name: 'test-playground-cli (${{ matrix.os }})'
         steps:
             - uses: actions/checkout@v4
               with:
@@ -130,7 +140,15 @@ jobs:
             - uses: ./.github/actions/prepare-playground
               with:
                   node-version: 22
-            - run: node node_modules/nx/bin/nx affected --target=test-for-node-22-and-above
+            - name: Run full test suite
+              if: runner.os != 'Windows'
+              run: node node_modules/nx/bin/nx affected --target=test-for-node-22-and-above
+            # NOTE: We currently have to reduce the number of tests we run on Windows,
+            # and we do so by using Vitest's test.only() function. In order to use this
+            # within the `nx affected` command, we need to pass the Vitest arg --allowOnly.
+            - name: Run limited test suite on Windows
+              if: runner.os == 'Windows'
+              run: node node_modules/nx/bin/nx affected --target=test-for-node-22-and-above -- --allowOnly
     test-e2e:
         runs-on: ubuntu-latest
         # Run as root to allow node to bind to port 80

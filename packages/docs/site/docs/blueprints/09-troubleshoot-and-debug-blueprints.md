@@ -11,7 +11,36 @@ When you build Blueprints, you might run into issues. Here are tips and tools to
 ## Review Common gotchas
 
 -   Require `wp-load`: to run a WordPress PHP function using the `runPHP` step, you’d need to require [wp-load.php](https://github.com/WordPress/WordPress/blob/master/wp-load.php). So, the value of the `code` key should start with `"<?php require_once('wordpress/wp-load.php'); REST_OF_YOUR_CODE"`.
--   Enable `networking`: to access wp.org assets (themes, plugins, blocks, or patterns), or load a stylesheet using [add_editor_style()](https://developer.wordpress.org/reference/functions/add_editor_style/) (say, when [creating a custom block style](https://developer.wordpress.org/news/2023/02/creating-custom-block-styles-in-wordpress-themes)), you’d need to enable the `networking` option: `"features": {"networking": true}`.
+
+## Common Issues and Solutions
+
+### WP-CLI: Error Establishing a Database Connection on Mounted Sites
+
+When using `wp-cli` with a mounted Playground site (e.g., via `--mount-before-install`), you might encounter an "Error establishing a database connection." This happens because WordPress Playground loads the SQLite database integration plugin from its internal files by default, not from the mounted directory, meaning it's not persisted for external `wp-cli` calls.
+
+To resolve this, you need to explicitly install and configure the SQLite database integration plugin within your Blueprint.
+
+**Solution:** Add the following steps to your Blueprint:
+
+```json
+{
+	"plugins": [ "sqlite-database-integration" ]
+}
+```
+
+**Example Usage:**
+
+To test this locally, combine the Blueprint with your Playground CLI command:
+
+```bash
+mkdir wordpress
+# Ensure your blueprint with the above steps is saved as, for example, './blueprint.json'
+npx @wp-playground/cli server --mount-before-install=wordpress:/wordpress --blueprint=./blueprint.json
+cd wordpress
+wp post list
+```
+
+This will ensure the SQLite plugin is installed correctly and configured within your mounted WordPress site, allowing `wp-cli` commands to function correctly.
 
 ## Blueprints Builder
 
@@ -46,7 +75,7 @@ Full list of methods we can use is available [here](/api/client/interface/Playgr
 
 ## Check for errors in the browser console
 
-If your Blueprint isn’t running as expected, open the browser developer tools to see if there are any errors.
+If your Blueprint isn’t running as expected, open the browser developer tools to check for any errors.
 
 To open the developer tools in Chrome, Firefox, Safari\*, and Edge: press `Ctrl + Shift + I` on Windows/Linux or `Cmd + Option + I` on macOS.
 

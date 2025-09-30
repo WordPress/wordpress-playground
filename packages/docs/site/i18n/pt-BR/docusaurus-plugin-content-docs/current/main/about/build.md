@@ -30,7 +30,7 @@ You can seamlessly integrate Playground into your development workflow to launch
 Você pode integrar perfeitamente o Playground ao seu fluxo de trabalho de desenvolvimento para lançar rapidamente um ambiente WordPress local para testar seu código. Você pode fazer isso diretamente [do terminal](/developers/local-development/wp-playground-cli) ou [da sua IDE preferida](/developers/local-development/vscode-extension).
 
 <!--
-## Save changes done on a Block Theme and create Github Pull Requests
+## Save changes done on a Block Theme and create GitHub Pull Requests
 -->
 
 ## Salvar alterações feitas em um Tema de Blocos e criar Pull Requests no GitHub
@@ -62,7 +62,7 @@ Mais alguns exemplos deste fluxo de trabalho:
 -   [Recap Hallway Hangout: Theme Building with Playground, Create-block-theme plugin, and GitHub](https://make.wordpress.org/core/2024/06/25/recap-hallway-hangout-theme-building-with-playground-create-block-theme-plugin-and-github/)
 
 <!--
-## Synchronize your playground instance with a local folder and create Github Pull Requests
+## Synchronize your playground instance with a local folder and create GitHub Pull Requests
 -->
 
 ## Sincronizar sua instância do playground com uma pasta local e criar Pull Requests no GitHub

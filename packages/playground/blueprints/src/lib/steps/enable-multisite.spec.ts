@@ -4,7 +4,7 @@ import {
 	getWordPressModule,
 } from '@wp-playground/wordpress-builds';
 import { enableMultisite } from './enable-multisite';
-import { bootWordPress } from '@wp-playground/wordpress';
+import { bootWordPressAndRequestHandler } from '@wp-playground/wordpress';
 import { loadNodeRuntime } from '@php-wasm/node';
 import { readFileSync } from 'fs';
 import { join } from 'path';
@@ -14,7 +14,7 @@ import type { PHPRequest, PHPRequestHandler } from '@php-wasm/universal';
 describe('Blueprint step enableMultisite', () => {
 	let handler: PHPRequestHandler;
 	async function doBootWordPress(options: { absoluteUrl: string }) {
-		handler = await bootWordPress({
+		handler = await bootWordPressAndRequestHandler({
 			createPhpRuntime: async () =>
 				await loadNodeRuntime(RecommendedPHPVersion),
 			siteUrl: options.absoluteUrl,

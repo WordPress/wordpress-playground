@@ -6,7 +6,7 @@ import {
 	getSqliteDriverModule,
 	getWordPressModule,
 } from '@wp-playground/wordpress-builds';
-import { bootWordPress } from '@wp-playground/wordpress';
+import { bootWordPressAndRequestHandler } from '@wp-playground/wordpress';
 import { loadNodeRuntime } from '@php-wasm/node';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 
@@ -15,7 +15,7 @@ describe('Blueprint step wpCLI', () => {
 	let php: PHP;
 
 	beforeEach(async () => {
-		const handler = await bootWordPress({
+		const handler = await bootWordPressAndRequestHandler({
 			createPhpRuntime: async () => await loadNodeRuntime(phpVersion),
 			siteUrl: 'http://playground-domain/',
 			sapiName: 'cli',

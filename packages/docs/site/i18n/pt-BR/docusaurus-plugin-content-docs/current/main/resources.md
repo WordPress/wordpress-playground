@@ -48,13 +48,13 @@ Existe um conjunto de redirecionamentos para facilitar o acesso a algumas das fe
 
 <!--
 -   [Demo](https://playground.wordpress.net/)
--   [Github Repository](https://github.com/WordPress/wordpress-playground)
+-   [GitHub Repository](https://github.com/WordPress/wordpress-playground)
 -   [Documentation](https://wordpress.github.io/wordpress-playground/)
 -   [Playground tools Repository](https://github.com/WordPress/playground-tools)
 -->
 
 -   [Demonstração](https://playground.wordpress.net/)
--   [Repositório no Github](https://github.com/WordPress/wordpress-playground)
+-   [Repositório no GitHub](https://github.com/WordPress/wordpress-playground)
 -   [Documentação](https://wordpress.github.io/wordpress-playground/)
 -   [Repositório das ferramentas do Playground](https://github.com/WordPress/playground-tools)
 

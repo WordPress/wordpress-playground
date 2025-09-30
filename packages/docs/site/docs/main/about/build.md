@@ -9,15 +9,15 @@ sidebar_class_name: navbar-build-item
 
 WordPress Playground can help you to create and learn WordPress quickly, even on mobile with no signal. You can use Playground where you work best, whether that’s in the browser, Node.js, mobile apps, VS Code, or elsewhere.
 
-## Setting quickly a local WordPress environment
+## Setting up a local WordPress environment quickly 
 
 You can seamlessly integrate Playground into your development workflow to launch a local WordPress environment quickly for testing your code. You can do this directly [from the terminal](/developers/local-development/wp-playground-cli) or [your preferred IDE.](/developers/local-development/vscode-extension)
 
-## Save changes done on a Block Theme and create Github Pull Requests
+## Save changes done on a Block Theme and create GitHub Pull Requests
 
-You can connect your Playground instance to a GitHub repository and create a Pull Request with the changes you’ve done through the WordPress UI, leveraging the [Create Block Theme](https://wordpress.org/plugins/create-block-theme/) plugin.
+You can connect your Playground instance to a GitHub repository and create a Pull Request with the changes you’ve made through the WordPress UI, leveraging the [Create Block Theme](https://wordpress.org/plugins/create-block-theme/) plugin.
 
-With this workflow, you could build a block theme completely in your browser and save your change to GitHub, or you could improve/fix an existing one.
+With this workflow, you could build a block theme completely in your browser and save your changes to GitHub, or you could improve/fix an existing one.
 
 <iframe width="800" src="https://www.youtube.com/embed/94KnoFhQg1g" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
 
@@ -27,27 +27,27 @@ Some more examples of this workflow:
 -   [Developer Hours: Creating WordPress Playground Blueprints for Testing and Demos](https://www.youtube.com/watch?v=gKrij8V3nK0&t=2488s)
 -   [Recap Hallway Hangout: Theme Building with Playground, Create-block-theme plugin, and GitHub](https://make.wordpress.org/core/2024/06/25/recap-hallway-hangout-theme-building-with-playground-create-block-theme-plugin-and-github/)
 
-## Synchronize your playground instance with a local folder and create Github Pull Requests
+## Synchronize your playground instance with a local folder and create GitHub Pull Requests
 
 ![Storage Type Device Snapshot](@site/static/img/about/storage-type-device.webp)
 
 With Google Chrome you can synchronize your Playground instance with a local directory, that can be either:
 
--   And empty directory – to save this Playground and start syncing
+-   An empty directory – to save this Playground and start syncing
 -   An existing directory – to load it here and start syncing
 
 :::info
 
-This feature is only available for Google Chrome for now. It won't work with other browsers, yet.
+This feature is only available for Google Chrome for now. It won't work with other browsers yet.
 
 :::
 
 Regarding changes done on both sides of the connection:
 
--   Files changed in Playground will be synchronized to your computer.
+-   Files changed in the Playground will be synchronized to your computer.
 -   Files changed on your computer will not be synchronized to Playground. You'll need to click the "Sync local files" button.
 
-With this workflow you can create directly GitHub PRs from your changes done on your local directory.
+With this workflow, you can create GitHub PRs directly from your changes made in your local directory.
 
 See here a little demo of this workflow in action:
 
@@ -65,7 +65,7 @@ Another interesting app built on top of Playground is **Translate Live** (see [e
 
 ## Work offline and as a native app
 
-When you first visit [playground.wordpress.net](https://playground.wordpress.net/), your browser automatically caches all the necessary files to use Playground. From that point on, you can access [playground.wordpress.net](https://playground.wordpress.net/), even without internet connection, ensuring you can continue working on your projects without interruptions.
+When you first visit [playground.wordpress.net](https://playground.wordpress.net/), your browser automatically caches all the necessary files to use Playground. From that point on, you can access [playground.wordpress.net](https://playground.wordpress.net/), even without an internet connection, ensuring you can continue working on your projects without interruptions.
 
 You can also install Playground on your device as a Progressive Web App (PWA) to launch the Playground directly from your home screen—just like a native app.
 

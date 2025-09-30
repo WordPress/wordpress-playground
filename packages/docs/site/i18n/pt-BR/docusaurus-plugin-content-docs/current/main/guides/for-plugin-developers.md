@@ -3,6 +3,7 @@ title: WordPress Playground for Plugin Developers
 slug: /guides/for-plugin-developers
 description: Um guia para desenvolvedores de plugins sobre como usar o Playground para construir, testar e criar demos de seus plugins.
 ---
+
 <!--
 The WordPress Playground is an innovative tool that allows plugin developers to build, test and showcase their plugins directly in a browser environment.
 
@@ -420,13 +421,13 @@ Aqui está uma pequena demonstração deste fluxo de trabalho em ação:
 <!--
 :::info
 
-Check [About Playground > Build > Synchronize your playground instance with a local folder and create Github Pull Requests](/about/build#synchronize-your-playground-instance-with-a-local-folder-and-create-github-pull-requests) for more info.
+Check [About Playground > Build > Synchronize your playground instance with a local folder and create GitHub Pull Requests](/about/build#synchronize-your-playground-instance-with-a-local-folder-and-create-github-pull-requests) for more info.
 
 :::
 -->
 
 :::info
 
-Confira [Sobre o Playground > Construir > Sincronizar sua instância do playground com uma pasta local e criar Pull Requests do Github](/about/build#synchronize-your-playground-instance-with-a-local-folder-and-create-github-pull-requests) para mais informações.
+Confira [Sobre o Playground > Construir > Sincronizar sua instância do playground com uma pasta local e criar Pull Requests do GitHub](/about/build#synchronize-your-playground-instance-with-a-local-folder-and-create-github-pull-requests) para mais informações.
 
 :::

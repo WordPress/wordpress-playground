@@ -29,10 +29,10 @@ Playground を開発ワークフローにシームレスに統合することで
 You can seamlessly integrate Playground into your development workflow to launch a local WordPress environment quickly for testing your code. You can do this directly [from the terminal](/developers/local-development/wp-playground-cli) or [your preferred IDE.](/developers/local-development/vscode-extension)
 -->
 
-## ブロックテーマの変更を保存し、Github プルリクエストを作成します
+## ブロックテーマの変更を保存し、GitHub プルリクエストを作成します
 
 <!--
-## Save changes done on a Block Theme and create Github Pull Requests
+## Save changes done on a Block Theme and create GitHub Pull Requests
 -->
 
 Playground インスタンスを GitHub リポジトリに接続し、[Create Block Theme](https://wordpress.org/plugins/create-block-theme/) プラグインを利用して、WordPress UI から行った変更を含むプル リクエストを作成できます。
@@ -64,10 +64,10 @@ Some more examples of this workflow:
 -   [Recap Hallway Hangout: Theme Building with Playground, Create-block-theme plugin, and GitHub](https://make.wordpress.org/core/2024/06/25/recap-hallway-hangout-theme-building-with-playground-create-block-theme-plugin-and-github/)
 -->
 
-## プレイグラウンドインスタンスをローカルフォルダと同期し、Github プルリクエストを作成する
+## プレイグラウンドインスタンスをローカルフォルダと同期し、GitHub プルリクエストを作成する
 
 <!--
-## Synchronize your playground instance with a local folder and create Github Pull Requests
+## Synchronize your playground instance with a local folder and create GitHub Pull Requests
 -->
 
 ![Storage Type Device Snapshot](@site/static/img/about/storage-type-device.webp)

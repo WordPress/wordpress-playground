@@ -1,6 +1,7 @@
 import path from 'node:path';
+import os from 'node:os';
 import { runCLI } from '../src/run-cli';
-import type { RunCLIServer } from '../src/run-cli';
+import type { RunCLIArgs, RunCLIServer } from '../src/run-cli';
 import type { MockInstance } from 'vitest';
 import { vi } from 'vitest';
 import { mkdtemp, writeFile } from 'node:fs/promises';
@@ -14,6 +15,7 @@ import {
 	symlinkSync,
 	unlinkSync,
 	existsSync,
+	lstatSync,
 } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { MinifiedWordPressVersionsList } from '@wp-playground/wordpress-builds';
@@ -155,6 +157,11 @@ describe.each(blueprintVersions)(
 		test('should be able to follow external symlinks in primary and secondary PHP instances', async ({
 			skip,
 		}) => {
+			const testArgs: Partial<RunCLIArgs> =
+				version === 2
+					? { allow: 'follow-symlinks' }
+					: { followSymlinks: true };
+
 			if (version === 2) {
 				// @TODO: Fix this feature for Blueprints v2 (or fix the test if it is just a test issue)
 				skip();
@@ -186,9 +193,9 @@ describe.each(blueprintVersions)(
 				symlinkSync(tmpDir, symlinkPath);
 				cliServer = await runCLI({
 					...suiteCliArgs,
+					...testArgs,
 					debug: true,
 					command: 'server',
-					followSymlinks: true,
 					'mount-before-install': [
 						{
 							hostPath: symlinkPath,
@@ -224,6 +231,8 @@ describe.each(blueprintVersions)(
 				}
 			}
 		});
+
+		// TODO: Testing mounting NODEFS within a NODEFS mount
 
 		if (version === 2) {
 			// @TODO: Test modes
@@ -307,9 +316,36 @@ describe.each(blueprintVersions)(
 					`<title>${expectedHomePageTitle}</title>`
 				);
 			});
+
+			test('should put WordPress in the document root', async () => {
+				const tmpDir = await mkdtemp(
+					path.join(tmpdir(), 'playground-test-')
+				);
+
+				// Create a new site so we can load it as an existing site later.
+				cliServer = await runCLI({
+					...suiteCliArgs,
+					'site-url': 'http://playground-domain/',
+					'db-engine': 'sqlite',
+					command: 'server',
+					mode: 'create-new-site',
+					'mount-before-install': [
+						{
+							hostPath: tmpDir,
+							vfsPath: '/wordpress',
+						},
+					],
+				});
+				const wpContentDirPath = path.join(tmpDir, 'wp-content');
+				expect(await lstatSync(wpContentDirPath)?.isDirectory()).toBe(
+					true
+				);
+			}, 60000);
 		}
 
-		// @TODO: Also test with Blueprints v2.
+		// TODO: Test resolving absolute symlinks within a mounted dir with and without follow-symlinks
+		// TODO: Test resolving relative symlinks within a mounted dir with and without follow-symlinks
+
 		describe('auto-mount', () => {
 			const getDirectoryChecksum = async (dir: string) => {
 				const hash = createHash('sha256');
@@ -448,51 +484,56 @@ describe.each(blueprintVersions)(
 				expect(response.text).toContain('Hello world');
 			});
 
-			test('should run a wordpress project using --auto-mount', async ({
-				skip,
-			}) => {
-				if (version === 2) {
-					// @TODO: Fix this test for Blueprints v2.
-					// It makes a valid complaint that the unzipped WP is not yet installed.
-					skip();
+			// NOTE: We have had trouble running the full test set on Windows
+			// due to Out of Memory errors. Until we debug and fix this,
+			// Let's pick this as the single test to run for Blueprints v1 and v2 on Windows
+			// because it integrates a good number of Playground CLI features.
+			(os.platform() === 'win32' ? test.only : test)(
+				'should run a wordpress project using --auto-mount',
+				async ({ skip }) => {
+					if (version === 2) {
+						// @TODO: Fix this test for Blueprints v2.
+						// It makes a valid complaint that the unzipped WP is not yet installed.
+						skip();
+					}
+
+					const tmpDir = await mkdtemp(
+						path.join(tmpdir(), 'playground-test-')
+					);
+					vi.spyOn(process, 'cwd').mockReturnValue(
+						path.join(tmpDir, 'wordpress')
+					);
+
+					const zip = await fetch('https://wordpress.org/latest.zip');
+					const zipPath = path.join(tmpDir, 'wp.zip');
+					await writeFile(
+						zipPath,
+						new Uint8Array(await zip.arrayBuffer())
+					);
+					await promisify(exec)(`unzip "${zipPath}" -d "${tmpDir}"`);
+
+					const checksum = await getDirectoryChecksum(tmpDir);
+
+					cliServer = await runCLI({
+						...suiteCliArgs,
+						command: 'server',
+						autoMount: '',
+					});
+					const response = await cliServer.playground.request({
+						url: '/',
+						method: 'GET',
+					});
+					expect(response.httpStatusCode).toBe(200);
+					expect(response.text).toContain(
+						`<title>${expectedHomePageTitle}</title>`
+					);
+
+					/**
+					 * Playground should not modify the mounted directory.
+					 */
+					expect(await getDirectoryChecksum(tmpDir)).toBe(checksum);
 				}
-
-				const tmpDir = await mkdtemp(
-					path.join(tmpdir(), 'playground-test-')
-				);
-				vi.spyOn(process, 'cwd').mockReturnValue(
-					path.join(tmpDir, 'wordpress')
-				);
-
-				const zip = await fetch('https://wordpress.org/latest.zip');
-				const zipPath = path.join(tmpDir, 'wp.zip');
-				await writeFile(
-					zipPath,
-					new Uint8Array(await zip.arrayBuffer())
-				);
-				await promisify(exec)(`unzip "${zipPath}" -d "${tmpDir}"`);
-
-				const checksum = await getDirectoryChecksum(tmpDir);
-
-				cliServer = await runCLI({
-					...suiteCliArgs,
-					command: 'server',
-					autoMount: '',
-				});
-				const response = await cliServer.playground.request({
-					url: '/',
-					method: 'GET',
-				});
-				expect(response.httpStatusCode).toBe(200);
-				expect(response.text).toContain(
-					`<title>${expectedHomePageTitle}</title>`
-				);
-
-				/**
-				 * Playground should not modify the mounted directory.
-				 */
-				expect(await getDirectoryChecksum(tmpDir)).toBe(checksum);
-			});
+			);
 		});
 
 		describe('verbosity', () => {
@@ -531,7 +572,7 @@ describe.each(blueprintVersions)(
 							'Running the Blueprint...',
 							'Finished running the blueprint',
 							expect.stringMatching(
-								/^WordPress is running on http:\/\/127\.0\.0\.1:\d+$/
+								/^WordPress is running on http:\/\/127\.0\.0\.1:\d+ with \d+ worker\(s\)$/
 							),
 						])
 					);

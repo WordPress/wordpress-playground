@@ -11,8 +11,7 @@ import {
 	updateClientInfo,
 } from './slice-clients';
 import { logTrackingEvent } from '../../tracking';
-import type { Blueprint, StepDefinition } from '@wp-playground/blueprints';
-import { getBlueprintDeclaration } from '@wp-playground/blueprints';
+import type { Blueprint } from '@wp-playground/blueprints';
 import { logger } from '@php-wasm/logger';
 import { setupPostMessageRelay } from '@php-wasm/web';
 import { startPlaygroundWeb } from '@wp-playground/client';
@@ -98,23 +97,21 @@ export function bootSiteClient(
 
 		let blueprint: Blueprint;
 		if (isWordPressInstalled) {
-			blueprint = site.metadata.runtimeConfiguration!;
+			blueprint = {
+				preferredVersions: {
+					php: site.metadata.runtimeConfiguration.phpVersion,
+					wp: site.metadata.runtimeConfiguration.wpVersion,
+				},
+				features: {
+					intl: site.metadata.runtimeConfiguration.intl,
+					networking: site.metadata.runtimeConfiguration.networking,
+				},
+				extraLibraries: site.metadata.runtimeConfiguration
+					.extraLibraries as any[],
+				constants: site.metadata.runtimeConfiguration.constants,
+			};
 		} else {
 			blueprint = site.metadata.originalBlueprint;
-			const blueprintDeclaration = await getBlueprintDeclaration(
-				blueprint
-			);
-			// Log the names of provided Blueprint's steps.
-			// Only the names (e.g. "runPhp" or "login") are logged. Step options like
-			// code, password, URLs are never sent anywhere.
-			const steps = (blueprintDeclaration?.steps || [])
-				?.filter(
-					(step: any) => !!(typeof step === 'object' && step?.step)
-				)
-				.map((step) => (step as StepDefinition).step);
-			for (const step of steps) {
-				logTrackingEvent('step', { step });
-			}
 		}
 
 		let playground: PlaygroundClient;
@@ -124,10 +121,25 @@ export function bootSiteClient(
 				remoteUrl: getRemoteUrl().toString(),
 				scope: site.slug,
 				blueprint,
+				experimentalBlueprintsV2Runner:
+					!isWordPressInstalled &&
+					new URLSearchParams(window.location.search).get(
+						'experimental-blueprints-v2-runner'
+					) === 'yes',
 				// Intercept the Playground client even if the
 				// Blueprint fails.
 				onClientConnected: (playground) => {
 					(window as any)['playground'] = playground;
+				},
+				// Log the names of provided Blueprint's steps.
+				// Only the names (e.g. "runPhp" or "login") are logged. Step options like
+				// code, password, URLs are never sent anywhere.
+				onBlueprintValidated: (blueprint) => {
+					for (const step of blueprint.steps || []) {
+						if (typeof step === 'object' && step?.step) {
+							logTrackingEvent('step', { step: step.step });
+						}
+					}
 				},
 				mounts: mountDescriptor
 					? [

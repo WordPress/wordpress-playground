@@ -38,9 +38,9 @@ export function TemporarySiteSettingsForm({
 		const searchParams = siteInfo.originalUrlParams?.searchParams || {};
 		const runtimeConf = siteInfo.metadata?.runtimeConfiguration || {};
 		return {
-			phpVersion: runtimeConf?.preferredVersions?.php as any,
-			wpVersion: runtimeConf?.preferredVersions?.wp as any,
-			withNetworking: runtimeConf?.features?.networking,
+			phpVersion: runtimeConf?.phpVersion as any,
+			wpVersion: runtimeConf?.wpVersion as any,
+			withNetworking: runtimeConf?.networking,
 			language: 'language' in searchParams ? searchParams.language : '',
 			multisite:
 				'multisite' in searchParams

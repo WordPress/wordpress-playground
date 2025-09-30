@@ -86,6 +86,24 @@ blueprint={{
 		]
 }} />
 
+## How to work with WP-CLI from the terminal and Playground
+
+You can run WP-CLI commands on a Playground instance either from your terminal or directly within a Blueprint.
+
+To use your terminal, you must first mount the `/wordpress/` directory and ensure the SQLite database integration is configured. This is because Playground's internal database doesn't persist on a mounted site, so you must explicitly install the database plugin via a Blueprint. This allows WP-CLI to recognize the WordPress installation and connect to its database.
+
+:::note
+If you run WP-CLI commands as steps within your Blueprint file, this manual setup is not needed.
+:::
+
+The following Blueprint snippet handles this setup:
+
+<BlueprintExample blueprint={{
+    "plugins": [ "sqlite-database-integration" ]
+}} />
+
+For a detailed explanation of why this is needed, refer to the [Troubleshoot and Debug Blueprints](/blueprints/troubleshoot-and-debug#wp-cli-error-establishing-a-database-connection-on-mounted-sites) section.
+
 ## Showcase a product demo
 
 <BlueprintExample noButton blueprint={{

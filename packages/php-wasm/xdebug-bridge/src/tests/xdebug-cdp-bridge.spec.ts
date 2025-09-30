@@ -33,7 +33,7 @@ describe('XdebugCDPBridge', () => {
 		cdpServer = new CDPServer();
 		bridge = new XdebugCDPBridge(dbgpSession, cdpServer, {
 			knownScriptUrls: fs
-				.readdirSync(`${import.meta.dirname}/fixtures`)
+				.readdirSync(fixtures)
 				.map((file) => `${fixtures}/${file}`),
 			getPHPFile: (file) => php.readFileAsText(file),
 		});
@@ -182,11 +182,11 @@ describe('XdebugCDPBridge', () => {
 			scriptPath: `${fixtures}/test.php`,
 		});
 
-		await new Promise((resolve) => {
-			const original = cdpServer.sendMessage.bind(cdpServer);
-			vi.spyOn(cdpServer, 'sendMessage').mockImplementation((msg) => {
-				if (msg.method === 'Debugger.paused') resolve(msg);
-				return original(msg);
+		await new Promise<void>((resolve) => {
+			const originalSendMessage = cdpServer.sendMessage.bind(cdpServer);
+			vi.spyOn(cdpServer, 'sendMessage').mockImplementation((message) => {
+				if (message.method === 'Debugger.paused') resolve();
+				return originalSendMessage(message);
 			});
 		});
 
@@ -323,11 +323,11 @@ describe('XdebugCDPBridge', () => {
 			scriptPath: `${fixtures}/test.php`,
 		});
 
-		await new Promise((resolve) => {
-			const original = cdpServer.sendMessage.bind(cdpServer);
-			vi.spyOn(cdpServer, 'sendMessage').mockImplementation((msg) => {
-				if (msg.method === 'Debugger.paused') resolve(msg);
-				return original(msg);
+		await new Promise<void>((resolve) => {
+			const originalSendMessage = cdpServer.sendMessage.bind(cdpServer);
+			vi.spyOn(cdpServer, 'sendMessage').mockImplementation((message) => {
+				if (message.method === 'Debugger.paused') resolve();
+				return originalSendMessage(message);
 			});
 		});
 
@@ -355,19 +355,19 @@ describe('XdebugCDPBridge', () => {
 	});
 
 	it('sends a script with its correct data, source map and mappings to CDP', async () => {
-		bridge.start();
-
 		let script;
 
 		await new Promise<void>((resolve) => {
-			const original = cdpServer.sendMessage.bind(cdpServer);
+			const originalSendMessage = cdpServer.sendMessage.bind(cdpServer);
 			vi.spyOn(cdpServer, 'sendMessage').mockImplementation((message) => {
 				if (message.method === 'Debugger.scriptParsed') {
 					script = message;
 					resolve();
 				}
-				return original(message);
+				return originalSendMessage(message);
 			});
+
+			bridge.start();
 		});
 
 		const url = script!.params.url;
@@ -407,6 +407,43 @@ describe('XdebugCDPBridge', () => {
 		);
 		expect(sourceMap.mappings).toEqual(
 			'AAAA;AACA;AACA;AACA;AACA;AACA;AACA;AACA;AACA;AACA;AACA;AACA;AACA;AACA;AACA;AACA;AACA'
+		);
+	});
+
+	it('logs a warning if a known script url can not be resolved', async () => {
+		bridge.stop();
+
+		dbgpSession = new DbgpSession();
+		cdpServer = new CDPServer();
+		bridge = new XdebugCDPBridge(dbgpSession, cdpServer, {
+			knownScriptUrls: ['', `${fixtures}/test.php`],
+			getPHPFile: (file) => php.readFileAsText(file),
+		});
+
+		await new Promise<void>((resolve) => {
+			const originalSendMessage = cdpServer.sendMessage.bind(cdpServer);
+			vi.spyOn(cdpServer, 'sendMessage').mockImplementation((message) => {
+				if (message.method === 'Debugger.resumed') resolve();
+				return originalSendMessage(message);
+			});
+
+			bridge.start();
+		});
+
+		expect(cdpServer.sendMessage).toHaveBeenCalledWith(
+			expect.objectContaining({
+				method: 'Log.entryAdded',
+				params: expect.objectContaining({
+					entry: expect.objectContaining({
+						level: 'warning',
+						text: 'Could not read "": There is no such file or directory OR the parent directory does not exist.',
+					}),
+				}),
+			})
+		);
+
+		expect(cdpServer.sendMessage).toHaveBeenCalledWith(
+			expect.objectContaining({ method: 'Debugger.scriptParsed' })
 		);
 	});
 });

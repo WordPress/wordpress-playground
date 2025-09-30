@@ -1,7 +1,7 @@
 import type { PHPResponse, UniversalPHP } from '@php-wasm/universal';
 import type { StepHandler } from '.';
 import { joinPaths, phpVar } from '@php-wasm/util';
-import type { FileReference } from '../resources';
+import type { FileReference } from '../v1/resources';
 import { logger } from '@php-wasm/logger';
 
 export const defaultWpCliPath = '/tmp/wp-cli.phar';

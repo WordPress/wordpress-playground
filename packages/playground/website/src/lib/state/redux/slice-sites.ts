@@ -4,12 +4,22 @@ import {
 	createEntityAdapter,
 	createSelector,
 } from '@reduxjs/toolkit';
-import type { SiteMetadata } from '../../site-metadata';
-import { createSiteMetadata } from '../../site-metadata';
 import type { PlaygroundDispatch, PlaygroundReduxState } from './store';
 import { selectActiveSite, setActiveSite } from './store';
 import { opfsSiteStorage } from '../opfs/opfs-site-storage';
-import { randomSiteName } from './random-site-name';
+import {
+	type BlueprintV1,
+	BlueprintReflection,
+	type RuntimeConfiguration,
+	resolveRuntimeConfiguration,
+} from '@wp-playground/blueprints';
+import {
+	type BlueprintSource,
+	resolveBlueprintFromURL,
+	type ResolvedBlueprint,
+	applyQueryOverrides,
+} from '../url/resolve-blueprint-from-url';
+import { logger } from '@php-wasm/logger';
 
 /**
  * The Site model used to represent a site within Playground.
@@ -229,21 +239,27 @@ export function removeSite(slug: string) {
  * @returns
  */
 export function setTemporarySiteSpec(
-	siteInfo: Omit<Partial<SiteInfo>, 'metadata'> & {
-		metadata: Partial<SiteMetadata>;
-	}
+	siteName: string,
+	playgroundUrlWithQueryApiArgs: URL
 ) {
 	return async (
 		dispatch: PlaygroundDispatch,
 		getState: () => PlaygroundReduxState
 	) => {
+		const newSiteUrlParams = {
+			searchParams: parseSearchParams(
+				playgroundUrlWithQueryApiArgs.searchParams
+			),
+			hash: playgroundUrlWithQueryApiArgs.hash,
+		};
+
 		const currentTemporarySite = selectTemporarySite(getState());
 		if (currentTemporarySite) {
 			// If the current temporary site is the same as the site we're setting,
 			// then we don't need to create a new site.
 			if (
 				JSON.stringify(currentTemporarySite.originalUrlParams) ===
-				JSON.stringify(siteInfo.originalUrlParams)
+				JSON.stringify(newSiteUrlParams)
 			) {
 				return currentTemporarySite;
 			}
@@ -259,21 +275,112 @@ export function setTemporarySiteSpec(
 		}
 
 		// Then create a new temporary site
-		const siteName = siteInfo.metadata.name || randomSiteName();
-		const newSiteInfo = {
-			...siteInfo,
+		const defaultBlueprint =
+			'https://raw.githubusercontent.com/WordPress/blueprints/refs/heads/trunk/blueprints/welcome/blueprint.json';
+
+		let resolvedBlueprint: ResolvedBlueprint | undefined = undefined;
+		try {
+			resolvedBlueprint = await resolveBlueprintFromURL(
+				playgroundUrlWithQueryApiArgs,
+				defaultBlueprint
+			);
+		} catch (e) {
+			logger.error(
+				'Error resolving blueprint, fallink back to a blank blueprint.',
+				e
+			);
+			// TODO: This is a hack – we are just abusing a URL-oriented
+			// function to create a completely blank Blueprint. Let's fix this by
+			// making default creation first-class.
+			resolvedBlueprint = await resolveBlueprintFromURL(
+				new URL('https://w.org')
+			);
+		}
+
+		const reflection = await BlueprintReflection.create(
+			resolvedBlueprint.blueprint
+		);
+		if (reflection.getVersion() === 1) {
+			resolvedBlueprint.blueprint = await applyQueryOverrides(
+				resolvedBlueprint.blueprint,
+				playgroundUrlWithQueryApiArgs.searchParams
+			);
+		}
+
+		// Compute the runtime configuration based on the resolved Blueprint:
+		const newSiteInfo: SiteInfo = {
 			slug: deriveSlugFromSiteName(siteName),
-			metadata: await createSiteMetadata({
-				...siteInfo.metadata,
+			originalUrlParams: newSiteUrlParams,
+			metadata: {
 				name: siteName,
+				id: crypto.randomUUID(),
+				whenCreated: Date.now(),
 				storage: 'none' as const,
-			}),
+				originalBlueprint: resolvedBlueprint.blueprint,
+				originalBlueprintSource: resolvedBlueprint.source!,
+				runtimeConfiguration: await resolveRuntimeConfiguration(
+					resolvedBlueprint.blueprint
+				)!,
+			},
 		};
 		dispatch(sitesSlice.actions.addSite(newSiteInfo));
 		dispatch(sitesSlice.actions.setFirstTemporarySiteCreated());
 		return newSiteInfo;
 	};
 }
+
+function parseSearchParams(searchParams: URLSearchParams) {
+	const params: Record<string, any> = {};
+	for (const key of searchParams.keys()) {
+		const value = searchParams.getAll(key);
+		params[key] = value.length > 1 ? value : value[0];
+	}
+	return params;
+}
+
+/**
+ * The supported site storage types.
+ *
+ * Is it possible to restrict this to those three values for all Playground runtimes?
+ * Or should the runtime be allowed to use custom storage types?
+ *
+ * NOTE: We are using different storage terms than our query API in order
+ * to be more explicit about storage medium in the site metadata format.
+ */
+export const SiteStorageTypes = ['opfs', 'local-fs', 'none'] as const;
+export type SiteStorageType = (typeof SiteStorageTypes)[number];
+
+/**
+ * The site logo data.
+ */
+export type SiteLogo = {
+	mime: string;
+	data: string;
+};
+
+// TODO: Create a schema for this as the design matures
+/**
+ * The Site metadata that is persisted.
+ */
+export interface SiteMetadata {
+	storage: SiteStorageType;
+	id: string;
+	name: string;
+	logo?: SiteLogo;
+
+	// TODO: The designs show keeping admin username and password. Why do we want that?
+	whenCreated?: number;
+	// TODO: Consider keeping timestamps.
+	//       For a user, timestamps might be useful to disambiguate identically-named sites.
+	//       For playground, we might choose to sort by most recently used.
+	//whenLastLoaded: number;
+
+	// @TODO: Accept any string as a php version?
+	runtimeConfiguration: RuntimeConfiguration;
+	originalBlueprint: BlueprintV1;
+	originalBlueprintSource: BlueprintSource;
+}
+
 export const { setOPFSSitesLoadingState } = sitesSlice.actions;
 
 export const {

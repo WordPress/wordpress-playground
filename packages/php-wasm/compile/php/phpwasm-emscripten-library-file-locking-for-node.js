@@ -754,34 +754,37 @@ const LibraryForFileLocking = {
 #if ASYNCIFY == 2
 		return Asyncify.handleAsync(async () => {
 #endif
+			// We have to get the VFS path from the file descriptor
+			// before closing it.
+			const [vfsPath, vfsPathResolutionErrno] =
+				locking.get_vfs_path_from_fd(fd);
+
 			const fdCloseResult = _builtin_fd_close(fd);
 			if (fdCloseResult !== 0 || !locking.maybeLockedFds.has(fd)) {
 				_js_wasm_trace('fd_close(%d) result %d', fd, fdCloseResult);
 				return fdCloseResult;
 			}
 
-			try {
-				const [vfsPath, pathResolutionErrno] =
-				locking.get_vfs_path_from_fd(fd);
-				if (pathResolutionErrno !== 0) {
-					_js_wasm_trace(
-						'fd_close(%d) get_vfs_path_from_fd error %d',
-						fd,
-						pathResolutionErrno
-					);
-					/*
-					 * It looks like the file may have had an associated lock,
-					 * but since we cannot look up the path,
-					 * there is nothing more for us to do.
-					 *
-					 * NOTE: This seems possible for files that are locked and
-					 * then unlinked before close. It is an opportunity for a
-					 * lock to be orphaned in the lock manager.
-					 * @TODO: Explore how to ensure cleanup in this case.
-					 */
-					return fdCloseResult;
-				}
+			if (vfsPathResolutionErrno !== 0) {
+				_js_wasm_trace(
+					'fd_close(%d) get_vfs_path_from_fd error %d',
+					fd,
+					vfsPathResolutionErrno
+				);
+				/*
+				 * It looks like the file may have had an associated lock,
+				 * but since we cannot look up the path,
+				 * there is nothing more for us to do.
+				 *
+				 * NOTE: This seems possible for files that are locked and
+				 * then unlinked before close. It is an opportunity for a
+				 * lock to be orphaned in the lock manager.
+				 * @TODO: Explore how to ensure cleanup in this case.
+				 */
+				return fdCloseResult;
+			}
 
+			try {
 				const nativeFilePath =
 					locking.get_native_path_from_vfs_path(vfsPath);
 #if ASYNCIFY == 2

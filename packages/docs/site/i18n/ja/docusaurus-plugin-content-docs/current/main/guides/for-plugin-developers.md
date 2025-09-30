@@ -404,13 +404,13 @@ Here's a little demo of this workflow in action:
 
 :::info
 
-詳細については、[Playground について > ビルド > Playground インスタンスをローカル フォルダーと同期して Github プル リクエストを作成する](/about/build#synchronize-your-playground-instance-with-a-local-folder-and-create-github-pull-requests) を確認してください。
+詳細については、[Playground について > ビルド > Playground インスタンスをローカル フォルダーと同期して GitHub プル リクエストを作成する](/about/build#synchronize-your-playground-instance-with-a-local-folder-and-create-github-pull-requests) を確認してください。
 :::
 
 <!--
 :::info
 
-Check [About Playground > Build > Synchronize your playground instance with a local folder and create Github Pull Requests](/about/build#synchronize-your-playground-instance-with-a-local-folder-and-create-github-pull-requests) for more info.
+Check [About Playground > Build > Synchronize your playground instance with a local folder and create GitHub Pull Requests](/about/build#synchronize-your-playground-instance-with-a-local-folder-and-create-github-pull-requests) for more info.
 
 :::
 -->

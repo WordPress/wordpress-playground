@@ -4,6 +4,269 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
+## [v3.0.6] (2025-09-29) 
+
+### Documentation
+
+- [i18n] Add French translation for resources.md. ([#2680](https://github.com/WordPress/wordpress-playground/pull/2680))
+
+### Website
+
+- [Client] Enable calling playground.runStream() and .cli() from the client. ([#2688](https://github.com/WordPress/wordpress-playground/pull/2688))
+
+### Various
+
+- Update Playground JS API tutorial Link. ([#2685](https://github.com/WordPress/wordpress-playground/pull/2685))
+- [i18n] Add Japanese translations to Playground CLI. ([#2683](https://github.com/WordPress/wordpress-playground/pull/2683))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @beryl-dlg @jdahir0789 @shimotmk
+
+
+## [v3.0.5] (2025-09-25) 
+
+### Bug Fixes
+
+- Playground CLI: Log unhandled rejections and stop them from crashing workers. ([#2682](https://github.com/WordPress/wordpress-playground/pull/2682))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@brandonpayton
+
+
+## [v3.0.4] (2025-09-25) 
+
+### Experiments
+
+
+#### GitHub integration
+
+- [CLI] Polyfill the Buffer class without making it an empty object in CLI. ([#2681](https://github.com/WordPress/wordpress-playground/pull/2681))
+
+### PHP WebAssembly
+
+
+#### Website
+
+- [Website] Disable curl_share_init by default (to make Composer work). ([#2679](https://github.com/WordPress/wordpress-playground/pull/2679))
+
+### Website
+
+- Resolve the Blueprint declaration for the 'View Blueprint' button. ([#2675](https://github.com/WordPress/wordpress-playground/pull/2675))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel
+
+
+## [v3.0.3] (2025-09-23) 
+
+### Blueprints
+
+- Replace randomString() with randomFilename() in installAsset(). ([#2677](https://github.com/WordPress/wordpress-playground/pull/2677))
+
+### Documentation
+
+- [Docs] Adding steps to translate documentation with GitHub UI. ([#2666](https://github.com/WordPress/wordpress-playground/pull/2666))
+- [i18n] Add French translation for documentation.md. ([#2670](https://github.com/WordPress/wordpress-playground/pull/2670))
+- [i18n] Adding Architecture page to Brazilian Portuguese. ([#2667](https://github.com/WordPress/wordpress-playground/pull/2667))
+
+### PHP WebAssembly
+
+- [PHP Worker] listen to all PHP instances events via worker.addEventListener(). ([#2673](https://github.com/WordPress/wordpress-playground/pull/2673))
+
+### Website
+
+
+#### Blueprints
+
+- Flatten the stored runtime configuration format. ([#2671](https://github.com/WordPress/wordpress-playground/pull/2671))
+- Report Blueprint v2 progress. ([#2674](https://github.com/WordPress/wordpress-playground/pull/2674))
+- [Blueprints] Separate computing the runtime configuration from compiling a Blueprint. ([#2672](https://github.com/WordPress/wordpress-playground/pull/2672))
+
+### Various
+
+- [i18n] Add Japanese translations to VS Code extension. ([#2668](https://github.com/WordPress/wordpress-playground/pull/2668))
+- [i18n] Add Japanese translations to php-wasm/node. ([#2669](https://github.com/WordPress/wordpress-playground/pull/2669))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @beryl-dlg @fellyph @shimotmk
+
+
+## [v3.0.2] (2025-09-22) 
+
+### Blueprints
+
+- [Website] Split Playground remote initialization logic into Blueprint-version specific workers. ([#2652](https://github.com/WordPress/wordpress-playground/pull/2652))
+
+### Documentation
+
+- [i18n] Added Gujarati Translation for Local Development 01-wp-now.md file. ([#2664](https://github.com/WordPress/wordpress-playground/pull/2664))
+
+### Website
+
+
+#### Blueprints
+
+- Add Blueprint v2 handlers (noop). ([#2657](https://github.com/WordPress/wordpress-playground/pull/2657))
+- Declare the correct Blueprints v2 types. ([#2655](https://github.com/WordPress/wordpress-playground/pull/2655))
+- Isolate resolveBlueprintFromURL() calls. ([#2654](https://github.com/WordPress/wordpress-playground/pull/2654))
+- [Client] Expose Blueprints v2 runner via a feature flag. ([#2658](https://github.com/WordPress/wordpress-playground/pull/2658))
+
+### Various
+
+- [i18n] Added Missing Description in Intro and Quick Start Guide Pages for Gujarati Language. ([#2660](https://github.com/WordPress/wordpress-playground/pull/2660))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @shail-mehta
+
+
+## [v3.0.1] (2025-09-19) 
+
+### Blueprints
+
+- [Client] Explicit Blueprints v1 handler. ([#2651](https://github.com/WordPress/wordpress-playground/pull/2651))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel
+
+
+## [v3.0.0] (2025-09-19) 
+
+### **Breaking Changes**
+
+
+#### Blueprints
+
+- [Blueprints] Rename Blueprints v1 types, add Blueprint v2 types. ([#2648](https://github.com/WordPress/wordpress-playground/pull/2648))
+
+### Blueprints
+
+- Move Blueprints v1-specific files to v1 subdirectory. ([#2644](https://github.com/WordPress/wordpress-playground/pull/2644))
+- Rename BlueprintDeclaration to BlueprintV1Declaration. ([#2645](https://github.com/WordPress/wordpress-playground/pull/2645))
+- V1] Use the wordpress-importer plugin for the importWxr step. ([#2640](https://github.com/WordPress/wordpress-playground/pull/2640))
+
+### Documentation
+
+- [i18n] Added Gujarati Translation for 01 What are Blueprints and What you can do with them File. ([#2617](https://github.com/WordPress/wordpress-playground/pull/2617))
+- [i18n] Added Gujarati Translation for Local Development Intro.md file. ([#2623](https://github.com/WordPress/wordpress-playground/pull/2623))
+- [i18n] Tagalog translations for using blueprints page. ([#2628](https://github.com/WordPress/wordpress-playground/pull/2628))
+- [i18n] Tagalog translations of API Consistency. ([#2629](https://github.com/WordPress/wordpress-playground/pull/2629))
+- [i18n] Tagalog version of Blueprints/Steps/Shorthands. ([#2630](https://github.com/WordPress/wordpress-playground/pull/2630))
+
+### Experiments
+
+
+#### PHP WebAssembly
+
+- Playground CLI: Mount /wordpress, /internal, and /tmp dirs within real temporary dir. ([#2446](https://github.com/WordPress/wordpress-playground/pull/2446))
+
+### PHP WebAssembly
+
+- Function mismatch fix in GD jpeg extension for PHP below 8.0. ([#2634](https://github.com/WordPress/wordpress-playground/pull/2634))
+- [PHP] Add unit tests for nested mounts. ([#2639](https://github.com/WordPress/wordpress-playground/pull/2639))
+
+### Website
+
+- [WordPress] Separate bootWordPress() from bootRequestHandler(). ([#2650](https://github.com/WordPress/wordpress-playground/pull/2650))
+
+#### Blueprints
+
+- [Blueprints] Log step names without parsing. ([#2649](https://github.com/WordPress/wordpress-playground/pull/2649))
+
+### Bug Fixes
+
+- [Xdebug Bridge] Fix issue if non existent file is read. ([#2625](https://github.com/WordPress/wordpress-playground/pull/2625))
+
+### Reliability
+
+- Fix Playground CLI boot from native dirs on Windows. ([#2642](https://github.com/WordPress/wordpress-playground/pull/2642))
+
+### Various
+
+- Keep wordpress-importer.zip for older versions of Playground. ([#2647](https://github.com/WordPress/wordpress-playground/pull/2647))
+- Update build.md. ([#2638](https://github.com/WordPress/wordpress-playground/pull/2638))
+- [Documentation] Adding troubleshooting sections for WP-CLI database connections. ([#2333](https://github.com/WordPress/wordpress-playground/pull/2333))
+- [i18n] Add Japanese translations to wp-now NPM package. ([#2615](https://github.com/WordPress/wordpress-playground/pull/2615))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @akkspros @brandonpayton @fellyph @mho22 @rollybueno @shail-mehta @shimotmk
+
+
+## [v2.0.22] (2025-09-16) 
+
+### Enhancements
+
+- Statically analyzable build. ([#2632](https://github.com/WordPress/wordpress-playground/pull/2632))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel
+
+
+## [v2.0.21] (2025-09-15) 
+
+### Enhancements
+
+- [CLI] Build worker thread with stable filenames. ([#2631](https://github.com/WordPress/wordpress-playground/pull/2631))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel
+
+
+## [v2.0.20] (2025-09-15) 
+
+### Tools
+
+
+#### Blueprints
+
+- Fix to ensure that Site Editor templates are associated with the correct taxonomy upon import. ([#2584](https://github.com/WordPress/wordpress-playground/pull/2584))
+
+### PHP WebAssembly
+
+- Translate 'localhost' to 127.0.0.1 in MySQL connections. ([#2627](https://github.com/WordPress/wordpress-playground/pull/2627))
+- [PHP] Rebuild with sync fd_close on the web. ([#2620](https://github.com/WordPress/wordpress-playground/pull/2620))
+
+### Website
+
+- [Web Client] Remove onBeforeBlueprint. ([#2622](https://github.com/WordPress/wordpress-playground/pull/2622))
+
+### Internal
+
+- [CI] Do not block CI tests on linter. ([#2619](https://github.com/WordPress/wordpress-playground/pull/2619))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @akirk
+
+
 ## [v2.0.19] (2025-09-11) 
 
 ### PHP WebAssembly
