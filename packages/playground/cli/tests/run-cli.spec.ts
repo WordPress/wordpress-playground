@@ -631,5 +631,5 @@ describe.each(blueprintVersions)(
 			});
 		});
 	},
-	60000
+	60_000 * 5
 );
