@@ -14,7 +14,10 @@ const workspaceRoot = join(import.meta.dirname, '..', '..', '..', '..');
 const tsconfigPath = join(workspaceRoot, 'tsconfig.base.json');
 const tsconfig: TsConfig = JSON.parse(readFileSync(tsconfigPath, 'utf-8'));
 const pathAliases = tsconfig.compilerOptions.paths;
-const baseUrl = tsconfig.compilerOptions.baseUrl || '.';
+const baseUrl = resolvePath(
+	tsconfig.compilerOptions.baseUrl || '.',
+	dirname(tsconfigPath)
+);
 
 // Use a URL so we can compare more easily with file:// URLs during load.
 const playgroundPackageRootUrl = pathToFileURL(

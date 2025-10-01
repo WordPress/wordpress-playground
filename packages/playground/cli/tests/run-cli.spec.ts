@@ -633,3 +633,23 @@ describe.each(blueprintVersions)(
 	},
 	60_000 * 5
 );
+
+describe('error handling', () => {
+	test('should return 500 when the request handler throws an error', async () => {
+		const cliServer = await runCLI({
+			command: 'server',
+			skipWordPressSetup: true,
+			blueprint: undefined,
+		});
+
+		await cliServer.playground.addEventListener('request.end', () => {
+			throw new Error('test error');
+		});
+
+		const response = await cliServer.playground.request({
+			url: '/',
+			method: 'GET',
+		});
+		expect(response.httpStatusCode).toBe(500);
+	});
+});
