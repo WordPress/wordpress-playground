@@ -319,7 +319,6 @@ export async function bootRequestHandler(options: BootRequestHandlerOptions) {
 			recreateRuntime: options.createPhpRuntime,
 			maxRequests: 400,
 		});
-		php.chdir(requestHandler.documentRoot);
 
 		if (options.onPHPInstanceCreated) {
 			await options.onPHPInstanceCreated(php, { isPrimary });
