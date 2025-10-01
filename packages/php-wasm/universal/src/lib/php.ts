@@ -89,7 +89,6 @@ export class PHP implements Disposable {
 		needsRotating: boolean;
 		maxRequests: number;
 		requestsMade: number;
-		cwd?: string;
 	} = {
 		enabled: false,
 		recreateRuntime: () => 0,
@@ -1315,14 +1314,12 @@ export class PHP implements Disposable {
 	enableRuntimeRotation(options: {
 		recreateRuntime: () => Promise<number> | number;
 		maxRequests?: number;
-		cwd?: string;
 	}) {
 		this.#rotationOptions = {
 			...this.#rotationOptions,
 			enabled: true,
 			recreateRuntime: options.recreateRuntime,
 			maxRequests: options.maxRequests ?? 400,
-			cwd: options.cwd,
 		};
 	}
 
@@ -1357,6 +1354,27 @@ export class PHP implements Disposable {
 		const oldFS = this[__private__dont__use].FS;
 		const oldRootLevelPaths = this.listFiles('/').map((file) => `/${file}`);
 		const oldSpawnProcess = this[__private__dont__use].spawnProcess;
+
+		// Temporarily set CWD to / and restore it at the end of this method.
+		//
+		// There's a chance cleaning up old mounts via mount.unmount()
+		// will attempt removing the CWD. Normally, this would throw
+		// FS.ErrnoError(10) EBUSY and interrupt the PHP runtime rotation,
+		// leaving us in a broken state.
+		//
+		// Even though removing the CWD directory is not allowed by the
+		// filesystem, we don't care that much here – we're merely freeing
+		// all the resources allocated by the old filesystem before it's
+		// garbage collected. We are about to recreate the same filesystem
+		// structure and mounts in another PHP runtime.
+		//
+		// Therefore, let's suspend the strict EBUSY check by setting the CWD
+		// to / for the cleanup purposes. We'll attempt to restore the original
+		// CWD on the new runtime once we re-apply all the mounts there. We'll
+		// only have a real reason to throw an error if the CWD path does not
+		// exist in the new filesystem after the rotation.
+		const oldCWD = oldFS.cwd();
+		oldFS.chdir('/');
 
 		// Unmount all the mount handlers
 		const mountHandlers: { mountHandler: MountHandler; vfsPath: string }[] =
@@ -1405,6 +1423,16 @@ export class PHP implements Disposable {
 		for (const { mountHandler, vfsPath } of mountHandlers) {
 			this.mkdir(vfsPath);
 			await this.mount(vfsPath, mountHandler);
+		}
+		try {
+			newFs.chdir(oldCWD);
+		} catch (e) {
+			throw new Error(
+				`Failed to restore CWD to ${oldCWD} after PHP runtime rotation.`,
+				{
+					cause: e,
+				}
+			);
 		}
 	}
 

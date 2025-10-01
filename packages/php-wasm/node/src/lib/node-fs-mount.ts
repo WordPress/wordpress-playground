@@ -3,6 +3,7 @@ import {
 	FSHelpers,
 	type MountHandler,
 } from '@php-wasm/universal';
+import { isParentOf } from '@php-wasm/util';
 import { lstatSync } from 'fs';
 import { dirname } from 'path';
 
@@ -53,6 +54,12 @@ export function createNodeFsMountHandler(localPath: string): MountHandler {
 			FS!.unmount(vfsMountPoint);
 			if (removeVfsNode) {
 				if (FS.isDir(lookup.node.mode)) {
+					if (isParentOf(vfsMountPoint, FS.cwd())) {
+						throw new Error(
+							`Cannot remove the VFS directory "${vfsMountPoint}" on umount cleanup – it is a parent of the CWD "${FS.cwd()}". Change CWD before ` +
+								`unmounting or explicitly disable post-unmount node cleanup with createNodeFsMountHandler(path, {cleanupNodesOnUnmount: false}).`
+						);
+					}
 					FS.rmdir(vfsMountPoint);
 				} else {
 					FS.unlink(vfsMountPoint);

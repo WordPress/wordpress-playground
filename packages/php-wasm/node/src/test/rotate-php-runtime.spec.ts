@@ -51,7 +51,6 @@ describe.each([true, false])(
 
 			const php = new PHP(await recreateRuntime());
 			php.enableRuntimeRotation({
-				cwd: '/test-root',
 				recreateRuntime: recreateRuntimeSpy,
 				maxRequests: 10,
 			});
@@ -88,7 +87,6 @@ describe.each([true, false])(
 
 			const php = new PHP(await recreateRuntime());
 			php.enableRuntimeRotation({
-				cwd: '/test-root',
 				recreateRuntime: recreateRuntimeSpy,
 				maxRequests: 10,
 			});
@@ -121,7 +119,6 @@ describe.each([true, false])(
 
 			const php = new PHP(await recreateRuntime());
 			php.enableRuntimeRotation({
-				cwd: '/wordpress',
 				recreateRuntime: recreateRuntimeSpy,
 				maxRequests: 10,
 			});
@@ -228,7 +225,6 @@ describe.each([true, false])(
 			// Rotate the PHP runtime
 			const php = new PHP(await recreateRuntime());
 			php.enableRuntimeRotation({
-				cwd: '/test-root',
 				recreateRuntime: recreateRuntimeSpy,
 				maxRequests: 1000,
 			});
@@ -257,7 +253,6 @@ describe.each([true, false])(
 			const recreateRuntimeSpy = vitest.fn(recreateRuntime);
 			const php = new PHP(await recreateRuntimeSpy());
 			php.enableRuntimeRotation({
-				cwd: '/test-root',
 				recreateRuntime: recreateRuntimeSpy,
 				maxRequests: 1,
 			});
@@ -271,7 +266,6 @@ describe.each([true, false])(
 			const recreateRuntimeSpy = vitest.fn(recreateRuntime);
 			const php = new PHP(await recreateRuntimeSpy());
 			php.enableRuntimeRotation({
-				cwd: '/test-root',
 				recreateRuntime: recreateRuntimeSpy,
 				maxRequests: 1234,
 			});
@@ -289,7 +283,6 @@ describe.each([true, false])(
 			const recreateRuntimeSpy = vitest.fn(recreateRuntime);
 			const php = new PHP(await recreateRuntimeSpy());
 			php.enableRuntimeRotation({
-				cwd: '/test-root',
 				recreateRuntime: recreateRuntimeSpy,
 				maxRequests: 1234,
 			});
@@ -318,7 +311,6 @@ describe.each([true, false])(
 			});
 			const php = new PHP(await recreateRuntimeSpy());
 			php.enableRuntimeRotation({
-				cwd: '/test-root',
 				recreateRuntime: recreateRuntimeSpy,
 				maxRequests: 1,
 			});
@@ -339,7 +331,6 @@ describe.each([true, false])(
 		it('Should preserve the custom SAPI name', async () => {
 			const php = new PHP(await recreateRuntime());
 			php.enableRuntimeRotation({
-				cwd: '/test-root',
 				recreateRuntime,
 				maxRequests: 1,
 			});
@@ -356,7 +347,6 @@ describe.each([true, false])(
 		it('Should preserve the MEMFS files', async () => {
 			const php = new PHP(await recreateRuntime());
 			php.enableRuntimeRotation({
-				cwd: '/test-root',
 				recreateRuntime,
 				maxRequests: 1,
 			});
@@ -379,7 +369,6 @@ describe.each([true, false])(
 		it('Should not overwrite the NODEFS files', async () => {
 			const php = new PHP(await recreateRuntime());
 			php.enableRuntimeRotation({
-				cwd: '/test-root',
 				recreateRuntime,
 				maxRequests: 1,
 			});
@@ -424,7 +413,6 @@ describe.each([true, false])(
 		it('Should preserve the spawn handler through PHP runtime recreation', async () => {
 			const php = new PHP(await recreateRuntime());
 			php.enableRuntimeRotation({
-				cwd: '/test-root',
 				recreateRuntime,
 				maxRequests: 1,
 			});
@@ -464,6 +452,64 @@ describe.each([true, false])(
 			});
 			expect(result2.text).toBe('Hello Again');
 			expect(spawnHandlerCallCount).toBe(2);
+		}, 30_000);
+
+		it('Should preserve NODEFS mount when CWD is the same as mount point', async () => {
+			const php = new PHP(await recreateRuntime());
+			php.enableRuntimeRotation({
+				recreateRuntime,
+				maxRequests: 1,
+			});
+
+			// Create a temporary directory to mount
+			const tempDir = fs.mkdtempSync(
+				path.join(os.tmpdir(), 'nodefs-mount-')
+			);
+			const testFile = path.join(tempDir, 'test.txt');
+			fs.writeFileSync(testFile, 'Hello from NODEFS');
+
+			try {
+				// Mount the temp directory at /wordpress
+				await php.mount(
+					'/wordpress',
+					createNodeFsMountHandler(tempDir)
+				);
+
+				// Set CWD to the mount point
+				php.chdir('/wordpress');
+				expect(php.cwd()).toBe('/wordpress');
+
+				// Verify the mounted file is accessible
+				expect(php.fileExists('/wordpress/test.txt')).toBe(true);
+				expect(php.readFileAsText('/wordpress/test.txt')).toBe(
+					'Hello from NODEFS'
+				);
+
+				// Trigger runtime rotation by making a request
+				await php.run({ code: `<?php echo "Triggering rotation";` });
+				await php.run({ code: `<?php echo "Triggering rotation";` });
+
+				// Verify CWD is preserved after rotation
+				expect(php.cwd()).toBe('/wordpress');
+
+				// Verify the mount is still accessible after rotation
+				expect(php.fileExists('/wordpress/test.txt')).toBe(true);
+				expect(php.readFileAsText('/wordpress/test.txt')).toBe(
+					'Hello from NODEFS'
+				);
+
+				// Test that we can still write to the mounted directory
+				php.writeFile(
+					'/wordpress/new-file.txt',
+					'Created after rotation'
+				);
+				expect(
+					fs.readFileSync(path.join(tempDir, 'new-file.txt'), 'utf8')
+				).toBe('Created after rotation');
+			} finally {
+				fs.rmSync(tempDir, { recursive: true });
+				php.exit();
+			}
 		}, 30_000);
 	}
 );

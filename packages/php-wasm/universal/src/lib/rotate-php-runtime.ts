@@ -15,13 +15,11 @@ export interface RotateOptions {
  */
 export function rotatePHPRuntime({
 	php,
-	cwd,
 	recreateRuntime,
 	maxRequests = 400,
 }: RotateOptions) {
 	return php.enableRuntimeRotation({
 		recreateRuntime,
 		maxRequests,
-		cwd,
 	});
 }
