@@ -3,7 +3,7 @@
 	"$schema": "../../../node_modules/nx/schemas/project-schema.json",
 	"sourceRoot": "packages/playground/website/src",
 	"projectType": "application",
-	"implicitDependencies": ["playground-remote"],
+	"implicitDependencies": ["playground-remote", "playground-website-extras"],
 	"targets": {
 		"build": {
 			"executor": "nx:noop",
