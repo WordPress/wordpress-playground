@@ -597,7 +597,7 @@ export async function unzipWordPress(php: PHP, wpZip: File) {
 					'/'
 				);
 				logger.warn(
-					`Skipping ${wpPath} because something exists at the target path.`
+					`Cannot unzip WordPress files at ${target}: ${wpPath} already exists.`
 				);
 				return;
 			}

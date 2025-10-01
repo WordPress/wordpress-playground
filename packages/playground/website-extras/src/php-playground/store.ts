@@ -6,7 +6,8 @@ import {
 import type { PlaygroundClient } from '@wp-playground/client';
 import { SupportedPHPVersionsList } from '@wp-playground/client';
 
-import { DEFAULT_CODE, DEFAULT_PHP_VERSION } from './constants';
+import { DEFAULT_CODE } from './constants';
+import { RecommendedPHPVersion } from '@wp-playground/common';
 
 export type BootStatus = 'idle' | 'booting' | 'ready' | 'error';
 
@@ -28,7 +29,7 @@ export interface PlaygroundState {
 const initialState: PlaygroundState = {
 	code: DEFAULT_CODE,
 	currentPath: null,
-	phpVersion: DEFAULT_PHP_VERSION,
+	phpVersion: RecommendedPHPVersion,
 	wpVersion: 'latest',
 	phpVersions: SupportedPHPVersionsList,
 	wpVersions: [],
