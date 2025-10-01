@@ -19,6 +19,7 @@
 					"cp -r ./client ./wasm-wordpress-net/",
 					"cp -r ./remote/* ./wasm-wordpress-net/",
 					"cp -r ./website/* ./wasm-wordpress-net/",
+					"cp -r ./website-extras/* ./wasm-wordpress-net/",
 					"cat ./remote/.htaccess ./website/.htaccess > ./wasm-wordpress-net/.htaccess",
 					"curl https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar > wasm-wordpress-net/wp-cli.phar",
 					"cat wasm-wordpress-net/wp-cli.phar | gzip -c -9 > wasm-wordpress-net/wp-cli.phar.gz"
@@ -52,6 +53,7 @@
 				"commands": [
 					"nx run playground-php-cors-proxy:start",
 					"nx dev playground-remote --configuration=development-for-website",
+					"nx dev playground-website-extras --configuration=development-for-website",
 					"sleep 1; nx dev:standalone playground-website --hmr --output-style=stream-without-prefixes"
 				],
 				"parallel": true,

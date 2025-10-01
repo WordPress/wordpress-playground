@@ -3,3 +3,6 @@ export const remoteDevServerPort = 4400;
 
 export const websiteDevServerHost = '127.0.0.1';
 export const websiteDevServerPort = 5400;
+
+export const websiteExtrasDevServerHost = '127.0.0.1';
+export const websiteExtrasDevServerPort = 6400;

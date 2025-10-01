@@ -5,7 +5,12 @@ import {
 } from '@playwright/test';
 
 const baseURL =
+<<<<<<< Updated upstream
 	process.env.PLAYWRIGHT_TEST_BASE_URL || 'http://127.0.0.1:5174/';
+=======
+	process.env.PLAYWRIGHT_TEST_BASE_URL ||
+	'http://127.0.0.1:5174/';
+>>>>>>> Stashed changes
 
 export const playwrightConfig: PlaywrightTestConfig = {
 	testDir: './tests',
@@ -43,8 +48,12 @@ export const playwrightConfig: PlaywrightTestConfig = {
 
 	/* Run your local dev server before starting the tests */
 	webServer: {
+<<<<<<< Updated upstream
 		command:
 			'npx nx run playground-components:dev -- --host 127.0.0.1 --port 5174',
+=======
+		command: 'npx nx run playground-components:dev -- --host 127.0.0.1 --port 5174',
+>>>>>>> Stashed changes
 		url: 'http://127.0.0.1:5174/',
 		reuseExistingServer: !process.env.CI,
 	},

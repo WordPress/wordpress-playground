@@ -14,6 +14,8 @@ import {
 	websiteDevServerPort,
 	remoteDevServerHost,
 	remoteDevServerPort,
+	websiteExtrasDevServerHost,
+	websiteExtrasDevServerPort,
 } from '../build-config';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { oAuthMiddleware } from './vite.oauth';
@@ -73,6 +75,10 @@ export default defineConfig(({ command, mode }) => {
 			allowedHosts: ['playground.test', 'playground-preview.test'],
 			proxy: {
 				...proxy,
+				// Proxy requests to the website-extras
+				'^/website-extras/': {
+					target: `http://${websiteExtrasDevServerHost}:${websiteExtrasDevServerPort}`,
+				},
 				// Proxy requests to the remote content through this server for dev
 				// builds. See base config below.
 				'^[/]((?!website-server).)': {
@@ -176,9 +182,6 @@ export default defineConfig(({ command, mode }) => {
 				input: {
 					index: fileURLToPath(
 						new URL('./index.html', import.meta.url)
-					),
-					'beta-php-playground.html': fileURLToPath(
-						new URL('./beta-php-playground.html', import.meta.url)
 					),
 					'index.html': fileURLToPath(
 						new URL('./demos/index.html', import.meta.url)

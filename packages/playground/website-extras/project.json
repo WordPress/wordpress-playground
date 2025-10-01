@@ -1,0 +1,90 @@
+{
+	"name": "playground-website-extras",
+	"$schema": "../../../node_modules/nx/schemas/project-schema.json",
+	"sourceRoot": "packages/playground/website-extras/src",
+	"projectType": "application",
+	"implicitDependencies": ["playground-remote"],
+	"targets": {
+		"build": {
+			"executor": "nx:noop",
+			"dependsOn": ["build:standalone"]
+		},
+		"build:standalone": {
+			"executor": "@nx/vite:build",
+			"outputs": ["{options.outputPath}"],
+			"defaultConfiguration": "production",
+			"options": {
+				"outputPath": "dist/packages/playground/website-extras"
+			},
+			"configurations": {
+				"development": {
+					"mode": "development"
+				},
+				"production": {
+					"mode": "production",
+					"logLevel": "info"
+				}
+			}
+		},
+		"dev": {
+			"executor": "@nx/vite:dev-server",
+			"defaultConfiguration": "development",
+			"options": {
+				"buildTarget": "playground-website-extras:build"
+			},
+			"configurations": {
+				"development": {
+					"buildTarget": "playground-website-extras:build:standalone:development",
+					"hmr": true
+				},
+				"production": {
+					"buildTarget": "playground-website-extras:build:standalone:production",
+					"hmr": false
+				}
+			}
+		},
+		"preview": {
+			"executor": "@nx/vite:preview-server",
+			"options": {
+				"buildTarget": "playground-website-extras:build",
+				"staticFilePath": "../../../dist/packages/playground/wasm-wordpress-net"
+			},
+			"configurations": {
+				"ci": {
+					"port": 80
+				}
+			}
+		},
+		"test": {
+			"executor": "@nx/vite:test",
+			"outputs": [
+				"{workspaceRoot}/coverage/packages/playground/website-extras"
+			],
+			"options": {
+				"passWithNoTests": true,
+				"reportsDirectory": "../../../coverage/packages/playground/website-extras"
+			}
+		},
+		"lint": {
+			"executor": "@nx/linter:eslint",
+			"outputs": ["{options.outputFile}"],
+			"options": {
+				"useFlatConfig": false,
+				"lintFilePatterns": [
+					"packages/playground/website-extras/**/*.{ts,tsx,js,jsx}"
+				],
+				"maxWarnings": 0
+			}
+		},
+		"typecheck": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"tsc -p packages/playground/website-extras/tsconfig.spec.json --noEmit",
+					"tsc -p packages/playground/website-extras/tsconfig.app.json --noEmit"
+				]
+			}
+		}
+	},
+	"tags": ["scope:web-client"]
+}

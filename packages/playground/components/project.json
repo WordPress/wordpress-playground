@@ -77,7 +77,7 @@
 				"reportsDirectory": "../../../coverage/packages/playground/components"
 			}
 		},
-		"e2e:playwright": {
+		"e2e": {
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [

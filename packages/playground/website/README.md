@@ -1,5 +1,10 @@
 # WordPress Playground website
 
+This package contains the playground.wordpress.net website. Most assets built in this package
+are pre-emptively downloaded and cached in the browser to support the offline mode. If you
+want to add a new, bulky page without increasing the required download size, add it in the
+`playground-website-extras` package instead.
+
 ## Development
 
 ### Tests

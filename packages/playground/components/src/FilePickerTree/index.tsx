@@ -1657,6 +1657,9 @@ const NodeRow: React.FC<{
 										}
 									)}
 									data-path={path}
+									data-expanded={
+										isExpanded ? 'true' : 'false'
+									}
 								>
 									<FileName
 										node={node}

@@ -21,8 +21,12 @@ const gotoHarness = async (page: Page) => {
 	await page.waitForSelector('button[data-path]');
 };
 
+<<<<<<< Updated upstream
 const canonicalPath = (path: string) =>
 	path.startsWith('/') ? path : `/${path}`;
+=======
+const canonicalPath = (path: string) => (path.startsWith('/') ? path : `/${path}`);
+>>>>>>> Stashed changes
 
 const nodeLocator = (page: Page, path: string): Locator =>
 	page.locator(`[data-path="${canonicalPath(path)}"]`);
@@ -215,9 +219,13 @@ test('arrow up moves focus to the previous visible node', async ({ page }) => {
 	await expectFocused(page, 'wordpress');
 });
 
+<<<<<<< Updated upstream
 test.skip('type-ahead search focuses the first matching node', async ({
 	page,
 }) => {
+=======
+test.skip('type-ahead search focuses the first matching node', async ({ page }) => {
+>>>>>>> Stashed changes
 	await collapseNode(page, 'wordpress');
 	await expandNode(page, 'wordpress');
 	const root = nodeButton(page, 'wordpress');

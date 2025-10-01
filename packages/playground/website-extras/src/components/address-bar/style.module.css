@@ -1,0 +1,37 @@
+.form {
+	position: relative;
+	display: flex;
+	transition: opacity 0.5s ease;
+}
+
+.input-container {
+	display: flex;
+	width: 100%;
+}
+
+.submit {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	left: -100000px;
+	top: -100000px;
+}
+
+.input {
+	flex-grow: 1;
+	padding: 5px 10px;
+	font-family: 'San Francisco', Helvetica, Arial, sans-serif;
+	font-size: 16px;
+	font-weight: 50;
+	height: 26px;
+	border: 0;
+	background: #40464d;
+	border-radius: 8px;
+	color: #b4becb;
+	transition: color 0.5s ease;
+}
+
+.input:focus,
+.input:hover {
+	color: #fff;
+}

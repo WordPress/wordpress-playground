@@ -164,7 +164,7 @@ export const Layout = () => {
 							<div style={{ padding: '6px 8px' }}>
 								<AddressBar
 									url={previewUrl}
-									onUpdate={(newUrl) =>
+									onUpdate={(newUrl: string) =>
 										playgroundClient.goTo(newUrl)
 									}
 								/>
