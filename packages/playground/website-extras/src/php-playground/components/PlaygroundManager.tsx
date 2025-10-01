@@ -1,6 +1,10 @@
 import { useEffect, useRef } from 'react';
 import { startPlaygroundWeb } from '@wp-playground/client';
-import { DEFAULT_URL_PREFIX, DEFAULT_WORKSPACE_DIR } from '../constants';
+import {
+	DEFAULT_URL_PREFIX,
+	DEFAULT_WORKSPACE_DIR,
+	getRemoteUrl,
+} from '../constants';
 import { useAppDispatch, useAppSelector } from '../hooks';
 import {
 	applyUrlState,
@@ -15,8 +19,6 @@ import { setCurrentPath } from '../store';
 import { loadStateFromURL, saveStateToURL } from '../url-state';
 import { playgroundRuntime } from '../runtime';
 import { logger } from '@php-wasm/logger';
-// @ts-expect-error
-import { getRemoteUrl } from 'virtual:website-config';
 
 export const PlaygroundManager = () => {
 	const dispatch = useAppDispatch();
@@ -118,7 +120,7 @@ export const PlaygroundManager = () => {
 			try {
 				const clientInstance = await startPlaygroundWeb({
 					iframe: previewIframe,
-					remoteUrl: getRemoteUrl(),
+					remoteUrl: getRemoteUrl().toString(),
 					// blueprint: {
 					// 	preferredVersions: {
 					// 		wp: wpVersionRef.current,
