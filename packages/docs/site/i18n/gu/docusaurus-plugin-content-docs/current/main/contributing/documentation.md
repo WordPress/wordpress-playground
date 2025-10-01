@@ -58,7 +58,7 @@ Would you like to see the documentation in your language? Check the Translation 
 If you are familiar with markdown, you can fork the `wordpress-playground` repo and propose changes and new documentation pages by submitting a Pull Request.
 -->
 
-WordPress/wordpress-playground રેપોઝિટરીમાં અનુવાદિત પેજ સાથે નવી બ્રાન્ચ બનાવી PR ખોલવાની પ્રક્રિયા બાકી WordPress રેપોઝિટરીઓ (જેમ કે Gutenberg) જેવી જ છે: <https://developer.wordpress.org/block-editor/contributors/code/git-workflow/>
+WordPress/wordpress-playground રેપોઝિટરીમાં અનુવાદિત પેજ સાથે નવી બ્રાન્ચ બનાવી PR ખોલવાની પ્રક્રિયા બાકી WordPress રેપોઝિટરીઓ (જેમ કે Gutenberg) જેવી જ છે: https://developer.wordpress.org/block-editor/contributors/code/git-workflow/
 
 <!--
 The process of creating a branch to open new PRs with translated pages on the WordPress/wordpress-playground repository is the same as contributing to other WordPress repositories such as gutenberg: https://developer.wordpress.org/block-editor/contributors/code/git-workflow/
