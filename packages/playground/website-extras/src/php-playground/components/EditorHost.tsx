@@ -40,7 +40,7 @@ import { markdown } from '@codemirror/lang-markdown';
 
 import { useAppDispatch, useAppSelector } from '../hooks';
 import { queueRun, setCode } from '../store';
-import styles from './layout.module.css';
+import styles from './Layout.module.css';
 
 // Language detection function based on file extension
 const getLanguageExtension = (filePath: string | null) => {

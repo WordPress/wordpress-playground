@@ -1,7 +1,7 @@
 import { type MouseEvent, useEffect } from 'react';
 import clsx from 'clsx';
 
-import styles from './layout.module.css';
+import styles from './Layout.module.css';
 
 interface HelpModalProps {
 	isOpen: boolean;

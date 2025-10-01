@@ -2,7 +2,7 @@ import { type ChangeEvent, useMemo } from 'react';
 
 import { useAppDispatch, useAppSelector } from '../hooks';
 import { queueRun, setPhpVersion, setWpVersion } from '../store';
-import styles from './layout.module.css';
+import styles from './Layout.module.css';
 
 interface ControlsProps {
 	onHelpClick: () => void;
