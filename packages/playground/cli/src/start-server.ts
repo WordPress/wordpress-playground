@@ -4,6 +4,7 @@ import express from 'express';
 import type { IncomingMessage, Server, ServerResponse } from 'http';
 import type { AddressInfo } from 'net';
 import type { RunCLIServer } from './run-cli';
+import { logger } from '@php-wasm/logger';
 
 export interface ServerOptions {
 	port: number;
@@ -36,6 +37,10 @@ export async function startServer(
 			method: req.method as any,
 			body: await bufferRequestBody(req),
 		});
+		const isodate = new Date().toISOString();
+		logger.info(
+			`[${isodate}] ${phpResponse.httpStatusCode} ${req.method} ${req.url}`
+		);
 
 		res.statusCode = phpResponse.httpStatusCode;
 		for (const key in phpResponse.headers) {

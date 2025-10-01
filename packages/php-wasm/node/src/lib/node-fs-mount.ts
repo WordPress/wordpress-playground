@@ -3,10 +3,20 @@ import {
 	FSHelpers,
 	type MountHandler,
 } from '@php-wasm/universal';
+import { isParentOf } from '@php-wasm/util';
 import { lstatSync } from 'fs';
 import { dirname } from 'path';
 
-export function createNodeFsMountHandler(localPath: string): MountHandler {
+export type NodeFsMountHandlerOptions = {
+	cleanupNodesOnUnmount?: boolean;
+};
+
+export function createNodeFsMountHandler(
+	localPath: string,
+	options: NodeFsMountHandlerOptions = {
+		cleanupNodesOnUnmount: false,
+	}
+): MountHandler {
 	return function (php, FS, vfsMountPoint) {
 		/**
 		 * When Emscripten attempt to mount a local path into VFS, it looks up the path
@@ -51,8 +61,14 @@ export function createNodeFsMountHandler(localPath: string): MountHandler {
 		FS.mount(FS.filesystems['NODEFS'], { root: localPath }, vfsMountPoint);
 		return () => {
 			FS!.unmount(vfsMountPoint);
-			if (removeVfsNode) {
+			if (removeVfsNode && options.cleanupNodesOnUnmount) {
 				if (FS.isDir(lookup.node.mode)) {
+					if (isParentOf(vfsMountPoint, FS.cwd())) {
+						throw new Error(
+							`Cannot remove the VFS directory "${vfsMountPoint}" on umount cleanup – it is a parent of the CWD "${FS.cwd()}". Change CWD before ` +
+								`unmounting or explicitly disable post-unmount node cleanup with createNodeFsMountHandler(path, {cleanupNodesOnUnmount: false}).`
+						);
+					}
 					FS.rmdir(vfsMountPoint);
 				} else {
 					FS.unlink(vfsMountPoint);

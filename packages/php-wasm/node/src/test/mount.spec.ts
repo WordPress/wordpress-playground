@@ -154,15 +154,17 @@ describe('Mounting', () => {
 				expect(php.isDir(fileMountPoint)).toBe(false);
 			});
 
-			it('Should unmount mounted file and remove created node from VFS', async () => {
+			it('Should unmount mounted file and remove created node from VFS (with cleanupNodesOnUnmount=true)', async () => {
 				const unmount = await php.mount(
 					fileMountPoint,
-					createNodeFsMountHandler(filePath)
+					createNodeFsMountHandler(filePath, {
+						cleanupNodesOnUnmount: true,
+					})
 				);
 
 				expect(php.isFile(fileMountPoint)).toBe(true);
 
-				unmount();
+				await unmount();
 				expect(php.isFile(fileMountPoint)).toBe(false);
 			});
 
@@ -172,7 +174,7 @@ describe('Mounting', () => {
 					createNodeFsMountHandler(filePath)
 				);
 
-				unmount();
+				await unmount();
 				await php.mount(
 					fileMountPoint,
 					createNodeFsMountHandler(filePath)
@@ -196,7 +198,7 @@ describe('Mounting', () => {
 
 				expect(php.isFile(mountPoint)).toBe(true);
 
-				unmount();
+				await unmount();
 				expect(php.isDir(dirname(mountPoint))).toBe(true);
 			});
 		});
@@ -498,38 +500,44 @@ describe('Mounting', () => {
 				}
 			});
 
-			it('Should unmount mounted directory and remove created node from VFS', async () => {
+			it('Should unmount mounted directory and remove created node from VFS (with cleanupNodesOnUnmount=true)', async () => {
 				const unmount = await php.mount(
 					directoryMountPoint,
-					createNodeFsMountHandler(directoryPath)
+					createNodeFsMountHandler(directoryPath, {
+						cleanupNodesOnUnmount: true,
+					})
 				);
 
 				expect(php.isDir(directoryMountPoint)).toBe(true);
 
-				unmount();
+				await unmount();
 				expect(php.isDir(directoryMountPoint)).toBe(false);
 			});
 
-			it('Should unmount mounted directory, but not remove the parent directory from VFS if it was created manually', async () => {
+			it('Should unmount mounted directory, but not remove the parent directory from VFS if it was created manually (with cleanupNodesOnUnmount=true)', async () => {
 				await php.mkdir(directoryMountPoint);
 				const unmount = await php.mount(
 					directoryMountPoint,
-					createNodeFsMountHandler(directoryPath)
+					createNodeFsMountHandler(directoryPath, {
+						cleanupNodesOnUnmount: true,
+					})
 				);
 
 				expect(php.isDir(directoryMountPoint)).toBe(true);
 
-				unmount();
+				await unmount();
 				expect(php.isDir(directoryMountPoint)).toBe(true);
 			});
 
-			it('Should remount mounted directory after unmounting', async () => {
+			it('Should remount mounted directory after unmounting (with cleanupNodesOnUnmount=true)', async () => {
 				const unmount = await php.mount(
 					directoryMountPoint,
-					createNodeFsMountHandler(directoryPath)
+					createNodeFsMountHandler(directoryPath, {
+						cleanupNodesOnUnmount: true,
+					})
 				);
 
-				unmount();
+				await unmount();
 				await php.mount(
 					directoryMountPoint,
 					createNodeFsMountHandler(directoryPath)
@@ -627,5 +635,166 @@ describe('Mounting', () => {
 		} finally {
 			fs.rmSync(tempBase, { recursive: true, force: true });
 		}
+	});
+
+	describe('Should respect the cleanupNodesOnUnmount option', () => {
+		let tempBase = '',
+			testFile = '',
+			testDir = '';
+		beforeAll(() => {
+			tempBase = fs.mkdtempSync(
+				path.join(os.tmpdir(), 'playground-cleanup-')
+			);
+			testFile = path.join(tempBase, 'test.txt');
+			testDir = path.join(tempBase, 'testdir');
+
+			fs.writeFileSync(testFile, 'test content');
+			fs.mkdirSync(testDir);
+			fs.writeFileSync(
+				path.join(testDir, 'nested.txt'),
+				'nested content'
+			);
+		});
+
+		afterAll(() => {
+			fs.rmSync(tempBase, { recursive: true, force: true });
+		});
+
+		describe('cleanupNodesOnUnmount=false', () => {
+			it('Should not remove the VFS directory if it did not exist before the mount', async () => {
+				const unmount = await php.mount(
+					'/mount-target',
+					createNodeFsMountHandler(testDir, {
+						cleanupNodesOnUnmount: false,
+					})
+				);
+
+				expect(php.isDir('/mount-target')).toBe(true);
+				await unmount();
+				expect(php.isDir('/mount-target')).toBe(true);
+				expect(php.listFiles('/mount-target')).toEqual([]);
+			});
+
+			it('Should not remove the VFS file if it did not exist before the mount', async () => {
+				const unmount = await php.mount(
+					'/mount-target',
+					createNodeFsMountHandler(testFile, {
+						cleanupNodesOnUnmount: false,
+					})
+				);
+
+				expect(php.isFile('/mount-target')).toBe(true);
+				expect(php.readFileAsText('/mount-target')).toBe(
+					'test content'
+				);
+				await unmount();
+				expect(php.isFile('/mount-target')).toBe(true);
+				expect(php.readFileAsText('/mount-target')).toBe('');
+			});
+		});
+
+		describe('cleanupNodesOnUnmount=true', () => {
+			it('Should remove the VFS directory if it did **not** exist before the mount', async () => {
+				const unmount = await php.mount(
+					'/mount-target',
+					createNodeFsMountHandler(testDir, {
+						cleanupNodesOnUnmount: true,
+					})
+				);
+
+				expect(php.isDir('/mount-target')).toBe(true);
+				await unmount();
+				expect(php.fileExists('/mount-target')).toBe(false);
+			});
+
+			it('Should remove the VFS file if it did **not** exist before the mount', async () => {
+				const unmount = await php.mount(
+					'/mount-target',
+					createNodeFsMountHandler(testFile, {
+						cleanupNodesOnUnmount: true,
+					})
+				);
+
+				expect(php.isFile('/mount-target')).toBe(true);
+				await unmount();
+				expect(php.fileExists('/mount-target')).toBe(false);
+			});
+
+			it('Should not remove the VFS directory if it did exist before the mount', async () => {
+				php.mkdir('/mount-target');
+				const unmount = await php.mount(
+					'/mount-target',
+					createNodeFsMountHandler(testDir, {
+						cleanupNodesOnUnmount: true,
+					})
+				);
+
+				expect(php.isDir('/mount-target')).toBe(true);
+				await unmount();
+				expect(php.isDir('/mount-target')).toBe(true);
+			});
+
+			it('Should not remove the VFS file if it did exist before the mount', async () => {
+				php.writeFile('/mount-target', 'Hello, world!');
+				const unmount = await php.mount(
+					'/mount-target',
+					createNodeFsMountHandler(testFile, {
+						cleanupNodesOnUnmount: true,
+					})
+				);
+
+				expect(php.isFile('/mount-target')).toBe(true);
+				await unmount();
+				expect(php.isFile('/mount-target')).toBe(true);
+				expect(php.readFileAsText('/mount-target')).toBe(
+					'Hello, world!'
+				);
+			});
+
+			it('Should refuse to remove the VFS directory if it is the current CWD', async () => {
+				const unmount = await php.mount(
+					'/mount-target',
+					createNodeFsMountHandler(testDir, {
+						cleanupNodesOnUnmount: true,
+					})
+				);
+
+				expect(php.isDir('/mount-target')).toBe(true);
+				php.chdir('/mount-target');
+				expect(unmount()).rejects.toThrow(
+					/Cannot remove the VFS directory/
+				);
+			});
+
+			it('Should refuse to remove the VFS directory if it is a parent of the current CWD', async () => {
+				const unmount = await php.mount(
+					'/mount-target',
+					createNodeFsMountHandler(testDir, {
+						cleanupNodesOnUnmount: true,
+					})
+				);
+
+				expect(php.isDir('/mount-target')).toBe(true);
+				php.mkdir('/mount-target/subdirectory');
+				php.chdir('/mount-target/subdirectory');
+				expect(unmount()).rejects.toThrow(
+					/Cannot remove the VFS directory/
+				);
+			});
+
+			it('Should remove the VFS directory if it is a child of the current CWD', async () => {
+				const unmount = await php.mount(
+					'/mount-target/subdirectory',
+					createNodeFsMountHandler(testDir, {
+						cleanupNodesOnUnmount: true,
+					})
+				);
+
+				expect(php.isDir('/mount-target/subdirectory')).toBe(true);
+				php.chdir('/mount-target');
+				await unmount();
+				expect(php.isDir('/mount-target')).toBe(true);
+			});
+		});
 	});
 });

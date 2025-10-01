@@ -1433,7 +1433,7 @@ export class PHP implements Disposable {
 		};
 		this.#mounts[virtualFSPath] = mountObject;
 		return () => {
-			mountObject.unmount();
+			return mountObject.unmount();
 		};
 	}
 

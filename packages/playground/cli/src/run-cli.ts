@@ -808,7 +808,12 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 				}
 				return new PHPResponse(302, headers, new Uint8Array());
 			}
-			return await loadBalancer.handleRequest(request);
+			try {
+				return await loadBalancer.handleRequest(request);
+			} catch (e) {
+				logger.error(e);
+				return PHPResponse.forHttpCode(500);
+			}
 		},
 	});
 }

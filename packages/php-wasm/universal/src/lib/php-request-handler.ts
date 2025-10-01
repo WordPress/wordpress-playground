@@ -445,39 +445,39 @@ export class PHPRequestHandler implements AsyncDisposable {
 
 		// We need to confirm that the current target file exists because
 		// file-not-found fallback actions may redirect to non-existent files.
-		if (primaryPhp.isFile(fsPath)) {
-			if (fsPath.endsWith('.php')) {
-				const effectiveRequest: PHPRequest = {
-					...request,
-					// Pass along URL with the #fragment filtered out
-					url: requestedUrl.toString(),
-				};
-				const response = await this.#spawnPHPAndDispatchRequest(
-					effectiveRequest,
-					fsPath
-				);
-
-				/**
-				 * If the response is but the exit code is non-zero, let's rewrite the
-				 * HTTP status code as 500. We're acting as a HTTP server here and
-				 * this behavior is in line with what Nginx and Apache do.
-				 */
-				if (response.ok() && response.exitCode !== 0) {
-					return new PHPResponse(
-						500,
-						response.headers,
-						response.bytes,
-						response.errors,
-						response.exitCode
-					);
-				}
-				return response;
-			} else {
-				return this.#serveStaticFile(primaryPhp, fsPath);
-			}
-		} else {
+		if (!primaryPhp.isFile(fsPath)) {
 			return PHPResponse.forHttpCode(404);
 		}
+
+		if (!fsPath.endsWith('.php')) {
+			return this.#serveStaticFile(primaryPhp, fsPath);
+		}
+
+		const effectiveRequest: PHPRequest = {
+			...request,
+			// Pass along URL with the #fragment filtered out
+			url: requestedUrl.toString(),
+		};
+		const response = await this.#spawnPHPAndDispatchRequest(
+			effectiveRequest,
+			fsPath
+		);
+
+		/**
+		 * If the response is but the exit code is non-zero, let's rewrite the
+		 * HTTP status code as 500. We're acting as a HTTP server here and
+		 * this behavior is in line with what Nginx and Apache do.
+		 */
+		if (response.ok() && response.exitCode !== 0) {
+			return new PHPResponse(
+				500,
+				response.headers,
+				response.bytes,
+				response.errors,
+				response.exitCode
+			);
+		}
+		return response;
 	}
 
 	/**
