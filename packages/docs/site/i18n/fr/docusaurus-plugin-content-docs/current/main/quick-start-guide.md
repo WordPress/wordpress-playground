@@ -74,7 +74,7 @@ https://playground.wordpress.net/?plugin=coblocks&plugin=friends&theme=pendant
 <ThisIsQueryApi />
 
 <!-- ## Save your site -->
-## Sauvegardez votre site
+## Sauvegarder votre site
 
 <!-- To keep your WordPress Playground site for longer than a single browser session, you can export it as a `.zip` file. -->
 Pour conserver votre site WordPress Playground au delà d’une seule session de navigateur, vous pouvez l’exporter sous la forme d’un fichier `.zip`.
