@@ -70,6 +70,9 @@
 			"@wp-playground/website": [
 				"packages/playground/website/src/index.ts"
 			],
+			"@wp-playground/website-extras": [
+				"packages/playground/website-extras/src/php-playground/main.tsx"
+			],
 			"@wp-playground/wordpress": [
 				"packages/playground/wordpress/src/index.ts"
 			],
