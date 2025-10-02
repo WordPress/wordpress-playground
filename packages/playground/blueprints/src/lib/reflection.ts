@@ -20,6 +20,12 @@ export async function getBlueprintDeclaration(
 export type BlueprintType = 'bundle' | 'declaration';
 
 export class BlueprintReflection {
+	private readonly declaration:
+		| BlueprintV1Declaration
+		| BlueprintV2Declaration;
+	private readonly bundle: BlueprintBundle | undefined;
+	private readonly version: number;
+
 	static async create(blueprint: Blueprint) {
 		const declaration = await getBlueprintDeclaration(blueprint);
 		const bundle = isBlueprintBundle(blueprint) ? blueprint : undefined;
@@ -38,12 +44,14 @@ export class BlueprintReflection {
 	}
 
 	protected constructor(
-		private readonly declaration:
-			| BlueprintV1Declaration
-			| BlueprintV2Declaration,
-		private readonly bundle: BlueprintBundle | undefined,
-		private readonly version: number
-	) {}
+		declaration: BlueprintV1Declaration | BlueprintV2Declaration,
+		bundle: BlueprintBundle | undefined,
+		version: number
+	) {
+		this.declaration = declaration;
+		this.bundle = bundle;
+		this.version = version;
+	}
 
 	getVersion() {
 		return this.version;
