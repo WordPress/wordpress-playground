@@ -3,7 +3,7 @@ title: php-wasm/node
 slug: /developers/local-development/php-wasm-node
 ---
 
-# Node.js માં વર્ડપ્રેસ પ્લેગ્રાઉન્ડનો  ઉપયોગ
+# Node.js માં વર્ડપ્રેસ પ્લેગ્રાઉન્ડનો ઉપયોગ
 
 <!--
 # Using WordPress Playground in Node.js
