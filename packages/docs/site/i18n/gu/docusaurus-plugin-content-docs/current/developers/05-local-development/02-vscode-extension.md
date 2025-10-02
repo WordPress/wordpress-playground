@@ -8,7 +8,7 @@ slug: /developers/local-development/vscode-extension
 # VS Code extension
 -->
 
-[VS કોડ એક્સટેન્શન] (https://marketplace.visualstudio.com/items?itemName=WordPressPlayground.wordpress-playground) નો ઉપયોગ કરીને શૂન્ય-સેટઅપ ડેવલપમેન્ટ વાતાવરણ શરૂ કરો, અને Apache અથવા MySQL ઇન્સ્ટોલ કર્યા વિના તમારા પ્લગઇન અથવા થીમને સ્થાનિક રીતે વિકસાવો.
+[VS કોડ એક્સટેન્શન](https://marketplace.visualstudio.com/items?itemName=WordPressPlayground.wordpress-playground) નો ઉપયોગ કરીને શૂન્ય-સેટઅપ ડેવલપમેન્ટ વાતાવરણ શરૂ કરો, અને Apache અથવા MySQL ઇન્સ્ટોલ કર્યા વિના તમારા પ્લગઇન અથવા થીમને સ્થાનિક રીતે વિકસાવો.
 
 <!--
 # VS Code extensionStart a zero-setup development environment using the [VS Code extension](https://marketplace.visualstudio.com/items?itemName=WordPressPlayground.wordpress-playground), and develop your plugin or theme locally without installing Apache or MySQL.
@@ -30,7 +30,7 @@ Key Features:
 
 :::info **દસ્તાવેજીકરણ**
 
-VS કોડ એક્સટેન્શન એક અલગ GitHub રિપોઝીટરીમાં જાળવવામાં આવે છે, [પ્લેગ્રાઉન્ડ ટૂલ્સ](https://github.com/WordPress/playground-tools/). તમે નવીનતમ દસ્તાવેજો [dedicated README ફાઇલ] (https://github.com/WordPress/playground-tools/blob/trunk/packages/vscode-extension/README.md) માં શોધી શકો છો.
+VS કોડ એક્સટેન્શન એક અલગ GitHub રિપોઝીટરીમાં જાળવવામાં આવે છે, [પ્લેગ્રાઉન્ડ ટૂલ્સ](https://github.com/WordPress/playground-tools/). તમે નવીનતમ દસ્તાવેજો [dedicated README ફાઇલ](https://github.com/WordPress/playground-tools/blob/trunk/packages/vscode-extension/README.md) માં શોધી શકો છો.
 
 :::
 
