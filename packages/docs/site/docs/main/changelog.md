@@ -9,6 +9,31 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
+## [v3.0.8] (2025-10-02) 
+
+### Documentation
+
+- [i18n] Added Gujarati Translation for Documentation Contributions. ([#2610](https://github.com/WordPress/wordpress-playground/pull/2610))
+
+### Website
+
+- [PHP Playground] Attach client to https://playground.wordpress.net/remote.html. ([#2717](https://github.com/WordPress/wordpress-playground/pull/2717))
+
+### Internal
+
+- Add name to Playground Website and Website extras cli packages. ([#2716](https://github.com/WordPress/wordpress-playground/pull/2716))
+
+### Various
+
+- [i18n] Fixing typos in French translation of quick-start-guide.md. ([#2712](https://github.com/WordPress/wordpress-playground/pull/2712))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @beryl-dlg @dilipom13
+
+
 ## [v3.0.7] (2025-10-01) 
 
 ### Tools
