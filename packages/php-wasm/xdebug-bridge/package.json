@@ -1,6 +1,6 @@
 {
 	"name": "@php-wasm/xdebug-bridge",
-	"version": "3.0.7",
+	"version": "3.0.8",
 	"description": "XDebug bridge server for PHP.wasm",
 	"repository": {
 		"type": "git",
