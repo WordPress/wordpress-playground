@@ -63,7 +63,7 @@ This guide helps table leads prepare for and manage a WordPress Playground contr
 
 3. **Stay Active on Slack**: Continue supporting new contributors through the `#playground` channel, answering questions and helping them become regular contributors.
 
-4. **Reflect and Improve**: Review collected feedback and your experience to refine this guide for future events.
+4. **Reflect and Improve**: Review collected feedback and your experience to refine this guide for future events. Feel free to submit a Pull Request to this guide!
 
 ## Getting Help
 
