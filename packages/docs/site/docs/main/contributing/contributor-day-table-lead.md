@@ -46,7 +46,7 @@ This guide helps table leads prepare for and manage a WordPress Playground contr
 -   Blueprint creation and plugin demos
 -   Testing and product feedback
 
-**Foster Collaboration**: Look for cross-table opportunities. For example, contributors at the Translation(#polyglots) table might translate Playground documentation, or the #test-core team could provide valuable Playground feedback.
+**Foster Collaboration**: Look for cross-table opportunities. For example, contributors at the [Polyglots/Translation table](https://make.wordpress.org/polyglots/) might translate Playground documentation, or the [Core Test team](https://make.wordpress.org/test/) could provide valuable Playground feedback.
 
 **Collect Feedback**: Ask contributors about their experience and note improvement suggestions. Document this feedback in a P2 post when possible.
 
