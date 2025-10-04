@@ -22,7 +22,7 @@ This guide helps table leads prepare for and manage a WordPress Playground contr
 
 1. **Create Your Agenda**: Prepare a flexible checklist of key activities while allowing for organic collaboration. Share it in the project documentation if helpful.
 
-2. **Guide Contributors to Slack**: Direct everyone to the `#playground` channel on WordPress Slack. This centralizes communication and enables asynchronous collaboration with late arrivals.
+2. **Guide Contributors to Slack**: Direct everyone to the [`#playground` channel on WordPress Slack](https://wordpress.slack.com/archives/C04EWKGDJ0K). This centralizes communication and enables asynchronous collaboration with late arrivals.
 
 3. **Post a Welcome Message**: Share an initial message in the Slack channel announcing your presence (in-person or online) and welcoming contributions from everyone.
 
