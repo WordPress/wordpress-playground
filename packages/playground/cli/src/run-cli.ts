@@ -797,7 +797,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 				const headers: Record<string, string[]> = {
 					'Content-Type': ['text/plain'],
 					'Content-Length': ['0'],
-					Location: ['/'],
+					Location: [request.url],
 				};
 				if (
 					request.headers?.['cookie']?.includes(
