@@ -448,6 +448,7 @@ type PlaygroundCliWorker =
 export interface RunCLIServer extends AsyncDisposable {
 	playground: RemoteAPI<PlaygroundCliWorker>;
 	server: Server;
+	serverUrl: string;
 	[Symbol.asyncDispose](): Promise<void>;
 	// Expose the number of worker threads to the test runner.
 	workerThreadCount: number;
@@ -755,6 +756,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 				return {
 					playground,
 					server,
+					serverUrl,
 					[Symbol.asyncDispose]: async function disposeCLI() {
 						await Promise.all(
 							playgroundsToCleanUp.map(
