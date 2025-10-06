@@ -130,7 +130,7 @@ Vous pouvez également utiliser les [paramètres de requête](/developers/apis/q
 -   https://playground.wordpress.net/?php=8.3
 -   https://playground.wordpress.net/?php=8.2&wp=6.2
 
-<!-- <ThisIsQueryApi /> -->
+<ThisIsQueryApi />
 Cela s’appelle l’API Query et vous pouvez en apprendre plus [ici](/wordpress-playground/developers/apis/query-api/).
 
 <!-- To learn more about preparing content for demos, see the [providing content for your demo guide](/guides/providing-content-for-your-demo). -->
