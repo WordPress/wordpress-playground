@@ -1670,9 +1670,23 @@ function copyMEMFSNodes(
 		copyMEMFSNodes(source, target, joinPaths(path, filename));
 	}
 }
+
+/**
+ * Creates a readable stream with inverted control flow,
+ * based on the specified underlying source.
+ *
+ * In this case, inverting control flow means exposing the controller
+ * so the consumer can insert data into the stream.
+ *
+ * @param source - The underlying source to use.
+ * @returns The resulting stream and its associated controller.
+ */
 async function createInvertedReadableStream<T = BufferSource>(
 	source: UnderlyingSource<T> = {}
-) {
+): Promise<{
+	stream: ReadableStream<T>;
+	controller: ReadableStreamDefaultController<T>;
+}> {
 	let controllerResolve: (
 		controller: ReadableStreamDefaultController<T>
 	) => void;
