@@ -71,8 +71,8 @@ export class XdebugCDPBridge {
 		// Xdebug connected
 		this.dbgp.on('connected', () => {
 			this.xdebugConnected = true;
-			this.sendDbgpCommand('stdout', '-c 1'); // copies PHP stdout to IDE
-			this.sendDbgpCommand('stderr', '-c 1'); // copies PHP stderr to IDE
+			this.sendDbgpCommand('stdout', '-c 1'); // copies PHP stdout to console
+			this.sendDbgpCommand('stderr', '-c 1'); // copies PHP stderr to console
 		});
 		// Xdebug messages
 		this.dbgp.on('message', async (xml: string) => {

@@ -1,5 +1,5 @@
 import { logger } from '@php-wasm/logger';
-import type { PHP } from '@php-wasm/universal';
+import type { PHP, PHPWorker, RemoteAPI } from '@php-wasm/universal';
 import { readdirSync, readFileSync, lstatSync } from 'fs';
 import path from 'path';
 import { CDPServer } from './cdp-server';
@@ -11,7 +11,7 @@ export type StartBridgeConfig = {
 	cdpHost?: string;
 	dbgpPort?: number;
 	phpRoot?: string;
-	phpInstance?: PHP;
+	phpInstance?: PHP | RemoteAPI<PHPWorker>;
 	getPHPFile?: (path: string) => string | Promise<string>;
 	breakOnFirstLine?: boolean;
 };
@@ -44,17 +44,25 @@ export async function startBridge(config: StartBridgeConfig) {
 	logger.log('Running a PHP script with Xdebug enabled...');
 
 	// Recursively get a list of .php files in phpRoot
-	function getPhpFiles(dir: string): string[] {
+	async function getPhpFiles(dir: string): Promise<string[]> {
 		const results: string[] = [];
-		const list = readdirSync(dir);
+		const list = config.phpInstance
+			? await config.phpInstance!.listFiles(dir)
+			: readdirSync(dir);
 		for (const file of list) {
 			const filePath = path.join(dir, file);
-			// lstat avoids crashes when encountering symlinks
-			const stat = lstatSync(filePath);
-			if (stat && stat.isDirectory()) {
-				results.push(...getPhpFiles(filePath));
-			} else if (file.endsWith('.php')) {
-				results.push(filePath);
+			try {
+				// lstat avoids crashes when encountering symlinks
+				const stat = config.phpInstance
+					? await config.phpInstance!.isDir(filePath)
+					: lstatSync(filePath).isDirectory();
+				if (stat) {
+					results.push(...(await getPhpFiles(filePath)));
+				} else if (file.endsWith('.php')) {
+					results.push(filePath);
+				}
+			} catch {
+				// Skip this entry if we can't read it
 			}
 		}
 		return results;
@@ -66,7 +74,7 @@ export async function startBridge(config: StartBridgeConfig) {
 		? config.getPHPFile
 		: (path: string) => readFileSync(path, 'utf-8');
 
-	const phpFiles = getPhpFiles(phpRoot);
+	const phpFiles = await getPhpFiles(phpRoot);
 	return new XdebugCDPBridge(dbgpSession, cdpServer, {
 		knownScriptUrls: phpFiles,
 		phpRoot,

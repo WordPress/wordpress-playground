@@ -745,8 +745,8 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 
 				if (args.experimentalDevtools && args.xdebug) {
 					const bridge = await startBridge({
-						getPHPFile: async (path: string) =>
-							await playground!.readFileAsText(path),
+						phpInstance: playground,
+						phpRoot: '/wordpress',
 					});
 
 					bridge.start();

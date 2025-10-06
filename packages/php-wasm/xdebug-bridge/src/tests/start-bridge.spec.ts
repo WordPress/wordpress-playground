@@ -1,7 +1,7 @@
 import './mocker';
 import { type MockInstance, vi } from 'vitest';
 import { WebSocket } from 'ws';
-import type { PHP } from '@php-wasm/universal';
+import { type PHP } from '@php-wasm/universal';
 import { EventEmitter } from 'events';
 import { CDPServer } from '../lib/cdp-server';
 import { DbgpSession } from '../lib/dbgp-session';
@@ -89,6 +89,7 @@ describe('Bridge', () => {
 
 		it('uses phpInstance readFileAsText when provided', async () => {
 			const php = {
+				listFiles: vi.fn(() => []),
 				readFileAsText: vi
 					.fn()
 					.mockResolvedValue('<?php echo "Hello World";'),
@@ -113,6 +114,37 @@ describe('Bridge', () => {
 			const result = await args.getPHPFile('file:///custom.php');
 			expect(getPHPFile).toHaveBeenCalledWith('file:///custom.php');
 			expect(result).toBe('<?php echo "Hello World";');
+		});
+
+		it('reads PHP files from the filesystem when no phpInstance is provided', async () => {
+			await startBridge({ phpRoot: '/foo/bar' });
+
+			const args = (XdebugCDPBridge as any).mock.calls[0][2];
+
+			expect(args.knownScriptUrls).toEqual(['/foo/bar/baz.php']);
+		});
+
+		it('reads files from the virtual filesystem when a PHP instance is provided', async () => {
+			const filesystem: Record<string, string[]> = {
+				'/foo': ['bar.php', 'baz'],
+				'/foo/baz': ['qux.php', 'quux.txt'],
+			};
+
+			const php: Partial<PHP> = {
+				listFiles: vi.fn(
+					(directory: string) => filesystem[directory] || []
+				),
+				isDir: vi.fn((path: string) => path in filesystem),
+			};
+
+			await startBridge({ phpInstance: php as PHP, phpRoot: '/foo' });
+
+			const args = (XdebugCDPBridge as any).mock.calls[0][2];
+
+			expect(args.knownScriptUrls).toEqual([
+				'/foo/bar.php',
+				'/foo/baz/qux.php',
+			]);
 		});
 	});
 
