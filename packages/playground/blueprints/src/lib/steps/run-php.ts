@@ -11,7 +11,7 @@ import { logger } from '@php-wasm/logger';
  * <code>
  * {
  * 		"step": "runPHP",
- * 		"code": "<?php require_once 'wordpress/wp-load.php'; wp_insert_post(array('post_title' => 'wp-load.php required for WP functionality', 'post_status' => 'publish')); ?>"
+ * 		"code": "<?php require_once '/wordpress/wp-load.php'; wp_insert_post(array('post_title' => 'wp-load.php required for WP functionality', 'post_status' => 'publish')); ?>"
  * }
  * </code>
  */
@@ -34,7 +34,7 @@ export interface RunPHPStep {
 
 /**
  * Runs PHP code.
- * When running WordPress functions, the `code` key must first load [`wp-load.php`](https://github.com/WordPress/WordPress/blob/master/wp-load.php) and start with `"<?php require_once 'wordpress/wp-load.php'; "`.
+ * When running WordPress functions, the `code` key must first load [`wp-load.php`](https://github.com/WordPress/WordPress/blob/master/wp-load.php) and start with `"<?php require_once '/wordpress/wp-load.php'; "`.
  */
 export const runPHP: StepHandler<RunPHPStep, Promise<PHPResponse>> = async (
 	playground,
