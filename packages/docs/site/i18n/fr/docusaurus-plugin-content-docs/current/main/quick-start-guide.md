@@ -71,7 +71,6 @@ Vous pouvez également mélanger et faire correspondre ces paramètres et même 
 
 https://playground.wordpress.net/?plugin=coblocks&plugin=friends&theme=pendant
 
-<ThisIsQueryApi />
 
 <!-- ## Save your site -->
 ## Sauvegarder votre site
@@ -95,13 +94,13 @@ Pour conserver votre site WordPress Playground au delà d’une seule session de
 Le fichier exporté contient la totalité du site que vous avez créé. Vous pouvez l’héberger sur n’importe quel serveur prenant en charge PHP et SQLite. Tous les fichiers de base WordPress, les extensions, les thèmes et tout ce que vous avez ajouté d’autre à votre site s’y trouvent.
 
 <!-- The SQLite database file is also included in the export, you'll find it `wp-content/database/.ht.sqlite`. Keep in mind that files starting with a dot are hidden by default on most operating systems so you might need to enable the "Show hidden files" option in your file manager. -->
-Le fichier de base de données SQLite est également inclus dans l’export, vous le trouverez `wp-content/database/.ht.sqlite`. Gardez à l’esprit que les fichiers commençant par un point sont masqués par défaut sur la plupart des systèmes d’exploitation, vous devrez donc peut-être activer l’option « Afficher les fichiers masqués » dans votre gestionnaire de fichiers.
+Le fichier de base de données SQLite est également inclus dans l’export, vous le trouverez `wp-content/database/.ht.sqlite`. Gardez à l’esprit que les fichiers commençant par un point sont masqués par défaut sur la plupart des systèmes d’exploitation, vous devrez donc peut-être activer l’option « Afficher les fichiers masqués » dans votre gestionnaire de fichiers.
 
 <!-- ## Restore a saved site -->
 ## Restaurer un site sauvegardé
 
 <!-- You can restore the saved site using the "Import from .zip" button in the site management panel: -->
-Vous pouvez restaurer le site que vous avez sauvegardé en utilisant le bouton "Importer depuis .zip" dans panneau de gestion du site :
+Vous pouvez restaurer le site que vous avez sauvegardé en utilisant le bouton « Importer depuis .zip » dans panneau de gestion du site :
 
 <!-- ![Import from .zip button](@site/static/img/site-manager-import-actions-menu.webp) -->
 ![Importer depuis un bouton .zip](@site/static/img/site-manager-import-actions-menu.webp)
@@ -110,7 +109,7 @@ Vous pouvez restaurer le site que vous avez sauvegardé en utilisant le bouton "
 ## Utiliser une version spécifique de WordPress ou de PHP
 
 <!-- The quickest way to change the version of WordPress or PHP is by using the settings panel on the [official demo site](https://playground.wordpress.net/): -->
-Le moyen le plus rapide de modifier la version de WordPress ou de PHP est d’utiliser le panneau des paramètres sur le [site de démo officiel](https://playground.wordpress.net/):
+Le moyen le plus rapide de modifier la version de WordPress ou de PHP est d’utiliser le panneau des paramètres sur le [site de démo officiel](https://playground.wordpress.net/) :
 
 <!-- ![WordPress Playground Settings menu](@site/static/img/playground-settings-menu.webp) -->
 ![menu Paramètres de WordPress Playground](@site/static/img/playground-settings-menu.webp)
@@ -124,16 +123,17 @@ Les tests de compatibilité avec tant de versions de WordPress et de PHP ont tou
 :::
 
 <!-- You can also use the `wp` and `php` [query parameters](/developers/apis/query-api) to open Playground with the right versions already loaded: -->
-Vous pouvez également utiliser les [paramètres de requête] `wp` et `php` pour ouvrir Playground avec les bonnes versions déjà chargées :
+Vous pouvez également utiliser les [paramètres de requête](/developers/apis/query-api)  `wp` et `php` pour ouvrir Playground avec les bonnes versions déjà chargées :
 
 -   https://playground.wordpress.net/?wp=6.5
 -   https://playground.wordpress.net/?php=8.3
 -   https://playground.wordpress.net/?php=8.2&wp=6.2
 
-<ThisIsQueryApi />
+<!-- <ThisIsQueryApi /> -->
+Cela s’appelle l’API Query et vous pouvez en apprendre plus [ici](/wordpress-playground/developers/apis/query-api/).
 
 <!-- To learn more about preparing content for demos, see the [providing content for your demo guide](/guides/providing-content-for-your-demo). -->
-Pour en savoir plus au sujet de la préparation de contenu pour les démos, consultez le [fournir du contenu pour votre guide de démonstration](/guides/providing-content-for-your-demo).
+Pour en savoir plus au sujet de la préparation de contenu pour les démos, consultez [le guide « Fournir du contenu pour votre démonstration »](/guides/providing-content-for-your-demo).
 
 <!-- :::info Major versions only -->
 :::info Versions majeures uniquement
@@ -156,7 +156,7 @@ Vous pouvez également utiliser [Blueprints JSON](/blueprints). Pour en savoir p
 Cette fonction est différente de la fonction d’importation décrite ci-dessus. La fonction d’importation exporte l’ensemble du site, y compris la base de données. Cette fonction d'importation permet d’importer un fichier WXR dans un site existant.
 
 <!-- ## Build apps with WordPress Playground -->
-Créer des applications avec WordPress Playground
+## Créer des applications avec WordPress Playground
 
 <!-- WordPress Playground is programmable, which means you can [build WordPress apps](/developers/build-your-first-app), setup plugin demos, and even use it as a zero-setup [local development environment](/developers/local-development/). -->
 WordPress Playground est programmable, ce qui signifie que vous pouvez [créer des applications WordPress](/developers/build-your-first-app), mettre en place des démonstrations d’extensions et même l’utiliser comme un [environnement de développement local] sans installation(/developers/local-development/).
@@ -165,6 +165,6 @@ WordPress Playground est programmable, ce qui signifie que vous pouvez [créer d
 Pour en savoir plus sur le développement avec WordPress Playground, consultez la section [démarrage rapide du développement](/developers/build-your-first-app).
 
 :::
-Traduction par : @omarinier
-et relecture par : @beryldlg
+Traduction par : [@omarinier](https://profiles.wordpress.org/omarinier/)
+et relecture par : [@beryldlg](https://profiles.wordpress.org/beryldlg/)
 :::
