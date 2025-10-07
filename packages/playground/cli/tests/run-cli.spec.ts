@@ -1,5 +1,6 @@
 import path from 'node:path';
 import os from 'node:os';
+import http from 'node:http';
 import { runCLI } from '../src/run-cli';
 import type { RunCLIArgs, RunCLIServer } from '../src/run-cli';
 import type { MockInstance } from 'vitest';
@@ -60,6 +61,7 @@ describe.each(blueprintVersions)(
 				// irrelevant for this test.
 				skipWordPressSetup: true,
 				skipSqliteSetup: true,
+				blueprint: undefined,
 			});
 			await cliServer.playground.writeFile(
 				'/wordpress/version.php',
@@ -624,20 +626,66 @@ describe.each(blueprintVersions)(
 	60_000 * 5
 );
 
-describe('error handling', () => {
-	test('should return 500 when the request handler throws an error', async () => {
-		const cliServer = await runCLI({
-			command: 'server',
-			skipWordPressSetup: true,
-			blueprint: undefined,
+describe('other run-cli behaviors', () => {
+	let cliServer: RunCLIServer;
+
+	afterEach(async () => {
+		if (cliServer) {
+			try {
+				await cliServer[Symbol.asyncDispose]();
+			} catch {
+				// Ignore any dispose-related errors
+			}
+		}
+	});
+
+	describe('auto-login', () => {
+		test('should clear old auto-login cookie', async () => {
+			cliServer = await runCLI({
+				command: 'server',
+				skipWordPressSetup: true,
+				skipSqliteSetup: true,
+				blueprint: undefined,
+			});
+			cliServer.playground.writeFile('/wordpress/dummy.txt', '');
+			const dummyUrl = new URL('/dummy.txt', cliServer.serverUrl);
+			const res = await new Promise<http.Response>((resolve, reject) => {
+				// We use http.get() instead of fetch() because fetch() will not
+				// expose the contents of redirection responses.
+				const req = http.get(
+					dummyUrl,
+					{
+						headers: {
+							cookie: 'playground_auto_login_already_happened=1',
+						},
+					},
+					resolve
+				);
+				req.on('error', reject);
+				req.end();
+			});
+			expect(res.statusCode).toBe(302);
+			expect(res.headers['set-cookie']).toContain(
+				'playground_auto_login_already_happened=1; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=/'
+			);
 		});
+	});
 
-		const throwAnError = (() => {
-			throw new Error('test error');
-		}) as any;
-		cliServer.playground.request = throwAnError;
+	describe('error handling', () => {
+		test('should return 500 when the request handler throws an error', async () => {
+			cliServer = await runCLI({
+				command: 'server',
+				skipWordPressSetup: true,
+				blueprint: undefined,
+			});
 
-		const response = await fetch(new URL('/', cliServer.serverUrl));
-		expect(response.status).toBe(500);
+			const throwAnError = (() => {
+				throw new Error('test error');
+			}) as any;
+			cliServer.playground.request = throwAnError;
+
+			const response = await fetch(new URL('/', cliServer.serverUrl));
+			expect(response.status).toBe(500);
+		});
 	});
 });
