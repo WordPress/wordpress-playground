@@ -2,6 +2,7 @@
 	"name": "wp-playground",
 	"version": "0.0.0",
 	"license": "GPL-2.0-or-later",
+	"packageManager": "npm@10.9.2",
 	"scripts": {
 		"build": "nx run-many --all --target=build",
 		"rebuild:wordpress-builds": "nx run playground-wordpress-builds:bundle-wordpress:all -- --force",
@@ -101,7 +102,7 @@
 		"react-redux": "8.1.3",
 		"react-resizable-panels": "3.0.6",
 		"react-transition-group": "4.4.5",
-		"sha.js": "2.4.11",
+		"sha.js": "2.4.12",
 		"tmp-promise": "3.0.3",
 		"wasm-feature-detect": "1.8.0",
 		"xml2js": "0.6.2",
