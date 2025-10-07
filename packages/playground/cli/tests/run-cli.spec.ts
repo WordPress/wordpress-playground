@@ -649,21 +649,23 @@ describe('other run-cli behaviors', () => {
 			});
 			cliServer.playground.writeFile('/wordpress/dummy.txt', '');
 			const dummyUrl = new URL('/dummy.txt', cliServer.serverUrl);
-			const res = await new Promise<http.Response>((resolve, reject) => {
-				// We use http.get() instead of fetch() because fetch() will not
-				// expose the contents of redirection responses.
-				const req = http.get(
-					dummyUrl,
-					{
-						headers: {
-							cookie: 'playground_auto_login_already_happened=1',
+			const res = await new Promise<http.IncomingMessage>(
+				(resolve, reject) => {
+					// We use http.get() instead of fetch() because fetch() will not
+					// expose the contents of redirection responses.
+					const req = http.get(
+						dummyUrl,
+						{
+							headers: {
+								cookie: 'playground_auto_login_already_happened=1',
+							},
 						},
-					},
-					resolve
-				);
-				req.on('error', reject);
-				req.end();
-			});
+						resolve
+					);
+					req.on('error', reject);
+					req.end();
+				}
+			);
 			expect(res.statusCode).toBe(302);
 			expect(res.headers['set-cookie']).toContain(
 				'playground_auto_login_already_happened=1; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=/'
