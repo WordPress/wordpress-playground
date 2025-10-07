@@ -1,9 +1,10 @@
-import type { PHPRequest, PHPResponse } from '@php-wasm/universal';
+import { type PHPRequest, PHPResponse } from '@php-wasm/universal';
 import type { Request } from 'express';
 import express from 'express';
 import type { IncomingMessage, Server, ServerResponse } from 'http';
 import type { AddressInfo } from 'net';
 import type { RunCLIServer } from './run-cli';
+import { logger } from '@php-wasm/logger';
 
 export interface ServerOptions {
 	port: number;
@@ -30,12 +31,18 @@ export async function startServer(
 	});
 
 	app.use('/', async (req, res) => {
-		const phpResponse = await options.handleRequest({
-			url: req.url,
-			headers: parseHeaders(req),
-			method: req.method as any,
-			body: await bufferRequestBody(req),
-		});
+		let phpResponse: PHPResponse;
+		try {
+			phpResponse = await options.handleRequest({
+				url: req.url,
+				headers: parseHeaders(req),
+				method: req.method as any,
+				body: await bufferRequestBody(req),
+			});
+		} catch (error) {
+			logger.error(error);
+			phpResponse = PHPResponse.forHttpCode(500);
+		}
 
 		res.statusCode = phpResponse.httpStatusCode;
 		for (const key in phpResponse.headers) {

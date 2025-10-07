@@ -1,5 +1,6 @@
 import path from 'node:path';
 import os from 'node:os';
+import http from 'node:http';
 import { runCLI } from '../src/run-cli';
 import type { RunCLIArgs, RunCLIServer } from '../src/run-cli';
 import type { MockInstance } from 'vitest';
@@ -56,17 +57,21 @@ describe.each(blueprintVersions)(
 				...suiteCliArgs,
 				command: 'server',
 				php: '8.0',
+				// Let's skip the cost of WordPress setup because it is
+				// irrelevant for this test.
+				skipWordPressSetup: true,
+				skipSqliteSetup: true,
+				blueprint: undefined,
 			});
 			await cliServer.playground.writeFile(
 				'/wordpress/version.php',
 				'<?php echo phpversion(); ?>'
 			);
-			const response = await cliServer.playground.request({
-				url: '/version.php',
-				method: 'GET',
-			});
-			expect(response.httpStatusCode).toBe(200);
-			expect(response.text).toContain('8.0');
+			const versionUrl = new URL('/version.php', cliServer.serverUrl);
+			const response = await fetch(versionUrl);
+			expect(response.status).toBe(200);
+			const text = await response.text();
+			expect(text).toContain('8.0');
 		});
 
 		test('should use custom site-url when provided', async () => {
@@ -80,12 +85,14 @@ describe.each(blueprintVersions)(
 				'/wordpress/site-url.php',
 				'<?php require_once "/wordpress/wp-load.php"; echo get_option("siteurl"); ?>'
 			);
-			const response = await cliServer.playground.request({
-				url: '/site-url.php',
-				method: 'GET',
-			});
-			expect(response.httpStatusCode).toBe(200);
-			expect(response.text).toContain(customSiteUrl);
+			const siteUrlTestUrl = new URL(
+				'/site-url.php',
+				cliServer.serverUrl
+			);
+			const response = await fetch(siteUrlTestUrl);
+			expect(response.status).toBe(200);
+			const text = await response.text();
+			expect(text).toContain(customSiteUrl);
 		});
 
 		test('should use default site-url when not provided', async () => {
@@ -98,12 +105,14 @@ describe.each(blueprintVersions)(
 				'/wordpress/site-url.php',
 				'<?php require_once "/wordpress/wp-load.php"; echo get_option("siteurl"); ?>'
 			);
-			const response = await cliServer.playground.request({
-				url: '/site-url.php',
-				method: 'GET',
-			});
-			expect(response.httpStatusCode).toBe(200);
-			expect(response.text).toContain('http://127.0.0.1:9500');
+			const siteUrlTestUrl = new URL(
+				'/site-url.php',
+				cliServer.serverUrl
+			);
+			const response = await fetch(siteUrlTestUrl);
+			expect(response.status).toBe(200);
+			const text = await response.text();
+			expect(text).toContain('http://127.0.0.1:9500');
 		});
 
 		test('should set WordPress version', async () => {
@@ -123,12 +132,11 @@ describe.each(blueprintVersions)(
             echo get_bloginfo("version");
             ?>`
 			);
-			const response = await cliServer.playground.request({
-				url: '/version.php',
-				method: 'GET',
-			});
-			expect(response.httpStatusCode).toBe(200);
-			expect(response.text).toContain(oldestSupportedVersion);
+			const versionUrl = new URL('/version.php', cliServer.serverUrl);
+			const response = await fetch(versionUrl);
+			expect(response.status).toBe(200);
+			const text = await response.text();
+			expect(text).toContain(oldestSupportedVersion);
 		});
 
 		test('should run blueprint', async () => {
@@ -146,12 +154,11 @@ describe.each(blueprintVersions)(
 					],
 				},
 			});
-			const response = await cliServer.playground.request({
-				url: '/',
-				method: 'GET',
-			});
-			expect(response.httpStatusCode).toBe(200);
-			expect(response.text).toContain('<title>My Blog Name</title>');
+			const homeUrl = new URL('/', cliServer.serverUrl);
+			const response = await fetch(homeUrl);
+			expect(response.status).toBe(200);
+			const text = await response.text();
+			expect(text).toContain('<title>My Blog Name</title>');
 		});
 
 		test('should be able to follow external symlinks in primary and secondary PHP instances', async ({
@@ -206,25 +213,21 @@ describe.each(blueprintVersions)(
 				expect(cliServer.workerThreadCount).toBe(1);
 				// Make multiple simultaneous requests to force the use of a secondary PHP instance.
 				// TODO: Find way to confirm this.
+				const sleepUrl = new URL(
+					'/wp-content/test-script/sleep.php',
+					cliServer.serverUrl
+				);
 				const responses = await Promise.all([
-					cliServer.playground.request({
-						url: '/wp-content/test-script/sleep.php',
-						method: 'GET',
-					}),
-					cliServer.playground.request({
-						url: '/wp-content/test-script/sleep.php',
-						method: 'GET',
-					}),
+					fetch(sleepUrl),
+					fetch(sleepUrl),
 					// Test a third request to hopefully test more than one secondary instance.
-					cliServer.playground.request({
-						url: '/wp-content/test-script/sleep.php',
-						method: 'GET',
-					}),
+					fetch(sleepUrl),
 				]);
-				responses.forEach((response) => {
-					expect(response.httpStatusCode).toBe(200);
-					expect(response.text).toContain('Slept');
-				});
+				for (const response of responses) {
+					expect(response.status).toBe(200);
+					const text = await response.text();
+					expect(text).toContain('Slept');
+				}
 			} finally {
 				if (existsSync(symlinkPath)) {
 					unlinkSync(symlinkPath);
@@ -252,12 +255,11 @@ describe.each(blueprintVersions)(
 						},
 					],
 				});
-				const response = await cliServer.playground.request({
-					url: '/',
-					method: 'GET',
-				});
-				expect(response.httpStatusCode).toBe(200);
-				expect(response.text).toContain(
+				const homeUrl = new URL('/', cliServer.serverUrl);
+				const response = await fetch(homeUrl);
+				expect(response.status).toBe(200);
+				const text = await response.text();
+				expect(text).toContain(
 					`<title>${expectedHomePageTitle}</title>`
 				);
 			});
@@ -284,12 +286,11 @@ describe.each(blueprintVersions)(
 					],
 				});
 				// Confirm the new site looks intact with its WP installed.
-				const setupResponse = await cliServer.playground.request({
-					url: '/',
-					method: 'GET',
-				});
-				expect(setupResponse.httpStatusCode).toBe(200);
-				expect(setupResponse.text).toContain(
+				const homeUrl = new URL('/', cliServer.serverUrl);
+				const setupResponse = await fetch(homeUrl);
+				expect(setupResponse.status).toBe(200);
+				const setupText = await setupResponse.text();
+				expect(setupText).toContain(
 					`<title>${expectedHomePageTitle}</title>`
 				);
 				await cliServer.server.close();
@@ -307,12 +308,10 @@ describe.each(blueprintVersions)(
 						},
 					],
 				});
-				const redirectResponse = await cliServer.playground.request({
-					url: '/',
-					method: 'GET',
-				});
-				expect(redirectResponse.httpStatusCode).toBe(200);
-				expect(redirectResponse.text).toContain(
+				const redirectResponse = await fetch(homeUrl);
+				expect(redirectResponse.status).toBe(200);
+				const redirectText = await redirectResponse.text();
+				expect(redirectText).toContain(
 					`<title>${expectedHomePageTitle}</title>`
 				);
 			});
@@ -388,12 +387,11 @@ describe.each(blueprintVersions)(
 				});
 				expect(phpResponse.text).toBe('1');
 
-				const response = await cliServer.playground.request({
-					url: '/',
-					method: 'GET',
-				});
-				expect(response.httpStatusCode).toBe(200);
-				expect(response.text).toContain(
+				const homeUrl = new URL('/', cliServer.serverUrl);
+				const response = await fetch(homeUrl);
+				expect(response.status).toBe(200);
+				const text = await response.text();
+				expect(text).toContain(
 					`<title>${expectedHomePageTitle}</title>`
 				);
 			});
@@ -409,12 +407,11 @@ describe.each(blueprintVersions)(
 
 				expect(await getActiveTheme()).toBe('Yolo Theme');
 
-				const response = await cliServer.playground.request({
-					url: '/',
-					method: 'GET',
-				});
-				expect(response.httpStatusCode).toBe(200);
-				expect(response.text).toContain(
+				const homeUrl = new URL('/', cliServer.serverUrl);
+				const response = await fetch(homeUrl);
+				expect(response.status).toBe(200);
+				const text = await response.text();
+				expect(text).toContain(
 					`<title>${expectedHomePageTitle}</title>`
 				);
 			});
@@ -439,11 +436,9 @@ describe.each(blueprintVersions)(
 					command: 'server',
 					autoMount: '',
 				});
-				const response = await cliServer.playground.request({
-					url: '/wp-login.php',
-					method: 'GET',
-				});
-				expect(response.httpStatusCode).toBe(200);
+				const loginUrl = new URL('/wp-login.php', cliServer.serverUrl);
+				const response = await fetch(loginUrl);
+				expect(response.status).toBe(200);
 			});
 
 			test('should run a static html project using --auto-mount', async () => {
@@ -459,12 +454,11 @@ describe.each(blueprintVersions)(
 					command: 'server',
 					autoMount: '',
 				});
-				const response = await cliServer.playground.request({
-					url: '/',
-					method: 'GET',
-				});
-				expect(response.httpStatusCode).toBe(200);
-				expect(response.text).toContain('<title>Static HTML</title>');
+				const homeUrl = new URL('/', cliServer.serverUrl);
+				const response = await fetch(homeUrl);
+				expect(response.status).toBe(200);
+				const text = await response.text();
+				expect(text).toContain('<title>Static HTML</title>');
 			});
 
 			test('should run a php project using --auto-mount', async () => {
@@ -476,12 +470,11 @@ describe.each(blueprintVersions)(
 					command: 'server',
 					autoMount: '',
 				});
-				const response = await cliServer.playground.request({
-					url: '/',
-					method: 'GET',
-				});
-				expect(response.httpStatusCode).toBe(200);
-				expect(response.text).toContain('Hello world');
+				const homeUrl = new URL('/', cliServer.serverUrl);
+				const response = await fetch(homeUrl);
+				expect(response.status).toBe(200);
+				const text = await response.text();
+				expect(text).toContain('Hello world');
 			});
 
 			// NOTE: We have had trouble running the full test set on Windows
@@ -519,12 +512,11 @@ describe.each(blueprintVersions)(
 						command: 'server',
 						autoMount: '',
 					});
-					const response = await cliServer.playground.request({
-						url: '/',
-						method: 'GET',
-					});
-					expect(response.httpStatusCode).toBe(200);
-					expect(response.text).toContain(
+					const homeUrl = new URL('/', cliServer.serverUrl);
+					const response = await fetch(homeUrl);
+					expect(response.status).toBe(200);
+					const text = await response.text();
+					expect(text).toContain(
 						`<title>${expectedHomePageTitle}</title>`
 					);
 
@@ -633,3 +625,69 @@ describe.each(blueprintVersions)(
 	},
 	60_000 * 5
 );
+
+describe('other run-cli behaviors', () => {
+	let cliServer: RunCLIServer;
+
+	afterEach(async () => {
+		if (cliServer) {
+			try {
+				await cliServer[Symbol.asyncDispose]();
+			} catch {
+				// Ignore any dispose-related errors
+			}
+		}
+	});
+
+	describe('auto-login', () => {
+		test('should clear old auto-login cookie', async () => {
+			cliServer = await runCLI({
+				command: 'server',
+				skipWordPressSetup: true,
+				skipSqliteSetup: true,
+				blueprint: undefined,
+			});
+			cliServer.playground.writeFile('/wordpress/dummy.txt', '');
+			const dummyUrl = new URL('/dummy.txt', cliServer.serverUrl);
+			const res = await new Promise<http.IncomingMessage>(
+				(resolve, reject) => {
+					// We use http.get() instead of fetch() because fetch() will not
+					// expose the contents of redirection responses.
+					const req = http.get(
+						dummyUrl,
+						{
+							headers: {
+								cookie: 'playground_auto_login_already_happened=1',
+							},
+						},
+						resolve
+					);
+					req.on('error', reject);
+					req.end();
+				}
+			);
+			expect(res.statusCode).toBe(302);
+			expect(res.headers['set-cookie']).toContain(
+				'playground_auto_login_already_happened=1; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=/'
+			);
+		});
+	});
+
+	describe('error handling', () => {
+		test('should return 500 when the request handler throws an error', async () => {
+			cliServer = await runCLI({
+				command: 'server',
+				skipWordPressSetup: true,
+				blueprint: undefined,
+			});
+
+			const throwAnError = (() => {
+				throw new Error('test error');
+			}) as any;
+			cliServer.playground.request = throwAnError;
+
+			const response = await fetch(new URL('/', cliServer.serverUrl));
+			expect(response.status).toBe(500);
+		});
+	});
+});
