@@ -140,7 +140,7 @@
 		"@types/wordpress__block-editor": "11.5.15",
 		"@types/wordpress__blocks": "12.5.14",
 		"@typescript-eslint/eslint-plugin": "8.31.0",
-		"@vitejs/plugin-react": "4.2.0",
+		"@vitejs/plugin-react": "5.0.4",
 		"@wordpress/block-editor": "13.4.0",
 		"@wordpress/blocks": "13.4.0",
 		"@wordpress/components": "28.4.0",
