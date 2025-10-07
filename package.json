@@ -150,7 +150,7 @@
 		"@wordpress/notices": "5.4.0",
 		"chalk": "5.2.0",
 		"clsx": "^1.2.1",
-		"cypress": "13.17.0",
+		"cypress": "15.3.0",
 		"docusaurus-plugin-typedoc-api": "^4.4.0",
 		"dts-bundle-generator": "^7.2.0",
 		"esbuild": "0.19.9",
