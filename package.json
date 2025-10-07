@@ -2,6 +2,7 @@
 	"name": "wp-playground",
 	"version": "0.0.0",
 	"license": "GPL-2.0-or-later",
+	"packageManager": "npm@10.9.2",
 	"scripts": {
 		"build": "nx run-many --all --target=build",
 		"rebuild:wordpress-builds": "nx run playground-wordpress-builds:bundle-wordpress:all -- --force",
