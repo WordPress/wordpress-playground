@@ -1,19 +1,19 @@
 version: 2
 updates:
-  - package-ecosystem: "npm"
-    directory: "/"
-    schedule:
-      interval: "daily"
-    exclude-paths:
-      - packages/playground/wordpress-builds/build
-      - isomorphic-git
-    ignore:
-      # We're stuck with an older typedoc version
-      - dependency-name: "typedoc"
-        update-types: ["version-update:semver-major", "version-update:semver-minor", "version-update:semver-patch"]
-    open-pull-requests-limit: 4
-    # Security matters, keeping up with regular version bumps don't. It would only expose us
-    # to more breakages when behaviors change upstream.
-    security-updates:
-      enable: true
-      severity: "high_or_critical"
+    - package-ecosystem: 'npm'
+      directory: '/'
+      schedule:
+          interval: 'daily'
+      exclude-paths:
+          - packages/playground/wordpress-builds/build
+          - isomorphic-git
+      ignore:
+          # Ignore all non-security updates - only allow security updates for high or critical vulnerabilities
+          - dependency-name: '*'
+            update-types:
+                [
+                    'version-update:semver-major',
+                    'version-update:semver-minor',
+                    'version-update:semver-patch',
+                ]
+      open-pull-requests-limit: 4
