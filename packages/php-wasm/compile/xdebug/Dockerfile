@@ -6,9 +6,9 @@ FROM playground-php-wasm:base
 # compatible with a particular Zend Engine API version.
 ARG PHP_VERSION
 
-ARG WITH_JSPI
+ARG JSPI
 
-ARG WITH_DEBUG
+ARG DEBUG
 
 # Install Bison, required to build PHP
 RUN mkdir -p /libs
@@ -121,13 +121,13 @@ RUN set -euxo pipefail; \
 
 	export EMCC_FLAGS="-sSIDE_MODULE -D__x86_64__ -sWASM_BIGINT -Dsetsockopt=wasm_setsockopt -Drecv=wasm_recv"; \
 
-	if [ "$WITH_DEBUG" = "yes" ]; then \
+	if [ "$DEBUG" = "yes" ]; then \
 		export EMCC_FLAGS="${EMCC_FLAGS} -O0 -g3"; \
 	else \
 		export EMCC_FLAGS="${EMCC_FLAGS} -O3"; \
 	fi; \
 
-	if [ "$WITH_JSPI" = "yes" ]; then \
+	if [ "$JSPI" = "yes" ]; then \
 		export EMCC_FLAGS="${EMCC_FLAGS} -sJSPI -sJSPI_IMPORTS=wasm_recv -sJSPI_EXPORTS=wasm_recv"; \
 	else \
 		# execute_internal must be in ASYNCIFY_IMPORTS for Xdebug to trace internal PHP functions.

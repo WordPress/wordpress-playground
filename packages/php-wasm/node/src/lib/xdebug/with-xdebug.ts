@@ -63,7 +63,6 @@ export async function withXdebug(
 						'zend_extension=/internal/shared/extensions/xdebug.so',
 						'xdebug.mode=debug,develop',
 						'xdebug.start_with_request=yes',
-						'xdebug.start_upon_error=yes',
 					].join('\n')
 				);
 			}

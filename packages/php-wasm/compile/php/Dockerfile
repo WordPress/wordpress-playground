@@ -1779,6 +1779,7 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "zend_observer_fcall_begin_prechecked",\
 "zend_observer_fcall_begin",\
 "zend_observer_fcall_end",\
+"zend_observer_fcall_end_prechecked",\
 "zend_parse_arg_number_or_str_slow",\
 "zend_parse_arg_str_weak",\
 "zend_parse_arg",\
@@ -1832,6 +1833,7 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "zend_throw_error",\
 "zend_throw_exception_ex",\
 "zend_throw_exception_internal",\
+"zend_throw_exception_object",\
 "zend_throw_exception_zstr",\
 "zend_throw_exception",\
 "zend_throw_non_object_error",\
