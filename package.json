@@ -156,7 +156,7 @@
 		"esbuild": "0.19.9",
 		"eslint": "9.24.0",
 		"eslint-plugin-comment-length": "2.2.1",
-		"eslint-plugin-cypress": "4.3.0",
+		"eslint-plugin-cypress": "5.2.0",
 		"eslint-plugin-erasable-syntax-only": "0.3.1",
 		"eslint-plugin-import": "2.31.0",
 		"eslint-plugin-jsx-a11y": "6.10.2",
