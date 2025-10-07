@@ -1,5 +1,5 @@
 ---
-title: Links and Resources
+title: Liens et ressources
 slug: /resources
 ---
 
