@@ -103,6 +103,7 @@
 		"react-resizable-panels": "3.0.6",
 		"react-transition-group": "4.4.5",
 		"sha.js": "2.4.12",
+		"tmp": "0.2.5",
 		"tmp-promise": "3.0.3",
 		"wasm-feature-detect": "1.8.0",
 		"xml2js": "0.6.2",
@@ -198,7 +199,8 @@
 		"react-dom": "18.3.1",
 		"typescript": "5.4.5",
 		"@playwright/test": "1.47.1",
-		"ws": "^8.18.0"
+		"ws": "^8.18.0",
+		"tmp": "0.2.5"
 	},
 	"workspaces": [
 		"packages/nx-extensions",
