@@ -128,7 +128,7 @@ RUN set -euxo pipefail; \
 	fi; \
 
 	if [ "$JSPI" = "yes" ]; then \
-		export EMCC_FLAGS="${EMCC_FLAGS} -sJSPI -sJSPI_IMPORTS=wasm_recv -sJSPI_EXPORTS=wasm_recv"; \
+		export EMCC_FLAGS="${EMCC_FLAGS} -sJSPI -sJSPI_IMPORTS=wasm_recv -sJSPI_EXPORTS=wasm_recv -sSUPPORT_LONGJMP=wasm -fwasm-exceptions "; \
 	else \
 		# execute_internal must be in ASYNCIFY_IMPORTS for Xdebug to trace internal PHP functions.
 		# This enables async unwinding during breakpoints or stepping inside internal calls.
