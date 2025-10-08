@@ -7,7 +7,6 @@ import { viteTsConfigPaths } from '../../vite-extensions/vite-ts-config-paths';
 import { getExternalModules } from '../../vite-extensions/vite-external-modules';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import viteGlobalExtensions from '../../vite-extensions/vite-global-extensions';
-import { getProductionBuildVersion } from './src/build-version';
 
 const path = (filename: string) => new URL(filename, import.meta.url).pathname;
 export default defineConfig({
@@ -24,43 +23,6 @@ export default defineConfig({
 		}),
 
 		...viteGlobalExtensions,
-
-		(() => {
-			let insertedBuildVersion = false;
-
-			return {
-				name: 'use-git-based-build-version',
-				async transform(code: string, id: string) {
-					if (id !== path('src/build-version.ts')) {
-						return code;
-					}
-
-					const buildVersion: string =
-						await getProductionBuildVersion();
-					const updatedCode = code.replace(
-						'const buildVersion = getDevelopmentBuildVersion();',
-						`const buildVersion = '${buildVersion}';`
-					);
-					if (updatedCode === code) {
-						// eslint-disable-next-line no-console
-						console.warn(
-							'Failed to replace buildVersion in build-version.ts.'
-						);
-						return code;
-					}
-
-					insertedBuildVersion = true;
-					return updatedCode;
-				},
-				writeBundle() {
-					if (!insertedBuildVersion) {
-						throw new Error(
-							'Production build version was not set in build-version.ts.'
-						);
-					}
-				},
-			};
-		})(),
 	],
 
 	build: {

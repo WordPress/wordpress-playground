@@ -15,6 +15,8 @@ import {
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { fileURLToPath } from 'node:url';
 // eslint-disable-next-line @nx/enforce-module-boundaries
+import { buildVersionPlugin } from '../../vite-extensions/vite-build-version';
+// eslint-disable-next-line @nx/enforce-module-boundaries
 import virtualModule from '../../vite-extensions/vite-virtual-module';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import viteGlobalExtensions from '../../vite-extensions/vite-global-extensions';
@@ -63,6 +65,7 @@ export default defineConfig(({ mode }) => {
 			ignoreWasmImports(),
 			ignoreDataImports(),
 			...viteGlobalExtensions,
+			buildVersionPlugin(),
 			virtualModule({
 				name: 'cors-proxy-url',
 				content: `

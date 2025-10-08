@@ -9,6 +9,8 @@ import ignoreDataImports from '../ignore-data-imports';
 import { getExternalModules } from '../../vite-extensions/vite-external-modules';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import viteGlobalExtensions from '../../vite-extensions/vite-global-extensions';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import { buildVersionPlugin } from '../../vite-extensions/vite-build-version';
 
 export default {
 	base: '/',
@@ -29,6 +31,12 @@ export default {
 		ignoreDataImports(),
 
 		...viteGlobalExtensions,
+		// @wp-playground/sync doesn't actually use the remote-config virtual
+		// module, @wp-playground/client package does. @wp-playground/sync imports
+		// a few things from @wp-playground/client and, even though it doesn't
+		// involve the build-version virtual module, the bundler still needs to know
+		// what to do when it sees `import from "virtual:build-version"`.
+		buildVersionPlugin(),
 	],
 
 	// Configuration for building your library.

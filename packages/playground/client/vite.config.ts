@@ -9,6 +9,8 @@ import ignoreDataImports from '../ignore-data-imports';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { viteTsConfigPaths } from '../../vite-extensions/vite-ts-config-paths';
 // eslint-disable-next-line @nx/enforce-module-boundaries
+import { buildVersionPlugin } from '../../vite-extensions/vite-build-version';
+// eslint-disable-next-line @nx/enforce-module-boundaries
 import viteGlobalExtensions from '../../vite-extensions/vite-global-extensions';
 
 export default defineConfig({
@@ -25,6 +27,7 @@ export default defineConfig({
 		ignoreWasmImports(),
 		ignoreDataImports(),
 		...viteGlobalExtensions,
+		buildVersionPlugin(),
 	],
 
 	// Configuration for building your library.

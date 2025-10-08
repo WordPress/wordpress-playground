@@ -1,4 +1,4 @@
-import { buildVersion } from '@wp-playground/common';
+import { buildVersion } from 'virtual:build-version';
 
 // @TODO: Get rid of the hardcoded initial path, always source cwd from the client.
 export const DEFAULT_WORKSPACE_DIR = '/wordpress/workspace';

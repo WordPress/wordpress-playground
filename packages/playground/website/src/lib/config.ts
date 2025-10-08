@@ -1,6 +1,6 @@
 // Provided by vite
-import { buildVersion } from '@wp-playground/common';
-export { buildVersion } from '@wp-playground/common';
+import { buildVersion } from 'virtual:build-version';
+export { buildVersion } from 'virtual:build-version';
 
 export function getRemoteUrl() {
 	const remoteUrl = new URL(window.location.origin);

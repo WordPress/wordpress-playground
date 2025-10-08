@@ -23,6 +23,8 @@ import { fileURLToPath } from 'node:url';
 import { copyFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 // eslint-disable-next-line @nx/enforce-module-boundaries
+import { buildVersionPlugin } from '../../vite-extensions/vite-build-version';
+// eslint-disable-next-line @nx/enforce-module-boundaries
 import { listAssetsRequiredForOfflineMode } from '../../vite-extensions/vite-list-assets-required-for-offline-mode';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import virtualModule from '../../vite-extensions/vite-virtual-module';
@@ -97,6 +99,7 @@ export default defineConfig(({ command, mode }) => {
 			ignoreWasmImports(),
 			ignoreDataImports(),
 			...viteGlobalExtensions,
+			buildVersionPlugin(),
 			virtualModule({
 				name: 'cors-proxy-url',
 				content: `

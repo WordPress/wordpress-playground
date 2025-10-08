@@ -36,7 +36,8 @@ import type { MountDescriptor, PlaygroundClient } from '@wp-playground/remote';
 import { remoteDevServerHost, remoteDevServerPort } from '../../build-config';
 import { BlueprintsV1Handler } from './blueprints-v1-handler';
 import { BlueprintsV2Handler } from './blueprints-v2-handler';
-import { buildVersion } from '@wp-playground/common';
+// @ts-ignore
+import { buildVersion } from 'virtual:build-version';
 
 export interface StartPlaygroundOptions {
 	iframe: HTMLIFrameElement;
