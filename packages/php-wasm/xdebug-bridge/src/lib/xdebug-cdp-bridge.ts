@@ -301,6 +301,19 @@ export class XdebugCDPBridge {
 				break;
 			case 'Debugger.setBreakpointByUrl': {
 				const { url: cdpUri, lineNumber: line } = params;
+				/**
+				 * `url` is an optional parameter. If it's not set, we don't
+				 * have enough information to set a breakpoint so let's just
+				 * ignore the message.
+				 *
+				 * Why would `url` be not set? We don't know that yet.
+				 *
+				 * https://chromedevtools.github.io/devtools-protocol/tot/Debugger/#method-setBreakpointByUrl
+				 */
+				if (!cdpUri) {
+					sendResponse = false;
+					break;
+				}
 				const bridgeUri = this.uriFromCDPToBridge(cdpUri);
 				const dbgpUri = this.uriFromBridgeToDBGP(bridgeUri);
 				const lineNumber = (typeof line === 'number' ? line : 0) + 1; // CDP lineNumber is 0-based, Xdebug expects 1-based
