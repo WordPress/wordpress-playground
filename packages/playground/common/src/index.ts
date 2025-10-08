@@ -13,6 +13,7 @@ import type { UniversalPHP } from '@php-wasm/universal';
 import { phpVars } from '@php-wasm/util';
 
 export { createMemoizedFetch } from './create-memoized-fetch';
+export { buildVersion } from './build-version';
 
 export const RecommendedPHPVersion = '8.3';
 

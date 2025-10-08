@@ -342,11 +342,6 @@ jobs:
                   submodules: true
             - uses: ./.github/actions/prepare-playground
             - run: |
-                  if ADDITIONAL_REMOTE_ORIGINS=invalid-origin npx nx build playground-client; then
-                    echo "The Playground client build should have failed due to an invalid additional origin."
-                    echo "The build does not appear to be applying ADDITIONAL_REMOTE_ORIGINS."
-                    exit 1
-                  fi
                   npx nx affected --target=build --parallel=3 --verbose
 
     # Deploy documentation job

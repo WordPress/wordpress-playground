@@ -1,5 +1,4 @@
-// @ts-expect-error
-import { buildVersion } from 'virtual:website-config';
+import { buildVersion } from '@wp-playground/common';
 
 // @TODO: Get rid of the hardcoded initial path, always source cwd from the client.
 export const DEFAULT_WORKSPACE_DIR = '/wordpress/workspace';

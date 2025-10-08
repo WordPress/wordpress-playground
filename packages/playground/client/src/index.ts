@@ -32,11 +32,11 @@ import type {
 } from '@wp-playground/blueprints';
 import { ProgressTracker } from '@php-wasm/progress';
 import type { MountDescriptor, PlaygroundClient } from '@wp-playground/remote';
-import { additionalRemoteOrigins } from './additional-remote-origins';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { remoteDevServerHost, remoteDevServerPort } from '../../build-config';
 import { BlueprintsV1Handler } from './blueprints-v1-handler';
 import { BlueprintsV2Handler } from './blueprints-v2-handler';
+import { buildVersion } from '@wp-playground/common';
 
 export interface StartPlaygroundOptions {
 	iframe: HTMLIFrameElement;
@@ -108,7 +108,7 @@ export async function startPlaygroundWeb(
 		disableProgressBar,
 	} = options;
 	let { remoteUrl } = options;
-	assertLikelyCompatibleRemoteOrigin(remoteUrl);
+	assertCompatibleRemote(remoteUrl);
 	allowStorageAccessByUserActivation(iframe);
 
 	remoteUrl = setQueryParams(remoteUrl, {
@@ -157,20 +157,16 @@ function allowStorageAccessByUserActivation(iframe: HTMLIFrameElement) {
 
 const officialRemoteOrigin = 'https://playground.wordpress.net';
 const devRemoteOrigin = `http://${remoteDevServerHost}:${remoteDevServerPort}`;
-const validRemoteOrigins = [
+
+// Some software may use older Playground package versions with the main
+// Playground web app. Therefore, let's assume "official" origins are compatible
+// to give that software a chance to work.
+const assumedCompatibleRemoteOrigins = [
 	officialRemoteOrigin,
-	devRemoteOrigin,
 	// An older origin that's still used by some plugins.
 	'https://wasm.wordpress.net',
 	// Allow hosting remote from same origin
 	location.origin,
-	'http://localhost',
-	'http://localhost:5400',
-	'https://localhost',
-	'http://127.0.0.1',
-	'http://127.0.0.1:5400',
-	'https://127.0.0.1',
-	...additionalRemoteOrigins,
 ];
 const remoteOrigin =
 	import.meta.env.MODE == 'development'
@@ -187,20 +183,30 @@ const remoteOrigin =
  *
  * @param remoteHtmlUrl The URL for remote.html
  */
-function assertLikelyCompatibleRemoteOrigin(remoteHtmlUrl: string) {
+async function assertCompatibleRemote(remoteHtmlUrl: string) {
 	const url = new URL(remoteHtmlUrl, remoteOrigin);
 
-	const validRemote =
-		validRemoteOrigins.includes(url.origin) &&
-		url.pathname === '/remote.html';
-
-	if (!validRemote) {
+	if (url.pathname !== '/remote.html') {
 		throw new Error(
-			`Invalid remote URL: ${url}. ` +
-				'Expected remote URL to have a path of "/remote.html" based ' +
-				`on one of the following origins:\n ${validRemoteOrigins.join(
-					'\n'
-				)}`
+			`Invalid remote URL: ${url}. Expected remote URL to have a path of "/remote.html".`
+		);
+	}
+
+	if (assumedCompatibleRemoteOrigins.includes(url.origin)) {
+		return;
+	}
+
+	const remoteHtmlText = await fetch(remoteHtmlUrl).then((res) => res.text());
+
+	const expectedBuildVersion =
+		import.meta.env.MODE == 'development'
+			? 'DEVELOPMENT.VERSION.REPLACED.DURING.BUILD'
+			: buildVersion;
+	const expectedPlaygroundVersionComment = `<!--PLAYGROUND_BUILD_VERSION=${expectedBuildVersion}-->`;
+	if (!remoteHtmlText.includes(expectedPlaygroundVersionComment)) {
+		throw new Error(
+			`Invalid remote URL: ${remoteHtmlUrl}. ` +
+				`Expected remote with PLAYGROUND_BUILD_VERSION=${expectedBuildVersion}.`
 		);
 	}
 }

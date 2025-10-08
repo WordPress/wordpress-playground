@@ -1,6 +1,5 @@
 import { isURLScoped } from '@php-wasm/scopes';
-// @ts-ignore
-import { buildVersion } from 'virtual:remote-config';
+import { buildVersion } from '@wp-playground/common';
 
 const CACHE_NAME_PREFIX = 'playground-cache';
 const LATEST_CACHE_NAME = `${CACHE_NAME_PREFIX}-${buildVersion}`;
@@ -115,7 +114,8 @@ export async function cacheOfflineModeAssetsForCurrentRelease(): Promise<any> {
  * worker will remove the old cache and cache the new assets.
  *
  * If your build version doesn't change while developing locally check
- * `buildVersionPlugin` for more details on how it's generated.
+ * `packages/playground/common/src/build-version.ts` for more details
+ * on how it's generated.
  */
 export async function purgeEverythingFromPreviousRelease() {
 	const keys = await caches.keys();
