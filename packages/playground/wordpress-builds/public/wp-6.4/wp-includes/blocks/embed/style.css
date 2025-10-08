@@ -13,6 +13,7 @@
 
 .wp-block-embed{
   overflow-wrap:break-word;
+	text-align:center;
 }
 .wp-block-embed figcaption{
   margin-bottom:1em;
