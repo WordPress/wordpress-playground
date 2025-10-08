@@ -6,7 +6,7 @@
  * @property {string} lastRelease
  */
 
-export const lastRefreshed = '2025-09-15T15:48:54.060Z';
+export const lastRefreshed = '2025-10-07T22:37:58.997Z';
 
 /**
  * @type {PhpVersion[]}
@@ -17,13 +17,13 @@ export const phpVersions = [
 		version: '8.4',
 		loaderFilename: 'php_8_4.js',
 		wasmFilename: 'php_8_4.wasm',
-		lastRelease: '8.4.12',
+		lastRelease: '8.4.13',
 	},
 	{
 		version: '8.3',
 		loaderFilename: 'php_8_3.js',
 		wasmFilename: 'php_8_3.wasm',
-		lastRelease: '8.3.25',
+		lastRelease: '8.3.26',
 	},
 	{
 		version: '8.2',

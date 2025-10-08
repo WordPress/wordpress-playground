@@ -6,10 +6,10 @@ const require = createRequire(import.meta.url);
 // Note: The path module is currently needed by code injected by the php-wasm Dockerfile.
 import path from 'path';
 
-const dependencyFilename = path.join(__dirname, '8_4_12', 'php_8_4.wasm');
+const dependencyFilename = path.join(__dirname, '8_4_13', 'php_8_4.wasm');
 export { dependencyFilename };
-export const dependenciesTotalSize = 30326899;
-const phpVersionString = '8.4.12';
+export const dependenciesTotalSize = 28961712;
+const phpVersionString = '8.4.13';
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
 	// include: shell.js
@@ -831,7 +831,7 @@ export function init(RuntimeName, PHPLoader) {
 		},
 	};
 
-	var ___heap_base = 16972480;
+	var ___heap_base = 15605120;
 
 	var alignMemory = (size, alignment) => {
 		return Math.ceil(size / alignment) * alignment;
@@ -995,7 +995,7 @@ export function init(RuntimeName, PHPLoader) {
 
 	/** @type {WebAssembly.Table} */
 	var wasmTable = new WebAssembly.Table({
-		initial: 12454,
+		initial: 12461,
 		element: 'anyfunc',
 	});
 	var getWasmTableEntry = (funcPtr) => {
@@ -1786,13 +1786,13 @@ export function init(RuntimeName, PHPLoader) {
 		1024
 	);
 
-	var ___stack_high = 16972480;
+	var ___stack_high = 15605120;
 
-	var ___stack_low = 15923904;
+	var ___stack_low = 14556544;
 
 	var ___stack_pointer = new WebAssembly.Global(
 		{ value: 'i32', mutable: true },
-		16972480
+		15605120
 	);
 
 	var PATH = {
@@ -6637,7 +6637,7 @@ export function init(RuntimeName, PHPLoader) {
 			// single PHP process.
 			FS.mkdir('/request');
 			// The /internal directory is shared amongst all PHP processes
-			// and contains wp-config.php, constants, etc.
+			// and contains the php.ini, constants definitions, etc.
 			FS.mkdir('/internal');
 
 			if (phpWasmInitOptions?.nativeInternalDirPath) {
@@ -32138,13 +32138,13 @@ export function init(RuntimeName, PHPLoader) {
 	// End JS library code
 
 	var ASM_CONSTS = {
-		15723869: ($0) => {
+		14356509: ($0) => {
 			if (!$0) {
 				AL.alcErr = 0xa004;
 				return 1;
 			}
 		},
-		15723917: ($0) => {
+		14356557: ($0) => {
 			if (!AL.currentCtx) {
 				err('alGetProcAddress() called without a valid context');
 				return 1;
