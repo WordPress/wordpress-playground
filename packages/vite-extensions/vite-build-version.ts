@@ -1,7 +1,7 @@
 import { execSync } from 'node:child_process';
 import virtualModule from './vite-virtual-module';
 
-export const buildVersionPlugin = () => {
+export function getBuildVersion() {
 	let buildVersion: string;
 	try {
 		buildVersion = execSync('git rev-parse HEAD').toString().trim();
@@ -17,6 +17,12 @@ export const buildVersionPlugin = () => {
 
 		buildVersion = (new Date().getTime() / 1000).toFixed(0);
 	}
+
+	return buildVersion;
+}
+
+export const buildVersionPlugin = () => {
+	const buildVersion = getBuildVersion();
 
 	return virtualModule({
 		name: 'build-version',

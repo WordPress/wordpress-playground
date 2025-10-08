@@ -9,7 +9,10 @@ import { remoteDevServerHost, remoteDevServerPort } from '../build-config';
 import { viteTsConfigPaths } from '../../vite-extensions/vite-ts-config-paths';
 import { copyFileSync, existsSync } from 'fs';
 // eslint-disable-next-line @nx/enforce-module-boundaries
-import { buildVersionPlugin } from '../../vite-extensions/vite-build-version';
+import {
+	buildVersionPlugin,
+	getBuildVersion,
+} from '../../vite-extensions/vite-build-version';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import virtualModule from '../../vite-extensions/vite-virtual-module';
 // eslint-disable-next-line @nx/enforce-module-boundaries
@@ -42,6 +45,41 @@ const plugins = [
 	} as Plugin,
 	...viteGlobalExtensions,
 	buildVersionPlugin(),
+
+	/**
+	 * Insert the Playground version during build so the Playground client
+	 * can confirm remote compatibility by comparing its build version with
+	 * the version declared in remote.html.
+	 */
+	(() => {
+		let performedVersionReplacement = false;
+		return {
+			name: 'insert-remote-version-during-build',
+			order: 'post',
+			async transformIndexHtml(html: string) {
+				const buildVersion: string = getBuildVersion();
+				const updatedHtml = html.replace(
+					'<!--PLAYGROUND_BUILD_VERSION=DEVELOPMENT.VERSION.REPLACED.DURING.BUILD-->',
+					`<!--PLAYGROUND_BUILD_VERSION=${buildVersion}-->`
+				);
+
+				if (updatedHtml !== html) {
+					performedVersionReplacement = true;
+				}
+
+				return updatedHtml;
+			},
+			writeBundle() {
+				// Explicitly check whether the build version was replaced
+				// to avoid the possibility of silent failure.
+				if (!performedVersionReplacement) {
+					throw new Error(
+						'PLAYGROUND_BUILD_VERSION was not replaced in remote.html'
+					);
+				}
+			},
+		};
+	})(),
 ];
 
 export default defineConfig(({ mode }) => {
