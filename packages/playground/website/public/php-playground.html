@@ -32,17 +32,17 @@
 			}
 
 			.controls {
-				padding: 8px 12px;
+				padding: 12px 16px;
 				background: #f5f5f5;
 				border-bottom: 1px solid #ddd;
 				display: flex;
-				align-items: center;
-				justify-content: space-between;
-				gap: 8px;
-				&,
-				* {
-					font-size: 16px;
-				}
+				flex-direction: column;
+				gap: 12px;
+				font-size: 16px;
+			}
+
+			.controls * {
+				font-size: inherit;
 			}
 
 			.controls h1 {
@@ -52,13 +52,28 @@
 				color: #333;
 			}
 
-			.controls-right {
+			.controls-main {
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+				gap: 12px;
+				flex-wrap: wrap;
+			}
+
+			.controls-actions {
 				display: flex;
 				align-items: center;
 				gap: 8px;
+				flex-wrap: wrap;
 			}
 
-			.controls-right button {
+			.control-group {
+				display: flex;
+				align-items: center;
+				gap: 6px;
+			}
+
+			.controls-actions button {
 				padding: 6px 12px;
 				border: 1px solid #ccc;
 				border-radius: 4px;
@@ -67,11 +82,11 @@
 				transition: background-color 0.2s;
 			}
 
-			.controls-right button:hover {
+			.controls-actions button:hover {
 				background: #f0f0f0;
 			}
 
-			.controls-right select {
+			.controls-actions select {
 				padding: 6px 8px;
 				border: 1px solid #ccc;
 				border-radius: 4px;
@@ -87,6 +102,100 @@
 
 			#helpBtn:hover {
 				text-decoration: underline;
+			}
+
+			.controls-secondary {
+				display: flex;
+				flex-direction: column;
+				gap: 10px;
+			}
+
+			.toggle-group {
+				display: flex;
+				align-items: center;
+				gap: 16px;
+				flex-wrap: wrap;
+			}
+
+			.toggle {
+				display: inline-flex;
+				align-items: center;
+				gap: 6px;
+				cursor: pointer;
+				font-size: 15px;
+			}
+
+			.toggle input[type='checkbox'] {
+				width: 18px;
+				height: 18px;
+				accent-color: #0073aa;
+			}
+
+			.toggle input[type='checkbox']:focus-visible {
+				outline: 2px solid #0073aa;
+				outline-offset: 2px;
+			}
+
+			#multiVersionPanel {
+				display: flex;
+				align-items: center;
+				gap: 12px;
+				flex-wrap: wrap;
+				border: 1px solid #ddd;
+				background: white;
+				padding: 8px 12px;
+				border-radius: 6px;
+			}
+
+			#multiVersionPanel[hidden] {
+				display: none;
+			}
+
+			.multi-version-label {
+				font-weight: 600;
+				color: #333;
+			}
+
+			.multi-version-list {
+				display: flex;
+				flex-wrap: wrap;
+				gap: 8px;
+			}
+
+			.multi-version-option {
+				display: inline-flex;
+				align-items: center;
+				gap: 6px;
+				padding: 4px 10px;
+				border: 1px solid #ccc;
+				border-radius: 20px;
+				background: #fff;
+				cursor: pointer;
+				transition: border-color 0.2s, background-color 0.2s;
+			}
+
+			.multi-version-option input[type='checkbox'] {
+				margin: 0;
+				width: 16px;
+				height: 16px;
+			}
+
+			.multi-version-option input[type='checkbox']:focus-visible {
+				outline: 2px solid #0073aa;
+				outline-offset: 2px;
+			}
+
+			.multi-version-option:hover {
+				border-color: #0073aa;
+				background: #f0f8ff;
+			}
+
+			.multi-version-option span {
+				font-weight: 500;
+			}
+
+			#singlePhpControls[hidden] {
+				display: none;
 			}
 
 			#editor {
@@ -153,6 +262,50 @@
 				width: 100%;
 				height: 100%;
 				border: 0;
+			}
+
+			#preview[hidden] {
+				display: none;
+			}
+
+			#multiPreview {
+				position: absolute;
+				inset: 0;
+				padding: 12px;
+				display: grid;
+				grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+				gap: 12px;
+				overflow: auto;
+				background: #fff;
+			}
+
+			#multiPreview[hidden] {
+				display: none;
+			}
+
+			.preview-card {
+				display: flex;
+				flex-direction: column;
+				border: 1px solid #ddd;
+				border-radius: 6px;
+				background: #fff;
+				overflow: hidden;
+				min-height: 200px;
+			}
+
+			.preview-card-header {
+				padding: 8px 12px;
+				border-bottom: 1px solid #eee;
+				font-weight: 600;
+				color: #333;
+				background: #fafafa;
+			}
+
+			.preview-card iframe {
+				flex: 1;
+				border: 0;
+				width: 100%;
+				background: white;
 			}
 
 			/* Modal styles */
@@ -270,13 +423,17 @@
 				.controls h1 {
 					font-size: 16px;
 				}
-				.controls-right {
+				.controls-actions {
 					gap: 6px;
 				}
-				.controls-right label,
-				.controls-right select,
-				.controls-right button,
-				.controls-right a {
+				.controls-actions label,
+				.controls-actions select,
+				.controls-actions button,
+				.controls-actions a,
+				.toggle {
+					font-size: 14px;
+				}
+				.multi-version-option {
 					font-size: 14px;
 				}
 				#previewPane {
@@ -297,23 +454,45 @@
 					text-align: center;
 					margin-bottom: 4px;
 				}
-				.controls-right {
+				.controls-main {
+					flex-direction: column;
+					align-items: stretch;
+					gap: 8px;
+				}
+				.controls-actions {
 					justify-content: center;
 					flex-wrap: wrap;
 					gap: 8px;
 				}
-				.controls-right button {
+				.controls-actions button {
 					padding: 8px 12px;
 					min-height: 44px; /* Touch-friendly */
 				}
-				.controls-right select {
+				.controls-actions select {
 					min-height: 44px; /* Touch-friendly */
+				}
+				.controls-secondary {
+					gap: 8px;
+				}
+				.toggle-group {
+					justify-content: center;
+				}
+				#multiVersionPanel {
+					flex-direction: column;
+					align-items: stretch;
+				}
+				.multi-version-list {
+					justify-content: center;
 				}
 				#previewPane {
 					height: 35vh;
 				}
 				#editor .cm-editor {
 					font-size: 13px;
+				}
+				#multiPreview {
+					padding: 8px;
+					grid-template-columns: 1fr;
 				}
 			}
 
@@ -325,11 +504,8 @@
 				.controls h1 {
 					font-size: 13px;
 				}
-				.controls-right {
-					font-size: 13px;
-				}
-				.controls-right button,
-				.controls-right select {
+				.controls-actions button,
+				.controls-actions select {
 					min-height: 40px;
 					font-size: 13px;
 				}
@@ -342,6 +518,16 @@
 				#editor .cm-editor {
 					font-size: 12px;
 					line-height: 1.3;
+				}
+				.toggle-group {
+					gap: 10px;
+				}
+				.multi-version-option {
+					padding: 4px 8px;
+					font-size: 13px;
+				}
+				#multiPreview {
+					padding: 6px;
 				}
 			}
 
@@ -376,14 +562,21 @@
 
 			/* Very small screens */
 			@media (max-width: 360px) {
-				.controls-right {
+				.controls-actions {
 					flex-direction: column;
-					align-items: center;
+					align-items: stretch;
 				}
-				.controls-right button,
-				.controls-right select {
+				.controls-actions button,
+				.controls-actions select {
 					width: 100%;
-					max-width: 200px;
+					max-width: 220px;
+				}
+				.toggle-group {
+					flex-direction: column;
+					align-items: stretch;
+				}
+				.multi-version-list {
+					justify-content: center;
 				}
 			}
 
@@ -402,8 +595,11 @@
 				.controls h1 {
 					font-size: 12px;
 				}
-				.controls-right {
+				.controls-actions {
 					gap: 4px;
+				}
+				.toggle-group {
+					gap: 8px;
 				}
 			}
 		</style>
@@ -412,31 +608,63 @@
 		<div id="app">
 			<div id="editorPane">
 				<div class="controls">
-					<h1>WordPress PHP Playground</h1>
-					<div class="controls-right">
-						<label for="wpVersion">WordPress</label>
-						<select id="wpVersion">
-							<option>Loading...</option>
-						</select>
-						<label for="phpVersion">PHP</label>
-						<select id="phpVersion">
-							<option value="8.4" selected>8.4</option>
-							<option value="8.3">8.3</option>
-							<option value="8.2">8.2</option>
-							<option value="8.1">8.1</option>
-							<option value="8.0">8.0</option>
-							<option value="7.4">7.4</option>
-							<option value="7.3">7.3</option>
-							<option value="7.2">7.2</option>
-						</select>
-						<button id="runBtn">Run</button>
-						<a href="#" id="helpBtn">How does this work?</a>
+					<div class="controls-main">
+						<h1>WordPress PHP Playground</h1>
+						<div class="controls-actions">
+							<div class="control-group">
+								<label for="wpVersion">WordPress</label>
+								<select id="wpVersion">
+									<option>Loading...</option>
+								</select>
+							</div>
+							<div class="control-group" id="singlePhpControls">
+								<label for="phpVersion">PHP</label>
+								<select id="phpVersion">
+									<option value="8.4" selected>8.4</option>
+									<option value="8.3">8.3</option>
+									<option value="8.2">8.2</option>
+									<option value="8.1">8.1</option>
+									<option value="8.0">8.0</option>
+									<option value="7.4">7.4</option>
+									<option value="7.3">7.3</option>
+									<option value="7.2">7.2</option>
+								</select>
+							</div>
+							<button id="runBtn">Run</button>
+							<a href="#" id="helpBtn">How does this work?</a>
+						</div>
+					</div>
+					<div class="controls-secondary">
+						<div class="toggle-group">
+							<label class="toggle">
+								<input
+									type="checkbox"
+									id="multiVersionToggle"
+								/>
+								<span>Compare PHP versions</span>
+							</label>
+							<label class="toggle">
+								<input type="checkbox" id="autoRunToggle" />
+								<span>Real-time eval</span>
+							</label>
+						</div>
+						<div id="multiVersionPanel" hidden>
+							<span class="multi-version-label"
+								>Select PHP versions:</span
+							>
+							<div
+								id="multiVersionList"
+								class="multi-version-list"
+								role="list"
+							></div>
+						</div>
 					</div>
 				</div>
 				<div id="editor"></div>
 			</div>
 			<div id="previewPane">
 				<iframe id="preview" title="WordPress Playground"></iframe>
+				<div id="multiPreview" hidden></div>
 			</div>
 		</div>
 
@@ -517,114 +745,110 @@
 		</div>
 
 		<script>
-			// Function to restore code, PHP version, and WordPress version from URL fragment
-			function loadStateFromURL() {
-				const fragment = window.location.hash.slice(1); // Remove #
-				if (fragment) {
-					const decoded = decodeBase64UTF8(fragment);
-					if (decoded !== null) {
-						try {
-							const state = JSON.parse(decoded);
-							return {
-								code: state.code || null,
-								phpVersion: state.php || null,
-								wpVersion: state.wp || null,
-							};
-						} catch (e) {
-							// Try legacy format (just code)
-							return {
-								code: decoded,
-								phpVersion: null,
-								wpVersion: null,
-							};
-						}
-					}
-				}
-				return { code: null, phpVersion: null, wpVersion: null };
-			}
-
-			/**
-			 * URL Fragment State Storage
-			 *
-			 * This implementation stores and restores PHP code, PHP version, and WordPress version from the URL fragment using base64 encoding.
-			 * Features:
-			 * - UTF-8 safe encoding/decoding
-			 * - Stores code, PHP version, and WordPress version
-			 * - Automatic saving on code changes (debounced to 500ms)
-			 * - Automatic saving when PHP or WordPress version changes
-			 * - Immediate saving when running code (Cmd+S)
-			 * - Browser navigation support (back/forward buttons)
-			 * - Shareable URLs with embedded code and versions
-			 * - Backward compatibility with legacy code-only URLs
-			 */
-
-			// Utility functions for UTF-8 safe base64 encoding/decoding
 			function encodeBase64UTF8(str) {
-				// Convert string to UTF-8 bytes, then to base64
 				return btoa(
 					encodeURIComponent(str).replace(
 						/%([0-9A-F]{2})/g,
-						(match, p1) => {
-							return String.fromCharCode('0x' + p1);
-						}
+						(_, p1) => String.fromCharCode('0x' + p1)
 					)
 				);
 			}
 
 			function decodeBase64UTF8(base64) {
 				try {
-					// Decode base64 to bytes, then interpret as UTF-8
 					return decodeURIComponent(
 						atob(base64)
 							.split('')
-							.map((c) => {
+							.map((char) => {
 								return (
 									'%' +
-									('00' + c.charCodeAt(0).toString(16)).slice(
-										-2
-									)
+									(
+										'00' + char.charCodeAt(0).toString(16)
+									).slice(-2)
 								);
 							})
 							.join('')
 					);
-				} catch (e) {
+				} catch (error) {
 					console.warn(
 						'Failed to decode base64 from URL fragment:',
-						e
+						error
 					);
 					return null;
 				}
 			}
 
-			// Function to save code, PHP version, and WordPress version to URL fragment
-			function saveStateToURL(code, phpVersion, wpVersion) {
-				const state = JSON.stringify({
-					code: code,
-					php: phpVersion,
-					wp: wpVersion,
-				});
-				const encoded = encodeBase64UTF8(state);
-				// Use replaceState to avoid adding to browser history
-				window.history.replaceState(null, null, '#' + encoded);
-			}
+			function loadStateFromURL() {
+				const fragment = window.location.hash.slice(1);
+				if (!fragment) {
+					return {
+						code: null,
+						phpVersion: null,
+						wpVersion: null,
+						multiMode: null,
+						multiPhpVersions: null,
+						realtime: null,
+					};
+				}
 
-			var phpVersionSelect = document.getElementById('phpVersion');
-			var wpVersionSelect = document.getElementById('wpVersion');
+				const decoded = decodeBase64UTF8(fragment);
+				if (decoded === null) {
+					return {
+						code: null,
+						phpVersion: null,
+						wpVersion: null,
+						multiMode: null,
+						multiPhpVersions: null,
+						realtime: null,
+					};
+				}
 
-			function restoreVersionsFromURL() {
-				var defaultPhpVersion = '8.4';
-				var defaultWpVersion = '6.8'; // Will be updated with actual latest version
-				const {
-					phpVersion: initialPhpVersion,
-					wpVersion: initialWpVersion,
-				} = loadStateFromURL();
-				phpVersionSelect.value = initialPhpVersion || defaultPhpVersion;
-				if (initialWpVersion && wpVersionSelect.options.length > 1) {
-					wpVersionSelect.value = initialWpVersion;
+				try {
+					const state = JSON.parse(decoded);
+					return {
+						code: state.code ?? null,
+						phpVersion: state.php ?? null,
+						wpVersion: state.wp ?? null,
+						multiMode:
+							typeof state.multi === 'boolean'
+								? state.multi
+								: null,
+						multiPhpVersions: Array.isArray(state.multiPhp)
+							? state.multiPhp
+							: null,
+						realtime:
+							typeof state.realtime === 'boolean'
+								? state.realtime
+								: null,
+					};
+				} catch (error) {
+					// Legacy format: plain code string
+					return {
+						code: decoded,
+						phpVersion: null,
+						wpVersion: null,
+						multiMode: null,
+						multiPhpVersions: null,
+						realtime: null,
+					};
 				}
 			}
 
-			// Modal functionality
+			function saveStateToURL(state) {
+				const payload = {
+					code: state.code,
+					php: state.php,
+					wp: state.wp,
+					multi: !!state.multi,
+					multiPhp: Array.isArray(state.multiPhp)
+						? state.multiPhp
+						: [],
+					realtime: !!state.realtime,
+				};
+				const encoded = encodeBase64UTF8(JSON.stringify(payload));
+				window.history.replaceState(null, null, '#' + encoded);
+			}
+
 			const helpBtn = document.getElementById('helpBtn');
 			const helpModal = document.getElementById('helpModal');
 			const closeModal = document.getElementById('closeModal');
@@ -639,24 +863,22 @@
 				document.body.style.overflow = '';
 			}
 
-			helpBtn.addEventListener('click', (e) => {
-				e.preventDefault();
+			helpBtn.addEventListener('click', (event) => {
+				event.preventDefault();
 				openModal();
 			});
 
 			closeModal.addEventListener('click', closeModalFn);
 
-			// Close modal when clicking outside
-			helpModal.addEventListener('click', (e) => {
-				if (e.target === helpModal) {
+			helpModal.addEventListener('click', (event) => {
+				if (event.target === helpModal) {
 					closeModalFn();
 				}
 			});
 
-			// Close modal with Escape key
-			document.addEventListener('keydown', (e) => {
+			document.addEventListener('keydown', (event) => {
 				if (
-					e.key === 'Escape' &&
+					event.key === 'Escape' &&
 					helpModal.classList.contains('show')
 				) {
 					closeModalFn();
@@ -710,29 +932,30 @@
 			} from 'https://playground.wordpress.net/client/index.js';
 
 			const editorEl = document.getElementById('editor');
+			const phpVersionSelect = document.getElementById('phpVersion');
+			const wpVersionSelect = document.getElementById('wpVersion');
+			const runBtn = document.getElementById('runBtn');
+			const multiVersionToggle =
+				document.getElementById('multiVersionToggle');
+			const realtimeToggle = document.getElementById('autoRunToggle');
+			const multiVersionPanel =
+				document.getElementById('multiVersionPanel');
+			const multiVersionList =
+				document.getElementById('multiVersionList');
+			const singlePhpControls =
+				document.getElementById('singlePhpControls');
+			const previewIframe = document.getElementById('preview');
+			const multiPreviewContainer =
+				document.getElementById('multiPreview');
+
+			multiPreviewContainer.setAttribute('role', 'list');
+
+			const supportedPhpVersions = [...SupportedPHPVersionsList];
 			const phpCompartment = new Compartment();
-
 			const defaultPhpVersion = '8.4';
-			const {
-				phpVersion: initialPhpVersion,
-				wpVersion: initialWpVersion,
-			} = loadStateFromURL();
-			const startingPhpVersion = initialPhpVersion || defaultPhpVersion;
-			const startingWpVersion = initialWpVersion || 'latest';
-
-			// Populate PHP version select options from SupportedPHPVersionsList
-			phpVersionSelect.innerHTML = ''; // Clear existing options
-			SupportedPHPVersionsList.forEach((version) => {
-				const option = document.createElement('option');
-				option.value = version;
-				option.textContent = version;
-				phpVersionSelect.appendChild(option);
-			});
-
-			// WordPress versions will be populated after the client connects
-
-			// Set the versions from URL or defaults
-			restoreVersionsFromURL();
+			const defaultWpVersion = 'latest';
+			const saveDelayMs = 500;
+			const realtimeDelayMs = 600;
 
 			const defaultCode = `<?php
 echo "Hello from PHP " . phpversion();
@@ -748,14 +971,77 @@ $html_processor->next_tag();
 var_dump($html_processor->get_tag());
 ?>`;
 
-			// Load initial state from URL
-			const { code: initialCode } = loadStateFromURL();
-			const startingCode = initialCode || defaultCode;
+			const initialState = loadStateFromURL();
+			const startingCode = initialState.code || defaultCode;
+			const initialMultiVersions = Array.isArray(
+				initialState.multiPhpVersions
+			)
+				? initialState.multiPhpVersions
+				: [];
+			const startingPhpVersion =
+				initialState.phpVersion ||
+				initialMultiVersions[0] ||
+				defaultPhpVersion;
+			const startingWpVersion =
+				initialState.wpVersion || defaultWpVersion;
+
+			let selectedMultiVersions = new Set(
+				initialMultiVersions.length
+					? initialMultiVersions
+					: [startingPhpVersion]
+			);
+			let view = null;
+			let saveCodeTimeout = null;
+			let realtimeTimeout = null;
+			let executionPromise = Promise.resolve();
+			let wpVersionsLoaded = false;
+
+			const multiSessions = new Map();
+			const singleSession = {
+				iframe: previewIframe,
+				client: null,
+				bootPromise: null,
+				runCounter: 0,
+				currentPhpVersion: null,
+				currentWpVersion: null,
+			};
+
+			multiVersionToggle.checked = initialState.multiMode ?? false;
+			realtimeToggle.checked = initialState.realtime ?? false;
+			wpVersionSelect.dataset.requested = startingWpVersion;
+
+			phpVersionSelect.innerHTML = '';
+			supportedPhpVersions.forEach((version) => {
+				const option = document.createElement('option');
+				option.value = version;
+				option.textContent = version;
+				phpVersionSelect.appendChild(option);
+			});
+			const resolvedStartingPhpVersion = supportedPhpVersions.includes(
+				startingPhpVersion
+			)
+				? startingPhpVersion
+				: supportedPhpVersions[0] || defaultPhpVersion;
+			phpVersionSelect.value = resolvedStartingPhpVersion;
+			selectedMultiVersions.add(resolvedStartingPhpVersion);
+			sanitizeSelectedMultiVersions();
+			ensurePrimaryIsFirst(phpVersionSelect.value);
+
+			renderMultiVersionOptions();
+			updateMultiVersionListChecks();
+
+			const isMac = navigator.platform.toUpperCase().includes('MAC');
+			const shortcutText = isMac ? 'Cmd+S' : 'Ctrl+S';
+			updatePreviewMode();
+			updateRunButtonLabel();
+
+			if (multiVersionToggle.checked) {
+				syncMultiPreviewSessions();
+			}
 
 			const state = EditorState.create({
 				doc: startingCode,
 				extensions: [
-					// Basic editor features
 					lineNumbers(),
 					highlightActiveLineGutter(),
 					highlightActiveLine(),
@@ -763,44 +1049,30 @@ var_dump($html_processor->get_tag());
 					dropCursor(),
 					rectangularSelection(),
 					crosshairCursor(),
-
-					// Language and syntax
 					phpCompartment.of(php()),
 					syntaxHighlighting(defaultHighlightStyle),
 					indentOnInput(),
 					bracketMatching(),
 					closeBrackets(),
-
-					// History and undo/redo
 					history(),
-
-					// Search
 					highlightSelectionMatches(),
-
-					// Autocompletion
 					autocompletion(),
-
-					// Update listener to save code to URL fragment
 					EditorView.updateListener.of((update) => {
 						if (update.docChanged) {
 							const code = update.state.doc.toString();
-							const phpVersion = phpVersionSelect.value;
-							const wpVersion = wpVersionSelect.value;
-							// Debounce URL updates to avoid excessive history updates
-							clearTimeout(window.saveCodeTimeout);
-							window.saveCodeTimeout = setTimeout(() => {
-								saveStateToURL(code, phpVersion, wpVersion);
-							}, 500);
+							clearTimeout(saveCodeTimeout);
+							saveCodeTimeout = setTimeout(() => {
+								saveCurrentState(code);
+							}, saveDelayMs);
+							autoRunIfEnabled('code-change');
 						}
 					}),
-
-					// Keymaps (order matters - custom keymaps should come first)
 					keymap.of([
 						{
 							key: 'Mod-s',
 							preventDefault: true,
 							run() {
-								executeCode();
+								executeCode({ reason: 'keyboard-shortcut' });
 								return true;
 							},
 						},
@@ -815,171 +1087,497 @@ var_dump($html_processor->get_tag());
 				],
 			});
 
-			const view = new EditorView({ state, parent: editorEl });
+			view = new EditorView({ state, parent: editorEl });
 
-			const runBtn = document.getElementById('runBtn');
-			const previewIframe = document.getElementById('preview');
-
-			// Set initial versions from URL
-			if (startingPhpVersion) {
-				phpVersionSelect.value = startingPhpVersion;
-			}
-			if (startingWpVersion && wpVersionSelect.options.length > 1) {
-				wpVersionSelect.value = startingWpVersion;
-			}
-
-			let client = null;
-			let currentPhpVersion = phpVersionSelect.value;
-			let currentWpVersion = wpVersionSelect.value;
-			let bootPromise = Promise.resolve();
-			let runCounter = 0;
-
-			// Detect platform for keyboard shortcut display
-			const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
-			const shortcutText = isMac ? 'Cmd+S' : 'Ctrl+S';
-			runBtn.textContent = `Run (${shortcutText})`;
-
-			// Save to URL when PHP version changes
-			phpVersionSelect.addEventListener('change', () => {
-				const code = view.state.doc.toString();
-				const phpVersion = phpVersionSelect.value;
-				const wpVersion = wpVersionSelect.value;
-				saveStateToURL(code, phpVersion, wpVersion);
-			});
-
-			// Save to URL when WordPress version changes
-			wpVersionSelect.addEventListener('change', () => {
-				const code = view.state.doc.toString();
-				const phpVersion = phpVersionSelect.value;
-				const wpVersion = wpVersionSelect.value;
-				saveStateToURL(code, phpVersion, wpVersion);
-			});
-
-			async function bootPlayground(phpVersion, wpVersion) {
-				// Point the iframe at the appropriate PHP and WordPress versions using the Query API
-				previewIframe.src = `https://playground.wordpress.net/remote.html`;
-				client = await startPlaygroundWeb({
-					iframe: previewIframe,
-					remoteUrl: previewIframe.src,
-					blueprint: {
-						preferredVersions: {
-							wp: wpVersion,
-							php: phpVersion,
-						},
-					},
+			runBtn.addEventListener('click', () => {
+				executeCode({ reason: 'manual-click' }).catch((error) => {
+					console.error('Failed to execute code', error);
 				});
+			});
 
-				// Populate WordPress versions from the connected client
+			phpVersionSelect.addEventListener('change', () => {
+				const selectedVersion = phpVersionSelect.value;
+				if (!supportedPhpVersions.includes(selectedVersion)) {
+					return;
+				}
+				selectedMultiVersions.add(selectedVersion);
+				ensurePrimaryIsFirst(selectedVersion);
+				updateMultiVersionListChecks();
+				saveCurrentState();
+				autoRunIfEnabled('php-version-change');
+			});
+
+			wpVersionSelect.addEventListener('change', () => {
+				wpVersionSelect.dataset.requested = wpVersionSelect.value;
+				saveCurrentState();
+				autoRunIfEnabled('wp-version-change');
+			});
+
+			multiVersionToggle.addEventListener('change', () => {
+				if (multiVersionToggle.checked) {
+					if (!selectedMultiVersions.size) {
+						selectedMultiVersions.add(
+							phpVersionSelect.value || resolvedStartingPhpVersion
+						);
+					}
+					if (selectedMultiVersions.size === 1) {
+						const fallback = supportedPhpVersions.find(
+							(version) => version !== phpVersionSelect.value
+						);
+						if (fallback) {
+							selectedMultiVersions.add(fallback);
+						}
+					}
+					updatePhpSelectFromSelections();
+					syncMultiPreviewSessions();
+				} else {
+					updatePhpSelectFromSelections();
+				}
+				updatePreviewMode();
+				updateRunButtonLabel();
+				updateMultiVersionListChecks();
+				saveCurrentState();
+				autoRunIfEnabled('mode-change');
+			});
+
+			realtimeToggle.addEventListener('change', () => {
+				saveCurrentState();
+				if (realtimeToggle.checked) {
+					autoRunIfEnabled('realtime-enabled');
+				}
+			});
+
+			window.addEventListener('hashchange', () => {
+				const stateFromURL = loadStateFromURL();
+				if (
+					stateFromURL.code !== null &&
+					stateFromURL.code !== view.state.doc.toString()
+				) {
+					view.dispatch({
+						changes: {
+							from: 0,
+							to: view.state.doc.length,
+							insert: stateFromURL.code,
+						},
+					});
+				}
+				if (
+					stateFromURL.phpVersion &&
+					supportedPhpVersions.includes(stateFromURL.phpVersion)
+				) {
+					phpVersionSelect.value = stateFromURL.phpVersion;
+				}
+				if (stateFromURL.wpVersion) {
+					wpVersionSelect.dataset.requested = stateFromURL.wpVersion;
+					if (
+						Array.from(wpVersionSelect.options).some(
+							(option) => option.value === stateFromURL.wpVersion
+						)
+					) {
+						wpVersionSelect.value = stateFromURL.wpVersion;
+					}
+				}
+				if (typeof stateFromURL.multiMode === 'boolean') {
+					multiVersionToggle.checked = stateFromURL.multiMode;
+					updatePreviewMode();
+					updateRunButtonLabel();
+				}
+				if (Array.isArray(stateFromURL.multiPhpVersions)) {
+					selectedMultiVersions = new Set(
+						stateFromURL.multiPhpVersions.filter((version) =>
+							supportedPhpVersions.includes(version)
+						)
+					);
+					if (!selectedMultiVersions.size) {
+						selectedMultiVersions.add(phpVersionSelect.value);
+					}
+					updatePhpSelectFromSelections();
+					updateMultiVersionListChecks();
+					if (multiVersionToggle.checked) {
+						syncMultiPreviewSessions();
+					}
+				}
+				if (typeof stateFromURL.realtime === 'boolean') {
+					realtimeToggle.checked = stateFromURL.realtime;
+				}
+			});
+
+			if (!window.location.hash) {
+				saveCurrentState(startingCode);
+			}
+
+			executeCode({ reason: 'initial-load' }).catch((error) => {
+				console.error('Initial run failed', error);
+			});
+
+			function buildStateSnapshot(codeOverride) {
+				const code =
+					typeof codeOverride === 'string'
+						? codeOverride
+						: view
+						? view.state.doc.toString()
+						: '';
+				return {
+					code,
+					php: phpVersionSelect.value,
+					wp: getCurrentWpVersion(),
+					multi: multiVersionToggle.checked,
+					multiPhp: Array.from(selectedMultiVersions),
+					realtime: realtimeToggle.checked,
+				};
+			}
+
+			function saveCurrentState(codeOverride) {
+				saveStateToURL(buildStateSnapshot(codeOverride));
+			}
+
+			function getCurrentWpVersion() {
+				return (
+					wpVersionSelect.value ||
+					wpVersionSelect.dataset.requested ||
+					defaultWpVersion
+				);
+			}
+
+			function executeCode(options = {}) {
+				executionPromise = executionPromise
+					.catch(() => {})
+					.then(() => executeCodeInternal(options));
+				return executionPromise;
+			}
+
+			async function executeCodeInternal(_options) {
+				const code = view.state.doc.toString();
+				clearTimeout(saveCodeTimeout);
+				saveCurrentState(code);
+
+				const wpVersion = getCurrentWpVersion();
+
+				if (multiVersionToggle.checked) {
+					syncMultiPreviewSessions();
+					const versions = Array.from(selectedMultiVersions);
+					for (const version of versions) {
+						const session = ensureMultiSession(version);
+						await ensureSessionBooted(
+							session,
+							version,
+							wpVersion,
+							code
+						);
+						await runSession(session, code);
+					}
+				} else {
+					const phpVersion =
+						phpVersionSelect.value || defaultPhpVersion;
+					await ensureSessionBooted(
+						singleSession,
+						phpVersion,
+						wpVersion,
+						code
+					);
+					await runSession(singleSession, code);
+				}
+			}
+
+			function autoRunIfEnabled(_reason) {
+				if (!realtimeToggle.checked) {
+					return;
+				}
+				clearTimeout(realtimeTimeout);
+				realtimeTimeout = setTimeout(() => {
+					executeCode({ reason: 'realtime' }).catch((error) => {
+						console.error('Real-time execution failed', error);
+					});
+				}, realtimeDelayMs);
+			}
+
+			function updatePreviewMode() {
+				const multiEnabled = multiVersionToggle.checked;
+				multiVersionPanel.hidden = !multiEnabled;
+				if (singlePhpControls) {
+					if (multiEnabled) {
+						singlePhpControls.setAttribute('hidden', '');
+					} else {
+						singlePhpControls.removeAttribute('hidden');
+					}
+				}
+				if (multiEnabled) {
+					previewIframe.setAttribute('hidden', '');
+					multiPreviewContainer.removeAttribute('hidden');
+				} else {
+					previewIframe.removeAttribute('hidden');
+					multiPreviewContainer.setAttribute('hidden', '');
+				}
+			}
+
+			function updateRunButtonLabel() {
+				runBtn.textContent = multiVersionToggle.checked
+					? `Run All (${shortcutText})`
+					: `Run (${shortcutText})`;
+			}
+
+			function sanitizeSelectedMultiVersions() {
+				selectedMultiVersions = new Set(
+					Array.from(selectedMultiVersions).filter((version) =>
+						supportedPhpVersions.includes(version)
+					)
+				);
+				if (
+					!selectedMultiVersions.size &&
+					supportedPhpVersions.length
+				) {
+					selectedMultiVersions.add(supportedPhpVersions[0]);
+				}
+			}
+
+			function ensurePrimaryIsFirst(primary) {
+				if (!primary) {
+					return;
+				}
+				const ordered = [
+					primary,
+					...Array.from(selectedMultiVersions).filter(
+						(version) => version !== primary
+					),
+				];
+				selectedMultiVersions = new Set(ordered);
+			}
+
+			function updatePhpSelectFromSelections() {
+				const first =
+					Array.from(selectedMultiVersions).find((version) =>
+						supportedPhpVersions.includes(version)
+					) || supportedPhpVersions[0];
+				if (first) {
+					phpVersionSelect.value = first;
+					ensurePrimaryIsFirst(first);
+				}
+			}
+
+			function renderMultiVersionOptions() {
+				multiVersionList.innerHTML = '';
+				supportedPhpVersions.forEach((version) => {
+					const label = document.createElement('label');
+					label.className = 'multi-version-option';
+					label.setAttribute('role', 'listitem');
+					const checkbox = document.createElement('input');
+					checkbox.type = 'checkbox';
+					checkbox.value = version;
+					const text = document.createElement('span');
+					text.textContent = `PHP ${version}`;
+					checkbox.addEventListener('change', (event) => {
+						handleMultiVersionCheckboxChange(event);
+					});
+					label.append(checkbox, text);
+					multiVersionList.appendChild(label);
+				});
+			}
+
+			function updateMultiVersionListChecks() {
+				const checkboxes = multiVersionList.querySelectorAll(
+					'input[type="checkbox"]'
+				);
+				checkboxes.forEach((input) => {
+					input.checked = selectedMultiVersions.has(input.value);
+				});
+			}
+
+			function handleMultiVersionCheckboxChange(event) {
+				const checkbox = event.target;
+				const { value, checked } = checkbox;
+				if (checked) {
+					selectedMultiVersions.add(value);
+				} else {
+					selectedMultiVersions.delete(value);
+					if (!selectedMultiVersions.size) {
+						selectedMultiVersions.add(value);
+						checkbox.checked = true;
+						return;
+					}
+					if (!selectedMultiVersions.has(phpVersionSelect.value)) {
+						updatePhpSelectFromSelections();
+					}
+				}
+				updateMultiVersionListChecks();
+				if (multiVersionToggle.checked) {
+					syncMultiPreviewSessions();
+				}
+				saveCurrentState();
+				autoRunIfEnabled('multi-selection-change');
+			}
+
+			function syncMultiPreviewSessions() {
+				const desired = Array.from(selectedMultiVersions).filter(
+					(version) => supportedPhpVersions.includes(version)
+				);
+				for (const [version, session] of multiSessions.entries()) {
+					if (!desired.includes(version)) {
+						if (session.wrapper.isConnected) {
+							session.wrapper.remove();
+						}
+						if (
+							session.client &&
+							typeof session.client.destroy === 'function'
+						) {
+							try {
+								session.client.destroy();
+							} catch (error) {
+								console.warn(
+									`Failed to destroy Playground session for PHP ${version}`,
+									error
+								);
+							}
+						}
+						multiSessions.delete(version);
+					}
+				}
+				desired.forEach((version) => {
+					if (!multiSessions.has(version)) {
+						multiSessions.set(version, createMultiSession(version));
+					}
+				});
+				desired.forEach((version) => {
+					const session = multiSessions.get(version);
+					if (!session) {
+						return;
+					}
+					session.labelEl.textContent = `PHP ${version}`;
+					multiPreviewContainer.appendChild(session.wrapper);
+				});
+			}
+
+			function createMultiSession(version) {
+				const wrapper = document.createElement('section');
+				wrapper.className = 'preview-card';
+				wrapper.setAttribute('role', 'listitem');
+				wrapper.setAttribute('aria-label', `PHP ${version} output`);
+				const header = document.createElement('div');
+				header.className = 'preview-card-header';
+				const label = document.createElement('span');
+				label.textContent = `PHP ${version}`;
+				header.appendChild(label);
+				const iframe = document.createElement('iframe');
+				iframe.setAttribute(
+					'title',
+					`WordPress Playground - PHP ${version}`
+				);
+				iframe.setAttribute('loading', 'lazy');
+				wrapper.append(header, iframe);
+				multiPreviewContainer.appendChild(wrapper);
+				return {
+					iframe,
+					wrapper,
+					labelEl: label,
+					client: null,
+					bootPromise: null,
+					runCounter: 0,
+					currentPhpVersion: null,
+					currentWpVersion: null,
+				};
+			}
+
+			function ensureMultiSession(version) {
+				if (!multiSessions.has(version)) {
+					multiSessions.set(version, createMultiSession(version));
+				}
+				return multiSessions.get(version);
+			}
+
+			async function ensureSessionBooted(
+				session,
+				phpVersion,
+				wpVersion,
+				code
+			) {
+				if (
+					session.client &&
+					session.currentPhpVersion === phpVersion &&
+					session.currentWpVersion === wpVersion
+				) {
+					return session.bootPromise || Promise.resolve();
+				}
+				const remoteUrl =
+					'https://playground.wordpress.net/remote.html';
+				const boot = (async () => {
+					session.iframe.src = remoteUrl;
+					session.client = await startPlaygroundWeb({
+						iframe: session.iframe,
+						remoteUrl,
+						blueprint: {
+							preferredVersions: {
+								wp: wpVersion,
+								php: phpVersion,
+							},
+						},
+					});
+					if (!wpVersionsLoaded) {
+						await populateWordPressVersions(
+							session.client,
+							wpVersion
+						);
+					}
+					await session.client.isReady;
+					await session.client.writeFile('/wordpress/code.php', code);
+					await session.client.goTo('/code.php');
+					session.runCounter = 0;
+					session.currentPhpVersion = phpVersion;
+					session.currentWpVersion = wpVersion;
+					session.iframe.title = `WordPress Playground - PHP ${phpVersion}`;
+					if (session.labelEl) {
+						session.labelEl.textContent = `PHP ${phpVersion}`;
+					}
+				})();
+				session.bootPromise = boot.catch((error) => {
+					session.client = null;
+					throw error;
+				});
+				return session.bootPromise;
+			}
+
+			async function populateWordPressVersions(client, requestedVersion) {
 				try {
 					const { all, latest } =
 						await client.getMinifiedWordPressVersions();
-					const keys = Object.keys(all);
+					const versions = Object.keys(all);
+					if (!versions.length) {
+						return;
+					}
 					wpVersionSelect.innerHTML = '';
-					for (const version of keys) {
+					versions.forEach((version) => {
 						const option = document.createElement('option');
 						option.value = version;
 						option.textContent = version;
 						wpVersionSelect.appendChild(option);
-					}
-					// Use the requested version if available; otherwise fall back to latest
-					wpVersionSelect.value = keys.includes(wpVersion)
-						? wpVersion
-						: latest;
-				} catch (e) {
+					});
+					const desired =
+						requestedVersion && versions.includes(requestedVersion)
+							? requestedVersion
+							: versions.includes(latest)
+							? latest
+							: versions[0];
+					wpVersionSelect.value = desired;
+					wpVersionSelect.dataset.requested = desired;
+					wpVersionsLoaded = true;
+				} catch (error) {
 					console.warn(
 						'Failed to load WordPress versions list from client',
-						e
+						error
 					);
 				}
-				await client.isReady;
-				await client.writeFile('/wordpress/code.php', startingCode);
-				await client.goTo('/code.php'); // Blank document
-				// Sync current versions after boot to avoid unnecessary reboots on first run
-				currentPhpVersion = phpVersionSelect.value;
-				currentWpVersion = wpVersionSelect.value;
 			}
 
-			async function executeCode() {
-				const code = view.state.doc.toString();
-				const phpVersion = phpVersionSelect.value;
-				const wpVersion = wpVersionSelect.value;
-
-				// Save code, PHP version, and WordPress version to URL fragment immediately when running
-				saveStateToURL(code, phpVersion, wpVersion);
-
-				// Ensure initial boot finished before proceeding
-				await bootPromise;
-
-				if (
-					phpVersion !== currentPhpVersion ||
-					wpVersion !== currentWpVersion
-				) {
-					currentPhpVersion = phpVersion;
-					currentWpVersion = wpVersion;
-					bootPromise = bootPlayground(
-						currentPhpVersion,
-						currentWpVersion
-					);
-					await bootPromise;
+			async function runSession(session, code) {
+				if (session.bootPromise) {
+					await session.bootPromise;
 				}
-				await client.writeFile('/wordpress/code.php', code);
-				runCounter += 1;
-				const cacheBuster = 'run=' + runCounter + '-' + Date.now();
-				await client.goTo('/code.php?' + cacheBuster);
+				if (!session.client) {
+					return;
+				}
+				await session.client.writeFile('/wordpress/code.php', code);
+				session.runCounter += 1;
+				const cacheBuster = `run=${session.runCounter}-${Date.now()}`;
+				await session.client.goTo('/code.php?' + cacheBuster);
 			}
-
-			runBtn.addEventListener('click', executeCode);
-
-			// Handle browser navigation (back/forward) to restore code from URL
-			window.addEventListener('hashchange', () => {
-				const {
-					code: codeFromURL,
-					phpVersion: phpVersionFromURL,
-					wpVersion: wpVersionFromURL,
-				} = loadStateFromURL();
-
-				if (codeFromURL !== null) {
-					const currentCode = view.state.doc.toString();
-					if (codeFromURL !== currentCode) {
-						// Update editor content
-						view.dispatch({
-							changes: {
-								from: 0,
-								to: view.state.doc.length,
-								insert: codeFromURL,
-							},
-						});
-					}
-				}
-
-				if (
-					phpVersionFromURL !== null &&
-					phpVersionFromURL !== phpVersionSelect.value
-				) {
-					// Update PHP version selector
-					phpVersionSelect.value = phpVersionFromURL;
-				}
-
-				if (
-					wpVersionFromURL !== null &&
-					wpVersionFromURL !== wpVersionSelect.value
-				) {
-					// Update WordPress version selector
-					wpVersionSelect.value = wpVersionFromURL;
-				}
-			});
-
-			// Save initial state to URL if not already present
-			if (!window.location.hash) {
-				saveStateToURL(
-					startingCode,
-					startingPhpVersion,
-					startingWpVersion
-				);
-			}
-
-			// Initial boot
-			bootPromise = bootPlayground(currentPhpVersion, currentWpVersion);
 		</script>
 	</body>
 </html>
