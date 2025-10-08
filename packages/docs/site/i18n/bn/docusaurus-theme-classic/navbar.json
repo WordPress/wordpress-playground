@@ -1,0 +1,26 @@
+{
+	"title": {
+		"message": "WordPress Playground",
+		"description": "নেভবারে শিরোনাম"
+	},
+	"logo.alt": {
+		"message": "WordPress Playground",
+		"description": "নেভবার লোগোর alt টেক্সট"
+	},
+	"item.label.Documentation": {
+		"message": "ডকুমেন্টেশন",
+		"description": "Documentation লেবেল সহ নেভবার আইটেম"
+	},
+	"item.label.Blueprints": {
+		"message": "ব্লুপ্রিন্ট",
+		"description": "Blueprints লেবেল সহ নেভবার আইটেম"
+	},
+	"item.label.Developers": {
+		"message": "ডেভেলপার",
+		"description": "Developers লেবেল সহ নেভবার আইটেম"
+	},
+	"item.label.API Reference": {
+		"message": "API রেফারেন্স",
+		"description": "API Reference লেবেল সহ নেভবার আইটেম"
+	}
+}

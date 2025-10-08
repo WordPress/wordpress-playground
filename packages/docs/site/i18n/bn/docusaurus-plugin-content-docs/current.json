@@ -1,0 +1,54 @@
+{
+	"version.label": {
+		"message": "পরবর্তী",
+		"description": "বর্তমান সংস্করণের জন্য লেবেল"
+	},
+	"sidebar.mainSidebar.category.Documentation": {
+		"message": "ডকুমেন্টেশন",
+		"description": "mainSidebar সাইডবারে ডকুমেন্টেশন বিভাগের জন্য লেবেল"
+	},
+	"sidebar.mainSidebar.category.About Playground": {
+		"message": "প্লেগ্রাউন্ড সম্পর্কে",
+		"description": "mainSidebar সাইডবারে প্লেগ্রাউন্ড সম্পর্কে বিভাগের জন্য লেবেল"
+	},
+	"sidebar.mainSidebar.category.Guides": {
+		"message": "নির্দেশিকা",
+		"description": "mainSidebar সাইডবারে নির্দেশিকা বিভাগের জন্য লেবেল"
+	},
+	"sidebar.mainSidebar.category.Contributing": {
+		"message": "অবদান",
+		"description": "mainSidebar সাইডবারে অবদান বিভাগের জন্য লেবেল"
+	},
+	"sidebar.blueprintsSidebar.category.Blueprints": {
+		"message": "ব্লুপ্রিন্ট",
+		"description": "blueprintsSidebar সাইডবারে ব্লুপ্রিন্ট বিভাগের জন্য লেবেল"
+	},
+	"sidebar.blueprintsSidebar.category.Tutorial": {
+		"message": "টিউটোরিয়াল",
+		"description": "blueprintsSidebar সাইডবারে টিউটোরিয়াল বিভাগের জন্য লেবেল"
+	},
+	"sidebar.blueprintsSidebar.category.Steps": {
+		"message": "ধাপ",
+		"description": "blueprintsSidebar সাইডবারে ধাপ বিভাগের জন্য লেবেল"
+	},
+	"sidebar.developersSidebar.category.Developers": {
+		"message": "ডেভেলপার",
+		"description": "developersSidebar সাইডবারে ডেভেলপার বিভাগের জন্য লেবেল"
+	},
+	"sidebar.developersSidebar.category.Local Development": {
+		"message": "স্থানীয় উন্নয়ন",
+		"description": "developersSidebar সাইডবারে স্থানীয় উন্নয়ন বিভাগের জন্য লেবেল"
+	},
+	"sidebar.developersSidebar.category.Playground APIs": {
+		"message": "প্লেগ্রাউন্ড API",
+		"description": "developersSidebar সাইডবারে প্লেগ্রাউন্ড API বিভাগের জন্য লেবেল"
+	},
+	"sidebar.developersSidebar.category.Javascript API": {
+		"message": "জাভাস্ক্রিপ্ট API",
+		"description": "developersSidebar সাইডবারে জাভাস্ক্রিপ্ট API বিভাগের জন্য লেবেল"
+	},
+	"sidebar.developersSidebar.category.Architecture": {
+		"message": "আর্কিটেকচার",
+		"description": "developersSidebar সাইডবারে আর্কিটেকচার বিভাগের জন্য লেবেল"
+	}
+}
