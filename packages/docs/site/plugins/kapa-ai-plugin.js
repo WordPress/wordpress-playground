@@ -134,7 +134,7 @@ export default function kapaAiPlugin(context, options) {
 					translatedConfig.exampleQuestions,
 				'data-button-text-color': '#000000',
 				'data-hyperlink-color': '#3996e3',
-				// 'data-button-hide': 'true', // Hide the default bottom right button
+				'data-button-hide': 'true', // Hide the default bottom right button
 				'data-language': language,
 				async: true,
 			};
