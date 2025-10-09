@@ -1,0 +1,18 @@
+{
+	"kapaAi.modalTitle": {
+		"message": "WordPress Playground AI Assistant",
+		"description": "Title for Kapa AI modal"
+	},
+	"kapaAi.exampleQuestionsTitle": {
+		"message": "Try asking me...",
+		"description": "Title for example questions section"
+	},
+	"kapaAi.disclaimer": {
+		"message": "This **AI assistant answers WordPress Playground questions** using the [documentation](https://wordpress.github.io/wordpress-playground/) and [github issues](https://github.com/WordPress/wordpress-playground/issues) from last year",
+		"description": "Disclaimer text for Kapa AI"
+	},
+	"kapaAi.exampleQuestions": {
+		"message": "How to use Blueprints API?,How to change PHP version?,How to import a WXR file?,How to mount local files?",
+		"description": "Example questions for Kapa AI"
+	}
+}
