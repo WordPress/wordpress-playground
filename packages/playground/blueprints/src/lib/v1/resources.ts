@@ -62,15 +62,18 @@ export type UrlReference = {
 	/** Optional caption for displaying a progress message */
 	caption?: string;
 };
+type GitDirectoryRefType = 'branch' | 'tag' | 'commit' | 'refname';
 export type GitDirectoryReference = {
 	/** Identifies the file resource as a git directory */
 	resource: 'git:directory';
 	/** The URL of the git repository */
 	url: string;
-	/** The branch of the git repository */
+	/** The ref (branch, tag, or commit) of the git repository */
 	ref: string;
-	/** The path to the directory in the git repository */
-	path: string;
+	/** Explicit hint about the ref type (branch, tag, commit, refname) */
+	refType?: GitDirectoryRefType;
+	/** The path to the directory in the git repository. Defaults to the repo root. */
+	path?: string;
 };
 export interface Directory {
 	files: FileTree;
@@ -570,11 +573,11 @@ export class GitDirectoryResource extends Resource<Directory> {
 
 		const commitHash = await resolveCommitHash(repoUrl, {
 			value: this.reference.ref,
-			type: 'infer',
+			type: this.reference.refType ?? 'infer',
 		});
 		const allFiles = await listGitFiles(repoUrl, commitHash);
 
-		const requestedPath = this.reference.path.replace(/^\/+/, '');
+		const requestedPath = (this.reference.path ?? '').replace(/^\/+/, '');
 		const filesToClone = listDescendantFiles(allFiles, requestedPath);
 		let files = await sparseCheckout(repoUrl, commitHash, filesToClone);
 
@@ -584,7 +587,7 @@ export class GitDirectoryResource extends Resource<Directory> {
 		);
 		return {
 			name:
-				dirname(this.reference.path) ||
+				dirname(this.reference.path || '') ||
 				this.reference.url
 					.replaceAll(/[^a-zA-Z0-9-.]/g, '-')
 					.replaceAll(/-+/g, '-'),
@@ -594,7 +597,13 @@ export class GitDirectoryResource extends Resource<Directory> {
 
 	/** @inheritDoc */
 	get name() {
-		return this.reference.path.split('/').pop()!;
+		const path = this.reference.path ?? '';
+		if (!path) {
+			return this.reference.url
+				.replaceAll(/[^a-zA-Z0-9-.]/g, '-')
+				.replaceAll(/-+/g, '-');
+		}
+		return path.split('/').pop() || '';
 	}
 }
 

@@ -77,8 +77,21 @@ export type GitFileTree = GitFileTreeFile | GitFileTreeFolder;
 
 export type GitRef = {
 	value: string;
-	type?: 'branch' | 'commit' | 'refname' | 'infer';
+	type?: 'branch' | 'commit' | 'refname' | 'tag' | 'infer';
 };
+
+type NormalizedGitRef =
+	| {
+			kind: 'commit';
+			oid: string;
+	  }
+	| {
+			kind: 'refname';
+			refname: string;
+			resolvedOid?: string;
+	  };
+
+const FULL_SHA_REGEX = /^[0-9a-f]{40}$/i;
 
 /**
  * Lists all files in a git repository.
@@ -110,38 +123,16 @@ export async function listGitFiles(
  * @returns The commit hash.
  */
 export async function resolveCommitHash(repoUrl: string, ref: GitRef) {
-	if (ref.type === 'infer' || ref.type === undefined) {
-		if (['', 'HEAD'].includes(ref.value)) {
-			ref = {
-				value: ref.value,
-				type: 'refname',
-			};
-		} else if (typeof ref.value === 'string' && ref.value.length === 40) {
-			ref = {
-				value: ref.value,
-				type: 'commit',
-			};
-		}
+	const normalized = await normalizeGitRef(repoUrl, ref);
+	if (normalized.kind === 'commit') {
+		return normalized.oid;
 	}
-	if (ref.type === 'branch') {
-		ref = {
-			value: `refs/heads/${ref.value}`,
-			type: 'refname',
-		};
-	}
-	switch (ref.type) {
-		case 'commit':
-			return ref.value;
-		case 'refname': {
-			const refs = await listGitRefs(repoUrl, ref.value);
-			if (!(ref.value in refs)) {
-				throw new Error(`Branch ${ref.value} not found`);
-			}
-			return refs[ref.value];
-		}
-		default:
-			throw new Error(`Invalid ref type: ${ref.type}`);
-	}
+
+	const oid =
+		normalized.resolvedOid ??
+		(await fetchRefOidOrThrow(repoUrl, normalized.refname));
+
+	return oid;
 }
 
 function gitTreeToFileTree(tree: GitTree): GitFileTree[] {
@@ -208,6 +199,106 @@ export async function listGitRefs(
 		refs[name] = ref;
 	}
 	return refs;
+}
+
+async function normalizeGitRef(
+	repoUrl: string,
+	ref: GitRef
+): Promise<NormalizedGitRef> {
+	const type = ref.type ?? 'infer';
+	switch (type) {
+		case 'commit':
+			return {
+				kind: 'commit',
+				oid: ref.value,
+			};
+		case 'branch':
+			return {
+				kind: 'refname',
+				refname: `refs/heads/${ref.value.trim()}`,
+			};
+		case 'tag':
+			return {
+				kind: 'refname',
+				refname: `refs/tags/${ref.value.trim()}`,
+			};
+		case 'refname':
+			return {
+				kind: 'refname',
+				refname: ref.value.trim(),
+			};
+		case 'infer':
+			return inferGitRef(repoUrl, ref.value);
+		default:
+			throw new Error(`Invalid ref type: ${ref.type}`);
+	}
+}
+
+async function inferGitRef(
+	repoUrl: string,
+	value: string
+): Promise<NormalizedGitRef> {
+	const trimmed = value.trim();
+	if (trimmed === '' || trimmed === 'HEAD') {
+		return {
+			kind: 'refname',
+			refname: trimmed || 'HEAD',
+		};
+	}
+	if (trimmed.startsWith('refs/')) {
+		return {
+			kind: 'refname',
+			refname: trimmed,
+		};
+	}
+	if (FULL_SHA_REGEX.test(trimmed)) {
+		return {
+			kind: 'commit',
+			oid: trimmed,
+		};
+	}
+
+	const branchRef = `refs/heads/${trimmed}`;
+	const branchOid = await fetchRefOid(repoUrl, branchRef);
+	if (branchOid) {
+		return {
+			kind: 'refname',
+			refname: branchRef,
+			resolvedOid: branchOid,
+		};
+	}
+
+	const tagRef = `refs/tags/${trimmed}`;
+	const tagOid = await fetchRefOid(repoUrl, tagRef);
+	if (tagOid) {
+		return {
+			kind: 'refname',
+			refname: tagRef,
+			resolvedOid: tagOid,
+		};
+	}
+
+	throw new Error(`Git ref "${value}" not found at ${repoUrl}`);
+}
+
+async function fetchRefOidOrThrow(repoUrl: string, refname: string) {
+	const oid = await fetchRefOid(repoUrl, refname);
+	if (!oid) {
+		throw new Error(`Git ref "${refname}" not found at ${repoUrl}`);
+	}
+	return oid;
+}
+
+async function fetchRefOid(repoUrl: string, refname: string) {
+	const refs = await listGitRefs(repoUrl, refname);
+	const candidates = [refname, `${refname}^{}`];
+	for (const candidate of candidates) {
+		const sanitized = candidate.trim();
+		if (sanitized in refs) {
+			return refs[sanitized];
+		}
+	}
+	return null;
 }
 
 async function fetchWithoutBlobs(repoUrl: string, commitHash: string) {

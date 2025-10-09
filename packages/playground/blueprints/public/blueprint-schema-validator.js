@@ -1089,16 +1089,26 @@ const schema11 = {
 				},
 				ref: {
 					type: 'string',
-					description: 'The branch of the git repository',
+					description:
+						'The ref (branch, tag, or commit) of the git repository',
+				},
+				refType: {
+					$ref: '#/definitions/GitDirectoryRefType',
+					description:
+						'Explicit hint about the ref type (branch, tag, commit, refname)',
 				},
 				path: {
 					type: 'string',
 					description:
-						'The path to the directory in the git repository',
+						'The path to the directory in the git repository. Defaults to the repo root.',
 				},
 			},
-			required: ['resource', 'url', 'ref', 'path'],
+			required: ['resource', 'url', 'ref'],
 			additionalProperties: false,
+		},
+		GitDirectoryRefType: {
+			type: 'string',
+			enum: ['branch', 'tag', 'commit', 'refname'],
 		},
 		DirectoryLiteralReference: {
 			type: 'object',
@@ -3945,7 +3955,7 @@ const schema23 = {
 		},
 	],
 };
-const schema28 = {
+const schema29 = {
 	type: 'object',
 	properties: {
 		activate: {
@@ -3960,7 +3970,7 @@ const schema28 = {
 	},
 	additionalProperties: false,
 };
-const schema29 = {
+const schema30 = {
 	type: 'object',
 	properties: {
 		activate: {
@@ -3980,7 +3990,7 @@ const schema29 = {
 	},
 	additionalProperties: false,
 };
-const schema36 = {
+const schema37 = {
 	type: 'object',
 	properties: {
 		adminUsername: { type: 'string' },
@@ -4005,17 +4015,238 @@ const schema25 = {
 		url: { type: 'string', description: 'The URL of the git repository' },
 		ref: {
 			type: 'string',
-			description: 'The branch of the git repository',
+			description:
+				'The ref (branch, tag, or commit) of the git repository',
+		},
+		refType: {
+			$ref: '#/definitions/GitDirectoryRefType',
+			description:
+				'Explicit hint about the ref type (branch, tag, commit, refname)',
 		},
 		path: {
 			type: 'string',
-			description: 'The path to the directory in the git repository',
+			description:
+				'The path to the directory in the git repository. Defaults to the repo root.',
 		},
 	},
-	required: ['resource', 'url', 'ref', 'path'],
+	required: ['resource', 'url', 'ref'],
 	additionalProperties: false,
 };
 const schema26 = {
+	type: 'string',
+	enum: ['branch', 'tag', 'commit', 'refname'],
+};
+function validate19(
+	data,
+	{ instancePath = '', parentData, parentDataProperty, rootData = data } = {}
+) {
+	let vErrors = null;
+	let errors = 0;
+	if (errors === 0) {
+		if (data && typeof data == 'object' && !Array.isArray(data)) {
+			let missing0;
+			if (
+				(data.resource === undefined && (missing0 = 'resource')) ||
+				(data.url === undefined && (missing0 = 'url')) ||
+				(data.ref === undefined && (missing0 = 'ref'))
+			) {
+				validate19.errors = [
+					{
+						instancePath,
+						schemaPath: '#/required',
+						keyword: 'required',
+						params: { missingProperty: missing0 },
+						message:
+							"must have required property '" + missing0 + "'",
+					},
+				];
+				return false;
+			} else {
+				const _errs1 = errors;
+				for (const key0 in data) {
+					if (
+						!(
+							key0 === 'resource' ||
+							key0 === 'url' ||
+							key0 === 'ref' ||
+							key0 === 'refType' ||
+							key0 === 'path'
+						)
+					) {
+						validate19.errors = [
+							{
+								instancePath,
+								schemaPath: '#/additionalProperties',
+								keyword: 'additionalProperties',
+								params: { additionalProperty: key0 },
+								message: 'must NOT have additional properties',
+							},
+						];
+						return false;
+						break;
+					}
+				}
+				if (_errs1 === errors) {
+					if (data.resource !== undefined) {
+						let data0 = data.resource;
+						const _errs2 = errors;
+						if (typeof data0 !== 'string') {
+							validate19.errors = [
+								{
+									instancePath: instancePath + '/resource',
+									schemaPath: '#/properties/resource/type',
+									keyword: 'type',
+									params: { type: 'string' },
+									message: 'must be string',
+								},
+							];
+							return false;
+						}
+						if ('git:directory' !== data0) {
+							validate19.errors = [
+								{
+									instancePath: instancePath + '/resource',
+									schemaPath: '#/properties/resource/const',
+									keyword: 'const',
+									params: { allowedValue: 'git:directory' },
+									message: 'must be equal to constant',
+								},
+							];
+							return false;
+						}
+						var valid0 = _errs2 === errors;
+					} else {
+						var valid0 = true;
+					}
+					if (valid0) {
+						if (data.url !== undefined) {
+							const _errs4 = errors;
+							if (typeof data.url !== 'string') {
+								validate19.errors = [
+									{
+										instancePath: instancePath + '/url',
+										schemaPath: '#/properties/url/type',
+										keyword: 'type',
+										params: { type: 'string' },
+										message: 'must be string',
+									},
+								];
+								return false;
+							}
+							var valid0 = _errs4 === errors;
+						} else {
+							var valid0 = true;
+						}
+						if (valid0) {
+							if (data.ref !== undefined) {
+								const _errs6 = errors;
+								if (typeof data.ref !== 'string') {
+									validate19.errors = [
+										{
+											instancePath: instancePath + '/ref',
+											schemaPath: '#/properties/ref/type',
+											keyword: 'type',
+											params: { type: 'string' },
+											message: 'must be string',
+										},
+									];
+									return false;
+								}
+								var valid0 = _errs6 === errors;
+							} else {
+								var valid0 = true;
+							}
+							if (valid0) {
+								if (data.refType !== undefined) {
+									let data3 = data.refType;
+									const _errs8 = errors;
+									if (typeof data3 !== 'string') {
+										validate19.errors = [
+											{
+												instancePath:
+													instancePath + '/refType',
+												schemaPath:
+													'#/definitions/GitDirectoryRefType/type',
+												keyword: 'type',
+												params: { type: 'string' },
+												message: 'must be string',
+											},
+										];
+										return false;
+									}
+									if (
+										!(
+											data3 === 'branch' ||
+											data3 === 'tag' ||
+											data3 === 'commit' ||
+											data3 === 'refname'
+										)
+									) {
+										validate19.errors = [
+											{
+												instancePath:
+													instancePath + '/refType',
+												schemaPath:
+													'#/definitions/GitDirectoryRefType/enum',
+												keyword: 'enum',
+												params: {
+													allowedValues:
+														schema26.enum,
+												},
+												message:
+													'must be equal to one of the allowed values',
+											},
+										];
+										return false;
+									}
+									var valid0 = _errs8 === errors;
+								} else {
+									var valid0 = true;
+								}
+								if (valid0) {
+									if (data.path !== undefined) {
+										const _errs11 = errors;
+										if (typeof data.path !== 'string') {
+											validate19.errors = [
+												{
+													instancePath:
+														instancePath + '/path',
+													schemaPath:
+														'#/properties/path/type',
+													keyword: 'type',
+													params: { type: 'string' },
+													message: 'must be string',
+												},
+											];
+											return false;
+										}
+										var valid0 = _errs11 === errors;
+									} else {
+										var valid0 = true;
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		} else {
+			validate19.errors = [
+				{
+					instancePath,
+					schemaPath: '#/type',
+					keyword: 'type',
+					params: { type: 'object' },
+					message: 'must be object',
+				},
+			];
+			return false;
+		}
+	}
+	validate19.errors = vErrors;
+	return errors === 0;
+}
+const schema27 = {
 	type: 'object',
 	additionalProperties: false,
 	properties: {
@@ -4029,7 +4260,7 @@ const schema26 = {
 	},
 	required: ['files', 'name', 'resource'],
 };
-const schema27 = {
+const schema28 = {
 	type: 'object',
 	additionalProperties: {
 		anyOf: [
@@ -4039,8 +4270,8 @@ const schema27 = {
 	},
 	properties: {},
 };
-const wrapper0 = { validate: validate20 };
-function validate20(
+const wrapper0 = { validate: validate22 };
+function validate22(
 	data,
 	{ instancePath = '', parentData, parentDataProperty, rootData = data } = {}
 ) {
@@ -4091,7 +4322,7 @@ function validate20(
 							schemaPath: '#/additionalProperties/anyOf/1/type',
 							keyword: 'type',
 							params: {
-								type: schema27.additionalProperties.anyOf[1]
+								type: schema28.additionalProperties.anyOf[1]
 									.type,
 							},
 							message: 'must be object,string',
@@ -4123,7 +4354,7 @@ function validate20(
 						vErrors.push(err1);
 					}
 					errors++;
-					validate20.errors = vErrors;
+					validate22.errors = vErrors;
 					return false;
 				} else {
 					errors = _errs3;
@@ -4141,7 +4372,7 @@ function validate20(
 				}
 			}
 		} else {
-			validate20.errors = [
+			validate22.errors = [
 				{
 					instancePath,
 					schemaPath: '#/type',
@@ -4153,10 +4384,10 @@ function validate20(
 			return false;
 		}
 	}
-	validate20.errors = vErrors;
+	validate22.errors = vErrors;
 	return errors === 0;
 }
-function validate19(
+function validate21(
 	data,
 	{ instancePath = '', parentData, parentDataProperty, rootData = data } = {}
 ) {
@@ -4170,7 +4401,7 @@ function validate19(
 				(data.name === undefined && (missing0 = 'name')) ||
 				(data.resource === undefined && (missing0 = 'resource'))
 			) {
-				validate19.errors = [
+				validate21.errors = [
 					{
 						instancePath,
 						schemaPath: '#/required',
@@ -4191,7 +4422,7 @@ function validate19(
 							key0 === 'name'
 						)
 					) {
-						validate19.errors = [
+						validate21.errors = [
 							{
 								instancePath,
 								schemaPath: '#/additionalProperties',
@@ -4209,7 +4440,7 @@ function validate19(
 						let data0 = data.resource;
 						const _errs2 = errors;
 						if (typeof data0 !== 'string') {
-							validate19.errors = [
+							validate21.errors = [
 								{
 									instancePath: instancePath + '/resource',
 									schemaPath: '#/properties/resource/type',
@@ -4221,7 +4452,7 @@ function validate19(
 							return false;
 						}
 						if ('literal:directory' !== data0) {
-							validate19.errors = [
+							validate21.errors = [
 								{
 									instancePath: instancePath + '/resource',
 									schemaPath: '#/properties/resource/const',
@@ -4242,7 +4473,7 @@ function validate19(
 						if (data.files !== undefined) {
 							const _errs4 = errors;
 							if (
-								!validate20(data.files, {
+								!validate22(data.files, {
 									instancePath: instancePath + '/files',
 									parentData: data,
 									parentDataProperty: 'files',
@@ -4251,8 +4482,8 @@ function validate19(
 							) {
 								vErrors =
 									vErrors === null
-										? validate20.errors
-										: vErrors.concat(validate20.errors);
+										? validate22.errors
+										: vErrors.concat(validate22.errors);
 								errors = vErrors.length;
 							}
 							var valid0 = _errs4 === errors;
@@ -4263,7 +4494,7 @@ function validate19(
 							if (data.name !== undefined) {
 								const _errs5 = errors;
 								if (typeof data.name !== 'string') {
-									validate19.errors = [
+									validate21.errors = [
 										{
 											instancePath:
 												instancePath + '/name',
@@ -4285,7 +4516,7 @@ function validate19(
 				}
 			}
 		} else {
-			validate19.errors = [
+			validate21.errors = [
 				{
 					instancePath,
 					schemaPath: '#/type',
@@ -4297,7 +4528,7 @@ function validate19(
 			return false;
 		}
 	}
-	validate19.errors = vErrors;
+	validate21.errors = vErrors;
 	return errors === 0;
 }
 function validate18(
@@ -4309,194 +4540,26 @@ function validate18(
 	const _errs0 = errors;
 	let valid0 = false;
 	const _errs1 = errors;
-	const _errs2 = errors;
-	if (errors === _errs2) {
-		if (data && typeof data == 'object' && !Array.isArray(data)) {
-			let missing0;
-			if (
-				(data.resource === undefined && (missing0 = 'resource')) ||
-				(data.url === undefined && (missing0 = 'url')) ||
-				(data.ref === undefined && (missing0 = 'ref')) ||
-				(data.path === undefined && (missing0 = 'path'))
-			) {
-				const err0 = {
-					instancePath,
-					schemaPath: '#/definitions/GitDirectoryReference/required',
-					keyword: 'required',
-					params: { missingProperty: missing0 },
-					message: "must have required property '" + missing0 + "'",
-				};
-				if (vErrors === null) {
-					vErrors = [err0];
-				} else {
-					vErrors.push(err0);
-				}
-				errors++;
-			} else {
-				const _errs4 = errors;
-				for (const key0 in data) {
-					if (
-						!(
-							key0 === 'resource' ||
-							key0 === 'url' ||
-							key0 === 'ref' ||
-							key0 === 'path'
-						)
-					) {
-						const err1 = {
-							instancePath,
-							schemaPath:
-								'#/definitions/GitDirectoryReference/additionalProperties',
-							keyword: 'additionalProperties',
-							params: { additionalProperty: key0 },
-							message: 'must NOT have additional properties',
-						};
-						if (vErrors === null) {
-							vErrors = [err1];
-						} else {
-							vErrors.push(err1);
-						}
-						errors++;
-						break;
-					}
-				}
-				if (_errs4 === errors) {
-					if (data.resource !== undefined) {
-						let data0 = data.resource;
-						const _errs5 = errors;
-						if (typeof data0 !== 'string') {
-							const err2 = {
-								instancePath: instancePath + '/resource',
-								schemaPath:
-									'#/definitions/GitDirectoryReference/properties/resource/type',
-								keyword: 'type',
-								params: { type: 'string' },
-								message: 'must be string',
-							};
-							if (vErrors === null) {
-								vErrors = [err2];
-							} else {
-								vErrors.push(err2);
-							}
-							errors++;
-						}
-						if ('git:directory' !== data0) {
-							const err3 = {
-								instancePath: instancePath + '/resource',
-								schemaPath:
-									'#/definitions/GitDirectoryReference/properties/resource/const',
-								keyword: 'const',
-								params: { allowedValue: 'git:directory' },
-								message: 'must be equal to constant',
-							};
-							if (vErrors === null) {
-								vErrors = [err3];
-							} else {
-								vErrors.push(err3);
-							}
-							errors++;
-						}
-						var valid2 = _errs5 === errors;
-					} else {
-						var valid2 = true;
-					}
-					if (valid2) {
-						if (data.url !== undefined) {
-							const _errs7 = errors;
-							if (typeof data.url !== 'string') {
-								const err4 = {
-									instancePath: instancePath + '/url',
-									schemaPath:
-										'#/definitions/GitDirectoryReference/properties/url/type',
-									keyword: 'type',
-									params: { type: 'string' },
-									message: 'must be string',
-								};
-								if (vErrors === null) {
-									vErrors = [err4];
-								} else {
-									vErrors.push(err4);
-								}
-								errors++;
-							}
-							var valid2 = _errs7 === errors;
-						} else {
-							var valid2 = true;
-						}
-						if (valid2) {
-							if (data.ref !== undefined) {
-								const _errs9 = errors;
-								if (typeof data.ref !== 'string') {
-									const err5 = {
-										instancePath: instancePath + '/ref',
-										schemaPath:
-											'#/definitions/GitDirectoryReference/properties/ref/type',
-										keyword: 'type',
-										params: { type: 'string' },
-										message: 'must be string',
-									};
-									if (vErrors === null) {
-										vErrors = [err5];
-									} else {
-										vErrors.push(err5);
-									}
-									errors++;
-								}
-								var valid2 = _errs9 === errors;
-							} else {
-								var valid2 = true;
-							}
-							if (valid2) {
-								if (data.path !== undefined) {
-									const _errs11 = errors;
-									if (typeof data.path !== 'string') {
-										const err6 = {
-											instancePath:
-												instancePath + '/path',
-											schemaPath:
-												'#/definitions/GitDirectoryReference/properties/path/type',
-											keyword: 'type',
-											params: { type: 'string' },
-											message: 'must be string',
-										};
-										if (vErrors === null) {
-											vErrors = [err6];
-										} else {
-											vErrors.push(err6);
-										}
-										errors++;
-									}
-									var valid2 = _errs11 === errors;
-								} else {
-									var valid2 = true;
-								}
-							}
-						}
-					}
-				}
-			}
-		} else {
-			const err7 = {
-				instancePath,
-				schemaPath: '#/definitions/GitDirectoryReference/type',
-				keyword: 'type',
-				params: { type: 'object' },
-				message: 'must be object',
-			};
-			if (vErrors === null) {
-				vErrors = [err7];
-			} else {
-				vErrors.push(err7);
-			}
-			errors++;
-		}
+	if (
+		!validate19(data, {
+			instancePath,
+			parentData,
+			parentDataProperty,
+			rootData,
+		})
+	) {
+		vErrors =
+			vErrors === null
+				? validate19.errors
+				: vErrors.concat(validate19.errors);
+		errors = vErrors.length;
 	}
 	var _valid0 = _errs1 === errors;
 	valid0 = valid0 || _valid0;
 	if (!valid0) {
-		const _errs13 = errors;
+		const _errs2 = errors;
 		if (
-			!validate19(data, {
+			!validate21(data, {
 				instancePath,
 				parentData,
 				parentDataProperty,
@@ -4505,15 +4568,15 @@ function validate18(
 		) {
 			vErrors =
 				vErrors === null
-					? validate19.errors
-					: vErrors.concat(validate19.errors);
+					? validate21.errors
+					: vErrors.concat(validate21.errors);
 			errors = vErrors.length;
 		}
-		var _valid0 = _errs13 === errors;
+		var _valid0 = _errs2 === errors;
 		valid0 = valid0 || _valid0;
 	}
 	if (!valid0) {
-		const err8 = {
+		const err0 = {
 			instancePath,
 			schemaPath: '#/anyOf',
 			keyword: 'anyOf',
@@ -4521,9 +4584,9 @@ function validate18(
 			message: 'must match a schema in anyOf',
 		};
 		if (vErrors === null) {
-			vErrors = [err8];
+			vErrors = [err0];
 		} else {
-			vErrors.push(err8);
+			vErrors.push(err0);
 		}
 		errors++;
 		validate18.errors = vErrors;
@@ -4541,7 +4604,7 @@ function validate18(
 	validate18.errors = vErrors;
 	return errors === 0;
 }
-const schema30 = {
+const schema31 = {
 	type: 'object',
 	properties: {
 		method: {
@@ -4638,12 +4701,12 @@ const schema30 = {
 	required: ['url'],
 	additionalProperties: false,
 };
-const schema31 = {
+const schema32 = {
 	type: 'string',
 	enum: ['GET', 'POST', 'HEAD', 'OPTIONS', 'PATCH', 'PUT', 'DELETE'],
 };
-const schema32 = { type: 'object', additionalProperties: { type: 'string' } };
-function validate28(
+const schema33 = { type: 'object', additionalProperties: { type: 'string' } };
+function validate30(
 	data,
 	{ instancePath = '', parentData, parentDataProperty, rootData = data } = {}
 ) {
@@ -4653,7 +4716,7 @@ function validate28(
 		if (data && typeof data == 'object' && !Array.isArray(data)) {
 			let missing0;
 			if (data.url === undefined && (missing0 = 'url')) {
-				validate28.errors = [
+				validate30.errors = [
 					{
 						instancePath,
 						schemaPath: '#/required',
@@ -4675,7 +4738,7 @@ function validate28(
 							key0 === 'body'
 						)
 					) {
-						validate28.errors = [
+						validate30.errors = [
 							{
 								instancePath,
 								schemaPath: '#/additionalProperties',
@@ -4693,7 +4756,7 @@ function validate28(
 						let data0 = data.method;
 						const _errs2 = errors;
 						if (typeof data0 !== 'string') {
-							validate28.errors = [
+							validate30.errors = [
 								{
 									instancePath: instancePath + '/method',
 									schemaPath: '#/definitions/HTTPMethod/type',
@@ -4715,12 +4778,12 @@ function validate28(
 								data0 === 'DELETE'
 							)
 						) {
-							validate28.errors = [
+							validate30.errors = [
 								{
 									instancePath: instancePath + '/method',
 									schemaPath: '#/definitions/HTTPMethod/enum',
 									keyword: 'enum',
-									params: { allowedValues: schema31.enum },
+									params: { allowedValues: schema32.enum },
 									message:
 										'must be equal to one of the allowed values',
 								},
@@ -4735,7 +4798,7 @@ function validate28(
 						if (data.url !== undefined) {
 							const _errs5 = errors;
 							if (typeof data.url !== 'string') {
-								validate28.errors = [
+								validate30.errors = [
 									{
 										instancePath: instancePath + '/url',
 										schemaPath: '#/properties/url/type',
@@ -4766,7 +4829,7 @@ function validate28(
 											if (
 												typeof data2[key1] !== 'string'
 											) {
-												validate28.errors = [
+												validate30.errors = [
 													{
 														instancePath:
 															instancePath +
@@ -4798,7 +4861,7 @@ function validate28(
 											}
 										}
 									} else {
-										validate28.errors = [
+										validate30.errors = [
 											{
 												instancePath:
 													instancePath + '/headers',
@@ -6787,7 +6850,7 @@ function validate28(
 											vErrors.push(err34);
 										}
 										errors++;
-										validate28.errors = vErrors;
+										validate30.errors = vErrors;
 										return false;
 									} else {
 										errors = _errs14;
@@ -6809,7 +6872,7 @@ function validate28(
 				}
 			}
 		} else {
-			validate28.errors = [
+			validate30.errors = [
 				{
 					instancePath,
 					schemaPath: '#/type',
@@ -6821,10 +6884,10 @@ function validate28(
 			return false;
 		}
 	}
-	validate28.errors = vErrors;
+	validate30.errors = vErrors;
 	return errors === 0;
 }
-const schema33 = {
+const schema34 = {
 	type: 'object',
 	properties: {
 		relativeUri: {
@@ -6890,7 +6953,7 @@ const schema33 = {
 	},
 	additionalProperties: false,
 };
-function validate30(
+function validate32(
 	data,
 	{ instancePath = '', parentData, parentDataProperty, rootData = data } = {}
 ) {
@@ -6900,8 +6963,8 @@ function validate30(
 		if (data && typeof data == 'object' && !Array.isArray(data)) {
 			const _errs1 = errors;
 			for (const key0 in data) {
-				if (!func2.call(schema33.properties, key0)) {
-					validate30.errors = [
+				if (!func2.call(schema34.properties, key0)) {
+					validate32.errors = [
 						{
 							instancePath,
 							schemaPath: '#/additionalProperties',
@@ -6918,7 +6981,7 @@ function validate30(
 				if (data.relativeUri !== undefined) {
 					const _errs2 = errors;
 					if (typeof data.relativeUri !== 'string') {
-						validate30.errors = [
+						validate32.errors = [
 							{
 								instancePath: instancePath + '/relativeUri',
 								schemaPath: '#/properties/relativeUri/type',
@@ -6937,7 +7000,7 @@ function validate30(
 					if (data.scriptPath !== undefined) {
 						const _errs4 = errors;
 						if (typeof data.scriptPath !== 'string') {
-							validate30.errors = [
+							validate32.errors = [
 								{
 									instancePath: instancePath + '/scriptPath',
 									schemaPath: '#/properties/scriptPath/type',
@@ -6956,7 +7019,7 @@ function validate30(
 						if (data.protocol !== undefined) {
 							const _errs6 = errors;
 							if (typeof data.protocol !== 'string') {
-								validate30.errors = [
+								validate32.errors = [
 									{
 										instancePath:
 											instancePath + '/protocol',
@@ -6978,7 +7041,7 @@ function validate30(
 								let data3 = data.method;
 								const _errs8 = errors;
 								if (typeof data3 !== 'string') {
-									validate30.errors = [
+									validate32.errors = [
 										{
 											instancePath:
 												instancePath + '/method',
@@ -7002,7 +7065,7 @@ function validate30(
 										data3 === 'DELETE'
 									)
 								) {
-									validate30.errors = [
+									validate32.errors = [
 										{
 											instancePath:
 												instancePath + '/method',
@@ -7010,7 +7073,7 @@ function validate30(
 												'#/definitions/HTTPMethod/enum',
 											keyword: 'enum',
 											params: {
-												allowedValues: schema31.enum,
+												allowedValues: schema32.enum,
 											},
 											message:
 												'must be equal to one of the allowed values',
@@ -7039,7 +7102,7 @@ function validate30(
 													typeof data4[key1] !==
 													'string'
 												) {
-													validate30.errors = [
+													validate32.errors = [
 														{
 															instancePath:
 																instancePath +
@@ -7071,7 +7134,7 @@ function validate30(
 												}
 											}
 										} else {
-											validate30.errors = [
+											validate32.errors = [
 												{
 													instancePath:
 														instancePath +
@@ -7709,7 +7772,7 @@ function validate30(
 												vErrors.push(err12);
 											}
 											errors++;
-											validate30.errors = vErrors;
+											validate32.errors = vErrors;
 											return false;
 										} else {
 											errors = _errs18;
@@ -7742,7 +7805,7 @@ function validate30(
 																key4
 															] !== 'string'
 														) {
-															validate30.errors =
+															validate32.errors =
 																[
 																	{
 																		instancePath:
@@ -7777,7 +7840,7 @@ function validate30(
 														}
 													}
 												} else {
-													validate30.errors = [
+													validate32.errors = [
 														{
 															instancePath:
 																instancePath +
@@ -7818,7 +7881,7 @@ function validate30(
 																	key5
 																] !== 'string'
 															) {
-																validate30.errors =
+																validate32.errors =
 																	[
 																		{
 																			instancePath:
@@ -7854,7 +7917,7 @@ function validate30(
 															}
 														}
 													} else {
-														validate30.errors = [
+														validate32.errors = [
 															{
 																instancePath:
 																	instancePath +
@@ -7883,7 +7946,7 @@ function validate30(
 														typeof data.code !==
 														'string'
 													) {
-														validate30.errors = [
+														validate32.errors = [
 															{
 																instancePath:
 																	instancePath +
@@ -7915,7 +7978,7 @@ function validate30(
 				}
 			}
 		} else {
-			validate30.errors = [
+			validate32.errors = [
 				{
 					instancePath,
 					schemaPath: '#/type',
@@ -7927,7 +7990,7 @@ function validate30(
 			return false;
 		}
 	}
-	validate30.errors = vErrors;
+	validate32.errors = vErrors;
 	return errors === 0;
 }
 function validate14(
@@ -13845,7 +13908,7 @@ function validate14(
 												) {
 													const _errs266 = errors;
 													if (
-														!validate28(
+														!validate30(
 															data.request,
 															{
 																instancePath:
@@ -13861,9 +13924,9 @@ function validate14(
 													) {
 														vErrors =
 															vErrors === null
-																? validate28.errors
+																? validate30.errors
 																: vErrors.concat(
-																		validate28.errors
+																		validate30.errors
 																  );
 														errors = vErrors.length;
 													}
@@ -15332,7 +15395,7 @@ function validate14(
 												) {
 													const _errs330 = errors;
 													if (
-														!validate30(
+														!validate32(
 															data.options,
 															{
 																instancePath:
@@ -15348,9 +15411,9 @@ function validate14(
 													) {
 														vErrors =
 															vErrors === null
-																? validate30.errors
+																? validate32.errors
 																: vErrors.concat(
-																		validate30.errors
+																		validate32.errors
 																  );
 														errors = vErrors.length;
 													}

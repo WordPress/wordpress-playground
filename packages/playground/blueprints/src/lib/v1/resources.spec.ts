@@ -40,6 +40,7 @@ describe('GitDirectoryResource', () => {
 					resource: 'git:directory',
 					url: 'https://github.com/WordPress/wordpress-playground',
 					ref: '05138293dd39e25a9fa8e43a9cc775d6fb780e37',
+					refType: 'commit',
 					path,
 				});
 				const { files } = await resource.resolve();
@@ -51,6 +52,24 @@ describe('GitDirectoryResource', () => {
 				]);
 			}
 		);
+
+		it('defaults to the repo root when path is omitted', async () => {
+			const url = 'https://github.com/WordPress/wordpress-playground';
+			const fallbackName = url
+				.replaceAll(/[^a-zA-Z0-9-.]/g, '-')
+				.replaceAll(/-+/g, '-');
+			const resource = new GitDirectoryResource({
+				resource: 'git:directory',
+				url,
+				ref: '05138293dd39e25a9fa8e43a9cc775d6fb780e37',
+				refType: 'commit',
+			});
+			const { files, name } = await resource.resolve();
+
+			expect(name).toBe(fallbackName);
+			expect(resource.name).toBe(fallbackName);
+			expect(files['README.md']).toBeInstanceOf(Uint8Array);
+		});
 	});
 });
 

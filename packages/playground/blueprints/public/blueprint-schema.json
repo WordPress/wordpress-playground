@@ -1345,15 +1345,23 @@
 				},
 				"ref": {
 					"type": "string",
-					"description": "The branch of the git repository"
+					"description": "The ref (branch, tag, or commit) of the git repository"
+				},
+				"refType": {
+					"$ref": "#/definitions/GitDirectoryRefType",
+					"description": "Explicit hint about the ref type (branch, tag, commit, refname)"
 				},
 				"path": {
 					"type": "string",
-					"description": "The path to the directory in the git repository"
+					"description": "The path to the directory in the git repository. Defaults to the repo root."
 				}
 			},
-			"required": ["resource", "url", "ref", "path"],
+			"required": ["resource", "url", "ref"],
 			"additionalProperties": false
+		},
+		"GitDirectoryRefType": {
+			"type": "string",
+			"enum": ["branch", "tag", "commit", "refname"]
 		},
 		"DirectoryLiteralReference": {
 			"type": "object",

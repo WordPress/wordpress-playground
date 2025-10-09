@@ -17,6 +17,32 @@ describe('listRefs', () => {
 	});
 });
 
+describe('resolveCommitHash', () => {
+	const repoUrl = 'https://github.com/WordPress/wordpress-playground.git';
+
+	it('infers branch refs when type is omitted', async () => {
+		const commitHash = await resolveCommitHash(repoUrl, {
+			value: 'trunk',
+		});
+		expect(commitHash).toMatch(/^[a-f0-9]{40}$/);
+	});
+
+	it('infers tag refs without an explicit type', async () => {
+		const commitHash = await resolveCommitHash(repoUrl, {
+			value: 'v0.1.28',
+		});
+		expect(commitHash).toMatch(/^[a-f0-9]{40}$/);
+	});
+
+	it('resolves explicit tag refs', async () => {
+		const commitHash = await resolveCommitHash(repoUrl, {
+			value: 'v0.1.28',
+			type: 'tag',
+		});
+		expect(commitHash).toMatch(/^[a-f0-9]{40}$/);
+	});
+});
+
 describe('sparseCheckout', () => {
 	it('should retrieve the requested files from a git repo', async () => {
 		const commitHash = await resolveCommitHash(
