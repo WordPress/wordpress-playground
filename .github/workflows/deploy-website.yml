@@ -1,4 +1,4 @@
-name: Deploy to playground.wordpress.net
+name: Deploy Playground website
 
 on:
     workflow_dispatch:
@@ -45,7 +45,7 @@ jobs:
             # The artifact only becomes available after this workflow wraps up, so let's wrap.
             # This artifact enables the download of a pre-built package and hosting of one's own playground instance.
 
-            - name: Deploy to playground.wordpress.net
+            - name: Deploy Playground website build
               shell: bash
               run: |
                   mkdir -p ~/.ssh
