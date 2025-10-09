@@ -61,14 +61,15 @@ describe('GitDirectoryResource', () => {
 			const resource = new GitDirectoryResource({
 				resource: 'git:directory',
 				url,
-				ref: '05138293dd39e25a9fa8e43a9cc775d6fb780e37',
-				refType: 'commit',
+				ref: 'trunk',
+				// A path with only a few files to avoid timing out.
+				path: '.github',
 			});
 			const { files, name } = await resource.resolve();
 
 			expect(name).toBe(fallbackName);
-			expect(resource.name).toBe(fallbackName);
-			expect(files['README.md']).toBeInstanceOf(Uint8Array);
+			expect(resource.name).toBe('.github');
+			expect(files['dependabot.yml']).toBeInstanceOf(Uint8Array);
 		});
 	});
 });
