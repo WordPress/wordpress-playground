@@ -169,11 +169,6 @@ const config = {
 						position: 'left',
 					},
 					{
-						type: 'html',
-						position: 'right',
-						value: '<a href="#" class="navbar__link" onclick="window.Kapa?.open?.()" aria-label="Ask AI">Ask AI</a>',
-					},
-					{
 						href: 'https://github.com/WordPress/wordpress-playground',
 						position: 'right',
 						className: 'header-github-link',
