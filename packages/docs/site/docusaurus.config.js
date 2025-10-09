@@ -66,26 +66,6 @@ const config = {
 		},
 	},
 	themes: ['@docusaurus/theme-live-codeblock'],
-	scripts: [
-		{
-			src: 'https://widget.kapa.ai/kapa-widget.bundle.js',
-			'data-website-id': '50db26d1-afa4-4a5c-992d-695fa98588d2',
-			'data-project-name': 'WordPress Playground',
-			'data-project-color': '#FFFFFF',
-			'data-project-logo':
-				'https://wordpress.github.io/wordpress-playground/img/playground-logo.svg',
-			'data-bot-protection-mechanism': 'hcaptcha',
-			'data-modal-title': 'WordPress Playground AI Assistant',
-			'data-modal-example-questions-title': 'Try asking me...',
-			'data-modal-disclaimer':
-				'This **AI assistant answers WordPress Playground questions** using the [documentation](https://wordpress.github.io/wordpress-playground/) and [github issues](https://github.com/WordPress/wordpress-playground/issues) from last year',
-			'data-modal-example-questions':
-				'How to use Blueprints API?,How to change PHP version?,How to import a WXR file?,How to mount local files?',
-			'data-button-text-color': '#000000',
-			'data-hyperlink-color': '#3996e3',
-			async: true,
-		},
-	],
 	plugins: [
 		getDocusaurusPluginTypedocApiConfig(),
 		[
@@ -115,6 +95,7 @@ const config = {
 				},
 			},
 		],
+		'./plugins/kapa-ai-plugin.js',
 	],
 
 	presets: [
@@ -186,6 +167,11 @@ const config = {
 						to: 'api',
 						label: 'API Reference',
 						position: 'left',
+					},
+					{
+						type: 'html',
+						position: 'right',
+						value: '<a href="#" class="navbar__link" onclick="window.Kapa?.open?.()" aria-label="Ask AI">Ask AI</a>',
 					},
 					{
 						href: 'https://github.com/WordPress/wordpress-playground',

@@ -164,3 +164,29 @@ a.navbar__link--active:hover {
 #list-resources-redirections a {
 	font-weight: normal;
 }
+
+.ask-ai-button {
+	background-color: var(--ifm-color-primary);
+	color: white;
+	border: none;
+	border-radius: 0.25rem;
+	padding: 0.5rem 1rem;
+	font-size: 0.9rem;
+	font-weight: 500;
+	cursor: pointer;
+	transition: all 0.2s ease-in-out;
+	margin: 0 0.5rem;
+}
+
+.ask-ai-button:hover {
+	opacity: 0.9;
+	transform: translateY(-1px);
+}
+
+[data-theme='dark'] .ask-ai-button {
+	color: black;
+}
+
+[data-theme='dark'] .ask-ai-button:hover {
+	opacity: 0.9;
+}
