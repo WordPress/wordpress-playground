@@ -77,11 +77,21 @@ export type GitFileTreeFolder = {
 };
 export type GitFileTree = GitFileTreeFile | GitFileTreeFolder;
 
+/**
+ * A Git ref in a human-readable format. Could be a single string,
+ * e.g. 'main', 'v0.1.28', '1234567890abcdef1234567890abcdef12345678',
+ * could be a string and an explicit type, e.g. { value: 'main', type: 'branch' },
+ */
 export type GitRef = {
 	value: string;
 	type?: 'branch' | 'commit' | 'refname' | 'tag' | 'infer';
 };
 
+/**
+ * A Git ref in a machine-friendly format.
+ * Contains all the information needed to resolve the ref to its oid,
+ * and, optionally, the oid itself.
+ */
 type ParsedGitRef = {
 	kind: 'refname' | 'commit';
 	refname: string;
