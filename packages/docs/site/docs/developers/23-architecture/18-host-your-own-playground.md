@@ -39,7 +39,7 @@ In order of convenience and ease:
 
 ### Download pre-built package
 
-To host the Playground as is, without making changes, you can download the built artifact from [the latest successful GitHub Action](https://github.com/WordPress/wordpress-playground/actions/workflows/build-website.yml?query=is%3Asuccess).
+To host the Playground as is, without making changes, you can download the built artifact from [the latest successful GitHub Action](https://github.com/WordPress/wordpress-playground/actions/workflows/deploy-website.yml?query=is%3Asuccess).
 
 -   Click on **Deploy Playground website**.
 -   In the section **Artifacts** at the bottom of the page, click `playground-website`.
