@@ -12,6 +12,8 @@ import { selectClientInfoBySiteSlug } from '../../../lib/state/redux/slice-clien
 import { useLocalFsAvailability } from '../../../lib/hooks/use-local-fs-availability';
 import { isOpfsAvailable } from '../../../lib/state/opfs/opfs-site-storage';
 import type { SiteStorageType } from '../../../lib/state/redux/slice-sites';
+import { setActiveModal } from '../../../lib/state/redux/slice-ui';
+import { modalSlugs } from '../../layout';
 
 export function SitePersistButton({
 	siteSlug,
@@ -31,15 +33,16 @@ export function SitePersistButton({
 	if (!clientInfo?.opfsSync || clientInfo.opfsSync?.status === 'error') {
 		let button = null;
 		if (storage) {
-			button = (
-				<div
-					onClick={() =>
-						dispatch(persistTemporarySite(siteSlug, storage))
-					}
-				>
-					{children}
-				</div>
-			);
+			const handleClick = () => {
+				if (storage === 'local-fs') {
+					dispatch(
+						setActiveModal(modalSlugs.SAVE_SITE_TO_LOCAL_DIRECTORY)
+					);
+					return;
+				}
+				dispatch(persistTemporarySite(siteSlug, storage));
+			};
+			button = <div onClick={handleClick}>{children}</div>;
 		} else {
 			button = (
 				<DropdownMenu trigger={children}>
@@ -63,7 +66,11 @@ export function SitePersistButton({
 					<DropdownMenuItem
 						disabled={localFsAvailability !== 'available'}
 						onClick={() =>
-							dispatch(persistTemporarySite(siteSlug, 'local-fs'))
+							dispatch(
+								setActiveModal(
+									modalSlugs.SAVE_SITE_TO_LOCAL_DIRECTORY
+								)
+							)
 						}
 					>
 						<DropdownMenuItemLabel>

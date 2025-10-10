@@ -11,7 +11,7 @@ import {
 	MenuItem,
 	TabPanel,
 } from '@wordpress/components';
-import { moreVertical, external, chevronLeft } from '@wordpress/icons';
+import { moreVertical, external, chevronLeft, edit } from '@wordpress/icons';
 import { SiteLogs } from '../../log-modal';
 import { useAppDispatch, useAppSelector } from '../../../lib/state/redux/store';
 import { usePlaygroundClientInfo } from '../../../lib/use-playground-client';
@@ -136,14 +136,39 @@ export function SiteInfoPanel({
 						</FlexItem>
 						<FlexItem style={{ flexGrow: 1 }}>
 							<Flex direction="column" gap={0.25} expanded={true}>
-								<h1
-									className={css.siteInfoHeaderDetailsName}
-									aria-label="Playground title"
+								<Flex
+									direction="row"
+									align="center"
+									className={css.siteInfoHeaderTitleRow}
 								>
-									{isTemporary
-										? 'Temporary Playground'
-										: site.metadata.name}
-								</h1>
+									<h1
+										className={
+											css.siteInfoHeaderDetailsName
+										}
+										aria-label="Playground title"
+									>
+										{isTemporary
+											? 'Temporary Playground'
+											: site.metadata.name}
+									</h1>
+									{!isTemporary && (
+										<Button
+											className={css.siteInfoRenameButton}
+											icon={edit}
+											label="Rename Playground"
+											showTooltip={true}
+											variant="tertiary"
+											isSmall={true}
+											onClick={() =>
+												dispatch(
+													setActiveModal(
+														modalSlugs.RENAME_SITE
+													)
+												)
+											}
+										/>
+									)}
+								</Flex>
 								{!isTemporary && (
 									<span
 										className={
@@ -225,19 +250,6 @@ export function SiteInfoPanel({
 									<>
 										{!isTemporary && (
 											<MenuGroup>
-												<MenuItem
-													aria-label="Rename this Playground"
-													onClick={() => {
-														dispatch(
-															setActiveModal(
-																modalSlugs.RENAME_SITE
-															)
-														);
-														onClose();
-													}}
-												>
-													Rename
-												</MenuItem>
 												<MenuItem
 													aria-label="Delete this Playground"
 													className={css.danger}

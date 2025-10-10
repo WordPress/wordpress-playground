@@ -146,6 +146,21 @@
 	color: #757575;
 }
 
+.siteInfoHeaderTitleRow {
+	align-items: center;
+	gap: 8px;
+}
+
+.siteInfoRenameButton {
+	padding: 4px !important;
+	min-height: 28px;
+}
+
+.siteInfoRenameButton :global(svg) {
+	width: 16px;
+	height: 16px;
+}
+
 .max-width {
 	width: 100%;
 }
