@@ -43,6 +43,39 @@ console.log(response.text);
 // Hello John
 ```
 
+## Usage with bundlers
+
+If you use `@php-wasm/web` with a bundler such as Vite, you may see the following errors:
+
+```
+01:31:50 [vite] (client) error while updating dependencies:
+Error: Error during dependency optimization:
+
+✘ [ERROR] No loader is configured for ".dat" files: app/node_modules/@php-wasm/web/shared/icudt74l.dat
+
+    app/node_modules/@php-wasm/web/shared/icudt74l.js:1:25:
+      1 │ import dataFilename from './icudt74l.dat';
+```
+
+The `@php-wasm/web` package imports a non-JavaScript asset file using the import syntax. This ensures
+all the required dependencies may be tracked statically, but it creates an inconvenience for apps relying
+on bundlers.
+
+To resolve that error, you'll need to configure your bundler to resolve the import above to the URL
+of the `icudt74l.dat` in your app, e.g. `https://playground.wordpress.net/assets/icudt74l.dat`.
+
+In Vite, you can use the `assetsInclude` option:
+
+```js
+export default defineConfig({
+	assetsInclude: [/\.dat$/],
+});
+```
+
+Other bundlers will typically have analogous options or plugins. If you create a working configuration for
+WebPack, esbuild, or another bundler, feel free to propose a new configuration example for this README at
+https://github.com/WordPress/wordpress-playground/edit/trunk/packages/php-wasm/web/README.md
+
 ## Attribution
 
 `@php-wasm/web` started as a fork of the original PHP to WebAssembly build published by Oraoto in https://github.com/oraoto/pib and modified by Sean Morris in https://github.com/seanmorris/php-wasm.
