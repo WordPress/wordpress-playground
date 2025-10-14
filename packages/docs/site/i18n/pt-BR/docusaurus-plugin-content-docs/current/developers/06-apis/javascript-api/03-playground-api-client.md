@@ -118,15 +118,15 @@ import { loadNodeRuntime } from '@php-wasm/node';
 const php = new PHP(await loadNodeRuntime('8.3'));
 
 php.onMessage(
-	// The data is always passed as a string
+	// Os dados são sempre passados como string
 	function (data: string) {
-		// Let's decode and log the data:
+		// Vamos decodificar e exibir os dados:
 		console.log(JSON.parse(data));
 	}
 );
 
-// Now that we have a listener in place, let's
-// dispatch a message:
+// Agora que temos um listener, vamos
+//enviar uma mensagem:
 await php.runStream({
 	code: `<?php
         post_message_to_js(
@@ -138,7 +138,7 @@ await php.runStream({
     `,
 });
 
-// You will see the following output in the console:
+// Você verá a seguinte saída no console:
 // { post_id: '15', post_title: 'This is a blog post!' }
 ```
 
