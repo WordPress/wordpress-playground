@@ -19,7 +19,7 @@ const php = await PHP.load('8.0', {
 // Create and run a script directly
 php.mkdirTree('/www');
 php.writeFile('/www/index.php', `<?php echo "Hello " . $_POST['name']; ?>`);
-await php.run({ scriptPath: './index.php' });
+await php.runStream({ scriptPath: './index.php' });
 
 // Or use the familiar HTTP concepts:
 const response = await php.request({

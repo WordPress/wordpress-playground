@@ -123,8 +123,8 @@ php.onMessage(
 );
 
 // Agora que temos um listener, vamos
-enviar uma mensagem:
-await php.run({
+// enviar uma mensagem:
+await php.runStream({
 	code: `<?php
         post_message_to_js(
             json_encode([
