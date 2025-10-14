@@ -131,8 +131,15 @@ export async function addIDEConfig(name: string, mounts: Mount[]) {
 	configFilePath = path.join(process.cwd(), '.vscode/launch.json');
 	// VSCode
 	if (fs.existsSync(configFilePath)) {
-		const config = JSON.parse(fs.readFileSync(configFilePath, 'utf-8'));
-
+		let config;
+		try {
+			config = JSON.parse(fs.readFileSync(configFilePath, 'utf-8'));
+		} catch {
+			logger.warn(
+				'VSCode configuration file is not valid JSON. Skipping path mapping.'
+			);
+			return;
+		}
 		const configuration = {
 			name: name,
 			type: 'php',
@@ -215,7 +222,15 @@ export async function clearIDEConfig(name: string) {
 	configFilePath = path.join(process.cwd(), '.vscode/launch.json');
 	// VSCode
 	if (fs.existsSync(configFilePath)) {
-		const config = JSON.parse(fs.readFileSync(configFilePath, 'utf-8'));
+		let config;
+		try {
+			config = JSON.parse(fs.readFileSync(configFilePath, 'utf-8'));
+		} catch {
+			logger.warn(
+				'VSCode configuration file is not valid JSON. Skipping path mapping.'
+			);
+			return;
+		}
 
 		const component = config?.configurations?.filter(
 			(configuration: { name: string }) => configuration.name !== name
