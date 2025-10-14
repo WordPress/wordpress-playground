@@ -111,19 +111,22 @@ Você pode enviar mensagens do PHP para o JavaScript usando a função `post_mes
 
 Por exemplo, veja como enviar uma mensagem com um ID e título de post codificados em JSON:
 
-```ts
-const php = await PHP.load('8.0');
+```TypeScript
+import { PHP } from '@php-wasm/universal';
+import { loadNodeRuntime } from '@php-wasm/node';
+
+const php = new PHP(await loadNodeRuntime('8.3'));
 
 php.onMessage(
-	// Os dados são sempre passados como string
+	// The data is always passed as a string
 	function (data: string) {
-		// Vamos decodificar e exibir os dados:
+		// Let's decode and log the data:
 		console.log(JSON.parse(data));
 	}
 );
 
-// Agora que temos um listener, vamos
-// enviar uma mensagem:
+// Now that we have a listener in place, let's
+// dispatch a message:
 await php.runStream({
 	code: `<?php
         post_message_to_js(
@@ -135,7 +138,7 @@ await php.runStream({
     `,
 });
 
-// Você verá a seguinte saída no console:
+// You will see the following output in the console:
 // { post_id: '15', post_title: 'This is a blog post!' }
 ```
 

@@ -77,8 +77,11 @@ You can pass messages from PHP to JavaScript using the `post_message_to_js()` fu
 
 For example, here's how you would send a message with a JSON-encoded post ID and title:
 
-```ts
-const php = await PHP.load('8.0');
+```TypeScript
+import { PHP } from '@php-wasm/universal';
+import { loadNodeRuntime } from '@php-wasm/node';
+
+const php = new PHP(await loadNodeRuntime('8.3'));
 
 php.onMessage(
 	// The data is always passed as a string
@@ -97,10 +100,11 @@ await php.runStream({
                 'post_id' => '15',
                 'post_title' => 'This is a blog post!'
             ])
-        ));
+        );
     `,
 });
 
+console.log(await output.stdoutText);
 // You will see the following output in the console:
 // { post_id: '15', post_title: 'This is a blog post!' }
 ```
