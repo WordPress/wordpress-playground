@@ -51,6 +51,10 @@ import {
 	cleanupStalePlaygroundTempDirs,
 	createPlaygroundCliTempDir,
 } from './temp-dir';
+import {
+	createPlaygroundCliTempDirSymlink,
+	removePlaygroundCliTempDirSymlink,
+} from './xdebug-path-mappings';
 
 // Inlined worker URLs for static analysis by downstream bundlers
 // These are replaced at build time by the Vite plugin in vite.config.ts
@@ -214,6 +218,11 @@ export async function parseOptionsAndRunCLI() {
 			})
 			.option('xdebug', {
 				describe: 'Enable Xdebug.',
+				type: 'boolean',
+				default: false,
+			})
+			.option('experimental-ide', {
+				describe: 'Enable experimental PhpStorm development tools.',
 				type: 'boolean',
 				default: false,
 			})
@@ -418,6 +427,7 @@ export interface RunCLIArgs {
 	internalCookieStore?: boolean;
 	'additional-blueprint-steps'?: any[];
 	xdebug?: boolean;
+	experimentalIde?: boolean;
 	experimentalDevtools?: boolean;
 	'experimental-blueprints-v2-runner'?: boolean;
 
@@ -548,6 +558,21 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 			const nativeDirPath = await createPlaygroundCliTempDir(
 				tempDirNameDelimiter
 			);
+
+			// Manage a symlink to the temporary directory inside the project root.
+			// If xdebug is enabled create the symlink. Otherwise, remove it if it exists.
+			const symlinkName = '.playground';
+			if (args.xdebug) {
+				if (!args.experimentalDevtools && args.experimentalIde) {
+					const symlinkPath = path.join(process.cwd(), symlinkName);
+					createPlaygroundCliTempDirSymlink(
+						nativeDirPath,
+						symlinkPath
+					);
+				}
+			} else {
+				removePlaygroundCliTempDirSymlink(symlinkName);
+			}
 
 			// We do not know the system temp dir,
 			// but we can try to infer from the location of the current temp dir.
