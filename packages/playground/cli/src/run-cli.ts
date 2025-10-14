@@ -52,7 +52,9 @@ import {
 	createPlaygroundCliTempDir,
 } from './temp-dir';
 import {
+	addIDEConfig,
 	createPlaygroundCliTempDirSymlink,
+	clearIDEConfig,
 	removePlaygroundCliTempDirSymlink,
 } from './xdebug-path-mappings';
 
@@ -222,15 +224,14 @@ export async function parseOptionsAndRunCLI() {
 				default: false,
 			})
 			.option('experimental-ide', {
-				describe: 'Enable experimental PhpStorm development tools.',
+				describe: 'Enable experimental IDE development tools.',
 				type: 'boolean',
-				default: false,
 			})
 			.option('experimental-devtools', {
 				describe: 'Enable experimental browser development tools.',
 				type: 'boolean',
-				default: false,
 			})
+			.conflicts('experimental-ide', 'experimental-devtools')
 			.option('experimental-multi-worker', {
 				describe:
 					'Enable experimental multi-worker support which requires ' +
@@ -559,19 +560,30 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 				tempDirNameDelimiter
 			);
 
-			// Manage a symlink to the temporary directory inside the project root.
-			// If xdebug is enabled create the symlink. Otherwise, remove it if it exists.
+			// Clear any stale IDE config.
+			const IDEConfigName = 'WP Playground CLI - Listen for Xdebug';
+			clearIDEConfig(IDEConfigName);
+
+			// Always clean up any existing '.playground' symlink in the project root.
 			const symlinkName = '.playground';
-			if (args.xdebug) {
-				if (!args.experimentalDevtools && args.experimentalIde) {
-					const symlinkPath = path.join(process.cwd(), symlinkName);
-					createPlaygroundCliTempDirSymlink(
-						nativeDirPath,
-						symlinkPath
-					);
-				}
-			} else {
-				removePlaygroundCliTempDirSymlink(symlinkName);
+			const symlinkPath = path.join(process.cwd(), symlinkName);
+
+			removePlaygroundCliTempDirSymlink(symlinkPath);
+
+			// Then, if xdebug, and experimental IDE are enabled,
+			// recreate the symlink pointing to the temporary
+			// directory and add the new IDE config.
+			if (args.xdebug && args.experimentalIde) {
+				createPlaygroundCliTempDirSymlink(nativeDirPath, symlinkPath);
+
+				const symlinkMount: Mount = {
+					hostPath: `./${symlinkName}`,
+					vfsPath: '/',
+				};
+				addIDEConfig(IDEConfigName, [
+					symlinkMount,
+					...(args.mount || []),
+				]);
 			}
 
 			// We do not know the system temp dir,
@@ -769,7 +781,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 					`WordPress is running on ${serverUrl} with ${totalWorkerCount} worker(s)`
 				);
 
-				if (args.experimentalDevtools && args.xdebug) {
+				if (args.xdebug && args.experimentalDevtools) {
 					const bridge = await startBridge({
 						phpInstance: playground,
 						phpRoot: '/wordpress',
