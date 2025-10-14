@@ -72,6 +72,31 @@ describe('GitDirectoryResource', () => {
 			expect(files['dependabot.yml']).toBeInstanceOf(Uint8Array);
 		});
 	});
+
+	describe('name', () => {
+		it('should return a non-empty name when path is omitted', async () => {
+			const resource = new GitDirectoryResource({
+				resource: 'git:directory',
+				url: 'https://github.com/WordPress/wordpress-playground',
+				ref: 'trunk',
+			});
+			expect(resource.name).toBe(
+				'https-github.com-WordPress-wordpress-playground-trunk'
+			);
+		});
+
+		it('should return a non-empty name when path has no letters', async () => {
+			const resource = new GitDirectoryResource({
+				resource: 'git:directory',
+				url: 'https://github.com/WordPress/wordpress-playground',
+				ref: 'trunk',
+				path: '../',
+			});
+			expect(resource.name).toBe(
+				'https-github.com-WordPress-wordpress-playground-trunk'
+			);
+		});
+	});
 });
 
 describe('BlueprintResource', () => {

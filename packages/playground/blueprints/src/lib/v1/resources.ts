@@ -5,7 +5,7 @@ import {
 } from '@php-wasm/progress';
 import type { FileTree, UniversalPHP } from '@php-wasm/universal';
 import type { Semaphore } from '@php-wasm/util';
-import { dirname } from '@php-wasm/util';
+import { dirname, randomFilename } from '@php-wasm/util';
 import {
 	listDescendantFiles,
 	listGitFiles,
@@ -597,13 +597,21 @@ export class GitDirectoryResource extends Resource<Directory> {
 
 	/** @inheritDoc */
 	get name() {
-		const path = this.reference.path ?? '';
-		if (!path) {
-			return this.reference.url
+		// Make sure we always return a valid, non-empty filename.
+		const toAlnum = (str: string) =>
+			str
 				.replaceAll(/[^a-zA-Z0-9-.]/g, '-')
-				.replaceAll(/-+/g, '-');
-		}
-		return path.split('/').pop() || '';
+				.replaceAll(/-+/g, '-')
+				.replace(/^[^a-zA-Z0-9]+|[^a-zA-Z0-9]+$/g, '');
+		return (
+			[
+				toAlnum(this.reference.url),
+				toAlnum(this.reference.ref ?? ''),
+				toAlnum(this.reference.path ?? ''),
+			]
+				.filter((segment) => segment.length > 0)
+				.join('-') || randomFilename()
+		);
 	}
 }
 
