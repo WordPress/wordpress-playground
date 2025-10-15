@@ -8,13 +8,26 @@ export type SiteError =
 	| 'directory-handle-unknown-error'
 	// @TODO: Improve name?
 	| 'site-boot-failed'
-	| 'github-artifact-expired';
+	| 'github-artifact-expired'
+	| 'blueprint-resolution-failed';
+
+export interface BlueprintResolutionErrorContext {
+	attemptedUrl?: string;
+	httpStatus?: number;
+	statusText?: string;
+	message?: string;
+}
+
+export interface ActiveSiteErrorContext {
+	blueprintResolution?: BlueprintResolutionErrorContext;
+}
 
 export type SiteManagerSection = 'sidebar' | 'site-details' | 'blueprints';
 export interface UIState {
 	activeSite?: {
 		slug: string;
 		error?: SiteError;
+		context?: ActiveSiteErrorContext;
 	};
 	activeModal: string | null;
 	offline: boolean;
@@ -68,9 +81,16 @@ const uiSlice = createSlice({
 				  }
 				: undefined;
 		},
-		setActiveSiteError: (state, action: PayloadAction<SiteError>) => {
+		setActiveSiteError: (
+			state,
+			action: PayloadAction<{
+				error: SiteError;
+				context?: ActiveSiteErrorContext;
+			}>
+		) => {
 			if (state.activeSite) {
-				state.activeSite.error = action.payload;
+				state.activeSite.error = action.payload.error;
+				state.activeSite.context = action.payload.context;
 			}
 		},
 		setActiveModal: (state, action: PayloadAction<string | null>) => {

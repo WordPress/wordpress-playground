@@ -37,6 +37,23 @@
 	}
 }
 
+.blueprint-url-wrapper {
+	margin-bottom: 15px;
+	word-break: break-word;
+	overflow-wrap: anywhere;
+}
+
+.blueprint-url {
+	display: inline-block;
+	word-break: break-word;
+	overflow-wrap: anywhere;
+}
+
+.blueprintStatus {
+	font-weight: 600;
+	margin-bottom: 15px;
+}
+
 .hidden {
 	display: none;
 }

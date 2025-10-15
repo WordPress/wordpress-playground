@@ -161,10 +161,12 @@ export function cloneStreamMonitorProgress(
 		);
 	}
 
-	return new ReadableStream({
+	let closed = false;
+	const monitoredStream = new ReadableStream({
 		async start(controller) {
 			if (!stream) {
 				controller.close();
+				closed = true;
 				return;
 			}
 			const reader = stream.getReader();
@@ -178,19 +180,29 @@ export function cloneStreamMonitorProgress(
 					if (done) {
 						notify(loaded, loaded);
 						controller.close();
+						closed = true;
 						break;
 					} else {
 						notify(loaded, total);
-						controller.enqueue(value);
+						if (!closed) {
+							controller.enqueue(value);
+						}
 					}
 				} catch (e) {
-					logger.error({ e });
-					controller.error(e);
+					debugger;
+					try {
+						console.log(controller);
+						logger.error({ e });
+						console.dir(e);
+						controller.close();
+					} catch (e) {}
+					// controller.error(e);
 					break;
 				}
 			}
 		},
 	});
+	return monitoredStream;
 }
 
 export type DownloadProgressCallback = (progress: DownloadProgress) => void;

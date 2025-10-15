@@ -19,7 +19,23 @@ export async function resolveRemoteBlueprint(
 		credentials: 'omit',
 	});
 	if (!response.ok) {
-		throw new Error(`Failed to fetch blueprint from ${url}`);
+		const statusText = response.statusText?.trim();
+		const statusSummary = statusText
+			? `${response.status} ${statusText}`
+			: `${response.status}`;
+		const error = new Error(
+			response.status
+				? `Failed to fetch the Blueprint. The server responded with HTTP ${statusSummary}.`
+				: 'Failed to fetch the Blueprint.'
+		) as Error & {
+			status?: number;
+			statusText?: string;
+			url?: string;
+		};
+		error.status = response.status;
+		error.statusText = response.statusText;
+		error.url = url;
+		throw error;
 	}
 	const blueprintBytes = await response.arrayBuffer();
 	try {
@@ -41,9 +57,11 @@ export async function resolveRemoteBlueprint(
 		if (await looksLikeZipFile(blueprintBytes)) {
 			return ZipFilesystem.fromArrayBuffer(blueprintBytes);
 		}
-		throw new Error(
+		const error = new Error(
 			`Blueprint file at ${url} is neither a valid JSON nor a ZIP file.`
-		);
+		) as Error & { url?: string };
+		error.url = url;
+		throw error;
 	}
 }
 

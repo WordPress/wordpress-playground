@@ -4,19 +4,24 @@ import css from './style.module.css';
 import BrowserChrome from '../browser-chrome';
 import {
 	selectActiveSiteError,
+	selectActiveSiteErrorContext,
 	useActiveSite,
 	useAppDispatch,
 	useAppSelector,
 } from '../../lib/state/redux/store';
 import { removeClientInfo } from '../../lib/state/redux/slice-clients';
 import { bootSiteClient } from '../../lib/state/redux/boot-site-client';
-import type { SiteError } from '../../lib/state/redux/slice-ui';
+import type {
+	ActiveSiteErrorContext,
+	SiteError,
+} from '../../lib/state/redux/slice-ui';
 import { Button, Spinner } from '@wordpress/components';
 import {
 	removeSite,
 	selectSiteBySlug,
 	selectSitesLoaded,
 	selectTemporarySites,
+	DEFAULT_WELCOME_BLUEPRINT_URL,
 } from '../../lib/state/redux/slice-sites';
 import classNames from 'classnames';
 
@@ -202,12 +207,17 @@ export const JustViewport = function JustViewport({
 	}, [siteSlug, iframeRef, runtimeConfigString]);
 
 	const error = useAppSelector(selectActiveSiteError);
+	const errorContext = useAppSelector(selectActiveSiteErrorContext);
 
 	if (error) {
 		return (
 			<div className={css.siteError}>
 				<div className={css.siteErrorContent}>
-					<SiteErrorMessage error={error} siteSlug={siteSlug} />
+					<SiteErrorMessage
+						error={error}
+						siteSlug={siteSlug}
+						errorContext={errorContext}
+					/>
 				</div>
 			</div>
 		);
@@ -226,11 +236,88 @@ export const JustViewport = function JustViewport({
 function SiteErrorMessage({
 	error,
 	siteSlug,
+	errorContext,
 }: {
 	error: SiteError;
 	siteSlug: string;
+	errorContext?: ActiveSiteErrorContext;
 }) {
 	const dispatch = useAppDispatch();
+	if (error === 'blueprint-resolution-failed') {
+		const blueprintError = errorContext?.blueprintResolution;
+		const attemptedUrl =
+			blueprintError?.attemptedUrl || DEFAULT_WELCOME_BLUEPRINT_URL;
+		const rawStatusText =
+			typeof blueprintError?.statusText === 'string'
+				? blueprintError.statusText.trim()
+				: undefined;
+		const statusSummary =
+			typeof blueprintError?.httpStatus === 'number'
+				? `HTTP ${blueprintError.httpStatus}${
+						rawStatusText ? ` ${rawStatusText}` : ''
+				  }`
+				: rawStatusText;
+		const trimmedMessage =
+			typeof blueprintError?.message === 'string'
+				? blueprintError.message.trim()
+				: undefined;
+		const shouldShowMessage =
+			trimmedMessage &&
+			trimmedMessage.length > 0 &&
+			trimmedMessage !== statusSummary &&
+			trimmedMessage !== attemptedUrl;
+		return (
+			<>
+				<h1>We couldn't load that Blueprint</h1>
+				<p>
+					WordPress Playground couldn't load the Blueprint below. The
+					file might be unavailable or invalid.
+				</p>
+				{attemptedUrl ? (
+					<p className={css.blueprintUrlWrapper}>
+						<a
+							className={css.blueprintUrl}
+							target="_blank"
+							rel="noopener noreferrer"
+							href={attemptedUrl}
+						>
+							{attemptedUrl}
+						</a>
+					</p>
+				) : null}
+				{statusSummary ? (
+					<p className={css.blueprintStatus}>{statusSummary}</p>
+				) : null}
+				{shouldShowMessage ? <p>{trimmedMessage}</p> : null}
+				<p>
+					Reload without a Blueprint to start with a blank WordPress
+					site.
+				</p>
+				<Button
+					className={css.actionButton}
+					variant="primary"
+					onClick={() => {
+						const url = new URL(window.location.href);
+						url.searchParams.delete('blueprint-url');
+						url.searchParams.delete('import-wxr');
+						url.searchParams.delete('import-content');
+						url.searchParams.delete('import-site');
+						url.searchParams.delete('plugin');
+						url.searchParams.delete('theme');
+						url.searchParams.delete('php');
+						url.searchParams.delete('wp');
+						url.searchParams.delete('language');
+						url.searchParams.delete('networking');
+						url.searchParams.delete('site-slug');
+						url.hash = '';
+						window.location.href = url.toString();
+					}}
+				>
+					reload without a Blueprint
+				</Button>
+			</>
+		);
+	}
 	if (
 		error === 'directory-handle-not-found-in-indexeddb' ||
 		error === 'directory-handle-permission-denied'

@@ -20,6 +20,7 @@ import {
 	applyQueryOverrides,
 } from '../url/resolve-blueprint-from-url';
 import { logger } from '@php-wasm/logger';
+import type { ActiveSiteErrorContext } from './slice-ui';
 
 /**
  * The Site model used to represent a site within Playground.
@@ -238,6 +239,18 @@ export function removeSite(slug: string) {
  * @param siteInfo The site info to add.
  * @returns
  */
+export const DEFAULT_WELCOME_BLUEPRINT_URL =
+	'https://raw.githubusercontent.com/WordPress/blueprints/refs/heads/trunk/blueprints/welcome/blueprint.json';
+
+export interface SetTemporarySiteSpecResult {
+	site: SiteInfo;
+	blueprintResolutionFailed?: ActiveSiteErrorContext['blueprintResolution'];
+}
+
+type BlueprintResolutionFailure = NonNullable<
+	ActiveSiteErrorContext['blueprintResolution']
+>;
+
 export function setTemporarySiteSpec(
 	siteName: string,
 	playgroundUrlWithQueryApiArgs: URL
@@ -245,7 +258,7 @@ export function setTemporarySiteSpec(
 	return async (
 		dispatch: PlaygroundDispatch,
 		getState: () => PlaygroundReduxState
-	) => {
+	): Promise<SetTemporarySiteSpecResult> => {
 		const newSiteUrlParams = {
 			searchParams: parseSearchParams(
 				playgroundUrlWithQueryApiArgs.searchParams
@@ -261,7 +274,7 @@ export function setTemporarySiteSpec(
 				JSON.stringify(currentTemporarySite.originalUrlParams) ===
 				JSON.stringify(newSiteUrlParams)
 			) {
-				return currentTemporarySite;
+				return { site: currentTemporarySite };
 			}
 		}
 
@@ -275,10 +288,12 @@ export function setTemporarySiteSpec(
 		}
 
 		// Then create a new temporary site
-		const defaultBlueprint =
-			'https://raw.githubusercontent.com/WordPress/blueprints/refs/heads/trunk/blueprints/welcome/blueprint.json';
+		const defaultBlueprint = DEFAULT_WELCOME_BLUEPRINT_URL;
 
 		let resolvedBlueprint: ResolvedBlueprint | undefined = undefined;
+		let blueprintResolutionFailed:
+			| SetTemporarySiteSpecResult['blueprintResolutionFailed']
+			| undefined;
 		try {
 			resolvedBlueprint = await resolveBlueprintFromURL(
 				playgroundUrlWithQueryApiArgs,
@@ -286,9 +301,28 @@ export function setTemporarySiteSpec(
 			);
 		} catch (e) {
 			logger.error(
-				'Error resolving blueprint, fallink back to a blank blueprint.',
+				'Error resolving blueprint, falling back to a blank blueprint.',
 				e
 			);
+			const hasBlueprintQuery =
+				playgroundUrlWithQueryApiArgs.searchParams.has('blueprint-url');
+			const hasFragment =
+				(playgroundUrlWithQueryApiArgs.hash || '').length > 1;
+			const attemptedBlueprintUrl = hasBlueprintQuery
+				? playgroundUrlWithQueryApiArgs.searchParams.get(
+						'blueprint-url'
+				  )!
+				: !hasFragment
+				? defaultBlueprint
+				: undefined;
+			const attemptedUrl =
+				attemptedBlueprintUrl || playgroundUrlWithQueryApiArgs.href;
+			blueprintResolutionFailed = buildBlueprintResolutionFailureDetails(
+				e,
+				attemptedUrl
+			) || {
+				attemptedUrl,
+			};
 			// TODO: This is a hack – we are just abusing a URL-oriented
 			// function to create a completely blank Blueprint. Let's fix this by
 			// making default creation first-class.
@@ -325,8 +359,79 @@ export function setTemporarySiteSpec(
 		};
 		dispatch(sitesSlice.actions.addSite(newSiteInfo));
 		dispatch(sitesSlice.actions.setFirstTemporarySiteCreated());
-		return newSiteInfo;
+		return {
+			site: newSiteInfo,
+			blueprintResolutionFailed,
+		};
 	};
+}
+
+function buildBlueprintResolutionFailureDetails(
+	error: unknown,
+	attemptedUrl?: string
+): BlueprintResolutionFailure | undefined {
+	const details: BlueprintResolutionFailure = {};
+	if (attemptedUrl) {
+		details.attemptedUrl = attemptedUrl;
+	}
+
+	const errorLike = error as {
+		status?: unknown;
+		statusCode?: unknown;
+		statusText?: unknown;
+		response?: { status?: unknown; statusText?: unknown };
+		cause?: { status?: unknown; statusText?: unknown };
+		message?: unknown;
+	};
+
+	const statusCandidates = [
+		errorLike?.status,
+		errorLike?.response?.status,
+		errorLike?.cause?.status,
+		errorLike?.statusCode,
+	];
+	for (const candidate of statusCandidates) {
+		if (
+			typeof candidate === 'number' &&
+			Number.isFinite(candidate) &&
+			candidate > 0
+		) {
+			details.httpStatus = candidate;
+			break;
+		}
+	}
+
+	const statusTextCandidates = [
+		errorLike?.statusText,
+		errorLike?.response?.statusText,
+		errorLike?.cause?.statusText,
+	];
+	for (const candidate of statusTextCandidates) {
+		if (typeof candidate === 'string' && candidate.trim()) {
+			details.statusText = candidate.trim();
+			break;
+		}
+	}
+
+	let message: string | undefined;
+	if (typeof errorLike?.message === 'string') {
+		message = errorLike.message;
+	} else if (typeof error === 'string') {
+		message = error;
+	}
+
+	if (message) {
+		const trimmedMessage = message.trim();
+		if (
+			trimmedMessage &&
+			trimmedMessage !== details.statusText &&
+			trimmedMessage !== attemptedUrl
+		) {
+			details.message = trimmedMessage;
+		}
+	}
+
+	return Object.keys(details).length ? details : undefined;
 }
 
 function parseSearchParams(searchParams: URLSearchParams) {

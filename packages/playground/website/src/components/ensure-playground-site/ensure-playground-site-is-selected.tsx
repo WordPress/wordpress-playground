@@ -17,7 +17,10 @@ import { redirectTo } from '../../lib/state/url/router';
 import { logger } from '@php-wasm/logger';
 import { usePrevious } from '../../lib/hooks/use-previous';
 import { modalSlugs } from '../layout';
-import { setActiveModal } from '../../lib/state/redux/slice-ui';
+import {
+	setActiveModal,
+	setActiveSiteError,
+} from '../../lib/state/redux/slice-ui';
 import { selectClientBySiteSlug } from '../../lib/state/redux/slice-clients';
 import { randomSiteName } from '../../lib/state/redux/random-site-name';
 
@@ -158,8 +161,18 @@ async function createNewTemporarySite(
 	const siteName = requestedSiteSlug
 		? deriveSiteNameFromSlug(requestedSiteSlug)
 		: randomSiteName();
-	const newSiteInfo = await dispatch(
+	const { site, blueprintResolutionFailed } = await dispatch(
 		setTemporarySiteSpec(siteName, new URL(window.location.href))
 	);
-	await dispatch(setActiveSite(newSiteInfo.slug));
+	await dispatch(setActiveSite(site.slug));
+	if (blueprintResolutionFailed) {
+		dispatch(
+			setActiveSiteError({
+				error: 'blueprint-resolution-failed',
+				context: {
+					blueprintResolution: blueprintResolutionFailed,
+				},
+			})
+		);
+	}
 }

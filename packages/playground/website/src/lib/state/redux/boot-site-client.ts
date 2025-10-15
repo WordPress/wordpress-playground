@@ -57,9 +57,9 @@ export function bootSiteClient(
 			} catch (e) {
 				logger.error(e);
 				dispatch(
-					setActiveSiteError(
-						'directory-handle-not-found-in-indexeddb'
-					)
+					setActiveSiteError({
+						error: 'directory-handle-not-found-in-indexeddb',
+					})
 				);
 				return;
 			}
@@ -82,13 +82,17 @@ export function bootSiteClient(
 				logger.error(e);
 				if (e instanceof DOMException && e.name === 'NotFoundError') {
 					dispatch(
-						setActiveSiteError(
-							'directory-handle-not-found-in-indexeddb'
-						)
+						setActiveSiteError({
+							error: 'directory-handle-not-found-in-indexeddb',
+						})
 					);
 					return;
 				}
-				dispatch(setActiveSiteError('directory-handle-unknown-error'));
+				dispatch(
+					setActiveSiteError({
+						error: 'directory-handle-unknown-error',
+					})
+				);
 				return;
 			}
 		}
@@ -197,9 +201,11 @@ export function bootSiteClient(
 				(e as any).name === 'ArtifactExpiredError' ||
 				(e as any).originalErrorClassName === 'ArtifactExpiredError'
 			) {
-				dispatch(setActiveSiteError('github-artifact-expired'));
+				dispatch(
+					setActiveSiteError({ error: 'github-artifact-expired' })
+				);
 			} else {
-				dispatch(setActiveSiteError('site-boot-failed'));
+				dispatch(setActiveSiteError({ error: 'site-boot-failed' }));
 				dispatch(setActiveModal(modalSlugs.ERROR_REPORT));
 			}
 			return;
