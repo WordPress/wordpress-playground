@@ -5,7 +5,7 @@ import {
 } from '@php-wasm/progress';
 import type { FileTree, UniversalPHP } from '@php-wasm/universal';
 import type { Semaphore } from '@php-wasm/util';
-import { dirname } from '@php-wasm/util';
+import { randomFilename } from '@php-wasm/util';
 import {
 	listDescendantFiles,
 	listGitFiles,
@@ -586,24 +586,35 @@ export class GitDirectoryResource extends Resource<Directory> {
 			name.substring(requestedPath.length).replace(/^\/+/, '')
 		);
 		return {
-			name:
-				dirname(this.reference.path || '') ||
-				this.reference.url
-					.replaceAll(/[^a-zA-Z0-9-.]/g, '-')
-					.replaceAll(/-+/g, '-'),
+			name: this.filename,
 			files,
 		};
 	}
 
+	/**
+	 * Generate a nice, non-empty filename – the installPlugin step depends on it.
+	 */
+	get filename() {
+		return (
+			this.name
+				.replaceAll(/[^a-zA-Z0-9-.]/g, '-')
+				.replaceAll(/-+/g, '-')
+				.replace(/^[^a-zA-Z0-9]+|[^a-zA-Z0-9]+$/g, '') ||
+			randomFilename()
+		);
+	}
+
 	/** @inheritDoc */
 	get name() {
-		const path = this.reference.path ?? '';
-		if (!path) {
-			return this.reference.url
-				.replaceAll(/[^a-zA-Z0-9-.]/g, '-')
-				.replaceAll(/-+/g, '-');
-		}
-		return path.split('/').pop() || '';
+		return [
+			this.reference.url,
+			this.reference.ref ? `(${this.reference.ref})` : '',
+			this.reference.path?.replace(/^\/+/, '')
+				? `at ${this.reference.path}`
+				: '',
+		]
+			.filter((segment) => segment.length > 0)
+			.join(' ');
 	}
 }
 

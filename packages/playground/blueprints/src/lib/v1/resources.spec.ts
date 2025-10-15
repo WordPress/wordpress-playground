@@ -55,9 +55,6 @@ describe('GitDirectoryResource', () => {
 
 		it('defaults to the repo root when path is omitted', async () => {
 			const url = 'https://github.com/WordPress/wordpress-playground';
-			const fallbackName = url
-				.replaceAll(/[^a-zA-Z0-9-.]/g, '-')
-				.replaceAll(/-+/g, '-');
 			const resource = new GitDirectoryResource({
 				resource: 'git:directory',
 				url,
@@ -67,9 +64,51 @@ describe('GitDirectoryResource', () => {
 			});
 			const { files, name } = await resource.resolve();
 
-			expect(name).toBe(fallbackName);
-			expect(resource.name).toBe('.github');
+			// Human-readable name
+			expect(resource.name).toBe(
+				'https://github.com/WordPress/wordpress-playground (trunk) at .github'
+			);
+
+			// Filename
+			expect(name).toBe(
+				'https-github.com-WordPress-wordpress-playground-trunk-at-.github'
+			);
 			expect(files['dependabot.yml']).toBeInstanceOf(Uint8Array);
+		});
+	});
+
+	describe('name', () => {
+		it('should return a non-empty name when path is omitted', async () => {
+			const resource = new GitDirectoryResource({
+				resource: 'git:directory',
+				url: 'https://github.com/WordPress/link-manager',
+				ref: 'trunk',
+			});
+			const { name } = await resource.resolve();
+			expect(name).toBe('https-github.com-WordPress-link-manager-trunk');
+		});
+
+		it('should return a non-empty name when path is empty', async () => {
+			const resource = new GitDirectoryResource({
+				resource: 'git:directory',
+				url: 'https://github.com/WordPress/link-manager',
+				ref: 'trunk',
+				path: '',
+			});
+			const { name } = await resource.resolve();
+			expect(name).toBe('https-github.com-WordPress-link-manager-trunk');
+		});
+
+		it('should return a non-empty name when path has no letters', async () => {
+			const resource = new GitDirectoryResource({
+				resource: 'git:directory',
+				url: 'https://github.com/WordPress/link-manager',
+				ref: 'trunk',
+				// A path with only a few files to avoid timing out.
+				path: '/',
+			});
+			const { name } = await resource.resolve();
+			expect(name).toBe('https-github.com-WordPress-link-manager-trunk');
 		});
 	});
 });
