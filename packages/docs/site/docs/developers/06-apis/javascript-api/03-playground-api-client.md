@@ -93,7 +93,7 @@ php.onMessage(
 
 // Now that we have a listener in place, let's
 // dispatch a message:
-await php.runStream({
+const output = await php.runStream({
 	code: `<?php
         post_message_to_js(
             json_encode([
