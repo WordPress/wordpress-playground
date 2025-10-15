@@ -23,6 +23,8 @@ response = await php.runStream({
 });
 
 console.log(await response.stdoutText);
+// You will see the following output in the browser console:
+// Hello, World!
 
 php.mkdir('/www');
 php.writeFile('/www/index.php', `<?php echo "Hello " . $_POST['name']; ?>`);
@@ -37,6 +39,8 @@ response = await handler.request({
 });
 
 console.log(response.text);
+// You will see the following output in the browser console:
+// Hello John
 ```
 
 ## Attribution
