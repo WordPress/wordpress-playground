@@ -1,3 +1,9 @@
+---
+title: php-wasm/node
+slug: /developers/local-development/php-wasm-node
+description: WordPress Playground brings WebAssembly-powered PHP to Node.js for server-side execution, data processing, and testing without a native install.
+---
+
 # Using WordPress Playground in Node.js
 
 As a WebAssembly project, you can also use WordPress Playground in Node.js.
@@ -5,8 +11,6 @@ As a WebAssembly project, you can also use WordPress Playground in Node.js.
 If you need low-level control over the underlying WebAssembly PHP build, take a look at the [@php-wasm/node package](https://npmjs.org/@php-wasm/node) which ships the PHP WebAssembly runtime. This package is at the core of all WordPress Playground tools for Node.js.
 
 Consult the [complete list](/api/node) of Classes, Functions, Interfaces, and Type Aliases.
-
----
 
 ## WebAssembly PHP for Node.js
 
@@ -112,7 +116,7 @@ import { loadNodeRuntime } from '@php-wasm/node';
 const php = new PHP(await loadNodeRuntime('8.3'));
 
 // Create directory structure
-php.mkdirTree('/app/data');
+php.mkdir('/app/data');
 
 // Write configuration file
 await php.writeFile(
@@ -158,7 +162,7 @@ import { loadNodeRuntime } from '@php-wasm/node';
 const php = new PHP(await loadNodeRuntime('8.3'));
 
 // Create directory for database
-php.mkdirTree('/data');
+php.mkdir('/data');
 
 // Create database, insert data, and query
 const result = await php.runStream({
@@ -218,7 +222,7 @@ import { loadNodeRuntime } from '@php-wasm/node';
 const php = new PHP(await loadNodeRuntime('8.3'));
 
 // Create sample files
-php.mkdirTree('/uploads');
+php.mkdir('/uploads');
 await php.writeFile('/uploads/readme.txt', 'This is a sample text file');
 await php.writeFile('/uploads/data.json', JSON.stringify({ name: 'Test', version: '1.0' }));
 
@@ -279,7 +283,7 @@ import { loadNodeRuntime } from '@php-wasm/node';
 const php = new PHP(await loadNodeRuntime('8.3'));
 
 // Set up a simple API endpoint
-await php.mkdirTree('/www/api');
+await php.mkdir('/www/api');
 await php.writeFile(
 	'/www/api/users.php',
 	`<?php
@@ -354,7 +358,7 @@ import { loadNodeRuntime } from '@php-wasm/node';
 const php = new PHP(await loadNodeRuntime('8.3'));
 
 // Create templates directory
-php.mkdirTree('/templates');
+php.mkdir('/templates');
 
 // Create template
 await php.writeFile(
@@ -556,7 +560,7 @@ async function generateDocumentation() {
 	const php = new PHP(await loadNodeRuntime('8.3'));
 
 	// Create output directory
-	php.mkdirTree('/output');
+	php.mkdir('/output');
 
 	// Generate documentation
 	const result = await php.runStream({
