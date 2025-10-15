@@ -155,7 +155,19 @@ export async function parseOptionsAndRunCLI() {
 			})
 			.option('skip-wordpress-setup', {
 				describe:
-					'Do not download, unzip, and install WordPress. Useful for mounting a pre-configured WordPress directory at /wordpress.',
+					'[DEPRECATED] Do not download, unzip, and install WordPress. Use --skip-wordpress-download and/or --skip-wordpress-install instead.',
+				type: 'boolean',
+				default: false,
+			})
+			.option('skip-wordpress-download', {
+				describe:
+					'Skip downloading and unzipping WordPress. Use when the /wordpress directory is already populated.',
+				type: 'boolean',
+				default: false,
+			})
+			.option('skip-wordpress-install', {
+				describe:
+					'Skip running the WordPress installer. Use when the mounted /wordpress site is already installed.',
 				type: 'boolean',
 				default: false,
 			})
@@ -250,10 +262,17 @@ export async function parseOptionsAndRunCLI() {
 			.strictOptions()
 			.check(async (args) => {
 				// Support multiple spellings of "WordPress"
-				if (
-					args['skip-wordpress-setup'] ||
-					args['skipWordpressSetup']
-				) {
+				const skipWordPressSetup =
+					args['skip-wordpress-setup'] === true ||
+					args['skipWordpressSetup'] === true;
+				const skipWordPressDownload =
+					args['skip-wordpress-download'] === true ||
+					args['skipWordpressDownload'] === true;
+				const skipWordPressInstall =
+					args['skip-wordpress-install'] === true ||
+					args['skipWordpressInstall'] === true;
+
+				if (skipWordPressSetup) {
 					args['skipWordPressSetup'] = true;
 				}
 
@@ -304,9 +323,13 @@ export async function parseOptionsAndRunCLI() {
 
 				if (args['experimental-blueprints-v2-runner'] === true) {
 					if (args['mode'] !== undefined) {
-						if ('skip-wordpress-setup' in args) {
+						if (
+							skipWordPressSetup ||
+							skipWordPressDownload ||
+							skipWordPressInstall
+						) {
 							throw new Error(
-								'The --skipWordPressSetup option cannot be used with the --mode option. Use one or the other.'
+								'The WordPress lifecycle skip options cannot be used with the --mode option. Use one or the other.'
 							);
 						}
 						if ('skip-sqlite-setup' in args) {
@@ -321,7 +344,11 @@ export async function parseOptionsAndRunCLI() {
 						}
 					} else {
 						// Support the legacy v1 runner options
-						if (args['skip-wordpress-setup'] === true) {
+						if (
+							skipWordPressSetup ||
+							skipWordPressDownload ||
+							skipWordPressInstall
+						) {
 							args['mode'] = 'apply-to-existing-site';
 						} else {
 							args['mode'] = 'create-new-site';
@@ -353,6 +380,20 @@ export async function parseOptionsAndRunCLI() {
 
 		yargsObject.wrap(yargsObject.terminalWidth());
 		const args = await yargsObject.argv;
+
+		const parsedSkipWordPressSetup = args.skipWordPressSetup === true;
+		const parsedSkipWordPressDownload =
+			args.skipWordPressDownload === true ||
+			args['skip-wordpress-download'] === true;
+		const parsedSkipWordPressInstall =
+			args.skipWordPressInstall === true ||
+			args['skip-wordpress-install'] === true;
+
+		args.skipWordPressSetup = parsedSkipWordPressSetup;
+		args.skipWordPressDownload =
+			parsedSkipWordPressSetup || parsedSkipWordPressDownload;
+		args.skipWordPressInstall =
+			parsedSkipWordPressSetup || parsedSkipWordPressInstall;
 
 		const command = args._[0] as string;
 
@@ -422,6 +463,8 @@ export interface RunCLIArgs {
 	'experimental-blueprints-v2-runner'?: boolean;
 
 	// --------- Blueprint V1 args -----------
+	skipWordPressDownload?: boolean;
+	skipWordPressInstall?: boolean;
 	skipWordPressSetup?: boolean;
 	skipSqliteSetup?: boolean;
 	followSymlinks?: boolean;
@@ -462,6 +505,23 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 		playground: RemoteAPI<PlaygroundCliWorker>;
 		worker: Worker;
 	}[] = [];
+
+	if (args.skipWordPressSetup) {
+		logger.warn(
+			'The skipWordPressSetup option is deprecated. Use skipWordPressDownload and skipWordPressInstall instead.'
+		);
+		args = {
+			...args,
+			skipWordPressDownload: true,
+			skipWordPressInstall: true,
+		};
+	}
+
+	args = {
+		...args,
+		skipWordPressDownload: args.skipWordPressDownload === true,
+		skipWordPressInstall: args.skipWordPressInstall === true,
+	};
 
 	/**
 	 * Expand auto-mounts to include the necessary mounts and steps

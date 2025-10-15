@@ -62,11 +62,18 @@ export class BlueprintsV1Handler {
 		fileLockManagerPort: NodeMessagePort,
 		nativeInternalDirPath: string
 	) {
+		const skipWordPressDownload =
+			this.args.skipWordPressDownload === true ||
+			this.args.skipWordPressSetup === true;
+		const skipWordPressInstall =
+			this.args.skipWordPressInstall === true ||
+			this.args.skipWordPressSetup === true;
+
 		let wpDetails: any = undefined;
 		// @TODO: Rename to FetchProgressMonitor. There's nothing Emscripten
 		// about that class anymore.
 		const monitor = new EmscriptenDownloadMonitor();
-		if (!this.args.skipWordPressSetup) {
+		if (!skipWordPressDownload) {
 			let progressReached100 = false;
 			monitor.addEventListener('progress', ((
 				e: CustomEvent<ProgressEvent & { finished: boolean }>
@@ -135,8 +142,13 @@ export class BlueprintsV1Handler {
 			this.getEffectiveBlueprint()
 		);
 		await playground.useFileLockManager(fileLockManagerPort);
+		const resolvedPhpVersion =
+			runtimeConfiguration.phpVersion ??
+			this.args.php ??
+			RecommendedPHPVersion;
+		this.phpVersion = resolvedPhpVersion;
 		await playground.bootAsPrimaryWorker({
-			phpVersion: runtimeConfiguration.phpVersion,
+			phpVersion: resolvedPhpVersion,
 			wpVersion: runtimeConfiguration.wpVersion,
 			siteUrl: this.siteUrl,
 			mountsBeforeWpInstall,
@@ -151,6 +163,11 @@ export class BlueprintsV1Handler {
 			internalCookieStore: this.args.internalCookieStore,
 			withXdebug: this.args.xdebug,
 			nativeInternalDirPath,
+			installWordPress: skipWordPressInstall
+				? false
+				: skipWordPressDownload
+				? true
+				: undefined,
 		});
 
 		if (

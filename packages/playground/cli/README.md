@@ -91,7 +91,9 @@ The `server` command supports the following optional arguments:
 -   `--blueprint=<path>`: The path to a JSON Blueprint file to execute.
 -   `--blueprint-may-read-adjacent-files`: Consent flag: Allow "bundled" resources in a local blueprint to read files in the same directory as the blueprint file.
 -   `--login`: Automatically log the user in as an administrator.
--   `--skip-wordpress-setup`: Do not download or install WordPress. Useful if you are mounting a full WordPress directory.
+-   `--skip-wordpress-download`: Skip downloading and unzipping WordPress. Useful when the `/wordpress` directory already contains the core files.
+-   `--skip-wordpress-install`: Skip running the WordPress installer. Useful when the mounted `/wordpress` site is already installed.
+-   `--skip-wordpress-setup`: **Deprecated.** Use `--skip-wordpress-download` and/or `--skip-wordpress-install` instead.
 -   `--skip-sqlite-setup`: Do not set up the SQLite database integration.
 -   `--verbosity`: Output logs and progress messages (choices: "quiet", "normal", "debug"). Defaults to "normal".
 

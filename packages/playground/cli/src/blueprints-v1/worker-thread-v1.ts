@@ -52,6 +52,7 @@ export type PrimaryWorkerBootOptions = WorkerBootOptions & {
 	wordPressZip?: ArrayBuffer;
 	sqliteIntegrationPluginZip?: ArrayBuffer;
 	dataSqlPath?: string;
+	installWordPress?: boolean;
 };
 
 interface WorkerBootRequestHandlerOptions {
@@ -138,6 +139,7 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 		internalCookieStore,
 		withXdebug,
 		nativeInternalDirPath,
+		installWordPress,
 	}: PrimaryWorkerBootOptions) {
 		if (this.booted) {
 			throw new Error('Playground already booted');
@@ -202,6 +204,7 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 				},
 				cookieStore: internalCookieStore ? undefined : false,
 				dataSqlPath,
+				installWordPress,
 				spawnHandler: sandboxedSpawnHandlerFactory,
 				async onPHPInstanceCreated(php) {
 					await mountResources(php, mountsBeforeWpInstall);

@@ -137,6 +137,8 @@ export interface BootWordPressOptions {
 	 * and WP_SITEURL constants in WordPress.
 	 */
 	siteUrl: string;
+	/** Override automatic installation behavior. */
+	installWordPress?: boolean;
 }
 
 /**
@@ -201,7 +203,11 @@ export async function bootWordPress(
 		);
 	}
 
-	if (options.wordPressZip && !options.dataSqlPath) {
+	const shouldInstall =
+		(options.installWordPress ?? Boolean(options.wordPressZip)) &&
+		!options.dataSqlPath;
+
+	if (shouldInstall) {
 		if (!(await isWordPressInstalled(php))) {
 			// Install WordPress if it's not installed.
 			await installWordPress(php);
