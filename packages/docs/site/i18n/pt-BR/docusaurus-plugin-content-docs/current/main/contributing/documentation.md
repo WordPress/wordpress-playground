@@ -41,6 +41,12 @@ If you feel up to it, write the content in the issue description, and the projec
 Se você se sentir à vontade, escreva o conteúdo na descrição da issue, e os contribuidores do projeto cuidarão do resto.
 
 <!--
+Would you like to see the documentation in your language? Check the [Translation section](/contributing/translations).
+-->
+
+Gostaria de ver a documentação no seu idioma? Confira a [seção de Traduções](/contributing/translations).
+
+<!--
 ### Forking the repo, edit files locally and opening Pull Requests
 -->
 
