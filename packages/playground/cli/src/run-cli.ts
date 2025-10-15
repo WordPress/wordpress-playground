@@ -381,18 +381,18 @@ export async function parseOptionsAndRunCLI() {
 		yargsObject.wrap(yargsObject.terminalWidth());
 		const args = await yargsObject.argv;
 
-		const parsedSkipWordPressSetup = args.skipWordPressSetup === true;
+		const parsedSkipWordPressSetup = args['skipWordPressSetup'] === true;
 		const parsedSkipWordPressDownload =
-			args.skipWordPressDownload === true ||
+			args['skipWordPressDownload'] === true ||
 			args['skip-wordpress-download'] === true;
 		const parsedSkipWordPressInstall =
-			args.skipWordPressInstall === true ||
+			args['skipWordPressInstall'] === true ||
 			args['skip-wordpress-install'] === true;
 
-		args.skipWordPressSetup = parsedSkipWordPressSetup;
-		args.skipWordPressDownload =
+		args['skipWordPressSetup'] = parsedSkipWordPressSetup;
+		args['skipWordPressDownload'] =
 			parsedSkipWordPressSetup || parsedSkipWordPressDownload;
-		args.skipWordPressInstall =
+		args['skipWordPressInstall'] =
 			parsedSkipWordPressSetup || parsedSkipWordPressInstall;
 
 		const command = args._[0] as string;
