@@ -1354,6 +1354,10 @@
 				"path": {
 					"type": "string",
 					"description": "The path to the directory in the git repository. Defaults to the repo root."
+				},
+				".git": {
+					"type": "boolean",
+					"description": "When true, include a .git directory in the cloned files"
 				}
 			},
 			"required": ["resource", "url", "ref"],

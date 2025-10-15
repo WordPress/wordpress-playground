@@ -75,6 +75,41 @@ describe('GitDirectoryResource', () => {
 			);
 			expect(files['dependabot.yml']).toBeInstanceOf(Uint8Array);
 		});
+
+		it('includes a .git directory when requested', async () => {
+			const commit = '05138293dd39e25a9fa8e43a9cc775d6fb780e37';
+			const resource = new GitDirectoryResource({
+				resource: 'git:directory',
+				url: 'https://github.com/WordPress/wordpress-playground',
+				ref: commit,
+				refType: 'commit',
+				path: 'packages/docs/site/docs/blueprints/tutorial',
+				'.git': true,
+			});
+
+			const { files } = await resource.resolve();
+			const head = files['.git/HEAD'];
+			expect(typeof head).toBe('string');
+			expect(head as string).toMatch(/(ref:|[a-f0-9]{40})/i);
+
+			const config = files['.git/config'];
+			expect(typeof config).toBe('string');
+			expect(config as string).toContain(
+				'https://github.com/WordPress/wordpress-playground'
+			);
+
+			const packKeys = Object.keys(files).filter(
+				(key) =>
+					key.startsWith('.git/objects/pack/') &&
+					key.endsWith('.pack')
+			);
+			expect(packKeys.length).toBeGreaterThan(0);
+			for (const key of packKeys) {
+				expect(files[key]).toBeInstanceOf(Uint8Array);
+			}
+
+			expect(files['.git/shallow']).toBe(`${commit}\n`);
+		});
 	});
 
 	describe('name', () => {

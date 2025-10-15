@@ -39,31 +39,65 @@ if (typeof globalThis.Buffer === 'undefined') {
  * @param fullyQualifiedBranchName The full name of the branch to fetch from (e.g., 'refs/heads/main').
  * @param filesPaths An array of all the file paths to fetch from the repository. Does **not** accept
  *                   patterns, wildcards, directory paths. All files must be explicitly listed.
- * @returns A record where keys are file paths and values are the retrieved file contents.
+ * @returns The requested files and packfiles required to recreate the Git objects locally.
  */
+export type SparseCheckoutPackfile = {
+	name: string;
+	pack: Uint8Array;
+	index: Uint8Array;
+};
+
+export type SparseCheckoutResult = {
+	files: Record<string, any>;
+	packfiles: SparseCheckoutPackfile[];
+};
+
 export async function sparseCheckout(
 	repoUrl: string,
 	commitHash: string,
 	filesPaths: string[]
-) {
-	const treesIdx = await fetchWithoutBlobs(repoUrl, commitHash);
-	const objects = await resolveObjects(treesIdx, commitHash, filesPaths);
+): Promise<SparseCheckoutResult> {
+	const treesPack = await fetchWithoutBlobs(repoUrl, commitHash);
+	const objects = await resolveObjects(treesPack.idx, commitHash, filesPaths);
 
-	const blobsIdx = await fetchObjects(
-		repoUrl,
-		filesPaths.map((path) => objects[path].oid)
-	);
+	const blobOids = filesPaths.map((path) => objects[path].oid);
+	const blobsPack =
+		blobOids.length > 0 ? await fetchObjects(repoUrl, blobOids) : null;
 
 	const fetchedPaths: Record<string, any> = {};
 	await Promise.all(
 		filesPaths.map(async (path) => {
+			if (!blobsPack) {
+				return;
+			}
 			fetchedPaths[path] = await extractGitObjectFromIdx(
-				blobsIdx,
+				blobsPack.idx,
 				objects[path].oid
 			);
 		})
 	);
-	return fetchedPaths;
+
+	const packfiles: SparseCheckoutPackfile[] = [];
+	const treesIndex = await treesPack.idx.toBuffer();
+	packfiles.push({
+		name: `pack-${treesPack.idx.packfileSha}`,
+		pack: treesPack.packfile,
+		index: toUint8Array(treesIndex),
+	});
+
+	if (blobsPack) {
+		const blobsIndex = await blobsPack.idx.toBuffer();
+		packfiles.push({
+			name: `pack-${blobsPack.idx.packfileSha}`,
+			pack: blobsPack.packfile,
+			index: toUint8Array(blobsIndex),
+		});
+	}
+
+	return {
+		files: fetchedPaths,
+		packfiles,
+	};
 }
 
 export type GitFileTreeFile = {
@@ -113,8 +147,8 @@ export async function listGitFiles(
 	repoUrl: string,
 	commitHash: string
 ): Promise<GitFileTree[]> {
-	const treesIdx = await fetchWithoutBlobs(repoUrl, commitHash);
-	const rootTree = await resolveAllObjects(treesIdx, commitHash);
+	const treesPack = await fetchWithoutBlobs(repoUrl, commitHash);
+	const rootTree = await resolveAllObjects(treesPack.idx, commitHash);
 	if (!rootTree?.object) {
 		return [];
 	}
@@ -359,7 +393,10 @@ async function fetchWithoutBlobs(repoUrl: string, commitHash: string) {
 		result.oid = oid;
 		return result;
 	};
-	return idx;
+	return {
+		idx,
+		packfile: toUint8Array(packfile),
+	};
 }
 
 async function resolveAllObjects(idx: GitPackIndex, commitHash: string) {
@@ -458,9 +495,19 @@ async function fetchObjects(url: string, objectHashes: string[]) {
 	const iterator = streamToIterator(response.body!);
 	const parsed = await parseUploadPackResponse(iterator);
 	const packfile = Buffer.from(await collect(parsed.packfile));
-	return await GitPackIndex.fromPack({
+	if (packfile.byteLength === 0) {
+		return {
+			idx: await GitPackIndex.fromPack({ pack: packfile }),
+			packfile: new Uint8Array(),
+		};
+	}
+	const idx = await GitPackIndex.fromPack({
 		pack: packfile,
 	});
+	return {
+		idx,
+		packfile: toUint8Array(packfile),
+	};
 }
 
 async function extractGitObjectFromIdx(idx: GitPackIndex, objectHash: string) {
@@ -544,4 +591,11 @@ function streamToIterator(stream: any) {
 			return this;
 		},
 	};
+}
+
+function toUint8Array(buffer: Uint8Array | Buffer) {
+	if (buffer instanceof Uint8Array) {
+		return Uint8Array.from(buffer);
+	}
+	return Uint8Array.from(buffer);
 }

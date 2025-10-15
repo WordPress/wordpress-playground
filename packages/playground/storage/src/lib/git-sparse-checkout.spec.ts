@@ -105,15 +105,16 @@ describe('sparseCheckout', () => {
 				type: 'branch',
 			}
 		);
-		const files = await sparseCheckout(
+		const result = await sparseCheckout(
 			'https://github.com/WordPress/wordpress-playground.git',
 			commitHash,
 			['README.md']
 		);
-		expect(files).toEqual({
+		expect(result.files).toEqual({
 			'README.md': expect.any(Uint8Array),
 		});
-		expect(files['README.md'].length).toBeGreaterThan(0);
+		expect(result.files['README.md'].length).toBeGreaterThan(0);
+		expect(result.packfiles.length).toBeGreaterThan(0);
 	});
 });
 

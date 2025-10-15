@@ -11,6 +11,7 @@ import {
 	listGitFiles,
 	resolveCommitHash,
 	sparseCheckout,
+	type SparseCheckoutPackfile,
 } from '@wp-playground/storage';
 import { zipNameToHumanName } from '../utils/zip-name-to-human-name';
 import { fetchWithCorsProxy } from '@php-wasm/web';
@@ -74,6 +75,8 @@ export type GitDirectoryReference = {
 	refType?: GitDirectoryRefType;
 	/** The path to the directory in the git repository. Defaults to the repo root. */
 	path?: string;
+	/** When true, include a `.git` directory with Git metadata (experimental). */
+	'.git'?: boolean;
 };
 export interface Directory {
 	files: FileTree;
@@ -579,12 +582,30 @@ export class GitDirectoryResource extends Resource<Directory> {
 
 		const requestedPath = (this.reference.path ?? '').replace(/^\/+/, '');
 		const filesToClone = listDescendantFiles(allFiles, requestedPath);
-		let files = await sparseCheckout(repoUrl, commitHash, filesToClone);
+		const checkout = await sparseCheckout(
+			repoUrl,
+			commitHash,
+			filesToClone
+		);
+		let files = checkout.files;
 
 		// Remove the path prefix from the cloned file names.
 		files = mapKeys(files, (name) =>
 			name.substring(requestedPath.length).replace(/^\/+/, '')
 		);
+		if (this.reference['.git']) {
+			const gitFiles = createGitDirectoryContents({
+				repoUrl: this.reference.url,
+				commitHash,
+				ref: this.reference.ref,
+				refType: this.reference.refType,
+				packfiles: checkout.packfiles,
+			});
+			files = {
+				...gitFiles,
+				...files,
+			};
+		}
 		return {
 			name: this.filename,
 			files,
@@ -622,6 +643,148 @@ function mapKeys(obj: Record<string, any>, fn: (key: string) => string) {
 	return Object.fromEntries(
 		Object.entries(obj).map(([key, value]) => [fn(key), value])
 	);
+}
+
+type GitHeadInfo = {
+	headContent: string;
+	branchName?: string;
+	branchRef?: string;
+	tagName?: string;
+};
+
+function createGitDirectoryContents({
+	repoUrl,
+	commitHash,
+	ref,
+	refType,
+	packfiles,
+}: {
+	repoUrl: string;
+	commitHash: string;
+	ref: string;
+	refType?: GitDirectoryRefType;
+	packfiles: SparseCheckoutPackfile[];
+}): Record<string, string | Uint8Array> {
+	const gitFiles: Record<string, string | Uint8Array> = {};
+	const headInfo = resolveHeadInfo(ref, refType, commitHash);
+
+	gitFiles['.git/HEAD'] = headInfo.headContent;
+	gitFiles['.git/config'] = buildGitConfig(repoUrl, headInfo.branchName);
+	gitFiles['.git/description'] = 'WordPress Playground clone\n';
+	gitFiles['.git/shallow'] = `${commitHash}\n`;
+
+	if (headInfo.branchRef && headInfo.branchName) {
+		gitFiles[`.git/${headInfo.branchRef}`] = `${commitHash}\n`;
+		gitFiles[
+			`.git/refs/remotes/origin/${headInfo.branchName}`
+		] = `${commitHash}\n`;
+		gitFiles[
+			'.git/refs/remotes/origin/HEAD'
+		] = `ref: refs/remotes/origin/${headInfo.branchName}\n`;
+	}
+
+	if (headInfo.tagName) {
+		gitFiles[`.git/refs/tags/${headInfo.tagName}`] = `${commitHash}\n`;
+	}
+
+	const uniquePackfiles = new Map<string, SparseCheckoutPackfile>();
+	for (const packfile of packfiles) {
+		if (!uniquePackfiles.has(packfile.name)) {
+			uniquePackfiles.set(packfile.name, packfile);
+		}
+	}
+
+	const packInfoLines: string[] = [];
+	for (const [name, packfile] of uniquePackfiles) {
+		const packFilename = `${name}.pack`;
+		packInfoLines.push(`P ${packFilename}`);
+		gitFiles[`.git/objects/pack/${packFilename}`] = packfile.pack;
+		gitFiles[`.git/objects/pack/${name}.idx`] = packfile.index;
+	}
+	if (packInfoLines.length > 0) {
+		gitFiles['.git/objects/info/packs'] = packInfoLines.join('\n') + '\n';
+	}
+
+	return gitFiles;
+}
+
+const FULL_SHA_REGEX = /^[0-9a-f]{40}$/i;
+
+function resolveHeadInfo(
+	ref: string,
+	refType: GitDirectoryRefType | undefined,
+	commitHash: string
+): GitHeadInfo {
+	const trimmed = ref?.trim() ?? '';
+	let fullRef: string | null = null;
+
+	switch (refType) {
+		case 'branch':
+			if (trimmed) {
+				fullRef = `refs/heads/${trimmed}`;
+			}
+			break;
+		case 'refname':
+			fullRef = trimmed || null;
+			break;
+		case 'tag':
+			if (trimmed.startsWith('refs/')) {
+				fullRef = trimmed;
+			} else if (trimmed) {
+				fullRef = `refs/tags/${trimmed}`;
+			}
+			break;
+		case 'commit':
+			fullRef = null;
+			break;
+		default:
+			if (trimmed.startsWith('refs/')) {
+				fullRef = trimmed;
+			} else if (FULL_SHA_REGEX.test(trimmed)) {
+				fullRef = null;
+			} else if (trimmed && trimmed !== 'HEAD') {
+				fullRef = `refs/heads/${trimmed}`;
+			}
+			break;
+	}
+
+	const headContent = fullRef ? `ref: ${fullRef}\n` : `${commitHash}\n`;
+
+	const branchRef =
+		fullRef && fullRef.startsWith('refs/heads/') ? fullRef : undefined;
+	const branchName = branchRef?.slice('refs/heads/'.length);
+
+	const tagRef =
+		fullRef && fullRef.startsWith('refs/tags/') ? fullRef : undefined;
+	const tagName = tagRef?.slice('refs/tags/'.length);
+
+	return {
+		headContent,
+		branchName,
+		branchRef,
+		tagName,
+	};
+}
+
+function buildGitConfig(repoUrl: string, branchName?: string) {
+	const lines = [
+		'[core]',
+		'\trepositoryformatversion = 0',
+		'\tfilemode = true',
+		'\tbare = false',
+		'\tlogallrefupdates = true',
+		'[remote "origin"]',
+		`\turl = ${repoUrl}`,
+		'\tfetch = +refs/heads/*:refs/remotes/origin/*',
+	];
+	if (branchName) {
+		lines.push(
+			`[branch "${branchName}"]`,
+			'\tremote = origin',
+			`\tmerge = refs/heads/${branchName}`
+		);
+	}
+	return lines.join('\n') + '\n';
 }
 
 /**

@@ -73,9 +73,9 @@ export default function GitBrowserDemo() {
 			Object.keys(filesToCheckout)
 		);
 		const checkedOutFiles: Record<string, string> = {};
-		for (const filename in result) {
+		for (const filename in result.files) {
 			checkedOutFiles[filename] = new TextDecoder().decode(
-				result[filename]
+				result.files[filename]
 			);
 		}
 		setCheckedOutFiles(checkedOutFiles);
