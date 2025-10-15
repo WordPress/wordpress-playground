@@ -3,6 +3,7 @@ import path from 'path';
 import { logger } from '@php-wasm/logger';
 import { type Mount } from './mounts';
 import { Builder, parseStringPromise } from 'xml2js';
+import JSONC from 'jsonc-parser';
 
 /**
  * Create a symlink to temp dir for the Playground CLI.
@@ -60,7 +61,6 @@ function filterLocalMounts(mounts: Mount[]) {
  */
 export async function addIDEConfig(name: string, mounts: Mount[]) {
 	let configFilePath;
-	let pathMappingsSet = false;
 	const mappings = filterLocalMounts(mounts);
 
 	configFilePath = path.join(process.cwd(), '.idea/workspace.xml');
@@ -124,22 +124,11 @@ export async function addIDEConfig(name: string, mounts: Mount[]) {
 		const xml = builder.buildObject(config);
 
 		fs.writeFileSync(configFilePath, xml);
-
-		pathMappingsSet = true;
 	}
 
 	configFilePath = path.join(process.cwd(), '.vscode/launch.json');
 	// VSCode
 	if (fs.existsSync(configFilePath)) {
-		let config;
-		try {
-			config = JSON.parse(fs.readFileSync(configFilePath, 'utf-8'));
-		} catch {
-			logger.warn(
-				'VSCode configuration file is not valid JSON. Skipping path mapping.'
-			);
-			return;
-		}
 		const configuration = {
 			name: name,
 			type: 'php',
@@ -156,32 +145,55 @@ export async function addIDEConfig(name: string, mounts: Mount[]) {
 			}, {} as Record<string, string>),
 		};
 
-		if (!config.configurations) {
-			logger.warn(
-				"VSCode configuration file is missing a 'configurations' array. Skipping path mapping."
+		const errors: JSONC.ParseError[] = [];
+
+		let content = fs.readFileSync(configFilePath, 'utf-8');
+		let root = JSONC.parseTree(content, errors, {
+			allowEmptyContent: true,
+			allowTrailingComma: true,
+		});
+
+		if (!root || errors.length) {
+			logger.error('VSCode configuration file is not valid JSON.');
+			process.exit(1);
+		}
+
+		let configurationsNode = JSONC.findNodeAtLocation(root, [
+			'configurations',
+		]);
+
+		if (!configurationsNode || !configurationsNode.children) {
+			const edits = JSONC.modify(content, ['configurations'], [], {});
+			content = JSONC.applyEdits(content, edits);
+
+			root = JSONC.parseTree(content, []);
+			configurationsNode = JSONC.findNodeAtLocation(root!, [
+				'configurations',
+			]);
+		}
+
+		const index = configurationsNode!.children!.findIndex(
+			(child) => JSONC.findNodeAtLocation(child, ['name'])?.value === name
+		);
+
+		if (index === -1) {
+			const edits = JSONC.modify(
+				content,
+				['configurations', configurationsNode!.children!.length],
+				configuration,
+				{
+					formattingOptions: {
+						insertSpaces: true,
+						tabSize: 4,
+						eol: '\n',
+					},
+				}
 			);
-			return;
+
+			content = JSONC.applyEdits(content, edits);
+
+			fs.writeFileSync(configFilePath, content);
 		}
-
-		const component = config.configurations.find(
-			(c: { name: string }) => c.name === name
-		);
-
-		if (!component) {
-			config.configurations.push(configuration);
-		}
-
-		const json = JSON.stringify(config, null, 4);
-
-		fs.writeFileSync(configFilePath, json);
-
-		pathMappingsSet = true;
-	}
-
-	if (!pathMappingsSet) {
-		logger.warn(
-			"No IDE configuration file was found. Running with '--experimental-ide' requires an IDE configuration file. Skipping path mapping."
-		);
 	}
 }
 
@@ -222,24 +234,43 @@ export async function clearIDEConfig(name: string) {
 	configFilePath = path.join(process.cwd(), '.vscode/launch.json');
 	// VSCode
 	if (fs.existsSync(configFilePath)) {
-		let config;
-		try {
-			config = JSON.parse(fs.readFileSync(configFilePath, 'utf-8'));
-		} catch {
-			logger.warn(
-				'VSCode configuration file is not valid JSON. Skipping path mapping.'
-			);
-			return;
+		const errors: JSONC.ParseError[] = [];
+
+		const content = fs.readFileSync(configFilePath, 'utf-8');
+		const root = JSONC.parseTree(content, errors, {
+			allowEmptyContent: true,
+			allowTrailingComma: true,
+		});
+
+		if (!root || errors.length) {
+			console.log(errors);
+			logger.error('VSCode configuration file is not valid JSON.');
+			process.exit(1);
 		}
 
-		const component = config?.configurations?.filter(
-			(configuration: { name: string }) => configuration.name !== name
+		const configurationsNode = JSONC.findNodeAtLocation(root, [
+			'configurations',
+		]);
+
+		const index = configurationsNode?.children?.findIndex(
+			(child) => JSONC.findNodeAtLocation(child, ['name'])?.value === name
 		);
 
-		if (component) {
-			config.configurations = component;
+		if (index !== undefined && index !== -1) {
+			const edits = JSONC.modify(
+				content,
+				['configurations', index],
+				undefined,
+				{
+					formattingOptions: {
+						insertSpaces: true,
+						tabSize: 4,
+						eol: '\n',
+					},
+				}
+			);
 
-			const json = JSON.stringify(config, null, 4);
+			const json = JSONC.applyEdits(content, edits);
 
 			fs.writeFileSync(configFilePath, json);
 		}
