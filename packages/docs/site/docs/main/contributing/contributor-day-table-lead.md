@@ -45,14 +45,14 @@ This guide helps table leads prepare for and manage a WordPress Playground contr
 
 Check the contributors' level, try to understand based on their level how they can contribute to the project in a short window during the contributor day. Ask if the participants need help and redirect them to the related documentation page. Also, encourage them to ask questions at the [#playground Slack channel](https://wordpress.slack.com/archives/C04EWKGDJ0K). Here are some suggestions for ways of contributing
 
--   Documentation improvements and translations
--   Carefully crafted issues describing problems with actionable solutions
--   Blueprint creation and plugin demos at the WordPress plugin repository
--   Testing and product feedback
+-   Documentation improvements and translations.
+-   Carefully crafted issues describing problems with actionable solutions.
+-   Blueprint creation and plugin demos at the WordPress plugin repository.
+-   Testing and product feedback.
 
 **Foster Collaboration**: Look for cross-table opportunities. For example, contributors at the [Polyglots/Translation table](https://make.wordpress.org/polyglots/) might translate Playground documentation, or the [Core Test team](https://make.wordpress.org/test/) could provide valuable Playground feedback.
 
-**Collect Feedback**: Ask contributors about their experience and note improvement suggestions. Document this feedback in a P2 post when possible.
+**Collect Feedback**: Ask contributors about their experience and note improvement suggestions. Report this in the [#playground Slack Channel](https://wordpress.slack.com/archives/C04EWKGDJ0K) if possible.
 
 ## After the Event
 
@@ -62,8 +62,8 @@ Check the contributors' level, try to understand based on their level how they c
 
 2. **Set Clear Expectations**: For incomplete PRs, follow this approach:
 
-    - After one month of inactivity, leave a comment asking if the author plans to complete the work
-    - If no response after two more weeks, inform them that the PR may be taken over by another contributor or closed
+    - After one month of inactivity, leave a comment asking if the author plans to complete the work.
+    - If no response after two more weeks, inform them that the PR may be taken over by another contributor or closed.
 
 3. **Stay Active on Slack**: Continue supporting new contributors through the `#playground` channel, answering questions and helping them become regular contributors.
 
@@ -71,8 +71,8 @@ Check the contributors' level, try to understand based on their level how they c
 
 ## Getting Help
 
--   **During the Event**: Connect with contributors at the Playground table
--   **Ongoing Support**: Use the [`#playground` Slack channel](https://wordpress.slack.com/archives/C04EWKGDJ0K)
--   **Report Issues**: Submit to the [WordPress Playground GitHub repository](https://github.com/WordPress/wordpress-playground/issues/new)
+-   **During the Event**: Connect with contributors at the Playground table.
+-   **Ongoing Support**: Use the [`#playground` Slack channel](https://wordpress.slack.com/archives/C04EWKGDJ0K).
+-   **Report Issues**: Submit to the [WordPress Playground GitHub repository](https://github.com/WordPress/wordpress-playground/issues/new).
 
 For more information on contributing to WordPress Playground, see the [Contributor Day guide](/contributing/contributor-day).
