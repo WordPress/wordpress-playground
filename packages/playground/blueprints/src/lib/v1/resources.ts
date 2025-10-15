@@ -1,3 +1,4 @@
+import './isomorphic-git.d.ts';
 import type { ProgressTracker } from '@php-wasm/progress';
 import {
 	cloneResponseMonitorProgress,
@@ -13,6 +14,7 @@ import {
 	sparseCheckout,
 	type SparseCheckoutObject,
 } from '@wp-playground/storage';
+import { GitIndex } from 'isomorphic-git/src/models/GitIndex.js';
 import { zipNameToHumanName } from '../utils/zip-name-to-human-name';
 import { fetchWithCorsProxy } from '@php-wasm/web';
 import { StreamedFile } from '@php-wasm/stream-compression';
@@ -596,12 +598,14 @@ export class GitDirectoryResource extends Resource<Directory> {
 			name.substring(requestedPath.length).replace(/^\/+/, '')
 		);
 		if (this.reference['.git']) {
-			const gitFiles = createGitDirectoryContents({
+			const gitFiles = await createGitDirectoryContents({
 				repoUrl: this.reference.url,
 				commitHash,
 				ref: this.reference.ref,
 				refType: this.reference.refType,
 				objects: checkout.objects,
+				fileOids: checkout.fileOids,
+				pathPrefix: requestedPath,
 			});
 			files = {
 				...gitFiles,
@@ -654,19 +658,23 @@ type GitHeadInfo = {
 	tagName?: string;
 };
 
-function createGitDirectoryContents({
+async function createGitDirectoryContents({
 	repoUrl,
 	commitHash,
 	ref,
 	refType,
 	objects,
+	fileOids,
+	pathPrefix,
 }: {
 	repoUrl: string;
 	commitHash: string;
 	ref: string;
 	refType?: GitDirectoryRefType;
 	objects: SparseCheckoutObject[];
-}): Record<string, string | Uint8Array> {
+	fileOids: Record<string, string>;
+	pathPrefix: string;
+}): Promise<Record<string, string | Uint8Array>> {
 	const gitFiles: Record<string, string | Uint8Array> = {};
 	const headInfo = resolveHeadInfo(ref, refType, commitHash);
 
@@ -706,6 +714,34 @@ function createGitDirectoryContents({
 
 	// Use loose objects only, no packfiles
 	Object.assign(gitFiles, createLooseGitObjectFiles(objects));
+
+	// Create the git index
+	const index = new GitIndex();
+	for (const [path, oid] of Object.entries(fileOids)) {
+		// Remove the path prefix to get the working tree relative path
+		const workingTreePath = path
+			.substring(pathPrefix.length)
+			.replace(/^\/+/, '');
+		index.insert({
+			filepath: workingTreePath,
+			oid,
+			stats: {
+				ctimeSeconds: 0,
+				ctimeNanoseconds: 0,
+				mtimeSeconds: 0,
+				mtimeNanoseconds: 0,
+				dev: 0,
+				ino: 0,
+				mode: 0o100644, // Regular file
+				uid: 0,
+				gid: 0,
+				size: 0,
+			},
+		});
+	}
+	const indexBuffer = await index.toObject();
+	// Convert Buffer to Uint8Array - copy the data to ensure it's a proper Uint8Array
+	gitFiles['.git/index'] = Uint8Array.from(indexBuffer);
 
 	return gitFiles;
 }

@@ -58,6 +58,7 @@ export type SparseCheckoutResult = {
 	files: Record<string, any>;
 	packfiles: SparseCheckoutPackfile[];
 	objects: SparseCheckoutObject[];
+	fileOids: Record<string, string>;
 };
 
 export async function sparseCheckout(
@@ -104,6 +105,11 @@ export async function sparseCheckout(
 		});
 	}
 
+	const fileOids: Record<string, string> = {};
+	for (const path of filesPaths) {
+		fileOids[path] = objects[path].oid;
+	}
+
 	return {
 		files: fetchedPaths,
 		packfiles,
@@ -111,6 +117,7 @@ export async function sparseCheckout(
 			...(await collectLooseObjects(treesPack)),
 			...(await collectLooseObjects(blobsPack)),
 		],
+		fileOids,
 	};
 }
 
