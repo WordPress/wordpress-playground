@@ -225,7 +225,10 @@ export async function parseOptionsAndRunCLI() {
 			})
 			.option('experimental-ide', {
 				describe: 'Enable experimental IDE development tools.',
-				type: 'boolean',
+				type: 'string',
+				choices: ['', 'vscode', 'phpstorm'], // The empty one means `--experimental-ide` option is enabled
+				coerce: (value?: string) =>
+					value === '' ? ['vscode', 'phpstorm'] : [value],
 			})
 			.option('experimental-devtools', {
 				describe: 'Enable experimental browser development tools.',
@@ -428,7 +431,7 @@ export interface RunCLIArgs {
 	internalCookieStore?: boolean;
 	'additional-blueprint-steps'?: any[];
 	xdebug?: boolean;
-	experimentalIde?: boolean;
+	experimentalIde?: string[];
 	experimentalDevtools?: boolean;
 	'experimental-blueprints-v2-runner'?: boolean;
 
@@ -580,7 +583,8 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 					hostPath: `./${symlinkName}`,
 					vfsPath: '/',
 				};
-				addIDEConfig(IDEConfigName, [
+
+				addIDEConfig(IDEConfigName, args.experimentalIde, [
 					symlinkMount,
 					...(args.mount || []),
 				]);

@@ -59,16 +59,15 @@ function filterLocalMounts(mounts: Mount[]) {
  * @param name The configuration name.
  * @param mounts The Playground CLI mount options.
  */
-export async function addIDEConfig(name: string, mounts: Mount[]) {
-	let configFilePath;
+export async function addIDEConfig(
+	name: string,
+	ides: string[],
+	mounts: Mount[]
+) {
 	const mappings = filterLocalMounts(mounts);
 
-	configFilePath = path.join(process.cwd(), '.idea/workspace.xml');
 	// PHPstorm
-	if (fs.existsSync(configFilePath)) {
-		const contents = fs.readFileSync(configFilePath);
-		const config = await parseStringPromise(contents);
-
+	if (ides.includes('phpstorm')) {
 		const server = {
 			$: {
 				name: name,
@@ -91,11 +90,26 @@ export async function addIDEConfig(name: string, mounts: Mount[]) {
 			],
 		};
 
-		if (!config.project) {
-			logger.warn(
-				'PhpStorm configuration file does not contain a <project> element. Skipping path mapping.'
+		const configFilePath = path.join(process.cwd(), '.idea/workspace.xml');
+
+		if (!fs.existsSync(configFilePath)) {
+			const dirname = path.dirname(configFilePath);
+			if (!fs.existsSync(dirname)) {
+				if (ides.length > 1) return;
+
+				fs.mkdirSync(dirname);
+			}
+			fs.writeFileSync(
+				configFilePath,
+				'<?xml version="1.0" encoding="UTF-8"?>\n<project version="4">\n</project>'
 			);
-			return;
+		}
+
+		const contents = fs.readFileSync(configFilePath);
+		const config = await parseStringPromise(contents);
+
+		if (!config.project) {
+			config.project = { $: { version: '4' }, component: [] };
 		}
 
 		const component = config?.project?.component?.find(
@@ -126,9 +140,8 @@ export async function addIDEConfig(name: string, mounts: Mount[]) {
 		fs.writeFileSync(configFilePath, xml);
 	}
 
-	configFilePath = path.join(process.cwd(), '.vscode/launch.json');
 	// VSCode
-	if (fs.existsSync(configFilePath)) {
+	if (ides.includes('vscode')) {
 		const configuration = {
 			name: name,
 			type: 'php',
@@ -144,6 +157,18 @@ export async function addIDEConfig(name: string, mounts: Mount[]) {
 				return acc;
 			}, {} as Record<string, string>),
 		};
+
+		const configFilePath = path.join(process.cwd(), '.vscode/launch.json');
+
+		if (!fs.existsSync(configFilePath)) {
+			const dirname = path.dirname(configFilePath);
+			if (!fs.existsSync(dirname)) {
+				if (ides.length > 1) return;
+
+				fs.mkdirSync(dirname);
+			}
+			fs.writeFileSync(configFilePath, '{\n    "configurations": []\n}');
+		}
 
 		const errors: JSONC.ParseError[] = [];
 
@@ -272,7 +297,11 @@ export async function clearIDEConfig(name: string) {
 
 			const json = JSONC.applyEdits(content, edits);
 
-			fs.writeFileSync(configFilePath, json);
+			if (json === '{\n    "configurations": []\n}') {
+				fs.unlinkSync(configFilePath);
+			} else {
+				fs.writeFileSync(configFilePath, json);
+			}
 		}
 	}
 }
