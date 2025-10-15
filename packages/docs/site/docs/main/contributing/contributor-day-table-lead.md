@@ -12,9 +12,10 @@ This guide helps table leads prepare for and manage a WordPress Playground contr
 
 ### Pre-Work Checklist
 
--   **Curate "Good First Issues"**: Review and update the [good first issues list](https://github.com/WordPress/wordpress-playground/labels/good%20first%20issue) on GitHub. These should be straightforward tasks that new contributors can complete independently.
--   **Coordinate with the Team**: Confirm if team members are available online to provide remote support during the event, especially for flagship WordCamps.
--   **Connect with Local Contributors**: Identify regular contributors in the region attending the event. This is an opportunity to gather feedback and strengthen community connections.
+-   **Curate "Good First Issues"**: Review and update the [good first issues list](https://github.com/WordPress/wordpress-playground/labels/good%20first%20issue) on GitHub. These should be straightforward tasks that new contributors can complete independently. If you find a bug that is not on the list but could be part of it, contact the playground team at the Slack channel.
+-   **Coordinate with the Playground Team**: Confirm if Playground team members are available online to provide remote support during the event, especially for flagship WordCamps. Due to timezone differences, align in advance at the #playground channel to check their availability.
+-   **Connect with Local Contributors**: Identify regular contributors in the region attending the event. Check on the #playground Slack Channel if an active community member is participating in the contributor day. This is an opportunity to gather feedback and strengthen community connections.
+-   **Check the Playground Repository**: If you never contribute with the WordPress Playground Repository, you should get familiar with this a good section at the documentation that can guide you to understand the project is [Developers > Architecture](/developers/architecture) it will contain information how the project is organized. If you have any questions, please get in touch with the team at the Playground Slack channel.
 
 ## Starting the Day
 
@@ -32,6 +33,7 @@ This guide helps table leads prepare for and manage a WordPress Playground contr
     - [Playground Documentation](https://wordpress.github.io/wordpress-playground/)
     - [Playground Step Library](https://akirk.github.io/playground-step-library/)
     - [GitHub Repository](https://github.com/WordPress/wordpress-playground)
+    - [Contributor Day guide](/contributing/contributor-day/)
 
 5. **Introduce the GitHub Repository**: Provide a brief walkthrough of the repository structure, highlighting different packages and their purposes for first-time contributors.
 
@@ -41,9 +43,11 @@ This guide helps table leads prepare for and manage a WordPress Playground contr
 
 **Encourage Different Contribution Types**:
 
+Check the contributors' level, try to understand based on their level how they can contribute to the project in a short window during the contributor day. Ask if the participants need help and redirect them to the related documentation page. Also, encourage them to ask questions at the [#playground Slack channel](https://wordpress.slack.com/archives/C04EWKGDJ0K). Here are some suggestions for ways of contributing
+
 -   Documentation improvements and translations
 -   Carefully crafted issues describing problems with actionable solutions
--   Blueprint creation and plugin demos
+-   Blueprint creation and plugin demos at the WordPress plugin repository
 -   Testing and product feedback
 
 **Foster Collaboration**: Look for cross-table opportunities. For example, contributors at the [Polyglots/Translation table](https://make.wordpress.org/polyglots/) might translate Playground documentation, or the [Core Test team](https://make.wordpress.org/test/) could provide valuable Playground feedback.
