@@ -9,7 +9,11 @@ export {
 	bootRequestHandler,
 	getFileNotFoundActionForWordPress,
 } from './boot';
-export type { PhpIniOptions, PHPInstanceCreatedHook } from './boot';
+export type {
+	PhpIniOptions,
+	PHPInstanceCreatedHook,
+	InstallationMode,
+} from './boot';
 export { defineWpConfigConstants, ensureWpConfig } from './rewrite-wp-config';
 export { getLoadedWordPressVersion } from './version-detect';
 

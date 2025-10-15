@@ -14,6 +14,7 @@ import { RecommendedPHPVersion } from '@wp-playground/common';
 import {
 	bootRequestHandler,
 	bootWordPressAndRequestHandler,
+	type InstallationMode,
 } from '@wp-playground/wordpress';
 import { rootCertificates } from 'tls';
 import { jspi } from 'wasm-feature-detect';
@@ -52,7 +53,7 @@ export type PrimaryWorkerBootOptions = WorkerBootOptions & {
 	wordPressZip?: ArrayBuffer;
 	sqliteIntegrationPluginZip?: ArrayBuffer;
 	dataSqlPath?: string;
-	installWordPress?: boolean;
+	installationMode?: InstallationMode;
 };
 
 interface WorkerBootRequestHandlerOptions {
@@ -139,7 +140,7 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 		internalCookieStore,
 		withXdebug,
 		nativeInternalDirPath,
-		installWordPress,
+		installationMode,
 	}: PrimaryWorkerBootOptions) {
 		if (this.booted) {
 			throw new Error('Playground already booted');
@@ -204,7 +205,7 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 				},
 				cookieStore: internalCookieStore ? undefined : false,
 				dataSqlPath,
-				installWordPress,
+				installationMode,
 				spawnHandler: sandboxedSpawnHandlerFactory,
 				async onPHPInstanceCreated(php) {
 					await mountResources(php, mountsBeforeWpInstall);

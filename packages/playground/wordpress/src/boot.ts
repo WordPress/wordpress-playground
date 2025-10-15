@@ -38,6 +38,7 @@ export type PHPInstanceCreatedHook = (
 ) => Promise<void>;
 
 export type DatabaseType = 'sqlite' | 'mysql' | 'custom';
+export type InstallationMode = 'wp-installer' | 'sql-dump' | false;
 
 export async function bootWordPressAndRequestHandler(
 	options: BootRequestHandlerOptions & BootWordPressOptions
@@ -138,7 +139,7 @@ export interface BootWordPressOptions {
 	 */
 	siteUrl: string;
 	/** Override automatic installation behavior. */
-	installWordPress?: boolean;
+	installationMode?: InstallationMode;
 }
 
 /**
@@ -203,11 +204,21 @@ export async function bootWordPress(
 		);
 	}
 
-	const shouldInstall =
-		(options.installWordPress ?? Boolean(options.wordPressZip)) &&
-		!options.dataSqlPath;
+	const installationMode =
+		options.installationMode ??
+		(options.dataSqlPath
+			? 'sql-dump'
+			: options.wordPressZip
+			? 'wp-installer'
+			: false);
 
-	if (shouldInstall) {
+	if (installationMode === 'sql-dump' && !options.dataSqlPath) {
+		throw new Error(
+			'The "sql-dump" installation mode requires a dataSqlPath to be provided.'
+		);
+	}
+
+	if (installationMode === 'wp-installer') {
 		if (!(await isWordPressInstalled(php))) {
 			// Install WordPress if it's not installed.
 			await installWordPress(php);

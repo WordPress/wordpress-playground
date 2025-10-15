@@ -11,7 +11,10 @@ import {
 import { RecommendedPHPVersion, zipDirectory } from '@wp-playground/common';
 import fs from 'fs';
 import path from 'path';
-import { resolveWordPressRelease } from '@wp-playground/wordpress';
+import {
+	resolveWordPressRelease,
+	type InstallationMode,
+} from '@wp-playground/wordpress';
 import {
 	CACHE_FOLDER,
 	cachedDownload,
@@ -142,6 +145,12 @@ export class BlueprintsV1Handler {
 			this.getEffectiveBlueprint()
 		);
 		await playground.useFileLockManager(fileLockManagerPort);
+		let installationMode: InstallationMode | undefined;
+		if (skipWordPressInstall) {
+			installationMode = false;
+		} else if (skipWordPressDownload) {
+			installationMode = 'wp-installer';
+		}
 		const resolvedPhpVersion =
 			runtimeConfiguration.phpVersion ??
 			this.args.php ??
@@ -163,11 +172,7 @@ export class BlueprintsV1Handler {
 			internalCookieStore: this.args.internalCookieStore,
 			withXdebug: this.args.xdebug,
 			nativeInternalDirPath,
-			installWordPress: skipWordPressInstall
-				? false
-				: skipWordPressDownload
-				? true
-				: undefined,
+			installationMode,
 		});
 
 		if (
