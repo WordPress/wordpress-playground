@@ -45,11 +45,19 @@ export type SparseCheckoutPackfile = {
 	name: string;
 	pack: Uint8Array;
 	index: Uint8Array;
+	promisor?: boolean;
+};
+
+export type SparseCheckoutObject = {
+	oid: string;
+	type: 'blob' | 'tree' | 'commit' | 'tag';
+	body: Uint8Array;
 };
 
 export type SparseCheckoutResult = {
 	files: Record<string, any>;
 	packfiles: SparseCheckoutPackfile[];
+	objects: SparseCheckoutObject[];
 };
 
 export async function sparseCheckout(
@@ -83,6 +91,7 @@ export async function sparseCheckout(
 		name: `pack-${treesPack.idx.packfileSha}`,
 		pack: treesPack.packfile,
 		index: toUint8Array(treesIndex),
+		promisor: treesPack.promisor,
 	});
 
 	if (blobsPack) {
@@ -91,12 +100,17 @@ export async function sparseCheckout(
 			name: `pack-${blobsPack.idx.packfileSha}`,
 			pack: blobsPack.packfile,
 			index: toUint8Array(blobsIndex),
+			promisor: blobsPack.promisor,
 		});
 	}
 
 	return {
 		files: fetchedPaths,
 		packfiles,
+		objects: [
+			...(await collectLooseObjects(treesPack)),
+			...(await collectLooseObjects(blobsPack)),
+		],
 	};
 }
 
@@ -396,6 +410,7 @@ async function fetchWithoutBlobs(repoUrl: string, commitHash: string) {
 	return {
 		idx,
 		packfile: toUint8Array(packfile),
+		promisor: true,
 	};
 }
 
@@ -421,6 +436,43 @@ async function resolveAllObjects(idx: GitPackIndex, commitHash: string) {
 		}
 	}
 	return rootItem;
+}
+
+async function collectLooseObjects(
+	pack?: {
+		idx: GitPackIndex;
+		packfile: Uint8Array;
+		promisor?: boolean;
+	} | null
+): Promise<SparseCheckoutObject[]> {
+	if (!pack) {
+		return [];
+	}
+	const results: SparseCheckoutObject[] = [];
+	const seen = new Set<string>();
+	for (const oid of pack.idx.hashes ?? []) {
+		if (seen.has(oid)) {
+			continue;
+		}
+		const offset = pack.idx.offsets.get(oid);
+		if (offset === undefined) {
+			continue;
+		}
+		const { type, object } = await pack.idx.readSlice({ start: offset });
+		if (type === 'ofs_delta' || type === 'ref_delta') {
+			continue;
+		}
+		if (!object) {
+			continue;
+		}
+		seen.add(oid);
+		results.push({
+			oid,
+			type: type as SparseCheckoutObject['type'],
+			body: toUint8Array(object as Uint8Array),
+		});
+	}
+	return results;
 }
 
 async function resolveObjects(
@@ -496,9 +548,13 @@ async function fetchObjects(url: string, objectHashes: string[]) {
 	const parsed = await parseUploadPackResponse(iterator);
 	const packfile = Buffer.from(await collect(parsed.packfile));
 	if (packfile.byteLength === 0) {
+		const idx = await GitPackIndex.fromPack({
+			pack: packfile,
+		});
 		return {
-			idx: await GitPackIndex.fromPack({ pack: packfile }),
+			idx,
 			packfile: new Uint8Array(),
+			promisor: false,
 		};
 	}
 	const idx = await GitPackIndex.fromPack({
@@ -507,6 +563,7 @@ async function fetchObjects(url: string, objectHashes: string[]) {
 	return {
 		idx,
 		packfile: toUint8Array(packfile),
+		promisor: false,
 	};
 }
 

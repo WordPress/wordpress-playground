@@ -115,6 +115,10 @@ describe('sparseCheckout', () => {
 		});
 		expect(result.files['README.md'].length).toBeGreaterThan(0);
 		expect(result.packfiles.length).toBeGreaterThan(0);
+		expect(result.packfiles.some((packfile) => packfile.promisor)).toBe(
+			true
+		);
+		expect(result.objects.length).toBeGreaterThan(0);
 	});
 });
 

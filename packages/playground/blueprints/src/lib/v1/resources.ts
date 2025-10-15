@@ -11,12 +11,14 @@ import {
 	listGitFiles,
 	resolveCommitHash,
 	sparseCheckout,
-	type SparseCheckoutPackfile,
+	type SparseCheckoutObject,
 } from '@wp-playground/storage';
 import { zipNameToHumanName } from '../utils/zip-name-to-human-name';
 import { fetchWithCorsProxy } from '@php-wasm/web';
 import { StreamedFile } from '@php-wasm/stream-compression';
 import type { StreamBundledFile } from './types';
+import pako from 'pako';
+const deflate = pako.deflate;
 
 export type { FileTree };
 export const ResourceTypes = [
@@ -599,7 +601,7 @@ export class GitDirectoryResource extends Resource<Directory> {
 				commitHash,
 				ref: this.reference.ref,
 				refType: this.reference.refType,
-				packfiles: checkout.packfiles,
+				objects: checkout.objects,
 			});
 			files = {
 				...gitFiles,
@@ -657,23 +659,37 @@ function createGitDirectoryContents({
 	commitHash,
 	ref,
 	refType,
-	packfiles,
+	objects,
 }: {
 	repoUrl: string;
 	commitHash: string;
 	ref: string;
 	refType?: GitDirectoryRefType;
-	packfiles: SparseCheckoutPackfile[];
+	objects: SparseCheckoutObject[];
 }): Record<string, string | Uint8Array> {
 	const gitFiles: Record<string, string | Uint8Array> = {};
 	const headInfo = resolveHeadInfo(ref, refType, commitHash);
 
 	gitFiles['.git/HEAD'] = headInfo.headContent;
-	gitFiles['.git/config'] = buildGitConfig(repoUrl, headInfo.branchName);
+	gitFiles['.git/config'] = buildGitConfig(repoUrl, {
+		branchName: headInfo.branchName,
+	});
 	gitFiles['.git/description'] = 'WordPress Playground clone\n';
 	gitFiles['.git/shallow'] = `${commitHash}\n`;
+	// const logEntry = `${'0'.repeat(
+	// 	40
+	// )} ${commitHash} Playground <noreply@wordpress.org> 0 +0000\tclone: from ${repoUrl}\n`;
+	// gitFiles['.git/logs/HEAD'] = logEntry;
+	// gitFiles['.git/info/exclude'] =
+	// 	'# git ls-files --others --exclude-standard\n';
+
+	// Create refs/ directory structure
+	gitFiles['.git/refs/heads/.gitkeep'] = '';
+	gitFiles['.git/refs/tags/.gitkeep'] = '';
+	gitFiles['.git/refs/remotes/.gitkeep'] = '';
 
 	if (headInfo.branchRef && headInfo.branchName) {
+		gitFiles['.git/logs/HEAD'] = `ref: ${headInfo.branchRef}\n`;
 		gitFiles[`.git/${headInfo.branchRef}`] = `${commitHash}\n`;
 		gitFiles[
 			`.git/refs/remotes/origin/${headInfo.branchName}`
@@ -681,34 +697,39 @@ function createGitDirectoryContents({
 		gitFiles[
 			'.git/refs/remotes/origin/HEAD'
 		] = `ref: refs/remotes/origin/${headInfo.branchName}\n`;
+		// gitFiles[`.git/logs/${headInfo.branchRef}`] = logEntry;
 	}
 
 	if (headInfo.tagName) {
 		gitFiles[`.git/refs/tags/${headInfo.tagName}`] = `${commitHash}\n`;
 	}
 
-	const uniquePackfiles = new Map<string, SparseCheckoutPackfile>();
-	for (const packfile of packfiles) {
-		if (!uniquePackfiles.has(packfile.name)) {
-			uniquePackfiles.set(packfile.name, packfile);
-		}
-	}
-
-	const packInfoLines: string[] = [];
-	for (const [name, packfile] of uniquePackfiles) {
-		const packFilename = `${name}.pack`;
-		packInfoLines.push(`P ${packFilename}`);
-		gitFiles[`.git/objects/pack/${packFilename}`] = packfile.pack;
-		gitFiles[`.git/objects/pack/${name}.idx`] = packfile.index;
-	}
-	if (packInfoLines.length > 0) {
-		gitFiles['.git/objects/info/packs'] = packInfoLines.join('\n') + '\n';
-	}
+	// Use loose objects only, no packfiles
+	Object.assign(gitFiles, createLooseGitObjectFiles(objects));
 
 	return gitFiles;
 }
 
 const FULL_SHA_REGEX = /^[0-9a-f]{40}$/i;
+
+function createLooseGitObjectFiles(objects: SparseCheckoutObject[]) {
+	const files: Record<string, Uint8Array> = {};
+	const encoder = new TextEncoder();
+	for (const { oid, type, body } of objects) {
+		if (!oid || body.length === 0) {
+			continue;
+		}
+		const header = encoder.encode(`${type} ${body.length}\0`);
+		const combined = new Uint8Array(header.length + body.length);
+		combined.set(header, 0);
+		combined.set(body, header.length);
+		const compressed = deflate(combined);
+		const prefix = oid.slice(0, 2);
+		const suffix = oid.slice(2);
+		files[`.git/objects/${prefix}/${suffix}`] = compressed;
+	}
+	return files;
+}
 
 function resolveHeadInfo(
 	ref: string,
@@ -766,17 +787,33 @@ function resolveHeadInfo(
 	};
 }
 
-function buildGitConfig(repoUrl: string, branchName?: string) {
+function buildGitConfig(
+	repoUrl: string,
+	{
+		branchName,
+		partialCloneFilter,
+	}: { branchName?: string; partialCloneFilter?: string }
+) {
+	const repositoryFormatVersion = partialCloneFilter ? 1 : 0;
 	const lines = [
 		'[core]',
-		'\trepositoryformatversion = 0',
+		`\trepositoryformatversion = ${repositoryFormatVersion}`,
 		'\tfilemode = true',
 		'\tbare = false',
 		'\tlogallrefupdates = true',
+		'\tignorecase = true',
+		'\tprecomposeunicode = true',
 		'[remote "origin"]',
 		`\turl = ${repoUrl}`,
 		'\tfetch = +refs/heads/*:refs/remotes/origin/*',
+		'\tfetch = +refs/tags/*:refs/tags/*',
 	];
+	if (partialCloneFilter) {
+		lines.push('\tpromisor = true');
+		lines.push(`\tpartialclonefilter = ${partialCloneFilter}`);
+		lines.push('[extensions]');
+		lines.push('\tpartialclone = origin');
+	}
 	if (branchName) {
 		lines.push(
 			`[branch "${branchName}"]`,

@@ -97,6 +97,32 @@ describe('GitDirectoryResource', () => {
 			expect(config as string).toContain(
 				'https://github.com/WordPress/wordpress-playground'
 			);
+			expect(config as string).toContain('repositoryformatversion = 1');
+			expect(config as string).toContain('promisor = true');
+			expect(config as string).toContain(
+				'fetch = +refs/tags/*:refs/tags/*'
+			);
+			expect(config as string).toContain(
+				'partialclonefilter = blob:none'
+			);
+			expect(files['.git/info/exclude']).toBe(
+				'# git ls-files --others --exclude-standard\n'
+			);
+			expect(files['.git/logs/HEAD']).toBeDefined();
+			expect(files['.git/packed-refs']).toContain('refs/heads');
+			expect(files['.git/packed-refs']).toContain(
+				'refs/remotes/origin/trunk'
+			);
+			expect(files['.git/refs/heads/trunk']).toBe(`${commit}\n`);
+			expect(files['.git/refs/remotes/origin/trunk']).toBe(`${commit}\n`);
+			expect(files['.git/refs/remotes/origin/HEAD']).toBe(
+				'ref: refs/remotes/origin/trunk\n'
+			);
+			const objectPath = `.git/objects/${commit.slice(
+				0,
+				2
+			)}/${commit.slice(2)}`;
+			expect(files[objectPath]).toBeInstanceOf(Uint8Array);
 
 			const packKeys = Object.keys(files).filter(
 				(key) =>
@@ -107,6 +133,10 @@ describe('GitDirectoryResource', () => {
 			for (const key of packKeys) {
 				expect(files[key]).toBeInstanceOf(Uint8Array);
 			}
+			const promisorKeys = Object.keys(files).filter((key) =>
+				key.endsWith('.promisor')
+			);
+			expect(promisorKeys.length).toBeGreaterThan(0);
 
 			expect(files['.git/shallow']).toBe(`${commit}\n`);
 		});
