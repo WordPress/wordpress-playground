@@ -127,7 +127,7 @@ php.onMessage(
 
 // Agora que temos um listener, vamos
 //enviar uma mensagem:
-const output = await php.runStream({
+await php.runStream({
 	code: `<?php
         post_message_to_js(
             json_encode([
@@ -138,7 +138,6 @@ const output = await php.runStream({
     `,
 });
 
-console.log(await output.stdoutText);
 // Você verá a seguinte saída no console:
 // { post_id: '15', post_title: 'This is a blog post!' }
 ```

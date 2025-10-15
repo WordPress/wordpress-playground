@@ -26,7 +26,7 @@ De manière générale, vous pouvez utiliser le client pour effectuer trois type
 
 -   Exécuter du code PHP
 -   Personnaliser `PHP.ini`
--   Gérer les fichiers et répertoires
+-   Gérer les fichiers et dossiers
 
 <!--
 ## Running PHP code
@@ -43,7 +43,7 @@ The two methods you can use to run PHP code are:
 
 Les deux méthodes que vous pouvez utiliser pour exécuter du code PHP sont :
 
--   [`run()`](#the-run-method) - exécute du code PHP et renvoie la sortie
+-   [`run()`](#the-run-method) - exécute du code PHP et renvoie la résultat
 -   [`request()`](#the-request-method) - effectue une requête HTTP au site web
 
 <!--
@@ -93,13 +93,13 @@ await setPhpIniEntries(client, {
 ## Managing files and directories
 -->
 
-## Gérer les fichiers et répertoires
+## Gérer les fichiers et dossiers
 
 <!--
 The `client` object provides you with a low-level API for managing files and directories in the PHP filesystem:
 -->
 
-L'objet `client` vous fournit une API de bas niveau pour gérer les fichiers et répertoires dans le système de fichiers PHP :
+L'objet `client` vous fournit une API de bas niveau pour gérer les fichiers et dossiers dans le système de fichiers PHP :
 
 ```ts
 await client.mkdirTree('/wordpress/test');
@@ -166,7 +166,7 @@ php.onMessage(
 
 // Now that we have a listener in place, let's
 // dispatch a message:
-const output = await php.runStream({
+await php.runStream({
 	code: `<?php
         post_message_to_js(
             json_encode([
@@ -177,7 +177,6 @@ const output = await php.runStream({
     `,
 });
 
-console.log(await output.stdoutText);
 // You will see the following output in the console:
 // { post_id: '15', post_title: 'This is a blog post!' }
 ```
