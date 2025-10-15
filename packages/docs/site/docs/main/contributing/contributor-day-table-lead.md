@@ -43,7 +43,7 @@ This guide helps table leads prepare for and manage a WordPress Playground contr
 
 **Encourage Different Contribution Types**:
 
-Check the contributors' level, try to understand based on their level how they can contribute to the project in a short window during the contributor day. Ask if the participants need help and redirect them to the related documentation page. Also, encourage them to ask questions at the [#playground Slack channel](https://wordpress.slack.com/archives/C04EWKGDJ0K). Here are some suggestions for ways of contributing
+Check the contributors' levels, try to understand based on their level how they can contribute to the project in the short window of a contributor day. Ask if the participants need help and redirect them to the related documentation page. Also, encourage them to ask questions at the [#playground Slack channel](https://wordpress.slack.com/archives/C04EWKGDJ0K). Here are some suggestions for ways of contributing:
 
 -   Documentation improvements and translations.
 -   Carefully crafted issues describing problems with actionable solutions.
