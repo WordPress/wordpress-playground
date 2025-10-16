@@ -15,6 +15,31 @@
 	position: sticky;
 	top: 0;
 	left: 0;
+	align-items: center;
+	gap: 8px;
+	width: 100%;
+}
+
+.sidebar-logo {
+	flex: 1;
+	min-width: 0;
+}
+
+.sidebar-logo-image {
+	width: 32px;
+	height: 32px;
+	flex-shrink: 0;
+}
+
+.sidebar-logo-text {
+	font-size: 16px;
+	font-weight: 600;
+	line-height: 1.2;
+	margin: 0;
+	color: var(--site-manager-text-color);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
 }
 
 .sidebar-section {

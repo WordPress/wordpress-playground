@@ -101,8 +101,22 @@ export function Sidebar({
 				direction="row"
 				style={{ padding: '3px' }}
 			>
-				<h1 className="sr-only">WordPress Playground</h1>
 				<div className={css.sidebarHeader}>
+					<Flex
+						align="center"
+						justify="flex-start"
+						gap={2}
+						className={css.sidebarLogo}
+					>
+						<img
+							src="/logo-192.png"
+							alt="WordPress Playground"
+							className={css.sidebarLogoImage}
+						/>
+						<h1 className={css.sidebarLogoText}>
+							WordPress Playground
+						</h1>
+					</Flex>
 					{mobileUi && (
 						<Button
 							className={css.closeButton}
