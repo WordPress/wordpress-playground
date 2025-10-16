@@ -1,4 +1,3 @@
-import './isomorphic-git.d.ts';
 import type { ProgressTracker } from '@php-wasm/progress';
 import {
 	cloneResponseMonitorProgress,
