@@ -50,15 +50,21 @@
 	text-align: left;
 	border-radius: 4px;
 	margin-bottom: 2px;
+	border-left: 3px solid transparent;
 }
-.sidebar-item:hover,
-.sidebar-item--selected {
+.sidebar-item:hover {
 	color: var(--site-manager-text-color) !important;
 	background-color: #353535;
 }
 
+.sidebar-item--selected {
+	color: var(--site-manager-text-color) !important;
+	background-color: #2c5282;
+	border-left: 3px solid #4299e1;
+}
+
 .sidebar-item--selected:hover {
-	background-color: #545454;
+	background-color: #2b6cb0;
 }
 
 .sidebar-list-item--logo {
