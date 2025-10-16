@@ -4,6 +4,9 @@
 	flex-shrink: 0;
 	flex-direction: column;
 	--site-manager-text-color: #fff;
+	--sidebar-item-selected-bg: #2c5282;
+	--sidebar-item-selected-border: #4299e1;
+	--sidebar-item-selected-hover-bg: #2b6cb0;
 	color: var(--site-manager-text-color);
 	overflow: auto;
 }
@@ -59,12 +62,12 @@
 
 .sidebar-item--selected {
 	color: var(--site-manager-text-color) !important;
-	background-color: #2c5282;
-	border-left: 3px solid #4299e1;
+	background-color: var(--sidebar-item-selected-bg);
+	border-left: 3px solid var(--sidebar-item-selected-border);
 }
 
 .sidebar-item--selected:hover {
-	background-color: #2b6cb0;
+	background-color: var(--sidebar-item-selected-hover-bg);
 }
 
 .sidebar-list-item--logo {
