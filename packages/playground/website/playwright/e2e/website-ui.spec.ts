@@ -1,5 +1,6 @@
 import { test, expect } from '../playground-fixtures.ts';
 import type { Blueprint } from '@wp-playground/blueprints';
+import type { Page } from '@playwright/test';
 
 // We can't import the SupportedPHPVersions versions directly from the remote package
 // because of ESModules vs CommonJS incompatibilities. Let's just import the
@@ -8,6 +9,49 @@ import type { Blueprint } from '@wp-playground/blueprints';
 import { SupportedPHPVersions } from '../../../../php-wasm/universal/src/lib/supported-php-versions.ts';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import * as MinifiedWordPressVersions from '../../../wordpress-builds/src/wordpress/wp-versions.json';
+
+/**
+ * Helper function to handle the save site modal flow
+ */
+async function saveSiteViaModal(
+	page: Page,
+	options?: {
+		customName?: string;
+		storageType?: 'opfs' | 'local-fs';
+	}
+) {
+	const { customName, storageType = 'opfs' } = options || {};
+
+	// Click the Save button to open the modal
+	await expect(page.getByText('Save')).toBeEnabled();
+	await page.getByText('Save').click();
+
+	// Wait for the Save Playground dialog to appear
+	const dialog = page.getByRole('dialog', { name: 'Save Playground' });
+	await expect(dialog).toBeVisible();
+
+	// If a custom name is provided, update it
+	if (customName) {
+		const nameInput = dialog.getByLabel('Playground name');
+		await nameInput.fill('');
+		await nameInput.type(customName);
+	}
+
+	// Select storage location
+	if (storageType === 'opfs') {
+		await dialog.getByText('Save in this browser').click({ force: true });
+	} else {
+		await dialog
+			.getByText('Save to a local directory')
+			.click({ force: true });
+	}
+
+	// Click the Save button in the modal
+	await dialog.getByRole('button', { name: 'Save' }).click();
+
+	// Wait for the dialog to close
+	await expect(dialog).not.toBeVisible({ timeout: 5000 });
+}
 
 test('should reflect the URL update from the navigation bar in the WordPress site', async ({
 	website,
@@ -44,12 +88,9 @@ test('should switch between sites', async ({ website, browserName }) => {
 
 	await website.ensureSiteManagerIsOpen();
 
-	await expect(website.page.getByText('Save')).toBeEnabled();
-	await website.page.getByText('Save').click();
-	// We shouldn't need to explicitly call .waitFor(), but the test fails without it.
-	// Playwright logs that something "intercepts pointer events", that's probably related.
-	await website.page.getByText('Save in this browser').waitFor();
-	await website.page.getByText('Save in this browser').click({ force: true });
+	// Save the temporary site using the modal
+	await saveSiteViaModal(website.page);
+
 	await expect(
 		website.page.locator('[aria-current="page"]')
 	).not.toContainText('Temporary Playground', {
@@ -99,12 +140,9 @@ test('should preserve PHP constants when saving a temporary site to OPFS', async
 
 	await website.ensureSiteManagerIsOpen();
 
-	await expect(website.page.getByText('Save')).toBeEnabled();
-	await website.page.getByText('Save').click();
-	// We shouldn't need to explicitly call .waitFor(), but the test fails without it.
-	// Playwright logs that something "intercepts pointer events", that's probably related.
-	await website.page.getByText('Save in this browser').waitFor();
-	await website.page.getByText('Save in this browser').click({ force: true });
+	// Save the temporary site using the modal
+	await saveSiteViaModal(website.page);
+
 	await expect(
 		website.page.locator('[aria-current="page"]')
 	).not.toContainText('Temporary Playground', {
@@ -145,10 +183,8 @@ test('should rename a saved Playground and persist after reload', async ({
 	await website.ensureSiteManagerIsOpen();
 
 	// Save the temporary site to OPFS so rename is available
-	await expect(website.page.getByText('Save')).toBeEnabled();
-	await website.page.getByText('Save').click();
-	await website.page.getByText('Save in this browser').waitFor();
-	await website.page.getByText('Save in this browser').click({ force: true });
+	await saveSiteViaModal(website.page);
+
 	await expect(website.page.getByLabel('Playground title')).not.toContainText(
 		'Temporary Playground',
 		{
@@ -187,6 +223,211 @@ test('should rename a saved Playground and persist after reload', async ({
 	await expect(
 		website.page.locator('[aria-current="page"]').first()
 	).toContainText(newName);
+});
+
+test('should show save site modal with correct elements', async ({
+	website,
+	browserName,
+}) => {
+	test.skip(
+		browserName === 'webkit',
+		`This test relies on OPFS which isn't available in Playwright's flavor of Safari.`
+	);
+
+	await website.goto('./');
+	await website.ensureSiteManagerIsOpen();
+
+	// Click the Save button
+	await expect(website.page.getByText('Save')).toBeEnabled();
+	await website.page.getByText('Save').click();
+
+	// Verify the modal appears with correct title
+	const dialog = website.page.getByRole('dialog', {
+		name: 'Save Playground',
+	});
+	await expect(dialog).toBeVisible();
+
+	// Verify the playground name input exists and has default value
+	const nameInput = dialog.getByLabel('Playground name');
+	await expect(nameInput).toBeVisible();
+	await expect(nameInput).toHaveValue('Temporary Playground');
+
+	// Verify storage location radio buttons exist
+	await expect(dialog.getByText('Storage location')).toBeVisible();
+	await expect(dialog.getByText('Save in this browser')).toBeVisible();
+	await expect(dialog.getByText('Save to a local directory')).toBeVisible();
+
+	// Verify action buttons exist
+	await expect(dialog.getByRole('button', { name: 'Save' })).toBeVisible();
+	await expect(dialog.getByRole('button', { name: 'Cancel' })).toBeVisible();
+
+	// Close the modal
+	await dialog.getByRole('button', { name: 'Cancel' }).click();
+	await expect(dialog).not.toBeVisible();
+});
+
+test('should close save site modal without saving', async ({
+	website,
+	browserName,
+}) => {
+	test.skip(
+		browserName === 'webkit',
+		`This test relies on OPFS which isn't available in Playwright's flavor of Safari.`
+	);
+
+	await website.goto('./');
+	await website.ensureSiteManagerIsOpen();
+
+	// Open the modal
+	await website.page.getByText('Save').click();
+	const dialog = website.page.getByRole('dialog', {
+		name: 'Save Playground',
+	});
+	await expect(dialog).toBeVisible();
+
+	// Close without saving using Cancel button
+	await dialog.getByRole('button', { name: 'Cancel' }).click();
+	await expect(dialog).not.toBeVisible();
+
+	// Verify the site is still temporary
+	await expect(website.page.getByLabel('Playground title')).toContainText(
+		'Temporary Playground'
+	);
+
+	// Open the modal again
+	await website.page.getByText('Save').click();
+	await expect(dialog).toBeVisible();
+
+	// Close using ESC key
+	await website.page.keyboard.press('Escape');
+	await expect(dialog).not.toBeVisible();
+
+	// Verify the site is still temporary
+	await expect(website.page.getByLabel('Playground title')).toContainText(
+		'Temporary Playground'
+	);
+});
+
+test('should have playground name input text selected by default', async ({
+	website,
+	browserName,
+}) => {
+	test.skip(
+		browserName === 'webkit',
+		`This test relies on OPFS which isn't available in Playwright's flavor of Safari.`
+	);
+
+	await website.goto('./');
+	await website.ensureSiteManagerIsOpen();
+
+	// Open the modal
+	await website.page.getByText('Save').click();
+	const dialog = website.page.getByRole('dialog', {
+		name: 'Save Playground',
+	});
+	await expect(dialog).toBeVisible();
+
+	const nameInput = dialog.getByLabel('Playground name');
+
+	// Verify the input is focused and text is selected
+	await expect(nameInput).toBeFocused();
+
+	// Type without selecting - it should replace the selected text
+	await website.page.keyboard.type('New Name');
+	await expect(nameInput).toHaveValue('New Name');
+
+	// Close the modal
+	await dialog.getByRole('button', { name: 'Cancel' }).click();
+});
+
+test('should save site with custom name', async ({ website, browserName }) => {
+	test.skip(
+		browserName === 'webkit',
+		`This test relies on OPFS which isn't available in Playwright's flavor of Safari.`
+	);
+
+	await website.goto('./');
+	await website.ensureSiteManagerIsOpen();
+
+	const customName = 'My Custom Playground Name';
+
+	// Save with custom name using the helper
+	await saveSiteViaModal(website.page, { customName });
+
+	// Verify the site was saved with the custom name
+	await expect(website.page.getByLabel('Playground title')).toContainText(
+		customName,
+		{
+			timeout: 90000,
+		}
+	);
+	await expect(website.page.locator('[aria-current="page"]')).toContainText(
+		customName
+	);
+});
+
+test('should not persist save site modal through page refresh', async ({
+	website,
+	browserName,
+}) => {
+	test.skip(
+		browserName === 'webkit',
+		`This test relies on OPFS which isn't available in Playwright's flavor of Safari.`
+	);
+
+	await website.goto('./');
+	await website.ensureSiteManagerIsOpen();
+
+	// Open the save modal
+	await website.page.getByText('Save').click();
+	const dialog = website.page.getByRole('dialog', {
+		name: 'Save Playground',
+	});
+	await expect(dialog).toBeVisible();
+
+	// Get the URL with the modal parameter
+	const urlWithModal = website.page.url();
+	expect(urlWithModal).toContain('modal=save-site');
+
+	// Reload the page
+	await website.page.reload();
+	await website.ensureSiteManagerIsOpen();
+
+	// Verify the modal is NOT shown after reload
+	await expect(dialog).not.toBeVisible();
+
+	// Verify the modal parameter was removed from the URL
+	const urlAfterReload = website.page.url();
+	expect(urlAfterReload).not.toContain('modal=save-site');
+});
+
+test('should display OPFS storage option as selected by default', async ({
+	website,
+	browserName,
+}) => {
+	test.skip(
+		browserName === 'webkit',
+		`This test relies on OPFS which isn't available in Playwright's flavor of Safari.`
+	);
+
+	await website.goto('./');
+	await website.ensureSiteManagerIsOpen();
+
+	// Open the save modal
+	await website.page.getByText('Save').click();
+	const dialog = website.page.getByRole('dialog', {
+		name: 'Save Playground',
+	});
+	await expect(dialog).toBeVisible();
+
+	// Verify OPFS option is selected by default
+	const opfsRadio = dialog.getByRole('radio', {
+		name: /Save in this browser/,
+	});
+	await expect(opfsRadio).toBeChecked();
+
+	// Close the modal
+	await dialog.getByRole('button', { name: 'Cancel' }).click();
 });
 
 SupportedPHPVersions.forEach(async (version) => {
