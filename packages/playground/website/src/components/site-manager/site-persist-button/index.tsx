@@ -1,16 +1,6 @@
 import { useAppSelector, useAppDispatch } from '../../../lib/state/redux/store';
-import {
-	DropdownMenu,
-	DropdownMenuItem,
-	DropdownMenuItemLabel,
-	DropdownMenuItemHelpText,
-	// @ts-ignore
-} from '@wordpress/components/build/dropdown-menu-v2/index.js';
 import css from './style.module.css';
-import { persistTemporarySite } from '../../../lib/state/redux/persist-temporary-site';
 import { selectClientInfoBySiteSlug } from '../../../lib/state/redux/slice-clients';
-import { useLocalFsAvailability } from '../../../lib/hooks/use-local-fs-availability';
-import { isOpfsAvailable } from '../../../lib/state/opfs/opfs-site-storage';
 import type { SiteStorageType } from '../../../lib/state/redux/slice-sites';
 import { setActiveModal } from '../../../lib/state/redux/slice-ui';
 import { modalSlugs } from '../../layout';
@@ -18,7 +8,6 @@ import { modalSlugs } from '../../layout';
 export function SitePersistButton({
 	siteSlug,
 	children,
-	storage = null,
 }: {
 	siteSlug: string;
 	children: React.ReactNode;
@@ -27,72 +16,13 @@ export function SitePersistButton({
 	const clientInfo = useAppSelector((state) =>
 		selectClientInfoBySiteSlug(state, siteSlug)
 	);
-	const localFsAvailability = useLocalFsAvailability(clientInfo?.client);
 	const dispatch = useAppDispatch();
 
 	if (!clientInfo?.opfsSync || clientInfo.opfsSync?.status === 'error') {
-		let button = null;
-		if (storage) {
-			const handleClick = () => {
-				if (storage === 'local-fs') {
-					dispatch(
-						setActiveModal(modalSlugs.SAVE_SITE_TO_LOCAL_DIRECTORY)
-					);
-					return;
-				}
-				if (storage === 'opfs') {
-					dispatch(setActiveModal(modalSlugs.SAVE_SITE_TO_BROWSER));
-					return;
-				}
-				dispatch(persistTemporarySite(siteSlug, storage));
-			};
-			button = <div onClick={handleClick}>{children}</div>;
-		} else {
-			button = (
-				<DropdownMenu trigger={children}>
-					<DropdownMenuItem
-						disabled={!isOpfsAvailable}
-						onClick={() =>
-							dispatch(
-								setActiveModal(modalSlugs.SAVE_SITE_TO_BROWSER)
-							)
-						}
-					>
-						<DropdownMenuItemLabel>
-							Save in this browser
-						</DropdownMenuItemLabel>
-						{!isOpfsAvailable && (
-							<DropdownMenuItemHelpText>
-								{localFsAvailability === 'not-available'
-									? 'Not available in this browser'
-									: 'Not available on this site'}
-							</DropdownMenuItemHelpText>
-						)}
-					</DropdownMenuItem>
-					<DropdownMenuItem
-						disabled={localFsAvailability !== 'available'}
-						onClick={() =>
-							dispatch(
-								setActiveModal(
-									modalSlugs.SAVE_SITE_TO_LOCAL_DIRECTORY
-								)
-							)
-						}
-					>
-						<DropdownMenuItemLabel>
-							Save in a local directory
-						</DropdownMenuItemLabel>
-						{localFsAvailability !== 'available' && (
-							<DropdownMenuItemHelpText>
-								{localFsAvailability === 'not-available'
-									? 'Not available in this browser'
-									: 'Not available on this site'}
-							</DropdownMenuItemHelpText>
-						)}
-					</DropdownMenuItem>
-				</DropdownMenu>
-			);
-		}
+		const handleClick = () => {
+			dispatch(setActiveModal(modalSlugs.SAVE_SITE));
+		};
+		const button = <div onClick={handleClick}>{children}</div>;
 
 		return (
 			<>

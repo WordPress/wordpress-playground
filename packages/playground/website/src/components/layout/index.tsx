@@ -33,8 +33,7 @@ import { ImportFormModal } from '../import-form-modal';
 import { PreviewPRModal } from '../../github/preview-pr';
 import { MissingSiteModal } from '../missing-site-modal';
 import { RenameSiteModal } from '../rename-site-modal';
-import { SaveSiteToLocalModal } from '../save-site-to-local-modal';
-import { SaveSiteToBrowserModal } from '../save-site-to-browser-modal';
+import { SaveSiteModal } from '../save-site-modal';
 
 acquireOAuthTokenIfNeeded();
 
@@ -49,8 +48,7 @@ export const modalSlugs = {
 	PREVIEW_PR_GUTENBERG: 'preview-pr-gutenberg',
 	MISSING_SITE_PROMPT: 'missing-site-prompt',
 	RENAME_SITE: 'rename-site',
-	SAVE_SITE_TO_LOCAL_DIRECTORY: 'save-site-to-local-directory',
-	SAVE_SITE_TO_BROWSER: 'save-site-to-browser',
+	SAVE_SITE: 'save-site',
 };
 
 const displayMode = getDisplayModeFromQuery();
@@ -232,10 +230,8 @@ function Modals(blueprint: BlueprintV1Declaration) {
 		return <MissingSiteModal />;
 	} else if (currentModal === modalSlugs.RENAME_SITE) {
 		return <RenameSiteModal />;
-	} else if (currentModal === modalSlugs.SAVE_SITE_TO_LOCAL_DIRECTORY) {
-		return <SaveSiteToLocalModal />;
-	} else if (currentModal === modalSlugs.SAVE_SITE_TO_BROWSER) {
-		return <SaveSiteToBrowserModal />;
+	} else if (currentModal === modalSlugs.SAVE_SITE) {
+		return <SaveSiteModal />;
 	}
 
 	if (query.get('gh-ensure-auth') === 'yes') {
