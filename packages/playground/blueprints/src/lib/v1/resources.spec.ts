@@ -5,6 +5,10 @@ import {
 } from './resources';
 import { expect, describe, it, vi, beforeEach } from 'vitest';
 import { StreamedFile } from '@php-wasm/stream-compression';
+import { mkdtemp, rm, writeFile, mkdir } from 'fs/promises';
+import { tmpdir } from 'os';
+import { join } from 'path';
+import { execSync, type ExecSyncOptions } from 'child_process';
 
 describe('UrlResource', () => {
 	it('should create a new instance of UrlResource', () => {
@@ -88,57 +92,98 @@ describe('GitDirectoryResource', () => {
 			});
 
 			const { files } = await resource.resolve();
-			const head = files['.git/HEAD'];
-			expect(typeof head).toBe('string');
-			expect(head as string).toMatch(/(ref:|[a-f0-9]{40})/i);
 
-			const config = files['.git/config'];
-			expect(typeof config).toBe('string');
-			expect(config as string).toContain(
-				'https://github.com/WordPress/wordpress-playground'
-			);
-			expect(config as string).toContain('repositoryformatversion = 1');
-			expect(config as string).toContain('promisor = true');
-			expect(config as string).toContain(
-				'fetch = +refs/tags/*:refs/tags/*'
-			);
-			expect(config as string).toContain(
-				'partialclonefilter = blob:none'
-			);
-			expect(files['.git/info/exclude']).toBe(
-				'# git ls-files --others --exclude-standard\n'
-			);
-			expect(files['.git/logs/HEAD']).toBeDefined();
-			expect(files['.git/packed-refs']).toContain('refs/heads');
-			expect(files['.git/packed-refs']).toContain(
-				'refs/remotes/origin/trunk'
-			);
-			expect(files['.git/refs/heads/trunk']).toBe(`${commit}\n`);
-			expect(files['.git/refs/remotes/origin/trunk']).toBe(`${commit}\n`);
-			expect(files['.git/refs/remotes/origin/HEAD']).toBe(
-				'ref: refs/remotes/origin/trunk\n'
-			);
-			const objectPath = `.git/objects/${commit.slice(
-				0,
-				2
-			)}/${commit.slice(2)}`;
-			expect(files[objectPath]).toBeInstanceOf(Uint8Array);
+			// Create a temporary directory and write all files to disk
+			const tmpDir = await mkdtemp(join(tmpdir(), 'git-test-'));
+			try {
+				// Write all files to the temporary directory
+				for (const [path, content] of Object.entries(files)) {
+					const fullPath = join(tmpDir, path);
+					const dir = join(fullPath, '..');
+					await mkdir(dir, { recursive: true });
 
-			const packKeys = Object.keys(files).filter(
-				(key) =>
-					key.startsWith('.git/objects/pack/') &&
-					key.endsWith('.pack')
-			);
-			expect(packKeys.length).toBeGreaterThan(0);
-			for (const key of packKeys) {
-				expect(files[key]).toBeInstanceOf(Uint8Array);
+					if (typeof content === 'string') {
+						await writeFile(fullPath, content, 'utf8');
+					} else {
+						await writeFile(fullPath, content);
+					}
+				}
+
+				// Run git commands to verify the repository state
+				const gitEnv: ExecSyncOptions = {
+					cwd: tmpDir,
+					encoding: 'utf8',
+					maxBuffer: 10 * 1024 * 1024, // 10MB buffer to handle large output
+					stdio: ['pipe', 'pipe', 'ignore'], // Suppress stderr to avoid buffer overflow
+				};
+
+				// Verify we're on the expected commit
+				const currentCommit = execSync('git rev-parse HEAD', gitEnv)
+					.toString()
+					.trim();
+				expect(currentCommit).toBe(commit);
+
+				// Verify the remote is configured correctly
+				const remoteUrl = execSync('git remote get-url origin', gitEnv)
+					.toString()
+					.trim();
+				expect(remoteUrl).toBe(
+					'https://github.com/WordPress/wordpress-playground'
+				);
+
+				// Verify this is a shallow clone
+				const isShallow = execSync(
+					'git rev-parse --is-shallow-repository',
+					gitEnv
+				)
+					.toString()
+					.trim();
+				expect(isShallow).toBe('true');
+
+				// Verify the shallow file contains the expected commit
+				const shallowCommit = execSync('cat .git/shallow', gitEnv)
+					.toString()
+					.trim();
+				expect(shallowCommit).toBe(commit);
+
+				// Verify the expected files exist in the git index
+				const lsFiles = execSync('git ls-files', gitEnv)
+					.toString()
+					.trim()
+					.split('\n')
+					.filter((f) => f.length > 0)
+					.sort();
+				expect(lsFiles).toEqual([
+					'01-what-are-blueprints-what-you-can-do-with-them.md',
+					'02-how-to-load-run-blueprints.md',
+					'03-build-your-first-blueprint.md',
+					'index.md',
+				]);
+
+				// Verify we can run git log to see commit history
+				const logOutput = execSync('git log --oneline -n 1', gitEnv)
+					.toString()
+					.trim();
+				expect(logOutput).toContain(commit.substring(0, 7));
+
+				// Update the git index to match the actual files on disk
+				execSync('git add -A', gitEnv);
+
+				// Modify a file and verify git status detects the change
+				const fileToModify = join(tmpDir, 'index.md');
+				await writeFile(fileToModify, 'modified content\n', 'utf8');
+				const statusAfterModification = execSync(
+					'git status --porcelain',
+					gitEnv
+				)
+					.toString()
+					.trim();
+				// Git status should show the file as modified (can be ' M' or 'M ')
+				expect(statusAfterModification).toMatch(/M.*index\.md/);
+			} finally {
+				// Clean up the temporary directory
+				await rm(tmpDir, { recursive: true, force: true });
 			}
-			const promisorKeys = Object.keys(files).filter((key) =>
-				key.endsWith('.promisor')
-			);
-			expect(promisorKeys.length).toBeGreaterThan(0);
-
-			expect(files['.git/shallow']).toBe(`${commit}\n`);
 		});
 	});
 

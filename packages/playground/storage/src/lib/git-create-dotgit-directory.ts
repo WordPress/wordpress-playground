@@ -1,31 +1,7 @@
-import './isomorphic-git.d.ts';
 import { GitIndex } from 'isomorphic-git/src/models/GitIndex.js';
 import type { SparseCheckoutObject } from '@wp-playground/storage';
-
-/**
- * Deflate compression utility that works in both Node.js and browsers.
- * In Node.js, uses the built-in zlib module for better performance.
- * In browsers, uses the native CompressionStream API when available.
- */
-async function deflate(buffer: Uint8Array): Promise<Uint8Array> {
-	// Try Node.js zlib first (synchronous and faster)
-	try {
-		// Dynamic import to avoid bundler issues
-		const { deflateRawSync } = await import('zlib');
-		return new Uint8Array(deflateRawSync(buffer));
-	} catch {
-		// Fall back to browser CompressionStream
-		try {
-			const cs = new CompressionStream('deflate-raw');
-			const stream = new Blob([buffer]).stream().pipeThrough(cs);
-			return new Uint8Array(await new Response(stream).arrayBuffer());
-		} catch {
-			throw new Error(
-				'No compression method available. Please ensure you are running in Node.js 11+ or a modern browser with CompressionStream support.'
-			);
-		}
-	}
-}
+import pako from 'pako';
+const deflate = pako.deflate;
 
 type GitDirectoryRefType = 'branch' | 'tag' | 'commit' | 'refname';
 
@@ -170,7 +146,7 @@ function buildGitConfig(
  * Creates a complete .git directory structure with all necessary files.
  * This includes HEAD, config, refs, objects, and the Git index.
  */
-export async function createGitDirectoryContents({
+export async function createDotGitDirectory({
 	repoUrl,
 	commitHash,
 	ref,

@@ -17,7 +17,7 @@ import { zipNameToHumanName } from '../utils/zip-name-to-human-name';
 import { fetchWithCorsProxy } from '@php-wasm/web';
 import { StreamedFile } from '@php-wasm/stream-compression';
 import type { StreamBundledFile } from './types';
-import { createGitDirectoryContents } from './git';
+import { createDotGitDirectory } from '@wp-playground/storage';
 
 export type { FileTree };
 export const ResourceTypes = [
@@ -595,7 +595,7 @@ export class GitDirectoryResource extends Resource<Directory> {
 			name.substring(requestedPath.length).replace(/^\/+/, '')
 		);
 		if (this.reference['.git']) {
-			const gitFiles = await createGitDirectoryContents({
+			const gitFiles = await createDotGitDirectory({
 				repoUrl: this.reference.url,
 				commitHash,
 				ref: this.reference.ref,
