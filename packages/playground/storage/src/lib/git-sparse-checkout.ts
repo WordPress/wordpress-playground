@@ -231,7 +231,7 @@ export async function listGitRefs(
 	fullyQualifiedBranchPrefix: string
 ) {
 	const packbuffer = Buffer.from(
-		await collect([
+		(await collect([
 			GitPktLine.encode(`command=ls-refs\n`),
 			GitPktLine.encode(`agent=git/2.37.3\n`),
 			GitPktLine.encode(`object-format=sha1\n`),
@@ -239,7 +239,7 @@ export async function listGitRefs(
 			GitPktLine.encode(`peel\n`),
 			GitPktLine.encode(`ref-prefix ${fullyQualifiedBranchPrefix}\n`),
 			GitPktLine.flush(),
-		])
+		])) as any
 	);
 
 	const response = await fetch(repoUrl + '/git-upload-pack', {
@@ -250,7 +250,7 @@ export async function listGitRefs(
 			'Content-Length': `${packbuffer.length}`,
 			'Git-Protocol': 'version=2',
 		},
-		body: packbuffer,
+		body: packbuffer as any,
 	});
 
 	const refs: Record<string, string> = {};
@@ -379,7 +379,7 @@ async function fetchRefOid(repoUrl: string, refname: string) {
 
 async function fetchWithoutBlobs(repoUrl: string, commitHash: string) {
 	const packbuffer = Buffer.from(
-		await collect([
+		(await collect([
 			GitPktLine.encode(
 				`want ${commitHash} multi_ack_detailed no-done side-band-64k thin-pack ofs-delta agent=git/2.37.3 filter \n`
 			),
@@ -389,7 +389,7 @@ async function fetchWithoutBlobs(repoUrl: string, commitHash: string) {
 			GitPktLine.flush(),
 			GitPktLine.encode(`done\n`),
 			GitPktLine.encode(`done\n`),
-		])
+		])) as any
 	);
 
 	const response = await fetch(repoUrl + '/git-upload-pack', {
@@ -399,12 +399,12 @@ async function fetchWithoutBlobs(repoUrl: string, commitHash: string) {
 			'content-type': 'application/x-git-upload-pack-request',
 			'Content-Length': `${packbuffer.length}`,
 		},
-		body: packbuffer,
+		body: packbuffer as any,
 	});
 
 	const iterator = streamToIterator(response.body!);
 	const parsed = await parseUploadPackResponse(iterator);
-	const packfile = Buffer.from(await collect(parsed.packfile));
+	const packfile = Buffer.from((await collect(parsed.packfile)) as any);
 	const idx = await GitPackIndex.fromPack({
 		pack: packfile,
 	});
@@ -530,7 +530,7 @@ async function resolveObjects(
 // Request oid for each resolvedRef
 async function fetchObjects(url: string, objectHashes: string[]) {
 	const packbuffer = Buffer.from(
-		await collect([
+		(await collect([
 			...objectHashes.map((objectHash) =>
 				GitPktLine.encode(
 					`want ${objectHash} multi_ack_detailed no-done side-band-64k thin-pack ofs-delta agent=git/2.37.3 \n`
@@ -538,7 +538,7 @@ async function fetchObjects(url: string, objectHashes: string[]) {
 			),
 			GitPktLine.flush(),
 			GitPktLine.encode(`done\n`),
-		])
+		])) as any
 	);
 
 	const response = await fetch(url + '/git-upload-pack', {
@@ -548,12 +548,12 @@ async function fetchObjects(url: string, objectHashes: string[]) {
 			'content-type': 'application/x-git-upload-pack-request',
 			'Content-Length': `${packbuffer.length}`,
 		},
-		body: packbuffer,
+		body: packbuffer as any,
 	});
 
 	const iterator = streamToIterator(response.body!);
 	const parsed = await parseUploadPackResponse(iterator);
-	const packfile = Buffer.from(await collect(parsed.packfile));
+	const packfile = Buffer.from((await collect(parsed.packfile)) as any);
 	if (packfile.byteLength === 0) {
 		const idx = await GitPackIndex.fromPack({
 			pack: packfile,
