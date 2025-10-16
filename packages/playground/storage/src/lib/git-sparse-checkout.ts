@@ -89,7 +89,11 @@ export async function sparseCheckout(
 		})
 	);
 
-	if (options?.withObjects) {
+	/**
+	 * Short-circuit if the consumer doesn't need additional details about
+	 * the Git objects.
+	 */
+	if (!options?.withObjects) {
 		return { files: fetchedPaths };
 	}
 
