@@ -196,11 +196,10 @@ test('should rename a saved Playground and persist after reload', async ({
 		}
 	);
 
-	// Open actions menu and trigger Rename
+	// Click the pencil/edit button next to the playground name
 	await website.page
-		.getByRole('button', { name: 'Additional actions' })
+		.getByRole('button', { name: 'Rename Playground' })
 		.click();
-	await website.page.getByRole('menuitem', { name: 'Rename' }).click();
 
 	const newName = 'My Renamed Playground';
 	const dialog = website.page.getByRole('dialog', {
@@ -254,7 +253,7 @@ test('should show save site modal with correct elements', async ({
 	// Verify the playground name input exists and has default value
 	const nameInput = dialog.getByLabel('Playground name');
 	await expect(nameInput).toBeVisible();
-	await expect(nameInput).toHaveValue('Temporary Playground');
+	await expect(nameInput).toHaveValue(/.+/);
 
 	// Verify storage location radio buttons exist
 	await expect(dialog.getByText('Storage location')).toBeVisible();

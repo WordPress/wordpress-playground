@@ -116,6 +116,24 @@ export function SaveSiteModal() {
 		setDirectoryError(null);
 	}, [site?.slug]);
 
+	// Monitor save progress through opfsSync status
+	const saveProgress = clientInfo?.opfsSync;
+	const isSaving = isSubmitting || saveProgress?.status === 'syncing';
+	const savingProgress =
+		saveProgress?.status === 'syncing' ? saveProgress.progress : undefined;
+
+	// Close modal when save completes successfully
+	useEffect(() => {
+		if (
+			isSubmitting &&
+			saveProgress?.status !== 'syncing' &&
+			saveProgress?.status !== 'error' &&
+			site?.metadata?.storage !== 'none'
+		) {
+			dispatch(setActiveModal(null));
+		}
+	}, [isSubmitting, saveProgress?.status, site?.metadata?.storage, dispatch]);
+
 	if (!site || site.metadata.storage !== 'none') {
 		return null;
 	}
@@ -247,11 +265,10 @@ export function SaveSiteModal() {
 				);
 			}
 
-			closeModal();
+			// Don't close modal here - useEffect will close it when save completes
 		} catch (error) {
 			logger.error(error);
 			setSubmitError('Saving failed. Please try again.');
-		} finally {
 			setIsSubmitting(false);
 		}
 	};
@@ -268,13 +285,20 @@ export function SaveSiteModal() {
 		!trimmedName ||
 		!selectionIsAvailable ||
 		!hasDirectoryAccess ||
-		isSubmitting;
+		isSaving;
+
+	const handleRequestClose = () => {
+		if (!isSaving) {
+			closeModal();
+		}
+	};
 
 	return (
 		<Modal
 			title="Save Playground"
-			contentLabel="This dialog collects a name and location before saving the Playground."
-			onRequestClose={closeModal}
+			contentLabel="Save Playground"
+			onRequestClose={handleRequestClose}
+			isDismissible={!isSaving}
 			small
 		>
 			<form
@@ -294,6 +318,7 @@ export function SaveSiteModal() {
 					data-1p-ignore="true"
 					data-lpignore="true"
 					data-bwignore="true"
+					disabled={isSaving}
 				/>
 				<RadioControl
 					label="Storage location"
@@ -313,6 +338,7 @@ export function SaveSiteModal() {
 						},
 					]}
 					onChange={(value) => chooseStorage(value as StorageOption)}
+					disabled={isSaving}
 				/>
 				{!isOpfsAvailable && selectedStorage === 'opfs' && (
 					<p style={helpTextStyle}>Not available in this browser</p>
@@ -341,6 +367,7 @@ export function SaveSiteModal() {
 								type="button"
 								variant="secondary"
 								onClick={handlePickDirectory}
+								disabled={isSaving}
 							>
 								Choose...
 							</Button>
@@ -350,11 +377,26 @@ export function SaveSiteModal() {
 						) : null}
 					</BaseControl>
 				)}
+				{isSaving && (
+					<div>
+						<progress
+							id="save-progress"
+							max={savingProgress?.total || 100}
+							value={savingProgress?.files || 0}
+							style={{ width: '100%', height: 24 }}
+						></progress>
+						<p style={{ ...helpTextStyle, marginTop: 4 }}>
+							{savingProgress
+								? `Saving ${savingProgress.files} / ${savingProgress.total} files...`
+								: 'Preparing to save...'}
+						</p>
+					</div>
+				)}
 				<ModalButtons
 					submitText="Save"
-					onCancel={closeModal}
+					onCancel={handleRequestClose}
 					areDisabled={saveDisabled}
-					areBusy={isSubmitting}
+					areBusy={false}
 					style={{ marginTop: 0 }}
 				/>
 				{submitError ? (

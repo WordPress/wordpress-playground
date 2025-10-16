@@ -4,6 +4,7 @@ import { selectClientInfoBySiteSlug } from '../../../lib/state/redux/slice-clien
 import type { SiteStorageType } from '../../../lib/state/redux/slice-sites';
 import { setActiveModal } from '../../../lib/state/redux/slice-ui';
 import { modalSlugs } from '../../layout';
+import React from 'react';
 
 export function SitePersistButton({
 	siteSlug,
@@ -36,34 +37,9 @@ export function SitePersistButton({
 		);
 	}
 
-	if (
-		clientInfo?.opfsSync?.status === 'syncing' &&
-		!clientInfo?.opfsSync?.progress
-	) {
-		return (
-			<div className={css.progressInfo}>
-				<div>
-					<progress id="file" max="100" value="0"></progress>
-				</div>
-				<div>Preparing to save...</div>
-			</div>
-		);
-	}
-
-	return (
-		<div className={css.progressInfo}>
-			<div>
-				<progress
-					id="file"
-					max={clientInfo.opfsSync.progress?.total}
-					value={clientInfo.opfsSync.progress?.files}
-				></progress>
-			</div>
-			<div>
-				{clientInfo.opfsSync.progress?.files}
-				{' / '}
-				{clientInfo.opfsSync.progress?.total} files saved
-			</div>
-		</div>
-	);
+	return React.cloneElement(children as React.ReactElement, {
+		className: css.inProgress,
+		disabled: true,
+		children: 'Saving...',
+	});
 }
