@@ -1,5 +1,7 @@
-import { GitIndex } from 'isomorphic-git/src/models/GitIndex.js';
-import type { SparseCheckoutObject } from '@wp-playground/storage';
+// @ts-expect-error
+import { GitIndex } from './isomorphic-git/src/models/GitIndex.js';
+import type { SparseCheckoutObject } from './git-sparse-checkout';
+// @ts-expect-error
 import pako from 'pako';
 const deflate = pako.deflate;
 
