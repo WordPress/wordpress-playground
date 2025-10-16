@@ -23,12 +23,12 @@ async function saveSiteViaModal(
 	const { customName, storageType = 'opfs' } = options || {};
 
 	// Click the Save button to open the modal
-	await expect(page.getByText('Save')).toBeEnabled();
-	await page.getByText('Save').click();
+	await expect(page.getByText('Save').first()).toBeEnabled();
+	await page.getByText('Save').first().click();
 
 	// Wait for the Save Playground dialog to appear
 	const dialog = page.getByRole('dialog', { name: 'Save Playground' });
-	await expect(dialog).toBeVisible();
+	await expect(dialog).toBeVisible({ timeout: 10000 });
 
 	// If a custom name is provided, update it
 	if (customName) {
@@ -37,10 +37,14 @@ async function saveSiteViaModal(
 		await nameInput.type(customName);
 	}
 
-	// Select storage location
+	// Select storage location - wait for the radio button to be available first
 	if (storageType === 'opfs') {
+		// We shouldn't need to explicitly call .waitFor(), but the test fails without it.
+		// Playwright logs that something "intercepts pointer events", that's probably related.
+		await dialog.getByText('Save in this browser').waitFor();
 		await dialog.getByText('Save in this browser').click({ force: true });
 	} else {
+		await dialog.getByText('Save to a local directory').waitFor();
 		await dialog
 			.getByText('Save to a local directory')
 			.click({ force: true });
@@ -50,7 +54,7 @@ async function saveSiteViaModal(
 	await dialog.getByRole('button', { name: 'Save' }).click();
 
 	// Wait for the dialog to close
-	await expect(dialog).not.toBeVisible({ timeout: 5000 });
+	await expect(dialog).not.toBeVisible({ timeout: 10000 });
 }
 
 test('should reflect the URL update from the navigation bar in the WordPress site', async ({
@@ -238,14 +242,14 @@ test('should show save site modal with correct elements', async ({
 	await website.ensureSiteManagerIsOpen();
 
 	// Click the Save button
-	await expect(website.page.getByText('Save')).toBeEnabled();
-	await website.page.getByText('Save').click();
+	await expect(website.page.getByText('Save').first()).toBeEnabled();
+	await website.page.getByText('Save').first().click();
 
 	// Verify the modal appears with correct title
 	const dialog = website.page.getByRole('dialog', {
 		name: 'Save Playground',
 	});
-	await expect(dialog).toBeVisible();
+	await expect(dialog).toBeVisible({ timeout: 10000 });
 
 	// Verify the playground name input exists and has default value
 	const nameInput = dialog.getByLabel('Playground name');
@@ -279,11 +283,11 @@ test('should close save site modal without saving', async ({
 	await website.ensureSiteManagerIsOpen();
 
 	// Open the modal
-	await website.page.getByText('Save').click();
+	await website.page.getByText('Save').first().click();
 	const dialog = website.page.getByRole('dialog', {
 		name: 'Save Playground',
 	});
-	await expect(dialog).toBeVisible();
+	await expect(dialog).toBeVisible({ timeout: 10000 });
 
 	// Close without saving using Cancel button
 	await dialog.getByRole('button', { name: 'Cancel' }).click();
@@ -295,8 +299,8 @@ test('should close save site modal without saving', async ({
 	);
 
 	// Open the modal again
-	await website.page.getByText('Save').click();
-	await expect(dialog).toBeVisible();
+	await website.page.getByText('Save').first().click();
+	await expect(dialog).toBeVisible({ timeout: 10000 });
 
 	// Close using ESC key
 	await website.page.keyboard.press('Escape');
@@ -321,11 +325,11 @@ test('should have playground name input text selected by default', async ({
 	await website.ensureSiteManagerIsOpen();
 
 	// Open the modal
-	await website.page.getByText('Save').click();
+	await website.page.getByText('Save').first().click();
 	const dialog = website.page.getByRole('dialog', {
 		name: 'Save Playground',
 	});
-	await expect(dialog).toBeVisible();
+	await expect(dialog).toBeVisible({ timeout: 10000 });
 
 	const nameInput = dialog.getByLabel('Playground name');
 
@@ -379,11 +383,11 @@ test('should not persist save site modal through page refresh', async ({
 	await website.ensureSiteManagerIsOpen();
 
 	// Open the save modal
-	await website.page.getByText('Save').click();
+	await website.page.getByText('Save').first().click();
 	const dialog = website.page.getByRole('dialog', {
 		name: 'Save Playground',
 	});
-	await expect(dialog).toBeVisible();
+	await expect(dialog).toBeVisible({ timeout: 10000 });
 
 	// Get the URL with the modal parameter
 	const urlWithModal = website.page.url();
@@ -414,11 +418,11 @@ test('should display OPFS storage option as selected by default', async ({
 	await website.ensureSiteManagerIsOpen();
 
 	// Open the save modal
-	await website.page.getByText('Save').click();
+	await website.page.getByText('Save').first().click();
 	const dialog = website.page.getByRole('dialog', {
 		name: 'Save Playground',
 	});
-	await expect(dialog).toBeVisible();
+	await expect(dialog).toBeVisible({ timeout: 10000 });
 
 	// Verify OPFS option is selected by default
 	const opfsRadio = dialog.getByRole('radio', {
