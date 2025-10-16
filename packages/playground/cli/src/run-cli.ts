@@ -158,6 +158,7 @@ export async function parseOptionsAndRunCLI() {
 					'[DEPRECATED] Do not download, unzip, and install WordPress. Use --skip-wordpress-download and/or --skip-wordpress-install instead.',
 				type: 'boolean',
 				default: false,
+				hidden: true,
 			})
 			.option('skip-wordpress-download', {
 				describe:
