@@ -19,7 +19,7 @@ export function WordPressPRMenuItem({ onClose, disabled }: Props) {
 				onClose();
 			}}
 		>
-			Preview a WordPress PR
+			WordPress PR
 		</MenuItem>
 	);
 }

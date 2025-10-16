@@ -14,7 +14,7 @@ import {
 	DropdownMenu,
 	Button,
 } from '@wordpress/components';
-import { moreVertical, page, close } from '@wordpress/icons';
+import { upload, page, close } from '@wordpress/icons';
 import { ClockIcon, WordPressIcon } from '@wp-playground/components';
 import {
 	setActiveSite,
@@ -121,8 +121,8 @@ export function Sidebar({
 				</div>
 				<DropdownMenu
 					className={css.componentsDropdown}
-					icon={moreVertical}
-					label="Import actions"
+					icon={upload}
+					label="Import"
 					popoverProps={{
 						placement: 'bottom-end',
 					}}
@@ -142,7 +142,7 @@ export function Sidebar({
 								disabled={offline}
 							/>
 							<RestoreFromZipMenuItem
-								text="Import from .zip"
+								text=".zip file"
 								onClose={onClose}
 								disabled={false}
 							/>
