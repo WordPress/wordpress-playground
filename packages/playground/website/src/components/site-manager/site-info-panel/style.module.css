@@ -154,6 +154,10 @@
 .siteInfoRenameButton {
 	padding: 4px !important;
 	min-height: 28px;
+
+	margin-left: 5px;
+	top: 2px;
+	position: relative;
 }
 
 .siteInfoRenameButton :global(svg) {

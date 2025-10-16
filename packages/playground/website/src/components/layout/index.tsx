@@ -34,6 +34,7 @@ import { PreviewPRModal } from '../../github/preview-pr';
 import { MissingSiteModal } from '../missing-site-modal';
 import { RenameSiteModal } from '../rename-site-modal';
 import { SaveSiteToLocalModal } from '../save-site-to-local-modal';
+import { SaveSiteToBrowserModal } from '../save-site-to-browser-modal';
 
 acquireOAuthTokenIfNeeded();
 
@@ -49,6 +50,7 @@ export const modalSlugs = {
 	MISSING_SITE_PROMPT: 'missing-site-prompt',
 	RENAME_SITE: 'rename-site',
 	SAVE_SITE_TO_LOCAL_DIRECTORY: 'save-site-to-local-directory',
+	SAVE_SITE_TO_BROWSER: 'save-site-to-browser',
 };
 
 const displayMode = getDisplayModeFromQuery();
@@ -232,6 +234,8 @@ function Modals(blueprint: BlueprintV1Declaration) {
 		return <RenameSiteModal />;
 	} else if (currentModal === modalSlugs.SAVE_SITE_TO_LOCAL_DIRECTORY) {
 		return <SaveSiteToLocalModal />;
+	} else if (currentModal === modalSlugs.SAVE_SITE_TO_BROWSER) {
+		return <SaveSiteToBrowserModal />;
 	}
 
 	if (query.get('gh-ensure-auth') === 'yes') {

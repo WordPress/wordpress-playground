@@ -105,12 +105,12 @@ export function persistTemporarySite(
 					return;
 				}
 			}
-			await saveDirectoryHandle(siteSlug, dirHandle);
+			await saveDirectoryHandle(siteSlug, dirHandle!);
 
 			mountDescriptor = {
 				device: {
 					type: 'local-fs',
-					handle: dirHandle,
+					handle: dirHandle!,
 				},
 				mountpoint: '/wordpress',
 			} as const;

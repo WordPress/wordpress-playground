@@ -1,10 +1,11 @@
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Button, BaseControl, TextControl } from '@wordpress/components';
 import { Modal } from '../modal';
 import ModalButtons from '../modal/modal-buttons';
 import { useAppDispatch, useAppSelector } from '../../lib/state/redux/store';
 import { setActiveModal } from '../../lib/state/redux/slice-ui';
 import { persistTemporarySite } from '../../lib/state/redux/persist-temporary-site';
+import { logger } from '@php-wasm/logger';
 
 export function SaveSiteToLocalModal() {
 	const dispatch = useAppDispatch();
@@ -71,6 +72,7 @@ export function SaveSiteToLocalModal() {
 			);
 			closeModal();
 		} catch (error) {
+			logger.error(error);
 			setDirectoryError('Saving failed. Please try again.');
 		} finally {
 			setIsSubmitting(false);
@@ -110,6 +112,9 @@ export function SaveSiteToLocalModal() {
 							readOnly
 							placeholder="Choose a directory..."
 							style={{ flexGrow: 1 }}
+							onChange={() => {
+								/* required property */
+							}}
 						/>
 						<Button
 							type="button"

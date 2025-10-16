@@ -40,6 +40,10 @@ export function SitePersistButton({
 					);
 					return;
 				}
+				if (storage === 'opfs') {
+					dispatch(setActiveModal(modalSlugs.SAVE_SITE_TO_BROWSER));
+					return;
+				}
 				dispatch(persistTemporarySite(siteSlug, storage));
 			};
 			button = <div onClick={handleClick}>{children}</div>;
@@ -49,7 +53,9 @@ export function SitePersistButton({
 					<DropdownMenuItem
 						disabled={!isOpfsAvailable}
 						onClick={() =>
-							dispatch(persistTemporarySite(siteSlug, 'opfs'))
+							dispatch(
+								setActiveModal(modalSlugs.SAVE_SITE_TO_BROWSER)
+							)
 						}
 					>
 						<DropdownMenuItemLabel>

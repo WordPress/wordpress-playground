@@ -150,24 +150,26 @@ export function SiteInfoPanel({
 										{isTemporary
 											? 'Temporary Playground'
 											: site.metadata.name}
-									</h1>
-									{!isTemporary && (
-										<Button
-											className={css.siteInfoRenameButton}
-											icon={edit}
-											label="Rename Playground"
-											showTooltip={true}
-											variant="tertiary"
-											isSmall={true}
-											onClick={() =>
-												dispatch(
-													setActiveModal(
-														modalSlugs.RENAME_SITE
+										{!isTemporary && (
+											<Button
+												className={
+													css.siteInfoRenameButton
+												}
+												icon={edit}
+												label="Rename Playground"
+												showTooltip={true}
+												variant="tertiary"
+												isSmall={true}
+												onClick={() =>
+													dispatch(
+														setActiveModal(
+															modalSlugs.RENAME_SITE
+														)
 													)
-												)
-											}
-										/>
-									)}
+												}
+											/>
+										)}
+									</h1>
 								</Flex>
 								{!isTemporary && (
 									<span
