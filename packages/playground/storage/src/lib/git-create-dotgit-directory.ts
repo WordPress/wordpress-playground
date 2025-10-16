@@ -1,5 +1,5 @@
 // @ts-expect-error
-import { GitIndex } from './isomorphic-git/src/models/GitIndex.js';
+import { GitIndex } from 'isomorphic-git/src/models/GitIndex.js';
 import type { SparseCheckoutObject } from './git-sparse-checkout';
 import pako from 'pako';
 const deflate = pako.deflate;
