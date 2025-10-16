@@ -114,11 +114,11 @@ describe('sparseCheckout', () => {
 			'README.md': expect.any(Uint8Array),
 		});
 		expect(result.files['README.md'].length).toBeGreaterThan(0);
-		expect(result.packfiles.length).toBeGreaterThan(0);
-		expect(result.packfiles.some((packfile) => packfile.promisor)).toBe(
+		expect(result.packfiles?.length).toBeGreaterThan(0);
+		expect(result.packfiles?.some((packfile) => packfile.promisor)).toBe(
 			true
 		);
-		expect(result.objects.length).toBeGreaterThan(0);
+		expect(result.objects?.length).toBeGreaterThan(0);
 	});
 });
 

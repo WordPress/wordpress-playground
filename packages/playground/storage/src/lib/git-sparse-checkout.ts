@@ -56,15 +56,18 @@ export type SparseCheckoutObject = {
 
 export type SparseCheckoutResult = {
 	files: Record<string, any>;
-	packfiles: SparseCheckoutPackfile[];
-	objects: SparseCheckoutObject[];
-	fileOids: Record<string, string>;
+	packfiles?: SparseCheckoutPackfile[];
+	objects?: SparseCheckoutObject[];
+	fileOids?: Record<string, string>;
 };
 
 export async function sparseCheckout(
 	repoUrl: string,
 	commitHash: string,
-	filesPaths: string[]
+	filesPaths: string[],
+	options?: {
+		withObjects?: boolean;
+	}
 ): Promise<SparseCheckoutResult> {
 	const treesPack = await fetchWithoutBlobs(repoUrl, commitHash);
 	const objects = await resolveObjects(treesPack.idx, commitHash, filesPaths);
@@ -85,6 +88,10 @@ export async function sparseCheckout(
 			);
 		})
 	);
+
+	if (options?.withObjects) {
+		return { files: fetchedPaths };
+	}
 
 	const packfiles: SparseCheckoutPackfile[] = [];
 	const treesIndex = await treesPack.idx.toBuffer();

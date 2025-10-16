@@ -585,7 +585,10 @@ export class GitDirectoryResource extends Resource<Directory> {
 		const checkout = await sparseCheckout(
 			repoUrl,
 			commitHash,
-			filesToClone
+			filesToClone,
+			{
+				withObjects: this.reference['.git'],
+			}
 		);
 		let files = checkout.files;
 
@@ -599,8 +602,8 @@ export class GitDirectoryResource extends Resource<Directory> {
 				commitHash,
 				ref: this.reference.ref,
 				refType: this.reference.refType,
-				objects: checkout.objects,
-				fileOids: checkout.fileOids,
+				objects: checkout.objects ?? [],
+				fileOids: checkout.fileOids ?? {},
 				pathPrefix: requestedPath,
 			});
 			files = {
