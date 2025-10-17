@@ -88,6 +88,24 @@ npx @wp-playground/cli@latest server --mount-before-install=.:/wordpress/
 On Windows, the path format `/host/path:/vfs/path` can cause issues. To resolve this, use the flags `--mount-dir` and `--mount-dir-before-install`. These flags let you specify host and virtual file system paths in an alternative format`"/host/path"` `"/vfs/path"`.
 :::
 
+### Understanding Data Persistence and SQLite Location
+
+By default, Playground CLI stores WordPress files and the SQLite database in temporary directories:
+
+-   `<TEMP-DIR>/wordpress` - WordPress installation (wp-admin, wp-includes, wp-content, etc.)
+-   `<TEMP-DIR>/internal` - Playground runtime config and platform mu-plugins
+-   `<TEMP-DIR>/tmp` - Temporary files
+
+**Where is the SQLite database stored?**
+
+The SQLite database location depends on what you mount:
+
+-   **Auto-mounting wp-content or full WordPress**: Database writes to your mounted folder at `wp-content/database/.ht.sqlite` (persisted locally)
+-   **Auto-mounting plugin/theme only**: Database writes to temp directories (lost when server stops)
+-   **Custom mounts**: Database location follows your mount configuration
+
+To ensure database persistence when developing plugins or themes, consider mounting the entire wp-content directory.
+
 ## Command and Arguments
 
 Playground CLI is simple, configurable, and unopinionated. You can set it up according
