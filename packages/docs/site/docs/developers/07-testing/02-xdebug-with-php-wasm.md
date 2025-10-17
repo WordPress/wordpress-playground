@@ -14,43 +14,30 @@ Key Xdebug features available in PHP WASM:
 -   **Profiling** to identify performance bottlenecks in the WASM runtime
 -   **Remote debugging** capabilities for browser-based and Node.js environments
 
-### Why Xdebug is Important for PHP WASM
+# Xdebug Benefits for PHP WASM
 
-Debugging PHP WASM presents unique challenges that make Xdebug integration crucial:
+## The WebAssembly Black Box Problem
 
-**The WebAssembly Black Box Problem**
-WebAssembly code runs in a sandboxed environment with limited visibility. Without proper debugging tools, PHP WASM becomes a "black box" where:
+WebAssembly code runs in a sandboxed environment with limited visibility. Without proper debugging tools, PHP WASM becomes a "black box" where errors don't surface clearly in the console, stack traces are difficult to interpret across the JavaScript-WASM boundary, and variable inspection requires manual logging. Performance bottlenecks become nearly impossible to identify.
 
--   Errors may not surface clearly in browser/Node.js console
--   Stack traces can be difficult to interpret across the JavaScript-WASM boundary
--   Variable inspection requires manual logging
--   Performance bottlenecks are hard to identify
+## Bridging Traditional PHP Development
 
-**Bridging Traditional PHP Development**
-Developers coming from traditional PHP environments expect familiar debugging workflows. Xdebug provides:
+Developers from traditional PHP environments expect familiar debugging workflows. Xdebug provides seamless IDE integration with VSCode, PhpStorm, and other popular editors, enabling step debugging with breakpoints, variable inspection, and profiling data—all within the same workflow developers already know. This eliminates the learning curve of adapting to WASM-specific debugging methods.
 
--   **Seamless transition**: Use the same debugging tools and techniques you know
--   **IDE integration**: Connect to VSCode, PhpStorm, and other popular IDEs
--   **Step debugging**: Set breakpoints, step through code, and inspect variables just like native PHP
--   **Profiling data**: Identify performance issues specific to the WASM environment
+## WordPress Playground-Specific Benefits
 
-**WordPress Playground-Specific Benefits**
-For WordPress Playground development, Xdebug is essential because:
+For WordPress Playground development, Xdebug is essential for debugging complex interactions between WordPress, PHP WASM, and JavaScript layers. It enables plugin and theme testing in a sandboxed environment while providing educational value for students learning PHP in an accessible browser-based setup. Remote debugging capabilities allow troubleshooting WordPress sites running entirely in the browser.
 
--   **Complex interactions**: Debug the interplay between WordPress, PHP WASM, and JavaScript
--   **Plugin/theme development**: Test and troubleshoot extensions in a sandboxed environment
--   **Educational value**: Students can learn PHP debugging in an accessible browser environment
--   **Remote debugging**: Debug WordPress sites running entirely in the browser
+## WebAssembly Performance Insights
 
-**WebAssembly Performance Insights**
-Xdebug helps identify WASM-specific issues:
+Xdebug helps identify WASM-specific performance issues:
 
--   Overhead from JavaScript-to-WASM calls
--   Memory management in the sandboxed environment
+-   Overhead from JavaScript-to-WASM calls and boundary crossings
+-   Memory management challenges in the sandboxed environment
 -   I/O operations across the virtual filesystem
--   Network request handling through fetch proxies
+-   Network request handling through fetch proxies and API bridges
 
-Without Xdebug, developers working with PHP WASM would need to rely on primitive debugging methods (echo statements, error_log) that are inadequate for modern application development. Xdebug transforms PHP WASM from an experimental technology into a production-ready development platform.
+Without Xdebug, developers would rely on primitive debugging methods like echo statements—inadequate for modern development. Xdebug transforms PHP WASM from an experimental technology into a production-ready platform.
 
 ### How Xdebug Works with PHP WASM
 
@@ -164,10 +151,10 @@ For quick testing without installation (CLI tools only):
 
 ```bash
 # PHP WASM CLI
-npx @php-wasm/cli --xdebug
+npx @php-wasm/cli@latest --xdebug
 
 # WordPress Playground CLI
-npx @wp-playground/cli server --xdebug
+npx @wp-playground/cli@latest server --xdebug
 ```
 
 ---
