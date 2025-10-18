@@ -49,7 +49,12 @@ export async function removePlaygroundCliTempDirSymlink(symlinkPath: string) {
 function filterLocalMounts(mounts: Mount[]) {
 	return mounts.filter((mount) => {
 		const absoluteHostPath = path.resolve(mount.hostPath);
-		return absoluteHostPath.startsWith(process.cwd() + path.sep);
+		const cwd = process.cwd();
+		const cwdChildPrefix = path.join(cwd, path.sep);
+		return (
+			absoluteHostPath === cwd ||
+			absoluteHostPath.startsWith(cwdChildPrefix)
+		);
 	});
 }
 
