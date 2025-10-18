@@ -5,6 +5,9 @@
 		"declaration": true,
 		"types": ["node"]
 	},
-	"include": ["src/**/*.ts"],
+	"include": [
+		"src/**/*.ts",
+		"../storage/src/lib/git-create-dotgit-directory.ts"
+	],
 	"exclude": ["jest.config.ts", "src/**/*.spec.ts", "src/**/*.test.ts"]
 }

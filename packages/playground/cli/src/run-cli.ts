@@ -562,6 +562,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 			const nativeDirPath = await createPlaygroundCliTempDir(
 				tempDirNameDelimiter
 			);
+			logger.debug(`Native temp dir for VFS root: ${nativeDirPath}`);
 
 			// Clear any stale IDE config.
 			const IDEConfigName = 'WP Playground CLI - Listen for Xdebug';
@@ -646,6 +647,21 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 						vfsPath: `/${subdirName}`,
 						hostPath: nativeSubdirPath,
 					});
+				}
+			}
+
+			if (args['mount-before-install']) {
+				for (const mount of args['mount-before-install']) {
+					logger.debug(
+						`Mount before WP install: ${mount.vfsPath} -> ${mount.hostPath}`
+					);
+				}
+			}
+			if (args['mount']) {
+				for (const mount of args['mount']) {
+					logger.debug(
+						`Mount after WP install: ${mount.vfsPath} -> ${mount.hostPath}`
+					);
 				}
 			}
 
