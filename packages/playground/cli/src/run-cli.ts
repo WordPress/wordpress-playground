@@ -539,7 +539,8 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 	return startServer({
 		port: args['port'] as number,
 		onBind: async (server: Server, port: number): Promise<RunCLIServer> => {
-			const serverUrl = `http://127.0.0.1:${port}`;
+			const host = '127.0.0.1';
+			const serverUrl = `http://${host}:${port}`;
 			const siteUrl = args['site-url'] || serverUrl;
 
 			// Create the blueprints handler
@@ -585,10 +586,17 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 					vfsPath: '/',
 				};
 
-				addIDEConfig(IDEConfigName, args.experimentalIde, [
-					symlinkMount,
-					...(args.mount || []),
-				]);
+				addIDEConfig({
+					name: IDEConfigName,
+					host: host,
+					port: port,
+					ides: args.experimentalIde,
+					mounts: [
+						symlinkMount,
+						...(args['mount-before-install'] || []),
+						...(args.mount || []),
+					],
+				});
 			}
 
 			// We do not know the system temp dir,

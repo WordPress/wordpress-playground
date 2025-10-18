@@ -52,11 +52,36 @@ function filterLocalMounts(mounts: Mount[]) {
 		const cwd = process.cwd();
 		const cwdChildPrefix = path.join(cwd, path.sep);
 		return (
+			// If auto-mounting from the current directory,
+			// the entire project directory can be mapped.
 			absoluteHostPath === cwd ||
 			absoluteHostPath.startsWith(cwdChildPrefix)
 		);
 	});
 }
+
+export type IDEConfig = {
+	/**
+	 * The name of the configuration within the IDE configuration.
+	 */
+	name: string;
+	/**
+	 * The IDEs to configure.
+	 */
+	ides: string[];
+	/**
+	 * The web server host.
+	 */
+	host: string;
+	/**
+	 * The web server port.
+	 */
+	port: number;
+	/**
+	 * The mounts to consider for debugger path mapping.
+	 */
+	mounts: Mount[];
+};
 
 /**
  * Implement necessary parameters and path mappings in IDE configuration files.
@@ -64,20 +89,22 @@ function filterLocalMounts(mounts: Mount[]) {
  * @param name The configuration name.
  * @param mounts The Playground CLI mount options.
  */
-export async function addIDEConfig(
-	name: string,
-	ides: string[],
-	mounts: Mount[]
-) {
+export async function addIDEConfig({
+	name,
+	host,
+	port,
+	ides,
+	mounts,
+}: IDEConfig) {
 	const mappings = filterLocalMounts(mounts);
 
 	// PHPstorm
 	if (ides.includes('phpstorm')) {
-		const server = {
+		const serverConfig = {
 			$: {
 				name: name,
-				host: '127.0.0.1:9400',
-				port: '80',
+				host,
+				port,
 				use_path_mappings: 'true',
 			},
 			path_mappings: [
