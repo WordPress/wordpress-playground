@@ -307,7 +307,7 @@ export async function clearIDEConfig(name: string) {
 		});
 
 		if (!root || errors.length) {
-			console.log(errors);
+			logger.error(errors);
 			logger.error('VSCode configuration file is not valid JSON.');
 			process.exit(1);
 		}
