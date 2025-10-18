@@ -144,15 +144,16 @@ export async function addIDEConfig({
 			config.project = { $: { version: '4' }, component: [] };
 		}
 
-		const component = config?.project?.component?.find(
+		let component = config?.project?.component?.find(
 			(c: { $: { name: string } }) => c.$.name === 'PhpServers'
 		);
 		if (!component) {
-			config.project.component = [];
-			config.project.component.push({
+			component = {
 				$: { name: 'PhpServers' },
 				servers: [{ server: [] }],
-			});
+			};
+			config.project.component = [];
+			config.project.component.push(component);
 		}
 
 		const servers = component?.servers[0]?.server?.find(
