@@ -156,11 +156,17 @@ export async function addIDEConfig({
 			config.project.component.push(component);
 		}
 
-		const servers = component?.servers[0]?.server?.find(
+		const server = component?.servers[0]?.server?.find(
 			(c: { $: { name: string } }) => c.$.name === name
 		);
-		if (!servers) {
-			component.servers[0].server.push(server);
+		if (server) {
+			// Update the existing server configuration.
+			Object.assign(server, serverConfig);
+		} else {
+			if (component.servers[0].server === undefined) {
+				component.servers[0].server = [];
+			}
+			component.servers[0].server.push(serverConfig);
 		}
 
 		const builder = new Builder({
