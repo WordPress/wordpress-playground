@@ -52,9 +52,11 @@ import {
 	createPlaygroundCliTempDir,
 } from './temp-dir';
 import {
-	addIDEConfig,
+	addXdebugIDEConfig,
+	clearXdebugIDEConfig,
+	// TODO: Consider making these names more specific or even whether we can
+	// wrap these into a single add/remove pair.
 	createPlaygroundCliTempDirSymlink,
-	clearIDEConfig,
 	removePlaygroundCliTempDirSymlink,
 } from './xdebug-path-mappings';
 
@@ -569,10 +571,10 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 
 			// We don't want to spend time awaiting IDE config cleanup by default,
 			// but let's save this promise just in case.
-			// If we're adding IDE config for Xdebug, we need cleanup to complete
+			// If we're adding IDE config for Xdebug, we need to await cleanup
 			// first to avoid racing the `cleanup` and `add` operations.
-			// TODO: Let's make these function names more specific clearIDEConfig() -> clearXdebugIDEConfig(). Same for addIDEConfig().
-			const promiseToClearIDEConfig = clearIDEConfig(IDEConfigName);
+			const promiseToClearXdebugIDEConfig =
+				clearXdebugIDEConfig(IDEConfigName);
 
 			// Always clean up any existing '.playground' symlink in the project root.
 			const symlinkName = '.playground';
@@ -591,8 +593,8 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 					vfsPath: '/',
 				};
 
-				await promiseToClearIDEConfig;
-				addIDEConfig({
+				await promiseToClearXdebugIDEConfig;
+				addXdebugIDEConfig({
 					name: IDEConfigName,
 					host: host,
 					port: port,

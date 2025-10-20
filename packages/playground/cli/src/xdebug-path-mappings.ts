@@ -89,7 +89,7 @@ export type IDEConfig = {
  * @param name The configuration name.
  * @param mounts The Playground CLI mount options.
  */
-export async function addIDEConfig({
+export async function addXdebugIDEConfig({
 	name,
 	host,
 	port,
@@ -269,7 +269,7 @@ export async function addIDEConfig({
  *
  * @param name The configuration name.
  */
-export async function clearIDEConfig(name: string) {
+export async function clearXdebugIDEConfig(name: string) {
 	let configFilePath;
 
 	configFilePath = path.join(process.cwd(), '.idea/workspace.xml');
