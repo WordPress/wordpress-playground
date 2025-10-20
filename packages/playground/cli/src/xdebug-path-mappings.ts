@@ -103,8 +103,11 @@ export async function addIDEConfig({
 		const serverConfig = {
 			$: {
 				name: name,
-				host,
-				port,
+				// TODO: Document why host:port and port: 80 are necessary for PhpStorm to hit breakpoints?
+				// IOW, why do we not set the web server port in the port field,
+				// and what is port 80 for when we aren't opening port 80 at all?
+				host: `${host}:${port}`,
+				port: '80',
 				use_path_mappings: 'true',
 			},
 			path_mappings: [
