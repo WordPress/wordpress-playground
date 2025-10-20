@@ -270,12 +270,12 @@ export async function addXdebugIDEConfig({
  * @param name The configuration name.
  */
 export async function clearXdebugIDEConfig(name: string) {
-	let configFilePath;
-
-	configFilePath = path.join(process.cwd(), '.idea/workspace.xml');
-	// PHPstorm
-	if (fs.existsSync(configFilePath)) {
-		const contents = fs.readFileSync(configFilePath);
+	const phpStormConfigFilePath = path.join(
+		process.cwd(),
+		'.idea/workspace.xml'
+	);
+	if (fs.existsSync(phpStormConfigFilePath)) {
+		const contents = fs.readFileSync(phpStormConfigFilePath);
 		const config = await parseStringPromise(contents);
 
 		const component = config?.project?.component?.find(
@@ -294,16 +294,19 @@ export async function clearXdebugIDEConfig(name: string) {
 			});
 			const xml = builder.buildObject(config);
 
-			fs.writeFileSync(configFilePath, xml);
+			fs.writeFileSync(phpStormConfigFilePath, xml);
 		}
 	}
 
-	configFilePath = path.join(process.cwd(), '.vscode/launch.json');
+	const vsCodeConfigFilePath = path.join(
+		process.cwd(),
+		'.vscode/launch.json'
+	);
 	// VSCode
-	if (fs.existsSync(configFilePath)) {
+	if (fs.existsSync(vsCodeConfigFilePath)) {
 		const errors: JSONC.ParseError[] = [];
 
-		const content = fs.readFileSync(configFilePath, 'utf-8');
+		const content = fs.readFileSync(vsCodeConfigFilePath, 'utf-8');
 		const root = JSONC.parseTree(content, errors, {
 			allowEmptyContent: true,
 			allowTrailingComma: true,
@@ -340,9 +343,9 @@ export async function clearXdebugIDEConfig(name: string) {
 			const json = JSONC.applyEdits(content, edits);
 
 			if (json === '{\n    "configurations": []\n}') {
-				fs.unlinkSync(configFilePath);
+				fs.unlinkSync(vsCodeConfigFilePath);
 			} else {
-				fs.writeFileSync(configFilePath, json);
+				fs.writeFileSync(vsCodeConfigFilePath, json);
 			}
 		}
 	}
