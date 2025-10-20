@@ -565,9 +565,14 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 			);
 			logger.debug(`Native temp dir for VFS root: ${nativeDirPath}`);
 
-			// Clear any stale IDE config.
 			const IDEConfigName = 'WP Playground CLI - Listen for Xdebug';
-			clearIDEConfig(IDEConfigName);
+
+			// We don't want to spend time awaiting IDE config cleanup by default,
+			// but let's save this promise just in case.
+			// If we're adding IDE config for Xdebug, we need cleanup to complete
+			// first to avoid racing the `cleanup` and `add` operations.
+			// TODO: Let's make these function names more specific clearIDEConfig() -> clearXdebugIDEConfig(). Same for addIDEConfig().
+			const promiseToClearIDEConfig = clearIDEConfig(IDEConfigName);
 
 			// Always clean up any existing '.playground' symlink in the project root.
 			const symlinkName = '.playground';
@@ -586,6 +591,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 					vfsPath: '/',
 				};
 
+				await promiseToClearIDEConfig;
 				addIDEConfig({
 					name: IDEConfigName,
 					host: host,
