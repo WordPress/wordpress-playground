@@ -330,6 +330,7 @@ wp-admin/js/farbtastic.js
 wp-admin/js/editor-expand.js
 wp-admin/js/media-upload.min.js
 wp-admin/js/word-count.min.js
+wp-content/themes/twentytwentyfive/style.min.css
 wp-content/themes/twentytwentyfive/style.css
 wp-content/themes/twentytwentyfive/assets/images/woman-splashing-water.webp
 wp-content/themes/twentytwentyfive/assets/images/category-anthuriums.webp
@@ -412,7 +413,10 @@ wp-content/themes/twentytwentyfive/assets/fonts/fira-sans/FiraSans-Light.woff2
 wp-content/themes/twentytwentyfive/assets/fonts/fira-sans/FiraSans-ExtraLight.woff2
 wp-content/themes/twentytwentyfive/assets/fonts/vollkorn/Vollkorn-Italic-VariableFont_wght.woff2
 wp-content/themes/twentytwentyfive/assets/fonts/vollkorn/Vollkorn-VariableFont_wght.woff2
+wp-content/themes/twentytwentyfive/package-lock.json
 wp-content/themes/twentytwentyfive/readme.txt
+wp-content/themes/twentytwentyfive/contributing.txt
+wp-content/themes/twentytwentyfive/package.json
 wp-content/themes/twentytwentyfive/screenshot.png
 wp-content/themes/twentytwentyfive/templates/index.html
 wp-content/themes/twentytwentyfive/templates/archive.html

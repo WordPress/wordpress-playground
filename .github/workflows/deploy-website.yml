@@ -1,10 +1,10 @@
-name: Deploy private Playground web app
+name: Deploy Playground website
 
 on:
     workflow_dispatch:
-    # Deploy the website every day at 9am and 6pm UTC
+    # Deploy the website every Tuesday at 11am UTC
     schedule:
-        - cron: '0 9,18 * * *'
+        - cron: '0 11 * * 2'
 
 concurrency:
     group: website-deployment
@@ -27,28 +27,33 @@ jobs:
         # Specify runner + deployment step
         runs-on: ubuntu-latest
         environment:
-            name: internal-web-app-deployment
+            name: playground-wordpress-net-wp-cloud
         steps:
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v5
               with:
                   submodules: true
+                  # Allow deploying a specific ref for folks who want to pin a specific version.
+                  ref: ${{ vars.GIT_REF_TO_DEPLOY }}
             - uses: ./.github/actions/prepare-playground
             - run: npx nx build playground-website
               env:
                   CORS_PROXY_URL: ${{ vars.CORS_PROXY_URL }}
+            - run: tar -czf wasm-wordpress-net.tar.gz dist/packages/playground/wasm-wordpress-net
+            # Store dist/packages/artifacts/wasm-wordpress-net as a build artifact
+            - uses: actions/upload-artifact@v4
+              with:
+                  name: playground-website
+                  path: wasm-wordpress-net.tar.gz
+            # The artifact only becomes available after this workflow wraps up, so let's wrap.
+            # This artifact enables the download of a pre-built package and hosting of one's own playground instance.
 
-            - name: Deploy to playground.wordpress.net
+            - name: Deploy Playground website build
               shell: bash
               run: |
                   mkdir -p ~/.ssh
                   echo "${{ secrets.DEPLOY_WEBSITE_TARGET_HOST_KEY }}" >> ~/.ssh/known_hosts
                   echo "${{ secrets.DEPLOY_WEBSITE_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
                   chmod 0600 ~/.ssh/*
-
-                  # Add site privacy script to the website build
-                  # NOTE: We are no longer enforcing privacy so we can use our private instance in public contexts, like WordPress.com
-                  # cp packages/playground/website-deployment/a8c/site-privacy.php \
-                  #   dist/packages/playground/wasm-wordpress-net/
 
                   # Website files
                   rsync -avz -e "ssh -i ~/.ssh/id_ed25519" --delete \
@@ -67,10 +72,4 @@ jobs:
                   # Apply update
                   ssh -i ~/.ssh/id_ed25519 \
                     ${{ secrets.DEPLOY_WEBSITE_TARGET_USER }}@${{ secrets.DEPLOY_WEBSITE_TARGET_HOST }} \
-                    -tt '~/website-deployment/apply-update.sh'
-
-                  # Enforce privacy for web app
-                  # NOTE: We are no longer enforcing privacy so we can use our private instance in public contexts, like WordPress.com
-                  # ssh -i ~/.ssh/id_ed25519 \
-                  #   ${{ secrets.DEPLOY_WEBSITE_TARGET_USER }}@${{ secrets.DEPLOY_WEBSITE_TARGET_HOST }} \
-                  #   -tt 'sed -i "2i if ( \"cli\" !== php_sapi_name() ) { require_once __DIR__ . \"/site-privacy.php\"; Site_Privacy::enforce();	}" ~/htdocs/custom-redirects.php'
+                    -tt -C '~/website-deployment/apply-update.sh'

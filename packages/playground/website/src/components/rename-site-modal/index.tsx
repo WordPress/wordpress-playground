@@ -77,6 +77,7 @@ export function RenameSiteModal() {
 					value={name}
 					onChange={(val: string) => setName(val)}
 					placeholder="e.g. Testing Gutenberg 24.17"
+					maxLength={80}
 					autoFocus
 				/>
 				<ModalButtons

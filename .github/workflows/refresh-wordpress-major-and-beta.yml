@@ -75,5 +75,5 @@ jobs:
               if: steps.changes.outputs.COMMIT_CHANGES == '1'
               uses: benc-uk/workflow-dispatch@v1
               with:
-                  workflow: build-website.yml
+                  workflow: deploy-website.yml
                   token: ${{ secrets.GITHUB_TOKEN }}

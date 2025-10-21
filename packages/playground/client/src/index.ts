@@ -164,6 +164,8 @@ const validRemoteOrigins = [
 	'https://wasm.wordpress.net',
 	// Allow hosting remote from same origin
 	location.origin,
+	// Allow hosting remote from the same origin as the client library.
+	new URL(import.meta.url).origin,
 	'http://localhost',
 	'http://localhost:5400',
 	'https://localhost',

@@ -1,5 +1,7 @@
 ---
 slug: /contributing/translations
+title: Contribuciones a las traducciones
+description: Aprende a traducir la documentación de Playground, incluyendo la estructura de archivos, las pruebas locales y el proceso de revisión.
 ---
 
 <!--
@@ -9,54 +11,54 @@ slug: /contributing/translations
 # Contribuciones a las traducciones
 
 <!--
-You can help translate the Playground documentation into any language. This page provides a comprehensive guide on how to contribute to the translation of Playground docs.
+Help make WordPress Playground accessible to a global audience by translating its documentation. This guide provides everything you need to know to get started. Contributing translations follows the same workflow as any other documentation change. You can either fork the [WordPress/wordpress-playground](https://github.com/WordPress/wordpress-playground) repository and create a pull request (PR) with your changes or edit pages directly using the GitHub UI.
 -->
 
-Puedes ayudar a traducir la documentación de Playground a cualquier idioma. Esta página proporciona una guía completa sobre cómo contribuir a la traducción de los documentos de Playground.
-
-<!--
-## How can I contribute to translations?
--->
-
-## ¿Cómo puedo contribuir a las traducciones?
-
-<!--
-By using the same workflow than contributing to any other docs page. You could fork [WordPress/wordpress-playground](https://github.com/WordPress/wordpress-playground) and make PRs with your changes, or edit pages directly using the GitHub UI
--->
-
-Usando el mismo flujo de trabajo que para contribuir a cualquier otra página de la documentación. Puedes hacer un fork de [WordPress/wordpress-playground](https://github.com/WordPress/wordpress-playground) y hacer PRs con tus cambios, o editar las páginas directamente usando la interfaz de usuario de GitHub.
+Ayuda a hacer WordPress Playground accesible a una audiencia global traduciendo su documentación. Esta guía proporciona todo lo que necesitas saber para comenzar. Contribuir con traducciones sigue el mismo flujo de trabajo que cualquier otro cambio en la documentación. Puedes hacer un fork del repositorio [WordPress/wordpress-playground](https://github.com/WordPress/wordpress-playground) y crear un pull request (PR) con tus cambios, o editar páginas directamente usando la interfaz de usuario de GitHub.
 
 <!--
 :::info
-Check the [How can I contribute?](/contributing/documentation#how-can-i-contribute) to learn more about how to contribute to Playground Docs
+For a detailed guide on the contribution workflow (forking, creating PRs, etc.), please see our [documentation contribution guide](/contributing/documentation#how-can-i-contribute)
 :::
 -->
 
 :::info
-Consulta [¿Cómo puedo contribuir?](/contributing/documentation#how-can-i-contribute) para aprender más sobre cómo contribuir a la documentación de Playground.
+Para una guía detallada sobre el flujo de trabajo de contribución (hacer fork, crear PRs, etc.), consulta nuestra [guía de contribución a la documentación](/contributing/documentation#how-can-i-contribute)
 :::
 
 <!--
-## Translations implementation details
+## How Translations Work
 -->
 
-## Detalles de la implementación de las traducciones
+## Cómo funcionan las traducciones
+
+<!--
+Playground's documentation site is built with Docusaurus, which handles the internationalization (i18n) features.
+-->
+
+El sitio de documentación de Playground está construido con Docusaurus, que maneja las funciones de internacionalización (i18n).
 
 <!--
 :::info
-Check the [Internationalization section](https://docusaurus.io/docs/i18n/introduction) of Docusaurus Docs to learn more about translation management in a Docusaurus website (the engine behind Playground Docs).
+To learn more about how Docusaurus manages translations, see the [Internationalization section](https://docusaurus.io/docs/i18n/introduction) of the official Docusaurus documentation.
 :::
 -->
 
 :::info
-Consulta la [sección de Internacionalización](https://docusaurus.io/docs/i18n/introduction) de la documentación de Docusaurus para aprender más sobre la gestión de traducciones en un sitio web de Docusaurus (el motor detrás de la documentación de Playground).
+Para aprender más sobre cómo Docusaurus gestiona las traducciones, consulta la [sección de Internacionalización](https://docusaurus.io/docs/i18n/introduction) de la documentación oficial de Docusaurus.
 :::
 
 <!--
-Languages available for the Docs site are defined on `packages/docs/site/docusaurus.config.js`. For example:
+### Configuration
 -->
 
-Los idiomas disponibles para el sitio de documentación se definen en `packages/docs/site/docusaurus.config.js`. Por ejemplo:
+### Configuración
+
+<!--
+Available languages are defined in the `packages/docs/site/docusaurus.config.js` file. For example:
+-->
+
+Los idiomas disponibles se definen en el archivo `packages/docs/site/docusaurus.config.js`. Por ejemplo:
 
 ```
 i18n: {
@@ -77,50 +79,58 @@ i18n: {
 ```
 
 <!--
-Translated docs pages are located in the [WordPress/wordpress-playground](https://github.com/WordPress/wordpress-playground) repository.
+### File Structure
 -->
 
-Las páginas de documentación traducidas se encuentran en el repositorio [WordPress/wordpress-playground](https://github.com/WordPress/wordpress-playground).
+### Estructura de archivos
 
 <!--
-Under `packages/docs/site/i18n/`, there's a folder for each language.
-For example, for `es` (Spanish), there's a `packages/docs/site/i18n/es` folder.
+All translated documentation pages are located within the `packages/docs/site/i18n/` directory, organized by language code.
 -->
 
-Dentro de `packages/docs/site/i18n/`, hay una carpeta para cada idioma.
-Por ejemplo, para `es` (español), hay una carpeta `packages/docs/site/i18n/es`.
+Todas las páginas de documentación traducidas se encuentran dentro del directorio `packages/docs/site/i18n/`, organizadas por código de idioma.
 
 <!--
-Under each language folder, there should be a `docusaurus-plugin-content-docs/current` folder.
-For example, for `es` (Spanish), there's a `packages/docs/site/i18n/es/docusaurus-plugin-content-docs/current` folder.
+For a language to work correctly, its file structure must mirror the original English documentation found in `packages/docs/site/docs`.
 -->
 
-Dentro de cada carpeta de idioma, debería haber una carpeta `docusaurus-plugin-content-docs/current`.
-Por ejemplo, para `es` (español), hay una carpeta `packages/docs/site/i18n/es/docusaurus-plugin-content-docs/current`.
+Para que un idioma funcione correctamente, su estructura de archivos debe reflejar la documentación original en inglés que se encuentra en `packages/docs/site/docs`.
 
 <!--
-Under `docusaurus-plugin-content-docs/current`, the same structure of files of the original docs (same structure of files as) under `packages/docs/site/docs`) should be replicated.
+For example, the Spanish (es) translation for `docs/main/intro.md` must be placed at:
+packages`/docs/site/i18n/es/docusaurus-plugin-content-docs/current/main/intro.md`.
 -->
 
-Dentro de `docusaurus-plugin-content-docs/current`, se debe replicar la misma estructura de archivos de la documentación original (la misma estructura de archivos que se encuentra en `packages/docs/site/docs`).
+Por ejemplo, la traducción al español (es) de `docs/main/intro.md` debe ubicarse en:
+`packages/docs/site/i18n/es/docusaurus-plugin-content-docs/current/main/intro.md`.
 
 <!--
-For example, for `es` (Spanish), the following translated files exist: `packages/docs/site/i18n/es/docusaurus-plugin-content-docs/current/main/intro.md`
+If a translated file does not exist for a specific language, Docusaurus will automatically fall back to the English version of that page.
 -->
 
-Por ejemplo, para `es` (español), existen los siguientes archivos traducidos: `packages/docs/site/i18n/es/docusaurus-plugin-content-docs/current/main/intro.md`
+Si un archivo traducido no existe para un idioma específico, Docusaurus automáticamente recurrirá a la versión en inglés de esa página.
 
 <!--
-If a file is not available under a language's folder, the original file in the default language will be loaded.
+### Generating Translation Files
 -->
 
-Si un archivo no está disponible en la carpeta de un idioma, se cargará el archivo original en el idioma por defecto.
+### Generación de archivos de traducción
 
 <!--
-When a new language is added (see PR [#1807](https://github.com/WordPress/wordpress-playground/pull/1807)), you can run `npm run write-translations -- --locale <%LANGUAGE%>` from `packages/docs/site` to generate the JSON files containing messages that can be translated into a specific language.
+When adding a new language, you can generate the necessary JSON files for UI strings (like button labels and navigation items) by running the following command from the `packages/docs/site` directory:
 -->
 
-Cuando se añade un nuevo idioma (ver PR [#1807](https://github.com/WordPress/wordpress-playground/pull/1807)), puedes ejecutar `npm run write-translations -- --locale <%LANGUAGE%>` desde `packages/docs/site` para generar los archivos JSON que contienen los mensajes que se pueden traducir a un idioma específico.
+Al agregar un nuevo idioma, puedes generar los archivos JSON necesarios para las cadenas de la interfaz de usuario (como etiquetas de botones y elementos de navegación) ejecutando el siguiente comando desde el directorio `packages/docs/site`:
+
+<!--
+```bash
+npm run write-translations -- --locale <LANGUAGE_CODE>
+```
+-->
+
+```bash
+npm run write-translations -- --locale <LANGUAGE_CODE>
+```
 
 <!--
 With the proper i18n `docusaurus.config.js` configuration and files under `i18n` when running `npm run build:docs` from the root of the project, specific folders under `dist` for each language will be created.
@@ -129,91 +139,66 @@ With the proper i18n `docusaurus.config.js` configuration and files under `i18n`
 Con la configuración adecuada de i18n en `docusaurus.config.js` y los archivos en `i18n`, al ejecutar `npm run build:docs` desde la raíz del proyecto, se crearán carpetas específicas para cada idioma en `dist`.
 
 <!--
-## How to locally test a language
+## Testing Translations Locally
 -->
 
-## Cómo probar un idioma localmente
+## Prueba de traducciones localmente
 
 <!--
-To locally test an existing language, you can do:
+To preview your changes for an existing language:
 -->
 
-Para probar un idioma existente localmente, puedes hacer lo siguiente:
+Para previsualizar tus cambios para un idioma existente:
 
 <!--
--   Modify (translate) any file under one of the available languages: `packages/docs/site/i18n/{%LANGUAGE%}/docusaurus-plugin-content-docs/current`
--   From `/packages/docs/site` run the version for the language you'd like to test. For example, to test `es`:
+1. Modify or add a translated file in the appropriate language directory, such as `packages/docs/site/i18n/es/docusaurus-plugin-content-docs/current/`.
+2. From the `/packages/docs/site` directory, run the local development server for your target language. For example, to test Spanish (es):
 -->
 
--   Modifica (traduce) cualquier archivo en uno de los idiomas disponibles: `packages/docs/site/i18n/{%LANGUAGE%}/docusaurus-plugin-content-docs/current`
--   Desde `/packages/docs/site` ejecuta la versión para el idioma que te gustaría probar. Por ejemplo, para probar `es`:
+1. Modifica o agrega un archivo traducido en el directorio del idioma apropiado, como `packages/docs/site/i18n/es/docusaurus-plugin-content-docs/current/`.
+2. Desde el directorio `/packages/docs/site`, ejecuta el servidor de desarrollo local para tu idioma de destino. Por ejemplo, para probar español (es):
 
-```
+```bash
 
-npm run dev:docs -- --locale es
-
-```
-
-<!--
-## Language Switcher - UI element to change language
--->
-
-## Selector de idioma - Elemento de la interfaz de usuario para cambiar de idioma
-
-<!--
-The "Language Switcher" is a UI element provided by Docusaurus (the docs engine behind Playground Docs) that allows users to change the language of a specific page.
--->
-
-El "Selector de idioma" es un elemento de la interfaz de usuario proporcionado por Docusaurus (el motor de documentación detrás de Playground Docs) que permite a los usuarios cambiar el idioma de una página específica.
-
-<!--
-To give more visibility to a translated version, the language switcher can be displayed by adding the following lines to `packages/docs/site/docusaurus.config.js`
--->
-
-Para dar más visibilidad a una versión traducida, se puede mostrar el selector de idioma añadiendo las siguientes líneas a `packages/docs/site/docusaurus.config.js`
-
-```
-
-{
-  type: 'localeDropdown',
-  position: 'right',
-},
+npm run dev -- --locale es
 
 ```
 
 <!--
-This will generate a dropdown in the header to access directly to a language version of each file.
+## The Language Switcher
 -->
 
-Esto generará un menú desplegable en la cabecera para acceder directamente a la versión de cada archivo en un idioma.
+## El selector de idioma
 
 <!--
-It's strongly recommended that a specific language is activated in this Dropdown only when there's a fair amount of pages translated. If it's activated with a few pages translated, the user's experience will be that whenever they switch to the language, no page will be translated into that language.
+The language switcher is a dropdown menu that allows users to select their preferred language.
 -->
 
-Se recomienda encarecidamente que un idioma específico se active en este menú desplegable solo cuando haya una cantidad considerable de páginas traducidas. Si se activa con pocas páginas traducidas, la experiencia del usuario será que cada vez que cambie de idioma, ninguna página estará traducida a ese idioma.
+El selector de idioma es un menú desplegable que permite a los usuarios seleccionar su idioma preferido.
+
+<!--
+![Documentation Language Switcher](@site/static/img/contributing/language-switcher-docs.webp)
+-->
+
+![Selector de idioma de la documentación](@site/static/img/contributing/language-switcher-docs.webp)
 
 <!--
 ### Making a language publicly available on the Language Switcher
 -->
 
-### Hacer que un idioma esté disponible públicamente en el Selector de idioma
+### Hacer que un idioma esté disponible públicamente en el selector de idioma
 
 <!--
-All languages are available once the i18n setup for a language is complete and the correct file structure is in place under `i18n`.
+We recommend only adding a language to the switcher when a significant portion of the documentation has been translated. This avoids a poor user experience where switching to a new language results in seeing mostly untranslated English content.
 -->
 
-Todos los idiomas están disponibles una vez que la configuración de i18n para un idioma está completa y la estructura de archivos correcta está en su lugar en `i18n`.
-
--   https://wordpress.github.io/wordpress-playground/
--   https://wordpress.github.io/wordpress-playground/es/
--   https://wordpress.github.io/wordpress-playground/fr/
+Recomendamos solo agregar un idioma al selector cuando una porción significativa de la documentación haya sido traducida. Esto evita una mala experiencia de usuario donde cambiar a un nuevo idioma resulta en ver principalmente contenido en inglés sin traducir.
 
 <!--
-These language versions of the docs should be hidden on the language switcher hidden until there's a fair amount of pages translated for that language. To be more precise, the recommendation is only to make a language publicly available on the Language Switcher when at least the [Documentation](https://wordpress.github.io/wordpress-playground/) section is completely translated for a specific language, including the following sections:
+As a guideline, a language should be made publicly available in the switcher only when the entire "Documentation" hub is translated, including these key sections:
 -->
 
-Estas versiones de la documentación en otros idiomas deben estar ocultas en el selector de idioma hasta que haya una cantidad considerable de páginas traducidas para ese idioma. Para ser más precisos, la recomendación es hacer que un idioma esté disponible públicamente en el Selector de idioma solo cuando al menos la sección de [Documentación](https://wordpress.github.io/wordpress-playground/) esté completamente traducida para un idioma específico, incluyendo las siguientes secciones:
+Como guía, un idioma solo debe estar públicamente disponible en el selector cuando todo el hub de "Documentación" esté traducido, incluyendo estas secciones clave:
 
 <!--
 -   [Quick Start Guide](https://wordpress.github.io/wordpress-playground/quick-start-guide)
@@ -232,16 +217,20 @@ Estas versiones de la documentación en otros idiomas deben estar ocultas en el 
 -   [Enlaces y Recursos](https://wordpress.github.io/wordpress-playground/resources)
 
 <!--
-Even if the language switcher doesn't display a specific language, work on adding translated pages can still progress, as the translated pages will become publicly available once the PRs containing the translated files are merged.
+All languages are available once the i18n setup for a language is complete and the correct file structure is in place under `i18n`.
 -->
 
-Incluso si el selector de idioma no muestra un idioma específico, el trabajo de añadir páginas traducidas puede continuar, ya que las páginas traducidas estarán disponibles públicamente una vez que se fusionen los PRs que contienen los archivos traducidos.
+Todos los idiomas están disponibles una vez que la configuración de i18n para un idioma está completa y la estructura de archivos correcta está en su lugar bajo `i18n`.
+
+-   https://wordpress.github.io/wordpress-playground/
+-   https://wordpress.github.io/wordpress-playground/es/
+-   https://wordpress.github.io/wordpress-playground/fr/
 
 <!--
 Assuming the `fr` language is the first language with the Documentation hub pages (Quick Start Guide, Playground web instance, About Playground, Guides,... ) completely translated to French, the `docusaurus.config.js` should look like this in that branch so `npm run build:docs` properly generate the `fr` subsite and only displays the french language in the `localeDropdown` language switcher.
 -->
 
-Suponiendo que el idioma `fr` es el primer idioma con las páginas del hub de Documentación (Guía de inicio rápido, instancia web de Playground, Acerca de Playground, Guías,...) completamente traducidas al francés, el `docusaurus.config.js` debería verse así en esa rama para que `npm run build:docs` genere correctamente el subsitio `fr` y solo muestre el idioma francés en el selector de idioma `localeDropdown`.
+Suponiendo que el idioma `fr` es el primer idioma con las páginas del hub de Documentación (Guía de inicio rápido, Instancia web de Playground, Acerca de Playground, Guías,...) completamente traducidas al francés, el `docusaurus.config.js` debería verse así en esa rama para que `npm run build:docs` genere correctamente el subsitio `fr` y solo muestre el idioma francés en el selector de idioma `localeDropdown`.
 
 ```
   {
@@ -271,83 +260,452 @@ Suponiendo que el idioma `fr` es el primer idioma con las páginas del hub de Do
 ```
 
 <!--
-### Testing the Language Switcher locally
+## Translation Workflow
 -->
 
-### Probar el Selector de idioma localmente
+## Flujo de trabajo de traducción
 
 <!--
-Regarding testing the `localeDropdown` locally, I have found that although it is displayed locally, it doesn't work locally as expected, as the translated pages are not found. But it seems to work well in production.
+Follow these steps to translate a page:
 -->
 
-En cuanto a probar el `localeDropdown` localmente, he descubierto que aunque se muestra localmente, no funciona como se esperaba, ya que no se encuentran las páginas traducidas. Pero parece que funciona bien en producción.
+Sigue estos pasos para traducir una página:
 
 <!--
-You can test the `localeDropdown` from any fork and do so from the root of the project:
+1. **Check for an Existing Translation Issue**: First, [search the repository issues](https://github.com/WordPress/wordpress-playground/issues?q=is%3Aissue%20state%3Aopen%20%5Btranslation%5D%20progress) to see if a tracking issue for your desired language already exists. If it does, comment on the issue to claim the page(s) you would like to translate.
+2. **Create a New Translation Issue**: If no issue exists, please create a new one to track the translation progress for the language. You can model it after issue [#2202](https://github.com/WordPress/wordpress-playground/issues/2202) and use the markdown checklist below to track progress.
+3. **Translate the File**:
 -->
 
-Puedes probar el `localeDropdown` desde cualquier fork y hacerlo desde la raíz del proyecto:
+1. **Buscar una issue de traducción existente**: Primero, [busca en las issues del repositorio](https://github.com/WordPress/wordpress-playground/issues?q=is%3Aissue%20state%3Aopen%20%5Btranslation%5D%20progress) para ver si ya existe una issue de seguimiento para tu idioma deseado. Si existe, comenta en la issue para reclamar la(s) página(s) que te gustaría traducir.
+2. **Crear una nueva issue de traducción**: Si no existe ninguna issue, por favor crea una nueva para rastrear el progreso de la traducción para el idioma. Puedes modelarla según la issue [#2202](https://github.com/WordPress/wordpress-playground/issues/2202) y usar la lista de verificación en markdown a continuación para rastrear el progreso.
+3. **Traducir el archivo**:
+
+<!--
+-   Check if you have the latest version of the documentation
+-   Copy the original .md file from `packages/docs/site/docs/...` to the corresponding path in the language directory (e.g., `packages/docs/site/i18n/<LANGUAGE_CODE>/...`). It is crucial to replicate the original file structure.
+-   Translate the content of the new file, keeping the original content commented out `<!-- English Content -->`.
+
+-   The assets are listed at `packages/docs/site/static/img/` only place assets inside the translation folder when it requires localized content.
+-   Once the translations are ready, check if the docs build script is running properly `npm run build:docs`.
+    -->
+
+-   Verifica que tengas la última versión de la documentación
+-   Copia el archivo .md original de `packages/docs/site/docs/...` a la ruta correspondiente en el directorio del idioma (por ejemplo, `packages/docs/site/i18n/<LANGUAGE_CODE>/...`). Es crucial replicar la estructura de archivos original.
+-   Traduce el contenido del nuevo archivo, manteniendo el contenido original comentado `<!-- English Content -->`.
+-   Los recursos están listados en `packages/docs/site/static/img/` solo coloca recursos dentro de la carpeta de traducción cuando requiera contenido localizado.
+-   Una vez que las traducciones estén listas, verifica si el script de compilación de documentación se ejecuta correctamente `npm run build:docs`.
+
+<!--
+4. **Create a pull request with your changes**
+-->
+
+4. **Crear un pull request con tus cambios**
+
+<!--
+-   Add a prefix to the title `[i18n]` to help to identify the translations
+-   Describe the pages that you translated
+-   Request a review at `#playground` or `#polyglots` at `wordpress.slack.com`
+-->
+
+-   Agrega un prefijo al título `[i18n]` para ayudar a identificar las traducciones
+-   Describe las páginas que tradujiste
+-   Solicita una revisión en `#playground` o `#polyglots` en `wordpress.slack.com`
+
+<!--
+:::info
+We highly recommend submitting pull requests with a small number of translated pages. This approach simplifies the review process and allows for a more gradual and manageable integration of your work.
+:::
+-->
+
+:::info
+Recomendamos encarecidamente enviar pull requests con un número pequeño de páginas traducidas. Este enfoque simplifica el proceso de revisión y permite una integración más gradual y manejable de tu trabajo.
+:::
+
+<!--
+### Translation Tracking Template
+-->
+
+### Plantilla de seguimiento de traducción
+
+<!--
+You can use the following markdown in your tracking issue:
+-->
+
+Puedes usar el siguiente markdown en tu issue de seguimiento:
+
+<!--
+```
+## Remaining translation pages
+
+<details open>
+<summary><h3>Main</h3></summary>
+
+- about
+  - [ ] build.md #2291
+  - [ ] index.md #2282
+  - [ ] launch.md #2292
+  - [ ] test.md #2302
+- contributing
+  - [ ] code.md #2218
+  - [ ] coding-standards.md #2219
+  - [ ] contributor-day.md #2246
+  - [ ] contributor-badge.md
+  - [ ] documentation.md #2271
+  - [ ] translations.md #2201
+- guides
+  - [ ] for-plugin-developers.md #2210
+  - [ ] for-theme-developers.md #2211
+  - [ ] index.md #2209
+  - [ ] providing-content-for-your-demo.md #2213
+  - [ ] wordpress-native-ios-app.md #2214
+- [ ] intro.md #2198
+- [ ] quick-start-guide.md #2204
+- [ ] resources.md #2207
+- [ ] web-instance.md #2208
+
+</details>
+
+<details open>
+<summary><h3>Blueprints</h3></summary>
+
+- blueprints
+  - [ ] 01-index.md #2305
+  - [ ] 02-using-blueprints.md #2330
+  - [ ] 03-data-format.md #2340
+   - [ ] 04-resources.md #2352
+   - [ ] 05-steps-shorthands.md  #2386
+  - [ ] 05-steps.md  #2386
+  - [ ] 06-bundles.md #2438
+   - [ ] 07-json-api-and-function-api.md #2438
+   - [ ] 08-examples.md #2474
+   - [ ] 09-troubleshoot-and-debug-blueprints.md #2474
+   - [ ] intro.md #2489
+   - tutorial
+       - [ ] 01-what-are-blueprints-what-you-can-do-with-them.md #2511
+       - [ ] 02-how-to-load-run-blueprints.md #2526
+       - [ ] 03-build-your-first-blueprint.md
+       - [ ] index.md #2511
+</details>
+
+<details open>
+<summary><h3>Developers</h3></summary>
+
+- [ ] developers
+   - [ ] 03-build-an-app
+      - [ ] 01-index.md
+   - [ ] 05-local-development
+      - [ ] 01-wp-now.md
+      - [ ] 02-vscode-extension.md
+      - [ ] 03-php-wasm-node.md
+      - [ ] intro.md
+   - [ ] 06-apis
+      - [ ] 01-index.md
+      - [ ] javascript-api
+         - [ ] 01-index.md
+         - [ ] 02-index-html-vs-remote-html.md
+         - [ ] 03-playground-api-client.md
+         - [ ] 04-blueprint-json-in-api-client.md
+         - [ ] 05-blueprint-functions-in-api-client.md
+         - [ ] 06-mount-data.md
+      - [ ] query-api
+          - [ ] 01-index.md
+   - [ ] 23-architecture
+      - [ ] 01-index.md
+      - [ ] 02-wasm-php-overview.md
+      - [ ] 03-wasm-php-compiling.md
+      - [ ] 04-wasm-php-javascript-module.md
+      - [ ] 05-wasm-php-filesystem.md
+      - [ ] 07-wasm-asyncify.md
+      - [ ] 08-browser-concepts.md
+      - [ ] 09-browser-tab-orchestrates-execution.md
+      - [ ] 10-browser-iframe-rendering.md
+      - [ ] 11-browser-php-worker-threads.md
+      - [ ] 12-browser-service-workers.md
+      - [ ] 13-browser-scopes.md
+      - [ ] 14-browser-cross-process-communication.md
+      - [ ] 15-wordpress.md
+      - [ ] 16-wordpress-database.md
+      - [ ] 17-browser-wordpress.md
+      - [ ] 18-host-your-own-playground.md
+   - [ ] 24-limitations
+      - [ ] 01-index.md
+   - [ ] intro-devs.md
+</details>
+```
+-->
 
 ```
-npm run build:docs
-npm run deploy:docs
+## Remaining translation pages
+
+<details open>
+<summary><h3>Main</h3></summary>
+
+- about
+  - [ ] build.md #2291
+  - [ ] index.md #2282
+  - [ ] launch.md #2292
+  - [ ] test.md #2302
+- contributing
+  - [ ] code.md #2218
+  - [ ] coding-standards.md #2219
+  - [ ] contributor-day.md #2246
+  - [ ] contributor-badge.md
+  - [ ] documentation.md #2271
+  - [ ] translations.md #2201
+- guides
+  - [ ] for-plugin-developers.md #2210
+  - [ ] for-theme-developers.md #2211
+  - [ ] index.md #2209
+  - [ ] providing-content-for-your-demo.md #2213
+  - [ ] wordpress-native-ios-app.md #2214
+- [ ] intro.md #2198
+- [ ] quick-start-guide.md #2204
+- [ ] resources.md #2207
+- [ ] web-instance.md #2208
+
+</details>
+
+<details open>
+<summary><h3>Blueprints</h3></summary>
+
+- blueprints
+  - [ ] 01-index.md #2305
+  - [ ] 02-using-blueprints.md #2330
+  - [ ] 03-data-format.md #2340
+   - [ ] 04-resources.md #2352
+   - [ ] 05-steps-shorthands.md  #2386
+  - [ ] 05-steps.md  #2386
+  - [ ] 06-bundles.md #2438
+   - [ ] 07-json-api-and-function-api.md #2438
+   - [ ] 08-examples.md #2474
+   - [ ] 09-troubleshoot-and-debug-blueprints.md #2474
+   - [ ] intro.md #2489
+   - tutorial
+       - [ ] 01-what-are-blueprints-what-you-can-do-with-them.md #2511
+       - [ ] 02-how-to-load-run-blueprints.md #2526
+       - [ ] 03-build-your-first-blueprint.md
+       - [ ] index.md #2511
+</details>
+
+<details open>
+<summary><h3>Developers</h3></summary>
+
+- [ ] developers
+   - [ ] 03-build-an-app
+      - [ ] 01-index.md
+   - [ ] 05-local-development
+      - [ ] 01-wp-now.md
+      - [ ] 02-vscode-extension.md
+      - [ ] 03-php-wasm-node.md
+      - [ ] intro.md
+   - [ ] 06-apis
+      - [ ] 01-index.md
+      - [ ] javascript-api
+         - [ ] 01-index.md
+         - [ ] 02-index-html-vs-remote-html.md
+         - [ ] 03-playground-api-client.md
+         - [ ] 04-blueprint-json-in-api-client.md
+         - [ ] 05-blueprint-functions-in-api-client.md
+         - [ ] 06-mount-data.md
+      - [ ] query-api
+          - [ ] 01-index.md
+   - [ ] 23-architecture
+      - [ ] 01-index.md
+      - [ ] 02-wasm-php-overview.md
+      - [ ] 03-wasm-php-compiling.md
+      - [ ] 04-wasm-php-javascript-module.md
+      - [ ] 05-wasm-php-filesystem.md
+      - [ ] 07-wasm-asyncify.md
+      - [ ] 08-browser-concepts.md
+      - [ ] 09-browser-tab-orchestrates-execution.md
+      - [ ] 10-browser-iframe-rendering.md
+      - [ ] 11-browser-php-worker-threads.md
+      - [ ] 12-browser-service-workers.md
+      - [ ] 13-browser-scopes.md
+      - [ ] 14-browser-cross-process-communication.md
+      - [ ] 15-wordpress.md
+      - [ ] 16-wordpress-database.md
+      - [ ] 17-browser-wordpress.md
+      - [ ] 18-host-your-own-playground.md
+   - [ ] 24-limitations
+      - [ ] 01-index.md
+   - [ ] intro-devs.md
+</details>
 ```
 
 <!--
-This generates three versions of the docs in the GitHub Pages of my forked repo:
+### Translating with the GitHub Web Interface
 -->
 
-Esto genera tres versiones de la documentación en las Páginas de GitHub de mi repositorio "forkeado":
-
-```
-https://<%GH-USER-WITH-FORK%>.github.io/wordpress-playground/
-https://<%GH-USER-WITH-FORK%>.github.io/wordpress-playground/es/
-https://<%GH-USER-WITH-FORK%>.github.io/wordpress-playground/fr/
-```
+### Traducir con la interfaz web de GitHub
 
 <!--
-A possible approach to testing the `localeDropdown` feature is to deploy it to the GitHub Pages of a forked repository.
+If you prefer not to use developer tools, you can easily contribute translations directly on the GitHub website. All you need is a free GitHub account.
 -->
 
-Un posible enfoque para probar la función `localeDropdown` es desplegarla en las Páginas de GitHub de un repositorio "forkeado".
+Si prefieres no usar herramientas de desarrollador, puedes contribuir fácilmente con traducciones directamente en el sitio web de GitHub. Todo lo que necesitas es una cuenta gratuita de GitHub.
 
 <!--
-## Process to translate one page into a language
+This guide will show you how to both update an existing translation and add a brand-new one.
 -->
 
-## Proceso para traducir una página a un idioma
+Esta guía te mostrará cómo actualizar una traducción existente y agregar una nueva.
+
+---
 
 <!--
-The recommended process is to copy and paste the `.md` file from the original path (`packages/docs/site/docs`) into the desired language path ( `packages/docs/site/i18n/{%LANGUAGE%}/docusaurus-plugin-content-docs/current`). It is important to replicate the structure of files at `packages/docs/site/docs`
+#### Updating an Existing Translation
 -->
 
-El proceso recomendado es copiar y pegar el archivo `.md` desde la ruta original (`packages/docs/site/docs`) a la ruta del idioma deseado (`packages/docs/site/i18n/{%LANGUAGE%}/docusaurus-plugin-content-docs/current`). Es importante replicar la estructura de archivos que hay en `packages/docs/site/docs`.
+#### Actualizar una traducción existente
 
 <!--
-The file under `packages/docs/site/i18n/{%LANGUAGE%}/docusaurus-plugin-content-docs/current` can be translated, and a PR can be created with the new changes.
+1.  **Navigate to the file.** Go to the repository and find the file you want to update. Translation files are located in a folder named after their language code. For example, all French translations are in `packages/docs/site/i18n/fr/docusaurus-plugin-content-docs/current/`.
 -->
 
-El archivo en `packages/docs/site/i18n/{%LANGUAGE%}/docusaurus-plugin-content-docs/current` puede ser traducido, y se puede crear un PR con los nuevos cambios.
+1.  **Navega al archivo.** Ve al repositorio y encuentra el archivo que deseas actualizar. Los archivos de traducción están ubicados en una carpeta nombrada según su código de idioma. Por ejemplo, todas las traducciones al francés están en `packages/docs/site/i18n/fr/docusaurus-plugin-content-docs/current/`.
 
 <!--
-When the PR is merged, the translated version of that page should appear under https://wordpress.github.io/wordpress-playground/{%LANGUAGE%}
+2.  **Open the editor.** Select the file you wish to edit and click the pencil icon (**Edit this file**) in the upper right corner.
+    ![Editing existing translation](@site/static/img/contributing/editing-translations.webp)
 -->
 
-Cuando el PR se fusione, la versión traducida de esa página debería aparecer en https://wordpress.github.io/wordpress-playground/{%LANGUAGE%}
+2.  **Abre el editor.** Selecciona el archivo que deseas editar y haz clic en el icono de lápiz (**Edit this file**) en la esquina superior derecha.
+    ![Editando traducción existente](@site/static/img/contributing/editing-translations.webp)
 
 <!--
-## Review process
+3.  **Fork the repository.** GitHub will automatically prompt you to **Fork this repository**. This creates a personal copy for you to edit safely. Click the button to proceed.
+-->
+
+3.  **Haz fork del repositorio.** GitHub automáticamente te pedirá **Fork this repository**. Esto crea una copia personal para que puedas editar de forma segura. Haz clic en el botón para continuar.
+
+<!--
+4.  **Make your changes.** The editor will open in your browser. Update the text with your improved translations.
+-->
+
+4.  **Haz tus cambios.** El editor se abrirá en tu navegador. Actualiza el texto con tus traducciones mejoradas.
+
+<!--
+5.  **Propose your changes.** Once you are finished, scroll to the bottom of the page. Add a brief title and description of your changes (e.g., "Fixing typos in French translation") and click the **Propose changes** button.
+-->
+
+5.  **Propón tus cambios.** Una vez que hayas terminado, desplázate hasta la parte inferior de la página. Agrega un título breve y una descripción de tus cambios (por ejemplo, "Corrigiendo errores tipográficos en la traducción al francés") y haz clic en el botón **Propose changes**.
+
+<!--
+6.  **Create a Pull Request.** On the next screen, click the **Create pull request** button. This will submit your changes to the project maintainers for review.
+-->
+
+6.  **Crea un Pull Request.** En la siguiente pantalla, haz clic en el botón **Create pull request**. Esto enviará tus cambios a los mantenedores del proyecto para su revisión.
+
+---
+
+<!--
+#### Adding a New Translation
+-->
+
+#### Agregar una nueva traducción
+
+<!--
+1.  **Determine the correct file path.** The new file's path and name must mirror the original English file.
+
+    -   **English original:** `packages/docs/site/docs/main/contributing/documentation.md`
+    -   **French translation:** `packages/docs/site/i18n/fr/docusaurus-plugin-content-docs/current/main/contributing/documentation.md`
+-->
+
+1.  **Determina la ruta correcta del archivo.** La ruta y el nombre del nuevo archivo deben reflejar el archivo original en inglés.
+
+    -   **Original en inglés:** `packages/docs/site/docs/main/contributing/documentation.md`
+    -   **Traducción al francés:** `packages/docs/site/i18n/fr/docusaurus-plugin-content-docs/current/main/contributing/documentation.md`
+
+<!--
+2.  **Create the new file.** Navigate to the correct language folder (e.g., `/packages/docs/site/i18n/fr/docusaurus-plugin-content-docs/current/`). Click **Add file** > **Create new file**.
+    ![Creating a new translation](@site/static/img/contributing/adding-file-github-ui.webp)
+
+    -   **Pro Tip:** In the filename box, you can create new folders by typing the folder name followed by a `/`. For example, typing `main/contributing/documentation.md` will create the `main` and `contributing` folders automatically.
+-->
+
+2.  **Crea el nuevo archivo.** Navega a la carpeta del idioma correcto (por ejemplo, `/packages/docs/site/i18n/fr/docusaurus-plugin-content-docs/current/`). Haz clic en **Add file** > **Create new file**.
+    ![Creando una nueva traducción](@site/static/img/contributing/adding-file-github-ui.webp)
+
+    -   **Consejo profesional:** En el cuadro de nombre de archivo, puedes crear nuevas carpetas escribiendo el nombre de la carpeta seguido de un `/`. Por ejemplo, escribir `main/contributing/documentation.md` creará las carpetas `main` y `contributing` automáticamente.
+
+<!--
+3.  **Fork the repository.** Just like before, GitHub will prompt you to **Fork this repository**. Click the button to create your personal copy.
+-->
+
+3.  **Haz fork del repositorio.** Al igual que antes, GitHub te pedirá **Fork this repository**. Haz clic en el botón para crear tu copia personal.
+
+<!--
+4.  **Add the translated content.** The editor will open with an empty file. For the convenience of reviewers, please copy the content from the original English file and paste it into your new file, wrapping it in comment tags. Add your translation below it.
+
+    ```markdown
+    <!--
+    This is the original English content.
+    It helps reviewers understand the context of the translation.
+    -->
+
+    Ceci est le contenu traduit en français.
+    ```
+
+    ![GitHub UI Editor](@site/static/img/contributing/editor-github-ui.webp)
+
+-->
+
+4.  **Agrega el contenido traducido.** El editor se abrirá con un archivo vacío. Para la comodidad de los revisores, por favor copia el contenido del archivo original en inglés y pégalo en tu nuevo archivo, envolviéndolo en etiquetas de comentario. Agrega tu traducción debajo.
+
+    ```markdown
+    <!--
+    This is the original English content.
+    It helps reviewers understand the context of the translation.
+    -->
+
+    Este es el contenido traducido al español.
+    ```
+
+    ![Editor de interfaz de GitHub](@site/static/img/contributing/editor-github-ui.webp)
+
+<!--
+5.  **Commit the new file.** When you are done, scroll to the bottom. Add a title for your new file (e.g., "Add French translation for documentation.md") and click the **Commit new file** button.
+-->
+
+5.  **Confirma el nuevo archivo.** Cuando hayas terminado, desplázate hasta la parte inferior. Agrega un título para tu nuevo archivo (por ejemplo, "Agregar traducción al francés para documentation.md") y haz clic en el botón **Commit new file**.
+
+<!--
+6.  **Create a Pull Request.** On the next screen, click **Create pull request** to submit your new translation for review.
+-->
+
+6.  **Crea un Pull Request.** En la siguiente pantalla, haz clic en **Create pull request** para enviar tu nueva traducción para revisión.
+
+<!--
+## Review Process
 -->
 
 ## Proceso de revisión
 
 <!--
-To facilitate the reviewing process, we do recommend keeping the original content commented close to the translated content, for example:
+To simplify the review process, please keep the original English text as a comment directly above the translated content.
 -->
 
-Para facilitar el proceso de revisión, recomendamos mantener el contenido original comentado cerca del contenido traducido, por ejemplo:
+Para simplificar el proceso de revisión, por favor mantén el texto original en inglés como un comentario directamente encima del contenido traducido.
+
+<!--
+```
+<!--
+👋 Hi! Welcome to WordPress Playground documentation.
+
+Playground is an online tool to experiment and learn about WordPress. This site (Documentation) is where you will find all the information you need to start using Playground.
+-->
+
+👋 Olá! Bem vindo a documentação oficial do WordPress Playground.
+
+WordPress Playground é uma ferramenta online onde podes testar e aprender mais sobre o WordPress. Nesta página(Documentação) irá encontrar todas as informações necessárias para começar a trabalhar com o Playground.
 
 ```
+-->
+
+```
+
 <!--
 👋 Hi! Welcome to WordPress Playground documentation.
 
@@ -358,14 +716,27 @@ Playground is an online tool to experiment and learn about WordPress. This site 
 
 Playground es una herramienta en línea para experimentar y aprender sobre WordPress. Este sitio (Documentación) es donde encontrarás toda la información que necesitas para empezar a usar Playground.
 
-<!--
-<p class="docs-hubs">The WordPress Playground documentation is distributed across four separate hubs (subsites):</p>
--->
-<p class="docs-hubs">La documentación de WordPress Playground se distribuye en cuatro hubs (subsitios) separados:</p>
 ```
 
 <!--
-For an improved review process, find reviewers matching the PR's language. Request a reviewer by posting on https://make.wordpress.org/polyglots/ and include the locale tag (e.g., #ja for Japanese). This will notify the Japanese GTEs.
+:::info
+This practice also helps the maintenance team identify outdated translations. When the original English content is updated, we can search the codebase for the old text (now in comments) and flag the corresponding translation for review.
+:::
 -->
 
-Para un proceso de revisión mejorado, busca revisores que coincidan con el idioma del PR. Solicita un revisor publicando en https://make.wordpress.org/polyglots/ e incluye la etiqueta de la configuración regional (por ejemplo, #ja para japonés). Esto notificará a los GTEs japoneses.
+:::info
+Esta práctica también ayuda al equipo de mantenimiento a identificar traducciones desactualizadas. Cuando el contenido original en inglés se actualiza, podemos buscar en el código base el texto antiguo (ahora en comentarios) y marcar la traducción correspondiente para revisión.
+:::
+
+<!--
+To find a reviewer fluent in the language of your PR, you can post a request on the [Make WordPress Polyglots blog](https://make.wordpress.org/polyglots/). Be sure to include the locale tag (e.g., #ja for Japanese) to notify the appropriate General Translation Editors (GTEs).
+-->
+
+Para encontrar un revisor que hable con fluidez el idioma de tu PR, puedes publicar una solicitud en el [blog Make WordPress Polyglots](https://make.wordpress.org/polyglots/). Asegúrate de incluir la etiqueta de localización (por ejemplo, #ja para japonés) para notificar a los Editores Generales de Traducción (GTEs) apropiados.
+
+<!--
+When the PR is merged, the translated version of that page should appear under `https://wordpress.github.io/wordpress-playground/{%LANGUAGE%}`, if you are contributing for the first time request your [Contributor Badge](/contributing/contributor-badge).
+-->
+
+Cuando el PR se fusione, la versión traducida de esa página debería aparecer en `https://wordpress.github.io/wordpress-playground/{%LANGUAGE%}`, si estás contribuyendo por primera vez, solicita tu [Insignia de Contribuidor](/contributing/contributor-badge).
+```

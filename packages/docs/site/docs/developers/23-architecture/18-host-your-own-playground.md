@@ -39,9 +39,9 @@ In order of convenience and ease:
 
 ### Download pre-built package
 
-To host the Playground as is, without making changes, you can download the built artifact from [the latest successful GitHub Action](https://github.com/WordPress/wordpress-playground/actions/workflows/build-website.yml?query=is%3Asuccess).
+To host the Playground as is, without making changes, you can download the built artifact from [the latest successful GitHub Action](https://github.com/WordPress/wordpress-playground/actions/workflows/deploy-website.yml?query=is%3Asuccess).
 
--   Click on **Deploy to playground.wordpress.net**.
+-   Click on **Deploy Playground website**.
 -   In the section **Artifacts** at the bottom of the page, click `playground-website`.
 -   It's a zip package with the same files deployed to the public site.
 
@@ -49,7 +49,7 @@ To host the Playground as is, without making changes, you can download the built
 
 To customize the Playground, you can [fork the Git repository](https://github.com/WordPress/wordpress-playground/fork).
 
-Build it from the fork's GitHub page by going to: **Actions -> Deploy to playground.wordpress.net -> Run workflow**.
+Build it from the fork's GitHub page by going to: **Actions -> Deploy Playground website -> Run workflow**.
 
 ### Build locally
 

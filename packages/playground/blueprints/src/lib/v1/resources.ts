@@ -5,7 +5,7 @@ import {
 } from '@php-wasm/progress';
 import type { FileTree, UniversalPHP } from '@php-wasm/universal';
 import type { Semaphore } from '@php-wasm/util';
-import { dirname } from '@php-wasm/util';
+import { randomFilename } from '@php-wasm/util';
 import {
 	listDescendantFiles,
 	listGitFiles,
@@ -16,6 +16,7 @@ import { zipNameToHumanName } from '../utils/zip-name-to-human-name';
 import { fetchWithCorsProxy } from '@php-wasm/web';
 import { StreamedFile } from '@php-wasm/stream-compression';
 import type { StreamBundledFile } from './types';
+import { createDotGitDirectory } from '@wp-playground/storage';
 
 export type { FileTree };
 export const ResourceTypes = [
@@ -74,6 +75,8 @@ export type GitDirectoryReference = {
 	refType?: GitDirectoryRefType;
 	/** The path to the directory in the git repository. Defaults to the repo root. */
 	path?: string;
+	/** When true, include a `.git` directory with Git metadata (experimental). */
+	'.git'?: boolean;
 };
 export interface Directory {
 	files: FileTree;
@@ -579,31 +582,65 @@ export class GitDirectoryResource extends Resource<Directory> {
 
 		const requestedPath = (this.reference.path ?? '').replace(/^\/+/, '');
 		const filesToClone = listDescendantFiles(allFiles, requestedPath);
-		let files = await sparseCheckout(repoUrl, commitHash, filesToClone);
+		const checkout = await sparseCheckout(
+			repoUrl,
+			commitHash,
+			filesToClone,
+			{
+				withObjects: this.reference['.git'],
+			}
+		);
+		let files = checkout.files;
 
 		// Remove the path prefix from the cloned file names.
 		files = mapKeys(files, (name) =>
 			name.substring(requestedPath.length).replace(/^\/+/, '')
 		);
+		if (this.reference['.git']) {
+			const gitFiles = await createDotGitDirectory({
+				repoUrl: this.reference.url,
+				commitHash,
+				ref: this.reference.ref,
+				refType: this.reference.refType,
+				objects: checkout.objects ?? [],
+				fileOids: checkout.fileOids ?? {},
+				pathPrefix: requestedPath,
+			});
+			files = {
+				...gitFiles,
+				...files,
+			};
+		}
 		return {
-			name:
-				dirname(this.reference.path || '') ||
-				this.reference.url
-					.replaceAll(/[^a-zA-Z0-9-.]/g, '-')
-					.replaceAll(/-+/g, '-'),
+			name: this.filename,
 			files,
 		};
 	}
 
+	/**
+	 * Generate a nice, non-empty filename – the installPlugin step depends on it.
+	 */
+	get filename() {
+		return (
+			this.name
+				.replaceAll(/[^a-zA-Z0-9-.]/g, '-')
+				.replaceAll(/-+/g, '-')
+				.replace(/^[^a-zA-Z0-9]+|[^a-zA-Z0-9]+$/g, '') ||
+			randomFilename()
+		);
+	}
+
 	/** @inheritDoc */
 	get name() {
-		const path = this.reference.path ?? '';
-		if (!path) {
-			return this.reference.url
-				.replaceAll(/[^a-zA-Z0-9-.]/g, '-')
-				.replaceAll(/-+/g, '-');
-		}
-		return path.split('/').pop() || '';
+		return [
+			this.reference.url,
+			this.reference.ref ? `(${this.reference.ref})` : '',
+			this.reference.path?.replace(/^\/+/, '')
+				? `at ${this.reference.path}`
+				: '',
+		]
+			.filter((segment) => segment.length > 0)
+			.join(' ');
 	}
 }
 

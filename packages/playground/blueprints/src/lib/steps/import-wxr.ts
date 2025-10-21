@@ -61,6 +61,15 @@ async function importWithDefaultImporter(
 		data: file,
 	});
 	await playground.run({
+		$_SERVER: {
+			/**
+			 * get_site_url() infers the protocol from $_SERVER['HTTPS'] instead of
+			 * using the stored siteurl option. The importer relies on that behavior
+			 * when rewriting links in the WXR payload, so we populate the flag here
+			 * just as the web request layer would.
+			 */
+			HTTPS: (await playground.absoluteUrl).startsWith('https://') ? 'on' : '',
+		},
 		code: `<?php
 	define('WP_LOAD_IMPORTERS', true);
 	require 'wp-load.php';

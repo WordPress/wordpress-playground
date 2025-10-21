@@ -4,29 +4,17 @@ slug: /resources
 description: Uma lista de links úteis para aplicativos, ferramentas, artigos e vídeos para aprender mais sobre o WordPress Playground.
 ---
 
+# Links e Recursos
+
 <!--
 # Links and Resources
 -->
 
-# Links e Recursos
+:::tip
 
 <!--
-:::tip
-
 There's a set of redirections in place to make it easier the access to some of the tools related to Playground:
-
-<ul id="list-resources-redirections">
-<li><a href="https://playground.wordpress.net/"><strong>https://playground.wordpress.net/</strong></a> → Playground instance</li>
-<li><a href="https://playground.wordpress.net/docs">https://playground.wordpress.net<strong>/docs</strong></a> → Playground Docs</li>
-<li><a href="https://playground.wordpress.net/builder">https://playground.wordpress.net<strong>/builder</strong></a> → Playground Blueprints Builder</li>
-<li><a href="https://playground.wordpress.net/wordpress">https://playground.wordpress.net<strong>/wordpress</strong></a> → Playground PR viewer for WordPress</li>
-<li><a href="https://playground.wordpress.net/gutenberg">https://playground.wordpress.net<strong>/gutenberg</strong></a> → Playground PR viewer for Gutenberg</li>
-<li><a href="https://playground.wordpress.net/proxy">https://playground.wordpress.net<strong>/proxy</strong></a> → Playground Proxy Service <em>(see <a href="/blueprints/steps/resources#urlreference">URLReference</a> for more info)</em></li>
-</ul>
-:::
 -->
-
-:::tip
 
 Existe um conjunto de redirecionamentos para facilitar o acesso a algumas das ferramentas relacionadas ao Playground:
 
@@ -66,10 +54,10 @@ Existe um conjunto de redirecionamentos para facilitar o acesso a algumas das fe
 
 <!--
 -   [Official demo](https://playground.wordpress.net/) and the [showcase](https://developer.wordpress.org/playground) app – install a theme, try out a plugin, create a few pages, export what you've built
--   [wp-now](https://www.npmjs.com/package/%40wp-now/wp-now) – a CLI tool for instant WordPress dev envs
+-   [@wp-playground/cli](https://www.npmjs.com/package/@wp-playground/cli) – a CLI tool for instant WordPress dev enviroment
 -   [WordPress Playground for VS Code](https://marketplace.visualstudio.com/items?itemName=WordPressPlayground.wordpress-playground)
 -   Live Translations: [App](https://translate.wordpress.org/projects/wp-plugins/friends/dev/pl/default/playground/), [announcement](https://make.wordpress.org/polyglots/2023/04/19/wp-translation-playground/), [more details](https://make.wordpress.org/polyglots/2023/05/08/translate-live-updates-to-the-translation-playground/)
--   [Interactive code block](https://wordpress.org/plugins/interactive-code-block/) which powers the [HTML Tag Processor tutorial](https://adamadam.blog/2023/02/16/how-to-modify-html-in-a-php-wordpress-plugin-using-the-new-tag-processor-api/) and the [Playground JS API tutorial](https://adamadam.blog/2023/04/12/interactive-intro-to-wordpress-playground-public-api/)
+-   [Interactive code block](https://wordpress.org/plugins/interactive-code-block/) which powers the [HTML Tag Processor tutorial](https://adamadam.blog/2023/02/16/how-to-modify-html-in-a-php-wordpress-plugin-using-the-new-tag-processor-api/) and the [Playground JS API tutorial](https://wordpress.github.io/wordpress-playground/developers/apis/javascript-api/)
 -   [Gutenberg Pull Request previewer](https://playground.wordpress.net/gutenberg.html)
 -   [Notifications plugin live demo](https://johnhooks.io/playground-experiment/)
 -   [GraphQL REPL](https://www.wpgraphql.com/2023/06/15/announcing-the-wpgraphql-repl)
@@ -84,10 +72,10 @@ Existe um conjunto de redirecionamentos para facilitar o acesso a algumas das fe
 -->
 
 -   [Demonstração oficial](https://playground.wordpress.net/) e a aplicação de [vitrine](https://developer.wordpress.org/playground) – instale um tema, experimente um plugin, crie algumas páginas, exporte o que você construiu
--   [wp-now](https://www.npmjs.com/package/%40wp-now/wp-now) – uma ferramenta CLI para ambientes de desenvolvimento WordPress instantâneos
+-   [@wp-playground/cli](https://www.npmjs.com/package/@wp-playground/cli) – uma ferramenta CLI para ambientes de desenvolvimento WordPress instantâneos
 -   [WordPress Playground para VS Code](https://marketplace.visualstudio.com/items?itemName=WordPressPlayground.wordpress-playground)
 -   Traduções ao vivo: [Aplicação](https://translate.wordpress.org/projects/wp-plugins/friends/dev/pl/default/playground/), [anúncio](https://make.wordpress.org/polyglots/2023/04/19/wp-translation-playground/), [mais detalhes](https://make.wordpress.org/polyglots/2023/05/08/translate-live-updates-to-the-translation-playground/)
--   [Bloco de código interativo](https://wordpress.org/plugins/interactive-code-block/) que alimenta o [tutorial do Processador de Tags HTML](https://adamadam.blog/2023/02/16/how-to-modify-html-in-a-php-wordpress-plugin-using-the-new-tag-processor-api/) e o [tutorial da API JS do Playground](https://adamadam.blog/2023/04/12/interactive-intro-to-wordpress-playground-public-api/)
+-   [Bloco de código interativo](https://wordpress.org/plugins/interactive-code-block/) que alimenta o [tutorial do Processador de Tags HTML](https://adamadam.blog/2023/02/16/how-to-modify-html-in-a-php-wordpress-plugin-using-the-new-tag-processor-api/) e o [tutorial da API JS do Playground](https://wordpress.github.io/wordpress-playground/developers/apis/javascript-api/)
 -   [Visualizador de Pull Requests do Gutenberg](https://playground.wordpress.net/gutenberg.html)
 -   [Demonstração ao vivo do plugin de notificações](https://johnhooks.io/playground-experiment/)
 -   [REPL do GraphQL](https://www.wpgraphql.com/2023/06/15/announcing-the-wpgraphql-repl)
@@ -151,6 +139,11 @@ Existe um conjunto de redirecionamentos para facilitar o acesso a algumas das fe
 -   [Discovering Playground, the demo tool(in Spanish)](https://wordpress.tv/2024/08/09/descubriendo-playground-la-herramienta-para-hacer-demos/) by Alex Cuadra
 -   [WordPress Playground: Complete and functional WordPress installation(in Spanish)](https://wordpress.tv/2024/02/07/wordpress-playground-instalacion-completa-y-funcional-de-wordpress/) by Fernando García Rebolledo
 -   [Playground: A throwaway WordPress within your browser at WordCamp Madrid 2025(in Spanish)](https://wordpress.tv/2025/03/09/playground-un-wordpress-de-usar-y-tirar-dentro-de-tu-navegador/) by Álvaro Gómez Velasco
+-   [Use WordPress with just a browser! WordPress Playground Tutorial: Basic usage of Playground (in Japanese)](https://www.youtube.com/watch?v=6s_B0WvJauU) by Shimomura Tomoki
+-   [WordPress Playground: How to use Blueprints](https://www.youtube.com/watch?v=Vcao6uXguWg) by Shimomura Tomoki
+-   [Streamlined Block Theme Development: Using WordPress Playground and GitHub for No-Code Version Control of Site Editor Changes](https://wordpress.tv/2025/09/30/streamlined-block-theme-development-using-wordpress-playground-and-github-for-no-code-version-contr/) by Birgit Pauli-Haack
+-   [Playground, la mejor herramienta jamás inventada para enseñar WordPress (in Spanish)](https://wordpress.tv/2025/10/05/playground-la-mejor-herramienta-jamas-inventada-para-ensenar-wordpress/) by Nilo Vélez
+-   [Testing Faster Than a Red Bull Pit Stop: WordPress Playground and WooCommerce Blueprints](https://wordpress.tv/2025/09/30/testing-faster-than-a-red-bull-pit-stop-wordpress-playground-and-woocommerce-blueprints/) by Daniel Dudzic
 -->
 
 -   Vídeos do Developer Hours:
@@ -177,3 +170,8 @@ Existe um conjunto de redirecionamentos para facilitar o acesso a algumas das fe
 -   [Descobrindo o Playground, a ferramenta de demonstração (em espanhol)](https://wordpress.tv/2024/08/09/descubriendo-playground-la-herramienta-para-hacer-demos/) por Alex Cuadra
 -   [WordPress Playground: Instalação completa e funcional do WordPress (em espanhol)](https://wordpress.tv/2024/02/07/wordpress-playground-instalacion-completa-y-funcional-de-wordpress/) por Fernando García Rebolledo
 -   [Playground: Um WordPress descartável dentro do seu navegador no WordCamp Madrid 2025 (em espanhol)](https://wordpress.tv/2025/03/09/playground-un-wordpress-de-usar-y-tirar-dentro-de-tu-navegador/) por Álvaro Gómez Velasco
+-   [Use WordPress com apenas um navegador! Tutorial do WordPress Playground: Uso básico do Playground (em japonês)](https://www.youtube.com/watch?v=6s_B0WvJauU) por Shimomura Tomoki
+-   [WordPress Playground: Como usar Blueprints (em japonês)](https://www.youtube.com/watch?v=Vcao6uXguWg) por Shimomura Tomoki
+-   [Desenvolvimento simplificado de temas em blocos: Usando WordPress Playground e GitHub para controle de versão sem código de alterações no editor de sites (em inglês)](https://wordpress.tv/2025/09/30/streamlined-block-theme-development-using-wordpress-playground-and-github-for-no-code-version-contr/) por Birgit Pauli-Haack
+-   [Playground, a melhor ferramenta já inventada para ensinar WordPress (em espanhol)](https://wordpress.tv/2025/10/05/playground-la-mejor-herramienta-jamas-inventada-para-ensenar-wordpress/) por Nilo Vélez
+-   [Testando mais rápido que um pit stop da Red Bull: WordPress Playground e Blueprints do WooCommerce (em inglês)](https://wordpress.tv/2025/09/30/testing-faster-than-a-red-bull-pit-stop-wordpress-playground-and-woocommerce-blueprints/) por Daniel Dudzic
