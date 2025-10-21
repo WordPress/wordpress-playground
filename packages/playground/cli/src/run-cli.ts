@@ -51,6 +51,7 @@ import {
 	cleanupStalePlaygroundTempDirs,
 	createPlaygroundCliTempDir,
 } from './temp-dir';
+import { type WordPressInstallMode } from '@wp-playground/wordpress';
 
 // Inlined worker URLs for static analysis by downstream bundlers
 // These are replaced at build time by the Vite plugin in vite.config.ts
@@ -64,12 +65,6 @@ export const LogVerbosity = {
 } as const;
 
 type LogVerbosity = (typeof LogVerbosity)[keyof typeof LogVerbosity]['name'];
-
-export type WordPressInstallMode =
-	| 'download-and-install'
-	| 'install-from-existing-files'
-	| 'install-from-existing-files-if-needed'
-	| 'assume-already-installed';
 
 export type WorkerType = 'v1' | 'v2';
 
@@ -163,11 +158,12 @@ export async function parseOptionsAndRunCLI() {
 				describe:
 					'Control how Playground prepares WordPress before booting.',
 				type: 'string',
+				default: 'download-and-install',
 				choices: [
 					'download-and-install',
 					'install-from-existing-files',
 					'install-from-existing-files-if-needed',
-					'assume-already-installed',
+					'do-not-attempt-installing',
 				] as const,
 			})
 			.option('skip-wordpress-install', {
@@ -265,20 +261,10 @@ export async function parseOptionsAndRunCLI() {
 			.showHelpOnFail(false)
 			.strictOptions()
 			.check(async (args) => {
-				const skipWordPressInstallFlag =
-					args['skip-wordpress-install'] === true;
-
-				if (
-					args['wordpress-install-mode'] !== undefined &&
-					skipWordPressInstallFlag
-				) {
-					throw new Error(
-						'The --wordpress-install-mode option cannot be combined with --skip-wordpress-install.'
-					);
-				}
-
-				if (skipWordPressInstallFlag) {
-					args['wordpress-install-mode'] = 'assume-already-installed';
+				if (args['skip-wordpress-install'] === true) {
+					args['wordpress-install-mode'] =
+						'do-not-attempt-installing';
+					args['wordpressInstallMode'] = 'do-not-attempt-installing';
 				}
 
 				if (args.wp !== undefined && !isValidWordPressSlug(args.wp)) {
@@ -347,7 +333,7 @@ export async function parseOptionsAndRunCLI() {
 						// Support the legacy v1 runner options
 						if (
 							args['wordpress-install-mode'] ===
-							'assume-already-installed'
+							'do-not-attempt-installing'
 						) {
 							args['mode'] = 'apply-to-existing-site';
 						} else {
@@ -387,11 +373,6 @@ export async function parseOptionsAndRunCLI() {
 			yargsObject.showHelp();
 			process.exit(1);
 		}
-
-		args['wordPressInstallMode'] = args['wordpress-install-mode'];
-
-		delete (args as Record<string, unknown>)['wordpress-install-mode'];
-		delete (args as Record<string, unknown>)['skip-wordpress-install'];
 
 		const cliArgs = {
 			...args,
@@ -452,7 +433,7 @@ export interface RunCLIArgs {
 	xdebug?: boolean;
 	experimentalDevtools?: boolean;
 	'experimental-blueprints-v2-runner'?: boolean;
-	wordPressInstallMode?: WordPressInstallMode;
+	wordpressInstallMode?: WordPressInstallMode;
 
 	// --------- Blueprint V1 args -----------
 	skipSqliteSetup?: boolean;
@@ -509,8 +490,8 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 		args = expandAutoMounts(args);
 	}
 
-	if (args.wordPressInstallMode === undefined) {
-		args.wordPressInstallMode = 'download-and-install';
+	if (args.wordpressInstallMode === undefined) {
+		args.wordpressInstallMode = 'download-and-install';
 	}
 
 	// Keeping 'quiet' option to preserve backward compatibility
@@ -704,7 +685,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 				}
 			);
 
-			logger.log(`Setting up WordPress ${args.wp}`);
+			logger.log(`Starting up workers`);
 
 			try {
 				const [initialWorker, ...additionalWorkers] =

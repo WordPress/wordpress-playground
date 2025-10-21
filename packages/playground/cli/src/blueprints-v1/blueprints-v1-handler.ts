@@ -63,10 +63,12 @@ export class BlueprintsV1Handler {
 		nativeInternalDirPath: string
 	) {
 		let wpDetails: any = undefined;
+		let wordPressZip: any = undefined;
+		let preinstalledWpContentPath: string | undefined = undefined;
 		// @TODO: Rename to FetchProgressMonitor. There's nothing Emscripten
 		// about that class anymore.
 		const monitor = new EmscriptenDownloadMonitor();
-		if (this.args.wordPressInstallMode === 'download-and-install') {
+		if (this.args.wordpressInstallMode === 'download-and-install') {
 			let progressReached100 = false;
 			monitor.addEventListener('progress', ((
 				e: CustomEvent<ProgressEvent & { finished: boolean }>
@@ -92,28 +94,24 @@ export class BlueprintsV1Handler {
 			}) as any);
 
 			wpDetails = await resolveWordPressRelease(this.args.wp);
+			preinstalledWpContentPath = path.join(
+				CACHE_FOLDER,
+				`prebuilt-wp-content-for-wp-${wpDetails.version}.zip`
+			);
+			wordPressZip = fs.existsSync(preinstalledWpContentPath)
+				? readAsFile(preinstalledWpContentPath)
+				: await cachedDownload(
+						wpDetails.releaseUrl,
+						`${wpDetails.version}.zip`,
+						monitor
+				  );
 			logger.log(
 				`Resolved WordPress release URL: ${wpDetails?.releaseUrl}`
 			);
 		}
 
-		const preinstalledWpContentPath =
-			wpDetails &&
-			path.join(
-				CACHE_FOLDER,
-				`prebuilt-wp-content-for-wp-${wpDetails.version}.zip`
-			);
-		const wordPressZip = !wpDetails
-			? undefined
-			: fs.existsSync(preinstalledWpContentPath)
-			? readAsFile(preinstalledWpContentPath)
-			: await cachedDownload(
-					wpDetails.releaseUrl,
-					`${wpDetails.version}.zip`,
-					monitor
-			  );
-
 		logger.log(`Fetching SQLite integration plugin...`);
+
 		const sqliteIntegrationPluginZip = this.args.skipSqliteSetup
 			? undefined
 			: await fetchSqliteIntegration(monitor);
@@ -134,6 +132,7 @@ export class BlueprintsV1Handler {
 		const runtimeConfiguration = await resolveRuntimeConfiguration(
 			this.getEffectiveBlueprint()
 		);
+
 		await playground.useFileLockManager(fileLockManagerPort);
 		await playground.bootAsPrimaryWorker({
 			phpVersion: runtimeConfiguration.phpVersion,
@@ -141,6 +140,8 @@ export class BlueprintsV1Handler {
 			siteUrl: this.siteUrl,
 			mountsBeforeWpInstall,
 			mountsAfterWpInstall,
+			wordpressInstallMode:
+				this.args.wordpressInstallMode || 'download-and-install',
 			wordPressZip: wordPressZip && (await wordPressZip!.arrayBuffer()),
 			sqliteIntegrationPluginZip:
 				await sqliteIntegrationPluginZip?.arrayBuffer(),
@@ -154,7 +155,7 @@ export class BlueprintsV1Handler {
 		});
 
 		if (
-			wpDetails &&
+			preinstalledWpContentPath &&
 			!this.args['mount-before-install'] &&
 			!fs.existsSync(preinstalledWpContentPath)
 		) {

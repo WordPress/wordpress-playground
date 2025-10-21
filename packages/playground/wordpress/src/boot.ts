@@ -113,6 +113,12 @@ export interface BootRequestHandlerOptions {
 	cookieStore?: CookieStore | false;
 }
 
+export type WordPressInstallMode =
+	| 'download-and-install'
+	| 'install-from-existing-files'
+	| 'install-from-existing-files-if-needed'
+	| 'do-not-attempt-installing';
+
 export interface BootWordPressOptions {
 	/**
 	 * Mounting and Copying is handled via hooks for starters.
@@ -124,6 +130,8 @@ export interface BootWordPressOptions {
 	hooks?: Hooks;
 	/** SQL file to load instead of installing WordPress. */
 	dataSqlPath?: string;
+	/** How to handle WordPress installation. */
+	wordpressInstallMode?: WordPressInstallMode;
 	/** Zip with the WordPress installation to extract in /wordpress. */
 	wordPressZip?: File | Promise<File> | undefined;
 	/** Preloaded SQLite integration plugin. */
@@ -194,57 +202,74 @@ export async function bootWordPress(
 
 	// @TODO Assert WordPress core files are in place
 
+	let usesSqlite = false;
 	if (options.sqliteIntegrationPluginZip) {
+		usesSqlite = true;
 		await preloadSqliteIntegration(
 			php,
 			await options.sqliteIntegrationPluginZip
 		);
 	}
 
-	if (options.wordPressZip && !options.dataSqlPath) {
+	const installationMode =
+		options['wordpressInstallMode'] ?? 'download-and-install';
+
+	if (
+		['download-and-install', 'install-from-existing-files'].includes(
+			installationMode
+		)
+	) {
+		// Install WordPress if it's not installed.
+		await installWordPress(php);
+		await assertValidDatabaseConnection(requestHandler, { usesSqlite });
+	} else if ('install-from-existing-files-if-needed' === installationMode) {
 		if (!(await isWordPressInstalled(php))) {
 			// Install WordPress if it's not installed.
 			await installWordPress(php);
 		}
-
-		if (!(await isWordPressInstalled(php))) {
-			// Check if the database connection (MySQL or SQLite) is up and running.
-			const validConnection = await isDatabaseConnectionValid(php);
-
-			if (validConnection) {
-				// The database connection is valid, but WordPress installation has failed.
-				// Throw a generic error, not related to the database connection.
-				throw new Error('WordPress installation has failed.');
-			} else {
-				if (php.isFile('/internal/shared/preload/0-sqlite.php')) {
-					// The core SQLite integration has been installed, but the database connection is not valid.
-					throw new Error('Error connecting to the SQLite database.');
-				}
-
-				// Check if a SQLite integration plugin has not been provided.
-				if (!options.sqliteIntegrationPluginZip) {
-					const sqlitePluginPath = joinPaths(
-						requestHandler.documentRoot,
-						'wp-content/mu-plugins/sqlite-database-integration'
-					);
-
-					if (php.isDir(sqlitePluginPath)) {
-						// The mu-plugin has been installed, but the database connection is not valid.
-						throw new Error(
-							'Error connecting to the SQLite database.'
-						);
-					}
-				}
-
-				// 1. No core SQLite integration has been installed.
-				// 2. No valid SQLite integration plugin has been provided.
-				// The MySQL database connection is not valid.
-				throw new Error('Error connecting to the MySQL database.');
-			}
-		}
+		await assertValidDatabaseConnection(requestHandler, { usesSqlite });
 	}
 
 	return requestHandler;
+}
+
+async function assertValidDatabaseConnection(
+	requestHandler: PHPRequestHandler,
+	{
+		usesSqlite,
+	}: {
+		usesSqlite: boolean;
+	}
+) {
+	const php = await requestHandler.getPrimaryPhp();
+	// Check if the database connection (MySQL or SQLite) is up and running.
+	const validConnection = await isDatabaseConnectionValid(php);
+	if (validConnection) {
+		return;
+	}
+
+	if (php.isFile('/internal/shared/preload/0-sqlite.php')) {
+		// The core SQLite integration has been installed, but the database connection is not valid.
+		throw new Error('Error connecting to the SQLite database.');
+	}
+
+	// Check if a SQLite integration plugin has not been provided.
+	if (usesSqlite) {
+		const sqlitePluginPath = joinPaths(
+			requestHandler.documentRoot,
+			'wp-content/mu-plugins/sqlite-database-integration'
+		);
+
+		if (php.isDir(sqlitePluginPath)) {
+			// The mu-plugin has been installed, but the database connection is not valid.
+			throw new Error('Error connecting to the SQLite database.');
+		}
+	}
+
+	// 1. No core SQLite integration has been installed.
+	// 2. No valid SQLite integration plugin has been provided.
+	// The MySQL database connection is not valid.
+	throw new Error('Error connecting to the MySQL database.');
 }
 
 export async function bootRequestHandler(options: BootRequestHandlerOptions) {
@@ -380,7 +405,7 @@ export async function isWordPressInstalled(php: PHP) {
  * 300 seconds, or even more to complete.
  */
 async function installWordPress(php: PHP) {
-	await withPHPIniValues(
+	const response = await withPHPIniValues(
 		php,
 		{
 			disable_functions: 'fsockopen',
@@ -404,6 +429,15 @@ async function installWordPress(php: PHP) {
 				},
 			})
 	);
+
+	if (!(await isWordPressInstalled(php))) {
+		throw new Error(
+			`Failed to install WordPress – installer responded with "${response.text?.substring(
+				0,
+				100
+			)}"`
+		);
+	}
 
 	const defaultedToPrettyPermalinks = await php.run({
 		code: `<?php
@@ -455,7 +489,7 @@ async function isDatabaseConnectionValid(php: PHP) {
 			}
 			require $wp_load;
 			ob_clean();
-			echo $wpdb->check_connection( false) ? '1' : '0';
+			echo $wpdb->check_connection( false ) ? '1' : '0';
 			ob_end_flush();
 		`,
 		env: {

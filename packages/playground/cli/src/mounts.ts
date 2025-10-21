@@ -177,8 +177,8 @@ export function expandAutoMounts(args: RunCLIArgs): RunCLIArgs {
 		// @TODO: If overriding another mode, throw an error or print a warning.
 		newArgs.mode = 'apply-to-existing-site';
 		newArgs['additional-blueprint-steps'].push(ACTIVATE_FIRST_THEME_STEP);
-		if (!newArgs.wordPressInstallMode) {
-			newArgs.wordPressInstallMode =
+		if (!newArgs.wordpressInstallMode) {
+			newArgs.wordpressInstallMode =
 				'install-from-existing-files-if-needed';
 		}
 	} else {

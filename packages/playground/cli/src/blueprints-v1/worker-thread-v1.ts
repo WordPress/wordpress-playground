@@ -12,6 +12,7 @@ import {
 import { sprintf } from '@php-wasm/util';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import {
+	type WordPressInstallMode,
 	bootRequestHandler,
 	bootWordPressAndRequestHandler,
 } from '@wp-playground/wordpress';
@@ -48,6 +49,7 @@ export type WorkerBootOptions = {
 };
 
 export type PrimaryWorkerBootOptions = WorkerBootOptions & {
+	wordpressInstallMode: WordPressInstallMode;
 	wpVersion?: string;
 	wordPressZip?: ArrayBuffer;
 	sqliteIntegrationPluginZip?: ArrayBuffer;
@@ -128,6 +130,7 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 		mountsBeforeWpInstall,
 		mountsAfterWpInstall,
 		phpVersion: php = RecommendedPHPVersion,
+		wordpressInstallMode,
 		wordPressZip,
 		sqliteIntegrationPluginZip,
 		firstProcessId,
@@ -178,6 +181,7 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 						withXdebug,
 					});
 				},
+				wordpressInstallMode,
 				wordPressZip:
 					wordPressZip !== undefined
 						? new File([wordPressZip], 'wordpress.zip')
