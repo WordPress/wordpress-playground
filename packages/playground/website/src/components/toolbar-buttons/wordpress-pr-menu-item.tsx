@@ -12,14 +12,14 @@ export function WordPressPRMenuItem({ onClose, disabled }: Props) {
 	const dispatch: PlaygroundDispatch = useDispatch();
 	return (
 		<MenuItem
-			aria-label="Preview WordPress PR."
+			aria-label="Preview WordPress Core PR"
 			disabled={disabled}
 			onClick={() => {
 				dispatch(setActiveModal(modalSlugs.PREVIEW_PR_WP));
 				onClose();
 			}}
 		>
-			Preview a WordPress PR
+			WordPress Core PR
 		</MenuItem>
 	);
 }
