@@ -68,7 +68,7 @@ async function importWithDefaultImporter(
 			 * when rewriting links in the WXR payload, so we populate the flag here
 			 * just as the web request layer would.
 			 */
-			HTTPS: (await playground.absoluteUrl).startsWith('https://'),
+			HTTPS: (await playground.absoluteUrl).startsWith('https://') ? 'on' : '',
 		},
 		code: `<?php
 	define('WP_LOAD_IMPORTERS', true);
