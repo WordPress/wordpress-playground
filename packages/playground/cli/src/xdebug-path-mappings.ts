@@ -148,28 +148,40 @@ export async function addXdebugIDEConfig({
 		}
 
 		let component = config?.project?.component?.find(
-			(c: { $: { name: string } }) => c.$.name === 'PhpServers'
+			(c: any) => c?.$?.name === 'PhpServers'
 		);
 		if (!component) {
 			component = {
 				$: { name: 'PhpServers' },
 				servers: [{ server: [] }],
 			};
-			config.project.component = [];
+			if (!config.project.component) {
+				config.project.component = [];
+			}
 			config.project.component.push(component);
-		}
-
-		const server = component?.servers[0]?.server?.find(
-			(c: { $: { name: string } }) => c.$.name === name
-		);
-		if (server) {
-			// Update the existing server configuration.
-			Object.assign(server, serverConfig);
 		} else {
-			if (component.servers[0].server === undefined) {
+			// Sometimes, existing configs can be edited to remove sections
+			// unexpectedly. Let's ensure the right child elements exist
+			// before saving our server config.
+
+			if (!component.servers) {
+				component.servers = [];
+			}
+			if (!component.servers[0]) {
+				component.servers[0] = { server: [] };
+			}
+			if (!component.servers[0].server) {
 				component.servers[0].server = [];
 			}
+		}
+
+		const serverIndex = component?.servers[0].server?.findIndex(
+			(c: any) => c?.$?.name === name
+		);
+		if (serverIndex === -1) {
 			component.servers[0].server.push(serverConfig);
+		} else {
+			component.servers[0].server[serverIndex] = serverConfig;
 		}
 
 		const builder = new Builder({
@@ -279,12 +291,12 @@ export async function clearXdebugIDEConfig(name: string) {
 		const config = await parseStringPromise(contents);
 
 		const component = config?.project?.component?.find(
-			(c: { $: { name: string } }) => c.$.name === 'PhpServers'
+			(c: any) => c?.$?.name === 'PhpServers'
 		);
 
-		if (component && component?.servers[0]?.server) {
+		if (component && component?.servers?.[0]?.server) {
 			component.servers[0].server = component.servers[0].server.filter(
-				(c: { $: { name: string } }) => c.$.name !== name
+				(c: any) => c?.$?.name !== name
 			);
 
 			const builder = new Builder({
