@@ -51,13 +51,13 @@
 	border-radius: 4px;
 	margin-bottom: 2px;
 }
-.sidebar-item:hover,
-.sidebar-item--selected {
+.sidebar-item.sidebar-item:hover,
+.sidebar-item.sidebar-item--selected {
 	color: var(--site-manager-text-color) !important;
 	background-color: #353535;
 }
 
-.sidebar-item--selected:hover {
+.sidebar-item.sidebar-item--selected:hover {
 	background-color: #545454;
 }
 
