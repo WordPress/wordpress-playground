@@ -26,6 +26,7 @@ import { logger } from '@php-wasm/logger';
  */
 export interface SiteInfo {
 	slug: string;
+	urlSlug?: string;
 	originalUrlParams?: {
 		searchParams?: Record<string, string>;
 		hash?: string;
@@ -65,12 +66,16 @@ const sitesSlice = createSlice({
 			action: PayloadAction<{
 				slug: string;
 				metadata: Partial<SiteMetadata>;
+				urlSlug?: string;
 			}>
 		) => {
-			const { slug, metadata } = action.payload;
+			const { slug, metadata, urlSlug } = action.payload;
 			const site = state.entities[slug];
 			if (site) {
 				site.metadata = { ...site.metadata, ...metadata };
+				if (urlSlug) {
+					site.urlSlug = urlSlug;
+				}
 			}
 		},
 
@@ -95,7 +100,10 @@ export const OPFSSitesLoaded = (sites: SiteInfo[]) => {
 		const currentSites = getState().sites.entities;
 		const allSites = { ...currentSites };
 		sites.forEach((site) => {
-			allSites[site.slug] = site;
+			allSites[site.slug] = {
+				...site,
+				urlSlug: site.urlSlug ?? site.slug,
+			};
 		});
 		dispatch(sitesSlice.actions.setSites(allSites));
 		dispatch(setOPFSSitesLoadingState('loaded'));
@@ -123,15 +131,18 @@ export function deriveSiteNameFromSlug(slug: string) {
 export function updateSiteMetadata({
 	slug,
 	changes,
+	urlSlug,
 }: {
 	slug: string;
 	changes: Partial<SiteMetadata>;
+	urlSlug?: string;
 }) {
 	return async (
 		dispatch: PlaygroundDispatch,
 		getState: () => PlaygroundReduxState
 	) => {
 		const storedSite = selectSiteBySlug(getState(), slug);
+		const nextUrlSlug = urlSlug ?? storedSite.urlSlug ?? slug;
 		await dispatch(
 			updateSite({
 				slug,
@@ -140,6 +151,7 @@ export function updateSiteMetadata({
 						...storedSite.metadata,
 						...changes,
 					},
+					...(urlSlug ? { urlSlug: nextUrlSlug } : {}),
 				},
 			})
 		);
@@ -176,7 +188,8 @@ export function updateSite({
 		if (updatedSite.metadata.storage !== 'none') {
 			await opfsSiteStorage?.update(
 				updatedSite.slug,
-				updatedSite.metadata
+				updatedSite.metadata,
+				updatedSite.urlSlug ?? updatedSite.slug
 			);
 		}
 	};
@@ -193,13 +206,19 @@ export function addSite(siteInfo: SiteInfo) {
 		dispatch: PlaygroundDispatch,
 		getState: () => PlaygroundReduxState
 	) => {
+		const urlSlug = siteInfo.urlSlug ?? siteInfo.slug;
 		if (siteInfo.metadata.storage === 'none') {
 			throw new Error(
 				'Cannot add a temporary site. Use setTemporarySiteSpec instead.'
 			);
 		}
 		await opfsSiteStorage?.create(siteInfo.slug, siteInfo.metadata);
-		dispatch(sitesSlice.actions.addSite(siteInfo));
+		dispatch(
+			sitesSlice.actions.addSite({
+				...siteInfo,
+				urlSlug,
+			})
+		);
 	};
 }
 
@@ -308,8 +327,10 @@ export function setTemporarySiteSpec(
 		}
 
 		// Compute the runtime configuration based on the resolved Blueprint:
+		const derivedSlug = deriveSlugFromSiteName(siteName);
 		const newSiteInfo: SiteInfo = {
-			slug: deriveSlugFromSiteName(siteName),
+			slug: derivedSlug,
+			urlSlug: derivedSlug,
 			originalUrlParams: newSiteUrlParams,
 			metadata: {
 				name: siteName,
@@ -390,6 +411,15 @@ export const {
 } = sitesAdapter.getSelectors(
 	(state: { sites: ReturnType<typeof sitesSlice.reducer> }) => state.sites
 );
+
+export function selectSiteByUrlSlug(
+	state: { sites: ReturnType<typeof sitesSlice.reducer> },
+	urlSlug: string
+) {
+	return selectAllSites(state).find(
+		(site) => (site.urlSlug ?? site.slug) === urlSlug
+	);
+}
 
 export const selectSortedSites = createSelector(
 	[selectAllSites],

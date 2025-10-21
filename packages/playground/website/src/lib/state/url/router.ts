@@ -41,6 +41,7 @@ export class PlaygroundRoute {
 		if (site.metadata.storage === 'none') {
 			return updateUrl(baseUrl, site.originalUrlParams || {});
 		} else {
+			const slugForUrl = site.urlSlug ?? site.slug;
 			const baseParams = new URLSearchParams(baseUrl.split('?')[1]);
 			const preserveParamsKeys = ['mode', 'networking', 'login', 'url'];
 			const preserveParams: Record<string, string | null> = {};
@@ -50,7 +51,7 @@ export class PlaygroundRoute {
 				}
 			}
 			return updateUrl(baseUrl, {
-				searchParams: { 'site-slug': site.slug, ...preserveParams },
+				searchParams: { 'site-slug': slugForUrl, ...preserveParams },
 				hash: '',
 			});
 		}

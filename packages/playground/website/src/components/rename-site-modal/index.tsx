@@ -1,8 +1,13 @@
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { TextControl } from '@wordpress/components';
 import { useAppDispatch, useAppSelector } from '../../lib/state/redux/store';
 import { setActiveModal } from '../../lib/state/redux/slice-ui';
-import { updateSiteMetadata } from '../../lib/state/redux/slice-sites';
+import {
+	updateSiteMetadata,
+	deriveSlugFromSiteName,
+	type SiteInfo,
+} from '../../lib/state/redux/slice-sites';
+import { PlaygroundRoute, redirectTo } from '../../lib/state/url/router';
 import { Modal } from '../modal';
 import ModalButtons from '../modal/modal-buttons';
 
@@ -32,12 +37,20 @@ export function RenameSiteModal() {
 		}
 		try {
 			setIsSubmitting(true);
+			const newUrlSlug = deriveSlugFromSiteName(trimmed);
 			await dispatch(
 				updateSiteMetadata({
 					slug: site.slug,
 					changes: { name: trimmed },
+					urlSlug: newUrlSlug,
 				}) as any
 			);
+			const updatedSite: SiteInfo = {
+				...site,
+				urlSlug: newUrlSlug,
+				metadata: { ...site.metadata, name: trimmed },
+			};
+			redirectTo(PlaygroundRoute.site(updatedSite));
 			closeModal();
 		} finally {
 			setIsSubmitting(false);
