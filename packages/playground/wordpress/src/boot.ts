@@ -213,33 +213,115 @@ export async function bootWordPress(
 
 	const installationMode =
 		options['wordpressInstallMode'] ?? 'download-and-install';
+	const hasCustomDatabasePath = !!options.dataSqlPath;
 
 	if (
 		['download-and-install', 'install-from-existing-files'].includes(
 			installationMode
 		)
 	) {
+		// Check database prerequisites before attempting installation
+		await assertDatabasePrerequisites(requestHandler, {
+			usesSqlite,
+			hasCustomDatabasePath,
+		});
 		// Install WordPress if it's not installed.
-		await installWordPress(php);
-		await assertValidDatabaseConnection(requestHandler, { usesSqlite });
+		try {
+			await installWordPress(php);
+		} catch (error) {
+			// If installation failed, check if it's a database issue
+			// to provide a more specific error message (but skip if user provided custom DB path)
+			if (!hasCustomDatabasePath) {
+				await assertValidDatabaseConnection(requestHandler);
+			}
+			// If we get here, the database is valid but installation failed for another reason
+			throw error;
+		}
+		// Validate the database connection after installation (skip if user provided custom DB path)
+		if (!hasCustomDatabasePath) {
+			await assertValidDatabaseConnection(requestHandler);
+		}
 	} else if ('install-from-existing-files-if-needed' === installationMode) {
+		// Check database prerequisites before attempting installation
+		await assertDatabasePrerequisites(requestHandler, {
+			usesSqlite,
+			hasCustomDatabasePath,
+		});
 		if (!(await isWordPressInstalled(php))) {
 			// Install WordPress if it's not installed.
-			await installWordPress(php);
+			try {
+				await installWordPress(php);
+			} catch (error) {
+				// If installation failed, check if it's a database issue
+				// to provide a more specific error message (but skip if user provided custom DB path)
+				if (!hasCustomDatabasePath) {
+					await assertValidDatabaseConnection(requestHandler);
+				}
+				// If we get here, the database is valid but installation failed for another reason
+				throw error;
+			}
 		}
-		await assertValidDatabaseConnection(requestHandler, { usesSqlite });
+		// Validate the database connection after installation (skip if user provided custom DB path)
+		if (!hasCustomDatabasePath) {
+			await assertValidDatabaseConnection(requestHandler);
+		}
 	}
 
 	return requestHandler;
 }
 
-async function assertValidDatabaseConnection(
+/**
+ * Checks if database prerequisites are in place before attempting WordPress installation.
+ * This performs lightweight checks that don't require WordPress to be installed.
+ */
+async function assertDatabasePrerequisites(
 	requestHandler: PHPRequestHandler,
 	{
 		usesSqlite,
+		hasCustomDatabasePath,
 	}: {
 		usesSqlite: boolean;
+		hasCustomDatabasePath: boolean;
 	}
+) {
+	const php = await requestHandler.getPrimaryPhp();
+
+	// If SQLite integration is preloaded via core, we're good
+	if (php.isFile('/internal/shared/preload/0-sqlite.php')) {
+		return;
+	}
+
+	// Check if a SQLite integration plugin directory exists (even if not provided via zip)
+	// This handles cases where the directory is mounted via hooks
+	const sqlitePluginPath = joinPaths(
+		requestHandler.documentRoot,
+		'wp-content/mu-plugins/sqlite-database-integration'
+	);
+
+	if (php.isDir(sqlitePluginPath)) {
+		// The directory exists, we'll validate it after WordPress is installed
+		return;
+	}
+
+	// Check if we provided a SQLite integration zip
+	if (usesSqlite) {
+		// We provided a zip, so SQLite will be set up during boot
+		return;
+	}
+
+	// If we have a custom database path (dataSqlPath option was provided),
+	// assume it's configured - the actual connection will be validated after installation
+	if (hasCustomDatabasePath) {
+		return;
+	}
+
+	// No SQLite integration and no MySQL support available
+	// Throw early to avoid attempting installation with no database
+	throw new Error('Error connecting to the MySQL database.');
+}
+
+async function assertValidDatabaseConnection(
+	requestHandler: PHPRequestHandler
 ) {
 	const php = await requestHandler.getPrimaryPhp();
 	// Check if the database connection (MySQL or SQLite) is up and running.
@@ -253,21 +335,20 @@ async function assertValidDatabaseConnection(
 		throw new Error('Error connecting to the SQLite database.');
 	}
 
-	// Check if a SQLite integration plugin has not been provided.
-	if (usesSqlite) {
-		const sqlitePluginPath = joinPaths(
-			requestHandler.documentRoot,
-			'wp-content/mu-plugins/sqlite-database-integration'
-		);
+	// Check if a SQLite integration plugin directory exists (even if not provided via zip)
+	// This handles cases where the directory is mounted via hooks
+	const sqlitePluginPath = joinPaths(
+		requestHandler.documentRoot,
+		'wp-content/mu-plugins/sqlite-database-integration'
+	);
 
-		if (php.isDir(sqlitePluginPath)) {
-			// The mu-plugin has been installed, but the database connection is not valid.
-			throw new Error('Error connecting to the SQLite database.');
-		}
+	if (php.isDir(sqlitePluginPath)) {
+		// The mu-plugin directory exists, but the database connection is not valid.
+		throw new Error('Error connecting to the SQLite database.');
 	}
 
 	// 1. No core SQLite integration has been installed.
-	// 2. No valid SQLite integration plugin has been provided.
+	// 2. No SQLite integration plugin directory exists.
 	// The MySQL database connection is not valid.
 	throw new Error('Error connecting to the MySQL database.');
 }
