@@ -11,7 +11,12 @@ import {
 	MenuItem,
 	TabPanel,
 } from '@wordpress/components';
-import { moreVertical, external, chevronLeft } from '@wordpress/icons';
+import {
+	moreVertical,
+	external,
+	chevronLeft,
+	chevronRight,
+} from '@wordpress/icons';
 import { SiteLogs } from '../../log-modal';
 import { useAppDispatch, useAppSelector } from '../../../lib/state/redux/store';
 import { usePlaygroundClientInfo } from '../../../lib/use-playground-client';
@@ -215,95 +220,111 @@ export function SiteInfoPanel({
 							</>
 						)}
 						<FlexItem>
-							<DropdownMenu
-								icon={moreVertical}
-								label="Additional actions"
-								popoverProps={{
-									placement: 'bottom-end',
-								}}
+							<Flex
+								direction="row"
+								align="center"
+								gap={1}
+								className={css.headerActions}
 							>
-								{({ onClose }) => (
-									<>
-										{!isTemporary && (
+								<DropdownMenu
+									icon={moreVertical}
+									label="Additional actions"
+									popoverProps={{
+										placement: 'bottom-end',
+									}}
+								>
+									{({ onClose }) => (
+										<>
+											{!isTemporary && (
+												<MenuGroup>
+													<MenuItem
+														aria-label="Rename this Playground"
+														onClick={() => {
+															dispatch(
+																setActiveModal(
+																	modalSlugs.RENAME_SITE
+																)
+															);
+															onClose();
+														}}
+													>
+														Rename
+													</MenuItem>
+													<MenuItem
+														aria-label="Delete this Playground"
+														className={css.danger}
+														onClick={() =>
+															removeSiteAndCloseMenu(
+																onClose
+															)
+														}
+													>
+														Delete
+													</MenuItem>
+												</MenuGroup>
+											)}
+											<MenuGroup>
+												<GithubExportMenuItem
+													onClose={onClose}
+													disabled={
+														offline || !playground
+													}
+												/>
+												<DownloadAsZipMenuItem
+													onClose={onClose}
+													disabled={!playground}
+												/>
+											</MenuGroup>
 											<MenuGroup>
 												<MenuItem
-													aria-label="Rename this Playground"
-													onClick={() => {
-														dispatch(
-															setActiveModal(
-																modalSlugs.RENAME_SITE
-															)
+													onClick={async () => {
+														const reflection =
+															await BlueprintReflection.create(
+																site.metadata
+																	.originalBlueprint as any
+															);
+														const declaration =
+															reflection.getDeclaration() as any;
+														const encoded =
+															encodeStringAsBase64(
+																JSON.stringify(
+																	declaration
+																) as string
+															);
+														window.open(
+															`/builder/builder.html#${encoded}`,
+															'_blank',
+															'noopener,noreferrer'
 														);
 														onClose();
 													}}
+													icon={external}
+													iconPosition="right"
+													aria-label="View Blueprint"
+													disabled={offline}
 												>
-													Rename
-												</MenuItem>
-												<MenuItem
-													aria-label="Delete this Playground"
-													className={css.danger}
-													onClick={() =>
-														removeSiteAndCloseMenu(
-															onClose
-														)
-													}
-												>
-													Delete
+													View Blueprint
 												</MenuItem>
 											</MenuGroup>
-										)}
-										<MenuGroup>
-											<GithubExportMenuItem
-												onClose={onClose}
-												disabled={
-													offline || !playground
-												}
-											/>
-											<DownloadAsZipMenuItem
-												onClose={onClose}
-												disabled={!playground}
-											/>
-										</MenuGroup>
-										<MenuGroup>
-											<MenuItem
-												onClick={async () => {
-													const reflection =
-														await BlueprintReflection.create(
-															site.metadata
-																.originalBlueprint as any
-														);
-													const declaration =
-														reflection.getDeclaration() as any;
-													const encoded =
-														encodeStringAsBase64(
-															JSON.stringify(
-																declaration
-															) as string
-														);
-													window.open(
-														`/builder/builder.html#${encoded}`,
-														'_blank',
-														'noopener,noreferrer'
-													);
-													onClose();
-												}}
-												icon={external}
-												iconPosition="right"
-												aria-label="View Blueprint"
-												disabled={offline}
-											>
-												View Blueprint
-											</MenuItem>
-										</MenuGroup>
-										<MenuGroup>
-											<ReportError
-												onClose={onClose}
-												disabled={offline}
-											/>
-										</MenuGroup>
-									</>
-								)}
-							</DropdownMenu>
+											<MenuGroup>
+												<ReportError
+													onClose={onClose}
+													disabled={offline}
+												/>
+											</MenuGroup>
+										</>
+									)}
+								</DropdownMenu>
+								<Button
+									className={css.collapseButton}
+									icon={chevronRight}
+									label="Collapse site info panel"
+									variant="tertiary"
+									onClick={() => {
+										dispatch(setSiteManagerOpen(false));
+									}}
+								/>
+							</Flex>
 						</FlexItem>
 					</Flex>
 				</FlexItem>
