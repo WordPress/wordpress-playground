@@ -84,8 +84,8 @@ test('should correctly load /wp-admin without the trailing slash', async ({
 
 test('should switch between sites', async ({ website, browserName }) => {
 	test.skip(
-		browserName === 'webkit',
-		`This test relies on OPFS which isn't available in Playwright's flavor of Safari.`
+		browserName !== 'chromium',
+		`This test relies on OPFS which isn't available in Playwright's flavor of ${browserName}.`
 	);
 
 	await website.goto('./');
@@ -124,8 +124,8 @@ test('should preserve PHP constants when saving a temporary site to OPFS', async
 	wordpress,
 }) => {
 	test.skip(
-		browserName === 'webkit',
-		`This test relies on OPFS which isn't available in Playwright's flavor of Safari.`
+		browserName !== 'chromium',
+		`This test relies on OPFS which isn't available in Playwright's flavor of ${browserName}.`
 	);
 
 	// Start a site with a specific PHP constant.
@@ -179,8 +179,8 @@ test('should rename a saved Playground and persist after reload', async ({
 	browserName,
 }) => {
 	test.skip(
-		browserName === 'webkit',
-		`This test relies on OPFS which isn't available in Playwright's flavor of Safari.`
+		browserName !== 'chromium',
+		`This test relies on OPFS which isn't available in Playwright's flavor of ${browserName}.`
 	);
 
 	await website.goto('./');
@@ -233,8 +233,8 @@ test('should show save site modal with correct elements', async ({
 	browserName,
 }) => {
 	test.skip(
-		browserName === 'webkit',
-		`This test relies on OPFS which isn't available in Playwright's flavor of Safari.`
+		browserName !== 'chromium',
+		`This test relies on OPFS which isn't available in Playwright's flavor of ${browserName}.`
 	);
 
 	await website.goto('./');
@@ -274,8 +274,8 @@ test('should close save site modal without saving', async ({
 	browserName,
 }) => {
 	test.skip(
-		browserName === 'webkit',
-		`This test relies on OPFS which isn't available in Playwright's flavor of Safari.`
+		browserName !== 'chromium',
+		`This test relies on OPFS which isn't available in Playwright's flavor of ${browserName}.`
 	);
 
 	await website.goto('./');
@@ -316,8 +316,8 @@ test('should have playground name input text selected by default', async ({
 	browserName,
 }) => {
 	test.skip(
-		browserName === 'webkit',
-		`This test relies on OPFS which isn't available in Playwright's flavor of Safari.`
+		browserName !== 'chromium',
+		`This test relies on OPFS which isn't available in Playwright's flavor of ${browserName}.`
 	);
 
 	await website.goto('./');
@@ -345,8 +345,8 @@ test('should have playground name input text selected by default', async ({
 
 test('should save site with custom name', async ({ website, browserName }) => {
 	test.skip(
-		browserName === 'webkit',
-		`This test relies on OPFS which isn't available in Playwright's flavor of Safari.`
+		browserName !== 'chromium',
+		`This test relies on OPFS which isn't available in Playwright's flavor of ${browserName}.`
 	);
 
 	await website.goto('./');
@@ -374,8 +374,8 @@ test('should not persist save site modal through page refresh', async ({
 	browserName,
 }) => {
 	test.skip(
-		browserName === 'webkit',
-		`This test relies on OPFS which isn't available in Playwright's flavor of Safari.`
+		browserName !== 'chromium',
+		`This test relies on OPFS which isn't available in Playwright's flavor of ${browserName}.`
 	);
 
 	await website.goto('./');
@@ -409,8 +409,8 @@ test('should display OPFS storage option as selected by default', async ({
 	browserName,
 }) => {
 	test.skip(
-		browserName === 'webkit',
-		`This test relies on OPFS which isn't available in Playwright's flavor of Safari.`
+		browserName !== 'chromium',
+		`This test relies on OPFS which isn't available in Playwright's flavor of ${browserName}.`
 	);
 
 	await website.goto('./');
