@@ -121,11 +121,6 @@
 	margin: 0;
 
 	/* Inside auto layout */
-	flex: none;
-	order: 0;
-	align-self: stretch;
-	flex-grow: 0;
-
 	font-size: clamp(14px, 2.5vw, 18px);
 	line-height: 24px;
 	font-weight: 500;
@@ -134,6 +129,32 @@
 
 	/* Gutenberg/Gray 900 */
 	color: var(--color-gray-900);
+
+	display: flex;
+	align-items: baseline;
+	gap: 0;
+	flex-wrap: nowrap;
+	max-width: 100%;
+}
+
+.siteInfoHeaderTitle {
+	min-width: 0;
+	flex: 1 1 auto;
+}
+
+.siteInfoHeaderDetailsNameText {
+	flex: 0 1 auto;
+	min-width: 0;
+	text-overflow: ellipsis;
+	word-break: break-word;
+}
+
+.siteInfoRenameButton {
+	vertical-align: middle;
+}
+
+.siteInfoHeaderDetailsNameTextEnd {
+	white-space: nowrap;
 }
 
 .site-info-header-details-created-at {
@@ -147,17 +168,35 @@
 }
 
 .siteInfoHeaderTitleRow {
-	align-items: center;
+	align-items: flex-start;
 	gap: 8px;
 }
 
-.siteInfoRenameButton {
-	padding: 4px !important;
-	min-height: 28px;
+.siteInfoHeaderPrimaryActions {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: flex-end;
+	align-items: stretch;
+	gap: 8px;
+	flex: 0 1 auto;
+	min-width: 0;
+}
 
-	margin-left: 5px;
-	top: 2px;
-	position: relative;
+.siteInfoHeaderAction {
+	flex: none;
+	flex-shrink: 0;
+}
+
+.siteInfoRenameButton {
+	padding: 2px !important;
+	min-height: 24px;
+
+	flex: 0 0 auto;
+	margin-left: 4px;
+	position: static;
+	white-space: nowrap;
+	display: inline-flex;
+	align-items: center;
 }
 
 .siteInfoRenameButton :global(svg) {

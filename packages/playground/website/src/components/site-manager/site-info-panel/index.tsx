@@ -82,6 +82,11 @@ export function SiteInfoPanel({
 			? (opfsMountDescriptor as any)?.device?.handle?.name
 			: undefined;
 
+	const title = isTemporary ? 'Temporary Playground' : site.metadata.name;
+	const titleWords = title.split(' ');
+	const titleStart = titleWords.slice(0, -1).join(' ');
+	const titleEnd = titleWords[titleWords.length - 1];
+
 	return (
 		<section
 			className={classNames(className, css.siteInfoPanel, {
@@ -100,7 +105,7 @@ export function SiteInfoPanel({
 						direction="row"
 						gap={2}
 						justify="space-between"
-						align="center"
+						align="flex-start"
 						expanded={true}
 						className={css.padded}
 						style={{ paddingBottom: 10 }}
@@ -138,38 +143,53 @@ export function SiteInfoPanel({
 							<Flex direction="column" gap={0.25} expanded={true}>
 								<Flex
 									direction="row"
-									align="center"
+									align="flex-start"
 									className={css.siteInfoHeaderTitleRow}
 								>
-									<h1
-										className={
-											css.siteInfoHeaderDetailsName
-										}
-										aria-label="Playground title"
+									<FlexItem
+										className={css.siteInfoHeaderTitle}
 									>
-										{isTemporary
-											? 'Temporary Playground'
-											: site.metadata.name}
-										{!isTemporary && (
-											<Button
+										<h1
+											className={
+												css.siteInfoHeaderDetailsName
+											}
+											aria-label="Playground title"
+										>
+											<span
 												className={
-													css.siteInfoRenameButton
+													css.siteInfoHeaderDetailsNameText
 												}
-												icon={edit}
-												label="Rename Playground"
-												showTooltip={true}
-												variant="tertiary"
-												isSmall={true}
-												onClick={() =>
-													dispatch(
-														setActiveModal(
-															modalSlugs.RENAME_SITE
-														)
-													)
-												}
-											/>
-										)}
-									</h1>
+											>
+												{titleStart}{' '}
+												<span
+													className={
+														css.siteInfoHeaderDetailsNameTextEnd
+													}
+												>
+													{titleEnd}
+													{!isTemporary && (
+														<Button
+															className={
+																css.siteInfoRenameButton
+															}
+															icon={edit}
+															label="Rename Playground"
+															showTooltip={true}
+															variant="tertiary"
+															isSmall={true}
+															onClick={() =>
+																dispatch(
+																	setActiveModal(
+																		modalSlugs.RENAME_SITE
+																	)
+																)
+															}
+														/>
+													)}
+												</span>
+											</span>
+										</h1>
+									</FlexItem>
 								</Flex>
 								{!isTemporary && (
 									<span
@@ -220,7 +240,7 @@ export function SiteInfoPanel({
 							</FlexItem>
 						) : (
 							<>
-								<FlexItem>
+								<FlexItem className={css.siteInfoHeaderAction}>
 									<Button
 										variant="tertiary"
 										disabled={!playground}
@@ -229,7 +249,7 @@ export function SiteInfoPanel({
 										WP Admin
 									</Button>
 								</FlexItem>
-								<FlexItem>
+								<FlexItem className={css.siteInfoHeaderAction}>
 									<Button
 										variant="secondary"
 										disabled={!playground}
@@ -240,7 +260,7 @@ export function SiteInfoPanel({
 								</FlexItem>
 							</>
 						)}
-						<FlexItem>
+						<FlexItem className={css.siteInfoHeaderAction}>
 							<DropdownMenu
 								icon={moreVertical}
 								label="Additional actions"
