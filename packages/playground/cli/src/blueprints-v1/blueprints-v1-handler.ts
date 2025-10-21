@@ -66,7 +66,7 @@ export class BlueprintsV1Handler {
 		// @TODO: Rename to FetchProgressMonitor. There's nothing Emscripten
 		// about that class anymore.
 		const monitor = new EmscriptenDownloadMonitor();
-		if (!this.args.skipWordPressSetup) {
+		if (this.args.wordPressInstallMode === 'download-and-install') {
 			let progressReached100 = false;
 			monitor.addEventListener('progress', ((
 				e: CustomEvent<ProgressEvent & { finished: boolean }>

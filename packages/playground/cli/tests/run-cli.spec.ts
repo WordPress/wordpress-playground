@@ -59,7 +59,7 @@ describe.each(blueprintVersions)(
 				php: '8.0',
 				// Let's skip the cost of WordPress setup because it is
 				// irrelevant for this test.
-				skipWordPressSetup: true,
+				wordPressInstallMode: 'assume-already-installed',
 				skipSqliteSetup: true,
 				blueprint: undefined,
 			});
@@ -643,7 +643,7 @@ describe('other run-cli behaviors', () => {
 		test('should clear old auto-login cookie', async () => {
 			cliServer = await runCLI({
 				command: 'server',
-				skipWordPressSetup: true,
+				wordPressInstallMode: 'assume-already-installed',
 				skipSqliteSetup: true,
 				blueprint: undefined,
 			});
@@ -677,7 +677,7 @@ describe('other run-cli behaviors', () => {
 		test('should return 500 when the request handler throws an error', async () => {
 			cliServer = await runCLI({
 				command: 'server',
-				skipWordPressSetup: true,
+				wordPressInstallMode: 'assume-already-installed',
 				blueprint: undefined,
 			});
 

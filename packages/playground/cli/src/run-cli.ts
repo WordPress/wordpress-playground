@@ -65,6 +65,12 @@ export const LogVerbosity = {
 
 type LogVerbosity = (typeof LogVerbosity)[keyof typeof LogVerbosity]['name'];
 
+export type WordPressInstallMode =
+	| 'download-and-install'
+	| 'install-from-existing-files'
+	| 'install-from-existing-files-if-needed'
+	| 'assume-already-installed';
+
 export type WorkerType = 'v1' | 'v2';
 
 export async function parseOptionsAndRunCLI() {
@@ -153,11 +159,21 @@ export async function parseOptionsAndRunCLI() {
 				type: 'boolean',
 				default: false,
 			})
-			.option('skip-wordpress-setup', {
+			.option('wordpress-install-mode', {
 				describe:
-					'Do not download, unzip, and install WordPress. Useful for mounting a pre-configured WordPress directory at /wordpress.',
+					'Control how Playground prepares WordPress before booting.',
+				type: 'string',
+				choices: [
+					'download-and-install',
+					'install-from-existing-files',
+					'install-from-existing-files-if-needed',
+					'assume-already-installed',
+				] as const,
+			})
+			.option('skip-wordpress-install', {
+				describe: '[Deprecated] Use --wordpress-install-mode instead.',
 				type: 'boolean',
-				default: false,
+				hidden: true,
 			})
 			.option('skip-sqlite-setup', {
 				describe:
@@ -249,12 +265,20 @@ export async function parseOptionsAndRunCLI() {
 			.showHelpOnFail(false)
 			.strictOptions()
 			.check(async (args) => {
-				// Support multiple spellings of "WordPress"
+				const skipWordPressInstallFlag =
+					args['skip-wordpress-install'] === true;
+
 				if (
-					args['skip-wordpress-setup'] ||
-					args['skipWordpressSetup']
+					args['wordpress-install-mode'] !== undefined &&
+					skipWordPressInstallFlag
 				) {
-					args['skipWordPressSetup'] = true;
+					throw new Error(
+						'The --wordpress-install-mode option cannot be combined with --skip-wordpress-install.'
+					);
+				}
+
+				if (skipWordPressInstallFlag) {
+					args['wordpress-install-mode'] = 'assume-already-installed';
 				}
 
 				if (args.wp !== undefined && !isValidWordPressSlug(args.wp)) {
@@ -304,9 +328,9 @@ export async function parseOptionsAndRunCLI() {
 
 				if (args['experimental-blueprints-v2-runner'] === true) {
 					if (args['mode'] !== undefined) {
-						if ('skip-wordpress-setup' in args) {
+						if (args['wordpress-install-mode'] !== undefined) {
 							throw new Error(
-								'The --skipWordPressSetup option cannot be used with the --mode option. Use one or the other.'
+								'The --wordpress-install-mode option cannot be used with the --mode option. Use one or the other.'
 							);
 						}
 						if ('skip-sqlite-setup' in args) {
@@ -321,7 +345,10 @@ export async function parseOptionsAndRunCLI() {
 						}
 					} else {
 						// Support the legacy v1 runner options
-						if (args['skip-wordpress-setup'] === true) {
+						if (
+							args['wordpress-install-mode'] ===
+							'assume-already-installed'
+						) {
 							args['mode'] = 'apply-to-existing-site';
 						} else {
 							args['mode'] = 'create-new-site';
@@ -360,6 +387,11 @@ export async function parseOptionsAndRunCLI() {
 			yargsObject.showHelp();
 			process.exit(1);
 		}
+
+		args['wordPressInstallMode'] = args['wordpress-install-mode'];
+
+		delete (args as Record<string, unknown>)['wordpress-install-mode'];
+		delete (args as Record<string, unknown>)['skip-wordpress-install'];
 
 		const cliArgs = {
 			...args,
@@ -420,9 +452,9 @@ export interface RunCLIArgs {
 	xdebug?: boolean;
 	experimentalDevtools?: boolean;
 	'experimental-blueprints-v2-runner'?: boolean;
+	wordPressInstallMode?: WordPressInstallMode;
 
 	// --------- Blueprint V1 args -----------
-	skipWordPressSetup?: boolean;
 	skipSqliteSetup?: boolean;
 	followSymlinks?: boolean;
 	'blueprint-may-read-adjacent-files'?: boolean;
@@ -475,6 +507,10 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 			args = { ...args, autoMount: process.cwd() };
 		}
 		args = expandAutoMounts(args);
+	}
+
+	if (args.wordPressInstallMode === undefined) {
+		args.wordPressInstallMode = 'download-and-install';
 	}
 
 	// Keeping 'quiet' option to preserve backward compatibility

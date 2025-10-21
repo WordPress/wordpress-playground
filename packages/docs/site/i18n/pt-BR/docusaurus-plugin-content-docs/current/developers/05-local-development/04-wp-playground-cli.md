@@ -170,7 +170,7 @@ O comando `server` suporta os seguintes argumentos opcionais:
 <!-- -   `--blueprint=<path>`: The path to a JSON Blueprint file to execute. -->
 <!-- -   `--blueprint-may-read-adjacent-files`: Consent flag: Allow "bundled" resources in a local blueprint to read files in the same directory as the blueprint file. -->
 <!-- -   `--login`: Automatically log the user in as an administrator. -->
-<!-- -   `--skip-wordpress-setup`: Do not download or install WordPress. Useful if you are mounting a full WordPress directory. -->
+<!-- -   `--wordpress-install-mode <mode>`: Control how Playground prepares WordPress before booting. Defaults to `download-and-install`. -->
 <!-- -   `--skip-sqlite-setup`: Do not set up the SQLite database integration. -->
 <!-- -   `--verbosity`: Output logs and progress messages. Choices are "quiet", "normal" or "debug". Defaults to "normal". -->
 <!-- -   `--debug`: Print the PHP error log if an error occurs during boot. -->
@@ -186,7 +186,7 @@ O comando `server` suporta os seguintes argumentos opcionais:
 -   `--blueprint=<path>`: O caminho para um arquivo JSON Blueprint para executar.
 -   `--blueprint-may-read-adjacent-files`: Flag de consentimento: Permitir que recursos "empacotados" em um blueprint local leiam arquivos no mesmo diretório do arquivo blueprint.
 -   `--login`: Fazer login automaticamente do usuário como administrador.
--   `--skip-wordpress-setup`: Não baixar ou instalar WordPress. Útil se você está montando um diretório WordPress completo.
+-   `--wordpress-install-mode <mode>`: Controla como o Playground prepara o WordPress antes de inicializar. O padrão é `download-and-install`. Outras opções: `install-from-existing-files` (instala usando os arquivos montados), `install-from-existing-files-if-needed` (ignora a configuração quando detecta um site existente) e `assume-already-installed` (nunca baixa ou instala o WordPress).
 -   `--skip-sqlite-setup`: Não configurar a integração do banco de dados SQLite.
 -   `--verbosity`: Saída de logs e mensagens de progresso. Opções são "quiet", "normal" ou "debug". Padrão é "normal".
 -   `--debug`: Imprimir o log de erro do PHP se um erro ocorrer durante a inicialização.
