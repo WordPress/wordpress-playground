@@ -36,17 +36,27 @@
 		padding-right: var(--padding-size);
 	}
 	& :global(.components-tab-panel__tab-content) {
-		display: block;
+		display: flex;
+		flex-direction: column;
 		flex-grow: 1;
-		overflow: auto;
+		min-height: 0;
+		overflow: hidden;
 		align-self: stretch;
 	}
 }
 
 .tab-contents {
 	width: 100%;
+	display: flex;
 	flex-direction: column;
+	flex: 1;
+	min-height: 0;
 	position: relative;
+	overflow: auto;
+}
+
+.file-browser-tab {
+	overflow: hidden;
 }
 
 /**

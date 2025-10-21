@@ -33,6 +33,7 @@ import { setActiveModal } from '../../../lib/state/redux/slice-ui';
 import { modalSlugs } from '../../layout';
 import { removeSite } from '../../../lib/state/redux/slice-sites';
 import { BlueprintReflection } from '@wp-playground/blueprints';
+import { SiteFileBrowser } from '../site-file-browser';
 
 export function SiteInfoPanel({
 	className,
@@ -316,6 +317,10 @@ export function SiteInfoPanel({
 								title: 'Settings',
 							},
 							{
+								name: 'files',
+								title: 'File browser',
+							},
+							{
 								name: 'logs',
 								title: 'Logs',
 							},
@@ -340,6 +345,19 @@ export function SiteInfoPanel({
 										) : null}
 
 										<ActiveSiteSettingsForm />
+									</div>
+								)}
+								{tab.name === 'files' && (
+									<div
+										className={classNames(
+											css.tabContents,
+											css.fileBrowserTab
+										)}
+									>
+										<SiteFileBrowser
+											key={site.slug}
+											site={site}
+										/>
 									</div>
 								)}
 								{tab.name === 'logs' && (
