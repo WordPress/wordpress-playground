@@ -6,6 +6,12 @@
 			var(--site-manager-site-info-min-width) + 2 *
 			var(--site-manager-border-width)
 	);
+	--site-manager-open-max-width: calc(100vw - var(--site-view-min-width));
+	--site-info-panel-max-width: calc(
+		var(--site-manager-open-max-width) -
+			(2 * var(--site-manager-border-width)) -
+			var(--site-manager-site-list-width)
+	);
 	--site-view-min-width: 320px;
 	--site-manager-background-color: #1e1e1e;
 	--site-manager-border-width: 12px;
@@ -34,7 +40,7 @@ body {
 }
 
 .site-manager-wrapper {
-	max-width: var(--site-manager-width-desktop);
+	max-width: var(--site-manager-open-max-width);
 	@media (max-width: 875px) {
 		min-width: 0;
 		width: 100%;
@@ -50,7 +56,7 @@ body {
 .site-manager-wrapper-enter-active {
 	opacity: 1;
 	transform: none;
-	max-width: var(--site-manager-width-desktop);
+	max-width: var(--site-manager-open-max-width);
 	@media (max-width: 875px) {
 		width: 100%;
 	}
@@ -135,6 +141,7 @@ body {
 	.site-manager-wrapper-exit,
 	.site-manager-wrapper-enter-active {
 		width: 100%;
+		max-width: 100%;
 	}
 	.site-manager-wrapper-exit-active + .site-view {
 		display: block;

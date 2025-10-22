@@ -13,6 +13,10 @@ import classNames from 'classnames';
 import { forwardRef } from 'react';
 import { setSiteManagerOpen } from '../../lib/state/redux/slice-ui';
 import { BlueprintsPanel } from './blueprints-panel';
+import { ResizableBox } from '@wordpress/components';
+
+const SITE_INFO_MIN_WIDTH = 400;
+const SITE_INFO_DEFAULT_WIDTH = 555;
 
 export const SiteManager = forwardRef<
 	HTMLDivElement,
@@ -54,12 +58,45 @@ export const SiteManager = forwardRef<
 			break;
 		case 'site-details':
 			activePanel = activeSite ? (
-				<SiteInfoPanel
-					key={activeSite?.slug}
-					className={css.siteManagerSiteInfo}
-					site={activeSite}
-					mobileUi={fullScreenSections}
-				/>
+				fullScreenSections ? (
+					<SiteInfoPanel
+						key={activeSite?.slug}
+						className={css.siteManagerSiteInfo}
+						site={activeSite}
+						mobileUi={fullScreenSections}
+					/>
+				) : (
+					<ResizableBox
+						key={activeSite?.slug}
+						className={css.siteInfoResizable}
+						minWidth={SITE_INFO_MIN_WIDTH}
+						defaultSize={{
+							width: SITE_INFO_DEFAULT_WIDTH,
+							height: '100%',
+						}}
+						enable={{
+							top: false,
+							right: true,
+							bottom: false,
+							left: false,
+						}}
+						showHandle={true}
+						handleClasses={{
+							right: css.siteInfoResizeHandle,
+						}}
+						handleProps={{
+							right: {
+								'aria-label': 'Resize site info panel width',
+							},
+						}}
+					>
+						<SiteInfoPanel
+							className={css.siteManagerSiteInfo}
+							site={activeSite}
+							mobileUi={fullScreenSections}
+						/>
+					</ResizableBox>
+				)
 			) : null;
 			break;
 		default:
