@@ -29,10 +29,24 @@ body {
 	overflow: hidden;
 }
 
-.main-panels {
+.layoutAnimating {
+	position: relative;
+}
+
+.mainPanels {
 	display: flex;
 	width: 100%;
 	height: 100%;
+}
+
+.mainPanels [data-panel] {
+	overflow: hidden;
+}
+
+.layoutAnimating .mainPanels [data-panel] {
+	transition: flex-grow 280ms ease, flex-basis 280ms ease, width 280ms ease,
+		max-width 280ms ease, min-width 280ms ease;
+	will-change: flex-grow, flex-basis;
 }
 
 .site-manager-wrapper {
@@ -40,25 +54,27 @@ body {
 	display: flex;
 }
 
-.site-manager-wrapper-enter {
-	opacity: 0;
-}
-
-.site-manager-wrapper-enter-active,
-.site-manager-wrapper-exit-active {
-	transition: opacity 300ms ease;
-}
-
-.site-manager-wrapper-enter-active {
-	opacity: 1;
-}
-
+.site-manager-wrapper-enter,
 .site-manager-wrapper-exit {
 	opacity: 1;
+	transform: translateX(0);
 }
 
-.site-manager-wrapper-exit-active {
+.site-manager-wrapper-animating.site-manager-wrapper-enter {
 	opacity: 0;
+	transform: translateX(calc(-100% - 24px));
+}
+
+.site-manager-wrapper-animating.site-manager-wrapper-enter-active {
+	opacity: 1;
+	transform: translateX(0);
+	transition: transform 300ms ease, opacity 300ms ease;
+}
+
+.site-manager-wrapper-animating.site-manager-wrapper-exit-active {
+	opacity: 0;
+	transform: translateX(calc(-100% - 24px));
+	transition: transform 300ms ease, opacity 300ms ease;
 }
 
 .layoutResizeHandle {
@@ -83,6 +99,41 @@ body {
 	pointer-events: none;
 }
 
+.toggleSiteManagerButton {
+	position: absolute;
+	top: 16px;
+	left: 16px;
+	z-index: 10;
+	box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+	border-radius: 8px;
+}
+
+.toggleSiteManagerButton :global(.components-button) {
+	padding: 6px 10px;
+	background-color: rgba(30, 30, 30, 0.92);
+	color: #ffffff;
+	border: none;
+	border-radius: 8px;
+}
+
+.toggleSiteManagerButton :global(svg) {
+	width: 18px;
+	height: 18px;
+}
+
+.toggleSiteManagerButton :global(.components-button:hover) {
+	background-color: rgba(255, 255, 255, 0.14);
+	color: #ffffff;
+}
+
+.toggleSiteManagerButtonOpen {
+	left: 16px;
+}
+
+.toggleSiteManagerButtonClosed {
+	left: 16px;
+}
+
 .site-view {
 	height: 100%;
 	display: flex;
@@ -103,4 +154,7 @@ body {
 	.layoutResizeHandle {
 		display: none;
 	}
+}
+.site-manager-wrapper-animating {
+	will-change: transform, opacity;
 }

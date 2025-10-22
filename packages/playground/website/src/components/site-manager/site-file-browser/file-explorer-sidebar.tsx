@@ -1,10 +1,12 @@
 import {
+	createElement,
 	useMemo,
 	useRef,
 	useState,
 	type Dispatch,
 	type SetStateAction,
 } from 'react';
+import { Icon } from '@wordpress/components';
 import styles from './file-explorer.module.css';
 import {
 	FilePickerTree,
@@ -97,27 +99,42 @@ export function FileExplorerSidebar({
 	const [lastSelectedPath, setLastSelectedPath] = useState<string | null>(
 		null
 	);
-	const [root, setRoot] = useState<string>(DEFAULT_WORKSPACE_DIR);
+	const root = WORDPRESS_ROOT_DIR;
+
+	const folderIcon = createElement(
+		'svg',
+		{
+			xmlns: 'http://www.w3.org/2000/svg',
+			viewBox: '0 0 24 24',
+			width: 16,
+			height: 16,
+			'aria-hidden': true,
+		},
+		createElement('path', {
+			d: 'M3 5.5A1.5 1.5 0 0 1 4.5 4h5.086a1.5 1.5 0 0 1 1.06.44l1.914 1.914a1.5 1.5 0 0 0 1.06.44H19.5A1.5 1.5 0 0 1 21 8.294V18.5A1.5 1.5 0 0 1 19.5 20h-15A1.5 1.5 0 0 1 3 18.5z',
+			fill: 'currentColor',
+		})
+	);
+	const fileIcon = createElement(
+		'svg',
+		{
+			xmlns: 'http://www.w3.org/2000/svg',
+			viewBox: '0 0 24 24',
+			width: 16,
+			height: 16,
+			'aria-hidden': true,
+		},
+		createElement('path', {
+			d: 'M6.5 3A1.5 1.5 0 0 0 5 4.5v15A1.5 1.5 0 0 0 6.5 21h11a1.5 1.5 0 0 0 1.5-1.5V9.914a1.5 1.5 0 0 0-.44-1.06l-5.914-5.914A1.5 1.5 0 0 0 11.586 2H6.5zM12 3.914 18.086 10H12z',
+			fill: 'currentColor',
+		})
+	);
 
 	return (
 		<div className={styles.fileExplorerContainer}>
 			<div className={styles.fileExplorerHeader}>
 				<span className={styles.fileExplorerTitle}>Files</span>
 				<div className={styles.fileExplorerActions}>
-					<button
-						className={styles.fileExplorerButton}
-						type="button"
-						onClick={() => {
-							setRoot((prev) =>
-								prev === DEFAULT_WORKSPACE_DIR
-									? WORDPRESS_ROOT_DIR
-									: DEFAULT_WORKSPACE_DIR
-							);
-						}}
-						title="Toggle WordPress root"
-					>
-						Toggle WP
-					</button>
 					<button
 						className={styles.fileExplorerButton}
 						type="button"
@@ -131,6 +148,7 @@ export function FileExplorerSidebar({
 						}}
 						title="Create new file"
 					>
+						<Icon icon={fileIcon} size={16} />
 						New File
 					</button>
 					<button
@@ -146,6 +164,7 @@ export function FileExplorerSidebar({
 						}}
 						title="Create new folder"
 					>
+						<Icon icon={folderIcon} size={16} />
 						New Folder
 					</button>
 				</div>
@@ -155,7 +174,6 @@ export function FileExplorerSidebar({
 					ref={treeRef}
 					filesystem={filesystem}
 					root={root}
-					key={root}
 					initialSelectedPath={treeInitialPath}
 					onSelect={async (path) => {
 						setLastSelectedPath(path);

@@ -26,7 +26,12 @@ import {
 	supportedDisplayModes,
 	PlaygroundViewport,
 } from '../playground-viewport';
-import { setActiveModal } from '../../lib/state/redux/slice-ui';
+import { Button } from '@wordpress/components';
+import { menu } from '@wordpress/icons';
+import {
+	setActiveModal,
+	setSiteManagerOpen,
+} from '../../lib/state/redux/slice-ui';
 import { ImportFormModal } from '../import-form-modal';
 import { PreviewPRModal } from '../../github/preview-pr';
 import { MissingSiteModal } from '../missing-site-modal';
@@ -75,6 +80,9 @@ export function Layout() {
 		const percent = (defaultWidth / window.innerWidth) * 100;
 		return Math.max(35, Math.min(70, Math.round(percent)));
 	});
+	const [panelAnimating, setPanelAnimating] = useState(false);
+	const animationTimeoutRef = useRef<number | null>(null);
+	const hasMountedRef = useRef(false);
 
 	useEffect(() => {
 		if (!siteManagerPanelRef.current) {
@@ -87,9 +95,54 @@ export function Layout() {
 		}
 	}, [siteManagerIsOpen]);
 
+	useEffect(() => {
+		if (!hasMountedRef.current) {
+			hasMountedRef.current = true;
+			return;
+		}
+		setPanelAnimating(true);
+		if (animationTimeoutRef.current) {
+			window.clearTimeout(animationTimeoutRef.current);
+		}
+		animationTimeoutRef.current = window.setTimeout(() => {
+			setPanelAnimating(false);
+			animationTimeoutRef.current = null;
+		}, 320);
+		return () => {
+			if (animationTimeoutRef.current) {
+				window.clearTimeout(animationTimeoutRef.current);
+				animationTimeoutRef.current = null;
+			}
+		};
+	}, [siteManagerIsOpen]);
+
+	const dispatch = useAppDispatch();
+	const toggleSiteManager = () => {
+		dispatch(setSiteManagerOpen(!siteManagerIsOpen));
+	};
+
 	return (
-		<div className={`${css.layout}`}>
+		<div
+			className={classNames(css.layout, {
+				[css.layoutAnimating]: panelAnimating,
+			})}
+		>
 			<Modals />
+			<Button
+				className={classNames(css.toggleSiteManagerButton, {
+					[css.toggleSiteManagerButtonOpen]: siteManagerIsOpen,
+					[css.toggleSiteManagerButtonClosed]: !siteManagerIsOpen,
+				})}
+				onClick={toggleSiteManager}
+				icon={menu}
+				label={
+					siteManagerIsOpen
+						? 'Hide site manager'
+						: 'Open site manager'
+				}
+				showTooltip={true}
+				variant="secondary"
+			/>
 			<PanelGroup
 				direction="horizontal"
 				className={css.mainPanels}
@@ -116,7 +169,10 @@ export function Layout() {
 					>
 						<div
 							ref={siteManagerWrapperRef}
-							className={css.siteManagerWrapper}
+							className={classNames(css.siteManagerWrapper, {
+								[css.siteManagerWrapperAnimating]:
+									panelAnimating,
+							})}
 						>
 							<SiteManager />
 						</div>

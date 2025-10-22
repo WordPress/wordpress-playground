@@ -2,6 +2,7 @@ import {
 	forwardRef,
 	useEffect,
 	useImperativeHandle,
+	useLayoutEffect,
 	useRef,
 	type MutableRefObject,
 } from 'react';
@@ -112,6 +113,7 @@ export const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
 		const languageCompartmentRef = useRef(new Compartment());
 		const editableCompartmentRef = useRef(new Compartment());
 		const latestCodeRef = useRef(code);
+		const shouldRestoreFocusRef = useRef(false);
 
 		useImperativeHandle(ref, () => ({
 			focus: () => {
@@ -156,6 +158,9 @@ export const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
 					highlightSelectionMatches(),
 					autocompletion(),
 					EditorView.updateListener.of((update) => {
+						if (update.view.hasFocus) {
+							shouldRestoreFocusRef.current = true;
+						}
 						if (!update.docChanged) {
 							return;
 						}
@@ -236,6 +241,17 @@ export const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
 				),
 			});
 		}, [readOnly]);
+
+		useLayoutEffect(() => {
+			const view = viewRef.current;
+			if (!view) {
+				return;
+			}
+			if (shouldRestoreFocusRef.current && !view.hasFocus) {
+				view.focus();
+			}
+			shouldRestoreFocusRef.current = false;
+		}, [code, currentPath, readOnly]);
 
 		return <div ref={editorRootRef} className={className} />;
 	}

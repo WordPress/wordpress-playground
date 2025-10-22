@@ -55,6 +55,10 @@
 	overflow: auto;
 }
 
+.tabHidden {
+	display: none;
+}
+
 .file-browser-tab {
 	overflow: hidden;
 }
@@ -101,20 +105,6 @@
 	height: 100%;
 	flex-direction: column;
 	width: 100%;
-}
-
-.header-actions {
-	display: flex;
-	align-items: center;
-	gap: 8px;
-}
-
-.collapse-button {
-	padding: 6px;
-	min-width: 32px;
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
 }
 
 .site-info-header-icon {
