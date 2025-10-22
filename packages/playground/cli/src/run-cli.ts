@@ -569,6 +569,11 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 
 			const IDEConfigName = 'WP Playground CLI - Listen for Xdebug';
 
+			// TODO: Should we warn users and ask them to confirm that
+			// we will be modifying their IDE config files?
+			// It could be painful for folks if their IDE configs are
+			// inadvertently broken.
+
 			// We don't want to spend time awaiting IDE config cleanup by default,
 			// but let's save this promise just in case.
 			// If we're adding IDE config for Xdebug, we need to await cleanup
