@@ -164,7 +164,17 @@ export async function addXdebugIDEConfig({
 
 		const contents = fs.readFileSync(configFilePath, 'utf8');
 		const xmlParser = new XMLParser(xmlParserOptions);
-		const config = xmlParser.parse(contents);
+		// NOTE: Using an IIFE so `config` can remain const.
+		const config = (() => {
+			try {
+				return xmlParser.parse(contents, true);
+			} catch (e) {
+				logger.error(e);
+				throw new Error(
+					'There was an error parsing PhpStorm workspace.xml.'
+				);
+			}
+		})();
 
 		let projectElement = config?.find((c: any) => c?.project !== undefined);
 		if (projectElement === undefined) {
@@ -252,8 +262,8 @@ export async function addXdebugIDEConfig({
 		});
 
 		if (!root || errors.length) {
-			logger.error('VSCode configuration file is not valid JSON.');
-			process.exit(1);
+			logger.error(errors);
+			throw new Error('VSCode configuration file is not valid JSON.');
 		}
 
 		let configurationsNode = JSONC.findNodeAtLocation(root, [
@@ -308,7 +318,17 @@ export async function clearXdebugIDEConfig(name: string) {
 	if (fs.existsSync(phpStormConfigFilePath)) {
 		const contents = fs.readFileSync(phpStormConfigFilePath, 'utf8');
 		const xmlParser = new XMLParser(xmlParserOptions);
-		const config = xmlParser.parse(contents);
+		// NOTE: Using an IIFE so `config` can remain const.
+		const config = (() => {
+			try {
+				return xmlParser.parse(contents, true);
+			} catch (e) {
+				logger.error(e);
+				throw new Error(
+					'There was an error parsing PhpStorm workspace.xml.'
+				);
+			}
+		})();
 
 		const projectElement = config.find(
 			(c: any) => c?.project !== undefined
@@ -349,8 +369,7 @@ export async function clearXdebugIDEConfig(name: string) {
 
 		if (!root || errors.length) {
 			logger.error(errors);
-			logger.error('VSCode configuration file is not valid JSON.');
-			process.exit(1);
+			throw new Error('VSCode configuration file is not valid JSON.');
 		}
 
 		const configurationsNode = JSONC.findNodeAtLocation(root, [

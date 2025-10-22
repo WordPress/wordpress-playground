@@ -598,18 +598,35 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 					vfsPath: '/',
 				};
 
-				await promiseToClearXdebugIDEConfig;
-				addXdebugIDEConfig({
-					name: IDEConfigName,
-					host: host,
-					port: port,
-					ides: args.experimentalIde,
-					mounts: [
-						symlinkMount,
-						...(args['mount-before-install'] || []),
-						...(args.mount || []),
-					],
-				});
+				try {
+					await promiseToClearXdebugIDEConfig;
+				} catch (e) {
+					logger.error(e);
+					logger.error(
+						'There was an error while clearing previous Xdebug IDE config.'
+					);
+					process.exit(1);
+				}
+
+				try {
+					addXdebugIDEConfig({
+						name: IDEConfigName,
+						host: host,
+						port: port,
+						ides: args.experimentalIde,
+						mounts: [
+							symlinkMount,
+							...(args['mount-before-install'] || []),
+							...(args.mount || []),
+						],
+					});
+				} catch (e) {
+					logger.error(e);
+					logger.error(
+						'There was an error while adding Xdebug IDE config.'
+					);
+					process.exit(1);
+				}
 			}
 
 			// We do not know the system temp dir,
