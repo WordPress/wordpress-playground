@@ -55,10 +55,6 @@ body.is-embedded .fake-window-wrapper {
 	gap: 10px;
 }
 
-.toolbar-hidden {
-	max-height: 0;
-}
-
 .window-controls {
 	display: flex;
 }

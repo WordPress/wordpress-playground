@@ -3,8 +3,8 @@
 	--site-manager-site-info-min-width: 555px;
 	--site-manager-width-desktop: calc(
 		var(--site-manager-site-list-width) +
-		var(--site-manager-site-info-min-width) +
-		2 * var(--site-manager-border-width)
+			var(--site-manager-site-info-min-width) + 2 *
+			var(--site-manager-border-width)
 	);
 	--site-view-min-width: 320px;
 	--site-manager-background-color: #1e1e1e;
@@ -97,19 +97,11 @@ body {
 
 .site-manager-wrapper + .site-view {
 	position: relative;
-	border-width: var(--site-manager-border-width);
+	border-width: 0;
 	border-left-width: 0;
 	.site-view-content {
 		border-radius: var(--site-manager-border-radius);
 	}
-}
-
-.site-manager-wrapper:not(
-		.site-manager-wrapper-exit-active,
-		.site-manager-wrapper-enter-active
-	)
-	+ .site-view:hover {
-	transform: scale(1.01);
 }
 
 .site-manager-wrapper-exit-active + .site-view {
@@ -124,19 +116,6 @@ body {
 	overflow: hidden;
 	transition: border-radius 300ms;
 	height: 100%;
-}
-
-.site-view-overlay {
-	content: '';
-	display: block;
-	width: 100%;
-	height: 100dvh;
-	background-color: transparent;
-	position: absolute;
-	top: 0;
-	left: 0;
-	z-index: 1;
-	cursor: pointer;
 }
 
 /*

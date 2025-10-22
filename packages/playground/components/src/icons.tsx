@@ -144,7 +144,13 @@ export function getLogoDataURL(logo: { mime: string; data: string }): string {
 	return `data:${logo.mime};base64,${logo.data}`;
 }
 
-export function SiteManagerIcon({ size = 24 }: { size?: number }) {
+export function SiteManagerIcon({
+	size = 24,
+	sidebarActive = false,
+}: {
+	size?: number;
+	sidebarActive?: boolean;
+}) {
 	return (
 		<svg
 			width={size}
@@ -158,15 +164,29 @@ export function SiteManagerIcon({ size = 24 }: { size?: number }) {
 			strokeLinejoin="round"
 		>
 			<rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-			<rect
-				x="3"
-				y="3"
-				width="6"
-				height="18"
-				rx="2"
-				ry="2"
-				fill="currentColor"
-			></rect>
+			{sidebarActive ? (
+				<rect
+					x="3"
+					y="3"
+					width="6"
+					height="18"
+					rx="2"
+					ry="2"
+					fill="currentColor"
+				></rect>
+			) : (
+				<rect
+					x="3"
+					y="3"
+					width="6"
+					height="18"
+					rx="2"
+					ry="2"
+					fill="none"
+					stroke="currentColor"
+					strokeWidth="2"
+				></rect>
+			)}
 		</svg>
 	);
 }

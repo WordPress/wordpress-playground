@@ -29,20 +29,18 @@ interface PlaygroundViewportProps {
 	displayMode?: DisplayMode;
 	children?: React.ReactNode;
 	siteSlug?: string;
-	hideToolbar?: boolean;
 	className?: string;
 }
 
 export const PlaygroundViewport = ({
 	displayMode = 'browser-full-screen',
-	hideToolbar,
 	className,
 }: PlaygroundViewportProps) => {
 	if (displayMode === 'seamless') {
 		return <KeepAliveTemporarySitesViewport />;
 	}
 	return (
-		<BrowserChrome hideToolbar={hideToolbar} className={className}>
+		<BrowserChrome className={className}>
 			<KeepAliveTemporarySitesViewport />
 		</BrowserChrome>
 	);
