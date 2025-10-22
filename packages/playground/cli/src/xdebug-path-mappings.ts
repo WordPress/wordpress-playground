@@ -180,10 +180,7 @@ export async function addXdebugIDEConfig({
 		if (projectElement === undefined) {
 			projectElement = {
 				project: [],
-				':@': {
-					// TODO: Would it be better to omit the project version entirely to reduce maintenance burden?
-					version: '4',
-				},
+				':@': { version: '4' },
 			};
 			config.push(projectElement);
 		}
