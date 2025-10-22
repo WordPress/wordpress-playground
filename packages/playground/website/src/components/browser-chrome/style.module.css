@@ -74,6 +74,7 @@ body.is-embedded .fake-window-wrapper {
 }
 
 .address-bar-slot {
+	display: flex;
 	flex-grow: 1;
 	min-width: 200px;
 	width: 100%;

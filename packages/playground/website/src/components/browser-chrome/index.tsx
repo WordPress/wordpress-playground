@@ -61,12 +61,11 @@ export default function BrowserChrome({
 						<Button
 							variant="browser-chrome"
 							aria-label="Open Site Manager"
-							className={css.openSiteManagerButton}
 							onClick={() => {
 								dispatch(setSiteManagerOpen(true));
 							}}
 						>
-							<SiteManagerIcon />
+							<SiteManagerIcon size={26} />
 						</Button>
 					</div>
 
@@ -94,7 +93,7 @@ export default function BrowserChrome({
 										display: 'flex',
 									}}
 								>
-									<Icon icon={cog} />
+									<Icon icon={cog} size={28} />
 								</Button>
 								{isModalOpen && (
 									<Modal
@@ -126,7 +125,7 @@ export default function BrowserChrome({
 											display: 'flex',
 										}}
 									>
-										<Icon icon={cog} />
+										<Icon icon={cog} size={28} />
 									</Button>
 								)}
 								renderContent={({ onClose }) => (
