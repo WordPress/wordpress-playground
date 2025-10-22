@@ -97,7 +97,8 @@ body {
 
 .site-manager-wrapper + .site-view {
 	position: relative;
-	border-width: 0;
+	border-width: var(--site-manager-border-width);
+	border-top-width: 0;
 	border-left-width: 0;
 	.site-view-content {
 		border-radius: var(--site-manager-border-radius);
