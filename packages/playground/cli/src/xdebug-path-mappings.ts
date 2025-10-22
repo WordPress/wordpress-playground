@@ -86,7 +86,7 @@ export type IDEConfig = {
 
 const xmlParserOptions: X2jOptions = {
 	ignoreAttributes: false,
-	attributeNamePrefix: '@_',
+	attributeNamePrefix: '',
 	preserveOrder: true,
 	cdataPropName: '__cdata',
 	commentPropName: '__xmlComment',
@@ -126,25 +126,24 @@ export async function addXdebugIDEConfig({
 				{
 					path_mappings: mappings.map((mapping) => ({
 						mapping: [],
-						// TODO: Make attributes easier to read and write than this, if possible.
 						':@': {
-							'@_local-root': `$PROJECT_DIR$/${mapping.hostPath.replace(
+							'local-root': `$PROJECT_DIR$/${mapping.hostPath.replace(
 								/^\.\/?/,
 								''
 							)}`,
-							'@_remote-root': mapping.vfsPath,
+							'remote-root': mapping.vfsPath,
 						},
 					})),
 				},
 			],
 			':@': {
-				'@_name': name,
+				name,
 				// TODO: Document why host:port and port: 80 are necessary for PhpStorm to hit breakpoints?
 				// IOW, why do we not set the web server port in the port field,
 				// and what is port 80 for when we aren't opening port 80 at all?
-				'@_host': `${host}:${port}`,
-				'@_port': '80',
-				'@_use_path_mappings': 'true',
+				host: `${host}:${port}`,
+				port: '80',
+				use_path_mappings: 'true',
 			},
 		};
 
@@ -173,7 +172,7 @@ export async function addXdebugIDEConfig({
 				project: [],
 				':@': {
 					// TODO: Would it be better to omit the project version entirely to reduce maintenance burden?
-					'@_version': '4',
+					version: '4',
 				},
 			};
 			config.push(projectElement);
@@ -181,15 +180,12 @@ export async function addXdebugIDEConfig({
 
 		let componentElement = projectElement.project.find(
 			(c: any) =>
-				c?.component !== undefined &&
-				c?.[':@']?.['@_name'] === 'PhpServers'
+				c?.component !== undefined && c?.[':@']?.name === 'PhpServers'
 		);
 		if (componentElement === undefined) {
 			componentElement = {
 				component: [],
-				':@': {
-					'@_name': 'PhpServers',
-				},
+				':@': { name: 'PhpServers' },
 			};
 			projectElement.project.push(componentElement);
 		}
@@ -203,10 +199,7 @@ export async function addXdebugIDEConfig({
 		}
 
 		const serverElementIndex = serversElement.servers.findIndex(
-			(c: any) =>
-				c?.server !== undefined &&
-				// TODO: Can we use easier prefixes?
-				c?.[':@']?.['@_name'] === name
+			(c: any) => c?.server !== undefined && c?.[':@']?.name === name
 		);
 		if (serverElementIndex === -1) {
 			serversElement.servers.push(serverElement);
@@ -322,16 +315,13 @@ export async function clearXdebugIDEConfig(name: string) {
 		);
 		const componentElement = projectElement?.project.find(
 			(c: any) =>
-				c?.component !== undefined &&
-				c?.[':@']?.['@_name'] === 'PhpServers'
+				c?.component !== undefined && c?.[':@']?.name === 'PhpServers'
 		);
 		const serversElement = componentElement?.component.find(
-			// TODO: Stop using in operator
 			(c: any) => c?.servers !== undefined
 		);
 		const serverElementIndex = serversElement?.servers.findIndex(
-			(c: any) =>
-				c?.server !== undefined && c?.[':@']?.['@_name'] === name
+			(c: any) => c?.server !== undefined && c?.[':@']?.name === name
 		);
 
 		if (serversElement && serverElementIndex >= 0) {
