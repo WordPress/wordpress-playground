@@ -138,9 +138,11 @@ export async function addXdebugIDEConfig({
 			],
 			':@': {
 				name,
-				// TODO: Document why host:port and port: 80 are necessary for PhpStorm to hit breakpoints?
-				// IOW, why do we not set the web server port in the port field,
-				// and what is port 80 for when we aren't opening port 80 at all?
+				// NOTE: If we pass Playground's host and port separately here,
+				// eliminating the `port: '80'` config, PhpStorm fails to hit breakpoints
+				// from Playground's Xdebug setup.
+				// TODO: Why is this? Is there something about how the Playground Xdebug
+				// feature is implemented that requires this? Could we fix it?
 				host: `${host}:${port}`,
 				port: '80',
 				use_path_mappings: 'true',
