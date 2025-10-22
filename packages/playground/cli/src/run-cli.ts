@@ -54,8 +54,6 @@ import {
 import {
 	addXdebugIDEConfig,
 	clearXdebugIDEConfig,
-	// TODO: Consider making these names more specific or even whether we can
-	// wrap these into a single add/remove pair.
 	createPlaygroundCliTempDirSymlink,
 	removePlaygroundCliTempDirSymlink,
 } from './xdebug-path-mappings';
