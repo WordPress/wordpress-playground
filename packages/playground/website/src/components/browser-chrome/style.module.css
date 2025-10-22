@@ -51,8 +51,12 @@ body.is-embedded .fake-window-wrapper {
 	align-items: center;
 	max-height: 100px;
 	overflow: hidden;
-	transition: max-height 0.2s ease-in-out;
+	transition: max-height 0.2s ease-in-out, padding 0.2s ease-in-out;
 	gap: 10px;
+}
+
+.toolbar.with-sidebar-open {
+	padding: 0 4px;
 }
 
 .window-controls {

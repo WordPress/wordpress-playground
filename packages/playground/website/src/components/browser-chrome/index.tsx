@@ -51,7 +51,12 @@ export default function BrowserChrome({
 	return (
 		<div className={wrapperClass} data-cy="simulated-browser">
 			<div className={`${css.window} browser-chrome-window`}>
-				<header className={css.toolbar} aria-label="Playground toolbar">
+				<header
+					className={classNames(css.toolbar, {
+						[css.withSidebarOpen]: siteManagerIsOpen,
+					})}
+					aria-label="Playground toolbar"
+				>
 					<div className={css.windowControls}>
 						<Button
 							variant="browser-chrome"
