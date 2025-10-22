@@ -93,6 +93,16 @@
 	width: 100%;
 }
 
+.site-info-header {
+	color: inherit;
+
+	&:has(.site-info-header-details-created-at:empty),
+	&:not(:has(.site-info-header-details-created-at)) {
+		justify-content: center;
+		align-items: center;
+	}
+}
+
 .site-info-header-icon {
 	box-sizing: border-box;
 

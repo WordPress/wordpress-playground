@@ -107,7 +107,7 @@ export function SiteInfoPanel({
 						justify="space-between"
 						align="flex-start"
 						expanded={true}
-						className={css.padded}
+						className={`${css.padded} ${css.siteInfoHeader}`}
 						style={{ paddingBottom: 10 }}
 					>
 						{mobileUi && (
