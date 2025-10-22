@@ -226,7 +226,10 @@ export async function parseOptionsAndRunCLI() {
 			.option('experimental-ide', {
 				describe: 'Enable experimental IDE development tools.',
 				type: 'string',
-				choices: ['', 'vscode', 'phpstorm'], // The empty one means `--experimental-ide` option is enabled
+				// The empty value means the option is enabled for all
+				// supported IDEs and, if needed, will create the relevant
+				// config file for each.
+				choices: ['', 'vscode', 'phpstorm'],
 				coerce: (value?: string) =>
 					value === '' ? ['vscode', 'phpstorm'] : [value],
 			})
