@@ -2,7 +2,8 @@ import fs from 'fs';
 import path from 'path';
 import { logger } from '@php-wasm/logger';
 import { type Mount } from './mounts';
-import { Builder, parseStringPromise } from 'xml2js';
+import { XMLParser, XMLBuilder } from 'fast-xml-parser';
+import type { X2jOptions, XmlBuilderOptions } from 'fast-xml-parser';
 import JSONC from 'jsonc-parser';
 
 /**
@@ -83,6 +84,26 @@ export type IDEConfig = {
 	mounts: Mount[];
 };
 
+const xmlParserOptions: X2jOptions = {
+	ignoreAttributes: false,
+	attributeNamePrefix: '@_',
+	preserveOrder: true,
+	cdataPropName: '__cdata',
+	commentPropName: '__xmlComment',
+	allowBooleanAttributes: true,
+	trimValues: true,
+};
+const xmlBuilderOptions: XmlBuilderOptions = {
+	ignoreAttributes: xmlParserOptions.ignoreAttributes,
+	attributeNamePrefix: xmlParserOptions.attributeNamePrefix,
+	preserveOrder: xmlParserOptions.preserveOrder,
+	cdataPropName: xmlParserOptions.cdataPropName,
+	commentPropName: xmlParserOptions.commentPropName,
+	suppressBooleanAttributes: !xmlParserOptions.allowBooleanAttributes,
+	format: true,
+	indentBy: '\t',
+};
+
 /**
  * Implement necessary parameters and path mappings in IDE configuration files.
  *
@@ -100,29 +121,31 @@ export async function addXdebugIDEConfig({
 
 	// PHPstorm
 	if (ides.includes('phpstorm')) {
-		const serverConfig = {
-			$: {
-				name: name,
-				// TODO: Document why host:port and port: 80 are necessary for PhpStorm to hit breakpoints?
-				// IOW, why do we not set the web server port in the port field,
-				// and what is port 80 for when we aren't opening port 80 at all?
-				host: `${host}:${port}`,
-				port: '80',
-				use_path_mappings: 'true',
-			},
-			path_mappings: [
+		const serverElement = {
+			server: [
 				{
-					mapping: mappings.map((mapping) => ({
-						$: {
-							'local-root': `$PROJECT_DIR$/${mapping.hostPath.replace(
+					path_mappings: mappings.map((mapping) => ({
+						mapping: [],
+						// TODO: Make attributes easier to read and write than this, if possible.
+						':@': {
+							'@_local-root': `$PROJECT_DIR$/${mapping.hostPath.replace(
 								/^\.\/?/,
 								''
 							)}`,
-							'remote-root': mapping.vfsPath,
+							'@_remote-root': mapping.vfsPath,
 						},
 					})),
 				},
 			],
+			':@': {
+				'@_name': name,
+				// TODO: Document why host:port and port: 80 are necessary for PhpStorm to hit breakpoints?
+				// IOW, why do we not set the web server port in the port field,
+				// and what is port 80 for when we aren't opening port 80 at all?
+				'@_host': `${host}:${port}`,
+				'@_port': '80',
+				'@_use_path_mappings': 'true',
+			},
 		};
 
 		const configFilePath = path.join(process.cwd(), '.idea/workspace.xml');
@@ -140,56 +163,59 @@ export async function addXdebugIDEConfig({
 			);
 		}
 
-		const contents = fs.readFileSync(configFilePath);
-		const config = await parseStringPromise(contents);
+		const contents = fs.readFileSync(configFilePath, 'utf8');
+		const xmlParser = new XMLParser(xmlParserOptions);
+		const config = xmlParser.parse(contents);
 
-		if (!config.project) {
-			config.project = { $: { version: '4' }, component: [] };
-		}
-
-		let component = config?.project?.component?.find(
-			(c: any) => c?.$?.name === 'PhpServers'
-		);
-		if (!component) {
-			component = {
-				$: { name: 'PhpServers' },
-				servers: [{ server: [] }],
+		let projectElement = config?.find((c: any) => c?.project !== undefined);
+		if (projectElement === undefined) {
+			projectElement = {
+				project: [],
+				':@': {
+					// TODO: Would it be better to omit the project version entirely to reduce maintenance burden?
+					'@_version': '4',
+				},
 			};
-			if (!config.project.component) {
-				config.project.component = [];
-			}
-			config.project.component.push(component);
-		} else {
-			// Sometimes, existing configs can be edited to remove sections
-			// unexpectedly. Let's ensure the right child elements exist
-			// before saving our server config.
-
-			if (!component.servers) {
-				component.servers = [];
-			}
-			if (!component.servers[0]) {
-				component.servers[0] = { server: [] };
-			}
-			if (!component.servers[0].server) {
-				component.servers[0].server = [];
-			}
+			config.push(projectElement);
 		}
 
-		const serverIndex = component?.servers[0].server?.findIndex(
-			(c: any) => c?.$?.name === name
+		let componentElement = projectElement.project.find(
+			(c: any) =>
+				c?.component !== undefined &&
+				c?.[':@']?.['@_name'] === 'PhpServers'
 		);
-		if (serverIndex === -1) {
-			component.servers[0].server.push(serverConfig);
-		} else {
-			component.servers[0].server[serverIndex] = serverConfig;
+		if (componentElement === undefined) {
+			componentElement = {
+				component: [],
+				':@': {
+					'@_name': 'PhpServers',
+				},
+			};
+			projectElement.project.push(componentElement);
 		}
 
-		const builder = new Builder({
-			xmldec: { version: '1.0', encoding: 'UTF-8' },
-			headless: false,
-			renderOpts: { pretty: true },
-		});
-		const xml = builder.buildObject(config);
+		let serversElement = componentElement.component.find(
+			(c: any) => c?.servers !== undefined
+		);
+		if (serversElement === undefined) {
+			serversElement = { servers: [] };
+			componentElement.component.push(serversElement);
+		}
+
+		const serverElementIndex = serversElement.servers.findIndex(
+			(c: any) =>
+				c?.server !== undefined &&
+				// TODO: Can we use easier prefixes?
+				c?.[':@']?.['@_name'] === name
+		);
+		if (serverElementIndex === -1) {
+			serversElement.servers.push(serverElement);
+		} else {
+			serversElement.servers[serverElementIndex] = serverElement;
+		}
+
+		const xmlBuilder = new XMLBuilder(xmlBuilderOptions);
+		const xml = xmlBuilder.build(config);
 
 		fs.writeFileSync(configFilePath, xml);
 	}
@@ -287,25 +313,32 @@ export async function clearXdebugIDEConfig(name: string) {
 		'.idea/workspace.xml'
 	);
 	if (fs.existsSync(phpStormConfigFilePath)) {
-		const contents = fs.readFileSync(phpStormConfigFilePath);
-		const config = await parseStringPromise(contents);
+		const contents = fs.readFileSync(phpStormConfigFilePath, 'utf8');
+		const xmlParser = new XMLParser(xmlParserOptions);
+		const config = xmlParser.parse(contents);
 
-		const component = config?.project?.component?.find(
-			(c: any) => c?.$?.name === 'PhpServers'
+		const projectElement = config.find(
+			(c: any) => c?.project !== undefined
+		);
+		const componentElement = projectElement?.project.find(
+			(c: any) =>
+				c?.component !== undefined &&
+				c?.[':@']?.['@_name'] === 'PhpServers'
+		);
+		const serversElement = componentElement?.component.find(
+			// TODO: Stop using in operator
+			(c: any) => c?.servers !== undefined
+		);
+		const serverElementIndex = serversElement?.servers.findIndex(
+			(c: any) =>
+				c?.server !== undefined && c?.[':@']?.['@_name'] === name
 		);
 
-		if (component && component?.servers?.[0]?.server) {
-			component.servers[0].server = component.servers[0].server.filter(
-				(c: any) => c?.$?.name !== name
-			);
+		if (serversElement && serverElementIndex >= 0) {
+			serversElement.servers.splice(serverElementIndex, 1);
 
-			const builder = new Builder({
-				xmldec: { version: '1.0', encoding: 'UTF-8' },
-				headless: false,
-				renderOpts: { pretty: true },
-			});
-			const xml = builder.buildObject(config);
-
+			const xmlBuilder = new XMLBuilder(xmlBuilderOptions);
+			const xml = xmlBuilder.build(config);
 			fs.writeFileSync(phpStormConfigFilePath, xml);
 		}
 	}
