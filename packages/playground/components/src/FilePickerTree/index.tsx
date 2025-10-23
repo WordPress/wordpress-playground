@@ -655,9 +655,12 @@ export const FilePickerTree = forwardRef<
 		};
 	}, []);
 
+	/**
+	 * Wait for the context menu (right-click menu) to render, then focus the
+	 * first menu item (e.g. "Rename"). This is similar to how VS Code works.
+	 */
 	useEffect(() => {
 		if (contextMenu) {
-			// Wait for the Popover to render, then focus the first menu item
 			setTimeout(() => {
 				const firstMenuItem = document.querySelector(
 					'[role="menu"] [role="menuitem"]'
@@ -1198,7 +1201,7 @@ export const FilePickerTree = forwardRef<
 			setTimeout(() => {
 				setFocusedPath(candidateNormalized);
 				focusDomNode(candidateNormalized);
-				// If this was a newly created file, open it in the editor
+				// We've just saved a new file, immediately open it in the code editor.
 				if (wasFileCreate && onDoubleClickFile) {
 					onDoubleClickFile(candidateNormalized);
 				}
@@ -1618,7 +1621,7 @@ const NodeRow: React.FC<{
 	};
 
 	const handleClick = () => {
-		// For folders, always toggle immediately
+		// Folders – collapse or expand immediately
 		if (node.type === 'folder') {
 			toggleOpen();
 			selectPath(path);
@@ -1626,21 +1629,18 @@ const NodeRow: React.FC<{
 			return;
 		}
 
-		// For files, check if this is a double-click
+		// Files – vary the behavior between single clicks and double clicks
 		if (clickTimeoutRef.current !== null) {
 			// This is a double-click
 			if (typeof window !== 'undefined') {
 				window.clearTimeout(clickTimeoutRef.current);
 			}
 			clickTimeoutRef.current = null;
-			// Immediately update selection state (without notifying)
 			selectPath(path, false);
 			focusPath(path);
-			// Call the double-click handler if provided
 			if (onDoubleClickFile) {
 				onDoubleClickFile(path);
 			} else {
-				// Fallback to normal behavior if no handler provided
 				selectPath(path, true);
 			}
 		} else {

@@ -45,40 +45,17 @@ import {
 } from '@codemirror/language';
 import { php } from '@codemirror/lang-php';
 
-// Cache for loaded language extensions
+/**
+ * Async language loaders.
+ *
+ * Language extensions can be heavy, so we only load the PHP extension
+ * optimistically. The other extensions are only loaded once the user opens a
+ * file with a relevant extension. The content of the file shows up in the
+ * code editor immediately without any highlighting, and then, once the extension
+ * is loaded, the highlighting is applied.
+ */
 const languageExtensionCache = new Map<string, LanguageSupport>();
 
-// Async language loaders
-const languageLoaders = {
-	css: () => import('@codemirror/lang-css').then((m) => m.css()),
-	javascript: (options: { jsx: boolean; typescript: boolean }) =>
-		import('@codemirror/lang-javascript').then((m) =>
-			m.javascript(options)
-		),
-	json: () => import('@codemirror/lang-json').then((m) => m.json()),
-	html: () => import('@codemirror/lang-html').then((m) => m.html()),
-	markdown: () =>
-		import('@codemirror/lang-markdown').then((m) => m.markdown()),
-};
-
-const getLanguageExtension = (filePath: string | null) => {
-	// Always return PHP synchronously as the default
-	if (!filePath) {
-		return php();
-	}
-
-	const extension = filePath.split('.').pop()?.toLowerCase();
-
-	// PHP is already loaded, return it synchronously
-	if (!extension || extension === 'php') {
-		return php();
-	}
-
-	// For non-PHP files, return PHP as default and load the correct one asynchronously
-	return php();
-};
-
-// Load the appropriate language extension asynchronously
 const loadLanguageExtension = async (
 	filePath: string | null
 ): Promise<LanguageSupport> => {
@@ -103,27 +80,38 @@ const loadLanguageExtension = async (
 
 	switch (extension) {
 		case 'css':
-			langSupport = await languageLoaders.css();
+			langSupport = await import('@codemirror/lang-css').then((m) =>
+				m.css()
+			);
 			break;
 		case 'js':
 		case 'jsx':
 		case 'ts':
 		case 'tsx':
-			langSupport = await languageLoaders.javascript({
-				jsx: extension === 'jsx' || extension === 'tsx',
-				typescript: extension === 'ts' || extension === 'tsx',
-			});
+			langSupport = await import('@codemirror/lang-javascript').then(
+				(m) =>
+					m.javascript({
+						jsx: extension === 'jsx' || extension === 'tsx',
+						typescript: extension === 'ts' || extension === 'tsx',
+					})
+			);
 			break;
 		case 'json':
-			langSupport = await languageLoaders.json();
+			langSupport = await import('@codemirror/lang-json').then((m) =>
+				m.json()
+			);
 			break;
 		case 'html':
 		case 'htm':
-			langSupport = await languageLoaders.html();
+			langSupport = await import('@codemirror/lang-html').then((m) =>
+				m.html()
+			);
 			break;
 		case 'md':
 		case 'markdown':
-			langSupport = await languageLoaders.markdown();
+			langSupport = await import('@codemirror/lang-markdown').then((m) =>
+				m.markdown()
+			);
 			break;
 		default:
 			langSupport = php();
@@ -194,7 +182,6 @@ export type CodeEditorProps = {
 	className?: string;
 	onSaveShortcut?: () => void;
 	readOnly?: boolean;
-	containerRef?: MutableRefObject<HTMLDivElement | null>;
 };
 
 export const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
@@ -206,7 +193,6 @@ export const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
 			className,
 			onSaveShortcut,
 			readOnly = false,
-			containerRef,
 		},
 		ref
 	) {
@@ -271,9 +257,7 @@ export const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
 					rectangularSelection(),
 					crosshairCursor(),
 					clickBelowContentExtension,
-					languageCompartmentRef.current.of(
-						getLanguageExtension(currentPath)
-					),
+					languageCompartmentRef.current.of(php()),
 					editableCompartmentRef.current.of(
 						EditorView.editable.of(!readOnly)
 					),
@@ -346,14 +330,17 @@ export const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
 				return;
 			}
 
-			// First, apply PHP immediately (non-blocking)
-			const defaultExtension = getLanguageExtension(currentPath);
-			view.dispatch({
-				effects:
-					languageCompartmentRef.current.reconfigure(
-						defaultExtension
-					),
-			});
+			// Check if it's a PHP file
+			const extension = currentPath?.split('.').pop()?.toLowerCase();
+			const isPhpFile = !extension || extension === 'php';
+
+			// For PHP files, apply PHP syntax immediately (non-blocking)
+			// For other files, start with no extension and let async loading handle it
+			if (isPhpFile) {
+				view.dispatch({
+					effects: languageCompartmentRef.current.reconfigure(php()),
+				});
+			}
 
 			// Then load the correct extension asynchronously
 			let cancelled = false;
@@ -361,15 +348,10 @@ export const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
 				if (cancelled || !viewRef.current) {
 					return;
 				}
-				// Only reconfigure if it's different from the default
-				if (langSupport !== defaultExtension) {
-					viewRef.current.dispatch({
-						effects:
-							languageCompartmentRef.current.reconfigure(
-								langSupport
-							),
-					});
-				}
+				viewRef.current.dispatch({
+					effects:
+						languageCompartmentRef.current.reconfigure(langSupport),
+				});
 			});
 
 			return () => {
