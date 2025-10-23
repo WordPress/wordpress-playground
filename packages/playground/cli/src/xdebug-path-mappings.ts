@@ -179,6 +179,20 @@ export async function addXdebugIDEConfig({
 		})();
 
 		let projectElement = config?.find((c: any) => c?.project !== undefined);
+		if (projectElement) {
+			const projectVersion = projectElement[':@']?.version;
+			if (projectVersion === undefined) {
+				throw new Error(
+					'PhpStorm IDE integration only supports <project version="4"> in workspace.xml, ' +
+						'but the <project> configuration has no version number.'
+				);
+			} else if (projectVersion !== '4') {
+				throw new Error(
+					'PhpStorm IDE integration only supports <project version="4"> in workspace.xml, ' +
+						`but we found a <project> configuration with version "${projectVersion}".`
+				);
+			}
+		}
 		if (projectElement === undefined) {
 			projectElement = {
 				project: [],
