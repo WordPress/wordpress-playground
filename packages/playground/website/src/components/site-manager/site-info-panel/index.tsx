@@ -33,7 +33,7 @@ import { setActiveModal } from '../../../lib/state/redux/slice-ui';
 import { modalSlugs } from '../../layout';
 import { removeSite } from '../../../lib/state/redux/slice-sites';
 import { BlueprintReflection } from '@wp-playground/blueprints';
-import { lazy, Suspense, useState } from 'react';
+import { lazy, Suspense, useState, useEffect } from 'react';
 
 const SiteFileBrowser = lazy(() =>
 	import('../site-file-browser').then((m) => ({ default: m.SiteFileBrowser }))
@@ -85,6 +85,9 @@ export function SiteInfoPanel({
 		return lastTab || 'settings';
 	});
 
+	// Resolve documentRoot from playground client
+	const [documentRoot, setDocumentRoot] = useState<string | null>(null);
+
 	// Save the tab when it changes
 	const handleTabSelect = (tabName: string) => {
 		setSiteLastTab(site.slug, tabName);
@@ -105,6 +108,18 @@ export function SiteInfoPanel({
 		selectClientInfoBySiteSlug(state, site.slug)
 	);
 	const playground = clientInfo?.client;
+
+	// Resolve documentRoot from playground
+	useEffect(() => {
+		if (!playground) {
+			setDocumentRoot(null);
+			return;
+		}
+
+		void playground.documentRoot.then((root) => {
+			setDocumentRoot(root);
+		});
+	}, [playground]);
 
 	function navigateTo(path: string) {
 		if (siteViewHidden) {
@@ -444,11 +459,14 @@ export function SiteInfoPanel({
 											</div>
 										}
 									>
-										<SiteFileBrowser
-											key={site.slug}
-											site={site}
-											isVisible={tab.name === 'files'}
-										/>
+										{documentRoot && (
+											<SiteFileBrowser
+												key={site.slug}
+												site={site}
+												isVisible={tab.name === 'files'}
+												documentRoot={documentRoot}
+											/>
+										)}
 									</Suspense>
 								</div>
 								<div

@@ -15,30 +15,39 @@ import type { PlaygroundClient } from '@wp-playground/remote';
 import { FileExplorerSidebar } from './file-explorer-sidebar';
 import { CodeEditor, type CodeEditorHandle } from './code-editor';
 import styles from './style.module.css';
-import { DEFAULT_WORKSPACE_DIR, WORDPRESS_ROOT_DIR } from './constants';
 import { logger } from '@php-wasm/logger';
 
 const SAVE_DEBOUNCE_MS = 1500;
 
-type SaveState = 'idle' | 'pending' | 'saving' | 'saved' | 'error';
+const SaveState = {
+	IDLE: 'idle',
+	PENDING: 'pending',
+	SAVING: 'saving',
+	SAVED: 'saved',
+	ERROR: 'error',
+} as const;
+
+type SaveState = (typeof SaveState)[keyof typeof SaveState];
 
 export function SiteFileBrowser({
 	site,
 	isVisible = true,
+	documentRoot,
 }: {
 	site: SiteInfo;
 	isVisible?: boolean;
+	documentRoot: string;
 }) {
 	const client = usePlaygroundClient(site.slug);
 	const filesystem = useFilesystem(client);
 
 	const [selectedDirPath, setSelectedDirPath] = useState<string | null>(
-		DEFAULT_WORKSPACE_DIR
+		`${documentRoot}/workspace`
 	);
 	const [currentPath, setCurrentPath] = useState<string | null>(null);
 	const [code, setCode] = useState<string>('');
 	const [readOnly, setReadOnly] = useState<boolean>(true);
-	const [saveState, setSaveState] = useState<SaveState>('idle');
+	const [saveState, setSaveState] = useState<SaveState>(SaveState.IDLE);
 	const [saveError, setSaveError] = useState<string | null>(null);
 	const [showExplorerOnMobile, setShowExplorerOnMobile] =
 		useState<boolean>(false);
@@ -96,22 +105,22 @@ export function SiteFileBrowser({
 			setCode('');
 			setCurrentPath(null);
 			setReadOnly(true);
-			setSaveState('idle');
+			setSaveState(SaveState.IDLE);
 			setSaveError(null);
 			setShowExplorerOnMobile(false);
 		}
 	}, [client]);
 
 	useEffect(() => {
-		setSelectedDirPath(DEFAULT_WORKSPACE_DIR);
+		setSelectedDirPath(`${documentRoot}/workspace`);
 		setCurrentPath(null);
 		setCode('');
 		setReadOnly(true);
-		setSaveState('idle');
+		setSaveState(SaveState.IDLE);
 		setSaveError(null);
 		skipNextSaveRef.current = true;
 		hasAutoOpenedRef.current = false;
-	}, [site.slug]);
+	}, [site.slug, documentRoot]);
 
 	useEffect(() => {
 		const activeClient = clientRef.current;
@@ -121,7 +130,7 @@ export function SiteFileBrowser({
 				saveTimeoutRef.current = null;
 			}
 			if (!currentPath) {
-				setSaveState('idle');
+				setSaveState(SaveState.IDLE);
 			}
 			return;
 		}
@@ -133,20 +142,20 @@ export function SiteFileBrowser({
 			window.clearTimeout(saveTimeoutRef.current);
 			saveTimeoutRef.current = null;
 		}
-		setSaveState('pending');
+		setSaveState(SaveState.PENDING);
 		const timeout = window.setTimeout(async () => {
 			saveTimeoutRef.current = null;
-			setSaveState('saving');
+			setSaveState(SaveState.SAVING);
 			try {
 				await activeClient.writeFile(
 					currentPathRef.current as string,
 					codeRef.current
 				);
-				setSaveState('saved');
+				setSaveState(SaveState.SAVED);
 				setSaveError(null);
 			} catch (error) {
 				logger.error('Failed to save file', error);
-				setSaveState('error');
+				setSaveState(SaveState.ERROR);
 				setSaveError('Could not save changes. Try again.');
 			}
 		}, SAVE_DEBOUNCE_MS);
@@ -161,12 +170,12 @@ export function SiteFileBrowser({
 	}, [code, currentPath]);
 
 	useEffect(() => {
-		if (saveState !== 'saved') {
+		if (saveState !== SaveState.SAVED) {
 			return;
 		}
 		const timeout = window.setTimeout(() => {
 			setSaveState((previous) =>
-				previous === 'saved' ? 'idle' : previous
+				previous === SaveState.SAVED ? SaveState.IDLE : previous
 			);
 		}, 2000);
 		return () => window.clearTimeout(timeout);
@@ -178,7 +187,7 @@ export function SiteFileBrowser({
 			return;
 		}
 
-		const wpConfigPath = `${WORDPRESS_ROOT_DIR}/wp-config.php`;
+		const wpConfigPath = `${documentRoot}/wp-config.php`;
 
 		const tryAutoOpen = async () => {
 			try {
@@ -189,7 +198,7 @@ export function SiteFileBrowser({
 					setCurrentPath(wpConfigPath);
 					setCode(content);
 					setReadOnly(false);
-					setSaveState('idle');
+					setSaveState(SaveState.IDLE);
 					setSaveError(null);
 					// Focus the editor after opening
 					setTimeout(() => {
@@ -205,7 +214,7 @@ export function SiteFileBrowser({
 		};
 
 		void tryAutoOpen();
-	}, [client]);
+	}, [client, documentRoot]);
 
 	const handleFileOpened = useCallback(
 		async (path: string, content: string, shouldFocus = true) => {
@@ -237,7 +246,7 @@ export function SiteFileBrowser({
 			setCurrentPath(path);
 			setCode(content);
 			setReadOnly(false);
-			setSaveState('idle');
+			setSaveState(SaveState.IDLE);
 			setSaveError(null);
 			setShowExplorerOnMobile(false);
 
@@ -328,7 +337,7 @@ export function SiteFileBrowser({
 		setCurrentPath(null);
 		setCode('');
 		setReadOnly(true);
-		setSaveState('idle');
+		setSaveState(SaveState.IDLE);
 		setSaveError(null);
 	}, []);
 
@@ -348,7 +357,7 @@ export function SiteFileBrowser({
 		setCurrentPath(null);
 		setCode(message);
 		setReadOnly(true);
-		setSaveState('idle');
+		setSaveState(SaveState.IDLE);
 		setSaveError(null);
 	}, []);
 
@@ -395,6 +404,7 @@ export function SiteFileBrowser({
 						onFileOpened={handleFileOpened}
 						onSelectionCleared={handleClearSelection}
 						onShowMessage={handleShowMessage}
+						documentRoot={documentRoot}
 					/>
 				</aside>
 				<section className={styles.editorWrapper}>
@@ -418,7 +428,7 @@ export function SiteFileBrowser({
 						>
 							{currentPath?.length
 								? currentPath
-								: `Browse files under ${WORDPRESS_ROOT_DIR}`}
+								: `Browse files under ${documentRoot}`}
 						</div>
 						<div
 							className={classNames(
@@ -484,12 +494,12 @@ function useFilesystem(
 
 function getSaveStatusLabel(saveState: SaveState, saveError: string | null) {
 	switch (saveState) {
-		case 'pending':
-		case 'saving':
+		case SaveState.PENDING:
+		case SaveState.SAVING:
 			return 'Saving…';
-		case 'saved':
+		case SaveState.SAVED:
 			return 'Saved';
-		case 'error':
+		case SaveState.ERROR:
 			return saveError ?? 'Save failed';
 		default:
 			return '';
@@ -501,11 +511,11 @@ function getSaveStatusClassName(
 	styleSheet: typeof styles
 ) {
 	switch (saveState) {
-		case 'pending':
+		case SaveState.PENDING:
 			return styleSheet.saveStatusPending;
-		case 'saving':
+		case SaveState.SAVING:
 			return styleSheet.saveStatusSaving;
-		case 'error':
+		case SaveState.ERROR:
 			return styleSheet.saveStatusError;
 		default:
 			return undefined;
@@ -538,14 +548,14 @@ async function flushPendingSave(
 	}
 	window.clearTimeout(saveTimeoutRef.current);
 	saveTimeoutRef.current = null;
-	setSaveState('saving');
+	setSaveState(SaveState.SAVING);
 	try {
 		await client.writeFile(currentPathRef.current, codeRef.current);
-		setSaveState('saved');
+		setSaveState(SaveState.SAVED);
 		setSaveError(null);
 	} catch (error) {
 		logger.error('Failed to save file', error);
-		setSaveState('error');
+		setSaveState(SaveState.ERROR);
 		setSaveError('Could not save changes. Try again.');
 		throw error;
 	}

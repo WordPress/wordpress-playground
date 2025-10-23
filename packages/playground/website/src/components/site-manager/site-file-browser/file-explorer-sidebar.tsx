@@ -1,5 +1,4 @@
 import {
-	createElement,
 	useMemo,
 	useRef,
 	useState,
@@ -7,18 +6,16 @@ import {
 	type SetStateAction,
 } from 'react';
 import { Icon } from '@wordpress/components';
+import { file as folderIcon, page as fileIcon } from '@wordpress/icons';
 import styles from './file-explorer.module.css';
 import {
 	FilePickerTree,
 	type AsyncWritableFilesystem,
 	type FilePickerTreeHandle,
 } from '@wp-playground/components';
-import {
-	DEFAULT_WORKSPACE_DIR,
-	MAX_INLINE_FILE_BYTES,
-	WORDPRESS_ROOT_DIR,
-} from './constants';
 import { logger } from '@php-wasm/logger';
+
+export const MAX_INLINE_FILE_BYTES = 1024 * 1024; // 1MB
 
 const normalizeFsPath = (path: string) => {
 	if (!path) {
@@ -78,6 +75,7 @@ export type FileExplorerSidebarProps = {
 	) => Promise<void> | void;
 	onSelectionCleared: () => Promise<void> | void;
 	onShowMessage: (message: string) => Promise<void> | void;
+	documentRoot: string;
 };
 
 export function FileExplorerSidebar({
@@ -88,6 +86,7 @@ export function FileExplorerSidebar({
 	onFileOpened,
 	onSelectionCleared,
 	onShowMessage,
+	documentRoot,
 }: FileExplorerSidebarProps) {
 	const treeRef = useRef<FilePickerTreeHandle | null>(null);
 
@@ -95,16 +94,15 @@ export function FileExplorerSidebar({
 		return normalizeFsPath(
 			currentPath
 				? dirnameSafe(currentPath)
-				: selectedDirPath ?? DEFAULT_WORKSPACE_DIR
+				: selectedDirPath ?? documentRoot
 		);
 		// Prevent tree from jumping unexpectedly when selectedDirPath changes.
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [currentPath]);
+	}, [currentPath, documentRoot]);
 
 	const [lastSelectedPath, setLastSelectedPath] = useState<string | null>(
 		null
 	);
-	const root = WORDPRESS_ROOT_DIR;
 
 	// Helper function to handle file opening
 	const handleOpenFile = async (path: string, shouldFocus: boolean) => {
@@ -146,35 +144,6 @@ export function FileExplorerSidebar({
 			await onShowMessage('Could not open file.');
 		}
 	};
-
-	const folderIcon = createElement(
-		'svg',
-		{
-			xmlns: 'http://www.w3.org/2000/svg',
-			viewBox: '0 0 24 24',
-			width: 16,
-			height: 16,
-			'aria-hidden': true,
-		},
-		createElement('path', {
-			d: 'M3 5.5A1.5 1.5 0 0 1 4.5 4h5.086a1.5 1.5 0 0 1 1.06.44l1.914 1.914a1.5 1.5 0 0 0 1.06.44H19.5A1.5 1.5 0 0 1 21 8.294V18.5A1.5 1.5 0 0 1 19.5 20h-15A1.5 1.5 0 0 1 3 18.5z',
-			fill: 'currentColor',
-		})
-	);
-	const fileIcon = createElement(
-		'svg',
-		{
-			xmlns: 'http://www.w3.org/2000/svg',
-			viewBox: '0 0 24 24',
-			width: 16,
-			height: 16,
-			'aria-hidden': true,
-		},
-		createElement('path', {
-			d: 'M6.5 3A1.5 1.5 0 0 0 5 4.5v15A1.5 1.5 0 0 0 6.5 21h11a1.5 1.5 0 0 0 1.5-1.5V9.914a1.5 1.5 0 0 0-.44-1.06l-5.914-5.914A1.5 1.5 0 0 0 11.586 2H6.5zM12 3.914 18.086 10H12z',
-			fill: 'currentColor',
-		})
-	);
 
 	return (
 		<div className={styles.fileExplorerContainer}>
@@ -219,7 +188,7 @@ export function FileExplorerSidebar({
 				<FilePickerTree
 					ref={treeRef}
 					filesystem={filesystem}
-					root={root}
+					root={documentRoot}
 					initialSelectedPath={treeInitialPath}
 					onSelect={async (path) => {
 						setLastSelectedPath(path);
