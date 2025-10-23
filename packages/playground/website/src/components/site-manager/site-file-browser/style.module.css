@@ -105,6 +105,41 @@
 	background: #ffffff;
 }
 
+.message-area {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	justify-content: flex-start;
+	padding: 16px 20px;
+	background: #ffffff;
+	overflow: auto;
+	font-family: 'SFMono-Regular', ui-monospace, SFMono-Regular, Menlo, Monaco,
+		Consolas, 'Liberation Mono', 'Courier New', monospace;
+	font-size: 13px;
+	line-height: 1.6;
+}
+
+.message-area p {
+	margin: 0;
+	padding: 0;
+	display: block;
+}
+
+.message-area p + p {
+	margin-top: 4px;
+}
+
+.message-area a {
+	color: #2271b1;
+	text-decoration: underline;
+	cursor: pointer;
+}
+
+.message-area a:hover {
+	color: #135e96;
+}
+
 .mobile-toggle {
 	display: none;
 }

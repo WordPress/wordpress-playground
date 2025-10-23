@@ -42,12 +42,16 @@ const dirnameSafe = (path: string) => {
 };
 
 const isProbablyTextBuffer = (buffer: Uint8Array) => {
+	// Assume that anything with a null byte in the first 4096 bytes is binary.
+	// This isn't a perfect test, but it catches a lot of binary files.
 	const len = buffer.byteLength;
 	for (let i = 0; i < Math.min(len, 4096); i++) {
 		if (buffer[i] === 0) {
 			return false;
 		}
 	}
+
+	// Next, try to decode the buffer as UTF-8. If it fails, it's probably binary.
 	try {
 		new TextDecoder('utf-8', { fatal: true }).decode(buffer);
 		return true;
@@ -74,7 +78,7 @@ export type FileExplorerSidebarProps = {
 		shouldFocus?: boolean
 	) => Promise<void> | void;
 	onSelectionCleared: () => Promise<void> | void;
-	onShowMessage: (message: string) => Promise<void> | void;
+	onShowMessage: (message: string | JSX.Element) => Promise<void> | void;
 	documentRoot: string;
 };
 
@@ -115,11 +119,14 @@ export function FileExplorerSidebar({
 					path.split('/').pop() || 'download'
 				);
 				await onShowMessage(
-					[
-						'File too large to open (>1MB).',
-						`Download: ${url}`,
-						`Filename: ${filename}`,
-					].join('\n')
+					<>
+						<p>File too large to open (&gt;1MB).</p>
+						<p>
+							<a href={url} download={filename}>
+								Download {filename}
+							</a>
+						</p>
+					</>
 				);
 				return;
 			}
@@ -129,11 +136,14 @@ export function FileExplorerSidebar({
 					path.split('/').pop() || 'download'
 				);
 				await onShowMessage(
-					[
-						'Binary file. Download instead:',
-						`Download: ${url}`,
-						`Filename: ${filename}`,
-					].join('\n')
+					<>
+						<p>Binary file. Cannot be edited.</p>
+						<p>
+							<a href={url} download={filename}>
+								Download {filename}
+							</a>
+						</p>
+					</>
 				);
 				return;
 			}

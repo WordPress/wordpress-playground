@@ -51,6 +51,9 @@ export function SiteFileBrowser({
 	const [saveError, setSaveError] = useState<string | null>(null);
 	const [showExplorerOnMobile, setShowExplorerOnMobile] =
 		useState<boolean>(false);
+	const [messageContent, setMessageContent] = useState<
+		string | JSX.Element | null
+	>(null);
 
 	const editorRef = useRef<CodeEditorHandle | null>(null);
 	const saveTimeoutRef = useRef<number | null>(null);
@@ -108,6 +111,7 @@ export function SiteFileBrowser({
 			setSaveState(SaveState.IDLE);
 			setSaveError(null);
 			setShowExplorerOnMobile(false);
+			setMessageContent(null);
 		}
 	}, [client]);
 
@@ -119,6 +123,7 @@ export function SiteFileBrowser({
 		setSaveState(SaveState.IDLE);
 		setSaveError(null);
 		skipNextSaveRef.current = true;
+		setMessageContent(null);
 		hasAutoOpenedRef.current = false;
 	}, [site.slug, documentRoot]);
 
@@ -245,6 +250,7 @@ export function SiteFileBrowser({
 			skipNextSaveRef.current = true;
 			setCurrentPath(path);
 			setCode(content);
+			setMessageContent(null);
 			setReadOnly(false);
 			setSaveState(SaveState.IDLE);
 			setSaveError(null);
@@ -336,30 +342,45 @@ export function SiteFileBrowser({
 		skipNextSaveRef.current = true;
 		setCurrentPath(null);
 		setCode('');
+		setMessageContent(null);
 		setReadOnly(true);
 		setSaveState(SaveState.IDLE);
 		setSaveError(null);
 	}, []);
 
-	const handleShowMessage = useCallback(async (message: string) => {
-		try {
-			await flushPendingSave(clientRef.current, {
-				saveTimeoutRef,
-				currentPathRef,
-				codeRef,
-				setSaveState,
-				setSaveError,
-			});
-		} catch {
-			/* noop */
-		}
-		skipNextSaveRef.current = true;
-		setCurrentPath(null);
-		setCode(message);
-		setReadOnly(true);
-		setSaveState(SaveState.IDLE);
-		setSaveError(null);
-	}, []);
+	const handleShowMessage = useCallback(
+		async (message: string | JSX.Element) => {
+			try {
+				await flushPendingSave(clientRef.current, {
+					saveTimeoutRef,
+					currentPathRef,
+					codeRef,
+					setSaveState,
+					setSaveError,
+				});
+			} catch {
+				/* noop */
+			}
+			skipNextSaveRef.current = true;
+			setCurrentPath(null);
+
+			// If it's a string, show it in the code editor
+			// If it's JSX, show it in a separate message area
+			if (typeof message === 'string') {
+				setCode(message);
+				setMessageContent(null);
+			} else {
+				setCode('');
+				setMessageContent(message);
+			}
+
+			setReadOnly(true);
+			setSaveState(SaveState.IDLE);
+			setSaveError(null);
+			setShowExplorerOnMobile(false);
+		},
+		[]
+	);
 
 	const handleManualSave = useCallback(() => {
 		void flushPendingSave(clientRef.current, {
@@ -446,16 +467,22 @@ export function SiteFileBrowser({
 							</Notice>
 						</div>
 					) : null}
-					{currentPath || code ? (
-						<CodeEditor
-							ref={editorRef}
-							code={code}
-							onChange={setCode}
-							currentPath={currentPath}
-							className={styles.editor}
-							onSaveShortcut={handleManualSave}
-							readOnly={readOnly}
-						/>
+					{currentPath || code || messageContent ? (
+						messageContent ? (
+							<div className={styles.messageArea}>
+								{messageContent}
+							</div>
+						) : (
+							<CodeEditor
+								ref={editorRef}
+								code={code}
+								onChange={setCode}
+								currentPath={currentPath}
+								className={styles.editor}
+								onSaveShortcut={handleManualSave}
+								readOnly={readOnly}
+							/>
+						)
 					) : (
 						<div className={styles.placeholder}>
 							Select a file to view or edit its contents.
