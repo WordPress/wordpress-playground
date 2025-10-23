@@ -102,7 +102,8 @@ The `server` command supports the following optional arguments:
 -   `--port=<port>`: The port number for the server to listen on. Defaults to 9400.
 -   `--outfile`: When building, write to this output file.
 -   `--wp=<version>`: The version of WordPress to use. Defaults to the latest.
--   `--auto-mount`: Automatically mount the current directory (plugin, theme, wp-content, etc.).
+-   `--php=<version>`: PHP version to use. Choices: `8.4`, `8.3`, `8.2`, `8.1`, `8.0`, `7.4`, `7.3`, `7.2`. Defaults to `8.3`.
+-   `--auto-mount[=<path>]`: Automatically mount a directory. If no path is provided, mounts the current working directory. You can mount a WordPress directory, a plugin directory, a theme directory, a wp-content directory, or any directory containing PHP and HTML files.
 -   `--mount=<mapping>`: Manually mount a directory (can be used multiple times). Format: `"/host/path:/vfs/path"`.
 -   `--mount-before-install`: Mount a directory to the PHP runtime before WordPress installation (can be used multiple times). Format: `"/host/path:/vfs/path"`.
 -   `--mount-dir`: Mount a directory to the PHP runtime (can be used multiple times). Format: `"/host/path"` `"/vfs/path"`.
@@ -114,6 +115,12 @@ The `server` command supports the following optional arguments:
 -   `--skip-sqlite-setup`: Do not set up the SQLite database integration.
 -   `--verbosity`: Output logs and progress messages. Choices are "quiet", "normal" or "debug". Defaults to "normal".
 -   `--debug`: Print the PHP error log if an error occurs during boot.
+-   `--follow-symlinks`: Allow Playground to follow symlinks by automatically mounting symlinked directories and files encountered in mounted directories.
+-   `--quiet`: Do not output logs and progress messages.
+
+:::caution
+With the flag `--follow-symlinks`, the following symlinks will expose files outside mounted directories to Playground and could be a security risk.
+:::
 
 ## Need some help with the CLI?
 
