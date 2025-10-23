@@ -14,32 +14,9 @@ import {
 	type FilePickerTreeHandle,
 } from '@wp-playground/components';
 import { logger } from '@php-wasm/logger';
+import { dirname, normalizePath } from '@php-wasm/util';
 
 export const MAX_INLINE_FILE_BYTES = 1024 * 1024; // 1MB
-
-const normalizeFsPath = (path: string) => {
-	if (!path) {
-		return '/';
-	}
-	let normalized = path.replace(/\\+/g, '/');
-	if (!normalized.startsWith('/')) {
-		normalized = `/${normalized}`;
-	}
-	normalized = normalized.replace(/\/{2,}/g, '/');
-	if (normalized.length > 1 && normalized.endsWith('/')) {
-		normalized = normalized.slice(0, -1);
-	}
-	return normalized || '/';
-};
-
-const dirnameSafe = (path: string) => {
-	const normalized = normalizeFsPath(path);
-	if (normalized === '/') {
-		return '/';
-	}
-	const index = normalized.lastIndexOf('/');
-	return index <= 0 ? '/' : normalized.slice(0, index);
-};
 
 const isProbablyTextBuffer = (buffer: Uint8Array) => {
 	// Assume that anything with a null byte in the first 4096 bytes is binary.
@@ -95,9 +72,9 @@ export function FileExplorerSidebar({
 	const treeRef = useRef<FilePickerTreeHandle | null>(null);
 
 	const treeInitialPath = useMemo(() => {
-		return normalizeFsPath(
+		return normalizePath(
 			currentPath
-				? dirnameSafe(currentPath)
+				? dirname(normalizePath(currentPath))
 				: selectedDirPath ?? documentRoot
 		);
 		// Prevent tree from jumping unexpectedly when selectedDirPath changes.
