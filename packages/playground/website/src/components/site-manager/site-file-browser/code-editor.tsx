@@ -158,9 +158,6 @@ export const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
 					highlightSelectionMatches(),
 					autocompletion(),
 					EditorView.updateListener.of((update) => {
-						if (update.view.hasFocus) {
-							shouldRestoreFocusRef.current = true;
-						}
 						if (!update.docChanged) {
 							return;
 						}
@@ -235,6 +232,10 @@ export const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
 			if (!view) {
 				return;
 			}
+			// Save focus state before reconfiguring editable
+			if (view.hasFocus) {
+				shouldRestoreFocusRef.current = true;
+			}
 			view.dispatch({
 				effects: editableCompartmentRef.current.reconfigure(
 					EditorView.editable.of(!readOnly)
@@ -249,9 +250,9 @@ export const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
 			}
 			if (shouldRestoreFocusRef.current && !view.hasFocus) {
 				view.focus();
+				shouldRestoreFocusRef.current = false;
 			}
-			shouldRestoreFocusRef.current = false;
-		}, [code, currentPath, readOnly]);
+		}, [currentPath, readOnly]);
 
 		return <div ref={editorRootRef} className={className} />;
 	}

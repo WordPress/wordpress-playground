@@ -89,6 +89,7 @@ export type FilePickerTreeProps = {
 	root?: string; // default '/wordpress'
 	initialSelectedPath?: string;
 	onSelect?: (path: string | null) => void;
+	onDoubleClickFile?: (path: string) => void;
 };
 
 export type FilePickerTreeHandle = {
@@ -161,6 +162,7 @@ export const FilePickerTree = forwardRef<
 		root = '/wordpress',
 		initialSelectedPath,
 		onSelect = () => {},
+		onDoubleClickFile,
 	},
 	ref
 ) {
@@ -1270,6 +1272,7 @@ export const FilePickerTree = forwardRef<
 						onDragLeave={handleNodeDragLeave}
 						onDrop={handleNodeDrop}
 						rootPath={normalizedRoot}
+						onDoubleClickFile={onDoubleClickFile}
 					/>
 				))}
 			</TreeGrid>
@@ -1399,6 +1402,7 @@ const NodeRow: React.FC<{
 	) => void;
 	onDrop?: (event: React.DragEvent, node: FileNode, path: string) => void;
 	rootPath: string;
+	onDoubleClickFile?: (path: string) => void;
 }> = ({
 	node,
 	level,
@@ -1425,6 +1429,7 @@ const NodeRow: React.FC<{
 	onDragLeave,
 	onDrop,
 	rootPath,
+	onDoubleClickFile,
 }) => {
 	const path = generatePath(node, parentPath);
 	const isExpanded = expandedNodePaths[path];
@@ -1437,6 +1442,7 @@ const NodeRow: React.FC<{
 	const isDropTargetInvalid =
 		isDropTarget && dropIndicator?.state === 'invalid';
 	const isDraggable = !isRenaming && path !== rootPath;
+	const clickTimeoutRef = useRef<number | null>(null);
 
 	const dragHandlers = {
 		onDragEnter: (event: React.DragEvent) =>
@@ -1560,6 +1566,62 @@ const NodeRow: React.FC<{
 		renameHandledRef.current = false;
 	};
 
+	const handleClick = () => {
+		// For folders, always toggle immediately
+		if (node.type === 'folder') {
+			toggleOpen();
+			selectPath(path);
+			focusPath(path);
+			return;
+		}
+
+		// For files, check if this is a double-click
+		if (clickTimeoutRef.current !== null) {
+			// This is a double-click
+			if (typeof window !== 'undefined') {
+				window.clearTimeout(clickTimeoutRef.current);
+			}
+			clickTimeoutRef.current = null;
+			// Immediately update selection state (without notifying)
+			selectPath(path, false);
+			focusPath(path);
+			// Call the double-click handler if provided
+			if (onDoubleClickFile) {
+				onDoubleClickFile(path);
+			} else {
+				// Fallback to normal behavior if no handler provided
+				selectPath(path, true);
+			}
+		} else {
+			// This is the first click, immediately update visual selection
+			selectPath(path, false);
+			focusPath(path);
+			// Wait for possible double-click before opening file
+			if (typeof window !== 'undefined') {
+				clickTimeoutRef.current = window.setTimeout(() => {
+					clickTimeoutRef.current = null;
+					// Single click confirmed: open file without moving focus
+					selectPath(path, true);
+				}, 300); // 300ms window for double-click
+			} else {
+				// No window object, execute immediately
+				selectPath(path, true);
+			}
+		}
+	};
+
+	// Cleanup timeout on unmount
+	useEffect(() => {
+		return () => {
+			if (
+				clickTimeoutRef.current !== null &&
+				typeof window !== 'undefined'
+			) {
+				window.clearTimeout(clickTimeoutRef.current);
+			}
+		};
+	}, []);
+
 	return (
 		<>
 			<TreeGridRow
@@ -1622,13 +1684,7 @@ const NodeRow: React.FC<{
 									onDragEnd={(event: any) =>
 										onDragEnd?.(event, node, path)
 									}
-									onClick={() => {
-										if (node.type === 'folder') {
-											toggleOpen();
-										}
-										selectPath(path);
-										focusPath(path);
-									}}
+									onClick={handleClick}
 									onKeyDown={handleKeyDown}
 									onFocus={() => {
 										focusPath(path);
@@ -1695,6 +1751,7 @@ const NodeRow: React.FC<{
 						onDragLeave={onDragLeave}
 						onDrop={onDrop}
 						rootPath={rootPath}
+						onDoubleClickFile={onDoubleClickFile}
 					/>
 				))}
 		</>

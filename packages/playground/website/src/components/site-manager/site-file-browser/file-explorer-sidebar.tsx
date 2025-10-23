@@ -70,7 +70,11 @@ export type FileExplorerSidebarProps = {
 	currentPath: string | null;
 	selectedDirPath: string | null;
 	setSelectedDirPath: Dispatch<SetStateAction<string | null>>;
-	onFileOpened: (path: string, content: string) => Promise<void> | void;
+	onFileOpened: (
+		path: string,
+		content: string,
+		shouldFocus?: boolean
+	) => Promise<void> | void;
 	onSelectionCleared: () => Promise<void> | void;
 	onShowMessage: (message: string) => Promise<void> | void;
 };
@@ -100,6 +104,47 @@ export function FileExplorerSidebar({
 		null
 	);
 	const root = WORDPRESS_ROOT_DIR;
+
+	// Helper function to handle file opening
+	const handleOpenFile = async (path: string, shouldFocus: boolean) => {
+		try {
+			const data = await filesystem.readFileAsBuffer(path);
+			const size = data.byteLength;
+			if (size > MAX_INLINE_FILE_BYTES) {
+				const { url, filename } = createDownloadUrl(
+					data,
+					path.split('/').pop() || 'download'
+				);
+				await onShowMessage(
+					[
+						'File too large to open (>1MB).',
+						`Download: ${url}`,
+						`Filename: ${filename}`,
+					].join('\n')
+				);
+				return;
+			}
+			if (!isProbablyTextBuffer(data)) {
+				const { url, filename } = createDownloadUrl(
+					data,
+					path.split('/').pop() || 'download'
+				);
+				await onShowMessage(
+					[
+						'Binary file. Download instead:',
+						`Download: ${url}`,
+						`Filename: ${filename}`,
+					].join('\n')
+				);
+				return;
+			}
+			const text = new TextDecoder('utf-8').decode(data);
+			await onFileOpened(path, text, shouldFocus);
+		} catch (error) {
+			console.error('Could not open file', error);
+			await onShowMessage('Could not open file.');
+		}
+	};
 
 	const folderIcon = createElement(
 		'svg',
@@ -189,45 +234,12 @@ export function FileExplorerSidebar({
 						} catch {
 							// If we cannot determine whether it is a directory, treat as file.
 						}
-						try {
-							const data = await filesystem.readFileAsBuffer(
-								path
-							);
-							const size = data.byteLength;
-							if (size > MAX_INLINE_FILE_BYTES) {
-								const { url, filename } = createDownloadUrl(
-									data,
-									path.split('/').pop() || 'download'
-								);
-								await onShowMessage(
-									[
-										'File too large to open (>1MB).',
-										`Download: ${url}`,
-										`Filename: ${filename}`,
-									].join('\n')
-								);
-								return;
-							}
-							if (!isProbablyTextBuffer(data)) {
-								const { url, filename } = createDownloadUrl(
-									data,
-									path.split('/').pop() || 'download'
-								);
-								await onShowMessage(
-									[
-										'Binary file. Download instead:',
-										`Download: ${url}`,
-										`Filename: ${filename}`,
-									].join('\n')
-								);
-								return;
-							}
-							const text = new TextDecoder('utf-8').decode(data);
-							await onFileOpened(path, text);
-						} catch (error) {
-							console.error('Could not open file', error);
-							await onShowMessage('Could not open file.');
-						}
+						// For files, open them but don't move focus to the editor
+						await handleOpenFile(path, false);
+					}}
+					onDoubleClickFile={async (path) => {
+						// On double-click, open the file and move focus to the editor
+						await handleOpenFile(path, true);
 					}}
 				/>
 			</div>

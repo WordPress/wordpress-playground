@@ -163,7 +163,7 @@ export function SiteFileBrowser({ site }: { site: SiteInfo }) {
 	}, [saveState]);
 
 	const handleFileOpened = useCallback(
-		async (path: string, content: string) => {
+		async (path: string, content: string, shouldFocus = true) => {
 			try {
 				await flushPendingSave(clientRef.current, {
 					saveTimeoutRef,
@@ -182,7 +182,9 @@ export function SiteFileBrowser({ site }: { site: SiteInfo }) {
 			setSaveState('idle');
 			setSaveError(null);
 			setShowExplorerOnMobile(false);
-			editorRef.current?.focus();
+			if (shouldFocus) {
+				editorRef.current?.focus();
+			}
 		},
 		[]
 	);
