@@ -226,7 +226,7 @@ export async function parseOptionsAndRunCLI() {
 			.option('experimental-unsafe-ide-integration', {
 				describe:
 					'Enable experimental IDE development tools. This option edits IDE config files ' +
-					'to configure Xdebug path mappings and web server details. CAUTION: If there are bugs, ' +
+					'to set Xdebug path mappings and web server details. CAUTION: If there are bugs, ' +
 					'this feature may break your IDE config files. Please consider backing up your IDE configs ' +
 					'before using this feature.',
 				type: 'string',
