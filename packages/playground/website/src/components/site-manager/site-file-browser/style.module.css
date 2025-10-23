@@ -81,6 +81,17 @@
 	flex: 1;
 	min-height: 0;
 	background: #ffffff;
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+}
+
+.editor :global(.cm-editor) {
+	height: 100%;
+}
+
+.editor :global(.cm-scroller) {
+	overflow: auto;
 }
 
 .placeholder {

@@ -16,7 +16,11 @@ import {
 	dropCursor,
 	rectangularSelection,
 	crosshairCursor,
+	ViewPlugin,
+	type PluginValue,
+	type EditorView as EditorViewType,
 } from '@codemirror/view';
+import { EditorSelection } from '@codemirror/state';
 import {
 	defaultKeymap,
 	history,
@@ -76,6 +80,53 @@ const getLanguageExtension = (filePath: string | null) => {
 			return php();
 	}
 };
+
+// Plugin to handle clicks below the content and move cursor to end of document
+class ClickBelowContentHandler implements PluginValue {
+	constructor(private view: EditorViewType) {
+		this.handleClick = this.handleClick.bind(this);
+		this.view.dom.addEventListener('mousedown', this.handleClick);
+	}
+
+	handleClick(event: MouseEvent) {
+		const target = event.target as HTMLElement;
+		// Check if click is on the editor scroller or content area (empty space below text)
+		if (
+			target.classList.contains('cm-scroller') ||
+			target.classList.contains('cm-content')
+		) {
+			const pos = this.view.posAtCoords({
+				x: event.clientX,
+				y: event.clientY,
+			});
+
+			// If pos is null, we clicked below all content
+			// OR if we're at the document end, move cursor there
+			if (pos === null) {
+				const lastPos = this.view.state.doc.length;
+				const selection = EditorSelection.create([
+					EditorSelection.range(lastPos, lastPos),
+				]);
+				this.view.dispatch({
+					selection,
+					effects: EditorView.scrollIntoView(lastPos, {
+						y: 'center',
+					}),
+				});
+				this.view.focus();
+				event.preventDefault();
+			}
+		}
+	}
+
+	destroy() {
+		this.view.dom.removeEventListener('mousedown', this.handleClick);
+	}
+}
+
+const clickBelowContentExtension = ViewPlugin.define(
+	(view) => new ClickBelowContentHandler(view)
+);
 
 export type CodeEditorHandle = {
 	focus: () => void;
@@ -144,6 +195,7 @@ export const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
 					dropCursor(),
 					rectangularSelection(),
 					crosshairCursor(),
+					clickBelowContentExtension,
 					languageCompartmentRef.current.of(
 						getLanguageExtension(currentPath)
 					),
