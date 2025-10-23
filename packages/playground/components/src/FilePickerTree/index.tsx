@@ -1743,6 +1743,7 @@ const NodeRow: React.FC<{
 									onContextMenu={handleContextMenu}
 									className={classNames(
 										css['fileNodeButton'],
+										'file-node-button',
 										{
 											[css['selected']]:
 												selectedNode === path,

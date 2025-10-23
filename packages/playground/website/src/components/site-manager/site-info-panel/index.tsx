@@ -33,7 +33,11 @@ import { setActiveModal } from '../../../lib/state/redux/slice-ui';
 import { modalSlugs } from '../../layout';
 import { removeSite } from '../../../lib/state/redux/slice-sites';
 import { BlueprintReflection } from '@wp-playground/blueprints';
-import { SiteFileBrowser } from '../site-file-browser';
+import { lazy, Suspense } from 'react';
+
+const SiteFileBrowser = lazy(() =>
+	import('../site-file-browser').then((m) => ({ default: m.SiteFileBrowser }))
+);
 
 export function SiteInfoPanel({
 	className,
@@ -393,10 +397,20 @@ export function SiteInfoPanel({
 									)}
 									hidden={tab.name !== 'files'}
 								>
-									<SiteFileBrowser
-										key={site.slug}
-										site={site}
-									/>
+									{tab.name === 'files' && (
+										<Suspense
+											fallback={
+												<div className={css.padded}>
+													Loading file browser...
+												</div>
+											}
+										>
+											<SiteFileBrowser
+												key={site.slug}
+												site={site}
+											/>
+										</Suspense>
+									)}
 								</div>
 								<div
 									className={classNames(
