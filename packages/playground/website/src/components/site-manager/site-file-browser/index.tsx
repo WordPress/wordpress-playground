@@ -16,6 +16,7 @@ import { FileExplorerSidebar } from './file-explorer-sidebar';
 import { CodeEditor, type CodeEditorHandle } from './code-editor';
 import styles from './style.module.css';
 import { DEFAULT_WORKSPACE_DIR, WORDPRESS_ROOT_DIR } from './constants';
+import { logger } from '@php-wasm/logger';
 
 const SAVE_DEBOUNCE_MS = 1500;
 
@@ -144,7 +145,7 @@ export function SiteFileBrowser({
 				setSaveState('saved');
 				setSaveError(null);
 			} catch (error) {
-				console.error('Failed to save file', error);
+				logger.error('Failed to save file', error);
 				setSaveState('error');
 				setSaveError('Could not save changes. Try again.');
 			}
@@ -197,7 +198,7 @@ export function SiteFileBrowser({
 				}
 			} catch (error) {
 				// Silently fail - wp-config.php may not exist or may not be readable
-				console.debug('Could not auto-open wp-config.php:', error);
+				logger.debug('Could not auto-open wp-config.php:', error);
 			} finally {
 				hasAutoOpenedRef.current = true;
 			}
@@ -543,7 +544,7 @@ async function flushPendingSave(
 		setSaveState('saved');
 		setSaveError(null);
 	} catch (error) {
-		console.error('Failed to save file', error);
+		logger.error('Failed to save file', error);
 		setSaveState('error');
 		setSaveError('Could not save changes. Try again.');
 		throw error;

@@ -18,6 +18,7 @@ import {
 	MAX_INLINE_FILE_BYTES,
 	WORDPRESS_ROOT_DIR,
 } from './constants';
+import { logger } from '@php-wasm/logger';
 
 const normalizeFsPath = (path: string) => {
 	if (!path) {
@@ -141,7 +142,7 @@ export function FileExplorerSidebar({
 			const text = new TextDecoder('utf-8').decode(data);
 			await onFileOpened(path, text, shouldFocus);
 		} catch (error) {
-			console.error('Could not open file', error);
+			logger.error('Could not open file', error);
 			await onShowMessage('Could not open file.');
 		}
 	};

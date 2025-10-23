@@ -157,11 +157,9 @@ export const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
 		},
 		ref
 	) {
-		const editorRootRef =
-			containerRef ??
-			(useRef<HTMLDivElement | null>(
-				null
-			) as MutableRefObject<HTMLDivElement | null>);
+		const editorRootRef = useRef<HTMLDivElement | null>(
+			null
+		) as MutableRefObject<HTMLDivElement | null>;
 		const viewRef = useRef<EditorView | null>(null);
 		const languageCompartmentRef = useRef(new Compartment());
 		const editableCompartmentRef = useRef(new Compartment());
