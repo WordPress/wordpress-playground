@@ -41,44 +41,97 @@ import {
 	foldKeymap,
 	syntaxHighlighting,
 	defaultHighlightStyle,
+	type LanguageSupport,
 } from '@codemirror/language';
 import { php } from '@codemirror/lang-php';
-import { css } from '@codemirror/lang-css';
-import { javascript } from '@codemirror/lang-javascript';
-import { json } from '@codemirror/lang-json';
-import { html } from '@codemirror/lang-html';
-import { markdown } from '@codemirror/lang-markdown';
+
+// Cache for loaded language extensions
+const languageExtensionCache = new Map<string, LanguageSupport>();
+
+// Async language loaders
+const languageLoaders = {
+	css: () => import('@codemirror/lang-css').then((m) => m.css()),
+	javascript: (options: { jsx: boolean; typescript: boolean }) =>
+		import('@codemirror/lang-javascript').then((m) =>
+			m.javascript(options)
+		),
+	json: () => import('@codemirror/lang-json').then((m) => m.json()),
+	html: () => import('@codemirror/lang-html').then((m) => m.html()),
+	markdown: () =>
+		import('@codemirror/lang-markdown').then((m) => m.markdown()),
+};
 
 const getLanguageExtension = (filePath: string | null) => {
+	// Always return PHP synchronously as the default
 	if (!filePath) {
 		return php();
 	}
 
 	const extension = filePath.split('.').pop()?.toLowerCase();
 
+	// PHP is already loaded, return it synchronously
+	if (!extension || extension === 'php') {
+		return php();
+	}
+
+	// For non-PHP files, return PHP as default and load the correct one asynchronously
+	return php();
+};
+
+// Load the appropriate language extension asynchronously
+const loadLanguageExtension = async (
+	filePath: string | null
+): Promise<LanguageSupport> => {
+	if (!filePath) {
+		return php();
+	}
+
+	const extension = filePath.split('.').pop()?.toLowerCase();
+
+	if (!extension || extension === 'php') {
+		return php();
+	}
+
+	// Check cache first
+	const cacheKey = filePath;
+	if (languageExtensionCache.has(cacheKey)) {
+		return languageExtensionCache.get(cacheKey)!;
+	}
+
+	// Load the appropriate extension
+	let langSupport: LanguageSupport;
+
 	switch (extension) {
 		case 'css':
-			return css();
+			langSupport = await languageLoaders.css();
+			break;
 		case 'js':
 		case 'jsx':
 		case 'ts':
 		case 'tsx':
-			return javascript({
+			langSupport = await languageLoaders.javascript({
 				jsx: extension === 'jsx' || extension === 'tsx',
 				typescript: extension === 'ts' || extension === 'tsx',
 			});
+			break;
 		case 'json':
-			return json();
+			langSupport = await languageLoaders.json();
+			break;
 		case 'html':
 		case 'htm':
-			return html();
+			langSupport = await languageLoaders.html();
+			break;
 		case 'md':
 		case 'markdown':
-			return markdown();
-		case 'php':
+			langSupport = await languageLoaders.markdown();
+			break;
 		default:
-			return php();
+			langSupport = php();
 	}
+
+	// Cache it
+	languageExtensionCache.set(cacheKey, langSupport);
+	return langSupport;
 };
 
 // Plugin to handle clicks below the content and move cursor to end of document
@@ -292,13 +345,36 @@ export const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
 			if (!view) {
 				return;
 			}
-			const languageExtension = getLanguageExtension(currentPath);
+
+			// First, apply PHP immediately (non-blocking)
+			const defaultExtension = getLanguageExtension(currentPath);
 			view.dispatch({
 				effects:
 					languageCompartmentRef.current.reconfigure(
-						languageExtension
+						defaultExtension
 					),
 			});
+
+			// Then load the correct extension asynchronously
+			let cancelled = false;
+			void loadLanguageExtension(currentPath).then((langSupport) => {
+				if (cancelled || !viewRef.current) {
+					return;
+				}
+				// Only reconfigure if it's different from the default
+				if (langSupport !== defaultExtension) {
+					viewRef.current.dispatch({
+						effects:
+							languageCompartmentRef.current.reconfigure(
+								langSupport
+							),
+					});
+				}
+			});
+
+			return () => {
+				cancelled = true;
+			};
 		}, [currentPath]);
 
 		useEffect(() => {
