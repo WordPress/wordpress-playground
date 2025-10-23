@@ -2,11 +2,13 @@
 	position: relative;
 	display: flex;
 	transition: opacity 0.5s ease;
+	width: 100%;
 }
 
 .input-container {
 	display: flex;
 	width: 100%;
+	align-items: center;
 }
 
 .submit {

@@ -133,6 +133,10 @@ table {
 	border-spacing: 0;
 }
 
+html {
+	overflow: hidden;
+}
+
 /**
  * Playground styles
  */

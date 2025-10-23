@@ -8,6 +8,7 @@ interface ModalButtonsProps {
 	areBusy?: boolean;
 	onCancel?: () => void;
 	onSubmit?: (e: any) => void;
+	style?: React.CSSProperties;
 }
 export default function ModalButtons({
 	submitText = 'Submit',
@@ -15,9 +16,10 @@ export default function ModalButtons({
 	areBusy,
 	onCancel,
 	onSubmit,
+	style,
 }: ModalButtonsProps) {
 	return (
-		<Flex justify="end" className={css.modalButtons}>
+		<Flex justify="end" className={css.modalButtons} style={style}>
 			<Button
 				type="button"
 				isBusy={areBusy}

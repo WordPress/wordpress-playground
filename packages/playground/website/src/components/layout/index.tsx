@@ -1,5 +1,4 @@
 import css from './style.module.css';
-import classNames from 'classnames';
 
 import { SiteManager } from '../site-manager';
 import { CSSTransition } from 'react-transition-group';
@@ -26,22 +25,12 @@ import {
 	supportedDisplayModes,
 	PlaygroundViewport,
 } from '../playground-viewport';
-import { Button } from '@wordpress/components';
-import { menu } from '@wordpress/icons';
-import {
-	setActiveModal,
-	setSiteManagerOpen,
-} from '../../lib/state/redux/slice-ui';
+import { setActiveModal } from '../../lib/state/redux/slice-ui';
 import { ImportFormModal } from '../import-form-modal';
 import { PreviewPRModal } from '../../github/preview-pr';
 import { MissingSiteModal } from '../missing-site-modal';
 import { RenameSiteModal } from '../rename-site-modal';
-import {
-	PanelGroup,
-	Panel,
-	PanelResizeHandle,
-	type ImperativePanelHandle,
-} from 'react-resizable-panels';
+import { SaveSiteModal } from '../save-site-modal';
 
 acquireOAuthTokenIfNeeded();
 
@@ -56,6 +45,7 @@ export const modalSlugs = {
 	PREVIEW_PR_GUTENBERG: 'preview-pr-gutenberg',
 	MISSING_SITE_PROMPT: 'missing-site-prompt',
 	RENAME_SITE: 'rename-site',
+	SAVE_SITE: 'save-site',
 };
 
 const displayMode = getDisplayModeFromQuery();
@@ -71,126 +61,34 @@ export function Layout() {
 		(state) => state.ui.siteManagerIsOpen
 	);
 	const siteManagerWrapperRef = useRef<HTMLDivElement>(null);
-	const siteManagerPanelRef = useRef<ImperativePanelHandle | null>(null);
-	const [defaultPanelSize] = useState(() => {
-		if (typeof window === 'undefined') {
-			return 55;
-		}
-		const defaultWidth = 320 + 555 + 24; // sidebar + info + borders
-		const percent = (defaultWidth / window.innerWidth) * 100;
-		return Math.max(35, Math.min(70, Math.round(percent)));
-	});
-	const [panelAnimating, setPanelAnimating] = useState(false);
-	const animationTimeoutRef = useRef<number | null>(null);
-	const hasMountedRef = useRef(false);
-
-	useEffect(() => {
-		if (!siteManagerPanelRef.current) {
-			return;
-		}
-		if (siteManagerIsOpen) {
-			siteManagerPanelRef.current.expand();
-		} else {
-			siteManagerPanelRef.current.collapse();
-		}
-	}, [siteManagerIsOpen]);
-
-	useEffect(() => {
-		if (!hasMountedRef.current) {
-			hasMountedRef.current = true;
-			return;
-		}
-		setPanelAnimating(true);
-		if (animationTimeoutRef.current) {
-			window.clearTimeout(animationTimeoutRef.current);
-		}
-		animationTimeoutRef.current = window.setTimeout(() => {
-			setPanelAnimating(false);
-			animationTimeoutRef.current = null;
-		}, 320);
-		return () => {
-			if (animationTimeoutRef.current) {
-				window.clearTimeout(animationTimeoutRef.current);
-				animationTimeoutRef.current = null;
-			}
-		};
-	}, [siteManagerIsOpen]);
-
-	const dispatch = useAppDispatch();
-	const toggleSiteManager = () => {
-		dispatch(setSiteManagerOpen(!siteManagerIsOpen));
-	};
 
 	return (
-		<div
-			className={classNames(css.layout, {
-				[css.layoutAnimating]: panelAnimating,
-			})}
-		>
+		<div className={`${css.layout}`}>
 			<Modals />
-			<Button
-				className={classNames(css.toggleSiteManagerButton, {
-					[css.toggleSiteManagerButtonOpen]: siteManagerIsOpen,
-					[css.toggleSiteManagerButtonClosed]: !siteManagerIsOpen,
-				})}
-				onClick={toggleSiteManager}
-				icon={menu}
-				label={
-					siteManagerIsOpen
-						? 'Hide site manager'
-						: 'Open site manager'
-				}
-				showTooltip={true}
-				variant="secondary"
-			/>
-			<PanelGroup
-				direction="horizontal"
-				className={css.mainPanels}
-				autoSaveId="layout-panels"
+			<CSSTransition
+				nodeRef={siteManagerWrapperRef}
+				in={siteManagerIsOpen}
+				timeout={500}
+				classNames={{
+					enter: css.siteManagerWrapperEnter,
+					enterActive: css.siteManagerWrapperEnterActive,
+					exit: css.siteManagerWrapperExit,
+					exitActive: css.siteManagerWrapperExitActive,
+				}}
+				unmountOnExit
 			>
-				<Panel
-					ref={siteManagerPanelRef}
-					defaultSize={defaultPanelSize}
-					minSize={30}
-					collapsible
-					collapsedSize={0}
+				<div
+					ref={siteManagerWrapperRef}
+					className={css.siteManagerWrapper}
 				>
-					<CSSTransition
-						nodeRef={siteManagerWrapperRef}
-						in={siteManagerIsOpen}
-						timeout={300}
-						classNames={{
-							enter: css.siteManagerWrapperEnter,
-							enterActive: css.siteManagerWrapperEnterActive,
-							exit: css.siteManagerWrapperExit,
-							exitActive: css.siteManagerWrapperExitActive,
-						}}
-						unmountOnExit
-					>
-						<div
-							ref={siteManagerWrapperRef}
-							className={classNames(css.siteManagerWrapper, {
-								[css.siteManagerWrapperAnimating]:
-									panelAnimating,
-							})}
-						>
-							<SiteManager />
-						</div>
-					</CSSTransition>
-				</Panel>
-				<PanelResizeHandle
-					className={classNames(css.layoutResizeHandle, {
-						[css.handleHidden]: !siteManagerIsOpen,
-					})}
-				/>
-				<Panel minSize={30}>
-					<div className={css.siteView}>
-						<div className={css.siteViewContent}>
-							<PlaygroundViewport displayMode={displayMode} />
-						</div>
-					</div>
-				</Panel>
-			</PanelGroup>
+					<SiteManager />
+				</div>
+			</CSSTransition>
+			<div className={css.siteView}>
+				<div className={css.siteViewContent}>
+					<PlaygroundViewport displayMode={displayMode} />
+				</div>
+			</div>
 		</div>
 	);
 }
@@ -316,6 +214,8 @@ function Modals(blueprint: BlueprintV1Declaration) {
 		return <MissingSiteModal />;
 	} else if (currentModal === modalSlugs.RENAME_SITE) {
 		return <RenameSiteModal />;
+	} else if (currentModal === modalSlugs.SAVE_SITE) {
+		return <SaveSiteModal />;
 	}
 
 	if (query.get('gh-ensure-auth') === 'yes') {

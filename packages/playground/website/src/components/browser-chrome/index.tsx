@@ -20,13 +20,11 @@ import { SiteManagerIcon } from '@wp-playground/components';
 
 interface BrowserChromeProps {
 	children?: React.ReactNode;
-	hideToolbar?: boolean;
 	className?: string;
 }
 
 export default function BrowserChrome({
 	children,
-	hideToolbar,
 	className,
 }: BrowserChromeProps) {
 	const clientInfo = useAppSelector(getActiveClientInfo);
@@ -34,6 +32,9 @@ export default function BrowserChrome({
 	const showAddressBar = !!clientInfo;
 	const url = clientInfo?.url;
 	const dispatch = useAppDispatch();
+	const siteManagerIsOpen = useAppSelector(
+		(state) => state.ui.siteManagerIsOpen
+	);
 	const addressBarClass = classNames(css.addressBarSlot, {
 		[css.isHidden]: !showAddressBar,
 	});
@@ -51,22 +52,33 @@ export default function BrowserChrome({
 		<div className={wrapperClass} data-cy="simulated-browser">
 			<div className={`${css.window} browser-chrome-window`}>
 				<header
-					className={`
-						${css.toolbar}
-						${hideToolbar ? css.toolbarHidden : ''}
-					`}
+					className={classNames(css.toolbar, {
+						[css.withSidebarOpen]: siteManagerIsOpen,
+					})}
 					aria-label="Playground toolbar"
 				>
 					<div className={css.windowControls}>
 						<Button
 							variant="browser-chrome"
-							aria-label="Open Site Manager"
-							className={css.openSiteManagerButton}
+							aria-label={
+								siteManagerIsOpen
+									? 'Close Site Manager'
+									: 'Open Site Manager'
+							}
+							aria-pressed={siteManagerIsOpen}
+							className={classNames(css.openSiteManagerButton, {
+								[css.openSiteManagerButtonActive]:
+									siteManagerIsOpen,
+							})}
 							onClick={() => {
-								dispatch(setSiteManagerOpen(true));
+								dispatch(
+									setSiteManagerOpen(!siteManagerIsOpen)
+								);
 							}}
 						>
-							<SiteManagerIcon />
+							<SiteManagerIcon
+								sidebarActive={siteManagerIsOpen}
+							/>
 						</Button>
 					</div>
 
@@ -94,7 +106,7 @@ export default function BrowserChrome({
 										display: 'flex',
 									}}
 								>
-									<Icon icon={cog} />
+									<Icon icon={cog} size={28} />
 								</Button>
 								{isModalOpen && (
 									<Modal
@@ -126,7 +138,7 @@ export default function BrowserChrome({
 											display: 'flex',
 										}}
 									>
-										<Icon icon={cog} />
+										<Icon icon={cog} size={28} />
 									</Button>
 								)}
 								renderContent={({ onClose }) => (

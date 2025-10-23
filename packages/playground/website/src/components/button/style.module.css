@@ -21,9 +21,11 @@
 }
 
 .button.button.button.is-browser-chrome {
-	min-height: 26px;
-	min-width: 26px;
-	padding: 0px 15px;
+	display: flex;
+	align-items: center;
+	min-height: 40px;
+	min-width: 40px;
+	background: transparent;
 }
 
 .button.button.button:not(.is-browser-chrome) {

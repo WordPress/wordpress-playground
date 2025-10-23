@@ -6,6 +6,12 @@
 			var(--site-manager-site-info-min-width) + 2 *
 			var(--site-manager-border-width)
 	);
+	--site-manager-open-max-width: calc(100vw - var(--site-view-min-width));
+	--site-info-panel-max-width: calc(
+		var(--site-manager-open-max-width) -
+			(2 * var(--site-manager-border-width)) -
+			var(--site-manager-site-list-width)
+	);
 	--site-view-min-width: 320px;
 	--site-manager-background-color: #1e1e1e;
 	--site-manager-border-width: 12px;
@@ -29,132 +35,115 @@ body {
 	overflow: hidden;
 }
 
-.layoutAnimating {
-	position: relative;
-}
-
-.mainPanels {
-	display: flex;
-	width: 100%;
+.site-view {
 	height: 100%;
-}
-
-.mainPanels [data-panel] {
-	overflow: hidden;
-}
-
-.layoutAnimating .mainPanels [data-panel] {
-	transition: flex-grow 280ms ease, flex-basis 280ms ease, width 280ms ease,
-		max-width 280ms ease, min-width 280ms ease;
-	will-change: flex-grow, flex-basis;
 }
 
 .site-manager-wrapper {
-	height: 100%;
-	display: flex;
+	max-width: var(--site-manager-open-max-width);
+	@media (max-width: 875px) {
+		min-width: 0;
+		width: 100%;
+	}
 }
 
-.site-manager-wrapper-enter,
-.site-manager-wrapper-exit {
-	opacity: 1;
-	transform: translateX(0);
-}
-
-.site-manager-wrapper-animating.site-manager-wrapper-enter {
+.site-manager-wrapper-enter {
 	opacity: 0;
-	transform: translateX(calc(-100% - 24px));
+	max-width: 0;
 }
 
-.site-manager-wrapper-animating.site-manager-wrapper-enter-active {
+.site-manager-wrapper-exit,
+.site-manager-wrapper-enter-active {
 	opacity: 1;
-	transform: translateX(0);
-	transition: transform 300ms ease, opacity 300ms ease;
+	transform: none;
+	max-width: var(--site-manager-open-max-width);
+	@media (max-width: 875px) {
+		width: 100%;
+	}
 }
 
-.site-manager-wrapper-animating.site-manager-wrapper-exit-active {
+/*
+ * Repeated rule to ensure it's more specific than
+ * .site-manager-wrapper-exit
+ */
+.site-manager-wrapper-exit-active {
 	opacity: 0;
-	transform: translateX(calc(-100% - 24px));
-	transition: transform 300ms ease, opacity 300ms ease;
+	max-width: 0;
 }
 
-.layoutResizeHandle {
-	width: 12px;
-	cursor: col-resize;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-}
-
-.layoutResizeHandle::before {
-	content: '';
-	display: block;
-	width: 2px;
-	height: 70%;
-	border-radius: 1px;
-	background: rgba(255, 255, 255, 0.18);
-}
-
-.handleHidden {
-	visibility: hidden;
-	pointer-events: none;
-}
-
-.toggleSiteManagerButton {
-	position: absolute;
-	top: 16px;
-	left: 16px;
-	z-index: 10;
-	box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
-	border-radius: 8px;
-}
-
-.toggleSiteManagerButton :global(.components-button) {
-	padding: 6px 10px;
-	background-color: rgba(30, 30, 30, 0.92);
-	color: #ffffff;
-	border: none;
-	border-radius: 8px;
-}
-
-.toggleSiteManagerButton :global(svg) {
-	width: 18px;
-	height: 18px;
-}
-
-.toggleSiteManagerButton :global(.components-button:hover) {
-	background-color: rgba(255, 255, 255, 0.14);
-	color: #ffffff;
-}
-
-.toggleSiteManagerButtonOpen {
-	left: 16px;
-}
-
-.toggleSiteManagerButtonClosed {
-	left: 16px;
+.site-manager-wrapper-exit-active,
+.site-manager-wrapper-enter-active {
+	transition:
+		/*
+		 * Workaround: Animate max-width to allow `width: auto`
+		 * The `width` property needs to be `auto` to ensure the
+		 * site manager panel expands and shrinks with its content.
+		 * Unfortunately, we can't animate width from `0` to `auto`.
+		 * Therefore, we animate the `max-width` property instead.
+		 * We assign a large enough number (1300px) to make sure it won't
+		 * interfere with regular use cases, and give it more time to animate
+		 * so that it hits its `auto` width approximately around the same time
+		 * as the `opacity` transition finishes.
+		 */ max-width
+			450ms,
+		opacity 300ms;
 }
 
 .site-view {
-	height: 100%;
-	display: flex;
+	position: relative;
+	flex: 1 1 auto;
+	min-width: var(--site-view-min-width);
+	height: 100dvh;
+	border: 0px solid var(--site-manager-background-color);
+	transition: border-radius 300ms ease, border-width 300ms ease,
+		transform 300ms ease;
+	border-radius: 0;
+	border-width: 0;
+}
+
+.site-manager-wrapper + .site-view {
+	position: relative;
+	border-width: var(--site-manager-border-width);
+	border-top-width: 0;
+	border-left-width: 0;
+	.site-view-content {
+		border-radius: var(--site-manager-border-radius);
+	}
+}
+
+.site-manager-wrapper-exit-active + .site-view {
+	border-radius: 0;
+	border-width: 0;
+	.site-view-content {
+		border-radius: 0;
+	}
 }
 
 .site-view-content {
 	overflow: hidden;
+	transition: border-radius 300ms;
 	height: 100%;
-	border-radius: var(--site-manager-border-radius);
-	border: var(--site-manager-border-width) solid
-		var(--site-manager-background-color);
-	border-left-width: 0;
-	width: 100%;
-	transition: border-radius 300ms ease;
 }
 
+/*
+ * Unfortunately we cannot use calc() in media queries.
+ *
+ * 1166px = --site-manager-width + --site-view-min-width
+ *
+ * This manual calculation ensures the site view gets hidden
+ * on smaller screens and never overflows out of the screen.
+ */
 @media (max-width: 1126px) {
-	.layoutResizeHandle {
+	.site-manager-wrapper + .site-view {
 		display: none;
 	}
-}
-.site-manager-wrapper-animating {
-	will-change: transform, opacity;
+	.site-manager-wrapper,
+	.site-manager-wrapper-exit,
+	.site-manager-wrapper-enter-active {
+		width: 100%;
+		max-width: 100%;
+	}
+	.site-manager-wrapper-exit-active + .site-view {
+		display: block;
+	}
 }

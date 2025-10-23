@@ -1,22 +1,14 @@
 import { useAppSelector, useAppDispatch } from '../../../lib/state/redux/store';
-import {
-	DropdownMenu,
-	DropdownMenuItem,
-	DropdownMenuItemLabel,
-	DropdownMenuItemHelpText,
-	// @ts-ignore
-} from '@wordpress/components/build/dropdown-menu-v2/index.js';
 import css from './style.module.css';
-import { persistTemporarySite } from '../../../lib/state/redux/persist-temporary-site';
 import { selectClientInfoBySiteSlug } from '../../../lib/state/redux/slice-clients';
-import { useLocalFsAvailability } from '../../../lib/hooks/use-local-fs-availability';
-import { isOpfsAvailable } from '../../../lib/state/opfs/opfs-site-storage';
 import type { SiteStorageType } from '../../../lib/state/redux/slice-sites';
+import { setActiveModal } from '../../../lib/state/redux/slice-ui';
+import { modalSlugs } from '../../layout';
+import React from 'react';
 
 export function SitePersistButton({
 	siteSlug,
 	children,
-	storage = null,
 }: {
 	siteSlug: string;
 	children: React.ReactNode;
@@ -25,61 +17,13 @@ export function SitePersistButton({
 	const clientInfo = useAppSelector((state) =>
 		selectClientInfoBySiteSlug(state, siteSlug)
 	);
-	const localFsAvailability = useLocalFsAvailability(clientInfo?.client);
 	const dispatch = useAppDispatch();
 
 	if (!clientInfo?.opfsSync || clientInfo.opfsSync?.status === 'error') {
-		let button = null;
-		if (storage) {
-			button = (
-				<div
-					onClick={() =>
-						dispatch(persistTemporarySite(siteSlug, storage))
-					}
-				>
-					{children}
-				</div>
-			);
-		} else {
-			button = (
-				<DropdownMenu trigger={children}>
-					<DropdownMenuItem
-						disabled={!isOpfsAvailable}
-						onClick={() =>
-							dispatch(persistTemporarySite(siteSlug, 'opfs'))
-						}
-					>
-						<DropdownMenuItemLabel>
-							Save in this browser
-						</DropdownMenuItemLabel>
-						{!isOpfsAvailable && (
-							<DropdownMenuItemHelpText>
-								{localFsAvailability === 'not-available'
-									? 'Not available in this browser'
-									: 'Not available on this site'}
-							</DropdownMenuItemHelpText>
-						)}
-					</DropdownMenuItem>
-					<DropdownMenuItem
-						disabled={localFsAvailability !== 'available'}
-						onClick={() =>
-							dispatch(persistTemporarySite(siteSlug, 'local-fs'))
-						}
-					>
-						<DropdownMenuItemLabel>
-							Save in a local directory
-						</DropdownMenuItemLabel>
-						{localFsAvailability !== 'available' && (
-							<DropdownMenuItemHelpText>
-								{localFsAvailability === 'not-available'
-									? 'Not available in this browser'
-									: 'Not available on this site'}
-							</DropdownMenuItemHelpText>
-						)}
-					</DropdownMenuItem>
-				</DropdownMenu>
-			);
-		}
+		const handleClick = () => {
+			dispatch(setActiveModal(modalSlugs.SAVE_SITE));
+		};
+		const button = <div onClick={handleClick}>{children}</div>;
 
 		return (
 			<>
@@ -93,34 +37,9 @@ export function SitePersistButton({
 		);
 	}
 
-	if (
-		clientInfo?.opfsSync?.status === 'syncing' &&
-		!clientInfo?.opfsSync?.progress
-	) {
-		return (
-			<div className={css.progressInfo}>
-				<div>
-					<progress id="file" max="100" value="0"></progress>
-				</div>
-				<div>Preparing to save...</div>
-			</div>
-		);
-	}
-
-	return (
-		<div className={css.progressInfo}>
-			<div>
-				<progress
-					id="file"
-					max={clientInfo.opfsSync.progress?.total}
-					value={clientInfo.opfsSync.progress?.files}
-				></progress>
-			</div>
-			<div>
-				{clientInfo.opfsSync.progress?.files}
-				{' / '}
-				{clientInfo.opfsSync.progress?.total} files saved
-			</div>
-		</div>
-	);
+	return React.cloneElement(children as React.ReactElement, {
+		className: css.inProgress,
+		disabled: true,
+		children: 'Saving...',
+	});
 }
