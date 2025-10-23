@@ -38,20 +38,26 @@ export class WebsitePage {
 	}
 
 	async ensureSiteManagerIsOpen() {
-		const siteManagerHeading = this.page.locator('.main-sidebar');
-		if (await siteManagerHeading.isHidden({ timeout: 5000 })) {
-			await this.page.getByLabel('Open Site Manager').click();
+		const siteManager = this.page.locator('.main-sidebar');
+		if (!(await siteManager.isVisible())) {
+			await this.page
+				.getByRole('button', { name: 'Open Site Manager' })
+				.click();
 		}
-		await expect(siteManagerHeading).toBeVisible();
+		await expect(siteManager).toBeVisible();
 	}
 
 	async ensureSiteManagerIsClosed() {
-		const openSiteButton = this.page.locator('div[title="Open site"]');
-		if (await openSiteButton.isVisible({ timeout: 5000 })) {
-			await openSiteButton.click();
+		const siteManager = this.page.locator('.main-sidebar');
+		if (await siteManager.isVisible()) {
+			const closeButton = this.page.getByRole('button', {
+				name: 'Close Site Manager',
+			});
+			if (await closeButton.isVisible()) {
+				await closeButton.click();
+			}
 		}
-		const siteManagerHeading = this.page.locator('.main-sidebar');
-		await expect(siteManagerHeading).not.toBeVisible();
+		await expect(siteManager).not.toBeVisible();
 	}
 
 	async getSiteTitle(): Promise<string> {
