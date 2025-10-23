@@ -33,11 +33,37 @@ import { setActiveModal } from '../../../lib/state/redux/slice-ui';
 import { modalSlugs } from '../../layout';
 import { removeSite } from '../../../lib/state/redux/slice-sites';
 import { BlueprintReflection } from '@wp-playground/blueprints';
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useState, useEffect } from 'react';
 
 const SiteFileBrowser = lazy(() =>
 	import('../site-file-browser').then((m) => ({ default: m.SiteFileBrowser }))
 );
+
+const LAST_TAB_STORAGE_KEY = 'playground-site-last-tabs';
+
+function getSiteLastTab(siteSlug: string): string | null {
+	try {
+		const stored = localStorage.getItem(LAST_TAB_STORAGE_KEY);
+		if (!stored) {
+			return null;
+		}
+		const tabs = JSON.parse(stored);
+		return tabs[siteSlug] || null;
+	} catch {
+		return null;
+	}
+}
+
+function setSiteLastTab(siteSlug: string, tabName: string): void {
+	try {
+		const stored = localStorage.getItem(LAST_TAB_STORAGE_KEY);
+		const tabs = stored ? JSON.parse(stored) : {};
+		tabs[siteSlug] = tabName;
+		localStorage.setItem(LAST_TAB_STORAGE_KEY, JSON.stringify(tabs));
+	} catch {
+		// Silently fail if localStorage is not available
+	}
+}
 
 export function SiteInfoPanel({
 	className,
@@ -52,6 +78,18 @@ export function SiteInfoPanel({
 }) {
 	const offline = useAppSelector((state) => state.ui.offline);
 	const dispatch = useAppDispatch();
+
+	// Load the last active tab for this site
+	const [initialTabName] = useState(() => {
+		const lastTab = getSiteLastTab(site.slug);
+		return lastTab || 'settings';
+	});
+
+	// Save the tab when it changes
+	const handleTabSelect = (tabName: string) => {
+		setSiteLastTab(site.slug, tabName);
+	};
+
 	const removeSiteAndCloseMenu = async (onClose: () => void) => {
 		// TODO: Replace with HTML-based dialog
 		const proceed = window.confirm(
@@ -348,6 +386,8 @@ export function SiteInfoPanel({
 				<FlexItem style={{ flexGrow: 1 }}>
 					<TabPanel
 						className={css.tabs}
+						initialTabName={initialTabName}
+						onSelect={handleTabSelect}
 						tabs={[
 							{
 								name: 'settings',
