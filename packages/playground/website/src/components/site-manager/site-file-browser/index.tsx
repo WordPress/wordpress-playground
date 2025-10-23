@@ -21,7 +21,13 @@ const SAVE_DEBOUNCE_MS = 1500;
 
 type SaveState = 'idle' | 'pending' | 'saving' | 'saved' | 'error';
 
-export function SiteFileBrowser({ site }: { site: SiteInfo }) {
+export function SiteFileBrowser({
+	site,
+	isVisible = true,
+}: {
+	site: SiteInfo;
+	isVisible?: boolean;
+}) {
 	const client = usePlaygroundClient(site.slug);
 	const filesystem = useFilesystem(client);
 
@@ -43,6 +49,8 @@ export function SiteFileBrowser({ site }: { site: SiteInfo }) {
 	const currentPathRef = useRef<string | null>(currentPath);
 	const clientRef = useRef<PlaygroundClient | null>(client);
 	const previousClientRef = useRef<PlaygroundClient | null>(client);
+	const hasAutoOpenedRef = useRef<boolean>(false);
+	const cursorPositionsRef = useRef<Map<string, number>>(new Map());
 
 	useEffect(() => {
 		codeRef.current = code;
@@ -101,6 +109,7 @@ export function SiteFileBrowser({ site }: { site: SiteInfo }) {
 		setSaveState('idle');
 		setSaveError(null);
 		skipNextSaveRef.current = true;
+		hasAutoOpenedRef.current = false;
 	}, [site.slug]);
 
 	useEffect(() => {
@@ -162,8 +171,56 @@ export function SiteFileBrowser({ site }: { site: SiteInfo }) {
 		return () => window.clearTimeout(timeout);
 	}, [saveState]);
 
+	// Auto-open wp-config.php if it exists
+	useEffect(() => {
+		if (!client || hasAutoOpenedRef.current) {
+			return;
+		}
+
+		const wpConfigPath = `${WORDPRESS_ROOT_DIR}/wp-config.php`;
+
+		const tryAutoOpen = async () => {
+			try {
+				const exists = await client.fileExists(wpConfigPath);
+				if (exists) {
+					const content = await client.readFileAsText(wpConfigPath);
+					skipNextSaveRef.current = true;
+					setCurrentPath(wpConfigPath);
+					setCode(content);
+					setReadOnly(false);
+					setSaveState('idle');
+					setSaveError(null);
+					// Focus the editor after opening
+					setTimeout(() => {
+						editorRef.current?.focus();
+					}, 100);
+				}
+			} catch (error) {
+				// Silently fail - wp-config.php may not exist or may not be readable
+				console.debug('Could not auto-open wp-config.php:', error);
+			} finally {
+				hasAutoOpenedRef.current = true;
+			}
+		};
+
+		void tryAutoOpen();
+	}, [client]);
+
 	const handleFileOpened = useCallback(
 		async (path: string, content: string, shouldFocus = true) => {
+			// Save cursor position of current file before switching
+			const currentPos = editorRef.current?.getCursorPosition();
+			if (
+				currentPos !== null &&
+				currentPos !== undefined &&
+				currentPathRef.current
+			) {
+				cursorPositionsRef.current.set(
+					currentPathRef.current,
+					currentPos
+				);
+			}
+
 			try {
 				await flushPendingSave(clientRef.current, {
 					saveTimeoutRef,
@@ -182,14 +239,79 @@ export function SiteFileBrowser({ site }: { site: SiteInfo }) {
 			setSaveState('idle');
 			setSaveError(null);
 			setShowExplorerOnMobile(false);
-			if (shouldFocus) {
-				editorRef.current?.focus();
-			}
+
+			// Restore cursor position for this file if we have one saved
+			setTimeout(() => {
+				const savedPos = cursorPositionsRef.current.get(path);
+				if (savedPos !== undefined) {
+					editorRef.current?.setCursorPosition(savedPos);
+				}
+				if (shouldFocus) {
+					editorRef.current?.focus();
+				}
+			}, 50);
 		},
 		[]
 	);
 
+	// Periodically save cursor position while editing
+	useEffect(() => {
+		if (!currentPath) {
+			return;
+		}
+
+		const interval = setInterval(() => {
+			const pos = editorRef.current?.getCursorPosition();
+			if (pos !== null && pos !== undefined) {
+				cursorPositionsRef.current.set(currentPath, pos);
+			}
+		}, 1000);
+
+		// Save immediately on mount and when currentPath changes
+		const pos = editorRef.current?.getCursorPosition();
+		if (pos !== null && pos !== undefined) {
+			cursorPositionsRef.current.set(currentPath, pos);
+		}
+
+		return () => {
+			clearInterval(interval);
+			// Save one final time when unmounting or changing files
+			const finalPos = editorRef.current?.getCursorPosition();
+			if (finalPos !== null && finalPos !== undefined) {
+				cursorPositionsRef.current.set(currentPath, finalPos);
+			}
+		};
+	}, [currentPath]);
+
+	// Restore cursor position when tab becomes visible
+	useEffect(() => {
+		if (!isVisible || !currentPath) {
+			return;
+		}
+
+		// Wait a bit for the editor to be ready
+		const timeout = setTimeout(() => {
+			const savedPos = cursorPositionsRef.current.get(currentPath);
+			if (savedPos !== undefined) {
+				editorRef.current?.setCursorPosition(savedPos);
+			}
+			editorRef.current?.focus();
+		}, 100);
+
+		return () => clearTimeout(timeout);
+	}, [isVisible, currentPath]);
+
 	const handleClearSelection = useCallback(async () => {
+		// Save cursor position before clearing
+		const currentPos = editorRef.current?.getCursorPosition();
+		if (
+			currentPos !== null &&
+			currentPos !== undefined &&
+			currentPathRef.current
+		) {
+			cursorPositionsRef.current.set(currentPathRef.current, currentPos);
+		}
+
 		try {
 			await flushPendingSave(clientRef.current, {
 				saveTimeoutRef,

@@ -397,20 +397,19 @@ export function SiteInfoPanel({
 									)}
 									hidden={tab.name !== 'files'}
 								>
-									{tab.name === 'files' && (
-										<Suspense
-											fallback={
-												<div className={css.padded}>
-													Loading file browser...
-												</div>
-											}
-										>
-											<SiteFileBrowser
-												key={site.slug}
-												site={site}
-											/>
-										</Suspense>
-									)}
+									<Suspense
+										fallback={
+											<div className={css.padded}>
+												Loading file browser...
+											</div>
+										}
+									>
+										<SiteFileBrowser
+											key={site.slug}
+											site={site}
+											isVisible={tab.name === 'files'}
+										/>
+									</Suspense>
 								</div>
 								<div
 									className={classNames(

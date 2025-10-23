@@ -130,6 +130,8 @@ const clickBelowContentExtension = ViewPlugin.define(
 
 export type CodeEditorHandle = {
 	focus: () => void;
+	getCursorPosition: () => number | null;
+	setCursorPosition: (pos: number) => void;
 };
 
 export type CodeEditorProps = {
@@ -169,6 +171,28 @@ export const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
 		useImperativeHandle(ref, () => ({
 			focus: () => {
 				viewRef.current?.focus();
+			},
+			getCursorPosition: () => {
+				if (!viewRef.current) {
+					return null;
+				}
+				return viewRef.current.state.selection.main.anchor;
+			},
+			setCursorPosition: (pos: number) => {
+				if (!viewRef.current) {
+					return;
+				}
+				const clampedPos = Math.min(
+					pos,
+					viewRef.current.state.doc.length
+				);
+				const selection = EditorSelection.create([
+					EditorSelection.range(clampedPos, clampedPos),
+				]);
+				viewRef.current.dispatch({
+					selection,
+					scrollIntoView: true,
+				});
 			},
 		}));
 
