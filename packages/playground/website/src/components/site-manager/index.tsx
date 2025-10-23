@@ -10,13 +10,14 @@ import css from './style.module.css';
 import { SiteInfoPanel } from './site-info-panel';
 import classNames from 'classnames';
 
-import { forwardRef } from 'react';
+import { forwardRef, useState, useEffect } from 'react';
 import { setSiteManagerOpen } from '../../lib/state/redux/slice-ui';
 import { BlueprintsPanel } from './blueprints-panel';
 import { ResizableBox } from '@wordpress/components';
 
 const SITE_INFO_MIN_WIDTH = 400;
 const SITE_INFO_DEFAULT_WIDTH = 555;
+const SITE_INFO_WIDTH_STORAGE_KEY = 'playground-site-info-panel-width';
 
 export const SiteManager = forwardRef<
 	HTMLDivElement,
@@ -32,6 +33,40 @@ export const SiteManager = forwardRef<
 	const activeSiteManagerSection = useAppSelector(
 		(state) => state.ui.siteManagerSection
 	);
+
+	// Load saved width from localStorage or use default
+	const [siteInfoWidth, setSiteInfoWidth] = useState<number>(() => {
+		try {
+			const saved = localStorage.getItem(SITE_INFO_WIDTH_STORAGE_KEY);
+			if (saved) {
+				const width = parseInt(saved, 10);
+				if (!isNaN(width) && width >= SITE_INFO_MIN_WIDTH) {
+					return width;
+				}
+			}
+		} catch {
+			// localStorage might not be available
+		}
+		return SITE_INFO_DEFAULT_WIDTH;
+	});
+
+	// Save width to localStorage whenever it changes
+	const handleResize = (
+		_event: any,
+		_direction: any,
+		element: HTMLElement
+	) => {
+		const newWidth = element.offsetWidth;
+		setSiteInfoWidth(newWidth);
+		try {
+			localStorage.setItem(
+				SITE_INFO_WIDTH_STORAGE_KEY,
+				newWidth.toString()
+			);
+		} catch {
+			// localStorage might not be available
+		}
+	};
 
 	const sidebar = (
 		<Sidebar
@@ -70,8 +105,8 @@ export const SiteManager = forwardRef<
 						key={activeSite?.slug}
 						className={css.siteInfoResizable}
 						minWidth={SITE_INFO_MIN_WIDTH}
-						defaultSize={{
-							width: SITE_INFO_DEFAULT_WIDTH,
+						size={{
+							width: siteInfoWidth,
 							height: '100%',
 						}}
 						enable={{
@@ -80,14 +115,10 @@ export const SiteManager = forwardRef<
 							bottom: false,
 							left: false,
 						}}
+						onResizeStop={handleResize}
 						showHandle={true}
 						handleClasses={{
 							right: css.siteInfoResizeHandle,
-						}}
-						handleProps={{
-							right: {
-								'aria-label': 'Resize site info panel width',
-							},
 						}}
 					>
 						<SiteInfoPanel

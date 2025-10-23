@@ -30,7 +30,7 @@
 .site-info-resizable {
 	height: 100%;
 	display: flex;
-	flex: 1 1 var(--site-info-panel-max-width);
+	flex: 0 0 auto;
 	max-width: var(--site-info-panel-max-width);
 }
 
