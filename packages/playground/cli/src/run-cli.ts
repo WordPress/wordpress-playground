@@ -223,8 +223,12 @@ export async function parseOptionsAndRunCLI() {
 				type: 'boolean',
 				default: false,
 			})
-			.option('experimental-ide', {
-				describe: 'Enable experimental IDE development tools.',
+			.option('experimental-unsafe-ide-integration', {
+				describe:
+					'Enable experimental IDE development tools. This option edits IDE config files ' +
+					'to configure Xdebug path mappings and web server details. CAUTION: If there are bugs, ' +
+					'this feature may break your IDE config files. Please consider backing up your IDE configs ' +
+					'before using this feature.',
 				type: 'string',
 				// The empty value means the option is enabled for all
 				// supported IDEs and, if needed, will create the relevant
@@ -237,7 +241,10 @@ export async function parseOptionsAndRunCLI() {
 				describe: 'Enable experimental browser development tools.',
 				type: 'boolean',
 			})
-			.conflicts('experimental-ide', 'experimental-devtools')
+			.conflicts(
+				'experimental-unsafe-ide-integration',
+				'experimental-devtools'
+			)
 			.option('experimental-multi-worker', {
 				describe:
 					'Enable experimental multi-worker support which requires ' +
@@ -434,7 +441,7 @@ export interface RunCLIArgs {
 	internalCookieStore?: boolean;
 	'additional-blueprint-steps'?: any[];
 	xdebug?: boolean;
-	experimentalIde?: string[];
+	experimentalUnsafeIdeIntegration?: string[];
 	experimentalDevtools?: boolean;
 	'experimental-blueprints-v2-runner'?: boolean;
 
@@ -570,11 +577,6 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 
 			const IDEConfigName = 'WP Playground CLI - Listen for Xdebug';
 
-			// TODO: Should we warn users and ask them to confirm that
-			// we will be modifying their IDE config files?
-			// It could be painful for folks if their IDE configs are
-			// inadvertently broken.
-
 			// We don't want to spend time awaiting IDE config cleanup by default,
 			// but let's save this promise just in case.
 			// If we're adding IDE config for Xdebug, we need to await cleanup
@@ -591,7 +593,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 			// Then, if xdebug, and experimental IDE are enabled,
 			// recreate the symlink pointing to the temporary
 			// directory and add the new IDE config.
-			if (args.xdebug && args.experimentalIde) {
+			if (args.xdebug && args.experimentalUnsafeIdeIntegration) {
 				createPlaygroundCliTempDirSymlink(nativeDirPath, symlinkPath);
 
 				const symlinkMount: Mount = {
@@ -614,7 +616,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 						name: IDEConfigName,
 						host: host,
 						port: port,
-						ides: args.experimentalIde,
+						ides: args.experimentalUnsafeIdeIntegration,
 						mounts: [
 							symlinkMount,
 							...(args['mount-before-install'] || []),
