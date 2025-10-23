@@ -18,22 +18,22 @@ import { dirname, normalizePath } from '@php-wasm/util';
 
 export const MAX_INLINE_FILE_BYTES = 1024 * 1024; // 1MB
 
-const isProbablyTextBuffer = (buffer: Uint8Array) => {
+const seemsLikeBinary = (buffer: Uint8Array) => {
 	// Assume that anything with a null byte in the first 4096 bytes is binary.
 	// This isn't a perfect test, but it catches a lot of binary files.
 	const len = buffer.byteLength;
 	for (let i = 0; i < Math.min(len, 4096); i++) {
 		if (buffer[i] === 0) {
-			return false;
+			return true;
 		}
 	}
 
 	// Next, try to decode the buffer as UTF-8. If it fails, it's probably binary.
 	try {
 		new TextDecoder('utf-8', { fatal: true }).decode(buffer);
-		return true;
-	} catch {
 		return false;
+	} catch {
+		return true;
 	}
 };
 
@@ -85,7 +85,6 @@ export function FileExplorerSidebar({
 		null
 	);
 
-	// Helper function to handle file opening
 	const handleOpenFile = async (path: string, shouldFocus: boolean) => {
 		try {
 			const data = await filesystem.readFileAsBuffer(path);
@@ -107,7 +106,7 @@ export function FileExplorerSidebar({
 				);
 				return;
 			}
-			if (!isProbablyTextBuffer(data)) {
+			if (seemsLikeBinary(data)) {
 				const { url, filename } = createDownloadUrl(
 					data,
 					path.split('/').pop() || 'download'
