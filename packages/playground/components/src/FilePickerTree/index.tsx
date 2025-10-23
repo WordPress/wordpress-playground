@@ -1518,14 +1518,20 @@ const NodeRow: React.FC<{
 			}
 			event.preventDefault();
 		} else if (event.key === 'Enter') {
-			selectPath(path);
-			focusPath(path);
-			const form = (event.currentTarget as HTMLElement)?.closest('form');
-			if (form) {
-				setTimeout(() => {
-					form.dispatchEvent(new Event('submit', { bubbles: true }));
-				});
+			if (node.type === 'folder') {
+				// For folders, toggle open/closed
+				onToggle(path, node, !isExpanded);
+			} else {
+				// For files, behave like double-click: open with focus
+				selectPath(path, false); // Update visual selection
+				focusPath(path);
+				if (onDoubleClickFile) {
+					onDoubleClickFile(path); // Open file and move focus to editor
+				} else {
+					selectPath(path, true); // Fallback behavior
+				}
 			}
+			event.preventDefault();
 		}
 	};
 
