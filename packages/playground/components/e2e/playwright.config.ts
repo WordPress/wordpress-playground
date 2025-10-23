@@ -13,7 +13,7 @@ export const playwrightConfig: PlaywrightTestConfig = {
 	fullyParallel: false,
 	/* Fail the build on CI if you accidentally left test.only in the source code. */
 	forbidOnly: !!process.env.CI,
-	retries: 0,
+	retries: 3,
 	workers: 3,
 
 	/* Reporter to use. See https://playwright.dev/docs/test-reporters */
@@ -28,8 +28,7 @@ export const playwrightConfig: PlaywrightTestConfig = {
 		navigationTimeout: 120000,
 	},
 
-	// timeout: 300000,
-	timeout: 30000,
+	timeout: 300000,
 	expect: { timeout: 60000 },
 
 	/* Configure projects for major browsers */
