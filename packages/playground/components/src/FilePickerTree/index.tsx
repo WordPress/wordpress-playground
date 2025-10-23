@@ -655,6 +655,23 @@ export const FilePickerTree = forwardRef<
 		};
 	}, []);
 
+	useEffect(() => {
+		if (contextMenu) {
+			// Wait for the Popover to render, then focus the first menu item
+			setTimeout(() => {
+				const firstMenuItem = document.querySelector(
+					'[role="menu"] [role="menuitem"]'
+				) as HTMLElement | null;
+				if (
+					firstMenuItem &&
+					typeof firstMenuItem.focus === 'function'
+				) {
+					firstMenuItem.focus();
+				}
+			}, 0);
+		}
+	}, [contextMenu]);
+
 	const [searchBuffer, setSearchBuffer] = useState('');
 
 	// remove duplicate handle; unified handle is defined above
