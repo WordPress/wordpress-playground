@@ -90,21 +90,60 @@ On Windows, the path format `/host/path:/vfs/path` can cause issues. To resolve 
 
 ### Understanding Data Persistence and SQLite Location
 
-By default, Playground CLI stores WordPress files and the SQLite database in temporary directories:
+By default, Playground CLI stores WordPress files and the SQLite database in **temporary directories on your operating system**:
 
--   `<TEMP-DIR>/wordpress` - WordPress installation (wp-admin, wp-includes, wp-content, etc.)
--   `<TEMP-DIR>/internal` - Playground runtime config and platform mu-plugins
--   `<TEMP-DIR>/tmp` - Temporary files
+```
+<OS-TEMP-DIR>/playground-<random-id>/
+├── wordpress/          # WordPress installation
+├── internal/          # Playground runtime config
+└── tmp/              # Temporary PHP files
+```
 
-**Where is the SQLite database stored?**
+**Finding Your Temp Directory:**
 
-The SQLite database location depends on what you mount:
+The actual location depends on your OS:
 
--   **Auto-mounting wp-content or full WordPress**: Database writes to your mounted folder at `wp-content/database/.ht.sqlite` (persisted locally)
--   **Auto-mounting plugin/theme only**: Database writes to temp directories (lost when server stops)
+-   **macOS/Linux**: `/tmp/playground-<random-id>/`
+-   **Windows**: `C:\Users\<username>\AppData\Local\Temp\playground-<random-id>\`
+
+When you start the CLI, it outputs the temp directory path. Look for:
+
+```bash
+npx @wp-playground/cli@latest server
+# Output shows: Using temporary directory: /tmp/playground-abc123/
+```
+
+**Where is the SQLite Database Stored?**
+
+The database location depends on what you mount:
+
+-   **Auto-mounting wp-content or full WordPress**:
+
+    -   Database: `<your-local-project>/wp-content/database/.ht.sqlite`
+    -   ✅ **Persisted locally** in your project folder
+
+-   **Auto-mounting plugin/theme only**:
+
+    -   Database: `<OS-TEMP-DIR>/playground-<id>/wordpress/wp-content/database/.ht.sqlite`
+    -   ⚠️ **Lost when server stops** (temp directories are cleaned up)
+
 -   **Custom mounts**: Database location follows your mount configuration
 
-To ensure database persistence when developing plugins or themes, consider mounting the entire wp-content directory.
+**Automatic Cleanup:**
+Playground CLI automatically removes temp directories that are:
+
+-   Older than 2 days
+-   No longer associated with a running process
+
+**Recommendation:** To persist both your code and database when developing plugins or themes, mount the entire `wp-content` directory instead of just the plugin/theme folder.
+
+**Example: Mounting wp-content for persistence**
+
+```bash
+# Mount your entire wp-content directory
+cd my-wordpress-project
+npx @wp-playground/cli@latest server --mount=./wp-content:/wordpress/wp-content
+```
 
 ## Command and Arguments
 
