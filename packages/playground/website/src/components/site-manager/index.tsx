@@ -10,7 +10,7 @@ import css from './style.module.css';
 import { SiteInfoPanel } from './site-info-panel';
 import classNames from 'classnames';
 
-import { forwardRef, useState, useEffect } from 'react';
+import { forwardRef, useState } from 'react';
 import { setSiteManagerOpen } from '../../lib/state/redux/slice-ui';
 import { BlueprintsPanel } from './blueprints-panel';
 import { ResizableBox } from '@wordpress/components';
