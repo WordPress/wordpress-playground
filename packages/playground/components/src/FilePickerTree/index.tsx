@@ -241,6 +241,10 @@ export const FilePickerTree = forwardRef<
 		) as HTMLElement | null;
 		if (focusTarget && typeof focusTarget.focus === 'function') {
 			focusTarget.focus();
+			focusTarget.scrollIntoView({
+				behavior: 'smooth',
+				block: 'nearest',
+			});
 		}
 	};
 
@@ -269,7 +273,22 @@ export const FilePickerTree = forwardRef<
 			results.push({ name, type: isDirectory ? 'folder' : 'file' });
 		}
 		results.sort((a, b) => {
+			// First, sort by type (folders before files)
 			if (a.type !== b.type) return a.type === 'folder' ? -1 : 1;
+
+			// Within same type, prioritize pending create item
+			const aPath =
+				basePath === '/' ? `/${a.name}` : `${basePath}/${a.name}`;
+			const bPath =
+				basePath === '/' ? `/${b.name}` : `${basePath}/${b.name}`;
+			const pendingPath = pendingCreateRef.current?.tempPath;
+
+			if (pendingPath) {
+				if (aPath === pendingPath) return -1;
+				if (bPath === pendingPath) return 1;
+			}
+
+			// Otherwise, sort alphabetically
 			return a.name.localeCompare(b.name);
 		});
 		return results as FileNode[];
@@ -1157,10 +1176,15 @@ export const FilePickerTree = forwardRef<
 		let candidateNormalized = candidate;
 		if (candidateNormalized === path) {
 			setRenamingAbsolutePath(null);
+			const wasFileCreate = isPending && pending?.type === 'file';
 			if (isPending) pendingCreateRef.current = null;
 			setTimeout(() => {
 				setFocusedPath(candidateNormalized);
 				focusDomNode(candidateNormalized);
+				// If this was a newly created file, open it in the editor
+				if (wasFileCreate && onDoubleClickFile) {
+					onDoubleClickFile(candidateNormalized);
+				}
 			}, 0);
 			return;
 		}
@@ -1199,6 +1223,10 @@ export const FilePickerTree = forwardRef<
 			await refreshChildren(parent);
 			setFocusedPath(candidateNormalized);
 			focusDomNode(candidateNormalized);
+			// If this was a newly created file, open it in the editor
+			if (isPending && !candidateIsDir && onDoubleClickFile) {
+				onDoubleClickFile(candidateNormalized);
+			}
 		} catch {
 			if (isPending) {
 				try {
