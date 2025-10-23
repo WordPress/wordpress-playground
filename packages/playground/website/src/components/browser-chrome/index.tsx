@@ -57,7 +57,16 @@ export default function BrowserChrome({
 					})}
 					aria-label="Playground toolbar"
 				>
-					<div className={css.windowControls}>
+					<div className={addressBarClass}>
+						<AddressBar
+							url={url}
+							onUpdate={(newUrl) =>
+								clientInfo?.client.goTo(newUrl)
+							}
+						/>
+					</div>
+
+					<div className={css.toolbarButtons}>
 						<Button
 							variant="browser-chrome"
 							aria-label={
@@ -80,18 +89,7 @@ export default function BrowserChrome({
 								sidebarActive={siteManagerIsOpen}
 							/>
 						</Button>
-					</div>
 
-					<div className={addressBarClass}>
-						<AddressBar
-							url={url}
-							onUpdate={(newUrl) =>
-								clientInfo?.client.goTo(newUrl)
-							}
-						/>
-					</div>
-
-					<div className={css.toolbarButtons}>
 						{isMobileUi ? (
 							<>
 								<Button
@@ -100,7 +98,6 @@ export default function BrowserChrome({
 									onClick={onToggle}
 									aria-expanded={isModalOpen}
 									style={{
-										padding: '0 10px',
 										fill: '#FFF',
 										alignItems: 'center',
 										display: 'flex',
@@ -132,7 +129,6 @@ export default function BrowserChrome({
 										onClick={onToggle}
 										aria-expanded={isOpen}
 										style={{
-											padding: '0 10px',
 											fill: '#FFF',
 											alignItems: 'center',
 											display: 'flex',

@@ -168,7 +168,7 @@ export function SiteManagerIcon({
 				<rect
 					x="3"
 					y="3"
-					width="6"
+					width="7"
 					height="18"
 					rx="2"
 					ry="2"

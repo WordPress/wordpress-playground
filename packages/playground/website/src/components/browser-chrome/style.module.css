@@ -59,17 +59,13 @@ body.is-embedded .fake-window-wrapper {
 	padding: 0 4px;
 }
 
-.window-controls {
-	display: flex;
-}
-
 .toolbar-buttons:empty {
 	display: none;
 }
 
 .toolbar-buttons {
 	display: flex;
-	gap: 10px;
+	gap: 0;
 	color: #fff;
 }
 
