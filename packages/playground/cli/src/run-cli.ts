@@ -584,8 +584,8 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 			const promiseToClearXdebugIDEConfig =
 				clearXdebugIDEConfig(IDEConfigName);
 
-			// Always clean up any existing '.playground' symlink in the project root.
-			const symlinkName = '.playground';
+			// Always clean up any existing Playground files symlink in the project root.
+			const symlinkName = '.playground-xdebug-root';
 			const symlinkPath = path.join(process.cwd(), symlinkName);
 
 			removePlaygroundCliTempDirSymlink(symlinkPath);
