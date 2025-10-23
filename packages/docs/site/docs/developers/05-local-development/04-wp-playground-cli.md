@@ -100,7 +100,9 @@ to your unique WordPress setup. With the Playground CLI, you can use the followi
 The `server` command supports the following optional arguments:
 
 -   `--port=<port>`: The port number for the server to listen on. Defaults to 9400.
+-   `--version`: Show version number.
 -   `--outfile`: When building, write to this output file.
+-   `--site-url=<url>`: Site URL to use for WordPress. Defaults to `http://127.0.0.1:{port}`.
 -   `--wp=<version>`: The version of WordPress to use. Defaults to the latest.
 -   `--php=<version>`: PHP version to use. Choices: `8.4`, `8.3`, `8.2`, `8.1`, `8.0`, `7.4`, `7.3`, `7.2`. Defaults to `8.3`.
 -   `--auto-mount[=<path>]`: Automatically mount a directory. If no path is provided, mounts the current working directory. You can mount a WordPress directory, a plugin directory, a theme directory, a wp-content directory, or any directory containing PHP and HTML files.
@@ -113,10 +115,14 @@ The `server` command supports the following optional arguments:
 -   `--login`: Automatically log the user in as an administrator.
 -   `--skip-wordpress-setup`: Do not download or install WordPress. Useful if you are mounting a full WordPress directory.
 -   `--skip-sqlite-setup`: Do not set up the SQLite database integration.
--   `--verbosity`: Output logs and progress messages. Choices are "quiet", "normal" or "debug". Defaults to "normal".
+-   `--verbosity=<level>`: Output logs and progress messages. Choices: `quiet`, `normal`, `debug`. Defaults to `normal`.
 -   `--debug`: Print the PHP error log if an error occurs during boot.
 -   `--follow-symlinks`: Allow Playground to follow symlinks by automatically mounting symlinked directories and files encountered in mounted directories.
 -   `--quiet`: Do not output logs and progress messages.
+-   `--internal-cookie-store`: Enable internal cookie handling. When enabled, Playground will manage cookies internally using an HttpCookieStore that persists cookies across requests. When disabled, cookies are handled externally (e.g., by a browser in Node.js environments). Defaults to false.
+-   `--xdebug`: Enable Xdebug. Defaults to false.
+-   `--experimental-devtools`: Enable experimental browser development tools. Defaults to false.
+-   `--experimental-multi-worker=<number>`: Enable experimental multi-worker support which requires a `/wordpress` directory backed by a real filesystem. Pass a positive number to specify the number of workers to use. Otherwise, defaults to the number of CPUs minus 1.
 
 :::caution
 With the flag `--follow-symlinks`, the following symlinks will expose files outside mounted directories to Playground and could be a security risk.
