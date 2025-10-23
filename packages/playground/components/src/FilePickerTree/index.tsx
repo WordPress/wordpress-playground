@@ -598,17 +598,8 @@ export const FilePickerTree = forwardRef<
 		if (effectiveRenamingPath && effectiveRenamingPath === focusedPath) {
 			return;
 		}
-		if (false) {
-			return;
-		}
 		focusDomNode(focusedPath);
-	}, [
-		treeFiles,
-		focusedPath,
-		generatePath,
-		effectiveRenamingPath,
-		focusDomNode,
-	]);
+	}, [treeFiles, focusedPath, effectiveRenamingPath]);
 
 	useEffect(() => {
 		if (treeFiles.length === 0) {
