@@ -163,7 +163,6 @@ export const FilePickerTree = forwardRef<
 		initialSelectedPath,
 		onSelect = () => {},
 		onDoubleClickFile,
-		typeAheadEnabled = true,
 	},
 	ref
 ) {
@@ -1508,8 +1507,8 @@ const NodeRow: React.FC<{
 		if (isRenaming) {
 			setRenameValue(node.name);
 			renameHandledRef.current = false;
-			if (typeof window !== 'undefined' && window.requestAnimationFrame) {
-				window.requestAnimationFrame(() => {
+			if (typeof window !== 'undefined' && requestAnimationFrame) {
+				requestAnimationFrame(() => {
 					renameInputRef.current?.select();
 				});
 			} else {
@@ -1631,8 +1630,8 @@ const NodeRow: React.FC<{
 		}
 
 		const wasWaitingForDoubleClick = clickTimeoutRef.current !== null;
-		if (wasWaitingForDoubleClick && typeof window !== 'undefined') {
-			window.clearTimeout(clickTimeoutRef.current);
+		if (wasWaitingForDoubleClick && clickTimeoutRef.current) {
+			clearTimeout(clickTimeoutRef.current);
 		}
 		clickTimeoutRef.current = null;
 
@@ -1650,11 +1649,9 @@ const NodeRow: React.FC<{
 		focusPath(path);
 		selectPath(path, true);
 
-		if (typeof window !== 'undefined') {
-			clickTimeoutRef.current = window.setTimeout(() => {
-				clickTimeoutRef.current = null;
-			}, 300);
-		}
+		clickTimeoutRef.current = window.setTimeout(() => {
+			clickTimeoutRef.current = null;
+		}, 300);
 	};
 
 	// Cleanup timeout on unmount
@@ -1664,7 +1661,7 @@ const NodeRow: React.FC<{
 				clickTimeoutRef.current !== null &&
 				typeof window !== 'undefined'
 			) {
-				window.clearTimeout(clickTimeoutRef.current);
+				clearTimeout(clickTimeoutRef.current);
 			}
 		};
 	}, []);
