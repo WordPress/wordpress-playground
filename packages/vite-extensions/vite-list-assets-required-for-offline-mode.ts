@@ -63,6 +63,18 @@ const patternsToNotCache = [
 	/^\/assets\/wp-.*\.zip$/, // Minified WordPress builds and static assets bundles
 	/^\/assets\/sqlite-database-integration-[\w]+\.zip/, // SQLite plugin
 	/^\/assets\/blueprints-.*\.phar$/, // Blueprints v2 runner
+
+	/**
+	 * CodeMirror packages are only used in the code editor feature.
+	 * The code editor is not critical for offline functionality, and CodeMirror
+	 * packages are quite large (~500KB+). Excluding them significantly reduces
+	 * the offline mode cache size and initial load time.
+	 *
+	 * These packages are split into separate vendor chunks via vite.config.ts
+	 * manualChunks configuration.
+	 */
+	/vendor-codemirror-.*\.js$/, // CodeMirror vendor chunk
+	/vendor-lezer-.*\.js$/, // Lezer vendor chunk
 ];
 
 function listFiles(dirPath: string, fileList: string[] = []) {

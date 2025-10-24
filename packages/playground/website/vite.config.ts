@@ -205,15 +205,18 @@ export default defineConfig(({ command, mode }) => {
 						new URL('./builder/builder.html', import.meta.url)
 					),
 				},
-				// output: {
-				// 	entryFileNames: (assetInfo) => {
-				// 		const isHTML = assetInfo?.facadeModuleId?.endsWith('.html');
-				// 		if (isHTML) {
-				// 			return '[name].html';
-				// 		}
-				// 		return '[name]-[hash].js';
-				// 	},
-				// },
+				output: {
+					manualChunks: (id) => {
+						// Split CodeMirror and Lezer packages into separate chunks
+						// that won't be included in offline mode
+						if (id.includes('node_modules/@codemirror/')) {
+							return 'vendor-codemirror';
+						}
+						if (id.includes('node_modules/@lezer/')) {
+							return 'vendor-lezer';
+						}
+					},
+				},
 				external: [],
 			},
 		},
