@@ -32,6 +32,14 @@ export interface PHPRuntimeBeforeExitEvent {
 }
 
 /**
+ * Emitted when a filesystem write operation occurs (writeFile, mkdir, rmdir, mv, unlink).
+ * This event is used to trigger journal flushing for persistent storage.
+ */
+export interface PHPFilesystemWriteEvent {
+	type: 'filesystem.write';
+}
+
+/**
  * Represents an event related to the PHP instance.
  * This is intentionally not an extension of CustomEvent
  * to make it isomorphic between different JavaScript runtimes.
@@ -40,7 +48,8 @@ export type PHPEvent =
 	| PHPRequestEndEvent
 	| PHPRequestErrorEvent
 	| PHPRuntimeInitializedEvent
-	| PHPRuntimeBeforeExitEvent;
+	| PHPRuntimeBeforeExitEvent
+	| PHPFilesystemWriteEvent;
 
 /**
  * A callback function that handles PHP events.
