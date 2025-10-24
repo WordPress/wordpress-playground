@@ -1568,7 +1568,7 @@ phpLoaderOptions.forEach((options) => {
 				expect(
 					existsSync(
 						__dirname +
-							'/test-data/mount-contents/tmp-dir-for-mv-test'
+						'/test-data/mount-contents/tmp-dir-for-mv-test'
 					)
 				).toEqual(true);
 
@@ -1583,7 +1583,7 @@ phpLoaderOptions.forEach((options) => {
 				expect(
 					existsSync(
 						__dirname +
-							'/test-data/mount-contents/tmp-dir-for-mv-test'
+						'/test-data/mount-contents/tmp-dir-for-mv-test'
 					)
 				).toEqual(false);
 				expect(php.fileExists('/nodefs/tmp-dir-for-mv-test')).toEqual(
@@ -2395,10 +2395,10 @@ phpLoaderOptions.forEach((options) => {
 					method: 'POST',
 					body: new TextEncoder().encode(
 						`--boundary\r\n` +
-							`Content-Disposition: form-data; name="foo"\r\n` +
-							`\r\n` +
-							`bar\r\n` +
-							`--boundary--\r\n`
+						`Content-Disposition: form-data; name="foo"\r\n` +
+						`\r\n` +
+						`bar\r\n` +
+						`--boundary--\r\n`
 					),
 					headers: {
 						'Content-Type':
@@ -2418,11 +2418,11 @@ phpLoaderOptions.forEach((options) => {
 					method: 'POST',
 					body: new TextEncoder().encode(
 						`--boundary\r\n` +
-							`Content-Disposition: form-data; name="myFile"; filename="text.txt"\r\n` +
-							`Content-Type: text/plain\r\n` +
-							`\r\n` +
-							`bar\r\n` +
-							`--boundary--\r\n`
+						`Content-Disposition: form-data; name="myFile"; filename="text.txt"\r\n` +
+						`Content-Type: text/plain\r\n` +
+						`\r\n` +
+						`bar\r\n` +
+						`--boundary--\r\n`
 					),
 					headers: {
 						'Content-Type':
@@ -2865,13 +2865,7 @@ phpLoaderOptions.forEach((options) => {
 					?>`;
 
 					const response = await php.run({ code: phpCode });
-					console.log('=== AVIF Codec Detection Output ===');
-					console.log(response.text);
-					if (response.errors) {
-						console.log('=== Errors ===');
-						console.log(response.errors);
-					}
-					console.log('=== End Output ===');
+					expect(response.errors).toBe('');
 				});
 
 				it('should report AVIF support in gd_info() for PHP 8.1+', async () => {
@@ -2911,11 +2905,10 @@ phpLoaderOptions.forEach((options) => {
 					$avifData = ob_get_clean();
 					imagedestroy($img);
 
-										$last_error = error_get_last();
+					$last_error = error_get_last();
 					echo json_encode([
 						'success' => $result,
 						'has_data' => strlen($avifData) > 0,
-						'data' => $avifData,
 						'data_size' => strlen($avifData),
 						'has_ftyp' => strpos($avifData, 'ftyp') !== false,
 						'has_avif' => strpos($avifData, 'avif') !== false,
@@ -2925,12 +2918,6 @@ phpLoaderOptions.forEach((options) => {
 
 					const response = await php.run({ code: phpCode });
 					const result = JSON.parse(response.text);
-
-					if (!result.success) {
-						console.log('AVIF encoding failed:', result);
-						console.log('Errors:', response.errors);
-					}
-					console.log(result);
 
 					expect(result.success).toBe(true);
 					expect(result.has_data).toBe(true);
