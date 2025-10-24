@@ -147,8 +147,11 @@ export function SiteInfoPanel({
 			// Remove the old temporary site (using internal action)
 			dispatch(sitesSlice.actions.removeSite(site.slug));
 
+			// Wait a tick to ensure React processes the removal
+			await new Promise((resolve) => setTimeout(resolve, 0));
+
 			// Create a new temporary site with the updated blueprint
-			// Add a timestamp to force React to remount the component
+			// Force remount with new timestamp
 			const recreatedSite: SiteInfo = {
 				slug: site.slug,
 				originalUrlParams: site.originalUrlParams,
@@ -156,7 +159,7 @@ export function SiteInfoPanel({
 					...site.metadata,
 					originalBlueprint: blueprint,
 					runtimeConfiguration,
-					whenCreated: Date.now(), // Force remount with new timestamp
+					whenCreated: Date.now(),
 				},
 			};
 
@@ -568,45 +571,34 @@ export function SiteInfoPanel({
 									</Suspense>
 								</div>
 								<div
-									className={classNames({
-										[css.tabHidden]:
-											tab.name !== 'blueprint',
-									})}
+									className={classNames(
+										css.blueprintWrapper,
+										{
+											[css.tabHidden]:
+												tab.name !== 'blueprint',
+										}
+									)}
 									hidden={tab.name !== 'blueprint'}
 								>
 									{isTemporary && (
-										<div
-											className={classNames(
-												css.padded,
-												css.blueprintControls
-											)}
-										>
-											<Flex gap={3} align="center">
-												<FlexItem>
-													<Button
-														variant="primary"
-														onClick={
-															handleRecreateFromBlueprint
-														}
-														isBusy={isRecreating}
-														disabled={isRecreating}
-													>
-														{isRecreating
-															? 'Recreating...'
-															: 'Recreate from this Blueprint'}
-													</Button>
-												</FlexItem>
-												<FlexItem>
-													<CheckboxControl
-														label="Auto recreate"
-														checked={autoRecreate}
-														onChange={
-															setAutoRecreate
-														}
-														help="Automatically recreate the playground when the Blueprint changes"
-													/>
-												</FlexItem>
-											</Flex>
+										<div className={css.blueprintHeader}>
+											<CheckboxControl
+												label="Auto recreate"
+												checked={autoRecreate}
+												onChange={setAutoRecreate}
+											/>
+											<Button
+												variant="primary"
+												onClick={
+													handleRecreateFromBlueprint
+												}
+												isBusy={isRecreating}
+												disabled={isRecreating}
+											>
+												{isRecreating
+													? 'Recreating...'
+													: 'Recreate from this Blueprint'}
+											</Button>
 										</div>
 									)}
 									<Suspense
