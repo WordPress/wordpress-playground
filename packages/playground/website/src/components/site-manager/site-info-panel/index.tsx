@@ -144,27 +144,22 @@ export function SiteInfoPanel({
 			// Remove the current playground client to trigger cleanup
 			dispatch(removeClientInfo(site.slug));
 
-			// Remove the old temporary site (using internal action)
-			dispatch(sitesSlice.actions.removeSite(site.slug));
-
-			// Wait a tick to ensure React processes the removal
-			await new Promise((resolve) => setTimeout(resolve, 0));
-
-			// Create a new temporary site with the updated blueprint
-			// Force remount with new timestamp
-			const recreatedSite: SiteInfo = {
-				slug: site.slug,
-				originalUrlParams: site.originalUrlParams,
-				metadata: {
-					...site.metadata,
-					originalBlueprint: blueprint,
-					runtimeConfiguration,
-					whenCreated: Date.now(),
-				},
-			};
-
-			// Add the new site to Redux
-			dispatch(sitesSlice.actions.addSite(recreatedSite));
+			// Update the site in place with new blueprint and timestamp
+			// This avoids the "No site selected" flash that would occur if we removed/added the site
+			// The new timestamp forces React to remount the iframe (key changes)
+			dispatch(
+				sitesSlice.actions.updateSite({
+					id: site.slug,
+					changes: {
+						metadata: {
+							...site.metadata,
+							originalBlueprint: blueprint,
+							runtimeConfiguration,
+							whenCreated: Date.now(),
+						},
+					},
+				})
+			);
 		} catch (error) {
 			const message =
 				error instanceof Error
