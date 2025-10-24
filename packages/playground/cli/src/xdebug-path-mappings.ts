@@ -19,7 +19,14 @@ export async function createPlaygroundCliTempDirSymlink(
 	nativeDirPath: string,
 	symlinkPath: string
 ) {
-	fs.symlinkSync(nativeDirPath, symlinkPath);
+	const type =
+		process.platform === 'win32'
+			? // On Windows, creating a 'dir' symlink can require elevated permissions.
+			  // In this case, let's make junction points because they function like
+			  // symlinks and do not require elevated permissions.
+			  'junction'
+			: 'dir';
+	fs.symlinkSync(nativeDirPath, symlinkPath, type);
 }
 
 /**
