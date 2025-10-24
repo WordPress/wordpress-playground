@@ -26,17 +26,20 @@ import {
 	setSiteManagerOpen,
 	setSiteManagerSection,
 } from '../../../lib/state/redux/slice-ui';
-import { selectClientInfoBySiteSlug } from '../../../lib/state/redux/slice-clients';
+import {
+	selectClientInfoBySiteSlug,
+	removeClientInfo,
+} from '../../../lib/state/redux/slice-clients';
 import { encodeStringAsBase64 } from '../../../lib/base64';
 import { ActiveSiteSettingsForm } from '../site-settings-form/active-site-settings-form';
 import { getRelativeDate } from '../../../lib/get-relative-date';
 import { setActiveModal } from '../../../lib/state/redux/slice-ui';
 import { modalSlugs } from '../../layout';
+import { removeSite, sitesSlice } from '../../../lib/state/redux/slice-sites';
 import {
-	removeSite,
-	updateSiteMetadata,
-} from '../../../lib/state/redux/slice-sites';
-import { BlueprintReflection } from '@wp-playground/blueprints';
+	BlueprintReflection,
+	resolveRuntimeConfiguration,
+} from '@wp-playground/blueprints';
 import { lazy, Suspense, useState, useEffect, useCallback } from 'react';
 
 const SiteFileBrowser = lazy(() =>
@@ -133,24 +136,42 @@ export function SiteInfoPanel({
 			// Parse the blueprint to validate it
 			const blueprint = JSON.parse(blueprintCode);
 
-			// TODO: Implement actual playground recreation
-			// This would involve creating a new temporary site with the updated blueprint
-
-			// For now, just update the original blueprint in the site metadata
-			dispatch(
-				updateSiteMetadata({
-					slug: site.slug,
-					changes: {
-						originalBlueprint: blueprint,
-					},
-				})
+			// Resolve runtime configuration from the new blueprint
+			const runtimeConfiguration = await resolveRuntimeConfiguration(
+				blueprint
 			);
-		} catch {
-			alert('Invalid Blueprint JSON. Please check the syntax.');
+
+			// Remove the current playground client to trigger cleanup
+			dispatch(removeClientInfo(site.slug));
+
+			// Remove the old temporary site (using internal action)
+			dispatch(sitesSlice.actions.removeSite(site.slug));
+
+			// Create a new temporary site with the updated blueprint
+			// Add a timestamp to force React to remount the component
+			const recreatedSite: SiteInfo = {
+				slug: site.slug,
+				originalUrlParams: site.originalUrlParams,
+				metadata: {
+					...site.metadata,
+					originalBlueprint: blueprint,
+					runtimeConfiguration,
+					whenCreated: Date.now(), // Force remount with new timestamp
+				},
+			};
+
+			// Add the new site to Redux
+			dispatch(sitesSlice.actions.addSite(recreatedSite));
+		} catch (error) {
+			const message =
+				error instanceof Error
+					? error.message
+					: 'Invalid Blueprint JSON. Please check the syntax.';
+			alert(message);
 		} finally {
 			setIsRecreating(false);
 		}
-	}, [blueprintCode, dispatch, site.slug]);
+	}, [blueprintCode, dispatch, site]);
 
 	const isTemporary = site.metadata.storage === 'none';
 

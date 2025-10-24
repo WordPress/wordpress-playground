@@ -67,6 +67,15 @@ export const KeepAliveTemporarySitesViewport = () => {
 		}
 		return sites.map((site) => site.slug);
 	}, [temporarySites, activeSite]);
+
+	// Create a map of slug to site for easy lookup
+	const sitesBySlug = useMemo(() => {
+		const sites = [...temporarySites];
+		if (activeSite) {
+			sites.push(activeSite);
+		}
+		return new Map(sites.map((site) => [site.slug, site]));
+	}, [temporarySites, activeSite]);
 	/**
 	 * ## Critical data loss prevention mechanism
 	 *
@@ -151,18 +160,24 @@ export const KeepAliveTemporarySitesViewport = () => {
 					</div>
 				</div>
 			)}
-			{slugsSeenSoFar.map((slug) => (
-				<div
-					key={slug}
-					className={classNames(css.fullSize, {
-						[css.hidden]: slug !== activeSite?.slug,
-					})}
-				>
-					{siteSlugsToRender.includes(slug) ? (
-						<JustViewport key={slug} siteSlug={slug} />
-					) : null}
-				</div>
-			))}
+			{slugsSeenSoFar.map((slug) => {
+				const site = sitesBySlug.get(slug);
+				const viewportKey = site
+					? `${slug}-${site.metadata.whenCreated}`
+					: slug;
+				return (
+					<div
+						key={slug}
+						className={classNames(css.fullSize, {
+							[css.hidden]: slug !== activeSite?.slug,
+						})}
+					>
+						{siteSlugsToRender.includes(slug) ? (
+							<JustViewport key={viewportKey} siteSlug={slug} />
+						) : null}
+					</div>
+				);
+			})}
 		</>
 	);
 };
@@ -213,7 +228,7 @@ export const JustViewport = function JustViewport({
 
 	return (
 		<iframe
-			key={siteSlug}
+			key={`${siteSlug}-${site.metadata.whenCreated}`}
 			title="WordPress Playground wrapper (the actual WordPress site is in another, nested iframe)"
 			className={classNames('playground-viewport', css.fullSize)}
 			ref={iframeRef}

@@ -382,6 +382,7 @@ export interface SiteMetadata {
 }
 
 export const { setOPFSSitesLoadingState } = sitesSlice.actions;
+export { sitesSlice };
 
 export const {
 	selectAll: selectAllSites,
