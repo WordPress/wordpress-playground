@@ -580,7 +580,7 @@ export function SiteInfoPanel({
 									)}
 									hidden={tab.name !== 'blueprint'}
 								>
-									{isTemporary && (
+									{isTemporary ? (
 										<div className={css.blueprintHeader}>
 											<CheckboxControl
 												label="Auto recreate"
@@ -597,8 +597,15 @@ export function SiteInfoPanel({
 											>
 												{isRecreating
 													? 'Recreating...'
-													: 'Recreate from this Blueprint'}
+													: 'Recreate Playground from this Blueprint'}
 											</Button>
+										</div>
+									) : (
+										<div className={css.blueprintNotice}>
+											This Blueprint is read-only for
+											saved Playgrounds. Create a
+											temporary Playground to edit and
+											test Blueprint changes.
 										</div>
 									)}
 									<Suspense
@@ -612,9 +619,18 @@ export function SiteInfoPanel({
 											config={{
 												initialDoc: blueprintCode,
 												autofocus: false,
-												onChange: setBlueprintCode,
+												onChange: isTemporary
+													? setBlueprintCode
+													: undefined,
+												readOnly: !isTemporary,
 											}}
-											className={css.blueprintEditor}
+											className={classNames(
+												css.blueprintEditor,
+												{
+													[css.blueprintEditorReadonly]:
+														!isTemporary,
+												}
+											)}
 										/>
 									</Suspense>
 								</div>

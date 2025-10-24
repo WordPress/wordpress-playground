@@ -1057,6 +1057,11 @@ export function JSONSchemaEditor({
 			}),
 		];
 
+		// Add readOnly extension if specified
+		if (config.readOnly) {
+			extensions.push(EditorState.readOnly.of(true));
+		}
+
 		// Add onChange listener if provided
 		if (config.onChange) {
 			extensions.push(

@@ -30,6 +30,7 @@ export interface JSONSchemaCompletionConfig {
 	autofocus?: boolean;
 	initialDoc?: string;
 	onChange?: (doc: string) => void;
+	readOnly?: boolean;
 }
 
 export type { Text as CodeMirrorDoc };
