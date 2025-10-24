@@ -1100,7 +1100,31 @@ export function JSONSchemaEditor({
 			view.destroy();
 			viewRef.current = null;
 		};
-	}, [config.autofocus, config.initialDoc]);
+		// Only create the editor once, don't recreate on prop changes
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, []);
+
+	// Handle document updates from parent without recreating the editor
+	useEffect(() => {
+		const view = viewRef.current;
+		if (!view || !config.initialDoc) {
+			return;
+		}
+
+		const currentDoc = view.state.doc.toString();
+		if (config.initialDoc === currentDoc) {
+			return;
+		}
+
+		// Only update if the change came from outside (not from user typing)
+		view.dispatch({
+			changes: {
+				from: 0,
+				to: view.state.doc.length,
+				insert: config.initialDoc,
+			},
+		});
+	}, [config.initialDoc]);
 
 	return <div ref={editorRef} className={className} />;
 }
