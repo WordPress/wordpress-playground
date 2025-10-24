@@ -65,16 +65,14 @@ const patternsToNotCache = [
 	/^\/assets\/blueprints-.*\.phar$/, // Blueprints v2 runner
 
 	/**
-	 * CodeMirror packages are only used in the code editor feature.
-	 * The code editor is not critical for offline functionality, and CodeMirror
-	 * packages are quite large (~500KB+). Excluding them significantly reduces
-	 * the offline mode cache size and initial load time.
+	 * Optional assets directory contains non-critical dependencies like CodeMirror
+	 * and its language extensions. These are large packages (~500KB+) that are only
+	 * used for the code editor feature, which is not critical for offline functionality.
+	 * Excluding them significantly reduces the offline mode cache size and initial load time.
 	 *
-	 * These packages are split into separate vendor chunks via vite.config.ts
-	 * manualChunks configuration.
+	 * Optional chunks are placed in assets/optional/ via vite.config.ts manualChunks configuration.
 	 */
-	/vendor-codemirror-.*\.js$/, // CodeMirror vendor chunk
-	/vendor-lezer-.*\.js$/, // Lezer vendor chunk
+	/^\/assets\/optional\/.*/, // All optional assets (CodeMirror, language extensions, etc.)
 ];
 
 function listFiles(dirPath: string, fileList: string[] = []) {
