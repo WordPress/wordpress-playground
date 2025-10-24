@@ -171,6 +171,7 @@ const clickBelowContentExtension = ViewPlugin.define(
 
 export type CodeEditorHandle = {
 	focus: () => void;
+	blur: () => void;
 	getCursorPosition: () => number | null;
 	setCursorPosition: (pos: number) => void;
 };
@@ -208,6 +209,12 @@ export const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
 		useImperativeHandle(ref, () => ({
 			focus: () => {
 				viewRef.current?.focus();
+			},
+			blur: () => {
+				const view = viewRef.current;
+				if (view) {
+					(view.contentDOM as HTMLElement).blur();
+				}
 			},
 			getCursorPosition: () => {
 				if (!viewRef.current) {

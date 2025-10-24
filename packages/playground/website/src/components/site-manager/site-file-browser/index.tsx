@@ -51,6 +51,8 @@ export function SiteFileBrowser({
 	const [saveError, setSaveError] = useState<string | null>(null);
 	const [showExplorerOnMobile, setShowExplorerOnMobile] =
 		useState<boolean>(false);
+	const [treeTypeAheadEnabled, setTreeTypeAheadEnabled] =
+		useState<boolean>(true);
 	const [messageContent, setMessageContent] = useState<
 		string | JSX.Element | null
 	>(null);
@@ -264,6 +266,10 @@ export function SiteFileBrowser({
 				}
 				if (shouldFocus) {
 					editorRef.current?.focus();
+					setTreeTypeAheadEnabled(false);
+				} else {
+					editorRef.current?.blur();
+					setTreeTypeAheadEnabled(true);
 				}
 			}, 50);
 		},
@@ -311,11 +317,13 @@ export function SiteFileBrowser({
 			if (savedPos !== undefined) {
 				editorRef.current?.setCursorPosition(savedPos);
 			}
-			editorRef.current?.focus();
+			if (!treeTypeAheadEnabled) {
+				editorRef.current?.focus();
+			}
 		}, 100);
 
 		return () => clearTimeout(timeout);
-	}, [isVisible, currentPath]);
+	}, [isVisible, currentPath, treeTypeAheadEnabled]);
 
 	const handleClearSelection = useCallback(async () => {
 		// Save cursor position before clearing

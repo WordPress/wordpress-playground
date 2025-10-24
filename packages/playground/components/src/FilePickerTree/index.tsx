@@ -163,6 +163,7 @@ export const FilePickerTree = forwardRef<
 		initialSelectedPath,
 		onSelect = () => {},
 		onDoubleClickFile,
+		typeAheadEnabled = true,
 	},
 	ref
 ) {
@@ -1629,35 +1630,30 @@ const NodeRow: React.FC<{
 			return;
 		}
 
-		// Files – vary the behavior between single clicks and double clicks
-		if (clickTimeoutRef.current !== null) {
-			// This is a double-click
-			if (typeof window !== 'undefined') {
-				window.clearTimeout(clickTimeoutRef.current);
-			}
-			clickTimeoutRef.current = null;
-			selectPath(path, false);
-			focusPath(path);
+		const wasWaitingForDoubleClick = clickTimeoutRef.current !== null;
+		if (wasWaitingForDoubleClick && typeof window !== 'undefined') {
+			window.clearTimeout(clickTimeoutRef.current);
+		}
+		clickTimeoutRef.current = null;
+
+		if (wasWaitingForDoubleClick) {
 			if (onDoubleClickFile) {
 				onDoubleClickFile(path);
 			} else {
 				selectPath(path, true);
 			}
-		} else {
-			// This is the first click, immediately update visual selection
-			selectPath(path, false);
-			focusPath(path);
-			// Wait for possible double-click before opening file
-			if (typeof window !== 'undefined') {
-				clickTimeoutRef.current = window.setTimeout(() => {
-					clickTimeoutRef.current = null;
-					// Single click confirmed: open file without moving focus
-					selectPath(path, true);
-				}, 300); // 300ms window for double-click
-			} else {
-				// No window object, execute immediately
-				selectPath(path, true);
-			}
+			return;
+		}
+
+		// Single click: update selection, keep focus in the tree, and open the file.
+		selectPath(path, false);
+		focusPath(path);
+		selectPath(path, true);
+
+		if (typeof window !== 'undefined') {
+			clickTimeoutRef.current = window.setTimeout(() => {
+				clickTimeoutRef.current = null;
+			}, 300);
 		}
 	};
 
