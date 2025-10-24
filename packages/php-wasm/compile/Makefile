@@ -115,14 +115,14 @@ libaom/jspi/dist/root/lib/lib/libaom.a: base-image
 	docker cp $$(docker create playground-php-wasm:libaom):/root/lib/include ./libaom/jspi/dist/root/lib
 
 libavif_asyncify: libavif/asyncify/dist/root/lib/lib/libavif.a
-libavif/asyncify/dist/root/lib/lib/libavif.a: base-image libz_asyncify libaom_asyncify
+libavif/asyncify/dist/root/lib/lib/libavif.a: base-image
 	mkdir -p ./libavif/asyncify/dist/root/lib
 	docker build -f ./libavif/Dockerfile -t playground-php-wasm:libavif .
 	docker cp $$(docker create playground-php-wasm:libavif):/root/lib/lib ./libavif/asyncify/dist/root/lib
 	docker cp $$(docker create playground-php-wasm:libavif):/root/lib/include ./libavif/asyncify/dist/root/lib
 
 libavif_jspi: libavif/jspi/dist/root/lib/lib/libavif.a
-libavif/jspi/dist/root/lib/lib/libavif.a: base-image libz_jspi libaom_jspi
+libavif/jspi/dist/root/lib/lib/libavif.a: base-image
 	mkdir -p ./libavif/jspi/dist/root/lib
 	docker build -f ./libavif/Dockerfile -t playground-php-wasm:libavif . --build-arg JSPI=1
 	docker cp $$(docker create playground-php-wasm:libavif):/root/lib/lib ./libavif/jspi/dist/root/lib
