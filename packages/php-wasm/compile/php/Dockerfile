@@ -249,10 +249,11 @@ RUN if [ "$WITH_GD" = "yes" ]; \
 		if [[ "${PHP_VERSION:0:1}" -eq "7" ]] && [ "${PHP_VERSION:0:3}" != "7.4" ]; then \
 			# @TODO support webp for PHP 7.0 – 7.3
 			echo -n ' --with-png-dir=/root/lib --with-jpeg-dir=/root/lib --with-gd --enable-gd ' >> /root/.php-configure-flags; \
-		elif [[ "${PHP_VERSION:0:1}" -eq "7" ]] || [[ "${PHP_VERSION:0:1}" -eq "8" && "${PHP_VERSION:2:1}" -eq "0" ]]; then \
-			echo -n ' --with-png-dir=/root/lib --with-jpeg --with-webp --with-gd --enable-gd ' >> /root/.php-configure-flags; \
 		else \
-			echo -n ' --with-png-dir=/root/lib --with-jpeg --with-webp --with-avif --with-gd --enable-gd ' >> /root/.php-configure-flags; \
+			if [[ "${PHP_VERSION:0:1}" -eq "8" && "${PHP_VERSION:2:1}" -ge "1" ]]; then \
+				echo -n ' --with-avif ' >> /root/.php-configure-flags; \
+			fi; \
+			echo -n ' --with-png-dir=/root/lib --with-jpeg --with-webp --with-gd --enable-gd ' >> /root/.php-configure-flags; \
 		fi; \
 
 		if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "4" ]]; then \
