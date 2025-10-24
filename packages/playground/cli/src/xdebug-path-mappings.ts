@@ -178,7 +178,7 @@ export async function addXdebugIDEConfig({
 			}
 		})();
 
-		let projectElement = config?.find((c: any) => c?.project !== undefined);
+		let projectElement = config?.find((c: any) => !!c?.project);
 		if (projectElement) {
 			const projectVersion = projectElement[':@']?.version;
 			if (projectVersion === undefined) {
@@ -202,8 +202,7 @@ export async function addXdebugIDEConfig({
 		}
 
 		let componentElement = projectElement.project.find(
-			(c: any) =>
-				c?.component !== undefined && c?.[':@']?.name === 'PhpServers'
+			(c: any) => !!c?.component && c?.[':@']?.name === 'PhpServers'
 		);
 		if (componentElement === undefined) {
 			componentElement = {
@@ -214,7 +213,7 @@ export async function addXdebugIDEConfig({
 		}
 
 		let serversElement = componentElement.component.find(
-			(c: any) => c?.servers !== undefined
+			(c: any) => !!c?.servers
 		);
 		if (serversElement === undefined) {
 			serversElement = { servers: [] };
@@ -222,7 +221,7 @@ export async function addXdebugIDEConfig({
 		}
 
 		const serverElementIndex = serversElement.servers.findIndex(
-			(c: any) => c?.server !== undefined && c?.[':@']?.name === name
+			(c: any) => !!c?.server && c?.[':@']?.name === name
 		);
 		if (serverElementIndex === -1) {
 			serversElement.servers.push(serverElement);
@@ -343,18 +342,15 @@ export async function clearXdebugIDEConfig(name: string) {
 			}
 		})();
 
-		const projectElement = config.find(
-			(c: any) => c?.project !== undefined
-		);
+		const projectElement = config.find((c: any) => !!c?.project);
 		const componentElement = projectElement?.project.find(
-			(c: any) =>
-				c?.component !== undefined && c?.[':@']?.name === 'PhpServers'
+			(c: any) => !!c?.component && c?.[':@']?.name === 'PhpServers'
 		);
 		const serversElement = componentElement?.component.find(
-			(c: any) => c?.servers !== undefined
+			(c: any) => !!c?.servers
 		);
 		const serverElementIndex = serversElement?.servers.findIndex(
-			(c: any) => c?.server !== undefined && c?.[':@']?.name === name
+			(c: any) => !!c?.server && c?.[':@']?.name === name
 		);
 
 		if (serversElement && serverElementIndex >= 0) {
