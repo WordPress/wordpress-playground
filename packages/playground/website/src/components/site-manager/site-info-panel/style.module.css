@@ -235,3 +235,17 @@
 .danger {
 	color: var(--color-alert-red);
 }
+.blueprint-editor {
+	width: 100%;
+	height: 100%;
+	overflow: auto;
+	font-family: monospace;
+}
+
+.blueprint-editor :global(.cm-editor) {
+	height: 100%;
+}
+
+.blueprint-editor :global(.cm-scroller) {
+	overflow: auto;
+}

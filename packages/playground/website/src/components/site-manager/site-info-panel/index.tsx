@@ -10,6 +10,7 @@ import {
 	MenuGroup,
 	MenuItem,
 	TabPanel,
+	CheckboxControl,
 } from '@wordpress/components';
 import { moreVertical, external, chevronLeft, edit } from '@wordpress/icons';
 import { SiteLogs } from '../../log-modal';
@@ -31,12 +32,21 @@ import { ActiveSiteSettingsForm } from '../site-settings-form/active-site-settin
 import { getRelativeDate } from '../../../lib/get-relative-date';
 import { setActiveModal } from '../../../lib/state/redux/slice-ui';
 import { modalSlugs } from '../../layout';
-import { removeSite } from '../../../lib/state/redux/slice-sites';
+import {
+	removeSite,
+	updateSiteMetadata,
+} from '../../../lib/state/redux/slice-sites';
 import { BlueprintReflection } from '@wp-playground/blueprints';
-import { lazy, Suspense, useState, useEffect } from 'react';
+import { lazy, Suspense, useState, useEffect, useCallback } from 'react';
 
 const SiteFileBrowser = lazy(() =>
 	import('../site-file-browser').then((m) => ({ default: m.SiteFileBrowser }))
+);
+
+const BlueprintEditor = lazy(() =>
+	import('../../blueprint-editor').then((m) => ({
+		default: m.JSONSchemaEditor,
+	}))
 );
 
 const LAST_TAB_STORAGE_KEY = 'playground-site-last-tabs';
@@ -88,10 +98,74 @@ export function SiteInfoPanel({
 	// Resolve documentRoot from playground client
 	const [documentRoot, setDocumentRoot] = useState<string | null>(null);
 
+	// Blueprint editing state for temporary playgrounds
+	const [blueprintCode, setBlueprintCode] = useState<string>('');
+	const [autoRecreate, setAutoRecreate] = useState<boolean>(false);
+	const [isRecreating, setIsRecreating] = useState<boolean>(false);
+
+	// Initialize blueprint code using BlueprintReflection to handle bundles
+	useEffect(() => {
+		(async () => {
+			try {
+				const reflection = await BlueprintReflection.create(
+					site.metadata.originalBlueprint as any
+				);
+				const declaration = reflection.getDeclaration() as any;
+				setBlueprintCode(JSON.stringify(declaration, null, '\t'));
+			} catch (error) {
+				// Fallback to original blueprint if reflection fails
+				setBlueprintCode(
+					JSON.stringify(site.metadata.originalBlueprint, null, '\t')
+				);
+			}
+		})();
+	}, [site.metadata.originalBlueprint]);
+
 	// Save the tab when it changes
 	const handleTabSelect = (tabName: string) => {
 		setSiteLastTab(site.slug, tabName);
 	};
+
+	// Handle blueprint recreation for temporary playgrounds
+	const handleRecreateFromBlueprint = useCallback(async () => {
+		try {
+			setIsRecreating(true);
+			// Parse the blueprint to validate it
+			const blueprint = JSON.parse(blueprintCode);
+
+			// TODO: Implement actual playground recreation
+			// This would involve creating a new temporary site with the updated blueprint
+
+			// For now, just update the original blueprint in the site metadata
+			dispatch(
+				updateSiteMetadata({
+					slug: site.slug,
+					changes: {
+						originalBlueprint: blueprint,
+					},
+				})
+			);
+		} catch {
+			alert('Invalid Blueprint JSON. Please check the syntax.');
+		} finally {
+			setIsRecreating(false);
+		}
+	}, [blueprintCode, dispatch, site.slug]);
+
+	const isTemporary = site.metadata.storage === 'none';
+
+	// Debounced auto-recreate when blueprint changes
+	useEffect(() => {
+		if (!autoRecreate || !isTemporary || !blueprintCode) {
+			return;
+		}
+
+		const timeoutId = setTimeout(() => {
+			handleRecreateFromBlueprint();
+		}, 2000); // 2 second debounce
+
+		return () => clearTimeout(timeoutId);
+	}, [blueprintCode, autoRecreate, isTemporary, handleRecreateFromBlueprint]);
 
 	const removeSiteAndCloseMenu = async (onClose: () => void) => {
 		// TODO: Replace with HTML-based dialog
@@ -131,7 +205,6 @@ export function SiteInfoPanel({
 			playground.goTo(path);
 		}
 	}
-	const isTemporary = site.metadata.storage === 'none';
 
 	const { opfsMountDescriptor } = usePlaygroundClientInfo(site.slug) || {};
 
@@ -413,6 +486,10 @@ export function SiteInfoPanel({
 								title: 'File browser',
 							},
 							{
+								name: 'blueprint',
+								title: 'Blueprint',
+							},
+							{
 								name: 'logs',
 								title: 'Logs',
 							},
@@ -467,6 +544,65 @@ export function SiteInfoPanel({
 												documentRoot={documentRoot}
 											/>
 										)}
+									</Suspense>
+								</div>
+								<div
+									className={classNames({
+										[css.tabHidden]:
+											tab.name !== 'blueprint',
+									})}
+									hidden={tab.name !== 'blueprint'}
+								>
+									{isTemporary && (
+										<div
+											className={classNames(
+												css.padded,
+												css.blueprintControls
+											)}
+										>
+											<Flex gap={3} align="center">
+												<FlexItem>
+													<Button
+														variant="primary"
+														onClick={
+															handleRecreateFromBlueprint
+														}
+														isBusy={isRecreating}
+														disabled={isRecreating}
+													>
+														{isRecreating
+															? 'Recreating...'
+															: 'Recreate from this Blueprint'}
+													</Button>
+												</FlexItem>
+												<FlexItem>
+													<CheckboxControl
+														label="Auto recreate"
+														checked={autoRecreate}
+														onChange={
+															setAutoRecreate
+														}
+														help="Automatically recreate the playground when the Blueprint changes"
+													/>
+												</FlexItem>
+											</Flex>
+										</div>
+									)}
+									<Suspense
+										fallback={
+											<div>
+												Loading Blueprint editor...
+											</div>
+										}
+									>
+										<BlueprintEditor
+											config={{
+												initialDoc: blueprintCode,
+												autofocus: false,
+												onChange: setBlueprintCode,
+											}}
+											className={css.blueprintEditor}
+										/>
 									</Suspense>
 								</div>
 								<div
