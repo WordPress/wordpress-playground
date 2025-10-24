@@ -41,6 +41,8 @@ COPY ./libopenssl/ /root/builds/libopenssl
 COPY ./libpng16/ /root/builds/libpng16
 COPY ./libjpeg/ /root/builds/libjpeg
 COPY ./libwebp/ /root/builds/libwebp
+COPY ./libaom/ /root/builds/libaom
+COPY ./libavif/ /root/builds/libavif
 COPY ./libsqlite3/ /root/builds/libsqlite3
 COPY ./libxml2/ /root/builds/libxml2
 COPY ./libz/ /root/builds/libz
@@ -247,8 +249,10 @@ RUN if [ "$WITH_GD" = "yes" ]; \
 		if [[ "${PHP_VERSION:0:1}" -eq "7" ]] && [ "${PHP_VERSION:0:3}" != "7.4" ]; then \
 			# @TODO support webp for PHP 7.0 – 7.3
 			echo -n ' --with-png-dir=/root/lib --with-jpeg-dir=/root/lib --with-gd --enable-gd ' >> /root/.php-configure-flags; \
-		else \
+		elif [[ "${PHP_VERSION:0:1}" -eq "7" ]] || [[ "${PHP_VERSION:0:1}" -eq "8" && "${PHP_VERSION:2:1}" -eq "0" ]]; then \
 			echo -n ' --with-png-dir=/root/lib --with-jpeg --with-webp --with-gd --enable-gd ' >> /root/.php-configure-flags; \
+		else \
+			echo -n ' --with-png-dir=/root/lib --with-jpeg --with-webp --with-avif --with-gd --enable-gd ' >> /root/.php-configure-flags; \
 		fi; \
 
 		if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "4" ]]; then \
@@ -257,7 +261,11 @@ RUN if [ "$WITH_GD" = "yes" ]; \
 			/root/replace.sh 's/cinfo.err->emit_message = \(void \(*\)\(j_common_ptr,int\)\) php_jpeg_emit_message;/cinfo.err->emit_message = php_jpeg_emit_message;/g' /root/php-src/ext/gd/libgd/gd_jpeg.c; \
 		fi; \
 
-		echo -n ' /root/lib/lib/libjpeg.a /root/lib/lib/libpng16.a /root/lib/lib/libwebp.a /root/lib/lib/libsharpyuv.a ' >> /root/.emcc-php-wasm-sources; \
+		if [[ "${PHP_VERSION:0:1}" -eq "8" && "${PHP_VERSION:2:1}" -ge "1" ]]; then \
+			echo -n ' /root/lib/lib/libjpeg.a /root/lib/lib/libpng16.a /root/lib/lib/libwebp.a /root/lib/lib/libsharpyuv.a /root/lib/lib/libavif.a /root/lib/lib/libaom.a ' >> /root/.emcc-php-wasm-sources; \
+		else \
+			echo -n ' /root/lib/lib/libjpeg.a /root/lib/lib/libpng16.a /root/lib/lib/libwebp.a /root/lib/lib/libsharpyuv.a ' >> /root/.emcc-php-wasm-sources; \
+		fi; \
 	fi;
 
 # Add openssl if needed
