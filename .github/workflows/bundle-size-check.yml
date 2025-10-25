@@ -1,0 +1,83 @@
+name: Bundle Size Check
+
+on:
+    pull_request:
+        types: [opened, synchronize, reopened]
+
+permissions:
+    contents: read
+    pull-requests: write
+
+jobs:
+    check-bundle-size:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout PR branch
+              uses: actions/checkout@v4
+              with:
+                  submodules: true
+
+            - name: Setup and build current branch
+              uses: ./.github/actions/prepare-playground
+
+            - name: Build website
+              run: npx nx build playground-website
+
+            - name: Analyze current bundle size
+              run: node tools/scripts/analyze-bundle-size.mjs
+
+            - name: Save current report
+              run: cp bundle-size-report.json bundle-size-report-current.json
+
+            - name: Checkout base branch
+              uses: actions/checkout@v4
+              with:
+                  ref: ${{ github.base_ref }}
+                  submodules: true
+                  clean: false
+
+            - name: Build base branch website
+              run: |
+                  # Clean previous build
+                  rm -rf dist/packages/playground/wasm-wordpress-net
+                  npx nx build playground-website
+
+            - name: Analyze base bundle size
+              run: node tools/scripts/analyze-bundle-size.mjs
+
+            - name: Save base report
+              run: cp bundle-size-report.json bundle-size-report-base.json
+
+            - name: Restore current report
+              run: cp bundle-size-report-current.json bundle-size-report.json
+
+            - name: Compare bundle sizes
+              id: compare
+              run: node tools/scripts/compare-bundle-size.mjs bundle-size-report-base.json bundle-size-report.json
+
+            - name: Find existing comment
+              uses: peter-evans/find-comment@v3
+              id: find-comment
+              with:
+                  issue-number: ${{ github.event.pull_request.number }}
+                  comment-author: 'github-actions[bot]'
+                  body-includes: '## 📦 Bundle Size Report'
+
+            - name: Create or update comment
+              if: steps.compare.outputs.should_comment == 'true'
+              uses: peter-evans/create-or-update-comment@v4
+              with:
+                  comment-id: ${{ steps.find-comment.outputs.comment-id }}
+                  issue-number: ${{ github.event.pull_request.number }}
+                  body-path: bundle-size-comment.md
+                  edit-mode: replace
+
+            - name: Upload bundle size reports
+              uses: actions/upload-artifact@v4
+              if: always()
+              with:
+                  name: bundle-size-reports
+                  path: |
+                      bundle-size-report.json
+                      bundle-size-report-base.json
+                      bundle-size-comment.md
