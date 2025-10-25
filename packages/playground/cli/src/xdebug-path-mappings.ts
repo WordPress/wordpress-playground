@@ -1,6 +1,5 @@
 import fs from 'fs';
 import path from 'path';
-import { logger } from '@php-wasm/logger';
 import { type Mount } from './mounts';
 import {
 	type X2jOptions,
@@ -44,10 +43,6 @@ export async function removePlaygroundCliTempDirSymlink(symlinkPath: string) {
 		const stats = fs.lstatSync(symlinkPath);
 		if (stats.isSymbolicLink()) {
 			fs.unlinkSync(symlinkPath);
-		} else {
-			logger.warn(
-				`${symlinkPath} exists and is not a symlink. Skipping symlink creation.`
-			);
 		}
 	} catch {
 		// Symlink does not exist or cannot be accessed, nothing to remove
@@ -193,14 +188,14 @@ export async function addXdebugIDEConfig({
 			},
 		};
 
-		const configFilePath = path.join(cwd, '.idea/workspace.xml');
+		const phpStormConfigFilePath = path.join(cwd, '.idea/workspace.xml');
 
 		// Create a template config file if the IDE directory exists,
 		// or throw an error if IDE integration is requested but the directory is missing.
-		if (!fs.existsSync(configFilePath)) {
-			if (fs.existsSync(path.dirname(configFilePath))) {
+		if (!fs.existsSync(phpStormConfigFilePath)) {
+			if (fs.existsSync(path.dirname(phpStormConfigFilePath))) {
 				fs.writeFileSync(
-					configFilePath,
+					phpStormConfigFilePath,
 					'<?xml version="1.0" encoding="UTF-8"?>\n<project version="4">\n</project>'
 				);
 			} else if (ides.length == 1) {
@@ -210,14 +205,14 @@ export async function addXdebugIDEConfig({
 			}
 		}
 
-		if (fs.existsSync(configFilePath)) {
-			const contents = fs.readFileSync(configFilePath, 'utf8');
+		if (fs.existsSync(phpStormConfigFilePath)) {
+			const contents = fs.readFileSync(phpStormConfigFilePath, 'utf8');
 			const xmlParser = new XMLParser(xmlParserOptions);
 			// NOTE: Using an IIFE so `config` can remain const.
 			const config: PhpStormConfigNode[] = (() => {
 				try {
 					return xmlParser.parse(contents, true);
-				} catch (e) {
+				} catch {
 					throw new Error(
 						'PhpStorm configuration file is not valid XML.'
 					);
@@ -294,7 +289,15 @@ export async function addXdebugIDEConfig({
 				const xmlBuilder = new XMLBuilder(xmlBuilderOptions);
 				const xml = xmlBuilder.build(config);
 
-				fs.writeFileSync(configFilePath, xml);
+				try {
+					xmlParser.parse(xml, true);
+				} catch {
+					throw new Error(
+						'The resulting PhpStorm configuration file is not valid XML.'
+					);
+				}
+
+				fs.writeFileSync(phpStormConfigFilePath, xml);
 			}
 		}
 	}
@@ -317,14 +320,14 @@ export async function addXdebugIDEConfig({
 			}, {} as VSCodeConfigMetaData),
 		};
 
-		const configFilePath = path.join(cwd, '.vscode/launch.json');
+		const vsCodeConfigFilePath = path.join(cwd, '.vscode/launch.json');
 
 		// Create a template config file if the IDE directory exists,
 		// or throw an error if IDE integration is requested but the directory is missing.
-		if (!fs.existsSync(configFilePath)) {
-			if (fs.existsSync(path.dirname(configFilePath))) {
+		if (!fs.existsSync(vsCodeConfigFilePath)) {
+			if (fs.existsSync(path.dirname(vsCodeConfigFilePath))) {
 				fs.writeFileSync(
-					configFilePath,
+					vsCodeConfigFilePath,
 					'{\n    "configurations": []\n}'
 				);
 			} else if (ides.length == 1) {
@@ -334,17 +337,19 @@ export async function addXdebugIDEConfig({
 			}
 		}
 
-		if (fs.existsSync(configFilePath)) {
+		if (fs.existsSync(vsCodeConfigFilePath)) {
 			const errors: JSONC.ParseError[] = [];
 
-			let content = fs.readFileSync(configFilePath, 'utf-8');
+			let content = fs.readFileSync(vsCodeConfigFilePath, 'utf-8');
 			let root = JSONC.parseTree(content, errors, {
 				allowEmptyContent: true,
 				allowTrailingComma: true,
 			});
 
 			if (root === undefined || errors.length) {
-				throw new Error('VSCode configuration file is not valid JSON.');
+				throw new Error(
+					'VS Code configuration file is not valid JSON.'
+				);
 			}
 
 			let configurationsNode = JSONC.findNodeAtLocation(root, [
@@ -383,9 +388,19 @@ export async function addXdebugIDEConfig({
 					}
 				);
 
-				content = JSONC.applyEdits(content, edits);
+				const json = JSONC.applyEdits(content, edits);
 
-				fs.writeFileSync(configFilePath, content);
+				errors.length = 0;
+
+				JSONC.parseTree(json, errors);
+
+				if (errors.length) {
+					throw new Error(
+						'The resulting VS Code configuration file is not valid JSON.'
+					);
+				}
+
+				fs.writeFileSync(vsCodeConfigFilePath, json);
 			}
 		}
 	}
@@ -399,6 +414,7 @@ export async function addXdebugIDEConfig({
  */
 export async function clearXdebugIDEConfig(name: string, cwd: string) {
 	const phpStormConfigFilePath = path.join(cwd, '.idea/workspace.xml');
+	// PhpStorm
 	if (fs.existsSync(phpStormConfigFilePath)) {
 		const contents = fs.readFileSync(phpStormConfigFilePath, 'utf8');
 		const xmlParser = new XMLParser(xmlParserOptions);
@@ -406,7 +422,7 @@ export async function clearXdebugIDEConfig(name: string, cwd: string) {
 		const config: PhpStormConfigNode[] = (() => {
 			try {
 				return xmlParser.parse(contents, true);
-			} catch (e) {
+			} catch {
 				throw new Error(
 					'PhpStorm configuration file is not valid XML.'
 				);
@@ -433,6 +449,14 @@ export async function clearXdebugIDEConfig(name: string, cwd: string) {
 			const xmlBuilder = new XMLBuilder(xmlBuilderOptions);
 			const xml = xmlBuilder.build(config);
 
+			try {
+				xmlParser.parse(xml, true);
+			} catch {
+				throw new Error(
+					'The resulting PhpStorm configuration file is not valid XML.'
+				);
+			}
+
 			if (
 				xml ===
 				'<?xml version="1.0" encoding="UTF-8"?>\n<project version="4">\n	<component name="PhpServers">\n		<servers></servers>\n	</component>\n</project>'
@@ -456,7 +480,7 @@ export async function clearXdebugIDEConfig(name: string, cwd: string) {
 		});
 
 		if (root === undefined || errors.length) {
-			throw new Error('VSCode configuration file is not valid JSON.');
+			throw new Error('VS Code configuration file is not valid JSON.');
 		}
 
 		const configurationsNode = JSONC.findNodeAtLocation(root, [
@@ -482,6 +506,16 @@ export async function clearXdebugIDEConfig(name: string, cwd: string) {
 			);
 
 			const json = JSONC.applyEdits(content, edits);
+
+			errors.length = 0;
+
+			JSONC.parseTree(json, errors);
+
+			if (errors.length) {
+				throw new Error(
+					'The resulting VS Code configuration file is not valid JSON.'
+				);
+			}
 
 			if (json === '{\n    "configurations": []\n}') {
 				fs.unlinkSync(vsCodeConfigFilePath);
