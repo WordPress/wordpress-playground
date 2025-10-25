@@ -34,13 +34,12 @@ jobs:
               with:
                   ref: ${{ github.base_ref }}
                   submodules: true
-                  clean: false
+
+            - name: Setup and build base branch
+              uses: ./.github/actions/prepare-playground
 
             - name: Build base branch website
-              run: |
-                  # Clean previous build
-                  rm -rf dist/packages/playground/wasm-wordpress-net
-                  npx nx build playground-website
+              run: npx nx build playground-website
 
             - name: Analyze base bundle size
               run: node tools/scripts/analyze-bundle-size.mjs
