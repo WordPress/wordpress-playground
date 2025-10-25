@@ -577,15 +577,6 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 
 			const IDEConfigName = 'WP Playground CLI - Listen for Xdebug';
 
-			// We don't want to spend time awaiting IDE config cleanup by default,
-			// but let's save this promise just in case.
-			// If we're adding IDE config for Xdebug, we need to await cleanup
-			// first to avoid racing the `cleanup` and `add` operations.
-			const promiseToClearXdebugIDEConfig = clearXdebugIDEConfig(
-				IDEConfigName,
-				process.cwd()
-			);
-
 			// Always clean up any existing Playground files symlink in the project root.
 			const symlinkName = '.playground-xdebug-root';
 			const symlinkPath = path.join(process.cwd(), symlinkName);
@@ -607,36 +598,27 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 					vfsPath: '/',
 				};
 
-				try {
-					await promiseToClearXdebugIDEConfig;
-				} catch (e) {
-					logger.error(e);
-					logger.error(
-						'There was an error while clearing previous Xdebug IDE config.'
-					);
-					process.exit(1);
-				}
-
-				try {
-					addXdebugIDEConfig({
-						name: IDEConfigName,
-						host: host,
-						port: port,
-						ides: args.experimentalUnsafeIdeIntegration,
-						cwd: process.cwd(),
-						mounts: [
-							symlinkMount,
-							...(args['mount-before-install'] || []),
-							...(args.mount || []),
-						],
+				clearXdebugIDEConfig(IDEConfigName, process.cwd())
+					.then(() =>
+						addXdebugIDEConfig({
+							name: IDEConfigName,
+							host: host,
+							port: port,
+							ides: args.experimentalUnsafeIdeIntegration!,
+							cwd: process.cwd(),
+							mounts: [
+								symlinkMount,
+								...(args['mount-before-install'] || []),
+								...(args.mount || []),
+							],
+						})
+					)
+					.catch((error) => {
+						logger.error(
+							'An error occurred during Xdebug IDE integration:',
+							error.message
+						);
 					});
-				} catch (e) {
-					logger.error(e);
-					logger.error(
-						'There was an error while adding Xdebug IDE config.'
-					);
-					process.exit(1);
-				}
 			}
 
 			// We do not know the system temp dir,

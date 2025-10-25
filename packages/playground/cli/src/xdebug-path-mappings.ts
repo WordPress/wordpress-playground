@@ -195,103 +195,107 @@ export async function addXdebugIDEConfig({
 
 		const configFilePath = path.join(cwd, '.idea/workspace.xml');
 
+		// Create a template config file if the IDE directory exists,
+		// or throw an error if IDE integration is requested but the directory is missing.
 		if (!fs.existsSync(configFilePath)) {
-			const dirname = path.dirname(configFilePath);
-			if (!fs.existsSync(dirname)) {
-				if (ides.length > 1) return;
-
-				fs.mkdirSync(dirname);
+			if (fs.existsSync(path.dirname(configFilePath))) {
+				fs.writeFileSync(
+					configFilePath,
+					'<?xml version="1.0" encoding="UTF-8"?>\n<project version="4">\n</project>'
+				);
+			} else if (ides.length == 1) {
+				throw new Error(
+					`PhpStorm IDE integration requested, but no '.idea' directory was found in the current working directory.`
+				);
 			}
-			fs.writeFileSync(
-				configFilePath,
-				'<?xml version="1.0" encoding="UTF-8"?>\n<project version="4">\n</project>'
+		}
+
+		if (fs.existsSync(configFilePath)) {
+			const contents = fs.readFileSync(configFilePath, 'utf8');
+			const xmlParser = new XMLParser(xmlParserOptions);
+			// NOTE: Using an IIFE so `config` can remain const.
+			const config: PhpStormConfigNode[] = (() => {
+				try {
+					return xmlParser.parse(contents, true);
+				} catch (e) {
+					throw new Error(
+						'PhpStorm configuration file is not valid XML.'
+					);
+				}
+			})();
+
+			let projectElement = config?.find(
+				(c: PhpStormConfigNode) => !!c?.project
 			);
-		}
-
-		const contents = fs.readFileSync(configFilePath, 'utf8');
-		const xmlParser = new XMLParser(xmlParserOptions);
-		// NOTE: Using an IIFE so `config` can remain const.
-		const config: PhpStormConfigNode[] = (() => {
-			try {
-				return xmlParser.parse(contents, true);
-			} catch (e) {
-				logger.error(e);
-				throw new Error(
-					'There was an error parsing PhpStorm workspace.xml.'
-				);
+			if (projectElement) {
+				const projectVersion = projectElement[':@']?.version;
+				if (projectVersion === undefined) {
+					throw new Error(
+						'PhpStorm IDE integration only supports <project version="4"> in workspace.xml, ' +
+							'but the <project> configuration has no version number.'
+					);
+				} else if (projectVersion !== '4') {
+					throw new Error(
+						'PhpStorm IDE integration only supports <project version="4"> in workspace.xml, ' +
+							`but we found a <project> configuration with version "${projectVersion}".`
+					);
+				}
 			}
-		})();
-
-		let projectElement = config?.find(
-			(c: PhpStormConfigNode) => !!c?.project
-		);
-		if (projectElement) {
-			const projectVersion = projectElement[':@']?.version;
-			if (projectVersion === undefined) {
-				throw new Error(
-					'PhpStorm IDE integration only supports <project version="4"> in workspace.xml, ' +
-						'but the <project> configuration has no version number.'
-				);
-			} else if (projectVersion !== '4') {
-				throw new Error(
-					'PhpStorm IDE integration only supports <project version="4"> in workspace.xml, ' +
-						`but we found a <project> configuration with version "${projectVersion}".`
-				);
-			}
-		}
-		if (projectElement === undefined) {
-			projectElement = {
-				project: [],
-				':@': { version: '4' },
-			};
-			config.push(projectElement);
-		}
-
-		let componentElement = projectElement.project?.find(
-			(c: PhpStormConfigNode) =>
-				!!c?.component && c?.[':@']?.name === 'PhpServers'
-		);
-		if (componentElement === undefined) {
-			componentElement = {
-				component: [],
-				':@': { name: 'PhpServers' },
-			};
-
-			if (projectElement.project === undefined) {
-				projectElement.project = [];
+			if (projectElement === undefined) {
+				projectElement = {
+					project: [],
+					':@': { version: '4' },
+				};
+				config.push(projectElement);
 			}
 
-			projectElement.project.push(componentElement);
-		}
+			let componentElement = projectElement.project?.find(
+				(c: PhpStormConfigNode) =>
+					!!c?.component && c?.[':@']?.name === 'PhpServers'
+			);
+			if (componentElement === undefined) {
+				componentElement = {
+					component: [],
+					':@': { name: 'PhpServers' },
+				};
 
-		let serversElement = componentElement.component?.find(
-			(c: PhpStormConfigNode) => !!c?.servers
-		);
-		if (serversElement === undefined) {
-			serversElement = { servers: [] };
+				if (projectElement.project === undefined) {
+					projectElement.project = [];
+				}
 
-			if (componentElement.component === undefined) {
-				componentElement.component = [];
+				projectElement.project.push(componentElement);
 			}
 
-			componentElement.component.push(serversElement);
-		}
+			let serversElement = componentElement.component?.find(
+				(c: PhpStormConfigNode) => !!c?.servers
+			);
+			if (serversElement === undefined) {
+				serversElement = { servers: [] };
 
-		const serverElementIndex = serversElement.servers?.findIndex(
-			(c: PhpStormConfigNode) => !!c?.server && c?.[':@']?.name === name
-		);
+				if (componentElement.component === undefined) {
+					componentElement.component = [];
+				}
 
-		if (serverElementIndex === undefined || serverElementIndex < 0) {
-			if (serversElement.servers === undefined) {
-				serversElement.servers = [];
+				componentElement.component.push(serversElement);
 			}
 
-			serversElement.servers.push(serverElement);
+			const serverElementIndex = serversElement.servers?.findIndex(
+				(c: PhpStormConfigNode) =>
+					!!c?.server && c?.[':@']?.name === name
+			);
 
-			const xmlBuilder = new XMLBuilder(xmlBuilderOptions);
-			const xml = xmlBuilder.build(config);
+			if (serverElementIndex === undefined || serverElementIndex < 0) {
+				if (serversElement.servers === undefined) {
+					serversElement.servers = [];
+				}
 
-			fs.writeFileSync(configFilePath, xml);
+				serversElement.servers.push(serverElement);
+
+				const xmlBuilder = new XMLBuilder(xmlBuilderOptions);
+				const xml = xmlBuilder.build(config);
+
+				fs.writeFileSync(configFilePath, xml);
+			}
 		}
 	}
 
@@ -315,67 +319,74 @@ export async function addXdebugIDEConfig({
 
 		const configFilePath = path.join(cwd, '.vscode/launch.json');
 
+		// Create a template config file if the IDE directory exists,
+		// or throw an error if IDE integration is requested but the directory is missing.
 		if (!fs.existsSync(configFilePath)) {
-			const dirname = path.dirname(configFilePath);
-			if (!fs.existsSync(dirname)) {
-				if (ides.length > 1) return;
-
-				fs.mkdirSync(dirname);
+			if (fs.existsSync(path.dirname(configFilePath))) {
+				fs.writeFileSync(
+					configFilePath,
+					'{\n    "configurations": []\n}'
+				);
+			} else if (ides.length == 1) {
+				throw new Error(
+					`VS Code IDE integration requested, but no '.vscode' directory was found in the current working directory.`
+				);
 			}
-			fs.writeFileSync(configFilePath, '{\n    "configurations": []\n}');
 		}
 
-		const errors: JSONC.ParseError[] = [];
+		if (fs.existsSync(configFilePath)) {
+			const errors: JSONC.ParseError[] = [];
 
-		let content = fs.readFileSync(configFilePath, 'utf-8');
-		let root = JSONC.parseTree(content, errors, {
-			allowEmptyContent: true,
-			allowTrailingComma: true,
-		});
+			let content = fs.readFileSync(configFilePath, 'utf-8');
+			let root = JSONC.parseTree(content, errors, {
+				allowEmptyContent: true,
+				allowTrailingComma: true,
+			});
 
-		if (root === undefined || errors.length) {
-			logger.error(errors);
-			throw new Error('VSCode configuration file is not valid JSON.');
-		}
+			if (root === undefined || errors.length) {
+				throw new Error('VSCode configuration file is not valid JSON.');
+			}
 
-		let configurationsNode = JSONC.findNodeAtLocation(root, [
-			'configurations',
-		]);
-
-		if (
-			configurationsNode === undefined ||
-			configurationsNode.children === undefined
-		) {
-			const edits = JSONC.modify(content, ['configurations'], [], {});
-			content = JSONC.applyEdits(content, edits);
-
-			root = JSONC.parseTree(content, []);
-			configurationsNode = JSONC.findNodeAtLocation(root!, [
+			let configurationsNode = JSONC.findNodeAtLocation(root, [
 				'configurations',
 			]);
-		}
 
-		const configurationIndex = configurationsNode?.children?.findIndex(
-			(child) => JSONC.findNodeAtLocation(child, ['name'])?.value === name
-		);
+			if (
+				configurationsNode === undefined ||
+				configurationsNode.children === undefined
+			) {
+				const edits = JSONC.modify(content, ['configurations'], [], {});
+				content = JSONC.applyEdits(content, edits);
 
-		if (configurationIndex === undefined || configurationIndex < 0) {
-			const edits = JSONC.modify(
-				content,
-				['configurations', 0],
-				configuration,
-				{
-					formattingOptions: {
-						insertSpaces: true,
-						tabSize: 4,
-						eol: '\n',
-					},
-				}
+				root = JSONC.parseTree(content, []);
+				configurationsNode = JSONC.findNodeAtLocation(root!, [
+					'configurations',
+				]);
+			}
+
+			const configurationIndex = configurationsNode?.children?.findIndex(
+				(child) =>
+					JSONC.findNodeAtLocation(child, ['name'])?.value === name
 			);
 
-			content = JSONC.applyEdits(content, edits);
+			if (configurationIndex === undefined || configurationIndex < 0) {
+				const edits = JSONC.modify(
+					content,
+					['configurations', 0],
+					configuration,
+					{
+						formattingOptions: {
+							insertSpaces: true,
+							tabSize: 4,
+							eol: '\n',
+						},
+					}
+				);
 
-			fs.writeFileSync(configFilePath, content);
+				content = JSONC.applyEdits(content, edits);
+
+				fs.writeFileSync(configFilePath, content);
+			}
 		}
 	}
 }
@@ -396,9 +407,8 @@ export async function clearXdebugIDEConfig(name: string, cwd: string) {
 			try {
 				return xmlParser.parse(contents, true);
 			} catch (e) {
-				logger.error(e);
 				throw new Error(
-					'There was an error parsing PhpStorm workspace.xml.'
+					'PhpStorm configuration file is not valid XML.'
 				);
 			}
 		})();
@@ -446,7 +456,6 @@ export async function clearXdebugIDEConfig(name: string, cwd: string) {
 		});
 
 		if (root === undefined || errors.length) {
-			logger.error(errors);
 			throw new Error('VSCode configuration file is not valid JSON.');
 		}
 
