@@ -581,8 +581,10 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 			// but let's save this promise just in case.
 			// If we're adding IDE config for Xdebug, we need to await cleanup
 			// first to avoid racing the `cleanup` and `add` operations.
-			const promiseToClearXdebugIDEConfig =
-				clearXdebugIDEConfig(IDEConfigName);
+			const promiseToClearXdebugIDEConfig = clearXdebugIDEConfig(
+				IDEConfigName,
+				process.cwd()
+			);
 
 			// Always clean up any existing Playground files symlink in the project root.
 			const symlinkName = '.playground-xdebug-root';
@@ -594,7 +596,11 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 			// recreate the symlink pointing to the temporary
 			// directory and add the new IDE config.
 			if (args.xdebug && args.experimentalUnsafeIdeIntegration) {
-				createPlaygroundCliTempDirSymlink(nativeDirPath, symlinkPath);
+				createPlaygroundCliTempDirSymlink(
+					nativeDirPath,
+					symlinkPath,
+					process.platform
+				);
 
 				const symlinkMount: Mount = {
 					hostPath: `./${symlinkName}`,
@@ -617,6 +623,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 						host: host,
 						port: port,
 						ides: args.experimentalUnsafeIdeIntegration,
+						cwd: process.cwd(),
 						mounts: [
 							symlinkMount,
 							...(args['mount-before-install'] || []),

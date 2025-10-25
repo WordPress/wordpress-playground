@@ -21,10 +21,11 @@ import JSONC from 'jsonc-parser';
  */
 export async function createPlaygroundCliTempDirSymlink(
 	nativeDirPath: string,
-	symlinkPath: string
+	symlinkPath: string,
+	platform: string
 ) {
 	const type =
-		process.platform === 'win32'
+		platform === 'win32'
 			? // On Windows, creating a 'dir' symlink can require elevated permissions.
 			  // In this case, let's make junction points because they function like
 			  // symlinks and do not require elevated permissions.
@@ -58,10 +59,9 @@ export async function removePlaygroundCliTempDirSymlink(symlinkPath: string) {
  *
  * @param mounts The Playground CLI mount options.
  */
-function filterLocalMounts(mounts: Mount[]) {
+function filterLocalMounts(cwd: string, mounts: Mount[]) {
 	return mounts.filter((mount) => {
 		const absoluteHostPath = path.resolve(mount.hostPath);
-		const cwd = process.cwd();
 		const cwdChildPrefix = path.join(cwd, path.sep);
 		return (
 			// If auto-mounting from the current directory,
@@ -89,6 +89,10 @@ export type IDEConfig = {
 	 * The web server port.
 	 */
 	port: number;
+	/**
+	 * The current working directory to consider for debugger path mapping.
+	 */
+	cwd: string;
 	/**
 	 * The mounts to consider for debugger path mapping.
 	 */
@@ -154,12 +158,13 @@ const xmlBuilderOptions: XmlBuilderOptions = {
  */
 export async function addXdebugIDEConfig({
 	name,
+	ides,
 	host,
 	port,
-	ides,
+	cwd,
 	mounts,
 }: IDEConfig) {
-	const mappings = filterLocalMounts(mounts);
+	const mappings = filterLocalMounts(cwd, mounts);
 
 	// PHPstorm
 	if (ides.includes('phpstorm')) {
@@ -188,7 +193,7 @@ export async function addXdebugIDEConfig({
 			},
 		};
 
-		const configFilePath = path.join(process.cwd(), '.idea/workspace.xml');
+		const configFilePath = path.join(cwd, '.idea/workspace.xml');
 
 		if (!fs.existsSync(configFilePath)) {
 			const dirname = path.dirname(configFilePath);
@@ -308,7 +313,7 @@ export async function addXdebugIDEConfig({
 			}, {} as VSCodeConfigMetaData),
 		};
 
-		const configFilePath = path.join(process.cwd(), '.vscode/launch.json');
+		const configFilePath = path.join(cwd, '.vscode/launch.json');
 
 		if (!fs.existsSync(configFilePath)) {
 			const dirname = path.dirname(configFilePath);
@@ -379,12 +384,10 @@ export async function addXdebugIDEConfig({
  * Remove stale parameters and path mappings in IDE configuration files.
  *
  * @param name The configuration name.
+ * @param cwd The current working directory.
  */
-export async function clearXdebugIDEConfig(name: string) {
-	const phpStormConfigFilePath = path.join(
-		process.cwd(),
-		'.idea/workspace.xml'
-	);
+export async function clearXdebugIDEConfig(name: string, cwd: string) {
+	const phpStormConfigFilePath = path.join(cwd, '.idea/workspace.xml');
 	if (fs.existsSync(phpStormConfigFilePath)) {
 		const contents = fs.readFileSync(phpStormConfigFilePath, 'utf8');
 		const xmlParser = new XMLParser(xmlParserOptions);
@@ -431,10 +434,7 @@ export async function clearXdebugIDEConfig(name: string) {
 		}
 	}
 
-	const vsCodeConfigFilePath = path.join(
-		process.cwd(),
-		'.vscode/launch.json'
-	);
+	const vsCodeConfigFilePath = path.join(cwd, '.vscode/launch.json');
 	// VSCode
 	if (fs.existsSync(vsCodeConfigFilePath)) {
 		const errors: JSONC.ParseError[] = [];
