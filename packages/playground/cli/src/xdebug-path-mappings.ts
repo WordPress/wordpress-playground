@@ -145,13 +145,10 @@ export async function addXdebugIDEConfig({
 			],
 			':@': {
 				name,
-				// NOTE: If we pass Playground's host and port separately here,
-				// eliminating the `port: '80'` config, PhpStorm fails to hit breakpoints
-				// from Playground's Xdebug setup.
-				// TODO: Why is this? Is there something about how the Playground Xdebug
-				// feature is implemented that requires this? Could we fix it?
+				// NOTE: PhpStorm quirk: Xdebug only works when the full URL (including port)
+				// is provided in `host`. The separate `port` field is ignored or misinterpreted,
+				// so we rely solely on host: "host:port".
 				host: `${host}:${port}`,
-				port: '80',
 				use_path_mappings: 'true',
 			},
 		};
