@@ -16,6 +16,7 @@ import {
 import { logger } from '@php-wasm/logger';
 import { dirname, normalizePath } from '@php-wasm/util';
 import { BinaryFilePreview } from './binary-file-preview';
+import mimeTypes from '@php-wasm/universal/mime-types';
 
 export const MAX_INLINE_FILE_BYTES = 1024 * 1024; // 1MB
 
@@ -45,48 +46,9 @@ const createDownloadUrl = (data: Uint8Array, filename: string) => {
 	return { url, filename };
 };
 
-const getMimeTypeFromFilename = (filename: string): string => {
-	const extension = filename.split('.').pop()?.toLowerCase();
-
-	// Image formats
-	const imageTypes: Record<string, string> = {
-		jpg: 'image/jpeg',
-		jpeg: 'image/jpeg',
-		png: 'image/png',
-		gif: 'image/gif',
-		webp: 'image/webp',
-		svg: 'image/svg+xml',
-		bmp: 'image/bmp',
-		ico: 'image/x-icon',
-	};
-
-	// Video formats
-	const videoTypes: Record<string, string> = {
-		mp4: 'video/mp4',
-		webm: 'video/webm',
-		ogg: 'video/ogg',
-		mov: 'video/quicktime',
-	};
-
-	// Audio formats
-	const audioTypes: Record<string, string> = {
-		mp3: 'audio/mpeg',
-		wav: 'audio/wav',
-		ogg: 'audio/ogg',
-		m4a: 'audio/mp4',
-	};
-
-	if (extension && imageTypes[extension]) {
-		return imageTypes[extension];
-	}
-	if (extension && videoTypes[extension]) {
-		return videoTypes[extension];
-	}
-	if (extension && audioTypes[extension]) {
-		return audioTypes[extension];
-	}
-
-	return 'application/octet-stream';
+const getMimeType = (filename: string): string => {
+	const extension = filename.split('.').pop() as keyof typeof mimeTypes;
+	return mimeTypes[extension] || mimeTypes['_default'];
 };
 
 const isPreviewableBinary = (mimeType: string): boolean => {
@@ -163,7 +125,7 @@ export function FileExplorerSidebar({
 			}
 
 			if (seemsLikeBinary(data)) {
-				const mimeType = getMimeTypeFromFilename(filename);
+				const mimeType = getMimeType(filename);
 				const { url: downloadUrl, filename: fname } = createDownloadUrl(
 					data,
 					filename
