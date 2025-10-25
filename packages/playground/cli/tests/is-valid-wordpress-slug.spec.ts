@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isValidWordPressSlug } from './is-valid-wordpress-slug';
+import { isValidWordPressSlug } from '../src/is-valid-wordpress-slug';
 
 describe('isValidWordPressSlug', () => {
 	it('should accept "latest"', () => {
