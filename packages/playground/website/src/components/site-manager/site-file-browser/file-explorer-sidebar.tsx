@@ -15,6 +15,7 @@ import {
 } from '@wp-playground/components';
 import { logger } from '@php-wasm/logger';
 import { dirname, normalizePath } from '@php-wasm/util';
+import { BinaryFilePreview } from './binary-file-preview';
 
 export const MAX_INLINE_FILE_BYTES = 1024 * 1024; // 1MB
 
@@ -42,6 +43,58 @@ const createDownloadUrl = (data: Uint8Array, filename: string) => {
 	const url = URL.createObjectURL(blob);
 	setTimeout(() => URL.revokeObjectURL(url), 60_000);
 	return { url, filename };
+};
+
+const getMimeTypeFromFilename = (filename: string): string => {
+	const extension = filename.split('.').pop()?.toLowerCase();
+
+	// Image formats
+	const imageTypes: Record<string, string> = {
+		jpg: 'image/jpeg',
+		jpeg: 'image/jpeg',
+		png: 'image/png',
+		gif: 'image/gif',
+		webp: 'image/webp',
+		svg: 'image/svg+xml',
+		bmp: 'image/bmp',
+		ico: 'image/x-icon',
+	};
+
+	// Video formats
+	const videoTypes: Record<string, string> = {
+		mp4: 'video/mp4',
+		webm: 'video/webm',
+		ogg: 'video/ogg',
+		mov: 'video/quicktime',
+	};
+
+	// Audio formats
+	const audioTypes: Record<string, string> = {
+		mp3: 'audio/mpeg',
+		wav: 'audio/wav',
+		ogg: 'audio/ogg',
+		m4a: 'audio/mp4',
+	};
+
+	if (extension && imageTypes[extension]) {
+		return imageTypes[extension];
+	}
+	if (extension && videoTypes[extension]) {
+		return videoTypes[extension];
+	}
+	if (extension && audioTypes[extension]) {
+		return audioTypes[extension];
+	}
+
+	return 'application/octet-stream';
+};
+
+const isPreviewableBinary = (mimeType: string): boolean => {
+	return (
+		mimeType.startsWith('image/') ||
+		mimeType.startsWith('video/') ||
+		mimeType.startsWith('audio/')
+	);
 };
 
 export type FileExplorerSidebarProps = {
@@ -89,40 +142,64 @@ export function FileExplorerSidebar({
 		try {
 			const data = await filesystem.readFileAsBuffer(path);
 			const size = data.byteLength;
+			const filename = path.split('/').pop() || 'download';
+
 			if (size > MAX_INLINE_FILE_BYTES) {
-				const { url, filename } = createDownloadUrl(
+				const { url, filename: fname } = createDownloadUrl(
 					data,
-					path.split('/').pop() || 'download'
+					filename
 				);
 				await onShowMessage(
 					<>
 						<p>File too large to open (&gt;1MB).</p>
 						<p>
-							<a href={url} download={filename}>
-								Download {filename}
+							<a href={url} download={fname}>
+								Download {fname}
 							</a>
 						</p>
 					</>
 				);
 				return;
 			}
+
 			if (seemsLikeBinary(data)) {
-				const { url, filename } = createDownloadUrl(
+				const mimeType = getMimeTypeFromFilename(filename);
+				const { url: downloadUrl, filename: fname } = createDownloadUrl(
 					data,
-					path.split('/').pop() || 'download'
+					filename
 				);
+
+				// Check if this is a previewable binary file
+				if (isPreviewableBinary(mimeType)) {
+					// Create a data URL for the preview
+					const blob = new Blob([data], { type: mimeType });
+					const dataUrl = URL.createObjectURL(blob);
+
+					await onShowMessage(
+						<BinaryFilePreview
+							filename={fname}
+							mimeType={mimeType}
+							dataUrl={dataUrl}
+							downloadUrl={downloadUrl}
+						/>
+					);
+					return;
+				}
+
+				// Non-previewable binary file
 				await onShowMessage(
 					<>
 						<p>Binary file. Cannot be edited.</p>
 						<p>
-							<a href={url} download={filename}>
-								Download {filename}
+							<a href={downloadUrl} download={fname}>
+								Download {fname}
 							</a>
 						</p>
 					</>
 				);
 				return;
 			}
+
 			const text = new TextDecoder('utf-8').decode(data);
 			await onFileOpened(path, text, shouldFocus);
 		} catch (error) {
