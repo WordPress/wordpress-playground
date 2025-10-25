@@ -2,8 +2,12 @@ import fs from 'fs';
 import path from 'path';
 import { logger } from '@php-wasm/logger';
 import { type Mount } from './mounts';
-import { XMLParser, XMLBuilder } from 'fast-xml-parser';
-import type { X2jOptions, XmlBuilderOptions } from 'fast-xml-parser';
+import {
+	type X2jOptions,
+	type XmlBuilderOptions,
+	XMLParser,
+	XMLBuilder,
+} from 'fast-xml-parser';
 import JSONC from 'jsonc-parser';
 
 /**
@@ -91,6 +95,37 @@ export type IDEConfig = {
 	mounts: Mount[];
 };
 
+type PhpStormConfigMetaData = {
+	name?: string;
+	version?: string;
+	host?: string;
+	use_path_mappings?: string;
+	'local-root'?: string;
+	'remote-root'?: string;
+};
+
+type PhpStormConfigNode = {
+	':@'?: PhpStormConfigMetaData;
+	project?: PhpStormConfigNode[];
+	component?: PhpStormConfigNode[];
+	servers?: PhpStormConfigNode[];
+	server?: PhpStormConfigNode[];
+	path_mappings?: PhpStormConfigNode[];
+	mapping?: PhpStormConfigNode[];
+};
+
+type VSCodeConfigMetaData = {
+	[key: string]: string;
+};
+
+type VSCodeConfigNode = {
+	name: string;
+	type: string;
+	request: string;
+	port: number;
+	pathMappings: VSCodeConfigMetaData;
+};
+
 const xmlParserOptions: X2jOptions = {
 	ignoreAttributes: false,
 	attributeNamePrefix: '',
@@ -128,7 +163,7 @@ export async function addXdebugIDEConfig({
 
 	// PHPstorm
 	if (ides.includes('phpstorm')) {
-		const serverElement = {
+		const serverElement: PhpStormConfigNode = {
 			server: [
 				{
 					path_mappings: mappings.map((mapping) => ({
@@ -171,7 +206,7 @@ export async function addXdebugIDEConfig({
 		const contents = fs.readFileSync(configFilePath, 'utf8');
 		const xmlParser = new XMLParser(xmlParserOptions);
 		// NOTE: Using an IIFE so `config` can remain const.
-		const config = (() => {
+		const config: PhpStormConfigNode[] = (() => {
 			try {
 				return xmlParser.parse(contents, true);
 			} catch (e) {
@@ -182,7 +217,9 @@ export async function addXdebugIDEConfig({
 			}
 		})();
 
-		let projectElement = config?.find((c: any) => !!c?.project);
+		let projectElement = config?.find(
+			(c: PhpStormConfigNode) => !!c?.project
+		);
 		if (projectElement) {
 			const projectVersion = projectElement[':@']?.version;
 			if (projectVersion === undefined) {
@@ -205,43 +242,57 @@ export async function addXdebugIDEConfig({
 			config.push(projectElement);
 		}
 
-		let componentElement = projectElement.project.find(
-			(c: any) => !!c?.component && c?.[':@']?.name === 'PhpServers'
+		let componentElement = projectElement.project?.find(
+			(c: PhpStormConfigNode) =>
+				!!c?.component && c?.[':@']?.name === 'PhpServers'
 		);
 		if (componentElement === undefined) {
 			componentElement = {
 				component: [],
 				':@': { name: 'PhpServers' },
 			};
+
+			if (projectElement.project === undefined) {
+				projectElement.project = [];
+			}
+
 			projectElement.project.push(componentElement);
 		}
 
-		let serversElement = componentElement.component.find(
-			(c: any) => !!c?.servers
+		let serversElement = componentElement.component?.find(
+			(c: PhpStormConfigNode) => !!c?.servers
 		);
 		if (serversElement === undefined) {
 			serversElement = { servers: [] };
+
+			if (componentElement.component === undefined) {
+				componentElement.component = [];
+			}
+
 			componentElement.component.push(serversElement);
 		}
 
-		const serverElementIndex = serversElement.servers.findIndex(
-			(c: any) => !!c?.server && c?.[':@']?.name === name
+		const serverElementIndex = serversElement.servers?.findIndex(
+			(c: PhpStormConfigNode) => !!c?.server && c?.[':@']?.name === name
 		);
-		if (serverElementIndex === -1) {
+
+		if (serverElementIndex === undefined || serverElementIndex < 0) {
+			if (serversElement.servers === undefined) {
+				serversElement.servers = [];
+			}
+
 			serversElement.servers.push(serverElement);
-		} else {
-			serversElement.servers[serverElementIndex] = serverElement;
+
+			const xmlBuilder = new XMLBuilder(xmlBuilderOptions);
+			const xml = xmlBuilder.build(config);
+
+			fs.writeFileSync(configFilePath, xml);
 		}
-
-		const xmlBuilder = new XMLBuilder(xmlBuilderOptions);
-		const xml = xmlBuilder.build(config);
-
-		fs.writeFileSync(configFilePath, xml);
 	}
 
 	// VSCode
 	if (ides.includes('vscode')) {
-		const configuration = {
+		const configuration: VSCodeConfigNode = {
 			name: name,
 			type: 'php',
 			request: 'launch',
@@ -254,7 +305,7 @@ export async function addXdebugIDEConfig({
 					''
 				)}`;
 				return acc;
-			}, {} as Record<string, string>),
+			}, {} as VSCodeConfigMetaData),
 		};
 
 		const configFilePath = path.join(process.cwd(), '.vscode/launch.json');
@@ -277,7 +328,7 @@ export async function addXdebugIDEConfig({
 			allowTrailingComma: true,
 		});
 
-		if (!root || errors.length) {
+		if (root === undefined || errors.length) {
 			logger.error(errors);
 			throw new Error('VSCode configuration file is not valid JSON.');
 		}
@@ -286,7 +337,10 @@ export async function addXdebugIDEConfig({
 			'configurations',
 		]);
 
-		if (!configurationsNode || !configurationsNode.children) {
+		if (
+			configurationsNode === undefined ||
+			configurationsNode.children === undefined
+		) {
 			const edits = JSONC.modify(content, ['configurations'], [], {});
 			content = JSONC.applyEdits(content, edits);
 
@@ -296,14 +350,14 @@ export async function addXdebugIDEConfig({
 			]);
 		}
 
-		const index = configurationsNode!.children!.findIndex(
+		const configurationIndex = configurationsNode?.children?.findIndex(
 			(child) => JSONC.findNodeAtLocation(child, ['name'])?.value === name
 		);
 
-		if (index === -1) {
+		if (configurationIndex === undefined || configurationIndex < 0) {
 			const edits = JSONC.modify(
 				content,
-				['configurations', configurationsNode!.children!.length],
+				['configurations', 0],
 				configuration,
 				{
 					formattingOptions: {
@@ -335,7 +389,7 @@ export async function clearXdebugIDEConfig(name: string) {
 		const contents = fs.readFileSync(phpStormConfigFilePath, 'utf8');
 		const xmlParser = new XMLParser(xmlParserOptions);
 		// NOTE: Using an IIFE so `config` can remain const.
-		const config = (() => {
+		const config: PhpStormConfigNode[] = (() => {
 			try {
 				return xmlParser.parse(contents, true);
 			} catch (e) {
@@ -346,23 +400,34 @@ export async function clearXdebugIDEConfig(name: string) {
 			}
 		})();
 
-		const projectElement = config.find((c: any) => !!c?.project);
-		const componentElement = projectElement?.project.find(
-			(c: any) => !!c?.component && c?.[':@']?.name === 'PhpServers'
+		const projectElement = config.find(
+			(c: PhpStormConfigNode) => !!c?.project
 		);
-		const serversElement = componentElement?.component.find(
-			(c: any) => !!c?.servers
+		const componentElement = projectElement?.project?.find(
+			(c: PhpStormConfigNode) =>
+				!!c?.component && c?.[':@']?.name === 'PhpServers'
 		);
-		const serverElementIndex = serversElement?.servers.findIndex(
-			(c: any) => !!c?.server && c?.[':@']?.name === name
+		const serversElement = componentElement?.component?.find(
+			(c: PhpStormConfigNode) => !!c?.servers
+		);
+		const serverElementIndex = serversElement?.servers?.findIndex(
+			(c: PhpStormConfigNode) => !!c?.server && c?.[':@']?.name === name
 		);
 
-		if (serversElement && serverElementIndex >= 0) {
-			serversElement.servers.splice(serverElementIndex, 1);
+		if (serverElementIndex !== undefined && serverElementIndex >= 0) {
+			serversElement!.servers!.splice(serverElementIndex, 1);
 
 			const xmlBuilder = new XMLBuilder(xmlBuilderOptions);
 			const xml = xmlBuilder.build(config);
-			fs.writeFileSync(phpStormConfigFilePath, xml);
+
+			if (
+				xml ===
+				'<?xml version="1.0" encoding="UTF-8"?>\n<project version="4">\n	<component name="PhpServers">\n		<servers></servers>\n	</component>\n</project>'
+			) {
+				fs.unlinkSync(phpStormConfigFilePath);
+			} else {
+				fs.writeFileSync(phpStormConfigFilePath, xml);
+			}
 		}
 	}
 
@@ -380,7 +445,7 @@ export async function clearXdebugIDEConfig(name: string) {
 			allowTrailingComma: true,
 		});
 
-		if (!root || errors.length) {
+		if (root === undefined || errors.length) {
 			logger.error(errors);
 			throw new Error('VSCode configuration file is not valid JSON.');
 		}
@@ -389,14 +454,14 @@ export async function clearXdebugIDEConfig(name: string) {
 			'configurations',
 		]);
 
-		const index = configurationsNode?.children?.findIndex(
+		const configurationIndex = configurationsNode?.children?.findIndex(
 			(child) => JSONC.findNodeAtLocation(child, ['name'])?.value === name
 		);
 
-		if (index !== undefined && index !== -1) {
+		if (configurationIndex !== undefined && configurationIndex >= 0) {
 			const edits = JSONC.modify(
 				content,
-				['configurations', index],
+				['configurations', configurationIndex],
 				undefined,
 				{
 					formattingOptions: {
