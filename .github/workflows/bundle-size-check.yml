@@ -23,8 +23,20 @@ jobs:
             - name: Build website
               run: npx nx build playground-website
 
-            - name: Analyze current bundle size
-              run: node tools/scripts/analyze-bundle-size.mjs
+            - name: Start preview server
+              run: |
+                  npx nx preview playground-website &
+                  # Wait for server to be ready
+                  timeout 60 bash -c 'until curl -s http://localhost:5400 > /dev/null; do sleep 1; done'
+
+            - name: Install Playwright browsers
+              run: npx playwright install chromium --with-deps
+
+            - name: Measure current bundle size
+              run: node tools/scripts/measure-bundle-size-browser.mjs
+
+            - name: Stop preview server
+              run: pkill -f "nx preview" || true
 
             - name: Save current report
               run: cp bundle-size-report.json bundle-size-report-current.json
@@ -41,8 +53,17 @@ jobs:
             - name: Build base branch website
               run: npx nx build playground-website
 
-            - name: Analyze base bundle size
-              run: node tools/scripts/analyze-bundle-size.mjs
+            - name: Start preview server for base branch
+              run: |
+                  npx nx preview playground-website &
+                  # Wait for server to be ready
+                  timeout 60 bash -c 'until curl -s http://localhost:5400 > /dev/null; do sleep 1; done'
+
+            - name: Measure base bundle size
+              run: node tools/scripts/measure-bundle-size-browser.mjs
+
+            - name: Stop preview server
+              run: pkill -f "nx preview" || true
 
             - name: Save base report
               run: cp bundle-size-report.json bundle-size-report-base.json

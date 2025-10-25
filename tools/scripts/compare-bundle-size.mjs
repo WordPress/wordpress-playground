@@ -2,15 +2,12 @@
 
 /**
  * Compare bundle sizes between current and base branch
- *
- * This script:
- * 1. Loads bundle size reports from both branches
- * 2. Calculates differences
- * 3. Generates a markdown report for GitHub PR comments
+ * 
+ * This script compares browser-based measurements from two builds
+ * and generates a markdown report for GitHub PR comments.
  */
 
 import { readFileSync, existsSync } from 'fs';
-import { join } from 'path';
 
 const THRESHOLD_KB = 50; // Threshold for posting a comment
 
@@ -18,15 +15,21 @@ const THRESHOLD_KB = 50; // Threshold for posting a comment
  * Format bytes to human readable format
  */
 function formatBytes(bytes) {
+	if (bytes >= 1024 * 1024) {
+		return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
+	}
 	return `${(bytes / 1024).toFixed(2)} KB`;
 }
 
 /**
- * Format size delta with color indicator
+ * Format size delta with sign
  */
 function formatDelta(delta) {
 	if (delta === 0) return '0 KB';
 	const sign = delta > 0 ? '+' : '';
+	if (Math.abs(delta) >= 1024 * 1024) {
+		return `${sign}${(delta / 1024 / 1024).toFixed(2)} MB`;
+	}
 	return `${sign}${(delta / 1024).toFixed(2)} KB`;
 }
 
@@ -41,6 +44,28 @@ function loadReport(path) {
 }
 
 /**
+ * Generate a markdown table for largest files
+ */
+function generateFileTable(files) {
+	if (!files || files.length === 0) {
+		return '_No files tracked_';
+	}
+
+	let table = '| File | Size | Type |\n';
+	table += '|------|-----:|:----:|\n';
+
+	for (const file of files) {
+		const url = new URL(file.url);
+		const path = url.pathname.length > 60 
+			? '...' + url.pathname.slice(-57)
+			: url.pathname;
+		table += `| \`${path}\` | ${formatBytes(file.size)} | ${file.resourceType} |\n`;
+	}
+
+	return table;
+}
+
+/**
  * Compare two reports and generate markdown
  */
 function compareReports(baseReport, currentReport) {
@@ -51,27 +76,26 @@ function compareReports(baseReport, currentReport) {
 		};
 	}
 
-	// Calculate deltas
-	const firstPaintDelta =
-		currentReport.firstPaint.totalGzipSize -
-		baseReport.firstPaint.totalGzipSize;
-	const offlineModeDelta =
-		currentReport.offlineMode.totalGzipSize -
-		baseReport.offlineMode.totalGzipSize;
+	const base = baseReport.measurements;
+	const current = currentReport.measurements;
 
-	// Determine if we should post a comment
-	const firstPaintThresholdExceeded =
-		Math.abs(firstPaintDelta) >= THRESHOLD_KB * 1024;
-	const offlineModeThresholdExceeded =
-		Math.abs(offlineModeDelta) >= THRESHOLD_KB * 1024;
+	// Calculate deltas
+	const firstPaintDelta = current.firstPaint.totalBytes - base.firstPaint.totalBytes;
+	const wpLoadedDelta = current.wordpressLoaded.totalBytes - base.wordpressLoaded.totalBytes;
+	const offlineModeDelta = current.offlineModeReady.totalBytes - base.offlineModeReady.totalBytes;
+
+	// Determine if we should post a comment (50KB threshold)
 	const shouldComment =
-		firstPaintThresholdExceeded || offlineModeThresholdExceeded;
+		Math.abs(firstPaintDelta) >= THRESHOLD_KB * 1024 ||
+		Math.abs(wpLoadedDelta) >= THRESHOLD_KB * 1024 ||
+		Math.abs(offlineModeDelta) >= THRESHOLD_KB * 1024;
 
 	// Generate markdown
 	const markdown = generateComparisonReport(
-		baseReport,
-		currentReport,
+		base,
+		current,
 		firstPaintDelta,
+		wpLoadedDelta,
 		offlineModeDelta
 	);
 
@@ -79,29 +103,42 @@ function compareReports(baseReport, currentReport) {
 		shouldComment,
 		markdown,
 		firstPaintDelta,
+		wpLoadedDelta,
 		offlineModeDelta,
 	};
 }
 
 /**
- * Generate a report for a new build (no base to compare against)
+ * Generate a report for a new build
  */
 function generateNewBuildReport(report) {
+	const m = report.measurements;
+
 	return `## 📦 Bundle Size Report
 
-### Assets Required for First Paint
-- **Total Size**: ${formatBytes(report.firstPaint.totalGzipSize)} (gzipped)
-- **File Count**: ${report.firstPaint.fileCount}
+### 🎨 First Paint (Progress Bar Visible)
+- **Total Downloaded**: ${formatBytes(m.firstPaint.totalBytes)}
+- **File Count**: ${m.firstPaint.fileCount}
+- **Time**: ${m.firstPaint.timestamp}ms
 
 #### Top 10 Largest Files
-${generateFileTable(report.firstPaint.largestFiles)}
+${generateFileTable(m.firstPaint.largestFiles)}
 
-### Assets Required for Offline Mode
-- **Total Size**: ${formatBytes(report.offlineMode.totalGzipSize)} (gzipped)
-- **File Count**: ${report.offlineMode.fileCount}
+### ✅ WordPress Loaded (Site Ready)
+- **Total Downloaded**: ${formatBytes(m.wordpressLoaded.totalBytes)}
+- **File Count**: ${m.wordpressLoaded.fileCount}
+- **Time**: ${m.wordpressLoaded.timestamp}ms
 
 #### Top 10 Largest Files
-${generateFileTable(report.offlineMode.largestFiles)}
+${generateFileTable(m.wordpressLoaded.largestFiles)}
+
+### 💾 Offline Mode Ready (All Downloads Settled)
+- **Total Downloaded**: ${formatBytes(m.offlineModeReady.totalBytes)}
+- **File Count**: ${m.offlineModeReady.fileCount}
+- **Time**: ${m.offlineModeReady.timestamp}ms
+
+#### Top 10 Largest Files
+${generateFileTable(m.offlineModeReady.largestFiles)}
 `;
 }
 
@@ -109,170 +146,45 @@ ${generateFileTable(report.offlineMode.largestFiles)}
  * Generate a comparison report
  */
 function generateComparisonReport(
-	baseReport,
-	currentReport,
+	base,
+	current,
 	firstPaintDelta,
+	wpLoadedDelta,
 	offlineModeDelta
 ) {
-	const firstPaintEmoji =
-		firstPaintDelta > 0 ? '📈' : firstPaintDelta < 0 ? '📉' : '➡️';
-	const offlineModeEmoji =
-		offlineModeDelta > 0 ? '📈' : offlineModeDelta < 0 ? '📉' : '➡️';
+	const firstPaintEmoji = firstPaintDelta > 0 ? '📈' : firstPaintDelta < 0 ? '📉' : '➡️';
+	const wpLoadedEmoji = wpLoadedDelta > 0 ? '📈' : wpLoadedDelta < 0 ? '📉' : '➡️';
+	const offlineModeEmoji = offlineModeDelta > 0 ? '📈' : offlineModeDelta < 0 ? '📉' : '➡️';
 
-	let markdown = `## 📦 Bundle Size Report
+	return `## 📦 Bundle Size Report
 
+### ${firstPaintEmoji} First Paint (Progress Bar Visible)
+- **Current**: ${formatBytes(current.firstPaint.totalBytes)} in ${current.firstPaint.timestamp}ms
+- **Base**: ${formatBytes(base.firstPaint.totalBytes)} in ${base.firstPaint.timestamp}ms
+- **Delta**: ${formatDelta(firstPaintDelta)} (${formatDelta(current.firstPaint.timestamp - base.firstPaint.timestamp)} time)
+- **Files**: ${current.firstPaint.fileCount} (was ${base.firstPaint.fileCount})
+
+#### Top 10 Largest Files
+${generateFileTable(current.firstPaint.largestFiles)}
+
+### ${wpLoadedEmoji} WordPress Loaded (Site Ready)
+- **Current**: ${formatBytes(current.wordpressLoaded.totalBytes)} in ${current.wordpressLoaded.timestamp}ms
+- **Base**: ${formatBytes(base.wordpressLoaded.totalBytes)} in ${base.wordpressLoaded.timestamp}ms
+- **Delta**: ${formatDelta(wpLoadedDelta)} (${formatDelta(current.wordpressLoaded.timestamp - base.wordpressLoaded.timestamp)} time)
+- **Files**: ${current.wordpressLoaded.fileCount} (was ${base.wordpressLoaded.fileCount})
+
+#### Top 10 Largest Files
+${generateFileTable(current.wordpressLoaded.largestFiles)}
+
+### ${offlineModeEmoji} Offline Mode Ready (All Downloads Settled)
+- **Current**: ${formatBytes(current.offlineModeReady.totalBytes)} in ${current.offlineModeReady.timestamp}ms
+- **Base**: ${formatBytes(base.offlineModeReady.totalBytes)} in ${base.offlineModeReady.timestamp}ms
+- **Delta**: ${formatDelta(offlineModeDelta)} (${formatDelta(current.offlineModeReady.timestamp - base.offlineModeReady.timestamp)} time)
+- **Files**: ${current.offlineModeReady.fileCount} (was ${base.offlineModeReady.fileCount})
+
+#### Top 10 Largest Files
+${generateFileTable(current.offlineModeReady.largestFiles)}
 `;
-
-	// First Paint Section
-	markdown += `### ${firstPaintEmoji} Assets Required for First Paint
-- **Current Size**: ${formatBytes(
-		currentReport.firstPaint.totalGzipSize
-	)} (gzipped)
-- **Base Size**: ${formatBytes(baseReport.firstPaint.totalGzipSize)} (gzipped)
-- **Delta**: ${formatDelta(firstPaintDelta)}
-- **File Count**: ${currentReport.firstPaint.fileCount} (was ${
-		baseReport.firstPaint.fileCount
-	})
-
-`;
-
-	// Add file comparison for first paint
-	const firstPaintFileDeltas = calculateFileDeltas(
-		baseReport.firstPaint.allFiles,
-		currentReport.firstPaint.allFiles
-	);
-
-	if (firstPaintFileDeltas.length > 0) {
-		markdown += `#### Files with Largest Changes\n`;
-		markdown += generateDeltaTable(firstPaintFileDeltas.slice(0, 10));
-		markdown += '\n';
-	}
-
-	markdown += `#### Top 10 Largest Files\n`;
-	markdown += generateFileTable(currentReport.firstPaint.largestFiles);
-	markdown += '\n';
-
-	// Offline Mode Section
-	markdown += `### ${offlineModeEmoji} Assets Required for Offline Mode
-- **Current Size**: ${formatBytes(
-		currentReport.offlineMode.totalGzipSize
-	)} (gzipped)
-- **Base Size**: ${formatBytes(baseReport.offlineMode.totalGzipSize)} (gzipped)
-- **Delta**: ${formatDelta(offlineModeDelta)}
-- **File Count**: ${currentReport.offlineMode.fileCount} (was ${
-		baseReport.offlineMode.fileCount
-	})
-
-`;
-
-	// Add file comparison for offline mode
-	const offlineModeFileDeltas = calculateFileDeltas(
-		baseReport.offlineMode.allFiles,
-		currentReport.offlineMode.allFiles
-	);
-
-	if (offlineModeFileDeltas.length > 0) {
-		markdown += `#### Files with Largest Changes\n`;
-		markdown += generateDeltaTable(offlineModeFileDeltas.slice(0, 10));
-		markdown += '\n';
-	}
-
-	markdown += `#### Top 10 Largest Files\n`;
-	markdown += generateFileTable(currentReport.offlineMode.largestFiles);
-
-	return markdown;
-}
-
-/**
- * Calculate file-level deltas
- */
-function calculateFileDeltas(baseFiles, currentFiles) {
-	const baseMap = new Map(baseFiles.map((f) => [f.path, f]));
-	const currentMap = new Map(currentFiles.map((f) => [f.path, f]));
-
-	const deltas = [];
-
-	// Check for modified and new files
-	for (const [path, currentFile] of currentMap) {
-		const baseFile = baseMap.get(path);
-		if (baseFile) {
-			const delta = currentFile.gzipSize - baseFile.gzipSize;
-			if (delta !== 0) {
-				deltas.push({
-					path,
-					delta,
-					currentSize: currentFile.gzipSize,
-					baseSize: baseFile.gzipSize,
-					status: 'modified',
-				});
-			}
-		} else {
-			deltas.push({
-				path,
-				delta: currentFile.gzipSize,
-				currentSize: currentFile.gzipSize,
-				baseSize: 0,
-				status: 'added',
-			});
-		}
-	}
-
-	// Check for removed files
-	for (const [path, baseFile] of baseMap) {
-		if (!currentMap.has(path)) {
-			deltas.push({
-				path,
-				delta: -baseFile.gzipSize,
-				currentSize: 0,
-				baseSize: baseFile.gzipSize,
-				status: 'removed',
-			});
-		}
-	}
-
-	// Sort by absolute delta (largest changes first)
-	return deltas.sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
-}
-
-/**
- * Generate a markdown table for files
- */
-function generateFileTable(files) {
-	let table = '| File | Size (gzipped) |\n';
-	table += '|------|---------------:|\n';
-
-	for (const file of files) {
-		table += `| \`${file.path}\` | ${formatBytes(file.gzipSize)} |\n`;
-	}
-
-	return table;
-}
-
-/**
- * Generate a markdown table for file deltas
- */
-function generateDeltaTable(deltas) {
-	let table = '| File | Delta | Current | Previous | Status |\n';
-	table += '|------|------:|--------:|---------:|:------:|\n';
-
-	for (const delta of deltas) {
-		const statusEmoji =
-			delta.status === 'added'
-				? '🆕'
-				: delta.status === 'removed'
-				? '🗑️'
-				: delta.delta > 0
-				? '📈'
-				: '📉';
-
-		table += `| \`${delta.path}\` | ${formatDelta(
-			delta.delta
-		)} | ${formatBytes(delta.currentSize)} | ${formatBytes(
-			delta.baseSize
-		)} | ${statusEmoji} |\n`;
-	}
-
-	return table;
 }
 
 /**
@@ -308,6 +220,9 @@ async function main() {
 	if (comparison.firstPaintDelta !== undefined) {
 		console.log(`FIRST_PAINT_DELTA=${comparison.firstPaintDelta}`);
 	}
+	if (comparison.wpLoadedDelta !== undefined) {
+		console.log(`WP_LOADED_DELTA=${comparison.wpLoadedDelta}`);
+	}
 	if (comparison.offlineModeDelta !== undefined) {
 		console.log(`OFFLINE_MODE_DELTA=${comparison.offlineModeDelta}`);
 	}
@@ -317,6 +232,7 @@ async function main() {
 		const output = [
 			`should_comment=${comparison.shouldComment}`,
 			`first_paint_delta=${comparison.firstPaintDelta || 0}`,
+			`wp_loaded_delta=${comparison.wpLoadedDelta || 0}`,
 			`offline_mode_delta=${comparison.offlineModeDelta || 0}`,
 		].join('\n');
 
