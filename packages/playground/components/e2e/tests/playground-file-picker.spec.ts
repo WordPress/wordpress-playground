@@ -529,3 +529,59 @@ test('pressing Enter on folder toggles expansion without triggering doubleClick'
 	const doubleClicked = await getLastDoubleClickedPath(page);
 	expect(doubleClicked).toBeNull();
 });
+
+test('rename input is not affected by type-ahead search', async ({ page }) => {
+	// First, create a folder with name "123" that could trigger type-ahead
+	await expandToPath(page, 'wordpress/workspace');
+	await nodeButton(page, 'wordpress/workspace').click({ button: 'right' });
+	await page.getByRole('menuitem', { name: 'Create directory' }).click();
+
+	// Find the rename input dynamically (don't hardcode the path as it may be "New Folder (1)" etc)
+	// Wait for any visible focused input field in the tree
+	const folderInput = page.locator('input[class*="renameInput"]').first();
+	await expect(folderInput).toBeVisible();
+	await expect(folderInput).toBeFocused();
+
+	// Rename the new folder to "123"
+	await folderInput.fill('123');
+	await folderInput.press('Enter');
+
+	// Wait for the folder to appear with the new name
+	await expect(nodeButton(page, 'wordpress/workspace/123')).toBeVisible();
+
+	// Now try to rename a file and type "1" which matches the folder name
+	await nodeButton(page, 'wordpress/workspace/index.php').click({
+		button: 'right',
+	});
+	await page.getByRole('menuitem', { name: 'Rename' }).click();
+
+	const fileInput = renameInput(page, 'wordpress/workspace/index.php');
+	await expect(fileInput).toBeVisible();
+	await expect(fileInput).toBeFocused();
+
+	// Clear the input and type "1" which would normally trigger type-ahead to folder "123"
+	await fileInput.fill('');
+	await page.keyboard.press('1');
+
+	// The rename input should still be visible and focused (not closed)
+	await expect(fileInput).toBeVisible();
+	await expect(fileInput).toBeFocused();
+
+	// The input should contain "1"
+	await expect(fileInput).toHaveValue('1');
+
+	// The folder "123" should NOT be focused (type-ahead should be disabled during rename)
+	await expect(nodeButton(page, 'wordpress/workspace/123')).not.toBeFocused();
+
+	// Complete the rename with a valid filename
+	await fileInput.fill('1test.php');
+	await fileInput.press('Enter');
+
+	// Verify the file was renamed successfully
+	await expect(
+		nodeButton(page, 'wordpress/workspace/1test.php')
+	).toBeVisible();
+	await expect(
+		nodeLocator(page, 'wordpress/workspace/index.php')
+	).toHaveCount(0);
+});

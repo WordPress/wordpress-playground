@@ -41,6 +41,7 @@ import {
 	resolveRuntimeConfiguration,
 } from '@wp-playground/blueprints';
 import { lazy, Suspense, useState, useEffect, useCallback } from 'react';
+import { logger } from '@php-wasm/logger';
 
 const SiteFileBrowser = lazy(() =>
 	import('../site-file-browser').then((m) => ({ default: m.SiteFileBrowser }))
@@ -116,6 +117,8 @@ export function SiteInfoPanel({
 				const declaration = reflection.getDeclaration() as any;
 				setBlueprintCode(JSON.stringify(declaration, null, '\t'));
 			} catch (error) {
+				logger.error(error);
+
 				// Fallback to original blueprint if reflection fails
 				setBlueprintCode(
 					JSON.stringify(site.metadata.originalBlueprint, null, '\t')

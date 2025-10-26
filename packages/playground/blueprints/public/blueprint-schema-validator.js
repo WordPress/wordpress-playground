@@ -1102,6 +1102,11 @@ const schema11 = {
 					description:
 						'The path to the directory in the git repository. Defaults to the repo root.',
 				},
+				'.git': {
+					type: 'boolean',
+					description:
+						'When true, include a `.git` directory with Git metadata (experimental).',
+				},
 			},
 			required: ['resource', 'url', 'ref'],
 			additionalProperties: false,
@@ -4031,7 +4036,7 @@ const schema25 = {
 		'.git': {
 			type: 'boolean',
 			description:
-				'When true, include a .git directory in the cloned files',
+				'When true, include a `.git` directory with Git metadata (experimental).',
 		},
 	},
 	required: ['resource', 'url', 'ref'],

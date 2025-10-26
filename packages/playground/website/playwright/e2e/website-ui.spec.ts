@@ -557,3 +557,74 @@ test('should keep query arguments when updating settings', async ({
 		await wordpress.locator('body').evaluate((body) => body.baseURI)
 	).toMatch('/wp-admin/');
 });
+
+test('should edit a file in the code editor and see changes in the viewport', async ({
+	website,
+	wordpress,
+}) => {
+	await website.goto('./');
+
+	// Open site manager
+	await website.ensureSiteManagerIsOpen();
+
+	// Navigate to File Browser tab
+	await website.page.getByRole('tab', { name: 'File Browser' }).click();
+
+	// Wait for file tree to load
+	await website.page.locator('[data-path="/wordpress"]').waitFor();
+
+	// Expand /wordpress folder
+	const wordpressFolder = website.page.locator(
+		'button[data-path="/wordpress"]'
+	);
+	if ((await wordpressFolder.getAttribute('data-expanded')) !== 'true') {
+		await wordpressFolder.click();
+	}
+
+	// Double-click index.php to open it in the editor
+	await website.page
+		.locator('button[data-path="/wordpress/index.php"]')
+		.dblclick();
+
+	// Wait for CodeMirror editor to load
+	await website.page.locator('.cm-editor').waitFor({ timeout: 10000 });
+
+	// Select all content in the editor and replace it
+	// Use CodeMirror API to set content
+	await website.page.evaluate(() => {
+		const editor = document.querySelector('.cm-editor') as any;
+		if (editor && editor.view) {
+			const view = editor.view;
+			view.dispatch({
+				changes: {
+					from: 0,
+					to: view.state.doc.length,
+					insert: 'Edited file',
+				},
+			});
+		}
+	});
+
+	// Wait a moment for the change to be processed
+	await website.page.waitForTimeout(500);
+
+	// Save the file (Cmd+S or Ctrl+S)
+	await website.page.keyboard.press(
+		process.platform === 'darwin' ? 'Meta+S' : 'Control+S'
+	);
+
+	// Wait for save to complete (look for save indicator if there is one)
+	await website.page.waitForTimeout(1000);
+
+	// Close the site manager to see the viewport
+	await website.ensureSiteManagerIsClosed();
+
+	// Reload the WordPress viewport to see the changes
+	await website.page.reload();
+	await website.waitForNestedIframes();
+
+	// Verify the page shows "Edited file"
+	await expect(wordpress.locator('body')).toContainText('Edited file', {
+		timeout: 10000,
+	});
+});

@@ -1116,6 +1116,11 @@ export const FilePickerTree = forwardRef<
 	};
 
 	const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+		// Skip type-ahead when renaming to avoid interfering with rename input
+		if (renamingAbsolutePath) {
+			return;
+		}
+
 		if (event.key.length === 1 && event.key.match(/\S/)) {
 			const newSearchBuffer = searchBuffer + event.key.toLowerCase();
 			setSearchBuffer(newSearchBuffer);
