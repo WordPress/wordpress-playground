@@ -121,11 +121,11 @@ Measures all downloads until the progress bar becomes visible. This represents t
 
 ### WordPress Loaded (Site Ready)
 
-Measures all downloads until WordPress is fully loaded in the nested iframe, indicating the site is interactive and ready to use.
+Measures all downloads until WordPress is fully loaded in the nested iframe, indicated by the WordPress admin bar being visible.
 
 **Key signals:**
-- WordPress iframe body element is attached
-- Falls back to window load event if iframe not found
+- WordPress admin bar (`#wpadminbar`) is visible in the nested iframe
+- Falls back to window load event if admin bar not found
 
 ### Offline Mode Ready (All Downloads Settled)
 

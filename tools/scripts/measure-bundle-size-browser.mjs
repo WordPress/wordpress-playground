@@ -228,13 +228,15 @@ async function measureBundleSize() {
 			};
 		}
 
-		// Stage 2: Wait for WordPress to load (nested iframes ready)
+		// Stage 2: Wait for WordPress to load (admin bar visible)
 		console.log('Waiting for WordPress to load...');
 		try {
-			// Wait for the WordPress iframe
-			const wpFrame = page.frameLocator('#playground-viewport:visible, .playground-viewport:visible').frameLocator('#wp');
-			await wpFrame.locator('body').waitFor({
-				state: 'attached',
+			// Wait for the WordPress iframe (remote iframe -> WordPress iframe)
+			const wpFrame = page.frameLocator('#playground-viewport:visible').frameLocator('#wp');
+			
+			// Wait for WordPress admin bar to be visible
+			await wpFrame.locator('#wpadminbar').waitFor({
+				state: 'visible',
 				timeout: 30000,
 			});
 
@@ -253,7 +255,7 @@ async function measureBundleSize() {
 				`WordPress loaded at ${wpLoadedTime}ms, ${measurements.wordpressLoaded.totalBytes} bytes downloaded`
 			);
 		} catch (error) {
-			console.warn('WordPress iframe not found:', error.message);
+			console.warn('WordPress admin bar not found:', error.message);
 			// Fall back to network load event
 			await page.waitForLoadState('load');
 			const loadTime = Date.now() - monitor.startTime;
