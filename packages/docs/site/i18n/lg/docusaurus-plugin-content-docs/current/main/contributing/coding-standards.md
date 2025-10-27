@@ -4,7 +4,7 @@ title: Empisa z'okuwandiika koodi
 description: Eno etegeeza ku mpisa z'okuwandiika koodi mu Playground, ng'essinziira ku bubaka bw'ensobi obuyamba, API ennono, ne Blueprints.
 ---
 
-# Empisa z'okuwandiika koodi
+# Emisingi gy'Empandiika ya Koodi
 
 <!--
 # Coding principles
