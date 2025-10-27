@@ -9,6 +9,37 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
+## [v3.0.15] (2025-10-27) 
+
+### Tools
+
+
+#### Import/Export
+
+- [Blueprints] Use _SERVER['HTTPS'] in the import step. ([#2802](https://github.com/WordPress/wordpress-playground/pull/2802))
+
+### Website
+
+- Add Playground logo and 'import' menu to the sidebar. ([#2806](https://github.com/WordPress/wordpress-playground/pull/2806))
+- Ask for a Playground name before saving. ([#2768](https://github.com/WordPress/wordpress-playground/pull/2768))
+- File browser and code editor. ([#2813](https://github.com/WordPress/wordpress-playground/pull/2813))
+- Move the sidebar icon to the right. ([#2811](https://github.com/WordPress/wordpress-playground/pull/2811))
+- Refresh button icons next to the browser bar. ([#2807](https://github.com/WordPress/wordpress-playground/pull/2807))
+- Resizable sidebar. ([#2809](https://github.com/WordPress/wordpress-playground/pull/2809))
+- Restore the visible button selection in the sidebar. ([#2804](https://github.com/WordPress/wordpress-playground/pull/2804))
+- Retain address bar when opening the sidebar. ([#2808](https://github.com/WordPress/wordpress-playground/pull/2808))
+
+### Various
+
+- [i18n] Add Japanese translations to `remote.html` vs `index.html`. ([#2817](https://github.com/WordPress/wordpress-playground/pull/2817))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @shimotmk
+
+
 ## [v3.0.14] (2025-10-21)
 
 ### Various

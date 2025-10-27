@@ -1,6 +1,6 @@
 {
 	"name": "@wp-playground/common",
-	"version": "3.0.14",
+	"version": "3.0.15",
 	"description": "Common exports and utilities for WordPress Playground",
 	"repository": {
 		"type": "git",
