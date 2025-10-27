@@ -169,9 +169,12 @@ a tu configuración única de WordPress. Con el Playground CLI, puedes usar los 
 El comando `server` soporta los siguientes argumentos opcionales:
 
 -   `--port=<port>`: El número de puerto para que el servidor escuche. Por defecto es 9400.
+-   `--version`: Mostrar número de versión.
 -   `--outfile`: Al construir, escribir en este archivo de salida.
+-   `--site-url=<url>`: URL del sitio a usar para WordPress. Por defecto es `http://127.0.0.1:{port}`.
 -   `--wp=<version>`: La versión de WordPress a usar. Por defecto es la última.
--   `--auto-mount`: Montar automáticamente el directorio actual (plugin, tema, wp-content, etc.).
+-   `--php=<version>`: Versión de PHP a usar. Opciones: `8.4`, `8.3`, `8.2`, `8.1`, `8.0`, `7.4`, `7.3`, `7.2`. Por defecto es `8.3`.
+-   `--auto-mount[=<path>]`: Montar automáticamente un directorio. Si no se proporciona una ruta, monta el directorio de trabajo actual. Puedes montar un directorio WordPress, un directorio de plugin, un directorio de tema, un directorio wp-content, o cualquier directorio que contenga archivos PHP y HTML.
 -   `--mount=<mapping>`: Montar manualmente un directorio (puede usarse múltiples veces). Formato: `"/host/path:/vfs/path"`.
 -   `--mount-before-install`: Montar un directorio al runtime PHP antes de la instalación de WordPress (puede usarse múltiples veces). Formato: `"/host/path:/vfs/path"`.
 -   `--mount-dir`: Montar un directorio al runtime PHP (puede usarse múltiples veces). Formato: `"/host/path"` `"/vfs/path"`.
@@ -181,8 +184,17 @@ El comando `server` soporta los siguientes argumentos opcionales:
 -   `--login`: Iniciar sesión automáticamente del usuario como administrador.
 -   `--skip-wordpress-setup`: No descargar ni instalar WordPress. Útil si estás montando un directorio WordPress completo.
 -   `--skip-sqlite-setup`: No configurar la integración de base de datos SQLite.
--   `--verbosity`: Salida de logs y mensajes de progreso. Las opciones son "quiet", "normal" o "debug". Por defecto es "normal".
+-   `--verbosity=<level>`: Salida de logs y mensajes de progreso. Opciones: `quiet`, `normal`, `debug`. Por defecto es `normal`.
 -   `--debug`: Imprimir el log de errores de PHP si ocurre un error durante el arranque.
+-   `--follow-symlinks`: Permitir que Playground siga enlaces simbólicos montando automáticamente directorios y archivos vinculados simbólicamente encontrados en directorios montados.
+-   `--internal-cookie-store`: Habilitar manejo interno de cookies. Cuando está habilitado, Playground administrará cookies internamente usando un HttpCookieStore que persiste cookies entre solicitudes. Cuando está deshabilitado, las cookies se manejan externamente (por ejemplo, por un navegador en entornos Node.js). Por defecto es false.
+-   `--xdebug`: Habilitar Xdebug. Por defecto es false.
+-   `--experimental-devtools`: Habilitar herramientas de desarrollo experimentales del navegador. Por defecto es false.
+-   `--experimental-multi-worker=<number>`: Habilitar soporte experimental multi-worker que requiere un directorio `/wordpress` respaldado por un sistema de archivos real. Pasa un número positivo para especificar el número de workers a usar. De lo contrario, por defecto es el número de CPUs menos 1.
+
+:::caution
+Con la bandera `--follow-symlinks`, los siguientes enlaces simbólicos expondrán archivos fuera de los directorios montados a Playground y podrían ser un riesgo de seguridad.
+:::
 
 ## ¿Necesitas ayuda con el CLI?
 
