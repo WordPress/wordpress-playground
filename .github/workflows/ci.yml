@@ -236,6 +236,24 @@ jobs:
               with:
                   name: playwright-dist
 
+    test-e2e-components:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  submodules: true
+            - uses: ./.github/actions/prepare-playground
+            - name: Install Playwright Browsers
+              run: npx playwright install --with-deps chromium
+            - name: Run Playwright tests for components
+              run: npx nx e2e playground-components
+            - uses: actions/upload-artifact@v4
+              if: ${{ !cancelled() }}
+              with:
+                  name: playwright-components-report
+                  path: packages/playground/components/playwright-report/
+                  if-no-files-found: ignore
+
     test-built-npm-packages:
         runs-on: ubuntu-latest
         steps:
@@ -357,7 +375,7 @@ jobs:
             github.ref == 'refs/heads/trunk' &&
             github.event_name == 'push'
         # Add a dependency to the build job
-        needs: [test-unit-asyncify, test-e2e, build]
+        needs: [test-unit-asyncify, test-e2e, test-e2e-components, build]
         name: 'Deploy doc site'
 
         # Grant GITHUB_TOKEN the permissions required to make a Pages deployment

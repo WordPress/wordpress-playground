@@ -16,10 +16,16 @@ import {
 } from './slice-sites';
 import { PlaygroundRoute, redirectTo } from '../url/router';
 import type { SiteStorageType } from './slice-sites';
+import { setActiveModal } from './slice-ui';
 
 export function persistTemporarySite(
 	siteSlug: string,
-	storageType: Extract<SiteStorageType, 'opfs' | 'local-fs'>
+	storageType: Extract<SiteStorageType, 'opfs' | 'local-fs'>,
+	options: {
+		localFsHandle?: FileSystemDirectoryHandle;
+		siteName?: string;
+		skipRenameModal?: boolean;
+	} = {}
 ) {
 	// @TODO: Handle errors
 	return async (
@@ -34,9 +40,19 @@ export function persistTemporarySite(
 			);
 		}
 
-		const siteInfo = selectSiteBySlug(state, siteSlug)!;
+		let siteInfo = selectSiteBySlug(state, siteSlug)!;
 		if (!siteInfo) {
 			throw new Error(`Cannot find site ${siteSlug} to save.`);
+		}
+		const trimmedName = options.siteName?.trim();
+		if (trimmedName && trimmedName !== siteInfo.metadata.name) {
+			await dispatch(
+				updateSiteMetadata({
+					slug: siteSlug,
+					changes: { name: trimmedName },
+				})
+			);
+			siteInfo = selectSiteBySlug(getState(), siteSlug)!;
 		}
 
 		try {
@@ -71,28 +87,30 @@ export function persistTemporarySite(
 				mountpoint: '/wordpress',
 			} as const;
 		} else if (storageType === 'local-fs') {
-			let dirHandle: FileSystemDirectoryHandle;
-			try {
-				// Request permission to access the directory.
-				// https://developer.mozilla.org/en-US/docs/Web/API/Window/showDirectoryPicker
-				dirHandle = await (window as any).showDirectoryPicker({
-					// By specifying an ID, the browser can remember different directories
-					// for different IDs.If the same ID is used for another picker, the
-					// picker opens in the same directory.
-					id: 'playground-directory',
-					mode: 'readwrite',
-				});
-			} catch (e) {
-				// No directory selected but log the error just in case.
-				logger.error(e);
-				return;
+			let dirHandle = options.localFsHandle;
+			if (!dirHandle) {
+				try {
+					// Request permission to access the directory.
+					// https://developer.mozilla.org/en-US/docs/Web/API/Window/showDirectoryPicker
+					dirHandle = await (window as any).showDirectoryPicker({
+						// By specifying an ID, the browser can remember different directories
+						// for different IDs.If the same ID is used for another picker, the
+						// picker opens in the same directory.
+						id: 'playground-directory',
+						mode: 'readwrite',
+					});
+				} catch (e) {
+					// No directory selected but log the error just in case.
+					logger.error(e);
+					return;
+				}
 			}
-			await saveDirectoryHandle(siteSlug, dirHandle);
+			await saveDirectoryHandle(siteSlug, dirHandle!);
 
 			mountDescriptor = {
 				device: {
 					type: 'local-fs',
-					handle: dirHandle,
+					handle: dirHandle!,
 				},
 				mountpoint: '/wordpress',
 			} as const;
@@ -178,6 +196,7 @@ export function persistTemporarySite(
 							playground
 						),
 					},
+					...(trimmedName ? { name: trimmedName } : {}),
 				},
 			})
 		);
@@ -193,6 +212,9 @@ export function persistTemporarySite(
 		const updatedSite = selectSiteBySlug(updatedState, siteSlug);
 		const persistentSiteUrl = PlaygroundRoute.site(updatedSite!);
 		redirectTo(persistentSiteUrl);
+		if (!options.skipRenameModal) {
+			dispatch(setActiveModal('rename-site'));
+		}
 	};
 }
 

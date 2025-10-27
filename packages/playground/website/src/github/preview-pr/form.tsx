@@ -217,6 +217,7 @@ export default function PreviewPRForm({
 					disabled={submitting}
 					label="Pull request number or URL"
 					value={value}
+					autoFocus
 					onChange={(e) => {
 						setError('');
 						setValue(e);

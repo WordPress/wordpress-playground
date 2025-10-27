@@ -1357,7 +1357,7 @@
 				},
 				".git": {
 					"type": "boolean",
-					"description": "When true, include a .git directory in the cloned files"
+					"description": "When true, include a `.git` directory with Git metadata (experimental)."
 				}
 			},
 			"required": ["resource", "url", "ref"],
