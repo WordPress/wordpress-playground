@@ -76,11 +76,39 @@ body.is-embedded .fake-window-wrapper {
 	width: 100%;
 	opacity: 1;
 	transition: opacity ease-in 0.25s;
+	gap: 8px;
+	align-items: center;
 }
 
 .address-bar-slot.is-hidden {
 	opacity: 0;
 	pointer-events: none;
+}
+
+.refresh-button.refresh-button {
+	flex-shrink: 0;
+	background: transparent !important;
+	color: #fff !important;
+	border: none !important;
+	padding: 8px !important;
+	min-width: 40px !important;
+	width: 40px !important;
+	min-height: 40px !important;
+	height: 40px !important;
+	display: flex !important;
+	align-items: center !important;
+	justify-content: center !important;
+	border-radius: 4px !important;
+}
+
+.refresh-button.refresh-button:hover {
+	opacity: 0.8 !important;
+}
+
+.refresh-button svg {
+	width: 22px;
+	height: 22px;
+	color: #fff;
 }
 
 .padded {
