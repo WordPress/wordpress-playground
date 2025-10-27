@@ -16,7 +16,7 @@ description: Jino jilambika ku mpandiika ya koodi mu playground era gyogera ku b
 ## Error messages
 -->
 
-Obubaka bw'ensobi obulungi butegeeza omukozesa omutendera oguddako gw'akwata. Ensobi yonna ey'obutategeerekeka mu Playground [Public APIs](/developers/apis/) ejja kuwaliriza abakozi okusumulula ensonga.
+Obubaka obujja nga waliwo ensobi obulungi butegeeza omukozesa omutendera ogw'okugoberera. Ensobi yonna etategeerekeka mu Playground [Public APIs](/developers/apis/) ejja kuwaliriza abakozi okulopa ensobi
 
 <!--
 A good error message informs the user of the following steps to take. Any ambiguity in errors thrown by Playground [Public APIs](/developers/apis/) will prompt the developers to open issues.
