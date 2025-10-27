@@ -134,6 +134,12 @@ body {
  * on smaller screens and never overflows out of the screen.
  */
 @media (max-width: 1126px) {
+	:root {
+		--site-info-panel-max-width: calc(
+			100vw - (2 * var(--site-manager-border-width)) -
+				var(--site-manager-site-list-width)
+		);
+	}
 	.site-manager-wrapper + .site-view {
 		display: none;
 	}
