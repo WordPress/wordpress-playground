@@ -145,6 +145,11 @@ const xmlBuilderOptions: XmlBuilderOptions = {
 	indentBy: '\t',
 };
 
+const jsoncParseOptions: JSONC.ParseOptions = {
+	allowEmptyContent: true,
+	allowTrailingComma: true,
+};
+
 /**
  * Implement necessary parameters and path mappings in IDE configuration files.
  *
@@ -341,10 +346,7 @@ export async function addXdebugIDEConfig({
 			const errors: JSONC.ParseError[] = [];
 
 			let content = fs.readFileSync(vsCodeConfigFilePath, 'utf-8');
-			let root = JSONC.parseTree(content, errors, {
-				allowEmptyContent: true,
-				allowTrailingComma: true,
-			});
+			let root = JSONC.parseTree(content, errors, jsoncParseOptions);
 
 			if (root === undefined || errors.length) {
 				throw new Error(
@@ -363,7 +365,7 @@ export async function addXdebugIDEConfig({
 				const edits = JSONC.modify(content, ['configurations'], [], {});
 				content = JSONC.applyEdits(content, edits);
 
-				root = JSONC.parseTree(content, []);
+				root = JSONC.parseTree(content, [], jsoncParseOptions);
 				configurationsNode = JSONC.findNodeAtLocation(root!, [
 					'configurations',
 				]);
@@ -388,18 +390,7 @@ export async function addXdebugIDEConfig({
 					}
 				);
 
-				const json = JSONC.applyEdits(content, edits);
-
-				errors.length = 0;
-
-				JSONC.parseTree(json, errors);
-
-				if (errors.length) {
-					throw new Error(
-						'The resulting VS Code configuration file is not valid JSON.'
-					);
-				}
-
+				const json = jsoncApplyEdits(content, edits);
 				fs.writeFileSync(vsCodeConfigFilePath, json);
 			}
 		}
@@ -474,10 +465,7 @@ export async function clearXdebugIDEConfig(name: string, cwd: string) {
 		const errors: JSONC.ParseError[] = [];
 
 		const content = fs.readFileSync(vsCodeConfigFilePath, 'utf-8');
-		const root = JSONC.parseTree(content, errors, {
-			allowEmptyContent: true,
-			allowTrailingComma: true,
-		});
+		const root = JSONC.parseTree(content, errors, jsoncParseOptions);
 
 		if (root === undefined || errors.length) {
 			throw new Error('VS Code configuration file is not valid JSON.');
@@ -505,18 +493,7 @@ export async function clearXdebugIDEConfig(name: string, cwd: string) {
 				}
 			);
 
-			const json = JSONC.applyEdits(content, edits);
-
-			errors.length = 0;
-
-			JSONC.parseTree(json, errors);
-
-			if (errors.length) {
-				throw new Error(
-					'The resulting VS Code configuration file is not valid JSON.'
-				);
-			}
-
+			const json = jsoncApplyEdits(content, edits);
 			if (json === '{\n    "configurations": []\n}') {
 				fs.unlinkSync(vsCodeConfigFilePath);
 			} else {
@@ -524,4 +501,44 @@ export async function clearXdebugIDEConfig(name: string, cwd: string) {
 			}
 		}
 	}
+}
+
+function jsoncApplyEdits(content: string, edits: JSONC.Edit[]) {
+	const errors: JSONC.ParseError[] = [];
+	const json = JSONC.applyEdits(content, edits);
+
+	errors.length = 0;
+
+	JSONC.parseTree(json, errors, jsoncParseOptions);
+
+	if (errors.length) {
+		const formattedErrors = errors
+			.map((error) => {
+				return {
+					message: JSONC.printParseErrorCode(error.error),
+					offset: error.offset,
+					length: error.length,
+					fragment: json.slice(
+						Math.max(0, error.offset - 20),
+						Math.min(json.length, error.offset + error.length + 10)
+					),
+				};
+			})
+			.map(
+				(error) =>
+					`${error.message} at ${error.offset}:${error.length} (${error.fragment})`
+			);
+		const formattedEdits = edits.map(
+			(edit) => `At ${edit.offset}:${edit.length} - (${edit.content})`
+		);
+		throw new Error(
+			`VS Code configuration file (.vscode/launch.json) is not valid a JSONC after Playground CLI modifications. This is likely ` +
+				`a Playground CLI bug. Please report it at https://github.com/WordPress/wordpress-playground/issues and include the contents ` +
+				`of your ".vscode/launch.json" file. \n\n Applied edits: ${formattedEdits.join(
+					'\n'
+				)}\n\n The errors are: ${formattedErrors.join('\n')}`
+		);
+	}
+
+	return json;
 }

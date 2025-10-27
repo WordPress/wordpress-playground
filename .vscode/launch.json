@@ -4,50 +4,15 @@
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
-      {
-        "name": "Debug PHP-WASM CLI",
+    {
+        "name": "WP Playground CLI - Listen for Xdebug",
+        "type": "php",
         "request": "launch",
-        "type": "node",
-        "runtimeVersion": "23",
-        "runtimeExecutable": "npx",
-        "runtimeArgs": [
-          "nx",
-          "debug",
-          "php-wasm-cli",
-          "${input:phpWasmCliArg1}",
-          "${input:phpWasmCliArg2}",
-          "${input:phpWasmCliArg3}",
-          "${input:phpWasmCliArg4}"
-        ],
-        "cwd": "${workspaceFolder}",
-        "autoAttachChildProcesses": true,
-        "env": {
-          "PHP": "${input:phpVersion}"
-        },
-        "enableDWARF": false
-      },
-      {
-        "name": "Debug PHP-WASM CLI with DWARF Symbols",
-        "request": "launch",
-        "type": "node",
-        "runtimeVersion": "23",
-        "runtimeExecutable": "npx",
-        "runtimeArgs": [
-          "nx",
-          "debug",
-          "php-wasm-cli",
-          "${input:phpWasmCliArg1}",
-          "${input:phpWasmCliArg2}",
-          "${input:phpWasmCliArg3}",
-          "${input:phpWasmCliArg4}"
-        ],
-        "cwd": "${workspaceFolder}",
-        "autoAttachChildProcesses": true,
-        "env": {
-          "PHP": "${input:phpVersion}"
-        },
-        "enableDWARF": true
-      },
+        "port": 9003,
+        "pathMappings": {
+            "/": "${workspaceFolder}/.playground-xdebug-root"
+        }
+    },
       {
         "name": "Debug Playground CLI",
         "request": "launch",

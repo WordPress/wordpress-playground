@@ -615,9 +615,10 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 					)
 					.catch((error) => {
 						logger.error(
-							'An error occurred during Xdebug IDE integration:',
+							'Could not configure Xdebug:',
 							error.message
 						);
+						process.exit(1);
 					});
 			}
 
