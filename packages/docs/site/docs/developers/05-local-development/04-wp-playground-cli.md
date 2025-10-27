@@ -101,16 +101,28 @@ By default, Playground CLI stores WordPress files and the SQLite database in **t
 
 **Finding Your Temp Directory:**
 
-The actual location depends on your OS:
+The actual location depends on your OS (these are examples or common possibilities):
 
--   **macOS/Linux**: `/tmp/playground-<random-id>/`
--   **Windows**: `C:\Users\<username>\AppData\Local\Temp\playground-<random-id>\`
+-   **macOS/Linux**: May be under `/tmp/` or `/private/var/folders/` (varies by system)
+-   **Windows**: `C:\Users\<username>\AppData\Local\Temp\`
 
-When you start the CLI, it outputs the temp directory path. Look for:
+To see the exact temp directory path being used, run the CLI with the `--verbosity=debug` flag:
 
 ```bash
-npx @wp-playground/cli@latest server
-# Output shows: Using temporary directory: /tmp/playground-abc123/
+npx @wp-playground/cli@latest server --verbosity=debug
+```
+
+This will output something like:
+
+```
+Native temp dir for VFS root:
+/private/var/folders/c8/mwz12ycx4s509056kby3hk180000gn/T/node-playground-cli-site-62926--62926-yQNOdvJVIgYC
+Mount before WP install: /home ->
+/private/var/folders/c8/mwz12ycx4s509056kby3hk180000gn/T/node-playground-cli-site-62926--62926-yQNOdvJVIgYC/home
+Mount before WP install: /tmp ->
+/private/var/folders/c8/mwz12ycx4s509056kby3hk180000gn/T/node-playground-cli-site-62926--62926-yQNOdvJVIgYC/tmp
+Mount before WP install: /wordpress ->
+/private/var/folders/c8/mwz12ycx4s509056kby3hk180000gn/T/node-playground-cli-site-62926--62926-yQNOdvJVIgYC/wordpress
 ```
 
 **Where is the SQLite Database Stored?**
