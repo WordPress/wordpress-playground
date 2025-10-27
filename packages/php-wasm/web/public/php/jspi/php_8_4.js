@@ -1,7 +1,7 @@
-import dependencyFilename from './8_4_12/php_8_4.wasm'; 
+import dependencyFilename from './8_4_14/php_8_4.wasm'; 
 export { dependencyFilename }; 
-export const dependenciesTotalSize = 19734332; 
-const phpVersionString = '8.4.12';
+export const dependenciesTotalSize = 22027719; 
+const phpVersionString = '8.4.14';
 export function init(RuntimeName, PHPLoader) {
     // The rest of the code comes from the built php.js file and esm-suffix.js
 var Module=typeof PHPLoader!="undefined"?PHPLoader:{};var ENVIRONMENT_IS_WEB=RuntimeName==="WEB";var ENVIRONMENT_IS_WORKER=RuntimeName==="WORKER";var ENVIRONMENT_IS_NODE=RuntimeName==="NODE";var moduleOverrides={...Module};var arguments_=[];var thisProgram="./this.program";var quit_=(status,toThrow)=>{throw toThrow};var scriptDirectory="";function locateFile(path){if(Module["locateFile"]){return Module["locateFile"](path,scriptDirectory)}return scriptDirectory+path}var readAsync,readBinary;if(ENVIRONMENT_IS_WEB||ENVIRONMENT_IS_WORKER){if(ENVIRONMENT_IS_WORKER){scriptDirectory=self.location.href}else if(typeof document!="undefined"&&document.currentScript){scriptDirectory=document.currentScript.src}if(scriptDirectory.startsWith("blob:")){scriptDirectory=""}else{scriptDirectory=scriptDirectory.slice(0,scriptDirectory.replace(/[?#].*/,"").lastIndexOf("/")+1)}{readAsync=async url=>{var response=await fetch(url,{credentials:"same-origin"});if(response.ok){return response.arrayBuffer()}throw new Error(response.status+" : "+response.url)}}}else{}var out=Module["print"]||console.log.bind(console);var err=Module["printErr"]||console.error.bind(console);Object.assign(Module,moduleOverrides);moduleOverrides=null;if(Module["arguments"])arguments_=Module["arguments"];if(Module["thisProgram"])thisProgram=Module["thisProgram"];
