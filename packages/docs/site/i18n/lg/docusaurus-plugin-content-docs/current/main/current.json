@@ -20,7 +20,7 @@
 		"description": "The label for category Contributing in sidebar mainSidebar"
 	},
 	"sidebar.blueprintsSidebar.category.Blueprints": {
-		"message": "Enteekateeka",
+		"message": "Blueprints",
 		"description": "The label for category Blueprints in sidebar blueprintsSidebar"
 	},
 	"sidebar.blueprintsSidebar.category.Tutorial": {
