@@ -756,6 +756,8 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "_php_stream_write_filtered",\
 "_php_stream_write",\
 "_php_stream_xport_create",\
+"_php_image_create_from",\
+"zif_imagecreatefromavif",\
 "_safe_emalloc",\
 "_try_convert_to_string",\
 "_zend_hash_init",\
