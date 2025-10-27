@@ -137,6 +137,118 @@ npx @wp-playground/cli@latest server --mount-before-install=.:/wordpress/
 No Windows, o formato de caminho `/host/path:/vfs/path` pode causar problemas. Para resolver isso, use as flags `--mount-dir` e `--mount-dir-before-install`. Estas flags permitem que você especifique caminhos do host e do sistema de arquivos virtual em um formato alternativo `"/host/path"` `"/vfs/path"`.
 :::
 
+<!-- ### Understanding Data Persistence and SQLite Location -->
+
+### Entendendo a Persistência de Dados e Localização do SQLite
+
+<!-- By default, Playground CLI stores WordPress files and the SQLite database in **temporary directories on your operating system**: -->
+
+Por padrão, o Playground CLI armazena arquivos WordPress e o banco de dados SQLite em **diretórios temporários no seu sistema operacional**:
+
+```
+<OS-TEMP-DIR>/playground-<random-id>/
+├── wordpress/          # Instalação WordPress
+├── internal/          # Configuração do runtime do Playground
+└── tmp/              # Arquivos temporários PHP
+```
+
+<!-- **Finding Your Temp Directory:** -->
+
+**Encontrando Seu Diretório Temporário:**
+
+<!-- The actual location depends on your OS (these are examples or common possibilities): -->
+
+A localização real depende do seu SO (estes são exemplos ou possibilidades comuns):
+
+<!-- -   **macOS/Linux**: May be under `/tmp/` or `/private/var/folders/` (varies by system) -->
+<!-- -   **Windows**: `C:\Users\<username>\AppData\Local\Temp\` -->
+
+-   **macOS/Linux**: Pode estar em `/tmp/` ou `/private/var/folders/` (varia por sistema)
+-   **Windows**: `C:\Users\<username>\AppData\Local\Temp\`
+
+<!-- To see the exact temp directory path being used, run the CLI with the `--verbosity=debug` flag: -->
+
+Para ver o caminho exato do diretório temporário sendo usado, execute o CLI com a flag `--verbosity=debug`:
+
+```bash
+npx @wp-playground/cli@latest server --verbosity=debug
+```
+
+<!-- This will output something like: -->
+
+Isso exibirá algo como:
+
+```
+Native temp dir for VFS root:
+/private/var/folders/c8/mwz12ycx4s509056kby3hk180000gn/T/node-playground-cli-site-62926--62926-yQNOdvJVIgYC
+Mount before WP install: /home ->
+/private/var/folders/c8/mwz12ycx4s509056kby3hk180000gn/T/node-playground-cli-site-62926--62926-yQNOdvJVIgYC/home
+Mount before WP install: /tmp ->
+/private/var/folders/c8/mwz12ycx4s509056kby3hk180000gn/T/node-playground-cli-site-62926--62926-yQNOdvJVIgYC/tmp
+Mount before WP install: /wordpress ->
+/private/var/folders/c8/mwz12ycx4s509056kby3hk180000gn/T/node-playground-cli-site-62926--62926-yQNOdvJVIgYC/wordpress
+```
+
+<!-- **Where is the SQLite Database Stored?** -->
+
+**Onde o Banco de Dados SQLite é Armazenado?**
+
+<!-- The database location depends on what you mount: -->
+
+A localização do banco de dados depende do que você montar:
+
+<!-- -   **Auto-mounting wp-content or full WordPress**: -->
+
+-   **Auto-montagem de wp-content ou WordPress completo**:
+
+    <!-- -   Database: `<your-local-project>/wp-content/database/.ht.sqlite` -->
+    <!-- -   ✅ **Persisted locally** in your project folder -->
+
+    -   Banco de dados: `<seu-projeto-local>/wp-content/database/.ht.sqlite`
+    -   ✅ **Persistido localmente** na pasta do seu projeto
+
+<!-- -   **Auto-mounting plugin/theme only**: -->
+
+-   **Auto-montagem apenas de plugin/tema**:
+
+    <!-- -   Database: `<OS-TEMP-DIR>/playground-<id>/wordpress/wp-content/database/.ht.sqlite` -->
+    <!-- -   ⚠️ **Lost when server stops** (temp directories are cleaned up) -->
+
+    -   Banco de dados: `<OS-TEMP-DIR>/playground-<id>/wordpress/wp-content/database/.ht.sqlite`
+    -   ⚠️ **Perdido quando o servidor para** (diretórios temporários são limpos)
+
+<!-- -   **Custom mounts**: Database location follows your mount configuration -->
+
+-   **Montagens personalizadas**: A localização do banco de dados segue sua configuração de montagem
+
+<!-- **Automatic Cleanup:** -->
+
+**Limpeza Automática:**
+
+<!-- Playground CLI automatically removes temp directories that are: -->
+
+O Playground CLI remove automaticamente diretórios temporários que são:
+
+<!-- -   Older than 2 days -->
+<!-- -   No longer associated with a running process -->
+
+-   Mais antigos que 2 dias
+-   Não mais associados com um processo em execução
+
+<!-- **Recommendation:** To persist both your code and database when developing plugins or themes, mount the entire `wp-content` directory instead of just the plugin/theme folder. -->
+
+**Recomendação:** Para persistir tanto seu código quanto o banco de dados ao desenvolver plugins ou temas, monte o diretório `wp-content` inteiro em vez de apenas a pasta do plugin/tema.
+
+<!-- **Example: Mounting wp-content for persistence** -->
+
+**Exemplo: Montando wp-content para persistência**
+
+```bash
+# Mount your entire wp-content directory
+cd my-wordpress-project
+npx @wp-playground/cli@latest server --mount=./wp-content:/wordpress/wp-content
+```
+
 <!-- ## Command and Arguments -->
 
 ## Comandos e Argumentos
@@ -195,10 +307,150 @@ O comando `server` suporta os seguintes argumentos opcionais:
 
 ## Precisa de ajuda com o CLI?
 
-<!-- With the Playground CLI, you can use the `--help` to get some support about the available commands. -->
+<!-- With the Playground CLI, you can use the `--help` flag to get the full list of available commands and arguments. -->
 
-Com o Playground CLI, você pode usar `--help` para obter suporte sobre os comandos disponíveis.
+Com o Playground CLI, você pode usar a flag `--help` para obter a lista completa de comandos e argumentos disponíveis.
 
 ```bash
 npx @wp-playground/cli@latest --help
+```
+
+<!-- ## Programmatic Usage with JavaScript -->
+
+## Uso Programático com JavaScript
+
+<!-- The Playground CLI can also be controlled programmatically from your JavaScript/TypeScript code using the `runCLI` function. This gives you direct access to all CLI functionalities within your code, which is useful for automating end-to-end tests. Let's cover the basics of using `runCLI`. -->
+
+O Playground CLI também pode ser controlado programaticamente a partir do seu código JavaScript/TypeScript usando a função `runCLI`. Isso fornece acesso direto a todas as funcionalidades do CLI dentro do seu código, o que é útil para automatizar testes end-to-end. Vamos cobrir o básico do uso de `runCLI`.
+
+<!-- ### Running a WordPress instance with a specific version -->
+
+### Executando uma instância WordPress com uma versão específica
+
+<!-- Using the `runCLI` function, you can specify options like the PHP and WordPress versions. In the example below, we request PHP 8.3, the latest version of WordPress, and to be automatically logged in. All supported arguments are defined in the `RunCLIArgs` type. -->
+
+Usando a função `runCLI`, você pode especificar opções como as versões do PHP e WordPress. No exemplo abaixo, solicitamos PHP 8.3, a versão mais recente do WordPress, e para fazer login automaticamente. Todos os argumentos suportados são definidos no tipo `RunCLIArgs`.
+
+```TypeScript
+import { runCLI, RunCLIArgs, RunCLIServer } from "@wp-playground/cli";
+
+let cliServer: RunCLIServer;
+
+cliServer = await runCLI({
+    command: 'server',
+    php: '8.3',
+    wp: 'latest',
+    login: true
+} as RunCLIArgs);
+```
+
+<!-- To execute the code above, the developer can set their preferred method. A simple way to execute this code is to save it as a `.ts` file and run it with a tool like `tsx`. For example: `tsx my-script.ts` -->
+
+Para executar o código acima, o desenvolvedor pode definir seu método preferido. Uma maneira simples de executar este código é salvá-lo como um arquivo `.ts` e executá-lo com uma ferramenta como `tsx`. Por exemplo: `tsx meu-script.ts`
+
+<!-- ### Setting a Blueprint -->
+
+### Definindo um Blueprint
+
+<!-- You can provide a blueprint in two ways: either as an object literal directly passed to the `blueprint` property, or as a string containing the path to an external `.json` file. -->
+
+Você pode fornecer um blueprint de duas maneiras: como um objeto literal passado diretamente para a propriedade `blueprint`, ou como uma string contendo o caminho para um arquivo `.json` externo.
+
+```TypeScript
+import { runCLI, RunCLIServer } from "@wp-playground/cli";
+
+let cliServer: RunCLIServer;
+
+cliServer = await runCLI({
+  command: 'server',
+  wp: 'latest',
+  blueprint: {
+    steps: [
+        {
+          "step": "setSiteOptions",
+          "options": {
+              "blogname": "Blueprint Title",
+              "blogdescription": "A great blog description"
+          }
+        }
+    ],
+  },
+});
+```
+
+<!-- For full type-safety when defining your blueprint object, you can import and use the `BlueprintDeclaration` type from the `@wp-playground/blueprints` package: -->
+
+Para total segurança de tipo ao definir seu objeto blueprint, você pode importar e usar o tipo `BlueprintDeclaration` do pacote `@wp-playground/blueprints`:
+
+```TypeScript
+import type { BlueprintDeclaration } from '@wp-playground/blueprints';
+
+const myBlueprint: BlueprintDeclaration = {
+  landingPage: "/wp-admin/",
+  steps: [
+    {
+      "step": "installTheme",
+      "themeData": {
+        "resource": "wordpress.org/themes",
+        "slug": "twentytwentyone"
+      },
+      "options": {
+        "activate": true
+      }
+    }
+  ]
+};
+```
+
+<!-- ### Mounting a plugin programmatically -->
+
+### Montando um plugin programaticamente
+
+<!-- It is possible to mount local directories programmatically using `runCLI`. The options `mount` and `mount-before-install` are available. The `hostPath` property expects a path to a directory on your local machine. This path should be relative to where your script is being executed. -->
+
+É possível montar diretórios locais programaticamente usando `runCLI`. As opções `mount` e `mount-before-install` estão disponíveis. A propriedade `hostPath` espera um caminho para um diretório na sua máquina local. Este caminho deve ser relativo a onde seu script está sendo executado.
+
+```TypeScript
+	cliServer = await runCLI({
+      command: 'server',
+      login: true,
+      'mount-before-install': [
+        {
+          hostPath: './[my-plugin-local-path]',
+          vfsPath: '/wordpress/wp-content/plugins/my-plugin',
+        },
+      ],
+    });
+```
+
+<!-- With those options we can combine mounting parts of the project with blueprints, for example: -->
+
+Com essas opções podemos combinar a montagem de partes do projeto com blueprints, por exemplo:
+
+```TypeScript
+
+import { runCLI, RunCLIArgs, RunCLIServer } from "@wp-playground/cli";
+
+let cliServer: RunCLIServer;
+
+cliServer = await runCLI({
+    command: 'server',
+    php: '8.3',
+    wp: 'latest',
+    login: true,
+    mount: [
+        {
+            "hostPath": "./plugin/",
+            "vfsPath": "/wordpress/wp-content/plugins/playwright-test"
+        }
+    ],
+    blueprint: {
+        steps: [
+            {
+                "step": "activatePlugin",
+                "pluginPath": "/wordpress/wp-content/plugins/playwright-test/plugin-playwright.php"
+            }
+        ]
+    }
+} as RunCLIArgs);
 ```
