@@ -60,17 +60,22 @@ export default function BrowserChrome({
 					<div className={addressBarClass}>
 						{showAddressBar && (
 							<Button
-								className={css.refreshButton}
+								variant="browser-chrome"
 								aria-label="Refresh"
 								onClick={() => {
 									if (clientInfo && url) {
 										clientInfo.client.goTo(url);
 									}
 								}}
+								style={{
+									fill: '#FFF',
+									alignItems: 'center',
+									display: 'flex',
+								}}
 							>
 								<svg
-									width="20"
-									height="20"
+									width="24"
+									height="24"
 									viewBox="0 0 24 24"
 									fill="none"
 									xmlns="http://www.w3.org/2000/svg"

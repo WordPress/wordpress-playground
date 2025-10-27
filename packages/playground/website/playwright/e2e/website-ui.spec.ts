@@ -67,6 +67,50 @@ test('should reflect the URL update from the navigation bar in the WordPress sit
 	);
 });
 
+test('should refresh the WordPress site when clicking the refresh button', async ({
+	website,
+	wordpress,
+}) => {
+	// Navigate to a page that we can verify was refreshed
+	const blueprint: Blueprint = {
+		landingPage: '/test-refresh.php',
+		steps: [
+			{
+				step: 'writeFile',
+				path: '/wordpress/test-refresh.php',
+				data: '<?php echo "Initial Load: " . time(); ?>',
+			},
+		],
+	};
+	await website.goto(`./#${JSON.stringify(blueprint)}`);
+	await website.ensureSiteManagerIsClosed();
+
+	// Get the initial content
+	const initialContent = await wordpress.locator('body').textContent();
+	expect(initialContent).toMatch(/Initial Load: \d+/);
+
+	// Wait a moment to ensure the timestamp will be different
+	await website.page.waitForTimeout(1000);
+
+	// Click the refresh button
+	const refreshButton = website.page.getByLabel('Refresh');
+	await expect(refreshButton).toBeVisible();
+	await refreshButton.click();
+
+	// Wait for WordPress to reload
+	await website.waitForNestedIframes();
+
+	// Verify the page was refreshed by checking the timestamp changed
+	const refreshedContent = await wordpress.locator('body').textContent();
+	expect(refreshedContent).toMatch(/Initial Load: \d+/);
+	expect(refreshedContent).not.toBe(initialContent);
+
+	// Verify the URL in the address bar stayed the same
+	await expect(website.page.locator('input[name="url"]')).toHaveValue(
+		'/test-refresh.php'
+	);
+});
+
 test('should correctly load /wp-admin without the trailing slash', async ({
 	website,
 	browserName,
