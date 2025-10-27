@@ -1,7 +1,7 @@
 ---
 slug: /contributing/coding-standards
 title: Empisa z'okuwandiika koodi
-description: Eno etegeeza ku mpisa z'okuwandiika koodi mu Playground, ng'essinziira ku bubaka bw'ensobi obuyamba, API ennono, ne Blueprints.
+description: Jino jilambika ku mpandiika ya koodi mu playground era gyogera ku bubaka obujja nga waliwo ensobi, API y'olukale, Ebizimbe ebilaborwako.
 ---
 
 # Emisingi gy'Empandiika ya Koodi
