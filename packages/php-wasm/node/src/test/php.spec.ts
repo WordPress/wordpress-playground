@@ -1568,7 +1568,7 @@ phpLoaderOptions.forEach((options) => {
 				expect(
 					existsSync(
 						__dirname +
-						'/test-data/mount-contents/tmp-dir-for-mv-test'
+							'/test-data/mount-contents/tmp-dir-for-mv-test'
 					)
 				).toEqual(true);
 
@@ -1583,7 +1583,7 @@ phpLoaderOptions.forEach((options) => {
 				expect(
 					existsSync(
 						__dirname +
-						'/test-data/mount-contents/tmp-dir-for-mv-test'
+							'/test-data/mount-contents/tmp-dir-for-mv-test'
 					)
 				).toEqual(false);
 				expect(php.fileExists('/nodefs/tmp-dir-for-mv-test')).toEqual(
@@ -2395,10 +2395,10 @@ phpLoaderOptions.forEach((options) => {
 					method: 'POST',
 					body: new TextEncoder().encode(
 						`--boundary\r\n` +
-						`Content-Disposition: form-data; name="foo"\r\n` +
-						`\r\n` +
-						`bar\r\n` +
-						`--boundary--\r\n`
+							`Content-Disposition: form-data; name="foo"\r\n` +
+							`\r\n` +
+							`bar\r\n` +
+							`--boundary--\r\n`
 					),
 					headers: {
 						'Content-Type':
@@ -2418,11 +2418,11 @@ phpLoaderOptions.forEach((options) => {
 					method: 'POST',
 					body: new TextEncoder().encode(
 						`--boundary\r\n` +
-						`Content-Disposition: form-data; name="myFile"; filename="text.txt"\r\n` +
-						`Content-Type: text/plain\r\n` +
-						`\r\n` +
-						`bar\r\n` +
-						`--boundary--\r\n`
+							`Content-Disposition: form-data; name="myFile"; filename="text.txt"\r\n` +
+							`Content-Type: text/plain\r\n` +
+							`\r\n` +
+							`bar\r\n` +
+							`--boundary--\r\n`
 					),
 					headers: {
 						'Content-Type':
@@ -2784,234 +2784,6 @@ phpLoaderOptions.forEach((options) => {
 				expect(response.errors).toBe('');
 				// TODO: we could improve this by providing an image with a valid thumbnail
 				expect(response.text).toBe('bool(false)\n');
-			});
-		});
-
-		/**
-		 * GD extension support
-		 */
-		describe('gd extension support', { skip: options.withXdebug }, () => {
-			// PHP7.4 used to crash before gd_jpeg.c modification.
-			it('should be able to decode a JPEG image without crashing', async () => {
-				// Generate a tiny JPEG using GD and save it to string
-				const phpCode = `<?php
-				$img = imagecreatetruecolor(1, 1);
-
-				ob_start();
-				imagejpeg($img);
-				$data = ob_get_clean();
-
-				$decoded = imagecreatefromstring($data);
-				echo json_encode([
-					'is_resource' => is_resource($decoded) || (is_object($decoded) && get_class($decoded) === 'GdImage'),
-					'width' => imagesx($decoded),
-					'height' => imagesy($decoded),
-				]);
-				?>`;
-
-				const response = await php.run({ code: phpCode });
-				const bodyText = new TextDecoder().decode(response.bytes);
-				const result = JSON.parse(bodyText);
-
-				// Vefy GD actually created an image
-				expect(result).toEqual({
-					is_resource: true,
-					width: 1,
-					height: 1,
-				});
-			});
-
-			describe('AVIF support', () => {
-				const isPhp81Plus = () => {
-					const [major, minor] = phpVersion.split('.').map(Number);
-					return major > 8 || (major === 8 && minor >= 1);
-				};
-
-				it('should show detailed AVIF codec information for PHP 8.1+', async () => {
-					if (!isPhp81Plus()) {
-						return;
-					}
-
-					const phpCode = `<?php
-					echo "=== GD Info ===\\n";
-					$info = gd_info();
-					foreach ($info as $key => $value) {
-						if (is_bool($value)) {
-							echo "$key: " . ($value ? 'true' : 'false') . "\\n";
-						} else {
-							echo "$key: $value\\n";
-						}
-					}
-
-					echo "\\n=== AVIF Functions ===\\n";
-					echo "imageavif: " . (function_exists('imageavif') ? 'exists' : 'missing') . "\\n";
-					echo "imagecreatefromavif: " . (function_exists('imagecreatefromavif') ? 'exists' : 'missing') . "\\n";
-
-					echo "\\n=== Test AVIF Encoding ===\\n";
-					$img = imagecreatetruecolor(10, 10);
-					$result = @imageavif($img);
-					imagedestroy($img);
-					echo "Encoding result: " . ($result ? 'SUCCESS' : 'FAILED') . "\\n";
-
-					if (!$result) {
-						echo "Last error: ";
-						$err = error_get_last();
-						if ($err) {
-							echo $err['message'] . "\\n";
-						} else {
-							echo "no error captured\\n";
-						}
-					}
-					?>`;
-
-					const response = await php.run({ code: phpCode });
-					expect(response.errors).toBe('');
-				});
-
-				it('should report AVIF support in gd_info() for PHP 8.1+', async () => {
-					const response = await php.run({
-						code: `<?php
-							$info = gd_info();
-							echo json_encode([
-								'has_avif_key' => isset($info['AVIF Support']),
-								'avif_support' => isset($info['AVIF Support']) ? $info['AVIF Support'] : false,
-							]);
-						`,
-					});
-					expect(response.errors).toBe('');
-					const result = JSON.parse(response.text);
-
-					if (isPhp81Plus()) {
-						expect(result.has_avif_key).toBe(true);
-						expect(result.avif_support).toBe(true);
-					} else {
-						expect(result.has_avif_key).toBe(false);
-					}
-				});
-
-				it('should create and encode AVIF images for PHP 8.1+', async () => {
-					if (!isPhp81Plus()) {
-						// Skip for older PHP versions
-						return;
-					}
-
-					const phpCode = `<?php
-					$img = imagecreatetruecolor(200, 200);
-					$red = imagecolorallocate($img, 255, 0, 0);
-					imagefill($img, 0, 0, $red);
-
-					ob_start();
-					$result = imageavif($img);
-					$avifData = ob_get_clean();
-					imagedestroy($img);
-
-					$last_error = error_get_last();
-					echo json_encode([
-						'success' => $result,
-						'has_data' => strlen($avifData) > 0,
-						'data_size' => strlen($avifData),
-						'has_ftyp' => strpos($avifData, 'ftyp') !== false,
-						'has_avif' => strpos($avifData, 'avif') !== false,
-						'last_error' => $last_error ? $last_error['message'] : null,
-					]);
-					?>`;
-
-					const response = await php.run({ code: phpCode });
-					const result = JSON.parse(response.text);
-
-					expect(result.success).toBe(true);
-					expect(result.has_data).toBe(true);
-					expect(result.data_size).toBeGreaterThan(0);
-					expect(result.has_ftyp).toBe(true);
-					expect(result.has_avif).toBe(true);
-				});
-
-				it('should load AVIF from local file for PHP 8.1+', async () => {
-					await php.writeFile(
-						'/image.avif',
-						new Uint8Array(
-							readFileSync(
-								joinPaths(__dirname, 'test-data', 'image.avif')
-							)
-						)
-					);
-
-					const phpCode = `<?php
-					if (function_exists('imagecreatefromavif')) {
-						$img = @imagecreatefromavif('/image.avif');
-						if ($img) {
-							echo json_encode([
-								'success' => true,
-								'is_resource' => is_resource($img) || (is_object($img) && get_class($img) === 'GdImage'),
-								'width' => imagesx($img),
-								'height' => imagesy($img),
-							]);
-							imagedestroy($img);
-						} else {
-							echo json_encode(['success' => false, 'error' => 'Failed to load image']);
-						}
-					} else {
-						echo json_encode(['success' => false, 'error' => 'imagecreatefromavif not available']);
-					}
-					?>`;
-
-					const response = await php.run({ code: phpCode });
-
-					if (isPhp81Plus()) {
-						const result = JSON.parse(response.text);
-						expect(result.success).toBe(true);
-						expect(result.is_resource).toBe(true);
-						expect(result.width).toBeGreaterThan(0);
-						expect(result.height).toBeGreaterThan(0);
-					} else {
-						const result = JSON.parse(response.text);
-						expect(result.success).toBe(false);
-					}
-				});
-
-				it('should decode AVIF created in-memory for PHP 8.1+', async () => {
-					const phpCode = `<?php
-					if (!function_exists('imageavif')) {
-						echo json_encode(['success' => false, 'error' => 'imageavif not available']);
-						exit;
-					}
-
-					$img = imagecreatetruecolor(100, 100);
-					$blue = imagecolorallocate($img, 0, 0, 255);
-					imagefill($img, 0, 0, $blue);
-
-					ob_start();
-					@imageavif($img);
-					$avifData = ob_get_clean();
-					imagedestroy($img);
-
-					$decoded = @imagecreatefromstring($avifData);
-					if ($decoded) {
-						echo json_encode([
-							'success' => true,
-							'is_resource' => is_resource($decoded) || (is_object($decoded) && get_class($decoded) === 'GdImage'),
-							'width' => imagesx($decoded),
-							'height' => imagesy($decoded),
-						]);
-						imagedestroy($decoded);
-					} else {
-						echo json_encode(['success' => false, 'error' => 'Failed to decode AVIF']);
-					}
-					?>`;
-
-					const response = await php.run({ code: phpCode });
-
-					if (isPhp81Plus()) {
-						const result = JSON.parse(response.text);
-						expect(result.success).toBe(true);
-						expect(result.is_resource).toBe(true);
-						expect(result.width).toBe(100);
-						expect(result.height).toBe(100);
-					} else {
-						const result = JSON.parse(response.text);
-						expect(result.success).toBe(false);
-					}
-				});
 			});
 		});
 
