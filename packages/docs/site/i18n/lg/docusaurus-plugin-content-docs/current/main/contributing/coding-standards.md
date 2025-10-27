@@ -10,7 +10,7 @@ description: Jino jilambika ku mpandiika ya koodi mu playground era gyogera ku b
 # Coding principles
 -->
 
-## Obubaka bw'ensobi
+## Obubaka nga waliwo Ensobi
 
 <!--
 ## Error messages
