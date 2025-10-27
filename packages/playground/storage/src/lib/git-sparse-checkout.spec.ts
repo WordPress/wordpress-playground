@@ -97,7 +97,7 @@ describe('resolveCommitHash', () => {
 });
 
 describe('sparseCheckout', () => {
-	it('should retrieve the requested files from a git repo', async () => {
+	it('should retrieve the requested files and objects from a git repo when withObjects is true', async () => {
 		const commitHash = await resolveCommitHash(
 			'https://github.com/WordPress/wordpress-playground.git',
 			{
@@ -105,15 +105,47 @@ describe('sparseCheckout', () => {
 				type: 'branch',
 			}
 		);
-		const files = await sparseCheckout(
+		const result = await sparseCheckout(
 			'https://github.com/WordPress/wordpress-playground.git',
 			commitHash,
-			['README.md']
+			['README.md'],
+			{
+				withObjects: true,
+			}
 		);
-		expect(files).toEqual({
+		expect(result.files).toEqual({
 			'README.md': expect.any(Uint8Array),
 		});
-		expect(files['README.md'].length).toBeGreaterThan(0);
+		expect(result.files['README.md'].length).toBeGreaterThan(0);
+		expect(result.packfiles?.length).toBeGreaterThan(0);
+		expect(result.packfiles?.some((packfile) => packfile.promisor)).toBe(
+			true
+		);
+		expect(result.objects?.length).toBeGreaterThan(0);
+	});
+
+	it('should retrieve only the requested files from a git repo when withObjects is false', async () => {
+		const commitHash = await resolveCommitHash(
+			'https://github.com/WordPress/wordpress-playground.git',
+			{
+				value: 'trunk',
+				type: 'branch',
+			}
+		);
+		const result = await sparseCheckout(
+			'https://github.com/WordPress/wordpress-playground.git',
+			commitHash,
+			['README.md'],
+			{
+				withObjects: false,
+			}
+		);
+		expect(result.files).toEqual({
+			'README.md': expect.any(Uint8Array),
+		});
+		expect(result.files['README.md'].length).toBeGreaterThan(0);
+		expect(result.packfiles).toBeUndefined();
+		expect(result.objects).toBeUndefined();
 	});
 });
 

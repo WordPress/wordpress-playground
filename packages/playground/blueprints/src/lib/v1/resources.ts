@@ -16,6 +16,7 @@ import { zipNameToHumanName } from '../utils/zip-name-to-human-name';
 import { fetchWithCorsProxy } from '@php-wasm/web';
 import { StreamedFile } from '@php-wasm/stream-compression';
 import type { StreamBundledFile } from './types';
+import { createDotGitDirectory } from '@wp-playground/storage';
 
 export type { FileTree };
 export const ResourceTypes = [
@@ -74,6 +75,8 @@ export type GitDirectoryReference = {
 	refType?: GitDirectoryRefType;
 	/** The path to the directory in the git repository. Defaults to the repo root. */
 	path?: string;
+	/** When true, include a `.git` directory with Git metadata (experimental). */
+	'.git'?: boolean;
 };
 export interface Directory {
 	files: FileTree;
@@ -579,12 +582,35 @@ export class GitDirectoryResource extends Resource<Directory> {
 
 		const requestedPath = (this.reference.path ?? '').replace(/^\/+/, '');
 		const filesToClone = listDescendantFiles(allFiles, requestedPath);
-		let files = await sparseCheckout(repoUrl, commitHash, filesToClone);
+		const checkout = await sparseCheckout(
+			repoUrl,
+			commitHash,
+			filesToClone,
+			{
+				withObjects: this.reference['.git'],
+			}
+		);
+		let files = checkout.files;
 
 		// Remove the path prefix from the cloned file names.
 		files = mapKeys(files, (name) =>
 			name.substring(requestedPath.length).replace(/^\/+/, '')
 		);
+		if (this.reference['.git']) {
+			const gitFiles = await createDotGitDirectory({
+				repoUrl: this.reference.url,
+				commitHash,
+				ref: this.reference.ref,
+				refType: this.reference.refType,
+				objects: checkout.objects ?? [],
+				fileOids: checkout.fileOids ?? {},
+				pathPrefix: requestedPath,
+			});
+			files = {
+				...gitFiles,
+				...files,
+			};
+		}
 		return {
 			name: this.filename,
 			files,

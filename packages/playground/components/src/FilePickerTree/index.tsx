@@ -89,6 +89,7 @@ export type FilePickerTreeProps = {
 	root?: string; // default '/wordpress'
 	initialSelectedPath?: string;
 	onSelect?: (path: string | null) => void;
+	onDoubleClickFile?: (path: string) => void;
 };
 
 export type FilePickerTreeHandle = {
@@ -161,6 +162,7 @@ export const FilePickerTree = forwardRef<
 		root = '/wordpress',
 		initialSelectedPath,
 		onSelect = () => {},
+		onDoubleClickFile,
 	},
 	ref
 ) {
@@ -239,6 +241,10 @@ export const FilePickerTree = forwardRef<
 		) as HTMLElement | null;
 		if (focusTarget && typeof focusTarget.focus === 'function') {
 			focusTarget.focus();
+			focusTarget.scrollIntoView({
+				behavior: 'smooth',
+				block: 'nearest',
+			});
 		}
 	};
 
@@ -267,7 +273,22 @@ export const FilePickerTree = forwardRef<
 			results.push({ name, type: isDirectory ? 'folder' : 'file' });
 		}
 		results.sort((a, b) => {
+			// First, sort by type (folders before files)
 			if (a.type !== b.type) return a.type === 'folder' ? -1 : 1;
+
+			// Within same type, prioritize pending create item
+			const aPath =
+				basePath === '/' ? `/${a.name}` : `${basePath}/${a.name}`;
+			const bPath =
+				basePath === '/' ? `/${b.name}` : `${basePath}/${b.name}`;
+			const pendingPath = pendingCreateRef.current?.tempPath;
+
+			if (pendingPath) {
+				if (aPath === pendingPath) return -1;
+				if (bPath === pendingPath) return 1;
+			}
+
+			// Otherwise, sort alphabetically
 			return a.name.localeCompare(b.name);
 		});
 		return results as FileNode[];
@@ -598,17 +619,8 @@ export const FilePickerTree = forwardRef<
 		if (effectiveRenamingPath && effectiveRenamingPath === focusedPath) {
 			return;
 		}
-		if (false) {
-			return;
-		}
 		focusDomNode(focusedPath);
-	}, [
-		treeFiles,
-		focusedPath,
-		generatePath,
-		effectiveRenamingPath,
-		focusDomNode,
-	]);
+	}, [treeFiles, focusedPath, effectiveRenamingPath]);
 
 	useEffect(() => {
 		if (treeFiles.length === 0) {
@@ -642,6 +654,26 @@ export const FilePickerTree = forwardRef<
 			clearAllDragExpandTimeouts();
 		};
 	}, []);
+
+	/**
+	 * Wait for the context menu (right-click menu) to render, then focus the
+	 * first menu item (e.g. "Rename"). This is similar to how VS Code works.
+	 */
+	useEffect(() => {
+		if (contextMenu) {
+			setTimeout(() => {
+				const firstMenuItem = document.querySelector(
+					'[role="menu"] [role="menuitem"]'
+				) as HTMLElement | null;
+				if (
+					firstMenuItem &&
+					typeof firstMenuItem.focus === 'function'
+				) {
+					firstMenuItem.focus();
+				}
+			}, 0);
+		}
+	}, [contextMenu]);
 
 	const [searchBuffer, setSearchBuffer] = useState('');
 
@@ -1084,6 +1116,11 @@ export const FilePickerTree = forwardRef<
 	};
 
 	const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+		// Skip type-ahead when renaming to avoid interfering with rename input
+		if (renamingAbsolutePath) {
+			return;
+		}
+
 		if (event.key.length === 1 && event.key.match(/\S/)) {
 			const newSearchBuffer = searchBuffer + event.key.toLowerCase();
 			setSearchBuffer(newSearchBuffer);
@@ -1164,10 +1201,15 @@ export const FilePickerTree = forwardRef<
 		let candidateNormalized = candidate;
 		if (candidateNormalized === path) {
 			setRenamingAbsolutePath(null);
+			const wasFileCreate = isPending && pending?.type === 'file';
 			if (isPending) pendingCreateRef.current = null;
 			setTimeout(() => {
 				setFocusedPath(candidateNormalized);
 				focusDomNode(candidateNormalized);
+				// We've just saved a new file, immediately open it in the code editor.
+				if (wasFileCreate && onDoubleClickFile) {
+					onDoubleClickFile(candidateNormalized);
+				}
 			}, 0);
 			return;
 		}
@@ -1206,6 +1248,10 @@ export const FilePickerTree = forwardRef<
 			await refreshChildren(parent);
 			setFocusedPath(candidateNormalized);
 			focusDomNode(candidateNormalized);
+			// If this was a newly created file, open it in the editor
+			if (isPending && !candidateIsDir && onDoubleClickFile) {
+				onDoubleClickFile(candidateNormalized);
+			}
 		} catch {
 			if (isPending) {
 				try {
@@ -1279,6 +1325,7 @@ export const FilePickerTree = forwardRef<
 						onDragLeave={handleNodeDragLeave}
 						onDrop={handleNodeDrop}
 						rootPath={normalizedRoot}
+						onDoubleClickFile={onDoubleClickFile}
 					/>
 				))}
 			</TreeGrid>
@@ -1408,6 +1455,7 @@ const NodeRow: React.FC<{
 	) => void;
 	onDrop?: (event: React.DragEvent, node: FileNode, path: string) => void;
 	rootPath: string;
+	onDoubleClickFile?: (path: string) => void;
 }> = ({
 	node,
 	level,
@@ -1434,6 +1482,7 @@ const NodeRow: React.FC<{
 	onDragLeave,
 	onDrop,
 	rootPath,
+	onDoubleClickFile,
 }) => {
 	const path = generatePath(node, parentPath);
 	const isExpanded = expandedNodePaths[path];
@@ -1446,6 +1495,7 @@ const NodeRow: React.FC<{
 	const isDropTargetInvalid =
 		isDropTarget && dropIndicator?.state === 'invalid';
 	const isDraggable = !isRenaming && path !== rootPath;
+	const clickTimeoutRef = useRef<number | null>(null);
 
 	const dragHandlers = {
 		onDragEnter: (event: React.DragEvent) =>
@@ -1462,8 +1512,8 @@ const NodeRow: React.FC<{
 		if (isRenaming) {
 			setRenameValue(node.name);
 			renameHandledRef.current = false;
-			if (typeof window !== 'undefined' && window.requestAnimationFrame) {
-				window.requestAnimationFrame(() => {
+			if (typeof window !== 'undefined' && requestAnimationFrame) {
+				requestAnimationFrame(() => {
 					renameInputRef.current?.select();
 				});
 			} else {
@@ -1521,14 +1571,20 @@ const NodeRow: React.FC<{
 			}
 			event.preventDefault();
 		} else if (event.key === 'Enter') {
-			selectPath(path);
-			focusPath(path);
-			const form = (event.currentTarget as HTMLElement)?.closest('form');
-			if (form) {
-				setTimeout(() => {
-					form.dispatchEvent(new Event('submit', { bubbles: true }));
-				});
+			if (node.type === 'folder') {
+				// For folders, toggle open/closed
+				onToggle(path, node, !isExpanded);
+			} else {
+				// For files, behave like double-click: open with focus
+				selectPath(path, false); // Update visual selection
+				focusPath(path);
+				if (onDoubleClickFile) {
+					onDoubleClickFile(path); // Open file and move focus to editor
+				} else {
+					selectPath(path, true); // Fallback behavior
+				}
 			}
+			event.preventDefault();
 		}
 	};
 
@@ -1568,6 +1624,52 @@ const NodeRow: React.FC<{
 		}
 		renameHandledRef.current = false;
 	};
+
+	const handleClick = () => {
+		// Folders – collapse or expand immediately
+		if (node.type === 'folder') {
+			toggleOpen();
+			selectPath(path);
+			focusPath(path);
+			return;
+		}
+
+		const wasWaitingForDoubleClick = clickTimeoutRef.current !== null;
+		if (wasWaitingForDoubleClick && clickTimeoutRef.current) {
+			clearTimeout(clickTimeoutRef.current);
+		}
+		clickTimeoutRef.current = null;
+
+		if (wasWaitingForDoubleClick) {
+			if (onDoubleClickFile) {
+				onDoubleClickFile(path);
+			} else {
+				selectPath(path, true);
+			}
+			return;
+		}
+
+		// Single click: update selection, keep focus in the tree, and open the file.
+		selectPath(path, false);
+		focusPath(path);
+		selectPath(path, true);
+
+		clickTimeoutRef.current = window.setTimeout(() => {
+			clickTimeoutRef.current = null;
+		}, 300);
+	};
+
+	// Cleanup timeout on unmount
+	useEffect(() => {
+		return () => {
+			if (
+				clickTimeoutRef.current !== null &&
+				typeof window !== 'undefined'
+			) {
+				clearTimeout(clickTimeoutRef.current);
+			}
+		};
+	}, []);
 
 	return (
 		<>
@@ -1631,13 +1733,7 @@ const NodeRow: React.FC<{
 									onDragEnd={(event: any) =>
 										onDragEnd?.(event, node, path)
 									}
-									onClick={() => {
-										if (node.type === 'folder') {
-											toggleOpen();
-										}
-										selectPath(path);
-										focusPath(path);
-									}}
+									onClick={handleClick}
 									onKeyDown={handleKeyDown}
 									onFocus={() => {
 										focusPath(path);
@@ -1645,6 +1741,7 @@ const NodeRow: React.FC<{
 									onContextMenu={handleContextMenu}
 									className={classNames(
 										css['fileNodeButton'],
+										'file-node-button',
 										{
 											[css['selected']]:
 												selectedNode === path,
@@ -1704,6 +1801,7 @@ const NodeRow: React.FC<{
 						onDragLeave={onDragLeave}
 						onDrop={onDrop}
 						rootPath={rootPath}
+						onDoubleClickFile={onDoubleClickFile}
 					/>
 				))}
 		</>

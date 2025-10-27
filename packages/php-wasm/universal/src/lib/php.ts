@@ -1147,7 +1147,9 @@ export class PHP implements Disposable {
 	 * @param  path - The directory path to create.
 	 */
 	mkdir(path: string) {
-		return FSHelpers.mkdir(this[__private__dont__use].FS, path);
+		const result = FSHelpers.mkdir(this[__private__dont__use].FS, path);
+		this.dispatchEvent({ type: 'filesystem.write' });
+		return result;
 	}
 
 	/**
@@ -1187,7 +1189,13 @@ export class PHP implements Disposable {
 	 * @param  data - The data to write to the file.
 	 */
 	writeFile(path: string, data: string | Uint8Array) {
-		return FSHelpers.writeFile(this[__private__dont__use].FS, path, data);
+		const result = FSHelpers.writeFile(
+			this[__private__dont__use].FS,
+			path,
+			data
+		);
+		this.dispatchEvent({ type: 'filesystem.write' });
+		return result;
 	}
 
 	/**
@@ -1197,7 +1205,9 @@ export class PHP implements Disposable {
 	 * @param  path - The file path to remove.
 	 */
 	unlink(path: string) {
-		return FSHelpers.unlink(this[__private__dont__use].FS, path);
+		const result = FSHelpers.unlink(this[__private__dont__use].FS, path);
+		this.dispatchEvent({ type: 'filesystem.write' });
+		return result;
 	}
 
 	/**
@@ -1208,7 +1218,13 @@ export class PHP implements Disposable {
 	 * @param newPath The new path.
 	 */
 	mv(fromPath: string, toPath: string) {
-		return FSHelpers.mv(this[__private__dont__use].FS, fromPath, toPath);
+		const result = FSHelpers.mv(
+			this[__private__dont__use].FS,
+			fromPath,
+			toPath
+		);
+		this.dispatchEvent({ type: 'filesystem.write' });
+		return result;
 	}
 
 	/**
@@ -1218,7 +1234,13 @@ export class PHP implements Disposable {
 	 * @param options Options for the removal.
 	 */
 	rmdir(path: string, options: RmDirOptions = { recursive: true }) {
-		return FSHelpers.rmdir(this[__private__dont__use].FS, path, options);
+		const result = FSHelpers.rmdir(
+			this[__private__dont__use].FS,
+			path,
+			options
+		);
+		this.dispatchEvent({ type: 'filesystem.write' });
+		return result;
 	}
 
 	/**

@@ -25,14 +25,12 @@ import {
 	supportedDisplayModes,
 	PlaygroundViewport,
 } from '../playground-viewport';
-import {
-	setActiveModal,
-	setSiteManagerOpen,
-} from '../../lib/state/redux/slice-ui';
+import { setActiveModal } from '../../lib/state/redux/slice-ui';
 import { ImportFormModal } from '../import-form-modal';
 import { PreviewPRModal } from '../../github/preview-pr';
 import { MissingSiteModal } from '../missing-site-modal';
 import { RenameSiteModal } from '../rename-site-modal';
+import { SaveSiteModal } from '../save-site-modal';
 
 acquireOAuthTokenIfNeeded();
 
@@ -47,6 +45,7 @@ export const modalSlugs = {
 	PREVIEW_PR_GUTENBERG: 'preview-pr-gutenberg',
 	MISSING_SITE_PROMPT: 'missing-site-prompt',
 	RENAME_SITE: 'rename-site',
+	SAVE_SITE: 'save-site',
 };
 
 const displayMode = getDisplayModeFromQuery();
@@ -62,7 +61,6 @@ export function Layout() {
 		(state) => state.ui.siteManagerIsOpen
 	);
 	const siteManagerWrapperRef = useRef<HTMLDivElement>(null);
-	const dispatch = useAppDispatch();
 
 	return (
 		<div className={`${css.layout}`}>
@@ -87,20 +85,8 @@ export function Layout() {
 				</div>
 			</CSSTransition>
 			<div className={css.siteView}>
-				{siteManagerIsOpen && (
-					<div
-						title="Open site"
-						className={css.siteViewOverlay}
-						onClick={() => {
-							dispatch(setSiteManagerOpen(false));
-						}}
-					/>
-				)}
 				<div className={css.siteViewContent}>
-					<PlaygroundViewport
-						displayMode={displayMode}
-						hideToolbar={siteManagerIsOpen}
-					/>
+					<PlaygroundViewport displayMode={displayMode} />
 				</div>
 			</div>
 		</div>
@@ -228,6 +214,8 @@ function Modals(blueprint: BlueprintV1Declaration) {
 		return <MissingSiteModal />;
 	} else if (currentModal === modalSlugs.RENAME_SITE) {
 		return <RenameSiteModal />;
+	} else if (currentModal === modalSlugs.SAVE_SITE) {
+		return <SaveSiteModal />;
 	}
 
 	if (query.get('gh-ensure-auth') === 'yes') {
