@@ -63,6 +63,16 @@ const patternsToNotCache = [
 	/^\/assets\/wp-.*\.zip$/, // Minified WordPress builds and static assets bundles
 	/^\/assets\/sqlite-database-integration-[\w]+\.zip/, // SQLite plugin
 	/^\/assets\/blueprints-.*\.phar$/, // Blueprints v2 runner
+
+	/**
+	 * Optional assets directory contains non-critical dependencies like CodeMirror
+	 * and its language extensions. These are large packages (~500KB+) that are only
+	 * used for the code editor feature, which is not critical for offline functionality.
+	 * Excluding them significantly reduces the offline mode cache size and initial load time.
+	 *
+	 * Optional chunks are placed in assets/optional/ via vite.config.ts manualChunks configuration.
+	 */
+	/^\/assets\/optional\/.*/, // All optional assets (CodeMirror, language extensions, etc.)
 ];
 
 function listFiles(dirPath: string, fileList: string[] = []) {

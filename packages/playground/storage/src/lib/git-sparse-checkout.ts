@@ -39,31 +39,97 @@ if (typeof globalThis.Buffer === 'undefined') {
  * @param fullyQualifiedBranchName The full name of the branch to fetch from (e.g., 'refs/heads/main').
  * @param filesPaths An array of all the file paths to fetch from the repository. Does **not** accept
  *                   patterns, wildcards, directory paths. All files must be explicitly listed.
- * @returns A record where keys are file paths and values are the retrieved file contents.
+ * @returns The requested files and packfiles required to recreate the Git objects locally.
  */
+export type SparseCheckoutPackfile = {
+	name: string;
+	pack: Uint8Array;
+	index: Uint8Array;
+	promisor?: boolean;
+};
+
+export type SparseCheckoutObject = {
+	oid: string;
+	type: 'blob' | 'tree' | 'commit' | 'tag';
+	body: Uint8Array;
+};
+
+export type SparseCheckoutResult = {
+	files: Record<string, any>;
+	packfiles?: SparseCheckoutPackfile[];
+	objects?: SparseCheckoutObject[];
+	fileOids?: Record<string, string>;
+};
+
 export async function sparseCheckout(
 	repoUrl: string,
 	commitHash: string,
-	filesPaths: string[]
-) {
-	const treesIdx = await fetchWithoutBlobs(repoUrl, commitHash);
-	const objects = await resolveObjects(treesIdx, commitHash, filesPaths);
+	filesPaths: string[],
+	options?: {
+		withObjects?: boolean;
+	}
+): Promise<SparseCheckoutResult> {
+	const treesPack = await fetchWithoutBlobs(repoUrl, commitHash);
+	const objects = await resolveObjects(treesPack.idx, commitHash, filesPaths);
 
-	const blobsIdx = await fetchObjects(
-		repoUrl,
-		filesPaths.map((path) => objects[path].oid)
-	);
+	const blobOids = filesPaths.map((path) => objects[path].oid);
+	const blobsPack =
+		blobOids.length > 0 ? await fetchObjects(repoUrl, blobOids) : null;
 
 	const fetchedPaths: Record<string, any> = {};
 	await Promise.all(
 		filesPaths.map(async (path) => {
+			if (!blobsPack) {
+				return;
+			}
 			fetchedPaths[path] = await extractGitObjectFromIdx(
-				blobsIdx,
+				blobsPack.idx,
 				objects[path].oid
 			);
 		})
 	);
-	return fetchedPaths;
+
+	/**
+	 * Short-circuit if the consumer doesn't need additional details about
+	 * the Git objects.
+	 */
+	if (!options?.withObjects) {
+		return { files: fetchedPaths };
+	}
+
+	const packfiles: SparseCheckoutPackfile[] = [];
+	const treesIndex = await treesPack.idx.toBuffer();
+	packfiles.push({
+		name: `pack-${treesPack.idx.packfileSha}`,
+		pack: treesPack.packfile,
+		index: toUint8Array(treesIndex),
+		promisor: treesPack.promisor,
+	});
+
+	if (blobsPack) {
+		const blobsIndex = await blobsPack.idx.toBuffer();
+		packfiles.push({
+			name: `pack-${blobsPack.idx.packfileSha}`,
+			pack: blobsPack.packfile,
+			index: toUint8Array(blobsIndex),
+			promisor: blobsPack.promisor,
+		});
+	}
+
+	const fileOids: Record<string, string> = {};
+	for (const path of filesPaths) {
+		fileOids[path] = objects[path].oid;
+	}
+
+	return {
+		files: fetchedPaths,
+		packfiles,
+		objects: [
+			...(await collectLooseObjects(treesPack)),
+			...(await collectLooseObjects(blobsPack)),
+		],
+		fileOids,
+	};
 }
 
 export type GitFileTreeFile = {
@@ -113,8 +179,8 @@ export async function listGitFiles(
 	repoUrl: string,
 	commitHash: string
 ): Promise<GitFileTree[]> {
-	const treesIdx = await fetchWithoutBlobs(repoUrl, commitHash);
-	const rootTree = await resolveAllObjects(treesIdx, commitHash);
+	const treesPack = await fetchWithoutBlobs(repoUrl, commitHash);
+	const rootTree = await resolveAllObjects(treesPack.idx, commitHash);
 	if (!rootTree?.object) {
 		return [];
 	}
@@ -176,7 +242,7 @@ export async function listGitRefs(
 	fullyQualifiedBranchPrefix: string
 ) {
 	const packbuffer = Buffer.from(
-		await collect([
+		(await collect([
 			GitPktLine.encode(`command=ls-refs\n`),
 			GitPktLine.encode(`agent=git/2.37.3\n`),
 			GitPktLine.encode(`object-format=sha1\n`),
@@ -184,7 +250,7 @@ export async function listGitRefs(
 			GitPktLine.encode(`peel\n`),
 			GitPktLine.encode(`ref-prefix ${fullyQualifiedBranchPrefix}\n`),
 			GitPktLine.flush(),
-		])
+		])) as any
 	);
 
 	const response = await fetch(repoUrl + '/git-upload-pack', {
@@ -195,7 +261,7 @@ export async function listGitRefs(
 			'Content-Length': `${packbuffer.length}`,
 			'Git-Protocol': 'version=2',
 		},
-		body: packbuffer,
+		body: packbuffer as any,
 	});
 
 	const refs: Record<string, string> = {};
@@ -324,7 +390,7 @@ async function fetchRefOid(repoUrl: string, refname: string) {
 
 async function fetchWithoutBlobs(repoUrl: string, commitHash: string) {
 	const packbuffer = Buffer.from(
-		await collect([
+		(await collect([
 			GitPktLine.encode(
 				`want ${commitHash} multi_ack_detailed no-done side-band-64k thin-pack ofs-delta agent=git/2.37.3 filter \n`
 			),
@@ -334,7 +400,7 @@ async function fetchWithoutBlobs(repoUrl: string, commitHash: string) {
 			GitPktLine.flush(),
 			GitPktLine.encode(`done\n`),
 			GitPktLine.encode(`done\n`),
-		])
+		])) as any
 	);
 
 	const response = await fetch(repoUrl + '/git-upload-pack', {
@@ -344,12 +410,12 @@ async function fetchWithoutBlobs(repoUrl: string, commitHash: string) {
 			'content-type': 'application/x-git-upload-pack-request',
 			'Content-Length': `${packbuffer.length}`,
 		},
-		body: packbuffer,
+		body: packbuffer as any,
 	});
 
 	const iterator = streamToIterator(response.body!);
 	const parsed = await parseUploadPackResponse(iterator);
-	const packfile = Buffer.from(await collect(parsed.packfile));
+	const packfile = Buffer.from((await collect(parsed.packfile)) as any);
 	const idx = await GitPackIndex.fromPack({
 		pack: packfile,
 	});
@@ -359,7 +425,11 @@ async function fetchWithoutBlobs(repoUrl: string, commitHash: string) {
 		result.oid = oid;
 		return result;
 	};
-	return idx;
+	return {
+		idx,
+		packfile: toUint8Array(packfile),
+		promisor: true,
+	};
 }
 
 async function resolveAllObjects(idx: GitPackIndex, commitHash: string) {
@@ -384,6 +454,43 @@ async function resolveAllObjects(idx: GitPackIndex, commitHash: string) {
 		}
 	}
 	return rootItem;
+}
+
+async function collectLooseObjects(
+	pack?: {
+		idx: GitPackIndex;
+		packfile: Uint8Array;
+		promisor?: boolean;
+	} | null
+): Promise<SparseCheckoutObject[]> {
+	if (!pack) {
+		return [];
+	}
+	const results: SparseCheckoutObject[] = [];
+	const seen = new Set<string>();
+	for (const oid of pack.idx.hashes ?? []) {
+		if (seen.has(oid)) {
+			continue;
+		}
+		const offset = pack.idx.offsets.get(oid);
+		if (offset === undefined) {
+			continue;
+		}
+		const { type, object } = await pack.idx.readSlice({ start: offset });
+		if (type === 'ofs_delta' || type === 'ref_delta') {
+			continue;
+		}
+		if (!object) {
+			continue;
+		}
+		seen.add(oid);
+		results.push({
+			oid,
+			type: type as SparseCheckoutObject['type'],
+			body: toUint8Array(object as Uint8Array),
+		});
+	}
+	return results;
 }
 
 async function resolveObjects(
@@ -434,7 +541,7 @@ async function resolveObjects(
 // Request oid for each resolvedRef
 async function fetchObjects(url: string, objectHashes: string[]) {
 	const packbuffer = Buffer.from(
-		await collect([
+		(await collect([
 			...objectHashes.map((objectHash) =>
 				GitPktLine.encode(
 					`want ${objectHash} multi_ack_detailed no-done side-band-64k thin-pack ofs-delta agent=git/2.37.3 \n`
@@ -442,7 +549,7 @@ async function fetchObjects(url: string, objectHashes: string[]) {
 			),
 			GitPktLine.flush(),
 			GitPktLine.encode(`done\n`),
-		])
+		])) as any
 	);
 
 	const response = await fetch(url + '/git-upload-pack', {
@@ -452,15 +559,30 @@ async function fetchObjects(url: string, objectHashes: string[]) {
 			'content-type': 'application/x-git-upload-pack-request',
 			'Content-Length': `${packbuffer.length}`,
 		},
-		body: packbuffer,
+		body: packbuffer as any,
 	});
 
 	const iterator = streamToIterator(response.body!);
 	const parsed = await parseUploadPackResponse(iterator);
-	const packfile = Buffer.from(await collect(parsed.packfile));
-	return await GitPackIndex.fromPack({
+	const packfile = Buffer.from((await collect(parsed.packfile)) as any);
+	if (packfile.byteLength === 0) {
+		const idx = await GitPackIndex.fromPack({
+			pack: packfile,
+		});
+		return {
+			idx,
+			packfile: new Uint8Array(),
+			promisor: false,
+		};
+	}
+	const idx = await GitPackIndex.fromPack({
 		pack: packfile,
 	});
+	return {
+		idx,
+		packfile: toUint8Array(packfile),
+		promisor: false,
+	};
 }
 
 async function extractGitObjectFromIdx(idx: GitPackIndex, objectHash: string) {
@@ -544,4 +666,11 @@ function streamToIterator(stream: any) {
 			return this;
 		},
 	};
+}
+
+function toUint8Array(buffer: Uint8Array | Buffer) {
+	if (buffer instanceof Uint8Array) {
+		return Uint8Array.from(buffer);
+	}
+	return Uint8Array.from(buffer);
 }

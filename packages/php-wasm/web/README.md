@@ -5,29 +5,42 @@ This package ships WebAssembly PHP binaries and the JavaScript API optimized for
 Here's how to use it:
 
 ```js
-import { PHP } from '@php-wasm/web';
+import { PHP, PHPRequestHandler } from '@php-wasm/universal';
+import { loadWebRuntime } from '@php-wasm/web';
 
-// PHP.load() calls import('php.wasm') internally
+// loadWebRuntime() calls import('php.wasm') and import('icudt74l.dat') internally.
 // Your bundler must resolve import('php.wasm') as a static file URL.
 // If you use Webpack, you can use the file-loader to do so.
-const php = await PHP.load('8.0', {
-	requestHandler: {
-		documentRoot: '/www',
-	},
+const php = new PHP(await loadWebRuntime('8.3'));
+
+let response;
+
+php.writeFile('/test.php', `<?php echo "Hello, World!"; ?>`);
+
+// Run a script directly:
+response = await php.runStream({
+	scriptPath: '/test.php',
 });
 
-// Create and run a script directly
-php.mkdirTree('/www');
+console.log(await response.stdoutText);
+// You will see the following output in the browser console:
+// Hello, World!
+
+php.mkdir('/www');
 php.writeFile('/www/index.php', `<?php echo "Hello " . $_POST['name']; ?>`);
-await php.run({ scriptPath: './index.php' });
 
 // Or use the familiar HTTP concepts:
-const response = await php.request({
+const handler = new PHPRequestHandler({ phpFactory: async () => php });
+
+response = await handler.request({
 	method: 'POST',
-	url: '/index.php',
-	data: { name: 'John' },
+	url: 'index.php',
+	body: { name: 'John' },
 });
+
 console.log(response.text);
+// You will see the following output in the browser console:
+// Hello John
 ```
 
 ## Attribution

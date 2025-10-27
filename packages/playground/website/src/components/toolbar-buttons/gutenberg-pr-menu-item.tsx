@@ -19,7 +19,7 @@ export function GutenbergPRMenuItem({ onClose, disabled }: Props) {
 				onClose();
 			}}
 		>
-			Preview a Gutenberg PR
+			Gutenberg PR
 		</MenuItem>
 	);
 }

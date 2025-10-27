@@ -1102,6 +1102,11 @@ const schema11 = {
 					description:
 						'The path to the directory in the git repository. Defaults to the repo root.',
 				},
+				'.git': {
+					type: 'boolean',
+					description:
+						'When true, include a `.git` directory with Git metadata (experimental).',
+				},
 			},
 			required: ['resource', 'url', 'ref'],
 			additionalProperties: false,
@@ -4028,6 +4033,11 @@ const schema25 = {
 			description:
 				'The path to the directory in the git repository. Defaults to the repo root.',
 		},
+		'.git': {
+			type: 'boolean',
+			description:
+				'When true, include a `.git` directory with Git metadata (experimental).',
+		},
 	},
 	required: ['resource', 'url', 'ref'],
 	additionalProperties: false,
@@ -4070,7 +4080,8 @@ function validate19(
 							key0 === 'url' ||
 							key0 === 'ref' ||
 							key0 === 'refType' ||
-							key0 === 'path'
+							key0 === 'path' ||
+							key0 === '.git'
 						)
 					) {
 						validate19.errors = [
@@ -4223,6 +4234,35 @@ function validate19(
 										var valid0 = _errs11 === errors;
 									} else {
 										var valid0 = true;
+									}
+									if (valid0) {
+										if (data['.git'] !== undefined) {
+											const _errs13 = errors;
+											if (
+												typeof data['.git'] !==
+												'boolean'
+											) {
+												validate19.errors = [
+													{
+														instancePath:
+															instancePath +
+															'/.git',
+														schemaPath:
+															'#/properties/.git/type',
+														keyword: 'type',
+														params: {
+															type: 'boolean',
+														},
+														message:
+															'must be boolean',
+													},
+												];
+												return false;
+											}
+											var valid0 = _errs13 === errors;
+										} else {
+											var valid0 = true;
+										}
 									}
 								}
 							}

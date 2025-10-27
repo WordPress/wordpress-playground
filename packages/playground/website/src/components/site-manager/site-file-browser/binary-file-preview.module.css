@@ -1,0 +1,80 @@
+.container {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	width: 100%;
+	background: #ffffff;
+}
+
+.header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 16px 20px;
+	border-bottom: 1px solid var(--color-gray-200);
+	gap: 12px;
+}
+
+.filename {
+	font-family: 'SFMono-Regular', ui-monospace, SFMono-Regular, Menlo, Monaco,
+		Consolas, 'Liberation Mono', 'Courier New', monospace;
+	font-size: 13px;
+	color: var(--color-gray-700);
+	font-weight: 500;
+	flex: 1;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.download-link {
+	color: #2271b1;
+	text-decoration: none;
+	font-size: 13px;
+	font-weight: 500;
+	padding: 6px 12px;
+	border: 1px solid #2271b1;
+	border-radius: 4px;
+	white-space: nowrap;
+	transition: all 0.2s ease;
+}
+
+.download-link:hover {
+	background: #2271b1;
+	color: #ffffff;
+}
+
+.preview-area {
+	flex: 1;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 20px;
+	overflow: auto;
+	background: var(--color-gray-050);
+}
+
+.image-preview {
+	max-width: 100%;
+	max-height: 100%;
+	object-fit: contain;
+	display: block;
+	border: 1px solid var(--color-gray-200);
+	background: #ffffff;
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.video-preview {
+	max-width: 100%;
+	max-height: 100%;
+	display: block;
+	background: #000000;
+	border: 1px solid var(--color-gray-200);
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.audio-preview {
+	width: 100%;
+	max-width: 600px;
+}

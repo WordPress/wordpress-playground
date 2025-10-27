@@ -18,7 +18,7 @@ export function RenameSiteModal() {
 	const [name, setName] = useState<string>(initialName);
 	const [isSubmitting, setIsSubmitting] = useState(false);
 
-	if (!site) {
+	if (!site || site.metadata.storage === 'none') {
 		// Nothing to rename
 		return null;
 	}
@@ -63,6 +63,8 @@ export function RenameSiteModal() {
 					label="Name"
 					value={name}
 					onChange={(val: string) => setName(val)}
+					placeholder="e.g. Testing Gutenberg 24.17"
+					maxLength={80}
 					autoFocus
 				/>
 				<ModalButtons

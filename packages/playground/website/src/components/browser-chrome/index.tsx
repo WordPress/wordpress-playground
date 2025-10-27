@@ -20,13 +20,11 @@ import { SiteManagerIcon } from '@wp-playground/components';
 
 interface BrowserChromeProps {
 	children?: React.ReactNode;
-	hideToolbar?: boolean;
 	className?: string;
 }
 
 export default function BrowserChrome({
 	children,
-	hideToolbar,
 	className,
 }: BrowserChromeProps) {
 	const clientInfo = useAppSelector(getActiveClientInfo);
@@ -34,6 +32,9 @@ export default function BrowserChrome({
 	const showAddressBar = !!clientInfo;
 	const url = clientInfo?.url;
 	const dispatch = useAppDispatch();
+	const siteManagerIsOpen = useAppSelector(
+		(state) => state.ui.siteManagerIsOpen
+	);
 	const addressBarClass = classNames(css.addressBarSlot, {
 		[css.isHidden]: !showAddressBar,
 	});
@@ -51,25 +52,11 @@ export default function BrowserChrome({
 		<div className={wrapperClass} data-cy="simulated-browser">
 			<div className={`${css.window} browser-chrome-window`}>
 				<header
-					className={`
-						${css.toolbar}
-						${hideToolbar ? css.toolbarHidden : ''}
-					`}
+					className={classNames(css.toolbar, {
+						[css.withSidebarOpen]: siteManagerIsOpen,
+					})}
 					aria-label="Playground toolbar"
 				>
-					<div className={css.windowControls}>
-						<Button
-							variant="browser-chrome"
-							aria-label="Open Site Manager"
-							className={css.openSiteManagerButton}
-							onClick={() => {
-								dispatch(setSiteManagerOpen(true));
-							}}
-						>
-							<SiteManagerIcon />
-						</Button>
-					</div>
-
 					<div className={addressBarClass}>
 						<AddressBar
 							url={url}
@@ -80,6 +67,29 @@ export default function BrowserChrome({
 					</div>
 
 					<div className={css.toolbarButtons}>
+						<Button
+							variant="browser-chrome"
+							aria-label={
+								siteManagerIsOpen
+									? 'Close Site Manager'
+									: 'Open Site Manager'
+							}
+							aria-pressed={siteManagerIsOpen}
+							className={classNames(css.openSiteManagerButton, {
+								[css.openSiteManagerButtonActive]:
+									siteManagerIsOpen,
+							})}
+							onClick={() => {
+								dispatch(
+									setSiteManagerOpen(!siteManagerIsOpen)
+								);
+							}}
+						>
+							<SiteManagerIcon
+								sidebarActive={siteManagerIsOpen}
+							/>
+						</Button>
+
 						{isMobileUi ? (
 							<>
 								<Button
@@ -88,13 +98,12 @@ export default function BrowserChrome({
 									onClick={onToggle}
 									aria-expanded={isModalOpen}
 									style={{
-										padding: '0 10px',
 										fill: '#FFF',
 										alignItems: 'center',
 										display: 'flex',
 									}}
 								>
-									<Icon icon={cog} />
+									<Icon icon={cog} size={28} />
 								</Button>
 								{isModalOpen && (
 									<Modal
@@ -120,13 +129,12 @@ export default function BrowserChrome({
 										onClick={onToggle}
 										aria-expanded={isOpen}
 										style={{
-											padding: '0 10px',
 											fill: '#FFF',
 											alignItems: 'center',
 											display: 'flex',
 										}}
 									>
-										<Icon icon={cog} />
+										<Icon icon={cog} size={28} />
 									</Button>
 								)}
 								renderContent={({ onClose }) => (

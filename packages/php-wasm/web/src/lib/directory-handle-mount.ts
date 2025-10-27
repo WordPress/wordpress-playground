@@ -313,9 +313,11 @@ export function journalFSEventsToOpfs(
 		}
 	}
 	php.addEventListener('request.end', flushJournal);
+	php.addEventListener('filesystem.write', flushJournal);
 	return function () {
 		unbindJournal();
 		php.removeEventListener('request.end', flushJournal);
+		php.removeEventListener('filesystem.write', flushJournal);
 	};
 }
 

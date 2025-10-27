@@ -19,7 +19,7 @@ export function GithubImportMenuItem({ onClose, disabled }: Props) {
 				onClose();
 			}}
 		>
-			Import from GitHub
+			GitHub repository
 		</MenuItem>
 	);
 }
