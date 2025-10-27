@@ -473,10 +473,24 @@ export interface RunCLIServer extends AsyncDisposable {
 	playground: RemoteAPI<PlaygroundCliWorker>;
 	server: Server;
 	serverUrl: string;
+
 	[Symbol.asyncDispose](): Promise<void>;
+
 	// Expose the number of worker threads to the test runner.
 	workerThreadCount: number;
 }
+
+const bold = (text: string) =>
+	process.stdout.isTTY ? '\x1b[1m' + text + '\x1b[0m' : text;
+
+const dim = (text: string) =>
+	process.stdout.isTTY ? `\x1b[2m${text}\x1b[0m` : text;
+
+const italic = (text: string) =>
+	process.stdout.isTTY ? `\x1b[3m${text}\x1b[0m` : text;
+
+const highlight = (text: string) =>
+	process.stdout.isTTY ? `\x1b[33m${text}\x1b[0m` : text;
 
 export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 	let loadBalancer: LoadBalancer;
@@ -581,13 +595,13 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 			const symlinkName = '.playground-xdebug-root';
 			const symlinkPath = path.join(process.cwd(), symlinkName);
 
-			removePlaygroundCliTempDirSymlink(symlinkPath);
+			await removePlaygroundCliTempDirSymlink(symlinkPath);
 
 			// Then, if xdebug, and experimental IDE are enabled,
 			// recreate the symlink pointing to the temporary
 			// directory and add the new IDE config.
 			if (args.xdebug && args.experimentalUnsafeIdeIntegration) {
-				createPlaygroundCliTempDirSymlink(
+				await createPlaygroundCliTempDirSymlink(
 					nativeDirPath,
 					symlinkPath,
 					process.platform
@@ -598,28 +612,89 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 					vfsPath: '/',
 				};
 
-				clearXdebugIDEConfig(IDEConfigName, process.cwd())
-					.then(() =>
-						addXdebugIDEConfig({
-							name: IDEConfigName,
-							host: host,
-							port: port,
-							ides: args.experimentalUnsafeIdeIntegration!,
-							cwd: process.cwd(),
-							mounts: [
-								symlinkMount,
-								...(args['mount-before-install'] || []),
-								...(args.mount || []),
-							],
-						})
-					)
-					.catch((error) => {
-						logger.error(
-							'Could not configure Xdebug:',
-							error.message
-						);
-						process.exit(1);
+				await clearXdebugIDEConfig(IDEConfigName, process.cwd());
+				try {
+					const modifiedConfig = await addXdebugIDEConfig({
+						name: IDEConfigName,
+						host: host,
+						port: port,
+						ides: args.experimentalUnsafeIdeIntegration!,
+						cwd: process.cwd(),
+						mounts: [
+							symlinkMount,
+							...(args['mount-before-install'] || []),
+							...(args.mount || []),
+						],
 					});
+
+					// Display IDE-specific instructions
+					const ides = args.experimentalUnsafeIdeIntegration;
+					const hasVSCode = ides.includes('vscode');
+					const hasPhpStorm = ides.includes('phpstorm');
+
+					console.log('');
+					console.log(bold(`Xdebug configured successfully`));
+					console.log(
+						highlight(`Updated IDE config: `) +
+							modifiedConfig.join(' ')
+					);
+					console.log(
+						highlight('Playground source root: ') +
+							`.playground-xdebug-root` +
+							italic(
+								dim(
+									` – you can set breakpoints and preview Playground's VFS structure in there.`
+								)
+							)
+					);
+					console.log('');
+
+					if (hasVSCode) {
+						console.log(bold('VS Code / Cursor instructions:'));
+						console.log(
+							'  1. Open the Run and Debug panel on the left sidebar'
+						);
+						console.log(
+							`  2. Select "${italic(
+								IDEConfigName
+							)}" from the dropdown`
+						);
+						console.log('  3. Click "start debugging"');
+						console.log(
+							'  4. Set a breakpoint. For example, in .playground-xdebug-root/wordpress/index.php'
+						);
+						console.log(
+							'  5. Visit Playground in your browser to hit the breakpoint'
+						);
+						if (hasPhpStorm) {
+							console.log('');
+						}
+					}
+
+					if (hasPhpStorm) {
+						console.log(bold('PhpStorm instructions:'));
+						console.log(
+							`  1. Choose "${italic(
+								IDEConfigName
+							)}" debug configuration in the toolbar`
+						);
+						console.log('  2. Click the debug button (bug icon)`');
+						console.log(
+							'  3. Set a breakpoint. For example, in .playground-xdebug-root/wordpress/index.php'
+						);
+						console.log(
+							'  4. Visit Playground in your browser to hit the breakpoint'
+						);
+					}
+
+					console.log('');
+				} catch (error) {
+					logger.error(
+						'Could not configure Xdebug:',
+						(error as Error)?.message
+					);
+					process.exit(1);
+				}
 			}
 
 			// We do not know the system temp dir,
@@ -907,6 +982,7 @@ export type SpawnedWorker = {
 	worker: Worker;
 	phpPort: NodeMessagePort;
 };
+
 async function spawnWorkerThreads(
 	count: number,
 	workerType: WorkerType,

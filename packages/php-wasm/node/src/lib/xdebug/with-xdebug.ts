@@ -3,7 +3,11 @@ import type {
 	PHPRuntime,
 	SupportedPHPVersion,
 } from '@php-wasm/universal';
-import { LatestSupportedPHPVersion, FSHelpers } from '@php-wasm/universal';
+import {
+	LatestSupportedPHPVersion,
+	FSHelpers,
+	setPhpIniEntries,
+} from '@php-wasm/universal';
 import fs from 'fs';
 import { getXdebugExtensionModule } from './get-xdebug-extension-module';
 
@@ -63,6 +67,7 @@ export async function withXdebug(
 						'zend_extension=/internal/shared/extensions/xdebug.so',
 						'xdebug.mode=debug,develop',
 						'xdebug.start_with_request=yes',
+						'xdebug.idekey="PLAYGROUNDCLI"',
 					].join('\n')
 				);
 			}

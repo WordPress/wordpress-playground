@@ -101,6 +101,12 @@ type PhpStormConfigMetaData = {
 	use_path_mappings?: string;
 	'local-root'?: string;
 	'remote-root'?: string;
+	type?: string;
+	factoryName?: string;
+	filter_connections?: string;
+	server_name?: string;
+	session_id?: string;
+	v?: string;
 };
 
 type PhpStormConfigNode = {
@@ -111,6 +117,8 @@ type PhpStormConfigNode = {
 	server?: PhpStormConfigNode[];
 	path_mappings?: PhpStormConfigNode[];
 	mapping?: PhpStormConfigNode[];
+	configuration?: PhpStormConfigNode[];
+	method?: PhpStormConfigNode[];
 };
 
 type VSCodeConfigMetaData = {
@@ -165,6 +173,7 @@ export async function addXdebugIDEConfig({
 	mounts,
 }: IDEConfig) {
 	const mappings = filterLocalMounts(cwd, mounts);
+	const modifiedConfig: string[] = [];
 
 	// PHPstorm
 	if (ides.includes('phpstorm')) {
@@ -193,7 +202,11 @@ export async function addXdebugIDEConfig({
 			},
 		};
 
-		const phpStormConfigFilePath = path.join(cwd, '.idea/workspace.xml');
+		const phpStormRelativeConfigFilePath = '.idea/workspace.xml';
+		const phpStormConfigFilePath = path.join(
+			cwd,
+			phpStormRelativeConfigFilePath
+		);
 
 		// Create a template config file if the IDE directory exists,
 		// or throw an error if IDE integration is requested but the directory is missing.
@@ -304,7 +317,73 @@ export async function addXdebugIDEConfig({
 
 				fs.writeFileSync(phpStormConfigFilePath, xml);
 			}
+
+			// Add a run configuration that uses the server
+			let runManagerElement = projectElement.project?.find(
+				(c: PhpStormConfigNode) =>
+					!!c?.component && c?.[':@']?.name === 'RunManager'
+			);
+			if (runManagerElement === undefined) {
+				runManagerElement = {
+					component: [],
+					':@': { name: 'RunManager' },
+				};
+
+				if (projectElement.project === undefined) {
+					projectElement.project = [];
+				}
+
+				projectElement.project.push(runManagerElement);
+			}
+
+			// Check if a run configuration with our name already exists
+			const existingConfigIndex =
+				runManagerElement.component?.findIndex(
+					(c: PhpStormConfigNode) =>
+						!!c?.configuration && c?.[':@']?.name === name
+				) ?? -1;
+
+			if (existingConfigIndex < 0) {
+				// Add the run configuration
+				const runConfigElement: PhpStormConfigNode = {
+					configuration: [
+						{
+							method: [],
+							':@': { v: '2' },
+						},
+					],
+					':@': {
+						name: name,
+						type: 'PhpRemoteDebugRunConfigurationType',
+						factoryName: 'PHP Remote Debug',
+						filter_connections: 'FILTER',
+						server_name: name,
+						session_id: 'PHPSTORM',
+					},
+				};
+
+				if (runManagerElement.component === undefined) {
+					runManagerElement.component = [];
+				}
+
+				runManagerElement.component.push(runConfigElement);
+
+				const xmlBuilder = new XMLBuilder(xmlBuilderOptions);
+				const xml = xmlBuilder.build(config);
+
+				try {
+					xmlParser.parse(xml, true);
+				} catch {
+					throw new Error(
+						'The resulting PhpStorm configuration file is not valid XML.'
+					);
+				}
+
+				fs.writeFileSync(phpStormConfigFilePath, xml);
+			}
 		}
+
+		modifiedConfig.push(phpStormRelativeConfigFilePath);
 	}
 
 	// VSCode
@@ -325,7 +404,11 @@ export async function addXdebugIDEConfig({
 			}, {} as VSCodeConfigMetaData),
 		};
 
-		const vsCodeConfigFilePath = path.join(cwd, '.vscode/launch.json');
+		const vsCodeRelativeConfigFilePath = '.vscode/launch.json';
+		const vsCodeConfigFilePath = path.join(
+			cwd,
+			vsCodeRelativeConfigFilePath
+		);
 
 		// Create a template config file if the IDE directory exists,
 		// or throw an error if IDE integration is requested but the directory is missing.
@@ -392,9 +475,12 @@ export async function addXdebugIDEConfig({
 
 				const json = jsoncApplyEdits(content, edits);
 				fs.writeFileSync(vsCodeConfigFilePath, json);
+				modifiedConfig.push(vsCodeRelativeConfigFilePath);
 			}
 		}
 	}
+
+	return modifiedConfig;
 }
 
 /**
