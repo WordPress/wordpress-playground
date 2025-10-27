@@ -101,9 +101,12 @@ type PhpStormConfigMetaData = {
 	use_path_mappings?: string;
 	'local-root'?: string;
 	'remote-root'?: string;
-	type?: string;
+	/**
+	 * The type of the server.
+	 */
+	type?: 'PhpRemoteDebugRunConfigurationType';
 	factoryName?: string;
-	filter_connections?: string;
+	filter_connections?: 'FILTER';
 	server_name?: string;
 	session_id?: string;
 	v?: string;
@@ -358,7 +361,7 @@ export async function addXdebugIDEConfig({
 						factoryName: 'PHP Remote Debug',
 						filter_connections: 'FILTER',
 						server_name: name,
-						session_id: 'PHPSTORM',
+						session_id: 'PLAYGROUNDCLI',
 					},
 				};
 

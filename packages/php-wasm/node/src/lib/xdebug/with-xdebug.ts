@@ -3,11 +3,7 @@ import type {
 	PHPRuntime,
 	SupportedPHPVersion,
 } from '@php-wasm/universal';
-import {
-	LatestSupportedPHPVersion,
-	FSHelpers,
-	setPhpIniEntries,
-} from '@php-wasm/universal';
+import { LatestSupportedPHPVersion, FSHelpers } from '@php-wasm/universal';
 import fs from 'fs';
 import { getXdebugExtensionModule } from './get-xdebug-extension-module';
 
