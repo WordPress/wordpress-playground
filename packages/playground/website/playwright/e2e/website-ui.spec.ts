@@ -558,7 +558,7 @@ test('should keep query arguments when updating settings', async ({
 	).toMatch('/wp-admin/');
 });
 
-test('should edit a file in the code editor and see changes in the viewport', async ({
+test.only('should edit a file in the code editor and see changes in the viewport', async ({
 	website,
 	wordpress,
 }) => {
@@ -587,23 +587,26 @@ test('should edit a file in the code editor and see changes in the viewport', as
 		.dblclick();
 
 	// Wait for CodeMirror editor to load
-	await website.page.locator('.cm-editor').waitFor({ timeout: 10000 });
+	const editor = website.page.locator('[class*="file-browser"] .cm-editor');
+	await editor.waitFor({ timeout: 10000 });
 
-	// Select all content in the editor and replace it
-	// Use CodeMirror API to set content
-	await website.page.evaluate(() => {
-		const editor = document.querySelector('.cm-editor') as any;
-		if (editor && editor.view) {
-			const view = editor.view;
-			view.dispatch({
-				changes: {
-					from: 0,
-					to: view.state.doc.length,
-					insert: 'Edited file',
-				},
-			});
-		}
-	});
+	// Click on the editor to focus it
+	await website.page.waitForTimeout(50);
+
+	await editor.click();
+
+	await website.page.waitForTimeout(250);
+
+	// Select all content in the editor (Cmd+A or Ctrl+A)
+	await website.page.keyboard.press(
+		process.platform === 'darwin' ? 'Meta+A' : 'Control+A'
+	);
+
+	await website.page.keyboard.press('Backspace');
+	await website.page.waitForTimeout(200);
+
+	// Type the new content with a delay between keystrokes
+	await website.page.keyboard.type('Edited file', { delay: 50 });
 
 	// Wait a moment for the change to be processed
 	await website.page.waitForTimeout(500);
@@ -619,9 +622,15 @@ test('should edit a file in the code editor and see changes in the viewport', as
 	// Close the site manager to see the viewport
 	await website.ensureSiteManagerIsClosed();
 
-	// Reload the WordPress viewport to see the changes
-	await website.page.reload();
-	await website.waitForNestedIframes();
+	// Reload just the WordPress iframe to see the changes
+	const playgroundViewport = website.page.frameLocator(
+		'#playground-viewport:visible,.playground-viewport:visible'
+	);
+	await playgroundViewport
+		.locator('#wp')
+		.evaluate((iframe: HTMLIFrameElement) => {
+			iframe.contentWindow?.location.reload();
+		});
 
 	// Verify the page shows "Edited file"
 	await expect(wordpress.locator('body')).toContainText('Edited file', {
