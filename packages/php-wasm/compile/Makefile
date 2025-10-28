@@ -273,7 +273,7 @@ libintl/jspi/dist/root/lib/lib/libintl.a: base-image
 	docker cp $$(docker create playground-php-wasm:libintl):/root/lib/data/. ./libintl/
 
 libImageMagick_asyncify: libImageMagick/asyncify/dist/root/lib/lib/libMagickCore-7.Q16HDRI.a
-libImageMagick/asyncify/dist/root/lib/lib/libMagickCore-7.Q16HDRI.a: base-image libz_asyncify libjpeg_asyncify
+libImageMagick/asyncify/dist/root/lib/lib/libMagickCore-7.Q16HDRI.a: base-image libz_asyncify libjpeg_asyncify libpng16_asyncify libwebp_asyncify
 	mkdir -p ./libImageMagick/asyncify/dist/root/lib
 	docker build -f ./libImageMagick/Dockerfile -t playground-php-wasm:libImageMagick . --progress=plain
 	docker cp $$(docker create playground-php-wasm:libImageMagick):/root/install/lib ./libImageMagick/asyncify/dist/root/lib
@@ -281,7 +281,7 @@ libImageMagick/asyncify/dist/root/lib/lib/libMagickCore-7.Q16HDRI.a: base-image 
 	docker cp $$(docker create playground-php-wasm:libImageMagick):/root/install/bin ./libImageMagick/asyncify/dist/root/lib
 
 libImageMagick_jspi: libImageMagick/jspi/dist/root/lib/lib/libMagickCore-7.Q16HDRI.a
-libImageMagick/jspi/dist/root/lib/lib/libMagickCore-7.Q16HDRI.a: base-image libz_jspi libjpeg_jspi
+libImageMagick/jspi/dist/root/lib/lib/libMagickCore-7.Q16HDRI.a: base-image libz_jspi libjpeg_jspi libpng16_jspi libwebp_jspi
 	mkdir -p ./libImageMagick/jspi/dist/root/lib
 	docker build -f ./libImageMagick/Dockerfile -t playground-php-wasm:libImageMagick . --progress=plain --build-arg JSPI=1
 	docker cp $$(docker create playground-php-wasm:libImageMagick):/root/install/lib ./libImageMagick/jspi/dist/root/lib

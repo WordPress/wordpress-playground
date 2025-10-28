@@ -327,6 +327,76 @@ describe(`Imagick – ${runtimeMode}`, () => {
 			expect(result.text).toBe('3 frames');
 		});
 
+		test('convert JPEG to WebP', async () => {
+			const result = await php.run({
+				code: `<?php
+					$imagick = new Imagick('/tmp/test-image.jpg');
+					$imagick->setImageFormat('webp');
+					$imagick->writeImage('/tmp/output.webp');
+
+					// Verify we can read it back as WebP
+					$verify = new Imagick('/tmp/output.webp');
+					echo strtoupper($verify->getImageFormat());
+				`,
+			});
+			expect(result.text).toBe('WEBP');
+
+			// Verify the WebP file exists
+			const webpFile = php.readFileAsBuffer('/tmp/output.webp');
+			expect(webpFile.byteLength).toBeGreaterThan(0);
+		});
+
+		test('resize and save as WebP', async () => {
+			const result = await php.run({
+				code: `<?php
+					$imagick = new Imagick('/tmp/test-image.jpg');
+					$imagick->resizeImage(100, 100, Imagick::FILTER_LANCZOS, 1);
+					$imagick->setImageFormat('webp');
+					$imagick->writeImage('/tmp/resized.webp');
+
+					// Verify
+					$verify = new Imagick('/tmp/resized.webp');
+					echo $verify->getImageWidth() . 'x' . $verify->getImageHeight() . ' ' . strtoupper($verify->getImageFormat());
+				`,
+			});
+			expect(result.text).toBe('100x100 WEBP');
+		});
+
+		test('convert JPEG to PNG', async () => {
+			const result = await php.run({
+				code: `<?php
+					$imagick = new Imagick('/tmp/test-image.jpg');
+					$imagick->setImageFormat('png');
+					$imagick->writeImage('/tmp/output.png');
+
+					// Verify we can read it back as PNG
+					$verify = new Imagick('/tmp/output.png');
+					echo strtoupper($verify->getImageFormat());
+				`,
+			});
+			expect(result.text).toBe('PNG');
+
+			// Verify the PNG file exists
+			const pngFile = php.readFileAsBuffer('/tmp/output.png');
+			expect(pngFile.byteLength).toBeGreaterThan(0);
+		});
+
+		test('resize and save as PNG', async () => {
+			const result = await php.run({
+				code: `<?php
+					$imagick = new Imagick('/tmp/test-image.jpg');
+					$imagick->resizeImage(75, 75, Imagick::FILTER_LANCZOS, 1);
+					$imagick->setImageFormat('png');
+					$imagick->writeImage('/tmp/resized.png');
+
+					// Verify
+					$verify = new Imagick('/tmp/resized.png');
+					echo $verify->getImageWidth() . 'x' . $verify->getImageHeight() . ' ' . strtoupper($verify->getImageFormat());
+				`,
+			});
+			expect(result.text).toBe('75x75 PNG');
+		});
+
 		test('read image from HTTP URL', async () => {
 			const result = await php.run({
 				code: `<?php
@@ -384,12 +454,16 @@ describe(`Imagick – ${runtimeMode}`, () => {
 					// Check for common formats
 					$hasJPEG = in_array('JPEG', $formats) || in_array('JPG', $formats);
 					$hasGIF = in_array('GIF', $formats);
+					$hasWEBP = in_array('WEBP', $formats);
+					$hasPNG = in_array('PNG', $formats);
 
-					echo ($hasJPEG ? 'JPEG ' : '') . ($hasGIF ? 'GIF' : '');
+					echo ($hasJPEG ? 'JPEG ' : '') . ($hasGIF ? 'GIF ' : '') . ($hasWEBP ? 'WEBP ' : '') . ($hasPNG ? 'PNG' : '');
 				`,
 			});
 			expect(result.text).toContain('JPEG');
 			expect(result.text).toContain('GIF');
+			expect(result.text).toContain('WEBP');
+			expect(result.text).toContain('PNG');
 		});
 	});
 });
