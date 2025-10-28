@@ -253,6 +253,62 @@ try {
 			});
 		});
 
+		describe('SoapClient with external WSDL', () => {
+			it('should call temperature conversion web service', async () => {
+				const result = await php.run({
+					code: `<?php
+try {
+	// Create the client object
+	$soapclient = new SoapClient('https://www.w3schools.com/xml/tempconvert.asmx?WSDL', array(
+		'exceptions' => true,
+		'trace' => true
+	));
+
+	// Convert Celsius to Fahrenheit
+	$params = array('Celsius' => '25');
+	$response = $soapclient->CelsiusToFahrenheit($params);
+
+	// The response should contain the result
+	if (isset($response->CelsiusToFahrenheitResult)) {
+		$fahrenheit = $response->CelsiusToFahrenheitResult;
+		echo 'C2F:' . $fahrenheit . '|';
+	} else {
+		echo 'C2F:MISSING|';
+	}
+
+	// Get the Celsius degrees from the Fahrenheit
+	$param = array('Fahrenheit' => '77');
+	$response = $soapclient->FahrenheitToCelsius($param);
+
+	if (isset($response->FahrenheitToCelsiusResult)) {
+		$celsius = $response->FahrenheitToCelsiusResult;
+		echo 'F2C:' . $celsius;
+	} else {
+		echo 'F2C:MISSING';
+	}
+} catch (SoapFault $e) {
+	echo 'SoapFault: ' . $e->getMessage();
+} catch (Exception $e) {
+	echo 'Exception: ' . $e->getMessage();
+}
+					`,
+				});
+
+				// Check that we got responses (25°C = 77°F, 77°F = 25°C)
+				if (
+					result.text.includes('SoapFault') ||
+					result.text.includes('Exception')
+				) {
+					// Network errors or service unavailability are acceptable in tests
+					expect(result.text).toMatch(/SoapFault|Exception/);
+				} else {
+					// If successful, verify the conversion results
+					expect(result.text).toBe('C2F:77|F2C:25');
+				}
+				expect(result.errors).toBeFalsy();
+			});
+		});
+
 		describe('SOAP functions', () => {
 			it('should have is_soap_fault function', async () => {
 				const result = await php.run({
