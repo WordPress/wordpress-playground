@@ -56,6 +56,11 @@ export class BlueprintsV2Handler {
 			processIdSpaceLength: this.processIdSpaceLength,
 			trace: this.args.debug || false,
 			blueprint: this.args.blueprint!,
+			withXdebug: !!this.args.xdebug,
+			xdebug:
+				typeof this.args.xdebug === 'object'
+					? this.args.xdebug
+					: undefined,
 			nativeInternalDirPath,
 		};
 
@@ -86,6 +91,7 @@ export class BlueprintsV2Handler {
 			firstProcessId,
 			processIdSpaceLength: this.processIdSpaceLength,
 			trace: this.args.debug || false,
+			withXdebug: !!this.args.xdebug,
 			nativeInternalDirPath,
 			mountsBeforeWpInstall: this.args['mount-before-install'] || [],
 			mountsAfterWpInstall: this.args.mount || [],

@@ -1473,8 +1473,6 @@ wp-includes/js/dist/script-modules/block-library/navigation/view.min.js
 wp-includes/js/dist/script-modules/block-library/navigation/view.js
 wp-includes/js/dist/script-modules/block-library/image/view.min.js
 wp-includes/js/dist/script-modules/block-library/image/view.js
-wp-includes/js/dist/script-modules/interactivity-router/full-page.min.js
-wp-includes/js/dist/script-modules/interactivity-router/full-page.js
 wp-includes/js/dist/script-modules/interactivity-router/index.min.js
 wp-includes/js/dist/script-modules/interactivity-router/index.js
 wp-includes/js/dist/script-modules/interactivity/index.min.js

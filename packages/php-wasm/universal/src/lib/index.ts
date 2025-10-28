@@ -59,7 +59,11 @@ export type {
 	PHPRequestHandlerConfiguration,
 	RewriteRule,
 } from './php-request-handler';
-export { PHPRequestHandler, applyRewriteRules } from './php-request-handler';
+export {
+	PHPRequestHandler,
+	applyRewriteRules,
+	inferMimeType,
+} from './php-request-handler';
 export type {
 	FileNotFoundGetActionCallback,
 	FileNotFoundToInternalRedirect,

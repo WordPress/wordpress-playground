@@ -51,6 +51,12 @@ import {
 	cleanupStalePlaygroundTempDirs,
 	createPlaygroundCliTempDir,
 } from './temp-dir';
+import {
+	addXdebugIDEConfig,
+	clearXdebugIDEConfig,
+	createPlaygroundCliTempDirSymlink,
+	removePlaygroundCliTempDirSymlink,
+} from './xdebug-path-mappings';
 
 // Inlined worker URLs for static analysis by downstream bundlers
 // These are replaced at build time by the Vite plugin in vite.config.ts
@@ -217,11 +223,28 @@ export async function parseOptionsAndRunCLI() {
 				type: 'boolean',
 				default: false,
 			})
+			.option('experimental-unsafe-ide-integration', {
+				describe:
+					'Enable experimental IDE development tools. This option edits IDE config files ' +
+					'to set Xdebug path mappings and web server details. CAUTION: If there are bugs, ' +
+					'this feature may break your IDE config files. Please consider backing up your IDE configs ' +
+					'before using this feature.',
+				type: 'string',
+				// The empty value means the option is enabled for all
+				// supported IDEs and, if needed, will create the relevant
+				// config file for each.
+				choices: ['', 'vscode', 'phpstorm'],
+				coerce: (value?: string) =>
+					value === '' ? ['vscode', 'phpstorm'] : [value],
+			})
 			.option('experimental-devtools', {
 				describe: 'Enable experimental browser development tools.',
 				type: 'boolean',
-				default: false,
 			})
+			.conflicts(
+				'experimental-unsafe-ide-integration',
+				'experimental-devtools'
+			)
 			.option('experimental-multi-worker', {
 				describe:
 					'Enable experimental multi-worker support which requires ' +
@@ -417,7 +440,8 @@ export interface RunCLIArgs {
 	exitOnPrimaryWorkerCrash?: boolean;
 	internalCookieStore?: boolean;
 	'additional-blueprint-steps'?: any[];
-	xdebug?: boolean;
+	xdebug?: boolean | { ideKey?: string };
+	experimentalUnsafeIdeIntegration?: string[];
 	experimentalDevtools?: boolean;
 	'experimental-blueprints-v2-runner'?: boolean;
 
@@ -449,10 +473,24 @@ export interface RunCLIServer extends AsyncDisposable {
 	playground: RemoteAPI<PlaygroundCliWorker>;
 	server: Server;
 	serverUrl: string;
+
 	[Symbol.asyncDispose](): Promise<void>;
+
 	// Expose the number of worker threads to the test runner.
 	workerThreadCount: number;
 }
+
+const bold = (text: string) =>
+	process.stdout.isTTY ? '\x1b[1m' + text + '\x1b[0m' : text;
+
+const dim = (text: string) =>
+	process.stdout.isTTY ? `\x1b[2m${text}\x1b[0m` : text;
+
+const italic = (text: string) =>
+	process.stdout.isTTY ? `\x1b[3m${text}\x1b[0m` : text;
+
+const highlight = (text: string) =>
+	process.stdout.isTTY ? `\x1b[33m${text}\x1b[0m` : text;
 
 export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 	let loadBalancer: LoadBalancer;
@@ -525,7 +563,8 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 	return startServer({
 		port: args['port'] as number,
 		onBind: async (server: Server, port: number): Promise<RunCLIServer> => {
-			const serverUrl = `http://127.0.0.1:${port}`;
+			const host = '127.0.0.1';
+			const serverUrl = `http://${host}:${port}`;
 			const siteUrl = args['site-url'] || serverUrl;
 
 			// Create the blueprints handler
@@ -549,6 +588,121 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 				tempDirNameDelimiter
 			);
 			logger.debug(`Native temp dir for VFS root: ${nativeDirPath}`);
+
+			const IDEConfigName = 'WP Playground CLI - Listen for Xdebug';
+
+			// Always clean up any existing Playground files symlink in the project root.
+			const symlinkName = '.playground-xdebug-root';
+			const symlinkPath = path.join(process.cwd(), symlinkName);
+
+			await removePlaygroundCliTempDirSymlink(symlinkPath);
+
+			// Then, if xdebug, and experimental IDE are enabled,
+			// recreate the symlink pointing to the temporary
+			// directory and add the new IDE config.
+			if (args.xdebug && args.experimentalUnsafeIdeIntegration) {
+				await createPlaygroundCliTempDirSymlink(
+					nativeDirPath,
+					symlinkPath,
+					process.platform
+				);
+
+				const symlinkMount: Mount = {
+					hostPath: `./${symlinkName}`,
+					vfsPath: '/',
+				};
+
+				try {
+					// NOTE: Both the 'clear' and 'add' operations can throw errors.
+					await clearXdebugIDEConfig(IDEConfigName, process.cwd());
+
+					const xdebugOptions =
+						typeof args.xdebug === 'object'
+							? args.xdebug
+							: undefined;
+					const modifiedConfig = await addXdebugIDEConfig({
+						name: IDEConfigName,
+						host: host,
+						port: port,
+						ides: args.experimentalUnsafeIdeIntegration!,
+						cwd: process.cwd(),
+						mounts: [
+							symlinkMount,
+							...(args['mount-before-install'] || []),
+							...(args.mount || []),
+						],
+						ideKey: xdebugOptions?.ideKey,
+					});
+
+					// Display IDE-specific instructions
+					const ides = args.experimentalUnsafeIdeIntegration;
+					const hasVSCode = ides.includes('vscode');
+					const hasPhpStorm = ides.includes('phpstorm');
+
+					console.log('');
+					console.log(bold(`Xdebug configured successfully`));
+					console.log(
+						highlight(`Updated IDE config: `) +
+							modifiedConfig.join(' ')
+					);
+					console.log(
+						highlight('Playground source root: ') +
+							`.playground-xdebug-root` +
+							italic(
+								dim(
+									` – you can set breakpoints and preview Playground's VFS structure in there.`
+								)
+							)
+					);
+					console.log('');
+
+					if (hasVSCode) {
+						console.log(bold('VS Code / Cursor instructions:'));
+						console.log(
+							'  1. Open the Run and Debug panel on the left sidebar'
+						);
+						console.log(
+							`  2. Select "${italic(
+								IDEConfigName
+							)}" from the dropdown`
+						);
+						console.log('  3. Click "start debugging"');
+						console.log(
+							'  4. Set a breakpoint. For example, in .playground-xdebug-root/wordpress/index.php'
+						);
+						console.log(
+							'  5. Visit Playground in your browser to hit the breakpoint'
+						);
+						if (hasPhpStorm) {
+							console.log('');
+						}
+					}
+
+					if (hasPhpStorm) {
+						console.log(bold('PhpStorm instructions:'));
+						console.log(
+							`  1. Choose "${italic(
+								IDEConfigName
+							)}" debug configuration in the toolbar`
+						);
+						console.log('  2. Click the debug button (bug icon)`');
+						console.log(
+							'  3. Set a breakpoint. For example, in .playground-xdebug-root/wordpress/index.php'
+						);
+						console.log(
+							'  4. Visit Playground in your browser to hit the breakpoint'
+						);
+					}
+
+					console.log('');
+				} catch (error) {
+					logger.error(
+						'Could not configure Xdebug:',
+						(error as Error)?.message
+					);
+					process.exit(1);
+				}
+			}
 
 			// We do not know the system temp dir,
 			// but we can try to infer from the location of the current temp dir.
@@ -760,7 +914,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 					`WordPress is running on ${serverUrl} with ${totalWorkerCount} worker(s)`
 				);
 
-				if (args.experimentalDevtools && args.xdebug) {
+				if (args.xdebug && args.experimentalDevtools) {
 					const bridge = await startBridge({
 						phpInstance: playground,
 						phpRoot: '/wordpress',
@@ -835,6 +989,7 @@ export type SpawnedWorker = {
 	worker: Worker;
 	phpPort: NodeMessagePort;
 };
+
 async function spawnWorkerThreads(
 	count: number,
 	workerType: WorkerType,

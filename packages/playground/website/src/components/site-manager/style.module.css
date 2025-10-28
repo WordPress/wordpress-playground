@@ -41,6 +41,12 @@
 	max-width: var(--site-info-panel-max-width);
 }
 
+@media (max-width: 1126px) {
+	.site-info-resize-handle {
+		display: none !important;
+	}
+}
+
 .site-info-resize-handle {
 	position: absolute;
 	top: 0;
