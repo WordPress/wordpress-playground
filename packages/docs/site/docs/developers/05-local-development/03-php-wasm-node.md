@@ -14,9 +14,9 @@ Consult the [complete list](/api/node) of Classes, Functions, Interfaces, and Ty
 
 ## WebAssembly PHP for Node.js
 
-This package ships WebAssembly PHP binaries and the JavaScript API optimized for Node.js. It uses the host filesystem directly and can access the network if you plug in a custom WS proxy.
+This package ships WebAssembly PHP binaries and the JavaScript API optimized for Node.js. It uses the host file system directly and can access the network if you plug in a custom WS proxy.
 
-### Basic Usage
+### Basic usage
 
 ```javascript
 import { PHP } from '@php-wasm/universal';
@@ -29,85 +29,85 @@ const output = await php.runStream({
 console.log(await output.stdoutText);
 ```
 
-## Use Cases
+## Use cases
 
-### 1. **Server-Side PHP Execution**
+### Server-side PHP execution
 
-Run PHP scripts in Node.js environments without installing PHP natively. Perfect for:
+You can run PHP scripts in Node.js environments without installing PHP natively. Perfect for:
 
 -   CI/CD pipelines that need PHP execution
 -   Testing PHP code in JavaScript-based test suites
 -   Microservices that occasionally need PHP functionality
 -   Development tools and build scripts
 
-### 2. **Data Processing & Transformation**
+### Data processing and transformation
 
-Process and manipulate data using PHP's rich ecosystem:
+You can process and manipulate data using PHP's rich ecosystem:
 
 -   CSV, JSON, and XML data transformation
 -   SQLite database operations without external dependencies
 -   Archive creation and extraction (ZIP, TAR)
 -   Image processing and manipulation
 
-### 3. **Template Rendering & Content Generation**
+### Template rendering and content generation
 
-Generate dynamic content using PHP templates:
+You can generate dynamic content using PHP templates:
 
 -   Email template rendering
 -   HTML report generation
 -   Documentation generation
 -   Dynamic configuration file creation
 
-### 4. **API Development & Testing**
+### API development and testing
 
-Build and test API endpoints:
+You can build and test API endpoints:
 
 -   Mock API servers for testing
 -   Request/response simulation
 -   API endpoint prototyping
 -   Integration testing for PHP APIs
 
-### 5. **PHP Code Analysis & Testing**
+### PHP code analysis and testing
 
-Build tools that analyze, lint, or test PHP code:
+You can build tools that analyze, lint, or test PHP code:
 
 -   Static analysis tools
 -   Code formatters and validators
 -   Unit test runners
 -   Documentation generators
 
-### 6. **Legacy Code Integration**
+### Legacy code integration
 
-Bridge PHP and JavaScript ecosystems:
+You can bridge PHP and JavaScript ecosystems:
 
 -   Migrate PHP applications incrementally
 -   Use PHP libraries in JavaScript projects
 -   Run PHP alongside modern JavaScript frameworks
 -   Provide backward compatibility
 
-### 7. **Educational Platforms**
+### Educational platforms
 
-Create interactive PHP learning environments:
+You can create interactive PHP learning environments:
 
 -   Online coding tutorials
 -   Interactive documentation
 -   Code playgrounds and sandboxes
 -   Programming challenges
 
-### 8. **WordPress Development Tools**
+### WordPress development tools
 
-Build WordPress development utilities:
+You can build WordPress development utilities:
 
 -   Plugin/theme validators
 -   WordPress CLI alternatives
 -   Development environment bootstrapping
 -   Automated testing tools
 
-## Practical Demos
+## Practical demos
 
-### Demo 1: File System Operations
+### Demo 1: File system operations
 
-Execute PHP scripts that interact with the filesystem:
+Execute PHP scripts that interact with the file system:
 
 ```javascript
 import { PHP } from '@php-wasm/universal';
@@ -151,7 +151,7 @@ const result = await php.runStream({ scriptPath: '/app/index.php' });
 console.log(await result.stdoutText);
 ```
 
-### Demo 2: SQLite Database Operations
+### Demo 2: SQLite database operations
 
 Use PHP's SQLite extension for data storage:
 
@@ -206,12 +206,12 @@ $db->close();
 
 console.log(await result.stdoutText);
 
-// Database file persists in the virtual filesystem
+// Database file persists in the virtual file system
 const dbExists = await php.fileExists('/data/app.db');
 console.log('\nDatabase persisted:', dbExists);
 ```
 
-### Demo 3: Processing Uploaded Files (ZIP Archives)
+### Demo 3: Processing uploaded files (ZIP archives)
 
 Process ZIP files using PHP's Libzip extension:
 
@@ -272,7 +272,7 @@ foreach ($files as $file) {
 console.log(await result.stdoutText);
 ```
 
-### Demo 4: HTTP Request/Response Pattern
+### Demo 4: HTTP request/response pattern
 
 Simulate web server behavior with request handlers:
 
@@ -323,7 +323,7 @@ switch ($method) {
 ?>`
 );
 
-// Simulate GET request
+// Make GET request
 const getResponse = await php.runStream({
 	scriptPath: '/www/api/users.php',
 	env: {
@@ -334,7 +334,7 @@ const getResponse = await php.runStream({
 });
 console.log('GET Response:', await getResponse.stdoutText);
 
-// Simulate POST request
+// Make POST request
 const postResponse = await php.runStream({
 	scriptPath: '/www/api/users.php',
 	env: {
@@ -347,7 +347,7 @@ const postResponse = await php.runStream({
 console.log('\\nPOST Response:', await postResponse.stdoutText);
 ```
 
-### Demo 5: Template Rendering Engine
+### Demo 5: Template rendering engine
 
 Use PHP as a templating engine for dynamic content:
 
@@ -400,8 +400,8 @@ await php.writeFile(
 
 // Render template with data
 const templateData = {
-	name: 'John Developer',
-	email: 'john@example.com',
+	name: 'Priya Sharma',
+	email: 'priya@example.com',
 	appName: 'MyAwesomeApp',
 	timestamp: Math.floor(Date.now() / 1000),
 	features: ['Dashboard Access', 'API Integration', 'Premium Support', 'Custom Branding'],
@@ -422,7 +422,7 @@ console.log(await result.stdoutText);
 // Now you have rendered HTML that can be sent via email or saved
 ```
 
-### Demo 6: Real-time Code Execution & Streaming
+### Demo 6: Real-time code execution and streaming
 
 Process PHP output as it's generated:
 
@@ -459,11 +459,9 @@ console.log(await streamedResponse.stdoutText);
 console.log(`\nExit code: ${streamedResponse.exitCode}`);
 ```
 
----
+## Integration patterns
 
-## Integration Patterns
-
-### Pattern 1: Express.js Middleware
+### Pattern 1: Express.js middleware
 
 Integrate PHP processing into an Express.js application:
 
@@ -483,7 +481,9 @@ app.use('/php', async (req, res, next) => {
 			scriptPath: `/www/${phpScript}`,
 			env: {
 				REQUEST_METHOD: req.method,
-				QUERY_STRING: new URLSearchParams(req.query as Record<string, string>).toString(),
+				QUERY_STRING: new URLSearchParams(
+					req.query as Record<string, string>
+				).toString(),
 				REQUEST_URI: req.url,
 			},
 		});
@@ -499,7 +499,7 @@ app.listen(3000, () => {
 });
 ```
 
-### Pattern 2: Automated Testing
+### Pattern 2: Automated testing
 
 Create automated tests for PHP code:
 
@@ -547,7 +547,7 @@ describe('PHP Functions', () => {
 });
 ```
 
-### Pattern 3: Build Tool Integration
+### Pattern 3: Build tool integration
 
 Use in build scripts with other Node.js tools:
 
@@ -577,7 +577,7 @@ echo "Documentation generated successfully!\\n";
 
 	console.log(await result.stdoutText);
 
-	// Extract generated docs back to Node.js filesystem
+	// Extract generated docs back to Node.js file system
 	await fs.mkdir('./docs', { recursive: true });
 	const summaryContent = await php.readFileAsText('/output/summary.md');
 	await fs.writeFile('./docs/summary.md', summaryContent);
@@ -588,9 +588,9 @@ echo "Documentation generated successfully!\\n";
 generateDocumentation().catch(console.error);
 ```
 
-## Advanced Features
+## Advanced features
 
-### Working with Environment Variables
+### Working with environment variables
 
 ```javascript
 import { PHP } from '@php-wasm/universal';
@@ -608,7 +608,7 @@ const result = await php.runStream({
 console.log(await result.stdoutText);
 ```
 
-### Error Handling
+### Error handling
 
 ```javascript
 import { PHP } from '@php-wasm/universal';
@@ -635,9 +635,7 @@ try {
 }
 ```
 
----
-
-## Performance Considerations
+## Performance considerations
 
 -   **Reuse PHP instances**: Creating a new PHP instance is expensive. Reuse the same instance when possible.
 -   **Batch operations**: Group multiple file operations together rather than running separate scripts.
