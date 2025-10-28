@@ -150,10 +150,6 @@ export class BlueprintsV1Handler {
 			trace,
 			internalCookieStore: this.args.internalCookieStore,
 			withXdebug: !!this.args.xdebug,
-			xdebug:
-				typeof this.args.xdebug === 'object'
-					? this.args.xdebug
-					: undefined,
 			nativeInternalDirPath,
 		});
 
@@ -203,10 +199,6 @@ export class BlueprintsV1Handler {
 			//        will have a separate cookie store.
 			internalCookieStore: this.args.internalCookieStore,
 			withXdebug: !!this.args.xdebug,
-			xdebug:
-				typeof this.args.xdebug === 'object'
-					? this.args.xdebug
-					: undefined,
 			nativeInternalDirPath,
 		});
 		await additionalPlayground.isReady();
