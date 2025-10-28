@@ -207,6 +207,49 @@ try {
 				expect(result.text).toBe('success');
 				expect(result.errors).toBeFalsy();
 			});
+
+			it('SOAP server should support a handle() call', async () => {
+				// First, create the SOAP server file
+				php.writeFile(
+					'/tmp/soap-server.php',
+					`<?php
+class TestSoapServer
+{
+	public function getMessage()
+	{
+		return 'Hello, World!';
+	}
+
+	public function echo($message)
+	{
+		return 'Echo: ' . $message;
+	}
+}
+
+try {
+	$options = [
+		'uri' => 'http://localhost/soap-server.php',
+	];
+	$server = new SoapServer(null, $options);
+	$server->setClass('TestSoapServer');
+	$server->handle();
+	echo 'success';
+} catch (SoapFault $e) {
+	echo "Server Error: " . $e->getMessage();
+}`
+				);
+
+				// Run the client
+				const result = await php.run({
+					scriptPath: '/tmp/soap-server.php',
+				});
+
+				// The test should successfully communicate between client and server
+				// Note: This test may behave differently depending on the WASM environment's
+				// ability to handle SOAP requests
+				expect(result.errors).toBeFalsy();
+				expect(result.text).toBe('success');
+			});
 		});
 
 		describe('SoapClient basic functionality', () => {

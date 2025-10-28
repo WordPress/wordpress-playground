@@ -633,6 +633,7 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "invoke_iiiiii",\n\
 "invoke_iiiiiii",\n\
 "invoke_iiiiiiii",\n\
+"invoke_iiiiiiiii",\n\
 "invoke_iiiiiiiiii",\n\
 "invoke_v",\n\
 "invoke_vi",\n\
@@ -685,6 +686,7 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "close",\n\
 "_close",\n\
 "js_module_onMessage",\n\
+"zend_hash_str_find",\n\
 "_js_module_onMessage",\n\
 "_asyncjs__js_module_onMessage",\n\
 "js_waitpid",\n\
@@ -705,6 +707,11 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "__xmlLoaderErr",\
 "zim_SoapClient___construct",\
 "get_sdl",\
+"get_http_headers",\
+"zim_SoapClient___call",\
+"soap_client_call_impl",\
+"zim_SoapClient___doRequest",\
+"make_http_soap_request",\
 "load_wsdl_ex",\
 "soap_xmlParseFile",\
 "xmlCreateURLParserCtxt",\
@@ -958,6 +965,7 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "zif_array_filter",\
 "zend_unclean_zval_ptr_dtor",\
 "zend_call_known_instance_method_with_2_params",\
+"ZEND_CALL_TRAMPOLINE_SPEC_OBSERVER_HANDLER",\
 "zend_fetch_dimension_address_read_R",\
 "_zval_dtor_func_for_ptr",\
 "ZEND_ASSIGN_DIM_SPEC_CV_CONST_HANDLER",\
