@@ -111,9 +111,14 @@ describe(`http protocol – ${runtimeMode}`, () => {
 							return major > 8 || (major === 8 && minor >= 1);
 						};
 
-						it('should show detailed AVIF codec information for PHP 8.1+', async () => {
+						it('should show detailed AVIF codec information for PHP 8.1+', async ({
+							skip,
+						}) => {
 							if (!isPhp81Plus()) {
-								return;
+								console.log(
+									'Skipping test because PHP version is lower than 8.1'
+								);
+								skip();
 							}
 
 							const phpCode = `<?php
@@ -175,10 +180,15 @@ describe(`http protocol – ${runtimeMode}`, () => {
 							}
 						});
 
-						it('should create and encode AVIF images for PHP 8.1+', async () => {
+						it('should create and encode AVIF images for PHP 8.1+', async ({
+							skip,
+						}) => {
 							if (!isPhp81Plus()) {
 								// Skip for older PHP versions
-								return;
+								console.log(
+									'Skipping test because PHP version is lower than 8.1'
+								);
+								skip();
 							}
 
 							const phpCode = `<?php
