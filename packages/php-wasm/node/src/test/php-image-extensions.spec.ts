@@ -191,25 +191,48 @@ describe(`http protocol – ${runtimeMode}`, () => {
 								skip();
 							}
 
+							const expectedWidth = 200;
+							const expectedHeight = 200;
 							const phpCode = `<?php
-								$img = imagecreatetruecolor(200, 200);
+								$img = imagecreatetruecolor(${expectedWidth}, ${expectedHeight});
 								$red = imagecolorallocate($img, 255, 0, 0);
 								imagefill($img, 0, 0, $red);
 
 								ob_start();
 								$result = imageavif($img);
 								$avifData = ob_get_clean();
+								file_put_contents('/saved.avif', $avifData);
 								imagedestroy($img);
-
 								$last_error = error_get_last();
-								echo json_encode([
-									'success' => $result,
-									'has_data' => strlen($avifData) > 0,
-									'data_size' => strlen($avifData),
-									'has_ftyp' => strpos($avifData, 'ftyp') !== false,
-									'has_avif' => strpos($avifData, 'avif') !== false,
-									'last_error' => $last_error ? $last_error['message'] : null,
-								]);
+
+								if (function_exists('imagecreatefromavif')) {
+									error_clear_last();
+									$saved_img = @imagecreatefromavif('/saved.avif');
+									if ($saved_img) {
+										$saved_last_error = error_get_last();
+										echo json_encode([
+											'success' => $result,
+											'has_data' => strlen($avifData) > 0,
+											'data_size' => strlen($avifData),
+											'has_ftyp' => strpos($avifData, 'ftyp') !== false,
+											'has_avif' => strpos($avifData, 'avif') !== false,
+											'last_error' => $last_error ? $last_error['message'] : null,
+											'saved_width' => imagesx($saved_img),
+											'saved_height' => imagesy($saved_img),
+											'saved_is_resource' => (
+												is_resource($saved_img) ||
+												(is_object($saved_img) && get_class($saved_img) === 'GdImage')
+											),
+											'saved_last_error' => $saved_last_error ? $saved_last_error['message'] : null,
+										]);
+
+										imagedestroy($img);
+									} else {
+										echo json_encode(['success' => false, 'error' => 'Failed to load saved image']);
+									}
+								} else {
+									echo json_encode(['success' => false, 'error' => 'imagecreatefromavif not available']);
+								}
 								?>`;
 
 							const response = await php.run({
@@ -223,6 +246,10 @@ describe(`http protocol – ${runtimeMode}`, () => {
 							expect(result.has_ftyp).toBe(true);
 							expect(result.has_avif).toBe(true);
 							expect(result.last_error).toBeNull();
+							expect(result.saved_width).toBe(expectedWidth);
+							expect(result.saved_height).toBe(expectedHeight);
+							expect(result.saved_is_resource).toBe(true);
+							expect(result.saved_last_error).toBeNull();
 						});
 
 						it('should load AVIF from local file for PHP 8.1+', async () => {
