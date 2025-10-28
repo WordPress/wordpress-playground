@@ -167,11 +167,8 @@
 					"php.spec.ts",
 					"file-lock-manager-for-node.spec.ts",
 					"php-worker.spec.ts",
-<<<<<<< HEAD
-					"php-soap.spec.ts"
-=======
+					"php-soap.spec.ts",
 					"php-image-extensions.spec.ts"
->>>>>>> origin/trunk
 				]
 			}
 		},
@@ -197,11 +194,8 @@
 					"php.spec.ts",
 					"file-lock-manager-for-node.spec.ts",
 					"php-worker.spec.ts",
-<<<<<<< HEAD
-					"php-soap.spec.ts"
-=======
+					"php-soap.spec.ts",
 					"php-image-extensions.spec.ts"
->>>>>>> origin/trunk
 				]
 			}
 		},

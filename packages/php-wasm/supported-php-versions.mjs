@@ -6,11 +6,7 @@
  * @property {string} lastRelease
  */
 
-<<<<<<< HEAD
-export const lastRefreshed = '2025-10-28T00:47:29.502Z';
-=======
 export const lastRefreshed = '2025-10-27T13:10:16.272Z';
->>>>>>> origin/trunk
 
 /**
  * @type {PhpVersion[]}
