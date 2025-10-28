@@ -701,6 +701,15 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "_asyncjs__wasm_shutdown"]'; \
 	echo -n " -s ASYNCIFY_IMPORTS=$ASYNCIFY_IMPORTS " | tr -d "\n" >> /root/.emcc-php-asyncify-flags; \
 	export ASYNCIFY_ONLY_UNPREFIXED=$'"null.<anonymous>",\
+"cookieread",\
+"ReadBlob",\
+"ReadBlobStream",\
+"ImageToFile",\
+"SetImageInfo",\
+"MagickReadImageFile",\
+"ReadImage_26622",\
+"php_imagick_read_file",\
+"zim_Imagick___construct",\
 "__stdio_close",\
 "zend_stream_stdio_closer",\
 "zend_destroy_file_handle",\

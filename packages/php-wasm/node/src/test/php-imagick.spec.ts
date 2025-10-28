@@ -1,4 +1,5 @@
 import fs from 'fs';
+import { rootCertificates } from 'tls';
 import path from 'path';
 import {
 	PHP,
@@ -19,7 +20,14 @@ describe(`Imagick – ${runtimeMode}`, () => {
 
 		beforeEach(async () => {
 			php = new PHP(await loadNodeRuntime(phpVersion as any));
-			await setPhpIniEntries(php, { allow_url_fopen: 1 });
+			await setPhpIniEntries(php, {
+				allow_url_fopen: 1,
+				'openssl.cafile': '/internal/shared/ca-bundle.crt',
+			});
+			php.writeFile(
+				'/internal/shared/ca-bundle.crt',
+				rootCertificates.join('\n')
+			);
 
 			// Create a simple test JPEG image in VFS
 			const testImageData = fs.readFileSync(
@@ -270,6 +278,118 @@ describe(`Imagick – ${runtimeMode}`, () => {
 			});
 			expect(result.text).toBe('cleared');
 			expect(result.exitCode).toBe(0);
+		});
+
+		test('convert JPEG to GIF', async () => {
+			const result = await php.run({
+				code: `<?php
+					$imagick = new Imagick('/tmp/test-image.jpg');
+					$imagick->setImageFormat('gif');
+					$imagick->writeImage('/tmp/output.gif');
+
+					// Verify we can read it back as GIF
+					$verify = new Imagick('/tmp/output.gif');
+					echo strtoupper($verify->getImageFormat());
+				`,
+			});
+			expect(result.text).toBe('GIF');
+
+			// Verify the GIF file exists
+			const gifFile = php.readFileAsBuffer('/tmp/output.gif');
+			expect(gifFile.byteLength).toBeGreaterThan(0);
+		});
+
+		test('create animated GIF from multiple frames', async () => {
+			const result = await php.run({
+				code: `<?php
+					$imagick = new Imagick();
+
+					// Create 3 frames with different colors
+					$colors = ['red', 'green', 'blue'];
+					foreach ($colors as $color) {
+						$frame = new Imagick();
+						$frame->newImage(50, 50, new ImagickPixel($color));
+						$frame->setImageFormat('gif');
+						$imagick->addImage($frame);
+					}
+
+					// Set animation delay
+					$imagick->setImageDelay(50);
+
+					// Write animated GIF
+					$imagick->writeImages('/tmp/animated.gif', true);
+
+					// Verify
+					$verify = new Imagick('/tmp/animated.gif');
+					echo $verify->getNumberImages() . ' frames';
+				`,
+			});
+			expect(result.text).toBe('3 frames');
+		});
+
+		test('read image from HTTP URL', async () => {
+			const result = await php.run({
+				code: `<?php
+					$url = 'https://raw.githubusercontent.com/WordPress/wordpress-playground/8bf0bcb0c6a20d84e17d2a09decadc674f66d964/packages/php-wasm/node/src/test/test-data/image.jpg';
+					$imagick = new Imagick($url);
+					echo $imagick->getImageWidth() . 'x' . $imagick->getImageHeight();
+				`,
+			});
+			expect(result.text).toMatch(/^\d+x\d+$/);
+			expect(result.exitCode).toBe(0);
+		});
+
+		test('read image from http:// wrapper', async () => {
+			const result = await php.run({
+				code: `<?php
+					// Note: GitHub redirects http to https, so this tests the wrapper
+					$url = 'http://raw.githubusercontent.com/WordPress/wordpress-playground/8bf0bcb0c6a20d84e17d2a09decadc674f66d964/packages/php-wasm/node/src/test/test-data/image.jpg';
+					$imagick = new Imagick($url);
+					echo $imagick->getImageWidth() . 'x' . $imagick->getImageHeight();
+				`,
+			});
+			expect(result.text).toMatch(/^\d+x\d+$/);
+			expect(result.exitCode).toBe(0);
+		});
+
+		test('process image from URL and save to VFS', async () => {
+			const result = await php.run({
+				code: `<?php
+					$url = 'https://raw.githubusercontent.com/WordPress/wordpress-playground/8bf0bcb0c6a20d84e17d2a09decadc674f66d964/packages/php-wasm/node/src/test/test-data/image.jpg';
+					$imagick = new Imagick($url);
+
+					// Resize and convert to GIF
+					$imagick->resizeImage(100, 100, Imagick::FILTER_LANCZOS, 1);
+					$imagick->setImageFormat('gif');
+					$imagick->writeImage('/tmp/from-url.gif');
+
+					// Verify
+					$verify = new Imagick('/tmp/from-url.gif');
+					echo $verify->getImageWidth() . 'x' . $verify->getImageHeight() . ' ' . strtoupper($verify->getImageFormat());
+				`,
+			});
+			expect(result.text).toBe('100x100 GIF');
+
+			// Verify file from Node.js side
+			const outputFile = php.readFileAsBuffer('/tmp/from-url.gif');
+			expect(outputFile.byteLength).toBeGreaterThan(0);
+		});
+
+		test('get supported image formats', async () => {
+			const result = await php.run({
+				code: `<?php
+					$imagick = new Imagick();
+					$formats = $imagick->queryFormats();
+
+					// Check for common formats
+					$hasJPEG = in_array('JPEG', $formats) || in_array('JPG', $formats);
+					$hasGIF = in_array('GIF', $formats);
+
+					echo ($hasJPEG ? 'JPEG ' : '') . ($hasGIF ? 'GIF' : '');
+				`,
+			});
+			expect(result.text).toContain('JPEG');
+			expect(result.text).toContain('GIF');
 		});
 	});
 });
