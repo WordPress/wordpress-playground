@@ -150,7 +150,6 @@ export type SecondaryWorkerBootArgs = {
 	trace: boolean;
 	nativeInternalDirPath: string;
 	withXdebug?: boolean;
-	xdebug?: import('@php-wasm/node').XdebugOptions;
 	mountsBeforeWpInstall?: Array<Mount>;
 	mountsAfterWpInstall?: Array<Mount>;
 };
@@ -422,7 +421,6 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 		trace,
 		nativeInternalDirPath,
 		withXdebug,
-		xdebug,
 		onPHPInstanceCreated,
 	}: WorkerBootRequestHandlerOptions) {
 		if (this.booted) {
@@ -458,7 +456,6 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 						},
 						followSymlinks: allow?.includes('follow-symlinks'),
 						withXdebug,
-						xdebug,
 					});
 				},
 				onPHPInstanceCreated,
