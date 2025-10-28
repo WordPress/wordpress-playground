@@ -192,11 +192,8 @@ RUN if [ "$WITH_LIBZIP" = "yes" ]; then \
 			# https://www.php.net/manual/en/zlib.installation.php
 			echo -n ' --with-zlib --with-zlib-dir=/root/lib --with-zip ' >> /root/.php-configure-flags; \
 			echo -n ' /root/lib/lib/libzip.a /root/lib/lib/libz.a ' >> /root/.emcc-php-wasm-sources; \
-		fi && \
-		/root/replace.sh 's/pharcmd=pharcmd/pharcmd=/g' /root/php-src/configure && \
-		/root/replace.sh 's/pharcmd_install=install-pharcmd/pharcmd_install=/g' /root/php-src/configure; \
+		fi; \
 	fi;
-
 
 # Add ncurses if needed and libedit if needed
 RUN if [ "$WITH_CLI_SAPI" = "yes" ]; \
@@ -381,8 +378,8 @@ RUN if [ "$WITH_MYSQL" = "yes" ]; then \
 		echo -n ' -DMYSQLND_FORCE_TCP_LOCALHOST ' >> /root/.emcc-php-wasm-flags; \
 	fi
 
-# Download and prepare imagick extension if needed
-RUN if [ "$WITH_IMAGICK" = "yes" ]; then \
+# Download and prepare imagick extension if needed (PHP 8.0+ only)
+RUN if [ "$WITH_IMAGICK" = "yes" ] && [ "${PHP_VERSION:0:1}" -ge "8" ]; then \
 		git clone https://github.com/Imagick/imagick.git /root/imagick \
 			--branch master \
 			--single-branch \
@@ -392,6 +389,11 @@ RUN if [ "$WITH_IMAGICK" = "yes" ]; then \
 		echo -n ' --with-imagick=/root/lib --with-imagick-config=/root/lib/bin/wasm32-unknown-emscripten-MagickWand-config ' >> /root/.php-configure-flags && \
 		echo -n ' /root/lib/lib/libMagickWand-7.Q16HDRI.a /root/lib/lib/libMagickCore-7.Q16HDRI.a ' >> /root/.emcc-php-wasm-sources; \
 	fi
+
+# Disable phar.php generation for all builds (WASM binaries can't execute during build)
+# This must run after buildconf but before configure
+RUN /root/replace.sh 's/pharcmd=pharcmd/pharcmd=/g' /root/php-src/configure && \
+	/root/replace.sh 's/pharcmd_install=install-pharcmd/pharcmd_install=/g' /root/php-src/configure
 
 # Build the patched PHP
 WORKDIR /root/php-src
@@ -708,6 +710,7 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "SetImageInfo",\
 "MagickReadImageFile",\
 "ReadImage_26622",\
+"zm_shutdown_imagick",\
 "php_imagick_read_file",\
 "zim_Imagick___construct",\
 "__stdio_close",\
