@@ -255,8 +255,8 @@ describe(`http protocol – ${runtimeMode}`, () => {
 								const result = JSON.parse(response.text);
 								expect(result.success).toBe(true);
 								expect(result.is_resource).toBe(true);
-								expect(result.width).toBeGreaterThan(0);
-								expect(result.height).toBeGreaterThan(0);
+								expect(result.width).toBe(30);
+								expect(result.height).toBe(30);
 							} else {
 								const result = JSON.parse(response.text);
 								expect(result.success).toBe(false);
@@ -291,8 +291,8 @@ describe(`http protocol – ${runtimeMode}`, () => {
 								const result = JSON.parse(response.text);
 								expect(result.success).toBe(true);
 								expect(result.is_resource).toBe(true);
-								expect(result.width).toBeGreaterThan(0);
-								expect(result.height).toBeGreaterThan(0);
+								expect(result.width).toBe(30);
+								expect(result.height).toBe(30);
 							} else {
 								const result = JSON.parse(response.text);
 								expect(result.success).toBe(false);
