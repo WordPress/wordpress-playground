@@ -44,6 +44,7 @@ export type WorkerBootOptions = {
 	 */
 	internalCookieStore?: boolean;
 	withXdebug?: boolean;
+	xdebug?: import('@php-wasm/node').XdebugOptions;
 	nativeInternalDirPath: string;
 };
 
@@ -137,6 +138,7 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 		trace,
 		internalCookieStore,
 		withXdebug,
+		xdebug,
 		nativeInternalDirPath,
 	}: PrimaryWorkerBootOptions) {
 		if (this.booted) {
@@ -176,6 +178,7 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 						},
 						followSymlinks,
 						withXdebug,
+						xdebug,
 					});
 				},
 				wordPressZip:

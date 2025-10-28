@@ -149,7 +149,11 @@ export class BlueprintsV1Handler {
 			followSymlinks,
 			trace,
 			internalCookieStore: this.args.internalCookieStore,
-			withXdebug: this.args.xdebug,
+			withXdebug: !!this.args.xdebug,
+			xdebug:
+				typeof this.args.xdebug === 'object'
+					? this.args.xdebug
+					: undefined,
 			nativeInternalDirPath,
 		});
 
@@ -198,7 +202,11 @@ export class BlueprintsV1Handler {
 			// @TODO: Move this to the request handler or else every worker
 			//        will have a separate cookie store.
 			internalCookieStore: this.args.internalCookieStore,
-			withXdebug: this.args.xdebug,
+			withXdebug: !!this.args.xdebug,
+			xdebug:
+				typeof this.args.xdebug === 'object'
+					? this.args.xdebug
+					: undefined,
 			nativeInternalDirPath,
 		});
 		await additionalPlayground.isReady();

@@ -440,7 +440,7 @@ export interface RunCLIArgs {
 	exitOnPrimaryWorkerCrash?: boolean;
 	internalCookieStore?: boolean;
 	'additional-blueprint-steps'?: any[];
-	xdebug?: boolean;
+	xdebug?: boolean | { ideKey?: string };
 	experimentalUnsafeIdeIntegration?: string[];
 	experimentalDevtools?: boolean;
 	'experimental-blueprints-v2-runner'?: boolean;
@@ -614,6 +614,10 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 
 				await clearXdebugIDEConfig(IDEConfigName, process.cwd());
 				try {
+					const xdebugOptions =
+						typeof args.xdebug === 'object'
+							? args.xdebug
+							: undefined;
 					const modifiedConfig = await addXdebugIDEConfig({
 						name: IDEConfigName,
 						host: host,
@@ -625,6 +629,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 							...(args['mount-before-install'] || []),
 							...(args.mount || []),
 						],
+						ideKey: xdebugOptions?.ideKey,
 					});
 
 					// Display IDE-specific instructions

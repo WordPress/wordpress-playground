@@ -92,6 +92,10 @@ export type IDEConfig = {
 	 * The mounts to consider for debugger path mapping.
 	 */
 	mounts: Mount[];
+	/**
+	 * The IDE key to use for the debug configuration. Defaults to 'PLAYGROUNDCLI'.
+	 */
+	ideKey?: string;
 };
 
 type PhpStormConfigMetaData = {
@@ -161,6 +165,291 @@ const jsoncParseOptions: JSONC.ParseOptions = {
 	allowTrailingComma: true,
 };
 
+export type PhpStormConfigOptions = {
+	name: string;
+	host: string;
+	port: number;
+	mappings: Mount[];
+	ideKey: string;
+};
+
+/**
+ * Pure function to update PHPStorm XML config with XDebug server and run configuration.
+ *
+ * @param xmlContent The original XML content of workspace.xml
+ * @param options Configuration options for the server
+ * @returns Updated XML content
+ * @throws Error if XML is invalid or configuration is incompatible
+ */
+export function updatePhpStormConfig(
+	xmlContent: string,
+	options: PhpStormConfigOptions
+): string {
+	const { name, host, port, mappings, ideKey } = options;
+
+	const xmlParser = new XMLParser(xmlParserOptions);
+
+	// Parse the XML
+	const config: PhpStormConfigNode[] = (() => {
+		try {
+			return xmlParser.parse(xmlContent, true);
+		} catch {
+			throw new Error('PhpStorm configuration file is not valid XML.');
+		}
+	})();
+
+	// Create the server element with path mappings
+	const serverElement: PhpStormConfigNode = {
+		server: [
+			{
+				path_mappings: mappings.map((mapping) => ({
+					mapping: [],
+					':@': {
+						'local-root': `$PROJECT_DIR$/${mapping.hostPath.replace(
+							/^\.\/?/,
+							''
+						)}`,
+						'remote-root': mapping.vfsPath,
+					},
+				})),
+			},
+		],
+		':@': {
+			name,
+			// NOTE: PhpStorm quirk: Xdebug only works when the full URL (including port)
+			// is provided in `host`. The separate `port` field is ignored or misinterpreted,
+			// so we rely solely on host: "host:port".
+			host: `${host}:${port}`,
+			use_path_mappings: 'true',
+		},
+	};
+
+	// Find or create project element
+	let projectElement = config?.find((c: PhpStormConfigNode) => !!c?.project);
+	if (projectElement) {
+		const projectVersion = projectElement[':@']?.version;
+		if (projectVersion === undefined) {
+			throw new Error(
+				'PhpStorm IDE integration only supports <project version="4"> in workspace.xml, ' +
+					'but the <project> configuration has no version number.'
+			);
+		} else if (projectVersion !== '4') {
+			throw new Error(
+				'PhpStorm IDE integration only supports <project version="4"> in workspace.xml, ' +
+					`but we found a <project> configuration with version "${projectVersion}".`
+			);
+		}
+	}
+	if (projectElement === undefined) {
+		projectElement = {
+			project: [],
+			':@': { version: '4' },
+		};
+		config.push(projectElement);
+	}
+
+	// Find or create PhpServers component
+	let componentElement = projectElement.project?.find(
+		(c: PhpStormConfigNode) =>
+			!!c?.component && c?.[':@']?.name === 'PhpServers'
+	);
+	if (componentElement === undefined) {
+		componentElement = {
+			component: [],
+			':@': { name: 'PhpServers' },
+		};
+
+		if (projectElement.project === undefined) {
+			projectElement.project = [];
+		}
+
+		projectElement.project.push(componentElement);
+	}
+
+	// Find or create servers element
+	let serversElement = componentElement.component?.find(
+		(c: PhpStormConfigNode) => !!c?.servers
+	);
+	if (serversElement === undefined) {
+		serversElement = { servers: [] };
+
+		if (componentElement.component === undefined) {
+			componentElement.component = [];
+		}
+
+		componentElement.component.push(serversElement);
+	}
+
+	// Check if server already exists
+	const serverElementIndex = serversElement.servers?.findIndex(
+		(c: PhpStormConfigNode) => !!c?.server && c?.[':@']?.name === name
+	);
+
+	// Only add server if it doesn't exist
+	if (serverElementIndex === undefined || serverElementIndex < 0) {
+		if (serversElement.servers === undefined) {
+			serversElement.servers = [];
+		}
+
+		serversElement.servers.push(serverElement);
+	}
+
+	// Find or create RunManager component
+	let runManagerElement = projectElement.project?.find(
+		(c: PhpStormConfigNode) =>
+			!!c?.component && c?.[':@']?.name === 'RunManager'
+	);
+	if (runManagerElement === undefined) {
+		runManagerElement = {
+			component: [],
+			':@': { name: 'RunManager' },
+		};
+
+		if (projectElement.project === undefined) {
+			projectElement.project = [];
+		}
+
+		projectElement.project.push(runManagerElement);
+	}
+
+	// Check if run configuration already exists
+	const existingConfigIndex =
+		runManagerElement.component?.findIndex(
+			(c: PhpStormConfigNode) =>
+				!!c?.configuration && c?.[':@']?.name === name
+		) ?? -1;
+
+	// Only add run configuration if it doesn't exist
+	if (existingConfigIndex < 0) {
+		const runConfigElement: PhpStormConfigNode = {
+			configuration: [
+				{
+					method: [],
+					':@': { v: '2' },
+				},
+			],
+			':@': {
+				name: name,
+				type: 'PhpRemoteDebugRunConfigurationType',
+				factoryName: 'PHP Remote Debug',
+				filter_connections: 'FILTER',
+				server_name: name,
+				session_id: ideKey,
+			},
+		};
+
+		if (runManagerElement.component === undefined) {
+			runManagerElement.component = [];
+		}
+
+		runManagerElement.component.push(runConfigElement);
+	}
+
+	// Build the updated XML
+	const xmlBuilder = new XMLBuilder(xmlBuilderOptions);
+	const xml = xmlBuilder.build(config);
+
+	// Validate the generated XML
+	try {
+		xmlParser.parse(xml, true);
+	} catch {
+		throw new Error(
+			'The resulting PhpStorm configuration file is not valid XML.'
+		);
+	}
+
+	return xml;
+}
+
+export type VSCodeConfigOptions = {
+	name: string;
+	mappings: Mount[];
+};
+
+/**
+ * Pure function to update VS Code launch.json config with XDebug configuration.
+ *
+ * @param jsonContent The original JSON content of launch.json
+ * @param options Configuration options
+ * @returns Updated JSON content
+ * @throws Error if JSON is invalid
+ */
+export function updateVSCodeConfig(
+	jsonContent: string,
+	options: VSCodeConfigOptions
+): string {
+	const { name, mappings } = options;
+
+	const errors: JSONC.ParseError[] = [];
+
+	let content = jsonContent;
+	let root = JSONC.parseTree(content, errors, jsoncParseOptions);
+
+	if (root === undefined || errors.length) {
+		throw new Error('VS Code configuration file is not valid JSON.');
+	}
+
+	// Find or create configurations array
+	let configurationsNode = JSONC.findNodeAtLocation(root, ['configurations']);
+
+	if (
+		configurationsNode === undefined ||
+		configurationsNode.children === undefined
+	) {
+		const edits = JSONC.modify(content, ['configurations'], [], {});
+		content = JSONC.applyEdits(content, edits);
+
+		root = JSONC.parseTree(content, [], jsoncParseOptions);
+		configurationsNode = JSONC.findNodeAtLocation(root!, [
+			'configurations',
+		]);
+	}
+
+	// Check if configuration already exists
+	const configurationIndex = configurationsNode?.children?.findIndex(
+		(child) => JSONC.findNodeAtLocation(child, ['name'])?.value === name
+	);
+
+	// Only add configuration if it doesn't exist
+	if (configurationIndex === undefined || configurationIndex < 0) {
+		const configuration: VSCodeConfigNode = {
+			name: name,
+			type: 'php',
+			request: 'launch',
+			port: 9003,
+			pathMappings: mappings.reduce((acc, mount) => {
+				acc[
+					mount.vfsPath
+				] = `\${workspaceFolder}/${mount.hostPath.replace(
+					/^\.\/?/,
+					''
+				)}`;
+				return acc;
+			}, {} as VSCodeConfigMetaData),
+		};
+
+		// Get the current length to append at the end
+		const currentLength = configurationsNode?.children?.length || 0;
+
+		const edits = JSONC.modify(
+			content,
+			['configurations', currentLength],
+			configuration,
+			{
+				formattingOptions: {
+					insertSpaces: true,
+					tabSize: 4,
+					eol: '\n',
+				},
+			}
+		);
+
+		content = jsoncApplyEdits(content, edits);
+	}
+
+	return content;
+}
+
 /**
  * Implement necessary parameters and path mappings in IDE configuration files.
  *
@@ -174,37 +463,13 @@ export async function addXdebugIDEConfig({
 	port,
 	cwd,
 	mounts,
+	ideKey = 'PLAYGROUNDCLI',
 }: IDEConfig) {
 	const mappings = filterLocalMounts(cwd, mounts);
 	const modifiedConfig: string[] = [];
 
 	// PHPstorm
 	if (ides.includes('phpstorm')) {
-		const serverElement: PhpStormConfigNode = {
-			server: [
-				{
-					path_mappings: mappings.map((mapping) => ({
-						mapping: [],
-						':@': {
-							'local-root': `$PROJECT_DIR$/${mapping.hostPath.replace(
-								/^\.\/?/,
-								''
-							)}`,
-							'remote-root': mapping.vfsPath,
-						},
-					})),
-				},
-			],
-			':@': {
-				name,
-				// NOTE: PhpStorm quirk: Xdebug only works when the full URL (including port)
-				// is provided in `host`. The separate `port` field is ignored or misinterpreted,
-				// so we rely solely on host: "host:port".
-				host: `${host}:${port}`,
-				use_path_mappings: 'true',
-			},
-		};
-
 		const phpStormRelativeConfigFilePath = '.idea/workspace.xml';
 		const phpStormConfigFilePath = path.join(
 			cwd,
@@ -228,162 +493,14 @@ export async function addXdebugIDEConfig({
 
 		if (fs.existsSync(phpStormConfigFilePath)) {
 			const contents = fs.readFileSync(phpStormConfigFilePath, 'utf8');
-			const xmlParser = new XMLParser(xmlParserOptions);
-			// NOTE: Using an IIFE so `config` can remain const.
-			const config: PhpStormConfigNode[] = (() => {
-				try {
-					return xmlParser.parse(contents, true);
-				} catch {
-					throw new Error(
-						'PhpStorm configuration file is not valid XML.'
-					);
-				}
-			})();
-
-			let projectElement = config?.find(
-				(c: PhpStormConfigNode) => !!c?.project
-			);
-			if (projectElement) {
-				const projectVersion = projectElement[':@']?.version;
-				if (projectVersion === undefined) {
-					throw new Error(
-						'PhpStorm IDE integration only supports <project version="4"> in workspace.xml, ' +
-							'but the <project> configuration has no version number.'
-					);
-				} else if (projectVersion !== '4') {
-					throw new Error(
-						'PhpStorm IDE integration only supports <project version="4"> in workspace.xml, ' +
-							`but we found a <project> configuration with version "${projectVersion}".`
-					);
-				}
-			}
-			if (projectElement === undefined) {
-				projectElement = {
-					project: [],
-					':@': { version: '4' },
-				};
-				config.push(projectElement);
-			}
-
-			let componentElement = projectElement.project?.find(
-				(c: PhpStormConfigNode) =>
-					!!c?.component && c?.[':@']?.name === 'PhpServers'
-			);
-			if (componentElement === undefined) {
-				componentElement = {
-					component: [],
-					':@': { name: 'PhpServers' },
-				};
-
-				if (projectElement.project === undefined) {
-					projectElement.project = [];
-				}
-
-				projectElement.project.push(componentElement);
-			}
-
-			let serversElement = componentElement.component?.find(
-				(c: PhpStormConfigNode) => !!c?.servers
-			);
-			if (serversElement === undefined) {
-				serversElement = { servers: [] };
-
-				if (componentElement.component === undefined) {
-					componentElement.component = [];
-				}
-
-				componentElement.component.push(serversElement);
-			}
-
-			const serverElementIndex = serversElement.servers?.findIndex(
-				(c: PhpStormConfigNode) =>
-					!!c?.server && c?.[':@']?.name === name
-			);
-
-			if (serverElementIndex === undefined || serverElementIndex < 0) {
-				if (serversElement.servers === undefined) {
-					serversElement.servers = [];
-				}
-
-				serversElement.servers.push(serverElement);
-
-				const xmlBuilder = new XMLBuilder(xmlBuilderOptions);
-				const xml = xmlBuilder.build(config);
-
-				try {
-					xmlParser.parse(xml, true);
-				} catch {
-					throw new Error(
-						'The resulting PhpStorm configuration file is not valid XML.'
-					);
-				}
-
-				fs.writeFileSync(phpStormConfigFilePath, xml);
-			}
-
-			// Add a run configuration that uses the server
-			let runManagerElement = projectElement.project?.find(
-				(c: PhpStormConfigNode) =>
-					!!c?.component && c?.[':@']?.name === 'RunManager'
-			);
-			if (runManagerElement === undefined) {
-				runManagerElement = {
-					component: [],
-					':@': { name: 'RunManager' },
-				};
-
-				if (projectElement.project === undefined) {
-					projectElement.project = [];
-				}
-
-				projectElement.project.push(runManagerElement);
-			}
-
-			// Check if a run configuration with our name already exists
-			const existingConfigIndex =
-				runManagerElement.component?.findIndex(
-					(c: PhpStormConfigNode) =>
-						!!c?.configuration && c?.[':@']?.name === name
-				) ?? -1;
-
-			if (existingConfigIndex < 0) {
-				// Add the run configuration
-				const runConfigElement: PhpStormConfigNode = {
-					configuration: [
-						{
-							method: [],
-							':@': { v: '2' },
-						},
-					],
-					':@': {
-						name: name,
-						type: 'PhpRemoteDebugRunConfigurationType',
-						factoryName: 'PHP Remote Debug',
-						filter_connections: 'FILTER',
-						server_name: name,
-						session_id: 'PLAYGROUNDCLI',
-					},
-				};
-
-				if (runManagerElement.component === undefined) {
-					runManagerElement.component = [];
-				}
-
-				runManagerElement.component.push(runConfigElement);
-
-				const xmlBuilder = new XMLBuilder(xmlBuilderOptions);
-				const xml = xmlBuilder.build(config);
-
-				try {
-					xmlParser.parse(xml, true);
-				} catch {
-					throw new Error(
-						'The resulting PhpStorm configuration file is not valid XML.'
-					);
-				}
-
-				fs.writeFileSync(phpStormConfigFilePath, xml);
-			}
+			const updatedXml = updatePhpStormConfig(contents, {
+				name,
+				host,
+				port,
+				mappings,
+				ideKey,
+			});
+			fs.writeFileSync(phpStormConfigFilePath, updatedXml);
 		}
 
 		modifiedConfig.push(phpStormRelativeConfigFilePath);
@@ -391,22 +508,6 @@ export async function addXdebugIDEConfig({
 
 	// VSCode
 	if (ides.includes('vscode')) {
-		const configuration: VSCodeConfigNode = {
-			name: name,
-			type: 'php',
-			request: 'launch',
-			port: 9003,
-			pathMappings: mappings.reduce((acc, mount) => {
-				acc[
-					mount.vfsPath
-				] = `\${workspaceFolder}/${mount.hostPath.replace(
-					/^\.\/?/,
-					''
-				)}`;
-				return acc;
-			}, {} as VSCodeConfigMetaData),
-		};
-
 		const vsCodeRelativeConfigFilePath = '.vscode/launch.json';
 		const vsCodeConfigFilePath = path.join(
 			cwd,
@@ -429,55 +530,15 @@ export async function addXdebugIDEConfig({
 		}
 
 		if (fs.existsSync(vsCodeConfigFilePath)) {
-			const errors: JSONC.ParseError[] = [];
+			const content = fs.readFileSync(vsCodeConfigFilePath, 'utf-8');
+			const updatedJson = updateVSCodeConfig(content, {
+				name,
+				mappings,
+			});
 
-			let content = fs.readFileSync(vsCodeConfigFilePath, 'utf-8');
-			let root = JSONC.parseTree(content, errors, jsoncParseOptions);
-
-			if (root === undefined || errors.length) {
-				throw new Error(
-					'VS Code configuration file is not valid JSON.'
-				);
-			}
-
-			let configurationsNode = JSONC.findNodeAtLocation(root, [
-				'configurations',
-			]);
-
-			if (
-				configurationsNode === undefined ||
-				configurationsNode.children === undefined
-			) {
-				const edits = JSONC.modify(content, ['configurations'], [], {});
-				content = JSONC.applyEdits(content, edits);
-
-				root = JSONC.parseTree(content, [], jsoncParseOptions);
-				configurationsNode = JSONC.findNodeAtLocation(root!, [
-					'configurations',
-				]);
-			}
-
-			const configurationIndex = configurationsNode?.children?.findIndex(
-				(child) =>
-					JSONC.findNodeAtLocation(child, ['name'])?.value === name
-			);
-
-			if (configurationIndex === undefined || configurationIndex < 0) {
-				const edits = JSONC.modify(
-					content,
-					['configurations', 0],
-					configuration,
-					{
-						formattingOptions: {
-							insertSpaces: true,
-							tabSize: 4,
-							eol: '\n',
-						},
-					}
-				);
-
-				const json = jsoncApplyEdits(content, edits);
-				fs.writeFileSync(vsCodeConfigFilePath, json);
+			// Only write and track the file if changes were made
+			if (updatedJson !== content) {
+				fs.writeFileSync(vsCodeConfigFilePath, updatedJson);
 				modifiedConfig.push(vsCodeRelativeConfigFilePath);
 			}
 		}
