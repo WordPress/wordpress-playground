@@ -6,7 +6,7 @@
  * @property {string} lastRelease
  */
 
-export const lastRefreshed = '2025-10-27T13:10:16.272Z';
+export const lastRefreshed = '2025-10-28T16:21:21.089Z';
 
 /**
  * @type {PhpVersion[]}
