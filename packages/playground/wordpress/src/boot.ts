@@ -369,9 +369,17 @@ export async function isWordPressInstalled(php: PHP) {
 	return result.text === '1';
 }
 
+/**
+ * Runs the WordPress installation wizard.
+ *
+ * Before running the installer this function disables networking
+ * to avoid loopback requests and also speed it up.
+ *
+ * These PHP.ini make for a *major speed improvement*.
+ * Without them, the installer may take 60 seconds,
+ * 300 seconds, or even more to complete.
+ */
 async function installWordPress(php: PHP) {
-	// Disables networking for the installation wizard
-	// to avoid loopback requests and also speed it up.
 	await withPHPIniValues(
 		php,
 		{

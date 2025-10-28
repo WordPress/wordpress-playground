@@ -11,6 +11,8 @@ declare global {
 		__filePickerHarness?: {
 			filesystem: HarnessFilesystem;
 			reload: () => void;
+			lastSelectedPath: string | null;
+			lastDoubleClickedPath: string | null;
 		};
 	}
 }
@@ -120,6 +122,18 @@ const fileExists = (page: Page, path: string) =>
 
 const isDir = (page: Page, path: string) => callFilesystem(page, 'isDir', path);
 
+const getLastSelectedPath = (page: Page): Promise<string | null> => {
+	return page.evaluate(
+		() => window.__filePickerHarness?.lastSelectedPath ?? null
+	);
+};
+
+const getLastDoubleClickedPath = (page: Page): Promise<string | null> => {
+	return page.evaluate(
+		() => window.__filePickerHarness?.lastDoubleClickedPath ?? null
+	);
+};
+
 test.beforeEach(async ({ page }) => {
 	page.on('pageerror', (error) => {
 		console.error('pageerror', error);
@@ -215,14 +229,17 @@ test('arrow up moves focus to the previous visible node', async ({ page }) => {
 	await expectFocused(page, 'wordpress');
 });
 
-test.skip('type-ahead search focuses the first matching node', async ({
-	page,
-}) => {
+test('type-ahead search focuses the first matching node', async ({ page }) => {
 	await collapseNode(page, 'wordpress');
 	await expandNode(page, 'wordpress');
+	await expandNode(page, 'wordpress/workspace');
 	const root = nodeButton(page, 'wordpress');
 	await root.focus();
-	await root.press('notes');
+	await page.keyboard.press('n');
+	await page.keyboard.press('o');
+	await page.keyboard.press('t');
+	await page.keyboard.press('e');
+	await page.keyboard.press('s');
 	await expectFocused(page, 'wordpress/workspace/notes.txt');
 });
 
@@ -404,4 +421,167 @@ test.skip('invalid rename on a new file removes the placeholder entry', async ({
 	await expect(
 		fileExists(page, '/wordpress/workspace/new-file (1).php')
 	).resolves.toBe(false);
+});
+
+test('newly created files appear at top of files list', async ({ page }) => {
+	await expandToPath(page, 'wordpress/workspace');
+	await nodeButton(page, 'wordpress/workspace').click({
+		button: 'right',
+	});
+	await page.getByRole('menuitem', { name: 'Create file' }).click();
+
+	// Wait for the rename input to appear - new files are named 'untitled.php' by default
+	const pendingPath = 'wordpress/workspace/untitled.php';
+	const input = renameInput(page, pendingPath);
+	await expect(input).toBeVisible();
+
+	// Verify it's shown in edit mode (rename input visible and focused)
+	await expect(input).toBeFocused();
+
+	// The file element should be present (as a form while renaming, not a button)
+	const fileNode = nodeLocator(page, pendingPath);
+	await expect(fileNode).toBeVisible();
+
+	// Complete the rename to verify the file persists
+	await input.press('Enter');
+
+	// Now it should be a button after renaming is complete
+	const untitledButton = nodeButton(page, pendingPath);
+	await expect(untitledButton).toBeVisible();
+});
+
+test('context menu auto-focuses first item', async ({ page }) => {
+	await nodeButton(page, 'wordpress').click({ button: 'right' });
+	await expect(page.getByRole('menu')).toBeVisible();
+
+	// The first menu item should be focused
+	const firstMenuItem = page.getByRole('menuitem', { name: 'Create file' });
+	await expect(firstMenuItem).toBeFocused();
+});
+
+test('single click on file triggers onSelect but not onDoubleClickFile', async ({
+	page,
+}) => {
+	await expandToPath(page, 'wordpress/workspace');
+	const file = nodeButton(page, 'wordpress/workspace/index.php');
+
+	// Single click the file
+	await file.click();
+
+	// Wait a bit to ensure single-click timeout completes
+	await page.waitForTimeout(350);
+
+	// onSelect should have been called
+	const selected = await getLastSelectedPath(page);
+	expect(selected).toBe('/wordpress/workspace/index.php');
+
+	// onDoubleClickFile should NOT have been called
+	const doubleClicked = await getLastDoubleClickedPath(page);
+	expect(doubleClicked).toBeNull();
+});
+
+test('double click on file triggers onDoubleClickFile', async ({ page }) => {
+	await expandToPath(page, 'wordpress/workspace');
+	const file = nodeButton(page, 'wordpress/workspace/index.php');
+
+	// Double click the file
+	await file.dblclick();
+
+	// Wait for double-click handler
+	await page.waitForTimeout(100);
+
+	// onDoubleClickFile should have been called
+	const doubleClicked = await getLastDoubleClickedPath(page);
+	expect(doubleClicked).toBe('/wordpress/workspace/index.php');
+});
+
+test('pressing Enter on file triggers onDoubleClickFile', async ({ page }) => {
+	await expandToPath(page, 'wordpress/workspace');
+	const file = nodeButton(page, 'wordpress/workspace/index.php');
+
+	// Focus and press Enter
+	await file.focus();
+	await file.press('Enter');
+
+	// Wait for Enter handler
+	await page.waitForTimeout(100);
+
+	// onDoubleClickFile should have been called
+	const doubleClicked = await getLastDoubleClickedPath(page);
+	expect(doubleClicked).toBe('/wordpress/workspace/index.php');
+});
+
+test('pressing Enter on folder toggles expansion without triggering doubleClick', async ({
+	page,
+}) => {
+	await collapseNode(page, 'wordpress');
+	await expandNode(page, 'wordpress');
+	await collapseNode(page, 'wordpress/workspace');
+
+	const folder = nodeButton(page, 'wordpress/workspace');
+	await folder.focus();
+
+	// Press Enter to expand
+	await folder.press('Enter');
+	await expect(folder).toHaveAttribute('data-expanded', 'true');
+
+	// onDoubleClickFile should NOT have been called (it's a folder)
+	const doubleClicked = await getLastDoubleClickedPath(page);
+	expect(doubleClicked).toBeNull();
+});
+
+test('rename input is not affected by type-ahead search', async ({ page }) => {
+	// First, create a folder with name "123" that could trigger type-ahead
+	await expandToPath(page, 'wordpress/workspace');
+	await nodeButton(page, 'wordpress/workspace').click({ button: 'right' });
+	await page.getByRole('menuitem', { name: 'Create directory' }).click();
+
+	// Find the rename input dynamically (don't hardcode the path as it may be "New Folder (1)" etc)
+	// Wait for any visible focused input field in the tree
+	const folderInput = page.locator('input[class*="renameInput"]').first();
+	await expect(folderInput).toBeVisible();
+	await expect(folderInput).toBeFocused();
+
+	// Rename the new folder to "123"
+	await folderInput.fill('123');
+	await folderInput.press('Enter');
+
+	// Wait for the folder to appear with the new name
+	await expect(nodeButton(page, 'wordpress/workspace/123')).toBeVisible();
+
+	// Now try to rename a file and type "1" which matches the folder name
+	await nodeButton(page, 'wordpress/workspace/index.php').click({
+		button: 'right',
+	});
+	await page.getByRole('menuitem', { name: 'Rename' }).click();
+
+	const fileInput = renameInput(page, 'wordpress/workspace/index.php');
+	await expect(fileInput).toBeVisible();
+	await expect(fileInput).toBeFocused();
+
+	// Clear the input and type "1" which would normally trigger type-ahead to folder "123"
+	await fileInput.fill('');
+	await page.keyboard.press('1');
+
+	// The rename input should still be visible and focused (not closed)
+	await expect(fileInput).toBeVisible();
+	await expect(fileInput).toBeFocused();
+
+	// The input should contain "1"
+	await expect(fileInput).toHaveValue('1');
+
+	// The folder "123" should NOT be focused (type-ahead should be disabled during rename)
+	await expect(nodeButton(page, 'wordpress/workspace/123')).not.toBeFocused();
+
+	// Complete the rename with a valid filename
+	await fileInput.fill('1test.php');
+	await fileInput.press('Enter');
+
+	// Verify the file was renamed successfully
+	await expect(
+		nodeButton(page, 'wordpress/workspace/1test.php')
+	).toBeVisible();
+	await expect(
+		nodeLocator(page, 'wordpress/workspace/index.php')
+	).toHaveCount(0);
 });

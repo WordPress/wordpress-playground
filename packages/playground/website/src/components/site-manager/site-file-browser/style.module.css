@@ -1,0 +1,201 @@
+.container {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	min-height: 0;
+}
+
+.content {
+	position: relative;
+	flex: 1;
+	display: flex;
+	min-height: 0;
+	background: var(--color-gray-000);
+}
+
+.sidebar-wrapper {
+	display: flex;
+	flex-direction: column;
+	width: 280px;
+	max-width: 360px;
+	min-width: 220px;
+	border-right: 1px solid var(--color-gray-200);
+	background: #ffffff;
+	z-index: 3;
+}
+
+.editor-wrapper {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	flex: 1;
+	min-width: 0;
+	min-height: 0;
+}
+
+.editor-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 12px 16px;
+	border-bottom: 1px solid var(--color-gray-200);
+	background: #ffffff;
+	z-index: 1;
+}
+
+.editor-path {
+	flex: 1;
+	min-width: 0;
+	font-family: 'SFMono-Regular', ui-monospace, SFMono-Regular, Menlo, Monaco,
+		Consolas, 'Liberation Mono', 'Courier New', monospace;
+	font-size: 12px;
+	color: var(--color-gray-700);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.editor-path-placeholder {
+	color: var(--color-gray-500);
+}
+
+.save-status {
+	font-size: 12px;
+	line-height: 16px;
+	color: var(--color-gray-600);
+	white-space: nowrap;
+}
+
+.save-status-saving,
+.save-status-pending {
+	color: var(--color-gray-900);
+}
+
+.save-status-error {
+	color: var(--color-alert-red);
+	font-weight: 500;
+}
+
+.editor {
+	flex: 1;
+	min-height: 0;
+	background: #ffffff;
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+}
+
+.editor :global(.cm-editor) {
+	height: 100%;
+}
+
+.editor :global(.cm-scroller) {
+	overflow: auto;
+}
+
+.placeholder {
+	flex: 1;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 32px;
+	text-align: center;
+	color: var(--color-gray-700);
+	background: #ffffff;
+}
+
+.message-area {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	justify-content: flex-start;
+	padding: 16px 20px;
+	background: #ffffff;
+	overflow: auto;
+	font-family: 'SFMono-Regular', ui-monospace, SFMono-Regular, Menlo, Monaco,
+		Consolas, 'Liberation Mono', 'Courier New', monospace;
+	font-size: 13px;
+	line-height: 1.6;
+}
+
+.message-area p {
+	margin: 0;
+	padding: 0;
+	display: block;
+}
+
+.message-area p + p {
+	margin-top: 4px;
+}
+
+.message-area a {
+	color: #2271b1;
+	text-decoration: underline;
+	cursor: pointer;
+}
+
+.message-area a:hover {
+	color: #135e96;
+}
+
+.mobile-toggle {
+	display: none;
+}
+
+.mobile-overlay {
+	display: none;
+}
+
+@media (max-width: 960px) {
+	.sidebar-wrapper {
+		position: absolute;
+		top: 0;
+		bottom: 0;
+		left: 0;
+		width: min(85%, 340px);
+		box-shadow: 0 18px 40px rgba(0, 0, 0, 0.2);
+		display: none;
+	}
+
+	.sidebar-open {
+		/* Marker class applied in JS when the sidebar should be visible on mobile. */
+	}
+
+	.sidebar-open .sidebar-wrapper {
+		display: flex;
+	}
+
+	.mobile-overlay {
+		position: absolute;
+		inset: 0;
+		background: rgba(0, 0, 0, 0.3);
+		z-index: 2;
+		display: none;
+	}
+
+	.sidebar-open .mobile-overlay {
+		display: block;
+	}
+
+	.editor-header {
+		flex-wrap: wrap;
+		gap: 8px;
+		background: #ffffff;
+	}
+
+	.editor-path {
+		width: 100%;
+		order: 2;
+	}
+
+	.mobile-toggle {
+		display: inline-flex;
+		order: 1;
+	}
+
+	.content {
+		flex-direction: column;
+	}
+}

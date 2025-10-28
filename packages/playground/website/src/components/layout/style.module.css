@@ -1,10 +1,16 @@
 :root {
-	--site-manager-site-list-width: 320px;
+	--site-manager-site-list-width: 280px;
 	--site-manager-site-info-min-width: 555px;
 	--site-manager-width-desktop: calc(
 		var(--site-manager-site-list-width) +
-		var(--site-manager-site-info-min-width) +
-		2 * var(--site-manager-border-width)
+			var(--site-manager-site-info-min-width) + 2 *
+			var(--site-manager-border-width)
+	);
+	--site-manager-open-max-width: calc(100vw - var(--site-view-min-width));
+	--site-info-panel-max-width: calc(
+		var(--site-manager-open-max-width) -
+			(2 * var(--site-manager-border-width)) -
+			var(--site-manager-site-list-width)
 	);
 	--site-view-min-width: 320px;
 	--site-manager-background-color: #1e1e1e;
@@ -34,7 +40,7 @@ body {
 }
 
 .site-manager-wrapper {
-	max-width: var(--site-manager-width-desktop);
+	max-width: var(--site-manager-open-max-width);
 	@media (max-width: 875px) {
 		min-width: 0;
 		width: 100%;
@@ -50,7 +56,7 @@ body {
 .site-manager-wrapper-enter-active {
 	opacity: 1;
 	transform: none;
-	max-width: var(--site-manager-width-desktop);
+	max-width: var(--site-manager-open-max-width);
 	@media (max-width: 875px) {
 		width: 100%;
 	}
@@ -98,18 +104,11 @@ body {
 .site-manager-wrapper + .site-view {
 	position: relative;
 	border-width: var(--site-manager-border-width);
+	border-top-width: 0;
 	border-left-width: 0;
 	.site-view-content {
 		border-radius: var(--site-manager-border-radius);
 	}
-}
-
-.site-manager-wrapper:not(
-		.site-manager-wrapper-exit-active,
-		.site-manager-wrapper-enter-active
-	)
-	+ .site-view:hover {
-	transform: scale(1.01);
 }
 
 .site-manager-wrapper-exit-active + .site-view {
@@ -126,19 +125,6 @@ body {
 	height: 100%;
 }
 
-.site-view-overlay {
-	content: '';
-	display: block;
-	width: 100%;
-	height: 100dvh;
-	background-color: transparent;
-	position: absolute;
-	top: 0;
-	left: 0;
-	z-index: 1;
-	cursor: pointer;
-}
-
 /*
  * Unfortunately we cannot use calc() in media queries.
  *
@@ -148,6 +134,12 @@ body {
  * on smaller screens and never overflows out of the screen.
  */
 @media (max-width: 1126px) {
+	:root {
+		--site-info-panel-max-width: calc(
+			100vw - (2 * var(--site-manager-border-width)) -
+				var(--site-manager-site-list-width)
+		);
+	}
 	.site-manager-wrapper + .site-view {
 		display: none;
 	}
@@ -155,6 +147,7 @@ body {
 	.site-manager-wrapper-exit,
 	.site-manager-wrapper-enter-active {
 		width: 100%;
+		max-width: 100%;
 	}
 	.site-manager-wrapper-exit-active + .site-view {
 		display: block;

@@ -1,3 +1,26 @@
+declare module 'isomorphic-git/src/models/GitIndex.js' {
+	export class GitIndex {
+		constructor(entries?: Map<string, any>, unmergedPaths?: Set<string>);
+		insert(entry: {
+			filepath: string;
+			oid: string;
+			stats: {
+				ctimeSeconds: number;
+				ctimeNanoseconds: number;
+				mtimeSeconds: number;
+				mtimeNanoseconds: number;
+				dev: number;
+				ino: number;
+				mode: number;
+				uid: number;
+				gid: number;
+				size: number;
+			};
+		}): void;
+		toObject(): Promise<Buffer>;
+	}
+}
+
 declare module 'isomorphic-git/src/models/GitPktLine.js' {
 	export class GitPktLine {
 		static encode(data: string): Buffer;
@@ -72,6 +95,20 @@ declare module 'isomorphic-git/src/models/GitPackIndex.js' {
 	export class GitPackIndex {
 		static fromPack({ pack }: { pack: Buffer }): Promise<GitPackIndex>;
 		read({ oid }: { oid: string }): Promise<GitIndexEntry>;
+		toBuffer(): Promise<Buffer>;
+		packfileSha: string;
+		hashes?: string[];
+		offsets: Map<string, number>;
+		readSlice({ start }: { start: number }): Promise<{
+			type:
+				| 'blob'
+				| 'tree'
+				| 'commit'
+				| 'tag'
+				| 'ofs_delta'
+				| 'ref_delta';
+			object?: Buffer | Uint8Array;
+		}>;
 	}
 }
 

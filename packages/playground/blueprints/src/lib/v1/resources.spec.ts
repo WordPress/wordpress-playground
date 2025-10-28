@@ -5,6 +5,10 @@ import {
 } from './resources';
 import { expect, describe, it, vi, beforeEach } from 'vitest';
 import { StreamedFile } from '@php-wasm/stream-compression';
+import { mkdtemp, rm, writeFile, mkdir } from 'fs/promises';
+import { tmpdir } from 'os';
+import { join } from 'path';
+import { execSync, type ExecSyncOptions } from 'child_process';
 
 describe('UrlResource', () => {
 	it('should create a new instance of UrlResource', () => {
@@ -74,6 +78,112 @@ describe('GitDirectoryResource', () => {
 				'https-github.com-WordPress-wordpress-playground-trunk-at-.github'
 			);
 			expect(files['dependabot.yml']).toBeInstanceOf(Uint8Array);
+		});
+
+		it('includes a .git directory when requested', async () => {
+			const commit = '05138293dd39e25a9fa8e43a9cc775d6fb780e37';
+			const resource = new GitDirectoryResource({
+				resource: 'git:directory',
+				url: 'https://github.com/WordPress/wordpress-playground',
+				ref: commit,
+				refType: 'commit',
+				path: 'packages/docs/site/docs/blueprints/tutorial',
+				'.git': true,
+			});
+
+			const { files } = await resource.resolve();
+
+			// Create a temporary directory and write all files to disk
+			const tmpDir = await mkdtemp(join(tmpdir(), 'git-test-'));
+			try {
+				// Write all files to the temporary directory
+				for (const [path, content] of Object.entries(files)) {
+					const fullPath = join(tmpDir, path);
+					const dir = join(fullPath, '..');
+					await mkdir(dir, { recursive: true });
+
+					if (typeof content === 'string') {
+						await writeFile(fullPath, content, 'utf8');
+					} else {
+						await writeFile(fullPath, content);
+					}
+				}
+
+				// Run git commands to verify the repository state
+				const gitEnv: ExecSyncOptions = {
+					cwd: tmpDir,
+					encoding: 'utf8',
+					maxBuffer: 10 * 1024 * 1024, // 10MB buffer to handle large output
+					stdio: ['pipe', 'pipe', 'ignore'], // Suppress stderr to avoid buffer overflow
+				};
+
+				// Verify we're on the expected commit
+				const currentCommit = execSync('git rev-parse HEAD', gitEnv)
+					.toString()
+					.trim();
+				expect(currentCommit).toBe(commit);
+
+				// Verify the remote is configured correctly
+				const remoteUrl = execSync('git remote get-url origin', gitEnv)
+					.toString()
+					.trim();
+				expect(remoteUrl).toBe(
+					'https://github.com/WordPress/wordpress-playground'
+				);
+
+				// Verify this is a shallow clone
+				const isShallow = execSync(
+					'git rev-parse --is-shallow-repository',
+					gitEnv
+				)
+					.toString()
+					.trim();
+				expect(isShallow).toBe('true');
+
+				// Verify the shallow file contains the expected commit
+				const shallowCommit = execSync('cat .git/shallow', gitEnv)
+					.toString()
+					.trim();
+				expect(shallowCommit).toBe(commit);
+
+				// Verify the expected files exist in the git index
+				const lsFiles = execSync('git ls-files', gitEnv)
+					.toString()
+					.trim()
+					.split('\n')
+					.filter((f) => f.length > 0)
+					.sort();
+				expect(lsFiles).toEqual([
+					'01-what-are-blueprints-what-you-can-do-with-them.md',
+					'02-how-to-load-run-blueprints.md',
+					'03-build-your-first-blueprint.md',
+					'index.md',
+				]);
+
+				// Verify we can run git log to see commit history
+				const logOutput = execSync('git log --oneline -n 1', gitEnv)
+					.toString()
+					.trim();
+				expect(logOutput).toContain(commit.substring(0, 7));
+
+				// Update the git index to match the actual files on disk
+				execSync('git add -A', gitEnv);
+
+				// Modify a file and verify git status detects the change
+				const fileToModify = join(tmpDir, 'index.md');
+				await writeFile(fileToModify, 'modified content\n', 'utf8');
+				const statusAfterModification = execSync(
+					'git status --porcelain',
+					gitEnv
+				)
+					.toString()
+					.trim();
+				// Git status should show the file as modified (can be ' M' or 'M ')
+				expect(statusAfterModification).toMatch(/M.*index\.md/);
+			} finally {
+				// Clean up the temporary directory
+				await rm(tmpDir, { recursive: true, force: true });
+			}
 		});
 	});
 

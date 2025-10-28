@@ -205,15 +205,51 @@ export default defineConfig(({ command, mode }) => {
 						new URL('./builder/builder.html', import.meta.url)
 					),
 				},
-				// output: {
-				// 	entryFileNames: (assetInfo) => {
-				// 		const isHTML = assetInfo?.facadeModuleId?.endsWith('.html');
-				// 		if (isHTML) {
-				// 			return '[name].html';
-				// 		}
-				// 		return '[name]-[hash].js';
-				// 	},
-				// },
+				output: {
+					manualChunks: (id) => {
+						// Split CodeMirror and Lezer packages into separate chunks
+						// that will be placed in assets/optional/ directory
+
+						// Check for specific language extensions FIRST (before general @codemirror check)
+						// These are lazy-loaded in code-editor.tsx
+						if (id.includes('node_modules/@codemirror/lang-css')) {
+							return 'optional/lang-css';
+						}
+						if (
+							id.includes(
+								'node_modules/@codemirror/lang-javascript'
+							)
+						) {
+							return 'optional/lang-javascript';
+						}
+						if (id.includes('node_modules/@codemirror/lang-json')) {
+							return 'optional/lang-json';
+						}
+						if (id.includes('node_modules/@codemirror/lang-html')) {
+							return 'optional/lang-html';
+						}
+						if (
+							id.includes(
+								'node_modules/@codemirror/lang-markdown'
+							)
+						) {
+							return 'optional/lang-markdown';
+						}
+						if (id.includes('node_modules/@codemirror/lang-php')) {
+							return 'optional/lang-php';
+						}
+
+						// General CodeMirror core packages
+						if (id.includes('node_modules/@codemirror/')) {
+							return 'optional/vendor-codemirror';
+						}
+
+						// Lezer parser packages
+						if (id.includes('node_modules/@lezer/')) {
+							return 'optional/vendor-lezer';
+						}
+					},
+				},
 				external: [],
 			},
 		},
