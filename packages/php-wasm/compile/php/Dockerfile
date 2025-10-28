@@ -46,6 +46,7 @@ COPY ./libxml2/ /root/builds/libxml2
 COPY ./libz/ /root/builds/libz
 COPY ./oniguruma/ /root/builds/oniguruma
 COPY ./libintl/ /root/builds/libintl
+COPY ./libImageMagick/ /root/builds/libImageMagick
 
 RUN if [ "$WITH_JSPI" = "yes" ]; then \
 	cp -r /root/builds/*/jspi/dist/root/lib/* /root/lib; \
@@ -136,6 +137,7 @@ ARG WITH_DEBUG
 ARG DEBUG_DWARF_COMPILATION_DIR
 ARG WITH_WS_NETWORKING_PROXY
 ARG WITH_INTL
+ARG WITH_IMAGICK
 
 # The platform to build for: web or node
 ARG EMSCRIPTEN_ENVIRONMENT=web
@@ -377,6 +379,18 @@ RUN cd /root && \
 RUN if [ "$WITH_MYSQL" = "yes" ]; then \
 		echo -n ' --enable-mysql --enable-pdo --with-mysql=mysqlnd --with-mysqli=mysqlnd --with-pdo-mysql=mysqlnd ' >> /root/.php-configure-flags; \
 		echo -n ' -DMYSQLND_FORCE_TCP_LOCALHOST ' >> /root/.emcc-php-wasm-flags; \
+	fi
+
+# Download and prepare imagick extension if needed
+RUN if [ "$WITH_IMAGICK" = "yes" ]; then \
+		git clone https://github.com/Imagick/imagick.git /root/imagick \
+			--branch master \
+			--single-branch \
+			--depth 1 && \
+		cp -r /root/imagick /root/php-src/ext/imagick && \
+		cd /root/php-src && ./buildconf --force && \
+		echo -n ' --with-imagick=/root/lib --with-imagick-config=/root/lib/bin/wasm32-unknown-emscripten-MagickWand-config ' >> /root/.php-configure-flags && \
+		echo -n ' /root/lib/lib/libMagickWand-7.Q16HDRI.a /root/lib/lib/libMagickCore-7.Q16HDRI.a ' >> /root/.emcc-php-wasm-sources; \
 	fi
 
 # Build the patched PHP

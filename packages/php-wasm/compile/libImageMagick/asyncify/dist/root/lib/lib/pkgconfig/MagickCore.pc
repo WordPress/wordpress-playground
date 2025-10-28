@@ -1,0 +1,15 @@
+prefix=/root/install
+exec_prefix=${prefix}
+libdir=${exec_prefix}/lib
+includedir=${prefix}/include/ImageMagick-7
+includearchdir=/root/install/include/ImageMagick-7
+libname=MagickCore-7.Q16HDRI
+moduledir=${exec_prefix}/lib/ImageMagick-7.1.1/modules-Q16HDRI
+ 
+Name: MagickCore
+Description: MagickCore - C API for ImageMagick (ABI Q16HDRI)
+URL: https://github.com/ImageMagick
+Version: 7.1.1
+Cflags: -I${includearchdir} -I${includedir} -DMAGICKCORE_HDRI_ENABLE=1 -DMAGICKCORE_QUANTUM_DEPTH=16 -DMAGICKCORE_CHANNEL_MASK_DEPTH=32
+Libs: -L${libdir} -l${libname}
+Libs.private: -L${libdir} -l${libname}        -ljpeg                             -L/root/lib/lib -lz      -lm         -lm
