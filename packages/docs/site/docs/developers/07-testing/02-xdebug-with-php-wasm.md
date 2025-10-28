@@ -2,9 +2,7 @@
 
 ## Introduction
 
-### What is Xdebug?
-
-Xdebug is a powerful debugging and profiling extension for PHP that provides developers with essential tools for troubleshooting and optimizing their code. Originally designed for traditional PHP installations, Xdebug has been successfully integrated into PHP WASM, bringing professional debugging capabilities to WebAssembly environments.
+Xdebug is a powerful debugging and profiling extension for PHP that provides developers with essential tools for troubleshooting and optimizing their code. Designed initially for traditional PHP installations, Xdebug has been successfully integrated into PHP WASM, bringing professional debugging capabilities to WebAssembly environments.
 
 Key Xdebug features available in PHP WASM:
 
@@ -20,10 +18,6 @@ Key Xdebug features available in PHP WASM:
 
 WebAssembly code runs in a sandboxed environment with limited visibility. Without proper debugging tools, PHP WASM becomes a "black box" where errors don't surface clearly in the console, stack traces are difficult to interpret across the JavaScript-WASM boundary, and variable inspection requires manual logging. Performance bottlenecks become nearly impossible to identify.
 
-## Bridging Traditional PHP Development
-
-Developers from traditional PHP environments expect familiar debugging workflows. Xdebug provides seamless IDE integration with VSCode, PhpStorm, and other popular editors, enabling step debugging with breakpoints, variable inspection, and profiling data—all within the same workflow developers already know. This eliminates the learning curve of adapting to WASM-specific debugging methods.
-
 ## WordPress Playground-Specific Benefits
 
 For WordPress Playground development, Xdebug is essential for debugging complex interactions between WordPress, PHP WASM, and JavaScript layers. It enables plugin and theme testing in a sandboxed environment while providing educational value for students learning PHP in an accessible browser-based setup. Remote debugging capabilities allow troubleshooting WordPress sites running entirely in the browser.
@@ -33,7 +27,6 @@ For WordPress Playground development, Xdebug is essential for debugging complex 
 Xdebug helps identify WASM-specific performance issues:
 
 -   Overhead from JavaScript-to-WASM calls and boundary crossings
--   Memory management challenges in the sandboxed environment
 -   I/O operations across the virtual filesystem
 -   Network request handling through fetch proxies and API bridges
 
@@ -41,7 +34,7 @@ Without Xdebug, developers would rely on primitive debugging methods like echo s
 
 ### How Xdebug Works with PHP WASM
 
-Xdebug is compiled directly into the PHP WASM binary and can be enabled with a simple `--xdebug` flag. Once enabled, it provides full debugging capabilities in both browser and Node.js environments:
+Xdebug is compiled directly into the PHP WASM binary and can be enabled with a simple `--xdebug` flag on Playground CLI. Once enabled, it provides full debugging capabilities in both browser and Node.js environments:
 
 -   **Breakpoint debugging**: Pause execution at specific lines of code
 -   **Variable inspection**: Examine variable values at runtime
@@ -50,13 +43,11 @@ Xdebug is compiled directly into the PHP WASM binary and can be enabled with a s
 -   **Performance profiling**: Generate cachegrind files for analysis
 -   **Code coverage**: Track which lines of code are executed
 
-The integration works seamlessly with standard Xdebug protocols (DBGp), meaning you can use existing IDE configurations and debugging tools without modification.
+The integration supports standard Xdebug protocols (DBGp), so you can use existing IDE configurations and debugging tools without modification.
 
----
+## Connecting Xdebug with PHP WASM
 
-## About This Guide
-
-This guide will help you set up and use Xdebug with PHP WASM in WordPress Playground. You'll learn:
+Now you will learn how to set up and use Xdebug with PHP WASM in WordPress Playground.
 
 1. Multiple installation methods for running PHP WASM with Xdebug enabled
 2. How to choose the right debugging environment for your workflow
