@@ -28,7 +28,7 @@ import { EditorState, type Extension } from '@codemirror/state';
 import {
 	EditorView,
 	keymap,
-	ViewUpdate,
+	type ViewUpdate,
 	lineNumbers,
 	highlightActiveLineGutter,
 	highlightActiveLine,
@@ -359,7 +359,7 @@ function formatJSON(
 		}
 
 		return { formatted, newPos };
-	} catch (e) {
+	} catch {
 		return { formatted: text, newPos: cursorPos };
 	}
 }
@@ -397,8 +397,7 @@ async function fetchSchema(url: string): Promise<JSONSchema | null> {
 		const schema = await response.json();
 		schemaCache.set(url, schema);
 		return schema;
-	} catch (error) {
-		console.error('Error fetching schema:', error);
+	} catch {
 		return null;
 	}
 }
@@ -410,7 +409,7 @@ function getSchemaUrl(doc: string): string | null {
 	try {
 		const parsed = JSON.parse(doc);
 		return parsed.$schema || null;
-	} catch (error) {
+	} catch {
 		const match = doc.match(/"?\$schema"?\s*:\s*"([^"]+)"/);
 		return match ? match[1] : null;
 	}

@@ -255,7 +255,7 @@ export function mergeCompositeSchemas(
 		return schema;
 	}
 
-	let merged: JSONSchema = { ...schema };
+	const merged: JSONSchema = { ...schema };
 
 	if (schema.allOf && Array.isArray(schema.allOf)) {
 		merged.properties = merged.properties || {};

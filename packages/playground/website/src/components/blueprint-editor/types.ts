@@ -1,4 +1,4 @@
-import { Text } from '@codemirror/state';
+import type { Text } from '@codemirror/state';
 
 export interface JSONSchema {
 	$schema?: string;
