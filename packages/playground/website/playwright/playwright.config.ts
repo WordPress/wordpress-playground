@@ -11,7 +11,7 @@ export const playwrightConfig: PlaywrightTestConfig = {
 	fullyParallel: false,
 	/* Fail the build on CI if you accidentally left test.only in the source code. */
 	forbidOnly: !!process.env.CI,
-	retries: 3,
+	retries: 0,
 	workers: 3,
 	/* Reporter to use. See https://playwright.dev/docs/test-reporters */
 	reporter: [['html'], ['list', { printSteps: true }]],
@@ -23,6 +23,7 @@ export const playwrightConfig: PlaywrightTestConfig = {
 		trace: 'on-first-retry',
 		actionTimeout: 120000,
 		navigationTimeout: 120000,
+		headless: false,
 	},
 
 	timeout: 300000,
@@ -40,10 +41,10 @@ export const playwrightConfig: PlaywrightTestConfig = {
 			},
 		},
 
-		{
-			name: 'firefox',
-			use: { ...devices['Desktop Firefox'] },
-		},
+		// {
+		// 	name: 'firefox',
+		// 	use: { ...devices['Desktop Firefox'] },
+		// },
 
 		// Safari runner is disabled in CI – it used to be enabled but the tests
 		// failed randomly without any obvious reason.
