@@ -222,6 +222,7 @@ describe(`http protocol – ${runtimeMode}`, () => {
 							expect(result.data_size).toBeGreaterThan(0);
 							expect(result.has_ftyp).toBe(true);
 							expect(result.has_avif).toBe(true);
+							expect(result.last_error).toBeNull();
 						});
 
 						it('should load AVIF from local file for PHP 8.1+', async () => {
