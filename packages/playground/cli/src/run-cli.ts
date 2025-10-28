@@ -612,8 +612,10 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 					vfsPath: '/',
 				};
 
-				await clearXdebugIDEConfig(IDEConfigName, process.cwd());
 				try {
+					// NOTE: Both the 'clear' and 'add' operations can throw errors.
+					await clearXdebugIDEConfig(IDEConfigName, process.cwd());
+
 					const xdebugOptions =
 						typeof args.xdebug === 'object'
 							? args.xdebug
