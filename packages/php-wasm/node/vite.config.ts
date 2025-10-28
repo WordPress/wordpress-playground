@@ -91,7 +91,7 @@ export default defineConfig(function () {
 				// forked test process.
 				forks: {
 					// execArgv: ['--expose-gc', '--max-old-space-size=9216'],
-					execArgv: ['--expose-gc'],
+					execArgv: ['--expose-gc', '--stack-trace-limit=100'],
 				},
 			},
 			environment: 'node',

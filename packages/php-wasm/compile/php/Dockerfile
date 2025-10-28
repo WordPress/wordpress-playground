@@ -120,6 +120,7 @@ RUN cd php-src && ./buildconf --force
 ARG WITH_CURL
 ARG WITH_FILEINFO
 ARG WITH_LIBXML
+ARG WITH_SOAP
 ARG WITH_LIBZIP
 ARG WITH_EXIF
 ARG WITH_GD
@@ -230,6 +231,14 @@ RUN if [ "$WITH_LIBXML" = "yes" ]; \
 		fi; \
 	else \
 		echo -n ' --disable-libxml --without-libxml --disable-dom --disable-xml --disable-simplexml --disable-xmlreader --disable-xmlwriter' >> /root/.php-configure-flags; \
+	fi
+
+# Add SOAP if needed (requires libxml)
+RUN if [ "$WITH_SOAP" = "yes" ]; \
+	then \
+		echo -n ' --enable-soap' >> /root/.php-configure-flags; \
+	else \
+		echo -n ' --disable-soap' >> /root/.php-configure-flags; \
 	fi
 
 # Add sqlite3 if needed
@@ -646,6 +655,7 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "invoke_iiiiiiiiii",\
 "invoke_iij",\
 "invoke_iiji",\
+"invoke_iiij",\
 "invoke_iijii",\
 "invoke_iijiji",\
 "invoke_jii",\
@@ -687,6 +697,26 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "_asyncjs__wasm_shutdown"]'; \
 	echo -n " -s ASYNCIFY_IMPORTS=$ASYNCIFY_IMPORTS " | tr -d "\n" >> /root/.emcc-php-asyncify-flags; \
 	export ASYNCIFY_ONLY_UNPREFIXED=$'"null.<anonymous>",\
+"printf_core",\
+"__vfprintf_internal",\
+"vfprintf",\
+"vsnprintf",\
+"__xmlRaiseError",\
+"__xmlLoaderErr",\
+"zim_SoapClient___construct",\
+"get_sdl",\
+"load_wsdl_ex",\
+"soap_xmlParseFile",\
+"xmlCreateURLParserCtxt",\
+"xmlNewInputFromFile",\
+"xmlDefaultExternalEntityLoader",\
+"_php_libxml_pre_ext_ent_loader",\
+"xmlLoadExternalEntity",\
+"xmlParserInputBufferCreateFilename",\
+"php_libxml_input_buffer_create_filename",\
+"php_libxml_streams_IO_open_write_wrapper",\
+"php_libxml_streams_IO_open_read_wrapper",\
+"php_libxml_streams_IO_open_wrapper",\
 "__stdio_close",\
 "zend_stream_stdio_closer",\
 "zend_destroy_file_handle",\
