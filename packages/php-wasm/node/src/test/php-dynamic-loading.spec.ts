@@ -53,6 +53,7 @@ describe.each(phpVersions)('PHP %s', async (phpVersion) => {
 				'zend_extension=/internal/shared/extensions/xdebug.so',
 				'xdebug.mode=debug,develop',
 				'xdebug.start_with_request=yes',
+				'xdebug.idekey="PLAYGROUNDCLI"',
 			].join('\n');
 
 			expect(entries).toEqual(expected);
