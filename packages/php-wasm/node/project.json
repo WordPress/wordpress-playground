@@ -167,7 +167,11 @@
 					"php.spec.ts",
 					"file-lock-manager-for-node.spec.ts",
 					"php-worker.spec.ts",
+<<<<<<< HEAD
 					"php-soap.spec.ts"
+=======
+					"php-image-extensions.spec.ts"
+>>>>>>> origin/trunk
 				]
 			}
 		},
@@ -193,7 +197,11 @@
 					"php.spec.ts",
 					"file-lock-manager-for-node.spec.ts",
 					"php-worker.spec.ts",
+<<<<<<< HEAD
 					"php-soap.spec.ts"
+=======
+					"php-image-extensions.spec.ts"
+>>>>>>> origin/trunk
 				]
 			}
 		},
@@ -299,6 +307,23 @@
 				"testFiles": ["php-sqlite3.spec.ts"]
 			}
 		},
+		"test-php-image-extensions-asyncify": {
+			"executor": "@nx/vite:test",
+			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/node"],
+			"options": {
+				"reportsDirectory": "../../../coverage/packages/php-wasm/node",
+				"testFiles": ["php-image-extensions.spec.ts"]
+			}
+		},
+		"test-php-image-extensions-jspi": {
+			"executor": "@nx/vite:test",
+			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/node"],
+			"options": {
+				"configFile": "packages/php-wasm/node/vite.jspi.config.ts",
+				"reportsDirectory": "../../../coverage/packages/php-wasm/node",
+				"testFiles": ["php-image-extensions.spec.ts"]
+			}
+		},
 		"test-php-asyncify-all": {
 			"executor": "nx:noop",
 			"dependsOn": [
@@ -307,7 +332,8 @@
 				"test-php-fsockopen-asyncify",
 				"test-php-gethostbyname-asyncify",
 				"test-php-mysqli-asyncify",
-				"test-php-sqlite3-asyncify"
+				"test-php-sqlite3-asyncify",
+				"test-php-image-extensions-asyncify"
 			]
 		},
 		"test-opcache": {

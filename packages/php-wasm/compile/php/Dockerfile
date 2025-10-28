@@ -41,6 +41,8 @@ COPY ./libopenssl/ /root/builds/libopenssl
 COPY ./libpng16/ /root/builds/libpng16
 COPY ./libjpeg/ /root/builds/libjpeg
 COPY ./libwebp/ /root/builds/libwebp
+COPY ./libaom/ /root/builds/libaom
+COPY ./libavif/ /root/builds/libavif
 COPY ./libsqlite3/ /root/builds/libsqlite3
 COPY ./libxml2/ /root/builds/libxml2
 COPY ./libz/ /root/builds/libz
@@ -257,6 +259,9 @@ RUN if [ "$WITH_GD" = "yes" ]; \
 			# @TODO support webp for PHP 7.0 – 7.3
 			echo -n ' --with-png-dir=/root/lib --with-jpeg-dir=/root/lib --with-gd --enable-gd ' >> /root/.php-configure-flags; \
 		else \
+			if [[ "${PHP_VERSION:0:1}" -eq "8" && "${PHP_VERSION:2:1}" -ge "1" ]]; then \
+				echo -n ' --with-avif ' >> /root/.php-configure-flags; \
+			fi; \
 			echo -n ' --with-png-dir=/root/lib --with-jpeg --with-webp --with-gd --enable-gd ' >> /root/.php-configure-flags; \
 		fi; \
 
@@ -266,7 +271,11 @@ RUN if [ "$WITH_GD" = "yes" ]; \
 			/root/replace.sh 's/cinfo.err->emit_message = \(void \(*\)\(j_common_ptr,int\)\) php_jpeg_emit_message;/cinfo.err->emit_message = php_jpeg_emit_message;/g' /root/php-src/ext/gd/libgd/gd_jpeg.c; \
 		fi; \
 
-		echo -n ' /root/lib/lib/libjpeg.a /root/lib/lib/libpng16.a /root/lib/lib/libwebp.a /root/lib/lib/libsharpyuv.a ' >> /root/.emcc-php-wasm-sources; \
+		if [[ "${PHP_VERSION:0:1}" -eq "8" && "${PHP_VERSION:2:1}" -ge "1" ]]; then \
+			echo -n ' /root/lib/lib/libjpeg.a /root/lib/lib/libpng16.a /root/lib/lib/libwebp.a /root/lib/lib/libsharpyuv.a /root/lib/lib/libavif.a ' >> /root/.emcc-php-wasm-sources; \
+		else \
+			echo -n ' /root/lib/lib/libjpeg.a /root/lib/lib/libpng16.a /root/lib/lib/libwebp.a /root/lib/lib/libsharpyuv.a ' >> /root/.emcc-php-wasm-sources; \
+		fi; \
 	fi;
 
 # Add openssl if needed
@@ -785,6 +794,8 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "_php_stream_write_filtered",\
 "_php_stream_write",\
 "_php_stream_xport_create",\
+"_php_image_create_from",\
+"zif_imagecreatefromavif",\
 "_safe_emalloc",\
 "_try_convert_to_string",\
 "_zend_hash_init",\
