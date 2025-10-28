@@ -706,6 +706,7 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "__xmlRaiseError",\
 "__xmlLoaderErr",\
 "zim_SoapClient___construct",\
+"zim_SoapClient_SoapClient",\
 "get_sdl",\
 "get_http_headers",\
 "zim_SoapClient___call",\
@@ -796,6 +797,7 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "_zval_dtor_func_for_ptr",\
 "_zval_dtor_func",\
 "_zval_ptr_dtor",\
+"add_property_resource_ex",\
 "autoVacuumCommit",\
 "bsearch",\
 "btreeCellSizeCheck",\
