@@ -36,7 +36,6 @@ console.log(await output.stdoutText);
 Você pode executar scripts PHP em ambientes Node.js sem instalar PHP nativamente. Perfeito para:
 
 -   Pipelines CI/CD que precisam de execução PHP
--   Testar código PHP em suítes de teste baseadas em JavaScript
 -   Microserviços que ocasionalmente precisam de funcionalidade PHP
 -   Ferramentas de desenvolvimento e scripts de build
 
