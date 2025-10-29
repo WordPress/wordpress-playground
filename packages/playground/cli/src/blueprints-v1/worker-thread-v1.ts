@@ -64,6 +64,7 @@ interface WorkerBootRequestHandlerOptions {
 	nativeInternalDirPath: string;
 	mountsBeforeWpInstall: Array<Mount>;
 	mountsAfterWpInstall: Array<Mount>;
+	withXdebug?: boolean;
 }
 
 /**
@@ -243,6 +244,7 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 		nativeInternalDirPath,
 		mountsBeforeWpInstall,
 		mountsAfterWpInstall,
+		withXdebug,
 	}: WorkerBootRequestHandlerOptions) {
 		if (this.booted) {
 			throw new Error('Playground already booted');
@@ -276,6 +278,7 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 							phpWasmInitOptions: { nativeInternalDirPath },
 						},
 						followSymlinks: allow?.includes('follow-symlinks'),
+						withXdebug,
 					});
 				},
 				onPHPInstanceCreated: async (php) => {
