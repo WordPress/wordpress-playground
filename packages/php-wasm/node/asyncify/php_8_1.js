@@ -8,7 +8,7 @@ import path from 'path';
 
 const dependencyFilename = path.join(__dirname, '8_1_33', 'php_8_1.wasm');
 export { dependencyFilename };
-export const dependenciesTotalSize = 25173180;
+export const dependenciesTotalSize = 29535553;
 const phpVersionString = '8.1.33';
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
@@ -831,7 +831,7 @@ export function init(RuntimeName, PHPLoader) {
 		},
 	};
 
-	var ___heap_base = 12921280;
+	var ___heap_base = 13896064;
 
 	var alignMemory = (size, alignment) => {
 		return Math.ceil(size / alignment) * alignment;
@@ -995,7 +995,7 @@ export function init(RuntimeName, PHPLoader) {
 
 	/** @type {WebAssembly.Table} */
 	var wasmTable = new WebAssembly.Table({
-		initial: 11350,
+		initial: 13800,
 		element: 'anyfunc',
 	});
 	var getWasmTableEntry = (funcPtr) => {
@@ -1786,13 +1786,13 @@ export function init(RuntimeName, PHPLoader) {
 		1024
 	);
 
-	var ___stack_high = 12921280;
+	var ___stack_high = 13896064;
 
-	var ___stack_low = 11872704;
+	var ___stack_low = 12847488;
 
 	var ___stack_pointer = new WebAssembly.Global(
 		{ value: 'i32', mutable: true },
-		12921280
+		13896064
 	);
 
 	var PATH = {
@@ -18306,7 +18306,7 @@ export function init(RuntimeName, PHPLoader) {
 	var Asyncify = {
 		instrumentWasmImports(imports) {
 			var importPattern =
-				/^(invoke_i|invoke_ii|invoke_iii|invoke_iiii|invoke_iiiii|invoke_iiiiii|invoke_iiiiiii|invoke_iiiiiiii|invoke_iiiiiiiiii|invoke_v|invoke_vi|invoke_vii|invoke_viidii|invoke_viii|invoke_viiii|invoke_viiiii|invoke_viiiiii|invoke_viiiiiii|invoke_viiiiiiiii|invoke_i|invoke_ii|invoke_iii|invoke_iiii|invoke_iiiii|invoke_iiiiii|invoke_iiiiiii|invoke_iiiiiiii|invoke_iiiiiiiiii|invoke_iij|invoke_iiji|invoke_iijii|invoke_iijiji|invoke_jii|invoke_jiii|invoke_viijii|invoke_vji|js_open_process|_js_open_process|_asyncjs__js_open_process|js_popen_to_file|_js_popen_to_file|_asyncjs__js_popen_to_file|__syscall_fcntl64|___syscall_fcntl64|_asyncjs___syscall_fcntl64|js_release_file_locks|_js_release_file_locks|_async_js_release_file_locks|js_flock|_js_flock|_async_js_flock|js_fd_read|_js_fd_read|fd_close|_fd_close|_asyncjs__fd_close|close|_close|js_module_onMessage|_js_module_onMessage|_asyncjs__js_module_onMessage|js_waitpid|_js_waitpid|_asyncjs__js_waitpid|wasm_poll_socket|_wasm_poll_socket|_asyncjs__wasm_poll_socket|_wasm_shutdown|_asyncjs__wasm_shutdown|__asyncjs__.*)$/;
+				/^(invoke_i|invoke_ii|invoke_iii|invoke_iiii|invoke_iiiii|invoke_iiiiii|invoke_iiiiiii|invoke_iiiiiiii|invoke_iiiiiiiii|invoke_iiiiiiiiii|invoke_v|invoke_vi|invoke_vii|invoke_viidii|invoke_viii|invoke_viiii|invoke_viiiii|invoke_viiiiii|invoke_viiiiiii|invoke_viiiiiiiii|invoke_i|invoke_ii|invoke_iii|invoke_iiii|invoke_iiiii|invoke_iiiiii|invoke_iiiiiii|invoke_iiiiiiii|invoke_iiiiiiiiii|invoke_iij|invoke_iiji|invoke_iiij|invoke_iijii|invoke_iijiji|invoke_jii|invoke_jiii|invoke_viijii|invoke_vji|js_open_process|_js_open_process|_asyncjs__js_open_process|js_popen_to_file|_js_popen_to_file|_asyncjs__js_popen_to_file|__syscall_fcntl64|___syscall_fcntl64|_asyncjs___syscall_fcntl64|js_release_file_locks|_js_release_file_locks|_async_js_release_file_locks|js_flock|_js_flock|_async_js_flock|js_fd_read|_js_fd_read|fd_close|_fd_close|_asyncjs__fd_close|close|_close|js_module_onMessage|zend_hash_str_find|_js_module_onMessage|_asyncjs__js_module_onMessage|js_waitpid|_js_waitpid|_asyncjs__js_waitpid|wasm_poll_socket|_wasm_poll_socket|_asyncjs__wasm_poll_socket|_wasm_shutdown|_asyncjs__wasm_shutdown|__asyncjs__.*)$/;
 
 			for (let [x, original] of Object.entries(imports)) {
 				if (typeof original == 'function') {
@@ -32138,13 +32138,13 @@ export function init(RuntimeName, PHPLoader) {
 	// End JS library code
 
 	var ASM_CONSTS = {
-		11643197: ($0) => {
+		12317053: ($0) => {
 			if (!$0) {
 				AL.alcErr = 0xa004;
 				return 1;
 			}
 		},
-		11643245: ($0) => {
+		12317101: ($0) => {
 			if (!AL.currentCtx) {
 				err('alGetProcAddress() called without a valid context');
 				return 1;
@@ -34897,7 +34897,17 @@ export function init(RuntimeName, PHPLoader) {
 		/** @export */
 		invoke_iiiiiiii,
 		/** @export */
+		invoke_iiiiiiiii,
+		/** @export */
 		invoke_iiiiiiiiii,
+		/** @export */
+		invoke_iiiiiiiiiii,
+		/** @export */
+		invoke_iiiiiiiiiiii,
+		/** @export */
+		invoke_iiiijj,
+		/** @export */
+		invoke_iiij,
 		/** @export */
 		invoke_iij,
 		/** @export */
@@ -34908,6 +34918,8 @@ export function init(RuntimeName, PHPLoader) {
 		invoke_iijiji,
 		/** @export */
 		invoke_iijj,
+		/** @export */
+		invoke_ij,
 		/** @export */
 		invoke_ji,
 		/** @export */
@@ -34933,7 +34945,17 @@ export function init(RuntimeName, PHPLoader) {
 		/** @export */
 		invoke_viiiiiii,
 		/** @export */
+		invoke_viiiiiiii,
+		/** @export */
 		invoke_viiiiiiiii,
+		/** @export */
+		invoke_viiiiiiiiiii,
+		/** @export */
+		invoke_viiiiiiiiiiiii,
+		/** @export */
+		invoke_viiiiiiiiiiiiiii,
+		/** @export */
+		invoke_viiij,
 		/** @export */
 		invoke_viijii,
 		/** @export */
@@ -35502,6 +35524,72 @@ export function init(RuntimeName, PHPLoader) {
 		}
 	}
 
+	function invoke_viiij(index, a1, a2, a3, a4) {
+		var sp = stackSave();
+		try {
+			Module['dynCall_viiij'](index, a1, a2, a3, a4);
+		} catch (e) {
+			stackRestore(sp);
+			if (e !== e + 0) throw e;
+			_setThrew(1, 0);
+		}
+	}
+
+	function invoke_viiiiiii(index, a1, a2, a3, a4, a5, a6, a7) {
+		var sp = stackSave();
+		try {
+			Module['dynCall_viiiiiii'](index, a1, a2, a3, a4, a5, a6, a7);
+		} catch (e) {
+			stackRestore(sp);
+			if (e !== e + 0) throw e;
+			_setThrew(1, 0);
+		}
+	}
+
+	function invoke_jiii(index, a1, a2, a3) {
+		var sp = stackSave();
+		try {
+			return Module['dynCall_jiii'](index, a1, a2, a3);
+		} catch (e) {
+			stackRestore(sp);
+			if (e !== e + 0) throw e;
+			_setThrew(1, 0);
+			return 0n;
+		}
+	}
+
+	function invoke_iiiiiiiii(index, a1, a2, a3, a4, a5, a6, a7, a8) {
+		var sp = stackSave();
+		try {
+			return Module['dynCall_iiiiiiiii'](
+				index,
+				a1,
+				a2,
+				a3,
+				a4,
+				a5,
+				a6,
+				a7,
+				a8
+			);
+		} catch (e) {
+			stackRestore(sp);
+			if (e !== e + 0) throw e;
+			_setThrew(1, 0);
+		}
+	}
+
+	function invoke_iiij(index, a1, a2, a3) {
+		var sp = stackSave();
+		try {
+			return Module['dynCall_iiij'](index, a1, a2, a3);
+		} catch (e) {
+			stackRestore(sp);
+			if (e !== e + 0) throw e;
+			_setThrew(1, 0);
+		}
+	}
+
 	function invoke_viiiiii(index, a1, a2, a3, a4, a5, a6) {
 		var sp = stackSave();
 		try {
@@ -35535,22 +35623,227 @@ export function init(RuntimeName, PHPLoader) {
 		}
 	}
 
-	function invoke_jiii(index, a1, a2, a3) {
+	function invoke_viiiiiiiiiiiii(
+		index,
+		a1,
+		a2,
+		a3,
+		a4,
+		a5,
+		a6,
+		a7,
+		a8,
+		a9,
+		a10,
+		a11,
+		a12,
+		a13
+	) {
 		var sp = stackSave();
 		try {
-			return Module['dynCall_jiii'](index, a1, a2, a3);
+			Module['dynCall_viiiiiiiiiiiii'](
+				index,
+				a1,
+				a2,
+				a3,
+				a4,
+				a5,
+				a6,
+				a7,
+				a8,
+				a9,
+				a10,
+				a11,
+				a12,
+				a13
+			);
 		} catch (e) {
 			stackRestore(sp);
 			if (e !== e + 0) throw e;
 			_setThrew(1, 0);
-			return 0n;
 		}
 	}
 
-	function invoke_viiiiiii(index, a1, a2, a3, a4, a5, a6, a7) {
+	function invoke_viiiiiiiiiiiiiii(
+		index,
+		a1,
+		a2,
+		a3,
+		a4,
+		a5,
+		a6,
+		a7,
+		a8,
+		a9,
+		a10,
+		a11,
+		a12,
+		a13,
+		a14,
+		a15
+	) {
 		var sp = stackSave();
 		try {
-			Module['dynCall_viiiiiii'](index, a1, a2, a3, a4, a5, a6, a7);
+			Module['dynCall_viiiiiiiiiiiiiii'](
+				index,
+				a1,
+				a2,
+				a3,
+				a4,
+				a5,
+				a6,
+				a7,
+				a8,
+				a9,
+				a10,
+				a11,
+				a12,
+				a13,
+				a14,
+				a15
+			);
+		} catch (e) {
+			stackRestore(sp);
+			if (e !== e + 0) throw e;
+			_setThrew(1, 0);
+		}
+	}
+
+	function invoke_iiiiiiiiiiii(
+		index,
+		a1,
+		a2,
+		a3,
+		a4,
+		a5,
+		a6,
+		a7,
+		a8,
+		a9,
+		a10,
+		a11
+	) {
+		var sp = stackSave();
+		try {
+			return Module['dynCall_iiiiiiiiiiii'](
+				index,
+				a1,
+				a2,
+				a3,
+				a4,
+				a5,
+				a6,
+				a7,
+				a8,
+				a9,
+				a10,
+				a11
+			);
+		} catch (e) {
+			stackRestore(sp);
+			if (e !== e + 0) throw e;
+			_setThrew(1, 0);
+		}
+	}
+
+	function invoke_iiiijj(index, a1, a2, a3, a4, a5) {
+		var sp = stackSave();
+		try {
+			return Module['dynCall_iiiijj'](index, a1, a2, a3, a4, a5);
+		} catch (e) {
+			stackRestore(sp);
+			if (e !== e + 0) throw e;
+			_setThrew(1, 0);
+		}
+	}
+
+	function invoke_ij(index, a1) {
+		var sp = stackSave();
+		try {
+			return Module['dynCall_ij'](index, a1);
+		} catch (e) {
+			stackRestore(sp);
+			if (e !== e + 0) throw e;
+			_setThrew(1, 0);
+		}
+	}
+
+	function invoke_iiiiiiiiiii(
+		index,
+		a1,
+		a2,
+		a3,
+		a4,
+		a5,
+		a6,
+		a7,
+		a8,
+		a9,
+		a10
+	) {
+		var sp = stackSave();
+		try {
+			return Module['dynCall_iiiiiiiiiii'](
+				index,
+				a1,
+				a2,
+				a3,
+				a4,
+				a5,
+				a6,
+				a7,
+				a8,
+				a9,
+				a10
+			);
+		} catch (e) {
+			stackRestore(sp);
+			if (e !== e + 0) throw e;
+			_setThrew(1, 0);
+		}
+	}
+
+	function invoke_viiiiiiii(index, a1, a2, a3, a4, a5, a6, a7, a8) {
+		var sp = stackSave();
+		try {
+			Module['dynCall_viiiiiiii'](index, a1, a2, a3, a4, a5, a6, a7, a8);
+		} catch (e) {
+			stackRestore(sp);
+			if (e !== e + 0) throw e;
+			_setThrew(1, 0);
+		}
+	}
+
+	function invoke_viiiiiiiiiii(
+		index,
+		a1,
+		a2,
+		a3,
+		a4,
+		a5,
+		a6,
+		a7,
+		a8,
+		a9,
+		a10,
+		a11
+	) {
+		var sp = stackSave();
+		try {
+			Module['dynCall_viiiiiiiiiii'](
+				index,
+				a1,
+				a2,
+				a3,
+				a4,
+				a5,
+				a6,
+				a7,
+				a8,
+				a9,
+				a10,
+				a11
+			);
 		} catch (e) {
 			stackRestore(sp);
 			if (e !== e + 0) throw e;
