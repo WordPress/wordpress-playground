@@ -1091,6 +1091,7 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "ZEND_ASSIGN_OBJ_SPEC_VAR_CONST_OP_DATA_CONST_HANDLER",\
 "ZEND_ASSIGN_SPEC_CV_VAR_RETVAL_UNUSED_HANDLER",\
 "cli",\
+"__wrap_usleep",\
 "wasm_sleep",\
 "wasm_php_stream_flush",\
 "wasm_php_stream_read",\
