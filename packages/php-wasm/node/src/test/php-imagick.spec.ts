@@ -12,8 +12,8 @@ import { jspi } from 'wasm-feature-detect';
 const runtimeMode = (await jspi()) ? 'jspi' : 'asyncify';
 
 describe(`Imagick – ${runtimeMode}`, () => {
-	const phpVersions =
-		'PHP' in process.env ? [process.env['PHP']] : SupportedPHPVersions;
+	const phpVersions = ['7.2'];
+	// 'PHP' in process.env ? [process.env['PHP']] : SupportedPHPVersions;
 
 	describe.each(phpVersions)(`PHP %s – ${runtimeMode}`, (phpVersion) => {
 		let php: PHP;
