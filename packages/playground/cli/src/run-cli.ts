@@ -400,34 +400,27 @@ export async function parseOptionsAndRunCLI() {
 			process.exit(0);
 		}
 
-		const cleanUpCli = (() => {
+		const cleanUpCliAndExit = (() => {
 			// Remember we are already cleaning up to preclude the possibility
 			// of multiple, conflicting cleanup attempts.
 			let promiseToCleanup: Promise<void>;
 
-			const cleanup = () => cliServer[Symbol.asyncDispose]();
-
-			return () => {
+			return async () => {
 				if (promiseToCleanup !== undefined) {
-					return promiseToCleanup;
+					promiseToCleanup = cliServer[Symbol.asyncDispose]();
 				}
-				promiseToCleanup = cleanup();
-				return promiseToCleanup;
+				await promiseToCleanup;
+				process.exit(0);
 			};
 		})();
-		const cleanupCliAndExit = async () => {
-			await cleanUpCli();
-			process.exit(0);
-		};
-		process.on('exit', cleanUpCli);
 
 		// Playground CLI server must be killed to exit. From the terminal,
 		// this may occur via Ctrl+C which sends SIGINT. Let's handle both
 		// SIGINT and SIGTERM (the default kill signal) to make sure we
 		// clean up after ourselves even if this process is being killed.
 		// NOTE: Windows does not support SIGTERM, but Node.js provides some emulation.
-		process.on('SIGINT', cleanupCliAndExit);
-		process.on('SIGTERM', cleanupCliAndExit);
+		process.on('SIGINT', cleanUpCliAndExit);
+		process.on('SIGTERM', cleanUpCliAndExit);
 	} catch (e) {
 		if (!(e instanceof Error)) {
 			throw e;
