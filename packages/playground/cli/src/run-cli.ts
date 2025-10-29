@@ -394,25 +394,39 @@ export async function parseOptionsAndRunCLI() {
 			],
 		} as RunCLIArgs;
 
-		const cli = await runCLI(cliArgs);
-		const cleanupOnExit = (() => {
-			let exiting = false;
-			return async () => {
-				if (exiting) {
-					return;
+		const cliServer = await runCLI(cliArgs);
+		if (cliServer === undefined) {
+			process.exit(0);
+		}
+
+		const cleanUpCli = (() => {
+			// Remember we are already cleaning up to preclude the possibility
+			// of multiple, conflicting cleanup attempts.
+			let promiseToCleanup: Promise<void>;
+
+			const cleanup = () => cliServer[Symbol.asyncDispose]();
+
+			return () => {
+				if (promiseToCleanup !== undefined) {
+					return promiseToCleanup;
 				}
-				exiting = true;
-				await cli[Symbol.asyncDispose]();
-				process.exit(0);
+				promiseToCleanup = cleanup();
+				return promiseToCleanup;
 			};
 		})();
+		const cleanupCliAndExit = async () => {
+			await cleanUpCli();
+			process.exit(0);
+		};
+		process.on('exit', cleanUpCli);
+
 		// Playground CLI server must be killed to exit. From the terminal,
 		// this may occur via Ctrl+C which sends SIGINT. Let's handle both
 		// SIGINT and SIGTERM (the default kill signal) to make sure we
 		// clean up after ourselves even if this process is being killed.
 		// NOTE: Windows does not support SIGTERM, but Node.js provides some emulation.
-		process.on('SIGINT', cleanupOnExit);
-		process.on('SIGTERM', cleanupOnExit);
+		process.on('SIGINT', cleanupCliAndExit);
+		process.on('SIGTERM', cleanupCliAndExit);
 	} catch (e) {
 		if (!(e instanceof Error)) {
 			throw e;
@@ -455,7 +469,6 @@ export interface RunCLIArgs {
 	autoMount?: string;
 	experimentalMultiWorker?: number;
 	experimentalTrace?: boolean;
-	exitOnPrimaryWorkerCrash?: boolean;
 	internalCookieStore?: boolean;
 	'additional-blueprint-steps'?: any[];
 	xdebug?: boolean | { ideKey?: string };
@@ -510,7 +523,14 @@ const italic = (text: string) =>
 const highlight = (text: string) =>
 	process.stdout.isTTY ? `\x1b[33m${text}\x1b[0m` : text;
 
-export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
+export async function runCLI(
+	args: RunCLIArgs & { command: 'build-snapshot' | 'run-blueprint' }
+): Promise<void>;
+export async function runCLI(
+	args: RunCLIArgs & { command: 'server' }
+): Promise<RunCLIServer>;
+export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void>;
+export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 	let loadBalancer: LoadBalancer;
 	let playground: RemoteAPI<PlaygroundCliWorker>;
 
@@ -580,7 +600,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 
 	return startServer({
 		port: args['port'] as number,
-		onBind: async (server: Server, port: number): Promise<RunCLIServer> => {
+		onBind: async (server: Server, port: number) => {
 			const host = '127.0.0.1';
 			const serverUrl = `http://${host}:${port}`;
 			const siteUrl = args['site-url'] || serverUrl;
@@ -714,11 +734,9 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 
 					console.log('');
 				} catch (error) {
-					logger.error(
-						'Could not configure Xdebug:',
-						(error as Error)?.message
-					);
-					process.exit(1);
+					throw new Error('Could not configure Xdebug', {
+						cause: error,
+					});
 				}
 			}
 
@@ -817,26 +835,45 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 				}
 			}
 
+			let disposing = false;
+			const disposeCLI = async function disposeCLI() {
+				if (disposing) {
+					return;
+				}
+
+				disposing = true;
+				await Promise.all(
+					playgroundsToCleanUp.map(async ({ playground, worker }) => {
+						await playground.dispose();
+						await worker.terminate();
+					})
+				);
+				if (server) {
+					await new Promise((resolve) => server.close(resolve));
+				}
+				await nativeDir.cleanup();
+			};
+
 			// Kick off worker threads now to save time later.
 			// There is no need to wait for other async processes to complete.
 			const promisedWorkers = spawnWorkerThreads(
 				totalWorkerCount,
 				handler.getWorkerType(),
-				({ exitCode, isMain, workerIndex }) => {
-					if (exitCode === 0) {
+				({ exitCode, workerIndex }) => {
+					// We are already disposing, so worker exit is expected
+					// and does not need to be logged.
+					if (disposing) {
 						return;
 					}
+
+					if (exitCode !== 0) {
+						return;
+					}
+
 					logger.error(
 						`Worker ${workerIndex} exited with code ${exitCode}\n`
 					);
-					// If the primary worker crashes, exit the entire process.
-					if (!isMain) {
-						return;
-					}
-					if (!args.exitOnPrimaryWorkerCrash) {
-						return;
-					}
-					process.exit(1);
+					// @TODO: Should we respawn the worker if it exited with an error and the CLI is not shutting down?
 				}
 			);
 
@@ -887,10 +924,12 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 				if (args.command === 'build-snapshot') {
 					await zipSite(playground, args.outfile as string);
 					logger.log(`WordPress exported to ${args.outfile}`);
-					process.exit(0);
+					await disposeCLI();
+					return;
 				} else if (args.command === 'run-blueprint') {
 					logger.log(`Blueprint executed`);
-					process.exit(0);
+					await disposeCLI();
+					return;
 				}
 
 				if (
@@ -945,18 +984,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 					playground,
 					server,
 					serverUrl,
-					[Symbol.asyncDispose]: async function disposeCLI() {
-						await Promise.all(
-							playgroundsToCleanUp.map(
-								async ({ playground, worker }) => {
-									await playground.dispose();
-									await worker.terminate();
-								}
-							)
-						);
-						await new Promise((resolve) => server.close(resolve));
-						await nativeDir.cleanup();
-					},
+					[Symbol.asyncDispose]: disposeCLI,
 					workerThreadCount: totalWorkerCount,
 				};
 			} catch (error) {
@@ -1012,11 +1040,7 @@ export type SpawnedWorker = {
 async function spawnWorkerThreads(
 	count: number,
 	workerType: WorkerType,
-	onWorkerExit: (options: {
-		exitCode: number;
-		isMain: boolean;
-		workerIndex: number;
-	}) => void
+	onWorkerExit: (options: { exitCode: number; workerIndex: number }) => void
 ): Promise<SpawnedWorker[]> {
 	const promises = [];
 	for (let i = 0; i < count; i++) {
@@ -1024,7 +1048,6 @@ async function spawnWorkerThreads(
 		const onExit: (code: number) => void = (code: number) => {
 			onWorkerExit({
 				exitCode: code,
-				isMain: i === 0,
 				workerIndex: i,
 			});
 		};

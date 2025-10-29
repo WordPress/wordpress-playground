@@ -11,7 +11,6 @@ SupportedPHPVersions.filter(
 			const cli = await runCLI({
 				command: 'server',
 				php: phpVersion as any,
-				exitOnPrimaryWorkerCrash: false,
 			});
 			try {
 				// Make a request

@@ -8,13 +8,13 @@ import { logger } from '@php-wasm/logger';
 
 export interface ServerOptions {
 	port: number;
-	onBind: (server: Server, port: number) => Promise<RunCLIServer>;
+	onBind: (server: Server, port: number) => Promise<RunCLIServer | void>;
 	handleRequest: (request: PHPRequest) => Promise<PHPResponse>;
 }
 
 export async function startServer(
 	options: ServerOptions
-): Promise<RunCLIServer> {
+): Promise<RunCLIServer | void> {
 	const app = express();
 
 	const server = await new Promise<
