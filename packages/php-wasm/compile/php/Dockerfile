@@ -1154,6 +1154,9 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "match",\
 "modifyPagePointer",\
 "module_destructor",\
+"module_destructor_zval",\
+"zend_destroy_modules",\
+"php_module_shutdown",\
 "mul_function_slow",\
 "multi_runsingle",\
 "multipart_buffer_read",\
