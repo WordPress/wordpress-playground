@@ -2,27 +2,40 @@
 
 ## Introduction
 
-Xdebug is a powerful debugging and profiling extension for PHP that provides developers with essential tools for troubleshooting and optimizing their code. Designed initially for traditional PHP installations, Xdebug has been successfully integrated into PHP WASM, bringing professional debugging capabilities to WebAssembly environments.
+Xdebug is a powerful debugging and profiling extension for PHP that provides developers with essential tools for troubleshooting and optimizing their code. WordPress Playground integrates Xdebug into PHP WASM, bringing professional debugging capabilities to WebAssembly environments.
 
 Key Xdebug features available in PHP WASM:
 
--   **Step debugging** with breakpoints and variable inspection
--   **Stack traces** with detailed error information across the WASM boundary
--   **Code coverage** analysis for testing WordPress plugins and themes
--   **Profiling** to identify performance bottlenecks in the WASM runtime
--   **Remote debugging** capabilities for browser-based and Node.js environments
+-   **Step debugging**: Pause execution with breakpoints and variable inspection
+-   **Stack traces**: View detailed error information across the WASM boundary
+-   **Code coverage**: Analyze testing for WordPress plugins and themes
+-   **Profiling**: Identify performance bottlenecks in the WASM runtime
+-   **Remote debugging**: Debug in browser-based and Node.js environments
 
-# Xdebug Benefits for PHP WASM
+## How Xdebug works with PHP WASM
 
-## The WebAssembly Black Box Problem
+Xdebug compiles directly into the PHP WASM binary and can be enabled with a simple `--xdebug` flag on Playground CLI. Once enabled, it provides full debugging capabilities in both browser and Node.js environments:
+
+-   **Breakpoint debugging**: Pause execution at specific lines of code
+-   **Variable inspection**: Examine variable values at runtime
+-   **Step execution**: Step over, into, and out of functions
+-   **Call stack analysis**: Trace function calls across your application
+-   **Performance profiling**: Generate cachegrind files for analysis
+-   **Code coverage**: Track which lines of code execute
+
+The integration supports standard Xdebug protocols (DBGp), so you can use existing IDE configurations and debugging tools without modification.
+
+## Xdebug benefits for PHP WASM
+
+### The WebAssembly black box problem
 
 WebAssembly code runs in a sandboxed environment with limited visibility. Without proper debugging tools, PHP WASM becomes a "black box" where errors don't surface clearly in the console, stack traces are difficult to interpret across the JavaScript-WASM boundary, and variable inspection requires manual logging. Performance bottlenecks become nearly impossible to identify.
 
-## WordPress Playground-Specific Benefits
+### WordPress Playground benefits
 
-For WordPress Playground development, Xdebug is essential for debugging complex interactions between WordPress, PHP WASM, and JavaScript layers. It enables plugin and theme testing in a sandboxed environment while providing educational value for students learning PHP in an accessible browser-based setup. Remote debugging capabilities allow troubleshooting WordPress sites running entirely in the browser.
+For WordPress Playground development, Xdebug is essential for debugging complex interactions between WordPress, PHP WASM, and JavaScript layers. It enables plugin and theme testing in a sandboxed environment while providing educational value for students learning PHP in an accessible browser-based setup, with remote debugging capabilities for troubleshooting WordPress sites running entirely in the browser.
 
-## WebAssembly Performance Insights
+### WebAssembly performance insights
 
 Xdebug helps identify WASM-specific performance issues:
 
@@ -32,22 +45,9 @@ Xdebug helps identify WASM-specific performance issues:
 
 Without Xdebug, developers would rely on primitive debugging methods like echo statements—inadequate for modern development. Xdebug transforms PHP WASM from an experimental technology into a production-ready platform.
 
-### How Xdebug Works with PHP WASM
+## Getting started
 
-Xdebug is compiled directly into the PHP WASM binary and can be enabled with a simple `--xdebug` flag on Playground CLI. Once enabled, it provides full debugging capabilities in both browser and Node.js environments:
-
--   **Breakpoint debugging**: Pause execution at specific lines of code
--   **Variable inspection**: Examine variable values at runtime
--   **Step execution**: Step over, into, and out of functions
--   **Call stack analysis**: Trace function calls across your application
--   **Performance profiling**: Generate cachegrind files for analysis
--   **Code coverage**: Track which lines of code are executed
-
-The integration supports standard Xdebug protocols (DBGp), so you can use existing IDE configurations and debugging tools without modification.
-
-## Connecting Xdebug with PHP WASM
-
-Now you will learn how to set up and use Xdebug with PHP WASM in WordPress Playground.
+This guide covers:
 
 1. Multiple installation methods for running PHP WASM with Xdebug enabled
 2. How to choose the right debugging environment for your workflow
@@ -57,13 +57,15 @@ Whether you're debugging WordPress plugins, developing browser-based PHP applica
 
 ---
 
-## Installation Methods
+## Installation methods
 
-There are four primary ways to run PHP WASM with Xdebug support:
+There are 4 primary ways to run PHP WASM with Xdebug support:
 
-### 1. Directly from the WordPress Playground Repository
+### 1. Directly from the WordPress Playground repository
 
-Clone and run from the WordPress Playground repository for development and testing:
+Clone and run from the WordPress Playground repository for development and testing.
+
+Navigate to the repository:
 
 ```bash
 cd wordpress-playground
@@ -71,8 +73,10 @@ cd wordpress-playground
 
 **PHP WASM CLI:**
 
+Run the following command:
+
 ```bash
-node \
+$ node \
   --no-warnings=ExperimentalWarning \
   --experimental-strip-types \
   --experimental-transform-types \
@@ -82,8 +86,10 @@ node \
 
 **Playground CLI:**
 
+Run the following command:
+
 ```bash
-node \
+$ node \
   --no-warnings=ExperimentalWarning \
   --experimental-strip-types \
   --experimental-transform-types \
@@ -91,16 +97,18 @@ node \
   ./packages/playground/cli/src/cli.ts server --xdebug
 ```
 
-### 2. Using Local Package Repository
+### 2. Using local package repository
 
-For testing local changes before publishing, run the local package repository script:
+For testing local changes before publishing, run the local package repository script.
+
+Navigate to the repository and start the local package server:
 
 ```bash
-cd wordpress-playground
-npm run local-package-repository
+$ cd wordpress-playground
+$ npm run local-package-repository
 ```
 
-This will output local package URLs:
+The script outputs local package URLs:
 
 ```
 http://127.0.0.1:9724/7840495c41d5c5ae535da114/v3.0.12/@php-wasm-universal-3.0.12.tar.gz
@@ -109,7 +117,7 @@ http://127.0.0.1:9724/7840495c41d5c5ae535da114/v3.0.12/@php-wasm-cli-3.0.12.tar.
 http://127.0.0.1:9724/7840495c41d5c5ae535da114/v3.0.12/@wp-playground-cli-3.0.12.tar.gz
 ```
 
-Add these URLs to your project's `package.json`:
+Add these URLs to your project's `package.json` file:
 
 ```json
 {
@@ -122,10 +130,10 @@ Add these URLs to your project's `package.json`:
 }
 ```
 
-Then install:
+Install the packages:
 
 ```bash
-npm install
+$ npm install
 ```
 
 ### 3. Installing from NPM
@@ -133,7 +141,7 @@ npm install
 For production use or stable versions, install the published packages:
 
 ```bash
-npm install @php-wasm/node @php-wasm/cli @wp-playground/cli
+$ npm install @php-wasm/node @php-wasm/cli @wp-playground/cli
 ```
 
 ### 4. Running with NPX
@@ -142,17 +150,17 @@ For quick testing without installation (CLI tools only):
 
 ```bash
 # PHP WASM CLI
-npx @php-wasm/cli@latest --xdebug
+$ npx @php-wasm/cli@latest --xdebug
 
 # WordPress Playground CLI
-npx @wp-playground/cli@latest server --xdebug
+$ npx @wp-playground/cli@latest server --xdebug
 ```
 
 ---
 
-## Getting Started with Xdebug
+## Choose your debugging environment
 
-### Step 1: Choose Your Debugging Environment
+### Step 1: Select your debugging environment
 
 Select the debugging environment that best fits your workflow:
 
@@ -165,7 +173,7 @@ Debug directly in the Chrome browser using built-in developer tools. This is ide
 -   Frontend developers familiar with Chrome DevTools
 -   Situations where you don't want to configure an IDE
 
-#### Option B: IDE Integration
+#### Option B: IDE integration
 
 Connect Xdebug to your preferred IDE (VSCode, PhpStorm, etc.) for a full-featured debugging experience. This is best for:
 
@@ -174,14 +182,14 @@ Connect Xdebug to your preferred IDE (VSCode, PhpStorm, etc.) for a full-feature
 -   Projects requiring advanced debugging features
 -   Teams already using PHP-capable IDEs
 
-### Step 2: Follow Environment-Specific Instructions
+### Step 2: Follow environment-specific instructions
 
 Depending on your choice, refer to the appropriate setup guide:
 
--   **Chrome DevTools**: Follow the instructions in the dedicated Chrome DevTools README
--   **IDE Integration**: Follow the instructions in the dedicated IDE setup README
+-   **Chrome DevTools**: See the [Chrome DevTools debugging guide](#) for configuration details
+-   **IDE integration**: See the [IDE setup guide](#) for your preferred editor
 
-These guides will cover:
+These guides cover:
 
 -   Configuration details for your chosen environment
 -   Setting up breakpoints and watches
@@ -191,13 +199,13 @@ These guides will cover:
 
 ---
 
-## Additional Resources
+## Additional resources
 
--   [PHP WASM Architecture Overview](https://wordpress.github.io/wordpress-playground/developers/architecture/wasm-php-overview)
+-   [PHP WASM architecture overview](https://wordpress.github.io/wordpress-playground/developers/architecture/wasm-php-overview)
 -   [Compiling PHP to WebAssembly](https://wordpress.github.io/wordpress-playground/developers/architecture/wasm-php-compiling)
--   [PHP WASM Web API Documentation](https://wordpress.github.io/wordpress-playground/api/web)
--   [Xdebug Official Documentation](https://xdebug.org/docs/)
--   [WordPress Playground GitHub Repository](https://github.com/WordPress/wordpress-playground)
+-   [PHP WASM web API documentation](https://wordpress.github.io/wordpress-playground/api/web)
+-   [Xdebug official documentation](https://xdebug.org/docs/)
+-   [WordPress Playground GitHub repository](https://github.com/WordPress/wordpress-playground)
 
 ---
 
@@ -211,4 +219,4 @@ If you encounter issues:
 4. **Browser compatibility**: For browser-based debugging, ensure you're using a modern browser with WebAssembly support
 5. **Review logs**: Check console output for Xdebug initialization messages and error details
 
-For more help, consult the environment-specific README files or open an issue in the WordPress Playground repository.
+For more help, consult the environment-specific guides or open an issue in the WordPress Playground repository.
