@@ -396,17 +396,31 @@ RUN if [ "$WITH_MYSQL" = "yes" ]; then \
 		echo -n ' -DMYSQLND_FORCE_TCP_LOCALHOST ' >> /root/.emcc-php-wasm-flags; \
 	fi
 
-# Download and prepare imagick extension if needed (PHP 8.0+ only)
-RUN if [ "$WITH_IMAGICK" = "yes" ] && [ "${PHP_VERSION:0:1}" -ge "8" ]; then \
+# Download and prepare imagick extension if needed (PHP 7.2+)
+# Use version 3.7.0 for PHP 7.x, master for PHP 8.x
+RUN 	if [ "${PHP_VERSION:0:1}" -eq "7" ]; then \
+			IMAGICK_BRANCH="3.7.0"; \
+		else \
+			IMAGICK_BRANCH="master"; \
+		fi && \
 		git clone https://github.com/Imagick/imagick.git /root/imagick \
-			--branch master \
+			--branch "$IMAGICK_BRANCH" \
 			--single-branch \
 			--depth 1 && \
 		cp -r /root/imagick /root/php-src/ext/imagick && \
-		cd /root/php-src && ./buildconf --force && \
+		cd /root/php-src && \
+		if [ "${PHP_VERSION:0:1}" -eq "7" ]; then \
+			cp configure configure.backup && \
+			./buildconf --force && \
+			(/root/replace.sh 's/char xmlInitParser/void xmlInitParser/g' configure || true) && \
+			(/root/replace.sh 's/\$PKG_CONFIG --atleast-version 7.\d+.\d+ \$PKNAME/test "1" = "1"/g' configure || true) && \
+			(/root/replace.sh 's/test "\$curl_version" -ge 7010005/test "1" = "1"/g' configure || true) && \
+			perl -pi.bak -e 's/ret = read/ret = wasm_read/g' configure; \
+		else \
+			./buildconf --force; \
+		fi && \
 		echo -n ' --with-imagick=/root/lib --with-imagick-config=/root/lib/bin/wasm32-unknown-emscripten-MagickWand-config ' >> /root/.php-configure-flags && \
-		echo -n ' /root/lib/lib/libMagickWand-7.Q16HDRI.a /root/lib/lib/libMagickCore-7.Q16HDRI.a ' >> /root/.emcc-php-wasm-sources; \
-	fi
+		echo -n ' /root/lib/lib/libMagickWand-7.Q16HDRI.a /root/lib/lib/libMagickCore-7.Q16HDRI.a ' >> /root/.emcc-php-wasm-sources
 
 # Disable phar.php generation for all builds (WASM binaries can't execute during build)
 # This must run after buildconf but before configure

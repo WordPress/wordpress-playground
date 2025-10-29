@@ -106,7 +106,8 @@ RUN mkdir -p /root/install/lib /root/install/include/ImageMagick-7/MagickCore /r
     cp MagickCore/*.h /root/install/include/ImageMagick-7/MagickCore/ && \
     cp MagickWand/*.h /root/install/include/ImageMagick-7/MagickWand/ && \
     ln -s ImageMagick-7/MagickCore /root/install/include/MagickCore && \
-    ln -s ImageMagick-7/MagickWand /root/install/include/MagickWand
+    ln -s ImageMagick-7/MagickWand /root/install/include/MagickWand && \
+    ln -s ImageMagick-7/MagickWand /root/install/include/wand
 
 # Generate config scripts for both wasm32-unknown-emscripten and standard names
 # Note: prefix is set to /root/lib because that's where files will be copied in PHP container
