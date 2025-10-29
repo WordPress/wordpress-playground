@@ -839,6 +839,9 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 				}
 			}
 
+			// Remember whether we are already disposing so we can avoid:
+			// - we can avoid multiple, conflicting dispose attempts
+			// - logging that a worker exited while the CLI itself is exiting
 			let disposing = false;
 			const disposeCLI = async function disposeCLI() {
 				if (disposing) {
