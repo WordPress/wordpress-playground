@@ -1,15 +1,19 @@
 import fs from 'fs';
 import { rootCertificates } from 'tls';
 import path from 'path';
-import { PHP, setPhpIniEntries } from '@php-wasm/universal';
+import {
+	PHP,
+	SupportedPHPVersions,
+	setPhpIniEntries,
+} from '@php-wasm/universal';
 import { loadNodeRuntime } from '../lib';
 import { jspi } from 'wasm-feature-detect';
 
 const runtimeMode = (await jspi()) ? 'jspi' : 'asyncify';
 
 describe(`Imagick – ${runtimeMode}`, () => {
-	const phpVersions = ['7.2'];
-	// 'PHP' in process.env ? [process.env['PHP']] : SupportedPHPVersions;
+	const phpVersions =
+		'PHP' in process.env ? [process.env['PHP']] : SupportedPHPVersions;
 
 	describe.each(phpVersions)(`PHP %s – ${runtimeMode}`, (phpVersion) => {
 		let php: PHP;
@@ -323,41 +327,6 @@ describe(`Imagick – ${runtimeMode}`, () => {
 			expect(result.text).toBe('3 frames');
 		});
 
-		test('convert JPEG to WebP', async () => {
-			const result = await php.run({
-				code: `<?php
-					$imagick = new Imagick('/tmp/test-image.jpg');
-					$imagick->setImageFormat('webp');
-					$imagick->writeImage('/tmp/output.webp');
-
-					// Verify we can read it back as WebP
-					$verify = new Imagick('/tmp/output.webp');
-					echo strtoupper($verify->getImageFormat());
-				`,
-			});
-			expect(result.text).toBe('WEBP');
-
-			// Verify the WebP file exists
-			const webpFile = php.readFileAsBuffer('/tmp/output.webp');
-			expect(webpFile.byteLength).toBeGreaterThan(0);
-		});
-
-		test('resize and save as WebP', async () => {
-			const result = await php.run({
-				code: `<?php
-					$imagick = new Imagick('/tmp/test-image.jpg');
-					$imagick->resizeImage(100, 100, Imagick::FILTER_LANCZOS, 1);
-					$imagick->setImageFormat('webp');
-					$imagick->writeImage('/tmp/resized.webp');
-
-					// Verify
-					$verify = new Imagick('/tmp/resized.webp');
-					echo $verify->getImageWidth() . 'x' . $verify->getImageHeight() . ' ' . strtoupper($verify->getImageFormat());
-				`,
-			});
-			expect(result.text).toBe('100x100 WEBP');
-		});
-
 		test('convert JPEG to PNG', async () => {
 			const result = await php.run({
 				code: `<?php
@@ -441,6 +410,49 @@ describe(`Imagick – ${runtimeMode}`, () => {
 			expect(outputFile.byteLength).toBeGreaterThan(0);
 		});
 
+		// Playground doesn't support WebP in PHP < 8.0
+		const majorPHPVersion = phpVersion?.substring(0, 1);
+		test.skipIf(majorPHPVersion === '7')(
+			'convert JPEG to WebP',
+			async () => {
+				const result = await php.run({
+					code: `<?php
+				$imagick = new Imagick('/tmp/test-image.jpg');
+				$imagick->setImageFormat('webp');
+				$imagick->writeImage('/tmp/output.webp');
+
+				// Verify we can read it back as WebP
+				$verify = new Imagick('/tmp/output.webp');
+				echo strtoupper($verify->getImageFormat());
+			`,
+				});
+				expect(result.text).toBe('WEBP');
+
+				// Verify the WebP file exists
+				const webpFile = php.readFileAsBuffer('/tmp/output.webp');
+				expect(webpFile.byteLength).toBeGreaterThan(0);
+			}
+		);
+
+		test.skipIf(majorPHPVersion === '7')(
+			'resize and save as WebP',
+			async () => {
+				const result = await php.run({
+					code: `<?php
+				$imagick = new Imagick('/tmp/test-image.jpg');
+				$imagick->resizeImage(100, 100, Imagick::FILTER_LANCZOS, 1);
+				$imagick->setImageFormat('webp');
+				$imagick->writeImage('/tmp/resized.webp');
+
+				// Verify
+				$verify = new Imagick('/tmp/resized.webp');
+				echo $verify->getImageWidth() . 'x' . $verify->getImageHeight() . ' ' . strtoupper($verify->getImageFormat());
+			`,
+				});
+				expect(result.text).toBe('100x100 WEBP');
+			}
+		);
+
 		test('get supported image formats', async () => {
 			const result = await php.run({
 				code: `<?php
@@ -458,8 +470,10 @@ describe(`Imagick – ${runtimeMode}`, () => {
 			});
 			expect(result.text).toContain('JPEG');
 			expect(result.text).toContain('GIF');
-			expect(result.text).toContain('WEBP');
 			expect(result.text).toContain('PNG');
+			if (majorPHPVersion !== '7') {
+				expect(result.text).toContain('WEBP');
+			}
 		});
 	});
 });
