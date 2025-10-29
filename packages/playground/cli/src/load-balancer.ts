@@ -33,6 +33,20 @@ export class LoadBalancer {
 			activeRequests: new Set(),
 		});
 	}
+	async removeWorker(worker: RemoteAPI<PlaygroundCliWorker>) {
+		const workerIndex = this.workerLoads.findIndex(
+			(workerLoad) => workerLoad.worker === worker
+		);
+		if (workerIndex === -1) {
+			return;
+		}
+
+		const [removedWorker] = this.workerLoads.splice(workerIndex, 1);
+
+		// A worker can only be considered fully removed once all
+		// its active requests have settled.
+		await Promise.allSettled(removedWorker.activeRequests);
+	}
 
 	async handleRequest(request: PHPRequest) {
 		let smallestWorkerLoad = this.workerLoads[0];

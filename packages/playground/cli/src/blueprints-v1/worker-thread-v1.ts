@@ -123,7 +123,7 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 		}
 	}
 
-	async bootAsPrimaryWorker({
+	async bootAndSetUpInitialWorker({
 		siteUrl,
 		mountsBeforeWpInstall,
 		mountsAfterWpInstall,
@@ -229,7 +229,7 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 		}
 	}
 
-	async bootAsSecondaryWorker(args: WorkerBootOptions) {
+	async bootWorker(args: WorkerBootOptions) {
 		await this.bootRequestHandler(args);
 	}
 
