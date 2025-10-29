@@ -1,11 +1,7 @@
 import fs from 'fs';
 import { rootCertificates } from 'tls';
 import path from 'path';
-import {
-	PHP,
-	SupportedPHPVersions,
-	setPhpIniEntries,
-} from '@php-wasm/universal';
+import { PHP, setPhpIniEntries } from '@php-wasm/universal';
 import { loadNodeRuntime } from '../lib';
 import { jspi } from 'wasm-feature-detect';
 
