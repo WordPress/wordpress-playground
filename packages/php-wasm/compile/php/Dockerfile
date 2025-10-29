@@ -122,6 +122,7 @@ RUN cd php-src && ./buildconf --force
 ARG WITH_CURL
 ARG WITH_FILEINFO
 ARG WITH_LIBXML
+ARG WITH_SOAP
 ARG WITH_LIBZIP
 ARG WITH_EXIF
 ARG WITH_GD
@@ -232,6 +233,14 @@ RUN if [ "$WITH_LIBXML" = "yes" ]; \
 		fi; \
 	else \
 		echo -n ' --disable-libxml --without-libxml --disable-dom --disable-xml --disable-simplexml --disable-xmlreader --disable-xmlwriter' >> /root/.php-configure-flags; \
+	fi
+
+# Add SOAP if needed (requires libxml)
+RUN if [ "$WITH_SOAP" = "yes" ]; \
+	then \
+		echo -n ' --enable-soap' >> /root/.php-configure-flags; \
+	else \
+		echo -n ' --disable-soap' >> /root/.php-configure-flags; \
 	fi
 
 # Add sqlite3 if needed
@@ -633,6 +642,7 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "invoke_iiiiii",\n\
 "invoke_iiiiiii",\n\
 "invoke_iiiiiiii",\n\
+"invoke_iiiiiiiii",\n\
 "invoke_iiiiiiiiii",\n\
 "invoke_v",\n\
 "invoke_vi",\n\
@@ -655,6 +665,7 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "invoke_iiiiiiiiii",\
 "invoke_iij",\
 "invoke_iiji",\
+"invoke_iiij",\
 "invoke_iijii",\
 "invoke_iijiji",\
 "invoke_jii",\
@@ -684,6 +695,7 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "close",\n\
 "_close",\n\
 "js_module_onMessage",\n\
+"zend_hash_str_find",\n\
 "_js_module_onMessage",\n\
 "_asyncjs__js_module_onMessage",\n\
 "js_waitpid",\n\
@@ -696,6 +708,32 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "_asyncjs__wasm_shutdown"]'; \
 	echo -n " -s ASYNCIFY_IMPORTS=$ASYNCIFY_IMPORTS " | tr -d "\n" >> /root/.emcc-php-asyncify-flags; \
 	export ASYNCIFY_ONLY_UNPREFIXED=$'"null.<anonymous>",\
+"printf_core",\
+"__vfprintf_internal",\
+"vfprintf",\
+"vsnprintf",\
+"__xmlRaiseError",\
+"__xmlLoaderErr",\
+"zim_SoapClient___construct",\
+"zim_SoapClient_SoapClient",\
+"get_sdl",\
+"get_http_headers",\
+"zim_SoapClient___call",\
+"soap_client_call_impl",\
+"zim_SoapClient___doRequest",\
+"make_http_soap_request",\
+"load_wsdl_ex",\
+"soap_xmlParseFile",\
+"xmlCreateURLParserCtxt",\
+"xmlNewInputFromFile",\
+"xmlDefaultExternalEntityLoader",\
+"_php_libxml_pre_ext_ent_loader",\
+"xmlLoadExternalEntity",\
+"xmlParserInputBufferCreateFilename",\
+"php_libxml_input_buffer_create_filename",\
+"php_libxml_streams_IO_open_write_wrapper",\
+"php_libxml_streams_IO_open_read_wrapper",\
+"php_libxml_streams_IO_open_wrapper",\
 "__stdio_close",\
 "zend_stream_stdio_closer",\
 "zend_destroy_file_handle",\
@@ -770,6 +808,7 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "_zval_dtor_func_for_ptr",\
 "_zval_dtor_func",\
 "_zval_ptr_dtor",\
+"add_property_resource_ex",\
 "autoVacuumCommit",\
 "bsearch",\
 "btreeCellSizeCheck",\
@@ -939,6 +978,7 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "zif_array_filter",\
 "zend_unclean_zval_ptr_dtor",\
 "zend_call_known_instance_method_with_2_params",\
+"ZEND_CALL_TRAMPOLINE_SPEC_OBSERVER_HANDLER",\
 "zend_fetch_dimension_address_read_R",\
 "_zval_dtor_func_for_ptr",\
 "ZEND_ASSIGN_DIM_SPEC_CV_CONST_HANDLER",\
