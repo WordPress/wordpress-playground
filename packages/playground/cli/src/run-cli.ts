@@ -524,6 +524,9 @@ const italic = (text: string) =>
 const highlight = (text: string) =>
 	process.stdout.isTTY ? `\x1b[33m${text}\x1b[0m` : text;
 
+// These overloads are declared for convenience so runCLI() can return
+// different things depending on the CLI command without forcing the
+// callers (mostly automated tests) to check return values.
 export async function runCLI(
 	args: RunCLIArgs & { command: 'build-snapshot' | 'run-blueprint' }
 ): Promise<void>;
