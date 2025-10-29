@@ -396,6 +396,7 @@ export async function parseOptionsAndRunCLI() {
 
 		const cliServer = await runCLI(cliArgs);
 		if (cliServer === undefined) {
+			// No server was started, so we are done with our work.
 			process.exit(0);
 		}
 
