@@ -14,7 +14,7 @@ Key Xdebug features available in PHP WASM:
 
 ## How Xdebug works with PHP WASM
 
-Xdebug compiles directly into the PHP WASM binary and can be enabled with a simple `--xdebug` flag on Playground CLI. Once enabled, it provides full debugging capabilities in both browser and Node.js environments:
+Xdebug compiles directly into the PHP WASM binary and can be enabled with a simple `--xdebug` flag. Once enabled, it provides full debugging capabilities in both browser and Node.js environments:
 
 -   **Breakpoint debugging**: Pause execution at specific lines of code
 -   **Variable inspection**: Examine variable values at runtime
@@ -51,29 +51,113 @@ Without Xdebug, developers would rely on primitive debugging methods like echo s
 
 This guide covers three debugging approaches:
 
-1. **Chrome DevTools integration** - Debug PHP directly in your browser using Chrome's built-in developer tools
-2. **IDE integration** - Connect Xdebug to VSCode or PhpStorm for a full-featured debugging experience
-3. **Installation methods** - Multiple ways to run PHP WASM with Xdebug enabled
+1. **Chrome DevTools integration**: Debug PHP directly in your browser using Chrome's built-in developer tools
+2. **IDE integration**: Connect Xdebug to VSCode or PhpStorm for a full-featured debugging experience
+3. **Installation methods**: Multiple ways to run PHP WASM with Xdebug enabled
 
 Choose the debugging environment that best fits your workflow, or use both depending on your needs.
 
 ---
 
+## PHP WASM CLI vs Playground CLI
+
+Choose the appropriate tool for your debugging needs:
+
+### PHP WASM CLI
+
+Use PHP WASM CLI (`@php-wasm/cli`) when you want to:
+
+-   Debug standalone PHP scripts without WordPress
+-   Test PHP code in isolation
+-   Develop PHP libraries or utilities
+-   Run quick PHP experiments with debugging enabled
+
+Install the package:
+
+```bash
+$ npm install @php-wasm/cli
+```
+
+Execute a PHP script with debugging:
+
+```bash
+$ npx @php-wasm/cli@latest --xdebug script.php
+```
+
+### Playground CLI
+
+Use Playground CLI (`@wp-playground/cli`) when you want to:
+
+-   Debug full WordPress installations
+-   Test WordPress plugins or themes
+-   Debug WordPress core functionality
+-   Work with the complete WordPress environment
+
+Install the package:
+
+```bash
+$ npm install @wp-playground/cli
+```
+
+Start a WordPress server with debugging:
+
+```bash
+$ npx @wp-playground/cli@latest server --xdebug
+```
+
+---
+
 ## Installation methods
 
-There are four primary ways to run PHP WASM with Xdebug support:
+Choose one of the following installation methods based on your development workflow:
 
-### 1. Directly from the WordPress Playground repository
+### Installing from NPM (recommended)
 
-Clone and run from the WordPress Playground repository for development and testing.
+For production use or stable versions, install the published packages.
+
+Install PHP WASM CLI:
+
+```bash
+$ npm install @php-wasm/cli
+```
+
+Install Playground CLI:
+
+```bash
+$ npm install @wp-playground/cli
+```
+
+### Running with npx
+
+For quick testing without installation, use npx to run the CLI tools directly.
+
+Run PHP WASM CLI:
+
+```bash
+$ npx @php-wasm/cli@latest --xdebug <var>SCRIPT_PATH</var>
+```
+
+Run Playground CLI:
+
+```bash
+$ npx @wp-playground/cli@latest server --xdebug
+```
+
+Where:
+
+-   `<var>SCRIPT_PATH</var>`: Path to your PHP script file
+
+### Installing from the WordPress Playground repository
+
+For development and testing of Playground itself, clone and run from the repository.
 
 Navigate to the repository:
 
 ```bash
-cd wordpress-playground
+$ cd wordpress-playground
 ```
 
-**Local PHP WASM CLI:**
+Run PHP WASM CLI locally:
 
 ```bash
 $ node --no-warnings=ExperimentalWarning \
@@ -83,7 +167,7 @@ $ node --no-warnings=ExperimentalWarning \
   ./packages/php-wasm/cli/src/main.ts --xdebug
 ```
 
-**Local Playground CLI:**
+Run Playground CLI locally:
 
 ```bash
 $ node --no-warnings=ExperimentalWarning \
@@ -93,7 +177,7 @@ $ node --no-warnings=ExperimentalWarning \
   ./packages/playground/cli/src/cli.ts server --xdebug
 ```
 
-### 2. Using local package repository
+### Using local package repository
 
 For testing local changes before publishing, run the local package repository script.
 
@@ -104,37 +188,27 @@ $ cd wordpress-playground
 $ npm run local-package-repository
 ```
 
-The script outputs local package URLs. Add these URLs to your project's `package.json` file and install. For example:
+The script outputs local package URLs. Add these URLs to your project's `package.json` file. Example configuration:
 
 ```json
 {
 	"type": "module",
 	"dependencies": {
-		"@php-wasm/node": "http://127.0.0.1:9724/7840495c41d5c5ae535da114/v3.0.12/@php-wasm-node-3.0.12.tar.gz",
-		"@php-wasm/cli": "http://127.0.0.1:9724/7840495c41d5c5ae535da114/v3.0.12/@php-wasm-cli-3.0.12.tar.gz",
-		"@wp-playground/cli": "http://127.0.0.1:9724/7840495c41d5c5ae535da114/v3.0.12/@wp-playground-cli-3.0.12.tar.gz"
+		"@php-wasm/node": "http://127.0.0.1:9724/<var>BUILD_ID</var>/v3.0.12/@php-wasm-node-3.0.12.tar.gz",
+		"@php-wasm/cli": "http://127.0.0.1:9724/<var>BUILD_ID</var>/v3.0.12/@php-wasm-cli-3.0.12.tar.gz",
+		"@wp-playground/cli": "http://127.0.0.1:9724/<var>BUILD_ID</var>/v3.0.12/@wp-playground-cli-3.0.12.tar.gz"
 	}
 }
 ```
 
-### 3. Installing from NPM
+Where:
 
-For production use or stable versions, install the published packages:
+-   `<var>BUILD_ID</var>`: Unique build identifier generated by the local package server
 
-```bash
-$ npm install @php-wasm/node @php-wasm/cli @wp-playground/cli
-```
-
-### 4. Running with NPX
-
-For quick testing without installation (CLI tools only):
+Then install the packages:
 
 ```bash
-# PHP WASM CLI
-$ npx @php-wasm/cli@latest --xdebug
-
-# WordPress Playground CLI
-$ npx @wp-playground/cli@latest server --xdebug
+$ npm install
 ```
 
 ---
@@ -160,6 +234,7 @@ Choose Chrome DevTools debugging when you:
 -   Want to debug directly in your browser without IDE setup
 -   Are doing quick debugging sessions
 -   Prefer visual debugging in the browser
+-   Want to see browser-specific interactions
 
 ### When to use IDE integration
 
@@ -167,19 +242,23 @@ Choose IDE integration when you:
 
 -   Have complex, multi-file debugging needs
 -   Prefer debugging within your code editor
+-   Want advanced features like conditional breakpoints
 -   Need better code navigation and project awareness
 
-## Chrome DevTools Integration
+---
+
+## Chrome DevTools integration
 
 ### What is the DevTools integration?
 
 The `--experimental-devtools` option enables debugging PHP code directly in Chrome DevTools using a bridge between Xdebug's DBGp protocol and Chrome's Chrome DevTools Protocol (CDP). This allows you to debug PHP WASM code in your browser just like you would debug JavaScript.
 
-[Image: Chrome DevTools connected to Xdebug bridge]
+**[Image placeholder: Chrome DevTools connected to Xdebug showing PHP code with syntax highlighting]**  
+_Alt text: DevTools Sources panel showing PHP files_
 
 ### How it works
 
-The integration consists of:
+The integration consists of three components:
 
 1. **Xdebug DBGp server**: Runs on port 9003 (standard Xdebug 3 port)
 2. **CDP server**: Runs on port 9229 (standard Chrome DevTools port)
@@ -190,6 +269,20 @@ When you run PHP code with Xdebug enabled, the bridge automatically:
 -   Forwards debugging commands from Chrome DevTools to Xdebug
 -   Translates stack traces, variables, and breakpoints between protocols
 -   Provides source code mapping for the Virtual File System
+
+### Code syntax highlighting in DevTools
+
+DevTools displays PHP code with full syntax highlighting using a specialized approach:
+
+-   Uses the Network protocol instead of `Debugger.scriptParsed`
+-   Provides proper MIME type (`application/x-httpd-php`) to enable CodeMirror highlighting
+-   Maps file URIs correctly to the Virtual File System
+-   Loads source files before PHP execution begins
+
+This ensures you see color-coded PHP syntax just like JavaScript in the Sources panel.
+
+**[Image placeholder: DevTools showing syntax-highlighted PHP code]**  
+_Alt text: PHP code with syntax highlighting in DevTools_
 
 ### Setting up Chrome DevTools debugging
 
@@ -202,11 +295,13 @@ When you run PHP code with Xdebug enabled, the bridge automatically:
 
 **Step 1: Start Playground CLI with DevTools**
 
+Start the Playground CLI with both the `--xdebug` and `--experimental-devtools` flags:
+
 ```bash
 $ npx @wp-playground/cli@latest server --xdebug --experimental-devtools
 ```
 
-You'll see output like:
+The terminal displays output confirming the server is running:
 
 ```
 Starting a PHP server...
@@ -219,24 +314,25 @@ devtools://devtools/bundled/inspector.html?ws=localhost:9229
 Waiting for Chrome to connect...
 ```
 
-[Image: Breakpoint in Chrome DevTools]
+**[Image placeholder: Terminal showing Playground CLI output with DevTools connection URL]**  
+_Alt text: Terminal displaying Xdebug receiver running_
 
 **Step 2: Connect Chrome DevTools**
 
-Open Chrome and navigate to:
+Open Chrome and navigate to the DevTools URL:
 
 ```
 devtools://devtools/bundled/inspector.html?ws=localhost:9229
 ```
 
-Or manually:
+Alternatively, connect manually:
 
 1. Open Chrome DevTools (F12)
 2. Click the three dots menu → More tools → Remote devices
 3. Click "Configure" and add `localhost:9229`
 4. Click "Inspect"
 
-You'll see confirmation in your terminal:
+The terminal confirms the connection:
 
 ```
 Chrome connected! Initializing Xdebug receiver...
@@ -251,48 +347,12 @@ XDebug receiver running on port 9003
 4. Visit your Playground site in the browser to trigger the breakpoint
 5. Use the debugging controls to step through code, inspect variables, etc.
 
-### Using DevTools programmatically
-
-You can also use the DevTools integration from Node.js scripts:
-
-```javascript
-import { runCLI } from '@wp-playground/cli';
-
-const script = `
-<?php
-$test = 42;
-echo "Output!\\n";
-
-function test() {
-    echo "Hello Xdebug World!\\n";
-}
-
-test();
-`;
-
-// Start server with Xdebug and DevTools
-const cliServer = await runCLI({
-	command: 'server',
-	xdebug: true,
-	experimentalDevtools: true,
-});
-
-// Write and execute PHP code
-await cliServer.playground.writeFile('xdebug.php', script);
-const result = await cliServer.playground.run({ scriptPath: 'xdebug.php' });
-
-console.log(result.text);
-```
-
-Run with:
-
-```bash
-$ node --experimental-wasm-stack-switching --experimental-wasm-jspi script.js
-```
+**[Image placeholder: Chrome DevTools with breakpoint set and execution paused]**  
+_Alt text: Breakpoint set on PHP line in DevTools_
 
 ### DevTools debugging workflow
 
-#### 1. File navigation
+#### File navigation
 
 The Sources panel shows the Virtual File System structure:
 
@@ -309,13 +369,13 @@ file://
                 └── your-plugin.php
 ```
 
-#### 2. Setting breakpoints
+#### Setting breakpoints
 
 -   **Line breakpoints**: Click the line number in the gutter
 -   **Conditional breakpoints**: Right-click the line number → "Add conditional breakpoint"
 -   **Logpoints**: Right-click the line number → "Add logpoint"
 
-#### 3. Debugging controls
+#### Debugging controls
 
 Once execution pauses at a breakpoint:
 
@@ -325,12 +385,15 @@ Once execution pauses at a breakpoint:
 -   **Step out** (Shift+F11): Exit the current function
 -   **Step** (F9): Execute the next statement
 
-#### 4. Inspecting data
+#### Inspecting data
 
 -   **Scope panel**: View local and global variables
 -   **Watch panel**: Add expressions to watch
 -   **Call stack**: See the full call stack
 -   **Console**: Evaluate PHP expressions (limited support)
+
+**[Image placeholder: DevTools Variables panel showing PHP variable values]**  
+_Alt text: Variables panel showing PHP scope_
 
 ### Understanding the auto_prepend_file
 
@@ -343,6 +406,7 @@ When you first connect to Chrome DevTools and trigger PHP execution, you may not
 -   This requires stepping over approximately 23 lines before reaching your code
 
 **Workaround:**
+
 Instead of stepping through the internal file:
 
 1. Don't use "break on first line" mode
@@ -353,7 +417,7 @@ Instead of stepping through the internal file:
 
 #### Excluding internal files from debugging
 
-You can configure the bridge to skip internal Playground files:
+Configure the bridge to skip internal Playground files:
 
 ```javascript
 const cliServer = await runCLI({
@@ -368,7 +432,7 @@ This prevents the debugger from stopping in Playground's internal files, taking 
 
 #### Custom ports
 
-If the default ports are in use, you can specify custom ports:
+If the default ports are in use, specify custom ports:
 
 ```javascript
 const cliServer = await runCLI({
@@ -384,7 +448,7 @@ const cliServer = await runCLI({
 
 #### Chrome won't connect
 
-**Problem**: Chrome DevTools shows "WebSocket disconnected" or fails to connect.
+**Symptoms**: Chrome DevTools shows "WebSocket disconnected" or fails to connect.
 
 **Solutions**:
 
@@ -395,7 +459,7 @@ const cliServer = await runCLI({
 
 #### Breakpoints not being hit
 
-**Problem**: Breakpoints appear but execution doesn't pause.
+**Symptoms**: Breakpoints appear but execution doesn't pause.
 
 **Solutions**:
 
@@ -406,7 +470,7 @@ const cliServer = await runCLI({
 
 #### Source files not appearing
 
-**Problem**: The Sources panel doesn't show PHP files.
+**Symptoms**: The Sources panel doesn't show PHP files.
 
 **Solutions**:
 
@@ -416,7 +480,7 @@ const cliServer = await runCLI({
 
 #### Performance issues
 
-**Problem**: Debugging is slow or unresponsive.
+**Symptoms**: Debugging is slow or unresponsive.
 
 **Solutions**:
 
@@ -433,8 +497,6 @@ Current limitations of the DevTools integration:
 2. **Hot reload**: Code changes require restarting the server
 3. **Async operations**: Some async patterns may not debug cleanly
 4. **Memory profiling**: Not yet supported (Xdebug profiling features coming)
-
-### DevTools examples
 
 #### Example 1: Debugging a WordPress plugin
 
@@ -470,22 +532,16 @@ await server.playground.writeFile('/wordpress/wp-content/plugins/debug-test.php'
 console.log('Server running. Open Chrome DevTools and visit the site.');
 ```
 
-#### Example 2: Debugging with conditional breakpoints
-
-1. Set a regular breakpoint in your PHP file
-2. Right-click the breakpoint → Edit breakpoint
-3. Enter a condition like: `$user->ID === 1`
-4. The debugger will only pause when the condition is true
-
 ---
 
-## IDE Integration
+## IDE integration
 
 ### What is IDE integration?
 
 The `--experimental-unsafe-ide-integration` flag automates IDE configuration for Xdebug debugging, enabling you to debug PHP WASM code directly in your IDE (VSCode or PhpStorm) with full breakpoint support, variable inspection, and call stack analysis.
 
-[Image: VSCode Run and Debug panel]
+**[Image placeholder: VSCode with Run and Debug panel showing Xdebug configuration]**  
+_Alt text: VSCode debug panel with Xdebug config_
 
 ### Why two debugging options?
 
@@ -494,7 +550,7 @@ WordPress Playground offers both Chrome DevTools and IDE integration because the
 -   **DevTools**: Browser-based, no IDE required, great for quick debugging
 -   **IDE integration**: Full IDE features, better for complex projects, professional workflows
 
-You can use both simultaneously if needed!
+You can use both simultaneously if needed.
 
 ### What does --experimental-unsafe-ide-integration do?
 
@@ -523,21 +579,23 @@ Currently supports:
 
 ---
 
-## Setting up IDE Integration
+## Setting up IDE integration
 
 ### Prerequisites
 
 **For VSCode:**
 
--   Install the [PHP Debug extension](https://marketplace.visualstudio.com/items?itemName=xdebug.php-debug)
+Install the [PHP Debug extension](https://marketplace.visualstudio.com/items?itemName=xdebug.php-debug).
 
 **For PhpStorm:**
 
--   No additional plugins required (built-in Xdebug support)
+No additional plugins required (built-in Xdebug support).
 
 ### Basic setup
 
 **Step 1: Start Playground with IDE integration**
+
+Start the Playground CLI with both flags enabled:
 
 ```bash
 $ npx @wp-playground/cli@latest server \
@@ -545,7 +603,7 @@ $ npx @wp-playground/cli@latest server \
   --experimental-unsafe-ide-integration
 ```
 
-You'll see output like:
+The terminal displays configuration information:
 
 ```
 Starting a PHP server...
@@ -557,23 +615,17 @@ VS Code / Cursor instructions:
 1. Open the Run and Debug panel on the left sidebar
 2. Select "WP Playground CLI - Listen for Xdebug" from the dropdown
 3. Click "Start Debugging"
-4. Set a breakpoint. For example, in .playground-xdebug-root/wordpress/index.php
+4. Set a breakpoint in .playground-xdebug-root/wordpress/index.php
 5. Visit Playground in your browser to hit the breakpoint
-
-PhpStorm instructions:
-1. Choose "WP Playground CLI - Listen for Xdebug" debug configuration in the toolbar
-2. Click the debug button (bug icon)
-3. Set a breakpoint. For example, in .playground-xdebug-root/wordpress/index.php
-4. Visit Playground in your browser to hit the breakpoint
 ```
 
 **Step 2: Configure your IDE**
 
-The CLI automatically creates debug configurations, but you need to start the debugger.
+The CLI automatically creates debug configurations. Start the debugger in your IDE.
 
 **Step 3: Set breakpoints**
 
-Set breakpoints in your PHP files - either in your local files or in the `.playground-xdebug-root/` directory to debug VFS files.
+Set breakpoints in your PHP files—either in your local files or in the `.playground-xdebug-root/` directory to debug VFS files.
 
 **Step 4: Trigger execution**
 
@@ -583,7 +635,9 @@ Visit your Playground site in the browser to trigger the breakpoints.
 
 #### Detailed VSCode instructions
 
-1. **Start the CLI with both flags:**
+**Step 1: Start the CLI**
+
+Start the Playground CLI with both flags:
 
 ```bash
 $ npx @wp-playground/cli@latest server \
@@ -591,30 +645,41 @@ $ npx @wp-playground/cli@latest server \
   --experimental-unsafe-ide-integration
 ```
 
-2. **Open VSCode's Run and Debug panel**
+**Step 2: Open VSCode's Run and Debug panel**
 
-    - Press `Ctrl+Shift+D` (Windows/Linux) or `Cmd+Shift+D` (Mac)
-    - Or click the Run and Debug icon in the left sidebar
+Open the debugging panel:
 
-3. **Select the debug configuration**
+-   Press `Ctrl+Shift+D` (Windows/Linux) or `Cmd+Shift+D` (Mac)
+-   Or click the Run and Debug icon in the left sidebar
 
-    - Click the dropdown at the top of the panel
-    - Select "WP Playground CLI - Listen for Xdebug"
+**Step 3: Select the debug configuration**
 
-4. **Start the debugger**
+Select the configuration:
 
-    - Click the green play button or press `F5`
-    - You should see "Listening on port 9003" in the debug console
+-   Click the dropdown at the top of the panel
+-   Select "WP Playground CLI - Listen for Xdebug"
 
-5. **Set breakpoints**
+**Step 4: Start the debugger**
 
-    - Open any PHP file
-    - Click in the gutter (left of line numbers) to set breakpoints
-    - Red dots appear where breakpoints are set
+Start debugging:
 
-6. **Trigger the breakpoint**
-    - Visit `http://127.0.0.1:9400` (or your configured port) in your browser
-    - VSCode should pause at your breakpoint
+-   Click the green play button or press `F5`
+-   You should see "Listening on port 9003" in the debug console
+
+**Step 5: Set breakpoints**
+
+Set breakpoints in your code:
+
+-   Open any PHP file
+-   Click in the gutter (left of line numbers) to set breakpoints
+-   Red dots appear where breakpoints are set
+
+**Step 6: Trigger the breakpoint**
+
+Trigger execution:
+
+-   Visit `http://127.0.0.1:9400` (or your configured port) in your browser
+-   VSCode should pause at your breakpoint
 
 #### VSCode configuration details
 
@@ -667,7 +732,9 @@ Once paused at a breakpoint, you can:
 
 #### Detailed PhpStorm instructions
 
-1. **Start the CLI with both flags:**
+**Step 1: Start the CLI**
+
+Start the Playground CLI with both flags:
 
 ```bash
 $ npx @wp-playground/cli@latest server \
@@ -675,30 +742,34 @@ $ npx @wp-playground/cli@latest server \
   --experimental-unsafe-ide-integration
 ```
 
-2. **Select the debug configuration**
+**Step 2: Select the debug configuration**
 
-    - Find the debug configurations dropdown in the toolbar (top right)
-    - Select "WP Playground CLI - Listen for Xdebug"
+Select the configuration:
 
-3. **Start the debugger**
+-   Find the debug configurations dropdown in the toolbar (top right)
+-   Select "WP Playground CLI - Listen for Xdebug"
 
-    - Click the debug button (bug icon) next to the dropdown
-    - Or press `Shift+F9`
-    - The debug button should turn green
+**Step 3: Start the debugger**
 
-4. **Optional: Enable "Break at first line"**
+Start debugging:
 
-    - In the Run menu → "Break at first line in PHP scripts"
-    - This helps verify the connection works
+-   Click the debug button (bug icon) next to the dropdown
+-   Or press `Shift+F9`
+-   The debug button should turn green
 
-5. **Set breakpoints**
+**Step 4: Set breakpoints**
 
-    - Open any PHP file
-    - Click in the gutter (left of line numbers) to set breakpoints
+Set breakpoints in your code:
 
-6. **Trigger the breakpoint**
-    - Visit your Playground site in the browser
-    - PhpStorm should pause at your breakpoint
+-   Open any PHP file
+-   Click in the gutter (left of line numbers) to set breakpoints
+
+**Step 5: Trigger the breakpoint**
+
+Trigger execution:
+
+-   Visit your Playground site in the browser
+-   PhpStorm should pause at your breakpoint
 
 #### PhpStorm configuration details
 
@@ -709,7 +780,7 @@ The CLI automatically creates a server configuration in `.idea/workspace.xml`:
 -   **IDE Key**: `PLAYGROUNDCLI`
 -   **Path mappings**: Automatic mappings for all mounted directories
 
-**Important PhpStorm Quirk**: PhpStorm requires the full host:port in the `host` field. The separate `port` field is ignored, so the configuration uses `host: "host:port"`.
+**Note**: PhpStorm requires the full host:port in the `host` field. The separate `port` field is ignored, so the configuration uses `host: "host:port"`.
 
 #### PhpStorm debugging features
 
@@ -743,6 +814,9 @@ Once paused at a breakpoint:
 
 The `.playground-xdebug-root` symlink is a symbolic link created in your working directory that points to the temporary Playground CLI directory. This gives your IDE visibility into files that exist only in the Virtual File System (VFS).
 
+**[Image placeholder: File explorer showing .playground-xdebug-root symlink]**  
+_Alt text: Playground symlink in project directory_
+
 ### Why do we need it?
 
 Without this symlink, your IDE cannot see files that exist only in the VFS (like WordPress core files, uploaded plugins, or theme files). The symlink makes these files accessible to your IDE so you can:
@@ -756,7 +830,7 @@ Without this symlink, your IDE cannot see files that exist only in the VFS (like
 
 ```
 your-project/
-├── .playground-xdebug-root -> /tmp/playground-cli-abc123/
+├── .playground-xdebug-root -> /tmp/playground-cli-<var>TEMP_ID</var>/
 │   ├── wordpress/
 │   │   ├── index.php
 │   │   ├── wp-config.php
@@ -767,9 +841,13 @@ your-project/
 └── .vscode/ or .idea/
 ```
 
+Where:
+
+-   `<var>TEMP_ID</var>`: Unique temporary directory identifier
+
 ### Browsing the VFS
 
-You can browse the `.playground-xdebug-root` directory directly in your IDE:
+Browse the `.playground-xdebug-root` directory directly in your IDE:
 
 **In VSCode:**
 
@@ -789,14 +867,16 @@ You can browse the `.playground-xdebug-root` directory directly in your IDE:
 -   It's safe to delete manually if needed
 -   Add `.playground-xdebug-root` to your `.gitignore`
 
-```bash
-# Add to .gitignore
+Add to your `.gitignore` file:
+
+```gitignore
+# Playground Xdebug integration
 .playground-xdebug-root
 ```
 
 ---
 
-## Configuration Management
+## Configuration management
 
 ### How configurations are managed
 
@@ -841,11 +921,11 @@ If you want to remove Playground configurations without running the CLI:
 
 ---
 
-## Advanced Usage
+## Advanced usage
 
 ### Combining DevTools and IDE integration
 
-You can use both debugging methods simultaneously:
+Use both debugging methods simultaneously:
 
 ```bash
 $ npx @wp-playground/cli@latest server \
@@ -870,44 +950,59 @@ The CLI uses these default Xdebug settings:
 
 ### Debugging specific files
 
-To debug specific PHP files:
+Debug specific PHP files using one of these methods.
 
-1. **Direct execution**:
+**Direct execution with PHP WASM CLI:**
 
 ```bash
-$ npx @php-wasm/cli@latest --xdebug myscript.php
+$ npx @php-wasm/cli@latest --xdebug <var>SCRIPT_PATH</var>
 ```
 
-2. **Programmatic execution**:
+**Programmatic execution:**
 
 ```javascript
 const result = await playground.run({
-	scriptPath: 'path/to/file.php',
+	scriptPath: '<var>FILE_PATH</var>',
 });
 ```
+
+Where:
+
+-   `<var>SCRIPT_PATH</var>`: Path to your PHP script file
+-   `<var>FILE_PATH</var>`: Path to the file within the VFS
 
 ### Debugging WordPress plugins
 
 **Setup:**
 
+Navigate to your plugin directory and start the Playground CLI:
+
 ```bash
-$ cd my-wordpress-plugin
+$ cd <var>PLUGIN_PATH</var>
 $ npx @wp-playground/cli@latest server \
   --auto-mount=. \
   --xdebug \
   --experimental-unsafe-ide-integration
 ```
 
+Where:
+
+-   `<var>PLUGIN_PATH</var>`: Path to your WordPress plugin directory
+
 **Workflow:**
 
-1. Your plugin code is automatically mounted to `/wordpress/wp-content/plugins/my-plugin`
+1. Your plugin code is automatically mounted to `/wordpress/wp-content/plugins/<var>PLUGIN_NAME</var>`
 2. Set breakpoints in your local plugin files
 3. Visit the Playground site to trigger execution
 4. Debug as normal
 
+Where:
+
+-   `<var>PLUGIN_NAME</var>`: Your plugin's directory name
+
 ### Debugging during Blueprint execution
 
-**Note**: Xdebug is active even during Blueprint execution. This may not be desirable for most users as it can slow down the initial setup.
+**Note**: Xdebug is active even during Blueprint execution. This may not be desirable as it can slow down the initial setup.
 
 **Current behavior**: The debugger may pause during WordPress installation and plugin activation.
 
@@ -915,15 +1010,18 @@ $ npx @wp-playground/cli@latest server \
 
 ---
 
-## Complete Debugging Workflows
+## Complete debugging workflow
 
-### Workflow 1: Quick debugging with Chrome DevTools
+### Workflow: Debugging with Chrome DevTools
 
-**Use case**: Quickly debug a PHP script without setting up an IDE.
+This workflow demonstrates quick debugging of a PHP script without setting up an IDE.
+
+**Step 1: Create a test script**
+
+Create a simple PHP script to debug:
 
 ```bash
-# 1. Create a test script
-cat > test.php << 'EOF'
+$ cat > test.php << 'EOF'
 <?php
 function calculateTotal($items) {
     $total = 0;
@@ -941,46 +1039,92 @@ $cart = [
 $total = calculateTotal($cart);
 echo "Total: $" . $total . "\n";
 EOF
-
-# 2. Start with DevTools
-$ npx @php-wasm/cli@latest --xdebug --experimental-devtools
-
-# 3. In another terminal, execute the script
-$ npx @php-wasm/cli@latest --xdebug test.php
-
-# 4. Open Chrome DevTools at: devtools://devtools/bundled/inspector.html?ws=localhost:9229
-
-# 5. Set breakpoints in test.php and debug
 ```
 
-### Workflow 2: Debugging with VSCode
+**Step 2: Start PHP WASM CLI with DevTools**
 
-**Use case**: Debug a WordPress plugin with full IDE features.
+Start the CLI with Xdebug and DevTools enabled:
 
 ```bash
-# 1. Navigate to your plugin directory
-$ cd ~/projects/my-wp-plugin
+$ npx @php-wasm/cli@latest --xdebug --experimental-devtools
+```
 
-# 2. Start Playground with IDE integration
+**Step 3: Execute the script**
+
+In another terminal, execute the script:
+
+```bash
+$ npx @php-wasm/cli@latest --xdebug test.php
+```
+
+**Step 4: Connect Chrome DevTools**
+
+Open Chrome and navigate to:
+
+```
+devtools://devtools/bundled/inspector.html?ws=localhost:9229
+```
+
+**Step 5: Set breakpoints and debug**
+
+Set breakpoints in `test.php` and debug your code using the DevTools interface.
+
+### Workflow: Debugging with VSCode
+
+This workflow demonstrates debugging a WordPress plugin with full IDE features.
+
+**Step 1: Navigate to your plugin directory**
+
+Change to your plugin directory:
+
+```bash
+$ cd <var>PLUGIN_PATH</var>
+```
+
+**Step 2: Start Playground with IDE integration**
+
+Start the Playground CLI with IDE integration:
+
+```bash
 $ npx @wp-playground/cli@latest server \
   --auto-mount=. \
   --xdebug \
   --experimental-unsafe-ide-integration
-
-# Output:
-# WordPress is running on http://127.0.0.1:9400
-# Updated IDE config: .vscode/launch.json
-# Playground source root: .playground-xdebug-root
-
-# 3. Open VSCode in the current directory
-$ code .
-
-# 4. Press F5 to start debugging
-# 5. Set breakpoints in your plugin files
-# 6. Visit http://127.0.0.1:9400 in your browser
-# 7. Debugger pauses at your breakpoints
-# 8. Inspect variables, step through code, etc.
 ```
+
+The terminal confirms configuration:
+
+```
+WordPress is running on http://127.0.0.1:9400
+Updated IDE config: .vscode/launch.json
+Playground source root: .playground-xdebug-root
+```
+
+**Step 3: Open VSCode**
+
+Open VSCode in the current directory:
+
+```bash
+$ code .
+```
+
+**Step 4: Start debugging**
+
+Press `F5` to start debugging.
+
+**Step 5: Set breakpoints**
+
+Set breakpoints in your plugin files.
+
+**Step 6: Trigger execution**
+
+Visit `http://127.0.0.1:9400` in your browser.
+
+**Step 7: Debug**
+
+The debugger pauses at your breakpoints. Inspect variables and step through code.
+
+---
 
 ## Troubleshooting
 
@@ -1021,22 +1165,6 @@ $ code .
 -   Ensure `.playground-xdebug-root` symlink exists (for IDE)
 -   Restart both the CLI and your debugging tool
 
-### DevTools-specific issues
-
-See the "DevTools troubleshooting" section above for:
-
--   Chrome connection issues
--   Source files not appearing
--   Performance problems
-
-### IDE-specific issues
-
-See the VSCode and PhpStorm troubleshooting sections above for:
-
--   IDE-specific connection issues
--   Configuration problems
--   Path mapping errors
-
 ### Symlink issues on Windows
 
 **Symptoms**: `.playground-xdebug-root` symlink fails to create
@@ -1050,9 +1178,9 @@ See the VSCode and PhpStorm troubleshooting sections above for:
 
 ---
 
-## Best Practices
+## Best practices
 
-### 1. Use .gitignore
+### Use .gitignore
 
 Always add Playground-generated files to `.gitignore`:
 
@@ -1065,21 +1193,24 @@ Always add Playground-generated files to `.gitignore`:
 .idea/workspace.xml
 ```
 
-### 2. Choose the right tool for the job
+### Choose the right tool
+
+Select the appropriate debugging tool based on your needs:
 
 -   **Quick fixes**: Use Chrome DevTools
 -   **Complex debugging**: Use IDE integration
 -   **Learning/teaching**: DevTools is more visual
+-   **Professional development**: IDE integration
 
-### 3. Set strategic breakpoints
+### Set strategic breakpoints
 
-Don't over-use breakpoints:
+Use breakpoints effectively:
 
 -   Focus on problem areas
 -   Use conditional breakpoints for specific conditions
 -   Remove breakpoints when done debugging
 
-### 4. Leverage the VFS symlink
+### Leverage the VFS symlink
 
 The `.playground-xdebug-root` symlink gives you visibility:
 
@@ -1087,7 +1218,7 @@ The `.playground-xdebug-root` symlink gives you visibility:
 -   Understand plugin interactions
 -   Debug third-party code
 
-### 5. Clean up after debugging
+### Clean up after debugging
 
 When done debugging:
 
@@ -1098,7 +1229,7 @@ When done debugging:
 
 ---
 
-## Roadmap and Future Improvements
+## Roadmap and future improvements
 
 Based on ongoing development, upcoming improvements may include:
 
@@ -1126,7 +1257,7 @@ Based on ongoing development, upcoming improvements may include:
 
 ---
 
-## Additional Resources
+## Additional resources
 
 ### Documentation
 
@@ -1171,7 +1302,7 @@ These features were developed through collaboration between the WordPress Playgr
 
 ---
 
-## Getting Help
+## Getting help
 
 If you encounter issues not covered in this guide:
 
@@ -1183,5 +1314,3 @@ If you encounter issues not covered in this guide:
     - The exact command you're running
     - Console output and error messages
     - Steps to reproduce the problem
-
-For quick questions, you can also reach the team through the [WordPress Playground discussions](https://github.com/WordPress/wordpress-playground/discussions).
