@@ -35,7 +35,7 @@ describe('temp-dir', () => {
 		const tempDir = await createPlaygroundCliTempDir(
 			substrToIdentifyTempDirs
 		);
-		expect(fs.lstatSync(tempDir).isDirectory()).toBe(true);
+		expect(fs.lstatSync(tempDir.path).isDirectory()).toBe(true);
 	});
 	it('should clean up a temp dir before exiting', async () => {
 		childProcess.send({

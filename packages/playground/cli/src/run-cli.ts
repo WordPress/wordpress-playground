@@ -394,7 +394,25 @@ export async function parseOptionsAndRunCLI() {
 			],
 		} as RunCLIArgs;
 
-		await runCLI(cliArgs);
+		const cli = await runCLI(cliArgs);
+		const cleanupOnExit = (() => {
+			let exiting = false;
+			return async () => {
+				if (exiting) {
+					return;
+				}
+				exiting = true;
+				await cli[Symbol.asyncDispose]();
+				process.exit(0);
+			};
+		})();
+		// Playground CLI server must be killed to exit. From the terminal,
+		// this may occur via Ctrl+C which sends SIGINT. Let's handle both
+		// SIGINT and SIGTERM (the default kill signal) to make sure we
+		// clean up after ourselves even if this process is being killed.
+		// NOTE: Windows does not support SIGTERM, but Node.js provides some emulation.
+		process.on('SIGINT', cleanupOnExit);
+		process.on('SIGTERM', cleanupOnExit);
 	} catch (e) {
 		if (!(e instanceof Error)) {
 			throw e;
@@ -584,10 +602,10 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 			 * because we don't have to create or maintain multiple copies of the same files.
 			 */
 			const tempDirNameDelimiter = '-playground-cli-site-';
-			const nativeDirPath = await createPlaygroundCliTempDir(
+			const nativeDir = await createPlaygroundCliTempDir(
 				tempDirNameDelimiter
 			);
-			logger.debug(`Native temp dir for VFS root: ${nativeDirPath}`);
+			logger.debug(`Native temp dir for VFS root: ${nativeDir.path}`);
 
 			const IDEConfigName = 'WP Playground CLI - Listen for Xdebug';
 
@@ -602,7 +620,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 			// directory and add the new IDE config.
 			if (args.xdebug && args.experimentalUnsafeIdeIntegration) {
 				await createPlaygroundCliTempDirSymlink(
-					nativeDirPath,
+					nativeDir.path,
 					symlinkPath,
 					process.platform
 				);
@@ -706,7 +724,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 
 			// We do not know the system temp dir,
 			// but we can try to infer from the location of the current temp dir.
-			const tempDirRoot = path.dirname(nativeDirPath);
+			const tempDirRoot = path.dirname(nativeDir.path);
 
 			const twoDaysInMillis = 2 * 24 * 60 * 60 * 1000;
 			const tempDirStaleAgeInMillis = twoDaysInMillis;
@@ -721,7 +739,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 
 			// NOTE: We do not add mount declarations for /internal here
 			// because it will be mounted as part of php-wasm init.
-			const nativeInternalDirPath = path.join(nativeDirPath, 'internal');
+			const nativeInternalDirPath = path.join(nativeDir.path, 'internal');
 			mkdirSync(nativeInternalDirPath);
 
 			const userProvidableNativeSubdirs = [
@@ -746,7 +764,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 					// The user hasn't requested mounting a different native dir for this path,
 					// so let's create a mount from within our native temp dir.
 					const nativeSubdirPath = path.join(
-						nativeDirPath,
+						nativeDir.path,
 						subdirName
 					);
 					mkdirSync(nativeSubdirPath);
@@ -937,6 +955,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 							)
 						);
 						await new Promise((resolve) => server.close(resolve));
+						await nativeDir.cleanup();
 					},
 					workerThreadCount: totalWorkerCount,
 				};
