@@ -73,6 +73,8 @@ const patternsToNotCache = [
 	 * Optional chunks are placed in assets/optional/ via vite.config.ts manualChunks configuration.
 	 */
 	/^\/assets\/optional\/.*/, // All optional assets (CodeMirror, language extensions, etc.)
+	/^\/client\/.*/, // Client package files arent't used by the web version of Playground
+	'/php-playground.html', // The PHP playground is a separate page that is not part of the web version of Playground
 ];
 
 function listFiles(dirPath: string, fileList: string[] = []) {
@@ -103,23 +105,19 @@ export const listAssetsRequiredForOfflineMode = ({
 	distDirectoriesToList,
 }: {
 	outputFile: string;
-	distDirectoriesToList: { path: string; destinationDirectory?: string }[];
+	distDirectoriesToList: string[];
 }) => {
 	return {
 		name: 'list-assets-required-for-offline-mode',
 		apply: 'build',
 		writeBundle({ dir: outputDir }: { dir: string }) {
 			const files = distDirectoriesToList.flatMap((dir) => {
-				const destinationDirectory = dir.destinationDirectory || '';
-				const absoluteDirPath = join(outputDir, dir.path);
+				const absoluteDirPath = join(outputDir, dir);
 				console.log(`Listing files in ${absoluteDirPath}`);
 				return listFiles(absoluteDirPath)
 					.map((file) => {
 						file = file.replace(absoluteDirPath, '');
-						if (file.startsWith('/')) {
-							return `${destinationDirectory}${file}`;
-						}
-						return `${destinationDirectory}/${file}`;
+						return join('/', file);
 					})
 					.filter((item) => {
 						return !patternsToNotCache.some((pattern) => {
