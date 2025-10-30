@@ -8,9 +8,9 @@ const patternsToNotCache = [
 	/**
 	 * Static files that are not needed for the website to function offline.
 	 */
-	'/package.json',
-	'/README.md',
-	'/.DS_Store',
+	/\/package\.json$/i,
+	/\/README\.md$/i,
+	/\.DS_Store$/i,
 	'/index.cjs',
 	/\/.*\.d\.ts$/, // No type declarations are needed at runtime.
 	/\/lib\/.*/, // Remote lib files
@@ -103,22 +103,23 @@ export const listAssetsRequiredForOfflineMode = ({
 	distDirectoriesToList,
 }: {
 	outputFile: string;
-	distDirectoriesToList: string[];
+	distDirectoriesToList: { path: string; destinationDirectory?: string }[];
 }) => {
 	return {
 		name: 'list-assets-required-for-offline-mode',
 		apply: 'build',
 		writeBundle({ dir: outputDir }: { dir: string }) {
 			const files = distDirectoriesToList.flatMap((dir) => {
-				const absoluteDirPath = join(outputDir, dir);
+				const destinationDirectory = dir.destinationDirectory || '';
+				const absoluteDirPath = join(outputDir, dir.path);
 				console.log(`Listing files in ${absoluteDirPath}`);
 				return listFiles(absoluteDirPath)
 					.map((file) => {
 						file = file.replace(absoluteDirPath, '');
 						if (file.startsWith('/')) {
-							return file;
+							return `${destinationDirectory}${file}`;
 						}
-						return `/${file}`;
+						return `${destinationDirectory}/${file}`;
 					})
 					.filter((item) => {
 						return !patternsToNotCache.some((pattern) => {

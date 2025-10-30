@@ -151,7 +151,19 @@ export default defineConfig(({ command, mode }) => {
 			 */
 			listAssetsRequiredForOfflineMode({
 				outputFile: 'assets-required-for-offline-mode.json',
-				distDirectoriesToList: ['./', '../remote', '../client'],
+				distDirectoriesToList: [
+					{ path: './' },
+					{ path: '../remote' },
+					/**
+					 * The entire client directory is copied to the root of the website directory
+					 * when building the wasm-wordpress-net target, so client file paths need to be
+					 * prefixed with /client/ to be listed correctly.
+					 *
+					 * Check the build:wasm-wordpress-net target
+					 * in packages/playground/website/project.json for more details.
+					 */
+					{ path: '../client', destinationDirectory: '/client' },
+				],
 			}) as Plugin,
 
 			/**
