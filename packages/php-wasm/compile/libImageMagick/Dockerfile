@@ -88,13 +88,13 @@ RUN source /root/emsdk/emsdk_env.sh && \
 
 # Manually compile PNG and WebP coders and add them to the library
 RUN source /root/emsdk/emsdk_env.sh && \
-    export JSPI_FLAGS=$(if [ "$JSPI" = "1" ]; then echo "-sSUPPORT_LONGJMP=wasm -fwasm-exceptions"; else echo ""; fi) && \
+    export JSPI_COMPILE_FLAGS=$(if [ "$JSPI" = "1" ]; then echo "-fwasm-exceptions"; else echo ""; fi) && \
     emcc -fPIC -O1 -g0 -fexceptions -I. -I./config -I/root/lib/include -I/root/lib/include/libpng16 \
         -DHAVE_CONFIG_H -DMAGICKCORE_HDRI_ENABLE=1 -DMAGICKCORE_QUANTUM_DEPTH=16 -DMAGICKCORE_CHANNEL_MASK_DEPTH=32 \
-        -D__x86_64__ $JSPI_FLAGS -c coders/png.c -o coders/png.o && \
+        -D__x86_64__ $JSPI_COMPILE_FLAGS -c coders/png.c -o coders/png.o && \
     emcc -fPIC -O1 -g0 -fexceptions -I. -I./config -I/root/lib/include \
         -DHAVE_CONFIG_H -DMAGICKCORE_HDRI_ENABLE=1 -DMAGICKCORE_QUANTUM_DEPTH=16 -DMAGICKCORE_CHANNEL_MASK_DEPTH=32 \
-        -D__x86_64__ $JSPI_FLAGS -c coders/webp.c -o coders/webp.o && \
+        -D__x86_64__ $JSPI_COMPILE_FLAGS -c coders/webp.c -o coders/webp.o && \
     ar r MagickCore/.libs/libMagickCore-7.Q16HDRI.a coders/png.o coders/webp.o && \
     echo "Added PNG and WebP coders to library"
 

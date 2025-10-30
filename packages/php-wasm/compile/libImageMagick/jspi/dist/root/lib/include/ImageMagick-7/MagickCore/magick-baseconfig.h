@@ -1211,7 +1211,7 @@
 /* #undef PIPES_SUPPORT */
 
 /* Define if you have PNG library */
-/* #undef PNG_DELEGATE */
+#define MAGICKCORE_PNG_DELEGATE 1
 
 /* Define to necessary symbol if this constant uses a non-standard name on
    your system. */
@@ -1415,7 +1415,7 @@
 /* #undef WEBPMUX_DELEGATE */
 
 /* Define if you have WEBP library */
-/* #undef WEBP_DELEGATE */
+#define MAGICKCORE_WEBP_DELEGATE 1
 
 /* Define to use the Windows GDI32 library */
 /* #undef WINGDI32_DELEGATE */
@@ -1461,9 +1461,7 @@
 /* #undef ZIP_DELEGATE */
 
 /* Define if you have ZLIB library */
-#ifndef MAGICKCORE_ZLIB_DELEGATE
-#define MAGICKCORE_ZLIB_DELEGATE 1
-#endif
+/* #undef ZLIB_DELEGATE */
 
 /* Define if you have ZSTD library */
 /* #undef ZSTD_DELEGATE */
