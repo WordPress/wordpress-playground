@@ -1,6 +1,5 @@
 import { logger } from '@php-wasm/logger';
 import { EmscriptenDownloadMonitor, ProgressTracker } from '@php-wasm/progress';
-import type { SupportedPHPVersion } from '@php-wasm/universal';
 import { consumeAPI } from '@php-wasm/universal';
 import type { BlueprintV1Declaration } from '@wp-playground/blueprints';
 import {
@@ -34,7 +33,6 @@ import {
  * implemented in TypeScript and orchestrated by this class.
  */
 export class BlueprintsV1Handler {
-	private phpVersion: SupportedPHPVersion | undefined;
 	private lastProgressMessage = '';
 
 	private siteUrl: string;
@@ -189,9 +187,12 @@ export class BlueprintsV1Handler {
 		);
 
 		await playground.isConnected();
+		const runtimeConfiguration = await resolveRuntimeConfiguration(
+			this.getEffectiveBlueprint()
+		);
 		await playground.useFileLockManager(fileLockManagerPort);
 		await playground.bootWorker({
-			phpVersion: this.phpVersion!,
+			phpVersion: runtimeConfiguration.phpVersion,
 			siteUrl: this.siteUrl,
 			mountsBeforeWpInstall: this.args['mount-before-install'] || [],
 			mountsAfterWpInstall: this.args['mount'] || [],
