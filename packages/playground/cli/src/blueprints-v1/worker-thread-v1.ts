@@ -56,7 +56,7 @@ export type PrimaryWorkerBootOptions = WorkerBootOptions & {
 
 interface WorkerBootRequestHandlerOptions {
 	siteUrl: string;
-	allow?: string;
+	followSymlinks: boolean;
 	phpVersion: SupportedPHPVersion;
 	firstProcessId: number;
 	processIdSpaceLength: number;
@@ -236,7 +236,7 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 
 	async bootRequestHandler({
 		siteUrl,
-		allow,
+		followSymlinks,
 		phpVersion,
 		firstProcessId,
 		processIdSpaceLength,
@@ -277,7 +277,7 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 							},
 							phpWasmInitOptions: { nativeInternalDirPath },
 						},
-						followSymlinks: allow?.includes('follow-symlinks'),
+						followSymlinks,
 						withXdebug,
 					});
 				},
