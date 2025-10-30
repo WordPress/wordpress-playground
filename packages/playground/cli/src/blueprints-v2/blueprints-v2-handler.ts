@@ -87,7 +87,7 @@ export class BlueprintsV2Handler {
 
 		const workerBootArgs: SecondaryWorkerBootArgs = {
 			...this.args,
-			phpVersion: this.phpVersion!,
+			phpVersion: this.phpVersion,
 			siteUrl: this.siteUrl,
 			firstProcessId,
 			processIdSpaceLength: this.processIdSpaceLength,
