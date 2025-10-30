@@ -744,8 +744,7 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "ImageToFile",\
 "SetImageInfo",\
 "MagickReadImageFile",\
-"ReadImage_26404",\
-"ReadImage_26622",\
+"PHPWasm_Magick_ReadImage",\
 "zm_shutdown_imagick",\
 "php_imagick_read_file",\
 "zim_Imagick___construct",\
@@ -1103,8 +1102,7 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "ReadBlobStream",\
 "ImageToFile",\
 "SetImageInfo",\
-"ReadImage_26375",\
-"ReadImage_26505",\
+"PHPWasm_Magick_ReadImage",\
 "MagickReadImageFile",\
 "FormatLocaleString",\
 "GetConfigurePaths",\

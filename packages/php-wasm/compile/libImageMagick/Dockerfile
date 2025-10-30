@@ -74,7 +74,8 @@ RUN source /root/emsdk/emsdk_env.sh && \
         --with-png=yes \
         --with-jpeg=yes \
         --with-webp=yes \
-        --with-zlib=yes
+        --with-zlib=yes \
+        --with-namespace-prefix=PHPWasm_Magick_
 
 # Patch config files to force-enable PNG and WebP coders since pkg-config detection fails in emscripten
 RUN sed -i 's|/\* #undef PNG_DELEGATE \*/|#define MAGICKCORE_PNG_DELEGATE 1|' MagickCore/magick-baseconfig.h && \
