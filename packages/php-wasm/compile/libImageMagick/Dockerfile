@@ -78,9 +78,12 @@ RUN source /root/emsdk/emsdk_env.sh && \
         --with-namespace-prefix=PHPWasm_Magick_
 
 # Patch config files to force-enable PNG and WebP coders since pkg-config detection fails in emscripten
+# Also patch NAMESPACE_PREFIX and MAGICKCORE_NAMESPACE_PREFIX to enable function prefixing
 RUN sed -i 's|/\* #undef PNG_DELEGATE \*/|#define MAGICKCORE_PNG_DELEGATE 1|' MagickCore/magick-baseconfig.h && \
     sed -i 's|/\* #undef WEBP_DELEGATE \*/|#define MAGICKCORE_WEBP_DELEGATE 1|' MagickCore/magick-baseconfig.h && \
-    echo "Patched MAGICKCORE_PNG_DELEGATE and MAGICKCORE_WEBP_DELEGATE to 1"
+    sed -i 's|/\* #undef NAMESPACE_PREFIX \*/|#define MAGICKCORE_NAMESPACE_PREFIX PHPWasm_Magick_|' MagickCore/magick-baseconfig.h && \
+    sed -i 's|/\* #undef NAMESPACE_PREFIX_TAG \*/|#define MAGICKCORE_NAMESPACE_PREFIX_TAG "PHPWasm_Magick_"|' MagickCore/magick-baseconfig.h && \
+    echo "Patched MAGICKCORE_PNG_DELEGATE, MAGICKCORE_WEBP_DELEGATE, and MAGICKCORE_NAMESPACE_PREFIX"
 
 # Build only the library targets (skip utilities which fail to link due to longjmp)
 RUN source /root/emsdk/emsdk_env.sh && \
