@@ -744,6 +744,8 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "ImageToFile",\
 "SetImageInfo",\
 "MagickReadImageFile",\
+"PHPWasm_Magick_SetImageInfo",\
+"PHPWasm_Magick_ImageToFile",\
 "PHPWasm_Magick_ReadImage",\
 "zm_shutdown_imagick",\
 "php_imagick_read_file",\
