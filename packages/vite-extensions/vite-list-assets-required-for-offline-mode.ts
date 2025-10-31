@@ -8,9 +8,9 @@ const patternsToNotCache = [
 	/**
 	 * Static files that are not needed for the website to function offline.
 	 */
-	'/package.json',
-	'/README.md',
-	'/.DS_Store',
+	/\/package\.json$/i,
+	/\/README\.md$/i,
+	/\.DS_Store$/i,
 	'/index.cjs',
 	/\/.*\.d\.ts$/, // No type declarations are needed at runtime.
 	/\/lib\/.*/, // Remote lib files
@@ -73,6 +73,8 @@ const patternsToNotCache = [
 	 * Optional chunks are placed in assets/optional/ via vite.config.ts manualChunks configuration.
 	 */
 	/^\/assets\/optional\/.*/, // All optional assets (CodeMirror, language extensions, etc.)
+	/^\/client\/.*/, // Client package files arent't used by the web version of Playground
+	'/php-playground.html', // The PHP playground is a separate page that is not part of the web version of Playground
 ];
 
 function listFiles(dirPath: string, fileList: string[] = []) {
@@ -115,10 +117,7 @@ export const listAssetsRequiredForOfflineMode = ({
 				return listFiles(absoluteDirPath)
 					.map((file) => {
 						file = file.replace(absoluteDirPath, '');
-						if (file.startsWith('/')) {
-							return file;
-						}
-						return `/${file}`;
+						return join('/', file);
 					})
 					.filter((item) => {
 						return !patternsToNotCache.some((pattern) => {
