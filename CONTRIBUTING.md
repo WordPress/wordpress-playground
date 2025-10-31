@@ -43,5 +43,4 @@ Here's a few quickstart guides to get you started:
 
 ---
 
-Thank you for contributing to WordPress Playground! 💙  
-Together, we’re shaping the future of web publishing.
+Thank you for contributing to WordPress Playground! 💙
