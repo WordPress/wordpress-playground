@@ -27,13 +27,11 @@ Here's a few quickstart guides to get you started:
   Please follow our [Code of Conduct](https://make.wordpress.org/handbook/community-code-of-conduct/).
 
 - Before submitting a pull request, review the  
-  [repository management and pull request best practices](https://github.com/WordPress/gutenberg/blob/trunk/docs/contributors/repository-management.md#pull-requests),  
-  and follow the WordPress  
-  [JavaScript coding standards](https://developer.wordpress.org/coding-standards/wordpress-coding-standards/javascript/)  
-  and [accessibility guidelines](https://developer.wordpress.org/coding-standards/wordpress-coding-standards/accessibility/).
-
-- **Accessibility first:** Always test your work following the  
-  [accessibility testing instructions](https://github.com/WordPress/gutenberg/blob/HEAD/docs/contributors/accessibility-testing.md).
+  [repository management and pull request best practices](https://wordpress.github.io/wordpress-playground/contributing/code),  
+  and follow the WordPress Playground coding and accessibility standards.
+  
+- WordPress Coding Standards [Coding Standards](https://developer.wordpress.org/coding-standards/wordpress-coding-standards/)
+- Before submitting a pull request, review the  
 
 - **Maintain compatibility:**  
   If your changes affect shared functions, modules, or APIs, ensure they don’t break existing Playground environments or integrations.
