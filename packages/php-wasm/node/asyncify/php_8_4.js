@@ -8,7 +8,7 @@ import path from 'path';
 
 const dependencyFilename = path.join(__dirname, '8_4_14', 'php_8_4.wasm');
 export { dependencyFilename };
-export const dependenciesTotalSize = 37986027;
+export const dependenciesTotalSize = 37987335;
 const phpVersionString = '8.4.14';
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
