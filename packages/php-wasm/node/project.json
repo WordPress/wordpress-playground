@@ -160,7 +160,16 @@
 					"php-vars.spec.ts",
 					"rotate-php-runtime.spec.ts",
 					"symlinks.spec.ts",
-					"write-files.spec.ts",
+					"write-files.spec.ts"
+				]
+			}
+		},
+		"test-asyncify-2": {
+			"executor": "@nx/vite:test",
+			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/node"],
+			"options": {
+				"reportsDirectory": "../../../coverage/packages/php-wasm/node",
+				"testFiles": [
 					"php-networking.spec.ts",
 					"php-dynamic-loading.spec.ts",
 					"php-request-handler.spec.ts",
@@ -187,7 +196,17 @@
 					"php-vars.spec.ts",
 					"rotate-php-runtime.spec.ts",
 					"symlinks.spec.ts",
-					"write-files.spec.ts",
+					"write-files.spec.ts"
+				]
+			}
+		},
+		"test-jspi-2": {
+			"executor": "@nx/vite:test",
+			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/node"],
+			"options": {
+				"configFile": "packages/php-wasm/node/vite.jspi.config.ts",
+				"reportsDirectory": "../../../coverage/packages/php-wasm/node",
+				"testFiles": [
 					"php-networking.spec.ts",
 					"php-dynamic-loading.spec.ts",
 					"php-request-handler.spec.ts",

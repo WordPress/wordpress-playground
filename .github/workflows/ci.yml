@@ -34,17 +34,17 @@ jobs:
                     - name: test-unit-asyncify (2/8)
                       target: test-asyncify
                     - name: test-unit-asyncify (3/8)
-                      target: test-php-file-get-contents-asyncify
+                      target: test-asyncify-2
                     - name: test-unit-asyncify (4/8)
-                      target: test-php-fopen-asyncify
+                      target: test-php-file-get-contents-asyncify
                     - name: test-unit-asyncify (5/8)
-                      target: test-php-fsockopen-asyncify
+                      target: test-php-fopen-asyncify
                     - name: test-unit-asyncify (6/8)
-                      target: test-php-gethostbyname-asyncify
+                      target: test-php-fsockopen-asyncify
                     - name: test-unit-asyncify (7/8)
-                      target: test-php-mysqli-asyncify
+                      target: test-php-gethostbyname-asyncify
                     - name: test-unit-asyncify (8/8)
-                      target: test-php-sqlite3-asyncify
+                      target: test-php-mysqli-asyncify && node --expose-gc node_modules/nx/bin/nx affected --target=test-php-sqlite3-asyncify
         name: ${{ matrix.name }}
         services:
             mysql:
@@ -82,17 +82,17 @@ jobs:
                     - name: test-unit-jspi (1/7)
                       target: test-jspi
                     - name: test-unit-jspi (2/7)
-                      target: test-php-file-get-contents-jspi
+                      target: test-jspi-2
                     - name: test-unit-jspi (3/7)
-                      target: test-php-fopen-jspi
+                      target: test-php-file-get-contents-jspi
                     - name: test-unit-jspi (4/7)
-                      target: test-php-fsockopen-jspi
+                      target: test-php-fopen-jspi
                     - name: test-unit-jspi (5/7)
-                      target: test-php-gethostbyname-jspi
+                      target: test-php-fsockopen-jspi
                     - name: test-unit-jspi (6/7)
-                      target: test-php-mysqli-jspi
+                      target: test-php-gethostbyname-jspi
                     - name: test-unit-jspi (7/7)
-                      target: test-php-sqlite3-jspi
+                      target: test-php-mysqli-jspi && node --expose-gc node_modules/nx/bin/nx affected --target=test-php-sqlite3-jspi
         name: ${{ matrix.name }}
         services:
             mysql:
