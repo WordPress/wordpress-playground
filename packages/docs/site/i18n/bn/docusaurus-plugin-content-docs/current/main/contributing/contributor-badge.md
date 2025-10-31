@@ -1,7 +1,7 @@
 ---
 title: ওয়ার্ডপ্রেস প্লেগ্রাউন্ড কন্ট্রিবিউটর ব্যাজ
 slug: /contributing/contributor-badge
-description: ওয়ার্ডপ্রেস প্লেগ্রাউন্ড কন্ট্রিবিউটর ব্যাজের মানদণ্ড এবং আপনার WordPress.org প্রোফাইলের জন্য এটি কীভাবে অনুরোধ করবেন তা জেনে নিন।
+description: ওয়ার্ডপ্রেস প্লেগ্রাউন্ড কন্ট্রিবিউটর ব্যাজের যোগ্যতা এবং আপনার WordPress.org প্রোফাইলের জন্য এটি কীভাবে অনুরোধ করবেন তা জেনে নিন।
 ---
 
 <!--
@@ -39,7 +39,7 @@ Any contribution to the WordPress Playground project is highly valued. The Playg
 -->
 
 -   **প্লেগ্রাউন্ড কোড:** কোড পরিবর্তন করা এবং মূল প্রকল্পটি পর্যালোচনা করা।
--   **প্লেগ্রাউন্ড ইউআই:** ওয়েব অভিজ্ঞতার ব্যবহারকারী ইন্টারফেসকে আরও সুন্দর ও সহজ করে তোলা।
+-   **প্লেগ্রাউন্ড ইউআই:** ওয়েব এক্সপেরিয়েন্সের ইউজার ইন্টারফেসকে আরও সুন্দর ও সহজ করে তোলা।
 -   **ডকুমেন্টেশন:** লেখা, আপডেট করা এবং পর্যালোচনা করা।
 -   **ট্রান্সলেশন:** প্রজেক্টের যেকোনো অংশ ট্রান্সলেট করা।
 -   **ব্লুপ্রিন্ট গ্যালারি:** নতুন ব্লুপ্রিন্ট তৈরি করা অথবা বিদ্যমান ব্লুপ্রিন্টগুলিকে উন্নত করা।
@@ -82,7 +82,7 @@ If you are currently a contributor and have been actively involved in the Playgr
 If you meet the criteria, you can request a badge. Please include links to resources (such as GitHub pull requests, issues, or translated strings) that show you have met the criteria. Send a request at the links bellow:
 -->
 
-আপনি যদি মানদণ্ড পূরণ করেন, তাহলে আপনি একটি ব্যাজের জন্য অনুরোধ করতে পারেন। অনুগ্রহ করে এমন রিসোর্সের লিঙ্কগুলি অন্তর্ভুক্ত করুন (যেমন গিটহাব পুল রিকোয়েস্ট, সমস্যা, বা ট্রান্সলেট স্ট্রিং) যা দেখায় যে আপনি মানদণ্ড পূরণ করেছেন। নীচের লিঙ্কগুলিতে একটি অনুরোধ পাঠান:
+আপনি যদি রিকুয়ারমেন্ট পূরণ করেন, তাহলে আপনি একটি ব্যাজের জন্য অনুরোধ করতে পারেন। অনুগ্রহ করে এমন রিসোর্সের লিঙ্কগুলি অন্তর্ভুক্ত করুন (যেমন গিটহাব পুল রিকোয়েস্ট, সমস্যা, বা ট্রান্সলেট স্ট্রিং) যা দেখায় যে আপনি রিকুয়ারমেন্ট পূরণ করেছেন। নীচের লিঙ্কগুলিতে একটি অনুরোধ পাঠান:
 
 <!--
 -   [Contributor Badge](https://profiles.wordpress.org/associations/playground-contributor/)
@@ -96,7 +96,7 @@ If you meet the criteria, you can request a badge. Please include links to resou
 ### Request form
 -->
 
-### অনুরোধ ফর্ম
+### রিকুয়েস্ট ফর্ম
 
 ![Playground Contributor Badge](@site/static/img/contributing/request-contributor-badge.webp)
 
@@ -104,4 +104,4 @@ If you meet the criteria, you can request a badge. Please include links to resou
 To access the request, the user should be logged in with their WordPress.org account and open the Request Membership tab, after submitting the required information. A Playground Team Representative will confirm your contribution and assign the badge. The team will perform a weekly review of contributions and award badges at that time. Updates on new badges awarded will be posted during the Playground Team meeting.
 -->
 
-অনুরোধটি অ্যাক্সেস করার জন্য, ব্যবহারকারীকে তাদের WordPress.org অ্যাকাউন্ট দিয়ে লগ ইন করতে হবে এবং প্রয়োজনীয় তথ্য জমা দেওয়ার পরে অনুরোধ সদস্যতা ট্যাবটি খুলতে হবে। একজন প্লেগ্রাউন্ড টীমের প্রতিনিধি আপনার কন্ট্রিবিউশন নিশ্চিত করবেন এবং ব্যাজটি বরাদ্দ করবেন। টীমের প্রতিনিধি সেই সময়ে কন্ট্রিবিউশন এবং পুরষ্কার ব্যাজগুলির সাপ্তাহিক পর্যালোচনা করবে। নতুন ব্যাজ প্রদানের আপডেটগুলি প্লেগ্রাউন্ড টিম মিটিংয়ের সময় পোস্ট করা হবে।
+অনুরোধটি এক্সেস করার জন্য, ব্যবহারকারীকে তাদের WordPress.org অ্যাকাউন্ট দিয়ে লগ ইন করতে হবে এবং প্রয়োজনীয় তথ্য জমা দেওয়ার পরে অনুরোধ মেম্বারশীপ ট্যাবটি খুলতে হবে। একজন প্লেগ্রাউন্ড টীমের প্রতিনিধি আপনার কন্ট্রিবিউশন নিশ্চিত করবেন এবং ব্যাজটি বরাদ্দ করবেন। টীমের প্রতিনিধি সেই সময়ে কন্ট্রিবিউশন এবং পুরষ্কার ব্যাজগুলির সাপ্তাহিক পর্যালোচনা করবেন। নতুন ব্যাজ প্রদানের আপডেটগুলি প্লেগ্রাউন্ড টিম মিটিংয়ের সময় পোস্ট করা হবে।
