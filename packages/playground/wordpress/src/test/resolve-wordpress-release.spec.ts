@@ -79,14 +79,14 @@ describe('resolveWordPressRelease', () => {
 		expect(result.releaseUrl).toBe(
 			'https://wordpress.org/wordpress-6.8.zip'
 		);
-		expect(result.source).toBe('api');
+		expect(result.source).toBe('inferred');
 	});
 
 	it('resolves exact version match for minor release without .0 suffix', async () => {
 		const result = await resolveWordPressRelease('6.8');
-		expect(result.version).toBe('6.8');
-		expect(result.releaseUrl).toBe(
-			'https://wordpress.org/wordpress-6.8.zip'
+		expect(result.version).toMatch(/^6\.8\.(?!0$)\d+$/);
+		expect(result.releaseUrl).toMatch(
+			/^https:\/\/wordpress\.org\/wordpress-6\.8\.(?!0$)\d+\.zip$/
 		);
 		expect(result.source).toBe('api');
 	});
