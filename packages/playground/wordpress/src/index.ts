@@ -638,7 +638,10 @@ const memoizedFetch = createMemoizedFetch(fetch);
  * // becomes https://wordpress.org/wordpress-6.6.2-RC1.zip and '6.6.2-RC1'
  *
  * const { releaseUrl, version } = await resolveWordPressRelease('6.6')
- * // becomes https://wordpress.org/wordpress-6.6.2.zip and '6.6.2'
+ * // becomes https://wordpress.org/wordpress-6.6.2.zip and '6.6.2' (latest patch)
+ *
+ * const { releaseUrl, version } = await resolveWordPressRelease('6.6.0')
+ * // becomes https://wordpress.org/wordpress-6.6.zip and '6.6' (exact minor release)
  * ```
  *
  * @param versionQuery - The WordPress version query string to resolve.
@@ -679,15 +682,20 @@ export async function resolveWordPressRelease(versionQuery = 'latest') {
 		(v: any) => v.response === 'autoupdate'
 	);
 
+	// Normalize version query: strip .0 patch version (e.g., "6.8.0" -> "6.8")
+	// This allows users to specify --wp=6.8.0 to get the exact 6.8 release
+	// Only strips .0 from patch position (third component), not minor position
+	const normalizedQuery = versionQuery.replace(/^(\d+\.\d+)\.0$/, '$1');
+
 	for (const apiVersion of latestVersions) {
-		if (versionQuery === 'beta' && apiVersion.version.includes('beta')) {
+		if (normalizedQuery === 'beta' && apiVersion.version.includes('beta')) {
 			return {
 				releaseUrl: apiVersion.download,
 				version: apiVersion.version,
 				source: 'api',
 			};
 		} else if (
-			versionQuery === 'latest' &&
+			normalizedQuery === 'latest' &&
 			!apiVersion.version.includes('beta')
 		) {
 			// The first non-beta item in the list is the latest version.
@@ -696,9 +704,22 @@ export async function resolveWordPressRelease(versionQuery = 'latest') {
 				version: apiVersion.version,
 				source: 'api',
 			};
-		} else if (
-			apiVersion.version.substring(0, versionQuery.length) ===
-			versionQuery
+		} else if (apiVersion.version === normalizedQuery) {
+			// Exact match - return this specific version
+			return {
+				releaseUrl: apiVersion.download,
+				version: apiVersion.version,
+				source: 'api',
+			};
+		}
+	}
+
+	// If no exact match found, try substring matching for partial versions
+	// (e.g., "6.8" can still match "6.8.3" for convenience)
+	for (const apiVersion of latestVersions) {
+		if (
+			apiVersion.version.substring(0, normalizedQuery.length) ===
+			normalizedQuery
 		) {
 			return {
 				releaseUrl: apiVersion.download,
@@ -709,8 +730,8 @@ export async function resolveWordPressRelease(versionQuery = 'latest') {
 	}
 
 	return {
-		releaseUrl: `https://wordpress.org/wordpress-${versionQuery}.zip`,
-		version: versionQuery,
+		releaseUrl: `https://wordpress.org/wordpress-${normalizedQuery}.zip`,
+		version: normalizedQuery,
 		source: 'inferred',
 	};
 }
