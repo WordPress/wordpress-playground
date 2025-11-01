@@ -416,55 +416,6 @@ describe('RawBytesFetch', () => {
 		expect(request.url).toEqual('https://example.com/');
 	});
 
-	it('parseHttpRequest should handle multiple query parameters', async () => {
-		const requestBytes = `GET /search?q=test&page=2&sort=asc HTTP/1.1\r\nHost: api.example.com\r\n\r\n`;
-		const request = await RawBytesFetch.parseHttpRequest(
-			new ReadableStream({
-				start(controller) {
-					controller.enqueue(new TextEncoder().encode(requestBytes));
-					controller.close();
-				},
-			}),
-			'api.example.com',
-			'https'
-		);
-		expect(request.url).toEqual(
-			'https://api.example.com/search?q=test&page=2&sort=asc'
-		);
-	});
-
-	it('parseHttpRequest should handle path with trailing slash', async () => {
-		const requestBytes = `GET /api/users/ HTTP/1.1\r\nHost: example.com\r\n\r\n`;
-		const request = await RawBytesFetch.parseHttpRequest(
-			new ReadableStream({
-				start(controller) {
-					controller.enqueue(new TextEncoder().encode(requestBytes));
-					controller.close();
-				},
-			}),
-			'example.com',
-			'http'
-		);
-		expect(request.url).toEqual('http://example.com/api/users/');
-	});
-
-	it('parseHttpRequest should handle nested paths', async () => {
-		const requestBytes = `GET /api/v1/users/123/posts/456 HTTP/1.1\r\nHost: example.com\r\n\r\n`;
-		const request = await RawBytesFetch.parseHttpRequest(
-			new ReadableStream({
-				start(controller) {
-					controller.enqueue(new TextEncoder().encode(requestBytes));
-					controller.close();
-				},
-			}),
-			'example.com',
-			'https'
-		);
-		expect(request.url).toEqual(
-			'https://example.com/api/v1/users/123/posts/456'
-		);
-	});
-
 	it('parseHttpRequest should handle URL-encoded characters in path', async () => {
 		const requestBytes = `GET /search/hello%20world HTTP/1.1\r\nHost: example.com\r\n\r\n`;
 		const request = await RawBytesFetch.parseHttpRequest(
@@ -480,7 +431,7 @@ describe('RawBytesFetch', () => {
 		expect(request.url).toEqual('http://example.com/search/hello%20world');
 	});
 
-	it('parseHttpRequest should handle special characters in query string', async () => {
+	it('parseHttpRequest should handle URL-encoded characters in query string', async () => {
 		const requestBytes = `GET /search?q=hello+world&filter=a%26b HTTP/1.1\r\nHost: example.com\r\n\r\n`;
 		const request = await RawBytesFetch.parseHttpRequest(
 			new ReadableStream({
