@@ -3,6 +3,7 @@ import type {
 	BlueprintBundle,
 	StepDefinition,
 	BlueprintV1,
+	BlueprintOverrides,
 } from '@wp-playground/client';
 import {
 	getBlueprintDeclaration,
@@ -132,19 +133,25 @@ export async function resolveBlueprintFromURL(
 	}
 }
 
+/**
+ * Apply Blueprint overrides to a Blueprint v1 declaration or bundle.
+ * Extracts overrides from URL parameters and applies them to the blueprint.
+ *
+ * @param blueprint The Blueprint v1 declaration or bundle to modify
+ * @param query URL search parameters containing overrides
+ * @returns Modified blueprint with overrides applied
+ */
 export async function applyQueryOverrides(
 	blueprint: BlueprintV1Declaration | BlueprintBundle,
 	query: URLSearchParams
 ): Promise<BlueprintV1Declaration | BlueprintBundle> {
-	/**
-	 * Allow overriding PHP and WordPress versions defined in a Blueprint
-	 * via query params.
-	 */
+	const overrides = extractBlueprintOverridesFromURL(query);
+
 	if (isBlueprintBundle(blueprint)) {
 		let blueprintObject = await getBlueprintDeclaration(blueprint);
-		blueprintObject = applyQueryOverridesToDeclaration(
+		blueprintObject = applyOverridesToV1Declaration(
 			blueprintObject,
-			query
+			overrides
 		);
 		return new OverlayFilesystem([
 			new InMemoryFilesystem({
@@ -153,76 +160,81 @@ export async function applyQueryOverrides(
 			blueprint,
 		]);
 	} else {
-		return applyQueryOverridesToDeclaration(blueprint, query);
+		return applyOverridesToV1Declaration(blueprint, overrides);
 	}
 }
 
-function applyQueryOverridesToDeclaration(
+/**
+ * Apply overrides to a Blueprint v1 declaration.
+ * Translates the unified overrides object into v1 Blueprint structure modifications.
+ */
+function applyOverridesToV1Declaration(
 	blueprint: BlueprintV1Declaration,
-	query: URLSearchParams
+	overrides: BlueprintOverrides
 ): BlueprintV1Declaration {
-	/**
-	 * Allow overriding PHP and WordPress versions defined in a Blueprint
-	 * via query params.
-	 */
+	// Initialize blueprint structures if needed
 	if (!blueprint.preferredVersions) {
 		blueprint.preferredVersions = {} as any;
 	}
-	blueprint.preferredVersions!.php =
-		(query.get('php') as any) ||
-		blueprint.preferredVersions!.php ||
-		RecommendedPHPVersion;
-	blueprint.preferredVersions!.wp =
-		query.get('wp') || blueprint.preferredVersions!.wp || 'latest';
-
-	// Features
 	if (!blueprint.features) {
 		blueprint.features = {};
 	}
-
-	/**
-	 * Networking is enabled by default, so we only need to disable it
-	 * if the query param is explicitly set to something other than "yes".
-	 */
-	if (query.get('networking') && query.get('networking') !== 'yes') {
-		blueprint.features['networking'] = false;
+	if (!blueprint.steps) {
+		blueprint.steps = [];
 	}
 
-	// Language
-	if (query.get('language')) {
-		if (
-			!blueprint?.steps?.find(
-				(step) => step && (step as any).step === 'setSiteLanguage'
-			)
-		) {
-			blueprint.steps?.push({
-				step: 'setSiteLanguage',
-				language: query.get('language')!,
-			});
+	// Apply PHP version override
+	if (overrides.blueprintOverrides?.phpVersion) {
+		blueprint.preferredVersions!.php = overrides.blueprintOverrides
+			.phpVersion as any;
+	} else if (!blueprint.preferredVersions!.php) {
+		blueprint.preferredVersions!.php = RecommendedPHPVersion;
+	}
+
+	// Apply WordPress version override
+	if (overrides.blueprintOverrides?.wordpressVersion) {
+		blueprint.preferredVersions!.wp =
+			overrides.blueprintOverrides.wordpressVersion;
+	} else if (!blueprint.preferredVersions!.wp) {
+		blueprint.preferredVersions!.wp = 'latest';
+	}
+
+	// Apply network access override
+	if (overrides.applicationOptions?.networkAccess !== undefined) {
+		blueprint.features['networking'] =
+			overrides.applicationOptions.networkAccess;
+	}
+
+	// Apply login override
+	if (overrides.applicationOptions?.login !== undefined) {
+		blueprint.login = overrides.applicationOptions.login;
+	}
+
+	// Apply landing page override
+	if (overrides.applicationOptions?.landingPage) {
+		blueprint.landingPage = overrides.applicationOptions.landingPage;
+	}
+
+	// Apply additional steps (language, multisite, Gutenberg PR, etc.)
+	if (overrides.blueprintOverrides?.additionalSteps) {
+		for (const step of overrides.blueprintOverrides.additionalSteps) {
+			// Check if this step type already exists to avoid duplicates
+			const stepType = (step as any).step;
+			const existingStep = blueprint.steps.find(
+				(s) => s && (s as any).step === stepType
+			);
+
+			// For some steps like setSiteLanguage, we want to avoid duplicates
+			// For others like mkdir/writeFile/unzip/installPlugin, we want to add them
+			if (!existingStep || stepType !== 'setSiteLanguage') {
+				if (stepType === 'mkdir' || stepType === 'writeFile') {
+					// Add these at the beginning for PR installations
+					blueprint.steps.unshift(step);
+				} else {
+					blueprint.steps.push(step);
+				}
+			}
 		}
-	}
-
-	// Multisite
-	if (query.get('multisite') === 'yes') {
-		if (
-			!blueprint?.steps?.find(
-				(step) => step && (step as any).step === 'enableMultisite'
-			)
-		) {
-			blueprint.steps?.push({
-				step: 'enableMultisite',
-			});
-		}
-	}
-
-	// Login
-	if (query.get('login') !== 'no') {
-		blueprint.login = true;
-	}
-
-	// Landing page
-	if (query.get('url')) {
-		blueprint.landingPage = query.get('url')!;
 	}
 
 	/*
@@ -236,7 +248,7 @@ function applyQueryOverridesToDeclaration(
 	 * @see https://core.trac.wordpress.org/ticket/59056
 	 */
 	if (blueprint.preferredVersions?.wp === '6.3') {
-		blueprint.steps?.unshift({
+		blueprint.steps.unshift({
 			step: 'defineWpConfigConsts',
 			consts: {
 				WP_DEVELOPMENT_MODE: 'all',
@@ -244,15 +256,72 @@ function applyQueryOverridesToDeclaration(
 		});
 	}
 
-	if (query.has('core-pr')) {
-		const prNumber = query.get('core-pr');
-		blueprint.preferredVersions!.wp = `https://playground.wordpress.net/plugin-proxy.php?org=WordPress&repo=wordpress-develop&workflow=Test%20Build%20Processes&artifact=wordpress-build-${prNumber}&pr=${prNumber}`;
+	return blueprint;
+}
+
+/**
+ * Extract Blueprint overrides from URL query parameters.
+ * This creates a unified overrides object that can be used for both:
+ * - Blueprint v1: Applied directly to the blueprint via applyQueryOverrides()
+ * - Blueprint v2: Passed to runBlueprintV2() as blueprintOverrides
+ *
+ * Supported URL parameters:
+ * - ?wp=6.3 - Override WordPress version
+ * - ?php=8.0 - Override PHP version
+ * - ?language=es_ES - Set site language
+ * - ?multisite=yes - Enable multisite
+ * - ?url=/some-path - Set landing page
+ * - ?login=yes/no - Control login behavior
+ * - ?networking=yes/no - Control network access
+ * - ?core-pr=12345 - Use WordPress core PR build
+ * - ?gutenberg-pr=67890 - Use Gutenberg PR build
+ */
+export function extractBlueprintOverridesFromURL(
+	query: URLSearchParams
+): BlueprintOverrides {
+	const result: BlueprintOverrides = {};
+
+	// WordPress version override
+	if (query.get('wp')) {
+		result.blueprintOverrides = result.blueprintOverrides || {};
+		result.blueprintOverrides.wordpressVersion = query.get('wp')!;
 	}
 
+	// Core PR override
+	if (query.has('core-pr')) {
+		const prNumber = query.get('core-pr');
+		result.blueprintOverrides = result.blueprintOverrides || {};
+		result.blueprintOverrides.wordpressVersion = `https://playground.wordpress.net/plugin-proxy.php?org=WordPress&repo=wordpress-develop&workflow=Test%20Build%20Processes&artifact=wordpress-build-${prNumber}&pr=${prNumber}`;
+	}
+
+	// PHP version override
+	if (query.get('php')) {
+		result.blueprintOverrides = result.blueprintOverrides || {};
+		result.blueprintOverrides.phpVersion = query.get('php')!;
+	}
+
+	// Additional steps array for various overrides
+	const additionalSteps: any[] = [];
+
+	// Language override
+	if (query.get('language')) {
+		additionalSteps.push({
+			step: 'setSiteLanguage',
+			language: query.get('language')!,
+		});
+	}
+
+	// Multisite override
+	if (query.get('multisite') === 'yes') {
+		additionalSteps.push({
+			step: 'enableMultisite',
+		});
+	}
+
+	// Gutenberg PR override
 	if (query.has('gutenberg-pr')) {
 		const prNumber = query.get('gutenberg-pr');
-		blueprint.steps = blueprint.steps || [];
-		blueprint.steps.unshift(
+		additionalSteps.push(
 			{
 				step: 'mkdir',
 				path: '/tmp/pr',
@@ -266,18 +335,6 @@ function applyQueryOverridesToDeclaration(
 					caption: `Downloading Gutenberg PR ${prNumber}`,
 				},
 			},
-			/**
-			 * GitHub CI artifacts are doubly zipped:
-			 *
-			 * pr.zip
-			 *    gutenberg.zip
-			 *       gutenberg.php
-			 *       ... other files ...
-			 *
-			 * This step extracts the inner zip file so that we get
-			 * access directly to gutenberg.zip and can use it to
-			 * install the plugin.
-			 */
 			{
 				step: 'unzip',
 				zipPath: '/tmp/pr/pr.zip',
@@ -293,5 +350,29 @@ function applyQueryOverridesToDeclaration(
 		);
 	}
 
-	return blueprint;
+	if (additionalSteps.length > 0) {
+		result.blueprintOverrides = result.blueprintOverrides || {};
+		result.blueprintOverrides.additionalSteps = additionalSteps;
+	}
+
+	// Application options (Playground-specific)
+	result.applicationOptions = {};
+
+	// Landing page
+	if (query.get('url')) {
+		result.applicationOptions.landingPage = query.get('url')!;
+	}
+
+	// Login control
+	if (query.get('login') !== null) {
+		result.applicationOptions.login = query.get('login') !== 'no';
+	}
+
+	// Network access
+	if (query.get('networking')) {
+		result.applicationOptions.networkAccess =
+			query.get('networking') === 'yes';
+	}
+
+	return result;
 }

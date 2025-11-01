@@ -1,11 +1,30 @@
 import { RecommendedPHPVersion } from '@wp-playground/common';
+import type { SupportedPHPVersion } from '@php-wasm/universal';
 import { BlueprintReflection } from './reflection';
 import type { Blueprint, RuntimeConfiguration } from './types';
 import { compileBlueprintV1 } from './v1/compile';
 import type { BlueprintV1 } from './v1/types';
 
+/**
+ * BlueprintOverrides type - matches the type from @wp-playground/client
+ * but defined here to avoid circular dependencies.
+ */
+export interface BlueprintOverrides {
+	blueprintOverrides?: {
+		wordpressVersion?: string;
+		phpVersion?: string;
+		additionalSteps?: any[];
+	};
+	applicationOptions?: {
+		landingPage?: string;
+		login?: boolean;
+		networkAccess?: boolean;
+	};
+}
+
 export async function resolveRuntimeConfiguration(
-	blueprint: Blueprint
+	blueprint: Blueprint,
+	overrides?: BlueprintOverrides
 ): Promise<RuntimeConfiguration> {
 	const reflection = await BlueprintReflection.create(blueprint);
 	if (reflection.getVersion() === 1) {
@@ -30,12 +49,42 @@ export async function resolveRuntimeConfiguration(
 			constants: {},
 		};
 	} else {
-		// @TODO: actually compute the runtime configuration based on the resolved Blueprint v2
+		// For Blueprint v2, compute runtime configuration from the blueprint and overrides
+		const declaration = reflection.getDeclaration() as any;
+
+		// Determine WordPress version (priority: override > blueprint > default)
+		const wpVersion =
+			overrides?.blueprintOverrides?.wordpressVersion ||
+			declaration.wordpressVersion ||
+			'latest';
+
+		// Determine PHP version (priority: override > blueprint > default)
+		let phpVersion: SupportedPHPVersion = RecommendedPHPVersion;
+		if (overrides?.blueprintOverrides?.phpVersion) {
+			phpVersion = overrides.blueprintOverrides
+				.phpVersion as SupportedPHPVersion;
+		} else if (declaration.phpVersion) {
+			// Handle both string and object forms of phpVersion
+			if (typeof declaration.phpVersion === 'string') {
+				phpVersion = declaration.phpVersion as SupportedPHPVersion;
+			} else if (declaration.phpVersion.recommended) {
+				phpVersion = declaration.phpVersion
+					.recommended as SupportedPHPVersion;
+			}
+		}
+
+		// Determine networking (priority: override > blueprint > default)
+		const networking =
+			overrides?.applicationOptions?.networkAccess ??
+			declaration.applicationOptions?.['wordpress-playground']
+				?.networkAccess ??
+			true;
+
 		return {
-			phpVersion: RecommendedPHPVersion,
-			wpVersion: 'latest',
+			phpVersion,
+			wpVersion,
 			intl: false,
-			networking: true,
+			networking,
 			constants: {},
 			extraLibraries: [],
 		};

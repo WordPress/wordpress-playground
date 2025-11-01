@@ -124,6 +124,7 @@ export async function runBlueprintV2(
 	/**
 	 * Prepare hooks, filters, and run the Blueprint:
 	 */
+	console.log('options.blueprintOverrides', options.blueprintOverrides);
 	await php?.writeFile(
 		'/tmp/run-blueprints.php',
 		`<?php
@@ -141,9 +142,9 @@ function playground_on_blueprint_target_resolved() {
 		'type' => 'blueprint.target_resolved',
 	]));
 }
-playground_add_filter('blueprint.target_resolved', 'playground_on_blueprint_target_resolved');
+//playground_add_filter('blueprint.target_resolved', 'playground_on_blueprint_target_resolved');
 
-playground_add_filter('blueprint.resolved', 'playground_on_blueprint_resolved');
+//playground_add_filter('blueprint.resolved', 'playground_on_blueprint_resolved');
 function playground_on_blueprint_resolved($blueprint) {
 	$additional_blueprint_steps = json_decode(${phpVar(
 		JSON.stringify(options.blueprintOverrides?.additionalSteps || [])
@@ -154,7 +155,6 @@ function playground_on_blueprint_resolved($blueprint) {
 			$additional_blueprint_steps
 		);
 	}
-
 	$wp_version_override = json_decode(${phpVar(
 		JSON.stringify(options.blueprintOverrides?.wordpressVersion || null)
 	)}, true);
@@ -222,6 +222,13 @@ require( "/tmp/blueprints.phar" );
 	])) as StreamedPHPResponse;
 
 	streamedResponse.finished.finally(unbindMessageListener);
+	streamedResponse.stdout.pipeTo(
+		new WritableStream({
+			write(chunk) {
+				console.log('stdout', new TextDecoder().decode(chunk));
+			},
+		})
+	);
 
 	return streamedResponse;
 }

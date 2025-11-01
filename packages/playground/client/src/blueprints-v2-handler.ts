@@ -1,5 +1,6 @@
 import type { ProgressTracker } from '@php-wasm/progress';
 import type { PlaygroundClient, StartPlaygroundOptions } from '.';
+import { BlueprintReflection } from '@wp-playground/blueprints';
 import { collectPhpLogs, logger } from '@php-wasm/logger';
 import { consumeAPI } from '@php-wasm/universal';
 
@@ -11,15 +12,48 @@ export class BlueprintsV2Handler {
 		progressTracker: ProgressTracker
 	) {
 		const {
-			blueprint,
+			blueprint: rawBlueprint,
 			onClientConnected,
 			corsProxy,
 			mounts,
 			sapiName,
 			scope,
+			blueprintOverrides,
 		} = this.options;
 		const downloadProgress = progressTracker!.stage(0.25);
 		const executionProgress = progressTracker!.stage(0.75);
+
+		// Convert v1 blueprint to v2 if needed
+		let blueprint: any = rawBlueprint;
+		if (rawBlueprint) {
+			const reflection = await BlueprintReflection.create(rawBlueprint);
+			if (reflection.getVersion() === 1) {
+				// Convert v1 to minimal v2 blueprint
+				blueprint = {
+					version: 2,
+					wordpressVersion:
+						blueprintOverrides?.blueprintOverrides
+							?.wordpressVersion || 'latest',
+				};
+			}
+		} else {
+			// Create minimal v2 blueprint if none provided
+			blueprint = {
+				version: 2,
+				wordpressVersion:
+					blueprintOverrides?.blueprintOverrides?.wordpressVersion ||
+					'latest',
+			};
+		}
+
+		// Resolve runtime configuration to get PHP/WP versions
+		const { resolveRuntimeConfiguration } = await import(
+			'@wp-playground/blueprints'
+		);
+		const runtimeConfiguration = await resolveRuntimeConfiguration(
+			blueprint,
+			blueprintOverrides
+		);
 
 		// Connect the Comlink API client to the remote worker,
 		// boot the playground, and run the blueprint steps.
@@ -87,10 +121,15 @@ export class BlueprintsV2Handler {
 			mounts,
 			sapiName,
 			scope: scope ?? Math.random().toFixed(16),
+			phpVersion: runtimeConfiguration.phpVersion,
+			wpVersion: runtimeConfiguration.wpVersion,
+			withICU: runtimeConfiguration.intl,
+			withNetworking: runtimeConfiguration.networking,
 			corsProxyUrl: corsProxy,
 			experimentalBlueprintsV2Runner: true,
 			// Pass the declaration directly – the worker runs the V2 runner.
 			blueprint: blueprint as any,
+			blueprintOverrides: blueprintOverrides?.blueprintOverrides,
 		} as any);
 
 		await playground.isReady();
@@ -99,8 +138,10 @@ export class BlueprintsV2Handler {
 		collectPhpLogs(logger, playground);
 		onClientConnected?.(playground);
 
-		// @TODO: Get the landing page from the Blueprint.
-		playground.goTo('/');
+		// Navigate to landing page from overrides or default to root
+		const landingPage =
+			blueprintOverrides?.applicationOptions?.landingPage || '/';
+		playground.goTo(landingPage);
 
 		/**
 		 * Pre-fetch WordPress update checks to speed up the initial wp-admin load.

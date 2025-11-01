@@ -126,6 +126,7 @@ export function bootSiteClient(
 					new URLSearchParams(window.location.search).get(
 						'experimental-blueprints-v2-runner'
 					) === 'yes',
+				blueprintOverrides: site.metadata.blueprintOverrides,
 				// Intercept the Playground client even if the
 				// Blueprint fails.
 				onClientConnected: (playground) => {

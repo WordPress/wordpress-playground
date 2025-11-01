@@ -13,11 +13,12 @@ import {
 	type RuntimeConfiguration,
 	resolveRuntimeConfiguration,
 } from '@wp-playground/blueprints';
+import type { BlueprintOverrides } from '@wp-playground/client';
 import {
 	type BlueprintSource,
 	resolveBlueprintFromURL,
 	type ResolvedBlueprint,
-	applyQueryOverrides,
+	extractBlueprintOverridesFromURL,
 } from '../url/resolve-blueprint-from-url';
 import { logger } from '@php-wasm/logger';
 
@@ -189,10 +190,7 @@ export function updateSite({
  * @returns
  */
 export function addSite(siteInfo: SiteInfo) {
-	return async (
-		dispatch: PlaygroundDispatch,
-		getState: () => PlaygroundReduxState
-	) => {
+	return async (dispatch: PlaygroundDispatch) => {
 		if (siteInfo.metadata.storage === 'none') {
 			throw new Error(
 				'Cannot add a temporary site. Use setTemporarySiteSpec instead.'
@@ -297,15 +295,11 @@ export function setTemporarySiteSpec(
 			);
 		}
 
-		const reflection = await BlueprintReflection.create(
-			resolvedBlueprint.blueprint
+		// Extract overrides from URL parameters (unified for both v1 and v2)
+		// Store them without applying - the handlers will reconcile them
+		const overrides: BlueprintOverrides = extractBlueprintOverridesFromURL(
+			playgroundUrlWithQueryApiArgs.searchParams
 		);
-		if (reflection.getVersion() === 1) {
-			resolvedBlueprint.blueprint = await applyQueryOverrides(
-				resolvedBlueprint.blueprint,
-				playgroundUrlWithQueryApiArgs.searchParams
-			);
-		}
 
 		// Compute the runtime configuration based on the resolved Blueprint:
 		const newSiteInfo: SiteInfo = {
@@ -319,8 +313,11 @@ export function setTemporarySiteSpec(
 				originalBlueprint: resolvedBlueprint.blueprint,
 				originalBlueprintSource: resolvedBlueprint.source!,
 				runtimeConfiguration: await resolveRuntimeConfiguration(
-					resolvedBlueprint.blueprint
+					resolvedBlueprint.blueprint,
+					overrides
 				)!,
+				// Store overrides for both v1 and v2 - handlers will apply them
+				blueprintOverrides: overrides,
 			},
 		};
 		dispatch(sitesSlice.actions.addSite(newSiteInfo));
@@ -379,6 +376,12 @@ export interface SiteMetadata {
 	runtimeConfiguration: RuntimeConfiguration;
 	originalBlueprint: BlueprintV1;
 	originalBlueprintSource: BlueprintSource;
+
+	/**
+	 * Blueprint overrides extracted from URL parameters.
+	 * Stored for both v1 and v2, then reconciled in the respective handlers.
+	 */
+	blueprintOverrides?: BlueprintOverrides;
 }
 
 export const { setOPFSSitesLoadingState } = sitesSlice.actions;

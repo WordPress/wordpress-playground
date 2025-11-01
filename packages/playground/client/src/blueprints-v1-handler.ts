@@ -6,6 +6,7 @@ import {
 	runBlueprintV1Steps,
 	resolveRuntimeConfiguration,
 	BlueprintReflection,
+	applyBlueprintOverrides,
 } from '.';
 import { collectPhpLogs, logger } from '@php-wasm/logger';
 import { consumeAPI } from '@php-wasm/universal';
@@ -27,12 +28,18 @@ export class BlueprintsV1Handler {
 			shouldInstallWordPress,
 			sqliteDriverVersion,
 			onClientConnected,
+			blueprintOverrides,
 		} = this.options;
 		const executionProgress = progressTracker!.stage(0.5);
 		const downloadProgress = progressTracker!.stage();
 
 		// Set a default blueprint if none is provided.
-		const blueprint = this.options.blueprint || {};
+		let blueprint = this.options.blueprint || {};
+
+		// Apply overrides if provided (reconcile URL parameters with blueprint)
+		if (blueprintOverrides) {
+			blueprint = applyBlueprintOverrides(blueprint, blueprintOverrides);
+		}
 
 		// Connect the Comlink API client to the remote worker,
 		// boot the playground, and run the blueprint steps.
@@ -44,7 +51,8 @@ export class BlueprintsV1Handler {
 		progressTracker.pipe(playground);
 
 		const runtimeConfiguration = await resolveRuntimeConfiguration(
-			blueprint
+			blueprint,
+			blueprintOverrides
 		);
 		await playground.onDownloadProgress(downloadProgress.loadingListener);
 		await playground.boot({

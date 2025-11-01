@@ -4,6 +4,7 @@ import { PlaygroundWorkerEndpoint } from './playground-worker-endpoint';
 import type { WorkerBootOptions } from './playground-worker-endpoint';
 import { runBlueprintV2 } from '@wp-playground/blueprints';
 import type { BlueprintV2Declaration } from '@wp-playground/blueprints';
+
 /* @ts-ignore */
 import { corsProxyUrl as defaultCorsProxyUrl } from 'virtual:cors-proxy-url';
 
@@ -23,6 +24,7 @@ class PlaygroundWorkerEndpointV2 extends PlaygroundWorkerEndpoint {
 		withNetworking = true,
 		corsProxyUrl,
 		blueprint,
+		blueprintOverrides,
 	}: WorkerBootOptions) {
 		if (this.booted) {
 			throw new Error('Playground already booted');
@@ -54,10 +56,18 @@ class PlaygroundWorkerEndpointV2 extends PlaygroundWorkerEndpoint {
 				);
 			}
 
+			// Now run the blueprint to apply additional configuration
 			const streamed = await runBlueprintV2({
 				php: primaryPhp,
 				cliArgs: ['--site-url=' + siteUrl],
 				blueprint: blueprint as BlueprintV2Declaration,
+				blueprintOverrides: blueprintOverrides
+					? {
+							wordpressVersion:
+								blueprintOverrides.wordpressVersion,
+							additionalSteps: blueprintOverrides.additionalSteps,
+					  }
+					: undefined,
 				onMessage: async (message: any) => {
 					this.dispatchEvent({
 						type: 'blueprint.message',

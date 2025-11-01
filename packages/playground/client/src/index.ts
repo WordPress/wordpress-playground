@@ -1,4 +1,5 @@
 export * from '@wp-playground/blueprints';
+export { applyBlueprintOverrides } from './apply-blueprint-overrides';
 
 export type {
 	HTTPMethod,
@@ -38,6 +39,23 @@ import { remoteDevServerHost, remoteDevServerPort } from '../../build-config';
 import { BlueprintsV1Handler } from './blueprints-v1-handler';
 import { BlueprintsV2Handler } from './blueprints-v2-handler';
 
+/**
+ * Blueprint overrides extracted from URL parameters or other sources.
+ * These overrides can modify WordPress/PHP versions and add additional steps.
+ */
+export interface BlueprintOverrides {
+	blueprintOverrides?: {
+		wordpressVersion?: string;
+		phpVersion?: string;
+		additionalSteps?: any[];
+	};
+	applicationOptions?: {
+		landingPage?: string;
+		login?: boolean;
+		networkAccess?: boolean;
+	};
+}
+
 export interface StartPlaygroundOptions {
 	iframe: HTMLIFrameElement;
 	remoteUrl: string;
@@ -48,6 +66,13 @@ export interface StartPlaygroundOptions {
 	 * Prefer experimental Blueprints v2 PHP runner instead of TypeScript steps
 	 */
 	experimentalBlueprintsV2Runner?: boolean;
+	/**
+	 * Blueprint overrides extracted from URL parameters or other sources.
+	 * Applied differently based on blueprint version:
+	 * - v1: Applied in the handler via applyQueryOverrides()
+	 * - v2: Passed to runBlueprintV2() as blueprintOverrides
+	 */
+	blueprintOverrides?: BlueprintOverrides;
 	onBlueprintStepCompleted?: OnStepCompleted;
 	onBlueprintValidated?: (blueprint: BlueprintV1Declaration) => void;
 	/**
