@@ -1,15 +1,15 @@
 ---
-title: ওয়ার্ডপ্রেস প্লেগ্রাউন্ড প্রজেক্টে কন্ট্রিবিট্রিং করা
+title: ওয়ার্ডপ্রেস প্লেগ্রাউন্ড প্রজেক্টে কন্ট্রিবিউট্রিং করা
 slug: /contributing
 id: introduction
-description: ওয়ার্ডপ্রেস প্লেগ্রাউন্ডে কন্ট্রিবিট্রিং করার পথচলা শুরু হোক এখান থেকেই । এখানে কোড, ডকুমেন্টেশন এবং বাগ রিপোর্টিংয়ের জন্য গাইডলাইন পাবেন।
+description: ওয়ার্ডপ্রেস প্লেগ্রাউন্ডে কন্ট্রিবিউট্রিং করার পথচলা শুরু হোক এখান থেকেই । এখানে কোড, ডকুমেন্টেশন এবং বাগ রিপোর্টিংয়ের জন্য গাইডলাইন পাবেন।
 ---
 
 <!--
 # Contributing to WordPress Playground project
 -->
 
-# ওয়ার্ডপ্রেস প্লেগ্রাউন্ড প্রজেক্টে কন্ট্রিবিট্রিং করা
+# ওয়ার্ডপ্রেস প্লেগ্রাউন্ড প্রজেক্টে কন্ট্রিবিউট্রিং করা
 
 <!--
 WordPress Playground is an open-source project that welcomes contributors of all kinds, from code to design, documentation to triage.
@@ -31,11 +31,11 @@ WordPress Playground is an open-source project that welcomes contributors of all
 -   Translation? see the [translation section](/contributing/translations).
 -->
 
--   কোড? দেখুন [ডেভেলপার সেকশনে](/contributing/code).
--   ডকুমেন্টেশন? দেখুন [ডকুমেন্টেশন সেকশনে](/contributing/documentation).
--   রিপোর্টিং বাগ? ওপেন করুন [নতুন ইস্যু](https://github.com/WordPress/wordpress-playground/issues/new) মেইন গিটহাব রিপোজিটরি, অথবা [প্লেগ্রাউন্ড টুলসে](https://github.com/WordPress/playground-tools/issues/new).
+-   কোড? দেখুন [ডেভেলপার সেকশনে](/contributing/code)।
+-   ডকুমেন্টেশন? দেখুন [ডকুমেন্টেশন সেকশনে](/contributing/documentation)।
+-   রিপোর্টিং বাগ? ওপেন করুন [নতুন ইস্যু](https://github.com/WordPress/wordpress-playground/issues/new) মেইন গিটহাব রিপোজিটরি, অথবা [প্লেগ্রাউন্ড টুলসে](https://github.com/WordPress/playground-tools/issues/new)।
 -   আইডিয়া, ডিজাইন, অথবা অন্য কিছু? ওপেন করুন [গিটহাব ডিসকাশন](https://github.com/WordPress/wordpress-playground/discussions), এবং চলুন কথা বলি!
--   ট্রান্সলেশন? দেখুন [ট্রান্সলেশন সেকশনে](/contributing/translations).
+-   ট্রান্সলেশন? দেখুন [ট্রান্সলেশন সেকশনে](/contributing/translations)।
 
 <!--
 ## Guidelines
@@ -82,7 +82,7 @@ Want to help sort through open issues and resolve potential bugs? Here's how:
 
 ## A note on contributing and the GPL license
 
-কন্ট্রিবিট্রিং এবং জিপিএল লাইসেন্স সম্পর্কে একটি নোট
+কন্ট্রিবিউট্রিং এবং জিপিএল লাইসেন্স সম্পর্কে একটি নোট
 
 <!--
 WordPress Playground and the WordPress project are strongly rooted in free and open source software. Specifically, WordPress Playground is licenced under GPLv2 (or later) from the [Free Software Foundation](https://www.fsf.org/). You can [read the text of the license here](https://github.com/WordPress/wordpress-playground/blob/trunk/LICENSE) and if that feels overwhelming, WordPress.org has a [friendly GPL Primer](https://make.wordpress.org/community/handbook/wordcamp-organizer/planning-details/gpl-primer/).
