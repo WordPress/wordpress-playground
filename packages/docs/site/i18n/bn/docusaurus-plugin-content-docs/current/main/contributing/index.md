@@ -1,5 +1,5 @@
 ---
-title: ওয়ার্ডপ্রেস প্লেগ্রাউন্ড প্রজেক্টে কন্ট্রিবিউট্রিং করা
+title: ওয়ার্ডপ্রেস প্লেগ্রাউন্ড প্রজেক্টে কন্ট্রিবিউট করা
 slug: /contributing
 id: introduction
 description: ওয়ার্ডপ্রেস প্লেগ্রাউন্ডে কন্ট্রিবিউট্রিং করার পথচলা শুরু হোক এখান থেকেই । এখানে কোড, ডকুমেন্টেশন এবং বাগ রিপোর্টিংয়ের জন্য গাইডলাইন পাবেন।
@@ -9,7 +9,7 @@ description: ওয়ার্ডপ্রেস প্লেগ্রাউন
 # Contributing to WordPress Playground project
 -->
 
-# ওয়ার্ডপ্রেস প্লেগ্রাউন্ড প্রজেক্টে কন্ট্রিবিউট্রিং করা
+# ওয়ার্ডপ্রেস প্লেগ্রাউন্ড প্রজেক্টে কন্ট্রিবিউট করা
 
 <!--
 WordPress Playground is an open-source project that welcomes contributors of all kinds, from code to design, documentation to triage.
@@ -21,7 +21,7 @@ WordPress Playground is an open-source project that welcomes contributors of all
 ## How can I contribute?
 -->
 
-আমি কীভাবে কন্টিবিউট করতে পারি?
+আমি কীভাবে কন্ট্রিবিউট করতে পারি?
 
 <!--
 -   Code? See the [developer section](/contributing/code).
