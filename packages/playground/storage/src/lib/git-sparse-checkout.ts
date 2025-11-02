@@ -103,18 +103,20 @@ function isGitHubUrl(url: string): boolean {
 }
 
 /**
- * Adds GitHub authentication headers to a headers object if a token is available
- * and the URL is a GitHub URL.
+ * Returns GitHub authentication headers if a token is available and the URL is a GitHub URL.
  */
-function addGitHubAuthHeaders(headers: HeadersInit, url: string): void {
+function getGitHubAuthHeaders(url: string): Record<string, string> {
 	if (gitHubAuthToken && isGitHubUrl(url)) {
 		// GitHub Git protocol requires Basic Auth with token as username and empty password
 		const basicAuth = btoa(`${gitHubAuthToken}:`);
-		headers['Authorization'] = `Basic ${basicAuth}`;
-		// Tell CORS proxy to forward the Authorization header
-		// Must be lowercase because the CORS proxy lowercases header names for comparison
-		headers['X-Cors-Proxy-Allowed-Request-Headers'] = 'authorization';
+		return {
+			Authorization: `Basic ${basicAuth}`,
+			// Tell CORS proxy to forward the Authorization header
+			// Must be lowercase because the CORS proxy lowercases header names for comparison
+			'X-Cors-Proxy-Allowed-Request-Headers': 'authorization',
+		};
 	}
+	return {};
 }
 
 /**
@@ -340,18 +342,15 @@ export async function listGitRefs(
 		])) as any
 	);
 
-	const headers: HeadersInit = {
-		Accept: 'application/x-git-upload-pack-advertisement',
-		'content-type': 'application/x-git-upload-pack-request',
-		'Content-Length': `${packbuffer.length}`,
-		'Git-Protocol': 'version=2',
-	};
-
-	addGitHubAuthHeaders(headers, repoUrl);
-
 	const response = await fetch(repoUrl + '/git-upload-pack', {
 		method: 'POST',
-		headers,
+		headers: {
+			Accept: 'application/x-git-upload-pack-advertisement',
+			'content-type': 'application/x-git-upload-pack-request',
+			'Content-Length': `${packbuffer.length}`,
+			'Git-Protocol': 'version=2',
+			...getGitHubAuthHeaders(repoUrl),
+		},
 		body: packbuffer as any,
 	});
 
@@ -506,17 +505,14 @@ async function fetchWithoutBlobs(repoUrl: string, commitHash: string) {
 		])) as any
 	);
 
-	const headers: HeadersInit = {
-		Accept: 'application/x-git-upload-pack-advertisement',
-		'content-type': 'application/x-git-upload-pack-request',
-		'Content-Length': `${packbuffer.length}`,
-	};
-
-	addGitHubAuthHeaders(headers, repoUrl);
-
 	const response = await fetch(repoUrl + '/git-upload-pack', {
 		method: 'POST',
-		headers,
+		headers: {
+			Accept: 'application/x-git-upload-pack-advertisement',
+			'content-type': 'application/x-git-upload-pack-request',
+			'Content-Length': `${packbuffer.length}`,
+			...getGitHubAuthHeaders(repoUrl),
+		},
 		body: packbuffer as any,
 	});
 
@@ -671,17 +667,14 @@ async function fetchObjects(url: string, objectHashes: string[]) {
 		])) as any
 	);
 
-	const headers: HeadersInit = {
-		Accept: 'application/x-git-upload-pack-advertisement',
-		'content-type': 'application/x-git-upload-pack-request',
-		'Content-Length': `${packbuffer.length}`,
-	};
-
-	addGitHubAuthHeaders(headers, url);
-
 	const response = await fetch(url + '/git-upload-pack', {
 		method: 'POST',
-		headers,
+		headers: {
+			Accept: 'application/x-git-upload-pack-advertisement',
+			'content-type': 'application/x-git-upload-pack-request',
+			'Content-Length': `${packbuffer.length}`,
+			...getGitHubAuthHeaders(url),
+		},
 		body: packbuffer as any,
 	});
 
