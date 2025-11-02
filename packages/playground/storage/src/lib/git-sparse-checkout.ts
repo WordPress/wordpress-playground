@@ -37,6 +37,15 @@ if (typeof globalThis.Buffer === 'undefined') {
 let gitHubAuthToken: string | undefined;
 
 /**
+ * Known CORS proxy URL prefixes used by WordPress Playground.
+ * Keep up this synced with packages/playground/website-extras/vite.config.ts
+ */
+const KNOWN_CORS_PROXY_URLS = [
+	'https://wordpress-playground-cors-proxy.net/?',
+	'http://127.0.0.1:5263/cors-proxy.php?',
+];
+
+/**
  * Sets the GitHub authentication token to use for git protocol requests.
  * This is intended to be called by browser-specific initialization code
  * where GitHub OAuth is available.
@@ -61,7 +70,7 @@ export class GitHubAuthenticationError extends Error {
 
 /**
  * Checks if a URL is a GitHub URL by parsing the hostname.
- * Handles both direct GitHub URLs and CORS-proxied URLs.
+ * Handles both direct GitHub URLs and CORS-proxied GitHub URLs.
  *
  * @param url The URL to check
  * @returns true if the URL is definitively a GitHub URL, false otherwise
@@ -70,40 +79,32 @@ function isGitHubUrl(url: string): boolean {
 	try {
 		const parsedUrl = new URL(url);
 
-		// Direct GitHub URL - check hostname
 		if (parsedUrl.hostname === 'github.com') {
 			return true;
 		}
 
-		// CORS-proxied GitHub URL - the actual GitHub URL should be in the query string
-		// Format: https://proxy.com/cors-proxy.php?https://github.com/...
-		// We need to extract and validate the proxied URL's hostname
-		const queryString = parsedUrl.search.substring(1); // Remove leading '?'
-		if (queryString) {
-			// Try to extract a URL from the query string
-			// Match URLs that start with http:// or https://
-			const urlMatch = queryString.match(/^(https?:\/\/[^\s&]+)/);
-			if (urlMatch) {
+		for (const proxyUrl of KNOWN_CORS_PROXY_URLS) {
+			if (url.startsWith(proxyUrl)) {
+				const proxiedUrl = url.substring(proxyUrl.length);
 				try {
-					const proxiedUrl = new URL(urlMatch[1]);
-					if (proxiedUrl.hostname === 'github.com') {
-						return true;
-					}
+					const proxiedParsedUrl = new URL(proxiedUrl);
+					return proxiedParsedUrl.hostname === 'github.com';
 				} catch {
-					// Invalid proxied URL, ignore
+					return false;
 				}
 			}
 		}
 
 		return false;
 	} catch {
-		// If URL parsing fails, return false
 		return false;
 	}
 }
 
 /**
  * Returns GitHub authentication headers if a token is available and the URL is a GitHub URL.
+ *
+ * @param url The URL to check
  */
 function getGitHubAuthHeaders(url: string): Record<string, string> {
 	if (gitHubAuthToken && isGitHubUrl(url)) {
