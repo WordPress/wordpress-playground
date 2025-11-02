@@ -1,6 +1,5 @@
 import type { ProgressTracker } from '@php-wasm/progress';
 import type { PlaygroundClient, StartPlaygroundOptions } from '.';
-import { BlueprintReflection } from '@wp-playground/blueprints';
 import { collectPhpLogs, logger } from '@php-wasm/logger';
 import { consumeAPI } from '@php-wasm/universal';
 
@@ -26,6 +25,9 @@ export class BlueprintsV2Handler {
 		// Convert v1 blueprint to v2 if needed
 		let blueprint: any = rawBlueprint;
 		if (rawBlueprint) {
+			const { BlueprintReflection } = await import(
+				'@wp-playground/blueprints'
+			);
 			const reflection = await BlueprintReflection.create(rawBlueprint);
 			if (reflection.getVersion() === 1) {
 				// Convert v1 to minimal v2 blueprint

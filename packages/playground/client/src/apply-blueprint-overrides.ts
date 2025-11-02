@@ -1,9 +1,7 @@
 import type {
 	BlueprintV1Declaration,
 	BlueprintV1,
-	BlueprintBundle,
 } from '@wp-playground/blueprints';
-import { isBlueprintBundle } from '@wp-playground/blueprints';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import type { BlueprintOverrides } from './index';
 
@@ -21,11 +19,19 @@ export function applyBlueprintOverrides(
 ): BlueprintV1 {
 	// If it's a bundle, we can't modify it - return as is
 	// The overrides will be applied during compilation
-	if (isBlueprintBundle(blueprint)) {
+	// Inline check: blueprint is a bundle if it has a 'read' function
+	if (
+		blueprint &&
+		'read' in blueprint &&
+		typeof blueprint.read === 'function'
+	) {
 		return blueprint;
 	}
 
-	return applyOverridesToDeclaration(blueprint, overrides);
+	return applyOverridesToDeclaration(
+		blueprint as BlueprintV1Declaration,
+		overrides
+	);
 }
 
 function applyOverridesToDeclaration(

@@ -124,7 +124,6 @@ export async function runBlueprintV2(
 	/**
 	 * Prepare hooks, filters, and run the Blueprint:
 	 */
-	console.log('options.blueprintOverrides', options.blueprintOverrides);
 	await php?.writeFile(
 		'/tmp/run-blueprints.php',
 		`<?php
@@ -222,13 +221,6 @@ require( "/tmp/blueprints.phar" );
 	])) as StreamedPHPResponse;
 
 	streamedResponse.finished.finally(unbindMessageListener);
-	streamedResponse.stdout.pipeTo(
-		new WritableStream({
-			write(chunk) {
-				console.log('stdout', new TextDecoder().decode(chunk));
-			},
-		})
-	);
 
 	return streamedResponse;
 }

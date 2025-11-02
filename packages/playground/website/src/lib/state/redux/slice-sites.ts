@@ -9,7 +9,6 @@ import { selectActiveSite, setActiveSite } from './store';
 import { opfsSiteStorage } from '../opfs/opfs-site-storage';
 import {
 	type BlueprintV1,
-	BlueprintReflection,
 	type RuntimeConfiguration,
 	resolveRuntimeConfiguration,
 } from '@wp-playground/blueprints';
