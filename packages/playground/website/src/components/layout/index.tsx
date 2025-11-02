@@ -31,6 +31,7 @@ import { PreviewPRModal } from '../../github/preview-pr';
 import { MissingSiteModal } from '../missing-site-modal';
 import { RenameSiteModal } from '../rename-site-modal';
 import { SaveSiteModal } from '../save-site-modal';
+import { GitHubPrivateRepoAuthModal } from '../github-private-repo-auth-modal';
 
 acquireOAuthTokenIfNeeded();
 
@@ -41,6 +42,7 @@ export const modalSlugs = {
 	IMPORT_FORM: 'import-form',
 	GITHUB_IMPORT: 'github-import',
 	GITHUB_EXPORT: 'github-export',
+	GITHUB_PRIVATE_REPO_AUTH: 'github-private-repo-auth',
 	PREVIEW_PR_WP: 'preview-pr-wordpress',
 	PREVIEW_PR_GUTENBERG: 'preview-pr-gutenberg',
 	MISSING_SITE_PROMPT: 'missing-site-prompt',
@@ -216,6 +218,8 @@ function Modals(blueprint: BlueprintV1Declaration) {
 		return <RenameSiteModal />;
 	} else if (currentModal === modalSlugs.SAVE_SITE) {
 		return <SaveSiteModal />;
+	} else if (currentModal === modalSlugs.GITHUB_PRIVATE_REPO_AUTH) {
+		return <GitHubPrivateRepoAuthModal />;
 	}
 
 	if (query.get('gh-ensure-auth') === 'yes') {

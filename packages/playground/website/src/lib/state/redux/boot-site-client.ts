@@ -198,6 +198,13 @@ export function bootSiteClient(
 				(e as any).originalErrorClassName === 'ArtifactExpiredError'
 			) {
 				dispatch(setActiveSiteError('github-artifact-expired'));
+			} else if (
+				(e as any).name === 'GitHubAuthenticationError' ||
+				(e as any).originalErrorClassName ===
+					'GitHubAuthenticationError' ||
+				(e as any).cause?.name === 'GitHubAuthenticationError'
+			) {
+				dispatch(setActiveModal(modalSlugs.GITHUB_PRIVATE_REPO_AUTH));
 			} else {
 				dispatch(setActiveSiteError('site-boot-failed'));
 				dispatch(setActiveModal(modalSlugs.ERROR_REPORT));
