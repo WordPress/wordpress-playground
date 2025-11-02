@@ -141,9 +141,9 @@ function playground_on_blueprint_target_resolved() {
 		'type' => 'blueprint.target_resolved',
 	]));
 }
-//playground_add_filter('blueprint.target_resolved', 'playground_on_blueprint_target_resolved');
+playground_add_filter('blueprint.target_resolved', 'playground_on_blueprint_target_resolved');
 
-//playground_add_filter('blueprint.resolved', 'playground_on_blueprint_resolved');
+playground_add_filter('blueprint.resolved', 'playground_on_blueprint_resolved');
 function playground_on_blueprint_resolved($blueprint) {
 	$additional_blueprint_steps = json_decode(${phpVar(
 		JSON.stringify(options.blueprintOverrides?.additionalSteps || [])
