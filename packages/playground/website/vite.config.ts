@@ -151,7 +151,7 @@ export default defineConfig(({ command, mode }) => {
 			 */
 			listAssetsRequiredForOfflineMode({
 				outputFile: 'assets-required-for-offline-mode.json',
-				distDirectoriesToList: ['./', '../remote', '../client'],
+				distDirectoriesToList: ['./', '../remote'],
 			}) as Plugin,
 
 			/**

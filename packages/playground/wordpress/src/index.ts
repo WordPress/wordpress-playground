@@ -708,6 +708,20 @@ export async function resolveWordPressRelease(versionQuery = 'latest') {
 		}
 	}
 
+	/**
+	 * Replace "6.8.0" with "6.8" to support installing the exact "6.8.0" release.
+	 *
+	 * The remote release ZIP file URL for 6.8.0 is `https://wordpress.org/wordpress-6.8.zip`.
+	 * However, we already resolve `6.8` to the latest patch version, so that's not an option.
+	 * Therefore, version "6.8.0" can be resolved by requesting a version string "6.8.0", which
+	 * we then convert to "6.8" to construct the correct remote ZIP file URL.
+	 *
+	 * @see https://github.com/WordPress/wordpress-playground/issues/2749
+	 */
+	if (versionQuery.match(/^\d+\.\d+\.0$/)) {
+		versionQuery = versionQuery.split('.').slice(0, 2).join('.');
+	}
+
 	return {
 		releaseUrl: `https://wordpress.org/wordpress-${versionQuery}.zip`,
 		version: versionQuery,
