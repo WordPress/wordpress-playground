@@ -32,27 +32,25 @@ export async function createPlaygroundCliTempDir(
 	// Otherwise, we would have to parse the binary name from the full path.
 	const tempDirPrefix = `${nodeBinaryName}${substrToIdentifyTempDirs}${process.pid}-`;
 
-	const nativeDirPath = (
-		await tmpDir({
-			prefix: tempDirPrefix,
-			/*
-			 * Allow recursive cleanup on process exit.
-			 *
-			 * NOTE: I worried about whether this cleanup would follow symlinks
-			 * and delete target files instead of unlinking the symlink,
-			 * but this feature uses rimraf under the hood which respects symlinks:
-			 * https://github.com/raszi/node-tmp/blob/3d2fe387f3f91b13830b9182faa02c3231ea8258/lib/tmp.js#L318
-			 */
-			unsafeCleanup: true,
-		})
-	).path;
+	const nativeDir = await tmpDir({
+		prefix: tempDirPrefix,
+		/*
+		 * Allow recursive cleanup on process exit.
+		 *
+		 * NOTE: I worried about whether this cleanup would follow symlinks
+		 * and delete target files instead of unlinking the symlink,
+		 * but this feature uses rimraf under the hood which respects symlinks:
+		 * https://github.com/raszi/node-tmp/blob/3d2fe387f3f91b13830b9182faa02c3231ea8258/lib/tmp.js#L318
+		 */
+		unsafeCleanup: true,
+	});
 
 	if (autoCleanup) {
 		// Request graceful cleanup on process exit.
 		tmpSetGracefulCleanup();
 	}
 
-	return nativeDirPath;
+	return nativeDir;
 }
 
 /**

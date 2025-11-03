@@ -134,7 +134,7 @@ export async function parseOptionsAndRunCLI() {
 				type: 'array',
 				nargs: 2,
 				array: true,
-				// coerce: parseMountDirArguments,
+				coerce: parseMountDirArguments,
 			})
 			.option('mount-dir-before-install', {
 				describe:
@@ -394,7 +394,33 @@ export async function parseOptionsAndRunCLI() {
 			],
 		} as RunCLIArgs;
 
-		await runCLI(cliArgs);
+		const cliServer = await runCLI(cliArgs);
+		if (cliServer === undefined) {
+			// No server was started, so we are done with our work.
+			process.exit(0);
+		}
+
+		const cleanUpCliAndExit = (() => {
+			// Remember we are already cleaning up to preclude the possibility
+			// of multiple, conflicting cleanup attempts.
+			let promiseToCleanup: Promise<void>;
+
+			return async () => {
+				if (promiseToCleanup !== undefined) {
+					promiseToCleanup = cliServer[Symbol.asyncDispose]();
+				}
+				await promiseToCleanup;
+				process.exit(0);
+			};
+		})();
+
+		// Playground CLI server must be killed to exit. From the terminal,
+		// this may occur via Ctrl+C which sends SIGINT. Let's handle both
+		// SIGINT and SIGTERM (the default kill signal) to make sure we
+		// clean up after ourselves even if this process is being killed.
+		// NOTE: Windows does not support SIGTERM, but Node.js provides some emulation.
+		process.on('SIGINT', cleanUpCliAndExit);
+		process.on('SIGTERM', cleanUpCliAndExit);
 	} catch (e) {
 		if (!(e instanceof Error)) {
 			throw e;
@@ -437,7 +463,6 @@ export interface RunCLIArgs {
 	autoMount?: string;
 	experimentalMultiWorker?: number;
 	experimentalTrace?: boolean;
-	exitOnPrimaryWorkerCrash?: boolean;
 	internalCookieStore?: boolean;
 	'additional-blueprint-steps'?: any[];
 	xdebug?: boolean | { ideKey?: string };
@@ -492,7 +517,17 @@ const italic = (text: string) =>
 const highlight = (text: string) =>
 	process.stdout.isTTY ? `\x1b[33m${text}\x1b[0m` : text;
 
-export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
+// These overloads are declared for convenience so runCLI() can return
+// different things depending on the CLI command without forcing the
+// callers (mostly automated tests) to check return values.
+export async function runCLI(
+	args: RunCLIArgs & { command: 'build-snapshot' | 'run-blueprint' }
+): Promise<void>;
+export async function runCLI(
+	args: RunCLIArgs & { command: 'server' }
+): Promise<RunCLIServer>;
+export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void>;
+export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 	let loadBalancer: LoadBalancer;
 	let playground: RemoteAPI<PlaygroundCliWorker>;
 
@@ -562,15 +597,17 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 
 	return startServer({
 		port: args['port'] as number,
-		onBind: async (server: Server, port: number): Promise<RunCLIServer> => {
+		onBind: async (server: Server, port: number) => {
 			const host = '127.0.0.1';
 			const serverUrl = `http://${host}:${port}`;
 			const siteUrl = args['site-url'] || serverUrl;
 
 			// Create the blueprints handler
-			const totalWorkerCount = args.experimentalMultiWorker ?? 1;
+			const targetWorkerCount = args.experimentalMultiWorker ?? 1;
+			// Account for the initial worker which is discarded after setup.
+			const totalWorkerCountIncludingSetupWorker = targetWorkerCount + 1;
 			const processIdSpaceLength = Math.floor(
-				Number.MAX_SAFE_INTEGER / totalWorkerCount
+				Number.MAX_SAFE_INTEGER / totalWorkerCountIncludingSetupWorker
 			);
 
 			/*
@@ -584,10 +621,10 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 			 * because we don't have to create or maintain multiple copies of the same files.
 			 */
 			const tempDirNameDelimiter = '-playground-cli-site-';
-			const nativeDirPath = await createPlaygroundCliTempDir(
+			const nativeDir = await createPlaygroundCliTempDir(
 				tempDirNameDelimiter
 			);
-			logger.debug(`Native temp dir for VFS root: ${nativeDirPath}`);
+			logger.debug(`Native temp dir for VFS root: ${nativeDir.path}`);
 
 			const IDEConfigName = 'WP Playground CLI - Listen for Xdebug';
 
@@ -602,7 +639,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 			// directory and add the new IDE config.
 			if (args.xdebug && args.experimentalUnsafeIdeIntegration) {
 				await createPlaygroundCliTempDirSymlink(
-					nativeDirPath,
+					nativeDir.path,
 					symlinkPath,
 					process.platform
 				);
@@ -696,17 +733,15 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 
 					console.log('');
 				} catch (error) {
-					logger.error(
-						'Could not configure Xdebug:',
-						(error as Error)?.message
-					);
-					process.exit(1);
+					throw new Error('Could not configure Xdebug', {
+						cause: error,
+					});
 				}
 			}
 
 			// We do not know the system temp dir,
 			// but we can try to infer from the location of the current temp dir.
-			const tempDirRoot = path.dirname(nativeDirPath);
+			const tempDirRoot = path.dirname(nativeDir.path);
 
 			const twoDaysInMillis = 2 * 24 * 60 * 60 * 1000;
 			const tempDirStaleAgeInMillis = twoDaysInMillis;
@@ -721,7 +756,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 
 			// NOTE: We do not add mount declarations for /internal here
 			// because it will be mounted as part of php-wasm init.
-			const nativeInternalDirPath = path.join(nativeDirPath, 'internal');
+			const nativeInternalDirPath = path.join(nativeDir.path, 'internal');
 			mkdirSync(nativeInternalDirPath);
 
 			const userProvidableNativeSubdirs = [
@@ -746,7 +781,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 					// The user hasn't requested mounting a different native dir for this path,
 					// so let's create a mount from within our native temp dir.
 					const nativeSubdirPath = path.join(
-						nativeDirPath,
+						nativeDir.path,
 						subdirName
 					);
 					mkdirSync(nativeSubdirPath);
@@ -799,119 +834,151 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 				}
 			}
 
+			// Remember whether we are already disposing so we can avoid:
+			// - we can avoid multiple, conflicting dispose attempts
+			// - logging that a worker exited while the CLI itself is exiting
+			let disposing = false;
+			const disposeCLI = async function disposeCLI() {
+				if (disposing) {
+					return;
+				}
+
+				disposing = true;
+				await Promise.all(
+					playgroundsToCleanUp.map(async ({ playground, worker }) => {
+						await playground.dispose();
+						await worker.terminate();
+					})
+				);
+				if (server) {
+					await new Promise((resolve) => server.close(resolve));
+				}
+				await nativeDir.cleanup();
+			};
+
 			// Kick off worker threads now to save time later.
 			// There is no need to wait for other async processes to complete.
 			const promisedWorkers = spawnWorkerThreads(
-				totalWorkerCount,
+				totalWorkerCountIncludingSetupWorker,
 				handler.getWorkerType(),
-				({ exitCode, isMain, workerIndex }) => {
-					if (exitCode === 0) {
+				({ exitCode, workerIndex }) => {
+					// We are already disposing, so worker exit is expected
+					// and does not need to be logged.
+					if (disposing) {
 						return;
 					}
+
+					if (exitCode !== 0) {
+						return;
+					}
+
 					logger.error(
 						`Worker ${workerIndex} exited with code ${exitCode}\n`
 					);
-					// If the primary worker crashes, exit the entire process.
-					if (!isMain) {
-						return;
-					}
-					if (!args.exitOnPrimaryWorkerCrash) {
-						return;
-					}
-					process.exit(1);
+					// @TODO: Should we respawn the worker if it exited with an error and the CLI is not shutting down?
 				}
 			);
 
 			logger.log(`Setting up WordPress ${args.wp}`);
 
 			try {
-				const [initialWorker, ...additionalWorkers] =
-					await promisedWorkers;
+				const workers = await promisedWorkers;
 
 				const fileLockManagerPort = await exposeFileLockManager(
 					fileLockManager
 				);
 
-				// Boot the primary worker using the handler
-				playground = await handler.bootPrimaryWorker(
-					initialWorker.phpPort,
-					fileLockManagerPort,
-					nativeInternalDirPath
-				);
-				playgroundsToCleanUp.push({
-					playground,
-					worker: initialWorker.worker,
-				});
-
-				await playground.isReady();
-				wordPressReady = true;
-				logger.log(`Booted!`);
-
-				loadBalancer = new LoadBalancer(playground);
-
-				if (!args['experimental-blueprints-v2-runner']) {
-					const compiledBlueprint = await (
-						handler as BlueprintsV1Handler
-					).compileInputBlueprint(
-						args['additional-blueprint-steps'] || []
-					);
-
-					if (compiledBlueprint) {
-						logger.log(`Running the Blueprint...`);
-						await runBlueprintV1Steps(
-							compiledBlueprint,
-							playground
+				// NOTE: Using a free-standing block to isolate initial boot vars
+				// while keeping the logic inline.
+				{
+					// Boot the primary worker using the handler
+					const initialWorker = workers.shift()!;
+					const initialPlayground =
+						await handler.bootAndSetUpInitialPlayground(
+							initialWorker.phpPort,
+							fileLockManagerPort,
+							nativeInternalDirPath
 						);
-						logger.log(`Finished running the blueprint`);
+
+					await initialPlayground.isReady();
+					wordPressReady = true;
+					logger.log(`Booted!`);
+
+					loadBalancer = new LoadBalancer(initialPlayground);
+
+					if (!args['experimental-blueprints-v2-runner']) {
+						const compiledBlueprint = await (
+							handler as BlueprintsV1Handler
+						).compileInputBlueprint(
+							args['additional-blueprint-steps'] || []
+						);
+
+						if (compiledBlueprint) {
+							logger.log(`Running the Blueprint...`);
+							await runBlueprintV1Steps(
+								compiledBlueprint,
+								initialPlayground
+							);
+							logger.log(`Finished running the blueprint`);
+						}
 					}
+
+					if (args.command === 'build-snapshot') {
+						await zipSite(playground, args.outfile as string);
+						logger.log(`WordPress exported to ${args.outfile}`);
+						await disposeCLI();
+						return;
+					} else if (args.command === 'run-blueprint') {
+						logger.log(`Blueprint executed`);
+						await disposeCLI();
+						return;
+					}
+
+					// We discard the initial Playground worker because it can
+					// be configured differently than post-boot workers.
+					// For example, we do not enable Xdebug by default for the initial worker.
+					await loadBalancer.removeWorker(initialPlayground);
+					// TODO: Wrap in a cleanup function and reuse for all worker cleanup.
+					await initialPlayground.dispose();
+					await initialWorker.worker.terminate();
 				}
 
-				if (args.command === 'build-snapshot') {
-					await zipSite(playground, args.outfile as string);
-					logger.log(`WordPress exported to ${args.outfile}`);
-					process.exit(0);
-				} else if (args.command === 'run-blueprint') {
-					logger.log(`Blueprint executed`);
-					process.exit(0);
-				}
+				logger.log(`Preparing workers...`);
 
-				if (
-					args.experimentalMultiWorker &&
-					args.experimentalMultiWorker > 1
-				) {
-					logger.log(`Preparing additional workers...`);
+				// Boot additional workers using the handler
+				const initialWorkerProcessIdSpace = processIdSpaceLength;
+				// Just take the first Playground instance to be relayed to others.
+				[playground] = await Promise.all(
+					workers.map(async (worker, index) => {
+						const firstProcessId =
+							initialWorkerProcessIdSpace +
+							index * processIdSpaceLength;
 
-					// Boot additional workers using the handler
-					const initialWorkerProcessIdSpace = processIdSpaceLength;
-					await Promise.all(
-						additionalWorkers.map(async (worker, index) => {
-							const firstProcessId =
-								initialWorkerProcessIdSpace +
-								index * processIdSpaceLength;
+						const fileLockManagerPort = await exposeFileLockManager(
+							fileLockManager
+						);
 
-							const fileLockManagerPort =
-								await exposeFileLockManager(fileLockManager);
-
-							const additionalPlayground =
-								await handler.bootSecondaryWorker({
-									worker,
-									fileLockManagerPort,
-									firstProcessId,
-									nativeInternalDirPath,
-								});
-
-							playgroundsToCleanUp.push({
-								playground: additionalPlayground,
-								worker: worker.worker,
+						const additionalPlayground =
+							await handler.bootPlayground({
+								worker,
+								fileLockManagerPort,
+								firstProcessId,
+								nativeInternalDirPath,
 							});
 
-							loadBalancer.addWorker(additionalPlayground);
-						})
-					);
-				}
+						playgroundsToCleanUp.push({
+							playground: additionalPlayground,
+							worker: worker.worker,
+						});
+
+						loadBalancer.addWorker(additionalPlayground);
+
+						return additionalPlayground;
+					})
+				);
 
 				logger.log(
-					`WordPress is running on ${serverUrl} with ${totalWorkerCount} worker(s)`
+					`WordPress is running on ${serverUrl} with ${targetWorkerCount} worker(s)`
 				);
 
 				if (args.xdebug && args.experimentalDevtools) {
@@ -927,18 +994,8 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer> {
 					playground,
 					server,
 					serverUrl,
-					[Symbol.asyncDispose]: async function disposeCLI() {
-						await Promise.all(
-							playgroundsToCleanUp.map(
-								async ({ playground, worker }) => {
-									await playground.dispose();
-									await worker.terminate();
-								}
-							)
-						);
-						await new Promise((resolve) => server.close(resolve));
-					},
-					workerThreadCount: totalWorkerCount,
+					[Symbol.asyncDispose]: disposeCLI,
+					workerThreadCount: targetWorkerCount,
 				};
 			} catch (error) {
 				if (!args.debug) {
@@ -993,11 +1050,7 @@ export type SpawnedWorker = {
 async function spawnWorkerThreads(
 	count: number,
 	workerType: WorkerType,
-	onWorkerExit: (options: {
-		exitCode: number;
-		isMain: boolean;
-		workerIndex: number;
-	}) => void
+	onWorkerExit: (options: { exitCode: number; workerIndex: number }) => void
 ): Promise<SpawnedWorker[]> {
 	const promises = [];
 	for (let i = 0; i < count; i++) {
@@ -1005,7 +1058,6 @@ async function spawnWorkerThreads(
 		const onExit: (code: number) => void = (code: number) => {
 			onWorkerExit({
 				exitCode: code,
-				isMain: i === 0,
 				workerIndex: i,
 			});
 		};
