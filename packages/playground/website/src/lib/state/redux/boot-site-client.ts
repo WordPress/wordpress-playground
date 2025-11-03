@@ -17,7 +17,11 @@ import { setupPostMessageRelay } from '@php-wasm/web';
 import { startPlaygroundWeb } from '@wp-playground/client';
 import type { PlaygroundClient } from '@wp-playground/remote';
 import { getRemoteUrl } from '../../config';
-import { setActiveModal, setActiveSiteError } from './slice-ui';
+import {
+	setActiveModal,
+	setActiveSiteError,
+	setGitHubAuthRepoUrl,
+} from './slice-ui';
 import type { PlaygroundDispatch, PlaygroundReduxState } from './store';
 import { selectSiteBySlug } from './slice-sites';
 // @ts-ignore
@@ -204,6 +208,14 @@ export function bootSiteClient(
 					'GitHubAuthenticationError' ||
 				(e as any).cause?.name === 'GitHubAuthenticationError'
 			) {
+				// Extract repo URL from the error
+				const repoUrl =
+					(e as any).repoUrl ||
+					(e as any).cause?.repoUrl ||
+					undefined;
+				if (repoUrl) {
+					dispatch(setGitHubAuthRepoUrl(repoUrl));
+				}
 				dispatch(setActiveModal(modalSlugs.GITHUB_PRIVATE_REPO_AUTH));
 			} else {
 				dispatch(setActiveSiteError('site-boot-failed'));

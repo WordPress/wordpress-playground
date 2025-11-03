@@ -17,6 +17,7 @@ export interface UIState {
 		error?: SiteError;
 	};
 	activeModal: string | null;
+	githubAuthRepoUrl?: string;
 	offline: boolean;
 	siteManagerIsOpen: boolean;
 	siteManagerSection: SiteManagerSection;
@@ -88,6 +89,12 @@ const uiSlice = createSlice({
 
 			state.activeModal = action.payload;
 		},
+		setGitHubAuthRepoUrl: (
+			state,
+			action: PayloadAction<string | undefined>
+		) => {
+			state.githubAuthRepoUrl = action.payload;
+		},
 		setOffline: (state, action: PayloadAction<boolean>) => {
 			state.offline = action.payload;
 		},
@@ -139,6 +146,7 @@ export const listenToOnlineOfflineEventsMiddleware: Middleware =
 export const {
 	setActiveModal,
 	setActiveSiteError,
+	setGitHubAuthRepoUrl,
 	setOffline,
 	setSiteManagerOpen,
 	setSiteManagerSection,
