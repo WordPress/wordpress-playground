@@ -23,7 +23,7 @@ function extractRepoName(url: string): string {
 		}
 
 		// Extract owner/repo from GitHub URL
-		const match = githubUrl.match(/github\.com\/([^\/]+\/[^\/]+)/);
+		const match = githubUrl.match(/github\.com\/([^/]+\/[^/]+)/);
 		return match ? match[1] : url;
 	} catch {
 		return url;
