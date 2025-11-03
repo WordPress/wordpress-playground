@@ -100,6 +100,21 @@ const config = {
 			},
 		],
 		'./plugins/kapa-ai-plugin.js',
+		() => ({
+			name: 'component-creator-alias',
+			configureWebpack() {
+				return {
+					resolve: {
+						alias: {
+							'@docusaurus/ComponentCreator': path.resolve(
+								__dirname,
+								'src/patches/ComponentCreator.js'
+							),
+						},
+					},
+				};
+			},
+		}),
 	],
 
 	presets: [
@@ -255,7 +270,9 @@ function getDocusaurusPluginTypedocApiConfig() {
 	const packages = typedoc.entryPoints;
 
 	const TypeDoc = require('typedoc');
+	// @ts-ignore -- TypeDoc types do not expose instance bootstrap mutation
 	const old = TypeDoc.Application.prototype.bootstrap;
+	// @ts-ignore -- Monkeypatching bootstrap is required to configure entry points
 	TypeDoc.Application.prototype.bootstrap = function (options) {
 		options.entryPointStrategy = typedoc.entryPointStrategy;
 		options.entryPoints = packages.map((entry) =>
