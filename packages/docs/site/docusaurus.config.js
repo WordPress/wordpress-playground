@@ -99,6 +99,7 @@ const config = {
 				},
 			},
 		],
+		'./plugins/kapa-ai-plugin.js',
 	],
 
 	presets: [
