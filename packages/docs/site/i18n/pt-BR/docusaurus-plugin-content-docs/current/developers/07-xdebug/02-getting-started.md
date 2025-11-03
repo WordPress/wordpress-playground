@@ -6,18 +6,18 @@ description: Antes de começar a depurar, você precisa executar o WordPress Pla
 
 # Primeiros Passos com Xdebug
 
-Antes de começar a depurar, você precisa executar o WordPress Playground com Xdebug habilitado. Este guia irá fazer uma introdução de como habilitar este recurso e testar sua aplicação via passo-a-passo.
+Este guia irá fazer uma introdução sobre como habilitar este recurso e testar sua aplicação via passo a passo.
 
 ## PHP WASM CLI vs Playground CLI
 
-Você tem duas ferramentas CLI para escolher utilizar o Xdebug:
+Primeirament, o Xdebug pode ser utilizado em dois CLI diferentes::
 
 -   **`@php-wasm/cli`**: Execute scripts PHP independentes. Use isso quando estiver depurando código PHP, sem precisar de um ambiente WordPress.
 -   **`@wp-playground/cli`**: Execute uma instalação completa do WordPress. Útil para depurar plugins WordPress, temas ou funcionalidades do núcleo.
 
-Para este guia, vamos utilizar o Playground CLI, mas o mesmo processo também pode ser aplicado à depuração de aplicações PHP com o `@php-wasm/cli`.
+Para este guia, vamos utilizar o Playground CLI, caso não esteja familiarizado com a ferramenta recomendamos ler o guia do [Playground CLI](/developers/local-development/wp-playground-cli) mas o mesmo processo também pode ser aplicado à depuração de aplicações PHP com o `@php-wasm/cli`.
 
-## Início rápido com npx
+## Início rápido com `npx`
 
 A forma mais rápida de começar é usando npx, que não requer instalação:
 
@@ -57,9 +57,39 @@ XDebug receiver running on port 9003
 Running a PHP script with Xdebug enabled...
 ```
 
-Clicando na URL disponibilizada, por exemplo, `devtools://devtools/bundled/inspector.html?ws=localhost:9229` você terá acesso um devtools conectado com sua aplicação.
+Clicando na URL disponibilizada, por exemplo, `devtools://devtools/bundled/inspector.html?ws=localhost:9229` você terá acesso ao DevTools conectado com sua aplicação. Com a possibilidade de inspecionar todos os arquivos de uma instância WordPress.
 
 ![Chrome Devtools integrated with Xdebug](@site/static/img/developers/asyncify-error.webp)
+
+Para um exemplo mais prático, vamos debugar um plugin que possui o seguinte código abaixo:
+
+```PHP
+<?php
+/**
+ * Plugin Name: Simple Admin Message
+ * Description: Displays a simple message in the WordPress admin
+ * Version: 1.0
+ * Author: Fellyph Cintra
+ */
+
+// Prevent direct access
+if (!defined('ABSPATH')) {
+    exit;
+}
+
+// Display admin notice
+function sam_display_admin_message() {
+    $message = 'Hello! This is a simple admin message.';
+    ?>
+    <div class="notice notice-info is-dismissible">
+        <p><?php _e($message, 'simple-admin-message'); ?></p>
+    </div>
+    <?php
+}
+add_action('admin_notices', 'sam_display_admin_message');
+```
+
+Para depurar o plugin vamos utilizar a flag `--auto-mount` para
 
 ## Iniciando com integração IDE
 
