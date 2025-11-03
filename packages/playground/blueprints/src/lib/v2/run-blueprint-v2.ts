@@ -56,6 +56,7 @@ export async function runBlueprintV2(
 		}
 	}
 	cliArgs.push('--site-path=/wordpress');
+	cliArgs.push('--allow=read-local-fs');
 
 	/**
 	 * Divergence from blueprints.phar – the default database engine is
@@ -148,11 +149,28 @@ function playground_on_blueprint_resolved($blueprint) {
 	$additional_blueprint_steps = json_decode(${phpVar(
 		JSON.stringify(options.blueprintOverrides?.additionalSteps || [])
 	)}, true);
+	
+	// TODO: detect v1 step format vs v2 stepformat
 	if(count($additional_blueprint_steps) > 0) {
-		$blueprint['additionalStepsAfterExecution'] = array_merge(
-			$blueprint['additionalStepsAfterExecution'] ?? [],
-			$additional_blueprint_steps
+		// Additional steps from URL overrides are in v1 format
+		// We need to transpile them to v2 format before merging
+		$transpiler = new WordPress\\Blueprints\\Versions\\Version1\\V1ToV2Transpiler(
+			new WordPress\\Blueprints\\Logger\\NoopLogger()
 		);
+		$temp_v1_blueprint = [
+			'steps' => $additional_blueprint_steps
+		];
+		$upgraded_blueprint = $transpiler->upgrade($temp_v1_blueprint);
+
+		// Extract the transpiled steps from the upgraded blueprint
+		$transpiled_steps = $upgraded_blueprint['additionalStepsAfterExecution'] ?? [];
+
+		if(count($transpiled_steps) > 0) {
+			$blueprint['additionalStepsAfterExecution'] = array_merge(
+				$blueprint['additionalStepsAfterExecution'] ?? [],
+				$transpiled_steps
+			);
+		}
 	}
 	$wp_version_override = json_decode(${phpVar(
 		JSON.stringify(options.blueprintOverrides?.wordpressVersion || null)
@@ -221,6 +239,15 @@ require( "/tmp/blueprints.phar" );
 	])) as StreamedPHPResponse;
 
 	streamedResponse.finished.finally(unbindMessageListener);
+
+	// TODO: Report these errors in the web implementation
+	streamedResponse.stderr.pipeTo(
+		new WritableStream({
+			write(chunk) {
+				console.log('stderr', new TextDecoder().decode(chunk));
+			},
+		})
+	);
 
 	return streamedResponse;
 }
