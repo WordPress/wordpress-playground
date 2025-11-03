@@ -187,7 +187,7 @@
 		"ts-json-schema-generator": "1.2.0",
 		"ts-node": "10.9.1",
 		"tslib": "^2.3.0",
-		"typedoc": "0.23.27",
+		"typedoc": "0.25.13",
 		"typescript": "5.4.5",
 		"vite": "^5.0.0",
 		"vite-plugin-dts": "3.6.3",
@@ -204,7 +204,8 @@
 		"@playwright/test": "1.47.1",
 		"ws": "^8.18.0",
 		"tmp": "0.2.5",
-		"form-data": "^4.0.4"
+		"form-data": "^4.0.4",
+		"typedoc": "0.25.13"
 	},
 	"workspaces": [
 		"packages/nx-extensions",
