@@ -101,7 +101,12 @@
 
 declare const self: ServiceWorkerGlobalScope;
 
-import { getURLScope, isURLScoped, removeURLScope } from '@php-wasm/scopes';
+import {
+	getURLScope,
+	isURLScoped,
+	removeURLScope,
+	setURLScope,
+} from '@php-wasm/scopes';
 import { applyRewriteRules } from '@php-wasm/universal';
 import {
 	awaitReply,
@@ -193,7 +198,7 @@ self.addEventListener('activate', function (event) {
 	event.waitUntil(doActivate());
 });
 
-self.addEventListener('fetch', (event) => {
+self.addEventListener('fetch', async (event) => {
 	if (!isCurrentServiceWorkerActive()) {
 		return;
 	}
@@ -224,9 +229,29 @@ self.addEventListener('fetch', (event) => {
 	}
 
 	if (referrerUrl && isURLScoped(referrerUrl)) {
-		return event.respondWith(
-			handleScopedRequest(event, getURLScope(referrerUrl)!)
-		);
+		const scope = getURLScope(referrerUrl)!;
+		const scopedUrl = setURLScope(url, scope);
+
+		/**
+		 * Redirect to a scoped URL in cases when redirecting won't lose critical request information.
+		 * It's safe to redirect in cases when the request is a GET navigation request (browser navigation).
+		 *
+		 * For POST/PUT/PATCH/DELETE, AJAX/fetch requests, or requests with custom headers,
+		 * we handle them directly via handleScopedRequest to preserve the request integrity.
+		 * HTTP redirects would lose critical request information,
+		 * e.g. request body, custom headers, and non-GET methods.
+		 */
+		const isSafeToRedirect =
+			event.request.method === 'GET' && event.request.mode === 'navigate';
+
+		if (isSafeToRedirect) {
+			return event.respondWith(
+				Response.redirect(scopedUrl.toString(), 302)
+			);
+		}
+
+		// Handle directly to preserve method, body, and headers
+		return event.respondWith(handleScopedRequest(event, scope));
 	}
 
 	/**
