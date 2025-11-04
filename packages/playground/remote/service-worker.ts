@@ -198,7 +198,7 @@ self.addEventListener('activate', function (event) {
 	event.waitUntil(doActivate());
 });
 
-self.addEventListener('fetch', async (event) => {
+self.addEventListener('fetch', (event) => {
 	if (!isCurrentServiceWorkerActive()) {
 		return;
 	}
@@ -231,13 +231,14 @@ self.addEventListener('fetch', async (event) => {
 	if (referrerUrl && isURLScoped(referrerUrl)) {
 		const scope = getURLScope(referrerUrl)!;
 		/**
-		 * Redirect to a scoped URL in cases when redirecting won't lose critical request information.
+		 * Redirect to a scoped URL to perserve scope information for subsequent requests
+		 * in cases when redirecting won't lose critical request information.
+		 *
 		 * It's safe to redirect in cases when the request is a GET navigation request (browser navigation).
 		 *
-		 * For POST/PUT/PATCH/DELETE, AJAX/fetch requests, or requests with custom headers,
-		 * we handle them directly via handleScopedRequest to preserve the request integrity.
-		 * HTTP redirects would lose critical request information,
-		 * e.g. request body, custom headers, and non-GET methods.
+		 * For all other requests like POST/PUT/PATCH/DELETE, or requests with custom headers,
+		 * we can't redirect to a scoped URL as it would lose critical request information.
+		 * Instead, we handle them directly via handleScopedRequest.
 		 */
 		if (
 			event.request.method === 'GET' &&
