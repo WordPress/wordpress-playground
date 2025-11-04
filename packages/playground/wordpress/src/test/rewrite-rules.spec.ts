@@ -47,4 +47,15 @@ describe('Test WordPress rewrites', () => {
 			'/wp-content/themes/twentytwentyfour/assets/images/windows.webp'
 		);
 	});
+
+	it('Should only target the initial wp-admin|wp-content|wp-includes path', async () => {
+		expect(
+			applyRewriteRules(
+				'/wp-content/themes/Newspaper/includes/wp-booster/wp-admin/images/plugins/tagdiv-small.png',
+				wordPressRewriteRules
+			)
+		).toBe(
+			'/wp-content/themes/Newspaper/includes/wp-booster/wp-admin/images/plugins/tagdiv-small.png'
+		);
+	});
 });
