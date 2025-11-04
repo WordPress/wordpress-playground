@@ -645,7 +645,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 				);
 
 				const symlinkMount: Mount = {
-					hostPath: `./${symlinkName}`,
+					hostPath: path.join('.', path.sep, symlinkName),
 					vfsPath: '/',
 				};
 
