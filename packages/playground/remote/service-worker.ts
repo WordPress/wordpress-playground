@@ -231,7 +231,7 @@ self.addEventListener('fetch', (event) => {
 	if (referrerUrl && isURLScoped(referrerUrl)) {
 		const scope = getURLScope(referrerUrl)!;
 		/**
-		 * Redirect to a scoped URL to perserve scope information for subsequent requests
+		 * Redirect to a scoped URL to preserve scope information for subsequent requests
 		 * in cases when redirecting won't lose critical request information.
 		 *
 		 * It's safe to redirect in cases when the request is a GET navigation request (browser navigation).
