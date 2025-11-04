@@ -230,8 +230,6 @@ self.addEventListener('fetch', async (event) => {
 
 	if (referrerUrl && isURLScoped(referrerUrl)) {
 		const scope = getURLScope(referrerUrl)!;
-		const scopedUrl = setURLScope(url, scope);
-
 		/**
 		 * Redirect to a scoped URL in cases when redirecting won't lose critical request information.
 		 * It's safe to redirect in cases when the request is a GET navigation request (browser navigation).
@@ -241,12 +239,12 @@ self.addEventListener('fetch', async (event) => {
 		 * HTTP redirects would lose critical request information,
 		 * e.g. request body, custom headers, and non-GET methods.
 		 */
-		const isSafeToRedirect =
-			event.request.method === 'GET' && event.request.mode === 'navigate';
-
-		if (isSafeToRedirect) {
+		if (
+			event.request.method === 'GET' &&
+			event.request.mode === 'navigate'
+		) {
 			return event.respondWith(
-				Response.redirect(scopedUrl.toString(), 302)
+				Response.redirect(setURLScope(url, scope).toString(), 302)
 			);
 		}
 
