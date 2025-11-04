@@ -51,6 +51,7 @@ import {
 	cleanupStalePlaygroundTempDirs,
 	createPlaygroundCliTempDir,
 } from './temp-dir';
+import { type WordPressInstallMode } from '@wp-playground/wordpress';
 import {
 	addXdebugIDEConfig,
 	clearXdebugIDEConfig,
@@ -159,11 +160,22 @@ export async function parseOptionsAndRunCLI() {
 				type: 'boolean',
 				default: false,
 			})
-			.option('skip-wordpress-setup', {
+			.option('wordpress-install-mode', {
 				describe:
-					'Do not download, unzip, and install WordPress. Useful for mounting a pre-configured WordPress directory at /wordpress.',
+					'Control how Playground prepares WordPress before booting.',
+				type: 'string',
+				default: 'download-and-install',
+				choices: [
+					'download-and-install',
+					'install-from-existing-files',
+					'install-from-existing-files-if-needed',
+					'do-not-attempt-installing',
+				] as const,
+			})
+			.option('skip-wordpress-install', {
+				describe: '[Deprecated] Use --wordpress-install-mode instead.',
 				type: 'boolean',
-				default: false,
+				hidden: true,
 			})
 			.option('skip-sqlite-setup', {
 				describe:
@@ -272,12 +284,10 @@ export async function parseOptionsAndRunCLI() {
 			.showHelpOnFail(false)
 			.strictOptions()
 			.check(async (args) => {
-				// Support multiple spellings of "WordPress"
-				if (
-					args['skip-wordpress-setup'] ||
-					args['skipWordpressSetup']
-				) {
-					args['skipWordPressSetup'] = true;
+				if (args['skip-wordpress-install'] === true) {
+					args['wordpress-install-mode'] =
+						'do-not-attempt-installing';
+					args['wordpressInstallMode'] = 'do-not-attempt-installing';
 				}
 
 				if (args.wp !== undefined && !isValidWordPressSlug(args.wp)) {
@@ -327,9 +337,9 @@ export async function parseOptionsAndRunCLI() {
 
 				if (args['experimental-blueprints-v2-runner'] === true) {
 					if (args['mode'] !== undefined) {
-						if ('skip-wordpress-setup' in args) {
+						if (args['wordpress-install-mode'] !== undefined) {
 							throw new Error(
-								'The --skipWordPressSetup option cannot be used with the --mode option. Use one or the other.'
+								'The --wordpress-install-mode option cannot be used with the --mode option. Use one or the other.'
 							);
 						}
 						if ('skip-sqlite-setup' in args) {
@@ -344,7 +354,10 @@ export async function parseOptionsAndRunCLI() {
 						}
 					} else {
 						// Support the legacy v1 runner options
-						if (args['skip-wordpress-setup'] === true) {
+						if (
+							args['wordpress-install-mode'] ===
+							'do-not-attempt-installing'
+						) {
 							args['mode'] = 'apply-to-existing-site';
 						} else {
 							args['mode'] = 'create-new-site';
@@ -469,9 +482,9 @@ export interface RunCLIArgs {
 	experimentalUnsafeIdeIntegration?: string[];
 	experimentalDevtools?: boolean;
 	'experimental-blueprints-v2-runner'?: boolean;
+	wordpressInstallMode?: WordPressInstallMode;
 
 	// --------- Blueprint V1 args -----------
-	skipWordPressSetup?: boolean;
 	skipSqliteSetup?: boolean;
 	followSymlinks?: boolean;
 	'blueprint-may-read-adjacent-files'?: boolean;
@@ -548,6 +561,10 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 			args = { ...args, autoMount: process.cwd() };
 		}
 		args = expandAutoMounts(args);
+	}
+
+	if (args.wordpressInstallMode === undefined) {
+		args.wordpressInstallMode = 'download-and-install';
 	}
 
 	// Keeping 'quiet' option to preserve backward compatibility
@@ -645,7 +662,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 				);
 
 				const symlinkMount: Mount = {
-					hostPath: `./${symlinkName}`,
+					hostPath: path.join('.', path.sep, symlinkName),
 					vfsPath: '/',
 				};
 
@@ -879,7 +896,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 				}
 			);
 
-			logger.log(`Setting up WordPress ${args.wp}`);
+			logger.log(`Starting up workers`);
 
 			try {
 				const workers = await promisedWorkers;

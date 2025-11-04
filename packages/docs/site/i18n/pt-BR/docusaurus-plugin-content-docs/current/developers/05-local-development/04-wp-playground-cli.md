@@ -285,7 +285,7 @@ O comando `server` suporta os seguintes argumentos opcionais:
 -   `--blueprint=<path>`: O caminho para um arquivo JSON Blueprint para executar.
 -   `--blueprint-may-read-adjacent-files`: Flag de consentimento: Permitir que recursos "empacotados" em um blueprint local leiam arquivos no mesmo diretório do arquivo blueprint.
 -   `--login`: Fazer login automaticamente do usuário como administrador.
--   `--skip-wordpress-setup`: Não baixar ou instalar WordPress. Útil se você está montando um diretório WordPress completo.
+-   `--wordpress-install-mode <mode>`: Controla como o Playground prepara o WordPress antes de inicializar. O padrão é `download-and-install`. Outras opções: `install-from-existing-files` (instala usando os arquivos montados), `install-from-existing-files-if-needed` (ignora a configuração quando detecta um site existente) e `do-not-attempt-installing` (nunca baixa ou instala o WordPress).
 -   `--skip-sqlite-setup`: Não configurar a integração do banco de dados SQLite.
 -   `--verbosity=<level>`: Saída de logs e mensagens de progresso. Opções: `quiet`, `normal`, `debug`. Padrão é `normal`.
 -   `--debug`: Imprimir o log de erro do PHP se um erro ocorrer durante a inicialização.

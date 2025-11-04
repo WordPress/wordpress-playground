@@ -94,7 +94,7 @@ If logged in GitHub, you can also edit existing files (or add new ones) and subm
 
 1. যে পেজটি আপনি এডিট করতে চান সেটি খুঁজে নিন, অথবা যে অধ্যায়ের মধ্যে নতুন পেজ যোগ করতে চান, সেই ডিরেক্টরিটি সিলেক্ট করুন।
 2. নতুন ফাইল যোগ করতে **এড ফাইল** বাটনে ক্লিক করুন, অথবা কোনো বিদ্যমান ফাইলে ক্লিক করে তারপর এডিট করতে পেন্সিল আইকনে ক্লিক করুন।
-3. গিটহাব  আপনাকে রিপোজিটরিটি ফোর্ক করতে এবং আপনার পরিবর্তনগুলি দিয়ে একটি নতুন ব্রাঞ্চ তৈরি করতে বলবে।
+3. গিটহাব আপনাকে রিপোজিটরিটি ফোর্ক করতে এবং আপনার পরিবর্তনগুলি দিয়ে একটি নতুন ব্রাঞ্চ তৈরি করতে বলবে।
 4. একটি এডিটর খুলবে যেখানে আপনি পরিবর্তনগুলি করতে পারবেন।
 5. আপনার কাজ শেষ হলে, **কমিট পরিবর্তন** বাটনে ক্লিক করুন এবং একটি পুল রিকোয়েস্ট সাবমিট করুন।
 
@@ -133,6 +133,7 @@ npm install
 npm run build:docs
 npm run dev:docs
 ```
+
 <!--
 The documentation site opens in a new browser tab and refreshes automatically with each change. Continue to edit the relevant file in your code editor and test the changes in real-time.
 -->

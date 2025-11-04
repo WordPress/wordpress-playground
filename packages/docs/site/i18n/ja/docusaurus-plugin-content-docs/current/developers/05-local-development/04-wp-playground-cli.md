@@ -212,7 +212,7 @@ The `server` command supports the following optional arguments:
 -   `--blueprint=<path>`: 実行する JSON ブループリント ファイルへのパス。
 -   `--blueprint-may-read-adjacent-files`: 同意フラグ: ローカル ブループリント内の「バンドル」リソースが、ブループリント ファイルと同じディレクトリにあるファイルを読み取ることを許可します。
 -   `--login`: ユーザーを管理者として自動的にログインします。
--   `--skip-wordpress-setup`: WordPress をダウンロードまたはインストールしません。WordPress ディレクトリ全体をマウントする場合に便利です。
+-   `--wordpress-install-mode <mode>`: WordPress の準備方法を制御します。既定値は `download-and-install` です。他のオプション: `install-from-existing-files` (マウント済みのファイルを使ってインストール)、`install-from-existing-files-if-needed` (既存サイトを検出した場合はセットアップを省略) 、`do-not-attempt-installing` (WordPress をダウンロードもインストールもしません)。
 -   `--skip-sqlite-setup`: SQLite データベース統合をセットアップしません。
 -   `--verbosity`: ログと進捗メッセージを出力します。選択肢は「quiet」、「normal」、「debug」です。デフォルトは「normal」です。
 -   `--debug`: 起動中にエラーが発生した場合、PHP のエラーログを出力します。
@@ -229,7 +229,7 @@ The `server` command supports the following optional arguments:
 -   `--blueprint=<path>`: The path to a JSON Blueprint file to execute.
 -   `--blueprint-may-read-adjacent-files`: Consent flag: Allow "bundled" resources in a local blueprint to read files in the same directory as the blueprint file.
 -   `--login`: Automatically log the user in as an administrator.
--   `--skip-wordpress-setup`: Do not download or install WordPress. Useful if you are mounting a full WordPress directory.
+-   `--wordpress-install-mode <mode>`: Control how Playground prepares WordPress before booting. Defaults to `download-and-install`. Other options: `install-from-existing-files` (install using files you've mounted), `install-from-existing-files-if-needed` (skip setup when an existing site is detected), and `do-not-attempt-installing` (never download or install WordPress).
 -   `--skip-sqlite-setup`: Do not set up the SQLite database integration.
 -   `--verbosity`: Output logs and progress messages. Choices are "quiet", "normal" or "debug". Defaults to "normal".
 -   `--debug`: Print the PHP error log if an error occurs during boot.

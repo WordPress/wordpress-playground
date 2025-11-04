@@ -4,11 +4,46 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
-## [v3.0.18] (2025-10-31) 
+## [v3.0.19] (2025-11-04)
+
+### Enhancements
+
+-   [CLI] Support .0 versions, e.g. 6.4.0. ([#2848](https://github.com/WordPress/wordpress-playground/pull/2848))
+
+### Documentation
+
+-   [Docs] Remove kapa AI button. ([#2849](https://github.com/WordPress/wordpress-playground/pull/2849))
 
 ### PHP WebAssembly
 
-- Remove old, unused .wasm files from @php-wasm/web. ([#2847](https://github.com/WordPress/wordpress-playground/pull/2847))
+-   Fix unmount of nested mounts in PHP runtime hotswap. ([#2859](https://github.com/WordPress/wordpress-playground/pull/2859))
+
+### Website
+
+-   Controlled iframe for the latest Guteneberg version. ([#2857](https://github.com/WordPress/wordpress-playground/pull/2857))
+-   [TCP Proxy] Produce the correct request path in parseHttpRequest(). ([#2852](https://github.com/WordPress/wordpress-playground/pull/2852))
+
+### Bug Fixes
+
+-   [CLI] Avoid breaks during Playground boot when `--xdebug` enabled. ([#2835](https://github.com/WordPress/wordpress-playground/pull/2835))
+-   [CLI] Fix incorrect Xdebug mappings for absolute host paths. ([#2860](https://github.com/WordPress/wordpress-playground/pull/2860))
+
+### Various
+
+-   Translate to bangla in contributing index file. ([#2851](https://github.com/WordPress/wordpress-playground/pull/2851))
+-   [i18n] Add Japanese translations to Playground API Client. ([#2854](https://github.com/WordPress/wordpress-playground/pull/2854))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @brandonpayton @fellyph @noruzzamans @shimotmk
+
+## [v3.0.18] (2025-10-31)
+
+### PHP WebAssembly
+
+-   Remove old, unused .wasm files from @php-wasm/web. ([#2847](https://github.com/WordPress/wordpress-playground/pull/2847))
 
 ### Contributors
 
@@ -16,24 +51,23 @@ The following contributors merged PRs in this release:
 
 @brandonpayton
 
-
-## [v3.0.17] (2025-10-31) 
+## [v3.0.17] (2025-10-31)
 
 ### PHP WebAssembly
 
-- Remove old, unused php-wasm .wasm files. ([#2846](https://github.com/WordPress/wordpress-playground/pull/2846))
+-   Remove old, unused php-wasm .wasm files. ([#2846](https://github.com/WordPress/wordpress-playground/pull/2846))
 
 ### Website
 
-- Remove client package from the list of offline mode assets. ([#2841](https://github.com/WordPress/wordpress-playground/pull/2841))
+-   Remove client package from the list of offline mode assets. ([#2841](https://github.com/WordPress/wordpress-playground/pull/2841))
 
 ### Bug Fixes
 
-- [CLI] Fix temp dir cleanup when Playground CLI server is killed. ([#2836](https://github.com/WordPress/wordpress-playground/pull/2836))
+-   [CLI] Fix temp dir cleanup when Playground CLI server is killed. ([#2836](https://github.com/WordPress/wordpress-playground/pull/2836))
 
 ### Various
 
-- Translate contributor-badge page to bangla. ([#2843](https://github.com/WordPress/wordpress-playground/pull/2843))
+-   Translate contributor-badge page to bangla. ([#2843](https://github.com/WordPress/wordpress-playground/pull/2843))
 
 ### Contributors
 
@@ -41,41 +75,39 @@ The following contributors merged PRs in this release:
 
 @bgrgicak @brandonpayton @noruzzamans
 
-
-## [v3.0.16] (2025-10-31) 
+## [v3.0.16] (2025-10-31)
 
 ### Enhancements
 
-- [ xdebug ] Add `--experimental-unsafe-ide-integration` option in Playground CLI. ([#2777](https://github.com/WordPress/wordpress-playground/pull/2777))
+-   [ xdebug ] Add `--experimental-unsafe-ide-integration` option in Playground CLI. ([#2777](https://github.com/WordPress/wordpress-playground/pull/2777))
 
 ### Tools
 
-
 #### PHP WebAssembly
 
-- Add support for AVIF in GD. ([#2814](https://github.com/WordPress/wordpress-playground/pull/2814))
+-   Add support for AVIF in GD. ([#2814](https://github.com/WordPress/wordpress-playground/pull/2814))
 
 ### Documentation
 
-- [Docs] Adding data persistence information. ([#2798](https://github.com/WordPress/wordpress-playground/pull/2798))
-- [i18n] Adding cli flags to Portuguese and Spanish. ([#2829](https://github.com/WordPress/wordpress-playground/pull/2829))
+-   [Docs] Adding data persistence information. ([#2798](https://github.com/WordPress/wordpress-playground/pull/2798))
+-   [i18n] Adding cli flags to Portuguese and Spanish. ([#2829](https://github.com/WordPress/wordpress-playground/pull/2829))
 
 ### PHP WebAssembly
 
-- [PHP] SOAP extension. ([#2832](https://github.com/WordPress/wordpress-playground/pull/2832))
+-   [PHP] SOAP extension. ([#2832](https://github.com/WordPress/wordpress-playground/pull/2832))
 
 ### Website
 
-- Make saved sites sidebar more narrow. ([#2826](https://github.com/WordPress/wordpress-playground/pull/2826))
-- Add refresh button to the left of address bar. ([#2828](https://github.com/WordPress/wordpress-playground/pull/2828))
-- Wider site info on smaller breakpoints. ([#2830](https://github.com/WordPress/wordpress-playground/pull/2830))
+-   Make saved sites sidebar more narrow. ([#2826](https://github.com/WordPress/wordpress-playground/pull/2826))
+-   Add refresh button to the left of address bar. ([#2828](https://github.com/WordPress/wordpress-playground/pull/2828))
+-   Wider site info on smaller breakpoints. ([#2830](https://github.com/WordPress/wordpress-playground/pull/2830))
 
 ### Various
 
-- Translate documentation content to Bangla language. ([#2839](https://github.com/WordPress/wordpress-playground/pull/2839))
-- [Docs] Updating CLI flags list. ([#2812](https://github.com/WordPress/wordpress-playground/pull/2812))
-- [i18n] Adding Luganda structure. ([#2774](https://github.com/WordPress/wordpress-playground/pull/2774))
-- [i18n] Create contributor-day.md for Gujarati. ([#2791](https://github.com/WordPress/wordpress-playground/pull/2791))
+-   Translate documentation content to Bangla language. ([#2839](https://github.com/WordPress/wordpress-playground/pull/2839))
+-   [Docs] Updating CLI flags list. ([#2812](https://github.com/WordPress/wordpress-playground/pull/2812))
+-   [i18n] Adding Luganda structure. ([#2774](https://github.com/WordPress/wordpress-playground/pull/2774))
+-   [i18n] Create contributor-day.md for Gujarati. ([#2791](https://github.com/WordPress/wordpress-playground/pull/2791))
 
 ### Contributors
 
@@ -83,37 +115,34 @@ The following contributors merged PRs in this release:
 
 @adamziel @akirk @Dhruval-678 @fellyph @mho22 @noruzzamans
 
-
-## [v3.0.15] (2025-10-27) 
+## [v3.0.15] (2025-10-27)
 
 ### Tools
 
-
 #### Import/Export
 
-- [Blueprints] Use _SERVER['HTTPS'] in the import step. ([#2802](https://github.com/WordPress/wordpress-playground/pull/2802))
+-   [Blueprints] Use \_SERVER['HTTPS'] in the import step. ([#2802](https://github.com/WordPress/wordpress-playground/pull/2802))
 
 ### Website
 
-- Add Playground logo and 'import' menu to the sidebar. ([#2806](https://github.com/WordPress/wordpress-playground/pull/2806))
-- Ask for a Playground name before saving. ([#2768](https://github.com/WordPress/wordpress-playground/pull/2768))
-- File browser and code editor. ([#2813](https://github.com/WordPress/wordpress-playground/pull/2813))
-- Move the sidebar icon to the right. ([#2811](https://github.com/WordPress/wordpress-playground/pull/2811))
-- Refresh button icons next to the browser bar. ([#2807](https://github.com/WordPress/wordpress-playground/pull/2807))
-- Resizable sidebar. ([#2809](https://github.com/WordPress/wordpress-playground/pull/2809))
-- Restore the visible button selection in the sidebar. ([#2804](https://github.com/WordPress/wordpress-playground/pull/2804))
-- Retain address bar when opening the sidebar. ([#2808](https://github.com/WordPress/wordpress-playground/pull/2808))
+-   Add Playground logo and 'import' menu to the sidebar. ([#2806](https://github.com/WordPress/wordpress-playground/pull/2806))
+-   Ask for a Playground name before saving. ([#2768](https://github.com/WordPress/wordpress-playground/pull/2768))
+-   File browser and code editor. ([#2813](https://github.com/WordPress/wordpress-playground/pull/2813))
+-   Move the sidebar icon to the right. ([#2811](https://github.com/WordPress/wordpress-playground/pull/2811))
+-   Refresh button icons next to the browser bar. ([#2807](https://github.com/WordPress/wordpress-playground/pull/2807))
+-   Resizable sidebar. ([#2809](https://github.com/WordPress/wordpress-playground/pull/2809))
+-   Restore the visible button selection in the sidebar. ([#2804](https://github.com/WordPress/wordpress-playground/pull/2804))
+-   Retain address bar when opening the sidebar. ([#2808](https://github.com/WordPress/wordpress-playground/pull/2808))
 
 ### Various
 
-- [i18n] Add Japanese translations to `remote.html` vs `index.html`. ([#2817](https://github.com/WordPress/wordpress-playground/pull/2817))
+-   [i18n] Add Japanese translations to `remote.html` vs `index.html`. ([#2817](https://github.com/WordPress/wordpress-playground/pull/2817))
 
 ### Contributors
 
 The following contributors merged PRs in this release:
 
 @adamziel @shimotmk
-
 
 ## [v3.0.14] (2025-10-21)
 

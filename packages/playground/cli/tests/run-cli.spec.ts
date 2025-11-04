@@ -59,7 +59,7 @@ describe.each(blueprintVersions)(
 				php: '8.0',
 				// Let's skip the cost of WordPress setup because it is
 				// irrelevant for this test.
-				skipWordPressSetup: true,
+				wordpressInstallMode: 'do-not-attempt-installing',
 				skipSqliteSetup: true,
 				blueprint: undefined,
 			});
@@ -554,7 +554,7 @@ describe.each(blueprintVersions)(
 					expect(output).toEqual(
 						expect.arrayContaining([
 							'Starting a PHP server...',
-							'Setting up WordPress undefined',
+							'Starting up workers',
 							expect.stringMatching(
 								/^Resolved WordPress release URL: https:\/\/downloads\.w\.org\/release\/wordpress-\d+\.\d+\.\d+\.zip$/
 							),
@@ -563,6 +563,7 @@ describe.each(blueprintVersions)(
 							'Booted!',
 							'Running the Blueprint...',
 							'Finished running the blueprint',
+							'Preparing workers...',
 							expect.stringMatching(
 								/^WordPress is running on http:\/\/127\.0\.0\.1:\d+ with \d+ worker\(s\)$/
 							),
@@ -643,7 +644,7 @@ describe('other run-cli behaviors', () => {
 		test('should clear old auto-login cookie', async () => {
 			cliServer = await runCLI({
 				command: 'server',
-				skipWordPressSetup: true,
+				wordpressInstallMode: 'do-not-attempt-installing',
 				skipSqliteSetup: true,
 				blueprint: undefined,
 			});
@@ -677,7 +678,7 @@ describe('other run-cli behaviors', () => {
 		test('should return 500 when the request handler throws an error', async () => {
 			cliServer = await runCLI({
 				command: 'server',
-				skipWordPressSetup: true,
+				wordpressInstallMode: 'do-not-attempt-installing',
 				blueprint: undefined,
 			});
 
