@@ -59,7 +59,7 @@ Running a PHP script with Xdebug enabled...
 
 Clicando na URL disponibilizada, por exemplo, `devtools://devtools/bundled/inspector.html?ws=localhost:9229` você terá acesso ao DevTools conectado com sua aplicação. Com a possibilidade de inspecionar todos os arquivos de uma instância WordPress.
 
-![Chrome Devtools integrated with Xdebug](@site/static/img/developers/asyncify-error.webp)
+![Chrome Devtools integrated with Xdebug](@site/static/img/developers/xdebug/playground-xdebug-on-devtools.webp)
 
 Para um exemplo mais prático, vamos debugar um plugin que possui o seguinte código abaixo:
 
@@ -69,7 +69,7 @@ Para um exemplo mais prático, vamos debugar um plugin que possui o seguinte có
  * Plugin Name: Simple Admin Message
  * Description: Displays a simple message in the WordPress admin
  * Version: 1.0
- * Author: Fellyph Cintra
+ * Author: Playground Team
  */
 
 // Prevent direct access
@@ -89,69 +89,25 @@ function sam_display_admin_message() {
 add_action('admin_notices', 'sam_display_admin_message');
 ```
 
-Para depurar o plugin vamos utilizar a flag `--auto-mount` para
-
-## Iniciando com integração IDE
-
-Para depurar com VSCode ou PhpStorm, adicione a flag `--experimental-unsafe-ide-integration`:
-
-```bash
-npx @wp-playground/cli@latest server --xdebug --experimental-unsafe-ide-integration
-```
-
-Isso configura automaticamente seu IDE para depuração. Veja o [guia de depuração IDE](/developers/testing/xdebug/ide-integration) para detalhes.
-
-## Depurando um plugin
-
-Vamos utilizar um plugin super simple para ver o Xdebug em ação, e depois analiza-lo no Devtools.
-
-**Código do plugin:**
-
-```PHP
-<?php
-/**
- * Plugin Name: Simple Admin Message
- * Description: Displays a simple message in the WordPress admin
- * Version: 1.0
- * Author: Your Name
- */
-
-// Prevent direct access
-if (!defined('ABSPATH')) {
-    exit;
-}
-
-// Display admin notice
-function sam_display_admin_message() {
-    ?>
-    <div class="notice notice-info is-dismissible">
-        <p><?php _e('Hello! This is a simple admin message.', 'simple-admin-message'); ?></p>
-    </div>
-    <?php
-}
-add_action('admin_notices', 'sam_display_admin_message');
-```
-
 Na pasta a qual o plugin se encontra, vamos executar o comando em nosso terminal:
 
 ```bash
 npx @wp-playground/cli@latest server --xdebug --experimental-devtools --auto-mount
 ```
 
-O Playground CLI irá reconhecer que estamos a trabalhar com um plugin e montar uma estrutura preparada para testar nosso plugin.
+O Playground CLI irá reconhecer que estamos a trabalhar com um plugin e montar uma estrutura preparada para testar nosso plugin. Abrindo o projeto em seu navegador e o DevTools, você irá conseguir adicionar breakpoints no código do seu plugin e testá-lo executando linha a linha.
 
-## Próximos passos
+![Chrome Devtools integrated with Xdebug](@site/static/img/developers/xdebug/playground-cli-running-xdebug-on-devtools.webp)
 
-Agora que você tem o Playground executando com Xdebug, escolha seu método de depuração:
+## Iniciando com integração IDE
 
--   [Depurar com Chrome DevTools](/developers/testing/xdebug/chrome-devtools) - Depuração baseada em navegador
--   [Depurar com integração IDE](/developers/testing/xdebug/ide-integration) - VSCode ou PhpStorm
+Similar ao processo com uma IDE, vamos utilizar o mesmo código do plugin anterior para depurar com VSCode ou PhpStorm, adicione a flag `--experimental-unsafe-ide-integration`:
 
-Ambos os guias usam o mesmo plugin de exemplo para que você possa acompanhar, independentemente do método que escolher.
+1. install php debugger
+2. needs the file .vscode/launch.json
+3. enable breakingpoints
+4. run the debbuger
 
----
-
-**Próximos passos**:
-
--   [Depurar com Chrome DevTools →](/developers/testing/xdebug/chrome-devtools)
--   [Depurar com integração IDE →](/developers/testing/xdebug/ide-integration)
+```bash
+npx @wp-playground/cli@latest server --xdebug --experimental-unsafe-ide-integration --auto-mount
+```
