@@ -206,9 +206,8 @@ export function updatePhpStormConfig(
 				path_mappings: mappings.map((mapping) => ({
 					mapping: [],
 					':@': {
-						'local-root': `$PROJECT_DIR$/${path.relative(
-							options.projectDir,
-							mapping.hostPath
+						'local-root': `$PROJECT_DIR$/${toPosixPath(
+							path.relative(options.projectDir, mapping.hostPath)
 						)}`,
 						'remote-root': mapping.vfsPath,
 					},
@@ -420,9 +419,8 @@ export function updateVSCodeConfig(
 			request: 'launch',
 			port: 9003,
 			pathMappings: mappings.reduce((acc, mount) => {
-				acc[mount.vfsPath] = `\${workspaceFolder}/${path.relative(
-					options.workspaceDir,
-					mount.hostPath
+				acc[mount.vfsPath] = `\${workspaceFolder}/${toPosixPath(
+					path.relative(options.workspaceDir, mount.hostPath)
 				)}`;
 				return acc;
 			}, {} as VSCodeConfigMetaData),
@@ -693,4 +691,8 @@ function jsoncApplyEdits(content: string, edits: JSONC.Edit[]) {
 	}
 
 	return json;
+}
+
+function toPosixPath(pathStr: string) {
+	return pathStr.replaceAll(path.sep, path.posix.sep);
 }
