@@ -111,7 +111,7 @@ const ACTIVATE_FIRST_THEME_STEP = {
  * Auto-mounts resolution logic:
  */
 export function expandAutoMounts(args: RunCLIArgs): RunCLIArgs {
-	const path = args.autoMount!;
+	const absolutePath = path.resolve(args.autoMount!);
 
 	const mount = [...(args.mount || [])];
 	const mountBeforeInstall = [...(args['mount-before-install'] || [])];
@@ -125,20 +125,22 @@ export function expandAutoMounts(args: RunCLIArgs): RunCLIArgs {
 		],
 	};
 
-	if (isPluginFilename(path)) {
-		const pluginName = basename(path);
+	if (isPluginFilename(absolutePath)) {
+		const pluginName = basename(absolutePath);
 		mount.push({
-			hostPath: path,
+			hostPath: absolutePath,
 			vfsPath: `/wordpress/wp-content/plugins/${pluginName}`,
 		});
 		newArgs['additional-blueprint-steps'].push({
 			step: 'activatePlugin',
-			pluginPath: `/wordpress/wp-content/plugins/${basename(path)}`,
+			pluginPath: `/wordpress/wp-content/plugins/${basename(
+				absolutePath
+			)}`,
 		});
-	} else if (isThemeDirectory(path)) {
-		const themeName = basename(path);
+	} else if (isThemeDirectory(absolutePath)) {
+		const themeName = basename(absolutePath);
 		mount.push({
-			hostPath: path,
+			hostPath: absolutePath,
 			vfsPath: `/wordpress/wp-content/themes/${themeName}`,
 		});
 		newArgs['additional-blueprint-steps'].push(
@@ -152,11 +154,11 @@ export function expandAutoMounts(args: RunCLIArgs): RunCLIArgs {
 						themeFolderName: themeName,
 				  }
 		);
-	} else if (containsWpContentDirectories(path)) {
+	} else if (containsWpContentDirectories(absolutePath)) {
 		/**
 		 * Mount each wp-content file and directory individually.
 		 */
-		const files = fs.readdirSync(path);
+		const files = fs.readdirSync(absolutePath);
 		for (const file of files) {
 			/**
 			 * WordPress already ships with the wp-content/index.php file
@@ -167,13 +169,16 @@ export function expandAutoMounts(args: RunCLIArgs): RunCLIArgs {
 				continue;
 			}
 			mount.push({
-				hostPath: `${path}/${file}`,
+				hostPath: `${absolutePath}/${file}`,
 				vfsPath: `/wordpress/wp-content/${file}`,
 			});
 		}
 		newArgs['additional-blueprint-steps'].push(ACTIVATE_FIRST_THEME_STEP);
-	} else if (containsFullWordPressInstallation(path)) {
-		mountBeforeInstall.push({ hostPath: path, vfsPath: '/wordpress' });
+	} else if (containsFullWordPressInstallation(absolutePath)) {
+		mountBeforeInstall.push({
+			hostPath: absolutePath,
+			vfsPath: '/wordpress',
+		});
 		// @TODO: If overriding another mode, throw an error or print a warning.
 		newArgs.mode = 'apply-to-existing-site';
 		newArgs['additional-blueprint-steps'].push(ACTIVATE_FIRST_THEME_STEP);
@@ -182,7 +187,7 @@ export function expandAutoMounts(args: RunCLIArgs): RunCLIArgs {
 		 * By default, mount the current working directory as the Playground root.
 		 * This allows users to run and PHP or HTML files using the Playground CLI.
 		 */
-		mount.push({ hostPath: path, vfsPath: '/wordpress' });
+		mount.push({ hostPath: absolutePath, vfsPath: '/wordpress' });
 		// @TODO: If overriding another mode, throw an error or print a warning.
 		newArgs.mode = 'mount-only';
 	}
