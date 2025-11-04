@@ -7,13 +7,19 @@ import type {
 import { loadPHPRuntime, FSHelpers } from '@php-wasm/universal';
 import fs from 'fs';
 import { getPHPLoaderModule } from '.';
-import { withNetworking } from './networking/with-networking';
 import type { FileLockManager } from './file-lock-manager';
 import { withXdebug, type XdebugOptions } from './xdebug/with-xdebug';
 import { withIntl } from './extensions/intl/with-intl';
 import { joinPaths } from '@php-wasm/util';
 import type { Promised } from '@php-wasm/util';
 import { dirname } from 'path';
+import type { ConnectToFunction } from '@php-wasm/util';
+import {
+	initOutboundWebsocketProxyServer,
+	addSocketOptionsSupportToWebSocketClass,
+} from './networking/outbound-ws-to-tcp-proxy';
+import { addTCPServerToWebSocketServerClass } from './networking/inbound-tcp-to-ws-proxy';
+import { findFreePorts } from './networking/utils';
 
 export interface PHPLoaderOptions {
 	emscriptenOptions?: EmscriptenOptions;
@@ -21,6 +27,27 @@ export interface PHPLoaderOptions {
 	withXdebug?: boolean;
 	xdebug?: XdebugOptions;
 	withIntl?: boolean;
+	/**
+	 * Function to find the appropriate network connector for a connection.
+	 * Unhandled ports will use the default TCP proxy.
+	 *
+	 * Example:
+	 * ```
+	 * import { createSmtpConnector, createMysqlConnector } from '@php-wasm/node';
+	 *
+	 * const smtpConnector = createSmtpConnector();
+	 * const mysqlConnector = createMysqlConnector({ debug: true });
+	 *
+	 * function findConnector(info) {
+	 *   if (info.port === 25 || info.port === 587) return smtpConnector;
+	 *   if (info.port === 3306) return mysqlConnector;
+	 *   return undefined; // Falls back to real TCP
+	 * }
+	 *
+	 * const php = await loadNodeRuntime('8.0', { findConnector });
+	 * ```
+	 */
+	connectTo?: ConnectToFunction;
 }
 
 type PHPLoaderOptionsForNode = PHPLoaderOptions & {
@@ -235,7 +262,36 @@ export async function loadNodeRuntime(
 		emscriptenOptions = await withIntl(phpVersion, emscriptenOptions);
 	}
 
-	emscriptenOptions = await withNetworking(emscriptenOptions);
+	// Apply networking - defaults to TCP proxy with no interceptors
+	const [inboundProxyWsServerPort, outboundProxyWsServerPort] =
+		await findFreePorts(2);
+
+	const outboundNetworkProxyServer = await initOutboundWebsocketProxyServer(
+		outboundProxyWsServerPort,
+		'127.0.0.1',
+		options?.connectTo
+	);
+
+	emscriptenOptions = {
+		...emscriptenOptions,
+		outboundNetworkProxyServer,
+		websocket: {
+			...(emscriptenOptions['websocket'] || {}),
+			url: (_: any, host: string, port: string) => {
+				const query = new URLSearchParams({
+					host,
+					port,
+				}).toString();
+				return `ws://127.0.0.1:${outboundProxyWsServerPort}/?${query}`;
+			},
+			subprotocol: 'binary',
+			decorator: addSocketOptionsSupportToWebSocketClass,
+			serverDecorator: addTCPServerToWebSocketServerClass.bind(
+				null,
+				inboundProxyWsServerPort
+			),
+		},
+	};
 
 	return await loadPHPRuntime(
 		await getPHPLoaderModule(phpVersion),

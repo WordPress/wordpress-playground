@@ -5,15 +5,6 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "WP Playground CLI - Listen for Xdebug",
-      "type": "php",
-      "request": "launch",
-      "port": 9003,
-      "pathMappings": {
-        "/": "${workspaceFolder}/.playground-xdebug-root"
-      }
-    },
-    {
       "name": "Debug PHP-WASM CLI",
       "request": "launch",
       "type": "node",
@@ -120,6 +111,15 @@
         "--inspect-brk",
         "--loader=${workspaceFolder}/packages/nx-extensions/src/executors/built-script/loader.mjs"
       ]
+    },
+    {
+        "name": "WP Playground CLI - Listen for Xdebug",
+        "type": "php",
+        "request": "launch",
+        "port": 9003,
+        "pathMappings": {
+            "/": "${workspaceFolder}/.playground-xdebug-root"
+        }
     }
   ],
   "inputs": [

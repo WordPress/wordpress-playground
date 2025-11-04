@@ -14,8 +14,26 @@ export type {
 } from './directory-handle-mount';
 
 export * from './tls/certificates';
-export type { TCPOverFetchOptions } from './tcp-over-fetch-websocket';
 export { fetchWithCorsProxy } from './fetch-with-cors-proxy';
+
+// Network connectors
+export { createHttpConnector } from './connectors/http-fetch-connector';
+export type { HttpFetchConnectorOptions } from './connectors/http-fetch-connector';
+export { withNetworkConnectors } from './network-websocket';
+export {
+	createSmtpConnector,
+	createMysqlConnector,
+	type SmtpConnectorOptions,
+	type SmtpEmail,
+	type MysqlConnectorOptions,
+	createPortConnector,
+	createCustomConnector,
+	createFindConnector,
+	type NetworkConnector,
+	type NetworkConnection,
+	type ConnectionInfo,
+	type ConnectToFunction,
+} from '@php-wasm/util';
 export {
 	consumeAPI,
 	exposeAPI,

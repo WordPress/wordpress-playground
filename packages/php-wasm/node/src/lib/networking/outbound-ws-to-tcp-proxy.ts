@@ -13,6 +13,8 @@ import * as net from 'net';
 import * as util from 'node:util';
 import { WebSocketServer } from 'ws';
 import { debugLog } from './utils';
+import type { ConnectToFunction, NetworkConnection } from '@php-wasm/util';
+import type { NetworkConnector } from '@php-wasm/util';
 
 function log(...args: any[]) {
 	debugLog('[WS Server]', ...args);
@@ -97,7 +99,8 @@ export function addSocketOptionsSupportToWebSocketClass(
 
 export function initOutboundWebsocketProxyServer(
 	listenPort: number,
-	listenHost = '127.0.0.1'
+	listenHost = '127.0.0.1',
+	connectTo?: ConnectToFunction
 ): Promise<http.Server> {
 	log(`Binding the WebSockets server to ${listenHost}:${listenPort}...`);
 	const webServer = http.createServer((request, response) => {
@@ -110,14 +113,97 @@ export function initOutboundWebsocketProxyServer(
 	return new Promise((resolve) => {
 		webServer.listen(listenPort, listenHost, function () {
 			const wsServer = new WebSocketServer({ server: webServer });
-			wsServer.on('connection', onWsConnect);
+			wsServer.on('connection', (client, request) =>
+				onWsConnect(client, request, connectTo)
+			);
 			resolve(webServer);
 		});
 	});
 }
 
+/**
+ * Bridges a WebSocket to a stream-based NetworkConnector.
+ * Converts WebSocket messages to ReadableStream and WritableStream.
+ */
+async function bridgeWebSocketToConnector(
+	client: any,
+	connector: NetworkConnector,
+	host: string,
+	port: number,
+	clientLog: (...args: any[]) => void
+): Promise<void> {
+	// Create upstream (from WebSocket to connector)
+	const upstreamController = {
+		controller: null as ReadableStreamDefaultController<Uint8Array> | null,
+	};
+
+	const upstream = new ReadableStream<Uint8Array>({
+		start(controller) {
+			upstreamController.controller = controller;
+		},
+	});
+
+	// Create downstream (from connector to WebSocket)
+	const downstream = new WritableStream<Uint8Array>({
+		write(chunk) {
+			if (client.readyState === 1) {
+				// OPEN
+				// Prepend COMMAND_CHUNK byte
+				client.send(prependByte(chunk, COMMAND_CHUNK));
+			}
+		},
+		close() {
+			client.close();
+		},
+		abort(error) {
+			clientLog('Downstream aborted:', error);
+			client.close();
+		},
+	});
+
+	// Handle incoming WebSocket messages
+	client.on('message', (msg: Buffer) => {
+		if (!upstreamController.controller) return;
+
+		// First byte is command type
+		const commandType = msg[0];
+		if (commandType === COMMAND_CHUNK) {
+			// Send data to connector (skip command byte)
+			upstreamController.controller.enqueue(new Uint8Array(msg.slice(1)));
+		}
+		// Ignore socket option commands for now
+	});
+
+	client.on('close', () => {
+		if (upstreamController.controller) {
+			upstreamController.controller.close();
+		}
+	});
+
+	client.on('error', (error: Error) => {
+		clientLog('WebSocket error:', error);
+		if (upstreamController.controller) {
+			upstreamController.controller.error(error);
+		}
+	});
+
+	// Create NetworkConnection and call connector
+	const connection: NetworkConnection = {
+		host,
+		port,
+		upstream,
+		downstream,
+	};
+
+	await connector.connect(connection);
+}
+
 // Handle new WebSocket client
-async function onWsConnect(client: any, request: http.IncomingMessage) {
+async function onWsConnect(
+	client: any,
+	request: http.IncomingMessage,
+	connectTo?: ConnectToFunction
+) {
 	const clientAddr = client?._socket?.remoteAddress || client.url;
 	const clientLog = function (...args: any[]) {
 		log(' ' + clientAddr + ': ', ...args);
@@ -153,6 +239,53 @@ async function onWsConnect(client: any, request: http.IncomingMessage) {
 		client.send([]);
 		client.close(3000);
 		return;
+	}
+
+	// Check if there's a custom connector for this port
+	if (connectTo) {
+		// Resolve the target host first (connectors may need the IP)
+		let reqTargetIp = reqTargetHost;
+		if (net.isIP(reqTargetHost) === 0) {
+			clientLog('resolving ' + reqTargetHost + '... ');
+			try {
+				const resolution = await lookup(reqTargetHost);
+				reqTargetIp = resolution.address;
+				clientLog('resolved ' + reqTargetHost + ' -> ' + reqTargetIp);
+			} catch (e) {
+				clientLog("can't resolve " + reqTargetHost + ' due to:', e);
+				// Still try to find a connector even if DNS resolution fails
+			}
+		}
+
+		const connector = connectTo({
+			port: reqTargetPort,
+			host: reqTargetHost,
+			ip: reqTargetIp !== reqTargetHost ? reqTargetIp : undefined,
+		});
+
+		if (connector) {
+			clientLog(
+				`Using connector "${connector.name}" for ${reqTargetHost}:${reqTargetPort}`
+			);
+			try {
+				// Bridge WebSocket to streams for the unified connector
+				await bridgeWebSocketToConnector(
+					client,
+					connector,
+					reqTargetHost,
+					reqTargetPort,
+					clientLog
+				);
+				return;
+			} catch (error) {
+				clientLog(`Connector error: ${error}`);
+				client.send([]);
+				setTimeout(() => {
+					client.close(3000);
+				});
+				return;
+			}
+		}
 	}
 
 	// eslint-disable-next-line prefer-const

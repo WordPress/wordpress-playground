@@ -37,3 +37,26 @@ export function concatArrayBuffers(buffers: ArrayBuffer[]): ArrayBuffer {
 }
 
 export * from './types';
+
+// Network connector system (unified for web and node)
+export {
+	createFindConnector,
+	createPortConnector,
+	createCustomConnector,
+	connectorMatches,
+	type NetworkConnector,
+	type NetworkConnection,
+	type ConnectionInfo,
+	type ConnectToFunction,
+} from './network-connector';
+
+// Network connectors (unified for web and node)
+export {
+	createSmtpConnector,
+	type SmtpConnectorOptions,
+	type SmtpEmail,
+} from './connectors/smtp-connector';
+export {
+	createMysqlConnector,
+	type MysqlConnectorOptions,
+} from './connectors/mysql-connector';

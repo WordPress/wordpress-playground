@@ -5,14 +5,36 @@ import type {
 } from '@php-wasm/universal';
 import { loadPHPRuntime } from '@php-wasm/universal';
 import { getPHPLoaderModule } from './get-php-loader-module';
-import type { TCPOverFetchOptions } from './tcp-over-fetch-websocket';
-import { tcpOverFetchWebsocket } from './tcp-over-fetch-websocket';
 import { withICUData } from './with-icu-data';
+import { createFindConnector, type NetworkConnector } from '@php-wasm/util';
+import { withNetworkConnectors } from './network-websocket';
 
 export interface LoaderOptions {
 	emscriptenOptions?: EmscriptenOptions;
 	onPhpLoaderModuleLoaded?: (module: PHPLoaderModule) => void;
-	tcpOverFetch?: TCPOverFetchOptions;
+	/**
+	 * Function to find the appropriate network connector for a connection.
+	 *
+	 * If not provided, a default HTTP/HTTPS connector with auto-generated
+	 * CA certificate will be created automatically.
+	 *
+	 * Example:
+	 * ```
+	 * import { createHttpConnector, createSmtpConnector, generateCertificate } from '@php-wasm/web';
+	 *
+	 * const httpConnector = createHttpConnector({ CAroot });
+	 * const smtpConnector = createSmtpConnector();
+	 *
+	 * function findConnector(info) {
+	 *   if (info.port === 80 || info.port === 443) return httpConnector;
+	 *   if (info.port === 25 || info.port === 587) return smtpConnector;
+	 *   return undefined;
+	 * }
+	 *
+	 * const php = await loadWebRuntime('8.0', { findConnector });
+	 * ```
+	 */
+	networkConnectors?: NetworkConnector[];
 	withICU?: boolean;
 }
 
@@ -51,11 +73,10 @@ export async function loadWebRuntime(
 		...(loaderOptions.emscriptenOptions || {}),
 	};
 
-	if (loaderOptions.tcpOverFetch) {
-		emscriptenOptions = tcpOverFetchWebsocket(
-			emscriptenOptions,
-			loaderOptions.tcpOverFetch
-		);
+	if (loaderOptions.networkConnectors) {
+		emscriptenOptions = withNetworkConnectors(emscriptenOptions, {
+			connectTo: createFindConnector(loaderOptions.networkConnectors),
+		});
 	}
 
 	if (loaderOptions.withICU) {

@@ -2,14 +2,15 @@ import type { FilesystemOperation } from '@php-wasm/fs-journal';
 import { journalFSEvents, replayFSJournal } from '@php-wasm/fs-journal';
 import type { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import { setURLScope } from '@php-wasm/scopes';
-import { joinPaths } from '@php-wasm/util';
+import { createSmtpConnector, joinPaths } from '@php-wasm/util';
 import type {
 	MountDevice,
+	NetworkConnector,
 	SyncProgressCallback,
-	TCPOverFetchOptions,
 } from '@php-wasm/web';
 import {
 	createDirectoryHandleMountHandler,
+	createHttpConnector,
 	loadWebRuntime,
 } from '@php-wasm/web';
 import { createMemoizedFetch } from '@wp-playground/common';
@@ -148,7 +149,7 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 				.join(',');
 		}
 
-		let tcpOverFetch: TCPOverFetchOptions | undefined = undefined;
+		const networkConnectors: NetworkConnector[] = [];
 		let caBundleContent = '';
 		if (withNetworking) {
 			// @TODO: Is it fine this is only set in this code branch? That
@@ -167,10 +168,13 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 				},
 			});
 			caBundleContent = certificateToPEM(CAroot.certificate);
-			tcpOverFetch = {
-				CAroot,
-				corsProxyUrl,
-			};
+			networkConnectors.push(
+				createHttpConnector({
+					CAroot,
+					corsProxyUrl,
+				}),
+				createSmtpConnector()
+			);
 			phpIniEntries['disable_functions'] = (
 				phpIniEntries['disable_functions'] ?? ''
 			)
@@ -195,7 +199,7 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 				let wasmUrl = '';
 				return await loadWebRuntime(phpVersion, {
 					withICU,
-					tcpOverFetch,
+					networkConnectors,
 					onPhpLoaderModuleLoaded: (phpLoaderModule) => {
 						wasmUrl = phpLoaderModule.dependencyFilename;
 						this.downloadMonitor.expectAssets({
