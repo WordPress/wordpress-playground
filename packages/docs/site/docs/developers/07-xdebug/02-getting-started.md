@@ -101,13 +101,22 @@ Playground CLI will recognize that we're working with a plugin and mount a struc
 
 ## Starting with IDE integration
 
-Similar to the process with an IDE, let's use the same plugin code from before to debug with VSCode or PhpStorm, add the `--experimental-unsafe-ide-integration` flag:
+Similar to the process with DevTools, let's use the same plugin code from before to debug with VSCode, add the `--experimental-unsafe-ide-integration=vscode` flag. This flag will optimize the setup process for VSCode. If you're working with PhpStorm, just add the `--experimental-unsafe-ide-integration=phpstorm` flag.
 
-1. install php debugger
-2. needs the file .vscode/launch.json
-3. enable breakingpoints
-4. run the debbuger
+To debug in VSCode you'll need the following prerequisites:
+
+1. An extension to add PHP profiling support, for example, [PHP Profiler](https://open-vsx.org/extension/devsense/profiler-php-vscode)
+2. A `.vscode/` folder. If the `launch.json` file doesn't exist, don't worry, Playground CLI will create it.
+3. Enable breakpoints in your IDE. Some IDEs come with this feature disabled, so pay attention to this detail.
+
+If everything is ready, you can run the command:
 
 ```bash
-npx @wp-playground/cli@latest server --xdebug --experimental-unsafe-ide-integration --auto-mount
+npx @wp-playground/cli@latest server --xdebug --experimental-unsafe-ide-integration=vscode --auto-mount
 ```
+
+Now, go to your code, add the breakpoints and happy testing.
+
+![Xdebug in action on VSCode](@site/static/img/developers/xdebug/xdebug-in-action-on-vscode.webp)
+
+This feature is in experimental mode, so test it and send us your feedback.
