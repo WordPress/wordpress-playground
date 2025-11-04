@@ -554,7 +554,7 @@ describe.each(blueprintVersions)(
 					expect(output).toEqual(
 						expect.arrayContaining([
 							'Starting a PHP server...',
-							'Setting up WordPress undefined',
+							'Starting up workers',
 							expect.stringMatching(
 								/^Resolved WordPress release URL: https:\/\/downloads\.w\.org\/release\/wordpress-\d+\.\d+\.\d+\.zip$/
 							),
@@ -563,6 +563,7 @@ describe.each(blueprintVersions)(
 							'Booted!',
 							'Running the Blueprint...',
 							'Finished running the blueprint',
+							'Preparing workers...',
 							expect.stringMatching(
 								/^WordPress is running on http:\/\/127\.0\.0\.1:\d+ with \d+ worker\(s\)$/
 							),
