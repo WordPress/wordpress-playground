@@ -31,12 +31,13 @@ const shouldOpenSiteManagerByDefault = false;
 
 const initialState: UIState = {
 	/**
-	 * Don't show the error report modal after a page refresh.
-	 * There's an action call below to remove the error-report modal attribute
-	 * from the URL.
+	 * Don't show certain modals after a page refresh.
+	 * The save-site and error-report modals should only be triggered by user actions,
+	 * not by loading a URL with the modal parameter.
 	 */
 	activeModal:
-		query.get('modal') === 'error-report'
+		query.get('modal') === 'error-report' ||
+		query.get('modal') === 'save-site'
 			? null
 			: query.get('modal') || null,
 	offline: !navigator.onLine,
@@ -115,11 +116,14 @@ export const listenToOnlineOfflineEventsMiddleware: Middleware =
 				});
 			}
 			/**
-			 * Hide the error report modal on page load.
-			 * It's too common to refresh the page after an error occurs,
-			 * let's not bother the user with an empty error reporting modal.
+			 * Hide certain modals on page load and remove them from the URL.
+			 * These modals should only be triggered by user actions, not by
+			 * loading a URL with the modal parameter.
 			 */
-			if (query.get('modal') === 'error-report') {
+			if (
+				query.get('modal') === 'error-report' ||
+				query.get('modal') === 'save-site'
+			) {
 				setTimeout(() => {
 					store.dispatch(uiSlice.actions.setActiveModal(null));
 				}, 0);

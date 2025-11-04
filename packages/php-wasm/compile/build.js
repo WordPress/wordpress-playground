@@ -61,6 +61,11 @@ const argParser = yargs(process.argv.slice(2))
 			choices: ['yes', 'no'],
 			description: 'Build with libxml support',
 		},
+		WITH_SOAP: {
+			type: 'string',
+			choices: ['yes', 'no'],
+			description: 'Build with SOAP support',
+		},
 		WITH_LIBZIP: {
 			type: 'string',
 			choices: ['yes', 'no'],
@@ -186,6 +191,7 @@ const platformDefaults = {
 		WITH_FILEINFO: 'yes',
 		WITH_ICONV: 'yes',
 		WITH_LIBXML: 'yes',
+		WITH_SOAP: 'yes',
 		WITH_EXIF: 'yes',
 		WITH_GD: 'yes',
 		WITH_MBSTRING: 'yes',
@@ -251,6 +257,8 @@ await asyncSpawn(
 		getArg('WITH_FILEINFO'),
 		'--build-arg',
 		getArg('WITH_LIBXML'),
+		'--build-arg',
+		getArg('WITH_SOAP'),
 		'--build-arg',
 		getArg('WITH_LIBZIP'),
 		'--build-arg',

@@ -7,9 +7,14 @@ import { LatestSupportedPHPVersion, FSHelpers } from '@php-wasm/universal';
 import fs from 'fs';
 import { getXdebugExtensionModule } from './get-xdebug-extension-module';
 
+export interface XdebugOptions {
+	ideKey?: string;
+}
+
 export async function withXdebug(
 	version: SupportedPHPVersion = LatestSupportedPHPVersion,
-	options: EmscriptenOptions
+	options: EmscriptenOptions,
+	xdebugOptions?: XdebugOptions
 ): Promise<EmscriptenOptions> {
 	const fileName = 'xdebug.so';
 	const filePath = await getXdebugExtensionModule(version);
@@ -57,12 +62,14 @@ export async function withXdebug(
 					'/internal/shared/extensions/xdebug.ini'
 				)
 			) {
+				const ideKey = xdebugOptions?.ideKey || 'PLAYGROUNDCLI';
 				phpRuntime.FS.writeFile(
 					'/internal/shared/extensions/xdebug.ini',
 					[
 						'zend_extension=/internal/shared/extensions/xdebug.so',
 						'xdebug.mode=debug,develop',
 						'xdebug.start_with_request=yes',
+						`xdebug.idekey="${ideKey}"`,
 					].join('\n')
 				);
 			}

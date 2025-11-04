@@ -14,6 +14,8 @@ declare global {
 		__filePickerHarness?: {
 			filesystem: AsyncWritableFilesystem;
 			reload: () => void;
+			lastSelectedPath: string | null;
+			lastDoubleClickedPath: string | null;
 		};
 	}
 }
@@ -259,16 +261,24 @@ const createFilesystem = () =>
 
 export function FilePickerTreeHarness() {
 	const filesystem = useMemo(() => createFilesystem(), []);
+	const [lastSelectedPath, setLastSelectedPath] = React.useState<
+		string | null
+	>(null);
+	const [lastDoubleClickedPath, setLastDoubleClickedPath] = React.useState<
+		string | null
+	>(null);
 
 	useEffect(() => {
 		window.__filePickerHarness = {
 			filesystem,
 			reload: () => window.location.reload(),
+			lastSelectedPath,
+			lastDoubleClickedPath,
 		};
 		return () => {
 			delete window.__filePickerHarness;
 		};
-	}, [filesystem]);
+	}, [filesystem, lastSelectedPath, lastDoubleClickedPath]);
 
 	return (
 		<div
@@ -283,6 +293,12 @@ export function FilePickerTreeHarness() {
 					filesystem={filesystem}
 					root="/"
 					initialSelectedPath={DEFAULT_SELECTED_PATH}
+					onSelect={(path) => {
+						setLastSelectedPath(path);
+					}}
+					onDoubleClickFile={(path) => {
+						setLastDoubleClickedPath(path);
+					}}
 				/>
 			</div>
 		</div>
