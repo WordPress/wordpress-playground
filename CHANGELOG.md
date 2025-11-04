@@ -4,6 +4,42 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
+## [v3.0.19] (2025-11-04) 
+
+### Enhancements
+
+- [CLI] Support .0 versions, e.g. 6.4.0. ([#2848](https://github.com/WordPress/wordpress-playground/pull/2848))
+
+### Documentation
+
+- [Docs] Remove kapa AI button. ([#2849](https://github.com/WordPress/wordpress-playground/pull/2849))
+
+### PHP WebAssembly
+
+- Fix unmount of nested mounts in PHP runtime hotswap. ([#2859](https://github.com/WordPress/wordpress-playground/pull/2859))
+
+### Website
+
+- Controlled iframe for the latest Guteneberg version. ([#2857](https://github.com/WordPress/wordpress-playground/pull/2857))
+- [TCP Proxy] Produce the correct request path in parseHttpRequest(). ([#2852](https://github.com/WordPress/wordpress-playground/pull/2852))
+
+### Bug Fixes
+
+- [CLI] Avoid breaks during Playground boot when `--xdebug` enabled. ([#2835](https://github.com/WordPress/wordpress-playground/pull/2835))
+- [CLI] Fix incorrect Xdebug mappings for absolute host paths. ([#2860](https://github.com/WordPress/wordpress-playground/pull/2860))
+
+### Various
+
+- Translate to bangla in contributing index file. ([#2851](https://github.com/WordPress/wordpress-playground/pull/2851))
+- [i18n] Add Japanese translations to Playground API Client. ([#2854](https://github.com/WordPress/wordpress-playground/pull/2854))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @brandonpayton @fellyph @noruzzamans @shimotmk
+
+
 ## [v3.0.18] (2025-10-31) 
 
 ### PHP WebAssembly

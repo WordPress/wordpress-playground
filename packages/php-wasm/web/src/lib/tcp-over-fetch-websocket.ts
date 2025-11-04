@@ -686,7 +686,6 @@ export class RawBytesFetch {
 		 */
 		const hostname = parsedHeaders.headers.get('Host') ?? host;
 		const url = new URL(parsedHeaders.path, protocol + '://' + hostname);
-		url.pathname = parsedHeaders.path;
 
 		return new Request(url.toString(), {
 			method: parsedHeaders.method,

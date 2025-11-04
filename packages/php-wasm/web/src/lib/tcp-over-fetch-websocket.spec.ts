@@ -368,6 +368,150 @@ describe('RawBytesFetch', () => {
 		);
 		expect(decodedRequestBody).toEqual(encodedBodyBytes);
 	});
+
+	it('parseHttpRequest should handle a path and query string', async () => {
+		const requestBytes = `GET /core/version-check/1.7/?channel=beta HTTP/1.1\r\nHost: playground.internal\r\n\r\n`;
+		const request = await RawBytesFetch.parseHttpRequest(
+			new ReadableStream({
+				start(controller) {
+					controller.enqueue(new TextEncoder().encode(requestBytes));
+					controller.close();
+				},
+			}),
+			'playground.internal',
+			'http'
+		);
+		expect(request.url).toEqual(
+			'http://playground.internal/core/version-check/1.7/?channel=beta'
+		);
+	});
+
+	it('parseHttpRequest should handle a simple path without query string', async () => {
+		const requestBytes = `GET /api/users HTTP/1.1\r\nHost: example.com\r\n\r\n`;
+		const request = await RawBytesFetch.parseHttpRequest(
+			new ReadableStream({
+				start(controller) {
+					controller.enqueue(new TextEncoder().encode(requestBytes));
+					controller.close();
+				},
+			}),
+			'example.com',
+			'http'
+		);
+		expect(request.url).toEqual('http://example.com/api/users');
+	});
+
+	it('parseHttpRequest should handle root path', async () => {
+		const requestBytes = `GET / HTTP/1.1\r\nHost: example.com\r\n\r\n`;
+		const request = await RawBytesFetch.parseHttpRequest(
+			new ReadableStream({
+				start(controller) {
+					controller.enqueue(new TextEncoder().encode(requestBytes));
+					controller.close();
+				},
+			}),
+			'example.com',
+			'https'
+		);
+		expect(request.url).toEqual('https://example.com/');
+	});
+
+	it('parseHttpRequest should handle URL-encoded characters in path', async () => {
+		const requestBytes = `GET /search/hello%20world HTTP/1.1\r\nHost: example.com\r\n\r\n`;
+		const request = await RawBytesFetch.parseHttpRequest(
+			new ReadableStream({
+				start(controller) {
+					controller.enqueue(new TextEncoder().encode(requestBytes));
+					controller.close();
+				},
+			}),
+			'example.com',
+			'http'
+		);
+		expect(request.url).toEqual('http://example.com/search/hello%20world');
+	});
+
+	it('parseHttpRequest should handle URL-encoded characters in query string', async () => {
+		const requestBytes = `GET /search?q=hello+world&filter=a%26b HTTP/1.1\r\nHost: example.com\r\n\r\n`;
+		const request = await RawBytesFetch.parseHttpRequest(
+			new ReadableStream({
+				start(controller) {
+					controller.enqueue(new TextEncoder().encode(requestBytes));
+					controller.close();
+				},
+			}),
+			'example.com',
+			'http'
+		);
+		expect(request.url).toEqual(
+			'http://example.com/search?q=hello+world&filter=a%26b'
+		);
+	});
+
+	it('parseHttpRequest should handle empty query parameter values', async () => {
+		const requestBytes = `GET /api?key1=&key2=value2 HTTP/1.1\r\nHost: example.com\r\n\r\n`;
+		const request = await RawBytesFetch.parseHttpRequest(
+			new ReadableStream({
+				start(controller) {
+					controller.enqueue(new TextEncoder().encode(requestBytes));
+					controller.close();
+				},
+			}),
+			'example.com',
+			'http'
+		);
+		expect(request.url).toEqual('http://example.com/api?key1=&key2=value2');
+	});
+
+	it('parseHttpRequest should handle path with hash fragment', async () => {
+		// Note: Hash fragments are typically not sent in HTTP requests,
+		// but if they are, the URL constructor should handle them
+		const requestBytes = `GET /page#section HTTP/1.1\r\nHost: example.com\r\n\r\n`;
+		const request = await RawBytesFetch.parseHttpRequest(
+			new ReadableStream({
+				start(controller) {
+					controller.enqueue(new TextEncoder().encode(requestBytes));
+					controller.close();
+				},
+			}),
+			'example.com',
+			'http'
+		);
+		expect(request.url).toEqual('http://example.com/page#section');
+	});
+
+	it('parseHttpRequest should handle path with query and hash', async () => {
+		const requestBytes = `GET /page?param=value#section HTTP/1.1\r\nHost: example.com\r\n\r\n`;
+		const request = await RawBytesFetch.parseHttpRequest(
+			new ReadableStream({
+				start(controller) {
+					controller.enqueue(new TextEncoder().encode(requestBytes));
+					controller.close();
+				},
+			}),
+			'example.com',
+			'http'
+		);
+		expect(request.url).toEqual(
+			'http://example.com/page?param=value#section'
+		);
+	});
+
+	it('parseHttpRequest should preserve Host header over default host', async () => {
+		const requestBytes = `GET /api HTTP/1.1\r\nHost: custom.host.com\r\n\r\n`;
+		const request = await RawBytesFetch.parseHttpRequest(
+			new ReadableStream({
+				start(controller) {
+					controller.enqueue(new TextEncoder().encode(requestBytes));
+					controller.close();
+				},
+			}),
+			'default.host.com', // Different from Host header
+			'https'
+		);
+		// Should use the Host header, not the default host parameter
+		expect(request.url).toEqual('https://custom.host.com/api');
+	});
 });
 
 type MakeRequestOptions = {

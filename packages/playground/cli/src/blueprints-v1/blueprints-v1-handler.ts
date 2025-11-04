@@ -1,6 +1,5 @@
 import { logger } from '@php-wasm/logger';
 import { EmscriptenDownloadMonitor, ProgressTracker } from '@php-wasm/progress';
-import type { SupportedPHPVersion } from '@php-wasm/universal';
 import { consumeAPI } from '@php-wasm/universal';
 import type { BlueprintV1Declaration } from '@wp-playground/blueprints';
 import {
@@ -34,7 +33,6 @@ import {
  * implemented in TypeScript and orchestrated by this class.
  */
 export class BlueprintsV1Handler {
-	private phpVersion: SupportedPHPVersion | undefined;
 	private lastProgressMessage = '';
 
 	private siteUrl: string;
@@ -57,7 +55,7 @@ export class BlueprintsV1Handler {
 		return 'v1';
 	}
 
-	async bootPrimaryWorker(
+	async bootAndSetUpInitialPlayground(
 		phpPort: NodeMessagePort,
 		fileLockManagerPort: NodeMessagePort,
 		nativeInternalDirPath: string
@@ -135,7 +133,7 @@ export class BlueprintsV1Handler {
 			this.getEffectiveBlueprint()
 		);
 		await playground.useFileLockManager(fileLockManagerPort);
-		await playground.bootAsPrimaryWorker({
+		await playground.bootAndSetUpInitialWorker({
 			phpVersion: runtimeConfiguration.phpVersion,
 			wpVersion: runtimeConfiguration.wpVersion,
 			siteUrl: this.siteUrl,
@@ -149,7 +147,11 @@ export class BlueprintsV1Handler {
 			followSymlinks,
 			trace,
 			internalCookieStore: this.args.internalCookieStore,
-			withXdebug: !!this.args.xdebug,
+			// We do not enable Xdebug by default for the initial worker
+			// because we do not imagine users expect to hit breakpoints
+			// until Playground has fully booted.
+			// TODO: Consider supporting Xdebug for the initial worker via a dedicated flag.
+			withXdebug: false,
 			nativeInternalDirPath,
 		});
 
@@ -169,7 +171,7 @@ export class BlueprintsV1Handler {
 		return playground;
 	}
 
-	async bootSecondaryWorker({
+	async bootPlayground({
 		worker,
 		fileLockManagerPort,
 		firstProcessId,
@@ -180,14 +182,17 @@ export class BlueprintsV1Handler {
 		firstProcessId: number;
 		nativeInternalDirPath: string;
 	}) {
-		const additionalPlayground = consumeAPI<PlaygroundCliBlueprintV1Worker>(
+		const playground = consumeAPI<PlaygroundCliBlueprintV1Worker>(
 			worker.phpPort
 		);
 
-		await additionalPlayground.isConnected();
-		await additionalPlayground.useFileLockManager(fileLockManagerPort);
-		await additionalPlayground.bootAsSecondaryWorker({
-			phpVersion: this.phpVersion!,
+		await playground.isConnected();
+		const runtimeConfiguration = await resolveRuntimeConfiguration(
+			this.getEffectiveBlueprint()
+		);
+		await playground.useFileLockManager(fileLockManagerPort);
+		await playground.bootWorker({
+			phpVersion: runtimeConfiguration.phpVersion,
 			siteUrl: this.siteUrl,
 			mountsBeforeWpInstall: this.args['mount-before-install'] || [],
 			mountsAfterWpInstall: this.args['mount'] || [],
@@ -201,8 +206,8 @@ export class BlueprintsV1Handler {
 			withXdebug: !!this.args.xdebug,
 			nativeInternalDirPath,
 		});
-		await additionalPlayground.isReady();
-		return additionalPlayground;
+		await playground.isReady();
+		return playground;
 	}
 
 	async compileInputBlueprint(additionalBlueprintSteps: any[]) {

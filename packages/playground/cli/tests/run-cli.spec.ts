@@ -212,7 +212,7 @@ describe.each(blueprintVersions)(
 				});
 				expect(cliServer.workerThreadCount).toBe(1);
 				// Make multiple simultaneous requests to force the use of a secondary PHP instance.
-				// TODO: Find way to confirm this.
+				// TODO: Find way to confirm this. Maybe a custom response header that announces the worker.
 				const sleepUrl = new URL(
 					'/wp-content/test-script/sleep.php',
 					cliServer.serverUrl
