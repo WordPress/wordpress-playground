@@ -10,7 +10,7 @@ Este guia irá fazer uma introdução sobre como habilitar este recurso e testar
 
 ## PHP WASM CLI vs Playground CLI
 
-Primeirament, o Xdebug pode ser utilizado em dois CLI diferentes::
+Primeiramente, o Xdebug pode ser utilizado em dois CLI diferentes::
 
 -   **`@php-wasm/cli`**: Execute scripts PHP independentes. Use isso quando estiver depurando código PHP, sem precisar de um ambiente WordPress.
 -   **`@wp-playground/cli`**: Execute uma instalação completa do WordPress. Útil para depurar plugins WordPress, temas ou funcionalidades do núcleo.
@@ -103,9 +103,9 @@ O Playground CLI irá reconhecer que estamos a trabalhar com um plugin e montar 
 
 Similar ao processo com uma DevTools, vamos utilizar o mesmo código do plugin anterior para depurar com VSCode, adicione a flag `--experimental-unsafe-ide-integration=vscode`, esta flag irá otimizar o processo de configuração para VSCode, caso trabalhe com PhpStorm, apenas adicione a flag `--experimental-unsafe-ide-integration=phpstorm`.
 
-Para depurar no VSCode você irá precisar dos seguintes itens com pre-requisitos:
+Para depurar no VSCode você irá precisar dos seguintes itens como pré-requisitos:
 
-1. Uma extensão para adicionar suporte a PHP profiling, for example, [PHP Profiler](https://open-vsx.org/extension/devsense/profiler-php-vscode)
+1. Uma extensão para adicionar suporte a PHP profiling, por exemplo, [PHP Profiler](https://open-vsx.org/extension/devsense/profiler-php-vscode)
 2. Uma pasta `.vscode/`, caso o arquivo `launch.json` não exista, não se preocupe, o Playground CLI irá criá-lo.
 3. Habilite os pontos de interrupção (breakpoints) em seu IDE. Alguns IDEs vêm com este recurso desativado, então preste atenção a este detalhe.
 
