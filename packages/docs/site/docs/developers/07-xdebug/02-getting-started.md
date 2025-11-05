@@ -27,6 +27,10 @@ npx @wp-playground/cli@latest server --xdebug
 
 This starts WordPress on `http://127.0.0.1:9400` with Xdebug enabled. Now you connect a debugger.
 
+:::info
+Only one project can be debugged at a time.
+:::
+
 ## Starting with DevTools
 
 To debug with Chrome DevTools, add the `--experimental-devtools` flag:
@@ -97,12 +101,16 @@ The Playground CLI(`@wp-playground/cli`) will automatically detect the plugin fo
 
 ## Starting with IDE integration
 
-Similar to the process with DevTools, let's use the same plugin code from before to debug with VSCode, and add the `--experimental-unsafe-ide-integration=vscode` flag. This flag will optimize the setup process for VSCode. If you're working with PhpStorm, just add the `--experimental-unsafe-ide-integration=phpstorm` flag.
+Similar to the process with DevTools, let's use the same plugin code from before to debug with VS Code, and add the `--experimental-unsafe-ide-integration=vscode` flag. This flag will optimize the setup process for VS Code. If you're working with PhpStorm, just add the `--experimental-unsafe-ide-integration=phpstorm` flag.
 
-To debug in VSCode you'll need the following prerequisites:
+:::info
+This flag is marked as `unsafe` because it edits the IDE config files to set Xdebug path mappings and web server details. **CAUTION:** If there are bugs, this feature may cause your IDE configuration files to break. Please consider backing up your IDE configs before using this feature.
+:::
+
+To debug in VS Code, you'll need the following prerequisites:
 
 1. An extension to add PHP profiling support, for example, [PHP Profiler](https://open-vsx.org/extension/devsense/profiler-php-vscode)
-2. A `.vscode/` folder for VSCode and `.idea` for PhpStorm.
+2. Have a `.vscode/` folder for VS Code and `.idea` for PhpStorm.
 3. Enable breakpoints in your IDE. Some IDEs come with this feature disabled, so be aware of this detail.
 
 If everything is ready, you run the command:
@@ -111,8 +119,8 @@ If everything is ready, you run the command:
 npx @wp-playground/cli@latest server --xdebug --experimental-unsafe-ide-integration=vscode --auto-mount
 ```
 
-Now, go to your code, add the breakpoints and happy testing.
+Now, go to your code, add the breakpoints, and happy testing.
 
-![Xdebug in action on VSCode](@site/static/img/developers/xdebug/xdebug-in-action-on-vscode.webp)
+![Xdebug in action on VS Code](@site/static/img/developers/xdebug/xdebug-in-action-on-vscode.webp)
 
-This feature is in experimental mode. Until it is completed, we will need your feedback. Please connect with us in the [#playground Slack channel](https://wordpress.slack.com/archives/C04EWKGDJ0K) and share your thoughts.
+This feature is in experimental mode. Until it's finished, we'll need your feedback. Please connect with us in the [#playground Slack channel](https://wordpress.slack.com/archives/C04EWKGDJ0K) and share your thoughts.
