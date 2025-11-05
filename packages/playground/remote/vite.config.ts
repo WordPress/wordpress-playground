@@ -85,7 +85,7 @@ export default defineConfig(({ mode }) => {
 		server: {
 			port: remoteDevServerPort,
 			host: remoteDevServerHost,
-			allowedHosts: ['playground.test'],
+			allowedHosts: ['playground.test', 'playground-preview.test'],
 			fs: {
 				// Allow serving files from the 'packages' directory
 				allow: ['../../'],

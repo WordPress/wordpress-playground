@@ -48,7 +48,7 @@ describe('Test WordPress rewrites', () => {
 		);
 	});
 
-	it('Should only target the initial wp-admin|wp-content|wp-includes path', async () => {
+	it('Should only target the initial wp-admin|wp-content|wp-includes path (1)', async () => {
 		expect(
 			applyRewriteRules(
 				'/wp-content/themes/Newspaper/includes/wp-booster/wp-admin/images/plugins/tagdiv-small.png',

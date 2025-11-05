@@ -649,7 +649,11 @@ export class PHP implements Disposable {
 						`The script path "${request.scriptPath}" does not exist.`
 					);
 				}
-				this.#setRelativeRequestUri(request.relativeUri || '');
+				this.#setRelativeRequestUri(
+					request.relativeUriBeforeRewriting ||
+						request.relativeUri ||
+						''
+				);
 				this.#setRequestMethod(request.method || 'GET');
 				const requestHeaders = normalizeHeaders(request.headers || {});
 				const host = requestHeaders['host'] || 'example.com:443';

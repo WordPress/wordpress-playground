@@ -367,17 +367,23 @@ export class PHPRequestHandler implements AsyncDisposable {
 			isAbsolute ? undefined : DEFAULT_BASE_URL
 		);
 
-		const normalizedRequestedPath = applyRewriteRules(
-			removePathPrefix(
-				decodeURIComponent(requestedUrl.pathname),
-				this.#PATHNAME
-			),
+		const siteRelativePath = removePathPrefix(
+			decodeURIComponent(requestedUrl.pathname),
+			this.#PATHNAME
+		);
+		const rewrittenRequestPath = applyRewriteRules(
+			siteRelativePath,
 			this.rewriteRules
+		);
+		const rewrittenRequestUrl = new URL(requestedUrl.toString());
+		rewrittenRequestUrl.pathname = joinPaths(
+			this.#PATHNAME,
+			rewrittenRequestPath
 		);
 
 		const primaryPhp = await this.getPrimaryPhp();
 
-		let fsPath = joinPaths(this.#DOCROOT, normalizedRequestedPath);
+		let fsPath = joinPaths(this.#DOCROOT, rewrittenRequestPath);
 
 		if (primaryPhp.isDir(fsPath)) {
 			// Ensure directory URIs have a trailing slash. Otherwise,
@@ -421,9 +427,8 @@ export class PHPRequestHandler implements AsyncDisposable {
 		}
 
 		if (!primaryPhp.isFile(fsPath)) {
-			const fileNotFoundAction = this.getFileNotFoundAction(
-				normalizedRequestedPath
-			);
+			const fileNotFoundAction =
+				this.getFileNotFoundAction(rewrittenRequestPath);
 			switch (fileNotFoundAction.type) {
 				case 'response':
 					return fileNotFoundAction.response;
@@ -450,7 +455,8 @@ export class PHPRequestHandler implements AsyncDisposable {
 				const effectiveRequest: PHPRequest = {
 					...request,
 					// Pass along URL with the #fragment filtered out
-					url: requestedUrl.toString(),
+					url: rewrittenRequestUrl.toString(),
+					urlBeforeRewriting: requestedUrl.toString(),
 				};
 				const response = await this.#spawnPHPAndDispatchRequest(
 					effectiveRequest,
