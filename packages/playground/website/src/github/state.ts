@@ -1,5 +1,4 @@
 import { signal } from '@preact/signals-react';
-import { setGitHubAuthToken } from '@wp-playground/storage';
 
 export interface GitHubOAuthState {
 	token?: string;
@@ -17,11 +16,6 @@ export const oAuthState = signal<GitHubOAuthState>({
 	token: shouldStoreToken ? localStorage.getItem(TOKEN_KEY) || '' : '',
 });
 
-// Initialize the git-sparse-checkout module with the token if it exists
-if (oAuthState.value.token) {
-	setGitHubAuthToken(oAuthState.value.token);
-}
-
 export function setOAuthToken(token?: string) {
 	if (shouldStoreToken) {
 		localStorage.setItem(TOKEN_KEY, token || '');
@@ -30,6 +24,4 @@ export function setOAuthToken(token?: string) {
 		...oAuthState.value,
 		token,
 	};
-	// Also update the token in the git-sparse-checkout module
-	setGitHubAuthToken(token);
 }

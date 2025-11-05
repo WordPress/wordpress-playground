@@ -31,93 +31,15 @@ if (typeof globalThis.Buffer === 'undefined') {
 }
 
 /**
- * Module-level storage for GitHub authentication token.
- * This is set by browser-specific code when GitHub OAuth is available.
+ * Custom error class for git authentication failures.
  */
-let gitHubAuthToken: string | undefined;
-
-/**
- * Known CORS proxy URL prefixes used by WordPress Playground.
- * Keep up this synced with packages/playground/website-extras/vite.config.ts
- */
-const KNOWN_CORS_PROXY_URLS = [
-	'https://wordpress-playground-cors-proxy.net/?',
-	'http://127.0.0.1:5263/cors-proxy.php?',
-];
-
-/**
- * Sets the GitHub authentication token to use for git protocol requests.
- * This is intended to be called by browser-specific initialization code
- * where GitHub OAuth is available.
- *
- * @param token The GitHub OAuth token, or undefined to clear it
- */
-export function setGitHubAuthToken(token: string | undefined) {
-	gitHubAuthToken = token;
-}
-
-/**
- * Custom error class for GitHub authentication failures.
- */
-export class GitHubAuthenticationError extends Error {
+export class GitAuthenticationError extends Error {
 	constructor(public repoUrl: string, public status: number) {
 		super(
-			`Authentication required to access private GitHub repository: ${repoUrl}`
+			`Authentication required to access private repository: ${repoUrl}`
 		);
-		this.name = 'GitHubAuthenticationError';
+		this.name = 'GitAuthenticationError';
 	}
-}
-
-/**
- * Checks if a URL is a GitHub URL by parsing the hostname.
- * Handles both direct GitHub URLs and CORS-proxied GitHub URLs.
- *
- * @param url The URL to check
- * @returns true if the URL is definitively a GitHub URL, false otherwise
- */
-function isGitHubUrl(url: string): boolean {
-	try {
-		const parsedUrl = new URL(url);
-
-		if (parsedUrl.hostname === 'github.com') {
-			return true;
-		}
-
-		for (const proxyUrl of KNOWN_CORS_PROXY_URLS) {
-			if (url.startsWith(proxyUrl)) {
-				const proxiedUrl = url.substring(proxyUrl.length);
-				try {
-					const proxiedParsedUrl = new URL(proxiedUrl);
-					return proxiedParsedUrl.hostname === 'github.com';
-				} catch {
-					return false;
-				}
-			}
-		}
-
-		return false;
-	} catch {
-		return false;
-	}
-}
-
-/**
- * Returns GitHub authentication headers if a token is available and the URL is a GitHub URL.
- *
- * @param url The URL to check
- */
-function getGitHubAuthHeaders(url: string): Record<string, string> {
-	if (gitHubAuthToken && isGitHubUrl(url)) {
-		// GitHub Git protocol requires Basic Auth with token as username and empty password
-		const basicAuth = btoa(`${gitHubAuthToken}:`);
-		return {
-			Authorization: `Basic ${basicAuth}`,
-			// Tell CORS proxy to forward the Authorization header
-			// Must be lowercase because the CORS proxy lowercases header names for comparison
-			'X-Cors-Proxy-Allowed-Request-Headers': 'authorization',
-		};
-	}
-	return {};
 }
 
 /**
@@ -157,14 +79,21 @@ export async function sparseCheckout(
 	filesPaths: string[],
 	options?: {
 		withObjects?: boolean;
+		additionalHeaders?: Record<string, string>;
 	}
 ): Promise<SparseCheckoutResult> {
-	const treesPack = await fetchWithoutBlobs(repoUrl, commitHash);
+	const treesPack = await fetchWithoutBlobs(
+		repoUrl,
+		commitHash,
+		options?.additionalHeaders
+	);
 	const objects = await resolveObjects(treesPack.idx, commitHash, filesPaths);
 
 	const blobOids = filesPaths.map((path) => objects[path].oid);
 	const blobsPack =
-		blobOids.length > 0 ? await fetchObjects(repoUrl, blobOids) : null;
+		blobOids.length > 0
+			? await fetchObjects(repoUrl, blobOids, options?.additionalHeaders)
+			: null;
 
 	const fetchedPaths: Record<string, any> = {};
 	await Promise.all(
@@ -267,9 +196,14 @@ const FULL_SHA_REGEX = /^[0-9a-f]{40}$/i;
  */
 export async function listGitFiles(
 	repoUrl: string,
-	commitHash: string
+	commitHash: string,
+	additionalHeaders?: Record<string, string>
 ): Promise<GitFileTree[]> {
-	const treesPack = await fetchWithoutBlobs(repoUrl, commitHash);
+	const treesPack = await fetchWithoutBlobs(
+		repoUrl,
+		commitHash,
+		additionalHeaders
+	);
 	const rootTree = await resolveAllObjects(treesPack.idx, commitHash);
 	if (!rootTree?.object) {
 		return [];
@@ -285,13 +219,17 @@ export async function listGitFiles(
  * @param ref The branch name or commit hash.
  * @returns The commit hash.
  */
-export async function resolveCommitHash(repoUrl: string, ref: GitRef) {
+export async function resolveCommitHash(
+	repoUrl: string,
+	ref: GitRef,
+	additionalHeaders?: Record<string, string>
+) {
 	const parsed = await parseGitRef(repoUrl, ref);
 	if (parsed.resolvedOid) {
 		return parsed.resolvedOid;
 	}
 
-	const oid = await fetchRefOid(repoUrl, parsed.refname);
+	const oid = await fetchRefOid(repoUrl, parsed.refname, additionalHeaders);
 	if (!oid) {
 		throw new Error(`Git ref "${parsed.refname}" not found at ${repoUrl}`);
 	}
@@ -329,7 +267,8 @@ function gitTreeToFileTree(tree: GitTree): GitFileTree[] {
  */
 export async function listGitRefs(
 	repoUrl: string,
-	fullyQualifiedBranchPrefix: string
+	fullyQualifiedBranchPrefix: string,
+	additionalHeaders?: Record<string, string>
 ) {
 	const packbuffer = Buffer.from(
 		(await collect([
@@ -350,17 +289,14 @@ export async function listGitRefs(
 			'content-type': 'application/x-git-upload-pack-request',
 			'Content-Length': `${packbuffer.length}`,
 			'Git-Protocol': 'version=2',
-			...getGitHubAuthHeaders(repoUrl),
+			...additionalHeaders,
 		},
 		body: packbuffer as any,
 	});
 
 	if (!response.ok) {
-		if (
-			(response.status === 401 || response.status === 403) &&
-			isGitHubUrl(repoUrl)
-		) {
-			throw new GitHubAuthenticationError(repoUrl, response.status);
+		if (response.status === 401 || response.status === 403) {
+			throw new GitAuthenticationError(repoUrl, response.status);
 		}
 		throw new Error(
 			`Failed to fetch git refs from ${repoUrl}: ${response.status} ${response.statusText}`
@@ -479,8 +415,12 @@ async function parseGitRef(
 	}
 }
 
-async function fetchRefOid(repoUrl: string, refname: string) {
-	const refs = await listGitRefs(repoUrl, refname);
+async function fetchRefOid(
+	repoUrl: string,
+	refname: string,
+	additionalHeaders?: Record<string, string>
+) {
+	const refs = await listGitRefs(repoUrl, refname, additionalHeaders);
 	const candidates = [refname, `${refname}^{}`];
 	for (const candidate of candidates) {
 		const sanitized = candidate.trim();
@@ -491,7 +431,11 @@ async function fetchRefOid(repoUrl: string, refname: string) {
 	return null;
 }
 
-async function fetchWithoutBlobs(repoUrl: string, commitHash: string) {
+async function fetchWithoutBlobs(
+	repoUrl: string,
+	commitHash: string,
+	additionalHeaders?: Record<string, string>
+) {
 	const packbuffer = Buffer.from(
 		(await collect([
 			GitPktLine.encode(
@@ -512,17 +456,14 @@ async function fetchWithoutBlobs(repoUrl: string, commitHash: string) {
 			Accept: 'application/x-git-upload-pack-advertisement',
 			'content-type': 'application/x-git-upload-pack-request',
 			'Content-Length': `${packbuffer.length}`,
-			...getGitHubAuthHeaders(repoUrl),
+			...additionalHeaders,
 		},
 		body: packbuffer as any,
 	});
 
 	if (!response.ok) {
-		if (
-			(response.status === 401 || response.status === 403) &&
-			isGitHubUrl(repoUrl)
-		) {
-			throw new GitHubAuthenticationError(repoUrl, response.status);
+		if (response.status === 401 || response.status === 403) {
+			throw new GitAuthenticationError(repoUrl, response.status);
 		}
 		throw new Error(
 			`Failed to fetch git objects from ${repoUrl}: ${response.status} ${response.statusText}`
@@ -655,7 +596,11 @@ async function resolveObjects(
 }
 
 // Request oid for each resolvedRef
-async function fetchObjects(url: string, objectHashes: string[]) {
+async function fetchObjects(
+	url: string,
+	objectHashes: string[],
+	additionalHeaders?: Record<string, string>
+) {
 	const packbuffer = Buffer.from(
 		(await collect([
 			...objectHashes.map((objectHash) =>
@@ -674,17 +619,14 @@ async function fetchObjects(url: string, objectHashes: string[]) {
 			Accept: 'application/x-git-upload-pack-advertisement',
 			'content-type': 'application/x-git-upload-pack-request',
 			'Content-Length': `${packbuffer.length}`,
-			...getGitHubAuthHeaders(url),
+			...additionalHeaders,
 		},
 		body: packbuffer as any,
 	});
 
 	if (!response.ok) {
-		if (
-			(response.status === 401 || response.status === 403) &&
-			isGitHubUrl(url)
-		) {
-			throw new GitHubAuthenticationError(url, response.status);
+		if (response.status === 401 || response.status === 403) {
+			throw new GitAuthenticationError(url, response.status);
 		}
 		throw new Error(
 			`Failed to fetch git objects from ${url}: ${response.status} ${response.statusText}`

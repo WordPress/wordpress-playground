@@ -21,6 +21,7 @@ export class BlueprintsV1Handler {
 			onBlueprintValidated,
 			onBlueprintStepCompleted,
 			corsProxy,
+			gitAdditionalHeaders,
 			mounts,
 			sapiName,
 			scope,
@@ -72,6 +73,7 @@ export class BlueprintsV1Handler {
 				onStepCompleted: onBlueprintStepCompleted,
 				onBlueprintValidated,
 				corsProxy,
+				gitAdditionalHeaders,
 			});
 			await runBlueprintV1Steps(compiled, playground);
 		}

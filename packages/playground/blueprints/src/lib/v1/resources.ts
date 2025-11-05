@@ -157,12 +157,14 @@ export abstract class Resource<T extends File | Directory> {
 			progress,
 			corsProxy,
 			streamBundledFile,
+			gitAdditionalHeaders,
 		}: {
 			/** Optional semaphore to limit concurrent downloads */
 			semaphore?: Semaphore;
 			progress?: ProgressTracker;
 			corsProxy?: string;
 			streamBundledFile?: StreamBundledFile;
+			gitAdditionalHeaders?: Record<string, string>;
 		}
 	): Resource<File | Directory> {
 		let resource: Resource<File | Directory>;
@@ -185,6 +187,7 @@ export abstract class Resource<T extends File | Directory> {
 			case 'git:directory':
 				resource = new GitDirectoryResource(ref, progress, {
 					corsProxy,
+					additionalHeaders: gitAdditionalHeaders,
 				});
 				break;
 			case 'literal:directory':
@@ -556,12 +559,18 @@ export class UrlResource extends FetchResource {
  */
 export class GitDirectoryResource extends Resource<Directory> {
 	private reference: GitDirectoryReference;
-	private options?: { corsProxy?: string };
+	private options?: {
+		corsProxy?: string;
+		additionalHeaders?: Record<string, string>;
+	};
 
 	constructor(
 		reference: GitDirectoryReference,
 		_progress?: ProgressTracker,
-		options?: { corsProxy?: string }
+		options?: {
+			corsProxy?: string;
+			additionalHeaders?: Record<string, string>;
+		}
 	) {
 		super();
 		this.reference = reference;
@@ -574,11 +583,19 @@ export class GitDirectoryResource extends Resource<Directory> {
 			? `${this.options.corsProxy}${this.reference.url}`
 			: this.reference.url;
 
-		const commitHash = await resolveCommitHash(repoUrl, {
-			value: this.reference.ref,
-			type: this.reference.refType ?? 'infer',
-		});
-		const allFiles = await listGitFiles(repoUrl, commitHash);
+		const commitHash = await resolveCommitHash(
+			repoUrl,
+			{
+				value: this.reference.ref,
+				type: this.reference.refType ?? 'infer',
+			},
+			this.options?.additionalHeaders
+		);
+		const allFiles = await listGitFiles(
+			repoUrl,
+			commitHash,
+			this.options?.additionalHeaders
+		);
 
 		const requestedPath = (this.reference.path ?? '').replace(/^\/+/, '');
 		const filesToClone = listDescendantFiles(allFiles, requestedPath);
@@ -588,6 +605,7 @@ export class GitDirectoryResource extends Resource<Directory> {
 			filesToClone,
 			{
 				withObjects: this.reference['.git'],
+				additionalHeaders: this.options?.additionalHeaders,
 			}
 		);
 		let files = checkout.files;

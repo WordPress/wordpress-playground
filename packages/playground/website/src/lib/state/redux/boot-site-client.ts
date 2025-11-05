@@ -27,6 +27,7 @@ import { selectSiteBySlug } from './slice-sites';
 // @ts-ignore
 import { corsProxyUrl } from 'virtual:cors-proxy-url';
 import { modalSlugs } from '../../../components/layout';
+import { createGitHubAuthHeaders } from '../../github/git-auth-helpers';
 
 export function bootSiteClient(
 	siteSlug: string,
@@ -155,6 +156,7 @@ export function bootSiteClient(
 					: [],
 				shouldInstallWordPress: !isWordPressInstalled,
 				corsProxy: corsProxyUrl,
+				gitAdditionalHeaders: createGitHubAuthHeaders(),
 			});
 
 			// @TODO: Remove backcompat code after 2024-12-01.
@@ -203,10 +205,10 @@ export function bootSiteClient(
 			) {
 				dispatch(setActiveSiteError('github-artifact-expired'));
 			} else if (
-				(e as any).name === 'GitHubAuthenticationError' ||
+				(e as any).name === 'GitAuthenticationError' ||
 				(e as any).originalErrorClassName ===
-					'GitHubAuthenticationError' ||
-				(e as any).cause?.name === 'GitHubAuthenticationError'
+					'GitAuthenticationError' ||
+				(e as any).cause?.name === 'GitAuthenticationError'
 			) {
 				// Extract repo URL from the error
 				const repoUrl =

@@ -1,6 +1,5 @@
 import { setOAuthToken, oAuthState } from './state';
 import { oauthCode } from './github-oauth-guard';
-import { setGitHubAuthToken } from '@wp-playground/storage';
 
 export async function acquireOAuthTokenIfNeeded() {
 	if (!oauthCode) {
@@ -26,7 +25,6 @@ export async function acquireOAuthTokenIfNeeded() {
 		});
 		const body = await response.json();
 		setOAuthToken(body.access_token);
-		setGitHubAuthToken(body.access_token);
 
 		// Remove the ?code=... from the URL and clean up any modal state
 		const url = new URL(window.location.href);

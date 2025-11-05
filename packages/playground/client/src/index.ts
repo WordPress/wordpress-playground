@@ -86,6 +86,10 @@ export interface StartPlaygroundOptions {
 	 */
 	corsProxy?: string;
 	/**
+	 * Additional headers to pass to git operations.
+	 */
+	gitAdditionalHeaders?: Record<string, string>;
+	/**
 	 * The version of the SQLite driver to use.
 	 * Defaults to the latest development version.
 	 */
