@@ -649,10 +649,7 @@ export class PHP implements Disposable {
 						`The script path "${request.scriptPath}" does not exist.`
 					);
 				}
-				this.#setRelativeRequestUri(
-					// request.relativeUriBeforeRewriting ||
-					request.relativeUri || ''
-				);
+				this.#setRelativeRequestUri(request.relativeUri || '');
 				this.#setRequestMethod(request.method || 'GET');
 				const requestHeaders = normalizeHeaders(request.headers || {});
 				const host = requestHeaders['host'] || 'example.com:443';
@@ -687,6 +684,10 @@ export class PHP implements Disposable {
 				for (const key in $_SERVER) {
 					this.#setServerGlobalEntry(key, $_SERVER[key]);
 				}
+				this.#setServerGlobalEntry(
+					'PHP_SELF',
+					request.relativeUri || ''
+				);
 
 				const env = request.env || {};
 				for (const key in env) {
@@ -773,6 +774,7 @@ export class PHP implements Disposable {
 			$_SERVER[`${HTTP_prefix}${name.toUpperCase().replace(/-/g, '_')}`] =
 				headers[name];
 		}
+
 		return $_SERVER;
 	}
 

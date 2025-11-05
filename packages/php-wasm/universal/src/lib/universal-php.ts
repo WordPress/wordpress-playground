@@ -101,12 +101,6 @@ export interface PHPRequest {
 	url: string;
 
 	/**
-	 * Request URL before any URL rewriting rules (e.g. apache .htaccess)
-	 * have been applied.
-	 */
-	urlBeforeRewriting?: string;
-
-	/**
 	 * Request headers.
 	 */
 	headers?: PHPRequestHeaders;
@@ -126,13 +120,6 @@ export interface PHPRunOptions {
 	 * have been applied.
 	 */
 	relativeUri?: string;
-
-	/**
-	 * Request path following the domain:port part –
-	 * before any URL rewriting rules (e.g. apache .htaccess)
-	 * have been applied.
-	 */
-	relativeUriBeforeRewriting?: string;
 
 	/**
 	 * Path of the .php file to execute.

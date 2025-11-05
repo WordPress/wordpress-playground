@@ -1464,8 +1464,9 @@ static void wasm_sapi_register_server_variables(zval *track_vars_array TSRMLS_DC
 	{
 		// Confirm path translated starts with the document root
 		/**
-		 * PHP_SELF represents the requested script path after any URL rewriting rules
-		 * (e.g. apache .htaccess) have been applied.
+		 * PHP_SELF represents the requested script path resolved to a filesystem path relative to the document
+		 * root. This is after any URL rewriting rules (e.g. apache .htaccess)
+		 * have been applied.
 		 *
 		 * For example:
 		 *

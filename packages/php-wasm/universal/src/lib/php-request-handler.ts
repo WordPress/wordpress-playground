@@ -84,6 +84,12 @@ export type PHPRequestHandlerFactoryArgs = PHPFactoryOptions & {
 	requestHandler: PHPRequestHandler;
 };
 
+interface PHPRequestWrapper {
+	request: PHPRequest;
+	originalRequestUrl: URL;
+	rewrittenRequestUrl: URL;
+}
+
 export type PHPRequestHandlerConfiguration = BaseConfiguration &
 	(
 		| {
@@ -453,11 +459,10 @@ export class PHPRequestHandler implements AsyncDisposable {
 		// file-not-found fallback actions may redirect to non-existent files.
 		if (primaryPhp.isFile(fsPath)) {
 			if (fsPath.endsWith('.php')) {
-				const effectiveRequest: PHPRequest = {
-					...request,
-					// Pass along URL with the #fragment filtered out
-					url: rewrittenRequestUrl.toString(),
-					urlBeforeRewriting: originalRequestUrl.toString(),
+				const effectiveRequest: PHPRequestWrapper = {
+					request,
+					originalRequestUrl,
+					rewrittenRequestUrl,
 				};
 				const response = await this.#spawnPHPAndDispatchRequest(
 					effectiveRequest,
@@ -514,7 +519,7 @@ export class PHPRequestHandler implements AsyncDisposable {
 	 * Spawns a new PHP instance and dispatches a request to it.
 	 */
 	async #spawnPHPAndDispatchRequest(
-		request: PHPRequest,
+		request: PHPRequestWrapper,
 		scriptPath: string
 	): Promise<PHPResponse> {
 		let spawnedPHP: SpawnedPHP | undefined = undefined;
@@ -549,9 +554,10 @@ export class PHPRequestHandler implements AsyncDisposable {
 	 */
 	async #dispatchToPHP(
 		php: PHP,
-		request: PHPRequest,
+		requestWrapper: PHPRequestWrapper,
 		scriptPath: string
 	): Promise<PHPResponse> {
+		const { request, rewrittenRequestUrl } = requestWrapper;
 		let preferredMethod: PHPRunOptions['method'] = 'GET';
 
 		const headers: Record<string, string> = {
@@ -573,7 +579,7 @@ export class PHPRequestHandler implements AsyncDisposable {
 		try {
 			const response = await php.run({
 				relativeUri: ensurePathPrefix(
-					toRelativeUrl(new URL(request.url)),
+					toRelativeUrl(new URL(rewrittenRequestUrl.toString())),
 					this.#PATHNAME
 				),
 				protocol: this.#PROTOCOL,
@@ -584,6 +590,7 @@ export class PHPRequestHandler implements AsyncDisposable {
 					HTTPS: this.#ABSOLUTE_URL.startsWith('https://')
 						? 'on'
 						: '',
+					...this.prepare$_SERVER(requestWrapper, scriptPath),
 				},
 				body,
 				scriptPath,
@@ -603,6 +610,156 @@ export class PHPRequestHandler implements AsyncDisposable {
 			}
 			throw error;
 		}
+	}
+
+	/**
+	 * Computes the essential $_SERVER entries for a request.
+	 *
+	 * php_wasm.c sets some defaults, assuming it runs as a CLI script.
+	 * This function overrides them with the values correct in the request
+	 * context.
+	 *
+	 * @TODO: Consolidate the $_SERVER setting logic into a single place instead
+	 *        of splitting it between the C SAPI and the TypeScript code. The PHP
+	 *        class has a `.cli()` method that could take care of the CLI-specific
+	 *        $_SERVER values.
+	 *
+	 * Path and URL-related $_SERVER entries are theoretically documented
+	 * at https://www.php.net/manual/en/reserved.variables.server.php,
+	 * but that page is not very helpful in practice. Here are tables derived
+	 * by interacting with PHP servers:
+	 *
+	 * ## PHP Dev Server
+	 *
+	 * Setup:
+	 *   – `/home/adam/subdir/script.php` file contains `<?php phpinfo(); ?>`
+	 *   – `php -S 127.0.0.1:8041` running in `/home/adam` directory
+	 *   – A request is sent to `http://127.0.0.1:8041/subdir/script.php/b.php/c.php`
+	 *
+	 * Results:
+	 *
+	 * $_SERVER['REQUEST_URI']    | `/subdir/script.php/b.php/c.php`
+	 * $_SERVER['SCRIPT_NAME']    | `/subdir/script.php`
+	 * $_SERVER['SCRIPT_FILENAME']| `/home/adam/subdir/script.php`
+	 * $_SERVER['PATH_INFO']      | `/b.php/c.php`
+	 * $_SERVER['PHP_SELF']       | `/subdir/script.php/b.php/c.php`
+	 *
+	 * ## Apache – rewriting rules
+	 *
+	 * Setup:
+	 *   – `/var/www/html/subdir/script.php` file contains `<?php phpinfo(); ?>`
+	 *   – Apache is listening on port 8041
+	 *   – The document root is `/var/www/html`
+	 *   – A request is sent to `http://127.0.0.1:8041/api/v1/user/123`
+	 *
+	 * .htaccess file:
+	 *
+	 * ```apache
+	 * RewriteEngine On
+	 * RewriteRule ^api/v1/user/([0-9]+)$ /subdir/script.php?endpoint=user&id=$1 [L,QSA]
+	 * ```
+	 *
+	 * Results:
+	 *
+	 * ```
+	 * $_SERVER['REQUEST_URI']             | /api/v1/user/123
+	 * $_SERVER['SCRIPT_NAME']             | /subdir/script.php
+	 * $_SERVER['SCRIPT_FILENAME']         | /var/www/html/subdir/script.php
+	 * $_SERVER['PATH_INFO']               | (not set)
+	 * $_SERVER['PHP_SELF']                | /subdir/script.php
+	 * $_SERVER['QUERY_STRING']            | endpoint=user&id=123
+	 * $_SERVER['REDIRECT_STATUS']         | 200
+	 * $_SERVER['REDIRECT_URL']            | /api/v1/user/123
+	 * $_SERVER['REDIRECT_QUERY_STRING']   | endpoint=user&id=123
+	 * === $_GET Variables ===
+	 * $_GET['endpoint']                   | user
+	 * $_GET['id']                         | 123
+	 * ```
+	 *
+	 * ## Apache – vanilla request
+	 *
+	 * Setup:
+	 *    – The same as above.
+	 *    – A request sent http://localhost:8041/subdir/script.php?param=value
+	 *
+	 * Results:
+	 *
+	 * ```
+	 * $_SERVER['REQUEST_URI']     | /subdir/script.php?param=value
+	 * $_SERVER['SCRIPT_NAME']     | /subdir/script.php
+	 * $_SERVER['SCRIPT_FILENAME'] | /var/www/html/subdir/script.php
+	 * $_SERVER['PATH_INFO']       | (not set)
+	 * $_SERVER['PHP_SELF']        | /subdir/script.php
+	 * $_SERVER['REDIRECT_URL']    | (not set)
+	 * $_SERVER['REDIRECT_STATUS'] | (not set)
+	 * $_SERVER['QUERY_STRING']    | param=value
+	 * $_SERVER['REQUEST_METHOD']  | GET
+	 * $_SERVER['DOCUMENT_ROOT']   | /var/www/html
+	 *
+	 * === $_GET Variables ===
+	 * $_GET['param']              | value
+	 * ```
+	 */
+	private prepare$_SERVER(
+		{
+			// request,
+			originalRequestUrl,
+			rewrittenRequestUrl,
+		}: PHPRequestWrapper,
+		resolvedScriptPath: string
+	): Record<string, string> {
+		const $_SERVER: Record<string, string> = {};
+		/**
+		 * REQUEST_URI
+		 *
+		 * Path + query string extracted from the
+		 * requested URL **after** applying URL rewriting.
+		 */
+		$_SERVER['REQUEST_URI'] =
+			rewrittenRequestUrl.pathname + rewrittenRequestUrl.search;
+
+		/**
+		 * SCRIPT_NAME
+		 *
+		 * Filesystem path of the script relative to the document root.
+		 * Note this is a filesystem path so URL rewriting is not applicable here.
+		 */
+		if (resolvedScriptPath.startsWith(this.#DOCROOT)) {
+			$_SERVER['SCRIPT_NAME'] = resolvedScriptPath.substring(
+				this.#DOCROOT.length
+			);
+		}
+
+		/**
+		 * PHP_SELF
+		 *
+		 * Path extracted from the requested URL up to
+		 * the resolved script path **before** applying URL
+		 * rewriting. See the php dev server example above.
+		 *
+		 * Requesting `/subdir/script.php/b.php/c.php` will set
+		 * PHP_SELF to `/subdir/script.php/b.php/c.php`.
+		 */
+		$_SERVER['PHP_SELF'] = originalRequestUrl.pathname;
+
+		/**
+		 * QUERY_STRING
+		 *
+		 * Query string extracted from the requested URL
+		 * **after** applying URL rewriting.
+		 */
+		$_SERVER['QUERY_STRING'] = rewrittenRequestUrl.search;
+
+		/**
+		 * There's a few relevant entries we are NOT setting here:
+		 *
+		 *    – SCRIPT_FILENAME: Absolute path to the script file. It is set by
+		 *      php_wasm.c.
+		 *    – REDIRECT_STATUS: Apache sets it, but it's optional so we skip it.
+		 *    – REDIRECT_URL: Apache sets it, but it's optional so we skip it.
+		 *    – REDIRECT_QUERY_STRING: Apache sets it, but it's optional so we skip it.
+		 */
+		return $_SERVER;
 	}
 
 	async [Symbol.asyncDispose]() {
