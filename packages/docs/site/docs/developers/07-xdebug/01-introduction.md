@@ -28,9 +28,7 @@ WordPress Playground supports two ways to debug with Xdebug:
 
 **Chrome DevTools**: Debug directly in your browser without any IDE setup. Great for quick debugging sessions or when you want to see everything in one place.
 
-**IDE integration**: Use VSCode or PhpStorm with full IDE features like code navigation, project-wide search, and advanced breakpoint conditions. Better for complex debugging scenarios.
-
-Both methods work with the same Xdebug setup. You can even use them simultaneously. Choose what works best for your workflow.
+**IDE integration**: Use VSCode or PhpStorm with full IDE features, including code navigation, project-wide search, and advanced breakpoint conditions. Better for complex debugging scenarios.
 
 ## What you'll need
 
