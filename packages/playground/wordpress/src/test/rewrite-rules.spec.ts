@@ -58,4 +58,26 @@ describe('Test WordPress rewrites', () => {
 			'/wp-content/themes/Newspaper/includes/wp-booster/wp-admin/images/plugins/tagdiv-small.png'
 		);
 	});
+
+	it('Should only target the initial wp-admin|wp-content|wp-includes path (2)', async () => {
+		expect(
+			applyRewriteRules(
+				'/wp-content/themes/Newspaper/includes/wp-booster/wp-content/images/plugins/tagdiv-small.png',
+				wordPressRewriteRules
+			)
+		).toBe(
+			'/wp-content/themes/Newspaper/includes/wp-booster/wp-content/images/plugins/tagdiv-small.png'
+		);
+	});
+
+	it('Should not strip wp-content prefix from a path', async () => {
+		expect(
+			applyRewriteRules(
+				'/wp-content/themes/twentytwentyfour/assets/images/windows.webp',
+				wordPressRewriteRules
+			)
+		).toBe(
+			'/wp-content/themes/twentytwentyfour/assets/images/windows.webp'
+		);
+	});
 });
