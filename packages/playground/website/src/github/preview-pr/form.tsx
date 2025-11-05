@@ -100,68 +100,68 @@ export default function PreviewPRForm({
 		const ref = branchName || prNumber;
 		const isBranch = !!branchName;
 
-		// Verify that the PR/branch exists and that GitHub CI finished building it
-		const zipArtifactUrl = buildArtifactUrl(ref, isBranch);
-		// Send the HEAD request to zipArtifactUrl to confirm the PR/branch and the artifact both exist
-		const response = await fetch(zipArtifactUrl + '&verify_only=true');
-		if (response.status !== 200) {
-			let error = 'invalid_pr_number';
-			try {
-				const json = await response.json();
-				if (json.error) {
-					error = json.error;
+		// For branches, skip verification since we'll use the most recent artifact with prefix matching
+		// For PRs, verify that the specific PR build exists
+		if (!isBranch) {
+			const zipArtifactUrl = buildArtifactUrl(ref, isBranch);
+			const response = await fetch(zipArtifactUrl + '&verify_only=true');
+			if (response.status !== 200) {
+				let error = 'invalid_pr_number';
+				try {
+					const json = await response.json();
+					if (json.error) {
+						error = json.error;
+					}
+				} catch (e) {
+					logger.error(e);
+					setError('An unexpected error occurred. Please try again.');
+					return;
 				}
-			} catch (e) {
-				logger.error(e);
-				setError('An unexpected error occurred. Please try again.');
-				return;
-			}
 
-			const refType = isBranch ? 'branch' : 'PR';
-
-			if (error === 'invalid_pr_number') {
-				setError(`The ${refType} ${ref} does not exist.`);
-			} else if (
-				error === 'artifact_not_found' ||
-				error === 'artifact_not_available'
-			) {
-				if (!isBranch && parseInt(ref) < 5749) {
+				if (error === 'invalid_pr_number' || error === 'no_ci_runs') {
+					setError(`The PR ${ref} does not exist.`);
+				} else if (
+					error === 'artifact_not_found' ||
+					error === 'artifact_not_available'
+				) {
+					if (parseInt(ref) < 5749) {
+						setError(
+							`The PR ${ref} predates the Pull Request previewer and requires a rebase before it can be previewed.`
+						);
+					} else {
+						// For PRs, retry since we expect a specific build to complete
+						let retryIn = 30000;
+						renderRetryIn(retryIn, false);
+						const timerInterval = setInterval(() => {
+							retryIn -= 1000;
+							if (retryIn <= 0) {
+								retryIn = 0;
+							}
+							renderRetryIn(retryIn, false);
+						}, 1000);
+						const scheduledRetry = setTimeout(() => {
+							previewPr(ref);
+						}, retryIn);
+						cleanupRetry = () => {
+							clearInterval(timerInterval);
+							clearTimeout(scheduledRetry);
+							cleanupRetry = () => {};
+						};
+					}
+				} else if (error === 'artifact_invalid') {
 					setError(
-						`The PR ${ref} predates the Pull Request previewer and requires a rebase before it can be previewed.`
+						`The PR ${ref} requires a rebase before it can be previewed.`
 					);
 				} else {
-					let retryIn = 30000;
-					renderRetryIn(retryIn, isBranch);
-					const timerInterval = setInterval(() => {
-						retryIn -= 1000;
-						if (retryIn <= 0) {
-							retryIn = 0;
-						}
-						renderRetryIn(retryIn, isBranch);
-					}, 1000);
-					const scheduledRetry = setTimeout(() => {
-						previewPr(ref);
-					}, retryIn);
-					cleanupRetry = () => {
-						clearInterval(timerInterval);
-						clearTimeout(scheduledRetry);
-						cleanupRetry = () => {};
-					};
+					setError(
+						`The PR ${ref} couldn't be previewed due to an unexpected error. Please try again later or fill an issue in the WordPress Playground repository.`
+					);
+					// https://github.com/WordPress/wordpress-playground/issues/new
 				}
-			} else if (error === 'artifact_invalid') {
-				setError(
-					`The ${refType} ${ref} requires a rebase before it can be previewed.`
-				);
-			} else {
-				setError(
-					`The ${refType} ${ref} couldn't be previewed due to an unexpected error. Please try again later or fill an issue in the WordPress Playground repository.`
-				);
-				// https://github.com/WordPress/wordpress-playground/issues/new
+
+				setSubmitting(false);
+				return;
 			}
-
-			setSubmitting(false);
-
-			return;
 		}
 
 		// Redirect to the Playground site with the Blueprint to download and apply the PR/branch
