@@ -1,6 +1,5 @@
 import type { SiteInfo } from '../redux/slice-sites';
 import { updateUrl } from './router-hooks';
-import { decodeBase64ToString } from '../../base64';
 
 export function redirectTo(url: string) {
 	window.history.pushState({}, '', url);
@@ -22,18 +21,6 @@ interface QueryAPIParams {
 	'import-content'?: string;
 	url?: string;
 	'blueprint-url'?: string;
-}
-
-export function parseBlueprint(rawData: string) {
-	try {
-		try {
-			return JSON.parse(rawData);
-		} catch {
-			return JSON.parse(decodeBase64ToString(rawData));
-		}
-	} catch {
-		throw new Error('Invalid blueprint');
-	}
 }
 
 export class PlaygroundRoute {

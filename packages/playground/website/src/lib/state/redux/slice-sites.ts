@@ -12,13 +12,11 @@ import {
 	BlueprintReflection,
 	type RuntimeConfiguration,
 	resolveRuntimeConfiguration,
-} from '@wp-playground/blueprints';
-import {
 	type BlueprintSource,
 	resolveBlueprintFromURL,
 	type ResolvedBlueprint,
 	applyQueryOverrides,
-} from '../url/resolve-blueprint-from-url';
+} from '@wp-playground/blueprints';
 import { logger } from '@php-wasm/logger';
 
 /**

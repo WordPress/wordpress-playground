@@ -1,137 +1,36 @@
-import type {
-	BlueprintV1Declaration,
-	BlueprintBundle,
-	StepDefinition,
-	BlueprintV1,
-} from '@wp-playground/client';
-import {
-	getBlueprintDeclaration,
-	isBlueprintBundle,
-	resolveRemoteBlueprint,
-} from '@wp-playground/client';
-import { parseBlueprint } from './router';
-import { OverlayFilesystem, InMemoryFilesystem } from '@wp-playground/storage';
+import type { BlueprintV1Declaration } from './v1/types';
+import type { BlueprintBundle } from './types';
+import { getBlueprintDeclaration, isBlueprintBundle } from './v1/compile';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 
-export type BlueprintSource =
-	| {
-			type: 'remote-url';
-			url: string;
-	  }
-	| {
-			type: 'inline-string';
-	  }
-	| {
-			type: 'none';
-	  };
-
-export type ResolvedBlueprint = {
-	blueprint: BlueprintV1;
-	source: BlueprintSource;
-};
-
-export async function resolveBlueprintFromURL(
-	url: URL,
-	defaultBlueprint?: string
-): Promise<ResolvedBlueprint> {
-	const query = url.searchParams;
-	const fragment = decodeURI(url.hash || '#').substring(1);
-
-	/**
-	 * If the URL has no parameters or fragment, and a default blueprint is provided,
-	 * use the default blueprint.
-	 */
-	if (
-		window.self === window.top &&
-		!query.size &&
-		!fragment.length &&
-		defaultBlueprint
-	) {
-		return {
-			blueprint: await resolveRemoteBlueprint(defaultBlueprint),
-			source: {
-				type: 'remote-url',
-				url: defaultBlueprint,
-			},
-		};
-	} else if (query.has('blueprint-url')) {
-		/*
-		 * Support passing blueprints via query parameter, e.g.:
-		 * ?blueprint-url=https://example.com/blueprint.json
-		 */
-		return {
-			blueprint: await resolveRemoteBlueprint(
-				query.get('blueprint-url')!
-			),
-			source: {
-				type: 'remote-url',
-				url: query.get('blueprint-url')!,
-			},
-		};
-	} else if (fragment.length) {
-		/*
-		 * Support passing blueprints in the URI fragment, e.g.:
-		 * /#{"landingPage": "/?p=4"}
-		 */
-		return {
-			blueprint: parseBlueprint(fragment),
-			source: {
-				type: 'inline-string',
-			},
-		};
-	} else {
-		const importWxrQueryArg =
-			query.get('import-wxr') || query.get('import-content');
-
-		// This Blueprint is intentionally missing most query args (like login).
-		// They are added below to ensure they're also applied to Blueprints passed
-		// via the hash fragment (#{...}) or via the `blueprint-url` query param.
-		return {
-			blueprint: {
-				plugins: query.getAll('plugin'),
-				steps: [
-					importWxrQueryArg &&
-						/^(http(s?)):\/\//i.test(importWxrQueryArg) &&
-						({
-							step: 'importWxr',
-							file: {
-								resource: 'url',
-								url: importWxrQueryArg,
-							},
-						} as StepDefinition),
-					query.get('import-site') &&
-						/^(http(s?)):\/\//i.test(query.get('import-site')!) &&
-						({
-							step: 'importWordPressFiles',
-							wordPressFilesZip: {
-								resource: 'url',
-								url: query.get('import-site')!,
-							},
-						} as StepDefinition),
-					...query.getAll('theme').map(
-						(theme, index, themes) =>
-							({
-								step: 'installTheme',
-								themeData: {
-									resource: 'wordpress.org/themes',
-									slug: theme,
-								},
-								options: {
-									// Activate only the last theme in the list.
-									activate: index === themes.length - 1,
-								},
-								progress: { weight: 2 },
-							} as StepDefinition)
-					),
-				].filter(Boolean),
-			},
-			source: {
-				type: 'none',
-			},
-		};
-	}
-}
-
+/**
+ * Apply query parameter overrides to a blueprint.
+ *
+ * This function allows users to override various blueprint settings via URL query parameters:
+ * - `php`: Override PHP version
+ * - `wp`: Override WordPress version
+ * - `networking`: Enable/disable networking
+ * - `language`: Set site language
+ * - `multisite`: Enable multisite
+ * - `login`: Enable/disable auto-login
+ * - `url`: Set landing page URL
+ * - `core-pr`: Use a WordPress core PR build
+ * - `gutenberg-pr`: Install a Gutenberg PR build
+ *
+ * @param blueprint - The blueprint or blueprint bundle to apply overrides to
+ * @param query - URL search parameters containing the overrides
+ * @returns The blueprint with overrides applied
+ *
+ * @example
+ * ```ts
+ * const blueprint = { landingPage: '/' };
+ * const query = new URLSearchParams('php=8.2&wp=6.4&language=es_ES');
+ * const updated = await applyQueryOverrides(blueprint, query);
+ * // updated.preferredVersions.php === '8.2'
+ * // updated.preferredVersions.wp === '6.4'
+ * // updated.steps includes setSiteLanguage step
+ * ```
+ */
 export async function applyQueryOverrides(
 	blueprint: BlueprintV1Declaration | BlueprintBundle,
 	query: URLSearchParams
@@ -141,6 +40,9 @@ export async function applyQueryOverrides(
 	 * via query params.
 	 */
 	if (isBlueprintBundle(blueprint)) {
+		const { OverlayFilesystem, InMemoryFilesystem } = await import(
+			'@wp-playground/storage'
+		);
 		let blueprintObject = await getBlueprintDeclaration(blueprint);
 		blueprintObject = applyQueryOverridesToDeclaration(
 			blueprintObject,

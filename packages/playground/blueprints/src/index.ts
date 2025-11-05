@@ -65,6 +65,14 @@ export { resolveRemoteBlueprint } from './lib/resolve-remote-blueprint';
 export { wpContentFilesExcludedFromExport } from './lib/utils/wp-content-files-excluded-from-exports';
 export { resolveRuntimeConfiguration } from './lib/resolve-runtime-configuration';
 
+export { resolveBlueprintFromURL } from './lib/resolve-blueprint-from-url';
+export type {
+	BlueprintSource,
+	ResolvedBlueprint,
+} from './lib/resolve-blueprint-from-url';
+export { applyQueryOverrides } from './lib/apply-query-overrides';
+export { parseBlueprint } from './lib/utils/parse-blueprint';
+
 /**
  * @deprecated This function is a no-op. Playground no longer uses a proxy to download plugins and themes.
  *             To be removed in v0.3.0
