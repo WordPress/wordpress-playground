@@ -378,10 +378,17 @@ export class PHPRequestHandler implements AsyncDisposable {
 		let fsPath = joinPaths(
 			this.#DOCROOT,
 			/**
-			 * URL.pathname returns a URL-encoded path. We need to decode it
-			 * before using it as a filesystem path.
+			 * Turn a URL such as `https://playground/scope:my-site/wp-admin/index.php`
+			 * into a site-relative path, such as `/wp-admin/index.php`.
 			 */
-			decodeURIComponent(rewrittenRequestUrl.pathname)
+			removePathPrefix(
+				/**
+				 * URL.pathname returns a URL-encoded path. We need to decode it
+				 * before using it as a filesystem path.
+				 */
+				decodeURIComponent(rewrittenRequestUrl.pathname),
+				this.#PATHNAME
+			)
 		);
 		if (primaryPhp.isDir(fsPath)) {
 			// Ensure directory URIs have a trailing slash. Otherwise,
