@@ -217,5 +217,9 @@
 	},
 	"optionalDependencies": {
 		"fs-ext": "2.1.1"
+	},
+	"volta": {
+		"node": "23.10.0",
+		"npm": "10.9.0"
 	}
 }

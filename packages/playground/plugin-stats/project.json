@@ -1,0 +1,16 @@
+{
+	"name": "playground-plugin-stats",
+	"$schema": "../../../node_modules/nx/schemas/project-schema.json",
+	"sourceRoot": "packages/playground/plugin-stats",
+	"projectType": "application",
+	"targets": {
+		"start": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"node --experimental-strip-types --experimental-transform-types --import ./packages/meta/src/node-es-module-loader/register.mts --no-warnings=ExperimentalWarning packages/playground/plugin-stats/plugin-stats.ts"
+				]
+			}
+		}
+	}
+}
