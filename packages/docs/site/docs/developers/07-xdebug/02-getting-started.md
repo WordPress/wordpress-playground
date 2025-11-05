@@ -15,7 +15,7 @@ First, Xdebug is present in two different CLIs:
 -   **`@php-wasm/cli`**: Run standalone PHP scripts. Use this when debugging PHP code without needing a WordPress environment.
 -   **`@wp-playground/cli`**: Run a full WordPress installation. Useful for debugging WordPress plugins, themes, or core functionality.
 
-For this guide, we'll use `@wp-playground/cli`. If you're not familiar with the tool, we recommend reading the [`@wp-playground/cli` guide](/developers/local-development/wp-playground-cli), but the same process can also be applied to debugging PHP applications with `@php-wasm/cli`.
+For this guide, we'll use `@wp-playground/cli`. Suppose you're not familiar with the tool. In that case, we recommend reading the [`@wp-playground/cli` guide](/developers/local-development/wp-playground-cli), but the same process can also be applied to debugging PHP applications with `@php-wasm/cli`.
 
 ## Quick start with `npx`
 
@@ -35,7 +35,7 @@ To debug with Chrome DevTools, add the `--experimental-devtools` flag:
 npx @wp-playground/cli@latest server --xdebug --experimental-devtools
 ```
 
-The terminal will display a URL to connect Chrome DevTools:
+The terminal will display a URL to connect to Chrome DevTools:
 
 ```bash
 Starting a PHP server...
@@ -97,13 +97,13 @@ The Playground CLI(`@wp-playground/cli`) will automatically detect the plugin fo
 
 ## Starting with IDE integration
 
-Similar to the process with DevTools, let's use the same plugin code from before to debug with VSCode, add the `--experimental-unsafe-ide-integration=vscode` flag. This flag will optimize the setup process for VSCode. If you're working with PhpStorm, just add the `--experimental-unsafe-ide-integration=phpstorm` flag.
+Similar to the process with DevTools, let's use the same plugin code from before to debug with VSCode, and add the `--experimental-unsafe-ide-integration=vscode` flag. This flag will optimize the setup process for VSCode. If you're working with PhpStorm, just add the `--experimental-unsafe-ide-integration=phpstorm` flag.
 
 To debug in VSCode you'll need the following prerequisites:
 
 1. An extension to add PHP profiling support, for example, [PHP Profiler](https://open-vsx.org/extension/devsense/profiler-php-vscode)
-2. A `.vscode/` folder. If the `launch.json` file doesn't exist, don't worry, `@wp-playground/cli` will create it.
-3. Enable breakpoints in your IDE. Some IDEs come with this feature disabled, so pay attention to this detail.
+2. A `.vscode/` folder for VSCode and `.idea` for PhpStorm.
+3. Enable breakpoints in your IDE. Some IDEs come with this feature disabled, so be aware of this detail.
 
 If everything is ready, you run the command:
 
