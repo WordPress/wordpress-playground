@@ -27,7 +27,7 @@ import { selectSiteBySlug } from './slice-sites';
 // @ts-ignore
 import { corsProxyUrl } from 'virtual:cors-proxy-url';
 import { modalSlugs } from '../../../components/layout';
-import { createGitHubAuthHeaders } from '../../github/git-auth-helpers';
+import { createGitHubAuthHeaders } from '../../../github/git-auth-helpers';
 
 export function bootSiteClient(
 	siteSlug: string,
