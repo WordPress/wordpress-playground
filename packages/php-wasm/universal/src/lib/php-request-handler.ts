@@ -569,7 +569,7 @@ export class PHPRequestHandler implements AsyncDisposable {
 	 * Spawns a new PHP instance and dispatches a request to it.
 	 */
 	async #spawnPHPAndDispatchRequest(
-		request: PHPRequestWrapper,
+		requestWrapper: PHPRequestWrapper,
 		scriptPath: string
 	): Promise<PHPResponse> {
 		let spawnedPHP: SpawnedPHP | undefined = undefined;
@@ -587,7 +587,7 @@ export class PHPRequestHandler implements AsyncDisposable {
 		try {
 			return await this.#dispatchToPHP(
 				spawnedPHP.php,
-				request,
+				requestWrapper,
 				scriptPath
 			);
 		} finally {
