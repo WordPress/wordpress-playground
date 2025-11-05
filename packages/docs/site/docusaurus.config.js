@@ -32,7 +32,7 @@ const config = {
 	},
 
 	// Even if you don't use internalization, you can use this field to set useful
-	// metadata like html lang. For example, if your site is Chinese, you may want
+	// metadata like HTML lang. For example, if your site is Chinese, you may want
 	// to replace "en" with "zh-Hans".
 	i18n: {
 		defaultLocale: 'en',
@@ -77,7 +77,7 @@ const config = {
 			{
 				quality: 70,
 				max: 1030, // max resized image's size.
-				min: 640, // min resized image's size. if original is lower, use that size.
+				min: 640, // min resized image's size. If the original is lower, use that size.
 				steps: 2, // the max number of images generated between min and max (inclusive)
 				disableInDev: false,
 			},
@@ -100,21 +100,6 @@ const config = {
 			},
 		],
 		'./plugins/kapa-ai-plugin.js',
-		() => ({
-			name: 'component-creator-alias',
-			configureWebpack() {
-				return {
-					resolve: {
-						alias: {
-							'@docusaurus/ComponentCreator': path.resolve(
-								__dirname,
-								'src/patches/ComponentCreator.js'
-							),
-						},
-					},
-				};
-			},
-		}),
 	],
 
 	presets: [
