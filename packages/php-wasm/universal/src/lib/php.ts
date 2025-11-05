@@ -650,9 +650,8 @@ export class PHP implements Disposable {
 					);
 				}
 				this.#setRelativeRequestUri(
-					request.relativeUriBeforeRewriting ||
-						request.relativeUri ||
-						''
+					// request.relativeUriBeforeRewriting ||
+					request.relativeUri || ''
 				);
 				this.#setRequestMethod(request.method || 'GET');
 				const requestHeaders = normalizeHeaders(request.headers || {});

@@ -361,21 +361,22 @@ export class PHPRequestHandler implements AsyncDisposable {
 	 */
 	async request(request: PHPRequest): Promise<PHPResponse> {
 		const isAbsolute = URL.canParse(request.url);
-		const requestedUrl = new URL(
+		const originalRequestUrl = new URL(
 			// Remove the hash part of the URL as it's not meant for the server.
 			request.url.split('#')[0],
 			isAbsolute ? undefined : DEFAULT_BASE_URL
 		);
 
+		// Apply the rewrite rules to the original request URL:
 		const siteRelativePath = removePathPrefix(
-			decodeURIComponent(requestedUrl.pathname),
+			decodeURIComponent(originalRequestUrl.pathname),
 			this.#PATHNAME
 		);
 		const rewrittenRequestPath = applyRewriteRules(
 			siteRelativePath,
 			this.rewriteRules
 		);
-		const rewrittenRequestUrl = new URL(requestedUrl.toString());
+		const rewrittenRequestUrl = new URL(originalRequestUrl.toString());
 		rewrittenRequestUrl.pathname = joinPaths(
 			this.#PATHNAME,
 			rewrittenRequestPath
@@ -410,7 +411,7 @@ export class PHPRequestHandler implements AsyncDisposable {
 			if (!fsPath.endsWith('/')) {
 				return new PHPResponse(
 					301,
-					{ Location: [`${requestedUrl.pathname}/`] },
+					{ Location: [`${rewrittenRequestUrl.pathname}/`] },
 					new Uint8Array(0)
 				);
 			}
@@ -456,7 +457,7 @@ export class PHPRequestHandler implements AsyncDisposable {
 					...request,
 					// Pass along URL with the #fragment filtered out
 					url: rewrittenRequestUrl.toString(),
-					urlBeforeRewriting: requestedUrl.toString(),
+					urlBeforeRewriting: originalRequestUrl.toString(),
 				};
 				const response = await this.#spawnPHPAndDispatchRequest(
 					effectiveRequest,
