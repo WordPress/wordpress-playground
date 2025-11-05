@@ -244,32 +244,44 @@ function applyQueryOverridesToDeclaration(
 		});
 	}
 
-	if (query.has('core-pr')) {
-		const prNumber = query.get('core-pr');
-		blueprint.preferredVersions!.wp = `https://playground.wordpress.net/plugin-proxy.php?org=WordPress&repo=wordpress-develop&workflow=Test%20Build%20Processes&artifact=wordpress-build-${prNumber}&pr=${prNumber}`;
+	// Handle WordPress core PR or branch preview
+	const coreRef = query.get('core-pr') || query.get('core-branch');
+	if (coreRef) {
+		const refType = query.has('core-pr') ? 'pr' : 'branch';
+		// For WordPress PRs: artifact name is wordpress-build-{PR_NUMBER}
+		// For WordPress branches: artifact name is wordpress-build-{COMMIT_HASH}
+		//   We use wordpress-build- (with trailing dash) to trigger prefix matching in plugin-proxy.php
+		const artifactName = query.has('core-pr')
+			? `wordpress-build-${coreRef}`
+			: 'wordpress-build-';
+		blueprint.preferredVersions!.wp = `https://playground.wordpress.net/plugin-proxy.php?org=WordPress&repo=wordpress-develop&workflow=Test%20Build%20Processes&artifact=${artifactName}&${refType}=${coreRef}`;
 	}
 
-	if (query.has('gutenberg-pr')) {
-		const prNumber = query.get('gutenberg-pr');
+	// Handle Gutenberg PR or branch preview
+	const gutenbergRef =
+		query.get('gutenberg-pr') || query.get('gutenberg-branch');
+	if (gutenbergRef) {
+		const refType = query.has('gutenberg-pr') ? 'pr' : 'branch';
+		const refLabel = query.has('gutenberg-pr') ? 'PR' : 'branch';
 		blueprint.steps = blueprint.steps || [];
 		blueprint.steps.unshift(
 			{
 				step: 'mkdir',
-				path: '/tmp/pr',
+				path: '/tmp/gutenberg',
 			},
 			{
 				step: 'writeFile',
-				path: '/tmp/pr/pr.zip',
+				path: '/tmp/gutenberg/artifact.zip',
 				data: {
 					resource: 'url',
-					url: `/plugin-proxy.php?org=WordPress&repo=gutenberg&workflow=Build%20Gutenberg%20Plugin%20Zip&artifact=gutenberg-plugin&pr=${prNumber}`,
-					caption: `Downloading Gutenberg PR ${prNumber}`,
+					url: `/plugin-proxy.php?org=WordPress&repo=gutenberg&workflow=Build%20Gutenberg%20Plugin%20Zip&artifact=gutenberg-plugin&${refType}=${gutenbergRef}`,
+					caption: `Downloading Gutenberg ${refLabel} ${gutenbergRef}`,
 				},
 			},
 			/**
 			 * GitHub CI artifacts are doubly zipped:
 			 *
-			 * pr.zip
+			 * artifact.zip
 			 *    gutenberg.zip
 			 *       gutenberg.php
 			 *       ... other files ...
@@ -280,14 +292,14 @@ function applyQueryOverridesToDeclaration(
 			 */
 			{
 				step: 'unzip',
-				zipPath: '/tmp/pr/pr.zip',
-				extractToPath: '/tmp/pr',
+				zipPath: '/tmp/gutenberg/artifact.zip',
+				extractToPath: '/tmp/gutenberg',
 			},
 			{
 				step: 'installPlugin',
 				pluginData: {
 					resource: 'vfs',
-					path: '/tmp/pr/gutenberg.zip',
+					path: '/tmp/gutenberg/gutenberg.zip',
 				},
 			}
 		);
