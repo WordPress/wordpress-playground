@@ -84,12 +84,6 @@ export type PHPRequestHandlerFactoryArgs = PHPFactoryOptions & {
 	requestHandler: PHPRequestHandler;
 };
 
-interface PHPRequestWrapper {
-	request: PHPRequest;
-	originalRequestUrl: URL;
-	rewrittenRequestUrl: URL;
-}
-
 export type PHPRequestHandlerConfiguration = BaseConfiguration &
 	(
 		| {
@@ -490,13 +484,10 @@ export class PHPRequestHandler implements AsyncDisposable {
 		// file-not-found fallback actions may redirect to non-existent files.
 		if (primaryPhp.isFile(fsPath)) {
 			if (fsPath.endsWith('.php')) {
-				const effectiveRequest: PHPRequestWrapper = {
+				const response = await this.#spawnPHPAndDispatchRequest(
 					request,
 					originalRequestUrl,
 					rewrittenRequestUrl,
-				};
-				const response = await this.#spawnPHPAndDispatchRequest(
-					effectiveRequest,
 					fsPath
 				);
 
@@ -576,7 +567,9 @@ export class PHPRequestHandler implements AsyncDisposable {
 	 * Spawns a new PHP instance and dispatches a request to it.
 	 */
 	async #spawnPHPAndDispatchRequest(
-		requestWrapper: PHPRequestWrapper,
+		request: PHPRequest,
+		originalRequestUrl: URL,
+		rewrittenRequestUrl: URL,
 		scriptPath: string
 	): Promise<PHPResponse> {
 		let spawnedPHP: SpawnedPHP | undefined = undefined;
@@ -594,7 +587,9 @@ export class PHPRequestHandler implements AsyncDisposable {
 		try {
 			return await this.#dispatchToPHP(
 				spawnedPHP.php,
-				requestWrapper,
+				request,
+				originalRequestUrl,
+				rewrittenRequestUrl,
 				scriptPath
 			);
 		} finally {
@@ -611,10 +606,11 @@ export class PHPRequestHandler implements AsyncDisposable {
 	 */
 	async #dispatchToPHP(
 		php: PHP,
-		requestWrapper: PHPRequestWrapper,
+		request: PHPRequest,
+		originalRequestUrl: URL,
+		rewrittenRequestUrl: URL,
 		scriptPath: string
 	): Promise<PHPResponse> {
-		const { request, rewrittenRequestUrl } = requestWrapper;
 		let preferredMethod: PHPRunOptions['method'] = 'GET';
 
 		const headers: Record<string, string> = {
@@ -641,18 +637,11 @@ export class PHPRequestHandler implements AsyncDisposable {
 				),
 				protocol: this.#PROTOCOL,
 				method: request.method || preferredMethod,
-				$_SERVER: {
-					REMOTE_ADDR: '127.0.0.1',
-					DOCUMENT_ROOT: this.#DOCROOT,
-					HTTPS: this.#ABSOLUTE_URL.startsWith('https://')
-						? 'on'
-						: '',
-					...this.prepare$_SERVER(
-						requestWrapper.originalRequestUrl,
-						requestWrapper.rewrittenRequestUrl,
-						scriptPath
-					),
-				},
+				$_SERVER: this.prepare$_SERVER(
+					originalRequestUrl,
+					rewrittenRequestUrl,
+					scriptPath
+				),
 				body,
 				scriptPath,
 				headers,
@@ -766,7 +755,12 @@ export class PHPRequestHandler implements AsyncDisposable {
 		rewrittenRequestUrl: URL,
 		resolvedScriptPath: string
 	): Record<string, string> {
-		const $_SERVER: Record<string, string> = {};
+		const $_SERVER: Record<string, string> = {
+			REMOTE_ADDR: '127.0.0.1',
+			DOCUMENT_ROOT: this.#DOCROOT,
+			HTTPS: this.#ABSOLUTE_URL.startsWith('https://') ? 'on' : '',
+		};
+
 		/**
 		 * REQUEST_URI
 		 *
