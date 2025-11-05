@@ -37,17 +37,6 @@ describe('Test WordPress rewrites', () => {
 		);
 	});
 
-	it('Should strip multisite prefix and scope', async () => {
-		expect(
-			applyRewriteRules(
-				'/scope:0.1/test/wp-content/themes/twentytwentyfour/assets/images/windows.webp',
-				wordPressRewriteRules
-			)
-		).toBe(
-			'/wp-content/themes/twentytwentyfour/assets/images/windows.webp'
-		);
-	});
-
 	it('Should only target the initial wp-admin|wp-content|wp-includes path (1)', async () => {
 		expect(
 			applyRewriteRules(

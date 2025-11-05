@@ -144,12 +144,9 @@ export const wordPressRewriteRules: RewriteRule[] = [
 	 */
 	{
 		match: new RegExp(
-			`^(` +
-				/* The .htaccess rule does not have an explicit initial slash,
-				   but it's still implied by `RewriteBase /` */
-				`/` +
-				`[_0-9a-zA-Z-/]+` +
-				`)?` +
+			/* The .htaccess rule does not have an explicit initial slash,
+				but it's still implied by `RewriteBase /` */
+			`^(/[_0-9a-zA-Z-]+)?` +
 				/**
 				 * Avoid discarding the initial slash of the rewritten URL.
 				 * .htaccess places the trailing slash in the first group. It
