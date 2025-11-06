@@ -193,11 +193,27 @@ export function bootSiteClient(
 			}
 		} catch (e) {
 			logger.error(e);
+
+			// Store the error details for display
+			(window as any).__playgroundBlueprintError = e;
+
 			if (
 				(e as any).name === 'ArtifactExpiredError' ||
 				(e as any).originalErrorClassName === 'ArtifactExpiredError'
 			) {
 				dispatch(setActiveSiteError('github-artifact-expired'));
+			} else if (
+				e instanceof Error &&
+				e.message.includes(
+					'Blueprint resource of type "bundled" requires a filesystem'
+				)
+			) {
+				dispatch(setActiveSiteError('blueprint-filesystem-required'));
+			} else if (
+				e instanceof Error &&
+				e.message.startsWith('Invalid Blueprint:')
+			) {
+				dispatch(setActiveSiteError('blueprint-validation-failed'));
 			} else {
 				dispatch(setActiveSiteError('site-boot-failed'));
 				dispatch(setActiveModal(modalSlugs.ERROR_REPORT));

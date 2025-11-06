@@ -193,7 +193,16 @@ export abstract class Resource<T extends File | Directory> {
 			case 'bundled':
 				if (!streamBundledFile) {
 					throw new Error(
-						'Filesystem is required for blueprint resources'
+						'Blueprint resource of type "bundled" requires a filesystem.\n\n' +
+							'This Blueprint refers to files that should be bundled with it (like images, plugins, or themes), ' +
+							'but the filesystem needed to access these files is not available. This usually happens when:\n\n' +
+							"1. You're trying to load a Blueprint as a standalone JSON file that was meant to be part of a bundle\n" +
+							'2. The Blueprint was not packaged correctly as a blueprint.zip file\n\n' +
+							'To fix this:\n' +
+							"• If you're loading from a URL, make sure all referenced files are accessible relative to the Blueprint file\n" +
+							"• If you're using a blueprint.zip file, ensure it contains all the files referenced in the Blueprint\n" +
+							'• Check that the "resource": "bundled" references in your Blueprint match actual files in your bundle\n\n' +
+							'Learn more about Blueprint resources: https://wordpress.github.io/wordpress-playground/blueprints/data-format#resources'
 					);
 				}
 				resource = new BundledResource(

@@ -20,6 +20,7 @@ import {
 	applyQueryOverrides,
 } from '../url/resolve-blueprint-from-url';
 import { logger } from '@php-wasm/logger';
+import { setActiveSiteError } from './slice-ui';
 
 /**
  * The Site model used to represent a site within Playground.
@@ -286,15 +287,47 @@ export function setTemporarySiteSpec(
 			);
 		} catch (e) {
 			logger.error(
-				'Error resolving blueprint, fallink back to a blank blueprint.',
+				'Error resolving blueprint: Blueprint could not be downloaded or loaded.',
 				e
 			);
-			// TODO: This is a hack – we are just abusing a URL-oriented
-			// function to create a completely blank Blueprint. Let's fix this by
-			// making default creation first-class.
-			resolvedBlueprint = await resolveBlueprintFromURL(
-				new URL('https://w.org')
-			);
+
+			// Store the error details for the error modal
+			(window as any).__playgroundBlueprintError = e;
+
+			// Show error to the user - create a minimal site to display the error
+			const errorSite: SiteInfo = {
+				slug: deriveSlugFromSiteName(siteName),
+				originalUrlParams: newSiteUrlParams,
+				metadata: {
+					name: siteName,
+					id: crypto.randomUUID(),
+					whenCreated: Date.now(),
+					storage: 'none' as const,
+					originalBlueprint: {},
+					originalBlueprintSource: {
+						type: 'url',
+						url: playgroundUrlWithQueryApiArgs.toString(),
+					},
+					runtimeConfiguration: {
+						phpVersion: '8.0',
+						wpVersion: 'latest',
+						intl: false,
+						networking: true,
+						extraLibraries: [],
+						constants: {},
+					},
+				},
+			};
+
+			dispatch(sitesSlice.actions.addSite(errorSite));
+			dispatch(sitesSlice.actions.setFirstTemporarySiteCreated());
+
+			// Set the error state for this site
+			setTimeout(() => {
+				dispatch(setActiveSiteError('blueprint-fetch-failed'));
+			}, 0);
+
+			return errorSite;
 		}
 
 		const reflection = await BlueprintReflection.create(

@@ -8,7 +8,10 @@ export type SiteError =
 	| 'directory-handle-unknown-error'
 	// @TODO: Improve name?
 	| 'site-boot-failed'
-	| 'github-artifact-expired';
+	| 'github-artifact-expired'
+	| 'blueprint-fetch-failed'
+	| 'blueprint-filesystem-required'
+	| 'blueprint-validation-failed';
 
 export type SiteManagerSection = 'sidebar' | 'site-details' | 'blueprints';
 export interface UIState {

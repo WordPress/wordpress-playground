@@ -297,10 +297,93 @@ function compileBlueprintJson(
 
 	const { valid, errors } = validateBlueprint(blueprint);
 	if (!valid) {
+		// Format all validation errors with context
+		const errorMessages = errors!
+			.map((err, index) => {
+				const path = err.instancePath || '/';
+				let message = err.message || 'validation failed';
+
+				// For "additional properties" errors, highlight the actual problematic key
+				let highlightedSnippet = '';
+				if (message.includes('must NOT have additional properties')) {
+					// Extract the property name from the error params
+					const additionalProperty = (err.params as any)
+						?.additionalProperty;
+					if (additionalProperty) {
+						message = `has unexpected property "${additionalProperty}"`;
+
+						// Try to show the offending key highlighted
+						try {
+							const pathParts = path.split('/').filter(Boolean);
+							let currentValue: any = blueprint;
+							for (const part of pathParts) {
+								if (
+									currentValue &&
+									typeof currentValue === 'object'
+								) {
+									currentValue = currentValue[part];
+								}
+							}
+
+							if (
+								currentValue &&
+								typeof currentValue === 'object'
+							) {
+								const offendingValue =
+									currentValue[additionalProperty];
+								const valueStr = JSON.stringify(offendingValue);
+								highlightedSnippet = `\n  "${additionalProperty}": ${valueStr}\n  ${'^'.repeat(
+									additionalProperty.length + 2
+								)} This property is not recognized`;
+							}
+						} catch {
+							// If we can't extract context, that's okay
+						}
+					}
+				} else {
+					// For other errors, try to extract the offending value
+					try {
+						const pathParts = path.split('/').filter(Boolean);
+						let currentValue: any = blueprint;
+						for (const part of pathParts) {
+							if (
+								currentValue &&
+								typeof currentValue === 'object'
+							) {
+								currentValue = currentValue[part];
+							}
+						}
+						if (currentValue !== undefined) {
+							const valueStr = JSON.stringify(
+								currentValue,
+								null,
+								2
+							);
+							// Limit snippet length
+							const snippet =
+								valueStr.length > 200
+									? valueStr.substring(0, 200) + '...'
+									: valueStr;
+							highlightedSnippet = `\n  Value: ${snippet}`;
+						}
+					} catch {
+						// If we can't extract context, that's okay
+					}
+				}
+
+				return `${
+					index + 1
+				}. At path "${path}": ${message}${highlightedSnippet}`;
+			})
+			.join('\n\n');
+
 		const e = new Error(
-			`Invalid blueprint: ${errors![0].message} at ${
-				errors![0].instancePath
-			}`
+			`Invalid Blueprint: The Blueprint does not conform to the schema.\n\n` +
+				`Found ${
+					errors!.length
+				} validation error(s):\n\n${errorMessages}\n\n` +
+				`Please review your Blueprint and fix these issues. ` +
+				`Learn more about the Blueprint format: https://wordpress.github.io/wordpress-playground/blueprints/data-format`
 		);
 		// Attach Ajv output to the thrown object for easier debugging
 		(e as any).errors = errors;

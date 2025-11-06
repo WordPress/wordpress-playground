@@ -319,6 +319,202 @@ function SiteErrorMessage({
 		);
 	}
 
+	if (error === 'blueprint-fetch-failed') {
+		const errorDetails = (window as any).__playgroundBlueprintError;
+		const errorMessage =
+			errorDetails instanceof Error
+				? errorDetails.message
+				: String(errorDetails || 'Unknown error');
+
+		return (
+			<>
+				<h1>Failed to load Blueprint</h1>
+				<p>
+					The Blueprint could not be downloaded or loaded. This
+					usually happens when:
+				</p>
+				<ul style={{ textAlign: 'left', margin: '1rem 0' }}>
+					<li>
+						The Blueprint URL is incorrect or the file doesn't exist
+					</li>
+					<li>The server hosting the Blueprint is not reachable</li>
+					<li>The Blueprint file is not a valid JSON or ZIP file</li>
+					<li>
+						CORS (Cross-Origin Resource Sharing) is blocking the
+						request
+					</li>
+				</ul>
+				<details style={{ textAlign: 'left', margin: '1rem 0' }}>
+					<summary style={{ cursor: 'pointer', fontWeight: 'bold' }}>
+						Error details
+					</summary>
+					<pre
+						style={{
+							background: '#f5f5f5',
+							padding: '1rem',
+							overflow: 'auto',
+							fontSize: '0.9em',
+							marginTop: '0.5rem',
+						}}
+					>
+						{errorMessage}
+					</pre>
+				</details>
+				<p>
+					<a
+						target="_blank"
+						rel="noopener noreferrer"
+						href="https://wordpress.github.io/wordpress-playground/blueprints/troubleshoot-and-debug"
+					>
+						Learn more about troubleshooting Blueprints
+					</a>
+				</p>
+				<Button
+					className={css.actionButton}
+					variant="primary"
+					onClick={() => {
+						const url = new URL(window.location.href);
+						// Remove blueprint-related parameters
+						url.searchParams.delete('blueprint-url');
+						url.searchParams.delete('blueprint');
+						window.location.href = url.toString();
+					}}
+				>
+					Start without a Blueprint
+				</Button>
+			</>
+		);
+	}
+
+	if (error === 'blueprint-filesystem-required') {
+		const errorDetails = (window as any).__playgroundBlueprintError;
+		const errorMessage =
+			errorDetails instanceof Error
+				? errorDetails.message
+				: String(errorDetails || 'Unknown error');
+
+		return (
+			<>
+				<h1>Blueprint Resource Error</h1>
+				<p>
+					This Blueprint refers to files that should be bundled with
+					it (like images, plugins, or themes), but the filesystem
+					needed to access these files is not available.
+				</p>
+				<p>
+					<strong>Common causes:</strong>
+				</p>
+				<ul style={{ textAlign: 'left', margin: '1rem 0' }}>
+					<li>
+						Loading a standalone JSON file that was meant to be part
+						of a bundle
+					</li>
+					<li>
+						The Blueprint was not packaged correctly as a
+						blueprint.zip file
+					</li>
+					<li>
+						Referenced files are not accessible relative to the
+						Blueprint file
+					</li>
+				</ul>
+				<details style={{ textAlign: 'left', margin: '1rem 0' }}>
+					<summary style={{ cursor: 'pointer', fontWeight: 'bold' }}>
+						Error details
+					</summary>
+					<pre
+						style={{
+							background: '#f5f5f5',
+							padding: '1rem',
+							overflow: 'auto',
+							fontSize: '0.9em',
+							marginTop: '0.5rem',
+						}}
+					>
+						{errorMessage}
+					</pre>
+				</details>
+				<p>
+					<a
+						target="_blank"
+						rel="noopener noreferrer"
+						href="https://wordpress.github.io/wordpress-playground/blueprints/data-format#resources"
+					>
+						Learn more about Blueprint resources
+					</a>
+				</p>
+				<Button
+					className={css.actionButton}
+					variant="primary"
+					onClick={() => {
+						window.location.reload();
+					}}
+				>
+					Try again
+				</Button>
+			</>
+		);
+	}
+
+	if (error === 'blueprint-validation-failed') {
+		const errorDetails = (window as any).__playgroundBlueprintError;
+		const errorMessage =
+			errorDetails instanceof Error
+				? errorDetails.message
+				: String(errorDetails || 'Unknown error');
+
+		return (
+			<>
+				<h1>Invalid Blueprint</h1>
+				<p>
+					The Blueprint does not conform to the required schema.
+					Please review the validation errors below and fix your
+					Blueprint.
+				</p>
+				<details open style={{ textAlign: 'left', margin: '1rem 0' }}>
+					<summary style={{ cursor: 'pointer', fontWeight: 'bold' }}>
+						Validation errors
+					</summary>
+					<pre
+						style={{
+							background: '#f5f5f5',
+							padding: '1rem',
+							overflow: 'auto',
+							fontSize: '0.85em',
+							marginTop: '0.5rem',
+							whiteSpace: 'pre-wrap',
+							wordBreak: 'break-word',
+						}}
+					>
+						{errorMessage}
+					</pre>
+				</details>
+				<p>
+					<a
+						target="_blank"
+						rel="noopener noreferrer"
+						href="https://wordpress.github.io/wordpress-playground/blueprints/data-format"
+					>
+						Learn more about the Blueprint format
+					</a>
+				</p>
+				<Button
+					className={css.actionButton}
+					variant="primary"
+					onClick={() => {
+						const url = new URL(window.location.href);
+						// Remove blueprint-related parameters
+						url.searchParams.delete('blueprint-url');
+						url.searchParams.delete('blueprint');
+						window.location.href = url.toString();
+					}}
+				>
+					Start without a Blueprint
+				</Button>
+			</>
+		);
+	}
+
 	return (
 		<>
 			<h1>Something went wrong</h1>
