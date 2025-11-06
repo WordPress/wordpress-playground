@@ -215,20 +215,37 @@ function applyQueryOverridesToDeclaration(
 		}
 	}
 
-	/**
-	 * Apply login Query API default value to blueprint
-	 * only if it doesn't already contain a login step or shorthand.
-	 * Otherwise, the login provided by the blueprint would be overridden.
-	 */
-	const containsLoginStep = blueprint.steps?.some(
-		(step) => step && typeof step === 'object' && step?.step === 'login'
-	);
-	const containsLoginShorthand = blueprint.login !== undefined;
-	if (
-		query.get('login') !== 'no' &&
-		!containsLoginStep &&
-		!containsLoginShorthand
-	) {
+	const shouldSetLoginToTrue = () => {
+		/**
+		 * Allow the Query API to explicitly set login
+		 * if the login query param is provided.
+		 */
+		if (query.get('login') === 'no') {
+			return false;
+		}
+		if (query.get('login') === 'yes') {
+			return true;
+		}
+
+		/**
+		 * Set login to true by default in the Blueprint
+		 * only if it doesn't already contain a login step or shorthand.
+		 * Otherwise, the login provided by the blueprint would be overridden.
+		 */
+		if (
+			blueprint.steps?.some(
+				(step) =>
+					step && typeof step === 'object' && step?.step === 'login'
+			)
+		) {
+			return false;
+		}
+		if (blueprint.login !== undefined) {
+			return false;
+		}
+		return true;
+	};
+	if (shouldSetLoginToTrue()) {
 		blueprint.login = true;
 	}
 
