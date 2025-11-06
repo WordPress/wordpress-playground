@@ -222,3 +222,13 @@ Here's a little demo of this workflow in action:
 Check [About Playground > Build > Synchronize your playground instance with a local folder and create GitHub Pull Requests](/about/build#synchronize-your-playground-instance-with-a-local-folder-and-create-github-pull-requests) for more info.
 
 :::
+
+### Add Playground Preview buttons to your Pull Requests
+
+Make it easier for reviewers and testers to try out your plugin changes by automatically adding a "Preview in WordPress Playground" button to your pull requests. This allows anyone to test your changes instantly without any local setup.
+
+:::tip
+
+Check out the [Adding Playground Preview Buttons to Pull Requests](/guides/github-pr-previews) guide to learn how to set up this workflow in your plugin repository.
+
+:::

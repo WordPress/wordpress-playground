@@ -239,3 +239,13 @@ Note that you'll need the [Create Block Theme](https://wordpress.org/plugins/cre
 Check [About Playground > Build > Save changes done on a Block Theme and create GitHub Pull Requests](/about/build#save-changes-done-on-a-block-theme-and-create-github-pull-requests) for more info.
 
 :::
+
+### Add Playground Preview buttons to your Pull Requests
+
+Make it easier for reviewers and testers to try out your theme changes by automatically adding a "Preview in WordPress Playground" button to your pull requests. This allows anyone to test your theme instantly without any local setup.
+
+:::tip
+
+Check out the [Adding Playground Preview Buttons to Pull Requests](/guides/github-pr-previews) guide to learn how to set up this workflow in your theme repository.
+
+:::

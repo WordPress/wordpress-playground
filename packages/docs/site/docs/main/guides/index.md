@@ -9,6 +9,10 @@ sidebar_class_name: navbar-build-item
 
 In this section we present a selection of guides that will help you to both work with, and to better understand, a variety of topics related to [WordPress Playground](/).
 
+## [Adding Playground Preview Buttons to Pull Requests](/guides/github-pr-previews)
+
+Automatically add a "Preview in WordPress Playground" button to your pull requests, enabling reviewers and testers to instantly try out changes without any local setup.
+
 ## [How to ship a real WordPress site in a native iOS app via Playground?](/guides/wordpress-native-ios-app)
 
 Check "Blocknotes", the first app to run WordPress natively on iOS via WordPress Playground. It showcases the potential for seamless mobile web integration using WebAssembly and the WordPress block editor.
