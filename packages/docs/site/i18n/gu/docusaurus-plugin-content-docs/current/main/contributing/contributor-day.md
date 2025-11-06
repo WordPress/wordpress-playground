@@ -6,8 +6,8 @@ description: વર્ડપ્રેસ પ્લેગ્રાઉન્ડમ
 
 # વર્ડકેમ્પ યોગદાનકર્તા દિવસ
 
-<!-- 
-# WordCamp Contributor Day 
+<!--
+# WordCamp Contributor Day
 -->
 
 વર્ડકેમ્પ યોગદાનકર્તા દિવસ એ એક એવી ઘટના છે જ્યાં વર્ડપ્રેસ સમુદાય વર્ડપ્રેસ પ્રોજેક્ટમાં યોગદાન આપવા માટે ભેગા થાય છે. આ માર્ગદર્શિકા તમે વર્ડપ્રેસ પ્લેગ્રાઉન્ડ પ્રોજેક્ટમાં કેવી રીતે યોગદાન આપી શકો છો અથવા વર્ડપ્રેસ કોરમાં યોગદાન આપવામાં પ્લેગ્રાઉન્ડ તમને કેવી રીતે મદદ કરી શકે છે તેના પર ધ્યાન કેન્દ્રિત કરે છે.
@@ -46,25 +46,25 @@ We value diverse contributions across different areas including community buildi
 This section outlines how you can directly contribute to the WordPress Playground project and its associated tools:
 -->
 
-- **દસ્તાવેજીકરણ:** હાલની સામગ્રીમાં સુધારો કરીને, નવી માર્ગદર્શિકાઓ વિકસાવીને અથવા વિવિધ ભાષાઓમાં સામગ્રીનો અનુવાદ કરીને અમારા દસ્તાવેજીકરણને વિસ્તૃત કરો.
+-   **દસ્તાવેજીકરણ:** હાલની સામગ્રીમાં સુધારો કરીને, નવી માર્ગદર્શિકાઓ વિકસાવીને અથવા વિવિધ ભાષાઓમાં સામગ્રીનો અનુવાદ કરીને અમારા દસ્તાવેજીકરણને વિસ્તૃત કરો.
 
 <!--
 - **Documentation:** Expand our documentation by improving existing content, developing new guides, or translating content into different languages.
 -->
 
-- **બ્લુપ્રિન્ટ્સ:** વર્ડપ્રેસ પ્લગઇન રિપોઝીટરીમાં પ્લગઇન્સ માટે પ્લગઇન ડેમો બનાવો, અથવા અમારા પ્રોજેક્ટ દસ્તાવેજીકરણને સમૃદ્ધ બનાવવા માટે નવા બ્લુપ્રિન્ટ્સ વિકસાવો.
+-   **બ્લુપ્રિન્ટ્સ:** વર્ડપ્રેસ પ્લગઇન રિપોઝીટરીમાં પ્લગઇન્સ માટે પ્લગઇન ડેમો બનાવો, અથવા અમારા પ્રોજેક્ટ દસ્તાવેજીકરણને સમૃદ્ધ બનાવવા માટે નવા બ્લુપ્રિન્ટ્સ વિકસાવો.
 
 <!--
 - **Blueprints:** Create plugin demos for plugins in the WordPress plugin repository, or develop new blueprints to enrich our project documentation.
 -->
 
-- **પ્લેગ્રાઉન્ડ પર્યાવરણનું પરીક્ષણ:** વર્ડપ્રેસ પ્લેગ્રાઉન્ડ પ્રોજેક્ટનું જ પરીક્ષણ કરવામાં જોડાઓ. તમે જે સમસ્યાઓનો સામનો કરો છો તેનું વર્ણન કરતી નવી સમસ્યાઓ કાળજીપૂર્વક બનાવીને અને કાર્યક્ષમ ઉકેલો સૂચવીને આ કરી શકો છો. અમારા વર્ડપ્રેસ વેબ ઇન્સ્ટન્સ (playground.wordpress.net સાઇટ) નું પરીક્ષણ કરો, અથવા પ્લેગ્રાઉન્ડ દ્વારા સંચાલિત વિવિધ એપ્લિકેશનોનું અન્વેષણ કરો. આ સાધનોનું પરીક્ષણ કરો, તેમની કાર્યક્ષમતાનું અવલોકન કરો અને વિગતવાર પ્રતિસાદ આપો.
+-   **પ્લેગ્રાઉન્ડ પર્યાવરણનું પરીક્ષણ:** વર્ડપ્રેસ પ્લેગ્રાઉન્ડ પ્રોજેક્ટનું જ પરીક્ષણ કરવામાં જોડાઓ. તમે જે સમસ્યાઓનો સામનો કરો છો તેનું વર્ણન કરતી નવી સમસ્યાઓ કાળજીપૂર્વક બનાવીને અને કાર્યક્ષમ ઉકેલો સૂચવીને આ કરી શકો છો. અમારા વર્ડપ્રેસ વેબ ઇન્સ્ટન્સ (playground.wordpress.net સાઇટ) નું પરીક્ષણ કરો, અથવા પ્લેગ્રાઉન્ડ દ્વારા સંચાલિત વિવિધ એપ્લિકેશનોનું અન્વેષણ કરો. આ સાધનોનું પરીક્ષણ કરો, તેમની કાર્યક્ષમતાનું અવલોકન કરો અને વિગતવાર પ્રતિસાદ આપો.
 
 <!--
 - **Testing the Playground Environment:** Engage in testing the WordPress Playground project itself. You can do this by carefully creating new issues describing the problems you encounter and suggesting efficient solutions. Test our WordPress web instance (playground.wordpress.net site), or explore various applications powered by Playground. Test these tools, observe their functionality, and provide detailed feedback.
 -->
 
-- **ઉત્પાદન પ્રતિસાદ:** પ્લેગ્રાઉન્ડ અનુભવને સુધારવા માટે તમારી આંતરદૃષ્ટિ અમૂલ્ય છે. આમાં વેબ ઇન્સ્ટન્સ, એપ્લિકેશન અને કોઈપણ સર્વર-સાઇડ ટૂલ્સ પર સામાન્ય પ્રતિસાદ શામેલ છે.
+-   **ઉત્પાદન પ્રતિસાદ:** પ્લેગ્રાઉન્ડ અનુભવને સુધારવા માટે તમારી આંતરદૃષ્ટિ અમૂલ્ય છે. આમાં વેબ ઇન્સ્ટન્સ, એપ્લિકેશન અને કોઈપણ સર્વર-સાઇડ ટૂલ્સ પર સામાન્ય પ્રતિસાદ શામેલ છે.
 
 <!--
 - **Product Feedback:** Your insights are invaluable for improving the Playground experience. This includes general feedback on the web instance, applications, and any server-side tools.
@@ -369,19 +369,19 @@ You can translate supported WordPress plugins by loading the plugin you want to 
 Do you have any questions or ideas for new features? Found a bug? Something not working as expected? We're here to help:
 -->
 
-- કન્ટ્રિબ્યુટર ડે દરમિયાન, તમે **Playground ટેબલ** પર અમારો સંપર્ક કરી શકો છો.
+-   કન્ટ્રિબ્યુટર ડે દરમિયાન, તમે **Playground ટેબલ** પર અમારો સંપર્ક કરી શકો છો.
 
 <!--
 - During Contributor Day, you can reach us at the **Playground table**.
 -->
 
-- [વર્ડપ્રેસ પ્લેગ્રાઉન્ડ ગિટહબ રીપોઝીટરી](https://github.com/WordPress/wordpress-playground/issues/new) પર એક મુદ્દો ખોલો. જો તમારું ધ્યાન VS કોડ એક્સટેન્શન, NPM પેકેજ અથવા પ્લગઇન્સ પર હોય, તો [પ્લેગ્રાઉન્ડ ટૂલ્સ રીપોઝીટરી](https://github.com/WordPress/playground-tools/issues/new) પર એક મુદ્દો ખોલો.
+-   [વર્ડપ્રેસ પ્લેગ્રાઉન્ડ ગિટહબ રીપોઝીટરી](https://github.com/WordPress/wordpress-playground/issues/new) પર એક મુદ્દો ખોલો. જો તમારું ધ્યાન VS કોડ એક્સટેન્શન, NPM પેકેજ અથવા પ્લગઇન્સ પર હોય, તો [પ્લેગ્રાઉન્ડ ટૂલ્સ રીપોઝીટરી](https://github.com/WordPress/playground-tools/issues/new) પર એક મુદ્દો ખોલો.
 
 <!--
 - Open an issue on the [WordPress Playground GitHub repository](https://github.com/WordPress/wordpress-playground/issues/new). If your focus is on the VS Code extension, NPM package, or plugins, open an issue on the [Playground Tools repository](https://github.com/WordPress/playground-tools/issues/new).
 -->
 
-- [**#playground** સ્લેક ચેનલ](https://wordpress.slack.com/archives/C04EWKGDJ0K) પર તમારો પ્રતિસાદ શેર કરો.
+-   [**#playground** સ્લેક ચેનલ](https://wordpress.slack.com/archives/C04EWKGDJ0K) પર તમારો પ્રતિસાદ શેર કરો.
 
 <!--
 - Share your feedback on the [**#playground** Slack channel](https://wordpress.slack.com/archives/C04EWKGDJ0K).

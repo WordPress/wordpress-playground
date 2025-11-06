@@ -802,10 +802,14 @@ wp-includes/blocks/query-pagination/editor.css
 wp-includes/blocks/query-pagination/editor-rtl.min.css
 wp-includes/blocks/query-pagination/style-rtl.min.css
 wp-includes/blocks/math/block.json
+wp-includes/blocks/math/style.min.css
+wp-includes/blocks/math/style.css
 wp-includes/blocks/math/editor-rtl.css
 wp-includes/blocks/math/editor.min.css
+wp-includes/blocks/math/style-rtl.css
 wp-includes/blocks/math/editor.css
 wp-includes/blocks/math/editor-rtl.min.css
+wp-includes/blocks/math/style-rtl.min.css
 wp-includes/blocks/gallery/block.json
 wp-includes/blocks/gallery/style.min.css
 wp-includes/blocks/gallery/style.css

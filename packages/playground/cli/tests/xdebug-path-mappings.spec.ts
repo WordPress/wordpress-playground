@@ -92,6 +92,7 @@ describe('updatePhpStormConfig', () => {
 		name: 'Test Server',
 		host: 'localhost',
 		port: 8080,
+		projectDir: process.cwd(),
 		mappings: [
 			{
 				hostPath: './src',
@@ -260,6 +261,47 @@ describe('updatePhpStormConfig', () => {
 					},
 					{
 						hostPath: 'baz/qux',
+						vfsPath: '/var/www/html/baz/qux',
+					},
+				],
+			};
+
+			const xml =
+				'<?xml version="1.0" encoding="UTF-8"?>\n<project version="4">\n</project>';
+			const result = updatePhpStormConfig(xml, options);
+
+			const expected = `<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+	<component name="PhpServers">
+		<servers>
+			<server name="Test Server" host="localhost:8080" use_path_mappings="true">
+				<path_mappings>
+					<mapping local-root="$PROJECT_DIR$/foo/bar" remote-root="/var/www/html/foo/bar"/>
+					<mapping local-root="$PROJECT_DIR$/baz/qux" remote-root="/var/www/html/baz/qux"/>
+				</path_mappings>
+			</server>
+		</servers>
+	</component>
+	<component name="RunManager">
+		<configuration name="Test Server" type="PhpRemoteDebugRunConfigurationType" factoryName="PHP Remote Debug" filter_connections="FILTER" server_name="Test Server" session_id="PLAYGROUNDCLI">
+			<method v="2"/>
+		</configuration>
+	</component>
+</project>`;
+
+			expectXMLEquals(result, expected);
+		});
+
+		it('should make absolute hostPath relative to project directory', () => {
+			const options: PhpStormConfigOptions = {
+				...defaultOptions,
+				mappings: [
+					{
+						hostPath: `${defaultOptions.projectDir}/foo/bar`,
+						vfsPath: '/var/www/html/foo/bar',
+					},
+					{
+						hostPath: `${defaultOptions.projectDir}/baz/qux`,
 						vfsPath: '/var/www/html/baz/qux',
 					},
 				],
@@ -694,6 +736,7 @@ describe('updatePhpStormConfig', () => {
 describe('updateVSCodeConfig', () => {
 	const defaultOptions: VSCodeConfigOptions = {
 		name: 'Test Configuration',
+		workspaceDir: process.cwd(),
 		mappings: [
 			{
 				hostPath: './src',
@@ -863,6 +906,42 @@ describe('updateVSCodeConfig', () => {
 					},
 					{
 						hostPath: 'baz/qux',
+						vfsPath: '/var/www/html/baz/qux',
+					},
+				],
+			};
+
+			const json = '{\n    "configurations": []\n}';
+			const result = updateVSCodeConfig(json, options);
+
+			const expected = `{
+    "configurations": [
+        {
+            "name": "Test Configuration",
+            "type": "php",
+            "request": "launch",
+            "port": 9003,
+            "pathMappings": {
+                "/var/www/html/foo/bar": "\${workspaceFolder}/foo/bar",
+                "/var/www/html/baz/qux": "\${workspaceFolder}/baz/qux"
+            }
+        }
+    ]
+}`;
+
+			expectJSONEquals(result, expected);
+		});
+
+		it('should make absolute hostPath relative to workspace folder', () => {
+			const options: VSCodeConfigOptions = {
+				...defaultOptions,
+				mappings: [
+					{
+						hostPath: `${defaultOptions.workspaceDir}/foo/bar`,
+						vfsPath: '/var/www/html/foo/bar',
+					},
+					{
+						hostPath: `${defaultOptions.workspaceDir}/baz/qux`,
 						vfsPath: '/var/www/html/baz/qux',
 					},
 				],

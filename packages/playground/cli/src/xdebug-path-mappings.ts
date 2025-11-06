@@ -169,6 +169,7 @@ export type PhpStormConfigOptions = {
 	name: string;
 	host: string;
 	port: number;
+	projectDir: string;
 	mappings: Mount[];
 	ideKey: string;
 };
@@ -205,9 +206,8 @@ export function updatePhpStormConfig(
 				path_mappings: mappings.map((mapping) => ({
 					mapping: [],
 					':@': {
-						'local-root': `$PROJECT_DIR$/${mapping.hostPath.replace(
-							/^\.\/?/,
-							''
+						'local-root': `$PROJECT_DIR$/${toPosixPath(
+							path.relative(options.projectDir, mapping.hostPath)
 						)}`,
 						'remote-root': mapping.vfsPath,
 					},
@@ -363,6 +363,7 @@ export function updatePhpStormConfig(
 
 export type VSCodeConfigOptions = {
 	name: string;
+	workspaceDir: string;
 	mappings: Mount[];
 };
 
@@ -418,11 +419,8 @@ export function updateVSCodeConfig(
 			request: 'launch',
 			port: 9003,
 			pathMappings: mappings.reduce((acc, mount) => {
-				acc[
-					mount.vfsPath
-				] = `\${workspaceFolder}/${mount.hostPath.replace(
-					/^\.\/?/,
-					''
+				acc[mount.vfsPath] = `\${workspaceFolder}/${toPosixPath(
+					path.relative(options.workspaceDir, mount.hostPath)
 				)}`;
 				return acc;
 			}, {} as VSCodeConfigMetaData),
@@ -497,6 +495,7 @@ export async function addXdebugIDEConfig({
 				name,
 				host,
 				port,
+				projectDir: cwd,
 				mappings,
 				ideKey,
 			});
@@ -533,6 +532,7 @@ export async function addXdebugIDEConfig({
 			const content = fs.readFileSync(vsCodeConfigFilePath, 'utf-8');
 			const updatedJson = updateVSCodeConfig(content, {
 				name,
+				workspaceDir: cwd,
 				mappings,
 			});
 
@@ -691,4 +691,8 @@ function jsoncApplyEdits(content: string, edits: JSONC.Edit[]) {
 	}
 
 	return json;
+}
+
+function toPosixPath(pathStr: string) {
+	return pathStr.replaceAll(path.sep, path.posix.sep);
 }

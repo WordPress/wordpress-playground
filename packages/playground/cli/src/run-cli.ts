@@ -51,6 +51,7 @@ import {
 	cleanupStalePlaygroundTempDirs,
 	createPlaygroundCliTempDir,
 } from './temp-dir';
+import { type WordPressInstallMode } from '@wp-playground/wordpress';
 import {
 	addXdebugIDEConfig,
 	clearXdebugIDEConfig,
@@ -134,7 +135,7 @@ export async function parseOptionsAndRunCLI() {
 				type: 'array',
 				nargs: 2,
 				array: true,
-				// coerce: parseMountDirArguments,
+				coerce: parseMountDirArguments,
 			})
 			.option('mount-dir-before-install', {
 				describe:
@@ -159,11 +160,22 @@ export async function parseOptionsAndRunCLI() {
 				type: 'boolean',
 				default: false,
 			})
-			.option('skip-wordpress-setup', {
+			.option('wordpress-install-mode', {
 				describe:
-					'Do not download, unzip, and install WordPress. Useful for mounting a pre-configured WordPress directory at /wordpress.',
+					'Control how Playground prepares WordPress before booting.',
+				type: 'string',
+				default: 'download-and-install',
+				choices: [
+					'download-and-install',
+					'install-from-existing-files',
+					'install-from-existing-files-if-needed',
+					'do-not-attempt-installing',
+				] as const,
+			})
+			.option('skip-wordpress-install', {
+				describe: '[Deprecated] Use --wordpress-install-mode instead.',
 				type: 'boolean',
-				default: false,
+				hidden: true,
 			})
 			.option('skip-sqlite-setup', {
 				describe:
@@ -272,12 +284,10 @@ export async function parseOptionsAndRunCLI() {
 			.showHelpOnFail(false)
 			.strictOptions()
 			.check(async (args) => {
-				// Support multiple spellings of "WordPress"
-				if (
-					args['skip-wordpress-setup'] ||
-					args['skipWordpressSetup']
-				) {
-					args['skipWordPressSetup'] = true;
+				if (args['skip-wordpress-install'] === true) {
+					args['wordpress-install-mode'] =
+						'do-not-attempt-installing';
+					args['wordpressInstallMode'] = 'do-not-attempt-installing';
 				}
 
 				if (args.wp !== undefined && !isValidWordPressSlug(args.wp)) {
@@ -327,9 +337,9 @@ export async function parseOptionsAndRunCLI() {
 
 				if (args['experimental-blueprints-v2-runner'] === true) {
 					if (args['mode'] !== undefined) {
-						if ('skip-wordpress-setup' in args) {
+						if (args['wordpress-install-mode'] !== undefined) {
 							throw new Error(
-								'The --skipWordPressSetup option cannot be used with the --mode option. Use one or the other.'
+								'The --wordpress-install-mode option cannot be used with the --mode option. Use one or the other.'
 							);
 						}
 						if ('skip-sqlite-setup' in args) {
@@ -344,7 +354,10 @@ export async function parseOptionsAndRunCLI() {
 						}
 					} else {
 						// Support the legacy v1 runner options
-						if (args['skip-wordpress-setup'] === true) {
+						if (
+							args['wordpress-install-mode'] ===
+							'do-not-attempt-installing'
+						) {
 							args['mode'] = 'apply-to-existing-site';
 						} else {
 							args['mode'] = 'create-new-site';
@@ -469,9 +482,9 @@ export interface RunCLIArgs {
 	experimentalUnsafeIdeIntegration?: string[];
 	experimentalDevtools?: boolean;
 	'experimental-blueprints-v2-runner'?: boolean;
+	wordpressInstallMode?: WordPressInstallMode;
 
 	// --------- Blueprint V1 args -----------
-	skipWordPressSetup?: boolean;
 	skipSqliteSetup?: boolean;
 	followSymlinks?: boolean;
 	'blueprint-may-read-adjacent-files'?: boolean;
@@ -550,6 +563,10 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 		args = expandAutoMounts(args);
 	}
 
+	if (args.wordpressInstallMode === undefined) {
+		args.wordpressInstallMode = 'download-and-install';
+	}
+
 	// Keeping 'quiet' option to preserve backward compatibility
 	if (args.quiet) {
 		args.verbosity = 'quiet';
@@ -603,9 +620,11 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 			const siteUrl = args['site-url'] || serverUrl;
 
 			// Create the blueprints handler
-			const totalWorkerCount = args.experimentalMultiWorker ?? 1;
+			const targetWorkerCount = args.experimentalMultiWorker ?? 1;
+			// Account for the initial worker which is discarded after setup.
+			const totalWorkerCountIncludingSetupWorker = targetWorkerCount + 1;
 			const processIdSpaceLength = Math.floor(
-				Number.MAX_SAFE_INTEGER / totalWorkerCount
+				Number.MAX_SAFE_INTEGER / totalWorkerCountIncludingSetupWorker
 			);
 
 			/*
@@ -643,7 +662,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 				);
 
 				const symlinkMount: Mount = {
-					hostPath: `./${symlinkName}`,
+					hostPath: path.join('.', path.sep, symlinkName),
 					vfsPath: '/',
 				};
 
@@ -857,7 +876,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 			// Kick off worker threads now to save time later.
 			// There is no need to wait for other async processes to complete.
 			const promisedWorkers = spawnWorkerThreads(
-				totalWorkerCount,
+				totalWorkerCountIncludingSetupWorker,
 				handler.getWorkerType(),
 				({ exitCode, workerIndex }) => {
 					// We are already disposing, so worker exit is expected
@@ -877,98 +896,106 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 				}
 			);
 
-			logger.log(`Setting up WordPress ${args.wp}`);
+			logger.log(`Starting up workers`);
 
 			try {
-				const [initialWorker, ...additionalWorkers] =
-					await promisedWorkers;
+				const workers = await promisedWorkers;
 
 				const fileLockManagerPort = await exposeFileLockManager(
 					fileLockManager
 				);
 
-				// Boot the primary worker using the handler
-				playground = await handler.bootPrimaryWorker(
-					initialWorker.phpPort,
-					fileLockManagerPort,
-					nativeInternalDirPath
-				);
-				playgroundsToCleanUp.push({
-					playground,
-					worker: initialWorker.worker,
-				});
-
-				await playground.isReady();
-				wordPressReady = true;
-				logger.log(`Booted!`);
-
-				loadBalancer = new LoadBalancer(playground);
-
-				if (!args['experimental-blueprints-v2-runner']) {
-					const compiledBlueprint = await (
-						handler as BlueprintsV1Handler
-					).compileInputBlueprint(
-						args['additional-blueprint-steps'] || []
-					);
-
-					if (compiledBlueprint) {
-						logger.log(`Running the Blueprint...`);
-						await runBlueprintV1Steps(
-							compiledBlueprint,
-							playground
+				// NOTE: Using a free-standing block to isolate initial boot vars
+				// while keeping the logic inline.
+				{
+					// Boot the primary worker using the handler
+					const initialWorker = workers.shift()!;
+					const initialPlayground =
+						await handler.bootAndSetUpInitialPlayground(
+							initialWorker.phpPort,
+							fileLockManagerPort,
+							nativeInternalDirPath
 						);
-						logger.log(`Finished running the blueprint`);
+
+					await initialPlayground.isReady();
+					wordPressReady = true;
+					logger.log(`Booted!`);
+
+					loadBalancer = new LoadBalancer(initialPlayground);
+
+					if (!args['experimental-blueprints-v2-runner']) {
+						const compiledBlueprint = await (
+							handler as BlueprintsV1Handler
+						).compileInputBlueprint(
+							args['additional-blueprint-steps'] || []
+						);
+
+						if (compiledBlueprint) {
+							logger.log(`Running the Blueprint...`);
+							await runBlueprintV1Steps(
+								compiledBlueprint,
+								initialPlayground
+							);
+							logger.log(`Finished running the blueprint`);
+						}
 					}
+
+					if (args.command === 'build-snapshot') {
+						await zipSite(playground, args.outfile as string);
+						logger.log(`WordPress exported to ${args.outfile}`);
+						await disposeCLI();
+						return;
+					} else if (args.command === 'run-blueprint') {
+						logger.log(`Blueprint executed`);
+						await disposeCLI();
+						return;
+					}
+
+					// We discard the initial Playground worker because it can
+					// be configured differently than post-boot workers.
+					// For example, we do not enable Xdebug by default for the initial worker.
+					await loadBalancer.removeWorker(initialPlayground);
+					// TODO: Wrap in a cleanup function and reuse for all worker cleanup.
+					await initialPlayground.dispose();
+					await initialWorker.worker.terminate();
 				}
 
-				if (args.command === 'build-snapshot') {
-					await zipSite(playground, args.outfile as string);
-					logger.log(`WordPress exported to ${args.outfile}`);
-					await disposeCLI();
-					return;
-				} else if (args.command === 'run-blueprint') {
-					logger.log(`Blueprint executed`);
-					await disposeCLI();
-					return;
-				}
+				logger.log(`Preparing workers...`);
 
-				if (
-					args.experimentalMultiWorker &&
-					args.experimentalMultiWorker > 1
-				) {
-					logger.log(`Preparing additional workers...`);
+				// Boot additional workers using the handler
+				const initialWorkerProcessIdSpace = processIdSpaceLength;
+				// Just take the first Playground instance to be relayed to others.
+				[playground] = await Promise.all(
+					workers.map(async (worker, index) => {
+						const firstProcessId =
+							initialWorkerProcessIdSpace +
+							index * processIdSpaceLength;
 
-					// Boot additional workers using the handler
-					const initialWorkerProcessIdSpace = processIdSpaceLength;
-					await Promise.all(
-						additionalWorkers.map(async (worker, index) => {
-							const firstProcessId =
-								initialWorkerProcessIdSpace +
-								index * processIdSpaceLength;
+						const fileLockManagerPort = await exposeFileLockManager(
+							fileLockManager
+						);
 
-							const fileLockManagerPort =
-								await exposeFileLockManager(fileLockManager);
-
-							const additionalPlayground =
-								await handler.bootSecondaryWorker({
-									worker,
-									fileLockManagerPort,
-									firstProcessId,
-									nativeInternalDirPath,
-								});
-
-							playgroundsToCleanUp.push({
-								playground: additionalPlayground,
-								worker: worker.worker,
+						const additionalPlayground =
+							await handler.bootPlayground({
+								worker,
+								fileLockManagerPort,
+								firstProcessId,
+								nativeInternalDirPath,
 							});
 
-							loadBalancer.addWorker(additionalPlayground);
-						})
-					);
-				}
+						playgroundsToCleanUp.push({
+							playground: additionalPlayground,
+							worker: worker.worker,
+						});
+
+						loadBalancer.addWorker(additionalPlayground);
+
+						return additionalPlayground;
+					})
+				);
 
 				logger.log(
-					`WordPress is running on ${serverUrl} with ${totalWorkerCount} worker(s)`
+					`WordPress is running on ${serverUrl} with ${targetWorkerCount} worker(s)`
 				);
 
 				if (args.xdebug && args.experimentalDevtools) {
@@ -985,7 +1012,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 					server,
 					serverUrl,
 					[Symbol.asyncDispose]: disposeCLI,
-					workerThreadCount: totalWorkerCount,
+					workerThreadCount: targetWorkerCount,
 				};
 			} catch (error) {
 				if (!args.debug) {
