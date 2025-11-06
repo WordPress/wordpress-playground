@@ -1,0 +1,879 @@
+name: WordPress Playground Preview
+description: |
+    # WordPress Playground Preview Button
+
+    Automatically adds a "Try it in WordPress Playground" preview button to your pull requests,
+    enabling easy testing and feedback for WordPress plugins and themes.
+
+    ## Requirements
+
+    - Repository must be public
+    - Workflow must run on `pull_request` events
+    - Requires permissions: `pull-requests: write`, `contents: read`
+
+    ## Quick Start
+
+    ### For Plugins
+
+    Create `.github/workflows/pr-preview.yml` in your repository:
+
+    ```yaml
+    name: PR Preview
+    on:
+      pull_request:
+        types: [opened, synchronize, reopened, edited]
+
+    jobs:
+      preview:
+        permissions:
+          contents: read
+          pull-requests: write
+        uses: WordPress/wordpress-playground/.github/workflows/playground-preview-button.yml@trunk
+        with:
+          plugin-path: .  # Use "." if plugin is in repository root
+    ```
+
+    That's it! On your next PR, a preview button will automatically appear.
+
+    ### For Themes
+
+    ```yaml
+    uses: WordPress/wordpress-playground/.github/workflows/playground-preview-button.yml@trunk
+    with:
+      theme-path: .  # Path to your theme directory
+    ```
+
+    ### For Both Plugin + Theme
+
+    ```yaml
+    uses: WordPress/wordpress-playground/.github/workflows/playground-preview-button.yml@trunk
+    with:
+      plugin-path: plugins/my-plugin
+      theme-path: themes/my-theme
+    ```
+
+    ## Common Scenarios
+
+    ### Scenario 1: Plugin in a subdirectory
+    If your plugin lives in `plugins/my-awesome-plugin/`:
+    ```yaml
+    with:
+      plugin-path: plugins/my-awesome-plugin
+    ```
+
+    ### Scenario 2: Post as comment instead of updating description
+    ```yaml
+    with:
+      plugin-path: .
+      mode: post-comment
+    ```
+
+    ### Scenario 3: Custom Blueprint
+
+    For more advanced configurations, you can provide a custom blueprint:
+
+    ```yaml
+    name: PR Playground Preview
+    on:
+      pull_request:
+        types:
+          - opened
+          - synchronize
+          - reopened
+          - edited
+
+      jobs:
+        create-blueprint:
+          name: Create Blueprint
+          runs-on: ubuntu-latest
+          outputs:
+            blueprint: $\{{ steps.blueprint.outputs.result }}
+          steps:
+            - name: Create Blueprint
+              id: blueprint
+              uses: actions/github-script@v7
+              with:
+                script: |
+                  const blueprint = {
+                    steps: [
+                      {
+                        step: "installPlugin",
+                        pluginData: {
+                          resource: "git:directory",
+                          url: `https://github.com/${context.repo.owner}/${context.repo.repo}.git`,
+                          ref: context.payload.pull_request.head.ref,
+                          path: "/"
+                        }
+                      },
+                      {
+                        "step": "installPlugin",
+                        "pluginData": {
+                          "resource": "wordpress.org/plugins",
+                          "slug": "woocommerce"
+                        }
+                      }
+                    ]
+                  };
+                  return JSON.stringify(blueprint);
+                result-encoding: string
+
+          playground-preview:
+            name: Post Playground Preview Button
+            # This ensures the create-blueprint job runs before this one and
+            # creates a Blueprint JSON string this job can reuse:
+            needs: create-blueprint
+
+            permissions:
+              contents: read
+              pull-requests: write
+              issues: write
+            uses: WordPress/wordpress-playground/.github/workflows/playground-preview-button.yml@trunk
+            with:
+              mode: "append-to-description"
+              blueprint: $\{{ needs.create-blueprint.outputs.blueprint }}
+    ```
+
+    ## Learn More
+
+    - **WordPress Playground**: https://wordpress.github.io/wordpress-playground/
+    - **Blueprint Documentation**: https://wordpress.github.io/wordpress-playground/blueprints/
+    - **Try it now**: https://playground.wordpress.net/
+
+on:
+    workflow_call:
+        inputs:
+            mode:
+                type: string
+                description: |
+                    How to publish the preview button.
+
+                    Accepted values:
+                      - `append-to-description` (default) – Automatically updates the PR description with a managed block
+                        containing the preview button. The block is wrapped in HTML comment markers (<!-- wp-playground-preview:start -->
+                        and <!-- wp-playground-preview:end -->) so it can be updated on subsequent workflow runs.
+                      - `post-comment` – Posts the preview button as a PR comment. Updates the same comment on subsequent runs
+                        rather than creating duplicates.
+                default: append-to-description
+            playground-host:
+                type: string
+                description: |
+                    Base WordPress Playground host URL used to build the preview link.
+
+                    The workflow appends blueprint parameters to this URL to create the final preview link.
+
+                    Default: `https://playground.wordpress.net`
+                default: https://playground.wordpress.net
+            blueprint:
+                type: string
+                description: |
+                    Custom WordPress Blueprint as a JSON string.
+
+                    When provided, this blueprint is used as-is and the `plugin-path` and `theme-path` inputs are ignored.
+                    If omitted, the workflow automatically generates a blueprint based on `plugin-path` or `theme-path`.
+
+                    The blueprint must be a complete, ready-to-use JSON object (not a template). It will be URL-encoded
+                    and passed to Playground via the `blueprint-url` parameter.
+
+                    Learn more about blueprints: https://wordpress.github.io/wordpress-playground/blueprints/
+
+                    Example (custom blueprint with specific WordPress version):
+                      ```yaml
+                      with:
+                        blueprint: |
+                          {
+                            "$schema": "https://playground.wordpress.net/blueprint-schema.json",
+                            "preferredVersions": {
+                              "php": "8.3",
+                              "wp": "6.4"
+                            },
+                            "steps": [
+                              {
+                                "step": "installPlugin",
+                                "pluginData": {
+                                  "resource": "git:directory",
+                                  "url": "https://github.com/owner/repo.git",
+                                  "ref": "feature-branch",
+                                  "path": "my-plugin"
+                                },
+                                "options": { "activate": true }
+                              }
+                            ]
+                          }
+                      ```
+
+                    You will most likely want to include the repo URL and the current branch name in a custom Blueprint.
+                    The recommended way to do this is with a dependent job that produces a valid blueprint JSON string.
+                    For example:
+
+                    ```yaml
+                    name: PR Playground Preview
+                    on:
+                      pull_request:
+                        types:
+                          - opened
+                          - synchronize
+                          - reopened
+                          - edited
+
+                      jobs:
+                        create-blueprint:
+                          name: Create Blueprint
+                          runs-on: ubuntu-latest
+                          outputs:
+                            blueprint: $\{{ steps.blueprint.outputs.result }}
+                          steps:
+                            - name: Create Blueprint
+                              id: blueprint
+                              uses: actions/github-script@v7
+                              with:
+                                script: |
+                                  const blueprint = {
+                                    steps: [
+                                      {
+                                        step: "installPlugin",
+                                        pluginData: {
+                                          resource: "git:directory",
+                                          url: `https://github.com/${context.repo.owner}/${context.repo.repo}.git`,
+                                          ref: context.payload.pull_request.head.ref,
+                                          path: "/"
+                                        }
+                                      }
+                                    ]
+                                  };
+                                  return JSON.stringify(blueprint);
+                                result-encoding: string
+
+                          playground-preview:
+                            name: Post Playground Preview Button
+                            # This ensures the create-blueprint job runs before this one and
+                            # creates a Blueprint JSON string this job can reuse:
+                            needs: create-blueprint
+
+                            permissions:
+                              contents: read
+                              pull-requests: write
+                              issues: write
+                            uses: WordPress/wordpress-playground/.github/workflows/playground-preview-button.yml@trunk
+                            with:
+                              mode: "append-to-description"
+                              blueprint: $\{{ needs.create-blueprint.outputs.blueprint }}
+                    ```
+            plugin-path:
+                type: string
+                description: |
+                    Installs and activates a plugin from a path inside the repository.
+
+                    This is a shortcut for plugins that don't need any bundling and can
+                    be installed directly from the repository.
+
+                    The path string should point to a directory containing a valid WordPress
+                    plugin with a main plugin file.
+
+                    This option is ignored if the `blueprint` input is provided.
+
+                    Example (plugin in repository root):
+                      ```yaml
+                      with:
+                        plugin-path: .
+                      ```
+
+                    Example (plugin in subdirectory):
+                      ```yaml
+                      with:
+                        plugin-path: plugins/my-awesome-plugin
+                      ```
+            theme-path:
+                type: string
+                description: |
+                    Installs and activates a theme from a path inside the repository.
+
+                    The path string should point to a directory containing a valid WordPress
+                    theme with a style.css file.
+
+                    This option is ignored if the `blueprint` input is provided.
+
+                    Example (theme in repository root):
+                      ```yaml
+                      with:
+                        theme-path: .
+                      ```
+
+                    Example (theme in subdirectory):
+                      ```yaml
+                      with:
+                        theme-path: themes/my-cool-theme
+                      ```
+
+                    Example (testing theme + plugin):
+                      ```yaml
+                      with:
+                        plugin-path: plugins/my-plugin
+                        theme-path: themes/my-theme
+                      ```
+            description-template:
+                type: string
+                description: |
+                    Custom markdown/HTML template for the content added to PR descriptions (only used in `append-to-description` mode).
+
+                    The template supports variable interpolation using {{VARIABLE_NAME}} syntax (case-insensitive).
+                    The rendered content will be wrapped in HTML comment markers so it can be updated on subsequent runs.
+
+                    Available template variables:
+                      • {{PLAYGROUND_BUTTON}} - Rendered preview button HTML (recommended to include)
+                      • {{PLAYGROUND_URL}} - Full URL to the Playground preview
+                      • {{PLAYGROUND_BUTTON_IMAGE_URL}} - URL to the button image
+                      • {{PLAYGROUND_BLUEPRINT_JSON}} - Complete blueprint JSON string
+                      • {{PLAYGROUND_BLUEPRINT_DATA_URL}} - Data URL containing the blueprint
+                      • {{PLAYGROUND_HOST}} - Playground host URL
+                      • {{PR_NUMBER}} - Pull request number
+                      • {{PR_TITLE}} - Pull request title
+                      • {{PR_HEAD_REF}} - Source branch name
+                      • {{PR_HEAD_SHA}} - Latest commit SHA
+                      • {{PR_BASE_REF}} - Target branch name
+                      • {{REPO_OWNER}} - Repository owner username/org
+                      • {{REPO_NAME}} - Repository name
+                      • {{REPO_FULL_NAME}} - Full repository name (owner/repo)
+                      • {{REPO_SLUG}} - Sanitized repository name
+                      • {{PLUGIN_PATH}} - Plugin path (if provided)
+                      • {{PLUGIN_SLUG}} - Derived plugin slug
+                      • {{THEME_PATH}} - Theme path (if provided)
+                      • {{THEME_SLUG}} - Derived theme slug
+
+                    Default template:
+                      ```
+                      {{PLAYGROUND_BUTTON}}
+                      ```
+
+                    Example (custom template with additional context):
+                      ```yaml
+                      with:
+                        description-template: |
+                          ### Test this PR in WordPress Playground
+
+                          {{PLAYGROUND_BUTTON}}
+
+                          **Branch:** {{PR_HEAD_REF}}
+                          **Testing:** Plugin `{{PLUGIN_SLUG}}`
+                      ```
+            comment-template:
+                type: string
+                description: |
+                    Custom markdown/HTML template for PR comments (only used in `post-comment` mode).
+
+                    The template supports variable interpolation using {{VARIABLE_NAME}} syntax (case-insensitive).
+                    The rendered comment will include a hidden identifier marker so it can be updated on subsequent runs.
+
+                    Available template variables:
+                      • {{PLAYGROUND_BUTTON}} - Rendered preview button HTML (recommended to include)
+                      • {{PLAYGROUND_URL}} - Full URL to the Playground preview
+                      • {{PLAYGROUND_BUTTON_IMAGE_URL}} - URL to the button image
+                      • {{PLAYGROUND_BLUEPRINT_JSON}} - Complete blueprint JSON string
+                      • {{PLAYGROUND_BLUEPRINT_DATA_URL}} - Data URL containing the blueprint
+                      • {{PLAYGROUND_HOST}} - Playground host URL
+                      • {{PR_NUMBER}} - Pull request number
+                      • {{PR_TITLE}} - Pull request title
+                      • {{PR_HEAD_REF}} - Source branch name
+                      • {{PR_HEAD_SHA}} - Latest commit SHA
+                      • {{PR_BASE_REF}} - Target branch name
+                      • {{REPO_OWNER}} - Repository owner username/org
+                      • {{REPO_NAME}} - Repository name
+                      • {{REPO_FULL_NAME}} - Full repository name (owner/repo)
+                      • {{REPO_SLUG}} - Sanitized repository name
+                      • {{PLUGIN_PATH}} - Plugin path (if provided)
+                      • {{PLUGIN_SLUG}} - Derived plugin slug
+                      • {{THEME_PATH}} - Theme path (if provided)
+                      • {{THEME_SLUG}} - Derived theme slug
+
+                    Default template:
+                      ```
+                      ### WordPress Playground Preview
+
+                      The changes in this pull request can previewed and tested using a WordPress Playground instance.
+
+                      {{PLAYGROUND_BUTTON}}
+                      ```
+
+                    Example (custom comment with testing instructions):
+                      ```yaml
+                      with:
+                        mode: post-comment
+                        comment-template: |
+                          ## Preview Changes in WordPress Playground
+
+                          {{PLAYGROUND_BUTTON}}
+
+                          ### Testing Instructions
+                          1. Click the button above to open Playground
+                          2. Navigate to Plugins → Installed Plugins
+                          3. Verify that `{{PLUGIN_SLUG}}` is active
+                          4. Test the new functionality
+
+                          **PR:** #{{PR_NUMBER}} - {{PR_TITLE}}
+                      ```
+            restore-button-if-removed:
+                type: boolean
+                description: |
+                    Only applies to `append-to-description` mode.
+
+                    Controls whether the preview button is automatically restored to the PR description
+                    if removed by the PR author.
+
+                    When `true` (default):
+                      • If PR author completely removes the button markers → workflow re-adds them on next run
+                      • If PR author replaces button with custom placeholder → workflow respects it (does not update)
+
+                    When `false`:
+                      • If PR author completely removes the button markers → they stay removed
+                      • If markers exist with custom placeholder → workflow respects it (does not update)
+                      • If markers exist with the button → workflow updates the button normally
+
+                    How PR authors can keep the button removed:
+                      1. Replace with placeholder (always works):
+                         <!-- wp-playground-preview:start -->
+                         <!-- Preview button hidden by PR author -->
+                         <!-- wp-playground-preview:end -->
+
+                      2. Delete completely (only works when this is set to false):
+                         Delete the entire managed block including the markers
+
+                    Example (respect when PR author removes button):
+                      ```yaml
+                      with:
+                        mode: append-to-description
+                        restore-button-if-removed: false
+                      ```
+                default: true
+        secrets:
+            github-token:
+                description: |
+                    GitHub token used to update PR descriptions and post/update comments.
+
+                    If not provided, defaults to the calling workflow's `GITHUB_TOKEN` (recommended for most cases).
+
+                    Required permissions:
+                      • `pull-requests: write` - To update PR descriptions and manage comments
+                      • `contents: read` - To access repository information
+
+                    The default `GITHUB_TOKEN` automatically has these permissions in most workflows.
+
+                    Only provide a custom token if you need to:
+                      • Use a fine-grained personal access token with specific permissions
+                      • Work around workflow restrictions in your repository
+
+                    Example (using default token - recommended):
+                      ```yaml
+                      uses: ./.github/workflows/playground-preview.yml
+                      with:
+                        plugin-path: .
+                      # No secrets needed - GITHUB_TOKEN is used automatically
+                      ```
+
+                    Example (using custom token):
+                      ```yaml
+                      uses: ./.github/workflows/playground-preview.yml
+                      with:
+                        plugin-path: .
+                      secrets:
+                        github-token: <your-custom-token-here>
+                      ```
+                required: false
+
+jobs:
+    build-preview:
+        name: Build Playground Preview
+        permissions:
+            contents: read
+            pull-requests: write
+            issues: write
+        runs-on: ubuntu-latest
+        steps:
+            - name: Ensure repository context
+              if: ${{ !github.event.pull_request }}
+              run: |
+                  echo "This reusable workflow must be invoked from a pull_request triggered workflow."
+                  exit 1
+
+            - name: Prepare preview content
+              id: preview
+              uses: actions/github-script@v7
+              env:
+                  INPUT_PREVIEW_MODE: ${{ inputs.mode }}
+                  INPUT_PLAYGROUND_HOST: ${{ inputs.playground-host }}
+                  INPUT_BLUEPRINT: ${{ inputs.blueprint }}
+                  INPUT_PLUGIN_PATH: ${{ inputs.plugin-path }}
+                  INPUT_THEME_PATH: ${{ inputs.theme-path }}
+                  INPUT_DESCRIPTION_TEMPLATE: ${{ inputs.description-template }}
+                  INPUT_COMMENT_TEMPLATE: ${{ inputs.comment-template }}
+                  INPUT_RESTORE_BUTTON_IF_REMOVED: ${{ inputs.restore-button-if-removed }}
+              with:
+                  github-token: ${{ secrets.github-token != '' && secrets.github-token || github.token }}
+                  result-encoding: string
+                  script: |
+                      const mode = (process.env.INPUT_PREVIEW_MODE || 'append-to-description').trim().toLowerCase();
+                      if (mode !== 'append-to-description' && mode !== 'post-comment') {
+                        throw new Error(`Invalid preview mode: ${mode}. Accepted values: append-to-description, post-comment.`);
+                      }
+
+                      const pr = context.payload.pull_request;
+                      if (!pr) {
+                        throw new Error('This workflow must run on a pull_request event payload.');
+                      }
+
+                      const repo = context.payload.repository;
+                      const owner = repo.owner.login || repo.owner.name || repo.owner.id;
+                      const repoName = repo.name;
+                      const repoFullName = repo.full_name;
+                      const prNumber = pr.number;
+                      const prTitle = pr.title;
+                      const headRef = pr.head.ref;
+                      const headSha = pr.head.sha;
+                      const baseRef = pr.base.ref;
+
+                      const playgroundHostRaw = process.env.INPUT_PLAYGROUND_HOST || 'https://playground.wordpress.net';
+                      const playgroundHost = playgroundHostRaw.replace(/\/+$/, '');
+
+                      const pluginPath = (process.env.INPUT_PLUGIN_PATH || '').trim();
+                      const themePath = (process.env.INPUT_THEME_PATH || '').trim();
+                      const blueprintInput = process.env.INPUT_BLUEPRINT || '';
+
+                      if(!pluginPath && !themePath && !blueprintInput) {
+                        throw new Error('One of `plugin-path`, `theme-path`, or `blueprint` inputs is required.');
+                      }
+
+                      const descriptionTemplateInput = process.env.INPUT_DESCRIPTION_TEMPLATE || '';
+                      const commentTemplateInput = process.env.INPUT_COMMENT_TEMPLATE || '';
+                      const descriptionMarkerStart = '<!-- wp-playground-preview:start -->';
+                      const descriptionMarkerEnd = '<!-- wp-playground-preview:end -->';
+                      const commentIdentifier = '<!-- wp-playground-preview-comment -->';
+                      const restoreButtonIfRemoved = process.env.INPUT_RESTORE_BUTTON_IF_REMOVED !== 'false';
+
+                      const safeParseJson = (label, value, fallback = {}) => {
+                        if (!value || !value.trim()) {
+                          return fallback;
+                        }
+                        try {
+                          return JSON.parse(value);
+                        } catch (error) {
+                          throw new Error(`Unable to parse ${label} as JSON. ${error.message}`);
+                        }
+                      };
+
+                      const archiveBranchSegment = headRef.replace(/[^0-9A-Za-z]/g, '-');
+                      const repoArchiveRoot = `${repoName}-${archiveBranchSegment}`;
+                      const repoGitUrl = `https://github.com/${repoFullName}.git`;
+
+                      const normalizePath = (path) => {
+                        const raw = (path || '').trim();
+                        if (!raw || raw === '.' || raw === './') {
+                          return '';
+                        }
+                        return raw.replace(/^\.\/+/, '').replace(/^\/+|\/+$/g, '');
+                      };
+                      const sanitizeSlug = (value, fallback) => {
+                        if (!value) return fallback;
+                        const cleaned = value
+                          .toLowerCase()
+                          .replace(/[^a-z0-9-]+/g, '-')
+                          .replace(/^-+|-+$/g, '');
+                        return cleaned || fallback;
+                      };
+                      const repoSlug = sanitizeSlug(repoName, 'project');
+                      const inferSlug = (path, fallback) => {
+                        const clean = normalizePath(path).split('/').filter(Boolean).pop();
+                        if (!clean || clean === '.' || clean === '..') return fallback;
+                        return sanitizeSlug(clean, fallback);
+                      };
+
+                      const pluginSlug = pluginPath ? inferSlug(pluginPath, repoSlug) : '';
+                      const themeSlug = themePath ? inferSlug(themePath, `${repoSlug}-theme`) : '';
+
+                      const buildAutoBlueprint = () => {
+                        const steps = [];
+
+                        if (pluginPath) {
+                          steps.push(
+                            {
+                              step: 'installPlugin',
+                              pluginData: {
+                                resource: 'git:directory',
+                                url: repoGitUrl,
+                                ref: headRef,
+                                path: normalizePath(pluginPath) || "/"
+                              },
+                              options: {
+                                activate: true
+                              }
+                            }
+                          );
+                        }
+
+                        if (themePath) {
+                          steps.push(
+                            {
+                              step: 'installTheme',
+                              themeData: {
+                                resource: 'git:directory',
+                                url: repoGitUrl,
+                                ref: headRef,
+                                path: normalizePath(themePath) || "/"
+                              },
+                              options: {
+                                activate: true
+                              }
+                            }
+                          );
+                        }
+
+                        return JSON.stringify(
+                          {
+                            $schema: 'https://playground.wordpress.net/blueprint-schema.json',
+                            preferredVersions: {
+                              php: '8.2',
+                              wp: 'latest'
+                            },
+                            steps
+                          }
+                        );
+                      };
+
+                      const blueprintJson = blueprintInput && blueprintInput.trim().length
+                        ? blueprintInput.trim()
+                        : buildAutoBlueprint();
+
+                      try {
+                        JSON.parse(blueprintJson);
+                      } catch (error) {
+                        core.warning(blueprintJson);
+                        throw new Error(`Blueprint is not valid JSON. ${error.message}`);
+                      }
+
+                      const mergeVariables = (...maps) => maps.reduce((acc, map) => {
+                        Object.entries(map || {}).forEach(([key, value]) => {
+                          if (value === undefined || value === null) {
+                            return;
+                          }
+                          acc[String(key).toUpperCase()] = typeof value === 'string' ? value : JSON.stringify(value);
+                        });
+                        return acc;
+                      }, {});
+
+                      const substitute = (template, values) => {
+                        if (!template) {
+                          return '';
+                        }
+                        return template.replace(/\{\{\s*([A-Z0-9_]+)\s*\}\}/gi, (match, key) => {
+                          const upperKey = key.toUpperCase();
+                          let value = Object.prototype.hasOwnProperty.call(values, upperKey)
+                            ? values[upperKey]
+                            : '';
+                            
+                          // Escape HTML entities somewhat naively to prevent the values leaking
+                          // into HTML syntax elements.
+                          if(key !== 'PLAYGROUND_BUTTON') {
+                            value = value
+                              .replace(/&/g, '&amp;')
+                              .replace(/</g, '&lt;')
+                              .replace(/>/g, '&gt;')
+                              .replace(/"/g, '&quot;')
+                              .replace(/'/g, '&#039;');
+                          }
+                          return value;
+                        });
+                      };
+
+                      const blueprintDataUrl = `data:application/json,${encodeURIComponent(blueprintJson)}`;
+
+                      const previewUrl = `${playgroundHost}${playgroundHost.includes('?') ? '&' : '?'}blueprint-url=${blueprintDataUrl}`;
+
+                      const joinWithNewline = (segments) => segments.join('\n');
+                      const defaultButtonImageUrl = 'https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/.github/workflows/playground-preview-button.svg';
+
+                      const defaultButtonTemplate = joinWithNewline([
+                        '<a href="{{PLAYGROUND_URL}}" target="_blank" rel="noopener noreferrer">',
+                        '  <img src="{{PLAYGROUND_BUTTON_IMAGE_URL}}" alt="Open WordPress Playground Preview" width="220" height="57" />',
+                        '</a>'
+                      ]);
+
+                      const defaultDescriptionTemplate = joinWithNewline([
+                        '{{PLAYGROUND_BUTTON}}',
+                      ]);
+
+                      const defaultCommentTemplate = joinWithNewline([
+                        '### WordPress Playground Preview',
+                        '',
+                        'The changes in this pull request can previewed and tested using a WordPress Playground instance.',
+                        '',
+                        '{{PLAYGROUND_BUTTON}}',
+                      ]);
+
+                      const baseTemplateVars = {
+                        PR_NUMBER: String(prNumber),
+                        PR_TITLE: prTitle,
+                        PR_HEAD_REF: headRef,
+                        PR_HEAD_SHA: headSha,
+                        PR_BASE_REF: baseRef,
+                        REPO_OWNER: owner,
+                        REPO_NAME: repoName,
+                        REPO_FULL_NAME: repoFullName,
+                        REPO_ARCHIVE_ROOT: repoArchiveRoot,
+                        REPO_SLUG: repoSlug,
+                        PLUGIN_PATH: pluginPath,
+                        THEME_PATH: themePath,
+                        PLUGIN_SLUG: pluginSlug,
+                        THEME_SLUG: themeSlug,
+                        PLAYGROUND_HOST: playgroundHost
+                      };
+
+                      const templateVariables = mergeVariables(
+                        baseTemplateVars,
+                        {
+                          PLAYGROUND_URL: previewUrl,
+                          PLAYGROUND_BLUEPRINT_JSON: blueprintJson,
+                          PLAYGROUND_BLUEPRINT_DATA_URL: blueprintDataUrl,
+                          PLAYGROUND_BUTTON_IMAGE_URL: defaultButtonImageUrl,
+                          PLAYGROUND_BUTTON: substitute(defaultButtonTemplate, {})
+                        }
+                      );
+
+                      templateVariables.PLAYGROUND_BUTTON = substitute(defaultButtonTemplate, templateVariables);
+
+                      const descriptionTemplate = descriptionTemplateInput && descriptionTemplateInput.trim().length
+                        ? descriptionTemplateInput
+                        : defaultDescriptionTemplate;
+                      const commentTemplate = commentTemplateInput && commentTemplateInput.trim().length
+                        ? commentTemplateInput
+                        : defaultCommentTemplate;
+
+                      const renderedDescription = substitute(descriptionTemplate, templateVariables);
+                      const renderedComment = substitute(commentTemplate, templateVariables);
+
+                      const performDescriptionUpdate = async () => {
+                        const currentBody = pr.body || '';
+                        const managedBlock = `${descriptionMarkerStart}${String.fromCodePoint(10)}${renderedDescription.trim()}${String.fromCodePoint(10)}${descriptionMarkerEnd}`;
+                        let nextBody;
+
+                        if (currentBody.includes(descriptionMarkerStart) && currentBody.includes(descriptionMarkerEnd)) {
+                          // Markers exist - check if there's a user placeholder
+                          const pattern = new RegExp(
+                            `${descriptionMarkerStart}([\\s\\S]*?)${descriptionMarkerEnd}`,
+                            'm'
+                          );
+                          const match = currentBody.match(pattern);
+                          if (match) {
+                            const existingContent = match[1].trim();
+                            // If content exists but doesn't contain typical button HTML, assume it's a user placeholder
+                            const looksLikeButton = existingContent.includes('<a ') && existingContent.includes('playground');
+                            if (existingContent && !looksLikeButton) {
+                              core.info('User placeholder detected between markers. Skipping update to respect user preference.');
+                              return;
+                            }
+                          }
+                          // Update existing button
+                          nextBody = currentBody.replace(pattern, managedBlock);
+                        } else {
+                          // Markers don't exist - check if we should restore
+                          if (!restoreButtonIfRemoved) {
+                            core.info('Button markers not found and restore-button-if-removed is false. Skipping to respect user removal.');
+                            return;
+                          }
+                          // Add the button
+                          const trimmed = currentBody.trimEnd();
+                          nextBody = trimmed ? `${trimmed}${String.fromCodePoint(10)}${String.fromCodePoint(10)}${managedBlock}` : managedBlock;
+                        }
+
+                        if (nextBody !== currentBody) {
+                          await github.rest.pulls.update({
+                            owner,
+                            repo: repoName,
+                            pull_number: prNumber,
+                            body: nextBody
+                          });
+                          core.info('PR description updated with Playground preview button.');
+                        } else {
+                          core.info('PR description already up to date. No changes applied.');
+                        }
+                      };
+
+                      const removeManagedDescriptionBlock = async () => {
+                        const currentBody = pr.body || '';
+                        if (!currentBody.includes(descriptionMarkerStart) || !currentBody.includes(descriptionMarkerEnd)) {
+                          return;
+                        }
+
+                        const pattern = new RegExp(
+                          `${descriptionMarkerStart}[\\s\\S]*?${descriptionMarkerEnd}\\s*`,
+                          'm'
+                        );
+                        const nextBody = currentBody.replace(pattern, '').trimEnd();
+
+                        if (nextBody !== currentBody) {
+                          await github.rest.pulls.update({
+                            owner,
+                            repo: repoName,
+                            pull_number: prNumber,
+                            body: nextBody
+                          });
+                          core.info('Removed managed Playground block from PR description (comment mode active).');
+                        }
+                      };
+
+                      const performCommentUpdate = async () => {
+                        const managedBody = `${commentIdentifier}${String.fromCodePoint(10)}${renderedComment.trim()}`;
+                        const comments = await github.paginate(github.rest.issues.listComments, {
+                          owner,
+                          repo: repoName,
+                          issue_number: prNumber,
+                          per_page: 100
+                        });
+
+                        const existing = comments.find((comment) =>
+                          typeof comment.body === 'string' && comment.body.includes(commentIdentifier)
+                        );
+
+                        if (existing) {
+                          if (existing.body !== managedBody) {
+                            await github.rest.issues.updateComment({
+                              owner,
+                              repo: repoName,
+                              comment_id: existing.id,
+                              body: managedBody
+                            });
+                            core.info(`Updated existing preview comment (id: ${existing.id}).`);
+                          } else {
+                            core.info('Preview comment already up to date.');
+                          }
+                          return existing.id;
+                        }
+
+                        const created = await github.rest.issues.createComment({
+                          owner,
+                          repo: repoName,
+                          issue_number: prNumber,
+                          body: managedBody
+                        });
+                        core.info(`Posted new preview comment (id: ${created.data.id}).`);
+                        return created.data.id;
+                      };
+
+                      let commentId = '';
+                      if (mode === 'append-to-description') {
+                        await performDescriptionUpdate();
+                      } else {
+                        await removeManagedDescriptionBlock();
+                        commentId = String(await performCommentUpdate() || '');
+                      }
+
+                      core.setOutput('mode', mode);
+                      core.setOutput('preview-url', previewUrl);
+                      core.setOutput('blueprint-json', blueprintJson);
+                      core.setOutput('rendered-description', renderedDescription);
+                      core.setOutput('rendered-comment', renderedComment);
+                      core.setOutput('comment-id', commentId);
+
+        outputs:
+            preview-url: ${{ steps.preview.outputs.preview-url }}
+            blueprint-json: ${{ steps.preview.outputs.blueprint-json }}
+            rendered-description: ${{ steps.preview.outputs.rendered-description }}
+            rendered-comment: ${{ steps.preview.outputs.rendered-comment }}
+            mode: ${{ steps.preview.outputs.mode }}
+            comment-id: ${{ steps.preview.outputs.comment-id }}
