@@ -57,7 +57,7 @@ describe('Blueprint step importWxr', () => {
 			slug: 'wordpress-importer',
 		});
 		importerPlugin = await (await pluginResource.resolve()).arrayBuffer();
-	});
+	}, 30_000);
 
 	beforeEach(async () => {
 		handler = await bootWordPressAndRequestHandler({
@@ -89,7 +89,7 @@ describe('Blueprint step importWxr', () => {
 				activate: true,
 			},
 		});
-	});
+	}, 30_000);
 
 	it(
 		'Should import a WXR file with JSON-encoded UTF-8 characters',
