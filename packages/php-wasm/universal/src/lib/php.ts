@@ -681,13 +681,12 @@ export class PHP implements Disposable {
 					requestHeaders,
 					port
 				);
+				if (request.relativeUri) {
+					this.#setServerGlobalEntry('PHP_SELF', request.relativeUri);
+				}
 				for (const key in $_SERVER) {
 					this.#setServerGlobalEntry(key, $_SERVER[key]);
 				}
-				this.#setServerGlobalEntry(
-					'PHP_SELF',
-					request.relativeUri || ''
-				);
 
 				const env = request.env || {};
 				for (const key in env) {

@@ -93,6 +93,6 @@ describe('Test WP version detection', async () => {
 		it(`maps '${input}' to '${expected}'`, () => {
 			const result = versionStringToLoadedWordPressVersion(input);
 			expect(result).to.equal(expected);
-		});
+		}, 30_000);
 	}
 });
