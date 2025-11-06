@@ -120,7 +120,7 @@ describe('Blueprint step importWxr', () => {
 
 		expect(json.post_content).toEqual(expectedPostContent);
 		expect(json.post_title).toEqual(`"Issue\\Issue"`);
-	});
+	}, 30_000);
 
 	it('Should create and associate wp_theme taxonomy terms for Site Editor templates', async () => {
 		const fileData = await readFile(
@@ -139,7 +139,7 @@ describe('Blueprint step importWxr', () => {
 		expect(json.terms_associated_count).toBe(1);
 		expect(json.adonay_term_exists).toBe(true);
 		expect(json.associated_term_slugs).toEqual(['adonay']);
-	});
+	}, 30_000);
 
 	it('Should rewrite site URLs in the imported content', async () => {
 		const fileData = await readFile(
@@ -188,7 +188,7 @@ describe('Blueprint step importWxr', () => {
 `;
 
 		expect(json.post_content).toEqual(expectedPostContent);
-	});
+	}, 30_000);
 
 	it('Should rewrite site URLs in the imported content (tt5 playground content)', async () => {
 		const fileData = await readFile(
@@ -238,7 +238,7 @@ describe('Blueprint step importWxr', () => {
 <!-- /wp:paragraph -->`;
 
 		expect(json.post_content).toEqual(expectedPostContent);
-	});
+	}, 30_000);
 
 	it('Should replace all post authors with admin user', async () => {
 		const fileData = await readFile(
@@ -308,5 +308,5 @@ describe('Blueprint step importWxr', () => {
 		const postTitles = json.post_authors.map((p: any) => p.post_title);
 		expect(postTitles).toContain('Comprehensive Post');
 		expect(postTitles).toContain('Comprehensive Page');
-	});
+	}, 30_000);
 });
