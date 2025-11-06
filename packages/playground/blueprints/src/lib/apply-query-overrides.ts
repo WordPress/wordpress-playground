@@ -2,6 +2,7 @@ import type { BlueprintV1Declaration } from './v1/types';
 import type { BlueprintBundle } from './types';
 import { getBlueprintDeclaration, isBlueprintBundle } from './v1/compile';
 import { RecommendedPHPVersion } from '@wp-playground/common';
+import { OverlayFilesystem, InMemoryFilesystem } from '@wp-playground/storage';
 
 /**
  * Apply query parameter overrides to a blueprint.
@@ -40,9 +41,6 @@ export async function applyQueryOverrides(
 	 * via query params.
 	 */
 	if (isBlueprintBundle(blueprint)) {
-		const { OverlayFilesystem, InMemoryFilesystem } = await import(
-			'@wp-playground/storage'
-		);
 		let blueprintObject = await getBlueprintDeclaration(blueprint);
 		blueprintObject = applyQueryOverridesToDeclaration(
 			blueprintObject,

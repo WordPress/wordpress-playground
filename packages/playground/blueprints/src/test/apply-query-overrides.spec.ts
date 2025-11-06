@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { applyQueryOverrides } from '../lib/apply-query-overrides';
 import type { BlueprintV1Declaration } from '../lib/v1/types';
 import { getBlueprintDeclaration } from '../lib/v1/compile';
+import { InMemoryFilesystem } from '@wp-playground/storage';
 
 describe('applyQueryOverrides', () => {
 	it('should override PHP version from query param', async () => {
@@ -163,7 +164,6 @@ describe('applyQueryOverrides', () => {
 	});
 
 	it('should handle blueprint bundles (filesystems)', async () => {
-		const { InMemoryFilesystem } = await import('@wp-playground/storage');
 		const blueprintBundle = new InMemoryFilesystem({
 			'blueprint.json': JSON.stringify({ landingPage: '/test' }),
 		});
