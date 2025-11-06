@@ -215,8 +215,19 @@ function applyQueryOverridesToDeclaration(
 		}
 	}
 
-	// Login
-	if (query.get('login') !== 'no') {
+	/**
+	 * Apply login query param to blueprint if it doesn't already contain a login step or shorthand.
+	 * Otherwise, the login provided by the blueprint would be overridden.
+	 */
+	const containsLoginStep = blueprint.steps?.some(
+		(step) => typeof step === 'object' && step?.step === 'login'
+	);
+	const containsLoginShorthand = blueprint.login !== undefined;
+	if (
+		query.get('login') !== 'no' &&
+		!containsLoginStep &&
+		!containsLoginShorthand
+	) {
 		blueprint.login = true;
 	}
 
