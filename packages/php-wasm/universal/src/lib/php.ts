@@ -681,6 +681,7 @@ export class PHP implements Disposable {
 					requestHeaders,
 					port
 				);
+
 				for (const key in $_SERVER) {
 					this.#setServerGlobalEntry(key, $_SERVER[key]);
 				}

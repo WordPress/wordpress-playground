@@ -130,6 +130,10 @@ import type { RewriteRule } from '@php-wasm/universal';
  *        - R|Redirect
  *            Causes a HTTP redirect to be issued to the browser.
  *
+ *        (Note that Playground does not implement analogs of these flags as
+ *         there was no need for them yet. They're only described here for
+ *         convenience to help you read the original .htaccess rules.)
+ *
  * ## Differences with .htaccess
  *
  * [1] https://httpd.apache.org/docs/current/rewrite/intro.html
