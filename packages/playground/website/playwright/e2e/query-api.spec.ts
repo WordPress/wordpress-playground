@@ -138,12 +138,13 @@ test('should retain encoded control characters in the URL', async ({
 	);
 	const path =
 		'/wp-admin/admin.php?page=html-api-debugger&html=%3Cdiv%3E%0A1%0A2%0A3%0A%3C%2Fdiv%3E';
+	const queryApiParams = new URLSearchParams();
+	queryApiParams.set('url', path);
+	queryApiParams.set('plugin', 'html-api-debugger');
 	// We need to use the html-api-debugger plugin to test this because
 	// most wp-admin pages enforce a redirect to a sanitized (broken)
 	// version of the URL.
-	await website.goto(
-		`./?url=${encodeURIComponent(path)}&plugin=html-api-debugger`
-	);
+	await website.goto(`./?${queryApiParams.toString()}`);
 	expect(
 		await wordpress
 			.locator('body')
