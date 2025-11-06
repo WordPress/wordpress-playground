@@ -101,7 +101,7 @@ The Playground CLI(`@wp-playground/cli`) will automatically detect the plugin fo
 
 ## Starting with IDE integration
 
-Similar to the process with DevTools, let's use the same plugin code from before to debug with VS Code, and add the `--experimental-unsafe-ide-integration=vscode` flag. This flag will optimize the setup process for VS Code. If you're working with PhpStorm, just add the `--experimental-unsafe-ide-integration=phpstorm` flag.
+Similar to the process with DevTools, let's use the same plugin code from before to debug with VS Code, and add the `--experimental-unsafe-ide-integration=vscode` flag. This flag will optimize the setup process for VS Code. If you're working with PhpStorm, add the `--experimental-unsafe-ide-integration=phpstorm` flag.
 
 :::info
 This flag is marked as `unsafe` because it edits the IDE config files to set Xdebug path mappings and web server details. **CAUTION:** If there are bugs, this feature may cause your IDE configuration files to break. Please consider backing up your IDE configs before using this feature.
@@ -109,8 +109,8 @@ This flag is marked as `unsafe` because it edits the IDE config files to set Xde
 
 To debug in VS Code, you'll need the following prerequisites:
 
-1. An extension to add PHP profiling support, for example, [PHP Profiler](https://open-vsx.org/extension/devsense/profiler-php-vscode)
-2. Have a `.vscode/` folder for VS Code and `.idea` for PhpStorm.
+1. An extension to add PHP profiling support, for example, [PHP Debug](https://marketplace.visualstudio.com/items?itemName=xdebug.php-debug) or another debugger extension to your preference.
+2. Have a `.vscode/` folder.
 3. Enable breakpoints in your IDE. Some IDEs come with this feature disabled, so be aware of this detail.
 
 If everything is ready, you run the command:
@@ -118,8 +118,26 @@ If everything is ready, you run the command:
 ```bash
 npx @wp-playground/cli@latest server --xdebug --experimental-unsafe-ide-integration=vscode --auto-mount
 ```
+If you don't have a ´.vscode/launch.json´ file, the terminal will create a file similar to this:
 
-Now, go to your code, add the breakpoints, and happy testing.
+```JSON
+{
+    "configurations": [
+        {
+            "name": "WP Playground CLI - Listen for Xdebug",
+            "type": "php",
+            "request": "launch",
+            "port": 9003,
+            "pathMappings": {
+                "/": "${workspaceFolder}/.playground-xdebug-root",
+                "/wordpress/wp-content/plugins/test-xdebug": "${workspaceFolder}/"
+            }
+        }
+    ]
+}
+```
+
+Now, you can go to your code, add the breakpoints, start the debugging session named by your IDE, and happy testing.
 
 ![Xdebug in action on VS Code](@site/static/img/developers/xdebug/xdebug-in-action-on-vscode.webp)
 
