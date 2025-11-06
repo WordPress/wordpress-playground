@@ -37,7 +37,7 @@ describe('Test WordPress rewrites', () => {
 		);
 	});
 
-	it('Should only target the initial wp-admin|wp-content|wp-includes path (1)', async () => {
+	it('Should only target the first instance of a wp-admin|wp-content|wp-includes dir in a path (1)', async () => {
 		expect(
 			applyRewriteRules(
 				'/wp-content/themes/Newspaper/includes/wp-booster/wp-admin/images/plugins/tagdiv-small.png',
@@ -48,7 +48,7 @@ describe('Test WordPress rewrites', () => {
 		);
 	});
 
-	it('Should only target the initial wp-admin|wp-content|wp-includes path (2)', async () => {
+	it('Should only target the first instance of a wp-admin|wp-content|wp-includes dir in a path (2)', async () => {
 		expect(
 			applyRewriteRules(
 				'/wp-content/themes/Newspaper/includes/wp-booster/wp-content/images/plugins/tagdiv-small.png',

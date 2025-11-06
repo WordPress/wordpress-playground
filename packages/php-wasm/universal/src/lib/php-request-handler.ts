@@ -637,7 +637,7 @@ export class PHPRequestHandler implements AsyncDisposable {
 				),
 				protocol: this.#PROTOCOL,
 				method: request.method || preferredMethod,
-				$_SERVER: this.prepare$_SERVER(
+				$_SERVER: this.prepare_$_SERVER_variables(
 					originalRequestUrl,
 					rewrittenRequestUrl,
 					scriptPath
@@ -750,7 +750,7 @@ export class PHPRequestHandler implements AsyncDisposable {
 	 * $_GET['param']              | value
 	 * ```
 	 */
-	private prepare$_SERVER(
+	private prepare_$_SERVER_variables(
 		originalRequestUrl: URL,
 		rewrittenRequestUrl: URL,
 		resolvedScriptPath: string
