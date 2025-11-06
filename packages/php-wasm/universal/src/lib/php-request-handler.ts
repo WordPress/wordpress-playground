@@ -443,13 +443,12 @@ export class PHPRequestHandler implements AsyncDisposable {
 			 * If /var/www/file.php/index.php does not exist, but /var/www/file.php does,
 			 * use /var/www/file.php. This is also what Apache and PHP Dev Server do.
 			 */
-			let pathToTry = rewrittenRequestUrl.pathname;
-			while (true) {
+			let pathToTry = dirname(rewrittenRequestUrl.pathname);
+			while (
+				pathToTry.startsWith('/') &&
+				pathToTry !== dirname(pathToTry)
+			) {
 				pathToTry = dirname(pathToTry);
-				if (pathToTry === '/' || !pathToTry.includes('/')) {
-					// We've tried all segments for a partial path.
-					break;
-				}
 				if (primaryPhp.isFile(joinPaths(this.#DOCROOT, pathToTry))) {
 					fsPath = joinPaths(this.#DOCROOT, pathToTry);
 					break;
