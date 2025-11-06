@@ -216,11 +216,12 @@ function applyQueryOverridesToDeclaration(
 	}
 
 	/**
-	 * Apply login query param to blueprint if it doesn't already contain a login step or shorthand.
+	 * Apply login Query API default value to blueprint
+	 * only if it doesn't already contain a login step or shorthand.
 	 * Otherwise, the login provided by the blueprint would be overridden.
 	 */
 	const containsLoginStep = blueprint.steps?.some(
-		(step) => typeof step === 'object' && step?.step === 'login'
+		(step) => step && typeof step === 'object' && step?.step === 'login'
 	);
 	const containsLoginShorthand = blueprint.login !== undefined;
 	if (
