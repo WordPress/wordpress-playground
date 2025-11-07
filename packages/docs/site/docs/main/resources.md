@@ -30,7 +30,7 @@ There's a set of redirections in place to make it easier the access to some of t
 ## Apps built with WordPress Playground
 
 -   [Official demo](https://playground.wordpress.net/) and the [showcase](https://developer.wordpress.org/playground) app – install a theme, try out a plugin, create a few pages, export what you've built
--   [@wp-playground/cli](https://www.npmjs.com/package/@wp-playground/cli) – a CLI tool for instant WordPress dev enviroment
+-   [@wp-playground/cli](https://www.npmjs.com/package/@wp-playground/cli) – a CLI tool for instant WordPress dev environment
 -   [WordPress Playground for VS Code](https://marketplace.visualstudio.com/items?itemName=WordPressPlayground.wordpress-playground)
 -   Live Translations: [App](https://translate.wordpress.org/projects/wp-plugins/friends/dev/pl/default/playground/), [announcement](https://make.wordpress.org/polyglots/2023/04/19/wp-translation-playground/), [more details](https://make.wordpress.org/polyglots/2023/05/08/translate-live-updates-to-the-translation-playground/)
 -   [Interactive code block](https://wordpress.org/plugins/interactive-code-block/) which powers the [HTML Tag Processor tutorial](https://adamadam.blog/2023/02/16/how-to-modify-html-in-a-php-wordpress-plugin-using-the-new-tag-processor-api/) and the [Playground JS API tutorial](https://wordpress.github.io/wordpress-playground/developers/apis/javascript-api/)
