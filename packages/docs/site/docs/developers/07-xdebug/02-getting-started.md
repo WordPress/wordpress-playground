@@ -15,7 +15,7 @@ First, Xdebug is present in two different CLIs:
 -   **`@php-wasm/cli`**: Run standalone PHP scripts. Use this when debugging PHP code without needing a WordPress environment.
 -   **`@wp-playground/cli`**: Run a full WordPress installation. Useful for debugging WordPress plugins, themes, or core functionality.
 
-For this guide, we'll use `@wp-playground/cli`. Suppose you're not familiar with the tool. In that case, we recommend reading the [`@wp-playground/cli` guide](/developers/local-development/wp-playground-cli), but the same process can also be applied to debugging PHP applications with `@php-wasm/cli`.
+For this guide, we'll use `@wp-playground/cli`. If you're not familiar with the tool, we recommend reading the [`@wp-playground/cli` guide](/developers/local-development/wp-playground-cli), but the same process can also be applied to debugging PHP applications with `@php-wasm/cli`.
 
 ## Quick start with `npx`
 
@@ -25,7 +25,7 @@ The fastest way to get started is using npx, which doesn't require installation:
 npx @wp-playground/cli@latest server --xdebug
 ```
 
-This starts WordPress on `http://127.0.0.1:9400` with Xdebug enabled. Now you connect a debugger.
+This starts WordPress on `http://127.0.0.1:9400` with Xdebug enabled. Now you can connect a debugger.
 
 :::info
 Only one project can be debugged at a time.
@@ -118,7 +118,7 @@ If everything is ready, you run the command:
 ```bash
 npx @wp-playground/cli@latest server --xdebug --experimental-unsafe-ide-integration=vscode --auto-mount
 ```
-If you don't have a ´.vscode/launch.json´ file, the terminal will create a file similar to this:
+If you don't have a `.vscode/launch.json` file, the terminal will create a file similar to this:
 
 ```JSON
 {

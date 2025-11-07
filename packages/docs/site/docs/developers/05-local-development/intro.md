@@ -9,7 +9,7 @@ Playground offers various development environments to streamline setting up and 
 
 For a quick start, use a [public Playground web instance](/web-instance) at https://playground.wordpress.net/. Alternatively, you can [host your own WordPress Playground](/developers/architecture/host-your-own-playground).
 
-Playground also provides tools for local WordPress development, prioritizing easy installation and usability:
+Playground also provides tools for local WordPress development, prioritizing ease of installation and usability:
 
 -   **[@wp-playground/cli](/developers/local-development/wp-playground-cli):** A command-line tool to quickly launch a WordPress site from your terminal.
 -   **[Visual Studio Code Extension](/developers/local-development/vscode-extension):** Integrates WordPress development directly into VS Code for a seamless experience within the popular editor.

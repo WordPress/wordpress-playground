@@ -54,9 +54,9 @@ Once you click on save, an instance will be stored with a generated name to be r
 ![Additional actions Menu](@site/static/img/about/playground-manager-additional-actions.webp)
 
 -   **Export Pull Request to GitHub**: This option allows you to export WordPress plugins, themes, and entire wp-content directories as pull requests to any public GitHub repository. Check [here](https://www.youtube.com/watch?v=gKrij8V3nK0&t=2488s) a demo of using this option.
--   **Download as zip**: It creates a `.zip` with the setup of the Playground instance, including any themes or plugins installed. This `.zip` won't include content and database changes.
--   **Report error**: If you have any issues with WP Playground, you can report it using the form available from this option. You can help resolve issues with Playground by sharing the error details with the development team behind Playground.
--   **View Blueprint**: This option will open the current blueprint used for the Playground instance in the [Blueprints Builder tool](https://playground.wordpress.net/builder/builder.html). From this tool you'll be able to edit the blueprint online and run a new Playground instance with your edited version of the blueprint.
+-   **Download as .zip**: Creates a `.zip` file with the setup of the Playground instance, including any themes or plugins installed. This `.zip` won't include content and database changes.
+-   **Report error**: If you have any issues with WordPress Playground, you can report them using the form available from this option. You can help resolve issues with Playground by sharing the error details with the development team behind Playground.
+-   **View Blueprint**: This option will open the current blueprint used for the Playground instance in the [Blueprints Builder tool](https://playground.wordpress.net/builder/builder.html). From this tool, you'll be able to edit the blueprint online and run a new Playground instance with your edited version of the blueprint.
 
 <span id="edit-the-blueprint"></span>
 
@@ -66,8 +66,8 @@ Once you click on save, an instance will be stored with a generated name to be r
 
 ![Import actions Menu](@site/static/img/about/playground-manager-import-actions.webp)
 
--   **Import from zip**: It allows you to recreate a Playground instance using any `.zip` generated with the "Download as zip" option.
--   **Preview a Gutenberg PR**: Allow testers run branches from the Gutenberg repository to test pull requests instantly.
+-   **Import from .zip**: Allows you to recreate a Playground instance using any `.zip` file generated with the "Download as .zip" option.
+-   **Preview a Gutenberg PR**: Allows testers to run branches from the Gutenberg repository to test pull requests instantly.
 -   **Import from GitHub**: This option allows you to import plugins, themes, and wp-content directories directly from your public GitHub repositories. To enable this feature, connect your GitHub account with WordPress Playground.
 
 :::caution
