@@ -4,17 +4,31 @@ slug: /developers/local-development/php-wasm-node
 description: WordPress Playground traz PHP com WebAssembly para Node.js para execução do lado do servidor, processamento de dados e testes sem instalação nativa.
 ---
 
+<!-- # Using WordPress Playground in Node.js -->
+
 # Usando WordPress Playground no Node.js
+
+<!-- As a WebAssembly project, you can also use WordPress Playground in Node.js. -->
 
 Como um projeto WebAssembly, você também pode usar o WordPress Playground no Node.js.
 
+<!-- If you need low-level control over the underlying WebAssembly PHP build, take a look at the [@php-wasm/node package](https://npmjs.org/@php-wasm/node) which ships the PHP WebAssembly runtime. This package is at the core of all WordPress Playground tools for Node.js. -->
+
 Se você precisa de controle de baixo nível sobre a compilação WebAssembly do PHP subjacente, dê uma olhada no [pacote @php-wasm/node](https://npmjs.org/@php-wasm/node) que inclui o runtime WebAssembly do PHP. Este pacote está no centro de todas as ferramentas WordPress Playground para Node.js.
+
+<!-- Consult the [complete list](/api/node) of Classes, Functions, Interfaces, and Type Aliases. -->
 
 Consulte a [lista completa](/api/node) de Classes, Funções, Interfaces e Aliases de Tipo.
 
+<!-- ## WebAssembly PHP for Node.js -->
+
 ## WebAssembly PHP para Node.js
 
+<!-- This package ships WebAssembly PHP binaries and the JavaScript API optimized for Node.js. It uses the host file system directly and can access the network if you plug in a custom WS proxy. -->
+
 Este pacote inclui binários WebAssembly do PHP e a API JavaScript otimizada para Node.js. Ele usa o sistema de arquivos do host diretamente e pode acessar a rede se você conectar um proxy WS customizado.
+
+<!-- ### Basic usage -->
 
 ### Uso básico
 
@@ -29,82 +43,36 @@ const output = await php.runStream({
 console.log(await output.stdoutText);
 ```
 
+<!-- ## Use cases -->
+
 ## Casos de uso
 
-### Execução PHP do lado do servidor
+<!-- Run PHP inside Node.js without a native PHP install. Allow developer to produce the following solutions: -->
+<!-- - CI/CD jobs and developer tooling. -->
+<!-- - Support education and WordPress workflows: Power interactive tutorials, sandboxes, and coding challenges. -->
+<!-- - Generate content and prototype server behavior. -->
+<!-- - Render HTML using PHP templates, and quickly stand up mock API endpoints to simulate requests. -->
 
-Você pode executar scripts PHP em ambientes Node.js sem instalar PHP nativamente. Perfeito para:
+Execute PHP dentro do Node.js sem instalação nativa de PHP. Permite ao desenvolvedor produzir as seguintes soluções:
 
--   Pipelines CI/CD que precisam de execução PHP
--   Microserviços que ocasionalmente precisam de funcionalidade PHP
--   Ferramentas de desenvolvimento e scripts de build
+-   Tarefas de CI/CD e ferramentas de desenvolvimento.
+-   Suporte à educação e fluxos de trabalho WordPress: potencialize tutoriais interativos, sandboxes e desafios de código.
+-   Gerar conteúdo e prototipar comportamento de servidor.
+-   Renderizar HTML usando templates PHP e levantar rapidamente endpoints de API simulados para simular requisições.
 
-### Processamento e transformação de dados
-
-Você pode processar e manipular dados usando o rico ecossistema do PHP:
-
--   Transformação de dados CSV, JSON e XML
--   Operações de banco de dados SQLite sem dependências externas
--   Criação e extração de arquivos (ZIP, TAR)
--   Processamento e manipulação de imagens
-
-### Renderização de templates e geração de conteúdo
-
-Você pode gerar conteúdo dinâmico usando templates PHP:
-
--   Renderização de templates de email
--   Geração de relatórios HTML
--   Geração de documentação
--   Criação dinâmica de arquivos de configuração
-
-### Desenvolvimento e teste de APIs
-
-Você pode construir e testar endpoints de API:
-
--   Servidores de API mock para testes
--   Simulação de requisição/resposta
--   Prototipagem de endpoints de API
--   Testes de integração para APIs PHP
-
-### Análise e teste de código PHP
-
-Você pode construir ferramentas que analisam, fazem lint ou testam código PHP:
-
--   Ferramentas de análise estática
--   Formatadores e validadores de código
--   Executores de testes unitários
--   Geradores de documentação
-
-### Integração de código legado
-
-Você pode fazer a ponte entre os ecossistemas PHP e JavaScript:
-
--   Migrar aplicações PHP incrementalmente
--   Usar bibliotecas PHP em projetos JavaScript
--   Executar PHP junto com frameworks JavaScript modernos
--   Fornecer compatibilidade retroativa
-
-### Plataformas educacionais
-
-Você pode criar ambientes de aprendizado PHP interativos:
-
--   Tutoriais de codificação online
--   Documentação interativa
--   Playgrounds e sandboxes de código
--   Desafios de programação
-
-### Ferramentas de desenvolvimento WordPress
-
-Você pode construir utilitários de desenvolvimento WordPress:
-
--   Validadores de plugin/tema
--   Alternativas ao WordPress CLI
--   Inicialização de ambiente de desenvolvimento
--   Ferramentas de teste automatizado
+<!-- ## Practical demos -->
 
 ## Demos práticas
 
+<!-- We will list some examples using the PHP-WASM package. -->
+
+Listaremos alguns exemplos usando o pacote PHP-WASM.
+
+<!-- ### Demo 1: File system operations -->
+
 ### Demo 1: Operações no sistema de arquivos
+
+<!-- Execute PHP scripts that interact with the file system: -->
 
 Execute scripts PHP que interagem com o sistema de arquivos:
 
@@ -150,7 +118,11 @@ const result = await php.runStream({ scriptPath: '/app/index.php' });
 console.log(await result.stdoutText);
 ```
 
+<!-- ### Demo 2: SQLite database operations -->
+
 ### Demo 2: Operações de banco de dados SQLite
+
+<!-- Use PHP's SQLite extension for data storage: -->
 
 Use a extensão SQLite do PHP para armazenamento de dados:
 
@@ -210,7 +182,11 @@ const dbExists = await php.fileExists('/data/app.db');
 console.log('\nDatabase persisted:', dbExists);
 ```
 
+<!-- ### Demo 3: Processing uploaded files (ZIP archives) -->
+
 ### Demo 3: Processamento de arquivos enviados (arquivos ZIP)
+
+<!-- Process ZIP files using PHP's Libzip extension: -->
 
 Processe arquivos ZIP usando a extensão Libzip do PHP:
 
@@ -271,7 +247,11 @@ foreach ($files as $file) {
 console.log(await result.stdoutText);
 ```
 
+<!-- ### Demo 4: HTTP request/response pattern -->
+
 ### Demo 4: Padrão de requisição/resposta HTTP
+
+<!-- Simulate web server behavior with request handlers: -->
 
 Simule comportamento de servidor web com manipuladores de requisição:
 
@@ -346,7 +326,11 @@ const postResponse = await php.runStream({
 console.log('\\nPOST Response:', await postResponse.stdoutText);
 ```
 
+<!-- ### Demo 5: Template rendering engine -->
+
 ### Demo 5: Motor de renderização de templates
+
+<!-- Use PHP as a templating engine for dynamic content: -->
 
 Use PHP como um motor de templates para conteúdo dinâmico:
 
@@ -421,7 +405,11 @@ console.log(await result.stdoutText);
 // Agora você tem HTML renderizado que pode ser enviado por email ou salvo
 ```
 
+<!-- ### Demo 6: Real-time code execution and streaming -->
+
 ### Demo 6: Execução de código em tempo real e streaming
+
+<!-- Process PHP output as it's generated: -->
 
 Processe a saída do PHP conforme ela é gerada:
 
@@ -458,9 +446,15 @@ console.log(await streamedResponse.stdoutText);
 console.log(`\nExit code: ${streamedResponse.exitCode}`);
 ```
 
+<!-- ## Integration patterns -->
+
 ## Padrões de integração
 
+<!-- ### Pattern 1: Express.js middleware -->
+
 ### Padrão 1: Middleware Express.js
+
+<!-- Integrate PHP processing into an Express.js application: -->
 
 Integre processamento PHP em uma aplicação Express.js:
 
@@ -498,7 +492,11 @@ app.listen(3000, () => {
 });
 ```
 
+<!-- ### Pattern 2: Automated testing -->
+
 ### Padrão 2: Testes automatizados
+
+<!-- Create automated tests for PHP code: -->
 
 Crie testes automatizados para código PHP:
 
@@ -546,7 +544,11 @@ describe('PHP Functions', () => {
 });
 ```
 
+<!-- ### Pattern 3: Build tool integration -->
+
 ### Padrão 3: Integração com ferramentas de build
+
+<!-- Use in build scripts with other Node.js tools: -->
 
 Use em scripts de build com outras ferramentas Node.js:
 
@@ -587,7 +589,11 @@ echo "Documentation generated successfully!\\n";
 generateDocumentation().catch(console.error);
 ```
 
+<!-- ## Advanced features -->
+
 ## Recursos avançados
+
+<!-- ### Working with environment variables -->
 
 ### Trabalhando com variáveis de ambiente
 
@@ -606,6 +612,8 @@ const result = await php.runStream({
 
 console.log(await result.stdoutText);
 ```
+
+<!-- ### Error handling -->
 
 ### Tratamento de erros
 
@@ -634,7 +642,14 @@ try {
 }
 ```
 
+<!-- ## Performance considerations -->
+
 ## Considerações de desempenho
+
+<!-- -   **Reuse PHP instances**: Creating a new PHP instance is expensive. Reuse the same instance when possible. -->
+<!-- -   **Batch operations**: Group multiple file operations together rather than running separate scripts. -->
+<!-- -   **Memory management**: Large files may impact performance. Consider streaming for big datasets. -->
+<!-- -   **Caching**: Cache compiled PHP scripts and frequently accessed data. -->
 
 -   **Reutilize instâncias PHP**: Criar uma nova instância PHP é custoso. Reutilize a mesma instância quando possível.
 -   **Operações em lote**: Agrupe múltiplas operações de arquivo juntas em vez de executar scripts separados.

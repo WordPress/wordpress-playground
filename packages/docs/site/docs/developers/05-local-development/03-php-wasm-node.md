@@ -31,78 +31,16 @@ console.log(await output.stdoutText);
 
 ## Use cases
 
-### Server-side PHP execution
+Run PHP inside Node.js without a native PHP install. Allow developer to produce the following solutions:
 
-You can run PHP scripts in Node.js environments without installing PHP natively. Perfect for:
-
--   CI/CD pipelines that need PHP execution
--   Microservices that occasionally need PHP functionality
--   Development tools and build scripts
-
-### Data processing and transformation
-
-You can process and manipulate data using PHP's rich ecosystem:
-
--   CSV, JSON, and XML data transformation
--   SQLite database operations without external dependencies
--   Archive creation and extraction (ZIP, TAR)
--   Image processing and manipulation
-
-### Template rendering and content generation
-
-You can generate dynamic content using PHP templates:
-
--   Email template rendering
--   HTML report generation
--   Documentation generation
--   Dynamic configuration file creation
-
-### API development and testing
-
-You can build and test API endpoints:
-
--   Mock API servers for testing
--   Request/response simulation
--   API endpoint prototyping
--   Integration testing for PHP APIs
-
-### PHP code analysis and testing
-
-You can build tools that analyze, lint, or test PHP code:
-
--   Static analysis tools
--   Code formatters and validators
--   Unit test runners
--   Documentation generators
-
-### Legacy code integration
-
-You can bridge PHP and JavaScript ecosystems:
-
--   Migrate PHP applications incrementally
--   Use PHP libraries in JavaScript projects
--   Run PHP alongside modern JavaScript frameworks
--   Provide backward compatibility
-
-### Educational platforms
-
-You can create interactive PHP learning environments:
-
--   Online coding tutorials
--   Interactive documentation
--   Code playgrounds and sandboxes
--   Programming challenges
-
-### WordPress development tools
-
-You can build WordPress development utilities:
-
--   Plugin/theme validators
--   WordPress CLI alternatives
--   Development environment bootstrapping
--   Automated testing tools
+-   CI/CD jobs and developer tooling.
+-   Support education and WordPress workflows: Power interactive tutorials, sandboxes, and coding challenges.
+-   Generate content and prototype server behavior.
+-   Render HTML using PHP templates, and quickly stand up mock API endpoints to simulate requests.
 
 ## Practical demos
+
+We will list some examples using the PHP-WASM package.
 
 ### Demo 1: File system operations
 
