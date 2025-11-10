@@ -1,7 +1,7 @@
 ---
 slug: /contributing/table-lead-guide
 title: યોગદાનકર્તા દિવસ માટે ટેબલ લીડ માર્ગદર્શિકા
-description: વર્ડકેમ્પના યોગદાનકર્તા દિવસે WordPress Playground ટેબલ કેવી રીતે સંચાલિત કરવી તે શીખો.
+description: વર્ડકેમ્પના યોગદાનકર્તા દિવસે વર્ડપ્રેસ પ્લેગ્રાઉન્ડ ટેબલ કેવી રીતે સંચાલિત કરવી તે શીખો.
 ---
 
 # યોગદાનકર્તા દિવસ માટે ટેબલ લીડ માર્ગદર્શિકા
@@ -10,10 +10,10 @@ description: વર્ડકેમ્પના યોગદાનકર્તા
 # Table Lead Guide for Contributor Day
 -->
 
-આ માર્ગદર્શિકા વર્ડકેમ્પ ઇવેન્ટ્સમાં WordPress Playground યોગદાનકર્તા ટેબલ માટે ટેબલ લીડ્સને તૈયારી કરવા અને સંચાલિત કરવામાં મદદ કરે છે.
+આ માર્ગદર્શિકા વર્ડકેમ્પ ઇવેન્ટ્સમાં વર્ડપ્રેસ પ્લેગ્રાઉન્ડ યોગદાનકર્તા ટેબલ માટે ટેબલ લીડ્સને તૈયારી કરવા અને સંચાલિત કરવામાં મદદ કરે છે.
 
 <!--
-This guide helps table leads prepare for and manage a WordPress Playground contributor table at WordCamp events.
+This guide helps table leads prepare for and manage a વર્ડપ્રેસ પ્લેગ્રાઉન્ડ contributor table at WordCamp events.
 -->
 
 ## યોગદાનકર્તા દિવસ પહેલાં
@@ -28,13 +28,13 @@ This guide helps table leads prepare for and manage a WordPress Playground contr
 ### Pre-Work Checklist
 -->
 
-- **“Good First Issues” પસંદ કરો:** GitHub પર [good first issues list](https://github.com/WordPress/wordpress-playground/labels/good%20first%20issue) ની સમીક્ષા કરો અને અપડેટ કરો. આ એવી સરળ કામગીરીઓ હોવી જોઈએ જે નવા યોગદાનકર્તાઓ સ્વતંત્રપણે પૂર્ણ કરી શકે. જો તમને કોઈ બગ મળે જે યાદીમાં નથી પરંતુ યોગ્ય લાગે, તો Slack ચેનલ પર Playground ટીમનો સંપર્ક કરો.
+- **“Good First Issues” પસંદ કરો:** GitHub પર [good first issues list](https://github.com/WordPress/wordpress-playground/labels/good%20first%20issue) ની સમીક્ષા કરો અને અપડેટ કરો. આ એવી સરળ કામગીરીઓ હોવી જોઈએ જે નવા યોગદાનકર્તાઓ સ્વતંત્રપણે પૂર્ણ કરી શકે. જો તમને કોઈ બગ મળે જે યાદીમાં નથી પરંતુ યોગ્ય લાગે, તો Slack ચેનલ પર પ્લેગ્રાઉન્ડ ટીમનો સંપર્ક કરો.
 
-- **Playground ટીમ સાથે સમન્વય કરો:** Playground ટીમના સભ્યો ઇવેન્ટ દરમિયાન રીમોટ સપોર્ટ આપવા માટે ઑનલાઇન ઉપલબ્ધ છે કે નહીં તે ખાતરી કરો, ખાસ કરીને મોટા વર્ડકેમ્પ્સ માટે. સમય ઝોનના તફાવતને કારણે, #playground ચેનલમાં પહેલેથી સમન્વય કરો.
+- **પ્લેગ્રાઉન્ડ ટીમ સાથે સમન્વય કરો:** પ્લેગ્રાઉન્ડ ટીમના સભ્યો ઇવેન્ટ દરમિયાન રીમોટ સપોર્ટ આપવા માટે ઑનલાઇન ઉપલબ્ધ છે કે નહીં તે ખાતરી કરો, ખાસ કરીને મોટા વર્ડકેમ્પ્સ માટે. સમય ઝોનના તફાવતને કારણે, #playground ચેનલમાં પહેલેથી સમન્વય કરો.
 
 - **સ્થાનિક યોગદાનકર્તાઓ સાથે જોડાઓ:** તે વિસ્તારના નિયમિત યોગદાનકર્તાઓ શોધો જે ઇવેન્ટમાં હાજરી આપી રહ્યા છે. જો કોઈ સક્રિય સમુદાય સભ્ય ભાગ લઈ રહ્યો હોય, તો તે જાણવા માટે #playground Slack ચેનલ તપાસો. આ પ્રતિસાદ મેળવવાની અને સમુદાયને મજબૂત બનાવવાની તક છે.
 
-- **Playground રિપોઝિટરી તપાસો:** જો તમે WordPress Playground રિપોઝિટરીમાં ક્યારેય યોગદાન આપ્યું ન હોય, તો દસ્તાવેજીકરણના [Developers > Architecture](/developers/architecture) વિભાગને વાંચો, જે પ્રોજેક્ટ કેવી રીતે રચાયેલ છે તે સમજવામાં મદદ કરશે. કોઈ પ્રશ્નો હોય તો Playground Slack ચેનલ પર ટીમનો સંપર્ક કરો.
+- **પ્લેગ્રાઉન્ડ રિપોઝિટરી તપાસો:** જો તમે વર્ડપ્રેસ પ્લેગ્રાઉન્ડ રિપોઝિટરીમાં ક્યારેય યોગદાન આપ્યું ન હોય, તો દસ્તાવેજીકરણના [Developers > Architecture](/developers/architecture) વિભાગને વાંચો, જે પ્રોજેક્ટ કેવી રીતે રચાયેલ છે તે સમજવામાં મદદ કરશે. કોઈ પ્રશ્નો હોય તો પ્લેગ્રાઉન્ડ Slack ચેનલ પર ટીમનો સંપર્ક કરો.
 
 ## દિવસની શરૂઆત
 
@@ -50,17 +50,17 @@ This guide helps table leads prepare for and manage a WordPress Playground contr
 
 1. **તમારી એજન્ડા બનાવો:** મુખ્ય પ્રવૃત્તિઓની લવચીક ચેકલિસ્ટ તૈયાર કરો, જેથી સહયોગી વાતાવરણ જળવાય. જરૂર પડે તો તેને દસ્તાવેજીકરણમાં શેર કરો.
 
-2. **યોગદાનકર્તાઓને Slack પર માર્ગદર્શિત કરો:** દરેકને [`#playground` WordPress Slack ચેનલ](https://wordpress.slack.com/archives/C04EWKGDJ0K) પર દોરી જાઓ. આ સંદેશાવ્યવહાર કેન્દ્રિત કરે છે અને મોડી આવનારા યોગદાનકર્તાઓ સાથે પણ સહયોગ સક્ષમ બનાવે છે.
+2. **યોગદાનકર્તાઓને Slack પર માર્ગદર્શિત કરો:** દરેકને [`#playground` વર્ડપ્રેસ Slack ચેનલ](https://wordpress.slack.com/archives/C04EWKGDJ0K) પર દોરી જાઓ. આ સંદેશાવ્યવહાર કેન્દ્રિત કરે છે અને મોડી આવનારા યોગદાનકર્તાઓ સાથે પણ સહયોગ સક્ષમ બનાવે છે.
 
 3. **સ્વાગત સંદેશ પોસ્ટ કરો:** Slack ચેનલમાં તમારી હાજરી (ઑનલાઇન કે વ્યક્તિગત) જાહેર કરીને સૌનું સ્વાગત કરો અને યોગદાન માટે આમંત્રણ આપો.
 
 4. **મહત્વપૂર્ણ લિંક્સ શેર કરો:** `#playground` ચેનલમાં નીચેના સ્ત્રોતો પોસ્ટ કરો:
 
-    - [WordPress Playground વેબ ઇન્સ્ટન્સ](https://playground.wordpress.net/)
-    - [Playground દસ્તાવેજીકરણ](https://wordpress.github.io/wordpress-playground/)
-    - [Playground Step Library](https://akirk.github.io/playground-step-library/)
+    - [વર્ડપ્રેસ પ્લેગ્રાઉન્ડ વેબ ઇન્સ્ટન્સ](https://playground.wordpress.net/)
+    - [પ્લેગ્રાઉન્ડ દસ્તાવેજીકરણ](https://wordpress.github.io/wordpress-playground/)
+    - [પ્લેગ્રાઉન્ડ Step Library](https://akirk.github.io/playground-step-library/)
     - [GitHub રિપોઝિટરી](https://github.com/WordPress/wordpress-playground)
-    - [Contributor Day માર્ગદર્શિકા](/contributing/contributor-day/)
+    - [યોગદાનકર્તા દિવસ માર્ગદર્શિકા](/contributing/contributor-day/)
 
 5. **GitHub રિપોઝિટરીનું પરિચય આપો:** પ્રથમ વખત યોગદાન આપનારા માટે રિપોઝિટરી માળખાનું ટૂંકું વર્ણન કરો, વિવિધ પેકેજ અને તેમના હેતુઓ સમજાવો.
 
@@ -82,10 +82,10 @@ This guide helps table leads prepare for and manage a WordPress Playground contr
 
 - દસ્તાવેજીકરણ સુધારાઓ અને અનુવાદ.
 - સ્પષ્ટ રીતે લખાયેલા ઇશ્યુઝ જે ઉકેલ સૂચવે છે.
-- WordPress પ્લગઇન રિપોઝિટરી માટે બ્લૂપ્રિન્ટ અથવા ડેમો બનાવવી.
+- વર્ડપ્રેસ પ્લગઇન રિપોઝિટરી માટે બ્લૂપ્રિન્ટ અથવા ડેમો બનાવવી.
 - ટેસ્ટિંગ અને પ્રોડક્ટ પ્રતિસાદ આપવો.
 
-**સહયોગને પ્રોત્સાહન આપો:** અન્ય ટેબલ સાથે સહકારની તકો શોધો. ઉદાહરણ તરીકે, [Polyglots/Translation ટેબલ](https://make.wordpress.org/polyglots/)ના યોગદાનકર્તાઓ Playground દસ્તાવેજીકરણનું અનુવાદ કરી શકે છે, અથવા [Core Test ટીમ](https://make.wordpress.org/test/) ઉપયોગી પ્રતિસાદ આપી શકે છે.
+**સહયોગને પ્રોત્સાહન આપો:** અન્ય ટેબલ સાથે સહકારની તકો શોધો. ઉદાહરણ તરીકે, [Polyglots/Translation ટેબલ](https://make.wordpress.org/polyglots/)ના યોગદાનકર્તાઓ પ્લેગ્રાઉન્ડ દસ્તાવેજીકરણનું અનુવાદ કરી શકે છે, અથવા [Core Test ટીમ](https://make.wordpress.org/test/) ઉપયોગી પ્રતિસાદ આપી શકે છે.
 
 **પ્રતિસાદ એકત્ર કરો:** યોગદાનકર્તાઓના અનુભવો વિશે પૂછો અને સુધારાના સૂચનો નોંધો. શક્ય હોય તો તેને [#playground Slack ચેનલ](https://wordpress.slack.com/archives/C04EWKGDJ0K) પર શેર કરો.
 
@@ -118,8 +118,8 @@ This guide helps table leads prepare for and manage a WordPress Playground contr
 ## Getting Help
 -->
 
-- **ઇવેન્ટ દરમિયાન:** Playground ટેબલ પર યોગદાનકર્તાઓ સાથે જોડાઓ.
+- **ઇવેન્ટ દરમિયાન:** પ્લેગ્રાઉન્ડ ટેબલ પર યોગદાનકર્તાઓ સાથે જોડાઓ.
 - **સતત સપોર્ટ:** [`#playground` Slack ચેનલ](https://wordpress.slack.com/archives/C04EWKGDJ0K) નો ઉપયોગ કરો.
-- **મુદ્દાઓ રિપોર્ટ કરો:** [WordPress Playground GitHub રિપોઝિટરી](https://github.com/WordPress/wordpress-playground/issues/new) પર સબમિટ કરો.
+- **મુદ્દાઓ રિપોર્ટ કરો:** [વર્ડપ્રેસ પ્લેગ્રાઉન્ડ GitHub રિપોઝિટરી](https://github.com/WordPress/wordpress-playground/issues/new) પર સબમિટ કરો.
 
 વધુ માહિતી માટે [Contributor Day માર્ગદર્શિકા](/contributing/contributor-day) જુઓ.
