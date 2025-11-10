@@ -1,9 +1,7 @@
-## <!--
-
+---
 slug: /contributing/table-lead-guide
 title: Table Lead Guide for Contributor Day
-description: How to lead a WordPress Playground table at Contributor Day of a WordCamp.
-
+description: How to lead a WordPress Playground table at the Contributor Day of a WordCamp.
 ---
 
 # Table Lead Guide for Contributor Day
@@ -17,7 +15,7 @@ This guide helps table leads prepare for and manage a WordPress Playground contr
 -   **Curate "Good First Issues"**: Review and update the [good first issues list](https://github.com/WordPress/wordpress-playground/labels/good%20first%20issue) on GitHub. These should be straightforward tasks that new contributors can complete independently. If you find a bug that is not on the list but could be part of it, contact the playground team at the Slack channel.
 -   **Coordinate with the Playground Team**: Confirm if Playground team members are available online to provide remote support during the event, especially for flagship WordCamps. Due to timezone differences, align in advance at the #playground channel to check their availability.
 -   **Connect with Local Contributors**: Identify regular contributors in the region attending the event. Check on the #playground Slack Channel if an active community member is participating in the contributor day. This is an opportunity to gather feedback and strengthen community connections.
--   **Check the Playground Repository**: If you never contribute with the WordPress Playground Repository, you should get familiar with this a good section at the documentation that can guide you to understand the project is [Developers > Architecture](/developers/architecture) it will contain information how the project is organized. If you have any questions, please get in touch with the team at the Playground Slack channel.
+- **Check the Playground Repository**: If you have never contributed to the WordPress Playground Repository, you should get familiar with this section of the documentation that can guide you to understand how the project is organized. [Developers > Architecture](/developers/architecture) will contain information on how the project is organized. If you have any questions, please get in touch with the team at the Playground Slack channel.
 
 ## Starting the Day
 
@@ -45,7 +43,7 @@ This guide helps table leads prepare for and manage a WordPress Playground contr
 
 **Encourage Different Contribution Types**:
 
-Check the contributors' levels, try to understand based on their level how they can contribute to the project in the short window of a contributor day. Ask if the participants need help and redirect them to the related documentation page. Also, encourage them to ask questions at the [#playground Slack channel](https://wordpress.slack.com/archives/C04EWKGDJ0K). Here are some suggestions for ways of contributing:
+Check the contributors' levels, try to understand, based on their level, how they can contribute to the project in the short window of a contributor day. Ask if the participants need help and redirect them to the related documentation page. Also, encourage them to ask questions at the [#playground Slack channel](https://wordpress.slack.com/archives/C04EWKGDJ0K). Here are some suggestions for ways of contributing:
 
 -   Documentation improvements and translations.
 -   Carefully crafted issues describing problems with actionable solutions.
@@ -96,7 +94,7 @@ Questa guida aiuta i leader dei tavoli a preparare e gestire un tavolo contribut
 
 ### Checklist di preparazione
 
--   **Curato "Good First Issues"**: Rivedi e aggiorna l'[elenco delle good first issues](https://github.com/WordPress/wordpress-playground/labels/good%20first%20issue) su GitHub. Questi dovrebbero essere compiti semplici che i nuovi contributori possono completare autonomamente. Se trovi un bug che non è nell'elenco ma potrebbe farne parte, contatta il team playground sul canale Slack.
+-   **Curato "Good First Issues"**: Rivedi e aggiorna l'[elenco delle good first issues](https://github.com/WordPress/wordpress-playground/labels/good%20first%20issue) su GitHub. Questi dovrebbero essere compiti semplici che i nuovi contributori possono completare autonomamente. Se trovi un bug che non è nell'elenco ma potrebbe farne parte, contatta il team Playground sul canale Slack.
 -   **Coordina con il Team Playground**: Conferma se i membri del team Playground sono disponibili online per fornire supporto remoto durante l'evento, specialmente per i WordCamp principali. A causa delle differenze di fuso orario, allineati in anticipo sul canale #playground per verificare la loro disponibilità.
 -   **Connettiti con i Contributori Locali**: Identifica i contributori regolari nella regione che partecipano all'evento. Controlla sul canale Slack #playground se un membro attivo della community sta partecipando al contributor day. Questa è un'opportunità per raccogliere feedback e rafforzare le connessioni della community.
 -   **Controlla il Repository Playground**: Se non hai mai contribuito al repository WordPress Playground, dovresti familiarizzare con questa buona sezione della documentazione che può guidarti a capire il progetto è [Developers > Architecture](/developers/architecture) conterrà informazioni su come il progetto è organizzato. Se hai domande, per favore contatta il team sul canale Slack Playground.
@@ -129,7 +127,7 @@ Questa guida aiuta i leader dei tavoli a preparare e gestire un tavolo contribut
 
 Controlla i livelli dei contributori, prova a capire in base al loro livello come possono contribuire al progetto nella breve finestra di un contributor day. Chiedi se i partecipanti hanno bisogno di aiuto e reindirizzali alla pagina di documentazione correlata. Inoltre, incoraggiali a fare domande sul [canale Slack #playground](https://wordpress.slack.com/archives/C04EWKGDJ0K). Ecco alcuni suggerimenti per modi di contribuire:
 
--   Miglioramenti alla documentazione e traduzioni.
+-   Miglioramenti alla documentazione e alle traduzioni.
 -   Issue accuratamente redatte che descrivono problemi con soluzioni praticabili.
 -   Creazione di Blueprints e demo di plugin nel repository plugin WordPress.
 -   Test e feedback sul prodotto.
