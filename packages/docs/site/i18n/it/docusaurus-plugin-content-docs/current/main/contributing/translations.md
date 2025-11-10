@@ -669,9 +669,9 @@ To simplify the review process, please keep the original English text as a comme
 Playground is an online tool to experiment and learn about WordPress. This site (Documentation) is where you will find all the information you need to start using Playground.
 -->
 
-👋 Olá! Bem vindo a documentação oficial do WordPress Playground.
+👋 Ciao! Benvenuto nella documentazione ufficiale di WordPress Playground.
 
-WordPress Playground é uma ferramenta online onde podes testar e aprender mais sobre o WordPress. Nesta página(Documentação) irá encontrar todas as informações necessárias para começar a trabalhar com o Playground.
+WordPress Playground è uno strumento online dove puoi testare e imparare di più su WordPress. In questa pagina (Documentazione) troverai tutte le informazioni necessarie per iniziare a lavorare con Playground.
 
 ```
 
