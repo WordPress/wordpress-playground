@@ -449,7 +449,7 @@ export async function parseOptionsAndRunCLI() {
 				currentError = currentError.cause as Error;
 			} while (currentError instanceof Error);
 			console.error(
-				'\x1b[1m' + messageChain.join(' caused by ') + '\x1b[0m'
+				'\x1b[1m' + messageChain.join(' caused by: ') + '\x1b[0m'
 			);
 		}
 		process.exit(1);
@@ -713,19 +713,27 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 					if (hasVSCode) {
 						console.log(bold('VS Code / Cursor instructions:'));
 						console.log(
-							'  1. Open the Run and Debug panel on the left sidebar'
+							'  1. Ensure you have installed an IDE extension for PHP Debugging'
 						);
 						console.log(
-							`  2. Select "${italic(
+							`     (The ${bold('PHP Debug')} extension by ${bold(
+								'Xdebug'
+							)} has been a solid option)`
+						);
+						console.log(
+							'  2. Open the Run and Debug panel on the left sidebar'
+						);
+						console.log(
+							`  3. Select "${italic(
 								IDEConfigName
 							)}" from the dropdown`
 						);
 						console.log('  3. Click "start debugging"');
 						console.log(
-							'  4. Set a breakpoint. For example, in .playground-xdebug-root/wordpress/index.php'
+							'  5. Set a breakpoint. For example, in .playground-xdebug-root/wordpress/index.php'
 						);
 						console.log(
-							'  5. Visit Playground in your browser to hit the breakpoint'
+							'  6. Visit Playground in your browser to hit the breakpoint'
 						);
 						if (hasPhpStorm) {
 							console.log('');

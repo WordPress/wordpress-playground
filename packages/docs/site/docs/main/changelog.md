@@ -9,6 +9,58 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
+## [v3.0.21] (2025-11-10) 
+
+### Bug Fixes
+
+- Docs: Fix grammar, typos, and formatting issues across documentation. ([#2877](https://github.com/WordPress/wordpress-playground/pull/2877))
+- Docs: Fix typo in resources.md. ([#2876](https://github.com/WordPress/wordpress-playground/pull/2876))
+- docs: Fix MDN link for Access-Control-Allow-Origin header. ([#2875](https://github.com/WordPress/wordpress-playground/pull/2875))
+
+### Various
+
+- [Docs] Adding ask AI Button. ([#2858](https://github.com/WordPress/wordpress-playground/pull/2858))
+- [i18n] Add Japanese translations to Blueprints JSON and the API Client. ([#2873](https://github.com/WordPress/wordpress-playground/pull/2873))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@fellyph @hmbashar @huzaifaalmesbah @shimotmk
+
+
+## [v3.0.20] (2025-11-06) 
+
+### Enhancements
+
+- [CLI] Add --wordpress-install-mode flag. ([#2803](https://github.com/WordPress/wordpress-playground/pull/2803))
+
+### Tools
+
+
+#### PHP WebAssembly
+
+- [PHP.wasm] Major overhaul of URL rewriting and setting $_SERVER variables. ([#2864](https://github.com/WordPress/wordpress-playground/pull/2864))
+
+### PHP WebAssembly
+
+- [PHP.wasm] ImageMagick extension. ([#2834](https://github.com/WordPress/wordpress-playground/pull/2834))
+
+### Bug Fixes
+
+- [CLI] Make messaging clearer for errors and Xdebug IDE integration. ([#2869](https://github.com/WordPress/wordpress-playground/pull/2869))
+
+### Various
+
+- [Docs] Add xdebug testing page. ([#2840](https://github.com/WordPress/wordpress-playground/pull/2840))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @brandonpayton @fellyph
+
+
 ## [v3.0.19] (2025-11-04)
 
 ### Enhancements

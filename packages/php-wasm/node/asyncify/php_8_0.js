@@ -8,7 +8,7 @@ import path from 'path';
 
 const dependencyFilename = path.join(__dirname, '8_0_30', 'php_8_0.wasm');
 export { dependencyFilename };
-export const dependenciesTotalSize = 25205320;
+export const dependenciesTotalSize = 29860135;
 const phpVersionString = '8.0.30';
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
@@ -831,7 +831,7 @@ export function init(RuntimeName, PHPLoader) {
 		},
 	};
 
-	var ___heap_base = 12861760;
+	var ___heap_base = 13613760;
 
 	var alignMemory = (size, alignment) => {
 		return Math.ceil(size / alignment) * alignment;
@@ -995,7 +995,7 @@ export function init(RuntimeName, PHPLoader) {
 
 	/** @type {WebAssembly.Table} */
 	var wasmTable = new WebAssembly.Table({
-		initial: 11481,
+		initial: 12905,
 		element: 'anyfunc',
 	});
 	var getWasmTableEntry = (funcPtr) => {
@@ -1779,18 +1779,124 @@ export function init(RuntimeName, PHPLoader) {
 		);
 	___call_sighandler.sig = 'vpi';
 
+	var exceptionLast = 0;
+
+	class ExceptionInfo {
+		// excPtr - Thrown object pointer to wrap. Metadata pointer is calculated from it.
+		constructor(excPtr) {
+			this.excPtr = excPtr;
+			this.ptr = excPtr - 24;
+		}
+
+		set_type(type) {
+			HEAPU32[(this.ptr + 4) >> 2] = type;
+		}
+
+		get_type() {
+			return HEAPU32[(this.ptr + 4) >> 2];
+		}
+
+		set_destructor(destructor) {
+			HEAPU32[(this.ptr + 8) >> 2] = destructor;
+		}
+
+		get_destructor() {
+			return HEAPU32[(this.ptr + 8) >> 2];
+		}
+
+		set_caught(caught) {
+			caught = caught ? 1 : 0;
+			HEAP8[this.ptr + 12] = caught;
+		}
+
+		get_caught() {
+			return HEAP8[this.ptr + 12] != 0;
+		}
+
+		set_rethrown(rethrown) {
+			rethrown = rethrown ? 1 : 0;
+			HEAP8[this.ptr + 13] = rethrown;
+		}
+
+		get_rethrown() {
+			return HEAP8[this.ptr + 13] != 0;
+		}
+
+		// Initialize native structure fields. Should be called once after allocated.
+		init(type, destructor) {
+			this.set_adjusted_ptr(0);
+			this.set_type(type);
+			this.set_destructor(destructor);
+		}
+
+		set_adjusted_ptr(adjustedPtr) {
+			HEAPU32[(this.ptr + 16) >> 2] = adjustedPtr;
+		}
+
+		get_adjusted_ptr() {
+			return HEAPU32[(this.ptr + 16) >> 2];
+		}
+	}
+
+	var ___resumeException = (ptr) => {
+		if (!exceptionLast) {
+			exceptionLast = ptr;
+		}
+		throw exceptionLast;
+	};
+	___resumeException.sig = 'vp';
+
+	var setTempRet0 = (val) => __emscripten_tempret_set(val);
+	var findMatchingCatch = (args) => {
+		var thrown = exceptionLast;
+		if (!thrown) {
+			// just pass through the null ptr
+			setTempRet0(0);
+			return 0;
+		}
+		var info = new ExceptionInfo(thrown);
+		info.set_adjusted_ptr(thrown);
+		var thrownType = info.get_type();
+		if (!thrownType) {
+			// just pass through the thrown ptr
+			setTempRet0(0);
+			return thrown;
+		}
+
+		// can_catch receives a **, add indirection
+		// The different catch blocks are denoted by different types.
+		// Due to inheritance, those types may not precisely match the
+		// type of the thrown object. Find one which matches, and
+		// return the type of the catch block which should be called.
+		for (var caughtType of args) {
+			if (caughtType === 0 || caughtType === thrownType) {
+				// Catch all clause matched or exactly the same type is caught
+				break;
+			}
+			var adjusted_ptr_addr = info.ptr + 16;
+			if (___cxa_can_catch(caughtType, thrownType, adjusted_ptr_addr)) {
+				setTempRet0(caughtType);
+				return thrown;
+			}
+		}
+		setTempRet0(thrownType);
+		return thrown;
+	};
+	var ___cxa_find_matching_catch_2 = () => findMatchingCatch([]);
+	___cxa_find_matching_catch_2.sig = 'p';
+
 	var ___memory_base = new WebAssembly.Global(
 		{ value: 'i32', mutable: false },
 		1024
 	);
 
-	var ___stack_high = 12861760;
+	var ___stack_high = 13613760;
 
-	var ___stack_low = 11813184;
+	var ___stack_low = 12565184;
 
 	var ___stack_pointer = new WebAssembly.Global(
 		{ value: 'i32', mutable: true },
-		12861760
+		13613760
 	);
 
 	var PATH = {
@@ -18673,8 +18779,6 @@ export function init(RuntimeName, PHPLoader) {
 
 	var getTempRet0 = (val) => __emscripten_tempret_get();
 
-	var setTempRet0 = (val) => __emscripten_tempret_set(val);
-
 	var _stackAlloc = stackAlloc;
 
 	var _stackSave = stackSave;
@@ -19460,65 +19564,6 @@ export function init(RuntimeName, PHPLoader) {
 
 	var __Unwind_FindEnclosingFunction = (ip) => 0;
 	__Unwind_FindEnclosingFunction.sig = 'pp';
-
-	class ExceptionInfo {
-		// excPtr - Thrown object pointer to wrap. Metadata pointer is calculated from it.
-		constructor(excPtr) {
-			this.excPtr = excPtr;
-			this.ptr = excPtr - 24;
-		}
-
-		set_type(type) {
-			HEAPU32[(this.ptr + 4) >> 2] = type;
-		}
-
-		get_type() {
-			return HEAPU32[(this.ptr + 4) >> 2];
-		}
-
-		set_destructor(destructor) {
-			HEAPU32[(this.ptr + 8) >> 2] = destructor;
-		}
-
-		get_destructor() {
-			return HEAPU32[(this.ptr + 8) >> 2];
-		}
-
-		set_caught(caught) {
-			caught = caught ? 1 : 0;
-			HEAP8[this.ptr + 12] = caught;
-		}
-
-		get_caught() {
-			return HEAP8[this.ptr + 12] != 0;
-		}
-
-		set_rethrown(rethrown) {
-			rethrown = rethrown ? 1 : 0;
-			HEAP8[this.ptr + 13] = rethrown;
-		}
-
-		get_rethrown() {
-			return HEAP8[this.ptr + 13] != 0;
-		}
-
-		// Initialize native structure fields. Should be called once after allocated.
-		init(type, destructor) {
-			this.set_adjusted_ptr(0);
-			this.set_type(type);
-			this.set_destructor(destructor);
-		}
-
-		set_adjusted_ptr(adjustedPtr) {
-			HEAPU32[(this.ptr + 16) >> 2] = adjustedPtr;
-		}
-
-		get_adjusted_ptr() {
-			return HEAPU32[(this.ptr + 16) >> 2];
-		}
-	}
-
-	var exceptionLast = 0;
 
 	var uncaughtExceptionCount = 0;
 	var ___cxa_throw = (ptr, type, destructor) => {
@@ -22989,52 +23034,6 @@ export function init(RuntimeName, PHPLoader) {
 	};
 	_emscripten_promise_await.sig = 'vpp';
 	_emscripten_promise_await.isAsync = true;
-
-	var ___resumeException = (ptr) => {
-		if (!exceptionLast) {
-			exceptionLast = ptr;
-		}
-		throw exceptionLast;
-	};
-	___resumeException.sig = 'vp';
-
-	var findMatchingCatch = (args) => {
-		var thrown = exceptionLast;
-		if (!thrown) {
-			// just pass through the null ptr
-			setTempRet0(0);
-			return 0;
-		}
-		var info = new ExceptionInfo(thrown);
-		info.set_adjusted_ptr(thrown);
-		var thrownType = info.get_type();
-		if (!thrownType) {
-			// just pass through the thrown ptr
-			setTempRet0(0);
-			return thrown;
-		}
-
-		// can_catch receives a **, add indirection
-		// The different catch blocks are denoted by different types.
-		// Due to inheritance, those types may not precisely match the
-		// type of the thrown object. Find one which matches, and
-		// return the type of the catch block which should be called.
-		for (var caughtType of args) {
-			if (caughtType === 0 || caughtType === thrownType) {
-				// Catch all clause matched or exactly the same type is caught
-				break;
-			}
-			var adjusted_ptr_addr = info.ptr + 16;
-			if (___cxa_can_catch(caughtType, thrownType, adjusted_ptr_addr)) {
-				setTempRet0(caughtType);
-				return thrown;
-			}
-		}
-		setTempRet0(thrownType);
-		return thrown;
-	};
-	var ___cxa_find_matching_catch_2 = () => findMatchingCatch([]);
-	___cxa_find_matching_catch_2.sig = 'p';
 
 	var ___cxa_find_matching_catch_3 = (arg0) => findMatchingCatch([arg0]);
 	___cxa_find_matching_catch_3.sig = 'pp';
@@ -31855,13 +31854,13 @@ export function init(RuntimeName, PHPLoader) {
 	// End JS library code
 
 	var ASM_CONSTS = {
-		11582813: ($0) => {
+		12328285: ($0) => {
 			if (!$0) {
 				AL.alcErr = 0xa004;
 				return 1;
 			}
 		},
-		11582861: ($0) => {
+		12328333: ($0) => {
 			if (!AL.currentCtx) {
 				err('alGetProcAddress() called without a valid context');
 				return 1;
@@ -34598,9 +34597,15 @@ export function init(RuntimeName, PHPLoader) {
 		/** @export */
 		glutTimerFunc: _glutTimerFunc,
 		/** @export */
+		invoke_dii,
+		/** @export */
 		invoke_i,
 		/** @export */
+		invoke_id,
+		/** @export */
 		invoke_ii,
+		/** @export */
+		invoke_iifi,
 		/** @export */
 		invoke_iii,
 		/** @export */
@@ -34618,7 +34623,11 @@ export function init(RuntimeName, PHPLoader) {
 		/** @export */
 		invoke_iiiiiiiiii,
 		/** @export */
+		invoke_iiiiiiiiiii,
+		/** @export */
 		invoke_iiij,
+		/** @export */
+		invoke_iiijj,
 		/** @export */
 		invoke_iij,
 		/** @export */
@@ -34636,11 +34645,17 @@ export function init(RuntimeName, PHPLoader) {
 		/** @export */
 		invoke_jiii,
 		/** @export */
+		invoke_jiji,
+		/** @export */
 		invoke_v,
 		/** @export */
 		invoke_vi,
 		/** @export */
 		invoke_vii,
+		/** @export */
+		invoke_viid,
+		/** @export */
+		invoke_viidddddddd,
 		/** @export */
 		invoke_viidii,
 		/** @export */
@@ -34659,6 +34674,8 @@ export function init(RuntimeName, PHPLoader) {
 		invoke_viiij,
 		/** @export */
 		invoke_viijii,
+		/** @export */
+		invoke_vij,
 		/** @export */
 		invoke_vji,
 		/** @export */
@@ -35317,6 +35334,154 @@ export function init(RuntimeName, PHPLoader) {
 		var sp = stackSave();
 		try {
 			Module['dynCall_viidii'](index, a1, a2, a3, a4, a5);
+		} catch (e) {
+			stackRestore(sp);
+			if (e !== e + 0) throw e;
+			_setThrew(1, 0);
+		}
+	}
+
+	function invoke_jiji(index, a1, a2, a3) {
+		var sp = stackSave();
+		try {
+			return Module['dynCall_jiji'](index, a1, a2, a3);
+		} catch (e) {
+			stackRestore(sp);
+			if (e !== e + 0) throw e;
+			_setThrew(1, 0);
+			return 0n;
+		}
+	}
+
+	function invoke_iiijj(index, a1, a2, a3, a4) {
+		var sp = stackSave();
+		try {
+			return Module['dynCall_iiijj'](index, a1, a2, a3, a4);
+		} catch (e) {
+			stackRestore(sp);
+			if (e !== e + 0) throw e;
+			_setThrew(1, 0);
+		}
+	}
+
+	function invoke_vij(index, a1, a2) {
+		var sp = stackSave();
+		try {
+			Module['dynCall_vij'](index, a1, a2);
+		} catch (e) {
+			stackRestore(sp);
+			if (e !== e + 0) throw e;
+			_setThrew(1, 0);
+		}
+	}
+
+	function invoke_dii(index, a1, a2) {
+		var sp = stackSave();
+		try {
+			return Module['dynCall_dii'](index, a1, a2);
+		} catch (e) {
+			stackRestore(sp);
+			if (e !== e + 0) throw e;
+			_setThrew(1, 0);
+		}
+	}
+
+	function invoke_viid(index, a1, a2, a3) {
+		var sp = stackSave();
+		try {
+			Module['dynCall_viid'](index, a1, a2, a3);
+		} catch (e) {
+			stackRestore(sp);
+			if (e !== e + 0) throw e;
+			_setThrew(1, 0);
+		}
+	}
+
+	function invoke_viidddddddd(
+		index,
+		a1,
+		a2,
+		a3,
+		a4,
+		a5,
+		a6,
+		a7,
+		a8,
+		a9,
+		a10
+	) {
+		var sp = stackSave();
+		try {
+			Module['dynCall_viidddddddd'](
+				index,
+				a1,
+				a2,
+				a3,
+				a4,
+				a5,
+				a6,
+				a7,
+				a8,
+				a9,
+				a10
+			);
+		} catch (e) {
+			stackRestore(sp);
+			if (e !== e + 0) throw e;
+			_setThrew(1, 0);
+		}
+	}
+
+	function invoke_iiiiiiiiiii(
+		index,
+		a1,
+		a2,
+		a3,
+		a4,
+		a5,
+		a6,
+		a7,
+		a8,
+		a9,
+		a10
+	) {
+		var sp = stackSave();
+		try {
+			return Module['dynCall_iiiiiiiiiii'](
+				index,
+				a1,
+				a2,
+				a3,
+				a4,
+				a5,
+				a6,
+				a7,
+				a8,
+				a9,
+				a10
+			);
+		} catch (e) {
+			stackRestore(sp);
+			if (e !== e + 0) throw e;
+			_setThrew(1, 0);
+		}
+	}
+
+	function invoke_id(index, a1) {
+		var sp = stackSave();
+		try {
+			return Module['dynCall_id'](index, a1);
+		} catch (e) {
+			stackRestore(sp);
+			if (e !== e + 0) throw e;
+			_setThrew(1, 0);
+		}
+	}
+
+	function invoke_iifi(index, a1, a2, a3) {
+		var sp = stackSave();
+		try {
+			return Module['dynCall_iifi'](index, a1, a2, a3);
 		} catch (e) {
 			stackRestore(sp);
 			if (e !== e + 0) throw e;
