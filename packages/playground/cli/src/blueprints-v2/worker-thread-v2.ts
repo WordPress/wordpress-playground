@@ -31,10 +31,15 @@ import { bootRequestHandler } from '@wp-playground/wordpress';
 import { existsSync } from 'fs';
 import path from 'path';
 import { rootCertificates } from 'tls';
-import { MessageChannel, type MessagePort, parentPort } from 'worker_threads';
+import {
+	MessageChannel,
+	type MessagePort,
+	parentPort,
+	workerData,
+} from 'worker_threads';
 import type { Mount } from '../mounts';
+import { type RunCLIArgs, LogVerbosity, type WorkerData } from '../run-cli';
 import { jspi } from 'wasm-feature-detect';
-import { type RunCLIArgs } from '../run-cli';
 import type {
 	PhpIniOptions,
 	PHPInstanceCreatedHook,
@@ -481,6 +486,17 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 	// Provide a named disposal method that can be invoked via comlink.
 	async dispose() {
 		await this[Symbol.asyncDispose]();
+	}
+}
+
+// Configure logger verbosity from workerData
+if (typeof workerData === 'object') {
+	const verbosity = (workerData as WorkerData).verbosity;
+	const severity = Object.values(LogVerbosity).find(
+		(v) => v.name === verbosity
+	)?.severity;
+	if (severity) {
+		logger.setSeverityFilterLevel(severity);
 	}
 }
 
