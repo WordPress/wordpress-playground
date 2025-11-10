@@ -1,10 +1,10 @@
 ---
-title: Using Xdebug with PHP WASM - Introduction
+title: Debugging with Xdebug in WordPress Playground
 slug: /developers/xdebug/introduction
 description: Debug PHP code running in WebAssembly within WordPress Playground using Xdebug, Chrome DevTools, and IDE integration.
 ---
 
-# Using Xdebug with PHP WASM
+# Debugging with Xdebug in WordPress Playground
 
 Xdebug is a debugging extension for PHP that lets you set breakpoints, inspect variables, and step through your code. WordPress Playground includes Xdebug in its WebAssembly-compiled PHP, so you can debug WordPress code running directly in your browser or IDE.
 
