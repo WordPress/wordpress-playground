@@ -74,13 +74,18 @@ type LogVerbosity = (typeof LogVerbosity)[keyof typeof LogVerbosity]['name'];
 
 export type WorkerType = 'v1' | 'v2';
 
-export async function parseOptionsAndRunCLI() {
+/**
+ * Parse the CLI args and run the appropriate command.
+ *
+ * @param argsToParse string[] The CLI args to parse.
+ */
+export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 	try {
 		/**
 		 * @TODO This looks similar to Query API args https://wordpress.github.io/wordpress-playground/developers/apis/query-api/
 		 *       Perhaps the two could be handled by the same code?
 		 */
-		const yargsObject = yargs(process.argv.slice(2))
+		const yargsObject = yargs(argsToParse)
 			.usage('Usage: wp-playground <command> [options]')
 			.positional('command', {
 				describe: 'Command to run',
