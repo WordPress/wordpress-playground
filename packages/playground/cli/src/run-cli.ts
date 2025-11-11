@@ -925,6 +925,13 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 							nativeInternalDirPath
 						);
 
+					[...workers, initialWorker].map(async (worker) => {
+						playgroundsToCleanUp.push({
+							playground: initialPlayground,
+							worker: worker.worker,
+						});
+					});
+
 					await initialPlayground.isReady();
 					wordPressReady = true;
 					logger.log(`Booted!`);
