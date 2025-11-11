@@ -204,7 +204,7 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 		}
 	}
 
-	async bootAsPrimaryWorker(args: PrimaryWorkerBootArgs) {
+	async bootAndSetUpInitialWorker(args: PrimaryWorkerBootArgs) {
 		const constants = {
 			WP_DEBUG: true,
 			WP_DEBUG_LOG: true,
@@ -252,7 +252,7 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 		await this.runBlueprintV2(args);
 	}
 
-	async bootAsSecondaryWorker(args: SecondaryWorkerBootArgs) {
+	async bootWorker(args: SecondaryWorkerBootArgs) {
 		await this.bootRequestHandler({
 			...args,
 			onPHPInstanceCreated: async (php: PHP) => {

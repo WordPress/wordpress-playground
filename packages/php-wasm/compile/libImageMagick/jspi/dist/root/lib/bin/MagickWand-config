@@ -1,0 +1,13 @@
+#!/bin/sh
+prefix=/root/lib
+exec_prefix=${prefix}
+libdir=${exec_prefix}/lib
+includedir=${prefix}/include/ImageMagick-7
+case "$1" in
+  --version) echo "7.1.1" ;;
+  --cflags) echo "-I${includedir}/MagickWand -I${includedir}/MagickCore -DMAGICKCORE_HDRI_ENABLE=1 -DMAGICKCORE_QUANTUM_DEPTH=16" ;;
+  --ldflags) echo "-L${libdir}" ;;
+  --libs) echo "-lMagickWand-7.Q16HDRI -lMagickCore-7.Q16HDRI" ;;
+  --prefix) echo "${prefix}" ;;
+  *) echo "Unknown option: $1" >&2; exit 1 ;;
+esac

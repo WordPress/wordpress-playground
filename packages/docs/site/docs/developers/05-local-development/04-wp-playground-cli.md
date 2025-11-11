@@ -85,7 +85,7 @@ npx @wp-playground/cli@latest server --mount-before-install=.:/wordpress/
 ```
 
 :::info
-On Windows, the path format `/host/path:/vfs/path` can cause issues. To resolve this, use the flags `--mount-dir` and `--mount-dir-before-install`. These flags let you specify host and virtual file system paths in an alternative format`"/host/path"` `"/vfs/path"`.
+On Windows, the path format `/host/path:/vfs/path` can cause issues. To resolve this, use the flags `--mount-dir` and `--mount-dir-before-install`. These flags let you specify host and virtual file system paths in an alternative format: `"/host/path"` `"/vfs/path"`.
 :::
 
 ### Understanding Data Persistence and SQLite Location
@@ -182,7 +182,7 @@ The `server` command supports the following optional arguments:
 -   `--blueprint=<path>`: The path to a JSON Blueprint file to execute.
 -   `--blueprint-may-read-adjacent-files`: Consent flag: Allow "bundled" resources in a local blueprint to read files in the same directory as the blueprint file.
 -   `--login`: Automatically log the user in as an administrator.
--   `--skip-wordpress-setup`: Do not download or install WordPress. Useful if you are mounting a full WordPress directory.
+-   `--wordpress-install-mode <mode>`: Control how Playground prepares WordPress before booting. Defaults to `download-and-install`. Other options: `install-from-existing-files` (install using files you've mounted), `install-from-existing-files-if-needed` (skip setup when an existing site is detected), and `do-not-attempt-installing` (never download or install WordPress).
 -   `--skip-sqlite-setup`: Do not set up the SQLite database integration.
 -   `--verbosity=<level>`: Output logs and progress messages. Choices: `quiet`, `normal`, `debug`. Defaults to `normal`.
 -   `--debug`: Print the PHP error log if an error occurs during boot.

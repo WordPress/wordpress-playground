@@ -1,6 +1,5 @@
 import { logger } from '@php-wasm/logger';
 import { EmscriptenDownloadMonitor, ProgressTracker } from '@php-wasm/progress';
-import type { SupportedPHPVersion } from '@php-wasm/universal';
 import { consumeAPI } from '@php-wasm/universal';
 import type { BlueprintV1Declaration } from '@wp-playground/blueprints';
 import {
@@ -34,7 +33,6 @@ import {
  * implemented in TypeScript and orchestrated by this class.
  */
 export class BlueprintsV1Handler {
-	private phpVersion: SupportedPHPVersion | undefined;
 	private lastProgressMessage = '';
 
 	private siteUrl: string;
@@ -57,16 +55,18 @@ export class BlueprintsV1Handler {
 		return 'v1';
 	}
 
-	async bootPrimaryWorker(
+	async bootAndSetUpInitialPlayground(
 		phpPort: NodeMessagePort,
 		fileLockManagerPort: NodeMessagePort,
 		nativeInternalDirPath: string
 	) {
 		let wpDetails: any = undefined;
+		let wordPressZip: any = undefined;
+		let preinstalledWpContentPath: string | undefined = undefined;
 		// @TODO: Rename to FetchProgressMonitor. There's nothing Emscripten
 		// about that class anymore.
 		const monitor = new EmscriptenDownloadMonitor();
-		if (!this.args.skipWordPressSetup) {
+		if (this.args.wordpressInstallMode === 'download-and-install') {
 			let progressReached100 = false;
 			monitor.addEventListener('progress', ((
 				e: CustomEvent<ProgressEvent & { finished: boolean }>
@@ -92,28 +92,24 @@ export class BlueprintsV1Handler {
 			}) as any);
 
 			wpDetails = await resolveWordPressRelease(this.args.wp);
+			preinstalledWpContentPath = path.join(
+				CACHE_FOLDER,
+				`prebuilt-wp-content-for-wp-${wpDetails.version}.zip`
+			);
+			wordPressZip = fs.existsSync(preinstalledWpContentPath)
+				? readAsFile(preinstalledWpContentPath)
+				: await cachedDownload(
+						wpDetails.releaseUrl,
+						`${wpDetails.version}.zip`,
+						monitor
+				  );
 			logger.log(
 				`Resolved WordPress release URL: ${wpDetails?.releaseUrl}`
 			);
 		}
 
-		const preinstalledWpContentPath =
-			wpDetails &&
-			path.join(
-				CACHE_FOLDER,
-				`prebuilt-wp-content-for-wp-${wpDetails.version}.zip`
-			);
-		const wordPressZip = !wpDetails
-			? undefined
-			: fs.existsSync(preinstalledWpContentPath)
-			? readAsFile(preinstalledWpContentPath)
-			: await cachedDownload(
-					wpDetails.releaseUrl,
-					`${wpDetails.version}.zip`,
-					monitor
-			  );
-
 		logger.log(`Fetching SQLite integration plugin...`);
+
 		const sqliteIntegrationPluginZip = this.args.skipSqliteSetup
 			? undefined
 			: await fetchSqliteIntegration(monitor);
@@ -134,13 +130,16 @@ export class BlueprintsV1Handler {
 		const runtimeConfiguration = await resolveRuntimeConfiguration(
 			this.getEffectiveBlueprint()
 		);
+
 		await playground.useFileLockManager(fileLockManagerPort);
-		await playground.bootAsPrimaryWorker({
+		await playground.bootAndSetUpInitialWorker({
 			phpVersion: runtimeConfiguration.phpVersion,
 			wpVersion: runtimeConfiguration.wpVersion,
 			siteUrl: this.siteUrl,
 			mountsBeforeWpInstall,
 			mountsAfterWpInstall,
+			wordpressInstallMode:
+				this.args.wordpressInstallMode || 'download-and-install',
 			wordPressZip: wordPressZip && (await wordPressZip!.arrayBuffer()),
 			sqliteIntegrationPluginZip:
 				await sqliteIntegrationPluginZip?.arrayBuffer(),
@@ -149,12 +148,16 @@ export class BlueprintsV1Handler {
 			followSymlinks,
 			trace,
 			internalCookieStore: this.args.internalCookieStore,
-			withXdebug: !!this.args.xdebug,
+			// We do not enable Xdebug by default for the initial worker
+			// because we do not imagine users expect to hit breakpoints
+			// until Playground has fully booted.
+			// TODO: Consider supporting Xdebug for the initial worker via a dedicated flag.
+			withXdebug: false,
 			nativeInternalDirPath,
 		});
 
 		if (
-			wpDetails &&
+			preinstalledWpContentPath &&
 			!this.args['mount-before-install'] &&
 			!fs.existsSync(preinstalledWpContentPath)
 		) {
@@ -169,7 +172,7 @@ export class BlueprintsV1Handler {
 		return playground;
 	}
 
-	async bootSecondaryWorker({
+	async bootPlayground({
 		worker,
 		fileLockManagerPort,
 		firstProcessId,
@@ -180,14 +183,17 @@ export class BlueprintsV1Handler {
 		firstProcessId: number;
 		nativeInternalDirPath: string;
 	}) {
-		const additionalPlayground = consumeAPI<PlaygroundCliBlueprintV1Worker>(
+		const playground = consumeAPI<PlaygroundCliBlueprintV1Worker>(
 			worker.phpPort
 		);
 
-		await additionalPlayground.isConnected();
-		await additionalPlayground.useFileLockManager(fileLockManagerPort);
-		await additionalPlayground.bootAsSecondaryWorker({
-			phpVersion: this.phpVersion!,
+		await playground.isConnected();
+		const runtimeConfiguration = await resolveRuntimeConfiguration(
+			this.getEffectiveBlueprint()
+		);
+		await playground.useFileLockManager(fileLockManagerPort);
+		await playground.bootWorker({
+			phpVersion: runtimeConfiguration.phpVersion,
 			siteUrl: this.siteUrl,
 			mountsBeforeWpInstall: this.args['mount-before-install'] || [],
 			mountsAfterWpInstall: this.args['mount'] || [],
@@ -201,8 +207,8 @@ export class BlueprintsV1Handler {
 			withXdebug: !!this.args.xdebug,
 			nativeInternalDirPath,
 		});
-		await additionalPlayground.isReady();
-		return additionalPlayground;
+		await playground.isReady();
+		return playground;
 	}
 
 	async compileInputBlueprint(additionalBlueprintSteps: any[]) {

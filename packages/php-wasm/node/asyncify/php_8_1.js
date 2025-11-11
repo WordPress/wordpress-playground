@@ -8,7 +8,7 @@ import path from 'path';
 
 const dependencyFilename = path.join(__dirname, '8_1_33', 'php_8_1.wasm');
 export { dependencyFilename };
-export const dependenciesTotalSize = 29535553;
+export const dependenciesTotalSize = 34189294;
 const phpVersionString = '8.1.33';
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
@@ -831,7 +831,7 @@ export function init(RuntimeName, PHPLoader) {
 		},
 	};
 
-	var ___heap_base = 13896064;
+	var ___heap_base = 14647872;
 
 	var alignMemory = (size, alignment) => {
 		return Math.ceil(size / alignment) * alignment;
@@ -995,7 +995,7 @@ export function init(RuntimeName, PHPLoader) {
 
 	/** @type {WebAssembly.Table} */
 	var wasmTable = new WebAssembly.Table({
-		initial: 13800,
+		initial: 15224,
 		element: 'anyfunc',
 	});
 	var getWasmTableEntry = (funcPtr) => {
@@ -1774,25 +1774,129 @@ export function init(RuntimeName, PHPLoader) {
 	);
 
 	var ___call_sighandler = (fp, sig) =>
-		((
-			a1
-		) => {}) /* a dynamic function call to signature vi, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-			sig
+		((a1) => {})(
+			/* a dynamic function call to signature vi, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */ sig
 		);
 	___call_sighandler.sig = 'vpi';
+
+	var exceptionLast = 0;
+
+	class ExceptionInfo {
+		// excPtr - Thrown object pointer to wrap. Metadata pointer is calculated from it.
+		constructor(excPtr) {
+			this.excPtr = excPtr;
+			this.ptr = excPtr - 24;
+		}
+
+		set_type(type) {
+			HEAPU32[(this.ptr + 4) >> 2] = type;
+		}
+
+		get_type() {
+			return HEAPU32[(this.ptr + 4) >> 2];
+		}
+
+		set_destructor(destructor) {
+			HEAPU32[(this.ptr + 8) >> 2] = destructor;
+		}
+
+		get_destructor() {
+			return HEAPU32[(this.ptr + 8) >> 2];
+		}
+
+		set_caught(caught) {
+			caught = caught ? 1 : 0;
+			HEAP8[this.ptr + 12] = caught;
+		}
+
+		get_caught() {
+			return HEAP8[this.ptr + 12] != 0;
+		}
+
+		set_rethrown(rethrown) {
+			rethrown = rethrown ? 1 : 0;
+			HEAP8[this.ptr + 13] = rethrown;
+		}
+
+		get_rethrown() {
+			return HEAP8[this.ptr + 13] != 0;
+		}
+
+		// Initialize native structure fields. Should be called once after allocated.
+		init(type, destructor) {
+			this.set_adjusted_ptr(0);
+			this.set_type(type);
+			this.set_destructor(destructor);
+		}
+
+		set_adjusted_ptr(adjustedPtr) {
+			HEAPU32[(this.ptr + 16) >> 2] = adjustedPtr;
+		}
+
+		get_adjusted_ptr() {
+			return HEAPU32[(this.ptr + 16) >> 2];
+		}
+	}
+
+	var ___resumeException = (ptr) => {
+		if (!exceptionLast) {
+			exceptionLast = ptr;
+		}
+		throw exceptionLast;
+	};
+	___resumeException.sig = 'vp';
+
+	var setTempRet0 = (val) => __emscripten_tempret_set(val);
+	var findMatchingCatch = (args) => {
+		var thrown = exceptionLast;
+		if (!thrown) {
+			// just pass through the null ptr
+			setTempRet0(0);
+			return 0;
+		}
+		var info = new ExceptionInfo(thrown);
+		info.set_adjusted_ptr(thrown);
+		var thrownType = info.get_type();
+		if (!thrownType) {
+			// just pass through the thrown ptr
+			setTempRet0(0);
+			return thrown;
+		}
+
+		// can_catch receives a **, add indirection
+		// The different catch blocks are denoted by different types.
+		// Due to inheritance, those types may not precisely match the
+		// type of the thrown object. Find one which matches, and
+		// return the type of the catch block which should be called.
+		for (var caughtType of args) {
+			if (caughtType === 0 || caughtType === thrownType) {
+				// Catch all clause matched or exactly the same type is caught
+				break;
+			}
+			var adjusted_ptr_addr = info.ptr + 16;
+			if (___cxa_can_catch(caughtType, thrownType, adjusted_ptr_addr)) {
+				setTempRet0(caughtType);
+				return thrown;
+			}
+		}
+		setTempRet0(thrownType);
+		return thrown;
+	};
+	var ___cxa_find_matching_catch_2 = () => findMatchingCatch([]);
+	___cxa_find_matching_catch_2.sig = 'p';
 
 	var ___memory_base = new WebAssembly.Global(
 		{ value: 'i32', mutable: false },
 		1024
 	);
 
-	var ___stack_high = 13896064;
+	var ___stack_high = 14647872;
 
-	var ___stack_low = 12847488;
+	var ___stack_low = 13599296;
 
 	var ___stack_pointer = new WebAssembly.Global(
 		{ value: 'i32', mutable: true },
-		13896064
+		14647872
 	);
 
 	var PATH = {
@@ -8770,11 +8874,8 @@ export function init(RuntimeName, PHPLoader) {
 			dlSetError(`'Could not load dynamic lib: ${filename}\n${e}`);
 			runtimeKeepalivePop();
 			callUserCallback(() =>
-				((
-					a1,
-					a2
-				) => {}) /* a dynamic function call to signature vii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-					handle,
+				((a1, a2) => {})(
+					/* a dynamic function call to signature vii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */ handle,
 					user_data
 				)
 			);
@@ -8782,11 +8883,8 @@ export function init(RuntimeName, PHPLoader) {
 		function successCallback() {
 			runtimeKeepalivePop();
 			callUserCallback(() =>
-				((
-					a1,
-					a2
-				) => {}) /* a dynamic function call to signature vii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-					handle,
+				((a1, a2) => {})(
+					/* a dynamic function call to signature vii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */ handle,
 					user_data
 				)
 			);
@@ -18687,8 +18785,6 @@ export function init(RuntimeName, PHPLoader) {
 
 	var getTempRet0 = (val) => __emscripten_tempret_get();
 
-	var setTempRet0 = (val) => __emscripten_tempret_set(val);
-
 	var _stackAlloc = stackAlloc;
 
 	var _stackSave = stackSave;
@@ -19460,11 +19556,8 @@ export function init(RuntimeName, PHPLoader) {
 		var trace = getCallstack();
 		var parts = trace.split('\n');
 		for (var i = 0; i < parts.length; i++) {
-			var ret = ((
-				a1,
-				a2
-			) => {}) /* a dynamic function call to signature iii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-				0,
+			var ret = ((a1, a2) => {})(
+				/* a dynamic function call to signature iii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */ 0,
 				arg
 			);
 			if (ret !== 0) return;
@@ -19477,65 +19570,6 @@ export function init(RuntimeName, PHPLoader) {
 
 	var __Unwind_FindEnclosingFunction = (ip) => 0;
 	__Unwind_FindEnclosingFunction.sig = 'pp';
-
-	class ExceptionInfo {
-		// excPtr - Thrown object pointer to wrap. Metadata pointer is calculated from it.
-		constructor(excPtr) {
-			this.excPtr = excPtr;
-			this.ptr = excPtr - 24;
-		}
-
-		set_type(type) {
-			HEAPU32[(this.ptr + 4) >> 2] = type;
-		}
-
-		get_type() {
-			return HEAPU32[(this.ptr + 4) >> 2];
-		}
-
-		set_destructor(destructor) {
-			HEAPU32[(this.ptr + 8) >> 2] = destructor;
-		}
-
-		get_destructor() {
-			return HEAPU32[(this.ptr + 8) >> 2];
-		}
-
-		set_caught(caught) {
-			caught = caught ? 1 : 0;
-			HEAP8[this.ptr + 12] = caught;
-		}
-
-		get_caught() {
-			return HEAP8[this.ptr + 12] != 0;
-		}
-
-		set_rethrown(rethrown) {
-			rethrown = rethrown ? 1 : 0;
-			HEAP8[this.ptr + 13] = rethrown;
-		}
-
-		get_rethrown() {
-			return HEAP8[this.ptr + 13] != 0;
-		}
-
-		// Initialize native structure fields. Should be called once after allocated.
-		init(type, destructor) {
-			this.set_adjusted_ptr(0);
-			this.set_type(type);
-			this.set_destructor(destructor);
-		}
-
-		set_adjusted_ptr(adjustedPtr) {
-			HEAPU32[(this.ptr + 16) >> 2] = adjustedPtr;
-		}
-
-		get_adjusted_ptr() {
-			return HEAPU32[(this.ptr + 16) >> 2];
-		}
-	}
-
-	var exceptionLast = 0;
 
 	var uncaughtExceptionCount = 0;
 	var ___cxa_throw = (ptr, type, destructor) => {
@@ -20109,12 +20143,8 @@ export function init(RuntimeName, PHPLoader) {
 			stringToUTF8(e.locale || '', keyEventData + 128, 32);
 
 			if (
-				((
-					a1,
-					a2,
-					a3
-				) => {}) /* a dynamic function call to signature iiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-					eventTypeId,
+				((a1, a2, a3) => {})(
+					/* a dynamic function call to signature iiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */ eventTypeId,
 					keyEventData,
 					userData
 				)
@@ -20232,12 +20262,8 @@ export function init(RuntimeName, PHPLoader) {
 			fillMouseEventData(JSEvents.mouseEvent, e, target);
 
 			if (
-				((
-					a1,
-					a2,
-					a3
-				) => {}) /* a dynamic function call to signature iiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-					eventTypeId,
+				((a1, a2, a3) => {})(
+					/* a dynamic function call to signature iiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */ eventTypeId,
 					JSEvents.mouseEvent,
 					userData
 				)
@@ -20451,12 +20477,8 @@ export function init(RuntimeName, PHPLoader) {
 			HEAPF64[(wheelEvent + 80) >> 3] = e['deltaZ'];
 			HEAP32[(wheelEvent + 88) >> 2] = e['deltaMode'];
 			if (
-				((
-					a1,
-					a2,
-					a3
-				) => {}) /* a dynamic function call to signature iiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-					eventTypeId,
+				((a1, a2, a3) => {})(
+					/* a dynamic function call to signature iiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */ eventTypeId,
 					wheelEvent,
 					userData
 				)
@@ -20537,12 +20559,8 @@ export function init(RuntimeName, PHPLoader) {
 			HEAP32[(uiEvent + 28) >> 2] = pageXOffset | 0; // scroll offsets are float
 			HEAP32[(uiEvent + 32) >> 2] = pageYOffset | 0;
 			if (
-				((
-					a1,
-					a2,
-					a3
-				) => {}) /* a dynamic function call to signature iiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-					eventTypeId,
+				((a1, a2, a3) => {})(
+					/* a dynamic function call to signature iiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */ eventTypeId,
 					uiEvent,
 					userData
 				)
@@ -20616,12 +20634,8 @@ export function init(RuntimeName, PHPLoader) {
 			stringToUTF8(id, focusEvent + 128, 128);
 
 			if (
-				((
-					a1,
-					a2,
-					a3
-				) => {}) /* a dynamic function call to signature iiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-					eventTypeId,
+				((a1, a2, a3) => {})(
+					/* a dynamic function call to signature iiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */ eventTypeId,
 					focusEvent,
 					userData
 				)
@@ -20737,12 +20751,8 @@ export function init(RuntimeName, PHPLoader) {
 			); // TODO: Thread-safety with respect to emscripten_get_deviceorientation_status()
 
 			if (
-				((
-					a1,
-					a2,
-					a3
-				) => {}) /* a dynamic function call to signature iiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-					eventTypeId,
+				((a1, a2, a3) => {})(
+					/* a dynamic function call to signature iiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */ eventTypeId,
 					JSEvents.deviceOrientationEvent,
 					userData
 				)
@@ -20825,12 +20835,8 @@ export function init(RuntimeName, PHPLoader) {
 			fillDeviceMotionEventData(JSEvents.deviceMotionEvent, e, target); // TODO: Thread-safety with respect to emscripten_get_devicemotion_status()
 
 			if (
-				((
-					a1,
-					a2,
-					a3
-				) => {}) /* a dynamic function call to signature iiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-					eventTypeId,
+				((a1, a2, a3) => {})(
+					/* a dynamic function call to signature iiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */ eventTypeId,
 					JSEvents.deviceMotionEvent,
 					userData
 				)
@@ -20940,12 +20946,8 @@ export function init(RuntimeName, PHPLoader) {
 			fillOrientationChangeEventData(orientationChangeEvent);
 
 			if (
-				((
-					a1,
-					a2,
-					a3
-				) => {}) /* a dynamic function call to signature iiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-					eventTypeId,
+				((a1, a2, a3) => {})(
+					/* a dynamic function call to signature iiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */ eventTypeId,
 					orientationChangeEvent,
 					userData
 				)
@@ -21078,12 +21080,8 @@ export function init(RuntimeName, PHPLoader) {
 			fillFullscreenChangeEventData(fullscreenChangeEvent);
 
 			if (
-				((
-					a1,
-					a2,
-					a3
-				) => {}) /* a dynamic function call to signature iiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-					eventTypeId,
+				((a1, a2, a3) => {})(
+					/* a dynamic function call to signature iiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */ eventTypeId,
 					fullscreenChangeEvent,
 					userData
 				)
@@ -21247,12 +21245,8 @@ export function init(RuntimeName, PHPLoader) {
 					);
 
 				if (currentFullscreenStrategy.canvasResizedCallback) {
-					((
-						a1,
-						a2,
-						a3
-					) => {}) /* a dynamic function call to signature iiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-						37,
+					((a1, a2, a3) => {})(
+						/* a dynamic function call to signature iiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */ 37,
 						0,
 						currentFullscreenStrategy.canvasResizedCallbackUserData
 					);
@@ -21358,12 +21352,8 @@ export function init(RuntimeName, PHPLoader) {
 		currentFullscreenStrategy = strategy;
 
 		if (strategy.canvasResizedCallback) {
-			((
-				a1,
-				a2,
-				a3
-			) => {}) /* a dynamic function call to signature iiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-				37,
+			((a1, a2, a3) => {})(
+				/* a dynamic function call to signature iiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */ 37,
 				0,
 				strategy.canvasResizedCallbackUserData
 			);
@@ -21465,12 +21455,8 @@ export function init(RuntimeName, PHPLoader) {
 			!inCenteredWithoutScalingFullscreenMode &&
 			currentFullscreenStrategy.canvasResizedCallback
 		) {
-			((
-				a1,
-				a2,
-				a3
-			) => {}) /* a dynamic function call to signature iiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-				37,
+			((a1, a2, a3) => {})(
+				/* a dynamic function call to signature iiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */ 37,
 				0,
 				currentFullscreenStrategy.canvasResizedCallbackUserData
 			);
@@ -21569,12 +21555,8 @@ export function init(RuntimeName, PHPLoader) {
 				softFullscreenResizeWebGLRenderTarget
 			);
 			if (strategy.canvasResizedCallback) {
-				((
-					a1,
-					a2,
-					a3
-				) => {}) /* a dynamic function call to signature iiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-					37,
+				((a1, a2, a3) => {})(
+					/* a dynamic function call to signature iiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */ 37,
 					0,
 					strategy.canvasResizedCallbackUserData
 				);
@@ -21587,12 +21569,8 @@ export function init(RuntimeName, PHPLoader) {
 
 		// Inform the caller that the canvas size has changed.
 		if (strategy.canvasResizedCallback) {
-			((
-				a1,
-				a2,
-				a3
-			) => {}) /* a dynamic function call to signature iiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-				37,
+			((a1, a2, a3) => {})(
+				/* a dynamic function call to signature iiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */ 37,
 				0,
 				strategy.canvasResizedCallbackUserData
 			);
@@ -21660,12 +21638,8 @@ export function init(RuntimeName, PHPLoader) {
 			fillPointerlockChangeEventData(pointerlockChangeEvent);
 
 			if (
-				((
-					a1,
-					a2,
-					a3
-				) => {}) /* a dynamic function call to signature iiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-					eventTypeId,
+				((a1, a2, a3) => {})(
+					/* a dynamic function call to signature iiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */ eventTypeId,
 					pointerlockChangeEvent,
 					userData
 				)
@@ -21755,12 +21729,8 @@ export function init(RuntimeName, PHPLoader) {
 	) => {
 		var pointerlockErrorEventHandlerFunc = (e = event) => {
 			if (
-				((
-					a1,
-					a2,
-					a3
-				) => {}) /* a dynamic function call to signature iiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-					eventTypeId,
+				((a1, a2, a3) => {})(
+					/* a dynamic function call to signature iiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */ eventTypeId,
 					0,
 					userData
 				)
@@ -21960,12 +21930,8 @@ export function init(RuntimeName, PHPLoader) {
 			fillVisibilityChangeEventData(visibilityChangeEvent);
 
 			if (
-				((
-					a1,
-					a2,
-					a3
-				) => {}) /* a dynamic function call to signature iiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-					eventTypeId,
+				((a1, a2, a3) => {})(
+					/* a dynamic function call to signature iiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */ eventTypeId,
 					visibilityChangeEvent,
 					userData
 				)
@@ -22085,12 +22051,8 @@ export function init(RuntimeName, PHPLoader) {
 			HEAP32[(touchEvent + 8) >> 2] = numTouches;
 
 			if (
-				((
-					a1,
-					a2,
-					a3
-				) => {}) /* a dynamic function call to signature iiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-					eventTypeId,
+				((a1, a2, a3) => {})(
+					/* a dynamic function call to signature iiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */ eventTypeId,
 					touchEvent,
 					userData
 				)
@@ -22228,12 +22190,8 @@ export function init(RuntimeName, PHPLoader) {
 			fillGamepadEventData(gamepadEvent, e['gamepad']);
 
 			if (
-				((
-					a1,
-					a2,
-					a3
-				) => {}) /* a dynamic function call to signature iiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-					eventTypeId,
+				((a1, a2, a3) => {})(
+					/* a dynamic function call to signature iiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */ eventTypeId,
 					gamepadEvent,
 					userData
 				)
@@ -22335,12 +22293,8 @@ export function init(RuntimeName, PHPLoader) {
 	) => {
 		var beforeUnloadEventHandlerFunc = (e = event) => {
 			// Note: This is always called on the main browser thread, since it needs synchronously return a value!
-			var confirmationMessage = ((
-				a1,
-				a2,
-				a3
-			) => {}) /* a dynamic function call to signature iiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-				eventTypeId,
+			var confirmationMessage = ((a1, a2, a3) => {})(
+				/* a dynamic function call to signature iiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */ eventTypeId,
 				0,
 				userData
 			);
@@ -22411,12 +22365,8 @@ export function init(RuntimeName, PHPLoader) {
 			fillBatteryEventData(batteryEvent, battery());
 
 			if (
-				((
-					a1,
-					a2,
-					a3
-				) => {}) /* a dynamic function call to signature iiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-					eventTypeId,
+				((a1, a2, a3) => {})(
+					/* a dynamic function call to signature iiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */ eventTypeId,
 					batteryEvent,
 					userData
 				)
@@ -22506,11 +22456,8 @@ export function init(RuntimeName, PHPLoader) {
 
 	var _emscripten_request_animation_frame = (cb, userData) =>
 		requestAnimationFrame((timeStamp) =>
-			((
-				a1,
-				a2
-			) => {}) /* a dynamic function call to signature idi, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-				timeStamp,
+			((a1, a2) => {})(
+				/* a dynamic function call to signature idi, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */ timeStamp,
 				userData
 			)
 		);
@@ -22522,11 +22469,8 @@ export function init(RuntimeName, PHPLoader) {
 	var _emscripten_request_animation_frame_loop = (cb, userData) => {
 		function tick(timeStamp) {
 			if (
-				((
-					a1,
-					a2
-				) => {}) /* a dynamic function call to signature idi, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-					timeStamp,
+				((a1, a2) => {})(
+					/* a dynamic function call to signature idi, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */ timeStamp,
 					userData
 				)
 			) {
@@ -22751,10 +22695,8 @@ export function init(RuntimeName, PHPLoader) {
 		return emSetImmediate(() => {
 			runtimeKeepalivePop();
 			callUserCallback(() =>
-				((
-					a1
-				) => {}) /* a dynamic function call to signature vi, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-					userData
+				((a1) => {})(
+					/* a dynamic function call to signature vi, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */ userData
 				)
 			);
 		});
@@ -22771,10 +22713,8 @@ export function init(RuntimeName, PHPLoader) {
 		function tick() {
 			callUserCallback(() => {
 				if (
-					((
-						a1
-					) => {}) /* a dynamic function call to signature ii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-						userData
+					((a1) => {})(
+						/* a dynamic function call to signature ii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */ userData
 					)
 				) {
 					emSetImmediate(tick);
@@ -22791,10 +22731,8 @@ export function init(RuntimeName, PHPLoader) {
 	var _emscripten_set_timeout = (cb, msecs, userData) =>
 		safeSetTimeout(
 			() =>
-				((
-					a1
-				) => {}) /* a dynamic function call to signature vi, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-					userData
+				((a1) => {})(
+					/* a dynamic function call to signature vi, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */ userData
 				),
 			msecs
 		);
@@ -22810,11 +22748,8 @@ export function init(RuntimeName, PHPLoader) {
 			runtimeKeepalivePop();
 			callUserCallback(() => {
 				if (
-					((
-						a1,
-						a2
-					) => {}) /* a dynamic function call to signature idi, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-						t,
+					((a1, a2) => {})(
+						/* a dynamic function call to signature idi, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */ t,
 						userData
 					)
 				) {
@@ -22838,10 +22773,8 @@ export function init(RuntimeName, PHPLoader) {
 		runtimeKeepalivePush();
 		return setInterval(() => {
 			callUserCallback(() =>
-				((
-					a1
-				) => {}) /* a dynamic function call to signature vi, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-					userData
+				((a1) => {})(
+					/* a dynamic function call to signature vi, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */ userData
 				)
 			);
 		}, msecs);
@@ -22856,10 +22789,8 @@ export function init(RuntimeName, PHPLoader) {
 
 	var _emscripten_async_call = (func, arg, millis) => {
 		var wrapper = () =>
-			((
-				a1
-			) => {}) /* a dynamic function call to signature vi, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-				arg
+			((a1) => {})(
+				/* a dynamic function call to signature vi, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */ arg
 			);
 
 		if (
@@ -22892,7 +22823,7 @@ export function init(RuntimeName, PHPLoader) {
 
 	var _emscripten_set_main_loop = (func, fps, simulateInfiniteLoop) => {
 		var iterFunc =
-			() => {} /* a dynamic function call to signature v, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */;
+			() => {}; /* a dynamic function call to signature v, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */
 		setMainLoop(iterFunc, fps, simulateInfiniteLoop);
 	};
 	_emscripten_set_main_loop.sig = 'vpii';
@@ -22904,10 +22835,8 @@ export function init(RuntimeName, PHPLoader) {
 		simulateInfiniteLoop
 	) => {
 		var iterFunc = () =>
-			((
-				a1
-			) => {}) /* a dynamic function call to signature vi, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-				arg
+			((a1) => {})(
+				/* a dynamic function call to signature vi, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */ arg
 			);
 		setMainLoop(iterFunc, fps, simulateInfiniteLoop, arg);
 	};
@@ -22928,10 +22857,8 @@ export function init(RuntimeName, PHPLoader) {
 	var __emscripten_push_main_loop_blocker = (func, arg, name) => {
 		MainLoop.queue.push({
 			func: () => {
-				((
-					a1
-				) => {}) /* a dynamic function call to signature vi, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-					arg
+				((a1) => {})(
+					/* a dynamic function call to signature vi, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */ arg
 				);
 			},
 			name: UTF8ToString(name),
@@ -22944,10 +22871,8 @@ export function init(RuntimeName, PHPLoader) {
 	var __emscripten_push_uncounted_main_loop_blocker = (func, arg, name) => {
 		MainLoop.queue.push({
 			func: () => {
-				((
-					a1
-				) => {}) /* a dynamic function call to signature vi, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-					arg
+				((a1) => {})(
+					/* a dynamic function call to signature vi, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */ arg
 				);
 			},
 			name: UTF8ToString(name),
@@ -22981,12 +22906,8 @@ export function init(RuntimeName, PHPLoader) {
 			var resultPtr = stackAlloc(POINTER_SIZE);
 			HEAPU32[resultPtr >> 2] = 0;
 			try {
-				var result = ((
-					a1,
-					a2,
-					a3
-				) => {}) /* a dynamic function call to signature iiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-					resultPtr,
+				var result = ((a1, a2, a3) => {})(
+					/* a dynamic function call to signature iiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */ resultPtr,
 					userData,
 					value
 				);
@@ -23119,52 +23040,6 @@ export function init(RuntimeName, PHPLoader) {
 	};
 	_emscripten_promise_await.sig = 'vpp';
 	_emscripten_promise_await.isAsync = true;
-
-	var ___resumeException = (ptr) => {
-		if (!exceptionLast) {
-			exceptionLast = ptr;
-		}
-		throw exceptionLast;
-	};
-	___resumeException.sig = 'vp';
-
-	var findMatchingCatch = (args) => {
-		var thrown = exceptionLast;
-		if (!thrown) {
-			// just pass through the null ptr
-			setTempRet0(0);
-			return 0;
-		}
-		var info = new ExceptionInfo(thrown);
-		info.set_adjusted_ptr(thrown);
-		var thrownType = info.get_type();
-		if (!thrownType) {
-			// just pass through the thrown ptr
-			setTempRet0(0);
-			return thrown;
-		}
-
-		// can_catch receives a **, add indirection
-		// The different catch blocks are denoted by different types.
-		// Due to inheritance, those types may not precisely match the
-		// type of the thrown object. Find one which matches, and
-		// return the type of the catch block which should be called.
-		for (var caughtType of args) {
-			if (caughtType === 0 || caughtType === thrownType) {
-				// Catch all clause matched or exactly the same type is caught
-				break;
-			}
-			var adjusted_ptr_addr = info.ptr + 16;
-			if (___cxa_can_catch(caughtType, thrownType, adjusted_ptr_addr)) {
-				setTempRet0(caughtType);
-				return thrown;
-			}
-		}
-		setTempRet0(thrownType);
-		return thrown;
-	};
-	var ___cxa_find_matching_catch_2 = () => findMatchingCatch([]);
-	___cxa_find_matching_catch_2.sig = 'p';
 
 	var ___cxa_find_matching_catch_3 = (arg0) => findMatchingCatch([arg0]);
 	___cxa_find_matching_catch_3.sig = 'pp';
@@ -23922,19 +23797,15 @@ export function init(RuntimeName, PHPLoader) {
 			() => {
 				runtimeKeepalivePop();
 				if (onload)
-					((
-						a1
-					) => {}) /* a dynamic function call to signature vi, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-						file
+					((a1) => {})(
+						/* a dynamic function call to signature vi, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */ file
 					);
 			},
 			() => {
 				runtimeKeepalivePop();
 				if (onerror)
-					((
-						a1
-					) => {}) /* a dynamic function call to signature vi, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-						file
+					((a1) => {})(
+						/* a dynamic function call to signature vi, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */ file
 					);
 			},
 			true // don'tCreateFile - it's already there
@@ -23968,21 +23839,16 @@ export function init(RuntimeName, PHPLoader) {
 			() => {
 				runtimeKeepalivePop();
 				if (onload)
-					((
-						a1,
-						a2
-					) => {}) /* a dynamic function call to signature vii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-						arg,
+					((a1, a2) => {})(
+						/* a dynamic function call to signature vii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */ arg,
 						cname
 					);
 			},
 			() => {
 				runtimeKeepalivePop();
 				if (onerror)
-					((
-						a1
-					) => {}) /* a dynamic function call to signature vi, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-						arg
+					((a1) => {})(
+						/* a dynamic function call to signature vi, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */ arg
 					);
 			},
 			true // don'tCreateFile - it's already there
@@ -24255,10 +24121,10 @@ export function init(RuntimeName, PHPLoader) {
 				runtimeKeepalivePop();
 				callUserCallback(() => {
 					var sp = stackSave();
-					((
-						a1
-					) => {}) /* a dynamic function call to signature vi, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-						stringToUTF8OnStack(_file)
+					((a1) => {})(
+						/* a dynamic function call to signature vi, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */ stringToUTF8OnStack(
+							_file
+						)
 					);
 					stackRestore(sp);
 				});
@@ -24302,12 +24168,8 @@ export function init(RuntimeName, PHPLoader) {
 			callUserCallback(() => {
 				var buffer = _malloc(byteArray.length);
 				HEAPU8.set(byteArray, buffer);
-				((
-					a1,
-					a2,
-					a3
-				) => {}) /* a dynamic function call to signature viii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-					userdata,
+				((a1, a2, a3) => {})(
+					/* a dynamic function call to signature viii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */ userdata,
 					buffer,
 					byteArray.length
 				);
@@ -24317,10 +24179,8 @@ export function init(RuntimeName, PHPLoader) {
 			if (onerror) {
 				runtimeKeepalivePop();
 				callUserCallback(() => {
-					((
-						a1
-					) => {}) /* a dynamic function call to signature vi, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-						userdata
+					((a1) => {})(
+						/* a dynamic function call to signature vi, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */ userdata
 					);
 				});
 			}
@@ -24377,12 +24237,8 @@ export function init(RuntimeName, PHPLoader) {
 				);
 				if (onload) {
 					var sp = stackSave();
-					((
-						a1,
-						a2,
-						a3
-					) => {}) /* a dynamic function call to signature viii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-						handle,
+					((a1, a2, a3) => {})(
+						/* a dynamic function call to signature viii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */ handle,
 						userdata,
 						stringToUTF8OnStack(_file)
 					);
@@ -24390,12 +24246,8 @@ export function init(RuntimeName, PHPLoader) {
 				}
 			} else {
 				if (onerror)
-					((
-						a1,
-						a2,
-						a3
-					) => {}) /* a dynamic function call to signature viii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-						handle,
+					((a1, a2, a3) => {})(
+						/* a dynamic function call to signature viii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */ handle,
 						userdata,
 						http.status
 					);
@@ -24408,12 +24260,8 @@ export function init(RuntimeName, PHPLoader) {
 		http.onerror = (e) => {
 			runtimeKeepalivePop();
 			if (onerror)
-				((
-					a1,
-					a2,
-					a3
-				) => {}) /* a dynamic function call to signature viii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-					handle,
+				((a1, a2, a3) => {})(
+					/* a dynamic function call to signature viii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */ handle,
 					userdata,
 					http.status
 				);
@@ -24428,12 +24276,8 @@ export function init(RuntimeName, PHPLoader) {
 			) {
 				var percentComplete = (e.loaded / e.total) * 100;
 				if (onprogress)
-					((
-						a1,
-						a2,
-						a3
-					) => {}) /* a dynamic function call to signature viii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-						handle,
+					((a1, a2, a3) => {})(
+						/* a dynamic function call to signature viii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */ handle,
 						userdata,
 						percentComplete
 					);
@@ -24490,13 +24334,8 @@ export function init(RuntimeName, PHPLoader) {
 				if (http.statusText) {
 					statusText = stringToUTF8OnStack(http.statusText);
 				}
-				((
-					a1,
-					a2,
-					a3,
-					a4
-				) => {}) /* a dynamic function call to signature viiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-					handle,
+				((a1, a2, a3, a4) => {})(
+					/* a dynamic function call to signature viiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */ handle,
 					userdata,
 					http.status,
 					statusText
@@ -24517,13 +24356,8 @@ export function init(RuntimeName, PHPLoader) {
 				var buffer = _malloc(byteArray.length);
 				HEAPU8.set(byteArray, buffer);
 				if (onload)
-					((
-						a1,
-						a2,
-						a3,
-						a4
-					) => {}) /* a dynamic function call to signature viiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-						handle,
+					((a1, a2, a3, a4) => {})(
+						/* a dynamic function call to signature viiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */ handle,
 						userdata,
 						buffer,
 						byteArray.length
@@ -24544,13 +24378,8 @@ export function init(RuntimeName, PHPLoader) {
 		// PROGRESS
 		http.onprogress = (e) => {
 			if (onprogress)
-				((
-					a1,
-					a2,
-					a3,
-					a4
-				) => {}) /* a dynamic function call to signature viiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-					handle,
+				((a1, a2, a3, a4) => {})(
+					/* a dynamic function call to signature viiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */ handle,
 					userdata,
 					e.loaded,
 					e.lengthComputable || e.lengthComputable === undefined
@@ -24670,24 +24499,16 @@ export function init(RuntimeName, PHPLoader) {
 				if (event === 'error') {
 					withStackSave(() => {
 						var msg = stringToUTF8OnStack(data[2]);
-						((
-							a1,
-							a2,
-							a3,
-							a4
-						) => {}) /* a dynamic function call to signature viiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-							data[0],
+						((a1, a2, a3, a4) => {})(
+							/* a dynamic function call to signature viiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */ data[0],
 							data[1],
 							msg,
 							userData
 						);
 					});
 				} else {
-					((
-						a1,
-						a2
-					) => {}) /* a dynamic function call to signature vii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-						data,
+					((a1, a2) => {})(
+						/* a dynamic function call to signature vii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */ data,
 						userData
 					);
 				}
@@ -25153,12 +24974,8 @@ export function init(RuntimeName, PHPLoader) {
 	) => {
 		var webGlEventHandlerFunc = (e = event) => {
 			if (
-				((
-					a1,
-					a2,
-					a3
-				) => {}) /* a dynamic function call to signature iiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-					eventTypeId,
+				((a1, a2, a3) => {})(
+					/* a dynamic function call to signature iiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */ eventTypeId,
 					0,
 					userData
 				)
@@ -25377,21 +25194,15 @@ export function init(RuntimeName, PHPLoader) {
 			) {
 				event.preventDefault();
 				GLUT.saveModifiers(event);
-				((
-					a1,
-					a2
-				) => {}) /* a dynamic function call to signature vii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-					lastX,
+				((a1, a2) => {})(
+					/* a dynamic function call to signature vii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */ lastX,
 					lastY
 				);
 			} else if (GLUT.buttons != 0 && GLUT.motionFunc) {
 				event.preventDefault();
 				GLUT.saveModifiers(event);
-				((
-					a1,
-					a2
-				) => {}) /* a dynamic function call to signature vii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-					lastX,
+				((a1, a2) => {})(
+					/* a dynamic function call to signature vii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */ lastX,
 					lastY
 				);
 			}
@@ -25552,12 +25363,8 @@ export function init(RuntimeName, PHPLoader) {
 					if (GLUT.specialFunc) {
 						event.preventDefault();
 						GLUT.saveModifiers(event);
-						((
-							a1,
-							a2,
-							a3
-						) => {}) /* a dynamic function call to signature viii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-							key,
+						((a1, a2, a3) => {})(
+							/* a dynamic function call to signature viii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */ key,
 							Browser.mouseX,
 							Browser.mouseY
 						);
@@ -25567,12 +25374,8 @@ export function init(RuntimeName, PHPLoader) {
 					if (key !== null && GLUT.keyboardFunc) {
 						event.preventDefault();
 						GLUT.saveModifiers(event);
-						((
-							a1,
-							a2,
-							a3
-						) => {}) /* a dynamic function call to signature viii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-							key,
+						((a1, a2, a3) => {})(
+							/* a dynamic function call to signature viii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */ key,
 							Browser.mouseX,
 							Browser.mouseY
 						);
@@ -25587,12 +25390,8 @@ export function init(RuntimeName, PHPLoader) {
 					if (GLUT.specialUpFunc) {
 						event.preventDefault();
 						GLUT.saveModifiers(event);
-						((
-							a1,
-							a2,
-							a3
-						) => {}) /* a dynamic function call to signature viii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-							key,
+						((a1, a2, a3) => {})(
+							/* a dynamic function call to signature viii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */ key,
 							Browser.mouseX,
 							Browser.mouseY
 						);
@@ -25602,12 +25401,8 @@ export function init(RuntimeName, PHPLoader) {
 					if (key !== null && GLUT.keyboardUpFunc) {
 						event.preventDefault();
 						GLUT.saveModifiers(event);
-						((
-							a1,
-							a2,
-							a3
-						) => {}) /* a dynamic function call to signature viii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-							key,
+						((a1, a2, a3) => {})(
+							/* a dynamic function call to signature viii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */ key,
 							Browser.mouseX,
 							Browser.mouseY
 						);
@@ -25671,13 +25466,10 @@ export function init(RuntimeName, PHPLoader) {
 				} catch (e) {}
 				event.preventDefault();
 				GLUT.saveModifiers(event);
-				((
-					a1,
-					a2,
-					a3,
-					a4
-				) => {}) /* a dynamic function call to signature viiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-					event['button'],
+				((a1, a2, a3, a4) => {})(
+					/* a dynamic function call to signature viiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */ event[
+						'button'
+					],
 					0 /*GLUT_DOWN*/,
 					Browser.mouseX,
 					Browser.mouseY
@@ -25692,13 +25484,10 @@ export function init(RuntimeName, PHPLoader) {
 			if (GLUT.mouseFunc) {
 				event.preventDefault();
 				GLUT.saveModifiers(event);
-				((
-					a1,
-					a2,
-					a3,
-					a4
-				) => {}) /* a dynamic function call to signature viiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-					event['button'],
+				((a1, a2, a3, a4) => {})(
+					/* a dynamic function call to signature viiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */ event[
+						'button'
+					],
 					1 /*GLUT_UP*/,
 					Browser.mouseX,
 					Browser.mouseY
@@ -25727,13 +25516,8 @@ export function init(RuntimeName, PHPLoader) {
 			if (GLUT.mouseFunc) {
 				event.preventDefault();
 				GLUT.saveModifiers(event);
-				((
-					a1,
-					a2,
-					a3,
-					a4
-				) => {}) /* a dynamic function call to signature viiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-					button,
+				((a1, a2, a3, a4) => {})(
+					/* a dynamic function call to signature viiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */ button,
 					0 /*GLUT_DOWN*/,
 					Browser.mouseX,
 					Browser.mouseY
@@ -25776,11 +25560,8 @@ export function init(RuntimeName, PHPLoader) {
 			/* Can't call _glutReshapeWindow as that requests cancelling fullscreen. */
 			if (GLUT.reshapeFunc) {
 				// out("GLUT.reshapeFunc (from FS): " + width + ", " + height);
-				((
-					a1,
-					a2
-				) => {}) /* a dynamic function call to signature vii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-					width,
+				((a1, a2) => {})(
+					/* a dynamic function call to signature vii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */ width,
 					height
 				);
 			}
@@ -25823,11 +25604,8 @@ export function init(RuntimeName, PHPLoader) {
 
 		Browser.resizeListeners.push((width, height) => {
 			if (GLUT.reshapeFunc) {
-				((
-					a1,
-					a2
-				) => {}) /* a dynamic function call to signature vii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-					width,
+				((a1, a2) => {})(
+					/* a dynamic function call to signature vii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */ width,
 					height
 				);
 			}
@@ -25940,10 +25718,8 @@ export function init(RuntimeName, PHPLoader) {
 	var _glutTimerFunc = (msec, func, value) =>
 		safeSetTimeout(
 			() =>
-				((
-					a1
-				) => {}) /* a dynamic function call to signature vi, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-					value
+				((a1) => {})(
+					/* a dynamic function call to signature vi, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */ value
 				),
 			msec
 		);
@@ -26103,11 +25879,8 @@ export function init(RuntimeName, PHPLoader) {
 		Browser.setCanvasSize(width, height, true); // N.B. GLUT.reshapeFunc is also registered as a canvas resize callback.
 		// Just call it once here.
 		if (GLUT.reshapeFunc) {
-			((
-				a1,
-				a2
-			) => {}) /* a dynamic function call to signature vii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-				width,
+			((a1, a2) => {})(
+				/* a dynamic function call to signature vii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */ width,
 				height
 			);
 		}
@@ -27169,21 +26942,15 @@ export function init(RuntimeName, PHPLoader) {
 				callUserCallback(() => {
 					if (error) {
 						if (onerror)
-							((
-								a1
-							) => {}) /* a dynamic function call to signature vi, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-								arg
+							((a1) => {})(
+								/* a dynamic function call to signature vi, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */ arg
 							);
 						return;
 					}
 					var buffer = _malloc(byteArray.length);
 					HEAPU8.set(byteArray, buffer);
-					((
-						a1,
-						a2,
-						a3
-					) => {}) /* a dynamic function call to signature viii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-						arg,
+					((a1, a2, a3) => {})(
+						/* a dynamic function call to signature viii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */ arg,
 						buffer,
 						byteArray.length
 					);
@@ -27215,18 +26982,14 @@ export function init(RuntimeName, PHPLoader) {
 				callUserCallback(() => {
 					if (error) {
 						if (onerror)
-							((
-								a1
-							) => {}) /* a dynamic function call to signature vi, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-								arg
+							((a1) => {})(
+								/* a dynamic function call to signature vi, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */ arg
 							);
 						return;
 					}
 					if (onstore)
-						((
-							a1
-						) => {}) /* a dynamic function call to signature vi, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-							arg
+						((a1) => {})(
+							/* a dynamic function call to signature vi, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */ arg
 						);
 				});
 			}
@@ -27241,18 +27004,14 @@ export function init(RuntimeName, PHPLoader) {
 			callUserCallback(() => {
 				if (error) {
 					if (onerror)
-						((
-							a1
-						) => {}) /* a dynamic function call to signature vi, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-							arg
+						((a1) => {})(
+							/* a dynamic function call to signature vi, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */ arg
 						);
 					return;
 				}
 				if (ondelete)
-					((
-						a1
-					) => {}) /* a dynamic function call to signature vi, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-						arg
+					((a1) => {})(
+						/* a dynamic function call to signature vi, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */ arg
 					);
 			});
 		});
@@ -27269,19 +27028,14 @@ export function init(RuntimeName, PHPLoader) {
 				callUserCallback(() => {
 					if (error) {
 						if (onerror)
-							((
-								a1
-							) => {}) /* a dynamic function call to signature vi, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-								arg
+							((a1) => {})(
+								/* a dynamic function call to signature vi, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */ arg
 							);
 						return;
 					}
 					if (oncheck)
-						((
-							a1,
-							a2
-						) => {}) /* a dynamic function call to signature vii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-							arg,
+						((a1, a2) => {})(
+							/* a dynamic function call to signature vii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */ arg,
 							exists
 						);
 				});
@@ -27297,18 +27051,14 @@ export function init(RuntimeName, PHPLoader) {
 			callUserCallback(() => {
 				if (error) {
 					if (onerror)
-						((
-							a1
-						) => {}) /* a dynamic function call to signature vi, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-							arg
+						((a1) => {})(
+							/* a dynamic function call to signature vi, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */ arg
 						);
 					return;
 				}
 				if (onclear)
-					((
-						a1
-					) => {}) /* a dynamic function call to signature vi, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-						arg
+					((a1) => {})(
+						/* a dynamic function call to signature vi, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */ arg
 					);
 			});
 		});
@@ -27465,11 +27215,8 @@ export function init(RuntimeName, PHPLoader) {
 			safeSetTimeout(() => {
 				var stackBegin = Asyncify.currData + 12;
 				var stackEnd = HEAPU32[Asyncify.currData >> 2];
-				((
-					a1,
-					a2
-				) => {}) /* a dynamic function call to signature vii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-					stackBegin,
+				((a1, a2) => {})(
+					/* a dynamic function call to signature vii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */ stackBegin,
 					stackEnd
 				);
 				wakeUp();
@@ -27530,10 +27277,8 @@ export function init(RuntimeName, PHPLoader) {
 				HEAPU32[(newFiber + 12) >> 2] = 0;
 
 				var userData = HEAPU32[(newFiber + 16) >> 2];
-				((
-					a1
-				) => {}) /* a dynamic function call to signature vi, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-					userData
+				((a1) => {})(
+					/* a dynamic function call to signature vi, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */ userData
 				);
 			} else {
 				var asyncifyData = newFiber + 20;
@@ -28545,11 +28290,8 @@ export function init(RuntimeName, PHPLoader) {
 			if (!SDL.eventHandler) return;
 
 			while (SDL.pollEvent(SDL.eventHandlerTemp)) {
-				((
-					a1,
-					a2
-				) => {}) /* a dynamic function call to signature iii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-					SDL.eventHandlerContext,
+				((a1, a2) => {})(
+					/* a dynamic function call to signature iii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */ SDL.eventHandlerContext,
 					SDL.eventHandlerTemp
 				);
 			}
@@ -30182,12 +29924,9 @@ export function init(RuntimeName, PHPLoader) {
 						return;
 
 					// Ask SDL audio data from the user code.
-					((
-						a1,
-						a2,
-						a3
-					) => {}) /* a dynamic function call to signature viii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-						SDL.audio.userdata,
+					((a1, a2, a3) => {})(
+						/* a dynamic function call to signature viii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */ SDL
+							.audio.userdata,
 						SDL.audio.buffer,
 						SDL.audio.bufferSize
 					);
@@ -30645,10 +30384,8 @@ export function init(RuntimeName, PHPLoader) {
 				info.audio = null;
 			}
 			if (SDL.channelFinished) {
-				((
-					a1
-				) => {}) /* a dynamic function call to signature vi, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-					channel
+				((a1) => {})(
+					/* a dynamic function call to signature vi, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */ channel
 				);
 			}
 		}
@@ -30717,10 +30454,8 @@ export function init(RuntimeName, PHPLoader) {
 				channelInfo.audio = null;
 			}
 			if (SDL.channelFinished)
-				((
-					a1
-				) => {}) /* a dynamic function call to signature vi, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-					channel
+				((a1) => {})(
+					/* a dynamic function call to signature vi, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */ channel
 				);
 		};
 		if (channelInfo.audio) {
@@ -31468,11 +31203,8 @@ export function init(RuntimeName, PHPLoader) {
 	var _SDL_AddTimer = (interval, callback, param) =>
 		safeSetTimeout(
 			() =>
-				((
-					a1,
-					a2
-				) => {}) /* a dynamic function call to signature iii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-					interval,
+				((a1, a2) => {})(
+					/* a dynamic function call to signature iii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */ interval,
 					param
 				),
 			interval
@@ -31840,12 +31572,8 @@ export function init(RuntimeName, PHPLoader) {
 
 		socket.onopen = function (e) {
 			var eventPtr = WS.getSocketEvent(socketId);
-			((
-				a1,
-				a2,
-				a3
-			) => {}) /* a dynamic function call to signature iiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-				0 /*TODO*/,
+			((a1, a2, a3) => {})(
+				/* a dynamic function call to signature iiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */ 0 /*TODO*/,
 				eventPtr,
 				userData
 			);
@@ -31867,12 +31595,8 @@ export function init(RuntimeName, PHPLoader) {
 
 		socket.onerror = function (e) {
 			var eventPtr = WS.getSocketEvent(socketId);
-			((
-				a1,
-				a2,
-				a3
-			) => {}) /* a dynamic function call to signature iiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-				0 /*TODO*/,
+			((a1, a2, a3) => {})(
+				/* a dynamic function call to signature iiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */ 0 /*TODO*/,
 				eventPtr,
 				userData
 			);
@@ -31897,12 +31621,8 @@ export function init(RuntimeName, PHPLoader) {
 			(HEAP8[eventPtr + 4] = e.wasClean),
 				(HEAP16[(eventPtr + 6) >> 1] = e.code),
 				stringToUTF8(e.reason, eventPtr + 8, 512);
-			((
-				a1,
-				a2,
-				a3
-			) => {}) /* a dynamic function call to signature iiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-				0 /*TODO*/,
+			((a1, a2, a3) => {})(
+				/* a dynamic function call to signature iiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */ 0 /*TODO*/,
 				eventPtr,
 				userData
 			);
@@ -31936,12 +31656,8 @@ export function init(RuntimeName, PHPLoader) {
 			(HEAPU32[(eventPtr + 4) >> 2] = buf),
 				(HEAP32[(eventPtr + 8) >> 2] = len),
 				(HEAP8[eventPtr + 12] = isText),
-				((
-					a1,
-					a2,
-					a3
-				) => {}) /* a dynamic function call to signature iiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-					0 /*TODO*/,
+				((a1, a2, a3) => {})(
+					/* a dynamic function call to signature iiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */ 0 /*TODO*/,
 					eventPtr,
 					userData
 				);
@@ -32138,13 +31854,13 @@ export function init(RuntimeName, PHPLoader) {
 	// End JS library code
 
 	var ASM_CONSTS = {
-		12317053: ($0) => {
+		13062269: ($0) => {
 			if (!$0) {
 				AL.alcErr = 0xa004;
 				return 1;
 			}
 		},
-		12317101: ($0) => {
+		13062317: ($0) => {
 			if (!AL.currentCtx) {
 				err('alGetProcAddress() called without a valid context');
 				return 1;
@@ -34881,9 +34597,15 @@ export function init(RuntimeName, PHPLoader) {
 		/** @export */
 		glutTimerFunc: _glutTimerFunc,
 		/** @export */
+		invoke_dii,
+		/** @export */
 		invoke_i,
 		/** @export */
+		invoke_id,
+		/** @export */
 		invoke_ii,
+		/** @export */
+		invoke_iifi,
 		/** @export */
 		invoke_iii,
 		/** @export */
@@ -34909,6 +34631,8 @@ export function init(RuntimeName, PHPLoader) {
 		/** @export */
 		invoke_iiij,
 		/** @export */
+		invoke_iiijj,
+		/** @export */
 		invoke_iij,
 		/** @export */
 		invoke_iiji,
@@ -34927,11 +34651,17 @@ export function init(RuntimeName, PHPLoader) {
 		/** @export */
 		invoke_jiii,
 		/** @export */
+		invoke_jiji,
+		/** @export */
 		invoke_v,
 		/** @export */
 		invoke_vi,
 		/** @export */
 		invoke_vii,
+		/** @export */
+		invoke_viid,
+		/** @export */
+		invoke_viidddddddd,
 		/** @export */
 		invoke_viidii,
 		/** @export */
@@ -34958,6 +34688,8 @@ export function init(RuntimeName, PHPLoader) {
 		invoke_viiij,
 		/** @export */
 		invoke_viijii,
+		/** @export */
+		invoke_vij,
 		/** @export */
 		invoke_vji,
 		/** @export */
@@ -35844,6 +35576,119 @@ export function init(RuntimeName, PHPLoader) {
 				a10,
 				a11
 			);
+		} catch (e) {
+			stackRestore(sp);
+			if (e !== e + 0) throw e;
+			_setThrew(1, 0);
+		}
+	}
+
+	function invoke_jiji(index, a1, a2, a3) {
+		var sp = stackSave();
+		try {
+			return Module['dynCall_jiji'](index, a1, a2, a3);
+		} catch (e) {
+			stackRestore(sp);
+			if (e !== e + 0) throw e;
+			_setThrew(1, 0);
+			return 0n;
+		}
+	}
+
+	function invoke_iiijj(index, a1, a2, a3, a4) {
+		var sp = stackSave();
+		try {
+			return Module['dynCall_iiijj'](index, a1, a2, a3, a4);
+		} catch (e) {
+			stackRestore(sp);
+			if (e !== e + 0) throw e;
+			_setThrew(1, 0);
+		}
+	}
+
+	function invoke_vij(index, a1, a2) {
+		var sp = stackSave();
+		try {
+			Module['dynCall_vij'](index, a1, a2);
+		} catch (e) {
+			stackRestore(sp);
+			if (e !== e + 0) throw e;
+			_setThrew(1, 0);
+		}
+	}
+
+	function invoke_dii(index, a1, a2) {
+		var sp = stackSave();
+		try {
+			return Module['dynCall_dii'](index, a1, a2);
+		} catch (e) {
+			stackRestore(sp);
+			if (e !== e + 0) throw e;
+			_setThrew(1, 0);
+		}
+	}
+
+	function invoke_viid(index, a1, a2, a3) {
+		var sp = stackSave();
+		try {
+			Module['dynCall_viid'](index, a1, a2, a3);
+		} catch (e) {
+			stackRestore(sp);
+			if (e !== e + 0) throw e;
+			_setThrew(1, 0);
+		}
+	}
+
+	function invoke_viidddddddd(
+		index,
+		a1,
+		a2,
+		a3,
+		a4,
+		a5,
+		a6,
+		a7,
+		a8,
+		a9,
+		a10
+	) {
+		var sp = stackSave();
+		try {
+			Module['dynCall_viidddddddd'](
+				index,
+				a1,
+				a2,
+				a3,
+				a4,
+				a5,
+				a6,
+				a7,
+				a8,
+				a9,
+				a10
+			);
+		} catch (e) {
+			stackRestore(sp);
+			if (e !== e + 0) throw e;
+			_setThrew(1, 0);
+		}
+	}
+
+	function invoke_id(index, a1) {
+		var sp = stackSave();
+		try {
+			return Module['dynCall_id'](index, a1);
+		} catch (e) {
+			stackRestore(sp);
+			if (e !== e + 0) throw e;
+			_setThrew(1, 0);
+		}
+	}
+
+	function invoke_iifi(index, a1, a2, a3) {
+		var sp = stackSave();
+		try {
+			return Module['dynCall_iifi'](index, a1, a2, a3);
 		} catch (e) {
 			stackRestore(sp);
 			if (e !== e + 0) throw e;
