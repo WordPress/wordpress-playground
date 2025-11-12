@@ -619,12 +619,19 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 			const serverUrl = `http://${host}:${port}`;
 			const siteUrl = args['site-url'] || serverUrl;
 
-			// Create the blueprints handler
-			const targetWorkerCount = args.experimentalMultiWorker ?? 1;
-			// Account for the initial worker which is discarded after setup.
-			const totalWorkerCountIncludingSetupWorker = targetWorkerCount + 1;
+			const targetWorkerCount =
+				args.command === 'server'
+					? args.experimentalMultiWorker ?? 1
+					: 1;
+			const totalWorkersToSpawn =
+				args.command === 'server'
+					? // Account for the initial worker
+					  // which is discarded by the server after setup.
+					  targetWorkerCount + 1
+					: targetWorkerCount;
+
 			const processIdSpaceLength = Math.floor(
-				Number.MAX_SAFE_INTEGER / totalWorkerCountIncludingSetupWorker
+				Number.MAX_SAFE_INTEGER / totalWorkersToSpawn
 			);
 
 			/*
@@ -884,7 +891,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 			// Kick off worker threads now to save time later.
 			// There is no need to wait for other async processes to complete.
 			const promisedWorkers = spawnWorkerThreads(
-				totalWorkerCountIncludingSetupWorker,
+				totalWorkersToSpawn,
 				handler.getWorkerType(),
 				({ exitCode, workerIndex }) => {
 					// We are already disposing, so worker exit is expected
