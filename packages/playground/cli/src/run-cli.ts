@@ -328,6 +328,11 @@ export async function parseOptionsAndRunCLI() {
 				}
 
 				if (args['experimental-multi-worker'] !== undefined) {
+					if (args.command !== 'server') {
+						throw new Error(
+							'The --experimental-multi-worker flag is only supported when running the server command.'
+						);
+					}
 					if (args['experimental-multi-worker'] <= 1) {
 						throw new Error(
 							'The --experimental-multi-worker flag must be a positive integer greater than 1.'
