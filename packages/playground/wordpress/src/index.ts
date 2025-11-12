@@ -684,7 +684,11 @@ export async function resolveWordPressRelease(versionQuery = 'latest') {
 	);
 
 	for (const apiVersion of latestVersions) {
-		if (versionQuery === 'beta' && apiVersion.version.includes('beta')) {
+		if (
+			versionQuery === 'beta' &&
+			(apiVersion.version.includes('beta') ||
+				apiVersion.version.includes('RC'))
+		) {
 			return {
 				releaseUrl: apiVersion.download,
 				version: apiVersion.version,
@@ -692,7 +696,8 @@ export async function resolveWordPressRelease(versionQuery = 'latest') {
 			};
 		} else if (
 			versionQuery === 'latest' &&
-			!apiVersion.version.includes('beta')
+			!apiVersion.version.includes('beta') &&
+			!apiVersion.version.includes('RC')
 		) {
 			// The first non-beta item in the list is the latest version.
 			return {
