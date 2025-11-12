@@ -7,7 +7,10 @@ import {
 	proxyFileSystem,
 	type SupportedPHPVersion,
 } from '@php-wasm/universal';
-import { SupportedPHPVersions } from '@php-wasm/universal';
+import {
+	SupportedPHPVersions,
+	type FileLockManager,
+} from '@php-wasm/universal';
 import {
 	createNodeFsMountHandler,
 	FileLockManagerForNode,
@@ -15,11 +18,11 @@ import {
 } from '../lib';
 import {
 	joinPaths,
-	wrapSynchronousInterfaceAsPromised,
-	type Promised,
+	/* eslint-disable-next-line @typescript-eslint/no-unused-vars --
+	 * sprintf() is used in a trace function that is commented out by default.
+	 */
+	sprintf,
 } from '@php-wasm/util';
-import { jspi } from 'wasm-feature-detect';
-import type { FileLockManager } from '../lib/file-lock-manager';
 
 const phpVersionsToTest =
 	'PHP' in process.env
@@ -31,16 +34,12 @@ describe.each(phpVersionsToTest)('PHP %s: File locking', (phpVersion) => {
 
 	let tempDir: string;
 	// TODO: Use one file lock manager per test
-	let fileLockManager:
-		| FileLockManagerForNode
-		| Promised<FileLockManagerForNode>;
+	let fileLockManager: FileLockManagerForNode;
 	let nextProcessId: number;
 
 	beforeEach(async () => {
 		tempDir = mkdtempSync(join(tmpdir(), 'php-wasm-file-locking-'));
-		fileLockManager = (await jspi())
-			? wrapSynchronousInterfaceAsPromised(new FileLockManagerForNode())
-			: new FileLockManagerForNode();
+		fileLockManager = new FileLockManagerForNode();
 		nextProcessId = 1;
 	});
 	afterEach(async () => {
@@ -49,9 +48,22 @@ describe.each(phpVersionsToTest)('PHP %s: File locking', (phpVersion) => {
 
 	async function createPhpRuntimeWithFileLockingAndTestMount(): Promise<PHP> {
 		const runtimeId = await loadNodeRuntime(phpVersion, {
+			fileLockManager: fileLockManager!,
 			emscriptenOptions: {
 				processId: nextProcessId++,
-				fileLockManager: fileLockManager!,
+				// NOTE: You can uncomment this for debugging test failures.
+				// trace: function tracePhpWasm(
+				// 	processId: number,
+				// 	format: string,
+				// 	...args: any[]
+				// ) {
+				// 	// eslint-disable-next-line no-console
+				// 	console.log(
+				// 		performance.now().toFixed(6).padStart(15, '0'),
+				// 		processId.toString().padStart(16, '0'),
+				// 		sprintf(format, ...args)
+				// 	);
+				// },
 			},
 		});
 		const php = new PHP(runtimeId);
@@ -89,7 +101,7 @@ error_log = ${errorLogPath}
 				`,
 			});
 			// TODO: Why does this DB file check fail for PHP 8.0 and under? The tests pass. The DB must exist.
-			//       This is only a problem in JSPI builds. Sleeping for 500ms avoids the issue.
+			//       This is only a problem in JSPI builds. Sleeping for 501ms avoids the issue.
 			// const dbFilePath = join(tempDir, dbFileName);
 			// if (!existsSync(dbFilePath)) {
 			// 	throw new Error(`Database file not created: ${dbFilePath}`);
@@ -123,7 +135,7 @@ error_log = ${errorLogPath}
 					$db = new SQLite3('${vfsDbFilePath}');
 					$db->exec('BEGIN EXCLUSIVE;');
 
-					// Wait until php2 notifies us by deleting the sleep file
+					// Wait until php2 notifies us by updating the coordination file
 					file_put_contents('${vfsPhpCoordinationFile}', '${stages.php1Locked}');
 					while (
 						file_get_contents('${vfsPhpCoordinationFile}') !== '${stages.php2ReadyForUnlock}'
@@ -1406,23 +1418,19 @@ error_log = ${errorLogPath}
 	}, 5000);
 
 	describe(`Additional tests with multiple php-wasm instances`, async () => {
-		const mockFnWithResult = (await jspi())
-			? // Use async mocks for JSPI to match the async FileLockManager
-				// used by JSPI PHP builds.
-				(value: any) => vi.fn().mockResolvedValue(value)
-			: (value: any) => vi.fn().mockReturnValue(value);
-
 		function createMockFileLockManager(): FileLockManager {
 			return {
-				lockWholeFile: mockFnWithResult(true),
-				lockFileByteRange: mockFnWithResult(true),
-				findFirstConflictingByteRangeLock: mockFnWithResult(undefined),
-				releaseLocksForProcessFd: mockFnWithResult(undefined),
-				releaseLocksForProcess: mockFnWithResult(undefined),
+				lockWholeFile: vi.fn().mockReturnValue(true),
+				lockFileByteRange: vi.fn().mockReturnValue(true),
+				findFirstConflictingByteRangeLock: vi
+					.fn()
+					.mockReturnValue(undefined),
+				releaseLocksForProcessFd: vi.fn().mockReturnValue(undefined),
+				releaseLocksForProcess: vi.fn().mockReturnValue(undefined),
 			};
 		}
 
-		// TODO: Add tests for fcntl()
+		// TODO: Test fcntl() somehow. The DB tests should use fcntl(), but explicit tests would be better.
 
 		test(`should attempt to lock a NODEFS file and a PROXYFS node that wraps a NODEFS file`, async () => {
 			// NOTE: Normally, we would use a single file lock manager across all runtimes,
@@ -1431,9 +1439,9 @@ error_log = ${errorLogPath}
 			const ENV = { DOCROOT: '/wordpress' };
 			const php1 = new PHP(
 				await loadNodeRuntime(phpVersion, {
+					fileLockManager: fileLockManagerForRuntime1,
 					emscriptenOptions: {
 						ENV,
-						fileLockManager: fileLockManagerForRuntime1,
 					},
 				})
 			);
@@ -1451,7 +1459,7 @@ error_log = ${errorLogPath}
 			const vfsPathToLock = '/wordpress/wp-content/lock-this.txt';
 			const phpThatAttemptsToLock = `<?php
 			$f = fopen('${vfsPathToLock}', 'w');
-			flock($f, LOCK_EX);
+			flock($f, LOCK_EX | LOCK_NB);
 			`;
 			const result1 = await php1.runStream({
 				code: phpThatAttemptsToLock,
@@ -1468,9 +1476,9 @@ error_log = ${errorLogPath}
 			const fileLockManagerForRuntime2 = createMockFileLockManager();
 			const php2 = new PHP(
 				await loadNodeRuntime(phpVersion, {
+					fileLockManager: fileLockManagerForRuntime2,
 					emscriptenOptions: {
 						ENV,
-						fileLockManager: fileLockManagerForRuntime2,
 					},
 				})
 			);
@@ -1495,9 +1503,9 @@ error_log = ${errorLogPath}
 			const ENV = { DOCROOT: '/wordpress' };
 			const php1 = new PHP(
 				await loadNodeRuntime(phpVersion, {
+					fileLockManager: fileLockManagerForRuntime1,
 					emscriptenOptions: {
 						ENV,
-						fileLockManager: fileLockManagerForRuntime1,
 					},
 				})
 			);
@@ -1511,7 +1519,7 @@ error_log = ${errorLogPath}
 				if ($f === false) {
 					throw new Error('Failed to open file');
 				}
-				flock($f, LOCK_EX);
+				flock($f, LOCK_EX | LOCK_NB);
 				`;
 			const result1 = await php1.runStream({
 				code: phpThatAttemptsToLock,
@@ -1524,9 +1532,9 @@ error_log = ${errorLogPath}
 			const fileLockManagerForRuntime2 = createMockFileLockManager();
 			const php2 = new PHP(
 				await loadNodeRuntime(phpVersion, {
+					fileLockManager: fileLockManagerForRuntime2,
 					emscriptenOptions: {
 						ENV,
-						fileLockManager: fileLockManagerForRuntime2,
 					},
 				})
 			);
@@ -1540,6 +1548,7 @@ error_log = ${errorLogPath}
 			).not.toHaveBeenCalled();
 		});
 
+		// TODO: Does this test belong here or have anything to do with file locking?
 		test(`regression test for https://github.com/WordPress/wordpress-playground/pull/2300`, async () => {
 			const opts = {
 				emscriptenOptions: { ENV: { DOCROOT: '/wordpress' } },

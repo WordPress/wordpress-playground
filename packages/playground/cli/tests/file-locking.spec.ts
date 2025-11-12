@@ -33,6 +33,9 @@ describe('Playground CLI file locking', () => {
 			],
 			// Test locking across multiple workers
 			experimentalMultiWorker: MULTI_WORKER_COUNT,
+			verbosity: 'debug',
+			// NOTE: You can uncomment this for debugging test failures.
+			// experimentalTrace: true,
 		});
 	}, TEST_SUITE_PREP_TIMEOUT);
 

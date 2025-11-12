@@ -3,7 +3,7 @@ import { FileLockManagerForNode } from '../lib/file-lock-manager-for-node';
 import { fork } from 'child_process';
 import type { ChildProcess } from 'child_process';
 import { join } from 'path';
-import type { WholeFileLockOp } from '../lib/file-lock-manager';
+import { type WholeFileLockOp } from '@php-wasm/universal';
 import { flockSync as nativeFlockSync } from 'fs-ext';
 
 const TEST_FILE1 = new URL('test1.txt', import.meta.url).pathname;

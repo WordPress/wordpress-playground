@@ -119,8 +119,8 @@ ${process.argv[0]} ${process.execArgv.join(' ')} ${process.argv[1]}
 	const sysTempDir = mkdtempSync(path.join(os.tmpdir(), 'php-wasm-sys-tmp'));
 	const php = new PHP(
 		await loadNodeRuntime(phpVersion, {
+			fileLockManager: new FileLockManagerForNode(),
 			emscriptenOptions: {
-				fileLockManager: new FileLockManagerForNode(),
 				processId: 1,
 				ENV: {
 					...envVariables,
