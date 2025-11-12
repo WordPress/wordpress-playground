@@ -13,7 +13,7 @@ import type {
 	WholeFileLockOp,
 	Pid,
 	Fd,
-} from './file-lock-manager';
+} from '@php-wasm/universal';
 
 type LockMode = 'exclusive' | 'shared' | 'unlock';
 

@@ -88,3 +88,5 @@ export { sandboxedSpawnHandlerFactory } from './sandboxed-spawn-handler-factory'
 
 export * from './api';
 export type { WithAPIState as WithIsReady } from './api';
+
+export type * from './file-lock-manager';

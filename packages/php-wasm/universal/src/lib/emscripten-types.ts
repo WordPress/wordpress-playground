@@ -149,7 +149,7 @@ export namespace Emscripten {
 
 		export interface Mount {
 			type: Emscripten.FileSystemType;
-			opts: object;
+			opts: Record<string, any>;
 			mountpoint: string;
 			mounts: Mount[];
 			root: FSNode;
@@ -185,6 +185,10 @@ export namespace Emscripten {
 			write: boolean;
 			readonly isFolder: boolean;
 			readonly isDevice: boolean;
+
+			// NOTE: As of 2025-11-11, this property is added by a php-wasm patch
+			// for NODEFS.createNode(). It is not part of the Emscripten FSNode interface.
+			readonly isSharedFS?: boolean;
 		}
 
 		export interface ErrnoError extends Error {
@@ -394,6 +398,7 @@ export namespace Emscripten {
 	export declare const MEMFS: Emscripten.FileSystemType;
 	export declare const NODEFS: Emscripten.FileSystemType;
 	export declare const IDBFS: Emscripten.FileSystemType;
+	export declare const PROXYFS: Emscripten.FileSystemType;
 
 	// https://emscripten.org/docs/porting/connecting_cpp_and_javascript/Interacting-with-code.html
 	type StringToType<R> = R extends Emscripten.JSType
