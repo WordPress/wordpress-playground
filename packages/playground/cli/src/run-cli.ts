@@ -925,6 +925,11 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 							nativeInternalDirPath
 						);
 
+					playgroundsToCleanUp.push({
+						playground: initialPlayground,
+						worker: initialWorker.worker,
+					});
+
 					await initialPlayground.isReady();
 					wordPressReady = true;
 					logger.log(`Booted!`);
