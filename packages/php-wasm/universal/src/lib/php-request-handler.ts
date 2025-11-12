@@ -360,7 +360,7 @@ export class PHPRequestHandler implements AsyncDisposable {
 	 * @param  request - PHP Request data.
 	 */
 	async request(request: PHPRequest): Promise<PHPResponse> {
-		const isAbsolute = URL.canParse(request.url);
+		const isAbsolute = looksLikeAbsoluteUrl(request.url);
 		const originalRequestUrl = new URL(
 			// Remove the hash part of the URL as it's not meant for the server.
 			request.url.split('#')[0],
@@ -928,4 +928,23 @@ export function applyRewriteRules(path: string, rules: RewriteRule[]): string {
 		}
 	}
 	return path;
+}
+
+/**
+ * Checks if the given URL looks like an absolute URL.
+ *
+ * @param url - The URL to check.
+ * @returns `true` if the URL looks like an absolute URL, `false` otherwise.
+ */
+function looksLikeAbsoluteUrl(url: string): boolean {
+	try {
+		// NOTE: We could just use URL.canParse() but are avoiding it here
+		// because we've seen users with older Safari versions that don't support it.
+		// Maybe Playground will break in other ways for them,
+		// but since this is an easy, low-risk change, let's give it a try.
+		new URL(url);
+		return true;
+	} catch {
+		return false;
+	}
 }
