@@ -391,9 +391,13 @@ const streamedResponse = await php.runStream({
 	scriptPath: '/stream-demo.php',
 });
 
-console.log('Processing PHP output:\n');
-console.log(await streamedResponse.stdoutText);
-console.log(`\nExit code: ${streamedResponse.exitCode}`);
+streamedResponse.stdout.pipeTo(
+	new WritableStream({
+		write(chunk) {
+			console.log(chunk);
+		},
+	})
+);
 ```
 
 ## Integration patterns

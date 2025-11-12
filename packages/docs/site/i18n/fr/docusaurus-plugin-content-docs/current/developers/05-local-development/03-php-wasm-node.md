@@ -14,7 +14,7 @@ En tant que projet WebAssembly, vous pouvez aussi utiliser WordPress Playground 
 
 <!-- If you need low-level control over the underlying WebAssembly PHP build, take a look at the [@php-wasm/node package](https://npmjs.org/@php-wasm/node) which ships the PHP WebAssembly runtime. This package is at the core of all WordPress Playground tools for Node.js. -->
 
-Si vous avez besoin d'un contrôle bas niveau sur la build WebAssembly de PHP, consultez le [paquet @php-wasm/node](https://npmjs.org/@php-wasm/node) qui fournit le runtime PHP WebAssembly. Ce paquet est au cœur de tous les outils WordPress Playground pour Node.js.
+Si vous avez besoin d'un contrôle bas niveau sur la build WebAssembly de PHP, consultez le [paquet @php-wasm/node](https://npmjs.org/@php-wasm/node) qui fournit l'environnement d'exécution PHP WebAssembly. Ce paquet est au cœur de tous les outils WordPress Playground pour Node.js.
 
 <!-- Consult the [complete list](/api/node) of Classes, Functions, Interfaces, and Type Aliases. -->
 
@@ -26,7 +26,7 @@ Consultez la [liste complète](/api/node) des classes, fonctions, interfaces et 
 
 <!-- This package ships WebAssembly PHP binaries and the JavaScript API optimized for Node.js. It uses the host file system directly and can access the network if you plug in a custom WS proxy. -->
 
-Ce paquet fournit les binaires PHP WebAssembly et l'API JavaScript optimisée pour Node.js. Il utilise directement le système de fichiers hôte et peut accéder au réseau si vous branchez un proxy WS personnalisé.
+Ce paquet fournit les exécutables PHP WebAssembly et l'API JavaScript optimisée pour Node.js. Il utilise directement le système de fichiers hôte et peut accéder au réseau si vous branchez un proxy WS personnalisé.
 
 <!-- ### Basic usage -->
 
@@ -441,9 +441,13 @@ const streamedResponse = await php.runStream({
 	scriptPath: '/stream-demo.php',
 });
 
-console.log('Processing PHP output:\n');
-console.log(await streamedResponse.stdoutText);
-console.log(`\nExit code: ${streamedResponse.exitCode}`);
+streamedResponse.stdout.pipeTo(
+	new WritableStream({
+		write(chunk) {
+			console.log(chunk);
+		},
+	})
+);
 ```
 
 <!-- ## Integration patterns -->
