@@ -328,7 +328,8 @@ export async function parseOptionsAndRunCLI() {
 				}
 
 				if (args['experimental-multi-worker'] !== undefined) {
-					if (args.command !== 'server') {
+					const cliCommand = args._[0] as string;
+					if (cliCommand !== 'server') {
 						throw new Error(
 							'The --experimental-multi-worker flag is only supported when running the server command.'
 						);
