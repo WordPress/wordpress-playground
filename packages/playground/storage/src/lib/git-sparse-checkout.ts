@@ -42,6 +42,19 @@ export class GitAuthenticationError extends Error {
 	}
 }
 
+export type GitAdditionalHeaders = (url: string) => Record<string, string>;
+
+function resolveGitHeaders(
+	url: string,
+	headers?: GitAdditionalHeaders
+): Record<string, string> {
+	if (!headers || typeof headers !== 'function') {
+		return {};
+	}
+
+	return headers(url);
+}
+
 /**
  * Downloads specific files from a git repository.
  * It uses the git protocol over HTTP to fetch the files. It only uses
@@ -79,20 +92,24 @@ export async function sparseCheckout(
 	filesPaths: string[],
 	options?: {
 		withObjects?: boolean;
-		additionalHeaders?: Record<string, string>;
+		additionalHeaders?: GitAdditionalHeaders;
 	}
 ): Promise<SparseCheckoutResult> {
 	const treesPack = await fetchWithoutBlobs(
 		repoUrl,
 		commitHash,
-		options?.additionalHeaders
+		resolveGitHeaders(repoUrl, options?.additionalHeaders)
 	);
 	const objects = await resolveObjects(treesPack.idx, commitHash, filesPaths);
 
 	const blobOids = filesPaths.map((path) => objects[path].oid);
 	const blobsPack =
 		blobOids.length > 0
-			? await fetchObjects(repoUrl, blobOids, options?.additionalHeaders)
+			? await fetchObjects(
+					repoUrl,
+					blobOids,
+					resolveGitHeaders(repoUrl, options?.additionalHeaders)
+			  )
 			: null;
 
 	const fetchedPaths: Record<string, any> = {};
@@ -197,12 +214,12 @@ const FULL_SHA_REGEX = /^[0-9a-f]{40}$/i;
 export async function listGitFiles(
 	repoUrl: string,
 	commitHash: string,
-	additionalHeaders?: Record<string, string>
+	additionalHeaders?: GitAdditionalHeaders
 ): Promise<GitFileTree[]> {
 	const treesPack = await fetchWithoutBlobs(
 		repoUrl,
 		commitHash,
-		additionalHeaders
+		resolveGitHeaders(repoUrl, additionalHeaders)
 	);
 	const rootTree = await resolveAllObjects(treesPack.idx, commitHash);
 	if (!rootTree?.object) {
@@ -222,7 +239,7 @@ export async function listGitFiles(
 export async function resolveCommitHash(
 	repoUrl: string,
 	ref: GitRef,
-	additionalHeaders?: Record<string, string>
+	additionalHeaders?: GitAdditionalHeaders
 ) {
 	const parsed = await parseGitRef(repoUrl, ref);
 	if (parsed.resolvedOid) {
@@ -268,7 +285,7 @@ function gitTreeToFileTree(tree: GitTree): GitFileTree[] {
 export async function listGitRefs(
 	repoUrl: string,
 	fullyQualifiedBranchPrefix: string,
-	additionalHeaders?: Record<string, string>
+	additionalHeaders?: GitAdditionalHeaders
 ) {
 	const packbuffer = Buffer.from(
 		(await collect([
@@ -289,7 +306,7 @@ export async function listGitRefs(
 			'content-type': 'application/x-git-upload-pack-request',
 			'Content-Length': `${packbuffer.length}`,
 			'Git-Protocol': 'version=2',
-			...additionalHeaders,
+			...resolveGitHeaders(repoUrl, additionalHeaders),
 		},
 		body: packbuffer as any,
 	});
@@ -418,7 +435,7 @@ async function parseGitRef(
 async function fetchRefOid(
 	repoUrl: string,
 	refname: string,
-	additionalHeaders?: Record<string, string>
+	additionalHeaders?: GitAdditionalHeaders
 ) {
 	const refs = await listGitRefs(repoUrl, refname, additionalHeaders);
 	const candidates = [refname, `${refname}^{}`];

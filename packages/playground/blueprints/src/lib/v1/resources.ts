@@ -164,7 +164,7 @@ export abstract class Resource<T extends File | Directory> {
 			progress?: ProgressTracker;
 			corsProxy?: string;
 			streamBundledFile?: StreamBundledFile;
-			gitAdditionalHeaders?: Record<string, string>;
+			gitAdditionalHeaders?: (url: string) => Record<string, string>;
 		}
 	): Resource<File | Directory> {
 		let resource: Resource<File | Directory>;
@@ -561,7 +561,7 @@ export class GitDirectoryResource extends Resource<Directory> {
 	private reference: GitDirectoryReference;
 	private options?: {
 		corsProxy?: string;
-		additionalHeaders?: Record<string, string>;
+		additionalHeaders?: (url: string) => Record<string, string>;
 	};
 
 	constructor(
@@ -569,7 +569,7 @@ export class GitDirectoryResource extends Resource<Directory> {
 		_progress?: ProgressTracker,
 		options?: {
 			corsProxy?: string;
-			additionalHeaders?: Record<string, string>;
+			additionalHeaders?: (url: string) => Record<string, string>;
 		}
 	) {
 		super();

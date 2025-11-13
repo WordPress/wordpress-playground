@@ -85,8 +85,9 @@ export interface CompileBlueprintV1Options {
 	streamBundledFile?: StreamBundledFile;
 	/**
 	 * Additional headers to pass to git operations.
+	 * A function that returns headers based on the URL being accessed.
 	 */
-	gitAdditionalHeaders?: Record<string, string>;
+	gitAdditionalHeaders?: (url: string) => Record<string, string>;
 	/**
 	 * Additional steps to add to the blueprint.
 	 */
@@ -522,8 +523,9 @@ interface CompileStepArgsOptions {
 	streamBundledFile?: StreamBundledFile;
 	/**
 	 * Additional headers to pass to git operations.
+	 * A function that returns headers based on the URL being accessed.
 	 */
-	gitAdditionalHeaders?: Record<string, string>;
+	gitAdditionalHeaders?: (url: string) => Record<string, string>;
 }
 
 /**

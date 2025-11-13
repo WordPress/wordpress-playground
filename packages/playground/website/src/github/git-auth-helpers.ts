@@ -7,29 +7,37 @@ const KNOWN_CORS_PROXY_URLS = [
 ];
 
 export function isGitHubUrl(url: string): boolean {
-	if (url.includes('github.com')) {
-		return true;
-	}
 	for (const corsProxyUrl of KNOWN_CORS_PROXY_URLS) {
-		if (
-			url.startsWith(corsProxyUrl) &&
-			url.substring(corsProxyUrl.length).includes('github.com')
-		) {
-			return true;
+		if (url.startsWith(corsProxyUrl)) {
+			url = url.substring(corsProxyUrl.length);
+			break;
 		}
 	}
-	return false;
+
+	try {
+		const urlObj = new URL(url);
+		const hostname = urlObj.hostname;
+		return hostname === 'github.com';
+	} catch {
+		return false;
+	}
 }
 
-export function createGitHubAuthHeaders(): Record<string, string> {
+export function createGitHubAuthHeaders(): (
+	url: string
+) => Record<string, string> {
 	const token = oAuthState.value.token;
-	if (!token) {
-		return {};
-	}
 
-	return {
-		Authorization: `Basic ${btoa(`${token}:`)}`,
-		// Tell the CORS proxy to forward the Authorization header
-		'X-Cors-Proxy-Allowed-Request-Headers': 'Authorization',
+	return (url: string) => {
+		if (!token || !isGitHubUrl(url)) {
+			return {};
+		}
+
+		const headers = {
+			Authorization: `Basic ${btoa(`${token}:`)}`,
+			// Tell the CORS proxy to forward the Authorization header
+			'X-Cors-Proxy-Allowed-Request-Headers': 'Authorization',
+		};
+		return headers;
 	};
 }
