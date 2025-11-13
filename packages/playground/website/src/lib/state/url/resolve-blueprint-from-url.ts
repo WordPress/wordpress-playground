@@ -30,6 +30,29 @@ export type ResolvedBlueprint = {
 	source: BlueprintSource;
 };
 
+const githubBlobOrRawPathPattern = /^\/([^/]+)\/([^/]+)\/(?:blob|raw)\//;
+
+function normalizeBlueprintUrl(remoteUrl: string): string {
+	try {
+		const parsedUrl = new URL(remoteUrl);
+		if (parsedUrl.hostname !== 'github.com') {
+			return remoteUrl;
+		}
+		const rewrittenPath = parsedUrl.pathname.replace(
+			githubBlobOrRawPathPattern,
+			'/$1/$2/'
+		);
+		if (rewrittenPath === parsedUrl.pathname) {
+			return remoteUrl;
+		}
+		parsedUrl.pathname = rewrittenPath;
+		parsedUrl.hostname = 'raw.githubusercontent.com';
+		return parsedUrl.toString();
+	} catch {
+		return remoteUrl;
+	}
+}
+
 export async function resolveBlueprintFromURL(
 	url: URL,
 	defaultBlueprint?: string
@@ -59,13 +82,12 @@ export async function resolveBlueprintFromURL(
 		 * Support passing blueprints via query parameter, e.g.:
 		 * ?blueprint-url=https://example.com/blueprint.json
 		 */
+		const blueprintUrl = normalizeBlueprintUrl(query.get('blueprint-url')!);
 		return {
-			blueprint: await resolveRemoteBlueprint(
-				query.get('blueprint-url')!
-			),
+			blueprint: await resolveRemoteBlueprint(blueprintUrl),
 			source: {
 				type: 'remote-url',
-				url: query.get('blueprint-url')!,
+				url: blueprintUrl,
 			},
 		};
 	} else if (fragment.length) {
