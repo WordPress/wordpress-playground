@@ -28,16 +28,21 @@ on:
 
 jobs:
     preview:
+        runs-on: ubuntu-latest
         permissions:
             contents: read
             pull-requests: write
-        uses: WordPress/action-wp-playground-pr-preview@v2
-        with:
-            mode: 'append-to-description'
-            plugin-path: .
+        steps:
+            - name: Post Playground Preview Button
+              uses: WordPress/action-wp-playground-pr-preview@v2
+              with:
+                  mode: 'append-to-description'
+                  plugin-path: .
 ```
 
 This configuration tells GitHub to run the action whenever a pull request is created or updated. The action will add a preview button to the pull request description automatically.
+
+Note that `WordPress/action-wp-playground-pr-preview@v2` is a regular action and must be referenced inside a job step (under `jobs.<job_id>.steps`), not directly under `jobs.<job_id>.uses`.
 
 The `plugin-path: .` setting means your plugin files are in the repository root. If your plugin lives in a subdirectory like `plugins/my-plugin`, change this to `plugin-path: plugins/my-plugin`.
 
@@ -55,12 +60,15 @@ on:
 
 jobs:
     preview:
+        runs-on: ubuntu-latest
         permissions:
             contents: read
             pull-requests: write
-        uses: WordPress/action-wp-playground-pr-preview@v2
-        with:
-            theme-path: .
+        steps:
+            - name: Post Playground Preview Button
+              uses: WordPress/action-wp-playground-pr-preview@v2
+              with:
+                  theme-path: .
 ```
 
 The only difference is using `theme-path` instead of `plugin-path`. The action understands that it should install and activate your theme rather than a plugin.
@@ -166,11 +174,13 @@ jobs:
 
     preview:
         needs: create-blueprint
+        runs-on: ubuntu-latest
         permissions:
             pull-requests: write
-        uses: WordPress/action-wp-playground-pr-preview@v2
-        with:
-            blueprint: ${{ needs.create-blueprint.outputs.blueprint }}
+        steps:
+            - uses: WordPress/action-wp-playground-pr-preview@v2
+              with:
+                  blueprint: ${{ needs.create-blueprint.outputs.blueprint }}
 ```
 
 The workflow builds your code, exposes the artifact on a public URL, creates a blueprint that references that URL, and generates the preview button. The `artifacts-to-keep` setting controls cleanup of old builds.
@@ -225,11 +235,13 @@ jobs:
 
     preview:
         needs: create-blueprint
+        runs-on: ubuntu-latest
         permissions:
             pull-requests: write
-        uses: WordPress/action-wp-playground-pr-preview@v2
-        with:
-            blueprint: ${{ needs.create-blueprint.outputs.blueprint }}
+        steps:
+            - uses: WordPress/action-wp-playground-pr-preview@v2
+              with:
+                  blueprint: ${{ needs.create-blueprint.outputs.blueprint }}
 ```
 
 The first step loads your plugin directly from the pull request branch. The second step installs WooCommerce from the WordPress.org plugins directory. When someone clicks the preview button, they get both plugins installed and activated.
@@ -292,10 +304,14 @@ The action requires `pull-requests: write` and `contents: read` permissions. For
 ```yaml
 jobs:
     preview:
+        runs-on: ubuntu-latest
         permissions:
             contents: read
             pull-requests: write
-        uses: WordPress/action-wp-playground-pr-preview@v2
+        steps:
+            - uses: WordPress/action-wp-playground-pr-preview@v2
+              with:
+                  plugin-path: .
 ```
 
 For custom token requirements, see the [Secrets](https://github.com/WordPress/action-wp-playground-pr-preview/tree/v2#secrets) section in the workflow README.
