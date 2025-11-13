@@ -95,17 +95,21 @@ You can preview repository code two ways: directly with `git:directory`, or by p
 			"pluginData": {
 				"resource": "git:directory",
 				"url": "https://github.com/my-user/my-repo",
-				"ref": "add-feature-xyz",
-				"refType": "branch"
+				"ref": "refs/pull/1/head",
+				"refType": "refname"
+			},
+			"options": {
+				"activate": true
+			},
+			"progress": {
+				"caption": "Installing plugin from my-user/my-repo PR #1"
 			}
 		}
 	]
 }
 ```
 
-`git:directory` requires no CI configuration. Using a direct .zip URL performs better because Playground downloads a single file, but requires CI setup.
-
-See the [live example of Gutenberg PR previewer](https://playground.wordpress.net/gutenberg.html).
+Loading a `.zip` file is another alternative for previewing your project. See the [live example of Gutenberg PR previewer](https://playground.wordpress.net/gutenberg.html).
 
 To use Playground as a PR previewer, you need:
 
