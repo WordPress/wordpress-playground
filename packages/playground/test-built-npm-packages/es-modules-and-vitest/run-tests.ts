@@ -21,6 +21,7 @@ function red(text: string) {
 type Result = {
 	phpVersion: string;
 	code: number | null;
+	timeout?: boolean;
 };
 
 const results: Result[] = [];
@@ -47,7 +48,7 @@ for (const phpVersion of SupportedPHPVersions.filter(
 		}
 	);
 
-	await new Promise<void>((resolve) => {
+	const promiseToClose = new Promise<void>((resolve) => {
 		child.on('close', (code) => {
 			results.push({
 				phpVersion,
@@ -56,24 +57,48 @@ for (const phpVersion of SupportedPHPVersions.filter(
 			resolve();
 		});
 	});
+	const promiseToTimeout = new Promise<void>((resolve, reject) => {
+		setTimeout(() => {
+			console.error(`PHP ${phpVersion}: timed out.`);
+			reject(new Error('Test timed out'));
+		}, 30000);
+	});
+	try {
+		await Promise.race([promiseToClose, promiseToTimeout]);
+	} catch (e) {
+		results.push({
+			phpVersion,
+			code: null,
+			timeout: true,
+		});
+		child.kill('SIGKILL');
+	}
 }
 
 console.log('Results:');
 for (const result of results) {
-	console.log(
-		`PHP ${result.phpVersion}: ${
-			result.code === 0 ? green('PASS') : red('FAIL')
-		} with exit code ${result.code}`
-	);
+	if (result.timeout) {
+		console.log(red(`PHP ${result.phpVersion}: ${red('timed out')}.`));
+	} else {
+		console.log(
+			`PHP ${result.phpVersion}: ${
+				result.code === 0 ? green('PASS') : red('FAIL')
+			} with exit code ${result.code}`
+		);
+	}
 }
 
 const numPassed = results.filter((r) => r.code === 0).length;
-const numFailed = results.filter((r) => r.code !== 0).length;
+const numFailed = results.filter((r) => r.code !== 0 && !r.timeout).length;
+const numTimedOut = results.filter((r) => r.timeout).length;
 if (numPassed > 0) {
 	console.log(green(`${numPassed} / ${results.length} tests passed`));
 }
 if (numFailed > 0) {
 	console.log(red(`${numFailed} / ${results.length} tests failed`));
+}
+if (numTimedOut > 0) {
+	console.log(red(`${numTimedOut} / ${results.length} tests timed out`));
 }
 
 if (numFailed > 0) {
