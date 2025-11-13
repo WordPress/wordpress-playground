@@ -550,10 +550,10 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 	let loadBalancer: LoadBalancer;
 	let playground: RemoteAPI<PlaygroundCliWorker>;
 
-	const playgroundsToCleanUp: {
-		playground: RemoteAPI<PlaygroundCliWorker>;
-		worker: Worker;
-	}[] = [];
+	const playgroundsToCleanUp: Map<
+		Worker,
+		RemoteAPI<PlaygroundCliWorker>
+	> = new Map();
 
 	/**
 	 * Expand auto-mounts to include the necessary mounts and steps
@@ -883,10 +883,12 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 
 				disposing = true;
 				await Promise.all(
-					playgroundsToCleanUp.map(async ({ playground, worker }) => {
-						await playground.dispose();
-						await worker.terminate();
-					})
+					[...playgroundsToCleanUp].map(
+						async ([worker, playground]) => {
+							await playground.dispose();
+							await worker.terminate();
+						}
+					)
 				);
 				if (server) {
 					await new Promise((resolve) => server.close(resolve));
@@ -937,11 +939,10 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 							fileLockManagerPort,
 							nativeInternalDirPath
 						);
-
-					playgroundsToCleanUp.push({
-						playground: initialPlayground,
-						worker: initialWorker.worker,
-					});
+					playgroundsToCleanUp.set(
+						initialWorker.worker,
+						initialPlayground
+					);
 
 					await initialPlayground.isReady();
 					wordPressReady = true;
@@ -981,16 +982,16 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 					// be configured differently than post-boot workers.
 					// For example, we do not enable Xdebug by default for the initial worker.
 					await loadBalancer.removeWorker(initialPlayground);
-					// TODO: Wrap in a cleanup function and reuse for all worker cleanup.
 					await initialPlayground.dispose();
 					await initialWorker.worker.terminate();
+					playgroundsToCleanUp.delete(initialWorker.worker);
 				}
 
 				logger.log(`Preparing workers...`);
 
 				// Boot additional workers using the handler
 				const initialWorkerProcessIdSpace = processIdSpaceLength;
-				// Just take the first Playground instance to be relayed to others.
+				// Just take the first Playground instance to be returned to the caller.
 				[playground] = await Promise.all(
 					workers.map(async (worker, index) => {
 						const firstProcessId =
@@ -1009,11 +1010,10 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 								nativeInternalDirPath,
 							});
 
-						playgroundsToCleanUp.push({
-							playground: additionalPlayground,
-							worker: worker.worker,
-						});
-
+						playgroundsToCleanUp.set(
+							worker.worker,
+							additionalPlayground
+						);
 						loadBalancer.addWorker(additionalPlayground);
 
 						return additionalPlayground;
@@ -1048,6 +1048,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 				if (await playground?.fileExists(errorLogPath)) {
 					phpLogs = await playground.readFileAsText(errorLogPath);
 				}
+				await disposeCLI();
 				throw new Error(phpLogs, { cause: error });
 			}
 		},
