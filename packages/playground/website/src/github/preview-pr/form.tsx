@@ -56,12 +56,27 @@ export default function PreviewPRForm({
 		await previewPr(value);
 	}
 
-	function renderRetryIn(retryIn: number) {
+	function renderRetryIn(retryIn: number, isBranch: boolean) {
 		setError(
-			`Waiting for GitHub to finish building PR ${value}. This might take 15 minutes or more! Retrying in ${
+			`Waiting for GitHub to finish building ${
+				isBranch ? 'branch' : 'PR'
+			} ${value}. This might take 15 minutes or more! Retrying in ${
 				retryIn / 1000
 			}...`
 		);
+	}
+
+	function buildArtifactUrl(ref: string, isBranch: boolean): string {
+		const refType = isBranch ? 'branch' : 'pr';
+		// For WordPress PRs: artifact name is wordpress-build-{PR_NUMBER}
+		// For WordPress branches: artifact name is wordpress-build-{COMMIT_HASH}
+		//   We use wordpress-build- (with trailing dash) to trigger prefix matching
+		// For Gutenberg: artifact name is always gutenberg-plugin
+		let artifactSuffix = '';
+		if (target === 'wordpress') {
+			artifactSuffix = isBranch ? '-' : ref;
+		}
+		return `https://playground.wordpress.net/plugin-proxy.php?org=WordPress&repo=${targetParams[target].repo}&workflow=${targetParams[target].workflow}&artifact=${targetParams[target].artifact}${artifactSuffix}&${refType}=${ref}`;
 	}
 
 	async function previewPr(prValue: string) {
@@ -71,80 +86,85 @@ export default function PreviewPRForm({
 		}
 
 		let prNumber: string = prValue;
+		let branchName: string | null = null;
 		setSubmitting(true);
 
 		// Extract number from a GitHub URL
 		if (prNumber.toLowerCase().includes(targetParams[target].pull)) {
 			prNumber = prNumber.match(/\/pull\/(\d+)/)![1];
+		} else if (!/^\d+$/.test(prNumber)) {
+			// If it's not a number and not a PR URL, treat it as a branch name
+			branchName = prNumber;
 		}
 
-		// Verify that the PR exists and that GitHub CI finished building it
-		const zipArtifactUrl = `https://playground.wordpress.net/plugin-proxy.php?org=WordPress&repo=${
-			targetParams[target].repo
-		}&workflow=${targetParams[target].workflow}&artifact=${
-			targetParams[target].artifact
-		}${target === 'wordpress' ? prNumber : ''}&pr=${prNumber}`;
-		// Send the HEAD request to zipArtifactUrl to confirm the PR and the artifact both exist
-		const response = await fetch(zipArtifactUrl + '&verify_only=true');
-		if (response.status !== 200) {
-			let error = 'invalid_pr_number';
-			try {
-				const json = await response.json();
-				if (json.error) {
-					error = json.error;
-				}
-			} catch (e) {
-				logger.error(e);
-				setError('An unexpected error occurred. Please try again.');
-				return;
-			}
+		const ref = branchName || prNumber;
+		const isBranch = !!branchName;
 
-			if (error === 'invalid_pr_number') {
-				setError(`The PR ${prNumber} does not exist.`);
-			} else if (
-				error === 'artifact_not_found' ||
-				error === 'artifact_not_available'
-			) {
-				if (parseInt(prNumber) < 5749) {
+		// For branches, skip verification since we'll use the most recent artifact with prefix matching
+		// For PRs, verify that the specific PR build exists
+		if (!isBranch) {
+			const zipArtifactUrl = buildArtifactUrl(ref, isBranch);
+			const response = await fetch(zipArtifactUrl + '&verify_only=true');
+			if (response.status !== 200) {
+				let error = 'invalid_pr_number';
+				try {
+					const json = await response.json();
+					if (json.error) {
+						error = json.error;
+					}
+				} catch (e) {
+					logger.error(e);
+					setError('An unexpected error occurred. Please try again.');
+					return;
+				}
+
+				if (error === 'invalid_pr_number' || error === 'no_ci_runs') {
+					setError(`The PR ${ref} does not exist.`);
+				} else if (
+					error === 'artifact_not_found' ||
+					error === 'artifact_not_available'
+				) {
+					if (parseInt(ref) < 5749) {
+						setError(
+							`The PR ${ref} predates the Pull Request previewer and requires a rebase before it can be previewed.`
+						);
+					} else {
+						// For PRs, retry since we expect a specific build to complete
+						let retryIn = 30000;
+						renderRetryIn(retryIn, false);
+						const timerInterval = setInterval(() => {
+							retryIn -= 1000;
+							if (retryIn <= 0) {
+								retryIn = 0;
+							}
+							renderRetryIn(retryIn, false);
+						}, 1000);
+						const scheduledRetry = setTimeout(() => {
+							previewPr(ref);
+						}, retryIn);
+						cleanupRetry = () => {
+							clearInterval(timerInterval);
+							clearTimeout(scheduledRetry);
+							cleanupRetry = () => {};
+						};
+					}
+				} else if (error === 'artifact_invalid') {
 					setError(
-						`The PR ${prNumber} predates the Pull Request previewer and requires a rebase before it can be previewed.`
+						`The PR ${ref} requires a rebase before it can be previewed.`
 					);
 				} else {
-					let retryIn = 30000;
-					renderRetryIn(retryIn);
-					const timerInterval = setInterval(() => {
-						retryIn -= 1000;
-						if (retryIn <= 0) {
-							retryIn = 0;
-						}
-						renderRetryIn(retryIn);
-					}, 1000);
-					const scheduledRetry = setTimeout(() => {
-						previewPr(prNumber);
-					}, retryIn);
-					cleanupRetry = () => {
-						clearInterval(timerInterval);
-						clearTimeout(scheduledRetry);
-						cleanupRetry = () => {};
-					};
+					setError(
+						`The PR ${ref} couldn't be previewed due to an unexpected error. Please try again later or fill an issue in the WordPress Playground repository.`
+					);
+					// https://github.com/WordPress/wordpress-playground/issues/new
 				}
-			} else if (error === 'artifact_invalid') {
-				setError(
-					`The PR ${prNumber} requires a rebase before it can be previewed.`
-				);
-			} else {
-				setError(
-					`The PR ${prNumber} couldn't be previewed due to an unexpected error. Please try again later or fill an issue in the WordPress Playground repository.`
-				);
-				// https://github.com/WordPress/wordpress-playground/issues/new
+
+				setSubmitting(false);
+				return;
 			}
-
-			setSubmitting(false);
-
-			return;
 		}
 
-		// Redirect to the Playground site with the Blueprint to download and apply the PR
+		// Redirect to the Playground site with the Blueprint to download and apply the PR/branch
 		const blueprint: BlueprintV1Declaration = {
 			landingPage: urlParams.get('url') || '/wp-admin',
 			login: true,
@@ -154,26 +174,25 @@ export default function PreviewPRForm({
 			steps: [],
 		};
 
+		const refParam = isBranch
+			? `${target === 'wordpress' ? 'core' : 'gutenberg'}-branch`
+			: `${target === 'wordpress' ? 'core' : 'gutenberg'}-pr`;
+		const urlWithPreview = new URL(
+			window.location.pathname,
+			window.location.href
+		);
+
 		if (target === 'wordpress') {
 			// [wordpress] Passthrough the mode query parameter if it exists
-			const targetParams = new URLSearchParams();
 			if (urlParams.has('mode')) {
-				targetParams.set('mode', urlParams.get('mode') as string);
+				urlWithPreview.searchParams.set(
+					'mode',
+					urlParams.get('mode') as string
+				);
 			}
-			targetParams.set('core-pr', prNumber);
-
-			const blueprintJson = JSON.stringify(blueprint);
-			const urlWithPreview = new URL(
-				window.location.pathname,
-				window.location.href
-			);
-			urlWithPreview.search = targetParams.toString();
-			urlWithPreview.hash = encodeURI(blueprintJson);
-
-			window.location.href = urlWithPreview.toString();
+			urlWithPreview.searchParams.set(refParam, ref);
 		} else if (target === 'gutenberg') {
 			// [gutenberg] If there's a import-site query parameter, pass that to the blueprint
-			const urlParams = new URLSearchParams(window.location.search);
 			try {
 				const importSite = new URL(
 					urlParams.get('import-site') as string
@@ -191,18 +210,11 @@ export default function PreviewPRForm({
 			} catch {
 				logger.error('Invalid import-site URL');
 			}
-
-			const blueprintJson = JSON.stringify(blueprint);
-
-			const urlWithPreview = new URL(
-				window.location.pathname,
-				window.location.href
-			);
-			urlWithPreview.searchParams.set('gutenberg-pr', prNumber);
-			urlWithPreview.hash = encodeURI(blueprintJson);
-
-			window.location.href = urlWithPreview.toString();
+			urlWithPreview.searchParams.set(refParam, ref);
 		}
+
+		urlWithPreview.hash = encodeURI(JSON.stringify(blueprint));
+		window.location.href = urlWithPreview.toString();
 	}
 
 	return (
@@ -215,7 +227,7 @@ export default function PreviewPRForm({
 				)}
 				<TextControl
 					disabled={submitting}
-					label="Pull request number or URL"
+					label="PR number, URL, or a branch name"
 					value={value}
 					autoFocus
 					onChange={(e) => {

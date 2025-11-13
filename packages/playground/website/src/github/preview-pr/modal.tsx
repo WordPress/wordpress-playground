@@ -21,7 +21,7 @@ export function PreviewPRModal({ target }: PreviewPRModalProps) {
 	return (
 		<Modal
 			small
-			title={`Preview a ${targetName[target]} PR`}
+			title={`Preview a ${targetName[target]} PR or Branch`}
 			onRequestClose={closeModal}
 		>
 			<PreviewPRForm onClose={closeModal} target={target} />

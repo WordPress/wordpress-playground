@@ -4455,10 +4455,25 @@ let CssSyntaxError = __webpack_require__(356)
 let PreviousMap = __webpack_require__(5696)
 let terminalHighlight = __webpack_require__(9746)
 
-let fromOffsetCache = Symbol('fromOffsetCache')
+let lineToIndexCache = Symbol('lineToIndexCache')
 
 let sourceMapAvailable = Boolean(SourceMapConsumer && SourceMapGenerator)
 let pathAvailable = Boolean(resolve && isAbsolute)
+
+function getLineToIndex(input) {
+  if (input[lineToIndexCache]) return input[lineToIndexCache]
+  let lines = input.css.split('\n')
+  let lineToIndex = new Array(lines.length)
+  let prevIndex = 0
+
+  for (let i = 0, l = lines.length; i < l; i++) {
+    lineToIndex[i] = prevIndex
+    prevIndex += lines[i].length + 1
+  }
+
+  input[lineToIndexCache] = lineToIndex
+  return lineToIndex
+}
 
 class Input {
   get from() {
@@ -4514,31 +4529,38 @@ class Input {
   }
 
   error(message, line, column, opts = {}) {
-    let endColumn, endLine, result
+    let endColumn, endLine, endOffset, offset, result
 
     if (line && typeof line === 'object') {
       let start = line
       let end = column
       if (typeof start.offset === 'number') {
-        let pos = this.fromOffset(start.offset)
+        offset = start.offset
+        let pos = this.fromOffset(offset)
         line = pos.line
         column = pos.col
       } else {
         line = start.line
         column = start.column
+        offset = this.fromLineAndColumn(line, column)
       }
       if (typeof end.offset === 'number') {
-        let pos = this.fromOffset(end.offset)
+        endOffset = end.offset
+        let pos = this.fromOffset(endOffset)
         endLine = pos.line
         endColumn = pos.col
       } else {
         endLine = end.line
         endColumn = end.column
+        endOffset = this.fromLineAndColumn(end.line, end.column)
       }
     } else if (!column) {
-      let pos = this.fromOffset(line)
+      offset = line
+      let pos = this.fromOffset(offset)
       line = pos.line
       column = pos.col
+    } else {
+      offset = this.fromLineAndColumn(line, column)
     }
 
     let origin = this.origin(line, column, endLine, endColumn)
@@ -4566,7 +4588,7 @@ class Input {
       )
     }
 
-    result.input = { column, endColumn, endLine, line, source: this.css }
+    result.input = { column, endColumn, endLine, endOffset, line, offset, source: this.css }
     if (this.file) {
       if (pathToFileURL) {
         result.input.url = pathToFileURL(this.file).toString()
@@ -4577,23 +4599,15 @@ class Input {
     return result
   }
 
+  fromLineAndColumn(line, column) {
+    let lineToIndex = getLineToIndex(this)
+    let index = lineToIndex[line - 1]
+    return index + column - 1
+  }
+
   fromOffset(offset) {
-    let lastLine, lineToIndex
-    if (!this[fromOffsetCache]) {
-      let lines = this.css.split('\n')
-      lineToIndex = new Array(lines.length)
-      let prevIndex = 0
-
-      for (let i = 0, l = lines.length; i < l; i++) {
-        lineToIndex[i] = prevIndex
-        prevIndex += lines[i].length + 1
-      }
-
-      this[fromOffsetCache] = lineToIndex
-    } else {
-      lineToIndex = this[fromOffsetCache]
-    }
-    lastLine = lineToIndex[lineToIndex.length - 1]
+    let lineToIndex = getLineToIndex(this)
+    let lastLine = lineToIndex[lineToIndex.length - 1]
 
     let min = 0
     if (offset >= lastLine) {
@@ -5633,11 +5647,8 @@ function cloneNode(obj, parent) {
 
 function sourceOffset(inputCSS, position) {
   // Not all custom syntaxes support `offset` in `source.start` and `source.end`
-  if (
-    position &&
-    typeof position.offset !== 'undefined'
-  ) {
-    return position.offset;
+  if (position && typeof position.offset !== 'undefined') {
+    return position.offset
   }
 
   let column = 1
@@ -5807,14 +5818,15 @@ class Node {
     return this.parent.nodes[index + 1]
   }
 
-  positionBy(opts) {
+  positionBy(opts = {}) {
     let pos = this.source.start
     if (opts.index) {
       pos = this.positionInside(opts.index)
     } else if (opts.word) {
-      let inputString = ('document' in this.source.input)
-        ? this.source.input.document
-        : this.source.input.css
+      let inputString =
+        'document' in this.source.input
+          ? this.source.input.document
+          : this.source.input.css
       let stringRepresentation = inputString.slice(
         sourceOffset(inputString, this.source.start),
         sourceOffset(inputString, this.source.end)
@@ -5828,9 +5840,10 @@ class Node {
   positionInside(index) {
     let column = this.source.start.column
     let line = this.source.start.line
-    let inputString = ('document' in this.source.input)
-      ? this.source.input.document
-      : this.source.input.css
+    let inputString =
+      'document' in this.source.input
+        ? this.source.input.document
+        : this.source.input.css
     let offset = sourceOffset(inputString, this.source.start)
     let end = offset + index
 
@@ -5843,7 +5856,7 @@ class Node {
       }
     }
 
-    return { column, line }
+    return { column, line, offset: end }
   }
 
   prev() {
@@ -5852,25 +5865,36 @@ class Node {
     return this.parent.nodes[index - 1]
   }
 
-  rangeBy(opts) {
+  rangeBy(opts = {}) {
+    let inputString =
+      'document' in this.source.input
+        ? this.source.input.document
+        : this.source.input.css
     let start = {
       column: this.source.start.column,
-      line: this.source.start.line
+      line: this.source.start.line,
+      offset: sourceOffset(inputString, this.source.start)
     }
     let end = this.source.end
       ? {
           column: this.source.end.column + 1,
-          line: this.source.end.line
+          line: this.source.end.line,
+          offset:
+            typeof this.source.end.offset === 'number'
+              ? // `source.end.offset` is exclusive, so we don't need to add 1
+                this.source.end.offset
+              : // Since line/column in this.source.end is inclusive,
+                // the `sourceOffset(... , this.source.end)` returns an inclusive offset.
+                // So, we add 1 to convert it to exclusive.
+                sourceOffset(inputString, this.source.end) + 1
         }
       : {
           column: start.column + 1,
-          line: start.line
+          line: start.line,
+          offset: start.offset + 1
         }
 
     if (opts.word) {
-      let inputString = ('document' in this.source.input)
-        ? this.source.input.document
-        : this.source.input.css
       let stringRepresentation = inputString.slice(
         sourceOffset(inputString, this.source.start),
         sourceOffset(inputString, this.source.end)
@@ -5878,15 +5902,14 @@ class Node {
       let index = stringRepresentation.indexOf(opts.word)
       if (index !== -1) {
         start = this.positionInside(index)
-        end = this.positionInside(
-          index + opts.word.length,
-        )
+        end = this.positionInside(index + opts.word.length)
       }
     } else {
       if (opts.start) {
         start = {
           column: opts.start.column,
-          line: opts.start.line
+          line: opts.start.line,
+          offset: sourceOffset(inputString, opts.start)
         }
       } else if (opts.index) {
         start = this.positionInside(opts.index)
@@ -5895,7 +5918,8 @@ class Node {
       if (opts.end) {
         end = {
           column: opts.end.column,
-          line: opts.end.line
+          line: opts.end.line,
+          offset: sourceOffset(inputString, opts.end)
         }
       } else if (typeof opts.endIndex === 'number') {
         end = this.positionInside(opts.endIndex)
@@ -5908,7 +5932,11 @@ class Node {
       end.line < start.line ||
       (end.line === start.line && end.column <= start.column)
     ) {
-      end = { column: start.column + 1, line: start.line }
+      end = {
+        column: start.column + 1,
+        line: start.line,
+        offset: start.offset + 1
+      }
     }
 
     return { end, start }
@@ -5983,6 +6011,7 @@ class Node {
       } else if (typeof value === 'object' && value.toJSON) {
         fixed[name] = value.toJSON(null, inputs)
       } else if (name === 'source') {
+        if (value == null) continue
         let inputId = inputs.get(value.input)
         if (inputId == null) {
           inputId = inputsNextIndex
@@ -6022,7 +6051,7 @@ class Node {
     return result
   }
 
-  warn(result, text, opts) {
+  warn(result, text, opts = {}) {
     let data = { node: this }
     for (let i in opts) data[i] = opts[i]
     return result.warn(text, data)
@@ -6703,7 +6732,7 @@ class Result {
     this.messages = []
     this.root = root
     this.opts = opts
-    this.css = undefined
+    this.css = ''
     this.map = undefined
   }
 
@@ -6817,7 +6846,7 @@ let Root = __webpack_require__(9434)
 
 class Processor {
   constructor(plugins = []) {
-    this.version = '8.5.3'
+    this.version = '8.5.6'
     this.plugins = this.normalize(plugins)
   }
 
@@ -11837,6 +11866,7 @@ const getInserterItems = (0,external_wp_data_namespaceObject.createRegistrySelec
           )
         }));
       }
+      const stretchVariations = [];
       const items = blockTypeInserterItems.reduce(
         (accumulator, item) => {
           const { variations = [] } = item;
@@ -11848,14 +11878,19 @@ const getInserterItems = (0,external_wp_data_namespaceObject.createRegistrySelec
               state,
               item
             );
-            accumulator.push(
-              ...variations.map(variationMapper)
-            );
+            variations.map(variationMapper).forEach((variation) => {
+              if (variation.id === "core/paragraph/stretchy-paragraph" || variation.id === "core/heading/stretchy-heading") {
+                stretchVariations.push(variation);
+              } else {
+                accumulator.push(variation);
+              }
+            });
           }
           return accumulator;
         },
         []
       );
+      items.push(...stretchVariations);
       const groupByType = (blocks, block) => {
         const { core, noncore } = blocks;
         const type = block.name.startsWith("core/") ? core : noncore;
@@ -25717,7 +25752,8 @@ function TypographyPanel({
   inheritedValue = value,
   settings,
   panelId,
-  defaultControls = typography_panel_DEFAULT_CONTROLS
+  defaultControls = typography_panel_DEFAULT_CONTROLS,
+  fitText = false
 }) {
   const decodeValue = (rawValue) => getValueFromVariable({ settings }, "", rawValue);
   const hasFontFamilyEnabled = useHasFontFamilyControl(settings);
@@ -25947,7 +25983,7 @@ function TypographyPanel({
             )
           }
         ),
-        hasFontSizeEnabled && /* @__PURE__ */ (0,external_ReactJSXRuntime_namespaceObject.jsx)(
+        hasFontSizeEnabled && !fitText && /* @__PURE__ */ (0,external_ReactJSXRuntime_namespaceObject.jsx)(
           external_wp_components_namespaceObject.__experimentalToolsPanelItem,
           {
             label: (0,external_wp_i18n_namespaceObject.__)("Size"),
@@ -26327,10 +26363,13 @@ function font_size_addSaveProps(props, blockNameOrType, attributes) {
 }
 function FontSizeEdit(props) {
   const {
-    attributes: { fontSize, style },
+    attributes: { fontSize, style, fitText },
     setAttributes
   } = props;
   const [fontSizes] = useSettings("typography.fontSizes");
+  if (fitText) {
+    return null;
+  }
   const onChange = (value, selectedItem) => {
     const fontSizeSlug = selectedItem?.slug || getFontSizeObjectByValue(fontSizes, value).slug;
     setAttributes({
@@ -26411,7 +26450,7 @@ function font_size_useBlockProps({ name, fontSize, style }) {
 var font_size_default = {
   useBlockProps: font_size_useBlockProps,
   addSaveProps: font_size_addSaveProps,
-  attributeKeys: ["fontSize", "style"],
+  attributeKeys: ["fontSize", "style", "fitText"],
   hasSupport(name) {
     return (0,external_wp_blocks_namespaceObject.hasBlockSupport)(name, FONT_SIZE_SUPPORT_KEY);
   }
@@ -26664,7 +26703,7 @@ function addAssignedTextAlign(props, blockType, attributes) {
 function findOptimalFontSize(textElement, applyFontSize) {
   const alreadyHasScrollableHeight = textElement.scrollHeight > textElement.clientHeight;
   let minSize = 5;
-  let maxSize = 600;
+  let maxSize = 2400;
   let bestSize = minSize;
   while (minSize <= maxSize) {
     const midSize = Math.floor((minSize + maxSize) / 2);
@@ -26696,11 +26735,7 @@ function optimizeFitText(textElement, applyFontSize) {
 
 
 
-
-
-
 const EMPTY_OBJECT = {};
-
 
 
 
@@ -26826,58 +26861,6 @@ function useFitText({ fitText, name, clientId }) {
     hasFitTextSupport2
   ]);
 }
-function FitTextControl({
-  clientId,
-  fitText = false,
-  setAttributes,
-  name,
-  fontSize,
-  style
-}) {
-  if (!(0,external_wp_blocks_namespaceObject.hasBlockSupport)(name, FIT_TEXT_SUPPORT_KEY)) {
-    return null;
-  }
-  return /* @__PURE__ */ (0,external_ReactJSXRuntime_namespaceObject.jsx)(inspector_controls_default, { group: "typography", children: /* @__PURE__ */ (0,external_ReactJSXRuntime_namespaceObject.jsx)(
-    external_wp_components_namespaceObject.__experimentalToolsPanelItem,
-    {
-      hasValue: () => fitText,
-      label: (0,external_wp_i18n_namespaceObject.__)("Fit text"),
-      onDeselect: () => setAttributes({ fitText: void 0 }),
-      resetAllFilter: () => ({ fitText: void 0 }),
-      panelId: clientId,
-      children: /* @__PURE__ */ (0,external_ReactJSXRuntime_namespaceObject.jsx)(
-        external_wp_components_namespaceObject.ToggleControl,
-        {
-          __nextHasNoMarginBottom: true,
-          label: (0,external_wp_i18n_namespaceObject.__)("Fit text"),
-          checked: fitText,
-          onChange: () => {
-            const newFitText = !fitText || void 0;
-            const updates = { fitText: newFitText };
-            if (newFitText) {
-              if (fontSize) {
-                updates.fontSize = void 0;
-              }
-              if (style?.typography?.fontSize) {
-                updates.style = {
-                  ...style,
-                  typography: {
-                    ...style?.typography,
-                    fontSize: void 0
-                  }
-                };
-              }
-            }
-            setAttributes(updates);
-          },
-          help: fitText ? (0,external_wp_i18n_namespaceObject.__)("Text will resize to fit its container.") : (0,external_wp_i18n_namespaceObject.__)(
-            "The text will resize to fit its container, resetting other font size settings."
-          )
-        }
-      )
-    }
-  ) });
-}
 function fit_text_addSaveProps(props, blockType, attributes) {
   if (!(0,external_wp_blocks_namespaceObject.hasBlockSupport)(blockType, FIT_TEXT_SUPPORT_KEY)) {
     return props;
@@ -26912,9 +26895,9 @@ const hasFitTextSupport = (blockNameOrType) => {
 var fit_text_default = {
   useBlockProps: fit_text_useBlockProps,
   addSaveProps: fit_text_addSaveProps,
-  attributeKeys: ["fitText", "fontSize", "style"],
+  attributeKeys: ["fitText"],
   hasSupport: hasFitTextSupport,
-  edit: FitTextControl
+  edit: () => null
 };
 
 
@@ -27022,12 +27005,7 @@ function typography_TypographyPanel({ clientId, name, setAttributes, settings })
     [style, fontSize, fontFamily]
   );
   const onChange = (newStyle) => {
-    const newAttributes = typography_styleToAttributes(newStyle);
-    const hasFontSize = newAttributes.fontSize || newAttributes.style?.typography?.fontSize;
-    if (hasFontSize && fitText) {
-      newAttributes.fitText = void 0;
-    }
-    setAttributes(newAttributes);
+    setAttributes(typography_styleToAttributes(newStyle));
   };
   if (!isEnabled) {
     return null;
@@ -27044,7 +27022,8 @@ function typography_TypographyPanel({ clientId, name, setAttributes, settings })
       settings,
       value,
       onChange,
-      defaultControls
+      defaultControls,
+      fitText
     }
   );
 }

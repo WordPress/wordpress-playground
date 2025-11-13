@@ -62,6 +62,7 @@ const sidebars = {
 						'main/contributing/coding-standards',
 						'main/contributing/contributor-day',
 						'main/contributing/contributor-badge',
+						'main/contributing/contributor-day-table-lead',
 						'main/contributing/documentation',
 						'main/contributing/translations',
 					],
@@ -138,6 +139,18 @@ const sidebars = {
 						'developers/local-development/wp-playground-cli',
 						'developers/local-development/vscode-extension',
 						'developers/local-development/php-wasm-node',
+					],
+				},
+				{
+					type: 'category',
+					label: 'Xdebug on Playground',
+					link: {
+						type: 'doc',
+						id: 'developers/xdebug/introduction',
+					},
+					items: [
+						'developers/xdebug/introduction',
+						'developers/xdebug/getting-started',
 					],
 				},
 				{
