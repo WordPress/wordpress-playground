@@ -69,12 +69,13 @@ export default function PreviewPRForm({
 	function buildArtifactUrl(ref: string, isBranch: boolean): string {
 		const refType = isBranch ? 'branch' : 'pr';
 		// For WordPress PRs: artifact name is wordpress-build-{PR_NUMBER}
-		// For WordPress branches: artifact name is wordpress-build-{COMMIT_HASH}
-		//   We use wordpress-build- (with trailing dash) to trigger prefix matching
-		// For Gutenberg: artifact name is always gutenberg-plugin
+		// For Gutenberg PRs: artifact name is always gutenberg-plugin
+		// For Gutenberg branches: artifact name is always gutenberg-plugin
+		//   (we use prefix matching with trailing dash for branches)
 		let artifactSuffix = '';
 		if (target === 'wordpress') {
-			artifactSuffix = isBranch ? '-' : ref;
+			// WordPress only supports PRs, not branches
+			artifactSuffix = ref;
 		}
 		return `https://playground.wordpress.net/plugin-proxy.php?org=WordPress&repo=${targetParams[target].repo}&workflow=${targetParams[target].workflow}&artifact=${targetParams[target].artifact}${artifactSuffix}&${refType}=${ref}`;
 	}
