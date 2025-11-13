@@ -877,11 +877,14 @@ async function initializeBlueprint() {
 		try {
 			const blueprintUrl = new URL(urlParams.get('blueprint-url'));
 			if (blueprintUrl.hostname === 'github.com') {
-				blueprintUrl.pathname = blueprintUrl.pathname.replace(
-					/^\/([^/]+)\/([^/]+)\/blob/,
+				const rewrittenPath = blueprintUrl.pathname.replace(
+					/^\/([^/]+)\/([^/]+)\/(?:blob|raw)\//,
 					'/$1/$2/'
 				);
-				blueprintUrl.hostname = 'raw.githubusercontent.com';
+				if (rewrittenPath !== blueprintUrl.pathname) {
+					blueprintUrl.pathname = rewrittenPath;
+					blueprintUrl.hostname = 'raw.githubusercontent.com';
+				}
 			}
 			console.log('blueprintUrl.toString()', blueprintUrl.toString());
 			const response = await fetch(blueprintUrl.toString());
