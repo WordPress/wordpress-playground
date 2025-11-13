@@ -649,7 +649,9 @@ const memoizedFetch = createMemoizedFetch(fetch);
  * @returns The resolved WordPress release URL and version string.
  */
 export async function resolveWordPressRelease(versionQuery = 'latest') {
-	if (
+	if (versionQuery === null) {
+		versionQuery = 'latest';
+	} else if (
 		versionQuery.startsWith('https://') ||
 		versionQuery.startsWith('http://')
 	) {

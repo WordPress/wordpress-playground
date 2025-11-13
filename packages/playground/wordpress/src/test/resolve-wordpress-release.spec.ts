@@ -71,7 +71,7 @@ describe('resolveWordPressRelease', () => {
 		mockApiResponse.offers = productionReleaseOffers;
 	});
 
-	it('resolves latest to the first non-beta, non-RC version', async () => {
+	it('resolves latest to the first non-beta or non-release-candidate version', async () => {
 		mockApiResponse.offers = [
 			rcReleaseOffer,
 			betaReleaseOffer,
@@ -192,5 +192,14 @@ describe('resolveWordPressRelease', () => {
 		expect(result.version).toContain('custom-');
 		expect(result.releaseUrl).toBe(customUrl);
 		expect(result.source).toBe('inferred');
+	});
+
+	it('resolves null version to the first non-beta or release candidate version', async () => {
+		const result = await resolveWordPressRelease(null as any);
+		expect(result.version).toBe('6.8.3');
+		expect(result.releaseUrl).toBe(
+			'https://wordpress.org/wordpress-6.8.3.zip'
+		);
+		expect(result.source).toBe('api');
 	});
 });
