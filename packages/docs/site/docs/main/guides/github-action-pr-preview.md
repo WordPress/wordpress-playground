@@ -4,7 +4,9 @@ slug: /guides/github-action-pr-preview
 description: Learn how to enable one-click preview buttons on pull requests for your WordPress plugin or theme using the Playground GitHub Action.
 ---
 
-When you open a pull request on GitHub for your WordPress plugin or theme, reviewers and contributors often need to test the changes before they can approve them. Setting up a local environment, downloading the branch, and configuring WordPress takes time. The Playground PR Preview action solves this by adding a button directly to your pull requests that launches a working WordPress site with your changes already applied.
+When you open a pull request on GitHub for your WordPress plugin or theme, reviewers and contributors often need to test the changes before they can approve them. Setting up a local environment, downloading the branch, and configuring WordPress takes time. The Playground PR Preview action solves this by adding a button directly to your pull requests that launches a working WordPress site with your changes already applied:
+
+![PR Preview Button](@site/static/img/try-it-in-playground.png)
 
 This guide introduces the basics of setting up preview buttons. For complete configuration options, advanced features, and detailed examples, see the [action-wp-playground-pr-preview workflow README](https://github.com/WordPress/action-wp-playground-pr-preview/tree/v2).
 
