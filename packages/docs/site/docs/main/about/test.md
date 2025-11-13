@@ -24,7 +24,7 @@ Testing pull requests is one of the most exciting use cases for the Playground p
 
 There are some public implementations of this use case such as [WordPress Core PR previewer](https://playground.wordpress.net/wordpress.html) and [Gutenberg PR previewer](https://playground.wordpress.net/gutenberg.html). Users can input the PR number or URL to be redirected to a WordPress instance, powered by Playground, where the changes from the PR are applied.
 
-GitHub actions such as [WP Playground PR Preview](https://github.com/vcanales/action-wp-playground-pr-preview) allows you to add PR previews powered by WP Playground on any repository. For example, this feature [was enabled](https://github.com/WordPress/twentytwentyfive/pull/359) in the [WordPress/twentytwentyfive](https://github.com/WordPress/twentytwentyfive) repository.
+You can add automated PR preview buttons to your own plugin or theme repository using the WordPress Playground PR Preview GitHub Action. When someone opens a pull request, the action automatically adds a button that launches a configured WordPress instance with the changes ready to test. For detailed setup instructions and advanced configurations, see the [Adding PR Preview Buttons with GitHub Actions](/guides/github-action-pr-preview) guide.
 
 ## Clone your site and experiment in a private sandbox.
 
