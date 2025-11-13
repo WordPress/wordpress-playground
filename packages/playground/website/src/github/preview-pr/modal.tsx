@@ -18,12 +18,12 @@ export function PreviewPRModal({ target }: PreviewPRModalProps) {
 	const closeModal = () => {
 		dispatch(setActiveModal(null));
 	};
+	const title =
+		target === 'wordpress'
+			? `Preview a ${targetName[target]} PR`
+			: `Preview a ${targetName[target]} PR or Branch`;
 	return (
-		<Modal
-			small
-			title={`Preview a ${targetName[target]} PR or Branch`}
-			onRequestClose={closeModal}
-		>
+		<Modal small title={title} onRequestClose={closeModal}>
 			<PreviewPRForm onClose={closeModal} target={target} />
 		</Modal>
 	);

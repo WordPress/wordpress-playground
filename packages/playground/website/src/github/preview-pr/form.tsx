@@ -93,7 +93,15 @@ export default function PreviewPRForm({
 		if (prNumber.toLowerCase().includes(targetParams[target].pull)) {
 			prNumber = prNumber.match(/\/pull\/(\d+)/)![1];
 		} else if (!/^\d+$/.test(prNumber)) {
-			// If it's not a number and not a PR URL, treat it as a branch name
+			// For WordPress core, only allow PR numbers/URLs, not branch names
+			if (target === 'wordpress') {
+				setError(
+					'Please enter a valid PR number or PR URL for WordPress Core.'
+				);
+				setSubmitting(false);
+				return;
+			}
+			// For Gutenberg, treat non-numeric input as a branch name
 			branchName = prNumber;
 		}
 
@@ -217,6 +225,11 @@ export default function PreviewPRForm({
 		window.location.href = urlWithPreview.toString();
 	}
 
+	const inputLabel =
+		target === 'wordpress'
+			? 'PR number or URL'
+			: 'PR number, URL, or a branch name';
+
 	return (
 		<form onSubmit={handleSubmit}>
 			<div className={css.content}>
@@ -227,7 +240,7 @@ export default function PreviewPRForm({
 				)}
 				<TextControl
 					disabled={submitting}
-					label="PR number, URL, or a branch name"
+					label={inputLabel}
 					value={value}
 					autoFocus
 					onChange={(e) => {
