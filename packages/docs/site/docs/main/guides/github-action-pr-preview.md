@@ -6,7 +6,7 @@ description: Learn how to enable one-click preview buttons on pull requests for 
 
 When you open a pull request on GitHub for your WordPress plugin or theme, reviewers and contributors often need to test the changes before they can approve them. Setting up a local environment, downloading the branch, and configuring WordPress takes time. The Playground PR Preview action solves this by adding a button directly to your pull requests that launches a working WordPress site with your changes already applied.
 
-This guide walks through setting up automated preview buttons for your repository, from the simplest configuration to advanced setups with custom blueprints.
+This guide introduces the basics of setting up preview buttons. For complete configuration options, advanced features, and detailed examples, see the [action-wp-playground-pr-preview workflow README](https://github.com/WordPress/action-wp-playground-pr-preview/tree/v2).
 
 ## Understanding PR previews
 
@@ -94,9 +94,9 @@ Now when you delete the button from the description, it stays removed.
 
 Many plugins and themes have build steps that compile assets, transpile code, or bundle files. The raw source code cannot run directly in WordPress without being built first. For these cases, you need a different approach.
 
-The process involves three jobs: build your code, expose the built artifact on a public URL, and create a preview that uses that URL.
+The process involves building your code, exposing the built artifact on a public URL using the included `expose-artifact-on-public-url` action, and creating a preview that uses that URL.
 
-Here is the complete workflow:
+Here is a basic example (see the [workflow README](https://github.com/WordPress/action-wp-playground-pr-preview/tree/v2#advanced-testing-built-ci-artifacts) for the complete configuration):
 
 ```yaml
 name: PR Preview with Build
@@ -171,13 +171,11 @@ jobs:
             blueprint: ${{ needs.create-blueprint.outputs.blueprint }}
 ```
 
-The build job runs your build process and creates a zip file with the built code. The expose-build job takes that artifact and publishes it to a public URL using GitHub releases. The create-blueprint job constructs a blueprint that tells Playground to install from that URL. Finally, the preview job creates the preview button using that blueprint.
-
-The `artifacts-to-keep` setting controls how many old builds remain available. Setting it to `2` means the action keeps the two most recent builds for each pull request and cleans up older ones automatically.
+The workflow builds your code, exposes the artifact on a public URL, creates a blueprint that references that URL, and generates the preview button. The `artifacts-to-keep` setting controls cleanup of old builds.
 
 For themes with build steps, change `installPlugin` to `installTheme` and adjust the build commands accordingly.
 
-See [adamziel/preview-in-playground-button-built-artifact-example](https://github.com/adamziel/preview-in-playground-button-built-artifact-example/pull/2) for a working example.
+For complete details on artifact exposure, cleanup options, and advanced configurations, refer to the [Advanced: Testing Built CI Artifacts](https://github.com/WordPress/action-wp-playground-pr-preview/tree/v2#advanced-testing-built-ci-artifacts) section of the workflow README. See also [adamziel/preview-in-playground-button-built-artifact-example](https://github.com/adamziel/preview-in-playground-button-built-artifact-example/pull/2) for a working example.
 
 ## Customizing the preview experience
 
@@ -260,7 +258,6 @@ with:
         {{PLAYGROUND_BUTTON}}
 
         **Branch:** {{PR_HEAD_REF}}
-        **Testing:** Plugin `{{PLUGIN_SLUG}}`
 ```
 
 For comments:
@@ -273,64 +270,22 @@ with:
 
         {{PLAYGROUND_BUTTON}}
 
-        ### Testing Instructions
-        1. Click the button above to open Playground
-        2. Navigate to Plugins → Installed Plugins
-        3. Verify that `{{PLUGIN_SLUG}}` is active
-        4. Test the new functionality
-
         **PR:** #{{PR_NUMBER}} - {{PR_TITLE}}
 ```
 
-The action provides many variables you can use in templates:
+Common template variables include `{{PLAYGROUND_BUTTON}}`, `{{PLUGIN_SLUG}}`, `{{THEME_SLUG}}`, `{{PR_NUMBER}}`, `{{PR_TITLE}}`, and `{{PR_HEAD_REF}}`. For the complete list of available variables and examples, see the [description-template](https://github.com/WordPress/action-wp-playground-pr-preview/tree/v2#description-template) and [comment-template](https://github.com/WordPress/action-wp-playground-pr-preview/tree/v2#comment-template) sections in the workflow README.
 
-`{{PLAYGROUND_BUTTON}}` inserts the actual preview button HTML. You should always include this.
+## Understanding artifact exposure
 
-`{{PLAYGROUND_URL}}` gives you the full preview URL if you want to create your own link format.
-
-`{{PR_NUMBER}}`, `{{PR_TITLE}}`, `{{PR_HEAD_REF}}`, and `{{PR_BASE_REF}}` provide information about the pull request.
-
-`{{PLUGIN_SLUG}}` and `{{THEME_SLUG}}` give you the detected slug for your plugin or theme.
-
-`{{REPO_OWNER}}`, `{{REPO_NAME}}`, and `{{REPO_FULL_NAME}}` provide repository information.
-
-Variables are case-insensitive, so `{{playground_button}}` works the same as `{{PLAYGROUND_BUTTON}}`.
-
-## Understanding the artifact exposure mechanism
-
-When you use the expose-artifact-on-public-url action, it takes your built code and makes it accessible via a public URL. The way this works is important to understand.
-
-The action creates a single draft release in your repository with a specific tag (by default `ci-artifacts`). It then uploads your built zip file to that release as an asset. Since release assets are publicly accessible, Playground can download and install them.
-
-The action only creates one release total, not one per pull request. Each artifact gets a unique filename based on the pull request number and commit SHA, like `pr-123-abc1234.zip`. When a new commit is pushed to the same pull request, the action uploads a new artifact and removes old ones, keeping only the number you specified in `artifacts-to-keep`.
+When you use the expose-artifact-on-public-url action, it creates a single draft release in your repository (by default tagged `ci-artifacts`) and uploads your built zip file as a release asset. Each artifact gets a unique filename based on the pull request number and commit SHA. The action automatically cleans up old artifacts, keeping only the number you specify in `artifacts-to-keep`.
 
 This approach means you do not accumulate hundreds of releases in your repository. The single draft release stays invisible in your normal release list but provides the public URLs needed for the preview functionality.
 
-If you want to use a different release tag or store artifacts in a different repository, the action supports customization:
-
-```yaml
-with:
-    artifact-name: 'built-plugin'
-    pr-number: ${{ github.event.pull_request.number }}
-    commit-sha: ${{ github.sha }}
-    release-tag: 'playground-previews'
-    release-repository: 'your-org/artifact-storage'
-    artifacts-to-keep: '5'
-```
-
-The release is created automatically if it does not exist, unless you disable `create-release-if-missing`. You can also disable the cleanup mechanism with `cleanup-enabled: false` if you want to keep all artifacts.
+For configuration options including custom release tags, alternative repositories, and cleanup settings, see the [Expose Artifact Inputs](https://github.com/WordPress/action-wp-playground-pr-preview/tree/v2#expose-artifact-inputs) section in the workflow README.
 
 ## Permissions and security
 
-The action needs specific GitHub permissions to work. Your workflow must grant:
-
-`pull-requests: write` permission to update pull request descriptions and manage comments.
-
-`contents: read` permission to access repository information.
-
-For workflows that expose artifacts, you also need `contents: write` permission to create releases and upload assets.
-
-The default `GITHUB_TOKEN` automatically has these permissions in most workflows. You only need to specify them explicitly in the job configuration:
+The action requires `pull-requests: write` and `contents: read` permissions. For workflows that expose built artifacts, you also need `contents: write` permission. The default `GITHUB_TOKEN` automatically has these permissions in most workflows:
 
 ```yaml
 jobs:
@@ -341,131 +296,39 @@ jobs:
         uses: WordPress/action-wp-playground-pr-preview@v2
 ```
 
-If your repository has specific security policies or branch protection rules, you might need to use a custom token with appropriate permissions. Pass it using the secrets parameter:
-
-```yaml
-uses: WordPress/action-wp-playground-pr-preview@v2
-with:
-    plugin-path: .
-secrets:
-    github-token: ${{ secrets.CUSTOM_TOKEN }}
-```
-
-The action only reads your code and repository metadata. It does not store or transmit your code anywhere except to create the preview link that points to your GitHub repository.
+For custom token requirements, see the [Secrets](https://github.com/WordPress/action-wp-playground-pr-preview/tree/v2#secrets) section in the workflow README.
 
 ## Using action outputs
 
-The action provides several outputs you can use in subsequent workflow steps:
+The action provides outputs including `preview-url`, `blueprint-json`, `rendered-description`, `rendered-comment`, and `comment-id`. You can use these in subsequent workflow steps to integrate the preview URL into other parts of your workflow, such as posting to Slack or updating external tracking systems.
 
-`preview-url` contains the full URL to the Playground preview.
+For details on available outputs and usage examples, see the [Outputs](https://github.com/WordPress/action-wp-playground-pr-preview/tree/v2#outputs) section in the workflow README.
 
-`blueprint-json` contains the complete blueprint JSON used for the preview.
+## Troubleshooting
 
-`rendered-description` or `rendered-comment` contains the final rendered content (depending on mode).
+**The preview button does not appear:** Check that your workflow file exists on the default branch before creating the pull request. Verify the workflow ran successfully in the Actions tab.
 
-`comment-id` contains the ID of the created comment (in comment mode).
+**The preview fails to load:** Ensure `plugin-path` or `theme-path` points to a valid plugin or theme directory. For built artifacts, check the build and expose-build job logs.
 
-You can access these outputs in later steps:
+**Plugin or theme not activated:** Check the browser console in the Playground instance for PHP errors. Your code might have missing dependencies or compatibility issues.
 
-```yaml
-jobs:
-    preview:
-        permissions:
-            contents: read
-            pull-requests: write
-        uses: WordPress/action-wp-playground-pr-preview@v2
-        with:
-            plugin-path: .
+**Permissions errors:** Verify you specified the required permissions at the job level, not just the workflow level.
 
-    notify:
-        needs: preview
-        runs-on: ubuntu-latest
-        steps:
-            - name: Print preview URL
-              run: echo "Preview available at ${{ needs.preview.outputs.preview-url }}"
-```
+For more troubleshooting guidance, configuration details, and input options, refer to the complete [action-wp-playground-pr-preview workflow README](https://github.com/WordPress/action-wp-playground-pr-preview/tree/v2).
 
-This capability allows you to integrate the preview URL into other parts of your workflow, such as posting to Slack or updating external tracking systems.
+## Examples and next steps
 
-## Troubleshooting common issues
+The [workflow README](https://github.com/WordPress/action-wp-playground-pr-preview/tree/v2#usage-in-other-repositories) lists repositories using this action, including:
 
-**The preview button does not appear on my pull request.**
+-   [WordPress/blueprints](https://github.com/WordPress/blueprints/pull/155) for previewing blueprint changes
+-   [adamziel/preview-in-playground-button-plugin-example](https://github.com/adamziel/preview-in-playground-button-plugin-example/pull/3) for plugins without build steps
+-   [adamziel/preview-in-playground-button-built-artifact-example](https://github.com/adamziel/preview-in-playground-button-built-artifact-example/pull/2) for plugins requiring build steps
 
-Check that your workflow file is on the default branch before you create the pull request. GitHub only runs workflows that exist on the target branch. If you added the workflow in your pull request, merge it first, then create new pull requests.
+Once you have basic previews working, consider:
 
-Verify the workflow ran by checking the Actions tab in your repository. Look for your workflow name and confirm it completed successfully.
+-   Adding demo content to showcase features (see [Providing content for your demo](/guides/providing-content-for-your-demo))
+-   Creating custom blueprints for different testing scenarios (see [Blueprints documentation](/blueprints))
+-   Combining PR previews with automated testing workflows
+-   Customizing templates to guide reviewers through testing specific functionality
 
-**The preview shows a 404 or fails to load my plugin.**
-
-For plugins, check that `plugin-path` points to a directory containing a valid WordPress plugin with a main plugin file. The action looks for PHP files with plugin headers.
-
-For built artifacts, verify the build job actually created the zip file and uploaded it correctly. Check the expose-build job logs to confirm the artifact was found and uploaded.
-
-**The preview loads but my plugin is not activated.**
-
-The action automatically activates plugins and themes by default. If your plugin is not activating, check the browser console in the Playground instance for PHP errors. Your plugin might have dependencies that are not installed or compatibility issues.
-
-Try adding a blueprint with explicit activation:
-
-```yaml
-with:
-    blueprint: |
-        {
-          "steps": [
-            {
-              "step": "installPlugin",
-              "pluginData": {
-                "resource": "git:directory",
-                "url": "https://github.com/your-org/your-repo.git",
-                "ref": "your-branch",
-                "path": "/"
-              },
-              "options": { "activate": true }
-            }
-          ]
-        }
-```
-
-**My built artifacts are not being cleaned up.**
-
-The cleanup mechanism runs after uploading new artifacts. If the cleanup step fails, old artifacts might remain. Check the workflow logs for the expose-build job to see if any errors occurred during cleanup.
-
-Verify you have `contents: write` permission on the job that runs the expose action. Without this permission, the action cannot delete old release assets.
-
-**The workflow fails with a permissions error.**
-
-Double-check that you have specified the required permissions at the job level. The permissions must be on the specific job that uses the action, not just at the workflow level:
-
-```yaml
-jobs:
-    preview:
-        permissions: # This must be here
-            contents: read
-            pull-requests: write
-```
-
-## Real-world examples
-
-The WordPress ecosystem has several repositories using this action successfully:
-
-The [WordPress/blueprints](https://github.com/WordPress/blueprints/pull/155) repository uses it to preview blueprint changes. Check their [workflow configuration](https://raw.githubusercontent.com/WordPress/blueprints/6390c687c03035e088d1646cad28b8310bb3f705/.github/workflows/preview-comment.yml).
-
-The [adamziel/preview-in-playground-button-plugin-example](https://github.com/adamziel/preview-in-playground-button-plugin-example/pull/3) repository demonstrates a plugin without build steps. See the [workflow file](https://raw.githubusercontent.com/adamziel/preview-in-playground-button-plugin-example/d15b741deaae32ebef5bdf1009aaed3c614e6f4a/.github/workflows/pr-playground-preview.yml).
-
-The [adamziel/preview-in-playground-button-built-artifact-example](https://github.com/adamziel/preview-in-playground-button-built-artifact-example/pull/2) repository shows how to handle plugins that require building. Review the [workflow configuration](https://raw.githubusercontent.com/adamziel/preview-in-playground-button-built-artifact-example/83f91ecf83843b102d19afdf56802b2608a2e98f/.github/workflows/pr-playground-preview.yml).
-
-These examples provide working code you can adapt to your specific needs.
-
-## Next steps
-
-Once you have basic previews working, consider enhancing the experience:
-
-Add demo content to showcase your plugin or theme features. See [Providing content for your demo](/guides/providing-content-for-your-demo).
-
-Create multiple blueprint variations for different use cases. You could have one preview for basic functionality and another that demonstrates advanced features with specific configurations.
-
-Combine the PR preview action with other testing workflows. Run automated tests first, and only create the preview if tests pass.
-
-Add custom instructions in your preview templates to guide reviewers through testing specific functionality.
-
-The PR preview functionality makes your pull requests easier to review and helps contributors test changes without any setup. As you get comfortable with the basics, the full blueprint system opens up many possibilities for creating the perfect preview environment.
+The PR preview functionality makes pull requests easier to review and helps contributors test changes without any setup.
