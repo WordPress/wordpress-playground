@@ -64,14 +64,23 @@ export type OSUserSpaceContext = {
 		HEAPU64: BigUint64Array;
 		HEAPF64: Float64Array;
 	};
+	// This is a collection of functions present in built php-wasm JS.
+	// By receiving the entire collection here, we can avoid recompiling
+	// php-wasm JS whenever we add a new dependency from this collection.
 	wasmImports: {
 		builtin_fcntl64: (fd: number, cmd: number, varargs?: any) => number;
 		builtin_fd_close: (fd: number) => number;
 		js_wasm_trace: (...args: any[]) => void;
 	};
+	// This is a collection of functions present in built php-wasm JS.
+	// By receiving the entire collection here, we can avoid recompiling
+	// php-wasm JS whenever we add a new dependency from this collection.
 	wasmExports: {
 		wasm_get_end_offset: (fd: number) => bigint;
 	};
+	// This is a collection of functions present in built php-wasm JS.
+	// By receiving the entire collection here, we can avoid recompiling
+	// php-wasm JS whenever we add a new dependency from this collection.
 	syscalls: {
 		getStreamFromFD: (fd: number) => Emscripten.FS.FSStream;
 	};
