@@ -153,13 +153,6 @@ export function bindUserSpace(
 		 */
 		maybeLockedFds: new Set(),
 
-		// TODO: Move this comment whereever these values are passed to this binding function.
-		// From:
-		// https://github.com/emscripten-core/emscripten/blob/66d2137b0381ac35f7e2346b2d6a90abd0f1211a/system/lib/libc/musl/include/fcntl.h#L58-L60
-		// F_RDLCK: 0,
-		// F_WRLCK: 1,
-		// F_UNLCK: 2,
-
 		lockStateToFcntl: {
 			shared: F_RDLCK,
 			exclusive: F_WRLCK,
