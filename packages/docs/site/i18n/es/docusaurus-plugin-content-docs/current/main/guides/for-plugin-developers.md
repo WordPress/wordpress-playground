@@ -504,6 +504,6 @@ Check [About Playground > Build > Synchronize your playground instance with a lo
 
 :::info
 
-Consulta [Acerca de Playground > Construir > Sincroniza tu instancia de playground con una carpeta local y crea Pull Requests en GitHub](/about/build#synchronize-your-playground-instance-with-a-local-folder-and-create-github-pull-requests) para obtener más información.
+Consulta [Acerca de Playground > Construye > Sincroniza tu instancia de playground con una carpeta local y crea Pull Requests en GitHub](/about/build#synchronize-your-playground-instance-with-a-local-folder-and-create-github-pull-requests) para obtener más información.
 
 :::
