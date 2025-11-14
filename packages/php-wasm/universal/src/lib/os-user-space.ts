@@ -67,6 +67,7 @@ export type OSUserSpaceContext = {
 	wasmImports: {
 		builtin_fcntl64: (fd: number, cmd: number, varargs?: any) => number;
 		builtin_fd_close: (fd: number) => number;
+		js_wasm_trace: (...args: any[]) => void;
 	};
 	wasmExports: {
 		wasm_get_end_offset: (fd: number) => bigint;
@@ -83,8 +84,6 @@ export type OSUserSpaceContext = {
 		// TODO: Add this method to our main Emscripten FS types
 		realPath(node: FSNode): string;
 	};
-	// TODO: Likely rename this. There's no reason it should be different from the rest of the names.
-	_js_wasm_trace: (...args: any[]) => void;
 };
 
 export function bindUserSpace(
@@ -115,13 +114,12 @@ export function bindUserSpace(
 			LOCK_UN,
 		},
 		errnoCodes: { EBADF, EINVAL, EAGAIN, EDEADLK, EWOULDBLOCK },
-		wasmImports: { builtin_fcntl64, builtin_fd_close },
+		wasmImports: { builtin_fcntl64, builtin_fd_close, js_wasm_trace },
 		wasmExports: { wasm_get_end_offset },
 		syscalls: { getStreamFromFD },
 		FS,
 		PROXYFS,
 		NODEFS,
-		_js_wasm_trace,
 	}: OSUserSpaceContext
 ) {
 	class VarArgsAccessor {
@@ -164,7 +162,7 @@ export function bindUserSpace(
 			[F_UNLCK as FcntlLockState]: 'unlocked',
 		} as const satisfies Record<FcntlLockState, WholeFileLock['type']>,
 		is_path_to_shared_fs(path: string) {
-			_js_wasm_trace('is_path_to_shared_fs(%s)', path);
+			js_wasm_trace('is_path_to_shared_fs(%s)', path);
 			const { node } = FS.lookupPath(path, { noent_okay: true });
 			if (node.mount.type !== PROXYFS) {
 				return !!node.isSharedFS;
@@ -208,7 +206,7 @@ export function bindUserSpace(
 				// TODO: Tolerate ENOENT here?
 				const { node: backingNode, path: backingPath } =
 					node.mount.opts.fs.lookupPath(vfsPath);
-				_js_wasm_trace(
+				js_wasm_trace(
 					'backingNode for %s: %s',
 					vfsPath,
 					backingPath,
@@ -371,7 +369,7 @@ export function bindUserSpace(
 					const stream = getStreamFromFD(fd);
 					baseAddress = FS.llseek(stream, 0, whence);
 				} catch (e) {
-					_js_wasm_trace(
+					js_wasm_trace(
 						'get_base_address(%d, %d, %d) getStreamFromFD error %s',
 						fd,
 						whence,
@@ -407,11 +405,11 @@ export function bindUserSpace(
 	async function fcntl64(fd: number, cmd: number, varargs?: number) {
 		switch (cmd) {
 			case F_GETLK: {
-				_js_wasm_trace('fcntl(%d, F_GETLK)', fd);
+				js_wasm_trace('fcntl(%d, F_GETLK)', fd);
 				const [vfsPath, vfsPathErrno] =
 					locking.get_vfs_path_from_fd(fd);
 				if (vfsPathErrno !== 0) {
-					_js_wasm_trace(
+					js_wasm_trace(
 						'fcntl(%d, F_GETLK) %s get_vfs_path_from_fd errno %d',
 						fd,
 						vfsPath,
@@ -424,7 +422,7 @@ export function bindUserSpace(
 				const flockStructAddr = varArgsAccessor.getNextAsPointer();
 
 				if (!locking.is_path_to_shared_fs(vfsPath)) {
-					_js_wasm_trace(
+					js_wasm_trace(
 						"fcntl(%d, F_GETLK) locking is not implemented for non-NodeFS path '%s'",
 						fd,
 						vfsPath
@@ -449,7 +447,7 @@ export function bindUserSpace(
 					flockStruct.l_type
 				);
 				if (paramsCheckErrno !== 0) {
-					_js_wasm_trace(
+					js_wasm_trace(
 						'fcntl(%d, F_GETLK) %s check_lock_params errno %d',
 						fd,
 						vfsPath,
@@ -467,7 +465,7 @@ export function bindUserSpace(
 						flockStruct.l_start
 					);
 				if (baseAddressErrno !== 0) {
-					_js_wasm_trace(
+					js_wasm_trace(
 						'fcntl(%d, F_GETLK) %s get_base_address errno %d',
 						fd,
 						vfsPath,
@@ -490,7 +488,7 @@ export function bindUserSpace(
 							}
 						);
 					if (conflictingLock === undefined) {
-						_js_wasm_trace(
+						js_wasm_trace(
 							'fcntl(%d, F_GETLK) %s findFirstConflictingByteRangeLock type=unlocked start=0x%x end=0x%x',
 							fd,
 							vfsPath,
@@ -504,7 +502,7 @@ export function bindUserSpace(
 						return 0;
 					}
 
-					_js_wasm_trace(
+					js_wasm_trace(
 						'fcntl(%d, F_GETLK) %s findFirstConflictingByteRangeLock type=%s start=0x%x end=0x%x conflictingLock %d',
 						fd,
 						vfsPath,
@@ -527,7 +525,7 @@ export function bindUserSpace(
 					});
 					return 0;
 				} catch (e) {
-					_js_wasm_trace(
+					js_wasm_trace(
 						'fcntl(%d, F_GETLK) %s findFirstConflictingByteRangeLock error %s',
 						fd,
 						vfsPath,
@@ -537,11 +535,11 @@ export function bindUserSpace(
 				}
 			}
 			case F_SETLK: {
-				_js_wasm_trace('fcntl(%d, F_SETLK)', fd);
+				js_wasm_trace('fcntl(%d, F_SETLK)', fd);
 				const [vfsPath, vfsPathErrno] =
 					locking.get_vfs_path_from_fd(fd);
 				if (vfsPathErrno !== 0) {
-					_js_wasm_trace(
+					js_wasm_trace(
 						'fcntl(%d, F_SETLK) %s get_vfs_path_from_fd errno %d',
 						fd,
 						vfsPath,
@@ -551,7 +549,7 @@ export function bindUserSpace(
 				}
 
 				if (!locking.is_path_to_shared_fs(vfsPath)) {
-					_js_wasm_trace(
+					js_wasm_trace(
 						'fcntl(%d, F_SETLK) locking is not implemented for non-NodeFS path %s',
 						fd,
 						vfsPath
@@ -573,7 +571,7 @@ export function bindUserSpace(
 						flockStruct.l_start
 					);
 				if (baseAddressErrno !== 0) {
-					_js_wasm_trace(
+					js_wasm_trace(
 						'fcntl(%d, F_SETLK) %s get_base_address errno %d',
 						fd,
 						vfsPath,
@@ -583,7 +581,7 @@ export function bindUserSpace(
 				}
 
 				if (!(flockStruct.l_type in locking.fcntlToLockState)) {
-					_js_wasm_trace(
+					js_wasm_trace(
 						'fcntl(%d, F_SETLK) %s invalid lock type %d',
 						fd,
 						vfsPath,
@@ -597,7 +595,7 @@ export function bindUserSpace(
 					flockStruct.l_type
 				);
 				if (paramsCheckErrno !== 0) {
-					_js_wasm_trace(
+					js_wasm_trace(
 						'fcntl(%d, F_SETLK) %s check_lock_params errno %d',
 						fd,
 						vfsPath,
@@ -620,7 +618,7 @@ export function bindUserSpace(
 				try {
 					const nativeFilePath =
 						locking.get_native_path_from_vfs_path(vfsPath);
-					_js_wasm_trace(
+					js_wasm_trace(
 						'fcntl(%d, F_SETLK) %s calling lockFileByteRange for range lock %s',
 						fd,
 						vfsPath,
@@ -632,7 +630,7 @@ export function bindUserSpace(
 						rangeLock
 					);
 
-					_js_wasm_trace(
+					js_wasm_trace(
 						'fcntl(%d, F_SETLK) %s lockFileByteRange returned %d for range lock %s',
 						fd,
 						vfsPath,
@@ -641,7 +639,7 @@ export function bindUserSpace(
 					);
 					return succeeded ? 0 : -EAGAIN;
 				} catch (e) {
-					_js_wasm_trace(
+					js_wasm_trace(
 						'fcntl(%d, F_SETLK) %s lockFileByteRange error %s for range lock %s',
 						fd,
 						vfsPath,
@@ -689,7 +687,7 @@ export function bindUserSpace(
 	}
 
 	async function flock(fd: number, op: number) {
-		_js_wasm_trace('js_flock(%d, %d)', fd, op);
+		js_wasm_trace('js_flock(%d, %d)', fd, op);
 
 		type FlockOp = typeof LOCK_SH | typeof LOCK_EX | typeof LOCK_UN;
 		const flockToLockOpType = {
@@ -700,7 +698,7 @@ export function bindUserSpace(
 
 		const [vfsPath, vfsPathErrno] = locking.get_vfs_path_from_fd(fd);
 		if (vfsPathErrno !== 0) {
-			_js_wasm_trace(
+			js_wasm_trace(
 				'js_flock(%d, %d) get_vfs_path_from_fd errno %d',
 				fd,
 				op,
@@ -711,7 +709,7 @@ export function bindUserSpace(
 		}
 
 		if (!locking.is_path_to_shared_fs(vfsPath)) {
-			_js_wasm_trace(
+			js_wasm_trace(
 				'flock(%d, %d) locking is not implemented for non-NodeFS path %s',
 				fd,
 				op,
@@ -724,7 +722,7 @@ export function bindUserSpace(
 
 		const paramsCheckErrno = locking.check_lock_params(fd, op);
 		if (paramsCheckErrno !== 0) {
-			_js_wasm_trace(
+			js_wasm_trace(
 				'js_flock(%d, %d) check_lock_params errno %d',
 				fd,
 				op,
@@ -735,7 +733,7 @@ export function bindUserSpace(
 
 		// @TODO: Consider supporting blocking mode of flock()
 		if ((op & LOCK_NB) === 0) {
-			_js_wasm_trace(
+			js_wasm_trace(
 				'js_flock(%d, %d) blocking mode of flock() is not implemented',
 				fd,
 				op
@@ -749,21 +747,13 @@ export function bindUserSpace(
 		const maskedOp = op & ((LOCK_SH | LOCK_EX | LOCK_UN) as FlockOp | 0);
 
 		if (maskedOp === 0) {
-			_js_wasm_trace(
-				'js_flock(%d, %d) invalid flock() operation',
-				fd,
-				op
-			);
+			js_wasm_trace('js_flock(%d, %d) invalid flock() operation', fd, op);
 			return -EINVAL;
 		}
 
 		const lockOpType = flockToLockOpType[maskedOp as FlockOp];
 		if (lockOpType === undefined) {
-			_js_wasm_trace(
-				'js_flock(%d, %d) invalid flock() operation',
-				fd,
-				op
-			);
+			js_wasm_trace('js_flock(%d, %d) invalid flock() operation', fd, op);
 			return -EINVAL;
 		}
 
@@ -778,7 +768,7 @@ export function bindUserSpace(
 					fd,
 				}
 			);
-			_js_wasm_trace(
+			js_wasm_trace(
 				'js_flock(%d, %d) lockWholeFile %s returned %d',
 				fd,
 				op,
@@ -787,12 +777,7 @@ export function bindUserSpace(
 			);
 			return obtainedLock ? 0 : -EWOULDBLOCK;
 		} catch (e) {
-			_js_wasm_trace(
-				'js_flock(%d, %d) lockWholeFile error %s',
-				fd,
-				op,
-				e
-			);
+			js_wasm_trace('js_flock(%d, %d) lockWholeFile error %s', fd, op, e);
 			return -EINVAL;
 		}
 	}
@@ -805,12 +790,12 @@ export function bindUserSpace(
 
 		const fdCloseResult = builtin_fd_close(fd);
 		if (fdCloseResult !== 0 || !locking.maybeLockedFds.has(fd)) {
-			_js_wasm_trace('fd_close(%d) result %d', fd, fdCloseResult);
+			js_wasm_trace('fd_close(%d) result %d', fd, fdCloseResult);
 			return fdCloseResult;
 		}
 
 		if (vfsPathResolutionErrno !== 0) {
-			_js_wasm_trace(
+			js_wasm_trace(
 				'fd_close(%d) get_vfs_path_from_fd error %d',
 				fd,
 				vfsPathResolutionErrno
@@ -836,9 +821,9 @@ export function bindUserSpace(
 				fd,
 				nativeFilePath
 			);
-			_js_wasm_trace('fd_close(%d) release locks success', fd);
+			js_wasm_trace('fd_close(%d) release locks success', fd);
 		} catch (e) {
-			_js_wasm_trace("fd_close(%d) error '%s'", fd, e);
+			js_wasm_trace("fd_close(%d) error '%s'", fd, e);
 		} finally {
 			locking.maybeLockedFds.delete(fd);
 		}
@@ -848,17 +833,17 @@ export function bindUserSpace(
 	// TODO: Implement based on current process
 	// TODO: Replace with process exit handler
 	async function js_release_file_locks() {
-		_js_wasm_trace('js_release_file_locks()');
+		js_wasm_trace('js_release_file_locks()');
 		if (!pid || !fileLockManager) {
-			_js_wasm_trace('js_release_file_locks no pid or file lock manager');
+			js_wasm_trace('js_release_file_locks no pid or file lock manager');
 			return;
 		}
 
 		try {
 			await fileLockManager.releaseLocksForProcess(pid);
-			_js_wasm_trace('js_release_file_locks succeeded');
+			js_wasm_trace('js_release_file_locks succeeded');
 		} catch (e) {
-			_js_wasm_trace('js_release_file_locks error %s', e);
+			js_wasm_trace('js_release_file_locks error %s', e);
 		}
 	}
 
