@@ -254,6 +254,18 @@ jobs:
                   path: packages/playground/components/playwright-report/
                   if-no-files-found: ignore
 
+    test-docs-api-reference:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  submodules: true
+            - uses: ./.github/actions/prepare-playground
+            - name: Install Playwright Browsers
+              run: npx playwright install --with-deps chromium
+            - name: Verify docs API reference
+              run: npx nx run docs-site:api-e2e
+
     test-built-npm-packages:
         runs-on: ubuntu-latest
         steps:
