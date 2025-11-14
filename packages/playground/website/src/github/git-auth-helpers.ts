@@ -37,7 +37,7 @@ export function createGitHubAuthHeaders(): (
 ) => Record<string, string> {
 	const token = oAuthState.value.token;
 
-	return (url: string) => {
+	return (url: string): Record<string, string> => {
 		if (!token || !isGitHubUrl(url)) {
 			return {};
 		}
