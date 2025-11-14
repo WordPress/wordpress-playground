@@ -44,17 +44,6 @@ export class GitAuthenticationError extends Error {
 
 export type GitAdditionalHeaders = (url: string) => Record<string, string>;
 
-function resolveGitHeaders(
-	url: string,
-	headers?: GitAdditionalHeaders
-): Record<string, string> {
-	if (!headers || typeof headers !== 'function') {
-		return {};
-	}
-
-	return headers(url);
-}
-
 /**
  * Downloads specific files from a git repository.
  * It uses the git protocol over HTTP to fetch the files. It only uses
@@ -98,7 +87,7 @@ export async function sparseCheckout(
 	const treesPack = await fetchWithoutBlobs(
 		repoUrl,
 		commitHash,
-		resolveGitHeaders(repoUrl, options?.additionalHeaders)
+		options?.additionalHeaders?.(repoUrl) ?? {}
 	);
 	const objects = await resolveObjects(treesPack.idx, commitHash, filesPaths);
 
@@ -108,7 +97,7 @@ export async function sparseCheckout(
 			? await fetchObjects(
 					repoUrl,
 					blobOids,
-					resolveGitHeaders(repoUrl, options?.additionalHeaders)
+					options?.additionalHeaders?.(repoUrl) ?? {}
 			  )
 			: null;
 
@@ -219,7 +208,7 @@ export async function listGitFiles(
 	const treesPack = await fetchWithoutBlobs(
 		repoUrl,
 		commitHash,
-		resolveGitHeaders(repoUrl, additionalHeaders)
+		additionalHeaders?.(repoUrl) ?? {}
 	);
 	const rootTree = await resolveAllObjects(treesPack.idx, commitHash);
 	if (!rootTree?.object) {
@@ -306,7 +295,7 @@ export async function listGitRefs(
 			'content-type': 'application/x-git-upload-pack-request',
 			'Content-Length': `${packbuffer.length}`,
 			'Git-Protocol': 'version=2',
-			...resolveGitHeaders(repoUrl, additionalHeaders),
+			...(additionalHeaders?.(repoUrl) ?? {}),
 		},
 		body: packbuffer as any,
 	});

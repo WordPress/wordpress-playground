@@ -34,7 +34,8 @@ export async function acquireOAuthTokenIfNeeded() {
 
 		// Reload the page to retry the blueprint with the new token
 		// This is necessary because the blueprint failed before we had the token
-		window.location.href = url.toString();
+		// Use replace() instead of href assignment to avoid Chrome Error 5
+		window.location.replace(url.toString());
 	} finally {
 		oAuthState.value = {
 			...oAuthState.value,

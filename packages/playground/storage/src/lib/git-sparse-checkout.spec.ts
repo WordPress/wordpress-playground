@@ -3,7 +3,9 @@ import {
 	sparseCheckout,
 	listGitFiles,
 	resolveCommitHash,
+	type GitAdditionalHeaders,
 } from './git-sparse-checkout';
+import { vi } from 'vitest';
 
 describe('listRefs', () => {
 	it('should return the latest commit hash for a given ref', async () => {
@@ -187,6 +189,138 @@ describe('listGitFiles', () => {
 					]),
 				}),
 			])
+		);
+	});
+});
+
+describe('gitAdditionalHeaders callback', () => {
+	const repoUrl = 'https://github.com/WordPress/wordpress-playground.git';
+
+	it('should invoke callback with the actual URL being fetched', async () => {
+		const headerCallback = vi.fn<GitAdditionalHeaders>(() => ({}));
+
+		await listGitRefs(repoUrl, 'refs/heads/trunk', headerCallback);
+
+		expect(headerCallback).toHaveBeenCalledWith(repoUrl);
+	});
+
+	it('should successfully fetch when callback returns empty object', async () => {
+		const headerCallback: GitAdditionalHeaders = () => ({});
+
+		const refs = await listGitRefs(
+			repoUrl,
+			'refs/heads/trunk',
+			headerCallback
+		);
+
+		expect(refs).toHaveProperty('refs/heads/trunk');
+		expect(refs['refs/heads/trunk']).toMatch(/^[a-f0-9]{40}$/);
+	});
+
+	it('should pass callback through the full call chain', async () => {
+		const headerCallback = vi.fn<GitAdditionalHeaders>(() => ({}));
+
+		await resolveCommitHash(
+			repoUrl,
+			{ value: 'trunk', type: 'branch' },
+			headerCallback
+		);
+
+		expect(headerCallback).toHaveBeenCalledWith(repoUrl);
+	});
+});
+
+describe('authentication error handling', () => {
+	let originalFetch: typeof global.fetch;
+
+	beforeEach(() => {
+		originalFetch = global.fetch;
+	});
+
+	afterEach(() => {
+		global.fetch = originalFetch;
+	});
+
+	it('should throw GitAuthenticationError for 401 responses', async () => {
+		global.fetch = vi.fn().mockResolvedValue({
+			ok: false,
+			status: 401,
+			statusText: 'Unauthorized',
+		});
+
+		const headerCallback: GitAdditionalHeaders = () => ({
+			Authorization: 'Bearer token',
+		});
+
+		await expect(
+			listGitRefs(
+				'https://github.com/user/private-repo',
+				'refs/heads/main',
+				headerCallback
+			)
+		).rejects.toThrow(
+			'Authentication required to access private repository'
+		);
+	});
+
+	it('should throw GitAuthenticationError for 403 responses', async () => {
+		global.fetch = vi.fn().mockResolvedValue({
+			ok: false,
+			status: 403,
+			statusText: 'Forbidden',
+		});
+
+		const headerCallback: GitAdditionalHeaders = () => ({
+			Authorization: 'Bearer token',
+		});
+
+		await expect(
+			listGitRefs(
+				'https://github.com/user/private-repo',
+				'refs/heads/main',
+				headerCallback
+			)
+		).rejects.toThrow(
+			'Authentication required to access private repository'
+		);
+	});
+
+	it('should throw generic error for 404 even with auth token (ambiguous: repo not found OR no access)', async () => {
+		global.fetch = vi.fn().mockResolvedValue({
+			ok: false,
+			status: 404,
+			statusText: 'Not Found',
+		});
+
+		const headerCallback: GitAdditionalHeaders = () => ({
+			Authorization: 'Bearer token',
+		});
+
+		await expect(
+			listGitRefs(
+				'https://github.com/user/repo-or-no-access',
+				'refs/heads/main',
+				headerCallback
+			)
+		).rejects.toThrow(
+			'Failed to fetch git refs from https://github.com/user/repo-or-no-access: 404 Not Found'
+		);
+	});
+
+	it('should throw generic error for 404 without auth token', async () => {
+		global.fetch = vi.fn().mockResolvedValue({
+			ok: false,
+			status: 404,
+			statusText: 'Not Found',
+		});
+
+		await expect(
+			listGitRefs(
+				'https://github.com/user/nonexistent-repo',
+				'refs/heads/main'
+			)
+		).rejects.toThrow(
+			'Failed to fetch git refs from https://github.com/user/nonexistent-repo: 404 Not Found'
 		);
 	});
 });
