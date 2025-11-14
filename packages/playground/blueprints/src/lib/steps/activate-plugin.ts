@@ -153,6 +153,72 @@ export const activatePlugin: StepHandler<ActivatePluginStep> = async (
 
 	if (isActiveCheckResult.text !== 'false') {
 		logger.debug(isActiveCheckResult.text);
+
+		const recheckMarkerStart = '__WP_PLAYGROUND_PLUGIN_STATUS_START__';
+		const recheckMarkerEnd = '__WP_PLAYGROUND_PLUGIN_STATUS_END__';
+		const recheckResult = await playground.run({
+			code: `<?php
+				$marker_start = '${recheckMarkerStart}';
+				$marker_end = '${recheckMarkerEnd}';
+				$GLOBALS['__wp_playground_plugin_activation_status'] = 'false';
+
+				register_shutdown_function(
+					function () use ( $marker_start, $marker_end ) {
+						$status = $GLOBALS['__wp_playground_plugin_activation_status'] ?? 'false';
+						echo $marker_start . $status . $marker_end;
+					}
+				);
+
+				require_once( getenv( 'DOCROOT' ) . "/wp-load.php" );
+
+				$plugin_directory = WP_PLUGIN_DIR . '/';
+				$relative_plugin_path = getenv( 'PLUGIN_PATH' );
+				if (strpos($relative_plugin_path, $plugin_directory) === 0) {
+					$relative_plugin_path = substr($relative_plugin_path, strlen($plugin_directory));
+				}
+
+				if ( is_dir( $plugin_directory . $relative_plugin_path ) ) {
+					$relative_plugin_path = rtrim( $relative_plugin_path, '/' ) . '/';
+				}
+
+				$active_plugins = get_option( 'active_plugins' );
+				if ( ! is_array( $active_plugins ) ) {
+					$active_plugins = array();
+				}
+
+				foreach ( $active_plugins as $plugin ) {
+					if ( substr( $plugin, 0, strlen( $relative_plugin_path ) ) === $relative_plugin_path ) {
+						$GLOBALS['__wp_playground_plugin_activation_status'] = 'true';
+						break;
+					}
+				}
+				die();
+			`,
+			env: {
+				DOCROOT: docroot,
+				PLUGIN_PATH: pluginPath,
+			},
+		});
+
+		const recheckText = recheckResult.text ?? '';
+		const startIndex = recheckText.indexOf(recheckMarkerStart);
+		if (startIndex !== -1) {
+			const endIndex = recheckText.indexOf(
+				recheckMarkerEnd,
+				startIndex + recheckMarkerStart.length
+			);
+			if (endIndex !== -1) {
+				const status = recheckText
+					.slice(startIndex + recheckMarkerStart.length, endIndex)
+					.trim();
+				if (status === 'true') {
+					logger.debug(
+						`Plugin ${pluginPath} is active despite unexpected output; continuing.`
+					);
+					return;
+				}
+			}
+		}
 	}
 	throw new Error(
 		`Plugin ${pluginPath} could not be activated – WordPress exited with no error. ` +
