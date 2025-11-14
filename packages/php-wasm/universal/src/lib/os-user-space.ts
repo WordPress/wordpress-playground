@@ -64,19 +64,23 @@ export type OSUserSpaceContext = {
 		HEAPU64: BigUint64Array;
 		HEAPF64: Float64Array;
 	};
-	builtins: {
-		fd_close: (fd: number) => number;
-		fcntl64: (fd: number, cmd: number, varargs?: any) => number;
-		getStreamFromFD: (fd: number) => Emscripten.FS.FSStream;
+	wasmImports: {
+		builtin_fcntl64: (fd: number, cmd: number, varargs?: any) => number;
+		builtin_fd_close: (fd: number) => number;
 	};
-	helpers: {
-		get_end_offset_for_fd: (fd: number) => bigint;
+	wasmExports: {
+		wasm_get_end_offset: (fd: number) => bigint;
+	};
+	syscalls: {
+		getStreamFromFD: (fd: number) => Emscripten.FS.FSStream;
 	};
 	FS: typeof Emscripten.FS;
 	PROXYFS: typeof Emscripten.PROXYFS & {
+		// TODO: Add this method to our main Emscripten FS types
 		realPath(node: FSNode): string;
 	};
 	NODEFS: typeof Emscripten.NODEFS & {
+		// TODO: Add this method to our main Emscripten FS types
 		realPath(node: FSNode): string;
 	};
 	// TODO: Likely rename this. There's no reason it should be different from the rest of the names.
@@ -87,6 +91,7 @@ export function bindUserSpace(
 	{ fileLockManager }: OSKernelSpace,
 	{
 		pid,
+		memory: { HEAP16, HEAP64, HEAP32 },
 		constants: {
 			F_RDLCK,
 			F_WRLCK,
@@ -110,9 +115,9 @@ export function bindUserSpace(
 			LOCK_UN,
 		},
 		errnoCodes: { EBADF, EINVAL, EAGAIN, EDEADLK, EWOULDBLOCK },
-		memory: { HEAP16, HEAP64, HEAP32 },
-		builtins,
-		helpers,
+		wasmImports: { builtin_fcntl64, builtin_fd_close },
+		wasmExports: { wasm_get_end_offset },
+		syscalls: { getStreamFromFD },
 		FS,
 		PROXYFS,
 		NODEFS,
@@ -187,7 +192,7 @@ export function bindUserSpace(
 			return false;
 		},
 		get_fd_access_mode(fd: number) {
-			return builtins.fcntl64(fd, F_GETFL) & O_ACCMODE;
+			return builtin_fcntl64(fd, F_GETFL) & O_ACCMODE;
 		},
 		get_vfs_path_from_fd(fd: number): ResultTuple<string> {
 			try {
@@ -370,7 +375,7 @@ export function bindUserSpace(
 				break;
 			case SEEK_CUR:
 				try {
-					const stream = builtins.getStreamFromFD(fd);
+					const stream = getStreamFromFD(fd);
 					baseAddress = FS.llseek(stream, 0, whence);
 				} catch (e) {
 					_js_wasm_trace(
@@ -384,7 +389,7 @@ export function bindUserSpace(
 				}
 				break;
 			case SEEK_END:
-				baseAddress = helpers.get_end_offset_for_fd(fd);
+				baseAddress = wasm_get_end_offset(fd);
 				break;
 			default:
 				return [null, EINVAL];
@@ -676,7 +681,7 @@ export function bindUserSpace(
 					arg = varArgsAccessor.getNextAsInt();
 				}
 
-				const stream = builtins.getStreamFromFD(fd);
+				const stream = getStreamFromFD(fd);
 
 				// Update the stream flags
 				const SETFL_MASK = O_APPEND | O_NONBLOCK;
@@ -686,7 +691,7 @@ export function bindUserSpace(
 				return 0;
 			}
 			default:
-				return builtins.fcntl64(fd, cmd, varargs);
+				return builtin_fcntl64(fd, cmd, varargs);
 		}
 	}
 
@@ -805,7 +810,7 @@ export function bindUserSpace(
 		const [vfsPath, vfsPathResolutionErrno] =
 			locking.get_vfs_path_from_fd(fd);
 
-		const fdCloseResult = builtins.fd_close(fd);
+		const fdCloseResult = builtin_fd_close(fd);
 		if (fdCloseResult !== 0 || !locking.maybeLockedFds.has(fd)) {
 			_js_wasm_trace('fd_close(%d) result %d', fd, fdCloseResult);
 			return fdCloseResult;
