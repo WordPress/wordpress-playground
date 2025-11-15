@@ -9,7 +9,7 @@ Playground brings WordPress to the browser through WebAssembly — a place where
 
 WordPress Playground is an open-source project and welcomes all contributors from code to design, and from documentation to triage. If the feature you need is missing, you are more than welcome to start a discussion, open an issue, and even propose a Pull Request to implement it.
 
-Here's a few quickstart guides to get you started:
+Here are a few quickstart guides to get you started:
 
 -   Code contributions – see the [developer section](https://wordpress.github.io/wordpress-playground/contributing/code/).
 -   Documentation – see the [documentation section](https://wordpress.github.io/wordpress-playground/contributing/documentation).
