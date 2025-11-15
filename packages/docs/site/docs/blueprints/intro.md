@@ -22,7 +22,6 @@ Blueprints are JSON files for setting up your very own WordPress Playground inst
 -   [**Documentation**](/) – Introduction to WP Playground, starter guides and your entry point to WP Playground Docs.
 -   👉 [**Blueprints**](/blueprints) (you're here) – Blueprints are JSON files for setting up your WordPress Playground instance. Learn about their possibilities from this Blueprints docs hub.
 -   [**Developers**](/developers) – WordPress Playground was created as a programmable tool. Discover all the things you can do with it from your code in the Developers docs hub.
--   [**API Reference**](/api) – All the APIs exposed by WordPress Playground
 
 ## Navigating the Blueprints documentation hub
 

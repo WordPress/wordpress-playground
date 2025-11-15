@@ -168,11 +168,6 @@ const config = {
 						label: 'Developers',
 					},
 					{
-						to: 'api',
-						label: 'API Reference',
-						position: 'left',
-					},
-					{
 						href: 'https://github.com/WordPress/wordpress-playground',
 						position: 'right',
 						className: 'header-github-link',
@@ -207,10 +202,6 @@ const config = {
 							{
 								label: 'Developers',
 								to: '/developers',
-							},
-							{
-								label: 'API Reference',
-								to: '/api',
 							},
 						],
 					},
