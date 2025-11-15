@@ -193,7 +193,6 @@ export async function cloneRequest(
 		integrity: request.integrity,
 		// In Node.js, duplex: 'half' is required when
 		// the body is provided for non-GET/HEAD requests.
-		// @ts-expect-error - duplex is not in the TypeScript types
 		...(body && { duplex: 'half' }),
 		...overrides,
 	});
