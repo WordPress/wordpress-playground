@@ -25,7 +25,7 @@ Here are a few quickstart guides to get you started:
 - Before submitting a pull request, review the [repository management and pull request best practices](https://wordpress.github.io/wordpress-playground/contributing/code), and follow the WordPress Playground coding and accessibility standards.
 - WordPress Coding Standards [Coding Standards](https://developer.wordpress.org/coding-standards/wordpress-coding-standards/)
 - **Maintain compatibility:** If your changes affect shared functions, modules, or APIs, ensure they don’t break existing Playground environments or integrations.
-- You maintain copyright over your contributions.By submitting a pull request, you agree to release your code under [Playground’s License](/LICENSE.md).
+- You maintain copyright over your contributions. By submitting a pull request, you agree to release your code under [Playground’s License](/LICENSE.md).
 
 ---
 
