@@ -7,6 +7,7 @@ import type { FileTree, UniversalPHP } from '@php-wasm/universal';
 import type { Semaphore } from '@php-wasm/util';
 import { randomFilename } from '@php-wasm/util';
 import {
+	GitAuthenticationError,
 	listDescendantFiles,
 	listGitFiles,
 	resolveCommitHash,
@@ -157,14 +158,16 @@ export abstract class Resource<T extends File | Directory> {
 			progress,
 			corsProxy,
 			streamBundledFile,
-			gitAdditionalHeaders,
+			gitAdditionalHeadersCallback,
 		}: {
 			/** Optional semaphore to limit concurrent downloads */
 			semaphore?: Semaphore;
 			progress?: ProgressTracker;
 			corsProxy?: string;
 			streamBundledFile?: StreamBundledFile;
-			gitAdditionalHeaders?: (url: string) => Record<string, string>;
+			gitAdditionalHeadersCallback?: (
+				url: string
+			) => Record<string, string>;
 		}
 	): Resource<File | Directory> {
 		let resource: Resource<File | Directory>;
@@ -187,7 +190,7 @@ export abstract class Resource<T extends File | Directory> {
 			case 'git:directory':
 				resource = new GitDirectoryResource(ref, progress, {
 					corsProxy,
-					additionalHeaders: gitAdditionalHeaders,
+					additionalHeaders: gitAdditionalHeadersCallback,
 				});
 				break;
 			case 'literal:directory':
@@ -579,60 +582,77 @@ export class GitDirectoryResource extends Resource<Directory> {
 	}
 
 	async resolve() {
+		const additionalHeaders =
+			this.options?.additionalHeaders?.(this.reference.url) ?? {};
+
 		const repoUrl = this.options?.corsProxy
 			? `${this.options.corsProxy}${this.reference.url}`
 			: this.reference.url;
 
-		const commitHash = await resolveCommitHash(
-			repoUrl,
-			{
-				value: this.reference.ref,
-				type: this.reference.refType ?? 'infer',
-			},
-			this.options?.additionalHeaders
-		);
-		const allFiles = await listGitFiles(
-			repoUrl,
-			commitHash,
-			this.options?.additionalHeaders
-		);
-
-		const requestedPath = (this.reference.path ?? '').replace(/^\/+/, '');
-		const filesToClone = listDescendantFiles(allFiles, requestedPath);
-		const checkout = await sparseCheckout(
-			repoUrl,
-			commitHash,
-			filesToClone,
-			{
-				withObjects: this.reference['.git'],
-				additionalHeaders: this.options?.additionalHeaders,
-			}
-		);
-		let files = checkout.files;
-
-		// Remove the path prefix from the cloned file names.
-		files = mapKeys(files, (name) =>
-			name.substring(requestedPath.length).replace(/^\/+/, '')
-		);
-		if (this.reference['.git']) {
-			const gitFiles = await createDotGitDirectory({
-				repoUrl: this.reference.url,
+		try {
+			const commitHash = await resolveCommitHash(
+				repoUrl,
+				{
+					value: this.reference.ref,
+					type: this.reference.refType ?? 'infer',
+				},
+				additionalHeaders
+			);
+			const allFiles = await listGitFiles(
+				repoUrl,
 				commitHash,
-				ref: this.reference.ref,
-				refType: this.reference.refType,
-				objects: checkout.objects ?? [],
-				fileOids: checkout.fileOids ?? {},
-				pathPrefix: requestedPath,
-			});
-			files = {
-				...gitFiles,
-				...files,
+				additionalHeaders
+			);
+
+			const requestedPath = (this.reference.path ?? '').replace(
+				/^\/+/,
+				''
+			);
+			const filesToClone = listDescendantFiles(allFiles, requestedPath);
+			const checkout = await sparseCheckout(
+				repoUrl,
+				commitHash,
+				filesToClone,
+				{
+					withObjects: this.reference['.git'],
+					additionalHeaders,
+				}
+			);
+			let files = checkout.files;
+
+			// Remove the path prefix from the cloned file names.
+			files = mapKeys(files, (name) =>
+				name.substring(requestedPath.length).replace(/^\/+/, '')
+			);
+			if (this.reference['.git']) {
+				const gitFiles = await createDotGitDirectory({
+					repoUrl: this.reference.url,
+					commitHash,
+					ref: this.reference.ref,
+					refType: this.reference.refType,
+					objects: checkout.objects ?? [],
+					fileOids: checkout.fileOids ?? {},
+					pathPrefix: requestedPath,
+				});
+				files = {
+					...gitFiles,
+					...files,
+				};
+			}
+			return {
+				name: this.filename,
+				files,
 			};
+		} catch (error) {
+			if (error instanceof GitAuthenticationError) {
+				// Unwrap and re-throw with the original URL (without CORS proxy)
+				throw new GitAuthenticationError(
+					this.reference.url,
+					error.status
+				);
+			}
+			throw error;
 		}
-		return {
-			name: this.filename,
-			files,
-		};
 	}
 
 	/**

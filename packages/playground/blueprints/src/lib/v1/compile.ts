@@ -87,7 +87,7 @@ export interface CompileBlueprintV1Options {
 	 * Additional headers to pass to git operations.
 	 * A function that returns headers based on the URL being accessed.
 	 */
-	gitAdditionalHeaders?: (url: string) => Record<string, string>;
+	gitAdditionalHeadersCallback?: (url: string) => Record<string, string>;
 	/**
 	 * Additional steps to add to the blueprint.
 	 */
@@ -147,7 +147,7 @@ function compileBlueprintJson(
 		onBlueprintValidated = () => {},
 		corsProxy,
 		streamBundledFile,
-		gitAdditionalHeaders,
+		gitAdditionalHeadersCallback,
 		additionalSteps,
 	}: CompileBlueprintV1Options = {}
 ): CompiledBlueprintV1 {
@@ -327,7 +327,7 @@ function compileBlueprintJson(
 			totalProgressWeight,
 			corsProxy,
 			streamBundledFile,
-			gitAdditionalHeaders,
+			gitAdditionalHeadersCallback,
 		})
 	);
 
@@ -525,7 +525,7 @@ interface CompileStepArgsOptions {
 	 * Additional headers to pass to git operations.
 	 * A function that returns headers based on the URL being accessed.
 	 */
-	gitAdditionalHeaders?: (url: string) => Record<string, string>;
+	gitAdditionalHeadersCallback?: (url: string) => Record<string, string>;
 }
 
 /**
@@ -544,7 +544,7 @@ function compileStep<S extends StepDefinition>(
 		totalProgressWeight,
 		corsProxy,
 		streamBundledFile,
-		gitAdditionalHeaders,
+		gitAdditionalHeadersCallback,
 	}: CompileStepArgsOptions
 ): { run: CompiledV1Step; step: S; resources: Array<Resource<any>> } {
 	const stepProgress = rootProgressTracker.stage(
@@ -559,7 +559,7 @@ function compileStep<S extends StepDefinition>(
 				semaphore,
 				corsProxy,
 				streamBundledFile,
-				gitAdditionalHeaders,
+				gitAdditionalHeadersCallback,
 			});
 		}
 		args[key] = value;

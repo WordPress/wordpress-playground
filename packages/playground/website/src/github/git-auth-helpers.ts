@@ -1,30 +1,8 @@
 import { oAuthState } from './state';
-import { corsProxyUrl } from 'virtual:cors-proxy-url';
 
 function isGitHubUrl(url: string): boolean {
 	try {
 		const urlObj = new URL(url);
-		const corsProxyOrigin = new URL(corsProxyUrl).origin;
-
-		if (urlObj.origin === corsProxyOrigin && urlObj.search) {
-			const queryWithoutQuestion = urlObj.search.substring(1);
-			// Check if the query string starts with http:// or https://
-			if (queryWithoutQuestion.match(/^https?:\/\//)) {
-				const decodedUrl = decodeURIComponent(queryWithoutQuestion);
-				try {
-					const targetUrlObj = new URL(decodedUrl);
-					const hostname = targetUrlObj.hostname;
-					return (
-						hostname === 'github.com' ||
-						hostname === 'api.github.com'
-					);
-				} catch {
-					// If parsing the target URL fails, fall through to direct check
-				}
-			}
-		}
-
-		// Direct URL check
 		const hostname = urlObj.hostname;
 		return hostname === 'github.com' || hostname === 'api.github.com';
 	} catch {
@@ -32,7 +10,14 @@ function isGitHubUrl(url: string): boolean {
 	}
 }
 
-export function createGitHubAuthHeaders(): (
+export function shouldShowGitHubAuthModal(url: string | undefined): boolean {
+	if (!url) {
+		return false;
+	}
+	return isGitHubUrl(url);
+}
+
+export function createGitAuthHeaders(): (
 	url: string
 ) => Record<string, string> {
 	const token = oAuthState.value.token;
@@ -52,7 +37,7 @@ export function createGitHubAuthHeaders(): (
 
 		return {
 			Authorization: `Basic ${encodedToken}`,
-			// Tell the CORS proxy to forward the Authorization header
+			// Tell a CORS proxy to forward the Authorization header
 			'X-Cors-Proxy-Allowed-Request-Headers': 'Authorization',
 		};
 	};

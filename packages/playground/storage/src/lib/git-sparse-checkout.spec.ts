@@ -193,40 +193,28 @@ describe('listGitFiles', () => {
 	});
 });
 
-describe('gitAdditionalHeaders callback', () => {
+describe('gitAdditionalHeaders', () => {
 	const repoUrl = 'https://github.com/WordPress/wordpress-playground.git';
 
-	it('should invoke callback with the actual URL being fetched', async () => {
-		const headerCallback = vi.fn<GitAdditionalHeaders>(() => ({}));
+	it('should successfully fetch when headers is empty object', async () => {
+		const headers: GitAdditionalHeaders = {};
 
-		await listGitRefs(repoUrl, 'refs/heads/trunk', headerCallback);
-
-		expect(headerCallback).toHaveBeenCalledWith(repoUrl);
-	});
-
-	it('should successfully fetch when callback returns empty object', async () => {
-		const headerCallback: GitAdditionalHeaders = () => ({});
-
-		const refs = await listGitRefs(
-			repoUrl,
-			'refs/heads/trunk',
-			headerCallback
-		);
+		const refs = await listGitRefs(repoUrl, 'refs/heads/trunk', headers);
 
 		expect(refs).toHaveProperty('refs/heads/trunk');
 		expect(refs['refs/heads/trunk']).toMatch(/^[a-f0-9]{40}$/);
 	});
 
-	it('should pass callback through the full call chain', async () => {
-		const headerCallback = vi.fn<GitAdditionalHeaders>(() => ({}));
+	it('should pass headers through the full call chain', async () => {
+		const headers: GitAdditionalHeaders = {};
 
 		await resolveCommitHash(
 			repoUrl,
 			{ value: 'trunk', type: 'branch' },
-			headerCallback
+			headers
 		);
 
-		expect(headerCallback).toHaveBeenCalledWith(repoUrl);
+		expect(headers).toBeDefined();
 	});
 });
 
@@ -248,15 +236,15 @@ describe('authentication error handling', () => {
 			statusText: 'Unauthorized',
 		});
 
-		const headerCallback: GitAdditionalHeaders = () => ({
+		const headers: GitAdditionalHeaders = {
 			Authorization: 'Bearer token',
-		});
+		};
 
 		await expect(
 			listGitRefs(
 				'https://github.com/user/private-repo',
 				'refs/heads/main',
-				headerCallback
+				headers
 			)
 		).rejects.toThrow(
 			'Authentication required to access private repository'
@@ -270,15 +258,15 @@ describe('authentication error handling', () => {
 			statusText: 'Forbidden',
 		});
 
-		const headerCallback: GitAdditionalHeaders = () => ({
+		const headers: GitAdditionalHeaders = {
 			Authorization: 'Bearer token',
-		});
+		};
 
 		await expect(
 			listGitRefs(
 				'https://github.com/user/private-repo',
 				'refs/heads/main',
-				headerCallback
+				headers
 			)
 		).rejects.toThrow(
 			'Authentication required to access private repository'
@@ -292,15 +280,15 @@ describe('authentication error handling', () => {
 			statusText: 'Not Found',
 		});
 
-		const headerCallback: GitAdditionalHeaders = () => ({
+		const headers: GitAdditionalHeaders = {
 			Authorization: 'Bearer token',
-		});
+		};
 
 		await expect(
 			listGitRefs(
 				'https://github.com/user/repo-or-no-access',
 				'refs/heads/main',
-				headerCallback
+				headers
 			)
 		).rejects.toThrow(
 			'Failed to fetch git refs from https://github.com/user/repo-or-no-access: 404 Not Found'

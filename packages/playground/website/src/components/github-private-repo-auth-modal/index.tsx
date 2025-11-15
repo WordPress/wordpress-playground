@@ -4,40 +4,21 @@ import { setActiveModal } from '../../lib/state/redux/slice-ui';
 import { Icon } from '@wordpress/components';
 import { GitHubIcon } from '../../github/github';
 import css from '../../github/github-oauth-guard/style.module.css';
+import { staticAnalyzeGitHubURL } from '../../github/analyze-github-url';
 
 const OAUTH_FLOW_URL = 'oauth.php?redirect=1';
-
-function extractRepoName(url: string): string {
-	try {
-		// Handle CORS-proxied URLs - extract the actual GitHub URL
-		const corsProxyPrefixes = [
-			'https://wordpress-playground-cors-proxy.net/?',
-			'http://127.0.0.1:5263/cors-proxy.php?',
-		];
-		let githubUrl = url;
-		for (const prefix of corsProxyPrefixes) {
-			if (url.startsWith(prefix)) {
-				githubUrl = url.substring(prefix.length);
-				break;
-			}
-		}
-
-		// Extract owner/repo from GitHub URL
-		const match = githubUrl.match(/github\.com\/([^/]+\/[^/]+)/);
-		return match ? match[1] : url;
-	} catch {
-		return url;
-	}
-}
 
 export function GitHubPrivateRepoAuthModal() {
 	const dispatch = useAppDispatch();
 	const repoUrl = useAppSelector((state) => state.ui.githubAuthRepoUrl);
 
-	const displayRepoName = repoUrl ? extractRepoName(repoUrl) : '';
+	if (!repoUrl) {
+		return null;
+	}
 
-	// Remove the modal parameter from the redirect URI
-	// so it doesn't persist after OAuth completes
+	const { owner, repo } = staticAnalyzeGitHubURL(repoUrl);
+	const displayRepoName = owner && repo ? `${owner}/${repo}` : repoUrl;
+
 	const redirectUrl = new URL(window.location.href);
 	redirectUrl.searchParams.delete('modal');
 

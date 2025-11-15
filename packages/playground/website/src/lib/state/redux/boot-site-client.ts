@@ -27,7 +27,10 @@ import { selectSiteBySlug } from './slice-sites';
 // @ts-ignore
 import { corsProxyUrl } from 'virtual:cors-proxy-url';
 import { modalSlugs } from '../../../components/layout';
-import { createGitHubAuthHeaders } from '../../../github/git-auth-helpers';
+import {
+	createGitAuthHeaders,
+	shouldShowGitHubAuthModal,
+} from '../../../github/git-auth-helpers';
 
 export function bootSiteClient(
 	siteSlug: string,
@@ -156,7 +159,7 @@ export function bootSiteClient(
 					: [],
 				shouldInstallWordPress: !isWordPressInstalled,
 				corsProxy: corsProxyUrl,
-				gitAdditionalHeaders: createGitHubAuthHeaders(),
+				gitAdditionalHeadersCallback: createGitAuthHeaders(),
 			});
 
 			// @TODO: Remove backcompat code after 2024-12-01.
@@ -210,15 +213,22 @@ export function bootSiteClient(
 					'GitAuthenticationError' ||
 				(e as any).cause?.name === 'GitAuthenticationError'
 			) {
-				// Extract repo URL from the error
 				const repoUrl =
 					(e as any).repoUrl ||
 					(e as any).cause?.repoUrl ||
 					undefined;
-				if (repoUrl) {
-					dispatch(setGitHubAuthRepoUrl(repoUrl));
+
+				if (shouldShowGitHubAuthModal(repoUrl)) {
+					if (repoUrl) {
+						dispatch(setGitHubAuthRepoUrl(repoUrl));
+					}
+					dispatch(
+						setActiveModal(modalSlugs.GITHUB_PRIVATE_REPO_AUTH)
+					);
+				} else {
+					dispatch(setActiveSiteError('site-boot-failed'));
+					dispatch(setActiveModal(modalSlugs.ERROR_REPORT));
 				}
-				dispatch(setActiveModal(modalSlugs.GITHUB_PRIVATE_REPO_AUTH));
 			} else {
 				dispatch(setActiveSiteError('site-boot-failed'));
 				dispatch(setActiveModal(modalSlugs.ERROR_REPORT));

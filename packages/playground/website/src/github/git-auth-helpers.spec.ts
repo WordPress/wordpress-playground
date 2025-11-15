@@ -1,12 +1,8 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { createGitHubAuthHeaders } from './git-auth-helpers';
+import { describe, it, expect, beforeEach } from 'vitest';
+import { createGitAuthHeaders } from './git-auth-helpers';
 import { oAuthState } from './state';
 
-vi.mock('virtual:cors-proxy-url', () => ({
-	corsProxyUrl: 'https://corsproxyurl/',
-}));
-
-describe('createGitHubAuthHeaders', () => {
+describe('createGitAuthHeaders', () => {
 	beforeEach(() => {
 		oAuthState.value = { token: '', isAuthorizing: false };
 	});
@@ -20,7 +16,7 @@ describe('createGitHubAuthHeaders', () => {
 		});
 
 		it('includes Authorization header for github.com URLs', () => {
-			const getHeaders = createGitHubAuthHeaders();
+			const getHeaders = createGitAuthHeaders();
 			const headers = getHeaders('https://github.com/user/repo');
 
 			expect(headers).toHaveProperty('Authorization');
@@ -32,33 +28,21 @@ describe('createGitHubAuthHeaders', () => {
 		});
 
 		it('includes Authorization header for api.github.com URLs', () => {
-			const getHeaders = createGitHubAuthHeaders();
+			const getHeaders = createGitAuthHeaders();
 			const headers = getHeaders('https://api.github.com/repos');
 
 			expect(headers).toHaveProperty('Authorization');
 		});
 
-		it('includes Authorization header for GitHub URLs through CORS proxy', () => {
-			const getHeaders = createGitHubAuthHeaders();
-			const headers = getHeaders(
-				'https://corsproxyurl/?https://github.com/user/repo'
-			);
-
-			expect(headers).toHaveProperty('Authorization');
-			expect(headers).toHaveProperty(
-				'X-Cors-Proxy-Allowed-Request-Headers'
-			);
-		});
-
 		it('does NOT include Authorization header for non-GitHub URLs', () => {
-			const getHeaders = createGitHubAuthHeaders();
+			const getHeaders = createGitAuthHeaders();
 
 			expect(getHeaders('https://gitlab.com/user/repo')).toEqual({});
 			expect(getHeaders('https://bitbucket.org/user/repo')).toEqual({});
 		});
 
 		it('does NOT include Authorization header for malicious URLs (security)', () => {
-			const getHeaders = createGitHubAuthHeaders();
+			const getHeaders = createGitAuthHeaders();
 
 			// github.com in path
 			expect(getHeaders('https://evil.com/github.com/fake')).toEqual({});
@@ -73,29 +57,6 @@ describe('createGitHubAuthHeaders', () => {
 			expect(getHeaders('https://mygithub.com')).toEqual({});
 			expect(getHeaders('https://fakegithub.com')).toEqual({});
 		});
-
-		it('does NOT include Authorization header for non-GitHub URLs through CORS proxy', () => {
-			const getHeaders = createGitHubAuthHeaders();
-			const headers = getHeaders(
-				'https://corsproxyurl/?https://gitlab.com/user/repo'
-			);
-
-			expect(headers).toEqual({});
-		});
-
-		it('does NOT include Authorization header for malicious URLs through CORS proxy (security)', () => {
-			const getHeaders = createGitHubAuthHeaders();
-
-			expect(
-				getHeaders(
-					'https://corsproxyurl/?https://evil.com/github.com/fake'
-				)
-			).toEqual({});
-
-			expect(
-				getHeaders('https://corsproxyurl/?https://github.com.evil.com')
-			).toEqual({});
-		});
 	});
 
 	describe('without GitHub token', () => {
@@ -104,7 +65,7 @@ describe('createGitHubAuthHeaders', () => {
 		});
 
 		it('returns empty headers even for GitHub URLs', () => {
-			const getHeaders = createGitHubAuthHeaders();
+			const getHeaders = createGitAuthHeaders();
 
 			expect(getHeaders('https://github.com/user/repo')).toEqual({});
 		});
@@ -113,7 +74,7 @@ describe('createGitHubAuthHeaders', () => {
 	describe('token encoding', () => {
 		it('encodes token correctly as Basic auth', () => {
 			oAuthState.value = { token: 'test-token', isAuthorizing: false };
-			const getHeaders = createGitHubAuthHeaders();
+			const getHeaders = createGitAuthHeaders();
 			const headers = getHeaders('https://github.com/user/repo');
 
 			const decoded = atob(headers.Authorization.replace('Basic ', ''));
@@ -126,7 +87,7 @@ describe('createGitHubAuthHeaders', () => {
 				token: 'test-token-ąñ-emoji-🔑',
 				isAuthorizing: false,
 			};
-			const getHeaders = createGitHubAuthHeaders();
+			const getHeaders = createGitAuthHeaders();
 			const headers = getHeaders('https://github.com/user/repo');
 
 			expect(headers).toHaveProperty('Authorization');

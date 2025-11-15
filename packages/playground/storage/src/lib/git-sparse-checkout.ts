@@ -42,7 +42,7 @@ export class GitAuthenticationError extends Error {
 	}
 }
 
-export type GitAdditionalHeaders = (url: string) => Record<string, string>;
+export type GitAdditionalHeaders = Record<string, string>;
 
 /**
  * Downloads specific files from a git repository.
@@ -84,21 +84,18 @@ export async function sparseCheckout(
 		additionalHeaders?: GitAdditionalHeaders;
 	}
 ): Promise<SparseCheckoutResult> {
+	const additionalHeaders = options?.additionalHeaders || {};
 	const treesPack = await fetchWithoutBlobs(
 		repoUrl,
 		commitHash,
-		options?.additionalHeaders?.(repoUrl) ?? {}
+		additionalHeaders
 	);
 	const objects = await resolveObjects(treesPack.idx, commitHash, filesPaths);
 
 	const blobOids = filesPaths.map((path) => objects[path].oid);
 	const blobsPack =
 		blobOids.length > 0
-			? await fetchObjects(
-					repoUrl,
-					blobOids,
-					options?.additionalHeaders?.(repoUrl) ?? {}
-			  )
+			? await fetchObjects(repoUrl, blobOids, additionalHeaders)
 			: null;
 
 	const fetchedPaths: Record<string, any> = {};
@@ -203,12 +200,12 @@ const FULL_SHA_REGEX = /^[0-9a-f]{40}$/i;
 export async function listGitFiles(
 	repoUrl: string,
 	commitHash: string,
-	additionalHeaders?: GitAdditionalHeaders
+	additionalHeaders: GitAdditionalHeaders = {}
 ): Promise<GitFileTree[]> {
 	const treesPack = await fetchWithoutBlobs(
 		repoUrl,
 		commitHash,
-		additionalHeaders?.(repoUrl) ?? {}
+		additionalHeaders
 	);
 	const rootTree = await resolveAllObjects(treesPack.idx, commitHash);
 	if (!rootTree?.object) {
@@ -228,7 +225,7 @@ export async function listGitFiles(
 export async function resolveCommitHash(
 	repoUrl: string,
 	ref: GitRef,
-	additionalHeaders?: GitAdditionalHeaders
+	additionalHeaders: GitAdditionalHeaders = {}
 ) {
 	const parsed = await parseGitRef(repoUrl, ref);
 	if (parsed.resolvedOid) {
@@ -274,7 +271,7 @@ function gitTreeToFileTree(tree: GitTree): GitFileTree[] {
 export async function listGitRefs(
 	repoUrl: string,
 	fullyQualifiedBranchPrefix: string,
-	additionalHeaders?: GitAdditionalHeaders
+	additionalHeaders: GitAdditionalHeaders = {}
 ) {
 	const packbuffer = Buffer.from(
 		(await collect([
@@ -295,7 +292,7 @@ export async function listGitRefs(
 			'content-type': 'application/x-git-upload-pack-request',
 			'Content-Length': `${packbuffer.length}`,
 			'Git-Protocol': 'version=2',
-			...(additionalHeaders?.(repoUrl) ?? {}),
+			...additionalHeaders,
 		},
 		body: packbuffer as any,
 	});
