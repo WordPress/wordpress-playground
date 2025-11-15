@@ -11,7 +11,7 @@ WordPress Playground is an open-source project and welcomes all contributors fro
 
 Here's a few quickstart guides to get you started:
 
--   Code contributions – see the [developer section](https://wordpress.github.io/wordpress-playground/docs/contributing/code).
+-   Code contributions – see the [developer section](https://wordpress.github.io/wordpress-playground/contributing/code/).
 -   Documentation – see the [documentation section](https://wordpress.github.io/wordpress-playground/docs/contributing/documentation).
 -   Triage – see the [triage section](https://wordpress.github.io/wordpress-playground/contributing/#triaging-issues).
 -   Contributions to translations – see the [translations section](https://wordpress.github.io/wordpress-playground/contributing/translations).
