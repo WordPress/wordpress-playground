@@ -17,6 +17,7 @@ Here are a few quickstart guides to get you started:
 -   Contributions to translations – see the [translations section](https://wordpress.github.io/wordpress-playground/contributing/translations).
 -   Reporting bugs – open an [issue](https://github.com/WordPress/wordpress-playground/issues/new/choose) in the repository.
 -   Ideas, designs or anything else – open a [GitHub discussion](https://github.com/WordPress/wordpress-playground/discussions) and let's talk!
+-   Connect with the Playground team at [`#playground` channel on WordPress Slack](https://wordpress.slack.com/archives/C04EWKGDJ0K)
 
 ---
 
