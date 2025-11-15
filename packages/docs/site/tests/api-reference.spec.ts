@@ -1,5 +1,12 @@
 import { test, expect } from '@playwright/test';
 
+const rawBasePath = process.env.DOCS_E2E_BASE_PATH ?? '/wordpress-playground';
+const normalizedBasePath =
+	rawBasePath === '/' ? '/' : `/${rawBasePath.replace(/^\/|\/$/g, '')}`;
+const apiPath =
+	process.env.DOCS_E2E_API_PATH ??
+	`${normalizedBasePath === '/' ? '' : normalizedBasePath}/api`;
+
 test.describe('Docs API reference', () => {
 	test('loads without runtime errors', async ({ page }) => {
 		const pageErrors: Error[] = [];
@@ -20,7 +27,7 @@ test.describe('Docs API reference', () => {
 			}
 		});
 
-		await page.goto('/wordpress-playground/api', {
+		await page.goto(apiPath, {
 			waitUntil: 'networkidle',
 		});
 		await expect(page.locator('.apiPage')).toBeVisible();
