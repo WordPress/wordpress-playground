@@ -573,17 +573,30 @@ async function makeRequest({
 }
 
 async function bufferResponse(socket: TCPOverFetchWebsocket): Promise<string> {
-	return new Promise((resolve) => {
+	return new Promise((resolve, reject) => {
 		let response = '';
-		socket.clientDownstream.readable.pipeTo(
-			new WritableStream({
-				write(chunk) {
-					response += new TextDecoder().decode(chunk);
-				},
-				close() {
-					resolve(response);
-				},
-			})
-		);
+
+		// Add error listener
+		socket.on('error', (error) => {
+			reject(error);
+		});
+
+		socket.clientDownstream.readable
+			.pipeTo(
+				new WritableStream({
+					write(chunk) {
+						response += new TextDecoder().decode(chunk);
+					},
+					close() {
+						resolve(response);
+					},
+					abort(error) {
+						reject(error);
+					},
+				})
+			)
+			.catch((error) => {
+				reject(error);
+			});
 	});
 }
