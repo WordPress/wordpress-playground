@@ -37,6 +37,21 @@ export const activatePlugin: StepHandler<ActivatePluginStep> = async (
 	progress?.tracker.setCaption(`Activating ${pluginName || pluginPath}`);
 
 	const docroot = await playground.documentRoot;
+	/**
+	 * Instead of checking the plugin activation response,
+	 * check if the plugin is active by looking at the active plugins list.
+	 *
+	 * We have to split the activation and the check into two PHP runs
+	 * because some plugins might redirect during activation,
+	 * which would prevent any output that happens after activation from being returned.
+	 *
+	 * Relying on the plugin activation response is not reliable because if the plugin activation
+	 * produces any output, WordPress will assume it's an activation error and return a WP_Error.
+	 * WordPress will still activate the plugin and load the required page,
+	 * but it will also show the error as a notice in wp-admin.
+	 * See WordPress source code for more details:
+	 * https://github.com/WordPress/wordpress-develop/blob/6.7/src/wp-admin/includes/plugin.php#L733
+	 */
 	const activatePluginResult = await playground.run({
 		code: `<?php
 			define( 'WP_ADMIN', true );
@@ -81,47 +96,18 @@ export const activatePlugin: StepHandler<ActivatePluginStep> = async (
 	}
 
 	/**
-	 * Instead of checking the plugin activation response,
-	 * check if the plugin is active by looking at the active plugins list.
+	 * Instead of trusting the activation response, check the active plugins list.
 	 *
-	 * We have to split the activation and the check into two PHP runs
-	 * because some plugins might redirect during activation,
-	 * which would prevent any output that happens after activation from being returned.
-	 *
-	 * Relying on the plugin activation response is not reliable because if the plugin activation
-	 * produces any output, WordPress will assume it's an activation error and return a WP_Error.
-	 * WordPress will still activate the plugin and load the required page,
-	 * but it will also show the error as a notice in wp-admin.
-	 * See WordPress source code for more details:
-	 * https://github.com/WordPress/wordpress-develop/blob/6.7/src/wp-admin/includes/plugin.php#L733
-	 *
-	 * Because some plugins can create an output, we need to use output buffering
-	 * to ensure the 'true' response is not polluted by other outputs.
-	 * If the plugin activation fails, we will return the buffered output as it might
-	 * contain more information about the failure.
+	 * We try to discard any extra output via output buffering. The script below must end by
+	 * printing a single "1" (active) or "0" (inactive) with no other output. Any other response
+	 * is treated as an activation failure so the caller can surface the raw text to the user.
 	 */
-	const isActiveCheckResult = await playground.run({
+	const activationStatusResult = await playground.run({
 		code: `<?php
 			ob_start();
 			require_once( getenv( 'DOCROOT' ) . "/wp-load.php" );
 
-			/**
-			 * Extracts the relative plugin path from either an absolute or relative plugin path.
-			 *
-			 * Absolute paths starting with plugin directory (e.g., '/wordpress/wp-content/plugins/test-plugin/index.php')
-			 * should be converted to relative paths (e.g., 'test-plugin/index.php')
-			 *
-			 * Directories should finish with a trailing slash to ensure we match the full plugin directory name.
-			 *
-			 * Examples:
-			 * - '/wordpress/wp-content/plugins/test-plugin/index.php' → 'test-plugin/index.php'
-			 * - '/wordpress/wp-content/plugins/test-plugin/' → 'test-plugin/'
-			 * - '/wordpress/wp-content/plugins/test-plugin' → 'test-plugin/'
-			 * - 'test-plugin/index.php' → 'test-plugin/index.php'
-			 * - 'test-plugin/' → 'test-plugin/'
-			 * - 'test-plugin' → 'test-plugin/'
-			 */
-			$plugin_directory = WP_PLUGIN_DIR . '/';
+			$plugin_directory = rtrim( WP_PLUGIN_DIR, '/' ) . '/';
 			$relative_plugin_path = getenv( 'PLUGIN_PATH' );
 			if (strpos($relative_plugin_path, $plugin_directory) === 0) {
 				$relative_plugin_path = substr($relative_plugin_path, strlen($plugin_directory));
@@ -132,13 +118,18 @@ export const activatePlugin: StepHandler<ActivatePluginStep> = async (
 			}
 
 			$active_plugins = get_option( 'active_plugins' );
+			if ( ! is_array( $active_plugins ) ) {
+				$active_plugins = array();
+			}
+			ob_end_clean();
+
 			foreach ( $active_plugins as $plugin ) {
 				if ( substr( $plugin, 0, strlen( $relative_plugin_path ) ) === $relative_plugin_path ) {
-					ob_end_clean();
-					die( 'true' );
+					die('1');
+					break;
 				}
 			}
-			die( ob_get_flush() ?: 'false' );
+			die('0');
 		`,
 		env: {
 			DOCROOT: docroot,
@@ -146,80 +137,14 @@ export const activatePlugin: StepHandler<ActivatePluginStep> = async (
 		},
 	});
 
-	if (isActiveCheckResult.text === 'true') {
-		// Plugin activation was successful, yay!
+	const rawStatus = (activationStatusResult.text ?? '').trim();
+	if (rawStatus === '1') {
 		return;
 	}
-
-	if (isActiveCheckResult.text !== 'false') {
-		logger.debug(isActiveCheckResult.text);
-
-		const recheckMarkerStart = '__WP_PLAYGROUND_PLUGIN_STATUS_START__';
-		const recheckMarkerEnd = '__WP_PLAYGROUND_PLUGIN_STATUS_END__';
-		const recheckResult = await playground.run({
-			code: `<?php
-				$marker_start = '${recheckMarkerStart}';
-				$marker_end = '${recheckMarkerEnd}';
-				$GLOBALS['__wp_playground_plugin_activation_status'] = 'false';
-
-				register_shutdown_function(
-					function () use ( $marker_start, $marker_end ) {
-						$status = $GLOBALS['__wp_playground_plugin_activation_status'] ?? 'false';
-						echo $marker_start . $status . $marker_end;
-					}
-				);
-
-				require_once( getenv( 'DOCROOT' ) . "/wp-load.php" );
-
-				$plugin_directory = WP_PLUGIN_DIR . '/';
-				$relative_plugin_path = getenv( 'PLUGIN_PATH' );
-				if (strpos($relative_plugin_path, $plugin_directory) === 0) {
-					$relative_plugin_path = substr($relative_plugin_path, strlen($plugin_directory));
-				}
-
-				if ( is_dir( $plugin_directory . $relative_plugin_path ) ) {
-					$relative_plugin_path = rtrim( $relative_plugin_path, '/' ) . '/';
-				}
-
-				$active_plugins = get_option( 'active_plugins' );
-				if ( ! is_array( $active_plugins ) ) {
-					$active_plugins = array();
-				}
-
-				foreach ( $active_plugins as $plugin ) {
-					if ( substr( $plugin, 0, strlen( $relative_plugin_path ) ) === $relative_plugin_path ) {
-						$GLOBALS['__wp_playground_plugin_activation_status'] = 'true';
-						break;
-					}
-				}
-				die();
-			`,
-			env: {
-				DOCROOT: docroot,
-				PLUGIN_PATH: pluginPath,
-			},
-		});
-
-		const recheckText = recheckResult.text ?? '';
-		const startIndex = recheckText.indexOf(recheckMarkerStart);
-		if (startIndex !== -1) {
-			const endIndex = recheckText.indexOf(
-				recheckMarkerEnd,
-				startIndex + recheckMarkerStart.length
-			);
-			if (endIndex !== -1) {
-				const status = recheckText
-					.slice(startIndex + recheckMarkerStart.length, endIndex)
-					.trim();
-				if (status === 'true') {
-					logger.debug(
-						`Plugin ${pluginPath} is active despite unexpected output; continuing.`
-					);
-					return;
-				}
-			}
-		}
+	if (rawStatus !== '0') {
+		logger.debug(rawStatus);
 	}
+
 	throw new Error(
 		`Plugin ${pluginPath} could not be activated – WordPress exited with no error. ` +
 			`Sometimes, when $_SERVER or site options are not configured correctly, ` +
