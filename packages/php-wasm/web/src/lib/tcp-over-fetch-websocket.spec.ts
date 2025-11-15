@@ -3,9 +3,13 @@ import {
 	RawBytesFetch,
 } from './tcp-over-fetch-websocket';
 import express from 'express';
-import type http from 'http';
+import https from 'https';
 import type { AddressInfo } from 'net';
 import zlib from 'zlib';
+import {
+	generateCertificate,
+	cleanupCertificate,
+} from './test-utils/generate-certificate';
 
 const pygmalion = `PREFACE TO PYGMALION.
 
@@ -58,16 +62,19 @@ least an ill-natured man: very much the opposite, I should say; but he
 would not suffer fools gladly.`;
 
 describe('TCPOverFetchWebsocket', () => {
-	let server: http.Server;
+	let server: https.Server;
 	let host: string;
 	let port: number;
+	let originalRejectUnauthorized: string | undefined;
 
 	beforeAll(async () => {
+		// Allow self-signed certificates for testing
+		originalRejectUnauthorized = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+		process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+
 		const app = express();
-		server = app.listen(0);
-		const address = server.address() as AddressInfo;
-		host = `127.0.0.1`;
-		port = address.port;
+
+		// Set up all routes BEFORE creating the server
 		app.get('/simple', (req, res) => {
 			res.send('Hello, World!');
 		});
@@ -138,10 +145,31 @@ describe('TCPOverFetchWebsocket', () => {
 		app.get('/error', (req, res) => {
 			res.status(500).send('Internal Server Error');
 		});
+
+		// Now create and start the HTTPS server
+		const { cert, key } = generateCertificate();
+		server = https.createServer({ cert, key }, app);
+
+		// Wait for server to start listening
+		await new Promise<void>((resolve) => {
+			server.listen(0, () => resolve());
+		});
+
+		const address = server.address() as AddressInfo;
+		host = `127.0.0.1`;
+		port = address.port;
 	});
 
 	afterAll(() => {
 		server.close();
+		cleanupCertificate();
+		// Restore original NODE_TLS_REJECT_UNAUTHORIZED value
+		if (originalRejectUnauthorized !== undefined) {
+			process.env.NODE_TLS_REJECT_UNAUTHORIZED =
+				originalRejectUnauthorized;
+		} else {
+			delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+		}
 	});
 
 	it('should handle a simple HTTP request', async () => {
