@@ -34,7 +34,20 @@ describe('File locking', () => {
 	});
 
 	describe('SQLite DB locking (relying upon fcntl())', () => {
-		it('should be able to lock the database file exclusively', async () => {});
+		it('should be able to obtain an exclusive lock on the database file', async () => {});
+		it('should be able to obtain a shared lock on the database file');
+		it(
+			'should deny an exclusive lock when another process has a shared lock'
+		);
+		it(
+			'should deny a shared lock when another process has an exclusive lock'
+		);
+		it(
+			'should release a lock when its associated file descriptor is closed'
+		);
+		it(
+			'should be able to obtain multiple shared locks on the database file'
+		);
 	});
 
 	describe('PHP flock()', () => {
