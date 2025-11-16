@@ -169,7 +169,8 @@
 					"php-worker.spec.ts",
 					"php-soap.spec.ts",
 					"php-image-extensions.spec.ts",
-					"php-imagick.spec.ts"
+					"php-imagick.spec.ts",
+					"php-file-locking.spec.ts"
 				]
 			}
 		},
@@ -197,7 +198,8 @@
 					"php-worker.spec.ts",
 					"php-soap.spec.ts",
 					"php-image-extensions.spec.ts",
-					"php-imagick.spec.ts"
+					"php-imagick.spec.ts",
+					"php-file-locking.spec.ts"
 				]
 			}
 		},
