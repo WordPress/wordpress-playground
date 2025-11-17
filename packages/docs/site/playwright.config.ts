@@ -24,6 +24,7 @@ if (mountDir && fs.existsSync(buildDir) && !fs.existsSync(mountDir)) {
 	try {
 		fs.symlinkSync(buildDir, mountDir, 'junction');
 	} catch (error) {
+		// eslint-disable-next-line no-console
 		console.warn(
 			`docs-site e2e: failed to create symlink for base path ${normalizedBasePath}`,
 			error
