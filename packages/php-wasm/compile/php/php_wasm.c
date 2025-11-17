@@ -1673,7 +1673,7 @@ int EMSCRIPTEN_KEEPALIVE wasm_sapi_handle_request()
 	zend_file_handle file_handle;
 
 	file_handle.type = ZEND_HANDLE_FILENAME;
-#if PHP_MAJOR_VERSION >= 8
+#if PHP_MAJOR_VERSION > 8 || (PHP_MAJOR_VERSION == 8 && PHP_MINOR_VERSION >= 1)
 	zend_string *filename = zend_string_init(
 		SG(request_info).path_translated,
 		strlen(SG(request_info).path_translated),
