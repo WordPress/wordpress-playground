@@ -214,32 +214,26 @@ error_log = ${errorLogPath}
 				'lastErrorMsg': 'not an error',
 			});
 		});
-		it.todo('should be able to obtain a shared lock on the database file');
-		it.todo(
-			'should deny an exclusive lock when another process has a shared lock'
-		);
-		it.todo(
-			'should deny a shared lock when another process has an exclusive lock'
-		);
+		it.todo('cannot read from DB while another process has an exclusive lock');
+		it.todo('cannot write to DB while another process has a shared lock');
+		it.todo('can read from DB while another process has a shared lock');
+		it.todo('cannot write to DB while another process has a shared lock');
+		it.todo('should release a shared lock when its associated process is terminated');
+		it.todo('should release an exclusive lock when its associated process is terminated');
 		it.todo(
 			'should release a lock when its associated file descriptor is closed'
-		);
-		it.todo(
-			'should be able to obtain multiple shared locks on the database file'
 		);
 	}, 5000);
 
 	describe('PHP flock()', () => {
 		it.todo('should be able to acquire an exclusive lock on a file');
 		it.todo('should be able to acquire a shared lock on a file');
-		it.todo(
-			'should be able to acquire an exclusive lock on a file and a shared lock on a file'
-		);
-		it.todo(
-			'should be able to acquire a shared lock on a file and an exclusive lock on a file'
-		);
-		it.todo(
-			'should be able to acquire a shared lock on a file and an exclusiove lock on a file'
-		);
+		it.todo('should deny an exclusive lock when another process has a shared lock on a file');
+		it.todo('should deny a shared lock when another process has an exclusive lock on a file');
+		it.todo('should grant multiple shared locks on a file');
+		it.todo('should release a shared lock when its associated file descriptor is closed');
+		it.todo('should release an exclusive lock when its associated file descriptor is closed');
+		it.todo('should release a shared lock when its associated process is terminated');
+		it.todo('should release an exclusive lock when its associated process is terminated');
 	});
 });
