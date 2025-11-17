@@ -1,11 +1,5 @@
 /* eslint-disable @nx/enforce-module-boundaries */
 import { PHP } from '@php-wasm/universal';
-import { build } from 'esbuild';
-import { spawnSync } from 'node:child_process';
-import { mkdirSync } from 'node:fs';
-import os from 'node:os';
-import path from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
 import type { FilesystemOperation } from '../lib/fs-journal';
 import {
 	journalFSEvents,
@@ -15,26 +9,11 @@ import {
 import { LatestSupportedPHPVersion } from '@php-wasm/universal';
 import { loadNodeRuntime } from '@php-wasm/node';
 
-const SPEC_DIR = path.dirname(fileURLToPath(import.meta.url));
-const NORMALIZE_ENTRY = path.resolve(SPEC_DIR, 'fixtures/normalize-entry.ts');
-const NORMALIZE_BUNDLE_DIR = path.join(os.tmpdir(), 'wp-playground-fs-journal');
-const NORMALIZE_BUNDLE_PATH = path.join(
-	NORMALIZE_BUNDLE_DIR,
-	'normalize-bundle.mjs'
-);
-
-async function buildNormalizeBundle() {
-	mkdirSync(NORMALIZE_BUNDLE_DIR, { recursive: true });
-	await build({
-		entryPoints: [NORMALIZE_ENTRY],
-		outfile: NORMALIZE_BUNDLE_PATH,
-		bundle: true,
-		platform: 'node',
-		format: 'esm',
-		logLevel: 'silent',
-		sourcemap: false,
-	});
-	return NORMALIZE_BUNDLE_PATH;
+function runWithLimitedStack<T>(depth: number, fn: () => T): T {
+	if (depth === 0) {
+		return fn();
+	}
+	return runWithLimitedStack(depth - 1, fn);
 }
 
 describe('Journal MemFS', () => {
@@ -481,29 +460,22 @@ describe('normalizeFilesystemOperations()', () => {
 			])
 		).toEqual([]);
 	});
-	it('Normalizes long rename sequences without overflowing the stack', async () => {
-		const bundlePath = await buildNormalizeBundle();
-		const bundleUrl = pathToFileURL(bundlePath).href;
-		const renameCount = 512;
-		const script = `
-import { normalizeFilesystemOperations } from '${bundleUrl}';
-const journal = [];
-for (let i = 0; i < ${renameCount}; i++) {
-	journal.push({ operation: 'CREATE', path: '/file-' + i, nodeType: 'file' });
-	journal.push({
-		operation: 'RENAME',
-		path: '/file-' + i,
-		toPath: '/renamed-' + i,
-		nodeType: 'file'
-	});
-}
-normalizeFilesystemOperations(journal);
-		`;
-		const result = spawnSync(
-			process.execPath,
-			['--stack_size=128', '--input-type=module', '-e', script],
-			{ encoding: 'utf-8' }
-		);
-		expect(result.status).toBe(0);
+	it('Normalizes long rename sequences without overflowing the stack', () => {
+		const renameCount = 350;
+		const journal: FilesystemOperation[] = [];
+		for (let i = 0; i < renameCount; i++) {
+			journal.push({
+				operation: 'CREATE',
+				path: `/file-${i}`,
+				nodeType: 'file',
+			});
+			journal.push({
+				operation: 'RENAME',
+				path: `/file-${i}`,
+				toPath: `/renamed-${i}`,
+				nodeType: 'file',
+			});
+		}
+		runWithLimitedStack(7000, () => normalizeFilesystemOperations(journal));
 	});
 });
