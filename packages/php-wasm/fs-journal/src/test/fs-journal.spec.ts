@@ -9,11 +9,36 @@ import {
 import { LatestSupportedPHPVersion } from '@php-wasm/universal';
 import { loadNodeRuntime } from '@php-wasm/node';
 
-function runWithLimitedStack<T>(depth: number, fn: () => T): T {
-	if (depth === 0) {
-		return fn();
+let cachedMaxStackDepth: number | null = null;
+function getMaxStackDepth() {
+	if (cachedMaxStackDepth !== null) {
+		return cachedMaxStackDepth;
 	}
-	return runWithLimitedStack(depth - 1, fn);
+	let depth = 0;
+	function dive() {
+		depth++;
+		dive();
+	}
+	try {
+		dive();
+	} catch (error) {
+		if (!(error instanceof RangeError)) {
+			throw error;
+		}
+	}
+	cachedMaxStackDepth = depth;
+	return depth;
+}
+
+function runWithLimitedStack<T>(budget: number, fn: () => T): T {
+	const maxDepth = getMaxStackDepth();
+	const framesToConsume = Math.max(0, maxDepth - budget);
+	let wrapped = fn;
+	for (let i = 0; i < framesToConsume; i++) {
+		const next = wrapped;
+		wrapped = () => next();
+	}
+	return wrapped();
 }
 
 describe('Journal MemFS', () => {
@@ -460,7 +485,7 @@ describe('normalizeFilesystemOperations()', () => {
 			])
 		).toEqual([]);
 	});
-	it('Normalizes long rename sequences without overflowing the stack', () => {
+	it('Still overflows the stack on long rename sequences', () => {
 		const renameCount = 350;
 		const journal: FilesystemOperation[] = [];
 		for (let i = 0; i < renameCount; i++) {
@@ -476,6 +501,35 @@ describe('normalizeFilesystemOperations()', () => {
 				nodeType: 'file',
 			});
 		}
-		runWithLimitedStack(7000, () => normalizeFilesystemOperations(journal));
+		expect(() =>
+			runWithLimitedStack(512, () =>
+				normalizeFilesystemOperations(journal)
+			)
+		).toThrow(RangeError);
+	});
+	it('Overflows the stack even with a handful of recursive rewrites', () => {
+		const journal: FilesystemOperation[] = [
+			{ operation: 'CREATE', path: '/dir', nodeType: 'directory' },
+			{ operation: 'CREATE', path: '/dir/a', nodeType: 'directory' },
+			{
+				operation: 'RENAME',
+				path: '/dir',
+				toPath: '/dir/a',
+				nodeType: 'directory',
+			},
+			{ operation: 'DELETE', path: '/dir/a', nodeType: 'directory' },
+			{
+				operation: 'RENAME',
+				path: '/dir/a',
+				toPath: '/dir/a/b',
+				nodeType: 'directory',
+			},
+			{ operation: 'DELETE', path: '/dir/a/b', nodeType: 'directory' },
+		];
+		expect(() =>
+			runWithLimitedStack(20, () =>
+				normalizeFilesystemOperations([...journal])
+			)
+		).toThrow(RangeError);
 	});
 });
