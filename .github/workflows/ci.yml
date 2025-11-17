@@ -169,6 +169,19 @@ jobs:
     test-e2e-playwright-prepare:
         runs-on: ubuntu-latest
         steps:
+            - name: Free up runner disk space
+              shell: bash
+              run: |
+                  set -euo pipefail
+                  echo "Disk usage before cleanup:"
+                  df -h
+                  sudo rm -rf /usr/local/lib/android
+                  sudo rm -rf /usr/share/dotnet
+                  sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+                  sudo rm -rf /opt/ghc
+                  sudo rm -rf /opt/hostedtoolcache/CodeQL
+                  echo "Disk usage after cleanup:"
+                  df -h
             - uses: actions/checkout@v4
               with:
                   submodules: true
@@ -253,6 +266,18 @@ jobs:
                   name: playwright-components-report
                   path: packages/playground/components/playwright-report/
                   if-no-files-found: ignore
+
+    test-docs-api-reference:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  submodules: true
+            - uses: ./.github/actions/prepare-playground
+            - name: Install Playwright Browsers
+              run: npx playwright install --with-deps chromium
+            - name: Verify docs API reference
+              run: npx nx run docs-site:api-e2e
 
     test-built-npm-packages:
         runs-on: ubuntu-latest

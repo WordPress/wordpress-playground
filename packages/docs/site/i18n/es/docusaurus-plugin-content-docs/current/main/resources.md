@@ -18,6 +18,18 @@ There's a set of redirections in place to make it easier the access to some of t
 
 Hay un conjunto de redirecciones para facilitar el acceso a algunas de las herramientas relacionadas con Playground:
 
+<!--
+<ul id="list-resources-redirections">
+<li><a href="https://playground.wordpress.net/"><strong>https://playground.wordpress.net/</strong></a> → Playground instance</li>
+<li><a href="https://playground.wordpress.net/docs">https://playground.wordpress.net<strong>/docs</strong></a> → Playground Docs</li>
+<li><a href="https://playground.wordpress.net/builder">https://playground.wordpress.net<strong>/builder</strong></a> → Playground Blueprints Builder</li>
+<li><a href="https://playground.wordpress.net/wordpress">https://playground.wordpress.net<strong>/wordpress</strong></a> → Playground PR viewer for WordPress</li>
+<li><a href="https://playground.wordpress.net/gutenberg">https://playground.wordpress.net<strong>/gutenberg</strong></a> → Playground PR viewer for Gutenberg</li>
+<li><a href="https://playground.wordpress.net/proxy">https://playground.wordpress.net<strong>/proxy</strong></a> → Playground Proxy Service <em>(see <a href="/blueprints/steps/resources#urlreference">URLReference</a> for more info)</em></li>
+</ul>
+:::
+-->
+
 <ul id="list-resources-redirections">
 <li><a href="https://playground.wordpress.net/"><strong>https://playground.wordpress.net/</strong></a> → Instancia de Playground</li>
 <li><a href="https://playground.wordpress.net/docs">https://playground.wordpress.net<strong>/docs</strong></a> → Documentación de Playground</li>
@@ -54,7 +66,7 @@ Hay un conjunto de redirecciones para facilitar el acceso a algunas de las herra
 
 <!--
 -   [Official demo](https://playground.wordpress.net/) and the [showcase](https://developer.wordpress.org/playground) app – install a theme, try out a plugin, create a few pages, export what you've built
--   [@wp-playground/cli](https://www.npmjs.com/package/@wp-playground/cli) – a CLI tool for instant WordPress dev enviroment
+-   [@wp-playground/cli](https://www.npmjs.com/package/@wp-playground/cli) – a CLI tool for instant WordPress dev environment
 -   [WordPress Playground for VS Code](https://marketplace.visualstudio.com/items?itemName=WordPressPlayground.wordpress-playground)
 -   Live Translations: [App](https://translate.wordpress.org/projects/wp-plugins/friends/dev/pl/default/playground/), [announcement](https://make.wordpress.org/polyglots/2023/04/19/wp-translation-playground/), [more details](https://make.wordpress.org/polyglots/2023/05/08/translate-live-updates-to-the-translation-playground/)
 -   [Interactive code block](https://wordpress.org/plugins/interactive-code-block/) which powers the [HTML Tag Processor tutorial](https://adamadam.blog/2023/02/16/how-to-modify-html-in-a-php-wordpress-plugin-using-the-new-tag-processor-api/) and the [Playground JS API tutorial](https://wordpress.github.io/wordpress-playground/developers/apis/javascript-api/)
@@ -130,7 +142,7 @@ Hay un conjunto de redirecciones para facilitar el acceso a algunas de las herra
 -   [Liberating data with WordPress Playground in a Browser Extension at WordCamp Netherlands 2024](https://wordpress.tv/2024/12/24/liberating-data-with-wordpress-playground-in-a-browser-extension/) by Alex Kirk
 -   [Beyond the Playground: WordPress as a Tool and Product Builder at WCUS 2024](https://wordpress.tv/2024/10/10/beyond-the-playground-wordpress-as-a-tool-and-product-builder/) by Dennis Snell
 -   [Create a demo with Playground at WC Asia 2025](https://wordpress.tv/2025/04/30/create-a-demo-with-playground/) by Birgit Pauli-Haack
--   [Disssecting WordPress Playground at WordCamp Nepal 2025](https://wordpress.tv/2025/04/30/dissecting-wordpress-playground/) by Sakar Upadhyaya Khatiwada
+-   [Dissecting WordPress Playground at WordCamp Nepal 2025](https://wordpress.tv/2025/04/30/dissecting-wordpress-playground/) by Sakar Upadhyaya Khatiwada
 -   [Building Automated Test with WordPress Playground at WCEU 2025](https://wordpress.tv/2025/06/07/building-automated-tests-with-wordpress-playground/)by Berislav Grgicak
 -   [From Zero to Demo: Mastering WordPress Playground Blueprints at WCEU 2025](https://wordpress.tv/2025/06/07/from-zero-to-demo-mastering-wordpress-playground-blueprints/) by Birgit Pauli-Haack
 -   [Playground at WordCamp Gliwice (in Polish)](https://www.youtube.com/watch?v=AUHklF9GdL8&list=PLiCne9CeL82_hGuJOAJlsc84WxVDSH-c9&index=4) by Adam Zielinski

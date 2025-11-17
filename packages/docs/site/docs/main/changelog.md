@@ -9,6 +9,62 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
+## [v3.0.22] (2025-11-17) 
+
+### Enhancements
+
+
+#### Boot Flow
+
+- [Boot] Verify permalink structure is actually set. ([#2902](https://github.com/WordPress/wordpress-playground/pull/2902))
+
+### Blueprints
+
+- V1] Rewrite github.com/owner/repo/raw URLs. ([#2892](https://github.com/WordPress/wordpress-playground/pull/2892))
+
+### Documentation
+
+- Document the new GitHub Preview button action. ([#2893](https://github.com/WordPress/wordpress-playground/pull/2893))
+- [Docs] Adding link at the documentation sidebar for PR preview link page. ([#2895](https://github.com/WordPress/wordpress-playground/pull/2895))
+- [Docs] Documentation Expansion for php-wasm/node. ([#2780](https://github.com/WordPress/wordpress-playground/pull/2780))
+- [Docs] Updating sidebar to add Xdebug pages. ([#2881](https://github.com/WordPress/wordpress-playground/pull/2881))
+
+### PHP WebAssembly
+
+- Try avoiding URL.canParse for older version of Safari. ([#2887](https://github.com/WordPress/wordpress-playground/pull/2887))
+
+### Website
+
+- Remove "preview WordPress core branch" feature. ([#2894](https://github.com/WordPress/wordpress-playground/pull/2894))
+- Support previewing WordPress and Gutenberg branches, not just PRs. ([#2868](https://github.com/WordPress/wordpress-playground/pull/2868))
+
+### Bug Fixes
+
+- [CLI] Fix null and "latest" WP version resolution and improve unzip error message. ([#2889](https://github.com/WordPress/wordpress-playground/pull/2889))
+- [CLI] Fix run-cli leak which was revealed by repeated runCLI() calls during test. ([#2888](https://github.com/WordPress/wordpress-playground/pull/2888))
+
+### 
+
+- CLI] Allow API consumers to rely upon option validation and default values. ([#2883](https://github.com/WordPress/wordpress-playground/pull/2883))
+
+### Various
+
+- Minor stylistic and punctuation improvements. ([#2884](https://github.com/WordPress/wordpress-playground/pull/2884))
+- Revise error messages and coding guidelines. ([#2879](https://github.com/WordPress/wordpress-playground/pull/2879))
+- Update footer labels in localization file. ([#2878](https://github.com/WordPress/wordpress-playground/pull/2878))
+- [i18n] Add Japanese translations to Blueprints JSON and the API Client and Mount data. ([#2882](https://github.com/WordPress/wordpress-playground/pull/2882))
+- [i18n] Adding Italian translations. ([#2865](https://github.com/WordPress/wordpress-playground/pull/2865))
+- [i18n] Create contributor-day-table-lead.md for Gujarati. ([#2866](https://github.com/WordPress/wordpress-playground/pull/2866))
+- i18n: Full Translation of "Build" to Spanish. ([#2906](https://github.com/WordPress/wordpress-playground/pull/2906))
+- i18n: Minor fixes on web-instance.md Spanish translation. ([#2899](https://github.com/WordPress/wordpress-playground/pull/2899))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @brandonpayton @fellyph @mehrazmorshed @praful2111 @shimotmk @SirLouen @Successfulsebunya
+
+
 ## [v3.0.21] (2025-11-10) 
 
 ### Bug Fixes
