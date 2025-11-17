@@ -176,12 +176,6 @@ RUN set -euxo pipefail; \
 		/root/replace.sh 's|INTL_SHARED_LIBADD\s*=.*||' Makefile; \
 	fi; \
 
-	# The generated Makefile incorrectly sets INTL_SHARED_LIBADD to include static ICU libraries.
-	# This breaks building a dynamic intl extension with Emscripten.
-	if [[ "${PHP_VERSION:0:1}" -eq "7" && "${PHP_VERSION:2:1}" -le "3" ]]; then \
-		/root/replace.sh 's|INTL_SHARED_LIBADD\s*=.*||' Makefile; \
-	fi; \
-
 	export EMCC_FLAGS="-sSIDE_MODULE -D__x86_64__"; \
 
 	if [ "$WITH_DEBUG" = "yes" ]; then \
