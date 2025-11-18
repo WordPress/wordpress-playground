@@ -249,13 +249,23 @@ type PresentationHelpers = {
 	startWithoutBlueprintBusy: boolean;
 };
 
-type ErrorPresentation = {
-	title: string;
-	intro?: React.ReactNode;
-	list?: React.ReactNode[];
-	body?: React.ReactNode;
-	detailsSummary?: string;
-	actions?: React.ReactNode[];
+const MODAL_TITLES: Partial<Record<SiteError, string>> = {
+	'directory-handle-not-found-in-indexeddb':
+		'Local directory permissions expired',
+	'directory-handle-permission-denied': 'Local directory permissions expired',
+	'directory-handle-directory-does-not-exist': 'Local directory was deleted',
+	'github-artifact-expired': 'This GitHub artifact expired',
+	'blueprint-fetch-failed': 'Blueprint could not be loaded',
+	'blueprint-filesystem-required': 'Blueprint resources need a filesystem',
+	'blueprint-validation-failed': 'Blueprint validation error',
+	'directory-handle-unknown-error': 'The local directory became unavailable',
+	'site-boot-failed': 'Playground crashed',
+};
+
+const DETAIL_SUMMARY_OVERRIDES: Partial<Record<SiteError, string>> = {
+	'blueprint-fetch-failed': 'Network error details',
+	'blueprint-filesystem-required': 'Resource loader details',
+	'blueprint-validation-failed': 'Validation output',
 };
 
 function SiteErrorModal({
@@ -383,15 +393,12 @@ function SiteErrorModal({
 		startWithoutBlueprintBusy: isStartingWithoutBlueprint,
 	};
 
-	const presentation = getErrorPresentation({
-		error,
-		site,
-		helpers,
-	});
-
-	const showActionBar = Boolean(
-		presentation.actions?.length || !isDeveloperError
-	);
+	const modalTitle = MODAL_TITLES[error] ?? 'Playground crashed';
+	const detailSummary =
+		DETAIL_SUMMARY_OVERRIDES[error] ??
+		(isDeveloperError ? 'Inspection details' : 'Error details');
+	const actionButtons = getErrorActions(error, helpers);
+	const showActionBar = Boolean(actionButtons.length || !isDeveloperError);
 
 	return (
 		<Modal
@@ -403,7 +410,7 @@ function SiteErrorModal({
 								? 'Blueprint issue'
 								: 'Runtime error'}
 						</span>{' '}
-						{presentation.title}
+						{modalTitle}
 					</>
 				) as unknown as string
 			}
@@ -416,28 +423,13 @@ function SiteErrorModal({
 		>
 			<div className={css.errorModalContent}>
 				<div className={css.errorModalBody}>
-					{presentation.intro ? (
-						<p className={css.errorLead}>{presentation.intro}</p>
-					) : null}
-					{presentation.list ? (
-						<ul className={css.errorList}>
-							{presentation.list.map((item, index) => (
-								<li key={index}>{item}</li>
-							))}
-						</ul>
-					) : null}
-					{presentation.body}
+					<ErrorCopy error={error} site={site} />
 					{detailText ? (
 						<details
 							className={css.errorDetails}
 							open={isDeveloperError}
 						>
-							<summary>
-								{presentation.detailsSummary ||
-									(isDeveloperError
-										? 'Inspection details'
-										: 'Error details')}
-							</summary>
+							<summary>{detailSummary}</summary>
 							<pre>{detailText}</pre>
 						</details>
 					) : null}
@@ -508,7 +500,7 @@ function SiteErrorModal({
 							</>
 						)}
 						{(!isReporting || reportSubmitted) &&
-							presentation.actions?.map((action, index) => (
+							actionButtons.map((action, index) => (
 								<div
 									key={index}
 									className={css.errorActionWrapper}
@@ -523,74 +515,66 @@ function SiteErrorModal({
 	);
 }
 
-function getErrorPresentation({
-	error,
-	site,
-	helpers,
-}: {
-	error: SiteError;
-	site: SiteInfo;
-	helpers: PresentationHelpers;
-}): ErrorPresentation {
+function ErrorCopy({ error, site }: { error: SiteError; site: SiteInfo }) {
 	switch (error) {
 		case 'directory-handle-not-found-in-indexeddb':
 		case 'directory-handle-permission-denied':
-			return {
-				title: 'Local directory permissions expired',
-				intro: 'The browser no longer lets Playground access your previously shared local directory.',
-				list: [
-					'Re-selecting the directory is not supported yet.',
-					<>
-						Need urgent access? Let us know on{' '}
-						<a
-							target="_blank"
-							rel="noopener noreferrer"
-							href="https://github.com/WordPress/wordpress-playground/issues/1746"
-						>
-							GitHub
-						</a>
-						.
-					</>,
-				],
-			};
+			return (
+				<>
+					<p className={css.errorLead}>
+						The browser no longer lets Playground access your
+						previously shared local directory.
+					</p>
+					<ul className={css.errorList}>
+						<li>
+							Re-selecting the directory is not supported yet.
+						</li>
+						<li>
+							Need urgent access? Let us know on{' '}
+							<a
+								target="_blank"
+								rel="noopener noreferrer"
+								href="https://github.com/WordPress/wordpress-playground/issues/1746"
+							>
+								GitHub
+							</a>
+							.
+						</li>
+					</ul>
+				</>
+			);
 		case 'directory-handle-directory-does-not-exist':
-			return {
-				title: 'Local directory was deleted',
-				intro: 'It seems like the local directory backing this site was removed. This Playground copy will not load anymore.',
-				actions: [
-					<Button
-						variant="primary"
-						key="delete-site"
-						onClick={helpers.deleteSite}
-					>
-						Delete this site and try again
-					</Button>,
-				],
-			};
+			return (
+				<p className={css.errorLead}>
+					It seems like the local directory backing this site was
+					removed. This Playground copy will not load anymore.
+				</p>
+			);
 		case 'github-artifact-expired':
-			return {
-				title: 'This GitHub artifact expired',
-				intro: 'GitHub only keeps pull-request build artifacts for a limited time. Re-run the workflow or restart without that PR.',
-				actions: [
-					<Button
-						variant="primary"
-						key="restart-pr"
-						onClick={helpers.restartWithoutPr}
-					>
-						Restart without that PR
-					</Button>,
-				],
-			};
-		case 'blueprint-fetch-failed':
-			return {
-				title: 'Blueprint could not be loaded',
-				intro: 'Double-check the Blueprint URL and hosting setup before trying again.',
-				list: [
-					'The Blueprint URL might be wrong or the file is unreachable.',
-					'CORS might be blocking the request.',
-					'The file must be valid JSON or blueprint.zip.',
-				],
-				body: (
+			return (
+				<p className={css.errorLead}>
+					GitHub only keeps pull-request build artifacts for a limited
+					time. Re-run the workflow or restart without that PR.
+				</p>
+			);
+		case 'blueprint-fetch-failed': {
+			const blueprintUrl = getBlueprintSourceUrl(site);
+			return (
+				<>
+					<p className={css.errorLead}>
+						Playground couldn’t download the Blueprint file. Make
+						sure the file is reachable, responds with valid JSON or
+						a blueprint.zip archive, and is still available at the
+						link before trying again.
+					</p>
+					{blueprintUrl ? (
+						<p>
+							Blueprint URL:{' '}
+							<code style={{ wordBreak: 'break-all' }}>
+								{blueprintUrl}
+							</code>
+						</p>
+					) : null}
 					<p>
 						<a
 							target="_blank"
@@ -600,29 +584,23 @@ function getErrorPresentation({
 							Troubleshoot Blueprint loading issues ↗
 						</a>
 					</p>
-				),
-				actions: [
-					<Button
-						variant="primary"
-						key="start-without-blueprint"
-						onClick={() => helpers.startWithoutBlueprint()}
-						isBusy={helpers.startWithoutBlueprintBusy}
-						disabled={helpers.startWithoutBlueprintBusy}
-					>
-						Start without a Blueprint
-					</Button>,
-				],
-				detailsSummary: 'Network error details',
-			};
+				</>
+			);
+		}
 		case 'blueprint-filesystem-required':
-			return {
-				title: 'Blueprint resources need a filesystem',
-				intro: 'This Blueprint expects bundled files (plugins, media, etc.), but no filesystem was provided.',
-				list: [
-					'Ensure you are loading a blueprint.zip bundle.',
-					'Confirm that referenced files exist next to the Blueprint.',
-				],
-				body: (
+			return (
+				<>
+					<p className={css.errorLead}>
+						This Blueprint expects bundled files (plugins, media,
+						etc.), but no filesystem was provided.
+					</p>
+					<ul className={css.errorList}>
+						<li>Ensure you are loading a blueprint.zip bundle.</li>
+						<li>
+							Confirm that referenced files exist next to the
+							Blueprint.
+						</li>
+					</ul>
 					<p>
 						<a
 							target="_blank"
@@ -632,23 +610,15 @@ function getErrorPresentation({
 							Learn how Blueprint resources work ↗
 						</a>
 					</p>
-				),
-				actions: [
-					<Button
-						variant="primary"
-						key="try-again"
-						onClick={helpers.reload}
-					>
-						Try again
-					</Button>,
-				],
-				detailsSummary: 'Resource loader details',
-			};
+				</>
+			);
 		case 'blueprint-validation-failed':
-			return {
-				title: 'Blueprint validation error',
-				intro: 'The Blueprint does not conform to the required JSON schema. Fix the validation output and retry.',
-				body: (
+			return (
+				<>
+					<p className={css.errorLead}>
+						The Blueprint does not conform to the required JSON
+						schema. Fix the validation output and retry.
+					</p>
 					<p>
 						<a
 							target="_blank"
@@ -658,41 +628,101 @@ function getErrorPresentation({
 							Review the Blueprint data format ↗
 						</a>
 					</p>
-				),
-				actions: [
-					<Button
-						variant="primary"
-						key="start-without-blueprint-invalid"
-						onClick={() => helpers.startWithoutBlueprint()}
-						isBusy={helpers.startWithoutBlueprintBusy}
-						disabled={helpers.startWithoutBlueprintBusy}
-					>
-						Start without a Blueprint
-					</Button>,
-				],
-				detailsSummary: 'Validation output',
-			};
+				</>
+			);
 		case 'directory-handle-unknown-error':
-			return {
-				title: 'The local directory became unavailable',
-				intro: 'The browser could no longer access your local directory handle. Re-importing the folder will be necessary to continue.',
-			};
+			return (
+				<p className={css.errorLead}>
+					The browser could no longer access your local directory
+					handle. Re-importing the folder will be necessary to
+					continue.
+				</p>
+			);
 		case 'site-boot-failed':
 		default:
-			return {
-				title: `Playground crashed`,
-				intro: 'Something unexpected interrupted the boot process. Reload the tab or spin up a new site.',
-				actions: [
-					<Button
-						variant="primary"
-						key="reload-tab"
-						onClick={helpers.reload}
-					>
-						Reload Fresh Playground
-					</Button>,
-				],
-			};
+			return (
+				<p className={css.errorLead}>
+					Something unexpected interrupted the boot process. Reload
+					the tab or spin up a new site.
+				</p>
+			);
 	}
+}
+
+function getErrorActions(
+	error: SiteError,
+	helpers: PresentationHelpers
+): React.ReactNode[] {
+	const startWithoutBlueprintButton = (key: string) => (
+		<Button
+			variant="primary"
+			key={key}
+			onClick={() => helpers.startWithoutBlueprint()}
+			isBusy={helpers.startWithoutBlueprintBusy}
+			disabled={helpers.startWithoutBlueprintBusy}
+		>
+			Start without a Blueprint
+		</Button>
+	);
+
+	switch (error) {
+		case 'directory-handle-directory-does-not-exist':
+			return [
+				<Button
+					variant="primary"
+					key="delete-site"
+					onClick={helpers.deleteSite}
+				>
+					Delete this site and try again
+				</Button>,
+			];
+		case 'github-artifact-expired':
+			return [
+				<Button
+					variant="primary"
+					key="restart-pr"
+					onClick={helpers.restartWithoutPr}
+				>
+					Restart without that PR
+				</Button>,
+			];
+		case 'blueprint-fetch-failed':
+			return [startWithoutBlueprintButton('start-without-blueprint')];
+		case 'blueprint-filesystem-required':
+			return [
+				<Button
+					variant="primary"
+					key="try-again"
+					onClick={helpers.reload}
+				>
+					Try again
+				</Button>,
+			];
+		case 'blueprint-validation-failed':
+			return [
+				startWithoutBlueprintButton('start-without-blueprint-invalid'),
+			];
+		case 'directory-handle-unknown-error':
+		case 'directory-handle-not-found-in-indexeddb':
+		case 'directory-handle-permission-denied':
+			return [];
+		case 'site-boot-failed':
+		default:
+			return [
+				<Button
+					variant="primary"
+					key="reload-tab"
+					onClick={helpers.reload}
+				>
+					Reload Fresh Playground
+				</Button>,
+			];
+	}
+}
+
+function getBlueprintSourceUrl(site?: SiteInfo): string | undefined {
+	const source = site?.metadata?.originalBlueprintSource;
+	return source?.type === 'remote-url' ? source.url : undefined;
 }
 
 function formatErrorDetails(
