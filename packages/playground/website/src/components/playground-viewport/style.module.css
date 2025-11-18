@@ -30,13 +30,98 @@
 	p {
 		margin-bottom: 15px;
 	}
-
-	.actionButton {
-		display: block;
-		margin: 0 auto;
-	}
 }
 
 .hidden {
 	display: none;
+}
+
+.error-modal {
+	width: min(860px, calc(100vw - 32px));
+	max-width: none;
+	max-height: 83dvh;
+
+	:global(.components-modal__header-heading) {
+		display: flex;
+		width: 100%;
+		align-items: center;
+		gap: 10px;
+	}
+
+	:global(p) {
+		margin: 0;
+	}
+}
+
+.error-modal-body {
+	display: flex;
+	flex-direction: column;
+	gap: 1rem;
+}
+
+.error-badge {
+	align-self: flex-start;
+	font-size: 0.7rem;
+	text-transform: uppercase;
+	letter-spacing: 0.12em;
+	font-weight: 600;
+	background: #ede9fe;
+	color: #4c1d95;
+	padding: 0.25rem 0.75rem;
+	border-radius: 999px;
+}
+
+.error-modal-crash .error-badge {
+	background: #ffe4e6;
+	color: #9f1239;
+}
+
+.error-lead {
+	font-size: 1rem;
+	line-height: 1.6;
+	color: #1d2327;
+	margin: 0;
+}
+
+.error-list {
+	margin: 0;
+	padding-left: 1.2rem;
+	line-height: 1.6;
+	color: #1d2327;
+}
+
+.error-details {
+	background: #f6f7f7;
+	border-radius: 12px;
+	padding: 0.75rem 1rem 1rem;
+	font-size: 0.9rem;
+	border: 1px solid #dcdcde;
+	color: #1d2327;
+}
+
+.error-details summary {
+	cursor: pointer;
+	font-weight: 600;
+	margin-bottom: 0.5rem;
+}
+
+.error-details pre {
+	margin: 0;
+	font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+	white-space: pre-wrap;
+	word-break: break-word;
+	max-height: 360px;
+	overflow: auto;
+}
+
+.error-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.75rem;
+	margin-top: 0.5rem;
+	justify-content: center;
+}
+
+.error-action-wrapper {
+	display: flex;
 }

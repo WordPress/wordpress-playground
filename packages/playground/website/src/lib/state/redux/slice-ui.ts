@@ -148,6 +148,12 @@ const uiSlice = createSlice({
 				},
 			}),
 		},
+		clearActiveSiteError: (state) => {
+			if (state.activeSite) {
+				state.activeSite.error = undefined;
+				state.activeSite.errorDetails = undefined;
+			}
+		},
 		setActiveModal: (state, action: PayloadAction<string | null>) => {
 			const url = new URL(window.location.href);
 			if (action.payload === null) {
@@ -209,6 +215,7 @@ export const listenToOnlineOfflineEventsMiddleware: Middleware =
 export const {
 	setActiveModal,
 	setActiveSiteError,
+	clearActiveSiteError,
 	setOffline,
 	setSiteManagerOpen,
 	setSiteManagerSection,

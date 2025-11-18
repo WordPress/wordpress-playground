@@ -5,15 +5,18 @@ import BrowserChrome from '../browser-chrome';
 import {
 	selectActiveSiteError,
 	selectActiveSiteErrorDetails,
+	setActiveSite,
 	useActiveSite,
 	useAppDispatch,
 	useAppSelector,
 } from '../../lib/state/redux/store';
 import { removeClientInfo } from '../../lib/state/redux/slice-clients';
 import { bootSiteClient } from '../../lib/state/redux/boot-site-client';
-import type {
-	SiteError,
-	SerializedSiteErrorDetails,
+import {
+	setActiveModal,
+	clearActiveSiteError,
+	type SiteError,
+	type SerializedSiteErrorDetails,
 } from '../../lib/state/redux/slice-ui';
 import { Button, Spinner } from '@wordpress/components';
 import {
@@ -21,7 +24,11 @@ import {
 	selectSiteBySlug,
 	selectSitesLoaded,
 	selectTemporarySites,
+	setTemporarySiteSpec,
 } from '../../lib/state/redux/slice-sites';
+import type { SiteInfo } from '../../lib/state/redux/slice-sites';
+import { modalSlugs } from '../layout/modal-slugs';
+import { Modal } from '../modal';
 import classNames from 'classnames';
 
 export const supportedDisplayModes = [
@@ -205,338 +212,368 @@ export const JustViewport = function JustViewport({
 
 	const error = useAppSelector(selectActiveSiteError);
 	const errorDetails = useAppSelector(selectActiveSiteErrorDetails);
-
-	if (error) {
-		return (
-			<div className={css.siteError}>
-				<div className={css.siteErrorContent}>
-					<SiteErrorMessage
-						error={error}
-						siteSlug={siteSlug}
-						errorDetails={errorDetails}
-					/>
-				</div>
-			</div>
-		);
-	}
+	const activeSiteSlug = useAppSelector((state) => state.ui.activeSite?.slug);
+	const showOverlay = error && activeSiteSlug === siteSlug;
 
 	return (
-		<iframe
-			key={siteSlug}
-			title="WordPress Playground wrapper (the actual WordPress site is in another, nested iframe)"
-			className={classNames('playground-viewport', css.fullSize)}
-			ref={iframeRef}
-		/>
+		<>
+			<iframe
+				key={siteSlug}
+				title="WordPress Playground wrapper (the actual WordPress site is in another, nested iframe)"
+				className={classNames('playground-viewport', css.fullSize)}
+				ref={iframeRef}
+			/>
+			{showOverlay ? (
+				<SiteErrorModal
+					error={error}
+					siteSlug={siteSlug}
+					site={site}
+					errorDetails={errorDetails}
+				/>
+			) : null}
+		</>
 	);
 };
 
-function SiteErrorMessage({
+const developerErrorTypes = new Set<SiteError>([
+	'blueprint-fetch-failed',
+	'blueprint-filesystem-required',
+	'blueprint-validation-failed',
+]);
+
+type PresentationHelpers = {
+	deleteSite: () => void;
+	restartWithoutPr: () => void;
+	startWithoutBlueprint: () => Promise<void> | void;
+	reload: () => void;
+	startWithoutBlueprintBusy: boolean;
+};
+
+type ErrorPresentation = {
+	title: string;
+	intro?: React.ReactNode;
+	list?: React.ReactNode[];
+	body?: React.ReactNode;
+	detailsSummary?: string;
+	actions?: React.ReactNode[];
+};
+
+function SiteErrorModal({
 	error,
 	siteSlug,
+	site,
 	errorDetails,
 }: {
 	error: SiteError;
 	siteSlug: string;
+	site: SiteInfo;
 	errorDetails?: SerializedSiteErrorDetails;
 }) {
 	const dispatch = useAppDispatch();
-	if (
-		error === 'directory-handle-not-found-in-indexeddb' ||
-		error === 'directory-handle-permission-denied'
-	) {
-		/**
-		 * Displayed either when the directory permissions truly expired OR when we
-		 * expected to find the directory handle in IndexedDB, but it wasn't actually there.
-		 *
-		 * In the latter scenario, this error message states an untrue failure reason. This
-		 * is to keep things simple. We don't want to start explaining IndexedDB, OPFS handles
-		 * etc. What matters is that the directory handle is gone and the site won't work until
-		 * the user to provide a new one.
-		 */
-		return (
-			<>
-				<h1>Local directory permissions expired</h1>
-				<p>
-					You previously granted WordPress Playground access to your
-					local directory, but the browser no longer allows Playground
-					to access it.
-				</p>
-				<p>
-					There's no way to recover from this today. We are working on
-					a way of selecting the local directory again. Stay tuned,
-					and if you urgently need to work with this site, tell us at{' '}
-					<a
-						target="_blank"
-						rel="noopener noreferrer"
-						href="https://github.com/WordPress/wordpress-playground/issues/1746"
-					>
-						GitHub
-					</a>
-					.
-				</p>
-			</>
-		);
-	}
+	const detailText = formatErrorDetails(errorDetails);
+	const isDeveloperError = developerErrorTypes.has(error);
+	const [isStartingWithoutBlueprint, setIsStartingWithoutBlueprint] =
+		useState(false);
 
-	if (error === 'directory-handle-directory-does-not-exist') {
-		return (
-			<>
-				<h1>Local directory was deleted</h1>
-				<p>
-					It seems like you deleted the local directory you previously
-					selected.
-				</p>
-				<p>Unfortunately, this site won't work anymore.</p>
-				<Button
-					className={css.actionButton}
-					variant="primary"
-					onClick={() => {
-						dispatch(removeSite(siteSlug));
-						dispatch(removeClientInfo(siteSlug));
-					}}
-				>
-					Delete this site and try again
-				</Button>
-			</>
-		);
-	}
+	const startWithoutBlueprint = async () => {
+		if (isStartingWithoutBlueprint) {
+			return;
+		}
+		setIsStartingWithoutBlueprint(true);
+		try {
+			const sanitizedUrl = new URL(window.location.href);
+			sanitizedUrl.searchParams.delete('blueprint-url');
+			sanitizedUrl.searchParams.delete('blueprint');
+			window.history.replaceState({}, '', sanitizedUrl.toString());
+			const newSite = await dispatch(
+				setTemporarySiteSpec(site.metadata.name, sanitizedUrl)
+			);
+			await dispatch(setActiveSite(newSite.slug));
+			dispatch(clearActiveSiteError());
+		} catch (err) {
+			console.error('Failed to start without a Blueprint', err);
+		} finally {
+			setIsStartingWithoutBlueprint(false);
+		}
+	};
 
-	if (error === 'github-artifact-expired') {
-		return (
-			<>
-				<h1>This artifact has expired</h1>
-				<p>
-					The requested GitHub artifactis no longer available. GitHub
-					only serves PR build artifacts for a limited time.
-				</p>
-				<p>
-					If you want to preview that PR, you will need to re-run
-					GitHub workflows in that PR. One way to do that is by
-					pushing an empty commit.
-				</p>
-				<Button
-					className={css.actionButton}
-					variant="primary"
-					onClick={() => {
-						// Remove core-pr parameter and reload
-						const url = new URL(window.location.href);
-						url.searchParams.delete('core-pr');
-						window.location.href = url.toString();
-					}}
-				>
-					Restart Playground without that PR
-				</Button>
-			</>
-		);
-	}
+	const helpers: PresentationHelpers = {
+		deleteSite: () => {
+			dispatch(removeSite(siteSlug));
+			dispatch(removeClientInfo(siteSlug));
+			dispatch(clearActiveSiteError());
+		},
+		restartWithoutPr: () => {
+			const url = new URL(window.location.href);
+			url.searchParams.delete('core-pr');
+			window.location.href = url.toString();
+		},
+		startWithoutBlueprint,
+		reload: () => window.location.reload(),
+		startWithoutBlueprintBusy: isStartingWithoutBlueprint,
+	};
 
-	if (error === 'blueprint-fetch-failed') {
-		const errorMessage = getRenderableErrorMessage(errorDetails);
-
-		return (
-			<>
-				<h1>Failed to load Blueprint</h1>
-				<p>
-					The Blueprint could not be downloaded or loaded. This
-					usually happens when:
-				</p>
-				<ul style={{ textAlign: 'left', margin: '1rem 0' }}>
-					<li>
-						The Blueprint URL is incorrect or the file doesn't exist
-					</li>
-					<li>The server hosting the Blueprint is not reachable</li>
-					<li>The Blueprint file is not a valid JSON or ZIP file</li>
-					<li>
-						CORS (Cross-Origin Resource Sharing) is blocking the
-						request
-					</li>
-				</ul>
-				<details style={{ textAlign: 'left', margin: '1rem 0' }}>
-					<summary style={{ cursor: 'pointer', fontWeight: 'bold' }}>
-						Error details
-					</summary>
-					<pre
-						style={{
-							background: '#f5f5f5',
-							padding: '1rem',
-							overflow: 'auto',
-							fontSize: '0.9em',
-							marginTop: '0.5rem',
-						}}
-					>
-						{errorMessage}
-					</pre>
-				</details>
-				<p>
-					<a
-						target="_blank"
-						rel="noopener noreferrer"
-						href="https://wordpress.github.io/wordpress-playground/blueprints/troubleshoot-and-debug"
-					>
-						Learn more about troubleshooting Blueprints
-					</a>
-				</p>
-				<Button
-					className={css.actionButton}
-					variant="primary"
-					onClick={() => {
-						const url = new URL(window.location.href);
-						// Remove blueprint-related parameters
-						url.searchParams.delete('blueprint-url');
-						url.searchParams.delete('blueprint');
-						window.location.href = url.toString();
-					}}
-				>
-					Start without a Blueprint
-				</Button>
-			</>
-		);
-	}
-
-	if (error === 'blueprint-filesystem-required') {
-		const errorMessage = getRenderableErrorMessage(errorDetails);
-
-		return (
-			<>
-				<h1>Blueprint Resource Error</h1>
-				<p>
-					This Blueprint refers to files that should be bundled with
-					it (like images, plugins, or themes), but the filesystem
-					needed to access these files is not available.
-				</p>
-				<p>
-					<strong>Common causes:</strong>
-				</p>
-				<ul style={{ textAlign: 'left', margin: '1rem 0' }}>
-					<li>
-						Loading a standalone JSON file that was meant to be part
-						of a bundle
-					</li>
-					<li>
-						The Blueprint was not packaged correctly as a
-						blueprint.zip file
-					</li>
-					<li>
-						Referenced files are not accessible relative to the
-						Blueprint file
-					</li>
-				</ul>
-				<details style={{ textAlign: 'left', margin: '1rem 0' }}>
-					<summary style={{ cursor: 'pointer', fontWeight: 'bold' }}>
-						Error details
-					</summary>
-					<pre
-						style={{
-							background: '#f5f5f5',
-							padding: '1rem',
-							overflow: 'auto',
-							fontSize: '0.9em',
-							marginTop: '0.5rem',
-						}}
-					>
-						{errorMessage}
-					</pre>
-				</details>
-				<p>
-					<a
-						target="_blank"
-						rel="noopener noreferrer"
-						href="https://wordpress.github.io/wordpress-playground/blueprints/data-format#resources"
-					>
-						Learn more about Blueprint resources
-					</a>
-				</p>
-				<Button
-					className={css.actionButton}
-					variant="primary"
-					onClick={() => {
-						window.location.reload();
-					}}
-				>
-					Try again
-				</Button>
-			</>
-		);
-	}
-
-	if (error === 'blueprint-validation-failed') {
-		const errorMessage = getRenderableErrorMessage(errorDetails);
-
-		return (
-			<>
-				<h1>Invalid Blueprint</h1>
-				<p>
-					The Blueprint does not conform to the required schema.
-					Please review the validation errors below and fix your
-					Blueprint.
-				</p>
-				<details open style={{ textAlign: 'left', margin: '1rem 0' }}>
-					<summary style={{ cursor: 'pointer', fontWeight: 'bold' }}>
-						Validation errors
-					</summary>
-					<pre
-						style={{
-							background: '#f5f5f5',
-							padding: '1rem',
-							overflow: 'auto',
-							fontSize: '0.85em',
-							marginTop: '0.5rem',
-							whiteSpace: 'pre-wrap',
-							wordBreak: 'break-word',
-						}}
-					>
-						{errorMessage}
-					</pre>
-				</details>
-				<p>
-					<a
-						target="_blank"
-						rel="noopener noreferrer"
-						href="https://wordpress.github.io/wordpress-playground/blueprints/data-format"
-					>
-						Learn more about the Blueprint format
-					</a>
-				</p>
-				<Button
-					className={css.actionButton}
-					variant="primary"
-					onClick={() => {
-						const url = new URL(window.location.href);
-						// Remove blueprint-related parameters
-						url.searchParams.delete('blueprint-url');
-						url.searchParams.delete('blueprint');
-						window.location.href = url.toString();
-					}}
-				>
-					Start without a Blueprint
-				</Button>
-			</>
-		);
-	}
+	const presentation = getErrorPresentation({
+		error,
+		site,
+		helpers,
+	});
 
 	return (
-		<>
-			<h1>Something went wrong</h1>
-			<p>An error occurred while loading your site. Please try again.</p>
-			<Button
-				className={css.actionButton}
-				variant="primary"
-				onClick={() => {
-					window.location.reload();
-				}}
-			>
-				Reload the browser tab to try again
-			</Button>
-		</>
+		<Modal
+			title={
+				<>
+					<span className={css.errorBadge}>
+						{isDeveloperError
+							? 'Blueprint issue'
+							: 'Playground crash'}
+					</span>{' '}
+					{presentation.title}
+				</>
+			}
+			onRequestClose={() => dispatch(clearActiveSiteError())}
+			shouldCloseOnClickOutside
+			className={classNames(css.errorModal, {
+				[css.errorModalDeveloper]: isDeveloperError,
+				[css.errorModalCrash]: !isDeveloperError,
+			})}
+		>
+			<div className={css.errorModalBody}>
+				{presentation.intro ? (
+					<p className={css.errorLead}>{presentation.intro}</p>
+				) : null}
+				{presentation.list ? (
+					<ul className={css.errorList}>
+						{presentation.list.map((item, index) => (
+							<li key={index}>{item}</li>
+						))}
+					</ul>
+				) : null}
+				{presentation.body}
+				{detailText ? (
+					<details
+						className={css.errorDetails}
+						open={isDeveloperError}
+					>
+						<summary>
+							{presentation.detailsSummary ||
+								(isDeveloperError
+									? 'Inspection details'
+									: 'Error details')}
+						</summary>
+						<pre>{detailText}</pre>
+					</details>
+				) : null}
+				{presentation.actions?.length || !isDeveloperError ? (
+					<div className={css.errorActions}>
+						{presentation.actions?.map((action, index) => (
+							<div key={index} className={css.errorActionWrapper}>
+								{action}
+							</div>
+						))}
+						{!isDeveloperError ? (
+							<Button
+								variant="secondary"
+								onClick={() =>
+									dispatch(
+										setActiveModal(modalSlugs.ERROR_REPORT)
+									)
+								}
+							>
+								Report this crash
+							</Button>
+						) : null}
+					</div>
+				) : null}
+			</div>
+		</Modal>
 	);
 }
 
-function getRenderableErrorMessage(details?: SerializedSiteErrorDetails) {
-	if (!details) {
-		return 'Unknown error';
+function getErrorPresentation({
+	error,
+	site,
+	helpers,
+}: {
+	error: SiteError;
+	site: SiteInfo;
+	helpers: PresentationHelpers;
+}): ErrorPresentation {
+	const siteLabel = site?.metadata?.name || 'this site';
+
+	switch (error) {
+		case 'directory-handle-not-found-in-indexeddb':
+		case 'directory-handle-permission-denied':
+			return {
+				title: 'Local directory permissions expired',
+				intro: 'The browser no longer lets Playground access your previously shared local directory.',
+				list: [
+					'Re-selecting the directory is not supported yet.',
+					<>
+						Need urgent access? Let us know on{' '}
+						<a
+							target="_blank"
+							rel="noopener noreferrer"
+							href="https://github.com/WordPress/wordpress-playground/issues/1746"
+						>
+							GitHub
+						</a>
+						.
+					</>,
+				],
+			};
+		case 'directory-handle-directory-does-not-exist':
+			return {
+				title: 'Local directory was deleted',
+				intro: 'It seems like the local directory backing this site was removed. This Playground copy will not load anymore.',
+				actions: [
+					<Button
+						variant="primary"
+						key="delete-site"
+						onClick={helpers.deleteSite}
+					>
+						Delete this site and try again
+					</Button>,
+				],
+			};
+		case 'github-artifact-expired':
+			return {
+				title: 'This GitHub artifact expired',
+				intro: 'GitHub only keeps pull-request build artifacts for a limited time. Re-run the workflow or restart without that PR.',
+				actions: [
+					<Button
+						variant="primary"
+						key="restart-pr"
+						onClick={helpers.restartWithoutPr}
+					>
+						Restart without that PR
+					</Button>,
+				],
+			};
+		case 'blueprint-fetch-failed':
+			return {
+				title: 'Blueprint could not be loaded',
+				intro: 'Double-check the Blueprint URL and hosting setup before trying again.',
+				list: [
+					'The Blueprint URL might be wrong or the file is unreachable.',
+					'CORS might be blocking the request.',
+					'The file must be valid JSON or blueprint.zip.',
+				],
+				body: (
+					<p>
+						<a
+							target="_blank"
+							rel="noopener noreferrer"
+							href="https://wordpress.github.io/wordpress-playground/blueprints/troubleshoot-and-debug"
+						>
+							Troubleshoot Blueprint loading issues ↗
+						</a>
+					</p>
+				),
+				actions: [
+					<Button
+						variant="primary"
+						key="start-without-blueprint"
+						onClick={() => helpers.startWithoutBlueprint()}
+						isBusy={helpers.startWithoutBlueprintBusy}
+						disabled={helpers.startWithoutBlueprintBusy}
+					>
+						Start without a Blueprint
+					</Button>,
+				],
+				detailsSummary: 'Network error details',
+			};
+		case 'blueprint-filesystem-required':
+			return {
+				title: 'Blueprint resources need a filesystem',
+				intro: 'This Blueprint expects bundled files (plugins, media, etc.), but no filesystem was provided.',
+				list: [
+					'Ensure you are loading a blueprint.zip bundle.',
+					'Confirm that referenced files exist next to the Blueprint.',
+				],
+				body: (
+					<p>
+						<a
+							target="_blank"
+							rel="noopener noreferrer"
+							href="https://wordpress.github.io/wordpress-playground/blueprints/data-format#resources"
+						>
+							Learn how Blueprint resources work ↗
+						</a>
+					</p>
+				),
+				actions: [
+					<Button
+						variant="primary"
+						key="try-again"
+						onClick={helpers.reload}
+					>
+						Try again
+					</Button>,
+				],
+				detailsSummary: 'Resource loader details',
+			};
+		case 'blueprint-validation-failed':
+			return {
+				title: 'Invalid Blueprint schema',
+				intro: 'The Blueprint contains unexpected fields. Fix the validation output and retry.',
+				body: (
+					<p>
+						<a
+							target="_blank"
+							rel="noopener noreferrer"
+							href="https://wordpress.github.io/wordpress-playground/blueprints/data-format"
+						>
+							Review the Blueprint data format ↗
+						</a>
+					</p>
+				),
+				actions: [
+					<Button
+						variant="primary"
+						key="start-without-blueprint-invalid"
+						onClick={() => helpers.startWithoutBlueprint()}
+						isBusy={helpers.startWithoutBlueprintBusy}
+						disabled={helpers.startWithoutBlueprintBusy}
+					>
+						Start without a Blueprint
+					</Button>,
+				],
+				detailsSummary: 'Validation output',
+			};
+		case 'directory-handle-unknown-error':
+			return {
+				title: 'The local directory became unavailable',
+				intro: 'The browser could no longer access your local directory handle. Re-importing the folder will be necessary to continue.',
+			};
+		case 'site-boot-failed':
+		default:
+			return {
+				title: `${siteLabel} crashed while loading`,
+				intro: 'Something unexpected interrupted the boot process. Reload the tab or spin up a new site.',
+				actions: [
+					<Button
+						variant="primary"
+						key="reload-tab"
+						onClick={helpers.reload}
+					>
+						Reload Playground
+					</Button>,
+				],
+			};
 	}
-	if (typeof details === 'string') {
-		return details;
+}
+
+function formatErrorDetails(
+	errorDetails?: SerializedSiteErrorDetails
+): string | undefined {
+	if (!errorDetails) {
+		return undefined;
 	}
-	return details.message || details.stack || details.name || 'Unknown error';
+	if (typeof errorDetails === 'string') {
+		return errorDetails;
+	}
+	return [errorDetails.name, errorDetails.message, errorDetails.stack]
+		.filter(Boolean)
+		.join('\n\n');
 }
