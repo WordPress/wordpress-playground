@@ -266,17 +266,12 @@ function applyQueryOverridesToDeclaration(
 		});
 	}
 
-	// Handle WordPress core PR or branch preview
-	const coreRef = query.get('core-pr') || query.get('core-branch');
+	// Handle WordPress core PR preview
+	const coreRef = query.get('core-pr');
 	if (coreRef) {
-		const refType = query.has('core-pr') ? 'pr' : 'branch';
 		// For WordPress PRs: artifact name is wordpress-build-{PR_NUMBER}
-		// For WordPress branches: artifact name is wordpress-build-{COMMIT_HASH}
-		//   We use wordpress-build- (with trailing dash) to trigger prefix matching in plugin-proxy.php
-		const artifactName = query.has('core-pr')
-			? `wordpress-build-${coreRef}`
-			: 'wordpress-build-';
-		blueprint.preferredVersions!.wp = `https://playground.wordpress.net/plugin-proxy.php?org=WordPress&repo=wordpress-develop&workflow=Test%20Build%20Processes&artifact=${artifactName}&${refType}=${coreRef}`;
+		const artifactName = `wordpress-build-${coreRef}`;
+		blueprint.preferredVersions!.wp = `https://playground.wordpress.net/plugin-proxy.php?org=WordPress&repo=wordpress-develop&workflow=Test%20Build%20Processes&artifact=${artifactName}&pr=${coreRef}`;
 	}
 
 	// Handle Gutenberg PR or branch preview

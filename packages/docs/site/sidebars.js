@@ -48,6 +48,7 @@ const sidebars = {
 						'main/guides/for-plugin-developers',
 						'main/guides/for-theme-developers',
 						'main/guides/providing-content-for-your-demo',
+						'main/guides/github-action-pr-preview',
 					],
 				},
 				{
