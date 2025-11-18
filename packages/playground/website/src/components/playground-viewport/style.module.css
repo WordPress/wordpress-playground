@@ -196,6 +196,18 @@
 	font-size: 15px;
 }
 
+/**
+ * Hide the footer and the associated bottom padding if there are no
+ * actions available.
+ */
+.error-modal:has(.error-modal-footer:not(:has(*))) {
+	padding-bottom: 0;
+}
+
+.error-modal-footer:not(:has(*)) {
+	display: none;
+}
+
 /* Responsive styles for tablets and smaller */
 @media (max-width: 768px) {
 	.error-modal {

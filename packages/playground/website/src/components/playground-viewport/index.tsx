@@ -13,12 +13,11 @@ import {
 import { removeClientInfo } from '../../lib/state/redux/slice-clients';
 import { bootSiteClient } from '../../lib/state/redux/boot-site-client';
 import {
-	setActiveModal,
 	clearActiveSiteError,
 	type SiteError,
 	type SerializedSiteErrorDetails,
 } from '../../lib/state/redux/slice-ui';
-import { Button, Spinner } from '@wordpress/components';
+import { Button, Spinner, TextareaControl } from '@wordpress/components';
 import {
 	removeSite,
 	selectSiteBySlug,
@@ -27,9 +26,9 @@ import {
 	setTemporarySiteSpec,
 } from '../../lib/state/redux/slice-sites';
 import type { SiteInfo } from '../../lib/state/redux/slice-sites';
-import { modalSlugs } from '../layout/modal-slugs';
 import { Modal } from '../modal';
 import classNames from 'classnames';
+import { logger } from '@php-wasm/logger';
 
 export const supportedDisplayModes = [
 	'browser-full-screen',
@@ -275,6 +274,65 @@ function SiteErrorModal({
 	const [isStartingWithoutBlueprint, setIsStartingWithoutBlueprint] =
 		useState(false);
 
+	const [isReporting, setIsReporting] = useState(false);
+	const [reportText, setReportText] = useState('');
+	const [isSubmitting, setIsSubmitting] = useState(false);
+	const [reportSubmitted, setReportSubmitted] = useState(false);
+	const [submitError, setSubmitError] = useState('');
+
+	function getContext() {
+		return {
+			...(site.metadata.originalBlueprint as any)?.preferredVersions,
+			userAgent: navigator.userAgent,
+			...((window.performance as any)?.memory ?? {}),
+			window: {
+				width: window.innerWidth,
+				height: window.innerHeight,
+			},
+		};
+	}
+
+	async function onSubmit() {
+		setIsSubmitting(true);
+		const formdata = new FormData();
+		formdata.append('description', reportText);
+		const logs = logger.getLogs().join('\n');
+		if (logs) {
+			formdata.append('logs', logs);
+		}
+		const url = window.location.href;
+		if (url) {
+			formdata.append('url', url);
+		}
+		formdata.append('context', JSON.stringify(getContext()));
+		formdata.append(
+			'blueprint',
+			JSON.stringify(site.metadata.originalBlueprint)
+		);
+		try {
+			const response = await fetch(
+				'https://playground.wordpress.net/logger.php',
+				{
+					method: 'POST',
+					body: formdata,
+				}
+			);
+			setReportSubmitted(true);
+
+			const body = await response.json();
+			if (!body.ok) {
+				throw new Error(body.error);
+			}
+
+			setSubmitError('');
+			setReportText('');
+		} catch (e) {
+			setSubmitError((e as Error).message);
+		} finally {
+			setIsSubmitting(false);
+		}
+	}
+
 	const startWithoutBlueprint = async () => {
 		if (isStartingWithoutBlueprint) {
 			return;
@@ -377,26 +435,81 @@ function SiteErrorModal({
 							<pre>{detailText}</pre>
 						</details>
 					) : null}
+					{isReporting && !reportSubmitted && (
+						<TextareaControl
+							label="How can we recreate this error?"
+							help="Describe what caused the error and how can we recreate it."
+							value={reportText}
+							onChange={setReportText}
+							autoFocus={true}
+						/>
+					)}
+					{reportSubmitted && !submitError && (
+						<p style={{ color: 'green', fontWeight: '500' }}>
+							Your report has been submitted to the{' '}
+							<a
+								href="https://wordpress.slack.com/archives/C06Q5DCKZ3L"
+								target="_blank"
+								rel="noopener noreferrer"
+							>
+								Making WordPress #playground-logs Slack channel
+							</a>{' '}
+							and will be reviewed by the team.
+						</p>
+					)}
+					{submitError && (
+						<p>
+							We were unable to submit the error report. Please
+							try again or open an{' '}
+							<a
+								href="https://github.com/WordPress/wordpress-playground/issues/"
+								target="_blank"
+								rel="noopener noreferrer"
+							>
+								issue on GitHub.
+							</a>
+						</p>
+					)}
 				</div>
 				{showActionBar ? (
 					<div className={css.errorModalFooter}>
-						{!isDeveloperError ? (
+						{!isDeveloperError &&
+						!isReporting &&
+						!reportSubmitted ? (
 							<Button
 								variant="secondary"
-								onClick={() =>
-									dispatch(
-										setActiveModal(modalSlugs.ERROR_REPORT)
-									)
-								}
+								onClick={() => setIsReporting(true)}
 							>
 								Report this crash
 							</Button>
 						) : null}
-						{presentation.actions?.map((action, index) => (
-							<div key={index} className={css.errorActionWrapper}>
-								{action}
-							</div>
-						))}
+						{isReporting && !reportSubmitted && (
+							<>
+								<Button
+									variant="secondary"
+									onClick={() => setIsReporting(false)}
+								>
+									Cancel
+								</Button>
+								<Button
+									variant="primary"
+									onClick={onSubmit}
+									isBusy={isSubmitting}
+									disabled={!reportText || isSubmitting}
+								>
+									Submit report
+								</Button>
+							</>
+						)}
+						{(!isReporting || reportSubmitted) &&
+							presentation.actions?.map((action, index) => (
+								<div
+									key={index}
+									className={css.errorActionWrapper}
+								>
+									{action}
+								</div>
+							))}
 					</div>
 				) : null}
 			</div>
@@ -413,8 +526,6 @@ function getErrorPresentation({
 	site: SiteInfo;
 	helpers: PresentationHelpers;
 }): ErrorPresentation {
-	const siteLabel = site?.metadata?.name || 'this site';
-
 	switch (error) {
 		case 'directory-handle-not-found-in-indexeddb':
 		case 'directory-handle-permission-denied':
