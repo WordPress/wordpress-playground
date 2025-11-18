@@ -8,51 +8,11 @@ import {
 	FileLockManagerForNode,
 	loadNodeRuntime,
 } from '../lib';
-import type { Promised } from '@php-wasm/util';
+import {
+	wrapSynchronousInterfaceAsPromised,
+	type Promised,
+} from '@php-wasm/util';
 import { jspi } from 'wasm-feature-detect';
-
-// TODO: Is this really necessary? Probably, if we want to avoid
-// discovering the insufficiency of just iterating over own keys at the top-level.
-// An alternative would be to wrap the object in a Proxy. Consider it and probably
-// move this to a utility library.
-function toPromised<T extends object>(obj: T): Promised<T> {
-	const keysAlreadySeen = new Set<string | symbol>();
-	const keysToMakePromised = new Set<string | symbol>();
-	const looksLikeBuiltInObject =
-		// NOTE: We don't generally add custom things to the global scope,
-		// so let's use this as a heuristic to determine if an object is a built-in object type.
-		(obj: object) =>
-			(globalThis as any)[obj.constructor.name] !== obj.constructor;
-
-	let proto: object = obj;
-	while (proto !== null && !looksLikeBuiltInObject(proto)) {
-		const allKeys = [
-			...Object.getOwnPropertyNames(proto),
-			...Object.getOwnPropertySymbols(proto),
-		];
-		for (const key of allKeys) {
-			if (
-				// Track keys already seen so an inherited method property
-				// masked by a descendant property of the same name is not considered.
-				!keysAlreadySeen.has(key) &&
-				!keysToMakePromised.has(key) &&
-				typeof (proto as any)[key] === 'function'
-			) {
-				keysToMakePromised.add(key);
-			}
-			keysAlreadySeen.add(key);
-		}
-		proto = Object.getPrototypeOf(proto);
-	}
-
-	const promisifiedObj = Object.create(obj);
-	for (const key of keysToMakePromised) {
-		promisifiedObj[key] = function (...args: any[]) {
-			return Promise.resolve((obj as any)[key](...args));
-		};
-	}
-	return promisifiedObj;
-}
 
 describe.each(SupportedPHPVersions)('PHP %s: File locking', (phpVersion) => {
 	const vfsMountPoint = '/test';
@@ -67,7 +27,7 @@ describe.each(SupportedPHPVersions)('PHP %s: File locking', (phpVersion) => {
 	beforeEach(async () => {
 		tempDir = mkdtempSync(join(tmpdir(), 'php-wasm-file-locking-'));
 		fileLockManager = (await jspi())
-			? toPromised(new FileLockManagerForNode())
+			? wrapSynchronousInterfaceAsPromised(new FileLockManagerForNode())
 			: new FileLockManagerForNode();
 		nextProcessId = 1;
 	});
