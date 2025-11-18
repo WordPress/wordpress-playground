@@ -1,7 +1,5 @@
 
 // @ts-ignore
-import url_nightly from './wp-nightly.zip?url';
-// @ts-ignore
 import url_beta from './wp-beta.zip?url';
 // @ts-ignore
 import url_6_8 from './wp-6.8.zip?url';
@@ -22,19 +20,47 @@ import url_6_3 from './wp-6.3.zip?url';
  * This file must statically exists in the project because of the way
  * vite resolves imports.
  */
-export function getWordPressModuleDetails(wpVersion: string = "6.8"): { size: number, url: string } {
+export type WordPressGitDirectory = {
+	resource: 'git:directory';
+	url: string;
+	ref: string;
+	refType?: 'branch' | 'tag' | 'commit' | 'refname';
+	path?: string;
+};
+
+export type WordPressModuleDetails =
+	| {
+			type: 'zip';
+			size: number;
+			url: string;
+	  }
+	| {
+			type: 'git';
+			size: number;
+			gitDirectory: WordPressGitDirectory;
+	  };
+
+export function getWordPressModuleDetails(
+	wpVersion: string = '6.8'
+): WordPressModuleDetails {
 	switch (wpVersion) {
 		
-		case 'nightly':
-			/** @ts-ignore */
+		case 'trunk':
 			return {
-				size: 24776533,
-				url: url_nightly,
+				type: 'git',
+				size: 0,
+				gitDirectory: {
+					resource: 'git:directory',
+					url: 'https://github.com/WordPress/wordpress.git',
+					ref: 'master',
+					refType: 'branch',
+				},
 			};
 			
 		case 'beta':
 			/** @ts-ignore */
 			return {
+				type: 'zip',
 				size: 24775546,
 				url: url_beta,
 			};
@@ -42,6 +68,7 @@ export function getWordPressModuleDetails(wpVersion: string = "6.8"): { size: nu
 		case '6.8':
 			/** @ts-ignore */
 			return {
+				type: 'zip',
 				size: 24743772,
 				url: url_6_8,
 			};
@@ -49,6 +76,7 @@ export function getWordPressModuleDetails(wpVersion: string = "6.8"): { size: nu
 		case '6.7':
 			/** @ts-ignore */
 			return {
+				type: 'zip',
 				size: 24594721,
 				url: url_6_7,
 			};
@@ -56,6 +84,7 @@ export function getWordPressModuleDetails(wpVersion: string = "6.8"): { size: nu
 		case '6.6':
 			/** @ts-ignore */
 			return {
+				type: 'zip',
 				size: 18386194,
 				url: url_6_6,
 			};
@@ -63,6 +92,7 @@ export function getWordPressModuleDetails(wpVersion: string = "6.8"): { size: nu
 		case '6.5':
 			/** @ts-ignore */
 			return {
+				type: 'zip',
 				size: 18457511,
 				url: url_6_5,
 			};
@@ -70,6 +100,7 @@ export function getWordPressModuleDetails(wpVersion: string = "6.8"): { size: nu
 		case '6.4':
 			/** @ts-ignore */
 			return {
+				type: 'zip',
 				size: 18265208,
 				url: url_6_4,
 			};
@@ -77,10 +108,22 @@ export function getWordPressModuleDetails(wpVersion: string = "6.8"): { size: nu
 		case '6.3':
 			/** @ts-ignore */
 			return {
+				type: 'zip',
 				size: 3595053,
 				url: url_6_3,
 			};
 			
+		case 'nightly':
+			return {
+				type: 'git',
+				size: 0,
+				gitDirectory: {
+					resource: 'git:directory',
+					url: 'https://github.com/WordPress/wordpress.git',
+					ref: 'master',
+					refType: 'branch',
+				},
+			};
 
 	}
 	throw new Error('Unsupported WordPress module: ' + wpVersion);

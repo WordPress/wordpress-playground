@@ -13,9 +13,11 @@ import { directoryHandleFromMountDevice } from '@wp-playground/storage';
 import { bootWordPress } from '@wp-playground/wordpress';
 import { createDirectoryHandleMountHandler } from '@php-wasm/web';
 import type { PHP } from '@php-wasm/universal';
+import { writeFiles as writeFilesToPhp } from '@php-wasm/universal';
 /* @ts-ignore */
 import { corsProxyUrl as defaultCorsProxyUrl } from 'virtual:cors-proxy-url';
 import type { WorkerBootOptions } from './playground-worker-endpoint';
+import { GitDirectoryResource } from '@wp-playground/blueprints';
 
 // post message to parent
 self.postMessage('worker-script-started');
@@ -56,6 +58,9 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 			const endpoint = this;
 			const knownRemoteAssetPaths = new Set<string>();
 			const siteUrl = this.computeSiteUrl(scope);
+			let gitWordPressFilesPromise: Promise<
+				Record<string, Uint8Array>
+			> | null = null;
 
 			const requestHandler = await this.createRequestHandler({
 				siteUrl,
@@ -67,11 +72,15 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 				phpVersion: phpVersion!,
 			});
 
-			this.requestedWordPressVersion = wpVersion;
-			wpVersion = MinifiedWordPressVersionsList.includes(wpVersion)
-				? wpVersion
+			this.requestedWordPressVersion =
+				wpVersion === 'nightly' ? 'trunk' : wpVersion;
+			wpVersion = MinifiedWordPressVersionsList.includes(
+				this.requestedWordPressVersion
+			)
+				? this.requestedWordPressVersion
 				: LatestMinifiedWordPressVersion;
 
+			const wpDetails = getWordPressModuleDetails(wpVersion);
 			let wordPressRequest: Promise<Response> | null = null;
 			if (shouldInstallWordPress) {
 				if (this.requestedWordPressVersion!.startsWith('http')) {
@@ -104,8 +113,15 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 								}
 							);
 						});
+				} else if (wpDetails.type === 'git') {
+					gitWordPressFilesPromise = new GitDirectoryResource(
+						wpDetails.gitDirectory,
+						undefined,
+						{ corsProxy: corsProxyUrl as string | undefined }
+					)
+						.resolve()
+						.then(({ files }) => files);
 				} else {
-					const wpDetails = getWordPressModuleDetails(wpVersion);
 					this.downloadMonitor.expectAssets({
 						[wpDetails.url]: wpDetails.size,
 					});
@@ -146,11 +162,12 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 				// Do not await the WordPress download or the sqlite integration download.
 				// Let bootWordPress start the PHP runtime download first, and then await
 				// all the ZIP files right before they're used.
-				wordPressZip: shouldInstallWordPress
-					? wordPressRequest!
-							.then((r) => r.blob())
-							.then((b) => new File([b], 'wp.zip'))
-					: undefined,
+				wordPressZip:
+					shouldInstallWordPress && wpDetails.type === 'zip'
+						? wordPressRequest!
+								.then((r) => r.blob())
+								.then((b) => new File([b], 'wp.zip'))
+						: undefined,
 				sqliteIntegrationPluginZip: sqliteIntegrationRequest
 					? sqliteIntegrationRequest
 							.then((r) => r.blob())
@@ -158,6 +175,12 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 					: undefined,
 				hooks: {
 					async beforeWordPressFiles(php: PHP) {
+						if (gitWordPressFilesPromise) {
+							const files = await gitWordPressFilesPromise;
+							await writeFilesToPhp(php, '/wordpress', files, {
+								rmRoot: true,
+							});
+						}
 						for (const mount of mounts) {
 							const handle = await directoryHandleFromMountDevice(
 								mount.device

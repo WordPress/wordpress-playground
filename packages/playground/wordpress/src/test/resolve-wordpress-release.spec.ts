@@ -160,20 +160,20 @@ describe('resolveWordPressRelease', () => {
 		expect(result.source).toBe('inferred');
 	});
 
-	it('resolves trunk to nightly build', async () => {
+	it('resolves trunk to trunk build', async () => {
 		const result = await resolveWordPressRelease('trunk');
-		expect(result.version).toContain('nightly-');
+		expect(result.version).toBe('trunk');
 		expect(result.releaseUrl).toBe(
-			'https://wordpress.org/nightly-builds/wordpress-latest.zip'
+			'git+https://github.com/WordPress/wordpress.git#ref=master&refType=branch'
 		);
 		expect(result.source).toBe('inferred');
 	});
 
-	it('resolves nightly to nightly build', async () => {
+	it('resolves nightly to trunk build', async () => {
 		const result = await resolveWordPressRelease('nightly');
-		expect(result.version).toContain('nightly-');
+		expect(result.version).toBe('trunk');
 		expect(result.releaseUrl).toBe(
-			'https://wordpress.org/nightly-builds/wordpress-latest.zip'
+			'git+https://github.com/WordPress/wordpress.git#ref=master&refType=branch'
 		);
 		expect(result.source).toBe('inferred');
 	});

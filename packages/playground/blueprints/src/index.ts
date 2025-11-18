@@ -38,6 +38,7 @@ export type {
 	CoreThemeResource,
 	FetchResource,
 	FileReference,
+	GitDirectoryReference,
 	LiteralReference,
 	LiteralResource,
 	Resource,
@@ -49,6 +50,7 @@ export type {
 	VFSReference,
 	VFSResource,
 } from './lib/v1/resources';
+export { GitDirectoryResource } from './lib/v1/resources';
 export * from './lib/steps';
 export * from './lib/steps/handlers';
 export type {
