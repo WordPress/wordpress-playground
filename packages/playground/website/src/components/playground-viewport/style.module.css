@@ -178,6 +178,12 @@
 	display: flex;
 }
 
+.error-link {
+	color: #1d4ed8;
+	text-decoration: underline;
+	word-break: break-all;
+}
+
 .error-modal-footer {
 	position: absolute;
 	bottom: 0;

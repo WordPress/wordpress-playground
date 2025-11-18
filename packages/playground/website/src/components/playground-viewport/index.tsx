@@ -570,9 +570,14 @@ function ErrorCopy({ error, site }: { error: SiteError; site: SiteInfo }) {
 					{blueprintUrl ? (
 						<p>
 							Blueprint URL:{' '}
-							<code style={{ wordBreak: 'break-all' }}>
+							<a
+								className={css.errorLink}
+								href={blueprintUrl}
+								target="_blank"
+								rel="noopener noreferrer"
+							>
 								{blueprintUrl}
-							</code>
+							</a>
 						</p>
 					) : null}
 					<p>
@@ -722,7 +727,11 @@ function getErrorActions(
 
 function getBlueprintSourceUrl(site?: SiteInfo): string | undefined {
 	const source = site?.metadata?.originalBlueprintSource;
-	return source?.type === 'remote-url' ? source.url : undefined;
+	if (source?.type !== 'remote-url') {
+		return undefined;
+	}
+	const url = new URL(source.url);
+	return url.searchParams.get('blueprint-url') ?? undefined;
 }
 
 function formatErrorDetails(
