@@ -305,7 +305,8 @@ export function setTemporarySiteSpec(
 					storage: 'none' as const,
 					originalBlueprint: {},
 					originalBlueprintSource: {
-						type: 'url',
+						// @TODO: Should this say remote-url?
+						type: 'remote-url',
 						url: playgroundUrlWithQueryApiArgs.toString(),
 					},
 					runtimeConfiguration: {
