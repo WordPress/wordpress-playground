@@ -213,10 +213,10 @@ function updateMemoryViews() {
   var b = wasmMemory.buffer;
   HEAP8 = new Int8Array(b);
   HEAP16 = new Int16Array(b);
-  HEAPU8 = new Uint8Array(b);
+  Module['HEAPU8'] = HEAPU8 = new Uint8Array(b);
   HEAPU16 = new Uint16Array(b);
   HEAP32 = new Int32Array(b);
-  HEAPU32 = new Uint32Array(b);
+  Module['HEAPU32'] = HEAPU32 = new Uint32Array(b);
   HEAPF32 = new Float32Array(b);
   HEAPF64 = new Float64Array(b);
   HEAP64 = new BigInt64Array(b);
@@ -15807,13 +15807,13 @@ url = SOCKFS.websocketArgs["url"](...arguments);
   		envLength
   	) {
   		if (!command) {
-  			setErrNo(ERRNO_CODES.EINVAL);
+  			___errno_location(ERRNO_CODES.EINVAL);
   			return -1;
   		}
   
   		const cmdstr = UTF8ToString(command);
   		if (!cmdstr.length) {
-  			setErrNo(ERRNO_CODES.EINVAL);
+  			___errno_location(ERRNO_CODES.EINVAL);
   			return -1;
   		}
   
@@ -15877,11 +15877,11 @@ url = SOCKFS.websocketArgs["url"](...arguments);
   				}
   			} catch (e) {
   				if (e.code === 'SPAWN_UNSUPPORTED') {
-  					setErrNo(ERRNO_CODES.ENOSYS);
+  					___errno_location(ERRNO_CODES.ENOSYS);
   					return -1;
   				}
   				if (typeof FS == 'undefined' || !(e.name === 'ErrnoError')) throw e;
-  				setErrNo(e.code);
+  				___errno_location(e.code);
   				return -1;
   			}
   
@@ -16032,7 +16032,7 @@ url = SOCKFS.websocketArgs["url"](...arguments);
   				try {
   					stdinStream = SYSCALLS.getStreamFromFD(stdinChildFd);
   				} catch (e) {
-  					setErrNo(ERRNO_CODES.EBADF);
+  					___errno_location(ERRNO_CODES.EBADF);
   					return ProcInfo.pid;
   				}
   				if (!stdinStream?.node) {
@@ -16095,7 +16095,7 @@ url = SOCKFS.websocketArgs["url"](...arguments);
   						) {
   							throw e;
   						}
-  						setErrNo(e.errno);
+  						___errno_location(e.errno);
   						stopPumpingAndCloseStdin();
   					}
   				};
@@ -16104,9 +16104,9 @@ url = SOCKFS.websocketArgs["url"](...arguments);
   					if (!cp.stdin.closed) {
   						cp.stdin.end();
   					}
-  					PHPLoader["free"](buffer);
-  					PHPLoader["free"](iov);
-  					PHPLoader["free"](pnum);
+  					_free(buffer);
+  					_free(iov);
+  					_free(pnum);
   				}
   
   				// pump() can never alter the result of this function.
@@ -16563,7 +16563,7 @@ url = SOCKFS.websocketArgs["url"](...arguments);
   
   var Asyncify = {
   instrumentWasmImports(imports) {
-        var importPattern = /^(js_open_process|js_fd_read|js_waitpid|js_process_status|js_create_input_device|wasm_setsockopt|wasm_shutdown|wasm_close|wasm_recv|__syscall_fcntl64|js_flock|js_release_file_locks|js_waitpid|fd_close|invoke_.*|__asyncjs__.*)$/;
+        var importPattern = /^(js_open_process|js_fd_read|js_waitpid|js_process_status|js_create_input_device|wasm_setsockopt|wasm_shutdown|wasm_close|wasm_recv|__syscall_fcntl64|js_flock|js_release_file_locks|js_waitpid|invoke_.*|__asyncjs__.*)$/;
   
         for (let [x, original] of Object.entries(imports)) {
           if (typeof original == 'function') {
@@ -16583,7 +16583,7 @@ url = SOCKFS.websocketArgs["url"](...arguments);
         return wrapper;
       },
   instrumentWasmExports(exports) {
-        var exportPattern = /^(php_wasm_init|wasm_sleep|wasm_read|emscripten_sleep|wasm_sapi_handle_request|wasm_sapi_request_shutdown|wasm_poll_socket|wrap_select|__wrap_select|select|php_pollfd_for|fflush|wasm_popen|wasm_read|wasm_php_exec|run_cli|wasm_recv|__wasm_call_ctors|fd_close|main|__main_argc_argv)$/;
+        var exportPattern = /^(php_wasm_init|wasm_sleep|wasm_read|emscripten_sleep|wasm_sapi_handle_request|wasm_sapi_request_shutdown|wasm_poll_socket|wrap_select|__wrap_select|select|php_pollfd_for|fflush|wasm_popen|wasm_read|wasm_php_exec|run_cli|wasm_recv|__wasm_call_ctors|__errno_location|main|__main_argc_argv)$/;
         Asyncify.asyncExports = new Set();
         var ret = {};
         for (let [x, original] of Object.entries(exports)) {
@@ -28490,6 +28490,7 @@ var _free,
   _fileno,
   _malloc,
   _realloc,
+  ___errno_location,
   _strerror,
   _wasm_read,
   _fflush,
@@ -28558,11 +28559,12 @@ var _free,
 
 
 function assignWasmExports(wasmExports) {
-  _free = wasmExports['free'];
+  _free = PHPLoader['free'] = wasmExports['free'];
   _memcmp = wasmExports['memcmp'];
   _fileno = wasmExports['fileno'];
-  _malloc = wasmExports['malloc'];
+  _malloc = PHPLoader['malloc'] = wasmExports['malloc'];
   _realloc = wasmExports['realloc'];
+  ___errno_location = Module['___errno_location'] = wasmExports['__errno_location'];
   _strerror = wasmExports['strerror'];
   _wasm_read = Module['_wasm_read'] = wasmExports['wasm_read'];
   _fflush = wasmExports['fflush'];
@@ -31123,26 +31125,6 @@ PHPLoader['removeRunDependency'] = function (...args) {
         PHPLoader['onAbort'](e);
     }
 }
-
-/**
- * Other exports live in the Dockerfile in:
- *
- * * EXPORTED_RUNTIME_METHODS
- * * EXPORTED_FUNCTIONS
- *
- * These exports, however, live in here because:
- *
- * * Listing them in EXPORTED_RUNTIME_METHODS doesn't actually
- *   export them. This could be a bug in Emscripten or a consequence of
- *   that option being deprecated.
- * * Listing them in EXPORTED_FUNCTIONS works, but they are overridden
- *   on every `BasePHP.run()` call. This is a problem because we want to
- *   spy on these calls in some unit tests.
- *
- * Therefore, we export them here.
- */
-PHPLoader['malloc'] = _malloc;
-PHPLoader['free'] = typeof _free === 'function' ? _free : PHPLoader['_wasm_free'];
 
 if (typeof NODEFS === 'object') {
     // We override NODEFS.createNode() to add an `isSharedFS` flag to all NODEFS
