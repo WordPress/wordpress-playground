@@ -380,11 +380,6 @@ function SiteErrorModal({
 				</div>
 				{showActionBar ? (
 					<div className={css.errorModalFooter}>
-						{presentation.actions?.map((action, index) => (
-							<div key={index} className={css.errorActionWrapper}>
-								{action}
-							</div>
-						))}
 						{!isDeveloperError ? (
 							<Button
 								variant="secondary"
@@ -397,6 +392,11 @@ function SiteErrorModal({
 								Report this crash
 							</Button>
 						) : null}
+						{presentation.actions?.map((action, index) => (
+							<div key={index} className={css.errorActionWrapper}>
+								{action}
+							</div>
+						))}
 					</div>
 				) : null}
 			</div>
