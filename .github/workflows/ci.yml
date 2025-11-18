@@ -9,6 +9,7 @@ jobs:
     # This step:
     # * Warms up the node_modules cache
     # * Performs linting and typechecking
+    # * Checks for orphaned documentation pages
     #
     # The linting tasks take ~5s to complete and it doesn't
     # make sense to separate them into separate steps that would
@@ -23,6 +24,7 @@ jobs:
             - uses: ./.github/actions/prepare-playground
             - run: npx nx affected --target=lint
             - run: npx nx affected --target=typecheck
+            - run: npx nx check-orphan-pages docs-site
     test-unit-asyncify:
         runs-on: ubuntu-latest
         strategy:

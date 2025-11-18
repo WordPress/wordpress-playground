@@ -97,6 +97,13 @@
 				"lintFilePatterns": ["packages/docs/site/**/*.ts"],
 				"maxWarnings": 0
 			}
+		},
+		"check-orphan-pages": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": ["node bin/check-orphan-pages.js"],
+				"cwd": "packages/docs/site"
+			}
 		}
 	},
 	"tags": []
