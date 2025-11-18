@@ -31,4 +31,6 @@ RUN source /root/emsdk/emsdk_env.sh && \
     EMCC_FLAGS=" -sSIDE_MODULE $JSPI_FLAGS" emmake make install
 # @TODO: Do not remove dependencies like this – it's too easy to miss something.
 #        Instead, source them from another directory and end up with a clean build.
-RUN rm -rf /root/lib/lib/pkgconfig /root/lib/lib/libz.a /root/lib/include/zconf.h /root/lib/include/zlib.h
+# Note: Keep pkgconfig files for libwebp so ImageMagick can detect it
+RUN rm -rf /root/lib/lib/libz.a /root/lib/include/zconf.h /root/lib/include/zlib.h && \
+    rm -f /root/lib/lib/pkgconfig/zlib.pc

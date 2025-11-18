@@ -79,6 +79,16 @@
 			},
 			"dependsOn": ["build:json"]
 		},
+		"api-e2e": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"npm run build:docs",
+					"npx playwright test --config=packages/docs/site/playwright.config.ts --project=chromium"
+				],
+				"parallel": false
+			}
+		},
 		"lint": {
 			"executor": "@nx/linter:eslint",
 			"outputs": ["{options.outputFile}"],

@@ -115,7 +115,9 @@ export interface PHPRequest {
 
 export interface PHPRunOptions {
 	/**
-	 * Request path following the domain:port part.
+	 * Request path following the domain:port part –
+	 * after any URL rewriting rules (e.g. apache .htaccess)
+	 * have been applied.
 	 */
 	relativeUri?: string;
 

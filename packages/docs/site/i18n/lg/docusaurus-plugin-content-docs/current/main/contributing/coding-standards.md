@@ -22,16 +22,16 @@ Obubaka obujja nga waliwo ensobi obulungi butegeeza omukozesa omutendera ogw'oku
 A good error message informs the user of the following steps to take. Any ambiguity in errors thrown by Playground [Public APIs](/developers/apis/) will prompt the developers to open issues.
 -->
 
-Twalowooza ku nsobi y'omukutu gw'omutimbagano, okugeza—tusobola okuteebereza ekika ky'ensobi n'okulaga obubaka obukwatagana nga twongera ku mutendera oguddako?
+Gereza ku nsobi y'omukutu gw'omutimbagano, okugeza—tusobola okuteebereza ekika ky'ensobi netulaga obubaka obufunze ku mutendera oguddako?
 
 <!--
 Consider a network error, for example—can we infer the type of error and display a relevant message summarizing the next steps?
 -->
 
--   **Ensobi y'omukutu gw'omutimbagano**: "Omukutu gw'omutimbagano gwo guweddemu. Gezaako okuzzaamu olupapula.
--   **404**: "Fayiro tekirabiddwa".
--   **403**: "Seva ewanise okuyingira mu fayiro".
--   **CORS**: Nnyonnyola nti kye kikola ekirinda mu browza era ongereyo link egenda ku nnyonnyola entuufu (ku MDN oba ensibuko endala eya kukkirizibwa). Kuwa omukozesa amagezi okukyusa fayiro ye okugitwala mu kifo ekirala, nga `raw.githubusercontent.com`, era ongereyo link ku nsibuko ennyonnyola engeri y'okuteeka CORS headers ku seva zaabwe.
+-   **Obuzibu mu Network**: "Internet yo y'ekuttemu. Gezaako okuzzaamu olupapula.
+-   **404**: "Fayiro tezuuliiddwa".
+-   **403**: "Tokkirizibbwa kulaba fayiro eno".
+-   **CORS**: Nnyonnyola nti kyeekuusa ku byakwerinda bya browser era ogatteko link yo'kunnyonnyola okutuufu (ku MDN oba ensibuko endala eyesigika). Teesa omukozesa okukyusa fayiro ye okugitwala mu kifo ekirala, okugeza nga `raw.githubusercontent.com`, era ogatteko link ekutwala ku muko ogunnyonnyola engeri y'okuteeka CORS headers ku server zaabwe.
 
 <!--
 -   **Network error**: "Your internet connection twitched. Try to reload the page.
@@ -40,7 +40,7 @@ Consider a network error, for example—can we infer the type of error and displ
 -   **CORS**: clarify it's a browser security feature and add a link to a detailed explanation (on MDN or another reliable source). Suggest the user move their file somewhere else, like `raw.githubusercontent.com`, and link to a resource explaining how to set up CORS headers on their servers.
 -->
 
-Tukwata okutereeza koodi n'okukola linting mu ngeri ey'otomatiiki. Wummule, wandiika, era leka ebyuma bikole omulimu.
+Tukwasaganya entereeza ya koodi nokujekaanya okukakasa nga temuli nsobi era nga etambula butereevu ne'mpandiika yaffe. Wummula, wandiika, era leka ebyuma bikole omulimu.
 
 <!--
 We handle code formatting and linting automatically. Relax, type away, and let the machines do the work.
@@ -52,13 +52,13 @@ We handle code formatting and linting automatically. Relax, type away, and let t
 ## Public API
 -->
 
-Playground eruubirira okukuuma API scope ennono ennyo.
+Playground eruubirira okukuuma API scope ettono ennyo.
 
 <!--
 Playground aims to keep the narrowest possible API scope.
 -->
 
-Public APIs zi yangu okuziyongera naye nzizibu okuziggyawo. Kyetaaga PR emu okuyingiza API empya, naye kiyinza okwetaaga lukumi okugigyawo, naddala singa pulojekiti endala zizikozesezza dda.
+API z'olukale nyangu okuzigattamu era nkalubo okuziggyamu. Kyetaaga PR emu yokka okuyingiza API empya, naye kiyinza okwetaaga olukumi okugigyamu, naddala singa pulojekiti endala ziba zajikozesa dda.
 
 <!--
 Public APIs are easy to add and hard to remove. It only takes one PR to introduce a new API, but it may take a thousand to remove it, especially if other projects have already consumed it.
@@ -70,35 +70,35 @@ Public APIs are easy to add and hard to remove. It only takes one PR to introduc
 -   Don't expose unnecessary functions, classes, constants, or other components.
 -->
 
-## Enteekateeka
+## Blueprints
 
 <!--
 ## Blueprints
 -->
 
-[Enteekateeka](/blueprints/getting-started) ze ngeri enkulu ey'okukolagana ne Playground. Fayiro zino za JSON zinnyonnyola emitendo egy'emitendera Playground gy'ekola mu nkola.
+[Blueprints](/blueprints/getting-started) ze ngeri enkulu ez'okukolagana ne Playground. Fayiro za JSON zino zinnyonnyola emitendera Playground gy'ekolamu.
 
 <!--
 [Blueprints](/blueprints/getting-started) are the primary way to interact with Playground. These JSON files describe a set of steps that Playground executes in order.
 -->
 
-### Ebiragiro
+### Endagiriro
 
 <!--
 ### Guidelines
 -->
 
-Emitendera gy'enteekateeka girina okuba **migufu era egy'omusingi**. Girina okukola kinumu era okukikola obulungi.
+Emitendera gy'enteekateeka (blueprints) girina okuba mu **bufunze era nga mirambulukufu**. Girina okukola omulimu gumu era gigukole bulunji.
 
 <!--
 Blueprint steps should be **concise and focused**. They should do one thing and do it well.
 -->
 
--   Bw'oba oyagala okukola omutendera omupya, sooka okugezaako okudda okutereeza ogw'awali.
--   Bw'ekyo tekimala, kakasa nti omutendera omupya guleeta obusobozi obupya. Toddamu kukola functions ez'emitendera egy'awali.
--   Lowooza nti omutendera gujja kuyitibwa emirundi egisinga emu.
--   Lowooza nti gujja kukola mu nkola entongole.
--   Yongera unit tests okukakasa ekyo.
+-   Bw'oba oyagala okukola omutendera omupya, sooka ogezeeko okukyuusa oba okutereeza oguliwo.
+-   Ekyo bw'ekitamala, kakasa nti omutendera omupya guleeta obusobozi obupya. Tozzaamu functions ez'emitendera ejiriwo.
+-   Suubira nti omutendera gujja kuyitibwa emirundi ejisukka mu gumu.
+-   Suubira nti gujja kukola mu ngeri entongole.
+-   Gattako unit tests okukakasa ekyo.
 
 <!--
 -   If you need to create a new step, try refactoring an existing one first.
@@ -108,18 +108,18 @@ Blueprint steps should be **concise and focused**. They should do one thing and 
 -   Add unit tests to verify that.
 -->
 
-Enteekateeka zirina okuba **ez'amanyi era ez'eyangu okutegeerera**.
+Blueprints zirina okuba **ntereevu era nga nyangu okutegeerera**.
 
 <!--
 Blueprints should be **intuitive and straightforward**.
 -->
 
--   Tosabanga arguments ezisobola okuba optional.
+-   Tosaba arguments ezisobola okulekeka.
 -   Kozesa argument ennyangu. Okugeza, `slug` mu kifo kya `path`.
--   Nnyonnyola constants mu virtual JSON files—tolongoosa PHP files.
--   Nnyonnyola TypeScript type ku Blueprint. Bw'etyo Playground bw'ekola JSON schema yaayo.
+-   Nnyonnyola ebitakyuuka mu virtual JSON files—tokyuusa PHP files.
+-   Nnyonnyola TypeScript type ya Blueprint. Bw'etyo Playground bw'ekola JSON schema yaayo.
 -   Wandiika function okukwata omutendera gwa Blueprint. Kkiriza argument ey'ekika ky'onnyonnyodde.
--   Waayo ekyokulabirako eky'okukozesa mu doc string. Ekyeraga mu ngeri ey'otomatiiki mu biwandiiko.
+-   Waayo ekyokulabirako eky'enkozesa mu doc string. Kyeraga buterevu mu biwandiiko.
 
 <!--
 -   Don't require arguments that can be optional.

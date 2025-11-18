@@ -529,7 +529,7 @@ export class UrlResource extends FetchResource {
 		 */
 		if (this.resource.url.startsWith('https://github.com/')) {
 			const match = this.resource.url.match(
-				/^https:\/\/github\.com\/(?<owner>[^/]+)\/(?<repo>[^/]+)\/blob\/(?<branch>[^/]+)\/(?<path>.+[^/])$/
+				/^https:\/\/github\.com\/(?<owner>[^/]+)\/(?<repo>[^/]+)\/(?:blob|raw)\/(?<branch>[^/]+)\/(?<path>.+[^/])$/
 			);
 			if (match?.groups) {
 				this.resource = {

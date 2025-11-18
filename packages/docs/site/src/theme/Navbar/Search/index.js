@@ -3,8 +3,29 @@ import Search from '@theme-original/Navbar/Search';
 
 export default function SearchWrapper(props) {
 	/*
-	 * This component wraps the Search component.
-	 * Previously used to add Kapa AI button, but that has been removed.
+	 * This add the Kapa AI button to the end of the navbar. It is impossible to add it
+	 * by using themeConfig.navbar.items because the Search component it hardcoded.
+	 * See https://github.com/facebook/docusaurus/blob/main/packages/docusaurus-theme-classic/src/theme/Navbar/Content/index.tsx#L100
+	 *
+	 * By swizzling the Search component, we can add the Kapa AI button to the right of it.
 	 */
-	return <Search {...props} />;
+	const handleClick = (e) => {
+		e.preventDefault();
+		window.Kapa?.open?.();
+	};
+
+	return (
+		<>
+			<Search {...props} />
+			<div>
+				<a
+					className="kapa-ai-button"
+					onClick={handleClick}
+					aria-label="Ask AI"
+				>
+					Ask AI
+				</a>
+			</div>
+		</>
+	);
 }

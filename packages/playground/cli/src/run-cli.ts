@@ -74,13 +74,18 @@ type LogVerbosity = (typeof LogVerbosity)[keyof typeof LogVerbosity]['name'];
 
 export type WorkerType = 'v1' | 'v2';
 
-export async function parseOptionsAndRunCLI() {
+/**
+ * Parse the CLI args and run the appropriate command.
+ *
+ * @param argsToParse string[] The CLI args to parse.
+ */
+export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 	try {
 		/**
 		 * @TODO This looks similar to Query API args https://wordpress.github.io/wordpress-playground/developers/apis/query-api/
 		 *       Perhaps the two could be handled by the same code?
 		 */
-		const yargsObject = yargs(process.argv.slice(2))
+		const yargsObject = yargs(argsToParse)
 			.usage('Usage: wp-playground <command> [options]')
 			.positional('command', {
 				describe: 'Command to run',
@@ -328,6 +333,12 @@ export async function parseOptionsAndRunCLI() {
 				}
 
 				if (args['experimental-multi-worker'] !== undefined) {
+					const cliCommand = args._[0] as string;
+					if (cliCommand !== 'server') {
+						throw new Error(
+							'The --experimental-multi-worker flag is only supported when running the server command.'
+						);
+					}
 					if (args['experimental-multi-worker'] <= 1) {
 						throw new Error(
 							'The --experimental-multi-worker flag must be a positive integer greater than 1.'
@@ -449,7 +460,7 @@ export async function parseOptionsAndRunCLI() {
 				currentError = currentError.cause as Error;
 			} while (currentError instanceof Error);
 			console.error(
-				'\x1b[1m' + messageChain.join(' caused by ') + '\x1b[0m'
+				'\x1b[1m' + messageChain.join(' caused by: ') + '\x1b[0m'
 			);
 		}
 		process.exit(1);
@@ -544,10 +555,10 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 	let loadBalancer: LoadBalancer;
 	let playground: RemoteAPI<PlaygroundCliWorker>;
 
-	const playgroundsToCleanUp: {
-		playground: RemoteAPI<PlaygroundCliWorker>;
-		worker: Worker;
-	}[] = [];
+	const playgroundsToCleanUp: Map<
+		Worker,
+		RemoteAPI<PlaygroundCliWorker>
+	> = new Map();
 
 	/**
 	 * Expand auto-mounts to include the necessary mounts and steps
@@ -619,12 +630,19 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 			const serverUrl = `http://${host}:${port}`;
 			const siteUrl = args['site-url'] || serverUrl;
 
-			// Create the blueprints handler
-			const targetWorkerCount = args.experimentalMultiWorker ?? 1;
-			// Account for the initial worker which is discarded after setup.
-			const totalWorkerCountIncludingSetupWorker = targetWorkerCount + 1;
+			const targetWorkerCount =
+				args.command === 'server'
+					? args.experimentalMultiWorker ?? 1
+					: 1;
+			const totalWorkersToSpawn =
+				args.command === 'server'
+					? // Account for the initial worker
+					  // which is discarded by the server after setup.
+					  targetWorkerCount + 1
+					: targetWorkerCount;
+
 			const processIdSpaceLength = Math.floor(
-				Number.MAX_SAFE_INTEGER / totalWorkerCountIncludingSetupWorker
+				Number.MAX_SAFE_INTEGER / totalWorkersToSpawn
 			);
 
 			/*
@@ -713,19 +731,27 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 					if (hasVSCode) {
 						console.log(bold('VS Code / Cursor instructions:'));
 						console.log(
-							'  1. Open the Run and Debug panel on the left sidebar'
+							'  1. Ensure you have installed an IDE extension for PHP Debugging'
 						);
 						console.log(
-							`  2. Select "${italic(
+							`     (The ${bold('PHP Debug')} extension by ${bold(
+								'Xdebug'
+							)} has been a solid option)`
+						);
+						console.log(
+							'  2. Open the Run and Debug panel on the left sidebar'
+						);
+						console.log(
+							`  3. Select "${italic(
 								IDEConfigName
 							)}" from the dropdown`
 						);
 						console.log('  3. Click "start debugging"');
 						console.log(
-							'  4. Set a breakpoint. For example, in .playground-xdebug-root/wordpress/index.php'
+							'  5. Set a breakpoint. For example, in .playground-xdebug-root/wordpress/index.php'
 						);
 						console.log(
-							'  5. Visit Playground in your browser to hit the breakpoint'
+							'  6. Visit Playground in your browser to hit the breakpoint'
 						);
 						if (hasPhpStorm) {
 							console.log('');
@@ -862,10 +888,12 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 
 				disposing = true;
 				await Promise.all(
-					playgroundsToCleanUp.map(async ({ playground, worker }) => {
-						await playground.dispose();
-						await worker.terminate();
-					})
+					[...playgroundsToCleanUp].map(
+						async ([worker, playground]) => {
+							await playground.dispose();
+							await worker.terminate();
+						}
+					)
 				);
 				if (server) {
 					await new Promise((resolve) => server.close(resolve));
@@ -876,7 +904,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 			// Kick off worker threads now to save time later.
 			// There is no need to wait for other async processes to complete.
 			const promisedWorkers = spawnWorkerThreads(
-				totalWorkerCountIncludingSetupWorker,
+				totalWorkersToSpawn,
 				handler.getWorkerType(),
 				({ exitCode, workerIndex }) => {
 					// We are already disposing, so worker exit is expected
@@ -916,6 +944,10 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 							fileLockManagerPort,
 							nativeInternalDirPath
 						);
+					playgroundsToCleanUp.set(
+						initialWorker.worker,
+						initialPlayground
+					);
 
 					await initialPlayground.isReady();
 					wordPressReady = true;
@@ -955,16 +987,16 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 					// be configured differently than post-boot workers.
 					// For example, we do not enable Xdebug by default for the initial worker.
 					await loadBalancer.removeWorker(initialPlayground);
-					// TODO: Wrap in a cleanup function and reuse for all worker cleanup.
 					await initialPlayground.dispose();
 					await initialWorker.worker.terminate();
+					playgroundsToCleanUp.delete(initialWorker.worker);
 				}
 
 				logger.log(`Preparing workers...`);
 
 				// Boot additional workers using the handler
 				const initialWorkerProcessIdSpace = processIdSpaceLength;
-				// Just take the first Playground instance to be relayed to others.
+				// Just take the first Playground instance to be returned to the caller.
 				[playground] = await Promise.all(
 					workers.map(async (worker, index) => {
 						const firstProcessId =
@@ -983,11 +1015,10 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 								nativeInternalDirPath,
 							});
 
-						playgroundsToCleanUp.push({
-							playground: additionalPlayground,
-							worker: worker.worker,
-						});
-
+						playgroundsToCleanUp.set(
+							worker.worker,
+							additionalPlayground
+						);
 						loadBalancer.addWorker(additionalPlayground);
 
 						return additionalPlayground;
@@ -1022,6 +1053,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 				if (await playground?.fileExists(errorLogPath)) {
 					phpLogs = await playground.readFileAsText(errorLogPath);
 				}
+				await disposeCLI();
 				throw new Error(phpLogs, { cause: error });
 			}
 		},
