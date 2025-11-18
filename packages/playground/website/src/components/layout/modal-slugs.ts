@@ -1,6 +1,5 @@
 export const modalSlugs = {
 	LOG: 'log',
-	ERROR_REPORT: 'error-report',
 	START_ERROR: 'start-error',
 	IMPORT_FORM: 'import-form',
 	GITHUB_IMPORT: 'github-import',

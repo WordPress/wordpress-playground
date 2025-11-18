@@ -17,12 +17,11 @@ import { setupPostMessageRelay } from '@php-wasm/web';
 import { startPlaygroundWeb } from '@wp-playground/client';
 import type { PlaygroundClient } from '@wp-playground/remote';
 import { getRemoteUrl } from '../../config';
-import { setActiveModal, setActiveSiteError } from './slice-ui';
+import { setActiveSiteError } from './slice-ui';
 import type { PlaygroundDispatch, PlaygroundReduxState } from './store';
 import { selectSiteBySlug } from './slice-sites';
 // @ts-ignore
 import { corsProxyUrl } from 'virtual:cors-proxy-url';
-import { modalSlugs } from '../../../components/layout';
 
 export function bootSiteClient(
 	siteSlug: string,
@@ -240,7 +239,6 @@ export function bootSiteClient(
 						details: e,
 					})
 				);
-				dispatch(setActiveModal(modalSlugs.ERROR_REPORT));
 			}
 			return;
 		}

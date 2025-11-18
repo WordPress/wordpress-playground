@@ -7,7 +7,6 @@ import type {
 	PlaygroundReduxState,
 } from '../../lib/state/redux/store';
 import { useAppSelector, useAppDispatch } from '../../lib/state/redux/store';
-import { addCrashListener, logger } from '@php-wasm/logger';
 import type { BlueprintV1Declaration } from '@wp-playground/blueprints';
 import { useState, useEffect, useRef } from 'react';
 import { acquireOAuthTokenIfNeeded } from '../../github/acquire-oauth-token-if-needed';
@@ -17,7 +16,6 @@ import { asPullRequestAction } from '../../github/github-export-form/form';
 import { GithubImportModal } from '../../github/github-import-form';
 import { GitHubOAuthGuardModal } from '../../github/github-oauth-guard';
 import { asContentType } from '../../github/import-from-github';
-import { ErrorReportModal } from '../error-report-modal';
 import { LogModal } from '../log-modal';
 import { StartErrorModal } from '../start-error-modal';
 import type { DisplayMode } from '../playground-viewport';
@@ -25,7 +23,6 @@ import {
 	supportedDisplayModes,
 	PlaygroundViewport,
 } from '../playground-viewport';
-import { setActiveModal } from '../../lib/state/redux/slice-ui';
 import { ImportFormModal } from '../import-form-modal';
 import { PreviewPRModal } from '../../github/preview-pr';
 import { MissingSiteModal } from '../missing-site-modal';
@@ -135,15 +132,8 @@ function Modals(blueprint: BlueprintV1Declaration) {
 		return values;
 	});
 
-	useEffect(() => {
-		addCrashListener(logger, (e) => {
-			const error = e as CustomEvent;
-			if (error.detail?.source === 'php-wasm') {
-				dispatch(setActiveModal(modalSlugs.ERROR_REPORT));
-			}
-		});
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, []);
+	// eslint-disable-next-line react-hooks/exhaustive-deps
+	useEffect(() => {}, []);
 
 	const currentModal = useAppSelector(
 		(state: PlaygroundReduxState) => state.ui.activeModal
@@ -151,8 +141,6 @@ function Modals(blueprint: BlueprintV1Declaration) {
 
 	if (currentModal === modalSlugs.LOG) {
 		return <LogModal />;
-	} else if (currentModal === modalSlugs.ERROR_REPORT) {
-		return <ErrorReportModal blueprint={blueprint} />;
 	} else if (currentModal === modalSlugs.START_ERROR) {
 		return <StartErrorModal />;
 	} else if (currentModal === modalSlugs.IMPORT_FORM) {
