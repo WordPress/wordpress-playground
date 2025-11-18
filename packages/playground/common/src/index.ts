@@ -66,7 +66,8 @@ export const unzipFile = async (
 				$zip->close();
 				chmod($extractTo, 0777);
             } else {
-                throw new Exception("Could not unzip file: " . $zip->getStatusString());
+                $fileSize = file_exists($zipPath) ? filesize($zipPath) : 'unknown';
+                throw new Exception("Could not unzip file. Error code: " . $res . ". File size: " . $fileSize . " bytes.");
             }
         }
         unzip(${js.zipPath}, ${js.extractToPath}, ${js.overwriteFiles});

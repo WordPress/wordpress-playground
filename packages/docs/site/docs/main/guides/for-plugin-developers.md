@@ -58,6 +58,10 @@ To avoid CORS issues, the Playground project provides a [GitHub proxy](https://p
 [GitHub proxy](https://playground.wordpress.net/proxy) is an incredibly useful tool to load plugins from GitHub repositories as it allows you to load a plugin from a specific branch, a specific directory, a specific commit or a specific PR.
 :::
 
+:::tip
+If your plugin is hosted on GitHub, you can automatically add preview buttons to your pull requests using the Playground PR Preview GitHub Action. This lets reviewers test your changes instantly without any setup. See [Adding PR Preview Buttons with GitHub Actions](/guides/github-action-pr-preview) for details.
+:::
+
 For example, the following `blueprint.json` installs a plugin from a GitHub repository leveraging the https://github-proxy.com tool:
 
 ```json

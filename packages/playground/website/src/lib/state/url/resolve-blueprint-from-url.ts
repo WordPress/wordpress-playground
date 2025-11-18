@@ -30,6 +30,29 @@ export type ResolvedBlueprint = {
 	source: BlueprintSource;
 };
 
+const githubBlobOrRawPathPattern = /^\/([^/]+)\/([^/]+)\/(?:blob|raw)\//;
+
+function normalizeBlueprintUrl(remoteUrl: string): string {
+	try {
+		const parsedUrl = new URL(remoteUrl);
+		if (parsedUrl.hostname !== 'github.com') {
+			return remoteUrl;
+		}
+		const rewrittenPath = parsedUrl.pathname.replace(
+			githubBlobOrRawPathPattern,
+			'/$1/$2/'
+		);
+		if (rewrittenPath === parsedUrl.pathname) {
+			return remoteUrl;
+		}
+		parsedUrl.pathname = rewrittenPath;
+		parsedUrl.hostname = 'raw.githubusercontent.com';
+		return parsedUrl.toString();
+	} catch {
+		return remoteUrl;
+	}
+}
+
 export async function resolveBlueprintFromURL(
 	url: URL,
 	defaultBlueprint?: string
@@ -59,13 +82,12 @@ export async function resolveBlueprintFromURL(
 		 * Support passing blueprints via query parameter, e.g.:
 		 * ?blueprint-url=https://example.com/blueprint.json
 		 */
+		const blueprintUrl = normalizeBlueprintUrl(query.get('blueprint-url')!);
 		return {
-			blueprint: await resolveRemoteBlueprint(
-				query.get('blueprint-url')!
-			),
+			blueprint: await resolveRemoteBlueprint(blueprintUrl),
 			source: {
 				type: 'remote-url',
-				url: query.get('blueprint-url')!,
+				url: blueprintUrl,
 			},
 		};
 	} else if (fragment.length) {
@@ -244,17 +266,12 @@ function applyQueryOverridesToDeclaration(
 		});
 	}
 
-	// Handle WordPress core PR or branch preview
-	const coreRef = query.get('core-pr') || query.get('core-branch');
+	// Handle WordPress core PR preview
+	const coreRef = query.get('core-pr');
 	if (coreRef) {
-		const refType = query.has('core-pr') ? 'pr' : 'branch';
 		// For WordPress PRs: artifact name is wordpress-build-{PR_NUMBER}
-		// For WordPress branches: artifact name is wordpress-build-{COMMIT_HASH}
-		//   We use wordpress-build- (with trailing dash) to trigger prefix matching in plugin-proxy.php
-		const artifactName = query.has('core-pr')
-			? `wordpress-build-${coreRef}`
-			: 'wordpress-build-';
-		blueprint.preferredVersions!.wp = `https://playground.wordpress.net/plugin-proxy.php?org=WordPress&repo=wordpress-develop&workflow=Test%20Build%20Processes&artifact=${artifactName}&${refType}=${coreRef}`;
+		const artifactName = `wordpress-build-${coreRef}`;
+		blueprint.preferredVersions!.wp = `https://playground.wordpress.net/plugin-proxy.php?org=WordPress&repo=wordpress-develop&workflow=Test%20Build%20Processes&artifact=${artifactName}&pr=${coreRef}`;
 	}
 
 	// Handle Gutenberg PR or branch preview

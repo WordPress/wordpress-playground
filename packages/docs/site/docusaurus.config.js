@@ -25,11 +25,7 @@ const config = {
 	projectName: 'wordpress-playground', // Usually your repo name.
 
 	onBrokenLinks: 'throw',
-	markdown: {
-		hooks: {
-			onBrokenMarkdownLinks: 'throw',
-		},
-	},
+	onBrokenMarkdownLinks: 'throw',
 
 	// Even if you don't use internalization, you can use this field to set useful
 	// metadata like HTML lang. For example, if your site is Chinese, you may want
@@ -71,6 +67,7 @@ const config = {
 	},
 	themes: ['@docusaurus/theme-live-codeblock'],
 	plugins: [
+		'./plugins/docusaurus-dedupe-aliases.js',
 		getDocusaurusPluginTypedocApiConfig(),
 		[
 			'@docusaurus/plugin-ideal-image',
@@ -266,7 +263,7 @@ function getDocusaurusPluginTypedocApiConfig() {
 	};
 
 	return [
-		'docusaurus-plugin-typedoc-api',
+		require.resolve('./plugins/typedoc-api-wrapper.js'),
 		{
 			projectRoot,
 			packages,
