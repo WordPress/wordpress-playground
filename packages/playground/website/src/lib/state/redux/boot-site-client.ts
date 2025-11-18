@@ -3,7 +3,6 @@ import { loadDirectoryHandle } from '../opfs/opfs-directory-handle-storage';
 import {
 	getDirectoryPathForSlug,
 	legacyOpfsPathSymbol,
-	deleteDirectory,
 } from '../opfs/opfs-site-storage';
 import {
 	addClientInfo,
@@ -124,9 +123,9 @@ export function bootSiteClient(
 			blueprint = site.metadata.originalBlueprint;
 		}
 
-		let playground: PlaygroundClient;
+		let playground: PlaygroundClient | undefined = undefined;
 		try {
-			playground = await startPlaygroundWeb({
+			await startPlaygroundWeb({
 				iframe: iframe!,
 				remoteUrl: getRemoteUrl().toString(),
 				scope: site.slug,
@@ -138,8 +137,9 @@ export function bootSiteClient(
 					) === 'yes',
 				// Intercept the Playground client even if the
 				// Blueprint fails.
-				onClientConnected: (playground) => {
-					(window as any)['playground'] = playground;
+				onClientConnected: (playgroundClient) => {
+					playground = (window as any)['playground'] =
+						playgroundClient;
 				},
 				// Log the names of provided Blueprint's steps.
 				// Only the names (e.g. "runPhp" or "login") are logged. Step options like
@@ -162,45 +162,6 @@ export function bootSiteClient(
 				shouldInstallWordPress: !isWordPressInstalled,
 				corsProxy: corsProxyUrl,
 			});
-
-			// @TODO: Remove backcompat code after 2024-12-01.
-			if (
-				(site.metadata as any)[legacyOpfsPathSymbol] &&
-				site.metadata.storage === 'opfs' &&
-				mountDescriptor?.device.type === 'opfs'
-			) {
-				const sourcePath = mountDescriptor.device.path;
-				const targetPath = getDirectoryPathForSlug(site.slug);
-				logger.info(
-					`Migrating legacy OPFS site from ${sourcePath} to ${targetPath}`
-				);
-				// Move the legacy site to the new OPFS sites location.
-				mountDescriptor = {
-					device: {
-						type: 'opfs',
-						path: targetPath,
-					},
-					mountpoint: '/wordpress',
-				} as const;
-				try {
-					await playground.mountOpfs(
-						{
-							...mountDescriptor,
-							initialSyncDirection: 'memfs-to-opfs',
-						} as const
-						// TODO: show progress indicator?
-					);
-					await deleteDirectory(sourcePath);
-					logger.info(
-						`Completed migration of legacy OPFS site from ${sourcePath} to ${targetPath}`
-					);
-				} catch (e) {
-					logger.info(
-						`Failed migration of legacy OPFS site from ${sourcePath} to ${targetPath}`
-					);
-					throw e;
-				}
-			}
 		} catch (e) {
 			logger.error(e);
 
@@ -236,10 +197,9 @@ export function bootSiteClient(
 					})
 				);
 			}
-			return;
 		}
 
-		if (signal.aborted) {
+		if (signal.aborted || !playground) {
 			return;
 		}
 
@@ -254,7 +214,7 @@ export function bootSiteClient(
 			})
 		);
 
-		playground.onNavigation((url) => {
+		(playground as PlaygroundClient).onNavigation((url) => {
 			dispatch(
 				updateClientInfo({
 					siteSlug: site.slug,
