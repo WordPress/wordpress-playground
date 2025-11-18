@@ -101,7 +101,7 @@
 	padding-left: 1.2rem;
 	line-height: 1.5;
 	color: #1d2327;
-	font-size: 1rem;
+	list-style-type: disc;
 }
 
 .error-details {
@@ -119,6 +119,7 @@
 	margin-bottom: 0.5rem;
 	line-height: 1.2;
 	margin-bottom: 0;
+	font-size: 1rem;
 }
 
 .error-details pre {
@@ -126,6 +127,7 @@
 	font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
 	white-space: pre-wrap;
 	word-break: break-word;
+	margin-top: 1rem;
 }
 
 .error-actions {
