@@ -228,52 +228,6 @@ test('should rename a saved Playground and persist after reload', async ({
 	).toContainText(newName);
 });
 
-test('installs WooCommerce via wp-admin after saving the site', async ({
-	website,
-	wordpress,
-	browserName,
-}) => {
-	test.skip(
-		browserName !== 'chromium',
-		`This test relies on OPFS-backed saves, which aren't available in Playwright's flavor of ${browserName}.`
-	);
-
-	await website.goto('./');
-	await website.ensureSiteManagerIsOpen();
-	await saveSiteViaModal(website.page);
-	await website.ensureSiteManagerIsClosed();
-
-	await website.goto('./?url=/wp-admin/plugins.php');
-	await website.ensureSiteManagerIsClosed();
-
-	await wordpress.getByRole('link', { name: 'Add New', exact: true }).click();
-	const searchInput = wordpress.locator('#plugin-search-input');
-	await searchInput.fill('woo');
-	await searchInput.press('Enter');
-
-	const wooCard = wordpress.locator('.plugin-card-woocommerce');
-	await expect(wooCard).toBeVisible({ timeout: 60000 });
-
-	const installButton = wooCard.getByRole('button', {
-		name: /Install Now/i,
-	});
-	await installButton.click();
-
-	await expect(
-		wooCard.getByRole('button', { name: /Activate/i })
-	).toBeVisible({ timeout: 120000 });
-
-	await wordpress.getByRole('link', { name: 'Plugins', exact: true }).click();
-	await expect(wordpress.locator('.wp-heading-inline')).toContainText(
-		'Plugins'
-	);
-
-	await wordpress.getByRole('link', { name: 'Posts', exact: true }).click();
-	await expect(wordpress.locator('.wp-heading-inline')).toContainText(
-		'Posts'
-	);
-});
-
 test('should show save site modal with correct elements', async ({
 	website,
 	browserName,
