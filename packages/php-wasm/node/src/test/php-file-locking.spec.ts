@@ -117,7 +117,7 @@ error_log = ${errorLogPath}
 				`,
 			});
 			// TODO: Why does this DB file check fail for PHP 8.0 and under? The tests pass. The DB must exist.
-			//       Sleeping for 500ms avoids the issue.
+			//       This is only a problem in JSPI builds. Sleeping for 500ms avoids the issue.
 			// const dbFilePath = join(tempDir, dbFileName);
 			// if (!existsSync(dbFilePath)) {
 			// 	throw new Error(`Database file not created: ${dbFilePath}`);
