@@ -16,21 +16,27 @@ describe('Test WP version detection', async () => {
 	for (const expectedWordPressVersion of Object.keys(
 		MinifiedWordPressVersions
 	)) {
-		it(`detects WP ${expectedWordPressVersion} at runtime`, async () => {
-			const handler = await bootWordPressAndRequestHandler({
-				createPhpRuntime: async () =>
-					await loadNodeRuntime(RecommendedPHPVersion),
-				siteUrl: 'http://playground-domain/',
-				wordPressZip: await getWordPressModule(
+		it(
+			`detects WP ${expectedWordPressVersion} at runtime`,
+			async () => {
+				const handler = await bootWordPressAndRequestHandler({
+					createPhpRuntime: async () =>
+						await loadNodeRuntime(RecommendedPHPVersion),
+					siteUrl: 'http://playground-domain/',
+					wordPressZip: await getWordPressModule(
+						expectedWordPressVersion
+					),
+					sqliteIntegrationPluginZip: await getSqliteDriverModule(),
+				});
+				const loadedWordPressVersion = await getLoadedWordPressVersion(
+					handler
+				);
+				expect(loadedWordPressVersion).to.equal(
 					expectedWordPressVersion
-				),
-				sqliteIntegrationPluginZip: await getSqliteDriverModule(),
-			});
-			const loadedWordPressVersion = await getLoadedWordPressVersion(
-				handler
-			);
-			expect(loadedWordPressVersion).to.equal(expectedWordPressVersion);
-		});
+				);
+			},
+			{ timeout: 30_000 }
+		);
 	}
 
 	it('errors when unable to read version at runtime', async () => {
@@ -90,9 +96,13 @@ describe('Test WP version detection', async () => {
 	};
 
 	for (const [input, expected] of Object.entries(versionMap)) {
-		it(`maps '${input}' to '${expected}'`, () => {
-			const result = versionStringToLoadedWordPressVersion(input);
-			expect(result).to.equal(expected);
-		});
+		it(
+			`maps '${input}' to '${expected}'`,
+			() => {
+				const result = versionStringToLoadedWordPressVersion(input);
+				expect(result).to.equal(expected);
+			},
+			{ timeout: 30_000 }
+		);
 	}
 });

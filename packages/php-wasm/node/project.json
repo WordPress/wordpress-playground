@@ -168,7 +168,8 @@
 					"file-lock-manager-for-node.spec.ts",
 					"php-worker.spec.ts",
 					"php-soap.spec.ts",
-					"php-image-extensions.spec.ts"
+					"php-image-extensions.spec.ts",
+					"php-imagick.spec.ts"
 				]
 			}
 		},
@@ -195,7 +196,8 @@
 					"file-lock-manager-for-node.spec.ts",
 					"php-worker.spec.ts",
 					"php-soap.spec.ts",
-					"php-image-extensions.spec.ts"
+					"php-image-extensions.spec.ts",
+					"php-imagick.spec.ts"
 				]
 			}
 		},

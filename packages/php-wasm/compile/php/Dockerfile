@@ -48,6 +48,7 @@ COPY ./libxml2/ /root/builds/libxml2
 COPY ./libz/ /root/builds/libz
 COPY ./oniguruma/ /root/builds/oniguruma
 COPY ./libintl/ /root/builds/libintl
+COPY ./libImageMagick/ /root/builds/libImageMagick
 
 RUN if [ "$WITH_JSPI" = "yes" ]; then \
 	cp -r /root/builds/*/jspi/dist/root/lib/* /root/lib; \
@@ -139,6 +140,7 @@ ARG WITH_DEBUG
 ARG DEBUG_DWARF_COMPILATION_DIR
 ARG WITH_WS_NETWORKING_PROXY
 ARG WITH_INTL
+ARG WITH_IMAGICK
 
 # The platform to build for: web or node
 ARG EMSCRIPTEN_ENVIRONMENT=web
@@ -193,11 +195,8 @@ RUN if [ "$WITH_LIBZIP" = "yes" ]; then \
 			# https://www.php.net/manual/en/zlib.installation.php
 			echo -n ' --with-zlib --with-zlib-dir=/root/lib --with-zip ' >> /root/.php-configure-flags; \
 			echo -n ' /root/lib/lib/libzip.a /root/lib/lib/libz.a ' >> /root/.emcc-php-wasm-sources; \
-		fi && \
-		/root/replace.sh 's/pharcmd=pharcmd/pharcmd=/g' /root/php-src/configure && \
-		/root/replace.sh 's/pharcmd_install=install-pharcmd/pharcmd_install=/g' /root/php-src/configure; \
+		fi; \
 	fi;
-
 
 # Add ncurses if needed and libedit if needed
 RUN if [ "$WITH_CLI_SAPI" = "yes" ]; \
@@ -396,6 +395,37 @@ RUN if [ "$WITH_MYSQL" = "yes" ]; then \
 		echo -n ' --enable-mysql --enable-pdo --with-mysql=mysqlnd --with-mysqli=mysqlnd --with-pdo-mysql=mysqlnd ' >> /root/.php-configure-flags; \
 		echo -n ' -DMYSQLND_FORCE_TCP_LOCALHOST ' >> /root/.emcc-php-wasm-flags; \
 	fi
+
+# Download and prepare imagick extension if needed (PHP 7.2+)
+# Use version 3.7.0 for PHP 7.x, master for PHP 8.x
+RUN 	if [ "${PHP_VERSION:0:1}" -eq "7" ]; then \
+			IMAGICK_BRANCH="3.7.0"; \
+		else \
+			IMAGICK_BRANCH="master"; \
+		fi && \
+		git clone https://github.com/Imagick/imagick.git /root/imagick \
+			--branch "$IMAGICK_BRANCH" \
+			--single-branch \
+			--depth 1 && \
+		cp -r /root/imagick /root/php-src/ext/imagick && \
+		cd /root/php-src && \
+		if [ "${PHP_VERSION:0:1}" -eq "7" ]; then \
+			cp configure configure.backup && \
+			./buildconf --force && \
+			(/root/replace.sh 's/char xmlInitParser/void xmlInitParser/g' configure || true) && \
+			(/root/replace.sh 's/\$PKG_CONFIG --atleast-version 7.\d+.\d+ \$PKNAME/test "1" = "1"/g' configure || true) && \
+			(/root/replace.sh 's/test "\$curl_version" -ge 7010005/test "1" = "1"/g' configure || true) && \
+			perl -pi.bak -e 's/ret = read/ret = wasm_read/g' configure; \
+		else \
+			./buildconf --force; \
+		fi && \
+		echo -n ' --with-imagick=/root/lib --with-imagick-config=/root/lib/bin/wasm32-unknown-emscripten-MagickWand-config ' >> /root/.php-configure-flags && \
+		echo -n ' /root/lib/lib/libMagickWand-7.Q16HDRI.a /root/lib/lib/libMagickCore-7.Q16HDRI.a ' >> /root/.emcc-php-wasm-sources
+
+# Disable phar.php generation for all builds (WASM binaries can't execute during build)
+# This must run after buildconf but before configure
+RUN /root/replace.sh 's/pharcmd=pharcmd/pharcmd=/g' /root/php-src/configure && \
+	/root/replace.sh 's/pharcmd_install=install-pharcmd/pharcmd_install=/g' /root/php-src/configure
 
 # Build the patched PHP
 WORKDIR /root/php-src
@@ -708,6 +738,18 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "_asyncjs__wasm_shutdown"]'; \
 	echo -n " -s ASYNCIFY_IMPORTS=$ASYNCIFY_IMPORTS " | tr -d "\n" >> /root/.emcc-php-asyncify-flags; \
 	export ASYNCIFY_ONLY_UNPREFIXED=$'"null.<anonymous>",\
+"cookieread",\
+"ReadBlob",\
+"ReadBlobStream",\
+"ImageToFile",\
+"SetImageInfo",\
+"MagickReadImageFile",\
+"PHPWasm_Magick_SetImageInfo",\
+"PHPWasm_Magick_ImageToFile",\
+"PHPWasm_Magick_ReadImage",\
+"zm_shutdown_imagick",\
+"php_imagick_read_file",\
+"zim_Imagick___construct",\
 "printf_core",\
 "__vfprintf_internal",\
 "vfprintf",\
@@ -1051,11 +1093,23 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "ZEND_ASSIGN_OBJ_SPEC_VAR_CONST_OP_DATA_CONST_HANDLER",\
 "ZEND_ASSIGN_SPEC_CV_VAR_RETVAL_UNUSED_HANDLER",\
 "cli",\
+"__wrap_usleep",\
 "wasm_sleep",\
 "wasm_php_stream_flush",\
 "wasm_php_stream_read",\
 "php_crc32_stream_bulk_update",\
 "phar_parse_zipfile",\
+"GetDelegateInfo",\
+"ReadBlob",\
+"ReadBlobStream",\
+"ImageToFile",\
+"SetImageInfo",\
+"PHPWasm_Magick_ReadImage",\
+"MagickReadImageFile",\
+"FormatLocaleString",\
+"GetConfigurePaths",\
+"GetConfigureOptions",\
+"IsDelegateCacheInstantiated",\
 "get_http_body",\
 "wasm_php_exec",\
 "wasm_sapi_handle_request",\
@@ -1114,6 +1168,9 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "match",\
 "modifyPagePointer",\
 "module_destructor",\
+"module_destructor_zval",\
+"zend_destroy_modules",\
+"php_module_shutdown",\
 "mul_function_slow",\
 "multi_runsingle",\
 "multipart_buffer_read",\

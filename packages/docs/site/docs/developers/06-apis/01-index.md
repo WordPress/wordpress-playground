@@ -95,7 +95,7 @@ Blueprints play a significant role in WordPress Playground, so they have their o
 
 ### JavaScript API
 
-The `@wp-playground/client` package provides a JavaScript API you can use to fully control your Playground instance. Here's a very example of what you can do:
+The `@wp-playground/client` package provides a JavaScript API you can use to fully control your Playground instance. Here's a simple example of what you can do:
 
 import JSApiShortExample from '@site/docs/\_fragments/\_js_api_short_example.mdx';
 

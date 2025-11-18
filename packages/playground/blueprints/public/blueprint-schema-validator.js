@@ -1300,7 +1300,8 @@ const schema11 = {
 			properties: {
 				relativeUri: {
 					type: 'string',
-					description: 'Request path following the domain:port part.',
+					description:
+						'Request path following the domain:port part – after any URL rewriting rules (e.g. apache .htaccess) have been applied.',
 				},
 				scriptPath: {
 					type: 'string',
@@ -6932,7 +6933,8 @@ const schema34 = {
 	properties: {
 		relativeUri: {
 			type: 'string',
-			description: 'Request path following the domain:port part.',
+			description:
+				'Request path following the domain:port part – after any URL rewriting rules (e.g. apache .htaccess) have been applied.',
 		},
 		scriptPath: {
 			type: 'string',

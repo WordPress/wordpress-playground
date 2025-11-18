@@ -529,12 +529,17 @@ async function installWordPress(php: PHP) {
 				exit;
 			}
 			require $wp_load;
+			$nice_permalinks = '/%year%/%monthnum%/%day%/%postname%/';
 			$option_result = update_option(
 				'permalink_structure',
-				'/%year%/%monthnum%/%day%/%postname%/'
+				$nice_permalinks
 			);
 			ob_clean();
-			echo $option_result ? '1' : '0';
+			if ( get_option( 'permalink_structure' ) === $nice_permalinks ) {
+				echo '1';
+			} else {
+				echo '0';
+			}
 			ob_end_flush();
 		`,
 		env: {

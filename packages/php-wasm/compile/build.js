@@ -151,6 +151,11 @@ const argParser = yargs(process.argv.slice(2))
 			choices: ['yes', 'no'],
 			description: 'Build with WebSocket networking proxy support',
 		},
+		WITH_IMAGICK: {
+			type: 'string',
+			choices: ['yes', 'no'],
+			description: 'Build with imagick support',
+		},
 		PHP_VERSION: {
 			type: 'string',
 			description: 'The PHP version to build',
@@ -199,6 +204,7 @@ const platformDefaults = {
 		WITH_OPENSSL: 'yes',
 		WITH_WS_NETWORKING_PROXY: 'yes',
 		WITH_OPCACHE: 'yes',
+		WITH_IMAGICK: 'no',
 		STACK_SIZE: '1MB',
 	},
 	web: {
@@ -207,6 +213,7 @@ const platformDefaults = {
 	node: {
 		WITH_NODEFS: 'yes',
 		WITH_MYSQL: 'yes',
+		WITH_IMAGICK: 'yes',
 	},
 };
 const platform = args.PLATFORM;
@@ -302,6 +309,8 @@ await asyncSpawn(
 		getArg('WITH_MYSQL'),
 		'--build-arg',
 		getArg('WITH_WS_NETWORKING_PROXY'),
+		'--build-arg',
+		getArg('WITH_IMAGICK'),
 		'--build-arg',
 		`EMSCRIPTEN_ENVIRONMENT=${platform === 'node' ? 'node' : 'web'}`,
 		'--build-arg',
