@@ -191,8 +191,6 @@ export async function cloneRequest(
 		cache: request.cache,
 		redirect: request.redirect,
 		integrity: request.integrity,
-		// In Node.js, duplex: 'half' is required when
-		// the body is provided for non-GET/HEAD requests.
 		...(body && { duplex: 'half' }),
 		...overrides,
 	});
