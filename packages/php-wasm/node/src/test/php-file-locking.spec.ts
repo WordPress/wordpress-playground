@@ -514,7 +514,7 @@ error_log = ${errorLogPath}
 					}
 
 					$result = $db->exec('INSERT INTO test (name) VALUES ("test-after-termination")');
-					$attempt_after_termination = [
+					$attempt_after_exit = [
 						'lastErrorCode' => $db->lastErrorCode(),
 						'lastErrorMsg' => $db->lastErrorMsg(),
 					];
@@ -522,8 +522,8 @@ error_log = ${errorLogPath}
 					$db->close();
 
 					echo json_encode([
-						'attempt_after_termination' => $attempt_after_termination,
 						'attempt_while_locked' => $attempt_while_locked,
+						'attempt_after_exit' => $attempt_after_exit,
 					]);
 				`,
 			});
@@ -539,7 +539,7 @@ error_log = ${errorLogPath}
 				lastErrorCode: 5, // SQLITE_BUSY
 				lastErrorMsg: 'database is locked',
 			});
-			expect(result2Data.attempt_after_termination).toMatchObject({
+			expect(result2Data.attempt_after_exit).toMatchObject({
 				lastErrorCode: 0,
 				lastErrorMsg: 'not an error',
 			});
@@ -602,7 +602,7 @@ error_log = ${errorLogPath}
 					}
 
 					$result = $db->exec('INSERT INTO test (name) VALUES ("test-after-termination")');
-					$attempt_after_termination = [
+					$attempt_after_exit = [
 						'lastErrorCode' => $db->lastErrorCode(),
 						'lastErrorMsg' => $db->lastErrorMsg(),
 					];
@@ -610,8 +610,8 @@ error_log = ${errorLogPath}
 					$db->close();
 
 					echo json_encode([
-						'attempt_after_termination' => $attempt_after_termination,
 						'attempt_while_locked' => $attempt_while_locked,
+						'attempt_after_exit' => $attempt_after_exit,
 					]);
 				`,
 			});
@@ -627,7 +627,7 @@ error_log = ${errorLogPath}
 				lastErrorCode: 5, // SQLITE_BUSY
 				lastErrorMsg: 'database is locked',
 			});
-			expect(result2Data.attempt_after_termination).toMatchObject({
+			expect(result2Data.attempt_after_exit).toMatchObject({
 				lastErrorCode: 0,
 				lastErrorMsg: 'not an error',
 			});
@@ -645,7 +645,7 @@ error_log = ${errorLogPath}
 				php1Locking: 'php1-locking',
 				php1WaitingForPhp2ToTry: 'php1-waiting-for-php2-to-try',
 				php2ReadyForUnlock: 'php2-ready-for-unlock',
-				php1Unlocked: 'php1-unlocked',
+				php1ClosedDbConnection: 'php1-closed-db-connection',
 			} as const;
 
 			writeFileSync(phpCoordinationFile, stages.php1Locking);
@@ -663,13 +663,13 @@ error_log = ${errorLogPath}
 						usleep(100 * 1000);
 					}
 
-					$db->exec('COMMIT;');
-					$db->close(); // Explicitly close the file descriptor
-					file_put_contents('${vfsPhpCoordinationFile}', '${stages.php1Unlocked}');
+					// Skip committing the transaction and just close the connection.
+					$db->close();
+					file_put_contents('${vfsPhpCoordinationFile}', '${stages.php1ClosedDbConnection}');
 
 					// Keep the process alive to ensure lock is released by closing fd, not process termination
 					while (
-						file_get_contents('${vfsPhpCoordinationFile}') === '${stages.php1Unlocked}'
+						file_get_contents('${vfsPhpCoordinationFile}') === '${stages.php1ClosedDbConnection}'
 					) {
 						usleep(100 * 1000);
 					}
@@ -692,7 +692,7 @@ error_log = ${errorLogPath}
 
 					file_put_contents('${vfsPhpCoordinationFile}', '${stages.php2ReadyForUnlock}');
 					while (
-						file_get_contents('${vfsPhpCoordinationFile}') !== '${stages.php1Unlocked}'
+						file_get_contents('${vfsPhpCoordinationFile}') !== '${stages.php1ClosedDbConnection}'
 					) {
 						usleep(100 * 1000);
 					}
@@ -746,16 +746,16 @@ error_log = ${errorLogPath}
 					fclose($fp);
 
 					echo json_encode([
-						'lockAcquired' => $lockResult,
-						'fileContents' => file_get_contents('${testFilePath}'),
+						'lock_acquired' => $lockResult,
+						'file_contents' => file_get_contents('${testFilePath}'),
 					]);
 				`,
 			});
 
 			expect(result.exitCode).toBe(0);
 			const resultData = JSON.parse(result.text || '{}');
-			expect(resultData.lockAcquired).toBe(true);
-			expect(resultData.fileContents).toBe('test content');
+			expect(resultData.lock_acquired).toBe(true);
+			expect(resultData.file_contents).toBe('test content');
 		});
 		it('should be able to acquire a shared lock on a file', async () => {
 			using php = await createPhpRuntimeWithFileLockingAndTestMount();
@@ -771,21 +771,21 @@ error_log = ${errorLogPath}
 					}
 					$lockResult = flock($fp, LOCK_SH | LOCK_NB);
 					fseek($fp, 0);
-					$fileContents = fread($fp, 1024);
+					$file_contents = fread($fp, 1024);
 					flock($fp, LOCK_UN);
 					fclose($fp);
 
 					echo json_encode([
-						'lockAcquired' => $lockResult,
-						'fileContents' => $fileContents,
+						'lock_acquired' => $lockResult,
+						'file_contents' => $file_contents,
 					]);
 				`,
 			});
 
 			expect(result.exitCode).toBe(0);
 			const resultData = JSON.parse(result.text || '{}');
-			expect(resultData.lockAcquired).toBe(true);
-			expect(resultData.fileContents).toBe('test content');
+			expect(resultData.lock_acquired).toBe(true);
+			expect(resultData.file_contents).toBe('test content');
 		});
 		it('should deny an exclusive lock when another process has a shared lock on a file', async () => {
 			using php1 = await createPhpRuntimeWithFileLockingAndTestMount();
@@ -835,7 +835,7 @@ error_log = ${errorLogPath}
 					$fp = fopen('${testFilePath}', 'r+');
 					$lockResult = flock($fp, LOCK_EX | LOCK_NB); // Try non-blocking exclusive lock
 					$attempt_while_shared_locked = [
-						'lockAcquired' => $lockResult,
+						'lock_acquired' => $lockResult,
 					];
 					if ($lockResult) {
 						flock($fp, LOCK_UN);
@@ -852,7 +852,7 @@ error_log = ${errorLogPath}
 					$fp = fopen('${testFilePath}', 'r+');
 					$lockResult = flock($fp, LOCK_EX | LOCK_NB);
 					$attempt_while_unlocked = [
-						'lockAcquired' => $lockResult,
+						'lock_acquired' => $lockResult,
 					];
 					if ($lockResult) {
 						flock($fp, LOCK_UN);
@@ -873,10 +873,10 @@ error_log = ${errorLogPath}
 			expect(php1Result.exitCode).toBe(0);
 			expect(php2Result.exitCode).toBe(0);
 			const result2Data = JSON.parse(php2Result.text || '{}');
-			expect(result2Data.attempt_while_shared_locked.lockAcquired).toBe(
+			expect(result2Data.attempt_while_shared_locked.lock_acquired).toBe(
 				false
 			);
-			expect(result2Data.attempt_while_unlocked.lockAcquired).toBe(true);
+			expect(result2Data.attempt_while_unlocked.lock_acquired).toBe(true);
 		});
 		it('should deny a shared lock when another process has an exclusive lock on a file', async () => {
 			using php1 = await createPhpRuntimeWithFileLockingAndTestMount();
@@ -926,7 +926,7 @@ error_log = ${errorLogPath}
 					$fp = fopen('${testFilePath}', 'r+');
 					$lockResult = flock($fp, LOCK_SH | LOCK_NB); // Try non-blocking shared lock
 					$attempt_while_exclusively_locked = [
-						'lockAcquired' => $lockResult,
+						'lock_acquired' => $lockResult,
 					];
 					if ($lockResult) {
 						flock($fp, LOCK_UN);
@@ -943,7 +943,7 @@ error_log = ${errorLogPath}
 					$fp = fopen('${testFilePath}', 'r+');
 					$lockResult = flock($fp, LOCK_SH | LOCK_NB);
 					$attempt_while_unlocked = [
-						'lockAcquired' => $lockResult,
+						'lock_acquired' => $lockResult,
 					];
 					if ($lockResult) {
 						flock($fp, LOCK_UN);
@@ -965,9 +965,9 @@ error_log = ${errorLogPath}
 			expect(php2Result.exitCode).toBe(0);
 			const result2Data = JSON.parse(php2Result.text || '{}');
 			expect(
-				result2Data.attempt_while_exclusively_locked.lockAcquired
+				result2Data.attempt_while_exclusively_locked.lock_acquired
 			).toBe(false);
-			expect(result2Data.attempt_while_unlocked.lockAcquired).toBe(true);
+			expect(result2Data.attempt_while_unlocked.lock_acquired).toBe(true);
 		});
 		it('should grant multiple shared locks on a file', async () => {
 			using php1 = await createPhpRuntimeWithFileLockingAndTestMount();
@@ -1004,7 +1004,7 @@ error_log = ${errorLogPath}
 
 					flock($fp, LOCK_UN);
 					fclose($fp);
-					echo json_encode(['lockAcquired' => $lockResult]);
+					echo json_encode(['lock_acquired' => $lockResult]);
 				`,
 			});
 			const promisedPhp2Result = php2.run({
@@ -1029,7 +1029,7 @@ error_log = ${errorLogPath}
 						flock($fp, LOCK_UN);
 					}
 					fclose($fp);
-					echo json_encode(['lockAcquired' => $lockResult]);
+					echo json_encode(['lock_acquired' => $lockResult]);
 				`,
 			});
 			const promisedPhp3Result = php3.run({
@@ -1049,7 +1049,7 @@ error_log = ${errorLogPath}
 						flock($fp, LOCK_UN);
 					}
 					fclose($fp);
-					echo json_encode(['lockAcquired' => $lockResult]);
+					echo json_encode(['lock_acquired' => $lockResult]);
 				`,
 			});
 
@@ -1065,9 +1065,9 @@ error_log = ${errorLogPath}
 			const result2Data = JSON.parse(php2Result.text || '{}');
 			const result3Data = JSON.parse(php3Result.text || '{}');
 			// All three should be able to acquire shared locks
-			expect(result1Data.lockAcquired).toBe(true);
-			expect(result2Data.lockAcquired).toBe(true);
-			expect(result3Data.lockAcquired).toBe(true);
+			expect(result1Data.lock_acquired).toBe(true);
+			expect(result2Data.lock_acquired).toBe(true);
+			expect(result3Data.lock_acquired).toBe(true);
 		});
 		it('should release a shared lock when its associated file descriptor is closed', async () => {
 			using php1 = await createPhpRuntimeWithFileLockingAndTestMount();
@@ -1123,7 +1123,7 @@ error_log = ${errorLogPath}
 					$fp = fopen('${vfsTestFilePath}', 'r+');
 					$lockResult = flock($fp, LOCK_EX | LOCK_NB); // Try non-blocking exclusive lock
 					$attempt_while_locked = [
-						'lockAcquired' => $lockResult,
+						'lock_acquired' => $lockResult,
 					];
 					if ($lockResult) {
 						flock($fp, LOCK_UN);
@@ -1140,7 +1140,7 @@ error_log = ${errorLogPath}
 					$fp = fopen('${vfsTestFilePath}', 'r+');
 					$lockResult = flock($fp, LOCK_EX | LOCK_NB);
 					$attempt_after_fd_closed = [
-						'lockAcquired' => $lockResult,
+						'lock_acquired' => $lockResult,
 					];
 					if ($lockResult) {
 						flock($fp, LOCK_UN);
@@ -1164,8 +1164,10 @@ error_log = ${errorLogPath}
 			expect(php1Result.exitCode).toBe(0);
 			expect(php2Result.exitCode).toBe(0);
 			const result2Data = JSON.parse(php2Result.text || '{}');
-			expect(result2Data.attempt_while_locked.lockAcquired).toBe(false);
-			expect(result2Data.attempt_after_fd_closed.lockAcquired).toBe(true);
+			expect(result2Data.attempt_while_locked.lock_acquired).toBe(false);
+			expect(result2Data.attempt_after_fd_closed.lock_acquired).toBe(
+				true
+			);
 		});
 		it('should release an exclusive lock when its associated file descriptor is closed', async () => {
 			using php1 = await createPhpRuntimeWithFileLockingAndTestMount();
@@ -1221,7 +1223,7 @@ error_log = ${errorLogPath}
 					$fp = fopen('${testFilePath}', 'r+');
 					$lockResult = flock($fp, LOCK_SH | LOCK_NB); // Try non-blocking shared lock
 					$attempt_while_locked = [
-						'lockAcquired' => $lockResult,
+						'lock_acquired' => $lockResult,
 					];
 					if ($lockResult) {
 						flock($fp, LOCK_UN);
@@ -1238,7 +1240,7 @@ error_log = ${errorLogPath}
 					$fp = fopen('${testFilePath}', 'r+');
 					$lockResult = flock($fp, LOCK_SH | LOCK_NB);
 					$attempt_after_fd_closed = [
-						'lockAcquired' => $lockResult,
+						'lock_acquired' => $lockResult,
 					];
 					if ($lockResult) {
 						flock($fp, LOCK_UN);
@@ -1262,8 +1264,10 @@ error_log = ${errorLogPath}
 			expect(php1Result.exitCode).toBe(0);
 			expect(php2Result.exitCode).toBe(0);
 			const result2Data = JSON.parse(php2Result.text || '{}');
-			expect(result2Data.attempt_while_locked.lockAcquired).toBe(false);
-			expect(result2Data.attempt_after_fd_closed.lockAcquired).toBe(true);
+			expect(result2Data.attempt_while_locked.lock_acquired).toBe(false);
+			expect(result2Data.attempt_after_fd_closed.lock_acquired).toBe(
+				true
+			);
 		});
 		it('should release a shared lock when the owning process exits', async () => {
 			using php1 = await createPhpRuntimeWithFileLockingAndTestMount();
