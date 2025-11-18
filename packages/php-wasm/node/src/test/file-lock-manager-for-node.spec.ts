@@ -1505,8 +1505,8 @@ describe('FileLockManagerForNode', () => {
 		describe(`PHP ${phpVersion}: integration with primary and secondary runtimes`, async () => {
 			const mockFnWithResult = (await jspi())
 				? // Use async mocks for JSPI to match the async FileLockManager
-				  // used by JSPI PHP builds.
-				  (value: any) => vi.fn().mockResolvedValue(value)
+					// used by JSPI PHP builds.
+					(value: any) => vi.fn().mockResolvedValue(value)
 				: (value: any) => vi.fn().mockReturnValue(value);
 
 			function createMockFileLockManager(): FileLockManager {
@@ -1572,7 +1572,6 @@ describe('FileLockManagerForNode', () => {
 						emscriptenOptions: {
 							ENV,
 							fileLockManager: fileLockManagerForRuntime2,
-							trace: (...args: any[]) => console.error(...args),
 						},
 					})
 				);
