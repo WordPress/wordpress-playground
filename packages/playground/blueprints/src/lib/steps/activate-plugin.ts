@@ -98,9 +98,9 @@ export const activatePlugin: StepHandler<ActivatePluginStep> = async (
 	/**
 	 * Instead of trusting the activation response, check the active plugins list.
 	 *
-	 * We try to discard any extra output via output buffering. The script below must end by
-	 * printing a single "1" (active) or "0" (inactive) with no other output. Any other response
-	 * is treated as an activation failure so the caller can surface the raw text to the user.
+	 * We try to discard any extra output via output buffering. The output of the script below 
+	 * end with `{"success": true}` or `{"success": false}`. Only `{"success": true}` is
+	 * treated as a successful plugin activation.
 	 */
 	const activationStatusResult = await playground.run({
 		code: `<?php
