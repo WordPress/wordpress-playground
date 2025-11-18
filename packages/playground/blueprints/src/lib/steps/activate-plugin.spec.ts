@@ -180,6 +180,52 @@ describe('Blueprint step activatePlugin()', () => {
 		).resolves.not.toThrow();
 	});
 
+	it('should log noisy activation output and still treat the plugin as active', async () => {
+		const docroot = handler.documentRoot;
+		php.writeFile(
+			`${docroot}/wp-content/plugins/noisy-plugin.php`,
+			`<?php
+			/**
+			 * Plugin Name: Noisy Plugin
+			 */
+			register_activation_hook( __FILE__, function() {
+				echo 'Activation says hi';
+			} );
+
+			register_shutdown_function( function() {
+				echo 'Shutdown chimes in too';
+			} );
+			`
+		);
+
+		await expect(
+			activatePlugin(php, {
+				pluginPath: 'noisy-plugin.php',
+			})
+		).resolves.not.toThrow();
+	});
+
+	it('should throw an error if the plugin was not activated and noisy output is present', async () => {
+		const docroot = handler.documentRoot;
+		php.writeFile(
+			`${docroot}/wp-content/plugins/noisy-plugin.php`,
+			`<?php
+			/**
+			 * Plugin Name: Noisy Plugin
+			 */
+			register_activation_hook( __FILE__, function() {
+				throw new Exception( 'Activation failed' );
+			} );
+			`
+		);
+
+		await expect(
+			activatePlugin(php, {
+				pluginPath: 'noisy-plugin.php',
+			})
+		).rejects.toThrow(/Uncaught Exception: Activation failed/);
+	});
+
 	it('should not throw an error if the plugin is already active', async () => {
 		const docroot = handler.documentRoot;
 		php.writeFile(

@@ -1451,6 +1451,11 @@ static void wasm_sapi_register_server_variables(zval *track_vars_array TSRMLS_DC
 	value = SG(request_info).request_uri;
 	if (value != NULL)
 	{
+		/**
+		 * REQUEST_URI represents the requested path relative to the site root.
+		 * This is **before** any URL rewriting rules (e.g. apache .htaccess) have been
+		 * applied.
+		 */
 		php_register_variable("REQUEST_URI", value, track_vars_array TSRMLS_CC);
 	}
 
@@ -1459,7 +1464,9 @@ static void wasm_sapi_register_server_variables(zval *track_vars_array TSRMLS_DC
 	{
 		// Confirm path translated starts with the document root
 		/**
-		 * PHP_SELF is the script path relative to the document root.
+		 * PHP_SELF represents the requested script path resolved to a filesystem path relative to the document
+		 * root. This is after any URL rewriting rules (e.g. apache .htaccess)
+		 * have been applied.
 		 *
 		 * For example:
 		 *
@@ -1478,6 +1485,10 @@ static void wasm_sapi_register_server_variables(zval *track_vars_array TSRMLS_DC
 			char *script_name = wasm_server_context->path_translated + strlen(wasm_server_context->document_root);
 			char *script_filename = wasm_server_context->path_translated;
 			char *php_self = wasm_server_context->path_translated + strlen(wasm_server_context->document_root);
+			/**
+			 * SCRIPT_NAME represents the path to the PHP script being executed after
+			 * any URL rewriting rules (e.g. apache .htaccess) have been applied.
+			 */
 			php_register_variable("SCRIPT_NAME", estrdup(script_name), track_vars_array TSRMLS_CC);
 			php_register_variable("SCRIPT_FILENAME", estrdup(script_filename), track_vars_array TSRMLS_CC);
 			php_register_variable("PHP_SELF", estrdup(php_self), track_vars_array TSRMLS_CC);

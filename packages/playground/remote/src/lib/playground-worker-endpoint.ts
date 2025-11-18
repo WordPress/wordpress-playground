@@ -189,6 +189,7 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 				.join(',');
 		}
 
+		const parsedSiteUrl = new URL(siteUrl);
 		const requestHandler = await bootRequestHandler({
 			siteUrl,
 			createPhpRuntime: async () => {
@@ -259,8 +260,18 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 				},
 			},
 			getFileNotFoundAction(relativeUri: string) {
-				if (!knownRemoteAssetPaths.has(relativeUri)) {
-					return getFileNotFoundActionForWordPress(relativeUri);
+				/**
+				 * Known remote asset paths are stored as site-relative paths. We
+				 * need to remove the site root path prefix (e.g. scope:my-site) from
+				 * the request URL's pathname.
+				 */
+				const siteRelativePath =
+					parsedSiteUrl.pathname.length > 0 &&
+					relativeUri.startsWith(parsedSiteUrl.pathname)
+						? relativeUri.substring(parsedSiteUrl.pathname.length)
+						: relativeUri;
+				if (!knownRemoteAssetPaths.has(siteRelativePath)) {
+					return getFileNotFoundActionForWordPress(siteRelativePath);
 				}
 				// This path is listed as a remote asset. Mark it as a static file
 				// so the service worker knows it can issue a real fetch() to the server.

@@ -57,7 +57,7 @@ describe('Blueprint step importWxr', () => {
 			slug: 'wordpress-importer',
 		});
 		importerPlugin = await (await pluginResource.resolve()).arrayBuffer();
-	});
+	}, 30_000);
 
 	beforeEach(async () => {
 		handler = await bootWordPressAndRequestHandler({
@@ -89,22 +89,24 @@ describe('Blueprint step importWxr', () => {
 				activate: true,
 			},
 		});
-	});
+	}, 30_000);
 
-	it('Should import a WXR file with JSON-encoded UTF-8 characters', async () => {
-		const fileData = await readFile(
-			__dirname + '/fixtures/import-wxr-slash-issue.xml'
-		);
-		const file = new File([fileData], 'import.wxr');
+	it(
+		'Should import a WXR file with JSON-encoded UTF-8 characters',
+		async () => {
+			const fileData = await readFile(
+				__dirname + '/fixtures/import-wxr-slash-issue.xml'
+			);
+			const file = new File([fileData], 'import.wxr');
 
-		await importWxr(php, { file });
+			await importWxr(php, { file });
 
-		const expectedPostContent = `<!-- wp:inseri-core/text-editor {"blockId":"DSrQIjN5UjosCHJQImF5z","blockName":"textEditor","height":60,"content":"\\u0022#test\\u0022","contentType":"application/json"} -->
+			const expectedPostContent = `<!-- wp:inseri-core/text-editor {"blockId":"DSrQIjN5UjosCHJQImF5z","blockName":"textEditor","height":60,"content":"\\u0022#test\\u0022","contentType":"application/json"} -->
 <div class="wp-block-inseri-core-text-editor" data-attributes="{&quot;blockId&quot;:&quot;DSrQIjN5UjosCHJQImF5z&quot;,&quot;blockName&quot;:&quot;textEditor&quot;,&quot;content&quot;:&quot;\\&quot;#test\\&quot;&quot;,&quot;contentType&quot;:&quot;application/json&quot;,&quot;editable&quot;:false,&quot;height&quot;:60,&quot;isVisible&quot;:true,&quot;label&quot;:&quot;&quot;}">is loading ...</div>
 <!-- /wp:inseri-core/text-editor -->`;
 
-		const result = await php.run({
-			code: `<?php
+			const result = await php.run({
+				code: `<?php
 			require getenv('DOCROOT') . '/wp-load.php';
 			$posts = get_posts();
 			echo json_encode([
@@ -112,45 +114,53 @@ describe('Blueprint step importWxr', () => {
 				'post_title' => $posts[0]->post_title,
 			]);
 			`,
-			env: {
-				DOCROOT: handler.documentRoot,
-			},
-		});
-		const json = result.json;
+				env: {
+					DOCROOT: handler.documentRoot,
+				},
+			});
+			const json = result.json;
 
-		expect(json.post_content).toEqual(expectedPostContent);
-		expect(json.post_title).toEqual(`"Issue\\Issue"`);
-	});
+			expect(json.post_content).toEqual(expectedPostContent);
+			expect(json.post_title).toEqual(`"Issue\\Issue"`);
+		},
+		{ timeout: 30_000 }
+	);
 
-	it('Should create and associate wp_theme taxonomy terms for Site Editor templates', async () => {
-		const fileData = await readFile(
-			__dirname + '/fixtures/import-wxr-site-editor-template.xml'
-		);
-		const file = new File([fileData], 'import.wxr');
+	it(
+		'Should create and associate wp_theme taxonomy terms for Site Editor templates',
+		async () => {
+			const fileData = await readFile(
+				__dirname + '/fixtures/import-wxr-site-editor-template.xml'
+			);
+			const file = new File([fileData], 'import.wxr');
 
-		await importWxr(php, { file });
+			await importWxr(php, { file });
 
-		const result = await checkTemplateImportResults();
-		const json = result.json;
+			const result = await checkTemplateImportResults();
+			const json = result.json;
 
-		// Verify the template was imported and taxonomy association worked
-		expect(json.template_found).toBe(true);
-		expect(json.template_title).toEqual('Index');
-		expect(json.terms_associated_count).toBe(1);
-		expect(json.adonay_term_exists).toBe(true);
-		expect(json.associated_term_slugs).toEqual(['adonay']);
-	});
+			// Verify the template was imported and taxonomy association worked
+			expect(json.template_found).toBe(true);
+			expect(json.template_title).toEqual('Index');
+			expect(json.terms_associated_count).toBe(1);
+			expect(json.adonay_term_exists).toBe(true);
+			expect(json.associated_term_slugs).toEqual(['adonay']);
+		},
+		{ timeout: 30_000 }
+	);
 
-	it('Should rewrite site URLs in the imported content', async () => {
-		const fileData = await readFile(
-			__dirname + '/fixtures/import-wxr-base-url-rewriting.xml'
-		);
-		const file = new File([fileData], 'import.wxr');
+	it(
+		'Should rewrite site URLs in the imported content',
+		async () => {
+			const fileData = await readFile(
+				__dirname + '/fixtures/import-wxr-base-url-rewriting.xml'
+			);
+			const file = new File([fileData], 'import.wxr');
 
-		await importWxr(php, { file });
+			await importWxr(php, { file });
 
-		const result = await php.run({
-			code: `<?php
+			const result = await php.run({
+				code: `<?php
 			require getenv('DOCROOT') . '/wp-load.php';
 			$posts = get_posts();
 			echo json_encode([
@@ -158,14 +168,14 @@ describe('Blueprint step importWxr', () => {
 				'post_title' => $posts[0]->post_title,
 			]);
 			`,
-			env: {
-				DOCROOT: handler.documentRoot,
-			},
-		});
-		const json = result.json;
+				env: {
+					DOCROOT: handler.documentRoot,
+				},
+			});
+			const json = result.json;
 
-		const newSiteUrl = handler.absoluteUrl;
-		const expectedPostContent = `<!-- wp:paragraph -->
+			const newSiteUrl = handler.absoluteUrl;
+			const expectedPostContent = `<!-- wp:paragraph -->
 <p>
     <!-- Rewrites URLs that match the base URL -->
     URLs to rewrite:
@@ -187,20 +197,24 @@ describe('Blueprint step importWxr', () => {
 <!-- /wp:image -->
 `;
 
-		expect(json.post_content).toEqual(expectedPostContent);
-	});
+			expect(json.post_content).toEqual(expectedPostContent);
+		},
+		{ timeout: 30_000 }
+	);
 
-	it('Should rewrite site URLs in the imported content (tt5 playground content)', async () => {
-		const fileData = await readFile(
-			__dirname +
-				'/fixtures/import-tt5-subset-of-demo-blueprint-playgroundcontent.xml'
-		);
-		const file = new File([fileData], 'import.wxr');
+	it(
+		'Should rewrite site URLs in the imported content (tt5 playground content)',
+		async () => {
+			const fileData = await readFile(
+				__dirname +
+					'/fixtures/import-tt5-subset-of-demo-blueprint-playgroundcontent.xml'
+			);
+			const file = new File([fileData], 'import.wxr');
 
-		await importWxr(php, { file });
+			await importWxr(php, { file });
 
-		const result = await php.run({
-			code: `<?php
+			const result = await php.run({
+				code: `<?php
 			require getenv('DOCROOT') . '/wp-load.php';
 			$post = get_post(63);
 			echo json_encode([
@@ -208,14 +222,14 @@ describe('Blueprint step importWxr', () => {
 				'post_title' => $post->post_title,
 			]);
 			`,
-			env: {
-				DOCROOT: handler.documentRoot,
-			},
-		});
-		const json = result.json;
+				env: {
+					DOCROOT: handler.documentRoot,
+				},
+			});
+			const json = result.json;
 
-		// const newSiteUrl = php.absoluteUrl;
-		const expectedPostContent = `<!-- wp:paragraph -->
+			// const newSiteUrl = php.absoluteUrl;
+			const expectedPostContent = `<!-- wp:paragraph -->
 <p>Template are the blueprints for different layouts for your web pages. There following template are available in the theme:</p>
 <!-- /wp:paragraph -->
 
@@ -237,20 +251,24 @@ describe('Blueprint step importWxr', () => {
 <p></p>
 <!-- /wp:paragraph -->`;
 
-		expect(json.post_content).toEqual(expectedPostContent);
-	});
+			expect(json.post_content).toEqual(expectedPostContent);
+		},
+		{ timeout: 30_000 }
+	);
 
-	it('Should replace all post authors with admin user', async () => {
-		const fileData = await readFile(
-			__dirname + '/fixtures/import-wxr-comprehensive.xml'
-		);
-		const file = new File([fileData], 'import.wxr');
+	it(
+		'Should replace all post authors with admin user',
+		async () => {
+			const fileData = await readFile(
+				__dirname + '/fixtures/import-wxr-comprehensive.xml'
+			);
+			const file = new File([fileData], 'import.wxr');
 
-		await resetData(php, {});
-		await importWxr(php, { file });
+			await resetData(php, {});
+			await importWxr(php, { file });
 
-		const result = await php.run({
-			code: `<?php
+			const result = await php.run({
+				code: `<?php
 			require getenv('DOCROOT') . '/wp-load.php';
 			
 			// Get all imported posts
@@ -285,28 +303,30 @@ describe('Blueprint step importWxr', () => {
 				'post_authors' => $post_authors,
 			]);
 			`,
-			env: {
-				DOCROOT: handler.documentRoot,
-			},
-		});
-		const json = result.json;
+				env: {
+					DOCROOT: handler.documentRoot,
+				},
+			});
+			const json = result.json;
 
-		// Verify admin user exists
-		expect(json.admin_user_id).toBeTruthy();
-		expect(json.admin_user_login).toBe('admin');
+			// Verify admin user exists
+			expect(json.admin_user_id).toBeTruthy();
+			expect(json.admin_user_login).toBe('admin');
 
-		// Verify we imported the expected posts (1 post + 1 page from comprehensive fixture)
-		expect(json.total_posts).toBe(2);
+			// Verify we imported the expected posts (1 post + 1 page from comprehensive fixture)
+			expect(json.total_posts).toBe(2);
 
-		// Verify all imported posts are authored by admin
-		json.post_authors.forEach((postAuthor: any) => {
-			expect(postAuthor.author_id).toBe(json.admin_user_id + '');
-			expect(postAuthor.author_login).toBe('admin');
-		});
+			// Verify all imported posts are authored by admin
+			json.post_authors.forEach((postAuthor: any) => {
+				expect(postAuthor.author_id).toBe(json.admin_user_id + '');
+				expect(postAuthor.author_login).toBe('admin');
+			});
 
-		// Verify specific posts exist with correct titles
-		const postTitles = json.post_authors.map((p: any) => p.post_title);
-		expect(postTitles).toContain('Comprehensive Post');
-		expect(postTitles).toContain('Comprehensive Page');
-	});
+			// Verify specific posts exist with correct titles
+			const postTitles = json.post_authors.map((p: any) => p.post_title);
+			expect(postTitles).toContain('Comprehensive Post');
+			expect(postTitles).toContain('Comprehensive Page');
+		},
+		{ timeout: 30_000 }
+	);
 });

@@ -1,34 +1,49 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 // Mock the WordPress API response
+
+type ReleaseOffer = {
+	version: string;
+	download: string;
+	response: 'autoupdate';
+};
+const productionReleaseOffers: ReadonlyArray<ReleaseOffer> = [
+	{
+		version: '6.8.3',
+		download: 'https://wordpress.org/wordpress-6.8.3.zip',
+		response: 'autoupdate',
+	},
+	{
+		version: '6.8',
+		download: 'https://wordpress.org/wordpress-6.8.zip',
+		response: 'autoupdate',
+	},
+	{
+		version: '6.7.1',
+		download: 'https://wordpress.org/wordpress-6.7.1.zip',
+		response: 'autoupdate',
+	},
+	{
+		version: '6.6.2',
+		download: 'https://wordpress.org/wordpress-6.6.2.zip',
+		response: 'autoupdate',
+	},
+];
+
+const rcReleaseOffer: ReleaseOffer = {
+	version: '6.9-RC1',
+	download: 'https://wordpress.org/wordpress-6.9-RC1.zip',
+	response: 'autoupdate',
+};
+const betaReleaseOffer: ReleaseOffer = {
+	version: '6.9-beta1',
+	download: 'https://wordpress.org/wordpress-6.9-beta1.zip',
+	response: 'autoupdate',
+};
+
 const mockApiResponse = {
-	offers: [
-		{
-			version: '6.8.3',
-			download: 'https://wordpress.org/wordpress-6.8.3.zip',
-			response: 'autoupdate',
-		},
-		{
-			version: '6.8',
-			download: 'https://wordpress.org/wordpress-6.8.zip',
-			response: 'autoupdate',
-		},
-		{
-			version: '6.7.1',
-			download: 'https://wordpress.org/wordpress-6.7.1.zip',
-			response: 'autoupdate',
-		},
-		{
-			version: '6.6.2',
-			download: 'https://wordpress.org/wordpress-6.6.2.zip',
-			response: 'autoupdate',
-		},
-		{
-			version: '6.9-beta1',
-			download: 'https://wordpress.org/wordpress-6.9-beta1.zip',
-			response: 'autoupdate',
-		},
-	],
+	// Note: These offers will populated and cleared per test.
+	offers: [] as ReadonlyArray<ReleaseOffer>,
 };
 
 // Mock the fetch function before importing the module
@@ -53,9 +68,15 @@ const { resolveWordPressRelease } = await import('../index');
 describe('resolveWordPressRelease', () => {
 	beforeEach(() => {
 		mockFetch.mockClear();
+		mockApiResponse.offers = productionReleaseOffers;
 	});
 
-	it('resolves latest to the first non-beta version', async () => {
+	it('resolves latest to the first non-beta, non-release-candidate version', async () => {
+		mockApiResponse.offers = [
+			rcReleaseOffer,
+			betaReleaseOffer,
+			...productionReleaseOffers,
+		];
 		const result = await resolveWordPressRelease('latest');
 		expect(result.version).toBe('6.8.3');
 		expect(result.releaseUrl).toBe(
@@ -65,10 +86,21 @@ describe('resolveWordPressRelease', () => {
 	});
 
 	it('resolves beta to a beta version', async () => {
+		mockApiResponse.offers = [betaReleaseOffer, ...productionReleaseOffers];
 		const result = await resolveWordPressRelease('beta');
 		expect(result.version).toBe('6.9-beta1');
 		expect(result.releaseUrl).toBe(
 			'https://wordpress.org/wordpress-6.9-beta1.zip'
+		);
+		expect(result.source).toBe('api');
+	});
+
+	it('resolves beta to an RC version', async () => {
+		mockApiResponse.offers = [rcReleaseOffer, ...productionReleaseOffers];
+		const result = await resolveWordPressRelease('beta');
+		expect(result.version).toBe('6.9-RC1');
+		expect(result.releaseUrl).toBe(
+			'https://wordpress.org/wordpress-6.9-RC1.zip'
 		);
 		expect(result.source).toBe('api');
 	});
@@ -160,5 +192,14 @@ describe('resolveWordPressRelease', () => {
 		expect(result.version).toContain('custom-');
 		expect(result.releaseUrl).toBe(customUrl);
 		expect(result.source).toBe('inferred');
+	});
+
+	it('resolves null version to the first non-beta, non-release-candidate version', async () => {
+		const result = await resolveWordPressRelease(null as any);
+		expect(result.version).toBe('6.8.3');
+		expect(result.releaseUrl).toBe(
+			'https://wordpress.org/wordpress-6.8.3.zip'
+		);
+		expect(result.source).toBe('api');
 	});
 });

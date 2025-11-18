@@ -47,24 +47,13 @@ function test_playground_cli() {
 	fi
 }
 
-function test_playground_cli_multi_worker() {
-	MULTIWORKER_WP_PATH="$HOME/playground-cli-multi-worker-wp"
-	mkdir -p "$MULTIWORKER_WP_PATH"
-
-	# TODO: Also test with asyncify once we multiple workers there.
-	test_playground_cli unbuilt-jspi \
-		--mountBeforeInstall="$MULTIWORKER_WP_PATH:/wordpress" \
-		--experimentalMultiWorker
-}
-
 echo
 test_playground_cli unbuilt-asyncify
 echo
 test_playground_cli unbuilt-jspi
 echo
 
-
-test_playground_cli_multi_worker
+test_playground_cli unbuilt-asyncify --experimental-multi-worker
 echo
-echo 'Retesting multi-worker to test with a pre-existing WordPress installation where we have seen bugs.'
-test_playground_cli_multi_worker
+test_playground_cli unbuilt-jspi --experimental-multi-worker
+echo

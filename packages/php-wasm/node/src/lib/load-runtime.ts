@@ -84,6 +84,8 @@ export async function loadNodeRuntime(
 	phpVersion: SupportedPHPVersion,
 	options: PHPLoaderOptionsForNode = {}
 ) {
+	// TODO: Throw an error if a file lock manager is provided but not a process ID.
+
 	let emscriptenOptions: EmscriptenOptions = {
 		/**
 		 * Emscripten default behavior is to kill the process when
