@@ -1,7 +1,7 @@
 ---
 title: Guide de démarrage rapide pour les développeurs
 slug: /developers/build-your-first-app
-description: Guide pratique pour intégrer WordPress, installer des plugins, prévisualiser des PRs et créer des applications avec les APIs de Playground.
+description: Guide pratique pour intégrer WordPress, installer des extensions, prévisualiser des PRs et créer des applications avec les APIs Playground.
 ---
 
 <!--
@@ -24,13 +24,13 @@ import TOCInline from '@theme/TOCInline';
 ## Embed WordPress on your website
 -->
 
-## Intégrer WordPress sur votre site web
+## Intégrer WordPress sur votre site
 
 <!--
 Playground can be embedded on your website using the HTML `<iframe>` tag as follows:
 -->
 
-Playground peut être intégré sur votre site web en utilisant la balise HTML `<iframe>` comme suit :
+Playground peut être intégré sur votre site en utilisant la balise HTML `<iframe>` comme suit :
 
 ```html
 <iframe src="https://playground.wordpress.net/"></iframe>
@@ -50,13 +50,13 @@ import PlaygroundWpNetWarning from '@site/docs/\_fragments/\_playground_wp_net_m
 ## Control the embedded website
 -->
 
-## Contrôler le site web intégré
+## Contrôler le site intégré
 
 <!--
 WordPress Playground provides three APIs you can use to control the iframed website. All the examples in this section are built using one of these:
 -->
 
-WordPress Playground fournit trois APIs que vous pouvez utiliser pour contrôler le site web intégré. Tous les exemples de cette section sont construits en utilisant l'une de ces APIs :
+WordPress Playground fournit trois APIs que vous pouvez utiliser pour contrôler le site en iframe. Tous les exemples de cette section sont construits en utilisant l’une d'entre elles :
 
 import APIList from '@site/docs/\_fragments/\_api_list.mdx';
 
@@ -98,13 +98,13 @@ Vous pouvez installer des plugins et thèmes du répertoire WordPress avec seule
 What if your plugin is not in the WordPress directory?
 -->
 
-Et si votre plugin n'est pas dans le répertoire WordPress ?
+Et si votre extension ne figure pas dans le répertoire de WordPress ?
 
 <!--
 You can still showcase it on Playground by using [JSON Blueprints](/blueprints). For example, this Blueprint would download and install a plugin and a theme from your website and also import some starter content:
 -->
 
-Vous pouvez toujours le présenter sur Playground en utilisant les [Blueprints JSON](/blueprints). Par exemple, ce Blueprint téléchargerait et installerait un plugin et un thème depuis votre site web et importerait également du contenu de démarrage :
+Vous pouvez toujours la présenter avec Playground en utilisant les [JSON Blueprints](/blueprints). Par exemple, ce Blueprint téléchargerait et installerait une extension et un thème depuis votre site et importerait également un contenu de démarrage :
 
 ```json
 {
@@ -204,7 +204,7 @@ Pour utiliser Playground comme visualiseur de PR, vous avez besoin :
 Those zip bundles aren't any different from regular WordPress Plugins, which means you can install them in Playground using the [JSON Blueprints](/blueprints) API. Once you expose an endpoint like https://your-site.com/pull-request-1234.zip, the following Blueprint will do the rest:
 -->
 
-Ces archives zip ne sont pas différentes des plugins WordPress ordinaires, ce qui signifie que vous pouvez les installer dans Playground en utilisant l'API [Blueprints JSON](/blueprints). Une fois que vous exposez un endpoint comme https://your-site.com/pull-request-1234.zip, le Blueprint suivant fera le reste :
+Ces archives zip ne sont pas différentes des extensions WordPress classiques, ce qui signifie que vous pouvez les installer dans Playground en utilisant l'API [JSON Blueprints](/blueprints). Une fois que vous exposez un point de terminaison comme `https://your-site.com/pull-request-1234.zip`, le Blueprint suivant fera le reste :
 
 ```json
 {
@@ -301,7 +301,7 @@ Vous pouvez prévisualiser des pull requests spécifiques des dépôts WordPress
 Test your plugin across PHP and WordPress versions by configuring them in Playground. This helps you verify compatibility before release.
 -->
 
-Testez votre plugin sur différentes versions de PHP et WordPress en les configurant dans Playground. Cela vous aide à vérifier la compatibilité avant la publication.
+Testez votre extension sur différentes versions de PHP et WordPress en les configurant dans Playground. Cela vous aide à vérifier la compatibilité avant la publication.
 
 <!--
 With the Query API, you'd simply add the `php` and `wp` query parameters to the URL:
