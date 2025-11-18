@@ -59,7 +59,6 @@ RUN cd /root && git apply --no-index /root/php${PHP_VERSION:0:3}*.patch -v
 RUN source /root/emsdk/emsdk_env.sh && \
 	cd php-src && \
 	emconfigure ./configure \
-	--host=i386-unknown-freebsd \
 	--disable-fiber-asm \
 	--enable-embed \
 	--disable-cgi \
