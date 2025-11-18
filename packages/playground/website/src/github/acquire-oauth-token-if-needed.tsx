@@ -26,16 +26,9 @@ export async function acquireOAuthTokenIfNeeded() {
 		const body = await response.json();
 		setOAuthToken(body.access_token);
 
-		// Remove the ?code=... from the URL and clean up any modal state
 		const url = new URL(window.location.href);
 		url.searchParams.delete('code');
-		url.searchParams.delete('modal');
-		// Keep the hash (it contains the blueprint)
-
-		// Reload the page to retry the blueprint with the new token
-		// This is necessary because the blueprint failed before we had the token
-		// Use replace() instead of href assignment to avoid Chrome Error 5
-		window.location.replace(url.toString());
+		window.history.replaceState({}, '', url.toString());
 	} finally {
 		oAuthState.value = {
 			...oAuthState.value,
