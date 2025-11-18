@@ -2,11 +2,8 @@ import css from './style.module.css';
 
 import { SiteManager } from '../site-manager';
 import { CSSTransition } from 'react-transition-group';
-import type {
-	PlaygroundDispatch,
-	PlaygroundReduxState,
-} from '../../lib/state/redux/store';
-import { useAppSelector, useAppDispatch } from '../../lib/state/redux/store';
+import type { PlaygroundReduxState } from '../../lib/state/redux/store';
+import { useAppSelector } from '../../lib/state/redux/store';
 import type { BlueprintV1Declaration } from '@wp-playground/blueprints';
 import { useState, useEffect, useRef } from 'react';
 import { acquireOAuthTokenIfNeeded } from '../../github/acquire-oauth-token-if-needed';
@@ -86,8 +83,6 @@ export function Layout() {
  * top level, like here, or contextual to where the "Show modal" button is rendered.
  */
 function Modals(blueprint: BlueprintV1Declaration) {
-	const dispatch: PlaygroundDispatch = useAppDispatch();
-
 	const query = new URL(document.location.href).searchParams;
 
 	const [githubExportFiles, setGithubExportFiles] = useState<any[]>();

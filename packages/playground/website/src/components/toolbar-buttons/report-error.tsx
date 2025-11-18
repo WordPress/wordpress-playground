@@ -7,10 +7,14 @@ export function ReportError({ onClose, disabled }: Props) {
 			data-cy="report-error"
 			aria-label="Report an error in Playground"
 			disabled={disabled}
-			href="https://github.com/WordPress/wordpress-playground/issues/new/choose"
-			target="_blank"
-			rel="noopener noreferrer"
-			onClick={onClose}
+			onClick={() => {
+				onClose();
+				window.open(
+					'https://github.com/WordPress/wordpress-playground/issues/new/choose',
+					'_blank',
+					'noopener,noreferrer'
+				);
+			}}
 		>
 			Report error
 		</MenuItem>

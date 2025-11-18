@@ -16,6 +16,7 @@ import {
 	clearActiveSiteError,
 	type SiteError,
 	type SerializedSiteErrorDetails,
+	setActiveSiteError,
 } from '../../lib/state/redux/slice-ui';
 import { Button, Spinner, TextareaControl } from '@wordpress/components';
 import {
@@ -349,7 +350,12 @@ function SiteErrorModal({
 			await dispatch(setActiveSite(newSite.slug));
 			dispatch(clearActiveSiteError());
 		} catch (err) {
-			console.error('Failed to start without a Blueprint', err);
+			logger.error('Failed to start without a Blueprint', err);
+			dispatch(clearActiveSiteError());
+			dispatch(
+				setActiveSiteError({ error: 'site-boot-failed', details: err })
+			);
+			dispatch(setActiveSite(undefined));
 		} finally {
 			setIsStartingWithoutBlueprint(false);
 		}
