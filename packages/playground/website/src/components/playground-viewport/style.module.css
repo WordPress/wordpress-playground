@@ -47,6 +47,7 @@
 		width: 100%;
 		font-size: 15px;
 		padding: 0 24px 20px;
+		padding-top: 0;
 	}
 
 	:global(.components-modal__header) {
@@ -202,6 +203,7 @@
 		:global(.components-modal__content) {
 			font-size: 14px;
 			padding: 18px 20px;
+			padding-top: 0;
 		}
 
 		:global(.components-modal__header) {
@@ -314,7 +316,7 @@
 
 	.error-details pre {
 		font-size: 0.75rem;
-		max-height: 40vh;
+		max-height: 35vh;
 		overflow: auto;
 	}
 

@@ -309,7 +309,13 @@ function SiteErrorModal({
 			window.location.href = url.toString();
 		},
 		startWithoutBlueprint,
-		reload: () => window.location.reload(),
+		reload: () => {
+			const url = new URL(window.location.href);
+			url.search = '';
+			url.pathname = '/';
+			url.hash = '';
+			window.location.href = url.toString();
+		},
 		startWithoutBlueprintBusy: isStartingWithoutBlueprint,
 	};
 
@@ -565,7 +571,7 @@ function getErrorPresentation({
 						key="reload-tab"
 						onClick={helpers.reload}
 					>
-						Reload Playground
+						Reload Fresh Playground
 					</Button>,
 				],
 			};
