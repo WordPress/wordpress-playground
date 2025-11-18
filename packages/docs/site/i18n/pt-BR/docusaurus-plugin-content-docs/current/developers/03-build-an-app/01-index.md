@@ -128,21 +128,23 @@ Você pode visualizar código do repositório de duas maneiras: diretamente com 
 			"pluginData": {
 				"resource": "git:directory",
 				"url": "https://github.com/my-user/my-repo",
-				"ref": "add-feature-xyz",
-				"refType": "branch"
+				"ref": "refs/pull/1/head",
+				"refType": "refname"
+			},
+			"options": {
+				"activate": true
+			},
+			"progress": {
+				"caption": "Installing plugin from my-user/my-repo PR #1"
 			}
 		}
 	]
 }
 ```
 
-<!-- `git:directory` requires no CI configuration. Using a direct .zip URL performs better because Playground downloads a single file, but requires CI setup. -->
+<!-- Loading a `.zip` file is another alternative for previewing your project. See the [live example of Gutenberg PR previewer](https://playground.wordpress.net/gutenberg.html). -->
 
-`git:directory` não requer configuração de CI. Usar uma URL .zip direta tem melhor desempenho porque o Playground baixa um único arquivo, mas requer configuração de CI.
-
-<!-- See the [live example of Gutenberg PR previewer](https://playground.wordpress.net/gutenberg.html). -->
-
-Veja o [exemplo ao vivo do visualizador de PR do Gutenberg](https://playground.wordpress.net/gutenberg.html).
+Carregar um arquivo `.zip` é outra alternativa para visualizar seu projeto. Veja o [exemplo ao vivo do visualizador de PR do Gutenberg](https://playground.wordpress.net/gutenberg.html).
 
 <!-- To use Playground as a PR previewer, you need: -->
 
@@ -223,19 +225,17 @@ blueprint={{
 
 ### Visualizar Branches ou PRs do WordPress Core e Gutenberg
 
-<!-- You can preview specific branches or pull requests from WordPress Core and Gutenberg repositories using Query API parameters. This is useful for testing the latest trunk changes or specific feature branches without creating a PR. -->
+<!-- You can preview specific pull requests from WordPress Core and Gutenberg repositories using Query API parameters. Gutenberg branches also have an alternative to preview them with the parameter `gutenberg-branch`. This is useful for testing the latest trunk changes or specific feature branches without creating a PR. -->
 
-Você pode visualizar branches ou pull requests específicos dos repositórios WordPress Core e Gutenberg usando parâmetros da Query API. Isso é útil para testar as últimas alterações do trunk ou branches de recursos específicos sem criar um PR.
+Você pode visualizar pull requests específicos dos repositórios WordPress Core e Gutenberg usando parâmetros da Query API. Os branches do Gutenberg também têm uma alternativa para visualizá-los com o parâmetro `gutenberg-branch`. Isso é útil para testar as últimas alterações do trunk ou branches de recursos específicos sem criar um PR.
 
-<!-- -   Preview WordPress Core trunk branch: `https://playground.wordpress.net/?core-branch=trunk` -->
 <!-- -   Preview a specific WordPress Core PR: `https://playground.wordpress.net/?core-pr=9500` -->
-<!-- -   Preview the Gutenberg trunk branch: `https://playground.wordpress.net/?gutenberg-branch=trunk` -->
 <!-- -   Preview a specific Gutenberg PR: `https://playground.wordpress.net/?gutenberg-pr=73010` -->
+<!-- -   Preview the Gutenberg trunk branch: `https://playground.wordpress.net/?gutenberg-branch=trunk` -->
 
--   Visualizar branch trunk do WordPress Core: `https://playground.wordpress.net/?core-branch=trunk`
 -   Visualizar um PR específico do WordPress Core: `https://playground.wordpress.net/?core-pr=9500`
--   Visualizar branch trunk do Gutenberg: `https://playground.wordpress.net/?gutenberg-branch=trunk`
 -   Visualizar um PR específico do Gutenberg: `https://playground.wordpress.net/?gutenberg-pr=73010`
+-   Visualizar o branch trunk do Gutenberg: `https://playground.wordpress.net/?gutenberg-branch=trunk`
 
 <!-- ## Build a compatibility testing environment -->
 
