@@ -1,5 +1,5 @@
 import { configureStore, createSelector } from '@reduxjs/toolkit';
-import type { SiteError } from './slice-ui';
+import type { SiteError, SerializedSiteErrorDetails } from './slice-ui';
 import uiReducer, {
 	__internal_uiSlice,
 	listenToOnlineOfflineEventsMiddleware,
@@ -91,7 +91,7 @@ export const selectActiveSiteError = (
 
 export const selectActiveSiteErrorDetails = (
 	state: PlaygroundReduxState
-): unknown =>
+): SerializedSiteErrorDetails | undefined =>
 	state.ui.activeSite?.slug ? state.ui.activeSite.errorDetails : undefined;
 
 export const useActiveSite = () => useAppSelector(selectActiveSite);

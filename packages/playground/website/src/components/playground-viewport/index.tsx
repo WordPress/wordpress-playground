@@ -11,7 +11,10 @@ import {
 } from '../../lib/state/redux/store';
 import { removeClientInfo } from '../../lib/state/redux/slice-clients';
 import { bootSiteClient } from '../../lib/state/redux/boot-site-client';
-import type { SiteError } from '../../lib/state/redux/slice-ui';
+import type {
+	SiteError,
+	SerializedSiteErrorDetails,
+} from '../../lib/state/redux/slice-ui';
 import { Button, Spinner } from '@wordpress/components';
 import {
 	removeSite,
@@ -234,7 +237,7 @@ function SiteErrorMessage({
 }: {
 	error: SiteError;
 	siteSlug: string;
-	errorDetails?: unknown;
+	errorDetails?: SerializedSiteErrorDetails;
 }) {
 	const dispatch = useAppDispatch();
 	if (
@@ -328,10 +331,7 @@ function SiteErrorMessage({
 	}
 
 	if (error === 'blueprint-fetch-failed') {
-		const errorMessage =
-			errorDetails instanceof Error
-				? errorDetails.message
-				: String(errorDetails || 'Unknown error');
+		const errorMessage = getRenderableErrorMessage(errorDetails);
 
 		return (
 			<>
@@ -394,10 +394,7 @@ function SiteErrorMessage({
 	}
 
 	if (error === 'blueprint-filesystem-required') {
-		const errorMessage =
-			errorDetails instanceof Error
-				? errorDetails.message
-				: String(errorDetails || 'Unknown error');
+		const errorMessage = getRenderableErrorMessage(errorDetails);
 
 		return (
 			<>
@@ -463,10 +460,7 @@ function SiteErrorMessage({
 	}
 
 	if (error === 'blueprint-validation-failed') {
-		const errorMessage =
-			errorDetails instanceof Error
-				? errorDetails.message
-				: String(errorDetails || 'Unknown error');
+		const errorMessage = getRenderableErrorMessage(errorDetails);
 
 		return (
 			<>
@@ -535,4 +529,14 @@ function SiteErrorMessage({
 			</Button>
 		</>
 	);
+}
+
+function getRenderableErrorMessage(details?: SerializedSiteErrorDetails) {
+	if (!details) {
+		return 'Unknown error';
+	}
+	if (typeof details === 'string') {
+		return details;
+	}
+	return details.message || details.stack || details.name || 'Unknown error';
 }

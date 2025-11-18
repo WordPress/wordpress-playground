@@ -14,11 +14,64 @@ export type SiteError =
 	| 'blueprint-validation-failed';
 
 export type SiteManagerSection = 'sidebar' | 'site-details' | 'blueprints';
+
+export type SerializedSiteErrorDetails =
+	| string
+	| {
+			message?: string;
+			name?: string;
+			stack?: string;
+	  };
+
+const serializeSiteErrorDetails = (
+	details?: unknown
+): SerializedSiteErrorDetails | undefined => {
+	if (details instanceof Error) {
+		return {
+			message: details.message,
+			name: details.name,
+			stack: details.stack,
+		};
+	}
+	if (typeof details === 'string') {
+		return details;
+	}
+	if (details === undefined || details === null) {
+		return undefined;
+	}
+	if (typeof details === 'object') {
+		const maybeMessage =
+			'message' in details && typeof (details as any).message === 'string'
+				? (details as any).message
+				: undefined;
+		const maybeName =
+			'name' in details && typeof (details as any).name === 'string'
+				? (details as any).name
+				: undefined;
+		const maybeStack =
+			'stack' in details && typeof (details as any).stack === 'string'
+				? (details as any).stack
+				: undefined;
+		if (maybeMessage || maybeName || maybeStack) {
+			return {
+				message: maybeMessage,
+				name: maybeName,
+				stack: maybeStack,
+			};
+		}
+	}
+	try {
+		return JSON.stringify(details, null, 2);
+	} catch {
+		return String(details);
+	}
+};
+
 export interface UIState {
 	activeSite?: {
 		slug: string;
 		error?: SiteError;
-		errorDetails?: unknown;
+		errorDetails?: SerializedSiteErrorDetails;
 	};
 	activeModal: string | null;
 	offline: boolean;
@@ -75,14 +128,25 @@ const uiSlice = createSlice({
 				  }
 				: undefined;
 		},
-		setActiveSiteError: (
-			state,
-			action: PayloadAction<{ error: SiteError; details?: unknown }>
-		) => {
-			if (state.activeSite) {
-				state.activeSite.error = action.payload.error;
-				state.activeSite.errorDetails = action.payload.details;
-			}
+		setActiveSiteError: {
+			reducer: (
+				state,
+				action: PayloadAction<{
+					error: SiteError;
+					details?: SerializedSiteErrorDetails;
+				}>
+			) => {
+				if (state.activeSite) {
+					state.activeSite.error = action.payload.error;
+					state.activeSite.errorDetails = action.payload.details;
+				}
+			},
+			prepare: (payload: { error: SiteError; details?: unknown }) => ({
+				payload: {
+					error: payload.error,
+					details: serializeSiteErrorDetails(payload.details),
+				},
+			}),
 		},
 		setActiveModal: (state, action: PayloadAction<string | null>) => {
 			const url = new URL(window.location.href);
