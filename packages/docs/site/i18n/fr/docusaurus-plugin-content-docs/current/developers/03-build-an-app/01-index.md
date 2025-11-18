@@ -174,6 +174,8 @@ Vous pouvez prévisualiser le code du dépôt de deux manières : directement av
 }
 ```
 
+Dans le code ci-dessus, un plugin sera installé à partir d'un dépôt situé à l'URL indiquée, et la référence pour trouver la branche est `refType` ; dans ce cas, il utilisera `refname`, mais il peut également utiliser `branch`, `tag` et `commit`.
+
 <!--
 Loading a `.zip` file is another alternative for previewing your project. See the [live example of Gutenberg PR previewer](https://playground.wordpress.net/gutenberg.html).
 -->

@@ -109,6 +109,8 @@ You can preview repository code two ways: directly with `git:directory`, or by p
 }
 ```
 
+In the code above, it will install a plugin from a repository located at the `url`, and the reference to find the branch is `refType`; in this case, it will use `refname`, but it can also use `branch`, `tag`, and `commit`.
+
 Loading a `.zip` file is another alternative for previewing your project. See the [live example of Gutenberg PR previewer](https://playground.wordpress.net/gutenberg.html).
 
 To use Playground as a PR previewer, you need:

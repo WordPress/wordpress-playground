@@ -174,6 +174,8 @@ Puedes previsualizar código del repositorio de dos maneras: directamente con `g
 }
 ```
 
+En el código anterior, se instalará un complemento desde un repositorio ubicado en `url`, y la referencia para encontrar la rama es `refType`; en este caso, se utilizará `refname`, pero también se puede utilizar `branch`, `tag` y `commit`.
+
 <!--
 Loading a `.zip` file is another alternative for previewing your project. See the [live example of Gutenberg PR previewer](https://playground.wordpress.net/gutenberg.html).
 -->
