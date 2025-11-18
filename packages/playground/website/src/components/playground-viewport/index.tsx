@@ -319,6 +319,10 @@ function SiteErrorModal({
 		helpers,
 	});
 
+	const showActionBar = Boolean(
+		presentation.actions?.length || !isDeveloperError
+	);
+
 	return (
 		<Modal
 			title={
@@ -331,6 +335,14 @@ function SiteErrorModal({
 					{presentation.title}
 				</>
 			}
+			headerActions={
+				<Button
+					variant="link"
+					onClick={() => dispatch(clearActiveSiteError())}
+				>
+					Close
+				</Button>
+			}
 			onRequestClose={() => dispatch(clearActiveSiteError())}
 			shouldCloseOnClickOutside
 			className={classNames(css.errorModal, {
@@ -338,34 +350,36 @@ function SiteErrorModal({
 				[css.errorModalCrash]: !isDeveloperError,
 			})}
 		>
-			<div className={css.errorModalBody}>
-				{presentation.intro ? (
-					<p className={css.errorLead}>{presentation.intro}</p>
-				) : null}
-				{presentation.list ? (
-					<ul className={css.errorList}>
-						{presentation.list.map((item, index) => (
-							<li key={index}>{item}</li>
-						))}
-					</ul>
-				) : null}
-				{presentation.body}
-				{detailText ? (
-					<details
-						className={css.errorDetails}
-						open={isDeveloperError}
-					>
-						<summary>
-							{presentation.detailsSummary ||
-								(isDeveloperError
-									? 'Inspection details'
-									: 'Error details')}
-						</summary>
-						<pre>{detailText}</pre>
-					</details>
-				) : null}
-				{presentation.actions?.length || !isDeveloperError ? (
-					<div className={css.errorActions}>
+			<div className={css.errorModalContent}>
+				<div className={css.errorModalBody}>
+					{presentation.intro ? (
+						<p className={css.errorLead}>{presentation.intro}</p>
+					) : null}
+					{presentation.list ? (
+						<ul className={css.errorList}>
+							{presentation.list.map((item, index) => (
+								<li key={index}>{item}</li>
+							))}
+						</ul>
+					) : null}
+					{presentation.body}
+					{detailText ? (
+						<details
+							className={css.errorDetails}
+							open={isDeveloperError}
+						>
+							<summary>
+								{presentation.detailsSummary ||
+									(isDeveloperError
+										? 'Inspection details'
+										: 'Error details')}
+							</summary>
+							<pre>{detailText}</pre>
+						</details>
+					) : null}
+				</div>
+				{showActionBar ? (
+					<div className={css.errorModalFooter}>
 						{presentation.actions?.map((action, index) => (
 							<div key={index} className={css.errorActionWrapper}>
 								{action}

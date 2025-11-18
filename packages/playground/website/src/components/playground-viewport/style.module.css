@@ -41,6 +41,10 @@
 	max-width: none;
 	max-height: 83dvh;
 
+	:global(.components-modal__content) {
+		display: flex;
+	}
+
 	:global(.components-modal__header-heading) {
 		display: flex;
 		width: 100%;
@@ -53,10 +57,27 @@
 	}
 }
 
+:global(.components-modal__content):has(.error-modal-footer) {
+	padding-bottom: 0;
+}
+
+.error-modal-content {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	max-height: min(80vh, 720px);
+	overflow: hidden;
+}
+
 .error-modal-body {
+	flex: 1 1 auto;
 	display: flex;
 	flex-direction: column;
 	gap: 1rem;
+	overflow-y: auto;
+	overflow-x: hidden;
+	padding-right: 0.25rem;
+	min-height: 0;
 }
 
 .error-badge {
@@ -110,7 +131,6 @@
 	font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
 	white-space: pre-wrap;
 	word-break: break-word;
-	max-height: 360px;
 	overflow: auto;
 }
 
@@ -124,4 +144,16 @@
 
 .error-action-wrapper {
 	display: flex;
+}
+
+.error-modal-footer {
+	flex-shrink: 0;
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.75rem;
+	padding-top: 0.75rem;
+	padding-bottom: 0.8rem;
+	box-shadow: 0 -3px 16px 0 rgba(30, 34, 43, 0.1);
+	justify-content: center;
+	background: #fff;
 }
