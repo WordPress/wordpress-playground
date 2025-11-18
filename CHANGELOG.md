@@ -31,7 +31,6 @@ format.
 
 -   Remove "preview WordPress core branch" feature. ([#2894](https://github.com/WordPress/wordpress-playground/pull/2894))
 -   Support previewing WordPress and Gutenberg branches, not just PRs. ([#2868](https://github.com/WordPress/wordpress-playground/pull/2868))
--   Replace the bundled nightly build with a live WordPress trunk download powered by the git directory resource (the `nightly` slug now aliases `trunk`).
 
 ### Bug Fixes
 
