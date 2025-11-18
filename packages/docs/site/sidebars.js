@@ -137,7 +137,6 @@ const sidebars = {
 						id: 'developers/local-development/intro',
 					},
 					items: [
-						'developers/local-development/wp-now',
 						'developers/local-development/wp-playground-cli',
 						'developers/local-development/vscode-extension',
 						'developers/local-development/php-wasm-node',
@@ -151,6 +150,7 @@ const sidebars = {
 						id: 'developers/xdebug/introduction',
 					},
 					items: [
+						'developers/xdebug/introduction',
 						'developers/xdebug/getting-started',
 					],
 				},
