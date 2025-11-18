@@ -101,6 +101,7 @@
 	overflow-y: auto;
 	overflow-x: hidden;
 	padding-right: 0.25rem;
+	padding-bottom: 90px;
 	min-height: 0;
 	padding-top: 4px;
 }
@@ -178,6 +179,10 @@
 }
 
 .error-modal-footer {
+	position: absolute;
+	bottom: 0;
+	left: 0;
+	right: 0;
 	flex-shrink: 0;
 	width: 100%;
 	display: flex;
@@ -316,7 +321,7 @@
 
 	.error-details pre {
 		font-size: 0.75rem;
-		max-height: 35vh;
+		max-height: 40vh;
 		overflow: auto;
 	}
 
