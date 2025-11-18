@@ -108,15 +108,12 @@ error_log = ${errorLogPath}
 			const result = await php.runStream({
 				code: `<?php
 					$db = new SQLite3('${vfsDbFilePath}');
-					try {
-						$result = $db->exec('CREATE TABLE test (id INTEGER PRIMARY KEY, name TEXT)');
-						if ($result === false) {
-							echo json_encode($db->lastErrorMsg());
-							exit(1);
-						}
-					} finally {
-						$db->close();
+					$result = $db->exec('CREATE TABLE test (id INTEGER PRIMARY KEY, name TEXT)');
+					if ($result === false) {
+						echo json_encode($db->lastErrorMsg());
+						exit(1);
 					}
+					$db->close();
 				`,
 			});
 			// TODO: Why does this DB file check fail for PHP 8.0 and under? The tests pass. The DB must exist.
