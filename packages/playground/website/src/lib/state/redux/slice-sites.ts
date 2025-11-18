@@ -13,6 +13,7 @@ import {
 	type RuntimeConfiguration,
 	resolveRuntimeConfiguration,
 	InvalidBlueprintError,
+	BlueprintFetchError,
 } from '@wp-playground/blueprints';
 import {
 	type BlueprintSource,
@@ -22,6 +23,7 @@ import {
 } from '../url/resolve-blueprint-from-url';
 import { logger } from '@php-wasm/logger';
 import { setActiveSiteError, type SiteError } from './slice-ui';
+import { RecommendedPHPVersion } from '@wp-playground/common';
 
 /**
  * The Site model used to represent a site within Playground.
@@ -260,6 +262,7 @@ export function setTemporarySiteSpec(
 			error: SiteError;
 			details: unknown;
 		}) => {
+			// Create a mock temporary site to associate the error with.
 			const errorSite: SiteInfo = {
 				slug: siteSlug,
 				originalUrlParams: newSiteUrlParams,
@@ -270,12 +273,11 @@ export function setTemporarySiteSpec(
 					storage: 'none' as const,
 					originalBlueprint: {},
 					originalBlueprintSource: {
-						// @TODO: Should this say remote-url?
-						type: 'remote-url',
-						url: playgroundUrlWithQueryApiArgs.toString(),
+						type: 'none',
 					},
+					// Any default values are fine here.
 					runtimeConfiguration: {
-						phpVersion: '8.0',
+						phpVersion: RecommendedPHPVersion,
 						wpVersion: 'latest',
 						intl: false,
 						networking: true,
@@ -284,6 +286,18 @@ export function setTemporarySiteSpec(
 					},
 				},
 			};
+
+			if (resolvedBlueprint) {
+				errorSite.metadata.originalBlueprint =
+					resolvedBlueprint.blueprint;
+				errorSite.metadata.originalBlueprintSource =
+					resolvedBlueprint.source;
+			} else if (params.details instanceof BlueprintFetchError) {
+				errorSite.metadata.originalBlueprintSource = {
+					type: 'remote-url',
+					url: params.details.url,
+				};
+			}
 
 			dispatch(sitesSlice.actions.addSite(errorSite));
 			dispatch(sitesSlice.actions.setFirstTemporarySiteCreated());

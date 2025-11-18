@@ -1,8 +1,7 @@
 import { MenuItem } from '@wordpress/components';
-import { setActiveModal } from '../../lib/state/redux/slice-ui';
+import { modalSlugs, setActiveModal } from '../../lib/state/redux/slice-ui';
 import type { PlaygroundDispatch } from '../../lib/state/redux/store';
 import { useDispatch } from 'react-redux';
-import { modalSlugs } from '../layout';
 
 type Props = { text?: string; onClose: () => void; disabled: boolean };
 export function RestoreFromZipMenuItem({

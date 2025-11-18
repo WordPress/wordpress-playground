@@ -2,8 +2,7 @@ import { useAppSelector, useAppDispatch } from '../../../lib/state/redux/store';
 import css from './style.module.css';
 import { selectClientInfoBySiteSlug } from '../../../lib/state/redux/slice-clients';
 import type { SiteStorageType } from '../../../lib/state/redux/slice-sites';
-import { setActiveModal } from '../../../lib/state/redux/slice-ui';
-import { modalSlugs } from '../../layout';
+import { modalSlugs, setActiveModal } from '../../../lib/state/redux/slice-ui';
 import React from 'react';
 
 export function SitePersistButton({

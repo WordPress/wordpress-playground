@@ -25,9 +25,7 @@ import { PreviewPRModal } from '../../github/preview-pr';
 import { MissingSiteModal } from '../missing-site-modal';
 import { RenameSiteModal } from '../rename-site-modal';
 import { SaveSiteModal } from '../save-site-modal';
-import { modalSlugs } from './modal-slugs';
-
-export { modalSlugs } from './modal-slugs';
+import { modalSlugs } from '../../lib/state/redux/slice-ui';
 
 acquireOAuthTokenIfNeeded();
 
