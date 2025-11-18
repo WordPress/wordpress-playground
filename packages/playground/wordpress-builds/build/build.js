@@ -6,14 +6,9 @@ import semver from 'semver';
 
 const remoteWordPressModules = {
 	trunk: {
-		gitDirectory: {
-			resource: 'git:directory',
-			url:
-				process.env.PLAYGROUND_TRUNK_REPO_URL ??
-				'https://github.com/WordPress/wordpress.git',
-			ref: process.env.PLAYGROUND_TRUNK_REF ?? 'master',
-			refType: 'branch',
-		},
+		url:
+			process.env.PLAYGROUND_TRUNK_ZIP_URL ??
+			'https://github.com/WordPress/WordPress/archive/refs/heads/master.zip',
 		size: 0,
 	},
 };
@@ -105,7 +100,7 @@ function toVersionInfo(apiVersion, slug = null) {
 let versionInfo = {};
 
 if (requestedWpVersion === 'trunk') {
-	versionInfo.gitDirectory = remoteWordPressModules.trunk.gitDirectory;
+	versionInfo.url = remoteWordPressModules.trunk.url;
 	versionInfo.version = 'trunk';
 	versionInfo.majorVersion = 'trunk';
 	versionInfo.slug = 'trunk';
@@ -303,29 +298,9 @@ import url_${slugify(version)} from './wp-${version}.zip?url';`
  * This file must statically exists in the project because of the way
  * vite resolves imports.
  */
-export type WordPressGitDirectory = {
-	resource: 'git:directory';
-	url: string;
-	ref: string;
-	refType?: 'branch' | 'tag' | 'commit' | 'refname';
-	path?: string;
-};
-
-export type WordPressModuleDetails =
-	| {
-			type: 'zip';
-			size: number;
-			url: string;
-	  }
-	| {
-			type: 'git';
-			size: number;
-			gitDirectory: WordPressGitDirectory;
-	  };
-
 export function getWordPressModuleDetails(wpVersion: string = ${JSON.stringify(
 	latestStableVersion
-)}): WordPressModuleDetails {
+)}): { size: number, url: string } {
 	switch (wpVersion) {
 		${Object.keys(versions)
 			.map(
@@ -334,20 +309,16 @@ export function getWordPressModuleDetails(wpVersion: string = ${JSON.stringify(
 						? `
 		case '${version}':
 			return {
-				type: 'git',
 				size: ${JSON.stringify(
 					remoteWordPressModules[version].size ?? 0
 				)},
-				gitDirectory: ${JSON.stringify(
-					remoteWordPressModules[version].gitDirectory
-				)},
+				url: ${JSON.stringify(remoteWordPressModules[version].url)},
 			};
 			`
-						: `
+					: `
 		case '${version}':
 			/** @ts-ignore */
 			return {
-				type: 'zip',
 				size: ${JSON.stringify(sizes[version])},
 				url: url_${slugify(version)},
 			};
@@ -359,11 +330,8 @@ export function getWordPressModuleDetails(wpVersion: string = ${JSON.stringify(
 				? `
 		case 'nightly':
 			return {
-				type: 'git',
 				size: ${JSON.stringify(remoteWordPressModules.trunk.size ?? 0)},
-				gitDirectory: ${JSON.stringify(
-					remoteWordPressModules.trunk.gitDirectory
-				)},
+				url: ${JSON.stringify(remoteWordPressModules.trunk.url)},
 			};
 		`
 				: ''

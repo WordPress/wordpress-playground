@@ -1,8 +1,4 @@
-export {
-	getWordPressModuleDetails,
-	type WordPressModuleDetails,
-	type WordPressGitDirectory,
-} from './wordpress/get-wordpress-module-details';
+export { getWordPressModuleDetails } from './wordpress/get-wordpress-module-details';
 export { getWordPressModule } from './wordpress/get-wordpress-module';
 export {
 	getSqliteDriverModule,

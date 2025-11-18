@@ -13,11 +13,9 @@ import { directoryHandleFromMountDevice } from '@wp-playground/storage';
 import { bootWordPress } from '@wp-playground/wordpress';
 import { createDirectoryHandleMountHandler } from '@php-wasm/web';
 import type { PHP } from '@php-wasm/universal';
-import { writeFiles as writeFilesToPhp } from '@php-wasm/universal';
 /* @ts-ignore */
 import { corsProxyUrl as defaultCorsProxyUrl } from 'virtual:cors-proxy-url';
 import type { WorkerBootOptions } from './playground-worker-endpoint';
-import { GitDirectoryResource } from '@wp-playground/blueprints';
 
 // post message to parent
 self.postMessage('worker-script-started');
@@ -58,9 +56,6 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 			const endpoint = this;
 			const knownRemoteAssetPaths = new Set<string>();
 			const siteUrl = this.computeSiteUrl(scope);
-			let gitWordPressFilesPromise: Promise<
-				Record<string, Uint8Array>
-			> | null = null;
 
 			const requestHandler = await this.createRequestHandler({
 				siteUrl,
@@ -113,20 +108,16 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 								}
 							);
 						});
-				} else if (wpDetails.type === 'git') {
-					gitWordPressFilesPromise = new GitDirectoryResource(
-						wpDetails.gitDirectory,
-						undefined,
-						{ corsProxy: corsProxyUrl as string | undefined }
-					)
-						.resolve()
-						.then(({ files }) => files);
 				} else {
+					const downloadUrl = maybeProxyUrl(
+						wpDetails.url,
+						corsProxyUrl as string | undefined
+					);
 					this.downloadMonitor.expectAssets({
-						[wpDetails.url]: wpDetails.size,
+						[downloadUrl]: wpDetails.size,
 					});
 					wordPressRequest = this.downloadMonitor.monitorFetch(
-						fetch(wpDetails.url)
+						fetch(downloadUrl)
 					);
 				}
 			}
@@ -162,12 +153,11 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 				// Do not await the WordPress download or the sqlite integration download.
 				// Let bootWordPress start the PHP runtime download first, and then await
 				// all the ZIP files right before they're used.
-				wordPressZip:
-					shouldInstallWordPress && wpDetails.type === 'zip'
-						? wordPressRequest!
-								.then((r) => r.blob())
-								.then((b) => new File([b], 'wp.zip'))
-						: undefined,
+				wordPressZip: shouldInstallWordPress
+					? wordPressRequest!
+							.then((r) => r.blob())
+							.then((b) => new File([b], 'wp.zip'))
+					: undefined,
 				sqliteIntegrationPluginZip: sqliteIntegrationRequest
 					? sqliteIntegrationRequest
 							.then((r) => r.blob())
@@ -175,12 +165,6 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 					: undefined,
 				hooks: {
 					async beforeWordPressFiles(php: PHP) {
-						if (gitWordPressFilesPromise) {
-							const files = await gitWordPressFilesPromise;
-							await writeFilesToPhp(php, '/wordpress', files, {
-								rmRoot: true,
-							});
-						}
 						for (const mount of mounts) {
 							const handle = await directoryHandleFromMountDevice(
 								mount.device
@@ -215,3 +199,13 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 const [setApiReady, setAPIError] = exposeAPI(
 	new PlaygroundWorkerEndpointBlueprintsV1(downloadMonitor)
 );
+
+function maybeProxyUrl(url: string, corsProxyUrl?: string) {
+	if (
+		!corsProxyUrl ||
+		!url.startsWith('https://github.com/WordPress/WordPress/archive/')
+	) {
+		return url;
+	}
+	return `${corsProxyUrl}${encodeURIComponent(url)}`;
+}

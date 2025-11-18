@@ -10,21 +10,8 @@
 import { getWordPressModuleDetails } from './wordpress/get-wordpress-module-details';
 
 describe('getWordPressModuleDetails()', () => {
-	it('returns ZIP metadata for released versions', () => {
+	it('should return a data loader module', async () => {
 		const module = getWordPressModuleDetails();
-		expect(module.type).toBe('zip');
-		if (module.type === 'zip') {
-			expect(module.url).toMatch(/\/wp-\d\.\d\.zip$/);
-		}
-	});
-
-	it('returns git metadata for trunk', () => {
-		const module = getWordPressModuleDetails('trunk');
-		expect(module.type).toBe('git');
-		if (module.type === 'git') {
-			expect(module.gitDirectory.url).toContain(
-				'github.com/WordPress/wordpress.git'
-			);
-		}
+		expect(module.url).toMatch(/\/wp-\d\.\d\.zip$/);
 	});
 });
