@@ -69,8 +69,9 @@ describe('TCPOverFetchWebsocket', () => {
 
 	beforeAll(async () => {
 		// Allow self-signed certificates for testing
-		originalRejectUnauthorized = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
-		process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+		originalRejectUnauthorized =
+			process.env['NODE_TLS_REJECT_UNAUTHORIZED'];
+		process.env['NODE_TLS_REJECT_UNAUTHORIZED'] = '0';
 
 		const app = express();
 
@@ -165,10 +166,10 @@ describe('TCPOverFetchWebsocket', () => {
 		cleanupCertificate();
 		// Restore original NODE_TLS_REJECT_UNAUTHORIZED value
 		if (originalRejectUnauthorized !== undefined) {
-			process.env.NODE_TLS_REJECT_UNAUTHORIZED =
+			process.env['NODE_TLS_REJECT_UNAUTHORIZED'] =
 				originalRejectUnauthorized;
 		} else {
-			delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+			delete process.env['NODE_TLS_REJECT_UNAUTHORIZED'];
 		}
 	});
 
