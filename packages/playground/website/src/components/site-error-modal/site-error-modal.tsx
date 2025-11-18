@@ -325,15 +325,6 @@ function getErrorActions(
 		case 'blueprint-fetch-failed':
 			return [startWithoutBlueprintButton('start-without-blueprint')];
 		case 'blueprint-filesystem-required':
-			return [
-				<Button
-					variant="primary"
-					key="try-again"
-					onClick={helpers.reload}
-				>
-					Try again
-				</Button>,
-			];
 		case 'blueprint-validation-failed':
 			return [
 				startWithoutBlueprintButton('start-without-blueprint-invalid'),
