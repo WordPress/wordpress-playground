@@ -646,8 +646,8 @@ function getErrorPresentation({
 			};
 		case 'blueprint-validation-failed':
 			return {
-				title: 'Invalid Blueprint schema',
-				intro: 'The Blueprint contains unexpected fields. Fix the validation output and retry.',
+				title: 'Blueprint validation error',
+				intro: 'The Blueprint does not conform to the required JSON schema. Fix the validation output and retry.',
 				body: (
 					<p>
 						<a
