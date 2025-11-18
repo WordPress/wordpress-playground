@@ -556,7 +556,7 @@ describe.each(blueprintVersions)(
 							'Starting a PHP server...',
 							'Starting up workers',
 							expect.stringMatching(
-								/^Resolved WordPress release URL: https:\/\/downloads\.w(ordpress)?\.org\/release\/wordpress-\d+\.\d+\.(?:RC|beta)]\d+\.zip$/
+								/^Resolved WordPress release URL: https:\/\/downloads\.w(ordpress)?\.org\/release\/wordpress-\d+\.\d+(?:\.\d+|-RC\d+|-beta\d+)?\.zip$/
 							),
 							'Fetching SQLite integration plugin...',
 							'Booting WordPress...',
