@@ -12,7 +12,7 @@ For complete configuration options and advanced features, see the [action-wp-pla
 
 ## How it works
 
-The action runs on pull request events (opened, updated, edited). It can either update the PR description with a preview button or post the button as a comment.
+The action runs on pull request events (opened, updated, edited). Use the `pull_request_target` trigger so the base repository's `GITHUB_TOKEN` keeps permission to update the PR, and always check out `${{ github.event.pull_request.head.repo.full_name }}` at `${{ github.event.pull_request.head.sha }}` with `persist-credentials: false` before building or packaging code. The action can then update the PR description with a preview button or post the button as a comment.
 
 ## Basic setup for plugins
 
@@ -21,7 +21,7 @@ For plugins without a build step, create `.github/workflows/pr-preview.yml`:
 ```yaml
 name: PR Preview
 on:
-    pull_request:
+    pull_request_target:
         types: [opened, synchronize, reopened, edited]
 
 jobs:
@@ -31,6 +31,13 @@ jobs:
             contents: read
             pull-requests: write
         steps:
+            - name: Check out PR head
+              uses: actions/checkout@v4
+              with:
+                  repository: ${{ github.event.pull_request.head.repo.full_name }}
+                  ref: ${{ github.event.pull_request.head.sha }}
+                  persist-credentials: false
+
             - name: Post Playground Preview Button
               uses: WordPress/action-wp-playground-pr-preview@v2
               with:
@@ -50,7 +57,7 @@ For themes, use `theme-path` instead of `plugin-path`:
 ```yaml
 name: PR Preview
 on:
-    pull_request:
+    pull_request_target:
         types: [opened, synchronize, reopened, edited]
 
 jobs:
@@ -60,6 +67,13 @@ jobs:
             contents: read
             pull-requests: write
         steps:
+            - name: Check out PR head
+              uses: actions/checkout@v4
+              with:
+                  repository: ${{ github.event.pull_request.head.repo.full_name }}
+                  ref: ${{ github.event.pull_request.head.sha }}
+                  persist-credentials: false
+
             - name: Post Playground Preview Button
               uses: WordPress/action-wp-playground-pr-preview@v2
               with:
@@ -95,18 +109,21 @@ Example workflow (see [complete documentation](https://github.com/WordPress/acti
 ```yaml
 name: PR Preview with Build
 on:
-    pull_request:
+    pull_request_target:
         types: [opened, synchronize, reopened, edited]
-
-permissions:
-    contents: write
-    pull-requests: write
 
 jobs:
     build:
         runs-on: ubuntu-latest
+        permissions:
+            contents: read
         steps:
-            - uses: actions/checkout@v4
+            - name: Check out PR head
+              uses: actions/checkout@v4
+              with:
+                  repository: ${{ github.event.pull_request.head.repo.full_name }}
+                  ref: ${{ github.event.pull_request.head.sha }}
+                  persist-credentials: false
             - name: Build
               run: |
                   npm install
@@ -114,7 +131,7 @@ jobs:
                   zip -r plugin.zip dist/
             - uses: actions/upload-artifact@v4
               with:
-                  name: built-plugin
+                  name: built-plugin-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}
                   path: plugin.zip
 
     expose-build:
@@ -129,9 +146,9 @@ jobs:
               id: expose
               uses: WordPress/action-wp-playground-pr-preview/.github/actions/expose-artifact-on-public-url@v2
               with:
-                  artifact-name: 'built-plugin'
+                  artifact-name: 'built-plugin-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}'
                   pr-number: ${{ github.event.pull_request.number }}
-                  commit-sha: ${{ github.sha }}
+                  commit-sha: ${{ github.event.pull_request.head.sha }}
                   artifacts-to-keep: '2'
 
     create-blueprint:
@@ -160,6 +177,7 @@ jobs:
         needs: create-blueprint
         runs-on: ubuntu-latest
         permissions:
+            contents: read
             pull-requests: write
         steps:
             - uses: WordPress/action-wp-playground-pr-preview@v2
@@ -191,13 +209,14 @@ jobs:
               uses: actions/github-script@v7
               with:
                   script: |
+                      const headRepo = context.payload.pull_request.head.repo;
                       const blueprint = {
                         steps: [
                           {
                             step: "installPlugin",
                             pluginData: {
                               resource: "git:directory",
-                              url: `https://github.com/${context.repo.owner}/${context.repo.repo}.git`,
+                              url: headRepo.clone_url,
                               ref: context.payload.pull_request.head.ref,
                               path: "/"
                             }
@@ -218,6 +237,7 @@ jobs:
         needs: create-blueprint
         runs-on: ubuntu-latest
         permissions:
+            contents: read
             pull-requests: write
         steps:
             - uses: WordPress/action-wp-playground-pr-preview@v2
