@@ -12,6 +12,7 @@ import {
 	BlueprintReflection,
 	type RuntimeConfiguration,
 	resolveRuntimeConfiguration,
+	InvalidBlueprintError,
 } from '@wp-playground/blueprints';
 import {
 	type BlueprintSource,
@@ -378,7 +379,7 @@ export function setTemporarySiteSpec(
 				e
 			);
 			const errorType =
-				e instanceof Error && e.message.startsWith('Invalid Blueprint:')
+				e instanceof InvalidBlueprintError
 					? 'blueprint-validation-failed'
 					: 'site-boot-failed';
 			return showTemporarySiteError({ error: errorType, details: e });

@@ -11,7 +11,11 @@ import {
 	updateClientInfo,
 } from './slice-clients';
 import { logTrackingEvent } from '../../tracking';
-import type { Blueprint } from '@wp-playground/blueprints';
+import {
+	type Blueprint,
+	BlueprintFilesystemRequiredError,
+	InvalidBlueprintError,
+} from '@wp-playground/blueprints';
 import { logger } from '@php-wasm/logger';
 import { setupPostMessageRelay } from '@php-wasm/web';
 import { startPlaygroundWeb } from '@wp-playground/client';
@@ -210,22 +214,14 @@ export function bootSiteClient(
 						details: e,
 					})
 				);
-			} else if (
-				e instanceof Error &&
-				e.message.includes(
-					'Blueprint resource of type "bundled" requires a filesystem'
-				)
-			) {
+			} else if (e instanceof BlueprintFilesystemRequiredError) {
 				dispatch(
 					setActiveSiteError({
 						error: 'blueprint-filesystem-required',
 						details: e,
 					})
 				);
-			} else if (
-				e instanceof Error &&
-				e.message.startsWith('Invalid Blueprint:')
-			) {
+			} else if (e instanceof InvalidBlueprintError) {
 				dispatch(
 					setActiveSiteError({
 						error: 'blueprint-validation-failed',

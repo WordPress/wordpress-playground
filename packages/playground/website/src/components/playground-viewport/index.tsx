@@ -249,6 +249,15 @@ type PresentationHelpers = {
 	startWithoutBlueprintBusy: boolean;
 };
 
+type BlueprintStepError = {
+	stepNumber: number;
+	step: Record<string, unknown>;
+	stepJson: string;
+	description: string;
+	messages: string[];
+	rawMessage: string;
+};
+
 const MODAL_TITLES: Partial<Record<SiteError, string>> = {
 	'directory-handle-not-found-in-indexeddb':
 		'Local directory permissions expired',
@@ -280,11 +289,12 @@ function SiteErrorModal({
 	errorDetails?: SerializedSiteErrorDetails;
 }) {
 	const dispatch = useAppDispatch();
-	const detailText = formatErrorDetails(errorDetails);
-	const isDeveloperError = developerErrorTypes.has(error);
+	const blueprintStepError = extractBlueprintStepError(errorDetails);
+	const isBlueprintStepFailure = Boolean(blueprintStepError);
+	const isDeveloperError =
+		developerErrorTypes.has(error) || isBlueprintStepFailure;
 	const [isStartingWithoutBlueprint, setIsStartingWithoutBlueprint] =
 		useState(false);
-
 	const [isReporting, setIsReporting] = useState(false);
 	const [reportText, setReportText] = useState('');
 	const [isSubmitting, setIsSubmitting] = useState(false);
@@ -371,6 +381,11 @@ function SiteErrorModal({
 		}
 	};
 
+	const detailText = formatErrorDetails(
+		errorDetails,
+		blueprintStepError?.rawMessage
+	);
+
 	const helpers: PresentationHelpers = {
 		deleteSite: () => {
 			dispatch(removeSite(siteSlug));
@@ -393,10 +408,13 @@ function SiteErrorModal({
 		startWithoutBlueprintBusy: isStartingWithoutBlueprint,
 	};
 
-	const modalTitle = MODAL_TITLES[error] ?? 'Playground crashed';
-	const detailSummary =
-		DETAIL_SUMMARY_OVERRIDES[error] ??
-		(isDeveloperError ? 'Inspection details' : 'Error details');
+	const modalTitle = blueprintStepError
+		? 'Blueprint execution failed'
+		: MODAL_TITLES[error] ?? 'Playground crashed';
+	const detailSummary = blueprintStepError
+		? 'Blueprint error details'
+		: DETAIL_SUMMARY_OVERRIDES[error] ??
+		  (isDeveloperError ? 'Inspection details' : 'Error details');
 	const actionButtons = getErrorActions(error, helpers);
 	const showActionBar = Boolean(actionButtons.length || !isDeveloperError);
 
@@ -423,7 +441,16 @@ function SiteErrorModal({
 		>
 			<div className={css.errorModalContent}>
 				<div className={css.errorModalBody}>
-					<ErrorCopy error={error} site={site} />
+					<ErrorCopy
+						error={error}
+						site={site}
+						blueprintStepError={blueprintStepError}
+					/>
+					{blueprintStepError ? (
+						<BlueprintStepErrorDetails
+							stepError={blueprintStepError}
+						/>
+					) : null}
 					{detailText ? (
 						<details
 							className={css.errorDetails}
@@ -515,7 +542,15 @@ function SiteErrorModal({
 	);
 }
 
-function ErrorCopy({ error, site }: { error: SiteError; site: SiteInfo }) {
+function ErrorCopy({
+	error,
+	site,
+	blueprintStepError,
+}: {
+	error: SiteError;
+	site: SiteInfo;
+	blueprintStepError?: BlueprintStepError;
+}) {
 	switch (error) {
 		case 'directory-handle-not-found-in-indexeddb':
 		case 'directory-handle-permission-denied':
@@ -645,6 +680,9 @@ function ErrorCopy({ error, site }: { error: SiteError; site: SiteInfo }) {
 			);
 		case 'site-boot-failed':
 		default:
+			if (blueprintStepError) {
+				return null;
+			}
 			return (
 				<p className={css.errorLead}>
 					Something unexpected interrupted the boot process. Reload
@@ -652,6 +690,33 @@ function ErrorCopy({ error, site }: { error: SiteError; site: SiteInfo }) {
 				</p>
 			);
 	}
+}
+
+function BlueprintStepErrorDetails({
+	stepError,
+}: {
+	stepError: BlueprintStepError;
+}) {
+	return (
+		<div className={css.stepError}>
+			<div className={css.stepErrorHeader}>
+				<p className={css.stepErrorTitle}>
+					Blueprint failed at step #{stepError.stepNumber}: Could not{' '}
+					{stepError.description}.
+				</p>
+			</div>
+			{stepError.messages.length > 0 &&
+				stepError.messages.map((line, index) => (
+					<p key={index} className={css.stepErrorMessage}>
+						{line}
+					</p>
+				))}
+			<div className={css.stepErrorCodeWrapper}>
+				<div className={css.stepErrorLabel}>Step definition</div>
+				<pre className={css.stepErrorCode}>{stepError.stepJson}</pre>
+			</div>
+		</div>
+	);
 }
 
 function getErrorActions(
@@ -725,25 +790,136 @@ function getErrorActions(
 	}
 }
 
-function getBlueprintSourceUrl(site?: SiteInfo): string | undefined {
-	const source = site?.metadata?.originalBlueprintSource;
-	if (source?.type !== 'remote-url') {
+function extractBlueprintStepError(
+	errorDetails?: SerializedSiteErrorDetails
+): BlueprintStepError | undefined {
+	const baseMessage =
+		typeof errorDetails === 'string' ? errorDetails : errorDetails?.message;
+	if (
+		!baseMessage ||
+		!baseMessage.startsWith('Error when executing the blueprint step #')
+	) {
 		return undefined;
 	}
-	const url = new URL(source.url);
-	return url.searchParams.get('blueprint-url') ?? undefined;
+
+	const indexMatch = baseMessage.match(
+		/^Error when executing the blueprint step #(\d+)/
+	);
+	if (!indexMatch) {
+		return undefined;
+	}
+
+	const firstParen = baseMessage.indexOf('(');
+	if (firstParen === -1) {
+		return undefined;
+	}
+
+	let closingParen = -1;
+	let parsedStep: Record<string, unknown> | undefined;
+	let stepJson = '';
+
+	for (let i = firstParen + 1; i < baseMessage.length; i++) {
+		if (baseMessage[i] !== ')') {
+			continue;
+		}
+		const candidateJson = baseMessage.slice(firstParen + 1, i).trim();
+		try {
+			parsedStep = JSON.parse(candidateJson);
+			stepJson = JSON.stringify(parsedStep, null, 2);
+			closingParen = i;
+			break;
+		} catch {
+			continue;
+		}
+	}
+
+	if (!parsedStep || closingParen === -1) {
+		return undefined;
+	}
+
+	const remainder = baseMessage
+		.slice(closingParen + 1)
+		.replace(/^\s*:\s*/, '')
+		.trim();
+	const messages = remainder
+		? remainder
+				.split(/\n+/)
+				.map((line) => line.trim())
+				.filter(Boolean)
+		: [];
+
+	return {
+		stepNumber: Number(indexMatch[1]),
+		step: parsedStep,
+		stepJson,
+		description: describeBlueprintStepAction(parsedStep),
+		messages,
+		rawMessage: baseMessage,
+	};
+}
+
+function describeBlueprintStepAction(step: Record<string, unknown>): string {
+	const stepName = typeof step?.step === 'string' ? step.step : undefined;
+	const readableName = stepName ? humanizeStepName(stepName) : undefined;
+	const stepAny = step as Record<string, any>;
+
+	switch (stepName) {
+		case 'installPlugin': {
+			const slug =
+				stepAny?.pluginData?.slug ||
+				stepAny?.pluginData?.pluginZipFile?.slug ||
+				stepAny?.pluginZipFile?.slug;
+			return slug ? `install plugin "${slug}"` : 'install plugin';
+		}
+		case 'installTheme': {
+			const slug = stepAny?.themeData?.slug || stepAny?.theme?.slug;
+			return slug ? `install theme "${slug}"` : 'install theme';
+		}
+		case 'runPHP':
+			return 'run custom PHP code';
+		case 'runSQL':
+			return 'run SQL statements';
+		case 'importWxr':
+			return 'import WordPress XML content';
+		case 'importWordPressFiles':
+			return 'import a WordPress site archive';
+		case 'installMuPlugin':
+			return 'install an MU plugin';
+		default:
+			return readableName || 'run this step';
+	}
+}
+
+function humanizeStepName(stepName: string): string {
+	const spaced = stepName.replace(/([a-z0-9])([A-Z])/g, '$1 $2');
+	return spaced.charAt(0).toLowerCase() + spaced.slice(1);
+}
+
+function getBlueprintSourceUrl(site?: SiteInfo): string | undefined {
+	const source = site?.metadata?.originalBlueprintSource;
+	return source?.type === 'remote-url' ? source.url : undefined;
 }
 
 function formatErrorDetails(
-	errorDetails?: SerializedSiteErrorDetails
+	errorDetails?: SerializedSiteErrorDetails,
+	messageToOmit?: string
 ): string | undefined {
 	if (!errorDetails) {
 		return undefined;
 	}
 	if (typeof errorDetails === 'string') {
-		return errorDetails;
+		const trimmed = errorDetails.trim();
+		if (messageToOmit && trimmed.startsWith(messageToOmit)) {
+			const remainder = trimmed.slice(messageToOmit.length).trim();
+			return remainder || undefined;
+		}
+		return trimmed;
 	}
-	return [errorDetails.name, errorDetails.message, errorDetails.stack]
+	let message = errorDetails.message;
+	if (message && messageToOmit && message.startsWith(messageToOmit)) {
+		message = message.slice(messageToOmit.length).trim();
+	}
+	return [errorDetails.name, message, errorDetails.stack]
 		.filter(Boolean)
 		.join('\n\n');
 }

@@ -155,9 +155,11 @@ export const activatePlugin: StepHandler<ActivatePluginStep> = async (
 		logger.debug(isActiveCheckResult.text);
 	}
 	throw new Error(
-		`Plugin ${pluginPath} could not be activated – WordPress exited with no error. ` +
-			`Sometimes, when $_SERVER or site options are not configured correctly, ` +
-			`WordPress exits early with a 301 redirect. ` +
-			`Inspect the "debug" logs in the console for more details.`
+		`Plugin ${pluginPath} could not be activated - WordPress exited with exit code ${isActiveCheckResult.exitCode}. ` +
+			`Inspect the "debug" logs in the console for more details. Output headers: ${JSON.stringify(
+				isActiveCheckResult.headers,
+				null,
+				2
+			)}`
 	);
 };

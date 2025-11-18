@@ -19,6 +19,7 @@ export {
 	isBlueprintBundle,
 	compileBlueprintV1,
 	runBlueprintV1Steps,
+	InvalidBlueprintError,
 
 	// BC:
 	compileBlueprintV1 as compileBlueprint,
@@ -49,6 +50,7 @@ export type {
 	VFSReference,
 	VFSResource,
 } from './lib/v1/resources';
+export { BlueprintFilesystemRequiredError } from './lib/v1/resources';
 export * from './lib/steps';
 export * from './lib/steps/handlers';
 export type {

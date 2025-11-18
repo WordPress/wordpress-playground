@@ -178,6 +178,61 @@
 	display: flex;
 }
 
+.step-error {
+	border: 1px solid #dcdcde;
+	border-radius: 12px;
+	padding: 0.75rem 0.85rem 0.9rem;
+	background: #fff;
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+}
+
+.step-error-header {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 0.4rem;
+}
+
+.step-error-title {
+	margin: 0;
+	font-weight: 600;
+	color: #1d2327;
+	font-size: 1.05rem;
+}
+
+.step-error-message {
+	margin: 0;
+	color: #1d2327;
+	line-height: 1.4;
+}
+
+.step-error-code-wrapper {
+	display: flex;
+	flex-direction: column;
+	gap: 0.35rem;
+}
+
+.step-error-label {
+	font-size: 0.75rem;
+	font-weight: 600;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: #6c7781;
+}
+
+.step-error-code {
+	margin: 0;
+	background: #f6f7f7;
+	border-radius: 10px;
+	padding: 0.75rem;
+	font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+	font-size: 0.82rem;
+	overflow-x: auto;
+	line-height: 1.35;
+}
+
 .error-link {
 	color: #1d4ed8;
 	text-decoration: underline;
