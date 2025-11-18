@@ -123,13 +123,19 @@ export const activatePlugin: StepHandler<ActivatePluginStep> = async (
 			}
 			ob_end_clean();
 
-			foreach ( $active_plugins as $plugin ) {
-				if ( substr( $plugin, 0, strlen( $relative_plugin_path ) ) === $relative_plugin_path ) {
-					die('1');
-					break;
+			/**
+			 * Use a shutdown function to ensure the activation-related output comes
+			 * last in stdout.
+			 */
+			register_shutdown_function( function() use ( $relative_plugin_path, $active_plugins ) {
+				foreach ( $active_plugins as $plugin ) {
+					if ( substr( $plugin, 0, strlen( $relative_plugin_path ) ) === $relative_plugin_path ) {
+						die('{"success": true}');
+						break;
+					}
 				}
-			}
-			die('0');
+				die('{"success": false}');
+			});
 		`,
 		env: {
 			DOCROOT: docroot,
@@ -138,10 +144,10 @@ export const activatePlugin: StepHandler<ActivatePluginStep> = async (
 	});
 
 	const rawStatus = (activationStatusResult.text ?? '').trim();
-	if (rawStatus === '1') {
+	if (rawStatus.endsWith('{"success": true}')) {
 		return;
 	}
-	if (rawStatus !== '0') {
+	if (rawStatus !== '{"success": false}') {
 		logger.debug(rawStatus);
 	}
 
