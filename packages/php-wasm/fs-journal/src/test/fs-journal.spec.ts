@@ -9,38 +9,6 @@ import {
 import { LatestSupportedPHPVersion } from '@php-wasm/universal';
 import { loadNodeRuntime } from '@php-wasm/node';
 
-let cachedMaxStackDepth: number | null = null;
-function getMaxStackDepth() {
-	if (cachedMaxStackDepth !== null) {
-		return cachedMaxStackDepth;
-	}
-	let depth = 0;
-	function dive() {
-		depth++;
-		dive();
-	}
-	try {
-		dive();
-	} catch (error) {
-		if (!(error instanceof RangeError)) {
-			throw error;
-		}
-	}
-	cachedMaxStackDepth = depth;
-	return depth;
-}
-
-function runWithLimitedStack<T>(budget: number, fn: () => T): T {
-	const maxDepth = getMaxStackDepth();
-	const framesToConsume = Math.max(0, maxDepth - budget);
-	let wrapped = fn;
-	for (let i = 0; i < framesToConsume; i++) {
-		const next = wrapped;
-		wrapped = () => next();
-	}
-	return wrapped();
-}
-
 describe('Journal MemFS', () => {
 	let php: PHP;
 	beforeEach(async () => {
@@ -485,7 +453,7 @@ describe('normalizeFilesystemOperations()', () => {
 			])
 		).toEqual([]);
 	});
-	it('Still overflows the stack on long rename sequences', () => {
+	it('Normalizes long rename sequences without overflowing the stack', () => {
 		const renameCount = 350;
 		const journal: FilesystemOperation[] = [];
 		for (let i = 0; i < renameCount; i++) {
@@ -501,13 +469,16 @@ describe('normalizeFilesystemOperations()', () => {
 				nodeType: 'file',
 			});
 		}
-		expect(() =>
-			runWithLimitedStack(512, () =>
-				normalizeFilesystemOperations(journal)
-			)
-		).toThrow(RangeError);
+		const normalized = normalizeFilesystemOperations(journal);
+		expect(normalized).toEqual(
+			Array.from({ length: renameCount }, (_, i) => ({
+				operation: 'CREATE',
+				path: `/renamed-${i}`,
+				nodeType: 'file',
+			}))
+		);
 	});
-	it('Overflows the stack even with a handful of recursive rewrites', () => {
+	it('Normalizes even a handful of recursive rewrites', () => {
 		const journal: FilesystemOperation[] = [
 			{ operation: 'CREATE', path: '/dir', nodeType: 'directory' },
 			{ operation: 'CREATE', path: '/dir/a', nodeType: 'directory' },
@@ -526,10 +497,10 @@ describe('normalizeFilesystemOperations()', () => {
 			},
 			{ operation: 'DELETE', path: '/dir/a/b', nodeType: 'directory' },
 		];
-		expect(() =>
-			runWithLimitedStack(20, () =>
-				normalizeFilesystemOperations([...journal])
-			)
-		).toThrow(RangeError);
+		const normalized = normalizeFilesystemOperations([...journal]);
+		expect(normalized).toEqual([
+			{ operation: 'CREATE', path: '/dir/a', nodeType: 'directory' },
+			{ operation: 'CREATE', path: '/dir/a/a', nodeType: 'directory' },
+		]);
 	});
 });

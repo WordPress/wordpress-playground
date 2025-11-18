@@ -362,118 +362,124 @@ function normalizePath(path: string) {
  * @returns The normalized journal.
  */
 export function normalizeFilesystemOperations(
-	journal: FilesystemOperation[]
+	input: FilesystemOperation[]
 ): FilesystemOperation[] {
-	const substitutions: Record<number, any> = {};
-	for (let i = journal.length - 1; i >= 0; i--) {
-		for (let j = i - 1; j >= 0; j--) {
-			const formerType = checkRelationship(journal[i], journal[j]);
-			if (formerType === 'none') {
-				continue;
-			}
+	let journal = input;
+	while (true) {
+		const substitutions: Record<number, any> = {};
+		for (let i = journal.length - 1; i >= 0; i--) {
+			for (let j = i - 1; j >= 0; j--) {
+				const formerType = checkRelationship(journal[i], journal[j]);
+				if (formerType === 'none') {
+					continue;
+				}
 
-			const latter = journal[i];
-			const former = journal[j];
-			if (
-				latter.operation === 'RENAME' &&
-				former.operation === 'RENAME'
-			) {
-				// Normalizing a double rename is a complex scenario so let's just give
-				// up. There's just too many possible scenarios to handle.
-				//
-				// For example, the following scenario may not be possible to normalize:
-				// RENAME /dir_a /dir_b
-				// RENAME /dir_b/subdir /dir_c
-				// RENAME /dir_b /dir_d
-				//
-				// Similarly, how should we normalize the following list?
-				// CREATE_FILE /file
-				// CREATE_DIR /dir_a
-				// RENAME /file /dir_a/file
-				// RENAME /dir_a /dir_b
-				// RENAME /dir_b/file /dir_b/file_2
-				//
-				// The shortest way to recreate the same structure would be this:
-				// CREATE_DIR /dir_b
-				// CREATE_FILE /dir_b/file_2
-				//
-				// But that's not a straightforward transformation so let's just not
-				// handle it for now.
-				logger.warn(
-					'[FS Journal] Normalizing a double rename is not yet supported:',
-					{
-						current: latter,
-						last: former,
-					}
-				);
-				continue;
-			}
-
-			if (former.operation === 'CREATE' || former.operation === 'WRITE') {
-				if (latter.operation === 'RENAME') {
-					if (formerType === 'same_node') {
-						// Creating a node and then renaming it is equivalent to creating
-						// it in the new location.
-						substitutions[j] = [];
-						substitutions[i] = [
-							{
-								...former,
-								path: latter.toPath,
-							},
-							...(substitutions[i] || []),
-						];
-					} else if (formerType === 'descendant') {
-						// Creating a node and then renaming its parent directory is
-						// equivalent to creating it in the new location.
-						substitutions[j] = [];
-						substitutions[i] = [
-							{
-								...former,
-								path: joinPaths(
-									latter.toPath,
-									former.path.substring(latter.path.length)
-								),
-							},
-							...(substitutions[i] || []),
-						];
-					}
-				} else if (
-					latter.operation === 'WRITE' &&
-					formerType === 'same_node'
+				const latter = journal[i];
+				const former = journal[j];
+				if (
+					latter.operation === 'RENAME' &&
+					former.operation === 'RENAME'
 				) {
-					// Updating the same node twice is equivalent to updating it once
-					// at the later time.
-					substitutions[j] = [];
-				} else if (
-					latter.operation === 'DELETE' &&
-					formerType === 'same_node'
-				) {
-					// A CREATE/WRITE followed by a DELETE on the same node.
-					// The CREATE/WRITE is redundant.
-					substitutions[j] = [];
+					// Normalizing a double rename is a complex scenario so let's just give
+					// up. There's just too many possible scenarios to handle.
+					//
+					// For example, the following scenario may not be possible to normalize:
+					// RENAME /dir_a /dir_b
+					// RENAME /dir_b/subdir /dir_c
+					// RENAME /dir_b /dir_d
+					//
+					// Similarly, how should we normalize the following list?
+					// CREATE_FILE /file
+					// CREATE_DIR /dir_a
+					// RENAME /file /dir_a/file
+					// RENAME /dir_a /dir_b
+					// RENAME /dir_b/file /dir_b/file_2
+					//
+					// The shortest way to recreate the same structure would be this:
+					// CREATE_DIR /dir_b
+					// CREATE_FILE /dir_b/file_2
+					//
+					// But that's not a straightforward transformation so let's just not
+					// handle it for now.
+					logger.warn(
+						'[FS Journal] Normalizing a double rename is not yet supported:',
+						{
+							current: latter,
+							last: former,
+						}
+					);
+					continue;
+				}
 
-					// The DELETE is redundant only if the node was created
-					// in this journal.
-					if (former.operation === 'CREATE') {
-						substitutions[i] = [];
+				if (
+					former.operation === 'CREATE' ||
+					former.operation === 'WRITE'
+				) {
+					if (latter.operation === 'RENAME') {
+						if (formerType === 'same_node') {
+							// Creating a node and then renaming it is equivalent to creating
+							// it in the new location.
+							substitutions[j] = [];
+							substitutions[i] = [
+								{
+									...former,
+									path: latter.toPath,
+								},
+								...(substitutions[i] || []),
+							];
+						} else if (formerType === 'descendant') {
+							// Creating a node and then renaming its parent directory is
+							// equivalent to creating it in the new location.
+							substitutions[j] = [];
+							substitutions[i] = [
+								{
+									...former,
+									path: joinPaths(
+										latter.toPath,
+										former.path.substring(
+											latter.path.length
+										)
+									),
+								},
+								...(substitutions[i] || []),
+							];
+						}
+					} else if (
+						latter.operation === 'WRITE' &&
+						formerType === 'same_node'
+					) {
+						// Updating the same node twice is equivalent to updating it once
+						// at the later time.
+						substitutions[j] = [];
+					} else if (
+						latter.operation === 'DELETE' &&
+						formerType === 'same_node'
+					) {
+						// A CREATE/WRITE followed by a DELETE on the same node.
+						// The CREATE/WRITE is redundant.
+						substitutions[j] = [];
+
+						// The DELETE is redundant only if the node was created
+						// in this journal.
+						if (former.operation === 'CREATE') {
+							substitutions[i] = [];
+						}
 					}
 				}
 			}
 		}
-		// Any substitutions? Apply them and start over.
-		// We can't just continue as the current operation may
-		// have been replaced.
-		if (Object.entries(substitutions).length > 0) {
-			const updated = journal.flatMap((op, index) => {
-				if (!(index in substitutions)) {
-					return [op];
-				}
-				return substitutions[index];
-			});
-			return normalizeFilesystemOperations(updated);
+
+		if (Object.keys(substitutions).length === 0) {
+			return journal;
 		}
+
+		journal = journal.flatMap((op, index) => {
+			if (!(index in substitutions)) {
+				return [op];
+			}
+			return substitutions[index];
+		});
 	}
-	return journal;
 }
 
 type RelatedOperationInfo = 'same_node' | 'ancestor' | 'descendant' | 'none';
