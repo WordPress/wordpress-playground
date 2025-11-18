@@ -326,22 +326,16 @@ function SiteErrorModal({
 	return (
 		<Modal
 			title={
-				<>
-					<span className={css.errorBadge}>
-						{isDeveloperError
-							? 'Blueprint issue'
-							: 'Playground crash'}
-					</span>{' '}
-					{presentation.title}
-				</>
-			}
-			headerActions={
-				<Button
-					variant="link"
-					onClick={() => dispatch(clearActiveSiteError())}
-				>
-					Close
-				</Button>
+				(
+					<>
+						<span className={css.errorBadge}>
+							{isDeveloperError
+								? 'Blueprint issue'
+								: 'Runtime error'}
+						</span>{' '}
+						{presentation.title}
+					</>
+				) as unknown as string
 			}
 			onRequestClose={() => dispatch(clearActiveSiteError())}
 			shouldCloseOnClickOutside
@@ -563,7 +557,7 @@ function getErrorPresentation({
 		case 'site-boot-failed':
 		default:
 			return {
-				title: `${siteLabel} crashed while loading`,
+				title: `Playground crashed`,
 				intro: 'Something unexpected interrupted the boot process. Reload the tab or spin up a new site.',
 				actions: [
 					<Button
