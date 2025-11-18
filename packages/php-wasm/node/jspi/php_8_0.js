@@ -8,7 +8,7 @@ import path from 'path';
 
 const dependencyFilename = path.join(__dirname, '8_0_30', 'php_8_0.wasm');
 export { dependencyFilename }; 
-export const dependenciesTotalSize = 22807780; 
+export const dependenciesTotalSize = 22807778; 
 const phpVersionString = '8.0.30';
 export function init(RuntimeName, PHPLoader) {
     // The rest of the code comes from the built php.js file and esm-suffix.js
@@ -16583,7 +16583,7 @@ url = SOCKFS.websocketArgs["url"](...arguments);
         return wrapper;
       },
   instrumentWasmExports(exports) {
-        var exportPattern = /^(php_wasm_init|wasm_sleep|wasm_read|emscripten_sleep|wasm_sapi_handle_request|wasm_sapi_request_shutdown|wasm_poll_socket|wrap_select|__wrap_select|select|php_pollfd_for|fflush|wasm_popen|wasm_read|wasm_php_exec|run_cli|wasm_recv|fd_close|main|__main_argc_argv)$/;
+        var exportPattern = /^(php_wasm_init|wasm_sleep|wasm_read|emscripten_sleep|wasm_sapi_handle_request|wasm_sapi_request_shutdown|wasm_poll_socket|wrap_select|__wrap_select|select|php_pollfd_for|fflush|wasm_popen|wasm_read|wasm_php_exec|run_cli|wasm_recv|__wasm_call_ctors|fd_close|main|__main_argc_argv)$/;
         Asyncify.asyncExports = new Set();
         var ret = {};
         for (let [x, original] of Object.entries(exports)) {
