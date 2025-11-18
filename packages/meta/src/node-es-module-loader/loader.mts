@@ -191,7 +191,7 @@ export async function load(
 		urlObj.search = '';
 		return {
 			format: 'module',
-			source: `export default ${JSON.stringify(urlObj.pathname)};`,
+			source: `export default new URL(${JSON.stringify(urlObj.href)});`,
 			// As mentioned in
 			// https://github.com/WordPress/wordpress-playground/pull/2318
 			// using pathname is preferred over href.

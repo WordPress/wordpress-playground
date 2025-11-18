@@ -213,6 +213,59 @@ describe.each([true, false])(
 			).toBe('plugin-3');
 		});
 
+		it('Preserves a nested NODEFS mount through PHP runtime recreation', async () => {
+			// Rotate the PHP runtime
+			const recreateRuntimeSpy = vitest.fn(recreateRuntime);
+
+			const php = new PHP(await recreateRuntime());
+			php.enableRuntimeRotation({
+				recreateRuntime: recreateRuntimeSpy,
+				maxRequests: 1,
+			});
+
+			// Create a temporary directory and a file in it
+			const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'temp-'));
+			const dirToMountAsParent = path.join(tempDir, 'parent');
+			fs.mkdirSync(dirToMountAsParent);
+			const dirToMountAsNested = path.join(tempDir, 'nested');
+			fs.mkdirSync(dirToMountAsNested);
+
+			// Mount the parent and nested child directories
+			await php.mount(
+				'/parent',
+				createNodeFsMountHandler(dirToMountAsParent)
+			);
+			await php.mount(
+				'/parent/nested',
+				createNodeFsMountHandler(dirToMountAsNested)
+			);
+
+			const childFile = path.join(dirToMountAsNested, 'nested.php');
+			const nestedPhpCode = `<?php echo "nested file";`;
+			fs.writeFileSync(childFile, nestedPhpCode);
+			const parentFileThatReferencesChildFile = path.join(
+				dirToMountAsParent,
+				'test.php'
+			);
+			const parentPhpCode = `<?php require_once __DIR__ . '/nested/nested.php';`;
+			fs.writeFileSync(parentFileThatReferencesChildFile, parentPhpCode);
+
+			// Confirm output based on nested NODEFS mount is the same before and after rotation.
+			const scriptPath = '/parent/test.php';
+			const firstResult = await php.run({ scriptPath });
+			expect(firstResult.text).toBe('nested file');
+			const secondResult = await php.run({ scriptPath });
+			expect(secondResult.text).toBe('nested file');
+
+			expect(recreateRuntimeSpy).toHaveBeenCalledTimes(1);
+
+			// Infer that the nested NODEFS mounts are not lost
+			expect(php.readFileAsText('/parent/nested/nested.php')).toBe(
+				nestedPhpCode
+			);
+			expect(php.readFileAsText(scriptPath)).toBe(parentPhpCode);
+		});
+
 		it('Free up the available PHP memory', async () => {
 			const freeMemory = (php: PHP) =>
 				php[__private__dont__use].HEAPU32.reduce(

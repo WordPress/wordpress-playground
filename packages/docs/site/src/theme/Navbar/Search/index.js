@@ -2,11 +2,6 @@ import React from 'react';
 import Search from '@theme-original/Navbar/Search';
 
 export default function SearchWrapper(props) {
-	const handleClick = (e) => {
-		e.preventDefault();
-		window.Kapa?.open?.();
-	};
-
 	/*
 	 * This add the Kapa AI button to the end of the navbar. It is impossible to add it
 	 * by using themeConfig.navbar.items because the Search component it hardcoded.
@@ -14,6 +9,11 @@ export default function SearchWrapper(props) {
 	 *
 	 * By swizzling the Search component, we can add the Kapa AI button to the right of it.
 	 */
+	const handleClick = (e) => {
+		e.preventDefault();
+		window.Kapa?.open?.();
+	};
+
 	return (
 		<>
 			<Search {...props} />

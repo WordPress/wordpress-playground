@@ -38,7 +38,7 @@ export class BlueprintsV2Handler {
 		return 'v2';
 	}
 
-	async bootPrimaryWorker(
+	async bootAndSetUpInitialPlayground(
 		phpPort: NodeMessagePort,
 		fileLockManagerPort: NodeMessagePort,
 		nativeInternalDirPath: string
@@ -56,14 +56,20 @@ export class BlueprintsV2Handler {
 			processIdSpaceLength: this.processIdSpaceLength,
 			trace: this.args.debug || false,
 			blueprint: this.args.blueprint!,
+			// We do not enable Xdebug by default for the initial worker
+			// because we do not imagine users expect to hit breakpoints
+			// until Playground has fully booted.
+			// TODO: Consider supporting Xdebug for the initial worker via a dedicated flag.
+			withXdebug: false,
+			xdebug: undefined,
 			nativeInternalDirPath,
 		};
 
-		await playground.bootAsPrimaryWorker(workerBootArgs);
+		await playground.bootAndSetUpInitialWorker(workerBootArgs);
 		return playground;
 	}
 
-	async bootSecondaryWorker({
+	async bootPlayground({
 		worker,
 		fileLockManagerPort,
 		firstProcessId,
@@ -81,17 +87,18 @@ export class BlueprintsV2Handler {
 
 		const workerBootArgs: SecondaryWorkerBootArgs = {
 			...this.args,
-			phpVersion: this.phpVersion!,
+			phpVersion: this.phpVersion,
 			siteUrl: this.siteUrl,
 			firstProcessId,
 			processIdSpaceLength: this.processIdSpaceLength,
 			trace: this.args.debug || false,
+			withXdebug: !!this.args.xdebug,
 			nativeInternalDirPath,
 			mountsBeforeWpInstall: this.args['mount-before-install'] || [],
 			mountsAfterWpInstall: this.args.mount || [],
 		};
 
-		await playground.bootAsSecondaryWorker(workerBootArgs);
+		await playground.bootWorker(workerBootArgs);
 
 		return playground;
 	}

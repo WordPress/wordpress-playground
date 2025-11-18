@@ -1,10 +1,10 @@
 ---
 slug: /contributing/table-lead-guide
-title: Table Lead Guide for Contributor Day
+title: How to Lead a Contributor Day Table
 description: How to lead a WordPress Playground table at Contributor Day of a WordCamp.
 ---
 
-# Table Lead Guide for Contributor Day
+# Contributor Day Table Leadership Guide
 
 This guide helps table leads prepare for and manage a WordPress Playground contributor table at WordCamp events.
 

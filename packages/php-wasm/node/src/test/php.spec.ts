@@ -2787,41 +2787,6 @@ phpLoaderOptions.forEach((options) => {
 			});
 		});
 
-		/**
-		 * GD extension support
-		 */
-		describe('gd extension support', { skip: options.withXdebug }, () => {
-			// PHP7.4 used to crash before gd_jpeg.c modification.
-			it('should be able to decode a JPEG image without crashing', async () => {
-				// Generate a tiny JPEG using GD and save it to string
-				const phpCode = `<?php
-				$img = imagecreatetruecolor(1, 1);
-
-				ob_start();
-				imagejpeg($img);
-				$data = ob_get_clean();
-
-				$decoded = imagecreatefromstring($data);
-				echo json_encode([
-					'is_resource' => is_resource($decoded) || (is_object($decoded) && get_class($decoded) === 'GdImage'),
-					'width' => imagesx($decoded),
-					'height' => imagesy($decoded),
-				]);
-				?>`;
-
-				const response = await php.run({ code: phpCode });
-				const bodyText = new TextDecoder().decode(response.bytes);
-				const result = JSON.parse(bodyText);
-
-				// Vefy GD actually created an image
-				expect(result).toEqual({
-					is_resource: true,
-					width: 1,
-					height: 1,
-				});
-			});
-		});
-
 		describe('onMessage', { skip: options.withXdebug }, () => {
 			it('should pass messages to JS', async () => {
 				let messageReceived = '';

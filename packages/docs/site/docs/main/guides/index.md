@@ -24,3 +24,7 @@ This guide will show you the essential settings to fully create a theme demo usi
 ## [WordPress Playground for Plugin Developers](/guides/for-plugin-developers)
 
 This guide will show you the basic settings to showcase your plugin using WordPress Playground and how to use it while developing your plugin.
+
+## [Adding PR Preview Buttons with GitHub Actions](/guides/github-action-pr-preview)
+
+Learn how to automatically add one-click preview buttons to your pull requests. When someone opens a PR on your plugin or theme repository, they get an instant link to test the changes in a fully configured WordPress instance running in the browser.

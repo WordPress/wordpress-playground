@@ -30,6 +30,17 @@ describe('UrlResource', () => {
 			'https://raw.githubusercontent.com/WordPress/wordpress-develop/trunk/src/wp-includes/version.php'
 		);
 	});
+
+	it('should translate github.com raw URLs into raw.githubusercontent.com URLs', () => {
+		const resource = new UrlResource({
+			resource: 'url',
+			url: 'https://github.com/adamziel/blueprints/raw/f49382e89099806a8eede4feba41a9a7ab89bcfe/blueprints%2Fbeta-rc%2Fblueprint.json',
+			caption: 'Example',
+		});
+		expect(resource.getURL()).toBe(
+			'https://raw.githubusercontent.com/adamziel/blueprints/f49382e89099806a8eede4feba41a9a7ab89bcfe/blueprints%2Fbeta-rc%2Fblueprint.json'
+		);
+	});
 });
 
 describe('GitDirectoryResource', () => {

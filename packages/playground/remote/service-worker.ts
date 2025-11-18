@@ -393,13 +393,11 @@ async function handleScopedRequest(event: FetchEvent, scope: string) {
 	// @see controlledIframe below for more details.
 	if (
 		// WordPress Core version of block-editor.js
-		unscopedUrl.pathname.endsWith('/wp-includes/js/dist/block-editor.js') ||
-		unscopedUrl.pathname.endsWith(
-			'/wp-includes/js/dist/block-editor.min.js'
-		) ||
+		unscopedUrl.pathname.endsWith('/block-editor.js') ||
+		unscopedUrl.pathname.endsWith('/block-editor.min.js') ||
 		// Gutenberg version of block-editor.js
-		unscopedUrl.pathname.endsWith('/build/block-editor/index.js') ||
-		unscopedUrl.pathname.endsWith('/build/block-editor/index.min.js')
+		unscopedUrl.pathname.endsWith('/block-editor/index.js') ||
+		unscopedUrl.pathname.endsWith('/block-editor/index.min.js')
 	) {
 		const script = await workerResponse.text();
 		const newScript = `${controlledIframe} ${script.replace(
@@ -470,15 +468,15 @@ window.__playground_ControlledIframe = window.wp.element.forwardRef(function (pr
 		 */
 		const __playground_readBlobAsText = function (url) {
 			try {
-			let xhr = new XMLHttpRequest();
-			xhr.open('GET', url, false);
-			xhr.overrideMimeType('text/plain;charset=utf-8');
-			xhr.send();
-			return xhr.responseText;
+				let xhr = new XMLHttpRequest();
+				xhr.open('GET', url, false);
+				xhr.overrideMimeType('text/plain;charset=utf-8');
+				xhr.send();
+				return xhr.responseText;
 			} catch(e) {
-			return '';
+				return '';
 			} finally {
-			URL.revokeObjectURL(url);
+				URL.revokeObjectURL(url);
 			}
 		};
 		if (props.srcDoc) {

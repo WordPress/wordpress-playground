@@ -33,6 +33,7 @@ wp-admin/images/align-center.png
 wp-admin/images/wordpress-logo-white.svg
 wp-admin/images/media-button-image.gif
 wp-admin/images/align-right.png
+wp-admin/images/about-release-logo.svg
 wp-admin/images/bubble_bg.gif
 wp-admin/images/align-none-2x.png
 wp-admin/images/wpspin_light.gif
@@ -802,6 +803,14 @@ wp-includes/blocks/query-pagination/editor.css
 wp-includes/blocks/query-pagination/editor-rtl.min.css
 wp-includes/blocks/query-pagination/style-rtl.min.css
 wp-includes/blocks/math/block.json
+wp-includes/blocks/math/style.min.css
+wp-includes/blocks/math/style.css
+wp-includes/blocks/math/editor-rtl.css
+wp-includes/blocks/math/editor.min.css
+wp-includes/blocks/math/style-rtl.css
+wp-includes/blocks/math/editor.css
+wp-includes/blocks/math/editor-rtl.min.css
+wp-includes/blocks/math/style-rtl.min.css
 wp-includes/blocks/gallery/block.json
 wp-includes/blocks/gallery/style.min.css
 wp-includes/blocks/gallery/style.css
@@ -1473,8 +1482,6 @@ wp-includes/js/dist/script-modules/block-library/navigation/view.min.js
 wp-includes/js/dist/script-modules/block-library/navigation/view.js
 wp-includes/js/dist/script-modules/block-library/image/view.min.js
 wp-includes/js/dist/script-modules/block-library/image/view.js
-wp-includes/js/dist/script-modules/interactivity-router/full-page.min.js
-wp-includes/js/dist/script-modules/interactivity-router/full-page.js
 wp-includes/js/dist/script-modules/interactivity-router/index.min.js
 wp-includes/js/dist/script-modules/interactivity-router/index.js
 wp-includes/js/dist/script-modules/interactivity/index.min.js

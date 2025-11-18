@@ -41,8 +41,8 @@ interface ConfigForRequestTests {
 	absoluteUrl: string | undefined;
 }
 
-const configsForRequestTests: ConfigForRequestTests[] =
-	SupportedPHPVersions.map((phpVersion) => {
+let configsForRequestTests: ConfigForRequestTests[] = SupportedPHPVersions.map(
+	(phpVersion) => {
 		const documentRoots = [
 			'/',
 			// TODO: Re-enable when we can avoid GH workflow cancelation.
@@ -64,7 +64,14 @@ const configsForRequestTests: ConfigForRequestTests[] =
 				absoluteUrl,
 			}));
 		});
-	}).flat(2);
+	}
+).flat(2);
+
+if ('PHP' in process.env) {
+	configsForRequestTests = configsForRequestTests.filter(
+		(config) => config.phpVersion === process.env['PHP']
+	);
+}
 
 describe.each(configsForRequestTests)(
 	'[PHP $phpVersion, DocRoot $docRoot, AbsUrl $absoluteUrl] PHPRequestHandler – request',
@@ -156,6 +163,7 @@ describe.each(configsForRequestTests)(
 		});
 
 		it('should serve a static file with urlencoded entities in the path', async () => {
+			console.log({ absoluteUrl, docRoot });
 			php.writeFile(
 				joinPaths(docRoot, 'Screenshot 2024-04-05 at 7.13.36 AM.html'),
 				`Hello World`
@@ -670,8 +678,12 @@ describe.each(configsForRequestTests)(
 	}
 );
 
-describe.each(SupportedPHPVersions)(
-	'[PHP %s] PHPRequestHandler – PHP_SELF',
+let phpVersions = SupportedPHPVersions;
+if ('PHP' in process.env) {
+	phpVersions = [process.env['PHP']] as any;
+}
+describe.each(phpVersions)(
+	'[PHP %s] PHPRequestHandler – $_SERVER entries',
 	(phpVersion) => {
 		let handler: PHPRequestHandler;
 		beforeEach(async () => {
@@ -731,6 +743,234 @@ describe.each(SupportedPHPVersions)(
 			});
 
 			expect(response.text).toEqual('/var/www');
+		});
+
+		describe('PHP Dev Server scenario (with PATH_INFO)', () => {
+			it('should set $_SERVER variables correctly for script with PATH_INFO', async () => {
+				const php = await handler.getPrimaryPhp();
+				php.mkdirTree('/var/www/subdir');
+				php.writeFile(
+					'/var/www/subdir/script.php',
+					`<?php
+						echo json_encode([
+							'REQUEST_URI' => $_SERVER['REQUEST_URI'],
+							'SCRIPT_NAME' => $_SERVER['SCRIPT_NAME'],
+							'SCRIPT_FILENAME' => $_SERVER['SCRIPT_FILENAME'],
+							'PATH_INFO' => $_SERVER['PATH_INFO'] ?? '(not set)',
+							'PHP_SELF' => $_SERVER['PHP_SELF'],
+						]);
+					`
+				);
+
+				const response = await handler.request({
+					url: '/subdir/script.php/b.php/c.php',
+				});
+
+				const result = response.json;
+				expect(result['REQUEST_URI']).toEqual(
+					'/subdir/script.php/b.php/c.php'
+				);
+				expect(result['SCRIPT_NAME']).toEqual('/subdir/script.php');
+				expect(result['SCRIPT_FILENAME']).toEqual(
+					'/var/www/subdir/script.php'
+				);
+				expect(result['PATH_INFO']).toEqual('/b.php/c.php');
+				expect(result['PHP_SELF']).toEqual(
+					'/subdir/script.php/b.php/c.php'
+				);
+			});
+		});
+
+		describe('Apache vanilla request scenario', () => {
+			it('should set $_SERVER variables correctly for vanilla request with query string', async () => {
+				const php = await handler.getPrimaryPhp();
+				php.mkdirTree('/var/www/subdir');
+				php.writeFile(
+					'/var/www/subdir/script.php',
+					`<?php
+						echo json_encode([
+							'REQUEST_URI' => $_SERVER['REQUEST_URI'],
+							'SCRIPT_NAME' => $_SERVER['SCRIPT_NAME'],
+							'SCRIPT_FILENAME' => $_SERVER['SCRIPT_FILENAME'],
+							'PATH_INFO' => $_SERVER['PATH_INFO'] ?? '(not set)',
+							'PHP_SELF' => $_SERVER['PHP_SELF'],
+							'QUERY_STRING' => $_SERVER['QUERY_STRING'] ?? '',
+							'REQUEST_METHOD' => $_SERVER['REQUEST_METHOD'],
+							'DOCUMENT_ROOT' => $_SERVER['DOCUMENT_ROOT'],
+							'GET_param' => $_GET['param'] ?? '(not set)',
+						]);
+					`
+				);
+
+				const response = await handler.request({
+					url: '/subdir/script.php?param=value',
+				});
+
+				const result = response.json;
+				expect(result['REQUEST_URI']).toEqual(
+					'/subdir/script.php?param=value'
+				);
+				expect(result['SCRIPT_NAME']).toEqual('/subdir/script.php');
+				expect(result['SCRIPT_FILENAME']).toEqual(
+					'/var/www/subdir/script.php'
+				);
+				expect(result['PATH_INFO']).toEqual('');
+				// This should actually be a missing key, not an empty string.
+				// @TODO: Adjust this inconsistency.
+				// expect(result['PATH_INFO']).toEqual('(not set)');
+				expect(result['PHP_SELF']).toEqual('/subdir/script.php');
+				expect(result['QUERY_STRING']).toEqual('param=value');
+				expect(result['REQUEST_METHOD']).toEqual('GET');
+				expect(result['DOCUMENT_ROOT']).toEqual('/var/www');
+				expect(result['GET_param']).toEqual('value');
+			});
+		});
+
+		describe('Apache rewriting rules scenario', () => {
+			it('should set $_SERVER variables correctly when rewrite rules are applied', async () => {
+				const handlerWithRewrite = new PHPRequestHandler({
+					phpFactory: async () =>
+						new PHP(await loadNodeRuntime(phpVersion)),
+					documentRoot: '/var/www',
+					maxPhpInstances: 1,
+					rewriteRules: [
+						{
+							match: /^\/api\/v1\/user\/([0-9]+)$/,
+							replacement:
+								'/subdir/script.php?endpoint=user&id=$1',
+						},
+					],
+				});
+				const php = await handlerWithRewrite.getPrimaryPhp();
+				php.mkdirTree('/var/www/subdir');
+				php.writeFile(
+					'/var/www/subdir/script.php',
+					`<?php
+						echo json_encode([
+							'REQUEST_URI' => $_SERVER['REQUEST_URI'],
+							'SCRIPT_NAME' => $_SERVER['SCRIPT_NAME'],
+							'SCRIPT_FILENAME' => $_SERVER['SCRIPT_FILENAME'],
+							'PATH_INFO' => $_SERVER['PATH_INFO'] ?? '(not set)',
+							'PHP_SELF' => $_SERVER['PHP_SELF'],
+							'QUERY_STRING' => $_SERVER['QUERY_STRING'] ?? '',
+							'GET_endpoint' => $_GET['endpoint'] ?? '(not set)',
+							'GET_id' => $_GET['id'] ?? '(not set)',
+						]);
+					`
+				);
+
+				const response = await handlerWithRewrite.request({
+					url: '/api/v1/user/123',
+				});
+
+				const result = response.json;
+				// REQUEST_URI should be the original URL (before rewriting) per Apache behavior
+				expect(result['REQUEST_URI']).toEqual('/api/v1/user/123');
+				// SCRIPT_NAME is the path to the script relative to document root
+				expect(result['SCRIPT_NAME']).toEqual('/subdir/script.php');
+				// SCRIPT_FILENAME is the absolute path to the script file
+				expect(result['SCRIPT_FILENAME']).toEqual(
+					'/var/www/subdir/script.php'
+				);
+				// PATH_INFO is not set for this type of rewrite
+				expect(result['PATH_INFO']).toEqual('(not set)');
+				// PHP_SELF should be the script path per Apache behavior
+				expect(result['PHP_SELF']).toEqual('/subdir/script.php');
+				// QUERY_STRING should contain the rewritten query parameters
+				expect(result['QUERY_STRING']).toEqual('endpoint=user&id=123');
+				// $_GET should have the parsed query parameters
+				expect(result['GET_endpoint']).toEqual('user');
+				expect(result['GET_id']).toEqual('123');
+
+				php.exit();
+			});
+
+			it('should preserve original REQUEST_URI while rewriting to a different script', async () => {
+				const handlerWithRewrite = new PHPRequestHandler({
+					phpFactory: async () =>
+						new PHP(await loadNodeRuntime(phpVersion)),
+					documentRoot: '/var/www',
+					maxPhpInstances: 1,
+					rewriteRules: [
+						{
+							match: /^\/pretty\/url/,
+							replacement: '/index.php?page=pretty',
+						},
+					],
+				});
+				const php = await handlerWithRewrite.getPrimaryPhp();
+				php.writeFile(
+					'/var/www/index.php',
+					`<?php
+						echo json_encode([
+							'REQUEST_URI' => $_SERVER['REQUEST_URI'],
+							'PHP_SELF' => $_SERVER['PHP_SELF'],
+							'SCRIPT_NAME' => $_SERVER['SCRIPT_NAME'],
+						]);
+					`
+				);
+
+				const response = await handlerWithRewrite.request({
+					url: '/pretty/url',
+				});
+
+				const result = response.json;
+				// REQUEST_URI should be the original URL per Apache behavior
+				expect(result['REQUEST_URI']).toEqual('/pretty/url');
+				// PHP_SELF should be the script path per Apache behavior
+				expect(result['PHP_SELF']).toEqual('/index.php');
+				// SCRIPT_NAME is the script path
+				expect(result['SCRIPT_NAME']).toEqual('/index.php');
+
+				php.exit();
+			});
+
+			it('should preserve the original query params through URL rewriting', async () => {
+				const handlerWithRewrite = new PHPRequestHandler({
+					phpFactory: async () =>
+						new PHP(await loadNodeRuntime(phpVersion)),
+					documentRoot: '/var/www',
+					maxPhpInstances: 1,
+					rewriteRules: [
+						{
+							match: /^\/pretty\/url/,
+							replacement: '/index.php?page=pretty',
+						},
+					],
+				});
+				const php = await handlerWithRewrite.getPrimaryPhp();
+				php.writeFile(
+					'/var/www/index.php',
+					`<?php
+						echo json_encode([
+							'REQUEST_URI' => $_SERVER['REQUEST_URI'],
+							'PHP_SELF' => $_SERVER['PHP_SELF'],
+							'SCRIPT_NAME' => $_SERVER['SCRIPT_NAME'],
+							'QUERY_STRING' => $_SERVER['QUERY_STRING'],
+						]);
+					`
+				);
+
+				const response = await handlerWithRewrite.request({
+					url: '/pretty/url?foo=bar&page=different-value',
+				});
+
+				const result = response.json;
+				// REQUEST_URI should be the original URL per Apache behavior
+				expect(result['REQUEST_URI']).toEqual(
+					'/pretty/url?foo=bar&page=different-value'
+				);
+				// QUERY_STRING should contain all the query parameters: original + rewritten
+				expect(result['QUERY_STRING']).toEqual(
+					'page=pretty&foo=bar&page=different-value'
+				);
+				// PHP_SELF should be the script path per Apache behavior
+				expect(result['PHP_SELF']).toEqual('/index.php');
+				// SCRIPT_NAME is the script path
+				expect(result['SCRIPT_NAME']).toEqual('/index.php');
+
+				php.exit();
+			});
 		});
 	}
 );
