@@ -144,6 +144,10 @@ Você pode visualizar código do repositório de duas maneiras: diretamente com 
 
 No código acima, será instalado um plugin de um repositório localizado na `url`, e a referência para encontrar o branch é `refType`; neste caso, será usado `refname`, mas também pode ser usado `branch`, `tag` e `commit`.
 
+:::tip
+Você pode automatizar esse processo usando a [Ação do GitHub para gerar links de pré-visualização](/guides/github-action-pr-preview), o que ajudará a agilizar o processo.
+:::
+
 <!-- Loading a `.zip` file is another alternative for previewing your project. See the [live example of Gutenberg PR previewer](https://playground.wordpress.net/gutenberg.html). -->
 
 Carregar um arquivo `.zip` é outra alternativa para visualizar seu projeto. Veja o [exemplo ao vivo do visualizador de PR do Gutenberg](https://playground.wordpress.net/gutenberg.html).
