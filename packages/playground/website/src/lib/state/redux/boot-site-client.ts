@@ -57,9 +57,10 @@ export function bootSiteClient(
 			} catch (e) {
 				logger.error(e);
 				dispatch(
-					setActiveSiteError(
-						'directory-handle-not-found-in-indexeddb'
-					)
+					setActiveSiteError({
+						error: 'directory-handle-not-found-in-indexeddb',
+						details: e,
+					})
 				);
 				return;
 			}
@@ -82,13 +83,19 @@ export function bootSiteClient(
 				logger.error(e);
 				if (e instanceof DOMException && e.name === 'NotFoundError') {
 					dispatch(
-						setActiveSiteError(
-							'directory-handle-not-found-in-indexeddb'
-						)
+						setActiveSiteError({
+							error: 'directory-handle-not-found-in-indexeddb',
+							details: e,
+						})
 					);
 					return;
 				}
-				dispatch(setActiveSiteError('directory-handle-unknown-error'));
+				dispatch(
+					setActiveSiteError({
+						error: 'directory-handle-unknown-error',
+						details: e,
+					})
+				);
 				return;
 			}
 		}
@@ -194,28 +201,45 @@ export function bootSiteClient(
 		} catch (e) {
 			logger.error(e);
 
-			// Store the error details for display
-			(window as any).__playgroundBlueprintError = e;
-
 			if (
 				(e as any).name === 'ArtifactExpiredError' ||
 				(e as any).originalErrorClassName === 'ArtifactExpiredError'
 			) {
-				dispatch(setActiveSiteError('github-artifact-expired'));
+				dispatch(
+					setActiveSiteError({
+						error: 'github-artifact-expired',
+						details: e,
+					})
+				);
 			} else if (
 				e instanceof Error &&
 				e.message.includes(
 					'Blueprint resource of type "bundled" requires a filesystem'
 				)
 			) {
-				dispatch(setActiveSiteError('blueprint-filesystem-required'));
+				dispatch(
+					setActiveSiteError({
+						error: 'blueprint-filesystem-required',
+						details: e,
+					})
+				);
 			} else if (
 				e instanceof Error &&
 				e.message.startsWith('Invalid Blueprint:')
 			) {
-				dispatch(setActiveSiteError('blueprint-validation-failed'));
+				dispatch(
+					setActiveSiteError({
+						error: 'blueprint-validation-failed',
+						details: e,
+					})
+				);
 			} else {
-				dispatch(setActiveSiteError('site-boot-failed'));
+				dispatch(
+					setActiveSiteError({
+						error: 'site-boot-failed',
+						details: e,
+					})
+				);
 				dispatch(setActiveModal(modalSlugs.ERROR_REPORT));
 			}
 			return;

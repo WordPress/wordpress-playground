@@ -18,6 +18,7 @@ export interface UIState {
 	activeSite?: {
 		slug: string;
 		error?: SiteError;
+		errorDetails?: unknown;
 	};
 	activeModal: string | null;
 	offline: boolean;
@@ -69,12 +70,18 @@ const uiSlice = createSlice({
 			state.activeSite = action.payload
 				? {
 						slug: action.payload,
+						error: undefined,
+						errorDetails: undefined,
 				  }
 				: undefined;
 		},
-		setActiveSiteError: (state, action: PayloadAction<SiteError>) => {
+		setActiveSiteError: (
+			state,
+			action: PayloadAction<{ error: SiteError; details?: unknown }>
+		) => {
 			if (state.activeSite) {
-				state.activeSite.error = action.payload;
+				state.activeSite.error = action.payload.error;
+				state.activeSite.errorDetails = action.payload.details;
 			}
 		},
 		setActiveModal: (state, action: PayloadAction<string | null>) => {

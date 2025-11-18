@@ -4,6 +4,7 @@ import css from './style.module.css';
 import BrowserChrome from '../browser-chrome';
 import {
 	selectActiveSiteError,
+	selectActiveSiteErrorDetails,
 	useActiveSite,
 	useAppDispatch,
 	useAppSelector,
@@ -200,12 +201,17 @@ export const JustViewport = function JustViewport({
 	}, [siteSlug, iframeRef, runtimeConfigString]);
 
 	const error = useAppSelector(selectActiveSiteError);
+	const errorDetails = useAppSelector(selectActiveSiteErrorDetails);
 
 	if (error) {
 		return (
 			<div className={css.siteError}>
 				<div className={css.siteErrorContent}>
-					<SiteErrorMessage error={error} siteSlug={siteSlug} />
+					<SiteErrorMessage
+						error={error}
+						siteSlug={siteSlug}
+						errorDetails={errorDetails}
+					/>
 				</div>
 			</div>
 		);
@@ -224,9 +230,11 @@ export const JustViewport = function JustViewport({
 function SiteErrorMessage({
 	error,
 	siteSlug,
+	errorDetails,
 }: {
 	error: SiteError;
 	siteSlug: string;
+	errorDetails?: unknown;
 }) {
 	const dispatch = useAppDispatch();
 	if (
@@ -320,7 +328,6 @@ function SiteErrorMessage({
 	}
 
 	if (error === 'blueprint-fetch-failed') {
-		const errorDetails = (window as any).__playgroundBlueprintError;
 		const errorMessage =
 			errorDetails instanceof Error
 				? errorDetails.message
@@ -387,7 +394,6 @@ function SiteErrorMessage({
 	}
 
 	if (error === 'blueprint-filesystem-required') {
-		const errorDetails = (window as any).__playgroundBlueprintError;
 		const errorMessage =
 			errorDetails instanceof Error
 				? errorDetails.message
@@ -457,7 +463,6 @@ function SiteErrorMessage({
 	}
 
 	if (error === 'blueprint-validation-failed') {
-		const errorDetails = (window as any).__playgroundBlueprintError;
 		const errorMessage =
 			errorDetails instanceof Error
 				? errorDetails.message

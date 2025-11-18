@@ -20,7 +20,7 @@ import {
 	applyQueryOverrides,
 } from '../url/resolve-blueprint-from-url';
 import { logger } from '@php-wasm/logger';
-import { setActiveSiteError } from './slice-ui';
+import { setActiveSiteError, type SiteError } from './slice-ui';
 
 /**
  * The Site model used to represent a site within Playground.
@@ -247,11 +247,56 @@ export function setTemporarySiteSpec(
 		dispatch: PlaygroundDispatch,
 		getState: () => PlaygroundReduxState
 	) => {
+		const siteSlug = deriveSlugFromSiteName(siteName);
 		const newSiteUrlParams = {
 			searchParams: parseSearchParams(
 				playgroundUrlWithQueryApiArgs.searchParams
 			),
 			hash: playgroundUrlWithQueryApiArgs.hash,
+		};
+
+		const showTemporarySiteError = (params: {
+			error: SiteError;
+			details: unknown;
+		}) => {
+			const errorSite: SiteInfo = {
+				slug: siteSlug,
+				originalUrlParams: newSiteUrlParams,
+				metadata: {
+					name: siteName,
+					id: crypto.randomUUID(),
+					whenCreated: Date.now(),
+					storage: 'none' as const,
+					originalBlueprint: {},
+					originalBlueprintSource: {
+						// @TODO: Should this say remote-url?
+						type: 'remote-url',
+						url: playgroundUrlWithQueryApiArgs.toString(),
+					},
+					runtimeConfiguration: {
+						phpVersion: '8.0',
+						wpVersion: 'latest',
+						intl: false,
+						networking: true,
+						extraLibraries: [],
+						constants: {},
+					},
+				},
+			};
+
+			dispatch(sitesSlice.actions.addSite(errorSite));
+			dispatch(sitesSlice.actions.setFirstTemporarySiteCreated());
+
+			setTimeout(() => {
+				dispatch(
+					setActiveSiteError({
+						error: params.error,
+						details: params.details,
+					})
+				);
+			}, 0);
+
+			return errorSite;
 		};
 
 		const currentTemporarySite = selectTemporarySite(getState());
@@ -291,75 +336,53 @@ export function setTemporarySiteSpec(
 				e
 			);
 
-			// Store the error details for the error modal
-			(window as any).__playgroundBlueprintError = e;
+			return showTemporarySiteError({
+				error: 'blueprint-fetch-failed',
+				details: e,
+			});
+		}
 
-			// Show error to the user - create a minimal site to display the error
-			const errorSite: SiteInfo = {
-				slug: deriveSlugFromSiteName(siteName),
+		try {
+			const reflection = await BlueprintReflection.create(
+				resolvedBlueprint.blueprint
+			);
+			if (reflection.getVersion() === 1) {
+				resolvedBlueprint.blueprint = await applyQueryOverrides(
+					resolvedBlueprint.blueprint,
+					playgroundUrlWithQueryApiArgs.searchParams
+				);
+			}
+
+			// Compute the runtime configuration based on the resolved Blueprint:
+			const newSiteInfo: SiteInfo = {
+				slug: siteSlug,
 				originalUrlParams: newSiteUrlParams,
 				metadata: {
 					name: siteName,
 					id: crypto.randomUUID(),
 					whenCreated: Date.now(),
 					storage: 'none' as const,
-					originalBlueprint: {},
-					originalBlueprintSource: {
-						// @TODO: Should this say remote-url?
-						type: 'remote-url',
-						url: playgroundUrlWithQueryApiArgs.toString(),
-					},
-					runtimeConfiguration: {
-						phpVersion: '8.0',
-						wpVersion: 'latest',
-						intl: false,
-						networking: true,
-						extraLibraries: [],
-						constants: {},
-					},
+					originalBlueprint: resolvedBlueprint.blueprint,
+					originalBlueprintSource: resolvedBlueprint.source!,
+					runtimeConfiguration: await resolveRuntimeConfiguration(
+						resolvedBlueprint.blueprint
+					)!,
 				},
 			};
-
-			dispatch(sitesSlice.actions.addSite(errorSite));
+			dispatch(sitesSlice.actions.addSite(newSiteInfo));
 			dispatch(sitesSlice.actions.setFirstTemporarySiteCreated());
-
-			// Set the error state for this site
-			setTimeout(() => {
-				dispatch(setActiveSiteError('blueprint-fetch-failed'));
-			}, 0);
-
-			return errorSite;
-		}
-
-		const reflection = await BlueprintReflection.create(
-			resolvedBlueprint.blueprint
-		);
-		if (reflection.getVersion() === 1) {
-			resolvedBlueprint.blueprint = await applyQueryOverrides(
-				resolvedBlueprint.blueprint,
-				playgroundUrlWithQueryApiArgs.searchParams
+			return newSiteInfo;
+		} catch (e) {
+			logger.error(
+				'Error preparing the Blueprint after it was downloaded.',
+				e
 			);
+			const errorType =
+				e instanceof Error && e.message.startsWith('Invalid Blueprint:')
+					? 'blueprint-validation-failed'
+					: 'site-boot-failed';
+			return showTemporarySiteError({ error: errorType, details: e });
 		}
-
-		// Compute the runtime configuration based on the resolved Blueprint:
-		const newSiteInfo: SiteInfo = {
-			slug: deriveSlugFromSiteName(siteName),
-			originalUrlParams: newSiteUrlParams,
-			metadata: {
-				name: siteName,
-				id: crypto.randomUUID(),
-				whenCreated: Date.now(),
-				storage: 'none' as const,
-				originalBlueprint: resolvedBlueprint.blueprint,
-				originalBlueprintSource: resolvedBlueprint.source!,
-				runtimeConfiguration: await resolveRuntimeConfiguration(
-					resolvedBlueprint.blueprint
-				)!,
-			},
-		};
-		dispatch(sitesSlice.actions.addSite(newSiteInfo));
-		dispatch(sitesSlice.actions.setFirstTemporarySiteCreated());
-		return newSiteInfo;
 	};
 }
 

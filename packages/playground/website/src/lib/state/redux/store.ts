@@ -89,6 +89,11 @@ export const selectActiveSiteError = (
 ): SiteError | undefined =>
 	state.ui.activeSite?.slug ? state.ui.activeSite.error : undefined;
 
+export const selectActiveSiteErrorDetails = (
+	state: PlaygroundReduxState
+): unknown =>
+	state.ui.activeSite?.slug ? state.ui.activeSite.errorDetails : undefined;
+
 export const useActiveSite = () => useAppSelector(selectActiveSite);
 
 export const setActiveSite = (slug: string | undefined) => {
