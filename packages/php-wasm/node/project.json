@@ -165,12 +165,10 @@
 					"php-dynamic-loading.spec.ts",
 					"php-request-handler.spec.ts",
 					"php.spec.ts",
-					"file-lock-manager-for-node.spec.ts",
 					"php-worker.spec.ts",
 					"php-soap.spec.ts",
 					"php-image-extensions.spec.ts",
-					"php-imagick.spec.ts",
-					"php-file-locking.spec.ts"
+					"php-imagick.spec.ts"
 				]
 			}
 		},
@@ -194,12 +192,10 @@
 					"php-dynamic-loading.spec.ts",
 					"php-request-handler.spec.ts",
 					"php.spec.ts",
-					"file-lock-manager-for-node.spec.ts",
 					"php-worker.spec.ts",
 					"php-soap.spec.ts",
 					"php-image-extensions.spec.ts",
-					"php-imagick.spec.ts",
-					"php-file-locking.spec.ts"
+					"php-imagick.spec.ts"
 				]
 			}
 		},
