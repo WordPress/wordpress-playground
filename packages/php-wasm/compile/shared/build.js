@@ -29,8 +29,8 @@ const argParser = yargs(process.argv.slice(2))
 			description: 'Build with DWARF debug information.',
 		},
 		WITH_JSPI: {
-			type: 'boolean',
-			default: false,
+			type: 'string',
+			choices: ['yes', 'no'],
 			description: 'Build with JSPI support',
 		},
 	});

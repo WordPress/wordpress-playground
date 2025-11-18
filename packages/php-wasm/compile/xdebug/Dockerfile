@@ -53,6 +53,7 @@ RUN cd /root && git apply --no-index /root/php${PHP_VERSION:0:3}*.patch -v
 RUN source /root/emsdk/emsdk_env.sh && \
 	cd php-src && \
 	emconfigure ./configure \
+	--host=i386-unknown-freebsd \
 	--disable-fiber-asm \
 	--enable-embed \
 	--disable-cgi \
@@ -128,7 +129,7 @@ RUN set -euxo pipefail; \
 	fi; \
 
 	if [ "$JSPI" = "yes" ]; then \
-		export EMCC_FLAGS="${EMCC_FLAGS} -sJSPI -sJSPI_IMPORTS=wasm_recv -sJSPI_EXPORTS=wasm_recv -sSUPPORT_LONGJMP=wasm -fwasm-exceptions "; \
+		export EMCC_FLAGS="${EMCC_FLAGS} -sSUPPORT_LONGJMP=wasm -fwasm-exceptions -sJSPI -sJSPI_IMPORTS=wasm_recv -sJSPI_EXPORTS=wasm_recv"; \
 	else \
 		# execute_internal must be in ASYNCIFY_IMPORTS for Xdebug to trace internal PHP functions.
 		# This enables async unwinding during breakpoints or stepping inside internal calls.

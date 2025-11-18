@@ -59,6 +59,7 @@ RUN cd /root && git apply --no-index /root/php${PHP_VERSION:0:3}*.patch -v
 RUN source /root/emsdk/emsdk_env.sh && \
 	cd php-src && \
 	emconfigure ./configure \
+	--host=i386-unknown-freebsd \
 	--disable-fiber-asm \
 	--enable-embed \
 	--disable-cgi \
@@ -126,8 +127,8 @@ RUN set -euxo pipefail; \
 	cd /root/icu/source; \
 	mkdir -p /root; \
 	source /root/emsdk/emsdk_env.sh; \
-	export CFLAGS="-sSIDE_MODULE -D__x86_64__"; \
-	export CXXFLAGS="-sSIDE_MODULE -D__x86_64__"; \
+	export CFLAGS="-fPIC -D__x86_64__"; \
+	export CXXFLAGS="-fPIC -D__x86_64__"; \
 
 	emconfigure ./configure \
 		--host=i386-unknown-freebsd \
@@ -185,7 +186,7 @@ RUN set -euxo pipefail; \
 	fi; \
 
 	if [ "$WITH_JSPI" = "yes" ]; then \
-		export EMCC_FLAGS="${EMCC_FLAGS} -sJSPI"; \
+		export EMCC_FLAGS="${EMCC_FLAGS} -sSUPPORT_LONGJMP=wasm -fwasm-exceptions -sJSPI"; \
 	else \
 		export EMCC_FLAGS="${EMCC_FLAGS} -sASYNCIFY -sASYNCIFY_ADVISE"; \
 	fi; \
