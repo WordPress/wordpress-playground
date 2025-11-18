@@ -1,5 +1,5 @@
 import React from 'react';
-import css from '../playground-viewport/style.module.css';
+import css from './style.module.css';
 import type { BlueprintStepError } from './types';
 
 interface Props {

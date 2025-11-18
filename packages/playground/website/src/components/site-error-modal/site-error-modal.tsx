@@ -4,7 +4,7 @@ import { Button, TextareaControl } from '@wordpress/components';
 import { logger } from '@php-wasm/logger';
 
 import { Modal } from '../modal';
-import css from '../playground-viewport/style.module.css';
+import css from './style.module.css';
 import { useAppDispatch, setActiveSite } from '../../lib/state/redux/store';
 import { removeClientInfo } from '../../lib/state/redux/slice-clients';
 import {
