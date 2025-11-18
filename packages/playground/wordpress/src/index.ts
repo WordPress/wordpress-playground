@@ -1,7 +1,6 @@
 import type { PHP, UniversalPHP } from '@php-wasm/universal';
 import { joinPaths, phpVar } from '@php-wasm/util';
 import { unzipFile, createMemoizedFetch } from '@wp-playground/common';
-import { encodeGitModuleReference } from '@wp-playground/wordpress-builds';
 import { logger } from '@php-wasm/logger';
 
 export {
@@ -649,12 +648,6 @@ const memoizedFetch = createMemoizedFetch(fetch);
  * @param versionQuery - The WordPress version query string to resolve.
  * @returns The resolved WordPress release URL and version string.
  */
-const WORDPRESS_TRUNK_REFERENCE = {
-	repoUrl: 'https://github.com/WordPress/wordpress.git',
-	ref: 'master',
-	refType: 'branch' as const,
-};
-
 export async function resolveWordPressRelease(versionQuery = 'latest') {
 	if (versionQuery === null) {
 		versionQuery = 'latest';
@@ -676,8 +669,9 @@ export async function resolveWordPressRelease(versionQuery = 'latest') {
 		};
 	} else if (versionQuery === 'trunk' || versionQuery === 'nightly') {
 		return {
-			releaseUrl: encodeGitModuleReference(WORDPRESS_TRUNK_REFERENCE),
-			version: 'trunk',
+			releaseUrl:
+				'https://wordpress.org/nightly-builds/wordpress-latest.zip',
+			version: 'nightly-' + new Date().toISOString().split('T')[0],
 			source: 'inferred',
 		};
 	}

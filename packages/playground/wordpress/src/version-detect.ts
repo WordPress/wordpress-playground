@@ -36,7 +36,7 @@ export async function getLoadedWordPressVersion(
  *
  * Release candidates (RC) and beta releases are converted to "beta".
  *
- * Nightly (trunk) releases are converted to "trunk".
+ * Nightly releases are converted to "nightly".
  *
  * @param wpVersionString - A WordPress version string.
  * @returns A Playground WordPress build version.
@@ -46,7 +46,7 @@ export function versionStringToLoadedWordPressVersion(
 ): string {
 	const nightlyPattern = /-(alpha|beta|RC)\d*-\d+$/;
 	if (nightlyPattern.test(wpVersionString)) {
-		return 'trunk';
+		return 'nightly';
 	}
 
 	// TODO: Tighten this to detect specific old beta version, like 6.2-beta.

@@ -4,8 +4,6 @@ export {
 	type WordPressGitDirectory,
 } from './wordpress/get-wordpress-module-details';
 export { getWordPressModule } from './wordpress/get-wordpress-module';
-export { fetchGitDirectoryFiles } from './wordpress/fetch-git-directory';
-export { encodeGitModuleReference } from './wordpress/git-module';
 export {
 	getSqliteDriverModule,
 	LatestSqliteDriverVersion,
