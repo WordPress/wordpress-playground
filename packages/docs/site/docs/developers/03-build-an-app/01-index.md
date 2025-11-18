@@ -179,12 +179,11 @@ blueprint={{
 
 ### Preview WordPress Core and Gutenberg Branches or PRs
 
-You can preview specific branches or pull requests from WordPress Core and Gutenberg repositories using Query API parameters. This is useful for testing the latest trunk changes or specific feature branches without creating a PR.
+You can preview specific pull requests from WordPress Core and Gutenberg repositories using Query API parameters. Gutenberg branches also have an alternative to preview them with the parameter `gutenberg-branch`. This is useful for testing the latest trunk changes or specific feature branches without creating a PR.
 
--   Preview WordPress Core trunk branch: `https://playground.wordpress.net/?core-branch=trunk`
 -   Preview a specific WordPress Core PR: `https://playground.wordpress.net/?core-pr=9500`
--   Preview the Gutenberg trunk branch: `https://playground.wordpress.net/?gutenberg-branch=trunk`
 -   Preview a specific Gutenberg PR: `https://playground.wordpress.net/?gutenberg-pr=73010`
+-   Preview the Gutenberg trunk branch: `https://playground.wordpress.net/?gutenberg-branch=trunk`
 
 ## Build a compatibility testing environment
 
