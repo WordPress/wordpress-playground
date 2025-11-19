@@ -731,7 +731,12 @@ const LibraryForFileLocking = {
 					vfsPath,
 					obtainedLock
 				);
-				return obtainedLock ? 0 : -ERRNO_CODES.EWOULDBLOCK;
+				if (obtainedLock) {
+					locking.maybeLockedFds.add(fd);
+					return 0;
+				} else {
+					return -ERRNO_CODES.EWOULDBLOCK;
+				}
 			} catch (e) {
 				_js_wasm_trace('js_flock(%d, %d) lockWholeFile error %s', fd, op, e);
 				return -ERRNO_CODES.EINVAL;

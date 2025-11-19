@@ -37,10 +37,32 @@ describe('Test WordPress rewrites', () => {
 		);
 	});
 
-	it('Should strip multisite prefix and scope', async () => {
+	it('Should only target the first instance of a wp-admin|wp-content|wp-includes dir in a path (1)', async () => {
 		expect(
 			applyRewriteRules(
-				'/scope:0.1/test/wp-content/themes/twentytwentyfour/assets/images/windows.webp',
+				'/wp-content/themes/Newspaper/includes/wp-booster/wp-admin/images/plugins/tagdiv-small.png',
+				wordPressRewriteRules
+			)
+		).toBe(
+			'/wp-content/themes/Newspaper/includes/wp-booster/wp-admin/images/plugins/tagdiv-small.png'
+		);
+	});
+
+	it('Should only target the first instance of a wp-admin|wp-content|wp-includes dir in a path (2)', async () => {
+		expect(
+			applyRewriteRules(
+				'/wp-content/themes/Newspaper/includes/wp-booster/wp-content/images/plugins/tagdiv-small.png',
+				wordPressRewriteRules
+			)
+		).toBe(
+			'/wp-content/themes/Newspaper/includes/wp-booster/wp-content/images/plugins/tagdiv-small.png'
+		);
+	});
+
+	it('Should not strip wp-content prefix from a path', async () => {
+		expect(
+			applyRewriteRules(
+				'/wp-content/themes/twentytwentyfour/assets/images/windows.webp',
 				wordPressRewriteRules
 			)
 		).toBe(

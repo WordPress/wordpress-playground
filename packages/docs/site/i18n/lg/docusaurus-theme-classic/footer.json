@@ -12,7 +12,7 @@
 		"description": "The label of footer link with label=Documentation linking to /"
 	},
 	"link.item.label.Blueprints": {
-		"message": "Enteekateeka",
+		"message": "Blueprints",
 		"description": "The label of footer link with label=Blueprints linking to /blueprints"
 	},
 	"link.item.label.Developers": {
@@ -36,7 +36,7 @@
 		"description": "The footer copyright"
 	},
 	"logo.alt": {
-		"message": "Koodi ye Kasujja",
+		"message": "Koodi ye Kutontoma",
 		"description": "The alt text of footer logo"
 	}
 }

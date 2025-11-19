@@ -1,3 +1,4 @@
+/* eslint-disable comment-length/limit-multi-line-comments */
 import { test, expect } from '../playground-fixtures';
 
 // We can't import the WordPress versions directly from the remote package
@@ -130,19 +131,62 @@ test('should retain encoded control characters in the URL', async ({
 	wordpress,
 	browserName,
 }) => {
-	test.skip(
-		browserName === 'firefox' || browserName === 'webkit',
-		`It's unclear why this test fails in Firefox and Safari. The actual feature seems to be working in manual testing. ` +
-			`Let's figure this out and re-enable the test at one point. The upsides of merging the original PR sill ` +
-			`outweighted the downsides of disabling the test on FF.`
-	);
+	// A beautiful URL with encoded non-printable control characters.
 	const path =
 		'/wp-admin/admin.php?page=html-api-debugger&html=%3Cdiv%3E%0A1%0A2%0A3%0A%3C%2Fdiv%3E';
+	const queryApiParams = new URLSearchParams();
+
+	// Keep the landing page as a `url` to make sure we handle percent-encoding correctly.
+	// In particular, we don't want to ever double-decode or double-encode the URL.
+	queryApiParams.set('url', encodeURIComponent(path));
+	queryApiParams.set('plugin', 'html-api-debugger');
+
+	/**
+	 * The Blueprint below prevents WordPress from messing up our URL.
+	 *
+	 * WordPress is trying really hard to make things difficult for us.
+	 * It ships the following code in wp-admin <head> to confuse the user
+	 * by showing them a different URL in the browser's address bar than
+	 * the one they've typed in. This is after PHP processed the original
+	 * request carrying the original URL:
+	 *
+	 *     <link id="wp-admin-canonical" rel="canonical" href="http://127.0.0.1:5400/scope:excited-peaceful-river/wp-admin/admin.php?page=html-api-debugger&#038;html=%3Cdiv%3E123%3C%2Fdiv%3E" />
+	 *     <script>
+	 *         if ( window.history.replaceState ) {
+	 *             window.history.replaceState( null, null, document.getElementById( 'wp-admin-canonical' ).href + window.location.hash );
+	 *         }
+	 *     </script>
+	 *
+	 * Not on our watch! This Blueprint disables the history API to make sure
+	 * the address bar displays the actual URL we've sent to the server to
+	 * generate the page.
+	 */
+	const blueprint = {
+		steps: [
+			{
+				step: 'writeFile',
+				path: '/wordpress/wp-content/mu-plugins/0-disable-history.php',
+				data: `<?php
+					add_action('admin_init', function() {
+						echo '<script>
+						for(const k in window.history) {
+							window.history[k] = null;
+						}
+						console.log(\\'history disabled\\');
+						</script>';
+					}, 100000);
+				?>`,
+			},
+		],
+	};
+
 	// We need to use the html-api-debugger plugin to test this because
 	// most wp-admin pages enforce a redirect to a sanitized (broken)
 	// version of the URL.
 	await website.goto(
-		`./?url=${encodeURIComponent(path)}&plugin=html-api-debugger`
+		`./?url=${encodeURIComponent(
+			path
+		)}&plugin=html-api-debugger#${JSON.stringify(blueprint)}`
 	);
 	expect(
 		await wordpress

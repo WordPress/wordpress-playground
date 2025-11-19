@@ -1300,7 +1300,8 @@ const schema11 = {
 			properties: {
 				relativeUri: {
 					type: 'string',
-					description: 'Request path following the domain:port part.',
+					description:
+						'Request path following the domain:port part – after any URL rewriting rules (e.g. apache .htaccess) have been applied.',
 				},
 				scriptPath: {
 					type: 'string',
@@ -6932,7 +6933,8 @@ const schema34 = {
 	properties: {
 		relativeUri: {
 			type: 'string',
-			description: 'Request path following the domain:port part.',
+			description:
+				'Request path following the domain:port part – after any URL rewriting rules (e.g. apache .htaccess) have been applied.',
 		},
 		scriptPath: {
 			type: 'string',
@@ -10338,7 +10340,7 @@ function validate14(
 																? validate12.errors
 																: vErrors.concat(
 																		validate12.errors
-																  );
+																	);
 														errors = vErrors.length;
 													}
 													var valid21 =
@@ -11017,7 +11019,7 @@ function validate14(
 																? validate12.errors
 																: vErrors.concat(
 																		validate12.errors
-																  );
+																	);
 														errors = vErrors.length;
 													}
 													var valid27 =
@@ -11433,7 +11435,7 @@ function validate14(
 																	? validate12.errors
 																	: vErrors.concat(
 																			validate12.errors
-																	  );
+																		);
 															errors =
 																vErrors.length;
 														}
@@ -11465,7 +11467,7 @@ function validate14(
 																		? validate18.errors
 																		: vErrors.concat(
 																				validate18.errors
-																		  );
+																			);
 																errors =
 																	vErrors.length;
 															}
@@ -11551,7 +11553,7 @@ function validate14(
 																		? validate12.errors
 																		: vErrors.concat(
 																				validate12.errors
-																		  );
+																			);
 																errors =
 																	vErrors.length;
 															}
@@ -12099,7 +12101,7 @@ function validate14(
 																	? validate12.errors
 																	: vErrors.concat(
 																			validate12.errors
-																	  );
+																		);
 															errors =
 																vErrors.length;
 														}
@@ -12131,7 +12133,7 @@ function validate14(
 																		? validate18.errors
 																		: vErrors.concat(
 																				validate18.errors
-																		  );
+																			);
 																errors =
 																	vErrors.length;
 															}
@@ -12217,7 +12219,7 @@ function validate14(
 																		? validate12.errors
 																		: vErrors.concat(
 																				validate12.errors
-																		  );
+																			);
 																errors =
 																	vErrors.length;
 															}
@@ -13967,7 +13969,7 @@ function validate14(
 																? validate30.errors
 																: vErrors.concat(
 																		validate30.errors
-																  );
+																	);
 														errors = vErrors.length;
 													}
 													var valid54 =
@@ -15454,7 +15456,7 @@ function validate14(
 																? validate32.errors
 																: vErrors.concat(
 																		validate32.errors
-																  );
+																	);
 														errors = vErrors.length;
 													}
 													var valid68 =
@@ -16178,7 +16180,7 @@ function validate14(
 																? validate12.errors
 																: vErrors.concat(
 																		validate12.errors
-																  );
+																	);
 														errors = vErrors.length;
 													}
 													var valid76 =
@@ -16808,7 +16810,7 @@ function validate14(
 																? validate12.errors
 																: vErrors.concat(
 																		validate12.errors
-																  );
+																	);
 														errors = vErrors.length;
 													}
 													var valid83 =
@@ -17587,7 +17589,7 @@ function validate14(
 																	? validate12.errors
 																	: vErrors.concat(
 																			validate12.errors
-																	  );
+																		);
 															errors =
 																vErrors.length;
 														}
@@ -18634,7 +18636,7 @@ function validate14(
 																	? validate18.errors
 																	: vErrors.concat(
 																			validate18.errors
-																	  );
+																		);
 															errors =
 																vErrors.length;
 														}
@@ -20511,7 +20513,7 @@ function validate11(
 																			? validate12.errors
 																			: vErrors.concat(
 																					validate12.errors
-																			  );
+																				);
 																	errors =
 																		vErrors.length;
 																}
@@ -21125,7 +21127,7 @@ function validate11(
 																					? validate14.errors
 																					: vErrors.concat(
 																							validate14.errors
-																					  );
+																						);
 																			errors =
 																				vErrors.length;
 																		}

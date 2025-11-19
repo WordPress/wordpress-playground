@@ -36,4 +36,4 @@ export function concatArrayBuffers(buffers: ArrayBuffer[]): ArrayBuffer {
 		.buffer as ArrayBuffer;
 }
 
-export * from './types';
+export * from './promised';
