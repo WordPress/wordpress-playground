@@ -207,5 +207,5 @@ function maybeProxyUrl(url: string, corsProxyUrl?: string) {
 	) {
 		return url;
 	}
-	return `${corsProxyUrl}${encodeURIComponent(url)}`;
+	return `${corsProxyUrl}${url}`;
 }
