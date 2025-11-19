@@ -3,7 +3,9 @@ import {
 	sparseCheckout,
 	listGitFiles,
 	resolveCommitHash,
+	type GitAdditionalHeaders,
 } from './git-sparse-checkout';
+import { vi } from 'vitest';
 
 describe('listRefs', () => {
 	it('should return the latest commit hash for a given ref', async () => {
@@ -187,6 +189,126 @@ describe('listGitFiles', () => {
 					]),
 				}),
 			])
+		);
+	});
+});
+
+describe('gitAdditionalHeaders', () => {
+	const repoUrl = 'https://github.com/WordPress/wordpress-playground.git';
+
+	it('should successfully fetch when headers is empty object', async () => {
+		const headers: GitAdditionalHeaders = {};
+
+		const refs = await listGitRefs(repoUrl, 'refs/heads/trunk', headers);
+
+		expect(refs).toHaveProperty('refs/heads/trunk');
+		expect(refs['refs/heads/trunk']).toMatch(/^[a-f0-9]{40}$/);
+	});
+
+	it('should pass headers through the full call chain', async () => {
+		const headers: GitAdditionalHeaders = {};
+
+		await resolveCommitHash(
+			repoUrl,
+			{ value: 'trunk', type: 'branch' },
+			headers
+		);
+
+		expect(headers).toBeDefined();
+	});
+});
+
+describe('authentication error handling', () => {
+	let originalFetch: typeof global.fetch;
+
+	beforeEach(() => {
+		originalFetch = global.fetch;
+	});
+
+	afterEach(() => {
+		global.fetch = originalFetch;
+	});
+
+	it('should throw GitAuthenticationError for 401 responses', async () => {
+		global.fetch = vi.fn().mockResolvedValue({
+			ok: false,
+			status: 401,
+			statusText: 'Unauthorized',
+		});
+
+		const headers: GitAdditionalHeaders = {
+			Authorization: 'Bearer token',
+		};
+
+		await expect(
+			listGitRefs(
+				'https://github.com/user/private-repo',
+				'refs/heads/main',
+				headers
+			)
+		).rejects.toThrow(
+			'Authentication required to access private repository'
+		);
+	});
+
+	it('should throw GitAuthenticationError for 403 responses', async () => {
+		global.fetch = vi.fn().mockResolvedValue({
+			ok: false,
+			status: 403,
+			statusText: 'Forbidden',
+		});
+
+		const headers: GitAdditionalHeaders = {
+			Authorization: 'Bearer token',
+		};
+
+		await expect(
+			listGitRefs(
+				'https://github.com/user/private-repo',
+				'refs/heads/main',
+				headers
+			)
+		).rejects.toThrow(
+			'Authentication required to access private repository'
+		);
+	});
+
+	it('should throw generic error for 404 even with auth token (ambiguous: repo not found OR no access)', async () => {
+		global.fetch = vi.fn().mockResolvedValue({
+			ok: false,
+			status: 404,
+			statusText: 'Not Found',
+		});
+
+		const headers: GitAdditionalHeaders = {
+			Authorization: 'Bearer token',
+		};
+
+		await expect(
+			listGitRefs(
+				'https://github.com/user/repo-or-no-access',
+				'refs/heads/main',
+				headers
+			)
+		).rejects.toThrow(
+			'Failed to fetch git refs from https://github.com/user/repo-or-no-access: 404 Not Found'
+		);
+	});
+
+	it('should throw generic error for 404 without auth token', async () => {
+		global.fetch = vi.fn().mockResolvedValue({
+			ok: false,
+			status: 404,
+			statusText: 'Not Found',
+		});
+
+		await expect(
+			listGitRefs(
+				'https://github.com/user/nonexistent-repo',
+				'refs/heads/main'
+			)
+		).rejects.toThrow(
+			'Failed to fetch git refs from https://github.com/user/nonexistent-repo: 404 Not Found'
 		);
 	});
 });

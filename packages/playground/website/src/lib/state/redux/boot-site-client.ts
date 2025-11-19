@@ -17,12 +17,20 @@ import { setupPostMessageRelay } from '@php-wasm/web';
 import { startPlaygroundWeb } from '@wp-playground/client';
 import type { PlaygroundClient } from '@wp-playground/remote';
 import { getRemoteUrl } from '../../config';
-import { setActiveModal, setActiveSiteError } from './slice-ui';
+import {
+	setActiveModal,
+	setActiveSiteError,
+	setGitHubAuthRepoUrl,
+} from './slice-ui';
 import type { PlaygroundDispatch, PlaygroundReduxState } from './store';
 import { selectSiteBySlug } from './slice-sites';
 // @ts-ignore
 import { corsProxyUrl } from 'virtual:cors-proxy-url';
 import { modalSlugs } from '../../../components/layout';
+import {
+	createGitAuthHeaders,
+	shouldShowGitHubAuthModal,
+} from '../../../github/git-auth-helpers';
 
 export function bootSiteClient(
 	siteSlug: string,
@@ -151,6 +159,7 @@ export function bootSiteClient(
 					: [],
 				shouldInstallWordPress: !isWordPressInstalled,
 				corsProxy: corsProxyUrl,
+				gitAdditionalHeadersCallback: createGitAuthHeaders(),
 			});
 
 			// @TODO: Remove backcompat code after 2024-12-01.
@@ -198,6 +207,28 @@ export function bootSiteClient(
 				(e as any).originalErrorClassName === 'ArtifactExpiredError'
 			) {
 				dispatch(setActiveSiteError('github-artifact-expired'));
+			} else if (
+				(e as any).name === 'GitAuthenticationError' ||
+				(e as any).originalErrorClassName ===
+					'GitAuthenticationError' ||
+				(e as any).cause?.name === 'GitAuthenticationError'
+			) {
+				const repoUrl =
+					(e as any).repoUrl ||
+					(e as any).cause?.repoUrl ||
+					undefined;
+
+				if (shouldShowGitHubAuthModal(repoUrl)) {
+					if (repoUrl) {
+						dispatch(setGitHubAuthRepoUrl(repoUrl));
+					}
+					dispatch(
+						setActiveModal(modalSlugs.GITHUB_PRIVATE_REPO_AUTH)
+					);
+				} else {
+					dispatch(setActiveSiteError('site-boot-failed'));
+					dispatch(setActiveModal(modalSlugs.ERROR_REPORT));
+				}
 			} else {
 				dispatch(setActiveSiteError('site-boot-failed'));
 				dispatch(setActiveModal(modalSlugs.ERROR_REPORT));

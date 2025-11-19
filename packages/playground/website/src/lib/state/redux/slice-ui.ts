@@ -17,6 +17,7 @@ export interface UIState {
 		error?: SiteError;
 	};
 	activeModal: string | null;
+	githubAuthRepoUrl?: string;
 	offline: boolean;
 	siteManagerIsOpen: boolean;
 	siteManagerSection: SiteManagerSection;
@@ -34,10 +35,13 @@ const initialState: UIState = {
 	 * Don't show certain modals after a page refresh.
 	 * The save-site and error-report modals should only be triggered by user actions,
 	 * not by loading a URL with the modal parameter.
+	 * The github-private-repo-auth modal should only be triggered by authentication errors,
+	 * not by loading a URL with the modal parameter.
 	 */
 	activeModal:
 		query.get('modal') === 'error-report' ||
-		query.get('modal') === 'save-site'
+		query.get('modal') === 'save-site' ||
+		query.get('modal') === 'github-private-repo-auth'
 			? null
 			: query.get('modal') || null,
 	offline: !navigator.onLine,
@@ -85,6 +89,12 @@ const uiSlice = createSlice({
 
 			state.activeModal = action.payload;
 		},
+		setGitHubAuthRepoUrl: (
+			state,
+			action: PayloadAction<string | undefined>
+		) => {
+			state.githubAuthRepoUrl = action.payload;
+		},
 		setOffline: (state, action: PayloadAction<boolean>) => {
 			state.offline = action.payload;
 		},
@@ -122,7 +132,8 @@ export const listenToOnlineOfflineEventsMiddleware: Middleware =
 			 */
 			if (
 				query.get('modal') === 'error-report' ||
-				query.get('modal') === 'save-site'
+				query.get('modal') === 'save-site' ||
+				query.get('modal') === 'github-private-repo-auth'
 			) {
 				setTimeout(() => {
 					store.dispatch(uiSlice.actions.setActiveModal(null));
@@ -135,6 +146,7 @@ export const listenToOnlineOfflineEventsMiddleware: Middleware =
 export const {
 	setActiveModal,
 	setActiveSiteError,
+	setGitHubAuthRepoUrl,
 	setOffline,
 	setSiteManagerOpen,
 	setSiteManagerSection,

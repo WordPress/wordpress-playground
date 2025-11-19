@@ -597,6 +597,34 @@ test('should login the user in if a login step is provided', async ({
 	await expect(wordpress.locator('body')).toContainText('Dashboard');
 });
 
+test('should login a non-admin user if a login step with a non-admin username is provided', async ({
+	website,
+	wordpress,
+}) => {
+	const blueprint: Blueprint = {
+		landingPage: '/wp-admin/profile.php',
+		extraLibraries: ['wp-cli'],
+		steps: [
+			{
+				step: 'wp-cli',
+				command:
+					"wp user create user user@example.com  --user_pass='password'",
+			},
+			{
+				step: 'login',
+				username: 'user',
+				password: 'password',
+			},
+		],
+	};
+
+	const encodedBlueprint = JSON.stringify(blueprint);
+	await website.goto(`./#${encodedBlueprint}`);
+	await expect(wordpress.locator('#profile-page #email')).toHaveValue(
+		'user@example.com'
+	);
+});
+
 ['/wp-admin/', '/wp-admin/post.php?post=1&action=edit'].forEach((path) => {
 	test(`should correctly redirect encoded wp-admin url to ${path}`, async ({
 		website,
