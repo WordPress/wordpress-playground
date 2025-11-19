@@ -185,6 +185,7 @@ export default defineConfig(({ command, mode }) => {
 							</head>`
 						);
 					} catch (e) {
+						// eslint-disable-next-line no-console
 						console.error('Failed to inject commit ID', e);
 						return html;
 					}
