@@ -53,25 +53,15 @@ export function getBlueprintSourceUrl(site?: SiteInfo): string | undefined {
 }
 
 export function formatErrorDetails(
-	errorDetails?: SerializedSiteErrorDetails,
-	messageToOmit?: string
+	errorDetails?: SerializedSiteErrorDetails
 ): string | undefined {
 	if (!errorDetails) {
 		return undefined;
 	}
 	if (typeof errorDetails === 'string') {
-		const trimmed = errorDetails.trim();
-		if (messageToOmit && trimmed.startsWith(messageToOmit)) {
-			const remainder = trimmed.slice(messageToOmit.length).trim();
-			return remainder || undefined;
-		}
-		return trimmed;
+		return errorDetails.trim();
 	}
-	let message = errorDetails.message;
-	if (message && messageToOmit && message.startsWith(messageToOmit)) {
-		message = message.slice(messageToOmit.length).trim();
-	}
-	return [errorDetails.name, message, errorDetails.stack]
+	return [errorDetails.name, errorDetails.message, errorDetails.stack]
 		.filter(Boolean)
 		.join('\n\n');
 }

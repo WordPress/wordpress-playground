@@ -146,10 +146,7 @@ export function SiteErrorModal({
 
 	const isDeveloperError = view.isDeveloperError;
 	const modalTitle = view.title || 'Playground crashed';
-	const detailText = formatErrorDetails(
-		errorDetails,
-		view.messageToOmitFromDetails
-	);
+	const detailText = formatErrorDetails(errorDetails);
 	const detailSummary =
 		view.detailSummaryOverride ??
 		(isDeveloperError ? 'Inspection details' : 'Error details');

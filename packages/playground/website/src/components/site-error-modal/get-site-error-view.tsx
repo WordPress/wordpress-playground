@@ -19,7 +19,6 @@ export interface SiteErrorViewConfig {
 	title: string;
 	isDeveloperError: boolean;
 	detailSummaryOverride?: string;
-	messageToOmitFromDetails?: string;
 	body: React.ReactNode;
 	actions: React.ReactNode[];
 }
@@ -85,7 +84,6 @@ function directoryHandlePermissionsExpiredView({
 		),
 		actions: [],
 		detailSummaryOverride: undefined,
-		messageToOmitFromDetails: undefined,
 	};
 }
 
@@ -101,7 +99,6 @@ function directoryHandleDeletedView(): SiteErrorViewConfig {
 		),
 		actions: [],
 		detailSummaryOverride: undefined,
-		messageToOmitFromDetails: undefined,
 	};
 }
 
@@ -127,7 +124,6 @@ function githubArtifactExpiredView({
 			</Button>,
 		],
 		detailSummaryOverride: undefined,
-		messageToOmitFromDetails: undefined,
 	};
 }
 
@@ -141,7 +137,6 @@ function blueprintFetchFailedView({
 		title: 'Blueprint could not be loaded',
 		isDeveloperError: true,
 		detailSummaryOverride: 'Network error details',
-		messageToOmitFromDetails: undefined,
 		body: (
 			<>
 				<p className={css.errorLead}>
@@ -196,7 +191,6 @@ function blueprintFilesystemRequiredView({
 		title: 'Bundled resources used outside of a Blueprint bundle',
 		isDeveloperError: true,
 		detailSummaryOverride: 'Resource loader details',
-		messageToOmitFromDetails: undefined,
 		body: (
 			<>
 				<p className={css.errorLead}>
@@ -247,7 +241,6 @@ function blueprintValidationFailedView({
 		title: 'Blueprint validation error',
 		isDeveloperError: true,
 		detailSummaryOverride: 'Validation output',
-		messageToOmitFromDetails: undefined,
 		body: (
 			<>
 				<p className={css.errorLead}>
@@ -284,7 +277,6 @@ function directoryHandleUnknownErrorView(): SiteErrorViewConfig {
 		title: 'The local directory became unavailable',
 		isDeveloperError: false,
 		detailSummaryOverride: undefined,
-		messageToOmitFromDetails: undefined,
 		body: (
 			<p className={css.errorLead}>
 				The browser could no longer access your local directory handle.
@@ -314,7 +306,6 @@ function genericSiteBootFailedView({
 		title: 'Playground crashed',
 		isDeveloperError: false,
 		detailSummaryOverride: undefined,
-		messageToOmitFromDetails: undefined,
 		body: (
 			<p className={css.errorLead}>
 				Something unexpected interrupted the boot process. Reload the
@@ -337,7 +328,6 @@ function blueprintStepExecutionView({
 			title: 'Blueprint execution failed',
 			isDeveloperError: true,
 			detailSummaryOverride: 'Blueprint error details',
-			messageToOmitFromDetails: undefined,
 			body: null,
 			actions: [],
 		};
@@ -347,7 +337,6 @@ function blueprintStepExecutionView({
 		title: 'Blueprint execution failed',
 		isDeveloperError: true,
 		detailSummaryOverride: 'Blueprint error details',
-		messageToOmitFromDetails: blueprintStepError.rawMessage,
 		body: <BlueprintStepErrorDetails stepError={blueprintStepError} />,
 		actions: [
 			// Default action is handled by the generic reload button in the footer.
