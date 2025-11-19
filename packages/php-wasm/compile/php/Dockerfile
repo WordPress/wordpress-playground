@@ -2237,6 +2237,7 @@ RUN set -euxo pipefail; \
 "stringToUTF8", \n\
 "lengthBytesUTF8", \n\
 "FS", \n\
+"_malloc", \n\
 "___errno_location", \n\
 "___wrap_select", \n\
 "_wasm_set_sapi_name", \n\
@@ -2406,7 +2407,7 @@ RUN set -euxo pipefail; \
 		else \
 			/root/replace.sh "s/_wasm_free\s*=\s*Module\[[\"']_wasm_free[\"']\]/_wasm_free = PHPLoader['free'] = Module['_wasm_free']/g" /root/output/php.js; \
 		fi ; \
-		/root/replace.sh "s/_malloc\s*=\s*wasmExports\[[\"']malloc[\"']\];/_malloc = PHPLoader['malloc'] = wasmExports['malloc'];/g" /root/output/php.js; \
+		/root/replace.sh "s/_malloc\s*=\s*Module\[[\"']_malloc[\"']\]/_malloc = PHPLoader['malloc'] = Module['_malloc']/g" /root/output/php.js; \
 	# Patch Emscripten exit status to include a stack trace
 		# Override Emscripten's default ExitStatus class which gets
 		# thrown on failure. Unfortunately, the default object is not
