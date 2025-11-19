@@ -224,8 +224,12 @@ function compileBlueprintJson(
 			})) as StepDefinition[];
 		blueprint.steps!.unshift(...steps);
 	}
+
+	/**
+	 * Prepend a login step to enable Blueprints to override the default login step.
+	 */
 	if (blueprint.login) {
-		blueprint.steps!.push({
+		blueprint.steps!.unshift({
 			step: 'login',
 			...(blueprint.login === true
 				? { username: 'admin' }
