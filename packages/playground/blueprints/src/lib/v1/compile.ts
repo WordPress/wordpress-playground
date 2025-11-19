@@ -128,6 +128,11 @@ export interface CompileBlueprintV1Options {
 	 */
 	streamBundledFile?: StreamBundledFile;
 	/**
+	 * Additional headers to pass to git operations.
+	 * A function that returns headers based on the URL being accessed.
+	 */
+	gitAdditionalHeadersCallback?: (url: string) => Record<string, string>;
+	/**
 	 * Additional steps to add to the blueprint.
 	 */
 	additionalSteps?: any[];
@@ -186,6 +191,7 @@ function compileBlueprintJson(
 		onBlueprintValidated = () => {},
 		corsProxy,
 		streamBundledFile,
+		gitAdditionalHeadersCallback,
 		additionalSteps,
 	}: CompileBlueprintV1Options = {}
 ): CompiledBlueprintV1 {
@@ -268,8 +274,12 @@ function compileBlueprintJson(
 			})) as StepDefinition[];
 		blueprint.steps!.unshift(...steps);
 	}
+
+	/**
+	 * Prepend a login step to enable Blueprints to override the default login step.
+	 */
 	if (blueprint.login) {
-		blueprint.steps!.push({
+		blueprint.steps!.unshift({
 			step: 'login',
 			...(blueprint.login === true
 				? { username: 'admin' }
@@ -368,6 +378,7 @@ function compileBlueprintJson(
 			totalProgressWeight,
 			corsProxy,
 			streamBundledFile,
+			gitAdditionalHeadersCallback,
 		})
 	);
 
@@ -635,6 +646,11 @@ interface CompileStepArgsOptions {
 	 * A filesystem to use for the "blueprint" resource type.
 	 */
 	streamBundledFile?: StreamBundledFile;
+	/**
+	 * Additional headers to pass to git operations.
+	 * A function that returns headers based on the URL being accessed.
+	 */
+	gitAdditionalHeadersCallback?: (url: string) => Record<string, string>;
 }
 
 /**
@@ -653,6 +669,7 @@ function compileStep<S extends StepDefinition>(
 		totalProgressWeight,
 		corsProxy,
 		streamBundledFile,
+		gitAdditionalHeadersCallback,
 	}: CompileStepArgsOptions
 ): { run: CompiledV1Step; step: S; resources: Array<Resource<any>> } {
 	const stepProgress = rootProgressTracker.stage(
@@ -667,6 +684,7 @@ function compileStep<S extends StepDefinition>(
 				semaphore,
 				corsProxy,
 				streamBundledFile,
+				gitAdditionalHeadersCallback,
 			});
 		}
 		args[key] = value;

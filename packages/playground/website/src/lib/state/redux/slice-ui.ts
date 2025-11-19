@@ -18,10 +18,12 @@ export type SiteManagerSection = 'sidebar' | 'site-details' | 'blueprints';
 
 export const modalSlugs = {
 	LOG: 'log',
+	ERROR_REPORT: 'error-report',
 	START_ERROR: 'start-error',
 	IMPORT_FORM: 'import-form',
 	GITHUB_IMPORT: 'github-import',
 	GITHUB_EXPORT: 'github-export',
+	GITHUB_PRIVATE_REPO_AUTH: 'github-private-repo-auth',
 	PREVIEW_PR_WP: 'preview-pr-wordpress',
 	PREVIEW_PR_GUTENBERG: 'preview-pr-gutenberg',
 	MISSING_SITE_PROMPT: 'missing-site-prompt',
@@ -115,6 +117,7 @@ export interface UIState {
 		errorDetails?: SerializedSiteErrorDetails;
 	};
 	activeModal: string | null;
+	githubAuthRepoUrl?: string;
 	offline: boolean;
 	siteManagerIsOpen: boolean;
 	siteManagerSection: SiteManagerSection;
@@ -132,10 +135,13 @@ const initialState: UIState = {
 	 * Don't show certain modals after a page refresh.
 	 * The save-site and error-report modals should only be triggered by user actions,
 	 * not by loading a URL with the modal parameter.
+	 * The github-private-repo-auth modal should only be triggered by authentication errors,
+	 * not by loading a URL with the modal parameter.
 	 */
 	activeModal:
 		query.get('modal') === 'error-report' ||
-		query.get('modal') === 'save-site'
+		query.get('modal') === 'save-site' ||
+		query.get('modal') === 'github-private-repo-auth'
 			? null
 			: query.get('modal') || null,
 	offline: !navigator.onLine,
@@ -206,6 +212,12 @@ const uiSlice = createSlice({
 
 			state.activeModal = action.payload;
 		},
+		setGitHubAuthRepoUrl: (
+			state,
+			action: PayloadAction<string | undefined>
+		) => {
+			state.githubAuthRepoUrl = action.payload;
+		},
 		setOffline: (state, action: PayloadAction<boolean>) => {
 			state.offline = action.payload;
 		},
@@ -243,7 +255,8 @@ export const listenToOnlineOfflineEventsMiddleware: Middleware =
 			 */
 			if (
 				query.get('modal') === 'error-report' ||
-				query.get('modal') === 'save-site'
+				query.get('modal') === 'save-site' ||
+				query.get('modal') === 'github-private-repo-auth'
 			) {
 				setTimeout(() => {
 					store.dispatch(uiSlice.actions.setActiveModal(null));
@@ -257,6 +270,7 @@ export const {
 	setActiveModal,
 	setActiveSiteError,
 	clearActiveSiteError,
+	setGitHubAuthRepoUrl,
 	setOffline,
 	setSiteManagerOpen,
 	setSiteManagerSection,

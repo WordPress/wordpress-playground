@@ -18,7 +18,7 @@ export const oAuthMiddleware = async (
 	if (query.get('redirect') === '1') {
 		const params: Record<string, string> = {
 			client_id: CLIENT_ID!,
-			scope: 'public_repo',
+			scope: 'repo',
 		};
 		if (query.has('redirect_uri')) {
 			params.redirect_uri = query.get('redirect_uri')!;
