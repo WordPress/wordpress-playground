@@ -5,19 +5,21 @@ import { logger } from '@php-wasm/logger';
 
 import { Modal } from '../modal';
 import css from './style.module.css';
-import { useAppDispatch, setActiveSite } from '../../lib/state/redux/store';
+import { useAppDispatch } from '../../lib/state/redux/store';
 import { removeClientInfo } from '../../lib/state/redux/slice-clients';
-import {
-	removeSite,
-	setTemporarySiteSpec,
-} from '../../lib/state/redux/slice-sites';
+import { removeSite } from '../../lib/state/redux/slice-sites';
 import {
 	clearActiveSiteError,
-	setActiveSiteError,
+	type SerializedBlueprintStepErrorDetails,
+	type SerializedSiteErrorDetails,
 } from '../../lib/state/redux/slice-ui';
-import type { SiteErrorModalProps, PresentationHelpers } from './types';
+import type {
+	SiteErrorModalProps,
+	PresentationHelpers,
+	BlueprintStepError,
+} from './types';
 import { getSiteErrorView } from './get-site-error-view';
-import { extractBlueprintStepError, formatErrorDetails } from './helpers';
+import type { SiteInfo } from '../../lib/state/redux/slice-sites';
 
 export function SiteErrorModal({
 	error,
@@ -26,9 +28,169 @@ export function SiteErrorModal({
 	errorDetails,
 }: SiteErrorModalProps) {
 	const dispatch = useAppDispatch();
+	const {
+		isReporting,
+		setIsReporting,
+		reportText,
+		setReportText,
+		reportSubmitted,
+		submitError,
+		isSubmittingReport,
+		handleSubmitReport,
+	} = useErrorReporting(site);
+
+	const helpers: PresentationHelpers = {
+		deleteSite: () => {
+			dispatch(removeSite(siteSlug));
+			dispatch(removeClientInfo(siteSlug));
+			dispatch(clearActiveSiteError());
+		},
+		restartWithoutPr: () => {
+			const url = new URL(window.location.href);
+			url.searchParams.delete('core-pr');
+			window.location.href = url.toString();
+		},
+		reloadWithoutBlueprint() {
+			const url = new URL(window.location.href);
+			url.search = '';
+			url.pathname = '/';
+			url.hash = '';
+			window.location.href = url.toString();
+		},
+	};
+
 	const blueprintStepError = extractBlueprintStepError(errorDetails);
-	const [isStartingWithoutBlueprint, setIsStartingWithoutBlueprint] =
-		useState(false);
+	const view = getSiteErrorView({
+		error,
+		site,
+		blueprintStepError,
+		helpers,
+	});
+
+	const detailText = formatErrorDetails(errorDetails);
+	return (
+		<Modal
+			title={
+				(
+					<>
+						<span className={css.errorBadge}>
+							{view.isDeveloperError
+								? 'Blueprint issue'
+								: 'Runtime error'}
+						</span>{' '}
+						{view.title || 'Playground crashed'}
+					</>
+				) as unknown as string
+			}
+			onRequestClose={() => dispatch(clearActiveSiteError())}
+			shouldCloseOnClickOutside
+			className={classNames(css.errorModal, {
+				[css.errorModalDeveloper]: view.isDeveloperError,
+				[css.errorModalCrash]: !view.isDeveloperError,
+			})}
+		>
+			<div className={css.errorModalContent}>
+				<div className={css.errorModalBody}>
+					{view.body}
+					{detailText ? (
+						<details
+							className={css.errorDetails}
+							open={view.isDeveloperError}
+						>
+							<summary>
+								{view.detailSummaryOverride ??
+									(view.isDeveloperError
+										? 'Inspection details'
+										: 'Error details')}
+							</summary>
+							<pre>{detailText}</pre>
+						</details>
+					) : null}
+					{isReporting && !reportSubmitted && (
+						<TextareaControl
+							label="How can we recreate this error?"
+							help="Describe what caused the error and how can we recreate it."
+							value={reportText}
+							onChange={setReportText}
+							autoFocus={true}
+						/>
+					)}
+					{reportSubmitted && !submitError && (
+						<p style={{ color: 'green', fontWeight: '500' }}>
+							Your report has been submitted to the{' '}
+							<a
+								href="https://wordpress.slack.com/archives/C06Q5DCKZ3L"
+								target="_blank"
+								rel="noopener noreferrer"
+							>
+								Making WordPress #playground-logs Slack channel
+							</a>{' '}
+							and will be reviewed by the team.
+						</p>
+					)}
+					{submitError && (
+						<p>
+							We were unable to submit the error report. Please
+							try again or open an{' '}
+							<a
+								href="https://github.com/WordPress/wordpress-playground/issues/"
+								target="_blank"
+								rel="noopener noreferrer"
+							>
+								issue on GitHub.
+							</a>
+						</p>
+					)}
+				</div>
+				{view.actions.length || !view.isDeveloperError ? (
+					<div className={css.errorModalFooter}>
+						{!view.isDeveloperError &&
+						!isReporting &&
+						!reportSubmitted ? (
+							<Button
+								variant="secondary"
+								onClick={() => setIsReporting(true)}
+							>
+								Report this crash
+							</Button>
+						) : null}
+						{isReporting && !reportSubmitted && (
+							<>
+								<Button
+									variant="secondary"
+									onClick={() => setIsReporting(false)}
+								>
+									Cancel
+								</Button>
+								<Button
+									variant="primary"
+									onClick={handleSubmitReport}
+									isBusy={isSubmittingReport}
+									disabled={!reportText || isSubmittingReport}
+								>
+									Submit report
+								</Button>
+							</>
+						)}
+						{(!isReporting || reportSubmitted) &&
+							view.actions.map((action: any, index: any) =>
+								action ? (
+									<div
+										key={index}
+										className={css.errorActionWrapper}
+									>
+										{action}
+									</div>
+								) : null
+							)}
+					</div>
+				) : null}
+			</div>
+		</Modal>
+	);
+}
+
+function useErrorReporting(site: SiteInfo) {
 	const [isReporting, setIsReporting] = useState(false);
 	const [reportText, setReportText] = useState('');
 	const [isSubmittingReport, setIsSubmittingReport] = useState(false);
@@ -87,185 +249,117 @@ export function SiteErrorModal({
 		}
 	}
 
-	const startWithoutBlueprint = async () => {
-		if (isStartingWithoutBlueprint) {
-			return;
-		}
-		setIsStartingWithoutBlueprint(true);
-		try {
-			const sanitizedUrl = new URL(window.location.href);
-			sanitizedUrl.searchParams.delete('blueprint-url');
-			sanitizedUrl.searchParams.delete('blueprint');
-			window.history.replaceState({}, '', sanitizedUrl.toString());
-			const newSite = await dispatch(
-				setTemporarySiteSpec(site.metadata.name, sanitizedUrl)
-			);
-			await dispatch(setActiveSite(newSite.slug));
-			dispatch(clearActiveSiteError());
-		} catch (err) {
-			logger.error('Failed to start without a Blueprint', err);
-			dispatch(clearActiveSiteError());
-			dispatch(
-				setActiveSiteError({ error: 'site-boot-failed', details: err })
-			);
-			dispatch(setActiveSite(undefined));
-		} finally {
-			setIsStartingWithoutBlueprint(false);
-		}
+	return {
+		isReporting,
+		setIsReporting,
+		reportText,
+		setReportText,
+		reportSubmitted,
+		submitError,
+		isSubmittingReport,
+		handleSubmitReport,
 	};
+}
 
-	const helpers: PresentationHelpers = {
-		deleteSite: () => {
-			dispatch(removeSite(siteSlug));
-			dispatch(removeClientInfo(siteSlug));
-			dispatch(clearActiveSiteError());
-		},
-		restartWithoutPr: () => {
-			const url = new URL(window.location.href);
-			url.searchParams.delete('core-pr');
-			window.location.href = url.toString();
-		},
-		startWithoutBlueprint,
-		reload: () => {
-			const url = new URL(window.location.href);
-			url.search = '';
-			url.pathname = '/';
-			url.hash = '';
-			window.location.href = url.toString();
-		},
-		startWithoutBlueprintBusy: isStartingWithoutBlueprint,
+/**
+ * Extracts structured data about the blueprint step error from
+ * potentially generic error details.
+ */
+export function extractBlueprintStepError(
+	errorDetails?: SerializedSiteErrorDetails
+): BlueprintStepError | undefined {
+	if (!errorDetails || typeof errorDetails === 'string') {
+		return undefined;
+	}
+
+	const maybeBlueprintStepError =
+		errorDetails as SerializedBlueprintStepErrorDetails;
+	if (maybeBlueprintStepError.type !== 'blueprint-step-error') {
+		return undefined;
+	}
+
+	const step = maybeBlueprintStepError.step;
+	const stepJson = JSON.stringify(step, null, 2);
+	const messages = maybeBlueprintStepError.messages || [];
+	return {
+		stepNumber: maybeBlueprintStepError.stepNumber,
+		step,
+		stepJson,
+		description: describeBlueprintStepAction(step),
+		messages,
+		rawMessage:
+			maybeBlueprintStepError.rawMessage ||
+			maybeBlueprintStepError.message ||
+			'',
 	};
+}
 
-	const view = getSiteErrorView({
-		error,
-		site,
-		blueprintStepError,
-		helpers,
-		startWithoutBlueprintBusy: isStartingWithoutBlueprint,
-	});
+/**
+ * Turns a blueprint step JSON object into a human readable string.
+ *
+ * For example, `{ step: 'installPlugin', pluginData: { slug: 'hello-world' } }`
+ * becomes "install plugin "hello-world"".
+ *
+ * @param step - The blueprint step JSON object.
+ * @returns The human readable string.
+ */
+function describeBlueprintStepAction(step: Record<string, unknown>): string {
+	const stepName = typeof step?.step === 'string' ? step.step : undefined;
+	const readableName = stepName ? humanizeStepName(stepName) : undefined;
+	const stepAny = step as Record<string, any>;
 
-	const isDeveloperError = view.isDeveloperError;
-	const modalTitle = view.title || 'Playground crashed';
-	const detailText = formatErrorDetails(errorDetails);
-	const detailSummary =
-		view.detailSummaryOverride ??
-		(isDeveloperError ? 'Inspection details' : 'Error details');
-	const actionButtons = view.actions;
-	const showActionBar = Boolean(actionButtons.length || !isDeveloperError);
+	switch (stepName) {
+		case 'installPlugin': {
+			const slug =
+				stepAny?.pluginData?.slug ||
+				stepAny?.pluginData?.pluginZipFile?.slug ||
+				stepAny?.pluginZipFile?.slug;
+			return slug ? `install plugin "${slug}"` : 'install plugin';
+		}
+		case 'installTheme': {
+			const slug = stepAny?.themeData?.slug || stepAny?.theme?.slug;
+			return slug ? `install theme "${slug}"` : 'install theme';
+		}
+		case 'runPHP':
+			return 'run custom PHP code';
+		case 'runSQL':
+			return 'run SQL statements';
+		case 'importWxr':
+			return 'import WordPress XML content';
+		case 'importWordPressFiles':
+			return 'import a WordPress site archive';
+		case 'installMuPlugin':
+			return 'install an MU plugin';
+		default:
+			return readableName || 'run this step';
+	}
+}
 
-	return (
-		<Modal
-			title={
-				(
-					<>
-						<span className={css.errorBadge}>
-							{isDeveloperError
-								? 'Blueprint issue'
-								: 'Runtime error'}
-						</span>{' '}
-						{modalTitle}
-					</>
-				) as unknown as string
-			}
-			onRequestClose={() => dispatch(clearActiveSiteError())}
-			shouldCloseOnClickOutside
-			className={classNames(css.errorModal, {
-				[css.errorModalDeveloper]: isDeveloperError,
-				[css.errorModalCrash]: !isDeveloperError,
-			})}
-		>
-			<div className={css.errorModalContent}>
-				<div className={css.errorModalBody}>
-					{view.body}
-					{detailText ? (
-						<details
-							className={css.errorDetails}
-							open={isDeveloperError}
-						>
-							<summary>{detailSummary}</summary>
-							<pre>{detailText}</pre>
-						</details>
-					) : null}
-					{isReporting && !reportSubmitted && (
-						<TextareaControl
-							label="How can we recreate this error?"
-							help="Describe what caused the error and how can we recreate it."
-							value={reportText}
-							onChange={setReportText}
-							autoFocus={true}
-						/>
-					)}
-					{reportSubmitted && !submitError && (
-						<p style={{ color: 'green', fontWeight: '500' }}>
-							Your report has been submitted to the{' '}
-							<a
-								href="https://wordpress.slack.com/archives/C06Q5DCKZ3L"
-								target="_blank"
-								rel="noopener noreferrer"
-							>
-								Making WordPress #playground-logs Slack channel
-							</a>{' '}
-							and will be reviewed by the team.
-						</p>
-					)}
-					{submitError && (
-						<p>
-							We were unable to submit the error report. Please
-							try again or open an{' '}
-							<a
-								href="https://github.com/WordPress/wordpress-playground/issues/"
-								target="_blank"
-								rel="noopener noreferrer"
-							>
-								issue on GitHub.
-							</a>
-						</p>
-					)}
-				</div>
-				{showActionBar ? (
-					<div className={css.errorModalFooter}>
-						{!isDeveloperError &&
-						!isReporting &&
-						!reportSubmitted ? (
-							<Button
-								variant="secondary"
-								onClick={() => setIsReporting(true)}
-							>
-								Report this crash
-							</Button>
-						) : null}
-						{isReporting && !reportSubmitted && (
-							<>
-								<Button
-									variant="secondary"
-									onClick={() => setIsReporting(false)}
-								>
-									Cancel
-								</Button>
-								<Button
-									variant="primary"
-									onClick={handleSubmitReport}
-									isBusy={isSubmittingReport}
-									disabled={!reportText || isSubmittingReport}
-								>
-									Submit report
-								</Button>
-							</>
-						)}
-						{(!isReporting || reportSubmitted) &&
-							actionButtons.map((action: any, index: any) =>
-								action ? (
-									<div
-										key={index}
-										className={css.errorActionWrapper}
-									>
-										{action}
-									</div>
-								) : null
-							)}
-					</div>
-				) : null}
-			</div>
-		</Modal>
-	);
+/**
+ * Convert a camel case step name, such as `installPlugin`, to a human readable
+ * string, such as "install plugin".
+ */
+function humanizeStepName(stepName: string): string {
+	const spaced = stepName.replace(/([a-z0-9])([A-Z])/g, '$1 $2');
+	return spaced.charAt(0).toLowerCase() + spaced.slice(1);
+}
+
+/**
+ * Formats SerializedSiteErrorDetails object into a human readable string.
+ *
+ * @param errorDetails - The error details.
+ * @returns The human readable string.
+ */
+export function formatErrorDetails(
+	errorDetails?: SerializedSiteErrorDetails
+): string | undefined {
+	if (!errorDetails) {
+		return undefined;
+	}
+	if (typeof errorDetails === 'string') {
+		return errorDetails.trim();
+	}
+	return [errorDetails.name, errorDetails.message, errorDetails.stack]
+		.filter(Boolean)
+		.join('\n\n');
 }

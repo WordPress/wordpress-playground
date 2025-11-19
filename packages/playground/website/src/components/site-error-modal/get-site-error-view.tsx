@@ -4,7 +4,6 @@ import css from './style.module.css';
 import type { SiteError } from '../../lib/state/redux/slice-ui';
 import type { SiteInfo } from '../../lib/state/redux/slice-sites';
 import type { BlueprintStepError, PresentationHelpers } from './types';
-import { getBlueprintSourceUrl } from './helpers';
 import { BlueprintStepErrorDetails } from './blueprint-step-error-details';
 
 export interface SiteErrorViewContext {
@@ -12,7 +11,6 @@ export interface SiteErrorViewContext {
 	site: SiteInfo;
 	blueprintStepError?: BlueprintStepError;
 	helpers: PresentationHelpers;
-	startWithoutBlueprintBusy: boolean;
 }
 
 export interface SiteErrorViewConfig {
@@ -35,7 +33,7 @@ export function getSiteErrorView(
 	switch (error) {
 		case 'directory-handle-not-found-in-indexeddb':
 		case 'directory-handle-permission-denied':
-			return directoryHandlePermissionsExpiredView(context);
+			return directoryHandlePermissionsExpiredView();
 		case 'directory-handle-directory-does-not-exist':
 			return directoryHandleDeletedView();
 		case 'github-artifact-expired':
@@ -54,9 +52,7 @@ export function getSiteErrorView(
 	}
 }
 
-function directoryHandlePermissionsExpiredView({
-	site,
-}: SiteErrorViewContext): SiteErrorViewConfig {
+function directoryHandlePermissionsExpiredView(): SiteErrorViewConfig {
 	return {
 		title: 'Local directory permissions expired',
 		isDeveloperError: false,
@@ -130,7 +126,6 @@ function githubArtifactExpiredView({
 function blueprintFetchFailedView({
 	site,
 	helpers,
-	startWithoutBlueprintBusy,
 }: SiteErrorViewContext): SiteErrorViewConfig {
 	const blueprintUrl = getBlueprintSourceUrl(site);
 	return {
@@ -173,9 +168,7 @@ function blueprintFetchFailedView({
 			<Button
 				variant="primary"
 				key="start-without-blueprint"
-				onClick={helpers.startWithoutBlueprint}
-				isBusy={startWithoutBlueprintBusy}
-				disabled={startWithoutBlueprintBusy}
+				onClick={helpers.reloadWithoutBlueprint}
 			>
 				Start without a Blueprint
 			</Button>,
@@ -185,7 +178,6 @@ function blueprintFetchFailedView({
 
 function blueprintFilesystemRequiredView({
 	helpers,
-	startWithoutBlueprintBusy,
 }: SiteErrorViewContext): SiteErrorViewConfig {
 	return {
 		title: 'Bundled resources used outside of a Blueprint bundle',
@@ -223,9 +215,7 @@ function blueprintFilesystemRequiredView({
 			<Button
 				variant="primary"
 				key="start-without-blueprint-invalid"
-				onClick={helpers.startWithoutBlueprint}
-				isBusy={startWithoutBlueprintBusy}
-				disabled={startWithoutBlueprintBusy}
+				onClick={helpers.reloadWithoutBlueprint}
 			>
 				Start without a Blueprint
 			</Button>,
@@ -235,7 +225,6 @@ function blueprintFilesystemRequiredView({
 
 function blueprintValidationFailedView({
 	helpers,
-	startWithoutBlueprintBusy,
 }: SiteErrorViewContext): SiteErrorViewConfig {
 	return {
 		title: 'Blueprint validation error',
@@ -262,9 +251,7 @@ function blueprintValidationFailedView({
 			<Button
 				variant="primary"
 				key="start-without-blueprint-invalid"
-				onClick={helpers.startWithoutBlueprint}
-				isBusy={startWithoutBlueprintBusy}
-				disabled={startWithoutBlueprintBusy}
+				onClick={helpers.reloadWithoutBlueprint}
 			>
 				Start without a Blueprint
 			</Button>,
@@ -298,7 +285,6 @@ function genericSiteBootFailedView({
 			site: {} as SiteInfo,
 			blueprintStepError,
 			helpers,
-			startWithoutBlueprintBusy: false,
 		});
 	}
 
@@ -313,7 +299,11 @@ function genericSiteBootFailedView({
 			</p>
 		),
 		actions: [
-			<Button variant="primary" key="reload-tab" onClick={helpers.reload}>
+			<Button
+				variant="primary"
+				key="reload-tab"
+				onClick={helpers.reloadWithoutBlueprint}
+			>
 				Reload Fresh Playground
 			</Button>,
 		],
@@ -342,4 +332,26 @@ function blueprintStepExecutionView({
 			// Default action is handled by the generic reload button in the footer.
 		],
 	};
+}
+
+/**
+ * Extract the source URL of the Blueprint from the site metadata.
+ *
+ * @param site - The site metadata.
+ * @returns The source URL of the Blueprint.
+ */
+export function getBlueprintSourceUrl(site?: SiteInfo): string | undefined {
+	const source = site?.metadata?.originalBlueprintSource;
+	if (source?.type !== 'remote-url') {
+		return undefined;
+	}
+	try {
+		const url = new URL(source.url);
+		if (url.searchParams.has('blueprint-url')) {
+			return url.searchParams.get('blueprint-url') || undefined;
+		}
+		return source.url;
+	} catch {
+		return undefined;
+	}
 }

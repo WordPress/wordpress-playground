@@ -16,9 +16,7 @@ export type BlueprintStepError = {
 export type PresentationHelpers = {
 	deleteSite: () => void;
 	restartWithoutPr: () => void;
-	startWithoutBlueprint: () => Promise<void> | void;
-	reload: () => void;
-	startWithoutBlueprintBusy: boolean;
+	reloadWithoutBlueprint: () => Promise<void> | void;
 };
 
 export interface SiteErrorModalProps {
