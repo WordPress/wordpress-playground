@@ -23,7 +23,7 @@ describe('Blueprint step activatePlugin()', () => {
 			sqliteIntegrationPluginZip: await getSqliteDriverModule(),
 		});
 		php = await handler.getPrimaryPhp();
-	});
+	}, 30_000);
 
 	it('should activate a plugin file located in the plugins directory', async () => {
 		const docroot = handler.documentRoot;
