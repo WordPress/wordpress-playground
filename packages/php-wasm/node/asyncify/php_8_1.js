@@ -8,7 +8,7 @@ import path from 'path';
 
 const dependencyFilename = path.join(__dirname, '8_1_33', 'php_8_1.wasm');
 export { dependencyFilename };
-export const dependenciesTotalSize = 27264614;
+export const dependenciesTotalSize = 27264615;
 const phpVersionString = '8.1.33';
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
@@ -32074,7 +32074,10 @@ export function init(RuntimeName, PHPLoader) {
 	function assignWasmExports(wasmExports) {
 		_free = PHPLoader['free'] = wasmExports['free'];
 		_memcmp = wasmExports['memcmp'];
-		_malloc = PHPLoader['malloc'] = wasmExports['malloc'];
+		_malloc =
+			PHPLoader['malloc'] =
+			Module['_malloc'] =
+				wasmExports['malloc'];
 		_realloc = wasmExports['realloc'];
 		___errno_location = Module['___errno_location'] =
 			wasmExports['__errno_location'];

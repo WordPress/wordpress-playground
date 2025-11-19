@@ -32074,7 +32074,10 @@ export function init(RuntimeName, PHPLoader) {
 	function assignWasmExports(wasmExports) {
 		_free = PHPLoader['free'] = wasmExports['free'];
 		_memcmp = wasmExports['memcmp'];
-		_malloc = PHPLoader['malloc'] = wasmExports['malloc'];
+		_malloc =
+			PHPLoader['malloc'] =
+			Module['_malloc'] =
+				wasmExports['malloc'];
 		_realloc = wasmExports['realloc'];
 		_calloc = wasmExports['calloc'];
 		_fileno = wasmExports['fileno'];

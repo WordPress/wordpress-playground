@@ -32072,7 +32072,10 @@ export function init(RuntimeName, PHPLoader) {
 		wasmMemory;
 
 	function assignWasmExports(wasmExports) {
-		_malloc = PHPLoader['malloc'] = wasmExports['malloc'];
+		_malloc =
+			PHPLoader['malloc'] =
+			Module['_malloc'] =
+				wasmExports['malloc'];
 		_realloc = wasmExports['realloc'];
 		_free = PHPLoader['free'] = wasmExports['free'];
 		_memcmp = wasmExports['memcmp'];

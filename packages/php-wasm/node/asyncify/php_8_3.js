@@ -6,10 +6,10 @@ const require = createRequire(import.meta.url);
 // Note: The path module is currently needed by code injected by the php-wasm Dockerfile.
 import path from 'path';
 
-const dependencyFilename = path.join(__dirname, '8_3_27', 'php_8_3.wasm');
+const dependencyFilename = path.join(__dirname, '8_3_28', 'php_8_3.wasm');
 export { dependencyFilename };
-export const dependenciesTotalSize = 27974368;
-const phpVersionString = '8.3.27';
+export const dependenciesTotalSize = 27972657;
+const phpVersionString = '8.3.28';
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
 	// include: shell.js
@@ -31691,13 +31691,13 @@ export function init(RuntimeName, PHPLoader) {
 	// end include: postlibrary.js
 
 	var ASM_CONSTS = {
-		14067137: ($0) => {
+		14067153: ($0) => {
 			if (!$0) {
 				AL.alcErr = 0xa004;
 				return 1;
 			}
 		},
-		14067185: ($0) => {
+		14067201: ($0) => {
 			if (!AL.currentCtx) {
 				err('alGetProcAddress() called without a valid context');
 				return 1;
@@ -32074,7 +32074,10 @@ export function init(RuntimeName, PHPLoader) {
 	function assignWasmExports(wasmExports) {
 		_free = PHPLoader['free'] = wasmExports['free'];
 		_memcmp = wasmExports['memcmp'];
-		_malloc = PHPLoader['malloc'] = wasmExports['malloc'];
+		_malloc =
+			PHPLoader['malloc'] =
+			Module['_malloc'] =
+				wasmExports['malloc'];
 		___errno_location = Module['___errno_location'] =
 			wasmExports['__errno_location'];
 		_strerror = wasmExports['strerror'];
