@@ -19,7 +19,7 @@ import url_6_3 from './wp-6.3.zip?url';
  * This file must statically exists in the project because of the way
  * vite resolves imports.
  */
-export function getWordPressModuleDetails(wpVersion: string): {
+export function getWordPressModuleDetails(wpVersion: string = '6.8'): {
 	size: number;
 	url: string;
 } {
