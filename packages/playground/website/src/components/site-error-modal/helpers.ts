@@ -76,6 +76,15 @@ export function formatErrorDetails(
 		.join('\n\n');
 }
 
+/**
+ * Turns a blueprint step JSON object into a human readable string.
+ *
+ * For example, `{ step: 'installPlugin', pluginData: { slug: 'hello-world' } }`
+ * becomes "install plugin "hello-world"".
+ *
+ * @param step - The blueprint step JSON object.
+ * @returns The human readable string.
+ */
 function describeBlueprintStepAction(step: Record<string, unknown>): string {
 	const stepName = typeof step?.step === 'string' ? step.step : undefined;
 	const readableName = stepName ? humanizeStepName(stepName) : undefined;
@@ -108,6 +117,10 @@ function describeBlueprintStepAction(step: Record<string, unknown>): string {
 	}
 }
 
+/**
+ * Convert a camel case step name, such as `installPlugin`, to a human readable
+ * string, such as "install plugin".
+ */
 function humanizeStepName(stepName: string): string {
 	const spaced = stepName.replace(/([a-z0-9])([A-Z])/g, '$1 $2');
 	return spaced.charAt(0).toLowerCase() + spaced.slice(1);
