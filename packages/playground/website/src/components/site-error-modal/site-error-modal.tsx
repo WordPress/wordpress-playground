@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import classNames from 'classnames';
 import { Button, TextareaControl } from '@wordpress/components';
 import { logger } from '@php-wasm/logger';
