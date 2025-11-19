@@ -2401,8 +2401,12 @@ RUN set -euxo pipefail; \
 	# Expose required functions to the module.
 		# Emscripten 4.0.10 removed the runtime exposure of `_malloc` and `_free`,
 		# so we rebind them from `wasmExports` and attach them to PHPLoader.
-		/root/replace.sh "s/_free\s*=\s*wasmExports\['free'\];/_free = PHPLoader['free'] = wasmExports['free'];/g" /root/output/php.js; \
-		/root/replace.sh "s/_malloc\s*=\s*wasmExports\['malloc'\];/_malloc = PHPLoader['malloc'] = wasmExports['malloc'];/g" /root/output/php.js; \
+		if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then \
+			/root/replace.sh "s/_free\s*=\s*wasmExports\['free'\];/_free = PHPLoader['free'] = wasmExports['free'];/g" /root/output/php.js; \
+		else \
+			/root/replace.sh "s/_wasm_free\s*=\s*Module\[[\"']_wasm_free[\"']\]/_wasm_free = PHPLoader['free'] = Module['_wasm_free']/g" /root/output/php.js; \
+		fi ; \
+		/root/replace.sh "s/_malloc\s*=\s*wasmExports\[[\"']malloc[\"']\];/_malloc = PHPLoader['malloc'] = wasmExports['malloc'];/g" /root/output/php.js; \
 	# Patch Emscripten exit status to include a stack trace
 		# Override Emscripten's default ExitStatus class which gets
 		# thrown on failure. Unfortunately, the default object is not
