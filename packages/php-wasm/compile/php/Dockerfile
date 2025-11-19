@@ -739,14 +739,17 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 	echo -n " -s ASYNCIFY_IMPORTS=$ASYNCIFY_IMPORTS " | tr -d "\n" >> /root/.emcc-php-asyncify-flags; \
 	export ASYNCIFY_ONLY_UNPREFIXED=$'"null.<anonymous>",\
 "cookieread",\
+"ImageToFile",\
 "ReadBlob",\
 "ReadBlobStream",\
-"ImageToFile",\
+"ReadImage",\
 "SetImageInfo",\
 "MagickReadImageFile",\
-"PHPWasm_Magick_SetImageInfo",\
 "PHPWasm_Magick_ImageToFile",\
+"PHPWasm_Magick_ReadBlob",\
+"PHPWasm_Magick_ReadBlobStream",\
 "PHPWasm_Magick_ReadImage",\
+"PHPWasm_Magick_SetImageInfo",\
 "zm_shutdown_imagick",\
 "php_imagick_read_file",\
 "zim_Imagick___construct",\
