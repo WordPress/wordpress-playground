@@ -50,6 +50,42 @@ export class InvalidBlueprintError extends Error {
 	}
 }
 
+/**
+ * Error thrown when a single Blueprint step fails during execution.
+ *
+ * This error carries structured information about the failing step so that
+ * consumers (e.g. the Playground UI) do not have to parse human‑readable
+ * error messages to understand what went wrong.
+ */
+export class BlueprintStepExecutionError extends Error {
+	public readonly stepNumber: number;
+	public readonly step: StepDefinition;
+	public readonly messages: string[];
+
+	constructor(options: {
+		stepNumber: number;
+		step: StepDefinition;
+		cause: unknown;
+	}) {
+		const { stepNumber, step, cause } = options;
+		const causeError =
+			cause instanceof Error ? cause : new Error(String(cause));
+		const baseMessage = `Error when executing the blueprint step #${stepNumber}`;
+		const fullMessage = causeError.message
+			? `${baseMessage}: ${causeError.message}`
+			: baseMessage;
+
+		super(fullMessage, { cause: causeError });
+		this.name = 'BlueprintStepExecutionError';
+		this.stepNumber = stepNumber;
+		this.step = step;
+		this.messages = (causeError.message || '')
+			.split('\n')
+			.map((line) => line.trim())
+			.filter(Boolean);
+	}
+}
+
 export type CompiledV1Step = (php: UniversalPHP) => Promise<void> | void;
 
 export interface CompiledBlueprintV1 {
@@ -379,12 +415,11 @@ function compileBlueprintJson(
 						onStepCompleted(result, step);
 					} catch (e) {
 						const stepNumber = Number(i) + 1;
-						throw new Error(
-							`Error when executing the blueprint step #${stepNumber} (${JSON.stringify(
-								step
-							)}) ${e instanceof Error ? `: ${e.message}` : e}`,
-							{ cause: e }
-						);
+						throw new BlueprintStepExecutionError({
+							stepNumber,
+							step,
+							cause: e,
+						});
 					}
 				}
 			} finally {

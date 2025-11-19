@@ -1,5 +1,6 @@
 import type { PayloadAction, Middleware } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
+import { BlueprintStepExecutionError } from '@wp-playground/blueprints';
 
 export type SiteError =
 	| 'directory-handle-not-found-in-indexeddb'
@@ -28,17 +29,44 @@ export const modalSlugs = {
 	SAVE_SITE: 'save-site',
 } as const;
 
+export type SerializedPlainErrorDetails = {
+	message?: string;
+	name?: string;
+	stack?: string;
+};
+
+export interface SerializedBlueprintStepErrorDetails
+	extends SerializedPlainErrorDetails {
+	type: 'blueprint-step-error';
+	stepNumber: number;
+	step: Record<string, unknown>;
+	messages: string[];
+	rawMessage?: string;
+}
+
 export type SerializedSiteErrorDetails =
 	| string
-	| {
-			message?: string;
-			name?: string;
-			stack?: string;
-	  };
+	| SerializedPlainErrorDetails
+	| SerializedBlueprintStepErrorDetails;
 
 const serializeSiteErrorDetails = (
 	details?: unknown
 ): SerializedSiteErrorDetails | undefined => {
+	if (details instanceof BlueprintStepExecutionError) {
+		return {
+			type: 'blueprint-step-error',
+			stepNumber: details.stepNumber,
+			step: details.step as Record<string, unknown>,
+			messages: details.messages,
+			rawMessage: details.message,
+			message:
+				details.cause instanceof Error
+					? details.cause.message
+					: details.message,
+			name: details.name,
+			stack: details.stack,
+		};
+	}
 	if (details instanceof Error) {
 		return {
 			message: details.message,

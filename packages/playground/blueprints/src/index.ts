@@ -20,6 +20,7 @@ export {
 	compileBlueprintV1,
 	runBlueprintV1Steps,
 	InvalidBlueprintError,
+	BlueprintStepExecutionError,
 
 	// BC:
 	compileBlueprintV1 as compileBlueprint,

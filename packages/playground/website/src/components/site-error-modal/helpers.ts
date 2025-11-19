@@ -1,72 +1,38 @@
-import type { SerializedSiteErrorDetails } from '../../lib/state/redux/slice-ui';
+import type {
+	SerializedSiteErrorDetails,
+	SerializedBlueprintStepErrorDetails,
+} from '../../lib/state/redux/slice-ui';
 import type { SiteInfo } from '../../lib/state/redux/slice-sites';
 import type { BlueprintStepError } from './types';
 
 export function extractBlueprintStepError(
 	errorDetails?: SerializedSiteErrorDetails
 ): BlueprintStepError | undefined {
-	const baseMessage =
-		typeof errorDetails === 'string' ? errorDetails : errorDetails?.message;
-	if (
-		!baseMessage ||
-		!baseMessage.startsWith('Error when executing the blueprint step #')
-	) {
+	if (!errorDetails || typeof errorDetails === 'string') {
 		return undefined;
 	}
 
-	const indexMatch = baseMessage.match(
-		/^Error when executing the blueprint step #(\d+)/
-	);
-	if (!indexMatch) {
+	const maybeBlueprintStepError =
+		errorDetails as SerializedBlueprintStepErrorDetails;
+
+	if (maybeBlueprintStepError.type !== 'blueprint-step-error') {
 		return undefined;
 	}
 
-	const firstParen = baseMessage.indexOf('(');
-	if (firstParen === -1) {
-		return undefined;
-	}
-
-	let closingParen = -1;
-	let parsedStep: Record<string, unknown> | undefined;
-	let stepJson = '';
-
-	for (let i = firstParen + 1; i < baseMessage.length; i++) {
-		if (baseMessage[i] !== ')') {
-			continue;
-		}
-		const candidateJson = baseMessage.slice(firstParen + 1, i).trim();
-		try {
-			parsedStep = JSON.parse(candidateJson);
-			stepJson = JSON.stringify(parsedStep, null, 2);
-			closingParen = i;
-			break;
-		} catch {
-			continue;
-		}
-	}
-
-	if (!parsedStep || closingParen === -1) {
-		return undefined;
-	}
-
-	const remainder = baseMessage
-		.slice(closingParen + 1)
-		.replace(/^\s*:\s*/, '')
-		.trim();
-	const messages = remainder
-		? remainder
-				.split(/\n+/)
-				.map((line) => line.trim())
-				.filter(Boolean)
-		: [];
+	const step = maybeBlueprintStepError.step;
+	const stepJson = JSON.stringify(step, null, 2);
+	const messages = maybeBlueprintStepError.messages || [];
 
 	return {
-		stepNumber: Number(indexMatch[1]),
-		step: parsedStep,
+		stepNumber: maybeBlueprintStepError.stepNumber,
+		step,
 		stepJson,
-		description: describeBlueprintStepAction(parsedStep),
+		description: describeBlueprintStepAction(step),
 		messages,
-		rawMessage: baseMessage,
+		rawMessage:
+			maybeBlueprintStepError.rawMessage ||
+			maybeBlueprintStepError.message ||
+			'',
 	};
 }
 

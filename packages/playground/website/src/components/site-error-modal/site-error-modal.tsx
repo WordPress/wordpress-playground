@@ -16,13 +16,7 @@ import {
 	setActiveSiteError,
 } from '../../lib/state/redux/slice-ui';
 import type { SiteErrorModalProps, PresentationHelpers } from './types';
-import { ErrorCopy } from './error-copy';
-import { BlueprintStepErrorDetails } from './blueprint-step-error-details';
-import {
-	developerErrorTypes,
-	MODAL_TITLES,
-	DETAIL_SUMMARY_OVERRIDES,
-} from './constants';
+import { getSiteErrorView } from './error-copy';
 import { extractBlueprintStepError, formatErrorDetails } from './helpers';
 
 export function SiteErrorModal({
@@ -33,9 +27,6 @@ export function SiteErrorModal({
 }: SiteErrorModalProps) {
 	const dispatch = useAppDispatch();
 	const blueprintStepError = extractBlueprintStepError(errorDetails);
-	const isBlueprintStepFailure = Boolean(blueprintStepError);
-	const isDeveloperError =
-		developerErrorTypes.has(error) || isBlueprintStepFailure;
 	const [isStartingWithoutBlueprint, setIsStartingWithoutBlueprint] =
 		useState(false);
 	const [isReporting, setIsReporting] = useState(false);
@@ -43,11 +34,6 @@ export function SiteErrorModal({
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [reportSubmitted, setReportSubmitted] = useState(false);
 	const [submitError, setSubmitError] = useState('');
-
-	const detailText = formatErrorDetails(
-		errorDetails,
-		blueprintStepError?.rawMessage
-	);
 
 	function getContext() {
 		return {
@@ -151,14 +137,24 @@ export function SiteErrorModal({
 		startWithoutBlueprintBusy: isStartingWithoutBlueprint,
 	};
 
-	const modalTitle = blueprintStepError
-		? 'Blueprint execution failed'
-		: MODAL_TITLES[error] ?? 'Playground crashed';
-	const detailSummary = blueprintStepError
-		? 'Blueprint error details'
-		: DETAIL_SUMMARY_OVERRIDES[error] ??
-		  (isDeveloperError ? 'Inspection details' : 'Error details');
-	const actionButtons = getErrorActions(error, helpers);
+	const view = getSiteErrorView({
+		error,
+		site,
+		blueprintStepError,
+		helpers,
+		startWithoutBlueprintBusy: isStartingWithoutBlueprint,
+	});
+
+	const isDeveloperError = view.isDeveloperError;
+	const modalTitle = view.title || 'Playground crashed';
+	const detailText = formatErrorDetails(
+		errorDetails,
+		view.messageToOmitFromDetails
+	);
+	const detailSummary =
+		view.detailSummaryOverride ??
+		(isDeveloperError ? 'Inspection details' : 'Error details');
+	const actionButtons = view.actions;
 	const showActionBar = Boolean(actionButtons.length || !isDeveloperError);
 
 	return (
@@ -184,16 +180,7 @@ export function SiteErrorModal({
 		>
 			<div className={css.errorModalContent}>
 				<div className={css.errorModalBody}>
-					<ErrorCopy
-						error={error}
-						site={site}
-						blueprintStepError={blueprintStepError}
-					/>
-					{blueprintStepError ? (
-						<BlueprintStepErrorDetails
-							stepError={blueprintStepError}
-						/>
-					) : null}
+					{view.body}
 					{detailText ? (
 						<details
 							className={css.errorDetails}
@@ -270,79 +257,19 @@ export function SiteErrorModal({
 							</>
 						)}
 						{(!isReporting || reportSubmitted) &&
-							actionButtons.map((action, index) => (
-								<div
-									key={index}
-									className={css.errorActionWrapper}
-								>
-									{action}
-								</div>
-							))}
+							actionButtons.map((action, index) =>
+								action ? (
+									<div
+										key={index}
+										className={css.errorActionWrapper}
+									>
+										{action}
+									</div>
+								) : null
+							)}
 					</div>
 				) : null}
 			</div>
 		</Modal>
 	);
-}
-
-function getErrorActions(
-	error: SiteErrorModalProps['error'],
-	helpers: PresentationHelpers
-): React.ReactNode[] {
-	const startWithoutBlueprintButton = (key: string) => (
-		<Button
-			variant="primary"
-			key={key}
-			onClick={() => helpers.startWithoutBlueprint()}
-			isBusy={helpers.startWithoutBlueprintBusy}
-			disabled={helpers.startWithoutBlueprintBusy}
-		>
-			Start without a Blueprint
-		</Button>
-	);
-
-	switch (error) {
-		case 'directory-handle-directory-does-not-exist':
-			return [
-				<Button
-					variant="primary"
-					key="delete-site"
-					onClick={helpers.deleteSite}
-				>
-					Delete this site and try again
-				</Button>,
-			];
-		case 'github-artifact-expired':
-			return [
-				<Button
-					variant="primary"
-					key="restart-pr"
-					onClick={helpers.restartWithoutPr}
-				>
-					Restart without that PR
-				</Button>,
-			];
-		case 'blueprint-fetch-failed':
-			return [startWithoutBlueprintButton('start-without-blueprint')];
-		case 'blueprint-filesystem-required':
-		case 'blueprint-validation-failed':
-			return [
-				startWithoutBlueprintButton('start-without-blueprint-invalid'),
-			];
-		case 'directory-handle-unknown-error':
-		case 'directory-handle-not-found-in-indexeddb':
-		case 'directory-handle-permission-denied':
-			return [];
-		case 'site-boot-failed':
-		default:
-			return [
-				<Button
-					variant="primary"
-					key="reload-tab"
-					onClick={helpers.reload}
-				>
-					Reload Fresh Playground
-				</Button>,
-			];
-	}
 }
