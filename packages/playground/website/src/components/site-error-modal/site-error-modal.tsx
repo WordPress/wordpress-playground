@@ -16,7 +16,7 @@ import {
 	setActiveSiteError,
 } from '../../lib/state/redux/slice-ui';
 import type { SiteErrorModalProps, PresentationHelpers } from './types';
-import { getSiteErrorView } from './error-copy';
+import { getSiteErrorView } from './get-site-error-view';
 import { extractBlueprintStepError, formatErrorDetails } from './helpers';
 
 export function SiteErrorModal({
@@ -31,24 +31,12 @@ export function SiteErrorModal({
 		useState(false);
 	const [isReporting, setIsReporting] = useState(false);
 	const [reportText, setReportText] = useState('');
-	const [isSubmitting, setIsSubmitting] = useState(false);
+	const [isSubmittingReport, setIsSubmittingReport] = useState(false);
 	const [reportSubmitted, setReportSubmitted] = useState(false);
 	const [submitError, setSubmitError] = useState('');
 
-	function getContext() {
-		return {
-			...(site.metadata.originalBlueprint as any)?.preferredVersions,
-			userAgent: navigator.userAgent,
-			...((window.performance as any)?.memory ?? {}),
-			window: {
-				width: window.innerWidth,
-				height: window.innerHeight,
-			},
-		};
-	}
-
-	async function onSubmit() {
-		setIsSubmitting(true);
+	async function handleSubmitReport() {
+		setIsSubmittingReport(true);
 		const formdata = new FormData();
 		formdata.append('description', reportText);
 		const logs = logger.getLogs().join('\n');
@@ -59,7 +47,18 @@ export function SiteErrorModal({
 		if (url) {
 			formdata.append('url', url);
 		}
-		formdata.append('context', JSON.stringify(getContext()));
+		formdata.append(
+			'context',
+			JSON.stringify({
+				...(site.metadata.originalBlueprint as any)?.preferredVersions,
+				userAgent: navigator.userAgent,
+				...((window.performance as any)?.memory ?? {}),
+				window: {
+					width: window.innerWidth,
+					height: window.innerHeight,
+				},
+			})
+		);
 		formdata.append(
 			'blueprint',
 			JSON.stringify(site.metadata.originalBlueprint)
@@ -84,7 +83,7 @@ export function SiteErrorModal({
 		} catch (e) {
 			setSubmitError((e as Error).message);
 		} finally {
-			setIsSubmitting(false);
+			setIsSubmittingReport(false);
 		}
 	}
 
@@ -248,16 +247,16 @@ export function SiteErrorModal({
 								</Button>
 								<Button
 									variant="primary"
-									onClick={onSubmit}
-									isBusy={isSubmitting}
-									disabled={!reportText || isSubmitting}
+									onClick={handleSubmitReport}
+									isBusy={isSubmittingReport}
+									disabled={!reportText || isSubmittingReport}
 								>
 									Submit report
 								</Button>
 							</>
 						)}
 						{(!isReporting || reportSubmitted) &&
-							actionButtons.map((action, index) =>
+							actionButtons.map((action: any, index: any) =>
 								action ? (
 									<div
 										key={index}

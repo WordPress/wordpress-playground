@@ -38,7 +38,7 @@ export function getSiteErrorView(
 		case 'directory-handle-permission-denied':
 			return directoryHandlePermissionsExpiredView(context);
 		case 'directory-handle-directory-does-not-exist':
-			return directoryHandleDeletedView(context);
+			return directoryHandleDeletedView();
 		case 'github-artifact-expired':
 			return githubArtifactExpiredView(context);
 		case 'blueprint-fetch-failed':
@@ -48,7 +48,7 @@ export function getSiteErrorView(
 		case 'blueprint-validation-failed':
 			return blueprintValidationFailedView(context);
 		case 'directory-handle-unknown-error':
-			return directoryHandleUnknownErrorView(context);
+			return directoryHandleUnknownErrorView();
 		case 'site-boot-failed':
 		default:
 			return genericSiteBootFailedView(context);

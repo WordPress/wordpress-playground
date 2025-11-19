@@ -1,6 +1,5 @@
 {
 	"typescript.tsdk": "node_modules/typescript/lib",
-	"typescript.experimental.useTsgo": true,
 	"eslint.useFlatConfig": false,
 	"eslint.workingDirectories": [
 		{ "pattern": "./packages/*/" }
