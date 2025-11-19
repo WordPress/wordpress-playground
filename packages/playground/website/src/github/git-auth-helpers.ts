@@ -11,10 +11,7 @@ function isGitHubUrl(url: string): boolean {
 }
 
 export function shouldShowGitHubAuthModal(url: string | undefined): boolean {
-	if (!url) {
-		return false;
-	}
-	return isGitHubUrl(url);
+	return !!url && isGitHubUrl(url);
 }
 
 export function createGitAuthHeaders(): (
@@ -27,6 +24,7 @@ export function createGitAuthHeaders(): (
 			return {};
 		}
 
+		// Avoid InvalidCharacterError from btoa() with non-Latin1 characters
 		const encoder = new TextEncoder();
 		const data = encoder.encode(`${token}:`);
 		const binary = [];
