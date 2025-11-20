@@ -393,6 +393,7 @@ self.addEventListener('fetch', (event) => {
 		return;
 	}
 
+	// Serve the iframe-trap.js script
 	if (url.pathname === iframeTrapScriptUrl) {
 		event.respondWith(
 			new Response(BOOTSTRAP_JS, {
@@ -511,9 +512,7 @@ self.addEventListener('fetch', (event) => {
  * A request to a PHP Worker Thread or to a regular static asset,
  * but initiated by a scoped referer (e.g. fetch() from a block editor iframe).
  */
-async function handleScopedRequest(event: FetchEvent, scope) {
-	const fullUrl = new URL(event.request.url);
-	const unscopedUrl = removeURLScope(fullUrl);
+async function handleScopedRequest(event: FetchEvent, scope: string) {
 	const workerResponse = await convertFetchEventToPHPRequest(event);
 
 	if (
@@ -576,17 +575,32 @@ async function handleScopedRequest(event: FetchEvent, scope) {
 		});
 	}
 
+	/**
+	 * Inject the iframe-trap.js script into the response.
+	 */
+	if (workerResponse.headers.get('content-type')?.startsWith('text/html')) {
+		const body = await workerResponse.text();
+		const newBody = body.replace(
+			/<head>/,
+			`<head><script src="${iframeTrapScriptUrl}"></script>`
+		);
+		return new Response(newBody, {
+			headers: workerResponse.headers,
+			status: workerResponse.status,
+		});
+	}
+
 	return workerResponse;
 }
 
 reportServiceWorkerMetrics(self);
 
 type WPModuleDetails = {
-	staticAssetsDirectory?;
+	staticAssetsDirectory?: string;
 };
 
 const scopeToWpModule: Record<string, WPModuleDetails> = {};
-async function getScopedWpDetails(scope): Promise<WPModuleDetails> {
+async function getScopedWpDetails(scope: string): Promise<WPModuleDetails> {
 	if (!scopeToWpModule[scope]) {
 		const requestId = await broadcastMessageExpectReply(
 			{
