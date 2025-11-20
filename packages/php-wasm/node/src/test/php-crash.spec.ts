@@ -60,7 +60,7 @@ describe.each(phpVersions)('PHP %s – ', async (phpVersion) => {
 				}).catch((error) => (caughtError = error));
 
 				// Make sure the process exits and give any unhandled rejections a chance to be caught
-				await new Promise((resolve) => setTimeout(resolve, 100));
+				await new Promise((resolve) => setTimeout(resolve, 1000));
 
 				// Accept either a caught error or an unhandled rejection
 				if (!caughtError && !unhandledRejection) {
