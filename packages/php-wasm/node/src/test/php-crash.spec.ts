@@ -8,19 +8,12 @@ import {
 import { loadNodeRuntime } from '../lib';
 import { jspi } from 'wasm-feature-detect';
 
-/* eslint-disable comment-length/limit-single-line-comments */
-
 const phpVersions =
 	'PHP' in process.env ? [process.env['PHP']!] : SupportedPHPVersions;
 
 describe.each(phpVersions)('PHP %s – ', async (phpVersion) => {
 	describe('process crash', async () => {
 		let php: PHP;
-		let unhandledRejection: any;
-
-		function unhandledRejectionHandler(error: any) {
-			unhandledRejection = error;
-		}
 
 		beforeEach(async () => {
 			php = new PHP(await loadNodeRuntime(phpVersion as any));
@@ -29,49 +22,45 @@ describe.each(phpVersions)('PHP %s – ', async (phpVersion) => {
 		});
 
 		afterEach(async () => {
-			// Make sure the process exits and give any unhandled rejections a chance to be caught
 			php.exit();
-			await new Promise((resolve) => setTimeout(resolve, 100));
-			process.off('unhandledRejection', unhandledRejectionHandler);
 		});
 
 		if (!(await jspi())) {
 			it('Does not crash due to an unhandled Asyncify error ', async () => {
-				let caughtError;
+				let caughtError: unknown;
+				let unhandledRejection: unknown;
 
-				try {
-					/**
-					 * PHP is intentionally built without network support for __clone()
-					 * because it's an extremely unlikely place for any network activity
-					 * and not supporting it allows us to test the error handling here.
-					 *
-					 * `clone $x` will throw an asynchronous error out when attempting
-					 * to do a network call ("unreachable" WASM instruction executed).
-					 * This test should gracefully catch and handle that error.
-					 *
-					 * A failure to do so will crash the entire process
-					 */
-					await php.run({
-						code: `<?php
-						class Top {
-							function __clone() {
-								file_get_contents("http://127.0.0.1");
-							}
-						}
-						$x = new Top();
-						clone $x;
-						`,
-					});
-				} catch (error: unknown) {
-					caughtError = error;
-					if (error instanceof Error) {
-						expect(
-							(error as any).cause?.message || error.message
-						).toMatch(
-							/Aborted|Program terminated with exit\(1\)|unreachable|null function or function signature|out of bounds/
-						);
-					}
+				function unhandledRejectionHandler(error: string) {
+					unhandledRejection = error;
 				}
+
+				process.on('unhandledRejection', unhandledRejectionHandler);
+
+				/**
+				 * PHP is intentionally built without network support for __clone()
+				 * because it's an extremely unlikely place for any network activity
+				 * and not supporting it allows us to test the error handling here.
+				 *
+				 * `clone $x` will throw an asynchronous error out when attempting
+				 * to do a network call ("unreachable" WASM instruction executed).
+				 * This test should gracefully catch and handle that error.
+				 *
+				 * A failure to do so will crash the entire process
+				 */
+				php.run({
+					code: `<?php
+					class Top {
+						function __clone() {
+							file_get_contents("http://127.0.0.1");
+						}
+					}
+					$x = new Top();
+					clone $x;
+					`,
+				}).catch((error) => (caughtError = error));
+
+				// Make sure the process exits and give any unhandled rejections a chance to be caught
+				await new Promise((resolve) => setTimeout(resolve, 100));
 
 				// Accept either a caught error or an unhandled rejection
 				if (!caughtError && !unhandledRejection) {
@@ -79,6 +68,26 @@ describe.each(phpVersions)('PHP %s – ', async (phpVersion) => {
 						'php.run should have thrown an error or caused an unhandled rejection'
 					);
 				}
+
+				if (caughtError instanceof Error) {
+					expect(
+						(caughtError as any).cause?.message ||
+							caughtError.message
+					).toMatch(
+						/Aborted|Program terminated with exit\(1\)|unreachable|null function or function signature|out of bounds/
+					);
+				}
+
+				if (unhandledRejection instanceof Error) {
+					expect(
+						(unhandledRejection as any).cause?.message ||
+							unhandledRejection.message
+					).toMatch(
+						/Aborted|Program terminated with exit\(1\)|unreachable|null function or function signature|out of bounds/
+					);
+				}
+
+				process.off('unhandledRejection', unhandledRejectionHandler);
 			});
 		}
 
