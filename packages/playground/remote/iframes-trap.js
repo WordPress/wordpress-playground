@@ -34,11 +34,9 @@ function scopedPaths(scope) {
 		LOADER_PATH: `${base}/wp-includes/empty.html`,
 	};
 }
-// Capture natives up front
 const Native = {
 	createElement: Document.prototype.createElement,
 	setAttribute: Element.prototype.setAttribute,
-	// Accessors
 	iframeSrc: Object.getOwnPropertyDescriptor(
 		HTMLIFrameElement.prototype,
 		'src'

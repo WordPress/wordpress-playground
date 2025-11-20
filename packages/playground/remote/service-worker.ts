@@ -121,7 +121,8 @@ import {
 	shouldCacheUrl,
 } from './src/lib/offline-mode-cache';
 
-// @ts-ignore
+// NOTE: import the compiled JS (pre-built) to avoid shipping TypeScript source to runtime.
+// Keep packages/playground/remote/iframes-trap.js in sync with the .ts source.
 import BOOTSTRAP_JS from './iframes-trap.js?raw';
 
 if (!self.document) {
@@ -173,7 +174,6 @@ self.addEventListener('install', (event) => {
  * intercepted here.
  *
  * However, the initial Playground load already downloads a few large assets,
- * like a 12MB wordpress-static.zip file. We need to cache them these requests.
  * Otherwise they'll be fetched again on the next page load.
  *
  * client.claim() only affects pages loaded before the initial servie worker
@@ -195,84 +195,152 @@ self.addEventListener('activate', function (event) {
 	}
 	event.waitUntil(doActivate());
 });
-// sw.ts
-declare const self: ServiceWorkerGlobalScope;
 
-const SCOPE = new URL(self.registration.scope).pathname.replace(/\/$/, '');
-const BUCKET = 'iframe-virtual-docs-v1';
-const VIRTUAL_PREFIX = `${SCOPE}/__iframes/`;
-const LOADER_PATH = `${SCOPE}/wp-includes/empty.html`;
-const BOOTSTRAP_URL = `${SCOPE}/__bootstrap/controlled-iframes.js`;
+/**
+ * Make all iframes controlled by the service worker.
+ *
+ * ## The problem
+ *
+ * Iframes created as about:blank / srcdoc / data / blob are not controlled by this
+ * service worker. This means that all network calls initiated by these iframes are
+ * sent directly to the network. This means Gutenberg cannot load any CSS files,
+ * TInyMCE can't load media images, etc.
+ *
+ * Only iframes created with `src` pointing to a URL already controlled by this service worker
+ * are themselves controlled.
+ *
+ * ## The solution
+ *
+ * We inject a `iframes-trap.js` script into every HTML page to override a set of DOM
+ * methods used to create iframes. Whenever an src/srcdoc attribute is set on an iframe,
+ * we intercept that and:
+ *
+ * 1) Store the initial HTML of the iframe in CacheStorage.
+ * 2) Set the iframe's src to iframeLoaderUrl (coming from a controlled URL).
+ * 3) The loader replaces the iframe's content with the cached HTML.
+ * 4) The loader ensures `iframes-trap.js` is also loaded and executed inside the iframe
+ *    to cover any nested iframes.
+ *
+ * As a result, every same-origin iframe is forced onto a real navigation that the SW can control,
+ * so all fetches (including <img> inside editors like TinyMCE) go through our handler
+ * without per-product patches. This replaces the former Gutenberg-only shim.
+ *
+ * References
+ *
+ * - Chrome: https://bugs.chromium.org/p/chromium/issues/detail?id=880768
+ * - Firefox: https://bugzilla.mozilla.org/show_bug.cgi?id=1293277
+ * - Spec discussion: https://github.com/w3c/ServiceWorker/issues/765
+ * - Gutenberg context: https://github.com/WordPress/gutenberg/pull/38855
+ * - Playground historical issue: https://github.com/WordPress/wordpress-playground/issues/42
+ */
 
-self.addEventListener('install', (e) => e.waitUntil(self.skipWaiting()));
-self.addEventListener('activate', (e) => e.waitUntil(self.clients.claim()));
+/**
+ * The CacheStorage bucked used by iframes-trap.js to store the HTML contents
+ * of iframes initialized from srcdoc/data/blob.
+ */
+const iframeCacheBucket = 'iframe-virtual-docs-v1';
 
-const LOADER_HTML = `<!doctype html><meta charset="utf-8">
+/**
+ * A unique path prefix for all the cached iframe markup. It helps the service worker
+ * decide whether the incoming request is related to a cached iframe markup.
+ */
+const iframeCacheKeyPrefix = `/__iframes/`;
+
+/**
+ * Service worker serves `./iframes-trap.js` at this path:
+ */
+const iframeTrapScriptUrl = `/__bootstrap/iframes-trap.js`;
+
+/**
+ * Service worker serves `iframeLoaderHtml` at this path. It's used
+ * to initialize new iframes.
+ */
+const iframeLoaderPath = `/wp-includes/empty.html`;
+
+/**
+ * The HTML content of the iframe loader. This is the inital page
+ * every iframe is forced to load when it's created.
+ */
+const iframeLoaderHtml = `<!doctype html><meta charset="utf-8">
 <script>
 (() => {
-  // Pass-through write hooks; inject base + agent after the doc closes.
-  const _open = Document.prototype.open;
-  const _write = Document.prototype.write;
-  const _writeln = Document.prototype.writeln;
-  const _close = Document.prototype.close;
-
-  function ensureBaseAndAgent(baseHref, scope, bootstrapUrl) {
-    const safeBase = String(baseHref || location.href).replace(/"/g,'&quot;');
+  function ensureBaseAndAgent() {
+    const safeBase = String(window.base || location.href).replace(/"/g,'&quot;');
     if (!document.head) {
-      const h = document.createElement('head');
-      document.documentElement.insertBefore(h, document.documentElement.firstChild);
+      document.documentElement.insertBefore(
+	  	document.createElement('head'),
+	  	document.documentElement.firstChild
+	  );
     }
     if (!document.head.querySelector('base')) {
-      const b = document.createElement('base'); b.setAttribute('href', safeBase);
-      document.head.insertBefore(b, document.head.firstChild);
+      const base = document.createElement('base');
+	  base.setAttribute('href', safeBase);
+      document.head.insertBefore(base, document.head.firstChild);
     }
-    if (![...document.scripts].some(s => s.src.endsWith('/controlled-iframes.js'))) {
-      const s = document.createElement('script');
-      s.type = 'module'; s.src = bootstrapUrl; s.dataset.scope = scope;
-      document.head.appendChild(s);
+    if (![...document.scripts].some(script => script.src.endsWith('/iframes-trap.js'))) {
+      const script = document.createElement('script');
+      script.type = 'module';
+      script.src = ${JSON.stringify(iframeTrapScriptUrl)};
+	  script.dataset.scope = "/";
+      document.head.appendChild(script);
     }
   }
 
-  Document.prototype.open = function() { return _open.apply(this, arguments); };
-  Document.prototype.write = function() { return _write.apply(this, arguments); };
-  Document.prototype.writeln = function() { return _writeln.apply(this, arguments); };
+  const nativeClose = Document.prototype.close;
   Document.prototype.close = function() {
-    const r = _close.apply(this, arguments);
-    Promise.resolve().then(() => ensureBaseAndAgent(window.__loaderBase, window.__loaderScope, window.__bootstrapUrl));
-    return r;
+    const returnValue = nativeClose.apply(this, arguments);
+
+    /**
+	 * Defer to next microtask so close() finishes flushing the document
+	 * before we inject <base> and the agent script. Mutating inside the
+     * close() can race with the final flush, causing re-entrancy/partial-DOM
+	 * quirks across browsers.
+	 */
+    Promise.resolve().then(ensureBaseAndAgent);
+    return returnValue;
   };
 
-  const qs = new URLSearchParams(location.hash.slice(1));
-  const id   = qs.get('id');
-  const base = qs.get('base') || '';
-  const url  = qs.get('url')  || '';
+  const searchParams = new URLSearchParams(location.hash.slice(1));
+  const id   = searchParams.get('id');
+  const base = searchParams.get('base') || '';
+  const url  = searchParams.get('url')  || '';
 
-  // globals used by the close() hook above
-  window.__loaderBase = base;
-  window.__loaderScope = ${JSON.stringify(SCOPE)};
-  window.__bootstrapUrl = ${JSON.stringify(BOOTSTRAP_URL)};
+  /**
+   * Fetches a virtual iframe document from CacheStorage.
+   */
+  async function fetchCachedIframeDocument() {
+  	const path = ${JSON.stringify(iframeCacheKeyPrefix)} + id + '.html';
 
-  async function fetchVirtual(path) {
-    // Small retry so loader doesn't outrun caches.put()
+    /**
+	 * Retry a few times. The loader may request the cached iframe
+	 * document before caches.put() (started by the trap) finishes
+	 * writing it. 
+	 */
     for (let i = 0; i < 6; i++) {
-      const res = await fetch(path, { cache: 'no-store' });
-      if (res.ok) return res;
+      const response = await fetch(path, { cache: 'no-store' });
+      if (response.ok) {
+		  return response;
+	  }
       await new Promise(r => setTimeout(r, 30));
     }
-    return fetch(path, { cache: 'no-store' });
+    return await fetch(path, { cache: 'no-store' });
   }
 
   (async () => {
     let html = '';
     if (id) {
-      html = await (await fetchVirtual(${JSON.stringify(
-			VIRTUAL_PREFIX
-		)} + id + '.html')).text();
+      html = await (await fetchCachedIframeDocument()).text();
     }
+
     // Write (possibly empty) HTML; our close() hook injects base + agent
-    document.open(); document.write(html); document.close();
-    if (url) try { history.replaceState({}, '', url); } catch {}
-  })();
+    document.open();
+	document.write(html);
+	document.close();
+
+    if (!url) {
+		return;
+	}
+	history.replaceState({}, '', url);
 })();
 </script>`;
 
@@ -294,21 +362,24 @@ self.addEventListener('fetch', (event) => {
 		return;
 	}
 
-	// Serve the loader for navigations to LOADER_PATH
-	if (event.request.mode === 'navigate' && url.pathname === LOADER_PATH) {
+	// Serve the iframe loader
+	if (
+		event.request.mode === 'navigate' &&
+		url.pathname === iframeLoaderPath
+	) {
 		event.respondWith(
-			new Response(LOADER_HTML, {
+			new Response(iframeLoaderHtml, {
 				headers: { 'Content-Type': 'text/html; charset=utf-8' },
 			})
 		);
 		return;
 	}
 
-	// Serve virtual iframe documents from CacheStorage
-	if (url.pathname.startsWith(VIRTUAL_PREFIX)) {
+	// Serve the cached iframe contents (written by iframe-trap.js)
+	if (url.pathname.startsWith(iframeCacheKeyPrefix)) {
 		event.respondWith(
 			(async () => {
-				const cache = await caches.open(BUCKET);
+				const cache = await caches.open(iframeCacheBucket);
 				const match = await cache.match(event.request);
 				return (
 					match ||
@@ -322,7 +393,7 @@ self.addEventListener('fetch', (event) => {
 		return;
 	}
 
-	if (url.pathname === BOOTSTRAP_URL) {
+	if (url.pathname === iframeTrapScriptUrl) {
 		event.respondWith(
 			new Response(BOOTSTRAP_JS, {
 				headers: {
@@ -443,10 +514,6 @@ self.addEventListener('fetch', (event) => {
 async function handleScopedRequest(event: FetchEvent, scope) {
 	const fullUrl = new URL(event.request.url);
 	const unscopedUrl = removeURLScope(fullUrl);
-	if (fullUrl.pathname.endsWith('/wp-includes/empty.html')) {
-		return emptyHtml();
-	}
-
 	const workerResponse = await convertFetchEventToPHPRequest(event);
 
 	if (
@@ -509,134 +576,10 @@ async function handleScopedRequest(event: FetchEvent, scope) {
 		});
 	}
 
-	// Path the block-editor.js file to ensure the site editor's iframe
-	// inherits the service worker.
-	// @see controlledIframe below for more details.
-	if (
-		// WordPress Core version of block-editor.js
-		unscopedUrl.pathname.endsWith('/block-editor.js') ||
-		unscopedUrl.pathname.endsWith('/block-editor.min.js') ||
-		// Gutenberg version of block-editor.js
-		unscopedUrl.pathname.endsWith('/block-editor/index.js') ||
-		unscopedUrl.pathname.endsWith('/block-editor/index.min.js')
-	) {
-		// const script = await workerResponse.text();
-		// const newScript = `${controlledIframe} ${script.replace(
-		// 	/\(\s*"iframe",/,
-		// 	'(__playground_ControlledIframe,'
-		// )}`;
-		// return new Response(newScript, {
-		// 	status: workerResponse.status,
-		// 	statusText: workerResponse.statusText,
-		// 	headers: workerResponse.headers,
-		// });
-	}
-
 	return workerResponse;
 }
 
 reportServiceWorkerMetrics(self);
-
-/**
- * Pair the site editor's nested iframe to the Service Worker.
- *
- * Without the patch below, the site editor initiates network requests that
- * aren't routed through the service worker. That's a known browser issue:
- *
- * * https://bugs.chromium.org/p/chromium/issues/detail?id=880768
- * * https://bugzilla.mozilla.org/show_bug.cgi?id=1293277
- * * https://github.com/w3c/ServiceWorker/issues/765
- *
- * The problem with iframes using srcDoc and src="about:blank" as they
- * fail to inherit the root site's service worker.
- *
- * Gutenberg loads the site editor using <iframe srcDoc="<!doctype html">
- * to force the standards mode and not the quirks mode:
- *
- * https://github.com/WordPress/gutenberg/pull/38855
- *
- * This commit patches the site editor to achieve the same result via
- * <iframe src="/doctype.html"> and a doctype.html file containing just
- * `<!doctype html>`. This allows the iframe to inherit the service worker
- * and correctly load all the css, js, fonts, images, and other assets.
- *
- * Ideally this issue would be fixed directly in Gutenberg and the patch
- * below would be removed.
- *
- * See https://github.com/WordPress/wordpress-playground/issues/42 for more details
- *
- * ## Why does this code live in the service worker?
- *
- * There's many ways to install the Gutenberg plugin:
- *
- * * Install plugin step
- * * Import a site
- * * Install Gutenberg from the plugin directory
- * * Upload a Gutenberg zip
- *
- * It's too difficult to patch Gutenberg in all these cases, so we
- * blanket-patch all the scripts requested over the network whose names seem to
- * indicate they're related to the Gutenberg plugin.
- */
-const controlledIframe = `
-window.__playground_ControlledIframe = window.wp.element.forwardRef(function (props, ref) {
-	const source = window.wp.element.useMemo(function () {
-		/**
-		 * A synchronous function to read a blob URL as text.
-		 *
-		 * @param {string} url
-		 * @returns {string}
-		 */
-		const __playground_readBlobAsText = function (url) {
-			try {
-				let xhr = new XMLHttpRequest();
-				xhr.open('GET', url, false);
-				xhr.overrideMimeType('text/plain;charset=utf-8');
-				xhr.send();
-				return xhr.responseText;
-			} catch(e) {
-				return '';
-			} finally {
-				URL.revokeObjectURL(url);
-			}
-		};
-		if (props.srcDoc) {
-			// WordPress <= 6.2 uses a srcDoc that only contains a doctype.
-			return '/wp-includes/empty.html';
-		} else if (props.src && props.src.startsWith('blob:')) {
-			// WordPress 6.3 uses a blob URL with doctype and a list of static assets.
-			// Let's pass the document content to empty.html and render it there.
-			return '/wp-includes/empty.html#' + encodeURIComponent(__playground_readBlobAsText(props.src));
-		} else {
-			// WordPress >= 6.4 uses a plain HTTPS URL that needs no correction.
-			return props.src;
-		}
-	}, [props.src]);
-	return (
-		window.wp.element.createElement('iframe', {
-			...props,
-			ref: ref,
-			src: source,
-			// Make sure there's no srcDoc, as it would interfere with the src.
-			srcDoc: undefined
-		})
-	)
-});`;
-
-/**
- * The empty HTML file loaded by the patched editor iframe.
- */
-function emptyHtml() {
-	return new Response(
-		'<!doctype html><script>const hash = window.location.hash.substring(1); if ( hash ) document.write(decodeURIComponent(hash))</script>',
-		{
-			status: 200,
-			headers: {
-				'content-type': 'text/html',
-			},
-		}
-	);
-}
 
 type WPModuleDetails = {
 	staticAssetsDirectory?;
