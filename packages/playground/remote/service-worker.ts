@@ -121,18 +121,8 @@ import {
 	shouldCacheUrl,
 } from './src/lib/offline-mode-cache';
 
-// NOTE: import the compiled JS (pre-built) to avoid shipping TypeScript source to runtime.
-// Keep packages/playground/remote/iframes-trap.js in sync with the .ts source.
-import BOOTSTRAP_JS from './iframes-trap.js?raw';
-
-if (!self.document) {
-	// Workaround: vite translates import.meta.url
-	// to document.currentScript which fails inside of
-	// a service worker because document is undefined
-	// @ts-ignore
-	// eslint-disable-next-line no-global-assign
-	self.document = {};
-}
+// @ts-ignore
+import iframesTrapScriptContent from './iframes-trap.js?raw';
 
 /**
  * Forces the browser to always use the latest service worker.
@@ -326,21 +316,22 @@ const iframeLoaderHtml = `<!doctype html><meta charset="utf-8">
     return await fetch(path, { cache: 'no-store' });
   }
 
-  (async () => {
-    let html = '';
-    if (id) {
-      html = await (await fetchCachedIframeDocument()).text();
-    }
+	(async () => {
+		let html = '';
+		if (id) {
+			html = await (await fetchCachedIframeDocument()).text();
+		}
 
-    // Write (possibly empty) HTML; our close() hook injects base + agent
-    document.open();
-	document.write(html);
-	document.close();
+		// Write (possibly empty) HTML; our close() hook injects base + agent
+		document.open();
+		document.write(html);
+		document.close();
 
-    if (!url) {
-		return;
-	}
-	history.replaceState({}, '', url);
+		if (!url) {
+			return;
+		}
+		history.replaceState({}, '', url);
+	})();
 })();
 </script>`;
 
@@ -396,7 +387,7 @@ self.addEventListener('fetch', (event) => {
 	// Serve the iframe-trap.js script
 	if (url.pathname === iframeTrapScriptUrl) {
 		event.respondWith(
-			new Response(BOOTSTRAP_JS, {
+			new Response(iframesTrapScriptContent, {
 				headers: {
 					'Content-Type': 'application/javascript; charset=utf-8',
 				},
