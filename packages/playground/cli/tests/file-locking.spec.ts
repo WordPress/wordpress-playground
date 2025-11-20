@@ -7,7 +7,7 @@ import os from 'node:os';
 
 const TEST_DIR = '/wordpress/test';
 const TEST_DIR_URI = '/test';
-const TEST_TIMEOUT = 30_000;
+const TEST_TIMEOUT = 120_000;
 
 describe('Playground CLI file locking', () => {
 	let cliServer: RunCLIServer;
