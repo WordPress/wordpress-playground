@@ -5,33 +5,9 @@ import { mkdtempSync } from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 
-const TEST_DIR = '/test';
-const SCRIPT_RUNNER_HTTP_PATH = '/__cli-file-locking/script-runner.php';
-const SCRIPT_RUNNER_VFS_PATH = `/wordpress${SCRIPT_RUNNER_HTTP_PATH}`;
-const SCRIPT_RUNNER_DIR = '/wordpress/__cli-file-locking';
-const TEST_TIMEOUT = 120_000;
-
-const SCRIPT_RUNNER_SOURCE = `<?php
-declare(strict_types=1);
-$script = $_GET['script'] ?? '';
-if ($script === '') {
-	http_response_code(400);
-	echo 'Missing script parameter';
-	return;
-}
-if (!preg_match('/^[A-Za-z0-9_-]+$/', $script)) {
-	http_response_code(400);
-	echo 'Invalid script name';
-	return;
-}
-$scriptPath = '${TEST_DIR}/' . $script . '.php';
-if (!file_exists($scriptPath)) {
-	http_response_code(404);
-	echo 'Script not found';
-	return;
-}
-require $scriptPath;
-`;
+const TEST_DIR = '/wordpress/test';
+const TEST_DIR_URI = '/test';
+const TEST_TIMEOUT = 30_000;
 
 describe('Playground CLI file locking', () => {
 	let cliServer: RunCLIServer;
@@ -51,7 +27,6 @@ describe('Playground CLI file locking', () => {
 				},
 			],
 		});
-		await prepareScriptRunner();
 	}, TEST_TIMEOUT);
 
 	afterAll(async () => {
@@ -60,56 +35,37 @@ describe('Playground CLI file locking', () => {
 		}
 	});
 
-	async function prepareScriptRunner() {
-		await ensureDir(TEST_DIR);
-		await ensureDir(SCRIPT_RUNNER_DIR);
-		await cliServer.playground.writeFile(
-			SCRIPT_RUNNER_VFS_PATH,
-			SCRIPT_RUNNER_SOURCE
-		);
+	function writeScript(script: string, content: string): Promise<void> {
+		return cliServer.playground.writeFile(`${TEST_DIR}/${script}`, content);
 	}
 
-	async function ensureDir(path: string) {
-		try {
-			await cliServer.playground.mkdir(path);
-		} catch (error) {
-			const message =
-				error instanceof Error ? error.message : String(error);
-			if (!/exists/i.test(message)) {
-				throw error;
-			}
-		}
-	}
-
-	function scriptUrl(scriptName: string) {
-		const url = new URL(SCRIPT_RUNNER_HTTP_PATH, cliServer.serverUrl);
-		url.searchParams.set('script', scriptName);
-		return url;
-	}
-
-	async function seedSqliteDatabase(dbFilePath: string) {
-		const seedScript = `${randomUUID()}-seed`;
-		await cliServer.playground.writeFile(
-			`${TEST_DIR}/${seedScript}.php`,
-			`<?php
-			ob_start();
-			$db = new SQLite3('${dbFilePath}');
-			$result = $db->exec('CREATE TABLE test (id INTEGER PRIMARY KEY, name TEXT)');
-			if ($result === false) {
-				ob_clean();
-				echo json_encode(['error' => $db->lastErrorMsg()]);
-				exit(1);
-			}
-			$db->close();
-			echo 'ok';
-			`
-		);
-		const seedResponse = await fetch(scriptUrl(seedScript));
-		expect(seedResponse.status).toBe(200);
-		expect((await seedResponse.text()).trim()).toBe('ok');
+	function fetchScript(script: string): Promise<Response> {
+		return fetch(new URL(`${TEST_DIR_URI}/${script}`, cliServer.serverUrl));
 	}
 
 	describe('SQLite DB locking (relying upon fcntl())', () => {
+		async function seedSqliteDatabase(dbFilePath: string) {
+			const seedScript = `${randomUUID()}-seed.php`;
+			await writeScript(
+				seedScript,
+				`<?php
+				ob_start();
+				$db = new SQLite3('${dbFilePath}');
+				$result = $db->exec('CREATE TABLE test (id INTEGER PRIMARY KEY, name TEXT)');
+				if ($result === false) {
+					ob_clean();
+					echo json_encode(['error' => $db->lastErrorMsg()]);
+					exit(1);
+				}
+				$db->close();
+				echo 'ok';
+				`
+			);
+			const seedResponse = await fetchScript(seedScript);
+			expect(seedResponse.status).toBe(200);
+			expect((await seedResponse.text()).trim()).toBe('ok');
+		}
+
 		it(
 			'cannot write to DB while another process has an exclusive lock',
 			async () => {
@@ -123,9 +79,9 @@ describe('Playground CLI file locking', () => {
 
 				await seedSqliteDatabase(dbFilePath);
 
-				const php1Script = `${testId}-exclusive-locker`;
-				await cliServer.playground.writeFile(
-					`${TEST_DIR}/${php1Script}.php`,
+				const php1Script = `${testId}-exclusive-locker.php`;
+				await writeScript(
+					php1Script,
 					`<?php
 					$db = new SQLite3('${dbFilePath}');
 					$db->exec('BEGIN EXCLUSIVE;');
@@ -142,14 +98,14 @@ describe('Playground CLI file locking', () => {
 					`
 				);
 
-				const php2Script = `${testId}-exclusive-contender`;
-				await cliServer.playground.writeFile(
-					`${TEST_DIR}/${php2Script}.php`,
+				const php2Script = `${testId}-exclusive-contender.php`;
+				await writeScript(
+					php2Script,
 					`<?php
-				ob_start();
-				while (file_get_contents('${coordinationFile}') !== 'php1-locked') {
-					usleep(100 * 1000);
-				}
+					ob_start();
+					while (file_get_contents('${coordinationFile}') !== 'php1-locked') {
+						usleep(100 * 1000);
+					}
 
 					$db = new SQLite3('${dbFilePath}');
 					$db->exec('INSERT INTO test (name) VALUES ("test-while-locked")');
@@ -179,8 +135,8 @@ describe('Playground CLI file locking', () => {
 				);
 
 				const [php1Response, php2Response] = await Promise.all([
-					fetch(scriptUrl(php1Script)),
-					fetch(scriptUrl(php2Script)),
+					fetchScript(php1Script),
+					fetchScript(php2Script),
 				]);
 				expect(php1Response.status).toBe(200);
 				expect(php2Response.status).toBe(200);
@@ -217,9 +173,9 @@ describe('Playground CLI file locking', () => {
 
 				await seedSqliteDatabase(dbFilePath);
 
-				const php1Script = `${testId}-exclusive-reader-locker`;
-				await cliServer.playground.writeFile(
-					`${TEST_DIR}/${php1Script}.php`,
+				const php1Script = `${testId}-exclusive-reader-locker.php`;
+				await writeScript(
+					php1Script,
 					`<?php
 					$db = new SQLite3('${dbFilePath}');
 					$db->exec('BEGIN EXCLUSIVE;');
@@ -236,14 +192,14 @@ describe('Playground CLI file locking', () => {
 					`
 				);
 
-				const php2Script = `${testId}-exclusive-reader`;
-				await cliServer.playground.writeFile(
-					`${TEST_DIR}/${php2Script}.php`,
+				const php2Script = `${testId}-exclusive-reader.php`;
+				await writeScript(
+					php2Script,
 					`<?php
-				ob_start();
-				while (file_get_contents('${coordinationFile}') !== '${stages.waitingForPhp2}') {
-					usleep(100 * 1000);
-				}
+					ob_start();
+					while (file_get_contents('${coordinationFile}') !== '${stages.waitingForPhp2}') {
+						usleep(100 * 1000);
+					}
 
 					$db = new SQLite3('${dbFilePath}');
 					$db->querySingle('SELECT COUNT(*) FROM test');
@@ -273,8 +229,8 @@ describe('Playground CLI file locking', () => {
 				);
 
 				const [php1Response, php2Response] = await Promise.all([
-					fetch(scriptUrl(php1Script)),
-					fetch(scriptUrl(php2Script)),
+					fetchScript(php1Script),
+					fetchScript(php2Script),
 				]);
 				expect(php1Response.status).toBe(200);
 				expect(php2Response.status).toBe(200);
@@ -311,9 +267,9 @@ describe('Playground CLI file locking', () => {
 
 				await seedSqliteDatabase(dbFilePath);
 
-				const php1Script = `${testId}-shared-locker`;
-				await cliServer.playground.writeFile(
-					`${TEST_DIR}/${php1Script}.php`,
+				const php1Script = `${testId}-shared-locker.php`;
+				await writeScript(
+					php1Script,
 					`<?php
 					$db = new SQLite3('${dbFilePath}');
 					$db->exec('BEGIN;');
@@ -330,14 +286,14 @@ describe('Playground CLI file locking', () => {
 					`
 				);
 
-				const php2Script = `${testId}-shared-writer`;
-				await cliServer.playground.writeFile(
-					`${TEST_DIR}/${php2Script}.php`,
+				const php2Script = `${testId}-shared-writer.php`;
+				await writeScript(
+					php2Script,
 					`<?php
-				ob_start();
-				while (file_get_contents('${coordinationFile}') !== '${stages.waitingForPhp2}') {
-					usleep(100 * 1000);
-				}
+					ob_start();
+					while (file_get_contents('${coordinationFile}') !== '${stages.waitingForPhp2}') {
+						usleep(100 * 1000);
+					}
 
 					$db = new SQLite3('${dbFilePath}');
 					$db->exec('INSERT INTO test (name) VALUES ("test-while-shared-locked")');
@@ -367,8 +323,8 @@ describe('Playground CLI file locking', () => {
 				);
 
 				const [php1Response, php2Response] = await Promise.all([
-					fetch(scriptUrl(php1Script)),
-					fetch(scriptUrl(php2Script)),
+					fetchScript(php1Script),
+					fetchScript(php2Script),
 				]);
 				expect(php1Response.status).toBe(200);
 				expect(php2Response.status).toBe(200);
@@ -405,9 +361,9 @@ describe('Playground CLI file locking', () => {
 
 				await seedSqliteDatabase(dbFilePath);
 
-				const php1Script = `${testId}-shared-reader-locker`;
-				await cliServer.playground.writeFile(
-					`${TEST_DIR}/${php1Script}.php`,
+				const php1Script = `${testId}-shared-reader-locker.php`;
+				await writeScript(
+					php1Script,
 					`<?php
 					$db = new SQLite3('${dbFilePath}');
 					$db->exec('BEGIN;');
@@ -424,14 +380,14 @@ describe('Playground CLI file locking', () => {
 					`
 				);
 
-				const php2Script = `${testId}-shared-reader`;
-				await cliServer.playground.writeFile(
-					`${TEST_DIR}/${php2Script}.php`,
+				const php2Script = `${testId}-shared-reader.php`;
+				await writeScript(
+					php2Script,
 					`<?php
-				ob_start();
-				while (file_get_contents('${coordinationFile}') !== '${stages.waitingForPhp2}') {
-					usleep(100 * 1000);
-				}
+					ob_start();
+					while (file_get_contents('${coordinationFile}') !== '${stages.waitingForPhp2}') {
+						usleep(100 * 1000);
+					}
 
 					$db = new SQLite3('${dbFilePath}');
 					$result = $db->querySingle('SELECT COUNT(*) FROM test');
@@ -463,8 +419,8 @@ describe('Playground CLI file locking', () => {
 				);
 
 				const [php1Response, php2Response] = await Promise.all([
-					fetch(scriptUrl(php1Script)),
-					fetch(scriptUrl(php2Script)),
+					fetchScript(php1Script),
+					fetchScript(php2Script),
 				]);
 				expect(php1Response.status).toBe(200);
 				expect(php2Response.status).toBe(200);
@@ -501,9 +457,9 @@ describe('Playground CLI file locking', () => {
 
 				await seedSqliteDatabase(dbFilePath);
 
-				const php1Script = `${testId}-shared-exit-locker`;
-				await cliServer.playground.writeFile(
-					`${TEST_DIR}/${php1Script}.php`,
+				const php1Script = `${testId}-shared-exit-locker.php`;
+				await writeScript(
+					php1Script,
 					`<?php
 					$db = new SQLite3('${dbFilePath}');
 					$db->exec('BEGIN;');
@@ -518,14 +474,14 @@ describe('Playground CLI file locking', () => {
 					`
 				);
 
-				const php2Script = `${testId}-shared-exit-writer`;
-				await cliServer.playground.writeFile(
-					`${TEST_DIR}/${php2Script}.php`,
+				const php2Script = `${testId}-shared-exit-writer.php`;
+				await writeScript(
+					php2Script,
 					`<?php
-				ob_start();
-				while (file_get_contents('${coordinationFile}') !== '${stages.php1Locked}') {
-					usleep(100 * 1000);
-				}
+					ob_start();
+					while (file_get_contents('${coordinationFile}') !== '${stages.php1Locked}') {
+						usleep(100 * 1000);
+					}
 
 					$db = new SQLite3('${dbFilePath}');
 					$db->exec('INSERT INTO test (name) VALUES ("test-after-termination")');
@@ -554,8 +510,8 @@ describe('Playground CLI file locking', () => {
 					`
 				);
 
-				const php1ResponsePromise = fetch(scriptUrl(php1Script));
-				const php2ResponsePromise = fetch(scriptUrl(php2Script));
+				const php1ResponsePromise = fetchScript(php1Script);
+				const php2ResponsePromise = fetchScript(php2Script);
 
 				const php1Response = await php1ResponsePromise;
 				expect(php1Response.status).toBe(200);
@@ -599,9 +555,9 @@ describe('Playground CLI file locking', () => {
 
 				await seedSqliteDatabase(dbFilePath);
 
-				const php1Script = `${testId}-exclusive-exit-locker`;
-				await cliServer.playground.writeFile(
-					`${TEST_DIR}/${php1Script}.php`,
+				const php1Script = `${testId}-exclusive-exit-locker.php`;
+				await writeScript(
+					php1Script,
 					`<?php
 					$db = new SQLite3('${dbFilePath}');
 					$db->exec('BEGIN EXCLUSIVE;');
@@ -616,14 +572,14 @@ describe('Playground CLI file locking', () => {
 					`
 				);
 
-				const php2Script = `${testId}-exclusive-exit-writer`;
-				await cliServer.playground.writeFile(
-					`${TEST_DIR}/${php2Script}.php`,
+				const php2Script = `${testId}-exclusive-exit-writer.php`;
+				await writeScript(
+					php2Script,
 					`<?php
-				ob_start();
-				while (file_get_contents('${coordinationFile}') !== '${stages.php1Locked}') {
-					usleep(100 * 1000);
-				}
+					ob_start();
+					while (file_get_contents('${coordinationFile}') !== '${stages.php1Locked}') {
+						usleep(100 * 1000);
+					}
 
 					$db = new SQLite3('${dbFilePath}');
 					$db->exec('INSERT INTO test (name) VALUES ("test-after-termination")');
@@ -652,8 +608,8 @@ describe('Playground CLI file locking', () => {
 					`
 				);
 
-				const php1ResponsePromise = fetch(scriptUrl(php1Script));
-				const php2ResponsePromise = fetch(scriptUrl(php2Script));
+				const php1ResponsePromise = fetchScript(php1Script);
+				const php2ResponsePromise = fetchScript(php2Script);
 
 				const php1Response = await php1ResponsePromise;
 				expect(php1Response.status).toBe(200);
@@ -697,9 +653,9 @@ describe('Playground CLI file locking', () => {
 
 				await seedSqliteDatabase(dbFilePath);
 
-				const php1Script = `${testId}-close-connection-locker`;
-				await cliServer.playground.writeFile(
-					`${TEST_DIR}/${php1Script}.php`,
+				const php1Script = `${testId}-close-connection-locker.php`;
+				await writeScript(
+					php1Script,
 					`<?php
 					$db = new SQLite3('${dbFilePath}');
 					$db->exec('BEGIN EXCLUSIVE;');
@@ -719,14 +675,14 @@ describe('Playground CLI file locking', () => {
 					`
 				);
 
-				const php2Script = `${testId}-close-connection-writer`;
-				await cliServer.playground.writeFile(
-					`${TEST_DIR}/${php2Script}.php`,
+				const php2Script = `${testId}-close-connection-writer.php`;
+				await writeScript(
+					php2Script,
 					`<?php
-				ob_start();
-				while (file_get_contents('${coordinationFile}') !== '${stages.waitingForPhp2}') {
-					usleep(100 * 1000);
-				}
+					ob_start();
+					while (file_get_contents('${coordinationFile}') !== '${stages.waitingForPhp2}') {
+						usleep(100 * 1000);
+					}
 
 					$db = new SQLite3('${dbFilePath}');
 					$db->exec('INSERT INTO test (name) VALUES ("test-while-locked")');
@@ -757,8 +713,8 @@ describe('Playground CLI file locking', () => {
 				);
 
 				const [php1Response, php2Response] = await Promise.all([
-					fetch(scriptUrl(php1Script)),
-					fetch(scriptUrl(php2Script)),
+					fetchScript(php1Script),
+					fetchScript(php2Script),
 				]);
 				expect(php1Response.status).toBe(200);
 				expect(php2Response.status).toBe(200);
@@ -783,9 +739,9 @@ describe('Playground CLI file locking', () => {
 			async () => {
 				const testId = randomUUID();
 				const testFilePath = `${TEST_DIR}/${testId}-exclusive.txt`;
-				const scriptName = `${testId}-exclusive-lock`;
-				await cliServer.playground.writeFile(
-					`${TEST_DIR}/${scriptName}.php`,
+				const scriptName = `${testId}-exclusive-lock.php`;
+				await writeScript(
+					scriptName,
 					`<?php
 				ob_start();
 				$fp = fopen('${testFilePath}', 'w');
@@ -801,7 +757,7 @@ describe('Playground CLI file locking', () => {
 				]);
 				`
 				);
-				const response = await fetch(scriptUrl(scriptName));
+				const response = await fetchScript(scriptName);
 				expect(response.status).toBe(200);
 				const text = await response.text();
 				const data = text ? JSON.parse(text) : {};
@@ -820,9 +776,9 @@ describe('Playground CLI file locking', () => {
 					testFilePath,
 					'test content'
 				);
-				const scriptName = `${testId}-shared-lock`;
-				await cliServer.playground.writeFile(
-					`${TEST_DIR}/${scriptName}.php`,
+				const scriptName = `${testId}-shared-lock.php`;
+				await writeScript(
+					scriptName,
 					`<?php
 				ob_start();
 				$fp = fopen('${testFilePath}', 'r+');
@@ -844,7 +800,7 @@ describe('Playground CLI file locking', () => {
 				]);
 				`
 				);
-				const response = await fetch(scriptUrl(scriptName));
+				const response = await fetchScript(scriptName);
 				expect(response.status).toBe(200);
 				const text = await response.text();
 				const data = text ? JSON.parse(text) : {};
@@ -869,9 +825,9 @@ describe('Playground CLI file locking', () => {
 					'php1-locking'
 				);
 
-				const php1Script = `${testId}-shared-holder`;
-				await cliServer.playground.writeFile(
-					`${TEST_DIR}/${php1Script}.php`,
+				const php1Script = `${testId}-shared-holder.php`;
+				await writeScript(
+					php1Script,
 					`<?php
 					$fp = fopen('${testFilePath}', 'r+');
 					flock($fp, LOCK_SH | LOCK_NB);
@@ -887,14 +843,14 @@ describe('Playground CLI file locking', () => {
 					`
 				);
 
-				const php2Script = `${testId}-exclusive-contender`;
-				await cliServer.playground.writeFile(
-					`${TEST_DIR}/${php2Script}.php`,
+				const php2Script = `${testId}-exclusive-contender.php`;
+				await writeScript(
+					php2Script,
 					`<?php
-				ob_start();
-				while (file_get_contents('${coordinationFile}') !== 'php1-waiting-for-php2-to-try') {
-					usleep(100 * 1000);
-				}
+					ob_start();
+					while (file_get_contents('${coordinationFile}') !== 'php1-waiting-for-php2-to-try') {
+						usleep(100 * 1000);
+					}
 
 					$fp = fopen('${testFilePath}', 'r+');
 					$lockResult = flock($fp, LOCK_EX | LOCK_NB);
@@ -926,8 +882,8 @@ describe('Playground CLI file locking', () => {
 				);
 
 				const [sharedResponse, exclusiveResponse] = await Promise.all([
-					fetch(scriptUrl(php1Script)),
-					fetch(scriptUrl(php2Script)),
+					fetchScript(php1Script),
+					fetchScript(php2Script),
 				]);
 				expect(sharedResponse.status).toBe(200);
 				expect(exclusiveResponse.status).toBe(200);
@@ -956,9 +912,9 @@ describe('Playground CLI file locking', () => {
 					'php1-locking'
 				);
 
-				const php1Script = `${testId}-exclusive-holder`;
-				await cliServer.playground.writeFile(
-					`${TEST_DIR}/${php1Script}.php`,
+				const php1Script = `${testId}-exclusive-holder.php`;
+				await writeScript(
+					php1Script,
 					`<?php
 					$fp = fopen('${testFilePath}', 'r+');
 					flock($fp, LOCK_EX | LOCK_NB);
@@ -974,14 +930,14 @@ describe('Playground CLI file locking', () => {
 					`
 				);
 
-				const php2Script = `${testId}-shared-contender`;
-				await cliServer.playground.writeFile(
-					`${TEST_DIR}/${php2Script}.php`,
+				const php2Script = `${testId}-shared-contender.php`;
+				await writeScript(
+					php2Script,
 					`<?php
-				ob_start();
-				while (file_get_contents('${coordinationFile}') !== 'php1-waiting-for-php2-to-try') {
-					usleep(100 * 1000);
-				}
+					ob_start();
+					while (file_get_contents('${coordinationFile}') !== 'php1-waiting-for-php2-to-try') {
+						usleep(100 * 1000);
+					}
 
 					$fp = fopen('${testFilePath}', 'r+');
 					$lockResult = flock($fp, LOCK_SH | LOCK_NB);
@@ -1013,8 +969,8 @@ describe('Playground CLI file locking', () => {
 				);
 
 				const [exclusiveResponse, sharedResponse] = await Promise.all([
-					fetch(scriptUrl(php1Script)),
-					fetch(scriptUrl(php2Script)),
+					fetchScript(php1Script),
+					fetchScript(php2Script),
 				]);
 				expect(exclusiveResponse.status).toBe(200);
 				expect(sharedResponse.status).toBe(200);
@@ -1043,13 +999,13 @@ describe('Playground CLI file locking', () => {
 					'php1-locking'
 				);
 
-				const php1Script = `${testId}-shared-one`;
-				await cliServer.playground.writeFile(
-					`${TEST_DIR}/${php1Script}.php`,
+				const php1Script = `${testId}-shared-one.php`;
+				await writeScript(
+					php1Script,
 					`<?php
-				ob_start();
-				$fp = fopen('${testFilePath}', 'r+');
-				$lockResult = flock($fp, LOCK_SH | LOCK_NB);
+					ob_start();
+					$fp = fopen('${testFilePath}', 'r+');
+					$lockResult = flock($fp, LOCK_SH | LOCK_NB);
 
 					file_put_contents('${coordinationFile}', 'php1-locked');
 					while (file_get_contents('${coordinationFile}') !== 'php3-can-unlock') {
@@ -1063,14 +1019,14 @@ describe('Playground CLI file locking', () => {
 					`
 				);
 
-				const php2Script = `${testId}-shared-two`;
-				await cliServer.playground.writeFile(
-					`${TEST_DIR}/${php2Script}.php`,
+				const php2Script = `${testId}-shared-two.php`;
+				await writeScript(
+					php2Script,
 					`<?php
-				ob_start();
-				while (file_get_contents('${coordinationFile}') !== 'php1-locked') {
-					usleep(100 * 1000);
-				}
+					ob_start();
+					while (file_get_contents('${coordinationFile}') !== 'php1-locked') {
+						usleep(100 * 1000);
+					}
 
 					$fp = fopen('${testFilePath}', 'r+');
 					$lockResult = flock($fp, LOCK_SH | LOCK_NB);
@@ -1089,14 +1045,14 @@ describe('Playground CLI file locking', () => {
 					`
 				);
 
-				const php3Script = `${testId}-shared-three`;
-				await cliServer.playground.writeFile(
-					`${TEST_DIR}/${php3Script}.php`,
+				const php3Script = `${testId}-shared-three.php`;
+				await writeScript(
+					php3Script,
 					`<?php
-				ob_start();
-				while (file_get_contents('${coordinationFile}') !== 'php2-locked') {
-					usleep(100 * 1000);
-				}
+					ob_start();
+					while (file_get_contents('${coordinationFile}') !== 'php2-locked') {
+						usleep(100 * 1000);
+					}
 
 					$fp = fopen('${testFilePath}', 'r+');
 					$lockResult = flock($fp, LOCK_SH | LOCK_NB);
@@ -1112,9 +1068,9 @@ describe('Playground CLI file locking', () => {
 				);
 
 				const [resp1, resp2, resp3] = await Promise.all([
-					fetch(scriptUrl(php1Script)),
-					fetch(scriptUrl(php2Script)),
-					fetch(scriptUrl(php3Script)),
+					fetchScript(php1Script),
+					fetchScript(php2Script),
+					fetchScript(php3Script),
 				]);
 				expect(resp1.status).toBe(200);
 				expect(resp2.status).toBe(200);
@@ -1141,9 +1097,9 @@ describe('Playground CLI file locking', () => {
 					'php1-locking'
 				);
 
-				const php1Script = `${testId}-shared-close-locker`;
-				await cliServer.playground.writeFile(
-					`${TEST_DIR}/${php1Script}.php`,
+				const php1Script = `${testId}-shared-close-locker.php`;
+				await writeScript(
+					php1Script,
 					`<?php
 					$fp = fopen('${testFilePath}', 'r+');
 					flock($fp, LOCK_SH | LOCK_NB);
@@ -1162,14 +1118,14 @@ describe('Playground CLI file locking', () => {
 					`
 				);
 
-				const php2Script = `${testId}-shared-close-contender`;
-				await cliServer.playground.writeFile(
-					`${TEST_DIR}/${php2Script}.php`,
+				const php2Script = `${testId}-shared-close-contender.php`;
+				await writeScript(
+					php2Script,
 					`<?php
-				ob_start();
-				while (file_get_contents('${coordinationFile}') !== 'php1-waiting-for-php2-to-try') {
-					usleep(100 * 1000);
-				}
+					ob_start();
+					while (file_get_contents('${coordinationFile}') !== 'php1-waiting-for-php2-to-try') {
+						usleep(100 * 1000);
+					}
 
 					$fp = fopen('${testFilePath}', 'r+');
 					$lockResult = flock($fp, LOCK_EX | LOCK_NB);
@@ -1202,8 +1158,8 @@ describe('Playground CLI file locking', () => {
 				);
 
 				const [sharedResponse, exclusiveResponse] = await Promise.all([
-					fetch(scriptUrl(php1Script)),
-					fetch(scriptUrl(php2Script)),
+					fetchScript(php1Script),
+					fetchScript(php2Script),
 				]);
 				expect(sharedResponse.status).toBe(200);
 				expect(exclusiveResponse.status).toBe(200);
@@ -1230,9 +1186,9 @@ describe('Playground CLI file locking', () => {
 					'php1-locking'
 				);
 
-				const php1Script = `${testId}-exclusive-close-locker`;
-				await cliServer.playground.writeFile(
-					`${TEST_DIR}/${php1Script}.php`,
+				const php1Script = `${testId}-exclusive-close-locker.php`;
+				await writeScript(
+					php1Script,
 					`<?php
 					$fp = fopen('${testFilePath}', 'r+');
 					flock($fp, LOCK_EX | LOCK_NB);
@@ -1251,14 +1207,14 @@ describe('Playground CLI file locking', () => {
 					`
 				);
 
-				const php2Script = `${testId}-shared-after-close`;
-				await cliServer.playground.writeFile(
-					`${TEST_DIR}/${php2Script}.php`,
+				const php2Script = `${testId}-shared-after-close.php`;
+				await writeScript(
+					php2Script,
 					`<?php
-				ob_start();
-				while (file_get_contents('${coordinationFile}') !== 'php1-waiting-for-php2-to-try') {
-					usleep(100 * 1000);
-				}
+					ob_start();
+					while (file_get_contents('${coordinationFile}') !== 'php1-waiting-for-php2-to-try') {
+						usleep(100 * 1000);
+					}
 
 					$fp = fopen('${testFilePath}', 'r+');
 					$lockResult = flock($fp, LOCK_SH | LOCK_NB);
@@ -1291,8 +1247,8 @@ describe('Playground CLI file locking', () => {
 				);
 
 				const [exclusiveResponse, sharedResponse] = await Promise.all([
-					fetch(scriptUrl(php1Script)),
-					fetch(scriptUrl(php2Script)),
+					fetchScript(php1Script),
+					fetchScript(php2Script),
 				]);
 				expect(exclusiveResponse.status).toBe(200);
 				expect(sharedResponse.status).toBe(200);
@@ -1319,9 +1275,9 @@ describe('Playground CLI file locking', () => {
 					'php1-locking'
 				);
 
-				const php1Script = `${testId}-shared-owner-exit`;
-				await cliServer.playground.writeFile(
-					`${TEST_DIR}/${php1Script}.php`,
+				const php1Script = `${testId}-shared-owner-exit.php`;
+				await writeScript(
+					php1Script,
 					`<?php
 					$fp = fopen('${testFilePath}', 'r+');
 					flock($fp, LOCK_SH | LOCK_NB);
@@ -1333,14 +1289,14 @@ describe('Playground CLI file locking', () => {
 					`
 				);
 
-				const php2Script = `${testId}-exclusive-after-shared-exit`;
-				await cliServer.playground.writeFile(
-					`${TEST_DIR}/${php2Script}.php`,
+				const php2Script = `${testId}-exclusive-after-shared-exit.php`;
+				await writeScript(
+					php2Script,
 					`<?php
-				ob_start();
-				while (file_get_contents('${coordinationFile}') !== 'php1-locked') {
-					usleep(100 * 1000);
-				}
+					ob_start();
+					while (file_get_contents('${coordinationFile}') !== 'php1-locked') {
+						usleep(100 * 1000);
+					}
 
 					$fp = fopen('${testFilePath}', 'r+');
 					$lockResult = flock($fp, LOCK_EX | LOCK_NB);
@@ -1363,8 +1319,8 @@ describe('Playground CLI file locking', () => {
 				);
 
 				const [sharedResponse, exclusiveResponse] = await Promise.all([
-					fetch(scriptUrl(php1Script)),
-					fetch(scriptUrl(php2Script)),
+					fetchScript(php1Script),
+					fetchScript(php2Script),
 				]);
 				expect(sharedResponse.status).toBe(200);
 				expect(exclusiveResponse.status).toBe(200);
@@ -1391,9 +1347,9 @@ describe('Playground CLI file locking', () => {
 					'php1-locking'
 				);
 
-				const php1Script = `${testId}-exclusive-owner-exit`;
-				await cliServer.playground.writeFile(
-					`${TEST_DIR}/${php1Script}.php`,
+				const php1Script = `${testId}-exclusive-owner-exit.php`;
+				await writeScript(
+					php1Script,
 					`<?php
 					$fp = fopen('${testFilePath}', 'r+');
 					flock($fp, LOCK_EX | LOCK_NB);
@@ -1405,14 +1361,14 @@ describe('Playground CLI file locking', () => {
 					`
 				);
 
-				const php2Script = `${testId}-shared-after-exclusive-exit`;
-				await cliServer.playground.writeFile(
-					`${TEST_DIR}/${php2Script}.php`,
+				const php2Script = `${testId}-shared-after-exclusive-exit.php`;
+				await writeScript(
+					php2Script,
 					`<?php
-				ob_start();
-				while (file_get_contents('${coordinationFile}') !== 'php1-locked') {
-					usleep(100 * 1000);
-				}
+					ob_start();
+					while (file_get_contents('${coordinationFile}') !== 'php1-locked') {
+						usleep(100 * 1000);
+					}
 
 					$fp = fopen('${testFilePath}', 'r+');
 					$lockResult = flock($fp, LOCK_SH | LOCK_NB);
@@ -1435,8 +1391,8 @@ describe('Playground CLI file locking', () => {
 				);
 
 				const [exclusiveResponse, sharedResponse] = await Promise.all([
-					fetch(scriptUrl(php1Script)),
-					fetch(scriptUrl(php2Script)),
+					fetchScript(php1Script),
+					fetchScript(php2Script),
 				]);
 				expect(exclusiveResponse.status).toBe(200);
 				expect(sharedResponse.status).toBe(200);
