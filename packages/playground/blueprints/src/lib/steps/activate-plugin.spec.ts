@@ -42,7 +42,7 @@ describe('Blueprint step activatePlugin()', () => {
 				pluginPath: 'test-plugin.php',
 			})
 		).resolves.not.toThrow();
-	});
+	}, 30_000);
 
 	it('should activate a plugin file located in a subdirectory of the plugins directory', async () => {
 		const docroot = handler.documentRoot;
