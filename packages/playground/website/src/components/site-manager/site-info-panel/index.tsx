@@ -41,6 +41,7 @@ import {
 } from '@wp-playground/blueprints';
 import { lazy, Suspense, useState, useEffect, useCallback } from 'react';
 import { logger } from '@php-wasm/logger';
+import { SiteDatabasePanel } from '../site-database-panel';
 
 const SiteFileBrowser = lazy(() =>
 	import('../site-file-browser').then((m) => ({ default: m.SiteFileBrowser }))
@@ -125,6 +126,9 @@ export function SiteInfoPanel({
 			}
 		})();
 	}, [site.metadata.originalBlueprint]);
+
+	// Resolve playground URL
+	const [playgroundUrl, setPlaygroundUrl] = useState<string | null>(null);
 
 	// Save the tab when it changes
 	const handleTabSelect = (tabName: string) => {
@@ -212,6 +216,18 @@ export function SiteInfoPanel({
 
 		void playground.documentRoot.then((root) => {
 			setDocumentRoot(root);
+		});
+	}, [playground]);
+
+	// Resolve playground URL
+	useEffect(() => {
+		if (!playground) {
+			setPlaygroundUrl(null);
+			return;
+		}
+
+		void playground.absoluteUrl.then((url) => {
+			setPlaygroundUrl(url);
 		});
 	}, [playground]);
 
@@ -479,6 +495,10 @@ export function SiteInfoPanel({
 								title: 'Blueprint',
 							},
 							{
+								name: 'database',
+								title: 'Database',
+							},
+							{
 								name: 'logs',
 								title: 'Logs',
 							},
@@ -598,6 +618,23 @@ export function SiteInfoPanel({
 											)}
 										/>
 									</Suspense>
+								</div>
+								<div
+									className={classNames(
+										css.tabContents,
+										css.padded,
+										{
+											[css.tabHidden]:
+												tab.name !== 'database',
+										}
+									)}
+									hidden={tab.name !== 'database'}
+								>
+									<SiteDatabasePanel
+										playground={playground}
+										playgroundUrl={playgroundUrl}
+										documentRoot={documentRoot}
+									/>
 								</div>
 								<div
 									className={classNames(
