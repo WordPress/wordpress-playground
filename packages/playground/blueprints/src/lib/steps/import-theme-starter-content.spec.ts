@@ -24,6 +24,11 @@ describe('Blueprint step importThemeStarterContent', () => {
 		php = await handler.getPrimaryPhp();
 	});
 
+	afterEach(async () => {
+		php.exit();
+		await handler[Symbol.asyncDispose]();
+	});
+
 	it('Should import theme starter content', async () => {
 		const docroot = php.documentRoot;
 		// Create a test theme with starter content, Must have at a minimum
