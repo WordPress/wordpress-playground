@@ -121,6 +121,9 @@ import {
 	shouldCacheUrl,
 } from './src/lib/offline-mode-cache';
 
+// @ts-ignore
+import BOOTSTRAP_JS from './iframes-trap.js?raw';
+
 if (!self.document) {
 	// Workaround: vite translates import.meta.url
 	// to document.currentScript which fails inside of
@@ -195,152 +198,62 @@ self.addEventListener('activate', function (event) {
 // sw.ts
 declare const self: ServiceWorkerGlobalScope;
 
-// Derive scope once and use it to build every path.
 const SCOPE = new URL(self.registration.scope).pathname.replace(/\/$/, '');
+const BUCKET = 'iframe-virtual-docs-v1';
 const VIRTUAL_PREFIX = `${SCOPE}/__iframes/`;
 const LOADER_PATH = `${SCOPE}/wp-includes/empty.html`;
 const BOOTSTRAP_URL = `${SCOPE}/__bootstrap/controlled-iframes.js`;
 
-// Paste the compiled JS from controlled-iframes.ts here.
-const BOOTSTRAP_JS = `
-(() => {
-  if ((window).__controlled_iframes__) return;
-  (window).__controlled_iframes__ = true;
-
-  const BUCKET = 'iframe-virtual-docs-v1';
-
-  // Get the SW scope path, reliably. Works in top pages and in loader-created iframes.
-  let scopePath = (document.currentScript)?.dataset.scope || null;
-  const scopePromise = (async () => {
-    if (scopePath) return scopePath.replace(/\\/$/, '');
-    const reg = await navigator.serviceWorker.ready;
-    scopePath = new URL(reg.scope).pathname.replace(/\\/$/, '');
-    return scopePath;
-  })();
-
-  const native = {
-    setAttribute: Element.prototype.setAttribute,
-    src: Object.getOwnPropertyDescriptor(HTMLIFrameElement.prototype, 'src'),
-    srcdoc: Object.getOwnPropertyDescriptor(HTMLIFrameElement.prototype, 'srcdoc'),
-  };
-
-  const uid = () => \`${Date.now().toString(36)}-${Math.random()
-	.toString(36)
-	.slice(2, 10)}\`;
-
-  async function paths() {
-    const scope = await scopePromise;
-    return {
-      VIRTUAL_PREFIX: \`\${scope}/__iframes/\`,
-      LOADER_PATH:    \`\${scope}/wp-includes/empty.html\`,
-    };
-  }
-
-  async function putVirtual(id, html) {
-    const cache = await caches.open(BUCKET);
-    const { VIRTUAL_PREFIX } = await paths();
-    await cache.put(\`${VIRTUAL_PREFIX}\${id}.html\`, new Response(html, {
-      headers: { 'Content-Type': 'text/html; charset=utf-8' }
-    }));
-  }
-
-  async function makeLoaderUrl(id, prettyUrl) {
-    const { LOADER_PATH } = await paths();
-    const qs = new URLSearchParams({ id, base: document.baseURI, url: prettyUrl ?? '' }).toString();
-    return \`${LOADER_PATH}#\${qs}\`;
-  }
-
-  async function rewriteToLoader(iframe, html, prettyUrl) {
-    const id = uid();
-    await putVirtual(id, html);                     // ensure blob exists first
-    const url = await makeLoaderUrl(id, prettyUrl); // then navigate
-    native.src.set.call(iframe, url);
-  }
-
-  async function handleSrcdoc(iframe, html) {
-    await rewriteToLoader(iframe, html);
-  }
-  async function handleDataUrl(iframe, url) {
-    const html = await (await fetch(url)).text();
-    await rewriteToLoader(iframe, html);
-  }
-  async function handleBlobUrl(iframe, url) {
-    const html = await (await fetch(url)).text();
-    await rewriteToLoader(iframe, html);
-  }
-
-  Object.defineProperty(HTMLIFrameElement.prototype, 'srcdoc', {
-    configurable: true,
-    get: native.srcdoc.get.bind(HTMLIFrameElement.prototype),
-    set(value) { 
-	  console.log('srcdoc set', value);
-	  void handleSrcdoc(this, String(value));
-	}
-  });
-
-  Object.defineProperty(HTMLIFrameElement.prototype, 'src', {
-    configurable: true,
-    get: native.src.get.bind(HTMLIFrameElement.prototype),
-    set(value) {
-	  console.log('src set', value);
-      const v = String(value);
-      if (v.startsWith('data:text/html')) { void handleDataUrl(this, v); return; }
-      if (v.startsWith('blob:'))         { void handleBlobUrl(this, v); return; }
-      native.src.set.call(this, v);
-    }
-  });
-
-  Element.prototype.setAttribute = function(name, value) {
-    if (this instanceof HTMLIFrameElement) {
-      const n = name.toLowerCase();
-      const v = String(value);
-      if (n === 'srcdoc') { void handleSrcdoc(this, v); return; }
-      if (n === 'src') {
-        if (v.startsWith('data:text/html')) { void handleDataUrl(this, v); return; }
-        if (v.startsWith('blob:'))         { void handleBlobUrl(this, v); return; }
-      }
-    }
-    return native.setAttribute.call(this, name, value);
-  };
-
-  function process(node) {
-    console.log('process', node);
-    if (node instanceof HTMLIFrameElement) {
-      const sd = node.getAttribute('srcdoc');
-      if (sd != null) { void handleSrcdoc(node, sd); return; }
-      const s = node.getAttribute('src') || '';
-      if (s.startsWith('data:text/html')) { void handleDataUrl(node, s); return; }
-      if (s.startsWith('blob:'))         { void handleBlobUrl(node, s); return; }
-    } else if (node instanceof Element) {
-      node.querySelectorAll('iframe').forEach(process);
-    }
-  }
-
-  process(document.documentElement);
-
-  new MutationObserver(muts => {
-    for (const m of muts) for (const n of m.addedNodes) process(n);
-  }).observe(document.documentElement, { childList: true, subtree: true });
-
-  // Optional: kill the flash while normalizing
-  const style = document.createElement('style');
-  style.textContent = 'iframe{visibility:hidden} iframe[data-controlled="1"]{visibility:visible}';
-  document.documentElement.appendChild(style);
-})();`;
-
 self.addEventListener('install', (e) => e.waitUntil(self.skipWaiting()));
 self.addEventListener('activate', (e) => e.waitUntil(self.clients.claim()));
 
-const LOADER_HTML =
-	`<!doctype html><meta charset="utf-8"><script>
-(async () => {
+const LOADER_HTML = `<!doctype html><meta charset="utf-8">
+<script>
+(() => {
+  // Pass-through write hooks; inject base + agent after the doc closes.
+  const _open = Document.prototype.open;
+  const _write = Document.prototype.write;
+  const _writeln = Document.prototype.writeln;
+  const _close = Document.prototype.close;
+
+  function ensureBaseAndAgent(baseHref, scope, bootstrapUrl) {
+    const safeBase = String(baseHref || location.href).replace(/"/g,'&quot;');
+    if (!document.head) {
+      const h = document.createElement('head');
+      document.documentElement.insertBefore(h, document.documentElement.firstChild);
+    }
+    if (!document.head.querySelector('base')) {
+      const b = document.createElement('base'); b.setAttribute('href', safeBase);
+      document.head.insertBefore(b, document.head.firstChild);
+    }
+    if (![...document.scripts].some(s => s.src.endsWith('/controlled-iframes.js'))) {
+      const s = document.createElement('script');
+      s.type = 'module'; s.src = bootstrapUrl; s.dataset.scope = scope;
+      document.head.appendChild(s);
+    }
+  }
+
+  Document.prototype.open = function() { return _open.apply(this, arguments); };
+  Document.prototype.write = function() { return _write.apply(this, arguments); };
+  Document.prototype.writeln = function() { return _writeln.apply(this, arguments); };
+  Document.prototype.close = function() {
+    const r = _close.apply(this, arguments);
+    Promise.resolve().then(() => ensureBaseAndAgent(window.__loaderBase, window.__loaderScope, window.__bootstrapUrl));
+    return r;
+  };
+
   const qs = new URLSearchParams(location.hash.slice(1));
   const id   = qs.get('id');
   const base = qs.get('base') || '';
   const url  = qs.get('url')  || '';
 
-  // Retry a few times in case the page hasn't finished caches.put yet.
+  // globals used by the close() hook above
+  window.__loaderBase = base;
+  window.__loaderScope = ${JSON.stringify(SCOPE)};
+  window.__bootstrapUrl = ${JSON.stringify(BOOTSTRAP_URL)};
+
   async function fetchVirtual(path) {
+    // Small retry so loader doesn't outrun caches.put()
     for (let i = 0; i < 6; i++) {
       const res = await fetch(path, { cache: 'no-store' });
       if (res.ok) return res;
@@ -349,21 +262,19 @@ const LOADER_HTML =
     return fetch(path, { cache: 'no-store' });
   }
 
-  let html = await (await fetchVirtual('${VIRTUAL_PREFIX}' + id + '.html')).text();
-
-  const safeBase = base.replace(/"/g,'&quot;');
-  const inject = '<base href="' + safeBase + '"><script src="${BOOTSTRAP_URL}" defer data-scope="${SCOPE}" data-controlled-iframes></' + 'script>';
-
-  if (/<head[^>]*>/i.test(html)) {
-    html = html.replace(/<head[^>]*>/i, m => m + inject);
-  } else {
-    html = '<!doctype html><html><head><meta charset="utf-8">' + inject + '</head><body>' + html + '</body></html>';
-  }
-
-  document.open(); document.write(html); document.close();
-  if (url) try { history.replaceState({}, '', url); } catch {}
+  (async () => {
+    let html = '';
+    if (id) {
+      html = await (await fetchVirtual(${JSON.stringify(
+			VIRTUAL_PREFIX
+		)} + id + '.html')).text();
+    }
+    // Write (possibly empty) HTML; our close() hook injects base + agent
+    document.open(); document.write(html); document.close();
+    if (url) try { history.replaceState({}, '', url); } catch {}
+  })();
 })();
-</` + `script>`;
+</script>`;
 
 self.addEventListener('fetch', (event) => {
 	if (!isCurrentServiceWorkerActive()) {
@@ -383,6 +294,7 @@ self.addEventListener('fetch', (event) => {
 		return;
 	}
 
+	// Serve the loader for navigations to LOADER_PATH
 	if (event.request.mode === 'navigate' && url.pathname === LOADER_PATH) {
 		event.respondWith(
 			new Response(LOADER_HTML, {
@@ -392,14 +304,18 @@ self.addEventListener('fetch', (event) => {
 		return;
 	}
 
+	// Serve virtual iframe documents from CacheStorage
 	if (url.pathname.startsWith(VIRTUAL_PREFIX)) {
 		event.respondWith(
 			(async () => {
-				const cache = await caches.open('iframe-virtual-docs-v1');
+				const cache = await caches.open(BUCKET);
 				const match = await cache.match(event.request);
 				return (
 					match ||
-					new Response('<!doctype html>Not found', { status: 404 })
+					new Response('<!doctype html>Not found', {
+						status: 404,
+						headers: { 'Content-Type': 'text/html; charset=utf-8' },
+					})
 				);
 			})()
 		);
@@ -604,16 +520,16 @@ async function handleScopedRequest(event: FetchEvent, scope) {
 		unscopedUrl.pathname.endsWith('/block-editor/index.js') ||
 		unscopedUrl.pathname.endsWith('/block-editor/index.min.js')
 	) {
-		const script = await workerResponse.text();
-		const newScript = `${controlledIframe} ${script.replace(
-			/\(\s*"iframe",/,
-			'(__playground_ControlledIframe,'
-		)}`;
-		return new Response(newScript, {
-			status: workerResponse.status,
-			statusText: workerResponse.statusText,
-			headers: workerResponse.headers,
-		});
+		// const script = await workerResponse.text();
+		// const newScript = `${controlledIframe} ${script.replace(
+		// 	/\(\s*"iframe",/,
+		// 	'(__playground_ControlledIframe,'
+		// )}`;
+		// return new Response(newScript, {
+		// 	status: workerResponse.status,
+		// 	statusText: workerResponse.statusText,
+		// 	headers: workerResponse.headers,
+		// });
 	}
 
 	return workerResponse;
