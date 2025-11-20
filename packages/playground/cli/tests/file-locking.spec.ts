@@ -750,19 +750,19 @@ describe('Playground CLI file locking', () => {
 				await writeScript(
 					scriptName,
 					`<?php
-				ob_start();
-				$fp = fopen('${testFilePath}', 'w');
-				$lockResult = flock($fp, LOCK_EX | LOCK_NB);
-				fwrite($fp, 'test content');
-				flock($fp, LOCK_UN);
-				fclose($fp);
+					ob_start();
+					$fp = fopen('${testFilePath}', 'w');
+					$lockResult = flock($fp, LOCK_EX | LOCK_NB);
+					fwrite($fp, 'test content');
+					flock($fp, LOCK_UN);
+					fclose($fp);
 
-				ob_clean();
-				echo json_encode([
-					'lock_acquired' => $lockResult,
-					'file_contents' => file_get_contents('${testFilePath}'),
-				]);
-				`
+					ob_clean();
+					echo json_encode([
+						'lock_acquired' => $lockResult,
+						'file_contents' => file_get_contents('${testFilePath}'),
+					]);
+					`
 				);
 				const response = await fetchScript(scriptName);
 				expect(response.status).toBe(200);
@@ -787,25 +787,25 @@ describe('Playground CLI file locking', () => {
 				await writeScript(
 					scriptName,
 					`<?php
-				ob_start();
-				$fp = fopen('${testFilePath}', 'r+');
-				if ($fp === false) {
-					ob_clean();
-					echo json_encode(['error' => 'Failed to open file']);
-					exit(1);
-				}
-				$lockResult = flock($fp, LOCK_SH | LOCK_NB);
-				fseek($fp, 0);
-				$file_contents = fread($fp, 1024);
-				flock($fp, LOCK_UN);
-				fclose($fp);
+					ob_start();
+					$fp = fopen('${testFilePath}', 'r+');
+					if ($fp === false) {
+						ob_clean();
+						echo json_encode(['error' => 'Failed to open file']);
+						exit(1);
+					}
+					$lockResult = flock($fp, LOCK_SH | LOCK_NB);
+					fseek($fp, 0);
+					$file_contents = fread($fp, 1024);
+					flock($fp, LOCK_UN);
+					fclose($fp);
 
-				ob_clean();
-				echo json_encode([
-					'lock_acquired' => $lockResult,
-					'file_contents' => $file_contents,
-				]);
-				`
+					ob_clean();
+					echo json_encode([
+						'lock_acquired' => $lockResult,
+						'file_contents' => $file_contents,
+					]);
+					`
 				);
 				const response = await fetchScript(scriptName);
 				expect(response.status).toBe(200);
