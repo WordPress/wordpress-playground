@@ -110,8 +110,8 @@ describe('Playground CLI file locking', () => {
 					$db = new SQLite3('${dbFilePath}');
 					$db->exec('INSERT INTO test (name) VALUES ("test-while-locked")');
 					$attempt_while_exclusively_locked = [
-						'lastErrorCode' => $db->lastErrorCode(),
-						'lastErrorMsg' => $db->lastErrorMsg(),
+						'last_error_code' => $db->lastErrorCode(),
+						'last_error_msg' => $db->lastErrorMsg(),
 					];
 
 					file_put_contents('${coordinationFile}', 'php2-ready-for-unlock');
@@ -121,8 +121,8 @@ describe('Playground CLI file locking', () => {
 
 					$db->exec('INSERT INTO test (name) VALUES ("test-while-unlocked")');
 					$attempt_while_unlocked = [
-						'lastErrorCode' => $db->lastErrorCode(),
-						'lastErrorMsg' => $db->lastErrorMsg(),
+						'last_error_code' => $db->lastErrorCode(),
+						'last_error_msg' => $db->lastErrorMsg(),
 					];
 
 					ob_clean();
@@ -143,12 +143,12 @@ describe('Playground CLI file locking', () => {
 				const php2Text = await php2Response.text();
 				const parsed = php2Text ? JSON.parse(php2Text) : {};
 				expect(parsed.attempt_while_exclusively_locked).toMatchObject({
-					lastErrorCode: 5,
-					lastErrorMsg: 'database is locked',
+					last_error_code: 5,
+					last_error_msg: 'database is locked',
 				});
 				expect(parsed.attempt_while_unlocked).toMatchObject({
-					lastErrorCode: 0,
-					lastErrorMsg: 'not an error',
+					last_error_code: 0,
+					last_error_msg: 'not an error',
 				});
 			},
 			TEST_TIMEOUT
@@ -204,8 +204,8 @@ describe('Playground CLI file locking', () => {
 					$db = new SQLite3('${dbFilePath}');
 					$db->querySingle('SELECT COUNT(*) FROM test');
 					$attempt_while_exclusively_locked = [
-						'lastErrorCode' => $db->lastErrorCode(),
-						'lastErrorMsg' => $db->lastErrorMsg(),
+						'last_error_code' => $db->lastErrorCode(),
+						'last_error_msg' => $db->lastErrorMsg(),
 					];
 
 					file_put_contents('${coordinationFile}', '${stages.php2Ready}');
@@ -215,8 +215,8 @@ describe('Playground CLI file locking', () => {
 
 					$db->querySingle('SELECT COUNT(*) FROM test');
 					$attempt_while_unlocked = [
-						'lastErrorCode' => $db->lastErrorCode(),
-						'lastErrorMsg' => $db->lastErrorMsg(),
+						'last_error_code' => $db->lastErrorCode(),
+						'last_error_msg' => $db->lastErrorMsg(),
 					];
 
 					ob_clean();
@@ -237,12 +237,12 @@ describe('Playground CLI file locking', () => {
 				const php2Text = await php2Response.text();
 				const parsed = php2Text ? JSON.parse(php2Text) : {};
 				expect(parsed.attempt_while_exclusively_locked).toMatchObject({
-					lastErrorCode: 5,
-					lastErrorMsg: 'database is locked',
+					last_error_code: 5,
+					last_error_msg: 'database is locked',
 				});
 				expect(parsed.attempt_while_unlocked).toMatchObject({
-					lastErrorCode: 0,
-					lastErrorMsg: 'not an error',
+					last_error_code: 0,
+					last_error_msg: 'not an error',
 				});
 			},
 			TEST_TIMEOUT
@@ -298,8 +298,8 @@ describe('Playground CLI file locking', () => {
 					$db = new SQLite3('${dbFilePath}');
 					$db->exec('INSERT INTO test (name) VALUES ("test-while-shared-locked")');
 					$attempt_while_shared_locked = [
-						'lastErrorCode' => $db->lastErrorCode(),
-						'lastErrorMsg' => $db->lastErrorMsg(),
+						'last_error_code' => $db->lastErrorCode(),
+						'last_error_msg' => $db->lastErrorMsg(),
 					];
 
 					file_put_contents('${coordinationFile}', '${stages.php2Ready}');
@@ -309,8 +309,8 @@ describe('Playground CLI file locking', () => {
 
 					$db->exec('INSERT INTO test (name) VALUES ("test-while-unlocked")');
 					$attempt_while_unlocked = [
-						'lastErrorCode' => $db->lastErrorCode(),
-						'lastErrorMsg' => $db->lastErrorMsg(),
+						'last_error_code' => $db->lastErrorCode(),
+						'last_error_msg' => $db->lastErrorMsg(),
 					];
 
 					ob_clean();
@@ -331,12 +331,12 @@ describe('Playground CLI file locking', () => {
 				const php2Text = await php2Response.text();
 				const parsed = php2Text ? JSON.parse(php2Text) : {};
 				expect(parsed.attempt_while_shared_locked).toMatchObject({
-					lastErrorCode: 5,
-					lastErrorMsg: 'database is locked',
+					last_error_code: 5,
+					last_error_msg: 'database is locked',
 				});
 				expect(parsed.attempt_while_unlocked).toMatchObject({
-					lastErrorCode: 0,
-					lastErrorMsg: 'not an error',
+					last_error_code: 0,
+					last_error_msg: 'not an error',
 				});
 			},
 			TEST_TIMEOUT
@@ -392,8 +392,8 @@ describe('Playground CLI file locking', () => {
 					$db = new SQLite3('${dbFilePath}');
 					$result = $db->querySingle('SELECT COUNT(*) FROM test');
 					$attempt_while_shared_locked = [
-						'lastErrorCode' => $db->lastErrorCode(),
-						'lastErrorMsg' => $db->lastErrorMsg(),
+						'last_error_code' => $db->lastErrorCode(),
+						'last_error_msg' => $db->lastErrorMsg(),
 						'result' => $result,
 					];
 
@@ -404,8 +404,8 @@ describe('Playground CLI file locking', () => {
 
 					$result = $db->querySingle('SELECT COUNT(*) FROM test');
 					$attempt_while_unlocked = [
-						'lastErrorCode' => $db->lastErrorCode(),
-						'lastErrorMsg' => $db->lastErrorMsg(),
+						'last_error_code' => $db->lastErrorCode(),
+						'last_error_msg' => $db->lastErrorMsg(),
 						'result' => $result,
 					];
 
@@ -427,12 +427,12 @@ describe('Playground CLI file locking', () => {
 				const php2Text = await php2Response.text();
 				const parsed = php2Text ? JSON.parse(php2Text) : {};
 				expect(parsed.attempt_while_shared_locked).toMatchObject({
-					lastErrorCode: 0,
-					lastErrorMsg: 'not an error',
+					last_error_code: 0,
+					last_error_msg: 'not an error',
 				});
 				expect(parsed.attempt_while_unlocked).toMatchObject({
-					lastErrorCode: 0,
-					lastErrorMsg: 'not an error',
+					last_error_code: 0,
+					last_error_msg: 'not an error',
 				});
 			},
 			TEST_TIMEOUT
@@ -486,8 +486,8 @@ describe('Playground CLI file locking', () => {
 					$db = new SQLite3('${dbFilePath}');
 					$db->exec('INSERT INTO test (name) VALUES ("test-after-termination")');
 					$attempt_while_locked = [
-						'lastErrorCode' => $db->lastErrorCode(),
-						'lastErrorMsg' => $db->lastErrorMsg(),
+						'last_error_code' => $db->lastErrorCode(),
+						'last_error_msg' => $db->lastErrorMsg(),
 					];
 
 					file_put_contents('${coordinationFile}', '${stages.php2Confirmed}');
@@ -497,8 +497,8 @@ describe('Playground CLI file locking', () => {
 
 					$db->exec('INSERT INTO test (name) VALUES ("test-after-termination")');
 					$attempt_after_exit = [
-						'lastErrorCode' => $db->lastErrorCode(),
-						'lastErrorMsg' => $db->lastErrorMsg(),
+						'last_error_code' => $db->lastErrorCode(),
+						'last_error_msg' => $db->lastErrorMsg(),
 					];
 
 					$db->close();
@@ -515,6 +515,8 @@ describe('Playground CLI file locking', () => {
 
 				const php1Response = await php1ResponsePromise;
 				expect(php1Response.status).toBe(200);
+
+				// Since php1 has exited, signal php2 to proceed.
 				await cliServer.playground.writeFile(
 					coordinationFile,
 					stages.php1End
@@ -525,12 +527,12 @@ describe('Playground CLI file locking', () => {
 				const php2Text = await php2Response.text();
 				const parsed = php2Text ? JSON.parse(php2Text) : {};
 				expect(parsed.attempt_while_locked).toMatchObject({
-					lastErrorCode: 5,
-					lastErrorMsg: 'database is locked',
+					last_error_code: 5,
+					last_error_msg: 'database is locked',
 				});
 				expect(parsed.attempt_after_exit).toMatchObject({
-					lastErrorCode: 0,
-					lastErrorMsg: 'not an error',
+					last_error_code: 0,
+					last_error_msg: 'not an error',
 				});
 			},
 			TEST_TIMEOUT
@@ -584,8 +586,8 @@ describe('Playground CLI file locking', () => {
 					$db = new SQLite3('${dbFilePath}');
 					$db->exec('INSERT INTO test (name) VALUES ("test-after-termination")');
 					$attempt_while_locked = [
-						'lastErrorCode' => $db->lastErrorCode(),
-						'lastErrorMsg' => $db->lastErrorMsg(),
+						'last_error_code' => $db->lastErrorCode(),
+						'last_error_msg' => $db->lastErrorMsg(),
 					];
 
 					file_put_contents('${coordinationFile}', '${stages.php2Confirmed}');
@@ -595,8 +597,8 @@ describe('Playground CLI file locking', () => {
 
 					$db->exec('INSERT INTO test (name) VALUES ("test-after-termination")');
 					$attempt_after_exit = [
-						'lastErrorCode' => $db->lastErrorCode(),
-						'lastErrorMsg' => $db->lastErrorMsg(),
+						'last_error_code' => $db->lastErrorCode(),
+						'last_error_msg' => $db->lastErrorMsg(),
 					];
 
 					$db->close();
@@ -613,6 +615,8 @@ describe('Playground CLI file locking', () => {
 
 				const php1Response = await php1ResponsePromise;
 				expect(php1Response.status).toBe(200);
+
+				// Since php1 has exited, signal php2 to proceed.
 				await cliServer.playground.writeFile(
 					coordinationFile,
 					stages.php1End
@@ -623,12 +627,12 @@ describe('Playground CLI file locking', () => {
 				const php2Text = await php2Response.text();
 				const parsed = php2Text ? JSON.parse(php2Text) : {};
 				expect(parsed.attempt_while_locked).toMatchObject({
-					lastErrorCode: 5,
-					lastErrorMsg: 'database is locked',
+					last_error_code: 5,
+					last_error_msg: 'database is locked',
 				});
 				expect(parsed.attempt_after_exit).toMatchObject({
-					lastErrorCode: 0,
-					lastErrorMsg: 'not an error',
+					last_error_code: 0,
+					last_error_msg: 'not an error',
 				});
 			},
 			TEST_TIMEOUT
@@ -645,6 +649,7 @@ describe('Playground CLI file locking', () => {
 					waitingForPhp2: 'php1-waiting-for-php2-to-try',
 					php2Ready: 'php2-ready-for-unlock',
 					closed: 'php1-closed-db-connection',
+					php2CheckedDbUnlocked: 'php2-checked-db-unlocked',
 				} as const;
 				await cliServer.playground.writeFile(
 					coordinationFile,
@@ -669,7 +674,9 @@ describe('Playground CLI file locking', () => {
 					$db->close();
 					file_put_contents('${coordinationFile}', '${stages.closed}');
 
-					while (file_get_contents('${coordinationFile}') === '${stages.closed}') {
+					// Avoid exiting before php2 has checked that the database is unlocked
+					// to make clear that an unlock did not occur due to php1 exiting.
+					while (file_get_contents('${coordinationFile}') !== '${stages.php2CheckedDbUnlocked}') {
 						usleep(100 * 1000);
 					}
 					`
@@ -687,8 +694,8 @@ describe('Playground CLI file locking', () => {
 					$db = new SQLite3('${dbFilePath}');
 					$db->exec('INSERT INTO test (name) VALUES ("test-while-locked")');
 					$attempt_while_locked = [
-						'lastErrorCode' => $db->lastErrorCode(),
-						'lastErrorMsg' => $db->lastErrorMsg(),
+						'last_error_code' => $db->lastErrorCode(),
+						'last_error_msg' => $db->lastErrorMsg(),
 					];
 
 					file_put_contents('${coordinationFile}', '${stages.php2Ready}');
@@ -698,8 +705,8 @@ describe('Playground CLI file locking', () => {
 
 					$db->exec('INSERT INTO test (name) VALUES ("test-after-fd-closed")');
 					$attempt_after_fd_closed = [
-						'lastErrorCode' => $db->lastErrorCode(),
-						'lastErrorMsg' => $db->lastErrorMsg(),
+						'last_error_code' => $db->lastErrorCode(),
+						'last_error_msg' => $db->lastErrorMsg(),
 					];
 
 					ob_clean();
@@ -708,7 +715,7 @@ describe('Playground CLI file locking', () => {
 						'attempt_after_fd_closed' => $attempt_after_fd_closed,
 					]);
 					$db->close();
-					file_put_contents('${coordinationFile}', 'done');
+					file_put_contents('${coordinationFile}', '${stages.php2CheckedDbUnlocked}');
 					`
 				);
 
@@ -721,12 +728,12 @@ describe('Playground CLI file locking', () => {
 				const php2Text = await php2Response.text();
 				const parsed = php2Text ? JSON.parse(php2Text) : {};
 				expect(parsed.attempt_while_locked).toMatchObject({
-					lastErrorCode: 5,
-					lastErrorMsg: 'database is locked',
+					last_error_code: 5,
+					last_error_msg: 'database is locked',
 				});
 				expect(parsed.attempt_after_fd_closed).toMatchObject({
-					lastErrorCode: 0,
-					lastErrorMsg: 'not an error',
+					last_error_code: 0,
+					last_error_msg: 'not an error',
 				});
 			},
 			TEST_TIMEOUT
