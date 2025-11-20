@@ -157,28 +157,24 @@ describe.only(
 			await cliServer.playground.writeFile(path, contents);
 		}
 
-		describe(
-			'SQLite DB locking (relying upon fcntl())',
-			() => {
-				it(
-					'cannot write to DB while another process has an exclusive lock',
-					async () => {
-						const vfsDbFilePath = `${VFS_TEST_DIR}/${testId}-exclusive.db`;
-						const coordinationFile =
-							await createCoordinationFile('php1-locking');
-						const stages = {
-							php1Locked: 'php1-locked',
-							php2ReadyForUnlock: 'php2-ready-for-unlock',
-							php1Unlocked: 'php1-unlocked',
-						} as const;
+		describe('SQLite DB locking (relying upon fcntl())', () => {
+			it('cannot write to DB while another process has an exclusive lock', async () => {
+				const vfsDbFilePath = `${VFS_TEST_DIR}/${testId}-exclusive.db`;
+				const coordinationFile =
+					await createCoordinationFile('php1-locking');
+				const stages = {
+					php1Locked: 'php1-locked',
+					php2ReadyForUnlock: 'php2-ready-for-unlock',
+					php1Unlocked: 'php1-unlocked',
+				} as const;
 
-						console.log('Seeding SQLite database...');
-						await seedSqliteDatabase(vfsDbFilePath);
+				console.log('Seeding SQLite database...');
+				await seedSqliteDatabase(vfsDbFilePath);
 
-						console.log('Creating PHP1 script...');
-						const php1Script = await createScript(
-							'sqlite-exclusive-locker',
-							`<?php
+				console.log('Creating PHP1 script...');
+				const php1Script = await createScript(
+					'sqlite-exclusive-locker',
+					`<?php
 							$db = new SQLite3('${vfsDbFilePath}');
 							$db->exec('BEGIN EXCLUSIVE;');
 
@@ -192,12 +188,12 @@ describe.only(
 							$db->close();
 							file_put_contents('${coordinationFile}', '${stages.php1Unlocked}');
 						`
-						);
+				);
 
-						console.log('Creating PHP2 script...');
-						const php2Script = await createScript(
-							'sqlite-exclusive-contender',
-							`<?php
+				console.log('Creating PHP2 script...');
+				const php2Script = await createScript(
+					'sqlite-exclusive-contender',
+					`<?php
 							ob_start();
 							while (file_get_contents('${coordinationFile}') !== '${stages.php1Locked}') {
 								usleep(100 * 1000);
@@ -228,53 +224,45 @@ describe.only(
 								'attempt_while_unlocked' => $attempt_while_unlocked,
 							]);
 						`
-						);
-
-						console.log('Running PHP1 script...');
-						console.log('Running PHP2 script...');
-						const [php1Result, php2Result] = await Promise.all([
-							runScript(php1Script),
-							runScript(php2Script),
-						]);
-						expect(php1Result.status).toBe(200);
-						expect(php2Result.status).toBe(200);
-
-						const parsed = php2Result.text
-							? JSON.parse(php2Result.text)
-							: {};
-						expect(
-							parsed.attempt_while_exclusively_locked
-						).toMatchObject({
-							lastErrorCode: 5,
-							lastErrorMsg: 'database is locked',
-						});
-						expect(parsed.attempt_while_unlocked).toMatchObject({
-							lastErrorCode: 0,
-							lastErrorMsg: 'not an error',
-						});
-					},
-					// TODO: Remove individual test timeouts
-					TEST_TIMEOUT
 				);
 
-				it(
-					'cannot read from DB while another process has an exclusive lock',
-					async () => {
-						const dbFilePath = `${VFS_TEST_DIR}/${testId}-exclusive-read.db`;
-						const coordinationFile =
-							await createCoordinationFile('php1-locking');
-						const stages = {
-							php1WaitingForPhp2ToTry:
-								'php1-waiting-for-php2-to-try',
-							php2ReadyForUnlock: 'php2-ready-for-unlock',
-							php1Unlocked: 'php1-unlocked',
-						} as const;
+				console.log('Running PHP1 script...');
+				console.log('Running PHP2 script...');
+				const [php1Result, php2Result] = await Promise.all([
+					runScript(php1Script),
+					runScript(php2Script),
+				]);
+				expect(php1Result.status).toBe(200);
+				expect(php2Result.status).toBe(200);
 
-						await seedSqliteDatabase(dbFilePath);
+				const parsed = php2Result.text
+					? JSON.parse(php2Result.text)
+					: {};
+				expect(parsed.attempt_while_exclusively_locked).toMatchObject({
+					lastErrorCode: 5,
+					lastErrorMsg: 'database is locked',
+				});
+				expect(parsed.attempt_while_unlocked).toMatchObject({
+					lastErrorCode: 0,
+					lastErrorMsg: 'not an error',
+				});
+			});
 
-						const php1Script = await createScript(
-							'sqlite-exclusive-reader-locker',
-							`<?php
+			it('cannot read from DB while another process has an exclusive lock', async () => {
+				const dbFilePath = `${VFS_TEST_DIR}/${testId}-exclusive-read.db`;
+				const coordinationFile =
+					await createCoordinationFile('php1-locking');
+				const stages = {
+					php1WaitingForPhp2ToTry: 'php1-waiting-for-php2-to-try',
+					php2ReadyForUnlock: 'php2-ready-for-unlock',
+					php1Unlocked: 'php1-unlocked',
+				} as const;
+
+				await seedSqliteDatabase(dbFilePath);
+
+				const php1Script = await createScript(
+					'sqlite-exclusive-reader-locker',
+					`<?php
 							ob_start();
 							$db = new SQLite3('${dbFilePath}');
 							$db->exec('BEGIN EXCLUSIVE;');
@@ -289,11 +277,11 @@ describe.only(
 							$db->close();
 							file_put_contents('${coordinationFile}', '${stages.php1Unlocked}');
 						`
-						);
+				);
 
-						const php2Script = await createScript(
-							'sqlite-exclusive-reader',
-							`<?php
+				const php2Script = await createScript(
+					'sqlite-exclusive-reader',
+					`<?php
 							ob_start();
 							while (file_get_contents('${coordinationFile}') !== '${stages.php1WaitingForPhp2ToTry}') {
 								usleep(100 * 1000);
@@ -324,49 +312,42 @@ describe.only(
 								'attempt_while_unlocked' => $attempt_while_unlocked,
 							]);
 						`
-						);
-
-						const [php1Result, php2Result] = await Promise.all([
-							runScript(php1Script),
-							runScript(php2Script),
-						]);
-						expect(php1Result.status).toBe(200);
-						expect(php2Result.status).toBe(200);
-						const parsed = php2Result.text
-							? JSON.parse(php2Result.text)
-							: {};
-						expect(
-							parsed.attempt_while_exclusively_locked
-						).toMatchObject({
-							lastErrorCode: 5,
-							lastErrorMsg: 'database is locked',
-						});
-						expect(parsed.attempt_while_unlocked).toMatchObject({
-							lastErrorCode: 0,
-							lastErrorMsg: 'not an error',
-						});
-					},
-					TEST_TIMEOUT
 				);
 
-				it(
-					'cannot write to DB while another process has a shared lock',
-					async () => {
-						const dbFilePath = `${VFS_TEST_DIR}/${testId}-shared-write.db`;
-						const coordinationFile =
-							await createCoordinationFile('php1-locking');
-						const stages = {
-							php1WaitingForPhp2ToTry:
-								'php1-waiting-for-php2-to-try',
-							php2ReadyForUnlock: 'php2-ready-for-unlock',
-							php1Unlocked: 'php1-unlocked',
-						} as const;
+				const [php1Result, php2Result] = await Promise.all([
+					runScript(php1Script),
+					runScript(php2Script),
+				]);
+				expect(php1Result.status).toBe(200);
+				expect(php2Result.status).toBe(200);
+				const parsed = php2Result.text
+					? JSON.parse(php2Result.text)
+					: {};
+				expect(parsed.attempt_while_exclusively_locked).toMatchObject({
+					lastErrorCode: 5,
+					lastErrorMsg: 'database is locked',
+				});
+				expect(parsed.attempt_while_unlocked).toMatchObject({
+					lastErrorCode: 0,
+					lastErrorMsg: 'not an error',
+				});
+			});
 
-						await seedSqliteDatabase(dbFilePath);
+			it('cannot write to DB while another process has a shared lock', async () => {
+				const dbFilePath = `${VFS_TEST_DIR}/${testId}-shared-write.db`;
+				const coordinationFile =
+					await createCoordinationFile('php1-locking');
+				const stages = {
+					php1WaitingForPhp2ToTry: 'php1-waiting-for-php2-to-try',
+					php2ReadyForUnlock: 'php2-ready-for-unlock',
+					php1Unlocked: 'php1-unlocked',
+				} as const;
 
-						const php1Script = await createScript(
-							'sqlite-shared-locker',
-							`<?php
+				await seedSqliteDatabase(dbFilePath);
+
+				const php1Script = await createScript(
+					'sqlite-shared-locker',
+					`<?php
 							$db = new SQLite3('${dbFilePath}');
 							$db->exec('BEGIN;');
 							$db->querySingle('SELECT COUNT(*) FROM test');
@@ -380,11 +361,11 @@ describe.only(
 							$db->close();
 							file_put_contents('${coordinationFile}', '${stages.php1Unlocked}');
 						`
-						);
+				);
 
-						const php2Script = await createScript(
-							'sqlite-shared-writer',
-							`<?php
+				const php2Script = await createScript(
+					'sqlite-shared-writer',
+					`<?php
 							ob_start();
 							while (file_get_contents('${coordinationFile}') !== '${stages.php1WaitingForPhp2ToTry}') {
 								usleep(100 * 1000);
@@ -415,49 +396,42 @@ describe.only(
 							]);
 							$db->close();
 						`
-						);
-
-						const [php1Result, php2Result] = await Promise.all([
-							runScript(php1Script),
-							runScript(php2Script),
-						]);
-						expect(php1Result.status).toBe(200);
-						expect(php2Result.status).toBe(200);
-						const parsed = php2Result.text
-							? JSON.parse(php2Result.text)
-							: {};
-						expect(
-							parsed.attempt_while_shared_locked
-						).toMatchObject({
-							lastErrorCode: 5,
-							lastErrorMsg: 'database is locked',
-						});
-						expect(parsed.attempt_while_unlocked).toMatchObject({
-							lastErrorCode: 0,
-							lastErrorMsg: 'not an error',
-						});
-					},
-					TEST_TIMEOUT
 				);
 
-				it(
-					'can read from DB while another process has a shared lock',
-					async () => {
-						const dbFilePath = `${VFS_TEST_DIR}/${testId}-shared-read.db`;
-						const coordinationFile =
-							await createCoordinationFile('php1-locking');
-						const stages = {
-							php1WaitingForPhp2ToTry:
-								'php1-waiting-for-php2-to-try',
-							php2ReadyForUnlock: 'php2-ready-for-unlock',
-							php1Unlocked: 'php1-unlocked',
-						} as const;
+				const [php1Result, php2Result] = await Promise.all([
+					runScript(php1Script),
+					runScript(php2Script),
+				]);
+				expect(php1Result.status).toBe(200);
+				expect(php2Result.status).toBe(200);
+				const parsed = php2Result.text
+					? JSON.parse(php2Result.text)
+					: {};
+				expect(parsed.attempt_while_shared_locked).toMatchObject({
+					lastErrorCode: 5,
+					lastErrorMsg: 'database is locked',
+				});
+				expect(parsed.attempt_while_unlocked).toMatchObject({
+					lastErrorCode: 0,
+					lastErrorMsg: 'not an error',
+				});
+			});
 
-						await seedSqliteDatabase(dbFilePath);
+			it('can read from DB while another process has a shared lock', async () => {
+				const dbFilePath = `${VFS_TEST_DIR}/${testId}-shared-read.db`;
+				const coordinationFile =
+					await createCoordinationFile('php1-locking');
+				const stages = {
+					php1WaitingForPhp2ToTry: 'php1-waiting-for-php2-to-try',
+					php2ReadyForUnlock: 'php2-ready-for-unlock',
+					php1Unlocked: 'php1-unlocked',
+				} as const;
 
-						const php1Script = await createScript(
-							'sqlite-shared-reader-locker',
-							`<?php
+				await seedSqliteDatabase(dbFilePath);
+
+				const php1Script = await createScript(
+					'sqlite-shared-reader-locker',
+					`<?php
 							$db = new SQLite3('${dbFilePath}');
 							$db->exec('BEGIN;');
 							$db->querySingle('SELECT COUNT(*) FROM test');
@@ -471,11 +445,11 @@ describe.only(
 							$db->close();
 							file_put_contents('${coordinationFile}', '${stages.php1Unlocked}');
 						`
-						);
+				);
 
-						const php2Script = await createScript(
-							'sqlite-shared-reader',
-							`<?php
+				const php2Script = await createScript(
+					'sqlite-shared-reader',
+					`<?php
 							ob_start();
 							while (file_get_contents('${coordinationFile}') !== '${stages.php1WaitingForPhp2ToTry}') {
 								usleep(100 * 1000);
@@ -508,48 +482,42 @@ describe.only(
 							]);
 							$db->close();
 						`
-						);
-
-						const [php1Result, php2Result] = await Promise.all([
-							runScript(php1Script),
-							runScript(php2Script),
-						]);
-						expect(php1Result.status).toBe(200);
-						expect(php2Result.status).toBe(200);
-						const parsed = php2Result.text
-							? JSON.parse(php2Result.text)
-							: {};
-						expect(
-							parsed.attempt_while_shared_locked
-						).toMatchObject({
-							lastErrorCode: 0,
-							lastErrorMsg: 'not an error',
-						});
-						expect(parsed.attempt_while_unlocked).toMatchObject({
-							lastErrorCode: 0,
-							lastErrorMsg: 'not an error',
-						});
-					},
-					TEST_TIMEOUT
 				);
 
-				it(
-					'should release a shared lock when its associated process exits',
-					async () => {
-						const dbFilePath = `${VFS_TEST_DIR}/${testId}-shared-exit.db`;
-						const coordinationFile =
-							await createCoordinationFile('php1-locking');
-						const stages = {
-							php1Locked: 'php1-locked',
-							php2ConfirmedDbLocked: 'php2-confirmed-db-locked',
-							php1EndOfScript: 'php1-end-of-script',
-						} as const;
+				const [php1Result, php2Result] = await Promise.all([
+					runScript(php1Script),
+					runScript(php2Script),
+				]);
+				expect(php1Result.status).toBe(200);
+				expect(php2Result.status).toBe(200);
+				const parsed = php2Result.text
+					? JSON.parse(php2Result.text)
+					: {};
+				expect(parsed.attempt_while_shared_locked).toMatchObject({
+					lastErrorCode: 0,
+					lastErrorMsg: 'not an error',
+				});
+				expect(parsed.attempt_while_unlocked).toMatchObject({
+					lastErrorCode: 0,
+					lastErrorMsg: 'not an error',
+				});
+			});
 
-						await seedSqliteDatabase(dbFilePath);
+			it('should release a shared lock when its associated process exits', async () => {
+				const dbFilePath = `${VFS_TEST_DIR}/${testId}-shared-exit.db`;
+				const coordinationFile =
+					await createCoordinationFile('php1-locking');
+				const stages = {
+					php1Locked: 'php1-locked',
+					php2ConfirmedDbLocked: 'php2-confirmed-db-locked',
+					php1EndOfScript: 'php1-end-of-script',
+				} as const;
 
-						const php1Script = await createScript(
-							'sqlite-shared-locker-exit',
-							`<?php
+				await seedSqliteDatabase(dbFilePath);
+
+				const php1Script = await createScript(
+					'sqlite-shared-locker-exit',
+					`<?php
 							$db = new SQLite3('${dbFilePath}');
 							$db->exec('BEGIN;');
 							$db->querySingle('SELECT COUNT(*) FROM test');
@@ -561,11 +529,11 @@ describe.only(
 
 							file_put_contents('${coordinationFile}', '${stages.php1EndOfScript}');
 						`
-						);
+				);
 
-						const php2Script = await createScript(
-							'sqlite-shared-writer-after-exit',
-							`<?php
+				const php2Script = await createScript(
+					'sqlite-shared-writer-after-exit',
+					`<?php
 							ob_start();
 							while (file_get_contents('${coordinationFile}') !== '${stages.php1Locked}') {
 								usleep(100 * 1000);
@@ -596,46 +564,42 @@ describe.only(
 							]);
 							$db->close();
 						`
-						);
-
-						const [php1Result, php2Result] = await Promise.all([
-							runScript(php1Script),
-							runScript(php2Script),
-						]);
-						expect(php1Result.status).toBe(200);
-						expect(php2Result.status).toBe(200);
-						const parsed = php2Result.text
-							? JSON.parse(php2Result.text)
-							: {};
-						expect(parsed.attempt_while_locked).toMatchObject({
-							lastErrorCode: 5,
-							lastErrorMsg: 'database is locked',
-						});
-						expect(parsed.attempt_after_exit).toMatchObject({
-							lastErrorCode: 0,
-							lastErrorMsg: 'not an error',
-						});
-					},
-					TEST_TIMEOUT
 				);
 
-				it(
-					'should release an exclusive lock when its associated process exits',
-					async () => {
-						const dbFilePath = `${VFS_TEST_DIR}/${testId}-exclusive-exit.db`;
-						const coordinationFile =
-							await createCoordinationFile('php1-locking');
-						const stages = {
-							php1Locked: 'php1-locked',
-							php2ConfirmedDbLocked: 'php2-confirmed-db-locked',
-							php1EndOfScript: 'php1-end-of-script',
-						} as const;
+				const [php1Result, php2Result] = await Promise.all([
+					runScript(php1Script),
+					runScript(php2Script),
+				]);
+				expect(php1Result.status).toBe(200);
+				expect(php2Result.status).toBe(200);
+				const parsed = php2Result.text
+					? JSON.parse(php2Result.text)
+					: {};
+				expect(parsed.attempt_while_locked).toMatchObject({
+					lastErrorCode: 5,
+					lastErrorMsg: 'database is locked',
+				});
+				expect(parsed.attempt_after_exit).toMatchObject({
+					lastErrorCode: 0,
+					lastErrorMsg: 'not an error',
+				});
+			});
 
-						await seedSqliteDatabase(dbFilePath);
+			it('should release an exclusive lock when its associated process exits', async () => {
+				const dbFilePath = `${VFS_TEST_DIR}/${testId}-exclusive-exit.db`;
+				const coordinationFile =
+					await createCoordinationFile('php1-locking');
+				const stages = {
+					php1Locked: 'php1-locked',
+					php2ConfirmedDbLocked: 'php2-confirmed-db-locked',
+					php1EndOfScript: 'php1-end-of-script',
+				} as const;
 
-						const php1Script = await createScript(
-							'sqlite-exclusive-locker-exit',
-							`<?php
+				await seedSqliteDatabase(dbFilePath);
+
+				const php1Script = await createScript(
+					'sqlite-exclusive-locker-exit',
+					`<?php
 							$db = new SQLite3('${dbFilePath}');
 							$db->exec('BEGIN EXCLUSIVE;');
 							$db->exec('INSERT INTO test (name) VALUES ("test1")');
@@ -647,11 +611,11 @@ describe.only(
 
 							file_put_contents('${coordinationFile}', '${stages.php1EndOfScript}');
 						`
-						);
+				);
 
-						const php2Script = await createScript(
-							'sqlite-exclusive-writer-after-exit',
-							`<?php
+				const php2Script = await createScript(
+					'sqlite-exclusive-writer-after-exit',
+					`<?php
 							ob_start();
 							while (file_get_contents('${coordinationFile}') !== '${stages.php1Locked}') {
 								usleep(100 * 1000);
@@ -682,47 +646,42 @@ describe.only(
 							]);
 							$db->close();
 						`
-						);
-
-						const [php1Result, php2Result] = await Promise.all([
-							runScript(php1Script),
-							runScript(php2Script),
-						]);
-						expect(php1Result.status).toBe(200);
-						expect(php2Result.status).toBe(200);
-						const parsed = php2Result.text
-							? JSON.parse(php2Result.text)
-							: {};
-						expect(parsed.attempt_while_locked).toMatchObject({
-							lastErrorCode: 5,
-							lastErrorMsg: 'database is locked',
-						});
-						expect(parsed.attempt_after_exit).toMatchObject({
-							lastErrorCode: 0,
-							lastErrorMsg: 'not an error',
-						});
-					},
-					TEST_TIMEOUT
 				);
 
-				it(
-					'should release a lock when its database connection is closed',
-					async () => {
-						const dbFilePath = `${VFS_TEST_DIR}/${testId}-connection-closed.db`;
-						const coordinationFile =
-							await createCoordinationFile('php1-locking');
-						const stages = {
-							php1WaitingForPhp2ToTry:
-								'php1-waiting-for-php2-to-try',
-							php2ReadyForUnlock: 'php2-ready-for-unlock',
-							php1ClosedDbConnection: 'php1-closed-db-connection',
-						} as const;
+				const [php1Result, php2Result] = await Promise.all([
+					runScript(php1Script),
+					runScript(php2Script),
+				]);
+				expect(php1Result.status).toBe(200);
+				expect(php2Result.status).toBe(200);
+				const parsed = php2Result.text
+					? JSON.parse(php2Result.text)
+					: {};
+				expect(parsed.attempt_while_locked).toMatchObject({
+					lastErrorCode: 5,
+					lastErrorMsg: 'database is locked',
+				});
+				expect(parsed.attempt_after_exit).toMatchObject({
+					lastErrorCode: 0,
+					lastErrorMsg: 'not an error',
+				});
+			});
 
-						await seedSqliteDatabase(dbFilePath);
+			it('should release a lock when its database connection is closed', async () => {
+				const dbFilePath = `${VFS_TEST_DIR}/${testId}-connection-closed.db`;
+				const coordinationFile =
+					await createCoordinationFile('php1-locking');
+				const stages = {
+					php1WaitingForPhp2ToTry: 'php1-waiting-for-php2-to-try',
+					php2ReadyForUnlock: 'php2-ready-for-unlock',
+					php1ClosedDbConnection: 'php1-closed-db-connection',
+				} as const;
 
-						const php1Script = await createScript(
-							'sqlite-exclusive-close-connection',
-							`<?php
+				await seedSqliteDatabase(dbFilePath);
+
+				const php1Script = await createScript(
+					'sqlite-exclusive-close-connection',
+					`<?php
 							$db = new SQLite3('${dbFilePath}');
 							$db->exec('BEGIN EXCLUSIVE;');
 							$db->exec('INSERT INTO test (name) VALUES ("test1")');
@@ -739,11 +698,11 @@ describe.only(
 								usleep(100 * 1000);
 							}
 						`
-						);
+				);
 
-						const php2Script = await createScript(
-							'sqlite-exclusive-after-close',
-							`<?php
+				const php2Script = await createScript(
+					'sqlite-exclusive-after-close',
+					`<?php
 							ob_start();
 							while (file_get_contents('${coordinationFile}') !== '${stages.php1WaitingForPhp2ToTry}') {
 								usleep(100 * 1000);
@@ -776,40 +735,34 @@ describe.only(
 
 							file_put_contents('${coordinationFile}', 'done');
 						`
-						);
-
-						const [php1Result, php2Result] = await Promise.all([
-							runScript(php1Script),
-							runScript(php2Script),
-						]);
-						expect(php1Result.status).toBe(200);
-						expect(php2Result.status).toBe(200);
-						const parsed = php2Result.text
-							? JSON.parse(php2Result.text)
-							: {};
-						expect(parsed.attempt_while_locked).toMatchObject({
-							lastErrorCode: 5,
-							lastErrorMsg: 'database is locked',
-						});
-						expect(parsed.attempt_after_fd_closed).toMatchObject({
-							lastErrorCode: 0,
-							lastErrorMsg: 'not an error',
-						});
-					},
-					TEST_TIMEOUT
 				);
-			},
-			TEST_TIMEOUT
-		);
+
+				const [php1Result, php2Result] = await Promise.all([
+					runScript(php1Script),
+					runScript(php2Script),
+				]);
+				expect(php1Result.status).toBe(200);
+				expect(php2Result.status).toBe(200);
+				const parsed = php2Result.text
+					? JSON.parse(php2Result.text)
+					: {};
+				expect(parsed.attempt_while_locked).toMatchObject({
+					lastErrorCode: 5,
+					lastErrorMsg: 'database is locked',
+				});
+				expect(parsed.attempt_after_fd_closed).toMatchObject({
+					lastErrorCode: 0,
+					lastErrorMsg: 'not an error',
+				});
+			});
+		});
 
 		describe('PHP flock()', () => {
-			it(
-				'should be able to acquire an exclusive lock on a file',
-				async () => {
-					const testFilePath = `${VFS_TEST_DIR}/${testId}-lock.txt`;
-					const script = await createScript(
-						'exclusive-lock',
-						`<?php
+			it('should be able to acquire an exclusive lock on a file', async () => {
+				const testFilePath = `${VFS_TEST_DIR}/${testId}-lock.txt`;
+				const script = await createScript(
+					'exclusive-lock',
+					`<?php
 						ob_start();
 						$fp = fopen('${testFilePath}', 'w');
 						$lockResult = flock($fp, LOCK_EX | LOCK_NB);
@@ -823,23 +776,19 @@ describe.only(
 							'file_contents' => file_get_contents('${testFilePath}')
 						]);
 						`
-					);
+				);
 
-					const result = await runScriptAndParseJson(script);
-					expect(result.lock_acquired).toBe(true);
-					expect(result.file_contents).toBe('test content');
-				},
-				TEST_TIMEOUT
-			);
+				const result = await runScriptAndParseJson(script);
+				expect(result.lock_acquired).toBe(true);
+				expect(result.file_contents).toBe('test content');
+			});
 
-			it(
-				'should be able to acquire a shared lock on a file',
-				async () => {
-					const testFilePath = `${VFS_TEST_DIR}/${testId}-shared.txt`;
-					await writeFile(testFilePath, 'test content');
-					const script = await createScript(
-						'shared-lock',
-						`<?php
+			it('should be able to acquire a shared lock on a file', async () => {
+				const testFilePath = `${VFS_TEST_DIR}/${testId}-shared.txt`;
+				await writeFile(testFilePath, 'test content');
+				const script = await createScript(
+					'shared-lock',
+					`<?php
 						ob_start();
 						$fp = fopen('${testFilePath}', 'r+');
 						$lockResult = flock($fp, LOCK_SH | LOCK_NB);
@@ -854,31 +803,27 @@ describe.only(
 							'file_contents' => $file_contents,
 						]);
 						`
-					);
+				);
 
-					const result = await runScriptAndParseJson(script);
-					expect(result.lock_acquired).toBe(true);
-					expect(result.file_contents).toBe('test content');
-				},
-				TEST_TIMEOUT
-			);
+				const result = await runScriptAndParseJson(script);
+				expect(result.lock_acquired).toBe(true);
+				expect(result.file_contents).toBe('test content');
+			});
 
-			it(
-				'should deny an exclusive lock when another process has a shared lock on a file',
-				async () => {
-					const testFilePath = `${VFS_TEST_DIR}/${testId}-shared-exclusive.txt`;
-					await writeFile(testFilePath, 'test content');
-					const coordinationFile =
-						await createCoordinationFile('php1-locking');
-					const stages = {
-						php1WaitingForPhp2ToTry: 'php1-waiting-for-php2-to-try',
-						php2ReadyForUnlock: 'php2-ready-for-unlock',
-						php1Unlocked: 'php1-unlocked',
-					} as const;
+			it('should deny an exclusive lock when another process has a shared lock on a file', async () => {
+				const testFilePath = `${VFS_TEST_DIR}/${testId}-shared-exclusive.txt`;
+				await writeFile(testFilePath, 'test content');
+				const coordinationFile =
+					await createCoordinationFile('php1-locking');
+				const stages = {
+					php1WaitingForPhp2ToTry: 'php1-waiting-for-php2-to-try',
+					php2ReadyForUnlock: 'php2-ready-for-unlock',
+					php1Unlocked: 'php1-unlocked',
+				} as const;
 
-					const php1Script = await createScript(
-						'shared-lock-holder',
-						`<?php
+				const php1Script = await createScript(
+					'shared-lock-holder',
+					`<?php
 						$fp = fopen('${testFilePath}', 'r+');
 						flock($fp, LOCK_SH | LOCK_NB);
 
@@ -891,11 +836,11 @@ describe.only(
 						fclose($fp);
 						file_put_contents('${coordinationFile}', '${stages.php1Unlocked}');
 						`
-					);
+				);
 
-					const php2Script = await createScript(
-						'exclusive-contender',
-						`<?php
+				const php2Script = await createScript(
+					'exclusive-contender',
+					`<?php
 						ob_start();
 						while (file_get_contents('${coordinationFile}') !== '${stages.php1WaitingForPhp2ToTry}') {
 							usleep(100 * 1000);
@@ -932,43 +877,37 @@ describe.only(
 							'attempt_while_unlocked' => $attempt_while_unlocked,
 						]);
 						`
-					);
+				);
 
-					const [sharedResult, contenderResult] = await Promise.all([
-						runScript(php1Script),
-						runScript(php2Script),
-					]);
-					expect(sharedResult.status).toBe(200);
-					expect(contenderResult.status).toBe(200);
-					const parsed = contenderResult.text
-						? JSON.parse(contenderResult.text)
-						: {};
-					expect(
-						parsed.attempt_while_shared_locked.lock_acquired
-					).toBe(false);
-					expect(parsed.attempt_while_unlocked.lock_acquired).toBe(
-						true
-					);
-				},
-				TEST_TIMEOUT
-			);
+				const [sharedResult, contenderResult] = await Promise.all([
+					runScript(php1Script),
+					runScript(php2Script),
+				]);
+				expect(sharedResult.status).toBe(200);
+				expect(contenderResult.status).toBe(200);
+				const parsed = contenderResult.text
+					? JSON.parse(contenderResult.text)
+					: {};
+				expect(parsed.attempt_while_shared_locked.lock_acquired).toBe(
+					false
+				);
+				expect(parsed.attempt_while_unlocked.lock_acquired).toBe(true);
+			});
 
-			it(
-				'should deny a shared lock when another process has an exclusive lock on a file',
-				async () => {
-					const testFilePath = `${VFS_TEST_DIR}/${testId}-exclusive-shared.txt`;
-					await writeFile(testFilePath, 'test content');
-					const coordinationFile =
-						await createCoordinationFile('php1-locking');
-					const stages = {
-						php1WaitingForPhp2ToTry: 'php1-waiting-for-php2-to-try',
-						php2ReadyForUnlock: 'php2-ready-for-unlock',
-						php1Unlocked: 'php1-unlocked',
-					} as const;
+			it('should deny a shared lock when another process has an exclusive lock on a file', async () => {
+				const testFilePath = `${VFS_TEST_DIR}/${testId}-exclusive-shared.txt`;
+				await writeFile(testFilePath, 'test content');
+				const coordinationFile =
+					await createCoordinationFile('php1-locking');
+				const stages = {
+					php1WaitingForPhp2ToTry: 'php1-waiting-for-php2-to-try',
+					php2ReadyForUnlock: 'php2-ready-for-unlock',
+					php1Unlocked: 'php1-unlocked',
+				} as const;
 
-					const php1Script = await createScript(
-						'exclusive-lock-holder',
-						`<?php
+				const php1Script = await createScript(
+					'exclusive-lock-holder',
+					`<?php
 						$fp = fopen('${testFilePath}', 'r+');
 						flock($fp, LOCK_EX | LOCK_NB);
 
@@ -981,11 +920,11 @@ describe.only(
 						fclose($fp);
 						file_put_contents('${coordinationFile}', '${stages.php1Unlocked}');
 						`
-					);
+				);
 
-					const php2Script = await createScript(
-						'shared-contender',
-						`<?php
+				const php2Script = await createScript(
+					'shared-contender',
+					`<?php
 						ob_start();
 						while (file_get_contents('${coordinationFile}') !== '${stages.php1WaitingForPhp2ToTry}') {
 							usleep(100 * 1000);
@@ -1022,43 +961,37 @@ describe.only(
 							'attempt_while_unlocked' => $attempt_while_unlocked,
 						]);
 						`
-					);
+				);
 
-					const [exclusiveResult, sharedResult] = await Promise.all([
-						runScript(php1Script),
-						runScript(php2Script),
-					]);
-					expect(exclusiveResult.status).toBe(200);
-					expect(sharedResult.status).toBe(200);
-					const parsed = sharedResult.text
-						? JSON.parse(sharedResult.text)
-						: {};
-					expect(
-						parsed.attempt_while_exclusive_locked.lock_acquired
-					).toBe(false);
-					expect(parsed.attempt_while_unlocked.lock_acquired).toBe(
-						true
-					);
-				},
-				TEST_TIMEOUT
-			);
+				const [exclusiveResult, sharedResult] = await Promise.all([
+					runScript(php1Script),
+					runScript(php2Script),
+				]);
+				expect(exclusiveResult.status).toBe(200);
+				expect(sharedResult.status).toBe(200);
+				const parsed = sharedResult.text
+					? JSON.parse(sharedResult.text)
+					: {};
+				expect(
+					parsed.attempt_while_exclusive_locked.lock_acquired
+				).toBe(false);
+				expect(parsed.attempt_while_unlocked.lock_acquired).toBe(true);
+			});
 
-			it(
-				'should grant multiple shared locks on a file',
-				async () => {
-					const testFilePath = `${VFS_TEST_DIR}/${testId}-multi-shared.txt`;
-					await writeFile(testFilePath, 'test content');
-					const coordinationFile =
-						await createCoordinationFile('php1-locking');
-					const stages = {
-						php1Locked: 'php1-locked',
-						php2Locked: 'php2-locked',
-						php3CanUnlock: 'php3-can-unlock',
-					} as const;
+			it('should grant multiple shared locks on a file', async () => {
+				const testFilePath = `${VFS_TEST_DIR}/${testId}-multi-shared.txt`;
+				await writeFile(testFilePath, 'test content');
+				const coordinationFile =
+					await createCoordinationFile('php1-locking');
+				const stages = {
+					php1Locked: 'php1-locked',
+					php2Locked: 'php2-locked',
+					php3CanUnlock: 'php3-can-unlock',
+				} as const;
 
-					const php1Script = await createScript(
-						'shared-locker-one',
-						`<?php
+				const php1Script = await createScript(
+					'shared-locker-one',
+					`<?php
 						ob_start();
 						$fp = fopen('${testFilePath}', 'r+');
 						$lockResult = flock($fp, LOCK_SH | LOCK_NB);
@@ -1071,11 +1004,11 @@ describe.only(
 						ob_clean();
 						echo json_encode(['lock_acquired' => $lockResult]);
 						`
-					);
+				);
 
-					const php2Script = await createScript(
-						'shared-locker-two',
-						`<?php
+				const php2Script = await createScript(
+					'shared-locker-two',
+					`<?php
 						ob_start();
 						while (file_get_contents('${coordinationFile}') !== '${stages.php1Locked}') {
 							usleep(100 * 1000);
@@ -1093,11 +1026,11 @@ describe.only(
 						ob_clean();
 						echo json_encode(['lock_acquired' => $lockResult]);
 						`
-					);
+				);
 
-					const php3Script = await createScript(
-						'shared-locker-three',
-						`<?php
+				const php3Script = await createScript(
+					'shared-locker-three',
+					`<?php
 						ob_start();
 						while (file_get_contents('${coordinationFile}') !== '${stages.php2Locked}') {
 							usleep(100 * 1000);
@@ -1112,39 +1045,35 @@ describe.only(
 						ob_clean();
 						echo json_encode(['lock_acquired' => $lockResult]);
 						`
-					);
+				);
 
-					const [first, second, third] = await Promise.all([
-						runScript(php1Script),
-						runScript(php2Script),
-						runScript(php3Script),
-					]);
-					expect(first.status).toBe(200);
-					expect(second.status).toBe(200);
-					expect(third.status).toBe(200);
-					expect(JSON.parse(first.text).lock_acquired).toBe(true);
-					expect(JSON.parse(second.text).lock_acquired).toBe(true);
-					expect(JSON.parse(third.text).lock_acquired).toBe(true);
-				},
-				TEST_TIMEOUT
-			);
+				const [first, second, third] = await Promise.all([
+					runScript(php1Script),
+					runScript(php2Script),
+					runScript(php3Script),
+				]);
+				expect(first.status).toBe(200);
+				expect(second.status).toBe(200);
+				expect(third.status).toBe(200);
+				expect(JSON.parse(first.text).lock_acquired).toBe(true);
+				expect(JSON.parse(second.text).lock_acquired).toBe(true);
+				expect(JSON.parse(third.text).lock_acquired).toBe(true);
+			});
 
-			it(
-				'should release a shared lock when its associated file descriptor is closed',
-				async () => {
-					const testFilePath = `${VFS_TEST_DIR}/${testId}-shared-close.txt`;
-					await writeFile(testFilePath, 'test content');
-					const coordinationFile =
-						await createCoordinationFile('php1-locking');
-					const stages = {
-						php1WaitingForPhp2ToTry: 'php1-waiting-for-php2-to-try',
-						php2ReadyForUnlock: 'php2-ready-for-unlock',
-						php1Unlocked: 'php1-unlocked',
-					} as const;
+			it('should release a shared lock when its associated file descriptor is closed', async () => {
+				const testFilePath = `${VFS_TEST_DIR}/${testId}-shared-close.txt`;
+				await writeFile(testFilePath, 'test content');
+				const coordinationFile =
+					await createCoordinationFile('php1-locking');
+				const stages = {
+					php1WaitingForPhp2ToTry: 'php1-waiting-for-php2-to-try',
+					php2ReadyForUnlock: 'php2-ready-for-unlock',
+					php1Unlocked: 'php1-unlocked',
+				} as const;
 
-					const php1Script = await createScript(
-						'shared-locker-close',
-						`<?php
+				const php1Script = await createScript(
+					'shared-locker-close',
+					`<?php
 						$fp = fopen('${testFilePath}', 'r+');
 						flock($fp, LOCK_SH | LOCK_NB);
 
@@ -1160,11 +1089,11 @@ describe.only(
 							usleep(100 * 1000);
 						}
 						`
-					);
+				);
 
-					const php2Script = await createScript(
-						'exclusive-after-shared-close',
-						`<?php
+				const php2Script = await createScript(
+					'exclusive-after-shared-close',
+					`<?php
 						ob_start();
 						while (file_get_contents('${coordinationFile}') !== '${stages.php1WaitingForPhp2ToTry}') {
 							usleep(100 * 1000);
@@ -1202,43 +1131,35 @@ describe.only(
 						]);
 						file_put_contents('${coordinationFile}', 'done');
 						`
-					);
+				);
 
-					const [sharedResult, exclusiveResult] = await Promise.all([
-						runScript(php1Script),
-						runScript(php2Script),
-					]);
-					expect(sharedResult.status).toBe(200);
-					expect(exclusiveResult.status).toBe(200);
-					const parsed = exclusiveResult.text
-						? JSON.parse(exclusiveResult.text)
-						: {};
-					expect(parsed.attempt_while_locked.lock_acquired).toBe(
-						false
-					);
-					expect(parsed.attempt_after_fd_closed.lock_acquired).toBe(
-						true
-					);
-				},
-				TEST_TIMEOUT
-			);
+				const [sharedResult, exclusiveResult] = await Promise.all([
+					runScript(php1Script),
+					runScript(php2Script),
+				]);
+				expect(sharedResult.status).toBe(200);
+				expect(exclusiveResult.status).toBe(200);
+				const parsed = exclusiveResult.text
+					? JSON.parse(exclusiveResult.text)
+					: {};
+				expect(parsed.attempt_while_locked.lock_acquired).toBe(false);
+				expect(parsed.attempt_after_fd_closed.lock_acquired).toBe(true);
+			});
 
-			it(
-				'should release an exclusive lock when its associated file descriptor is closed',
-				async () => {
-					const testFilePath = `${VFS_TEST_DIR}/${testId}-exclusive-close.txt`;
-					await writeFile(testFilePath, 'test content');
-					const coordinationFile =
-						await createCoordinationFile('php1-locking');
-					const stages = {
-						php1WaitingForPhp2ToTry: 'php1-waiting-for-php2-to-try',
-						php2ReadyForUnlock: 'php2-ready-for-unlock',
-						php1Unlocked: 'php1-unlocked',
-					} as const;
+			it('should release an exclusive lock when its associated file descriptor is closed', async () => {
+				const testFilePath = `${VFS_TEST_DIR}/${testId}-exclusive-close.txt`;
+				await writeFile(testFilePath, 'test content');
+				const coordinationFile =
+					await createCoordinationFile('php1-locking');
+				const stages = {
+					php1WaitingForPhp2ToTry: 'php1-waiting-for-php2-to-try',
+					php2ReadyForUnlock: 'php2-ready-for-unlock',
+					php1Unlocked: 'php1-unlocked',
+				} as const;
 
-					const php1Script = await createScript(
-						'exclusive-locker-close',
-						`<?php
+				const php1Script = await createScript(
+					'exclusive-locker-close',
+					`<?php
 						$fp = fopen('${testFilePath}', 'r+');
 						flock($fp, LOCK_EX | LOCK_NB);
 
@@ -1254,11 +1175,11 @@ describe.only(
 							usleep(100 * 1000);
 						}
 						`
-					);
+				);
 
-					const php2Script = await createScript(
-						'shared-after-exclusive-close',
-						`<?php
+				const php2Script = await createScript(
+					'shared-after-exclusive-close',
+					`<?php
 						ob_start();
 						while (file_get_contents('${coordinationFile}') !== '${stages.php1WaitingForPhp2ToTry}') {
 							usleep(100 * 1000);
@@ -1296,43 +1217,35 @@ describe.only(
 						]);
 						file_put_contents('${coordinationFile}', 'done');
 						`
-					);
+				);
 
-					const [exclusiveResult, sharedResult] = await Promise.all([
-						runScript(php1Script),
-						runScript(php2Script),
-					]);
-					expect(exclusiveResult.status).toBe(200);
-					expect(sharedResult.status).toBe(200);
-					const parsed = sharedResult.text
-						? JSON.parse(sharedResult.text)
-						: {};
-					expect(parsed.attempt_while_locked.lock_acquired).toBe(
-						false
-					);
-					expect(parsed.attempt_after_fd_closed.lock_acquired).toBe(
-						true
-					);
-				},
-				TEST_TIMEOUT
-			);
+				const [exclusiveResult, sharedResult] = await Promise.all([
+					runScript(php1Script),
+					runScript(php2Script),
+				]);
+				expect(exclusiveResult.status).toBe(200);
+				expect(sharedResult.status).toBe(200);
+				const parsed = sharedResult.text
+					? JSON.parse(sharedResult.text)
+					: {};
+				expect(parsed.attempt_while_locked.lock_acquired).toBe(false);
+				expect(parsed.attempt_after_fd_closed.lock_acquired).toBe(true);
+			});
 
-			it(
-				'should release a shared lock when the owning process exits',
-				async () => {
-					const testFilePath = `${VFS_TEST_DIR}/${testId}-shared-exit-file.txt`;
-					await writeFile(testFilePath, 'test content');
-					const coordinationFile =
-						await createCoordinationFile('php1-locking');
-					const stages = {
-						php1Locked: 'php1-locked',
-						php2ConfirmedFileLocked: 'php2-confirmed-file-locked',
-						php1EndOfScript: 'php1-end-of-script',
-					} as const;
+			it('should release a shared lock when the owning process exits', async () => {
+				const testFilePath = `${VFS_TEST_DIR}/${testId}-shared-exit-file.txt`;
+				await writeFile(testFilePath, 'test content');
+				const coordinationFile =
+					await createCoordinationFile('php1-locking');
+				const stages = {
+					php1Locked: 'php1-locked',
+					php2ConfirmedFileLocked: 'php2-confirmed-file-locked',
+					php1EndOfScript: 'php1-end-of-script',
+				} as const;
 
-					const php1Script = await createScript(
-						'shared-locker-process-exit',
-						`<?php
+				const php1Script = await createScript(
+					'shared-locker-process-exit',
+					`<?php
 						$fp = fopen('${testFilePath}', 'r+');
 						flock($fp, LOCK_SH | LOCK_NB);
 						file_put_contents('${coordinationFile}', '${stages.php1Locked}');
@@ -1341,11 +1254,11 @@ describe.only(
 						}
 						file_put_contents('${coordinationFile}', '${stages.php1EndOfScript}');
 						`
-					);
+				);
 
-					const php2Script = await createScript(
-						'exclusive-after-shared-exit',
-						`<?php
+				const php2Script = await createScript(
+					'exclusive-after-shared-exit',
+					`<?php
 						ob_start();
 						while (file_get_contents('${coordinationFile}') !== '${stages.php1Locked}') {
 							usleep(100 * 1000);
@@ -1369,39 +1282,35 @@ describe.only(
 						]);
 						fclose($fp);
 						`
-					);
+				);
 
-					const [sharedResult, exclusiveResult] = await Promise.all([
-						runScript(php1Script),
-						runScript(php2Script),
-					]);
-					expect(sharedResult.status).toBe(200);
-					expect(exclusiveResult.status).toBe(200);
-					const parsed = exclusiveResult.text
-						? JSON.parse(exclusiveResult.text)
-						: {};
-					expect(parsed.attempt_while_locked).toBe(false);
-					expect(parsed.attempt_after_exit).toBe(true);
-				},
-				TEST_TIMEOUT
-			);
+				const [sharedResult, exclusiveResult] = await Promise.all([
+					runScript(php1Script),
+					runScript(php2Script),
+				]);
+				expect(sharedResult.status).toBe(200);
+				expect(exclusiveResult.status).toBe(200);
+				const parsed = exclusiveResult.text
+					? JSON.parse(exclusiveResult.text)
+					: {};
+				expect(parsed.attempt_while_locked).toBe(false);
+				expect(parsed.attempt_after_exit).toBe(true);
+			});
 
-			it(
-				'should release an exclusive lock when the owning process exits',
-				async () => {
-					const testFilePath = `${VFS_TEST_DIR}/${testId}-exclusive-exit-file.txt`;
-					await writeFile(testFilePath, 'test content');
-					const coordinationFile =
-						await createCoordinationFile('php1-locking');
-					const stages = {
-						php1Locked: 'php1-locked',
-						php2ConfirmedFileLocked: 'php2-confirmed-file-locked',
-						php1EndOfScript: 'php1-end-of-script',
-					} as const;
+			it('should release an exclusive lock when the owning process exits', async () => {
+				const testFilePath = `${VFS_TEST_DIR}/${testId}-exclusive-exit-file.txt`;
+				await writeFile(testFilePath, 'test content');
+				const coordinationFile =
+					await createCoordinationFile('php1-locking');
+				const stages = {
+					php1Locked: 'php1-locked',
+					php2ConfirmedFileLocked: 'php2-confirmed-file-locked',
+					php1EndOfScript: 'php1-end-of-script',
+				} as const;
 
-					const php1Script = await createScript(
-						'exclusive-locker-process-exit',
-						`<?php
+				const php1Script = await createScript(
+					'exclusive-locker-process-exit',
+					`<?php
 						$fp = fopen('${testFilePath}', 'r+');
 						flock($fp, LOCK_EX | LOCK_NB);
 						file_put_contents('${coordinationFile}', '${stages.php1Locked}');
@@ -1410,11 +1319,11 @@ describe.only(
 						}
 						file_put_contents('${coordinationFile}', '${stages.php1EndOfScript}');
 						`
-					);
+				);
 
-					const php2Script = await createScript(
-						'shared-after-exclusive-exit',
-						`<?php
+				const php2Script = await createScript(
+					'shared-after-exclusive-exit',
+					`<?php
 						ob_start();
 						while (file_get_contents('${coordinationFile}') !== '${stages.php1Locked}') {
 							usleep(100 * 1000);
@@ -1438,22 +1347,20 @@ describe.only(
 						]);
 						fclose($fp);
 						`
-					);
+				);
 
-					const [exclusiveResult, sharedResult] = await Promise.all([
-						runScript(php1Script),
-						runScript(php2Script),
-					]);
-					expect(exclusiveResult.status).toBe(200);
-					expect(sharedResult.status).toBe(200);
-					const parsed = sharedResult.text
-						? JSON.parse(sharedResult.text)
-						: {};
-					expect(parsed.attempt_while_locked).toBe(false);
-					expect(parsed.attempt_after_exit).toBe(true);
-				},
-				TEST_TIMEOUT
-			);
+				const [exclusiveResult, sharedResult] = await Promise.all([
+					runScript(php1Script),
+					runScript(php2Script),
+				]);
+				expect(exclusiveResult.status).toBe(200);
+				expect(sharedResult.status).toBe(200);
+				const parsed = sharedResult.text
+					? JSON.parse(sharedResult.text)
+					: {};
+				expect(parsed.attempt_while_locked).toBe(false);
+				expect(parsed.attempt_after_exit).toBe(true);
+			});
 		});
 	},
 	TEST_TIMEOUT
