@@ -63,6 +63,7 @@ export default defineConfig({
 			dir: '../../../node_modules/.vitest',
 		},
 		testTimeout: 10000,
+		hookTimeout: 30000,
 		environment: 'node',
 		include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
 		reporters: ['default'],

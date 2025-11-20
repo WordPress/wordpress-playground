@@ -26,6 +26,11 @@ describe('Blueprint step login', () => {
 		php = await handler.getPrimaryPhp();
 	});
 
+	afterEach(async () => {
+		php.exit();
+		await handler[Symbol.asyncDispose]();
+	});
+
 	const requestFollowRedirects = async (request: PHPRequest) => {
 		let response = await handler.request(request);
 		while (response.httpStatusCode === 302) {

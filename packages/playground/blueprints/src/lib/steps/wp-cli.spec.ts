@@ -31,6 +31,10 @@ describe('Blueprint step wpCLI', () => {
 		php = await handler.getPrimaryPhp();
 	});
 
+	afterEach(() => {
+		php.exit();
+	});
+
 	it('should run wp-cli commands', async () => {
 		const result = await wpCLI(php, {
 			command:

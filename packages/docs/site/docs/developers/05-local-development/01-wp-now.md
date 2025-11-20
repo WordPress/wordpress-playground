@@ -1,6 +1,7 @@
 ---
 title: wp-now
 slug: /developers/local-development/wp-now
+orphan: true
 ---
 
 :::caution Package deprecated

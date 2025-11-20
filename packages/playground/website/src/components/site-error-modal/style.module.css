@@ -1,0 +1,307 @@
+.error-modal {
+	width: min(860px, calc(100vw - 32px));
+	max-width: none;
+	max-height: 83dvh;
+}
+
+.error-modal :global(.components-modal__content) {
+	display: flex;
+	flex-direction: column;
+	width: 100%;
+	font-size: 15px;
+	padding: 0 24px 20px;
+	padding-top: 0;
+}
+
+.error-modal :global(.components-modal__header) {
+	padding-top: 20px;
+	padding-bottom: 16px;
+	padding-left: 24px;
+	padding-right: 24px;
+	margin: 0;
+}
+
+.error-modal :global(.components-modal__header-heading) {
+	display: flex;
+	width: 100%;
+	align-items: center;
+	gap: 12px;
+	font-size: 20px;
+	line-height: 1.3;
+}
+
+.error-modal :global(.components-modal__header-heading-container) {
+	padding: 0;
+}
+
+.error-modal :global(.components-modal__header .components-button svg) {
+	color: #1e1e1e;
+}
+
+.error-modal :global(p) {
+	margin: 0;
+}
+
+:global(.components-modal__content):has(.error-modal-footer) {
+	padding-bottom: 0;
+}
+
+.error-modal-content {
+	display: flex;
+	flex-direction: column;
+	width: 100%;
+	height: 100%;
+	max-height: min(80vh, 720px);
+	overflow: hidden;
+}
+
+.error-modal-body {
+	flex: 1 1 auto;
+	display: flex;
+	flex-direction: column;
+	gap: 0.875rem;
+	overflow-y: auto;
+	overflow-x: hidden;
+	padding-right: 0.25rem;
+	padding-bottom: 90px;
+	min-height: 0;
+	padding-top: 4px;
+}
+
+.error-badge {
+	display: inline-flex;
+	align-items: center;
+	flex-shrink: 0;
+	white-space: nowrap;
+	font-size: 0.6875rem;
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+	font-weight: 600;
+	background: #ede9fe;
+	color: #4c1d95;
+	padding: 0.25rem 0.75rem;
+	border-radius: 999px;
+	line-height: 1;
+}
+
+.error-modal-crash .error-badge {
+	background: #ffe4e6;
+	color: #9f1239;
+}
+
+.error-lead {
+	font-size: 1.0625rem;
+	line-height: 1.5;
+	color: #1d2327;
+	margin: 0;
+}
+
+.error-list {
+	margin: 0;
+	padding-left: 1.2rem;
+	line-height: 1.5;
+	color: #1d2327;
+	list-style-type: disc;
+}
+
+.error-details {
+	background: #f6f7f7;
+	border-radius: 10px;
+	padding: 0.65rem 0.875rem 0.75rem;
+	font-size: 0.9375rem;
+	border: 1px solid #dcdcde;
+	color: #1d2327;
+}
+
+.error-details summary {
+	cursor: pointer;
+	font-weight: 600;
+	margin-bottom: 0.5rem;
+	line-height: 1.2;
+	margin-bottom: 0;
+	font-size: 1rem;
+}
+
+.error-details pre {
+	margin: 0;
+	font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+	white-space: pre-wrap;
+	word-break: break-word;
+	margin-top: 1rem;
+}
+
+.error-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.75rem;
+	margin-top: 0.5rem;
+	justify-content: center;
+}
+
+.error-action-wrapper {
+	display: flex;
+}
+
+.step-error {
+	border: 1px solid #dcdcde;
+	border-radius: 12px;
+	padding: 0.75rem 0.85rem 0.9rem;
+	background: #fff;
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+}
+
+.step-error-header {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 0.4rem;
+}
+
+.step-error-title {
+	margin: 0;
+	font-weight: 600;
+	color: #1d2327;
+	font-size: 1.05rem;
+}
+
+.step-error-message {
+	margin: 0;
+	color: #1d2327;
+	line-height: 1.4;
+}
+
+.step-error-code-wrapper {
+	display: flex;
+	flex-direction: column;
+	gap: 0.35rem;
+}
+
+.step-error-label {
+	font-size: 0.75rem;
+	font-weight: 600;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: #6c7781;
+}
+
+.step-error-code {
+	margin: 0;
+	background: #f6f7f7;
+	border-radius: 10px;
+	padding: 0.75rem;
+	font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+	font-size: 0.82rem;
+	overflow-x: auto;
+	line-height: 1.35;
+}
+
+.error-link {
+	color: #1d4ed8;
+	text-decoration: underline;
+	word-break: break-all;
+}
+
+.error-modal-footer {
+	position: absolute;
+	bottom: 0;
+	left: 0;
+	right: 0;
+	flex-shrink: 0;
+	width: 100%;
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.625rem;
+	padding: 16px 0;
+	margin-top: 4px;
+	box-shadow: 0 -3px 16px 0 rgba(30, 34, 43, 0.1);
+	justify-content: center;
+	background: #fff;
+	font-size: 15px;
+}
+
+.error-modal:has(.error-modal-footer:not(:has(*))) {
+	padding-bottom: 0;
+}
+
+.error-modal-footer:not(:has(*)) {
+	display: none;
+}
+
+@media (max-width: 768px) {
+	.error-modal {
+		max-width: none;
+		max-height: none;
+		margin: 0;
+		width: 100dvw;
+		height: 100dvh;
+	}
+
+	.error-modal :global(.components-modal__content) {
+		font-size: 14px;
+		padding: 18px 20px;
+		padding-top: 0;
+	}
+
+	.error-modal :global(.components-modal__header) {
+		padding-bottom: 14px;
+		padding-left: 20px;
+		padding-right: 20px;
+	}
+
+	.error-modal :global(.components-modal__header-heading) {
+		font-size: 18px;
+		gap: 10px;
+	}
+
+	.error-modal-content {
+		max-height: min(85vh, 600px);
+	}
+
+	.error-badge {
+		font-size: 0.65rem;
+		padding: 0.22rem 0.65rem;
+	}
+
+	.error-lead {
+		font-size: 1rem;
+	}
+
+	.error-list {
+		font-size: 0.9375rem;
+		padding-left: 1rem;
+	}
+
+	.error-details {
+		font-size: 0.875rem;
+		padding: 0.6rem 0.8rem 0.7rem;
+		border-radius: 8px;
+	}
+
+	.error-modal-body {
+		gap: 0.75rem;
+	}
+
+	.error-modal-footer {
+		font-size: 14px;
+		gap: 0.5rem;
+		padding: 14px 0 0;
+	}
+}
+
+@media (max-width: 480px) {
+	.error-modal {
+		width: 100%;
+		height: 100%;
+		max-height: 100%;
+	}
+
+	.error-modal-body {
+		padding-bottom: 70px;
+	}
+
+	.error-modal-footer {
+		gap: 0.4rem;
+	}
+}

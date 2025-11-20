@@ -50,6 +50,11 @@ describe('Blueprint step runSql', () => {
 		);
 	});
 
+	afterEach(async () => {
+		php.exit();
+		await handler[Symbol.asyncDispose]();
+	});
+
 	it('should split and "run" sql queries', async () => {
 		// Test a single query
 		await runSql(php, {

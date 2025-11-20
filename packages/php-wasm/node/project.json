@@ -165,7 +165,6 @@
 					"php-dynamic-loading.spec.ts",
 					"php-request-handler.spec.ts",
 					"php.spec.ts",
-					"file-lock-manager-for-node.spec.ts",
 					"php-worker.spec.ts",
 					"php-soap.spec.ts",
 					"php-image-extensions.spec.ts",
@@ -193,7 +192,6 @@
 					"php-dynamic-loading.spec.ts",
 					"php-request-handler.spec.ts",
 					"php.spec.ts",
-					"file-lock-manager-for-node.spec.ts",
 					"php-worker.spec.ts",
 					"php-soap.spec.ts",
 					"php-image-extensions.spec.ts",
@@ -301,6 +299,29 @@
 				"configFile": "packages/php-wasm/node/vite.jspi.config.ts",
 				"reportsDirectory": "../../../coverage/packages/php-wasm/node",
 				"testFiles": ["php-sqlite3.spec.ts"]
+			}
+		},
+		"test-php-file-locking-asyncify": {
+			"executor": "@nx/vite:test",
+			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/node"],
+			"options": {
+				"reportsDirectory": "../../../coverage/packages/php-wasm/node",
+				"testFiles": [
+					"php-file-locking.spec.ts",
+					"file-lock-manager-for-node.spec.ts"
+				]
+			}
+		},
+		"test-php-file-locking-jspi": {
+			"executor": "@nx/vite:test",
+			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/node"],
+			"options": {
+				"configFile": "packages/php-wasm/node/vite.jspi.config.ts",
+				"reportsDirectory": "../../../coverage/packages/php-wasm/node",
+				"testFiles": [
+					"php-file-locking.spec.ts",
+					"file-lock-manager-for-node.spec.ts"
+				]
 			}
 		},
 		"test-php-image-extensions-asyncify": {

@@ -7,6 +7,7 @@ import type { FileTree, UniversalPHP } from '@php-wasm/universal';
 import type { Semaphore } from '@php-wasm/util';
 import { randomFilename } from '@php-wasm/util';
 import {
+	GitAuthenticationError,
 	listDescendantFiles,
 	listGitFiles,
 	resolveCommitHash,
@@ -17,6 +18,25 @@ import { fetchWithCorsProxy } from '@php-wasm/web';
 import { StreamedFile } from '@php-wasm/stream-compression';
 import type { StreamBundledFile } from './types';
 import { createDotGitDirectory } from '@wp-playground/storage';
+
+const BUNDLED_RESOURCE_ERROR_MESSAGE =
+	'Blueprint resource of type "bundled" requires a filesystem.\n\n' +
+	'This Blueprint refers to files that should be bundled with it (like images, plugins, or themes), ' +
+	'but the filesystem needed to access these files is not available. This usually happens when:\n\n' +
+	"1. You're trying to load a Blueprint as a standalone JSON file that was meant to be part of a bundle\n" +
+	'2. The Blueprint was not packaged correctly as a blueprint.zip file\n\n' +
+	'To fix this:\n' +
+	"• If you're loading from a URL, make sure all referenced files are accessible relative to the Blueprint file\n" +
+	"• If you're using a blueprint.zip file, ensure it contains all the files referenced in the Blueprint\n" +
+	'• Check that the "resource": "bundled" references in your Blueprint match actual files in your bundle\n\n' +
+	'Learn more about Blueprint resources: https://wordpress.github.io/wordpress-playground/blueprints/data-format#resources';
+
+export class BlueprintFilesystemRequiredError extends Error {
+	constructor(message = BUNDLED_RESOURCE_ERROR_MESSAGE) {
+		super(message);
+		this.name = 'BlueprintFilesystemRequiredError';
+	}
+}
 
 export type { FileTree };
 export const ResourceTypes = [
@@ -157,12 +177,16 @@ export abstract class Resource<T extends File | Directory> {
 			progress,
 			corsProxy,
 			streamBundledFile,
+			gitAdditionalHeadersCallback,
 		}: {
 			/** Optional semaphore to limit concurrent downloads */
 			semaphore?: Semaphore;
 			progress?: ProgressTracker;
 			corsProxy?: string;
 			streamBundledFile?: StreamBundledFile;
+			gitAdditionalHeadersCallback?: (
+				url: string
+			) => Record<string, string>;
 		}
 	): Resource<File | Directory> {
 		let resource: Resource<File | Directory>;
@@ -185,6 +209,7 @@ export abstract class Resource<T extends File | Directory> {
 			case 'git:directory':
 				resource = new GitDirectoryResource(ref, progress, {
 					corsProxy,
+					additionalHeaders: gitAdditionalHeadersCallback,
 				});
 				break;
 			case 'literal:directory':
@@ -192,9 +217,7 @@ export abstract class Resource<T extends File | Directory> {
 				break;
 			case 'bundled':
 				if (!streamBundledFile) {
-					throw new Error(
-						'Filesystem is required for blueprint resources'
-					);
+					throw new BlueprintFilesystemRequiredError();
 				}
 				resource = new BundledResource(
 					ref,
@@ -363,31 +386,9 @@ export abstract class FetchResource extends Resource<File> {
 			return new File([await response.blob()], filename);
 		} catch (e) {
 			throw new Error(
-				`Could not download "${url}".
-				Check if the URL is correct and the server is reachable.
-				If it is reachable, the server might be blocking the request.
-				Check the browser console and network tabs for more information.
-
-				## Does the console show the error "No 'Access-Control-Allow-Origin' header"?
-
-				This means the server that hosts your file does not allow requests from other sites
-				(cross-origin requests, or CORS).	You need to move the asset to a server that allows
-				cross-origin file downloads. Learn more about CORS at
-				https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS.
-
-				If your file is on GitHub, load it from "raw.githubusercontent.com".
-				Here's how to do that:
-
-				1. Start with the original GitHub URL of the file. For example:
-				https://github.com/username/repository/blob/branch/filename.
-				2. Replace "github.com" with "raw.githubusercontent.com".
-				3. Remove the "/blob/" part of the URL.
-
-				The resulting URL should look like this:
-				https://raw.githubusercontent.com/username/repository/branch/filename
-
-				Error:
-				${e}`
+				`Could not download "${url}".\n\n` +
+					`Confirm that the URL is correct, the server is reachable, and the file is` +
+					`actually served at that URL. Original error: \n ${e}`
 			);
 		}
 	}
@@ -556,12 +557,18 @@ export class UrlResource extends FetchResource {
  */
 export class GitDirectoryResource extends Resource<Directory> {
 	private reference: GitDirectoryReference;
-	private options?: { corsProxy?: string };
+	private options?: {
+		corsProxy?: string;
+		additionalHeaders?: (url: string) => Record<string, string>;
+	};
 
 	constructor(
 		reference: GitDirectoryReference,
 		_progress?: ProgressTracker,
-		options?: { corsProxy?: string }
+		options?: {
+			corsProxy?: string;
+			additionalHeaders?: (url: string) => Record<string, string>;
+		}
 	) {
 		super();
 		this.reference = reference;
@@ -570,51 +577,77 @@ export class GitDirectoryResource extends Resource<Directory> {
 	}
 
 	async resolve() {
+		const additionalHeaders =
+			this.options?.additionalHeaders?.(this.reference.url) ?? {};
+
 		const repoUrl = this.options?.corsProxy
 			? `${this.options.corsProxy}${this.reference.url}`
 			: this.reference.url;
 
-		const commitHash = await resolveCommitHash(repoUrl, {
-			value: this.reference.ref,
-			type: this.reference.refType ?? 'infer',
-		});
-		const allFiles = await listGitFiles(repoUrl, commitHash);
-
-		const requestedPath = (this.reference.path ?? '').replace(/^\/+/, '');
-		const filesToClone = listDescendantFiles(allFiles, requestedPath);
-		const checkout = await sparseCheckout(
-			repoUrl,
-			commitHash,
-			filesToClone,
-			{
-				withObjects: this.reference['.git'],
-			}
-		);
-		let files = checkout.files;
-
-		// Remove the path prefix from the cloned file names.
-		files = mapKeys(files, (name) =>
-			name.substring(requestedPath.length).replace(/^\/+/, '')
-		);
-		if (this.reference['.git']) {
-			const gitFiles = await createDotGitDirectory({
-				repoUrl: this.reference.url,
+		try {
+			const commitHash = await resolveCommitHash(
+				repoUrl,
+				{
+					value: this.reference.ref,
+					type: this.reference.refType ?? 'infer',
+				},
+				additionalHeaders
+			);
+			const allFiles = await listGitFiles(
+				repoUrl,
 				commitHash,
-				ref: this.reference.ref,
-				refType: this.reference.refType,
-				objects: checkout.objects ?? [],
-				fileOids: checkout.fileOids ?? {},
-				pathPrefix: requestedPath,
-			});
-			files = {
-				...gitFiles,
-				...files,
+				additionalHeaders
+			);
+
+			const requestedPath = (this.reference.path ?? '').replace(
+				/^\/+/,
+				''
+			);
+			const filesToClone = listDescendantFiles(allFiles, requestedPath);
+			const checkout = await sparseCheckout(
+				repoUrl,
+				commitHash,
+				filesToClone,
+				{
+					withObjects: this.reference['.git'],
+					additionalHeaders,
+				}
+			);
+			let files = checkout.files;
+
+			// Remove the path prefix from the cloned file names.
+			files = mapKeys(files, (name) =>
+				name.substring(requestedPath.length).replace(/^\/+/, '')
+			);
+			if (this.reference['.git']) {
+				const gitFiles = await createDotGitDirectory({
+					repoUrl: this.reference.url,
+					commitHash,
+					ref: this.reference.ref,
+					refType: this.reference.refType,
+					objects: checkout.objects ?? [],
+					fileOids: checkout.fileOids ?? {},
+					pathPrefix: requestedPath,
+				});
+				files = {
+					...gitFiles,
+					...files,
+				};
+			}
+			return {
+				name: this.filename,
+				files,
 			};
+		} catch (error) {
+			if (error instanceof GitAuthenticationError) {
+				// Unwrap and re-throw with the original URL (without CORS proxy)
+				throw new GitAuthenticationError(
+					this.reference.url,
+					error.status
+				);
+			}
+			throw error;
 		}
-		return {
-			name: this.filename,
-			files,
-		};
 	}
 
 	/**

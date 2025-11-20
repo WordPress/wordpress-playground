@@ -6,6 +6,17 @@ import {
 } from '@wp-playground/storage';
 import type { BlueprintBundle } from './types';
 
+export class BlueprintFetchError extends Error {
+	constructor(
+		message: string,
+		public readonly url: string,
+		options?: ErrorOptions
+	) {
+		super(message, options);
+		this.name = 'BlueprintFetchError';
+	}
+}
+
 /**
  * Resolves a remote blueprint from a URL.
  *
@@ -15,34 +26,42 @@ import type { BlueprintBundle } from './types';
 export async function resolveRemoteBlueprint(
 	url: string
 ): Promise<BlueprintBundle> {
-	const response = await fetch(url, {
-		credentials: 'omit',
-	});
-	if (!response.ok) {
-		throw new Error(`Failed to fetch blueprint from ${url}`);
-	}
-	const blueprintBytes = await response.arrayBuffer();
 	try {
-		const blueprintText = new TextDecoder().decode(blueprintBytes);
-		JSON.parse(blueprintText);
-
-		// No exceptions, good! We're dealing with a JSON file. Let's
-		// resolve the "bundled" resources from the same remote URL.
-		return new OverlayFilesystem([
-			new InMemoryFilesystem({
-				'blueprint.json': blueprintText,
-			}),
-			new FetchFilesystem({
-				baseUrl: url,
-			}),
-		]);
-	} catch {
-		// If the blueprint is not a JSON file, check if it's a ZIP file.
-		if (await looksLikeZipFile(blueprintBytes)) {
-			return ZipFilesystem.fromArrayBuffer(blueprintBytes);
+		const response = await fetch(url, {
+			credentials: 'omit',
+		});
+		if (!response.ok) {
+			throw new Error(`Failed to fetch blueprint from ${url}`);
 		}
-		throw new Error(
-			`Blueprint file at ${url} is neither a valid JSON nor a ZIP file.`
+		const blueprintBytes = await response.arrayBuffer();
+		try {
+			const blueprintText = new TextDecoder().decode(blueprintBytes);
+			JSON.parse(blueprintText);
+
+			// No exceptions, good! We're dealing with a JSON file. Let's
+			// resolve the "bundled" resources from the same remote URL.
+			return new OverlayFilesystem([
+				new InMemoryFilesystem({
+					'blueprint.json': blueprintText,
+				}),
+				new FetchFilesystem({
+					baseUrl: url,
+				}),
+			]);
+		} catch {
+			// If the blueprint is not a JSON file, check if it's a ZIP file.
+			if (await looksLikeZipFile(blueprintBytes)) {
+				return ZipFilesystem.fromArrayBuffer(blueprintBytes);
+			}
+			throw new Error(
+				`Blueprint file at ${url} is neither a valid JSON nor a ZIP file.`
+			);
+		}
+	} catch (error) {
+		throw new BlueprintFetchError(
+			`Blueprint file at ${url} is neither a valid JSON nor a ZIP file.`,
+			url,
+			{ cause: error }
 		);
 	}
 }

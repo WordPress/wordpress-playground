@@ -6,8 +6,18 @@ export async function fetchWithCorsProxy(
 	corsProxyUrl?: string,
 	playgroundUrl?: string
 ): Promise<Response> {
-	const requestObject =
+	let requestObject =
 		typeof input === 'string' ? new Request(input, init) : input;
+	const playgroundUrlObj = playgroundUrl ? new URL(playgroundUrl) : null;
+	let requestUrlObj = playgroundUrlObj
+		? new URL(requestObject.url, playgroundUrlObj)
+		: new URL(requestObject.url);
+	if (requestUrlObj.protocol === 'http:') {
+		requestUrlObj.protocol = 'https:';
+		const httpsUrl = requestUrlObj.toString();
+		requestObject = await cloneRequest(requestObject, { url: httpsUrl });
+		requestUrlObj = new URL(httpsUrl);
+	}
 	if (!corsProxyUrl) {
 		return await fetch(requestObject);
 	}
@@ -17,12 +27,6 @@ export async function fetchWithCorsProxy(
 	 * won't be able to reach it. At best, it will produce a cryptic error
 	 * message. At worst, it will time out, making the user wait for 30 seconds.
 	 */
-	const playgroundUrlObj = playgroundUrl ? new URL(playgroundUrl) : null;
-	const requestUrlObj = new URL(
-		requestObject.url,
-		playgroundUrlObj || undefined
-	);
-
 	if (
 		playgroundUrlObj &&
 		requestUrlObj.protocol === playgroundUrlObj.protocol &&

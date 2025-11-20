@@ -25,6 +25,11 @@ describe('Blueprint step activatePlugin()', () => {
 		php = await handler.getPrimaryPhp();
 	});
 
+	afterEach(async () => {
+		php.exit();
+		await handler[Symbol.asyncDispose]();
+	});
+
 	it('should activate a plugin file located in the plugins directory', async () => {
 		const docroot = handler.documentRoot;
 		php.writeFile(
