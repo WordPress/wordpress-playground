@@ -121,7 +121,7 @@ import {
 	shouldCacheUrl,
 } from './src/lib/offline-mode-cache';
 
-if (!(self as any).document) {
+if (!self.document) {
 	// Workaround: vite translates import.meta.url
 	// to document.currentScript which fails inside of
 	// a service worker because document is undefined
@@ -192,6 +192,178 @@ self.addEventListener('activate', function (event) {
 	}
 	event.waitUntil(doActivate());
 });
+// sw.ts
+declare const self: ServiceWorkerGlobalScope;
+
+// Derive scope once and use it to build every path.
+const SCOPE = new URL(self.registration.scope).pathname.replace(/\/$/, '');
+const VIRTUAL_PREFIX = `${SCOPE}/__iframes/`;
+const LOADER_PATH = `${SCOPE}/wp-includes/empty.html`;
+const BOOTSTRAP_URL = `${SCOPE}/__bootstrap/controlled-iframes.js`;
+
+// Paste the compiled JS from controlled-iframes.ts here.
+const BOOTSTRAP_JS = `
+(() => {
+  if ((window).__controlled_iframes__) return;
+  (window).__controlled_iframes__ = true;
+
+  const BUCKET = 'iframe-virtual-docs-v1';
+
+  // Get the SW scope path, reliably. Works in top pages and in loader-created iframes.
+  let scopePath = (document.currentScript)?.dataset.scope || null;
+  const scopePromise = (async () => {
+    if (scopePath) return scopePath.replace(/\\/$/, '');
+    const reg = await navigator.serviceWorker.ready;
+    scopePath = new URL(reg.scope).pathname.replace(/\\/$/, '');
+    return scopePath;
+  })();
+
+  const native = {
+    setAttribute: Element.prototype.setAttribute,
+    src: Object.getOwnPropertyDescriptor(HTMLIFrameElement.prototype, 'src'),
+    srcdoc: Object.getOwnPropertyDescriptor(HTMLIFrameElement.prototype, 'srcdoc'),
+  };
+
+  const uid = () => \`${Date.now().toString(36)}-${Math.random()
+	.toString(36)
+	.slice(2, 10)}\`;
+
+  async function paths() {
+    const scope = await scopePromise;
+    return {
+      VIRTUAL_PREFIX: \`\${scope}/__iframes/\`,
+      LOADER_PATH:    \`\${scope}/wp-includes/empty.html\`,
+    };
+  }
+
+  async function putVirtual(id, html) {
+    const cache = await caches.open(BUCKET);
+    const { VIRTUAL_PREFIX } = await paths();
+    await cache.put(\`${VIRTUAL_PREFIX}\${id}.html\`, new Response(html, {
+      headers: { 'Content-Type': 'text/html; charset=utf-8' }
+    }));
+  }
+
+  async function makeLoaderUrl(id, prettyUrl) {
+    const { LOADER_PATH } = await paths();
+    const qs = new URLSearchParams({ id, base: document.baseURI, url: prettyUrl ?? '' }).toString();
+    return \`${LOADER_PATH}#\${qs}\`;
+  }
+
+  async function rewriteToLoader(iframe, html, prettyUrl) {
+    const id = uid();
+    await putVirtual(id, html);                     // ensure blob exists first
+    const url = await makeLoaderUrl(id, prettyUrl); // then navigate
+    native.src.set.call(iframe, url);
+  }
+
+  async function handleSrcdoc(iframe, html) {
+    await rewriteToLoader(iframe, html);
+  }
+  async function handleDataUrl(iframe, url) {
+    const html = await (await fetch(url)).text();
+    await rewriteToLoader(iframe, html);
+  }
+  async function handleBlobUrl(iframe, url) {
+    const html = await (await fetch(url)).text();
+    await rewriteToLoader(iframe, html);
+  }
+
+  Object.defineProperty(HTMLIFrameElement.prototype, 'srcdoc', {
+    configurable: true,
+    get: native.srcdoc.get.bind(HTMLIFrameElement.prototype),
+    set(value) { 
+	  console.log('srcdoc set', value);
+	  void handleSrcdoc(this, String(value));
+	}
+  });
+
+  Object.defineProperty(HTMLIFrameElement.prototype, 'src', {
+    configurable: true,
+    get: native.src.get.bind(HTMLIFrameElement.prototype),
+    set(value) {
+	  console.log('src set', value);
+      const v = String(value);
+      if (v.startsWith('data:text/html')) { void handleDataUrl(this, v); return; }
+      if (v.startsWith('blob:'))         { void handleBlobUrl(this, v); return; }
+      native.src.set.call(this, v);
+    }
+  });
+
+  Element.prototype.setAttribute = function(name, value) {
+    if (this instanceof HTMLIFrameElement) {
+      const n = name.toLowerCase();
+      const v = String(value);
+      if (n === 'srcdoc') { void handleSrcdoc(this, v); return; }
+      if (n === 'src') {
+        if (v.startsWith('data:text/html')) { void handleDataUrl(this, v); return; }
+        if (v.startsWith('blob:'))         { void handleBlobUrl(this, v); return; }
+      }
+    }
+    return native.setAttribute.call(this, name, value);
+  };
+
+  function process(node) {
+    console.log('process', node);
+    if (node instanceof HTMLIFrameElement) {
+      const sd = node.getAttribute('srcdoc');
+      if (sd != null) { void handleSrcdoc(node, sd); return; }
+      const s = node.getAttribute('src') || '';
+      if (s.startsWith('data:text/html')) { void handleDataUrl(node, s); return; }
+      if (s.startsWith('blob:'))         { void handleBlobUrl(node, s); return; }
+    } else if (node instanceof Element) {
+      node.querySelectorAll('iframe').forEach(process);
+    }
+  }
+
+  process(document.documentElement);
+
+  new MutationObserver(muts => {
+    for (const m of muts) for (const n of m.addedNodes) process(n);
+  }).observe(document.documentElement, { childList: true, subtree: true });
+
+  // Optional: kill the flash while normalizing
+  const style = document.createElement('style');
+  style.textContent = 'iframe{visibility:hidden} iframe[data-controlled="1"]{visibility:visible}';
+  document.documentElement.appendChild(style);
+})();`;
+
+self.addEventListener('install', (e) => e.waitUntil(self.skipWaiting()));
+self.addEventListener('activate', (e) => e.waitUntil(self.clients.claim()));
+
+const LOADER_HTML =
+	`<!doctype html><meta charset="utf-8"><script>
+(async () => {
+  const qs = new URLSearchParams(location.hash.slice(1));
+  const id   = qs.get('id');
+  const base = qs.get('base') || '';
+  const url  = qs.get('url')  || '';
+
+  // Retry a few times in case the page hasn't finished caches.put yet.
+  async function fetchVirtual(path) {
+    for (let i = 0; i < 6; i++) {
+      const res = await fetch(path, { cache: 'no-store' });
+      if (res.ok) return res;
+      await new Promise(r => setTimeout(r, 30));
+    }
+    return fetch(path, { cache: 'no-store' });
+  }
+
+  let html = await (await fetchVirtual('${VIRTUAL_PREFIX}' + id + '.html')).text();
+
+  const safeBase = base.replace(/"/g,'&quot;');
+  const inject = '<base href="' + safeBase + '"><script src="${BOOTSTRAP_URL}" defer data-scope="${SCOPE}" data-controlled-iframes></' + 'script>';
+
+  if (/<head[^>]*>/i.test(html)) {
+    html = html.replace(/<head[^>]*>/i, m => m + inject);
+  } else {
+    html = '<!doctype html><html><head><meta charset="utf-8">' + inject + '</head><body>' + html + '</body></html>';
+  }
+
+  document.open(); document.write(html); document.close();
+  if (url) try { history.replaceState({}, '', url); } catch {}
+})();
+</` + `script>`;
 
 self.addEventListener('fetch', (event) => {
 	if (!isCurrentServiceWorkerActive()) {
@@ -199,7 +371,6 @@ self.addEventListener('fetch', (event) => {
 	}
 
 	const url = new URL(event.request.url);
-
 	// Don't handle requests to the service worker script itself.
 	if (url.pathname.startsWith(self.location.pathname)) {
 		return;
@@ -209,6 +380,40 @@ self.addEventListener('fetch', (event) => {
 		url.pathname.startsWith('/plugin-proxy') ||
 		url.pathname.startsWith('/client/index.js');
 	if (isReservedUrl) {
+		return;
+	}
+
+	if (event.request.mode === 'navigate' && url.pathname === LOADER_PATH) {
+		event.respondWith(
+			new Response(LOADER_HTML, {
+				headers: { 'Content-Type': 'text/html; charset=utf-8' },
+			})
+		);
+		return;
+	}
+
+	if (url.pathname.startsWith(VIRTUAL_PREFIX)) {
+		event.respondWith(
+			(async () => {
+				const cache = await caches.open('iframe-virtual-docs-v1');
+				const match = await cache.match(event.request);
+				return (
+					match ||
+					new Response('<!doctype html>Not found', { status: 404 })
+				);
+			})()
+		);
+		return;
+	}
+
+	if (url.pathname === BOOTSTRAP_URL) {
+		event.respondWith(
+			new Response(BOOTSTRAP_JS, {
+				headers: {
+					'Content-Type': 'application/javascript; charset=utf-8',
+				},
+			})
+		);
 		return;
 	}
 
@@ -319,7 +524,7 @@ self.addEventListener('fetch', (event) => {
  * A request to a PHP Worker Thread or to a regular static asset,
  * but initiated by a scoped referer (e.g. fetch() from a block editor iframe).
  */
-async function handleScopedRequest(event: FetchEvent, scope: string) {
+async function handleScopedRequest(event: FetchEvent, scope) {
 	const fullUrl = new URL(event.request.url);
 	const unscopedUrl = removeURLScope(fullUrl);
 	if (fullUrl.pathname.endsWith('/wp-includes/empty.html')) {
@@ -518,11 +723,11 @@ function emptyHtml() {
 }
 
 type WPModuleDetails = {
-	staticAssetsDirectory?: string;
+	staticAssetsDirectory?;
 };
 
 const scopeToWpModule: Record<string, WPModuleDetails> = {};
-async function getScopedWpDetails(scope: string): Promise<WPModuleDetails> {
+async function getScopedWpDetails(scope): Promise<WPModuleDetails> {
 	if (!scopeToWpModule[scope]) {
 		const requestId = await broadcastMessageExpectReply(
 			{

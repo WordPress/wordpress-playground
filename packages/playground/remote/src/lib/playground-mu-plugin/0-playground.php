@@ -35,7 +35,7 @@ add_action('admin_head', function () {
 				button.button.try-again) {
 						display: none;
 				}
-		</style>';
+		</style><script src="/__bootstrap/controlled-iframes.js"></script>';
 });
 
 add_action('init', 'networking_disabled');
