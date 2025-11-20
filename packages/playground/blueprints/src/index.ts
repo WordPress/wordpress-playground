@@ -19,6 +19,8 @@ export {
 	isBlueprintBundle,
 	compileBlueprintV1,
 	runBlueprintV1Steps,
+	InvalidBlueprintError,
+	BlueprintStepExecutionError,
 
 	// BC:
 	compileBlueprintV1 as compileBlueprint,
@@ -49,6 +51,7 @@ export type {
 	VFSReference,
 	VFSResource,
 } from './lib/v1/resources';
+export { BlueprintFilesystemRequiredError } from './lib/v1/resources';
 export * from './lib/steps';
 export * from './lib/steps/handlers';
 export type {
@@ -61,7 +64,10 @@ export { getV2Runner } from './lib/v2/get-v2-runner';
 export { runBlueprintV2 } from './lib/v2/run-blueprint-v2';
 export type { BlueprintMessage } from './lib/v2/run-blueprint-v2';
 
-export { resolveRemoteBlueprint } from './lib/resolve-remote-blueprint';
+export {
+	resolveRemoteBlueprint,
+	BlueprintFetchError,
+} from './lib/resolve-remote-blueprint';
 export { wpContentFilesExcludedFromExport } from './lib/utils/wp-content-files-excluded-from-exports';
 export { resolveRuntimeConfiguration } from './lib/resolve-runtime-configuration';
 

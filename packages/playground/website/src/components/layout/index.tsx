@@ -2,12 +2,8 @@ import css from './style.module.css';
 
 import { SiteManager } from '../site-manager';
 import { CSSTransition } from 'react-transition-group';
-import type {
-	PlaygroundDispatch,
-	PlaygroundReduxState,
-} from '../../lib/state/redux/store';
-import { useAppSelector, useAppDispatch } from '../../lib/state/redux/store';
-import { addCrashListener, logger } from '@php-wasm/logger';
+import type { PlaygroundReduxState } from '../../lib/state/redux/store';
+import { useAppSelector } from '../../lib/state/redux/store';
 import type { BlueprintV1Declaration } from '@wp-playground/blueprints';
 import { useState, useEffect, useRef } from 'react';
 import { acquireOAuthTokenIfNeeded } from '../../github/acquire-oauth-token-if-needed';
@@ -17,7 +13,6 @@ import { asPullRequestAction } from '../../github/github-export-form/form';
 import { GithubImportModal } from '../../github/github-import-form';
 import { GitHubOAuthGuardModal } from '../../github/github-oauth-guard';
 import { asContentType } from '../../github/import-from-github';
-import { ErrorReportModal } from '../error-report-modal';
 import { LogModal } from '../log-modal';
 import { StartErrorModal } from '../start-error-modal';
 import type { DisplayMode } from '../playground-viewport';
@@ -25,31 +20,15 @@ import {
 	supportedDisplayModes,
 	PlaygroundViewport,
 } from '../playground-viewport';
-import { setActiveModal } from '../../lib/state/redux/slice-ui';
 import { ImportFormModal } from '../import-form-modal';
 import { PreviewPRModal } from '../../github/preview-pr';
 import { MissingSiteModal } from '../missing-site-modal';
 import { RenameSiteModal } from '../rename-site-modal';
 import { SaveSiteModal } from '../save-site-modal';
+import { modalSlugs } from '../../lib/state/redux/slice-ui';
 import { GitHubPrivateRepoAuthModal } from '../github-private-repo-auth-modal';
 
 acquireOAuthTokenIfNeeded();
-
-export const modalSlugs = {
-	LOG: 'log',
-	ERROR_REPORT: 'error-report',
-	START_ERROR: 'start-error',
-	IMPORT_FORM: 'import-form',
-	GITHUB_IMPORT: 'github-import',
-	GITHUB_EXPORT: 'github-export',
-	GITHUB_PRIVATE_REPO_AUTH: 'github-private-repo-auth',
-	PREVIEW_PR_WP: 'preview-pr-wordpress',
-	PREVIEW_PR_GUTENBERG: 'preview-pr-gutenberg',
-	MISSING_SITE_PROMPT: 'missing-site-prompt',
-	RENAME_SITE: 'rename-site',
-	SAVE_SITE: 'save-site',
-};
-
 const displayMode = getDisplayModeFromQuery();
 function getDisplayModeFromQuery(): DisplayMode {
 	const query = new URLSearchParams(document.location.search);
@@ -102,8 +81,6 @@ export function Layout() {
  * top level, like here, or contextual to where the "Show modal" button is rendered.
  */
 function Modals(blueprint: BlueprintV1Declaration) {
-	const dispatch: PlaygroundDispatch = useAppDispatch();
-
 	const query = new URL(document.location.href).searchParams;
 
 	const [githubExportFiles, setGithubExportFiles] = useState<any[]>();
@@ -148,15 +125,8 @@ function Modals(blueprint: BlueprintV1Declaration) {
 		return values;
 	});
 
-	useEffect(() => {
-		addCrashListener(logger, (e) => {
-			const error = e as CustomEvent;
-			if (error.detail?.source === 'php-wasm') {
-				dispatch(setActiveModal(modalSlugs.ERROR_REPORT));
-			}
-		});
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, []);
+	// eslint-disable-next-line react-hooks/exhaustive-deps
+	useEffect(() => {}, []);
 
 	const currentModal = useAppSelector(
 		(state: PlaygroundReduxState) => state.ui.activeModal
@@ -164,8 +134,6 @@ function Modals(blueprint: BlueprintV1Declaration) {
 
 	if (currentModal === modalSlugs.LOG) {
 		return <LogModal />;
-	} else if (currentModal === modalSlugs.ERROR_REPORT) {
-		return <ErrorReportModal blueprint={blueprint} />;
 	} else if (currentModal === modalSlugs.START_ERROR) {
 		return <StartErrorModal />;
 	} else if (currentModal === modalSlugs.IMPORT_FORM) {

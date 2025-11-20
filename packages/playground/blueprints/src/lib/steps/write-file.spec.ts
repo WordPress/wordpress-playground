@@ -18,6 +18,7 @@ describe('Blueprint step writeFile()', () => {
 
 	afterEach(() => {
 		loggerErrorSpy.mockRestore();
+		php.exit();
 	});
 
 	it('should write a file with string data', async () => {

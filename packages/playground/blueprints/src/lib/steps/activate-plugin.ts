@@ -98,7 +98,7 @@ export const activatePlugin: StepHandler<ActivatePluginStep> = async (
 	/**
 	 * Instead of trusting the activation response, check the active plugins list.
 	 *
-	 * We try to discard any extra output via output buffering. The output of the script below 
+	 * We try to discard any extra output via output buffering. The output of the script below
 	 * end with `{"success": true}` or `{"success": false}`. Only `{"success": true}` is
 	 * treated as a successful plugin activation.
 	 */
@@ -152,9 +152,11 @@ export const activatePlugin: StepHandler<ActivatePluginStep> = async (
 	}
 
 	throw new Error(
-		`Plugin ${pluginPath} could not be activated – WordPress exited with no error. ` +
-			`Sometimes, when $_SERVER or site options are not configured correctly, ` +
-			`WordPress exits early with a 301 redirect. ` +
-			`Inspect the "debug" logs in the console for more details.`
+		`Plugin ${pluginPath} could not be activated - WordPress exited with exit code ${activatePluginResult.exitCode}. ` +
+			`Inspect the "debug" logs in the console for more details. Output headers: ${JSON.stringify(
+				activatePluginResult.headers,
+				null,
+				2
+			)}`
 	);
 };

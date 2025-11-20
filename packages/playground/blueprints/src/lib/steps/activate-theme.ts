@@ -67,10 +67,12 @@ export const activateTheme: StepHandler<ActivateThemeStep> = async (
 	if (result.text !== 'Theme activated successfully') {
 		logger.debug(result);
 		throw new Error(
-			`Theme ${themeFolderName} could not be activated – WordPress exited with no error. ` +
-				`Sometimes, when $_SERVER or site options are not configured correctly, ` +
-				`WordPress exits early with a 301 redirect. ` +
-				`Inspect the "debug" logs in the console for more details`
+			`Theme ${themeFolderName} could not be activated - WordPress exited with exit code ${result.exitCode}. ` +
+				`Inspect the "debug" logs in the console for more details. Output headers: ${JSON.stringify(
+					result.headers,
+					null,
+					2
+				)}`
 		);
 	}
 };

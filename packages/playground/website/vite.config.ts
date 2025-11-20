@@ -171,6 +171,26 @@ export default defineConfig(({ command, mode }) => {
 					}
 				},
 			} as Plugin,
+			{
+				name: 'inject-commit-id',
+				transformIndexHtml(html) {
+					try {
+						const commitId = require('child_process')
+							.execSync('git rev-parse HEAD')
+							.toString()
+							.trim();
+						return html.replace(
+							'</head>',
+							`<meta name="commit-id" content="${commitId}" />
+							</head>`
+						);
+					} catch (e) {
+						// eslint-disable-next-line no-console
+						console.error('Failed to inject commit ID', e);
+						return html;
+					}
+				},
+			},
 		],
 
 		// Configuration for building your library.

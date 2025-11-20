@@ -24,13 +24,13 @@ import type { SiteInfo } from '../../../lib/state/redux/slice-sites';
 import {
 	setSiteManagerOpen,
 	setSiteManagerSection,
+	setActiveModal,
+	modalSlugs,
 } from '../../../lib/state/redux/slice-ui';
 import { selectClientInfoBySiteSlug } from '../../../lib/state/redux/slice-clients';
 import { encodeStringAsBase64 } from '../../../lib/base64';
 import { ActiveSiteSettingsForm } from '../site-settings-form/active-site-settings-form';
 import { getRelativeDate } from '../../../lib/get-relative-date';
-import { setActiveModal } from '../../../lib/state/redux/slice-ui';
-import { modalSlugs } from '../../layout';
 import { removeSite } from '../../../lib/state/redux/slice-sites';
 import { BlueprintReflection } from '@wp-playground/blueprints';
 import { lazy, Suspense, useState, useEffect } from 'react';

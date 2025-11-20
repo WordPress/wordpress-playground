@@ -3,7 +3,6 @@ import { loadDirectoryHandle } from '../opfs/opfs-directory-handle-storage';
 import {
 	getDirectoryPathForSlug,
 	legacyOpfsPathSymbol,
-	deleteDirectory,
 } from '../opfs/opfs-site-storage';
 import {
 	addClientInfo,
@@ -11,7 +10,11 @@ import {
 	updateClientInfo,
 } from './slice-clients';
 import { logTrackingEvent } from '../../tracking';
-import type { Blueprint } from '@wp-playground/blueprints';
+import {
+	type Blueprint,
+	BlueprintFilesystemRequiredError,
+	InvalidBlueprintError,
+} from '@wp-playground/blueprints';
 import { logger } from '@php-wasm/logger';
 import { setupPostMessageRelay } from '@php-wasm/web';
 import { startPlaygroundWeb } from '@wp-playground/client';
@@ -26,7 +29,7 @@ import type { PlaygroundDispatch, PlaygroundReduxState } from './store';
 import { selectSiteBySlug } from './slice-sites';
 // @ts-ignore
 import { corsProxyUrl } from 'virtual:cors-proxy-url';
-import { modalSlugs } from '../../../components/layout';
+import { modalSlugs } from './slice-ui';
 import {
 	createGitAuthHeaders,
 	shouldShowGitHubAuthModal,
@@ -65,9 +68,10 @@ export function bootSiteClient(
 			} catch (e) {
 				logger.error(e);
 				dispatch(
-					setActiveSiteError(
-						'directory-handle-not-found-in-indexeddb'
-					)
+					setActiveSiteError({
+						error: 'directory-handle-not-found-in-indexeddb',
+						details: e,
+					})
 				);
 				return;
 			}
@@ -90,13 +94,19 @@ export function bootSiteClient(
 				logger.error(e);
 				if (e instanceof DOMException && e.name === 'NotFoundError') {
 					dispatch(
-						setActiveSiteError(
-							'directory-handle-not-found-in-indexeddb'
-						)
+						setActiveSiteError({
+							error: 'directory-handle-not-found-in-indexeddb',
+							details: e,
+						})
 					);
 					return;
 				}
-				dispatch(setActiveSiteError('directory-handle-unknown-error'));
+				dispatch(
+					setActiveSiteError({
+						error: 'directory-handle-unknown-error',
+						details: e,
+					})
+				);
 				return;
 			}
 		}
@@ -122,9 +132,9 @@ export function bootSiteClient(
 			blueprint = site.metadata.originalBlueprint;
 		}
 
-		let playground: PlaygroundClient;
+		let playground: PlaygroundClient | undefined = undefined;
 		try {
-			playground = await startPlaygroundWeb({
+			await startPlaygroundWeb({
 				iframe: iframe!,
 				remoteUrl: getRemoteUrl().toString(),
 				scope: site.slug,
@@ -136,8 +146,9 @@ export function bootSiteClient(
 					) === 'yes',
 				// Intercept the Playground client even if the
 				// Blueprint fails.
-				onClientConnected: (playground) => {
-					(window as any)['playground'] = playground;
+				onClientConnected: (playgroundClient) => {
+					playground = (window as any)['playground'] =
+						playgroundClient;
 				},
 				// Log the names of provided Blueprint's steps.
 				// Only the names (e.g. "runPhp" or "login") are logged. Step options like
@@ -161,52 +172,33 @@ export function bootSiteClient(
 				corsProxy: corsProxyUrl,
 				gitAdditionalHeadersCallback: createGitAuthHeaders(),
 			});
-
-			// @TODO: Remove backcompat code after 2024-12-01.
-			if (
-				(site.metadata as any)[legacyOpfsPathSymbol] &&
-				site.metadata.storage === 'opfs' &&
-				mountDescriptor?.device.type === 'opfs'
-			) {
-				const sourcePath = mountDescriptor.device.path;
-				const targetPath = getDirectoryPathForSlug(site.slug);
-				logger.info(
-					`Migrating legacy OPFS site from ${sourcePath} to ${targetPath}`
-				);
-				// Move the legacy site to the new OPFS sites location.
-				mountDescriptor = {
-					device: {
-						type: 'opfs',
-						path: targetPath,
-					},
-					mountpoint: '/wordpress',
-				} as const;
-				try {
-					await playground.mountOpfs(
-						{
-							...mountDescriptor,
-							initialSyncDirection: 'memfs-to-opfs',
-						} as const
-						// TODO: show progress indicator?
-					);
-					await deleteDirectory(sourcePath);
-					logger.info(
-						`Completed migration of legacy OPFS site from ${sourcePath} to ${targetPath}`
-					);
-				} catch (e) {
-					logger.info(
-						`Failed migration of legacy OPFS site from ${sourcePath} to ${targetPath}`
-					);
-					throw e;
-				}
-			}
 		} catch (e) {
 			logger.error(e);
+
 			if (
 				(e as any).name === 'ArtifactExpiredError' ||
 				(e as any).originalErrorClassName === 'ArtifactExpiredError'
 			) {
-				dispatch(setActiveSiteError('github-artifact-expired'));
+				dispatch(
+					setActiveSiteError({
+						error: 'github-artifact-expired',
+						details: e,
+					})
+				);
+			} else if (e instanceof BlueprintFilesystemRequiredError) {
+				dispatch(
+					setActiveSiteError({
+						error: 'blueprint-filesystem-required',
+						details: e,
+					})
+				);
+			} else if (e instanceof InvalidBlueprintError) {
+				dispatch(
+					setActiveSiteError({
+						error: 'blueprint-validation-failed',
+						details: e,
+					})
+				);
 			} else if (
 				(e as any).name === 'GitAuthenticationError' ||
 				(e as any).originalErrorClassName ===
@@ -226,17 +218,25 @@ export function bootSiteClient(
 						setActiveModal(modalSlugs.GITHUB_PRIVATE_REPO_AUTH)
 					);
 				} else {
-					dispatch(setActiveSiteError('site-boot-failed'));
+					dispatch(
+						setActiveSiteError({
+							error: 'site-boot-failed',
+							details: e,
+						})
+					);
 					dispatch(setActiveModal(modalSlugs.ERROR_REPORT));
 				}
 			} else {
-				dispatch(setActiveSiteError('site-boot-failed'));
-				dispatch(setActiveModal(modalSlugs.ERROR_REPORT));
+				dispatch(
+					setActiveSiteError({
+						error: 'site-boot-failed',
+						details: e,
+					})
+				);
 			}
-			return;
 		}
 
-		if (signal.aborted) {
+		if (signal.aborted || !playground) {
 			return;
 		}
 
@@ -251,7 +251,7 @@ export function bootSiteClient(
 			})
 		);
 
-		playground.onNavigation((url) => {
+		(playground as PlaygroundClient).onNavigation((url) => {
 			dispatch(
 				updateClientInfo({
 					siteSlug: site.slug,
