@@ -41,10 +41,10 @@ export const playwrightConfig: PlaywrightTestConfig = {
 			},
 		},
 
-		// {
-		// 	name: 'firefox',
-		// 	use: { ...devices['Desktop Firefox'] },
-		// },
+		{
+			name: 'firefox',
+			use: { ...devices['Desktop Firefox'] },
+		},
 
 		// Safari runner is disabled in CI – it used to be enabled but the tests
 		// failed randomly without any obvious reason.
