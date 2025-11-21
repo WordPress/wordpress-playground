@@ -8,8 +8,8 @@ import { test, expect } from '../playground-fixtures';
 import * as MinifiedWordPressVersions from '../../../wordpress-builds/src/wordpress/wp-versions.json';
 
 const LatestSupportedWordPressVersion = Object.keys(
-	MinifiedWordPressVersions
-).filter((x) => !['trunk', 'beta'].includes(x))[0];
+	(MinifiedWordPressVersions as any).default ?? MinifiedWordPressVersions
+).filter((x) => !['nightly', 'beta'].includes(x))[0];
 
 test('should load PHP 8.3 by default', async ({ website, wordpress }) => {
 	// Navigate to the website
