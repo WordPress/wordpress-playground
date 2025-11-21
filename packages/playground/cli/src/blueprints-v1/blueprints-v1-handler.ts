@@ -108,11 +108,14 @@ export class BlueprintsV1Handler {
 			);
 		}
 
-		logger.log(`Fetching SQLite integration plugin...`);
-
-		const sqliteIntegrationPluginZip = this.args.skipSqliteSetup
-			? undefined
-			: await fetchSqliteIntegration(monitor);
+		let sqliteIntegrationPluginZip;
+		if (this.args.skipSqliteSetup) {
+			logger.log(`Skipping SQLite integration plugin setup...`);
+			sqliteIntegrationPluginZip = undefined;
+		} else {
+			logger.log(`Fetching SQLite integration plugin...`);
+			sqliteIntegrationPluginZip = await fetchSqliteIntegration(monitor);
+		}
 
 		const followSymlinks = this.args.followSymlinks === true;
 		const trace = this.args.experimentalTrace === true;

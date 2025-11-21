@@ -739,14 +739,17 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 	echo -n " -s ASYNCIFY_IMPORTS=$ASYNCIFY_IMPORTS " | tr -d "\n" >> /root/.emcc-php-asyncify-flags; \
 	export ASYNCIFY_ONLY_UNPREFIXED=$'"null.<anonymous>",\
 "cookieread",\
+"ImageToFile",\
 "ReadBlob",\
 "ReadBlobStream",\
-"ImageToFile",\
+"ReadImage",\
 "SetImageInfo",\
 "MagickReadImageFile",\
-"PHPWasm_Magick_SetImageInfo",\
 "PHPWasm_Magick_ImageToFile",\
+"PHPWasm_Magick_ReadBlob",\
+"PHPWasm_Magick_ReadBlobStream",\
 "PHPWasm_Magick_ReadImage",\
+"PHPWasm_Magick_SetImageInfo",\
 "zm_shutdown_imagick",\
 "php_imagick_read_file",\
 "zim_Imagick___construct",\
@@ -2226,16 +2229,10 @@ RUN set -euxo pipefail; \
 	source /root/emsdk/emsdk_env.sh; \
 	if [ "$WITH_JSPI" = "yes" ]; then \
 		# Both imports and exports are required for inter-module communication with wrapped methods, e.g., wasm_recv.
-		export JSPI_ADD_IMPORTS=""; \
-		export JSPI_ADD_EXPORTS=""; \
-		if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then \
-			export JSPI_ADD_IMPORTS=",fd_close"; \
-			export JSPI_ADD_EXPORTS=",fd_close"; \
-		fi; \
-		export ASYNCIFY_FLAGS=" -s ASYNCIFY=2 -sSUPPORT_LONGJMP=wasm -fwasm-exceptions -sJSPI_IMPORTS=js_open_process,js_fd_read,js_waitpid,js_process_status,js_create_input_device,wasm_setsockopt,wasm_shutdown,wasm_close,wasm_recv,__syscall_fcntl64,js_flock,js_release_file_locks,js_waitpid$JSPI_ADD_IMPORTS -sJSPI_EXPORTS=php_wasm_init,wasm_sleep,wasm_read,emscripten_sleep,wasm_sapi_handle_request,wasm_sapi_request_shutdown,wasm_poll_socket,wrap_select,__wrap_select,select,php_pollfd_for,fflush,wasm_popen,wasm_read,wasm_php_exec,run_cli,wasm_recv$JSPI_ADD_EXPORTS -s EXTRA_EXPORTED_RUNTIME_METHODS=ccall,PROXYFS,wasmExports,_malloc,setErrNo "; \
+		export ASYNCIFY_FLAGS=" -s ASYNCIFY=2 -sSUPPORT_LONGJMP=wasm -fwasm-exceptions -sJSPI_IMPORTS=js_open_process,js_fd_read,js_waitpid,js_process_status,js_create_input_device,wasm_setsockopt,wasm_shutdown,wasm_close,wasm_recv,__syscall_fcntl64,js_flock,js_release_file_locks,js_waitpid -sJSPI_EXPORTS=php_wasm_init,wasm_sleep,wasm_read,emscripten_sleep,wasm_sapi_handle_request,wasm_sapi_request_shutdown,wasm_poll_socket,wrap_select,__wrap_select,select,php_pollfd_for,fflush,wasm_popen,wasm_read,wasm_php_exec,run_cli,wasm_recv,__wasm_call_ctors,__errno_location,__funcs_on_exit -s EXPORTED_RUNTIME_METHODS=HEAPU32,HEAPU8,ccall,PROXYFS,wasmExports "; \
 		echo '#define PLAYGROUND_JSPI 1' > /root/php_wasm_asyncify.h; \
 	else \
-		export ASYNCIFY_FLAGS=" -s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1 -s EXPORTED_RUNTIME_METHODS=ccall,PROXYFS,wasmExports,setErrNo $(cat /root/.emcc-php-asyncify-flags)  "; \
+		export ASYNCIFY_FLAGS=" -s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1 -s EXPORTED_RUNTIME_METHODS=HEAPU32,HEAPU8,ccall,PROXYFS,wasmExports $(cat /root/.emcc-php-asyncify-flags)  "; \
 		echo '' > /root/php_wasm_asyncify.h; \
 	fi; \
 	export EXPORTED_FUNCTIONS=$'["_exit", \n\
@@ -2243,6 +2240,8 @@ RUN set -euxo pipefail; \
 "stringToUTF8", \n\
 "lengthBytesUTF8", \n\
 "FS", \n\
+"_malloc", \n\
+"___errno_location", \n\
 "___wrap_select", \n\
 "_wasm_set_sapi_name", \n\
 "_php_wasm_init", \n\
@@ -2403,6 +2402,15 @@ RUN set -euxo pipefail; \
 		# wrapper function.
 		/root/replace.sh $'s/ENVIRONMENT_IS_([A-Z]+)\s*=\s*(true|false)/ENVIRONMENT_IS_$1=RuntimeName==="$1"/g' /root/output/php.js; \
 		/root/replace.sh 's/var ENV\s*=\s*\{/var ENV = PHPLoader.ENV || {/g' /root/output/php.js; \
+	# Expose required functions to the module.
+		# Emscripten 4.0.10 removed the runtime exposure of `_malloc` and `_free`,
+		# so we rebind them from `wasmExports` and attach them to PHPLoader.
+		if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then \
+			/root/replace.sh "s/_free\s*=\s*wasmExports\['free'\];/_free = PHPLoader['free'] = wasmExports['free'];/g" /root/output/php.js; \
+		else \
+			/root/replace.sh "s/_wasm_free\s*=\s*Module\[[\"']_wasm_free[\"']\]/_wasm_free = PHPLoader['free'] = Module['_wasm_free']/g" /root/output/php.js; \
+		fi ; \
+		/root/replace.sh "s/_malloc\s*=\s*Module\[[\"']_malloc[\"']\]/_malloc = PHPLoader['malloc'] = Module['_malloc']/g" /root/output/php.js; \
 	# Patch Emscripten exit status to include a stack trace
 		# Override Emscripten's default ExitStatus class which gets
 		# thrown on failure. Unfortunately, the default object is not

@@ -1188,7 +1188,7 @@ export class PHP implements Disposable {
 	 * @param  path - The file path to write to.
 	 * @param  data - The data to write to the file.
 	 */
-	writeFile(path: string, data: string | Uint8Array) {
+	writeFile(path: string, data: string | Uint8Array | Buffer) {
 		const result = FSHelpers.writeFile(
 			this[__private__dont__use].FS,
 			path,

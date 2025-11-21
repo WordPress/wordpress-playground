@@ -36,26 +36,6 @@ PHPLoader['removeRunDependency'] = function (...args) {
     }
 }
 
-/**
- * Other exports live in the Dockerfile in:
- *
- * * EXPORTED_RUNTIME_METHODS
- * * EXPORTED_FUNCTIONS
- *
- * These exports, however, live in here because:
- *
- * * Listing them in EXPORTED_RUNTIME_METHODS doesn't actually
- *   export them. This could be a bug in Emscripten or a consequence of
- *   that option being deprecated.
- * * Listing them in EXPORTED_FUNCTIONS works, but they are overridden
- *   on every `BasePHP.run()` call. This is a problem because we want to
- *   spy on these calls in some unit tests.
- *
- * Therefore, we export them here.
- */
-PHPLoader['malloc'] = _malloc;
-PHPLoader['free'] = typeof _free === 'function' ? _free : PHPLoader['_wasm_free'];
-
 if (typeof NODEFS === 'object') {
     // We override NODEFS.createNode() to add an `isSharedFS` flag to all NODEFS
     // nodes. This way we can tell whether file-locking is needed and possible
