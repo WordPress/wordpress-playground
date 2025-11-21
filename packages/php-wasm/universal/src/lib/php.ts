@@ -285,7 +285,7 @@ export class PHP implements Disposable {
 						// Always enable the file cache.
 						'opcache.file_cache_only = 1',
 						'opcache.file_cache_consistency_checks = 1',
-				  ]
+					]
 				: [];
 
 			/*if (
@@ -508,9 +508,8 @@ export class PHP implements Disposable {
 	 */
 	async run(request: PHPRunOptions): Promise<PHPResponse> {
 		const streamedResponse = await this.runStream(request);
-		const syncResponse = await PHPResponse.fromStreamedResponse(
-			streamedResponse
-		);
+		const syncResponse =
+			await PHPResponse.fromStreamedResponse(streamedResponse);
 
 		if (syncResponse.exitCode !== 0) {
 			// Legacy run() behavior: throw if PHP exited with a non-zero exit code.
@@ -1189,7 +1188,7 @@ export class PHP implements Disposable {
 	 * @param  path - The file path to write to.
 	 * @param  data - The data to write to the file.
 	 */
-	writeFile(path: string, data: string | Uint8Array) {
+	writeFile(path: string, data: string | Uint8Array | Buffer) {
 		const result = FSHelpers.writeFile(
 			this[__private__dont__use].FS,
 			path,
@@ -1754,9 +1753,9 @@ const getNodeType = (fs: Emscripten.FileSystemInstance, path: string) => {
 		return 'contents' in target.node
 			? 'memfs'
 			: /**
-			   * Could be NODEFS, PROXYFS, etc.
-			   */
-			  'not-memfs';
+				 * Could be NODEFS, PROXYFS, etc.
+				 */
+				'not-memfs';
 	} catch {
 		return 'missing';
 	}
