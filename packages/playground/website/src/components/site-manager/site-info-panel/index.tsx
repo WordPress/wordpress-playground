@@ -12,7 +12,7 @@ import {
 	TabPanel,
 	CheckboxControl,
 } from '@wordpress/components';
-import { moreVertical, external, chevronLeft, edit } from '@wordpress/icons';
+import { moreVertical, chevronLeft, edit } from '@wordpress/icons';
 import { SiteLogs } from '../../log-modal';
 import { useAppDispatch, useAppSelector } from '../../../lib/state/redux/store';
 import { usePlaygroundClientInfo } from '../../../lib/use-playground-client';
@@ -30,7 +30,6 @@ import {
 	selectClientInfoBySiteSlug,
 	removeClientInfo,
 } from '../../../lib/state/redux/slice-clients';
-import { encodeStringAsBase64 } from '../../../lib/base64';
 import { ActiveSiteSettingsForm } from '../site-settings-form/active-site-settings-form';
 import { getRelativeDate } from '../../../lib/get-relative-date';
 import { setActiveModal } from '../../../lib/state/redux/slice-ui';
@@ -449,37 +448,6 @@ export function SiteInfoPanel({
 												onClose={onClose}
 												disabled={!playground}
 											/>
-										</MenuGroup>
-										<MenuGroup>
-											<MenuItem
-												onClick={async () => {
-													const reflection =
-														await BlueprintReflection.create(
-															site.metadata
-																.originalBlueprint as any
-														);
-													const declaration =
-														reflection.getDeclaration() as any;
-													const encoded =
-														encodeStringAsBase64(
-															JSON.stringify(
-																declaration
-															) as string
-														);
-													window.open(
-														`/builder/builder.html#${encoded}`,
-														'_blank',
-														'noopener,noreferrer'
-													);
-													onClose();
-												}}
-												icon={external}
-												iconPosition="right"
-												aria-label="View Blueprint"
-												disabled={offline}
-											>
-												View Blueprint
-											</MenuItem>
 										</MenuGroup>
 										<MenuGroup>
 											<ReportError
