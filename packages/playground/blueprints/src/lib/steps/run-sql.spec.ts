@@ -38,46 +38,6 @@ describe('Blueprint step runSql', () => {
 			`${documentRoot}/wp-content/mu-plugins/sqlite-database-integration/wp-includes/mysql`
 		);
 
-		// Load the required PHP classes from the sqlite-database-integration repository
-		const sqliteIntegrationBasePath =
-			'../../../../../../pma/mysql-sqlite-network-proxy/php-implementation/sqlite-database-integration';
-
-		php.writeFile(
-			`${documentRoot}/wp-content/mu-plugins/sqlite-database-integration/wp-includes/parser/class-wp-parser-token.php`,
-			readFileSync(
-				join(
-					__dirname,
-					sqliteIntegrationBasePath,
-					'wp-includes/parser/class-wp-parser-token.php'
-				)
-			)
-		);
-
-		php.writeFile(
-			`${documentRoot}/wp-content/mu-plugins/sqlite-database-integration/wp-includes/mysql/class-wp-mysql-token.php`,
-			readFileSync(
-				join(
-					__dirname,
-					sqliteIntegrationBasePath,
-					'wp-includes/mysql/class-wp-mysql-token.php'
-				)
-			)
-		);
-
-		php.writeFile(
-			`${documentRoot}/wp-content/mu-plugins/sqlite-database-integration/wp-includes/mysql/class-wp-mysql-lexer.php`,
-			readFileSync(
-				join(
-					__dirname,
-					sqliteIntegrationBasePath,
-					'wp-includes/mysql/class-wp-mysql-lexer.php'
-				)
-			)
-		);
-
-		// Note: WP_MySQL_Naive_Query_Stream will be loaded by the runSql step itself
-		// from the bundled file, so we don't need to set it up here
-
 		// Create an object that will log all function calls
 		const js = phpVars({ documentRoot, outputLogPath });
 		/**
