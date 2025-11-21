@@ -8,7 +8,7 @@
 -   [Quickstart](#quickstart)
 -   [Usage](#usage)
 -   [Working with Blueprints](#working-with-blueprints)
--   [How can I contribute?](#how-can-i-contribute)
+-   [Contributing](#contributing)
 
 ## Requirements
 
