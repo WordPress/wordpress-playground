@@ -633,6 +633,9 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 		args.intl = true;
 	}
 
+	const selectedPort =
+		args.command === 'server' ? (args['port'] as number) ?? 9400 : 0;
+
 	// Declare file lock manager outside scope of startServer
 	// so we can look at it when debugging request handling.
 	const nativeFlockSync =
@@ -657,7 +660,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 	logger.log('Starting a PHP server...');
 
 	return startServer({
-		port: args['port'] as number,
+		port: selectedPort,
 		onBind: async (server: Server, port: number) => {
 			const host = '127.0.0.1';
 			const serverUrl = `http://${host}:${port}`;
