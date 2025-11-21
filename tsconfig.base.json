@@ -11,7 +11,7 @@
 		"jsx": "react",
 		"target": "ES2021",
 		"module": "esnext",
-		"lib": ["ES2022", "esnext.disposable", "dom"],
+		"lib": ["ES2022", "esnext.disposable", "dom", "es2017.sharedmemory"],
 		"skipLibCheck": true,
 		"skipDefaultLibCheck": true,
 		"noPropertyAccessFromIndexSignature": false,
