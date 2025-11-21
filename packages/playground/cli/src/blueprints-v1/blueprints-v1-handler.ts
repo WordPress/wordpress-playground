@@ -301,8 +301,8 @@ export class BlueprintsV1Handler {
 	}
 
 	private shouldRenderProgress(writeStream: NodeJS.WriteStream) {
-		const termIsDumb = (process.env.TERM || '').toLowerCase() === 'dumb';
-		const ciFlag = (process.env.CI || '').toLowerCase();
+		const termIsDumb = (process.env['TERM'] || '').toLowerCase() === 'dumb';
+		const ciFlag = (process.env['CI'] || '').toLowerCase();
 		const runningInCI = ciFlag === '1' || ciFlag === 'true';
 
 		return writeStream.isTTY && !termIsDumb && !runningInCI;
