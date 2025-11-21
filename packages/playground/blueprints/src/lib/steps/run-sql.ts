@@ -1,6 +1,8 @@
 import type { StepHandler } from '.';
 import { rm } from './rm';
 import { phpVars, randomFilename } from '@php-wasm/util';
+/** @ts-ignore */
+import streamClassContent from './WP_MySQL_Naive_Query_Stream.php?raw';
 
 /**
  * @inheritDoc runSql
@@ -32,9 +34,18 @@ export interface RunSqlStep<ResourceType> {
 /**
  * Run one or more SQL queries.
  *
- * This step will treat each non-empty line in the input SQL as a query and
- * try to execute it using `$wpdb`. Queries spanning multiple lines are not
- * yet supported.
+ * This step uses WP_MySQL_Naive_Query_Stream to parse and execute SQL queries using streaming semantics.
+ * It properly handles multiline queries, comments, and queries separated by semicolons.
+ * Each query is executed using `$wpdb`.
+ *
+ * The SQL file is processed in chunks to avoid loading large files entirely into memory.
+ *
+ * The following PHP classes are loaded from the sqlite-database-integration plugin/mu-plugin:
+ * - WP_Parser_Token (wp-includes/parser/class-wp-parser-token.php)
+ * - WP_MySQL_Token (wp-includes/mysql/class-wp-mysql-token.php)
+ * - WP_MySQL_Lexer (wp-includes/mysql/class-wp-mysql-lexer.php)
+ *
+ * WP_MySQL_Naive_Query_Stream is bundled with this step.
  */
 export const runSql: StepHandler<RunSqlStep<File>> = async (
 	playground,
@@ -44,35 +55,74 @@ export const runSql: StepHandler<RunSqlStep<File>> = async (
 	progress?.tracker.setCaption(`Executing SQL Queries`);
 
 	const sqlFilename = `/tmp/${randomFilename()}.sql`;
+	const streamClassFilename = `/tmp/${randomFilename()}.php`;
 
 	await playground.writeFile(
 		sqlFilename,
 		new Uint8Array(await sql.arrayBuffer())
 	);
 
+	await playground.writeFile(
+		streamClassFilename,
+		new TextEncoder().encode(streamClassContent)
+	);
+
 	const docroot = await playground.documentRoot;
 
-	const js = phpVars({ docroot, sqlFilename });
+	const js = phpVars({ docroot, sqlFilename, streamClassFilename });
 
 	const runPhp = await playground.run({
 		code: `<?php
 		require_once ${js.docroot} . '/wp-load.php';
 
-		$handle = fopen(${js.sqlFilename}, 'r');
+		// Load the required classes from sqlite-database-integration
+		require_once ${js.docroot} . '/wp-content/mu-plugins/sqlite-database-integration/wp-includes/parser/class-wp-parser-token.php';
+		require_once ${js.docroot} . '/wp-content/mu-plugins/sqlite-database-integration/wp-includes/mysql/class-wp-mysql-token.php';
+		require_once ${js.docroot} . '/wp-content/mu-plugins/sqlite-database-integration/wp-includes/mysql/class-wp-mysql-lexer.php';
+
+		// Load WP_MySQL_Naive_Query_Stream from the bundled file
+		require_once ${js.streamClassFilename};
 
 		global $wpdb;
 
-		while ($line = fgets($handle)) {
-			if(trim($line, " \n;") === '') {
-				continue;
+		$stream = new WP_MySQL_Naive_Query_Stream();
+
+		// Open the SQL file for streaming
+		$handle = fopen(${js.sqlFilename}, 'r');
+		if (!$handle) {
+			throw new Exception('Failed to open SQL file');
+		}
+
+		// Read and process the file in 8KB chunks
+		$chunk_size = 8192;
+		while (!feof($handle)) {
+			$chunk = fread($handle, $chunk_size);
+			if ($chunk === false) {
+				break;
 			}
 
-			$wpdb->query($line);
+			$stream->append_sql($chunk);
+
+			// Process any complete queries in the stream
+			while ($stream->next_query()) {
+				$query = $stream->get_query();
+				$wpdb->query($query);
+			}
+		}
+
+		fclose($handle);
+
+		// Mark input as complete and process any remaining queries
+		$stream->mark_input_complete();
+		while ($stream->next_query()) {
+			$query = $stream->get_query();
+			$wpdb->query($query);
 		}
 	`,
 	});
 
 	await rm(playground, { path: sqlFilename });
+	await rm(playground, { path: streamClassFilename });
 
 	return runPhp;
 };
