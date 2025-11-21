@@ -29,14 +29,42 @@ EOT;
  * https://github.com/WordPress/wordpress-playground/issues/927
  *
  */
-add_action('admin_head', function () {
-	echo '<style>
+// Load the iframe trap as early as possible in wp-admin so it can patch
+// Document.prototype before TinyMCE and other scripts create iframes.
+add_action(
+	'admin_head',
+	function () {
+		?>
+		<script>
+			(function () {
+				// Derive scope hint from current path (works for /scope:foo/...).
+				const scopeMatch = location.pathname.match(/^\/scope:[^/]+/);
+				const scope = scopeMatch ? scopeMatch[0] : '';
+				const existing = Array.from(document.scripts).some((s) =>
+					s.src.endsWith('/__bootstrap/iframes-trap.js')
+				);
+				if (existing) {
+					return;
+				}
+				const s = document.createElement('script');
+				// Classic script to execute synchronously during parsing.
+				s.src = new URL('/__bootstrap/iframes-trap.js', document.baseURI);
+				if (scope) {
+					s.dataset.scope = scope;
+				}
+				document.head.appendChild(s);
+			})();
+		</script>
+		<style>
 				:is(.plugins-popular-tags-wrapper:has(div.networking_err_msg),
 				button.button.try-again) {
 						display: none;
 				}
-		</style>';
-});
+		</style>
+		<?php
+	},
+	0
+);
 
 add_action('init', 'networking_disabled');
 function networking_disabled() {

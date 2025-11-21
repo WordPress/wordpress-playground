@@ -229,23 +229,24 @@ self.addEventListener('activate', function (event) {
  * of iframes initialized from srcdoc/data/blob.
  */
 const iframeCacheBucket = 'iframe-virtual-docs-v1';
+const SW_SCOPE = new URL(self.registration.scope).pathname.replace(/\/$/, '');
 
 /**
  * A unique path prefix for all the cached iframe markup. It helps the service worker
  * decide whether the incoming request is related to a cached iframe markup.
  */
-const iframeCacheKeyPrefix = `/__iframes/`;
+const iframeCacheKeyPrefix = `${SW_SCOPE}/__iframes/`;
 
 /**
  * Service worker serves `./iframes-trap.js` at this path:
  */
-const iframeTrapScriptUrl = `/__bootstrap/iframes-trap.js`;
+const iframeTrapScriptUrl = `${SW_SCOPE}/__bootstrap/iframes-trap.js`;
 
 /**
  * Service worker serves `iframeLoaderHtml` at this path. It's used
  * to initialize new iframes.
  */
-const iframeLoaderPath = `/wp-includes/empty.html`;
+const iframeLoaderPath = `${SW_SCOPE}/wp-includes/empty.html`;
 
 /**
  * The HTML content of the iframe loader. This is the inital page
@@ -271,7 +272,7 @@ const iframeLoaderHtml = `<!doctype html><meta charset="utf-8">
       const script = document.createElement('script');
       script.type = 'module';
       script.src = ${JSON.stringify(iframeTrapScriptUrl)};
-	  script.dataset.scope = "/";
+	  script.dataset.scope = ${JSON.stringify(SW_SCOPE)};
       document.head.appendChild(script);
     }
   }
