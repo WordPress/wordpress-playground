@@ -210,8 +210,11 @@ export default defineConfig(({ command, mode }) => {
 						// Split CodeMirror and Lezer packages into separate chunks
 						// that will be placed in assets/optional/ directory
 
-						// Check for specific language extensions FIRST (before general @codemirror check)
-						// These are lazy-loaded in code-editor.tsx
+						// Check for specific language extensions FIRST, before the general @codemirror.
+						// We want to package each of them separately so they can be downloaded on demand
+						// and not all together.
+
+						// These are lazy-loaded in code-editor.tsx:
 						if (id.includes('node_modules/@codemirror/lang-css')) {
 							return 'optional/lang-css';
 						}
@@ -247,6 +250,11 @@ export default defineConfig(({ command, mode }) => {
 						// Lezer parser packages
 						if (id.includes('node_modules/@lezer/')) {
 							return 'optional/vendor-lezer';
+						}
+
+						// Optional, lazy loaded Blueprint Editor package
+						if (id.includes('blueprint-editor')) {
+							return 'optional/blueprint-editor';
 						}
 					},
 				},
