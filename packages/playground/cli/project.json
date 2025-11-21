@@ -45,7 +45,7 @@
 		"dev": {
 			"executor": "nx:run-commands",
 			"options": {
-				"command": "node --no-warnings --experimental-wasm-stack-switching --experimental-wasm-jspi --loader=./packages/meta/src/node-es-module-loader/loader.mts ./packages/playground/cli/src/cli.ts",
+				"command": "node --no-warnings=ExperimentalWarning --experimental-strip-types --experimental-transform-types --import ./packages/meta/src/node-es-module-loader/register.mts --watch ./packages/playground/cli/src/cli.ts",
 				"tty": true
 			}
 		},
@@ -57,7 +57,7 @@
 						"command": "node -e \"if (parseInt(process.versions.node) < 22) { console.error('Node.js version 22 or greater is required'); process.exit(1); }\"",
 						"forwardAllArgs": false
 					},
-					"node --experimental-strip-types --experimental-transform-types --import ./packages/meta/src/node-es-module-loader/register.mts --watch ./packages/playground/cli/src/cli.ts"
+					"node --no-warnings=ExperimentalWarning --experimental-strip-types --experimental-transform-types --import ./packages/meta/src/node-es-module-loader/register.mts --watch ./packages/playground/cli/src/cli.ts"
 				],
 				"tty": true,
 				"parallel": false
