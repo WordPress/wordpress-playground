@@ -20,7 +20,7 @@ interface CLIArgs {
 }
 
 function parseCliArgs(): CLIArgs {
-	const { _, $0, ...parsed } = yargs<CLIArgs>(hideBin(process.argv))
+	return yargs(hideBin(process.argv))
 		.usage(
 			`
 XDebug Bridge Server CLI
@@ -63,9 +63,7 @@ Examples:
 		)
 		.wrap(null)
 		.strict()
-		.parseSync();
-
-	return parsed;
+		.parseSync() as CLIArgs;
 }
 
 export async function main(): Promise<void> {
