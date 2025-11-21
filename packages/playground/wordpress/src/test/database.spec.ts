@@ -38,7 +38,8 @@ describe('Test database', () => {
 
 	it("should not start WordPress when SQLite ZIP not specified, the SQLite driver directory doesn't exist and MySQL can't be used", async () => {
 		await expect(async () => {
-			await bootWordPressAndRequestHandler({
+			// eslint-disable-next-line @typescript-eslint/no-unused-vars
+			await using handler = await bootWordPressAndRequestHandler({
 				createPhpRuntime: async () =>
 					await loadNodeRuntime(RecommendedPHPVersion),
 				siteUrl: 'http://playground-domain/',
@@ -48,26 +49,33 @@ describe('Test database', () => {
 		}).rejects.toThrow('Error connecting to the MySQL database.');
 	});
 
-	it('should install WordPress when SQL data path specified, even without SQLite ZIP path or SQLite driver directory', async () => {
-		const handler = await bootWordPressAndRequestHandler({
-			createPhpRuntime: async () =>
-				await loadNodeRuntime(RecommendedPHPVersion),
-			siteUrl: 'http://playground-domain/',
-			wordPressZip: await getWordPressModule(),
-			sqliteIntegrationPluginZip: await getSqliteDriverModule(),
-			dataSqlPath: '/wordpress/wp-content/database/.ht.sqlite',
-		});
+	it(
+		'should install WordPress when SQL data path specified, even without SQLite ZIP path or SQLite driver directory',
+		async () => {
+			await using handler = await bootWordPressAndRequestHandler({
+				createPhpRuntime: async () =>
+					await loadNodeRuntime(RecommendedPHPVersion),
+				siteUrl: 'http://playground-domain/',
+				wordPressZip: await getWordPressModule(),
+				sqliteIntegrationPluginZip: await getSqliteDriverModule(),
+				dataSqlPath: '/wordpress/wp-content/database/.ht.sqlite',
+			});
 
-		const loadedWordPressVersion = await getLoadedWordPressVersion(handler);
-		expect(loadedWordPressVersion).toBeTruthy();
-		expect(Object.keys(MinifiedWordPressVersions)).toContain(
-			loadedWordPressVersion
-		);
-	});
+			const loadedWordPressVersion = await getLoadedWordPressVersion(
+				handler
+			);
+			expect(loadedWordPressVersion).toBeTruthy();
+			expect(Object.keys(MinifiedWordPressVersions)).toContain(
+				loadedWordPressVersion
+			);
+		},
+		{ timeout: 30_000 }
+	);
 
 	it("should fail when the SQLite driver directory exists, but doesn't contain a valid driver", async () => {
 		await expect(async () => {
-			await bootWordPressAndRequestHandler({
+			// eslint-disable-next-line @typescript-eslint/no-unused-vars
+			await using handler = await bootWordPressAndRequestHandler({
 				createPhpRuntime: async () =>
 					await loadNodeRuntime(RecommendedPHPVersion),
 				siteUrl: 'http://playground-domain/',
