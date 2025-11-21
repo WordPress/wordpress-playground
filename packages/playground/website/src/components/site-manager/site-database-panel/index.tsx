@@ -31,15 +31,17 @@ export function SiteDatabasePanel({
 				return;
 			}
 			const adminerPath = `${documentRoot}/adminer.php`;
+			const pluginsPath = `${documentRoot}/adminer-plugins`;
 
 			// Check if Adminer is already set up.
 			const adminerExists = await playground.fileExists(adminerPath);
-			if (adminerExists) {
+			const pluginsExists = await playground.fileExists(pluginsPath);
+			if (adminerExists && pluginsExists) {
 				setIsReady(true);
 				return;
 			}
 
-			// Install Adminer using Blueprint steps.
+			// Install Adminer and plugins using Blueprint steps.
 			try {
 				const steps: StepDefinition[] = [];
 
@@ -52,6 +54,32 @@ export function SiteDatabasePanel({
 							url: 'https://github.com/vrana/adminer/releases/download/v5.4.1/adminer-5.4.1-mysql-en.php',
 						},
 					});
+				}
+
+				if (!pluginsExists) {
+					steps.push({ step: 'mkdir', path: pluginsPath });
+
+					const plugins = import.meta.glob('./adminer-plugins/*', {
+						as: 'raw',
+						eager: true,
+					});
+					const files: Record<string, string> = {};
+					for (const [srcPath, content] of Object.entries(plugins)) {
+						const fileName = srcPath.split('/').pop()!;
+						files[fileName] = content;
+					}
+
+					if (Object.entries(files).length > 0) {
+						steps.push({
+							step: 'writeFiles',
+							writeToPath: pluginsPath,
+							filesTree: {
+								resource: 'literal:directory',
+								name: 'adminer-plugins',
+								files: files,
+							},
+						});
+					}
 				}
 
 				if (steps.length > 0) {
