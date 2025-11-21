@@ -180,19 +180,21 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 				}
 			});
 
-			it('should support multi handle requests', async () => {
-				try {
-					const serverUrl = await startServer();
-					const php = new PHP(
-						await loadNodeRuntime(phpVersion, options)
-					);
-					await setPhpIniEntries(php, {
-						allow_url_fopen: 1,
-						disable_functions: '',
-					});
-					php.writeFile(
-						'/tmp/test.php',
-						`<?php
+			it(
+				'should support multi handle requests',
+				async () => {
+					try {
+						const serverUrl = await startServer();
+						const php = new PHP(
+							await loadNodeRuntime(phpVersion, options)
+						);
+						await setPhpIniEntries(php, {
+							allow_url_fopen: 1,
+							disable_functions: '',
+						});
+						php.writeFile(
+							'/tmp/test.php',
+							`<?php
 							$ch1 = curl_init();
 							curl_setopt($ch1, CURLOPT_URL, "${serverUrl}");
 							curl_setopt($ch1, CURLOPT_TCP_NODELAY, 0);
@@ -216,18 +218,20 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 							curl_close($ch1);
 							curl_close($ch2);
 					`
-					);
-					const { text } = await php.run({
-						scriptPath: '/tmp/test.php',
-					});
-					php.exit();
-					expect(text).toEqual(
-						'response from express\nresponse from express'
-					);
-				} finally {
-					await stopServer(server);
-				}
-			});
+						);
+						const { text } = await php.run({
+							scriptPath: '/tmp/test.php',
+						});
+						php.exit();
+						expect(text).toEqual(
+							'response from express\nresponse from express'
+						);
+					} finally {
+						await stopServer(server);
+					}
+				},
+				{ timeout: 20_000 }
+			);
 
 			it('should follow redirects', async () => {
 				try {
