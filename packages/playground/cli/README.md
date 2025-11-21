@@ -182,13 +182,14 @@ cliServer = await runCLI({
 To set it up:
 
 ```bash
+# If you don't have the repository cloned yet:
 git clone -b trunk --single-branch --depth 1 --recurse-submodules https://github.com/WordPress/wordpress-playground.git
+cd wordpress-playground
 
 # Alternatively, if you already have a clone but forgot to
 # pull the submodules, you can run:
-git submodule update --init --recursive
-
 cd wordpress-playground
+git submodule update --init --recursive
 
 nvm use 23
 npm install
