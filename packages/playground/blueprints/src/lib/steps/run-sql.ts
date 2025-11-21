@@ -66,17 +66,15 @@ export const runSql: StepHandler<RunSqlStep<File>> = async (
 
 	const runPhp = await playground.run({
 		code: `<?php
+		define('WP_SQLITE_AST_DRIVER', true);
 		require_once ${js.docroot} . '/wp-load.php';
-
-		// Load the required classes from sqlite-database-integration
-		require_once ${js.docroot} . '/wp-content/mu-plugins/sqlite-database-integration/wp-includes/parser/class-wp-parser-token.php';
-		require_once ${js.docroot} . '/wp-content/mu-plugins/sqlite-database-integration/wp-includes/mysql/class-wp-mysql-token.php';
-		require_once ${js.docroot} . '/wp-content/mu-plugins/sqlite-database-integration/wp-includes/mysql/class-wp-mysql-lexer.php';
 
 		// Load WP_MySQL_Naive_Query_Stream from the bundled file
 		require_once ${js.streamClassFilename};
 
 		global $wpdb;
+
+		do_action('run_sql_step');
 
 		$stream = new WP_MySQL_Naive_Query_Stream();
 

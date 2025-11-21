@@ -3,6 +3,7 @@ import type {
 	PHPRequest,
 	RemoteAPI,
 	SupportedPHPVersion,
+	UniversalPHP,
 } from '@php-wasm/universal';
 import {
 	PHPResponse,
@@ -966,7 +967,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 							logger.log(`Running the Blueprint...`);
 							await runBlueprintV1Steps(
 								compiledBlueprint,
-								initialPlayground
+								initialPlayground as UniversalPHP
 							);
 							logger.log(`Finished running the blueprint`);
 						}

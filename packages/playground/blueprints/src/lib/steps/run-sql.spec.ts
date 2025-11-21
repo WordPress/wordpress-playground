@@ -1,13 +1,15 @@
-import { PHP } from '@php-wasm/universal';
+import type { PHP } from '@php-wasm/universal';
 import { phpVars } from '@php-wasm/util';
 import { runSql } from './run-sql';
-import { PHPRequestHandler } from '@php-wasm/universal';
+import type { PHPRequestHandler } from '@php-wasm/universal';
 import { loadNodeRuntime } from '@php-wasm/node';
 import { RecommendedPHPVersion } from '@wp-playground/common';
-import { readFileSync } from 'fs';
-import { join } from 'path';
+import { bootWordPressAndRequestHandler } from '@wp-playground/wordpress';
+import {
+	getSqliteDriverModule,
+	getWordPressModule,
+} from '@wp-playground/wordpress-builds';
 
-const phpVersion = RecommendedPHPVersion;
 describe('Blueprint step runSql', () => {
 	let php: PHP;
 	let handler: PHPRequestHandler;
@@ -15,58 +17,44 @@ describe('Blueprint step runSql', () => {
 
 	const outputLogPath = `/tmp/sql-execution-log.json`;
 	beforeEach(async () => {
-		handler = new PHPRequestHandler({
-			phpFactory: async () => new PHP(await loadNodeRuntime(phpVersion)),
-			documentRoot,
+		handler = await bootWordPressAndRequestHandler({
+			createPhpRuntime: async () =>
+				await loadNodeRuntime(RecommendedPHPVersion),
+			siteUrl: 'http://playground-domain/',
+
+			wordPressZip: await getWordPressModule(),
+			sqliteIntegrationPluginZip: await getSqliteDriverModule(),
 		});
 		php = await handler.getPrimaryPhp();
-		php.mkdir(documentRoot);
-
-		// Create the mu-plugins directory structure for sqlite-database-integration
-		php.mkdir(`${documentRoot}/wp-content`);
-		php.mkdir(`${documentRoot}/wp-content/mu-plugins`);
-		php.mkdir(
-			`${documentRoot}/wp-content/mu-plugins/sqlite-database-integration`
-		);
-		php.mkdir(
-			`${documentRoot}/wp-content/mu-plugins/sqlite-database-integration/wp-includes`
-		);
-		php.mkdir(
-			`${documentRoot}/wp-content/mu-plugins/sqlite-database-integration/wp-includes/parser`
-		);
-		php.mkdir(
-			`${documentRoot}/wp-content/mu-plugins/sqlite-database-integration/wp-includes/mysql`
-		);
 
 		// Create an object that will log all function calls
 		const js = phpVars({ documentRoot, outputLogPath });
+
 		/**
 		 * The run-sql step loads WordPress by including wp-load.php.
 		 * We don't need the rest of WordPress for this test, so we
 		 * create a minimal wp-load.php that just logs the sql queries.
 		 */
+		php.mkdir(`${documentRoot}/wp-content/mu-plugins`);
 		php.writeFile(
-			`${documentRoot}/wp-load.php`,
+			`${documentRoot}/wp-content/mu-plugins/logger.php`,
 			`<?php
 			error_reporting(E_ALL);
 			ini_set('display_errors', '1');
 
-			class MockLogger
-			{
-				public function __call($function, $args)
-				{
+			// Register a filter/hook to log every received SQL query.
+			add_action('run_sql_step', function() {
+				add_filter('query', function($query) {
 					$entry = (object)[
-						'type' => 'CALL',
-						'function' => $function,
-						'args' => $args,
+						'type' => 'SQL_QUERY',
+						'query' => $query,
 					];
 
 					file_put_contents(${js.outputLogPath}, json_encode($entry) . "\n", FILE_APPEND);
-				}
-			}
-
-			global $wpdb;
-			$wpdb = new MockLogger();
+					return $query;
+				});
+			});
+			
 			file_put_contents(${js.outputLogPath}, '');
 			`
 		);
@@ -75,29 +63,6 @@ describe('Blueprint step runSql', () => {
 	afterEach(async () => {
 		php.exit();
 		await handler[Symbol.asyncDispose]();
-	});
-
-	it('should load lexer classes correctly', async () => {
-		// Direct test of lexer to verify it works
-		const test = await php.run({
-			code: `<?php
-			require_once '/wordpress/wp-load.php';
-			require_once '/wordpress/wp-content/mu-plugins/sqlite-database-integration/wp-includes/parser/class-wp-parser-token.php';
-			require_once '/wordpress/wp-content/mu-plugins/sqlite-database-integration/wp-includes/mysql/class-wp-mysql-token.php';
-			require_once '/wordpress/wp-content/mu-plugins/sqlite-database-integration/wp-includes/mysql/class-wp-mysql-lexer.php';
-
-			echo "Lexer loaded: " . (class_exists('WP_MySQL_Lexer') ? 'yes' : 'no') . "\\n";
-
-			$lexer = new WP_MySQL_Lexer('SELECT * FROM wp_users;');
-			$token = $lexer->get_token();
-			echo "First token ID: " . ($token ? $token->id : 'null') . "\\n";
-			echo "First token bytes: " . ($token ? $token->get_bytes() : 'null') . "\\n";
-			`,
-		});
-
-		console.log('Lexer test output:', test.text);
-		console.log('Lexer test errors:', test.errors);
-		expect(test.exitCode).toBe(0);
 	});
 
 	it('should split and "run" sql queries', async () => {
@@ -116,7 +81,7 @@ describe('Blueprint step runSql', () => {
 
 		const result = php.readFileAsText(outputLogPath);
 		expect(result).toBe(
-			`{"type":"CALL","function":"query","args":["SELECT * FROM wp_users;"]}\n`
+			`{"type":"SQL_QUERY","query":"SELECT * FROM wp_users;"}\n`
 		);
 	});
 
@@ -134,7 +99,7 @@ describe('Blueprint step runSql', () => {
 
 		const result = php.readFileAsText(outputLogPath);
 		expect(result).toBe(
-			`{"type":"CALL","function":"query","args":["SELECT * FROM wp_users;"]}\n{"type":"CALL","function":"query","args":["\\nSELECT * FROM wp_posts;"]}\n`
+			`{"type":"SQL_QUERY","query":"SELECT * FROM wp_users;"}\n{"type":"SQL_QUERY","query":"\\nSELECT * FROM wp_posts;"}\n`
 		);
 	});
 
@@ -156,7 +121,7 @@ describe('Blueprint step runSql', () => {
 
 		const result = php.readFileAsText(outputLogPath);
 		expect(result).toBe(
-			`{"type":"CALL","function":"query","args":["SELECT * FROM wp_users;"]}\n{"type":"CALL","function":"query","args":["\\n;"]}\n{"type":"CALL","function":"query","args":["\\n\\nSELECT * FROM wp_posts;"]}\n`
+			`{"type":"SQL_QUERY","query":"SELECT * FROM wp_users;"}\n{"type":"SQL_QUERY","query":"\\n;"}\n{"type":"SQL_QUERY","query":"\\n\\nSELECT * FROM wp_posts;"}\n`
 		);
 	});
 
@@ -183,7 +148,7 @@ describe('Blueprint step runSql', () => {
 
 		const result = php.readFileAsText(outputLogPath);
 		expect(result).toBe(
-			`{"type":"CALL","function":"query","args":["CREATE TABLE test_table (\\n  id INT PRIMARY KEY,\\n  name VARCHAR(255),\\n  created_at TIMESTAMP\\n);"]}\n{"type":"CALL","function":"query","args":["\\n\\nINSERT INTO test_table\\n  (id, name, created_at)\\nVALUES\\n  (1, \\"John Doe\\", NOW());"]}\n`
+			`{"type":"SQL_QUERY","query":"CREATE TABLE test_table (\\n  id INT PRIMARY KEY,\\n  name VARCHAR(255),\\n  created_at TIMESTAMP\\n);"}\n{"type":"SQL_QUERY","query":"\\n\\nINSERT INTO test_table\\n  (id, name, created_at)\\nVALUES\\n  (1, \\"John Doe\\", NOW());"}\n`
 		);
 	});
 
@@ -206,7 +171,7 @@ describe('Blueprint step runSql', () => {
 
 		const result = php.readFileAsText(outputLogPath);
 		expect(result).toBe(
-			`{"type":"CALL","function":"query","args":["-- This is a comment\\nSELECT * FROM wp_users;"]}\n{"type":"CALL","function":"query","args":["\\n\\n\\/* This is a\\n   multiline comment *\\/\\nSELECT * FROM wp_posts;"]}\n`
+			`{"type":"SQL_QUERY","query":"-- This is a comment\\nSELECT * FROM wp_users;"}\n{"type":"SQL_QUERY","query":"\\n\\n\\/* This is a\\n   multiline comment *\\/\\nSELECT * FROM wp_posts;"}\n`
 		);
 	});
 
@@ -233,7 +198,7 @@ describe('Blueprint step runSql', () => {
 
 		const result = php.readFileAsText(outputLogPath);
 		expect(result).toBe(
-			`{"type":"CALL","function":"query","args":["SELECT\\n  u.id,\\n  u.name,\\n  (SELECT COUNT(*) FROM wp_posts WHERE author_id = u.id) as post_count\\nFROM\\n  wp_users u\\nWHERE\\n  u.status = \\"active\\"\\nORDER BY\\n  u.name ASC;"]}\n`
+			`{"type":"SQL_QUERY","query":"SELECT\\n  u.id,\\n  u.name,\\n  (SELECT COUNT(*) FROM wp_posts WHERE author_id = u.id) as post_count\\nFROM\\n  wp_users u\\nWHERE\\n  u.status = \\"active\\"\\nORDER BY\\n  u.name ASC;"}\n`
 		);
 	});
 });
