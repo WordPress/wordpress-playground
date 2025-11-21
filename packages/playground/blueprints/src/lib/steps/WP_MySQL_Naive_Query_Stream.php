@@ -48,7 +48,7 @@ class WP_MySQL_Naive_Query_Stream {
 	 * it's a syntax error. That's why this class is called a "naive" query
 	 * stream.
 	 */
-	const MAX_SQL_BUFFER_SIZE = 1024 * 1024 * 2;
+	const MAX_SQL_BUFFER_SIZE = 1024 * 1024 * 15;
 
 	public function __construct() {}
 
