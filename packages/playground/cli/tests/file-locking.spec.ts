@@ -223,6 +223,10 @@ describe('Playground CLI file locking', () => {
 					$db->exec('COMMIT;');
 					$db->close();
 					file_put_contents('${coordinationFile}', '${stages.php1Unlocked}');
+
+					echo json_encode([
+						'pid' => getmypid(),
+					]);
 					`
 				);
 
@@ -255,6 +259,7 @@ describe('Playground CLI file locking', () => {
 
 					ob_clean();
 					echo json_encode([
+						'pid' => getmypid(),
 						'attempt_while_exclusively_locked' => $attempt_while_exclusively_locked,
 						'attempt_while_unlocked' => $attempt_while_unlocked,
 					]);
@@ -268,13 +273,21 @@ describe('Playground CLI file locking', () => {
 				]);
 				expect(php1Response.status).toBe(200);
 				expect(php2Response.status).toBe(200);
-				const php2Text = await php2Response.text();
-				const parsed = php2Text ? JSON.parse(php2Text) : {};
-				expect(parsed.attempt_while_exclusively_locked).toMatchObject({
+				const php1Output = await php1Response.json();
+				const php2Output = await php2Response.json();
+
+				assertProcessIdsFromDifferentWorkers(
+					php1Output.pid,
+					php2Output.pid
+				);
+
+				expect(
+					php2Output.attempt_while_exclusively_locked
+				).toMatchObject({
 					last_error_code: 5,
 					last_error_msg: 'database is locked',
 				});
-				expect(parsed.attempt_while_unlocked).toMatchObject({
+				expect(php2Output.attempt_while_unlocked).toMatchObject({
 					last_error_code: 0,
 					last_error_msg: 'not an error',
 				});
@@ -317,6 +330,10 @@ describe('Playground CLI file locking', () => {
 					$db->exec('COMMIT;');
 					$db->close();
 					file_put_contents('${coordinationFile}', '${stages.php1Unlocked}');
+
+					echo json_encode([
+						'pid' => getmypid(),
+					]);
 					`
 				);
 
@@ -349,6 +366,7 @@ describe('Playground CLI file locking', () => {
 
 					ob_clean();
 					echo json_encode([
+						'pid' => getmypid(),
 						'attempt_while_shared_locked' => $attempt_while_shared_locked,
 						'attempt_while_unlocked' => $attempt_while_unlocked,
 					]);
@@ -362,13 +380,19 @@ describe('Playground CLI file locking', () => {
 				]);
 				expect(php1Response.status).toBe(200);
 				expect(php2Response.status).toBe(200);
-				const php2Text = await php2Response.text();
-				const parsed = php2Text ? JSON.parse(php2Text) : {};
-				expect(parsed.attempt_while_shared_locked).toMatchObject({
+				const php1Output = await php1Response.json();
+				const php2Output = await php2Response.json();
+
+				assertProcessIdsFromDifferentWorkers(
+					php1Output.pid,
+					php2Output.pid
+				);
+
+				expect(php2Output.attempt_while_shared_locked).toMatchObject({
 					last_error_code: 5,
 					last_error_msg: 'database is locked',
 				});
-				expect(parsed.attempt_while_unlocked).toMatchObject({
+				expect(php2Output.attempt_while_unlocked).toMatchObject({
 					last_error_code: 0,
 					last_error_msg: 'not an error',
 				});
@@ -411,6 +435,10 @@ describe('Playground CLI file locking', () => {
 					$db->exec('COMMIT;');
 					$db->close();
 					file_put_contents('${coordinationFile}', '${stages.php1Unlocked}');
+
+					echo json_encode([
+						'pid' => getmypid(),
+					]);
 					`
 				);
 
@@ -445,6 +473,7 @@ describe('Playground CLI file locking', () => {
 
 					ob_clean();
 					echo json_encode([
+						'pid' => getmypid(),
 						'attempt_while_shared_locked' => $attempt_while_shared_locked,
 						'attempt_while_unlocked' => $attempt_while_unlocked,
 					]);
@@ -458,13 +487,19 @@ describe('Playground CLI file locking', () => {
 				]);
 				expect(php1Response.status).toBe(200);
 				expect(php2Response.status).toBe(200);
-				const php2Text = await php2Response.text();
-				const parsed = php2Text ? JSON.parse(php2Text) : {};
-				expect(parsed.attempt_while_shared_locked).toMatchObject({
+				const php1Output = await php1Response.json();
+				const php2Output = await php2Response.json();
+
+				assertProcessIdsFromDifferentWorkers(
+					php1Output.pid,
+					php2Output.pid
+				);
+
+				expect(php2Output.attempt_while_shared_locked).toMatchObject({
 					last_error_code: 0,
 					last_error_msg: 'not an error',
 				});
-				expect(parsed.attempt_while_unlocked).toMatchObject({
+				expect(php2Output.attempt_while_unlocked).toMatchObject({
 					last_error_code: 0,
 					last_error_msg: 'not an error',
 				});
@@ -505,6 +540,9 @@ describe('Playground CLI file locking', () => {
 					}
 
 					// Intentionally keep the database connection open until the process exits.
+					echo json_encode([
+						'pid' => getmypid(),
+					]);
 					`
 				);
 
@@ -538,6 +576,7 @@ describe('Playground CLI file locking', () => {
 					$db->close();
 					ob_clean();
 					echo json_encode([
+						'pid' => getmypid(),
 						'attempt_while_locked' => $attempt_while_locked,
 						'attempt_after_exit' => $attempt_after_exit,
 					]);
@@ -549,6 +588,7 @@ describe('Playground CLI file locking', () => {
 
 				const php1Response = await php1ResponsePromise;
 				expect(php1Response.status).toBe(200);
+				const php1Output = await php1Response.json();
 
 				// Since php1 has exited, signal php2 to proceed.
 				await cliServer.playground.writeFile(
@@ -558,13 +598,18 @@ describe('Playground CLI file locking', () => {
 
 				const php2Response = await php2ResponsePromise;
 				expect(php2Response.status).toBe(200);
-				const php2Text = await php2Response.text();
-				const parsed = php2Text ? JSON.parse(php2Text) : {};
-				expect(parsed.attempt_while_locked).toMatchObject({
+				const php2Output = await php2Response.json();
+
+				assertProcessIdsFromDifferentWorkers(
+					php1Output.pid,
+					php2Output.pid
+				);
+
+				expect(php2Output.attempt_while_locked).toMatchObject({
 					last_error_code: 5,
 					last_error_msg: 'database is locked',
 				});
-				expect(parsed.attempt_after_exit).toMatchObject({
+				expect(php2Output.attempt_after_exit).toMatchObject({
 					last_error_code: 0,
 					last_error_msg: 'not an error',
 				});
@@ -605,6 +650,9 @@ describe('Playground CLI file locking', () => {
 					}
 
 					// Keep the transaction open until the process exits.
+					echo json_encode([
+						'pid' => getmypid(),
+					]);
 					`
 				);
 
@@ -638,6 +686,7 @@ describe('Playground CLI file locking', () => {
 					$db->close();
 					ob_clean();
 					echo json_encode([
+						'pid' => getmypid(),
 						'attempt_while_locked' => $attempt_while_locked,
 						'attempt_after_exit' => $attempt_after_exit,
 					]);
@@ -649,6 +698,7 @@ describe('Playground CLI file locking', () => {
 
 				const php1Response = await php1ResponsePromise;
 				expect(php1Response.status).toBe(200);
+				const php1Output = await php1Response.json();
 
 				// Since php1 has exited, signal php2 to proceed.
 				await cliServer.playground.writeFile(
@@ -658,13 +708,18 @@ describe('Playground CLI file locking', () => {
 
 				const php2Response = await php2ResponsePromise;
 				expect(php2Response.status).toBe(200);
-				const php2Text = await php2Response.text();
-				const parsed = php2Text ? JSON.parse(php2Text) : {};
-				expect(parsed.attempt_while_locked).toMatchObject({
+				const php2Output = await php2Response.json();
+
+				assertProcessIdsFromDifferentWorkers(
+					php1Output.pid,
+					php2Output.pid
+				);
+
+				expect(php2Output.attempt_while_locked).toMatchObject({
 					last_error_code: 5,
 					last_error_msg: 'database is locked',
 				});
-				expect(parsed.attempt_after_exit).toMatchObject({
+				expect(php2Output.attempt_after_exit).toMatchObject({
 					last_error_code: 0,
 					last_error_msg: 'not an error',
 				});
@@ -713,6 +768,10 @@ describe('Playground CLI file locking', () => {
 					while (file_get_contents('${coordinationFile}') !== '${stages.php2CheckedDbUnlocked}') {
 						usleep(100 * 1000);
 					}
+
+					echo json_encode([
+						'pid' => getmypid(),
+					]);
 					`
 				);
 
@@ -745,6 +804,7 @@ describe('Playground CLI file locking', () => {
 
 					ob_clean();
 					echo json_encode([
+						'pid' => getmypid(),
 						'attempt_while_locked' => $attempt_while_locked,
 						'attempt_after_fd_closed' => $attempt_after_fd_closed,
 					]);
@@ -759,13 +819,19 @@ describe('Playground CLI file locking', () => {
 				]);
 				expect(php1Response.status).toBe(200);
 				expect(php2Response.status).toBe(200);
-				const php2Text = await php2Response.text();
-				const parsed = php2Text ? JSON.parse(php2Text) : {};
-				expect(parsed.attempt_while_locked).toMatchObject({
+				const php1Output = await php1Response.json();
+				const php2Output = await php2Response.json();
+
+				assertProcessIdsFromDifferentWorkers(
+					php1Output.pid,
+					php2Output.pid
+				);
+
+				expect(php2Output.attempt_while_locked).toMatchObject({
 					last_error_code: 5,
 					last_error_msg: 'database is locked',
 				});
-				expect(parsed.attempt_after_fd_closed).toMatchObject({
+				expect(php2Output.attempt_after_fd_closed).toMatchObject({
 					last_error_code: 0,
 					last_error_msg: 'not an error',
 				});
@@ -793,6 +859,7 @@ describe('Playground CLI file locking', () => {
 
 					ob_clean();
 					echo json_encode([
+						'pid' => getmypid(),
 						'lock_acquired' => $lockResult,
 						'file_contents' => file_get_contents('${testFilePath}'),
 					]);
@@ -836,6 +903,7 @@ describe('Playground CLI file locking', () => {
 
 					ob_clean();
 					echo json_encode([
+						'pid' => getmypid(),
 						'lock_acquired' => $lockResult,
 						'file_contents' => $file_contents,
 					]);
@@ -881,6 +949,10 @@ describe('Playground CLI file locking', () => {
 					flock($fp, LOCK_UN);
 					fclose($fp);
 					file_put_contents('${coordinationFile}', 'php1-unlocked');
+
+					echo json_encode([
+						'pid' => getmypid(),
+					]);
 					`
 				);
 
@@ -916,6 +988,7 @@ describe('Playground CLI file locking', () => {
 
 					ob_clean();
 					echo json_encode([
+						'pid' => getmypid(),
 						'attempt_while_shared_locked' => $attempt_while_shared_locked,
 						'attempt_while_unlocked' => $attempt_while_unlocked,
 					]);
@@ -928,12 +1001,20 @@ describe('Playground CLI file locking', () => {
 				]);
 				expect(sharedResponse.status).toBe(200);
 				expect(exclusiveResponse.status).toBe(200);
-				const exclusiveText = await exclusiveResponse.text();
-				const parsed = exclusiveText ? JSON.parse(exclusiveText) : {};
-				expect(parsed.attempt_while_shared_locked.lock_acquired).toBe(
-					false
+				const sharedOutput = await sharedResponse.json();
+				const exclusiveOutput = await exclusiveResponse.json();
+
+				assertProcessIdsFromDifferentWorkers(
+					sharedOutput.pid,
+					exclusiveOutput.pid
 				);
-				expect(parsed.attempt_while_unlocked.lock_acquired).toBe(true);
+
+				expect(
+					exclusiveOutput.attempt_while_shared_locked.lock_acquired
+				).toBe(false);
+				expect(
+					exclusiveOutput.attempt_while_unlocked.lock_acquired
+				).toBe(true);
 			},
 			TEST_TIMEOUT
 		);
@@ -968,6 +1049,10 @@ describe('Playground CLI file locking', () => {
 					flock($fp, LOCK_UN);
 					fclose($fp);
 					file_put_contents('${coordinationFile}', 'php1-unlocked');
+
+					echo json_encode([
+						'pid' => getmypid(),
+					]);
 					`
 				);
 
@@ -1003,6 +1088,7 @@ describe('Playground CLI file locking', () => {
 
 					ob_clean();
 					echo json_encode([
+						'pid' => getmypid(),
 						'attempt_while_exclusive_locked' => $attempt_while_exclusive_locked,
 						'attempt_while_unlocked' => $attempt_while_unlocked,
 					]);
@@ -1015,12 +1101,20 @@ describe('Playground CLI file locking', () => {
 				]);
 				expect(exclusiveResponse.status).toBe(200);
 				expect(sharedResponse.status).toBe(200);
-				const sharedText = await sharedResponse.text();
-				const parsed = sharedText ? JSON.parse(sharedText) : {};
+				const exclusiveOutput = await exclusiveResponse.json();
+				const sharedOutput = await sharedResponse.json();
+
+				assertProcessIdsFromDifferentWorkers(
+					exclusiveOutput.pid,
+					sharedOutput.pid
+				);
+
 				expect(
-					parsed.attempt_while_exclusive_locked.lock_acquired
+					sharedOutput.attempt_while_exclusive_locked.lock_acquired
 				).toBe(false);
-				expect(parsed.attempt_while_unlocked.lock_acquired).toBe(true);
+				expect(sharedOutput.attempt_while_unlocked.lock_acquired).toBe(
+					true
+				);
 			},
 			TEST_TIMEOUT
 		);
@@ -1056,7 +1150,10 @@ describe('Playground CLI file locking', () => {
 					flock($fp, LOCK_UN);
 					fclose($fp);
 					ob_clean();
-					echo json_encode(['lock_acquired' => $lockResult]);
+					echo json_encode([
+						'pid' => getmypid(),
+						'lock_acquired' => $lockResult,
+					]);
 					`
 				);
 
@@ -1082,7 +1179,10 @@ describe('Playground CLI file locking', () => {
 					}
 					fclose($fp);
 					ob_clean();
-					echo json_encode(['lock_acquired' => $lockResult]);
+					echo json_encode([
+						'pid' => getmypid(),
+						'lock_acquired' => $lockResult,
+					]);
 					`
 				);
 
@@ -1104,7 +1204,10 @@ describe('Playground CLI file locking', () => {
 					}
 					fclose($fp);
 					ob_clean();
-					echo json_encode(['lock_acquired' => $lockResult]);
+					echo json_encode([
+						'pid' => getmypid(),
+						'lock_acquired' => $lockResult,
+					]);
 					`
 				);
 
@@ -1116,9 +1219,21 @@ describe('Playground CLI file locking', () => {
 				expect(resp1.status).toBe(200);
 				expect(resp2.status).toBe(200);
 				expect(resp3.status).toBe(200);
-				expect(JSON.parse(await resp1.text()).lock_acquired).toBe(true);
-				expect(JSON.parse(await resp2.text()).lock_acquired).toBe(true);
-				expect(JSON.parse(await resp3.text()).lock_acquired).toBe(true);
+				const [out1, out2, out3] = await Promise.all([
+					resp1.json(),
+					resp2.json(),
+					resp3.json(),
+				]);
+
+				assertProcessIdsFromDifferentWorkers(
+					out1.pid,
+					out2.pid,
+					out3.pid
+				);
+
+				expect(out1.lock_acquired).toBe(true);
+				expect(out2.lock_acquired).toBe(true);
+				expect(out3.lock_acquired).toBe(true);
 			},
 			TEST_TIMEOUT
 		);
@@ -1156,6 +1271,10 @@ describe('Playground CLI file locking', () => {
 					while (file_get_contents('${coordinationFile}') === 'php1-unlocked') {
 						usleep(100 * 1000);
 					}
+
+					echo json_encode([
+						'pid' => getmypid(),
+					]);
 					`
 				);
 
@@ -1191,6 +1310,7 @@ describe('Playground CLI file locking', () => {
 
 					ob_clean();
 					echo json_encode([
+						'pid' => getmypid(),
 						'attempt_while_locked' => $attempt_while_locked,
 						'attempt_after_fd_closed' => $attempt_after_fd_closed,
 					]);
@@ -1204,10 +1324,20 @@ describe('Playground CLI file locking', () => {
 				]);
 				expect(sharedResponse.status).toBe(200);
 				expect(exclusiveResponse.status).toBe(200);
-				const exclusiveText = await exclusiveResponse.text();
-				const parsed = exclusiveText ? JSON.parse(exclusiveText) : {};
-				expect(parsed.attempt_while_locked.lock_acquired).toBe(false);
-				expect(parsed.attempt_after_fd_closed.lock_acquired).toBe(true);
+				const sharedOutput = await sharedResponse.json();
+				const exclusiveOutput = await exclusiveResponse.json();
+
+				assertProcessIdsFromDifferentWorkers(
+					sharedOutput.pid,
+					exclusiveOutput.pid
+				);
+
+				expect(exclusiveOutput.attempt_while_locked.lock_acquired).toBe(
+					false
+				);
+				expect(
+					exclusiveOutput.attempt_after_fd_closed.lock_acquired
+				).toBe(true);
 			},
 			TEST_TIMEOUT
 		);
@@ -1245,6 +1375,10 @@ describe('Playground CLI file locking', () => {
 					while (file_get_contents('${coordinationFile}') === 'php1-unlocked') {
 						usleep(100 * 1000);
 					}
+
+					echo json_encode([
+						'pid' => getmypid(),
+					]);
 					`
 				);
 
@@ -1280,6 +1414,7 @@ describe('Playground CLI file locking', () => {
 
 					ob_clean();
 					echo json_encode([
+						'pid' => getmypid(),
 						'attempt_while_locked' => $attempt_while_locked,
 						'attempt_after_fd_closed' => $attempt_after_fd_closed,
 					]);
@@ -1293,10 +1428,20 @@ describe('Playground CLI file locking', () => {
 				]);
 				expect(exclusiveResponse.status).toBe(200);
 				expect(sharedResponse.status).toBe(200);
-				const sharedText = await sharedResponse.text();
-				const parsed = sharedText ? JSON.parse(sharedText) : {};
-				expect(parsed.attempt_while_locked.lock_acquired).toBe(false);
-				expect(parsed.attempt_after_fd_closed.lock_acquired).toBe(true);
+				const exclusiveOutput = await exclusiveResponse.json();
+				const sharedOutput = await sharedResponse.json();
+
+				assertProcessIdsFromDifferentWorkers(
+					exclusiveOutput.pid,
+					sharedOutput.pid
+				);
+
+				expect(sharedOutput.attempt_while_locked.lock_acquired).toBe(
+					false
+				);
+				expect(sharedOutput.attempt_after_fd_closed.lock_acquired).toBe(
+					true
+				);
 			},
 			TEST_TIMEOUT
 		);
@@ -1327,6 +1472,10 @@ describe('Playground CLI file locking', () => {
 						usleep(100 * 1000);
 					}
 					file_put_contents('${coordinationFile}', 'php1-end-of-script');
+
+					echo json_encode([
+						'pid' => getmypid(),
+					]);
 					`
 				);
 
@@ -1352,6 +1501,7 @@ describe('Playground CLI file locking', () => {
 					$attempt_after_exit = $lockResult;
 					ob_clean();
 					echo json_encode([
+						'pid' => getmypid(),
 						'attempt_while_locked' => $attempt_while_locked,
 						'attempt_after_exit' => $attempt_after_exit,
 					]);
@@ -1365,10 +1515,16 @@ describe('Playground CLI file locking', () => {
 				]);
 				expect(sharedResponse.status).toBe(200);
 				expect(exclusiveResponse.status).toBe(200);
-				const exclusiveText = await exclusiveResponse.text();
-				const parsed = exclusiveText ? JSON.parse(exclusiveText) : {};
-				expect(parsed.attempt_while_locked).toBe(false);
-				expect(parsed.attempt_after_exit).toBe(true);
+				const sharedOutput = await sharedResponse.json();
+				const exclusiveOutput = await exclusiveResponse.json();
+
+				assertProcessIdsFromDifferentWorkers(
+					sharedOutput.pid,
+					exclusiveOutput.pid
+				);
+
+				expect(exclusiveOutput.attempt_while_locked).toBe(false);
+				expect(exclusiveOutput.attempt_after_exit).toBe(true);
 			},
 			TEST_TIMEOUT
 		);
@@ -1399,6 +1555,10 @@ describe('Playground CLI file locking', () => {
 						usleep(100 * 1000);
 					}
 					file_put_contents('${coordinationFile}', 'php1-end-of-script');
+
+					echo json_encode([
+						'pid' => getmypid(),
+					]);
 					`
 				);
 
@@ -1424,6 +1584,7 @@ describe('Playground CLI file locking', () => {
 					$attempt_after_exit = $lockResult;
 					ob_clean();
 					echo json_encode([
+						'pid' => getmypid(),
 						'attempt_while_locked' => $attempt_while_locked,
 						'attempt_after_exit' => $attempt_after_exit,
 					]);
@@ -1437,10 +1598,16 @@ describe('Playground CLI file locking', () => {
 				]);
 				expect(exclusiveResponse.status).toBe(200);
 				expect(sharedResponse.status).toBe(200);
-				const sharedText = await sharedResponse.text();
-				const parsed = sharedText ? JSON.parse(sharedText) : {};
-				expect(parsed.attempt_while_locked).toBe(false);
-				expect(parsed.attempt_after_exit).toBe(true);
+				const exclusiveOutput = await exclusiveResponse.json();
+				const sharedOutput = await sharedResponse.json();
+
+				assertProcessIdsFromDifferentWorkers(
+					exclusiveOutput.pid,
+					sharedOutput.pid
+				);
+
+				expect(sharedOutput.attempt_while_locked).toBe(false);
+				expect(sharedOutput.attempt_after_exit).toBe(true);
 			},
 			TEST_TIMEOUT
 		);
