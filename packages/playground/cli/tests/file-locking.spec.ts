@@ -5,69 +5,76 @@ import { mkdtempSync } from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 
+const TEST_TIMEOUT = 120_000;
 const TEST_DIR = '/wordpress/test';
 const TEST_DIR_URI = '/test';
-const TEST_TIMEOUT = 120_000;
 const MULTI_WORKER_COUNT = 4;
 
-describe('Playground CLI file locking', () => {
-	let cliServer: RunCLIServer;
-	let nativeTestDir: string;
+describe(
+	'Playground CLI file locking',
+	() => {
+		let cliServer: RunCLIServer;
+		let nativeTestDir: string;
 
-	beforeAll(async () => {
-		nativeTestDir = mkdtempSync(
-			path.join(os.tmpdir(), 'playground-cli-file-locking-test-')
-		);
+		beforeAll(async () => {
+			nativeTestDir = mkdtempSync(
+				path.join(os.tmpdir(), 'playground-cli-file-locking-test-')
+			);
 
-		cliServer = await runCLI({
-			command: 'server',
-			mount: [
-				{
-					hostPath: nativeTestDir,
-					vfsPath: TEST_DIR,
-				},
-			],
-			// Test locking across multiple workers
-			experimentalMultiWorker: MULTI_WORKER_COUNT,
+			cliServer = await runCLI({
+				command: 'server',
+				mount: [
+					{
+						hostPath: nativeTestDir,
+						vfsPath: TEST_DIR,
+					},
+				],
+				// Test locking across multiple workers
+				experimentalMultiWorker: MULTI_WORKER_COUNT,
+			});
 		});
-	}, TEST_TIMEOUT);
 
-	afterAll(async () => {
-		if (cliServer) {
-			await cliServer[Symbol.asyncDispose]();
+		afterAll(async () => {
+			if (cliServer) {
+				await cliServer[Symbol.asyncDispose]();
+			}
+		});
+
+		function writeScript(script: string, content: string): Promise<void> {
+			return cliServer.playground.writeFile(
+				`${TEST_DIR}/${script}`,
+				content
+			);
 		}
-	});
 
-	function writeScript(script: string, content: string): Promise<void> {
-		return cliServer.playground.writeFile(`${TEST_DIR}/${script}`, content);
-	}
-
-	function fetchScript(script: string): Promise<Response> {
-		return fetch(new URL(`${TEST_DIR_URI}/${script}`, cliServer.serverUrl));
-	}
-
-	function assertProcessIdsFromDifferentWorkers(...pids: number[]) {
-		// Confirm that the process IDs look like process IDs.
-		for (const pid of pids) {
-			expect(pid).toBeTypeOf('number');
-			expect(pid).toBeGreaterThan(0);
+		function fetchScript(script: string): Promise<Response> {
+			return fetch(
+				new URL(`${TEST_DIR_URI}/${script}`, cliServer.serverUrl)
+			);
 		}
-		const workerNumbers = pids.map(
-			cliServer[internalsKeyForTesting].getWorkerNumberFromProcessId
-		);
-		for (const workerNumber of workerNumbers) {
-			// +1 to account for the initial worker.
-			expect(workerNumber).toBeLessThan(MULTI_WORKER_COUNT + 1);
-		}
-		expect(new Set(workerNumbers).size).toBe(workerNumbers.length);
-	}
 
-	describe('SQLite DB locking (relying upon fcntl())', () => {
-		async function seedSqliteDatabase(dbFilePath: string) {
-			const seedScript = `${randomUUID()}-seed.php`;
-			await writeScript(
-				seedScript,
-				`<?php
+		function assertProcessIdsFromDifferentWorkers(...pids: number[]) {
+			// Confirm that the process IDs look like process IDs.
+			for (const pid of pids) {
+				expect(pid).toBeTypeOf('number');
+				expect(pid).toBeGreaterThan(0);
+			}
+			const workerNumbers = pids.map(
+				cliServer[internalsKeyForTesting].getWorkerNumberFromProcessId
+			);
+			for (const workerNumber of workerNumbers) {
+				// +1 to account for the initial worker.
+				expect(workerNumber).toBeLessThan(MULTI_WORKER_COUNT + 1);
+			}
+			expect(new Set(workerNumbers).size).toBe(workerNumbers.length);
+		}
+
+		describe('SQLite DB locking (relying upon fcntl())', () => {
+			async function seedSqliteDatabase(dbFilePath: string) {
+				const seedScript = `${randomUUID()}-seed.php`;
+				await writeScript(
+					seedScript,
+					`<?php
 				ob_start();
 				$db = new SQLite3('${dbFilePath}');
 				$result = $db->exec('CREATE TABLE test (id INTEGER PRIMARY KEY, name TEXT)');
@@ -79,15 +86,13 @@ describe('Playground CLI file locking', () => {
 				$db->close();
 				echo 'ok';
 				`
-			);
-			const seedResponse = await fetchScript(seedScript);
-			expect(seedResponse.status).toBe(200);
-			expect((await seedResponse.text()).trim()).toBe('ok');
-		}
+				);
+				const seedResponse = await fetchScript(seedScript);
+				expect(seedResponse.status).toBe(200);
+				expect((await seedResponse.text()).trim()).toBe('ok');
+			}
 
-		it(
-			'cannot write to DB while another process has an exclusive lock',
-			async () => {
+			it('cannot write to DB while another process has an exclusive lock', async () => {
 				const testId = randomUUID();
 				const dbFilePath = `${TEST_DIR}/${testId}-exclusive.db`;
 				const coordinationFile = `${TEST_DIR}/${testId}-coordination.txt`;
@@ -167,30 +172,25 @@ describe('Playground CLI file locking', () => {
 				const php1Output = await php1Response.json();
 				const php2Output = await php2Response.json();
 
-				// TODO: Double-check whether the second worker reuses PIDs of the initial worker.
 				// Confirm that we are testing with separate workers.
 				assertProcessIdsFromDifferentWorkers(
 					php1Output.pid,
 					php2Output.pid
 				);
 
-				expect(
-					php2Output.attempt_while_exclusively_locked
-				).toMatchObject({
-					last_error_code: 5,
-					last_error_msg: 'database is locked',
+				expect(php2Output).toMatchObject({
+					attempt_while_exclusively_locked: {
+						last_error_code: 5,
+						last_error_msg: 'database is locked',
+					},
+					attempt_while_unlocked: {
+						last_error_code: 0,
+						last_error_msg: 'not an error',
+					},
 				});
-				expect(php2Output.attempt_while_unlocked).toMatchObject({
-					last_error_code: 0,
-					last_error_msg: 'not an error',
-				});
-			},
-			TEST_TIMEOUT
-		);
+			});
 
-		it(
-			'cannot read from DB while another process has an exclusive lock',
-			async () => {
+			it('cannot read from DB while another process has an exclusive lock', async () => {
 				const testId = randomUUID();
 				const dbFilePath = `${TEST_DIR}/${testId}-exclusive-read.db`;
 				const coordinationFile = `${TEST_DIR}/${testId}-coordination.txt`;
@@ -281,23 +281,19 @@ describe('Playground CLI file locking', () => {
 					php2Output.pid
 				);
 
-				expect(
-					php2Output.attempt_while_exclusively_locked
-				).toMatchObject({
-					last_error_code: 5,
-					last_error_msg: 'database is locked',
+				expect(php2Output).toMatchObject({
+					attempt_while_exclusively_locked: {
+						last_error_code: 5,
+						last_error_msg: 'database is locked',
+					},
+					attempt_while_unlocked: {
+						last_error_code: 0,
+						last_error_msg: 'not an error',
+					},
 				});
-				expect(php2Output.attempt_while_unlocked).toMatchObject({
-					last_error_code: 0,
-					last_error_msg: 'not an error',
-				});
-			},
-			TEST_TIMEOUT
-		);
+			});
 
-		it(
-			'cannot write to DB while another process has a shared lock',
-			async () => {
+			it('cannot write to DB while another process has a shared lock', async () => {
 				const testId = randomUUID();
 				const dbFilePath = `${TEST_DIR}/${testId}-shared-write.db`;
 				const coordinationFile = `${TEST_DIR}/${testId}-coordination.txt`;
@@ -388,21 +384,19 @@ describe('Playground CLI file locking', () => {
 					php2Output.pid
 				);
 
-				expect(php2Output.attempt_while_shared_locked).toMatchObject({
-					last_error_code: 5,
-					last_error_msg: 'database is locked',
+				expect(php2Output).toMatchObject({
+					attempt_while_shared_locked: {
+						last_error_code: 5,
+						last_error_msg: 'database is locked',
+					},
+					attempt_while_unlocked: {
+						last_error_code: 0,
+						last_error_msg: 'not an error',
+					},
 				});
-				expect(php2Output.attempt_while_unlocked).toMatchObject({
-					last_error_code: 0,
-					last_error_msg: 'not an error',
-				});
-			},
-			TEST_TIMEOUT
-		);
+			});
 
-		it(
-			'can read from DB while another process has a shared lock',
-			async () => {
+			it('can read from DB while another process has a shared lock', async () => {
 				const testId = randomUUID();
 				const dbFilePath = `${TEST_DIR}/${testId}-shared-read.db`;
 				const coordinationFile = `${TEST_DIR}/${testId}-coordination.txt`;
@@ -495,21 +489,19 @@ describe('Playground CLI file locking', () => {
 					php2Output.pid
 				);
 
-				expect(php2Output.attempt_while_shared_locked).toMatchObject({
-					last_error_code: 0,
-					last_error_msg: 'not an error',
+				expect(php2Output).toMatchObject({
+					attempt_while_shared_locked: {
+						last_error_code: 0,
+						last_error_msg: 'not an error',
+					},
+					attempt_while_unlocked: {
+						last_error_code: 0,
+						last_error_msg: 'not an error',
+					},
 				});
-				expect(php2Output.attempt_while_unlocked).toMatchObject({
-					last_error_code: 0,
-					last_error_msg: 'not an error',
-				});
-			},
-			TEST_TIMEOUT
-		);
+			});
 
-		it(
-			'should release a shared lock when its associated process exits',
-			async () => {
+			it('should release a shared lock when its associated process exits', async () => {
 				const testId = randomUUID();
 				const dbFilePath = `${TEST_DIR}/${testId}-shared-exit.db`;
 				const coordinationFile = `${TEST_DIR}/${testId}-coordination.txt`;
@@ -605,21 +597,19 @@ describe('Playground CLI file locking', () => {
 					php2Output.pid
 				);
 
-				expect(php2Output.attempt_while_locked).toMatchObject({
-					last_error_code: 5,
-					last_error_msg: 'database is locked',
+				expect(php2Output).toMatchObject({
+					attempt_while_locked: {
+						last_error_code: 5,
+						last_error_msg: 'database is locked',
+					},
+					attempt_after_exit: {
+						last_error_code: 0,
+						last_error_msg: 'not an error',
+					},
 				});
-				expect(php2Output.attempt_after_exit).toMatchObject({
-					last_error_code: 0,
-					last_error_msg: 'not an error',
-				});
-			},
-			TEST_TIMEOUT
-		);
+			});
 
-		it(
-			'should release an exclusive lock when its associated process exits',
-			async () => {
+			it('should release an exclusive lock when its associated process exits', async () => {
 				const testId = randomUUID();
 				const dbFilePath = `${TEST_DIR}/${testId}-exclusive-exit.db`;
 				const coordinationFile = `${TEST_DIR}/${testId}-coordination.txt`;
@@ -715,21 +705,19 @@ describe('Playground CLI file locking', () => {
 					php2Output.pid
 				);
 
-				expect(php2Output.attempt_while_locked).toMatchObject({
-					last_error_code: 5,
-					last_error_msg: 'database is locked',
+				expect(php2Output).toMatchObject({
+					attempt_while_locked: {
+						last_error_code: 5,
+						last_error_msg: 'database is locked',
+					},
+					attempt_after_exit: {
+						last_error_code: 0,
+						last_error_msg: 'not an error',
+					},
 				});
-				expect(php2Output.attempt_after_exit).toMatchObject({
-					last_error_code: 0,
-					last_error_msg: 'not an error',
-				});
-			},
-			TEST_TIMEOUT
-		);
+			});
 
-		it(
-			'should release a lock when its database connection is closed',
-			async () => {
+			it('should release a lock when its database connection is closed', async () => {
 				const testId = randomUUID();
 				const dbFilePath = `${TEST_DIR}/${testId}-connection-closed.db`;
 				const coordinationFile = `${TEST_DIR}/${testId}-coordination.txt`;
@@ -827,23 +815,21 @@ describe('Playground CLI file locking', () => {
 					php2Output.pid
 				);
 
-				expect(php2Output.attempt_while_locked).toMatchObject({
-					last_error_code: 5,
-					last_error_msg: 'database is locked',
+				expect(php2Output).toMatchObject({
+					attempt_while_locked: {
+						last_error_code: 5,
+						last_error_msg: 'database is locked',
+					},
+					attempt_after_fd_closed: {
+						last_error_code: 0,
+						last_error_msg: 'not an error',
+					},
 				});
-				expect(php2Output.attempt_after_fd_closed).toMatchObject({
-					last_error_code: 0,
-					last_error_msg: 'not an error',
-				});
-			},
-			TEST_TIMEOUT
-		);
-	});
+			});
+		});
 
-	describe('PHP flock()', () => {
-		it(
-			'should be able to acquire an exclusive lock on a file',
-			async () => {
+		describe('PHP flock()', () => {
+			it('should be able to acquire an exclusive lock on a file', async () => {
 				const testId = randomUUID();
 				const testFilePath = `${TEST_DIR}/${testId}-exclusive.txt`;
 				const scriptName = `${testId}-exclusive-lock.php`;
@@ -871,13 +857,9 @@ describe('Playground CLI file locking', () => {
 				const data = text ? JSON.parse(text) : {};
 				expect(data.lock_acquired).toBe(true);
 				expect(data.file_contents).toBe('test content');
-			},
-			TEST_TIMEOUT
-		);
+			});
 
-		it(
-			'should be able to acquire a shared lock on a file',
-			async () => {
+			it('should be able to acquire a shared lock on a file', async () => {
 				const testId = randomUUID();
 				const testFilePath = `${TEST_DIR}/${testId}-shared.txt`;
 				await cliServer.playground.writeFile(
@@ -915,13 +897,9 @@ describe('Playground CLI file locking', () => {
 				const data = text ? JSON.parse(text) : {};
 				expect(data.lock_acquired).toBe(true);
 				expect(data.file_contents).toBe('test content');
-			},
-			TEST_TIMEOUT
-		);
+			});
 
-		it(
-			'should deny an exclusive lock when another process has a shared lock on a file',
-			async () => {
+			it('should deny an exclusive lock when another process has a shared lock on a file', async () => {
 				const testId = randomUUID();
 				const testFilePath = `${TEST_DIR}/${testId}-shared-exclusive.txt`;
 				const coordinationFile = `${TEST_DIR}/${testId}-coordination.txt`;
@@ -1015,13 +993,9 @@ describe('Playground CLI file locking', () => {
 				expect(
 					exclusiveOutput.attempt_while_unlocked.lock_acquired
 				).toBe(true);
-			},
-			TEST_TIMEOUT
-		);
+			});
 
-		it(
-			'should deny a shared lock when another process has an exclusive lock on a file',
-			async () => {
+			it('should deny a shared lock when another process has an exclusive lock on a file', async () => {
 				const testId = randomUUID();
 				const testFilePath = `${TEST_DIR}/${testId}-exclusive-shared.txt`;
 				const coordinationFile = `${TEST_DIR}/${testId}-coordination.txt`;
@@ -1115,13 +1089,9 @@ describe('Playground CLI file locking', () => {
 				expect(sharedOutput.attempt_while_unlocked.lock_acquired).toBe(
 					true
 				);
-			},
-			TEST_TIMEOUT
-		);
+			});
 
-		it(
-			'should grant multiple shared locks on a file',
-			async () => {
+			it('should grant multiple shared locks on a file', async () => {
 				const testId = randomUUID();
 				const testFilePath = `${TEST_DIR}/${testId}-multi-shared.txt`;
 				const coordinationFile = `${TEST_DIR}/${testId}-coordination.txt`;
@@ -1234,13 +1204,9 @@ describe('Playground CLI file locking', () => {
 				expect(out1.lock_acquired).toBe(true);
 				expect(out2.lock_acquired).toBe(true);
 				expect(out3.lock_acquired).toBe(true);
-			},
-			TEST_TIMEOUT
-		);
+			});
 
-		it(
-			'should release a shared lock when its associated file descriptor is closed',
-			async () => {
+			it('should release a shared lock when its associated file descriptor is closed', async () => {
 				const testId = randomUUID();
 				const testFilePath = `${TEST_DIR}/${testId}-shared-close.txt`;
 				const coordinationFile = `${TEST_DIR}/${testId}-coordination.txt`;
@@ -1338,13 +1304,9 @@ describe('Playground CLI file locking', () => {
 				expect(
 					exclusiveOutput.attempt_after_fd_closed.lock_acquired
 				).toBe(true);
-			},
-			TEST_TIMEOUT
-		);
+			});
 
-		it(
-			'should release an exclusive lock when its associated file descriptor is closed',
-			async () => {
+			it('should release an exclusive lock when its associated file descriptor is closed', async () => {
 				const testId = randomUUID();
 				const testFilePath = `${TEST_DIR}/${testId}-exclusive-close.txt`;
 				const coordinationFile = `${TEST_DIR}/${testId}-coordination.txt`;
@@ -1442,13 +1404,9 @@ describe('Playground CLI file locking', () => {
 				expect(sharedOutput.attempt_after_fd_closed.lock_acquired).toBe(
 					true
 				);
-			},
-			TEST_TIMEOUT
-		);
+			});
 
-		it(
-			'should release a shared lock when the owning process exits',
-			async () => {
+			it('should release a shared lock when the owning process exits', async () => {
 				const testId = randomUUID();
 				const testFilePath = `${TEST_DIR}/${testId}-shared-exit-file.txt`;
 				const coordinationFile = `${TEST_DIR}/${testId}-coordination.txt`;
@@ -1525,13 +1483,9 @@ describe('Playground CLI file locking', () => {
 
 				expect(exclusiveOutput.attempt_while_locked).toBe(false);
 				expect(exclusiveOutput.attempt_after_exit).toBe(true);
-			},
-			TEST_TIMEOUT
-		);
+			});
 
-		it(
-			'should release an exclusive lock when the owning process exits',
-			async () => {
+			it('should release an exclusive lock when the owning process exits', async () => {
 				const testId = randomUUID();
 				const testFilePath = `${TEST_DIR}/${testId}-exclusive-exit-file.txt`;
 				const coordinationFile = `${TEST_DIR}/${testId}-coordination.txt`;
@@ -1608,8 +1562,8 @@ describe('Playground CLI file locking', () => {
 
 				expect(sharedOutput.attempt_while_locked).toBe(false);
 				expect(sharedOutput.attempt_after_exit).toBe(true);
-			},
-			TEST_TIMEOUT
-		);
-	});
-});
+			});
+		});
+	},
+	TEST_TIMEOUT
+);
