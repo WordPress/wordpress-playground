@@ -341,10 +341,14 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 					args['wordpressInstallMode'] = 'do-not-attempt-installing';
 				}
 
-				if (args.wp !== undefined && !isValidWordPressSlug(args.wp)) {
+				if (
+					args['wp'] !== undefined &&
+					typeof args['wp'] === 'string' &&
+					!isValidWordPressSlug(args['wp'])
+				) {
 					try {
 						// Check if is valid URL
-						new URL(args.wp);
+						new URL(args['wp']);
 					} catch {
 						throw new Error(
 							'Unrecognized WordPress version. Please use "latest", a URL, or a numeric version such as "6.2", "6.0.1", "6.2-beta1", or "6.2-RC1"'
@@ -352,12 +356,16 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 					}
 				}
 
-				if (args['site-url'] !== undefined && args['site-url'] !== '') {
+				const siteUrlArg = args['site-url'];
+				if (
+					typeof siteUrlArg === 'string' &&
+					siteUrlArg.trim() !== ''
+				) {
 					try {
-						new URL(args['site-url']);
+						new URL(siteUrlArg);
 					} catch {
 						throw new Error(
-							`Invalid site-url "${args['site-url']}". Please provide a valid URL (e.g., http://localhost:8080 or https://example.com)`
+							`Invalid site-url "${siteUrlArg}". Please provide a valid URL (e.g., http://localhost:8080 or https://example.com)`
 						);
 					}
 				}
@@ -365,7 +373,9 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 				if (args['auto-mount']) {
 					let autoMountIsDir = false;
 					try {
-						const autoMountStats = fs.statSync(args['auto-mount']);
+						const autoMountStats = fs.statSync(
+							args['auto-mount'] as string
+						);
 						autoMountIsDir = autoMountStats.isDirectory();
 					} catch {
 						autoMountIsDir = false;
@@ -385,7 +395,11 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 							'The --experimental-multi-worker flag is only supported when running the server command.'
 						);
 					}
-					if (args['experimental-multi-worker'] <= 1) {
+					if (
+						args['experimental-multi-worker'] !== undefined &&
+						typeof args['experimental-multi-worker'] === 'number' &&
+						args['experimental-multi-worker'] <= 1
+					) {
 						throw new Error(
 							'The --experimental-multi-worker flag must be a positive integer greater than 1.'
 						);
@@ -457,10 +471,13 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 		const cliArgs = {
 			...args,
 			command,
-			mount: [...(args.mount || []), ...(args['mount-dir'] || [])],
+			mount: [
+				...((args['mount'] as Mount[]) || []),
+				...((args['mount-dir'] as Mount[]) || []),
+			],
 			'mount-before-install': [
-				...(args['mount-before-install'] || []),
-				...(args['mount-dir-before-install'] || []),
+				...((args['mount-before-install'] as Mount[]) || []),
+				...((args['mount-dir-before-install'] as Mount[]) || []),
 			],
 		} as RunCLIArgs;
 
