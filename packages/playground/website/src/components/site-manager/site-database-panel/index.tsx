@@ -18,11 +18,13 @@ export function SiteDatabasePanel({
 	playgroundUrl: string | null;
 	documentRoot: string | null;
 }) {
-	const [isReady, setIsReady] = useState(false);
+	const [isAdminerReady, setIsAdminerReady] = useState(false);
+	const [isPhpMyAdminReady, setIsPhpMyAdminReady] = useState(false);
 
 	useEffect(() => {
 		if (!playground || !documentRoot) {
-			setIsReady(false);
+			setIsAdminerReady(false);
+			setIsPhpMyAdminReady(false);
 			return;
 		}
 
@@ -37,7 +39,7 @@ export function SiteDatabasePanel({
 			const adminerExists = await playground.fileExists(adminerPath);
 			const pluginsExists = await playground.fileExists(pluginsPath);
 			if (adminerExists && pluginsExists) {
-				setIsReady(true);
+				setIsAdminerReady(true);
 				return;
 			}
 
@@ -91,14 +93,64 @@ export function SiteDatabasePanel({
 					await runBlueprintV1Steps(blueprint, playground);
 				}
 
-				setIsReady(true);
+				setIsAdminerReady(true);
 			} catch (error) {
 				console.error('Failed to install Adminer:', error);
-				setIsReady(false);
+				setIsAdminerReady(false);
+			}
+		}
+
+		async function checkOrInstallPhpMyAdmin() {
+			if (!playground || !documentRoot) {
+				return;
+			}
+			const phpMyAdminPath = `${documentRoot}/phpmyadmin`;
+
+			// Check if phpMyAdmin is already installed.
+			const phpMyAdminExists = await playground.fileExists(
+				phpMyAdminPath
+			);
+			if (phpMyAdminExists) {
+				setIsPhpMyAdminReady(true);
+				return;
+			}
+
+			// Install phpMyAdmin using Blueprint steps.
+			try {
+				const steps: StepDefinition[] = [
+					// Extract phpMyAdmin zip file
+					{
+						step: 'unzip',
+						zipFile: {
+							resource: 'url',
+							url: 'https://files.phpmyadmin.net/phpMyAdmin/5.2.3/phpMyAdmin-5.2.3-english.zip',
+						},
+						extractToPath: documentRoot,
+					},
+					// Move the extracted folder to the final location
+					{
+						step: 'mv',
+						fromPath: `${documentRoot}/phpMyAdmin-5.2.3-english`,
+						toPath: phpMyAdminPath,
+					},
+				];
+
+				const blueprint = await compileBlueprintV1(
+					{ steps },
+					{ corsProxy: corsProxyUrl }
+				);
+
+				await runBlueprintV1Steps(blueprint, playground);
+
+				setIsPhpMyAdminReady(true);
+			} catch (error) {
+				console.error('Failed to install phpMyAdmin:', error);
+				setIsPhpMyAdminReady(false);
 			}
 		}
 
 		void checkOrInstallAdminer();
+		void checkOrInstallPhpMyAdmin();
 	}, [playground, documentRoot]);
 
 	const handleOpenAdminer = () => {
@@ -111,13 +163,32 @@ export function SiteDatabasePanel({
 		}
 	};
 
+	const handleOpenPhpMyAdmin = () => {
+		if (playgroundUrl) {
+			window.open(
+				`${playgroundUrl}/phpmyadmin/`,
+				'_blank',
+				'noopener,noreferrer'
+			);
+		}
+	};
+
 	return (
-		<Button
-			variant="primary"
-			disabled={!playground || !isReady}
-			onClick={handleOpenAdminer}
-		>
-			Adminer
-		</Button>
+		<div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+			<Button
+				variant="primary"
+				disabled={!playground || !isAdminerReady}
+				onClick={handleOpenAdminer}
+			>
+				Adminer
+			</Button>
+			<Button
+				variant="primary"
+				disabled={!playground || !isPhpMyAdminReady}
+				onClick={handleOpenPhpMyAdmin}
+			>
+				phpMyAdmin
+			</Button>
+		</div>
 	);
 }
