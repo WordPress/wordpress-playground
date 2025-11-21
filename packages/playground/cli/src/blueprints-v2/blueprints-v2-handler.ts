@@ -108,6 +108,9 @@ export class BlueprintsV2Handler {
 		message: string,
 		finalUpdate: boolean
 	) {
+		if (!this.shouldRenderProgress(writeStream)) {
+			return;
+		}
 		if (message === this.lastProgressMessage) {
 			// Avoid repeating the same message
 			return;
@@ -127,5 +130,14 @@ export class BlueprintsV2Handler {
 			// Fall back to writing one line per progress update
 			writeStream.write(`${message}\n`);
 		}
+	}
+
+	private shouldRenderProgress(writeStream: NodeJS.WriteStream) {
+		const termIsDumb =
+			(process?.env['TERM'] || '').toLowerCase() === 'dumb';
+		const ciFlag = (process?.env['CI'] || '').toLowerCase();
+		const runningInCI = ciFlag === '1' || ciFlag === 'true';
+
+		return writeStream.isTTY && !termIsDumb && !runningInCI;
 	}
 }

@@ -102,7 +102,7 @@ export class BlueprintsV1Handler {
 						wpDetails.releaseUrl,
 						`${wpDetails.version}.zip`,
 						monitor
-				  );
+					);
 			logger.log(
 				`Resolved WordPress release URL: ${wpDetails?.releaseUrl}`
 			);
@@ -265,7 +265,7 @@ export class BlueprintsV1Handler {
 							'latest',
 						...(resolvedBlueprint?.preferredVersions || {}),
 					},
-			  };
+				};
 	}
 
 	writeProgressUpdate(
@@ -274,6 +274,9 @@ export class BlueprintsV1Handler {
 		finalUpdate: boolean
 	) {
 		if (this.args.verbosity === LogVerbosity.Quiet.name) {
+			return;
+		}
+		if (!this.shouldRenderProgress(writeStream)) {
 			return;
 		}
 		if (message === this.lastProgressMessage) {
@@ -295,5 +298,13 @@ export class BlueprintsV1Handler {
 			// Fall back to writing one line per progress update
 			writeStream.write(`${message}\n`);
 		}
+	}
+
+	private shouldRenderProgress(writeStream: NodeJS.WriteStream) {
+		const termIsDumb = (process.env.TERM || '').toLowerCase() === 'dumb';
+		const ciFlag = (process.env.CI || '').toLowerCase();
+		const runningInCI = ciFlag === '1' || ciFlag === 'true';
+
+		return writeStream.isTTY && !termIsDumb && !runningInCI;
 	}
 }
