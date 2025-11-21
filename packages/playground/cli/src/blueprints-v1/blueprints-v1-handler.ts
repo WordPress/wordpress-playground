@@ -25,6 +25,7 @@ import {
 	type SpawnedWorker,
 	type WorkerType,
 } from '../run-cli';
+import { shouldRenderProgress } from '../utils/progress';
 
 /**
  * Boots Playground CLI workers using Blueprint version 1.
@@ -276,7 +277,7 @@ export class BlueprintsV1Handler {
 		if (this.args.verbosity === LogVerbosity.Quiet.name) {
 			return;
 		}
-		if (!this.shouldRenderProgress(writeStream)) {
+		if (!shouldRenderProgress(writeStream)) {
 			return;
 		}
 		if (message === this.lastProgressMessage) {
@@ -298,13 +299,5 @@ export class BlueprintsV1Handler {
 			// Fall back to writing one line per progress update
 			writeStream.write(`${message}\n`);
 		}
-	}
-
-	private shouldRenderProgress(writeStream: NodeJS.WriteStream) {
-		const termIsDumb = (process.env['TERM'] || '').toLowerCase() === 'dumb';
-		const ciFlag = (process.env['CI'] || '').toLowerCase();
-		const runningInCI = ciFlag === '1' || ciFlag === 'true';
-
-		return writeStream.isTTY && !termIsDumb && !runningInCI;
 	}
 }

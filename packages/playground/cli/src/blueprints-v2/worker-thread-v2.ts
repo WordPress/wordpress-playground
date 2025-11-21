@@ -39,6 +39,7 @@ import type {
 	PhpIniOptions,
 	PHPInstanceCreatedHook,
 } from '@wp-playground/wordpress';
+import { shouldRenderProgress } from '../utils/progress';
 
 async function mountResources(php: PHP, mounts: Mount[]) {
 	for (const mount of mounts) {
@@ -85,21 +86,13 @@ function tracePhpWasm(processId: number, format: string, ...args: any[]) {
 Object.defineProperty(process.stdout, 'isTTY', { value: true });
 Object.defineProperty(process.stderr, 'isTTY', { value: true });
 
-const shouldRenderProgress = () => {
-	const termIsDumb = (process.env.TERM || '').toLowerCase() === 'dumb';
-	const ciFlag = (process.env.CI || '').toLowerCase();
-	const runningInCI = ciFlag === '1' || ciFlag === 'true';
-
-	return !termIsDumb && !runningInCI;
-};
-
 /**
  * Output writer that ensures that progress bars are not printed on the same line as other output.
  */
 const output = {
 	lastWriteWasProgress: false,
 	progress(data: string) {
-		if (!shouldRenderProgress()) {
+		if (!shouldRenderProgress(process.stdout)) {
 			return;
 		}
 		if (!process.stdout.isTTY) {

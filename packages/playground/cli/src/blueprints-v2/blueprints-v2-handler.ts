@@ -6,6 +6,7 @@ import type {
 } from './worker-thread-v2';
 import type { MessagePort as NodeMessagePort } from 'worker_threads';
 import type { RunCLIArgs, SpawnedWorker, WorkerType } from '../run-cli';
+import { shouldRenderProgress } from '../utils/progress';
 
 /**
  * Boots Playground CLI workers using Blueprint version 2.
@@ -108,7 +109,7 @@ export class BlueprintsV2Handler {
 		message: string,
 		finalUpdate: boolean
 	) {
-		if (!this.shouldRenderProgress(writeStream)) {
+		if (!shouldRenderProgress(writeStream)) {
 			return;
 		}
 		if (message === this.lastProgressMessage) {
@@ -130,14 +131,5 @@ export class BlueprintsV2Handler {
 			// Fall back to writing one line per progress update
 			writeStream.write(`${message}\n`);
 		}
-	}
-
-	private shouldRenderProgress(writeStream: NodeJS.WriteStream) {
-		const termIsDumb =
-			(process?.env['TERM'] || '').toLowerCase() === 'dumb';
-		const ciFlag = (process?.env['CI'] || '').toLowerCase();
-		const runningInCI = ciFlag === '1' || ciFlag === 'true';
-
-		return writeStream.isTTY && !termIsDumb && !runningInCI;
 	}
 }
