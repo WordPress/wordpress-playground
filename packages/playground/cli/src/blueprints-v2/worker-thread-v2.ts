@@ -74,7 +74,8 @@ function tracePhpWasm(processId: number, format: string, ...args: any[]) {
 }
 
 /**
- * Force TTY status to preserve ANSI control codes in the output.
+ * Force TTY status to preserve ANSI control codes in the output
+ * when the environment is interactive.
  *
  * This script is spawned as `new Worker()` and process.stdout and process.stderr are
  * WritableWorkerStdio objects. By default, they strip ANSI control codes from the output
@@ -84,12 +85,23 @@ function tracePhpWasm(processId: number, format: string, ...args: any[]) {
 Object.defineProperty(process.stdout, 'isTTY', { value: true });
 Object.defineProperty(process.stderr, 'isTTY', { value: true });
 
+const shouldRenderProgress = () => {
+	const termIsDumb = (process.env.TERM || '').toLowerCase() === 'dumb';
+	const ciFlag = (process.env.CI || '').toLowerCase();
+	const runningInCI = ciFlag === '1' || ciFlag === 'true';
+
+	return !termIsDumb && !runningInCI;
+};
+
 /**
  * Output writer that ensures that progress bars are not printed on the same line as other output.
  */
 const output = {
 	lastWriteWasProgress: false,
 	progress(data: string) {
+		if (!shouldRenderProgress()) {
+			return;
+		}
 		if (!process.stdout.isTTY) {
 			// eslint-disable-next-line no-console
 			console.log(data);
@@ -382,9 +394,8 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 			if ((await streamedResponse!.exitCode) !== 0) {
 				// exitCode != 1 means the blueprint execution failed. Let's throw an error.
 				// and clean up.
-				const syncResponse = await PHPResponse.fromStreamedResponse(
-					streamedResponse
-				);
+				const syncResponse =
+					await PHPResponse.fromStreamedResponse(streamedResponse);
 				throw new PHPExecutionFailureError(
 					`PHP.run() failed with exit code ${syncResponse.exitCode}.`,
 					syncResponse,
