@@ -135,6 +135,36 @@ export function SiteDatabasePanel({
 					},
 				];
 
+				// Add custom configuration and WP_SQLite_Driver integration
+				const extensions = import.meta.glob(
+					'./phpmyadmin-extensions/*',
+					{
+						as: 'raw',
+						eager: true,
+					}
+				);
+
+				// Write each extension file to the appropriate location
+				for (const [srcPath, content] of Object.entries(extensions)) {
+					const fileName = srcPath.split('/').pop()!;
+
+					// Determine the target path based on the file
+					let targetPath: string;
+					if (fileName === 'DbiMysqli.php') {
+						// Override phpMyAdmin's DBI implementation
+						targetPath = `${phpMyAdminPath}/libraries/classes/Dbal/${fileName}`;
+					} else {
+						// Other files go to phpMyAdmin root (e.g., config.inc.php)
+						targetPath = `${phpMyAdminPath}/${fileName}`;
+					}
+
+					steps.push({
+						step: 'writeFile',
+						path: targetPath,
+						data: content,
+					});
+				}
+
 				const blueprint = await compileBlueprintV1(
 					{ steps },
 					{ corsProxy: corsProxyUrl }
@@ -166,7 +196,7 @@ export function SiteDatabasePanel({
 	const handleOpenPhpMyAdmin = () => {
 		if (playgroundUrl) {
 			window.open(
-				`${playgroundUrl}/phpmyadmin/`,
+				`${playgroundUrl}/phpmyadmin/index.php?route=/database/structure&db=wordpress`,
 				'_blank',
 				'noopener,noreferrer'
 			);
