@@ -87,11 +87,17 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 		 */
 		const yargsObject = yargs(argsToParse)
 			.usage('Usage: wp-playground <command> [options]')
-			.positional('command', {
-				describe: 'Command to run',
-				choices: ['server', 'run-blueprint', 'build-snapshot'] as const,
-				demandOption: true,
-			})
+			.command('server', 'Start a local WordPress server')
+			.command(
+				'run-blueprint',
+				'Execute a Blueprint without starting a server'
+			)
+			.command(
+				'build-snapshot',
+				'Build a ZIP snapshot of a WordPress site based on a Blueprint'
+			)
+			.demandCommand(1, 'Please specify a command')
+			.strictCommands()
 			.option('outfile', {
 				describe: 'When building, write to this output file.',
 				type: 'string',
@@ -287,6 +293,18 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 				hidden: true,
 			})
 			.showHelpOnFail(false)
+			.fail((msg, err, yargsInstance) => {
+				if (err) {
+					throw err;
+				}
+				if (msg && msg.includes('Please specify a command')) {
+					yargsInstance.showHelp();
+					console.error('\n' + msg);
+					process.exit(1);
+				}
+				console.error(msg);
+				process.exit(1);
+			})
 			.strictOptions()
 			.check(async (args) => {
 				if (args['skip-wordpress-install'] === true) {
@@ -600,6 +618,9 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 		logger.setSeverityFilterLevel(severity);
 	}
 
+	const selectedPort =
+		args.command === 'server' ? (args['port'] as number) ?? 9400 : 0;
+
 	// Declare file lock manager outside scope of startServer
 	// so we can look at it when debugging request handling.
 	const nativeFlockSync =
@@ -624,7 +645,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 	logger.log('Starting a PHP server...');
 
 	return startServer({
-		port: args['port'] as number,
+		port: selectedPort,
 		onBind: async (server: Server, port: number) => {
 			const host = '127.0.0.1';
 			const serverUrl = `http://${host}:${port}`;
