@@ -1,10 +1,11 @@
 ---
 title: wp-now
 slug: /developers/local-development/wp-now
+orphan: true
 ---
 
 :::caution Package deprecated
-The NPM package @wp-now/wp-now is deprecated, won't receive updates in the future. To use a command-line tool on your developer flow, use the NPM package `@wp-playground/cli`.  
+The NPM package @wp-now/wp-now is deprecated and won't receive updates in the future. To use a command-line tool in your developer workflow, use the NPM package `@wp-playground/cli`.
 :::
 
 # wp-now NPM package
@@ -13,9 +14,9 @@ The NPM package @wp-now/wp-now is deprecated, won't receive updates in the futur
 
 Key Features:
 
--   **Command-line Interface**: Easy to use for developers comfortable with CLI.
--   **Quick Setup**: Set up a local WordPress environment in seconds.
--   **Customizable**: Allows for configuration to suit specific development needs.
+- **Command-line Interface**: Easy to use for developers comfortable with CLI.
+- **Quick Setup**: Set up a local WordPress environment in seconds.
+- **Customizable**: Allows for configuration to suit specific development needs.
 
 [`@wp-now/wp-now`](https://www.npmjs.com/package/@wp-now/wp-now) is a CLI tool to spin up a WordPress site with a single command. Similarly to the [VS Code extension](/developers/local-development/vscode-extension), it uses a portable WebAssembly version of PHP and SQLite. No Docker, MySQL, or Apache are required.
 

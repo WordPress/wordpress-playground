@@ -166,10 +166,19 @@ export async function cloneRequest(
 	request: Request,
 	overrides: Record<string, any>
 ): Promise<Request> {
-	const body =
-		['GET', 'HEAD'].includes(request.method) || 'body' in overrides
-			? undefined
-			: await request.blob();
+	let body: Blob | ReadableStream | undefined;
+
+	if (['GET', 'HEAD'].includes(request.method) || 'body' in overrides) {
+		body = undefined;
+	} else if (!request.bodyUsed && request.body) {
+		// If the body hasn't been consumed yet, we can reuse the stream directly
+		// This avoids the hang that occurs when trying to read from a stream
+		// that's still waiting for more data
+		body = request.body;
+	} else {
+		// Otherwise, we need to read the body as a blob
+		body = await request.blob();
+	}
 
 	return new Request(overrides['url'] || request.url, {
 		body,
@@ -182,6 +191,7 @@ export async function cloneRequest(
 		cache: request.cache,
 		redirect: request.redirect,
 		integrity: request.integrity,
+		...(body && { duplex: 'half' }),
 		...overrides,
 	});
 }

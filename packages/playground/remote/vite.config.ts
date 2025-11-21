@@ -49,8 +49,8 @@ export default defineConfig(({ mode }) => {
 		'CORS_PROXY_URL' in process.env
 			? process.env['CORS_PROXY_URL']
 			: mode === 'production'
-			? 'https://wordpress-playground-cors-proxy.net/?'
-			: 'http://127.0.0.1:5263/cors-proxy.php?';
+				? 'https://wordpress-playground-cors-proxy.net/?'
+				: 'http://127.0.0.1:5263/cors-proxy.php?';
 
 	plugins.push(
 		virtualModule({
@@ -85,7 +85,7 @@ export default defineConfig(({ mode }) => {
 		server: {
 			port: remoteDevServerPort,
 			host: remoteDevServerHost,
-			allowedHosts: ['playground.test'],
+			allowedHosts: ['playground.test', 'playground-preview.test'],
 			fs: {
 				// Allow serving files from the 'packages' directory
 				allow: ['../../'],

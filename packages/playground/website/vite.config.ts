@@ -45,8 +45,8 @@ export default defineConfig(({ command, mode }) => {
 		'CORS_PROXY_URL' in process.env
 			? process.env.CORS_PROXY_URL
 			: mode === 'production'
-			? 'https://wordpress-playground-cors-proxy.net/?'
-			: 'http://127.0.0.1:5263/cors-proxy.php?';
+				? 'https://wordpress-playground-cors-proxy.net/?'
+				: 'http://127.0.0.1:5263/cors-proxy.php?';
 
 	return {
 		// Split traffic from this server on dev so that the iframe content and
@@ -151,7 +151,7 @@ export default defineConfig(({ command, mode }) => {
 			 */
 			listAssetsRequiredForOfflineMode({
 				outputFile: 'assets-required-for-offline-mode.json',
-				distDirectoriesToList: ['./', '../remote', '../client'],
+				distDirectoriesToList: ['./', '../remote'],
 			}) as Plugin,
 
 			/**
@@ -171,6 +171,26 @@ export default defineConfig(({ command, mode }) => {
 					}
 				},
 			} as Plugin,
+			{
+				name: 'inject-commit-id',
+				transformIndexHtml(html) {
+					try {
+						const commitId = require('child_process')
+							.execSync('git rev-parse HEAD')
+							.toString()
+							.trim();
+						return html.replace(
+							'</head>',
+							`<meta name="commit-id" content="${commitId}" />
+							</head>`
+						);
+					} catch (e) {
+						// eslint-disable-next-line no-console
+						console.error('Failed to inject commit ID', e);
+						return html;
+					}
+				},
+			},
 		],
 
 		// Configuration for building your library.

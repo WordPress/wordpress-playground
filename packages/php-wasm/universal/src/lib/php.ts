@@ -285,7 +285,7 @@ export class PHP implements Disposable {
 						// Always enable the file cache.
 						'opcache.file_cache_only = 1',
 						'opcache.file_cache_consistency_checks = 1',
-				  ]
+					]
 				: [];
 
 			/*if (
@@ -508,9 +508,8 @@ export class PHP implements Disposable {
 	 */
 	async run(request: PHPRunOptions): Promise<PHPResponse> {
 		const streamedResponse = await this.runStream(request);
-		const syncResponse = await PHPResponse.fromStreamedResponse(
-			streamedResponse
-		);
+		const syncResponse =
+			await PHPResponse.fromStreamedResponse(streamedResponse);
 
 		if (syncResponse.exitCode !== 0) {
 			// Legacy run() behavior: throw if PHP exited with a non-zero exit code.
@@ -681,6 +680,7 @@ export class PHP implements Disposable {
 					requestHeaders,
 					port
 				);
+
 				for (const key in $_SERVER) {
 					this.#setServerGlobalEntry(key, $_SERVER[key]);
 				}
@@ -1398,11 +1398,20 @@ export class PHP implements Disposable {
 		const oldCWD = oldFS.cwd();
 		oldFS.chdir('/');
 
-		// Unmount all the mount handlers
-		const mountHandlers: { mountHandler: MountHandler; vfsPath: string }[] =
-			[];
-		for (const [vfsPath, mount] of Object.entries(this.#mounts)) {
-			mountHandlers.push({ mountHandler: mount.mountHandler, vfsPath });
+		// Remember mounts to apply to new runtime
+		const mountHandlersToReapplyInOrder = Object.entries(this.#mounts).map(
+			([vfsPath, mount]) => ({
+				mountHandler: mount.mountHandler,
+				vfsPath,
+			})
+		);
+
+		// Unmount all the mount handlers in reverse order because each nested
+		// mount depends upon the parent mount which preceded it.
+		const mountsToUnmountInReverseOrder = Object.values(
+			this.#mounts
+		).reverse();
+		for (const mount of mountsToUnmountInReverseOrder) {
 			await mount.unmount();
 		}
 
@@ -1441,8 +1450,8 @@ export class PHP implements Disposable {
 			}
 		}
 
-		// Re-mount all the mount handlers
-		for (const { mountHandler, vfsPath } of mountHandlers) {
+		// Re-mount all the mount handlers in order
+		for (const { mountHandler, vfsPath } of mountHandlersToReapplyInOrder) {
 			this.mkdir(vfsPath);
 			await this.mount(vfsPath, mountHandler);
 		}
@@ -1744,9 +1753,9 @@ const getNodeType = (fs: Emscripten.FileSystemInstance, path: string) => {
 		return 'contents' in target.node
 			? 'memfs'
 			: /**
-			   * Could be NODEFS, PROXYFS, etc.
-			   */
-			  'not-memfs';
+				 * Could be NODEFS, PROXYFS, etc.
+				 */
+				'not-memfs';
 	} catch {
 		return 'missing';
 	}

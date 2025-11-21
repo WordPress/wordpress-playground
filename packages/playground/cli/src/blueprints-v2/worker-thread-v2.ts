@@ -204,7 +204,7 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 		}
 	}
 
-	async bootAsPrimaryWorker(args: PrimaryWorkerBootArgs) {
+	async bootAndSetUpInitialWorker(args: PrimaryWorkerBootArgs) {
 		const constants = {
 			WP_DEBUG: true,
 			WP_DEBUG_LOG: true,
@@ -252,7 +252,7 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 		await this.runBlueprintV2(args);
 	}
 
-	async bootAsSecondaryWorker(args: SecondaryWorkerBootArgs) {
+	async bootWorker(args: SecondaryWorkerBootArgs) {
 		await this.bootRequestHandler({
 			...args,
 			onPHPInstanceCreated: async (php: PHP) => {
@@ -382,9 +382,8 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 			if ((await streamedResponse!.exitCode) !== 0) {
 				// exitCode != 1 means the blueprint execution failed. Let's throw an error.
 				// and clean up.
-				const syncResponse = await PHPResponse.fromStreamedResponse(
-					streamedResponse
-				);
+				const syncResponse =
+					await PHPResponse.fromStreamedResponse(streamedResponse);
 				throw new PHPExecutionFailureError(
 					`PHP.run() failed with exit code ${syncResponse.exitCode}.`,
 					syncResponse,

@@ -1,161 +1,173 @@
 {
-    // Use IntelliSense to learn about possible attributes.
-    // Hover to view descriptions of existing attributes.
-    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
-    "version": "0.2.0",
-    "configurations": [
-      {
-        "name": "Debug PHP-WASM CLI",
-        "request": "launch",
-        "type": "node",
-        "runtimeVersion": "23",
-        "runtimeExecutable": "npx",
-        "runtimeArgs": [
-          "nx",
-          "debug",
-          "php-wasm-cli",
-          "${input:phpWasmCliArg1}",
-          "${input:phpWasmCliArg2}",
-          "${input:phpWasmCliArg3}",
-          "${input:phpWasmCliArg4}"
-        ],
-        "cwd": "${workspaceFolder}",
-        "autoAttachChildProcesses": true,
-        "env": {
-          "PHP": "${input:phpVersion}"
-        },
-        "enableDWARF": false
-      },
-      {
-        "name": "Debug PHP-WASM CLI with DWARF Symbols",
-        "request": "launch",
-        "type": "node",
-        "runtimeVersion": "23",
-        "runtimeExecutable": "npx",
-        "runtimeArgs": [
-          "nx",
-          "debug",
-          "php-wasm-cli",
-          "${input:phpWasmCliArg1}",
-          "${input:phpWasmCliArg2}",
-          "${input:phpWasmCliArg3}",
-          "${input:phpWasmCliArg4}"
-        ],
-        "cwd": "${workspaceFolder}",
-        "autoAttachChildProcesses": true,
-        "env": {
-          "PHP": "${input:phpVersion}"
-        },
-        "enableDWARF": true
-      },
-      {
-        "name": "Debug Playground CLI",
-        "request": "launch",
-        "type": "node",
-        "runtimeVersion": "23",
-        "runtimeExecutable": "npx",
-        "runtimeArgs": [
-          "nx",
-          "debug",
-          "playground-cli",
-          "server",
-        ],
-        "args": "${input:playgroundCliCommand}",
-        "cwd": "${workspaceFolder}",
-        "autoAttachChildProcesses": true
-      },
-      {
-        "name": "Debug Playground CLI with DWARF Symbols",
-        "request": "launch",
-        "type": "node",
-        "runtimeVersion": "23",
-        "runtimeExecutable": "npx",
-        "runtimeArgs": [
-          "nx",
-          "debug",
-          "playground-cli",
-          "server",
-        ],
-        "args": "${input:playgroundCliCommand}",
-        "cwd": "${workspaceFolder}",
-        "autoAttachChildProcesses": true,
-        "enableDWARF": true
-      },
-      {
-        "name": "Launch Chrome",
-        "request": "launch",
-        "type": "chrome",
-        "url": "http://localhost:5400/website-server/",
-        "webRoot": "${workspaceFolder}"
-      },
-      {
-        "name": "Test playground sync",
-        "request": "launch",
-        "runtimeArgs": [
-          "run",
-          "playground-sync:test"
-        ],
-        "runtimeExecutable": "nx",
-        "skipFiles": [
-          "<node_internals>/**"
-        ],
-        "type": "node"
-      },
-      {
-        "name": "Heap Profiler",
-        "type": "node",
-        "request": "launch",
-        "program": "${workspaceFolder}/test2.mjs",
-        "cwd": "${workspaceFolder}",
-        "runtimeArgs": ["--inspect-brk", "--loader=${workspaceFolder}/packages/nx-extensions/src/executors/built-script/loader.mjs"]
+  // Use IntelliSense to learn about possible attributes.
+  // Hover to view descriptions of existing attributes.
+  // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "WP Playground CLI - Listen for Xdebug",
+      "type": "php",
+      "request": "launch",
+      "port": 9003,
+      "pathMappings": {
+        "/": "${workspaceFolder}/.playground-xdebug-root"
       }
-    ],
-    "inputs": [
-      {
-        "type": "pickString",
-        "id": "phpVersion",
-        "description": "PHP Version",
-        "default": "8.0",
-        "options": [
-          "7.2",
-          "7.3",
-          "7.4",
-          "8.0",
-          "8.1",
-          "8.2",
-          "8.3",
-          "8.4",
-        ]
+    },
+    {
+      "name": "Debug PHP-WASM CLI",
+      "request": "launch",
+      "type": "node",
+      "runtimeVersion": "23",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "nx",
+        "debug",
+        "php-wasm-cli",
+        "${input:phpWasmCliArg1}",
+        "${input:phpWasmCliArg2}",
+        "${input:phpWasmCliArg3}",
+        "${input:phpWasmCliArg4}"
+      ],
+      "cwd": "${workspaceFolder}",
+      "autoAttachChildProcesses": true,
+      "env": {
+        "PHP": "${input:phpVersion}"
       },
-      {
-        "type": "promptString",
-        "id": "phpWasmCliArg1",
-        "description": "First argument",
-        "default": "-r"
+      "enableDWARF": false
+    },
+    {
+      "name": "Debug PHP-WASM CLI with DWARF Symbols",
+      "request": "launch",
+      "type": "node",
+      "runtimeVersion": "23",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "nx",
+        "debug",
+        "php-wasm-cli",
+        "${input:phpWasmCliArg1}",
+        "${input:phpWasmCliArg2}",
+        "${input:phpWasmCliArg3}",
+        "${input:phpWasmCliArg4}"
+      ],
+      "cwd": "${workspaceFolder}",
+      "autoAttachChildProcesses": true,
+      "env": {
+        "PHP": "${input:phpVersion}"
       },
-      {
-        "type": "promptString",
-        "id": "phpWasmCliArg2",
-        "description": "Second argument",
-        "default": "echo 'Hello, Debugger!';"
-      },
-      {
-        "type": "promptString",
-        "id": "phpWasmCliArg3",
-        "description": "Third argument or empty",
-        "default": ""
-      },
-      {
-        "type": "promptString",
-        "id": "phpWasmCliArg4",
-        "description": "Fourth argument or empty -- for more, edit launch.json.",
-        "default": ""
-      },
-      {
-        "type": "promptString",
-        "id": "playgroundCliCommand",
-        "description": "Playground CLI Command",
-        "default": "server"
-      }
-    ]
+      "enableDWARF": true
+    },
+    {
+      "name": "Debug Playground CLI",
+      "request": "launch",
+      "type": "node",
+      "runtimeVersion": "23",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "nx",
+        "debug",
+        "playground-cli",
+        "server",
+      ],
+      "args": "${input:playgroundCliCommand}",
+      "cwd": "${workspaceFolder}",
+      "autoAttachChildProcesses": true
+    },
+    {
+      "name": "Debug Playground CLI with DWARF Symbols",
+      "request": "launch",
+      "type": "node",
+      "runtimeVersion": "23",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "nx",
+        "debug",
+        "playground-cli",
+        "server",
+      ],
+      "args": "${input:playgroundCliCommand}",
+      "cwd": "${workspaceFolder}",
+      "autoAttachChildProcesses": true,
+      "enableDWARF": true
+    },
+    {
+      "name": "Launch Chrome",
+      "request": "launch",
+      "type": "chrome",
+      "url": "http://localhost:5400/website-server/",
+      "webRoot": "${workspaceFolder}"
+    },
+    {
+      "name": "Test playground sync",
+      "request": "launch",
+      "runtimeArgs": [
+        "run",
+        "playground-sync:test"
+      ],
+      "runtimeExecutable": "nx",
+      "skipFiles": [
+        "<node_internals>/**"
+      ],
+      "type": "node"
+    },
+    {
+      "name": "Heap Profiler",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/test2.mjs",
+      "cwd": "${workspaceFolder}",
+      "runtimeArgs": [
+        "--inspect-brk",
+        "--loader=${workspaceFolder}/packages/nx-extensions/src/executors/built-script/loader.mjs"
+      ]
+    }
+  ],
+  "inputs": [
+    {
+      "type": "pickString",
+      "id": "phpVersion",
+      "description": "PHP Version",
+      "default": "8.0",
+      "options": [
+        "7.2",
+        "7.3",
+        "7.4",
+        "8.0",
+        "8.1",
+        "8.2",
+        "8.3",
+        "8.4",
+      ]
+    },
+    {
+      "type": "promptString",
+      "id": "phpWasmCliArg1",
+      "description": "First argument",
+      "default": "-r"
+    },
+    {
+      "type": "promptString",
+      "id": "phpWasmCliArg2",
+      "description": "Second argument",
+      "default": "echo 'Hello, Debugger!';"
+    },
+    {
+      "type": "promptString",
+      "id": "phpWasmCliArg3",
+      "description": "Third argument or empty",
+      "default": ""
+    },
+    {
+      "type": "promptString",
+      "id": "phpWasmCliArg4",
+      "description": "Fourth argument or empty -- for more, edit launch.json.",
+      "default": ""
+    },
+    {
+      "type": "promptString",
+      "id": "playgroundCliCommand",
+      "description": "Playground CLI Command",
+      "default": "server"
+    }
+  ]
 }

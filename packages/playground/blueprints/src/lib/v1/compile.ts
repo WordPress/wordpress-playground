@@ -41,6 +41,53 @@ const keyedStepHandlers = {
  */
 import blueprintValidator from '../../../public/blueprint-schema-validator';
 import { defaultWpCliPath, defaultWpCliResource } from '../steps/wp-cli';
+import type { ErrorObject } from 'ajv';
+
+export class InvalidBlueprintError extends Error {
+	constructor(
+		message: string,
+		public readonly validationErrors?: unknown
+	) {
+		super(message);
+		this.name = 'InvalidBlueprintError';
+	}
+}
+
+/**
+ * Error thrown when a single Blueprint step fails during execution.
+ *
+ * This error carries structured information about the failing step so that
+ * consumers (e.g. the Playground UI) do not have to parse human‑readable
+ * error messages to understand what went wrong.
+ */
+export class BlueprintStepExecutionError extends Error {
+	public readonly stepNumber: number;
+	public readonly step: StepDefinition;
+	public readonly messages: string[];
+
+	constructor(options: {
+		stepNumber: number;
+		step: StepDefinition;
+		cause: unknown;
+	}) {
+		const { stepNumber, step, cause } = options;
+		const causeError =
+			cause instanceof Error ? cause : new Error(String(cause));
+		const baseMessage = `Error when executing the blueprint step #${stepNumber}`;
+		const fullMessage = causeError.message
+			? `${baseMessage}: ${causeError.message}`
+			: baseMessage;
+
+		super(fullMessage, { cause: causeError });
+		this.name = 'BlueprintStepExecutionError';
+		this.stepNumber = stepNumber;
+		this.step = step;
+		this.messages = (causeError.message || '')
+			.split('\n')
+			.map((line) => line.trim())
+			.filter(Boolean);
+	}
+}
 
 export type CompiledV1Step = (php: UniversalPHP) => Promise<void> | void;
 
@@ -83,6 +130,11 @@ export interface CompileBlueprintV1Options {
 	 * A filesystem to use for the blueprint.
 	 */
 	streamBundledFile?: StreamBundledFile;
+	/**
+	 * Additional headers to pass to git operations.
+	 * A function that returns headers based on the URL being accessed.
+	 */
+	gitAdditionalHeadersCallback?: (url: string) => Record<string, string>;
 	/**
 	 * Additional steps to add to the blueprint.
 	 */
@@ -142,6 +194,7 @@ function compileBlueprintJson(
 		onBlueprintValidated = () => {},
 		corsProxy,
 		streamBundledFile,
+		gitAdditionalHeadersCallback,
 		additionalSteps,
 	}: CompileBlueprintV1Options = {}
 ): CompiledBlueprintV1 {
@@ -224,8 +277,12 @@ function compileBlueprintJson(
 			})) as StepDefinition[];
 		blueprint.steps!.unshift(...steps);
 	}
+
+	/**
+	 * Prepend a login step to enable Blueprints to override the default login step.
+	 */
 	if (blueprint.login) {
-		blueprint.steps!.push({
+		blueprint.steps!.unshift({
 			step: 'login',
 			...(blueprint.login === true
 				? { username: 'admin' }
@@ -297,14 +354,17 @@ function compileBlueprintJson(
 
 	const { valid, errors } = validateBlueprint(blueprint);
 	if (!valid) {
-		const e = new Error(
-			`Invalid blueprint: ${errors![0].message} at ${
-				errors![0].instancePath
-			}`
+		const formattedErrors = formatValidationErrors(blueprint, errors ?? []);
+
+		throw new InvalidBlueprintError(
+			`Invalid Blueprint: The Blueprint does not conform to the schema.\n\n` +
+				`Found ${
+					errors!.length
+				} validation error(s):\n\n${formattedErrors}\n\n` +
+				`Please review your Blueprint and fix these issues. ` +
+				`Learn more about the Blueprint format: https://wordpress.github.io/wordpress-playground/blueprints/data-format`,
+			errors
 		);
-		// Attach Ajv output to the thrown object for easier debugging
-		(e as any).errors = errors;
-		throw e;
 	}
 
 	onBlueprintValidated(blueprint);
@@ -321,6 +381,7 @@ function compileBlueprintJson(
 			totalProgressWeight,
 			corsProxy,
 			streamBundledFile,
+			gitAdditionalHeadersCallback,
 		})
 	);
 
@@ -367,12 +428,12 @@ function compileBlueprintJson(
 						const result = await run(playground);
 						onStepCompleted(result, step);
 					} catch (e) {
-						throw new Error(
-							`Error when executing the blueprint step #${i} (${JSON.stringify(
-								step
-							)}) ${e instanceof Error ? `: ${e.message}` : e}`,
-							{ cause: e }
-						);
+						const stepNumber = Number(i) + 1;
+						throw new BlueprintStepExecutionError({
+							stepNumber,
+							step,
+							cause: e,
+						});
 					}
 				}
 			} finally {
@@ -406,6 +467,80 @@ function compileBlueprintJson(
 			}
 		},
 	};
+}
+
+function formatValidationErrors(
+	blueprint: BlueprintV1Declaration,
+	errors: ErrorObject<string, unknown>[]
+) {
+	return errors
+		.map((err, index) => {
+			const path = err.instancePath || '/';
+			let message = err.message || 'validation failed';
+
+			// For "additional properties" errors, highlight the actual problematic key
+			let highlightedSnippet = '';
+			if (message.includes('must NOT have additional properties')) {
+				// Extract the property name from the error params
+				const additionalProperty = (err.params as any)
+					?.additionalProperty;
+				if (additionalProperty) {
+					message = `has unexpected property "${additionalProperty}"`;
+
+					// Try to show the offending key highlighted
+					try {
+						const pathParts = path.split('/').filter(Boolean);
+						let currentValue: any = blueprint;
+						for (const part of pathParts) {
+							if (
+								currentValue &&
+								typeof currentValue === 'object'
+							) {
+								currentValue = currentValue[part];
+							}
+						}
+
+						if (currentValue && typeof currentValue === 'object') {
+							const offendingValue =
+								currentValue[additionalProperty];
+							const valueStr = JSON.stringify(offendingValue);
+							highlightedSnippet = `\n  "${additionalProperty}": ${valueStr}\n  ${'^'.repeat(
+								additionalProperty.length + 2
+							)} This property is not recognized`;
+						}
+					} catch {
+						// If we can't extract context, that's okay
+					}
+				}
+			} else {
+				// For other errors, try to extract the offending value
+				try {
+					const pathParts = path.split('/').filter(Boolean);
+					let currentValue: any = blueprint;
+					for (const part of pathParts) {
+						if (currentValue && typeof currentValue === 'object') {
+							currentValue = currentValue[part];
+						}
+					}
+					if (currentValue !== undefined) {
+						const valueStr = JSON.stringify(currentValue, null, 2);
+						// Limit snippet length
+						const snippet =
+							valueStr.length > 200
+								? valueStr.substring(0, 200) + '...'
+								: valueStr;
+						highlightedSnippet = `\n  Value: ${snippet}`;
+					}
+				} catch {
+					// If we can't extract context, that's okay
+				}
+			}
+
+			return `${
+				index + 1
+			}. At path "${path}": ${message}${highlightedSnippet}`;
+		})
+		.join('\n\n');
 }
 
 export function validateBlueprint(blueprintMaybe: object) {
@@ -514,6 +649,11 @@ interface CompileStepArgsOptions {
 	 * A filesystem to use for the "blueprint" resource type.
 	 */
 	streamBundledFile?: StreamBundledFile;
+	/**
+	 * Additional headers to pass to git operations.
+	 * A function that returns headers based on the URL being accessed.
+	 */
+	gitAdditionalHeadersCallback?: (url: string) => Record<string, string>;
 }
 
 /**
@@ -532,6 +672,7 @@ function compileStep<S extends StepDefinition>(
 		totalProgressWeight,
 		corsProxy,
 		streamBundledFile,
+		gitAdditionalHeadersCallback,
 	}: CompileStepArgsOptions
 ): { run: CompiledV1Step; step: S; resources: Array<Resource<any>> } {
 	const stepProgress = rootProgressTracker.stage(
@@ -546,6 +687,7 @@ function compileStep<S extends StepDefinition>(
 				semaphore,
 				corsProxy,
 				streamBundledFile,
+				gitAdditionalHeadersCallback,
 			});
 		}
 		args[key] = value;

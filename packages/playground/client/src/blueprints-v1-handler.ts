@@ -21,6 +21,7 @@ export class BlueprintsV1Handler {
 			onBlueprintValidated,
 			onBlueprintStepCompleted,
 			corsProxy,
+			gitAdditionalHeadersCallback,
 			mounts,
 			sapiName,
 			scope,
@@ -43,9 +44,8 @@ export class BlueprintsV1Handler {
 		await playground.isConnected();
 		progressTracker.pipe(playground);
 
-		const runtimeConfiguration = await resolveRuntimeConfiguration(
-			blueprint
-		);
+		const runtimeConfiguration =
+			await resolveRuntimeConfiguration(blueprint);
 		await playground.onDownloadProgress(downloadProgress.loadingListener);
 		await playground.boot({
 			mounts,
@@ -72,6 +72,7 @@ export class BlueprintsV1Handler {
 				onStepCompleted: onBlueprintStepCompleted,
 				onBlueprintValidated,
 				corsProxy,
+				gitAdditionalHeadersCallback,
 			});
 			await runBlueprintV1Steps(compiled, playground);
 		}

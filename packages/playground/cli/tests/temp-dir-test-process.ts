@@ -16,10 +16,10 @@ process.on('message', async (message: any) => {
 		);
 		// Add a file to the temp dir to test that cleanup works
 		// on non-empty dirs.
-		fs.writeFileSync(path.join(tempDir, 'test.txt'), 'test');
+		fs.writeFileSync(path.join(tempDir.path, 'test.txt'), 'test');
 		process.send!({
 			type: 'temp-dir',
-			tempDir,
+			tempDirPath: tempDir.path,
 		});
 	} else if (message.type === 'exit') {
 		process.exit(0);

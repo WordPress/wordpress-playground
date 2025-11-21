@@ -3,6 +3,29 @@
 	display: flex;
 	transition: opacity 0.5s ease;
 	width: 100%;
+	align-items: center;
+	gap: 8px;
+}
+
+.refresh-button {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 5px;
+	background: transparent;
+	border: none;
+	color: #b4becb;
+	cursor: pointer;
+	transition: color 0.2s ease;
+	flex-shrink: 0;
+}
+
+.refresh-button:hover {
+	color: #fff;
+}
+
+.refresh-button:active {
+	transform: scale(0.95);
 }
 
 .input-container {

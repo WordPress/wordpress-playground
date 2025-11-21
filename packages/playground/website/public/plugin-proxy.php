@@ -45,13 +45,9 @@ class PluginDownloader
 		}
 	}
 
-	public function streamFromGithubPR($organization, $repo, $pr, $workflow_name, $artifact_name)
+	private function streamArtifactFromBranch($organization, $repo, $branchName, $workflow_name, $artifact_name)
 	{
-		$prDetails = $this->gitHubRequest("https://api.github.com/repos/$organization/$repo/pulls/$pr")['body'];
-		if (!$prDetails) {
-			throw new ApiException('invalid_pr_number');
-		}
-		$branchName = urlencode($prDetails->head->ref);
+		$branchName = urlencode($branchName);
 		$ciRuns = $this->gitHubRequest("https://api.github.com/repos/$organization/$repo/actions/runs?branch=$branchName")['body'];
 		if (!$ciRuns) {
 			throw new ApiException('no_ci_runs');
@@ -76,7 +72,13 @@ class PluginDownloader
 			}
 
 			foreach ($artifacts->artifacts as $artifact) {
-				if ($artifact_name === $artifact->name) {
+				// Support prefix matching if artifact name ends with '-'
+				// This is used for branches where artifact names include commit hashes
+				$is_match = (substr($artifact_name, -1) === '-')
+					? (strpos($artifact->name, $artifact_name) === 0)
+					: ($artifact_name === $artifact->name);
+
+				if ($is_match) {
 					if ($artifact->size_in_bytes < 3000) {
 						throw new ApiException('artifact_invalid');
 					}
@@ -139,6 +141,20 @@ class PluginDownloader
 		if (!$zip_url) {
 			throw new ApiException('artifact_not_available');
 		}
+	}
+
+	public function streamFromGithubBranch($organization, $repo, $branch, $workflow_name, $artifact_name)
+	{
+		$this->streamArtifactFromBranch($organization, $repo, $branch, $workflow_name, $artifact_name);
+	}
+
+	public function streamFromGithubPR($organization, $repo, $pr, $workflow_name, $artifact_name)
+	{
+		$prDetails = $this->gitHubRequest("https://api.github.com/repos/$organization/$repo/pulls/$pr")['body'];
+		if (!$prDetails) {
+			throw new ApiException('invalid_pr_number');
+		}
+		$this->streamArtifactFromBranch($organization, $repo, $prDetails->head->ref, $workflow_name, $artifact_name);
 	}
 
 	public function streamFromGithubReleases($repo, $name)
@@ -290,6 +306,19 @@ try {
 			$_GET['org'],
 			$_GET['repo'],
 			$_GET['pr'],
+			$_GET['workflow'],
+			$_GET['artifact']
+		);
+	} else if (isset($_GET['org']) && isset($_GET['repo']) && isset($_GET['workflow']) && isset($_GET['branch']) && isset($_GET['artifact'])) {
+		// Don't reveal the allowed orgs to the client, just give an error.
+		// Lowercase the org name to make the check case-insensitive.
+		if (! in_array(strtolower($_GET['org']), PluginDownloader::ALLOWED_ORGS, true)) {
+			throw new ApiException('Invalid org. This organization is not allowed.');
+		}
+		$downloader->streamFromGithubBranch(
+			$_GET['org'],
+			$_GET['repo'],
+			$_GET['branch'],
 			$_GET['workflow'],
 			$_GET['artifact']
 		);

@@ -12,6 +12,7 @@ import {
 import { sprintf } from '@php-wasm/util';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import {
+	type WordPressInstallMode,
 	bootRequestHandler,
 	bootWordPressAndRequestHandler,
 } from '@wp-playground/wordpress';
@@ -48,6 +49,7 @@ export type WorkerBootOptions = {
 };
 
 export type PrimaryWorkerBootOptions = WorkerBootOptions & {
+	wordpressInstallMode: WordPressInstallMode;
 	wpVersion?: string;
 	wordPressZip?: ArrayBuffer;
 	sqliteIntegrationPluginZip?: ArrayBuffer;
@@ -56,7 +58,7 @@ export type PrimaryWorkerBootOptions = WorkerBootOptions & {
 
 interface WorkerBootRequestHandlerOptions {
 	siteUrl: string;
-	allow?: string;
+	followSymlinks: boolean;
 	phpVersion: SupportedPHPVersion;
 	firstProcessId: number;
 	processIdSpaceLength: number;
@@ -64,6 +66,7 @@ interface WorkerBootRequestHandlerOptions {
 	nativeInternalDirPath: string;
 	mountsBeforeWpInstall: Array<Mount>;
 	mountsAfterWpInstall: Array<Mount>;
+	withXdebug?: boolean;
 }
 
 /**
@@ -123,11 +126,12 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 		}
 	}
 
-	async bootAsPrimaryWorker({
+	async bootAndSetUpInitialWorker({
 		siteUrl,
 		mountsBeforeWpInstall,
 		mountsAfterWpInstall,
 		phpVersion: php = RecommendedPHPVersion,
+		wordpressInstallMode,
 		wordPressZip,
 		sqliteIntegrationPluginZip,
 		firstProcessId,
@@ -178,6 +182,7 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 						withXdebug,
 					});
 				},
+				wordpressInstallMode,
 				wordPressZip:
 					wordPressZip !== undefined
 						? new File([wordPressZip], 'wordpress.zip')
@@ -187,7 +192,7 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 						? new File(
 								[sqliteIntegrationPluginZip],
 								'sqlite-integration-plugin.zip'
-						  )
+							)
 						: undefined,
 				sapiName: 'cli',
 				createFiles: {
@@ -229,13 +234,13 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 		}
 	}
 
-	async bootAsSecondaryWorker(args: WorkerBootOptions) {
+	async bootWorker(args: WorkerBootOptions) {
 		await this.bootRequestHandler(args);
 	}
 
 	async bootRequestHandler({
 		siteUrl,
-		allow,
+		followSymlinks,
 		phpVersion,
 		firstProcessId,
 		processIdSpaceLength,
@@ -243,6 +248,7 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 		nativeInternalDirPath,
 		mountsBeforeWpInstall,
 		mountsAfterWpInstall,
+		withXdebug,
 	}: WorkerBootRequestHandlerOptions) {
 		if (this.booted) {
 			throw new Error('Playground already booted');
@@ -275,7 +281,8 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 							},
 							phpWasmInitOptions: { nativeInternalDirPath },
 						},
-						followSymlinks: allow?.includes('follow-symlinks'),
+						followSymlinks,
+						withXdebug,
 					});
 				},
 				onPHPInstanceCreated: async (php) => {

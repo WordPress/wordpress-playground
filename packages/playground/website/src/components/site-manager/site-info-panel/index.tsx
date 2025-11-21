@@ -25,6 +25,8 @@ import type { SiteInfo } from '../../../lib/state/redux/slice-sites';
 import {
 	setSiteManagerOpen,
 	setSiteManagerSection,
+	setActiveModal,
+	modalSlugs,
 } from '../../../lib/state/redux/slice-ui';
 import {
 	selectClientInfoBySiteSlug,
@@ -32,8 +34,6 @@ import {
 } from '../../../lib/state/redux/slice-clients';
 import { ActiveSiteSettingsForm } from '../site-settings-form/active-site-settings-form';
 import { getRelativeDate } from '../../../lib/get-relative-date';
-import { setActiveModal } from '../../../lib/state/redux/slice-ui';
-import { modalSlugs } from '../../layout';
 import { removeSite, sitesSlice } from '../../../lib/state/redux/slice-sites';
 import {
 	BlueprintReflection,
@@ -139,9 +139,8 @@ export function SiteInfoPanel({
 			const blueprint = JSON.parse(blueprintCode);
 
 			// Resolve runtime configuration from the new blueprint
-			const runtimeConfiguration = await resolveRuntimeConfiguration(
-				blueprint
-			);
+			const runtimeConfiguration =
+				await resolveRuntimeConfiguration(blueprint);
 
 			// Remove the current playground client to trigger cleanup
 			dispatch(removeClientInfo(site.slug));
@@ -360,7 +359,7 @@ export function SiteInfoPanel({
 															site.metadata
 																.whenCreated - 2
 														)
-												  )
+													)
 												: '';
 											switch (site.metadata.storage) {
 												case 'local-fs':

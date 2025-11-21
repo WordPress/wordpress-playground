@@ -13,7 +13,8 @@
 		"write-translations": "docusaurus write-translations",
 		"write-heading-ids": "docusaurus write-heading-ids",
 		"typecheck": "tsc",
-		"dev": "docusaurus start"
+		"dev": "docusaurus start",
+		"check-orphan-pages": "node bin/check-orphan-pages.js"
 	},
 	"browserslist": {
 		"production": [

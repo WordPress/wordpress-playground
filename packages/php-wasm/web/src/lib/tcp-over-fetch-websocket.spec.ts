@@ -3,9 +3,13 @@ import {
 	RawBytesFetch,
 } from './tcp-over-fetch-websocket';
 import express from 'express';
-import type http from 'http';
+import https from 'https';
 import type { AddressInfo } from 'net';
 import zlib from 'zlib';
+import {
+	generateCertificate,
+	cleanupCertificate,
+} from './test-utils/generate-certificate';
 
 const pygmalion = `PREFACE TO PYGMALION.
 
@@ -58,16 +62,20 @@ least an ill-natured man: very much the opposite, I should say; but he
 would not suffer fools gladly.`;
 
 describe('TCPOverFetchWebsocket', () => {
-	let server: http.Server;
+	let server: https.Server;
 	let host: string;
 	let port: number;
+	let originalRejectUnauthorized: string | undefined;
 
 	beforeAll(async () => {
+		// Allow self-signed certificates for testing
+		originalRejectUnauthorized =
+			process.env['NODE_TLS_REJECT_UNAUTHORIZED'];
+		process.env['NODE_TLS_REJECT_UNAUTHORIZED'] = '0';
+
 		const app = express();
-		server = app.listen(0);
-		const address = server.address() as AddressInfo;
-		host = `127.0.0.1`;
-		port = address.port;
+
+		// Set up all routes BEFORE creating the server
 		app.get('/simple', (req, res) => {
 			res.send('Hello, World!');
 		});
@@ -138,10 +146,31 @@ describe('TCPOverFetchWebsocket', () => {
 		app.get('/error', (req, res) => {
 			res.status(500).send('Internal Server Error');
 		});
+
+		// Now create and start the HTTPS server
+		const { cert, key } = generateCertificate();
+		server = https.createServer({ cert, key }, app);
+
+		// Wait for server to start listening
+		await new Promise<void>((resolve) => {
+			server.listen(0, () => resolve());
+		});
+
+		const address = server.address() as AddressInfo;
+		host = `127.0.0.1`;
+		port = address.port;
 	});
 
 	afterAll(() => {
 		server.close();
+		cleanupCertificate();
+		// Restore original NODE_TLS_REJECT_UNAUTHORIZED value
+		if (originalRejectUnauthorized !== undefined) {
+			process.env['NODE_TLS_REJECT_UNAUTHORIZED'] =
+				originalRejectUnauthorized;
+		} else {
+			delete process.env['NODE_TLS_REJECT_UNAUTHORIZED'];
+		}
 	});
 
 	it('should handle a simple HTTP request', async () => {
@@ -368,6 +397,150 @@ describe('RawBytesFetch', () => {
 		);
 		expect(decodedRequestBody).toEqual(encodedBodyBytes);
 	});
+
+	it('parseHttpRequest should handle a path and query string', async () => {
+		const requestBytes = `GET /core/version-check/1.7/?channel=beta HTTP/1.1\r\nHost: playground.internal\r\n\r\n`;
+		const request = await RawBytesFetch.parseHttpRequest(
+			new ReadableStream({
+				start(controller) {
+					controller.enqueue(new TextEncoder().encode(requestBytes));
+					controller.close();
+				},
+			}),
+			'playground.internal',
+			'http'
+		);
+		expect(request.url).toEqual(
+			'http://playground.internal/core/version-check/1.7/?channel=beta'
+		);
+	});
+
+	it('parseHttpRequest should handle a simple path without query string', async () => {
+		const requestBytes = `GET /api/users HTTP/1.1\r\nHost: example.com\r\n\r\n`;
+		const request = await RawBytesFetch.parseHttpRequest(
+			new ReadableStream({
+				start(controller) {
+					controller.enqueue(new TextEncoder().encode(requestBytes));
+					controller.close();
+				},
+			}),
+			'example.com',
+			'http'
+		);
+		expect(request.url).toEqual('http://example.com/api/users');
+	});
+
+	it('parseHttpRequest should handle root path', async () => {
+		const requestBytes = `GET / HTTP/1.1\r\nHost: example.com\r\n\r\n`;
+		const request = await RawBytesFetch.parseHttpRequest(
+			new ReadableStream({
+				start(controller) {
+					controller.enqueue(new TextEncoder().encode(requestBytes));
+					controller.close();
+				},
+			}),
+			'example.com',
+			'https'
+		);
+		expect(request.url).toEqual('https://example.com/');
+	});
+
+	it('parseHttpRequest should handle URL-encoded characters in path', async () => {
+		const requestBytes = `GET /search/hello%20world HTTP/1.1\r\nHost: example.com\r\n\r\n`;
+		const request = await RawBytesFetch.parseHttpRequest(
+			new ReadableStream({
+				start(controller) {
+					controller.enqueue(new TextEncoder().encode(requestBytes));
+					controller.close();
+				},
+			}),
+			'example.com',
+			'http'
+		);
+		expect(request.url).toEqual('http://example.com/search/hello%20world');
+	});
+
+	it('parseHttpRequest should handle URL-encoded characters in query string', async () => {
+		const requestBytes = `GET /search?q=hello+world&filter=a%26b HTTP/1.1\r\nHost: example.com\r\n\r\n`;
+		const request = await RawBytesFetch.parseHttpRequest(
+			new ReadableStream({
+				start(controller) {
+					controller.enqueue(new TextEncoder().encode(requestBytes));
+					controller.close();
+				},
+			}),
+			'example.com',
+			'http'
+		);
+		expect(request.url).toEqual(
+			'http://example.com/search?q=hello+world&filter=a%26b'
+		);
+	});
+
+	it('parseHttpRequest should handle empty query parameter values', async () => {
+		const requestBytes = `GET /api?key1=&key2=value2 HTTP/1.1\r\nHost: example.com\r\n\r\n`;
+		const request = await RawBytesFetch.parseHttpRequest(
+			new ReadableStream({
+				start(controller) {
+					controller.enqueue(new TextEncoder().encode(requestBytes));
+					controller.close();
+				},
+			}),
+			'example.com',
+			'http'
+		);
+		expect(request.url).toEqual('http://example.com/api?key1=&key2=value2');
+	});
+
+	it('parseHttpRequest should handle path with hash fragment', async () => {
+		// Note: Hash fragments are typically not sent in HTTP requests,
+		// but if they are, the URL constructor should handle them
+		const requestBytes = `GET /page#section HTTP/1.1\r\nHost: example.com\r\n\r\n`;
+		const request = await RawBytesFetch.parseHttpRequest(
+			new ReadableStream({
+				start(controller) {
+					controller.enqueue(new TextEncoder().encode(requestBytes));
+					controller.close();
+				},
+			}),
+			'example.com',
+			'http'
+		);
+		expect(request.url).toEqual('http://example.com/page#section');
+	});
+
+	it('parseHttpRequest should handle path with query and hash', async () => {
+		const requestBytes = `GET /page?param=value#section HTTP/1.1\r\nHost: example.com\r\n\r\n`;
+		const request = await RawBytesFetch.parseHttpRequest(
+			new ReadableStream({
+				start(controller) {
+					controller.enqueue(new TextEncoder().encode(requestBytes));
+					controller.close();
+				},
+			}),
+			'example.com',
+			'http'
+		);
+		expect(request.url).toEqual(
+			'http://example.com/page?param=value#section'
+		);
+	});
+
+	it('parseHttpRequest should preserve Host header over default host', async () => {
+		const requestBytes = `GET /api HTTP/1.1\r\nHost: custom.host.com\r\n\r\n`;
+		const request = await RawBytesFetch.parseHttpRequest(
+			new ReadableStream({
+				start(controller) {
+					controller.enqueue(new TextEncoder().encode(requestBytes));
+					controller.close();
+				},
+			}),
+			'default.host.com', // Different from Host header
+			'https'
+		);
+		// Should use the Host header, not the default host parameter
+		expect(request.url).toEqual('https://custom.host.com/api');
+	});
 });
 
 type MakeRequestOptions = {
@@ -401,17 +574,30 @@ async function makeRequest({
 }
 
 async function bufferResponse(socket: TCPOverFetchWebsocket): Promise<string> {
-	return new Promise((resolve) => {
+	return new Promise((resolve, reject) => {
 		let response = '';
-		socket.clientDownstream.readable.pipeTo(
-			new WritableStream({
-				write(chunk) {
-					response += new TextDecoder().decode(chunk);
-				},
-				close() {
-					resolve(response);
-				},
-			})
-		);
+
+		// Add error listener
+		socket.on('error', (error) => {
+			reject(error);
+		});
+
+		socket.clientDownstream.readable
+			.pipeTo(
+				new WritableStream({
+					write(chunk) {
+						response += new TextDecoder().decode(chunk);
+					},
+					close() {
+						resolve(response);
+					},
+					abort(error) {
+						reject(error);
+					},
+				})
+			)
+			.catch((error) => {
+				reject(error);
+			});
 	});
 }

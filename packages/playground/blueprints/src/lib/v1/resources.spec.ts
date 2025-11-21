@@ -3,7 +3,7 @@ import {
 	GitDirectoryResource,
 	BundledResource,
 } from './resources';
-import { expect, describe, it, vi, beforeEach } from 'vitest';
+import { expect, describe, it, vi, beforeEach, afterEach } from 'vitest';
 import { StreamedFile } from '@php-wasm/stream-compression';
 import { mkdtemp, rm, writeFile, mkdir } from 'fs/promises';
 import { tmpdir } from 'os';
@@ -28,6 +28,17 @@ describe('UrlResource', () => {
 		});
 		expect(resource.getURL()).toBe(
 			'https://raw.githubusercontent.com/WordPress/wordpress-develop/trunk/src/wp-includes/version.php'
+		);
+	});
+
+	it('should translate github.com raw URLs into raw.githubusercontent.com URLs', () => {
+		const resource = new UrlResource({
+			resource: 'url',
+			url: 'https://github.com/adamziel/blueprints/raw/f49382e89099806a8eede4feba41a9a7ab89bcfe/blueprints%2Fbeta-rc%2Fblueprint.json',
+			caption: 'Example',
+		});
+		expect(resource.getURL()).toBe(
+			'https://raw.githubusercontent.com/adamziel/blueprints/f49382e89099806a8eede4feba41a9a7ab89bcfe/blueprints%2Fbeta-rc%2Fblueprint.json'
 		);
 	});
 });
@@ -219,6 +230,95 @@ describe('GitDirectoryResource', () => {
 			});
 			const { name } = await resource.resolve();
 			expect(name).toBe('https-github.com-WordPress-link-manager-trunk');
+		});
+	});
+
+	describe('CORS handling', () => {
+		let originalFetch: typeof global.fetch;
+
+		beforeEach(() => {
+			originalFetch = global.fetch;
+		});
+
+		afterEach(() => {
+			global.fetch = originalFetch;
+		});
+
+		it('should unwrap CORS URL in GitAuthenticationError', async () => {
+			global.fetch = vi.fn().mockResolvedValue({
+				ok: false,
+				status: 401,
+				statusText: 'Unauthorized',
+			});
+
+			const githubUrl = 'https://github.com/user/private-repo';
+			const resource = new GitDirectoryResource(
+				{
+					resource: 'git:directory',
+					url: githubUrl,
+					ref: 'main',
+				},
+				undefined,
+				{
+					corsProxy: 'https://cors-proxy.com/',
+				}
+			);
+
+			await expect(resource.resolve()).rejects.toMatchObject({
+				name: 'GitAuthenticationError',
+				repoUrl: githubUrl,
+				status: 401,
+			});
+		});
+
+		it('should preserve GitHub URL in GitAuthenticationError without CORS proxy', async () => {
+			global.fetch = vi.fn().mockResolvedValue({
+				ok: false,
+				status: 401,
+				statusText: 'Unauthorized',
+			});
+
+			const githubUrl = 'https://github.com/user/private-repo';
+			const resource = new GitDirectoryResource({
+				resource: 'git:directory',
+				url: githubUrl,
+				ref: 'main',
+			});
+
+			await expect(resource.resolve()).rejects.toMatchObject({
+				name: 'GitAuthenticationError',
+				repoUrl: githubUrl,
+				status: 401,
+			});
+		});
+
+		it('should call gitAdditionalHeadersCallback without CORS proxy', async () => {
+			const githubUrl = 'https://github.com/user/private-repo';
+			const headerCallback = vi.fn().mockReturnValue({
+				Authorization: 'Bearer test-token',
+			});
+
+			const resource = new GitDirectoryResource(
+				{
+					resource: 'git:directory',
+					url: githubUrl,
+					ref: 'main',
+				},
+				undefined,
+				{
+					additionalHeaders: headerCallback,
+				}
+			);
+
+			// Call resolve - it will fail but that's okay, we just want to verify the callback
+			try {
+				await resource.resolve();
+			} catch {
+				// Expected to fail - we're not mocking the entire git resolution
+			}
+
+			// Verify the callback was called with the GitHub URL (not CORS-wrapped)
+			expect(headerCallback).toHaveBeenCalledWith(githubUrl);
 		});
 	});
 });

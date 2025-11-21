@@ -16,8 +16,7 @@ import {
 import { redirectTo } from '../../lib/state/url/router';
 import { logger } from '@php-wasm/logger';
 import { usePrevious } from '../../lib/hooks/use-previous';
-import { modalSlugs } from '../layout';
-import { setActiveModal } from '../../lib/state/redux/slice-ui';
+import { modalSlugs, setActiveModal } from '../../lib/state/redux/slice-ui';
 import { selectClientBySiteSlug } from '../../lib/state/redux/slice-clients';
 import { randomSiteName } from '../../lib/state/redux/random-site-name';
 

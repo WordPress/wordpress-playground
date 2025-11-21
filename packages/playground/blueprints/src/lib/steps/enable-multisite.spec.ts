@@ -82,7 +82,7 @@ describe('Blueprint step enableMultisite', () => {
 			 */
 			await login(php, {});
 			const response = await requestFollowRedirects({
-				url: '/',
+				url: absoluteUrl,
 			});
 			expect(response.httpStatusCode).toEqual(200);
 			expect(response.text).toContain('My Sites');

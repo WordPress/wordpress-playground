@@ -1,6 +1,7 @@
 import { createNodeFsMountHandler, loadNodeRuntime } from '@php-wasm/node';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import {
+	getSqliteDriverModule,
 	getWordPressModule,
 	MinifiedWordPressVersions,
 } from '@wp-playground/wordpress-builds';
@@ -47,13 +48,13 @@ describe('Test database', () => {
 		}).rejects.toThrow('Error connecting to the MySQL database.');
 	});
 
-	it('hould install WordPress when SQL data path specified, even without SQLite ZIP path or SQLite driver directory', async () => {
+	it('should install WordPress when SQL data path specified, even without SQLite ZIP path or SQLite driver directory', async () => {
 		const handler = await bootWordPressAndRequestHandler({
 			createPhpRuntime: async () =>
 				await loadNodeRuntime(RecommendedPHPVersion),
 			siteUrl: 'http://playground-domain/',
 			wordPressZip: await getWordPressModule(),
-			sqliteIntegrationPluginZip: undefined,
+			sqliteIntegrationPluginZip: await getSqliteDriverModule(),
 			dataSqlPath: '/wordpress/wp-content/database/.ht.sqlite',
 		});
 

@@ -14,8 +14,8 @@ async function zipFiles(
 	const zipFilePath = `/${zipFileName}`;
 
 	await php.run({
-		code: `<?php $zip = new ZipArchive(); 
-					 $zip->open("${zipFilePath}", ZIPARCHIVE::CREATE); 
+		code: `<?php $zip = new ZipArchive();
+					 $zip->open("${zipFilePath}", ZIPARCHIVE::CREATE);
 					 $files = ${phpVar(files)};
 					 foreach($files as $path => $content) {
 						$zip->addFromString($path, $content);
@@ -84,6 +84,10 @@ describe('Blueprint step installPlugin', () => {
 		pluginsPath = `${rootPath}/wp-content/plugins`;
 		php.mkdir(pluginsPath);
 		installedPluginPath = `${pluginsPath}/${pluginName}`;
+	});
+
+	afterEach(() => {
+		php.exit();
 	});
 
 	it('should install a plugin', async () => {

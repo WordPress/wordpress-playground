@@ -24,6 +24,11 @@ describe('Blueprint step setSiteOptions()', () => {
 		php = await handler.getPrimaryPhp();
 	});
 
+	afterEach(async () => {
+		php.exit();
+		await handler[Symbol.asyncDispose]();
+	});
+
 	it('should set the site option', async () => {
 		await setSiteOptions(php, {
 			options: {

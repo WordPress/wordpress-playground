@@ -9,7 +9,7 @@ import fs from 'fs';
 import { getPHPLoaderModule } from '.';
 import { withNetworking } from './networking/with-networking';
 import type { FileLockManager } from './file-lock-manager';
-import { withXdebug } from './xdebug/with-xdebug';
+import { withXdebug, type XdebugOptions } from './xdebug/with-xdebug';
 import { withIntl } from './extensions/intl/with-intl';
 import { joinPaths } from '@php-wasm/util';
 import type { Promised } from '@php-wasm/util';
@@ -19,6 +19,7 @@ export interface PHPLoaderOptions {
 	emscriptenOptions?: EmscriptenOptions;
 	followSymlinks?: boolean;
 	withXdebug?: boolean;
+	xdebug?: XdebugOptions;
 	withIntl?: boolean;
 }
 
@@ -83,6 +84,8 @@ export async function loadNodeRuntime(
 	phpVersion: SupportedPHPVersion,
 	options: PHPLoaderOptionsForNode = {}
 ) {
+	// TODO: Throw an error if a file lock manager is provided but not a process ID.
+
 	let emscriptenOptions: EmscriptenOptions = {
 		/**
 		 * Emscripten default behavior is to kill the process when
@@ -223,7 +226,11 @@ export async function loadNodeRuntime(
 	};
 
 	if (options?.withXdebug === true) {
-		emscriptenOptions = await withXdebug(phpVersion, emscriptenOptions);
+		emscriptenOptions = await withXdebug(
+			phpVersion,
+			emscriptenOptions,
+			options.xdebug
+		);
 	}
 
 	if (options?.withIntl === true) {

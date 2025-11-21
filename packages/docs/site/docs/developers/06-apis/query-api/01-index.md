@@ -41,6 +41,7 @@ You can go ahead and try it out. The Playground will automatically install the t
 | `language`               | `en_US`               | Sets the locale for the WordPress instance. This must be used in combination with `networking=yes` otherwise WordPress won't be able to download translations.                                                                                                                                                                                                                                                                                                              |
 | `core-pr`                |                       | Installs a specific https://github.com/WordPress/wordpress-develop core PR. Accepts the PR number. For example, `core-pr=6883`.                                                                                                                                                                                                                                                                                                                                             |
 | `gutenberg-pr`           |                       | Installs a specific https://github.com/WordPress/gutenberg PR. Accepts the PR number. For example, `gutenberg-pr=65337`.                                                                                                                                                                                                                                                                                                                                                    |
+| `gutenberg-branch`       |                       | Installs a specific branch from https://github.com/WordPress/gutenberg. Accepts the branch name. For example, `gutenberg-branch=trunk`.                                                                                                                                                                                                                                                                                                                                     |
 | `if-stored-site-missing` |                       | Indicates how to handle the scenario where the `site-slug` parameter identifies a site that does not exist. Use `if-stored-site-missing=prompt` to indicate that the user should be asked whether they would like to save a new site with the specified `site-slug`.                                                                                                                                                                                                        |
 
 For example, the following code embeds a Playground with a preinstalled Gutenberg plugin and opens the post editor:
@@ -59,17 +60,17 @@ To import files from a URL, such as a site zip package, they must be served with
 
 The following additional query parameters may be used to pre-configure the GitHub export form:
 
--   `gh-ensure-auth`: If set to `yes`, Playground will display a modal to ensure the
-    user is authenticated with GitHub before proceeding.
--   `ghexport-repo-url`: The URL of the GitHub repository to export to.
--   `ghexport-pr-action`: The action to take when exporting (create or update).
--   `ghexport-playground-root`: The root directory in the Playground to export from.
--   `ghexport-repo-root`: The root directory in the repository to export to.
--   `ghexport-content-type`: The content type of the export (plugin, theme, wp-content, custom-paths).
--   `ghexport-plugin`: Plugin path. When the content type is `plugin`, pre-select the plugin to export.
--   `ghexport-theme`: Theme directory name. When the content type is `theme`, pre-select the theme to export.
--   `ghexport-path`: A path relative to `ghexport-playground-root`. Can be provided multiple times. When the
-    content type is `custom-paths`, it pre-populates the list of paths to export.
--   `ghexport-commit-message`: The commit message to use when exporting.
--   `ghexport-allow-include-zip`: Whether to offer an option to include a zip file in the GitHub
-    export (yes, no). Optional. Defaults to `yes`.
+- `gh-ensure-auth`: If set to `yes`, Playground will display a modal to ensure the
+  user is authenticated with GitHub before proceeding.
+- `ghexport-repo-url`: The URL of the GitHub repository to export to.
+- `ghexport-pr-action`: The action to take when exporting (create or update).
+- `ghexport-playground-root`: The root directory in the Playground to export from.
+- `ghexport-repo-root`: The root directory in the repository to export to.
+- `ghexport-content-type`: The content type of the export (plugin, theme, wp-content, custom-paths).
+- `ghexport-plugin`: Plugin path. When the content type is `plugin`, pre-select the plugin to export.
+- `ghexport-theme`: Theme directory name. When the content type is `theme`, pre-select the theme to export.
+- `ghexport-path`: A path relative to `ghexport-playground-root`. Can be provided multiple times. When the
+  content type is `custom-paths`, it pre-populates the list of paths to export.
+- `ghexport-commit-message`: The commit message to use when exporting.
+- `ghexport-allow-include-zip`: Whether to offer an option to include a zip file in the GitHub
+  export (yes, no). Optional. Defaults to `yes`.

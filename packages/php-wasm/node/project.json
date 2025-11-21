@@ -165,8 +165,10 @@
 					"php-dynamic-loading.spec.ts",
 					"php-request-handler.spec.ts",
 					"php.spec.ts",
-					"file-lock-manager-for-node.spec.ts",
-					"php-worker.spec.ts"
+					"php-worker.spec.ts",
+					"php-soap.spec.ts",
+					"php-image-extensions.spec.ts",
+					"php-imagick.spec.ts"
 				]
 			}
 		},
@@ -190,8 +192,10 @@
 					"php-dynamic-loading.spec.ts",
 					"php-request-handler.spec.ts",
 					"php.spec.ts",
-					"file-lock-manager-for-node.spec.ts",
-					"php-worker.spec.ts"
+					"php-worker.spec.ts",
+					"php-soap.spec.ts",
+					"php-image-extensions.spec.ts",
+					"php-imagick.spec.ts"
 				]
 			}
 		},
@@ -297,6 +301,46 @@
 				"testFiles": ["php-sqlite3.spec.ts"]
 			}
 		},
+		"test-php-file-locking-asyncify": {
+			"executor": "@nx/vite:test",
+			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/node"],
+			"options": {
+				"reportsDirectory": "../../../coverage/packages/php-wasm/node",
+				"testFiles": [
+					"php-file-locking.spec.ts",
+					"file-lock-manager-for-node.spec.ts"
+				]
+			}
+		},
+		"test-php-file-locking-jspi": {
+			"executor": "@nx/vite:test",
+			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/node"],
+			"options": {
+				"configFile": "packages/php-wasm/node/vite.jspi.config.ts",
+				"reportsDirectory": "../../../coverage/packages/php-wasm/node",
+				"testFiles": [
+					"php-file-locking.spec.ts",
+					"file-lock-manager-for-node.spec.ts"
+				]
+			}
+		},
+		"test-php-image-extensions-asyncify": {
+			"executor": "@nx/vite:test",
+			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/node"],
+			"options": {
+				"reportsDirectory": "../../../coverage/packages/php-wasm/node",
+				"testFiles": ["php-image-extensions.spec.ts"]
+			}
+		},
+		"test-php-image-extensions-jspi": {
+			"executor": "@nx/vite:test",
+			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/node"],
+			"options": {
+				"configFile": "packages/php-wasm/node/vite.jspi.config.ts",
+				"reportsDirectory": "../../../coverage/packages/php-wasm/node",
+				"testFiles": ["php-image-extensions.spec.ts"]
+			}
+		},
 		"test-php-asyncify-all": {
 			"executor": "nx:noop",
 			"dependsOn": [
@@ -305,7 +349,8 @@
 				"test-php-fsockopen-asyncify",
 				"test-php-gethostbyname-asyncify",
 				"test-php-mysqli-asyncify",
-				"test-php-sqlite3-asyncify"
+				"test-php-sqlite3-asyncify",
+				"test-php-image-extensions-asyncify"
 			]
 		},
 		"test-opcache": {

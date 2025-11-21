@@ -30,6 +30,29 @@ export type ResolvedBlueprint = {
 	source: BlueprintSource;
 };
 
+const githubBlobOrRawPathPattern = /^\/([^/]+)\/([^/]+)\/(?:blob|raw)\//;
+
+function normalizeBlueprintUrl(remoteUrl: string): string {
+	try {
+		const parsedUrl = new URL(remoteUrl);
+		if (parsedUrl.hostname !== 'github.com') {
+			return remoteUrl;
+		}
+		const rewrittenPath = parsedUrl.pathname.replace(
+			githubBlobOrRawPathPattern,
+			'/$1/$2/'
+		);
+		if (rewrittenPath === parsedUrl.pathname) {
+			return remoteUrl;
+		}
+		parsedUrl.pathname = rewrittenPath;
+		parsedUrl.hostname = 'raw.githubusercontent.com';
+		return parsedUrl.toString();
+	} catch {
+		return remoteUrl;
+	}
+}
+
 export async function resolveBlueprintFromURL(
 	url: URL,
 	defaultBlueprint?: string
@@ -59,13 +82,12 @@ export async function resolveBlueprintFromURL(
 		 * Support passing blueprints via query parameter, e.g.:
 		 * ?blueprint-url=https://example.com/blueprint.json
 		 */
+		const blueprintUrl = normalizeBlueprintUrl(query.get('blueprint-url')!);
 		return {
-			blueprint: await resolveRemoteBlueprint(
-				query.get('blueprint-url')!
-			),
+			blueprint: await resolveRemoteBlueprint(blueprintUrl),
 			source: {
 				type: 'remote-url',
-				url: query.get('blueprint-url')!,
+				url: blueprintUrl,
 			},
 		};
 	} else if (fragment.length) {
@@ -121,7 +143,7 @@ export async function resolveBlueprintFromURL(
 									activate: index === themes.length - 1,
 								},
 								progress: { weight: 2 },
-							} as StepDefinition)
+							}) as StepDefinition
 					),
 				].filter(Boolean),
 			},
@@ -244,32 +266,39 @@ function applyQueryOverridesToDeclaration(
 		});
 	}
 
-	if (query.has('core-pr')) {
-		const prNumber = query.get('core-pr');
-		blueprint.preferredVersions!.wp = `https://playground.wordpress.net/plugin-proxy.php?org=WordPress&repo=wordpress-develop&workflow=Test%20Build%20Processes&artifact=wordpress-build-${prNumber}&pr=${prNumber}`;
+	// Handle WordPress core PR preview
+	const coreRef = query.get('core-pr');
+	if (coreRef) {
+		// For WordPress PRs: artifact name is wordpress-build-{PR_NUMBER}
+		const artifactName = `wordpress-build-${coreRef}`;
+		blueprint.preferredVersions!.wp = `https://playground.wordpress.net/plugin-proxy.php?org=WordPress&repo=wordpress-develop&workflow=Test%20Build%20Processes&artifact=${artifactName}&pr=${coreRef}`;
 	}
 
-	if (query.has('gutenberg-pr')) {
-		const prNumber = query.get('gutenberg-pr');
+	// Handle Gutenberg PR or branch preview
+	const gutenbergRef =
+		query.get('gutenberg-pr') || query.get('gutenberg-branch');
+	if (gutenbergRef) {
+		const refType = query.has('gutenberg-pr') ? 'pr' : 'branch';
+		const refLabel = query.has('gutenberg-pr') ? 'PR' : 'branch';
 		blueprint.steps = blueprint.steps || [];
 		blueprint.steps.unshift(
 			{
 				step: 'mkdir',
-				path: '/tmp/pr',
+				path: '/tmp/gutenberg',
 			},
 			{
 				step: 'writeFile',
-				path: '/tmp/pr/pr.zip',
+				path: '/tmp/gutenberg/artifact.zip',
 				data: {
 					resource: 'url',
-					url: `/plugin-proxy.php?org=WordPress&repo=gutenberg&workflow=Build%20Gutenberg%20Plugin%20Zip&artifact=gutenberg-plugin&pr=${prNumber}`,
-					caption: `Downloading Gutenberg PR ${prNumber}`,
+					url: `/plugin-proxy.php?org=WordPress&repo=gutenberg&workflow=Build%20Gutenberg%20Plugin%20Zip&artifact=gutenberg-plugin&${refType}=${gutenbergRef}`,
+					caption: `Downloading Gutenberg ${refLabel} ${gutenbergRef}`,
 				},
 			},
 			/**
 			 * GitHub CI artifacts are doubly zipped:
 			 *
-			 * pr.zip
+			 * artifact.zip
 			 *    gutenberg.zip
 			 *       gutenberg.php
 			 *       ... other files ...
@@ -280,14 +309,14 @@ function applyQueryOverridesToDeclaration(
 			 */
 			{
 				step: 'unzip',
-				zipPath: '/tmp/pr/pr.zip',
-				extractToPath: '/tmp/pr',
+				zipPath: '/tmp/gutenberg/artifact.zip',
+				extractToPath: '/tmp/gutenberg',
 			},
 			{
 				step: 'installPlugin',
 				pluginData: {
 					resource: 'vfs',
-					path: '/tmp/pr/gutenberg.zip',
+					path: '/tmp/gutenberg/gutenberg.zip',
 				},
 			}
 		);

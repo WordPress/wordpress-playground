@@ -61,6 +61,11 @@ const argParser = yargs(process.argv.slice(2))
 			choices: ['yes', 'no'],
 			description: 'Build with libxml support',
 		},
+		WITH_SOAP: {
+			type: 'string',
+			choices: ['yes', 'no'],
+			description: 'Build with SOAP support',
+		},
 		WITH_LIBZIP: {
 			type: 'string',
 			choices: ['yes', 'no'],
@@ -146,6 +151,11 @@ const argParser = yargs(process.argv.slice(2))
 			choices: ['yes', 'no'],
 			description: 'Build with WebSocket networking proxy support',
 		},
+		WITH_IMAGICK: {
+			type: 'string',
+			choices: ['yes', 'no'],
+			description: 'Build with imagick support',
+		},
 		PHP_VERSION: {
 			type: 'string',
 			description: 'The PHP version to build',
@@ -186,6 +196,7 @@ const platformDefaults = {
 		WITH_FILEINFO: 'yes',
 		WITH_ICONV: 'yes',
 		WITH_LIBXML: 'yes',
+		WITH_SOAP: 'yes',
 		WITH_EXIF: 'yes',
 		WITH_GD: 'yes',
 		WITH_MBSTRING: 'yes',
@@ -193,6 +204,7 @@ const platformDefaults = {
 		WITH_OPENSSL: 'yes',
 		WITH_WS_NETWORKING_PROXY: 'yes',
 		WITH_OPCACHE: 'yes',
+		WITH_IMAGICK: 'no',
 		STACK_SIZE: '1MB',
 	},
 	web: {
@@ -201,6 +213,7 @@ const platformDefaults = {
 	node: {
 		WITH_NODEFS: 'yes',
 		WITH_MYSQL: 'yes',
+		WITH_IMAGICK: 'yes',
 	},
 };
 const platform = args.PLATFORM;
@@ -211,10 +224,10 @@ const getArg = (name) => {
 		name in args
 			? args[name]
 			: name in platformDefaults[platform]
-			? platformDefaults[platform][name]
-			: name in platformDefaults.all
-			? platformDefaults.all[name]
-			: 'no';
+				? platformDefaults[platform][name]
+				: name in platformDefaults.all
+					? platformDefaults.all[name]
+					: 'no';
 	if (name === 'PHP_VERSION') {
 		value = fullyQualifiedPHPVersion(value);
 	}
@@ -251,6 +264,8 @@ await asyncSpawn(
 		getArg('WITH_FILEINFO'),
 		'--build-arg',
 		getArg('WITH_LIBXML'),
+		'--build-arg',
+		getArg('WITH_SOAP'),
 		'--build-arg',
 		getArg('WITH_LIBZIP'),
 		'--build-arg',
@@ -294,6 +309,8 @@ await asyncSpawn(
 		getArg('WITH_MYSQL'),
 		'--build-arg',
 		getArg('WITH_WS_NETWORKING_PROXY'),
+		'--build-arg',
+		getArg('WITH_IMAGICK'),
 		'--build-arg',
 		`EMSCRIPTEN_ENVIRONMENT=${platform === 'node' ? 'node' : 'web'}`,
 		'--build-arg',

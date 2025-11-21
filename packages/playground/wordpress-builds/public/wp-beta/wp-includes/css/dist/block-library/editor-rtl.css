@@ -1107,6 +1107,11 @@ figure.wp-block-image:not(.wp-block){
   padding-right:0;
 }
 
+.wp-block-math__textarea-control textarea{
+  direction:ltr;
+  font-family:Menlo,Consolas,monaco,monospace;
+}
+
 .wp-block-media-text__media{
   position:relative;
 }
@@ -1721,6 +1726,9 @@ body.editor-styles-wrapper .wp-block-navigation__responsive-container.is-menu-op
 .link-ui-page-creator__back{
   margin-right:8px;
   text-transform:uppercase;
+}
+.navigation-link-control__error-text{
+  color:#cc1818;
 }
 
 .wp-block-navigation-submenu{

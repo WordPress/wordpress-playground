@@ -35,31 +35,31 @@ describe('temp-dir', () => {
 		const tempDir = await createPlaygroundCliTempDir(
 			substrToIdentifyTempDirs
 		);
-		expect(fs.lstatSync(tempDir).isDirectory()).toBe(true);
+		expect(fs.lstatSync(tempDir.path).isDirectory()).toBe(true);
 	});
 	it('should clean up a temp dir before exiting', async () => {
 		childProcess.send({
 			type: 'create-temp-dir',
 			substrToIdentifyTempDirs,
 		});
-		const tempDir = await new Promise<string>((resolve, reject) => {
+		const tempDirPath = await new Promise<string>((resolve, reject) => {
 			childProcess.once('message', (message: any) => {
 				if (message.type === 'temp-dir') {
-					resolve(message.tempDir);
+					resolve(message.tempDirPath);
 				} else {
 					reject(new Error('Unexpected message'));
 				}
 			});
 		});
-		expect(fs.lstatSync(tempDir).isDirectory()).toBe(true);
+		expect(fs.lstatSync(tempDirPath).isDirectory()).toBe(true);
 		childProcess.send({ type: 'exit' });
 		await new Promise((resolve) => {
 			childProcess.on('exit', resolve);
 		});
-		expect(fs.existsSync(tempDir)).toBe(false);
+		expect(fs.existsSync(tempDirPath)).toBe(false);
 	});
 	it('should clean up stale temp dirs', async () => {
-		const tempDirs = [];
+		const tempDirPaths = [];
 		for (let i = 0; i < 10; i++) {
 			childProcess.send({
 				type: 'create-temp-dir',
@@ -67,19 +67,19 @@ describe('temp-dir', () => {
 				// Disable auto-cleanup so we can test stale dir cleanup.
 				autoCleanup: false,
 			});
-			const tempDir = await new Promise<string>((resolve, reject) => {
+			const tempDirPath = await new Promise<string>((resolve, reject) => {
 				childProcess.once('message', (message: any) => {
 					if (message.type === 'temp-dir') {
-						resolve(message.tempDir);
+						resolve(message.tempDirPath);
 					} else {
 						reject(new Error('Unexpected message'));
 					}
 				});
 			});
-			tempDirs.push(tempDir);
+			tempDirPaths.push(tempDirPath);
 		}
 
-		for (const tempDir of tempDirs) {
+		for (const tempDir of tempDirPaths) {
 			expect(fs.lstatSync(tempDir).isDirectory()).toBe(true);
 		}
 		childProcess.send({ type: 'exit' });
@@ -97,14 +97,14 @@ describe('temp-dir', () => {
 		});
 
 		// Infer temp dir root from the first temp dir.
-		const tempDirRoot = path.dirname(tempDirs[0]);
+		const tempDirRoot = path.dirname(tempDirPaths[0]);
 		await cleanupStalePlaygroundTempDirs(
 			substrToIdentifyTempDirs,
 			staleAgeInMillis,
 			tempDirRoot
 		);
 
-		for (const tempDir of tempDirs) {
+		for (const tempDir of tempDirPaths) {
 			expect(fs.existsSync(tempDir)).toBe(false);
 		}
 	});
@@ -115,16 +115,16 @@ describe('temp-dir', () => {
 			// Disable auto-cleanup so we can test stale dir cleanup.
 			autoCleanup: false,
 		});
-		const tempDir = await new Promise<string>((resolve, reject) => {
+		const tempDirPath = await new Promise<string>((resolve, reject) => {
 			childProcess.once('message', (message: any) => {
 				if (message.type === 'temp-dir') {
-					resolve(message.tempDir);
+					resolve(message.tempDirPath);
 				} else {
 					reject(new Error('Unexpected message'));
 				}
 			});
 		});
-		expect(fs.lstatSync(tempDir).isDirectory()).toBe(true);
+		expect(fs.lstatSync(tempDirPath).isDirectory()).toBe(true);
 
 		// NOTE: This is a short expiration time for testing purposes.
 		// In practice, we may wait hours or days before considering a
@@ -139,10 +139,10 @@ describe('temp-dir', () => {
 		await cleanupStalePlaygroundTempDirs(
 			substrToIdentifyTempDirs,
 			staleAgeInMillis,
-			path.dirname(tempDir)
+			path.dirname(tempDirPath)
 		);
 		// Temp dir should not be cleaned up while the associated process was still running.
-		expect(fs.existsSync(tempDir)).toBe(true);
+		expect(fs.existsSync(tempDirPath)).toBe(true);
 
 		childProcess.send({ type: 'exit' });
 		await new Promise((resolve) => {
@@ -153,9 +153,9 @@ describe('temp-dir', () => {
 		await cleanupStalePlaygroundTempDirs(
 			substrToIdentifyTempDirs,
 			staleAgeInMillis,
-			path.dirname(tempDir)
+			path.dirname(tempDirPath)
 		);
 		// Temp dir was cleaned up when the associated process no longer exists.
-		expect(fs.existsSync(tempDir)).toBe(false);
+		expect(fs.existsSync(tempDirPath)).toBe(false);
 	});
 });
