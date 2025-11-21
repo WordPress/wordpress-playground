@@ -23,7 +23,6 @@ export const playwrightConfig: PlaywrightTestConfig = {
 		trace: 'on-first-retry',
 		actionTimeout: 120000,
 		navigationTimeout: 120000,
-		headless: false,
 	},
 
 	timeout: 300000,
