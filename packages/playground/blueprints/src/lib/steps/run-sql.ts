@@ -34,18 +34,11 @@ export interface RunSqlStep<ResourceType> {
 /**
  * Run one or more SQL queries.
  *
- * This step uses WP_MySQL_Naive_Query_Stream to parse and execute SQL queries using streaming semantics.
- * It properly handles multiline queries, comments, and queries separated by semicolons.
- * Each query is executed using `$wpdb`.
- *
- * The SQL file is processed in chunks to avoid loading large files entirely into memory.
- *
- * The following PHP classes are loaded from the sqlite-database-integration plugin/mu-plugin:
- * - WP_Parser_Token (wp-includes/parser/class-wp-parser-token.php)
- * - WP_MySQL_Token (wp-includes/mysql/class-wp-mysql-token.php)
- * - WP_MySQL_Lexer (wp-includes/mysql/class-wp-mysql-lexer.php)
- *
- * WP_MySQL_Naive_Query_Stream is bundled with this step.
+ * This step uses WP_MySQL_Naive_Query_Stream to parse and execute SQL queries using
+ * streaming semantics. It supports multiline queries, comments, and queries
+ * separated by semicolons. Each query is executed using `$wpdb`. This step assumes
+ * a presence of the `sqlite-database-integration` plugin that ships the required
+ * query tokenizer classes.
  */
 export const runSql: StepHandler<RunSqlStep<File>> = async (
 	playground,
