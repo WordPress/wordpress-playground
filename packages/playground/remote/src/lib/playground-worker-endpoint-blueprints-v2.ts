@@ -19,7 +19,6 @@ class PlaygroundWorkerEndpointV2 extends PlaygroundWorkerEndpoint {
 		wpVersion,
 		phpVersion,
 		sapiName = 'cli',
-		withICU = false,
 		withNetworking = true,
 		corsProxyUrl,
 		blueprint,
@@ -40,7 +39,6 @@ class PlaygroundWorkerEndpointV2 extends PlaygroundWorkerEndpoint {
 			const requestHandler = await this.createRequestHandler({
 				siteUrl,
 				sapiName,
-				withICU,
 				corsProxyUrl,
 				knownRemoteAssetPaths,
 				withNetworking,

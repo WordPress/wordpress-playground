@@ -44,10 +44,7 @@ import {
 	getLoadedWordPressVersion,
 } from '@wp-playground/wordpress';
 import { wpVersionToStaticAssetsDirectory } from '@wp-playground/wordpress-builds';
-import {
-	intlDisabledFunctions,
-	networkingDisabledFunctions,
-} from './disabled-functions';
+import { networkingDisabledFunctions } from './disabled-functions';
 /* @ts-ignore */
 import playgroundWebMuPlugin from './playground-mu-plugin/0-playground.php?raw';
 import { WordPressFetchNetworkTransport } from './wordpress-fetch-network-transport';
@@ -64,7 +61,6 @@ export type WorkerBootOptions = {
 	phpVersion?: SupportedPHPVersion;
 	sapiName?: string;
 	scope: string;
-	withICU: boolean;
 	withNetworking: boolean;
 	mounts?: Array<MountDescriptor>;
 	shouldInstallWordPress?: boolean;
@@ -121,7 +117,6 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 	protected async createRequestHandler({
 		siteUrl,
 		sapiName,
-		withICU,
 		corsProxyUrl,
 		knownRemoteAssetPaths,
 		withNetworking,
@@ -129,7 +124,6 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 	}: {
 		siteUrl: string;
 		sapiName: string;
-		withICU: boolean;
 		corsProxyUrl?: string;
 		knownRemoteAssetPaths: Set<string>;
 		withNetworking: boolean;
@@ -138,15 +132,6 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		const phpIniEntries: Record<string, string> = {
 			'openssl.cafile': '/internal/shared/ca-bundle.crt',
 		};
-		if (!withICU) {
-			phpIniEntries['disable_functions'] = (
-				phpIniEntries['disable_functions'] ?? ''
-			)
-				.split(',')
-				.concat(intlDisabledFunctions)
-				.filter((n) => n)
-				.join(',');
-		}
 
 		let tcpOverFetch: TCPOverFetchOptions | undefined = undefined;
 		let caBundleContent = '';
@@ -195,7 +180,6 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 			createPhpRuntime: async () => {
 				let wasmUrl = '';
 				return await loadWebRuntime(phpVersion, {
-					withICU,
 					tcpOverFetch,
 					onPhpLoaderModuleLoaded: (phpLoaderModule) => {
 						wasmUrl = phpLoaderModule.dependencyFilename;
@@ -317,9 +301,8 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		// from browser storage is the default version when it is actually something else.
 		// Assuming an incorrect WP version would break remote asset retrieval for minified
 		// WP builds – we would download the wrong assets pack.
-		this.loadedWordPressVersion = await getLoadedWordPressVersion(
-			requestHandler
-		);
+		this.loadedWordPressVersion =
+			await getLoadedWordPressVersion(requestHandler);
 		if (this.requestedWordPressVersion !== this.loadedWordPressVersion) {
 			logger.warn(
 				`Loaded WordPress version (${this.loadedWordPressVersion}) differs ` +

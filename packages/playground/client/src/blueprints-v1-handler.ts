@@ -44,9 +44,8 @@ export class BlueprintsV1Handler {
 		await playground.isConnected();
 		progressTracker.pipe(playground);
 
-		const runtimeConfiguration = await resolveRuntimeConfiguration(
-			blueprint
-		);
+		const runtimeConfiguration =
+			await resolveRuntimeConfiguration(blueprint);
 		await playground.onDownloadProgress(downloadProgress.loadingListener);
 		await playground.boot({
 			mounts,
@@ -55,7 +54,6 @@ export class BlueprintsV1Handler {
 			shouldInstallWordPress,
 			phpVersion: runtimeConfiguration.phpVersion,
 			wpVersion: runtimeConfiguration.wpVersion,
-			withICU: runtimeConfiguration.intl,
 			withNetworking: runtimeConfiguration.networking,
 			corsProxyUrl: corsProxy,
 			sqliteDriverVersion,
