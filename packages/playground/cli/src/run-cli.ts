@@ -518,6 +518,8 @@ type PlaygroundCliWorker =
 	| PlaygroundCliBlueprintV1Worker
 	| PlaygroundCliBlueprintV2Worker;
 
+export const internalsKeyForTesting = Symbol('playground-cli-testing');
+
 export interface RunCLIServer extends AsyncDisposable {
 	playground: RemoteAPI<PlaygroundCliWorker>;
 	server: Server;
@@ -525,8 +527,11 @@ export interface RunCLIServer extends AsyncDisposable {
 
 	[Symbol.asyncDispose](): Promise<void>;
 
-	// Expose the number of worker threads to the test runner.
-	workerThreadCount: number;
+	// Provide some details and helpers for automated testing.
+	[internalsKeyForTesting]: {
+		workerThreadCount: number;
+		getWorkerNumberFromProcessId(processId: number): number;
+	};
 }
 
 const bold = (text: string) =>
@@ -636,15 +641,16 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 					: 1;
 			const totalWorkersToSpawn =
 				args.command === 'server'
-					? // Account for the initial worker
-						// which is discarded by the server after setup.
+					? // Account for the initial worker which is discarded by the server after setup.
 						targetWorkerCount + 1
 					: targetWorkerCount;
 
 			// Process IDs appear to be defined as `int` in Emscripten:
 			// https://github.com/emscripten-core/emscripten/blob/95d2bf9c5c27b88ab7de6eba2d8e61ea1af977ac/system/lib/libc/musl/arch/emscripten/bits/alltypes.h#L290
 			// and those are typically 32 bits wide in both 32-bit and 64-bit systems.
-			const maxProcessIdValue = 2 ** 32 - 1;
+			// Apparently, this is a signed type, so we cannot use the leftmost bit.
+			const maxValueForSigned32BitInteger = 2 ** (32 - 1) - 1;
+			const maxProcessIdValue = maxValueForSigned32BitInteger;
 			const processIdSpaceLength = Math.floor(
 				maxProcessIdValue / totalWorkersToSpawn
 			);
@@ -1044,7 +1050,12 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 					server,
 					serverUrl,
 					[Symbol.asyncDispose]: disposeCLI,
-					workerThreadCount: targetWorkerCount,
+					[internalsKeyForTesting]: {
+						workerThreadCount: targetWorkerCount,
+						getWorkerNumberFromProcessId: (processId: number) => {
+							return Math.floor(processId / processIdSpaceLength);
+						},
+					},
 				};
 			} catch (error) {
 				if (!args.debug) {

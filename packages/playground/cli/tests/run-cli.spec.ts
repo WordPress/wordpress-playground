@@ -1,7 +1,7 @@
 import path from 'node:path';
 import os from 'node:os';
 import http from 'node:http';
-import { runCLI } from '../src/run-cli';
+import { runCLI, internalsKeyForTesting } from '../src/run-cli';
 import type { RunCLIArgs, RunCLIServer } from '../src/run-cli';
 import type { MockInstance } from 'vitest';
 import { vi } from 'vitest';
@@ -210,7 +210,9 @@ describe.each(blueprintVersions)(
 						},
 					],
 				});
-				expect(cliServer.workerThreadCount).toBe(1);
+				expect(
+					cliServer[internalsKeyForTesting].workerThreadCount
+				).toBe(1);
 				// Make multiple simultaneous requests to force the use of a secondary PHP instance.
 				// TODO: Find way to confirm this. Maybe a custom response header that announces the worker.
 				const sleepUrl = new URL(

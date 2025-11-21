@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { runCLI } from '../src/run-cli';
+import { runCLI, internalsKeyForTesting } from '../src/run-cli';
 import type { RunCLIServer } from '../src/run-cli';
 import { mkdtempSync } from 'node:fs';
 import path from 'node:path';
@@ -8,6 +8,7 @@ import os from 'node:os';
 const TEST_DIR = '/wordpress/test';
 const TEST_DIR_URI = '/test';
 const TEST_TIMEOUT = 120_000;
+const MULTI_WORKER_COUNT = 4;
 
 describe('Playground CLI file locking', () => {
 	let cliServer: RunCLIServer;
@@ -26,6 +27,8 @@ describe('Playground CLI file locking', () => {
 					vfsPath: TEST_DIR,
 				},
 			],
+			// Test locking across multiple workers
+			experimentalMultiWorker: MULTI_WORKER_COUNT,
 		});
 	}, TEST_TIMEOUT);
 
@@ -41,6 +44,22 @@ describe('Playground CLI file locking', () => {
 
 	function fetchScript(script: string): Promise<Response> {
 		return fetch(new URL(`${TEST_DIR_URI}/${script}`, cliServer.serverUrl));
+	}
+
+	function assertProcessIdsFromDifferentWorkers(...pids: number[]) {
+		// Confirm that the process IDs look like process IDs.
+		for (const pid of pids) {
+			expect(pid).toBeTypeOf('number');
+			expect(pid).toBeGreaterThan(0);
+		}
+		const workerNumbers = pids.map(
+			cliServer[internalsKeyForTesting].getWorkerNumberFromProcessId
+		);
+		for (const workerNumber of workerNumbers) {
+			// +1 to account for the initial worker.
+			expect(workerNumber).toBeLessThan(MULTI_WORKER_COUNT + 1);
+		}
+		expect(new Set(workerNumbers).size).toBe(workerNumbers.length);
 	}
 
 	describe('SQLite DB locking (relying upon fcntl())', () => {
@@ -95,6 +114,10 @@ describe('Playground CLI file locking', () => {
 					$db->exec('COMMIT;');
 					$db->close();
 					file_put_contents('${coordinationFile}', 'php1-unlocked');
+
+					echo json_encode([
+						'pid' => getmypid(),
+					]);
 					`
 				);
 
@@ -127,6 +150,7 @@ describe('Playground CLI file locking', () => {
 
 					ob_clean();
 					echo json_encode([
+						'pid' => getmypid(),
 						'attempt_while_exclusively_locked' => $attempt_while_exclusively_locked,
 						'attempt_while_unlocked' => $attempt_while_unlocked,
 					]);
@@ -140,13 +164,23 @@ describe('Playground CLI file locking', () => {
 				]);
 				expect(php1Response.status).toBe(200);
 				expect(php2Response.status).toBe(200);
-				const php2Text = await php2Response.text();
-				const parsed = php2Text ? JSON.parse(php2Text) : {};
-				expect(parsed.attempt_while_exclusively_locked).toMatchObject({
+				const php1Output = await php1Response.json();
+				const php2Output = await php2Response.json();
+
+				// TODO: Double-check whether the second worker reuses PIDs of the initial worker.
+				// Confirm that we are testing with separate workers.
+				assertProcessIdsFromDifferentWorkers(
+					php1Output.pid,
+					php2Output.pid
+				);
+
+				expect(
+					php2Output.attempt_while_exclusively_locked
+				).toMatchObject({
 					last_error_code: 5,
 					last_error_msg: 'database is locked',
 				});
-				expect(parsed.attempt_while_unlocked).toMatchObject({
+				expect(php2Output.attempt_while_unlocked).toMatchObject({
 					last_error_code: 0,
 					last_error_msg: 'not an error',
 				});
