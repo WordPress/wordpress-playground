@@ -5,71 +5,68 @@ import { mkdtempSync } from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 
-const TEST_TIMEOUT = 120_000;
+const TEST_SUITE_PREP_TIMEOUT = 120_000;
+const TEST_SUITE_CLEANUP_TIMEOUT = 60_000;
+const TEST_CASE_TIMEOUT = 60_000;
 const TEST_DIR = '/wordpress/test';
 const TEST_DIR_URI = '/test';
 const MULTI_WORKER_COUNT = 4;
 
-describe(
-	'Playground CLI file locking',
-	() => {
-		let cliServer: RunCLIServer;
-		let nativeTestDir: string;
+describe('Playground CLI file locking', () => {
+	let cliServer: RunCLIServer;
+	let nativeTestDir: string;
 
-		beforeAll(async () => {
-			nativeTestDir = mkdtempSync(
-				path.join(os.tmpdir(), 'playground-cli-file-locking-test-')
-			);
+	beforeAll(async () => {
+		nativeTestDir = mkdtempSync(
+			path.join(os.tmpdir(), 'playground-cli-file-locking-test-')
+		);
 
-			cliServer = await runCLI({
-				command: 'server',
-				mount: [
-					{
-						hostPath: nativeTestDir,
-						vfsPath: TEST_DIR,
-					},
-				],
-				// Test locking across multiple workers
-				experimentalMultiWorker: MULTI_WORKER_COUNT,
-			});
+		cliServer = await runCLI({
+			command: 'server',
+			mount: [
+				{
+					hostPath: nativeTestDir,
+					vfsPath: TEST_DIR,
+				},
+			],
+			// Test locking across multiple workers
+			experimentalMultiWorker: MULTI_WORKER_COUNT,
 		});
+	}, TEST_SUITE_PREP_TIMEOUT);
 
-		afterAll(async () => {
-			if (cliServer) {
-				await cliServer[Symbol.asyncDispose]();
-			}
-		});
-
-		function writeScript(script: string, content: string): Promise<void> {
-			return cliServer.playground.writeFile(
-				`${TEST_DIR}/${script}`,
-				content
-			);
+	afterAll(async () => {
+		if (cliServer) {
+			await cliServer[Symbol.asyncDispose]();
 		}
+	}, TEST_SUITE_CLEANUP_TIMEOUT);
 
-		function fetchScript(script: string): Promise<Response> {
-			return fetch(
-				new URL(`${TEST_DIR_URI}/${script}`, cliServer.serverUrl)
-			);
+	function writeScript(script: string, content: string): Promise<void> {
+		return cliServer.playground.writeFile(`${TEST_DIR}/${script}`, content);
+	}
+
+	function fetchScript(script: string): Promise<Response> {
+		return fetch(new URL(`${TEST_DIR_URI}/${script}`, cliServer.serverUrl));
+	}
+
+	function assertProcessIdsFromDifferentWorkers(...pids: number[]) {
+		// Confirm that the process IDs look like process IDs.
+		for (const pid of pids) {
+			expect(pid).toBeTypeOf('number');
+			expect(pid).toBeGreaterThan(0);
 		}
-
-		function assertProcessIdsFromDifferentWorkers(...pids: number[]) {
-			// Confirm that the process IDs look like process IDs.
-			for (const pid of pids) {
-				expect(pid).toBeTypeOf('number');
-				expect(pid).toBeGreaterThan(0);
-			}
-			const workerNumbers = pids.map(
-				cliServer[internalsKeyForTesting].getWorkerNumberFromProcessId
-			);
-			for (const workerNumber of workerNumbers) {
-				// +1 to account for the initial worker.
-				expect(workerNumber).toBeLessThan(MULTI_WORKER_COUNT + 1);
-			}
-			expect(new Set(workerNumbers).size).toBe(workerNumbers.length);
+		const workerNumbers = pids.map(
+			cliServer[internalsKeyForTesting].getWorkerNumberFromProcessId
+		);
+		for (const workerNumber of workerNumbers) {
+			// +1 to account for the initial worker.
+			expect(workerNumber).toBeLessThan(MULTI_WORKER_COUNT + 1);
 		}
+		expect(new Set(workerNumbers).size).toBe(workerNumbers.length);
+	}
 
-		describe('SQLite DB locking (relying upon fcntl())', () => {
+	describe(
+		'SQLite DB locking (relying upon fcntl())',
+		() => {
 			async function seedSqliteDatabase(dbFilePath: string) {
 				const seedScript = `${randomUUID()}-seed.php`;
 				await writeScript(
@@ -826,9 +823,13 @@ describe(
 					},
 				});
 			});
-		});
+		},
+		TEST_CASE_TIMEOUT
+	);
 
-		describe('PHP flock()', () => {
+	describe(
+		'PHP flock()',
+		() => {
 			it('should be able to acquire an exclusive lock on a file', async () => {
 				const testId = randomUUID();
 				const testFilePath = `${TEST_DIR}/${testId}-exclusive.txt`;
@@ -1563,7 +1564,7 @@ describe(
 				expect(sharedOutput.attempt_while_locked).toBe(false);
 				expect(sharedOutput.attempt_after_exit).toBe(true);
 			});
-		});
-	},
-	TEST_TIMEOUT
-);
+		},
+		TEST_CASE_TIMEOUT
+	);
+});
