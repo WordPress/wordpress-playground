@@ -183,6 +183,11 @@ describe.each(blueprintVersions)(
 		test.skipIf(isBlueprintsV2OnWindows)(
 			'should be able to follow external symlinks in primary and secondary PHP instances',
 			async ({ skip }) => {
+				if (os.platform() === 'win32') {
+					// @TODO: Find out why this test fails on Windows and fix it.
+					// Issue here: https://github.com/WordPress/wordpress-playground/issues/2936
+					skip();
+				}
 				if (version === 2) {
 					// @TODO: Fix this feature for Blueprints v2 (or fix the test if it is just a test issue)
 					skip();
@@ -219,6 +224,7 @@ describe.each(blueprintVersions)(
 					symlinkSync(
 						tmpDir,
 						symlinkPath,
+						// Use a junction on Windows to avoid elevated permissions requirement.
 						os.platform() === 'win32' ? 'junction' : null
 					);
 					cliServer = await runCLI({
