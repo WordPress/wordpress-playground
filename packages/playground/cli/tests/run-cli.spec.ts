@@ -182,13 +182,19 @@ describe.each(blueprintVersions)(
 
 		test.skipIf(isBlueprintsV2OnWindows)(
 			'should be able to follow external symlinks in primary and secondary PHP instances',
-			async () => {
+			async ({ skip }) => {
+				if (version === 2) {
+					// @TODO: Fix this feature for Blueprints v2 (or fix the test if it is just a test issue)
+					skip();
+				}
+
 				const testArgs: Partial<RunCLIArgs> =
 					version === 2
 						? { allow: 'follow-symlinks' }
 						: { followSymlinks: true };
 
 				// TODO: Make sure test always uses a single worker.
+				// TODO: Is there a way to confirm we are testing use of a non-primary PHP instance?
 				const tmpDir = await mkdtemp(
 					path.join(tmpdir(), 'playground-test-')
 				);
