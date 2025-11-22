@@ -1430,11 +1430,12 @@ describe('Playground CLI file locking', () => {
 					while (file_get_contents('${coordinationFile}') !== 'php2-confirmed-file-locked') {
 						usleep(100 * 1000);
 					}
-					file_put_contents('${coordinationFile}', 'php1-end-of-script');
 
 					echo json_encode([
 						'pid' => getmypid(),
 					]);
+
+					// Leave communicating PHP1 end-of-script to the test case which owns PHP1.
 					`
 				);
 
@@ -1468,10 +1469,16 @@ describe('Playground CLI file locking', () => {
 					`
 				);
 
-				const [sharedResponse, exclusiveResponse] = await Promise.all([
-					fetchScript(php1Script),
-					fetchScript(php2Script),
-				]);
+				const promisedExclusiveResponse = fetchScript(php1Script);
+				const promisedSharedResponse = fetchScript(php2Script);
+
+				const exclusiveResponse = await promisedExclusiveResponse;
+				await cliServer.playground.writeFile(
+					coordinationFile,
+					'php1-end-of-script'
+				);
+				const sharedResponse = await promisedSharedResponse;
+
 				expect(sharedResponse.status).toBe(200);
 				expect(exclusiveResponse.status).toBe(200);
 				const sharedOutput = await sharedResponse.json();
@@ -1509,11 +1516,12 @@ describe('Playground CLI file locking', () => {
 					while (file_get_contents('${coordinationFile}') !== 'php2-confirmed-file-locked') {
 						usleep(100 * 1000);
 					}
-					file_put_contents('${coordinationFile}', 'php1-end-of-script');
 
 					echo json_encode([
 						'pid' => getmypid(),
 					]);
+
+					// Leave communicating PHP1 end-of-script to the test case which owns PHP1.
 					`
 				);
 
@@ -1547,10 +1555,16 @@ describe('Playground CLI file locking', () => {
 					`
 				);
 
-				const [exclusiveResponse, sharedResponse] = await Promise.all([
-					fetchScript(php1Script),
-					fetchScript(php2Script),
-				]);
+				const promisedExclusiveResponse = fetchScript(php1Script);
+				const promisedSharedResponse = fetchScript(php2Script);
+
+				const exclusiveResponse = await promisedExclusiveResponse;
+				await cliServer.playground.writeFile(
+					coordinationFile,
+					'php1-end-of-script'
+				);
+				const sharedResponse = await promisedSharedResponse;
+
 				expect(exclusiveResponse.status).toBe(200);
 				expect(sharedResponse.status).toBe(200);
 				const exclusiveOutput = await exclusiveResponse.json();
