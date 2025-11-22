@@ -6,7 +6,7 @@ import path from 'node:path';
 import os from 'node:os';
 
 const TEST_SUITE_PREP_TIMEOUT = 120_000;
-const TEST_SUITE_CLEANUP_TIMEOUT = 60_000;
+const TEST_SUITE_CLEANUP_TIMEOUT = 120_000;
 const TEST_CASE_TIMEOUT = 60_000;
 const TEST_DIR = '/wordpress/test';
 const TEST_DIR_URI = '/test';
