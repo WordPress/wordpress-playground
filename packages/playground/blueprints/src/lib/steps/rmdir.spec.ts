@@ -18,6 +18,7 @@ describe('Blueprint step rmdir()', () => {
 
 	afterEach(() => {
 		loggerErrorSpy.mockRestore();
+		php.exit();
 	});
 
 	it('should remove a directory', async () => {

@@ -8,7 +8,7 @@
 -   [Quickstart](#quickstart)
 -   [Usage](#usage)
 -   [Working with Blueprints](#working-with-blueprints)
--   [How can I contribute?](#how-can-i-contribute)
+-   [Contributing](#contributing)
 
 ## Requirements
 
@@ -175,7 +175,42 @@ cliServer = await runCLI({
 -   Is faster to start up for quick tests and development.
 -   The Playground doesn't come with a MySQL Server, but you can provide your own MySQL credentials.
 
-## How can I contribute?
+## Contributing
+
+### Running Playground CLI from source
+
+To set it up:
+
+```bash
+# If you don't have the repository cloned yet:
+git clone -b trunk --single-branch --depth 1 --recurse-submodules https://github.com/WordPress/wordpress-playground.git
+cd wordpress-playground
+
+# Alternatively, if you already have a clone but forgot to
+# pull the submodules, you can run:
+cd wordpress-playground
+git submodule update --init --recursive
+
+nvm use 23
+npm install
+```
+
+To run it:
+
+```bash
+node --experimental-strip-types --experimental-transform-types --import ./packages/meta/src/node-es-module-loader/register.mts ./packages/playground/cli/src/cli.ts
+```
+
+Or this instead of the above:
+
+```bash
+# Make sure you have the `nx` command available:
+npm install -g nx
+
+nx dev playground-cli server
+```
+
+### How can I contribute?
 
 WordPress Playground CLI is an open-source project and welcomes all contributors from documentation to triage. If the feature you need is missing, you are more than welcome to start a discussion, open an issue, and even propose a Pull Request to implement it.
 

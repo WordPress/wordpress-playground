@@ -12,6 +12,8 @@ import {
 	BlueprintReflection,
 	type RuntimeConfiguration,
 	resolveRuntimeConfiguration,
+	InvalidBlueprintError,
+	BlueprintFetchError,
 } from '@wp-playground/blueprints';
 import {
 	type BlueprintSource,
@@ -20,6 +22,8 @@ import {
 	applyQueryOverrides,
 } from '../url/resolve-blueprint-from-url';
 import { logger } from '@php-wasm/logger';
+import { setActiveSiteError, type SiteError } from './slice-ui';
+import { RecommendedPHPVersion } from '@wp-playground/common';
 
 /**
  * The Site model used to represent a site within Playground.
@@ -246,11 +250,68 @@ export function setTemporarySiteSpec(
 		dispatch: PlaygroundDispatch,
 		getState: () => PlaygroundReduxState
 	) => {
+		const siteSlug = deriveSlugFromSiteName(siteName);
 		const newSiteUrlParams = {
 			searchParams: parseSearchParams(
 				playgroundUrlWithQueryApiArgs.searchParams
 			),
 			hash: playgroundUrlWithQueryApiArgs.hash,
+		};
+
+		const showTemporarySiteError = (params: {
+			error: SiteError;
+			details: unknown;
+		}) => {
+			// Create a mock temporary site to associate the error with.
+			const errorSite: SiteInfo = {
+				slug: siteSlug,
+				originalUrlParams: newSiteUrlParams,
+				metadata: {
+					name: siteName,
+					id: crypto.randomUUID(),
+					whenCreated: Date.now(),
+					storage: 'none' as const,
+					originalBlueprint: {},
+					originalBlueprintSource: {
+						type: 'none',
+					},
+					// Any default values are fine here.
+					runtimeConfiguration: {
+						phpVersion: RecommendedPHPVersion,
+						wpVersion: 'latest',
+						intl: false,
+						networking: true,
+						extraLibraries: [],
+						constants: {},
+					},
+				},
+			};
+
+			if (resolvedBlueprint) {
+				errorSite.metadata.originalBlueprint =
+					resolvedBlueprint.blueprint;
+				errorSite.metadata.originalBlueprintSource =
+					resolvedBlueprint.source;
+			} else if (params.details instanceof BlueprintFetchError) {
+				errorSite.metadata.originalBlueprintSource = {
+					type: 'remote-url',
+					url: params.details.url,
+				};
+			}
+
+			dispatch(sitesSlice.actions.addSite(errorSite));
+			dispatch(sitesSlice.actions.setFirstTemporarySiteCreated());
+
+			setTimeout(() => {
+				dispatch(
+					setActiveSiteError({
+						error: params.error,
+						details: params.details,
+					})
+				);
+			}, 0);
+
+			return errorSite;
 		};
 
 		const currentTemporarySite = selectTemporarySite(getState());
@@ -286,46 +347,57 @@ export function setTemporarySiteSpec(
 			);
 		} catch (e) {
 			logger.error(
-				'Error resolving blueprint, fallink back to a blank blueprint.',
+				'Error resolving blueprint: Blueprint could not be downloaded or loaded.',
 				e
 			);
-			// TODO: This is a hack – we are just abusing a URL-oriented
-			// function to create a completely blank Blueprint. Let's fix this by
-			// making default creation first-class.
-			resolvedBlueprint = await resolveBlueprintFromURL(
-				new URL('https://w.org')
-			);
+
+			return showTemporarySiteError({
+				error: 'blueprint-fetch-failed',
+				details: e,
+			});
 		}
 
-		const reflection = await BlueprintReflection.create(
-			resolvedBlueprint.blueprint
-		);
-		if (reflection.getVersion() === 1) {
-			resolvedBlueprint.blueprint = await applyQueryOverrides(
-				resolvedBlueprint.blueprint,
-				playgroundUrlWithQueryApiArgs.searchParams
+		try {
+			const reflection = await BlueprintReflection.create(
+				resolvedBlueprint.blueprint
 			);
-		}
+			if (reflection.getVersion() === 1) {
+				resolvedBlueprint.blueprint = await applyQueryOverrides(
+					resolvedBlueprint.blueprint,
+					playgroundUrlWithQueryApiArgs.searchParams
+				);
+			}
 
-		// Compute the runtime configuration based on the resolved Blueprint:
-		const newSiteInfo: SiteInfo = {
-			slug: deriveSlugFromSiteName(siteName),
-			originalUrlParams: newSiteUrlParams,
-			metadata: {
-				name: siteName,
-				id: crypto.randomUUID(),
-				whenCreated: Date.now(),
-				storage: 'none' as const,
-				originalBlueprint: resolvedBlueprint.blueprint,
-				originalBlueprintSource: resolvedBlueprint.source!,
-				runtimeConfiguration: await resolveRuntimeConfiguration(
-					resolvedBlueprint.blueprint
-				)!,
-			},
-		};
-		dispatch(sitesSlice.actions.addSite(newSiteInfo));
-		dispatch(sitesSlice.actions.setFirstTemporarySiteCreated());
-		return newSiteInfo;
+			// Compute the runtime configuration based on the resolved Blueprint:
+			const newSiteInfo: SiteInfo = {
+				slug: siteSlug,
+				originalUrlParams: newSiteUrlParams,
+				metadata: {
+					name: siteName,
+					id: crypto.randomUUID(),
+					whenCreated: Date.now(),
+					storage: 'none' as const,
+					originalBlueprint: resolvedBlueprint.blueprint,
+					originalBlueprintSource: resolvedBlueprint.source!,
+					runtimeConfiguration: await resolveRuntimeConfiguration(
+						resolvedBlueprint.blueprint
+					)!,
+				},
+			};
+			dispatch(sitesSlice.actions.addSite(newSiteInfo));
+			dispatch(sitesSlice.actions.setFirstTemporarySiteCreated());
+			return newSiteInfo;
+		} catch (e) {
+			logger.error(
+				'Error preparing the Blueprint after it was downloaded.',
+				e
+			);
+			const errorType =
+				e instanceof InvalidBlueprintError
+					? 'blueprint-validation-failed'
+					: 'site-boot-failed';
+			return showTemporarySiteError({ error: errorType, details: e });
+		}
 	};
 }
 

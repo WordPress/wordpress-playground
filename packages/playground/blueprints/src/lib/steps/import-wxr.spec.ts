@@ -91,6 +91,11 @@ describe('Blueprint step importWxr', () => {
 		});
 	}, 30_000);
 
+	afterEach(async () => {
+		php.exit();
+		await handler[Symbol.asyncDispose]();
+	});
+
 	it(
 		'Should import a WXR file with JSON-encoded UTF-8 characters',
 		async () => {
@@ -270,7 +275,7 @@ describe('Blueprint step importWxr', () => {
 			const result = await php.run({
 				code: `<?php
 			require getenv('DOCROOT') . '/wp-load.php';
-			
+
 			// Get all imported posts
 			$posts = get_posts([
 				'post_type' => ['post', 'page'],
@@ -279,10 +284,10 @@ describe('Blueprint step importWxr', () => {
 				'orderby' => 'ID',
 				'order' => 'ASC'
 			]);
-			
+
 			// Get admin user info
 			$admin_user = get_user_by('login', 'admin');
-			
+
 			$post_authors = [];
 			foreach ($posts as $post) {
 				$author = get_user_by('ID', $post->post_author);
@@ -295,7 +300,7 @@ describe('Blueprint step importWxr', () => {
 					'author_display_name' => $author ? $author->display_name : null,
 				];
 			}
-			
+
 			echo json_encode([
 				'admin_user_id' => $admin_user ? $admin_user->ID : null,
 				'admin_user_login' => $admin_user ? $admin_user->user_login : null,

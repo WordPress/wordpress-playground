@@ -25,6 +25,11 @@ describe('Blueprint step activateTheme()', () => {
 		php = await handler.getPrimaryPhp();
 	});
 
+	afterEach(async () => {
+		php.exit();
+		await handler[Symbol.asyncDispose]();
+	});
+
 	it('should activate the theme', async () => {
 		const docroot = php.documentRoot;
 		php.mkdir(`${docroot}/wp-content/themes/test-theme`);

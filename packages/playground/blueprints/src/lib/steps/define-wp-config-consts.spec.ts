@@ -10,6 +10,10 @@ describe('defineBeforeRun', () => {
 		php = new PHP(await loadNodeRuntime(RecommendedPHPVersion));
 	});
 
+	afterEach(() => {
+		php.exit();
+	});
+
 	it('should define the constants before running the requested script', async () => {
 		const constants = {
 			SITE_URL: 'http://test.url',

@@ -46,8 +46,9 @@ describe('Blueprint step installTheme', () => {
 		expect(php.fileExists(zipFilePath)).toBe(true);
 	});
 
-	afterEach(() => {
+	afterEach(async () => {
 		php.exit();
+		await handler[Symbol.asyncDispose]();
 	});
 
 	const expectedThemeIndexPhpPath =
@@ -179,7 +180,11 @@ describe('Blueprint step installTheme', () => {
 					targetFolderName: 'test-expected-theme',
 				},
 			});
-			expect(php.fileExists(`${rootPath}/wp-content/themes/test-expected-theme/`)).toBe(true);
+			expect(
+				php.fileExists(
+					`${rootPath}/wp-content/themes/test-expected-theme/`
+				)
+			).toBe(true);
 		});
 	});
 });

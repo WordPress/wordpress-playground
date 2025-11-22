@@ -25,6 +25,7 @@ import {
 	type SpawnedWorker,
 	type WorkerType,
 } from '../run-cli';
+import { shouldRenderProgress } from '../utils/progress';
 
 /**
  * Boots Playground CLI workers using Blueprint version 1.
@@ -102,17 +103,20 @@ export class BlueprintsV1Handler {
 						wpDetails.releaseUrl,
 						`${wpDetails.version}.zip`,
 						monitor
-				  );
+					);
 			logger.log(
 				`Resolved WordPress release URL: ${wpDetails?.releaseUrl}`
 			);
 		}
 
-		logger.log(`Fetching SQLite integration plugin...`);
-
-		const sqliteIntegrationPluginZip = this.args.skipSqliteSetup
-			? undefined
-			: await fetchSqliteIntegration(monitor);
+		let sqliteIntegrationPluginZip;
+		if (this.args.skipSqliteSetup) {
+			logger.log(`Skipping SQLite integration plugin setup...`);
+			sqliteIntegrationPluginZip = undefined;
+		} else {
+			logger.log(`Fetching SQLite integration plugin...`);
+			sqliteIntegrationPluginZip = await fetchSqliteIntegration(monitor);
+		}
 
 		const followSymlinks = this.args.followSymlinks === true;
 		const trace = this.args.experimentalTrace === true;
@@ -265,7 +269,7 @@ export class BlueprintsV1Handler {
 							'latest',
 						...(resolvedBlueprint?.preferredVersions || {}),
 					},
-			  };
+				};
 	}
 
 	writeProgressUpdate(
@@ -274,6 +278,9 @@ export class BlueprintsV1Handler {
 		finalUpdate: boolean
 	) {
 		if (this.args.verbosity === LogVerbosity.Quiet.name) {
+			return;
+		}
+		if (!shouldRenderProgress(writeStream)) {
 			return;
 		}
 		if (message === this.lastProgressMessage) {

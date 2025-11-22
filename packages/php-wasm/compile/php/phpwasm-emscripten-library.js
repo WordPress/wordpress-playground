@@ -434,13 +434,13 @@ const LibraryExample = {
 		envLength
 	) {
 		if (!command) {
-			setErrNo(ERRNO_CODES.EINVAL);
+			___errno_location(ERRNO_CODES.EINVAL);
 			return -1;
 		}
 
 		const cmdstr = UTF8ToString(command);
 		if (!cmdstr.length) {
-			setErrNo(ERRNO_CODES.EINVAL);
+			___errno_location(ERRNO_CODES.EINVAL);
 			return -1;
 		}
 
@@ -504,11 +504,11 @@ const LibraryExample = {
 				}
 			} catch (e) {
 				if (e.code === 'SPAWN_UNSUPPORTED') {
-					setErrNo(ERRNO_CODES.ENOSYS);
+					___errno_location(ERRNO_CODES.ENOSYS);
 					return -1;
 				}
 				if (typeof FS == 'undefined' || !(e.name === 'ErrnoError')) throw e;
-				setErrNo(e.code);
+				___errno_location(e.code);
 				return -1;
 			}
 
@@ -659,7 +659,7 @@ const LibraryExample = {
 				try {
 					stdinStream = SYSCALLS.getStreamFromFD(stdinChildFd);
 				} catch (e) {
-					setErrNo(ERRNO_CODES.EBADF);
+					___errno_location(ERRNO_CODES.EBADF);
 					return ProcInfo.pid;
 				}
 				if (!stdinStream?.node) {
@@ -722,7 +722,7 @@ const LibraryExample = {
 						) {
 							throw e;
 						}
-						setErrNo(e.errno);
+						___errno_location(e.errno);
 						stopPumpingAndCloseStdin();
 					}
 				};
@@ -731,9 +731,9 @@ const LibraryExample = {
 					if (!cp.stdin.closed) {
 						cp.stdin.end();
 					}
-					PHPLoader["free"](buffer);
-					PHPLoader["free"](iov);
-					PHPLoader["free"](pnum);
+					_free(buffer);
+					_free(iov);
+					_free(pnum);
 				}
 
 				// pump() can never alter the result of this function.

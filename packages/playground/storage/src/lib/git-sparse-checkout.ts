@@ -31,6 +31,20 @@ if (typeof globalThis.Buffer === 'undefined') {
 }
 
 /**
+ * Custom error class for git authentication failures.
+ */
+export class GitAuthenticationError extends Error {
+	constructor(public repoUrl: string, public status: number) {
+		super(
+			`Authentication required to access private repository: ${repoUrl}`
+		);
+		this.name = 'GitAuthenticationError';
+	}
+}
+
+export type GitAdditionalHeaders = Record<string, string>;
+
+/**
  * Downloads specific files from a git repository.
  * It uses the git protocol over HTTP to fetch the files. It only uses
  * three HTTP requests regardless of the number of paths requested.
@@ -67,14 +81,22 @@ export async function sparseCheckout(
 	filesPaths: string[],
 	options?: {
 		withObjects?: boolean;
+		additionalHeaders?: GitAdditionalHeaders;
 	}
 ): Promise<SparseCheckoutResult> {
-	const treesPack = await fetchWithoutBlobs(repoUrl, commitHash);
+	const additionalHeaders = options?.additionalHeaders || {};
+	const treesPack = await fetchWithoutBlobs(
+		repoUrl,
+		commitHash,
+		additionalHeaders
+	);
 	const objects = await resolveObjects(treesPack.idx, commitHash, filesPaths);
 
 	const blobOids = filesPaths.map((path) => objects[path].oid);
 	const blobsPack =
-		blobOids.length > 0 ? await fetchObjects(repoUrl, blobOids) : null;
+		blobOids.length > 0
+			? await fetchObjects(repoUrl, blobOids, additionalHeaders)
+			: null;
 
 	const fetchedPaths: Record<string, any> = {};
 	await Promise.all(
@@ -177,9 +199,14 @@ const FULL_SHA_REGEX = /^[0-9a-f]{40}$/i;
  */
 export async function listGitFiles(
 	repoUrl: string,
-	commitHash: string
+	commitHash: string,
+	additionalHeaders: GitAdditionalHeaders = {}
 ): Promise<GitFileTree[]> {
-	const treesPack = await fetchWithoutBlobs(repoUrl, commitHash);
+	const treesPack = await fetchWithoutBlobs(
+		repoUrl,
+		commitHash,
+		additionalHeaders
+	);
 	const rootTree = await resolveAllObjects(treesPack.idx, commitHash);
 	if (!rootTree?.object) {
 		return [];
@@ -195,13 +222,17 @@ export async function listGitFiles(
  * @param ref The branch name or commit hash.
  * @returns The commit hash.
  */
-export async function resolveCommitHash(repoUrl: string, ref: GitRef) {
+export async function resolveCommitHash(
+	repoUrl: string,
+	ref: GitRef,
+	additionalHeaders: GitAdditionalHeaders = {}
+) {
 	const parsed = await parseGitRef(repoUrl, ref);
 	if (parsed.resolvedOid) {
 		return parsed.resolvedOid;
 	}
 
-	const oid = await fetchRefOid(repoUrl, parsed.refname);
+	const oid = await fetchRefOid(repoUrl, parsed.refname, additionalHeaders);
 	if (!oid) {
 		throw new Error(`Git ref "${parsed.refname}" not found at ${repoUrl}`);
 	}
@@ -239,7 +270,8 @@ function gitTreeToFileTree(tree: GitTree): GitFileTree[] {
  */
 export async function listGitRefs(
 	repoUrl: string,
-	fullyQualifiedBranchPrefix: string
+	fullyQualifiedBranchPrefix: string,
+	additionalHeaders: GitAdditionalHeaders = {}
 ) {
 	const packbuffer = Buffer.from(
 		(await collect([
@@ -260,9 +292,19 @@ export async function listGitRefs(
 			'content-type': 'application/x-git-upload-pack-request',
 			'Content-Length': `${packbuffer.length}`,
 			'Git-Protocol': 'version=2',
+			...additionalHeaders,
 		},
 		body: packbuffer as any,
 	});
+
+	if (!response.ok) {
+		if (response.status === 401 || response.status === 403) {
+			throw new GitAuthenticationError(repoUrl, response.status);
+		}
+		throw new Error(
+			`Failed to fetch git refs from ${repoUrl}: ${response.status} ${response.statusText}`
+		);
+	}
 
 	const refs: Record<string, string> = {};
 	for await (const line of parseGitResponseLines(response)) {
@@ -376,8 +418,12 @@ async function parseGitRef(
 	}
 }
 
-async function fetchRefOid(repoUrl: string, refname: string) {
-	const refs = await listGitRefs(repoUrl, refname);
+async function fetchRefOid(
+	repoUrl: string,
+	refname: string,
+	additionalHeaders?: GitAdditionalHeaders
+) {
+	const refs = await listGitRefs(repoUrl, refname, additionalHeaders);
 	const candidates = [refname, `${refname}^{}`];
 	for (const candidate of candidates) {
 		const sanitized = candidate.trim();
@@ -388,7 +434,11 @@ async function fetchRefOid(repoUrl: string, refname: string) {
 	return null;
 }
 
-async function fetchWithoutBlobs(repoUrl: string, commitHash: string) {
+async function fetchWithoutBlobs(
+	repoUrl: string,
+	commitHash: string,
+	additionalHeaders?: Record<string, string>
+) {
 	const packbuffer = Buffer.from(
 		(await collect([
 			GitPktLine.encode(
@@ -409,9 +459,19 @@ async function fetchWithoutBlobs(repoUrl: string, commitHash: string) {
 			Accept: 'application/x-git-upload-pack-advertisement',
 			'content-type': 'application/x-git-upload-pack-request',
 			'Content-Length': `${packbuffer.length}`,
+			...additionalHeaders,
 		},
 		body: packbuffer as any,
 	});
+
+	if (!response.ok) {
+		if (response.status === 401 || response.status === 403) {
+			throw new GitAuthenticationError(repoUrl, response.status);
+		}
+		throw new Error(
+			`Failed to fetch git objects from ${repoUrl}: ${response.status} ${response.statusText}`
+		);
+	}
 
 	const iterator = streamToIterator(response.body!);
 	const parsed = await parseUploadPackResponse(iterator);
@@ -539,7 +599,11 @@ async function resolveObjects(
 }
 
 // Request oid for each resolvedRef
-async function fetchObjects(url: string, objectHashes: string[]) {
+async function fetchObjects(
+	url: string,
+	objectHashes: string[],
+	additionalHeaders?: Record<string, string>
+) {
 	const packbuffer = Buffer.from(
 		(await collect([
 			...objectHashes.map((objectHash) =>
@@ -558,9 +622,19 @@ async function fetchObjects(url: string, objectHashes: string[]) {
 			Accept: 'application/x-git-upload-pack-advertisement',
 			'content-type': 'application/x-git-upload-pack-request',
 			'Content-Length': `${packbuffer.length}`,
+			...additionalHeaders,
 		},
 		body: packbuffer as any,
 	});
+
+	if (!response.ok) {
+		if (response.status === 401 || response.status === 403) {
+			throw new GitAuthenticationError(url, response.status);
+		}
+		throw new Error(
+			`Failed to fetch git objects from ${url}: ${response.status} ${response.statusText}`
+		);
+	}
 
 	const iterator = streamToIterator(response.body!);
 	const parsed = await parseUploadPackResponse(iterator);

@@ -39,6 +39,7 @@ import type {
 	PhpIniOptions,
 	PHPInstanceCreatedHook,
 } from '@wp-playground/wordpress';
+import { shouldRenderProgress } from '../utils/progress';
 
 async function mountResources(php: PHP, mounts: Mount[]) {
 	for (const mount of mounts) {
@@ -74,7 +75,8 @@ function tracePhpWasm(processId: number, format: string, ...args: any[]) {
 }
 
 /**
- * Force TTY status to preserve ANSI control codes in the output.
+ * Force TTY status to preserve ANSI control codes in the output
+ * when the environment is interactive.
  *
  * This script is spawned as `new Worker()` and process.stdout and process.stderr are
  * WritableWorkerStdio objects. By default, they strip ANSI control codes from the output
@@ -90,6 +92,9 @@ Object.defineProperty(process.stderr, 'isTTY', { value: true });
 const output = {
 	lastWriteWasProgress: false,
 	progress(data: string) {
+		if (!shouldRenderProgress(process.stdout)) {
+			return;
+		}
 		if (!process.stdout.isTTY) {
 			// eslint-disable-next-line no-console
 			console.log(data);
@@ -382,9 +387,8 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 			if ((await streamedResponse!.exitCode) !== 0) {
 				// exitCode != 1 means the blueprint execution failed. Let's throw an error.
 				// and clean up.
-				const syncResponse = await PHPResponse.fromStreamedResponse(
-					streamedResponse
-				);
+				const syncResponse =
+					await PHPResponse.fromStreamedResponse(streamedResponse);
 				throw new PHPExecutionFailureError(
 					`PHP.run() failed with exit code ${syncResponse.exitCode}.`,
 					syncResponse,

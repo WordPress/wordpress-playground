@@ -6,6 +6,7 @@ import type {
 } from './worker-thread-v2';
 import type { MessagePort as NodeMessagePort } from 'worker_threads';
 import type { RunCLIArgs, SpawnedWorker, WorkerType } from '../run-cli';
+import { shouldRenderProgress } from '../utils/progress';
 
 /**
  * Boots Playground CLI workers using Blueprint version 2.
@@ -108,6 +109,9 @@ export class BlueprintsV2Handler {
 		message: string,
 		finalUpdate: boolean
 	) {
+		if (!shouldRenderProgress(writeStream)) {
+			return;
+		}
 		if (message === this.lastProgressMessage) {
 			// Avoid repeating the same message
 			return;

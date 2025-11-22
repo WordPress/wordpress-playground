@@ -4,21 +4,21 @@ import css from './style.module.css';
 import BrowserChrome from '../browser-chrome';
 import {
 	selectActiveSiteError,
+	selectActiveSiteErrorDetails,
 	useActiveSite,
 	useAppDispatch,
 	useAppSelector,
 } from '../../lib/state/redux/store';
 import { removeClientInfo } from '../../lib/state/redux/slice-clients';
 import { bootSiteClient } from '../../lib/state/redux/boot-site-client';
-import type { SiteError } from '../../lib/state/redux/slice-ui';
-import { Button, Spinner } from '@wordpress/components';
+import { Spinner } from '@wordpress/components';
 import {
-	removeSite,
 	selectSiteBySlug,
 	selectSitesLoaded,
 	selectTemporarySites,
 } from '../../lib/state/redux/slice-sites';
 import classNames from 'classnames';
+import { SiteErrorModal } from '../site-error-modal';
 
 export const supportedDisplayModes = [
 	'browser-full-screen',
@@ -200,138 +200,26 @@ export const JustViewport = function JustViewport({
 	}, [siteSlug, iframeRef, runtimeConfigString]);
 
 	const error = useAppSelector(selectActiveSiteError);
-
-	if (error) {
-		return (
-			<div className={css.siteError}>
-				<div className={css.siteErrorContent}>
-					<SiteErrorMessage error={error} siteSlug={siteSlug} />
-				</div>
-			</div>
-		);
-	}
-
-	return (
-		<iframe
-			key={siteSlug}
-			title="WordPress Playground wrapper (the actual WordPress site is in another, nested iframe)"
-			className={classNames('playground-viewport', css.fullSize)}
-			ref={iframeRef}
-		/>
-	);
-};
-
-function SiteErrorMessage({
-	error,
-	siteSlug,
-}: {
-	error: SiteError;
-	siteSlug: string;
-}) {
-	const dispatch = useAppDispatch();
-	if (
-		error === 'directory-handle-not-found-in-indexeddb' ||
-		error === 'directory-handle-permission-denied'
-	) {
-		/**
-		 * Displayed either when the directory permissions truly expired OR when we
-		 * expected to find the directory handle in IndexedDB, but it wasn't actually there.
-		 *
-		 * In the latter scenario, this error message states an untrue failure reason. This
-		 * is to keep things simple. We don't want to start explaining IndexedDB, OPFS handles
-		 * etc. What matters is that the directory handle is gone and the site won't work until
-		 * the user to provide a new one.
-		 */
-		return (
-			<>
-				<h1>Local directory permissions expired</h1>
-				<p>
-					You previously granted WordPress Playground access to your
-					local directory, but the browser no longer allows Playground
-					to access it.
-				</p>
-				<p>
-					There's no way to recover from this today. We are working on
-					a way of selecting the local directory again. Stay tuned,
-					and if you urgently need to work with this site, tell us at{' '}
-					<a
-						target="_blank"
-						rel="noopener noreferrer"
-						href="https://github.com/WordPress/wordpress-playground/issues/1746"
-					>
-						GitHub
-					</a>
-					.
-				</p>
-			</>
-		);
-	}
-
-	if (error === 'directory-handle-directory-does-not-exist') {
-		return (
-			<>
-				<h1>Local directory was deleted</h1>
-				<p>
-					It seems like you deleted the local directory you previously
-					selected.
-				</p>
-				<p>Unfortunately, this site won't work anymore.</p>
-				<Button
-					className={css.actionButton}
-					variant="primary"
-					onClick={() => {
-						dispatch(removeSite(siteSlug));
-						dispatch(removeClientInfo(siteSlug));
-					}}
-				>
-					Delete this site and try again
-				</Button>
-			</>
-		);
-	}
-
-	if (error === 'github-artifact-expired') {
-		return (
-			<>
-				<h1>This artifact has expired</h1>
-				<p>
-					The requested GitHub artifactis no longer available. GitHub
-					only serves PR build artifacts for a limited time.
-				</p>
-				<p>
-					If you want to preview that PR, you will need to re-run
-					GitHub workflows in that PR. One way to do that is by
-					pushing an empty commit.
-				</p>
-				<Button
-					className={css.actionButton}
-					variant="primary"
-					onClick={() => {
-						// Remove core-pr parameter and reload
-						const url = new URL(window.location.href);
-						url.searchParams.delete('core-pr');
-						window.location.href = url.toString();
-					}}
-				>
-					Restart Playground without that PR
-				</Button>
-			</>
-		);
-	}
+	const errorDetails = useAppSelector(selectActiveSiteErrorDetails);
+	const activeSiteSlug = useAppSelector((state) => state.ui.activeSite?.slug);
+	const showOverlay = error && activeSiteSlug === siteSlug;
 
 	return (
 		<>
-			<h1>Something went wrong</h1>
-			<p>An error occurred while loading your site. Please try again.</p>
-			<Button
-				className={css.actionButton}
-				variant="primary"
-				onClick={() => {
-					window.location.reload();
-				}}
-			>
-				Reload the browser tab to try again
-			</Button>
+			<iframe
+				key={siteSlug}
+				title="WordPress Playground wrapper (the actual WordPress site is in another, nested iframe)"
+				className={classNames('playground-viewport', css.fullSize)}
+				ref={iframeRef}
+			/>
+			{showOverlay ? (
+				<SiteErrorModal
+					error={error}
+					siteSlug={siteSlug}
+					site={site}
+					errorDetails={errorDetails}
+				/>
+			) : null}
 		</>
 	);
-}
+};
