@@ -182,19 +182,13 @@ describe.each(blueprintVersions)(
 
 		test.skipIf(isBlueprintsV2OnWindows)(
 			'should be able to follow external symlinks in primary and secondary PHP instances',
-			async ({ skip }) => {
+			async () => {
 				const testArgs: Partial<RunCLIArgs> =
 					version === 2
 						? { allow: 'follow-symlinks' }
 						: { followSymlinks: true };
 
-				if (version === 2) {
-					// @TODO: Fix this feature for Blueprints v2 (or fix the test if it is just a test issue)
-					skip();
-				}
-
 				// TODO: Make sure test always uses a single worker.
-				// TODO: Is there a way to confirm we are testing use of a non-primary PHP instance?
 				const tmpDir = await mkdtemp(
 					path.join(tmpdir(), 'playground-test-')
 				);
@@ -216,7 +210,11 @@ describe.each(blueprintVersions)(
 						unlinkSync(symlinkPath);
 					}
 					// TODO: Confirm that symlink target is outside of current working dir tree.
-					symlinkSync(tmpDir, symlinkPath);
+					symlinkSync(
+						tmpDir,
+						symlinkPath,
+						os.platform() === 'win32' ? 'junction' : null
+					);
 					cliServer = await runCLI({
 						...suiteCliArgs,
 						...testArgs,
