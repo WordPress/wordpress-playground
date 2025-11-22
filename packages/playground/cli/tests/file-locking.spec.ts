@@ -1469,15 +1469,15 @@ describe('Playground CLI file locking', () => {
 					`
 				);
 
-				const promisedExclusiveResponse = fetchScript(php1Script);
-				const promisedSharedResponse = fetchScript(php2Script);
+				const promisedSharedResponse = fetchScript(php1Script);
+				const promisedExclusiveResponse = fetchScript(php2Script);
 
-				const exclusiveResponse = await promisedExclusiveResponse;
+				const sharedResponse = await promisedSharedResponse;
 				await cliServer.playground.writeFile(
 					coordinationFile,
 					'php1-end-of-script'
 				);
-				const sharedResponse = await promisedSharedResponse;
+				const exclusiveResponse = await promisedExclusiveResponse;
 
 				expect(sharedResponse.status).toBe(200);
 				expect(exclusiveResponse.status).toBe(200);
