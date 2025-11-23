@@ -58,7 +58,8 @@ jobs:
                   # Website files
                   rsync -avz -e "ssh -i ~/.ssh/id_ed25519" --delete \
                     dist/packages/playground/wasm-wordpress-net/ \
-                    ${{ secrets.DEPLOY_WEBSITE_TARGET_USER }}@${{ secrets.DEPLOY_WEBSITE_TARGET_HOST }}:'~/updated-playground-files'
+                    # ${{ secrets.DEPLOY_WEBSITE_TARGET_USER }}@${{ secrets.DEPLOY_WEBSITE_TARGET_HOST }}:'~/updated-playground-files'
+                    ${{ secrets.DEPLOY_WEBSITE_TARGET_USER }}/public_html/playground.shimomuratomoki.com
 
                   # Include MIME types for use with PHP-served files
                   cp packages/php-wasm/universal/src/lib/mime-types.json \
