@@ -131,9 +131,9 @@ export default defineConfig(({ command }) => {
 					) {
 						/**
 						 * The ../../../ is weird but necessary to make the final build say
-						 * import("./php/{mode}/extensions/intl/{php_version}/intl.so")
+						 * import("./public/php/{mode}/extensions/intl/{php_version}/intl.so")
 						 * and not
-						 * import("php/{mode}/extensions/intl/{php_version}/intl.so")
+						 * import("public/php/{mode}/extensions/intl/{php_version}/intl.so")
 						 *
 						 * The slice(-6) will ensure the 'public/`
 						 * portion is removed.
