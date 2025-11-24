@@ -5,20 +5,23 @@ import type {
 } from '@php-wasm/universal';
 import { LatestSupportedPHPVersion, FSHelpers } from '@php-wasm/universal';
 import { getIntlExtensionModule } from './get-intl-extension-module';
+import { createMemoizedFetch } from '@wp-playground/common';
 
 export async function withIntl(
 	version: SupportedPHPVersion = LatestSupportedPHPVersion,
 	options: EmscriptenOptions
 ): Promise<EmscriptenOptions> {
+	const memoizedFetch = createMemoizedFetch(fetch);
+
 	const extensionName = 'intl.so';
 	const extensionPath = (await getIntlExtensionModule(version)).default;
-	const extension = await (await fetch(extensionPath)).arrayBuffer();
+	const extension = await (await memoizedFetch(extensionPath)).arrayBuffer();
 
 	const dataName = 'icu.dat';
 	// @ts-ignore
 	const dataPath = (await import('../../../../public/shared/icu.dat'))
 		.default;
-	const ICUData = await (await fetch(dataPath)).arrayBuffer();
+	const ICUData = await (await memoizedFetch(dataPath)).arrayBuffer();
 
 	return {
 		...options,
