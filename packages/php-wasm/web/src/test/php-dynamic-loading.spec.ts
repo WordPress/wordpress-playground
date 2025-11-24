@@ -102,7 +102,7 @@ SupportedPHPVersions.forEach((phpVersion) => {
 				return list;
 			}, phpVersion);
 
-			test.expect(result).toContain('icudt74l.dat');
+			test.expect(result).toContain('icu.dat');
 		});
 
 		test('uses intl functions', async ({ page }) => {

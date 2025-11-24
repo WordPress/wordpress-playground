@@ -15,7 +15,7 @@ export async function withIntl(
 	const extensionPath = await getIntlExtensionModule(version);
 	const extension = fs.readFileSync(extensionPath);
 
-	const dataName = 'icudt74l.dat';
+	const dataName = 'icu.dat';
 	const dataPath = `${__dirname}/shared/${dataName}`;
 	const ICUData = fs.readFileSync(dataPath);
 

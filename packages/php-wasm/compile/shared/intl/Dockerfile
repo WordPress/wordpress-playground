@@ -200,4 +200,4 @@ RUN	mkdir -p /root/intl/modules; \
 	mv /root/php-src/ext/intl/modules/* /root/intl/modules;
 
 RUN	mkdir -p /root/intl/data; \
-	mv /root/share/icu/74.2/icudt74l.dat /root/intl/data;
+	mv /root/share/icu/74.2/icudt74l.dat /root/intl/data/icu.dat;

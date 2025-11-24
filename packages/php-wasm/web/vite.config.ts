@@ -102,13 +102,13 @@ export default defineConfig(({ command }) => {
 					if (
 						command === 'build' &&
 						typeof specifier === 'string' &&
-						specifier.match(/icudt74l\.dat$/)
+						specifier.match(/icu\.dat$/)
 					) {
 						/**
 						 * The ../../../ is weird but necessary to make the final build say
-						 * import("./shared/icudt74l.dat")
+						 * import("./shared/icu.dat")
 						 * and not
-						 * import("shared/icudt74l.dat")
+						 * import("shared/icu.dat")
 						 *
 						 * The slice(-2) will ensure the 'public/`
 						 * portion is removed.
@@ -165,7 +165,7 @@ export default defineConfig(({ command }) => {
 				// the preserve-php-loaders-imports plugin above.
 				external: [
 					/php_\d_\d.js$/,
-					/icudt74l.dat$/,
+					/icu.dat$/,
 					/intl.so$/,
 					...getExternalModules(),
 				],

@@ -218,7 +218,7 @@ describe.each(phpVersions)('PHP %s', async (phpVersion) => {
 		});
 
 		it('loads the icu data file', async () => {
-			expect(php.listFiles('/internal/shared')).toContain('icudt74l.dat');
+			expect(php.listFiles('/internal/shared')).toContain('icu.dat');
 		});
 
 		it('uses intl functions', async () => {
