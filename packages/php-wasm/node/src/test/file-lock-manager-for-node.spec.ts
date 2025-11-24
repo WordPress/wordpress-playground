@@ -4,7 +4,7 @@ import { fork } from 'child_process';
 import type { ChildProcess } from 'child_process';
 import { join } from 'path';
 import type { WholeFileLockOp } from '../lib/file-lock-manager';
-import { flockSync as nativeFlockSync } from 'fs-ext';
+import fsExt from 'fs-ext';
 
 const TEST_FILE1 = new URL('test1.txt', import.meta.url).pathname;
 const TEST_FILE2 = new URL('test2.txt', import.meta.url).pathname;
@@ -13,7 +13,7 @@ describe('FileLockManagerForNode', () => {
 	let lockManager: FileLockManagerForNode;
 
 	beforeEach(() => {
-		lockManager = new FileLockManagerForNode(nativeFlockSync);
+		lockManager = new FileLockManagerForNode(fsExt);
 		writeFileSync(TEST_FILE1, `test file 1 for ${import.meta.url}`);
 		writeFileSync(TEST_FILE2, `test file 2 for ${import.meta.url}`);
 	});
