@@ -47,7 +47,6 @@ import { BlueprintsV2Handler } from './blueprints-v2/blueprints-v2-handler';
 import { BlueprintsV1Handler } from './blueprints-v1/blueprints-v1-handler';
 import { startBridge } from '@php-wasm/xdebug-bridge';
 import path from 'path';
-import os from 'os';
 import {
 	cleanupStalePlaygroundTempDirs,
 	createPlaygroundCliTempDir,
@@ -621,22 +620,15 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 
 	// Declare file lock manager outside scope of startServer
 	// so we can look at it when debugging request handling.
-	const nativeFlockSync =
-		os.platform() === 'win32'
-			? // @TODO: Enable fs-ext here when it works with Windows.
-			  undefined
-			: await import('fs-ext')
-					.then((m) => m.flockSync)
-					.catch(() => {
-						logger.warn(
-							'The fs-ext package is not installed. ' +
-								'Internal file locking will not be integrated with ' +
-								'host OS file locking.'
-						);
-						return undefined;
-					});
-	const fileLockManager = new FileLockManagerForNode(nativeFlockSync);
-
+	const nativeLockingAPI = await import('fs-ext').catch(() => {
+		logger.warn(
+			'The fs-ext package is not installed. ' +
+				'Internal file locking will not be integrated with ' +
+				'host OS file locking.'
+		);
+		return undefined;
+	});
+	const fileLockManager = new FileLockManagerForNode(nativeLockingAPI);
 	let wordPressReady = false;
 	let isFirstRequest = true;
 
@@ -651,13 +643,13 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 
 			const targetWorkerCount =
 				args.command === 'server'
-					? args.experimentalMultiWorker ?? 1
+					? (args.experimentalMultiWorker ?? 1)
 					: 1;
 			const totalWorkersToSpawn =
 				args.command === 'server'
 					? // Account for the initial worker
-					  // which is discarded by the server after setup.
-					  targetWorkerCount + 1
+						// which is discarded by the server after setup.
+						targetWorkerCount + 1
 					: targetWorkerCount;
 
 			const processIdSpaceLength = Math.floor(
@@ -675,9 +667,8 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 			 * because we don't have to create or maintain multiple copies of the same files.
 			 */
 			const tempDirNameDelimiter = '-playground-cli-site-';
-			const nativeDir = await createPlaygroundCliTempDir(
-				tempDirNameDelimiter
-			);
+			const nativeDir =
+				await createPlaygroundCliTempDir(tempDirNameDelimiter);
 			logger.debug(`Native temp dir for VFS root: ${nativeDir.path}`);
 
 			const IDEConfigName = 'WP Playground CLI - Listen for Xdebug';
@@ -948,9 +939,8 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 			try {
 				const workers = await promisedWorkers;
 
-				const fileLockManagerPort = await exposeFileLockManager(
-					fileLockManager
-				);
+				const fileLockManagerPort =
+					await exposeFileLockManager(fileLockManager);
 
 				// NOTE: Using a free-standing block to isolate initial boot vars
 				// while keeping the logic inline.
@@ -1022,9 +1012,8 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 							initialWorkerProcessIdSpace +
 							index * processIdSpaceLength;
 
-						const fileLockManagerPort = await exposeFileLockManager(
-							fileLockManager
-						);
+						const fileLockManagerPort =
+							await exposeFileLockManager(fileLockManager);
 
 						const additionalPlayground =
 							await handler.bootPlayground({

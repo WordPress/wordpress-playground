@@ -1,10 +1,24 @@
 import { logger } from '@php-wasm/logger';
 import { openSync, closeSync } from 'fs';
+import { platform } from 'os';
 
-type NativeFlockSync = (
-	fd: number,
-	flags: 'sh' | 'ex' | 'shnb' | 'exnb' | 'un'
-) => void;
+export type NativeLockingAPI = {
+	flockSync: (
+		fd: number,
+		flags: 'sh' | 'ex' | 'shnb' | 'exnb' | 'un',
+		arg?: number | undefined
+	) => void;
+	fcntlSync: (
+		fd: number,
+		command: 'getfd' | 'setfd' | 'setlk' | 'getlk' | 'setlkw',
+		arg: number | undefined
+	) => number;
+	constants: {
+		F_WRLCK: number;
+		F_RDLCK: number;
+		F_UNLCK: number;
+	};
+};
 
 import type {
 	FileLockManager,
@@ -20,7 +34,7 @@ type LockMode = 'exclusive' | 'shared' | 'unlock';
 type NativeLock = {
 	fd: number;
 	mode: LockMode;
-	nativeFlockSync: NativeFlockSync;
+	nativeLockingAPI: NativeLockingAPI;
 };
 
 type LockedRange = RequestedRangeLock & {
@@ -36,7 +50,7 @@ const MAX_64BIT_OFFSET = BigInt(2n ** 64n - 1n);
  * It provides methods for locking and unlocking files, as well as finding conflicting locks.
  */
 export class FileLockManagerForNode implements FileLockManager {
-	nativeFlockSync: NativeFlockSync;
+	nativeLockingAPI: NativeLockingAPI;
 	locks: Map<string, FileLock>;
 
 	/**
@@ -45,11 +59,22 @@ export class FileLockManagerForNode implements FileLockManager {
 	 * @param nativeFlockSync A synchronous flock() function to lock files via the host OS.
 	 */
 	constructor(
-		nativeFlockSync: NativeFlockSync = function flockSyncNoOp() {
-			/* do nothing */
+		nativeLockingAPI: NativeLockingAPI = {
+			flockSync: function flockSyncNoOp() {
+				/* do nothing */
+			},
+			fcntlSync: function fcntlSyncNoOp() {
+				/* do nothing */
+				return 0;
+			},
+			constants: {
+				F_WRLCK: 1,
+				F_RDLCK: 2,
+				F_UNLCK: 3,
+			},
 		}
 	) {
-		this.nativeFlockSync = nativeFlockSync;
+		this.nativeLockingAPI = nativeLockingAPI;
 		this.locks = new Map();
 	}
 
@@ -70,7 +95,7 @@ export class FileLockManagerForNode implements FileLockManager {
 			const maybeLock = FileLock.maybeCreate(
 				path,
 				op.type,
-				this.nativeFlockSync
+				this.nativeLockingAPI
 			);
 			if (maybeLock === undefined) {
 				return false;
@@ -105,7 +130,7 @@ export class FileLockManagerForNode implements FileLockManager {
 			const maybeLock = FileLock.maybeCreate(
 				path,
 				requestedLock.type,
-				this.nativeFlockSync
+				this.nativeLockingAPI
 			);
 			if (maybeLock === undefined) {
 				return false;
@@ -202,16 +227,32 @@ export class FileLock {
 	static maybeCreate(
 		path: string,
 		mode: Exclude<WholeFileLock['type'], 'unlocked'>,
-		nativeFlockSync: NativeFlockSync
+		nativeLockingAPI: NativeLockingAPI
 	): FileLock | undefined {
 		let fd;
 		try {
 			fd = openSync(path, 'a+');
 
-			const flockFlags = mode === 'exclusive' ? 'exnb' : 'shnb';
-			nativeFlockSync(fd, flockFlags);
+			if (platform() === 'win32') {
+				// Windows does not support downgrading or upgrading
+				// an existing lock in-place. Instead, the existing lock must be
+				// released before attempting to acquire a new lock at the desired level.
+				// Since SQLite expects POSIX-like behavior with fcntl() which allows
+				// upgrading and downgrading an existing lock,
+				// we cannot afford the possibility of losing the current lock in Windows.
+				// Therefore, we always request an exclusive lock on Windows.
+				nativeLockingAPI.flockSync(fd, 'ex');
+			} else {
+				nativeLockingAPI.fcntlSync(
+					fd,
+					'setlk',
+					mode === 'exclusive'
+						? nativeLockingAPI.constants.F_WRLCK
+						: nativeLockingAPI.constants.F_RDLCK
+				);
+			}
 
-			const nativeLock: NativeLock = { fd, mode, nativeFlockSync };
+			const nativeLock: NativeLock = { fd, mode, nativeLockingAPI };
 			return new FileLock(nativeLock);
 		} catch {
 			if (fd !== undefined) {
@@ -598,13 +639,41 @@ export class FileLock {
 			return true;
 		}
 
-		const flockFlags =
-			(requiredNativeLockType === 'exclusive' && 'exnb') ||
-			(requiredNativeLockType === 'shared' && 'shnb') ||
-			'un';
-
 		try {
-			this.nativeLock.nativeFlockSync(this.nativeLock.fd, flockFlags);
+			if (platform() === 'win32') {
+				// Windows does not support downgrading or upgrading
+				// an existing lock in-place. Instead, the existing lock must be
+				// released before attempting to acquire a new lock at the desired level.
+				// Since SQLite expects POSIX-like behavior with fcntl() which allows
+				// upgrading and downgrading an existing lock,
+				// we cannot afford the possibility of losing the current lock in Windows.
+				// Therefore, we always request an exclusive lock on Windows
+				// and hold that lock as-is until the lock needs to be released entirely.
+				if (requiredNativeLockType === 'unlock') {
+					this.nativeLock.nativeLockingAPI.flockSync(
+						this.nativeLock.fd,
+						'un'
+					);
+				}
+			} else {
+				const { constants } = this.nativeLock.nativeLockingAPI;
+				const flags =
+					(requiredNativeLockType === 'exclusive' &&
+						constants.F_WRLCK) ||
+					(requiredNativeLockType === 'shared' &&
+						constants.F_RDLCK) ||
+					constants.F_UNLCK;
+
+				// TODO: Update locking to obtain native locks for both fcntl() and flock()
+				// operations. On Linux, this is important because fcntl() locks do not conflict
+				// with flock() locks and vice versa. On macOS, fcntl() and flock() locks can conflict.
+				this.nativeLock.nativeLockingAPI.fcntlSync(
+					this.nativeLock.fd,
+					'setlk',
+					flags
+				);
+			}
+
 			this.nativeLock.mode = requiredNativeLockType;
 			return true;
 		} catch {
