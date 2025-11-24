@@ -243,12 +243,10 @@ export class FileLock {
 				// Therefore, we always request an exclusive lock on Windows.
 				nativeLockingAPI.flockSync(fd, 'ex');
 			} else {
-				nativeLockingAPI.fcntlSync(
+				// TODO: Update locking to obtain native locks for both fcntl() and flock()
+				nativeLockingAPI.flockSync(
 					fd,
-					'setlk',
-					mode === 'exclusive'
-						? nativeLockingAPI.constants.F_WRLCK
-						: nativeLockingAPI.constants.F_RDLCK
+					mode === 'exclusive' ? 'ex' : 'sh'
 				);
 			}
 
@@ -656,20 +654,12 @@ export class FileLock {
 					);
 				}
 			} else {
-				const { constants } = this.nativeLock.nativeLockingAPI;
 				const flags =
-					(requiredNativeLockType === 'exclusive' &&
-						constants.F_WRLCK) ||
-					(requiredNativeLockType === 'shared' &&
-						constants.F_RDLCK) ||
-					constants.F_UNLCK;
-
-				// TODO: Update locking to obtain native locks for both fcntl() and flock()
-				// operations. On Linux, this is important because fcntl() locks do not conflict
-				// with flock() locks and vice versa. On macOS, fcntl() and flock() locks can conflict.
-				this.nativeLock.nativeLockingAPI.fcntlSync(
+					(requiredNativeLockType === 'exclusive' && 'ex') ||
+					(requiredNativeLockType === 'shared' && 'sh') ||
+					'un';
+				this.nativeLock.nativeLockingAPI.flockSync(
 					this.nativeLock.fd,
-					'setlk',
 					flags
 				);
 			}
