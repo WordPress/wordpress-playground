@@ -241,12 +241,12 @@ export class FileLock {
 				// upgrading and downgrading an existing lock,
 				// we cannot afford the possibility of losing the current lock in Windows.
 				// Therefore, we always request an exclusive lock on Windows.
-				nativeLockingAPI.flockSync(fd, 'ex');
+				nativeLockingAPI.flockSync(fd, 'exnb');
 			} else {
 				// TODO: Update locking to obtain native locks for both fcntl() and flock()
 				nativeLockingAPI.flockSync(
 					fd,
-					mode === 'exclusive' ? 'ex' : 'sh'
+					mode === 'exclusive' ? 'exnb' : 'shnb'
 				);
 			}
 
@@ -655,8 +655,8 @@ export class FileLock {
 				}
 			} else {
 				const flags =
-					(requiredNativeLockType === 'exclusive' && 'ex') ||
-					(requiredNativeLockType === 'shared' && 'sh') ||
+					(requiredNativeLockType === 'exclusive' && 'exnb') ||
+					(requiredNativeLockType === 'shared' && 'shnb') ||
 					'un';
 				this.nativeLock.nativeLockingAPI.flockSync(
 					this.nativeLock.fd,
