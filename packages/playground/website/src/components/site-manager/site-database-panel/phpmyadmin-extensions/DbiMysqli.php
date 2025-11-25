@@ -1,11 +1,25 @@
-<?php
+<?php declare(strict_types = 1);
+
 /**
- * Interface to the MySQL Improved extension (MySQLi)
+ * A phpMyAdmin DBI extension for the MySQL-on-SQLite driver.
+ *
+ * This implementation is based on the original PhpMyAdmin\Dbal\DbiMysqli class.
+ * It is modified to use the MySQL-on-SQLite driver instead of MySQLi extension.
+ *
+ * @see https://github.com/phpmyadmin/phpmyadmin/blob/962857e4f63d42e38f11ff4d63f5e722018add76/libraries/classes/Dbal/DbiMysqli.php
+ * @see https://github.com/phpmyadmin/phpmyadmin/blob/142c0cf3be84c346174b730b6aa3ebcf44029256/src/Dbal/MysqliResult.php
  */
 
-declare(strict_types=1);
-
 namespace PhpMyAdmin\Dbal;
+
+use Exception;
+use Generator;
+use PDO;
+use PhpMyAdmin\FieldMetadata;
+use PhpMyAdmin\Query\Utilities;
+use Throwable;
+use WP_SQLite_Connection;
+use WP_SQLite_Driver;
 
 // Load the SQLite driver.
 require_once '/internal/shared/sqlite-database-integration/version.php';
@@ -29,22 +43,16 @@ require_once '/internal/shared/sqlite-database-integration/wp-includes/sqlite-as
 require_once '/internal/shared/sqlite-database-integration/wp-includes/sqlite-ast/class-wp-sqlite-information-schema-exception.php';
 require_once '/internal/shared/sqlite-database-integration/wp-includes/sqlite-ast/class-wp-sqlite-information-schema-reconstructor.php';
 
-use PDO;
-use PhpMyAdmin\FieldMetadata;
-use PhpMyAdmin\Query\Utilities;
-use Throwable;
-use WP_SQLite_Connection;
-use WP_SQLite_Driver;
-
-// A quick trick to supress phpMyAdmin warning:
+// A quick trick to supress the following phpMyAdmin warning:
 //   "The mysqlnd extension is missing. Please check your PHP configuration."
-// We should target the particular error, not
+// TODO: We should target the particular error, not all errors.
 \Closure::bind(
 	function () { $this->errors = []; },
 	$GLOBALS['errorHandler'],
 	$GLOBALS['errorHandler']
 )();
 
+// Ensure MySQLi type constants are defined for phpMyAdmin.
 if (!defined('MYSQLI_TYPE_DECIMAL')) define('MYSQLI_TYPE_DECIMAL', 0);
 if (!defined('MYSQLI_TYPE_TINY')) define('MYSQLI_TYPE_TINY', 1);
 if (!defined('MYSQLI_TYPE_CHAR')) define('MYSQLI_TYPE_CHAR', 1);
@@ -75,6 +83,7 @@ if (!defined('MYSQLI_TYPE_VAR_STRING')) define('MYSQLI_TYPE_VAR_STRING', 253);
 if (!defined('MYSQLI_TYPE_STRING')) define('MYSQLI_TYPE_STRING', 243);
 if (!defined('MYSQLI_TYPE_GEOMETRY')) define('MYSQLI_TYPE_GEOMETRY', 255);
 
+// Ensure MySQLi flags constants are defined for phpMyAdmin.
 if (!defined('MYSQLI_NOT_NULL_FLAG')) define('MYSQLI_NOT_NULL_FLAG', 1);
 if (!defined('MYSQLI_PRI_KEY_FLAG')) define('MYSQLI_PRI_KEY_FLAG', 2);
 if (!defined('MYSQLI_UNIQUE_KEY_FLAG')) define('MYSQLI_UNIQUE_KEY_FLAG', 4);
@@ -93,15 +102,29 @@ if (!defined('MYSQLI_PART_KEY_FLAG')) define('MYSQLI_PART_KEY_FLAG', 16384);
 if (!defined('MYSQLI_NUM_FLAG')) define('MYSQLI_NUM_FLAG', 32768);
 if (!defined('MYSQLI_GROUP_FLAG')) define('MYSQLI_GROUP_FLAG', 32768);
 
+/**
+ * A custom result class for the MySQL-on-SQLite driver.
+ *
+ * This implementation is based on the original PhpMyAdmin\Dbal\MysqliResult class.
+ *
+ * @see https://github.com/phpmyadmin/phpmyadmin/blob/142c0cf3be84c346174b730b6aa3ebcf44029256/src/Dbal/MysqliResult.php
+ */
 class Result implements ResultInterface {
-	private $rows;
-	private $columns;
+	/** @var array */
+	private $rows = array();
+
+	/** @var array */
+	private $columns = array();
+
+	/** @var int */
 	private $row_offset = 0;
 
 	public function __construct($rows, $columns) {
 		$this->rows = array();
-		foreach ($rows as $row) {
-			$this->rows[] = (array) $row;
+		if (is_array($rows)) {
+			foreach ($rows as $row) {
+				$this->rows[] = (array) $row;
+			}
 		}
 		$this->columns = $columns;
 	}
@@ -162,7 +185,7 @@ class Result implements ResultInterface {
 		return $meta;
 	}
 
-	public function getIterator(): \Generator {
+	public function getIterator(): Generator {
 		$this->row_offset = 0;
 		foreach ($this->rows as $row) {
 			yield $row;
@@ -186,15 +209,21 @@ class Result implements ResultInterface {
 	}
 }
 
-
+/**
+ * A custom DBI extension for the MySQL-on-SQLite driver.
+ *
+ * This implementation is based on the original PhpMyAdmin\Dbal\DbiMysqli class.
+ *
+ * @see https://github.com/phpmyadmin/phpmyadmin/blob/962857e4f63d42e38f11ff4d63f5e722018add76/libraries/classes/Dbal/DbiMysqli.php
+ */
 class DbiMysqli implements DbiExtension {
-	/**
-	 * WP_SQLite_Driver instance
-	 * @var WP_SQLite_Driver
-	 */
+	/** @var WP_SQLite_Driver */
     private $driver;
 
+	/** @var string */
 	private $last_error_message = '';
+
+	/** @var int */
 	private $last_error_number = 0;
 
     public function connect($user, $password, array $server) {
@@ -208,7 +237,7 @@ class DbiMysqli implements DbiExtension {
     }
 
     public function selectDb($databaseName, $link): bool {
-		$link->query('USE ' . $databaseName);
+		$link->query(sprintf('USE %s', $link->get_connection()->quote_identifier($databaseName)));
 		return true;
     }
 
@@ -225,23 +254,23 @@ class DbiMysqli implements DbiExtension {
 		if ($result === false) {
 			return false;
 		}
-        return new Result($result ?? array(), $link->get_last_column_meta());
+        return new Result($result, $link->get_last_column_meta());
     }
 
     public function realMultiQuery($link, $query): bool {
-		throw new \Exception('Not implemented');
+		return false; // Multi-query not implemented.
     }
 
     public function moreResults($link): bool {
-        return false;
+		return false; // Multi-query not implemented.
     }
 
     public function nextResult($link): bool {
-		return true;
+		return false; // Multi-query not implemented.
     }
 
     public function storeResult($link) {
-		throw new \Exception('Not implemented');
+		return false; // Multi-query not implemented.
     }
 
     public function getHostInfo($link) {
@@ -253,16 +282,14 @@ class DbiMysqli implements DbiExtension {
     }
 
     public function getClientInfo() {
-		return 'mysql-on-sqlite';
+		return 'mysql-on-sqlite 8.0.38';
     }
 
-    /**
-     * Returns last error message or an empty string if no errors occurred.
-     */
     public function getError($link): string
     {
 		$error_number = $this->last_error_number;
 		$error_message = $this->last_error_message;
+		$GLOBALS['errno'] = $error_number;
 		if ($error_number === 0 || $error_message === '') {
 			return '';
 		}
@@ -270,16 +297,17 @@ class DbiMysqli implements DbiExtension {
     }
 
     public function affectedRows($link) {
-		return $link->get_last_return_value() ?? 0;
+		$value = $link->get_last_return_value();
+		return is_int($value) ? $value : 0;
     }
 
     public function escapeString($link, $string) {
-		// For some reason, $link->get_connection()->quote($string)
-		// causes the strings to be double-quoted.
+		// For some reason, using "$link->get_connection()->quote($string)"
+		// causes the strings to be double-quoted. Let's skip the quoting.
 		return $string;
     }
 
     public function prepare($link, string $query) {
-        throw new \Exception('Not implemented');
+        throw new Exception('Not implemented');
     }
 }
