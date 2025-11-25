@@ -1,4 +1,5 @@
-import { Button } from '@wordpress/components';
+import { Button, Icon, Flex, FlexItem } from '@wordpress/components';
+import { external } from '@wordpress/icons';
 import { useState } from 'react';
 import {
 	type PlaygroundClient,
@@ -107,7 +108,14 @@ export function AdminerButton({
 			isBusy={isLoading}
 			onClick={handleOpenAdminer}
 		>
-			{isLoading ? 'Setting up Adminer…' : 'Adminer'}
+			<Flex justify="space-between" gap={2} expanded={true}>
+				<FlexItem>
+					{isLoading ? 'Opening Adminer…' : 'Open in Adminer'}
+				</FlexItem>
+				<FlexItem>
+					<Icon icon={external} size={16} />
+				</FlexItem>
+			</Flex>
 		</Button>
 	);
 }

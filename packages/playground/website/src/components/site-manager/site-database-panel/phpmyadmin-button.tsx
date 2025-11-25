@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Button } from '@wordpress/components';
+import { Button, Icon, Flex, FlexItem } from '@wordpress/components';
+import { external } from '@wordpress/icons';
 import {
 	type PlaygroundClient,
 	type StepDefinition,
@@ -99,7 +100,14 @@ export function PhpMyAdminButton({
 			isBusy={isLoading}
 			onClick={handleOpenPhpMyAdmin}
 		>
-			{isLoading ? 'Setting up phpMyAdmin…' : 'phpMyAdmin'}
+			<Flex justify="space-between" gap={2} expanded={true}>
+				<FlexItem>
+					{isLoading ? 'Opening phpMyAdmin…' : 'Open in phpMyAdmin'}
+				</FlexItem>
+				<FlexItem>
+					<Icon icon={external} size={16} />
+				</FlexItem>
+			</Flex>
 		</Button>
 	);
 }
