@@ -277,7 +277,7 @@ describe.each(configsForRequestTests)(
 						: joinPaths(
 								new URL(absoluteUrl as string).pathname,
 								nonExistentFileUri
-							);
+						  );
 				expect(response).toEqual({
 					httpStatusCode: 200,
 					headers: expect.any(Object),

@@ -245,8 +245,8 @@ export class PHPRequestHandler implements AsyncDisposable {
 		this.#PORT = url.port
 			? Number(url.port)
 			: url.protocol === 'https:'
-				? 443
-				: 80;
+			? 443
+			: 80;
 		this.#PROTOCOL = (url.protocol || '').replace(':', '');
 		const isNonStandardPort = this.#PORT !== 443 && this.#PORT !== 80;
 		this.#HOST = [

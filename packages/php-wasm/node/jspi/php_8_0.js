@@ -29791,9 +29791,7 @@ export function init(RuntimeName, PHPLoader) {
 			surfData.ctx.restore();
 		},
 		translateColorToCSSRGBA: (rgba) =>
-			`rgba(${rgba >>> 24},${(rgba >> 16) & 0xff},${(rgba >> 8) & 0xff},${
-				rgba & 0xff
-			})`,
+			`rgba(${rgba >>> 24},${(rgba >> 16) & 0xff},${(rgba >> 8) & 0xff},${rgba & 0xff})`,
 	};
 
 	var _boxColor = (surf, x1, y1, x2, y2, color) =>
