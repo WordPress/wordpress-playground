@@ -1,0 +1,3 @@
+.hideRoot :global([data-path="/"]) {
+	display: none;
+}

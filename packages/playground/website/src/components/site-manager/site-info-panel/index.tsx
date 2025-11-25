@@ -36,6 +36,8 @@ import { ActiveSiteSettingsForm } from '../site-settings-form/active-site-settin
 import { getRelativeDate } from '../../../lib/get-relative-date';
 import { removeSite, sitesSlice } from '../../../lib/state/redux/slice-sites';
 import {
+	type Blueprint,
+	type BlueprintBundle,
 	BlueprintReflection,
 	resolveRuntimeConfiguration,
 } from '@wp-playground/blueprints';
@@ -46,9 +48,9 @@ const SiteFileBrowser = lazy(() =>
 	import('../site-file-browser').then((m) => ({ default: m.SiteFileBrowser }))
 );
 
-const BlueprintEditor = lazy(() =>
-	import('../../blueprint-editor').then((m) => ({
-		default: m.JSONSchemaEditor,
+const BlueprintBundleEditor = lazy(() =>
+	import('../../blueprint-editor/index').then((m) => ({
+		default: m.BlueprintBundleEditor,
 	}))
 );
 
@@ -105,6 +107,16 @@ export function SiteInfoPanel({
 	const [blueprintCode, setBlueprintCode] = useState<string>('');
 	const [autoRecreate, setAutoRecreate] = useState<boolean>(false);
 	const [isRecreating, setIsRecreating] = useState<boolean>(false);
+
+	const handleBundleChange = useCallback(async (bundle: BlueprintBundle) => {
+		try {
+			const file = await bundle.read('blueprint.json');
+			const text = await file.text();
+			setBlueprintCode(text);
+		} catch (error) {
+			logger.error('Failed to read updated blueprint.json', error);
+		}
+	}, []);
 
 	// Initialize blueprint code using BlueprintReflection to handle bundles
 	useEffect(() => {
@@ -580,15 +592,17 @@ export function SiteInfoPanel({
 											</div>
 										}
 									>
-										<BlueprintEditor
-											config={{
-												initialDoc: blueprintCode,
-												autofocus: false,
-												onChange: isTemporary
-													? setBlueprintCode
-													: undefined,
-												readOnly: !isTemporary,
-											}}
+										<BlueprintBundleEditor
+											initialBlueprint={
+												site.metadata
+													.originalBlueprint as Blueprint
+											}
+											onChange={
+												isTemporary
+													? handleBundleChange
+													: undefined
+											}
+											isVisible={tab.name === 'blueprint'}
 											className={classNames(
 												css.blueprintEditor,
 												{
