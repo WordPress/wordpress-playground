@@ -126,8 +126,8 @@ RUN set -euxo pipefail; \
 	cd /root/icu/source; \
 	mkdir -p /root; \
 	source /root/emsdk/emsdk_env.sh; \
-	export CFLAGS="-sSIDE_MODULE -D__x86_64__"; \
-	export CXXFLAGS="-sSIDE_MODULE -D__x86_64__"; \
+	export CFLAGS="-fPIC -D__x86_64__"; \
+	export CXXFLAGS="-fPIC -D__x86_64__"; \
 
 	emconfigure ./configure \
 		--host=i386-unknown-freebsd \
@@ -176,12 +176,6 @@ RUN set -euxo pipefail; \
 		/root/replace.sh 's|INTL_SHARED_LIBADD\s*=.*||' Makefile; \
 	fi; \
 
-	# The generated Makefile incorrectly sets INTL_SHARED_LIBADD to include static ICU libraries.
-	# This breaks building a dynamic intl extension with Emscripten.
-	if [[ "${PHP_VERSION:0:1}" -eq "7" && "${PHP_VERSION:2:1}" -le "3" ]]; then \
-		/root/replace.sh 's|INTL_SHARED_LIBADD\s*=.*||' Makefile; \
-	fi; \
-
 	export EMCC_FLAGS="-sSIDE_MODULE -D__x86_64__"; \
 
 	if [ "$WITH_DEBUG" = "yes" ]; then \
@@ -191,7 +185,7 @@ RUN set -euxo pipefail; \
 	fi; \
 
 	if [ "$WITH_JSPI" = "yes" ]; then \
-		export EMCC_FLAGS="${EMCC_FLAGS} -sJSPI"; \
+		export EMCC_FLAGS="${EMCC_FLAGS} -sSUPPORT_LONGJMP=wasm -fwasm-exceptions -sJSPI"; \
 	else \
 		export EMCC_FLAGS="${EMCC_FLAGS} -sASYNCIFY -sASYNCIFY_ADVISE"; \
 	fi; \

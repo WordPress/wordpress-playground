@@ -29,8 +29,8 @@ const argParser = yargs(process.argv.slice(2))
 			description: 'Build with DWARF debug information.',
 		},
 		WITH_JSPI: {
-			type: 'boolean',
-			default: false,
+			type: 'string',
+			choices: ['yes', 'no'],
 			description: 'Build with JSPI support',
 		},
 	});
@@ -50,8 +50,8 @@ const getArg = (name) => {
 		name in args
 			? args[name]
 			: name in platformDefaults.all
-			? platformDefaults.all[name]
-			: 'no';
+				? platformDefaults.all[name]
+				: 'no';
 	if (name === 'PHP_VERSION') {
 		value = fullyQualifiedPHPVersion(value);
 	}

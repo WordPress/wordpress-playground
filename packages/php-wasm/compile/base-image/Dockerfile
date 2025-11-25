@@ -47,10 +47,14 @@ RUN set -euxo pipefail;\
 #
 # WASM libraries to rebuild live here:
 # https://github.com/WordPress/wordpress-playground/tree/67d916b5eccfe78e26e9c953598cc1a81f316931/packages/php-wasm/compile
+#
+# Version 4.0.19 is required. MAIN_MODULE should not be built as RELOCATABLE.
+# https://github.com/emscripten-core/emscripten/commit/4d16f757adcc801fb3f990ccb6100b747c815650
+#
 RUN ln -s /usr/bin/python3 /usr/bin/python
 RUN git clone https://github.com/emscripten-core/emsdk.git && \
-    ./emsdk/emsdk install 4.0.5 && \
-    /root/emsdk/emsdk activate 4.0.5
+    ./emsdk/emsdk install 4.0.19 && \
+    /root/emsdk/emsdk activate 4.0.19
 
 RUN mkdir -p /root/lib/lib /root/lib/include /root/lib/share /root/lib/bin
 

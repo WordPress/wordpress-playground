@@ -1163,10 +1163,10 @@
 /* #undef MODULES_DIRNAME */
 
 /* Magick API method prefix */
-/* #undef NAMESPACE_PREFIX */
+#define MAGICKCORE_NAMESPACE_PREFIX PHPWasm_Magick_
 
 /* Magick API method prefix tag */
-/* #undef NAMESPACE_PREFIX_TAG */
+#define MAGICKCORE_NAMESPACE_PREFIX_TAG "PHPWasm_Magick_"
 
 /* Define to 1 if assertions should be disabled. */
 /* #undef NDEBUG */

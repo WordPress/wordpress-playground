@@ -1,8 +1,8 @@
 diff --git a/php-src/Zend/zend_variables.c b/php-src/Zend/zend_variables.c
-index c2594274dd4..2c3a01ece57 100644
+index c2594274dd4..2a3c2a7a120 100644
 --- a/php-src/Zend/zend_variables.c
 +++ b/php-src/Zend/zend_variables.c
-@@ -44,6 +44,16 @@ static void ZEND_FASTCALL zend_ast_ref_destroy_wrapper(zend_ast_ref *ast);
+@@ -44,6 +44,14 @@ static void ZEND_FASTCALL zend_ast_ref_destroy_wrapper(zend_ast_ref *ast);
 
  typedef void (ZEND_FASTCALL *zend_rc_dtor_func_t)(zend_refcounted *p);
 
@@ -11,15 +11,13 @@ index c2594274dd4..2c3a01ece57 100644
 +// returns an int, while zend_rc_dtor_func_t expects a void return type.
 +static void zend_list_free_wrapper(zend_refcounted *p) {
 +	zend_resource *res = (zend_resource*)p;
-+	zval zv;
-+	ZVAL_RES(&zv, res);
-+	zend_list_free(&zv);
++	zend_list_free(res);
 +}
 +
  static const zend_rc_dtor_func_t zend_rc_dtor_func[] = {
  	/* IS_UNDEF        */ (zend_rc_dtor_func_t)zend_empty_destroy,
  	/* IS_NULL         */ (zend_rc_dtor_func_t)zend_empty_destroy,
-@@ -54,7 +64,9 @@ static const zend_rc_dtor_func_t zend_rc_dtor_func[] = {
+@@ -54,7 +62,9 @@ static const zend_rc_dtor_func_t zend_rc_dtor_func[] = {
  	/* IS_STRING       */ (zend_rc_dtor_func_t)zend_string_destroy,
  	/* IS_ARRAY        */ (zend_rc_dtor_func_t)zend_array_destroy_wrapper,
  	/* IS_OBJECT       */ (zend_rc_dtor_func_t)zend_object_destroy_wrapper,
@@ -30,6 +28,24 @@ index c2594274dd4..2c3a01ece57 100644
  	/* IS_REFERENCE    */ (zend_rc_dtor_func_t)zend_reference_destroy,
  	/* IS_CONSTANT_AST */ (zend_rc_dtor_func_t)zend_ast_ref_destroy_wrapper
  };
+
+diff --git a/php-src/main/streams/cast.c b/php-src/main/streams/cast.c
+index 6cfa6519779..6a630db8511 100644
+--- a/php-src/main/streams/cast.c
++++ b/php-src/main/streams/cast.c
+@@ -113,10 +113,10 @@ static int stream_cookie_seeker(void *cookie, __off64_t *position, int whence)
+ 	return 0;
+ }
+ # else
+-static int stream_cookie_seeker(void *cookie, zend_off_t position, int whence)
++static int stream_cookie_seeker(void *cookie, long long *position, int whence)
+ {
+
+-	return php_stream_seek((php_stream *)cookie, position, whence);
++	return php_stream_seek((php_stream *)cookie, *position, whence);
+ }
+ # endif
+
 diff --git a/php-src/ext/opcache/zend_accelerator_debug.c b/php-src/ext/opcache/zend_accelerator_debug.c
 index bd0a5bdb0a4..47f723d34dc 100644
 --- a/php-src/ext/opcache/zend_accelerator_debug.c
@@ -82,20 +98,3 @@ index dca9cf4fe33..5ebc935b496 100644
  			break;
  		default: /* failed to stat file, does not exist? */
  			return ret;
-diff --git a/php-src/main/streams/cast.c b/php-src/main/streams/cast.c
-index 6cfa6519779..6a630db8511 100644
---- a/php-src/main/streams/cast.c
-+++ b/php-src/main/streams/cast.c
-@@ -113,10 +113,10 @@ static int stream_cookie_seeker(void *cookie, __off64_t *position, int whence)
- 	return 0;
- }
- # else
--static int stream_cookie_seeker(void *cookie, zend_off_t position, int whence)
-+static int stream_cookie_seeker(void *cookie, long long *position, int whence)
- {
-
--	return php_stream_seek((php_stream *)cookie, position, whence);
-+	return php_stream_seek((php_stream *)cookie, *position, whence);
- }
- # endif
-

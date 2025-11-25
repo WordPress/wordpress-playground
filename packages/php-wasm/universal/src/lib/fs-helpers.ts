@@ -59,7 +59,7 @@ export class FSHelpers {
 	static writeFile(
 		FS: Emscripten.RootFS,
 		path: string,
-		data: string | Uint8Array
+		data: string | Uint8Array | Buffer
 	) {
 		FS.writeFile(path, data);
 	}
