@@ -235,7 +235,6 @@
 					"php-sqlite3.spec.ts",
 					"php-networking.spec.ts",
 					"php-dynamic-loading.spec.ts",
-					"php-crash.spec.ts",
 					"php-mysqli.spec.ts",
 					"php-process-manager.spec.ts"
 				]
@@ -252,7 +251,6 @@
 					"php-sqlite3.spec.ts",
 					"php-networking.spec.ts",
 					"php-dynamic-loading.spec.ts",
-					"php-crash.spec.ts",
 					"php-mysqli.spec.ts",
 					"php-process-manager.spec.ts"
 				]
@@ -264,6 +262,7 @@
 			"options": {
 				"reportsDirectory": "../../../coverage/packages/php-wasm/node",
 				"testFiles": [
+					"php-crash.spec.ts",
 					"php-ini.spec.ts",
 					"write-files.spec.ts",
 					"php-worker.spec.ts",
@@ -281,6 +280,7 @@
 				"configFile": "packages/php-wasm/node/vite.jspi.config.ts",
 				"reportsDirectory": "../../../coverage/packages/php-wasm/node",
 				"testFiles": [
+					"php-crash.spec.ts",
 					"php-ini.spec.ts",
 					"write-files.spec.ts",
 					"php-worker.spec.ts",
