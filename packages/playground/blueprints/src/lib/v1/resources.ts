@@ -240,7 +240,7 @@ export abstract class Resource<T extends File | Directory> {
 }
 
 export abstract class ResourceDecorator<
-	T extends File | Directory,
+	T extends File | Directory
 > extends Resource<T> {
 	protected resource: Resource<T>;
 	constructor(resource: Resource<T>) {
@@ -769,7 +769,7 @@ export function toDirectoryZipName(rawInput: string) {
  * A decorator for a resource that adds caching functionality.
  */
 export class CachedResource<
-	T extends File | Directory,
+	T extends File | Directory
 > extends ResourceDecorator<T> {
 	protected override promise?: Promise<T>;
 
@@ -787,7 +787,7 @@ export class CachedResource<
  * through a semaphore.
  */
 export class SemaphoreResource<
-	T extends File | Directory,
+	T extends File | Directory
 > extends ResourceDecorator<T> {
 	private readonly semaphore: Semaphore;
 	constructor(resource: Resource<T>, semaphore: Semaphore) {

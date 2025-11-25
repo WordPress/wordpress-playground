@@ -192,7 +192,7 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 						? new File(
 								[sqliteIntegrationPluginZip],
 								'sqlite-integration-plugin.zip'
-							)
+						  )
 						: undefined,
 				sapiName: 'cli',
 				createFiles: {

@@ -44,10 +44,7 @@ import { defaultWpCliPath, defaultWpCliResource } from '../steps/wp-cli';
 import type { ErrorObject } from 'ajv';
 
 export class InvalidBlueprintError extends Error {
-	constructor(
-		message: string,
-		public readonly validationErrors?: unknown
-	) {
+	constructor(message: string, public readonly validationErrors?: unknown) {
 		super(message);
 		this.name = 'InvalidBlueprintError';
 	}

@@ -146,11 +146,11 @@ export function expandAutoMounts(args: RunCLIArgs): RunCLIArgs {
 				? {
 						step: 'activateTheme',
 						themeDirectoryName: themeName,
-					}
+				  }
 				: {
 						step: 'activateTheme',
 						themeFolderName: themeName,
-					}
+				  }
 		);
 	} else if (containsWpContentDirectories(path)) {
 		/**

@@ -34,10 +34,7 @@ if (typeof globalThis.Buffer === 'undefined') {
  * Custom error class for git authentication failures.
  */
 export class GitAuthenticationError extends Error {
-	constructor(
-		public repoUrl: string,
-		public status: number
-	) {
+	constructor(public repoUrl: string, public status: number) {
 		super(
 			`Authentication required to access private repository: ${repoUrl}`
 		);
