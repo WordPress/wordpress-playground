@@ -317,8 +317,9 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		// from browser storage is the default version when it is actually something else.
 		// Assuming an incorrect WP version would break remote asset retrieval for minified
 		// WP builds – we would download the wrong assets pack.
-		this.loadedWordPressVersion =
-			await getLoadedWordPressVersion(requestHandler);
+		this.loadedWordPressVersion = await getLoadedWordPressVersion(
+			requestHandler
+		);
 		if (this.requestedWordPressVersion !== this.loadedWordPressVersion) {
 			logger.warn(
 				`Loaded WordPress version (${this.loadedWordPressVersion}) differs ` +
