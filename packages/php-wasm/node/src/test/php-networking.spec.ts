@@ -49,9 +49,10 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 
 	phpLoaderOptions.forEach((options) => {
 		it('should be able to make a request to a server', async () => {
+			let php: PHP | undefined;
 			try {
 				const serverUrl = await startServer();
-				const php = new PHP(await loadNodeRuntime(phpVersion, options));
+				php = new PHP(await loadNodeRuntime(phpVersion, options));
 				await setPhpIniEntries(php, {
 					allow_url_fopen: 1,
 					disable_functions: '',
@@ -65,17 +66,18 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 				const { text } = await php.run({
 					scriptPath: '/tmp/test.php',
 				});
-				php.exit();
 				expect(text).toEqual('response from express');
 			} finally {
+				php?.exit();
 				await stopServer(server);
 			}
 		});
 
 		it('should support fopen() and fread() until EOF', async () => {
+			let php: PHP | undefined;
 			try {
 				const serverUrl = await startServer();
-				const php = new PHP(await loadNodeRuntime(phpVersion, options));
+				php = new PHP(await loadNodeRuntime(phpVersion, options));
 				await setPhpIniEntries(php, {
 					allow_url_fopen: 1,
 					disable_functions: '',
@@ -141,20 +143,19 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 				const { text } = await php.run({
 					scriptPath: '/tmp/test.php',
 				});
-				php.exit();
 				expect(text).toContain('Stream select result: 1');
 			} finally {
+				php?.exit();
 				await stopServer(server);
 			}
 		}, 10000);
 
 		describe('cURL', () => {
 			it('should support single handle requests', async () => {
+				let php: PHP | undefined;
 				try {
 					const serverUrl = await startServer();
-					const php = new PHP(
-						await loadNodeRuntime(phpVersion, options)
-					);
+					php = new PHP(await loadNodeRuntime(phpVersion, options));
 					await setPhpIniEntries(php, {
 						allow_url_fopen: 1,
 						disable_functions: '',
@@ -173,9 +174,9 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 					const { text } = await php.run({
 						scriptPath: '/tmp/test.php',
 					});
-					php.exit();
 					expect(text).toEqual('response from express');
 				} finally {
+					php?.exit();
 					await stopServer(server);
 				}
 			});
@@ -183,9 +184,10 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 			it(
 				'should support multi handle requests',
 				async () => {
+					let php: PHP | undefined;
 					try {
 						const serverUrl = await startServer();
-						const php = new PHP(
+						php = new PHP(
 							await loadNodeRuntime(phpVersion, options)
 						);
 						await setPhpIniEntries(php, {
@@ -206,9 +208,21 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 							$mh = curl_multi_init();
 							curl_multi_add_handle($mh, $ch1);
 							curl_multi_add_handle($mh, $ch2);
+							$started = microtime(true);
 							do {
-								curl_multi_exec($mh, $running);
-								curl_multi_select($mh);
+								$status = curl_multi_exec($mh, $running);
+								if ($status !== CURLM_OK && $status !== CURLM_CALL_MULTI_PERFORM) {
+									throw new Exception('curl_multi_exec failed: '.curl_multi_strerror($status));
+								}
+								if ($running > 0) {
+									$rc = curl_multi_select($mh, 1.0);
+									if ($rc === -1) {
+										usleep(100000);
+									}
+								}
+								if ((microtime(true) - $started) > 5) {
+									throw new Exception('curl_multi_exec timed out');
+								}
 							} while ($running > 0);
 							echo curl_multi_getcontent($ch1)."\\n";
 							echo curl_multi_getcontent($ch2);
@@ -222,11 +236,15 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 						const { text } = await php.run({
 							scriptPath: '/tmp/test.php',
 						});
-						php.exit();
 						expect(text).toEqual(
 							'response from express\nresponse from express'
 						);
 					} finally {
+						try {
+							php?.exit();
+						} catch {
+							// ignore cleanup failures
+						}
 						await stopServer(server);
 					}
 				},

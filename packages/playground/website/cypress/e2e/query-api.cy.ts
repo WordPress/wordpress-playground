@@ -6,7 +6,7 @@ import * as MinifiedWordPressVersions from '../../../wordpress-builds/src/wordpr
 
 const LatestSupportedWordPressVersion = Object.keys(
 	MinifiedWordPressVersions
-).filter((x) => !['nightly', 'beta'].includes(x))[0];
+).filter((x) => !['trunk', 'beta'].includes(x))[0];
 
 describe('Query API', () => {
 	describe('option `php`', () => {

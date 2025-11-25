@@ -648,6 +648,9 @@ const memoizedFetch = createMemoizedFetch(fetch);
  * @param versionQuery - The WordPress version query string to resolve.
  * @returns The resolved WordPress release URL and version string.
  */
+const WORDPRESS_TRUNK_ZIP_URL =
+	'https://github.com/WordPress/WordPress/archive/refs/heads/master.zip';
+
 export async function resolveWordPressRelease(versionQuery = 'latest') {
 	if (versionQuery === null) {
 		versionQuery = 'latest';
@@ -668,10 +671,10 @@ export async function resolveWordPressRelease(versionQuery = 'latest') {
 			source: 'inferred',
 		};
 	} else if (versionQuery === 'trunk' || versionQuery === 'nightly') {
+		const cacheBust = new Date().toISOString().split('T')[0];
 		return {
-			releaseUrl:
-				'https://wordpress.org/nightly-builds/wordpress-latest.zip',
-			version: 'nightly-' + new Date().toISOString().split('T')[0],
+			releaseUrl: `${WORDPRESS_TRUNK_ZIP_URL}?ts=${cacheBust}`,
+			version: 'trunk',
 			source: 'inferred',
 		};
 	}

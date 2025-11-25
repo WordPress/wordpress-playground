@@ -4,13 +4,22 @@ import yargs from 'yargs';
 import { promises as fs, statSync } from 'fs';
 import semver from 'semver';
 
+const remoteWordPressModules = {
+	trunk: {
+		url:
+			process.env.PLAYGROUND_TRUNK_ZIP_URL ??
+			'https://github.com/WordPress/WordPress/archive/refs/heads/master.zip',
+		size: 0,
+	},
+};
+
 const parser = yargs(process.argv.slice(2))
 	.usage('Usage: $0 [options]')
 	.options({
 		wpVersion: {
 			type: 'string',
 			description:
-				'The WordPress version to download. Can be a major version like 6.4 or "beta" or "nightly".',
+				'The WordPress version to download. Can be a major version like 6.4 or "beta" or "trunk" (alias "nightly").',
 			required: true,
 		},
 		['output-js']: {
@@ -32,6 +41,8 @@ const parser = yargs(process.argv.slice(2))
 	});
 
 const args = parser.argv;
+const requestedWpVersion =
+	args.wpVersion === 'nightly' ? 'trunk' : args.wpVersion;
 
 let wpVersions = await fetch(
 	'https://api.wordpress.org/core/version-check/1.7/?channel=beta'
@@ -87,36 +98,37 @@ function toVersionInfo(apiVersion, slug = null) {
 }
 
 let versionInfo = {};
-if (args.wpVersion === 'nightly') {
-	versionInfo.url =
-		'https://wordpress.org/nightly-builds/wordpress-latest.zip';
-	versionInfo.version = 'nightly';
-	versionInfo.majorVersion = 'nightly';
-	versionInfo.slug = 'nightly';
-} else if (args.wpVersion === 'beta') {
+
+if (requestedWpVersion === 'trunk') {
+	versionInfo.url = remoteWordPressModules.trunk.url;
+	versionInfo.version = 'trunk';
+	versionInfo.majorVersion = 'trunk';
+	versionInfo.slug = 'trunk';
+	versionInfo.isRemote = true;
+} else if (requestedWpVersion === 'beta') {
 	versionInfo = toVersionInfo(beta, 'beta');
-} else if (args.wpVersion.startsWith('latest')) {
+} else if (requestedWpVersion.startsWith('latest')) {
 	const relevantApiVersion = {
 		latest: latestVersions[0],
 		'latest-minus-1': latestVersions[1],
 		'latest-minus-2': latestVersions[2],
 		'latest-minus-3': latestVersions[3],
-	}[args.wpVersion];
+	}[requestedWpVersion];
 	versionInfo = toVersionInfo(relevantApiVersion);
-} else if (args.wpVersion.match(/\d\.\d/)) {
+} else if (requestedWpVersion.match(/\d\.\d/)) {
 	const relevantApiVersion = latestVersions.find((v) =>
-		v.version.startsWith(args.wpVersion)
+		v.version.startsWith(requestedWpVersion)
 	);
 	versionInfo = toVersionInfo(relevantApiVersion);
 }
 
 if (!versionInfo.url) {
-	if (args.wpVersion === 'beta') {
+	if (requestedWpVersion === 'beta') {
 		process.stdout.write('Skipping. We did not find a WP beta version.\n');
 		process.exit(0);
 	}
 
-	process.stdout.write(`WP version ${args.wpVersion} is not supported\n`);
+	process.stdout.write(`WP version ${requestedWpVersion} is not supported\n`);
 	process.stdout.write(await parser.getHelp());
 	process.exit(1);
 }
@@ -124,6 +136,8 @@ if (!versionInfo.url) {
 const sourceDir = path.dirname(new URL(import.meta.url).pathname);
 const outputAssetsDir = path.resolve(process.cwd(), args.outputAssets);
 const outputJsDir = path.resolve(process.cwd(), args.outputJs);
+const isRemoteModule =
+	versionInfo.slug && versionInfo.slug in remoteWordPressModules;
 
 // Short-circuit if the version is already downloaded and not forced
 const versionsPath = `${outputJsDir}/wp-versions.json`;
@@ -139,91 +153,97 @@ try {
 
 if (
 	!args.force &&
-	versionInfo.slug !== 'nightly' &&
+	versionInfo.slug !== 'trunk' &&
 	versions[versionInfo.slug] === versionInfo.version
 ) {
 	process.stdout.write(
-		`The requested version was ${args.wpVersion}, but its latest release (${versionInfo.version}) is already downloaded\n`
+		`The requested version was ${requestedWpVersion}, but its latest release (${versionInfo.version}) is already downloaded\n`
 	);
 	process.exit(0);
 }
 
 // Build WordPress
-const wordpressDir = join(sourceDir, 'wordpress');
-try {
+if (!isRemoteModule) {
+	const wordpressDir = join(sourceDir, 'wordpress');
 	try {
-		await fs.rm(wordpressDir, { recursive: true });
-	} catch (e) {
-		// Ignore
-	}
-	await fs.mkdir(wordpressDir);
-	// Install WordPress in a local directory
-	await asyncSpawn(
-		'npx',
-		[
-			'nx',
-			'unbuilt-jspi',
-			'playground-cli',
-			'--',
-			'run-blueprint',
-			`--wp=${versionInfo.url}`,
-			`--mount-before-install=${wordpressDir}:/wordpress`,
-		],
-		{ cwd: sourceDir, stdio: 'inherit' }
-	);
+		try {
+			await fs.rm(wordpressDir, { recursive: true });
+		} catch (e) {
+			// Ignore
+		}
+		await fs.mkdir(wordpressDir);
+		// Install WordPress in a local directory
+		await asyncSpawn(
+			'npx',
+			[
+				'nx',
+				'unbuilt-jspi',
+				'playground-cli',
+				'--',
+				'run-blueprint',
+				`--wp=${versionInfo.url}`,
+				`--mount-before-install=${wordpressDir}:/wordpress`,
+			],
+			{ cwd: sourceDir, stdio: 'inherit' }
+		);
 
-	// Minify that WordPress
+		// Minify that WordPress
+		await asyncSpawn(
+			'docker',
+			[
+				'build',
+				'.',
+				'--progress=plain',
+				'--tag=wordpress-playground',
+				'--build-arg',
+				`OUT_FILENAME=wp-${versionInfo.slug}`,
+			],
+			{ cwd: sourceDir, stdio: 'inherit' }
+		);
+	} finally {
+		await fs.rm(wordpressDir, { recursive: true });
+	}
+
+	// Extract the WordPress static root with wp-includes/ etc
 	await asyncSpawn(
 		'docker',
 		[
-			'build',
-			'.',
-			'--progress=plain',
-			'--tag=wordpress-playground',
-			'--build-arg',
-			`OUT_FILENAME=wp-${versionInfo.slug}`,
+			'run',
+			'--name',
+			'wordpress-playground-tmp',
+			'--rm',
+			'-v',
+			`${outputAssetsDir}:/output`,
+			'wordpress-playground',
+			'sh',
+			'-c',
+			`cp -r /root/output/wp-${versionInfo.slug} /output/`,
 		],
 		{ cwd: sourceDir, stdio: 'inherit' }
 	);
-} finally {
-	await fs.rm(wordpressDir, { recursive: true });
+
+	// Extract wp.zip from the docker image
+	await asyncSpawn(
+		'docker',
+		[
+			'run',
+			'--name',
+			'wordpress-playground-tmp',
+			'--rm',
+			'-v',
+			`${outputJsDir}:/output`,
+			'wordpress-playground',
+			'sh',
+			'-c',
+			`cp /root/output/*.zip /output/`,
+		],
+		{ cwd: sourceDir, stdio: 'inherit' }
+	);
+} else {
+	process.stdout.write(
+		`Skipping build for remote WordPress version "${versionInfo.slug}".\n`
+	);
 }
-
-// Extract the WordPress static root with wp-includes/ etc
-await asyncSpawn(
-	'docker',
-	[
-		'run',
-		'--name',
-		'wordpress-playground-tmp',
-		'--rm',
-		'-v',
-		`${outputAssetsDir}:/output`,
-		'wordpress-playground',
-		'sh',
-		'-c',
-		`cp -r /root/output/wp-${versionInfo.slug} /output/`,
-	],
-	{ cwd: sourceDir, stdio: 'inherit' }
-);
-
-// Extract wp.zip from the docker image
-await asyncSpawn(
-	'docker',
-	[
-		'run',
-		'--name',
-		'wordpress-playground-tmp',
-		'--rm',
-		'-v',
-		`${outputJsDir}:/output`,
-		'wordpress-playground',
-		'sh',
-		'-c',
-		`cp /root/output/*.zip /output/`,
-	],
-	{ cwd: sourceDir, stdio: 'inherit' }
-);
 
 // Update the WordPress versions JSON
 // Set WordPress version
@@ -239,6 +259,10 @@ versions = Object.keys(versions)
 	}, {});
 
 const slugify = (v) => v.replace(/[^a-zA-Z0-9_]/g, '_');
+const remoteModuleSlugs = Object.keys(remoteWordPressModules);
+const localVersionSlugs = Object.keys(versions).filter(
+	(version) => !remoteModuleSlugs.includes(version)
+);
 
 // Write the updated JSON back to the file
 await fs.writeFile(versionsPath, JSON.stringify(versions, null, 2));
@@ -260,7 +284,7 @@ for (const version of Object.keys(versions)) {
 // Refresh get-wordpress-module.ts
 const getWordPressModulePath = `${outputJsDir}/get-wordpress-module-details.ts`;
 const getWordPressModuleContent = `
-${Object.keys(versions)
+${localVersionSlugs
 	.map(
 		(version) =>
 			`// @ts-ignore
@@ -280,7 +304,18 @@ export function getWordPressModuleDetails(wpVersion: string = ${JSON.stringify(
 	switch (wpVersion) {
 		${Object.keys(versions)
 			.map(
-				(version) => `
+				(version) =>
+					remoteModuleSlugs.includes(version)
+						? `
+		case '${version}':
+			return {
+				size: ${JSON.stringify(
+					remoteWordPressModules[version].size ?? 0
+				)},
+				url: ${JSON.stringify(remoteWordPressModules[version].url)},
+			};
+			`
+					: `
 		case '${version}':
 			/** @ts-ignore */
 			return {
@@ -290,6 +325,17 @@ export function getWordPressModuleDetails(wpVersion: string = ${JSON.stringify(
 			`
 			)
 			.join('')}
+		${
+			remoteWordPressModules.trunk
+				? `
+		case 'nightly':
+			return {
+				size: ${JSON.stringify(remoteWordPressModules.trunk.size ?? 0)},
+				url: ${JSON.stringify(remoteWordPressModules.trunk.url)},
+			};
+		`
+				: ''
+		}
 
 	}
 	throw new Error('Unsupported WordPress module: ' + wpVersion);

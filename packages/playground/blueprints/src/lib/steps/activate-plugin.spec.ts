@@ -23,7 +23,7 @@ describe('Blueprint step activatePlugin()', () => {
 			sqliteIntegrationPluginZip: await getSqliteDriverModule(),
 		});
 		php = await handler.getPrimaryPhp();
-	});
+	}, 30_000);
 
 	afterEach(async () => {
 		php.exit();

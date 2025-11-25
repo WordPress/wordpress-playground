@@ -25,6 +25,7 @@ import {
 	type SpawnedWorker,
 	type WorkerType,
 } from '../run-cli';
+import { shouldRenderProgress } from '../utils/progress';
 
 /**
  * Boots Playground CLI workers using Blueprint version 1.
@@ -277,6 +278,9 @@ export class BlueprintsV1Handler {
 		finalUpdate: boolean
 	) {
 		if (this.args.verbosity === LogVerbosity.Quiet.name) {
+			return;
+		}
+		if (!shouldRenderProgress(writeStream)) {
 			return;
 		}
 		if (message === this.lastProgressMessage) {

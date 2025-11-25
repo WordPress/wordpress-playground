@@ -4,11 +4,11 @@
 
 # Table of contents
 
--   [Requirements](#requirements)
--   [Quickstart](#quickstart)
--   [Usage](#usage)
--   [Working with Blueprints](#working-with-blueprints)
--   [Contributing](#contributing)
+- [Requirements](#requirements)
+- [Quickstart](#quickstart)
+- [Usage](#usage)
+- [Working with Blueprints](#working-with-blueprints)
+- [Contributing](#contributing)
 
 ## Requirements
 

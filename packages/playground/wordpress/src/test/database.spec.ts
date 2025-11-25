@@ -61,9 +61,8 @@ describe('Test database', () => {
 				dataSqlPath: '/wordpress/wp-content/database/.ht.sqlite',
 			});
 
-			const loadedWordPressVersion = await getLoadedWordPressVersion(
-				handler
-			);
+			const loadedWordPressVersion =
+				await getLoadedWordPressVersion(handler);
 			expect(loadedWordPressVersion).toBeTruthy();
 			expect(Object.keys(MinifiedWordPressVersions)).toContain(
 				loadedWordPressVersion

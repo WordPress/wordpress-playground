@@ -682,6 +682,10 @@ wp-includes/blocks/more/editor.min.css
 wp-includes/blocks/more/editor.css
 wp-includes/blocks/more/editor-rtl.min.css
 wp-includes/blocks/accordion/block.json
+wp-includes/blocks/accordion/style.min.css
+wp-includes/blocks/accordion/style.css
+wp-includes/blocks/accordion/style-rtl.css
+wp-includes/blocks/accordion/style-rtl.min.css
 wp-includes/blocks/verse/block.json
 wp-includes/blocks/verse/style.min.css
 wp-includes/blocks/verse/style.css
