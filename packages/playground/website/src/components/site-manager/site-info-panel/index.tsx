@@ -127,9 +127,6 @@ export function SiteInfoPanel({
 		})();
 	}, [site.metadata.originalBlueprint]);
 
-	// Resolve playground URL
-	const [playgroundUrl, setPlaygroundUrl] = useState<string | null>(null);
-
 	// Save the tab when it changes
 	const handleTabSelect = (tabName: string) => {
 		setSiteLastTab(site.slug, tabName);
@@ -216,18 +213,6 @@ export function SiteInfoPanel({
 
 		void playground.documentRoot.then((root) => {
 			setDocumentRoot(root);
-		});
-	}, [playground]);
-
-	// Resolve playground URL
-	useEffect(() => {
-		if (!playground) {
-			setPlaygroundUrl(null);
-			return;
-		}
-
-		void playground.absoluteUrl.then((url) => {
-			setPlaygroundUrl(url);
 		});
 	}, [playground]);
 
@@ -632,8 +617,6 @@ export function SiteInfoPanel({
 								>
 									<SiteDatabasePanel
 										playground={playground}
-										playgroundUrl={playgroundUrl}
-										documentRoot={documentRoot}
 									/>
 								</div>
 								<div
