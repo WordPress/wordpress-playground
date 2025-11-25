@@ -55,10 +55,10 @@ console.log(await output.stdoutText);
 
 Ejecuta PHP dentro de Node.js sin instalación nativa de PHP. Permite al desarrollador producir las siguientes soluciones:
 
-- Tareas de CI/CD y herramientas de desarrollo.
-- Soporte a educación y flujos de trabajo de WordPress: potencia tutoriales interactivos, sandboxes y retos de código.
-- Generar contenido y prototipar comportamiento de servidor.
-- Renderizar HTML usando plantillas PHP y levantar rápidamente endpoints de API simulados para simular peticiones.
+-   Tareas de CI/CD y herramientas de desarrollo.
+-   Soporte a educación y flujos de trabajo de WordPress: potencia tutoriales interactivos, sandboxes y retos de código.
+-   Generar contenido y prototipar comportamiento de servidor.
+-   Renderizar HTML usando plantillas PHP y levantar rápidamente endpoints de API simulados para simular peticiones.
 
 <!-- ## Practical demos -->
 
@@ -655,7 +655,7 @@ try {
 <!-- -   **Memory management**: Large files may impact performance. Consider streaming for big datasets. -->
 <!-- -   **Caching**: Cache compiled PHP scripts and frequently accessed data. -->
 
-- **Reutiliza instancias PHP**: Crear una nueva instancia PHP es costoso. Reutiliza la misma instancia cuando sea posible.
-- **Operaciones por lotes**: Agrupa múltiples operaciones de archivos juntas en lugar de ejecutar scripts separados.
-- **Gestión de memoria**: Los archivos grandes pueden impactar el rendimiento. Considera streaming para grandes conjuntos de datos.
-- **Caché**: Almacena en caché scripts PHP compilados y datos accedidos frecuentemente.
+-   **Reutiliza instancias PHP**: Crear una nueva instancia PHP es costoso. Reutiliza la misma instancia cuando sea posible.
+-   **Operaciones por lotes**: Agrupa múltiples operaciones de archivos juntas en lugar de ejecutar scripts separados.
+-   **Gestión de memoria**: Los archivos grandes pueden impactar el rendimiento. Considera streaming para grandes conjuntos de datos.
+-   **Caché**: Almacena en caché scripts PHP compilados y datos accedidos frecuentemente.

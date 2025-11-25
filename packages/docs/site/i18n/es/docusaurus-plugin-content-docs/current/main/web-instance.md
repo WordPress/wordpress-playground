@@ -26,9 +26,9 @@ Some key features:
 
 Algunas características clave:
 
-- **Basado en navegador**: No se requiere configuración de servidor local.
-- **Configuración instantánea**: Ejecuta WordPress con un solo clic.
-- **Entorno de prueba**: Ideal para probar plugins y temas.
+-   **Basado en navegador**: No se requiere configuración de servidor local.
+-   **Configuración instantánea**: Ejecuta WordPress con un solo clic.
+-   **Entorno de prueba**: Ideal para probar plugins y temas.
 
 <!--
 The [Query Params API](/developers/apis/query-api/) allows you to directly load specific configurations into a Playground instance. This includes setting a particular WordPress version, theme, or plugin. You can also define more complex setups using blueprints (see [examples here](/quick-start-guide#try-a-block-a-theme-or-a-plugin)).
@@ -59,8 +59,8 @@ On the toolbar, you'll find:
 
 En la barra de herramientas, encontrarás:
 
-- **Configuración de Playground**: Un panel para configurar tu instancia actual, como las versiones de PHP y WordPress.
-- **Administrador de Playground**: Este panel te permite administrar instancias de WordPress Playground, permitiéndote guardar, importar y exportarlas.
+-   **Configuración de Playground**: Un panel para configurar tu instancia actual, como las versiones de PHP y WordPress.
+-   **Administrador de Playground**: Este panel te permite administrar instancias de WordPress Playground, permitiéndote guardar, importar y exportarlas.
 
 <!--
 ### Playground Settings
@@ -82,11 +82,11 @@ The options available from the **Playground Settings Panel**, correspond to the 
 
 Las opciones disponibles desde el **Panel de Configuración de Playground**, corresponden a las siguientes [opciones de la API de consulta](/developers/apis/query-api#available-options):
 
-- `language`: Establece el idioma de la instancia de WordPress.
-- `multisite`: Habilita el soporte multisitio de WordPress.
-- `networking`: Otorga acceso a la red, permitiendo obtener datos del directorio de plugins de WordPress y las APIs internas de WordPress.
-- `php`: Especifica la versión de PHP para la instancia.
-- `wp`: Define la versión de WordPress.
+-   `language`: Establece el idioma de la instancia de WordPress.
+-   `multisite`: Habilita el soporte multisitio de WordPress.
+-   `networking`: Otorga acceso a la red, permitiendo obtener datos del directorio de plugins de WordPress y las APIs internas de WordPress.
+-   `php`: Especifica la versión de PHP para la instancia.
+-   `wp`: Define la versión de WordPress.
 
 <!--
 ## Playground Manager
@@ -125,10 +125,10 @@ Una vez que hagas clic en guardar, se almacenará una instancia con un nombre ge
 -   **View Blueprint**: This option will open the current blueprint used for the Playground instance in the [Blueprints Builder tool](https://playground.wordpress.net/builder/builder.html). From this tool, you'll be able to edit the blueprint online and run a new Playground instance with your edited version of the blueprint.
 -->
 
-- **Exportar Pull Request a GitHub**: Esta opción te permite exportar plugins de WordPress, temas y directorios completos de wp-content como pull requests a cualquier repositorio público de GitHub. Mira [aquí](https://www.youtube.com/watch?v=gKrij8V3nK0&t=2488s) una demostración del uso de esta opción.
-- **Descargar como zip**: Crea un fichero `.zip` con la configuración de la instancia de Playground, incluidos los temas o plugins instalados. Este `.zip` no incluirá contenido ni cambios en la base de datos.
-- **Reportar error**: Si tienes algún problema con WordPress Playground, puedes reportarlo usando el formulario disponible desde esta opción. Puedes ayudar a resolver problemas con Playground compartiendo los detalles del error con el equipo de desarrollo detrás de Playground.
-- **Ver Blueprint**: Esta opción abrirá el blueprint actual utilizado para la instancia de Playground en la [herramienta Blueprints Builder](https://playground.wordpress.net/builder/builder.html). Desde esta herramienta podrás editar el blueprint en línea y ejecutar una nueva instancia de Playground con tu versión editada del blueprint.
+-   **Exportar Pull Request a GitHub**: Esta opción te permite exportar plugins de WordPress, temas y directorios completos de wp-content como pull requests a cualquier repositorio público de GitHub. Mira [aquí](https://www.youtube.com/watch?v=gKrij8V3nK0&t=2488s) una demostración del uso de esta opción.
+-   **Descargar como zip**: Crea un fichero `.zip` con la configuración de la instancia de Playground, incluidos los temas o plugins instalados. Este `.zip` no incluirá contenido ni cambios en la base de datos.
+-   **Reportar error**: Si tienes algún problema con WordPress Playground, puedes reportarlo usando el formulario disponible desde esta opción. Puedes ayudar a resolver problemas con Playground compartiendo los detalles del error con el equipo de desarrollo detrás de Playground.
+-   **Ver Blueprint**: Esta opción abrirá el blueprint actual utilizado para la instancia de Playground en la [herramienta Blueprints Builder](https://playground.wordpress.net/builder/builder.html). Desde esta herramienta podrás editar el blueprint en línea y ejecutar una nueva instancia de Playground con tu versión editada del blueprint.
 
 <span id="edit-the-blueprint"></span>
 
@@ -148,9 +148,9 @@ Una vez que hagas clic en guardar, se almacenará una instancia con un nombre ge
 -   **Import from GitHub**: This option allows you to import plugins, themes, and wp-content directories directly from your public GitHub repositories. To enable this feature, connect your GitHub account with WordPress Playground.
 -->
 
-- **Importar desde zip**: Te permite recrear una instancia de Playground usando cualquier fichero `.zip` generado con la opción "Descargar como zip".
-- **Previsualizar un PR de Gutenberg**: Permite a los testers ejecutar ramas del repositorio de Gutenberg para probar pull requests instantáneamente.
-- **Importar desde GitHub**: Esta opción te permite importar plugins, temas y directorios de wp-content directamente desde tus repositorios públicos de GitHub. Para habilitar esta función, conecta tu cuenta de GitHub con WordPress Playground.
+-   **Importar desde zip**: Te permite recrear una instancia de Playground usando cualquier fichero `.zip` generado con la opción "Descargar como zip".
+-   **Previsualizar un PR de Gutenberg**: Permite a los testers ejecutar ramas del repositorio de Gutenberg para probar pull requests instantáneamente.
+-   **Importar desde GitHub**: Esta opción te permite importar plugins, temas y directorios de wp-content directamente desde tus repositorios públicos de GitHub. Para habilitar esta función, conecta tu cuenta de GitHub con WordPress Playground.
 
 <!--
 :::caution

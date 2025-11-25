@@ -55,10 +55,10 @@ console.log(await output.stdoutText);
 
 Execute PHP dentro do Node.js sem instalação nativa de PHP. Permite ao desenvolvedor produzir as seguintes soluções:
 
-- Tarefas de CI/CD e ferramentas de desenvolvimento.
-- Suporte à educação e fluxos de trabalho WordPress: potencialize tutoriais interativos, sandboxes e desafios de código.
-- Gerar conteúdo e prototipar comportamento de servidor.
-- Renderizar HTML usando templates PHP e levantar rapidamente endpoints de API simulados para simular requisições.
+-   Tarefas de CI/CD e ferramentas de desenvolvimento.
+-   Suporte à educação e fluxos de trabalho WordPress: potencialize tutoriais interativos, sandboxes e desafios de código.
+-   Gerar conteúdo e prototipar comportamento de servidor.
+-   Renderizar HTML usando templates PHP e levantar rapidamente endpoints de API simulados para simular requisições.
 
 <!-- ## Practical demos -->
 
@@ -655,7 +655,7 @@ try {
 <!-- -   **Memory management**: Large files may impact performance. Consider streaming for big datasets. -->
 <!-- -   **Caching**: Cache compiled PHP scripts and frequently accessed data. -->
 
-- **Reutilize instâncias PHP**: Criar uma nova instância PHP é custoso. Reutilize a mesma instância quando possível.
-- **Operações em lote**: Agrupe múltiplas operações de arquivo juntas em vez de executar scripts separados.
-- **Gerenciamento de memória**: Arquivos grandes podem impactar o desempenho. Considere streaming para grandes conjuntos de dados.
-- **Cache**: Faça cache de scripts PHP compilados e dados acessados frequentemente.
+-   **Reutilize instâncias PHP**: Criar uma nova instância PHP é custoso. Reutilize a mesma instância quando possível.
+-   **Operações em lote**: Agrupe múltiplas operações de arquivo juntas em vez de executar scripts separados.
+-   **Gerenciamento de memória**: Arquivos grandes podem impactar o desempenho. Considere streaming para grandes conjuntos de dados.
+-   **Cache**: Faça cache de scripts PHP compilados e dados acessados frequentemente.

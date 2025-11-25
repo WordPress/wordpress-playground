@@ -31,10 +31,10 @@ Un buon messaggio di errore informa l'utente sui passaggi successivi da seguire.
 
 Considera un errore di rete, per esempio—possiamo dedurre il tipo di errore e visualizzare un messaggio rilevante che riassuma i prossimi passaggi?
 
-- **Errore di rete**: "La tua connessione internet ha avuto un problema. Prova a ricaricare la pagina."
-- **404**: "Impossibile trovare il file".
-- **403**: "Il server ha bloccato l'accesso al file".
-- **CORS**: chiarisci che è una funzionalità di sicurezza del browser e aggiungi un link a una spiegazione dettagliata (su MDN o un'altra fonte affidabile). Suggerisci all'utente di spostare il proprio file altrove, come `raw.githubusercontent.com`, e linka a una risorsa che spiega come impostare gli header CORS sui loro server.
+-   **Errore di rete**: "La tua connessione internet ha avuto un problema. Prova a ricaricare la pagina."
+-   **404**: "Impossibile trovare il file".
+-   **403**: "Il server ha bloccato l'accesso al file".
+-   **CORS**: chiarisci che è una funzionalità di sicurezza del browser e aggiungi un link a una spiegazione dettagliata (su MDN o un'altra fonte affidabile). Suggerisci all'utente di spostare il proprio file altrove, come `raw.githubusercontent.com`, e linka a una risorsa che spiega come impostare gli header CORS sui loro server.
 
 Gestiamo automaticamente la formattazione del codice e il linting. Rilassati, scrivi e lascia che le macchine facciano il lavoro.
 
@@ -54,7 +54,7 @@ Playground mira a mantenere lo scope dell'API il più ristretto possibile.
 
 Le API pubbliche sono facili da aggiungere e difficili da rimuovere. Serve solo una PR per introdurre una nuova API, ma potrebbero servire mille per rimuoverla, specialmente se altri progetti l'hanno già utilizzata.
 
-- Non esporre funzioni, classi, costanti o altri componenti non necessari.
+-   Non esporre funzioni, classi, costanti o altri componenti non necessari.
 
 <!--
 ## Blueprints
@@ -89,17 +89,17 @@ I [Blueprints](/blueprints/getting-started) sono il modo principale per interagi
 
 I passaggi dei Blueprints dovrebbero essere **concisi e mirati**. Dovrebbero fare una cosa e farla bene.
 
-- Se devi creare un nuovo passaggio, prova prima a refactorizzare uno esistente.
-- Se non è sufficiente, assicurati che il nuovo passaggio fornisca una nuova capacità. Non replicare la funzionalità dei passaggi esistenti.
-- Assumi che il passaggio verrà chiamato più di una volta.
-- Assumi che verrà eseguito in un ordine specifico.
-- Aggiungi test unitari per verificarlo.
+-   Se devi creare un nuovo passaggio, prova prima a refactorizzare uno esistente.
+-   Se non è sufficiente, assicurati che il nuovo passaggio fornisca una nuova capacità. Non replicare la funzionalità dei passaggi esistenti.
+-   Assumi che il passaggio verrà chiamato più di una volta.
+-   Assumi che verrà eseguito in un ordine specifico.
+-   Aggiungi test unitari per verificarlo.
 
 I Blueprints dovrebbero essere **intuitivi e diretti**.
 
-- Non richiedere argomenti che possono essere opzionali.
-- Usa argomenti semplici. Per esempio, `slug` invece di `path`.
-- Definisci le costanti in file JSON virtuali—non modificare i file PHP.
-- Definisci un tipo TypeScript per il Blueprint. È così che Playground genera il suo schema JSON.
-- Scrivi una funzione per gestire un passaggio del Blueprint. Accetta l'argomento del tipo che hai definito.
-- Fornisci un esempio di utilizzo nella stringa di documentazione. Viene automaticamente riflesso nella documentazione.
+-   Non richiedere argomenti che possono essere opzionali.
+-   Usa argomenti semplici. Per esempio, `slug` invece di `path`.
+-   Definisci le costanti in file JSON virtuali—non modificare i file PHP.
+-   Definisci un tipo TypeScript per il Blueprint. È così che Playground genera il suo schema JSON.
+-   Scrivi una funzione per gestire un passaggio del Blueprint. Accetta l'argomento del tipo che hai definito.
+-   Fornisci un esempio di utilizzo nella stringa di documentazione. Viene automaticamente riflesso nella documentazione.

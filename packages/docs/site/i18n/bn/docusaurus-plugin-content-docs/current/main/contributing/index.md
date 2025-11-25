@@ -31,11 +31,11 @@ WordPress Playground is an open-source project that welcomes contributors of all
 -   Translation? see the [translation section](/contributing/translations).
 -->
 
-- কোড? দেখুন [ডেভেলপার সেকশনে](/contributing/code)।
-- ডকুমেন্টেশন? দেখুন [ডকুমেন্টেশন সেকশনে](/contributing/documentation)।
-- রিপোর্টিং বাগ? ওপেন করুন [নতুন ইস্যু](https://github.com/WordPress/wordpress-playground/issues/new) মেইন গিটহাব রিপোজিটরি, অথবা [প্লেগ্রাউন্ড টুলসে](https://github.com/WordPress/playground-tools/issues/new)।
-- আইডিয়া, ডিজাইন, অথবা অন্য কিছু? ওপেন করুন [গিটহাব ডিসকাশন](https://github.com/WordPress/wordpress-playground/discussions), এবং চলুন কথা বলি!
-- ট্রান্সলেশন? দেখুন [ট্রান্সলেশন সেকশনে](/contributing/translations)।
+-   কোড? দেখুন [ডেভেলপার সেকশনে](/contributing/code)।
+-   ডকুমেন্টেশন? দেখুন [ডকুমেন্টেশন সেকশনে](/contributing/documentation)।
+-   রিপোর্টিং বাগ? ওপেন করুন [নতুন ইস্যু](https://github.com/WordPress/wordpress-playground/issues/new) মেইন গিটহাব রিপোজিটরি, অথবা [প্লেগ্রাউন্ড টুলসে](https://github.com/WordPress/playground-tools/issues/new)।
+-   আইডিয়া, ডিজাইন, অথবা অন্য কিছু? ওপেন করুন [গিটহাব ডিসকাশন](https://github.com/WordPress/wordpress-playground/discussions), এবং চলুন কথা বলি!
+-   ট্রান্সলেশন? দেখুন [ট্রান্সলেশন সেকশনে](/contributing/translations)।
 
 <!--
 ## Guidelines
@@ -49,9 +49,9 @@ WordPress Playground is an open-source project that welcomes contributors of all
 -   You maintain copyright over any contribution you make. By submitting a Pull Request, you agree to release that code under [WordPress Playground License](https://github.com/WordPress/wordpress-playground?tab=GPL-2.0-1-ov-file#readme).
 -->
 
-- অন্যান্য সব ওয়ার্ডপ্রেস প্রজেক্টের মতো, আমরা সবার জন্য ওয়েলকামিং এবং রিসপেক্টফুল পরিবেশ নিশ্চিত করতে চাই। বিস্তারিত জানতে কমিউনিটির [কোড অব কন্ডাক্ট](https://make.wordpress.org/handbook/community-code-of-conduct/) পড়ুন।
-- কোড কন্ট্রিবিউটরদের [কোডিং প্রিন্সিপলস](/contributing/coding-standards) রিভিউ করা উচিত।
-- আপনার কন্ট্রিবিউশনের কপিরাইট আপনারই থাকে। পুল রিকোয়েস্ট জমা দিয়ে আপনি ওই কোড [ওয়ার্ডপ্রেস প্লেগ্রাউন্ড লাইসেন্সের](https://github.com/WordPress/wordpress-playground?tab=GPL-2.0-1-ov-file#readme) অধীনে রিলিজ করতে সম্মত হন।
+-   অন্যান্য সব ওয়ার্ডপ্রেস প্রজেক্টের মতো, আমরা সবার জন্য ওয়েলকামিং এবং রিসপেক্টফুল পরিবেশ নিশ্চিত করতে চাই। বিস্তারিত জানতে কমিউনিটির [কোড অব কন্ডাক্ট](https://make.wordpress.org/handbook/community-code-of-conduct/) পড়ুন।
+-   কোড কন্ট্রিবিউটরদের [কোডিং প্রিন্সিপলস](/contributing/coding-standards) রিভিউ করা উচিত।
+-   আপনার কন্ট্রিবিউশনের কপিরাইট আপনারই থাকে। পুল রিকোয়েস্ট জমা দিয়ে আপনি ওই কোড [ওয়ার্ডপ্রেস প্লেগ্রাউন্ড লাইসেন্সের](https://github.com/WordPress/wordpress-playground?tab=GPL-2.0-1-ov-file#readme) অধীনে রিলিজ করতে সম্মত হন।
 
 <!--
 ## Triaging issues
@@ -104,10 +104,10 @@ As such, please be aware of the implications that your contributions will fall u
 -   The GPL license ensures that the project remains free and open-source, not only in terms of cost but also with respect to the freedom to use, modify, and distribute the software.
 -->
 
-- আপনি কন্টিবিউট করলে, আপনার কন্ট্রিবিউশনগুলো জিপিএলভি২ (বা পরবর্তী) লাইসেন্সের অধীনে লাইসেন্স দিতে সম্মত হন
-- জিপিএল লাইসেন্সে শক্তিশালী কপিলেফট শর্ত রয়েছে, যা নিশ্চিত করে যে সকল ডেরিভেটিভ কাজ ওপেন-সোর্স থাকবে এবং একই লাইসেন্স শর্ত মানবে,ফলে কোলাবরেটিভ ডেভেলপমেন্ট পরিবেশ গড়ে ওঠে।
-- জিপিএল লাইসেন্স যেকোনো পরিবর্তন, বাগ ফিক্স বা নতুন ফিচার মূল কোডবেসে ফিরিয়ে আনতে উৎসাহিত করে।
-- জিপিএল লাইসেন্স নিশ্চিত করে যে প্রজেক্টি ফ্রি ও ওপেন-সোর্স থাকবে, শুধু খরচের দিক থেকে নয়, বরং সফটওয়্যার ব্যবহার, পরিবর্তন ও বিতরণের স্বাধীনতার দিক থেকেও।
+-   আপনি কন্টিবিউট করলে, আপনার কন্ট্রিবিউশনগুলো জিপিএলভি২ (বা পরবর্তী) লাইসেন্সের অধীনে লাইসেন্স দিতে সম্মত হন
+-   জিপিএল লাইসেন্সে শক্তিশালী কপিলেফট শর্ত রয়েছে, যা নিশ্চিত করে যে সকল ডেরিভেটিভ কাজ ওপেন-সোর্স থাকবে এবং একই লাইসেন্স শর্ত মানবে,ফলে কোলাবরেটিভ ডেভেলপমেন্ট পরিবেশ গড়ে ওঠে।
+-   জিপিএল লাইসেন্স যেকোনো পরিবর্তন, বাগ ফিক্স বা নতুন ফিচার মূল কোডবেসে ফিরিয়ে আনতে উৎসাহিত করে।
+-   জিপিএল লাইসেন্স নিশ্চিত করে যে প্রজেক্টি ফ্রি ও ওপেন-সোর্স থাকবে, শুধু খরচের দিক থেকে নয়, বরং সফটওয়্যার ব্যবহার, পরিবর্তন ও বিতরণের স্বাধীনতার দিক থেকেও।
 
 <!--
 If you have any questions about how the above might affect your contributions, please feel free to reach out on WP Slack and the [`meta-playground` channel](https://wordpress.slack.com/archives/C04EWKGDJ0K).

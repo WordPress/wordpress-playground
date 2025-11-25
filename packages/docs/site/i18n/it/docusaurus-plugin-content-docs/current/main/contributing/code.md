@@ -41,10 +41,10 @@ Sfoglia [l'elenco delle issue aperte](https://github.com/wordpress/wordpress-pla
 
 Assicurati di rivedere le seguenti risorse prima di iniziare:
 
-- [Principi di codifica](/contributing/coding-standards)
-- [Architettura](/developers/architecture)
-- [Visione e Filosofia](https://github.com/WordPress/wordpress-playground/issues/472)
-- [Roadmap di WordPress Playground](https://github.com/WordPress/wordpress-playground/issues/525)
+-   [Principi di codifica](/contributing/coding-standards)
+-   [Architettura](/developers/architecture)
+-   [Visione e Filosofia](https://github.com/WordPress/wordpress-playground/issues/472)
+-   [Roadmap di WordPress Playground](https://github.com/WordPress/wordpress-playground/issues/525)
 
 <!--
 ## Contribute Pull Requests
@@ -165,8 +165,8 @@ Playground logs PHP errors in the browser console after every PHP request.
 
 Se stai usando VS Code e hai Chrome installato, puoi fare il debug di Playground nell'editor di codice:
 
-- Apri la cartella del progetto in VS Code.
-- Seleziona Esegui > Avvia debug dal menu principale o premi `F5`/`fn`+`F5`.
+-   Apri la cartella del progetto in VS Code.
+-   Seleziona Esegui > Avvia debug dal menu principale o premi `F5`/`fn`+`F5`.
 
 ### Debug di PHP
 

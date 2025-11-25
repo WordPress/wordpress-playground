@@ -115,8 +115,9 @@ const config = {
 						defaultSidebarItemsGenerator,
 						...args
 					}) {
-						const sidebarItems =
-							await defaultSidebarItemsGenerator(args);
+						const sidebarItems = await defaultSidebarItemsGenerator(
+							args
+						);
 						return flattenDirectoriesWithSingleFile(sidebarItems);
 					},
 				},

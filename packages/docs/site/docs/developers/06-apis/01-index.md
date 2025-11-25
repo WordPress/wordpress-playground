@@ -127,8 +127,8 @@ WordPress Playground can be embedded in your app using an `<iframe>`:
 
 To customize that Playground instance, you can:
 
-- Load it from special link prepared using the [Query API](/developers/apis/query-api) (easy) or the [JSON Blueprints API](/blueprints) (medium).
-- Control it using the [JavaScript API](/developers/apis/javascript-api/).
+-   Load it from special link prepared using the [Query API](/developers/apis/query-api) (easy) or the [JSON Blueprints API](/blueprints) (medium).
+-   Control it using the [JavaScript API](/developers/apis/javascript-api/).
 
 The JavaScript API gives you the most control, but it is also the least convenient option as it requires loading the Playground Client library.
 
@@ -148,7 +148,7 @@ import APIList from '@site/docs/\_fragments/\_api_list.mdx';
 
 The following Playground APIs are available in Node.js:
 
-- [JSON Blueprints API](/blueprints)
-- [JavaScript API](/developers/apis/javascript-api/)
+-   [JSON Blueprints API](/blueprints)
+-   [JavaScript API](/developers/apis/javascript-api/)
 
 These APIs are very similar to their web counterparts, but, unsurprisingly, they are not based or links or iframes.

@@ -28,10 +28,10 @@ Gereza ku nsobi y'omukutu gw'omutimbagano, okugeza—tusobola okuteebereza ekika
 Consider a network error, for example—can we infer the type of error and display a relevant message summarizing the next steps?
 -->
 
-- **Obuzibu mu Network**: "Internet yo y'ekuttemu. Gezaako okuzzaamu olupapula.
-- **404**: "Fayiro tezuuliiddwa".
-- **403**: "Tokkirizibbwa kulaba fayiro eno".
-- **CORS**: Nnyonnyola nti kyeekuusa ku byakwerinda bya browser era ogatteko link yo'kunnyonnyola okutuufu (ku MDN oba ensibuko endala eyesigika). Teesa omukozesa okukyusa fayiro ye okugitwala mu kifo ekirala, okugeza nga `raw.githubusercontent.com`, era ogatteko link ekutwala ku muko ogunnyonnyola engeri y'okuteeka CORS headers ku server zaabwe.
+-   **Obuzibu mu Network**: "Internet yo y'ekuttemu. Gezaako okuzzaamu olupapula.
+-   **404**: "Fayiro tezuuliiddwa".
+-   **403**: "Tokkirizibbwa kulaba fayiro eno".
+-   **CORS**: Nnyonnyola nti kyeekuusa ku byakwerinda bya browser era ogatteko link yo'kunnyonnyola okutuufu (ku MDN oba ensibuko endala eyesigika). Teesa omukozesa okukyusa fayiro ye okugitwala mu kifo ekirala, okugeza nga `raw.githubusercontent.com`, era ogatteko link ekutwala ku muko ogunnyonnyola engeri y'okuteeka CORS headers ku server zaabwe.
 
 <!--
 -   **Network error**: "Your internet connection twitched. Try to reload the page.
@@ -64,7 +64,7 @@ API z'olukale nyangu okuzigattamu era nkalubo okuziggyamu. Kyetaaga PR emu yokka
 Public APIs are easy to add and hard to remove. It only takes one PR to introduce a new API, but it may take a thousand to remove it, especially if other projects have already consumed it.
 -->
 
-- Tolaga functions, classes, constants, oba components endala eziteetaagisa.
+-   Tolaga functions, classes, constants, oba components endala eziteetaagisa.
 
 <!--
 -   Don't expose unnecessary functions, classes, constants, or other components.
@@ -94,11 +94,11 @@ Emitendera gy'enteekateeka (blueprints) girina okuba mu **bufunze era nga miramb
 Blueprint steps should be **concise and focused**. They should do one thing and do it well.
 -->
 
-- Bw'oba oyagala okukola omutendera omupya, sooka ogezeeko okukyuusa oba okutereeza oguliwo.
-- Ekyo bw'ekitamala, kakasa nti omutendera omupya guleeta obusobozi obupya. Tozzaamu functions ez'emitendera ejiriwo.
-- Suubira nti omutendera gujja kuyitibwa emirundi ejisukka mu gumu.
-- Suubira nti gujja kukola mu ngeri entongole.
-- Gattako unit tests okukakasa ekyo.
+-   Bw'oba oyagala okukola omutendera omupya, sooka ogezeeko okukyuusa oba okutereeza oguliwo.
+-   Ekyo bw'ekitamala, kakasa nti omutendera omupya guleeta obusobozi obupya. Tozzaamu functions ez'emitendera ejiriwo.
+-   Suubira nti omutendera gujja kuyitibwa emirundi ejisukka mu gumu.
+-   Suubira nti gujja kukola mu ngeri entongole.
+-   Gattako unit tests okukakasa ekyo.
 
 <!--
 -   If you need to create a new step, try refactoring an existing one first.
@@ -114,12 +114,12 @@ Blueprints zirina okuba **ntereevu era nga nyangu okutegeerera**.
 Blueprints should be **intuitive and straightforward**.
 -->
 
-- Tosaba arguments ezisobola okulekeka.
-- Kozesa argument ennyangu. Okugeza, `slug` mu kifo kya `path`.
-- Nnyonnyola ebitakyuuka mu virtual JSON files—tokyuusa PHP files.
-- Nnyonnyola TypeScript type ya Blueprint. Bw'etyo Playground bw'ekola JSON schema yaayo.
-- Wandiika function okukwata omutendera gwa Blueprint. Kkiriza argument ey'ekika ky'onnyonnyodde.
-- Waayo ekyokulabirako eky'enkozesa mu doc string. Kyeraga buterevu mu biwandiiko.
+-   Tosaba arguments ezisobola okulekeka.
+-   Kozesa argument ennyangu. Okugeza, `slug` mu kifo kya `path`.
+-   Nnyonnyola ebitakyuuka mu virtual JSON files—tokyuusa PHP files.
+-   Nnyonnyola TypeScript type ya Blueprint. Bw'etyo Playground bw'ekola JSON schema yaayo.
+-   Wandiika function okukwata omutendera gwa Blueprint. Kkiriza argument ey'ekika ky'onnyonnyodde.
+-   Waayo ekyokulabirako eky'enkozesa mu doc string. Kyeraga buterevu mu biwandiiko.
 
 <!--
 -   Don't require arguments that can be optional.

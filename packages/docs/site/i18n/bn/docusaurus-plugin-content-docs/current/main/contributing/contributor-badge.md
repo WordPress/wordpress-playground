@@ -38,11 +38,11 @@ Any contribution to the WordPress Playground project is highly valued. The Playg
 -   **Blueprints Gallery:** Creating new blueprints or improving existing ones.
 -->
 
-- **প্লেগ্রাউন্ড কোড:** কোড পরিবর্তন করা এবং মূল প্রকল্পটি পর্যালোচনা করা।
-- **প্লেগ্রাউন্ড ইউআই:** ওয়েব এক্সপেরিয়েন্সের ইউজার ইন্টারফেসকে আরও সুন্দর ও সহজ করে তোলা।
-- **ডকুমেন্টেশন:** লেখা, আপডেট করা এবং পর্যালোচনা করা।
-- **ট্রান্সলেশন:** প্রজেক্টের যেকোনো অংশ ট্রান্সলেট করা।
-- **ব্লুপ্রিন্ট গ্যালারি:** নতুন ব্লুপ্রিন্ট তৈরি করা অথবা বিদ্যমান ব্লুপ্রিন্টগুলিকে উন্নত করা।
+-   **প্লেগ্রাউন্ড কোড:** কোড পরিবর্তন করা এবং মূল প্রকল্পটি পর্যালোচনা করা।
+-   **প্লেগ্রাউন্ড ইউআই:** ওয়েব এক্সপেরিয়েন্সের ইউজার ইন্টারফেসকে আরও সুন্দর ও সহজ করে তোলা।
+-   **ডকুমেন্টেশন:** লেখা, আপডেট করা এবং পর্যালোচনা করা।
+-   **ট্রান্সলেশন:** প্রজেক্টের যেকোনো অংশ ট্রান্সলেট করা।
+-   **ব্লুপ্রিন্ট গ্যালারি:** নতুন ব্লুপ্রিন্ট তৈরি করা অথবা বিদ্যমান ব্লুপ্রিন্টগুলিকে উন্নত করা।
 
 <!--
 ## Playground Contributor Badge
@@ -89,8 +89,8 @@ If you meet the criteria, you can request a badge. Please include links to resou
 -   [Team Badge](https://profiles.wordpress.org/associations/playground-team/)
 -->
 
-- [কন্ট্রিবিউটর ব্যাজ](https://profiles.wordpress.org/associations/playground-contributor/)
-- [টীম ব্যাজ](https://profiles.wordpress.org/associations/playground-team/)
+-   [কন্ট্রিবিউটর ব্যাজ](https://profiles.wordpress.org/associations/playground-contributor/)
+-   [টীম ব্যাজ](https://profiles.wordpress.org/associations/playground-team/)
 
 <!--
 ### Request form

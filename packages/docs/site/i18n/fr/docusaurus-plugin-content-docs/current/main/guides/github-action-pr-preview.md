@@ -428,9 +428,9 @@ Plus d'informations : [README du workflow](https://github.com/WordPress/action-w
 -   [adamziel/preview-in-playground-button-built-artifact-example](https://github.com/adamziel/preview-in-playground-button-built-artifact-example/pull/2) - Plugin with build
 -->
 
-- [WordPress/blueprints](https://github.com/WordPress/blueprints/pull/155) - Aperçus de blueprint
-- [adamziel/preview-in-playground-button-plugin-example](https://github.com/adamziel/preview-in-playground-button-plugin-example/pull/3) - Plugin sans build
-- [adamziel/preview-in-playground-button-built-artifact-example](https://github.com/adamziel/preview-in-playground-button-built-artifact-example/pull/2) - Plugin avec build
+-   [WordPress/blueprints](https://github.com/WordPress/blueprints/pull/155) - Aperçus de blueprint
+-   [adamziel/preview-in-playground-button-plugin-example](https://github.com/adamziel/preview-in-playground-button-plugin-example/pull/3) - Plugin sans build
+-   [adamziel/preview-in-playground-button-built-artifact-example](https://github.com/adamziel/preview-in-playground-button-built-artifact-example/pull/2) - Plugin avec build
 
 <!--
 ## Next steps
@@ -445,7 +445,7 @@ Plus d'informations : [README du workflow](https://github.com/WordPress/action-w
 -   Customize templates for reviewers
 -->
 
-- Ajouter du contenu de démonstration ([guide](/guides/providing-content-for-your-demo))
-- Créer des blueprints personnalisés ([documentation](/blueprints))
-- Intégrer avec les workflows de tests
-- Personnaliser les templates pour les réviseurs
+-   Ajouter du contenu de démonstration ([guide](/guides/providing-content-for-your-demo))
+-   Créer des blueprints personnalisés ([documentation](/blueprints))
+-   Intégrer avec les workflows de tests
+-   Personnaliser les templates pour les réviseurs

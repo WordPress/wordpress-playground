@@ -278,9 +278,9 @@ Cuando proporcionas un enlace a una instancia de WordPress Playlist con algunos 
 
 Algunas herramientas y recursos útiles proporcionados por el proyecto Playground para trabajar con blueprints son:
 
-- Consulta la [Galería de Blueprints](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) para explorar ejemplos de código del mundo real que utilizan WordPress Playground para lanzar un sitio de WordPress con una variedad de configuraciones.
-- La herramienta [WordPress Playground Step Library](https://akirk.github.io/playground-step-library/#) proporciona una interfaz visual para arrastrar o hacer clic en los pasos para crear un blueprint para WordPress Playground. ¡También puedes crear tus propios pasos!
-- La herramienta [Blueprints builder](https://playground.wordpress.net/builder/builder.html) te permite editar tu blueprint en línea y ejecutarlo directamente en una instancia de Playground.
+-   Consulta la [Galería de Blueprints](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) para explorar ejemplos de código del mundo real que utilizan WordPress Playground para lanzar un sitio de WordPress con una variedad de configuraciones.
+-   La herramienta [WordPress Playground Step Library](https://akirk.github.io/playground-step-library/#) proporciona una interfaz visual para arrastrar o hacer clic en los pasos para crear un blueprint para WordPress Playground. ¡También puedes crear tus propios pasos!
+-   La herramienta [Blueprints builder](https://playground.wordpress.net/builder/builder.html) te permite editar tu blueprint en línea y ejecutarlo directamente en una instancia de Playground.
 
 :::
 
@@ -474,8 +474,8 @@ Here's a little demo of this workflow in action:
 
 Con Google Chrome puedes sincronizar una instancia de Playground con el código local de tu plugin y el repositorio de GitHub de tu plugin. Con esta conexión puedes:
 
-- Ver en directo (en la instancia de Playground) tus cambios locales
-- Crear PRs en el repositorio de GitHub con tus cambios
+-   Ver en directo (en la instancia de Playground) tus cambios locales
+-   Crear PRs en el repositorio de GitHub con tus cambios
 
 Aquí tienes una pequeña demostración de este flujo de trabajo en acción:
 

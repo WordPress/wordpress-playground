@@ -18,9 +18,9 @@ For a quick start, check the [getting started with Xdebug guide](/developers/xde
 
 You'll learn to debug:
 
-- Form processing logic
-- Input validation
-- WordPress hooks and filters
+-   Form processing logic
+-   Input validation
+-   WordPress hooks and filters
 
 ## Two debugging approaches
 
@@ -32,9 +32,9 @@ WordPress Playground supports two ways to debug with Xdebug:
 
 ## What you'll need
 
-- Node.js installed
-- Chrome or Chromium browser (for DevTools debugging)
-- Visual Studio Code or PhpStorm (for IDE debugging, optional)
-- Basic familiarity with WordPress plugin development
+-   Node.js installed
+-   Chrome or Chromium browser (for DevTools debugging)
+-   Visual Studio Code or PhpStorm (for IDE debugging, optional)
+-   Basic familiarity with WordPress plugin development
 
 **Next**: [Getting Started with Xdebug →](/developers/xdebug/getting-started)

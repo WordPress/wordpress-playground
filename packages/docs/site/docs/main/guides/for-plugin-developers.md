@@ -126,9 +126,9 @@ When providing a link to a WordPress Playground instance with some plugins activ
 
 Some useful tools and resources provided by the Playground project to work with blueprints are:
 
-- Check the [Blueprints Gallery](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) to explore real-world code examples of using WordPress Playground to launch a WordPress site with a variety of setups.
-- The [WordPress Playground Step Library](https://akirk.github.io/playground-step-library/#) tool provides a visual interface to drag or click the steps to create a blueprint for WordPress Playground. You can also create your own steps!
-- The [Blueprints builder](https://playground.wordpress.net/builder/builder.html) tool allows you edit your blueprint online and run it directly in a Playground instance.
+-   Check the [Blueprints Gallery](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) to explore real-world code examples of using WordPress Playground to launch a WordPress site with a variety of setups.
+-   The [WordPress Playground Step Library](https://akirk.github.io/playground-step-library/#) tool provides a visual interface to drag or click the steps to create a blueprint for WordPress Playground. You can also create your own steps!
+-   The [Blueprints builder](https://playground.wordpress.net/builder/builder.html) tool allows you edit your blueprint online and run it directly in a Playground instance.
 
 :::
 
@@ -213,8 +213,8 @@ npx @wp-playground/cli server --auto-mount
 
 With Google Chrome you can synchronize a Playground instance with your local plugin's code and your plugin's GitHub repo. With this connection you can:
 
-- See live (in the Playground instance) your local changes
-- Create PRs in the GitHub repo with your changes
+-   See live (in the Playground instance) your local changes
+-   Create PRs in the GitHub repo with your changes
 
 Here's a little demo of this workflow in action:
 

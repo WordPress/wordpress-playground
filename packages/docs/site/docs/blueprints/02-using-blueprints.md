@@ -8,10 +8,10 @@ description: Discover the different ways to use Blueprints, including via URL fr
 
 You can use Blueprints in one of the following ways:
 
-- By passing them as a URL fragment to the Playground.
-- By loading them from a URL using the `blueprint-url` parameter.
-- By using Blueprint bundles (ZIP files or directories).
-- By using the JavaScript API.
+-   By passing them as a URL fragment to the Playground.
+-   By loading them from a URL using the `blueprint-url` parameter.
+-   By using Blueprint bundles (ZIP files or directories).
+-   By using the JavaScript API.
 
 ## URL Fragment
 

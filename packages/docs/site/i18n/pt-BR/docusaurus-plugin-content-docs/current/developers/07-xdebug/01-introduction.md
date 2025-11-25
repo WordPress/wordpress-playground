@@ -18,9 +18,9 @@ Para um início rápido, confira o [guia de primeiros passos com Xdebug](/develo
 
 Você aprenderá a depurar:
 
-- Lógica de processamento de formulários
-- Validação de entrada
-- Hooks e filtros do WordPress
+-   Lógica de processamento de formulários
+-   Validação de entrada
+-   Hooks e filtros do WordPress
 
 ## Duas abordagens de depuração
 
@@ -34,9 +34,9 @@ Ambos os métodos funcionam com a mesma configuração Xdebug. Você pode até u
 
 ## O que você precisará
 
-- Node.js instalado
-- Navegador Chrome ou Chromium (para depuração DevTools)
-- Visual Studio Code ou PhpStorm (para depuração IDE, opcional)
-- Familiaridade básica com desenvolvimento de plugins WordPress
+-   Node.js instalado
+-   Navegador Chrome ou Chromium (para depuração DevTools)
+-   Visual Studio Code ou PhpStorm (para depuração IDE, opcional)
+-   Familiaridade básica com desenvolvimento de plugins WordPress
 
 **Próximo**: [Primeiros Passos com Xdebug →](/developers/xdebug/getting-started)

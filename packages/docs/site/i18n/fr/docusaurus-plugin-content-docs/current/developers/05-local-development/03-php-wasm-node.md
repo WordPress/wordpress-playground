@@ -55,10 +55,10 @@ console.log(await output.stdoutText);
 
 Exécutez PHP dans Node.js sans installation native de PHP. Cela permet au développeur de produire les solutions suivantes :
 
-- Tâches CI/CD et outils de développement.
-- Support pour l'éducation et les workflows WordPress : didacticiels interactifs, sandboxes et défis de code.
-- Génération de contenu et prototypage du comportement serveur.
-- Rendu HTML via des templates PHP et création rapide d'endpoints d'API simulés pour simuler des requêtes.
+-   Tâches CI/CD et outils de développement.
+-   Support pour l'éducation et les workflows WordPress : didacticiels interactifs, sandboxes et défis de code.
+-   Génération de contenu et prototypage du comportement serveur.
+-   Rendu HTML via des templates PHP et création rapide d'endpoints d'API simulés pour simuler des requêtes.
 
 <!-- ## Practical demos -->
 
@@ -655,7 +655,7 @@ try {
 <!-- -   **Memory management**: Large files may impact performance. Consider streaming for big datasets. -->
 <!-- -   **Caching**: Cache compiled PHP scripts and frequently accessed data. -->
 
-- **Réutiliser les instances PHP** : créer une nouvelle instance PHP est coûteux. Réutilisez la même instance lorsque c'est possible.
-- **Regrouper les opérations** : groupez plusieurs opérations de fichiers plutôt que d'exécuter des scripts séparés.
-- **Gestion de la mémoire** : les fichiers volumineux peuvent impacter les performances. Envisagez le streaming pour de grands jeux de données.
-- **Mise en cache** : mettez en cache les scripts PHP compilés et les données souvent consultées.
+-   **Réutiliser les instances PHP** : créer une nouvelle instance PHP est coûteux. Réutilisez la même instance lorsque c'est possible.
+-   **Regrouper les opérations** : groupez plusieurs opérations de fichiers plutôt que d'exécuter des scripts séparés.
+-   **Gestion de la mémoire** : les fichiers volumineux peuvent impacter les performances. Envisagez le streaming pour de grands jeux de données.
+-   **Mise en cache** : mettez en cache les scripts PHP compilés et les données souvent consultées.

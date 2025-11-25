@@ -34,11 +34,11 @@ Any contribution to the WordPress Playground project is highly valued. The Playg
 
 Ogni contributo al progetto WordPress Playground è molto apprezzato. Il team Playground riconosce i contributi in diverse aree chiave:
 
-- **Codice Playground:** Fare modifiche al codice e rivedere il progetto principale.
-- **Interfaccia Playground:** Migliorare l'interfaccia utente dell'esperienza web.
-- **Documentazione:** Scrivere, aggiornare e rivedere la documentazione.
-- **Traduzione:** Tradurre qualsiasi parte del progetto.
-- **Galleria Blueprints:** Creare nuovi blueprints o migliorare quelli esistenti.
+-   **Codice Playground:** Fare modifiche al codice e rivedere il progetto principale.
+-   **Interfaccia Playground:** Migliorare l'interfaccia utente dell'esperienza web.
+-   **Documentazione:** Scrivere, aggiornare e rivedere la documentazione.
+-   **Traduzione:** Tradurre qualsiasi parte del progetto.
+-   **Galleria Blueprints:** Creare nuovi blueprints o migliorare quelli esistenti.
 
 <!--
 ## Playground Contributor Badge
@@ -87,8 +87,8 @@ To access the request, the user should be logged in with their WordPress.org acc
 
 Se soddisfi i criteri, puoi richiedere un badge. Per favore includi link a risorse (come pull request GitHub, issue o stringhe tradotte) che dimostrino che hai soddisfatto i criteri. Invia una richiesta ai link seguenti:
 
-- [Badge Contributore](https://profiles.wordpress.org/associations/playground-contributor/)
-- [Badge Team](https://profiles.wordpress.org/associations/playground-team/)
+-   [Badge Contributore](https://profiles.wordpress.org/associations/playground-contributor/)
+-   [Badge Team](https://profiles.wordpress.org/associations/playground-team/)
 
 ### Modulo di richiesta
 

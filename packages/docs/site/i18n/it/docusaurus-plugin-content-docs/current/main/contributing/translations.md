@@ -238,18 +238,18 @@ Raccomandiamo di aggiungere una lingua al selettore solo quando una parte signif
 
 Come linea guida, una lingua dovrebbe essere resa pubblicamente disponibile nel selettore solo quando l'intero hub "Documentazione" è tradotto, inclusi questi capitoli chiave:
 
-- [Guida rapida](https://wordpress.github.io/wordpress-playground/quick-start-guide)
-- [Istanza web Playground](https://wordpress.github.io/wordpress-playground/web-instance)
-- [Informazioni su Playground](https://wordpress.github.io/wordpress-playground/about)
-- [Guide](https://wordpress.github.io/wordpress-playground/guides)
-- [Contribuire](https://wordpress.github.io/wordpress-playground/contributing)
-- [Link e risorse](https://wordpress.github.io/wordpress-playground/resources)
+-   [Guida rapida](https://wordpress.github.io/wordpress-playground/quick-start-guide)
+-   [Istanza web Playground](https://wordpress.github.io/wordpress-playground/web-instance)
+-   [Informazioni su Playground](https://wordpress.github.io/wordpress-playground/about)
+-   [Guide](https://wordpress.github.io/wordpress-playground/guides)
+-   [Contribuire](https://wordpress.github.io/wordpress-playground/contributing)
+-   [Link e risorse](https://wordpress.github.io/wordpress-playground/resources)
 
 Tutte le lingue sono disponibili una volta che la configurazione i18n per una lingua è completa e la struttura dei file corretta è in posto sotto `i18n`.
 
-- https://wordpress.github.io/wordpress-playground/
-- https://wordpress.github.io/wordpress-playground/es/
-- https://wordpress.github.io/wordpress-playground/fr/
+-   https://wordpress.github.io/wordpress-playground/
+-   https://wordpress.github.io/wordpress-playground/es/
+-   https://wordpress.github.io/wordpress-playground/fr/
 
 Assumendo che la lingua `fr` sia la prima lingua con le pagine dell'hub Documentazione (Guida rapida, Istanza web Playground, Informazioni su Playground, Guide,... ) completamente tradotte in francese, il `docusaurus.config.js` dovrebbe apparire così in quel branch così `npm run build:docs` genera correttamente il sottosito `fr` e mostra solo la lingua francese nel selettore della lingua `localeDropdown`.
 
@@ -293,14 +293,14 @@ Follow these steps to translate a page:
 -   Copy the original .md file from `packages/docs/site/docs/...` to the corresponding path in the language directory (e.g., `packages/docs/site/i18n/<LANGUAGE_CODE>/...`). It is crucial to replicate the original file structure.
 -   Translate the content of the new file, keeping the original content commented out `<!-- English Content -->`.
 
-- The assets are listed at `packages/docs/site/static/img/` only place assets inside the translation folder when it requires localized content.
-- Once the translations are ready, check if the docs build script is running properly `npm run build:docs`.
+-   The assets are listed at `packages/docs/site/static/img/` only place assets inside the translation folder when it requires localized content.
+-   Once the translations are ready, check if the docs build script is running properly `npm run build:docs`.
 
 4. **Create a pull request with your changes**
 
-- Add a prefix to the title `[i18n]` to help to identify the translations
-- Describe the pages that you translated
-- Request a review at `#playground` or `#polyglots` at `wordpress.slack.com`
+-   Add a prefix to the title `[i18n]` to help to identify the translations
+-   Describe the pages that you translated
+-   Request a review at `#playground` or `#polyglots` at `wordpress.slack.com`
 
 :::info
 We highly recommend submitting pull requests with a small number of translated pages. This approach simplifies the review process and allows for a more gradual and manageable integration of your work.
@@ -315,17 +315,17 @@ Segui questi passaggi per tradurre una pagina:
 2. **Crea una nuova issue di traduzione**: Se non esiste una issue, per favore creane una nuova per tracciare i progressi della traduzione per la lingua. Puoi modellarla sull'issue [#2202](https://github.com/WordPress/wordpress-playground/issues/2202) e usare la checklist markdown qui sotto per tracciare i progressi.
 3. **Traduci il file**:
 
-- Controlla se hai l'ultima versione della documentazione
-- Copia il file .md originale da `packages/docs/site/docs/...` al percorso corrispondente nella directory della lingua (es., `packages/docs/site/i18n/<LANGUAGE_CODE>/...`). È cruciale replicare la struttura dei file originale.
-- Traduci il contenuto del nuovo file, mantenendo il contenuto originale commentato `<!-- Contenuto inglese -->`.
-- Le risorse sono elencate in `packages/docs/site/static/img/` posiziona le risorse dentro la cartella di traduzione solo quando richiede contenuto localizzato.
-- Una volta che le traduzioni sono pronte, controlla se lo script di build della documentazione funziona correttamente `npm run build:docs`.
+-   Controlla se hai l'ultima versione della documentazione
+-   Copia il file .md originale da `packages/docs/site/docs/...` al percorso corrispondente nella directory della lingua (es., `packages/docs/site/i18n/<LANGUAGE_CODE>/...`). È cruciale replicare la struttura dei file originale.
+-   Traduci il contenuto del nuovo file, mantenendo il contenuto originale commentato `<!-- Contenuto inglese -->`.
+-   Le risorse sono elencate in `packages/docs/site/static/img/` posiziona le risorse dentro la cartella di traduzione solo quando richiede contenuto localizzato.
+-   Una volta che le traduzioni sono pronte, controlla se lo script di build della documentazione funziona correttamente `npm run build:docs`.
 
 4. **Crea una pull request con le tue modifiche**
 
-- Aggiungi un prefisso al titolo `[i18n]` per aiutare a identificare le traduzioni
-- Descrivi le pagine che hai tradotto
-- Richiedi una revisione su `#playground` o `#polyglots` su `wordpress.slack.com`
+-   Aggiungi un prefisso al titolo `[i18n]` per aiutare a identificare le traduzioni
+-   Descrivi le pagine che hai tradotto
+-   Richiedi una revisione su `#playground` o `#polyglots` su `wordpress.slack.com`
 
 :::info
 Raccomandiamo fortemente di inviare pull request con un piccolo numero di pagine tradotte. Questo approccio semplifica il processo di revisione e permette un'integrazione più graduale e gestibile del tuo lavoro.
@@ -629,12 +629,14 @@ Questa guida ti mostrerà come aggiornare una traduzione esistente e aggiungerne
 #### Aggiungere una nuova traduzione
 
 1.  **Determina il percorso del file corretto.** Il percorso e il nome del nuovo file devono rispecchiare il file inglese originale.
-    - **Originale inglese:** `packages/docs/site/docs/main/contributing/documentation.md`
-    - **Traduzione francese:** `packages/docs/site/i18n/fr/docusaurus-plugin-content-docs/current/main/contributing/documentation.md`
+
+    -   **Originale inglese:** `packages/docs/site/docs/main/contributing/documentation.md`
+    -   **Traduzione francese:** `packages/docs/site/i18n/fr/docusaurus-plugin-content-docs/current/main/contributing/documentation.md`
 
 2.  **Crea il nuovo file.** Naviga nella cartella della lingua corretta (es., `/packages/docs/site/i18n/fr/docusaurus-plugin-content-docs/current/`). Clicca **Add file** > **Create new file**.
     ![Creazione nuova traduzione](@site/static/img/contributing/adding-file-github-ui.webp)
-    - **Suggerimento:** Nella casella del nome file, puoi creare nuove cartelle digitando il nome della cartella seguito da `/`. Per esempio, digitando `main/contributing/documentation.md` creerà automaticamente le cartelle `main` e `contributing`.
+
+    -   **Suggerimento:** Nella casella del nome file, puoi creare nuove cartelle digitando il nome della cartella seguito da `/`. Per esempio, digitando `main/contributing/documentation.md` creerà automaticamente le cartelle `main` e `contributing`.
 
 3.  **Fai il fork del repository.** Proprio come prima, GitHub ti chiederà di **Fare il fork di questo repository**. Clicca il pulsante per creare la tua copia personale.
 

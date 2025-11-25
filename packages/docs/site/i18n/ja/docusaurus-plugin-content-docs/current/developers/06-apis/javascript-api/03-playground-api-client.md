@@ -20,9 +20,9 @@ The `PlaygroundClient` object implements the `UniversalPHP` interface. All the m
 Broadly speaking, you can use the client to perform three types of operations:
  -->
 
-- PHP コードの実行
-- `PHP.ini`のカスタマイズ
-- ファイルとディレクトリの管理
+-   PHP コードの実行
+-   `PHP.ini`のカスタマイズ
+-   ファイルとディレクトリの管理
 
 <!--
 -   Running PHP code
@@ -42,8 +42,8 @@ PHP コードを実行するには、以下の 2 つの方法があります。
 The two methods you can use to run PHP code are:
  -->
 
-- [`run()`](#the-run-method) - PHP コードを実行し、その出力を返します。
-- [`request()`](#the-request-method) - ウェブサイトに HTTP リクエストを送信します。
+-   [`run()`](#the-run-method) - PHP コードを実行し、その出力を返します。
+-   [`request()`](#the-request-method) - ウェブサイトに HTTP リクエストを送信します。
 
 <!--
 -   [`run()`](#the-run-method) - runs PHP code and returns the output
@@ -144,7 +144,7 @@ PHP から JavaScript にメッセージを渡すには、`post_message_to_js()`
 You can pass messages from PHP to JavaScript using the `post_message_to_js()` function. It accepts one argument:
  -->
 
-- `$data` (文字列) – JavaScript に渡すデータ。
+-   `$data` (文字列) – JavaScript に渡すデータ。
 
 <!--
 -   `$data` (string) – Data to pass to JavaScript.

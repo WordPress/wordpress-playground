@@ -29,11 +29,11 @@ WordPress Playground è un progetto open-source che accoglie contributori di tut
 
 ## Come posso contribuire?
 
-- Codice? Vedi la [sezione sviluppatori](/contributing/code).
-- Documentazione? Vedi la [sezione documentazione](/contributing/documentation).
-- Segnalare bug? Apri una [nuova issue](https://github.com/WordPress/wordpress-playground/issues/new) nel repository principale GitHub, o in [Playground Tools](https://github.com/WordPress/playground-tools/issues/new).
-- Idee, design o qualsiasi altra cosa? Apri una [discussione GitHub](https://github.com/WordPress/wordpress-playground/discussions), e parliamone!
-- Traduzione? Vedi la [sezione traduzioni](/contributing/translations).
+-   Codice? Vedi la [sezione sviluppatori](/contributing/code).
+-   Documentazione? Vedi la [sezione documentazione](/contributing/documentation).
+-   Segnalare bug? Apri una [nuova issue](https://github.com/WordPress/wordpress-playground/issues/new) nel repository principale GitHub, o in [Playground Tools](https://github.com/WordPress/playground-tools/issues/new).
+-   Idee, design o qualsiasi altra cosa? Apri una [discussione GitHub](https://github.com/WordPress/wordpress-playground/discussions), e parliamone!
+-   Traduzione? Vedi la [sezione traduzioni](/contributing/translations).
 
 <!--
 ## Guidelines
@@ -45,9 +45,9 @@ WordPress Playground è un progetto open-source che accoglie contributori di tut
 
 ## Linee guida
 
-- Come in tutti i progetti WordPress, vogliamo garantire un ambiente accogliente e rispettoso per tutti. Per favore leggi il [Codice di Condotta](https://make.wordpress.org/handbook/community-code-of-conduct/) della nostra community per saperne di più.
-- I contributori di codice dovrebbero rivedere i [principi di codifica](/contributing/coding-standards).
-- Mantieni il copyright su qualsiasi contributo che fai. Inviando una Pull Request, accetti di rilasciare quel codice sotto la [Licenza WordPress Playground](https://github.com/WordPress/wordpress-playground?tab=GPL-2.0-1-ov-file#readme).
+-   Come in tutti i progetti WordPress, vogliamo garantire un ambiente accogliente e rispettoso per tutti. Per favore leggi il [Codice di Condotta](https://make.wordpress.org/handbook/community-code-of-conduct/) della nostra community per saperne di più.
+-   I contributori di codice dovrebbero rivedere i [principi di codifica](/contributing/coding-standards).
+-   Mantieni il copyright su qualsiasi contributo che fai. Inviando una Pull Request, accetti di rilasciare quel codice sotto la [Licenza WordPress Playground](https://github.com/WordPress/wordpress-playground?tab=GPL-2.0-1-ov-file#readme).
 
 <!--
 ## Triaging issues
@@ -92,10 +92,10 @@ WordPress Playground e il progetto WordPress sono fortemente radicati nel softwa
 
 Di conseguenza, per favore sii consapevole delle implicazioni che i tuoi contributi avranno:
 
-- Quando contribuisci, accetti di rilasciare i tuoi contributi sotto la licenza GPLv2 (o successiva)
-- La licenza GPL ha forti disposizioni copyleft che garantiscono che tutte le opere derivate rimangano open-source e sotto gli stessi termini di licenza, promuovendo così un ambiente di sviluppo collaborativo.
-- La licenza GPL incoraggia a contribuire con qualsiasi modifica, correzione di bug o nuova funzionalità al codice sorgente originale.
-- La licenza GPL garantisce che il progetto rimanga libero e open-source, non solo in termini di costo ma anche rispetto alla libertà di utilizzare, modificare e distribuire il software.
+-   Quando contribuisci, accetti di rilasciare i tuoi contributi sotto la licenza GPLv2 (o successiva)
+-   La licenza GPL ha forti disposizioni copyleft che garantiscono che tutte le opere derivate rimangano open-source e sotto gli stessi termini di licenza, promuovendo così un ambiente di sviluppo collaborativo.
+-   La licenza GPL incoraggia a contribuire con qualsiasi modifica, correzione di bug o nuova funzionalità al codice sorgente originale.
+-   La licenza GPL garantisce che il progetto rimanga libero e open-source, non solo in termini di costo ma anche rispetto alla libertà di utilizzare, modificare e distribuire il software.
 
 Se hai domande su come quanto sopra potrebbe influenzare i tuoi contributi, sentiti libero di contattarci su WP Slack nel canale [`meta-playground`](https://wordpress.slack.com/archives/C04EWKGDJ0K).
 
