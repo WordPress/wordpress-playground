@@ -12,6 +12,7 @@
 
 namespace PhpMyAdmin\Dbal;
 
+use Closure;
 use Exception;
 use Generator;
 use PDO;
@@ -43,11 +44,23 @@ require_once '/internal/shared/sqlite-database-integration/wp-includes/sqlite-as
 require_once '/internal/shared/sqlite-database-integration/wp-includes/sqlite-ast/class-wp-sqlite-information-schema-exception.php';
 require_once '/internal/shared/sqlite-database-integration/wp-includes/sqlite-ast/class-wp-sqlite-information-schema-reconstructor.php';
 
-// A quick trick to supress the following phpMyAdmin warning:
+// Supress the following phpMyAdmin warning:
 //   "The mysqlnd extension is missing. Please check your PHP configuration."
-// TODO: We should target the particular error, not all errors.
-\Closure::bind(
-	function () { $this->errors = []; },
+Closure::bind(
+	function () {
+		$this->errors = array_values(
+			array_filter(
+				$this->errors,
+				function ($error) {
+					$skip = (
+						strpos($error->getMessage(), 'mysqlnd') !== false
+						&& strpos($error->getMessage(), 'extension is missing') !== false
+					);
+					return !$skip;
+				}
+			)
+		);
+	},
 	$GLOBALS['errorHandler'],
 	$GLOBALS['errorHandler']
 )();
