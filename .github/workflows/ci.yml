@@ -43,6 +43,8 @@ jobs:
                       target: test-group-4-asyncify
                     - name: test-unit-asyncify (6/6)
                       target: test-group-5-asyncify
+                    - name: test-unit-asyncify (7/6)
+                      target: test-group-6-asyncify
         name: ${{ matrix.name }}
         services:
             mysql:
@@ -87,6 +89,8 @@ jobs:
                       target: test-group-4-jspi
                     - name: test-unit-jspi (5/5)
                       target: test-group-5-jspi
+                    - name: test-unit-jspi (6/5)
+                      target: test-group-6-jspi
         name: ${{ matrix.name }}
         services:
             mysql:

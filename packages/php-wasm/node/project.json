@@ -151,7 +151,7 @@
 			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/node"],
 			"options": {
 				"reportsDirectory": "../../../coverage/packages/php-wasm/node",
-				"testFiles": ["php.spec.ts"]
+				"testFiles": ["php-part-1.spec.ts"]
 			}
 		},
 		"test-group-1-jspi": {
@@ -160,7 +160,7 @@
 			"options": {
 				"configFile": "packages/php-wasm/node/vite.jspi.config.ts",
 				"reportsDirectory": "../../../coverage/packages/php-wasm/node",
-				"testFiles": ["php.spec.ts"]
+				"testFiles": ["php-part-1.spec.ts"]
 			}
 		},
 		"test-group-2-asyncify": {
@@ -170,7 +170,11 @@
 				"reportsDirectory": "../../../coverage/packages/php-wasm/node",
 				"testFiles": [
 					"php-file-locking.spec.ts",
-					"file-lock-manager-for-node.spec.ts"
+					"file-lock-manager-for-node.spec.ts",
+					"php-imagick.spec.ts",
+					"php-soap.spec.ts",
+					"php-image-extensions.spec.ts",
+					"php-fsockopen.spec.ts"
 				]
 			}
 		},
@@ -182,7 +186,11 @@
 				"reportsDirectory": "../../../coverage/packages/php-wasm/node",
 				"testFiles": [
 					"php-file-locking.spec.ts",
-					"file-lock-manager-for-node.spec.ts"
+					"file-lock-manager-for-node.spec.ts",
+					"php-imagick.spec.ts",
+					"php-soap.spec.ts",
+					"php-image-extensions.spec.ts",
+					"php-fsockopen.spec.ts"
 				]
 			}
 		},
@@ -194,7 +202,10 @@
 				"testFiles": [
 					"php-request-handler.spec.ts",
 					"mount.spec.ts",
-					"rotate-php-runtime.spec.ts"
+					"rotate-php-runtime.spec.ts",
+					"php-fopen.spec.ts",
+					"php-file-get-contents.spec.ts",
+					"php-gethostbyname.spec.ts"
 				]
 			}
 		},
@@ -207,7 +218,10 @@
 				"testFiles": [
 					"php-request-handler.spec.ts",
 					"mount.spec.ts",
-					"rotate-php-runtime.spec.ts"
+					"rotate-php-runtime.spec.ts",
+					"php-fopen.spec.ts",
+					"php-file-get-contents.spec.ts",
+					"php-gethostbyname.spec.ts"
 				]
 			}
 		},
@@ -217,13 +231,13 @@
 			"options": {
 				"reportsDirectory": "../../../coverage/packages/php-wasm/node",
 				"testFiles": [
-					"php-imagick.spec.ts",
-					"php-soap.spec.ts",
-					"php-image-extensions.spec.ts",
-					"php-fsockopen.spec.ts",
-					"php-fopen.spec.ts",
-					"php-file-get-contents.spec.ts",
-					"php-gethostbyname.spec.ts"
+					"symlinks.spec.ts",
+					"php-sqlite3.spec.ts",
+					"php-networking.spec.ts",
+					"php-dynamic-loading.spec.ts",
+					"php-crash.spec.ts",
+					"php-mysqli.spec.ts",
+					"php-process-manager.spec.ts"
 				]
 			}
 		},
@@ -234,13 +248,13 @@
 				"configFile": "packages/php-wasm/node/vite.jspi.config.ts",
 				"reportsDirectory": "../../../coverage/packages/php-wasm/node",
 				"testFiles": [
-					"php-imagick.spec.ts",
-					"php-soap.spec.ts",
-					"php-image-extensions.spec.ts",
-					"php-fsockopen.spec.ts",
-					"php-fopen.spec.ts",
-					"php-file-get-contents.spec.ts",
-					"php-gethostbyname.spec.ts"
+					"symlinks.spec.ts",
+					"php-sqlite3.spec.ts",
+					"php-networking.spec.ts",
+					"php-dynamic-loading.spec.ts",
+					"php-crash.spec.ts",
+					"php-mysqli.spec.ts",
+					"php-process-manager.spec.ts"
 				]
 			}
 		},
@@ -250,19 +264,13 @@
 			"options": {
 				"reportsDirectory": "../../../coverage/packages/php-wasm/node",
 				"testFiles": [
-					"symlinks.spec.ts",
-					"php-sqlite3.spec.ts",
-					"php-networking.spec.ts",
-					"php-dynamic-loading.spec.ts",
-					"php-crash.spec.ts",
-					"php-mysqli.spec.ts",
-					"php-process-manager.spec.ts",
 					"php-ini.spec.ts",
 					"write-files.spec.ts",
 					"php-worker.spec.ts",
 					"unzip-file.spec.ts",
 					"php-vars.spec.ts",
-					"php-memory.spec.ts"
+					"php-memory.spec.ts",
+					"php-opcache.spec.ts"
 				]
 			}
 		},
@@ -273,13 +281,6 @@
 				"configFile": "packages/php-wasm/node/vite.jspi.config.ts",
 				"reportsDirectory": "../../../coverage/packages/php-wasm/node",
 				"testFiles": [
-					"symlinks.spec.ts",
-					"php-sqlite3.spec.ts",
-					"php-networking.spec.ts",
-					"php-dynamic-loading.spec.ts",
-					"php-crash.spec.ts",
-					"php-mysqli.spec.ts",
-					"php-process-manager.spec.ts",
 					"php-ini.spec.ts",
 					"write-files.spec.ts",
 					"php-worker.spec.ts",
@@ -289,12 +290,21 @@
 				]
 			}
 		},
-		"test-opcache": {
+		"test-group-6-asyncify": {
 			"executor": "@nx/vite:test",
 			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/node"],
 			"options": {
 				"reportsDirectory": "../../../coverage/packages/php-wasm/node",
-				"testFiles": ["php-opcache.spec.ts"]
+				"testFiles": ["php-part-2.spec.ts"]
+			}
+		},
+		"test-group-6-jspi": {
+			"executor": "@nx/vite:test",
+			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/node"],
+			"options": {
+				"configFile": "packages/php-wasm/node/vite.jspi.config.ts",
+				"reportsDirectory": "../../../coverage/packages/php-wasm/node",
+				"testFiles": ["php-part-2.spec.ts"]
 			}
 		},
 		"lint": {
