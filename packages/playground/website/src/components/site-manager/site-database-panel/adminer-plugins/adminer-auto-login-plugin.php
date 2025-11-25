@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Automatically log in when the query string is empty (= main page).
+ * Automatically log in when the query string is empty (= login page).
  */
 if (!count($_GET)) {
     $_POST['auth'] = [

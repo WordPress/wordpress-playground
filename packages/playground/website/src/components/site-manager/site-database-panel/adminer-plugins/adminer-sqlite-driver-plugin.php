@@ -1,4 +1,15 @@
 <?php
+
+/**
+ * An Adminer driver plugin for the MySQL-on-SQLite driver.
+ *
+ * This implementation is based on Adminer\SqlDb and Adminer\Db classes.
+ * It is modified to use the MySQL-on-SQLite driver instead of MySQLi.
+ *
+ * @see https://github.com/vrana/adminer/blob/eaad45a781a3e0d9fa04e3431c1826e81c061699/adminer/include/db.inc.php
+ * @see https://github.com/vrana/adminer/blob/eaad45a781a3e0d9fa04e3431c1826e81c061699/adminer/drivers/mysql.inc.php
+ */
+
 namespace Adminer;
 
 // Load the SQLite driver.
@@ -35,9 +46,72 @@ if (!defined('Adminer\DRIVER')) {
 
 	/**
 	 * WP_SQLite_Driver integration for Adminer.
+	 *
+	 * @see https://github.com/vrana/adminer/blob/eaad45a781a3e0d9fa04e3431c1826e81c061699/adminer/include/db.inc.php
+	 * @see https://github.com/vrana/adminer/blob/eaad45a781a3e0d9fa04e3431c1826e81c061699/adminer/drivers/mysql.inc.php
 	 */
 	class Db extends SqlDb {
-		public $extension = "WP_SQLite_Driver";
+		/**
+		 * Database extension name.
+		 *
+		 * @var string
+		 */
+		public $extension = 'MySQL on SQLite';
+
+		/**
+		 * Flavor of the database.
+		 *
+		 * @var string
+		 */
+		public $flavor = 'SQLite';
+
+		/**
+		 * Server version information.
+		 *
+		 * @var string
+		 */
+		public $server_info = '8.0.38';
+
+		/**
+		 * Number of affected rows by the last query.
+		 *
+		 * @var int
+		 */
+		public $affected_rows = 0;
+
+		/**
+		 * Information about the last query.
+		 *
+		 * @see https://php.net/mysql_info
+		 */
+		public $info = '';
+
+		/**
+		 * Error number of the last query.
+		 *
+		 * @var int
+		 */
+		public $errno = 0;
+
+		/**
+		 * Error message of the last query.
+		 *
+		 * @var string
+		 */
+		public $error = '';
+
+		/**
+		 * Used for multi-query support.
+		 *
+		 * @var Result|bool
+		 */
+		protected $multi;
+
+		/**
+		 * WP_SQLite_Driver instance.
+		 *
+		 * @var WP_SQLite_Driver
+		 */
 		public $driver;
 
 		function attach($server, $username, $password) {
@@ -63,18 +137,19 @@ if (!defined('Adminer\DRIVER')) {
 		}
 
 		function select_db($database) {
-			$this->driver->query('USE ' . $database);
+			$this->driver->query(sprintf('USE %s', $this->driver->get_connection()->quote_identifier($database)));
 			return true;
 		}
 
 		function query($query, $unbuffered = false) {
-			if (strpos($query, 'USER()') !== false) {
-				return new Result(array(), array());
-			}
 			try {
+				$this->affected_rows = 0;
 				$results = $this->driver->query($query);
+				if (is_int($results)) {
+					$this->affected_rows = $results;
+				}
 				$columns = $this->driver->get_last_column_meta();
-				return new Result($results ?? array(), $columns ?? array());
+				return new Result(is_array($results) ? $results : array(), $columns);
 			} catch (Throwable $e) {
 				return new Result(array(), array());
 			}
@@ -83,12 +158,24 @@ if (!defined('Adminer\DRIVER')) {
 
 	/**
 	 * Result representation in Adminer-compatible format.
+	 *
+	 * @see https://github.com/vrana/adminer/blob/eaad45a781a3e0d9fa04e3431c1826e81c061699/adminer/include/pdo.inc.php
+	 * @see https://github.com/vrana/adminer/blob/eaad45a781a3e0d9fa04e3431c1826e81c061699/adminer/drivers/mysql.inc.php
 	 */
 	class Result {
+		/** @var */
 		public $num_rows;
+
+		/** @var array */
 		private $rows;
+
+		/** @var array */
 		private $columns;
+
+		/** @var int */
 		private $row_offset = 0;
+
+		/** @var int */
 		private $col_offset = 0;
 
 		function __construct($rows, $columns) {
@@ -106,22 +193,17 @@ if (!defined('Adminer\DRIVER')) {
 		}
 
 		function fetch_field(): \stdClass {
-			$column = $this->columns[$this->col_offset++];
-			return (object) array(
-				'name' => $column['name'],
-				'type' => $column['mysqli:type'],
-				'charsetnr' => $column['mysqli:charsetnr'],
-				'table' => $column['table'],
-				'orgtable' => $column['orgtable'],
-				'orgname' => $column['orgname'],
-			);
+			$column = (object) $this->columns[$this->col_offset++];
+			$column->type = $column['mysqli:type'];
+			$column->charsetnr = $column['mysqli:charsetnr'];
+			return $column;
 		}
 	}
 
 	/*
 	 * The rest of the code in this file is from the original Adminer code.
 	 *
-	 * @see https://github.com/vrana/adminer/blob/master/adminer/drivers/mysql.inc.php
+	 * @see https://github.com/vrana/adminer/blob/eaad45a781a3e0d9fa04e3431c1826e81c061699/adminer/drivers/mysql.inc.php
 	 */
 
 	class Driver extends SqlDriver {
