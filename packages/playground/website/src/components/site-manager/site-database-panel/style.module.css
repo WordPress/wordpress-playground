@@ -24,3 +24,9 @@
 	font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier,
 		monospace;
 }
+
+.error {
+	color: #cc1818;
+	font-size: 13px;
+	margin-top: 8px;
+}

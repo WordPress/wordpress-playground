@@ -1,6 +1,7 @@
 import { Button, Icon, Flex, FlexItem } from '@wordpress/components';
 import { external } from '@wordpress/icons';
 import { useState } from 'react';
+import css from './style.module.css';
 import {
 	type PlaygroundClient,
 	type StepDefinition,
@@ -68,6 +69,7 @@ export function AdminerButton({
 	playground: PlaygroundClient | undefined;
 }) {
 	const [state, setState] = useState<'idle' | 'loading' | 'ready'>('idle');
+	const [error, setError] = useState<string | null>(null);
 
 	const handleOpenAdminer = async () => {
 		if (!playground) {
@@ -84,8 +86,10 @@ export function AdminerButton({
 				await installAdminer(playground);
 				setState('ready');
 			} catch (error) {
-				console.error('Failed to install Adminer:', error);
 				setState('idle');
+				setError(
+					error instanceof Error ? error.message : 'Unknown error'
+				);
 				return;
 			}
 		}
@@ -102,20 +106,27 @@ export function AdminerButton({
 
 	const isLoading = state === 'loading';
 	return (
-		<Button
-			variant="primary"
-			disabled={!playground || isLoading}
-			isBusy={isLoading}
-			onClick={handleOpenAdminer}
-		>
-			<Flex justify="space-between" gap={2} expanded={true}>
-				<FlexItem>
-					{isLoading ? 'Opening Adminer…' : 'Open in Adminer'}
-				</FlexItem>
-				<FlexItem>
-					<Icon icon={external} size={16} />
-				</FlexItem>
-			</Flex>
-		</Button>
+		<Flex direction="column" gap={0} expanded={false}>
+			<Button
+				variant="primary"
+				disabled={!playground || isLoading}
+				isBusy={isLoading}
+				onClick={handleOpenAdminer}
+			>
+				<Flex justify="space-between" gap={2} expanded={true}>
+					<FlexItem>
+						{isLoading ? 'Opening Adminer…' : 'Open in Adminer'}
+					</FlexItem>
+					<FlexItem>
+						<Icon icon={external} size={16} />
+					</FlexItem>
+				</Flex>
+			</Button>
+			{error && (
+				<div className={css.error}>
+					Failed to install Adminer. Please try again. Error: {error}
+				</div>
+			)}
+		</Flex>
 	);
 }
