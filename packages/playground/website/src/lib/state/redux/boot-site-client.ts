@@ -133,9 +133,9 @@ export function bootSiteClient(
 				constants: site.metadata.runtimeConfiguration.constants,
 			};
 		} else {
-			blueprint = site.metadata.originalBlueprint;
 			logTrackingEvent('load');
 			logBlueprintEvents(site.metadata.originalBlueprint);
+			blueprint = site.metadata.originalBlueprint;
 		}
 
 		let playground: PlaygroundClient | undefined = undefined;
