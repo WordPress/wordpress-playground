@@ -45,7 +45,6 @@ export class WritableOpfsBundle
 			prefix: string
 		): Promise<void> => {
 			// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-			// @ts-expect-error: iteration types not fully in lib.dom yet
 			for await (const [name, handle] of dir.entries()) {
 				if (handle.kind === 'file') {
 					const file = await handle.getFile();
