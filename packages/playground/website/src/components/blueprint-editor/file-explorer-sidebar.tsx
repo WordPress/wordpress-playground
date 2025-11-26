@@ -108,7 +108,10 @@ const createDownloadUrl = (data: Uint8Array, filename: string) => {
 };
 
 const getMimeType = (filename: string): string => {
-	const extension = filename.split('.').pop() as keyof typeof mimeTypes;
+	const extension = filename
+		.split('.')
+		.pop()
+		?.toLowerCase() as keyof typeof mimeTypes;
 	return mimeTypes[extension] || mimeTypes['_default'];
 };
 
@@ -132,7 +135,10 @@ export type FileExplorerSidebarProps = {
 		shouldFocus?: boolean
 	) => Promise<void> | void;
 	onSelectionCleared: () => Promise<void> | void;
-	onShowMessage: (message: string | JSX.Element) => Promise<void> | void;
+	onShowMessage: (
+		path: string | null,
+		message: string | JSX.Element
+	) => Promise<void> | void;
 	documentRoot: string;
 };
 
@@ -278,7 +284,7 @@ export function FileExplorerSidebar({
 	const handleUploadInputChange = async (
 		event: React.ChangeEvent<HTMLInputElement>
 	) => {
-		await importFileList(event.target.files);
+		await importFileList(event.target.files ?? []);
 		// Reset input so the same file selection can be chosen again.
 		event.target.value = '';
 	};
@@ -329,6 +335,7 @@ export function FileExplorerSidebar({
 					filename
 				);
 				await onShowMessage(
+					path,
 					<>
 						<p>File too large to open (&gt;1MB).</p>
 						<p>
@@ -355,11 +362,11 @@ export function FileExplorerSidebar({
 					const dataUrl = URL.createObjectURL(blob);
 
 					await onShowMessage(
+						path,
 						<BinaryFilePreview
 							filename={fname}
 							mimeType={mimeType}
 							dataUrl={dataUrl}
-							downloadUrl={downloadUrl}
 						/>
 					);
 					return;
@@ -367,6 +374,7 @@ export function FileExplorerSidebar({
 
 				// Non-previewable binary file
 				await onShowMessage(
+					path,
 					<>
 						<p>Binary file. Cannot be edited.</p>
 						<p>
@@ -383,7 +391,7 @@ export function FileExplorerSidebar({
 			await onFileOpened(path, text, shouldFocus);
 		} catch (error) {
 			logger.error('Could not open file', error);
-			await onShowMessage('Could not open file.');
+			await onShowMessage(null, 'Could not open file.');
 		}
 	};
 

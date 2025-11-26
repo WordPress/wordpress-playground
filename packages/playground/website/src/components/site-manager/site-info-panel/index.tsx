@@ -36,7 +36,6 @@ import { getRelativeDate } from '../../../lib/get-relative-date';
 import { removeSite, sitesSlice } from '../../../lib/state/redux/slice-sites';
 import {
 	type Blueprint,
-	BlueprintReflection,
 	resolveRuntimeConfiguration,
 } from '@wp-playground/blueprints';
 import {
@@ -47,7 +46,6 @@ import {
 	useCallback,
 	useRef,
 } from 'react';
-import { logger } from '@php-wasm/logger';
 import type { WritableInMemoryBundle } from '../../blueprint-editor/writable-in-memory-bundle';
 import type { BlueprintBundleEditorHandle } from '../../blueprint-editor';
 
@@ -116,7 +114,8 @@ export function SiteInfoPanel({
 		useState<WritableInMemoryBundle | null>(null);
 	const blueprintEditorRef = useRef<BlueprintBundleEditorHandle | null>(null);
 
-	const handleBundleChange = useCallback((bundle: WritableInMemoryBundle) => {
+	// WritableInMemoryBundle
+	const handleBundleChange = useCallback((bundle: any) => {
 		setUpdatedBundle(bundle);
 	}, []);
 
@@ -139,8 +138,9 @@ export function SiteInfoPanel({
 			if (!bundle) {
 				bundle = site.metadata.originalBlueprint as any;
 			}
-			const runtimeConfiguration =
-				await resolveRuntimeConfiguration(bundle);
+			const runtimeConfiguration = await resolveRuntimeConfiguration(
+				bundle as any
+			);
 
 			// Remove the current playground client to trigger cleanup
 			dispatch(removeClientInfo(site.slug));
@@ -154,7 +154,7 @@ export function SiteInfoPanel({
 					changes: {
 						metadata: {
 							...site.metadata,
-							originalBlueprint: bundle,
+							originalBlueprint: bundle!,
 							runtimeConfiguration,
 							whenCreated: Date.now(),
 						},

@@ -357,7 +357,7 @@ export function SiteFileBrowser({
 	}, []);
 
 	const handleShowMessage = useCallback(
-		async (message: string | JSX.Element) => {
+		async (_path: string | null, message: string | JSX.Element) => {
 			try {
 				await flushPendingSave(clientRef.current, {
 					saveTimeoutRef,

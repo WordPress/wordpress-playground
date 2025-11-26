@@ -63,6 +63,7 @@ export const BlueprintBundleEditor = forwardRef<
 	const [messageContent, setMessageContent] = useState<
 		string | JSX.Element | null
 	>(null);
+	const [displayPath, setDisplayPath] = useState<string | null>(null);
 
 	const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const skipNextSaveRef = useRef<boolean>(false);
@@ -89,6 +90,7 @@ export const BlueprintBundleEditor = forwardRef<
 					await filesystem.readFileAsText(BLUEPRINT_JSON_PATH);
 				skipNextSaveRef.current = true;
 				setCurrentPath(BLUEPRINT_JSON_PATH);
+				setDisplayPath(BLUEPRINT_JSON_PATH);
 				setCode(blueprintJsonContent);
 				setReadOnly(false);
 				setSaveState(SaveState.IDLE);
@@ -231,6 +233,7 @@ export const BlueprintBundleEditor = forwardRef<
 			skipNextSaveRef.current = true;
 			setCurrentPath(path);
 			setCode(content);
+			setDisplayPath(path);
 			setMessageContent(null);
 			setReadOnly(false);
 			setSaveState(SaveState.IDLE);
@@ -255,6 +258,7 @@ export const BlueprintBundleEditor = forwardRef<
 		setCurrentPath(null);
 		setCode('');
 		setMessageContent(null);
+		setDisplayPath(null);
 		setReadOnly(true);
 		setSaveState(SaveState.IDLE);
 		setSaveError(null);
@@ -262,7 +266,7 @@ export const BlueprintBundleEditor = forwardRef<
 	}, [filesystem]);
 
 	const handleShowMessage = useCallback(
-		async (message: string | JSX.Element) => {
+		async (path: string | null, message: string | JSX.Element) => {
 			try {
 				await flushPendingSave();
 			} catch {
@@ -270,6 +274,7 @@ export const BlueprintBundleEditor = forwardRef<
 			}
 			skipNextSaveRef.current = true;
 			setCurrentPath(null);
+			setDisplayPath((prev) => path ?? prev);
 
 			if (typeof message === 'string') {
 				setCode(message);
@@ -285,7 +290,7 @@ export const BlueprintBundleEditor = forwardRef<
 			setShowExplorerOnMobile(false);
 			setTreeFocusPath(null);
 		},
-		[filesystem]
+		[flushPendingSave]
 	);
 
 	const blueprintSchemaExtensions = useMemo(
@@ -411,9 +416,9 @@ export const BlueprintBundleEditor = forwardRef<
 									!currentPath?.length,
 							})}
 						>
-							{currentPath?.length
-								? currentPath
-								: `Browse files under /`}
+							{displayPath ||
+								selectedDirPath ||
+								'Browse files under /'}
 						</div>
 					</div>
 					{saveError ? (

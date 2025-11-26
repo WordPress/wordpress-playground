@@ -4,14 +4,12 @@ export type BinaryFilePreviewProps = {
 	filename: string;
 	mimeType: string;
 	dataUrl: string;
-	downloadUrl: string;
 };
 
 export function BinaryFilePreview({
 	filename,
 	mimeType,
 	dataUrl,
-	downloadUrl,
 }: BinaryFilePreviewProps) {
 	const isImage = mimeType.startsWith('image/');
 	const isVideo = mimeType.startsWith('video/');
@@ -19,16 +17,6 @@ export function BinaryFilePreview({
 
 	return (
 		<div className={styles.container}>
-			<div className={styles.header}>
-				<span className={styles.filename}>{filename}</span>
-				<a
-					href={downloadUrl}
-					download={filename}
-					className={styles.downloadLink}
-				>
-					Download
-				</a>
-			</div>
 			<div className={styles.previewArea}>
 				{isImage && (
 					<img

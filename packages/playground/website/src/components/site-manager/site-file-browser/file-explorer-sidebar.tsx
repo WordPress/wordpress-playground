@@ -70,7 +70,10 @@ export type FileExplorerSidebarProps = {
 		shouldFocus?: boolean
 	) => Promise<void> | void;
 	onSelectionCleared: () => Promise<void> | void;
-	onShowMessage: (message: string | JSX.Element) => Promise<void> | void;
+	onShowMessage: (
+		path: string | null,
+		message: string | JSX.Element
+	) => Promise<void> | void;
 	documentRoot: string;
 };
 
@@ -112,6 +115,7 @@ export function FileExplorerSidebar({
 					filename
 				);
 				await onShowMessage(
+					path,
 					<>
 						<p>File too large to open (&gt;1MB).</p>
 						<p>
@@ -138,6 +142,7 @@ export function FileExplorerSidebar({
 					const dataUrl = URL.createObjectURL(blob);
 
 					await onShowMessage(
+						path,
 						<BinaryFilePreview
 							filename={fname}
 							mimeType={mimeType}
@@ -150,6 +155,7 @@ export function FileExplorerSidebar({
 
 				// Non-previewable binary file
 				await onShowMessage(
+					path,
 					<>
 						<p>Binary file. Cannot be edited.</p>
 						<p>
@@ -166,7 +172,7 @@ export function FileExplorerSidebar({
 			await onFileOpened(path, text, shouldFocus);
 		} catch (error) {
 			logger.error('Could not open file', error);
-			await onShowMessage('Could not open file.');
+			await onShowMessage(null, 'Could not open file.');
 		}
 	};
 
