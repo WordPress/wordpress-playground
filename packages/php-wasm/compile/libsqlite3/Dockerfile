@@ -20,6 +20,7 @@ RUN set -euxo pipefail &&\
     mv sqlite-autoconf-3400100 sqlite-src && \
     cd sqlite-src && \
     source /root/emsdk/emsdk_env.sh && \
+	export CFLAGS="-DSQLITE_ENABLE_COLUMN_METADATA -DSQLITE_ENABLE_FTS5 -DSQLITE_USE_URI" && \
     emconfigure ./configure \
         --build i386-pc-linux-gnu \
         --target wasm32-unknown-emscripten \
