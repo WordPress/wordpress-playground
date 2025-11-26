@@ -1,6 +1,7 @@
 FROM playground-php-wasm:base
 
 ARG WITH_JSPI="no"
+ENV PKG_CONFIG_PATH=/root/lib/lib/pkgconfig
 
 # The PHP version to build.
 # This value must point to an existing branch of the
@@ -255,11 +256,30 @@ RUN if [ "$WITH_SQLITE" = "yes" ]; \
 # Add GD if needed
 RUN if [ "$WITH_GD" = "yes" ]; \
 	then \
-		echo -n ' --with-external-gd=/root/lib --enable-gd ' >> /root/.php-configure-flags; \
-		if [[ "${PHP_VERSION:0:1}" -eq "8" && "${PHP_VERSION:2:1}" -ge "1" ]]; then \
+		# Use external libgd for PHP 8.1+; fall back to bundled gd for <= 8.0 (and 7.x) to avoid missing symbols
+		if [[ "${PHP_VERSION:0:1}" -gt "8" || ( "${PHP_VERSION:0:1}" -eq "8" && "${PHP_VERSION:2:1}" -ge "1" ) ]]; then \
+			echo -n ' --with-external-gd=/root/lib --enable-gd ' >> /root/.php-configure-flags; \
 			echo -n ' /root/lib/lib/libgd.a /root/lib/lib/libjpeg.a /root/lib/lib/libpng16.a /root/lib/lib/libwebp.a /root/lib/lib/libsharpyuv.a /root/lib/lib/libavif.a ' >> /root/.emcc-php-wasm-sources; \
 		else \
-			echo -n ' /root/lib/lib/libgd.a /root/lib/lib/libjpeg.a /root/lib/lib/libpng16.a /root/lib/lib/libwebp.a /root/lib/lib/libsharpyuv.a ' >> /root/.emcc-php-wasm-sources; \
+			# Bundled gd path (matches original logic)
+			if [[ "${PHP_VERSION:0:1}" -eq "7" ]] && [ "${PHP_VERSION:0:3}" != "7.4" ]; then \
+				echo -n ' --with-png-dir=/root/lib --with-jpeg-dir=/root/lib --with-gd --enable-gd ' >> /root/.php-configure-flags; \
+			else \
+				if [[ "${PHP_VERSION:0:1}" -eq "8" && "${PHP_VERSION:2:1}" -ge "1" ]]; then \
+					echo -n ' --with-avif ' >> /root/.php-configure-flags; \
+				fi; \
+				echo -n ' --with-png-dir=/root/lib --with-jpeg --with-webp --with-gd --enable-gd ' >> /root/.php-configure-flags; \
+			fi; \
+			if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "4" ]]; then \
+				/root/replace.sh 's/static long php_jpeg_emit_message/static void php_jpeg_emit_message/g' /root/php-src/ext/gd/libgd/gd_jpeg.c; \
+				sed -i '84s/.*return 1;.*//' /root/php-src/ext/gd/libgd/gd_jpeg.c; \
+				/root/replace.sh 's/cinfo.err->emit_message = \(void \(*\)\(j_common_ptr,int\)\) php_jpeg_emit_message;/cinfo.err->emit_message = php_jpeg_emit_message;/g' /root/php-src/ext/gd/libgd/gd_jpeg.c; \
+			fi; \
+			if [[ "${PHP_VERSION:0:1}" -eq "8" && "${PHP_VERSION:2:1}" -ge "1" ]]; then \
+				echo -n ' /root/lib/lib/libjpeg.a /root/lib/lib/libpng16.a /root/lib/lib/libwebp.a /root/lib/lib/libsharpyuv.a /root/lib/lib/libavif.a ' >> /root/.emcc-php-wasm-sources; \
+			else \
+				echo -n ' /root/lib/lib/libjpeg.a /root/lib/lib/libpng16.a /root/lib/lib/libwebp.a /root/lib/lib/libsharpyuv.a ' >> /root/.emcc-php-wasm-sources; \
+			fi; \
 		fi; \
 	fi;
 
@@ -365,6 +385,14 @@ COPY ./php/php*.patch /root/
 COPY ./php/apply-mysqlnd-patch.sh /root/
 RUN cd /root && \
 	git apply --no-index /root/php${PHP_VERSION:0:3}*.patch -v && \
+	if [[ "${PHP_VERSION:0:3}" == "7.3" || "${PHP_VERSION:0:3}" == "7.2" ]]; then \
+		# Fix missing string.h includes in mbfilter_htmlent.c (implicit declarations of strcmp/strchr/memcpy with clang >= C99)
+		sed -i '1i#include <string.h>' /root/php-src/ext/mbstring/libmbfl/filters/mbfilter_htmlent.c; \
+		# Fix missing string.h includes in mbfilter.c (memcpy)
+		sed -i '1i#include <string.h>' /root/php-src/ext/mbstring/libmbfl/mbfl/mbfilter.c; \
+		# Fix missing stdlib.h includes in mbfl_allocators.c (malloc/realloc/calloc/free)
+		sed -i '1i#include <stdlib.h>' /root/php-src/ext/mbstring/libmbfl/mbfl/mbfl_allocators.c; \
+	fi && \
 	chmod +x /root/apply-mysqlnd-patch.sh && \
 	/root/apply-mysqlnd-patch.sh && \
 	( [[ "${PHP_VERSION:0:3}" == '8.3' ]] && \
@@ -416,13 +444,14 @@ RUN /root/replace.sh 's/pharcmd=pharcmd/pharcmd=/g' /root/php-src/configure && \
 # Build the patched PHP
 WORKDIR /root/php-src
 RUN source /root/emsdk/emsdk_env.sh && \
-ICU_CFLAGS="-D__x86_64__ -fPIC -I/root/lib/include" \
-CURL_CFLAGS="-I/root/lib/include" \
-WEBP_LIBS="-L/root/lib/lib" \
-WEBP_CFLAGS="-I/root/lib/include" \
-CURL_LIBS="-I/root/lib/lib -L/root/lib/lib" \
-	emconfigure ./configure \
-	PKG_CONFIG_PATH=$PKG_CONFIG_PATH \
+	ICU_CFLAGS="-D__x86_64__ -fPIC -I/root/lib/include" \
+	CURL_CFLAGS="-I/root/lib/include" \
+	WEBP_LIBS="-L/root/lib/lib" \
+	WEBP_CFLAGS="-I/root/lib/include" \
+	CURL_LIBS="-I/root/lib/lib -L/root/lib/lib" \
+	PKG_CONFIG_PATH="/root/lib/lib/pkgconfig:${PKG_CONFIG_PATH}" \
+		emconfigure ./configure \
+		PKG_CONFIG_PATH=$PKG_CONFIG_PATH \
 	# Fibers are a PHP 8.1+ feature. They are compiled as
 	# a custom assembly implementation by default. However,
 	# that implementation does not work with emscripten.

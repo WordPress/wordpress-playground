@@ -77,6 +77,7 @@ RUN set -euxo pipefail; \
         -DBUILD_STATIC_LIBS=ON \
         -DBUILD_SHARED_LIBS=OFF \
         -DBUILD_TEST=OFF \
+        -DBUILD_PROGRAMS=OFF \
         -DENABLE_CPP=OFF \
         -DENABLE_GD_FORMATS=ON \
         -DENABLE_PNG=ON \
