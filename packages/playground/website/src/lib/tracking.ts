@@ -100,18 +100,4 @@ export const logBlueprintEvents = async (blueprint: BlueprintV1) => {
 			}
 		}
 	}
-
-	/**
-	 * Because the Blueprint isn't compiled, we need to log the plugins
-	 * that are installed using the `plugins` shorthand.
-	 */
-	if (blueprintDeclaration.plugins) {
-		for (const plugin of blueprintDeclaration.plugins) {
-			if (typeof plugin !== 'string') {
-				continue;
-			}
-			logTrackingEvent('step', { step: 'installPlugin' });
-			logPluginInstallEvent(plugin);
-		}
-	}
 };
