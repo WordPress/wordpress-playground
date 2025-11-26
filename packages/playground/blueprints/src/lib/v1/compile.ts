@@ -44,7 +44,10 @@ import { defaultWpCliPath, defaultWpCliResource } from '../steps/wp-cli';
 import type { ErrorObject } from 'ajv';
 
 export class InvalidBlueprintError extends Error {
-	constructor(message: string, public readonly validationErrors?: unknown) {
+	constructor(
+		message: string,
+		public readonly validationErrors?: unknown
+	) {
 		super(message);
 		this.name = 'InvalidBlueprintError';
 	}
@@ -604,7 +607,7 @@ function compileVersion<T>(
  * @param step The object to test
  * @returns Whether the object is a StepDefinition
  */
-function isStepDefinition(
+export function isStepDefinition(
 	step: Step | string | undefined | false | null
 ): step is StepDefinition {
 	return !!(typeof step === 'object' && step);

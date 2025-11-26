@@ -26,7 +26,9 @@ import { MissingSiteModal } from '../missing-site-modal';
 import { RenameSiteModal } from '../rename-site-modal';
 import { SaveSiteModal } from '../save-site-modal';
 import { modalSlugs } from '../../lib/state/redux/slice-ui';
+import { logErrorEvent } from '../../lib/tracking';
 import { GitHubPrivateRepoAuthModal } from '../github-private-repo-auth-modal';
+import { addCrashListener, logger } from '@php-wasm/logger';
 
 acquireOAuthTokenIfNeeded();
 const displayMode = getDisplayModeFromQuery();
@@ -126,7 +128,12 @@ function Modals(blueprint: BlueprintV1Declaration) {
 	});
 
 	// eslint-disable-next-line react-hooks/exhaustive-deps
-	useEffect(() => {}, []);
+	useEffect(() => {
+		addCrashListener(logger, (e) => {
+			const error = e as CustomEvent;
+			logErrorEvent(error.detail.source ?? 'unknown');
+		});
+	}, []);
 
 	const currentModal = useAppSelector(
 		(state: PlaygroundReduxState) => state.ui.activeModal

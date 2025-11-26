@@ -9,7 +9,11 @@ import {
 	removeClientInfo,
 	updateClientInfo,
 } from './slice-clients';
-import { logTrackingEvent } from '../../tracking';
+import {
+	logBlueprintEvents,
+	logErrorEvent,
+	logTrackingEvent,
+} from '../../tracking';
 import {
 	type Blueprint,
 	BlueprintFilesystemRequiredError,
@@ -130,6 +134,8 @@ export function bootSiteClient(
 			};
 		} else {
 			blueprint = site.metadata.originalBlueprint;
+			logTrackingEvent('load');
+			logBlueprintEvents(site.metadata.originalBlueprint);
 		}
 
 		let playground: PlaygroundClient | undefined = undefined;
@@ -174,6 +180,7 @@ export function bootSiteClient(
 			});
 		} catch (e) {
 			logger.error(e);
+			logErrorEvent('bootSiteClient');
 
 			if (
 				(e as any).name === 'ArtifactExpiredError' ||

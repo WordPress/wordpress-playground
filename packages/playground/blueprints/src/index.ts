@@ -25,6 +25,7 @@ export {
 	// BC:
 	compileBlueprintV1 as compileBlueprint,
 	runBlueprintV1Steps as runBlueprintSteps,
+	isStepDefinition,
 } from './lib/v1/compile';
 export type {
 	CompileBlueprintV1Options,
