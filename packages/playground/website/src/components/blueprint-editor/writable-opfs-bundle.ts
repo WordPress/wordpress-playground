@@ -1,7 +1,7 @@
 import type { AsyncWritableFilesystem } from '@wp-playground/components';
 import type { BlueprintBundle } from '@wp-playground/blueprints';
 import { WritableInMemoryBundle } from './writable-in-memory-bundle';
-import { ensureAbsolutePath } from './bundle-utils';
+import { ensureAbsolutePath } from './convert-blueprint-to-filesystem';
 
 export const OPFS_BASE_PATH = ['blueprints', 'last-edited-bundle'];
 

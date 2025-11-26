@@ -1,7 +1,7 @@
 import type { AsyncWritableFilesystem } from '@wp-playground/components';
 import type { BlueprintBundle } from '@wp-playground/blueprints';
 import { StreamedFile } from '@php-wasm/stream-compression';
-import { ensureAbsolutePath } from './bundle-utils';
+import { ensureAbsolutePath } from './convert-blueprint-to-filesystem';
 
 export class WritableInMemoryBundle
 	implements AsyncWritableFilesystem, BlueprintBundle

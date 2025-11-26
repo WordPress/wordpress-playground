@@ -15,7 +15,7 @@ import {
 } from '@wp-playground/components';
 import { logger } from '@php-wasm/logger';
 import { dirname, normalizePath } from '@php-wasm/util';
-import { BinaryFilePreview } from './binary-file-preview';
+import { BinaryFilePreview } from '@wp-playground/components';
 import mimeTypes from '@php-wasm/universal/mime-types';
 
 export const MAX_INLINE_FILE_BYTES = 1024 * 1024; // 1MB
