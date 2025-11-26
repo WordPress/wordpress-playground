@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import type { PlaygroundClient } from '@wp-playground/client';
 import { __experimentalVStack as VStack } from '@wordpress/components';
+import { DownloadButton } from './download-button';
 import { AdminerButton } from './adminer-button';
 import { PhpMyAdminButton } from './phpmyadmin-button';
 import css from './style.module.css';
@@ -56,26 +57,29 @@ export function SiteDatabasePanel({
 				SQLite.
 			</p>
 
-			{databaseSize !== null && (
-				<VStack spacing={3} style={{ alignItems: 'flex-start' }}>
-					<div className={css.databaseInfo}>
-						<span className={css.label}>Engine:</span>
-						<span className={css.value}>SQLite</span>
-						<span className={css.label}>Driver:</span>
-						<span className={css.value}>MySQL on SQLite</span>
-						<span className={css.label}>Path:</span>
-						<span className={css.value}>
-							<code>{DATABASE_PATH}</code>
-						</span>
-						<span className={css.label}>Size:</span>
-						<span className={css.value}>
-							{formatBytes(databaseSize)}
-						</span>
-					</div>
-				</VStack>
-			)}
+			<VStack spacing={3} style={{ alignItems: 'flex-start' }}>
+				<div className={css.databaseInfo}>
+					<span className={css.label}>Engine:</span>
+					<span className={css.value}>SQLite</span>
+					<span className={css.label}>Driver:</span>
+					<span className={css.value}>MySQL on SQLite</span>
+					<span className={css.label}>Path:</span>
+					<span className={css.value}>
+						<code>{DATABASE_PATH}</code>
+					</span>
+					{databaseSize !== null && (
+						<>
+							<span className={css.label}>Size:</span>
+							<span className={css.value}>
+								{formatBytes(databaseSize)}
+							</span>
+						</>
+					)}
+				</div>
+			</VStack>
 
 			<VStack spacing={3}>
+				<DownloadButton playground={playground} />
 				<AdminerButton playground={playground} />
 				<PhpMyAdminButton playground={playground} />
 			</VStack>
