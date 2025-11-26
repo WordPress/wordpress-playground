@@ -47,8 +47,9 @@
 .editor-path {
 	flex: 1;
 	min-width: 0;
-	font-family: 'SFMono-Regular', ui-monospace, SFMono-Regular, Menlo, Monaco,
-		Consolas, 'Liberation Mono', 'Courier New', monospace;
+	font-family:
+		'SFMono-Regular', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+		'Liberation Mono', 'Courier New', monospace;
 	font-size: 12px;
 	color: var(--color-gray-700);
 	white-space: nowrap;
@@ -114,8 +115,9 @@
 	padding: 16px 20px;
 	background: #ffffff;
 	overflow: auto;
-	font-family: 'SFMono-Regular', ui-monospace, SFMono-Regular, Menlo, Monaco,
-		Consolas, 'Liberation Mono', 'Courier New', monospace;
+	font-family:
+		'SFMono-Regular', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+		'Liberation Mono', 'Courier New', monospace;
 	font-size: 13px;
 	line-height: 1.6;
 }
@@ -138,6 +140,28 @@
 
 .message-area a:hover {
 	color: #135e96;
+}
+
+.editorToolbar {
+	display: flex;
+	justify-content: flex-end;
+	align-items: center;
+	gap: 12px;
+	padding: 10px 16px;
+	border-bottom: 1px solid var(--color-gray-200);
+	background: #ffffff;
+	flex-wrap: wrap;
+}
+
+.editorToolbarButton {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.editorToolbarPlayIcon {
+	width: 18px;
+	height: 18px;
 }
 
 .mobile-toggle {

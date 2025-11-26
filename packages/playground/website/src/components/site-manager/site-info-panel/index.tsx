@@ -11,7 +11,7 @@ import {
 	MenuItem,
 	TabPanel,
 } from '@wordpress/components';
-import { moreVertical, chevronLeft, edit, download } from '@wordpress/icons';
+import { moreVertical, chevronLeft, edit } from '@wordpress/icons';
 import { SiteLogs } from '../../log-modal';
 import { useAppDispatch, useAppSelector } from '../../../lib/state/redux/store';
 import { usePlaygroundClientInfo } from '../../../lib/use-playground-client';
@@ -27,53 +27,12 @@ import {
 	setActiveModal,
 	modalSlugs,
 } from '../../../lib/state/redux/slice-ui';
-import {
-	selectClientInfoBySiteSlug,
-	removeClientInfo,
-} from '../../../lib/state/redux/slice-clients';
+import { selectClientInfoBySiteSlug } from '../../../lib/state/redux/slice-clients';
 import { ActiveSiteSettingsForm } from '../site-settings-form/active-site-settings-form';
 import { getRelativeDate } from '../../../lib/get-relative-date';
-import { removeSite, sitesSlice } from '../../../lib/state/redux/slice-sites';
-import {
-	type Blueprint,
-	resolveRuntimeConfiguration,
-} from '@wp-playground/blueprints';
-import {
-	lazy,
-	Suspense,
-	useState,
-	useEffect,
-	useCallback,
-	useRef,
-} from 'react';
-import type { WritableInMemoryBundle } from '../../blueprint-editor/writable-in-memory-bundle';
-import type { BlueprintBundleEditorHandle } from '../../blueprint-editor';
-
-const PlayIcon = ({ className }: { className?: string }) => (
-	<svg
-		className={className}
-		viewBox="0 0 32 32"
-		width="20"
-		height="20"
-		aria-hidden="true"
-	>
-		<circle
-			cx="16"
-			cy="16"
-			r="12"
-			fill="none"
-			stroke="currentColor"
-			strokeWidth="2"
-		/>
-		<path
-			d="M13 11v10l8-5-8-5z"
-			fill="currentColor"
-			stroke="currentColor"
-			strokeWidth="1.5"
-			strokeLinejoin="round"
-		/>
-	</svg>
-);
+import { removeSite } from '../../../lib/state/redux/slice-sites';
+import { type Blueprint } from '@wp-playground/blueprints';
+import { lazy, Suspense, useState, useEffect } from 'react';
 
 const SiteFileBrowser = lazy(() =>
 	import('../site-file-browser').then((m) => ({ default: m.SiteFileBrowser }))
@@ -134,63 +93,10 @@ export function SiteInfoPanel({
 	// Resolve documentRoot from playground client
 	const [documentRoot, setDocumentRoot] = useState<string | null>(null);
 
-	// Blueprint editing state for temporary playgrounds
-	const [isRecreating, setIsRecreating] = useState<boolean>(false);
-	const [updatedBundle, setUpdatedBundle] =
-		useState<WritableInMemoryBundle | null>(null);
-	const blueprintEditorRef = useRef<BlueprintBundleEditorHandle | null>(null);
-
-	// WritableInMemoryBundle
-	const handleBundleChange = useCallback((bundle: any) => {
-		setUpdatedBundle(bundle);
-	}, []);
-
-	const handleDownloadBundle = useCallback(() => {
-		void blueprintEditorRef.current?.downloadBundle();
-	}, []);
-
 	// Save the tab when it changes
 	const handleTabSelect = (tabName: string) => {
 		setSiteLastTab(site.slug, tabName);
 	};
-
-	// Handle blueprint recreation for temporary playgrounds
-	const handleRecreateFromBlueprint = useCallback(async () => {
-		try {
-			setIsRecreating(true);
-			let bundle =
-				updatedBundle ??
-				((await blueprintEditorRef.current?.getBundle?.()) as WritableInMemoryBundle | null);
-			if (!bundle) {
-				bundle = site.metadata.originalBlueprint as any;
-			}
-			const runtimeConfiguration = await resolveRuntimeConfiguration(
-				bundle as any
-			);
-
-			// Remove the current playground client to trigger cleanup
-			dispatch(removeClientInfo(site.slug));
-
-			// Update the site in place with new blueprint and timestamp
-			// This avoids the "No site selected" flash that would occur if we removed/added the site
-			// The new timestamp forces React to remount the iframe (key changes)
-			dispatch(
-				sitesSlice.actions.updateSite({
-					id: site.slug,
-					changes: {
-						metadata: {
-							...site.metadata,
-							originalBlueprint: bundle!,
-							runtimeConfiguration,
-							whenCreated: Date.now(),
-						},
-					},
-				})
-			);
-		} finally {
-			setIsRecreating(false);
-		}
-	}, [updatedBundle, dispatch, site]);
 
 	const isTemporary = site.metadata.storage === 'none';
 
@@ -552,32 +458,7 @@ export function SiteInfoPanel({
 									)}
 									hidden={tab.name !== 'blueprint'}
 								>
-									{isTemporary ? (
-										<div className={css.blueprintHeader}>
-											<Button
-												variant="primary"
-												onClick={
-													handleRecreateFromBlueprint
-												}
-												isBusy={isRecreating}
-												disabled={isRecreating}
-											>
-												<PlayIcon
-													className={css.playIcon}
-												/>
-												{isRecreating
-													? 'Recreating...'
-													: 'Run'}
-											</Button>
-											<Button
-												variant="secondary"
-												icon={<Icon icon={download} />}
-												onClick={handleDownloadBundle}
-											>
-												Download bundle
-											</Button>
-										</div>
-									) : (
+									{!isTemporary && (
 										<div className={css.blueprintNotice}>
 											This Blueprint is read-only for
 											saved Playgrounds. Create a
@@ -593,15 +474,9 @@ export function SiteInfoPanel({
 										}
 									>
 										<BlueprintBundleEditor
-											ref={blueprintEditorRef}
 											initialBlueprint={
 												site.metadata
 													.originalBlueprint as Blueprint
-											}
-											onChange={
-												isTemporary
-													? handleBundleChange
-													: undefined
 											}
 											isVisible={tab.name === 'blueprint'}
 											className={classNames(
@@ -611,6 +486,7 @@ export function SiteInfoPanel({
 														!isTemporary,
 												}
 											)}
+											site={site}
 										/>
 									</Suspense>
 								</div>

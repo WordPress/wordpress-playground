@@ -8,9 +8,14 @@ import {
 	useState,
 } from 'react';
 import classNames from 'classnames';
-import { Button, Notice } from '@wordpress/components';
+import { Button, Notice, Icon } from '@wordpress/components';
+import { download } from '@wordpress/icons';
 import type { AsyncWritableFilesystem } from '@wp-playground/components';
-import type { Blueprint, BlueprintBundle } from '@wp-playground/blueprints';
+import {
+	type Blueprint,
+	type BlueprintBundle,
+	resolveRuntimeConfiguration,
+} from '@wp-playground/blueprints';
 import { logger } from '@php-wasm/logger';
 import { autocompletion } from '@codemirror/autocomplete';
 import { ZipWriter, BlobWriter, Uint8ArrayReader } from '@zip.js/zip.js';
@@ -25,6 +30,11 @@ import styles from '../site-manager/site-file-browser/style.module.css';
 import { SaveState } from './save-state';
 import { convertBlueprintToWritableFilesystem } from './convert-blueprint-to-filesystem';
 import hideRootStyles from './hide-root.module.css';
+import type { WritableInMemoryBundle } from './writable-in-memory-bundle';
+import type { SiteInfo } from '../../lib/state/redux/slice-sites';
+import { sitesSlice } from '../../lib/state/redux/slice-sites';
+import { removeClientInfo } from '../../lib/state/redux/slice-clients';
+import { useAppDispatch } from '../../lib/state/redux/store';
 
 export const SAVE_DEBOUNCE_MS = 100;
 export const BLUEPRINT_JSON_PATH = '/blueprint.json';
@@ -39,13 +49,40 @@ type BlueprintBundleEditorProps = {
 	isVisible?: boolean;
 	onChange?: (blueprint: BlueprintBundle) => void;
 	className?: string;
+	site?: SiteInfo;
 };
+
+const PlayIcon = ({ className }: { className?: string }) => (
+	<svg
+		className={className}
+		viewBox="0 0 32 32"
+		width="18"
+		height="18"
+		aria-hidden="true"
+	>
+		<circle
+			cx="16"
+			cy="16"
+			r="12"
+			fill="none"
+			stroke="currentColor"
+			strokeWidth="2"
+		/>
+		<path
+			d="M13 11v10l8-5-8-5z"
+			fill="currentColor"
+			stroke="currentColor"
+			strokeWidth="1.5"
+			strokeLinejoin="round"
+		/>
+	</svg>
+);
 
 export const BlueprintBundleEditor = forwardRef<
 	BlueprintBundleEditorHandle,
 	BlueprintBundleEditorProps
 >(function BlueprintBundleEditor(
-	{ initialBlueprint, onChange, className },
+	{ initialBlueprint, onChange, className, site },
 	ref
 ) {
 	const [filesystem, setFilesystem] =
@@ -64,6 +101,7 @@ export const BlueprintBundleEditor = forwardRef<
 		string | JSX.Element | null
 	>(null);
 	const [displayPath, setDisplayPath] = useState<string | null>(null);
+	const [isRecreating, setIsRecreating] = useState(false);
 
 	const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const skipNextSaveRef = useRef<boolean>(false);
@@ -71,6 +109,7 @@ export const BlueprintBundleEditor = forwardRef<
 	const currentPathRef = useRef<string | null>(currentPath);
 	const filesystemRef = useRef<AsyncWritableFilesystem | null>(null);
 	const editorRef = useRef<CodeEditorHandle | null>(null);
+	const dispatch = useAppDispatch();
 
 	useEffect(() => {
 		codeRef.current = code;
@@ -223,6 +262,45 @@ export const BlueprintBundleEditor = forwardRef<
 		}
 	}, [filesystem]);
 
+	const handleRecreateFromBlueprint = useCallback(async () => {
+		if (!site || site.metadata.storage !== 'none') {
+			return;
+		}
+		try {
+			setIsRecreating(true);
+			await flushPendingSave();
+			const bundle =
+				(filesystemRef.current as WritableInMemoryBundle | null) ??
+				((site.metadata.originalBlueprint ||
+					null) as WritableInMemoryBundle | null);
+			if (!bundle) {
+				throw new Error('Blueprint bundle is not available.');
+			}
+			const runtimeConfiguration = await resolveRuntimeConfiguration(
+				bundle as any
+			);
+			dispatch(removeClientInfo(site.slug));
+			dispatch(
+				sitesSlice.actions.updateSite({
+					id: site.slug,
+					changes: {
+						metadata: {
+							...site.metadata,
+							originalBlueprint: bundle,
+							runtimeConfiguration,
+							whenCreated: Date.now(),
+						},
+					},
+				})
+			);
+		} catch (error) {
+			logger.error('Failed to recreate from blueprint', error);
+			setSaveError('Could not recreate Playground. Try again.');
+		} finally {
+			setIsRecreating(false);
+		}
+	}, [dispatch, flushPendingSave, site]);
+
 	const handleFileOpened = useCallback(
 		async (path: string, content: string, shouldFocus = true) => {
 			try {
@@ -368,8 +446,41 @@ export const BlueprintBundleEditor = forwardRef<
 		);
 	}
 
+	const isTemporarySite = site?.metadata.storage === 'none';
+	const showToolbar = Boolean(isTemporarySite);
+	const runLabel = isRecreating ? 'Recreating…' : 'Recreate';
+	const disableRunButton =
+		!isTemporarySite || isRecreating || !filesystem || !site;
+	const disableDownloadButton = !filesystem;
+	const showDownloadButton = Boolean(isTemporarySite);
+
 	return (
 		<div className={classNames(styles.container, className)}>
+			{showToolbar && (
+				<div className={styles.editorToolbar}>
+					<Button
+						variant="primary"
+						className={styles.editorToolbarButton}
+						onClick={() => void handleRecreateFromBlueprint()}
+						isBusy={isRecreating}
+						disabled={disableRunButton}
+					>
+						<PlayIcon className={styles.editorToolbarPlayIcon} />
+						{runLabel}
+					</Button>
+					{showDownloadButton ? (
+						<Button
+							variant="secondary"
+							className={styles.editorToolbarButton}
+							onClick={handleDownloadBundle}
+							disabled={disableDownloadButton}
+						>
+							<Icon icon={download} />
+							Download bundle
+						</Button>
+					) : null}
+				</div>
+			)}
 			<div
 				className={classNames(styles.content, {
 					[styles.sidebarOpen]: showExplorerOnMobile,
