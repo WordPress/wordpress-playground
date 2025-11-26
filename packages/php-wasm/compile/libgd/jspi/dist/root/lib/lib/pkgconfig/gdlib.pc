@@ -1,0 +1,11 @@
+prefix=/root/lib
+exec_prefix=${prefix}
+libdir=${exec_prefix}/lib
+includedir=${prefix}/include
+
+Name: gdlib
+Description: GD graphics library
+Version: 2.3.3
+Requires: libpng
+Libs: -L${libdir} -lgd
+Cflags: -I${includedir}

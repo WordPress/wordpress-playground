@@ -1,7 +1,6 @@
 FROM playground-php-wasm:base
 
 ARG WITH_JSPI="no"
-ARG GD_VERSION="2.3.3"
 
 # The PHP version to build.
 # This value must point to an existing branch of the
@@ -50,45 +49,13 @@ COPY ./libz/ /root/builds/libz
 COPY ./oniguruma/ /root/builds/oniguruma
 COPY ./libintl/ /root/builds/libintl
 COPY ./libImageMagick/ /root/builds/libImageMagick
+COPY ./libgd/ /root/builds/libgd
 
 RUN if [ "$WITH_JSPI" = "yes" ]; then \
-	cp -r /root/builds/*/jspi/dist/root/lib/* /root/lib; \
+	find /root/builds -path '*/jspi/dist/root/lib' -type d -exec cp -r {}/. /root/lib \; ; \
 else \
-	cp -r /root/builds/*/asyncify/dist/root/lib/* /root/lib; \
+	find /root/builds -path '*/asyncify/dist/root/lib' -type d -exec cp -r {}/. /root/lib \; ; \
 fi
-
-RUN set -euxo pipefail; \
-	cd /tmp; \
-	rm -rf libgd-$GD_VERSION libgd.tar.gz; \
-	wget https://github.com/libgd/libgd/releases/download/gd-$GD_VERSION/libgd-$GD_VERSION.tar.gz -O libgd.tar.gz; \
-	tar -xzf libgd.tar.gz; \
-	rm libgd.tar.gz; \
-	cd libgd-$GD_VERSION; \
-	source /root/emsdk/emsdk_env.sh; \
-	JSPI_FLAGS=$(if [ "$WITH_JSPI" = "yes" ]; then echo "-sSUPPORT_LONGJMP=wasm -fwasm-exceptions"; else echo ""; fi); \
-	emcmake cmake -G"Unix Makefiles" \
-		-DCMAKE_BUILD_TYPE=Release \
-		-DCMAKE_INSTALL_PREFIX=/root/lib \
-		-DCMAKE_PREFIX_PATH=/root/lib \
-		-DBUILD_SHARED_LIBS=OFF \
-		-DBUILD_TEST=OFF \
-		-DENABLE_CPP=OFF \
-		-DENABLE_GD_FORMATS=ON \
-		-DENABLE_PNG=ON \
-		-DENABLE_JPEG=ON \
-		-DENABLE_WEBP=ON \
-		-DENABLE_AVIF=ON \
-		-DENABLE_LIQ=OFF \
-		-DENABLE_TIFF=OFF \
-		-DENABLE_ICONV=OFF \
-		-DENABLE_XPM=OFF \
-		-DENABLE_FREETYPE=OFF \
-		-DENABLE_FONTCONFIG=OFF \
-		-DENABLE_HEIF=OFF \
-		-DENABLE_RAQM=OFF; \
-	EMCC_SKIP="-lc" EMCC_FLAGS=" -D__x86_64__ -sSIDE_MODULE $JSPI_FLAGS" emmake make -j"$(nproc)"; \
-	EMCC_FLAGS=" -D__x86_64__ $JSPI_FLAGS" emmake make install; \
-	rm -rf /tmp/libgd-$GD_VERSION
 
 COPY ./libzip/ /root/builds-libzip/
 RUN mkdir -p /libs/libzip
@@ -288,7 +255,7 @@ RUN if [ "$WITH_SQLITE" = "yes" ]; \
 # Add GD if needed
 RUN if [ "$WITH_GD" = "yes" ]; \
 	then \
-		echo -n ' --with-external-gd --enable-gd ' >> /root/.php-configure-flags; \
+		echo -n ' --with-external-gd=/root/lib --enable-gd ' >> /root/.php-configure-flags; \
 		if [[ "${PHP_VERSION:0:1}" -eq "8" && "${PHP_VERSION:2:1}" -ge "1" ]]; then \
 			echo -n ' /root/lib/lib/libgd.a /root/lib/lib/libjpeg.a /root/lib/lib/libpng16.a /root/lib/lib/libwebp.a /root/lib/lib/libsharpyuv.a /root/lib/lib/libavif.a ' >> /root/.emcc-php-wasm-sources; \
 		else \

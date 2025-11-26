@@ -8,7 +8,7 @@ import path from 'path';
 
 const dependencyFilename = path.join(__dirname, '8_1_33', 'php_8_1.wasm');
 export { dependencyFilename };
-export const dependenciesTotalSize = 26668758;
+export const dependenciesTotalSize = 26755743;
 const phpVersionString = '8.1.33';
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
@@ -30854,13 +30854,13 @@ export function init(RuntimeName, PHPLoader) {
 	// end include: postlibrary.js
 
 	var ASM_CONSTS = {
-		13077778: ($0) => {
+		13099810: ($0) => {
 			if (!$0) {
 				AL.alcErr = 0xa004;
 				return 1;
 			}
 		},
-		13077826: ($0) => {
+		13099858: ($0) => {
 			if (!AL.currentCtx) {
 				err('alGetProcAddress() called without a valid context');
 				return 1;
@@ -31348,7 +31348,7 @@ export function init(RuntimeName, PHPLoader) {
 		___cpp_exception = wasmExports['__cpp_exception'];
 	}
 
-	var ___heap_base = 14672672;
+	var ___heap_base = 14696736;
 
 	var wasmImports = {
 		/** @export */
