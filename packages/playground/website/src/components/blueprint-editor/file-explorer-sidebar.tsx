@@ -8,7 +8,7 @@ import {
 	type SetStateAction,
 } from 'react';
 import { Icon } from '@wordpress/components';
-import { file as folderIcon, page as fileIcon, upload } from '@wordpress/icons';
+import { upload } from '@wordpress/icons';
 // Reuse the file explorer styles from the site file browser to avoid duplication
 import styles from '../site-manager/site-file-browser/file-explorer.module.css';
 import {
@@ -22,6 +22,64 @@ import { BinaryFilePreview } from './binary-file-preview';
 import mimeTypes from '@php-wasm/universal/mime-types';
 
 export const MAX_INLINE_FILE_BYTES = 1024 * 1024; // 1MB
+
+const FilePlusIcon = () => (
+	<svg viewBox="0 0 32 32" width="24" height="24" aria-hidden="true">
+		<path
+			d="M11 6h7l5 5v12a2 2 0 0 1-2 2H11a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2z"
+			fill="none"
+			stroke="currentColor"
+			strokeWidth="2"
+			strokeLinejoin="round"
+		/>
+		<path
+			d="M18 6v5h5"
+			fill="none"
+			stroke="currentColor"
+			strokeWidth="2"
+			strokeLinejoin="round"
+		/>
+		<g transform="translate(19 19)">
+			<circle cx="5" cy="5" r="8" fill="#fff" />
+			<path
+				d="M5 1.5v7M1.5 5h7"
+				fill="none"
+				stroke="currentColor"
+				strokeWidth="2"
+				strokeLinecap="round"
+			/>
+		</g>
+	</svg>
+);
+
+const FolderPlusIcon = () => (
+	<svg viewBox="0 0 32 32" width="24" height="24" aria-hidden="true">
+		<path
+			d="M6 9h7l3 3h10v11a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V9z"
+			fill="none"
+			stroke="currentColor"
+			strokeWidth="2"
+			strokeLinejoin="round"
+		/>
+		<path
+			d="M6 9V8a2 2 0 0 1 2-2h5l3 3"
+			fill="none"
+			stroke="currentColor"
+			strokeWidth="2"
+			strokeLinejoin="round"
+		/>
+		<g transform="translate(19 19)">
+			<circle cx="5" cy="5" r="8" fill="#fff" />
+			<path
+				d="M5 1.5v7M1.5 5h7"
+				fill="none"
+				stroke="currentColor"
+				strokeWidth="2"
+				strokeLinecap="round"
+			/>
+		</g>
+	</svg>
+);
 
 const seemsLikeBinary = (buffer: Uint8Array) => {
 	// Assume that anything with a null byte in the first 4096 bytes is binary.
@@ -344,8 +402,10 @@ export function FileExplorerSidebar({
 				<span className={styles.fileExplorerTitle}>Files</span>
 				<div className={styles.fileExplorerActions}>
 					<button
-						className={styles.fileExplorerButton}
-						type="button"
+						className={classNames(
+							styles.fileExplorerButton,
+							styles.fileExplorerIconButton
+						)}
 						onClick={() => {
 							if (!treeRef.current) {
 								return;
@@ -355,13 +415,16 @@ export function FileExplorerSidebar({
 							);
 						}}
 						title="Create new file"
+						aria-label="Create new file"
+						type="button"
 					>
-						<Icon icon={fileIcon} size={16} />
-						New File
+						<FilePlusIcon />
 					</button>
 					<button
-						className={styles.fileExplorerButton}
-						type="button"
+						className={classNames(
+							styles.fileExplorerButton,
+							styles.fileExplorerIconButton
+						)}
 						onClick={() => {
 							if (!treeRef.current) {
 								return;
@@ -371,12 +434,17 @@ export function FileExplorerSidebar({
 							);
 						}}
 						title="Create new folder"
+						aria-label="Create new folder"
+						type="button"
 					>
-						<Icon icon={folderIcon} size={16} />
-						New Folder
+						<FolderPlusIcon />
 					</button>
 					<button
-						className={styles.fileExplorerButton}
+						className={classNames(
+							styles.fileExplorerButton,
+							styles.fileExplorerIconButton,
+							styles.fileExplorerUploadButton
+						)}
 						type="button"
 						onClick={handleUploadButtonClick}
 						title="Upload files"

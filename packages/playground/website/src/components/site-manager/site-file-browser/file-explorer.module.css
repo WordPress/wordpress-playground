@@ -64,6 +64,23 @@
 	border-color: transparent;
 }
 
+.fileExplorerIconButton {
+	width: 36px;
+	height: 36px;
+	padding: 0;
+	justify-content: center;
+}
+
+.fileExplorerIconButton svg {
+	width: 24px;
+	height: 24px;
+}
+
+.fileExplorerUploadButton svg {
+	width: 20px;
+	height: 20px;
+}
+
 .fileExplorerTree {
 	flex: 1;
 	min-height: 0;
