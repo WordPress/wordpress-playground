@@ -261,8 +261,9 @@ RUN if [ "$WITH_GD" = "yes" ]; \
 			echo -n ' --with-external-gd=/root/lib --enable-gd ' >> /root/.php-configure-flags; \
 			echo -n ' /root/lib/lib/libgd.a /root/lib/lib/libjpeg.a /root/lib/lib/libpng16.a /root/lib/lib/libwebp.a /root/lib/lib/libsharpyuv.a /root/lib/lib/libavif.a ' >> /root/.emcc-php-wasm-sources; \
 		else \
-			# Bundled gd path (matches original logic)
+			# Bundled gd
 			if [[ "${PHP_VERSION:0:1}" -eq "7" ]] && [ "${PHP_VERSION:0:3}" != "7.4" ]; then \
+				# @TODO support webp for PHP 7.0 – 7.3
 				echo -n ' --with-png-dir=/root/lib --with-jpeg-dir=/root/lib --with-gd --enable-gd ' >> /root/.php-configure-flags; \
 			else \
 				if [[ "${PHP_VERSION:0:1}" -eq "8" && "${PHP_VERSION:2:1}" -ge "1" ]]; then \
@@ -386,11 +387,10 @@ COPY ./php/apply-mysqlnd-patch.sh /root/
 RUN cd /root && \
 	git apply --no-index /root/php${PHP_VERSION:0:3}*.patch -v && \
 	if [[ "${PHP_VERSION:0:3}" == "7.3" || "${PHP_VERSION:0:3}" == "7.2" ]]; then \
-		# Fix missing string.h includes in mbfilter_htmlent.c (implicit declarations of strcmp/strchr/memcpy with clang >= C99)
+		# Emscripten >= 4.0.19 Does not tolerate implicit declarations of strcmp/strchr/memcpy with clang >= C99.
+		# Let's backfill the required includes.
 		sed -i '1i#include <string.h>' /root/php-src/ext/mbstring/libmbfl/filters/mbfilter_htmlent.c; \
-		# Fix missing string.h includes in mbfilter.c (memcpy)
 		sed -i '1i#include <string.h>' /root/php-src/ext/mbstring/libmbfl/mbfl/mbfilter.c; \
-		# Fix missing stdlib.h includes in mbfl_allocators.c (malloc/realloc/calloc/free)
 		sed -i '1i#include <stdlib.h>' /root/php-src/ext/mbstring/libmbfl/mbfl/mbfl_allocators.c; \
 	fi && \
 	chmod +x /root/apply-mysqlnd-patch.sh && \
