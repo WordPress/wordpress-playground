@@ -77,6 +77,31 @@ export function BlueprintBundleEditor({
 				if (cancelled) return;
 				setFilesystem(filesystem);
 				setSelectedDirPath('/');
+				onChange?.(filesystem as any); // @TODO: Align types
+
+				// @TODO: Indicate we're editing a local blueprint bundle (and
+				// restore it on page reload). @TODO: WordPress-like
+				// "you have an autosaved Blueprint, would you like to
+				// restore it?"
+				// @TODO: Blueprint validation, bundle validation
+				// @TODO: Blueprint inlining/anti-inlining features,
+				//        e.g. "inline all files", "split out inlined files as
+				//        bundled resources" etc.
+				// @TODO: "Load Blueprint from URL" button
+				// @TODO: Easily edit Blueprints from the community gallery
+				// @TODO: Easily PR/commit Blueprints to a remote repo
+				// @TODO: Easily share Blueprints bundles with others via URL
+				// @TODO: Easily save Blueprints in an arbitrary remote repository
+				if (
+					typeof window !== 'undefined' &&
+					window.location.hash !== '#local-blueprint-bundle'
+				) {
+					try {
+						window.location.hash = '#local-blueprint-bundle';
+					} catch {
+						/* noop */
+					}
+				}
 
 				try {
 					await handleFileOpened(

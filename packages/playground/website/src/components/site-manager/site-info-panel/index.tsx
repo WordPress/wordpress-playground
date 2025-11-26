@@ -141,19 +141,13 @@ export function SiteInfoPanel({
 
 	// Handle blueprint recreation for temporary playgrounds
 	const handleRecreateFromBlueprint = useCallback(async () => {
-		if (!updatedBundle) {
-			console.error('No updated bundle');
-			return;
-		}
 		try {
 			setIsRecreating(true);
 
 			// Resolve runtime configuration from the new blueprint
-			console.log({ updatedBundle });
 			const runtimeConfiguration = await resolveRuntimeConfiguration(
 				updatedBundle!
 			);
-			console.log({ runtimeConfiguration });
 
 			// Remove the current playground client to trigger cleanup
 			dispatch(removeClientInfo(site.slug));
@@ -565,10 +559,7 @@ export function SiteInfoPanel({
 													handleRecreateFromBlueprint
 												}
 												isBusy={isRecreating}
-												disabled={
-													isRecreating ||
-													!updatedBundle
-												}
+												disabled={isRecreating}
 											>
 												{isRecreating
 													? 'Recreating...'

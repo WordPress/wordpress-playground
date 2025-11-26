@@ -9,6 +9,7 @@ import {
 	isBlueprintBundle,
 	resolveRemoteBlueprint,
 } from '@wp-playground/client';
+import { WritableOpfsBundle } from '../../../components/blueprint-editor/writable-opfs-bundle';
 import { parseBlueprint } from './router';
 import { OverlayFilesystem, InMemoryFilesystem } from '@wp-playground/storage';
 import { RecommendedPHPVersion } from '@wp-playground/common';
@@ -90,6 +91,17 @@ export async function resolveBlueprintFromURL(
 				url: blueprintUrl,
 			},
 		};
+	} else if (fragment === 'local-blueprint-bundle') {
+		try {
+			const bundle = await WritableOpfsBundle.loadFromOpfs();
+			return {
+				blueprint: bundle as BlueprintV1,
+				source: { type: 'inline-string' },
+			};
+		} catch (error) {
+			console.error('Failed to load local OPFS blueprint bundle', error);
+			throw new Error('Invalid blueprint');
+		}
 	} else if (fragment.length) {
 		/*
 		 * Support passing blueprints in the URI fragment, e.g.:

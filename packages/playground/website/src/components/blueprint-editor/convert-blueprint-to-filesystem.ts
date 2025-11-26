@@ -6,6 +6,7 @@ import {
 	ensureAbsolutePath,
 } from './bundle-utils';
 import { WritableInMemoryBundle } from './writable-in-memory-bundle';
+import { WritableOpfsBundle } from './writable-opfs-bundle';
 
 /**
  * Convert a Blueprint (declaration or bundle) into a writable in-memory filesystem,
@@ -15,6 +16,19 @@ export async function convertBlueprintToWritableFilesystem(
 	blueprint: Blueprint,
 	onChange?: (bundle: WritableInMemoryBundle) => void
 ): Promise<AsyncWritableFilesystem> {
+	// If the hash indicates a previously edited local bundle, try to load it first.
+	if (
+		typeof window !== 'undefined' &&
+		window.location.hash === '#local-blueprint-bundle'
+	) {
+		try {
+			const loaded = await WritableOpfsBundle.loadFromOpfs(onChange);
+			return loaded;
+		} catch {
+			// Fall through to fresh construction.
+		}
+	}
+
 	const reflection = await BlueprintReflection.create(blueprint);
 	const declaration = reflection.getDeclaration();
 	const bundle = reflection.getBundle();
@@ -41,5 +55,9 @@ export async function convertBlueprintToWritableFilesystem(
 		files[normalized] = content;
 	}
 
-	return new WritableInMemoryBundle(files, onChange);
+	try {
+		return await WritableOpfsBundle.create(files, onChange);
+	} catch {
+		return new WritableInMemoryBundle(files, onChange);
+	}
 }
