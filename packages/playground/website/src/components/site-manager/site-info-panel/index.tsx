@@ -10,9 +10,8 @@ import {
 	MenuGroup,
 	MenuItem,
 	TabPanel,
-	CheckboxControl,
 } from '@wordpress/components';
-import { moreVertical, chevronLeft, edit } from '@wordpress/icons';
+import { moreVertical, chevronLeft, edit, download } from '@wordpress/icons';
 import { SiteLogs } from '../../log-modal';
 import { useAppDispatch, useAppSelector } from '../../../lib/state/redux/store';
 import { usePlaygroundClientInfo } from '../../../lib/use-playground-client';
@@ -40,9 +39,17 @@ import {
 	BlueprintReflection,
 	resolveRuntimeConfiguration,
 } from '@wp-playground/blueprints';
-import { lazy, Suspense, useState, useEffect, useCallback } from 'react';
+import {
+	lazy,
+	Suspense,
+	useState,
+	useEffect,
+	useCallback,
+	useRef,
+} from 'react';
 import { logger } from '@php-wasm/logger';
 import type { WritableInMemoryBundle } from '../../blueprint-editor/writable-in-memory-bundle';
+import type { BlueprintBundleEditorHandle } from '../../blueprint-editor';
 
 const SiteFileBrowser = lazy(() =>
 	import('../site-file-browser').then((m) => ({ default: m.SiteFileBrowser }))
@@ -104,35 +111,18 @@ export function SiteInfoPanel({
 	const [documentRoot, setDocumentRoot] = useState<string | null>(null);
 
 	// Blueprint editing state for temporary playgrounds
-	const [blueprintCode, setBlueprintCode] = useState<string>('');
-	const [autoRecreate, setAutoRecreate] = useState<boolean>(false);
 	const [isRecreating, setIsRecreating] = useState<boolean>(false);
 	const [updatedBundle, setUpdatedBundle] =
 		useState<WritableInMemoryBundle | null>(null);
+	const blueprintEditorRef = useRef<BlueprintBundleEditorHandle | null>(null);
 
 	const handleBundleChange = useCallback((bundle: WritableInMemoryBundle) => {
 		setUpdatedBundle(bundle);
 	}, []);
 
-	// Initialize blueprint code using BlueprintReflection to handle bundles
-	useEffect(() => {
-		(async () => {
-			try {
-				const reflection = await BlueprintReflection.create(
-					site.metadata.originalBlueprint as any
-				);
-				const declaration = reflection.getDeclaration() as any;
-				setBlueprintCode(JSON.stringify(declaration, null, '\t'));
-			} catch (error) {
-				logger.error(error);
-
-				// Fallback to original blueprint if reflection fails
-				setBlueprintCode(
-					JSON.stringify(site.metadata.originalBlueprint, null, '\t')
-				);
-			}
-		})();
-	}, [site.metadata.originalBlueprint]);
+	const handleDownloadBundle = useCallback(() => {
+		void blueprintEditorRef.current?.downloadBundle();
+	}, []);
 
 	// Save the tab when it changes
 	const handleTabSelect = (tabName: string) => {
@@ -143,11 +133,14 @@ export function SiteInfoPanel({
 	const handleRecreateFromBlueprint = useCallback(async () => {
 		try {
 			setIsRecreating(true);
-
-			// Resolve runtime configuration from the new blueprint
-			const runtimeConfiguration = await resolveRuntimeConfiguration(
-				updatedBundle!
-			);
+			let bundle =
+				updatedBundle ??
+				((await blueprintEditorRef.current?.getBundle?.()) as WritableInMemoryBundle | null);
+			if (!bundle) {
+				bundle = site.metadata.originalBlueprint as any;
+			}
+			const runtimeConfiguration =
+				await resolveRuntimeConfiguration(bundle);
 
 			// Remove the current playground client to trigger cleanup
 			dispatch(removeClientInfo(site.slug));
@@ -161,7 +154,7 @@ export function SiteInfoPanel({
 					changes: {
 						metadata: {
 							...site.metadata,
-							originalBlueprint: updatedBundle!,
+							originalBlueprint: bundle,
 							runtimeConfiguration,
 							whenCreated: Date.now(),
 						},
@@ -171,22 +164,9 @@ export function SiteInfoPanel({
 		} finally {
 			setIsRecreating(false);
 		}
-	}, [blueprintCode, updatedBundle, dispatch, site]);
+	}, [updatedBundle, dispatch, site]);
 
 	const isTemporary = site.metadata.storage === 'none';
-
-	// Debounced auto-recreate when blueprint changes
-	useEffect(() => {
-		if (!autoRecreate || !isTemporary || !blueprintCode) {
-			return;
-		}
-
-		const timeoutId = setTimeout(() => {
-			handleRecreateFromBlueprint();
-		}, 2000); // 2 second debounce
-
-		return () => clearTimeout(timeoutId);
-	}, [blueprintCode, autoRecreate, isTemporary, handleRecreateFromBlueprint]);
 
 	const removeSiteAndCloseMenu = async (onClose: () => void) => {
 		// TODO: Replace with HTML-based dialog
@@ -548,13 +528,9 @@ export function SiteInfoPanel({
 								>
 									{isTemporary ? (
 										<div className={css.blueprintHeader}>
-											<CheckboxControl
-												label="Auto recreate"
-												checked={autoRecreate}
-												onChange={setAutoRecreate}
-											/>
 											<Button
 												variant="primary"
+												icon="controls-play"
 												onClick={
 													handleRecreateFromBlueprint
 												}
@@ -564,6 +540,13 @@ export function SiteInfoPanel({
 												{isRecreating
 													? 'Recreating...'
 													: 'Recreate Playground from this Blueprint'}
+											</Button>
+											<Button
+												variant="secondary"
+												icon={<Icon icon={download} />}
+												onClick={handleDownloadBundle}
+											>
+												Download bundle
 											</Button>
 										</div>
 									) : (
@@ -582,6 +565,7 @@ export function SiteInfoPanel({
 										}
 									>
 										<BlueprintBundleEditor
+											ref={blueprintEditorRef}
 											initialBlueprint={
 												site.metadata
 													.originalBlueprint as Blueprint

@@ -1,10 +1,19 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+	forwardRef,
+	useCallback,
+	useEffect,
+	useImperativeHandle,
+	useMemo,
+	useRef,
+	useState,
+} from 'react';
 import classNames from 'classnames';
 import { Button, Notice } from '@wordpress/components';
 import type { AsyncWritableFilesystem } from '@wp-playground/components';
 import type { Blueprint, BlueprintBundle } from '@wp-playground/blueprints';
 import { logger } from '@php-wasm/logger';
 import { autocompletion } from '@codemirror/autocomplete';
+import { ZipWriter, BlobWriter, Uint8ArrayReader } from '@zip.js/zip.js';
 import { FileExplorerSidebar } from './file-explorer-sidebar';
 import { jsonSchemaCompletion } from './json-schema-editor';
 import {
@@ -20,16 +29,25 @@ import hideRootStyles from './hide-root.module.css';
 export const SAVE_DEBOUNCE_MS = 100;
 export const BLUEPRINT_JSON_PATH = '/blueprint.json';
 
-export function BlueprintBundleEditor({
-	initialBlueprint,
-	onChange,
-	className,
-}: {
+export interface BlueprintBundleEditorHandle {
+	downloadBundle: () => Promise<void>;
+	getBundle: () => Promise<AsyncWritableFilesystem | null>;
+}
+
+type BlueprintBundleEditorProps = {
 	initialBlueprint: Blueprint;
 	isVisible?: boolean;
 	onChange?: (blueprint: BlueprintBundle) => void;
 	className?: string;
-}) {
+};
+
+export const BlueprintBundleEditor = forwardRef<
+	BlueprintBundleEditorHandle,
+	BlueprintBundleEditorProps
+>(function BlueprintBundleEditor(
+	{ initialBlueprint, onChange, className },
+	ref
+) {
 	const [filesystem, setFilesystem] =
 		useState<AsyncWritableFilesystem | null>(null);
 
@@ -50,6 +68,7 @@ export function BlueprintBundleEditor({
 	const skipNextSaveRef = useRef<boolean>(false);
 	const codeRef = useRef<string>(code);
 	const currentPathRef = useRef<string | null>(currentPath);
+	const filesystemRef = useRef<AsyncWritableFilesystem | null>(null);
 	const editorRef = useRef<CodeEditorHandle | null>(null);
 
 	useEffect(() => {
@@ -59,6 +78,40 @@ export function BlueprintBundleEditor({
 	useEffect(() => {
 		currentPathRef.current = currentPath;
 	}, [currentPath]);
+
+	const applyFilesystem = useCallback(
+		async (filesystem: AsyncWritableFilesystem) => {
+			setFilesystem(filesystem);
+			filesystemRef.current = filesystem;
+			setSelectedDirPath('/');
+			try {
+				const blueprintJsonContent =
+					await filesystem.readFileAsText(BLUEPRINT_JSON_PATH);
+				skipNextSaveRef.current = true;
+				setCurrentPath(BLUEPRINT_JSON_PATH);
+				setCode(blueprintJsonContent);
+				setReadOnly(false);
+				setSaveState(SaveState.IDLE);
+				setSaveError(null);
+				setMessageContent(null);
+				setShowExplorerOnMobile(false);
+				setTreeFocusPath(BLUEPRINT_JSON_PATH);
+			} catch (error) {
+				logger.error('Could not open blueprint.json', error);
+			}
+			if (
+				typeof window !== 'undefined' &&
+				window.location.hash !== '#local-blueprint-bundle'
+			) {
+				try {
+					window.location.hash = '#local-blueprint-bundle';
+				} catch {
+					/* noop */
+				}
+			}
+		},
+		[]
+	);
 
 	/**
 	 * Create the writable filesystem once, on mount, and never change it afterwards.
@@ -72,59 +125,24 @@ export function BlueprintBundleEditor({
 					initialBlueprint,
 					onChange
 				);
-				const blueprintJsonContent =
-					await filesystem.readFileAsText(BLUEPRINT_JSON_PATH);
 				if (cancelled) return;
-				setFilesystem(filesystem);
-				setSelectedDirPath('/');
-				onChange?.(filesystem as any); // @TODO: Align types
-
-				// @TODO: Indicate we're editing a local blueprint bundle (and
-				// restore it on page reload). @TODO: WordPress-like
-				// "you have an autosaved Blueprint, would you like to
-				// restore it?"
-				// @TODO: Blueprint validation, bundle validation
-				// @TODO: Blueprint inlining/anti-inlining features,
-				//        e.g. "inline all files", "split out inlined files as
-				//        bundled resources" etc.
-				// @TODO: "Load Blueprint from URL" button
-				// @TODO: Easily edit Blueprints from the community gallery
-				// @TODO: Easily PR/commit Blueprints to a remote repo
-				// @TODO: Easily share Blueprints bundles with others via URL
-				// @TODO: Easily save Blueprints in an arbitrary remote repository
-				if (
-					typeof window !== 'undefined' &&
-					window.location.hash !== '#local-blueprint-bundle'
-				) {
-					try {
-						window.location.hash = '#local-blueprint-bundle';
-					} catch {
-						/* noop */
-					}
-				}
-
-				try {
-					await handleFileOpened(
-						BLUEPRINT_JSON_PATH,
-						blueprintJsonContent
-					);
-				} catch (error) {
-					logger.error('Could not open blueprint.json', error);
-				}
-
-				if (cancelled) return;
-
-				setMessageContent(null);
-				setShowExplorerOnMobile(false);
-				skipNextSaveRef.current = true;
-				setTreeFocusPath(BLUEPRINT_JSON_PATH);
+				await applyFilesystem(filesystem);
 			} catch (error) {
 				if (!cancelled) {
 					logger.error(
 						'Failed to initialize blueprint filesystem',
 						error
 					);
-					setFilesystem(null);
+					// Fallback: keep the editor usable with the starter blueprint
+					try {
+						const fallbackFs =
+							await convertBlueprintToWritableFilesystem(
+								initialBlueprint
+							);
+						await applyFilesystem(fallbackFs);
+					} catch {
+						setFilesystem(null);
+					}
 				}
 			}
 		})();
@@ -134,7 +152,7 @@ export function BlueprintBundleEditor({
 		};
 		// Deliberately no dependencies: we only initialize once
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, []);
+	}, [applyFilesystem]);
 
 	// Debounced autosave whenever the current file contents change.
 	useEffect(() => {
@@ -281,11 +299,65 @@ export function BlueprintBundleEditor({
 		[]
 	);
 
+	const handleDownloadBundle = useCallback(async () => {
+		if (!filesystem) {
+			return;
+		}
+		await flushPendingSave();
+		try {
+			const zipWriter = new ZipWriter(new BlobWriter('application/zip'));
+			const addEntries = async (dirPath: string, prefix: string) => {
+				const entries = await filesystem.listFiles(dirPath);
+				for (const name of entries) {
+					const absPath =
+						dirPath === '/' ? `/${name}` : `${dirPath}/${name}`;
+					const relative = prefix ? `${prefix}${name}` : name;
+					if (await filesystem.isDir(absPath)) {
+						await addEntries(
+							absPath,
+							relative.length ? `${relative}/` : ''
+						);
+					} else {
+						const buffer =
+							await filesystem.readFileAsBuffer(absPath);
+						await zipWriter.add(
+							relative || name,
+							new Uint8ArrayReader(buffer)
+						);
+					}
+				}
+			};
+			await addEntries('/', '');
+			const blob = await zipWriter.close();
+			const url = URL.createObjectURL(blob);
+			const anchor = document.createElement('a');
+			anchor.href = url;
+			anchor.download = 'blueprint-bundle.zip';
+			document.body.appendChild(anchor);
+			anchor.click();
+			document.body.removeChild(anchor);
+			setTimeout(() => URL.revokeObjectURL(url), 60_000);
+		} catch (error) {
+			logger.error('Failed to download bundle', error);
+			setSaveError('Could not download bundle. Try again.');
+		}
+	}, [filesystem, flushPendingSave]);
+	useImperativeHandle(
+		ref,
+		() => ({
+			downloadBundle: handleDownloadBundle,
+			getBundle: async () => {
+				await flushPendingSave();
+				return filesystemRef.current;
+			},
+		}),
+		[handleDownloadBundle, flushPendingSave]
+	);
 	if (!filesystem) {
 		return (
 			<div className={styles.container}>
 				<div className={styles.placeholder}>
-					Load a Blueprint bundle to browse and edit its files.
+					Loading Blueprint bundle…
 				</div>
 			</div>
 		);
@@ -381,4 +453,6 @@ export function BlueprintBundleEditor({
 			</div>
 		</div>
 	);
-}
+});
+
+export default BlueprintBundleEditor;

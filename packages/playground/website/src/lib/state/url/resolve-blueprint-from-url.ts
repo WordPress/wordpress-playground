@@ -99,8 +99,11 @@ export async function resolveBlueprintFromURL(
 				source: { type: 'inline-string' },
 			};
 		} catch (error) {
-			console.error('Failed to load local OPFS blueprint bundle', error);
-			throw new Error('Invalid blueprint');
+			console.warn(
+				'Failed to load local OPFS blueprint bundle, falling back to default blueprint',
+				error
+			);
+			// Fall through to the default branch to keep the editor usable.
 		}
 	} else if (fragment.length) {
 		/*

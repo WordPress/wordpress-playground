@@ -1,3 +1,4 @@
+import classNames from 'classnames';
 import {
 	useMemo,
 	useEffect,
@@ -7,7 +8,7 @@ import {
 	type SetStateAction,
 } from 'react';
 import { Icon } from '@wordpress/components';
-import { file as folderIcon, page as fileIcon } from '@wordpress/icons';
+import { file as folderIcon, page as fileIcon, upload } from '@wordpress/icons';
 // Reuse the file explorer styles from the site file browser to avoid duplication
 import styles from '../site-manager/site-file-browser/file-explorer.module.css';
 import {
@@ -89,6 +90,8 @@ export function FileExplorerSidebar({
 	documentRoot,
 }: FileExplorerSidebarProps) {
 	const treeRef = useRef<FilePickerTreeHandle | null>(null);
+	const containerRef = useRef<HTMLDivElement | null>(null);
+	const uploadInputRef = useRef<HTMLInputElement | null>(null);
 
 	const treeInitialPath = useMemo(() => {
 		return normalizePath(
@@ -103,6 +106,7 @@ export function FileExplorerSidebar({
 	const [lastSelectedPath, setLastSelectedPath] = useState<string | null>(
 		null
 	);
+	const [isDraggingSidebar, setIsDraggingSidebar] = useState(false);
 
 	// Allow parent to move selection/focus programmatically
 	useEffect(() => {
@@ -115,6 +119,145 @@ export function FileExplorerSidebar({
 			notify: false,
 		});
 	}, [focusPath]);
+
+	const isInternalDrag = (event: React.DragEvent) =>
+		event.dataTransfer?.types?.includes('application/x-wp-playground-path');
+
+	const resolveUploadDirectory = async () => {
+		const candidates = [
+			lastSelectedPath,
+			selectedDirPath,
+			documentRoot,
+		].filter(Boolean) as string[];
+		for (const candidate of candidates) {
+			try {
+				if (await filesystem.isDir(candidate)) {
+					return candidate;
+				}
+			} catch {
+				continue;
+			}
+			try {
+				const parent = dirname(candidate);
+				if (await filesystem.isDir(parent)) {
+					return parent;
+				}
+			} catch {
+				continue;
+			}
+		}
+		return documentRoot;
+	};
+
+	const getAvailablePath = async (baseDir: string, desiredName: string) => {
+		if (!filesystem) {
+			return baseDir === '/'
+				? `/${desiredName}`
+				: `${baseDir}/${desiredName}`;
+		}
+		const safeName = desiredName || 'upload';
+		const basePath = baseDir === '/' ? '/' : baseDir;
+		const splitExt = (name: string) => {
+			const dot = name.lastIndexOf('.');
+			if (dot > 0) {
+				return { stem: name.slice(0, dot), ext: name.slice(dot) };
+			}
+			return { stem: name, ext: '' };
+		};
+		let counter = 0;
+		while (true) {
+			const { stem, ext } = splitExt(safeName);
+			const suffix = counter ? ` (${counter})` : '';
+			const candidateName = `${stem}${suffix}${ext}`;
+			const candidatePath =
+				basePath === '/'
+					? `/${candidateName}`
+					: `${basePath}/${candidateName}`;
+			const exists = await filesystem
+				.fileExists(candidatePath)
+				.catch(() => false);
+			const isDir = await filesystem
+				.isDir(candidatePath)
+				.catch(() => false);
+			if (!exists && !isDir) {
+				return candidatePath;
+			}
+			counter += 1;
+		}
+	};
+
+	const importFileList = async (files: FileList | File[]) => {
+		if (!filesystem || !files || !files.length) {
+			return;
+		}
+		const baseDir = await resolveUploadDirectory();
+		const createdPaths: string[] = [];
+		for (const file of Array.from(files)) {
+			try {
+				const targetPath = await getAvailablePath(baseDir, file.name);
+				const buffer = new Uint8Array(await file.arrayBuffer());
+				await filesystem.writeFile(targetPath, buffer);
+				createdPaths.push(targetPath);
+			} catch (error) {
+				logger.error('Failed to import file', error);
+			}
+		}
+		if (createdPaths.length) {
+			setLastSelectedPath(baseDir);
+			await treeRef.current?.refresh(baseDir);
+		}
+	};
+
+	const importDataTransfer = async (data: DataTransfer | null) => {
+		if (!data) return;
+		await importFileList(data.files);
+	};
+
+	const handleUploadButtonClick = () => {
+		uploadInputRef.current?.click();
+	};
+
+	const handleUploadInputChange = async (
+		event: React.ChangeEvent<HTMLInputElement>
+	) => {
+		await importFileList(event.target.files);
+		// Reset input so the same file selection can be chosen again.
+		event.target.value = '';
+	};
+
+	const handleSidebarDragEnter = (event: React.DragEvent) => {
+		if (isInternalDrag(event)) {
+			return;
+		}
+		event.preventDefault();
+		setIsDraggingSidebar(true);
+	};
+
+	const handleSidebarDragOver = (event: React.DragEvent) => {
+		if (isInternalDrag(event)) {
+			return;
+		}
+		event.preventDefault();
+		event.dataTransfer.dropEffect = 'copy';
+		setIsDraggingSidebar(true);
+	};
+
+	const handleSidebarDragLeave = (event: React.DragEvent) => {
+		const related = event.relatedTarget as Node | null;
+		if (related && containerRef.current?.contains(related)) {
+			return;
+		}
+		setIsDraggingSidebar(false);
+	};
+
+	const handleSidebarDrop = async (event: React.DragEvent) => {
+		if (isInternalDrag(event)) {
+			return;
+		}
+		event.preventDefault();
+		setIsDraggingSidebar(false);
+		await importDataTransfer(event.dataTransfer);
+	};
 
 	const handleOpenFile = async (path: string, shouldFocus: boolean) => {
 		try {
@@ -187,7 +330,16 @@ export function FileExplorerSidebar({
 	};
 
 	return (
-		<div className={styles.fileExplorerContainer}>
+		<div
+			ref={containerRef}
+			className={classNames(styles.fileExplorerContainer, {
+				[styles.dropActive]: isDraggingSidebar,
+			})}
+			onDragEnter={handleSidebarDragEnter}
+			onDragOver={handleSidebarDragOver}
+			onDragLeave={handleSidebarDragLeave}
+			onDrop={handleSidebarDrop}
+		>
 			<div className={styles.fileExplorerHeader}>
 				<span className={styles.fileExplorerTitle}>Files</span>
 				<div className={styles.fileExplorerActions}>
@@ -223,6 +375,21 @@ export function FileExplorerSidebar({
 						<Icon icon={folderIcon} size={16} />
 						New Folder
 					</button>
+					<button
+						className={styles.fileExplorerButton}
+						type="button"
+						onClick={handleUploadButtonClick}
+						title="Upload files"
+					>
+						<Icon icon={upload} size={16} />
+					</button>
+					<input
+						ref={uploadInputRef}
+						type="file"
+						multiple
+						style={{ display: 'none' }}
+						onChange={handleUploadInputChange}
+					/>
 				</div>
 			</div>
 			<div className={styles.fileExplorerTree}>
