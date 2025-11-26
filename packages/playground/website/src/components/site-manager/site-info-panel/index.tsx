@@ -49,6 +49,32 @@ import {
 import type { WritableInMemoryBundle } from '../../blueprint-editor/writable-in-memory-bundle';
 import type { BlueprintBundleEditorHandle } from '../../blueprint-editor';
 
+const PlayIcon = ({ className }: { className?: string }) => (
+	<svg
+		className={className}
+		viewBox="0 0 32 32"
+		width="20"
+		height="20"
+		aria-hidden="true"
+	>
+		<circle
+			cx="16"
+			cy="16"
+			r="12"
+			fill="none"
+			stroke="currentColor"
+			strokeWidth="2"
+		/>
+		<path
+			d="M13 11v10l8-5-8-5z"
+			fill="currentColor"
+			stroke="currentColor"
+			strokeWidth="1.5"
+			strokeLinejoin="round"
+		/>
+	</svg>
+);
+
 const SiteFileBrowser = lazy(() =>
 	import('../site-file-browser').then((m) => ({ default: m.SiteFileBrowser }))
 );
@@ -530,16 +556,18 @@ export function SiteInfoPanel({
 										<div className={css.blueprintHeader}>
 											<Button
 												variant="primary"
-												icon="controls-play"
 												onClick={
 													handleRecreateFromBlueprint
 												}
 												isBusy={isRecreating}
 												disabled={isRecreating}
 											>
+												<PlayIcon
+													className={css.playIcon}
+												/>
 												{isRecreating
 													? 'Recreating...'
-													: 'Recreate Playground from this Blueprint'}
+													: 'Run'}
 											</Button>
 											<Button
 												variant="secondary"

@@ -275,6 +275,12 @@
 	display: none;
 }
 
+.playIcon {
+	width: 18px;
+	height: 18px;
+	margin-right: 6px;
+}
+
 .blueprint-editor {
 	flex: 1;
 	min-height: 0;
