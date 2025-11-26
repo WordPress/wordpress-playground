@@ -19,7 +19,9 @@ export async function convertBlueprintToWritableFilesystem(
 		window.location.hash === '#local-blueprint-bundle'
 	) {
 		try {
-			const loaded = await WritableOpfsBundle.loadFromOpfs(onChange);
+			const loaded = await WritableOpfsBundle.loadFromOpfs(
+				onChange as any
+			);
 			return loaded;
 		} catch {
 			// Fall through to fresh construction.
@@ -53,7 +55,7 @@ export async function convertBlueprintToWritableFilesystem(
 	}
 
 	try {
-		return await WritableOpfsBundle.create(files, onChange);
+		return await WritableOpfsBundle.create(files, onChange as any);
 	} catch {
 		return new WritableInMemoryBundle(files, onChange);
 	}

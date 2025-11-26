@@ -92,19 +92,11 @@ export async function resolveBlueprintFromURL(
 			},
 		};
 	} else if (fragment === 'local-blueprint-bundle') {
-		try {
-			const bundle = await WritableOpfsBundle.loadFromOpfs();
-			return {
-				blueprint: bundle as BlueprintV1,
-				source: { type: 'inline-string' },
-			};
-		} catch (error) {
-			console.warn(
-				'Failed to load local OPFS blueprint bundle, falling back to default blueprint',
-				error
-			);
-			// Fall through to the default branch to keep the editor usable.
-		}
+		const bundle = await WritableOpfsBundle.loadFromOpfs();
+		return {
+			blueprint: bundle as BlueprintV1,
+			source: { type: 'inline-string' },
+		};
 	} else if (fragment.length) {
 		/*
 		 * Support passing blueprints in the URI fragment, e.g.:
