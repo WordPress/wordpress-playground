@@ -120,7 +120,7 @@ RUN set -euxo pipefail; \
     echo 'Description: GD graphics library' >> /root/install/lib/pkgconfig/gdlib.pc; \
     echo 'Version: 2.3.3' >> /root/install/lib/pkgconfig/gdlib.pc; \
     echo 'Requires: libpng' >> /root/install/lib/pkgconfig/gdlib.pc; \
-    echo 'Libs: -L${libdir} -lgd' >> /root/install/lib/pkgconfig/gdlib.pc; \
+    echo 'Libs: -L${libdir} -lgd -lpng16 -lz -ljpeg -lwebp -lsharpyuv -lavif' >> /root/install/lib/pkgconfig/gdlib.pc; \
     echo 'Cflags: -I${includedir}' >> /root/install/lib/pkgconfig/gdlib.pc
 
 RUN rm -rf /root/libgd-$GD_VERSION libgd.tar.gz
