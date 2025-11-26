@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import React, { type ReactNode } from 'react';
 import styles from './style.module.css';
 
 export type BinaryFilePreviewProps = {
@@ -40,7 +40,7 @@ export function BinaryFilePreview({
 	const renderDownloadLink = () =>
 		hasDownload ? (
 			<a
-				className={styles.downloadLink}
+				className={styles['downloadLink']}
 				href={downloadUrl!}
 				download={filename}
 			>
@@ -52,7 +52,7 @@ export function BinaryFilePreview({
 		if (isImage) {
 			return (
 				<img
-					className={styles.imagePreview}
+					className={styles['imagePreview']}
 					src={dataUrl}
 					alt={filename || 'Preview'}
 				/>
@@ -62,7 +62,7 @@ export function BinaryFilePreview({
 		if (isVideo) {
 			return (
 				<video
-					className={styles.videoPreview}
+					className={styles['videoPreview']}
 					controls
 					preload="metadata"
 				>
@@ -74,7 +74,7 @@ export function BinaryFilePreview({
 
 		if (isAudio) {
 			return (
-				<audio className={styles.audioPreview} controls>
+				<audio className={styles['audioPreview']} controls>
 					<source src={dataUrl} type={mimeType} />
 					Your browser does not support the audio tag.
 				</audio>
@@ -82,7 +82,7 @@ export function BinaryFilePreview({
 		}
 
 		return (
-			<div className={styles.unsupportedMessage}>
+			<div className={styles['unsupportedMessage']}>
 				<p>Preview unavailable for this file type.</p>
 				{hasDownload ? (
 					<p>{renderDownloadLink()}</p>
@@ -94,18 +94,18 @@ export function BinaryFilePreview({
 	};
 
 	return (
-		<div className={styles.container}>
+		<div className={styles['container']}>
 			{shouldShowHeader && (
-				<div className={styles.header}>
-					<span className={styles.filename} title={filename}>
+				<div className={styles['header']}>
+					<span className={styles['filename']} title={filename}>
 						{filename}
 					</span>
 					{renderDownloadLink()}
 				</div>
 			)}
-			<div className={styles.previewArea}>{renderPreview()}</div>
+			<div className={styles['previewArea']}>{renderPreview()}</div>
 			{!shouldShowHeader && hasDownload && (
-				<div className={styles.actions}>{renderDownloadLink()}</div>
+				<div className={styles['actions']}>{renderDownloadLink()}</div>
 			)}
 		</div>
 	);

@@ -122,7 +122,7 @@ export class WritableOpfsBundle
 		const handle = await dir.getFileHandle(fileName, { create: true });
 		const writable = await handle.createWritable();
 		const buffer = await this.readFileAsBuffer(normalized);
-		await writable.write(buffer);
+		await writable.write(buffer as any); // @TODO
 		await writable.close();
 	}
 
