@@ -37,12 +37,12 @@ import { getRelativeDate } from '../../../lib/get-relative-date';
 import { removeSite, sitesSlice } from '../../../lib/state/redux/slice-sites';
 import {
 	type Blueprint,
-	type BlueprintBundle,
 	BlueprintReflection,
 	resolveRuntimeConfiguration,
 } from '@wp-playground/blueprints';
 import { lazy, Suspense, useState, useEffect, useCallback } from 'react';
 import { logger } from '@php-wasm/logger';
+import type { WritableInMemoryBundle } from '../../blueprint-editor/writable-in-memory-bundle';
 
 const SiteFileBrowser = lazy(() =>
 	import('../site-file-browser').then((m) => ({ default: m.SiteFileBrowser }))
@@ -107,15 +107,11 @@ export function SiteInfoPanel({
 	const [blueprintCode, setBlueprintCode] = useState<string>('');
 	const [autoRecreate, setAutoRecreate] = useState<boolean>(false);
 	const [isRecreating, setIsRecreating] = useState<boolean>(false);
+	const [updatedBundle, setUpdatedBundle] =
+		useState<WritableInMemoryBundle | null>(null);
 
-	const handleBundleChange = useCallback(async (bundle: BlueprintBundle) => {
-		try {
-			const file = await bundle.read('blueprint.json');
-			const text = await file.text();
-			setBlueprintCode(text);
-		} catch (error) {
-			logger.error('Failed to read updated blueprint.json', error);
-		}
+	const handleBundleChange = useCallback((bundle: WritableInMemoryBundle) => {
+		setUpdatedBundle(bundle);
 	}, []);
 
 	// Initialize blueprint code using BlueprintReflection to handle bundles
@@ -145,14 +141,19 @@ export function SiteInfoPanel({
 
 	// Handle blueprint recreation for temporary playgrounds
 	const handleRecreateFromBlueprint = useCallback(async () => {
+		if (!updatedBundle) {
+			console.error('No updated bundle');
+			return;
+		}
 		try {
 			setIsRecreating(true);
-			// Parse the blueprint to validate it
-			const blueprint = JSON.parse(blueprintCode);
 
 			// Resolve runtime configuration from the new blueprint
-			const runtimeConfiguration =
-				await resolveRuntimeConfiguration(blueprint);
+			console.log({ updatedBundle });
+			const runtimeConfiguration = await resolveRuntimeConfiguration(
+				updatedBundle!
+			);
+			console.log({ runtimeConfiguration });
 
 			// Remove the current playground client to trigger cleanup
 			dispatch(removeClientInfo(site.slug));
@@ -166,23 +167,17 @@ export function SiteInfoPanel({
 					changes: {
 						metadata: {
 							...site.metadata,
-							originalBlueprint: blueprint,
+							originalBlueprint: updatedBundle!,
 							runtimeConfiguration,
 							whenCreated: Date.now(),
 						},
 					},
 				})
 			);
-		} catch (error) {
-			const message =
-				error instanceof Error
-					? error.message
-					: 'Invalid Blueprint JSON. Please check the syntax.';
-			alert(message);
 		} finally {
 			setIsRecreating(false);
 		}
-	}, [blueprintCode, dispatch, site]);
+	}, [blueprintCode, updatedBundle, dispatch, site]);
 
 	const isTemporary = site.metadata.storage === 'none';
 
@@ -570,7 +565,10 @@ export function SiteInfoPanel({
 													handleRecreateFromBlueprint
 												}
 												isBusy={isRecreating}
-												disabled={isRecreating}
+												disabled={
+													isRecreating ||
+													!updatedBundle
+												}
 											>
 												{isRecreating
 													? 'Recreating...'

@@ -7,13 +7,13 @@ export class WritableInMemoryBundle
 	implements AsyncWritableFilesystem, BlueprintBundle
 {
 	private root: DirNode = { type: 'dir', children: {} };
-	private readonly onChange?: (bundle: BlueprintBundle) => void;
+	private readonly onChange?: (bundle: WritableInMemoryBundle) => void;
 	private encoder = new TextEncoder();
 	private decoder = new TextDecoder();
 
 	constructor(
 		initialFiles: Record<string, Uint8Array | string>,
-		onChange?: (bundle: BlueprintBundle) => void
+		onChange?: (bundle: WritableInMemoryBundle) => void
 	) {
 		this.onChange = onChange;
 		for (const [path, content] of Object.entries(initialFiles)) {
@@ -89,8 +89,9 @@ export class WritableInMemoryBundle
 			throw new Error(`Source not found: ${normalizedSource}`);
 		}
 
-		const { parent: destParent, name: destName } =
-			this.getParent(normalizedDestination);
+		const { parent: destParent, name: destName } = this.getParent(
+			normalizedDestination
+		);
 		destParent.children[destName] = entry;
 		delete sourceParent.children[sourceName];
 		this.emitChange();
@@ -145,7 +146,10 @@ export class WritableInMemoryBundle
 			if (current.type !== 'dir') {
 				return undefined;
 			}
-			const next = current.children[segment];
+			const next = current.children[segment] as
+				| DirNode
+				| FileNode
+				| undefined;
 			if (!next) {
 				return undefined;
 			}

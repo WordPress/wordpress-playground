@@ -1,9 +1,5 @@
 import type { AsyncWritableFilesystem } from '@wp-playground/components';
-import {
-	type Blueprint,
-	type BlueprintBundle,
-	BlueprintReflection,
-} from '@wp-playground/blueprints';
+import { type Blueprint, BlueprintReflection } from '@wp-playground/blueprints';
 import { logger } from '@php-wasm/logger';
 import {
 	collectBundledResourcePaths,
@@ -17,7 +13,7 @@ import { WritableInMemoryBundle } from './writable-in-memory-bundle';
  */
 export async function convertBlueprintToWritableFilesystem(
 	blueprint: Blueprint,
-	onChange?: (bundle: BlueprintBundle) => void
+	onChange?: (bundle: WritableInMemoryBundle) => void
 ): Promise<AsyncWritableFilesystem> {
 	const reflection = await BlueprintReflection.create(blueprint);
 	const declaration = reflection.getDeclaration();
@@ -45,7 +41,5 @@ export async function convertBlueprintToWritableFilesystem(
 		files[normalized] = content;
 	}
 
-	const fs = new WritableInMemoryBundle(files, onChange);
-	onChange?.(fs);
-	return fs;
+	return new WritableInMemoryBundle(files, onChange);
 }

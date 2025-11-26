@@ -14,15 +14,10 @@ import {
 // Reuse the file browser layout styles to keep UI consistent
 import styles from '../site-manager/site-file-browser/style.module.css';
 import { SaveState } from './save-state';
-import {
-	flushPendingSave,
-	getSaveStatusClassName,
-	getSaveStatusLabel,
-} from './save-utils';
 import { convertBlueprintToWritableFilesystem } from './convert-blueprint-to-filesystem';
 import hideRootStyles from './hide-root.module.css';
 
-export const SAVE_DEBOUNCE_MS = 1500;
+export const SAVE_DEBOUNCE_MS = 100;
 export const BLUEPRINT_JSON_PATH = '/blueprint.json';
 
 export function BlueprintBundleEditor({
@@ -51,7 +46,7 @@ export function BlueprintBundleEditor({
 		string | JSX.Element | null
 	>(null);
 
-	const saveTimeoutRef = useRef<number | null>(null);
+	const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const skipNextSaveRef = useRef<boolean>(false);
 	const codeRef = useRef<string>(code);
 	const currentPathRef = useRef<string | null>(currentPath);
@@ -65,7 +60,9 @@ export function BlueprintBundleEditor({
 		currentPathRef.current = currentPath;
 	}, [currentPath]);
 
-	// Build filesystem once on mount. Changing initialBlueprint is unsupported; remount instead.
+	/**
+	 * Create the writable filesystem once, on mount, and never change it afterwards.
+	 */
 	useEffect(() => {
 		let cancelled = false;
 
@@ -89,6 +86,8 @@ export function BlueprintBundleEditor({
 				} catch (error) {
 					logger.error('Could not open blueprint.json', error);
 				}
+
+				if (cancelled) return;
 
 				setMessageContent(null);
 				setShowExplorerOnMobile(false);
@@ -116,7 +115,7 @@ export function BlueprintBundleEditor({
 	useEffect(() => {
 		if (!filesystem || !currentPath) {
 			if (saveTimeoutRef.current !== null) {
-				window.clearTimeout(saveTimeoutRef.current);
+				clearTimeout(saveTimeoutRef.current);
 				saveTimeoutRef.current = null;
 			}
 			if (!currentPath) {
@@ -131,32 +130,17 @@ export function BlueprintBundleEditor({
 		}
 
 		if (saveTimeoutRef.current !== null) {
-			window.clearTimeout(saveTimeoutRef.current);
+			clearTimeout(saveTimeoutRef.current);
 			saveTimeoutRef.current = null;
 		}
 
 		setSaveState(SaveState.PENDING);
-		const timeout = window.setTimeout(async () => {
-			saveTimeoutRef.current = null;
-			setSaveState(SaveState.SAVING);
-			try {
-				await filesystem.writeFile(
-					currentPathRef.current as string,
-					codeRef.current
-				);
-				setSaveState(SaveState.SAVED);
-				setSaveError(null);
-			} catch (error) {
-				logger.error('Failed to save file', error);
-				setSaveState(SaveState.ERROR);
-				setSaveError('Could not save changes. Try again.');
-			}
-		}, SAVE_DEBOUNCE_MS);
+		const timeout = setTimeout(flushPendingSave, SAVE_DEBOUNCE_MS);
 		saveTimeoutRef.current = timeout;
 
 		return () => {
 			if (saveTimeoutRef.current === timeout) {
-				window.clearTimeout(timeout);
+				clearTimeout(timeout);
 				saveTimeoutRef.current = null;
 			}
 		};
@@ -164,27 +148,40 @@ export function BlueprintBundleEditor({
 
 	// Fade out the "Saved" indicator after a moment.
 	useEffect(() => {
-		if (saveState !== SaveState.SAVED) {
+		if (saveState === SaveState.SAVED) {
+			const timeout = setTimeout(() => {
+				setSaveState((previous) =>
+					previous === SaveState.SAVED ? SaveState.IDLE : previous
+				);
+			}, 2000);
+			return () => clearTimeout(timeout);
+		}
+	}, [saveState]);
+
+	const flushPendingSave = useCallback(async () => {
+		if (saveTimeoutRef.current !== null) {
+			clearTimeout(saveTimeoutRef.current);
+			saveTimeoutRef.current = null;
+		}
+		if (!filesystem || !currentPathRef.current) {
 			return;
 		}
-		const timeout = window.setTimeout(() => {
-			setSaveState((previous) =>
-				previous === SaveState.SAVED ? SaveState.IDLE : previous
-			);
-		}, 2000);
-		return () => window.clearTimeout(timeout);
-	}, [saveState]);
+		setSaveState(SaveState.SAVING);
+		try {
+			await filesystem.writeFile(currentPathRef.current, codeRef.current);
+			setSaveState(SaveState.SAVED);
+			setSaveError(null);
+		} catch (error) {
+			logger.error('Failed to save file', error);
+			setSaveState(SaveState.ERROR);
+			setSaveError('Could not save changes. Try again.');
+		}
+	}, [filesystem]);
 
 	const handleFileOpened = useCallback(
 		async (path: string, content: string, shouldFocus = true) => {
 			try {
-				await flushPendingSave(filesystem, {
-					saveTimeoutRef,
-					currentPathRef,
-					codeRef,
-					setSaveState,
-					setSaveError,
-				});
+				await flushPendingSave();
 			} catch (error) {
 				logger.error('Failed to save file', error);
 			}
@@ -207,13 +204,7 @@ export function BlueprintBundleEditor({
 
 	const handleClearSelection = useCallback(async () => {
 		try {
-			await flushPendingSave(filesystem, {
-				saveTimeoutRef,
-				currentPathRef,
-				codeRef,
-				setSaveState,
-				setSaveError,
-			});
+			await flushPendingSave();
 		} catch {
 			/* noop */
 		}
@@ -230,13 +221,7 @@ export function BlueprintBundleEditor({
 	const handleShowMessage = useCallback(
 		async (message: string | JSX.Element) => {
 			try {
-				await flushPendingSave(filesystem, {
-					saveTimeoutRef,
-					currentPathRef,
-					codeRef,
-					setSaveState,
-					setSaveError,
-				});
+				await flushPendingSave();
 			} catch {
 				/* noop */
 			}
@@ -260,16 +245,6 @@ export function BlueprintBundleEditor({
 		[filesystem]
 	);
 
-	const handleManualSave = useCallback(() => {
-		flushPendingSave(filesystem, {
-			saveTimeoutRef,
-			currentPathRef,
-			codeRef,
-			setSaveState,
-			setSaveError,
-		});
-	}, [filesystem]);
-
 	const blueprintSchemaExtensions = useMemo(
 		() => [
 			autocompletion({
@@ -280,9 +255,6 @@ export function BlueprintBundleEditor({
 		],
 		[]
 	);
-
-	const saveStatusLabel = getSaveStatusLabel(saveState, saveError);
-	const saveStatusClassName = getSaveStatusClassName(saveState, styles);
 
 	if (!filesystem) {
 		return (
@@ -320,7 +292,7 @@ export function BlueprintBundleEditor({
 						onFileOpened={handleFileOpened}
 						onSelectionCleared={handleClearSelection}
 						onShowMessage={handleShowMessage}
-						documentRoot={'/'}
+						documentRoot="/"
 					/>
 				</aside>
 				<section className={styles.editorWrapper}>
@@ -346,14 +318,6 @@ export function BlueprintBundleEditor({
 								? currentPath
 								: `Browse files under /`}
 						</div>
-						<div
-							className={classNames(
-								styles.saveStatus,
-								saveStatusClassName
-							)}
-						>
-							{saveStatusLabel}
-						</div>
 					</div>
 					{saveError ? (
 						<div style={{ padding: '8px 16px' }}>
@@ -374,7 +338,7 @@ export function BlueprintBundleEditor({
 								onChange={setCode}
 								currentPath={currentPath}
 								className={styles.editor}
-								onSaveShortcut={handleManualSave}
+								onSaveShortcut={flushPendingSave}
 								readOnly={readOnly}
 								additionalExtensions={
 									currentPath === BLUEPRINT_JSON_PATH
