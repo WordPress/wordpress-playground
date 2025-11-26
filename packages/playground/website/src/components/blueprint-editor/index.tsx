@@ -27,7 +27,6 @@ import {
 } from '../site-manager/site-file-browser/code-editor';
 // Reuse the file browser layout styles to keep UI consistent
 import styles from '../site-manager/site-file-browser/style.module.css';
-import { SaveState } from './save-state';
 import { convertBlueprintToWritableFilesystem } from './convert-blueprint-to-filesystem';
 import hideRootStyles from './hide-root.module.css';
 import type { WritableInMemoryBundle } from './writable-in-memory-bundle';
@@ -51,6 +50,16 @@ type BlueprintBundleEditorProps = {
 	className?: string;
 	site?: SiteInfo;
 };
+
+const SaveState = {
+	IDLE: 'idle',
+	PENDING: 'pending',
+	SAVING: 'saving',
+	SAVED: 'saved',
+	ERROR: 'error',
+} as const;
+
+type SaveState = (typeof SaveState)[keyof typeof SaveState];
 
 const PlayIcon = ({ className }: { className?: string }) => (
 	<svg
