@@ -18,7 +18,7 @@ ARG WITH_OPCACHE
 # Clone PHP
 RUN git clone https://github.com/php/php-src.git php-src \
 	--branch PHP-$PHP_VERSION \
-	--single-branch \
+	--single-branch  \
 	--depth 1;
 
 # Work around memory leak due to PHP using Emscripten's incomplete mmap/munmap support
@@ -595,7 +595,7 @@ RUN source /root/emsdk/emsdk_env.sh && \
 		-fdebug-compilation-dir=${DEBUG_DWARF_COMPILATION_DIR}/ \
 		-fdebug-prefix-map=/root/php-src/=${OUTPUT_DIR_ON_HOST}/${PHP_VERSION_ESCAPED}/php-src/ " \
 	# ...which means we must skip all the libraries - they will be provided in the final linking step.
-	emmake make -j1
+	emmake make -j14
 
 RUN cp -v /root/php-src/.libs/libphp*.la /root/lib/libphp.la
 RUN cp -v /root/php-src/.libs/libphp*.a /root/lib/libphp.a

@@ -8,7 +8,7 @@ import path from 'path';
 
 const dependencyFilename = path.join(__dirname, '7_2_34', 'php_7_2.wasm');
 export { dependencyFilename }; 
-export const dependenciesTotalSize = 22232276; 
+export const dependenciesTotalSize = 22232294; 
 const phpVersionString = '7.2.34';
 export function init(RuntimeName, PHPLoader) {
     // The rest of the code comes from the built php.js file and esm-suffix.js
@@ -28471,8 +28471,8 @@ if (Module["quit"]) quit_=Module["quit"];
 // end include: postlibrary.js
 
 var ASM_CONSTS = {
-  10583490: ($0) => { if (!$0) { AL.alcErr = 0xA004 ; return 1; } },  
- 10583538: ($0) => { if (!AL.currentCtx) { err("alGetProcAddress() called without a valid context"); return 1; } if (!$0) { AL.currentCtx.err = 0xA003 ; return 1; } }
+  10583522: ($0) => { if (!$0) { AL.alcErr = 0xA004 ; return 1; } },  
+ 10583570: ($0) => { if (!AL.currentCtx) { err("alGetProcAddress() called without a valid context"); return 1; } if (!$0) { AL.currentCtx.err = 0xA003 ; return 1; } }
 };
 function __asyncjs__js_popen_to_file(command,mode,exitCodePtr) { return Asyncify.handleAsync(async () => { const returnCallback = (resolver) => new Promise(resolver); if (!command) return 1; const cmdstr = UTF8ToString(command); if (!cmdstr.length) return 0; const modestr = UTF8ToString(mode); if (!modestr.length) return 0; if (modestr === 'w') { console.error('popen($cmd, "w") is not implemented yet'); } return returnCallback(async (wakeUp) => { let cp; try { cp = PHPWASM.spawnProcess(cmdstr, []); if (cp instanceof Promise) { cp = await cp; } } catch (e) { console.error(e); if (e.code === 'SPAWN_UNSUPPORTED') { return 1; } throw e; } const outByteArrays = []; cp.stdout.on('data', function (data) { outByteArrays.push(data); }); const outputPath = '/tmp/popen_output'; cp.on('exit', function (exitCode) { const outBytes = new Uint8Array( outByteArrays.reduce((acc, curr) => acc + curr.length, 0) ); let offset = 0; for (const byteArray of outByteArrays) { outBytes.set(byteArray, offset); offset += byteArray.length; } FS.writeFile(outputPath, outBytes); HEAPU8[exitCodePtr] = exitCode; wakeUp(allocateUTF8OnStack(outputPath)); }); }); }); }
 __asyncjs__js_popen_to_file.sig = 'iiii';
