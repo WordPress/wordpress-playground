@@ -269,6 +269,51 @@ describe(`SQLite3 – ${runtimeMode}`, () => {
 		$drivers = PDO::getAvailableDrivers();
 	`;
 
+	topOfTheStack['sqliteCompileOptionsPDO'] = `
+		${drivers.PDO}
+		$compile_options = $db->query('PRAGMA compile_options;')->fetchAll(PDO::FETCH_COLUMN);
+		if (!in_array('ENABLE_COLUMN_METADATA', $compile_options)) {
+			throw new Exception('SQLITE_ENABLE_COLUMN_METADATA is not enabled');
+		}
+	`;
+
+	topOfTheStack['sqliteCompileOptionsSQLite3'] = `
+		${drivers.SQLite3}
+		$result = $db->query('PRAGMA compile_options;');
+		$compile_options = [];
+		while ($row = $result->fetchArray(SQLITE3_NUM)) {
+			$compile_options[] = $row[0];
+		}
+		if (!in_array('ENABLE_COLUMN_METADATA', $compile_options)) {
+			throw new Exception('SQLITE_ENABLE_COLUMN_METADATA is not enabled');
+		}
+	`;
+
+	topOfTheStack['columnMetadataPDO'] = `
+		${drivers.PDO}
+		$db->exec('CREATE TABLE t (id INT)');
+		$db->exec('INSERT INTO t (id) VALUES (1), (2), (3)');
+		$stmt = $db->query('SELECT * FROM t');
+		$meta = $stmt->getColumnMeta(0);
+		if (!isset($meta['name']) || $meta['name'] !== 'id') {
+			throw new Exception('Column name metadata not found or incorrect');
+		}
+		if (!isset($meta['table']) || $meta['table'] !== 't') {
+			throw new Exception('Table name metadata not found or incorrect');
+		}
+	`;
+
+	topOfTheStack['columnMetadataSQLite3'] = `
+		${drivers.SQLite3}
+		$db->exec('CREATE TABLE t (id INT)');
+		$db->exec('INSERT INTO t (id) VALUES (1), (2), (3)');
+		$result = $db->query('SELECT * FROM t');
+		$colName = $result->columnName(0);
+		if ($colName !== 'id') {
+			throw new Exception('Column metadata not found or incorrect');
+		}
+	`;
+
 	describe.each(phpVersions)(`PHP %s – ${runtimeMode}`, (phpVersion) => {
 		let php: PHP;
 		beforeEach(async () => {
