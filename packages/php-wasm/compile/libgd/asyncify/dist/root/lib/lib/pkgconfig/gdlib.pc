@@ -6,6 +6,6 @@ includedir=${prefix}/include
 Name: gdlib
 Description: GD graphics library
 Version: 2.3.3
-Requires: libpng
+Requires.private: libpng libjpeg libwebp libavif zlib
 Libs: -L${libdir} -lgd -lpng16 -lz -ljpeg -lwebp -lsharpyuv -lavif
 Cflags: -I${includedir}

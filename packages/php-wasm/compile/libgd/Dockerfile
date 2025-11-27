@@ -101,26 +101,44 @@ RUN source /root/emsdk/emsdk_env.sh && \
     emmake make gd_static -j"$(nproc)"
 
 # Manually stage the static lib and headers (skip installing programs)
-RUN set -euxo pipefail; \
-    mkdir -p /root/install/lib /root/install/include /root/install/lib/pkgconfig; \
-    LIBFILE=$(find /root/libgd-2.3.3 -maxdepth 4 -name "libgd*.a" | head -n1); \
-    if [ -z "$LIBFILE" ]; then echo "libgd static archive not found"; exit 1; fi; \
-    cp "$LIBFILE" /root/install/lib/libgd.a; \
-    cp /root/libgd-2.3.3/src/gd_config.h /root/install/include/ || true; \
-    cp /root/libgd-2.3.3/gd_config.h /root/install/include/ || true; \
-    cp /root/libgd-2.3.3/src/*.h /root/install/include/; \
-    cp /root/libgd-2.3.3/gd.h /root/install/include/ || true; \
-    cp /root/libgd-2.3.3/gd_errors.h /root/install/include/ || true; \
-    echo 'prefix=/root/lib' > /root/install/lib/pkgconfig/gdlib.pc; \
-    echo 'exec_prefix=${prefix}' >> /root/install/lib/pkgconfig/gdlib.pc; \
-    echo 'libdir=${exec_prefix}/lib' >> /root/install/lib/pkgconfig/gdlib.pc; \
-    echo 'includedir=${prefix}/include' >> /root/install/lib/pkgconfig/gdlib.pc; \
-    echo '' >> /root/install/lib/pkgconfig/gdlib.pc; \
-    echo 'Name: gdlib' >> /root/install/lib/pkgconfig/gdlib.pc; \
-    echo 'Description: GD graphics library' >> /root/install/lib/pkgconfig/gdlib.pc; \
-    echo 'Version: 2.3.3' >> /root/install/lib/pkgconfig/gdlib.pc; \
-    echo 'Requires: libpng' >> /root/install/lib/pkgconfig/gdlib.pc; \
-    echo 'Libs: -L${libdir} -lgd -lpng16 -lz -ljpeg -lwebp -lsharpyuv -lavif' >> /root/install/lib/pkgconfig/gdlib.pc; \
-    echo 'Cflags: -I${includedir}' >> /root/install/lib/pkgconfig/gdlib.pc
+RUN set -euxo pipefail && \
+    mkdir -p /root/install/lib /root/install/include /root/install/lib/pkgconfig /root/install/bin && \
+    LIBFILE=$(find /root/libgd-2.3.3 -maxdepth 4 -name "libgd*.a" | head -n1) && \
+    if [ -z "$LIBFILE" ]; then echo "libgd static archive not found"; exit 1; fi && \
+    cp "$LIBFILE" /root/install/lib/libgd.a && \
+    (cp /root/libgd-2.3.3/src/gd_config.h /root/install/include/ || true) && \
+    (cp /root/libgd-2.3.3/gd_config.h /root/install/include/ || true) && \
+    cp /root/libgd-2.3.3/src/*.h /root/install/include/ && \
+    (cp /root/libgd-2.3.3/gd.h /root/install/include/ || true) && \
+    (cp /root/libgd-2.3.3/gd_errors.h /root/install/include/ || true)
+
+RUN cat > /root/install/lib/pkgconfig/gdlib.pc <<'EOF'
+prefix=/root/lib
+exec_prefix=${prefix}
+libdir=${exec_prefix}/lib
+includedir=${prefix}/include
+
+Name: gdlib
+Description: GD graphics library
+Version: 2.3.3
+Requires.private: libpng libjpeg libwebp libavif zlib
+Libs: -L${libdir} -lgd -lpng16 -lz -ljpeg -lwebp -lsharpyuv -lavif
+Cflags: -I${includedir}
+EOF
+
+RUN cat > /root/install/bin/gdlib-config <<'EOF'
+#!/bin/sh
+case "$1" in
+  --version) echo 2.3.3 ;;
+  --features) echo "PNG JPEG WEBP AVIF GIF XBM WBMP FREETYPE" ;;
+  --libs) echo "-L/root/lib/lib -lgd -lpng16 -lz -ljpeg -lwebp -lsharpyuv -lavif" ;;
+  --cflags|--includes) echo "-I/root/lib/include" ;;
+  --libdir) echo "/root/lib/lib" ;;
+  --includedir) echo "/root/lib/include" ;;
+  *) echo "--version --features --libs --cflags --includedir --libdir" ;;
+esac
+EOF
+
+RUN chmod +x /root/install/bin/gdlib-config
 
 RUN rm -rf /root/libgd-$GD_VERSION libgd.tar.gz

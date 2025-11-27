@@ -134,6 +134,7 @@ libgd/asyncify/dist/root/lib/lib/libgd.a: base-image libz_asyncify libpng16_asyn
 	docker build -f ./libgd/Dockerfile -t playground-php-wasm:libgd .
 	docker cp $$(docker create playground-php-wasm:libgd):/root/install/lib ./libgd/asyncify/dist/root/lib
 	docker cp $$(docker create playground-php-wasm:libgd):/root/install/include ./libgd/asyncify/dist/root/lib
+	docker cp $$(docker create playground-php-wasm:libgd):/root/install/bin ./libgd/asyncify/dist/root/lib
 
 libgd_jspi: libgd/jspi/dist/root/lib/lib/libgd.a
 libgd/jspi/dist/root/lib/lib/libgd.a: base-image libz_jspi libpng16_jspi libjpeg_jspi libwebp_jspi libavif_jspi
@@ -141,6 +142,7 @@ libgd/jspi/dist/root/lib/lib/libgd.a: base-image libz_jspi libpng16_jspi libjpeg
 	docker build -f ./libgd/Dockerfile -t playground-php-wasm:libgd . --build-arg JSPI=1
 	docker cp $$(docker create playground-php-wasm:libgd):/root/install/lib ./libgd/jspi/dist/root/lib
 	docker cp $$(docker create playground-php-wasm:libgd):/root/install/include ./libgd/jspi/dist/root/lib
+	docker cp $$(docker create playground-php-wasm:libgd):/root/install/bin ./libgd/jspi/dist/root/lib
 
 libxml2_asyncify: libxml2/asyncify/dist/root/lib/lib/libxml2.a
 libxml2/asyncify/dist/root/lib/lib/libxml2.a: base-image libz_asyncify

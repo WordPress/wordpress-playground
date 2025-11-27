@@ -2,6 +2,7 @@ FROM playground-php-wasm:base
 
 ARG WITH_JSPI="no"
 ENV PKG_CONFIG_PATH=/root/lib/lib/pkgconfig
+ENV PATH="/root/lib/bin:${PATH}"
 
 # The PHP version to build.
 # This value must point to an existing branch of the
@@ -445,9 +446,17 @@ WORKDIR /root/php-src
 RUN source /root/emsdk/emsdk_env.sh && \
 	ICU_CFLAGS="-D__x86_64__ -fPIC -I/root/lib/include" \
 	CURL_CFLAGS="-I/root/lib/include" \
-	WEBP_LIBS="-L/root/lib/lib" \
+	WEBP_LIBS="-L/root/lib/lib -lwebp -lsharpyuv" \
 	WEBP_CFLAGS="-I/root/lib/include" \
 	CURL_LIBS="-I/root/lib/lib -L/root/lib/lib" \
+	JPEG_CFLAGS="-I/root/lib/include" \
+	JPEG_LIBS="-L/root/lib/lib -ljpeg" \
+	PNG_CFLAGS="-I/root/lib/include" \
+	PNG_LIBS="-L/root/lib/lib -lpng16 -lz" \
+	AVIF_CFLAGS="-I/root/lib/include" \
+	AVIF_LIBS="-L/root/lib/lib -lavif" \
+	GDLIB_CFLAGS="-I/root/lib/include" \
+	GDLIB_LIBS="-L/root/lib/lib -lgd -lpng16 -lz -ljpeg -lwebp -lsharpyuv -lavif" \
 	PKG_CONFIG_PATH="/root/lib/lib/pkgconfig:${PKG_CONFIG_PATH}" \
 		emconfigure ./configure \
 		PKG_CONFIG_PATH=$PKG_CONFIG_PATH \
@@ -491,6 +500,27 @@ RUN source /root/emsdk/emsdk_env.sh && \
 # Silence the errors "munmap() failed: [28] Invalid argument"
 # @TODO: Identify the root cause behind these errors and fix them properly
 RUN echo '#define ZEND_MM_ERROR 0' >> /root/php-src/main/php_config.h;
+
+# Force GD JPEG/PNG/WebP/AVIF support for external GD builds (PHP 8.1+)
+# Configure checks may fail during cross-compilation, so we explicitly enable them
+# after verifying the external libgd was built with these features.
+RUN if [ "$WITH_GD" = "yes" ]; then \
+	if [[ "${PHP_VERSION:0:1}" -gt "8" || ( "${PHP_VERSION:0:1}" -eq "8" && "${PHP_VERSION:2:1}" -ge "1" ) ]]; then \
+		echo '/* Force GD format support for external libgd */' >> /root/php-src/main/php_config.h; \
+		echo '#ifndef HAVE_GD_JPG' >> /root/php-src/main/php_config.h; \
+		echo '#define HAVE_GD_JPG 1' >> /root/php-src/main/php_config.h; \
+		echo '#endif' >> /root/php-src/main/php_config.h; \
+		echo '#ifndef HAVE_GD_PNG' >> /root/php-src/main/php_config.h; \
+		echo '#define HAVE_GD_PNG 1' >> /root/php-src/main/php_config.h; \
+		echo '#endif' >> /root/php-src/main/php_config.h; \
+		echo '#ifndef HAVE_GD_WEBP' >> /root/php-src/main/php_config.h; \
+		echo '#define HAVE_GD_WEBP 1' >> /root/php-src/main/php_config.h; \
+		echo '#endif' >> /root/php-src/main/php_config.h; \
+		echo '#ifndef HAVE_GD_AVIF' >> /root/php-src/main/php_config.h; \
+		echo '#define HAVE_GD_AVIF 1' >> /root/php-src/main/php_config.h; \
+		echo '#endif' >> /root/php-src/main/php_config.h; \
+	fi; \
+fi;
 
 # 64 bit long support {{{
 # PHP uses custom typedefs for 64 bit integers in many places, e.g.
