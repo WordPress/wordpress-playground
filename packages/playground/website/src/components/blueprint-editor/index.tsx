@@ -34,6 +34,7 @@ import type { SiteInfo } from '../../lib/state/redux/slice-sites';
 import { sitesSlice } from '../../lib/state/redux/slice-sites';
 import { removeClientInfo } from '../../lib/state/redux/slice-clients';
 import { useAppDispatch } from '../../lib/state/redux/store';
+import { WritableOpfsBundle } from './writable-opfs-bundle';
 
 export const SAVE_DEBOUNCE_MS = 100;
 export const BLUEPRINT_JSON_PATH = '/blueprint.json';
@@ -111,6 +112,13 @@ export const BlueprintBundleEditor = forwardRef<
 	>(null);
 	const [displayPath, setDisplayPath] = useState<string | null>(null);
 	const [isRecreating, setIsRecreating] = useState(false);
+	const [autosavePromptVisible, setAutosavePromptVisible] = useState(false);
+	const [autosaveBusyAction, setAutosaveBusyAction] = useState<
+		'load' | 'discard' | null
+	>(null);
+	const [autosaveErrorMessage, setAutosaveErrorMessage] = useState<
+		string | null
+	>(null);
 
 	const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const skipNextSaveRef = useRef<boolean>(false);
@@ -129,7 +137,10 @@ export const BlueprintBundleEditor = forwardRef<
 	}, [currentPath]);
 
 	const applyFilesystem = useCallback(
-		async (filesystem: AsyncWritableFilesystem) => {
+		async (
+			filesystem: AsyncWritableFilesystem,
+			options?: { updateHash?: boolean }
+		) => {
 			setFilesystem(filesystem);
 			filesystemRef.current = filesystem;
 			setSelectedDirPath('/');
@@ -150,6 +161,7 @@ export const BlueprintBundleEditor = forwardRef<
 				logger.error('Could not open blueprint.json', error);
 			}
 			if (
+				options?.updateHash !== false &&
 				typeof window !== 'undefined' &&
 				window.location.hash !== '#local-blueprint-bundle'
 			) {
@@ -163,46 +175,119 @@ export const BlueprintBundleEditor = forwardRef<
 		[]
 	);
 
-	/**
-	 * Create the writable filesystem once, on mount, and never change it afterwards.
-	 */
+	const initializeFromBlueprint = useCallback(
+		async (persistToOpfs = true) => {
+			const filesystem = await convertBlueprintToWritableFilesystem(
+				initialBlueprint,
+				onChange,
+				{ persistToOpfs }
+			);
+			await applyFilesystem(filesystem, {
+				updateHash: persistToOpfs,
+			});
+		},
+		[initialBlueprint, onChange, applyFilesystem]
+	);
+
+	const initializePreviewFilesystem = useCallback(async () => {
+		const filesystem = await convertBlueprintToWritableFilesystem(
+			initialBlueprint,
+			onChange,
+			{ persistToOpfs: false }
+		);
+		await applyFilesystem(filesystem, { updateHash: false });
+	}, [initialBlueprint, onChange, applyFilesystem]);
+
+	const loadAutosaveBundle = useCallback(async () => {
+		try {
+			const filesystem = await WritableOpfsBundle.loadFromOpfs(
+				onChange as any
+			);
+			await applyFilesystem(filesystem);
+			setAutosaveErrorMessage(null);
+			return true;
+		} catch (error) {
+			logger.error('Failed to load autosave bundle', error);
+			setAutosaveErrorMessage(
+				'Could not load the saved Blueprint. Try again or discard it.'
+			);
+			return false;
+		}
+	}, [applyFilesystem, onChange]);
+
 	useEffect(() => {
 		let cancelled = false;
 
-		(async () => {
+		const bootstrap = async () => {
 			try {
-				const filesystem = await convertBlueprintToWritableFilesystem(
-					initialBlueprint,
-					onChange
-				);
-				if (cancelled) return;
-				await applyFilesystem(filesystem);
+				const hasSavedBundle =
+					await WritableOpfsBundle.hasSavedBundle();
+				if (cancelled) {
+					return;
+				}
+				const hash =
+					typeof window !== 'undefined' ? window.location.hash : '';
+				if (hasSavedBundle) {
+					if (hash === '#local-blueprint-bundle') {
+						const loaded = await loadAutosaveBundle();
+						if (!loaded) {
+							setAutosavePromptVisible(true);
+							await initializePreviewFilesystem();
+						}
+					} else {
+						setAutosavePromptVisible(true);
+						await initializePreviewFilesystem();
+					}
+					return;
+				}
+				await initializeFromBlueprint(true);
 			} catch (error) {
 				if (!cancelled) {
 					logger.error(
 						'Failed to initialize blueprint filesystem',
 						error
 					);
-					// Fallback: keep the editor usable with the starter blueprint
-					try {
-						const fallbackFs =
-							await convertBlueprintToWritableFilesystem(
-								initialBlueprint
-							);
-						await applyFilesystem(fallbackFs);
-					} catch {
-						setFilesystem(null);
-					}
+					setSaveError('Could not initialize Blueprint bundle.');
 				}
 			}
-		})();
+		};
+
+		void bootstrap();
 
 		return () => {
 			cancelled = true;
 		};
-		// Deliberately no dependencies: we only initialize once
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [applyFilesystem]);
+	}, [
+		initializeFromBlueprint,
+		initializePreviewFilesystem,
+		loadAutosaveBundle,
+	]);
+
+	const handleLoadAutosaveClick = useCallback(async () => {
+		setAutosaveBusyAction('load');
+		const success = await loadAutosaveBundle();
+		if (success) {
+			setAutosavePromptVisible(false);
+		}
+		setAutosaveBusyAction(null);
+	}, [loadAutosaveBundle]);
+
+	const handleDiscardAutosaveClick = useCallback(async () => {
+		setAutosaveBusyAction('discard');
+		setAutosaveErrorMessage(null);
+		try {
+			await WritableOpfsBundle.discardSavedBundle();
+			await initializeFromBlueprint(true);
+			setAutosavePromptVisible(false);
+		} catch (error) {
+			logger.error('Failed to discard autosave bundle', error);
+			setAutosaveErrorMessage(
+				'Could not discard the autosave. Try again.'
+			);
+		} finally {
+			setAutosaveBusyAction(null);
+		}
+	}, [initializeFromBlueprint]);
 
 	// Debounced autosave whenever the current file contents change.
 	useEffect(() => {
@@ -295,10 +380,12 @@ export const BlueprintBundleEditor = forwardRef<
 					changes: {
 						metadata: {
 							...site.metadata,
+							originalBlueprintSource: { type: 'local-editor' },
 							originalBlueprint: bundle,
 							runtimeConfiguration,
 							whenCreated: Date.now(),
 						},
+						originalUrlParams: undefined,
 					},
 				})
 			);
@@ -467,27 +554,69 @@ export const BlueprintBundleEditor = forwardRef<
 		<div className={classNames(styles.container, className)}>
 			{showToolbar && (
 				<div className={styles.editorToolbar}>
+					{showDownloadButton ? (
+						<Button
+							variant="link"
+							className={styles.editorToolbarButton}
+							onClick={handleDownloadBundle}
+							disabled={disableDownloadButton}
+						>
+							<Icon icon={download} />
+						</Button>
+					) : null}
 					<Button
 						variant="primary"
 						className={styles.editorToolbarButton}
-						onClick={() => void handleRecreateFromBlueprint()}
+						onClick={handleRecreateFromBlueprint}
 						isBusy={isRecreating}
 						disabled={disableRunButton}
 					>
 						<PlayIcon className={styles.editorToolbarPlayIcon} />
 						{runLabel}
 					</Button>
-					{showDownloadButton ? (
-						<Button
-							variant="secondary"
-							className={styles.editorToolbarButton}
-							onClick={handleDownloadBundle}
-							disabled={disableDownloadButton}
-						>
-							<Icon icon={download} />
-							Download bundle
-						</Button>
-					) : null}
+				</div>
+			)}
+			{autosavePromptVisible && (
+				<div
+					className={styles.autosaveOverlay}
+					role="dialog"
+					aria-modal="true"
+				>
+					<div className={styles.autosaveCard}>
+						<h3 className={styles.autosaveTitle}>
+							Restore last edited blueprint?
+						</h3>
+						<p className={styles.autosaveMessage}>
+							Your last edited Blueprint has been saved locally.
+							Do you want to restore it? Or discard it and edit
+							the currently active Blueprint?
+						</p>
+						{autosaveErrorMessage ? (
+							<div className={styles.autosaveError}>
+								<Notice status="error" isDismissible={false}>
+									{autosaveErrorMessage}
+								</Notice>
+							</div>
+						) : null}
+						<div className={styles.autosaveActions}>
+							<Button
+								variant="primary"
+								onClick={handleLoadAutosaveClick}
+								isBusy={autosaveBusyAction === 'load'}
+								disabled={autosaveBusyAction === 'discard'}
+							>
+								Load autosave
+							</Button>
+							<Button
+								variant="tertiary"
+								onClick={handleDiscardAutosaveClick}
+								isBusy={autosaveBusyAction === 'discard'}
+								disabled={autosaveBusyAction === 'load'}
+							>
+								Discard autosave
+							</Button>
+						</div>
+					</div>
 				</div>
 			)}
 			<div
@@ -561,7 +690,7 @@ export const BlueprintBundleEditor = forwardRef<
 								currentPath={currentPath}
 								className={styles.editor}
 								onSaveShortcut={flushPendingSave}
-								readOnly={readOnly}
+								readOnly={readOnly || autosavePromptVisible}
 								additionalExtensions={
 									currentPath === BLUEPRINT_JSON_PATH
 										? blueprintSchemaExtensions

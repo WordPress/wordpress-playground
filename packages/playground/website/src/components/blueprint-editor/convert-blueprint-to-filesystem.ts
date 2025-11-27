@@ -9,12 +9,19 @@ import { normalizePath } from '@php-wasm/util';
  * Convert a Blueprint (declaration or bundle) into a writable in-memory filesystem,
  * pre-populated with blueprint.json and all bundled resources.
  */
+type ConvertOptions = {
+	persistToOpfs?: boolean;
+};
+
 export async function convertBlueprintToWritableFilesystem(
 	blueprint: Blueprint,
-	onChange?: (bundle: WritableInMemoryBundle) => void
+	onChange?: (bundle: WritableInMemoryBundle) => void,
+	options: ConvertOptions = {}
 ): Promise<AsyncWritableFilesystem> {
+	const shouldPersist = options.persistToOpfs ?? true;
 	// If the hash indicates a previously edited local bundle, try to load it first.
 	if (
+		shouldPersist &&
 		typeof window !== 'undefined' &&
 		window.location.hash === '#local-blueprint-bundle'
 	) {
@@ -54,11 +61,15 @@ export async function convertBlueprintToWritableFilesystem(
 		files[normalized] = content;
 	}
 
-	try {
-		return await WritableOpfsBundle.create(files, onChange as any);
-	} catch {
-		return new WritableInMemoryBundle(files, onChange);
+	if (shouldPersist) {
+		try {
+			return await WritableOpfsBundle.create(files, onChange as any);
+		} catch {
+			// Fall through to in-memory fallback.
+		}
 	}
+
+	return new WritableInMemoryBundle(files, onChange);
 }
 
 function collectBundledResourcePaths(value: unknown): Set<string> {

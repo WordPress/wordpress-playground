@@ -13,11 +13,15 @@ import { WritableOpfsBundle } from '../../../components/blueprint-editor/writabl
 import { parseBlueprint } from './router';
 import { OverlayFilesystem, InMemoryFilesystem } from '@wp-playground/storage';
 import { RecommendedPHPVersion } from '@wp-playground/common';
+import { logger } from '@php-wasm/logger';
 
 export type BlueprintSource =
 	| {
 			type: 'remote-url';
 			url: string;
+	  }
+	| {
+			type: 'local-editor';
 	  }
 	| {
 			type: 'inline-string';
@@ -92,10 +96,19 @@ export async function resolveBlueprintFromURL(
 			},
 		};
 	} else if (fragment === 'local-blueprint-bundle') {
-		const bundle = await WritableOpfsBundle.loadFromOpfs();
+		let bundle = undefined;
+		try {
+			bundle = await WritableOpfsBundle.loadFromOpfs();
+		} catch (error) {
+			logger.error(
+				'Failed to load the last edited blueprint from OPFS',
+				error
+			);
+			bundle = await resolveRemoteBlueprint(url.href);
+		}
 		return {
 			blueprint: bundle as BlueprintV1,
-			source: { type: 'inline-string' },
+			source: { type: 'local-editor' },
 		};
 	} else if (fragment.length) {
 		/*

@@ -63,6 +63,35 @@ export class WritableOpfsBundle
 		return WritableOpfsBundle.create(files, onChange);
 	}
 
+	static async hasSavedBundle(): Promise<boolean> {
+		const root = await WritableOpfsBundle.getOpfsRoot();
+		if (!root) {
+			return false;
+		}
+		// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+		// @ts-expect-error: iteration types not fully available
+		for await (const _ of root.entries()) {
+			return true;
+		}
+		return false;
+	}
+
+	static async discardSavedBundle(): Promise<void> {
+		const root = await WritableOpfsBundle.getOpfsRoot();
+		if (!root) {
+			return;
+		}
+		// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+		// @ts-expect-error: iteration types not fully available
+		for await (const [name] of root.entries()) {
+			try {
+				await root.removeEntry(name, { recursive: true });
+			} catch {
+				/* ignore */
+			}
+		}
+	}
+
 	private async initOpfs() {
 		this.opfsRoot = await WritableOpfsBundle.getOpfsRoot(true);
 	}
