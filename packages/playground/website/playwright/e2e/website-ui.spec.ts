@@ -697,10 +697,10 @@ test('should edit a blueprint in the blueprint editor and recreate the playgroun
 	// Wait a moment for the change to be processed
 	await website.page.waitForTimeout(500);
 
-	// Click the "Recreate Playground from this Blueprint" button
+	// Click the "Run Blueprint" button
 	await website.page
 		.getByRole('button', {
-			name: 'Recreate Playground from this Blueprint',
+			name: 'Run Blueprint',
 		})
 		.click();
 

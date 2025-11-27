@@ -139,8 +139,9 @@ export function SiteInfoPanel({
 			const blueprint = JSON.parse(blueprintCode);
 
 			// Resolve runtime configuration from the new blueprint
-			const runtimeConfiguration =
-				await resolveRuntimeConfiguration(blueprint);
+			const runtimeConfiguration = await resolveRuntimeConfiguration(
+				blueprint
+			);
 
 			// Remove the current playground client to trigger cleanup
 			dispatch(removeClientInfo(site.slug));
@@ -359,7 +360,7 @@ export function SiteInfoPanel({
 															site.metadata
 																.whenCreated - 2
 														)
-													)
+												  )
 												: '';
 											switch (site.metadata.storage) {
 												case 'local-fs':
@@ -561,8 +562,8 @@ export function SiteInfoPanel({
 												disabled={isRecreating}
 											>
 												{isRecreating
-													? 'Recreating...'
-													: 'Recreate Playground from this Blueprint'}
+													? 'Running...'
+													: 'Run Blueprint'}
 											</Button>
 										</div>
 									) : (
