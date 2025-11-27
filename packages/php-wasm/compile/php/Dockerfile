@@ -106,8 +106,11 @@ RUN if [ "$WITH_OPCACHE" = "yes" ]; \
 		fi; \
 		# Force OPcache to be built as a static extension. OPcache is always built as a shared extension.
 		/root/replace.sh 's/ext_shared=yes/ext_shared=no/g' /root/php-src/ext/opcache/config.m4; \
-		# Add the dummy opcache_module.c to the list of files to build.
-		/root/replace.sh 's/shared_alloc_mmap.c/shared_alloc_mmap.c opcache_module.c/g' /root/php-src/ext/opcache/config.m4; \
+		# Add the dummy opcache_module.c to the list of files to build for PHP < 8.4.0.
+		# PHP 8.5 made OPcache a non-optional part of PHP https://wiki.php.net/rfc/make_opcache_required
+		if [[ "${PHP_VERSION:0:1}" -lt "8" || ("${PHP_VERSION:0:1}" -eq "8" && "${PHP_VERSION:2:1}" -lt "4") ]]; then \
+			/root/replace.sh 's/shared_alloc_mmap.c/shared_alloc_mmap.c opcache_module.c/g' /root/php-src/ext/opcache/config.m4; \
+		fi; \
 		# Enable OPcache.
 		echo -n ' --enable-opcache --disable-opcache-jit --disable-huge-code-pages ' >> /root/.php-configure-flags; \
 	else \
