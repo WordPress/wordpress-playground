@@ -6,11 +6,7 @@
  * @property {string} lastRelease
  */
 
-<<<<<<< HEAD
-export const lastRefreshed = "2025-11-26T22:16:52.345Z";
-=======
 export const lastRefreshed = '2025-11-26T18:41:11.405Z';
->>>>>>> trunk
 
 /**
  * @type {PhpVersion[]}
@@ -64,5 +60,5 @@ export const phpVersions = [
 		loaderFilename: 'php_7_2.js',
 		wasmFilename: 'php_7_2.wasm',
 		lastRelease: '7.2.34',
-	}
+	},
 ];
