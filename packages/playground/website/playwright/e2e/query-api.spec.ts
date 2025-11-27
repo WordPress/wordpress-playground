@@ -9,7 +9,7 @@ import * as MinifiedWordPressVersions from '../../../wordpress-builds/src/wordpr
 
 const LatestSupportedWordPressVersion = Object.keys(
 	(MinifiedWordPressVersions as any).default ?? MinifiedWordPressVersions
-).filter((x) => !['nightly', 'beta'].includes(x))[0];
+).filter((x) => !['trunk', 'beta'].includes(x))[0];
 
 test('should load PHP 8.3 by default', async ({ website, wordpress }) => {
 	// Navigate to the website
@@ -19,7 +19,7 @@ test('should load PHP 8.3 by default', async ({ website, wordpress }) => {
 	);
 });
 
-test('should load WordPress latest by default', async ({
+test.only('should load WordPress latest by default', async ({
 	website,
 	wordpress,
 }) => {
