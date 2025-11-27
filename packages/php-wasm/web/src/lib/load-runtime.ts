@@ -7,13 +7,13 @@ import { loadPHPRuntime } from '@php-wasm/universal';
 import { getPHPLoaderModule } from './get-php-loader-module';
 import type { TCPOverFetchOptions } from './tcp-over-fetch-websocket';
 import { tcpOverFetchWebsocket } from './tcp-over-fetch-websocket';
-import { withIntl } from './extensions/intl/with-intl';
+import { withICUData } from './with-icu-data';
 
 export interface LoaderOptions {
 	emscriptenOptions?: EmscriptenOptions;
 	onPhpLoaderModuleLoaded?: (module: PHPLoaderModule) => void;
 	tcpOverFetch?: TCPOverFetchOptions;
-	withIntl?: boolean;
+	withICU?: boolean;
 }
 
 /**
@@ -58,8 +58,8 @@ export async function loadWebRuntime(
 		);
 	}
 
-	if (loaderOptions.withIntl) {
-		emscriptenOptions = withIntl(phpVersion, emscriptenOptions);
+	if (loaderOptions.withICU) {
+		emscriptenOptions = withICUData(emscriptenOptions);
 	}
 
 	const [phpLoaderModule, options] = await Promise.all([

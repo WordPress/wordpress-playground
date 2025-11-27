@@ -690,7 +690,7 @@ export async function jsonSchemaCompletion(
 			const filteredValues = typedText
 				? sortedValues.filter((value) =>
 						value.toLowerCase().startsWith(typedText)
-				  )
+					)
 				: sortedValues;
 
 			const options = filteredValues.map((value) => ({
@@ -835,8 +835,8 @@ export async function jsonSchemaCompletion(
 		const propTypes = Array.isArray(effectiveProp.type)
 			? effectiveProp.type
 			: effectiveProp.type
-			? [effectiveProp.type]
-			: [];
+				? [effectiveProp.type]
+				: [];
 
 		const hasObjectShape =
 			propTypes.includes('object') ||

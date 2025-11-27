@@ -561,8 +561,8 @@ export function SiteInfoPanel({
 												disabled={isRecreating}
 											>
 												{isRecreating
-													? 'Recreating...'
-													: 'Recreate Playground from this Blueprint'}
+													? 'Running...'
+													: 'Run Blueprint'}
 											</Button>
 										</div>
 									) : (

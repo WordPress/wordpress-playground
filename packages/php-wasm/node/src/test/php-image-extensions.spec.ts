@@ -62,7 +62,6 @@ const serverConfigurations = [
 		}),
 	},
 ];
-
 for (const serverConfiguration of serverConfigurations) {
 	const protocol = serverConfiguration.protocol;
 	const port = await serverConfiguration.port;
