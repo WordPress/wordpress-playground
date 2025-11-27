@@ -156,7 +156,17 @@ const schema11 = {
 		},
 		SupportedPHPVersion: {
 			type: 'string',
-			enum: ['8.4', '8.3', '8.2', '8.1', '8.0', '7.4', '7.3', '7.2'],
+			enum: [
+				'8.5',
+				'8.4',
+				'8.3',
+				'8.2',
+				'8.1',
+				'8.0',
+				'7.4',
+				'7.3',
+				'7.2',
+			],
 		},
 		ExtraLibrary: { type: 'string', const: 'wp-cli' },
 		PHPConstants: {
@@ -1521,7 +1531,7 @@ const schema12 = {
 };
 const schema13 = {
 	type: 'string',
-	enum: ['8.4', '8.3', '8.2', '8.1', '8.0', '7.4', '7.3', '7.2'],
+	enum: ['8.5', '8.4', '8.3', '8.2', '8.1', '8.0', '7.4', '7.3', '7.2'],
 };
 const schema14 = { type: 'string', const: 'wp-cli' };
 const schema15 = {
@@ -10340,7 +10350,7 @@ function validate14(
 																? validate12.errors
 																: vErrors.concat(
 																		validate12.errors
-																  );
+																	);
 														errors = vErrors.length;
 													}
 													var valid21 =
@@ -11019,7 +11029,7 @@ function validate14(
 																? validate12.errors
 																: vErrors.concat(
 																		validate12.errors
-																  );
+																	);
 														errors = vErrors.length;
 													}
 													var valid27 =
@@ -11435,7 +11445,7 @@ function validate14(
 																	? validate12.errors
 																	: vErrors.concat(
 																			validate12.errors
-																	  );
+																		);
 															errors =
 																vErrors.length;
 														}
@@ -11467,7 +11477,7 @@ function validate14(
 																		? validate18.errors
 																		: vErrors.concat(
 																				validate18.errors
-																		  );
+																			);
 																errors =
 																	vErrors.length;
 															}
@@ -11553,7 +11563,7 @@ function validate14(
 																		? validate12.errors
 																		: vErrors.concat(
 																				validate12.errors
-																		  );
+																			);
 																errors =
 																	vErrors.length;
 															}
@@ -12101,7 +12111,7 @@ function validate14(
 																	? validate12.errors
 																	: vErrors.concat(
 																			validate12.errors
-																	  );
+																		);
 															errors =
 																vErrors.length;
 														}
@@ -12133,7 +12143,7 @@ function validate14(
 																		? validate18.errors
 																		: vErrors.concat(
 																				validate18.errors
-																		  );
+																			);
 																errors =
 																	vErrors.length;
 															}
@@ -12219,7 +12229,7 @@ function validate14(
 																		? validate12.errors
 																		: vErrors.concat(
 																				validate12.errors
-																		  );
+																			);
 																errors =
 																	vErrors.length;
 															}
@@ -13969,7 +13979,7 @@ function validate14(
 																? validate30.errors
 																: vErrors.concat(
 																		validate30.errors
-																  );
+																	);
 														errors = vErrors.length;
 													}
 													var valid54 =
@@ -15456,7 +15466,7 @@ function validate14(
 																? validate32.errors
 																: vErrors.concat(
 																		validate32.errors
-																  );
+																	);
 														errors = vErrors.length;
 													}
 													var valid68 =
@@ -16180,7 +16190,7 @@ function validate14(
 																? validate12.errors
 																: vErrors.concat(
 																		validate12.errors
-																  );
+																	);
 														errors = vErrors.length;
 													}
 													var valid76 =
@@ -16810,7 +16820,7 @@ function validate14(
 																? validate12.errors
 																: vErrors.concat(
 																		validate12.errors
-																  );
+																	);
 														errors = vErrors.length;
 													}
 													var valid83 =
@@ -17589,7 +17599,7 @@ function validate14(
 																	? validate12.errors
 																	: vErrors.concat(
 																			validate12.errors
-																	  );
+																		);
 															errors =
 																vErrors.length;
 														}
@@ -18636,7 +18646,7 @@ function validate14(
 																	? validate18.errors
 																	: vErrors.concat(
 																			validate18.errors
-																	  );
+																		);
 															errors =
 																vErrors.length;
 														}
@@ -19935,6 +19945,7 @@ function validate11(
 													}
 													if (
 														!(
+															data9 === '8.5' ||
 															data9 === '8.4' ||
 															data9 === '8.3' ||
 															data9 === '8.2' ||
@@ -20513,7 +20524,7 @@ function validate11(
 																			? validate12.errors
 																			: vErrors.concat(
 																					validate12.errors
-																			  );
+																				);
 																	errors =
 																		vErrors.length;
 																}
@@ -21127,7 +21138,7 @@ function validate11(
 																					? validate14.errors
 																					: vErrors.concat(
 																							validate14.errors
-																					  );
+																						);
 																			errors =
 																				vErrors.length;
 																		}
