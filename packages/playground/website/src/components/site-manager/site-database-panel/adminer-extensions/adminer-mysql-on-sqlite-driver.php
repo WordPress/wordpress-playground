@@ -1,7 +1,7 @@
 <?php
 
 /**
- * An Adminer driver plugin for the MySQL-on-SQLite driver.
+ * An Adminer driver for MySQL-on-SQLite.
  *
  * This implementation is based on Adminer\SqlDb and Adminer\Db classes.
  * It is modified to use the MySQL-on-SQLite driver instead of MySQLi.

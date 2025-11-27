@@ -779,7 +779,7 @@ test.describe('Database panel', () => {
 		// Verify Adminer opened in new tab
 		const newPage = await pagePromise;
 		await newPage.waitForLoadState();
-		expect(newPage.url()).toContain('/adminer.php');
+		expect(newPage.url()).toContain('/adminer/');
 		await expect(newPage.locator('body')).toContainText('Adminer');
 		await expect(newPage.locator('body')).toContainText('wp_posts');
 		await newPage.close();

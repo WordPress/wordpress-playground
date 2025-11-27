@@ -17,43 +17,34 @@ const adminerUrl =
 
 async function installAdminer(playground: PlaygroundClient) {
 	const documentRoot = await playground.documentRoot;
-	const adminerPath = `${documentRoot}/adminer.php`;
-	const pluginsPath = `${documentRoot}/adminer-plugins`;
+	const adminerPath = `${documentRoot}/adminer/`;
 
 	const steps: StepDefinition[] = [
+		{ step: 'mkdir', path: adminerPath },
 		{
 			step: 'writeFile',
-			path: adminerPath,
+			path: `${adminerPath}/adminer.php`,
 			data: {
 				resource: 'url',
 				url: adminerUrl,
 			},
 		},
-		{ step: 'mkdir', path: pluginsPath },
+		{
+			step: 'writeFile',
+			path: `${adminerPath}/adminer-mysql-on-sqlite-driver.php`,
+			data: (
+				await import(
+					'./adminer-extensions/adminer-mysql-on-sqlite-driver.php?raw'
+				)
+			).default as string,
+		},
+		{
+			step: 'writeFile',
+			path: `${adminerPath}/index.php`,
+			data: (await import('./adminer-extensions/index.php?raw'))
+				.default as string,
+		},
 	];
-
-	const plugins = import.meta.glob<string>('./adminer-plugins/*', {
-		eager: true,
-		query: '?raw',
-		import: 'default',
-	});
-	const files: Record<string, string> = {};
-	for (const [srcPath, content] of Object.entries(plugins)) {
-		const fileName = srcPath.split('/').pop()!;
-		files[fileName] = content;
-	}
-
-	if (Object.entries(files).length > 0) {
-		steps.push({
-			step: 'writeFiles',
-			writeToPath: pluginsPath,
-			filesTree: {
-				resource: 'literal:directory',
-				name: 'adminer-plugins',
-				files: files,
-			},
-		});
-	}
 
 	const blueprint = await compileBlueprintV1(
 		{ steps },
@@ -97,7 +88,7 @@ export function AdminerButton({
 		const playgroundUrl = await playground.absoluteUrl;
 		if (playgroundUrl) {
 			window.open(
-				`${playgroundUrl}/adminer.php`,
+				`${playgroundUrl}/adminer/`,
 				'_blank',
 				'noopener,noreferrer'
 			);
