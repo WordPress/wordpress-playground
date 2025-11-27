@@ -365,13 +365,13 @@ RUN cd /root && \
 	fi && \
 	chmod +x /root/apply-mysqlnd-patch.sh && \
 	/root/apply-mysqlnd-patch.sh && \
-	( [[ "${PHP_VERSION:0:3}" == '8.3' ]] && \
-		git apply --no-index /root/php-chunk-alloc-zend-assert-8.3.patch -v || \
-		( [[ "${PHP_VERSION:0:3}" == '8.4' ]] && \
-			git apply --no-index /root/php-chunk-alloc-zend-assert-8.4.patch -v || \
-			git apply --no-index /root/php-chunk-alloc-zend-assert.patch -v \
-		) \
-	) && \
+	if [[ "${PHP_VERSION:0:3}" < '8.3' ]]; then \
+		git apply --no-index /root/php-chunk-alloc-zend-assert.patch -v; \
+	elif [[ "${PHP_VERSION:0:3}" == '8.3' ]]; then \
+		git apply --no-index /root/php-chunk-alloc-zend-assert-8.3.patch -v; \
+	elif [[ "${PHP_VERSION:0:3}" == '8.4' ]]; then \
+		git apply --no-index /root/php-chunk-alloc-zend-assert-8.4.patch -v; \
+	fi && \
 	touch php-src/patched
 
 # Install Mysql support if needed
