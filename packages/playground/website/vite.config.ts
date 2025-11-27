@@ -57,6 +57,8 @@ export default defineConfig(({ command, mode }) => {
 		// config above.
 		base: mode === 'production' ? '/' : '/website-server/',
 
+		assetsInclude: ['**/*.so', '**/*.dat'],
+
 		cacheDir: '../../../node_modules/.vite/packages-playground-website',
 
 		css: {
@@ -279,6 +281,18 @@ export default defineConfig(({ command, mode }) => {
 						if (id.includes('blueprint-editor')) {
 							return 'optional/blueprint-editor';
 						}
+					},
+					assetFileNames: (chunkInfo) => {
+						// Split Extensions or associated shared files into separate chunks
+						// that will be placed in assets/extensions/ directory
+						if (
+							chunkInfo.names?.[0]?.endsWith('.so') ||
+							chunkInfo.names?.[0]?.endsWith('.dat')
+						) {
+							return 'assets/extensions/[name]-[hash][extname]';
+						}
+
+						return 'assets/[name]-[hash][extname]';
 					},
 				},
 				external: [],

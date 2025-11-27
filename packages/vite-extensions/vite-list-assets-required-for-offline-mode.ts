@@ -71,8 +71,10 @@ const patternsToNotCache = [
 	 * Excluding them significantly reduces the offline mode cache size and initial load time.
 	 *
 	 * Optional chunks are placed in assets/optional/ via vite.config.ts manualChunks configuration.
+	 * Extension chunks are placed in assets/extensions/ via vite.config.ts assetFileNames configuration.
 	 */
 	/^\/assets\/optional\/.*/, // All optional assets (CodeMirror, language extensions, etc.)
+	/^\/assets\/extensions\/.*/, // All extension assets (Intl, ICU, etc.)
 	/^\/client\/.*/, // Client package files arent't used by the web version of Playground
 	'/php-playground.html', // The PHP playground is a separate page that is not part of the web version of Playground
 ];
