@@ -3,9 +3,10 @@
  *
  * Node.js type stripping (--experimental-strip-types) only supports removing type annotations
  * but does NOT support TypeScript syntax that has runtime behavior:
- * - Parameter properties (e.g., constructor(private foo: string))
  * - Enums
  * - Namespaces/modules with value statements (type-only namespaces are allowed)
+ *
+ * Note: Parameter properties are handled by the existing @typescript-eslint/parameter-properties rule.
  *
  * @see https://nodejs.org/api/typescript.html#type-stripping
  */
@@ -13,8 +14,8 @@
 const description =
 	'Disallow TypeScript syntax unsupported by Node.js type stripping. ' +
 	'Node.js type stripping only removes type annotations but does not support ' +
-	'TypeScript-specific syntax that has runtime semantics, such as parameter ' +
-	'properties, enums, and namespaces with value statements.';
+	'TypeScript-specific syntax that has runtime semantics, such as enums and ' +
+	'namespaces with value statements.';
 
 /**
  * Check if a statement is a value statement (has runtime semantics).
@@ -94,9 +95,6 @@ module.exports = {
 			recommended: true,
 		},
 		messages: {
-			parameterProperty:
-				'TypeScript parameter property is not supported by Node.js type stripping. ' +
-				'Declare the property in the class body and assign it manually in the constructor.',
 			enum: 'TypeScript enums are not supported by Node.js type stripping. ' +
 				'Use a const object with `as const` assertion instead.',
 			namespace:
@@ -107,15 +105,6 @@ module.exports = {
 	},
 	create(context) {
 		return {
-			// Detect parameter properties in constructor parameters
-			// e.g., constructor(private foo: string)
-			TSParameterProperty(node) {
-				context.report({
-					node,
-					messageId: 'parameterProperty',
-				});
-			},
-
 			// Detect enum declarations
 			// e.g., enum Foo { A, B, C }
 			TSEnumDeclaration(node) {

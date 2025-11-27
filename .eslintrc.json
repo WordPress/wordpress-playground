@@ -80,6 +80,9 @@
 				// Node.js type stripping requires explicit type imports.
 				"@typescript-eslint/consistent-type-imports": "error",
 				// Disallow TypeScript syntax unsupported by Node.js type stripping.
+				// Parameter properties are handled by @typescript-eslint/parameter-properties.
+				"@typescript-eslint/parameter-properties": "error",
+				// Enums and namespaces with value statements are handled by our custom rule.
 				"playground-dev/no-unsupported-typescript-syntax": "error"
 			}
 		},
