@@ -104,10 +104,11 @@ export async function resolveBlueprintFromURL(
 				'Failed to load the last edited blueprint from OPFS',
 				error
 			);
-			bundle = await resolveRemoteBlueprint(url.href);
 		}
 		return {
-			blueprint: bundle as BlueprintV1,
+			blueprint:
+				bundle ||
+				((await resolveRemoteBlueprint(url.href)) as BlueprintV1),
 			source: { type: 'local-editor' },
 		};
 	} else if (fragment.length) {

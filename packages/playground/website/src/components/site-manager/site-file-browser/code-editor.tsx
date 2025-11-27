@@ -194,19 +194,19 @@ export const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
 			onChange,
 			currentPath,
 			className,
-	onSaveShortcut,
-	readOnly = false,
-	additionalExtensions,
-	},
-	ref
-) {
+			onSaveShortcut,
+			readOnly = false,
+			additionalExtensions,
+		},
+		ref
+	) {
 		const editorRootRef = useRef<HTMLDivElement | null>(
 			null
 		) as MutableRefObject<HTMLDivElement | null>;
 		const viewRef = useRef<EditorView | null>(null);
-	const languageCompartmentRef = useRef(new Compartment());
-	const editableCompartmentRef = useRef(new Compartment());
-	const extraCompartmentRef = useRef(new Compartment());
+		const languageCompartmentRef = useRef(new Compartment());
+		const editableCompartmentRef = useRef(new Compartment());
+		const extraCompartmentRef = useRef(new Compartment());
 		const latestCodeRef = useRef(code);
 		const shouldRestoreFocusRef = useRef(false);
 
@@ -260,9 +260,7 @@ export const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
 			const state = EditorState.create({
 				doc: code,
 				extensions: [
-					extraCompartmentRef.current.of(
-						additionalExtensions ?? []
-					),
+					extraCompartmentRef.current.of(additionalExtensions ?? []),
 					lineNumbers(),
 					highlightActiveLineGutter(),
 					highlightActiveLine(),
