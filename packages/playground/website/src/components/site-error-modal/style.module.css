@@ -124,7 +124,8 @@
 
 .error-details pre {
 	margin: 0;
-	font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+	font-family:
+		'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
 	white-space: pre-wrap;
 	word-break: break-word;
 	margin-top: 1rem;
@@ -191,7 +192,8 @@
 	background: #f6f7f7;
 	border-radius: 10px;
 	padding: 0.75rem;
-	font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+	font-family:
+		'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
 	font-size: 0.82rem;
 	overflow-x: auto;
 	line-height: 1.35;

@@ -104,7 +104,7 @@ export function UnconnectedSiteSettingsForm({
 								options={
 									/*
 									 * Without an empty option, React sometimes says
-									 * the current selected version is "nightly" when
+									 * the current selected version is "trunk" when
 									 * `wp` is actually "6.4".
 									 */
 									[

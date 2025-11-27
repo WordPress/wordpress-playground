@@ -143,7 +143,7 @@ export async function resolveBlueprintFromURL(
 									activate: index === themes.length - 1,
 								},
 								progress: { weight: 2 },
-							} as StepDefinition)
+							}) as StepDefinition
 					),
 				].filter(Boolean),
 			},

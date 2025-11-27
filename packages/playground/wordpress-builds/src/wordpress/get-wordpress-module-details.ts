@@ -1,7 +1,5 @@
 
 // @ts-ignore
-import url_nightly from './wp-nightly.zip?url';
-// @ts-ignore
 import url_beta from './wp-beta.zip?url';
 // @ts-ignore
 import url_6_8 from './wp-6.8.zip?url';
@@ -25,17 +23,16 @@ import url_6_3 from './wp-6.3.zip?url';
 export function getWordPressModuleDetails(wpVersion: string = "6.8"): { size: number, url: string } {
 	switch (wpVersion) {
 		
-		case 'nightly':
-			/** @ts-ignore */
+		case 'trunk':
 			return {
-				size: 24949500,
-				url: url_nightly,
+				size: 0,
+				url: "https://github.com/WordPress/WordPress/archive/refs/heads/master.zip",
 			};
 			
 		case 'beta':
 			/** @ts-ignore */
 			return {
-				size: 24776337,
+				size: 24778861,
 				url: url_beta,
 			};
 			
@@ -81,6 +78,13 @@ export function getWordPressModuleDetails(wpVersion: string = "6.8"): { size: nu
 				url: url_6_3,
 			};
 			
+		
+		case 'nightly':
+			return {
+				size: 0,
+				url: "https://github.com/WordPress/WordPress/archive/refs/heads/master.zip",
+			};
+		
 
 	}
 	throw new Error('Unsupported WordPress module: ' + wpVersion);

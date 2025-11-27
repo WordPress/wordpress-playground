@@ -90,7 +90,7 @@ export function FileExplorerSidebar({
 		return normalizePath(
 			currentPath
 				? dirname(normalizePath(currentPath))
-				: selectedDirPath ?? documentRoot
+				: (selectedDirPath ?? documentRoot)
 		);
 		// Prevent tree from jumping unexpectedly when selectedDirPath changes.
 		// eslint-disable-next-line react-hooks/exhaustive-deps

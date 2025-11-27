@@ -10,8 +10,9 @@ import {
 	MenuGroup,
 	MenuItem,
 	TabPanel,
+	CheckboxControl,
 } from '@wordpress/components';
-import { moreVertical, external, chevronLeft, edit } from '@wordpress/icons';
+import { moreVertical, chevronLeft, edit } from '@wordpress/icons';
 import { SiteLogs } from '../../log-modal';
 import { useAppDispatch, useAppSelector } from '../../../lib/state/redux/store';
 import { usePlaygroundClientInfo } from '../../../lib/use-playground-client';
@@ -27,16 +28,28 @@ import {
 	setActiveModal,
 	modalSlugs,
 } from '../../../lib/state/redux/slice-ui';
-import { selectClientInfoBySiteSlug } from '../../../lib/state/redux/slice-clients';
-import { encodeStringAsBase64 } from '../../../lib/base64';
+import {
+	selectClientInfoBySiteSlug,
+	removeClientInfo,
+} from '../../../lib/state/redux/slice-clients';
 import { ActiveSiteSettingsForm } from '../site-settings-form/active-site-settings-form';
 import { getRelativeDate } from '../../../lib/get-relative-date';
-import { removeSite } from '../../../lib/state/redux/slice-sites';
-import { BlueprintReflection } from '@wp-playground/blueprints';
-import { lazy, Suspense, useState, useEffect } from 'react';
+import { removeSite, sitesSlice } from '../../../lib/state/redux/slice-sites';
+import {
+	BlueprintReflection,
+	resolveRuntimeConfiguration,
+} from '@wp-playground/blueprints';
+import { lazy, Suspense, useState, useEffect, useCallback } from 'react';
+import { logger } from '@php-wasm/logger';
 
 const SiteFileBrowser = lazy(() =>
 	import('../site-file-browser').then((m) => ({ default: m.SiteFileBrowser }))
+);
+
+const BlueprintEditor = lazy(() =>
+	import('../../blueprint-editor').then((m) => ({
+		default: m.JSONSchemaEditor,
+	}))
 );
 
 const LAST_TAB_STORAGE_KEY = 'playground-site-last-tabs';
@@ -88,10 +101,91 @@ export function SiteInfoPanel({
 	// Resolve documentRoot from playground client
 	const [documentRoot, setDocumentRoot] = useState<string | null>(null);
 
+	// Blueprint editing state for temporary playgrounds
+	const [blueprintCode, setBlueprintCode] = useState<string>('');
+	const [autoRecreate, setAutoRecreate] = useState<boolean>(false);
+	const [isRecreating, setIsRecreating] = useState<boolean>(false);
+
+	// Initialize blueprint code using BlueprintReflection to handle bundles
+	useEffect(() => {
+		(async () => {
+			try {
+				const reflection = await BlueprintReflection.create(
+					site.metadata.originalBlueprint as any
+				);
+				const declaration = reflection.getDeclaration() as any;
+				setBlueprintCode(JSON.stringify(declaration, null, '\t'));
+			} catch (error) {
+				logger.error(error);
+
+				// Fallback to original blueprint if reflection fails
+				setBlueprintCode(
+					JSON.stringify(site.metadata.originalBlueprint, null, '\t')
+				);
+			}
+		})();
+	}, [site.metadata.originalBlueprint]);
+
 	// Save the tab when it changes
 	const handleTabSelect = (tabName: string) => {
 		setSiteLastTab(site.slug, tabName);
 	};
+
+	// Handle blueprint recreation for temporary playgrounds
+	const handleRecreateFromBlueprint = useCallback(async () => {
+		try {
+			setIsRecreating(true);
+			// Parse the blueprint to validate it
+			const blueprint = JSON.parse(blueprintCode);
+
+			// Resolve runtime configuration from the new blueprint
+			const runtimeConfiguration =
+				await resolveRuntimeConfiguration(blueprint);
+
+			// Remove the current playground client to trigger cleanup
+			dispatch(removeClientInfo(site.slug));
+
+			// Update the site in place with new blueprint and timestamp
+			// This avoids the "No site selected" flash that would occur if we removed/added the site
+			// The new timestamp forces React to remount the iframe (key changes)
+			dispatch(
+				sitesSlice.actions.updateSite({
+					id: site.slug,
+					changes: {
+						metadata: {
+							...site.metadata,
+							originalBlueprint: blueprint,
+							runtimeConfiguration,
+							whenCreated: Date.now(),
+						},
+					},
+				})
+			);
+		} catch (error) {
+			const message =
+				error instanceof Error
+					? error.message
+					: 'Invalid Blueprint JSON. Please check the syntax.';
+			alert(message);
+		} finally {
+			setIsRecreating(false);
+		}
+	}, [blueprintCode, dispatch, site]);
+
+	const isTemporary = site.metadata.storage === 'none';
+
+	// Debounced auto-recreate when blueprint changes
+	useEffect(() => {
+		if (!autoRecreate || !isTemporary || !blueprintCode) {
+			return;
+		}
+
+		const timeoutId = setTimeout(() => {
+			handleRecreateFromBlueprint();
+		}, 2000); // 2 second debounce
+
+		return () => clearTimeout(timeoutId);
+	}, [blueprintCode, autoRecreate, isTemporary, handleRecreateFromBlueprint]);
 
 	const removeSiteAndCloseMenu = async (onClose: () => void) => {
 		// TODO: Replace with HTML-based dialog
@@ -131,7 +225,6 @@ export function SiteInfoPanel({
 			playground.goTo(path);
 		}
 	}
-	const isTemporary = site.metadata.storage === 'none';
 
 	const { opfsMountDescriptor } = usePlaygroundClientInfo(site.slug) || {};
 
@@ -266,7 +359,7 @@ export function SiteInfoPanel({
 															site.metadata
 																.whenCreated - 2
 														)
-												  )
+													)
 												: '';
 											switch (site.metadata.storage) {
 												case 'local-fs':
@@ -356,37 +449,6 @@ export function SiteInfoPanel({
 											/>
 										</MenuGroup>
 										<MenuGroup>
-											<MenuItem
-												onClick={async () => {
-													const reflection =
-														await BlueprintReflection.create(
-															site.metadata
-																.originalBlueprint as any
-														);
-													const declaration =
-														reflection.getDeclaration() as any;
-													const encoded =
-														encodeStringAsBase64(
-															JSON.stringify(
-																declaration
-															) as string
-														);
-													window.open(
-														`/builder/builder.html#${encoded}`,
-														'_blank',
-														'noopener,noreferrer'
-													);
-													onClose();
-												}}
-												icon={external}
-												iconPosition="right"
-												aria-label="View Blueprint"
-												disabled={offline}
-											>
-												View Blueprint
-											</MenuItem>
-										</MenuGroup>
-										<MenuGroup>
 											<ReportError
 												onClose={onClose}
 												disabled={offline}
@@ -411,6 +473,10 @@ export function SiteInfoPanel({
 							{
 								name: 'files',
 								title: 'File browser',
+							},
+							{
+								name: 'blueprint',
+								title: 'Blueprint',
 							},
 							{
 								name: 'logs',
@@ -467,6 +533,70 @@ export function SiteInfoPanel({
 												documentRoot={documentRoot}
 											/>
 										)}
+									</Suspense>
+								</div>
+								<div
+									className={classNames(
+										css.blueprintWrapper,
+										{
+											[css.tabHidden]:
+												tab.name !== 'blueprint',
+										}
+									)}
+									hidden={tab.name !== 'blueprint'}
+								>
+									{isTemporary ? (
+										<div className={css.blueprintHeader}>
+											<CheckboxControl
+												label="Auto recreate"
+												checked={autoRecreate}
+												onChange={setAutoRecreate}
+											/>
+											<Button
+												variant="primary"
+												onClick={
+													handleRecreateFromBlueprint
+												}
+												isBusy={isRecreating}
+												disabled={isRecreating}
+											>
+												{isRecreating
+													? 'Recreating...'
+													: 'Recreate Playground from this Blueprint'}
+											</Button>
+										</div>
+									) : (
+										<div className={css.blueprintNotice}>
+											This Blueprint is read-only for
+											saved Playgrounds. Create a
+											temporary Playground to edit and
+											test Blueprint changes.
+										</div>
+									)}
+									<Suspense
+										fallback={
+											<div>
+												Loading Blueprint editor...
+											</div>
+										}
+									>
+										<BlueprintEditor
+											config={{
+												initialDoc: blueprintCode,
+												autofocus: false,
+												onChange: isTemporary
+													? setBlueprintCode
+													: undefined,
+												readOnly: !isTemporary,
+											}}
+											className={classNames(
+												css.blueprintEditor,
+												{
+													[css.blueprintEditorReadonly]:
+														!isTemporary,
+												}
+											)}
+										/>
 									</Suspense>
 								</div>
 								<div

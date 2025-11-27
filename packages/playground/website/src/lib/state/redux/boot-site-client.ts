@@ -166,7 +166,7 @@ export function bootSiteClient(
 								...mountDescriptor,
 								initialSyncDirection: 'opfs-to-memfs',
 							},
-					  ]
+						]
 					: [],
 				shouldInstallWordPress: !isWordPressInstalled,
 				corsProxy: corsProxyUrl,

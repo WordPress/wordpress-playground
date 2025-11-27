@@ -1,7 +1,11 @@
 import { loadNodeRuntime } from '..';
-import { PHP, SupportedPHPVersions } from '@php-wasm/universal';
+import {
+	PHP,
+	SupportedPHPVersions,
+	setPhpIniEntries,
+} from '@php-wasm/universal';
 import fs from 'fs';
-import { createServer } from 'net';
+import { createServer, type AddressInfo } from 'net';
 
 const phpVersions =
 	'PHP' in process.env ? [process.env['PHP']!] : SupportedPHPVersions;
@@ -66,8 +70,14 @@ describe.each(phpVersions)('PHP %s', async (phpVersion) => {
 		});
 
 		it(
-			'communicates with default DBGP port',
+			'communicates with a DBGP client',
 			async () => {
+				/**
+				 * Use an ephemeral port to avoid collisions with any stray/debugger
+				 * processes that may already be listening on the default 9003.
+				 * We still verify the full DBGP handshake, only the port is made
+				 * deterministic per-test to remove flakiness.
+				 */
 				const queries = [
 					'feature_set -i 1 -n resolved_breakpoints -v 1',
 					'feature_set -i 2 -n notify_ok -v 1',
@@ -84,37 +94,76 @@ describe.each(phpVersions)('PHP %s', async (phpVersion) => {
 
 				const server = createServer();
 
-				server.on('connection', (tcpSource) => {
-					tcpSource.on('data', (data) => {
-						if (queries[i]) {
-							responses += new TextDecoder().decode(data);
-							const payload = `${Buffer.byteLength(
-								queries[i]
-							)}\x00${queries[i]}\x00`;
-							tcpSource.write(new TextEncoder().encode(payload));
-							i++;
-						} else {
-							stopped = true;
-							server.close();
-						}
+				try {
+					// Start the server on an available port.
+					await new Promise<void>((resolve, reject) => {
+						server.once('error', reject);
+						server.listen(0, '127.0.0.1', resolve);
 					});
-				});
+					const { port } = server.address() as AddressInfo;
 
-				server.listen(9003);
+					// Point Xdebug at the chosen port/host.
+					await setPhpIniEntries(php, {
+						'xdebug.client_port': port,
+						'xdebug.client_host': '127.0.0.1',
+					});
 
-				const result = await php.runStream({
-					code: `<?php
+					const handshake = new Promise<void>((resolve, reject) => {
+						const timeout = setTimeout(() => {
+							reject(
+								new Error(
+									'Xdebug did not complete the DBGP handshake in time'
+								)
+							);
+						}, 8000);
+
+						server.on('connection', (tcpSource) => {
+							tcpSource.on('data', (data) => {
+								if (queries[i]) {
+									responses += new TextDecoder().decode(data);
+									const payload = `${Buffer.byteLength(
+										queries[i]
+									)}\x00${queries[i]}\x00`;
+									tcpSource.write(
+										new TextEncoder().encode(payload)
+									);
+									i++;
+								} else if (!stopped) {
+									stopped = true;
+									clearTimeout(timeout);
+									resolve();
+								}
+							});
+						});
+
+						server.once('error', (err) => {
+							clearTimeout(timeout);
+							reject(err);
+						});
+						server.once('close', () => clearTimeout(timeout));
+					});
+
+					const result = await php.runStream({
+						code: `<?php
 					echo "Hello Xdebug World";`,
-				});
+					});
 
-				await vi.waitUntil(() => stopped, { timeout: 5000 });
+					await handshake;
 
-				expect(responses).toContain(
-					'<init xmlns="urn:debugger_protocol_v1"'
-				);
-				expect(responses).toContain('success="1"></response>');
+					expect(responses).toContain(
+						'<init xmlns="urn:debugger_protocol_v1"'
+					);
+					expect(responses).toContain('success="1"></response>');
 
-				expect(await result.stdoutText).toEqual('Hello Xdebug World');
+					expect(await result.stdoutText).toEqual(
+						'Hello Xdebug World'
+					);
+				} finally {
+					// Ensure the port is always freed for subsequent PHP versions.
+					if (server.listening) {
+						await new Promise((resolve) => server.close(resolve));
+					}
+				}
 			},
 			{ timeout: 20_000 }
 		);

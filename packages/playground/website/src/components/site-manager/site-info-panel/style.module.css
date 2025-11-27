@@ -56,7 +56,7 @@
 }
 
 .tabHidden {
-	display: none;
+	display: none !important;
 }
 
 .file-browser-tab {
@@ -234,4 +234,91 @@
 
 .danger {
 	color: var(--color-alert-red);
+}
+
+.blueprint-wrapper {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	min-height: 0;
+}
+
+.blueprint-header {
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+	gap: 12px;
+	padding: 10px 20px 10px 16px;
+	border-bottom: 1px solid var(--color-gray-200);
+	background: #ffffff;
+	flex-wrap: wrap;
+}
+
+.blueprint-header :global(.components-button) {
+	height: 32px;
+	flex-shrink: 0;
+	margin-right: -8px;
+}
+
+.blueprint-header :global(.components-checkbox-control) {
+	margin: 0;
+}
+
+.blueprint-header :global(.components-base-control__field) {
+	margin-bottom: 0;
+}
+.blueprint-header :global(.components-checkbox-control__label) {
+	font-size: 13px;
+}
+
+.blueprint-header :global(.components-base-control__help) {
+	display: none;
+}
+
+.blueprint-editor {
+	flex: 1;
+	min-height: 0;
+	overflow: auto;
+	font-family: monospace;
+	background: #ffffff;
+}
+
+.blueprint-editor :global(.cm-editor) {
+	height: 100%;
+}
+
+.blueprint-editor :global(.cm-scroller) {
+	overflow: auto;
+}
+
+.blueprintEditorReadonly {
+	opacity: 0.7;
+}
+
+.blueprintNotice {
+	padding: 12px 16px;
+	background: #f0f6fc;
+	border-bottom: 1px solid var(--color-gray-200);
+	font-size: 13px;
+	color: var(--color-gray-700);
+	line-height: 1.5;
+}
+
+@media (max-width: 600px) {
+	.blueprint-header {
+		padding: 8px 0 8px 12px;
+		gap: 8px;
+		flex-direction: column-reverse;
+		align-items: stretch;
+	}
+
+	.blueprint-header :global(.components-button) {
+		width: 100%;
+		margin-right: -8px;
+	}
+
+	.blueprint-header :global(.components-checkbox-control) {
+		width: 100%;
+		padding-right: 12px;
+	}
 }

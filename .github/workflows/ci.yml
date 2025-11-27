@@ -31,24 +31,20 @@ jobs:
             fail-fast: false
             matrix:
                 include:
-                    - name: test-unit-asyncify (1/9)
+                    - name: test-unit-asyncify (1/7)
                       target: test
-                    - name: test-unit-asyncify (2/9)
-                      target: test-asyncify
-                    - name: test-unit-asyncify (3/9)
-                      target: test-php-file-get-contents-asyncify
-                    - name: test-unit-asyncify (4/9)
-                      target: test-php-fopen-asyncify
-                    - name: test-unit-asyncify (5/9)
-                      target: test-php-fsockopen-asyncify
-                    - name: test-unit-asyncify (6/9)
-                      target: test-php-gethostbyname-asyncify
-                    - name: test-unit-asyncify (7/9)
-                      target: test-php-mysqli-asyncify
-                    - name: test-unit-asyncify (8/9)
-                      target: test-php-sqlite3-asyncify
-                    - name: test-unit-asyncify (9/9)
-                      target: test-php-file-locking-asyncify
+                    - name: test-unit-asyncify (2/7)
+                      target: test-group-1-asyncify
+                    - name: test-unit-asyncify (3/7)
+                      target: test-group-2-asyncify
+                    - name: test-unit-asyncify (4/7)
+                      target: test-group-3-asyncify
+                    - name: test-unit-asyncify (5/7)
+                      target: test-group-4-asyncify
+                    - name: test-unit-asyncify (6/7)
+                      target: test-group-5-asyncify
+                    - name: test-unit-asyncify (7/7)
+                      target: test-group-6-asyncify
         name: ${{ matrix.name }}
         services:
             mysql:
@@ -83,22 +79,18 @@ jobs:
             fail-fast: false
             matrix:
                 include:
-                    - name: test-unit-jspi (1/8)
-                      target: test-jspi
-                    - name: test-unit-jspi (2/8)
-                      target: test-php-file-get-contents-jspi
-                    - name: test-unit-jspi (3/8)
-                      target: test-php-fopen-jspi
-                    - name: test-unit-jspi (4/8)
-                      target: test-php-fsockopen-jspi
-                    - name: test-unit-jspi (5/8)
-                      target: test-php-gethostbyname-jspi
-                    - name: test-unit-jspi (6/8)
-                      target: test-php-mysqli-jspi
-                    - name: test-unit-jspi (7/8)
-                      target: test-php-sqlite3-jspi
-                    - name: test-unit-jspi (8/8)
-                      target: test-php-file-locking-jspi
+                    - name: test-unit-jspi (1/6)
+                      target: test-group-1-jspi
+                    - name: test-unit-jspi (2/6)
+                      target: test-group-2-jspi
+                    - name: test-unit-jspi (3/6)
+                      target: test-group-3-jspi
+                    - name: test-unit-jspi (4/6)
+                      target: test-group-4-jspi
+                    - name: test-unit-jspi (5/6)
+                      target: test-group-5-jspi
+                    - name: test-unit-jspi (6/6)
+                      target: test-group-6-jspi
         name: ${{ matrix.name }}
         services:
             mysql:

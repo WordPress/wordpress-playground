@@ -84,8 +84,8 @@ body {
 		 * interfere with regular use cases, and give it more time to animate
 		 * so that it hits its `auto` width approximately around the same time
 		 * as the `opacity` transition finishes.
-		 */ max-width
-			450ms,
+		 */
+		max-width 450ms,
 		opacity 300ms;
 }
 
@@ -95,7 +95,9 @@ body {
 	min-width: var(--site-view-min-width);
 	height: 100dvh;
 	border: 0px solid var(--site-manager-background-color);
-	transition: border-radius 300ms ease, border-width 300ms ease,
+	transition:
+		border-radius 300ms ease,
+		border-width 300ms ease,
 		transform 300ms ease;
 	border-radius: 0;
 	border-width: 0;
