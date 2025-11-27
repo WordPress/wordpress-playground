@@ -105,28 +105,20 @@ RUN set -euxo pipefail; \
 	wget https://github.com/unicode-org/icu/releases/download/release-74-2/icu4c-74_2-src.tgz; \
 	tar -xvf icu4c-74_2-src.tgz; \
 	rm -rf /root/icu/source/data/; \
-	rm icu4c-74_2-src.tgz; \
+	rm icu4c-74_2-src.tgz;
 
+RUN set -euxo pipefail; \
 	wget https://github.com/unicode-org/icu/releases/download/release-74-2/icu4c-74_2-data.zip; \
 	unzip icu4c-74_2-data.zip -d /root/icu/source; \
-	rm icu4c-74_2-data.zip; \
+	rm icu4c-74_2-data.zip;
 
+RUN set -euxo pipefail; \
 	mkdir -p /root/native; \
 	cd /root/native; \
 	/root/icu/source/runConfigureICU Linux; \
-	make -j1; \
-	make install; \
+	make -j1;
 
-	if [ "$PLATFORM" = "node" ]; then \
-		# Calling close() on a file descriptor acquired through WASI syscalls can trigger a JS call/await
-		# during a non-resumable C++ stack frame, leading to "RuntimeError: trying to suspend JS frames".
-		# Since ICU maps the file into memory and does not require the descriptor after mapping
-		# under our build context, skipping close(fd) avoids that suspension error.
-		# NOTE: This means the file descriptor will remain open until process teardown.
-		# This is acceptable here because ICU data files are loaded only once at startup.
-		/root/replace.sh 's/close\(fd\);//' /root/icu/source/common/umapfile.cpp; \
-	fi; \
-
+RUN set -euxo pipefail; \
 	cd /root/icu/source; \
 	mkdir -p /root; \
 	source /root/emsdk/emsdk_env.sh; \

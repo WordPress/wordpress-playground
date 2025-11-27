@@ -79,6 +79,9 @@ export async function withIntl(
 			 * via the ICU_DATA environment variable.
 			 * By default, this variable is set to '/internal/shared',
 			 * which corresponds to the actual file location.
+			 *
+			 * The Intl extension is hard-coded to look for the `icudt74l` filename,
+			 * which means the ICU data file must use that exact name.
 			 */
 			if (
 				!FSHelpers.fileExists(
@@ -88,7 +91,7 @@ export async function withIntl(
 			) {
 				phpRuntime.FS.mkdirTree(phpRuntime.ENV.ICU_DATA);
 				phpRuntime.FS.writeFile(
-					`${phpRuntime.ENV.ICU_DATA}/${dataName}`,
+					`${phpRuntime.ENV.ICU_DATA}/icudt74l.dat`,
 					new Uint8Array(ICUData)
 				);
 			}

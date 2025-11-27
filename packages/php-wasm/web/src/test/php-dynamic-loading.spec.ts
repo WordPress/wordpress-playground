@@ -102,7 +102,11 @@ SupportedPHPVersions.forEach((phpVersion) => {
 				return list;
 			}, phpVersion);
 
-			test.expect(result).toContain('icu.dat');
+			/*
+			 * The Intl extension is hard-coded to look for the `icudt74l` filename,
+			 * which means the ICU data file must use that exact name.
+			 */
+			test.expect(result).toContain('icudt74l.dat');
 		});
 
 		test('uses intl functions', async ({ page }) => {
