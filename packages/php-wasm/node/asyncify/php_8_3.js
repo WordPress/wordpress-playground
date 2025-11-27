@@ -8,7 +8,7 @@ import path from 'path';
 
 const dependencyFilename = path.join(__dirname, '8_3_28', 'php_8_3.wasm');
 export { dependencyFilename };
-export const dependenciesTotalSize = 27973878;
+export const dependenciesTotalSize = 27860712;
 const phpVersionString = '8.3.28';
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
@@ -1208,7 +1208,7 @@ export function init(RuntimeName, PHPLoader) {
 				? alignMemory(
 						getMemory(metadata.memorySize + memAlign),
 						memAlign
-					)
+				  )
 				: 0; // TODO: add to cleanups
 			var tableBase = metadata.tableSize ? wasmTable.length : 0;
 			if (handle) {
@@ -5812,7 +5812,7 @@ export function init(RuntimeName, PHPLoader) {
 								sock,
 								sock.daddr,
 								sock.dport
-							)
+						  )
 						: null;
 
 				if (
@@ -6869,7 +6869,7 @@ export function init(RuntimeName, PHPLoader) {
 								}
 							}
 						}
-					};
+				  };
 
 			PHPWASM.processTable = {};
 
@@ -7799,10 +7799,10 @@ export function init(RuntimeName, PHPLoader) {
 					type = FS.isChrdev(child.mode)
 						? 2 // DT_CHR, character device.
 						: FS.isDir(child.mode)
-							? 4 // DT_DIR, directory.
-							: FS.isLink(child.mode)
-								? 10 // DT_LNK, symbolic link.
-								: 8; // DT_REG, regular file.
+						? 4 // DT_DIR, directory.
+						: FS.isLink(child.mode)
+						? 10 // DT_LNK, symbolic link.
+						: 8; // DT_REG, regular file.
 				}
 				HEAP64[(dirp + pos) >> 3] = BigInt(id);
 				HEAP64[(dirp + pos + 8) >> 3] = BigInt((idx + 1) * struct_size);
@@ -8924,7 +8924,7 @@ export function init(RuntimeName, PHPLoader) {
 		var firefoxRe = new RegExp('\\s*(.*?)@(.*?):([0-9]+):([0-9]+)');
 		// Extract components of form:
 		// '    at Object._main (http://server.com/file.html:4324:12)'
-		var chromeRe = new RegExp('\\s*at (.*?) \\\((.*):(.*):(.*)\\\)');
+		var chromeRe = new RegExp('\\s*at (.*?) \\((.*):(.*):(.*)\\)');
 
 		for (var line of lines) {
 			var symbolName = '';
@@ -14042,10 +14042,10 @@ export function init(RuntimeName, PHPLoader) {
 				ch == 112
 					? HEAPU32[buf >> 2]
 					: ch == 106
-						? HEAP64[buf >> 3]
-						: ch == 105
-							? HEAP32[buf >> 2]
-							: HEAPF64[buf >> 3]
+					? HEAP64[buf >> 3]
+					: ch == 105
+					? HEAP32[buf >> 2]
+					: HEAPF64[buf >> 3]
 			);
 			buf += wide ? 8 : 4;
 		}
@@ -15950,7 +15950,7 @@ export function init(RuntimeName, PHPLoader) {
 					height,
 					pixels,
 					internalFormat
-				)
+			  )
 			: null;
 		GLctx.texImage2D(
 			target,
@@ -16005,7 +16005,7 @@ export function init(RuntimeName, PHPLoader) {
 					height,
 					pixels,
 					0
-				)
+			  )
 			: null;
 		GLctx.texSubImage2D(
 			target,
@@ -16654,10 +16654,10 @@ export function init(RuntimeName, PHPLoader) {
 				var type = stream.tty
 					? 2
 					: FS.isDir(stream.mode)
-						? 3
-						: FS.isLink(stream.mode)
-							? 7
-							: 4;
+					? 3
+					: FS.isLink(stream.mode)
+					? 7
+					: 4;
 			}
 			HEAP8[pbuf] = type;
 			HEAP16[(pbuf + 2) >> 1] = flags;
@@ -17761,10 +17761,10 @@ export function init(RuntimeName, PHPLoader) {
 				return typeof value != 'number' || isNaN(value)
 					? min
 					: value >= min
-						? value <= max
-							? value
-							: max
-						: min;
+					? value <= max
+						? value
+						: max
+					: min;
 			}
 			return {
 				year: fixup(HEAP32[(tm + 20) >> 2] + 1900, 1970, 9999),
@@ -25253,8 +25253,8 @@ export function init(RuntimeName, PHPLoader) {
 				delta == 0
 					? 0
 					: delta > 0
-						? Math.max(delta, 1)
-						: Math.min(delta, -1); // Quantize to integer so that minimum scroll is at least +/- 1.
+					? Math.max(delta, 1)
+					: Math.min(delta, -1); // Quantize to integer so that minimum scroll is at least +/- 1.
 
 			var button = 3; // wheel up
 			if (delta < 0) {
@@ -27782,8 +27782,8 @@ export function init(RuntimeName, PHPLoader) {
 						delta == 0
 							? 0
 							: delta > 0
-								? Math.max(delta, 1)
-								: Math.min(delta, -1);
+							? Math.max(delta, 1)
+							: Math.min(delta, -1);
 
 					// Simulate old-style SDL events representing mouse wheel input as buttons
 					// Subtract one since JS->C marshalling is defined to add one back.
@@ -30598,7 +30598,9 @@ export function init(RuntimeName, PHPLoader) {
 			surfData.ctx.restore();
 		},
 		translateColorToCSSRGBA: (rgba) =>
-			`rgba(${rgba >>> 24},${(rgba >> 16) & 0xff},${(rgba >> 8) & 0xff},${rgba & 0xff})`,
+			`rgba(${rgba >>> 24},${(rgba >> 16) & 0xff},${(rgba >> 8) & 0xff},${
+				rgba & 0xff
+			})`,
 	};
 
 	var _boxColor = (surf, x1, y1, x2, y2, color) =>
@@ -31402,9 +31404,9 @@ export function init(RuntimeName, PHPLoader) {
 
 		socket.onclose = function (e) {
 			var eventPtr = WS.getSocketEvent(socketId);
-			((HEAP8[eventPtr + 4] = e.wasClean),
+			(HEAP8[eventPtr + 4] = e.wasClean),
 				(HEAP16[(eventPtr + 6) >> 1] = e.code),
-				stringToUTF8(e.reason, eventPtr + 8, 512));
+				stringToUTF8(e.reason, eventPtr + 8, 512);
 			((
 				a1,
 				a2,
@@ -31441,7 +31443,7 @@ export function init(RuntimeName, PHPLoader) {
 				HEAP8.set(new Uint8Array(e.data), buf);
 			}
 			var eventPtr = WS.getSocketEvent(socketId);
-			((HEAPU32[(eventPtr + 4) >> 2] = buf),
+			(HEAPU32[(eventPtr + 4) >> 2] = buf),
 				(HEAP32[(eventPtr + 8) >> 2] = len),
 				(HEAP8[eventPtr + 12] = isText),
 				((
@@ -31452,7 +31454,7 @@ export function init(RuntimeName, PHPLoader) {
 					0 /*TODO*/,
 					eventPtr,
 					userData
-				));
+				);
 			_free(buf);
 		};
 		return 0;
@@ -31691,13 +31693,13 @@ export function init(RuntimeName, PHPLoader) {
 	// end include: postlibrary.js
 
 	var ASM_CONSTS = {
-		14067153: ($0) => {
+		14062513: ($0) => {
 			if (!$0) {
 				AL.alcErr = 0xa004;
 				return 1;
 			}
 		},
-		14067201: ($0) => {
+		14062561: ($0) => {
 			if (!AL.currentCtx) {
 				err('alGetProcAddress() called without a valid context');
 				return 1;
@@ -32180,7 +32182,7 @@ export function init(RuntimeName, PHPLoader) {
 			wasmExports['__indirect_function_table'];
 	}
 
-	var ___heap_base = 15627584;
+	var ___heap_base = 15622976;
 
 	var wasmImports = {
 		/** @export */
