@@ -69,7 +69,6 @@ export class WritableOpfsBundle
 			return false;
 		}
 		// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-		// @ts-expect-error: iteration types not fully available
 		for await (const _ of root.entries()) {
 			return true;
 		}
@@ -82,7 +81,6 @@ export class WritableOpfsBundle
 			return;
 		}
 		// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-		// @ts-expect-error: iteration types not fully available
 		for await (const [name] of root.entries()) {
 			try {
 				await root.removeEntry(name, { recursive: true });
