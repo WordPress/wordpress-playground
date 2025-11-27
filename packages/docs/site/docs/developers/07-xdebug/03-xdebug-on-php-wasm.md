@@ -68,6 +68,14 @@ npx @php-wasm/cli@latest --xdebug src/test.php
 
 > **Note:** Start your IDE's debug listener before running this command. Otherwise, Xdebug waits indefinitely for the connection.
 
+![PhpStorm running Xdebug with PHP WASM](@site/static/img/developers/xdebug/xdebug-with-php-wasm.web)
+
+If you don't have the IDE set up, you can use the experimental flag `--experimental-unsafe-ide-integration`, passing the IDE that you would like to set, `vscode` or `phpstorm`. The flag is also set as unsafe because it can overwrite the previous configuration of your IDE.
+
+```bash
+npx @php-wasm/cli@latest --xdebug --experimental-unsafe-ide-integration=phpstorm src/test.php
+```
+
 ### 5. Start Debugging
 
 Once the command is running and your IDE is listening:
@@ -88,6 +96,7 @@ Hello Xdebug World!
 
 ## Command Reference
 
-| Flag       | Description                                               |
-| :--------- | :-------------------------------------------------------- |
-| `--xdebug` | Enables the Xdebug extension within the WASM environment. |
+| Flag                                    | Description                                                               |
+| :-------------------------------------- | :------------------------------------------------------------------------ |
+| `--xdebug`                              | Enables the Xdebug extension within the WASM environment.                 |
+| `--experimental-unsafe-ide-integration` | Allows the WASM instance to communicate with the IDE on the host machine. |
