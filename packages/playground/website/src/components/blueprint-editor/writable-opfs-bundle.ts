@@ -1,6 +1,10 @@
 import type { AsyncWritableFilesystem } from '@wp-playground/components';
 import type { BlueprintBundle } from '@wp-playground/blueprints';
-import { WritableInMemoryBundle } from './writable-in-memory-bundle';
+import {
+	WritableInMemoryBundle,
+	type FsNode,
+	type DirNode,
+} from './writable-in-memory-bundle';
 import { ensureAbsolutePath } from './convert-blueprint-to-filesystem';
 
 export const OPFS_BASE_PATH = ['blueprints', 'last-edited-bundle'];
@@ -217,7 +221,3 @@ export class WritableOpfsBundle
 		}
 	}
 }
-
-type FileNode = { type: 'file'; content: Uint8Array };
-type DirNode = { type: 'dir'; children: Record<string, FsNode> };
-type FsNode = FileNode | DirNode;

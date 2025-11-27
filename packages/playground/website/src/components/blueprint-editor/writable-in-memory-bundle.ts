@@ -3,6 +3,10 @@ import type { BlueprintBundle } from '@wp-playground/blueprints';
 import { StreamedFile } from '@php-wasm/stream-compression';
 import { ensureAbsolutePath } from './convert-blueprint-to-filesystem';
 
+export type FileNode = { type: 'file'; content: Uint8Array };
+export type DirNode = { type: 'dir'; children: Record<string, FsNode> };
+export type FsNode = FileNode | DirNode;
+
 export class WritableInMemoryBundle
 	implements AsyncWritableFilesystem, BlueprintBundle
 {
@@ -211,7 +215,3 @@ export class WritableInMemoryBundle
 		return current;
 	}
 }
-
-type FileNode = { type: 'file'; content: Uint8Array };
-type DirNode = { type: 'dir'; children: Record<string, FsNode> };
-type FsNode = FileNode | DirNode;
