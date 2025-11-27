@@ -124,7 +124,10 @@ const loadLanguageExtension = async (
 
 // Plugin to handle clicks below the content and move cursor to end of document
 class ClickBelowContentHandler implements PluginValue {
-	constructor(private view: EditorViewType) {
+	private view: EditorViewType;
+
+	constructor(view: EditorViewType) {
+		this.view = view;
 		this.handleClick = this.handleClick.bind(this);
 		this.view.dom.addEventListener('mousedown', this.handleClick);
 	}

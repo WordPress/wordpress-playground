@@ -78,7 +78,9 @@
 				"no-constant-condition": 0,
 				"playground-dev/avoid-wordpress-builds-dependency": "error",
 				// Node.js type stripping requires explicit type imports.
-				"@typescript-eslint/consistent-type-imports": "error"
+				"@typescript-eslint/consistent-type-imports": "error",
+				// Disallow TypeScript syntax unsupported by Node.js type stripping.
+				"playground-dev/no-unsupported-typescript-syntax": "error"
 			}
 		},
 		{
