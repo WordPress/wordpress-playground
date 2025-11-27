@@ -105,20 +105,18 @@ RUN set -euxo pipefail; \
 	wget https://github.com/unicode-org/icu/releases/download/release-74-2/icu4c-74_2-src.tgz; \
 	tar -xvf icu4c-74_2-src.tgz; \
 	rm -rf /root/icu/source/data/; \
-	rm icu4c-74_2-src.tgz;
+	rm icu4c-74_2-src.tgz; \
 
-RUN set -euxo pipefail; \
 	wget https://github.com/unicode-org/icu/releases/download/release-74-2/icu4c-74_2-data.zip; \
 	unzip icu4c-74_2-data.zip -d /root/icu/source; \
-	rm icu4c-74_2-data.zip;
+	rm icu4c-74_2-data.zip; \
 
-RUN set -euxo pipefail; \
 	mkdir -p /root/native; \
 	cd /root/native; \
 	/root/icu/source/runConfigureICU Linux; \
-	make -j1;
+	make -j1; \
+	make install; \
 
-RUN set -euxo pipefail; \
 	cd /root/icu/source; \
 	mkdir -p /root; \
 	source /root/emsdk/emsdk_env.sh; \
