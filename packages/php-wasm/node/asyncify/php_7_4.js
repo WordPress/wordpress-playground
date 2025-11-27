@@ -8,7 +8,7 @@ import path from 'path';
 
 const dependencyFilename = path.join(__dirname, '7_4_33', 'php_7_4.wasm');
 export { dependencyFilename }; 
-export const dependenciesTotalSize = 22675032; 
+export const dependenciesTotalSize = 22675302; 
 const phpVersionString = '7.4.33';
 export function init(RuntimeName, PHPLoader) {
     // The rest of the code comes from the built php.js file and esm-suffix.js
@@ -28778,8 +28778,8 @@ if (Module["quit"]) quit_=Module["quit"];
 // end include: postlibrary.js
 
 var ASM_CONSTS = {
-  11167617: ($0) => { if (!$0) { AL.alcErr = 0xA004 ; return 1; } },  
- 11167665: ($0) => { if (!AL.currentCtx) { err("alGetProcAddress() called without a valid context"); return 1; } if (!$0) { AL.currentCtx.err = 0xA003 ; return 1; } }
+  11167889: ($0) => { if (!$0) { AL.alcErr = 0xA004 ; return 1; } },  
+ 11167937: ($0) => { if (!AL.currentCtx) { err("alGetProcAddress() called without a valid context"); return 1; } if (!$0) { AL.currentCtx.err = 0xA003 ; return 1; } }
 };
 function js_popen_to_file(command,mode,exitCodePtr) { const returnCallback = (resolver) => Asyncify.handleSleep(resolver); if (!command) return 1; const cmdstr = UTF8ToString(command); if (!cmdstr.length) return 0; const modestr = UTF8ToString(mode); if (!modestr.length) return 0; if (modestr === 'w') { console.error('popen($cmd, "w") is not implemented yet'); } return returnCallback(async (wakeUp) => { let cp; try { cp = PHPWASM.spawnProcess(cmdstr, []); if (cp instanceof Promise) { cp = await cp; } } catch (e) { console.error(e); if (e.code === 'SPAWN_UNSUPPORTED') { return 1; } throw e; } const outByteArrays = []; cp.stdout.on('data', function (data) { outByteArrays.push(data); }); const outputPath = '/tmp/popen_output'; cp.on('exit', function (exitCode) { const outBytes = new Uint8Array( outByteArrays.reduce((acc, curr) => acc + curr.length, 0) ); let offset = 0; for (const byteArray of outByteArrays) { outBytes.set(byteArray, offset); offset += byteArray.length; } FS.writeFile(outputPath, outBytes); HEAPU8[exitCodePtr] = exitCode; wakeUp(allocateUTF8OnStack(outputPath)); }); }); }
 js_popen_to_file.sig = 'iiii';
@@ -28940,7 +28940,7 @@ function assignWasmExports(wasmExports) {
   __indirect_function_table = wasmTable = wasmExports['__indirect_function_table'];
 }
 
-var ___heap_base = 12391296;
+var ___heap_base = 12391552;
 
 var wasmImports = {
   /** @export */
