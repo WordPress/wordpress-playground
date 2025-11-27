@@ -19,7 +19,7 @@ test('should load PHP 8.3 by default', async ({ website, wordpress }) => {
 	);
 });
 
-test.only('should load WordPress latest by default', async ({
+test('should load WordPress latest by default', async ({
 	website,
 	wordpress,
 }) => {
