@@ -481,18 +481,7 @@ export function SiteInfoPanel({
 							},
 							{
 								name: 'database',
-								// The expected type is a string, but the
-								// component handles JSX just fine. We may
-								// need to revisit at some point if
-								// @wordpress/components stops handling JSX,
-								// but we're fine for now.
-								title: (
-									<>
-										Database
-										<br />
-										(early access)
-									</>
-								) as any,
+								title: 'Database',
 							},
 							{
 								name: 'logs',
