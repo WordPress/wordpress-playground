@@ -39,9 +39,11 @@ const SiteFileBrowser = lazy(() =>
 );
 
 const BlueprintBundleEditor = lazy(() =>
-	import('../../blueprint-editor/index').then((m) => ({
-		default: m.BlueprintBundleEditor,
-	}))
+	import('../../blueprint-editor/AutosavedBlueprintBundleEditor').then(
+		(m) => ({
+			default: m.AutosavedBlueprintBundleEditor,
+		})
+	)
 );
 
 const LAST_TAB_STORAGE_KEY = 'playground-site-last-tabs';
