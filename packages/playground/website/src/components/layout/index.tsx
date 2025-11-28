@@ -5,7 +5,7 @@ import { CSSTransition } from 'react-transition-group';
 import type { PlaygroundReduxState } from '../../lib/state/redux/store';
 import { useAppSelector } from '../../lib/state/redux/store';
 import type { BlueprintV1Declaration } from '@wp-playground/blueprints';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useRef } from 'react';
 import { acquireOAuthTokenIfNeeded } from '../../github/acquire-oauth-token-if-needed';
 import { GithubExportModal } from '../../github/github-export-form';
 import type { ExportFormValues } from '../../github/github-export-form/form';
@@ -26,9 +26,7 @@ import { MissingSiteModal } from '../missing-site-modal';
 import { RenameSiteModal } from '../rename-site-modal';
 import { SaveSiteModal } from '../save-site-modal';
 import { modalSlugs } from '../../lib/state/redux/slice-ui';
-import { logErrorEvent } from '../../lib/tracking';
 import { GitHubPrivateRepoAuthModal } from '../github-private-repo-auth-modal';
-import { addCrashListener, logger } from '@php-wasm/logger';
 
 acquireOAuthTokenIfNeeded();
 const displayMode = getDisplayModeFromQuery();
@@ -126,14 +124,6 @@ function Modals(blueprint: BlueprintV1Declaration) {
 		}
 		return values;
 	});
-
-	// eslint-disable-next-line react-hooks/exhaustive-deps
-	useEffect(() => {
-		addCrashListener(logger, (e) => {
-			const error = e as CustomEvent;
-			logErrorEvent(error.detail.source ?? 'unknown');
-		});
-	}, []);
 
 	const currentModal = useAppSelector(
 		(state: PlaygroundReduxState) => state.ui.activeModal
