@@ -125,11 +125,7 @@ export function PhpMyAdminButton({
 					onClick={handleOpenPhpMyAdmin}
 				>
 					<Flex justify="space-between" gap={2} expanded={true}>
-						<FlexItem>
-							{isLoading
-								? 'Opening phpMyAdmin…'
-								: 'Open phpMyAdmin'}
-						</FlexItem>
+						<FlexItem>Open phpMyAdmin</FlexItem>
 						<FlexItem>
 							<Icon icon={external} size={16} />
 						</FlexItem>

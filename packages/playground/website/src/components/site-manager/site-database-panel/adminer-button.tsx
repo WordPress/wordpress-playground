@@ -124,9 +124,7 @@ export function AdminerButton({
 					onClick={handleOpenAdminer}
 				>
 					<Flex justify="space-between" gap={2} expanded={true}>
-						<FlexItem>
-							{isLoading ? 'Opening Adminer…' : 'Open Adminer'}
-						</FlexItem>
+						<FlexItem>Open Adminer</FlexItem>
 						<FlexItem>
 							<Icon icon={external} size={16} />
 						</FlexItem>
