@@ -1,9 +1,8 @@
 import type { AsyncWritableFilesystem } from '@wp-playground/components';
 import { type Blueprint, BlueprintReflection } from '@wp-playground/blueprints';
-import { logger } from '@php-wasm/logger';
-import { WritableInMemoryBundle } from './writable-in-memory-bundle';
-import { WritableOpfsBundle } from './writable-opfs-bundle';
-import { normalizePath } from '@php-wasm/util';
+import { WritableInMemoryFilesystem } from './writable-in-memory-filesystem';
+import { WritableOpfsFilesystem } from './writable-opfs-filesystem';
+import { dirname, ensureAbsolutePath } from '@php-wasm/util';
 
 /**
  * Convert a Blueprint (declaration or bundle) into a writable in-memory filesystem,
@@ -15,61 +14,59 @@ type ConvertOptions = {
 
 export async function convertBlueprintToWritableFilesystem(
 	blueprint: Blueprint,
-	onChange?: (bundle: WritableInMemoryBundle) => void,
 	options: ConvertOptions = {}
 ): Promise<AsyncWritableFilesystem> {
 	const shouldPersist = options.persistToOpfs ?? true;
 	// If the hash indicates a previously edited local bundle, try to load it first.
+	// @TODO: Do not reason about the URL hash here.
 	if (
-		shouldPersist &&
 		typeof window !== 'undefined' &&
-		window.location.hash === '#local-blueprint-bundle'
+		window.location.hash === '#local-blueprint-bundle' &&
+		(await WritableOpfsFilesystem.hasSavedBundle())
 	) {
+		return await WritableOpfsFilesystem.loadFromOpfs();
+	}
+
+	let fs: AsyncWritableFilesystem | undefined = undefined;
+	if (shouldPersist) {
 		try {
-			const loaded = await WritableOpfsBundle.loadFromOpfs(
-				onChange as any
-			);
-			return loaded;
+			fs = await WritableOpfsFilesystem.create();
 		} catch {
-			// Fall through to fresh construction.
+			// Fall through to in-memory fallback.
 		}
+	}
+	if (!fs) {
+		fs = new WritableInMemoryFilesystem();
 	}
 
 	const reflection = await BlueprintReflection.create(blueprint);
 	const declaration = reflection.getDeclaration();
 	const bundle = reflection.getBundle();
 
-	const files: Record<string, Uint8Array | string> = {};
-	files['/blueprint.json'] = JSON.stringify(declaration, null, 2);
+	await fs.writeFile('/blueprint.json', JSON.stringify(declaration, null, 2));
 
-	const bundledPaths = Array.from(collectBundledResourcePaths(declaration));
-	for (const path of bundledPaths) {
-		const normalized = ensureAbsolutePath(path);
-		let content: Uint8Array | string =
-			'/* Bundled resource not found in this bundle. */';
-		if (bundle) {
+	if (bundle) {
+		for (const path of collectBundledResourcePaths(declaration)) {
+			const absolutePath = ensureAbsolutePath(path);
+			// For each path referenced in the blueprint, try to read the
+			// accompanying file from the bundle. Some files might be missing,
+			// this is fine – we'll just skip them here.
+			let content: Uint8Array | string = '';
 			try {
-				const file = await bundle.read(normalized.replace(/^\//, ''));
+				const file = await bundle.read(absolutePath);
 				content = new Uint8Array(await file.arrayBuffer());
-			} catch (error) {
-				logger.debug(
-					`Could not read bundled resource at ${normalized}`,
-					error
-				);
+			} catch {
+				continue;
 			}
-		}
-		files[normalized] = content;
-	}
-
-	if (shouldPersist) {
-		try {
-			return await WritableOpfsBundle.create(files, onChange as any);
-		} catch {
-			// Fall through to in-memory fallback.
+			const parent = dirname(absolutePath);
+			if (!(await fs.fileExists(parent))) {
+				await fs.mkdir(parent);
+			}
+			await fs.writeFile(absolutePath, content);
 		}
 	}
 
-	return new WritableInMemoryBundle(files, onChange);
+	return fs;
 }
 
 function collectBundledResourcePaths(value: unknown): Set<string> {
@@ -102,17 +99,4 @@ function collectBundledResourcePaths(value: unknown): Set<string> {
 	}
 
 	return accumulator;
-}
-export function ensureAbsolutePath(path: string): string {
-	let normalized = normalizePath(path || '/');
-	if (!normalized || normalized === '.') {
-		normalized = '/';
-	}
-	if (!normalized.startsWith('/')) {
-		normalized = `/${normalized}`;
-	}
-	if (normalized === '//') {
-		return '/';
-	}
-	return normalized;
 }

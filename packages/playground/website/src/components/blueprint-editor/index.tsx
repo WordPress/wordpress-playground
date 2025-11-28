@@ -29,12 +29,12 @@ import {
 import styles from '../site-manager/site-file-browser/style.module.css';
 import { convertBlueprintToWritableFilesystem } from './convert-blueprint-to-filesystem';
 import hideRootStyles from './hide-root.module.css';
-import type { WritableInMemoryBundle } from './writable-in-memory-bundle';
+import type { WritableInMemoryFilesystem } from './writable-in-memory-filesystem';
 import type { SiteInfo } from '../../lib/state/redux/slice-sites';
 import { sitesSlice } from '../../lib/state/redux/slice-sites';
 import { removeClientInfo } from '../../lib/state/redux/slice-clients';
 import { useAppDispatch } from '../../lib/state/redux/store';
-import { WritableOpfsBundle } from './writable-opfs-bundle';
+import { WritableOpfsFilesystem } from './writable-opfs-filesystem';
 import { useDebouncedCallback } from '../../lib/hooks/use-debounced-callback';
 
 export const BLUEPRINT_JSON_PATH = '/blueprint.json';
@@ -174,9 +174,9 @@ const BlueprintFilesystemEditor = forwardRef<
 		try {
 			setIsRecreating(true);
 			const bundle =
-				(filesystem as WritableInMemoryBundle | null) ??
+				(filesystem as WritableInMemoryFilesystem | null) ??
 				((site.metadata.originalBlueprint ||
-					null) as WritableInMemoryBundle | null);
+					null) as WritableInMemoryFilesystem | null);
 			if (!bundle) {
 				throw new Error('Blueprint bundle is not available.');
 			}
@@ -470,7 +470,7 @@ export const BlueprintBundleEditor = forwardRef<
 			if (
 				// isTemporarySite &&
 				window.location.hash !== '#local-blueprint-bundle' &&
-				(await WritableOpfsBundle.hasSavedBundle())
+				(await WritableOpfsFilesystem.hasSavedBundle())
 			) {
 				setAutosavePromptVisible(true);
 				return;
@@ -478,13 +478,14 @@ export const BlueprintBundleEditor = forwardRef<
 
 			// Otherwise, initialize the filesystem from the initial blueprint:
 			try {
-				setFilesystem(
-					await convertBlueprintToWritableFilesystem(
-						initialBlueprint,
-						onChange,
-						{ persistToOpfs: true }
-					)
+				const fs = await convertBlueprintToWritableFilesystem(
+					initialBlueprint,
+					{ persistToOpfs: true }
 				);
+				fs.addEventListener('change', () => {
+					onChange?.(fs as any);
+				});
+				setFilesystem(fs);
 			} catch (error) {
 				// @TODO: What now?
 				logger.error(
@@ -500,9 +501,11 @@ export const BlueprintBundleEditor = forwardRef<
 	const restoreAutosave = async () => {
 		setAutosaveErrorMessage(null);
 		try {
-			setFilesystem(
-				await WritableOpfsBundle.loadFromOpfs(onChange as any)
-			);
+			const fs = await WritableOpfsFilesystem.loadFromOpfs();
+			fs.addEventListener('change', () => {
+				onChange?.(fs as any);
+			});
+			setFilesystem(fs);
 			setAutosaveErrorMessage(null);
 			// @TODO: Should this component be concerned with the URL hash?
 			window.location.hash = '#local-blueprint-bundle';
@@ -518,14 +521,17 @@ export const BlueprintBundleEditor = forwardRef<
 	const discardAutosave = async () => {
 		setAutosaveErrorMessage(null);
 		try {
-			await WritableOpfsBundle.discardSavedBundle();
-			setFilesystem(
-				await convertBlueprintToWritableFilesystem(
-					initialBlueprint,
-					onChange,
-					{ persistToOpfs: true }
-				)
+			await WritableOpfsFilesystem.discardSavedBundle();
+			const fs = await convertBlueprintToWritableFilesystem(
+				initialBlueprint,
+				{
+					persistToOpfs: true,
+				}
 			);
+			fs.addEventListener('change', () => {
+				onChange?.(fs as any);
+			});
+			setFilesystem(fs);
 			setAutosavePromptVisible(false);
 		} catch (error) {
 			logger.error('Failed to discard autosave bundle', error);
