@@ -239,13 +239,13 @@ jobs:
             - uses: actions/upload-artifact@v4
               if: ${{ !cancelled() }}
               with:
-                  name: playwright-report-${{ matrix.browser }}${{ matrix.shard && format('-shard-{0}', matrix.shard) || '' }}
+                  name: playwright-report-${{ matrix.browser }}${{ matrix.shard && format('-shard-{0}', replace(matrix.shard, '/', '-of-')) || '' }}
                   path: packages/playground/website/playwright-report/
                   if-no-files-found: ignore
             - uses: actions/upload-artifact@v4
               if: ${{ !cancelled() }}
               with:
-                  name: playwright-snapshots-${{ matrix.browser }}${{ matrix.shard && format('-shard-{0}', matrix.shard) || '' }}
+                  name: playwright-snapshots-${{ matrix.browser }}${{ matrix.shard && format('-shard-{0}', replace(matrix.shard, '/', '-of-')) || '' }}
                   path: packages/playground/website/playwright/e2e/deployment.spec.ts-snapshots/
                   if-no-files-found: ignore
 
