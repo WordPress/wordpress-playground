@@ -200,40 +200,12 @@ export function inferLanguageFromContent(input: string): SupportedLanguage {
 	return bestLang;
 }
 
-/**
- * Get a human-readable label for a language
- */
-export function getLanguageLabel(language: SupportedLanguage): string {
-	switch (language) {
-		case 'php':
-			return 'PHP';
-		case 'sql':
-			return 'SQL';
-		case 'html':
-			return 'HTML';
-		case 'markdown':
-			return 'Markdown';
-		case 'javascript':
-			return 'JavaScript';
-		case 'css':
-			return 'CSS';
-		case 'plaintext':
-			return 'Plain Text';
-	}
-}
-
-/**
- * Get all available languages for the dropdown
- */
-export function getAvailableLanguages(): {
-	value: SupportedLanguage;
-	label: string;
-}[] {
-	return [
-		{ value: 'php', label: 'PHP' },
-		{ value: 'sql', label: 'SQL' },
-		{ value: 'html', label: 'HTML' },
-		{ value: 'markdown', label: 'Markdown' },
-		{ value: 'plaintext', label: 'Plain Text' },
-	];
-}
+export const languageLabels: Record<SupportedLanguage, string> = {
+	php: 'PHP',
+	sql: 'SQL',
+	html: 'HTML',
+	markdown: 'Markdown',
+	javascript: 'JavaScript',
+	css: 'CSS',
+	plaintext: 'Plain Text',
+};

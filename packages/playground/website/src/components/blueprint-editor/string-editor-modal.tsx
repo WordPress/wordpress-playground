@@ -29,7 +29,7 @@ import { Button, Flex, FlexItem, SelectControl } from '@wordpress/components';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Modal } from '../modal';
 import {
-	getAvailableLanguages,
+	languageLabels,
 	type SupportedLanguage,
 } from './infer-language-from-blueprint';
 import css from './string-editor-modal.module.css';
@@ -216,10 +216,9 @@ export function StringEditorModal({
 				<SelectControl
 					label="Language"
 					value={language}
-					options={getAvailableLanguages().map((lang) => ({
-						value: lang.value,
-						label: lang.label,
-					}))}
+					options={Object.entries(languageLabels).map(
+						([value, label]) => ({ value, label })
+					)}
 					onChange={handleLanguageChange}
 					__nextHasNoMarginBottom
 				/>
