@@ -312,29 +312,6 @@ export const BlueprintBundleEditor = forwardRef<
 
 	return (
 		<div className={classNames(styles.container, className)}>
-			{showToolbar && (
-				<div className={styles.editorToolbar}>
-					{showDownloadButton ? (
-						<Button
-							variant="link"
-							className={styles.editorToolbarButton}
-							onClick={handleDownloadBundle}
-						>
-							<Icon icon={download} />
-						</Button>
-					) : null}
-					<Button
-						variant="primary"
-						className={styles.editorToolbarButton}
-						onClick={handleRecreateFromBlueprint}
-						isBusy={isRecreating}
-						disabled={disableRunButton}
-					>
-						<PlayIcon className={styles.editorToolbarPlayIcon} />
-						Run
-					</Button>
-				</div>
-			)}
 			<div
 				className={classNames(styles.content, {
 					[styles.sidebarOpen]: showExplorerOnMobile,
@@ -385,6 +362,32 @@ export const BlueprintBundleEditor = forwardRef<
 								selectedDirPath ||
 								'Browse files under /'}
 						</div>
+						{showToolbar && (
+							<div className={styles.editorHeaderActions}>
+								{showDownloadButton ? (
+									<Button
+										variant="tertiary"
+										className={styles.editorToolbarButton}
+										onClick={handleDownloadBundle}
+										title="Download bundle"
+									>
+										<Icon icon={download} />
+									</Button>
+								) : null}
+								<Button
+									variant="primary"
+									className={styles.editorToolbarButton}
+									onClick={handleRecreateFromBlueprint}
+									isBusy={isRecreating}
+									disabled={disableRunButton}
+								>
+									<PlayIcon
+										className={styles.editorToolbarPlayIcon}
+									/>
+									Run Blueprint
+								</Button>
+							</div>
+						)}
 					</div>
 					{saveError ? (
 						<div style={{ padding: '8px 16px' }}>

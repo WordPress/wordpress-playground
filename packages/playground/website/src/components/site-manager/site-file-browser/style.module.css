@@ -38,7 +38,8 @@
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
-	gap: 12px;
+	flex-wrap: wrap;
+	gap: 8px 12px;
 	padding: 12px 16px;
 	border-bottom: 1px solid var(--color-gray-200);
 	background: #ffffff;
@@ -53,13 +54,18 @@
 		'Liberation Mono', 'Courier New', monospace;
 	font-size: 12px;
 	color: var(--color-gray-700);
-	white-space: nowrap;
-	overflow: hidden;
-	text-overflow: ellipsis;
+	word-break: break-all;
 }
 
 .editor-path-placeholder {
 	color: var(--color-gray-500);
+}
+
+.editor-header-actions {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-shrink: 0;
 }
 
 .save-status {
@@ -141,17 +147,6 @@
 
 .message-area a:hover {
 	color: #135e96;
-}
-
-.editorToolbar {
-	display: flex;
-	justify-content: flex-end;
-	align-items: center;
-	gap: 12px;
-	padding: 10px 16px;
-	border-bottom: 1px solid var(--color-gray-200);
-	background: #ffffff;
-	flex-wrap: wrap;
 }
 
 .editorToolbarButton {
