@@ -1,6 +1,8 @@
 FROM playground-php-wasm:base
 
 ARG WITH_JSPI="no"
+ENV PKG_CONFIG_PATH=/root/lib/lib/pkgconfig
+ENV PATH="/root/lib/bin:${PATH}"
 
 # The PHP version to build.
 # This value must point to an existing branch of the
@@ -17,7 +19,7 @@ ARG WITH_OPCACHE
 # Clone PHP
 RUN git clone https://github.com/php/php-src.git php-src \
 	--branch PHP-$PHP_VERSION \
-	--single-branch \
+	--single-branch  \
 	--depth 1;
 
 # Work around memory leak due to PHP using Emscripten's incomplete mmap/munmap support
@@ -49,11 +51,12 @@ COPY ./libz/ /root/builds/libz
 COPY ./oniguruma/ /root/builds/oniguruma
 COPY ./libintl/ /root/builds/libintl
 COPY ./libImageMagick/ /root/builds/libImageMagick
+COPY ./libgd/ /root/builds/libgd
 
 RUN if [ "$WITH_JSPI" = "yes" ]; then \
-	cp -r /root/builds/*/jspi/dist/root/lib/* /root/lib; \
+	find /root/builds -path '*/jspi/dist/root/lib' -type d -exec cp -r {}/. /root/lib \; ; \
 else \
-	cp -r /root/builds/*/asyncify/dist/root/lib/* /root/lib; \
+	find /root/builds -path '*/asyncify/dist/root/lib' -type d -exec cp -r {}/. /root/lib \; ; \
 fi
 
 COPY ./libzip/ /root/builds-libzip/
@@ -257,27 +260,28 @@ RUN if [ "$WITH_SQLITE" = "yes" ]; \
 # Add GD if needed
 RUN if [ "$WITH_GD" = "yes" ]; \
 	then \
-		if [[ "${PHP_VERSION:0:1}" -eq "7" ]] && [ "${PHP_VERSION:0:3}" != "7.4" ]; then \
-			# @TODO support webp for PHP 7.0 – 7.3
-			echo -n ' --with-png-dir=/root/lib --with-jpeg-dir=/root/lib --with-gd --enable-gd ' >> /root/.php-configure-flags; \
-		else \
+		# Use external libgd for PHP 8.1+; fall back to bundled gd for <= 8.0 (and 7.x) to avoid missing symbols
+		if [[ "${PHP_VERSION:0:1}" -gt "8" || ( "${PHP_VERSION:0:1}" -eq "8" && "${PHP_VERSION:2:1}" -ge "1" ) ]]; then \
+			echo -n ' --with-external-gd=/root/lib --enable-gd  ' >> /root/.php-configure-flags; \
+			echo -n ' /root/lib/lib/libgd.a /root/lib/lib/libjpeg.a /root/lib/lib/libpng16.a /root/lib/lib/libwebp.a /root/lib/lib/libsharpyuv.a /root/lib/lib/libavif.a ' >> /root/.emcc-php-wasm-sources; \
 			if [[ "${PHP_VERSION:0:1}" -eq "8" && "${PHP_VERSION:2:1}" -ge "1" ]]; then \
 				echo -n ' --with-avif ' >> /root/.php-configure-flags; \
 			fi; \
-			echo -n ' --with-png-dir=/root/lib --with-jpeg --with-webp --with-gd --enable-gd ' >> /root/.php-configure-flags; \
-		fi; \
-
-		if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "4" ]]; then \
-			/root/replace.sh 's/static long php_jpeg_emit_message/static void php_jpeg_emit_message/g' /root/php-src/ext/gd/libgd/gd_jpeg.c; \
-			sed -i '84s/.*return 1;.*//' /root/php-src/ext/gd/libgd/gd_jpeg.c; \
-			/root/replace.sh 's/cinfo.err->emit_message = \(void \(*\)\(j_common_ptr,int\)\) php_jpeg_emit_message;/cinfo.err->emit_message = php_jpeg_emit_message;/g' /root/php-src/ext/gd/libgd/gd_jpeg.c; \
-		fi; \
-
-		if [[ "${PHP_VERSION:0:1}" -eq "8" && "${PHP_VERSION:2:1}" -ge "1" ]]; then \
-			echo -n ' /root/lib/lib/libjpeg.a /root/lib/lib/libpng16.a /root/lib/lib/libwebp.a /root/lib/lib/libsharpyuv.a /root/lib/lib/libavif.a ' >> /root/.emcc-php-wasm-sources; \
 		else \
+			# Bundled gd for PHP 7.x and 8.0
+			echo -n ' --enable-gd ' >> /root/.php-configure-flags; \
+			if [[ "${PHP_VERSION:0:1}" -eq "7" ]] && [ "${PHP_VERSION:0:3}" != "7.4" ]; then \
+				# PHP 7.0 – 7.3 need older-style flags
+				echo -n ' --with-png-dir=/root/lib --with-jpeg-dir=/root/lib --with-gd ' >> /root/.php-configure-flags; \
+			fi; \
+			if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "4" ]]; then \
+				/root/replace.sh 's/static long php_jpeg_emit_message/static void php_jpeg_emit_message/g' /root/php-src/ext/gd/libgd/gd_jpeg.c; \
+				sed -i '84s/.*return 1;.*//' /root/php-src/ext/gd/libgd/gd_jpeg.c; \
+				/root/replace.sh 's/cinfo.err->emit_message = \(void \(*\)\(j_common_ptr,int\)\) php_jpeg_emit_message;/cinfo.err->emit_message = php_jpeg_emit_message;/g' /root/php-src/ext/gd/libgd/gd_jpeg.c; \
+			fi; \
 			echo -n ' /root/lib/lib/libjpeg.a /root/lib/lib/libpng16.a /root/lib/lib/libwebp.a /root/lib/lib/libsharpyuv.a ' >> /root/.emcc-php-wasm-sources; \
 		fi; \
+		echo -n ' --with-png-dir=/root/lib --with-jpeg --with-webp ' >> /root/.php-configure-flags; \
 	fi;
 
 # Add openssl if needed
@@ -382,6 +386,13 @@ COPY ./php/php*.patch /root/
 COPY ./php/apply-mysqlnd-patch.sh /root/
 RUN cd /root && \
 	git apply --no-index /root/php${PHP_VERSION:0:3}*.patch -v && \
+	if [[ "${PHP_VERSION:0:3}" == "7.3" || "${PHP_VERSION:0:3}" == "7.2" ]]; then \
+		# Emscripten >= 4.0.19 Does not tolerate implicit declarations of strcmp/strchr/memcpy with clang >= C99.
+		# Let's backfill the required includes.
+		sed -i '1i#include <string.h>' /root/php-src/ext/mbstring/libmbfl/filters/mbfilter_htmlent.c; \
+		sed -i '1i#include <string.h>' /root/php-src/ext/mbstring/libmbfl/mbfl/mbfilter.c; \
+		sed -i '1i#include <stdlib.h>' /root/php-src/ext/mbstring/libmbfl/mbfl/mbfl_allocators.c; \
+	fi && \
 	chmod +x /root/apply-mysqlnd-patch.sh && \
 	/root/apply-mysqlnd-patch.sh && \
 	if [[ "${PHP_VERSION:0:3}" < '8.3' ]]; then \
@@ -435,13 +446,22 @@ RUN /root/replace.sh 's/pharcmd=pharcmd/pharcmd=/g' /root/php-src/configure && \
 # Build the patched PHP
 WORKDIR /root/php-src
 RUN source /root/emsdk/emsdk_env.sh && \
-ICU_CFLAGS="-D__x86_64__ -fPIC -I/root/lib/include" \
-CURL_CFLAGS="-I/root/lib/include" \
-WEBP_LIBS="-L/root/lib/lib" \
-WEBP_CFLAGS="-I/root/lib/include" \
-CURL_LIBS="-I/root/lib/lib -L/root/lib/lib" \
-	emconfigure ./configure \
-	PKG_CONFIG_PATH=$PKG_CONFIG_PATH \
+	ICU_CFLAGS="-D__x86_64__ -fPIC -I/root/lib/include" \
+	CURL_CFLAGS="-I/root/lib/include" \
+	WEBP_LIBS="-L/root/lib/lib -lwebp -lsharpyuv" \
+	WEBP_CFLAGS="-I/root/lib/include" \
+	CURL_LIBS="-I/root/lib/lib -L/root/lib/lib" \
+	JPEG_CFLAGS="-I/root/lib/include" \
+	JPEG_LIBS="-L/root/lib/lib -ljpeg" \
+	PNG_CFLAGS="-I/root/lib/include" \
+	PNG_LIBS="-L/root/lib/lib -lpng16 -lz" \
+	AVIF_CFLAGS="-I/root/lib/include" \
+	AVIF_LIBS="-L/root/lib/lib -lavif" \
+	GDLIB_CFLAGS="-I/root/lib/include" \
+	GDLIB_LIBS="-L/root/lib/lib -lgd -lpng16 -lz -ljpeg -lwebp -lsharpyuv -lavif" \
+	PKG_CONFIG_PATH="/root/lib/lib/pkgconfig:${PKG_CONFIG_PATH}" \
+		emconfigure ./configure \
+		PKG_CONFIG_PATH=$PKG_CONFIG_PATH \
 	# Fibers are a PHP 8.1+ feature. They are compiled as
 	# a custom assembly implementation by default. However,
 	# that implementation does not work with emscripten.
@@ -482,6 +502,27 @@ CURL_LIBS="-I/root/lib/lib -L/root/lib/lib" \
 # Silence the errors "munmap() failed: [28] Invalid argument"
 # @TODO: Identify the root cause behind these errors and fix them properly
 RUN echo '#define ZEND_MM_ERROR 0' >> /root/php-src/main/php_config.h;
+
+# Force GD JPEG/PNG/WebP/AVIF support for external GD builds (PHP 8.1+)
+# Configure checks may fail during cross-compilation, so we explicitly enable them
+# after verifying the external libgd was built with these features.
+RUN if [ "$WITH_GD" = "yes" ]; then \
+	if [[ "${PHP_VERSION:0:1}" -gt "8" || ( "${PHP_VERSION:0:1}" -eq "8" && "${PHP_VERSION:2:1}" -ge "1" ) ]]; then \
+		echo '/* Force GD format support for external libgd */' >> /root/php-src/main/php_config.h; \
+		echo '#ifndef HAVE_GD_JPG' >> /root/php-src/main/php_config.h; \
+		echo '#define HAVE_GD_JPG 1' >> /root/php-src/main/php_config.h; \
+		echo '#endif' >> /root/php-src/main/php_config.h; \
+		echo '#ifndef HAVE_GD_PNG' >> /root/php-src/main/php_config.h; \
+		echo '#define HAVE_GD_PNG 1' >> /root/php-src/main/php_config.h; \
+		echo '#endif' >> /root/php-src/main/php_config.h; \
+		echo '#ifndef HAVE_GD_WEBP' >> /root/php-src/main/php_config.h; \
+		echo '#define HAVE_GD_WEBP 1' >> /root/php-src/main/php_config.h; \
+		echo '#endif' >> /root/php-src/main/php_config.h; \
+		echo '#ifndef HAVE_GD_AVIF' >> /root/php-src/main/php_config.h; \
+		echo '#define HAVE_GD_AVIF 1' >> /root/php-src/main/php_config.h; \
+		echo '#endif' >> /root/php-src/main/php_config.h; \
+	fi; \
+fi;
 
 # 64 bit long support {{{
 # PHP uses custom typedefs for 64 bit integers in many places, e.g.
@@ -586,7 +627,7 @@ RUN source /root/emsdk/emsdk_env.sh && \
 		-fdebug-compilation-dir=${DEBUG_DWARF_COMPILATION_DIR}/ \
 		-fdebug-prefix-map=/root/php-src/=${OUTPUT_DIR_ON_HOST}/${PHP_VERSION_ESCAPED}/php-src/ " \
 	# ...which means we must skip all the libraries - they will be provided in the final linking step.
-	emmake make -j1
+	emmake make -j14
 
 RUN cp -v /root/php-src/.libs/libphp*.la /root/lib/libphp.la
 RUN cp -v /root/php-src/.libs/libphp*.a /root/lib/libphp.a

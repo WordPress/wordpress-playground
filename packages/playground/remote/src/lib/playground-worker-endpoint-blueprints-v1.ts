@@ -148,7 +148,7 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 							SECURE_AUTH_SALT: randomString(40),
 							LOGGED_IN_SALT: randomString(40),
 							NONCE_SALT: randomString(40),
-					  }
+						}
 					: {},
 				// Do not await the WordPress download or the sqlite integration download.
 				// Let bootWordPress start the PHP runtime download first, and then await

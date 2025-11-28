@@ -128,6 +128,22 @@ libavif/jspi/dist/root/lib/lib/libavif.a: base-image
 	docker cp $$(docker create playground-php-wasm:libavif):/root/lib/lib ./libavif/jspi/dist/root/lib
 	docker cp $$(docker create playground-php-wasm:libavif):/root/lib/include ./libavif/jspi/dist/root/lib
 
+libgd_asyncify: libgd/asyncify/dist/root/lib/lib/libgd.a
+libgd/asyncify/dist/root/lib/lib/libgd.a: base-image libz_asyncify libpng16_asyncify libjpeg_asyncify libwebp_asyncify libavif_asyncify
+	mkdir -p ./libgd/asyncify/dist/root/lib
+	docker build -f ./libgd/Dockerfile -t playground-php-wasm:libgd .
+	docker cp $$(docker create playground-php-wasm:libgd):/root/install/lib ./libgd/asyncify/dist/root/lib
+	docker cp $$(docker create playground-php-wasm:libgd):/root/install/include ./libgd/asyncify/dist/root/lib
+	docker cp $$(docker create playground-php-wasm:libgd):/root/install/bin ./libgd/asyncify/dist/root/lib
+
+libgd_jspi: libgd/jspi/dist/root/lib/lib/libgd.a
+libgd/jspi/dist/root/lib/lib/libgd.a: base-image libz_jspi libpng16_jspi libjpeg_jspi libwebp_jspi libavif_jspi
+	mkdir -p ./libgd/jspi/dist/root/lib
+	docker build -f ./libgd/Dockerfile -t playground-php-wasm:libgd . --build-arg JSPI=1
+	docker cp $$(docker create playground-php-wasm:libgd):/root/install/lib ./libgd/jspi/dist/root/lib
+	docker cp $$(docker create playground-php-wasm:libgd):/root/install/include ./libgd/jspi/dist/root/lib
+	docker cp $$(docker create playground-php-wasm:libgd):/root/install/bin ./libgd/jspi/dist/root/lib
+
 libxml2_asyncify: libxml2/asyncify/dist/root/lib/lib/libxml2.a
 libxml2/asyncify/dist/root/lib/lib/libxml2.a: base-image libz_asyncify
 	mkdir -p ./libxml2/asyncify/dist/root/lib
@@ -317,8 +333,8 @@ libImageMagick/jspi/dist/root/lib/lib/libMagickCore-7.Q16HDRI.a: base-image libz
 	docker cp $$(docker create playground-php-wasm:libImageMagick):/root/install/bin ./libImageMagick/jspi/dist/root/lib
 
 all: all_jspi all_asyncify
-all_jspi: libz_jspi libzip_jspi libpng16_jspi libjpeg_jspi libwebp_jspi libaom_jspi libavif_jspi libxml2_jspi libopenssl_jspi libsqlite3_jspi libiconv_jspi bison2.7 oniguruma_jspi libcurl_jspi libintl_jspi libImageMagick_jspi
-all_asyncify: libz_asyncify libzip_asyncify libpng16_asyncify libjpeg_asyncify libwebp_asyncify libaom_asyncify libavif_asyncify libxml2_asyncify libopenssl_asyncify libsqlite3_asyncify libiconv_asyncify bison2.7 oniguruma_asyncify libcurl_asyncify libintl_asyncify libImageMagick_asyncify
+all_jspi: libz_jspi libzip_jspi libpng16_jspi libjpeg_jspi libwebp_jspi libaom_jspi libavif_jspi libgd_jspi libxml2_jspi libopenssl_jspi libsqlite3_jspi libiconv_jspi bison2.7 oniguruma_jspi libcurl_jspi libintl_jspi libImageMagick_jspi
+all_asyncify: libz_asyncify libzip_asyncify libpng16_asyncify libjpeg_asyncify libwebp_asyncify libaom_asyncify libavif_asyncify libgd_asyncify libxml2_asyncify libopenssl_asyncify libsqlite3_asyncify libiconv_asyncify bison2.7 oniguruma_asyncify libcurl_asyncify libintl_asyncify libImageMagick_asyncify
 
 clean:
 	rm -rf ./libz/jspi/dist
