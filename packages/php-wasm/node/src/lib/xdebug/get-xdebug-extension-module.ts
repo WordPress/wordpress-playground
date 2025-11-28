@@ -21,6 +21,13 @@ export async function getXdebugExtensionModule(
 	 */
 	if (await jspi()) {
 		switch (version) {
+			case '8.5':
+				return (
+					await import(
+						// @ts-ignore
+						`../../../jspi/extensions/xdebug/8_5/xdebug.so?url`
+					)
+				).default;
 			case '8.4':
 				return (
 					await import(
@@ -80,6 +87,13 @@ export async function getXdebugExtensionModule(
 		}
 	} else {
 		switch (version) {
+			case '8.5':
+				return (
+					await import(
+						// @ts-ignore
+						`../../../asyncify/extensions/xdebug/8_5/xdebug.so?url`
+					)
+				).default;
 			case '8.4':
 				return (
 					await import(
