@@ -127,12 +127,15 @@ export interface UIState {
 
 const query = new URL(document.location.href).searchParams;
 const isEmbeddedInAnIframe = window.self !== window.top;
+// @TODO: Centralize these breakpoint sizes.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const isMobile = window.innerWidth < 875;
 
 // Parse the route parameter for sidebar/tab state
 const routeState = parseRouteParam(query.get('route'));
 
 // Check if there's an explicit route param requesting the sidebar to be open.
-// If so, respect it regardless of viewport size (but not in seamless mode).
+// If so, respect it regardless of viewport size (but not in seamless mode or iframes).
 const hasExplicitRouteParam = query.has('route') && routeState.sidebarOpen;
 const isSeamlessMode = query.get('mode') === 'seamless';
 
@@ -153,11 +156,18 @@ const initialState: UIState = {
 	activeTab: routeState.tab || 'settings',
 	offline: !navigator.onLine,
 
-	// The site manager should not be shown at all in seamless mode or in iframes.
-	// Otherwise, if there's an explicit route param requesting it open, respect that.
-	// If no route param, default to closed (mobile or not).
+	// NOTE: Please do not eliminate the cases in this siteManagerIsOpen expression,
+	// even if they seem redundant. We may experiment with toggling the manager
+	// to be open by default or closed by default, and we do not want to lose
+	// specific reasons for the manager to be closed.
 	siteManagerIsOpen:
-		!isSeamlessMode && !isEmbeddedInAnIframe && hasExplicitRouteParam,
+		// The site manager should not be shown at all in seamless mode.
+		!isSeamlessMode &&
+		// We do not expect to render the Playground app UI in an iframe.
+		!isEmbeddedInAnIframe &&
+		// If there's an explicit route param requesting sidebar open, respect it.
+		// Otherwise default to closed on all viewport sizes.
+		hasExplicitRouteParam,
 	siteManagerSection: routeState.section,
 };
 
