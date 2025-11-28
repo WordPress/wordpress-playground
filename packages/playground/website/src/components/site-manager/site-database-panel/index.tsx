@@ -57,29 +57,28 @@ export function SiteDatabasePanel({
 				isDismissible={false}
 			>
 				<h3 style={{ fontWeight: 'bold' }}>
-					Database management is an early access feature.
+					Database management is an early access feature
 				</h3>{' '}
 				<br />
-				<p>
+				<p style={{ fontSize: '1.1rem' }}>
 					WordPress Playground{' '}
 					<a
 						target="_blank"
 						rel="noreferrer"
 						href="https://make.wordpress.org/playground/2025/06/13/introducing-a-new-sqlite-driver-for-wordpress/"
 					>
-						emulates a MySQL database using SQLite as a backend
+						emulates MySQL using SQLite
 					</a>
-					. The database tools you see may not work perfectly yet, but
-					are being actively improved every week. You can have real
-					impact on those tools – just report any issues you find
-					using the{' '}
+					. The database tools are a work in progress and are
+					improving every week. Help shape them – report issues on the{' '}
 					<a
 						target="_blank"
 						rel="noreferrer"
 						href="https://github.com/WordPress/wordpress-playground/issues"
 					>
-						GitHub issue tracker.
+						GitHub issue tracker
 					</a>
+					.
 				</p>{' '}
 			</Notice>
 
