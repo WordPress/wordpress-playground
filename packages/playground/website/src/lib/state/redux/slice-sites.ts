@@ -251,13 +251,18 @@ export function setTemporarySiteSpec(
 		getState: () => PlaygroundReduxState
 	) => {
 		const siteSlug = deriveSlugFromSiteName(siteName);
-		// Filter out UI-only params so they don't cause unnecessary site recreation.
-		// This ensures existing temporary sites are reused when only route/modal changed.
-		const newSiteUrlParams = {
-			searchParams: filterUIOnlyParams(
-				parseSearchParams(playgroundUrlWithQueryApiArgs.searchParams)
+		// Store the full URL params including UI params like route/modal.
+		const fullUrlParams = {
+			searchParams: parseSearchParams(
+				playgroundUrlWithQueryApiArgs.searchParams
 			),
 			hash: playgroundUrlWithQueryApiArgs.hash,
+		};
+		// For comparison, filter out UI-only params so we don't recreate
+		// the site when only route/modal changed.
+		const paramsForComparison = {
+			searchParams: filterUIOnlyParams(fullUrlParams.searchParams),
+			hash: fullUrlParams.hash,
 		};
 
 		const showTemporarySiteError = (params: {
@@ -267,7 +272,7 @@ export function setTemporarySiteSpec(
 			// Create a mock temporary site to associate the error with.
 			const errorSite: SiteInfo = {
 				slug: siteSlug,
-				originalUrlParams: newSiteUrlParams,
+				originalUrlParams: fullUrlParams,
 				metadata: {
 					name: siteName,
 					id: crypto.randomUUID(),
@@ -318,11 +323,17 @@ export function setTemporarySiteSpec(
 
 		const currentTemporarySite = selectTemporarySite(getState());
 		if (currentTemporarySite) {
-			// If the current temporary site is the same as the site we're setting,
-			// then we don't need to create a new site.
+			// If the current temporary site has the same non-UI params,
+			// we don't need to create a new site.
+			const currentParamsForComparison = {
+				searchParams: filterUIOnlyParams(
+					currentTemporarySite.originalUrlParams?.searchParams || {}
+				),
+				hash: currentTemporarySite.originalUrlParams?.hash || '',
+			};
 			if (
-				JSON.stringify(currentTemporarySite.originalUrlParams) ===
-				JSON.stringify(newSiteUrlParams)
+				JSON.stringify(currentParamsForComparison) ===
+				JSON.stringify(paramsForComparison)
 			) {
 				return currentTemporarySite;
 			}
@@ -373,7 +384,7 @@ export function setTemporarySiteSpec(
 			// Compute the runtime configuration based on the resolved Blueprint:
 			const newSiteInfo: SiteInfo = {
 				slug: siteSlug,
-				originalUrlParams: newSiteUrlParams,
+				originalUrlParams: fullUrlParams,
 				metadata: {
 					name: siteName,
 					id: crypto.randomUUID(),
