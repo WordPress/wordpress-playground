@@ -88,7 +88,7 @@ export default defineConfig(({ command }) => {
 						 * and not
 						 * import("php/jspi/php_8_2.js")
 						 *
-						 * The slice(-3) will ensure the 'php/jspi/`
+						 * The slice(-3) will ensure the 'php/jspi/'
 						 * portion of the path is preserved.
 						 */
 						return '../' + specifier.split('/').slice(-3).join('/');
@@ -110,8 +110,8 @@ export default defineConfig(({ command }) => {
 						 * and not
 						 * import("shared/icu.dat")
 						 *
-						 * The slice(-2) will ensure the 'public/`
-						 * portion is removed.
+						 * The slice(-2) will ensure the 'shared/'
+						 * portion of the path is preserved.
 						 */
 						return (
 							'../../../' +
@@ -131,12 +131,12 @@ export default defineConfig(({ command }) => {
 					) {
 						/**
 						 * The ../../../ is weird but necessary to make the final build say
-						 * import("./public/php/{mode}/extensions/intl/{php_version}/intl.so")
+						 * import("./php/{mode}/extensions/intl/{php_version}/intl.so")
 						 * and not
-						 * import("public/php/{mode}/extensions/intl/{php_version}/intl.so")
+						 * import("php/{mode}/extensions/intl/{php_version}/intl.so")
 						 *
-						 * The slice(-6) will ensure the 'public/`
-						 * portion is removed.
+						 * The slice(-6) will ensure the 'php/{mode}/extensions/intl/{php_version}'
+						 * portion of the path is preserved.
 						 */
 						return (
 							'../../../' +
