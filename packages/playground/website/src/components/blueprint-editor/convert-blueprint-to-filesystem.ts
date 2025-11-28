@@ -9,15 +9,9 @@ import { dirname, ensureAbsolutePath } from '@php-wasm/util';
  * Convert a Blueprint (declaration or bundle) into a writable in-memory filesystem,
  * pre-populated with blueprint.json and all bundled resources.
  */
-type ConvertOptions = {
-	persistToOpfs?: boolean;
-};
-
 export async function convertBlueprintToWritableFilesystem(
-	blueprint: Blueprint,
-	options: ConvertOptions = {}
+	blueprint: Blueprint
 ): Promise<AsyncWritableFilesystem> {
-	const shouldPersist = options.persistToOpfs ?? true;
 	// If the hash indicates a previously edited local bundle, try to load it first.
 	// @TODO: Do not reason about the URL hash here.
 	if (
@@ -31,14 +25,9 @@ export async function convertBlueprintToWritableFilesystem(
 	}
 
 	let fs: AsyncWritableFilesystem | undefined = undefined;
-	if (shouldPersist) {
-		try {
-			fs = new WritableFilesystem(await OpfsFilesystemBackend.create());
-		} catch {
-			// Fall through to in-memory fallback.
-		}
-	}
-	if (!fs) {
+	try {
+		fs = new WritableFilesystem(await OpfsFilesystemBackend.create());
+	} catch {
 		fs = new WritableFilesystem(new InMemoryFilesystemBackend());
 	}
 

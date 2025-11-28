@@ -71,10 +71,10 @@ export const AutosavedBlueprintBundleEditor = forwardRef<
 
 			// Otherwise, initialize the filesystem from the initial blueprint:
 			try {
-				const fs = await convertBlueprintToWritableFilesystem(
-					initialBlueprint,
-					{ persistToOpfs: true }
-				);
+				const fs =
+					await convertBlueprintToWritableFilesystem(
+						initialBlueprint
+					);
 				fs.addEventListener('change', () => {
 					onChange?.(fs as any);
 				});
@@ -117,12 +117,8 @@ export const AutosavedBlueprintBundleEditor = forwardRef<
 		setAutosaveErrorMessage(null);
 		try {
 			await OpfsFilesystemBackend.discardSavedBundle();
-			const fs = await convertBlueprintToWritableFilesystem(
-				initialBlueprint,
-				{
-					persistToOpfs: true,
-				}
-			);
+			const fs =
+				await convertBlueprintToWritableFilesystem(initialBlueprint);
 			fs.addEventListener('change', () => {
 				onChange?.(fs as any);
 			});
