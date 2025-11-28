@@ -759,7 +759,7 @@ test.describe('Database panel', () => {
 
 	test('should load and open Adminer', async ({ website, context }) => {
 		const adminerButton = website.page.getByRole('button', {
-			name: /Open in Adminer/i,
+			name: /Open Adminer/i,
 		});
 		await expect(adminerButton).toBeVisible();
 		await expect(adminerButton).toBeEnabled();
@@ -781,7 +781,7 @@ test.describe('Database panel', () => {
 
 	test('should load and open phpMyAdmin', async ({ website, context }) => {
 		const phpMyAdminButton = website.page.getByRole('button', {
-			name: /Open in phpMyAdmin/i,
+			name: /Open phpMyAdmin/i,
 		});
 		await expect(phpMyAdminButton).toBeVisible();
 		await expect(phpMyAdminButton).toBeEnabled();
