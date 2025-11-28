@@ -75,14 +75,21 @@ export const AutosavedBlueprintBundleEditor = forwardRef<
 
 			// Do we have a prior autosave? The user may want to restore it.
 			if (await OpfsFilesystemBackend.hasSavedBundle()) {
-				// We have one! Before we ask the user, let's confirm the URL does not explicitly
-				// tell us to restore it.
-				const shouldRestoreAutosave =
-					window.location.hash === '#local-blueprint-bundle';
-				if (!shouldRestoreAutosave) {
-					// Okay, no explicit instructions. Let's ask the user what to do next.
-					setAutosavePromptVisible(true);
-					return;
+				// We have one! Before we ask the user if they want to restore the autosave, let's
+				// check if we already did – perhaps the current site's Blueprint was already loaded
+				// from a prior autosave.
+				if (
+					site.metadata.originalBlueprintSource.type !==
+					'local-editor'
+				) {
+					// No, it wasn't. It's unclear if we should edit the current site's Blueprint
+					// or a prior autosave. Let's ask the user.
+					// @TODO: Uncomment this and support autosaves. This will require more
+					//        planning than initially anticipated. E.g. an autosave should only
+					//        be created after the user changes something (at the moment it's
+					//        created when the temporary blueprint is initialized).
+					// setAutosavePromptVisible(true);
+					// return;
 				}
 			}
 
@@ -94,12 +101,13 @@ export const AutosavedBlueprintBundleEditor = forwardRef<
 				);
 				setFilesystem(fs);
 			} catch (error) {
-				// @TODO: What now?
+				// No OPFS access. Let's fall back to an in-memory filesystem.
 				logger.error(
-					'Failed to initialize blueprint filesystem',
+					'Failed to initialize blueprint filesystem with OPFS. Falling back to in-memory filesystem.',
 					error
 				);
-				return;
+				fs = new WritableFilesystem(new InMemoryFilesystemBackend());
+				setFilesystem(fs);
 			}
 		};
 
@@ -114,8 +122,6 @@ export const AutosavedBlueprintBundleEditor = forwardRef<
 			);
 			setFilesystem(fs);
 			setAutosaveErrorMessage(null);
-			// @TODO: Should this component be concerned with the URL hash?
-			window.location.hash = '#local-blueprint-bundle';
 			setAutosavePromptVisible(false);
 		} catch (error) {
 			logger.error('Failed to load autosave bundle', error);
