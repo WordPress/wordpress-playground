@@ -1,3 +1,16 @@
+import { basename, dirname, joinPaths } from '@php-wasm/util';
+import {
+	Button,
+	MenuItem,
+	NavigableMenu,
+	Popover,
+	__experimentalTreeGrid as TreeGrid,
+	__experimentalTreeGridCell as TreeGridCell,
+	__experimentalTreeGridRow as TreeGridRow,
+} from '@wordpress/components';
+import '@wordpress/components/build-style/style.css';
+import { Icon, chevronDown, chevronRight } from '@wordpress/icons';
+import classNames from 'classnames';
 import React, {
 	forwardRef,
 	useEffect,
@@ -6,21 +19,8 @@ import React, {
 	useRef,
 	useState,
 } from 'react';
-import {
-	__experimentalTreeGrid as TreeGrid,
-	__experimentalTreeGridRow as TreeGridRow,
-	__experimentalTreeGridCell as TreeGridCell,
-	Button,
-	Popover,
-	NavigableMenu,
-	MenuItem,
-} from '@wordpress/components';
-import { Icon, chevronDown, chevronRight } from '@wordpress/icons';
-import '@wordpress/components/build-style/style.css';
-import css from './style.module.css';
-import classNames from 'classnames';
 import { file, folder } from '../icons';
-import { basename, dirname, joinPaths } from '@php-wasm/util';
+import css from './style.module.css';
 
 type ExpandedNodePaths = Record<string, boolean>;
 
@@ -85,6 +85,7 @@ export type FileNode = {
 };
 
 export type FilePickerTreeProps = {
+	withContextMenu?: boolean;
 	filesystem: AsyncWritableFilesystem;
 	root?: string; // default '/wordpress'
 	initialSelectedPath?: string;
@@ -158,6 +159,7 @@ export const FilePickerTree = forwardRef<
 	FilePickerTreeProps
 >(function FilePickerTree(
 	{
+		withContextMenu = true,
 		filesystem,
 		root = '/wordpress',
 		initialSelectedPath,
@@ -831,6 +833,9 @@ export const FilePickerTree = forwardRef<
 		node: FileNode,
 		path: string
 	) => {
+		if (!withContextMenu) {
+			return;
+		}
 		event.preventDefault();
 		event.stopPropagation();
 		setRenamingAbsolutePath(null);

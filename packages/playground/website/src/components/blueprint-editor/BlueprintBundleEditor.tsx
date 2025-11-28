@@ -67,6 +67,7 @@ export type BlueprintBundleEditorProps = {
 	className?: string;
 	site?: SiteInfo;
 	autoRunToken?: number;
+	readOnly?: boolean;
 };
 
 export interface BlueprintBundleEditorHandle {
@@ -79,13 +80,12 @@ export const BlueprintBundleEditor = forwardRef<
 	BlueprintBundleEditorHandle,
 	BlueprintBundleEditorProps
 >(function BlueprintFilesystemEditor(
-	{ initialFilesystem: filesystem, className, site, autoRunToken },
+	{ initialFilesystem: filesystem, className, site, autoRunToken, readOnly },
 	ref
 ) {
 	const [selectedDirPath, setSelectedDirPath] = useState<string | null>('/');
 	const [currentPath, setCurrentPath] = useState<string | null>(null);
 	const [code, setCode] = useState<string>('');
-	const [readOnly, setReadOnly] = useState<boolean>(true);
 	const [saveError, setSaveError] = useState<string | null>(null);
 	const [showExplorerOnMobile, setShowExplorerOnMobile] =
 		useState<boolean>(false);
@@ -134,7 +134,6 @@ export const BlueprintBundleEditor = forwardRef<
 				setCurrentPath(BLUEPRINT_JSON_PATH);
 				setDisplayPath(BLUEPRINT_JSON_PATH);
 				setCode(blueprintJsonContent);
-				setReadOnly(false);
 				setSaveError(null);
 				setMessageContent(null);
 				setShowExplorerOnMobile(false);
@@ -149,7 +148,7 @@ export const BlueprintBundleEditor = forwardRef<
 	}, [filesystem]);
 
 	const handleRecreateFromBlueprint = useCallback(async () => {
-		if (!site || site.metadata.storage !== 'none') {
+		if (!site || site.metadata.storage !== 'none' || readOnly) {
 			return;
 		}
 		try {
@@ -201,7 +200,6 @@ export const BlueprintBundleEditor = forwardRef<
 			setCode(content);
 			setDisplayPath(path);
 			setMessageContent(null);
-			setReadOnly(false);
 			setSaveError(null);
 			setShowExplorerOnMobile(false);
 			setTreeFocusPath(path);
@@ -218,7 +216,6 @@ export const BlueprintBundleEditor = forwardRef<
 		setCode('');
 		setMessageContent(null);
 		setDisplayPath(null);
-		setReadOnly(true);
 		setSaveError(null);
 		setTreeFocusPath(null);
 	}, []);
@@ -236,7 +233,6 @@ export const BlueprintBundleEditor = forwardRef<
 				setMessageContent(message);
 			}
 
-			setReadOnly(true);
 			setSaveError(null);
 			setShowExplorerOnMobile(false);
 			setTreeFocusPath(null);
@@ -305,11 +301,7 @@ export const BlueprintBundleEditor = forwardRef<
 		[handleDownloadBundle, filesystem, handleRecreateFromBlueprint]
 	);
 
-	const isTemporarySite = site?.metadata.storage === 'none';
-	const showToolbar = Boolean(isTemporarySite);
-	const disableRunButton = !isTemporarySite || isRecreating || !site;
-	const showDownloadButton = Boolean(isTemporarySite);
-
+	const disableRunButton = isRecreating || !site;
 	return (
 		<div className={classNames(styles.container, className)}>
 			<div
@@ -337,6 +329,7 @@ export const BlueprintBundleEditor = forwardRef<
 						onSelectionCleared={handleClearSelection}
 						onShowMessage={handleShowMessage}
 						documentRoot="/"
+						readOnly={readOnly}
 					/>
 				</aside>
 				<section className={styles.editorWrapper}>
@@ -362,18 +355,17 @@ export const BlueprintBundleEditor = forwardRef<
 								selectedDirPath ||
 								'Browse files under /'}
 						</div>
-						{showToolbar && (
-							<div className={styles.editorHeaderActions}>
-								{showDownloadButton ? (
-									<Button
-										variant="tertiary"
-										className={styles.editorToolbarButton}
-										onClick={handleDownloadBundle}
-										title="Download bundle"
-									>
-										<Icon icon={download} />
-									</Button>
-								) : null}
+
+						<div className={styles.editorHeaderActions}>
+							<Button
+								variant="tertiary"
+								className={styles.editorToolbarButton}
+								onClick={handleDownloadBundle}
+								title="Download bundle"
+							>
+								<Icon icon={download} />
+							</Button>
+							{!readOnly && (
 								<Button
 									variant="primary"
 									className={styles.editorToolbarButton}
@@ -386,8 +378,8 @@ export const BlueprintBundleEditor = forwardRef<
 									/>
 									Run Blueprint
 								</Button>
-							</div>
-						)}
+							)}
+						</div>
 					</div>
 					{saveError ? (
 						<div style={{ padding: '8px 16px' }}>

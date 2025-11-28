@@ -1,9 +1,6 @@
 import { logger } from '@php-wasm/logger';
 import { Button, Notice } from '@wordpress/components';
-import {
-	type Blueprint,
-	type BlueprintBundle,
-} from '@wp-playground/blueprints';
+import { type Blueprint } from '@wp-playground/blueprints';
 import type { AsyncWritableFilesystem } from '@wp-playground/components';
 import classNames from 'classnames';
 import {
@@ -16,13 +13,13 @@ import {
 // Reuse the file browser layout styles to keep UI consistent
 import type { SiteInfo } from '../../lib/state/redux/slice-sites';
 import styles from '../site-manager/site-file-browser/style.module.css';
-import { WritableFilesystem } from './writable-filesystem';
-import { OpfsFilesystemBackend } from './writable-opfs-filesystem';
 import {
 	type BlueprintBundleEditorHandle,
 	BlueprintBundleEditor,
 } from './BlueprintBundleEditor';
+import { WritableFilesystem } from './writable-filesystem';
 import { InMemoryFilesystemBackend } from './writable-in-memory-filesystem';
+import { OpfsFilesystemBackend } from './writable-opfs-filesystem';
 
 export const BLUEPRINT_JSON_PATH = '/blueprint.json';
 
@@ -32,11 +29,9 @@ export interface AutosavedBlueprintBundleEditorHandle {
 }
 
 type AutosavedBlueprintBundleEditorProps = {
-	initialBlueprint: Blueprint;
 	isVisible?: boolean;
-	onChange?: (blueprint: BlueprintBundle) => void;
 	className?: string;
-	site?: SiteInfo;
+	site: SiteInfo;
 };
 
 /**
@@ -46,7 +41,7 @@ type AutosavedBlueprintBundleEditorProps = {
 export const AutosavedBlueprintBundleEditor = forwardRef<
 	AutosavedBlueprintBundleEditorHandle,
 	AutosavedBlueprintBundleEditorProps
->(function ({ initialBlueprint, onChange, className, site }, ref) {
+>(function ({ className, site }, ref) {
 	const [filesystem, setFilesystem] = useState<WritableFilesystem | null>(
 		null
 	);
@@ -57,26 +52,46 @@ export const AutosavedBlueprintBundleEditor = forwardRef<
 
 	const innerEditorRef = useRef<BlueprintBundleEditorHandle | null>(null);
 
+	// On stored sites, we can only view the Blueprint without editing (or autosaving) it.
+	// Let's just populate an in-memory filesystem with the Blueprint.
+	const readOnly = site?.metadata.storage !== 'none';
+
 	// Display the "restore autosave" prompt:
 	useEffect(() => {
 		const bootstrap = async () => {
-			// @TODO: Configure via props
-			if (
-				// isTemporarySite &&
-				window.location.hash !== '#local-blueprint-bundle' &&
-				(await OpfsFilesystemBackend.hasSavedBundle())
-			) {
-				setAutosavePromptVisible(true);
+			let fs: WritableFilesystem | null = null;
+			// On stored sites, we can only view the Blueprint without editing (or autosaving) it.
+			// Let's just populate an in-memory filesystem with the Blueprint.
+			if (readOnly) {
+				fs = new WritableFilesystem(new InMemoryFilesystemBackend());
+				await fs.populateFromBlueprint(
+					site.metadata.originalBlueprint as Blueprint
+				);
+				setFilesystem(fs);
 				return;
 			}
 
-			// Otherwise, initialize the filesystem from the initial blueprint:
+			// Okay, we're dealing with a temporary site where we can edit the Blueprint.
+
+			// Do we have a prior autosave? The user may want to restore it.
+			if (await OpfsFilesystemBackend.hasSavedBundle()) {
+				// We have one! Before we ask the user, let's confirm the URL does not explicitly
+				// tell us to restore it.
+				const shouldRestoreAutosave =
+					window.location.hash === '#local-blueprint-bundle';
+				if (!shouldRestoreAutosave) {
+					// Okay, no explicit instructions. Let's ask the user what to do next.
+					setAutosavePromptVisible(true);
+					return;
+				}
+			}
+
+			// We're going to edit the Blueprint – let's create a persistent filesystem
+			// and autosave the user's progress.
 			try {
-				const fs = await createWritableFilesystem();
-				await fs.populateFromBlueprint(initialBlueprint);
-				fs.addEventListener('change', () => {
-					onChange?.(fs as BlueprintBundle);
-				});
+				fs = new WritableFilesystem(
+					await OpfsFilesystemBackend.create()
+				);
 				setFilesystem(fs);
 			} catch (error) {
 				// @TODO: What now?
@@ -84,6 +99,7 @@ export const AutosavedBlueprintBundleEditor = forwardRef<
 					'Failed to initialize blueprint filesystem',
 					error
 				);
+				return;
 			}
 		};
 
@@ -93,10 +109,9 @@ export const AutosavedBlueprintBundleEditor = forwardRef<
 	const restoreAutosave = async () => {
 		setAutosaveErrorMessage(null);
 		try {
-			const fs = await loadWritableFilesystemFromOpfs();
-			fs.addEventListener('change', () => {
-				onChange?.(fs as BlueprintBundle);
-			});
+			const fs = new WritableFilesystem(
+				await OpfsFilesystemBackend.create()
+			);
 			setFilesystem(fs);
 			setAutosaveErrorMessage(null);
 			// @TODO: Should this component be concerned with the URL hash?
@@ -113,12 +128,13 @@ export const AutosavedBlueprintBundleEditor = forwardRef<
 	const discardAutosave = async () => {
 		setAutosaveErrorMessage(null);
 		try {
-			const fs = await createWritableFilesystem();
+			const fs = new WritableFilesystem(
+				await OpfsFilesystemBackend.create()
+			);
 			await fs.clear();
-			await fs.populateFromBlueprint(initialBlueprint);
-			fs.addEventListener('change', () => {
-				onChange?.(fs as BlueprintBundle);
-			});
+			await fs.populateFromBlueprint(
+				site.metadata.originalBlueprint as Blueprint
+			);
 			setFilesystem(fs);
 			setAutosavePromptVisible(false);
 		} catch (error) {
@@ -178,6 +194,7 @@ export const AutosavedBlueprintBundleEditor = forwardRef<
 					initialFilesystem={filesystem}
 					site={site}
 					className={className}
+					readOnly={readOnly}
 				/>
 			)}
 			{overlay}
@@ -186,21 +203,3 @@ export const AutosavedBlueprintBundleEditor = forwardRef<
 });
 
 export default AutosavedBlueprintBundleEditor;
-
-/**
- * Create a new WritableFilesystem with OPFS backend, falling back to in-memory.
- */
-async function createWritableFilesystem(): Promise<WritableFilesystem> {
-	try {
-		return new WritableFilesystem(await OpfsFilesystemBackend.create());
-	} catch {
-		return new WritableFilesystem(new InMemoryFilesystemBackend());
-	}
-}
-
-/**
- * Load an existing WritableFilesystem from OPFS.
- */
-async function loadWritableFilesystemFromOpfs(): Promise<WritableFilesystem> {
-	return new WritableFilesystem(await OpfsFilesystemBackend.loadFromOpfs());
-}

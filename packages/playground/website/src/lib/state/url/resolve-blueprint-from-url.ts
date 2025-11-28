@@ -100,7 +100,7 @@ export async function resolveBlueprintFromURL(
 		let bundle = undefined;
 		try {
 			bundle = new WritableFilesystem(
-				await OpfsFilesystemBackend.loadFromOpfs()
+				await OpfsFilesystemBackend.create()
 			);
 		} catch (error) {
 			logger.error(

@@ -39,7 +39,7 @@ const SiteFileBrowser = lazy(() =>
 	import('../site-file-browser').then((m) => ({ default: m.SiteFileBrowser }))
 );
 
-const BlueprintBundleEditor = lazy(() =>
+const AutosavedBlueprintBundleEditor = lazy(() =>
 	import('../../blueprint-editor/AutosavedBlueprintBundleEditor').then(
 		(m) => ({
 			default: m.AutosavedBlueprintBundleEditor,
@@ -480,20 +480,13 @@ export function SiteInfoPanel({
 											</div>
 										}
 									>
-										<BlueprintBundleEditor
-											initialBlueprint={
-												site.metadata
-													.originalBlueprint as Blueprint
-											}
+										<AutosavedBlueprintBundleEditor
+											key={site.slug}
+											site={site}
 											isVisible={tab.name === 'blueprint'}
 											className={classNames(
-												css.blueprintEditor,
-												{
-													[css.blueprintEditorReadonly]:
-														!isTemporary,
-												}
+												css.blueprintEditor
 											)}
-											site={site}
 										/>
 									</Suspense>
 								</div>

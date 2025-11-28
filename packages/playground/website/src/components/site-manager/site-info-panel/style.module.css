@@ -296,10 +296,6 @@
 	overflow: auto;
 }
 
-.blueprintEditorReadonly {
-	opacity: 0.7;
-}
-
 .blueprintNotice {
 	padding: 12px 16px;
 	background: #f0f6fc;

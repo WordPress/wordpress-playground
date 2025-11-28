@@ -1,25 +1,25 @@
+import { Icon } from '@wordpress/components';
+import { upload } from '@wordpress/icons';
 import classNames from 'classnames';
 import {
-	useMemo,
 	useEffect,
+	useMemo,
 	useRef,
 	useState,
 	type Dispatch,
 	type SetStateAction,
 } from 'react';
-import { Icon } from '@wordpress/components';
-import { upload } from '@wordpress/icons';
 // Reuse the file explorer styles from the site file browser to avoid duplication
-import styles from '../site-manager/site-file-browser/file-explorer.module.css';
+import { logger } from '@php-wasm/logger';
+import mimeTypes from '@php-wasm/universal/mime-types';
+import { dirname, normalizePath } from '@php-wasm/util';
 import {
+	BinaryFilePreview,
 	FilePickerTree,
 	type AsyncWritableFilesystem,
 	type FilePickerTreeHandle,
 } from '@wp-playground/components';
-import { logger } from '@php-wasm/logger';
-import { dirname, normalizePath } from '@php-wasm/util';
-import { BinaryFilePreview } from '@wp-playground/components';
-import mimeTypes from '@php-wasm/universal/mime-types';
+import styles from '../site-manager/site-file-browser/file-explorer.module.css';
 
 export const MAX_INLINE_FILE_BYTES = 1024 * 1024; // 1MB
 
@@ -140,6 +140,7 @@ export type FileExplorerSidebarProps = {
 		message: string | JSX.Element
 	) => Promise<void> | void;
 	documentRoot: string;
+	readOnly?: boolean;
 };
 
 export function FileExplorerSidebar({
@@ -152,6 +153,7 @@ export function FileExplorerSidebar({
 	onSelectionCleared,
 	onShowMessage,
 	documentRoot,
+	readOnly,
 }: FileExplorerSidebarProps) {
 	const treeRef = useRef<FilePickerTreeHandle | null>(null);
 	const containerRef = useRef<HTMLDivElement | null>(null);
@@ -411,68 +413,73 @@ export function FileExplorerSidebar({
 			<div className={styles.fileExplorerHeader}>
 				<span className={styles.fileExplorerTitle}>Files</span>
 				<div className={styles.fileExplorerActions}>
-					<button
-						className={classNames(
-							styles.fileExplorerButton,
-							styles.fileExplorerIconButton
-						)}
-						onClick={() => {
-							if (!treeRef.current) {
-								return;
-							}
-							void treeRef.current.createFile(
-								lastSelectedPath ?? undefined
-							);
-						}}
-						title="Create new file"
-						aria-label="Create new file"
-						type="button"
-					>
-						<FilePlusIcon />
-					</button>
-					<button
-						className={classNames(
-							styles.fileExplorerButton,
-							styles.fileExplorerIconButton
-						)}
-						onClick={() => {
-							if (!treeRef.current) {
-								return;
-							}
-							void treeRef.current.createFolder(
-								lastSelectedPath ?? undefined
-							);
-						}}
-						title="Create new folder"
-						aria-label="Create new folder"
-						type="button"
-					>
-						<FolderPlusIcon />
-					</button>
-					<button
-						className={classNames(
-							styles.fileExplorerButton,
-							styles.fileExplorerIconButton,
-							styles.fileExplorerUploadButton
-						)}
-						type="button"
-						onClick={handleUploadButtonClick}
-						title="Upload files"
-					>
-						<Icon icon={upload} size={16} />
-					</button>
-					<input
-						ref={uploadInputRef}
-						type="file"
-						multiple
-						style={{ display: 'none' }}
-						onChange={handleUploadInputChange}
-					/>
+					{!readOnly ? (
+						<>
+							<button
+								className={classNames(
+									styles.fileExplorerButton,
+									styles.fileExplorerIconButton
+								)}
+								onClick={() => {
+									if (!treeRef.current) {
+										return;
+									}
+									void treeRef.current.createFile(
+										lastSelectedPath ?? undefined
+									);
+								}}
+								title="Create new file"
+								aria-label="Create new file"
+								type="button"
+							>
+								<FilePlusIcon />
+							</button>
+							<button
+								className={classNames(
+									styles.fileExplorerButton,
+									styles.fileExplorerIconButton
+								)}
+								onClick={() => {
+									if (!treeRef.current) {
+										return;
+									}
+									void treeRef.current.createFolder(
+										lastSelectedPath ?? undefined
+									);
+								}}
+								title="Create new folder"
+								aria-label="Create new folder"
+								type="button"
+							>
+								<FolderPlusIcon />
+							</button>
+							<button
+								className={classNames(
+									styles.fileExplorerButton,
+									styles.fileExplorerIconButton,
+									styles.fileExplorerUploadButton
+								)}
+								type="button"
+								onClick={handleUploadButtonClick}
+								title="Upload files"
+							>
+								<Icon icon={upload} size={16} />
+							</button>
+							<input
+								ref={uploadInputRef}
+								type="file"
+								multiple
+								style={{ display: 'none' }}
+								onChange={handleUploadInputChange}
+							/>
+						</>
+					) : null}
 				</div>
 			</div>
 			<div className={styles.fileExplorerTree}>
 				<FilePickerTree
 					ref={treeRef}
+					withContextMenu={!readOnly}
 					filesystem={filesystem}
 					root={documentRoot}
 					initialSelectedPath={treeInitialPath}

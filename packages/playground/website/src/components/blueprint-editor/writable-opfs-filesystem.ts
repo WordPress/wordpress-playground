@@ -20,14 +20,6 @@ export class OpfsFilesystemBackend implements FilesystemBackend {
 		return new OpfsFilesystemBackend(root);
 	}
 
-	static async loadFromOpfs(): Promise<OpfsFilesystemBackend> {
-		const root = await OpfsFilesystemBackend.getOpfsRoot();
-		if (!root) {
-			throw new Error('OPFS not available');
-		}
-		return new OpfsFilesystemBackend(root);
-	}
-
 	static async hasSavedBundle(): Promise<boolean> {
 		const root = await OpfsFilesystemBackend.getOpfsRoot();
 		if (!root) {
