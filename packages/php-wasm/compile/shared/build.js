@@ -8,50 +8,50 @@ import yargs from 'yargs';
 const argParser = yargs(process.argv.slice(2))
 	.usage('Usage: $0 [options]')
 	.options({
-		LIBRARY_NAME: {
+		LIBRARY: {
 			type: 'string',
-			description: 'The library to build',
 			required: true,
+			description: 'The library to build',
 		},
 		PHP_VERSION: {
 			type: 'string',
+			default: '8.0.24',
 			description: 'The PHP version to build',
-			required: true,
+		},
+		PLATFORM: {
+			type: 'string',
+			choices: ['web', 'node'],
+			default: 'web',
+			description: 'The platform to build for',
+		},
+		JSPI: {
+			type: 'string',
+			choices: ['yes', 'no'],
+			default: 'no',
+			description: 'Build with JSPI support',
+		},
+		DEBUG: {
+			type: 'string',
+			choices: ['yes', 'no'],
+			default: 'no',
+			description: 'Build with DWARF debug information.',
 		},
 		OUTPUT_DIR: {
 			type: 'string',
-			description: 'The output directory',
 			required: true,
+			description: 'The output directory',
 		},
-		WITH_DEBUG: {
+		SHARED_DIR: {
 			type: 'string',
-			choices: ['yes', 'no'],
-			description: 'Build with DWARF debug information.',
-		},
-		WITH_JSPI: {
-			type: 'string',
-			choices: ['yes', 'no'],
-			description: 'Build with JSPI support',
+			required: true,
+			description: 'The shared directory',
 		},
 	});
 
 const args = argParser.argv;
 
-const platformDefaults = {
-	all: {
-		PHP_VERSION: '8.0.24',
-		WITH_DEBUG: 'no',
-		WITH_JSPI: 'no',
-	},
-};
-
 const getArg = (name) => {
-	let value =
-		name in args
-			? args[name]
-			: name in platformDefaults.all
-			? platformDefaults.all[name]
-			: 'no';
+	let value = name in args ? args[name] : 'no';
 	if (name === 'PHP_VERSION') {
 		value = fullyQualifiedPHPVersion(value);
 	}
@@ -74,7 +74,7 @@ await asyncSpawn('make', ['base-image'], {
 	stdio: 'inherit',
 });
 
-const library = args['LIBRARY_NAME'];
+const library = args['LIBRARY'];
 
 // Build the shared library
 await asyncSpawn(
@@ -89,16 +89,18 @@ await asyncSpawn(
 		'--build-arg',
 		getArg('PHP_VERSION'),
 		'--build-arg',
-		getArg('WITH_DEBUG'),
+		getArg('PLATFORM'),
 		'--build-arg',
-		getArg('WITH_JSPI'),
+		getArg('DEBUG'),
+		'--build-arg',
+		getArg('JSPI'),
 	],
 	{ cwd: path.dirname(sourceDir), stdio: 'inherit' }
 );
 
 const version = args['PHP_VERSION'].replace('.', '_');
 
-// Store the shared library
+// Store the shared library in output directories
 await asyncSpawn(
 	'docker',
 	[
@@ -142,14 +144,13 @@ await asyncSpawn(
 	{ cwd: path.dirname(sourceDir), stdio: 'inherit' }
 );
 
+const sharedDir = path.resolve(process.cwd(), args['SHARED_DIR']);
+
 // Copy data files
 if (fs.existsSync(`${sourceDir}/${library}/data`)) {
-	const publicDir = `${path.dirname(
-		outputDir
-	)}/src/lib/extensions/${library}/shared`;
 	await asyncSpawn(
 		'sh',
-		['-c', `cp ${sourceDir}/${library}/data/* ${publicDir}`],
+		['-c', `cp ${sourceDir}/${library}/data/* ${sharedDir}`],
 		{ cwd: sourceDir, stdio: 'inherit' }
 	);
 }

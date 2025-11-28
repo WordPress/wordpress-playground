@@ -147,6 +147,24 @@ jobs:
             - name: Run limited test suite on Windows
               if: runner.os == 'Windows'
               run: node node_modules/nx/bin/nx affected --target=test-for-node-22-and-above -- --allowOnly
+    test-e2e-php-wasm-web-jspi:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  submodules: true
+            - uses: ./.github/actions/prepare-playground
+            - run: sudo npx playwright install
+            - run: sudo CI=true JSPI=true npx nx e2e php-wasm-web
+    test-e2e-php-wasm-web-asyncify:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  submodules: true
+            - uses: ./.github/actions/prepare-playground
+            - run: sudo npx playwright install
+            - run: sudo CI=true npx nx e2e php-wasm-web
     test-e2e:
         runs-on: ubuntu-latest
         # Run as root to allow node to bind to port 80
@@ -163,7 +181,6 @@ jobs:
               with:
                   name: cypress-screenshots
                   path: dist/cypress/packages/playground/website/screenshots
-
     test-e2e-playwright-prepare:
         runs-on: ubuntu-latest
         steps:
@@ -276,6 +293,12 @@ jobs:
               run: npx playwright install --with-deps chromium
             - name: Verify docs API reference
               run: npx nx run docs-site:api-e2e
+            - uses: actions/upload-artifact@v4
+              if: ${{ !cancelled() }}
+              with:
+                  name: docs-api-e2e-report
+                  path: packages/docs/site/test-results/
+                  if-no-files-found: ignore
 
     test-built-npm-packages:
         runs-on: ubuntu-latest

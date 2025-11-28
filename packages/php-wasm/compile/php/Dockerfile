@@ -49,7 +49,6 @@ COPY ./libsqlite3/ /root/builds/libsqlite3
 COPY ./libxml2/ /root/builds/libxml2
 COPY ./libz/ /root/builds/libz
 COPY ./oniguruma/ /root/builds/oniguruma
-COPY ./libintl/ /root/builds/libintl
 COPY ./libImageMagick/ /root/builds/libImageMagick
 COPY ./libgd/ /root/builds/libgd
 
@@ -76,11 +75,6 @@ RUN if [ "$WITH_JSPI" = "yes" ]; then \
 else \
 	cp -r /root/builds-libopenssl/asyncify/dist/root/lib /libs/libopenssl; \
 fi
-
-# Workaround to add ICU FLAGS to intl below 7.3 to inject -fPIC.
-RUN if [[ "${PHP_VERSION:0:1}" -eq "7" && "${PHP_VERSION:2:1}" -eq "2" ]]; then \
-		sed -i "s/\$ICU_INCS/\$ICU_INCS \$ICU_CFLAGS/" /root/php-src/ext/intl/config.m4; \
-	fi;
 
 # Workaround to unbundle sqlite from PHP <7.4.
 # Prior to 7.4, PHP bundled sqlite internally,
@@ -145,7 +139,6 @@ ARG OUTPUT_DIR_ON_HOST
 ARG WITH_DEBUG
 ARG DEBUG_DWARF_COMPILATION_DIR
 ARG WITH_WS_NETWORKING_PROXY
-ARG WITH_INTL
 ARG WITH_IMAGICK
 
 # The platform to build for: web or node
@@ -351,26 +344,6 @@ RUN if [ "$WITH_EXIF" = "yes" ]; \
 	else \
 		echo -n ' --disable-exif ' >> /root/.php-configure-flags; \
 	fi;
-
-# Add intl if needed
-RUN if [ "$WITH_INTL" = "yes" ]; \
-	then \
-		if [ "${PHP_VERSION:0:1}" -eq "8" ] || [[ "${PHP_VERSION:0:1}" -eq "7" && "${PHP_VERSION:2:1}" -ge "2" ]]; then \
-			echo -n ' --enable-intl ' >> /root/.php-configure-flags; \
-			echo -n ' /root/lib/lib/libicudata.a /root/lib/lib/libicui18n.a /root/lib/lib/libicuio.a /root/lib/lib/libicutest.a /root/lib/lib/libicutu.a /root/lib/lib/libicuuc.a ' >> /root/.emcc-php-wasm-sources; \
-
-			if [[ "${PHP_VERSION:0:1}" -eq "7" && "${PHP_VERSION:2:1}" -le "3" ]]; then \
-				/root/replace.sh 's/UBool operator/bool operator/' /root/php-src/ext/intl/breakiterator/codepointiterator_internal.h; \
-				/root/replace.sh 's/UBool CodePointBreakIterator::operator/bool CodePointBreakIterator::operator/' /root/php-src/ext/intl/breakiterator/codepointiterator_internal.cpp; \
-				/root/replace.sh 's/ getArg/ phpGetArg/g; s/::getArg/::phpGetArg/g; s/ getMessage/ phpGetMessage/g; s/::getMessage/::phpGetMessage/g' /root/php-src/ext/intl/msgformat/msgformat_helpers.cpp; \
-			fi; \
-
-			if [[ "${PHP_VERSION:0:1}" -eq "7" && "${PHP_VERSION:2:1}" -eq "2" ]]; then \
-				files=( /root/php-src/ext/intl/collator/collator_sort.c /root/php-src/ext/intl/normalizer/normalizer_normalize.c /root/php-src/ext/intl/dateformat/dateformat_attr.c /root/php-src/ext/intl/timezone/timezone_class.cpp /root/php-src/ext/intl/timezone/timezone_methods.cpp /root/php-src/ext/intl/breakiterator/codepointiterator_internal.cpp ); \
-				for file in "${files[@]}"; do /root/replace.sh 's/\bFALSE\b/false/g; s/\bTRUE\b/true/g' "$file"; done; \
-			fi; \
-		fi; \
-	fi
 
 # Add mbregex if needed
 RUN if [ "$WITH_MBREGEX" = "yes" ] && [ "${PHP_VERSION:0:3}" != "7.0" ]; \
@@ -2316,14 +2289,20 @@ RUN set -euxo pipefail; \
 		export OPTIMIZATION_FLAGS="-O0"; \
 	fi; \
 	PLATFORM_SPECIFIC_ARGS=''; \
+	ENVIRONMENT="$EMSCRIPTEN_ENVIRONMENT"; \
 	if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then \
 		PLATFORM_SPECIFIC_ARGS="$PLATFORM_SPECIFIC_ARGS -DPHP_WASM_FILE_LOCKING_SUPPORT=1"; \
-		PLATFORM_SPECIFIC_ARGS="$PLATFORM_SPECIFIC_ARGS --js-library /root/phpwasm-emscripten-library-dynamic-linking.js"; \
 		PLATFORM_SPECIFIC_ARGS="$PLATFORM_SPECIFIC_ARGS --js-library /root/phpwasm-emscripten-library-file-locking-for-node.js -Wl,--wrap=getpid"; \
-		PLATFORM_SPECIFIC_ARGS="$PLATFORM_SPECIFIC_ARGS -s MAIN_MODULE"; \
+	else \
+		# Prevents "document is not defined" errors in Web Workers when using MAIN_MODULE.
+		# By default, Emscripten assumes MAIN_MODULE runs only in a web environment,
+		# so it injects WebGL and other browser-only APIs. Explicitly adding "worker"
+		# ensures the runtime is compatible with Web Workers as well.
+		ENVIRONMENT="$EMSCRIPTEN_ENVIRONMENT,worker"; \
 	fi; \
 	emcc $OPTIMIZATION_FLAGS \
 	--js-library /root/phpwasm-emscripten-library.js \
+	--js-library /root/phpwasm-emscripten-library-dynamic-linking.js \
 	--js-library /root/phpwasm-emscripten-library-known-undefined-functions.js \
 	$PLATFORM_SPECIFIC_ARGS \
 	-I .  \
@@ -2338,6 +2317,7 @@ RUN set -euxo pipefail; \
 	-lproxyfs.js \
 	$ASYNCIFY_FLAGS \
 	$(cat /root/.emcc-php-wasm-flags) \
+	-s MAIN_MODULE \
 	-s EXPORTED_FUNCTIONS="$EXPORTED_FUNCTIONS" \
 	-s WASM_BIGINT=1 \
 	-s MIN_NODE_VERSION=200900 \
@@ -2357,7 +2337,7 @@ RUN set -euxo pipefail; \
 		/root/proc_open.c \
 		/root/php_wasm.c \
 		$(cat /root/.emcc-php-wasm-sources) \
-	-s ENVIRONMENT=$EMSCRIPTEN_ENVIRONMENT \
+	-s ENVIRONMENT=$ENVIRONMENT \
 	-s FORCE_FILESYSTEM=1 \
 	-s EXPORT_NAME="'PHPLoader'"
 	# Emscripten complains it can't find some Asyncify functions
@@ -2446,7 +2426,7 @@ RUN set -euxo pipefail; \
 		# separate copies of the code. Instead, we use a dynamic computation of the
 		# environment, based on the `RuntimeName` variable, which is an argument to the
 		# wrapper function.
-		/root/replace.sh $'s/ENVIRONMENT_IS_([A-Z]+)\s*=\s*(true|false)/ENVIRONMENT_IS_$1=RuntimeName==="$1"/g' /root/output/php.js; \
+		/root/replace.sh $'s/ENVIRONMENT_IS_([A-Z]+)\s*=[^;]*;/ENVIRONMENT_IS_$1=RuntimeName==="$1";/g' /root/output/php.js; \
 		/root/replace.sh 's/var ENV\s*=\s*\{/var ENV = PHPLoader.ENV || {/g' /root/output/php.js; \
 	# Expose required functions to the module.
 		# Emscripten 4.0.10 removed the runtime exposure of `_malloc` and `_free`,

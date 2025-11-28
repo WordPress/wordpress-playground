@@ -4,7 +4,7 @@
  * import `@wp-playground/client` that has a dependency
  * on `@php-wasm/web`. This leads to the following error:
  *
- *     Could not load /icudt74l.dat
+ *     Could not load /icu.dat
  *
  * This plugin turns .dat files into noop imports to fix the bundling of
  * dependent packages.

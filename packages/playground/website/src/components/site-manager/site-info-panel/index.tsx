@@ -41,6 +41,7 @@ import {
 } from '@wp-playground/blueprints';
 import { lazy, Suspense, useState, useEffect, useCallback } from 'react';
 import { logger } from '@php-wasm/logger';
+import { SiteDatabasePanel } from '../site-database-panel';
 
 const SiteFileBrowser = lazy(() =>
 	import('../site-file-browser').then((m) => ({ default: m.SiteFileBrowser }))
@@ -139,9 +140,8 @@ export function SiteInfoPanel({
 			const blueprint = JSON.parse(blueprintCode);
 
 			// Resolve runtime configuration from the new blueprint
-			const runtimeConfiguration = await resolveRuntimeConfiguration(
-				blueprint
-			);
+			const runtimeConfiguration =
+				await resolveRuntimeConfiguration(blueprint);
 
 			// Remove the current playground client to trigger cleanup
 			dispatch(removeClientInfo(site.slug));
@@ -360,7 +360,7 @@ export function SiteInfoPanel({
 															site.metadata
 																.whenCreated - 2
 														)
-												  )
+													)
 												: '';
 											switch (site.metadata.storage) {
 												case 'local-fs':
@@ -478,6 +478,10 @@ export function SiteInfoPanel({
 							{
 								name: 'blueprint',
 								title: 'Blueprint',
+							},
+							{
+								name: 'database',
+								title: 'Database',
 							},
 							{
 								name: 'logs',
@@ -599,6 +603,21 @@ export function SiteInfoPanel({
 											)}
 										/>
 									</Suspense>
+								</div>
+								<div
+									className={classNames(
+										css.tabContents,
+										css.padded,
+										{
+											[css.tabHidden]:
+												tab.name !== 'database',
+										}
+									)}
+									hidden={tab.name !== 'database'}
+								>
+									<SiteDatabasePanel
+										playground={playground}
+									/>
 								</div>
 								<div
 									className={classNames(

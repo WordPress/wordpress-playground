@@ -713,3 +713,91 @@ test('should edit a blueprint in the blueprint editor and recreate the playgroun
 		timeout: 10000,
 	});
 });
+
+test.describe('Database panel', () => {
+	test.beforeEach(async ({ website }) => {
+		await website.goto('./');
+		await website.ensureSiteManagerIsOpen();
+
+		// Navigate to Database tab
+		await website.page.getByRole('tab', { name: 'Database' }).click();
+
+		// Verify the Database tab is active
+		const databaseTab = website.page.getByRole('tab', { name: 'Database' });
+		await expect(databaseTab).toHaveAttribute('aria-selected', 'true');
+	});
+
+	test('should display database info', async ({ website }) => {
+		await expect(website.page.getByText('Path:')).toBeVisible();
+		await expect(
+			website.page.getByText('/wordpress/wp-content/database/.ht.sqlite')
+		).toBeVisible();
+		await expect(website.page.getByText('Size:')).toBeVisible();
+	});
+
+	test('should download database file when Download button is clicked', async ({
+		website,
+	}) => {
+		const downloadButton = website.page.getByRole('button', {
+			name: /Download database/i,
+		});
+		await expect(downloadButton).toBeVisible();
+		await expect(downloadButton).toBeEnabled();
+
+		// Set up download listener
+		const downloadPromise = website.page.waitForEvent('download');
+
+		// Click the download button
+		await downloadButton.click();
+
+		// Verify the download
+		const download = await downloadPromise;
+		expect(download.suggestedFilename()).toBe('database.sqlite');
+		const path = await download.path();
+		expect(path).toBeTruthy();
+	});
+
+	test('should load and open Adminer', async ({ website, context }) => {
+		const adminerButton = website.page.getByRole('button', {
+			name: /Open Adminer/i,
+		});
+		await expect(adminerButton).toBeVisible();
+		await expect(adminerButton).toBeEnabled();
+
+		// Set up new page listener
+		const pagePromise = context.waitForEvent('page');
+
+		// Click the Adminer button
+		await adminerButton.click();
+
+		// Verify Adminer opened in new tab
+		const newPage = await pagePromise;
+		await newPage.waitForLoadState();
+		expect(newPage.url()).toContain('/adminer/');
+		await expect(newPage.locator('body')).toContainText('Adminer');
+		await expect(newPage.locator('body')).toContainText('wp_posts');
+		await newPage.close();
+	});
+
+	test('should load and open phpMyAdmin', async ({ website, context }) => {
+		const phpMyAdminButton = website.page.getByRole('button', {
+			name: /Open phpMyAdmin/i,
+		});
+		await expect(phpMyAdminButton).toBeVisible();
+		await expect(phpMyAdminButton).toBeEnabled();
+
+		// Set up new page listener
+		const pagePromise = context.waitForEvent('page');
+
+		// Click the phpMyAdmin button
+		await phpMyAdminButton.click();
+
+		// Verify phpMyAdmin opened in new tab
+		const newPage = await pagePromise;
+		await newPage.waitForLoadState();
+		expect(newPage.url()).toContain('/phpmyadmin');
+		await expect(newPage.locator('body')).toContainText('phpMyAdmin');
+		await expect(newPage.locator('body')).toContainText('wp_posts');
+		await newPage.close();
+	});
+});

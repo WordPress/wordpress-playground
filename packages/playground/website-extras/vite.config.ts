@@ -26,11 +26,13 @@ export default defineConfig(({ mode }) => {
 		'CORS_PROXY_URL' in process.env
 			? process.env.CORS_PROXY_URL
 			: mode === 'production'
-			? 'https://wordpress-playground-cors-proxy.net/?'
-			: 'http://127.0.0.1:5263/cors-proxy.php?';
+				? 'https://wordpress-playground-cors-proxy.net/?'
+				: 'http://127.0.0.1:5263/cors-proxy.php?';
 
 	return {
 		base: mode === 'production' ? '/' : '/website-extras/',
+
+		assetsInclude: ['**/*.so'],
 
 		cacheDir:
 			'../../../node_modules/.vite/packages-playground-website-extras',
