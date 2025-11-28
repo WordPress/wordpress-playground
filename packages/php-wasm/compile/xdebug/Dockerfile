@@ -102,7 +102,7 @@ RUN source /root/emsdk/emsdk_env.sh && \
 RUN set -euxo pipefail; \
 
 	if [[ "${PHP_VERSION:0:1}" -ge "8" && "${PHP_VERSION:2:1}" -ge "5" ]]; then \
-		export XDEBUG_BRANCH="master"; \
+		export XDEBUG_BRANCH="3.5.0alpha3"; \
 	elif [[ "${PHP_VERSION:0:1}" -ge 8 ]]; then \
 		export XDEBUG_BRANCH="xdebug_3_4"; \
 	else \
