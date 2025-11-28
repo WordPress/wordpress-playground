@@ -1,38 +1,39 @@
-import classNames from 'classnames';
-import css from './style.module.css';
-import { getLogoDataURL, WordPressIcon } from '@wp-playground/components';
 import {
 	Button,
+	DropdownMenu,
 	Flex,
 	FlexItem,
 	Icon,
-	DropdownMenu,
 	MenuGroup,
 	MenuItem,
 	TabPanel,
 } from '@wordpress/components';
-import { moreVertical, chevronLeft, edit } from '@wordpress/icons';
-import { SiteLogs } from '../../log-modal';
+import { chevronLeft, edit, moreVertical } from '@wordpress/icons';
+import { type Blueprint } from '@wp-playground/blueprints';
+import { getLogoDataURL, WordPressIcon } from '@wp-playground/components';
+import classNames from 'classnames';
+import { lazy, Suspense, useEffect, useState } from 'react';
+import { getRelativeDate } from '../../../lib/get-relative-date';
+import { selectClientInfoBySiteSlug } from '../../../lib/state/redux/slice-clients';
+import type { SiteInfo } from '../../../lib/state/redux/slice-sites';
+import { removeSite } from '../../../lib/state/redux/slice-sites';
+import {
+	modalSlugs,
+	setActiveModal,
+	setSiteManagerOpen,
+	setSiteManagerSection,
+} from '../../../lib/state/redux/slice-ui';
 import { useAppDispatch, useAppSelector } from '../../../lib/state/redux/store';
 import { usePlaygroundClientInfo } from '../../../lib/use-playground-client';
+import { SiteLogs } from '../../log-modal';
 import { OfflineNotice } from '../../offline-notice';
 import { DownloadAsZipMenuItem } from '../../toolbar-buttons/download-as-zip';
 import { GithubExportMenuItem } from '../../toolbar-buttons/github-export-menu-item';
 import { ReportError } from '../../toolbar-buttons/report-error';
-import { TemporarySiteNotice } from '../temporary-site-notice';
-import type { SiteInfo } from '../../../lib/state/redux/slice-sites';
-import {
-	setSiteManagerOpen,
-	setSiteManagerSection,
-	setActiveModal,
-	modalSlugs,
-} from '../../../lib/state/redux/slice-ui';
-import { selectClientInfoBySiteSlug } from '../../../lib/state/redux/slice-clients';
+import { SiteDatabasePanel } from '../site-database-panel';
 import { ActiveSiteSettingsForm } from '../site-settings-form/active-site-settings-form';
-import { getRelativeDate } from '../../../lib/get-relative-date';
-import { removeSite } from '../../../lib/state/redux/slice-sites';
-import { type Blueprint } from '@wp-playground/blueprints';
-import { lazy, Suspense, useState, useEffect } from 'react';
+import { TemporarySiteNotice } from '../temporary-site-notice';
+import css from './style.module.css';
 
 const SiteFileBrowser = lazy(() =>
 	import('../site-file-browser').then((m) => ({ default: m.SiteFileBrowser }))
@@ -394,6 +395,10 @@ export function SiteInfoPanel({
 								title: 'Blueprint',
 							},
 							{
+								name: 'database',
+								title: 'Database',
+							},
+							{
 								name: 'logs',
 								title: 'Logs',
 							},
@@ -491,6 +496,21 @@ export function SiteInfoPanel({
 											site={site}
 										/>
 									</Suspense>
+								</div>
+								<div
+									className={classNames(
+										css.tabContents,
+										css.padded,
+										{
+											[css.tabHidden]:
+												tab.name !== 'database',
+										}
+									)}
+									hidden={tab.name !== 'database'}
+								>
+									<SiteDatabasePanel
+										playground={playground}
+									/>
 								</div>
 								<div
 									className={classNames(

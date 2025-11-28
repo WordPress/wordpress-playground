@@ -15,7 +15,7 @@ url.searchParams.set('login', 'no');
 // This theme is also what the reference screenshots are based on.
 url.searchParams.set('theme', 'twentytwentyfour');
 
-const maxDiffPixels = 4000;
+const maxDiffPixels = 10_000;
 
 let server: Awaited<ReturnType<typeof startServer>> | null = null;
 

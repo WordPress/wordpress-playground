@@ -8,7 +8,7 @@ import path from 'path';
 
 const dependencyFilename = path.join(__dirname, '7_3_33', 'php_7_3.wasm');
 export { dependencyFilename };
-export const dependenciesTotalSize = 22288707;
+export const dependenciesTotalSize = 22208435;
 const phpVersionString = '7.3.33';
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
@@ -52,8 +52,7 @@ export function init(RuntimeName, PHPLoader) {
 	if (typeof __filename != 'undefined') {
 		// Node
 		_scriptName = __filename;
-	} else {
-	/*no-op*/
+	} else /*no-op*/ {
 	}
 
 	// `/` should be present at the end if `scriptDirectory` is not empty
@@ -105,12 +104,10 @@ export function init(RuntimeName, PHPLoader) {
 			process.exitCode = status;
 			throw toThrow;
 		};
-	}
-
-	// Note that this includes Node.js workers when relevant (pthreads is enabled).
+	} else // Note that this includes Node.js workers when relevant (pthreads is enabled).
 	// Node.js workers are detected as a combination of ENVIRONMENT_IS_WORKER and
 	// ENVIRONMENT_IS_NODE.
-	else {
+	{
 	}
 
 	var out = console.log.bind(console);
@@ -954,7 +951,7 @@ export function init(RuntimeName, PHPLoader) {
 		const n = arr.length;
 		// Note: this LEB128 length encoding produces extra byte for n < 128,
 		// but we don't care as it's only used in a temporary representation.
-		return [n % 128 | 128, n >> 7, ...arr];
+		return [(n % 128) | 128, n >> 7, ...arr];
 	};
 
 	var wasmTypeCodes = {
@@ -5210,7 +5207,7 @@ export function init(RuntimeName, PHPLoader) {
 				fd < 32 ? low & val : high & val;
 
 			for (var fd = 0; fd < nfds; fd++) {
-				var mask = 1 << fd % 32;
+				var mask = 1 << (fd % 32);
 				if (!check(fd, allLow, allHigh, mask)) {
 					continue; // index isn't in the set
 				}
@@ -30854,13 +30851,13 @@ export function init(RuntimeName, PHPLoader) {
 	// end include: postlibrary.js
 
 	var ASM_CONSTS = {
-		10988594: ($0) => {
+		10983970: ($0) => {
 			if (!$0) {
 				AL.alcErr = 0xa004;
 				return 1;
 			}
 		},
-		10988642: ($0) => {
+		10984018: ($0) => {
 			if (!AL.currentCtx) {
 				err('alGetProcAddress() called without a valid context');
 				return 1;
@@ -31348,7 +31345,7 @@ export function init(RuntimeName, PHPLoader) {
 		___cpp_exception = wasmExports['__cpp_exception'];
 	}
 
-	var ___heap_base = 12212128;
+	var ___heap_base = 12207584;
 
 	var wasmImports = {
 		/** @export */

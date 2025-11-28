@@ -96,11 +96,6 @@ const argParser = yargs(process.argv.slice(2))
 			choices: ['yes', 'no'],
 			description: 'Build with mbregex support',
 		},
-		WITH_INTL: {
-			type: 'string',
-			choices: ['yes', 'no'],
-			description: 'Build with intl support',
-		},
 		WITH_CLI_SAPI: {
 			type: 'string',
 			choices: ['yes', 'no'],
@@ -224,10 +219,10 @@ const getArg = (name) => {
 		name in args
 			? args[name]
 			: name in platformDefaults[platform]
-			? platformDefaults[platform][name]
-			: name in platformDefaults.all
-			? platformDefaults.all[name]
-			: 'no';
+				? platformDefaults[platform][name]
+				: name in platformDefaults.all
+					? platformDefaults.all[name]
+					: 'no';
 	if (name === 'PHP_VERSION') {
 		value = fullyQualifiedPHPVersion(value);
 	}
@@ -276,8 +271,6 @@ await asyncSpawn(
 		getArg('WITH_MBSTRING'),
 		'--build-arg',
 		getArg('WITH_MBREGEX'),
-		'--build-arg',
-		getArg('WITH_INTL'),
 		'--build-arg',
 		getArg('WITH_CLI_SAPI'),
 		'--build-arg',
@@ -347,17 +340,6 @@ await asyncSpawn(
 	],
 	{ cwd: sourceDir, stdio: 'inherit' }
 );
-
-// Copy data files
-const libDir = path.resolve(process.cwd(), 'packages/php-wasm/compile');
-const publicDir = `${path.dirname(path.dirname(outputDir))}`;
-if (getArg('WITH_INTL').endsWith('yes') && platform === 'web') {
-	await asyncSpawn(
-		'cp',
-		[`${libDir}/libintl/icudt74l.dat`, `${publicDir}/shared/icudt74l.dat`],
-		{ cwd: sourceDir, stdio: 'inherit' }
-	);
-}
 
 function asyncSpawn(...args) {
 	console.log('Running', args[0], args[1].join(' '), '...');

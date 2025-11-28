@@ -129,7 +129,7 @@
 		"@nx/react": "19.8.4",
 		"@nx/vite": "19.8.4",
 		"@nx/workspace": "19.8.4",
-		"@playwright/test": "1.47.1",
+		"@playwright/test": "1.55.1",
 		"@types/ajv": "1.0.0",
 		"@types/file-saver": "^2.0.5",
 		"@types/fs-ext": "2.0.3",
@@ -203,7 +203,7 @@
 		"react": "18.3.1",
 		"react-dom": "18.3.1",
 		"typescript": "5.4.5",
-		"@playwright/test": "1.47.1",
+		"@playwright/test": "1.55.1",
 		"ws": "^8.18.0",
 		"tmp": "0.2.5",
 		"form-data": "^4.0.4"

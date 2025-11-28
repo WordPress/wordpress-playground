@@ -7,13 +7,12 @@ import {
 import type { BlueprintBundle } from './types';
 
 export class BlueprintFetchError extends Error {
-	constructor(
-		message: string,
-		public readonly url: string,
-		options?: ErrorOptions
-	) {
+	public readonly url: string;
+
+	constructor(message: string, url: string, options?: ErrorOptions) {
 		super(message, options);
 		this.name = 'BlueprintFetchError';
+		this.url = url;
 	}
 }
 

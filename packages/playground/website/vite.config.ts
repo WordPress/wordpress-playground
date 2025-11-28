@@ -7,6 +7,8 @@ import { viteTsConfigPaths } from '../../vite-extensions/vite-ts-config-paths';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import ignoreWasmImports from '../ignore-wasm-imports';
 // eslint-disable-next-line @nx/enforce-module-boundaries
+import ignoreLibImports from '../ignore-lib-imports';
+// eslint-disable-next-line @nx/enforce-module-boundaries
 import ignoreDataImports from '../ignore-data-imports';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import {
@@ -55,6 +57,8 @@ export default defineConfig(({ command, mode }) => {
 		// config above.
 		base: mode === 'production' ? '/' : '/website-server/',
 
+		assetsInclude: ['**/*.so', '**/*.dat'],
+
 		cacheDir: '../../../node_modules/.vite/packages-playground-website',
 
 		css: {
@@ -97,6 +101,7 @@ export default defineConfig(({ command, mode }) => {
 				root: '../../../',
 			}),
 			ignoreWasmImports(),
+			ignoreLibImports(),
 			ignoreDataImports(),
 			...viteGlobalExtensions,
 			buildVersionPlugin('website-config'),
@@ -276,6 +281,18 @@ export default defineConfig(({ command, mode }) => {
 						if (id.includes('blueprint-editor')) {
 							return 'optional/blueprint-editor';
 						}
+					},
+					assetFileNames: (chunkInfo) => {
+						// Split Extensions or associated shared files into separate chunks
+						// that will be placed in assets/extensions/ directory
+						if (
+							chunkInfo.names?.[0]?.endsWith('.so') ||
+							chunkInfo.names?.[0]?.endsWith('.dat')
+						) {
+							return 'assets/extensions/[name]-[hash][extname]';
+						}
+
+						return 'assets/[name]-[hash][extname]';
 					},
 				},
 				external: [],

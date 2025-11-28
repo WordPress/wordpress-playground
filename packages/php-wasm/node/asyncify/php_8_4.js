@@ -8,7 +8,7 @@ import path from 'path';
 
 const dependencyFilename = path.join(__dirname, '8_4_15', 'php_8_4.wasm');
 export { dependencyFilename };
-export const dependenciesTotalSize = 29891912;
+export const dependenciesTotalSize = 29866056;
 const phpVersionString = '8.4.15';
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
@@ -52,8 +52,7 @@ export function init(RuntimeName, PHPLoader) {
 	if (typeof __filename != 'undefined') {
 		// Node
 		_scriptName = __filename;
-	} else {
-	/*no-op*/
+	} else /*no-op*/ {
 	}
 
 	// `/` should be present at the end if `scriptDirectory` is not empty
@@ -105,12 +104,10 @@ export function init(RuntimeName, PHPLoader) {
 			process.exitCode = status;
 			throw toThrow;
 		};
-	}
-
-	// Note that this includes Node.js workers when relevant (pthreads is enabled).
+	} else // Note that this includes Node.js workers when relevant (pthreads is enabled).
 	// Node.js workers are detected as a combination of ENVIRONMENT_IS_WORKER and
 	// ENVIRONMENT_IS_NODE.
-	else {
+	{
 	}
 
 	var out = console.log.bind(console);
@@ -949,7 +946,7 @@ export function init(RuntimeName, PHPLoader) {
 		const n = arr.length;
 		// Note: this LEB128 length encoding produces extra byte for n < 128,
 		// but we don't care as it's only used in a temporary representation.
-		return [n % 128 | 128, n >> 7, ...arr];
+		return [(n % 128) | 128, n >> 7, ...arr];
 	};
 
 	var wasmTypeCodes = {
@@ -5369,7 +5366,7 @@ export function init(RuntimeName, PHPLoader) {
 				fd < 32 ? low & val : high & val;
 
 			for (var fd = 0; fd < nfds; fd++) {
-				var mask = 1 << fd % 32;
+				var mask = 1 << (fd % 32);
 				if (!check(fd, allLow, allHigh, mask)) {
 					continue; // index isn't in the set
 				}
@@ -31691,13 +31688,13 @@ export function init(RuntimeName, PHPLoader) {
 	// end include: postlibrary.js
 
 	var ASM_CONSTS = {
-		15796833: ($0) => {
+		15814209: ($0) => {
 			if (!$0) {
 				AL.alcErr = 0xa004;
 				return 1;
 			}
 		},
-		15796881: ($0) => {
+		15814257: ($0) => {
 			if (!AL.currentCtx) {
 				err('alGetProcAddress() called without a valid context');
 				return 1;
@@ -32180,7 +32177,7 @@ export function init(RuntimeName, PHPLoader) {
 			wasmExports['__indirect_function_table'];
 	}
 
-	var ___heap_base = 17362048;
+	var ___heap_base = 17381504;
 
 	var wasmImports = {
 		/** @export */
@@ -34790,10 +34787,10 @@ export function init(RuntimeName, PHPLoader) {
 		zoomSurface: _zoomSurface,
 	};
 
-	function invoke_ii(index, a1) {
+	function invoke_iiii(index, a1, a2, a3) {
 		var sp = stackSave();
 		try {
-			return dynCalls['ii'](index, a1);
+			return dynCalls['iiii'](index, a1, a2, a3);
 		} catch (e) {
 			stackRestore(sp);
 			if (e !== e + 0) throw e;
@@ -34812,54 +34809,10 @@ export function init(RuntimeName, PHPLoader) {
 		}
 	}
 
-	function invoke_vi(index, a1) {
-		var sp = stackSave();
-		try {
-			dynCalls['vi'](index, a1);
-		} catch (e) {
-			stackRestore(sp);
-			if (e !== e + 0) throw e;
-			_setThrew(1, 0);
-		}
-	}
-
-	function invoke_iiii(index, a1, a2, a3) {
-		var sp = stackSave();
-		try {
-			return dynCalls['iiii'](index, a1, a2, a3);
-		} catch (e) {
-			stackRestore(sp);
-			if (e !== e + 0) throw e;
-			_setThrew(1, 0);
-		}
-	}
-
 	function invoke_vii(index, a1, a2) {
 		var sp = stackSave();
 		try {
 			dynCalls['vii'](index, a1, a2);
-		} catch (e) {
-			stackRestore(sp);
-			if (e !== e + 0) throw e;
-			_setThrew(1, 0);
-		}
-	}
-
-	function invoke_iiiii(index, a1, a2, a3, a4) {
-		var sp = stackSave();
-		try {
-			return dynCalls['iiiii'](index, a1, a2, a3, a4);
-		} catch (e) {
-			stackRestore(sp);
-			if (e !== e + 0) throw e;
-			_setThrew(1, 0);
-		}
-	}
-
-	function invoke_viiii(index, a1, a2, a3, a4) {
-		var sp = stackSave();
-		try {
-			dynCalls['viiii'](index, a1, a2, a3, a4);
 		} catch (e) {
 			stackRestore(sp);
 			if (e !== e + 0) throw e;
@@ -34878,21 +34831,10 @@ export function init(RuntimeName, PHPLoader) {
 		}
 	}
 
-	function invoke_iiiiiiiiii(index, a1, a2, a3, a4, a5, a6, a7, a8, a9) {
+	function invoke_vi(index, a1) {
 		var sp = stackSave();
 		try {
-			return dynCalls['iiiiiiiiii'](
-				index,
-				a1,
-				a2,
-				a3,
-				a4,
-				a5,
-				a6,
-				a7,
-				a8,
-				a9
-			);
+			dynCalls['vi'](index, a1);
 		} catch (e) {
 			stackRestore(sp);
 			if (e !== e + 0) throw e;
@@ -34900,43 +34842,10 @@ export function init(RuntimeName, PHPLoader) {
 		}
 	}
 
-	function invoke_iiiiii(index, a1, a2, a3, a4, a5) {
+	function invoke_ii(index, a1) {
 		var sp = stackSave();
 		try {
-			return dynCalls['iiiiii'](index, a1, a2, a3, a4, a5);
-		} catch (e) {
-			stackRestore(sp);
-			if (e !== e + 0) throw e;
-			_setThrew(1, 0);
-		}
-	}
-
-	function invoke_i(index) {
-		var sp = stackSave();
-		try {
-			return dynCalls['i'](index);
-		} catch (e) {
-			stackRestore(sp);
-			if (e !== e + 0) throw e;
-			_setThrew(1, 0);
-		}
-	}
-
-	function invoke_viiiii(index, a1, a2, a3, a4, a5) {
-		var sp = stackSave();
-		try {
-			dynCalls['viiiii'](index, a1, a2, a3, a4, a5);
-		} catch (e) {
-			stackRestore(sp);
-			if (e !== e + 0) throw e;
-			_setThrew(1, 0);
-		}
-	}
-
-	function invoke_viiiiiiiii(index, a1, a2, a3, a4, a5, a6, a7, a8, a9) {
-		var sp = stackSave();
-		try {
-			dynCalls['viiiiiiiii'](index, a1, a2, a3, a4, a5, a6, a7, a8, a9);
+			return dynCalls['ii'](index, a1);
 		} catch (e) {
 			stackRestore(sp);
 			if (e !== e + 0) throw e;
@@ -34956,10 +34865,43 @@ export function init(RuntimeName, PHPLoader) {
 		}
 	}
 
+	function invoke_i(index) {
+		var sp = stackSave();
+		try {
+			return dynCalls['i'](index);
+		} catch (e) {
+			stackRestore(sp);
+			if (e !== e + 0) throw e;
+			_setThrew(1, 0);
+		}
+	}
+
 	function invoke_v(index) {
 		var sp = stackSave();
 		try {
 			dynCalls['v'](index);
+		} catch (e) {
+			stackRestore(sp);
+			if (e !== e + 0) throw e;
+			_setThrew(1, 0);
+		}
+	}
+
+	function invoke_iiiii(index, a1, a2, a3, a4) {
+		var sp = stackSave();
+		try {
+			return dynCalls['iiiii'](index, a1, a2, a3, a4);
+		} catch (e) {
+			stackRestore(sp);
+			if (e !== e + 0) throw e;
+			_setThrew(1, 0);
+		}
+	}
+
+	function invoke_iiiiii(index, a1, a2, a3, a4, a5) {
+		var sp = stackSave();
+		try {
+			return dynCalls['iiiiii'](index, a1, a2, a3, a4, a5);
 		} catch (e) {
 			stackRestore(sp);
 			if (e !== e + 0) throw e;
@@ -34990,6 +34932,17 @@ export function init(RuntimeName, PHPLoader) {
 		}
 	}
 
+	function invoke_viiii(index, a1, a2, a3, a4) {
+		var sp = stackSave();
+		try {
+			dynCalls['viiii'](index, a1, a2, a3, a4);
+		} catch (e) {
+			stackRestore(sp);
+			if (e !== e + 0) throw e;
+			_setThrew(1, 0);
+		}
+	}
+
 	function invoke_vijj(index, a1, a2, a3) {
 		var sp = stackSave();
 		try {
@@ -35005,6 +34958,17 @@ export function init(RuntimeName, PHPLoader) {
 		var sp = stackSave();
 		try {
 			return dynCalls['iij'](index, a1, a2);
+		} catch (e) {
+			stackRestore(sp);
+			if (e !== e + 0) throw e;
+			_setThrew(1, 0);
+		}
+	}
+
+	function invoke_viiiii(index, a1, a2, a3, a4, a5) {
+		var sp = stackSave();
+		try {
+			dynCalls['viiiii'](index, a1, a2, a3, a4, a5);
 		} catch (e) {
 			stackRestore(sp);
 			if (e !== e + 0) throw e;
@@ -35149,6 +35113,39 @@ export function init(RuntimeName, PHPLoader) {
 		var sp = stackSave();
 		try {
 			dynCalls['viidii'](index, a1, a2, a3, a4, a5);
+		} catch (e) {
+			stackRestore(sp);
+			if (e !== e + 0) throw e;
+			_setThrew(1, 0);
+		}
+	}
+
+	function invoke_iiiiiiiiii(index, a1, a2, a3, a4, a5, a6, a7, a8, a9) {
+		var sp = stackSave();
+		try {
+			return dynCalls['iiiiiiiiii'](
+				index,
+				a1,
+				a2,
+				a3,
+				a4,
+				a5,
+				a6,
+				a7,
+				a8,
+				a9
+			);
+		} catch (e) {
+			stackRestore(sp);
+			if (e !== e + 0) throw e;
+			_setThrew(1, 0);
+		}
+	}
+
+	function invoke_viiiiiiiii(index, a1, a2, a3, a4, a5, a6, a7, a8, a9) {
+		var sp = stackSave();
+		try {
+			dynCalls['viiiiiiiii'](index, a1, a2, a3, a4, a5, a6, a7, a8, a9);
 		} catch (e) {
 			stackRestore(sp);
 			if (e !== e + 0) throw e;

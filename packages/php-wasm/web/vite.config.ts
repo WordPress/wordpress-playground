@@ -1,5 +1,5 @@
 /// <reference types="vitest" />
-import { join } from 'path';
+import path from 'path';
 import { defineConfig } from 'vite';
 import dts from 'vite-plugin-dts';
 
@@ -20,7 +20,7 @@ export default defineConfig(({ command }) => {
 			}),
 			dts({
 				entryRoot: 'src',
-				tsconfigPath: join(__dirname, 'tsconfig.lib.json'),
+				tsconfigPath: path.join(__dirname, 'tsconfig.lib.json'),
 				pathsToAliases: false,
 			}),
 			{
@@ -40,6 +40,18 @@ export default defineConfig(({ command }) => {
 
 				load(id: string): any {
 					if (id?.endsWith('.dat')) {
+						return {
+							code: 'export default {}',
+							map: null,
+						};
+					}
+				},
+			},
+			{
+				name: 'ignore-lib-imports',
+
+				load(id: string): any {
+					if (id?.endsWith('.so')) {
 						return {
 							code: 'export default {}',
 							map: null,
@@ -76,7 +88,7 @@ export default defineConfig(({ command }) => {
 						 * and not
 						 * import("php/jspi/php_8_2.js")
 						 *
-						 * The slice(-3) will ensure the 'php/jspi/`
+						 * The slice(-3) will ensure the 'php/jspi/'
 						 * portion of the path is preserved.
 						 */
 						return '../' + specifier.split('/').slice(-3).join('/');
@@ -90,18 +102,46 @@ export default defineConfig(({ command }) => {
 					if (
 						command === 'build' &&
 						typeof specifier === 'string' &&
-						specifier.match(/icudt74l\.js$/)
+						specifier.match(/icu\.dat$/)
 					) {
 						/**
-						 * The ../ is weird but necessary to make the final build say
-						 * import("./shared/icudt74l.js")
+						 * The ../../../ is weird but necessary to make the final build say
+						 * import("./shared/icu.dat")
 						 * and not
-						 * import("shared/icudt74l.js")
+						 * import("shared/icu.dat")
 						 *
-						 * The slice(-2) will ensure the 'public/`
-						 * portion is removed.
+						 * The slice(-2) will ensure the 'shared/'
+						 * portion of the path is preserved.
 						 */
-						return '../' + specifier.split('/').slice(-2).join('/');
+						return (
+							'../../../' +
+							specifier.split('/').slice(-2).join('/')
+						);
+					}
+				},
+			},
+			{
+				name: 'preserve-extension-loaders-imports',
+
+				resolveDynamicImport(specifier): string | void {
+					if (
+						command === 'build' &&
+						typeof specifier === 'string' &&
+						specifier.match(/intl\.so$/)
+					) {
+						/**
+						 * The ../../../ is weird but necessary to make the final build say
+						 * import("./php/{mode}/extensions/intl/{php_version}/intl.so")
+						 * and not
+						 * import("php/{mode}/extensions/intl/{php_version}/intl.so")
+						 *
+						 * The slice(-6) will ensure the 'php/{mode}/extensions/intl/{php_version}'
+						 * portion of the path is preserved.
+						 */
+						return (
+							'../../../' +
+							specifier.split('/').slice(-6).join('/')
+						);
 					}
 				},
 			},
@@ -125,19 +165,17 @@ export default defineConfig(({ command }) => {
 				// the preserve-php-loaders-imports plugin above.
 				external: [
 					/php_\d_\d.js$/,
-					/icudt74l.js$/,
+					/icu.dat$/,
+					/intl.so$/,
 					...getExternalModules(),
 				],
 			},
 		},
 
+		// TODO : move Vitest tests to Playwright tests inside test directory
 		test: {
 			globals: true,
-			cache: {
-				dir: '../../../node_modules/.vitest',
-			},
 			environment: 'node',
-			include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
 			reporters: ['default'],
 		},
 	};

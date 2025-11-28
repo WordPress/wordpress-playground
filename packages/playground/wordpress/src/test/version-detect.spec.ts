@@ -28,9 +28,8 @@ describe('Test WP version detection', async () => {
 					),
 					sqliteIntegrationPluginZip: await getSqliteDriverModule(),
 				});
-				const loadedWordPressVersion = await getLoadedWordPressVersion(
-					handler
-				);
+				const loadedWordPressVersion =
+					await getLoadedWordPressVersion(handler);
 				expect(loadedWordPressVersion).to.equal(
 					expectedWordPressVersion
 				);

@@ -15,14 +15,15 @@ RUN if [ "$JSPI" = "1" ]; then \
 
 
 RUN set -euxo pipefail &&\
-    wget --no-check-certificate https://www.sqlite.org/2022/sqlite-autoconf-3400100.tar.gz && \
-    tar -xzvf sqlite-autoconf-3400100.tar.gz && \
-    mv sqlite-autoconf-3400100 sqlite-src && \
+    wget --no-check-certificate https://sqlite.org/2025/sqlite-autoconf-3510000.tar.gz && \
+    tar -xzvf sqlite-autoconf-3510000.tar.gz && \
+    mv sqlite-autoconf-3510000 sqlite-src && \
     cd sqlite-src && \
     source /root/emsdk/emsdk_env.sh && \
+	export CFLAGS="-DSQLITE_ENABLE_COLUMN_METADATA -DSQLITE_ENABLE_FTS5 -DSQLITE_USE_URI" && \
     emconfigure ./configure \
-        --build i386-pc-linux-gnu \
-        --target wasm32-unknown-emscripten \
+        --build=i386-pc-linux-gnu \
+        --host=wasm32-unknown-emscripten \
         --prefix=/root/lib/ && \
     export JSPI_FLAGS=$(if [ "$JSPI" = "1" ]; then echo "-sSUPPORT_LONGJMP=wasm -fwasm-exceptions"; else echo ""; fi) && \
     export EMCC_SKIP="-lc"; \
