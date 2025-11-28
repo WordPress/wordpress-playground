@@ -1,11 +1,11 @@
 import {
 	autocompletion,
-	startCompletion,
 	closeBrackets,
-	completionKeymap,
 	closeBracketsKeymap,
 	type CompletionContext,
+	completionKeymap,
 	type CompletionResult,
+	startCompletion,
 } from '@codemirror/autocomplete';
 import {
 	defaultKeymap,
@@ -16,35 +16,30 @@ import {
 import { json } from '@codemirror/lang-json';
 import {
 	bracketMatching,
+	defaultHighlightStyle,
 	foldGutter,
 	foldKeymap,
 	indentOnInput,
 	indentUnit,
 	syntaxHighlighting,
-	defaultHighlightStyle,
 } from '@codemirror/language';
-import { searchKeymap, highlightSelectionMatches } from '@codemirror/search';
+import { highlightSelectionMatches, searchKeymap } from '@codemirror/search';
+import { EditorState, type Extension, StateField } from '@codemirror/state';
 import {
-	EditorState,
-	type Extension,
-	StateField,
-	RangeSet,
-} from '@codemirror/state';
-import {
-	EditorView,
-	keymap,
-	type ViewUpdate,
-	lineNumbers,
-	highlightActiveLineGutter,
-	highlightActiveLine,
-	dropCursor,
-	rectangularSelection,
 	crosshairCursor,
-	Decoration,
-	type DecorationSet,
-	WidgetType,
+	dropCursor,
+	EditorView,
+	highlightActiveLine,
+	highlightActiveLineGutter,
+	keymap,
+	lineNumbers,
+	rectangularSelection,
+	showTooltip,
+	type Tooltip,
+	type ViewUpdate,
 } from '@codemirror/view';
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { detectLanguage, type SupportedLanguage } from './language-detection';
 import {
 	filterSchemaByDiscriminator,
 	getCurrentContainerType,
@@ -53,15 +48,13 @@ import {
 	getExistingKeysInCurrentObject,
 	getJsonPath,
 	getPropertyNameForValueCompletion,
+	getStringNodeAtPosition,
 	mergeCompositeSchemas,
 	resolveSchemaRefs,
-	getStringNodeAtPosition,
-	type StringNodeInfo,
 } from './schema-utils';
-import type { JSONSchema, JSONSchemaCompletionConfig } from './types';
 import { StringEditorModal } from './string-editor-modal';
-import { detectLanguage, type SupportedLanguage } from './language-detection';
-import { unescapeJsonString, escapeJsonString } from './string-utils';
+import { escapeJsonString, unescapeJsonString } from './string-utils';
+import type { JSONSchema, JSONSchemaCompletionConfig } from './types';
 
 interface JSONSchemaEditorProps {
 	config?: JSONSchemaCompletionConfig;
@@ -1011,64 +1004,50 @@ export async function jsonSchemaCompletion(
 }
 
 /**
- * Widget for the inline string editor button
+ * Create the string editor toolbar tooltip extension
  */
-class StringEditorWidget extends WidgetType {
-	constructor(private onClick: () => void) {
-		super();
-	}
-
-	toDOM() {
-		const button = document.createElement('button');
-		button.className = 'cm-string-editor-pill';
-		button.innerHTML = '✎ Edit';
-		button.title = 'Edit string (Cmd/Ctrl+E)';
-		button.onclick = (e) => {
-			e.preventDefault();
-			e.stopPropagation();
-			this.onClick();
-		};
-		return button;
-	}
-
-	eq(other: StringEditorWidget) {
-		return true;
-	}
-
-	ignoreEvent() {
-		return false;
-	}
-}
-
-/**
- * Create the string editor inline widget extension
- */
-function createStringEditorWidget(openStringEditor: () => boolean) {
-	const stringEditorField = StateField.define<DecorationSet>({
+function createStringEditorTooltip(openStringEditor: () => boolean) {
+	const stringEditorTooltipField = StateField.define<Tooltip | null>({
 		create() {
-			return Decoration.none;
+			return null;
 		},
-		update(decorations, tr) {
-			// Always recalculate on any change
+		update(_tooltip, tr) {
 			const pos = tr.state.selection.main.head;
 			const stringInfo = getStringNodeAtPosition(tr.state.doc, pos);
 
 			if (!stringInfo) {
-				return Decoration.none;
+				return null;
 			}
 
-			// Place the widget right before the string content starts (after the opening quote)
-			const widget = Decoration.widget({
-				widget: new StringEditorWidget(openStringEditor),
-				side: -1, // Place before the position
-			});
+			return {
+				pos: stringInfo.contentStart,
+				above: true,
+				strictSide: true,
+				arrow: false,
+				create: () => {
+					const dom = document.createElement('div');
+					dom.className = 'cm-string-editor-toolbar';
 
-			return Decoration.set([widget.range(stringInfo.contentStart)]);
+					const button = document.createElement('button');
+					button.className = 'cm-string-editor-button';
+					button.innerHTML = '✎ Multiline Edit';
+					button.title = 'Edit string (Cmd/Ctrl+E)';
+					button.onmousedown = (e) => {
+						e.preventDefault();
+						e.stopPropagation();
+						openStringEditor();
+					};
+
+					dom.appendChild(button);
+					return { dom };
+				},
+			};
 		},
-		provide: (field) => EditorView.decorations.from(field),
+		provide: (field) =>
+			showTooltip.compute([field], (state) => state.field(field)),
 	});
 
-	return stringEditorField;
+	return stringEditorTooltipField;
 }
 
 const DEFAULT_DOC = `{
@@ -1228,31 +1207,40 @@ export function JSONSchemaEditor({
 					return false;
 				},
 			}),
-			// String editor inline widget
-			createStringEditorWidget(openStringEditor),
-			// Styles for the string editor pill
+			// String editor toolbar tooltip
+			createStringEditorTooltip(openStringEditor),
+			// Styles for the string editor toolbar
 			EditorView.baseTheme({
-				'.cm-string-editor-pill': {
+				'.cm-tooltip': {
+					border: 'none',
+					backgroundColor: 'transparent',
+				},
+				'.cm-string-editor-toolbar.cm-string-editor-toolbar': {
+					display: 'flex',
+					alignItems: 'center',
+					padding: '0',
+					background: '#1e1e1e',
+					borderRadius: '6px',
+					boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
+				},
+				'.cm-string-editor-button': {
 					display: 'inline-flex',
 					alignItems: 'center',
-					gap: '3px',
-					height: '18px',
-					padding: '0 6px',
-					marginRight: '4px',
+					gap: '4px',
+					height: '24px',
+					padding: '0 10px',
 					border: 'none',
-					borderRadius: '9px',
-					background: '#e8e8e8',
-					color: '#555',
+					borderRadius: '4px',
+					background: 'transparent',
+					color: '#fff',
 					cursor: 'pointer',
-					fontSize: '11px',
+					fontSize: '12px',
 					fontFamily: 'system-ui, sans-serif',
 					lineHeight: '1',
-					verticalAlign: 'middle',
-					transition: 'background 0.15s, color 0.15s',
+					transition: 'background 0.15s',
 				},
-				'.cm-string-editor-pill:hover': {
-					background: '#3858e9',
-					color: '#fff',
+				'.cm-string-editor-button:hover': {
+					background: 'rgba(255,255,255,0.15)',
 				},
 			}),
 		];
