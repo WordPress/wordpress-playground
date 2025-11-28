@@ -1,3 +1,15 @@
+import { autocompletion } from '@codemirror/autocomplete';
+import { logger } from '@php-wasm/logger';
+import { Button, Icon, Notice } from '@wordpress/components';
+import { download } from '@wordpress/icons';
+import {
+	type Blueprint,
+	type BlueprintBundle,
+	resolveRuntimeConfiguration,
+} from '@wp-playground/blueprints';
+import type { AsyncWritableFilesystem } from '@wp-playground/components';
+import { BlobWriter, Uint8ArrayReader, ZipWriter } from '@zip.js/zip.js';
+import classNames from 'classnames';
 import {
 	forwardRef,
 	useCallback,
@@ -7,35 +19,24 @@ import {
 	useRef,
 	useState,
 } from 'react';
-import classNames from 'classnames';
-import { Button, Notice, Icon } from '@wordpress/components';
-import { download } from '@wordpress/icons';
-import type { AsyncWritableFilesystem } from '@wp-playground/components';
-import {
-	type Blueprint,
-	type BlueprintBundle,
-	resolveRuntimeConfiguration,
-} from '@wp-playground/blueprints';
-import { logger } from '@php-wasm/logger';
-import { autocompletion } from '@codemirror/autocomplete';
-import { ZipWriter, BlobWriter, Uint8ArrayReader } from '@zip.js/zip.js';
-import { FileExplorerSidebar } from './file-explorer-sidebar';
-import { jsonSchemaCompletion } from './json-schema-editor';
 import {
 	CodeEditor,
 	type CodeEditorHandle,
 } from '../site-manager/site-file-browser/code-editor';
+import { FileExplorerSidebar } from './file-explorer-sidebar';
+import { jsonSchemaCompletion } from './json-schema-editor/jsonSchemaCompletion';
 // Reuse the file browser layout styles to keep UI consistent
+import { useDebouncedCallback } from '../../lib/hooks/use-debounced-callback';
+import { removeClientInfo } from '../../lib/state/redux/slice-clients';
+import type { SiteInfo } from '../../lib/state/redux/slice-sites';
+import { sitesSlice } from '../../lib/state/redux/slice-sites';
+import { useAppDispatch } from '../../lib/state/redux/store';
 import styles from '../site-manager/site-file-browser/style.module.css';
 import { convertBlueprintToWritableFilesystem } from './convert-blueprint-to-filesystem';
 import hideRootStyles from './hide-root.module.css';
-import type { WritableInMemoryFilesystem } from './writable-in-memory-filesystem';
-import type { SiteInfo } from '../../lib/state/redux/slice-sites';
-import { sitesSlice } from '../../lib/state/redux/slice-sites';
-import { removeClientInfo } from '../../lib/state/redux/slice-clients';
-import { useAppDispatch } from '../../lib/state/redux/store';
-import { WritableOpfsFilesystem } from './writable-opfs-filesystem';
-import { useDebouncedCallback } from '../../lib/hooks/use-debounced-callback';
+import type { WritableFilesystem } from './writable-filesystem';
+import { WritableFilesystem as WritableFilesystemClass } from './writable-filesystem';
+import { OpfsFilesystemBackend } from './writable-opfs-filesystem';
 
 export const BLUEPRINT_JSON_PATH = '/blueprint.json';
 
@@ -174,9 +175,9 @@ const BlueprintFilesystemEditor = forwardRef<
 		try {
 			setIsRecreating(true);
 			const bundle =
-				(filesystem as WritableInMemoryFilesystem | null) ??
+				(filesystem as WritableFilesystem | null) ??
 				((site.metadata.originalBlueprint ||
-					null) as WritableInMemoryFilesystem | null);
+					null) as WritableFilesystem | null);
 			if (!bundle) {
 				throw new Error('Blueprint bundle is not available.');
 			}
@@ -470,7 +471,7 @@ export const BlueprintBundleEditor = forwardRef<
 			if (
 				// isTemporarySite &&
 				window.location.hash !== '#local-blueprint-bundle' &&
-				(await WritableOpfsFilesystem.hasSavedBundle())
+				(await OpfsFilesystemBackend.hasSavedBundle())
 			) {
 				setAutosavePromptVisible(true);
 				return;
@@ -501,7 +502,9 @@ export const BlueprintBundleEditor = forwardRef<
 	const restoreAutosave = async () => {
 		setAutosaveErrorMessage(null);
 		try {
-			const fs = await WritableOpfsFilesystem.loadFromOpfs();
+			const fs = new WritableFilesystemClass(
+				await OpfsFilesystemBackend.loadFromOpfs()
+			);
 			fs.addEventListener('change', () => {
 				onChange?.(fs as any);
 			});
@@ -521,7 +524,7 @@ export const BlueprintBundleEditor = forwardRef<
 	const discardAutosave = async () => {
 		setAutosaveErrorMessage(null);
 		try {
-			await WritableOpfsFilesystem.discardSavedBundle();
+			await OpfsFilesystemBackend.discardSavedBundle();
 			const fs = await convertBlueprintToWritableFilesystem(
 				initialBlueprint,
 				{

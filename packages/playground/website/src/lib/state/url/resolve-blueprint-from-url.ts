@@ -9,7 +9,8 @@ import {
 	isBlueprintBundle,
 	resolveRemoteBlueprint,
 } from '@wp-playground/client';
-import { WritableOpfsFilesystem } from '../../../components/blueprint-editor/writable-opfs-filesystem';
+import { WritableFilesystem } from '../../../components/blueprint-editor/writable-filesystem';
+import { OpfsFilesystemBackend } from '../../../components/blueprint-editor/writable-opfs-filesystem';
 import { parseBlueprint } from './router';
 import { OverlayFilesystem, InMemoryFilesystem } from '@wp-playground/storage';
 import { RecommendedPHPVersion } from '@wp-playground/common';
@@ -98,7 +99,9 @@ export async function resolveBlueprintFromURL(
 	} else if (fragment === 'local-blueprint-bundle') {
 		let bundle = undefined;
 		try {
-			bundle = await WritableOpfsFilesystem.loadFromOpfs();
+			bundle = new WritableFilesystem(
+				await OpfsFilesystemBackend.loadFromOpfs()
+			);
 		} catch (error) {
 			logger.error(
 				'Failed to load the last edited blueprint from OPFS',

@@ -1,7 +1,8 @@
 import type { AsyncWritableFilesystem } from '@wp-playground/components';
 import { type Blueprint, BlueprintReflection } from '@wp-playground/blueprints';
-import { WritableInMemoryFilesystem } from './writable-in-memory-filesystem';
-import { WritableOpfsFilesystem } from './writable-opfs-filesystem';
+import { WritableFilesystem } from './writable-filesystem';
+import { InMemoryFilesystemBackend } from './writable-in-memory-filesystem';
+import { OpfsFilesystemBackend } from './writable-opfs-filesystem';
 import { dirname, ensureAbsolutePath } from '@php-wasm/util';
 
 /**
@@ -22,21 +23,23 @@ export async function convertBlueprintToWritableFilesystem(
 	if (
 		typeof window !== 'undefined' &&
 		window.location.hash === '#local-blueprint-bundle' &&
-		(await WritableOpfsFilesystem.hasSavedBundle())
+		(await OpfsFilesystemBackend.hasSavedBundle())
 	) {
-		return await WritableOpfsFilesystem.loadFromOpfs();
+		return new WritableFilesystem(
+			await OpfsFilesystemBackend.loadFromOpfs()
+		);
 	}
 
 	let fs: AsyncWritableFilesystem | undefined = undefined;
 	if (shouldPersist) {
 		try {
-			fs = await WritableOpfsFilesystem.create();
+			fs = new WritableFilesystem(await OpfsFilesystemBackend.create());
 		} catch {
 			// Fall through to in-memory fallback.
 		}
 	}
 	if (!fs) {
-		fs = new WritableInMemoryFilesystem();
+		fs = new WritableFilesystem(new InMemoryFilesystemBackend());
 	}
 
 	const reflection = await BlueprintReflection.create(blueprint);
