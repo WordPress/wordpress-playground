@@ -39,7 +39,10 @@ import {
 	type ViewUpdate,
 } from '@codemirror/view';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { detectLanguage, type SupportedLanguage } from './language-detection';
+import {
+	inferLanguageFromBlueprint,
+	type SupportedLanguage,
+} from './infer-language-from-blueprint';
 import {
 	filterSchemaByDiscriminator,
 	getCurrentContainerType,
@@ -1128,7 +1131,7 @@ export function JSONSchemaEditor({
 		useState<StringEditorState>({
 			isOpen: false,
 			initialValue: '',
-			language: 'text',
+			language: 'plaintext',
 			contentStart: 0,
 			contentEnd: 0,
 		});
@@ -1146,7 +1149,7 @@ export function JSONSchemaEditor({
 		const parsedValue = tryParseJsonString(stringInfo.rawValue);
 		if (parsedValue === null) return false;
 
-		const language = detectLanguage(
+		const language = inferLanguageFromBlueprint(
 			stringInfo.path,
 			stringInfo.stepType,
 			parsedValue

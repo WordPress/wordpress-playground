@@ -31,7 +31,7 @@ import { Modal } from '../modal';
 import {
 	getAvailableLanguages,
 	type SupportedLanguage,
-} from './language-detection';
+} from './infer-language-from-blueprint';
 import css from './string-editor-modal.module.css';
 
 interface StringEditorModalProps {
@@ -59,10 +59,12 @@ async function loadLanguageExtension(
 			return import('@codemirror/lang-markdown').then((m) =>
 				m.markdown()
 			);
-		case 'shell':
-			// Use a simple setup for shell - no dedicated extension
-			return null;
-		case 'text':
+		case 'javascript':
+			return import('@codemirror/lang-javascript').then((m) =>
+				m.javascript()
+			);
+		case 'css':
+			return import('@codemirror/lang-css').then((m) => m.css());
 		default:
 			return null;
 	}
