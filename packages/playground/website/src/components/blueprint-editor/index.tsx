@@ -1024,7 +1024,7 @@ function createStringEditorTooltip(openStringEditor: () => boolean) {
 				above: true,
 				strictSide: true,
 				arrow: false,
-				create: () => {
+				create: (view: EditorView) => {
 					const dom = document.createElement('div');
 					dom.className = 'cm-string-editor-toolbar';
 
@@ -1039,7 +1039,46 @@ function createStringEditorTooltip(openStringEditor: () => boolean) {
 					};
 
 					dom.appendChild(button);
-					return { dom };
+
+					// Keep the toolbar visible during horizontal scroll
+					const updatePosition = () => {
+						const tooltip = dom.parentElement;
+						if (!tooltip) return;
+
+						const scrollContainer = view.scrollDOM;
+						const containerRect =
+							scrollContainer.getBoundingClientRect();
+						const tooltipRect = tooltip.getBoundingClientRect();
+
+						// If tooltip would be to the left of the visible area, translate it right
+						const minLeft = containerRect.left + 8; // 8px padding from edge
+						if (tooltipRect.left < minLeft) {
+							const offset = minLeft - tooltipRect.left;
+							dom.style.transform = `translateX(${offset}px)`;
+						} else {
+							dom.style.transform = '';
+						}
+					};
+
+					const scrollHandler = () => updatePosition();
+
+					return {
+						dom,
+						mount: () => {
+							view.scrollDOM.addEventListener(
+								'scroll',
+								scrollHandler
+							);
+							// Initial position check
+							requestAnimationFrame(updatePosition);
+						},
+						destroy: () => {
+							view.scrollDOM.removeEventListener(
+								'scroll',
+								scrollHandler
+							);
+						},
+					};
 				},
 			};
 		},
