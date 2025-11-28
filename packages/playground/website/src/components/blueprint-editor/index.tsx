@@ -58,17 +58,6 @@ import {
 import { StringEditorModal } from './string-editor-modal';
 import type { JSONSchema, JSONSchemaCompletionConfig } from './types';
 
-/**
- * Try to parse a JSON string value. Returns the parsed string or null if invalid.
- */
-function tryParseJsonString(rawValue: string): string | null {
-	try {
-		return JSON.parse(`"${rawValue}"`);
-	} catch {
-		return null;
-	}
-}
-
 interface JSONSchemaEditorProps {
 	config?: JSONSchemaCompletionConfig;
 	className?: string;
@@ -1033,7 +1022,9 @@ function createStringEditorTooltip(openStringEditor: () => boolean) {
 			}
 
 			// Only show the button if the string can be JSON-parsed
-			if (tryParseJsonString(stringInfo.rawValue) === null) {
+			try {
+				JSON.parse(`"${stringInfo.rawValue}"`);
+			} catch {
 				return null;
 			}
 
@@ -1146,8 +1137,12 @@ export function JSONSchemaEditor({
 
 		if (!stringInfo) return false;
 
-		const parsedValue = tryParseJsonString(stringInfo.rawValue);
-		if (parsedValue === null) return false;
+		let parsedValue: string;
+		try {
+			parsedValue = JSON.parse(`"${stringInfo.rawValue}"`);
+		} catch {
+			return false;
+		}
 
 		const language = inferLanguageFromBlueprint(
 			stringInfo.path,
