@@ -37,7 +37,7 @@ export function DownloadButton({
 			}
 		>
 			<Flex justify="space-between" gap={2} expanded={true}>
-				<FlexItem>Download database</FlexItem>
+				<FlexItem>Download database (.sqlite file)</FlexItem>
 				<FlexItem>
 					<Icon icon={download} size={16} />
 				</FlexItem>

@@ -37,3 +37,9 @@
 	margin: 0;
 	font-size: 1.1rem;
 }
+
+.buttonGroup {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 12px;
+}

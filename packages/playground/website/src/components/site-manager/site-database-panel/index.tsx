@@ -104,11 +104,11 @@ export function SiteDatabasePanel({
 				</div>
 			</VStack>
 
-			<VStack spacing={3}>
+			<div className={css.buttonGroup}>
 				<DownloadButton playground={playground} />
 				<AdminerButton playground={playground} />
 				<PhpMyAdminButton playground={playground} />
-			</VStack>
+			</div>
 		</VStack>
 	);
 }

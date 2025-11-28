@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button, Icon, Flex, FlexItem } from '@wordpress/components';
 import { external } from '@wordpress/icons';
 import css from './style.module.css';
@@ -63,6 +63,24 @@ export function PhpMyAdminButton({
 	const [state, setState] = useState<'idle' | 'loading' | 'ready'>('idle');
 	const [error, setError] = useState<string | null>(null);
 
+	useEffect(() => {
+		async function detectPhpMyAdmin() {
+			if (!playground) {
+				return;
+			}
+
+			const documentRoot = await playground.documentRoot;
+			const phpMyAdminPath = `${documentRoot}/phpmyadmin`;
+
+			if (await playground.isDir(phpMyAdminPath)) {
+				setState('ready');
+			} else {
+				setState('idle');
+			}
+		}
+		detectPhpMyAdmin();
+	}, [playground]);
+
 	const handleOpenPhpMyAdmin = async () => {
 		if (!playground) {
 			return;
@@ -98,30 +116,32 @@ export function PhpMyAdminButton({
 
 	const isLoading = state === 'loading';
 	return (
-		<Flex direction="column" gap={0} expanded={false}>
-			<Button
-				variant="primary"
-				disabled={!playground || isLoading}
-				isBusy={isLoading}
-				onClick={handleOpenPhpMyAdmin}
-			>
-				<Flex justify="space-between" gap={2} expanded={true}>
-					<FlexItem>
-						{isLoading
-							? 'Opening phpMyAdmin…'
-							: 'Open in phpMyAdmin'}
-					</FlexItem>
-					<FlexItem>
-						<Icon icon={external} size={16} />
-					</FlexItem>
-				</Flex>
-			</Button>
+		<>
+			<Flex direction="column" gap={0} expanded={false}>
+				<Button
+					variant="primary"
+					disabled={!playground || isLoading}
+					isBusy={isLoading}
+					onClick={handleOpenPhpMyAdmin}
+				>
+					<Flex justify="space-between" gap={2} expanded={true}>
+						<FlexItem>
+							{isLoading
+								? 'Opening phpMyAdmin…'
+								: 'Open phpMyAdmin'}
+						</FlexItem>
+						<FlexItem>
+							<Icon icon={external} size={16} />
+						</FlexItem>
+					</Flex>
+				</Button>
+			</Flex>
 			{error && (
 				<div className={css.error}>
 					Failed to install phpMyAdmin. Please try again. Error:{' '}
 					{error}
 				</div>
 			)}
-		</Flex>
+		</>
 	);
 }

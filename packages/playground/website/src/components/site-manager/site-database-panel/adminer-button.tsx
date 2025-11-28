@@ -1,6 +1,6 @@
 import { Button, Icon, Flex, FlexItem } from '@wordpress/components';
 import { external } from '@wordpress/icons';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import css from './style.module.css';
 import {
 	type PlaygroundClient,
@@ -62,6 +62,24 @@ export function AdminerButton({
 	const [state, setState] = useState<'idle' | 'loading' | 'ready'>('idle');
 	const [error, setError] = useState<string | null>(null);
 
+	useEffect(() => {
+		async function detectAdminer() {
+			if (!playground) {
+				return;
+			}
+
+			const documentRoot = await playground.documentRoot;
+			const adminerPath = `${documentRoot}/adminer`;
+
+			if (await playground.isDir(adminerPath)) {
+				setState('ready');
+			} else {
+				setState('idle');
+			}
+		}
+		detectAdminer();
+	}, [playground]);
+
 	const handleOpenAdminer = async () => {
 		if (!playground) {
 			return;
@@ -97,27 +115,29 @@ export function AdminerButton({
 
 	const isLoading = state === 'loading';
 	return (
-		<Flex direction="column" gap={0} expanded={false}>
-			<Button
-				variant="primary"
-				disabled={!playground || isLoading}
-				isBusy={isLoading}
-				onClick={handleOpenAdminer}
-			>
-				<Flex justify="space-between" gap={2} expanded={true}>
-					<FlexItem>
-						{isLoading ? 'Opening Adminer…' : 'Open in Adminer'}
-					</FlexItem>
-					<FlexItem>
-						<Icon icon={external} size={16} />
-					</FlexItem>
-				</Flex>
-			</Button>
+		<>
+			<Flex direction="column" gap={0} expanded={false}>
+				<Button
+					variant="primary"
+					disabled={!playground || isLoading}
+					isBusy={isLoading}
+					onClick={handleOpenAdminer}
+				>
+					<Flex justify="space-between" gap={2} expanded={true}>
+						<FlexItem>
+							{isLoading ? 'Opening Adminer…' : 'Open Adminer'}
+						</FlexItem>
+						<FlexItem>
+							<Icon icon={external} size={16} />
+						</FlexItem>
+					</Flex>
+				</Button>
+			</Flex>
 			{error && (
 				<div className={css.error}>
 					Failed to install Adminer. Please try again. Error: {error}
 				</div>
 			)}
-		</Flex>
+		</>
 	);
 }
