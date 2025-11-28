@@ -74,6 +74,7 @@
 		"@codemirror/lang-javascript": "6.2.4",
 		"@codemirror/lang-json": "6.0.2",
 		"@codemirror/lang-markdown": "6.3.4",
+		"@codemirror/lang-sql": "6.8.0",
 		"@codemirror/lang-php": "6.0.2",
 		"@codemirror/language": "6.11.3",
 		"@codemirror/search": "6.5.11",

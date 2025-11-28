@@ -514,3 +514,93 @@ export function getSchemaForPath(
 
 	return current;
 }
+
+export interface StringNodeInfo {
+	/** The raw string value (JSON-escaped content without surrounding quotes) */
+	rawValue: string;
+	/** Start offset of the string content (after opening quote) */
+	contentStart: number;
+	/** End offset of the string content (before closing quote) */
+	contentEnd: number;
+	/** The JSON path to this string value */
+	path: string[];
+	/** The step type if this string is within a step (e.g., 'runPHP') */
+	stepType?: string;
+}
+
+/**
+ * Get information about a string node at the cursor position
+ * Returns null if the cursor is not inside a string value
+ */
+export function getStringNodeAtPosition(
+	doc: CodeMirrorDoc,
+	pos: number
+): StringNodeInfo | null {
+	const context = getDocumentContext(doc, pos);
+	const { node, parsed, location } = context;
+
+	// Check if we're at a property key position - don't trigger for keys
+	if (location.isAtPropertyKey) {
+		return null;
+	}
+
+	// Find the string node
+	let stringNode: JsonNode | undefined;
+	if (node?.type === 'string') {
+		stringNode = node;
+	} else if (node?.parent?.type === 'string') {
+		stringNode = node.parent;
+	}
+
+	if (!stringNode || stringNode.type !== 'string') {
+		return null;
+	}
+
+	// Get the raw value (the actual characters in the source, including escape sequences)
+	const contentStart = stringNode.offset + 1; // Skip opening quote
+	const contentEnd = stringNode.offset + stringNode.length - 1; // Skip closing quote
+	const rawValue = parsed.text.slice(contentStart, contentEnd);
+
+	// Build the path as an array of strings
+	const path = location.path.map(String);
+
+	// Try to find the step type if we're inside a steps array
+	let stepType: string | undefined;
+	const stepsIndex = path.indexOf('steps');
+	if (stepsIndex !== -1 && stepsIndex + 1 < path.length) {
+		// We're inside steps[n], try to find the step type
+		const stepPath = path.slice(0, stepsIndex + 2); // e.g., ['steps', '0']
+		if (parsed.tree) {
+			const stepNode = findNodeAtLocation(
+				parsed.tree,
+				stepPath.map((p) => (isNaN(Number(p)) ? p : Number(p)))
+			);
+			if (stepNode) {
+				const stepTypeNode = getPropertyValueNode(stepNode, 'step');
+				if (
+					stepTypeNode?.type === 'string' &&
+					typeof stepTypeNode.value === 'string'
+				) {
+					stepType = stepTypeNode.value;
+				}
+			}
+		}
+	}
+
+	return {
+		rawValue,
+		contentStart,
+		contentEnd,
+		path,
+		stepType,
+	};
+}
+
+/**
+ * Check if a string contains escape sequences that would benefit from the string editor
+ * (e.g., contains \n, \t, or other escape sequences)
+ */
+export function stringHasEscapeSequences(rawValue: string): boolean {
+	// Check for common escape sequences that make editing difficult
+	return /\\[nrt"\\]/.test(rawValue);
+}
