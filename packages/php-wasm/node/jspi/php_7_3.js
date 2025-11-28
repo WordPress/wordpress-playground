@@ -7,8 +7,8 @@ const require = createRequire(import.meta.url);
 import path from 'path';
 
 const dependencyFilename = path.join(__dirname, '7_3_33', 'php_7_3.wasm');
-export { dependencyFilename }; 
-export const dependenciesTotalSize = 22208435; 
+export { dependencyFilename };
+export const dependenciesTotalSize = 22208399;
 const phpVersionString = '7.3.33';
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
@@ -53,7 +53,7 @@ export function init(RuntimeName, PHPLoader) {
 		// Node
 		_scriptName = __filename;
 	} else {
-		/*no-op*/
+	/*no-op*/
 	}
 
 	// `/` should be present at the end if `scriptDirectory` is not empty

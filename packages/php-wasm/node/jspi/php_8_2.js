@@ -7,8 +7,8 @@ const require = createRequire(import.meta.url);
 import path from 'path';
 
 const dependencyFilename = path.join(__dirname, '8_2_29', 'php_8_2.wasm');
-export { dependencyFilename }; 
-export const dependenciesTotalSize = 26946420; 
+export { dependencyFilename };
+export const dependenciesTotalSize = 26946396;
 const phpVersionString = '8.2.29';
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
@@ -53,7 +53,7 @@ export function init(RuntimeName, PHPLoader) {
 		// Node
 		_scriptName = __filename;
 	} else {
-		/*no-op*/
+	/*no-op*/
 	}
 
 	// `/` should be present at the end if `scriptDirectory` is not empty

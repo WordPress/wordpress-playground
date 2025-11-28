@@ -8,7 +8,7 @@ import path from 'path';
 
 const dependencyFilename = path.join(__dirname, '8_0_30', 'php_8_0.wasm');
 export { dependencyFilename };
-export const dependenciesTotalSize = 22728652;
+export const dependenciesTotalSize = 22728653;
 const phpVersionString = '8.0.30';
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
@@ -53,7 +53,7 @@ export function init(RuntimeName, PHPLoader) {
 		// Node
 		_scriptName = __filename;
 	} else {
-		/*no-op*/
+	/*no-op*/
 	}
 
 	// `/` should be present at the end if `scriptDirectory` is not empty
