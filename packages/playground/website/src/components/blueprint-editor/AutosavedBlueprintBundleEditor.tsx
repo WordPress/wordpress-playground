@@ -49,6 +49,8 @@ export const AutosavedBlueprintBundleEditor = forwardRef<
 	const [autosaveErrorMessage, setAutosaveErrorMessage] = useState<
 		string | null
 	>(null);
+	// Track whether we've already migrated to OPFS (to avoid migrating twice)
+	const hasMigratedToOpfs = useRef(false);
 
 	const innerEditorRef = useRef<BlueprintBundleEditorHandle | null>(null);
 
@@ -56,7 +58,7 @@ export const AutosavedBlueprintBundleEditor = forwardRef<
 	// Let's just populate an in-memory filesystem with the Blueprint.
 	const readOnly = site?.metadata.storage !== 'none';
 
-	// Display the "restore autosave" prompt:
+	// Initialize the filesystem.
 	useEffect(() => {
 		const bootstrap = async () => {
 			let fs: WritableFilesystem | null = null;
@@ -82,41 +84,72 @@ export const AutosavedBlueprintBundleEditor = forwardRef<
 					site.metadata.originalBlueprintSource.type !==
 					'local-editor'
 				) {
-					// No, it wasn't. It's unclear if we should edit the current site's Blueprint
-					// or a prior autosave. Let's ask the user.
-					// @TODO: Uncomment this and support autosaves. This will require more
-					//        planning than initially anticipated. E.g. an autosave should only
-					//        be created after the user changes something (at the moment it's
-					//        created when the temporary blueprint is initialized).
-					// setAutosavePromptVisible(true);
-					// return;
+					// The current site wasn't loaded from the autosave.
+					// Ask the user if they want to restore it.
+					setAutosavePromptVisible(true);
+					return;
+				}
+				// The current site was already loaded from the autosave.
+				// Continue editing with OPFS.
+				hasMigratedToOpfs.current = true;
+				try {
+					fs = new WritableFilesystem(
+						await OpfsFilesystemBackend.create()
+					);
+					setFilesystem(fs);
+					return;
+				} catch (error) {
+					logger.error(
+						'Failed to load autosaved filesystem. Falling back to in-memory.',
+						error
+					);
 				}
 			}
 
-			// We're going to edit the Blueprint – let's create a persistent filesystem
-			// and autosave the user's progress.
-			try {
-				fs = new WritableFilesystem(
-					await OpfsFilesystemBackend.create()
-				);
-				setFilesystem(fs);
-			} catch (error) {
-				// No OPFS access. Let's fall back to an in-memory filesystem.
-				logger.error(
-					'Failed to initialize blueprint filesystem with OPFS. Falling back to in-memory filesystem.',
-					error
-				);
-				fs = new WritableFilesystem(new InMemoryFilesystemBackend());
-				setFilesystem(fs);
-			}
+			// No autosave exists, or we couldn't load it.
+			// Start with an in-memory filesystem. We'll migrate to OPFS on first edit.
+			fs = new WritableFilesystem(new InMemoryFilesystemBackend());
+			await fs.populateFromBlueprint(
+				site.metadata.originalBlueprint as Blueprint
+			);
+			setFilesystem(fs);
 		};
 
 		bootstrap();
 	}, []);
 
+	/**
+	 * Discard an autosave: clear OPFS and start fresh with in-memory.
+	 * The user discarded their changes, so we don't want to autosave
+	 * until they make new changes.
+	 */
+	const discardAutosave = async () => {
+		setAutosaveErrorMessage(null);
+		try {
+			const opfsBackend = await OpfsFilesystemBackend.create();
+			await opfsBackend.clear();
+
+			const fs = new WritableFilesystem(new InMemoryFilesystemBackend());
+			await fs.populateFromBlueprint(
+				site.metadata.originalBlueprint as Blueprint
+			);
+			setFilesystem(fs);
+			setAutosavePromptVisible(false);
+		} catch (error) {
+			logger.error('Failed to discard autosave bundle', error);
+			setAutosaveErrorMessage(
+				'Could not discard the autosave. Please report an issue in the WordPress Playground repository.'
+			);
+		}
+	};
+
+	/**
+	 * Restore an autosave: initialize the Blueprint filesystem directly from OPFS.
+	 */
 	const restoreAutosave = async () => {
 		setAutosaveErrorMessage(null);
 		try {
+			hasMigratedToOpfs.current = true;
 			const fs = new WritableFilesystem(
 				await OpfsFilesystemBackend.create()
 			);
@@ -131,25 +164,39 @@ export const AutosavedBlueprintBundleEditor = forwardRef<
 		}
 	};
 
-	const discardAutosave = async () => {
-		setAutosaveErrorMessage(null);
-		try {
-			const fs = new WritableFilesystem(
-				await OpfsFilesystemBackend.create()
-			);
-			await fs.clear();
-			await fs.populateFromBlueprint(
-				site.metadata.originalBlueprint as Blueprint
-			);
-			setFilesystem(fs);
-			setAutosavePromptVisible(false);
-		} catch (error) {
-			logger.error('Failed to discard autosave bundle', error);
-			setAutosaveErrorMessage(
-				'Could not discard the autosave. Please report an issue in the WordPress Playground repository.'
-			);
+	/**
+	 * Migrate from in-memory to OPFS on first user edit of a fresh temporary site's Blueprint.
+	 * This ensures autosaves only exist when the user has actually made changes.
+	 */
+	useEffect(() => {
+		if (!filesystem || readOnly || hasMigratedToOpfs.current) {
+			return;
 		}
-	};
+		async function migrateToOpfs() {
+			if (hasMigratedToOpfs.current || readOnly || !filesystem) {
+				return;
+			}
+			hasMigratedToOpfs.current = true;
+
+			try {
+				// Replace the in-memory filesystem with an OPFS filesystem.
+				const opfsBackend = await OpfsFilesystemBackend.create();
+				await opfsBackend.clear();
+				const opfsFilesystem = new WritableFilesystem(opfsBackend);
+				await copyFilesystem(filesystem, opfsFilesystem);
+				setFilesystem(opfsFilesystem);
+			} catch (error) {
+				logger.error(
+					'Failed to migrate to OPFS for autosave. Continuing with in-memory filesystem.',
+					error
+				);
+			}
+		}
+		filesystem.addEventListener('change', migrateToOpfs);
+		return () => {
+			filesystem.removeEventListener('change', migrateToOpfs);
+		};
+	}, [filesystem, readOnly]);
 
 	useImperativeHandle(
 		ref,
@@ -197,7 +244,7 @@ export const AutosavedBlueprintBundleEditor = forwardRef<
 			{!autosavePromptVisible && filesystem && (
 				<BlueprintBundleEditor
 					ref={innerEditorRef}
-					initialFilesystem={filesystem}
+					filesystem={filesystem}
 					site={site}
 					className={className}
 					readOnly={readOnly}
@@ -209,3 +256,26 @@ export const AutosavedBlueprintBundleEditor = forwardRef<
 });
 
 export default AutosavedBlueprintBundleEditor;
+
+/**
+ * Copies all files and directories from source filesystem to destination.
+ */
+async function copyFilesystem(
+	source: WritableFilesystem,
+	destination: WritableFilesystem
+): Promise<void> {
+	const copyDir = async (path: string) => {
+		const entries = await source.listFiles(path);
+		for (const name of entries) {
+			const fullPath = path === '/' ? `/${name}` : `${path}/${name}`;
+			if (await source.isDir(fullPath)) {
+				await destination.mkdir(fullPath);
+				await copyDir(fullPath);
+			} else {
+				const content = await source.readFileAsBuffer(fullPath);
+				await destination.writeFile(fullPath, content);
+			}
+		}
+	};
+	await copyDir('/');
+}

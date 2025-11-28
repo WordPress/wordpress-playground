@@ -63,7 +63,7 @@ const PlayIcon = ({ className }: { className?: string }) => (
  * Inner editor that assumes the filesystem never changes.
  */
 export type BlueprintBundleEditorProps = {
-	initialFilesystem: AsyncWritableFilesystem;
+	filesystem: AsyncWritableFilesystem;
 	className?: string;
 	site?: SiteInfo;
 	autoRunToken?: number;
@@ -80,7 +80,7 @@ export const BlueprintBundleEditor = forwardRef<
 	BlueprintBundleEditorHandle,
 	BlueprintBundleEditorProps
 >(function BlueprintFilesystemEditor(
-	{ initialFilesystem: filesystem, className, site, autoRunToken, readOnly },
+	{ filesystem, className, site, autoRunToken, readOnly },
 	ref
 ) {
 	const [selectedDirPath, setSelectedDirPath] = useState<string | null>('/');
@@ -110,7 +110,8 @@ export const BlueprintBundleEditor = forwardRef<
 				setSaveError('Could not save changes. Try again.');
 			}
 		},
-		200
+		200,
+		[filesystem]
 	);
 
 	const handleCodeChange = useCallback(
