@@ -1110,8 +1110,12 @@ export function JSONSchemaEditor({
 
 		if (!stringInfo) return false;
 
-		const language = detectLanguage(stringInfo.path, stringInfo.stepType);
 		const unescapedValue = unescapeJsonString(stringInfo.rawValue);
+		const language = detectLanguage(
+			stringInfo.path,
+			stringInfo.stepType,
+			unescapedValue
+		);
 
 		setStringEditorState({
 			isOpen: true,

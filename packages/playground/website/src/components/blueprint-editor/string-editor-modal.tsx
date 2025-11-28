@@ -53,6 +53,12 @@ async function loadLanguageExtension(
 			return php();
 		case 'sql':
 			return import('@codemirror/lang-sql').then((m) => m.sql());
+		case 'html':
+			return import('@codemirror/lang-html').then((m) => m.html());
+		case 'markdown':
+			return import('@codemirror/lang-markdown').then((m) =>
+				m.markdown()
+			);
 		case 'shell':
 			// Use a simple setup for shell - no dedicated extension
 			return null;
