@@ -128,19 +128,16 @@ export interface UIState {
 const query = new URL(document.location.href).searchParams;
 const isEmbeddedInAnIframe = window.self !== window.top;
 // @TODO: Centralize these breakpoint sizes.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const isMobile = window.innerWidth < 875;
 
 // Parse the route parameter for sidebar/tab state
 const routeState = parseRouteParam(query.get('route'));
-const isSeamlessMode = query.get('mode') === 'seamless';
 
-// Determine initial sidebar open state:
-// - If route param exists, use it (route=closed → closed, otherwise → open)
-// - If no route param, default to open on desktop, closed on mobile
-const hasExplicitRouteParam = query.has('route');
-const shouldSidebarBeOpen = hasExplicitRouteParam
-	? routeState.sidebarOpen
-	: !isMobile;
+// Check if there's an explicit route param requesting the sidebar to be open.
+// If so, respect it regardless of viewport size (but not in seamless mode or iframes).
+const hasExplicitRouteParam = query.has('route') && routeState.sidebarOpen;
+const isSeamlessMode = query.get('mode') === 'seamless';
 
 const initialState: UIState = {
 	/**
@@ -168,8 +165,9 @@ const initialState: UIState = {
 		!isSeamlessMode &&
 		// We do not expect to render the Playground app UI in an iframe.
 		!isEmbeddedInAnIframe &&
-		// Use explicit route param if provided, otherwise default based on viewport.
-		shouldSidebarBeOpen,
+		// If there's an explicit route param requesting sidebar open, respect it.
+		// Otherwise default to closed on all viewport sizes.
+		hasExplicitRouteParam,
 	siteManagerSection: routeState.section,
 };
 
