@@ -208,6 +208,7 @@ export const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
 		const editableCompartmentRef = useRef(new Compartment());
 		const extraCompartmentRef = useRef(new Compartment());
 		const latestCodeRef = useRef(code);
+		const onChangeRef = useRef(onChange);
 		const shouldRestoreFocusRef = useRef(false);
 
 		useImperativeHandle(ref, () => ({
@@ -247,6 +248,10 @@ export const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
 		useEffect(() => {
 			latestCodeRef.current = code;
 		}, [code]);
+
+		useEffect(() => {
+			onChangeRef.current = onChange;
+		}, [onChange]);
 
 		useEffect(() => {
 			if (viewRef.current) {
@@ -289,7 +294,7 @@ export const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
 							return;
 						}
 						latestCodeRef.current = nextDoc;
-						onChange(nextDoc);
+						onChangeRef.current(nextDoc);
 					}),
 					keymap.of([
 						{
