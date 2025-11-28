@@ -773,10 +773,11 @@ test.describe('Route persistence', () => {
 		// Navigate with route=blueprints
 		await website.goto('./?route=blueprints');
 
-		// Verify sidebar is open
-		await expect(website.page.locator('.main-sidebar')).toBeVisible();
+		// Verify URL has route=blueprints
+		expect(website.page.url()).toContain('route=blueprints');
 
-		// Verify we're on the blueprints section (look for blueprints gallery content)
+		// Verify site manager is open by checking for the blueprints content
+		// (In mobile view, only the active panel is shown, not the sidebar list)
 		await expect(
 			website.page.getByRole('heading', { name: 'Blueprints Gallery' })
 		).toBeVisible();
