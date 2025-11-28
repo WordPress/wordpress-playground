@@ -28,13 +28,14 @@ const languageRules: LanguageRule[] = [
 ];
 
 /**
- * Detect the appropriate language for a string at a given JSON path.
- * Also considers the step type from the discriminator if available.
+ * Infers the appropriate syntax highlighting language for a string
+ * living at a given JSON path inside of a Blueprint. If the path is
+ * not informative, falls back to content-based heuristics.
  *
  * @param jsonPath - The JSON path as an array of path segments (e.g., ['steps', '0', 'code'])
  * @param stepType - Optional step type discriminator value (e.g., 'runPHP')
- * @param content - Optional string content for heuristic detection
- * @returns The detected language or 'text' if no specific language is detected
+ * @param content - Optional string content for content-based heuristics
+ * @returns The detected language or 'plaintext' if no specific language is detected
  */
 export function inferLanguageFromBlueprint(
 	jsonPath: string[],
@@ -81,6 +82,11 @@ export function inferLanguageFromBlueprint(
 	return inferLanguageFromContent(content || '');
 }
 
+/**
+ * Heuristically detects the most likely language of a text snippet
+ * (HTML, JavaScript, CSS, PHP, SQL, or Markdown) and returns "plaintext"
+ * when no language has enough signal.
+ */
 export function inferLanguageFromContent(input: string): SupportedLanguage {
 	const text = input.trim();
 	if (!text) return 'plaintext';
