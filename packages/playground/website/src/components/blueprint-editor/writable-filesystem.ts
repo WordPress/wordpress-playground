@@ -34,9 +34,11 @@ export class WritableFilesystem
 {
 	private readonly encoder = new TextEncoder();
 	private readonly decoder = new TextDecoder();
+	private readonly backend: FilesystemBackend;
 
-	constructor(private readonly backend: FilesystemBackend) {
+	constructor(backend: FilesystemBackend) {
 		super();
+		this.backend = backend;
 	}
 
 	async isDir(path: string): Promise<boolean> {

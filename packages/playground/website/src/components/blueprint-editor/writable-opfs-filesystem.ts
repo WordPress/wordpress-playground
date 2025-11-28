@@ -6,7 +6,11 @@ export const OPFS_BASE_PATH = ['blueprints', 'last-edited-bundle'];
  * OPFS filesystem backend that operates directly on the Origin Private File System.
  */
 export class OpfsFilesystemBackend implements FilesystemBackend {
-	constructor(private readonly opfsRoot: FileSystemDirectoryHandle) {}
+	private readonly opfsRoot: FileSystemDirectoryHandle;
+
+	constructor(opfsRoot: FileSystemDirectoryHandle) {
+		this.opfsRoot = opfsRoot;
+	}
 
 	static async create(): Promise<OpfsFilesystemBackend> {
 		const root = await OpfsFilesystemBackend.getOpfsRoot(true);
