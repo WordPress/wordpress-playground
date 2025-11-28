@@ -111,12 +111,15 @@ export function EnsurePlaygroundSiteIsSelected({
 				return;
 			}
 
-			// If only the 'modal' parameter changes in searchParams, don't reload the page
-			const notRefreshingParam = 'modal';
+			// If only UI-related parameters change in searchParams, don't reload the page.
+			// These params control UI state (modals, sidebar, tabs) not the playground itself.
+			const uiOnlyParams = ['modal', 'route'];
 			const oldParams = new URLSearchParams(prevUrl?.search);
 			const newParams = new URLSearchParams(url?.search);
-			oldParams.delete(notRefreshingParam);
-			newParams.delete(notRefreshingParam);
+			for (const param of uiOnlyParams) {
+				oldParams.delete(param);
+				newParams.delete(param);
+			}
 			const avoidUnnecessaryTempSiteReload =
 				activeSite && oldParams.toString() === newParams.toString();
 			if (avoidUnnecessaryTempSiteReload) {

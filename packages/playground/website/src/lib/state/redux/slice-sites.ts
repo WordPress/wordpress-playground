@@ -251,9 +251,11 @@ export function setTemporarySiteSpec(
 		getState: () => PlaygroundReduxState
 	) => {
 		const siteSlug = deriveSlugFromSiteName(siteName);
+		// Filter out UI-only params so they don't cause unnecessary site recreation.
+		// This ensures existing temporary sites are reused when only route/modal changed.
 		const newSiteUrlParams = {
-			searchParams: parseSearchParams(
-				playgroundUrlWithQueryApiArgs.searchParams
+			searchParams: filterUIOnlyParams(
+				parseSearchParams(playgroundUrlWithQueryApiArgs.searchParams)
 			),
 			hash: playgroundUrlWithQueryApiArgs.hash,
 		};
@@ -408,6 +410,22 @@ function parseSearchParams(searchParams: URLSearchParams) {
 		params[key] = value.length > 1 ? value : value[0];
 	}
 	return params;
+}
+
+/**
+ * Filter out UI-only params that don't affect the playground site itself.
+ * These params control UI state (modals, sidebar, tabs) and should not
+ * cause a temporary site to be recreated when they change.
+ */
+function filterUIOnlyParams(
+	searchParams: Record<string, any>
+): Record<string, any> {
+	const uiOnlyParams = ['route', 'modal'];
+	return Object.fromEntries(
+		Object.entries(searchParams).filter(
+			([key]) => !uiOnlyParams.includes(key)
+		)
+	);
 }
 
 /**

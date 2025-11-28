@@ -26,6 +26,7 @@ import {
 	setSiteManagerOpen,
 	setSiteManagerSection,
 	setActiveModal,
+	setActiveTab,
 	modalSlugs,
 } from '../../../lib/state/redux/slice-ui';
 import {
@@ -91,12 +92,18 @@ export function SiteInfoPanel({
 	siteViewHidden?: boolean;
 }) {
 	const offline = useAppSelector((state) => state.ui.offline);
+	const activeTab = useAppSelector((state) => state.ui.activeTab);
 	const dispatch = useAppDispatch();
 
-	// Load the last active tab for this site
+	// Use Redux activeTab if set, otherwise fall back to localStorage for backwards compatibility
 	const [initialTabName] = useState(() => {
+		// If route param provided a tab, use it
+		if (activeTab && activeTab !== 'settings') {
+			return activeTab;
+		}
+		// Otherwise check localStorage for this site's last tab
 		const lastTab = getSiteLastTab(site.slug);
-		return lastTab || 'settings';
+		return lastTab || activeTab || 'settings';
 	});
 
 	// Resolve documentRoot from playground client
@@ -127,8 +134,10 @@ export function SiteInfoPanel({
 		})();
 	}, [site.metadata.originalBlueprint]);
 
-	// Save the tab when it changes
+	// Save the tab when it changes - update Redux (which syncs to URL)
+	// and also localStorage for backwards compatibility
 	const handleTabSelect = (tabName: string) => {
+		dispatch(setActiveTab(tabName));
 		setSiteLastTab(site.slug, tabName);
 	};
 

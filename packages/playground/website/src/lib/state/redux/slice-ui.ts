@@ -1,6 +1,7 @@
 import type { PayloadAction, Middleware } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
 import { BlueprintStepExecutionError } from '@wp-playground/blueprints';
+import { parseRouteParam, updateRouteInUrl } from '../url/router';
 
 export type SiteError =
 	| 'directory-handle-not-found-in-indexeddb'
@@ -117,6 +118,7 @@ export interface UIState {
 		errorDetails?: SerializedSiteErrorDetails;
 	};
 	activeModal: string | null;
+	activeTab: string;
 	githubAuthRepoUrl?: string;
 	offline: boolean;
 	siteManagerIsOpen: boolean;
@@ -128,7 +130,19 @@ const isEmbeddedInAnIframe = window.self !== window.top;
 // @TODO: Centralize these breakpoint sizes.
 const isMobile = window.innerWidth < 875;
 
-const shouldOpenSiteManagerByDefault = false;
+// Parse the route parameter for sidebar/tab state
+const routeState = parseRouteParam(query.get('route'));
+
+// Determine if the sidebar should be forced closed
+const shouldForceSidebarClosed =
+	// The site manager should not be shown at all in seamless mode.
+	query.get('mode') === 'seamless' ||
+	// We do not expect to render the Playground app UI in an iframe.
+	isEmbeddedInAnIframe ||
+	// Don't default to the site manager on mobile, as that would mean
+	// seeing something that's not Playground filling your entire screen –
+	// quite a confusing experience.
+	isMobile;
 
 const initialState: UIState = {
 	/**
@@ -144,22 +158,12 @@ const initialState: UIState = {
 		query.get('modal') === 'github-private-repo-auth'
 			? null
 			: query.get('modal') || null,
+	activeTab: routeState.tab || 'settings',
 	offline: !navigator.onLine,
-	// NOTE: Please do not eliminate the cases in this siteManagerIsOpen expression,
-	// even if they seem redundant. We may experiment which toggling the manager
-	// to be open by default or closed by default, and we do not want to lose
-	// specific reasons for the manager to be closed.
-	siteManagerIsOpen:
-		shouldOpenSiteManagerByDefault &&
-		// The site manager should not be shown at all in seamless mode.
-		query.get('mode') !== 'seamless' &&
-		// We do not expect to render the Playground app UI in an iframe.
-		!isEmbeddedInAnIframe &&
-		// Don't default to the site manager on mobile, as that would mean
-		// seeing something that's not Playground filling your entire screen –
-		// quite a confusing experience.
-		!isMobile,
-	siteManagerSection: 'site-details',
+	siteManagerIsOpen: shouldForceSidebarClosed
+		? false
+		: routeState.sidebarOpen,
+	siteManagerSection: routeState.section,
 };
 
 const uiSlice = createSlice({
@@ -223,12 +227,30 @@ const uiSlice = createSlice({
 		},
 		setSiteManagerOpen: (state, action: PayloadAction<boolean>) => {
 			state.siteManagerIsOpen = action.payload;
+			updateRouteInUrl({
+				sidebarOpen: action.payload,
+				section: state.siteManagerSection,
+				tab: state.activeTab,
+			});
 		},
 		setSiteManagerSection: (
 			state,
 			action: PayloadAction<SiteManagerSection>
 		) => {
 			state.siteManagerSection = action.payload;
+			updateRouteInUrl({
+				sidebarOpen: state.siteManagerIsOpen,
+				section: action.payload,
+				tab: state.activeTab,
+			});
+		},
+		setActiveTab: (state, action: PayloadAction<string>) => {
+			state.activeTab = action.payload;
+			updateRouteInUrl({
+				sidebarOpen: state.siteManagerIsOpen,
+				section: state.siteManagerSection,
+				tab: action.payload,
+			});
 		},
 	},
 });
@@ -268,6 +290,7 @@ export const listenToOnlineOfflineEventsMiddleware: Middleware =
 
 export const {
 	setActiveModal,
+	setActiveTab,
 	setActiveSiteError,
 	clearActiveSiteError,
 	setGitHubAuthRepoUrl,

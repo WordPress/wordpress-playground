@@ -714,6 +714,159 @@ test('should edit a blueprint in the blueprint editor and recreate the playgroun
 	});
 });
 
+test.describe('Route persistence', () => {
+	test('should preserve sidebar open state with details section after reload', async ({
+		website,
+	}) => {
+		// Navigate with route=details (sidebar open, site-details section)
+		await website.goto('./?route=details');
+
+		// Verify sidebar is open
+		const siteManager = website.page.locator('.main-sidebar');
+		await expect(siteManager).toBeVisible();
+
+		// Verify we're on the site-details section (Settings tab should be visible)
+		await expect(
+			website.page.getByRole('tab', { name: 'Settings' })
+		).toBeVisible();
+
+		// Reload the page
+		await website.page.reload();
+		await website.waitForNestedIframes();
+
+		// Verify sidebar is still open after reload
+		await expect(siteManager).toBeVisible();
+
+		// Verify URL still has route=details
+		expect(website.page.url()).toContain('route=details');
+	});
+
+	test('should preserve specific tab state after reload', async ({
+		website,
+	}) => {
+		// Navigate with route=details.files (sidebar open, files tab)
+		await website.goto('./?route=details.files');
+
+		// Verify sidebar is open
+		await expect(website.page.locator('.main-sidebar')).toBeVisible();
+
+		// Verify Files tab is selected
+		const filesTab = website.page.getByRole('tab', {
+			name: 'File browser',
+		});
+		await expect(filesTab).toHaveAttribute('aria-selected', 'true');
+
+		// Reload the page
+		await website.page.reload();
+		await website.waitForNestedIframes();
+
+		// Verify Files tab is still selected after reload
+		await expect(filesTab).toHaveAttribute('aria-selected', 'true');
+
+		// Verify URL still has route=details.files
+		expect(website.page.url()).toContain('route=details.files');
+	});
+
+	test('should preserve blueprints section after reload', async ({
+		website,
+	}) => {
+		// Navigate with route=blueprints
+		await website.goto('./?route=blueprints');
+
+		// Verify sidebar is open
+		await expect(website.page.locator('.main-sidebar')).toBeVisible();
+
+		// Verify we're on the blueprints section (look for blueprints gallery content)
+		await expect(
+			website.page.getByRole('heading', { name: 'Blueprints Gallery' })
+		).toBeVisible();
+
+		// Reload the page
+		await website.page.reload();
+		await website.waitForNestedIframes();
+
+		// Verify we're still on blueprints section
+		await expect(
+			website.page.getByRole('heading', { name: 'Blueprints Gallery' })
+		).toBeVisible();
+
+		// Verify URL still has route=blueprints
+		expect(website.page.url()).toContain('route=blueprints');
+	});
+
+	test('should update URL when switching tabs', async ({ website }) => {
+		await website.goto('./');
+		await website.ensureSiteManagerIsOpen();
+
+		// Click on Files tab
+		await website.page.getByRole('tab', { name: 'File browser' }).click();
+
+		// Verify URL updated to include route=details.files
+		await expect(website.page).toHaveURL(/route=details\.files/);
+
+		// Click on Blueprint tab
+		await website.page.getByRole('tab', { name: 'Blueprint' }).click();
+
+		// Verify URL updated to include route=details.blueprint
+		await expect(website.page).toHaveURL(/route=details\.blueprint/);
+
+		// Click on Database tab
+		await website.page.getByRole('tab', { name: 'Database' }).click();
+
+		// Verify URL updated to include route=details.database
+		await expect(website.page).toHaveURL(/route=details\.database/);
+
+		// Click on Logs tab
+		await website.page.getByRole('tab', { name: 'Logs' }).click();
+
+		// Verify URL updated to include route=details.logs
+		await expect(website.page).toHaveURL(/route=details\.logs/);
+
+		// Click back on Settings tab
+		await website.page.getByRole('tab', { name: 'Settings' }).click();
+
+		// Verify URL updated to route=details (default tab doesn't need suffix)
+		await expect(website.page).toHaveURL(/route=details(?!\.)/);
+	});
+
+	test('should update URL when opening/closing sidebar', async ({
+		website,
+	}) => {
+		await website.goto('./');
+
+		// Initially sidebar should be closed, URL should not have route param
+		await website.ensureSiteManagerIsClosed();
+		expect(website.page.url()).not.toContain('route=');
+
+		// Open sidebar
+		await website.ensureSiteManagerIsOpen();
+
+		// URL should now have route=details
+		await expect(website.page).toHaveURL(/route=details/);
+
+		// Close sidebar
+		await website.ensureSiteManagerIsClosed();
+
+		// URL should not have route param (or route=closed which gets removed)
+		expect(website.page.url()).not.toMatch(/route=details/);
+	});
+
+	test('should preserve closed sidebar state after reload', async ({
+		website,
+	}) => {
+		// Navigate without route param (sidebar closed by default)
+		await website.goto('./');
+		await website.ensureSiteManagerIsClosed();
+
+		// Reload the page
+		await website.page.reload();
+		await website.waitForNestedIframes();
+
+		// Verify sidebar is still closed
+		await expect(website.page.locator('.main-sidebar')).not.toBeVisible();
+	});
+});
+
 test.describe('Database panel', () => {
 	test.beforeEach(async ({ website }) => {
 		await website.goto('./');

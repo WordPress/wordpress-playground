@@ -1,9 +1,102 @@
 import type { SiteInfo } from '../redux/slice-sites';
+import type { SiteManagerSection } from '../redux/slice-ui';
 import { updateUrl } from './router-hooks';
 import { decodeBase64ToString } from '../../base64';
 
 export function redirectTo(url: string) {
 	window.history.pushState({}, '', url);
+}
+
+/**
+ * Route state representation for UI navigation.
+ */
+export type RouteState = {
+	sidebarOpen: boolean;
+	section: SiteManagerSection;
+	tab?: string;
+};
+
+const VALID_TABS = ['settings', 'files', 'blueprint', 'database', 'logs'];
+
+/**
+ * Parse the `route` query parameter into a RouteState object.
+ *
+ * Route format:
+ * - "closed" or absent → sidebar closed
+ * - "sidebar" → sidebar open, section='sidebar'
+ * - "details" → sidebar open, section='site-details', tab='settings'
+ * - "details.{tab}" → sidebar open, section='site-details', specific tab
+ * - "blueprints" → sidebar open, section='blueprints'
+ */
+export function parseRouteParam(route: string | null): RouteState {
+	if (!route || route === 'closed') {
+		return { sidebarOpen: false, section: 'site-details' };
+	}
+
+	if (route === 'sidebar') {
+		return { sidebarOpen: true, section: 'sidebar' };
+	}
+
+	if (route === 'blueprints') {
+		return { sidebarOpen: true, section: 'blueprints' };
+	}
+
+	if (route === 'details') {
+		return { sidebarOpen: true, section: 'site-details', tab: 'settings' };
+	}
+
+	if (route.startsWith('details.')) {
+		const tab = route.substring('details.'.length);
+		if (VALID_TABS.includes(tab)) {
+			return { sidebarOpen: true, section: 'site-details', tab };
+		}
+		// Invalid tab, fall back to settings
+		return { sidebarOpen: true, section: 'site-details', tab: 'settings' };
+	}
+
+	// Unknown route, default to closed
+	return { sidebarOpen: false, section: 'site-details' };
+}
+
+/**
+ * Build a route parameter string from a RouteState object.
+ * Returns undefined if the sidebar is closed (default state).
+ */
+export function buildRouteParam(state: RouteState): string | undefined {
+	if (!state.sidebarOpen) {
+		return undefined;
+	}
+
+	if (state.section === 'sidebar') {
+		return 'sidebar';
+	}
+
+	if (state.section === 'blueprints') {
+		return 'blueprints';
+	}
+
+	// section === 'site-details'
+	if (state.tab && state.tab !== 'settings') {
+		return `details.${state.tab}`;
+	}
+
+	return 'details';
+}
+
+/**
+ * Update the route query parameter in the current URL using replaceState.
+ */
+export function updateRouteInUrl(state: RouteState): void {
+	const url = new URL(window.location.href);
+	const routeValue = buildRouteParam(state);
+
+	if (routeValue === undefined) {
+		url.searchParams.delete('route');
+	} else {
+		url.searchParams.set('route', routeValue);
+	}
+
+	window.history.replaceState({}, '', url.href);
 }
 
 interface QueryAPIParams {
@@ -42,7 +135,14 @@ export class PlaygroundRoute {
 			return updateUrl(baseUrl, site.originalUrlParams || {});
 		} else {
 			const baseParams = new URLSearchParams(baseUrl.split('?')[1]);
-			const preserveParamsKeys = ['mode', 'networking', 'login', 'url'];
+			// Preserve UI-related params and display mode params when switching sites
+			const preserveParamsKeys = [
+				'mode',
+				'networking',
+				'login',
+				'url',
+				'route',
+			];
 			const preserveParams: Record<string, string | null> = {};
 			for (const param of preserveParamsKeys) {
 				if (baseParams.has(param)) {

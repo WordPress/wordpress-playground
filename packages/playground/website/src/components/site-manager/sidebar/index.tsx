@@ -28,7 +28,10 @@ import {
 	selectTemporarySite,
 } from '../../../lib/state/redux/slice-sites';
 import { PlaygroundRoute, redirectTo } from '../../../lib/state/url/router';
-import { setSiteManagerSection } from '../../../lib/state/redux/slice-ui';
+import {
+	setSiteManagerSection,
+	setActiveTab,
+} from '../../../lib/state/redux/slice-ui';
 import { WordPressPRMenuItem } from '../../toolbar-buttons/wordpress-pr-menu-item';
 import { GutenbergPRMenuItem } from '../../toolbar-buttons/gutenberg-pr-menu-item';
 import { RestoreFromZipMenuItem } from '../../toolbar-buttons/restore-from-zip';
@@ -56,6 +59,7 @@ export function Sidebar({
 	const onSiteClick = (slug: string) => {
 		dispatch(setActiveSite(slug));
 		dispatch(setSiteManagerSection('site-details'));
+		dispatch(setActiveTab('settings'));
 		afterSiteClick?.(slug);
 	};
 
@@ -190,7 +194,7 @@ export function Sidebar({
 						{...(activeSite?.metadata.storage === 'none'
 							? {
 									'aria-current': 'page',
-							  }
+								}
 							: {})}
 					>
 						<HStack justify="flex-start" alignment="center">
@@ -269,7 +273,7 @@ export function Sidebar({
 										{...(isSelected
 											? {
 													'aria-current': 'page',
-											  }
+												}
 											: {})}
 									>
 										<HStack
