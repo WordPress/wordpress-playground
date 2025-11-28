@@ -52,7 +52,7 @@ export function SiteDatabasePanel({
 	return (
 		<VStack spacing={4}>
 			<Notice
-				className={css.earlyAccessNotice}
+				className={css.siteNotice}
 				status="info"
 				isDismissible={false}
 			>
@@ -80,7 +80,7 @@ export function SiteDatabasePanel({
 					>
 						GitHub issue tracker.
 					</a>
-				</p>
+				</p>{' '}
 			</Notice>
 
 			<VStack spacing={3} style={{ alignItems: 'flex-start' }}>

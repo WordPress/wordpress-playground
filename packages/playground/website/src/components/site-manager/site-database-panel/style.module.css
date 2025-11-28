@@ -31,11 +31,9 @@
 	margin-top: 8px;
 }
 
-.earlyAccessNotice {
+.siteNotice {
+	padding: 24px;
 	background-color: #f3f6fd;
-	border: 0;
-	margin: 0;
-	font-size: 1.1rem;
 }
 
 .buttonGroup {
