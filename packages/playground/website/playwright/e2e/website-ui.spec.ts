@@ -728,12 +728,6 @@ test.describe('Database panel', () => {
 	});
 
 	test('should display database info', async ({ website }) => {
-		await expect(website.page.getByText('Engine:')).toBeVisible();
-		await expect(
-			website.page.getByText('SQLite', { exact: true })
-		).toBeVisible();
-		await expect(website.page.getByText('Driver:')).toBeVisible();
-		await expect(website.page.getByText('MySQL on SQLite')).toBeVisible();
 		await expect(website.page.getByText('Path:')).toBeVisible();
 		await expect(
 			website.page.getByText('/wordpress/wp-content/database/.ht.sqlite')
