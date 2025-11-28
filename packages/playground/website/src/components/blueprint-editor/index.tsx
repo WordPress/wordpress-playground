@@ -1186,27 +1186,6 @@ export function JSONSchemaEditor({
 				activateOnTyping: true,
 				closeOnBlur: false,
 			}),
-			// Double-click handler to open string editor
-			EditorView.domEventHandlers({
-				dblclick: (event, view) => {
-					const pos = view.posAtCoords({
-						x: event.clientX,
-						y: event.clientY,
-					});
-					if (pos !== null) {
-						const stringInfo = getStringNodeAtPosition(
-							view.state.doc,
-							pos
-						);
-						if (stringInfo) {
-							// Use setTimeout to allow the selection to complete first
-							setTimeout(() => openStringEditor(), 0);
-							return true;
-						}
-					}
-					return false;
-				},
-			}),
 			// String editor toolbar tooltip
 			createStringEditorTooltip(openStringEditor),
 			// Styles for the string editor toolbar
