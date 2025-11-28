@@ -127,8 +127,6 @@ export interface UIState {
 
 const query = new URL(document.location.href).searchParams;
 const isEmbeddedInAnIframe = window.self !== window.top;
-// @TODO: Centralize these breakpoint sizes.
-const isMobile = window.innerWidth < 875;
 
 // Parse the route parameter for sidebar/tab state
 const routeState = parseRouteParam(query.get('route'));
