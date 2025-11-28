@@ -195,14 +195,19 @@ jobs:
                 include:
                     - browser: 'chromium'
                       shard: '1/4'
+                      shard_name: '1-of-4'
                     - browser: 'chromium'
                       shard: '2/4'
+                      shard_name: '2-of-4'
                     - browser: 'chromium'
                       shard: '3/4'
+                      shard_name: '3-of-4'
                     - browser: 'chromium'
                       shard: '4/4'
+                      shard_name: '4-of-4'
                     - browser: 'firefox'
                       shard: ''
+                      shard_name: ''
         steps:
             - name: Free up runner disk space
               shell: bash
@@ -239,13 +244,13 @@ jobs:
             - uses: actions/upload-artifact@v4
               if: ${{ !cancelled() }}
               with:
-                  name: playwright-report-${{ matrix.browser }}${{ matrix.shard && format('-shard-{0}', replace(matrix.shard, '/', '-of-')) || '' }}
+                  name: playwright-report-${{ matrix.browser }}${{ matrix.shard_name && format('-shard-{0}', matrix.shard_name) || '' }}
                   path: packages/playground/website/playwright-report/
                   if-no-files-found: ignore
             - uses: actions/upload-artifact@v4
               if: ${{ !cancelled() }}
               with:
-                  name: playwright-snapshots-${{ matrix.browser }}${{ matrix.shard && format('-shard-{0}', replace(matrix.shard, '/', '-of-')) || '' }}
+                  name: playwright-snapshots-${{ matrix.browser }}${{ matrix.shard_name && format('-shard-{0}', matrix.shard_name) || '' }}
                   path: packages/playground/website/playwright/e2e/deployment.spec.ts-snapshots/
                   if-no-files-found: ignore
 
