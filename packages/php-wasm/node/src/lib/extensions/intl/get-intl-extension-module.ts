@@ -21,6 +21,13 @@ export async function getIntlExtensionModule(
 	 */
 	if (await jspi()) {
 		switch (version) {
+			case '8.5':
+				return (
+					await import(
+						// @ts-ignore
+						`../../../../jspi/extensions/intl/8_5/intl.so?url`
+					)
+				).default;
 			case '8.4':
 				return (
 					await import(
@@ -80,6 +87,13 @@ export async function getIntlExtensionModule(
 		}
 	} else {
 		switch (version) {
+			case '8.5':
+				return (
+					await import(
+						// @ts-ignore
+						`../../../../asyncify/extensions/intl/8_5/intl.so?url`
+					)
+				).default;
 			case '8.4':
 				return (
 					await import(

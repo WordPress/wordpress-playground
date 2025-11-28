@@ -58,11 +58,17 @@ RUN cd /root && git apply --no-index /root/php${PHP_VERSION:0:3}*.patch -v
 
 RUN source /root/emsdk/emsdk_env.sh && \
 	cd php-src && \
+	OPCACHE_FLAGS=""; \
+	if [[ "${PHP_VERSION:0:1}" -ge "8" && "${PHP_VERSION:2:1}" -ge "5" ]]; then \
+		OPCACHE_FLAGS="--enable-opcache --disable-opcache-jit --disable-huge-code-pages"; \
+	else \
+		OPCACHE_FLAGS="--disable-opcache"; \
+	fi; \
 	emconfigure ./configure \
 	--disable-fiber-asm \
 	--enable-embed \
 	--disable-cgi \
-	--disable-opcache \
+	$OPCACHE_FLAGS \
 	--disable-phpdbg \
 	--without-pcre-jit \
 	--disable-cli \
