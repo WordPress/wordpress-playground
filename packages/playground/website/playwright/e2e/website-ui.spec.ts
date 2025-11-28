@@ -2,11 +2,6 @@ import { test, expect } from '../playground-fixtures.ts';
 import type { Blueprint } from '@wp-playground/blueprints';
 import type { Page } from '@playwright/test';
 
-// Many tests in this file interact with OPFS storage (saving sites, switching
-// between sites). OPFS is shared at the browser level, so tests must run
-// serially to avoid interfering with each other's saved sites.
-test.describe.configure({ mode: 'serial' });
-
 // We can't import the SupportedPHPVersions versions directly from the remote package
 // because of ESModules vs CommonJS incompatibilities. Let's just import the
 // JSON file directly. @ts-ignore
@@ -14,6 +9,11 @@ test.describe.configure({ mode: 'serial' });
 import { SupportedPHPVersions } from '../../../../php-wasm/universal/src/lib/supported-php-versions.ts';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import * as MinifiedWordPressVersions from '../../../wordpress-builds/src/wordpress/wp-versions.json';
+
+// Many tests in this file interact with OPFS storage (saving sites, switching
+// between sites). OPFS is shared at the browser level, so tests must run
+// serially to avoid interfering with each other's saved sites.
+test.describe.configure({ mode: 'serial' });
 
 /**
  * Helper function to handle the save site modal flow
