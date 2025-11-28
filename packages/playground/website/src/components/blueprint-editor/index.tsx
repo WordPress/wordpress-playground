@@ -53,8 +53,18 @@ import {
 	resolveSchemaRefs,
 } from './schema-utils';
 import { StringEditorModal } from './string-editor-modal';
-import { escapeJsonString, unescapeJsonString } from './string-utils';
 import type { JSONSchema, JSONSchemaCompletionConfig } from './types';
+
+/**
+ * Try to parse a JSON string value. Returns the parsed string or null if invalid.
+ */
+function tryParseJsonString(rawValue: string): string | null {
+	try {
+		return JSON.parse(`"${rawValue}"`);
+	} catch {
+		return null;
+	}
+}
 
 interface JSONSchemaEditorProps {
 	config?: JSONSchemaCompletionConfig;
@@ -1019,6 +1029,11 @@ function createStringEditorTooltip(openStringEditor: () => boolean) {
 				return null;
 			}
 
+			// Only show the button if the string can be JSON-parsed
+			if (tryParseJsonString(stringInfo.rawValue) === null) {
+				return null;
+			}
+
 			return {
 				pos: stringInfo.contentStart,
 				above: true,
@@ -1128,16 +1143,18 @@ export function JSONSchemaEditor({
 
 		if (!stringInfo) return false;
 
-		const unescapedValue = unescapeJsonString(stringInfo.rawValue);
+		const parsedValue = tryParseJsonString(stringInfo.rawValue);
+		if (parsedValue === null) return false;
+
 		const language = detectLanguage(
 			stringInfo.path,
 			stringInfo.stepType,
-			unescapedValue
+			parsedValue
 		);
 
 		setStringEditorState({
 			isOpen: true,
-			initialValue: unescapedValue,
+			initialValue: parsedValue,
 			language,
 			contentStart: stringInfo.contentStart,
 			contentEnd: stringInfo.contentEnd,
@@ -1152,7 +1169,8 @@ export function JSONSchemaEditor({
 			const view = viewRef.current;
 			if (!view) return;
 
-			const escapedValue = escapeJsonString(newValue);
+			// JSON.stringify adds surrounding quotes, so we strip them
+			const escapedValue = JSON.stringify(newValue).slice(1, -1);
 
 			view.dispatch({
 				changes: {
