@@ -481,7 +481,7 @@ export function SiteInfoPanel({
 							},
 							{
 								name: 'database',
-								title: 'Database',
+								title: 'Database (early access)',
 							},
 							{
 								name: 'logs',

@@ -21,12 +21,19 @@
 	padding: 2px 6px;
 	border-radius: 3px;
 	font-size: 12px;
-	font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier,
-		monospace;
+	font-family:
+		'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
 }
 
 .error {
 	color: #cc1818;
 	font-size: 13px;
 	margin-top: 8px;
+}
+
+.earlyAccessNotice {
+	background-color: #f3f6fd;
+	border: 0;
+	margin: 0;
+	font-size: 1.1rem;
 }
