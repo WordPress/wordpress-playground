@@ -23,6 +23,12 @@ import { OpfsFilesystemBackend } from './writable-opfs-filesystem';
 
 export const BLUEPRINT_JSON_PATH = '/blueprint.json';
 
+/**
+ * Track which sites have had the autosave prompt answered this session.
+ * This prevents asking the user again if they navigate away and return.
+ */
+const autosavePromptAnswered: Record<string, boolean> = {};
+
 export interface AutosavedBlueprintBundleEditorHandle {
 	downloadBundle: () => Promise<void>;
 	getBundle: () => Promise<AsyncWritableFilesystem | null>;
@@ -77,19 +83,23 @@ export const AutosavedBlueprintBundleEditor = forwardRef<
 
 			// Do we have a prior autosave? The user may want to restore it.
 			if (await OpfsFilesystemBackend.hasSavedBundle()) {
-				// We have one! Before we ask the user if they want to restore the autosave, let's
-				// check if we already did – perhaps the current site's Blueprint was already loaded
-				// from a prior autosave.
-				if (
-					site.metadata.originalBlueprintSource.type !==
-					'local-editor'
-				) {
-					// The current site wasn't loaded from the autosave.
-					// Ask the user if they want to restore it.
+				// We have one! Check if the user has already answered the restore prompt
+				// for this site (e.g., they navigated away and came back).
+				const alreadyAnswered = autosavePromptAnswered[site.slug];
+
+				// Also check if the current site was loaded from a prior autosave.
+				const loadedFromAutosave =
+					site.metadata.originalBlueprintSource.type ===
+					'local-editor';
+
+				if (!alreadyAnswered && !loadedFromAutosave) {
+					// The current site wasn't loaded from the autosave and the user
+					// hasn't answered the prompt yet. Ask them what to do.
 					setAutosavePromptVisible(true);
 					return;
 				}
-				// The current site was already loaded from the autosave.
+
+				// Either the user already answered, or the site was loaded from autosave.
 				// Continue editing with OPFS.
 				hasMigratedToOpfs.current = true;
 				try {
@@ -129,6 +139,11 @@ export const AutosavedBlueprintBundleEditor = forwardRef<
 			const opfsBackend = await OpfsFilesystemBackend.create();
 			await opfsBackend.clear();
 
+			// Clear the "answered" flag since we're starting fresh.
+			// If the user makes changes, they'll create a new autosave,
+			// and we shouldn't skip the prompt next time if they reload.
+			delete autosavePromptAnswered[site.slug];
+
 			const fs = new WritableFilesystem(new InMemoryFilesystemBackend());
 			await fs.populateFromBlueprint(
 				site.metadata.originalBlueprint as Blueprint
@@ -149,6 +164,10 @@ export const AutosavedBlueprintBundleEditor = forwardRef<
 	const restoreAutosave = async () => {
 		setAutosaveErrorMessage(null);
 		try {
+			// Remember that the user chose to restore, so we don't ask again
+			// if they navigate away and return.
+			autosavePromptAnswered[site.slug] = true;
+
 			hasMigratedToOpfs.current = true;
 			const fs = new WritableFilesystem(
 				await OpfsFilesystemBackend.create()
@@ -185,6 +204,10 @@ export const AutosavedBlueprintBundleEditor = forwardRef<
 				const opfsFilesystem = new WritableFilesystem(opfsBackend);
 				await copyFilesystem(filesystem, opfsFilesystem);
 				setFilesystem(opfsFilesystem);
+
+				// Mark the prompt as answered since the user is now editing
+				// their own autosave. They shouldn't be asked again.
+				autosavePromptAnswered[site.slug] = true;
 			} catch (error) {
 				logger.error(
 					'Failed to migrate to OPFS for autosave. Continuing with in-memory filesystem.',
@@ -196,7 +219,7 @@ export const AutosavedBlueprintBundleEditor = forwardRef<
 		return () => {
 			filesystem.removeEventListener('change', migrateToOpfs);
 		};
-	}, [filesystem, readOnly]);
+	}, [filesystem, readOnly, site.slug]);
 
 	useImperativeHandle(
 		ref,
