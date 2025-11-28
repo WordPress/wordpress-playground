@@ -1,7 +1,11 @@
 import type { AsyncWritableFilesystem } from '@wp-playground/components';
-import type { BlueprintBundle } from '@wp-playground/blueprints';
+import {
+	type Blueprint,
+	type BlueprintBundle,
+	BlueprintReflection,
+} from '@wp-playground/blueprints';
 import { StreamedFile } from '@php-wasm/stream-compression';
-import { ensureAbsolutePath } from '@php-wasm/util';
+import { dirname, ensureAbsolutePath } from '@php-wasm/util';
 
 /**
  * Backend interface for filesystem operations.
@@ -17,6 +21,7 @@ export interface FilesystemBackend {
 	rmdir(absolutePath: string, recursive: boolean): Promise<void>;
 	mv(absoluteSource: string, absoluteDestination: string): Promise<void>;
 	unlink(absolutePath: string): Promise<void>;
+	clear(): Promise<void>;
 }
 
 /**
@@ -106,4 +111,77 @@ export class WritableFilesystem
 			filesize: content.byteLength,
 		});
 	}
+
+	async clear(): Promise<void> {
+		await this.backend.clear();
+		this.dispatchEvent(new Event('change'));
+	}
+
+	/**
+	 * Populate the filesystem with the contents of a Blueprint.
+	 * Writes blueprint.json and all bundled resources.
+	 */
+	async populateFromBlueprint(blueprint: Blueprint): Promise<void> {
+		const reflection = await BlueprintReflection.create(blueprint);
+		const declaration = reflection.getDeclaration();
+		const bundle = reflection.getBundle();
+
+		await this.writeFile(
+			'/blueprint.json',
+			JSON.stringify(declaration, null, 2)
+		);
+
+		if (bundle) {
+			for (const path of collectBundledResourcePaths(declaration)) {
+				const absolutePath = ensureAbsolutePath(path);
+				// For each path referenced in the blueprint, try to read the
+				// accompanying file from the bundle. Some files might be missing,
+				// this is fine – we'll just skip them here.
+				let content: Uint8Array | string = '';
+				try {
+					const file = await bundle.read(absolutePath);
+					content = new Uint8Array(await file.arrayBuffer());
+				} catch {
+					continue;
+				}
+				const parent = dirname(absolutePath);
+				if (!(await this.fileExists(parent))) {
+					await this.mkdir(parent);
+				}
+				await this.writeFile(absolutePath, content);
+			}
+		}
+	}
+}
+
+function collectBundledResourcePaths(value: unknown): Set<string> {
+	const accumulator = new Set<string>();
+	const stack: unknown[] = [value];
+	while (stack.length) {
+		const current = stack.pop();
+		if (!current || typeof current !== 'object') {
+			continue;
+		}
+
+		if (Array.isArray(current)) {
+			for (const item of current) {
+				stack.push(item);
+			}
+			continue;
+		}
+
+		const candidate = current as { resource?: unknown; path?: unknown };
+		if (
+			candidate.resource === 'bundled' &&
+			typeof candidate.path === 'string'
+		) {
+			accumulator.add(ensureAbsolutePath(candidate.path));
+		}
+
+		for (const child of Object.values(current)) {
+			stack.push(child);
+		}
+	}
+
+	return accumulator;
 }

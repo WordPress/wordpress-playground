@@ -84,6 +84,10 @@ export class InMemoryFilesystemBackend implements FilesystemBackend {
 		}
 	}
 
+	async clear(): Promise<void> {
+		this.root = { type: 'dir', children: {} };
+	}
+
 	// --- Internal helpers ---
 	private writeFileSync(absolutePath: string, data: Uint8Array): void {
 		const { parent, name } = this.getParent(absolutePath);

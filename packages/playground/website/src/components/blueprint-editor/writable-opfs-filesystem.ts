@@ -35,14 +35,10 @@ export class OpfsFilesystemBackend implements FilesystemBackend {
 		return false;
 	}
 
-	static async discardSavedBundle(): Promise<void> {
-		const root = await OpfsFilesystemBackend.getOpfsRoot();
-		if (!root) {
-			return;
-		}
-		for await (const [name] of root.entries()) {
+	async clear(): Promise<void> {
+		for await (const [name] of this.opfsRoot.entries()) {
 			try {
-				await root.removeEntry(name, { recursive: true });
+				await this.opfsRoot.removeEntry(name, { recursive: true });
 			} catch {
 				/* ignore */
 			}

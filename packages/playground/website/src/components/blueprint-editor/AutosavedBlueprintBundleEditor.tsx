@@ -16,13 +16,13 @@ import {
 // Reuse the file browser layout styles to keep UI consistent
 import type { SiteInfo } from '../../lib/state/redux/slice-sites';
 import styles from '../site-manager/site-file-browser/style.module.css';
-import { convertBlueprintToWritableFilesystem } from './convert-blueprint-to-filesystem';
-import { WritableFilesystem as WritableFilesystemClass } from './writable-filesystem';
+import { WritableFilesystem } from './writable-filesystem';
 import { OpfsFilesystemBackend } from './writable-opfs-filesystem';
 import {
 	type BlueprintBundleEditorHandle,
 	BlueprintBundleEditor,
 } from './BlueprintBundleEditor';
+import { InMemoryFilesystemBackend } from './writable-in-memory-filesystem';
 
 export const BLUEPRINT_JSON_PATH = '/blueprint.json';
 
@@ -47,8 +47,9 @@ export const AutosavedBlueprintBundleEditor = forwardRef<
 	AutosavedBlueprintBundleEditorHandle,
 	AutosavedBlueprintBundleEditorProps
 >(function ({ initialBlueprint, onChange, className, site }, ref) {
-	const [filesystem, setFilesystem] =
-		useState<AsyncWritableFilesystem | null>(null);
+	const [filesystem, setFilesystem] = useState<WritableFilesystem | null>(
+		null
+	);
 	const [autosavePromptVisible, setAutosavePromptVisible] = useState(false);
 	const [autosaveErrorMessage, setAutosaveErrorMessage] = useState<
 		string | null
@@ -71,12 +72,10 @@ export const AutosavedBlueprintBundleEditor = forwardRef<
 
 			// Otherwise, initialize the filesystem from the initial blueprint:
 			try {
-				const fs =
-					await convertBlueprintToWritableFilesystem(
-						initialBlueprint
-					);
+				const fs = await createWritableFilesystem();
+				await fs.populateFromBlueprint(initialBlueprint);
 				fs.addEventListener('change', () => {
-					onChange?.(fs as any);
+					onChange?.(fs as BlueprintBundle);
 				});
 				setFilesystem(fs);
 			} catch (error) {
@@ -94,11 +93,9 @@ export const AutosavedBlueprintBundleEditor = forwardRef<
 	const restoreAutosave = async () => {
 		setAutosaveErrorMessage(null);
 		try {
-			const fs = new WritableFilesystemClass(
-				await OpfsFilesystemBackend.loadFromOpfs()
-			);
+			const fs = await loadWritableFilesystemFromOpfs();
 			fs.addEventListener('change', () => {
-				onChange?.(fs as any);
+				onChange?.(fs as BlueprintBundle);
 			});
 			setFilesystem(fs);
 			setAutosaveErrorMessage(null);
@@ -116,11 +113,11 @@ export const AutosavedBlueprintBundleEditor = forwardRef<
 	const discardAutosave = async () => {
 		setAutosaveErrorMessage(null);
 		try {
-			await OpfsFilesystemBackend.discardSavedBundle();
-			const fs =
-				await convertBlueprintToWritableFilesystem(initialBlueprint);
+			const fs = await createWritableFilesystem();
+			await fs.clear();
+			await fs.populateFromBlueprint(initialBlueprint);
 			fs.addEventListener('change', () => {
-				onChange?.(fs as any);
+				onChange?.(fs as BlueprintBundle);
 			});
 			setFilesystem(fs);
 			setAutosavePromptVisible(false);
@@ -189,3 +186,21 @@ export const AutosavedBlueprintBundleEditor = forwardRef<
 });
 
 export default AutosavedBlueprintBundleEditor;
+
+/**
+ * Create a new WritableFilesystem with OPFS backend, falling back to in-memory.
+ */
+async function createWritableFilesystem(): Promise<WritableFilesystem> {
+	try {
+		return new WritableFilesystem(await OpfsFilesystemBackend.create());
+	} catch {
+		return new WritableFilesystem(new InMemoryFilesystemBackend());
+	}
+}
+
+/**
+ * Load an existing WritableFilesystem from OPFS.
+ */
+async function loadWritableFilesystemFromOpfs(): Promise<WritableFilesystem> {
+	return new WritableFilesystem(await OpfsFilesystemBackend.loadFromOpfs());
+}
