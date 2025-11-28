@@ -100,10 +100,14 @@ const baseFilesystem: DirNode = {
 
 const cloneStructure = <T,>(value: T): T => structuredClone(value);
 
-class InMemoryFilesystem implements AsyncWritableFilesystem {
+class InMemoryFilesystem
+	extends EventTarget
+	implements AsyncWritableFilesystem
+{
 	private root: DirNode;
 
 	constructor(snapshot: DirNode) {
+		super();
 		this.root = snapshot;
 	}
 
