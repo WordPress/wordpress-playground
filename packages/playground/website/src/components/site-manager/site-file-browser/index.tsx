@@ -502,6 +502,52 @@ export function SiteFileBrowser({
 	);
 }
 
+/**
+ * Wraps a PlaygroundClient to satisfy AsyncWritableFilesystem interface
+ * which requires EventTarget methods.
+ */
+class ClientFilesystemWrapper
+	extends EventTarget
+	implements AsyncWritableFilesystem
+{
+	private client: PlaygroundClient;
+
+	constructor(client: PlaygroundClient) {
+		super();
+		this.client = client;
+	}
+	isDir(path: string) {
+		return this.client.isDir(path);
+	}
+	fileExists(path: string) {
+		return this.client.fileExists(path);
+	}
+	readFileAsBuffer(path: string) {
+		return this.client.readFileAsBuffer(path);
+	}
+	readFileAsText(path: string) {
+		return this.client.readFileAsText(path);
+	}
+	listFiles(path: string) {
+		return this.client.listFiles(path);
+	}
+	writeFile(path: string, data: string | Uint8Array) {
+		return this.client.writeFile(path, data);
+	}
+	mkdir(path: string) {
+		return this.client.mkdir(path);
+	}
+	rmdir(path: string, options?: { recursive?: boolean }) {
+		return this.client.rmdir(path, options);
+	}
+	mv(source: string, destination: string) {
+		return this.client.mv(source, destination);
+	}
+	unlink(path: string) {
+		return this.client.unlink(path);
+	}
+}
+
 function useFilesystem(
 	client: PlaygroundClient | null
 ): AsyncWritableFilesystem | null {
@@ -509,21 +555,7 @@ function useFilesystem(
 		if (!client) {
 			return null;
 		}
-		return {
-			isDir: (path: string) => client.isDir(path),
-			fileExists: (path: string) => client.fileExists(path),
-			readFileAsBuffer: (path: string) => client.readFileAsBuffer(path),
-			readFileAsText: (path: string) => client.readFileAsText(path),
-			listFiles: (path: string) => client.listFiles(path),
-			writeFile: (path: string, data: string | Uint8Array) =>
-				client.writeFile(path, data),
-			mkdir: (path: string) => client.mkdir(path),
-			rmdir: (path: string, options?: { recursive?: boolean }) =>
-				client.rmdir(path, options),
-			mv: (source: string, destination: string) =>
-				client.mv(source, destination),
-			unlink: (path: string) => client.unlink(path),
-		};
+		return new ClientFilesystemWrapper(client);
 	}, [client]);
 }
 
