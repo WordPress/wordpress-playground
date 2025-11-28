@@ -6,6 +6,9 @@ import {
 	opfsSiteStorage,
 	getDirectoryPathForSlug,
 } from '../opfs/opfs-site-storage';
+import { persistBlueprintBundle } from '../opfs/opfs-blueprint-bundle-storage';
+import { OpfsFilesystemBackend } from '../../../components/blueprint-editor/writable-opfs-filesystem';
+import { WritableFilesystem } from '../../../components/blueprint-editor/writable-filesystem';
 import type { PlaygroundReduxState } from './store';
 import type store from './store';
 import { selectClientBySiteSlug, updateClientInfo } from './slice-clients';
@@ -76,6 +79,47 @@ export function persistTemporarySite(
 			// between successful and failed saves.
 			storage: 'none',
 		});
+
+		// Persist the blueprint bundle if available.
+		// First, check if originalBlueprint is already a filesystem (from clicking "Run Blueprint").
+		// If not, check if there's an autosaved bundle in OPFS (from editing without running).
+		let bundleToPersist: {
+			listFiles(path: string): Promise<string[]>;
+			isDir(path: string): Promise<boolean>;
+			readFileAsBuffer(path: string): Promise<Uint8Array>;
+		} | null = null;
+
+		const originalBlueprint = siteInfo.metadata.originalBlueprint;
+		if (
+			originalBlueprint &&
+			typeof originalBlueprint === 'object' &&
+			'listFiles' in originalBlueprint &&
+			'isDir' in originalBlueprint &&
+			'readFileAsBuffer' in originalBlueprint
+		) {
+			bundleToPersist =
+				originalBlueprint as unknown as typeof bundleToPersist;
+		} else if (await OpfsFilesystemBackend.hasSavedBundle()) {
+			// There's an autosaved bundle from the blueprint editor.
+			// Use that instead.
+			try {
+				const opfsBackend = await OpfsFilesystemBackend.create();
+				bundleToPersist = new WritableFilesystem(opfsBackend);
+			} catch (error) {
+				logger.error('Failed to load autosaved bundle', error);
+			}
+		}
+
+		let bundleWasPersisted = false;
+		if (bundleToPersist) {
+			try {
+				await persistBlueprintBundle(siteSlug, bundleToPersist);
+				bundleWasPersisted = true;
+			} catch (error) {
+				logger.error('Failed to persist blueprint bundle', error);
+				// Continue with the save - the bundle is optional
+			}
+		}
 
 		let mountDescriptor: Omit<MountDescriptor, 'initialSyncDirection'>;
 		if (storageType === 'opfs') {
@@ -192,10 +236,18 @@ export function persistTemporarySite(
 					// on the next page load.
 					runtimeConfiguration: {
 						...siteInfo.metadata.runtimeConfiguration,
-						constants: await getPlaygroundDefinedPHPConstants(
-							playground
-						),
+						constants:
+							await getPlaygroundDefinedPHPConstants(playground),
 					},
+					// If we persisted a blueprint bundle, point to it so we can
+					// load the full bundle (not just the declaration) on next load.
+					...(bundleWasPersisted
+						? {
+								originalBlueprintSource: {
+									type: 'bundle-directory' as const,
+								},
+							}
+						: {}),
 					...(trimmedName ? { name: trimmedName } : {}),
 				},
 			})

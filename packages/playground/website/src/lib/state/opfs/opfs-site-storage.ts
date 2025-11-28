@@ -17,6 +17,7 @@ import {
 } from '@wp-playground/blueprints';
 import type { SupportedPHPVersion } from '@php-wasm/universal';
 import { RecommendedPHPVersion } from '@wp-playground/common';
+import { PersistedBlueprintBundle } from './opfs-blueprint-bundle-storage';
 
 const ROOT_PATH = '/sites';
 // TODO: Decide on metadata filename
@@ -131,7 +132,27 @@ class OpfsSiteStorage {
 		// TODO: Backfill site info file if missing, detecting actual WP version if possible
 		//       ^ do not do it implicitly. Require user interaction. Maybe constrain this just
 		//         to the site files import flow.
-		return storedFormatToMetadata(await file.text());
+		const siteInfo = storedFormatToMetadata(await file.text());
+
+		// If the blueprint source points to the bundle directory, load from there.
+		// This allows the site to access bundled resources, not just the JSON declaration.
+		if (
+			siteInfo.metadata.originalBlueprintSource?.type ===
+			BUNDLE_DIR_SOURCE_TYPE
+		) {
+			try {
+				siteInfo.metadata.originalBlueprint =
+					await PersistedBlueprintBundle.create(siteInfo.slug);
+			} catch (error) {
+				logger.error(
+					`Failed to load blueprint bundle for site ${siteInfo.slug}`,
+					error
+				);
+				// Continue with the JSON declaration
+			}
+		}
+
+		return siteInfo;
 	}
 
 	async delete(slug: string): Promise<void> {
@@ -154,14 +175,35 @@ export function getDirectoryNameForSlug(slug: string) {
 	return `site-${slug}`.replaceAll(/[^a-zA-Z0-9_-]/g, '-');
 }
 
+const BUNDLE_DIR_SOURCE_TYPE = 'bundle-directory';
+
 async function metadataToStoredFormat(
 	slug: string,
-	{ originalBlueprint, ...metadata }: SiteMetadata
+	{ originalBlueprint, originalBlueprintSource, ...metadata }: SiteMetadata
 ): Promise<string> {
+	// If the blueprint is stored in the bundle directory, don't duplicate it in the JSON.
+	// Just reference the directory path.
+	if (originalBlueprintSource?.type === BUNDLE_DIR_SOURCE_TYPE) {
+		return JSON.stringify(
+			{
+				slug,
+				originalBlueprintSource: { type: BUNDLE_DIR_SOURCE_TYPE },
+				// Store minimal blueprint info for display purposes
+				originalBlueprint: originalBlueprint
+					? await getBlueprintDeclaration(originalBlueprint)
+					: undefined,
+				...metadata,
+			},
+			undefined,
+			'  '
+		);
+	}
+
 	return JSON.stringify(
 		{
 			slug,
 			originalBlueprint: await getBlueprintDeclaration(originalBlueprint),
+			originalBlueprintSource,
 			...metadata,
 		},
 		undefined,
