@@ -194,8 +194,8 @@ if (!defined('Adminer\DRIVER')) {
 
 		function fetch_field(): \stdClass {
 			$column = (object) $this->columns[$this->col_offset++];
-			$column->type = $column['mysqli:type'];
-			$column->charsetnr = $column['mysqli:charsetnr'];
+			$column->type = $column->{'mysqli:type'};
+			$column->charsetnr = $column->{'mysqli:charsetnr'};
 			return $column;
 		}
 	}
