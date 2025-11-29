@@ -1,4 +1,11 @@
 import { autocompletion } from '@codemirror/autocomplete';
+import { StateField, type Extension } from '@codemirror/state';
+import {
+	EditorView,
+	keymap,
+	showTooltip,
+	type Tooltip,
+} from '@codemirror/view';
 import { logger } from '@php-wasm/logger';
 import { Button, Icon, Notice } from '@wordpress/components';
 import { download } from '@wordpress/icons';
@@ -20,7 +27,16 @@ import {
 	type CodeEditorHandle,
 } from '../site-manager/site-file-browser/code-editor';
 import { FileExplorerSidebar } from './file-explorer-sidebar';
-import { jsonSchemaCompletion } from './json-schema-editor/jsonSchemaCompletion';
+import {
+	formatEditor,
+	getStringNodeAtPosition,
+	jsonSchemaCompletion,
+} from './json-schema-editor/jsonSchemaCompletion';
+import {
+	inferLanguageFromBlueprint,
+	type SupportedLanguage,
+} from './infer-language-from-blueprint';
+import { StringEditorModal } from './string-editor-modal';
 // Reuse the file browser layout styles to keep UI consistent
 import { useDebouncedCallback } from '../../lib/hooks/use-debounced-callback';
 import { removeClientInfo } from '../../lib/state/redux/slice-clients';
@@ -32,6 +48,143 @@ import hideRootStyles from './hide-root.module.css';
 import type { EventedFilesystem } from '@wp-playground/storage';
 
 const BLUEPRINT_JSON_PATH = '/blueprint.json';
+
+interface StringEditorState {
+	isOpen: boolean;
+	initialValue: string;
+	language: SupportedLanguage;
+	contentStart: number;
+	contentEnd: number;
+}
+
+/**
+ * Create the string editor toolbar tooltip extension
+ */
+function createStringEditorTooltip(openStringEditor: () => boolean): Extension {
+	const stringEditorTooltipField = StateField.define<Tooltip | null>({
+		create() {
+			return null;
+		},
+		update(_tooltip, tr) {
+			const pos = tr.state.selection.main.head;
+			const stringInfo = getStringNodeAtPosition(tr.state.doc, pos);
+
+			if (!stringInfo) {
+				return null;
+			}
+
+			// Only show the button if the string can be JSON-parsed
+			try {
+				JSON.parse(`"${stringInfo.rawValue}"`);
+			} catch {
+				return null;
+			}
+
+			return {
+				pos: stringInfo.contentStart,
+				above: true,
+				strictSide: true,
+				arrow: false,
+				create: (view: EditorView) => {
+					const dom = document.createElement('div');
+					dom.className = 'cm-string-editor-toolbar';
+
+					const button = document.createElement('button');
+					button.className = 'cm-string-editor-button';
+					button.innerHTML = '✎ Multiline Edit';
+					button.title = 'Edit string (Cmd/Ctrl+E)';
+					button.onmousedown = (e) => {
+						e.preventDefault();
+						e.stopPropagation();
+						openStringEditor();
+					};
+
+					dom.appendChild(button);
+
+					// Keep the toolbar visible during horizontal scroll
+					const updatePosition = () => {
+						const tooltip = dom.parentElement;
+						if (!tooltip) return;
+
+						const scrollContainer = view.scrollDOM;
+						const containerRect =
+							scrollContainer.getBoundingClientRect();
+						const tooltipRect = tooltip.getBoundingClientRect();
+
+						// If tooltip would be to the left of the visible area, translate it right
+						const minLeft = containerRect.left + 8; // 8px padding from edge
+						if (tooltipRect.left < minLeft) {
+							const offset = minLeft - tooltipRect.left;
+							dom.style.transform = `translateX(${offset}px)`;
+						} else {
+							dom.style.transform = '';
+						}
+					};
+
+					const scrollHandler = () => updatePosition();
+
+					return {
+						dom,
+						mount: () => {
+							view.scrollDOM.addEventListener(
+								'scroll',
+								scrollHandler
+							);
+							// Initial position check
+							requestAnimationFrame(updatePosition);
+						},
+						destroy: () => {
+							view.scrollDOM.removeEventListener(
+								'scroll',
+								scrollHandler
+							);
+						},
+					};
+				},
+			};
+		},
+		provide: (field) =>
+			showTooltip.compute([field], (state) => state.field(field)),
+	});
+
+	return [
+		stringEditorTooltipField,
+		// Styles for the string editor toolbar
+		EditorView.baseTheme({
+			'.cm-tooltip': {
+				border: 'none',
+				backgroundColor: 'transparent',
+			},
+			'.cm-string-editor-toolbar.cm-string-editor-toolbar': {
+				display: 'flex',
+				alignItems: 'center',
+				padding: '0',
+				background: '#1e1e1e',
+				borderRadius: '6px',
+				boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
+			},
+			'.cm-string-editor-button': {
+				display: 'inline-flex',
+				alignItems: 'center',
+				gap: '4px',
+				height: '24px',
+				padding: '0 10px',
+				border: 'none',
+				borderRadius: '4px',
+				background: 'transparent',
+				color: '#fff',
+				cursor: 'pointer',
+				fontSize: '12px',
+				fontFamily: 'system-ui, sans-serif',
+				lineHeight: '1',
+				transition: 'background 0.15s',
+			},
+			'.cm-string-editor-button:hover': {
+				background: 'rgba(255,255,255,0.15)',
+			},
+		}),
+	];
+}
 
 const PlayIcon = ({ className }: { className?: string }) => (
 	<svg
@@ -95,8 +248,18 @@ export const BlueprintBundleEditor = forwardRef<
 	>(null);
 	const [displayPath, setDisplayPath] = useState<string | null>(null);
 	const [isRecreating, setIsRecreating] = useState(false);
+	const [stringEditorState, setStringEditorState] =
+		useState<StringEditorState>({
+			isOpen: false,
+			initialValue: '',
+			language: 'plaintext',
+			contentStart: 0,
+			contentEnd: 0,
+		});
 
 	const editorRef = useRef<CodeEditorHandle | null>(null);
+	// Store the CodeMirror EditorView for string editor operations
+	const cmViewRef = useRef<EditorView | null>(null);
 	const dispatch = useAppDispatch();
 
 	// Save file to filesystem
@@ -221,6 +384,69 @@ export const BlueprintBundleEditor = forwardRef<
 		setTreeFocusPath(null);
 	}, []);
 
+	// Open the string editor modal for the string at the current cursor position
+	const openStringEditor = useCallback(() => {
+		const view = cmViewRef.current;
+		if (!view) return false;
+
+		const pos = view.state.selection.main.head;
+		const stringInfo = getStringNodeAtPosition(view.state.doc, pos);
+
+		if (!stringInfo) return false;
+
+		let parsedValue: string;
+		try {
+			parsedValue = JSON.parse(`"${stringInfo.rawValue}"`);
+		} catch {
+			return false;
+		}
+
+		const language = inferLanguageFromBlueprint(
+			stringInfo.path,
+			stringInfo.stepType,
+			parsedValue
+		);
+
+		setStringEditorState({
+			isOpen: true,
+			initialValue: parsedValue,
+			language,
+			contentStart: stringInfo.contentStart,
+			contentEnd: stringInfo.contentEnd,
+		});
+
+		return true;
+	}, []);
+
+	// Handle saving from the string editor modal
+	const handleStringEditorSave = useCallback(
+		(newValue: string) => {
+			const view = cmViewRef.current;
+			if (!view) return;
+
+			// JSON.stringify adds surrounding quotes, so we strip them
+			const escapedValue = JSON.stringify(newValue).slice(1, -1);
+
+			view.dispatch({
+				changes: {
+					from: stringEditorState.contentStart,
+					to: stringEditorState.contentEnd,
+					insert: escapedValue,
+				},
+			});
+
+			// Format the document after the change
+			setTimeout(() => formatEditor(view), 0);
+		},
+		[stringEditorState.contentStart, stringEditorState.contentEnd]
+	);
+
+	const closeStringEditor = useCallback(() => {
+		setStringEditorState((prev) => ({ ...prev, isOpen: false }));
+		// Refocus the main editor
+		setTimeout(() => editorRef.current?.focus(), 0);
+	}, []);
+
 	const handleShowMessage = useCallback(
 		(path: string | null, message: string | JSX.Element) => {
 			setCurrentPath(null);
@@ -248,8 +474,22 @@ export const BlueprintBundleEditor = forwardRef<
 				activateOnTyping: true,
 				closeOnBlur: false,
 			}),
+			// Capture the EditorView reference for string editor operations
+			EditorView.updateListener.of((update) => {
+				cmViewRef.current = update.view;
+			}),
+			// Keyboard shortcut to open string editor
+			keymap.of([
+				{
+					key: 'Mod-e',
+					preventDefault: true,
+					run: () => openStringEditor(),
+				},
+			]),
+			// String editor toolbar tooltip
+			createStringEditorTooltip(openStringEditor),
 		],
-		[]
+		[openStringEditor]
 	);
 
 	const handleDownloadBundle = useCallback(async () => {
@@ -304,118 +544,131 @@ export const BlueprintBundleEditor = forwardRef<
 
 	const disableRunButton = isRecreating || !site;
 	return (
-		<div className={classNames(styles.container, className)}>
-			<div
-				className={classNames(styles.content, {
-					[styles.sidebarOpen]: showExplorerOnMobile,
-				})}
-			>
+		<>
+			<div className={classNames(styles.container, className)}>
 				<div
-					className={styles.mobileOverlay}
-					onClick={() => setShowExplorerOnMobile(false)}
-				/>
-				<aside
-					className={classNames(
-						styles.sidebarWrapper,
-						hideRootStyles.hideRoot
-					)}
+					className={classNames(styles.content, {
+						[styles.sidebarOpen]: showExplorerOnMobile,
+					})}
 				>
-					<FileExplorerSidebar
-						filesystem={filesystem}
-						currentPath={currentPath}
-						selectedDirPath={selectedDirPath}
-						setSelectedDirPath={setSelectedDirPath}
-						focusPath={treeFocusPath}
-						onFileOpened={handleFileOpened}
-						onSelectionCleared={handleClearSelection}
-						onShowMessage={handleShowMessage}
-						documentRoot="/"
-						readOnly={readOnly}
+					<div
+						className={styles.mobileOverlay}
+						onClick={() => setShowExplorerOnMobile(false)}
 					/>
-				</aside>
-				<section className={styles.editorWrapper}>
-					<div className={styles.editorHeader}>
-						<Button
-							className={styles.mobileToggle}
-							variant="secondary"
-							onClick={() =>
-								setShowExplorerOnMobile((previous) => !previous)
-							}
-						>
-							{showExplorerOnMobile
-								? 'Hide files'
-								: 'Browse files'}
-						</Button>
-						<div
-							className={classNames(styles.editorPath, {
-								[styles.editorPathPlaceholder]:
-									!currentPath?.length,
-							})}
-						>
-							{displayPath ||
-								selectedDirPath ||
-								'Browse files under /'}
-						</div>
-
-						<div className={styles.editorHeaderActions}>
+					<aside
+						className={classNames(
+							styles.sidebarWrapper,
+							hideRootStyles.hideRoot
+						)}
+					>
+						<FileExplorerSidebar
+							filesystem={filesystem}
+							currentPath={currentPath}
+							selectedDirPath={selectedDirPath}
+							setSelectedDirPath={setSelectedDirPath}
+							focusPath={treeFocusPath}
+							onFileOpened={handleFileOpened}
+							onSelectionCleared={handleClearSelection}
+							onShowMessage={handleShowMessage}
+							documentRoot="/"
+							readOnly={readOnly}
+						/>
+					</aside>
+					<section className={styles.editorWrapper}>
+						<div className={styles.editorHeader}>
 							<Button
-								variant="tertiary"
-								className={styles.editorToolbarButton}
-								onClick={handleDownloadBundle}
-								title="Download bundle"
-							>
-								<Icon icon={download} />
-							</Button>
-							{!readOnly && (
-								<Button
-									variant="primary"
-									className={styles.editorToolbarButton}
-									onClick={handleRecreateFromBlueprint}
-									isBusy={isRecreating}
-									disabled={disableRunButton}
-								>
-									<PlayIcon
-										className={styles.editorToolbarPlayIcon}
-									/>
-									Run Blueprint
-								</Button>
-							)}
-						</div>
-					</div>
-					{saveError ? (
-						<div style={{ padding: '8px 16px' }}>
-							<Notice status="error" isDismissible={false}>
-								{saveError}
-							</Notice>
-						</div>
-					) : null}
-					{currentPath || code || messageContent ? (
-						messageContent ? (
-							<div className={styles.messageArea}>
-								{messageContent}
-							</div>
-						) : (
-							<CodeEditor
-								ref={editorRef}
-								code={code}
-								onChange={handleCodeChange}
-								currentPath={currentPath}
-								className={styles.editor}
-								readOnly={readOnly}
-								additionalExtensions={
-									currentPath === BLUEPRINT_JSON_PATH
-										? blueprintSchemaExtensions
-										: undefined
+								className={styles.mobileToggle}
+								variant="secondary"
+								onClick={() =>
+									setShowExplorerOnMobile(
+										(previous) => !previous
+									)
 								}
-							/>
-						)
-					) : (
-						<div className={styles.placeholder}>
-							Select a file to view or edit its contents.
+							>
+								{showExplorerOnMobile
+									? 'Hide files'
+									: 'Browse files'}
+							</Button>
+							<div
+								className={classNames(styles.editorPath, {
+									[styles.editorPathPlaceholder]:
+										!currentPath?.length,
+								})}
+							>
+								{displayPath ||
+									selectedDirPath ||
+									'Browse files under /'}
+							</div>
+
+							<div className={styles.editorHeaderActions}>
+								<Button
+									variant="tertiary"
+									className={styles.editorToolbarButton}
+									onClick={handleDownloadBundle}
+									title="Download bundle"
+								>
+									<Icon icon={download} />
+								</Button>
+								{!readOnly && (
+									<Button
+										variant="primary"
+										className={styles.editorToolbarButton}
+										onClick={handleRecreateFromBlueprint}
+										isBusy={isRecreating}
+										disabled={disableRunButton}
+									>
+										<PlayIcon
+											className={
+												styles.editorToolbarPlayIcon
+											}
+										/>
+										Run Blueprint
+									</Button>
+								)}
+							</div>
 						</div>
-					)}
-				</section>
+						{saveError ? (
+							<div style={{ padding: '8px 16px' }}>
+								<Notice status="error" isDismissible={false}>
+									{saveError}
+								</Notice>
+							</div>
+						) : null}
+						{currentPath || code || messageContent ? (
+							messageContent ? (
+								<div className={styles.messageArea}>
+									{messageContent}
+								</div>
+							) : (
+								<CodeEditor
+									ref={editorRef}
+									code={code}
+									onChange={handleCodeChange}
+									currentPath={currentPath}
+									className={styles.editor}
+									readOnly={readOnly}
+									additionalExtensions={
+										currentPath === BLUEPRINT_JSON_PATH
+											? blueprintSchemaExtensions
+											: undefined
+									}
+								/>
+							)
+						) : (
+							<div className={styles.placeholder}>
+								Select a file to view or edit its contents.
+							</div>
+						)}
+					</section>
+				</div>
 			</div>
-		</div>
+			<StringEditorModal
+				isOpen={stringEditorState.isOpen}
+				initialValue={stringEditorState.initialValue}
+				language={stringEditorState.language}
+				onSave={handleStringEditorSave}
+				onClose={closeStringEditor}
+			/>
+		</>
 	);
 });

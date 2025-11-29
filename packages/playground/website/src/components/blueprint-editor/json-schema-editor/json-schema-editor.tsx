@@ -21,7 +21,7 @@ import {
 	syntaxHighlighting,
 } from '@codemirror/language';
 import { highlightSelectionMatches, searchKeymap } from '@codemirror/search';
-import { EditorState, type Extension } from '@codemirror/state';
+import { EditorState, StateField, type Extension } from '@codemirror/state';
 import {
 	crosshairCursor,
 	dropCursor,
@@ -31,19 +31,132 @@ import {
 	keymap,
 	lineNumbers,
 	rectangularSelection,
+	showTooltip,
+	type Tooltip,
 	type ViewUpdate,
 } from '@codemirror/view';
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+	inferLanguageFromBlueprint,
+	type SupportedLanguage,
+} from '../infer-language-from-blueprint';
+import { StringEditorModal } from '../string-editor-modal';
 import type { JSONSchemaCompletionConfig } from './types';
-import { formatEditor, jsonSchemaCompletion } from './jsonSchemaCompletion';
+import {
+	formatEditor,
+	getStringNodeAtPosition,
+	jsonSchemaCompletion,
+} from './jsonSchemaCompletion';
 
 interface JSONSchemaEditorProps {
 	config?: JSONSchemaCompletionConfig;
 	className?: string;
 }
+
+interface StringEditorState {
+	isOpen: boolean;
+	initialValue: string;
+	language: SupportedLanguage;
+	contentStart: number;
+	contentEnd: number;
+}
+
 const DEFAULT_DOC = `{
 	"$schema": "https://playground.wordpress.net/blueprint-schema.json"
 }`;
+
+/**
+ * Create the string editor toolbar tooltip extension
+ */
+function createStringEditorTooltip(openStringEditor: () => boolean) {
+	const stringEditorTooltipField = StateField.define<Tooltip | null>({
+		create() {
+			return null;
+		},
+		update(_tooltip, tr) {
+			const pos = tr.state.selection.main.head;
+			const stringInfo = getStringNodeAtPosition(tr.state.doc, pos);
+
+			if (!stringInfo) {
+				return null;
+			}
+
+			// Only show the button if the string can be JSON-parsed
+			try {
+				JSON.parse(`"${stringInfo.rawValue}"`);
+			} catch {
+				return null;
+			}
+
+			return {
+				pos: stringInfo.contentStart,
+				above: true,
+				strictSide: true,
+				arrow: false,
+				create: (view: EditorView) => {
+					const dom = document.createElement('div');
+					dom.className = 'cm-string-editor-toolbar';
+
+					const button = document.createElement('button');
+					button.className = 'cm-string-editor-button';
+					button.innerHTML = '✎ Multiline Edit';
+					button.title = 'Edit string (Cmd/Ctrl+E)';
+					button.onmousedown = (e) => {
+						e.preventDefault();
+						e.stopPropagation();
+						openStringEditor();
+					};
+
+					dom.appendChild(button);
+
+					// Keep the toolbar visible during horizontal scroll
+					const updatePosition = () => {
+						const tooltip = dom.parentElement;
+						if (!tooltip) return;
+
+						const scrollContainer = view.scrollDOM;
+						const containerRect =
+							scrollContainer.getBoundingClientRect();
+						const tooltipRect = tooltip.getBoundingClientRect();
+
+						// If tooltip would be to the left of the visible area, translate it right
+						const minLeft = containerRect.left + 8; // 8px padding from edge
+						if (tooltipRect.left < minLeft) {
+							const offset = minLeft - tooltipRect.left;
+							dom.style.transform = `translateX(${offset}px)`;
+						} else {
+							dom.style.transform = '';
+						}
+					};
+
+					const scrollHandler = () => updatePosition();
+
+					return {
+						dom,
+						mount: () => {
+							view.scrollDOM.addEventListener(
+								'scroll',
+								scrollHandler
+							);
+							// Initial position check
+							requestAnimationFrame(updatePosition);
+						},
+						destroy: () => {
+							view.scrollDOM.removeEventListener(
+								'scroll',
+								scrollHandler
+							);
+						},
+					};
+				},
+			};
+		},
+		provide: (field) =>
+			showTooltip.compute([field], (state) => state.field(field)),
+	});
+
+	return stringEditorTooltipField;
+}
 
 export function JSONSchemaEditor({
 	config = {},
@@ -51,6 +164,79 @@ export function JSONSchemaEditor({
 }: JSONSchemaEditorProps) {
 	const editorRef = useRef<HTMLDivElement>(null);
 	const viewRef = useRef<EditorView | null>(null);
+
+	// State for the string editor modal
+	const [stringEditorState, setStringEditorState] =
+		useState<StringEditorState>({
+			isOpen: false,
+			initialValue: '',
+			language: 'plaintext',
+			contentStart: 0,
+			contentEnd: 0,
+		});
+
+	// Open the string editor modal for the string at the current cursor position
+	const openStringEditor = useCallback(() => {
+		const view = viewRef.current;
+		if (!view) return false;
+
+		const pos = view.state.selection.main.head;
+		const stringInfo = getStringNodeAtPosition(view.state.doc, pos);
+
+		if (!stringInfo) return false;
+
+		let parsedValue: string;
+		try {
+			parsedValue = JSON.parse(`"${stringInfo.rawValue}"`);
+		} catch {
+			return false;
+		}
+
+		const language = inferLanguageFromBlueprint(
+			stringInfo.path,
+			stringInfo.stepType,
+			parsedValue
+		);
+
+		setStringEditorState({
+			isOpen: true,
+			initialValue: parsedValue,
+			language,
+			contentStart: stringInfo.contentStart,
+			contentEnd: stringInfo.contentEnd,
+		});
+
+		return true;
+	}, []);
+
+	// Handle saving from the string editor modal
+	const handleStringEditorSave = useCallback(
+		(newValue: string) => {
+			const view = viewRef.current;
+			if (!view) return;
+
+			// JSON.stringify adds surrounding quotes, so we strip them
+			const escapedValue = JSON.stringify(newValue).slice(1, -1);
+
+			view.dispatch({
+				changes: {
+					from: stringEditorState.contentStart,
+					to: stringEditorState.contentEnd,
+					insert: escapedValue,
+				},
+			});
+
+			// Format the document after the change
+			setTimeout(() => formatEditor(view), 0);
+		},
+		[stringEditorState.contentStart, stringEditorState.contentEnd]
+	);
+
+	const closeStringEditor = useCallback(() => {
+		setStringEditorState((prev) => ({ ...prev, isOpen: false }));
+		// Refocus the main editor
+		setTimeout(() => viewRef.current?.focus(), 0);
+	}, []);
 
 	useEffect(() => {
 		if (!editorRef.current) return;
@@ -84,6 +270,11 @@ export function JSONSchemaEditor({
 			highlightSelectionMatches(),
 			// Keymaps
 			keymap.of([
+				{
+					key: 'Mod-e',
+					preventDefault: true,
+					run: () => openStringEditor(),
+				},
 				...defaultKeymap,
 				...historyKeymap,
 				...foldKeymap,
@@ -97,6 +288,42 @@ export function JSONSchemaEditor({
 				override: [jsonSchemaCompletion],
 				activateOnTyping: true,
 				closeOnBlur: false,
+			}),
+			// String editor toolbar tooltip
+			createStringEditorTooltip(openStringEditor),
+			// Styles for the string editor toolbar
+			EditorView.baseTheme({
+				'.cm-tooltip': {
+					border: 'none',
+					backgroundColor: 'transparent',
+				},
+				'.cm-string-editor-toolbar.cm-string-editor-toolbar': {
+					display: 'flex',
+					alignItems: 'center',
+					padding: '0',
+					background: '#1e1e1e',
+					borderRadius: '6px',
+					boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
+				},
+				'.cm-string-editor-button': {
+					display: 'inline-flex',
+					alignItems: 'center',
+					gap: '4px',
+					height: '24px',
+					padding: '0 10px',
+					border: 'none',
+					borderRadius: '4px',
+					background: 'transparent',
+					color: '#fff',
+					cursor: 'pointer',
+					fontSize: '12px',
+					fontFamily: 'system-ui, sans-serif',
+					lineHeight: '1',
+					transition: 'background 0.15s',
+				},
+				'.cm-string-editor-button:hover': {
+					background: 'rgba(255,255,255,0.15)',
+				},
 			}),
 		];
 
@@ -174,7 +401,18 @@ export function JSONSchemaEditor({
 		});
 	}, [config.initialDoc]);
 
-	return <div ref={editorRef} className={className} />;
+	return (
+		<>
+			<div ref={editorRef} className={className} />
+			<StringEditorModal
+				isOpen={stringEditorState.isOpen}
+				initialValue={stringEditorState.initialValue}
+				language={stringEditorState.language}
+				onSave={handleStringEditorSave}
+				onClose={closeStringEditor}
+			/>
+		</>
+	);
 }
 
 export default JSONSchemaEditor;
