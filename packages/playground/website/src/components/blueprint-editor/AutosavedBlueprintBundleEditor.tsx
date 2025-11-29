@@ -18,7 +18,7 @@ import {
 	BlueprintBundleEditor,
 } from './BlueprintBundleEditor';
 import {
-	type FilesystemBackend,
+	type WritableFilesystemBackend,
 	WritableFilesystem,
 } from './writable-filesystem';
 import { InMemoryFilesystemBackend } from './writable-in-memory-filesystem';
@@ -27,7 +27,7 @@ import { OpfsFilesystemBackend } from './writable-opfs-filesystem';
 /**
  * Check if an object implements the FilesystemBackend interface.
  */
-function isFilesystemBackend(obj: unknown): obj is FilesystemBackend {
+function isFilesystemBackend(obj: unknown): obj is WritableFilesystemBackend {
 	return (
 		typeof obj === 'object' &&
 		obj !== null &&
@@ -37,8 +37,6 @@ function isFilesystemBackend(obj: unknown): obj is FilesystemBackend {
 		'fileExists' in obj
 	);
 }
-
-export const BLUEPRINT_JSON_PATH = '/blueprint.json';
 
 /**
  * Track which sites have had the autosave prompt answered this session.

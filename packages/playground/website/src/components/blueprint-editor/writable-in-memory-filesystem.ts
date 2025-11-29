@@ -1,4 +1,4 @@
-import type { FilesystemBackend } from './writable-filesystem';
+import type { WritableFilesystemBackend } from './writable-filesystem';
 
 export type FileNode = { type: 'file'; content: Uint8Array };
 export type DirNode = { type: 'dir'; children: Record<string, FsNode> };
@@ -7,7 +7,7 @@ export type FsNode = FileNode | DirNode;
 /**
  * In-memory filesystem backend that stores files in a tree structure.
  */
-export class InMemoryFilesystemBackend implements FilesystemBackend {
+export class InMemoryFilesystemBackend implements WritableFilesystemBackend {
 	private root: DirNode = { type: 'dir', children: {} };
 
 	constructor(initialFiles: Record<string, Uint8Array> = {}) {

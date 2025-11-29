@@ -11,7 +11,7 @@ import { dirname, ensureAbsolutePath } from '@php-wasm/util';
  * Backend interface for filesystem operations.
  * All paths passed to these methods are already normalized to absolute paths.
  */
-export interface FilesystemBackend {
+export interface WritableFilesystemBackend {
 	isDir(absolutePath: string): Promise<boolean>;
 	fileExists(absolutePath: string): Promise<boolean>;
 	readFileAsBuffer(absolutePath: string): Promise<Uint8Array>;
@@ -34,9 +34,9 @@ export class WritableFilesystem
 {
 	private readonly encoder = new TextEncoder();
 	private readonly decoder = new TextDecoder();
-	private readonly backend: FilesystemBackend;
+	private readonly backend: WritableFilesystemBackend;
 
-	constructor(backend: FilesystemBackend) {
+	constructor(backend: WritableFilesystemBackend) {
 		super();
 		this.backend = backend;
 	}
@@ -103,14 +103,8 @@ export class WritableFilesystem
 	// --- BlueprintBundle method ---
 	async read(path: string): Promise<StreamedFile> {
 		const content = await this.readFileAsBuffer(path);
-		const stream = new ReadableStream({
-			start(controller) {
-				controller.enqueue(content);
-				controller.close();
-			},
-		});
-		return new StreamedFile(stream, path, {
-			filesize: content.byteLength,
+		return StreamedFile.fromArrayBuffer(content, path, {
+			filesize: content.byteLength as number,
 		});
 	}
 

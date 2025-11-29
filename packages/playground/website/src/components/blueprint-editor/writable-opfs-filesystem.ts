@@ -1,11 +1,11 @@
-import type { FilesystemBackend } from './writable-filesystem';
+import type { WritableFilesystemBackend } from './writable-filesystem';
 
 export const OPFS_BASE_PATH = ['blueprints', 'last-edited-bundle'];
 
 /**
  * OPFS filesystem backend that operates directly on the Origin Private File System.
  */
-export class OpfsFilesystemBackend implements FilesystemBackend {
+export class OpfsFilesystemBackend implements WritableFilesystemBackend {
 	private readonly opfsRoot: FileSystemDirectoryHandle;
 
 	constructor(opfsRoot: FileSystemDirectoryHandle) {
@@ -117,7 +117,7 @@ export class OpfsFilesystemBackend implements FilesystemBackend {
 		}
 		const handle = await dir.getFileHandle(fileName, { create: true });
 		const writable = await handle.createWritable();
-		await writable.write(data as BlobPart);
+		await writable.write(data);
 		await writable.close();
 	}
 

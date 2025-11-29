@@ -7,8 +7,8 @@
  */
 
 import { StreamedFile } from '@php-wasm/stream-compression';
-import type { Filesystem } from '@wp-playground/storage';
-import type { FilesystemBackend } from '../../../components/blueprint-editor/writable-filesystem';
+import type { ReadableFilesystemBackend } from '@wp-playground/storage';
+import type { WritableFilesystemBackend } from '../../../components/blueprint-editor/writable-filesystem';
 import { getDirectoryPathForSlug } from './opfs-site-storage';
 
 const BUNDLE_DIR_NAME = 'blueprint-bundle';
@@ -19,29 +19,27 @@ const BUNDLE_DIR_NAME = 'blueprint-bundle';
 async function getBundleDirectoryHandle(
 	siteSlug: string,
 	create = false
-): Promise<FileSystemDirectoryHandle | null> {
-	try {
-		let handle = await navigator.storage.getDirectory();
-		const sitePath = getDirectoryPathForSlug(siteSlug);
+): Promise<FileSystemDirectoryHandle> {
+	let handle = await navigator.storage.getDirectory();
+	const sitePath = getDirectoryPathForSlug(siteSlug);
 
-		// Navigate to the site directory
-		for (const segment of sitePath.split('/').filter(Boolean)) {
-			handle = await handle.getDirectoryHandle(segment, { create });
-		}
-
-		// Get or create the bundle directory
-		return await handle.getDirectoryHandle(BUNDLE_DIR_NAME, { create });
-	} catch {
-		return null;
+	// Navigate to the site directory
+	for (const segment of sitePath.split('/').filter(Boolean)) {
+		handle = await handle.getDirectoryHandle(segment, { create });
 	}
+
+	// Get or create the bundle directory
+	return await handle.getDirectoryHandle(BUNDLE_DIR_NAME, { create });
 }
 
 /**
  * Check if a site has a persisted blueprint bundle.
  */
 export async function hasBlueprintBundle(siteSlug: string): Promise<boolean> {
-	const bundleDir = await getBundleDirectoryHandle(siteSlug, false);
-	if (!bundleDir) {
+	let bundleDir: FileSystemDirectoryHandle | null = null;
+	try {
+		bundleDir = await getBundleDirectoryHandle(siteSlug, false);
+	} catch {
 		return false;
 	}
 	// Check if there's at least one entry
@@ -63,9 +61,6 @@ export async function persistBlueprintBundle(
 	}
 ): Promise<void> {
 	const bundleDir = await getBundleDirectoryHandle(siteSlug, true);
-	if (!bundleDir) {
-		throw new Error('Could not create blueprint bundle directory');
-	}
 
 	// Clear existing bundle
 	for await (const [name] of bundleDir.entries()) {
@@ -126,7 +121,9 @@ export async function deleteBlueprintBundle(siteSlug: string): Promise<void> {
  *
  * Note: This is a read-only filesystem. Write operations will throw errors.
  */
-export class PersistedBlueprintBundle implements Filesystem, FilesystemBackend {
+export class PersistedBlueprintBundle
+	implements ReadableFilesystemBackend, WritableFilesystemBackend
+{
 	private readonly bundleDir: FileSystemDirectoryHandle;
 
 	private constructor(bundleDir: FileSystemDirectoryHandle) {
@@ -135,9 +132,6 @@ export class PersistedBlueprintBundle implements Filesystem, FilesystemBackend {
 
 	static async create(siteSlug: string): Promise<PersistedBlueprintBundle> {
 		const bundleDir = await getBundleDirectoryHandle(siteSlug, false);
-		if (!bundleDir) {
-			throw new Error(`No blueprint bundle found for site '${siteSlug}'`);
-		}
 		return new PersistedBlueprintBundle(bundleDir);
 	}
 

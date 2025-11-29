@@ -4,11 +4,11 @@ import { normalizePath } from '@php-wasm/util';
 import type { Entry } from '@zip.js/zip.js';
 import { ZipReader, BlobWriter, BlobReader } from '@zip.js/zip.js';
 
-export interface Filesystem {
+export interface ReadableFilesystemBackend {
 	read(path: string): Promise<StreamedFile>;
 }
 
-export class InMemoryFilesystem implements Filesystem {
+export class InMemoryFilesystem implements ReadableFilesystemBackend {
 	private fileTree: FileTree;
 
 	constructor(fileTree: FileTree) {
@@ -52,7 +52,7 @@ export class InMemoryFilesystem implements Filesystem {
 	}
 }
 
-export class ZipFilesystem implements Filesystem {
+export class ZipFilesystem implements ReadableFilesystemBackend {
 	private entries: Map<string, Entry> = new Map();
 	private zipReader: ZipReader<BlobReader>;
 
@@ -109,8 +109,8 @@ export class ZipFilesystem implements Filesystem {
  * This is useful for creating a layered approach to file resolution,
  * such as checking a local cache before fetching from a remote source.
  */
-export class OverlayFilesystem implements Filesystem {
-	private filesystems: Filesystem[];
+export class OverlayFilesystem implements ReadableFilesystemBackend {
+	private filesystems: ReadableFilesystemBackend[];
 
 	/**
 	 * Creates a new OverlayFilesystem.
@@ -119,7 +119,7 @@ export class OverlayFilesystem implements Filesystem {
 	 *                    The order determines the priority - earlier filesystems
 	 *                    are checked first.
 	 */
-	constructor(filesystems: Filesystem[]) {
+	constructor(filesystems: ReadableFilesystemBackend[]) {
 		if (!filesystems.length) {
 			throw new Error(
 				'OverlayFilesystem requires at least one filesystem'
@@ -169,7 +169,7 @@ export interface FetchFilesystemOptions {
  * A Filesystem implementation that fetches files from URLs.
  * It can optionally use a CORS proxy and resolve paths relative to a base URL.
  */
-export class FetchFilesystem implements Filesystem {
+export class FetchFilesystem implements ReadableFilesystemBackend {
 	private baseUrl = '';
 	private options: FetchFilesystemOptions;
 	private isDataUrl: boolean;
@@ -241,7 +241,7 @@ export class FetchFilesystem implements Filesystem {
  *
  * This is only available in a local environment.
  */
-export class NodeJsFilesystem implements Filesystem {
+export class NodeJsFilesystem implements ReadableFilesystemBackend {
 	private fs: any;
 	private path: any;
 	private root: string;
