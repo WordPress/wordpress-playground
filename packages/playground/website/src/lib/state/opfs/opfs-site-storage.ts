@@ -182,28 +182,19 @@ async function metadataToStoredFormat(
 	{ originalBlueprint, originalBlueprintSource, ...metadata }: SiteMetadata
 ): Promise<string> {
 	// If the blueprint is stored in the bundle directory, don't duplicate it in the JSON.
-	// Just reference the directory path.
-	if (originalBlueprintSource?.type === BUNDLE_DIR_SOURCE_TYPE) {
-		return JSON.stringify(
-			{
-				slug,
-				originalBlueprintSource: { type: BUNDLE_DIR_SOURCE_TYPE },
-				// Store minimal blueprint info for display purposes
-				originalBlueprint: originalBlueprint
-					? await getBlueprintDeclaration(originalBlueprint)
-					: undefined,
-				...metadata,
-			},
-			undefined,
-			'  '
-		);
-	}
+	// The bundle files are stored separately in the blueprint-bundle directory.
+	const isBundleDirectory =
+		originalBlueprintSource?.type === BUNDLE_DIR_SOURCE_TYPE;
 
 	return JSON.stringify(
 		{
 			slug,
-			originalBlueprint: await getBlueprintDeclaration(originalBlueprint),
 			originalBlueprintSource,
+			// Only store the blueprint declaration if it's NOT a bundle directory.
+			// For bundle directories, the full bundle is stored separately.
+			originalBlueprint: isBundleDirectory
+				? undefined
+				: await getBlueprintDeclaration(originalBlueprint),
 			...metadata,
 		},
 		undefined,
