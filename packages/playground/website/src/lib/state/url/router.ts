@@ -60,11 +60,11 @@ export function parseRouteParam(route: string | null): RouteState {
 
 /**
  * Build a route parameter string from a RouteState object.
- * Returns undefined if the sidebar is closed (default state).
+ * Returns 'closed' if the sidebar is closed.
  */
-export function buildRouteParam(state: RouteState): string | undefined {
+export function buildRouteParam(state: RouteState): string {
 	if (!state.sidebarOpen) {
-		return undefined;
+		return 'closed';
 	}
 
 	if (state.section === 'sidebar') {
@@ -89,13 +89,7 @@ export function buildRouteParam(state: RouteState): string | undefined {
 export function updateRouteInUrl(state: RouteState): void {
 	const url = new URL(window.location.href);
 	const routeValue = buildRouteParam(state);
-
-	if (routeValue === undefined) {
-		url.searchParams.delete('route');
-	} else {
-		url.searchParams.set('route', routeValue);
-	}
-
+	url.searchParams.set('route', routeValue);
 	window.history.replaceState({}, '', url.href);
 }
 
