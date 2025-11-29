@@ -9,19 +9,53 @@ export interface ReadableFilesystemBackend {
 }
 
 /**
+ * A readable filesystem that can also be traversed (list directories).
+ */
+export interface TraversableFilesystemBackend extends ReadableFilesystemBackend {
+	listFiles(path: string): Promise<string[]>;
+	isDir(path: string): Promise<boolean>;
+}
+
+/**
  * Backend interface for writable filesystem operations.
  * All paths passed to these methods are expected to be absolute paths.
  */
-export interface WritableFilesystemBackend extends ReadableFilesystemBackend {
-	isDir(absolutePath: string): Promise<boolean>;
+export interface WritableFilesystemBackend extends TraversableFilesystemBackend {
 	fileExists(absolutePath: string): Promise<boolean>;
-	listFiles(absolutePath: string): Promise<string[]>;
 	writeFile(absolutePath: string, data: Uint8Array): Promise<void>;
 	mkdir(absolutePath: string): Promise<void>;
 	rmdir(absolutePath: string, recursive: boolean): Promise<void>;
 	mv(absoluteSource: string, absoluteDestination: string): Promise<void>;
 	unlink(absolutePath: string): Promise<void>;
 	clear(): Promise<void>;
+}
+
+/**
+ * Copy all files from source filesystem to destination filesystem.
+ * Clears the destination before copying.
+ */
+export async function copyFilesystem(
+	source: TraversableFilesystemBackend,
+	destination: WritableFilesystemBackend
+): Promise<void> {
+	await destination.clear();
+
+	const copyDir = async (path: string) => {
+		const entries = await source.listFiles(path);
+		for (const name of entries) {
+			const fullPath = path === '/' ? `/${name}` : `${path}/${name}`;
+			if (await source.isDir(fullPath)) {
+				await destination.mkdir(fullPath);
+				await copyDir(fullPath);
+			} else {
+				const file = await source.read(fullPath);
+				const content = new Uint8Array(await file.arrayBuffer());
+				await destination.writeFile(fullPath, content);
+			}
+		}
+	};
+
+	await copyDir('/');
 }
 
 export class InMemoryFilesystem implements ReadableFilesystemBackend {
