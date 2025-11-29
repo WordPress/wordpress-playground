@@ -1,10 +1,10 @@
 import React, { useMemo, useRef, useState } from 'react';
 import styles from './FileExplorer.module.css';
-import { FilePickerTree } from '@wp-playground/components';
-import type {
-	AsyncWritableFilesystem,
-	FilePickerTreeHandle,
+import {
+	FilePickerTree,
+	type FilePickerTreeHandle,
 } from '@wp-playground/components';
+import type { AsyncWritableFilesystem } from '@wp-playground/storage';
 import { useAppDispatch } from '../../hooks';
 import { setCode, setCurrentPath } from '../../store';
 import { DEFAULT_WORKSPACE_DIR } from '../../constants';

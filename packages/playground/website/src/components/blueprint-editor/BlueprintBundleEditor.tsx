@@ -3,7 +3,7 @@ import { logger } from '@php-wasm/logger';
 import { Button, Icon, Notice } from '@wordpress/components';
 import { download } from '@wordpress/icons';
 import { resolveRuntimeConfiguration } from '@wp-playground/blueprints';
-import type { AsyncWritableFilesystem } from '@wp-playground/components';
+import type { AsyncWritableFilesystem } from '@wp-playground/storage';
 import { BlobWriter, Uint8ArrayReader, ZipWriter } from '@zip.js/zip.js';
 import classNames from 'classnames';
 import {

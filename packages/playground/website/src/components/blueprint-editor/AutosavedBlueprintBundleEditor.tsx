@@ -2,8 +2,8 @@ import { logger } from '@php-wasm/logger';
 import { dirname, ensureAbsolutePath } from '@php-wasm/util';
 import { Button, Notice } from '@wordpress/components';
 import { type Blueprint, BlueprintReflection } from '@wp-playground/blueprints';
-import type { AsyncWritableFilesystem } from '@wp-playground/components';
 import {
+	type AsyncWritableFilesystem,
 	EventedFilesystem,
 	InMemoryFilesystemBackend,
 	OpfsFilesystemBackend,

@@ -10,9 +10,9 @@ import { file as folderIcon, page as fileIcon } from '@wordpress/icons';
 import styles from './file-explorer.module.css';
 import {
 	FilePickerTree,
-	type AsyncWritableFilesystem,
 	type FilePickerTreeHandle,
 } from '@wp-playground/components';
+import type { AsyncWritableFilesystem } from '@wp-playground/storage';
 import { logger } from '@php-wasm/logger';
 import { dirname, normalizePath } from '@php-wasm/util';
 import { BinaryFilePreview } from '@wp-playground/components';

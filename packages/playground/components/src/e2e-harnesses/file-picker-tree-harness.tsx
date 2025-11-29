@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo } from 'react';
 import { FilePickerTree } from '../FilePickerTree';
-import type { AsyncWritableFilesystem } from '../FilePickerTree';
+import type { AsyncWritableFilesystem } from '@wp-playground/storage';
 import { normalizePath } from '@php-wasm/util';
 
 const DEFAULT_SELECTED_PATH = '/wordpress/workspace';

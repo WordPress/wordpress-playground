@@ -1,6 +1,6 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { AsyncWritableFilesystem } from '@wp-playground/components';
+import type { AsyncWritableFilesystem } from '@wp-playground/storage';
 import clsx from 'clsx';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import type { ImperativePanelHandle } from 'react-resizable-panels';

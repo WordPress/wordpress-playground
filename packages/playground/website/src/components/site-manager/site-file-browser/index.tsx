@@ -10,7 +10,7 @@ import classNames from 'classnames';
 import { Button, Notice } from '@wordpress/components';
 import type { SiteInfo } from '../../../lib/state/redux/slice-sites';
 import { usePlaygroundClient } from '../../../lib/use-playground-client';
-import type { AsyncWritableFilesystem } from '@wp-playground/components';
+import type { AsyncWritableFilesystem } from '@wp-playground/storage';
 import type { PlaygroundClient } from '@wp-playground/remote';
 import { FileExplorerSidebar } from './file-explorer-sidebar';
 import { CodeEditor, type CodeEditorHandle } from './code-editor';

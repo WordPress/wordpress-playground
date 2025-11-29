@@ -66,9 +66,6 @@ type FileSystemEntryLike =
 	| FileSystemFileEntryLike
 	| FileSystemDirectoryEntryLike;
 
-// Re-export for backward compatibility
-export type { AsyncWritableFilesystem } from '@wp-playground/storage';
-
 export type FileNode = {
 	name: string;
 	type: 'file' | 'folder';
