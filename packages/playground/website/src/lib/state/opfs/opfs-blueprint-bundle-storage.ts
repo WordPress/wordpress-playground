@@ -92,7 +92,7 @@ export async function persistBlueprintBundle(
 					create: true,
 				});
 				const writable = await fileHandle.createWritable();
-				await writable.write(content);
+				await writable.write(content as unknown as ArrayBuffer);
 				await writable.close();
 			}
 		}
@@ -139,22 +139,6 @@ export class PersistedBlueprintBundle implements Filesystem, FilesystemBackend {
 			throw new Error(`No blueprint bundle found for site '${siteSlug}'`);
 		}
 		return new PersistedBlueprintBundle(bundleDir);
-	}
-
-	private async getHandle(
-		path: string
-	): Promise<FileSystemDirectoryHandle | FileSystemFileHandle> {
-		const segments = path.split('/').filter(Boolean);
-		let handle: FileSystemDirectoryHandle | FileSystemFileHandle =
-			this.bundleDir;
-
-		for (const segment of segments) {
-			handle = await (
-				handle as FileSystemDirectoryHandle
-			).getDirectoryHandle(segment);
-		}
-
-		return handle;
 	}
 
 	private async getDirHandle(

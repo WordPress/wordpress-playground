@@ -9,7 +9,6 @@ import {
 	TabPanel,
 } from '@wordpress/components';
 import { chevronLeft, edit, moreVertical } from '@wordpress/icons';
-import { type Blueprint } from '@wp-playground/blueprints';
 import { getLogoDataURL, WordPressIcon } from '@wp-playground/components';
 import classNames from 'classnames';
 import { lazy, Suspense, useEffect, useState } from 'react';
