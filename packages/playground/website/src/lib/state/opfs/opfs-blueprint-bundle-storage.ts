@@ -131,6 +131,3 @@ export async function loadPersistedBlueprintBundle(
 	const bundleDir = await getBundleDirectoryHandle(siteSlug, false);
 	return OpfsFilesystemBackend.fromDirectoryHandle(bundleDir);
 }
-
-// Re-export for backwards compatibility / convenience
-export { OpfsFilesystemBackend as PersistedBlueprintBundle };
