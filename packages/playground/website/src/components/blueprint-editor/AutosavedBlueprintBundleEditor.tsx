@@ -33,7 +33,7 @@ function isFilesystemBackend(obj: unknown): obj is WritableFilesystemBackend {
 		obj !== null &&
 		'listFiles' in obj &&
 		'isDir' in obj &&
-		'readFileAsBuffer' in obj &&
+		'read' in obj &&
 		'fileExists' in obj
 	);
 }
@@ -318,7 +318,8 @@ async function copyFilesystem(
 				await destination.mkdir(fullPath);
 				await copyDir(fullPath);
 			} else {
-				const content = await source.readFileAsBuffer(fullPath);
+				const file = await source.read(fullPath);
+				const content = new Uint8Array(await file.arrayBuffer());
 				await destination.writeFile(fullPath, content);
 			}
 		}

@@ -1,215 +1,51 @@
-import type { WritableFilesystemBackend } from './writable-filesystem';
+/**
+ * Re-export OpfsFilesystemBackend from storage package.
+ * This file maintains backwards compatibility for existing imports
+ * and adds website-specific helper functions.
+ */
+import { OpfsFilesystemBackend as BaseOpfsFilesystemBackend } from '@wp-playground/storage';
 
+export type {
+	WritableFilesystemBackend,
+	ReadableFilesystemBackend,
+} from '@wp-playground/storage';
+
+/**
+ * Default OPFS path for the last edited blueprint bundle.
+ */
 export const OPFS_BASE_PATH = ['blueprints', 'last-edited-bundle'];
 
 /**
- * OPFS filesystem backend that operates directly on the Origin Private File System.
+ * Extended OpfsFilesystemBackend with website-specific helper methods
+ * for the blueprint editor's autosave functionality.
  */
-export class OpfsFilesystemBackend implements WritableFilesystemBackend {
-	private readonly opfsRoot: FileSystemDirectoryHandle;
-
-	constructor(opfsRoot: FileSystemDirectoryHandle) {
-		this.opfsRoot = opfsRoot;
+export class OpfsFilesystemBackend extends BaseOpfsFilesystemBackend {
+	/**
+	 * Check if there's a saved blueprint bundle in the default location.
+	 */
+	static async hasSavedBundle(): Promise<boolean> {
+		const backend =
+			await BaseOpfsFilesystemBackend.fromPath(OPFS_BASE_PATH);
+		if (!backend) {
+			return false;
+		}
+		const files = await backend.listFiles('/');
+		return files.length > 0;
 	}
 
+	/**
+	 * Create a backend for the default blueprint bundle location.
+	 * Creates the directories if they don't exist.
+	 */
 	static async create(): Promise<OpfsFilesystemBackend> {
-		const root = await OpfsFilesystemBackend.getOpfsRoot(true);
-		if (!root) {
+		const backend = await BaseOpfsFilesystemBackend.fromPath(
+			OPFS_BASE_PATH,
+			true
+		);
+		if (!backend) {
 			throw new Error('OPFS not available');
 		}
-		return new OpfsFilesystemBackend(root);
-	}
-
-	static async hasSavedBundle(): Promise<boolean> {
-		const root = await OpfsFilesystemBackend.getOpfsRoot();
-		if (!root) {
-			return false;
-		}
-		for await (const _ of root.entries()) {
-			return true;
-		}
-		return false;
-	}
-
-	async clear(): Promise<void> {
-		for await (const [name] of this.opfsRoot.entries()) {
-			try {
-				await this.opfsRoot.removeEntry(name, { recursive: true });
-			} catch {
-				/* ignore */
-			}
-		}
-	}
-
-	async isDir(absolutePath: string): Promise<boolean> {
-		if (absolutePath === '/') {
-			return true;
-		}
-		try {
-			const segments = absolutePath.split('/').filter(Boolean);
-			let dir = this.opfsRoot;
-			for (const segment of segments) {
-				dir = await dir.getDirectoryHandle(segment);
-			}
-			return true;
-		} catch {
-			return false;
-		}
-	}
-
-	async fileExists(absolutePath: string): Promise<boolean> {
-		const segments = absolutePath.split('/').filter(Boolean);
-		const fileName = segments.pop();
-		if (!fileName) {
-			return false;
-		}
-		try {
-			let dir = this.opfsRoot;
-			for (const segment of segments) {
-				dir = await dir.getDirectoryHandle(segment);
-			}
-			await dir.getFileHandle(fileName);
-			return true;
-		} catch {
-			return false;
-		}
-	}
-
-	async readFileAsBuffer(absolutePath: string): Promise<Uint8Array> {
-		const segments = absolutePath.split('/').filter(Boolean);
-		const fileName = segments.pop();
-		if (!fileName) {
-			throw new Error(`Invalid file path: ${absolutePath}`);
-		}
-		let dir = this.opfsRoot;
-		for (const segment of segments) {
-			dir = await dir.getDirectoryHandle(segment);
-		}
-		const handle = await dir.getFileHandle(fileName);
-		const file = await handle.getFile();
-		return new Uint8Array(await file.arrayBuffer());
-	}
-
-	async listFiles(absolutePath: string): Promise<string[]> {
-		let dir = this.opfsRoot;
-		if (absolutePath !== '/') {
-			const segments = absolutePath.split('/').filter(Boolean);
-			for (const segment of segments) {
-				dir = await dir.getDirectoryHandle(segment);
-			}
-		}
-		const names: string[] = [];
-		for await (const [name] of dir.entries()) {
-			names.push(name);
-		}
-		return names;
-	}
-
-	async writeFile(absolutePath: string, data: Uint8Array): Promise<void> {
-		const segments = absolutePath.split('/').filter(Boolean);
-		const fileName = segments.pop();
-		if (!fileName) {
-			throw new Error(`Invalid file path: ${absolutePath}`);
-		}
-		let dir = this.opfsRoot;
-		for (const segment of segments) {
-			dir = await dir.getDirectoryHandle(segment, { create: true });
-		}
-		const handle = await dir.getFileHandle(fileName, { create: true });
-		const writable = await handle.createWritable();
-		await writable.write(data);
-		await writable.close();
-	}
-
-	async mkdir(absolutePath: string): Promise<void> {
-		const segments = absolutePath.split('/').filter(Boolean);
-		let dir = this.opfsRoot;
-		for (const segment of segments) {
-			dir = await dir.getDirectoryHandle(segment, { create: true });
-		}
-	}
-
-	async rmdir(absolutePath: string, recursive: boolean): Promise<void> {
-		const segments = absolutePath.split('/').filter(Boolean);
-		const name = segments.pop();
-		if (!name) {
-			return;
-		}
-		let dir = this.opfsRoot;
-		for (const segment of segments) {
-			dir = await dir.getDirectoryHandle(segment);
-		}
-		await dir.removeEntry(name, { recursive });
-	}
-
-	async mv(
-		absoluteSource: string,
-		absoluteDestination: string
-	): Promise<void> {
-		const isSourceDir = await this.isDir(absoluteSource);
-		if (isSourceDir) {
-			await this.copyDir(absoluteSource, absoluteDestination);
-			await this.rmdir(absoluteSource, true);
-		} else {
-			const content = await this.readFileAsBuffer(absoluteSource);
-			await this.writeFile(absoluteDestination, content);
-			await this.unlink(absoluteSource);
-		}
-	}
-
-	async unlink(absolutePath: string): Promise<void> {
-		const segments = absolutePath.split('/').filter(Boolean);
-		const name = segments.pop();
-		if (!name) {
-			return;
-		}
-		let dir = this.opfsRoot;
-		for (const segment of segments) {
-			dir = await dir.getDirectoryHandle(segment);
-		}
-		try {
-			await dir.removeEntry(name);
-		} catch {
-			/* ignore */
-		}
-	}
-
-	// --- Internal helpers ---
-	private async copyDir(source: string, destination: string): Promise<void> {
-		await this.mkdir(destination);
-		const files = await this.listFiles(source);
-		for (const name of files) {
-			const srcPath = source === '/' ? `/${name}` : `${source}/${name}`;
-			const destPath =
-				destination === '/' ? `/${name}` : `${destination}/${name}`;
-			if (await this.isDir(srcPath)) {
-				await this.copyDir(srcPath, destPath);
-			} else {
-				const content = await this.readFileAsBuffer(srcPath);
-				await this.writeFile(destPath, content);
-			}
-		}
-	}
-
-	private static async getOpfsRoot(
-		create = false
-	): Promise<FileSystemDirectoryHandle | null> {
-		if (typeof navigator === 'undefined') {
-			return null;
-		}
-		if (!navigator.storage || !navigator.storage.getDirectory) {
-			return null;
-		}
-		try {
-			let handle = await navigator.storage.getDirectory();
-			for (const segment of OPFS_BASE_PATH) {
-				handle = await handle.getDirectoryHandle(segment, {
-					create,
-				});
-			}
-			return handle;
-		} catch {
-			return null;
-		}
+		// Cast to the extended type since we know it's compatible
+		return backend as unknown as OpfsFilesystemBackend;
 	}
 }

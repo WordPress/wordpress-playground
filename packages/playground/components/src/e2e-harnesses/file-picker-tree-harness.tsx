@@ -175,9 +175,12 @@ class InMemoryFilesystem
 		return !!node && node.type === 'file';
 	}
 
-	async readFileAsBuffer(path: string): Promise<Uint8Array> {
+	async read(path: string): Promise<{ arrayBuffer(): Promise<ArrayBuffer> }> {
 		const text = await this.readFileAsText(path);
-		return new TextEncoder().encode(text);
+		const buffer = new TextEncoder().encode(text);
+		return {
+			arrayBuffer: async () => buffer.buffer,
+		};
 	}
 
 	async readFileAsText(path: string): Promise<string> {

@@ -6,9 +6,10 @@
  * storage directory under a `blueprint-bundle` subdirectory.
  */
 
-import { StreamedFile } from '@php-wasm/stream-compression';
-import type { ReadableFilesystemBackend } from '@wp-playground/storage';
-import type { WritableFilesystemBackend } from '../../../components/blueprint-editor/writable-filesystem';
+import {
+	OpfsFilesystemBackend,
+	type ReadableFilesystemBackend,
+} from '@wp-playground/storage';
 import { getDirectoryPathForSlug } from './opfs-site-storage';
 
 const BUNDLE_DIR_NAME = 'blueprint-bundle';
@@ -18,7 +19,7 @@ const BUNDLE_DIR_NAME = 'blueprint-bundle';
  */
 async function getBundleDirectoryHandle(
 	siteSlug: string,
-	create = false
+	create: boolean
 ): Promise<FileSystemDirectoryHandle> {
 	let handle = await navigator.storage.getDirectory();
 	const sitePath = getDirectoryPathForSlug(siteSlug);
@@ -36,7 +37,7 @@ async function getBundleDirectoryHandle(
  * Check if a site has a persisted blueprint bundle.
  */
 export async function hasBlueprintBundle(siteSlug: string): Promise<boolean> {
-	let bundleDir: FileSystemDirectoryHandle | null = null;
+	let bundleDir: FileSystemDirectoryHandle;
 	try {
 		bundleDir = await getBundleDirectoryHandle(siteSlug, false);
 	} catch {
@@ -50,15 +51,20 @@ export async function hasBlueprintBundle(siteSlug: string): Promise<boolean> {
 }
 
 /**
+ * Source interface for copying blueprint bundles.
+ * Extends ReadableFilesystemBackend with directory traversal methods.
+ */
+export interface BundleSource extends ReadableFilesystemBackend {
+	listFiles(path: string): Promise<string[]>;
+	isDir(path: string): Promise<boolean>;
+}
+
+/**
  * Copy files from a source filesystem to a site's blueprint bundle storage.
  */
 export async function persistBlueprintBundle(
 	siteSlug: string,
-	source: {
-		listFiles(path: string): Promise<string[]>;
-		isDir(path: string): Promise<boolean>;
-		readFileAsBuffer(path: string): Promise<Uint8Array>;
-	}
+	source: BundleSource
 ): Promise<void> {
 	const bundleDir = await getBundleDirectoryHandle(siteSlug, true);
 
@@ -82,12 +88,13 @@ export async function persistBlueprintBundle(
 				});
 				await copyDir(fullPath, subDir);
 			} else {
-				const content = await source.readFileAsBuffer(fullPath);
+				const file = await source.read(fullPath);
+				const content = new Uint8Array(await file.arrayBuffer());
 				const fileHandle = await destHandle.getFileHandle(name, {
 					create: true,
 				});
 				const writable = await fileHandle.createWritable();
-				await writable.write(content as unknown as ArrayBuffer);
+				await writable.write(content);
 				await writable.close();
 			}
 		}
@@ -115,161 +122,15 @@ export async function deleteBlueprintBundle(siteSlug: string): Promise<void> {
 }
 
 /**
- * Create a Filesystem that reads from a site's persisted blueprint bundle.
- * This implements both the Filesystem interface (for BlueprintBundle) and
- * FilesystemBackend interface (for use with WritableFilesystem in the editor).
- *
- * Note: This is a read-only filesystem. Write operations will throw errors.
+ * Load a site's persisted blueprint bundle as a filesystem backend.
+ * Returns an OpfsFilesystemBackend that can be used as a BlueprintBundle.
  */
-export class PersistedBlueprintBundle
-	implements ReadableFilesystemBackend, WritableFilesystemBackend
-{
-	private readonly bundleDir: FileSystemDirectoryHandle;
-
-	private constructor(bundleDir: FileSystemDirectoryHandle) {
-		this.bundleDir = bundleDir;
-	}
-
-	static async create(siteSlug: string): Promise<PersistedBlueprintBundle> {
-		const bundleDir = await getBundleDirectoryHandle(siteSlug, false);
-		return new PersistedBlueprintBundle(bundleDir);
-	}
-
-	private async getDirHandle(
-		path: string
-	): Promise<FileSystemDirectoryHandle> {
-		const segments = path.split('/').filter(Boolean);
-		let dir = this.bundleDir;
-
-		for (const segment of segments) {
-			dir = await dir.getDirectoryHandle(segment);
-		}
-
-		return dir;
-	}
-
-	// Filesystem interface (for BlueprintBundle)
-	async read(path: string): Promise<StreamedFile> {
-		const content = await this.readFileAsBuffer(path);
-
-		const stream = new ReadableStream({
-			start(controller) {
-				controller.enqueue(content);
-				controller.close();
-			},
-		});
-
-		return new StreamedFile(stream, path, {
-			filesize: content.byteLength,
-		});
-	}
-
-	// FilesystemBackend interface (read methods)
-	async isDir(absolutePath: string): Promise<boolean> {
-		try {
-			const segments = absolutePath.split('/').filter(Boolean);
-			if (segments.length === 0) {
-				return true; // Root is always a directory
-			}
-
-			const parentPath = segments.slice(0, -1);
-			const name = segments[segments.length - 1];
-
-			let dir = this.bundleDir;
-			for (const segment of parentPath) {
-				dir = await dir.getDirectoryHandle(segment);
-			}
-
-			try {
-				await dir.getDirectoryHandle(name);
-				return true;
-			} catch {
-				return false;
-			}
-		} catch {
-			return false;
-		}
-	}
-
-	async fileExists(absolutePath: string): Promise<boolean> {
-		try {
-			const segments = absolutePath.split('/').filter(Boolean);
-			if (segments.length === 0) {
-				return false; // Root is not a file
-			}
-
-			const parentPath = segments.slice(0, -1);
-			const name = segments[segments.length - 1];
-
-			let dir = this.bundleDir;
-			for (const segment of parentPath) {
-				dir = await dir.getDirectoryHandle(segment);
-			}
-
-			try {
-				await dir.getFileHandle(name);
-				return true;
-			} catch {
-				return false;
-			}
-		} catch {
-			return false;
-		}
-	}
-
-	async readFileAsBuffer(absolutePath: string): Promise<Uint8Array> {
-		const segments = absolutePath.split('/').filter(Boolean);
-		const fileName = segments.pop();
-		if (!fileName) {
-			throw new Error(`Invalid file path: ${absolutePath}`);
-		}
-
-		let dir = this.bundleDir;
-		for (const segment of segments) {
-			dir = await dir.getDirectoryHandle(segment);
-		}
-
-		const fileHandle = await dir.getFileHandle(fileName);
-		const file = await fileHandle.getFile();
-		return new Uint8Array(await file.arrayBuffer());
-	}
-
-	async listFiles(absolutePath: string): Promise<string[]> {
-		const dir = await this.getDirHandle(absolutePath);
-		const entries: string[] = [];
-
-		for await (const [name] of dir.entries()) {
-			entries.push(name);
-		}
-
-		return entries;
-	}
-
-	// FilesystemBackend interface (write methods - read-only, so throw errors)
-	async writeFile(_absolutePath: string, _data: Uint8Array): Promise<void> {
-		throw new Error('PersistedBlueprintBundle is read-only');
-	}
-
-	async mkdir(_absolutePath: string): Promise<void> {
-		throw new Error('PersistedBlueprintBundle is read-only');
-	}
-
-	async rmdir(_absolutePath: string, _recursive: boolean): Promise<void> {
-		throw new Error('PersistedBlueprintBundle is read-only');
-	}
-
-	async mv(
-		_absoluteSource: string,
-		_absoluteDestination: string
-	): Promise<void> {
-		throw new Error('PersistedBlueprintBundle is read-only');
-	}
-
-	async unlink(_absolutePath: string): Promise<void> {
-		throw new Error('PersistedBlueprintBundle is read-only');
-	}
-
-	async clear(): Promise<void> {
-		throw new Error('PersistedBlueprintBundle is read-only');
-	}
+export async function loadPersistedBlueprintBundle(
+	siteSlug: string
+): Promise<OpfsFilesystemBackend> {
+	const bundleDir = await getBundleDirectoryHandle(siteSlug, false);
+	return OpfsFilesystemBackend.fromDirectoryHandle(bundleDir);
 }
+
+// Re-export for backwards compatibility / convenience
+export { OpfsFilesystemBackend as PersistedBlueprintBundle };

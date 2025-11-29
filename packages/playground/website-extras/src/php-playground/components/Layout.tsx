@@ -39,8 +39,11 @@ class ClientFilesystemWrapper
 	fileExists(path: string) {
 		return this.client.fileExists(path);
 	}
-	readFileAsBuffer(path: string) {
-		return this.client.readFileAsBuffer(path);
+	async read(path: string): Promise<{ arrayBuffer(): Promise<ArrayBuffer> }> {
+		const buffer = await this.client.readFileAsBuffer(path);
+		return {
+			arrayBuffer: async () => buffer.buffer,
+		};
 	}
 	readFileAsText(path: string) {
 		return this.client.readFileAsText(path);

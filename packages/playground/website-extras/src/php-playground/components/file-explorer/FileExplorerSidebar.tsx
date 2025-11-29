@@ -83,7 +83,7 @@ export default function FileExplorerSidebar({
 			forceSelectedPath ??
 				(currentPath
 					? dirnameSafe(currentPath)
-					: selectedDirPath ?? DEFAULT_WORKSPACE_DIR)
+					: (selectedDirPath ?? DEFAULT_WORKSPACE_DIR))
 		);
 		// Remove selectedDirPath from dependencies to prevent unwanted updates
 		// eslint-disable-next-line react-hooks/exhaustive-deps
@@ -161,8 +161,9 @@ export default function FileExplorerSidebar({
 							return;
 						}
 						try {
-							const data = await filesystem.readFileAsBuffer(
-								path
+							const file = await filesystem.read(path);
+							const data = new Uint8Array(
+								await file.arrayBuffer()
 							);
 							const size = data.byteLength;
 							if (size > MAX_INLINE_BYTES) {

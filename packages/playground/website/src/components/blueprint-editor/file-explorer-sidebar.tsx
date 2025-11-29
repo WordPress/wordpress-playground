@@ -327,7 +327,8 @@ export function FileExplorerSidebar({
 
 	const handleOpenFile = async (path: string, shouldFocus: boolean) => {
 		try {
-			const data = await filesystem.readFileAsBuffer(path);
+			const file = await filesystem.read(path);
+			const data = new Uint8Array(await file.arrayBuffer());
 			const size = data.byteLength;
 			const filename = path.split('/').pop() || 'download';
 

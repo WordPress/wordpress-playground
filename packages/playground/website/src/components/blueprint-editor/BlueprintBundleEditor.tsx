@@ -267,8 +267,8 @@ export const BlueprintBundleEditor = forwardRef<
 							relative.length ? `${relative}/` : ''
 						);
 					} else {
-						const buffer =
-							await filesystem.readFileAsBuffer(absPath);
+						const file = await filesystem.read(absPath);
+						const buffer = new Uint8Array(await file.arrayBuffer());
 						await zipWriter.add(
 							relative || name,
 							new Uint8ArrayReader(buffer)

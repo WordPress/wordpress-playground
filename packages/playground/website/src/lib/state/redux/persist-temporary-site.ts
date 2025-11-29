@@ -6,7 +6,10 @@ import {
 	opfsSiteStorage,
 	getDirectoryPathForSlug,
 } from '../opfs/opfs-site-storage';
-import { persistBlueprintBundle } from '../opfs/opfs-blueprint-bundle-storage';
+import {
+	persistBlueprintBundle,
+	type BundleSource,
+} from '../opfs/opfs-blueprint-bundle-storage';
 import { OpfsFilesystemBackend } from '../../../components/blueprint-editor/writable-opfs-filesystem';
 import { WritableFilesystem } from '../../../components/blueprint-editor/writable-filesystem';
 import type { PlaygroundReduxState } from './store';
@@ -83,22 +86,17 @@ export function persistTemporarySite(
 		// Persist the blueprint bundle if available.
 		// First, check if originalBlueprint is already a filesystem (from clicking "Run Blueprint").
 		// If not, check if there's an autosaved bundle in OPFS (from editing without running).
-		let bundleToPersist: {
-			listFiles(path: string): Promise<string[]>;
-			isDir(path: string): Promise<boolean>;
-			readFileAsBuffer(path: string): Promise<Uint8Array>;
-		} | null = null;
+		let bundleToPersist: BundleSource | null = null;
 
 		const originalBlueprint = siteInfo.metadata.originalBlueprint;
 		if (
 			originalBlueprint &&
 			typeof originalBlueprint === 'object' &&
+			'read' in originalBlueprint &&
 			'listFiles' in originalBlueprint &&
-			'isDir' in originalBlueprint &&
-			'readFileAsBuffer' in originalBlueprint
+			'isDir' in originalBlueprint
 		) {
-			bundleToPersist =
-				originalBlueprint as unknown as typeof bundleToPersist;
+			bundleToPersist = originalBlueprint as unknown as BundleSource;
 		} else if (await OpfsFilesystemBackend.hasSavedBundle()) {
 			// There's an autosaved bundle from the blueprint editor.
 			// Use that instead.

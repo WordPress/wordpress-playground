@@ -68,7 +68,7 @@ type FileSystemEntryLike =
 export interface AsyncWritableFilesystem extends EventTarget {
 	isDir: (path: string) => Promise<boolean>;
 	fileExists: (path: string) => Promise<boolean>;
-	readFileAsBuffer: (path: string) => Promise<Uint8Array>;
+	read: (path: string) => Promise<{ arrayBuffer(): Promise<ArrayBuffer> }>;
 	readFileAsText: (path: string) => Promise<string>;
 	listFiles: (path: string) => Promise<string[]>;
 	writeFile: (path: string, data: Uint8Array | string) => Promise<void>;
@@ -1125,7 +1125,8 @@ export const FilePickerTree = forwardRef<
 			return;
 		}
 		try {
-			const buffer = await filesystem.readFileAsBuffer(absPath);
+			const file = await filesystem.read(absPath);
+			const buffer = await file.arrayBuffer();
 			const blob = new Blob([buffer as BlobPart]);
 			const url = URL.createObjectURL(blob);
 			const anchor = document.createElement('a');

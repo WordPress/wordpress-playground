@@ -1,4 +1,5 @@
 import type { WritableFilesystemBackend } from './writable-filesystem';
+import { StreamedFile } from '@php-wasm/stream-compression';
 
 export type FileNode = { type: 'file'; content: Uint8Array };
 export type DirNode = { type: 'dir'; children: Record<string, FsNode> };
@@ -26,9 +27,18 @@ export class InMemoryFilesystemBackend implements WritableFilesystemBackend {
 		return !!node && node.type === 'file';
 	}
 
-	async readFileAsBuffer(absolutePath: string): Promise<Uint8Array> {
-		const file = this.getFile(absolutePath);
-		return file.content;
+	async read(path: string): Promise<StreamedFile> {
+		const file = this.getFile(path);
+		const content = file.content;
+		const stream = new ReadableStream({
+			start(controller) {
+				controller.enqueue(content);
+				controller.close();
+			},
+		});
+		return new StreamedFile(stream, path, {
+			filesize: content.byteLength,
+		});
 	}
 
 	async listFiles(absolutePath: string): Promise<string[]> {

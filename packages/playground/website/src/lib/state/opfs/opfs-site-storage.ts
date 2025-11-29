@@ -17,7 +17,7 @@ import {
 } from '@wp-playground/blueprints';
 import type { SupportedPHPVersion } from '@php-wasm/universal';
 import { RecommendedPHPVersion } from '@wp-playground/common';
-import { PersistedBlueprintBundle } from './opfs-blueprint-bundle-storage';
+import { loadPersistedBlueprintBundle } from './opfs-blueprint-bundle-storage';
 
 const ROOT_PATH = '/sites';
 // TODO: Decide on metadata filename
@@ -142,7 +142,7 @@ class OpfsSiteStorage {
 		) {
 			try {
 				siteInfo.metadata.originalBlueprint =
-					await PersistedBlueprintBundle.create(siteInfo.slug);
+					await loadPersistedBlueprintBundle(siteInfo.slug);
 			} catch (error) {
 				logger.error(
 					`Failed to load blueprint bundle for site ${siteInfo.slug}`,

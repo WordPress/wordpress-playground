@@ -4,25 +4,12 @@ import {
 	type BlueprintBundle,
 	BlueprintReflection,
 } from '@wp-playground/blueprints';
+import type { WritableFilesystemBackend } from '@wp-playground/storage';
 import { StreamedFile } from '@php-wasm/stream-compression';
 import { dirname, ensureAbsolutePath } from '@php-wasm/util';
 
-/**
- * Backend interface for filesystem operations.
- * All paths passed to these methods are already normalized to absolute paths.
- */
-export interface WritableFilesystemBackend {
-	isDir(absolutePath: string): Promise<boolean>;
-	fileExists(absolutePath: string): Promise<boolean>;
-	readFileAsBuffer(absolutePath: string): Promise<Uint8Array>;
-	listFiles(absolutePath: string): Promise<string[]>;
-	writeFile(absolutePath: string, data: Uint8Array): Promise<void>;
-	mkdir(absolutePath: string): Promise<void>;
-	rmdir(absolutePath: string, recursive: boolean): Promise<void>;
-	mv(absoluteSource: string, absoluteDestination: string): Promise<void>;
-	unlink(absolutePath: string): Promise<void>;
-	clear(): Promise<void>;
-}
+// Re-export for convenience
+export type { WritableFilesystemBackend } from '@wp-playground/storage';
 
 /**
  * Writable filesystem that delegates to a backend implementation.
@@ -49,12 +36,15 @@ export class WritableFilesystem
 		return this.backend.fileExists(ensureAbsolutePath(path));
 	}
 
-	async readFileAsBuffer(path: string): Promise<Uint8Array> {
-		return this.backend.readFileAsBuffer(ensureAbsolutePath(path));
+	// --- BlueprintBundle / ReadableFilesystemBackend method ---
+	async read(path: string): Promise<StreamedFile> {
+		return this.backend.read(ensureAbsolutePath(path));
 	}
 
 	async readFileAsText(path: string): Promise<string> {
-		return this.decoder.decode(await this.readFileAsBuffer(path));
+		const file = await this.read(path);
+		const buffer = await file.arrayBuffer();
+		return this.decoder.decode(buffer);
 	}
 
 	async listFiles(path: string): Promise<string[]> {
@@ -98,14 +88,6 @@ export class WritableFilesystem
 	async unlink(path: string): Promise<void> {
 		await this.backend.unlink(ensureAbsolutePath(path));
 		this.dispatchEvent(new Event('change'));
-	}
-
-	// --- BlueprintBundle method ---
-	async read(path: string): Promise<StreamedFile> {
-		const content = await this.readFileAsBuffer(path);
-		return StreamedFile.fromArrayBuffer(content, path, {
-			filesize: content.byteLength as number,
-		});
 	}
 
 	async clear(): Promise<void> {
