@@ -9,8 +9,7 @@ import {
 	isBlueprintBundle,
 	resolveRemoteBlueprint,
 } from '@wp-playground/client';
-import { WritableFilesystem } from '../../../components/blueprint-editor/writable-filesystem';
-import { OpfsFilesystemBackend } from '../../../components/blueprint-editor/writable-opfs-filesystem';
+import { OpfsFilesystemBackend } from '@wp-playground/storage';
 import { parseBlueprint } from './router';
 import { OverlayFilesystem, InMemoryFilesystem } from '@wp-playground/storage';
 import { RecommendedPHPVersion } from '@wp-playground/common';
@@ -102,8 +101,9 @@ export async function resolveBlueprintFromURL(
 	} else if (fragment === 'local-blueprint-bundle') {
 		let bundle = undefined;
 		try {
-			bundle = new WritableFilesystem(
-				await OpfsFilesystemBackend.create()
+			bundle = await OpfsFilesystemBackend.fromPath(
+				['blueprints', 'last-edited-bundle'],
+				true
 			);
 		} catch (error) {
 			logger.error(

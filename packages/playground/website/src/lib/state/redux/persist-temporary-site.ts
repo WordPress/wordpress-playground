@@ -7,9 +7,10 @@ import {
 	getDirectoryPathForSlug,
 } from '../opfs/opfs-site-storage';
 import { persistBlueprintBundle } from '../opfs/opfs-blueprint-bundle-storage';
-import type { TraversableFilesystemBackend } from '@wp-playground/storage';
-import { OpfsFilesystemBackend } from '../../../components/blueprint-editor/writable-opfs-filesystem';
-import { WritableFilesystem } from '../../../components/blueprint-editor/writable-filesystem';
+import {
+	type TraversableFilesystemBackend,
+	OpfsFilesystemBackend,
+} from '@wp-playground/storage';
 import type { PlaygroundReduxState } from './store';
 import type store from './store';
 import { selectClientBySiteSlug, updateClientInfo } from './slice-clients';
@@ -96,14 +97,19 @@ export function persistTemporarySite(
 		) {
 			bundleToPersist =
 				originalBlueprint as unknown as TraversableFilesystemBackend;
-		} else if (await OpfsFilesystemBackend.hasSavedBundle()) {
-			// There's an autosaved bundle from the blueprint editor.
-			// Use that instead.
+		} else {
+			// Check if there's an autosaved bundle from the blueprint editor.
 			try {
-				const opfsBackend = await OpfsFilesystemBackend.create();
-				bundleToPersist = new WritableFilesystem(opfsBackend);
-			} catch (error) {
-				logger.error('Failed to load autosaved bundle', error);
+				const opfsBackend = await OpfsFilesystemBackend.fromPath([
+					'blueprints',
+					'last-edited-bundle',
+				]);
+				const files = await opfsBackend.listFiles('/');
+				if (files.length > 0) {
+					bundleToPersist = opfsBackend;
+				}
+			} catch {
+				// No autosaved bundle available
 			}
 		}
 

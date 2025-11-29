@@ -29,7 +29,7 @@ import { sitesSlice } from '../../lib/state/redux/slice-sites';
 import { useAppDispatch } from '../../lib/state/redux/store';
 import styles from '../site-manager/site-file-browser/style.module.css';
 import hideRootStyles from './hide-root.module.css';
-import type { WritableFilesystem } from './writable-filesystem';
+import type { EventedFilesystem } from '@wp-playground/storage';
 
 const BLUEPRINT_JSON_PATH = '/blueprint.json';
 
@@ -155,9 +155,9 @@ export const BlueprintBundleEditor = forwardRef<
 		try {
 			setIsRecreating(true);
 			const bundle =
-				(filesystem as WritableFilesystem | null) ??
+				(filesystem as EventedFilesystem | null) ??
 				((site.metadata.originalBlueprint ||
-					null) as WritableFilesystem | null);
+					null) as EventedFilesystem | null);
 			if (!bundle) {
 				throw new Error('Blueprint bundle is not available.');
 			}

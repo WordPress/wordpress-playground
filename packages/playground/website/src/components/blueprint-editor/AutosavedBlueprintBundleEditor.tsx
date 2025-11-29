@@ -1,7 +1,15 @@
 import { logger } from '@php-wasm/logger';
+import { dirname, ensureAbsolutePath } from '@php-wasm/util';
 import { Button, Notice } from '@wordpress/components';
-import { type Blueprint } from '@wp-playground/blueprints';
+import { type Blueprint, BlueprintReflection } from '@wp-playground/blueprints';
 import type { AsyncWritableFilesystem } from '@wp-playground/components';
+import {
+	EventedFilesystem,
+	InMemoryFilesystemBackend,
+	OpfsFilesystemBackend,
+	copyFilesystem,
+	type WritableFilesystemBackend,
+} from '@wp-playground/storage';
 import classNames from 'classnames';
 import {
 	forwardRef,
@@ -17,12 +25,25 @@ import {
 	type BlueprintBundleEditorHandle,
 	BlueprintBundleEditor,
 } from './BlueprintBundleEditor';
-import {
-	type WritableFilesystemBackend,
-	WritableFilesystem,
-} from './writable-filesystem';
-import { InMemoryFilesystemBackend } from './writable-in-memory-filesystem';
-import { OpfsFilesystemBackend } from './writable-opfs-filesystem';
+
+/** Default OPFS path for the last edited blueprint bundle. */
+const OPFS_BASE_PATH = ['blueprints', 'last-edited-bundle'];
+
+/** Check if there's a saved blueprint bundle in the default OPFS location. */
+async function hasSavedBundle(): Promise<boolean> {
+	try {
+		const backend = await OpfsFilesystemBackend.fromPath(OPFS_BASE_PATH);
+		const files = await backend.listFiles('/');
+		return files.length > 0;
+	} catch {
+		return false;
+	}
+}
+
+/** Create an OPFS backend for the default blueprint bundle location. */
+async function createOpfsBackend(): Promise<OpfsFilesystemBackend> {
+	return OpfsFilesystemBackend.fromPath(OPFS_BASE_PATH, true);
+}
 
 /**
  * Check if an object implements the FilesystemBackend interface.
@@ -36,6 +57,74 @@ function isFilesystemBackend(obj: unknown): obj is WritableFilesystemBackend {
 		'read' in obj &&
 		'fileExists' in obj
 	);
+}
+
+/**
+ * Populate a filesystem with the contents of a Blueprint.
+ * Writes blueprint.json and all bundled resources.
+ */
+async function populateFilesystemFromBlueprint(
+	fs: EventedFilesystem,
+	blueprint: Blueprint
+): Promise<void> {
+	const reflection = await BlueprintReflection.create(blueprint);
+	const declaration = reflection.getDeclaration();
+	const bundle = reflection.getBundle();
+
+	await fs.writeFile('/blueprint.json', JSON.stringify(declaration, null, 2));
+
+	if (bundle) {
+		for (const path of collectBundledResourcePaths(declaration)) {
+			const absolutePath = ensureAbsolutePath(path);
+			// For each path referenced in the blueprint, try to read the
+			// accompanying file from the bundle. Some files might be missing,
+			// this is fine – we'll just skip them here.
+			let content: Uint8Array;
+			try {
+				const file = await bundle.read(absolutePath);
+				content = new Uint8Array(await file.arrayBuffer());
+			} catch {
+				continue;
+			}
+			const parent = dirname(absolutePath);
+			if (!(await fs.fileExists(parent))) {
+				await fs.mkdir(parent);
+			}
+			await fs.writeFile(absolutePath, content);
+		}
+	}
+}
+
+function collectBundledResourcePaths(value: unknown): Set<string> {
+	const accumulator = new Set<string>();
+	const stack: unknown[] = [value];
+	while (stack.length) {
+		const current = stack.pop();
+		if (!current || typeof current !== 'object') {
+			continue;
+		}
+
+		if (Array.isArray(current)) {
+			for (const item of current) {
+				stack.push(item);
+			}
+			continue;
+		}
+
+		const candidate = current as { resource?: unknown; path?: unknown };
+		if (
+			candidate.resource === 'bundled' &&
+			typeof candidate.path === 'string'
+		) {
+			accumulator.add(ensureAbsolutePath(candidate.path));
+		}
+
+		for (const child of Object.values(current)) {
+			stack.push(child);
+		}
+	}
+
+	return accumulator;
 }
 
 /**
@@ -63,7 +152,7 @@ export const AutosavedBlueprintBundleEditor = forwardRef<
 	AutosavedBlueprintBundleEditorHandle,
 	AutosavedBlueprintBundleEditorProps
 >(function ({ className, site }, ref) {
-	const [filesystem, setFilesystem] = useState<WritableFilesystem | null>(
+	const [filesystem, setFilesystem] = useState<EventedFilesystem | null>(
 		null
 	);
 	const [autosavePromptVisible, setAutosavePromptVisible] = useState(false);
@@ -82,7 +171,7 @@ export const AutosavedBlueprintBundleEditor = forwardRef<
 	// Initialize the filesystem.
 	useEffect(() => {
 		const bootstrap = async () => {
-			let fs: WritableFilesystem | null = null;
+			let fs: EventedFilesystem | null = null;
 			// On stored sites, we can only view the Blueprint without editing (or autosaving) it.
 			if (readOnly) {
 				const originalBlueprint = site.metadata.originalBlueprint;
@@ -90,14 +179,17 @@ export const AutosavedBlueprintBundleEditor = forwardRef<
 				// If originalBlueprint is already a filesystem backend (e.g., PersistedBlueprintBundle),
 				// use it directly instead of populating from blueprint JSON.
 				if (isFilesystemBackend(originalBlueprint)) {
-					fs = new WritableFilesystem(originalBlueprint);
+					fs = new EventedFilesystem(originalBlueprint);
 					setFilesystem(fs);
 					return;
 				}
 
 				// Otherwise, populate an in-memory filesystem with the Blueprint JSON.
-				fs = new WritableFilesystem(new InMemoryFilesystemBackend());
-				await fs.populateFromBlueprint(originalBlueprint as Blueprint);
+				fs = new EventedFilesystem(new InMemoryFilesystemBackend());
+				await populateFilesystemFromBlueprint(
+					fs,
+					originalBlueprint as Blueprint
+				);
 				setFilesystem(fs);
 				return;
 			}
@@ -105,7 +197,7 @@ export const AutosavedBlueprintBundleEditor = forwardRef<
 			// Okay, we're dealing with a temporary site where we can edit the Blueprint.
 
 			// Do we have a prior autosave? The user may want to restore it.
-			if (await OpfsFilesystemBackend.hasSavedBundle()) {
+			if (await hasSavedBundle()) {
 				// We have one! Check if the user has already answered the restore prompt
 				// for this site (e.g., they navigated away and came back).
 				const alreadyAnswered = autosavePromptAnswered[site.slug];
@@ -126,9 +218,7 @@ export const AutosavedBlueprintBundleEditor = forwardRef<
 				// Continue editing with OPFS.
 				hasMigratedToOpfs.current = true;
 				try {
-					fs = new WritableFilesystem(
-						await OpfsFilesystemBackend.create()
-					);
+					fs = new EventedFilesystem(await createOpfsBackend());
 					setFilesystem(fs);
 					return;
 				} catch (error) {
@@ -141,8 +231,9 @@ export const AutosavedBlueprintBundleEditor = forwardRef<
 
 			// No autosave exists, or we couldn't load it.
 			// Start with an in-memory filesystem. We'll migrate to OPFS on first edit.
-			fs = new WritableFilesystem(new InMemoryFilesystemBackend());
-			await fs.populateFromBlueprint(
+			fs = new EventedFilesystem(new InMemoryFilesystemBackend());
+			await populateFilesystemFromBlueprint(
+				fs,
 				site.metadata.originalBlueprint as Blueprint
 			);
 			setFilesystem(fs);
@@ -159,7 +250,7 @@ export const AutosavedBlueprintBundleEditor = forwardRef<
 	const discardAutosave = async () => {
 		setAutosaveErrorMessage(null);
 		try {
-			const opfsBackend = await OpfsFilesystemBackend.create();
+			const opfsBackend = await createOpfsBackend();
 			await opfsBackend.clear();
 
 			// Clear the "answered" flag since we're starting fresh.
@@ -167,8 +258,9 @@ export const AutosavedBlueprintBundleEditor = forwardRef<
 			// and we shouldn't skip the prompt next time if they reload.
 			delete autosavePromptAnswered[site.slug];
 
-			const fs = new WritableFilesystem(new InMemoryFilesystemBackend());
-			await fs.populateFromBlueprint(
+			const fs = new EventedFilesystem(new InMemoryFilesystemBackend());
+			await populateFilesystemFromBlueprint(
+				fs,
 				site.metadata.originalBlueprint as Blueprint
 			);
 			setFilesystem(fs);
@@ -192,9 +284,7 @@ export const AutosavedBlueprintBundleEditor = forwardRef<
 			autosavePromptAnswered[site.slug] = true;
 
 			hasMigratedToOpfs.current = true;
-			const fs = new WritableFilesystem(
-				await OpfsFilesystemBackend.create()
-			);
+			const fs = new EventedFilesystem(await createOpfsBackend());
 			setFilesystem(fs);
 			setAutosaveErrorMessage(null);
 			setAutosavePromptVisible(false);
@@ -222,10 +312,10 @@ export const AutosavedBlueprintBundleEditor = forwardRef<
 
 			try {
 				// Replace the in-memory filesystem with an OPFS filesystem.
-				const opfsBackend = await OpfsFilesystemBackend.create();
+				const opfsBackend = await createOpfsBackend();
 				await opfsBackend.clear();
-				const opfsFilesystem = new WritableFilesystem(opfsBackend);
-				await copyFilesystem(filesystem, opfsFilesystem);
+				const opfsFilesystem = new EventedFilesystem(opfsBackend);
+				await copyFilesystem(filesystem.backend, opfsBackend);
 				setFilesystem(opfsFilesystem);
 
 				// Mark the prompt as answered since the user is now editing
@@ -302,27 +392,3 @@ export const AutosavedBlueprintBundleEditor = forwardRef<
 });
 
 export default AutosavedBlueprintBundleEditor;
-
-/**
- * Copies all files and directories from source filesystem to destination.
- */
-async function copyFilesystem(
-	source: WritableFilesystem,
-	destination: WritableFilesystem
-): Promise<void> {
-	const copyDir = async (path: string) => {
-		const entries = await source.listFiles(path);
-		for (const name of entries) {
-			const fullPath = path === '/' ? `/${name}` : `${path}/${name}`;
-			if (await source.isDir(fullPath)) {
-				await destination.mkdir(fullPath);
-				await copyDir(fullPath);
-			} else {
-				const file = await source.read(fullPath);
-				const content = new Uint8Array(await file.arrayBuffer());
-				await destination.writeFile(fullPath, content);
-			}
-		}
-	};
-	await copyDir('/');
-}
