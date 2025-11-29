@@ -23,6 +23,9 @@ export type BlueprintSource =
 	  }
 	| {
 			type: 'none';
+	  }
+	| {
+			type: 'bundle-directory';
 	  };
 
 export type ResolvedBlueprint = {

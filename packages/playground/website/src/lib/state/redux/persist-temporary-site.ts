@@ -6,6 +6,7 @@ import {
 	opfsSiteStorage,
 	getDirectoryPathForSlug,
 } from '../opfs/opfs-site-storage';
+import { persistBlueprintBundle } from '../opfs/opfs-blueprint-bundle-storage';
 import type { PlaygroundReduxState } from './store';
 import type store from './store';
 import { selectClientBySiteSlug, updateClientInfo } from './slice-clients';
@@ -76,6 +77,33 @@ export function persistTemporarySite(
 			// between successful and failed saves.
 			storage: 'none',
 		});
+
+		// Persist the blueprint bundle if available.
+		// Check if originalBlueprint is a filesystem (from clicking "Run Blueprint").
+		let bundleWasPersisted = false;
+		const originalBlueprint = siteInfo.metadata.originalBlueprint;
+		if (
+			originalBlueprint &&
+			typeof originalBlueprint === 'object' &&
+			'listFiles' in originalBlueprint &&
+			'isDir' in originalBlueprint &&
+			'readFileAsBuffer' in originalBlueprint
+		) {
+			try {
+				await persistBlueprintBundle(
+					siteSlug,
+					originalBlueprint as {
+						listFiles(path: string): Promise<string[]>;
+						isDir(path: string): Promise<boolean>;
+						readFileAsBuffer(path: string): Promise<Uint8Array>;
+					}
+				);
+				bundleWasPersisted = true;
+			} catch (error) {
+				logger.error('Failed to persist blueprint bundle', error);
+				// Continue with the save - the bundle is optional
+			}
+		}
 
 		let mountDescriptor: Omit<MountDescriptor, 'initialSyncDirection'>;
 		if (storageType === 'opfs') {
@@ -192,10 +220,18 @@ export function persistTemporarySite(
 					// on the next page load.
 					runtimeConfiguration: {
 						...siteInfo.metadata.runtimeConfiguration,
-						constants: await getPlaygroundDefinedPHPConstants(
-							playground
-						),
+						constants:
+							await getPlaygroundDefinedPHPConstants(playground),
 					},
+					// If we persisted a blueprint bundle, point to it so we can
+					// load the full bundle (not just the declaration) on next load.
+					...(bundleWasPersisted
+						? {
+								originalBlueprintSource: {
+									type: 'bundle-directory' as const,
+								},
+							}
+						: {}),
 					...(trimmedName ? { name: trimmedName } : {}),
 				},
 			})
