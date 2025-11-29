@@ -24,13 +24,14 @@ export class OpfsFilesystemBackend extends BaseOpfsFilesystemBackend {
 	 * Check if there's a saved blueprint bundle in the default location.
 	 */
 	static async hasSavedBundle(): Promise<boolean> {
-		const backend =
-			await BaseOpfsFilesystemBackend.fromPath(OPFS_BASE_PATH);
-		if (!backend) {
+		try {
+			const backend =
+				await BaseOpfsFilesystemBackend.fromPath(OPFS_BASE_PATH);
+			const files = await backend.listFiles('/');
+			return files.length > 0;
+		} catch {
 			return false;
 		}
-		const files = await backend.listFiles('/');
-		return files.length > 0;
 	}
 
 	/**
@@ -42,9 +43,6 @@ export class OpfsFilesystemBackend extends BaseOpfsFilesystemBackend {
 			OPFS_BASE_PATH,
 			true
 		);
-		if (!backend) {
-			throw new Error('OPFS not available');
-		}
 		// Cast to the extended type since we know it's compatible
 		return backend as unknown as OpfsFilesystemBackend;
 	}

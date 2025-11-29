@@ -394,29 +394,24 @@ export class OpfsFilesystemBackend implements WritableFilesystemBackend {
 
 	/**
 	 * Create a backend for a specific path in OPFS.
-	 * The path will be created if it doesn't exist.
+	 * The path will be created if `create` is true.
+	 * @throws Error if OPFS is not available or path doesn't exist (when create=false)
 	 */
 	static async fromPath(
 		pathSegments: string[],
 		create = false
-	): Promise<OpfsFilesystemBackend | null> {
+	): Promise<OpfsFilesystemBackend> {
 		if (typeof navigator === 'undefined') {
-			return null;
+			throw new Error('OPFS not available: navigator is undefined');
 		}
 		if (!navigator.storage || !navigator.storage.getDirectory) {
-			return null;
+			throw new Error('OPFS not available: storage API not supported');
 		}
-		try {
-			let handle = await navigator.storage.getDirectory();
-			for (const segment of pathSegments) {
-				handle = await handle.getDirectoryHandle(segment, {
-					create,
-				});
-			}
-			return new OpfsFilesystemBackend(handle);
-		} catch {
-			return null;
+		let handle = await navigator.storage.getDirectory();
+		for (const segment of pathSegments) {
+			handle = await handle.getDirectoryHandle(segment, { create });
 		}
+		return new OpfsFilesystemBackend(handle);
 	}
 
 	async clear(): Promise<void> {

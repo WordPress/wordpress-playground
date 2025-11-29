@@ -27,14 +27,15 @@ function getBundlePathSegments(siteSlug: string): string[] {
  * Check if a site has a persisted blueprint bundle.
  */
 export async function hasBlueprintBundle(siteSlug: string): Promise<boolean> {
-	const backend = await OpfsFilesystemBackend.fromPath(
-		getBundlePathSegments(siteSlug)
-	);
-	if (!backend) {
+	try {
+		const backend = await OpfsFilesystemBackend.fromPath(
+			getBundlePathSegments(siteSlug)
+		);
+		const files = await backend.listFiles('/');
+		return files.length > 0;
+	} catch {
 		return false;
 	}
-	const files = await backend.listFiles('/');
-	return files.length > 0;
 }
 
 /**
@@ -48,9 +49,6 @@ export async function persistBlueprintBundle(
 		getBundlePathSegments(siteSlug),
 		true
 	);
-	if (!destination) {
-		throw new Error('OPFS not available');
-	}
 	await copyFilesystem(source, destination);
 }
 
@@ -58,11 +56,13 @@ export async function persistBlueprintBundle(
  * Delete a site's blueprint bundle.
  */
 export async function deleteBlueprintBundle(siteSlug: string): Promise<void> {
-	const backend = await OpfsFilesystemBackend.fromPath(
-		getBundlePathSegments(siteSlug)
-	);
-	if (backend) {
+	try {
+		const backend = await OpfsFilesystemBackend.fromPath(
+			getBundlePathSegments(siteSlug)
+		);
 		await backend.clear();
+	} catch {
+		// Bundle doesn't exist, nothing to delete
 	}
 }
 
@@ -73,11 +73,5 @@ export async function deleteBlueprintBundle(siteSlug: string): Promise<void> {
 export async function loadPersistedBlueprintBundle(
 	siteSlug: string
 ): Promise<OpfsFilesystemBackend> {
-	const backend = await OpfsFilesystemBackend.fromPath(
-		getBundlePathSegments(siteSlug)
-	);
-	if (!backend) {
-		throw new Error(`Blueprint bundle not found for site: ${siteSlug}`);
-	}
-	return backend;
+	return OpfsFilesystemBackend.fromPath(getBundlePathSegments(siteSlug));
 }
