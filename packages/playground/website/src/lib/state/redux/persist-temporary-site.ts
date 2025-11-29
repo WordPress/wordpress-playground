@@ -100,10 +100,9 @@ export function persistTemporarySite(
 		} else {
 			// Check if there's an autosaved bundle from the blueprint editor.
 			try {
-				const opfsBackend = await OpfsFilesystemBackend.fromPath([
-					'blueprints',
-					'last-edited-bundle',
-				]);
+				const opfsBackend = await OpfsFilesystemBackend.fromPath(
+					'blueprints/last-edited-bundle'
+				);
 				const files = await opfsBackend.listFiles('/');
 				if (files.length > 0) {
 					bundleToPersist = opfsBackend;
@@ -247,7 +246,7 @@ export function persistTemporarySite(
 					...(bundleWasPersisted
 						? {
 								originalBlueprintSource: {
-									type: 'bundle-directory' as const,
+									type: 'opfs-site' as const,
 								},
 							}
 						: {}),

@@ -21,7 +21,7 @@ export type BlueprintSource =
 			url: string;
 	  }
 	| {
-			type: 'local-editor';
+			type: 'last-autosave';
 	  }
 	| {
 			type: 'inline-string';
@@ -30,7 +30,7 @@ export type BlueprintSource =
 			type: 'none';
 	  }
 	| {
-			type: 'bundle-directory';
+			type: 'opfs-site';
 	  };
 
 export type ResolvedBlueprint = {
@@ -98,11 +98,11 @@ export async function resolveBlueprintFromURL(
 				url: blueprintUrl,
 			},
 		};
-	} else if (fragment === 'local-blueprint-bundle') {
+	} else if (fragment === 'last-autosave') {
 		let bundle = undefined;
 		try {
 			bundle = await OpfsFilesystemBackend.fromPath(
-				['blueprints', 'last-edited-bundle'],
+				'blueprints/last-edited-bundle',
 				true
 			);
 		} catch (error) {
@@ -115,7 +115,7 @@ export async function resolveBlueprintFromURL(
 			blueprint:
 				bundle ||
 				((await resolveRemoteBlueprint(url.href)) as BlueprintV1),
-			source: { type: 'local-editor' },
+			source: { type: 'last-autosave' },
 		};
 	} else if (fragment.length) {
 		/*

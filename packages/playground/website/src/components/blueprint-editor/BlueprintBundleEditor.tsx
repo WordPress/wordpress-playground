@@ -171,7 +171,7 @@ export const BlueprintBundleEditor = forwardRef<
 					changes: {
 						metadata: {
 							...site.metadata,
-							originalBlueprintSource: { type: 'local-editor' },
+							originalBlueprintSource: { type: 'last-autosave' },
 							originalBlueprint: bundle,
 							runtimeConfiguration,
 							whenCreated: Date.now(),

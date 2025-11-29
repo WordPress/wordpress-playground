@@ -493,7 +493,7 @@ export class OpfsFilesystemBackend implements WritableFilesystemBackend {
 	 * @throws Error if OPFS is not available or path doesn't exist (when create=false)
 	 */
 	static async fromPath(
-		pathSegments: string[],
+		path: string,
 		create = false
 	): Promise<OpfsFilesystemBackend> {
 		if (typeof navigator === 'undefined') {
@@ -503,7 +503,8 @@ export class OpfsFilesystemBackend implements WritableFilesystemBackend {
 			throw new Error('OPFS not available: storage API not supported');
 		}
 		let handle = await navigator.storage.getDirectory();
-		for (const segment of pathSegments) {
+		const segments = path.split('/').filter(Boolean);
+		for (const segment of segments) {
 			handle = await handle.getDirectoryHandle(segment, { create });
 		}
 		return new OpfsFilesystemBackend(handle);

@@ -16,11 +16,11 @@ import { getDirectoryPathForSlug } from './opfs-site-storage';
 const BUNDLE_DIR_NAME = 'blueprint-bundle';
 
 /**
- * Get the OPFS path segments for a site's blueprint bundle directory.
+ * Get the OPFS path for a site's blueprint bundle directory.
  */
-function getBundlePathSegments(siteSlug: string): string[] {
+function getBundlePath(siteSlug: string): string {
 	const sitePath = getDirectoryPathForSlug(siteSlug);
-	return [...sitePath.split('/').filter(Boolean), BUNDLE_DIR_NAME];
+	return `${sitePath}/${BUNDLE_DIR_NAME}`;
 }
 
 /**
@@ -29,7 +29,7 @@ function getBundlePathSegments(siteSlug: string): string[] {
 export async function hasBlueprintBundle(siteSlug: string): Promise<boolean> {
 	try {
 		const backend = await OpfsFilesystemBackend.fromPath(
-			getBundlePathSegments(siteSlug)
+			getBundlePath(siteSlug)
 		);
 		const files = await backend.listFiles('/');
 		return files.length > 0;
@@ -46,7 +46,7 @@ export async function persistBlueprintBundle(
 	source: TraversableFilesystemBackend
 ): Promise<void> {
 	const destination = await OpfsFilesystemBackend.fromPath(
-		getBundlePathSegments(siteSlug),
+		getBundlePath(siteSlug),
 		true
 	);
 	await copyFilesystem(source, destination);
@@ -58,7 +58,7 @@ export async function persistBlueprintBundle(
 export async function deleteBlueprintBundle(siteSlug: string): Promise<void> {
 	try {
 		const backend = await OpfsFilesystemBackend.fromPath(
-			getBundlePathSegments(siteSlug)
+			getBundlePath(siteSlug)
 		);
 		await backend.clear();
 	} catch {
@@ -73,5 +73,5 @@ export async function deleteBlueprintBundle(siteSlug: string): Promise<void> {
 export async function loadPersistedBlueprintBundle(
 	siteSlug: string
 ): Promise<OpfsFilesystemBackend> {
-	return OpfsFilesystemBackend.fromPath(getBundlePathSegments(siteSlug));
+	return OpfsFilesystemBackend.fromPath(getBundlePath(siteSlug));
 }

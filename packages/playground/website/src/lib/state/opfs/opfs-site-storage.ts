@@ -175,7 +175,7 @@ export function getDirectoryNameForSlug(slug: string) {
 	return `site-${slug}`.replaceAll(/[^a-zA-Z0-9_-]/g, '-');
 }
 
-const BUNDLE_DIR_SOURCE_TYPE = 'bundle-directory';
+const BUNDLE_DIR_SOURCE_TYPE = 'opfs-site';
 
 async function metadataToStoredFormat(
 	slug: string,

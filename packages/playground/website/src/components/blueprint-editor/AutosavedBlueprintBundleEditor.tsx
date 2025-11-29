@@ -27,7 +27,7 @@ import {
 } from './BlueprintBundleEditor';
 
 /** Default OPFS path for the last edited blueprint bundle. */
-const OPFS_BASE_PATH = ['blueprints', 'last-edited-bundle'];
+const OPFS_BASE_PATH = 'blueprints/last-edited-bundle';
 
 /** Check if there's a saved blueprint bundle in the default OPFS location. */
 async function hasSavedBundle(): Promise<boolean> {
@@ -205,7 +205,7 @@ export const AutosavedBlueprintBundleEditor = forwardRef<
 				// Also check if the current site was loaded from a prior autosave.
 				const loadedFromAutosave =
 					site.metadata.originalBlueprintSource.type ===
-					'local-editor';
+					'last-autosave';
 
 				if (!alreadyAnswered && !loadedFromAutosave) {
 					// The current site wasn't loaded from the autosave and the user
