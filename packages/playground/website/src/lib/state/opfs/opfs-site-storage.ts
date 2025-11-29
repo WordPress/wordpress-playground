@@ -136,10 +136,7 @@ class OpfsSiteStorage {
 
 		// If the blueprint source points to the bundle directory, load from there.
 		// This allows the site to access bundled resources, not just the JSON declaration.
-		if (
-			siteInfo.metadata.originalBlueprintSource?.type ===
-			BUNDLE_DIR_SOURCE_TYPE
-		) {
+		if (siteInfo.metadata.originalBlueprintSource?.type === 'opfs-site') {
 			try {
 				siteInfo.metadata.originalBlueprint =
 					await loadPersistedBlueprintBundle(siteInfo.slug);
@@ -175,26 +172,20 @@ export function getDirectoryNameForSlug(slug: string) {
 	return `site-${slug}`.replaceAll(/[^a-zA-Z0-9_-]/g, '-');
 }
 
-const BUNDLE_DIR_SOURCE_TYPE = 'opfs-site';
-
 async function metadataToStoredFormat(
 	slug: string,
 	{ originalBlueprint, originalBlueprintSource, ...metadata }: SiteMetadata
 ): Promise<string> {
-	// If the blueprint is stored in the bundle directory, don't duplicate it in the JSON.
-	// The bundle files are stored separately in the blueprint-bundle directory.
-	const isBundleDirectory =
-		originalBlueprintSource?.type === BUNDLE_DIR_SOURCE_TYPE;
-
 	return JSON.stringify(
 		{
 			slug,
 			originalBlueprintSource,
 			// Only store the blueprint declaration if it's NOT a bundle directory.
 			// For bundle directories, the full bundle is stored separately.
-			originalBlueprint: isBundleDirectory
-				? undefined
-				: await getBlueprintDeclaration(originalBlueprint),
+			originalBlueprint:
+				originalBlueprintSource?.type === 'opfs-site'
+					? undefined
+					: await getBlueprintDeclaration(originalBlueprint),
 			...metadata,
 		},
 		undefined,
