@@ -31,6 +31,23 @@ export interface WritableFilesystemBackend extends TraversableFilesystemBackend 
 }
 
 /**
+ * Interface for a writable filesystem with EventTarget support.
+ * Used by UI components that need to react to filesystem changes.
+ */
+export interface AsyncWritableFilesystem extends EventTarget {
+	isDir(path: string): Promise<boolean>;
+	fileExists(path: string): Promise<boolean>;
+	read(path: string): Promise<{ arrayBuffer(): Promise<ArrayBuffer> }>;
+	readFileAsText(path: string): Promise<string>;
+	listFiles(path: string): Promise<string[]>;
+	writeFile(path: string, data: Uint8Array | string): Promise<void>;
+	mkdir(path: string): Promise<void>;
+	rmdir(path: string, options?: { recursive?: boolean }): Promise<void>;
+	mv(source: string, destination: string): Promise<void>;
+	unlink(path: string): Promise<void>;
+}
+
+/**
  * Copy all files from source filesystem to destination filesystem.
  * Clears the destination before copying.
  */
@@ -62,7 +79,10 @@ export async function copyFilesystem(
  * Wraps a WritableFilesystemBackend with EventTarget support and convenience methods.
  * Dispatches 'change' events on write operations.
  */
-export class EventedFilesystem extends EventTarget {
+export class EventedFilesystem
+	extends EventTarget
+	implements AsyncWritableFilesystem
+{
 	private readonly encoder = new TextEncoder();
 	private readonly decoder = new TextDecoder();
 	readonly backend: WritableFilesystemBackend;

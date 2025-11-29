@@ -1,4 +1,5 @@
 import { basename, dirname, joinPaths } from '@php-wasm/util';
+import type { AsyncWritableFilesystem } from '@wp-playground/storage';
 import {
 	Button,
 	MenuItem,
@@ -65,18 +66,8 @@ type FileSystemEntryLike =
 	| FileSystemFileEntryLike
 	| FileSystemDirectoryEntryLike;
 
-export interface AsyncWritableFilesystem extends EventTarget {
-	isDir: (path: string) => Promise<boolean>;
-	fileExists: (path: string) => Promise<boolean>;
-	read: (path: string) => Promise<{ arrayBuffer(): Promise<ArrayBuffer> }>;
-	readFileAsText: (path: string) => Promise<string>;
-	listFiles: (path: string) => Promise<string[]>;
-	writeFile: (path: string, data: Uint8Array | string) => Promise<void>;
-	mkdir: (path: string) => Promise<void>;
-	rmdir: (path: string, options?: { recursive?: boolean }) => Promise<void>;
-	mv: (source: string, destination: string) => Promise<void>;
-	unlink: (path: string) => Promise<void>;
-}
+// Re-export for backward compatibility
+export type { AsyncWritableFilesystem } from '@wp-playground/storage';
 
 export type FileNode = {
 	name: string;
