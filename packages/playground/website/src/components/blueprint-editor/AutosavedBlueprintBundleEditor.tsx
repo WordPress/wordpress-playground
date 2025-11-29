@@ -17,9 +17,26 @@ import {
 	type BlueprintBundleEditorHandle,
 	BlueprintBundleEditor,
 } from './BlueprintBundleEditor';
-import { WritableFilesystem } from './writable-filesystem';
+import {
+	type FilesystemBackend,
+	WritableFilesystem,
+} from './writable-filesystem';
 import { InMemoryFilesystemBackend } from './writable-in-memory-filesystem';
 import { OpfsFilesystemBackend } from './writable-opfs-filesystem';
+
+/**
+ * Check if an object implements the FilesystemBackend interface.
+ */
+function isFilesystemBackend(obj: unknown): obj is FilesystemBackend {
+	return (
+		typeof obj === 'object' &&
+		obj !== null &&
+		'listFiles' in obj &&
+		'isDir' in obj &&
+		'readFileAsBuffer' in obj &&
+		'fileExists' in obj
+	);
+}
 
 export const BLUEPRINT_JSON_PATH = '/blueprint.json';
 
@@ -69,12 +86,20 @@ export const AutosavedBlueprintBundleEditor = forwardRef<
 		const bootstrap = async () => {
 			let fs: WritableFilesystem | null = null;
 			// On stored sites, we can only view the Blueprint without editing (or autosaving) it.
-			// Let's just populate an in-memory filesystem with the Blueprint.
 			if (readOnly) {
+				const originalBlueprint = site.metadata.originalBlueprint;
+
+				// If originalBlueprint is already a filesystem backend (e.g., PersistedBlueprintBundle),
+				// use it directly instead of populating from blueprint JSON.
+				if (isFilesystemBackend(originalBlueprint)) {
+					fs = new WritableFilesystem(originalBlueprint);
+					setFilesystem(fs);
+					return;
+				}
+
+				// Otherwise, populate an in-memory filesystem with the Blueprint JSON.
 				fs = new WritableFilesystem(new InMemoryFilesystemBackend());
-				await fs.populateFromBlueprint(
-					site.metadata.originalBlueprint as Blueprint
-				);
+				await fs.populateFromBlueprint(originalBlueprint as Blueprint);
 				setFilesystem(fs);
 				return;
 			}
