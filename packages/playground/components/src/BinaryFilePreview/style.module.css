@@ -1,0 +1,76 @@
+.container {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	height: 100%;
+	width: 100%;
+}
+
+.header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	font-weight: 600;
+	font-size: 14px;
+	color: inherit;
+}
+
+.filename {
+	flex: 1;
+	margin-right: 12px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.downloadLink {
+	font-size: 14px;
+	font-weight: 500;
+	color: var(--wp-admin-theme-color-darker-20, #3858e9);
+	text-decoration: none;
+}
+
+.downloadLink:hover,
+.downloadLink:focus {
+	text-decoration: underline;
+}
+
+.previewArea {
+	flex: 1;
+	border: 1px solid #dcdcde;
+	border-radius: 4px;
+	background: #fff;
+	padding: 12px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	overflow: hidden;
+	min-height: 200px;
+}
+
+.imagePreview {
+	max-width: 100%;
+	max-height: 100%;
+	object-fit: contain;
+}
+
+.videoPreview {
+	width: 100%;
+	max-height: 100%;
+	background: #000;
+	border-radius: 4px;
+}
+
+.audioPreview {
+	width: 100%;
+}
+
+.unsupportedMessage {
+	text-align: center;
+	line-height: 1.4;
+	color: #50575e;
+}
+
+.actions {
+	text-align: right;
+}

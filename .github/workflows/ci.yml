@@ -293,6 +293,12 @@ jobs:
               run: npx playwright install --with-deps chromium
             - name: Verify docs API reference
               run: npx nx run docs-site:api-e2e
+            - uses: actions/upload-artifact@v4
+              if: ${{ !cancelled() }}
+              with:
+                  name: docs-api-e2e-report
+                  path: packages/docs/site/test-results/
+                  if-no-files-found: ignore
 
     test-built-npm-packages:
         runs-on: ubuntu-latest

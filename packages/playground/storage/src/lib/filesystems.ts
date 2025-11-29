@@ -4,11 +4,156 @@ import { normalizePath } from '@php-wasm/util';
 import type { Entry } from '@zip.js/zip.js';
 import { ZipReader, BlobWriter, BlobReader } from '@zip.js/zip.js';
 
-export interface Filesystem {
+export interface ReadableFilesystemBackend {
 	read(path: string): Promise<StreamedFile>;
 }
 
-export class InMemoryFilesystem implements Filesystem {
+/**
+ * A readable filesystem that can also be traversed (list directories).
+ */
+export interface TraversableFilesystemBackend extends ReadableFilesystemBackend {
+	listFiles(path: string): Promise<string[]>;
+	isDir(path: string): Promise<boolean>;
+}
+
+/**
+ * Backend interface for writable filesystem operations.
+ * All paths passed to these methods are expected to be absolute paths.
+ */
+export interface WritableFilesystemBackend extends TraversableFilesystemBackend {
+	fileExists(absolutePath: string): Promise<boolean>;
+	writeFile(absolutePath: string, data: Uint8Array): Promise<void>;
+	mkdir(absolutePath: string): Promise<void>;
+	rmdir(absolutePath: string, recursive: boolean): Promise<void>;
+	mv(absoluteSource: string, absoluteDestination: string): Promise<void>;
+	unlink(absolutePath: string): Promise<void>;
+	clear(): Promise<void>;
+}
+
+/**
+ * Interface for a writable filesystem with EventTarget support.
+ * Used by UI components that need to react to filesystem changes.
+ */
+export interface AsyncWritableFilesystem extends EventTarget {
+	isDir(path: string): Promise<boolean>;
+	fileExists(path: string): Promise<boolean>;
+	read(path: string): Promise<{ arrayBuffer(): Promise<ArrayBuffer> }>;
+	readFileAsText(path: string): Promise<string>;
+	listFiles(path: string): Promise<string[]>;
+	writeFile(path: string, data: Uint8Array | string): Promise<void>;
+	mkdir(path: string): Promise<void>;
+	rmdir(path: string, options?: { recursive?: boolean }): Promise<void>;
+	mv(source: string, destination: string): Promise<void>;
+	unlink(path: string): Promise<void>;
+}
+
+/**
+ * Copy all files from source filesystem to destination filesystem.
+ * Clears the destination before copying.
+ */
+export async function copyFilesystem(
+	source: TraversableFilesystemBackend,
+	destination: WritableFilesystemBackend
+): Promise<void> {
+	await destination.clear();
+
+	const copyDir = async (path: string) => {
+		const entries = await source.listFiles(path);
+		for (const name of entries) {
+			const fullPath = path === '/' ? `/${name}` : `${path}/${name}`;
+			if (await source.isDir(fullPath)) {
+				await destination.mkdir(fullPath);
+				await copyDir(fullPath);
+			} else {
+				const file = await source.read(fullPath);
+				const content = new Uint8Array(await file.arrayBuffer());
+				await destination.writeFile(fullPath, content);
+			}
+		}
+	};
+
+	await copyDir('/');
+}
+
+/**
+ * Wraps a WritableFilesystemBackend with EventTarget support and convenience methods.
+ * Dispatches 'change' events on write operations.
+ */
+export class EventedFilesystem
+	extends EventTarget
+	implements AsyncWritableFilesystem
+{
+	private readonly encoder = new TextEncoder();
+	private readonly decoder = new TextDecoder();
+	readonly backend: WritableFilesystemBackend;
+
+	constructor(backend: WritableFilesystemBackend) {
+		super();
+		this.backend = backend;
+	}
+
+	async isDir(path: string): Promise<boolean> {
+		return this.backend.isDir(path);
+	}
+
+	async fileExists(path: string): Promise<boolean> {
+		return this.backend.fileExists(path);
+	}
+
+	async read(path: string): Promise<StreamedFile> {
+		return this.backend.read(path);
+	}
+
+	async readFileAsText(path: string): Promise<string> {
+		const file = await this.read(path);
+		const buffer = await file.arrayBuffer();
+		return this.decoder.decode(buffer);
+	}
+
+	async listFiles(path: string): Promise<string[]> {
+		return this.backend.listFiles(path);
+	}
+
+	async writeFile(path: string, data: Uint8Array | string): Promise<void> {
+		const content =
+			typeof data === 'string' ? this.encoder.encode(data) : data;
+		await this.backend.writeFile(path, content);
+		this.dispatchEvent(new Event('change'));
+	}
+
+	async mkdir(path: string): Promise<void> {
+		await this.backend.mkdir(path);
+		this.dispatchEvent(new Event('change'));
+	}
+
+	async rmdir(
+		path: string,
+		options?: { recursive?: boolean }
+	): Promise<void> {
+		await this.backend.rmdir(path, options?.recursive ?? false);
+		this.dispatchEvent(new Event('change'));
+	}
+
+	async mv(source: string, destination: string): Promise<void> {
+		if (source === destination) {
+			return;
+		}
+		await this.backend.mv(source, destination);
+		this.dispatchEvent(new Event('change'));
+	}
+
+	async unlink(path: string): Promise<void> {
+		await this.backend.unlink(path);
+		this.dispatchEvent(new Event('change'));
+	}
+
+	async clear(): Promise<void> {
+		await this.backend.clear();
+		this.dispatchEvent(new Event('change'));
+	}
+}
+
+export class InMemoryFilesystem implements ReadableFilesystemBackend {
 	private fileTree: FileTree;
 
 	constructor(fileTree: FileTree) {
@@ -52,7 +197,7 @@ export class InMemoryFilesystem implements Filesystem {
 	}
 }
 
-export class ZipFilesystem implements Filesystem {
+export class ZipFilesystem implements ReadableFilesystemBackend {
 	private entries: Map<string, Entry> = new Map();
 	private zipReader: ZipReader<BlobReader>;
 
@@ -109,8 +254,8 @@ export class ZipFilesystem implements Filesystem {
  * This is useful for creating a layered approach to file resolution,
  * such as checking a local cache before fetching from a remote source.
  */
-export class OverlayFilesystem implements Filesystem {
-	private filesystems: Filesystem[];
+export class OverlayFilesystem implements ReadableFilesystemBackend {
+	private filesystems: ReadableFilesystemBackend[];
 
 	/**
 	 * Creates a new OverlayFilesystem.
@@ -119,7 +264,7 @@ export class OverlayFilesystem implements Filesystem {
 	 *                    The order determines the priority - earlier filesystems
 	 *                    are checked first.
 	 */
-	constructor(filesystems: Filesystem[]) {
+	constructor(filesystems: ReadableFilesystemBackend[]) {
 		if (!filesystems.length) {
 			throw new Error(
 				'OverlayFilesystem requires at least one filesystem'
@@ -169,7 +314,7 @@ export interface FetchFilesystemOptions {
  * A Filesystem implementation that fetches files from URLs.
  * It can optionally use a CORS proxy and resolve paths relative to a base URL.
  */
-export class FetchFilesystem implements Filesystem {
+export class FetchFilesystem implements ReadableFilesystemBackend {
 	private baseUrl = '';
 	private options: FetchFilesystemOptions;
 	private isDataUrl: boolean;
@@ -241,7 +386,7 @@ export class FetchFilesystem implements Filesystem {
  *
  * This is only available in a local environment.
  */
-export class NodeJsFilesystem implements Filesystem {
+export class NodeJsFilesystem implements ReadableFilesystemBackend {
 	private fs: any;
 	private path: any;
 	private root: string;
@@ -319,4 +464,400 @@ function nodeStreamToReadableStream(stream: any): ReadableStream {
 		},
 	});
 	return readableStream;
+}
+
+/**
+ * OPFS filesystem backend that operates directly on the Origin Private File System.
+ * Implements both ReadableFilesystemBackend (for BlueprintBundle) and
+ * WritableFilesystemBackend (for the editor).
+ */
+export class OpfsFilesystemBackend implements WritableFilesystemBackend {
+	private readonly opfsRoot: FileSystemDirectoryHandle;
+
+	constructor(opfsRoot: FileSystemDirectoryHandle) {
+		this.opfsRoot = opfsRoot;
+	}
+
+	/**
+	 * Create a backend for a specific OPFS directory handle.
+	 */
+	static fromDirectoryHandle(
+		handle: FileSystemDirectoryHandle
+	): OpfsFilesystemBackend {
+		return new OpfsFilesystemBackend(handle);
+	}
+
+	/**
+	 * Create a backend for a specific path in OPFS.
+	 * The path will be created if `create` is true.
+	 * @throws Error if OPFS is not available or path doesn't exist (when create=false)
+	 */
+	static async fromPath(
+		path: string,
+		create = false
+	): Promise<OpfsFilesystemBackend> {
+		if (typeof navigator === 'undefined') {
+			throw new Error('OPFS not available: navigator is undefined');
+		}
+		if (!navigator.storage || !navigator.storage.getDirectory) {
+			throw new Error('OPFS not available: storage API not supported');
+		}
+		let handle = await navigator.storage.getDirectory();
+		const segments = path.split('/').filter(Boolean);
+		for (const segment of segments) {
+			handle = await handle.getDirectoryHandle(segment, { create });
+		}
+		return new OpfsFilesystemBackend(handle);
+	}
+
+	async clear(): Promise<void> {
+		for await (const [name] of this.opfsRoot.entries()) {
+			try {
+				await this.opfsRoot.removeEntry(name, { recursive: true });
+			} catch {
+				/* ignore */
+			}
+		}
+	}
+
+	// ReadableFilesystemBackend interface
+	async read(path: string): Promise<StreamedFile> {
+		const content = await this.readFileAsBuffer(path);
+		const stream = new ReadableStream({
+			start(controller) {
+				controller.enqueue(content);
+				controller.close();
+			},
+		});
+		return new StreamedFile(stream, path, {
+			filesize: content.byteLength,
+		});
+	}
+
+	async isDir(absolutePath: string): Promise<boolean> {
+		if (absolutePath === '/') {
+			return true;
+		}
+		try {
+			const segments = absolutePath.split('/').filter(Boolean);
+			let dir = this.opfsRoot;
+			for (const segment of segments) {
+				dir = await dir.getDirectoryHandle(segment);
+			}
+			return true;
+		} catch {
+			return false;
+		}
+	}
+
+	async fileExists(absolutePath: string): Promise<boolean> {
+		const segments = absolutePath.split('/').filter(Boolean);
+		const fileName = segments.pop();
+		if (!fileName) {
+			return false;
+		}
+		try {
+			let dir = this.opfsRoot;
+			for (const segment of segments) {
+				dir = await dir.getDirectoryHandle(segment);
+			}
+			await dir.getFileHandle(fileName);
+			return true;
+		} catch {
+			return false;
+		}
+	}
+
+	async listFiles(absolutePath: string): Promise<string[]> {
+		let dir = this.opfsRoot;
+		if (absolutePath !== '/') {
+			const segments = absolutePath.split('/').filter(Boolean);
+			for (const segment of segments) {
+				dir = await dir.getDirectoryHandle(segment);
+			}
+		}
+		const names: string[] = [];
+		for await (const [name] of dir.entries()) {
+			names.push(name);
+		}
+		return names;
+	}
+
+	async writeFile(absolutePath: string, data: Uint8Array): Promise<void> {
+		const segments = absolutePath.split('/').filter(Boolean);
+		const fileName = segments.pop();
+		if (!fileName) {
+			throw new Error(`Invalid file path: ${absolutePath}`);
+		}
+		let dir = this.opfsRoot;
+		for (const segment of segments) {
+			dir = await dir.getDirectoryHandle(segment, { create: true });
+		}
+		const handle = await dir.getFileHandle(fileName, { create: true });
+		const writable = await handle.createWritable();
+		await writable.write(data);
+		await writable.close();
+	}
+
+	async mkdir(absolutePath: string): Promise<void> {
+		const segments = absolutePath.split('/').filter(Boolean);
+		let dir = this.opfsRoot;
+		for (const segment of segments) {
+			dir = await dir.getDirectoryHandle(segment, { create: true });
+		}
+	}
+
+	async rmdir(absolutePath: string, recursive: boolean): Promise<void> {
+		const segments = absolutePath.split('/').filter(Boolean);
+		const name = segments.pop();
+		if (!name) {
+			return;
+		}
+		let dir = this.opfsRoot;
+		for (const segment of segments) {
+			dir = await dir.getDirectoryHandle(segment);
+		}
+		await dir.removeEntry(name, { recursive });
+	}
+
+	async mv(
+		absoluteSource: string,
+		absoluteDestination: string
+	): Promise<void> {
+		const isSourceDir = await this.isDir(absoluteSource);
+		if (isSourceDir) {
+			await this.copyDir(absoluteSource, absoluteDestination);
+			await this.rmdir(absoluteSource, true);
+		} else {
+			const content = await this.readFileAsBuffer(absoluteSource);
+			await this.writeFile(absoluteDestination, content);
+			await this.unlink(absoluteSource);
+		}
+	}
+
+	async unlink(absolutePath: string): Promise<void> {
+		const segments = absolutePath.split('/').filter(Boolean);
+		const name = segments.pop();
+		if (!name) {
+			return;
+		}
+		let dir = this.opfsRoot;
+		for (const segment of segments) {
+			dir = await dir.getDirectoryHandle(segment);
+		}
+		try {
+			await dir.removeEntry(name);
+		} catch {
+			/* ignore */
+		}
+	}
+
+	// --- Internal helpers ---
+	private async readFileAsBuffer(absolutePath: string): Promise<Uint8Array> {
+		const segments = absolutePath.split('/').filter(Boolean);
+		const fileName = segments.pop();
+		if (!fileName) {
+			throw new Error(`Invalid file path: ${absolutePath}`);
+		}
+		let dir = this.opfsRoot;
+		for (const segment of segments) {
+			dir = await dir.getDirectoryHandle(segment);
+		}
+		const handle = await dir.getFileHandle(fileName);
+		const file = await handle.getFile();
+		return new Uint8Array(await file.arrayBuffer());
+	}
+
+	private async copyDir(source: string, destination: string): Promise<void> {
+		await this.mkdir(destination);
+		const files = await this.listFiles(source);
+		for (const name of files) {
+			const srcPath = source === '/' ? `/${name}` : `${source}/${name}`;
+			const destPath =
+				destination === '/' ? `/${name}` : `${destination}/${name}`;
+			if (await this.isDir(srcPath)) {
+				await this.copyDir(srcPath, destPath);
+			} else {
+				const content = await this.readFileAsBuffer(srcPath);
+				await this.writeFile(destPath, content);
+			}
+		}
+	}
+}
+
+type FileNode = { type: 'file'; content: Uint8Array };
+type DirNode = { type: 'dir'; children: Record<string, FsNode> };
+type FsNode = FileNode | DirNode;
+
+/**
+ * In-memory writable filesystem backend that stores files in a tree structure.
+ */
+export class InMemoryFilesystemBackend implements WritableFilesystemBackend {
+	private root: DirNode = { type: 'dir', children: {} };
+
+	constructor(initialFiles: Record<string, Uint8Array> = {}) {
+		for (const [path, content] of Object.entries(initialFiles)) {
+			this.writeFileSync(path, content);
+		}
+	}
+
+	async read(path: string): Promise<StreamedFile> {
+		const file = this.getFile(path);
+		const content = file.content;
+		const stream = new ReadableStream({
+			start(controller) {
+				controller.enqueue(content);
+				controller.close();
+			},
+		});
+		return new StreamedFile(stream, path, {
+			filesize: content.byteLength,
+		});
+	}
+
+	async isDir(absolutePath: string): Promise<boolean> {
+		const node = this.getNode(absolutePath);
+		return !!node && node.type === 'dir';
+	}
+
+	async fileExists(absolutePath: string): Promise<boolean> {
+		const node = this.getNode(absolutePath);
+		return !!node && node.type === 'file';
+	}
+
+	async listFiles(absolutePath: string): Promise<string[]> {
+		const dir = this.getDir(absolutePath);
+		return Object.keys(dir.children);
+	}
+
+	async writeFile(absolutePath: string, data: Uint8Array): Promise<void> {
+		this.writeFileSync(absolutePath, data);
+	}
+
+	async mkdir(absolutePath: string): Promise<void> {
+		const { parent, name } = this.getParent(absolutePath);
+		if (!parent.children[name]) {
+			parent.children[name] = { type: 'dir', children: {} };
+		}
+	}
+
+	async rmdir(absolutePath: string, recursive: boolean): Promise<void> {
+		const { parent, name } = this.getParent(absolutePath);
+		const target = parent.children[name];
+		if (!target || target.type !== 'dir') {
+			return;
+		}
+		if (!recursive && Object.keys(target.children).length > 0) {
+			throw new Error('Directory not empty');
+		}
+		delete parent.children[name];
+	}
+
+	async mv(
+		absoluteSource: string,
+		absoluteDestination: string
+	): Promise<void> {
+		const { parent: sourceParent, name: sourceName } =
+			this.getParent(absoluteSource);
+		const entry = sourceParent.children[sourceName];
+		if (!entry) {
+			throw new Error(`Source not found: ${absoluteSource}`);
+		}
+
+		const { parent: destParent, name: destName } =
+			this.getParent(absoluteDestination);
+		destParent.children[destName] = entry;
+		delete sourceParent.children[sourceName];
+	}
+
+	async unlink(absolutePath: string): Promise<void> {
+		const { parent, name } = this.getParent(absolutePath);
+		const target = parent.children[name];
+		if (target && target.type === 'file') {
+			delete parent.children[name];
+		}
+	}
+
+	async clear(): Promise<void> {
+		this.root = { type: 'dir', children: {} };
+	}
+
+	// --- Internal helpers ---
+	private writeFileSync(absolutePath: string, data: Uint8Array): void {
+		const { parent, name } = this.getParent(absolutePath);
+		parent.children[name] = {
+			type: 'file',
+			content: new Uint8Array(data),
+		};
+	}
+
+	private getNode(absolutePath: string): FsNode | undefined {
+		if (absolutePath === '/') {
+			return this.root;
+		}
+		const parts = absolutePath.split('/').filter(Boolean);
+		let current: FsNode = this.root;
+		for (const segment of parts) {
+			if (current.type !== 'dir') {
+				return undefined;
+			}
+			const next = current.children[segment] as FsNode | undefined;
+			if (!next) {
+				return undefined;
+			}
+			current = next;
+		}
+		return current;
+	}
+
+	private getDir(absolutePath: string): DirNode {
+		const node = this.getNode(absolutePath);
+		if (!node || node.type !== 'dir') {
+			throw new Error(`Directory not found: ${absolutePath}`);
+		}
+		return node;
+	}
+
+	private getFile(absolutePath: string): FileNode {
+		const node = this.getNode(absolutePath);
+		if (!node || node.type !== 'file') {
+			throw new Error(`File not found: ${absolutePath}`);
+		}
+		return node;
+	}
+
+	private getParent(absolutePath: string): { parent: DirNode; name: string } {
+		const segments = absolutePath.split('/').filter(Boolean);
+		const name = segments.pop();
+		const parentPath = segments.length ? `/${segments.join('/')}` : '/';
+		const parent = this.ensureDir(parentPath);
+		if (!name) {
+			throw new Error(`Invalid path: ${absolutePath}`);
+		}
+		return { parent, name };
+	}
+
+	private ensureDir(absolutePath: string): DirNode {
+		if (absolutePath === '/') {
+			return this.root;
+		}
+		const parts = absolutePath.split('/').filter(Boolean);
+		let current: DirNode = this.root;
+		for (const part of parts) {
+			const next = current.children[part];
+			if (!next) {
+				const dir: DirNode = { type: 'dir', children: {} };
+				current.children[part] = dir;
+				current = dir;
+				continue;
+			}
+			if (next.type !== 'dir') {
+				throw new Error(
+					`Path segment "${part}" is not a directory in ${absolutePath}`
+				);
+			}
+			current = next;
+		}
+		return current;
+	}
 }

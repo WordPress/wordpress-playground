@@ -11,7 +11,11 @@ import { collectPhpLogs, logger } from '@php-wasm/logger';
 import { consumeAPI } from '@php-wasm/universal';
 
 export class BlueprintsV1Handler {
-	constructor(private readonly options: StartPlaygroundOptions) {}
+	private readonly options: StartPlaygroundOptions;
+
+	constructor(options: StartPlaygroundOptions) {
+		this.options = options;
+	}
 
 	async bootPlayground(
 		iframe: HTMLIFrameElement,
