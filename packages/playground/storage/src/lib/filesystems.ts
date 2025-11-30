@@ -552,17 +552,24 @@ export class OpfsFilesystemBackend implements WritableFilesystemBackend {
 
 	async fileExists(absolutePath: string): Promise<boolean> {
 		const segments = absolutePath.split('/').filter(Boolean);
-		const fileName = segments.pop();
-		if (!fileName) {
-			return false;
+		// Root always exists
+		if (segments.length === 0) {
+			return true;
 		}
+		const name = segments.pop()!;
 		try {
 			let dir = this.opfsRoot;
 			for (const segment of segments) {
 				dir = await dir.getDirectoryHandle(segment);
 			}
-			await dir.getFileHandle(fileName);
-			return true;
+			// Check if it's a file or directory
+			try {
+				await dir.getFileHandle(name);
+				return true;
+			} catch {
+				await dir.getDirectoryHandle(name);
+				return true;
+			}
 		} catch {
 			return false;
 		}
@@ -722,7 +729,7 @@ export class InMemoryFilesystemBackend implements WritableFilesystemBackend {
 
 	async fileExists(absolutePath: string): Promise<boolean> {
 		const node = this.getNode(absolutePath);
-		return !!node && node.type === 'file';
+		return !!node;
 	}
 
 	async listFiles(absolutePath: string): Promise<string[]> {
