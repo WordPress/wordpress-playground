@@ -1,6 +1,7 @@
 import {
 	startCompletion,
 	type CompletionContext,
+	completionKeymap,
 	type CompletionResult,
 } from '@codemirror/autocomplete';
 import type { EditorState } from '@codemirror/state';
@@ -13,6 +14,7 @@ import {
 	getExistingKeysInCurrentObject,
 	getJsonPath,
 	getPropertyNameForValueCompletion,
+	getStringNodeAtPosition,
 	mergeCompositeSchemas,
 	resolveSchemaRefs,
 } from './json-schema-utils';
@@ -955,3 +957,5 @@ function isInPropertyKeyPosition(
 
 	return false;
 }
+
+export { getStringNodeAtPosition, completionKeymap };
