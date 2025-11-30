@@ -352,15 +352,14 @@ function compileBlueprintJson(
 		});
 	}
 
-	const { valid, errors } = validateBlueprint(blueprint);
-	if (!valid) {
-		const formattedErrors = formatValidationErrors(blueprint, errors ?? []);
+	const validationResult = validateBlueprint(blueprint);
+	if (!validationResult.valid) {
+		const { errors } = validationResult;
+		const formattedErrors = formatValidationErrors(blueprint, errors);
 
 		throw new InvalidBlueprintError(
 			`Invalid Blueprint: The Blueprint does not conform to the schema.\n\n` +
-				`Found ${
-					errors!.length
-				} validation error(s):\n\n${formattedErrors}\n\n` +
+				`Found ${errors.length} validation error(s):\n\n${formattedErrors}\n\n` +
 				`Please review your Blueprint and fix these issues. ` +
 				`Learn more about the Blueprint format: https://wordpress.github.io/wordpress-playground/blueprints/data-format`,
 			errors
@@ -543,7 +542,13 @@ function formatValidationErrors(
 		.join('\n\n');
 }
 
-export function validateBlueprint(blueprintMaybe: object) {
+export type BlueprintValidationResult =
+	| { valid: true }
+	| { valid: false; errors: ErrorObject[] };
+
+export function validateBlueprint(
+	blueprintMaybe: object
+): BlueprintValidationResult {
 	const valid = blueprintValidator(blueprintMaybe);
 	if (valid) {
 		return { valid };
@@ -568,16 +573,18 @@ export function validateBlueprint(blueprintMaybe: object) {
 			hasErrorsDifferentThanAnyOf.add(error.instancePath);
 		}
 	}
-	const errors = blueprintValidator.errors?.filter(
-		(error) =>
-			!(
-				error.schemaPath.startsWith('#/properties/steps/items/anyOf') &&
-				hasErrorsDifferentThanAnyOf.has(error.instancePath)
-			)
-	);
+	const errors =
+		blueprintValidator.errors?.filter(
+			(error) =>
+				!(
+					error.schemaPath.startsWith(
+						'#/properties/steps/items/anyOf'
+					) && hasErrorsDifferentThanAnyOf.has(error.instancePath)
+				)
+		) ?? [];
 
 	return {
-		valid,
+		valid: false,
 		errors,
 	};
 }

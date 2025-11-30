@@ -2,7 +2,10 @@ import { autocompletion } from '@codemirror/autocomplete';
 import { logger } from '@php-wasm/logger';
 import { Button, Icon, Notice } from '@wordpress/components';
 import { download } from '@wordpress/icons';
-import { resolveRuntimeConfiguration } from '@wp-playground/blueprints';
+import {
+	resolveRuntimeConfiguration,
+	type BlueprintValidationResult,
+} from '@wp-playground/blueprints';
 import type { AsyncWritableFilesystem } from '@wp-playground/storage';
 import { BlobWriter, Uint8ArrayReader, ZipWriter } from '@zip.js/zip.js';
 import classNames from 'classnames';
@@ -21,6 +24,7 @@ import {
 } from '../site-manager/site-file-browser/code-editor';
 import { FileExplorerSidebar } from './file-explorer-sidebar';
 import { jsonSchemaCompletion } from './json-schema-editor/jsonSchemaCompletion';
+import { createBlueprintLinter } from './json-schema-editor/blueprint-linter';
 // Reuse the file browser layout styles to keep UI consistent
 import { useDebouncedCallback } from '../../lib/hooks/use-debounced-callback';
 import { removeClientInfo } from '../../lib/state/redux/slice-clients';
@@ -29,9 +33,41 @@ import { sitesSlice } from '../../lib/state/redux/slice-sites';
 import { useAppDispatch } from '../../lib/state/redux/store';
 import styles from '../site-manager/site-file-browser/style.module.css';
 import hideRootStyles from './hide-root.module.css';
+import validationStyles from './validation-panel.module.css';
 import type { EventedFilesystem } from '@wp-playground/storage';
 
 const BLUEPRINT_JSON_PATH = '/blueprint.json';
+
+/**
+ * Format a validation error into a human-readable message for the error panel
+ */
+function formatValidationError(error: {
+	keyword: string;
+	message?: string;
+	params?: Record<string, unknown>;
+	instancePath: string;
+}): string {
+	// Provide better messages based on error type
+	if (error.keyword === 'additionalProperties' && error.params) {
+		const prop = error.params.additionalProperty;
+		return `Unknown property "${prop}"`;
+	}
+	if (error.keyword === 'required' && error.params) {
+		const prop = error.params.missingProperty;
+		return `Missing required property "${prop}"`;
+	}
+	if (error.keyword === 'enum' && error.params) {
+		const allowed = error.params.allowedValues;
+		if (Array.isArray(allowed)) {
+			return `Value must be one of: ${allowed.join(', ')}`;
+		}
+	}
+	if (error.keyword === 'type' && error.params) {
+		const expected = error.params.type;
+		return `Expected ${expected}`;
+	}
+	return error.message || 'Validation error';
+}
 
 const PlayIcon = ({ className }: { className?: string }) => (
 	<svg
@@ -95,6 +131,8 @@ export const BlueprintBundleEditor = forwardRef<
 	>(null);
 	const [displayPath, setDisplayPath] = useState<string | null>(null);
 	const [isRecreating, setIsRecreating] = useState(false);
+	const [validationResult, setValidationResult] =
+		useState<BlueprintValidationResult | null>(null);
 
 	const editorRef = useRef<CodeEditorHandle | null>(null);
 	const dispatch = useAppDispatch();
@@ -241,6 +279,13 @@ export const BlueprintBundleEditor = forwardRef<
 		[]
 	);
 
+	const handleValidationChange = useCallback(
+		(result: BlueprintValidationResult | null) => {
+			setValidationResult(result);
+		},
+		[]
+	);
+
 	const blueprintSchemaExtensions = useMemo(
 		() => [
 			autocompletion({
@@ -248,9 +293,13 @@ export const BlueprintBundleEditor = forwardRef<
 				activateOnTyping: true,
 				closeOnBlur: false,
 			}),
+			createBlueprintLinter(handleValidationChange),
 		],
-		[]
+		[handleValidationChange]
 	);
+
+	const hasValidationErrors =
+		validationResult !== null && !validationResult.valid;
 
 	const handleDownloadBundle = useCallback(async () => {
 		try {
@@ -302,7 +351,7 @@ export const BlueprintBundleEditor = forwardRef<
 		[handleDownloadBundle, filesystem, handleRecreateFromBlueprint]
 	);
 
-	const disableRunButton = isRecreating || !site;
+	const disableRunButton = isRecreating || !site || hasValidationErrors;
 	return (
 		<div className={classNames(styles.container, className)}>
 			<div
@@ -369,10 +418,21 @@ export const BlueprintBundleEditor = forwardRef<
 							{!readOnly && (
 								<Button
 									variant="primary"
-									className={styles.editorToolbarButton}
+									className={classNames(
+										styles.editorToolbarButton,
+										{
+											[validationStyles.runButtonDisabled]:
+												hasValidationErrors,
+										}
+									)}
 									onClick={handleRecreateFromBlueprint}
 									isBusy={isRecreating}
 									disabled={disableRunButton}
+									title={
+										hasValidationErrors
+											? 'Fix validation errors before running'
+											: undefined
+									}
 								>
 									<PlayIcon
 										className={styles.editorToolbarPlayIcon}
@@ -395,19 +455,94 @@ export const BlueprintBundleEditor = forwardRef<
 								{messageContent}
 							</div>
 						) : (
-							<CodeEditor
-								ref={editorRef}
-								code={code}
-								onChange={handleCodeChange}
-								currentPath={currentPath}
-								className={styles.editor}
-								readOnly={readOnly}
-								additionalExtensions={
-									currentPath === BLUEPRINT_JSON_PATH
-										? blueprintSchemaExtensions
-										: undefined
-								}
-							/>
+							<>
+								<CodeEditor
+									ref={editorRef}
+									code={code}
+									onChange={handleCodeChange}
+									currentPath={currentPath}
+									className={styles.editor}
+									readOnly={readOnly}
+									additionalExtensions={
+										currentPath === BLUEPRINT_JSON_PATH
+											? blueprintSchemaExtensions
+											: undefined
+									}
+								/>
+								{currentPath === BLUEPRINT_JSON_PATH &&
+									hasValidationErrors &&
+									!validationResult.valid && (
+										<div
+											className={
+												validationStyles.validationPanel
+											}
+										>
+											<div
+												className={
+													validationStyles.validationHeader
+												}
+											>
+												<span
+													className={
+														validationStyles.validationIcon
+													}
+												>
+													<svg
+														viewBox="0 0 20 20"
+														fill="currentColor"
+													>
+														<path
+															fillRule="evenodd"
+															d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+															clipRule="evenodd"
+														/>
+													</svg>
+												</span>
+												{validationResult.errors
+													.length === 1
+													? '1 validation error'
+													: `${validationResult.errors.length} validation errors`}
+											</div>
+											<ul
+												className={
+													validationStyles.validationErrors
+												}
+											>
+												{validationResult.errors.map(
+													(error, index) => (
+														<li
+															key={index}
+															className={
+																validationStyles.validationError
+															}
+														>
+															{error.instancePath && (
+																<span
+																	className={
+																		validationStyles.errorPath
+																	}
+																>
+																	{
+																		error.instancePath
+																	}
+																</span>
+															)}
+															<span
+																className={
+																	validationStyles.errorMessage
+																}
+															>
+																{formatValidationError(
+																	error
+																)}
+															</span>
+														</li>
+													)
+												)}
+											</ul>
+										</div>
+									)}
+							</>
 						)
 					) : (
 						<div className={styles.placeholder}>

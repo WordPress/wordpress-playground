@@ -21,6 +21,7 @@ export {
 	runBlueprintV1Steps,
 	InvalidBlueprintError,
 	BlueprintStepExecutionError,
+	validateBlueprint,
 
 	// BC:
 	compileBlueprintV1 as compileBlueprint,
@@ -31,6 +32,7 @@ export type {
 	CompiledBlueprintV1,
 	CompiledV1Step,
 	OnStepCompleted,
+	BlueprintValidationResult,
 } from './lib/v1/compile';
 export type {
 	CachedResource,
