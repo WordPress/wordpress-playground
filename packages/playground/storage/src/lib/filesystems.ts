@@ -579,23 +579,18 @@ export class OpfsFilesystemBackend implements WritableFilesystemBackend {
 	}
 
 	async listFiles(absolutePath: string): Promise<string[]> {
-		try {
-			let dir = this.opfsRoot;
-			if (absolutePath !== '/') {
-				const segments = absolutePath.split('/').filter(Boolean);
-				for (const segment of segments) {
-					dir = await dir.getDirectoryHandle(segment);
-				}
+		let dir = this.opfsRoot;
+		if (absolutePath !== '/') {
+			const segments = absolutePath.split('/').filter(Boolean);
+			for (const segment of segments) {
+				dir = await dir.getDirectoryHandle(segment);
 			}
-			const names: string[] = [];
-			for await (const [name] of dir.entries()) {
-				names.push(name);
-			}
-			return names;
-		} catch {
-			// Return empty array for non-existent paths (consistent with FSHelpers)
-			return [];
 		}
+		const names: string[] = [];
+		for await (const [name] of dir.entries()) {
+			names.push(name);
+		}
+		return names;
 	}
 
 	async writeFile(absolutePath: string, data: Uint8Array): Promise<void> {
