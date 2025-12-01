@@ -9,11 +9,7 @@ import {
 	removeClientInfo,
 	updateClientInfo,
 } from './slice-clients';
-import {
-	logBlueprintEvents,
-	logErrorEvent,
-	logTrackingEvent,
-} from '../../tracking';
+import { logBlueprintEvents, logTrackingEvent } from '../../tracking';
 import {
 	type Blueprint,
 	BlueprintFilesystemRequiredError,
@@ -170,7 +166,7 @@ export function bootSiteClient(
 			});
 		} catch (e) {
 			logger.error(e);
-			logErrorEvent('bootSiteClient');
+			logTrackingEvent('error', { source: 'bootSiteClient' });
 
 			if (
 				(e as any).name === 'ArtifactExpiredError' ||

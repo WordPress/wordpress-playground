@@ -38,37 +38,6 @@ export const logTrackingEvent = (
 };
 
 /**
- * Log error events
- *
- * @param error The error
- */
-export const logErrorEvent = (source: string) => {
-	logTrackingEvent('error', {
-		source,
-	});
-};
-
-/**
- * Log plugin install events
- * @param slug The plugin slug
- */
-export const logPluginInstallEvent = (slug: string) => {
-	logTrackingEvent('installPlugin', {
-		plugin: slug,
-	});
-};
-
-/**
- * Log theme install events
- * @param slug The theme slug
- */
-export const logThemeInstallEvent = (slug: string) => {
-	logTrackingEvent('installTheme', {
-		theme: slug,
-	});
-};
-
-/**
  * Log Blueprint events
  * @param blueprint The Blueprint
  */
@@ -91,12 +60,16 @@ export const logBlueprintEvents = async (blueprint: BlueprintV1) => {
 				step.step === 'installPlugin' &&
 				(step as any).pluginData.slug
 			) {
-				logPluginInstallEvent((step as any).pluginData.slug);
+				logTrackingEvent('installPlugin', {
+					plugin: (step as any).pluginData.slug,
+				});
 			} else if (
 				step.step === 'installTheme' &&
 				(step as any).themeData.slug
 			) {
-				logThemeInstallEvent((step as any).themeData.slug);
+				logTrackingEvent('installTheme', {
+					theme: (step as any).themeData.slug,
+				});
 			}
 		}
 	}
