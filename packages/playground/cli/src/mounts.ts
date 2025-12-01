@@ -3,11 +3,7 @@ import type { PHP } from '@php-wasm/universal';
 import fs, { existsSync } from 'fs';
 import path, { basename, join } from 'path';
 import type { RunCLIArgs } from './run-cli';
-
-export interface Mount {
-	hostPath: string;
-	vfsPath: string;
-}
+import type { Mount } from '@php-wasm/cli-util';
 
 /**
  * Parse an array of mount argument strings where the host path and VFS path
@@ -146,11 +142,11 @@ export function expandAutoMounts(args: RunCLIArgs): RunCLIArgs {
 				? {
 						step: 'activateTheme',
 						themeDirectoryName: themeName,
-				  }
+					}
 				: {
 						step: 'activateTheme',
 						themeFolderName: themeName,
-				  }
+					}
 		);
 	} else if (containsWpContentDirectories(path)) {
 		/**

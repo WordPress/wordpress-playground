@@ -28,10 +28,7 @@ import {
 	parseMountWithDelimiterArguments,
 } from './mounts';
 import { startServer } from './start-server';
-import type {
-	Mount,
-	PlaygroundCliBlueprintV1Worker,
-} from './blueprints-v1/worker-thread-v1';
+import type { PlaygroundCliBlueprintV1Worker } from './blueprints-v1/worker-thread-v1';
 import type { PlaygroundCliBlueprintV2Worker } from './blueprints-v2/worker-thread-v2';
 import { FileLockManagerForNode } from '@php-wasm/node';
 import { LoadBalancer } from './load-balancer';
@@ -54,11 +51,12 @@ import {
 } from './temp-dir';
 import { type WordPressInstallMode } from '@wp-playground/wordpress';
 import {
+	Mount,
 	addXdebugIDEConfig,
 	clearXdebugIDEConfig,
 	createPlaygroundCliTempDirSymlink,
 	removePlaygroundCliTempDirSymlink,
-} from './xdebug-path-mappings';
+} from '@php-wasm/cli-util';
 
 // Inlined worker URLs for static analysis by downstream bundlers
 // These are replaced at build time by the Vite plugin in vite.config.ts
