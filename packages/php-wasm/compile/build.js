@@ -202,9 +202,7 @@ const platformDefaults = {
 		WITH_IMAGICK: 'no',
 		STACK_SIZE: '1MB',
 	},
-	web: {
-		WITH_INTL: 'yes',
-	},
+	web: {},
 	node: {
 		WITH_NODEFS: 'yes',
 		WITH_MYSQL: 'yes',
