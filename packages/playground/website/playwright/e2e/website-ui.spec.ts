@@ -377,6 +377,56 @@ test.describe('Database panel', () => {
 		expect(newPage.url()).toContain('/adminer/');
 		await expect(newPage.locator('body')).toContainText('Adminer');
 		await expect(newPage.locator('body')).toContainText('wp_posts');
+
+		// Browse the "wp_posts" table
+		await newPage
+			.locator('#tables a.structure[title="Show structure"]')
+			.filter({ hasText: 'wp_posts' })
+			.click();
+		await newPage.waitForLoadState();
+		await newPage.getByRole('link', { name: 'select data' }).click();
+		await newPage.waitForLoadState();
+		const adminerRows = newPage.locator('table.checkable tbody tr');
+		await expect(adminerRows.first()).toContainText(
+			'Welcome to WordPress.'
+		);
+
+		// Click "edit" on a row
+		await adminerRows.first().getByRole('link', { name: 'edit' }).click();
+		await newPage.waitForLoadState();
+		await expect(newPage.locator('form#form')).toBeVisible();
+		await expect(newPage.locator('form#form')).toContainText(
+			'Welcome to WordPress.'
+		);
+
+		// Update the post content
+		const postContentTextarea = newPage.locator(
+			'textarea[name="fields[post_content]"]'
+		);
+		await postContentTextarea.click();
+		await postContentTextarea.clear();
+		await postContentTextarea.fill('Updated post content.');
+		await newPage
+			.getByRole('button', { name: 'Save', exact: true })
+			.click();
+		await newPage.waitForLoadState();
+
+		// Go back row listing and verify the updated content
+		await newPage.getByRole('link', { name: 'Select data' }).click();
+		await newPage.waitForLoadState();
+		await expect(
+			newPage.locator('table.checkable tbody tr').first()
+		).toContainText('Updated post content.');
+
+		// Go to SQL tab and execute "SHOW TABLES"
+		await newPage.getByRole('link', { name: 'SQL command' }).click();
+		await newPage.waitForLoadState();
+		const sqlTextarea = newPage.locator('textarea[name="query"]');
+		await sqlTextarea.fill('SHOW TABLES', { force: true });
+		await newPage.getByRole('button', { name: 'Execute' }).click();
+		await newPage.waitForLoadState();
+		await expect(newPage.locator('body')).toContainText('wp_posts');
+
 		await newPage.close();
 	});
 
@@ -399,6 +449,60 @@ test.describe('Database panel', () => {
 		expect(newPage.url()).toContain('/phpmyadmin');
 		await expect(newPage.locator('body')).toContainText('phpMyAdmin');
 		await expect(newPage.locator('body')).toContainText('wp_posts');
+
+		// Browse the "wp_posts" table
+		const wpPostsRow = newPage
+			.locator('tr')
+			.filter({ hasText: 'wp_posts' })
+			.first();
+		await expect(wpPostsRow).toBeVisible({ timeout: 10000 });
+		await wpPostsRow.getByRole('link', { name: 'Browse' }).click();
+		await newPage.waitForLoadState();
+		const pmaRows = newPage.locator('table.table_results tbody tr');
+		await expect(pmaRows.first()).toContainText('Welcome to WordPress.');
+
+		// Click "edit" on a row
+		await pmaRows
+			.first()
+			.getByRole('link', { name: 'Edit' })
+			.first()
+			.click();
+		await newPage.waitForLoadState();
+		const pmaForm = newPage.locator(
+			'form#insertForm, form[name="insertForm"]'
+		);
+		await expect(pmaForm).toBeVisible({ timeout: 10000 });
+		await expect(pmaForm).toContainText('Welcome to WordPress.');
+
+		// Update the post content
+		const postContentRow = pmaForm
+			.locator('tr')
+			.filter({ hasText: 'post_content' })
+			.first();
+		const postContentTextarea = postContentRow.locator('textarea').first();
+		await postContentTextarea.click();
+		await postContentTextarea.clear();
+		await postContentTextarea.fill('Updated post content.');
+		await newPage.getByRole('button', { name: 'Go' }).first().click();
+
+		// Verify the updated content
+		await newPage.waitForLoadState();
+		await expect(
+			newPage.locator('table.table_results tbody tr').first()
+		).toContainText('Updated post content.');
+
+		// Go to SQL tab and execute "SHOW TABLES"
+		await newPage
+			.locator('#topmenu')
+			.getByRole('link', { name: 'SQL' })
+			.click();
+		await newPage.waitForLoadState();
+		await newPage.locator('.CodeMirror').click();
+		await newPage.keyboard.type('SHOW TABLES');
+		await newPage.getByRole('button', { name: 'Go' }).click();
+		await newPage.waitForLoadState();
+		await expect(newPage.locator('body')).toContainText('wp_posts');
+
 		await newPage.close();
 	});
 });
