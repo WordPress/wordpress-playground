@@ -469,7 +469,7 @@ describe('InMemoryFilesystemBackend', () => {
 		});
 
 		it('should return true for nested directories', async () => {
-			await backend.mkdir('/parent/child');
+			await backend.mkdir('/parent/child', true);
 			expect(await backend.fileExists('/parent')).toBe(true);
 			expect(await backend.fileExists('/parent/child')).toBe(true);
 		});
@@ -501,8 +501,14 @@ describe('InMemoryFilesystemBackend', () => {
 			expect(await backend.isDir('/newdir')).toBe(true);
 		});
 
-		it('should create nested directories', async () => {
-			await backend.mkdir('/parent/child/grandchild');
+		it('should throw when creating nested directories without recursive flag', async () => {
+			await expect(
+				backend.mkdir('/parent/child/grandchild')
+			).rejects.toThrow();
+		});
+
+		it('should create nested directories with recursive flag', async () => {
+			await backend.mkdir('/parent/child/grandchild', true);
 			expect(await backend.isDir('/parent')).toBe(true);
 			expect(await backend.isDir('/parent/child')).toBe(true);
 			expect(await backend.isDir('/parent/child/grandchild')).toBe(true);
@@ -531,12 +537,17 @@ describe('InMemoryFilesystemBackend', () => {
 			expect(content).toEqual(data);
 		});
 
-		it('should create parent directories when writing a file', async () => {
+		it('should throw when parent directory does not exist', async () => {
+			const data = new Uint8Array([1, 2, 3]);
+			await expect(
+				backend.writeFile('/nonexistent/file.txt', data)
+			).rejects.toThrow();
+		});
+
+		it('should write to existing nested directory', async () => {
+			await backend.mkdir('/deep/nested', true);
 			const data = new Uint8Array([1, 2, 3]);
 			await backend.writeFile('/deep/nested/file.txt', data);
-
-			expect(await backend.isDir('/deep')).toBe(true);
-			expect(await backend.isDir('/deep/nested')).toBe(true);
 			expect(await backend.fileExists('/deep/nested/file.txt')).toBe(
 				true
 			);
@@ -593,7 +604,7 @@ describe('InMemoryFilesystemBackend', () => {
 		});
 
 		it('should delete a directory recursively', async () => {
-			await backend.mkdir('/parent/child');
+			await backend.mkdir('/parent/child', true);
 			await backend.writeFile(
 				'/parent/child/file.txt',
 				new Uint8Array([1])

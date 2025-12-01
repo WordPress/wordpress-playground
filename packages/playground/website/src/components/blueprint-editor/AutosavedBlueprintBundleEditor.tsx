@@ -88,7 +88,7 @@ async function populateFilesystemFromBlueprint(
 			}
 			const parent = dirname(absolutePath);
 			if (!(await fs.fileExists(parent))) {
-				await fs.mkdir(parent);
+				await fs.mkdir(parent, { recursive: true });
 			}
 			await fs.writeFile(absolutePath, content);
 		}
