@@ -23,7 +23,7 @@ export interface TraversableFilesystemBackend extends ReadableFilesystemBackend 
 export interface WritableFilesystemBackend extends TraversableFilesystemBackend {
 	fileExists(absolutePath: string): Promise<boolean>;
 	writeFile(absolutePath: string, data: Uint8Array): Promise<void>;
-	mkdir(absolutePath: string): Promise<void>;
+	mkdir(absolutePath: string, recursive?: boolean): Promise<void>;
 	rmdir(absolutePath: string, recursive: boolean): Promise<void>;
 	mv(absoluteSource: string, absoluteDestination: string): Promise<void>;
 	unlink(absolutePath: string): Promise<void>;
@@ -41,7 +41,7 @@ export interface AsyncWritableFilesystem extends EventTarget {
 	readFileAsText(path: string): Promise<string>;
 	listFiles(path: string): Promise<string[]>;
 	writeFile(path: string, data: Uint8Array | string): Promise<void>;
-	mkdir(path: string): Promise<void>;
+	mkdir(path: string, options?: { recursive?: boolean }): Promise<void>;
 	rmdir(path: string, options?: { recursive?: boolean }): Promise<void>;
 	mv(source: string, destination: string): Promise<void>;
 	unlink(path: string): Promise<void>;
@@ -121,8 +121,11 @@ export class EventedFilesystem
 		this.dispatchEvent(new Event('change'));
 	}
 
-	async mkdir(path: string): Promise<void> {
-		await this.backend.mkdir(path);
+	async mkdir(
+		path: string,
+		options?: { recursive?: boolean }
+	): Promise<void> {
+		await this.backend.mkdir(path, options?.recursive ?? false);
 		this.dispatchEvent(new Event('change'));
 	}
 
@@ -601,9 +604,10 @@ export class OpfsFilesystemBackend implements WritableFilesystemBackend {
 		if (!fileName) {
 			throw new Error(`Invalid file path: ${absolutePath}`);
 		}
+		// Navigate to parent directory without creating it
 		let dir = this.opfsRoot;
 		for (const segment of segments) {
-			dir = await dir.getDirectoryHandle(segment, { create: true });
+			dir = await dir.getDirectoryHandle(segment);
 		}
 		const handle = await dir.getFileHandle(fileName, { create: true });
 		const writable = await handle.createWritable();
@@ -611,11 +615,16 @@ export class OpfsFilesystemBackend implements WritableFilesystemBackend {
 		await writable.close();
 	}
 
-	async mkdir(absolutePath: string): Promise<void> {
+	async mkdir(absolutePath: string, recursive = false): Promise<void> {
 		const segments = absolutePath.split('/').filter(Boolean);
 		let dir = this.opfsRoot;
-		for (const segment of segments) {
-			dir = await dir.getDirectoryHandle(segment, { create: true });
+		for (let i = 0; i < segments.length; i++) {
+			const segment = segments[i];
+			const isLast = i === segments.length - 1;
+			// Only create the final directory; parent dirs must exist unless recursive
+			dir = await dir.getDirectoryHandle(segment, {
+				create: recursive || isLast,
+			});
 		}
 	}
 
@@ -749,12 +758,14 @@ export class InMemoryFilesystemBackend implements WritableFilesystemBackend {
 		this.writeFileSync(absolutePath, data);
 	}
 
-	async mkdir(absolutePath: string): Promise<void> {
+	async mkdir(absolutePath: string, recursive = false): Promise<void> {
 		// Root always exists, nothing to create
 		if (absolutePath === '/') {
 			return;
 		}
-		const { parent, name } = this.getParent(absolutePath);
+		const { parent, name } = recursive
+			? this.getOrCreateParent(absolutePath)
+			: this.getParent(absolutePath);
 		if (!parent.children[name]) {
 			parent.children[name] = { type: 'dir', children: {} };
 		}
@@ -845,14 +856,37 @@ export class InMemoryFilesystemBackend implements WritableFilesystemBackend {
 		return node;
 	}
 
+	/**
+	 * Get parent directory, throwing if it doesn't exist.
+	 */
 	private getParent(absolutePath: string): { parent: DirNode; name: string } {
 		const segments = absolutePath.split('/').filter(Boolean);
 		const name = segments.pop();
-		const parentPath = segments.length ? `/${segments.join('/')}` : '/';
-		const parent = this.ensureDir(parentPath);
 		if (!name) {
 			throw new Error(`Invalid path: ${absolutePath}`);
 		}
+		const parentPath = segments.length ? `/${segments.join('/')}` : '/';
+		const parent = this.getNode(parentPath);
+		if (!parent || parent.type !== 'dir') {
+			throw new Error(`Parent directory not found: ${parentPath}`);
+		}
+		return { parent, name };
+	}
+
+	/**
+	 * Get parent directory, creating it if it doesn't exist.
+	 */
+	private getOrCreateParent(absolutePath: string): {
+		parent: DirNode;
+		name: string;
+	} {
+		const segments = absolutePath.split('/').filter(Boolean);
+		const name = segments.pop();
+		if (!name) {
+			throw new Error(`Invalid path: ${absolutePath}`);
+		}
+		const parentPath = segments.length ? `/${segments.join('/')}` : '/';
+		const parent = this.ensureDir(parentPath);
 		return { parent, name };
 	}
 
