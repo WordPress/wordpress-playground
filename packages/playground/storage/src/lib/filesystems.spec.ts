@@ -513,6 +513,12 @@ describe('InMemoryFilesystemBackend', () => {
 			await backend.mkdir('/mydir');
 			expect(await backend.isDir('/mydir')).toBe(true);
 		});
+
+		it('should be a no-op for root directory', async () => {
+			// mkdir('/') should not throw, root always exists
+			await backend.mkdir('/');
+			expect(await backend.isDir('/')).toBe(true);
+		});
 	});
 
 	describe('writeFile and read', () => {
@@ -555,6 +561,17 @@ describe('InMemoryFilesystemBackend', () => {
 
 			const files = await backend.listFiles('/mydir');
 			expect(files).toContain('nested.txt');
+		});
+
+		it('should return empty array for non-existent paths', async () => {
+			const files = await backend.listFiles('/nonexistent');
+			expect(files).toEqual([]);
+		});
+
+		it('should return empty array when listing a file path', async () => {
+			await backend.writeFile('/file.txt', new Uint8Array([1]));
+			const files = await backend.listFiles('/file.txt');
+			expect(files).toEqual([]);
 		});
 	});
 

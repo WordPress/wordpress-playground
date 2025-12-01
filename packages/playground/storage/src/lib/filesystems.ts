@@ -576,18 +576,23 @@ export class OpfsFilesystemBackend implements WritableFilesystemBackend {
 	}
 
 	async listFiles(absolutePath: string): Promise<string[]> {
-		let dir = this.opfsRoot;
-		if (absolutePath !== '/') {
-			const segments = absolutePath.split('/').filter(Boolean);
-			for (const segment of segments) {
-				dir = await dir.getDirectoryHandle(segment);
+		try {
+			let dir = this.opfsRoot;
+			if (absolutePath !== '/') {
+				const segments = absolutePath.split('/').filter(Boolean);
+				for (const segment of segments) {
+					dir = await dir.getDirectoryHandle(segment);
+				}
 			}
+			const names: string[] = [];
+			for await (const [name] of dir.entries()) {
+				names.push(name);
+			}
+			return names;
+		} catch {
+			// Return empty array for non-existent paths (consistent with FSHelpers)
+			return [];
 		}
-		const names: string[] = [];
-		for await (const [name] of dir.entries()) {
-			names.push(name);
-		}
-		return names;
 	}
 
 	async writeFile(absolutePath: string, data: Uint8Array): Promise<void> {
@@ -733,8 +738,11 @@ export class InMemoryFilesystemBackend implements WritableFilesystemBackend {
 	}
 
 	async listFiles(absolutePath: string): Promise<string[]> {
-		const dir = this.getDir(absolutePath);
-		return Object.keys(dir.children);
+		const node = this.getNode(absolutePath);
+		if (!node || node.type !== 'dir') {
+			return [];
+		}
+		return Object.keys(node.children);
 	}
 
 	async writeFile(absolutePath: string, data: Uint8Array): Promise<void> {
@@ -742,6 +750,10 @@ export class InMemoryFilesystemBackend implements WritableFilesystemBackend {
 	}
 
 	async mkdir(absolutePath: string): Promise<void> {
+		// Root always exists, nothing to create
+		if (absolutePath === '/') {
+			return;
+		}
 		const { parent, name } = this.getParent(absolutePath);
 		if (!parent.children[name]) {
 			parent.children[name] = { type: 'dir', children: {} };
