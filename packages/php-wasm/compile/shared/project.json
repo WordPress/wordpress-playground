@@ -15,6 +15,7 @@
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
+					"nx run php-wasm-compile-shared:intl:node:jspi --PHP_VERSION=8.5",
 					"nx run php-wasm-compile-shared:intl:node:jspi --PHP_VERSION=8.4",
 					"nx run php-wasm-compile-shared:intl:node:jspi --PHP_VERSION=8.3",
 					"nx run php-wasm-compile-shared:intl:node:jspi --PHP_VERSION=8.2",
@@ -40,6 +41,7 @@
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
+					"nx run php-wasm-compile-shared:intl:node:asyncify --PHP_VERSION=8.5",
 					"nx run php-wasm-compile-shared:intl:node:asyncify --PHP_VERSION=8.4",
 					"nx run php-wasm-compile-shared:intl:node:asyncify --PHP_VERSION=8.3",
 					"nx run php-wasm-compile-shared:intl:node:asyncify --PHP_VERSION=8.2",
@@ -65,6 +67,7 @@
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
+					"nx run php-wasm-compile-shared:intl:web:jspi --PHP_VERSION=8.5",
 					"nx run php-wasm-compile-shared:intl:web:jspi --PHP_VERSION=8.4",
 					"nx run php-wasm-compile-shared:intl:web:jspi --PHP_VERSION=8.3",
 					"nx run php-wasm-compile-shared:intl:web:jspi --PHP_VERSION=8.2",
@@ -90,6 +93,7 @@
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
+					"nx run php-wasm-compile-shared:intl:web:asyncify --PHP_VERSION=8.5",
 					"nx run php-wasm-compile-shared:intl:web:asyncify --PHP_VERSION=8.4",
 					"nx run php-wasm-compile-shared:intl:web:asyncify --PHP_VERSION=8.3",
 					"nx run php-wasm-compile-shared:intl:web:asyncify --PHP_VERSION=8.2",
