@@ -561,8 +561,8 @@ export async function unzipWordPress(php: PHP, wpZip: File) {
 	let wpPath = php.fileExists('/tmp/unzipped-wordpress/wordpress')
 		? '/tmp/unzipped-wordpress/wordpress'
 		: php.fileExists('/tmp/unzipped-wordpress/build')
-		? '/tmp/unzipped-wordpress/build'
-		: '/tmp/unzipped-wordpress';
+			? '/tmp/unzipped-wordpress/build'
+			: '/tmp/unzipped-wordpress';
 
 	// Dive one directory deeper if the zip root does not contain the sample
 	// config file. This is relevant when unzipping a zipped branch from the

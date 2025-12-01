@@ -10,12 +10,12 @@ import { file as folderIcon, page as fileIcon } from '@wordpress/icons';
 import styles from './file-explorer.module.css';
 import {
 	FilePickerTree,
-	type AsyncWritableFilesystem,
 	type FilePickerTreeHandle,
 } from '@wp-playground/components';
+import type { AsyncWritableFilesystem } from '@wp-playground/storage';
 import { logger } from '@php-wasm/logger';
 import { dirname, normalizePath } from '@php-wasm/util';
-import { BinaryFilePreview } from './binary-file-preview';
+import { BinaryFilePreview } from '@wp-playground/components';
 import mimeTypes from '@php-wasm/universal/mime-types';
 
 export const MAX_INLINE_FILE_BYTES = 1024 * 1024; // 1MB
@@ -70,7 +70,10 @@ export type FileExplorerSidebarProps = {
 		shouldFocus?: boolean
 	) => Promise<void> | void;
 	onSelectionCleared: () => Promise<void> | void;
-	onShowMessage: (message: string | JSX.Element) => Promise<void> | void;
+	onShowMessage: (
+		path: string | null,
+		message: string | JSX.Element
+	) => Promise<void> | void;
 	documentRoot: string;
 };
 
@@ -102,7 +105,8 @@ export function FileExplorerSidebar({
 
 	const handleOpenFile = async (path: string, shouldFocus: boolean) => {
 		try {
-			const data = await filesystem.readFileAsBuffer(path);
+			const file = await filesystem.read(path);
+			const data = new Uint8Array(await file.arrayBuffer());
 			const size = data.byteLength;
 			const filename = path.split('/').pop() || 'download';
 
@@ -112,6 +116,7 @@ export function FileExplorerSidebar({
 					filename
 				);
 				await onShowMessage(
+					path,
 					<>
 						<p>File too large to open (&gt;1MB).</p>
 						<p>
@@ -138,6 +143,7 @@ export function FileExplorerSidebar({
 					const dataUrl = URL.createObjectURL(blob);
 
 					await onShowMessage(
+						path,
 						<BinaryFilePreview
 							filename={fname}
 							mimeType={mimeType}
@@ -150,6 +156,7 @@ export function FileExplorerSidebar({
 
 				// Non-previewable binary file
 				await onShowMessage(
+					path,
 					<>
 						<p>Binary file. Cannot be edited.</p>
 						<p>
@@ -166,7 +173,7 @@ export function FileExplorerSidebar({
 			await onFileOpened(path, text, shouldFocus);
 		} catch (error) {
 			logger.error('Could not open file', error);
-			await onShowMessage('Could not open file.');
+			await onShowMessage(null, 'Could not open file.');
 		}
 	};
 

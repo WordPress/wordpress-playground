@@ -37,7 +37,6 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 		sqliteDriverVersion = LatestSqliteDriverVersion,
 		phpVersion,
 		sapiName = 'cli',
-		withICU = false,
 		withNetworking = true,
 		shouldInstallWordPress = true,
 		corsProxyUrl,
@@ -60,7 +59,6 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 			const requestHandler = await this.createRequestHandler({
 				siteUrl,
 				sapiName,
-				withICU,
 				corsProxyUrl,
 				knownRemoteAssetPaths,
 				withNetworking,
@@ -148,7 +146,7 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 							SECURE_AUTH_SALT: randomString(40),
 							LOGGED_IN_SALT: randomString(40),
 							NONCE_SALT: randomString(40),
-					  }
+						}
 					: {},
 				// Do not await the WordPress download or the sqlite integration download.
 				// Let bootWordPress start the PHP runtime download first, and then await

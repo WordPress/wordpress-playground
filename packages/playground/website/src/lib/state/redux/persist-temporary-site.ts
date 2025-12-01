@@ -6,6 +6,11 @@ import {
 	opfsSiteStorage,
 	getDirectoryPathForSlug,
 } from '../opfs/opfs-site-storage';
+import { persistBlueprintBundle } from '../opfs/opfs-blueprint-bundle-storage';
+import {
+	type TraversableFilesystemBackend,
+	OpfsFilesystemBackend,
+} from '@wp-playground/storage';
 import type { PlaygroundReduxState } from './store';
 import type store from './store';
 import { selectClientBySiteSlug, updateClientInfo } from './slice-clients';
@@ -76,6 +81,47 @@ export function persistTemporarySite(
 			// between successful and failed saves.
 			storage: 'none',
 		});
+
+		// Persist the blueprint bundle if available.
+		// First, check if originalBlueprint is already a filesystem (from clicking "Run Blueprint").
+		// If not, check if there's an autosaved bundle in OPFS (from editing without running).
+		let bundleToPersist: TraversableFilesystemBackend | null = null;
+
+		const originalBlueprint = siteInfo.metadata.originalBlueprint;
+		if (
+			originalBlueprint &&
+			typeof originalBlueprint === 'object' &&
+			'read' in originalBlueprint &&
+			'listFiles' in originalBlueprint &&
+			'isDir' in originalBlueprint
+		) {
+			bundleToPersist =
+				originalBlueprint as unknown as TraversableFilesystemBackend;
+		} else {
+			// Check if there's an autosaved bundle from the blueprint editor.
+			try {
+				const opfsBackend = await OpfsFilesystemBackend.fromPath(
+					'blueprints/last-edited-bundle'
+				);
+				const files = await opfsBackend.listFiles('/');
+				if (files.length > 0) {
+					bundleToPersist = opfsBackend;
+				}
+			} catch {
+				// No autosaved bundle available
+			}
+		}
+
+		let bundleWasPersisted = false;
+		if (bundleToPersist) {
+			try {
+				await persistBlueprintBundle(siteSlug, bundleToPersist);
+				bundleWasPersisted = true;
+			} catch (error) {
+				logger.error('Failed to persist blueprint bundle', error);
+				// Continue with the save - the bundle is optional
+			}
+		}
 
 		let mountDescriptor: Omit<MountDescriptor, 'initialSyncDirection'>;
 		if (storageType === 'opfs') {
@@ -192,10 +238,18 @@ export function persistTemporarySite(
 					// on the next page load.
 					runtimeConfiguration: {
 						...siteInfo.metadata.runtimeConfiguration,
-						constants: await getPlaygroundDefinedPHPConstants(
-							playground
-						),
+						constants:
+							await getPlaygroundDefinedPHPConstants(playground),
 					},
+					// If we persisted a blueprint bundle, point to it so we can
+					// load the full bundle (not just the declaration) on next load.
+					...(bundleWasPersisted
+						? {
+								originalBlueprintSource: {
+									type: 'opfs-site' as const,
+								},
+							}
+						: {}),
 					...(trimmedName ? { name: trimmedName } : {}),
 				},
 			})

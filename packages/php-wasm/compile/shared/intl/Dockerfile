@@ -6,9 +6,11 @@ FROM playground-php-wasm:base
 # compatible with a particular Zend Engine API version.
 ARG PHP_VERSION
 
-ARG WITH_JSPI
+ARG PLATFORM
 
-ARG WITH_DEBUG
+ARG JSPI
+
+ARG DEBUG
 
 # Install Bison, required to build PHP
 RUN mkdir -p /libs
@@ -115,14 +117,6 @@ RUN set -euxo pipefail; \
 	make -j1; \
 	make install; \
 
-	# Calling close() on a file descriptor acquired through WASI syscalls can trigger a JS call/await
-	# during a non-resumable C++ stack frame, leading to "RuntimeError: trying to suspend JS frames".
-	# Since ICU maps the file into memory and does not require the descriptor after mapping
-	# under our build context, skipping close(fd) avoids that suspension error.
-	# NOTE: This means the file descriptor will remain open until process teardown.
-	# This is acceptable here because ICU data files are loaded only once at startup.
-	/root/replace.sh 's/close\(fd\);//' /root/icu/source/common/umapfile.cpp; \
-
 	cd /root/icu/source; \
 	mkdir -p /root; \
 	source /root/emsdk/emsdk_env.sh; \
@@ -178,13 +172,13 @@ RUN set -euxo pipefail; \
 
 	export EMCC_FLAGS="-sSIDE_MODULE -D__x86_64__"; \
 
-	if [ "$WITH_DEBUG" = "yes" ]; then \
+	if [ "$DEBUG" = "yes" ]; then \
 		export EMCC_FLAGS="${EMCC_FLAGS} -O0 -g3"; \
 	else \
 		export EMCC_FLAGS="${EMCC_FLAGS} -O3"; \
 	fi; \
 
-	if [ "$WITH_JSPI" = "yes" ]; then \
+	if [ "$JSPI" = "yes" ]; then \
 		export EMCC_FLAGS="${EMCC_FLAGS} -sSUPPORT_LONGJMP=wasm -fwasm-exceptions -sJSPI"; \
 	else \
 		export EMCC_FLAGS="${EMCC_FLAGS} -sASYNCIFY -sASYNCIFY_ADVISE"; \
@@ -196,4 +190,4 @@ RUN	mkdir -p /root/intl/modules; \
 	mv /root/php-src/ext/intl/modules/* /root/intl/modules;
 
 RUN	mkdir -p /root/intl/data; \
-	mv /root/share/icu/74.2/icudt74l.dat /root/intl/data;
+	mv /root/share/icu/74.2/icudt74l.dat /root/intl/data/icu.dat;

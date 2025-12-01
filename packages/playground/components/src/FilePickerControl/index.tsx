@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Button, Modal } from '@wordpress/components';
 import { PathPreview } from './PathPreview';
 import css from './style.module.css';
-import type { AsyncWritableFilesystem } from '../FilePickerTree';
+import type { AsyncWritableFilesystem } from '@wp-playground/storage';
 import { FilePickerTree } from '../FilePickerTree';
 
 export function FilePickerControl({

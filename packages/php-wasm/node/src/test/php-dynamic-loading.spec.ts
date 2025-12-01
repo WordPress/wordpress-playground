@@ -218,6 +218,10 @@ describe.each(phpVersions)('PHP %s', async (phpVersion) => {
 		});
 
 		it('loads the icu data file', async () => {
+			/*
+			 * The Intl extension is hard-coded to look for the `icudt74l` filename,
+			 * which means the ICU data file must use that exact name.
+			 */
 			expect(php.listFiles('/internal/shared')).toContain('icudt74l.dat');
 		});
 

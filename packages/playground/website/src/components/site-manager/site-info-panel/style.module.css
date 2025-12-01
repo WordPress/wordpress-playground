@@ -275,11 +275,16 @@
 	display: none;
 }
 
+.playIcon {
+	width: 18px;
+	height: 18px;
+	margin-right: 6px;
+}
+
 .blueprint-editor {
 	flex: 1;
 	min-height: 0;
 	overflow: auto;
-	font-family: monospace;
 	background: #ffffff;
 }
 
@@ -289,10 +294,6 @@
 
 .blueprint-editor :global(.cm-scroller) {
 	overflow: auto;
-}
-
-.blueprintEditorReadonly {
-	opacity: 0.7;
 }
 
 .blueprintNotice {
