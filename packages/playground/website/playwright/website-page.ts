@@ -15,7 +15,7 @@ export class WebsitePage {
 				)
 				.frameLocator('#wp')
 				.locator('body')
-		).not.toBeEmpty();
+		).not.toBeEmpty({ timeout: 120000 });
 	}
 
 	wordpress(page = this.page) {

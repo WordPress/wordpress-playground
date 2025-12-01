@@ -249,92 +249,99 @@ const iframeTrapScriptUrl = `${SW_SCOPE}/__bootstrap/iframes-trap.js`;
 const iframeLoaderPath = `${SW_SCOPE}/wp-includes/empty.html`;
 
 /**
- * The HTML content of the iframe loader. This is the inital page
+ * The HTML content of the iframe loader. This is the initial page
  * every iframe is forced to load when it's created.
+ *
+ * IMPORTANT: We do NOT use document.write() here because it causes the
+ * iframe to become uncontrolled by the service worker. Instead, we use
+ * DOM manipulation (innerHTML) to inject the cached content while preserving
+ * service worker control.
  */
-const iframeLoaderHtml = `<!doctype html><meta charset="utf-8">
+const iframeLoaderHtml = `<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<script src="${iframeTrapScriptUrl}" data-scope="${SW_SCOPE}"></script>
+</head>
+<body>
 <script>
-(() => {
-  function ensureBaseAndAgent() {
-    const safeBase = String(window.base || location.href).replace(/"/g,'&quot;');
-    if (!document.head) {
-      document.documentElement.insertBefore(
-	  	document.createElement('head'),
-	  	document.documentElement.firstChild
-	  );
-    }
-    if (!document.head.querySelector('base')) {
-      const base = document.createElement('base');
-	  base.setAttribute('href', safeBase);
-      document.head.insertBefore(base, document.head.firstChild);
-    }
-    if (![...document.scripts].some(script => script.src.endsWith('/iframes-trap.js'))) {
-      const script = document.createElement('script');
-      script.type = 'module';
-      script.src = ${JSON.stringify(iframeTrapScriptUrl)};
-	  script.dataset.scope = ${JSON.stringify(SW_SCOPE)};
-      document.head.appendChild(script);
-    }
-  }
-
-  const nativeClose = Document.prototype.close;
-  Document.prototype.close = function() {
-    const returnValue = nativeClose.apply(this, arguments);
-
-    /**
-	 * Defer to next microtask so close() finishes flushing the document
-	 * before we inject <base> and the agent script. Mutating inside the
-     * close() can race with the final flush, causing re-entrancy/partial-DOM
-	 * quirks across browsers.
-	 */
-    Promise.resolve().then(ensureBaseAndAgent);
-    return returnValue;
-  };
-
+(async () => {
   const searchParams = new URLSearchParams(location.hash.slice(1));
   const id   = searchParams.get('id');
-  const base = searchParams.get('base') || '';
+  const base = searchParams.get('base') || location.href;
   const url  = searchParams.get('url')  || '';
 
-  /**
-   * Fetches a virtual iframe document from CacheStorage.
-   */
-  async function fetchCachedIframeDocument() {
-  	const path = ${JSON.stringify(iframeCacheKeyPrefix)} + id + '.html';
+  // Set the base href for relative URLs
+  let baseEl = document.querySelector('base');
+  if (!baseEl) {
+    baseEl = document.createElement('base');
+    document.head.insertBefore(baseEl, document.head.firstChild);
+  }
+  baseEl.href = base;
 
-    /**
-	 * Retry a few times. The loader may request the cached iframe
-	 * document before caches.put() (started by the trap) finishes
-	 * writing it. 
-	 */
-    for (let i = 0; i < 6; i++) {
-      const response = await fetch(path, { cache: 'no-store' });
-      if (response.ok) {
-		  return response;
-	  }
-      await new Promise(r => setTimeout(r, 30));
+  // If there's cached content to load, fetch and inject it
+  if (id) {
+    // Derive the scope from the current page's location
+    const pageScope = location.pathname.match(/^\\/scope:[^/]+/)?.[0] || '';
+    const path = pageScope + '/__iframes/' + id + '.html';
+
+    // Retry a few times - the loader may request the cached content
+    // before caches.put() (started by the trap) finishes writing it.
+    let html = '';
+    for (let i = 0; i < 10; i++) {
+      try {
+        const response = await fetch(path, { cache: 'no-store' });
+        if (response.ok) {
+          html = await response.text();
+          break;
+        }
+      } catch (e) {
+        // Ignore fetch errors, retry
+      }
+      await new Promise(r => setTimeout(r, 50));
     }
-    return await fetch(path, { cache: 'no-store' });
+
+    if (html) {
+      // Parse the HTML to extract head and body content
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, 'text/html');
+
+      // Copy head elements (except scripts that we'll handle separately)
+      for (const node of doc.head.childNodes) {
+        if (node.nodeName !== 'SCRIPT' && node.nodeName !== 'BASE') {
+          document.head.appendChild(document.importNode(node, true));
+        }
+      }
+
+      // Set body content
+      document.body.innerHTML = doc.body.innerHTML;
+
+      // Copy body attributes
+      for (const attr of doc.body.attributes) {
+        document.body.setAttribute(attr.name, attr.value);
+      }
+
+      // Execute scripts from the parsed document
+      const scripts = doc.querySelectorAll('script');
+      for (const script of scripts) {
+        const newScript = document.createElement('script');
+        for (const attr of script.attributes) {
+          newScript.setAttribute(attr.name, attr.value);
+        }
+        newScript.textContent = script.textContent;
+        document.body.appendChild(newScript);
+      }
+    }
   }
 
-	(async () => {
-		let html = '';
-		if (id) {
-			html = await (await fetchCachedIframeDocument()).text();
-		}
-
-		// Write (possibly empty) HTML; our close() hook injects base + agent
-		document.open();
-		document.write(html);
-		document.close();
-
-		if (!url) {
-			return;
-		}
-		history.replaceState({}, '', url);
-	})();
+  // Update the URL to match the original intended URL
+  if (url) {
+    history.replaceState({}, '', url);
+  }
 })();
-</script>`;
+</script>
+</body>
+</html>`;
 
 self.addEventListener('fetch', (event) => {
 	if (!isCurrentServiceWorkerActive()) {
@@ -355,9 +362,10 @@ self.addEventListener('fetch', (event) => {
 	}
 
 	// Serve the iframe loader
+	// Match any path ending with /wp-includes/empty.html (handles scoped URLs like /scope:xxx/wp-includes/empty.html)
 	if (
 		event.request.mode === 'navigate' &&
-		url.pathname === iframeLoaderPath
+		url.pathname.endsWith('/wp-includes/empty.html')
 	) {
 		event.respondWith(
 			new Response(iframeLoaderHtml, {
@@ -368,11 +376,13 @@ self.addEventListener('fetch', (event) => {
 	}
 
 	// Serve the cached iframe contents (written by iframe-trap.js)
-	if (url.pathname.startsWith(iframeCacheKeyPrefix)) {
+	// Match paths containing /__iframes/ (handles scoped URLs like /scope:xxx/__iframes/...)
+	if (url.pathname.includes('/__iframes/')) {
 		event.respondWith(
 			(async () => {
 				const cache = await caches.open(iframeCacheBucket);
-				const match = await cache.match(event.request);
+				// Use just the pathname for matching since that's what iframes-trap.js uses as the key
+				const match = await cache.match(url.pathname);
 				return (
 					match ||
 					new Response('<!doctype html>Not found', {
@@ -386,7 +396,8 @@ self.addEventListener('fetch', (event) => {
 	}
 
 	// Serve the iframe-trap.js script
-	if (url.pathname === iframeTrapScriptUrl) {
+	// Match paths ending with /__bootstrap/iframes-trap.js (handles scoped URLs)
+	if (url.pathname.endsWith('/__bootstrap/iframes-trap.js')) {
 		event.respondWith(
 			new Response(iframesTrapScriptContent, {
 				headers: {
