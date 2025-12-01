@@ -56,20 +56,22 @@ export const logBlueprintEvents = async (blueprint: BlueprintV1) => {
 				continue;
 			}
 			logTrackingEvent('step', { step: step.step });
-			if (
-				step.step === 'installPlugin' &&
-				(step as any).pluginData.slug
-			) {
-				logTrackingEvent('installPlugin', {
-					plugin: (step as any).pluginData.slug,
-				});
-			} else if (
-				step.step === 'installTheme' &&
-				(step as any).themeData.slug
-			) {
-				logTrackingEvent('installTheme', {
-					theme: (step as any).themeData.slug,
-				});
+			if (step.step === 'installPlugin') {
+				const data = {
+					resource: (step as any).pluginData.resource,
+				};
+				if ((step as any).pluginData.slug) {
+					(data as any).plugin = (step as any).pluginData.slug;
+				}
+				logTrackingEvent('installPlugin', data);
+			} else if (step.step === 'installTheme') {
+				const data = {
+					resource: (step as any).themeData.resource,
+				};
+				if ((step as any).themeData.slug) {
+					(data as any).theme = (step as any).themeData.slug;
+				}
+				logTrackingEvent('installTheme', data);
 			}
 		}
 	}
