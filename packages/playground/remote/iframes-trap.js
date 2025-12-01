@@ -137,13 +137,141 @@ function setupIframesTrap() {
 
 	/**
 	 * Rewrite an iframe's srcdoc by caching the HTML and redirecting to the loader.
+	 * In nested contexts where direct iframe navigation doesn't work, we delegate
+	 * to a capable ancestor window.
 	 */
 	async function rewriteSrcdoc(iframe, html, opts = {}) {
+		// Mark that srcdoc processing is in progress (so scheduleIframeControl can defer)
+		iframe.setAttribute('data-srcdoc-pending', '1');
+
 		const id = uid();
 		await cacheIframeContents(id, html);
 		const url = await toLoaderUrl({ id, ...opts });
+
+		// In nested contexts, direct setIframeSrc doesn't trigger navigation
+		// We need to use the parent-delegation approach
+		if (isNestedContext()) {
+			const capableAncestor = findCapableAncestor();
+			if (capableAncestor) {
+				// Schedule the control with the loader URL already prepared.
+				// NOTE: We keep data-srcdoc-pending set until scheduleSrcdocControl completes.
+				// This prevents scheduleIframeControl from creating a duplicate controlled iframe.
+				scheduleSrcdocControl(iframe, url);
+				return;
+			}
+		}
+
+		// In top-level context or no capable ancestor, set src directly
 		setIframeSrc(iframe, url);
 		iframe.setAttribute('data-controlled', '1');
+		iframe.removeAttribute('data-srcdoc-pending');
+	}
+
+	/**
+	 * Schedule srcdoc iframe control using the parent-delegation approach.
+	 * Similar to scheduleIframeControl but for iframes that have srcdoc content
+	 * which has already been cached and converted to a loader URL.
+	 */
+	function scheduleSrcdocControl(iframe, loaderUrl) {
+		// Mark as pending control
+		iframe.setAttribute('data-control-pending', '1');
+
+		const tryControl = () => {
+			// Only proceed if iframe is still in the document
+			if (!iframe.isConnected) {
+				requestAnimationFrame(tryControl);
+				return;
+			}
+
+			// Only proceed if not already controlled
+			if (iframe.getAttribute('data-controlled') === '1') {
+				iframe.removeAttribute('data-control-pending');
+				return;
+			}
+
+			const capableAncestor = findCapableAncestor();
+			if (!capableAncestor) {
+				// No capable ancestor, try direct assignment (may not work)
+				setIframeSrc(iframe, loaderUrl);
+				iframe.setAttribute('data-controlled', '1');
+				iframe.removeAttribute('data-control-pending');
+				iframe.removeAttribute('data-srcdoc-pending');
+				return;
+			}
+
+			// Generate unique ID for cross-document reference
+			const iframeId = `pg-iframe-${uid()}`;
+			iframe.id = iframe.id || iframeId;
+			const finalId = iframe.id;
+
+			// Create controlled iframe in ancestor's document
+			// Use the native createElement to bypass our handleCreateElement wrapper
+			// which would otherwise set a default loader URL
+			const ancestorDoc = capableAncestor.document;
+			const ancestorNativeCreate = ancestorDoc.__playground_native_createElement || Native.createElement;
+			const controlledIframe = ancestorNativeCreate.call(ancestorDoc, 'iframe');
+			controlledIframe.id = `${finalId}-controlled`;
+
+			// Copy attributes from original iframe (except src/srcdoc/control markers)
+			for (const attr of iframe.attributes) {
+				if (attr.name !== 'src' && attr.name !== 'srcdoc' && attr.name !== 'data-control-pending' && attr.name !== 'data-controlled' && attr.name !== 'id') {
+					controlledIframe.setAttribute(attr.name, attr.value);
+				}
+			}
+
+			// Position the controlled iframe to overlay the original
+			const updatePosition = () => {
+				try {
+					if (!iframe.isConnected) {
+						controlledIframe.remove();
+						return;
+					}
+					const rect = iframe.getBoundingClientRect();
+					let offsetTop = 0;
+					let offsetLeft = 0;
+					let win = window;
+					while (win !== capableAncestor && win.frameElement) {
+						const frameRect = win.frameElement.getBoundingClientRect();
+						offsetTop += frameRect.top;
+						offsetLeft += frameRect.left;
+						win = win.parent;
+					}
+					controlledIframe.style.position = 'fixed';
+					controlledIframe.style.top = `${rect.top + offsetTop}px`;
+					controlledIframe.style.left = `${rect.left + offsetLeft}px`;
+					controlledIframe.style.width = `${rect.width}px`;
+					controlledIframe.style.height = `${rect.height}px`;
+					controlledIframe.style.zIndex = '999999';
+					controlledIframe.style.border = iframe.style.border || 'none';
+					requestAnimationFrame(updatePosition);
+				} catch {
+					// If we can't access the iframe anymore, stop updating
+				}
+			};
+
+			// Hide the original iframe
+			iframe.style.visibility = 'hidden';
+
+			// Append to ancestor document BEFORE setting src
+			// (iframe must be in DOM for navigation to work)
+			ancestorDoc.body.appendChild(controlledIframe);
+			updatePosition();
+
+			// Now set the loader URL - this must happen AFTER appendChild
+			// to ensure the iframe navigates properly
+			setIframeSrc(controlledIframe, loaderUrl);
+
+			// Mark original as controlled
+			iframe.setAttribute('data-controlled', '1');
+			iframe.setAttribute('data-controlled-by', controlledIframe.id);
+			iframe.removeAttribute('data-control-pending');
+			iframe.removeAttribute('data-srcdoc-pending');
+
+			// Store reference for contentWindow/contentDocument access
+			iframe.__controlledIframe = controlledIframe;
+		};
+
+		requestAnimationFrame(tryControl);
 	}
 
 	/**
@@ -218,6 +346,190 @@ function setupIframesTrap() {
 		throw new Error('createElement failed across all candidates');
 	}
 
+	/**
+	 * Check if we're in a nested iframe context by looking at the frame hierarchy.
+	 * Nested contexts (srcdoc iframes that went through the loader) have trouble
+	 * with synchronous iframe navigation.
+	 */
+	function isNestedContext() {
+		try {
+			// If we're not in the top frame, we might be nested
+			return window !== window.top;
+		} catch {
+			// Cross-origin access error means we're definitely nested
+			return true;
+		}
+	}
+
+	/**
+	 * Find the nearest ancestor window that can successfully create controlled iframes.
+	 * Returns null if no suitable ancestor is found.
+	 */
+	function findCapableAncestor() {
+		try {
+			let current = window;
+			while (current.parent && current.parent !== current) {
+				try {
+					// Check if parent is accessible (same-origin)
+					const parentDoc = current.parent.document;
+					if (parentDoc) {
+						return current.parent;
+					}
+				} catch {
+					// Cross-origin, can't use this parent
+				}
+				current = current.parent;
+			}
+		} catch {
+			// Ignore errors traversing frame hierarchy
+		}
+		return null;
+	}
+
+	/**
+	 * Schedule iframe control for the next browser task.
+	 * This is necessary for nested contexts where synchronous src assignment
+	 * doesn't trigger navigation during script execution.
+	 *
+	 * The solution: delegate iframe creation to an ancestor window that CAN
+	 * successfully trigger iframe navigation. The iframe is created in the
+	 * parent's DOM but can be accessed by the child.
+	 */
+	function scheduleIframeControl(iframe) {
+		// Mark as pending control
+		iframe.setAttribute('data-control-pending', '1');
+
+		// Wait until the iframe is connected to the DOM
+		const tryControl = () => {
+			// Check if srcdoc processing has started OR already completed - these take priority.
+			// We check for:
+			// - data-srcdoc-pending: srcdoc is being processed right now
+			// - data-controlled-by: srcdoc processing completed and created a controlled iframe
+			// - __controlledIframe: the controlled iframe reference is set
+			// We check these before isConnected because srcdoc can be set at any time.
+			const srcdocPending = iframe.getAttribute('data-srcdoc-pending') === '1';
+			const hasControlledBy = iframe.getAttribute('data-controlled-by');
+			const hasControlledRef = !!iframe.__controlledIframe;
+			if (srcdocPending || hasControlledBy || hasControlledRef) {
+				// srcdoc is being handled or was already handled, bail out completely
+				iframe.removeAttribute('data-control-pending');
+				return;
+			}
+
+			// Only proceed if iframe is still in the document
+			if (!iframe.isConnected) {
+				// Retry later if not yet connected
+				requestAnimationFrame(tryControl);
+				return;
+			}
+
+			// Only proceed if not already controlled
+			if (iframe.getAttribute('data-controlled') === '1') {
+				iframe.removeAttribute('data-control-pending');
+				return;
+			}
+
+			// Check if user has set a real src/srcdoc in the meantime
+			// Note: we also check data-srcdoc-pending because our setAttribute wrapper
+			// intercepts srcdoc and doesn't set the actual attribute
+			const currentSrc = iframe.getAttribute('src') || '';
+			const currentSrcdoc = iframe.getAttribute('srcdoc');
+			if (currentSrcdoc || (currentSrc && currentSrc !== '' && currentSrc !== 'about:blank')) {
+				// User set something, let the normal handlers deal with it
+				iframe.removeAttribute('data-control-pending');
+				return;
+			}
+
+			// Find an ancestor that can create controlled iframes
+			const capableAncestor = findCapableAncestor();
+			if (!capableAncestor) {
+				// No capable ancestor, fall back to local creation (may not work)
+				const url = getEmptyLoaderUrl();
+				setIframeSrc(iframe, url);
+				iframe.setAttribute('data-controlled', '1');
+				iframe.removeAttribute('data-control-pending');
+				return;
+			}
+
+			// Generate unique ID for cross-document reference
+			const iframeId = `pg-iframe-${uid()}`;
+			iframe.id = iframe.id || iframeId;
+			const finalId = iframe.id;
+
+			// Create controlled iframe in ancestor's document
+			// Use native createElement to bypass our wrapper which sets default src
+			const ancestorDoc = capableAncestor.document;
+			const ancestorNativeCreate = ancestorDoc.__playground_native_createElement || Native.createElement;
+			const controlledIframe = ancestorNativeCreate.call(ancestorDoc, 'iframe');
+			controlledIframe.id = `${finalId}-controlled`;
+
+			// Copy attributes from original iframe
+			for (const attr of iframe.attributes) {
+				if (attr.name !== 'src' && attr.name !== 'data-control-pending' && attr.name !== 'id') {
+					controlledIframe.setAttribute(attr.name, attr.value);
+				}
+			}
+
+			// Position the controlled iframe to overlay the original
+			// Use position:fixed and calculate based on original's position
+			const updatePosition = () => {
+				try {
+					if (!iframe.isConnected) {
+						// Original removed, clean up controlled iframe
+						controlledIframe.remove();
+						return;
+					}
+					const rect = iframe.getBoundingClientRect();
+					// Get the offset of the child window relative to the ancestor
+					let offsetTop = 0;
+					let offsetLeft = 0;
+					let win = window;
+					while (win !== capableAncestor && win.frameElement) {
+						const frameRect = win.frameElement.getBoundingClientRect();
+						offsetTop += frameRect.top;
+						offsetLeft += frameRect.left;
+						win = win.parent;
+					}
+					controlledIframe.style.position = 'fixed';
+					controlledIframe.style.top = `${rect.top + offsetTop}px`;
+					controlledIframe.style.left = `${rect.left + offsetLeft}px`;
+					controlledIframe.style.width = `${rect.width}px`;
+					controlledIframe.style.height = `${rect.height}px`;
+					controlledIframe.style.zIndex = '999999';
+					controlledIframe.style.border = iframe.style.border || 'none';
+
+					// Continue updating position
+					requestAnimationFrame(updatePosition);
+				} catch {
+					// If we can't access the iframe anymore, stop updating
+				}
+			};
+
+			// Hide the original iframe (it won't be used for content)
+			iframe.style.visibility = 'hidden';
+
+			// Append to ancestor document BEFORE setting src
+			// (iframe must be in DOM for navigation to work)
+			ancestorDoc.body.appendChild(controlledIframe);
+			updatePosition();
+
+			// Now set the loader URL - this must happen AFTER appendChild
+			const url = getEmptyLoaderUrl();
+			setIframeSrc(controlledIframe, url);
+
+			// Mark original as controlled (even though actual content is elsewhere)
+			iframe.setAttribute('data-controlled', '1');
+			iframe.setAttribute('data-controlled-by', controlledIframe.id);
+			iframe.removeAttribute('data-control-pending');
+
+			// Store reference for contentWindow/contentDocument access
+			iframe.__controlledIframe = controlledIframe;
+		};
+
+		// Defer to next animation frame for better timing
+		requestAnimationFrame(tryControl);
+	}
+
 	function handleCreateElement(element, args) {
 		const tagName = args[0];
 		if (String(tagName).toLowerCase() !== 'iframe') {
@@ -227,11 +539,19 @@ function setupIframesTrap() {
 		const iframe = element;
 		try {
 			const { LOADER_PATH } = scopedPaths(inferredSiteScope);
-			// Only seed if no src/srcdoc is set
-			if (!iframe.hasAttribute('src') && !iframe.hasAttribute('srcdoc') && LOADER_PATH) {
-				const url = getEmptyLoaderUrl();
-				setIframeSrc(iframe, url);
-				iframe.setAttribute('data-controlled', '1');
+			// Only seed if no src/srcdoc is set and not already controlled
+			const alreadyControlled = iframe.getAttribute('data-controlled') === '1';
+			const srcdocPending = iframe.getAttribute('data-srcdoc-pending') === '1';
+			if (!alreadyControlled && !srcdocPending && !iframe.hasAttribute('src') && !iframe.hasAttribute('srcdoc') && LOADER_PATH) {
+				if (isNestedContext()) {
+					// In nested contexts, defer the src assignment to allow navigation
+					scheduleIframeControl(iframe);
+				} else {
+					// In top-level context, set src synchronously
+					const url = getEmptyLoaderUrl();
+					setIframeSrc(iframe, url);
+					iframe.setAttribute('data-controlled', '1');
+				}
 			}
 		} catch (error) {
 			// Ignore errors - iframe just won't be controlled
@@ -302,22 +622,71 @@ function setupIframesTrap() {
 	});
 
 	// ============================================================================
+	// contentWindow/contentDocument getters - redirect to controlled iframe if needed
+	// ============================================================================
+	Object.defineProperty(HTMLIFrameElement.prototype, 'contentWindow', {
+		configurable: true,
+		enumerable: Native.contentWindow?.enumerable ?? true,
+		get() {
+			// If this iframe has a controlled counterpart in an ancestor, use that
+			if (this.__controlledIframe) {
+				try {
+					return Native.contentWindow.get.call(this.__controlledIframe);
+				} catch {
+					// Fall through to native
+				}
+			}
+			return Native.contentWindow.get.call(this);
+		},
+	});
+
+	Object.defineProperty(HTMLIFrameElement.prototype, 'contentDocument', {
+		configurable: true,
+		enumerable: Native.contentDocument?.enumerable ?? true,
+		get() {
+			// If this iframe has a controlled counterpart in an ancestor, use that
+			if (this.__controlledIframe) {
+				try {
+					return Native.contentDocument.get.call(this.__controlledIframe);
+				} catch {
+					// Fall through to native
+				}
+			}
+			return Native.contentDocument.get.call(this);
+		},
+	});
+
+	/**
+	 * Control an iframe that was just added to the DOM.
+	 * Uses deferred approach for nested contexts.
+	 */
+	function controlIframeOnMutation(iframe) {
+		if (iframe.hasAttribute('src') || iframe.hasAttribute('srcdoc')) {
+			return;
+		}
+		if (iframe.getAttribute('data-controlled') === '1' || iframe.getAttribute('data-control-pending') === '1') {
+			return;
+		}
+		if (isNestedContext()) {
+			scheduleIframeControl(iframe);
+		} else {
+			const url = getEmptyLoaderUrl();
+			setIframeSrc(iframe, url);
+			iframe.setAttribute('data-controlled', '1');
+		}
+	}
+
+	// ============================================================================
 	// MutationObserver - catches iframes added via innerHTML, templating, etc.
 	// ============================================================================
 	const mutationObserver = new MutationObserver((mutations) => {
 		for (const mutation of mutations) {
 			for (const node of mutation.addedNodes) {
 				if (node instanceof HTMLIFrameElement) {
-					if (!node.hasAttribute('src') && !node.hasAttribute('srcdoc')) {
-						const url = getEmptyLoaderUrl();
-						setIframeSrc(node, url);
-						node.setAttribute('data-controlled', '1');
-					}
+					controlIframeOnMutation(node);
 				} else if (node instanceof Element) {
-					node.querySelectorAll('iframe:not([src]):not([srcdoc])').forEach((iframe) => {
-						const url = getEmptyLoaderUrl();
-						setIframeSrc(iframe, url);
-						iframe.setAttribute('data-controlled', '1');
+					node.querySelectorAll('iframe').forEach((iframe) => {
+						controlIframeOnMutation(iframe);
 					});
 				}
 			}
