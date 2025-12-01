@@ -193,7 +193,15 @@ class Result implements ResultInterface {
 	public function getFieldsMeta(): array {
 		$meta = array();
 		foreach ($this->columns as $column) {
-			$meta[] = new FieldMetadata($column['mysqli:type'], $column['mysqli:flags'], (object) $column);
+			// PhpMyAdmin expects MySQLi-like column metadata rather than PDO syntax.
+			// The SQLite driver provides it in "mysqli:" prefixed metadata keys.
+			foreach ($column as $key => $value) {
+				if (strpos($key, 'mysqli:') === 0) {
+					$column[substr($key, 7)] = $value;
+				}
+			}
+			$field = (object) $column;
+			$meta[] = new FieldMetadata($field->type, $field->flags, $field);
 		}
 		return $meta;
 	}
