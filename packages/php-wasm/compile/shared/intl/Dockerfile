@@ -61,6 +61,7 @@ RUN cd /root && git apply --no-index /root/php${PHP_VERSION:0:3}*.patch -v
 RUN source /root/emsdk/emsdk_env.sh && \
 	cd php-src && \
 	OPCACHE_FLAGS=""; \
+	# Enable opcache for PHP 8.5+ since it's a required part of PHP since 8.5.
 	if [[ "${PHP_VERSION:0:1}" -ge "8" && "${PHP_VERSION:2:1}" -ge "5" ]]; then \
 		OPCACHE_FLAGS="--enable-opcache --disable-opcache-jit --disable-huge-code-pages"; \
 	else \
