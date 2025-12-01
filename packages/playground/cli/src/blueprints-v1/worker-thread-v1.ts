@@ -21,6 +21,7 @@ import { jspi } from 'wasm-feature-detect';
 import { MessageChannel, type MessagePort, parentPort } from 'worker_threads';
 import { mountResources } from '../mounts';
 import { logger } from '@php-wasm/logger';
+import type { Mount } from '@php-wasm/cli-util';
 
 export type WorkerBootOptions = {
 	phpVersion: SupportedPHPVersion;

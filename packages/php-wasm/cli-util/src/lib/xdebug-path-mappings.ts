@@ -7,7 +7,7 @@ import {
 	XMLParser,
 	XMLBuilder,
 } from 'fast-xml-parser';
-import JSONC from 'jsonc-parser';
+import * as JSONC from 'jsonc-parser';
 
 /**
  * Create a symlink to a tempory directory.

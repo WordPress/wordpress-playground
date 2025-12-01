@@ -51,11 +51,11 @@ import {
 } from './temp-dir';
 import { type WordPressInstallMode } from '@wp-playground/wordpress';
 import {
-	Mount,
+	type Mount,
 	addXdebugIDEConfig,
 	clearXdebugIDEConfig,
-	createPlaygroundCliTempDirSymlink,
-	removePlaygroundCliTempDirSymlink,
+	createTempDirSymlink,
+	removeTempDirSymlink,
 } from '@php-wasm/cli-util';
 
 // Inlined worker URLs for static analysis by downstream bundlers
@@ -693,13 +693,13 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 			const symlinkName = '.playground-xdebug-root';
 			const symlinkPath = path.join(process.cwd(), symlinkName);
 
-			await removePlaygroundCliTempDirSymlink(symlinkPath);
+			await removeTempDirSymlink(symlinkPath);
 
 			// Then, if xdebug, and experimental IDE are enabled,
 			// recreate the symlink pointing to the temporary
 			// directory and add the new IDE config.
 			if (args.xdebug && args.experimentalUnsafeIdeIntegration) {
-				await createPlaygroundCliTempDirSymlink(
+				await createTempDirSymlink(
 					nativeDir.path,
 					symlinkPath,
 					process.platform
