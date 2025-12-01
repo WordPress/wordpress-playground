@@ -51,7 +51,9 @@ body.is-embedded .fake-window-wrapper {
 	align-items: center;
 	max-height: 100px;
 	overflow: hidden;
-	transition: max-height 0.2s ease-in-out, padding 0.2s ease-in-out;
+	transition:
+		max-height 0.2s ease-in-out,
+		padding 0.2s ease-in-out;
 	gap: 10px;
 }
 
@@ -81,6 +83,26 @@ body.is-embedded .fake-window-wrapper {
 .address-bar-slot.is-hidden {
 	opacity: 0;
 	pointer-events: none;
+}
+
+.saved-playgrounds-button {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 8px;
+	background: transparent;
+	border: none;
+	cursor: pointer;
+	flex-shrink: 0;
+}
+
+.saved-playgrounds-button svg {
+	fill: #fff;
+}
+
+.saved-playgrounds-button:hover {
+	background: rgba(255, 255, 255, 0.1);
+	border-radius: 4px;
 }
 
 .padded {
