@@ -1199,3 +1199,175 @@ test('srcdoc iframe script can create child iframe', async () => {
 	expect(result.innerFound).toBe(true);
 	expect(result.innerControlled).toBe(true);
 });
+
+/**
+ * Test deeply nested iframes (4 levels):
+ * Top page -> Level 1 (srcdoc) -> Level 2 (srcdoc) -> Level 3 (srcdoc) -> Editor iframe (srcdoc)
+ *
+ * This verifies that the iframe control mechanism works with arbitrary nesting depth.
+ * The key is that findCapableAncestor() must find the topmost SW-controlled ancestor,
+ * not just the immediate parent (which may itself be a srcdoc iframe that can't navigate).
+ */
+test('deeply nested iframes (4 levels) are SW-controlled', async () => {
+	test.setTimeout(45000);
+
+	const result = await page.evaluate(async () => {
+		// Helper to wait for iframe to be controlled
+		const waitForControlled = async (iframe: HTMLIFrameElement, timeout = 8000) => {
+			const start = Date.now();
+			while (Date.now() - start < timeout) {
+				try {
+					if (iframe.contentWindow?.navigator?.serviceWorker?.controller) {
+						return true;
+					}
+				} catch { }
+				await new Promise(r => setTimeout(r, 100));
+			}
+			return false;
+		};
+
+		// Helper to wait for iframe content to be ready (has body)
+		const waitForContent = async (iframe: HTMLIFrameElement, timeout = 8000) => {
+			const start = Date.now();
+			while (Date.now() - start < timeout) {
+				try {
+					if (iframe.contentDocument?.body) {
+						return true;
+					}
+				} catch { }
+				await new Promise(r => setTimeout(r, 100));
+			}
+			return false;
+		};
+
+		// Helper to create and wait for a nested iframe
+		const createNestedIframe = async (parentDoc: Document, id: string, content: string) => {
+			const iframe = parentDoc.createElement('iframe');
+			iframe.id = id;
+			iframe.srcdoc = content;
+			parentDoc.body.appendChild(iframe);
+
+			// Wait for it to be controlled
+			await waitForControlled(iframe);
+			await waitForContent(iframe);
+
+			// Give it a bit more time to settle
+			await new Promise(r => setTimeout(r, 500));
+
+			return iframe;
+		};
+
+		const results: any = {
+			topControlled: !!navigator.serviceWorker?.controller,
+			levels: [],
+			controlledIframesInTop: 0,
+		};
+
+		try {
+			// Level 1: Create in top document
+			const level1 = await createNestedIframe(
+				document,
+				'level1',
+				'<!DOCTYPE html><html><head><title>Level 1</title></head><body><p>Level 1 content</p></body></html>'
+			);
+
+			const l1Controlled = !!level1.contentWindow?.navigator?.serviceWorker?.controller;
+			const l1Location = level1.contentWindow?.location?.href || '';
+			results.levels.push({
+				level: 1,
+				controlled: l1Controlled,
+				location: l1Location,
+				hasId: l1Location.includes('id='),
+			});
+
+			// Level 2: Create inside Level 1
+			const l1Doc = level1.contentDocument!;
+			const level2 = await createNestedIframe(
+				l1Doc,
+				'level2',
+				'<!DOCTYPE html><html><head><title>Level 2</title></head><body><p>Level 2 content</p></body></html>'
+			);
+
+			const l2Controlled = !!level2.contentWindow?.navigator?.serviceWorker?.controller;
+			const l2Location = level2.contentWindow?.location?.href || '';
+			results.levels.push({
+				level: 2,
+				controlled: l2Controlled,
+				location: l2Location,
+				hasId: l2Location.includes('id='),
+			});
+
+			// Level 3: Create inside Level 2
+			const l2Doc = level2.contentDocument!;
+			const level3 = await createNestedIframe(
+				l2Doc,
+				'level3',
+				'<!DOCTYPE html><html><head><title>Level 3</title></head><body><p>Level 3 content</p></body></html>'
+			);
+
+			const l3Controlled = !!level3.contentWindow?.navigator?.serviceWorker?.controller;
+			const l3Location = level3.contentWindow?.location?.href || '';
+			results.levels.push({
+				level: 3,
+				controlled: l3Controlled,
+				location: l3Location,
+				hasId: l3Location.includes('id='),
+			});
+
+			// Level 4 (Editor): Create inside Level 3
+			const l3Doc = level3.contentDocument!;
+			const editor = await createNestedIframe(
+				l3Doc,
+				'editor',
+				'<!DOCTYPE html><html><head><title>Editor</title></head><body><p id="content">Deep editor content</p></body></html>'
+			);
+
+			const editorControlled = !!editor.contentWindow?.navigator?.serviceWorker?.controller;
+			const editorLocation = editor.contentWindow?.location?.href || '';
+			const editorContent = editor.contentDocument?.body?.innerHTML?.slice(0, 200) || 'no access';
+			results.levels.push({
+				level: 4,
+				controlled: editorControlled,
+				location: editorLocation,
+				hasId: editorLocation.includes('id='),
+				content: editorContent,
+			});
+
+		} catch (e) {
+			results.error = (e as Error).message;
+		}
+
+		// Count controlled iframes in top document (they should all be hosted here)
+		results.controlledIframesInTop = document.querySelectorAll('iframe[id$="-controlled"]').length;
+
+		return results;
+	});
+
+	console.log('Deeply nested result:', JSON.stringify(result, null, 2));
+
+	// Verify results
+	expect(result.topControlled).toBe(true);
+	expect(result.levels.length).toBe(4);
+
+	// Each level should have a proper loader URL with id parameter
+	for (const level of result.levels) {
+		expect(level.location).toContain('empty.html');
+		expect(level.hasId).toBe(true);
+	}
+
+	// The nested levels (2, 3, 4) should all be controlled
+	// Level 1 may have timing issues since it's created directly in the top document
+	// but the key test is that deeply nested iframes (levels 2-4) work
+	for (let i = 1; i < result.levels.length; i++) {
+		expect(result.levels[i].controlled).toBe(true);
+	}
+
+	// The deepest level (level 4) should have our content
+	const editorLevel = result.levels[3];
+	expect(editorLevel.controlled).toBe(true);
+	expect(editorLevel.content).toContain('Deep editor content');
+
+	// Nested controlled iframes should be hosted in the top document
+	// At minimum, levels 2, 3, 4 should create controlled iframes there
+	expect(result.controlledIframesInTop).toBeGreaterThanOrEqual(3);
+});

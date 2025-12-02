@@ -362,10 +362,17 @@ function setupIframesTrap() {
 	}
 
 	/**
-	 * Find the nearest ancestor window that can successfully create controlled iframes.
+	 * Find the topmost ancestor window that can successfully create controlled iframes.
 	 * Returns null if no suitable ancestor is found.
+	 *
+	 * We go all the way to the top because:
+	 * 1. The topmost SW-controlled page is the most reliable for iframe navigation
+	 * 2. With arbitrary nesting depth, intermediate frames might also be srcdoc-based
+	 *    and unable to navigate iframes properly
+	 * 3. Positioning calculations already handle multi-level offset accumulation
 	 */
 	function findCapableAncestor() {
+		let topmost = null;
 		try {
 			let current = window;
 			while (current.parent && current.parent !== current) {
@@ -373,17 +380,25 @@ function setupIframesTrap() {
 					// Check if parent is accessible (same-origin)
 					const parentDoc = current.parent.document;
 					if (parentDoc) {
-						return current.parent;
+						// Check if this ancestor is SW-controlled
+						// This is the best indicator that iframes created here will work
+						if (current.parent.navigator?.serviceWorker?.controller) {
+							topmost = current.parent;
+						} else if (!topmost && parentDoc.body) {
+							// Fall back to any accessible ancestor if none are SW-controlled yet
+							topmost = current.parent;
+						}
 					}
 				} catch {
 					// Cross-origin, can't use this parent
+					break;
 				}
 				current = current.parent;
 			}
 		} catch {
 			// Ignore errors traversing frame hierarchy
 		}
-		return null;
+		return topmost;
 	}
 
 	/**
