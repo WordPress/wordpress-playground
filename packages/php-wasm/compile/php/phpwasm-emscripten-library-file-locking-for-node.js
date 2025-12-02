@@ -69,6 +69,9 @@ const LibraryForFileLocking = {
 				path,
 				{ noent_okay: true },
 			);
+			if (!node) {
+				return false;
+			}
 			if (node.mount.type !== PROXYFS) {
 				return !!node.isSharedFS;
 			}
@@ -579,12 +582,128 @@ const LibraryForFileLocking = {
 						return -ERRNO_CODES.EINVAL;
 					}
 				}
-				// @TODO: Implement waiting for lock
+				// @TODO: Implement a blocking version of F_SETLKW instead of
+				// treating it the same as F_SETLK.
 				case emscripten_F_SETLKW: {
-					// We do not yet support the blocking form of flock().
-					// We respond with EDEADLK to indicate failure
-					// because it is a known errno for a failed F_SETLKW command.
-					return -ERRNO_CODES.EDEADLK;
+					// F_SETLKW is the blocking version of F_SETLK.
+					// For now, we treat it the same as F_SETLK (non-blocking).
+					// In a true blocking implementation, this would wait for the lock to become available.
+					_js_wasm_trace('fcntl(%d, F_SETLKW)', fd);
+					let vfsPath;
+					let errno;
+					[vfsPath, errno] = locking.get_vfs_path_from_fd(fd);
+					if (errno !== 0) {
+						_js_wasm_trace(
+							'fcntl(%d, F_SETLKW) %s get_vfs_path_from_fd errno %d',
+							fd,
+							vfsPath,
+							errno
+						);
+						return -errno;
+					}
+
+					if (!locking.is_path_to_shared_fs(vfsPath)) {
+						_js_wasm_trace(
+							'fcntl(%d, F_SETLKW) locking is not implemented for non-NodeFS path %s',
+							fd,
+							vfsPath
+						);
+
+						// If not a NodeFS path, we can't lock it.
+						// Default to succeeding as Emscripten does.
+						return 0;
+					}
+
+					var flockStructAddr = syscallGetVarargP();
+					const flockStruct = read_flock_struct(flockStructAddr);
+
+					let absoluteStartOffset;
+					[absoluteStartOffset, errno] = get_base_address(
+						fd,
+						flockStruct.l_whence,
+						flockStruct.l_start
+					);
+					if (errno !== 0) {
+						_js_wasm_trace(
+							'fcntl(%d, F_SETLKW) %s get_base_address errno %d',
+							fd,
+							vfsPath,
+							errno
+						);
+						return -errno;
+					}
+
+					if (!(flockStruct.l_type in locking.fcntlToLockState)) {
+						_js_wasm_trace(
+							'fcntl(%d, F_SETLKW) %s invalid lock type %d',
+							fd,
+							vfsPath,
+							flockStruct.l_type
+						);
+						return -ERRNO_CODES.EINVAL;
+					}
+
+					errno = locking.check_lock_params(fd, flockStruct.l_type);
+					if (errno !== 0) {
+						_js_wasm_trace(
+							'fcntl(%d, F_SETLKW) %s check_lock_params errno %d',
+							fd,
+							vfsPath,
+							errno
+						);
+						return -errno;
+					}
+
+					locking.maybeLockedFds.add(fd);
+
+					const requestedLockType =
+						locking.fcntlToLockState[flockStruct.l_type];
+					const rangeLock = {
+						type: requestedLockType,
+						start: absoluteStartOffset,
+						end: absoluteStartOffset + flockStruct.l_len,
+						pid,
+					};
+
+					try {
+						const nativeFilePath =
+							locking.get_native_path_from_vfs_path(vfsPath);
+						_js_wasm_trace(
+							'fcntl(%d, F_SETLKW) %s calling lockFileByteRange for range lock %s',
+							fd,
+							vfsPath,
+							rangeLock
+						);
+
+						const succeeded = (
+#if ASYNCIFY == 2
+							await Promise.resolve(
+#endif
+								PHPLoader.fileLockManager
+									.lockFileByteRange(nativeFilePath, rangeLock)
+#if ASYNCIFY == 2
+							)
+#endif
+						);
+
+						_js_wasm_trace(
+							'fcntl(%d, F_SETLKW) %s lockFileByteRange returned %d for range lock %s',
+							fd,
+							vfsPath,
+							succeeded,
+							rangeLock
+						);
+						return succeeded ? 0 : -ERRNO_CODES.EAGAIN;
+					} catch (e) {
+						_js_wasm_trace(
+							'fcntl(%d, F_SETLKW) %s lockFileByteRange error %s for range lock %s',
+							fd,
+							vfsPath,
+							e,
+							rangeLock
+						);
+						return -ERRNO_CODES.EINVAL;
+					}
 				}
 				case emscripten_F_SETFL: {
 					/**
