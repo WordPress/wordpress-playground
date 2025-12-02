@@ -599,6 +599,9 @@ function setupIframesTrap() {
 
 			if (nameLower === 'src') {
 				if (valueString.startsWith('data:text/html') || valueString.startsWith('blob:')) {
+					// Mark as pending BEFORE starting async fetch to prevent
+					// scheduleIframeControl from treating this as a blank iframe
+					this.setAttribute('data-srcdoc-pending', '1');
 					rewriteDataOrBlob(this, valueString);
 					return;
 				}
