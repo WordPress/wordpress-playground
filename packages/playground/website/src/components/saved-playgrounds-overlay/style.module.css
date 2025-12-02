@@ -46,7 +46,7 @@
 .headerTitle {
 	font-size: 18px;
 	font-weight: 600;
-	color: #fff;
+	color: #fff !important;
 	margin: 0;
 }
 
@@ -117,14 +117,14 @@
 .tagsContainer {
 	display: flex;
 	flex-wrap: wrap;
-	gap: 8px;
+	gap: 6px;
 }
 
 .tagButton {
-	padding: 6px 14px;
+	padding: 5px 12px;
 	background: #2c3338;
 	border: 1px solid #3c4349;
-	border-radius: 20px;
+	border-radius: 16px;
 	color: #9ca3af;
 	font-size: 13px;
 	cursor: pointer;
@@ -155,6 +155,7 @@
 
 .section {
 	margin-bottom: 32px;
+	width: 100%;
 }
 
 .section:last-child {
@@ -168,19 +169,15 @@
 	margin-bottom: 16px;
 }
 
-.sectionTitle {
-	margin: 0;
-	font-size: 14px;
-	font-weight: 400;
-	color: #949494;
-}
-
 .sectionHeader .sectionTitle {
-	margin-bottom: 0;
+	margin-bottom: 0 !important;
 }
 
-.section > .sectionTitle {
-	margin-bottom: 16px;
+.sectionTitle {
+	margin: 0 0 16px 0 !important;
+	font-size: 18px !important;
+	font-weight: 600 !important;
+	color: #fff !important;
 }
 
 .viewAllLink {
@@ -216,14 +213,19 @@
 
 .creationButton {
 	display: flex;
+	flex-direction: column;
 	align-items: center;
-	gap: 10px;
-	padding: 12px 20px;
+	justify-content: center;
+	gap: 8px;
+	padding: 16px 12px;
+	min-width: 100px;
 	background: #2c3338;
 	border: 1px solid #3c4349;
 	border-radius: 8px;
 	cursor: pointer;
 	transition: all 0.15s ease;
+	color: inherit;
+	font: inherit;
 }
 
 .creationButton:hover:not(:disabled) {
@@ -238,25 +240,24 @@
 
 .creationIcon {
 	color: #fff;
-	flex-shrink: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 32px;
+	height: 32px;
 }
 
-.creationText {
-	display: flex;
-	flex-direction: column;
-	gap: 2px;
-	text-align: left;
+.creationIcon :global(svg) {
+	fill: #fff;
+	width: 28px;
+	height: 28px;
 }
 
 .creationTitle {
-	font-size: 14px;
-	font-weight: 600;
+	font-size: 13px;
+	font-weight: 500;
 	color: #fff;
-}
-
-.creationDescription {
-	font-size: 12px;
-	color: #9ca3af;
+	text-align: center;
 }
 
 /* Blueprint preview row */
@@ -272,11 +273,14 @@
 	flex-direction: column;
 	align-items: center;
 	gap: 8px;
-	min-width: 100px;
+	min-width: 160px;
 	background: none;
 	border: none;
 	cursor: pointer;
 	padding: 0;
+	flex-shrink: 0;
+	color: inherit;
+	font: inherit;
 }
 
 .blueprintPreviewCard:hover .blueprintPreviewThumbnail {
@@ -284,8 +288,8 @@
 }
 
 .blueprintPreviewThumbnail {
-	width: 100px;
-	height: 72px;
+	width: 160px;
+	height: 120px;
 	background: #2c3338;
 	border: 2px solid #3c4349;
 	border-radius: 8px;
@@ -303,13 +307,12 @@
 }
 
 .blueprintPreviewTitle {
-	font-size: 12px;
+	font-size: 13px;
 	color: #e5e6e6;
 	text-align: center;
-	max-width: 100px;
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
+	width: 160px;
+	line-height: 1.4;
+	word-wrap: break-word;
 }
 
 .blueprintPlaceholder {
@@ -318,12 +321,12 @@
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	color: #4a5258;
+	color: #3858e9;
 }
 
 .blueprintPlaceholder svg {
-	width: 32px;
-	height: 32px;
+	width: 40px;
+	height: 40px;
 }
 
 /* View all card in row */
@@ -331,13 +334,15 @@
 	display: flex;
 	flex-direction: column;
 	align-items: center;
-	justify-content: center;
 	gap: 8px;
-	min-width: 100px;
+	min-width: 160px;
 	background: none;
 	border: none;
 	cursor: pointer;
 	padding: 0;
+	flex-shrink: 0;
+	color: inherit;
+	font: inherit;
 }
 
 .viewAllCard:hover .viewAllIcon {
@@ -347,8 +352,8 @@
 }
 
 .viewAllIcon {
-	width: 100px;
-	height: 72px;
+	width: 160px;
+	height: 120px;
 	background: #2c3338;
 	border: 1px solid #3c4349;
 	border-radius: 8px;
@@ -357,6 +362,14 @@
 	justify-content: center;
 	color: #fff;
 	transition: all 0.15s ease;
+}
+
+.viewAllIcon :global(svg) {
+	fill: #fff !important;
+}
+
+.viewAllIcon :global(svg) :global(path) {
+	fill: #fff !important;
 }
 
 .viewAllText {
@@ -404,6 +417,9 @@
 	border: none;
 	cursor: pointer;
 	text-align: left;
+	justify-content: flex-start;
+	color: inherit;
+	font: inherit;
 }
 
 .siteRowLogo {
@@ -482,6 +498,9 @@
 	transition: all 0.15s ease;
 	text-align: left;
 	overflow: hidden;
+	padding: 0;
+	font: inherit;
+	color: inherit;
 }
 
 .blueprintCard:hover {
@@ -493,6 +512,9 @@
 	aspect-ratio: 16 / 10;
 	background: #252a2e;
 	overflow: hidden;
+	display: flex;
+	align-items: center;
+	justify-content: center;
 }
 
 .blueprintThumbnail img {
@@ -508,19 +530,6 @@
 	gap: 4px;
 }
 
-.blueprintHeader {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	gap: 12px;
-}
-
-.runButton {
-	flex-shrink: 0;
-	font-size: 13px;
-	padding: 4px 12px;
-}
-
 .blueprintTitle {
 	font-size: 14px;
 	font-weight: 600;
@@ -529,7 +538,6 @@
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
-	min-width: 0;
 }
 
 .blueprintDescription {
@@ -538,7 +546,9 @@
 	margin: 0;
 	display: -webkit-box;
 	-webkit-line-clamp: 2;
+	line-clamp: 2;
 	-webkit-box-orient: vertical;
+	box-orient: vertical;
 	overflow: hidden;
 	line-height: 1.4;
 }
@@ -553,11 +563,11 @@
 @media (max-width: 900px) {
 	.creationRow {
 		flex-wrap: wrap;
+		justify-content: center;
 	}
 
 	.creationButton {
-		flex: 1 1 calc(50% - 6px);
-		min-width: 160px;
+		flex: 0 0 auto;
 	}
 }
 
@@ -575,12 +585,18 @@
 	}
 
 	.creationRow {
-		flex-direction: column;
+		display: grid;
+		grid-template-columns: repeat(3, 1fr);
+		gap: 8px;
 	}
 
 	.creationButton {
-		flex: 1;
-		width: 100%;
+		min-width: unset;
+		padding: 12px 8px;
+	}
+
+	.creationTitle {
+		font-size: 11px;
 	}
 
 	.blueprintsRow {

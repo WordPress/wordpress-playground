@@ -1,7 +1,9 @@
 import css from './style.module.css';
 import classNames from 'classnames';
 import {
-	__experimentalText as Text,
+	__experimentalHStack as HStack,
+	__experimentalVStack as VStack,
+	FlexItem,
 	Spinner,
 	Button,
 	SearchControl,
@@ -13,15 +15,14 @@ import {
 	close,
 	arrowLeft,
 	moreVertical,
-	starFilled,
-	code,
-	box,
-	globe,
-	link,
 	upload,
 	grid,
+	code,
+	blockDefault,
+	link,
 } from '@wordpress/icons';
 import { Icon } from '@wordpress/icons';
+import { GitHubIcon } from '../../github/github';
 import { useDispatch } from 'react-redux';
 import { useState, useEffect, useCallback } from 'react';
 import {
@@ -234,15 +235,13 @@ export function SavedPlaygroundsOverlay({
 		{
 			id: 'vanilla',
 			title: 'Fresh WordPress',
-			description: 'Clean install',
-			icon: starFilled,
+			iconComponent: <WordPressIcon />,
 			onClick: createVanillaSite,
 			disabled: false,
 		},
 		{
 			id: 'wp-pr',
 			title: 'WordPress PR',
-			description: 'Preview core',
 			icon: code,
 			onClick: () => {
 				modalDispatch(setActiveModal(modalSlugs.PREVIEW_PR_WP));
@@ -252,8 +251,7 @@ export function SavedPlaygroundsOverlay({
 		{
 			id: 'gutenberg-pr',
 			title: 'Gutenberg PR',
-			description: 'Preview editor',
-			icon: box,
+			icon: blockDefault,
 			onClick: () => {
 				modalDispatch(setActiveModal(modalSlugs.PREVIEW_PR_GUTENBERG));
 			},
@@ -262,8 +260,7 @@ export function SavedPlaygroundsOverlay({
 		{
 			id: 'github',
 			title: 'From GitHub',
-			description: 'Import repo',
-			icon: globe,
+			iconComponent: GitHubIcon,
 			onClick: () => {
 				modalDispatch(setActiveModal(modalSlugs.GITHUB_IMPORT));
 			},
@@ -272,7 +269,6 @@ export function SavedPlaygroundsOverlay({
 		{
 			id: 'blueprint-url',
 			title: 'Blueprint URL',
-			description: 'Run from URL',
 			icon: link,
 			onClick: () => {
 				modalDispatch(setActiveModal(modalSlugs.BLUEPRINT_URL));
@@ -282,7 +278,6 @@ export function SavedPlaygroundsOverlay({
 		{
 			id: 'zip',
 			title: 'Import .zip',
-			description: 'Restore export',
 			icon: upload,
 			onClick: () => {
 				modalDispatch(setActiveModal(modalSlugs.IMPORT_FORM));
@@ -375,9 +370,12 @@ export function SavedPlaygroundsOverlay({
 						) : (
 							<div className={css.blueprintsFullGrid}>
 								{filteredBlueprints.map((blueprint) => (
-									<div
+									<button
 										key={blueprint.path}
 										className={css.blueprintCard}
+										onClick={() =>
+											previewBlueprint(blueprint.path)
+										}
 									>
 										<div className={css.blueprintThumbnail}>
 											{blueprint.screenshot_url ? (
@@ -399,40 +397,21 @@ export function SavedPlaygroundsOverlay({
 											)}
 										</div>
 										<div className={css.blueprintInfo}>
-											<div
-												className={css.blueprintHeader}
-											>
-												<Text
-													className={
-														css.blueprintTitle
-													}
-												>
-													{blueprint.title}
-												</Text>
-												<Button
-													variant="primary"
-													className={css.runButton}
-													onClick={() =>
-														previewBlueprint(
-															blueprint.path
-														)
-													}
-												>
-													Run
-												</Button>
-											</div>
-											<Text
+											<h3 className={css.blueprintTitle}>
+												{blueprint.title}
+											</h3>
+											<p
 												className={
 													css.blueprintDescription
 												}
 											>
 												{blueprint.description}
-											</Text>
-											<Text className={css.blueprintMeta}>
+											</p>
+											<p className={css.blueprintMeta}>
 												By {blueprint.author}
-											</Text>
+											</p>
 										</div>
-									</div>
+									</button>
 								))}
 							</div>
 						)}
@@ -444,9 +423,13 @@ export function SavedPlaygroundsOverlay({
 
 	return (
 		<div className={css.overlay}>
-			<div className={css.fullscreenContent}>
-				<div className={css.header}>
-					<div className={css.headerSpacer} />
+			<VStack className={css.fullscreenContent} spacing={0}>
+				<HStack
+					className={css.header}
+					alignment="center"
+					justify="space-between"
+				>
+					<FlexItem className={css.headerSpacer} />
 					<PlaygroundLogo />
 					<Button
 						icon={close}
@@ -454,7 +437,7 @@ export function SavedPlaygroundsOverlay({
 						onClick={onClose}
 						className={css.closeButton}
 					/>
-				</div>
+				</HStack>
 
 				<div className={css.body}>
 					{/* Start a new Playground */}
@@ -470,21 +453,19 @@ export function SavedPlaygroundsOverlay({
 									onClick={option.onClick}
 									disabled={option.disabled}
 								>
-									<Icon
-										icon={option.icon}
-										size={18}
-										className={css.creationIcon}
-									/>
-									<div className={css.creationText}>
-										<span className={css.creationTitle}>
-											{option.title}
-										</span>
-										<span
-											className={css.creationDescription}
-										>
-											{option.description}
-										</span>
-									</div>
+									<span className={css.creationIcon}>
+										{'iconComponent' in option ? (
+											option.iconComponent
+										) : (
+											<Icon
+												icon={option.icon}
+												size={24}
+											/>
+										)}
+									</span>
+									<span className={css.creationTitle}>
+										{option.title}
+									</span>
 								</button>
 							))}
 						</div>
@@ -683,7 +664,7 @@ export function SavedPlaygroundsOverlay({
 						</section>
 					)}
 				</div>
-			</div>
+			</VStack>
 		</div>
 	);
 }
