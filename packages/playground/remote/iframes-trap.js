@@ -99,8 +99,34 @@ function setupIframesTrap() {
 
 	/**
 	 * Set iframe src using the native setter to avoid recursion.
+	 * For cross-realm iframes (created in ancestor documents), we need to use
+	 * the ancestor's native setter, not our captured one. This is important for
+	 * Firefox which doesn't allow cross-realm property setter calls.
 	 */
-	function setIframeSrc(iframe, url) {
+	function setIframeSrc(iframe, url, ancestorWindow) {
+		// If an ancestor window is provided (cross-realm case), get that realm's native setter
+		if (ancestorWindow && ancestorWindow !== window) {
+			try {
+				const ancestorSetter = Object.getOwnPropertyDescriptor(
+					ancestorWindow.HTMLIFrameElement.prototype,
+					'src'
+				)?.set;
+				if (ancestorSetter) {
+					ancestorSetter.call(iframe, url);
+					return;
+				}
+			} catch {
+				// Fall through to other methods
+			}
+			// Fallback: use setAttribute from the ancestor's Element prototype
+			try {
+				ancestorWindow.Element.prototype.setAttribute.call(iframe, 'src', url);
+				return;
+			} catch {
+				// Fall through to native setAttribute
+			}
+		}
+		// Same-realm case or fallback
 		if (Native.iframeSrc?.set) {
 			Native.iframeSrc.set.call(iframe, url);
 		} else {
@@ -266,8 +292,9 @@ function setupIframesTrap() {
 			updatePosition();
 
 			// Now set the loader URL - this must happen AFTER appendChild
-			// to ensure the iframe navigates properly
-			setIframeSrc(controlledIframe, loaderUrl);
+			// to ensure the iframe navigates properly.
+			// Pass capableAncestor for cross-realm iframe src setting (Firefox compatibility)
+			setIframeSrc(controlledIframe, loaderUrl, capableAncestor);
 
 			// Mark original as controlled
 			iframe.setAttribute('data-controlled', '1');
@@ -536,9 +563,10 @@ function setupIframesTrap() {
 			ancestorDoc.body.appendChild(controlledIframe);
 			updatePosition();
 
-			// Now set the loader URL - this must happen AFTER appendChild
+			// Now set the loader URL - this must happen AFTER appendChild.
+			// Pass capableAncestor for cross-realm iframe src setting (Firefox compatibility)
 			const url = getEmptyLoaderUrl();
-			setIframeSrc(controlledIframe, url);
+			setIframeSrc(controlledIframe, url, capableAncestor);
 
 			// Mark original as controlled (even though actual content is elsewhere)
 			iframe.setAttribute('data-controlled', '1');
