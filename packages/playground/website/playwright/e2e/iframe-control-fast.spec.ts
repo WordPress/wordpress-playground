@@ -1221,7 +1221,7 @@ test('srcdoc iframe script can create child iframe', async ({ page: testPage, ba
  * The key is that findCapableAncestor() must find the topmost SW-controlled ancestor,
  * not just the immediate parent (which may itself be a srcdoc iframe that can't navigate).
  */
-test.only('deeply nested iframes (4 levels) are SW-controlled', async ({ page: testPage, baseURL }) => {
+test('deeply nested iframes (4 levels) are SW-controlled', async ({ page: testPage, baseURL }) => {
 	await setupPage(testPage, baseURL!);
 	test.setTimeout(45000);
 
