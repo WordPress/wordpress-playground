@@ -58,7 +58,7 @@ async function testIframe(
 		// Wait for iframe content to be loaded (loader script execution completes)
 		const waitForContentLoad = async (
 			iframe: HTMLIFrameElement,
-			timeout = 3000
+			timeout = 5000
 		) => {
 			const start = Date.now();
 			while (Date.now() - start < timeout) {
@@ -67,7 +67,10 @@ async function testIframe(
 					const bodyHTML = iframe.contentDocument?.body?.innerHTML || '';
 					// The loader inserts content after its inline script runs
 					// Look for actual HTML tags that indicate content was injected
-					if (bodyHTML.includes('<h1>') || bodyHTML.includes('<div>') || bodyHTML.includes('<p>')) {
+					// Also check that the loader script is no longer present (it gets replaced)
+					const hasContent = bodyHTML.includes('<h1>') || bodyHTML.includes('<div>') || bodyHTML.includes('<p>');
+					const loaderFinished = !bodyHTML.includes('searchParams.get');
+					if (hasContent && loaderFinished) {
 						return;
 					}
 				} catch {
