@@ -205,12 +205,15 @@ function setupIframesTrap() {
 	 * Schedule srcdoc iframe control using the parent-delegation approach.
 	 * Similar to scheduleIframeControl but for iframes that have srcdoc content
 	 * which has already been cached and converted to a loader URL.
+	 *
+	 * Uses message passing to create iframes in ancestor windows to work around
+	 * Firefox's cross-realm restrictions.
 	 */
 	function scheduleSrcdocControl(iframe, loaderUrl) {
 		// Mark as pending control
 		iframe.setAttribute('data-control-pending', '1');
 
-		const tryControl = () => {
+		const tryControl = async () => {
 			// Only proceed if iframe is still in the document
 			if (!iframe.isConnected) {
 				requestAnimationFrame(tryControl);
@@ -237,73 +240,139 @@ function setupIframesTrap() {
 			const iframeId = `pg-iframe-${uid()}`;
 			iframe.id = iframe.id || iframeId;
 			const finalId = iframe.id;
+			const controlledId = `${finalId}-controlled`;
 
-			// Create controlled iframe in ancestor's document
-			// Use the native createElement to bypass our handleCreateElement wrapper
-			// which would otherwise set a default loader URL
-			const ancestorDoc = capableAncestor.document;
-			const ancestorNativeCreate = ancestorDoc.__playground_native_createElement || Native.createElement;
-			const controlledIframe = ancestorNativeCreate.call(ancestorDoc, 'iframe');
-			controlledIframe.id = `${finalId}-controlled`;
-
-			// Copy attributes from original iframe (except src/srcdoc/control markers)
+			// Collect attributes to copy (except src/srcdoc/control markers)
+			const attributes = {};
 			for (const attr of iframe.attributes) {
 				if (attr.name !== 'src' && attr.name !== 'srcdoc' && attr.name !== 'data-control-pending' && attr.name !== 'data-controlled' && attr.name !== 'id') {
-					controlledIframe.setAttribute(attr.name, attr.value);
+					attributes[attr.name] = attr.value;
 				}
 			}
 
-			// Position the controlled iframe to overlay the original
-			const updatePosition = () => {
-				try {
-					if (!iframe.isConnected) {
-						controlledIframe.remove();
-						return;
-					}
-					const rect = iframe.getBoundingClientRect();
-					let offsetTop = 0;
-					let offsetLeft = 0;
-					let win = window;
-					while (win !== capableAncestor && win.frameElement) {
-						const frameRect = win.frameElement.getBoundingClientRect();
-						offsetTop += frameRect.top;
-						offsetLeft += frameRect.left;
-						win = win.parent;
-					}
-					controlledIframe.style.position = 'fixed';
-					controlledIframe.style.top = `${rect.top + offsetTop}px`;
-					controlledIframe.style.left = `${rect.left + offsetLeft}px`;
-					controlledIframe.style.width = `${rect.width}px`;
-					controlledIframe.style.height = `${rect.height}px`;
-					controlledIframe.style.zIndex = '999999';
-					controlledIframe.style.border = iframe.style.border || 'none';
-					requestAnimationFrame(updatePosition);
-				} catch {
-					// If we can't access the iframe anymore, stop updating
-				}
+			// Calculate position for the controlled iframe
+			const rect = iframe.getBoundingClientRect();
+			let offsetTop = 0;
+			let offsetLeft = 0;
+			let win = window;
+			while (win !== capableAncestor && win.frameElement) {
+				const frameRect = win.frameElement.getBoundingClientRect();
+				offsetTop += frameRect.top;
+				offsetLeft += frameRect.left;
+				win = win.parent;
+			}
+
+			const style = {
+				position: 'fixed',
+				top: `${rect.top + offsetTop}px`,
+				left: `${rect.left + offsetLeft}px`,
+				width: `${rect.width}px`,
+				height: `${rect.height}px`,
+				zIndex: '999999',
+				border: iframe.style.border || 'none',
 			};
 
-			// Hide the original iframe
-			iframe.style.visibility = 'hidden';
+			try {
+				// Use message passing to create the iframe in the ancestor's realm
+				// This is critical for Firefox compatibility
+				const controlledIframe = await requestAncestorCreateIframe(capableAncestor, {
+					id: controlledId,
+					src: loaderUrl,
+					attributes,
+					style,
+				});
 
-			// Append to ancestor document BEFORE setting src
-			// (iframe must be in DOM for navigation to work)
-			ancestorDoc.body.appendChild(controlledIframe);
-			updatePosition();
+				// Hide the original iframe
+				iframe.style.visibility = 'hidden';
 
-			// Now set the loader URL - this must happen AFTER appendChild
-			// to ensure the iframe navigates properly.
-			// Pass capableAncestor for cross-realm iframe src setting (Firefox compatibility)
-			setIframeSrc(controlledIframe, loaderUrl, capableAncestor);
+				// Set up position updates
+				const updatePosition = () => {
+					try {
+						if (!iframe.isConnected) {
+							controlledIframe.remove();
+							return;
+						}
+						const newRect = iframe.getBoundingClientRect();
+						let newOffsetTop = 0;
+						let newOffsetLeft = 0;
+						let w = window;
+						while (w !== capableAncestor && w.frameElement) {
+							const frameRect = w.frameElement.getBoundingClientRect();
+							newOffsetTop += frameRect.top;
+							newOffsetLeft += frameRect.left;
+							w = w.parent;
+						}
+						controlledIframe.style.top = `${newRect.top + newOffsetTop}px`;
+						controlledIframe.style.left = `${newRect.left + newOffsetLeft}px`;
+						controlledIframe.style.width = `${newRect.width}px`;
+						controlledIframe.style.height = `${newRect.height}px`;
+						requestAnimationFrame(updatePosition);
+					} catch {
+						// If we can't access the iframe anymore, stop updating
+					}
+				};
+				requestAnimationFrame(updatePosition);
 
-			// Mark original as controlled
-			iframe.setAttribute('data-controlled', '1');
-			iframe.setAttribute('data-controlled-by', controlledIframe.id);
-			iframe.removeAttribute('data-control-pending');
-			iframe.removeAttribute('data-srcdoc-pending');
+				// Mark original as controlled
+				iframe.setAttribute('data-controlled', '1');
+				iframe.setAttribute('data-controlled-by', controlledId);
+				iframe.removeAttribute('data-control-pending');
+				iframe.removeAttribute('data-srcdoc-pending');
 
-			// Store reference for contentWindow/contentDocument access
-			iframe.__controlledIframe = controlledIframe;
+				// Store reference for contentWindow/contentDocument access
+				iframe.__controlledIframe = controlledIframe;
+			} catch (error) {
+				// Message passing failed, fall back to direct approach (might not work in Firefox)
+				console.warn('Message-based iframe creation failed, falling back to direct approach:', error);
+
+				const ancestorDoc = capableAncestor.document;
+				const ancestorNativeCreate = ancestorDoc.__playground_native_createElement || Native.createElement;
+				const controlledIframe = ancestorNativeCreate.call(ancestorDoc, 'iframe');
+				controlledIframe.id = controlledId;
+
+				for (const [name, value] of Object.entries(attributes)) {
+					controlledIframe.setAttribute(name, value);
+				}
+				Object.assign(controlledIframe.style, style);
+
+				iframe.style.visibility = 'hidden';
+				ancestorDoc.body.appendChild(controlledIframe);
+				setIframeSrc(controlledIframe, loaderUrl, capableAncestor);
+
+				// Position updates
+				const updatePosition = () => {
+					try {
+						if (!iframe.isConnected) {
+							controlledIframe.remove();
+							return;
+						}
+						const newRect = iframe.getBoundingClientRect();
+						let newOffsetTop = 0;
+						let newOffsetLeft = 0;
+						let w = window;
+						while (w !== capableAncestor && w.frameElement) {
+							const frameRect = w.frameElement.getBoundingClientRect();
+							newOffsetTop += frameRect.top;
+							newOffsetLeft += frameRect.left;
+							w = w.parent;
+						}
+						controlledIframe.style.top = `${newRect.top + newOffsetTop}px`;
+						controlledIframe.style.left = `${newRect.left + newOffsetLeft}px`;
+						controlledIframe.style.width = `${newRect.width}px`;
+						controlledIframe.style.height = `${newRect.height}px`;
+						requestAnimationFrame(updatePosition);
+					} catch {
+						// Stop updating if we can't access the iframe
+					}
+				};
+				requestAnimationFrame(updatePosition);
+
+				iframe.setAttribute('data-controlled', '1');
+				iframe.setAttribute('data-controlled-by', controlledId);
+				iframe.removeAttribute('data-control-pending');
+				iframe.removeAttribute('data-srcdoc-pending');
+				iframe.__controlledIframe = controlledIframe;
+			}
 		};
 
 		requestAnimationFrame(tryControl);
@@ -337,6 +406,108 @@ function setupIframesTrap() {
 			});
 		}
 	}
+
+	// ============================================================================
+	// Cross-realm iframe creation via message passing (Firefox compatibility)
+	// ============================================================================
+	// In Firefox, cross-realm property setter calls fail silently. To work around this,
+	// we use postMessage to ask the ancestor window to create iframes entirely within
+	// its own realm. The child frame posts a message requesting iframe creation, and
+	// the ancestor creates the iframe and sends back a reference via a MessageChannel.
+
+	/**
+	 * Ask an ancestor window to create a controlled iframe.
+	 * Returns a promise that resolves with the created iframe element.
+	 */
+	function requestAncestorCreateIframe(ancestorWindow, config) {
+		return new Promise((resolve, reject) => {
+			const channel = new MessageChannel();
+			const timeout = setTimeout(() => {
+				reject(new Error('Ancestor iframe creation timed out'));
+			}, 5000);
+
+			channel.port1.onmessage = (event) => {
+				clearTimeout(timeout);
+				if (event.data.error) {
+					reject(new Error(event.data.error));
+				} else {
+					// The ancestor stores the iframe reference on window.__pg_iframes
+					const iframe = ancestorWindow.__pg_iframes?.[event.data.iframeId];
+					if (iframe) {
+						resolve(iframe);
+					} else {
+						reject(new Error('Iframe reference not found'));
+					}
+				}
+			};
+
+			ancestorWindow.postMessage(
+				{
+					type: '__playground_create_iframe',
+					config,
+				},
+				'*',
+				[channel.port2]
+			);
+		});
+	}
+
+	/**
+	 * Listen for iframe creation requests from child frames.
+	 * This handler runs in the ancestor window's realm.
+	 */
+	window.addEventListener('message', (event) => {
+		if (event.data?.type !== '__playground_create_iframe') {
+			return;
+		}
+
+		const { config } = event.data;
+		const port = event.ports[0];
+
+		if (!port) {
+			return;
+		}
+
+		try {
+			// Create iframe using this realm's native createElement
+			const iframe = Native.createElement.call(document, 'iframe');
+			iframe.id = config.id;
+
+			// Copy attributes
+			if (config.attributes) {
+				for (const [name, value] of Object.entries(config.attributes)) {
+					iframe.setAttribute(name, value);
+				}
+			}
+
+			// Apply styles
+			if (config.style) {
+				Object.assign(iframe.style, config.style);
+			}
+
+			// Append to body
+			document.body.appendChild(iframe);
+
+			// Set src using this realm's native setter (critical for Firefox)
+			if (config.src) {
+				if (Native.iframeSrc?.set) {
+					Native.iframeSrc.set.call(iframe, config.src);
+				} else {
+					Native.setAttribute.call(iframe, 'src', config.src);
+				}
+			}
+
+			// Store reference so child can access it
+			if (!window.__pg_iframes) {
+				window.__pg_iframes = {};
+			}
+			window.__pg_iframes[config.id] = iframe;
+
+			port.postMessage({ success: true, iframeId: config.id });
+		} catch (error) {
+			port.postMessage({ error: error.message });
+		}
+	});
 
 	// ============================================================================
 	// createElement wrapper - seeds blank iframes with loader src
@@ -444,13 +615,16 @@ function setupIframesTrap() {
 	 * The solution: delegate iframe creation to an ancestor window that CAN
 	 * successfully trigger iframe navigation. The iframe is created in the
 	 * parent's DOM but can be accessed by the child.
+	 *
+	 * Uses message passing to create iframes in ancestor windows to work around
+	 * Firefox's cross-realm restrictions.
 	 */
 	function scheduleIframeControl(iframe) {
 		// Mark as pending control
 		iframe.setAttribute('data-control-pending', '1');
 
 		// Wait until the iframe is connected to the DOM
-		const tryControl = () => {
+		const tryControl = async () => {
 			// Check if srcdoc processing has started OR already completed - these take priority.
 			// We check for:
 			// - data-srcdoc-pending: srcdoc is being processed right now
@@ -505,76 +679,138 @@ function setupIframesTrap() {
 			const iframeId = `pg-iframe-${uid()}`;
 			iframe.id = iframe.id || iframeId;
 			const finalId = iframe.id;
+			const controlledId = `${finalId}-controlled`;
 
-			// Create controlled iframe in ancestor's document
-			// Use native createElement to bypass our wrapper which sets default src
-			const ancestorDoc = capableAncestor.document;
-			const ancestorNativeCreate = ancestorDoc.__playground_native_createElement || Native.createElement;
-			const controlledIframe = ancestorNativeCreate.call(ancestorDoc, 'iframe');
-			controlledIframe.id = `${finalId}-controlled`;
-
-			// Copy attributes from original iframe
+			// Collect attributes to copy
+			const attributes = {};
 			for (const attr of iframe.attributes) {
 				if (attr.name !== 'src' && attr.name !== 'data-control-pending' && attr.name !== 'id') {
-					controlledIframe.setAttribute(attr.name, attr.value);
+					attributes[attr.name] = attr.value;
 				}
 			}
 
-			// Position the controlled iframe to overlay the original
-			// Use position:fixed and calculate based on original's position
-			const updatePosition = () => {
-				try {
-					if (!iframe.isConnected) {
-						// Original removed, clean up controlled iframe
-						controlledIframe.remove();
-						return;
-					}
-					const rect = iframe.getBoundingClientRect();
-					// Get the offset of the child window relative to the ancestor
-					let offsetTop = 0;
-					let offsetLeft = 0;
-					let win = window;
-					while (win !== capableAncestor && win.frameElement) {
-						const frameRect = win.frameElement.getBoundingClientRect();
-						offsetTop += frameRect.top;
-						offsetLeft += frameRect.left;
-						win = win.parent;
-					}
-					controlledIframe.style.position = 'fixed';
-					controlledIframe.style.top = `${rect.top + offsetTop}px`;
-					controlledIframe.style.left = `${rect.left + offsetLeft}px`;
-					controlledIframe.style.width = `${rect.width}px`;
-					controlledIframe.style.height = `${rect.height}px`;
-					controlledIframe.style.zIndex = '999999';
-					controlledIframe.style.border = iframe.style.border || 'none';
+			// Calculate position for the controlled iframe
+			const rect = iframe.getBoundingClientRect();
+			let offsetTop = 0;
+			let offsetLeft = 0;
+			let win = window;
+			while (win !== capableAncestor && win.frameElement) {
+				const frameRect = win.frameElement.getBoundingClientRect();
+				offsetTop += frameRect.top;
+				offsetLeft += frameRect.left;
+				win = win.parent;
+			}
 
-					// Continue updating position
-					requestAnimationFrame(updatePosition);
-				} catch {
-					// If we can't access the iframe anymore, stop updating
-				}
+			const style = {
+				position: 'fixed',
+				top: `${rect.top + offsetTop}px`,
+				left: `${rect.left + offsetLeft}px`,
+				width: `${rect.width}px`,
+				height: `${rect.height}px`,
+				zIndex: '999999',
+				border: iframe.style.border || 'none',
 			};
 
-			// Hide the original iframe (it won't be used for content)
-			iframe.style.visibility = 'hidden';
+			const loaderUrl = getEmptyLoaderUrl();
 
-			// Append to ancestor document BEFORE setting src
-			// (iframe must be in DOM for navigation to work)
-			ancestorDoc.body.appendChild(controlledIframe);
-			updatePosition();
+			try {
+				// Use message passing to create the iframe in the ancestor's realm
+				// This is critical for Firefox compatibility
+				const controlledIframe = await requestAncestorCreateIframe(capableAncestor, {
+					id: controlledId,
+					src: loaderUrl,
+					attributes,
+					style,
+				});
 
-			// Now set the loader URL - this must happen AFTER appendChild.
-			// Pass capableAncestor for cross-realm iframe src setting (Firefox compatibility)
-			const url = getEmptyLoaderUrl();
-			setIframeSrc(controlledIframe, url, capableAncestor);
+				// Hide the original iframe (it won't be used for content)
+				iframe.style.visibility = 'hidden';
 
-			// Mark original as controlled (even though actual content is elsewhere)
-			iframe.setAttribute('data-controlled', '1');
-			iframe.setAttribute('data-controlled-by', controlledIframe.id);
-			iframe.removeAttribute('data-control-pending');
+				// Set up position updates
+				const updatePosition = () => {
+					try {
+						if (!iframe.isConnected) {
+							controlledIframe.remove();
+							return;
+						}
+						const newRect = iframe.getBoundingClientRect();
+						let newOffsetTop = 0;
+						let newOffsetLeft = 0;
+						let w = window;
+						while (w !== capableAncestor && w.frameElement) {
+							const frameRect = w.frameElement.getBoundingClientRect();
+							newOffsetTop += frameRect.top;
+							newOffsetLeft += frameRect.left;
+							w = w.parent;
+						}
+						controlledIframe.style.top = `${newRect.top + newOffsetTop}px`;
+						controlledIframe.style.left = `${newRect.left + newOffsetLeft}px`;
+						controlledIframe.style.width = `${newRect.width}px`;
+						controlledIframe.style.height = `${newRect.height}px`;
+						requestAnimationFrame(updatePosition);
+					} catch {
+						// Stop updating if we can't access the iframe
+					}
+				};
+				requestAnimationFrame(updatePosition);
 
-			// Store reference for contentWindow/contentDocument access
-			iframe.__controlledIframe = controlledIframe;
+				// Mark original as controlled (even though actual content is elsewhere)
+				iframe.setAttribute('data-controlled', '1');
+				iframe.setAttribute('data-controlled-by', controlledId);
+				iframe.removeAttribute('data-control-pending');
+
+				// Store reference for contentWindow/contentDocument access
+				iframe.__controlledIframe = controlledIframe;
+			} catch (error) {
+				// Message passing failed, fall back to direct approach (might not work in Firefox)
+				console.warn('Message-based iframe creation failed, falling back to direct approach:', error);
+
+				const ancestorDoc = capableAncestor.document;
+				const ancestorNativeCreate = ancestorDoc.__playground_native_createElement || Native.createElement;
+				const controlledIframe = ancestorNativeCreate.call(ancestorDoc, 'iframe');
+				controlledIframe.id = controlledId;
+
+				for (const [name, value] of Object.entries(attributes)) {
+					controlledIframe.setAttribute(name, value);
+				}
+				Object.assign(controlledIframe.style, style);
+
+				iframe.style.visibility = 'hidden';
+				ancestorDoc.body.appendChild(controlledIframe);
+				setIframeSrc(controlledIframe, loaderUrl, capableAncestor);
+
+				const updatePosition = () => {
+					try {
+						if (!iframe.isConnected) {
+							controlledIframe.remove();
+							return;
+						}
+						const newRect = iframe.getBoundingClientRect();
+						let newOffsetTop = 0;
+						let newOffsetLeft = 0;
+						let w = window;
+						while (w !== capableAncestor && w.frameElement) {
+							const frameRect = w.frameElement.getBoundingClientRect();
+							newOffsetTop += frameRect.top;
+							newOffsetLeft += frameRect.left;
+							w = w.parent;
+						}
+						controlledIframe.style.top = `${newRect.top + newOffsetTop}px`;
+						controlledIframe.style.left = `${newRect.left + newOffsetLeft}px`;
+						controlledIframe.style.width = `${newRect.width}px`;
+						controlledIframe.style.height = `${newRect.height}px`;
+						requestAnimationFrame(updatePosition);
+					} catch {
+						// Stop updating
+					}
+				};
+				requestAnimationFrame(updatePosition);
+
+				iframe.setAttribute('data-controlled', '1');
+				iframe.setAttribute('data-controlled-by', controlledId);
+				iframe.removeAttribute('data-control-pending');
+				iframe.__controlledIframe = controlledIframe;
+			}
 		};
 
 		// Defer to next animation frame for better timing
