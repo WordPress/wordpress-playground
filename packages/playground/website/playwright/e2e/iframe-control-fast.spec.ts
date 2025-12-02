@@ -26,9 +26,12 @@ async function setupPage(testPage: Page, configBaseURL: string) {
 	});
 
 	// Navigate to the loader page (served by SW, has iframes-trap.js)
-	await page.goto(
-		baseUrl.replace('/website-server/', '/scope:test-fast/wp-includes/empty.html')
-	);
+	// IMPORTANT: The loader URL must be UNDER the SW scope (/website-server/)
+	// for the SW to intercept and serve iframeLoaderHtml.
+	// URL format: /website-server/scope:test-fast/wp-includes/empty.html
+	const loaderUrl = new URL(baseUrl);
+	loaderUrl.pathname = loaderUrl.pathname.replace(/\/$/, '') + '/scope:test-fast/wp-includes/empty.html';
+	await page.goto(loaderUrl.toString());
 	await page.waitForTimeout(300);
 }
 

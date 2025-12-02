@@ -38,9 +38,17 @@ function setupIframesTrap() {
 	 * Best-effort synchronous scope guess so we can seed src immediately in createElement.
 	 * Falls back to extracting scope from current pathname or empty string.
 	 * Note: data-scope may be empty string if SW_SCOPE is root, so we check for truthy value.
+	 *
+	 * The scope can appear in two forms:
+	 * 1. At path start: /scope:xxx/...  (direct access)
+	 * 2. After SW prefix: /website-server/scope:xxx/...  (when running under /website-server/)
+	 *
+	 * We extract everything up to and including the /scope:xxx segment to ensure
+	 * loader URLs stay within the service worker's scope.
 	 */
 	const inferredSiteScope =
 		document.currentScript?.dataset.scope ||
+		location.pathname.match(/^(.*\/scope:[^/]+)/)?.[1] ||
 		location.pathname.match(/^\/scope:[^/]+/)?.[0] ||
 		'';
 

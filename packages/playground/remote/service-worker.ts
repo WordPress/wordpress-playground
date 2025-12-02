@@ -282,7 +282,8 @@ const iframeLoaderHtml = `<!doctype html>
   // If there's cached content to load, fetch and inject it
   if (id) {
     // Derive the scope from the current page's location
-    const pageScope = location.pathname.match(/^\\/scope:[^/]+/)?.[0] || '';
+    // Handle both /scope:xxx/... and /prefix/scope:xxx/... URL formats
+    const pageScope = location.pathname.match(/^(.*\\/scope:[^/]+)/)?.[1] || location.pathname.match(/^\\/scope:[^/]+/)?.[0] || '';
     const path = pageScope + '/__iframes/' + id + '.html';
 
     // Retry a few times - the loader may request the cached content
