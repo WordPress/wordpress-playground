@@ -193,6 +193,21 @@ RUN set -euxo pipefail; \
 
 	emmake make -j1;
 
+# Post-process with wasm-opt for PHP 8.5+ Asyncify web builds only
+# because extension size is ~8.35MB (36KB over the 8MB browser limit)
+# due to mandatory Opcache + ASYNCIFY overhead.
+#
+# wasm-opt reduces it to ~8.01MB (374KB under the limit).
+RUN if [[ "${PHP_VERSION:0:1}" -ge "8" && "${PHP_VERSION:2:1}" -ge "5" && "${PLATFORM}" = "web" && "${JSPI}" != "yes" ]]; then \
+		/root/emsdk/upstream/bin/wasm-opt -Oz \
+			--enable-bulk-memory \
+			--enable-nontrapping-float-to-int \
+			--enable-sign-ext \
+			--enable-mutable-globals \
+			/root/php-src/ext/intl/modules/intl.so \
+			-o /root/php-src/ext/intl/modules/intl.so; \
+	fi;
+
 RUN	mkdir -p /root/intl/modules; \
 	mv /root/php-src/ext/intl/modules/* /root/intl/modules;
 
