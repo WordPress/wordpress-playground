@@ -1,4 +1,4 @@
-import { test, expect, chromium, Browser, Page } from '@playwright/test';
+import { test, expect, Page } from '@playwright/test';
 
 /**
  * Fast tests for iframe SW control.
@@ -7,26 +7,12 @@ import { test, expect, chromium, Browser, Page } from '@playwright/test';
  * Each test should complete in under 10 seconds.
  */
 
-let browser: Browser;
 let page: Page;
 let baseUrl: string;
 
-test.beforeAll(async () => {
-	browser = await chromium.launch({
-		args: ['--js-flags=--enable-experimental-webassembly-jspi'],
-	});
-});
-
-test.afterAll(async () => {
-	await browser?.close();
-});
-
-test.beforeEach(async () => {
-	const context = await browser.newContext({
-		serviceWorkers: 'allow',
-	});
-	page = await context.newPage();
-
+// Helper to set up the page for each test
+async function setupPage(testPage: Page) {
+	page = testPage;
 	// First, navigate to the main page to register the SW
 	baseUrl =
 		process.env.PLAYWRIGHT_TEST_BASE_URL ||
@@ -43,11 +29,7 @@ test.beforeEach(async () => {
 		baseUrl.replace('/website-server/', '/scope:test-fast/wp-includes/empty.html')
 	);
 	await page.waitForTimeout(300);
-});
-
-test.afterEach(async () => {
-	await page?.context().close();
-});
+}
 
 async function testIframe(
 	createFn: () => Promise<{ iframe: HTMLIFrameElement; description: string }>
@@ -135,7 +117,8 @@ async function testIframe(
 	}, createFn.toString());
 }
 
-test('blank iframe via createElement', async () => {
+test('blank iframe via createElement', async ({ page: testPage }) => {
+	await setupPage(testPage);
 	test.setTimeout(10000);
 
 	const result = await testIframe(async () => {
@@ -151,7 +134,8 @@ test('blank iframe via createElement', async () => {
 	expect(result.hasController).toBe(true);
 });
 
-test('iframe with srcdoc attribute', async () => {
+test('iframe with srcdoc attribute', async ({ page: testPage }) => {
+	await setupPage(testPage);
 	test.setTimeout(10000);
 
 	const result = await testIframe(async () => {
@@ -170,7 +154,8 @@ test('iframe with srcdoc attribute', async () => {
 	expect(result.iframeContent).toContain('Hello from srcdoc');
 });
 
-test('iframe with src=about:blank', async () => {
+test('iframe with src=about:blank', async ({ page: testPage }) => {
+	await setupPage(testPage);
 	test.setTimeout(10000);
 
 	const result = await testIframe(async () => {
@@ -187,7 +172,8 @@ test('iframe with src=about:blank', async () => {
 	expect(result.hasController).toBe(true);
 });
 
-test('iframe added via innerHTML', async () => {
+test('iframe added via innerHTML', async ({ page: testPage }) => {
+	await setupPage(testPage);
 	test.setTimeout(10000);
 
 	const result = await testIframe(async () => {
@@ -205,7 +191,8 @@ test('iframe added via innerHTML', async () => {
 	expect(result.hasController).toBe(true);
 });
 
-test('iframe with data: URL', async () => {
+test('iframe with data: URL', async ({ page: testPage }) => {
+	await setupPage(testPage);
 	test.setTimeout(10000);
 
 	const result = await testIframe(async () => {
@@ -236,7 +223,8 @@ test('iframe with data: URL', async () => {
  * (where iframe navigation works) and positioned to overlay the placeholder
  * in the nested document.
  */
-test('nested iframe (TinyMCE-like) can load SW-served resources', async () => {
+test('nested iframe (TinyMCE-like) can load SW-served resources', async ({ page: testPage }) => {
+	await setupPage(testPage);
 	test.setTimeout(15000);
 
 	const result = await page.evaluate(async () => {
@@ -446,7 +434,8 @@ test('nested iframe (TinyMCE-like) can load SW-served resources', async () => {
  * Test that script execution works inside a srcdoc iframe.
  * This is a simpler test to isolate whether scripts run at all.
  */
-test('scripts execute inside srcdoc iframe', async () => {
+test('scripts execute inside srcdoc iframe', async ({ page: testPage }) => {
+	await setupPage(testPage);
 	test.setTimeout(15000);
 
 	const result = await page.evaluate(async () => {
@@ -486,7 +475,8 @@ test('scripts execute inside srcdoc iframe', async () => {
  * Test that creating a blank iframe directly on the top page works.
  * This establishes that direct iframe creation is working.
  */
-test('direct blank iframe on top page is controlled', async () => {
+test('direct blank iframe on top page is controlled', async ({ page: testPage }) => {
+	await setupPage(testPage);
 	test.setTimeout(15000);
 
 	const result = await page.evaluate(async () => {
@@ -518,7 +508,8 @@ test('direct blank iframe on top page is controlled', async () => {
  * Debug test: understand what's happening with nested iframe creation.
  * This collects detailed diagnostics about the iframe creation flow.
  */
-test('DEBUG: nested iframe diagnostics', async () => {
+test('DEBUG: nested iframe diagnostics', async ({ page: testPage }) => {
+	await setupPage(testPage);
 	test.setTimeout(30000);
 
 	const result = await page.evaluate(async () => {
@@ -642,7 +633,8 @@ test('DEBUG: nested iframe diagnostics', async () => {
 /**
  * Debug test: try manually triggering navigation after append
  */
-test('DEBUG: manual navigation trigger', async () => {
+test('DEBUG: manual navigation trigger', async ({ page: testPage }) => {
+	await setupPage(testPage);
 	test.setTimeout(30000);
 
 	const result = await page.evaluate(async () => {
@@ -729,7 +721,8 @@ test('DEBUG: manual navigation trigger', async () => {
 /**
  * Debug test: create iframe directly on loader page (not via injected script)
  */
-test('DEBUG: direct iframe on loader page', async () => {
+test('DEBUG: direct iframe on loader page', async ({ page: testPage }) => {
+	await setupPage(testPage);
 	test.setTimeout(30000);
 
 	// Navigate to loader page first (this is the setup in beforeEach)
@@ -763,7 +756,8 @@ test('DEBUG: direct iframe on loader page', async () => {
 /**
  * Debug test: create iframe via innerHTML directly on loader page
  */
-test('DEBUG: innerHTML iframe on loader page', async () => {
+test('DEBUG: innerHTML iframe on loader page', async ({ page: testPage }) => {
+	await setupPage(testPage);
 	test.setTimeout(30000);
 
 	const result = await page.evaluate(async () => {
@@ -795,7 +789,8 @@ test('DEBUG: innerHTML iframe on loader page', async () => {
  * Debug test: can nested page use parent to host iframe?
  * This test creates iframe in parent, keeps it there, and accesses via parent.document
  */
-test('DEBUG: parent-hosted iframe solution', async () => {
+test('DEBUG: parent-hosted iframe solution', async ({ page: testPage }) => {
+	await setupPage(testPage);
 	test.setTimeout(30000);
 
 	const result = await page.evaluate(async () => {
@@ -857,7 +852,8 @@ test('DEBUG: parent-hosted iframe solution', async () => {
 /**
  * Debug test: check if the loader page itself can navigate iframes
  */
-test('DEBUG: loader vs srcdoc comparison', async () => {
+test('DEBUG: loader vs srcdoc comparison', async ({ page: testPage }) => {
+	await setupPage(testPage);
 	test.setTimeout(30000);
 
 	const result = await page.evaluate(async () => {
@@ -907,7 +903,8 @@ test('DEBUG: loader vs srcdoc comparison', async () => {
 /**
  * Debug test: check if using fresh native setter works inside srcdoc
  */
-test('DEBUG: fresh native setter in srcdoc', async () => {
+test('DEBUG: fresh native setter in srcdoc', async ({ page: testPage }) => {
+	await setupPage(testPage);
 	test.setTimeout(30000);
 
 	const result = await page.evaluate(async () => {
@@ -979,7 +976,8 @@ test('DEBUG: fresh native setter in srcdoc', async () => {
 /**
  * Debug test: defer iframe creation to after the script completes
  */
-test('DEBUG: deferred iframe creation', async () => {
+test('DEBUG: deferred iframe creation', async ({ page: testPage }) => {
+	await setupPage(testPage);
 	test.setTimeout(30000);
 
 	const result = await page.evaluate(async () => {
@@ -1028,7 +1026,8 @@ test('DEBUG: deferred iframe creation', async () => {
 /**
  * Debug test: check if creating iframe via innerHTML works
  */
-test('DEBUG: nested iframe via innerHTML', async () => {
+test('DEBUG: nested iframe via innerHTML', async ({ page: testPage }) => {
+	await setupPage(testPage);
 	test.setTimeout(30000);
 
 	const result = await page.evaluate(async () => {
@@ -1079,7 +1078,8 @@ test('DEBUG: nested iframe via innerHTML', async () => {
  * Debug test: create srcdoc with an immediate inner iframe (no loader redirect)
  * This tests whether the issue is the loader page specifically
  */
-test('DEBUG: srcdoc with inner iframe on TOP page (no outer redirect)', async () => {
+test('DEBUG: srcdoc with inner iframe on TOP page (no outer redirect)', async ({ page: testPage }) => {
+	await setupPage(testPage);
 	test.setTimeout(30000);
 
 	// Navigate to website base (not the loader)
@@ -1128,7 +1128,8 @@ test('DEBUG: srcdoc with inner iframe on TOP page (no outer redirect)', async ()
  * Test that a script inside srcdoc iframe can create another iframe.
  * This tests the nested iframe creation path using the parent-hosted approach.
  */
-test('srcdoc iframe script can create child iframe', async () => {
+test('srcdoc iframe script can create child iframe', async ({ page: testPage }) => {
+	await setupPage(testPage);
 	test.setTimeout(15000);
 
 	const result = await page.evaluate(async () => {
@@ -1208,7 +1209,8 @@ test('srcdoc iframe script can create child iframe', async () => {
  * The key is that findCapableAncestor() must find the topmost SW-controlled ancestor,
  * not just the immediate parent (which may itself be a srcdoc iframe that can't navigate).
  */
-test('deeply nested iframes (4 levels) are SW-controlled', async () => {
+test('deeply nested iframes (4 levels) are SW-controlled', async ({ page: testPage }) => {
+	await setupPage(testPage);
 	test.setTimeout(45000);
 
 	const result = await page.evaluate(async () => {
