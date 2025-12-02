@@ -156,3 +156,27 @@ export function isParentOf(parent: string, child: string) {
 	child = normalizePath(child);
 	return child.startsWith(parent + '/') || child === parent;
 }
+
+/**
+ * Guarantees a path is absolute by prepending `/` if needed.
+ *
+ * Useful when working with user-provided paths that might be relative,
+ * or when you need to normalize edge cases like empty strings.
+ *
+ * For example:
+ *
+ * > ensureAbsolutePath('wp-content/uploads')
+ * '/wp-content/uploads'
+ *
+ * > ensureAbsolutePath('/already/absolute')
+ * '/already/absolute'
+ *
+ * > ensureAbsolutePath('')
+ * '/'
+ *
+ * @param path - The path to make absolute.
+ * @returns An absolute, normalized path starting with `/`.
+ */
+export function ensureAbsolutePath(path: string) {
+	return joinPaths('/', normalizePath(path || '/'));
+}

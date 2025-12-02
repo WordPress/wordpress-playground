@@ -25,6 +25,7 @@ export class BlueprintFetchError extends Error {
 export async function resolveRemoteBlueprint(
 	url: string
 ): Promise<BlueprintBundle> {
+	let blueprintBytes: ArrayBuffer;
 	try {
 		const response = await fetch(url, {
 			credentials: 'omit',
@@ -32,34 +33,36 @@ export async function resolveRemoteBlueprint(
 		if (!response.ok) {
 			throw new Error(`Failed to fetch blueprint from ${url}`);
 		}
-		const blueprintBytes = await response.arrayBuffer();
-		try {
-			const blueprintText = new TextDecoder().decode(blueprintBytes);
-			JSON.parse(blueprintText);
-
-			// No exceptions, good! We're dealing with a JSON file. Let's
-			// resolve the "bundled" resources from the same remote URL.
-			return new OverlayFilesystem([
-				new InMemoryFilesystem({
-					'blueprint.json': blueprintText,
-				}),
-				new FetchFilesystem({
-					baseUrl: url,
-				}),
-			]);
-		} catch {
-			// If the blueprint is not a JSON file, check if it's a ZIP file.
-			if (await looksLikeZipFile(blueprintBytes)) {
-				return ZipFilesystem.fromArrayBuffer(blueprintBytes);
-			}
-			throw new Error(
-				`Blueprint file at ${url} is neither a valid JSON nor a ZIP file.`
-			);
-		}
+		blueprintBytes = await response.arrayBuffer();
 	} catch (error) {
 		throw new BlueprintFetchError(
-			`Blueprint file at ${url} is neither a valid JSON nor a ZIP file.`,
+			`Blueprint file could not be resolved from ${url}: ${error instanceof Error ? error.message : String(error)}`,
 			url,
+			{ cause: error }
+		);
+	}
+
+	try {
+		const blueprintText = new TextDecoder().decode(blueprintBytes);
+		JSON.parse(blueprintText);
+
+		// No exceptions, good! We're dealing with a JSON file. Let's
+		// resolve the "bundled" resources from the same remote URL.
+		return new OverlayFilesystem([
+			new InMemoryFilesystem({
+				'blueprint.json': blueprintText,
+			}),
+			new FetchFilesystem({
+				baseUrl: url,
+			}),
+		]);
+	} catch (error) {
+		// If the blueprint is not a JSON file, check if it's a ZIP file.
+		if (await looksLikeZipFile(blueprintBytes)) {
+			return ZipFilesystem.fromArrayBuffer(blueprintBytes);
+		}
+		throw new Error(
+			`Blueprint file at ${url} is neither a valid JSON nor a ZIP file.`,
 			{ cause: error }
 		);
 	}

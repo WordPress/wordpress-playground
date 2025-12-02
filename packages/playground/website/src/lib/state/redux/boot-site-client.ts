@@ -9,7 +9,7 @@ import {
 	removeClientInfo,
 	updateClientInfo,
 } from './slice-clients';
-import { logTrackingEvent } from '../../tracking';
+import { logBlueprintEvents, logTrackingEvent } from '../../tracking';
 import {
 	type Blueprint,
 	BlueprintFilesystemRequiredError,
@@ -150,16 +150,8 @@ export function bootSiteClient(
 					playground = (window as any)['playground'] =
 						playgroundClient;
 				},
-				// Log the names of provided Blueprint's steps.
-				// Only the names (e.g. "runPhp" or "login") are logged. Step options like
-				// code, password, URLs are never sent anywhere.
-				onBlueprintValidated: (blueprint) => {
-					for (const step of blueprint.steps || []) {
-						if (typeof step === 'object' && step?.step) {
-							logTrackingEvent('step', { step: step.step });
-						}
-					}
-				},
+				// Log Blueprint events
+				onBlueprintValidated: logBlueprintEvents,
 				mounts: mountDescriptor
 					? [
 							{
@@ -174,6 +166,7 @@ export function bootSiteClient(
 			});
 		} catch (e) {
 			logger.error(e);
+			logTrackingEvent('error', { source: 'bootSiteClient' });
 
 			if (
 				(e as any).name === 'ArtifactExpiredError' ||

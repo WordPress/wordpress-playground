@@ -193,7 +193,39 @@ class Result implements ResultInterface {
 	public function getFieldsMeta(): array {
 		$meta = array();
 		foreach ($this->columns as $column) {
-			$meta[] = new FieldMetadata($column['mysqli:type'], $column['mysqli:flags'], (object) $column);
+			$flags = $column['flags'] ?? array();
+
+			// PhpMyAdmin expects MySQLi-like column metadata rather than PDO syntax.
+			// The SQLite driver provides it in "mysqli:" prefixed metadata keys.
+			foreach ($column as $key => $value) {
+				if (strpos($key, 'mysqli:') === 0) {
+					$column[substr($key, 7)] = $value;
+				}
+			}
+
+			// Convert PDO-style flags array to MySQLi-style integer bitmask.
+			// TODO: Remove this when the driver implements "mysqli:flags".
+			$mysqli_flags = 0;
+			foreach ($flags as $flag) {
+				switch ($flag) {
+					case 'primary_key':
+						$mysqli_flags |= \MYSQLI_PRI_KEY_FLAG;
+						break;
+					case 'unique_key':
+						$mysqli_flags |= \MYSQLI_UNIQUE_KEY_FLAG;
+						break;
+					case 'not_null':
+						$mysqli_flags |= \MYSQLI_NOT_NULL_FLAG;
+						break;
+					case 'auto_increment':
+						$mysqli_flags |= \MYSQLI_AUTO_INCREMENT_FLAG;
+						break;
+				}
+			}
+			$column['flags'] = $mysqli_flags;
+
+			$field = (object) $column;
+			$meta[] = new FieldMetadata($field->type, $field->flags, $field);
 		}
 		return $meta;
 	}

@@ -9,9 +9,11 @@ import {
 	isBlueprintBundle,
 	resolveRemoteBlueprint,
 } from '@wp-playground/client';
+import { OpfsFilesystemBackend } from '@wp-playground/storage';
 import { parseBlueprint } from './router';
 import { OverlayFilesystem, InMemoryFilesystem } from '@wp-playground/storage';
 import { RecommendedPHPVersion } from '@wp-playground/common';
+import { logger } from '@php-wasm/logger';
 
 export type BlueprintSource =
 	| {
@@ -19,10 +21,16 @@ export type BlueprintSource =
 			url: string;
 	  }
 	| {
+			type: 'last-autosave';
+	  }
+	| {
 			type: 'inline-string';
 	  }
 	| {
 			type: 'none';
+	  }
+	| {
+			type: 'opfs-site';
 	  };
 
 export type ResolvedBlueprint = {
@@ -89,6 +97,25 @@ export async function resolveBlueprintFromURL(
 				type: 'remote-url',
 				url: blueprintUrl,
 			},
+		};
+	} else if (fragment === 'last-autosave') {
+		let bundle = undefined;
+		try {
+			bundle = await OpfsFilesystemBackend.fromPath(
+				'blueprints/last-edited-bundle',
+				true
+			);
+		} catch (error) {
+			logger.error(
+				'Failed to load the last edited blueprint from OPFS',
+				error
+			);
+		}
+		return {
+			blueprint:
+				bundle ||
+				((await resolveRemoteBlueprint(url.href)) as BlueprintV1),
+			source: { type: 'last-autosave' },
 		};
 	} else if (fragment.length) {
 		/*

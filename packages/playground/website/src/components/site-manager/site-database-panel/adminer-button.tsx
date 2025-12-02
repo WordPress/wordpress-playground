@@ -33,9 +33,7 @@ async function installAdminer(playground: PlaygroundClient) {
 			step: 'writeFile',
 			path: `${adminerPath}/adminer-mysql-on-sqlite-driver.php`,
 			data: (
-				await import(
-					'./adminer-extensions/adminer-mysql-on-sqlite-driver.php?raw'
-				)
+				await import('./adminer-extensions/adminer-mysql-on-sqlite-driver.php?raw')
 			).default as string,
 		},
 		{

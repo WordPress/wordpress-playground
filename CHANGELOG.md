@@ -4,9 +4,10 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
-## [v3.0.22] (2025-11-17)
+## [v3.0.22] (2025-11-17) 
 
 ### Enhancements
+
 
 #### Boot Flow
 
@@ -37,7 +38,7 @@ format.
 - [CLI] Fix null and "latest" WP version resolution and improve unzip error message. ([#2889](https://github.com/WordPress/wordpress-playground/pull/2889))
 - [CLI] Fix run-cli leak which was revealed by repeated runCLI() calls during test. ([#2888](https://github.com/WordPress/wordpress-playground/pull/2888))
 
-###
+### 
 
 - CLI] Allow API consumers to rely upon option validation and default values. ([#2883](https://github.com/WordPress/wordpress-playground/pull/2883))
 
@@ -57,6 +58,7 @@ format.
 The following contributors merged PRs in this release:
 
 @adamziel @brandonpayton @fellyph @mehrazmorshed @praful2111 @shimotmk @SirLouen @Successfulsebunya
+
 
 ## [v3.0.21] (2025-11-10)
 

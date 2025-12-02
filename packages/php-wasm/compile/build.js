@@ -219,10 +219,10 @@ const getArg = (name) => {
 		name in args
 			? args[name]
 			: name in platformDefaults[platform]
-			? platformDefaults[platform][name]
-			: name in platformDefaults.all
-			? platformDefaults.all[name]
-			: 'no';
+				? platformDefaults[platform][name]
+				: name in platformDefaults.all
+					? platformDefaults.all[name]
+					: 'no';
 	if (name === 'PHP_VERSION') {
 		value = fullyQualifiedPHPVersion(value);
 	}
