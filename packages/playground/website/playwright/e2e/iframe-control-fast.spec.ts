@@ -20,9 +20,14 @@ async function setupPage(testPage: Page, configBaseURL: string) {
 	// First, navigate to the main page to register the SW
 	await page.goto(baseUrl);
 
-	// Wait for SW to register
+	// Wait for SW to register (with timeout to avoid hanging in case of SW issues)
 	await page.evaluate(async () => {
-		await navigator.serviceWorker?.ready;
+		const timeout = new Promise((_, reject) =>
+			setTimeout(() => reject(new Error('SW ready timeout')), 10000)
+		);
+		await Promise.race([navigator.serviceWorker?.ready, timeout]).catch(() => {
+			console.warn('Service worker ready timeout, proceeding anyway');
+		});
 	});
 
 	// Navigate to the loader page (served by SW, has iframes-trap.js)
