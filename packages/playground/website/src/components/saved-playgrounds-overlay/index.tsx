@@ -24,7 +24,7 @@ import {
 import { Icon } from '@wordpress/icons';
 import { GitHubIcon } from '../../github/github';
 import { useDispatch } from 'react-redux';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
 	setActiveSite,
 	useActiveSite,
@@ -49,8 +49,9 @@ import { WordPressIcon } from '@wp-playground/components';
 import useFetch from '../../lib/hooks/use-fetch';
 import { PlaygroundRoute, redirectTo } from '../../lib/state/url/router';
 import { selectClientInfoBySiteSlug } from '../../lib/state/redux/slice-clients';
-import { zipWpContent } from '@wp-playground/client';
+import { zipWpContent, importWordPressFiles } from '@wp-playground/client';
 import saveAs from 'file-saver';
+import { logger } from '@php-wasm/logger';
 
 type BlueprintsIndexEntry = {
 	title: string;
@@ -102,6 +103,39 @@ export function SavedPlaygroundsOverlay({
 	const [viewMode, setViewMode] = useState<ViewMode>('main');
 	const [searchQuery, setSearchQuery] = useState('');
 	const [selectedTag, setSelectedTag] = useState<string | null>(null);
+	const zipFileInputRef = useRef<HTMLInputElement>(null);
+
+	const handleImportZip = async (e: React.ChangeEvent<HTMLInputElement>) => {
+		const file = e.target.files?.[0];
+		if (!file) return;
+
+		const clientInfo = selectClientInfoBySiteSlug(
+			{ clients: store.getState().clients },
+			activeSite?.slug || ''
+		);
+		const playground = clientInfo?.client;
+		if (!playground) {
+			alert(
+				'No active Playground to import into. Please create one first.'
+			);
+			return;
+		}
+
+		try {
+			await importWordPressFiles(playground, { wordPressFilesZip: file });
+			onClose();
+		} catch (error) {
+			logger.error(error);
+			alert(
+				'Unable to import file. Is it a valid WordPress Playground export?'
+			);
+		}
+
+		// Reset the input so the same file can be selected again
+		if (zipFileInputRef.current) {
+			zipFileInputRef.current.value = '';
+		}
+	};
 
 	const {
 		data: blueprintsData,
@@ -145,22 +179,24 @@ export function SavedPlaygroundsOverlay({
 	const handleKeyDown = useCallback(
 		(event: KeyboardEvent) => {
 			if (event.key === 'Escape') {
-				if (viewMode === 'blueprints') {
-					setViewMode('main');
-					setSearchQuery('');
-					setSelectedTag(null);
-				} else {
-					onClose();
+				// Check current state at event time (not from closure)
+				const currentActiveModal = store.getState().ui.activeModal;
+				// If a sub-modal is open, let it handle the Escape key
+				if (currentActiveModal) {
+					return;
 				}
+				// Close the entire overlay (whether in main or blueprints view)
+				onClose();
 			}
 		},
-		[viewMode, onClose]
+		[onClose]
 	);
 
 	useEffect(() => {
-		document.addEventListener('keydown', handleKeyDown);
+		// Use capture phase so we can check modal state before modal handlers clear it
+		document.addEventListener('keydown', handleKeyDown, true);
 		return () => {
-			document.removeEventListener('keydown', handleKeyDown);
+			document.removeEventListener('keydown', handleKeyDown, true);
 		};
 	}, [handleKeyDown]);
 
@@ -280,7 +316,7 @@ export function SavedPlaygroundsOverlay({
 			title: 'Import .zip',
 			icon: upload,
 			onClick: () => {
-				modalDispatch(setActiveModal(modalSlugs.IMPORT_FORM));
+				zipFileInputRef.current?.click();
 			},
 			disabled: false,
 		},
@@ -423,6 +459,13 @@ export function SavedPlaygroundsOverlay({
 
 	return (
 		<div className={css.overlay}>
+			<input
+				type="file"
+				ref={zipFileInputRef}
+				onChange={handleImportZip}
+				accept=".zip,application/zip"
+				style={{ display: 'none' }}
+			/>
 			<VStack className={css.fullscreenContent} spacing={0}>
 				<HStack
 					className={css.header}
