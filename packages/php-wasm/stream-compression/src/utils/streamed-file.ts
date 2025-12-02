@@ -9,6 +9,23 @@ export class StreamedFile extends File {
 
 	private readableStream: ReadableStream<Uint8Array>;
 
+	static fromArrayBuffer(
+		arrayBuffer: Uint8Array,
+		name: string,
+		options?: { type?: string; filesize?: number }
+	): StreamedFile {
+		return new StreamedFile(
+			new ReadableStream({
+				start(controller) {
+					controller.enqueue(new Uint8Array(arrayBuffer));
+					controller.close();
+				},
+			}),
+			name,
+			options
+		);
+	}
+
 	/**
 	 * Creates a new StreamedFile instance.
 	 *
@@ -59,6 +76,6 @@ export class StreamedFile extends File {
 	 * @returns File data as an ArrayBuffer.
 	 */
 	override async arrayBuffer() {
-		return await collectBytes(this.stream());
+		return (await collectBytes(this.stream())) as unknown as ArrayBuffer;
 	}
 }

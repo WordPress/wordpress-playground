@@ -193,10 +193,16 @@ if (!defined('Adminer\DRIVER')) {
 		}
 
 		function fetch_field(): \stdClass {
-			$column = (object) $this->columns[$this->col_offset++];
-			$column->type = $column->{'mysqli:type'};
-			$column->charsetnr = $column->{'mysqli:charsetnr'};
-			return $column;
+			$column = $this->columns[$this->col_offset++];
+
+			// Adminer expects MySQLi-like column metadata rather than PDO syntax.
+			// The SQLite driver provides it in "mysqli:" prefixed metadata keys.
+			foreach ($column as $key => $value) {
+				if (strpos($key, 'mysqli:') === 0) {
+					$column[substr($key, 7)] = $value;
+				}
+			}
+			return (object) $column;
 		}
 	}
 

@@ -5,7 +5,7 @@ import { CSSTransition } from 'react-transition-group';
 import type { PlaygroundReduxState } from '../../lib/state/redux/store';
 import { useAppSelector } from '../../lib/state/redux/store';
 import type { BlueprintV1Declaration } from '@wp-playground/blueprints';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useRef } from 'react';
 import { acquireOAuthTokenIfNeeded } from '../../github/acquire-oauth-token-if-needed';
 import { GithubExportModal } from '../../github/github-export-form';
 import type { ExportFormValues } from '../../github/github-export-form/form';
@@ -124,9 +124,6 @@ function Modals(blueprint: BlueprintV1Declaration) {
 		}
 		return values;
 	});
-
-	// eslint-disable-next-line react-hooks/exhaustive-deps
-	useEffect(() => {}, []);
 
 	const currentModal = useAppSelector(
 		(state: PlaygroundReduxState) => state.ui.activeModal

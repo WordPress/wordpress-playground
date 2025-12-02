@@ -1,5 +1,6 @@
 /* eslint-disable react-hooks/exhaustive-deps */
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import type { AsyncWritableFilesystem } from '@wp-playground/storage';
 import clsx from 'clsx';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import type { ImperativePanelHandle } from 'react-resizable-panels';
@@ -16,6 +17,56 @@ import { TerminalWrapper } from './terminal/Terminal';
 import { useAppSelector } from '../hooks';
 import AddressBar from '../../components/address-bar';
 import { DEFAULT_WORKSPACE_DIR } from '../constants';
+import type { PlaygroundClient } from '@wp-playground/remote';
+
+/**
+ * Wraps a PlaygroundClient to satisfy AsyncWritableFilesystem interface
+ * which requires EventTarget methods.
+ */
+class ClientFilesystemWrapper
+	extends EventTarget
+	implements AsyncWritableFilesystem
+{
+	private client: PlaygroundClient;
+
+	constructor(client: PlaygroundClient) {
+		super();
+		this.client = client;
+	}
+	isDir(path: string) {
+		return this.client.isDir(path);
+	}
+	fileExists(path: string) {
+		return this.client.fileExists(path);
+	}
+	async read(path: string): Promise<{ arrayBuffer(): Promise<ArrayBuffer> }> {
+		const buffer = await this.client.readFileAsBuffer(path);
+		return {
+			arrayBuffer: async () => buffer.buffer,
+		};
+	}
+	readFileAsText(path: string) {
+		return this.client.readFileAsText(path);
+	}
+	listFiles(path: string) {
+		return this.client.listFiles(path);
+	}
+	writeFile(path: string, data: string | Uint8Array) {
+		return this.client.writeFile(path, data);
+	}
+	mkdir(path: string) {
+		return this.client.mkdir(path);
+	}
+	rmdir(path: string, options?: { recursive?: boolean }) {
+		return this.client.rmdir(path, options);
+	}
+	mv(source: string, destination: string) {
+		return this.client.mv(source, destination);
+	}
+	unlink(path: string) {
+		return this.client.unlink(path);
+	}
+}
 
 export const Layout = () => {
 	const [isHelpOpen, setHelpOpen] = useState(false);
@@ -35,6 +86,13 @@ export const Layout = () => {
 		null
 	);
 	const editorHostRef = useRef<EditorHostHandle | null>(null);
+
+	const filesystem = useMemo(() => {
+		if (!playgroundClient) {
+			return null;
+		}
+		return new ClientFilesystemWrapper(playgroundClient);
+	}, [playgroundClient]);
 
 	useEffect(() => {
 		const previousTitle = document.title;
@@ -75,9 +133,9 @@ export const Layout = () => {
 			<PanelGroup direction="horizontal" id="app" className={styles.app}>
 				<Panel minSize={16} defaultSize={16} collapsible>
 					<div className={styles.editorPane}>
-						{bootStatus === 'ready' && playgroundClient ? (
+						{bootStatus === 'ready' && filesystem ? (
 							<FileExplorerSidebar
-								filesystem={playgroundClient}
+								filesystem={filesystem}
 								currentPath={currentPath}
 								selectedDirPath={selectedDirPath}
 								setSelectedDirPath={setSelectedDirPath}

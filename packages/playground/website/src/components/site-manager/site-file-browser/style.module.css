@@ -1,4 +1,5 @@
 .container {
+	position: relative;
 	display: flex;
 	flex-direction: column;
 	height: 100%;
@@ -37,7 +38,8 @@
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
-	gap: 12px;
+	flex-wrap: wrap;
+	gap: 8px 12px;
 	padding: 12px 16px;
 	border-bottom: 1px solid var(--color-gray-200);
 	background: #ffffff;
@@ -47,17 +49,23 @@
 .editor-path {
 	flex: 1;
 	min-width: 0;
-	font-family: 'SFMono-Regular', ui-monospace, SFMono-Regular, Menlo, Monaco,
-		Consolas, 'Liberation Mono', 'Courier New', monospace;
+	font-family:
+		'SFMono-Regular', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+		'Liberation Mono', 'Courier New', monospace;
 	font-size: 12px;
 	color: var(--color-gray-700);
-	white-space: nowrap;
-	overflow: hidden;
-	text-overflow: ellipsis;
+	word-break: break-all;
 }
 
 .editor-path-placeholder {
 	color: var(--color-gray-500);
+}
+
+.editor-header-actions {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-shrink: 0;
 }
 
 .save-status {
@@ -114,8 +122,9 @@
 	padding: 16px 20px;
 	background: #ffffff;
 	overflow: auto;
-	font-family: 'SFMono-Regular', ui-monospace, SFMono-Regular, Menlo, Monaco,
-		Consolas, 'Liberation Mono', 'Courier New', monospace;
+	font-family:
+		'SFMono-Regular', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+		'Liberation Mono', 'Courier New', monospace;
 	font-size: 13px;
 	line-height: 1.6;
 }
@@ -138,6 +147,62 @@
 
 .message-area a:hover {
 	color: #135e96;
+}
+
+.editorToolbarButton {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.editorToolbarPlayIcon {
+	width: 18px;
+	height: 18px;
+}
+
+.autosaveOverlay {
+	position: absolute;
+	inset: 0;
+	background: rgba(0, 0, 0, 0.3);
+	backdrop-filter: blur(5px);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 24px;
+	z-index: 6;
+}
+
+.autosaveCard {
+	width: min(440px, 90%);
+	background: #ffffff;
+	border-radius: 8px;
+	padding: 24px 28px;
+	box-shadow: 0 24px 48px rgba(0, 0, 0, 0.25);
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+.autosaveTitle {
+	margin: 0;
+	font-size: 18px;
+}
+
+.autosaveMessage {
+	margin: 0;
+	color: var(--color-gray-700);
+	line-height: 1.5;
+}
+
+.autosaveActions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10px;
+	margin-top: 6px;
+}
+
+.autosaveError :global(.components-notice) {
+	margin-top: 4px;
 }
 
 .mobile-toggle {

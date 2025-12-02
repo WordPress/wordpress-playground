@@ -3,6 +3,10 @@ import path from 'path';
 import { test, expect } from '../playground-fixtures.ts';
 import { startVersionSwitchingServer as startServer } from '../version-switching-server.ts';
 
+// Tests in this file share a server on port 7999, so they must run serially
+// to avoid EADDRINUSE errors from multiple tests trying to bind the same port.
+test.describe.configure({ mode: 'serial' });
+
 const port = 7999;
 const url = new URL(`http://localhost:${port}`);
 // Disable login because an old WP build used in this test

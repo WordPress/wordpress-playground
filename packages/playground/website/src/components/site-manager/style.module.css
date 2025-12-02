@@ -1,4 +1,5 @@
 .site-manager {
+	padding-left: 0;
 	height: 100dvh;
 	overflow: hidden;
 	padding: var(--site-manager-border-width);
@@ -11,6 +12,10 @@
 
 	display: flex;
 	flex-direction: row;
+
+	@media (min-width: 876px) {
+		padding-left: 0;
+	}
 }
 
 .sidebar {

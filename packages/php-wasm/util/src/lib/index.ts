@@ -8,6 +8,7 @@ export {
 	basename,
 	normalizePath,
 	isParentOf,
+	ensureAbsolutePath,
 } from './paths';
 export { createSpawnHandler } from './create-spawn-handler';
 export { randomString } from './random-string';
