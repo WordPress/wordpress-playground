@@ -8,7 +8,7 @@ import type { PHPRunOptions } from '@php-wasm/universal';
  *
  * <code>
  * {
- * 		"step": "runPHP",
+ * 		"step": "runPHPWithOptions",
  * 		"options": {
  * 			"code": "<?php echo $_SERVER['CONTENT_TYPE']; ?>",
  * 			"headers": {
