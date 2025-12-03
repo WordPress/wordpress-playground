@@ -849,6 +849,129 @@ function setupIframesTrap() {
 	Document.prototype.createElement = createElementWrapper;
 
 	// ============================================================================
+	// document.write/writeln wrapper - intercepts writes to iframe documents
+	// ============================================================================
+	// TinyMCE and other libraries create blank iframes and use document.write()
+	// to inject content. This makes the iframe uncontrolled by the service worker.
+	// We intercept these writes and route the content through the loader instead.
+
+	/**
+	 * Find the iframe element that owns a given document, if any.
+	 */
+	function findIframeForDocument(doc) {
+		if (doc === document) return null;
+
+		// Check if parent document has an iframe with this contentDocument
+		try {
+			const parentDoc = doc.defaultView?.parent?.document;
+			if (parentDoc) {
+				const iframes = parentDoc.querySelectorAll('iframe');
+				for (const iframe of iframes) {
+					try {
+						if (Native.contentDocument.get.call(iframe) === doc ||
+							iframe.contentDocument === doc) {
+							return iframe;
+						}
+					} catch {
+						// Cross-origin, skip
+					}
+				}
+			}
+		} catch {
+			// Cross-origin access
+		}
+		return null;
+	}
+
+	/**
+	 * Track document.write() content for iframe documents.
+	 * Key: document, Value: { content: string[], iframe: HTMLIFrameElement }
+	 */
+	const documentWriteBuffers = new WeakMap();
+
+	/**
+	 * Process buffered document.write content for an iframe.
+	 * Called after document.close() or when we detect the document is complete.
+	 */
+	async function flushDocumentWriteBuffer(doc) {
+		const buffer = documentWriteBuffers.get(doc);
+		if (!buffer || buffer.flushed) return;
+		buffer.flushed = true;
+
+		const iframe = buffer.iframe;
+		const html = buffer.content.join('');
+
+		if (!html.trim()) return;
+
+		// Don't re-control if already controlled
+		if (iframe.getAttribute('data-controlled') === '1') return;
+
+		// Redirect the iframe to loader with the written content
+		await rewriteSrcdoc(iframe, html, {
+			base: doc.baseURI || iframe.ownerDocument?.baseURI,
+			prettyUrl: iframe.ownerDocument?.location?.href,
+		});
+	}
+
+	/**
+	 * Wrap document.write() to intercept writes to iframe documents.
+	 */
+	Document.prototype.write = function (...args) {
+		const iframe = findIframeForDocument(this);
+
+		// If this is not an iframe document, or the iframe is already controlled,
+		// just use native write
+		if (!iframe || iframe.getAttribute('data-controlled') === '1') {
+			return Native.write.apply(this, args);
+		}
+
+		// Buffer the content instead of writing directly
+		let buffer = documentWriteBuffers.get(this);
+		if (!buffer) {
+			buffer = { content: [], iframe, flushed: false };
+			documentWriteBuffers.set(this, buffer);
+		}
+		buffer.content.push(...args);
+
+		// Also call native write to maintain expected behavior during the write phase
+		// The iframe will be redirected on document.close()
+		return Native.write.apply(this, args);
+	};
+
+	Document.prototype.writeln = function (...args) {
+		const iframe = findIframeForDocument(this);
+
+		if (!iframe || iframe.getAttribute('data-controlled') === '1') {
+			return Native.write.apply(this, args.map(a => a + '\n'));
+		}
+
+		let buffer = documentWriteBuffers.get(this);
+		if (!buffer) {
+			buffer = { content: [], iframe, flushed: false };
+			documentWriteBuffers.set(this, buffer);
+		}
+		buffer.content.push(...args.map(a => a + '\n'));
+
+		return Native.write.apply(this, args.map(a => a + '\n'));
+	};
+
+	/**
+	 * Wrap document.close() to trigger the iframe redirect after content is written.
+	 */
+	Document.prototype.close = function () {
+		const result = Native.close.apply(this, arguments);
+
+		// Check if we have buffered content for this document
+		const buffer = documentWriteBuffers.get(this);
+		if (buffer && !buffer.flushed) {
+			// Use setTimeout to allow the document to settle before redirecting
+			setTimeout(() => flushDocumentWriteBuffer(this), 0);
+		}
+
+		return result;
+	};
+
+	// ============================================================================
 	// setAttribute wrapper - intercepts src/srcdoc on iframes
 	// ============================================================================
 	Element.prototype.setAttribute = function (name, value) {
