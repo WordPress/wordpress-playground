@@ -59,25 +59,33 @@ export async function convertFetchEventToPHPRequest(event: FetchEvent) {
 		// being displayed in an iframe.
 		delete phpResponse.headers['x-frame-options'];
 
-		// Content-Security-Policy can get in the way when PHP is
-		// being displayed in an iframe. WordPress 6.9 added a new
-		// `Content-Security-Policy: frame-ancestors 'self';` header that
-		// is breaking folks who embed a Playground from another origin.
-		// https://core.trac.wordpress.org/changeset/60657/
-		//
-		// Let's prune the frame-ancestors and avoid clobbering other CSP directives.
+		/*
+		 * Content-Security-Policy can get in the way when PHP is
+		 * being displayed in an iframe. WordPress 6.9 added a new
+		 * `Content-Security-Policy: frame-ancestors 'self';` header that
+		 * is breaking folks who embed a Playground from another origin.
+		 * https://core.trac.wordpress.org/changeset/60657/
+		 *
+		 * Let's prune the frame-ancestors and avoid clobbering other CSP directives.
+		 *
+		 * NOTE: We expect all header names to be lowercase.
+		 */
 		if (phpResponse.headers['content-security-policy']) {
 			const filteredCspHeaders = phpResponse.headers[
 				'content-security-policy'
 			]
 				// Remove any frame-ancestors directives.
 				.map((originalValue: string) =>
-					// Parse loosely based on:
+					// Parse based on the CSP spec:
 					// https://w3c.github.io/webappsec-csp/#parse-serialized-policy
 					originalValue
+						// "For each token returned by strictly splitting serialized
+						// on the U+003B SEMICOLON character (;):"
 						.split(';')
 						.filter((directive: string) => {
-							// Split on ASCII whitespace:
+							// "Let directive name be the result of collecting a sequence
+							// of code points from token which are not ASCII whitespace."
+							//
 							// @see https://infra.spec.whatwg.org/#ascii-whitespace
 							const [directiveName] = directive.split(
 								// eslint-disable-next-line no-control-regex
@@ -85,7 +93,10 @@ export async function convertFetchEventToPHPRequest(event: FetchEvent) {
 								// The directive name is the first token.
 								1
 							);
+
 							return (
+								// "Directive names are case-insensitive, that is:
+								// script-SRC 'none' and ScRiPt-sRc 'none' are equivalent."
 								directiveName.toLowerCase() !==
 								'frame-ancestors'
 							);
