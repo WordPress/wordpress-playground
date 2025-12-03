@@ -71,6 +71,15 @@ export async function convertFetchEventToPHPRequest(event: FetchEvent) {
 		 * NOTE: We expect all header names to be lowercase.
 		 */
 		if (phpResponse.headers['content-security-policy']) {
+			// ASCII whitespace:
+			// @see https://infra.spec.whatwg.org/#ascii-whitespace
+			// eslint-disable-next-line no-control-regex
+			const leadingAsciiWhitespace = /^[\u{9}\u{A}\u{C}\u{D}\u{20}]+/u;
+			// eslint-disable-next-line no-control-regex
+			const trailingAsciiWhitespace = /[\u{9}\u{A}\u{C}\u{D}\u{20}]+$/u;
+			// eslint-disable-next-line no-control-regex
+			const asciiWhitespace = /[\u{9}\u{A}\u{C}\u{D}\u{20}]/u;
+
 			const filteredCspHeaders = phpResponse.headers[
 				'content-security-policy'
 			]
@@ -82,14 +91,16 @@ export async function convertFetchEventToPHPRequest(event: FetchEvent) {
 						// "For each token returned by strictly splitting serialized
 						// on the U+003B SEMICOLON character (;):"
 						.split(';')
-						.filter((directive: string) => {
+						.filter((rawDirective: string) => {
+							// "Strip leading and trailing ASCII whitespace from token."
+							const trimmedDirective = rawDirective
+								.replace(leadingAsciiWhitespace, '')
+								.replace(trailingAsciiWhitespace, '');
+
 							// "Let directive name be the result of collecting a sequence
 							// of code points from token which are not ASCII whitespace."
-							//
-							// @see https://infra.spec.whatwg.org/#ascii-whitespace
-							const [directiveName] = directive.split(
-								// eslint-disable-next-line no-control-regex
-								/[\u{9}\u{A}\u{C}\u{D}\u{20}]/u,
+							const [directiveName] = trimmedDirective.split(
+								asciiWhitespace,
 								// The directive name is the first token.
 								1
 							);
@@ -284,4 +295,10 @@ export function getRequestHeaders(request: Request) {
 		headers[key] = value;
 	});
 	return headers;
+}
+
+export function removeContentSecurityPolicyDirective(directive: string) {
+	return directive.split(';').filter((directive: string) => {
+		return directive.toLowerCase() !== 'content-security-policy';
+	});
 }
