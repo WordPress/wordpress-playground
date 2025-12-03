@@ -98,6 +98,7 @@ export interface CompiledBlueprintV1 {
 		wp: string;
 	};
 	features: {
+		/** Should boot with support for Intl dynamic extension */
 		intl: boolean;
 		/** Should boot with support for network request via wp_safe_remote_get? */
 		networking: boolean;

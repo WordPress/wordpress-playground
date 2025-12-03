@@ -257,54 +257,50 @@ test('wp-cli step should create a post', async ({ website, wordpress }) => {
 	).toBeVisible();
 });
 
-// TODO: Follow-up on integrating Intl functions in blueprints V1 and V2
-// test('Intl functions should be disabled by default', async ({
-// 	website,
-// 	wordpress,
-// }) => {
-// 	const blueprint: Blueprint = {
-// 		landingPage: '/intl-test.php',
-// 		steps: [
-// 			{
-// 				step: 'writeFile',
-// 				path: '/wordpress/intl-test.php',
-// 				data: `<?php
-// 					$functions = get_extension_funcs('intl');
-// 					var_dump($functions);
-// 				`,
-// 			},
-// 		],
-// 	};
-// 	await website.goto(`/#${JSON.stringify(blueprint)}`);
-// 	await expect(wordpress.locator('body')).toContainText('bool(false)');
-// });
+test('Intl functions should be disabled by default', async ({
+	website,
+	wordpress,
+}) => {
+	const blueprint: Blueprint = {
+		landingPage: '/intl-test.php',
+		steps: [
+			{
+				step: 'writeFile',
+				path: '/wordpress/intl-test.php',
+				data: `<?php
+					$functions = get_extension_funcs('intl');
+					var_dump($functions);
+				`,
+			},
+		],
+	};
+	await website.goto(`/#${JSON.stringify(blueprint)}`);
+	await expect(wordpress.locator('body')).toContainText('bool(false)');
+});
 
-// test('Intl functions should work when intl is enabled', async ({
-// 	website,
-// 	wordpress,
-// }, testInfo) => {
-// 	if (testInfo.project.name === 'chromium') {
-// 		test.skip(true, 'Skipping this test on Chromium due to unknown issues');
-// 	}
-// 	const blueprint: Blueprint = {
-// 		landingPage: '/intl-test.php',
-// 		features: { intl: true },
-// 		steps: [
-// 			{
-// 				step: 'writeFile',
-// 				path: '/wordpress/intl-test.php',
-// 				data: `<?php
-// 					$formatter = numfmt_create('en-US', NumberFormatter::CURRENCY);
-// 					echo numfmt_format($formatter, 100.00);
-// 					$formatter = numfmt_create('fr-FR', NumberFormatter::CURRENCY);
-// 					echo numfmt_format($formatter, 100.00);
-// 				`,
-// 			},
-// 		],
-// 	};
-// 	await website.goto(`/#${JSON.stringify(blueprint)}`);
-// 	await expect(wordpress.locator('body')).toContainText('$100.00100,00\xA0€');
-// });
+test('Intl functions should work when intl is enabled', async ({
+	website,
+	wordpress,
+}) => {
+	const blueprint: Blueprint = {
+		landingPage: '/intl-test.php',
+		features: { intl: true },
+		steps: [
+			{
+				step: 'writeFile',
+				path: '/wordpress/intl-test.php',
+				data: `<?php
+					$formatter = numfmt_create('en-US', NumberFormatter::CURRENCY);
+					echo numfmt_format($formatter, 100.00);
+					$formatter = numfmt_create('fr-FR', NumberFormatter::CURRENCY);
+					echo numfmt_format($formatter, 100.00);
+				`,
+			},
+		],
+	};
+	await website.goto(`/#${JSON.stringify(blueprint)}`);
+	await expect(wordpress.locator('body')).toContainText('$100.00100,00\xA0€');
+});
 
 test('HTTPS requests via curl_exec() should work', async ({
 	website,

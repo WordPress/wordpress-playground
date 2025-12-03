@@ -58,6 +58,7 @@ export class BlueprintsV1Handler {
 			shouldInstallWordPress,
 			phpVersion: runtimeConfiguration.phpVersion,
 			wpVersion: runtimeConfiguration.wpVersion,
+			withIntl: runtimeConfiguration.intl,
 			withNetworking: runtimeConfiguration.networking,
 			corsProxyUrl: corsProxy,
 			sqliteDriverVersion,

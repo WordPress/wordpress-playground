@@ -61,6 +61,7 @@ export type WorkerBootOptions = {
 	phpVersion?: SupportedPHPVersion;
 	sapiName?: string;
 	scope: string;
+	withIntl: boolean;
 	withNetworking: boolean;
 	mounts?: Array<MountDescriptor>;
 	shouldInstallWordPress?: boolean;
@@ -119,6 +120,7 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		sapiName,
 		corsProxyUrl,
 		knownRemoteAssetPaths,
+		withIntl,
 		withNetworking,
 		phpVersion,
 	}: {
@@ -126,6 +128,7 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		sapiName: string;
 		corsProxyUrl?: string;
 		knownRemoteAssetPaths: Set<string>;
+		withIntl: boolean;
 		withNetworking: boolean;
 		phpVersion: SupportedPHPVersion;
 	}) {
@@ -180,6 +183,7 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 			createPhpRuntime: async () => {
 				let wasmUrl = '';
 				return await loadWebRuntime(phpVersion, {
+					withIntl,
 					tcpOverFetch,
 					onPhpLoaderModuleLoaded: (phpLoaderModule) => {
 						wasmUrl = phpLoaderModule.dependencyFilename;

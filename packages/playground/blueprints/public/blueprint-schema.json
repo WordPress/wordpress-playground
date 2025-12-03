@@ -69,7 +69,8 @@
 					"type": "object",
 					"properties": {
 						"intl": {
-							"type": "boolean"
+							"type": "boolean",
+							"description": "Should boot with support for Intl dynamic extension"
 						},
 						"networking": {
 							"type": "boolean",
