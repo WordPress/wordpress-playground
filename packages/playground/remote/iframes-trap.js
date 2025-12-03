@@ -849,129 +849,6 @@ function setupIframesTrap() {
 	Document.prototype.createElement = createElementWrapper;
 
 	// ============================================================================
-	// document.write/writeln wrapper - intercepts writes to iframe documents
-	// ============================================================================
-	// TinyMCE and other libraries create blank iframes and use document.write()
-	// to inject content. This makes the iframe uncontrolled by the service worker.
-	// We intercept these writes and route the content through the loader instead.
-
-	/**
-	 * Find the iframe element that owns a given document, if any.
-	 */
-	function findIframeForDocument(doc) {
-		if (doc === document) return null;
-
-		// Check if parent document has an iframe with this contentDocument
-		try {
-			const parentDoc = doc.defaultView?.parent?.document;
-			if (parentDoc) {
-				const iframes = parentDoc.querySelectorAll('iframe');
-				for (const iframe of iframes) {
-					try {
-						if (Native.contentDocument.get.call(iframe) === doc ||
-							iframe.contentDocument === doc) {
-							return iframe;
-						}
-					} catch {
-						// Cross-origin, skip
-					}
-				}
-			}
-		} catch {
-			// Cross-origin access
-		}
-		return null;
-	}
-
-	/**
-	 * Track document.write() content for iframe documents.
-	 * Key: document, Value: { content: string[], iframe: HTMLIFrameElement }
-	 */
-	const documentWriteBuffers = new WeakMap();
-
-	/**
-	 * Process buffered document.write content for an iframe.
-	 * Called after document.close() or when we detect the document is complete.
-	 */
-	async function flushDocumentWriteBuffer(doc) {
-		const buffer = documentWriteBuffers.get(doc);
-		if (!buffer || buffer.flushed) return;
-		buffer.flushed = true;
-
-		const iframe = buffer.iframe;
-		const html = buffer.content.join('');
-
-		if (!html.trim()) return;
-
-		// Don't re-control if already controlled
-		if (iframe.getAttribute('data-controlled') === '1') return;
-
-		// Redirect the iframe to loader with the written content
-		await rewriteSrcdoc(iframe, html, {
-			base: doc.baseURI || iframe.ownerDocument?.baseURI,
-			prettyUrl: iframe.ownerDocument?.location?.href,
-		});
-	}
-
-	/**
-	 * Wrap document.write() to intercept writes to iframe documents.
-	 */
-	Document.prototype.write = function (...args) {
-		const iframe = findIframeForDocument(this);
-
-		// If this is not an iframe document, or the iframe is already controlled,
-		// just use native write
-		if (!iframe || iframe.getAttribute('data-controlled') === '1') {
-			return Native.write.apply(this, args);
-		}
-
-		// Buffer the content instead of writing directly
-		let buffer = documentWriteBuffers.get(this);
-		if (!buffer) {
-			buffer = { content: [], iframe, flushed: false };
-			documentWriteBuffers.set(this, buffer);
-		}
-		buffer.content.push(...args);
-
-		// Also call native write to maintain expected behavior during the write phase
-		// The iframe will be redirected on document.close()
-		return Native.write.apply(this, args);
-	};
-
-	Document.prototype.writeln = function (...args) {
-		const iframe = findIframeForDocument(this);
-
-		if (!iframe || iframe.getAttribute('data-controlled') === '1') {
-			return Native.write.apply(this, args.map(a => a + '\n'));
-		}
-
-		let buffer = documentWriteBuffers.get(this);
-		if (!buffer) {
-			buffer = { content: [], iframe, flushed: false };
-			documentWriteBuffers.set(this, buffer);
-		}
-		buffer.content.push(...args.map(a => a + '\n'));
-
-		return Native.write.apply(this, args.map(a => a + '\n'));
-	};
-
-	/**
-	 * Wrap document.close() to trigger the iframe redirect after content is written.
-	 */
-	Document.prototype.close = function () {
-		const result = Native.close.apply(this, arguments);
-
-		// Check if we have buffered content for this document
-		const buffer = documentWriteBuffers.get(this);
-		if (buffer && !buffer.flushed) {
-			// Use setTimeout to allow the document to settle before redirecting
-			setTimeout(() => flushDocumentWriteBuffer(this), 0);
-		}
-
-		return result;
-	};
-
-	// ============================================================================
 	// setAttribute wrapper - intercepts src/srcdoc on iframes
 	// ============================================================================
 	Element.prototype.setAttribute = function (name, value) {
@@ -1053,6 +930,80 @@ function setupIframesTrap() {
 		},
 	});
 
+	/**
+	 * Create a proxy for an iframe's contentDocument that intercepts document.write()
+	 * and document.close() calls. This is necessary because TinyMCE and other libraries
+	 * use document.write() to populate iframe content, which bypasses our src/srcdoc
+	 * interception and leaves the iframe uncontrolled by the service worker.
+	 *
+	 * The proxy:
+	 * 1. Buffers all content written via write()/writeln()
+	 * 2. On close(), redirects the iframe to the loader with the buffered content
+	 * 3. Passes through all other operations to the real document
+	 */
+	function createDocumentWriteProxy(iframe, realDocument) {
+		const writeBuffer = [];
+		let isClosed = false;
+
+		const handler = {
+			get(target, prop, receiver) {
+				// Intercept write() and writeln()
+				if (prop === 'write') {
+					return function (...args) {
+						writeBuffer.push(...args);
+						// Also call the real write() to maintain expected behavior
+						return target.write.apply(target, args);
+					};
+				}
+				if (prop === 'writeln') {
+					return function (...args) {
+						writeBuffer.push(...args.map(a => a + '\n'));
+						return target.writeln.apply(target, args);
+					};
+				}
+				// Intercept close() to trigger the redirect
+				if (prop === 'close') {
+					return function () {
+						const result = target.close.apply(target, arguments);
+						if (!isClosed && writeBuffer.length > 0) {
+							isClosed = true;
+							const html = writeBuffer.join('');
+							// Use setTimeout to let the document settle before redirecting
+							setTimeout(async () => {
+								if (iframe.getAttribute('data-controlled') !== '1') {
+									await rewriteSrcdoc(iframe, html, {
+										base: target.baseURI || iframe.ownerDocument?.baseURI,
+										prettyUrl: iframe.ownerDocument?.location?.href,
+									});
+								}
+							}, 0);
+						}
+						return result;
+					};
+				}
+
+				// For all other properties, return the real value
+				const value = Reflect.get(target, prop, receiver);
+				// Bind functions to the real document
+				if (typeof value === 'function') {
+					return value.bind(target);
+				}
+				return value;
+			},
+			set(target, prop, value) {
+				return Reflect.set(target, prop, value);
+			},
+		};
+
+		return new Proxy(realDocument, handler);
+	}
+
+	/**
+	 * WeakMap to cache document proxies for iframes.
+	 * This ensures we return the same proxy for the same iframe.
+	 */
+	const documentProxyCache = new WeakMap();
+
 	Object.defineProperty(HTMLIFrameElement.prototype, 'contentDocument', {
 		configurable: true,
 		enumerable: Native.contentDocument?.enumerable ?? true,
@@ -1065,7 +1016,22 @@ function setupIframesTrap() {
 					// Fall through to native
 				}
 			}
-			return Native.contentDocument.get.call(this);
+
+			const realDocument = Native.contentDocument.get.call(this);
+
+			// If iframe is already controlled or doesn't have a document, return as-is
+			if (!realDocument || this.getAttribute('data-controlled') === '1') {
+				return realDocument;
+			}
+
+			// Check if we already have a proxy for this iframe
+			let proxy = documentProxyCache.get(this);
+			if (!proxy) {
+				proxy = createDocumentWriteProxy(this, realDocument);
+				documentProxyCache.set(this, proxy);
+			}
+
+			return proxy;
 		},
 	});
 
