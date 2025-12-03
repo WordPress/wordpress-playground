@@ -71,48 +71,15 @@ export async function convertFetchEventToPHPRequest(event: FetchEvent) {
 		 * NOTE: We expect all header names to be lowercase.
 		 */
 		if (phpResponse.headers['content-security-policy']) {
-			// ASCII whitespace:
-			// @see https://infra.spec.whatwg.org/#ascii-whitespace
-			// eslint-disable-next-line no-control-regex
-			const leadingAsciiWhitespace = /^[\u{9}\u{A}\u{C}\u{D}\u{20}]+/u;
-			// eslint-disable-next-line no-control-regex
-			const trailingAsciiWhitespace = /[\u{9}\u{A}\u{C}\u{D}\u{20}]+$/u;
-			// eslint-disable-next-line no-control-regex
-			const asciiWhitespace = /[\u{9}\u{A}\u{C}\u{D}\u{20}]/u;
-
 			const filteredCspHeaders = phpResponse.headers[
 				'content-security-policy'
 			]
 				// Remove any frame-ancestors directives.
 				.map((originalValue: string) =>
-					// Parse based on the CSP spec:
-					// https://w3c.github.io/webappsec-csp/#parse-serialized-policy
-					originalValue
-						// "For each token returned by strictly splitting serialized
-						// on the U+003B SEMICOLON character (;):"
-						.split(';')
-						.filter((rawDirective: string) => {
-							// "Strip leading and trailing ASCII whitespace from token."
-							const trimmedDirective = rawDirective
-								.replace(leadingAsciiWhitespace, '')
-								.replace(trailingAsciiWhitespace, '');
-
-							// "Let directive name be the result of collecting a sequence
-							// of code points from token which are not ASCII whitespace."
-							const [directiveName] = trimmedDirective.split(
-								asciiWhitespace,
-								// The directive name is the first token.
-								1
-							);
-
-							return (
-								// "Directive names are case-insensitive, that is:
-								// script-SRC 'none' and ScRiPt-sRc 'none' are equivalent."
-								directiveName.toLowerCase() !==
-								'frame-ancestors'
-							);
-						})
-						.join(';')
+					removeContentSecurityPolicyDirective(
+						'frame-ancestors',
+						originalValue
+					)
 				)
 				// Remove empty or whitespace-only values.
 				.filter((value: string) => value.trim().length > 0);
@@ -297,8 +264,49 @@ export function getRequestHeaders(request: Request) {
 	return headers;
 }
 
-export function removeContentSecurityPolicyDirective(directive: string) {
-	return directive.split(';').filter((directive: string) => {
-		return directive.toLowerCase() !== 'content-security-policy';
-	});
+/**
+ * Removes the specified directive from the Content-Security-Policy header value.
+ *
+ * @param directiveToRemove The directive name to remove.
+ * @param cspHeader The Content-Security-Policy header value to filter.
+ * @returns The filtered Content-Security-Policy header value.
+ */
+export function removeContentSecurityPolicyDirective(
+	directiveToRemove: string,
+	cspHeader: string
+) {
+	// ASCII whitespace:
+	// @see https://infra.spec.whatwg.org/#ascii-whitespace
+	// eslint-disable-next-line no-control-regex
+	const leadingAsciiWhitespace = /^[\u{9}\u{A}\u{C}\u{D}\u{20}]+/u;
+	// eslint-disable-next-line no-control-regex
+	const trailingAsciiWhitespace = /[\u{9}\u{A}\u{C}\u{D}\u{20}]+$/u;
+	// eslint-disable-next-line no-control-regex
+	const asciiWhitespace = /[\u{9}\u{A}\u{C}\u{D}\u{20}]/u;
+
+	// Parse based on the CSP spec:
+	// https://w3c.github.io/webappsec-csp/#parse-serialized-policy
+	return cspHeader
+		// "For each token returned by strictly splitting serialized
+		// on the U+003B SEMICOLON character (;):"
+		.split(';')
+		.filter((rawDirective: string) => {
+			// "Strip leading and trailing ASCII whitespace from token."
+			const trimmedDirective = rawDirective
+				.replace(leadingAsciiWhitespace, '')
+				.replace(trailingAsciiWhitespace, '');
+
+			// "Let directive name be the result of collecting a sequence
+			// of code points from token which are not ASCII whitespace."
+			const [directiveName] = trimmedDirective.split(
+				asciiWhitespace,
+				// The directive name is the first token.
+				1
+			);
+
+			// "Directive names are case-insensitive, that is:
+			// script-SRC 'none' and ScRiPt-sRc 'none' are equivalent."
+			return directiveName.toLowerCase() !== directiveToRemove.toLowerCase();
+		})
+		.join(';');
 }
