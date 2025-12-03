@@ -947,16 +947,47 @@ function setupIframesTrap() {
 	});
 
 	/**
+	 * Check if an iframe's src value indicates it's uncontrolled and needs
+	 * to be redirected through the loader. This handles cases where iframes
+	 * were created before iframes-trap.js loaded and patched the prototypes.
+	 */
+	function isUncontrolledSrc(src) {
+		if (!src) return true;
+		const srcLower = src.toLowerCase();
+		return (
+			srcLower === '' ||
+			srcLower === 'about:blank' ||
+			srcLower.startsWith('javascript:')
+		);
+	}
+
+	/**
 	 * Control an iframe that was just added to the DOM.
 	 * Uses deferred approach for nested contexts.
+	 *
+	 * This function also handles iframes that were created before iframes-trap.js
+	 * loaded - if they have uncontrolled src values (javascript:, about:blank, etc.)
+	 * we redirect them through the loader.
 	 */
 	function controlIframeOnMutation(iframe) {
-		if (iframe.hasAttribute('src') || iframe.hasAttribute('srcdoc')) {
-			return;
-		}
 		if (iframe.getAttribute('data-controlled') === '1' || iframe.getAttribute('data-control-pending') === '1') {
 			return;
 		}
+
+		// Check if iframe has srcdoc - these are handled separately
+		if (iframe.hasAttribute('srcdoc')) {
+			return;
+		}
+
+		// Check if iframe has a "real" src that shouldn't be intercepted
+		const currentSrc = iframe.getAttribute('src') || '';
+		if (currentSrc && !isUncontrolledSrc(currentSrc)) {
+			// Has a real URL src, don't intercept
+			return;
+		}
+
+		// Iframe either has no src, or has an uncontrolled src (javascript:, about:blank, etc.)
+		// Route it through the loader to make it SW-controlled
 		if (isNestedContext()) {
 			scheduleIframeControl(iframe);
 		} else {
@@ -986,6 +1017,14 @@ function setupIframesTrap() {
 	mutationObserver.observe(document.documentElement, {
 		childList: true,
 		subtree: true,
+	});
+
+	// ============================================================================
+	// Handle existing iframes - scan for iframes that were created before
+	// iframes-trap.js loaded and need to be controlled
+	// ============================================================================
+	document.querySelectorAll('iframe').forEach((iframe) => {
+		controlIframeOnMutation(iframe);
 	});
 
 	// ============================================================================
