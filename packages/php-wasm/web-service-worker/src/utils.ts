@@ -76,14 +76,20 @@ export async function convertFetchEventToPHPRequest(event: FetchEvent) {
 					// https://w3c.github.io/webappsec-csp/#parse-serialized-policy
 					originalValue
 						.split(';')
-						.filter(
-							(directive: string) =>
-								!directive
-									.trimStart()
-									// Directive names are case-insensitive.
-									.toLowerCase()
-									.startsWith('frame-ancestors')
-						)
+						.filter((directive: string) => {
+							// Split on ASCII whitespace:
+							// @see https://infra.spec.whatwg.org/#ascii-whitespace
+							const [directiveName] = directive.split(
+								// eslint-disable-next-line no-control-regex
+								/[\u{9}\u{A}\u{C}\u{D}\u{20}]/u,
+								// The directive name is the first token.
+								1
+							);
+							return (
+								directiveName.toLowerCase() !==
+								'frame-ancestors'
+							);
+						})
 						.join(';')
 				)
 				// Remove empty or whitespace-only values.
