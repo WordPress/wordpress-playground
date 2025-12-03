@@ -72,6 +72,8 @@ export async function convertFetchEventToPHPRequest(event: FetchEvent) {
 			]
 				// Remove any frame-ancestors directives.
 				.map((originalValue: string) =>
+					// Parse loosely based on:
+					// https://w3c.github.io/webappsec-csp/#parse-serialized-policy
 					originalValue
 						.split(';')
 						.filter(
