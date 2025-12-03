@@ -55,9 +55,44 @@ export async function convertFetchEventToPHPRequest(event: FetchEvent) {
 		const requestId = await broadcastMessageExpectReply(message, scope);
 		phpResponse = await awaitReply(self, requestId);
 
-		// X-frame-options gets in a way when PHP is
+		// X-frame-options gets in the way when PHP is
 		// being displayed in an iframe.
 		delete phpResponse.headers['x-frame-options'];
+
+		// Content-Security-Policy can get in the way when PHP is
+		// being displayed in an iframe. WordPress 6.9 added a new
+		// `Content-Security-Policy: frame-ancestors 'self';` header that
+		// is breaking folks who embed a Playground from another origin.
+		// https://core.trac.wordpress.org/changeset/60657/
+		//
+		// Let's prune the frame-ancestors and avoid clobbering other CSP directives.
+		if (phpResponse.headers['content-security-policy']) {
+			const filteredCspHeaders = phpResponse.headers[
+				'content-security-policy'
+			]
+				// Remove any frame-ancestors directives.
+				.map((originalValue: string) =>
+					originalValue
+						.split(';')
+						.filter(
+							(directive: string) =>
+								!directive
+									.trimStart()
+									.startsWith('frame-ancestors')
+						)
+						.join(';')
+				)
+				// Remove empty or whitespace-only values.
+				.filter((value: string) => value.trim().length > 0);
+
+			if (filteredCspHeaders.length > 0) {
+				phpResponse.headers['content-security-policy'] =
+					filteredCspHeaders;
+			} else {
+				// There are no remaining CSP directives, so let's remove the header altogether.
+				delete phpResponse.headers['content-security-policy'];
+			}
+		}
 	} catch (e) {
 		console.error(e, { url: url.toString() });
 		throw e;
