@@ -360,7 +360,7 @@ test.describe('Database panel', () => {
 
 	test('should load and open Adminer', async ({ website, context }) => {
 		const adminerButton = website.page.getByRole('button', {
-			name: /Open Adminer/i,
+			name: 'Open Adminer',
 		});
 		await expect(adminerButton).toBeVisible();
 		await expect(adminerButton).toBeEnabled();
@@ -432,7 +432,7 @@ test.describe('Database panel', () => {
 
 	test('should load and open phpMyAdmin', async ({ website, context }) => {
 		const phpMyAdminButton = website.page.getByRole('button', {
-			name: /Open phpMyAdmin/i,
+			name: 'Open phpMyAdmin',
 		});
 		await expect(phpMyAdminButton).toBeVisible();
 		await expect(phpMyAdminButton).toBeEnabled();
@@ -466,7 +466,7 @@ test.describe('Database panel', () => {
 			.locator('tr')
 			.filter({ hasText: 'wp_posts' })
 			.first();
-		await expect(wpPostsRow).toBeVisible({ timeout: 10000 });
+		await expect(wpPostsRow).toBeVisible();
 		await waitForAjaxIdle();
 		await wpPostsRow.getByRole('link', { name: 'Browse' }).click();
 		await newPage.waitForLoadState();
@@ -481,14 +481,12 @@ test.describe('Database panel', () => {
 			.first()
 			.click();
 		await newPage.waitForLoadState();
-		const pmaForm = newPage.locator(
-			'form#insertForm, form[name="insertForm"]'
-		);
-		await expect(pmaForm).toBeVisible({ timeout: 10000 });
-		await expect(pmaForm).toContainText('Welcome to WordPress.');
+		const editForm = newPage.locator('form#insertForm');
+		await expect(editForm).toBeVisible();
+		await expect(editForm).toContainText('Welcome to WordPress.');
 
 		// Update the post content
-		const postContentRow = pmaForm
+		const postContentRow = editForm
 			.locator('tr')
 			.filter({ hasText: 'post_content' })
 			.first();
