@@ -35,9 +35,9 @@ describe.each(phpVersions)('PHP %s – ', async (phpVersion) => {
 			 * See: https://wiki.php.net/rfc/clone_with_v2
 			 * Implementation: https://github.com/php/php-src/commit/ca49a7bec2a0a8d77bfa4b6d375ca0ffa4edc5ee
 			 */
-			const phpVersionNumber = parseFloat(phpVersion);
-			(phpVersionNumber >= 8.5 ? it.skip : it)(
-				'Does not crash due to an unhandled Asyncify error ',
+			it(
+				'Does not crash due to an unhandled Asyncify error',
+				{ skip: parseFloat(phpVersion) >= 8.5 },
 				async () => {
 					let caughtError: unknown;
 					let unhandledRejection: unknown;
