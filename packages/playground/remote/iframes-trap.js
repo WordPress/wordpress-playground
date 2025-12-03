@@ -914,68 +914,17 @@ function setupIframesTrap() {
 	// ============================================================================
 	// contentWindow/contentDocument getters - redirect to controlled iframe if needed
 	// ============================================================================
+
+	/**
+	 * WeakMap to cache document proxies for iframes.
+	 * This ensures we return the same proxy for the same iframe.
+	 */
+	const documentProxyCache = new WeakMap();
+
 	/**
 	 * WeakMap to cache contentWindow proxies for iframes.
 	 */
 	const contentWindowProxyCache = new WeakMap();
-
-	Object.defineProperty(HTMLIFrameElement.prototype, 'contentWindow', {
-		configurable: true,
-		enumerable: Native.contentWindow?.enumerable ?? true,
-		get() {
-			// If this iframe has a controlled counterpart in an ancestor, use that
-			if (this.__controlledIframe) {
-				try {
-					return Native.contentWindow.get.call(this.__controlledIframe);
-				} catch {
-					// Fall through to native
-				}
-			}
-
-			const realWindow = Native.contentWindow.get.call(this);
-			const iframe = this;
-
-			// If iframe is already controlled or doesn't have a window, return as-is
-			if (!realWindow || iframe.getAttribute('data-controlled') === '1') {
-				return realWindow;
-			}
-
-			// Check if we already have a proxy for this iframe's window
-			let proxy = contentWindowProxyCache.get(iframe);
-			if (!proxy) {
-				// Create a proxy that intercepts 'document' property access
-				proxy = new Proxy(realWindow, {
-					get(target, prop, receiver) {
-						if (prop === 'document') {
-							// Return our document proxy instead of the real document
-							const realDoc = target.document;
-							if (!realDoc) return realDoc;
-
-							// Get or create the document proxy
-							let docProxy = documentProxyCache.get(iframe);
-							if (!docProxy) {
-								docProxy = createDocumentWriteProxy(iframe, realDoc);
-								documentProxyCache.set(iframe, docProxy);
-							}
-							return docProxy;
-						}
-						// For all other properties, return the real value
-						const value = Reflect.get(target, prop, receiver);
-						if (typeof value === 'function') {
-							return value.bind(target);
-						}
-						return value;
-					},
-					set(target, prop, value) {
-						return Reflect.set(target, prop, value);
-					},
-				});
-				contentWindowProxyCache.set(iframe, proxy);
-			}
-
-			return proxy;
-		},
-	});
 
 	/**
 	 * Create a proxy for an iframe's contentDocument that intercepts document.write()
@@ -1045,11 +994,63 @@ function setupIframesTrap() {
 		return new Proxy(realDocument, handler);
 	}
 
-	/**
-	 * WeakMap to cache document proxies for iframes.
-	 * This ensures we return the same proxy for the same iframe.
-	 */
-	const documentProxyCache = new WeakMap();
+	Object.defineProperty(HTMLIFrameElement.prototype, 'contentWindow', {
+		configurable: true,
+		enumerable: Native.contentWindow?.enumerable ?? true,
+		get() {
+			// If this iframe has a controlled counterpart in an ancestor, use that
+			if (this.__controlledIframe) {
+				try {
+					return Native.contentWindow.get.call(this.__controlledIframe);
+				} catch {
+					// Fall through to native
+				}
+			}
+
+			const realWindow = Native.contentWindow.get.call(this);
+			const iframe = this;
+
+			// If iframe is already controlled or doesn't have a window, return as-is
+			if (!realWindow || iframe.getAttribute('data-controlled') === '1') {
+				return realWindow;
+			}
+
+			// Check if we already have a proxy for this iframe's window
+			let proxy = contentWindowProxyCache.get(iframe);
+			if (!proxy) {
+				// Create a proxy that intercepts 'document' property access
+				proxy = new Proxy(realWindow, {
+					get(target, prop, receiver) {
+						if (prop === 'document') {
+							// Return our document proxy instead of the real document
+							const realDoc = target.document;
+							if (!realDoc) return realDoc;
+
+							// Get or create the document proxy
+							let docProxy = documentProxyCache.get(iframe);
+							if (!docProxy) {
+								docProxy = createDocumentWriteProxy(iframe, realDoc);
+								documentProxyCache.set(iframe, docProxy);
+							}
+							return docProxy;
+						}
+						// For all other properties, return the real value
+						const value = Reflect.get(target, prop, receiver);
+						if (typeof value === 'function') {
+							return value.bind(target);
+						}
+						return value;
+					},
+					set(target, prop, value) {
+						return Reflect.set(target, prop, value);
+					},
+				});
+				contentWindowProxyCache.set(iframe, proxy);
+			}
+
+			return proxy;
+		},
+	});
 
 	Object.defineProperty(HTMLIFrameElement.prototype, 'contentDocument', {
 		configurable: true,
