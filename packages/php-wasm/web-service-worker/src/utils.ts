@@ -80,6 +80,8 @@ export async function convertFetchEventToPHPRequest(event: FetchEvent) {
 							(directive: string) =>
 								!directive
 									.trimStart()
+									// Directive names are case-insensitive.
+									.toLowerCase()
 									.startsWith('frame-ancestors')
 						)
 						.join(';')
