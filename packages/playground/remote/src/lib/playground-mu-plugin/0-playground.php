@@ -34,27 +34,16 @@ EOT;
 add_action(
 	'admin_head',
 	function () {
+		// Derive scope hint from current path (works for /scope:foo/...).
+		$scope = '';
+		if (preg_match('#^(/scope:[^/]+)#', $_SERVER['REQUEST_URI'] ?? '', $m)) {
+			$scope = $m[1];
+		}
+		// Output the script tag directly in HTML for synchronous loading.
+		// Dynamically created scripts default to async=true, which would let TinyMCE
+		// create its iframe before our trap is active.
 		?>
-		<script>
-			(function () {
-				// Derive scope hint from current path (works for /scope:foo/...).
-				const scopeMatch = location.pathname.match(/^\/scope:[^/]+/);
-				const scope = scopeMatch ? scopeMatch[0] : '';
-				const existing = Array.from(document.scripts).some((s) =>
-					s.src.endsWith('/__bootstrap/iframes-trap.js')
-				);
-				if (existing) {
-					return;
-				}
-				const s = document.createElement('script');
-				// Classic script to execute synchronously during parsing.
-				s.src = new URL('/__bootstrap/iframes-trap.js', document.baseURI);
-				if (scope) {
-					s.dataset.scope = scope;
-				}
-				document.head.appendChild(s);
-			})();
-		</script>
+		<script src="<?php echo esc_url($scope . '/__bootstrap/iframes-trap.js'); ?>"<?php echo $scope ? ' data-scope="' . esc_attr($scope) . '"' : ''; ?>></script>
 		<style>
 				:is(.plugins-popular-tags-wrapper:has(div.networking_err_msg),
 				button.button.try-again) {

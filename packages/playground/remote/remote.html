@@ -2,6 +2,79 @@
 <html>
 	<head>
 		<title>WordPress Playground</title>
+		<!--
+			Set up the message listener for cross-frame iframe creation requests.
+			This is needed BEFORE the service worker is registered, because nested iframes
+			(like TinyMCE inside WordPress) may need to create controlled iframes in this
+			ancestor window. The full iframes-trap.js will be loaded by the service worker
+			for other pages, but this listener must be available immediately.
+		-->
+		<script>
+			// Minimal message listener for iframe creation requests from child frames.
+			// This is a subset of iframes-trap.js that handles the postMessage protocol.
+			(function() {
+				// Native createElement reference
+				const nativeCreateElement = Document.prototype.createElement;
+				const nativeSetAttribute = Element.prototype.setAttribute;
+				const nativeIframeSrc = Object.getOwnPropertyDescriptor(HTMLIFrameElement.prototype, 'src');
+
+				// Mark that we have the listener
+				window.__controlled_iframes_loaded__ = true;
+
+				// Storage for created iframes that children can access
+				window.__pg_iframes = {};
+
+				window.addEventListener('message', (event) => {
+					if (event.data?.type !== '__playground_create_iframe') {
+						return;
+					}
+
+					const { config } = event.data;
+					const port = event.ports[0];
+
+					if (!port) {
+						return;
+					}
+
+					try {
+						// Create iframe using native createElement
+						const iframe = nativeCreateElement.call(document, 'iframe');
+						iframe.id = config.id;
+
+						// Copy attributes
+						if (config.attributes) {
+							for (const [name, value] of Object.entries(config.attributes)) {
+								iframe.setAttribute(name, value);
+							}
+						}
+
+						// Apply styles
+						if (config.style) {
+							Object.assign(iframe.style, config.style);
+						}
+
+						// Append to body
+						document.body.appendChild(iframe);
+
+						// Set src using native setter
+						if (config.src) {
+							if (nativeIframeSrc?.set) {
+								nativeIframeSrc.set.call(iframe, config.src);
+							} else {
+								nativeSetAttribute.call(iframe, 'src', config.src);
+							}
+						}
+
+						// Store reference so child can access it
+						window.__pg_iframes[config.id] = iframe;
+
+						port.postMessage({ success: true, iframeId: config.id });
+					} catch (error) {
+						port.postMessage({ error: error.message });
+					}
+				});
+			})();
+		</script>
 		<style>
 			* {
 				box-sizing: border-box;

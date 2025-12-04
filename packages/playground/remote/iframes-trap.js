@@ -323,7 +323,7 @@ function setupIframesTrap() {
 				iframe.__controlledIframe = controlledIframe;
 			} catch (error) {
 				// Message passing failed, fall back to direct approach (might not work in Firefox)
-				console.warn('Message-based iframe creation failed, falling back to direct approach:', error);
+				console.warn('[iframes-trap] Message-based iframe creation failed, falling back to direct approach:', error);
 
 				const ancestorDoc = capableAncestor.document;
 				const ancestorNativeCreate = ancestorDoc.__playground_native_createElement || Native.createElement;
@@ -578,7 +578,12 @@ function setupIframesTrap() {
 	 * 3. Positioning calculations already handle multi-level offset accumulation
 	 */
 	function findCapableAncestor() {
-		let topmost = null;
+		// We look for the FIRST ancestor that has __controlled_iframes_loaded__ = true,
+		// because that means it has the message listener to create controlled iframes.
+		// We prefer this over the topmost ancestor because intermediate frames might
+		// not have the listener (e.g., remote.html before the service worker injects it).
+		let firstCapable = null;
+		let fallback = null;
 		try {
 			let current = window;
 			while (current.parent && current.parent !== current) {
@@ -586,13 +591,16 @@ function setupIframesTrap() {
 					// Check if parent is accessible (same-origin)
 					const parentDoc = current.parent.document;
 					if (parentDoc) {
-						// Check if this ancestor is SW-controlled
-						// This is the best indicator that iframes created here will work
-						if (current.parent.navigator?.serviceWorker?.controller) {
-							topmost = current.parent;
-						} else if (!topmost && parentDoc.body) {
-							// Fall back to any accessible ancestor if none are SW-controlled yet
-							topmost = current.parent;
+						const hasIframesTrap = current.parent.__controlled_iframes_loaded__ === true;
+						const hasSW = !!current.parent.navigator?.serviceWorker?.controller;
+
+						// Prefer ancestors with the iframes-trap message listener
+						if (hasIframesTrap && !firstCapable) {
+							firstCapable = current.parent;
+						}
+						// Fall back to any SW-controlled ancestor
+						if (hasSW && !fallback) {
+							fallback = current.parent;
 						}
 					}
 				} catch {
@@ -601,10 +609,11 @@ function setupIframesTrap() {
 				}
 				current = current.parent;
 			}
+			return firstCapable || fallback;
 		} catch {
 			// Ignore errors traversing frame hierarchy
 		}
-		return topmost;
+		return null;
 	}
 
 	/**
@@ -763,7 +772,7 @@ function setupIframesTrap() {
 				iframe.__controlledIframe = controlledIframe;
 			} catch (error) {
 				// Message passing failed, fall back to direct approach (might not work in Firefox)
-				console.warn('Message-based iframe creation failed, falling back to direct approach:', error);
+				console.warn('[iframes-trap] Message-based iframe creation failed, falling back to direct approach:', error);
 
 				const ancestorDoc = capableAncestor.document;
 				const ancestorNativeCreate = ancestorDoc.__playground_native_createElement || Native.createElement;
@@ -979,7 +988,10 @@ function setupIframesTrap() {
 				}
 
 				// For all other properties, return the real value
-				const value = Reflect.get(target, prop, receiver);
+				// Note: we use target[prop] instead of Reflect.get with receiver
+				// because DOM properties can throw "Illegal invocation" when the
+				// receiver is a proxy instead of the actual DOM object
+				const value = target[prop];
 				// Bind functions to the real document
 				if (typeof value === 'function') {
 					return value.bind(target);
@@ -987,7 +999,8 @@ function setupIframesTrap() {
 				return value;
 			},
 			set(target, prop, value) {
-				return Reflect.set(target, prop, value);
+				target[prop] = value;
+				return true;
 			},
 		};
 
@@ -1035,14 +1048,18 @@ function setupIframesTrap() {
 							return docProxy;
 						}
 						// For all other properties, return the real value
-						const value = Reflect.get(target, prop, receiver);
+						// Note: we use target[prop] instead of Reflect.get with receiver
+						// because DOM properties can throw "Illegal invocation" when the
+						// receiver is a proxy instead of the actual DOM object
+						const value = target[prop];
 						if (typeof value === 'function') {
 							return value.bind(target);
 						}
 						return value;
 					},
 					set(target, prop, value) {
-						return Reflect.set(target, prop, value);
+						target[prop] = value;
+						return true;
 					},
 				});
 				contentWindowProxyCache.set(iframe, proxy);

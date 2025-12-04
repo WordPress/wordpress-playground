@@ -1385,3 +1385,185 @@ test('deeply nested iframes (4 levels) are SW-controlled', async ({ page: testPa
 	// At minimum, levels 2, 3, 4 should create controlled iframes there
 	expect(result.controlledIframesInTop).toBeGreaterThanOrEqual(3);
 });
+
+/**
+ * Test that typing works in a TinyMCE-like editor embedded 4 levels deep.
+ * This is a critical real-world test: TinyMCE creates a contenteditable iframe
+ * for its editor, and users need to be able to type in it.
+ *
+ * The test simulates:
+ * Top page -> WP iframe -> Theme iframe -> Editor container -> TinyMCE editor iframe
+ */
+test('typing works in deeply nested TinyMCE-like editor (4 levels)', async ({ page: testPage, baseURL }) => {
+	await setupPage(testPage, baseURL!);
+	test.setTimeout(60000);
+
+	// First, set up the nested iframe structure via page.evaluate
+	const editorReady = await page.evaluate(async () => {
+		// Helper to wait for iframe to be controlled and have content
+		const waitForIframeReady = async (iframe: HTMLIFrameElement, timeout = 10000) => {
+			const start = Date.now();
+			while (Date.now() - start < timeout) {
+				try {
+					const hasController = !!iframe.contentWindow?.navigator?.serviceWorker?.controller;
+					const hasBody = !!iframe.contentDocument?.body;
+					if (hasController && hasBody) {
+						return true;
+					}
+				} catch { }
+				await new Promise(r => setTimeout(r, 100));
+			}
+			return false;
+		};
+
+		// Create Level 1: WordPress-like iframe
+		const level1 = document.createElement('iframe');
+		level1.id = 'wp-iframe';
+		level1.srcdoc = '<!DOCTYPE html><html><head><title>WP</title></head><body id="wp-body"></body></html>';
+		document.body.appendChild(level1);
+		await waitForIframeReady(level1);
+		await new Promise(r => setTimeout(r, 500));
+
+		const l1Doc = level1.contentDocument;
+		if (!l1Doc?.body) return { error: 'Level 1 not ready' };
+
+		// Create Level 2: Theme iframe
+		const level2 = l1Doc.createElement('iframe');
+		level2.id = 'theme-iframe';
+		level2.srcdoc = '<!DOCTYPE html><html><head><title>Theme</title></head><body id="theme-body"></body></html>';
+		l1Doc.body.appendChild(level2);
+		await waitForIframeReady(level2);
+		await new Promise(r => setTimeout(r, 500));
+
+		const l2Doc = level2.contentDocument;
+		if (!l2Doc?.body) return { error: 'Level 2 not ready' };
+
+		// Create Level 3: Editor container iframe
+		const level3 = l2Doc.createElement('iframe');
+		level3.id = 'editor-container-iframe';
+		level3.srcdoc = '<!DOCTYPE html><html><head><title>Editor Container</title></head><body id="editor-container"></body></html>';
+		l2Doc.body.appendChild(level3);
+		await waitForIframeReady(level3);
+		await new Promise(r => setTimeout(r, 500));
+
+		const l3Doc = level3.contentDocument;
+		if (!l3Doc?.body) return { error: 'Level 3 not ready' };
+
+		// Create Level 4: TinyMCE-like editor iframe with contenteditable body
+		const editorIframe = l3Doc.createElement('iframe');
+		editorIframe.id = 'tinymce-editor';
+		editorIframe.style.width = '400px';
+		editorIframe.style.height = '200px';
+		editorIframe.style.border = '1px solid #ccc';
+		editorIframe.srcdoc = `<!DOCTYPE html>
+			<html>
+			<head>
+				<title>TinyMCE Editor</title>
+				<style>
+					body {
+						font-family: Arial, sans-serif;
+						padding: 10px;
+						min-height: 100px;
+					}
+					body:focus {
+						outline: 2px solid blue;
+					}
+				</style>
+			</head>
+			<body id="tinymce" contenteditable="true">
+				<p id="initial-content">Click here to type...</p>
+			</body>
+			</html>`;
+		l3Doc.body.appendChild(editorIframe);
+		await waitForIframeReady(editorIframe);
+		await new Promise(r => setTimeout(r, 1000));
+
+		// Verify the editor is controlled and accessible
+		const editorDoc = editorIframe.contentDocument;
+		const editorBody = editorDoc?.body;
+		if (!editorBody) return { error: 'Editor body not found' };
+
+		const isControlled = !!editorIframe.contentWindow?.navigator?.serviceWorker?.controller;
+		const isContentEditable = editorBody.isContentEditable;
+
+		return {
+			success: true,
+			isControlled,
+			isContentEditable,
+			initialContent: editorBody.textContent?.trim(),
+		};
+	});
+
+	console.log('Editor setup result:', JSON.stringify(editorReady, null, 2));
+	expect(editorReady.error).toBeUndefined();
+	expect(editorReady.success).toBe(true);
+	expect(editorReady.isControlled).toBe(true);
+	expect(editorReady.isContentEditable).toBe(true);
+
+	// Now test typing in the editor using page.evaluate
+	// We need to use evaluate because iframes-trap.js replaces srcdoc iframes with
+	// controlled src iframes, and Playwright's frameLocator can't navigate through
+	// the __controlledIframe references
+	const testText = 'Hello from Playwright! Typed in 4-level nested iframe.';
+	const typingResult = await page.evaluate(async (text) => {
+		// Navigate through the iframe hierarchy to find the editor
+		// iframes-trap.js stores the controlled iframe reference in __controlledIframe
+		const getControlledIframe = (iframe: HTMLIFrameElement): HTMLIFrameElement => {
+			return (iframe as any).__controlledIframe || iframe;
+		};
+
+		const level1 = document.querySelector<HTMLIFrameElement>('#wp-iframe');
+		if (!level1) return { error: 'Level 1 not found' };
+		const l1Controlled = getControlledIframe(level1);
+		const l1Doc = l1Controlled.contentDocument;
+		if (!l1Doc) return { error: 'Level 1 doc not accessible' };
+
+		const level2 = l1Doc.querySelector<HTMLIFrameElement>('#theme-iframe');
+		if (!level2) return { error: 'Level 2 not found' };
+		const l2Controlled = getControlledIframe(level2);
+		const l2Doc = l2Controlled.contentDocument;
+		if (!l2Doc) return { error: 'Level 2 doc not accessible' };
+
+		const level3 = l2Doc.querySelector<HTMLIFrameElement>('#editor-container-iframe');
+		if (!level3) return { error: 'Level 3 not found' };
+		const l3Controlled = getControlledIframe(level3);
+		const l3Doc = l3Controlled.contentDocument;
+		if (!l3Doc) return { error: 'Level 3 doc not accessible' };
+
+		const editorIframe = l3Doc.querySelector<HTMLIFrameElement>('#tinymce-editor');
+		if (!editorIframe) return { error: 'Editor iframe not found' };
+		const editorControlled = getControlledIframe(editorIframe);
+		const editorDoc = editorControlled.contentDocument;
+		if (!editorDoc) return { error: 'Editor doc not accessible' };
+
+		const editorBody = editorDoc.body;
+		if (!editorBody) return { error: 'Editor body not found' };
+		if (!editorBody.isContentEditable) return { error: 'Editor body not contenteditable' };
+
+		// Focus and select all content, then type
+		editorBody.focus();
+		// Select all content
+		const selection = editorDoc.getSelection();
+		const range = editorDoc.createRange();
+		range.selectNodeContents(editorBody);
+		selection?.removeAllRanges();
+		selection?.addRange(range);
+
+		// Delete the selected content and insert new text
+		editorDoc.execCommand('delete');
+		editorDoc.execCommand('insertText', false, text);
+
+		// Return the final content
+		return {
+			success: true,
+			finalContent: editorBody.textContent?.trim(),
+			isControlled: !!editorControlled.contentWindow?.navigator?.serviceWorker?.controller,
+		};
+	}, testText);
+
+	console.log('Typing result:', JSON.stringify(typingResult, null, 2));
+	expect(typingResult.error).toBeUndefined();
+	expect(typingResult.success).toBe(true);
+	expect(typingResult.isControlled).toBe(true);
+	expect(typingResult.finalContent).toContain(testText);
+});
