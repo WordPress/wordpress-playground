@@ -1268,7 +1268,7 @@ test('deeply nested iframes (4 levels) are SW-controlled', async ({ page: testPa
 			return false;
 		};
 
-		// Helper to wait for iframe content to be ready (has body)
+		// Helper to wait for iframe content to be ready (has injected content, not just loader script)
 		// Must check the actual controlled iframe
 		const waitForContent = async (iframe: HTMLIFrameElement, timeout = 15000) => {
 			const start = Date.now();
@@ -1277,8 +1277,19 @@ test('deeply nested iframes (4 levels) are SW-controlled', async ({ page: testPa
 					const controlled = getControlledIframe(iframe);
 					const body = controlled.contentDocument?.body;
 					if (body) {
-						results.debug.push(`waitForContent: found body`);
-						return true;
+						// Wait for the loader script to finish injecting content
+						// The loader injects the cached content via innerHTML, so we need to wait
+						// until the body has the injected content (not just the loader script)
+						const innerHTML = body.innerHTML || '';
+						// The loader script element should be gone after content is injected
+						// or the body should have actual content (not just the loader script)
+						const hasInjectedContent = innerHTML.length > 0 && !innerHTML.includes('searchParams.get');
+						const hasEmptyBody = innerHTML.trim() === '';
+						// Accept either injected content or empty body (for simple srcdocs with empty bodies)
+						if (hasInjectedContent || hasEmptyBody) {
+							results.debug.push(`waitForContent: found body with content (len=${innerHTML.length})`);
+							return true;
+						}
 					}
 				} catch (e) {
 					results.debug.push(`waitForContent error: ${(e as Error).message}`);
