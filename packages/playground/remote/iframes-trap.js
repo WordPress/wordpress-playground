@@ -1079,6 +1079,9 @@ function setupIframesTrap() {
 										base: target.baseURI || iframe.ownerDocument?.baseURI,
 										prettyUrl: iframe.ownerDocument?.location?.href,
 									});
+								} else {
+									// Iframe was already controlled, remove the pending marker
+									iframe.removeAttribute('data-srcdoc-pending');
 								}
 							}, 0);
 						}

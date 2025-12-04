@@ -488,8 +488,8 @@ test('scripts execute inside srcdoc iframe', async ({ page: testPage, baseURL })
  * This establishes that direct iframe creation is working.
  */
 test('direct blank iframe on top page is controlled', async ({ page: testPage, baseURL }) => {
-	await setupPage(testPage, baseURL!);
 	test.setTimeout(15000);
+	await setupPage(testPage, baseURL!);
 
 	const result = await page.evaluate(async () => {
 		// Create a blank iframe directly (not inside another iframe)
