@@ -1277,20 +1277,15 @@ test('deeply nested iframes (4 levels) are SW-controlled', async ({ page: testPa
 					const controlled = getControlledIframe(iframe);
 					const body = controlled.contentDocument?.body;
 					if (body) {
-						// Wait for the loader script to finish injecting content
-						// The loader injects the cached content via innerHTML, so we need to wait
-						// until the body has the injected content (not just the loader script)
-						const innerHTML = body.innerHTML || '';
-						// Check if the loader script is still present (indicates loading in progress)
-						const isLoaderScriptPresent = innerHTML.includes('searchParams.get');
-						// Check for iframes-trap.js marker
+						// Check for iframes-trap.js marker - this is set when the script executes
 						const hasIframesTrap = !!(controlled.contentWindow as any)?.__controlled_iframes_loaded__;
+						// Check for loader completion marker - set by the inline loader script when done
+						const loaderComplete = !!(controlled.contentWindow as any)?.__playground_loader_complete__;
 
-						// Content is ready when:
-						// 1. The loader script is gone AND iframes-trap.js has loaded
-						// 2. OR we have actual content (not the loader script)
-						if (!isLoaderScriptPresent && hasIframesTrap) {
-							results.debug.push(`waitForContent: ready - loader done, trap loaded (len=${innerHTML.length})`);
+						// Content is ready when both iframes-trap.js has loaded AND the loader is complete
+						// The loader script runs after iframes-trap.js and fetches/injects the cached content
+						if (hasIframesTrap && loaderComplete) {
+							results.debug.push(`waitForContent: ready - trap loaded and loader complete`);
 							return true;
 						}
 					}
@@ -1542,14 +1537,13 @@ test('typing works in deeply nested TinyMCE-like editor (4 levels)', async ({ pa
 						const controlled = getControlledIframe(iframe);
 						const hasController = !!controlled.contentWindow?.navigator?.serviceWorker?.controller;
 						const hasBody = !!controlled.contentDocument?.body;
-						// Also check that iframes-trap.js has loaded (content is ready)
+						// Check that iframes-trap.js has loaded
 						const hasIframesTrap = !!(controlled.contentWindow as any)?.__controlled_iframes_loaded__;
 						// Check that loader script is done (content has been injected)
-						const innerHTML = controlled.contentDocument?.body?.innerHTML || '';
-						const isLoaderDone = !innerHTML.includes('searchParams.get');
+						const loaderComplete = !!(controlled.contentWindow as any)?.__playground_loader_complete__;
 
-						if (hasController && hasBody && hasIframesTrap && isLoaderDone) {
-							debug.push(`${name}: ready with controller, body, trap, and content`);
+						if (hasController && hasBody && hasIframesTrap && loaderComplete) {
+							debug.push(`${name}: ready with controller, body, trap, and loader complete`);
 							return true;
 						}
 					}

@@ -339,6 +339,9 @@ const iframeLoaderHtml = `<!doctype html>
   if (url) {
     history.replaceState({}, '', url);
   }
+
+  // Mark loader as complete so waiting code knows content is ready
+  window.__playground_loader_complete__ = true;
 })();
 </script>
 </body>
