@@ -456,7 +456,7 @@ function setupIframesTrap() {
 	 * Listen for iframe creation requests from child frames.
 	 * This handler runs in the ancestor window's realm.
 	 */
-	window.addEventListener('message', (event) => {
+	window.addEventListener('message', async (event) => {
 		if (event.data?.type !== '__playground_create_iframe') {
 			return;
 		}
@@ -502,6 +502,26 @@ function setupIframesTrap() {
 				window.__pg_iframes = {};
 			}
 			window.__pg_iframes[config.id] = iframe;
+
+			// Wait for the iframe to have a service worker controller before responding.
+			// This is critical for Firefox where timing can be different.
+			const waitForController = async (maxWait = 10000) => {
+				const start = Date.now();
+				while (Date.now() - start < maxWait) {
+					try {
+						if (iframe.contentWindow?.navigator?.serviceWorker?.controller) {
+							return true;
+						}
+					} catch {
+						// Cross-origin or not ready
+					}
+					await new Promise(r => setTimeout(r, 50));
+				}
+				return false;
+			};
+
+			// Wait for controller, but don't block indefinitely
+			await waitForController();
 
 			port.postMessage({ success: true, iframeId: config.id });
 		} catch (error) {
