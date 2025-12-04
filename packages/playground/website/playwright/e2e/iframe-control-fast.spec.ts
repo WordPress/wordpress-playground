@@ -1530,22 +1530,31 @@ test('typing works in deeply nested TinyMCE-like editor (4 levels)', async ({ pa
 		// Helper to wait for iframe to be controlled and have content
 		const waitForIframeReady = async (iframe: HTMLIFrameElement, name: string, timeout = 15000) => {
 			const start = Date.now();
+			let lastState = '';
 			while (Date.now() - start < timeout) {
 				try {
+					const controlled = getControlledIframe(iframe);
 					const dataControlled = iframe.getAttribute('data-controlled');
-					if (dataControlled === '1') {
-						const controlled = getControlledIframe(iframe);
-						const hasController = !!controlled.contentWindow?.navigator?.serviceWorker?.controller;
-						const hasBody = !!controlled.contentDocument?.body;
-						// Check that iframes-trap.js has loaded
-						const hasIframesTrap = !!(controlled.contentWindow as any)?.__controlled_iframes_loaded__;
-						// Check that loader script is done (content has been injected)
-						const loaderComplete = !!(controlled.contentWindow as any)?.__playground_loader_complete__;
+					const hasControlledRef = controlled !== iframe;
+					const hasController = !!controlled.contentWindow?.navigator?.serviceWorker?.controller;
+					const hasBody = !!controlled.contentDocument?.body;
+					const hasIframesTrap = !!(controlled.contentWindow as any)?.__controlled_iframes_loaded__;
 
-						if (hasController && hasBody && hasIframesTrap && loaderComplete) {
-							debug.push(`${name}: ready with controller, body, trap, and loader complete`);
-							return true;
-						}
+					const state = `dc=${dataControlled},ref=${hasControlledRef},sw=${hasController},body=${hasBody},trap=${hasIframesTrap}`;
+					if (state !== lastState) {
+						debug.push(`${name}: ${state}`);
+						lastState = state;
+					}
+
+					// Ready when we have:
+					// 1. SW controller (iframe is controlled)
+					// 2. Body exists (can access content)
+					// 3. iframes-trap.js loaded (can create nested iframes)
+					// Note: We don't require loaderComplete here because the typing test
+					// just needs to be able to create nested iframes, not wait for content injection
+					if (hasController && hasBody && hasIframesTrap) {
+						debug.push(`${name}: ready!`);
+						return true;
 					}
 				} catch (e) {
 					debug.push(`${name}: error - ${(e as Error).message}`);
