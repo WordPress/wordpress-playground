@@ -50,6 +50,8 @@ testem.log
 /.env
 packages/playground/website/cypress/downloads
 vite.config.ts.timestamp-*.mjs
+*.orig
+*.rej
 
 # System Files
 .DS_Store
