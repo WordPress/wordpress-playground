@@ -615,15 +615,20 @@ function setupIframesTrap() {
 		// not have the listener (e.g., remote.html before the service worker injects it).
 		let firstCapable = null;
 		let fallback = null;
+		let depth = 0;
 		try {
 			let current = window;
 			while (current.parent && current.parent !== current) {
+				depth++;
 				try {
 					// Check if parent is accessible (same-origin)
 					const parentDoc = current.parent.document;
 					if (parentDoc) {
 						const hasIframesTrap = current.parent.__controlled_iframes_loaded__ === true;
 						const hasSW = !!current.parent.navigator?.serviceWorker?.controller;
+						const parentLocation = current.parent.location?.href?.substring(0, 80) || 'unknown';
+
+						console.log(`[iframes-trap] findCapableAncestor depth=${depth}: hasIframesTrap=${hasIframesTrap}, hasSW=${hasSW}, loc=${parentLocation}`);
 
 						// Prefer ancestors with the iframes-trap message listener
 						if (hasIframesTrap && !firstCapable) {
@@ -634,15 +639,19 @@ function setupIframesTrap() {
 							fallback = current.parent;
 						}
 					}
-				} catch {
+				} catch (e) {
 					// Cross-origin, can't use this parent
+					console.log(`[iframes-trap] findCapableAncestor depth=${depth}: cross-origin error: ${e.message}`);
 					break;
 				}
 				current = current.parent;
 			}
-			return firstCapable || fallback;
-		} catch {
+			const result = firstCapable || fallback;
+			console.log(`[iframes-trap] findCapableAncestor result: ${result ? 'found' : 'null'}`);
+			return result;
+		} catch (e) {
 			// Ignore errors traversing frame hierarchy
+			console.log(`[iframes-trap] findCapableAncestor error: ${e.message}`);
 		}
 		return null;
 	}
