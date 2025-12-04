@@ -1507,6 +1507,136 @@ test('deeply nested iframes (4 levels) are SW-controlled', async ({ page: testPa
 });
 
 /**
+ * Test that contenteditable set via JavaScript AFTER document.close() is preserved.
+ * This simulates TinyMCE's initialization pattern where:
+ * 1. iframe.contentDocument.write(html)
+ * 2. iframe.contentDocument.close()
+ * 3. iframe.contentDocument.body.contentEditable = 'true'  <-- happens AFTER close()
+ *
+ * Our iframe trap must wait for this JS to run before capturing the DOM state.
+ */
+test('document.write iframe with JS-applied contenteditable', async ({ page: testPage, baseURL }) => {
+	await setupPage(testPage, baseURL!);
+	test.setTimeout(30000);
+
+	const result = await page.evaluate(async () => {
+		const debug: string[] = [];
+
+		// Verify iframes-trap is loaded
+		debug.push('trap loaded: ' + !!window.__controlled_iframes_loaded__);
+		debug.push('parent SW controller: ' + !!navigator.serviceWorker?.controller);
+		debug.push('parent location: ' + location.href);
+
+		// Create iframe
+		const iframe = document.createElement('iframe');
+		document.body.appendChild(iframe);
+		debug.push('After createElement+appendChild');
+
+		// Simulate TinyMCE pattern: write, close, then set contentEditable
+		const doc = iframe.contentWindow!.document;
+		doc.open();
+		doc.write('<html><head><title>TinyMCE Editor</title></head><body><p>Editor content</p></body></html>');
+		doc.close();
+
+		debug.push('After document.close()');
+		debug.push('body exists: ' + !!doc.body);
+		debug.push('body.isContentEditable before: ' + doc.body?.isContentEditable);
+
+		// This is what TinyMCE does AFTER document.close()
+		doc.body.contentEditable = 'true';
+
+		debug.push('body.isContentEditable after JS: ' + doc.body?.isContentEditable);
+		debug.push('body.getAttribute("contenteditable"): ' + doc.body?.getAttribute('contenteditable'));
+
+		// Check iframe location BEFORE trap processes
+		try {
+			debug.push('iframe location BEFORE processing: ' + iframe.contentWindow?.location?.href);
+		} catch {
+			debug.push('iframe location BEFORE processing: [cross-origin]');
+		}
+
+		// Wait for the iframes-trap.js to process (it uses double setTimeout)
+		// and the loader to inject content
+		// The double setTimeout in iframes-trap.js takes ~2-3ms but then
+		// rewriteSrcdoc is async and involves caching + navigation
+		// We need to wait for both the navigation and for the SW controller to attach
+		const waitForControlled = async (maxWait = 10000) => {
+			const start = Date.now();
+			while (Date.now() - start < maxWait) {
+				// Check for SW controller on the iframe
+				try {
+					const sw = iframe.contentWindow?.navigator?.serviceWorker;
+					if (sw?.controller) {
+						debug.push('SW controller attached');
+						return true;
+					}
+				} catch (e) {
+					debug.push('SW check error: ' + (e as Error).message);
+				}
+				await new Promise(r => setTimeout(r, 100));
+			}
+			debug.push('Timed out waiting for SW controller');
+			return false;
+		};
+		await waitForControlled();
+
+		// Now check if the controlled iframe has contenteditable
+		const hasControlledRef = !!(iframe as any).__controlledIframe;
+		debug.push('Has __controlledIframe ref: ' + hasControlledRef);
+		debug.push('iframe.src: ' + iframe.src);
+		debug.push('iframe.getAttribute("data-controlled"): ' + iframe.getAttribute('data-controlled'));
+		debug.push('iframe.getAttribute("data-srcdoc-pending"): ' + iframe.getAttribute('data-srcdoc-pending'));
+
+		let finalContentEditable = false;
+		let bodyHtml = '';
+		let hasController = false;
+		let iframeLocation = '';
+
+		if (hasControlledRef) {
+			const controlledIframe = (iframe as any).__controlledIframe as HTMLIFrameElement;
+			const controlledDoc = controlledIframe.contentDocument;
+			const controlledBody = controlledDoc?.body;
+			finalContentEditable = controlledBody?.isContentEditable || false;
+			bodyHtml = controlledBody?.outerHTML?.substring(0, 300) || '';
+			hasController = !!controlledIframe.contentWindow?.navigator?.serviceWorker?.controller;
+			try { iframeLocation = controlledIframe.contentWindow?.location?.href || 'no-access'; } catch { iframeLocation = 'cross-origin'; }
+			debug.push('Controlled body.isContentEditable: ' + finalContentEditable);
+			debug.push('Controlled body HTML: ' + bodyHtml);
+			debug.push('Controlled location: ' + iframeLocation);
+		} else {
+			// Maybe it's the same iframe (top-level context) - navigated directly
+			const currentDoc = iframe.contentDocument;
+			const currentBody = currentDoc?.body;
+			finalContentEditable = currentBody?.isContentEditable || false;
+			bodyHtml = currentBody?.outerHTML?.substring(0, 300) || '';
+			hasController = !!iframe.contentWindow?.navigator?.serviceWorker?.controller;
+			try { iframeLocation = iframe.contentWindow?.location?.href || 'no-access'; } catch { iframeLocation = 'cross-origin'; }
+			debug.push('Same-iframe body.isContentEditable: ' + finalContentEditable);
+			debug.push('Same-iframe body HTML: ' + bodyHtml);
+			debug.push('Same-iframe location: ' + iframeLocation);
+			debug.push('Same-iframe full HTML: ' + (currentDoc?.documentElement?.outerHTML?.substring(0, 500) || 'no-access'));
+		}
+
+		return {
+			debug,
+			hasControlledRef,
+			finalContentEditable,
+			bodyHtml,
+			hasController,
+		};
+	});
+
+	console.log('Debug output:', result.debug);
+	console.log('Final contentEditable:', result.finalContentEditable);
+	console.log('Has SW controller:', result.hasController);
+	console.log('Body HTML:', result.bodyHtml);
+
+	// Verify the content is editable AND the iframe is SW-controlled
+	expect(result.hasController).toBe(true);
+	expect(result.finalContentEditable).toBe(true);
+});
+
+/**
  * Test that typing works in a TinyMCE-like editor embedded 4 levels deep.
  * This is a critical real-world test: TinyMCE creates a contenteditable iframe
  * for its editor, and users need to be able to type in it.

@@ -208,7 +208,34 @@ function setupIframesTrap() {
 			iframe.removeAttribute('data-controlled-by');
 		}
 
+		// For document.write iframes, we need to force a full navigation.
+		// After document.write(), the iframe's location may already be the same base URL
+		// as the loader (inheriting from parent). If we try to navigate to a URL that
+		// differs only in hash, browsers treat it as a same-document navigation without
+		// loading a new document.
+		//
+		// Solution: Remove and re-add the iframe element with the new src.
+		// This forces a complete reload.
+		const parent = iframe.parentNode;
+		const nextSibling = iframe.nextSibling;
+
+		// Temporarily remove from DOM
+		if (parent) {
+			parent.removeChild(iframe);
+		}
+
+		// Set src using native setter (this sets the attribute for when it's re-added)
 		setIframeSrc(iframe, url);
+
+		// Re-add to DOM - this triggers a fresh navigation
+		if (parent) {
+			if (nextSibling) {
+				parent.insertBefore(iframe, nextSibling);
+			} else {
+				parent.appendChild(iframe);
+			}
+		}
+
 		iframe.setAttribute('data-controlled', '1');
 		iframe.removeAttribute('data-srcdoc-pending');
 	}
@@ -1067,22 +1094,38 @@ function setupIframesTrap() {
 						const result = target.close.apply(target, arguments);
 						if (!isClosed && writeBuffer.length > 0) {
 							isClosed = true;
-							const html = writeBuffer.join('');
 							// Mark as srcdoc-pending IMMEDIATELY so scheduleIframeControl knows to bail.
 							// This must happen before the setTimeout to prevent race conditions where
 							// scheduleIframeControl creates a controlled iframe before we do.
 							iframe.setAttribute('data-srcdoc-pending', '1');
-							// Use setTimeout to let the document settle before redirecting
-							setTimeout(async () => {
-								if (iframe.getAttribute('data-controlled') !== '1') {
-									await rewriteSrcdoc(iframe, html, {
-										base: target.baseURI || iframe.ownerDocument?.baseURI,
-										prettyUrl: iframe.ownerDocument?.location?.href,
-									});
-								} else {
-									// Iframe was already controlled, remove the pending marker
-									iframe.removeAttribute('data-srcdoc-pending');
-								}
+							// IMPORTANT: We use TWO nested setTimeout(0) calls to ensure that any
+							// synchronous JavaScript that runs AFTER document.close() has a chance
+							// to execute before we capture the DOM state. This is critical for
+							// TinyMCE and similar editors that set contentEditable after close():
+							//
+							//   iframe.contentDocument.write(html);
+							//   iframe.contentDocument.close();
+							//   iframe.contentDocument.body.contentEditable = 'true';  // <-- runs AFTER close()
+							//
+							// A single setTimeout(0) might not be enough because it could fire
+							// during the same microtask queue flush. Two setTimeout(0)s ensure
+							// we wait for the next macrotask.
+							setTimeout(() => {
+								setTimeout(async () => {
+									if (iframe.getAttribute('data-controlled') !== '1') {
+										// Serialize the CURRENT DOM state, not the original writeBuffer.
+										// This captures any JS-applied changes like contentEditable, styles,
+										// event handlers (as attributes), etc.
+										const currentHtml = target.documentElement?.outerHTML || writeBuffer.join('');
+										await rewriteSrcdoc(iframe, currentHtml, {
+											base: target.baseURI || iframe.ownerDocument?.baseURI,
+											prettyUrl: iframe.ownerDocument?.location?.href,
+										});
+									} else {
+										// Iframe was already controlled, remove the pending marker
+										iframe.removeAttribute('data-srcdoc-pending');
+									}
+								}, 0);
 							}, 0);
 						}
 						return result;
