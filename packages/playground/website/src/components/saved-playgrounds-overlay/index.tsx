@@ -429,8 +429,9 @@ export function SavedPlaygroundsOverlay({
 								type="text"
 								value={searchQuery}
 								onChange={(e) => setSearchQuery(e.target.value)}
-								placeholder="Search blueprints"
+								placeholder="Search Blueprints"
 								className={css.searchField}
+								autoFocus
 							/>
 						</div>
 					</div>
@@ -711,11 +712,38 @@ export function SavedPlaygroundsOverlay({
 														<WordPressIcon />
 													)}
 												</div>
-												<span
-													className={css.siteRowName}
+												<div
+													className={css.siteRowInfo}
 												>
-													{site.metadata.name}
-												</span>
+													<span
+														className={
+															css.siteRowName
+														}
+													>
+														{site.metadata.name}
+													</span>
+													{site.metadata
+														.whenCreated && (
+														<span
+															className={
+																css.siteRowDate
+															}
+														>
+															Created{' '}
+															{new Date(
+																site.metadata
+																	.whenCreated
+															).toLocaleDateString(
+																undefined,
+																{
+																	year: 'numeric',
+																	month: 'short',
+																	day: 'numeric',
+																}
+															)}
+														</span>
+													)}
+												</div>
 											</button>
 											<DropdownMenu
 												icon={moreVertical}

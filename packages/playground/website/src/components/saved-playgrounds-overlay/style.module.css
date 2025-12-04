@@ -44,7 +44,7 @@
 }
 
 .headerTitle {
-	font-size: 18px;
+	font-size: clamp(18px, 2vw, 22px);
 	font-weight: 600;
 	color: #fff !important;
 	margin: 0;
@@ -67,7 +67,7 @@
 }
 
 .logoText {
-	font-size: 18px;
+	font-size: clamp(18px, 2vw, 22px);
 	font-weight: 600;
 	color: #fff;
 }
@@ -115,7 +115,7 @@
 	border: none;
 	padding: 12px 16px 12px 0;
 	color: #fff;
-	font-size: 14px;
+	font-size: clamp(15px, 1.5vw, 16px);
 	outline: none;
 }
 
@@ -138,12 +138,12 @@
 }
 
 .tagButton {
-	padding: 5px 12px;
+	padding: 6px 14px;
 	background: #2c3338;
 	border: 1px solid #3c4349;
 	border-radius: 16px;
 	color: #9ca3af;
-	font-size: 13px;
+	font-size: clamp(14px, 1.4vw, 15px);
 	cursor: pointer;
 	transition: all 0.15s ease;
 }
@@ -186,7 +186,7 @@
 
 .sectionTitle {
 	margin: 0 0 16px 0 !important;
-	font-size: 18px !important;
+	font-size: clamp(18px, 2vw, 22px) !important;
 	font-weight: 600 !important;
 	color: #fff !important;
 }
@@ -195,7 +195,7 @@
 	background: none;
 	border: none;
 	color: #3858e9;
-	font-size: 14px;
+	font-size: clamp(14px, 1.4vw, 15px);
 	font-weight: 500;
 	cursor: pointer;
 	padding: 0;
@@ -207,7 +207,7 @@
 
 .emptyMessage {
 	color: #6b7280;
-	font-size: 14px;
+	font-size: clamp(14px, 1.4vw, 15px);
 	margin: 0;
 	padding: 32px;
 	text-align: center;
@@ -265,7 +265,7 @@
 }
 
 .creationTitle {
-	font-size: 13px;
+	font-size: clamp(13px, 1.3vw, 14px);
 	font-weight: 500;
 	color: #fff;
 	text-align: center;
@@ -317,7 +317,7 @@
 }
 
 .blueprintPreviewTitle {
-	font-size: 13px;
+	font-size: clamp(13px, 1.3vw, 14px);
 	color: #e5e6e6;
 	text-align: center;
 	width: 100%;
@@ -419,10 +419,21 @@
 	height: 24px;
 }
 
+.siteRowInfo {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
 .siteRowName {
-	font-size: 14px;
+	font-size: clamp(14px, 1.4vw, 15px);
 	font-weight: 500;
 	color: #fff;
+}
+
+.siteRowDate {
+	font-size: clamp(12px, 1.2vw, 13px);
+	color: #6b7280;
 }
 
 .siteRowMenu {
@@ -504,7 +515,7 @@
 }
 
 .blueprintTitle {
-	font-size: 14px;
+	font-size: clamp(14px, 1.4vw, 15px);
 	font-weight: 600;
 	color: #fff !important;
 	margin: 0;
@@ -514,7 +525,7 @@
 }
 
 .blueprintDescription {
-	font-size: 13px;
+	font-size: clamp(13px, 1.3vw, 14px);
 	color: #9ca3af !important;
 	margin: 0;
 	display: -webkit-box;
@@ -527,7 +538,7 @@
 }
 
 .blueprintMeta {
-	font-size: 12px;
+	font-size: clamp(12px, 1.2vw, 13px);
 	color: #6b7280 !important;
 	margin: 0;
 	margin-top: 4px;
@@ -541,10 +552,10 @@
 }
 
 .blueprintTag {
-	font-size: 11px;
-	padding: 2px 8px;
+	font-size: clamp(12px, 1.2vw, 13px);
+	padding: 4px 12px;
 	background: #3c4349;
-	border-radius: 10px;
+	border-radius: 12px;
 	color: #9ca3af;
 }
 
@@ -599,10 +610,6 @@
 		padding: 12px 8px;
 	}
 
-	.creationTitle {
-		font-size: 11px;
-	}
-
 	.blueprintsRow {
 		flex-wrap: wrap;
 	}
@@ -620,10 +627,6 @@
 	.blueprintPreviewThumbnail {
 		aspect-ratio: 4 / 3;
 		height: auto;
-	}
-
-	.blueprintPreviewTitle {
-		font-size: 11px;
 	}
 
 	.blueprintsFullGrid {
