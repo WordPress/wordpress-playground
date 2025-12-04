@@ -1542,8 +1542,14 @@ test('typing works in deeply nested TinyMCE-like editor (4 levels)', async ({ pa
 						const controlled = getControlledIframe(iframe);
 						const hasController = !!controlled.contentWindow?.navigator?.serviceWorker?.controller;
 						const hasBody = !!controlled.contentDocument?.body;
-						if (hasController && hasBody) {
-							debug.push(`${name}: ready with controller and body`);
+						// Also check that iframes-trap.js has loaded (content is ready)
+						const hasIframesTrap = !!(controlled.contentWindow as any)?.__controlled_iframes_loaded__;
+						// Check that loader script is done (content has been injected)
+						const innerHTML = controlled.contentDocument?.body?.innerHTML || '';
+						const isLoaderDone = !innerHTML.includes('searchParams.get');
+
+						if (hasController && hasBody && hasIframesTrap && isLoaderDone) {
+							debug.push(`${name}: ready with controller, body, trap, and content`);
 							return true;
 						}
 					}
