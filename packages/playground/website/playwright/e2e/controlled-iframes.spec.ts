@@ -10,10 +10,19 @@ test('TinyMCE editor iframe is SW-controlled and can load images', async ({
 	website,
 }) => {
 	// Navigate to WordPress with the classic editor (use URL that enables it)
-	await website.goto(
-		'./#{"preferredVersions":{"php":"8.0","wp":"latest"},"features":{"networking":true},"steps":[{"step":"login","username":"admin","password":"password"},{"step":"installPlugin","pluginData":{"resource":"wordpress.org/plugins","slug":"classic-editor"},"options":{"activate":true}}]}'
-	);
-	await website.waitForNestedIframes();
+	const blueprint = {
+		preferredVersions: { php: '8.0', wp: 'latest' },
+		features: { networking: true },
+		steps: [
+			{ step: 'login', username: 'admin', password: 'password' },
+			{
+				step: 'installPlugin',
+				pluginData: { resource: 'wordpress.org/plugins', slug: 'classic-editor' },
+				options: { activate: true },
+			},
+		],
+	};
+	await website.goto(`/#${JSON.stringify(blueprint)}`);
 
 	// Navigate to create a new post (classic editor) using a frame locator
 	const wpFrame = website.wordpress();
