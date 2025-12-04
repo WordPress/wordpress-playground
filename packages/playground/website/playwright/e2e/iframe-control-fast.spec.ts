@@ -1226,13 +1226,24 @@ test('deeply nested iframes (4 levels) are SW-controlled', async ({ page: testPa
 	test.setTimeout(45000);
 
 	const result = await page.evaluate(async () => {
+		// Helper to get the actual controlled iframe (handles __controlledIframe reference)
+		const getControlledIframe = (iframe: HTMLIFrameElement): HTMLIFrameElement => {
+			return (iframe as any).__controlledIframe || iframe;
+		};
+
 		// Helper to wait for iframe to be controlled
+		// Must check the actual controlled iframe (which may be in an ancestor document)
 		const waitForControlled = async (iframe: HTMLIFrameElement, timeout = 8000) => {
 			const start = Date.now();
 			while (Date.now() - start < timeout) {
 				try {
-					if (iframe.contentWindow?.navigator?.serviceWorker?.controller) {
-						return true;
+					// First check if data-controlled is set
+					if (iframe.getAttribute('data-controlled') === '1') {
+						// Get the actual controlled iframe
+						const controlled = getControlledIframe(iframe);
+						if (controlled.contentWindow?.navigator?.serviceWorker?.controller) {
+							return true;
+						}
 					}
 				} catch { }
 				await new Promise(r => setTimeout(r, 100));
@@ -1241,11 +1252,13 @@ test('deeply nested iframes (4 levels) are SW-controlled', async ({ page: testPa
 		};
 
 		// Helper to wait for iframe content to be ready (has body)
+		// Must check the actual controlled iframe
 		const waitForContent = async (iframe: HTMLIFrameElement, timeout = 8000) => {
 			const start = Date.now();
 			while (Date.now() - start < timeout) {
 				try {
-					if (iframe.contentDocument?.body) {
+					const controlled = getControlledIframe(iframe);
+					if (controlled.contentDocument?.body) {
 						return true;
 					}
 				} catch { }
@@ -1271,84 +1284,160 @@ test('deeply nested iframes (4 levels) are SW-controlled', async ({ page: testPa
 			return iframe;
 		};
 
+		// Check ancestor hierarchy for debugging
+		const checkAncestors = () => {
+			const ancestors: any[] = [];
+			try {
+				let current = window;
+				let depth = 0;
+				while (depth < 10) {
+					ancestors.push({
+						depth,
+						isSelf: current === window,
+						hasIframesTrap: !!(current as any).__controlled_iframes_loaded__,
+						hasSW: !!current.navigator?.serviceWorker?.controller,
+						location: current.location?.href?.substring(0, 100) || 'no-access',
+					});
+					if (!current.parent || current.parent === current) break;
+					current = current.parent;
+					depth++;
+				}
+			} catch (e) {
+				ancestors.push({ error: (e as Error).message });
+			}
+			return ancestors;
+		};
+
 		const results: any = {
 			topControlled: !!navigator.serviceWorker?.controller,
+			topHasIframesTrap: !!(window as any).__controlled_iframes_loaded__,
+			ancestors: checkAncestors(),
 			levels: [],
 			controlledIframesInTop: 0,
+			debug: [],
+		};
+
+		// Helper to add level data with extra debug info
+		const addLevelData = (level: number, iframe: HTMLIFrameElement, extraData: any = {}) => {
+			try {
+				// Get both the original and controlled iframe info
+				const controlledRef = getControlledIframe(iframe);
+				const isUsingControlled = controlledRef !== iframe;
+
+				// Get info from the controlled iframe (which is what we actually use)
+				let controlledSWController = false;
+				let controlledLocation = '';
+				let controlledHasIframesTrap = false;
+				try {
+					controlledSWController = !!controlledRef.contentWindow?.navigator?.serviceWorker?.controller;
+					controlledLocation = controlledRef.contentWindow?.location?.href || 'no-access';
+					controlledHasIframesTrap = !!(controlledRef.contentWindow as any)?.__controlled_iframes_loaded__;
+				} catch (e) {
+					controlledLocation = `error: ${(e as Error).message}`;
+				}
+
+				// Also try direct access to see if there's a difference
+				let directLocation = '';
+				try {
+					const nativeContentWindow = Object.getOwnPropertyDescriptor(
+						HTMLIFrameElement.prototype, 'contentWindow'
+					)?.get?.call(iframe);
+					directLocation = nativeContentWindow?.location?.href || 'no-native-access';
+				} catch (e) {
+					directLocation = `native-error: ${(e as Error).message}`;
+				}
+
+				const dataControlled = iframe.getAttribute('data-controlled');
+				const dataControlledBy = iframe.getAttribute('data-controlled-by');
+				const hasControlledIframe = !!(iframe as any).__controlledIframe;
+
+				results.levels.push({
+					level,
+					controlled: controlledSWController,
+					location: controlledLocation,
+					hasId: controlledLocation.includes('id='),
+					hasIframesTrap: controlledHasIframesTrap,
+					dataControlled,
+					dataControlledBy,
+					hasControlledIframe,
+					isUsingControlled,
+					directLocation,
+					...extraData,
+				});
+			} catch (e) {
+				results.debug.push(`Level ${level} data collection error: ${(e as Error).message}`);
+			}
 		};
 
 		try {
 			// Level 1: Create in top document
+			results.debug.push('Creating level 1...');
 			const level1 = await createNestedIframe(
 				document,
 				'level1',
 				'<!DOCTYPE html><html><head><title>Level 1</title></head><body><p>Level 1 content</p></body></html>'
 			);
-
-			const l1Controlled = !!level1.contentWindow?.navigator?.serviceWorker?.controller;
-			const l1Location = level1.contentWindow?.location?.href || '';
-			results.levels.push({
-				level: 1,
-				controlled: l1Controlled,
-				location: l1Location,
-				hasId: l1Location.includes('id='),
-			});
+			results.debug.push('Level 1 created');
+			addLevelData(1, level1);
 
 			// Level 2: Create inside Level 1
-			const l1Doc = level1.contentDocument!;
+			results.debug.push('Getting level 1 contentDocument...');
+			const l1Doc = level1.contentDocument;
+			if (!l1Doc) {
+				results.debug.push('Level 1 contentDocument is null');
+				throw new Error('Level 1 contentDocument is null');
+			}
+			results.debug.push(`Level 1 contentDocument ready, body: ${!!l1Doc.body}`);
+
+			results.debug.push('Creating level 2...');
 			const level2 = await createNestedIframe(
 				l1Doc,
 				'level2',
 				'<!DOCTYPE html><html><head><title>Level 2</title></head><body><p>Level 2 content</p></body></html>'
 			);
-
-			const l2Controlled = !!level2.contentWindow?.navigator?.serviceWorker?.controller;
-			const l2Location = level2.contentWindow?.location?.href || '';
-			results.levels.push({
-				level: 2,
-				controlled: l2Controlled,
-				location: l2Location,
-				hasId: l2Location.includes('id='),
-			});
+			results.debug.push('Level 2 created');
+			addLevelData(2, level2);
 
 			// Level 3: Create inside Level 2
-			const l2Doc = level2.contentDocument!;
+			results.debug.push('Getting level 2 contentDocument...');
+			const l2Doc = level2.contentDocument;
+			if (!l2Doc) {
+				results.debug.push('Level 2 contentDocument is null');
+				throw new Error('Level 2 contentDocument is null');
+			}
+			results.debug.push(`Level 2 contentDocument ready, body: ${!!l2Doc.body}`);
+
+			results.debug.push('Creating level 3...');
 			const level3 = await createNestedIframe(
 				l2Doc,
 				'level3',
 				'<!DOCTYPE html><html><head><title>Level 3</title></head><body><p>Level 3 content</p></body></html>'
 			);
-
-			const l3Controlled = !!level3.contentWindow?.navigator?.serviceWorker?.controller;
-			const l3Location = level3.contentWindow?.location?.href || '';
-			results.levels.push({
-				level: 3,
-				controlled: l3Controlled,
-				location: l3Location,
-				hasId: l3Location.includes('id='),
-			});
+			results.debug.push('Level 3 created');
+			addLevelData(3, level3);
 
 			// Level 4 (Editor): Create inside Level 3
-			const l3Doc = level3.contentDocument!;
+			results.debug.push('Getting level 3 contentDocument...');
+			const l3Doc = level3.contentDocument;
+			if (!l3Doc) {
+				results.debug.push('Level 3 contentDocument is null');
+				throw new Error('Level 3 contentDocument is null');
+			}
+			results.debug.push(`Level 3 contentDocument ready, body: ${!!l3Doc.body}`);
+
+			results.debug.push('Creating level 4 (editor)...');
 			const editor = await createNestedIframe(
 				l3Doc,
 				'editor',
 				'<!DOCTYPE html><html><head><title>Editor</title></head><body><p id="content">Deep editor content</p></body></html>'
 			);
-
-			const editorControlled = !!editor.contentWindow?.navigator?.serviceWorker?.controller;
-			const editorLocation = editor.contentWindow?.location?.href || '';
+			results.debug.push('Level 4 (editor) created');
 			const editorContent = editor.contentDocument?.body?.innerHTML?.slice(0, 200) || 'no access';
-			results.levels.push({
-				level: 4,
-				controlled: editorControlled,
-				location: editorLocation,
-				hasId: editorLocation.includes('id='),
-				content: editorContent,
-			});
+			addLevelData(4, editor, { content: editorContent });
 
 		} catch (e) {
 			results.error = (e as Error).message;
+			results.debug.push(`Error: ${(e as Error).message}`);
 		}
 
 		// Count controlled iframes in top document (they should all be hosted here)
