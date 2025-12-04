@@ -1281,13 +1281,16 @@ test('deeply nested iframes (4 levels) are SW-controlled', async ({ page: testPa
 						// The loader injects the cached content via innerHTML, so we need to wait
 						// until the body has the injected content (not just the loader script)
 						const innerHTML = body.innerHTML || '';
-						// The loader script element should be gone after content is injected
-						// or the body should have actual content (not just the loader script)
-						const hasInjectedContent = innerHTML.length > 0 && !innerHTML.includes('searchParams.get');
-						const hasEmptyBody = innerHTML.trim() === '';
-						// Accept either injected content or empty body (for simple srcdocs with empty bodies)
-						if (hasInjectedContent || hasEmptyBody) {
-							results.debug.push(`waitForContent: found body with content (len=${innerHTML.length})`);
+						// Check if the loader script is still present (indicates loading in progress)
+						const isLoaderScriptPresent = innerHTML.includes('searchParams.get');
+						// Check for iframes-trap.js marker
+						const hasIframesTrap = !!(controlled.contentWindow as any)?.__controlled_iframes_loaded__;
+
+						// Content is ready when:
+						// 1. The loader script is gone AND iframes-trap.js has loaded
+						// 2. OR we have actual content (not the loader script)
+						if (!isLoaderScriptPresent && hasIframesTrap) {
+							results.debug.push(`waitForContent: ready - loader done, trap loaded (len=${innerHTML.length})`);
 							return true;
 						}
 					}
