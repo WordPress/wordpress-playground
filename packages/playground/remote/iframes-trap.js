@@ -195,7 +195,19 @@ function setupIframesTrap() {
 			}
 		}
 
-		// In top-level context or no capable ancestor, set src directly
+		// In top-level context or no capable ancestor, set src directly.
+		// If there was a previous controlled iframe (from before document.write),
+		// remove it since we're replacing the content.
+		if (iframe.__controlledIframe) {
+			try {
+				iframe.__controlledIframe.remove();
+			} catch {
+				// Ignore removal errors
+			}
+			iframe.__controlledIframe = null;
+			iframe.removeAttribute('data-controlled-by');
+		}
+
 		setIframeSrc(iframe, url);
 		iframe.setAttribute('data-controlled', '1');
 		iframe.removeAttribute('data-srcdoc-pending');
@@ -210,6 +222,20 @@ function setupIframesTrap() {
 	 * Firefox's cross-realm restrictions.
 	 */
 	function scheduleSrcdocControl(iframe, loaderUrl) {
+		// If this iframe was already controlled (e.g., by controlIframeOnMutation for blank iframe
+		// before document.write() was called), we need to remove the old controlled iframe
+		// because the content has changed.
+		if (iframe.__controlledIframe) {
+			try {
+				iframe.__controlledIframe.remove();
+			} catch {
+				// Ignore removal errors
+			}
+			iframe.__controlledIframe = null;
+			iframe.removeAttribute('data-controlled');
+			iframe.removeAttribute('data-controlled-by');
+		}
+
 		// Mark as pending control
 		iframe.setAttribute('data-control-pending', '1');
 
@@ -220,13 +246,40 @@ function setupIframesTrap() {
 				return;
 			}
 
-			// Only proceed if not already controlled
-			if (iframe.getAttribute('data-controlled') === '1') {
-				iframe.removeAttribute('data-control-pending');
-				return;
-			}
-
 			const capableAncestor = findCapableAncestor();
+
+			// Clean up any existing controlled iframe before creating a new one
+			// This handles the case where scheduleIframeControl already created one
+			// before document.write() was called.
+			const existingControlledId = iframe.getAttribute('data-controlled-by');
+			if (existingControlledId || iframe.__controlledIframe) {
+				// Remove via reference
+				if (iframe.__controlledIframe) {
+					try {
+						iframe.__controlledIframe.remove();
+					} catch {
+						// Ignore
+					}
+					iframe.__controlledIframe = null;
+				}
+				// Also try to find and remove by ID in the capable ancestor (where it was likely created)
+				if (existingControlledId && capableAncestor) {
+					try {
+						const existing = capableAncestor.document.getElementById(existingControlledId);
+						if (existing) {
+							existing.remove();
+							// Also clean up from __pg_iframes registry
+							if (capableAncestor.__pg_iframes?.[existingControlledId]) {
+								delete capableAncestor.__pg_iframes[existingControlledId];
+							}
+						}
+					} catch {
+						// Cross-origin or not found
+					}
+				}
+				iframe.removeAttribute('data-controlled');
+				iframe.removeAttribute('data-controlled-by');
+			}
 			if (!capableAncestor) {
 				// No capable ancestor, try direct assignment (may not work)
 				setIframeSrc(iframe, loaderUrl);
@@ -245,7 +298,7 @@ function setupIframesTrap() {
 			// Collect attributes to copy (except src/srcdoc/control markers)
 			const attributes = {};
 			for (const attr of iframe.attributes) {
-				if (attr.name !== 'src' && attr.name !== 'srcdoc' && attr.name !== 'data-control-pending' && attr.name !== 'data-controlled' && attr.name !== 'id') {
+				if (attr.name !== 'src' && attr.name !== 'srcdoc' && attr.name !== 'data-control-pending' && attr.name !== 'data-controlled' && attr.name !== 'data-srcdoc-pending' && attr.name !== 'id') {
 					attributes[attr.name] = attr.value;
 				}
 			}
@@ -882,12 +935,14 @@ function setupIframesTrap() {
 				if (isNestedContext()) {
 					// In nested contexts, defer the src assignment to allow navigation
 					scheduleIframeControl(iframe);
-				} else {
-					// In top-level context, set src synchronously
-					const url = getEmptyLoaderUrl();
-					setIframeSrc(iframe, url);
-					iframe.setAttribute('data-controlled', '1');
 				}
+				// In top-level context, we DON'T set src here.
+				// The MutationObserver will handle it when the iframe is appended to the DOM.
+				// This avoids race conditions where:
+				// 1. createElement sets src to loader#base=...
+				// 2. srcdoc is set, triggering async rewriteSrcdoc
+				// 3. appendChild happens, navigating to the old src (without id)
+				// 4. rewriteSrcdoc finishes, tries to update src but navigation already happened
 			}
 		} catch (error) {
 			// Ignore errors - iframe just won't be controlled
@@ -1013,6 +1068,10 @@ function setupIframesTrap() {
 						if (!isClosed && writeBuffer.length > 0) {
 							isClosed = true;
 							const html = writeBuffer.join('');
+							// Mark as srcdoc-pending IMMEDIATELY so scheduleIframeControl knows to bail.
+							// This must happen before the setTimeout to prevent race conditions where
+							// scheduleIframeControl creates a controlled iframe before we do.
+							iframe.setAttribute('data-srcdoc-pending', '1');
 							// Use setTimeout to let the document settle before redirecting
 							setTimeout(async () => {
 								if (iframe.getAttribute('data-controlled') !== '1') {
@@ -1165,6 +1224,11 @@ function setupIframesTrap() {
 	 */
 	function controlIframeOnMutation(iframe) {
 		if (iframe.getAttribute('data-controlled') === '1' || iframe.getAttribute('data-control-pending') === '1') {
+			return;
+		}
+
+		// Check if srcdoc is being processed - let rewriteSrcdoc handle it
+		if (iframe.getAttribute('data-srcdoc-pending') === '1') {
 			return;
 		}
 

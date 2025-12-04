@@ -1566,11 +1566,34 @@ test('typing works in deeply nested TinyMCE-like editor (4 levels)', async ({ pa
 		};
 
 		// Create Level 1: WordPress-like iframe
+		debug.push(`Top page location: ${location.href}`);
+		debug.push(`isNestedContext: ${window !== window.top}`);
+
 		const level1 = document.createElement('iframe');
+		debug.push(`After createElement - src: ${level1.src}, dc: ${level1.getAttribute('data-controlled')}`);
+
 		level1.id = 'wp-iframe';
 		level1.srcdoc = '<!DOCTYPE html><html><head><title>WP</title></head><body id="wp-body"></body></html>';
+		debug.push(`After srcdoc - src: ${level1.src}, dc: ${level1.getAttribute('data-controlled')}, srcdoc-pending: ${level1.getAttribute('data-srcdoc-pending')}`);
+
 		document.body.appendChild(level1);
+		debug.push(`After appendChild - src: ${level1.src}`);
+
 		if (!await waitForIframeReady(level1, 'Level 1')) {
+			// Add more debug info about the iframe state
+			try {
+				const actualSrc = level1.getAttribute('src') || level1.src;
+				const swState = level1.contentWindow?.navigator?.serviceWorker;
+				debug.push(`Final state - actualSrc: ${actualSrc}`);
+				debug.push(`SW ready: ${!!swState?.ready}`);
+				debug.push(`SW controller: ${!!swState?.controller}`);
+				debug.push(`contentWindow exists: ${!!level1.contentWindow}`);
+				if (level1.contentWindow) {
+					debug.push(`contentWindow.location: ${level1.contentWindow.location?.href}`);
+				}
+			} catch (e) {
+				debug.push(`Error getting state: ${(e as Error).message}`);
+			}
 			return { error: 'Level 1 not ready', debug };
 		}
 		await new Promise(r => setTimeout(r, 500));
