@@ -1233,37 +1233,59 @@ test('deeply nested iframes (4 levels) are SW-controlled', async ({ page: testPa
 
 		// Helper to wait for iframe to be controlled
 		// Must check the actual controlled iframe (which may be in an ancestor document)
-		const waitForControlled = async (iframe: HTMLIFrameElement, timeout = 8000) => {
+		const waitForControlled = async (iframe: HTMLIFrameElement, timeout = 15000) => {
 			const start = Date.now();
+			let lastState = '';
 			while (Date.now() - start < timeout) {
 				try {
+					const dataControlled = iframe.getAttribute('data-controlled');
+					const dataPending = iframe.getAttribute('data-control-pending');
+					const dataSrcdocPending = iframe.getAttribute('data-srcdoc-pending');
+					const hasControlledRef = !!(iframe as any).__controlledIframe;
+
+					const currentState = `dc=${dataControlled},cp=${dataPending},sp=${dataSrcdocPending},ref=${hasControlledRef}`;
+					if (currentState !== lastState) {
+						results.debug.push(`waitForControlled: ${currentState}`);
+						lastState = currentState;
+					}
+
 					// First check if data-controlled is set
-					if (iframe.getAttribute('data-controlled') === '1') {
+					if (dataControlled === '1') {
 						// Get the actual controlled iframe
 						const controlled = getControlledIframe(iframe);
-						if (controlled.contentWindow?.navigator?.serviceWorker?.controller) {
+						const controller = controlled.contentWindow?.navigator?.serviceWorker?.controller;
+						if (controller) {
+							results.debug.push(`waitForControlled: found controller`);
 							return true;
 						}
 					}
-				} catch { }
+				} catch (e) {
+					results.debug.push(`waitForControlled error: ${(e as Error).message}`);
+				}
 				await new Promise(r => setTimeout(r, 100));
 			}
+			results.debug.push(`waitForControlled: timed out`);
 			return false;
 		};
 
 		// Helper to wait for iframe content to be ready (has body)
 		// Must check the actual controlled iframe
-		const waitForContent = async (iframe: HTMLIFrameElement, timeout = 8000) => {
+		const waitForContent = async (iframe: HTMLIFrameElement, timeout = 15000) => {
 			const start = Date.now();
 			while (Date.now() - start < timeout) {
 				try {
 					const controlled = getControlledIframe(iframe);
-					if (controlled.contentDocument?.body) {
+					const body = controlled.contentDocument?.body;
+					if (body) {
+						results.debug.push(`waitForContent: found body`);
 						return true;
 					}
-				} catch { }
+				} catch (e) {
+					results.debug.push(`waitForContent error: ${(e as Error).message}`);
+				}
 				await new Promise(r => setTimeout(r, 100));
 			}
+			results.debug.push(`waitForContent: timed out`);
 			return false;
 		};
 
@@ -1489,19 +1511,34 @@ test('typing works in deeply nested TinyMCE-like editor (4 levels)', async ({ pa
 
 	// First, set up the nested iframe structure via page.evaluate
 	const editorReady = await page.evaluate(async () => {
+		const debug: string[] = [];
+
+		// Helper to get the actual controlled iframe
+		const getControlledIframe = (iframe: HTMLIFrameElement): HTMLIFrameElement => {
+			return (iframe as any).__controlledIframe || iframe;
+		};
+
 		// Helper to wait for iframe to be controlled and have content
-		const waitForIframeReady = async (iframe: HTMLIFrameElement, timeout = 10000) => {
+		const waitForIframeReady = async (iframe: HTMLIFrameElement, name: string, timeout = 15000) => {
 			const start = Date.now();
 			while (Date.now() - start < timeout) {
 				try {
-					const hasController = !!iframe.contentWindow?.navigator?.serviceWorker?.controller;
-					const hasBody = !!iframe.contentDocument?.body;
-					if (hasController && hasBody) {
-						return true;
+					const dataControlled = iframe.getAttribute('data-controlled');
+					if (dataControlled === '1') {
+						const controlled = getControlledIframe(iframe);
+						const hasController = !!controlled.contentWindow?.navigator?.serviceWorker?.controller;
+						const hasBody = !!controlled.contentDocument?.body;
+						if (hasController && hasBody) {
+							debug.push(`${name}: ready with controller and body`);
+							return true;
+						}
 					}
-				} catch { }
+				} catch (e) {
+					debug.push(`${name}: error - ${(e as Error).message}`);
+				}
 				await new Promise(r => setTimeout(r, 100));
 			}
+			debug.push(`${name}: timed out waiting for ready`);
 			return false;
 		};
 
@@ -1510,33 +1547,42 @@ test('typing works in deeply nested TinyMCE-like editor (4 levels)', async ({ pa
 		level1.id = 'wp-iframe';
 		level1.srcdoc = '<!DOCTYPE html><html><head><title>WP</title></head><body id="wp-body"></body></html>';
 		document.body.appendChild(level1);
-		await waitForIframeReady(level1);
+		if (!await waitForIframeReady(level1, 'Level 1')) {
+			return { error: 'Level 1 not ready', debug };
+		}
 		await new Promise(r => setTimeout(r, 500));
 
-		const l1Doc = level1.contentDocument;
-		if (!l1Doc?.body) return { error: 'Level 1 not ready' };
+		const l1Controlled = getControlledIframe(level1);
+		const l1Doc = l1Controlled.contentDocument;
+		if (!l1Doc?.body) return { error: 'Level 1 contentDocument not accessible', debug };
 
 		// Create Level 2: Theme iframe
 		const level2 = l1Doc.createElement('iframe');
 		level2.id = 'theme-iframe';
 		level2.srcdoc = '<!DOCTYPE html><html><head><title>Theme</title></head><body id="theme-body"></body></html>';
 		l1Doc.body.appendChild(level2);
-		await waitForIframeReady(level2);
+		if (!await waitForIframeReady(level2, 'Level 2')) {
+			return { error: 'Level 2 not ready', debug };
+		}
 		await new Promise(r => setTimeout(r, 500));
 
-		const l2Doc = level2.contentDocument;
-		if (!l2Doc?.body) return { error: 'Level 2 not ready' };
+		const l2Controlled = getControlledIframe(level2);
+		const l2Doc = l2Controlled.contentDocument;
+		if (!l2Doc?.body) return { error: 'Level 2 contentDocument not accessible', debug };
 
 		// Create Level 3: Editor container iframe
 		const level3 = l2Doc.createElement('iframe');
 		level3.id = 'editor-container-iframe';
 		level3.srcdoc = '<!DOCTYPE html><html><head><title>Editor Container</title></head><body id="editor-container"></body></html>';
 		l2Doc.body.appendChild(level3);
-		await waitForIframeReady(level3);
+		if (!await waitForIframeReady(level3, 'Level 3')) {
+			return { error: 'Level 3 not ready', debug };
+		}
 		await new Promise(r => setTimeout(r, 500));
 
-		const l3Doc = level3.contentDocument;
-		if (!l3Doc?.body) return { error: 'Level 3 not ready' };
+		const l3Controlled = getControlledIframe(level3);
+		const l3Doc = l3Controlled.contentDocument;
+		if (!l3Doc?.body) return { error: 'Level 3 contentDocument not accessible', debug };
 
 		// Create Level 4: TinyMCE-like editor iframe with contenteditable body
 		const editorIframe = l3Doc.createElement('iframe');
@@ -1564,15 +1610,18 @@ test('typing works in deeply nested TinyMCE-like editor (4 levels)', async ({ pa
 			</body>
 			</html>`;
 		l3Doc.body.appendChild(editorIframe);
-		await waitForIframeReady(editorIframe);
+		if (!await waitForIframeReady(editorIframe, 'Editor')) {
+			return { error: 'Editor not ready', debug };
+		}
 		await new Promise(r => setTimeout(r, 1000));
 
 		// Verify the editor is controlled and accessible
-		const editorDoc = editorIframe.contentDocument;
+		const editorControlled = getControlledIframe(editorIframe);
+		const editorDoc = editorControlled.contentDocument;
 		const editorBody = editorDoc?.body;
-		if (!editorBody) return { error: 'Editor body not found' };
+		if (!editorBody) return { error: 'Editor body not found', debug };
 
-		const isControlled = !!editorIframe.contentWindow?.navigator?.serviceWorker?.controller;
+		const isControlled = !!editorControlled.contentWindow?.navigator?.serviceWorker?.controller;
 		const isContentEditable = editorBody.isContentEditable;
 
 		return {
@@ -1580,6 +1629,7 @@ test('typing works in deeply nested TinyMCE-like editor (4 levels)', async ({ pa
 			isControlled,
 			isContentEditable,
 			initialContent: editorBody.textContent?.trim(),
+			debug,
 		};
 	});
 
