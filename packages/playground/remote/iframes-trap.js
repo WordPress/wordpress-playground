@@ -420,22 +420,28 @@ function setupIframesTrap() {
 	 * Returns a promise that resolves with the created iframe element.
 	 */
 	function requestAncestorCreateIframe(ancestorWindow, config) {
+		console.log('[iframes-trap] Requesting ancestor to create iframe:', config.id, config.src);
+
 		return new Promise((resolve, reject) => {
 			const channel = new MessageChannel();
 			const timeout = setTimeout(() => {
+				console.error('[iframes-trap] Ancestor iframe creation timed out:', config.id);
 				reject(new Error('Ancestor iframe creation timed out'));
-			}, 5000);
+			}, 15000); // Increased timeout for Firefox
 
 			channel.port1.onmessage = (event) => {
 				clearTimeout(timeout);
+				console.log('[iframes-trap] Received response for iframe:', config.id, event.data);
 				if (event.data.error) {
 					reject(new Error(event.data.error));
 				} else {
 					// The ancestor stores the iframe reference on window.__pg_iframes
 					const iframe = ancestorWindow.__pg_iframes?.[event.data.iframeId];
 					if (iframe) {
+						console.log('[iframes-trap] Found iframe reference:', config.id);
 						resolve(iframe);
 					} else {
+						console.error('[iframes-trap] Iframe reference not found:', event.data.iframeId);
 						reject(new Error('Iframe reference not found'));
 					}
 				}
@@ -465,8 +471,11 @@ function setupIframesTrap() {
 		const port = event.ports[0];
 
 		if (!port) {
+			console.warn('[iframes-trap] Received iframe creation request but no port provided');
 			return;
 		}
+
+		console.log('[iframes-trap] Received iframe creation request:', config.id, config.src);
 
 		try {
 			// Create iframe using this realm's native createElement
@@ -521,10 +530,12 @@ function setupIframesTrap() {
 			};
 
 			// Wait for controller, but don't block indefinitely
-			await waitForController();
+			const hasController = await waitForController();
+			console.log('[iframes-trap] Iframe controller ready:', config.id, hasController);
 
 			port.postMessage({ success: true, iframeId: config.id });
 		} catch (error) {
+			console.error('[iframes-trap] Iframe creation error:', error);
 			port.postMessage({ error: error.message });
 		}
 	});
