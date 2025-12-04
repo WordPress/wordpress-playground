@@ -6,19 +6,11 @@ import {
 	FlexItem,
 	Spinner,
 	Button,
-	SearchControl,
 	DropdownMenu,
 	MenuGroup,
 	MenuItem,
 } from '@wordpress/components';
-import {
-	close,
-	arrowLeft,
-	moreVertical,
-	upload,
-	grid,
-	link,
-} from '@wordpress/icons';
+import { close, arrowLeft, moreVertical, upload, link } from '@wordpress/icons';
 import { Icon } from '@wordpress/icons';
 import { GitHubIcon } from '../../github/github';
 import { useDispatch } from 'react-redux';
@@ -58,6 +50,7 @@ type BlueprintsIndexEntry = {
 	categories: string[];
 	path: string;
 	screenshot_url?: string;
+	featured?: boolean;
 };
 
 interface SavedPlaygroundsOverlayProps {
@@ -71,6 +64,15 @@ function PullRequestIcon() {
 	return (
 		<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
 			<path d="M1.5 3.25a2.25 2.25 0 1 1 3 2.122v5.256a2.251 2.251 0 1 1-1.5 0V5.372A2.25 2.25 0 0 1 1.5 3.25Zm5.677-.177L9.573.677A.25.25 0 0 1 10 .854V2.5h1A2.5 2.5 0 0 1 13.5 5v5.628a2.251 2.251 0 1 1-1.5 0V5a1 1 0 0 0-1-1h-1v1.646a.25.25 0 0 1-.427.177L7.177 3.427a.25.25 0 0 1 0-.354ZM3.75 2.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm0 9.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm8.25.75a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0Z" />
+		</svg>
+	);
+}
+
+// 3x3 grid icon from Bootstrap Icons (grid-3x3-gap-fill)
+function GridIcon({ size = 20 }: { size?: number }) {
+	return (
+		<svg width={size} height={size} viewBox="0 0 16 16" fill="currentColor">
+			<path d="M1 2a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2zm5 0a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V2zm5 0a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1V2zM1 7a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V7zm5 0a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V7zm5 0a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1V7zM1 12a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1v-2zm5 0a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1v-2zm5 0a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1v-2z" />
 		</svg>
 	);
 }
@@ -161,23 +163,37 @@ export function SavedPlaygroundsOverlay({
 
 	const previewBlueprints = allBlueprints.slice(0, 5);
 
-	// Extract all unique tags
-	const allTags = Array.from(
-		new Set(allBlueprints.flatMap((b) => b.categories || []))
-	).sort();
+	// Extract all unique tags and sort by popularity (number of blueprints), then alphabetically
+	const tagCounts = new Map<string, number>();
+	allBlueprints.forEach((b) => {
+		(b.categories || []).forEach((tag) => {
+			tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1);
+		});
+	});
+	const allTags = Array.from(tagCounts.keys())
+		.filter((tag) => tag.substring(0, 1).match(/^[A-Z]$/))
+		.sort((a, b) => {
+			const countDiff = (tagCounts.get(b) || 0) - (tagCounts.get(a) || 0);
+			if (countDiff !== 0) return countDiff;
+			return 0;
+		});
 
 	// Filter blueprints based on search and tag
 	const filteredBlueprints = allBlueprints.filter((blueprint) => {
+		const query = searchQuery.toLowerCase();
 		const matchesSearch =
 			!searchQuery ||
-			blueprint.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-			blueprint.description
-				.toLowerCase()
-				.includes(searchQuery.toLowerCase()) ||
-			blueprint.author.toLowerCase().includes(searchQuery.toLowerCase());
+			blueprint.title.toLowerCase().includes(query) ||
+			blueprint.description.toLowerCase().includes(query) ||
+			blueprint.categories?.some((cat) =>
+				cat.toLowerCase().includes(query)
+			);
 
 		const matchesTag =
-			!selectedTag || blueprint.categories?.includes(selectedTag);
+			!selectedTag ||
+			(selectedTag === 'Featured'
+				? blueprint.featured === true
+				: blueprint.categories?.includes(selectedTag));
 
 		return matchesSearch && matchesTag;
 	});
@@ -363,7 +379,22 @@ export function SavedPlaygroundsOverlay({
 							>
 								All
 							</button>
-							{allTags.slice(0, 7).map((tag) => (
+							<button
+								className={classNames(css.tagButton, {
+									[css.tagButtonActive]:
+										selectedTag === 'Featured',
+								})}
+								onClick={() =>
+									setSelectedTag(
+										selectedTag === 'Featured'
+											? null
+											: 'Featured'
+									)
+								}
+							>
+								Featured
+							</button>
+							{allTags.slice(0, 8).map((tag) => (
 								<button
 									key={tag}
 									className={classNames(css.tagButton, {
@@ -380,23 +411,36 @@ export function SavedPlaygroundsOverlay({
 								</button>
 							))}
 						</div>
-						<SearchControl
-							__nextHasNoMarginBottom
-							value={searchQuery}
-							onChange={setSearchQuery}
-							placeholder="Search blueprints"
-							className={css.searchInput}
-						/>
+						<div className={css.searchWrapper}>
+							<div className={css.searchIcon}>
+								<svg
+									width="18"
+									height="18"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									strokeWidth="2"
+								>
+									<circle cx="11" cy="11" r="8" />
+									<path d="m21 21-4.35-4.35" />
+								</svg>
+							</div>
+							<input
+								type="text"
+								value={searchQuery}
+								onChange={(e) => setSearchQuery(e.target.value)}
+								placeholder="Search blueprints"
+								className={css.searchField}
+							/>
+						</div>
 					</div>
 
 					<div className={css.body}>
-						<p className={css.resultsCount}>
-							Showing{' '}
+						<h2 className={css.sectionTitle}>
 							{selectedTag || searchQuery
-								? `${filteredBlueprints.length} of ${allBlueprints.length}`
-								: `all ${filteredBlueprints.length}`}{' '}
-							blueprints
-						</p>
+								? `Showing ${filteredBlueprints.length} of ${allBlueprints.length} blueprints`
+								: `Showing all ${filteredBlueprints.length} blueprints`}
+						</h2>
 						{blueprintsLoading ? (
 							<div className={css.loadingContainer}>
 								<Spinner />
@@ -450,9 +494,28 @@ export function SavedPlaygroundsOverlay({
 											>
 												{blueprint.description}
 											</p>
-											<p className={css.blueprintMeta}>
-												By {blueprint.author}
-											</p>
+											{blueprint.categories &&
+												blueprint.categories.length >
+													0 && (
+													<div
+														className={
+															css.blueprintTags
+														}
+													>
+														{blueprint.categories
+															.slice(0, 3)
+															.map((tag) => (
+																<span
+																	key={tag}
+																	className={
+																		css.blueprintTag
+																	}
+																>
+																	{tag}
+																</span>
+															))}
+													</div>
+												)}
 										</div>
 									</button>
 								))}
@@ -580,14 +643,20 @@ export function SavedPlaygroundsOverlay({
 									</button>
 								))}
 								<button
-									className={css.viewAllCard}
+									className={css.blueprintPreviewCard}
 									onClick={() => setViewMode('blueprints')}
 								>
-									<div className={css.viewAllIcon}>
-										<Icon icon={grid} size={24} />
+									<div
+										className={classNames(
+											css.blueprintPreviewThumbnail,
+											css.viewAllThumbnail
+										)}
+									>
+										<GridIcon size={50} />
 									</div>
-									<span className={css.viewAllText}>
-										View all
+									<span className={css.blueprintPreviewTitle}>
+										View all {allBlueprints.length}{' '}
+										blueprints
 									</span>
 								</button>
 							</div>

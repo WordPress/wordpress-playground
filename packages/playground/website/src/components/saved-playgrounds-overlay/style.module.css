@@ -96,22 +96,39 @@
 	flex-direction: column;
 	gap: 16px;
 	padding: 20px 32px;
-	border-bottom: 1px solid #2c3338;
 	flex-shrink: 0;
 }
 
-.searchInput {
+.searchWrapper {
+	display: flex;
 	max-width: 400px;
+	align-items: center;
+	width: 100%;
+	background: #2c3338;
+	border: 1px solid #3c4349;
+	border-radius: 24px;
 }
 
-.searchInput input {
-	background: #2c3338 !important;
-	border-color: #3c4349 !important;
-	color: #fff !important;
+.searchField {
+	flex: 1;
+	background: transparent;
+	border: none;
+	padding: 12px 16px 12px 0;
+	color: #fff;
+	font-size: 14px;
+	outline: none;
 }
 
-.searchInput input::placeholder {
-	color: #949494 !important;
+.searchField::placeholder {
+	color: #6b7280;
+}
+
+.searchIcon {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 12px 12px 12px 16px;
+	color: #6b7280;
 }
 
 .tagsContainer {
@@ -145,12 +162,6 @@
 .body {
 	padding: 32px;
 	flex: 1;
-}
-
-.resultsCount {
-	font-size: 13px;
-	color: #6b7280;
-	margin: 0 0 16px 0;
 }
 
 .section {
@@ -264,7 +275,6 @@
 .blueprintsRow {
 	display: flex;
 	gap: 16px;
-	overflow-x: auto;
 	padding-bottom: 8px;
 }
 
@@ -273,12 +283,12 @@
 	flex-direction: column;
 	align-items: center;
 	gap: 8px;
-	min-width: 160px;
+	flex: 1;
+	min-width: 120px;
 	background: none;
 	border: none;
 	cursor: pointer;
 	padding: 0;
-	flex-shrink: 0;
 	color: inherit;
 	font: inherit;
 }
@@ -288,8 +298,8 @@
 }
 
 .blueprintPreviewThumbnail {
-	width: 160px;
-	height: 120px;
+	width: 100%;
+	aspect-ratio: 4 / 3;
 	background: #2c3338;
 	border: 2px solid #3c4349;
 	border-radius: 8px;
@@ -310,7 +320,7 @@
 	font-size: 13px;
 	color: #e5e6e6;
 	text-align: center;
-	width: 160px;
+	width: 100%;
 	line-height: 1.4;
 	word-wrap: break-word;
 }
@@ -329,52 +339,15 @@
 	height: 40px;
 }
 
-/* View all card in row */
-.viewAllCard {
-	display: flex;
-	flex-direction: column;
-	align-items: center;
-	gap: 8px;
-	min-width: 160px;
-	background: none;
-	border: none;
-	cursor: pointer;
-	padding: 0;
-	flex-shrink: 0;
-	color: inherit;
-	font: inherit;
-}
-
-.viewAllCard:hover .viewAllIcon {
-	background: #353b41;
-	border-color: #4a5258;
-	color: #fff;
-}
-
-.viewAllIcon {
-	width: 160px;
-	height: 120px;
-	background: #2c3338;
-	border: 1px solid #3c4349;
-	border-radius: 8px;
+/* View all thumbnail modifier */
+.viewAllThumbnail {
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	color: #fff;
-	transition: all 0.15s ease;
 }
 
-.viewAllIcon :global(svg) {
-	fill: #fff !important;
-}
-
-.viewAllIcon :global(svg) :global(path) {
-	fill: #fff !important;
-}
-
-.viewAllText {
-	font-size: 12px;
-	color: #e5e6e6;
+.viewAllThumbnail svg {
+	fill: #fff;
 }
 
 /* Sites list - vertical rows */
@@ -560,6 +533,21 @@
 	margin-top: 4px;
 }
 
+.blueprintTags {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px;
+	margin-top: 6px;
+}
+
+.blueprintTag {
+	font-size: 11px;
+	padding: 2px 8px;
+	background: #3c4349;
+	border-radius: 10px;
+	color: #9ca3af;
+}
+
 @media (max-width: 900px) {
 	.creationRow {
 		flex-wrap: wrap;
@@ -568,6 +556,22 @@
 
 	.creationButton {
 		flex: 0 0 auto;
+	}
+}
+
+@media (max-width: 865px) {
+	.blueprintsRow {
+		flex-wrap: wrap;
+	}
+
+	.blueprintPreviewCard {
+		flex: 1 1 calc(25% - 12px);
+		min-width: 120px;
+		max-width: calc(25% - 12px);
+	}
+
+	.blueprintPreviewCard:nth-child(n + 5) {
+		display: none;
 	}
 }
 
@@ -600,21 +604,26 @@
 	}
 
 	.blueprintsRow {
-		gap: 12px;
+		flex-wrap: wrap;
+	}
+
+	.blueprintPreviewCard {
+		flex: 1 1 0;
+		min-width: 0;
+		max-width: none;
+	}
+
+	.blueprintPreviewCard:nth-child(n + 4) {
+		display: none;
 	}
 
 	.blueprintPreviewThumbnail {
-		width: 80px;
-		height: 56px;
+		aspect-ratio: 4 / 3;
+		height: auto;
 	}
 
 	.blueprintPreviewTitle {
-		max-width: 80px;
-	}
-
-	.viewAllIcon {
-		width: 80px;
-		height: 56px;
+		font-size: 11px;
 	}
 
 	.blueprintsFullGrid {

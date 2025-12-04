@@ -61,16 +61,6 @@ export default function BrowserChrome({
 					})}
 					aria-label="Playground toolbar"
 				>
-					<Button
-						variant="browser-chrome"
-						aria-label="Saved Playgrounds"
-						onClick={() => setIsPlaygroundsOverlayOpen(true)}
-						aria-expanded={isPlaygroundsOverlayOpen}
-						className={css.savedPlaygroundsButton}
-					>
-						<Icon icon={category} size={20} />
-					</Button>
-
 					<div className={addressBarClass}>
 						<AddressBar
 							url={url}
@@ -81,6 +71,16 @@ export default function BrowserChrome({
 					</div>
 
 					<div className={css.toolbarButtons}>
+						<Button
+							variant="browser-chrome"
+							aria-label="Saved Playgrounds"
+							onClick={() => setIsPlaygroundsOverlayOpen(true)}
+							aria-expanded={isPlaygroundsOverlayOpen}
+							className={css.savedPlaygroundsButton}
+						>
+							<Icon icon={category} size={20} />
+						</Button>
+
 						<Button
 							variant="browser-chrome"
 							aria-label={
