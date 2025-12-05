@@ -28,7 +28,6 @@ import { SiteLogs } from '../../log-modal';
 import { OfflineNotice } from '../../offline-notice';
 import { DownloadAsZipMenuItem } from '../../toolbar-buttons/download-as-zip';
 import { GithubExportMenuItem } from '../../toolbar-buttons/github-export-menu-item';
-import { ReportError } from '../../toolbar-buttons/report-error';
 import { SiteDatabasePanel } from '../site-database-panel';
 import { ActiveSiteSettingsForm } from '../site-settings-form/active-site-settings-form';
 import { TemporarySiteNotice } from '../temporary-site-notice';
@@ -361,12 +360,6 @@ export function SiteInfoPanel({
 											<DownloadAsZipMenuItem
 												onClose={onClose}
 												disabled={!playground}
-											/>
-										</MenuGroup>
-										<MenuGroup>
-											<ReportError
-												onClose={onClose}
-												disabled={offline}
 											/>
 										</MenuGroup>
 									</>

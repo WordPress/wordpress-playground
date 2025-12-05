@@ -39,8 +39,7 @@ import { WordPressIcon } from '@wp-playground/components';
 import useFetch from '../../lib/hooks/use-fetch';
 import { PlaygroundRoute, redirectTo } from '../../lib/state/url/router';
 import { selectClientInfoBySiteSlug } from '../../lib/state/redux/slice-clients';
-import { zipWpContent, importWordPressFiles } from '@wp-playground/client';
-import saveAs from 'file-saver';
+import { importWordPressFiles } from '@wp-playground/client';
 import { logger } from '@php-wasm/logger';
 
 type BlueprintsIndexEntry = {
@@ -112,7 +111,18 @@ export function SavedPlaygroundsOverlay({
 	const [viewMode, setViewMode] = useState<ViewMode>('main');
 	const [searchQuery, setSearchQuery] = useState('');
 	const [selectedTag, setSelectedTag] = useState<string | null>(null);
+	const [isClosing, setIsClosing] = useState(false);
 	const zipFileInputRef = useRef<HTMLInputElement>(null);
+
+	const closeWithFade = (callback?: () => void) => {
+		setIsClosing(true);
+		setTimeout(() => {
+			if (callback) {
+				callback();
+			}
+			onClose();
+		}, 200); // Match the fadeOut animation duration
+	};
 
 	const handleImportZip = async (e: React.ChangeEvent<HTMLInputElement>) => {
 		const file = e.target.files?.[0];
@@ -249,28 +259,27 @@ export function SavedPlaygroundsOverlay({
 		onClose();
 	};
 
-	const handleDownloadSite = async (
-		siteSlug: string,
-		onClose: () => void
-	) => {
-		const clientInfo = selectClientInfoBySiteSlug(
-			{ clients: store.getState().clients },
-			siteSlug
-		);
-		const playground = clientInfo?.client;
-		if (!playground) {
-			return;
-		}
-		const bytes = await zipWpContent(playground, {
-			selfContained: true,
-		});
-		saveAs(new File([bytes], 'wordpress-playground.zip'));
-		onClose();
-	};
+	// const handleDownloadSite = async (
+	// 	siteSlug: string,
+	// 	onClose: () => void
+	// ) => {
+	// 	const clientInfo = selectClientInfoBySiteSlug(
+	// 		{ clients: store.getState().clients },
+	// 		siteSlug
+	// 	);
+	// 	const playground = clientInfo?.client;
+	// 	if (!playground) {
+	// 		return;
+	// 	}
+	// 	const bytes = await zipWpContent(playground, {
+	// 		selfContained: true,
+	// 	});
+	// 	saveAs(new File([bytes], 'wordpress-playground.zip'));
+	// 	onClose();
+	// };
 
 	function previewBlueprint(blueprintPath: BlueprintsIndexEntry['path']) {
 		dispatch(setSiteManagerOpen(false));
-		onClose();
 		redirectTo(
 			PlaygroundRoute.newTemporarySite({
 				query: {
@@ -282,12 +291,13 @@ export function SavedPlaygroundsOverlay({
 				},
 			})
 		);
+		closeWithFade();
 	}
 
 	function createVanillaSite() {
 		dispatch(setSiteManagerOpen(false));
-		onClose();
 		redirectTo(PlaygroundRoute.newTemporarySite());
+		closeWithFade();
 	}
 
 	const creationOptions = [
@@ -347,7 +357,11 @@ export function SavedPlaygroundsOverlay({
 
 	if (viewMode === 'blueprints') {
 		return (
-			<div className={css.overlay}>
+			<div
+				className={classNames(css.overlay, {
+					[css.overlayClosing]: isClosing,
+				})}
+			>
 				<div className={css.fullscreenContent}>
 					<div className={css.header}>
 						<Button
@@ -529,7 +543,11 @@ export function SavedPlaygroundsOverlay({
 	}
 
 	return (
-		<div className={css.overlay}>
+		<div
+			className={classNames(css.overlay, {
+				[css.overlayClosing]: isClosing,
+			})}
+		>
 			<input
 				type="file"
 				ref={zipFileInputRef}
@@ -674,15 +692,15 @@ export function SavedPlaygroundsOverlay({
 								{storedSites.map((site) => {
 									const isSelected =
 										site.slug === activeSite?.slug;
-									const hasClient = Boolean(
-										selectClientInfoBySiteSlug(
-											{
-												clients:
-													store.getState().clients,
-											},
-											site.slug
-										)?.client
-									);
+									// const hasClient = Boolean(
+									// 	selectClientInfoBySiteSlug(
+									// 		{
+									// 			clients:
+									// 				store.getState().clients,
+									// 		},
+									// 		site.slug
+									// 	)?.client
+									// );
 									return (
 										<div
 											key={site.slug}
@@ -766,7 +784,8 @@ export function SavedPlaygroundsOverlay({
 															>
 																Rename
 															</MenuItem>
-															<MenuItem
+															{/* @TODO: Add download as .zip functionality for non-loaded sites */}
+															{/* <MenuItem
 																onClick={() =>
 																	handleDownloadSite(
 																		site.slug,
@@ -778,7 +797,7 @@ export function SavedPlaygroundsOverlay({
 																}
 															>
 																Download as .zip
-															</MenuItem>
+															</MenuItem> */}
 														</MenuGroup>
 														<MenuGroup>
 															<MenuItem
