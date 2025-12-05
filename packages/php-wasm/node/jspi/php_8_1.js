@@ -16569,7 +16569,7 @@ url = SOCKFS.websocketArgs["url"](...arguments);
   
   var Asyncify = {
   instrumentWasmImports(imports) {
-        var importPattern = /^(js_open_process|js_fd_read|js_waitpid|js_process_status|js_create_input_device|wasm_setsockopt|wasm_shutdown|wasm_close|wasm_recv|__syscall_fcntl64|js_flock|js_release_file_locks|js_waitpid|invoke_.*|__asyncjs__.*)$/;
+        var importPattern = /^(js_open_process|js_fd_read|js_waitpid|js_process_status|js_create_input_device|wasm_setsockopt|wasm_shutdown|wasm_close|wasm_recv|__syscall_fcntl64|__emscripten_lookup_name|js_flock|js_release_file_locks|js_waitpid|invoke_.*|__asyncjs__.*)$/;
   
         for (let [x, original] of Object.entries(imports)) {
           if (typeof original == 'function') {
@@ -16698,6 +16698,9 @@ url = SOCKFS.websocketArgs["url"](...arguments);
       ret = onDone(ret);
       return ret;
     };
+
+
+
 
 
   var FS_createPath = (...args) => FS.createPath(...args);
@@ -28069,6 +28072,36 @@ url = SOCKFS.websocketArgs["url"](...arguments);
 
 
 
+  
+  
+  
+  var ___emscripten_lookup_name = function __emscripten_lookup_name(namePtr) {
+  		return Asyncify.handleAsync(async () => {
+  			if ( ! ENVIRONMENT_IS_NODE ) {
+  				return original__emscripten_lookup_name(namePtr);
+  			}
+  			if ( ! PHPLoader.syscalls ) {
+  				return original__emscripten_lookup_name(namePtr);
+  			}
+  
+  			const hostname = UTF8ToString(namePtr);
+  
+  			let ipString = '';
+  			try {
+  				ipString = (
+  					await Promise.resolve(
+  						PHPLoader.syscalls.gethostbyname(hostname)
+  					)
+  				);
+  			} catch (e) {
+  				// Fall through to the default synthetic mapping if native DNS fails.
+  			}
+  
+  			return inetPton4(ipString);
+  		});
+  	};
+  ___emscripten_lookup_name.sig = 'ip';
+
 
 
   var webSockets = new HandleAllocator();;
@@ -28415,6 +28448,7 @@ var miniTempWebGLIntBuffersStorage = new Int32Array(288);
       // invocation, so that we will immediately be able to queue the newest
       // produced audio samples.
       registerPostMainLoop(() => SDL.audio?.queueNewAudioData?.());;
+const original__emscripten_lookup_name = __emscripten_lookup_name; if (typeof __emscripten_lookup_name !== "undefined") { __emscripten_lookup_name = ___emscripten_lookup_name; }___emscripten_lookup_name.isAsync = true;;
 // End JS library code
 
 // include: postlibrary.js
@@ -28449,6 +28483,9 @@ if (Module["quit"]) quit_=Module["quit"];
   Module['addRunDependency'] = addRunDependency;
   Module['removeRunDependency'] = removeRunDependency;
   Module['ccall'] = ccall;
+  Module['UTF8ToString'] = UTF8ToString;
+  Module['stringToUTF8'] = stringToUTF8;
+  Module['lengthBytesUTF8'] = lengthBytesUTF8;
   Module['FS_preloadFile'] = FS_preloadFile;
   Module['FS_unlink'] = FS_unlink;
   Module['FS_createPath'] = FS_createPath;
@@ -29072,6 +29109,8 @@ var wasmImports = {
   __asyncjs__wasm_poll_socket,
   /** @export */
   __call_sighandler: ___call_sighandler,
+  /** @export */
+  __emscripten_lookup_name: ___emscripten_lookup_name,
   /** @export */
   __syscall__newselect: ___syscall__newselect,
   /** @export */
