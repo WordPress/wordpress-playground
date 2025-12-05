@@ -72,6 +72,54 @@ function setupIframesTrap() {
 		};
 	}
 
+	/**
+	 * Inject iframes-trap.js into an iframe's document WITHOUT navigating.
+	 * This is used for document.write() iframes where we want to preserve
+	 * the existing document (and all references to it) while still ensuring
+	 * nested iframes will be controlled.
+	 *
+	 * Returns a promise that resolves when the script has loaded.
+	 */
+	async function injectIframesTrapIntoDocument(iframe) {
+		const doc = iframe.contentDocument;
+		if (!doc || !doc.head) {
+			console.log('[iframes-trap] injectIframesTrapIntoDocument: no document or head');
+			return false;
+		}
+
+		// Check if already injected
+		if (iframe.contentWindow?.__controlled_iframes_loaded__) {
+			console.log('[iframes-trap] injectIframesTrapIntoDocument: already loaded');
+			return true;
+		}
+
+		const scope = await scopePromise;
+		const { TRAP_SCRIPT_URL } = scopedPaths(scope);
+
+		// Add base tag if not present (needed for relative URLs)
+		if (!doc.querySelector('base')) {
+			const base = doc.createElement('base');
+			base.href = document.baseURI;
+			doc.head.insertBefore(base, doc.head.firstChild);
+		}
+
+		// Create and inject the script
+		return new Promise((resolve) => {
+			const script = doc.createElement('script');
+			script.src = TRAP_SCRIPT_URL;
+			script.onload = () => {
+				console.log('[iframes-trap] injectIframesTrapIntoDocument: script loaded');
+				iframe.setAttribute('data-docwrite-controlled', '1');
+				resolve(true);
+			};
+			script.onerror = () => {
+				console.warn('[iframes-trap] injectIframesTrapIntoDocument: script failed to load');
+				resolve(false);
+			};
+			doc.head.appendChild(script);
+		});
+	}
+
 	// Snapshot natives before we patch prototypes.
 	const Native = {
 		write: Document.prototype.write,
@@ -142,89 +190,196 @@ function setupIframesTrap() {
 	}
 
 	/**
-	 * Store iframe HTML content in CacheStorage for the loader to retrieve.
+	 * Store iframe HTML content in CacheStorage.
+	 *
+	 * IMPORTANT: We inject iframes-trap.js and a <base> tag directly into the HTML
+	 * so that when the SW serves this content, it's a complete, real HTML document.
+	 * This is critical because documents served this way allow nested iframe
+	 * navigation to work properly (unlike innerHTML-injected documents).
+	 *
+	 * @param {string} id - Unique ID for this cached content
+	 * @param {string} html - The original HTML content
+	 * @param {string} base - The base URL for relative URLs in the document
+	 * @param {string} prettyUrl - Optional URL to show in the browser (for history.replaceState)
 	 */
-	async function cacheIframeContents(id, html) {
+	async function cacheIframeContents(id, html, base = document.baseURI, prettyUrl = '') {
 		const cache = await caches.open(iframeCacheBucket);
 		const scope = await scopePromise;
-		const { VIRTUAL_PREFIX } = scopedPaths(scope);
+		const { VIRTUAL_PREFIX, TRAP_SCRIPT_URL } = scopedPaths(scope);
+
+		// Rewrite absolute URLs to include the SW scope prefix
+		// This ensures CSS, images, and scripts load through the SW
+		const rewrittenHtml = rewriteAbsoluteUrlsInHtml(html, scope);
+
+		// Inject iframes-trap.js and base tag into the HTML
+		// This makes the cached document a complete, self-contained HTML page
+		// that sets up iframe control for any nested iframes
+		const injectedHtml = injectScriptsIntoHtml(rewrittenHtml, TRAP_SCRIPT_URL, base, prettyUrl);
+
 		await cache.put(
 			`${VIRTUAL_PREFIX}${id}.html`,
-			new Response(html, {
+			new Response(injectedHtml, {
 				headers: { 'Content-Type': 'text/html; charset=utf-8' },
 			})
 		);
 	}
 
 	/**
-	 * Build a loader URL that will restore cached iframe content.
+	 * Inject iframes-trap.js script and base tag into HTML.
+	 * This transforms srcdoc HTML into a complete document that can control nested iframes.
+	 */
+	function injectScriptsIntoHtml(html, trapScriptUrl, base, prettyUrl) {
+		// Find where to inject (after <head> or at start of document)
+		let injectionPoint = 0;
+		let prefix = '';
+
+		// Try to find <head> tag
+		const headMatch = html.match(/<head[^>]*>/i);
+		if (headMatch) {
+			injectionPoint = headMatch.index + headMatch[0].length;
+		} else {
+			// No <head> tag - inject after doctype/html or at start
+			const htmlMatch = html.match(/<html[^>]*>/i);
+			if (htmlMatch) {
+				injectionPoint = htmlMatch.index + htmlMatch[0].length;
+				prefix = '<head>';
+			} else {
+				// No <html> tag either - inject at start with full structure
+				prefix = '<!DOCTYPE html><html><head>';
+			}
+		}
+
+		// Build the injection content
+		const baseTag = `<base href="${escapeHtml(base)}">`;
+		const scriptTag = `<script src="${escapeHtml(trapScriptUrl)}"></script>`;
+
+		// Add a small script to update the URL if prettyUrl is provided
+		const urlScript = prettyUrl
+			? `<script>history.replaceState({}, '', ${JSON.stringify(prettyUrl)});</script>`
+			: '';
+
+		const injection = prefix + baseTag + scriptTag + urlScript;
+
+		// Close head if we opened it
+		const suffix = prefix.includes('<head>') ? '</head>' : '';
+
+		return html.slice(0, injectionPoint) + injection + html.slice(injectionPoint) + suffix;
+	}
+
+	/**
+	 * Escape HTML special characters for safe attribute insertion.
+	 */
+	function escapeHtml(str) {
+		return str
+			.replace(/&/g, '&amp;')
+			.replace(/</g, '&lt;')
+			.replace(/>/g, '&gt;')
+			.replace(/"/g, '&quot;')
+			.replace(/'/g, '&#039;');
+	}
+
+	/**
+	 * Rewrite absolute URLs in HTML to include the SW scope prefix.
+	 *
+	 * TinyMCE and other libraries use absolute paths like "/wp-includes/css/..."
+	 * which resolve against the origin, NOT the base tag. This means they bypass
+	 * the Service Worker scope (e.g., /website-server/).
+	 *
+	 * This function rewrites absolute paths to include the scope prefix, ensuring
+	 * they go through the SW.
+	 *
+	 * Example: href="/scope:test/file.css" -> href="/website-server/scope:test/file.css"
+	 */
+	function rewriteAbsoluteUrlsInHtml(html, scope) {
+		if (!scope) return html;
+
+		// The scope already includes the path prefix (e.g., "/website-server/scope:test")
+		// We need to extract the prefix before "scope:" to prepend it to absolute URLs
+		// that contain "scope:" but don't have the prefix
+
+		// Find the prefix before scope: (e.g., "/website-server")
+		const scopeMatch = scope.match(/^(.*?)(\/scope:[^/]*)/);
+		if (!scopeMatch) return html; // No scope pattern, nothing to rewrite
+
+		const prefix = scopeMatch[1]; // e.g., "/website-server"
+		if (!prefix) return html; // No prefix, URLs are already correct
+
+		// Rewrite src and href attributes that start with "/" but don't include the prefix
+		// Match: src="/scope:..." or href="/scope:..." (without the prefix)
+		// But NOT: src="/website-server/scope:..." (already has prefix)
+		const pattern = new RegExp(
+			`((?:src|href|action)\\s*=\\s*["'])(\\/(?!${prefix.slice(1)}\\/))`,
+			'gi'
+		);
+
+		return html.replace(pattern, (match, attrStart, pathStart) => {
+			return attrStart + prefix + pathStart;
+		});
+	}
+
+	/**
+	 * Build a URL to the cached iframe content.
+	 *
+	 * Instead of using a loader page that fetches and injects cached content via
+	 * innerHTML, we navigate directly to the cached content URL. The SW serves
+	 * the cached HTML directly, which creates a "real" document where nested
+	 * iframe navigation works properly.
 	 */
 	async function toLoaderUrl({ id, prettyUrl = '', base = document.baseURI } = {}) {
 		const scope = await scopePromise;
-		const { LOADER_PATH } = scopedPaths(scope);
-		const queryString = new URLSearchParams({ base, url: prettyUrl });
+		const { VIRTUAL_PREFIX, LOADER_PATH } = scopedPaths(scope);
+
+		// If we have an ID, navigate directly to the cached content
+		// This is crucial for nested iframes to work properly
 		if (id) {
-			queryString.set('id', id);
+			return `${VIRTUAL_PREFIX}${id}.html`;
 		}
+
+		// No ID - use the loader for empty iframes
+		// (shouldn't normally happen since empty iframes get cached too)
+		const queryString = new URLSearchParams({ base, url: prettyUrl });
 		return `${LOADER_PATH}#${queryString.toString()}`;
 	}
 
 	/**
-	 * Rewrite an iframe's srcdoc by caching the HTML and redirecting to the loader.
-	 * In nested contexts where direct iframe navigation doesn't work, we delegate
-	 * to a capable ancestor window.
+	 * Rewrite an iframe's srcdoc by caching the HTML and navigating to the cached URL.
+	 * This navigates the original iframe to a SW-controlled URL.
+	 *
+	 * The HTML is injected with iframes-trap.js and a <base> tag, then cached.
+	 * The iframe navigates directly to the cached URL, which the SW serves as
+	 * a real HTML document. This allows nested iframes to work properly.
 	 */
 	async function rewriteSrcdoc(iframe, html, opts = {}) {
+		console.log('[iframes-trap] rewriteSrcdoc called, html length:', html?.length);
+
 		// Mark that srcdoc processing is in progress (so scheduleIframeControl can defer)
 		iframe.setAttribute('data-srcdoc-pending', '1');
 
 		const id = uid();
-		await cacheIframeContents(id, html);
+		const base = opts.base || document.baseURI;
+		const prettyUrl = opts.prettyUrl || '';
+
+		console.log('[iframes-trap] rewriteSrcdoc: caching with id:', id);
+		// Cache the HTML with injected scripts
+		await cacheIframeContents(id, html, base, prettyUrl);
 		const url = await toLoaderUrl({ id, ...opts });
+		console.log('[iframes-trap] rewriteSrcdoc: loader URL:', url);
 
-		// In nested contexts, direct setIframeSrc doesn't trigger navigation
-		// We need to use the parent-delegation approach
-		if (isNestedContext()) {
-			const capableAncestor = findCapableAncestor();
-			if (capableAncestor) {
-				// Schedule the control with the loader URL already prepared.
-				// NOTE: We keep data-srcdoc-pending set until scheduleSrcdocControl completes.
-				// This prevents scheduleIframeControl from creating a duplicate controlled iframe.
-				scheduleSrcdocControl(iframe, url);
-				return;
-			}
-		}
-
-		// In top-level context or no capable ancestor, set src directly.
-		// If there was a previous controlled iframe (from before document.write),
-		// remove it since we're replacing the content.
-		if (iframe.__controlledIframe) {
-			try {
-				iframe.__controlledIframe.remove();
-			} catch {
-				// Ignore removal errors
-			}
-			iframe.__controlledIframe = null;
-			iframe.removeAttribute('data-controlled-by');
-		}
-
-		// For document.write iframes, we need to force a full navigation.
-		// After document.write(), the iframe's location may already be the same base URL
-		// as the loader (inheriting from parent). If we try to navigate to a URL that
-		// differs only in hash, browsers treat it as a same-document navigation without
-		// loading a new document.
-		//
-		// Solution: Remove and re-add the iframe element with the new src.
-		// This forces a complete reload.
+		// Remove and re-add the iframe to force a full navigation.
+		// This is necessary because:
+		// 1. Setting src on an iframe that has had document.write() may not trigger navigation
+		// 2. Hash-only URL changes don't trigger navigation
 		const parent = iframe.parentNode;
 		const nextSibling = iframe.nextSibling;
+		console.log('[iframes-trap] rewriteSrcdoc: parent:', !!parent, 'nextSibling:', !!nextSibling);
 
 		// Temporarily remove from DOM
 		if (parent) {
 			parent.removeChild(iframe);
 		}
 
-		// Set src using native setter (this sets the attribute for when it's re-added)
+		// Set src using native setter
+		console.log('[iframes-trap] rewriteSrcdoc: setting src to:', url);
 		setIframeSrc(iframe, url);
 
 		// Re-add to DOM - this triggers a fresh navigation
@@ -236,6 +391,7 @@ function setupIframesTrap() {
 			}
 		}
 
+		console.log('[iframes-trap] rewriteSrcdoc: done, iframe.src:', iframe.src);
 		iframe.setAttribute('data-controlled', '1');
 		iframe.removeAttribute('data-srcdoc-pending');
 	}
@@ -539,10 +695,118 @@ function setupIframesTrap() {
 	}
 
 	/**
-	 * Listen for iframe creation requests from child frames.
+	 * Listen for iframe messages from child frames.
 	 * This handler runs in the ancestor window's realm.
 	 */
 	window.addEventListener('message', async (event) => {
+		// Handle iframe navigation requests
+		if (event.data?.type === '__playground_navigate_iframe') {
+			const { iframeId, url } = event.data;
+			console.log('[iframes-trap] Received iframe navigation request:', iframeId, url);
+
+			// The child frame stores a reference to the iframe in __pg_iframes_to_navigate
+			// We need to find the child window that sent this message and access the iframe
+			try {
+				// Walk through all child frames to find the one with this iframe
+				const findIframeInDescendants = (win, depth = 0) => {
+					try {
+						const pendingNavs = win.__pg_iframes_to_navigate;
+						console.log(`[iframes-trap] findIframeInDescendants depth=${depth}, hasPending=${!!pendingNavs}, looking for ${iframeId}`);
+						if (pendingNavs) {
+							console.log(`[iframes-trap] pendingNavs keys:`, Object.keys(pendingNavs));
+						}
+						if (pendingNavs && pendingNavs[iframeId]) {
+							console.log(`[iframes-trap] Found at depth ${depth}!`);
+							return pendingNavs[iframeId];
+						}
+						// Search in child frames
+						console.log(`[iframes-trap] depth=${depth} has ${win.frames.length} child frames`);
+						for (let i = 0; i < win.frames.length; i++) {
+							try {
+								const result = findIframeInDescendants(win.frames[i], depth + 1);
+								if (result) return result;
+							} catch (e) {
+								console.log(`[iframes-trap] depth=${depth} frame[${i}] cross-origin:`, e.message);
+								// Cross-origin child, skip
+							}
+						}
+					} catch (e) {
+						console.log(`[iframes-trap] depth=${depth} access error:`, e.message);
+						// Cross-origin access error
+					}
+					return null;
+				};
+
+				const found = findIframeInDescendants(window);
+				if (found && found.iframe) {
+					const { iframe } = found;
+					console.log('[iframes-trap] Found iframe to navigate:', iframeId);
+
+					// Try multiple approaches to trigger navigation
+					// Approach 1: Try contentWindow.location.href (may fail due to cross-origin)
+					try {
+						if (iframe.contentWindow) {
+							console.log('[iframes-trap] Attempting contentWindow.location navigation');
+							iframe.contentWindow.location.href = url;
+							console.log('[iframes-trap] contentWindow.location navigation succeeded');
+							delete found.iframe.ownerDocument?.defaultView?.__pg_iframes_to_navigate?.[iframeId];
+							return;
+						}
+					} catch (e) {
+						console.log('[iframes-trap] contentWindow.location failed:', e.message);
+					}
+
+					// Approach 2: Try contentWindow.location.replace (sometimes works when assign doesn't)
+					try {
+						if (iframe.contentWindow) {
+							console.log('[iframes-trap] Attempting contentWindow.location.replace');
+							iframe.contentWindow.location.replace(url);
+							console.log('[iframes-trap] contentWindow.location.replace succeeded');
+							delete found.iframe.ownerDocument?.defaultView?.__pg_iframes_to_navigate?.[iframeId];
+							return;
+						}
+					} catch (e) {
+						console.log('[iframes-trap] contentWindow.location.replace failed:', e.message);
+					}
+
+					// Approach 3: Remove, set src, and re-add
+					console.log('[iframes-trap] Using remove/src/readd approach');
+					const parent = iframe.parentNode;
+					const nextSibling = iframe.nextSibling;
+
+					if (parent) {
+						parent.removeChild(iframe);
+					}
+
+					// Set src using native setter - in the ancestor's realm
+					if (Native.iframeSrc?.set) {
+						Native.iframeSrc.set.call(iframe, url);
+					} else {
+						Native.setAttribute.call(iframe, 'src', url);
+					}
+
+					if (parent) {
+						if (nextSibling) {
+							parent.insertBefore(iframe, nextSibling);
+						} else {
+							parent.appendChild(iframe);
+						}
+					}
+
+					console.log('[iframes-trap] Set src and readded iframe:', iframeId, 'to', url);
+
+					// Clean up the pending navigation entry
+					delete found.iframe.ownerDocument?.defaultView?.__pg_iframes_to_navigate?.[iframeId];
+				} else {
+					console.warn('[iframes-trap] Could not find iframe to navigate:', iframeId);
+				}
+			} catch (e) {
+				console.error('[iframes-trap] Error navigating iframe:', e);
+			}
+			return;
+		}
+
+		// Handle iframe creation requests (existing code)
 		if (event.data?.type !== '__playground_create_iframe') {
 			return;
 		}
@@ -952,28 +1216,16 @@ function setupIframesTrap() {
 			return element;
 		}
 
-		const iframe = element;
-		try {
-			const { LOADER_PATH } = scopedPaths(inferredSiteScope);
-			// Only seed if no src/srcdoc is set and not already controlled
-			const alreadyControlled = iframe.getAttribute('data-controlled') === '1';
-			const srcdocPending = iframe.getAttribute('data-srcdoc-pending') === '1';
-			if (!alreadyControlled && !srcdocPending && !iframe.hasAttribute('src') && !iframe.hasAttribute('srcdoc') && LOADER_PATH) {
-				if (isNestedContext()) {
-					// In nested contexts, defer the src assignment to allow navigation
-					scheduleIframeControl(iframe);
-				}
-				// In top-level context, we DON'T set src here.
-				// The MutationObserver will handle it when the iframe is appended to the DOM.
-				// This avoids race conditions where:
-				// 1. createElement sets src to loader#base=...
-				// 2. srcdoc is set, triggering async rewriteSrcdoc
-				// 3. appendChild happens, navigating to the old src (without id)
-				// 4. rewriteSrcdoc finishes, tries to update src but navigation already happened
-			}
-		} catch (error) {
-			// Ignore errors - iframe just won't be controlled
-		}
+		// Don't do anything special in createElement.
+		// The MutationObserver will handle it when the iframe is appended to the DOM.
+		// This avoids race conditions where:
+		// 1. createElement sets src to loader#base=...
+		// 2. srcdoc is set, triggering async rewriteSrcdoc
+		// 3. appendChild happens, navigating to the old src (without id)
+		// 4. rewriteSrcdoc finishes, tries to update src but navigation already happened
+		//
+		// This works for both top-level and nested contexts since we now use
+		// direct navigation (not overlay iframes) for all cases.
 		return element;
 	}
 
@@ -1046,171 +1298,558 @@ function setupIframesTrap() {
 	// contentWindow/contentDocument getters - redirect to controlled iframe if needed
 	// ============================================================================
 
-	/**
-	 * WeakMap to cache document proxies for iframes.
-	 * This ensures we return the same proxy for the same iframe.
-	 */
-	const documentProxyCache = new WeakMap();
+	// ============================================================================
+	// Patch Document.prototype.open/write/writeln/close to preserve SW control
+	// ============================================================================
+	//
+	// When TinyMCE or similar libraries call document.open(), document.write(),
+	// document.close() on a controlled iframe, the native implementations would
+	// destroy the document and replace it with a new one that is NOT controlled
+	// by the service worker.
+	//
+	// Our approach: Instead of letting document.open()/write()/close() replace
+	// the document, we simulate their behavior using DOM manipulation:
+	// - document.open(): Clear the document body and head (but keep the document itself)
+	// - document.write(): Parse the HTML and append to the document
+	// - document.close(): No-op (document is already usable)
+	//
+	// This keeps the iframe's document controlled by the service worker while
+	// still allowing TinyMCE's initialization pattern to work.
+	// ============================================================================
 
 	/**
-	 * WeakMap to cache contentWindow proxies for iframes.
+	 * WeakMap to track iframes that are in "document.write mode".
+	 * When document.open() is called on a controlled iframe, we switch to
+	 * using our simulated write() instead of the native one.
 	 */
-	const contentWindowProxyCache = new WeakMap();
+	const iframeWriteState = new WeakMap();
 
 	/**
-	 * Create a proxy for an iframe's contentDocument that intercepts document.write()
-	 * and document.close() calls. This is necessary because TinyMCE and other libraries
-	 * use document.write() to populate iframe content, which bypasses our src/srcdoc
-	 * interception and leaves the iframe uncontrolled by the service worker.
+	 * Get the iframe element that owns a document, if any.
+	 */
+	function getIframeForDocument(doc) {
+		try {
+			const win = doc.defaultView;
+			if (win && win.frameElement instanceof HTMLIFrameElement) {
+				return win.frameElement;
+			}
+		} catch {
+			// Cross-origin or other access error
+		}
+		return null;
+	}
+
+	/**
+	 * Check if a document belongs to an iframe that is ALREADY SW-controlled.
+	 * We only intercept document.write() on iframes that actually have a
+	 * service worker controller, because:
 	 *
-	 * The proxy:
-	 * 1. Buffers all content written via write()/writeln()
-	 * 2. On close(), redirects the iframe to the loader with the buffered content
-	 * 3. Passes through all other operations to the real document
+	 * 1. If the iframe has a SW controller, document.write() would destroy
+	 *    that control - we want to preserve it by using DOM manipulation instead
+	 * 2. If the iframe doesn't have a SW controller yet, we should let the
+	 *    native document.write() happen, then capture the content afterward
+	 *    and navigate the iframe to a controlled URL
+	 *
+	 * This approach avoids the race condition where we intercept document.write()
+	 * before the iframe has navigated to a controlled URL, which would prevent
+	 * it from ever becoming SW-controlled.
 	 */
-	function createDocumentWriteProxy(iframe, realDocument) {
-		const writeBuffer = [];
-		let isClosed = false;
+	function shouldInterceptDocumentWrite(doc) {
+		const iframe = getIframeForDocument(doc);
+		if (!iframe) return false;
 
-		const handler = {
-			get(target, prop, receiver) {
-				// Intercept write() and writeln()
-				if (prop === 'write') {
-					return function (...args) {
-						writeBuffer.push(...args);
-						// Also call the real write() to maintain expected behavior
-						return target.write.apply(target, args);
-					};
-				}
-				if (prop === 'writeln') {
-					return function (...args) {
-						writeBuffer.push(...args.map(a => a + '\n'));
-						return target.writeln.apply(target, args);
-					};
-				}
-				// Intercept close() to trigger the redirect
-				if (prop === 'close') {
-					return function () {
-						const result = target.close.apply(target, arguments);
-						if (!isClosed && writeBuffer.length > 0) {
-							isClosed = true;
-							// Mark as srcdoc-pending IMMEDIATELY so scheduleIframeControl knows to bail.
-							// This must happen before the setTimeout to prevent race conditions where
-							// scheduleIframeControl creates a controlled iframe before we do.
-							iframe.setAttribute('data-srcdoc-pending', '1');
-							// IMPORTANT: We use TWO nested setTimeout(0) calls to ensure that any
-							// synchronous JavaScript that runs AFTER document.close() has a chance
-							// to execute before we capture the DOM state. This is critical for
-							// TinyMCE and similar editors that set contentEditable after close():
-							//
-							//   iframe.contentDocument.write(html);
-							//   iframe.contentDocument.close();
-							//   iframe.contentDocument.body.contentEditable = 'true';  // <-- runs AFTER close()
-							//
-							// A single setTimeout(0) might not be enough because it could fire
-							// during the same microtask queue flush. Two setTimeout(0)s ensure
-							// we wait for the next macrotask.
-							setTimeout(() => {
-								setTimeout(async () => {
-									if (iframe.getAttribute('data-controlled') !== '1') {
-										// Serialize the CURRENT DOM state, not the original writeBuffer.
-										// This captures any JS-applied changes like contentEditable, styles,
-										// event handlers (as attributes), etc.
-										const currentHtml = target.documentElement?.outerHTML || writeBuffer.join('');
-										await rewriteSrcdoc(iframe, currentHtml, {
-											base: target.baseURI || iframe.ownerDocument?.baseURI,
-											prettyUrl: iframe.ownerDocument?.location?.href,
-										});
-									} else {
-										// Iframe was already controlled, remove the pending marker
-										iframe.removeAttribute('data-srcdoc-pending');
-									}
-								}, 0);
-							}, 0);
-						}
-						return result;
-					};
-				}
-
-				// For all other properties, return the real value
-				// Note: we use target[prop] instead of Reflect.get with receiver
-				// because DOM properties can throw "Illegal invocation" when the
-				// receiver is a proxy instead of the actual DOM object
-				const value = target[prop];
-				// Bind functions to the real document
-				if (typeof value === 'function') {
-					return value.bind(target);
-				}
-				return value;
-			},
-			set(target, prop, value) {
-				target[prop] = value;
+		// Only intercept if the iframe ACTUALLY has a SW controller right now
+		// This means the iframe has already navigated to a controlled URL
+		try {
+			const iframeWindow = iframe.contentWindow;
+			if (iframeWindow?.navigator?.serviceWorker?.controller) {
 				return true;
-			},
+			}
+		} catch {
+			// Cross-origin error - can't check, don't intercept
+		}
+
+		return false;
+	}
+
+	/**
+	 * Parse HTML string and extract head and body content.
+	 * Returns { headContent, bodyContent, bodyAttributes }.
+	 */
+	function parseHtmlString(html) {
+		// Use DOMParser to parse the HTML
+		const parser = new DOMParser();
+		const parsed = parser.parseFromString(html, 'text/html');
+
+		return {
+			headContent: parsed.head ? parsed.head.innerHTML : '',
+			bodyContent: parsed.body ? parsed.body.innerHTML : '',
+			bodyAttributes: parsed.body ? Array.from(parsed.body.attributes) : [],
+			title: parsed.title || '',
+		};
+	}
+
+	// Wrap Document.prototype.open
+	const NativeDocOpen = Document.prototype.open;
+	Document.prototype.open = function (...args) {
+		// Check if this is an iframe in a controlled context
+		if (shouldInterceptDocumentWrite(this)) {
+			const iframe = getIframeForDocument(this);
+
+			// Initialize write state for this iframe
+			iframeWriteState.set(iframe, {
+				buffer: [],
+				isOpen: true,
+			});
+
+			// Clear the document content but preserve the document itself
+			// This simulates what document.open() does without destroying SW control
+			try {
+				// Clear head content except for essential elements (base, our script)
+				const head = this.head;
+				if (head) {
+					const toRemove = [];
+					for (const child of head.children) {
+						// Keep base tag and our iframes-trap script
+						if (child.tagName === 'BASE') continue;
+						if (child.tagName === 'SCRIPT' && child.src?.includes('iframes-trap')) continue;
+						toRemove.push(child);
+					}
+					toRemove.forEach(el => el.remove());
+				}
+
+				// Clear body content
+				if (this.body) {
+					this.body.innerHTML = '';
+					// Remove all body attributes except essential ones
+					const attrs = Array.from(this.body.attributes);
+					for (const attr of attrs) {
+						this.body.removeAttribute(attr.name);
+					}
+				}
+			} catch (e) {
+				console.warn('[iframes-trap] Error clearing document in open():', e);
+			}
+
+			// Return this document (like native open does)
+			return this;
+		}
+
+		// Not a controlled iframe, use native behavior
+		return NativeDocOpen.apply(this, args);
+	};
+
+	// Wrap Document.prototype.write
+	const NativeDocWrite = Document.prototype.write;
+	Document.prototype.write = function (...args) {
+		const iframe = getIframeForDocument(this);
+		const state = iframe ? iframeWriteState.get(iframe) : null;
+
+		// If we're in "simulated write mode" for an iframe in controlled context
+		if (state?.isOpen && shouldInterceptDocumentWrite(this)) {
+			// Buffer the content
+			state.buffer.push(...args);
+			return;
+		}
+
+		// Not a controlled context or not in write mode, use native behavior
+		return NativeDocWrite.apply(this, args);
+	};
+
+	// Wrap Document.prototype.writeln
+	const NativeDocWriteln = Document.prototype.writeln;
+	Document.prototype.writeln = function (...args) {
+		const iframe = getIframeForDocument(this);
+		const state = iframe ? iframeWriteState.get(iframe) : null;
+
+		// If we're in "simulated write mode" for an iframe in controlled context
+		if (state?.isOpen && shouldInterceptDocumentWrite(this)) {
+			// Buffer the content with newlines
+			state.buffer.push(...args.map(a => a + '\n'));
+			return;
+		}
+
+		// Not a controlled iframe or not in write mode, use native behavior
+		return NativeDocWriteln.apply(this, args);
+	};
+
+	// Wrap Document.prototype.close
+	const NativeDocClose = Document.prototype.close;
+	Document.prototype.close = function () {
+		console.log('[iframes-trap] Document.prototype.close called');
+		const iframe = getIframeForDocument(this);
+		console.log('[iframes-trap] getIframeForDocument result:', !!iframe, iframe?.id || 'no-id');
+		const state = iframe ? iframeWriteState.get(iframe) : null;
+
+		// If we're in "simulated write mode" for an iframe in controlled context
+		if (state?.isOpen && shouldInterceptDocumentWrite(this)) {
+			state.isOpen = false;
+
+			// Process the buffered content
+			const html = state.buffer.join('');
+			state.buffer = [];
+
+			if (html) {
+				try {
+					const { headContent, bodyContent, bodyAttributes, title } = parseHtmlString(html);
+
+					// Set title if present
+					if (title) {
+						this.title = title;
+					}
+
+					// Append head content (scripts, styles, etc.)
+					if (headContent && this.head) {
+						// Parse and append head elements
+						const tempDiv = this.createElement('div');
+						tempDiv.innerHTML = headContent;
+						while (tempDiv.firstChild) {
+							this.head.appendChild(tempDiv.firstChild);
+						}
+					}
+
+					// Set body content
+					if (this.body) {
+						this.body.innerHTML = bodyContent;
+
+						// Apply body attributes
+						for (const attr of bodyAttributes) {
+							this.body.setAttribute(attr.name, attr.value);
+						}
+					}
+				} catch (e) {
+					console.warn('[iframes-trap] Error applying buffered content in close():', e);
+				}
+			}
+
+			// Clean up state
+			iframeWriteState.delete(iframe);
+
+			// Mark the iframe as controlled since we successfully handled
+			// document.write without destroying the SW control
+			if (iframe.getAttribute('data-controlled') !== '1') {
+				iframe.setAttribute('data-controlled', '1');
+			}
+			return;
+		}
+
+		// Clean up state if any
+		if (state) {
+			iframeWriteState.delete(iframe);
+		}
+
+		// Use native close behavior
+		const result = NativeDocClose.apply(this, arguments);
+
+		// If this is an iframe in a SW-controlled parent, schedule content capture
+		// AFTER a microtask to allow any post-close() JavaScript to run (like TinyMCE
+		// setting contentEditable on the body).
+		if (iframe) {
+			const parentWindow = iframe.ownerDocument?.defaultView;
+			const parentHasController = parentWindow?.navigator?.serviceWorker?.controller;
+
+			console.log('[iframes-trap] document.close() called on iframe, parentHasController:', parentHasController);
+
+			if (parentHasController) {
+				// Mark that we're handling this iframe
+				iframe.setAttribute('data-docwrite-controlled', '1');
+
+				// Use double setTimeout to ensure all synchronous JS runs first
+				// (TinyMCE sets contentEditable after close() in the same call stack)
+				setTimeout(() => {
+					setTimeout(async () => {
+						// Only proceed if iframe is still in DOM
+						if (!iframe.isConnected) {
+							console.log('[iframes-trap] document.close handler: iframe not connected');
+							return;
+						}
+
+						// Capture the CURRENT state (after TinyMCE's modifications)
+						const currentDoc = iframe.contentDocument;
+						const finalHtml = currentDoc?.documentElement?.outerHTML;
+						if (!finalHtml) {
+							console.log('[iframes-trap] document.close handler: no HTML to capture');
+							return;
+						}
+
+						console.log('[iframes-trap] document.close handler: navigating to SW-controlled URL');
+						// Navigate the iframe to a SW-controlled URL
+						// The proxy will redirect subsequent access to the new document
+						await rewriteSrcdoc(iframe, finalHtml);
+						console.log('[iframes-trap] document.close handler: navigation complete');
+					}, 0);
+				}, 0);
+			}
+		}
+
+		return result;
+	};
+
+	// ============================================================================
+	// contentWindow/contentDocument getters - wrap to intercept document.write
+	// ============================================================================
+	//
+	// We can't patch Document.prototype.close in the iframe's realm because
+	// the iframe starts as about:blank and we don't control it yet. Instead,
+	// we wrap contentDocument to return a proxy that intercepts open/write/close
+	// calls on about:blank iframes in SW-controlled contexts.
+	// ============================================================================
+
+	/**
+	 * WeakMap to track proxied documents and their write state.
+	 * Key: original Document, Value: { buffer: string[], isOpen: boolean }
+	 */
+	const documentWriteProxyState = new WeakMap();
+
+	/**
+	 * Create a proxy for a document that intercepts open/write/close calls.
+	 *
+	 * IMPORTANT: This proxy is "live" - after navigation, property access
+	 * automatically goes to the NEW document. This allows TinyMCE to store
+	 * a reference to `iframe.contentDocument` before navigation, and have
+	 * it automatically work with the new document after navigation.
+	 */
+	function createDocumentWriteProxy(iframe, doc) {
+		// Only proxy if the parent has SW controller
+		const parentWindow = iframe.ownerDocument?.defaultView;
+		const parentHasController = parentWindow?.navigator?.serviceWorker?.controller;
+		if (!parentHasController) {
+			return doc;
+		}
+
+		// Check if already proxied
+		if (doc.__playground_proxied__) {
+			return doc;
+		}
+
+		const state = { buffer: [], isOpen: false, navigating: false };
+		documentWriteProxyState.set(doc, state);
+
+		// Helper to get the current document from the iframe
+		// After navigation, this returns the NEW document
+		const getCurrentDoc = () => {
+			try {
+				return Native.contentDocument.get.call(iframe);
+			} catch {
+				return doc; // Fallback to original if access fails
+			}
 		};
 
-		return new Proxy(realDocument, handler);
+		const proxy = new Proxy(doc, {
+			get(target, prop, receiver) {
+				if (prop === '__playground_proxied__') return true;
+				if (prop === '__playground_original__') return target;
+				if (prop === '__playground_iframe__') return iframe;
+
+				if (prop === 'open') {
+					return function (...args) {
+						console.log('[iframes-trap] Proxied document.open() called');
+						state.isOpen = true;
+						state.buffer = [];
+						// Don't call native open - we'll handle everything in close()
+						return proxy; // Return proxy for chaining
+					};
+				}
+
+				if (prop === 'write') {
+					return function (...args) {
+						if (state.isOpen) {
+							console.log('[iframes-trap] Proxied document.write() called, buffering');
+							state.buffer.push(...args);
+							return;
+						}
+						// If not in write mode, call native on current doc
+						const currentDoc = getCurrentDoc();
+						return currentDoc.write.apply(currentDoc, args);
+					};
+				}
+
+				if (prop === 'writeln') {
+					return function (...args) {
+						if (state.isOpen) {
+							console.log('[iframes-trap] Proxied document.writeln() called, buffering');
+							state.buffer.push(...args.map(a => a + '\n'));
+							return;
+						}
+						const currentDoc = getCurrentDoc();
+						return currentDoc.writeln.apply(currentDoc, args);
+					};
+				}
+
+				if (prop === 'close') {
+					return function () {
+						console.log('[iframes-trap] Proxied document.close() called');
+						if (!state.isOpen) {
+							const currentDoc = getCurrentDoc();
+							return currentDoc.close.apply(currentDoc, arguments);
+						}
+
+						state.isOpen = false;
+						const html = state.buffer.join('');
+						state.buffer = [];
+						console.log('[iframes-trap] Proxied document.close: buffered HTML length:', html.length);
+
+						// Mark that we're handling this iframe
+						iframe.setAttribute('data-docwrite-controlled', '1');
+
+						// Parse the HTML to extract structure WITHOUT triggering resource loads
+						// We need to create the DOM structure so TinyMCE's post-close() operations
+						// like `doc.body.contentEditable = 'true'` can work immediately.
+						const parser = new DOMParser();
+						const parsed = parser.parseFromString(html, 'text/html');
+
+						// Apply the structure via DOM manipulation (not document.write)
+						// This doesn't trigger CSS/image loading from about:blank
+						target.open();
+						target.write('<!DOCTYPE html><html><head></head><body></body></html>');
+						target.close();
+
+						// Copy body content and attributes
+						if (parsed.body && target.body) {
+							target.body.innerHTML = parsed.body.innerHTML;
+							for (const attr of parsed.body.attributes) {
+								target.body.setAttribute(attr.name, attr.value);
+							}
+						}
+
+						// Copy head content (without link/script tags that would load resources)
+						if (parsed.head && target.head) {
+							for (const child of parsed.head.children) {
+								if (child.tagName !== 'LINK' && child.tagName !== 'SCRIPT') {
+									target.head.appendChild(child.cloneNode(true));
+								}
+							}
+						}
+
+						// Set title
+						if (parsed.title) {
+							target.title = parsed.title;
+						}
+
+						// Now schedule navigation to SW-controlled URL after TinyMCE finishes
+						// its synchronous post-close() operations. The proxy will redirect
+						// all subsequent property access to the new document.
+						setTimeout(() => {
+							setTimeout(async () => {
+								if (!iframe.isConnected) {
+									console.log('[iframes-trap] Proxied close: iframe not connected');
+									return;
+								}
+
+								// Capture the CURRENT state (including TinyMCE's modifications)
+								const currentDoc = getCurrentDoc();
+								const finalHtml = currentDoc?.documentElement?.outerHTML;
+								if (!finalHtml) {
+									console.log('[iframes-trap] Proxied close: no HTML to capture');
+									return;
+								}
+
+								// Merge the original CSS/script resources back in
+								// The parser extracted head content which we stripped
+								const headContent = parsed.head?.innerHTML || '';
+								const mergedHtml = finalHtml.replace('</head>', headContent + '</head>');
+
+								console.log('[iframes-trap] Proxied close: navigating to SW-controlled URL');
+								await rewriteSrcdoc(iframe, mergedHtml);
+								console.log('[iframes-trap] Proxied close: navigation complete');
+							}, 0);
+						}, 0);
+
+						return;
+					};
+				}
+
+				// For all other properties, access them on the CURRENT document
+				// This makes the proxy "live" - after navigation, it accesses
+				// the new document automatically
+				try {
+					const currentDoc = getCurrentDoc();
+					const value = currentDoc[prop];
+					if (typeof value === 'function') {
+						return value.bind(currentDoc);
+					}
+					return value;
+				} catch (e) {
+					// Some properties might throw, just return undefined
+					return undefined;
+				}
+			},
+
+			set(target, prop, value) {
+				// Set on the CURRENT document
+				try {
+					const currentDoc = getCurrentDoc();
+					currentDoc[prop] = value;
+					return true;
+				} catch (e) {
+					return false;
+				}
+			}
+		});
+
+		return proxy;
+	}
+
+	/**
+	 * WeakMap to cache proxied windows.
+	 * Key: iframe element, Value: proxied window
+	 */
+	const proxiedWindowCache = new WeakMap();
+
+	/**
+	 * Create a proxy for a window that wraps the document property.
+	 */
+	function createWindowProxy(iframe, win) {
+		// Check cache first
+		const cached = proxiedWindowCache.get(iframe);
+		if (cached && cached.win === win) {
+			return cached.proxy;
+		}
+
+		const proxy = new Proxy(win, {
+			get(target, prop, receiver) {
+				if (prop === 'document') {
+					const doc = target.document;
+					if (doc) {
+						return createDocumentWriteProxy(iframe, doc);
+					}
+					return doc;
+				}
+
+				// For all other properties, access them directly on the target
+				// to preserve proper binding (especially for getters like navigator)
+				try {
+					const value = target[prop];
+					if (typeof value === 'function') {
+						return value.bind(target);
+					}
+					return value;
+				} catch (e) {
+					// Some properties might throw, just return undefined
+					return undefined;
+				}
+			}
+		});
+
+		proxiedWindowCache.set(iframe, { win, proxy });
+		return proxy;
 	}
 
 	Object.defineProperty(HTMLIFrameElement.prototype, 'contentWindow', {
 		configurable: true,
 		enumerable: Native.contentWindow?.enumerable ?? true,
 		get() {
-			// If this iframe has a controlled counterpart in an ancestor, use that
-			if (this.__controlledIframe) {
-				try {
-					return Native.contentWindow.get.call(this.__controlledIframe);
-				} catch {
-					// Fall through to native
-				}
+			const win = Native.contentWindow.get.call(this);
+			if (!win) return win;
+
+			// Only proxy if the parent has SW controller
+			const parentWindow = this.ownerDocument?.defaultView;
+			const parentHasController = parentWindow?.navigator?.serviceWorker?.controller;
+			if (!parentHasController) {
+				return win;
 			}
 
-			const realWindow = Native.contentWindow.get.call(this);
-			const iframe = this;
-
-			// If iframe is already controlled or doesn't have a window, return as-is
-			if (!realWindow || iframe.getAttribute('data-controlled') === '1') {
-				return realWindow;
-			}
-
-			// Check if we already have a proxy for this iframe's window
-			let proxy = contentWindowProxyCache.get(iframe);
-			if (!proxy) {
-				// Create a proxy that intercepts 'document' property access
-				proxy = new Proxy(realWindow, {
-					get(target, prop, receiver) {
-						if (prop === 'document') {
-							// Return our document proxy instead of the real document
-							const realDoc = target.document;
-							if (!realDoc) return realDoc;
-
-							// Get or create the document proxy
-							let docProxy = documentProxyCache.get(iframe);
-							if (!docProxy) {
-								docProxy = createDocumentWriteProxy(iframe, realDoc);
-								documentProxyCache.set(iframe, docProxy);
-							}
-							return docProxy;
-						}
-						// For all other properties, return the real value
-						// Note: we use target[prop] instead of Reflect.get with receiver
-						// because DOM properties can throw "Illegal invocation" when the
-						// receiver is a proxy instead of the actual DOM object
-						const value = target[prop];
-						if (typeof value === 'function') {
-							return value.bind(target);
-						}
-						return value;
-					},
-					set(target, prop, value) {
-						target[prop] = value;
-						return true;
-					},
-				});
-				contentWindowProxyCache.set(iframe, proxy);
-			}
-
-			return proxy;
+			return createWindowProxy(this, win);
 		},
 	});
 
@@ -1218,30 +1857,11 @@ function setupIframesTrap() {
 		configurable: true,
 		enumerable: Native.contentDocument?.enumerable ?? true,
 		get() {
-			// If this iframe has a controlled counterpart in an ancestor, use that
-			if (this.__controlledIframe) {
-				try {
-					return Native.contentDocument.get.call(this.__controlledIframe);
-				} catch {
-					// Fall through to native
-				}
-			}
+			const doc = Native.contentDocument.get.call(this);
+			if (!doc) return doc;
 
-			const realDocument = Native.contentDocument.get.call(this);
-
-			// If iframe is already controlled or doesn't have a document, return as-is
-			if (!realDocument || this.getAttribute('data-controlled') === '1') {
-				return realDocument;
-			}
-
-			// Check if we already have a proxy for this iframe
-			let proxy = documentProxyCache.get(this);
-			if (!proxy) {
-				proxy = createDocumentWriteProxy(this, realDocument);
-				documentProxyCache.set(this, proxy);
-			}
-
-			return proxy;
+			// Wrap the document in a proxy to intercept document.write calls
+			return createDocumentWriteProxy(this, doc);
 		},
 	});
 
@@ -1262,11 +1882,14 @@ function setupIframesTrap() {
 
 	/**
 	 * Control an iframe that was just added to the DOM.
-	 * Uses deferred approach for nested contexts.
+	 * Uses direct navigation for all contexts (nested or not).
 	 *
-	 * This function also handles iframes that were created before iframes-trap.js
-	 * loaded - if they have uncontrolled src values (javascript:, about:blank, etc.)
-	 * we redirect them through the loader.
+	 * This function handles iframes that were created before iframes-trap.js
+	 * loaded, or iframes with uncontrolled src values (javascript:, about:blank, etc.).
+	 *
+	 * Since we now serve cached HTML directly from the SW (not via innerHTML
+	 * injection), nested iframe navigation works properly. We can simply set
+	 * the src attribute and the iframe will navigate.
 	 */
 	function controlIframeOnMutation(iframe) {
 		if (iframe.getAttribute('data-controlled') === '1' || iframe.getAttribute('data-control-pending') === '1') {
@@ -1275,6 +1898,13 @@ function setupIframesTrap() {
 
 		// Check if srcdoc is being processed - let rewriteSrcdoc handle it
 		if (iframe.getAttribute('data-srcdoc-pending') === '1') {
+			return;
+		}
+
+		// Check if this is a document.write iframe - don't navigate these
+		// as it would break TinyMCE's references. They have iframes-trap.js
+		// injected directly instead.
+		if (iframe.getAttribute('data-docwrite-controlled') === '1') {
 			return;
 		}
 
@@ -1291,14 +1921,153 @@ function setupIframesTrap() {
 		}
 
 		// Iframe either has no src, or has an uncontrolled src (javascript:, about:blank, etc.)
-		// Route it through the loader to make it SW-controlled
-		if (isNestedContext()) {
-			scheduleIframeControl(iframe);
-		} else {
-			const url = getEmptyLoaderUrl();
-			setIframeSrc(iframe, url);
-			iframe.setAttribute('data-controlled', '1');
+		// Navigate the original iframe to make it SW-controlled.
+		//
+		// We need to cache empty content and navigate to it, just like we do for srcdoc.
+		// This ensures the iframe loads a "real" document from the SW.
+		controlEmptyIframe(iframe);
+	}
+
+	/**
+	 * Control an empty iframe by caching minimal HTML and navigating to it.
+	 * This uses the same approach as rewriteSrcdoc to ensure nested iframes work.
+	 */
+	async function controlEmptyIframe(iframe) {
+		iframe.setAttribute('data-control-pending', '1');
+
+		const id = uid();
+		const base = document.baseURI;
+
+		// Cache minimal HTML with iframes-trap.js injected
+		const minimalHtml = '<!DOCTYPE html><html><head></head><body></body></html>';
+		await cacheIframeContents(id, minimalHtml, base, '');
+
+		const scope = await scopePromise;
+		const { VIRTUAL_PREFIX } = scopedPaths(scope);
+		const url = `${VIRTUAL_PREFIX}${id}.html`;
+
+		// Remove and re-add to force navigation
+		const parent = iframe.parentNode;
+		const nextSibling = iframe.nextSibling;
+
+		if (parent) {
+			parent.removeChild(iframe);
 		}
+
+		setIframeSrc(iframe, url);
+
+		if (parent) {
+			if (nextSibling) {
+				parent.insertBefore(iframe, nextSibling);
+			} else {
+				parent.appendChild(iframe);
+			}
+		}
+
+		iframe.removeAttribute('data-control-pending');
+		iframe.setAttribute('data-controlled', '1');
+		console.log('[iframes-trap] controlEmptyIframe: navigated to cached URL:', url);
+	}
+
+	/**
+	 * Request an ancestor window to create a SW-controlled iframe.
+	 *
+	 * IMPORTANT: Due to browser limitations, iframes created in nested documents
+	 * (inside other iframes) cannot be navigated - setting their src does NOT
+	 * trigger navigation. The only way to get SW control is to create the iframe
+	 * in an ancestor document (typically the top-level document) where navigation
+	 * works properly.
+	 *
+	 * This function:
+	 * 1. Hides the original iframe (keeps it in DOM for JavaScript references)
+	 * 2. Asks an ancestor to create a controlled iframe in its document
+	 * 3. Positions the controlled iframe to visually overlay the original
+	 * 4. Stores a reference on the original iframe to the controlled one
+	 *
+	 * This approach preserves the original iframe's DOM presence (for querySelector,
+	 * etc.) while providing SW control through the replacement.
+	 */
+	function requestAncestorNavigateIframe(ancestorWindow, iframe, url) {
+		// Generate a unique ID for cross-document reference
+		const iframeId = iframe.id || `pg-nav-${uid()}`;
+		if (!iframe.id) {
+			iframe.id = iframeId;
+		}
+
+		console.log('[iframes-trap] Requesting ancestor to create controlled iframe for:', iframeId);
+
+		// Hide the original iframe - it can't be navigated from a nested context
+		iframe.style.visibility = 'hidden';
+		iframe.setAttribute('data-controlled-by', iframeId + '-controlled');
+
+		// Use message passing with a response channel
+		const channel = new MessageChannel();
+		channel.port1.onmessage = (event) => {
+			if (event.data.success) {
+				console.log('[iframes-trap] Ancestor created controlled iframe:', event.data.iframeId);
+				// Store reference to the controlled iframe for JavaScript code
+				// that might access the original iframe
+				try {
+					const ancestorIframes = ancestorWindow.__pg_iframes || {};
+					const controlledIframe = ancestorIframes[event.data.iframeId];
+					if (controlledIframe) {
+						iframe.__controlledIframe = controlledIframe;
+					}
+				} catch (e) {
+					console.log('[iframes-trap] Could not store reference:', e.message);
+				}
+			} else {
+				console.error('[iframes-trap] Failed to create controlled iframe:', event.data.error);
+			}
+		};
+
+		// Get the iframe's position relative to the top document
+		// This is used to position the controlled iframe correctly
+		const getPosition = () => {
+			try {
+				const rect = iframe.getBoundingClientRect();
+				const ownerWindow = iframe.ownerDocument?.defaultView;
+				// Accumulate offset through iframe hierarchy
+				let offsetX = rect.left;
+				let offsetY = rect.top;
+				let win = ownerWindow;
+				while (win && win !== ancestorWindow && win.frameElement) {
+					const parentRect = win.frameElement.getBoundingClientRect();
+					offsetX += parentRect.left;
+					offsetY += parentRect.top;
+					win = win.parent;
+				}
+				return { x: offsetX, y: offsetY, width: rect.width, height: rect.height };
+			} catch (e) {
+				return { x: 0, y: 0, width: 300, height: 150 };
+			}
+		};
+
+		const pos = getPosition();
+
+		// Send request to ancestor
+		ancestorWindow.postMessage({
+			type: '__playground_create_iframe',
+			config: {
+				id: iframeId + '-controlled',
+				src: url,
+				attributes: {
+					'data-controlled': '1',
+					'data-for': iframeId,
+				},
+				style: {
+					position: 'absolute',
+					left: pos.x + 'px',
+					top: pos.y + 'px',
+					width: pos.width + 'px',
+					height: pos.height + 'px',
+					border: 'none',
+					zIndex: '999999',
+				},
+			},
+		}, '*', [channel.port2]);
+
+		iframe.setAttribute('data-controlled', '1');
 	}
 
 	// ============================================================================
