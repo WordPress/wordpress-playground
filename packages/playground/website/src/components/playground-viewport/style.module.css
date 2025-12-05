@@ -19,14 +19,14 @@
 	flex-direction: column;
 	justify-content: center;
 	align-items: center;
-	background: #1e1e1e;
+	background: #fff;
 }
 
 .loading-caption {
 	font-weight: 400;
 	font-family: -apple-system, BlinkMacSystemFont, sans-serif;
 	font-size: 1.1rem;
-	color: #fff;
+	color: #000;
 	margin: 0 0 4px 0;
 }
 
@@ -37,7 +37,21 @@
 	height: 4px;
 	margin: 4px auto;
 	border-radius: 10px;
-	background: #32363a;
+	background: #e0e0e0;
+}
+
+@media (prefers-color-scheme: dark) {
+	.loading-viewport {
+		background: #1e1e1e;
+	}
+
+	.loading-caption {
+		color: #fff;
+	}
+
+	.progress-wrapper {
+		background: #32363a;
+	}
 }
 
 .progress-bar {
