@@ -39,7 +39,6 @@ export const playwrightConfig: PlaywrightTestConfig = {
 				},
 			},
 		},
-
 		{
 			name: 'firefox',
 			use: { ...devices['Desktop Firefox'] },

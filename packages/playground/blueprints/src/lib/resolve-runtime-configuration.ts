@@ -12,6 +12,7 @@ export async function resolveRuntimeConfiguration(
 		const compiledBlueprint = await compileBlueprintV1(
 			blueprint as BlueprintV1
 		);
+
 		return {
 			wpVersion: compiledBlueprint.versions.wp,
 			phpVersion: compiledBlueprint.versions.php,

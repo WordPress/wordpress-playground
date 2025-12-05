@@ -37,6 +37,7 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 		sqliteDriverVersion = LatestSqliteDriverVersion,
 		phpVersion,
 		sapiName = 'cli',
+		withIntl = false,
 		withNetworking = true,
 		shouldInstallWordPress = true,
 		corsProxyUrl,
@@ -61,6 +62,7 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 				sapiName,
 				corsProxyUrl,
 				knownRemoteAssetPaths,
+				withIntl,
 				withNetworking,
 				phpVersion: phpVersion!,
 			});

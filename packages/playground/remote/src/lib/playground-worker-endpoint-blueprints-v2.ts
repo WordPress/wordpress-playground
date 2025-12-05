@@ -19,6 +19,7 @@ class PlaygroundWorkerEndpointV2 extends PlaygroundWorkerEndpoint {
 		wpVersion,
 		phpVersion,
 		sapiName = 'cli',
+		withIntl = false,
 		withNetworking = true,
 		corsProxyUrl,
 		blueprint,
@@ -41,6 +42,7 @@ class PlaygroundWorkerEndpointV2 extends PlaygroundWorkerEndpoint {
 				sapiName,
 				corsProxyUrl,
 				knownRemoteAssetPaths,
+				withIntl,
 				withNetworking,
 				phpVersion: phpVersion!,
 			});
