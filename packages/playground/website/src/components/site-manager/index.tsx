@@ -1,16 +1,11 @@
 import { useMediaQuery } from '@wordpress/compose';
-import {
-	useAppDispatch,
-	useActiveSite,
-	useAppSelector,
-} from '../../lib/state/redux/store';
+import { useActiveSite, useAppSelector } from '../../lib/state/redux/store';
 
 import css from './style.module.css';
 import { SiteInfoPanel } from './site-info-panel';
 import classNames from 'classnames';
 
 import { forwardRef, useState } from 'react';
-import { setSiteManagerOpen } from '../../lib/state/redux/slice-ui';
 import { BlueprintsPanel } from './blueprints-panel';
 import { ResizableBox } from '@wordpress/components';
 
@@ -25,9 +20,6 @@ export const SiteManager = forwardRef<
 	}
 >(({ className }, ref) => {
 	const activeSite = useActiveSite();
-	const dispatch = useAppDispatch();
-
-	const fullScreenSiteManager = useMediaQuery('(max-width: 1126px)');
 	const fullScreenSections = useMediaQuery('(max-width: 875px)');
 	const activeSiteManagerSection = useAppSelector(
 		(state) => state.ui.siteManagerSection
