@@ -594,7 +594,8 @@
 		max-width: calc(25% - 12px);
 	}
 
-	.blueprintPreviewCard:nth-child(n + 5) {
+	/* Hide cards from 5th position onwards, but always show the last one (View all) */
+	.blueprintPreviewCard:nth-child(n + 5):not(:last-child) {
 		display: none;
 	}
 }
@@ -633,7 +634,8 @@
 		max-width: none;
 	}
 
-	.blueprintPreviewCard:nth-child(n + 4) {
+	/* Hide cards from 4th position onwards, but always show the last one (View all) */
+	.blueprintPreviewCard:nth-child(n + 4):not(:last-child) {
 		display: none;
 	}
 
