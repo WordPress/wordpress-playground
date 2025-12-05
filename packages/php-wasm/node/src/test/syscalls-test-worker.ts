@@ -4,7 +4,6 @@ import { parentPort } from 'worker_threads';
 import { SyscallsForNode } from '../lib';
 
 parentPort?.on('message', async (port) => {
-	console.log('message', port);
 	if (!parentPort) {
 		throw new Error('parentPort is not available');
 	}
