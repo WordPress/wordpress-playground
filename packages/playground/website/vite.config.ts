@@ -115,6 +115,13 @@ export default defineConfig(({ command, mode }) => {
 				content: `
 				export const corsProxyUrl = ${JSON.stringify(corsProxyUrl || undefined)};`,
 			}),
+			virtualModule({
+				name: 'kapa-ai-config',
+				content: `
+				export const kapaWebsiteId = ${JSON.stringify(
+					process.env.KAPA_WEBSITE_ID || ''
+				)};`,
+			}),
 			// GitHub OAuth flow
 			{
 				name: 'configure-server',

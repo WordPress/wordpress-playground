@@ -20,6 +20,7 @@ import type {
 } from './types';
 import { getSiteErrorView } from './get-site-error-view';
 import type { SiteInfo } from '../../lib/state/redux/slice-sites';
+import { useKapaAI } from './use-kapa-ai';
 
 export function SiteErrorModal({
 	error,
@@ -38,6 +39,7 @@ export function SiteErrorModal({
 		isSubmittingReport,
 		handleSubmitReport,
 	} = useErrorReporting(site);
+	const { isConfigured: isKapaAIConfigured, openWithQuery } = useKapaAI();
 
 	const helpers: PresentationHelpers = {
 		deleteSite: () => {
@@ -143,8 +145,16 @@ export function SiteErrorModal({
 						</p>
 					)}
 				</div>
-				{view.actions.length || !view.isDeveloperError ? (
+				{view.actions.length || !view.isDeveloperError || detailText ? (
 					<div className={css.errorModalFooter}>
+						{isKapaAIConfigured && !isReporting && detailText && (
+							<Button
+								variant="secondary"
+								onClick={() => openWithQuery(detailText)}
+							>
+								Troubleshoot with AI
+							</Button>
+						)}
 						{!view.isDeveloperError &&
 						!view.hideReportButton &&
 						!isReporting &&
