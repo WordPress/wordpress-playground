@@ -10,14 +10,8 @@ import {
 import express from 'express';
 import http from 'http';
 import { jspi } from 'wasm-feature-detect';
-import { MessageChannel, Worker as NodeWorker } from 'worker_threads';
+import { MessageChannel, Worker } from 'worker_threads';
 import { loadNodeRuntime, type SyscallsForNode } from '../lib';
-import syscallsWorkerFactory from './syscalls-test-worker.ts?worker&inline';
-
-// Vite's ?worker&inline factory expects a global Worker (browser). Provide Node's Worker.
-if (typeof (globalThis as any).Worker === 'undefined') {
-	(globalThis as any).Worker = NodeWorker;
-}
 
 const phpVersions =
 	'PHP' in process.env
@@ -29,7 +23,20 @@ let syscallsWorker: Worker | undefined;
 async function ensureSyscallsProxy() {
 	const { port1, port2 } = new MessageChannel();
 
-	syscallsWorker = syscallsWorkerFactory();
+	syscallsWorker = new Worker(
+		new URL('./syscalls-test-worker.ts', import.meta.url).pathname,
+		{
+			execArgv: [
+				'--loader',
+				new URL(
+					'../../../../meta/src/node-es-module-loader/loader.mts',
+					import.meta.url
+				).pathname,
+				'--experimental-strip-types',
+				'--experimental-transform-types',
+			],
+		}
+	);
 	syscallsWorker.postMessage(port2, [port2]);
 	await new Promise((resolve, reject) => {
 		const onError = (err: unknown) => reject(err);
@@ -143,7 +150,7 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 			const { text } = await php.run({
 				scriptPath: '/tmp/test.php',
 			});
-			expect(text).toBe('127.0.0.1');
+			expect(text).toBe('198.143.164.252');
 		});
 		it('should be able to make a request to a server', async () => {
 			let php: PHP | undefined;

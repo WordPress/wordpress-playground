@@ -30952,11 +30952,9 @@ export function init(RuntimeName, PHPLoader) {
 		try {
 			ipString = PHPLoader.syscalls.gethostbyname(hostname);
 		} catch (e) {
-			console.error(e);
 			// Fall through to the default synthetic mapping if native DNS fails.
 		}
 
-		console.log({ ipString });
 		return inetPton4(ipString);
 	}
 	___emscripten_lookup_name.sig = 'ip';

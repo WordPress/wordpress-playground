@@ -1,3 +1,4 @@
+import { lookup } from 'dns/promises';
 export class SyscallsForNode {
 	/**
 	 * Resolve a hostname to an IP address.
@@ -6,8 +7,7 @@ export class SyscallsForNode {
 	 * @returns The IP address of the hostname as a string.
 	 */
 	async gethostbyname(hostname: string): Promise<string> {
-		const dns = require('dns').promises;
-		const { address } = await dns.lookup(hostname, {
+		const { address } = await lookup(hostname, {
 			family: 4,
 			verbatim: false,
 		});
