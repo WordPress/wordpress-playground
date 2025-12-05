@@ -12,6 +12,8 @@ import { getExternalModules } from '../../vite-extensions/vite-external-modules'
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import viteGlobalExtensions from '../../vite-extensions/vite-global-extensions';
 
+const urlRE = /\?url$/;
+
 export default defineConfig(function () {
 	return {
 		cacheDir: '../../../node_modules/.vite/php-wasm',
@@ -24,33 +26,25 @@ export default defineConfig(function () {
 				name: 'import-url',
 				enforce: 'pre',
 
-				resolveId(id: string, importer: string): any {
-					if (id.startsWith('import-url:')) {
-						return id;
-					}
-
-					if (!path.isAbsolute(id) && id.endsWith('?url')) {
+				resolveId(id, importer) {
+					if (importer && !path.isAbsolute(id) && urlRE.test(id)) {
 						const filepath = path.resolve(
 							path.dirname(importer),
-							id
+							id.replace(urlRE, '')
 						);
 						return `import-url:${filepath}`;
 					}
-
 					return null;
 				},
 
-				load(id: string): any {
+				load(id) {
 					if (id.startsWith('import-url:')) {
-						const encodedPath = id.slice('import-url:'.length);
-						const filePath = encodedPath.replace('?url', '');
-
+						const filePath = id.slice('import-url:'.length);
 						return {
 							code: `export default ${JSON.stringify(filePath)};`,
 							map: null,
 						};
 					}
-
 					return null;
 				},
 			} as Plugin,
@@ -96,6 +90,23 @@ export default defineConfig(function () {
 			},
 			environment: 'node',
 			reporters: ['default'],
+			deps: {
+				inline: [
+					'@php-wasm/universal',
+					'@php-wasm/node',
+					'@php-wasm/logger',
+					'@php-wasm/progress',
+				],
+			},
+		},
+
+		ssr: {
+			noExternal: [
+				'@php-wasm/universal',
+				'@php-wasm/node',
+				'@php-wasm/logger',
+				'@php-wasm/progress',
+			],
 		},
 
 		define: {

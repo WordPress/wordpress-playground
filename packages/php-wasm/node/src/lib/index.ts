@@ -5,4 +5,5 @@ export * from './use-host-filesystem';
 export * from './node-fs-mount';
 export * from './file-lock-manager';
 export * from './file-lock-manager-for-node';
+export * from './syscalls-for-node';
 export * from './xdebug/with-xdebug';

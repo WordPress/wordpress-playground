@@ -1,4 +1,4 @@
-import type { FileLockManager } from '@php-wasm/node';
+import type { FileLockManager, SyscallsForNode } from '@php-wasm/node';
 import { loadNodeRuntime } from '@php-wasm/node';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import type { RemoteAPI, SupportedPHPVersion } from '@php-wasm/universal';
@@ -88,6 +88,7 @@ function tracePhpWasm(processId: number, format: string, ...args: any[]) {
 export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 	booted = false;
 	fileLockManager: RemoteAPI<FileLockManager> | FileLockManager | undefined;
+	syscalls: RemoteAPI<SyscallsForNode> | SyscallsForNode | undefined;
 
 	constructor(monitor: EmscriptenDownloadMonitor) {
 		super(undefined, monitor);
@@ -123,6 +124,14 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 			 * @see phpwasm-emscripten-library-file-locking-for-node.js
 			 */
 			this.fileLockManager = await consumeAPISync<FileLockManager>(port);
+		}
+	}
+
+	async useSyscalls(port: MessagePort) {
+		if (await jspi()) {
+			this.syscalls = consumeAPI<SyscallsForNode>(port);
+		} else {
+			this.syscalls = await consumeAPISync<SyscallsForNode>(port);
 		}
 	}
 
@@ -174,6 +183,7 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 					return await loadNodeRuntime(php, {
 						emscriptenOptions: {
 							fileLockManager: this.fileLockManager!,
+							syscalls: this.syscalls!,
 							processId,
 							trace: trace ? tracePhpWasm : undefined,
 							phpWasmInitOptions: { nativeInternalDirPath },
@@ -192,7 +202,7 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 						? new File(
 								[sqliteIntegrationPluginZip],
 								'sqlite-integration-plugin.zip'
-						  )
+							)
 						: undefined,
 				sapiName: 'cli',
 				createFiles: {
@@ -274,6 +284,7 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 					return await loadNodeRuntime(phpVersion, {
 						emscriptenOptions: {
 							fileLockManager: this.fileLockManager!,
+							syscalls: this.syscalls!,
 							processId,
 							trace: trace ? tracePhpWasm : undefined,
 							ENV: {

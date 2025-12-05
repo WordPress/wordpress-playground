@@ -33,7 +33,7 @@ import type {
 	PlaygroundCliBlueprintV1Worker,
 } from './blueprints-v1/worker-thread-v1';
 import type { PlaygroundCliBlueprintV2Worker } from './blueprints-v2/worker-thread-v2';
-import { FileLockManagerForNode } from '@php-wasm/node';
+import { FileLockManagerForNode, SyscallsForNode } from '@php-wasm/node';
 import { LoadBalancer } from './load-balancer';
 /* eslint-disable no-console */
 import { SupportedPHPVersions } from '@php-wasm/universal';
@@ -641,6 +641,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 						return undefined;
 					});
 	const fileLockManager = new FileLockManagerForNode(nativeFlockSync);
+	const syscalls = new SyscallsForNode();
 
 	let wordPressReady = false;
 	let isFirstRequest = true;
@@ -960,6 +961,8 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 				const fileLockManagerPort =
 					await exposeFileLockManager(fileLockManager);
 
+				const syscallsPort = await exposeSyscalls(syscalls);
+
 				// NOTE: Using a free-standing block to isolate initial boot vars
 				// while keeping the logic inline.
 				{
@@ -969,6 +972,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 						await handler.bootAndSetUpInitialPlayground(
 							initialWorker.phpPort,
 							fileLockManagerPort,
+							syscallsPort,
 							nativeInternalDirPath
 						);
 					playgroundsToCleanUp.set(
@@ -1033,10 +1037,13 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 						const fileLockManagerPort =
 							await exposeFileLockManager(fileLockManager);
 
+						const syscallsPort = await exposeSyscalls(syscalls);
+
 						const additionalPlayground =
 							await handler.bootPlayground({
 								worker,
 								fileLockManagerPort,
+								syscallsPort,
 								firstProcessId,
 								nativeInternalDirPath,
 							});
@@ -1227,6 +1234,33 @@ async function exposeFileLockManager(fileLockManager: FileLockManagerForNode) {
 		 * @see phpwasm-emscripten-library-file-locking-for-node.js
 		 */
 		await exposeSyncAPI(fileLockManager, port1);
+	}
+	return port2;
+}
+
+/**
+ * Expose the file lock manager API on a MessagePort and return it.
+ *
+ * @see comlink-sync.ts
+ */
+async function exposeSyscalls(syscalls: SyscallsForNode) {
+	const { port1, port2 } = new NodeMessageChannel();
+	if (await jspi()) {
+		/**
+		 * When JSPI is available, the worker thread expects an asynchronous API.
+		 *
+		 * @see worker-thread.ts
+		 * @see comlink-sync.ts
+		 */
+		exposeAPI(syscalls, null, port1);
+	} else {
+		/**
+		 * When JSPI is not available, the worker thread expects a synchronous API.
+		 *
+		 * @see worker-thread.ts
+		 * @see comlink-sync.ts
+		 */
+		await exposeSyncAPI(syscalls, port1);
 	}
 	return port2;
 }

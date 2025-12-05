@@ -1,5 +1,5 @@
 import { errorLogPath, logger } from '@php-wasm/logger';
-import type { FileLockManager } from '@php-wasm/node';
+import type { FileLockManager, SyscallsForNode } from '@php-wasm/node';
 import { createNodeFsMountHandler, loadNodeRuntime } from '@php-wasm/node';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import type {
@@ -171,6 +171,7 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 	blueprintTargetResolved = false;
 	phpInstancesThatNeedMountsAfterTargetResolved = new Set<PHP>();
 	fileLockManager: RemoteAPI<FileLockManager> | FileLockManager | undefined;
+	syscalls: RemoteAPI<SyscallsForNode> | SyscallsForNode | undefined;
 
 	constructor(monitor: EmscriptenDownloadMonitor) {
 		super(undefined, monitor);
@@ -206,6 +207,14 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 			 * @see phpwasm-emscripten-library-file-locking-for-node.js
 			 */
 			this.fileLockManager = await consumeAPISync<FileLockManager>(port);
+		}
+	}
+
+	async useSyscalls(port: MessagePort) {
+		if (await jspi()) {
+			this.syscalls = consumeAPI<SyscallsForNode>(port);
+		} else {
+			this.syscalls = await consumeAPISync<SyscallsForNode>(port);
 		}
 	}
 
@@ -451,6 +460,7 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 					return await loadNodeRuntime(phpVersion, {
 						emscriptenOptions: {
 							fileLockManager: this.fileLockManager!,
+							syscalls: this.syscalls!,
 							processId,
 							trace: trace ? tracePhpWasm : undefined,
 							ENV: {

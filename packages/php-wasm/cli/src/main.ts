@@ -11,7 +11,7 @@ import {
 } from '@php-wasm/universal';
 import type { SupportedPHPVersion } from '@php-wasm/universal';
 
-import { FileLockManagerForNode } from '@php-wasm/node';
+import { FileLockManagerForNode, SyscallsForNode } from '@php-wasm/node';
 import { PHP } from '@php-wasm/universal';
 import { loadNodeRuntime, useHostFilesystem } from '@php-wasm/node';
 import { startBridge } from '@php-wasm/xdebug-bridge';
@@ -91,6 +91,7 @@ ${process.argv[0]} ${process.execArgv.join(' ')} ${process.argv[1]}
 		await loadNodeRuntime(phpVersion, {
 			emscriptenOptions: {
 				fileLockManager: new FileLockManagerForNode(),
+				syscalls: new SyscallsForNode(),
 				processId: 1,
 				ENV: {
 					...envVariables,
