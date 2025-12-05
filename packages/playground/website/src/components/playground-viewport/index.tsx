@@ -16,7 +16,6 @@ import {
 	selectSitesLoaded,
 	selectTemporarySites,
 } from '../../lib/state/redux/slice-sites';
-import { selectClientInfoBySiteSlug } from '../../lib/state/redux/slice-clients';
 import classNames from 'classnames';
 import { SiteErrorModal } from '../site-error-modal';
 
@@ -62,12 +61,6 @@ export const KeepAliveTemporarySitesViewport = () => {
 	// This handles the transitional state when navigating to create a new site.
 	const activeSiteSlugIsSet = useAppSelector(
 		(state) => !!state.ui.activeSite?.slug
-	);
-	// Check if the active site has a client (i.e., is fully booted)
-	const activeSiteHasClient = useAppSelector((state) =>
-		activeSite
-			? !!selectClientInfoBySiteSlug(state, activeSite.slug)
-			: false
 	);
 	const siteSlugsToRender = useMemo(() => {
 		let sites = temporarySites.filter(
@@ -167,9 +160,10 @@ export const KeepAliveTemporarySitesViewport = () => {
 					</div>
 				</div>
 			)}
-			{((!activeSite && activeSiteSlugIsSet) ||
-				(activeSite && !activeSiteHasClient)) && (
-				// Show a progress bar while the site is being created or booted
+			{!activeSite && activeSiteSlugIsSet && (
+				// Show a progress bar while the site is being created.
+				// Once the site exists and is being rendered, the iframe
+				// will show its own loading screen ("Preparing WordPress...").
 				<div className={css.loadingViewport}>
 					<h3 className={css.loadingCaption}>&nbsp;</h3>
 					<div className={css.progressWrapper}>
