@@ -49,9 +49,9 @@ export class WebsitePage {
 		if (isPressed !== 'true') {
 			await siteManagerButton.click();
 		}
-		// Wait for the site info panel to be visible
+		// Wait for the site info panel section to be visible
 		await expect(
-			this.page.locator('[class*="site-info-panel"]')
+			this.page.locator('section[class*="site-info-panel"]')
 		).toBeVisible();
 	}
 
@@ -63,9 +63,9 @@ export class WebsitePage {
 		if (isPressed === 'true') {
 			await siteManagerButton.click();
 		}
-		// Wait for the site info panel to be hidden
+		// Wait for the site info panel section to be hidden
 		await expect(
-			this.page.locator('[class*="site-info-panel"]')
+			this.page.locator('section[class*="site-info-panel"]')
 		).not.toBeVisible();
 	}
 
