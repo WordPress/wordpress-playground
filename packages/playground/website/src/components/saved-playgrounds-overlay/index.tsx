@@ -15,6 +15,9 @@ import { Icon } from '@wordpress/icons';
 import { GitHubIcon } from '../../github/github';
 import { useDispatch } from 'react-redux';
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { usePlaygroundClient } from '../../lib/use-playground-client';
+import { importWordPressFiles } from '@wp-playground/client';
+import { logger } from '@php-wasm/logger';
 import {
 	setActiveSite,
 	useActiveSite,
@@ -38,9 +41,6 @@ import {
 import { WordPressIcon } from '@wp-playground/components';
 import useFetch from '../../lib/hooks/use-fetch';
 import { PlaygroundRoute, redirectTo } from '../../lib/state/url/router';
-import { selectClientInfoBySiteSlug } from '../../lib/state/redux/slice-clients';
-import { importWordPressFiles } from '@wp-playground/client';
-import { logger } from '@php-wasm/logger';
 
 type BlueprintsIndexEntry = {
 	title: string;
@@ -107,12 +107,13 @@ export function SavedPlaygroundsOverlay({
 	const activeSite = useActiveSite();
 	const dispatch = useAppDispatch();
 	const modalDispatch: PlaygroundDispatch = useDispatch();
+	const playground = usePlaygroundClient();
+	const zipFileInputRef = useRef<HTMLInputElement>(null);
 
 	const [viewMode, setViewMode] = useState<ViewMode>('main');
 	const [searchQuery, setSearchQuery] = useState('');
 	const [selectedTag, setSelectedTag] = useState<string | null>(null);
 	const [isClosing, setIsClosing] = useState(false);
-	const zipFileInputRef = useRef<HTMLInputElement>(null);
 
 	const closeWithFade = (callback?: () => void) => {
 		setIsClosing(true);
@@ -128,11 +129,6 @@ export function SavedPlaygroundsOverlay({
 		const file = e.target.files?.[0];
 		if (!file) return;
 
-		const clientInfo = selectClientInfoBySiteSlug(
-			{ clients: store.getState().clients },
-			activeSite?.slug || ''
-		);
-		const playground = clientInfo?.client;
 		if (!playground) {
 			alert(
 				'No active Playground to import into. Please create one first.'
@@ -142,6 +138,14 @@ export function SavedPlaygroundsOverlay({
 
 		try {
 			await importWordPressFiles(playground, { wordPressFilesZip: file });
+			// TODO: Do not prefetch update checks at this stage, it delays
+			//       refreshing the page.
+			setTimeout(async () => {
+				await playground.goTo('/');
+			}, 200);
+			alert(
+				'File imported! This Playground instance has been updated and will refresh shortly.'
+			);
 			onClose();
 		} catch (error) {
 			logger.error(error);
@@ -303,7 +307,7 @@ export function SavedPlaygroundsOverlay({
 	const creationOptions = [
 		{
 			id: 'vanilla',
-			title: 'Fresh WordPress',
+			title: 'Vanilla WordPress',
 			iconComponent: <WordPressIcon />,
 			onClick: createVanillaSite,
 			disabled: false,

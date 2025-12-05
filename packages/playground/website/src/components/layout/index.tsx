@@ -20,7 +20,6 @@ import {
 	supportedDisplayModes,
 	PlaygroundViewport,
 } from '../playground-viewport';
-import { ImportFormModal } from '../import-form-modal';
 import { PreviewPRModal } from '../../github/preview-pr';
 import { MissingSiteModal } from '../missing-site-modal';
 import { RenameSiteModal } from '../rename-site-modal';
@@ -134,8 +133,6 @@ function Modals(blueprint: BlueprintV1Declaration) {
 		return <LogModal />;
 	} else if (currentModal === modalSlugs.START_ERROR) {
 		return <StartErrorModal />;
-	} else if (currentModal === modalSlugs.IMPORT_FORM) {
-		return <ImportFormModal />;
 	} else if (currentModal === modalSlugs.PREVIEW_PR_WP) {
 		return <PreviewPRModal target="wordpress" />;
 	} else if (currentModal === modalSlugs.PREVIEW_PR_GUTENBERG) {
