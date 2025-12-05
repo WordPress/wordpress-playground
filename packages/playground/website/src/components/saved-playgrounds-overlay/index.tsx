@@ -29,6 +29,7 @@ import type { PlaygroundDispatch } from '../../lib/state/redux/store';
 import type { SiteLogo, SiteInfo } from '../../lib/state/redux/slice-sites';
 import {
 	selectSortedSites,
+	selectTemporarySite,
 	removeSite,
 } from '../../lib/state/redux/slice-sites';
 import {
@@ -104,6 +105,7 @@ export function SavedPlaygroundsOverlay({
 	const storedSites = useAppSelector(selectSortedSites).filter(
 		(site) => site.metadata.storage !== 'none'
 	);
+	const temporarySite = useAppSelector(selectTemporarySite);
 	const activeSite = useActiveSite();
 	const dispatch = useAppDispatch();
 	const modalDispatch: PlaygroundDispatch = useDispatch();
@@ -241,6 +243,18 @@ export function SavedPlaygroundsOverlay({
 		dispatch(setActiveSite(slug));
 		dispatch(setSiteManagerSection('site-details'));
 		onClose();
+	};
+
+	const onTemporaryPlaygroundClick = () => {
+		if (temporarySite) {
+			// Switch to existing temporary playground
+			dispatch(setActiveSite(temporarySite.slug));
+			dispatch(setSiteManagerSection('site-details'));
+			onClose();
+		} else {
+			// Create a new temporary playground
+			createVanillaSite();
+		}
 	};
 
 	const getLogoDataURL = (logo: SiteLogo): string => {
@@ -687,109 +701,133 @@ export function SavedPlaygroundsOverlay({
 					</section>
 
 					{/* Your Playgrounds */}
-					{storedSites.length > 0 && (
-						<section className={css.section}>
-							<h2 className={css.sectionTitle}>
-								Your Playgrounds
-							</h2>
-							<div className={css.sitesList}>
-								{storedSites.map((site) => {
-									const isSelected =
-										site.slug === activeSite?.slug;
-									// const hasClient = Boolean(
-									// 	selectClientInfoBySiteSlug(
-									// 		{
-									// 			clients:
-									// 				store.getState().clients,
-									// 		},
-									// 		site.slug
-									// 	)?.client
-									// );
-									return (
-										<div
-											key={site.slug}
-											className={classNames(css.siteRow, {
-												[css.siteRowSelected]:
-													isSelected,
-											})}
+					<section className={css.section}>
+						<h2 className={css.sectionTitle}>Your Playgrounds</h2>
+						<div className={css.sitesList}>
+							{/* Temporary Playground - always shown at top */}
+							<div
+								className={classNames(css.siteRow, {
+									[css.siteRowSelected]:
+										temporarySite?.slug ===
+										activeSite?.slug,
+								})}
+							>
+								<button
+									className={css.siteRowContent}
+									onClick={onTemporaryPlaygroundClick}
+								>
+									<div className={css.siteRowLogo}>
+										{temporarySite?.metadata.logo ? (
+											<img
+												src={getLogoDataURL(
+													temporarySite.metadata.logo
+												)}
+												alt=""
+											/>
+										) : (
+											<WordPressIcon />
+										)}
+									</div>
+									<div className={css.siteRowInfo}>
+										<span className={css.siteRowName}>
+											Temporary Playground
+										</span>
+										<span className={css.siteRowDate}>
+											{temporarySite
+												? 'Not saved to browser storage'
+												: 'Click to create'}
+										</span>
+									</div>
+								</button>
+							</div>
+							{storedSites.map((site) => {
+								const isSelected =
+									site.slug === activeSite?.slug;
+								// const hasClient = Boolean(
+								// 	selectClientInfoBySiteSlug(
+								// 		{
+								// 			clients:
+								// 				store.getState().clients,
+								// 		},
+								// 		site.slug
+								// 	)?.client
+								// );
+								return (
+									<div
+										key={site.slug}
+										className={classNames(css.siteRow, {
+											[css.siteRowSelected]: isSelected,
+										})}
+									>
+										<button
+											className={css.siteRowContent}
+											onClick={() =>
+												onSiteClick(site.slug)
+											}
 										>
-											<button
-												className={css.siteRowContent}
-												onClick={() =>
-													onSiteClick(site.slug)
-												}
-											>
-												<div
-													className={css.siteRowLogo}
+											<div className={css.siteRowLogo}>
+												{site.metadata.logo ? (
+													<img
+														src={getLogoDataURL(
+															site.metadata.logo
+														)}
+														alt=""
+													/>
+												) : (
+													<WordPressIcon />
+												)}
+											</div>
+											<div className={css.siteRowInfo}>
+												<span
+													className={css.siteRowName}
 												>
-													{site.metadata.logo ? (
-														<img
-															src={getLogoDataURL(
-																site.metadata
-																	.logo
-															)}
-															alt=""
-														/>
-													) : (
-														<WordPressIcon />
-													)}
-												</div>
-												<div
-													className={css.siteRowInfo}
-												>
+													{site.metadata.name}
+												</span>
+												{site.metadata.whenCreated && (
 													<span
 														className={
-															css.siteRowName
+															css.siteRowDate
 														}
 													>
-														{site.metadata.name}
+														Created{' '}
+														{new Date(
+															site.metadata
+																.whenCreated
+														).toLocaleDateString(
+															undefined,
+															{
+																year: 'numeric',
+																month: 'short',
+																day: 'numeric',
+															}
+														)}
 													</span>
-													{site.metadata
-														.whenCreated && (
-														<span
-															className={
-																css.siteRowDate
+												)}
+											</div>
+										</button>
+										<DropdownMenu
+											icon={moreVertical}
+											label="Site actions"
+											className={css.siteRowMenu}
+											popoverProps={{
+												placement: 'bottom-end',
+											}}
+										>
+											{({ onClose: closeMenu }) => (
+												<>
+													<MenuGroup>
+														<MenuItem
+															onClick={() =>
+																handleRenameSite(
+																	site,
+																	closeMenu
+																)
 															}
 														>
-															Created{' '}
-															{new Date(
-																site.metadata
-																	.whenCreated
-															).toLocaleDateString(
-																undefined,
-																{
-																	year: 'numeric',
-																	month: 'short',
-																	day: 'numeric',
-																}
-															)}
-														</span>
-													)}
-												</div>
-											</button>
-											<DropdownMenu
-												icon={moreVertical}
-												label="Site actions"
-												className={css.siteRowMenu}
-												popoverProps={{
-													placement: 'bottom-end',
-												}}
-											>
-												{({ onClose: closeMenu }) => (
-													<>
-														<MenuGroup>
-															<MenuItem
-																onClick={() =>
-																	handleRenameSite(
-																		site,
-																		closeMenu
-																	)
-																}
-															>
-																Rename
-															</MenuItem>
-															{/* @TODO: Add download as .zip functionality for non-loaded sites */}
-															{/* <MenuItem
+															Rename
+														</MenuItem>
+														{/* @TODO: Add download as .zip functionality for non-loaded sites */}
+														{/* <MenuItem
 																onClick={() =>
 																	handleDownloadSite(
 																		site.slug,
@@ -802,31 +840,30 @@ export function SavedPlaygroundsOverlay({
 															>
 																Download as .zip
 															</MenuItem> */}
-														</MenuGroup>
-														<MenuGroup>
-															<MenuItem
-																className={
-																	css.dangerMenuItem
-																}
-																onClick={() =>
-																	handleDeleteSite(
-																		site,
-																		closeMenu
-																	)
-																}
-															>
-																Delete
-															</MenuItem>
-														</MenuGroup>
-													</>
-												)}
-											</DropdownMenu>
-										</div>
-									);
-								})}
-							</div>
-						</section>
-					)}
+													</MenuGroup>
+													<MenuGroup>
+														<MenuItem
+															className={
+																css.dangerMenuItem
+															}
+															onClick={() =>
+																handleDeleteSite(
+																	site,
+																	closeMenu
+																)
+															}
+														>
+															Delete
+														</MenuItem>
+													</MenuGroup>
+												</>
+											)}
+										</DropdownMenu>
+									</div>
+								);
+							})}
+						</div>
+					</section>
 				</div>
 			</VStack>
 		</div>
