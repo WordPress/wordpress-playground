@@ -1,0 +1,45 @@
+{
+	"author": "Matt Sergeant <helpme@gmail.com> (http://baudehlo.wordpress.com/)",
+	"name": "fs-ext",
+	"description": "Extensions to core 'fs' module.",
+	"keywords": [
+		"fs",
+		"filesystem",
+		"flock",
+		"seek"
+	],
+	"version": "2.1.1",
+	"homepage": "https://github.com/baudehlo/node-fs-ext/",
+	"repository": {
+		"type": "git",
+		"url": "git://github.com/baudehlo/node-fs-ext.git"
+	},
+	"main": "fs-ext.js",
+	"engines": {
+		"node": ">= 8.0.0"
+	},
+	"dependencies": {
+		"nan": "^2.21.0",
+		"node-abi": "^3.85.0",
+		"node-gyp-build": "^4.8.4",
+		"prebuildify": "^6.0.1"
+	},
+	"licenses": [
+		{
+			"type": "MIT"
+		}
+	],
+	"bugs": {
+		"mail": "helpme@gmail.com",
+		"web": "https://github.com/baudehlo/node-fs-ext/issues"
+	},
+	"scripts": {
+		"install": "node-gyp configure build",
+		"test": "node ./run_tests",
+		"lint": "node ./node_modules/eslint/bin/eslint \"*.js\" \"tests/**/*.js\"",
+		"cover": "NODE_ENV=cov ./node_modules/.bin/istanbul cover node ./run_tests"
+	},
+	"devDependencies": {
+		"eslint": "^5.9.0"
+	}
+}

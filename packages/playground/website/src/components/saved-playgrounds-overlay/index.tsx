@@ -242,7 +242,7 @@ export function SavedPlaygroundsOverlay({
 	const onSiteClick = (slug: string) => {
 		dispatch(setActiveSite(slug));
 		dispatch(setSiteManagerSection('site-details'));
-		onClose();
+		closeWithFade();
 	};
 
 	const onTemporaryPlaygroundClick = () => {
@@ -250,7 +250,7 @@ export function SavedPlaygroundsOverlay({
 			// Switch to existing temporary playground
 			dispatch(setActiveSite(temporarySite.slug));
 			dispatch(setSiteManagerSection('site-details'));
-			onClose();
+			closeWithFade();
 		} else {
 			// Create a new temporary playground
 			createVanillaSite();
@@ -733,9 +733,7 @@ export function SavedPlaygroundsOverlay({
 											Temporary Playground
 										</span>
 										<span className={css.siteRowDate}>
-											{temporarySite
-												? 'Not saved to browser storage'
-												: 'Click to create'}
+											Not saved to browser storage
 										</span>
 									</div>
 								</button>

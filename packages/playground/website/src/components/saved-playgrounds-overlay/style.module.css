@@ -408,6 +408,10 @@
 	font: inherit;
 }
 
+.siteRowSelected .siteRowContent {
+	padding-left: 17px;
+}
+
 .siteRowLogo {
 	width: 40px;
 	height: 40px;
