@@ -128,7 +128,7 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 			});
 			expect(text).toBe('127.0.0.1');
 		});
-		it.only('should resolve wordpress.org with gethostbyname()', async () => {
+		it('should resolve wordpress.org with gethostbyname()', async () => {
 			using php = new PHP(
 				await loadNodeRuntime(phpVersion, {
 					...options,
