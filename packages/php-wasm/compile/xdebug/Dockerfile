@@ -101,11 +101,8 @@ RUN source /root/emsdk/emsdk_env.sh && \
 
 # Build Xdebug
 RUN set -euxo pipefail; \
-	# At the time of implementing PHP 8.5 support, Xdebug 3.5 is still in alpha.
-	# So we use the latest alpha version for PHP 8.5.
-	# TODO Update Xdebug to stable version when released.
 	if [[ "${PHP_VERSION:0:1}" -ge "8" && "${PHP_VERSION:2:1}" -ge "5" ]]; then \
-		export XDEBUG_BRANCH="3.5.0alpha3"; \
+		export XDEBUG_BRANCH="xdebug_3_5"; \
 	elif [[ "${PHP_VERSION:0:1}" -ge 8 ]]; then \
 		export XDEBUG_BRANCH="xdebug_3_4"; \
 	else \
