@@ -1,11 +1,9 @@
 import type { FileLockManager } from '@php-wasm/universal';
 import { loadNodeRuntime } from '@php-wasm/node';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
-import type { RemoteAPI, SupportedPHPVersion } from '@php-wasm/universal';
+import type { SupportedPHPVersion } from '@php-wasm/universal';
 import {
 	PHPWorker,
-	bindUserSpace,
-	consumeAPI,
 	consumeAPISync,
 	exposeAPI,
 	sandboxedSpawnHandlerFactory,
@@ -18,7 +16,6 @@ import {
 	bootWordPressAndRequestHandler,
 } from '@wp-playground/wordpress';
 import { rootCertificates } from 'tls';
-import { jspi } from 'wasm-feature-detect';
 import { MessageChannel, type MessagePort, parentPort } from 'worker_threads';
 import { mountResources } from '../mounts';
 import { logger } from '@php-wasm/logger';
@@ -88,7 +85,7 @@ function tracePhpWasm(processId: number, format: string, ...args: any[]) {
 
 export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 	booted = false;
-	fileLockManager: RemoteAPI<FileLockManager> | FileLockManager | undefined;
+	fileLockManager: FileLockManager | undefined;
 
 	constructor(monitor: EmscriptenDownloadMonitor) {
 		super(undefined, monitor);
@@ -104,27 +101,15 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 	 * @see phpwasm-emscripten-library-file-locking-for-node.js
 	 */
 	async useFileLockManager(port: MessagePort) {
-		if (await jspi()) {
-			/**
-			 * If JSPI is available, php.js supports both synchronous and asynchronous locking syscalls.
-			 * Web browsers, however, only support asynchronous message passing so let's use the
-			 * asynchronous API. Every method call will return a promise.
-			 *
-			 * @see comlink-sync.ts
-			 * @see phpwasm-emscripten-library-file-locking-for-node.js
-			 */
-			this.fileLockManager = consumeAPI<FileLockManager>(port);
-		} else {
-			/**
-			 * If JSPI is not available, php.js only supports synchronous locking syscalls.
-			 * Let's use the synchronous API. Every method call will block this thread
-			 * until the result is available.
-			 *
-			 * @see comlink-sync.ts
-			 * @see phpwasm-emscripten-library-file-locking-for-node.js
-			 */
-			this.fileLockManager = await consumeAPISync<FileLockManager>(port);
-		}
+		/**
+		 * If JSPI is not available, php.js only supports synchronous locking syscalls.
+		 * Let's use the synchronous API. Every method call will block this thread
+		 * until the result is available.
+		 *
+		 * @see comlink-sync.ts
+		 * @see phpwasm-emscripten-library-file-locking-for-node.js
+		 */
+		this.fileLockManager = await consumeAPISync<FileLockManager>(port);
 	}
 
 	async bootAndSetUpInitialWorker({

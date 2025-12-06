@@ -5,7 +5,6 @@ import type {
 	OSUserSpaceAPI,
 	OSUserSpaceContext,
 	FileLockManager,
-	RemoteAPI,
 } from '@php-wasm/universal';
 import { loadPHPRuntime, FSHelpers, bindUserSpace } from '@php-wasm/universal';
 import fs from 'fs';
@@ -13,33 +12,16 @@ import { getPHPLoaderModule } from '.';
 import { withNetworking } from './networking/with-networking';
 import { withXdebug, type XdebugOptions } from './xdebug/with-xdebug';
 import { withIntl } from './extensions/intl/with-intl';
-import { joinPaths, type Promised } from '@php-wasm/util';
+import { joinPaths } from '@php-wasm/util';
 import { dirname } from 'path';
 
 export interface PHPLoaderOptions {
-	emscriptenOptions?: EmscriptenOptions;
 	followSymlinks?: boolean;
 	withXdebug?: boolean;
 	xdebug?: XdebugOptions;
 	withIntl?: boolean;
-}
 
-type PHPLoaderOptionsForNode = PHPLoaderOptions & {
-	/**
-	 * An optional file lock manager to use for the PHP runtime.
-	 *
-	 * The lock manager is optional when running a single php-wasm process.
-	 *
-	 * When running with JSPI, both synchronous and asynchronous
-	 * file lock managers are supported.
-	 * When running with Asyncify, the file lock manager must be synchronous.
-	 */
-	fileLockManager?:
-		| RemoteAPI<FileLockManager>
-		// Allow promised type for testing without providing true RemoteAPI.
-		| Promised<FileLockManager>
-		| FileLockManager;
-
+	fileLockManager?: FileLockManager;
 	emscriptenOptions?: EmscriptenOptions & {
 		/**
 		 * The process ID for the PHP runtime.
@@ -71,7 +53,7 @@ type PHPLoaderOptionsForNode = PHPLoaderOptions & {
 		 */
 		nativeInternalDirPath?: string;
 	};
-};
+}
 
 /**
  * Does what load() does, but synchronously returns
@@ -82,7 +64,7 @@ type PHPLoaderOptionsForNode = PHPLoaderOptions & {
  */
 export async function loadNodeRuntime(
 	phpVersion: SupportedPHPVersion,
-	options: PHPLoaderOptionsForNode = {}
+	options: PHPLoaderOptions = {}
 ) {
 	// TODO: Throw an error if a file lock manager is provided but not a process ID.
 
