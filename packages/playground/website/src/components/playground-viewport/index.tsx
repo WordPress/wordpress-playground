@@ -160,17 +160,12 @@ export const KeepAliveTemporarySitesViewport = () => {
 					</div>
 				</div>
 			)}
-			{!activeSite && activeSiteSlugIsSet && (
-				// Show a progress bar while the site is being created.
-				// Once the site exists and is being rendered, the iframe
-				// will show its own loading screen ("Preparing WordPress...").
-				<div className={css.loadingViewport}>
-					<h3 className={css.loadingCaption}>&nbsp;</h3>
-					<div className={css.progressWrapper}>
-						<div className={css.progressBar} />
-					</div>
+			<div className={css.loadingViewport}>
+				<h3 className={css.loadingCaption}>&nbsp;</h3>
+				<div className={css.progressWrapper}>
+					<div className={css.progressBar} />
 				</div>
-			)}
+			</div>
 			{slugsSeenSoFar.map((slug) => {
 				const site = sitesBySlug.get(slug);
 				const viewportKey = site

@@ -36,7 +36,9 @@ import workerV2Url from './playground-worker-endpoint-blueprints-v2.ts?worker&ur
 const origin = new URL('/', (import.meta || {}).url).origin;
 
 function getWorkerUrl(): string {
-	const runner = new URL(document.location.href).searchParams.get('blueprints-runner');
+	const runner = new URL(document.location.href).searchParams.get(
+		'blueprints-runner'
+	);
 	const isV2 = runner === 'v2';
 	const selected = isV2 ? workerV2Url : workerV1Url;
 	return new URL(selected, origin) + '';
