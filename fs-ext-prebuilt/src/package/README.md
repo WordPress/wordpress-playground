@@ -1,43 +1,27 @@
-# fs-ext
+# @wp-playground/fs-ext
 
-[![Build Status][ci-img]][ci-url]
-[![Coverage Status][cov-img]][cov-url]
-[![Windows Status][ci-win-img]][ci-win-url]
+A fork of [fs-ext](https://github.com/baudehlo/node-fs-ext) that ships prebuilt binaries for all major platforms and adds Windows-specific file locking APIs.
 
-Extras not included in Node's fs module.
+## Why this fork?
 
-**Note**:
+The original `fs-ext` package requires compilation during `npm install`, which can fail in environments without build tools. This fork:
 
-- From `v2.0.0` onwards, module doesn't override `fs` and `constants` Node.js core modules. Instead
-  import functions and constants directly:
-
-    ```js
-    const { flock, constants } = require('fs-ext');
-    // or
-    const fsExt = require('fs-ext');
-    // fsExt.flock
-    // fsExt.constants
-    ```
-
-- From `v1.0.0` onwards, fs.utime and fs.utimeSync have been removed.
-  Use fs.utimes and fs.utimesSync instead.
+- **Ships prebuilt binaries** for macOS (x64, arm64), Linux (x64, arm64), and Windows (x64, arm64)
+- **Adds `LockFileEx`/`UnlockFileEx`** Windows APIs for byte-range file locking
+- **Supports Node.js 20+** and Electron
+- **Falls back to local compilation** if no prebuilt binary matches your platform
 
 ## Installation
 
-Install via npm:
-
 ```sh
-npm install fs-ext
+npm install @wp-playground/fs-ext
 ```
 
 ## Usage
 
-fs-ext imports all of the methods from the core 'fs' module, so you don't
-need two objects.
-
 ```js
+const { flock, flockSync } = require('@wp-playground/fs-ext');
 const fs = require('fs');
-const { flock } = require('fs-ext');
 
 const fd = fs.openSync('foo.txt', 'r');
 flock(fd, 'ex', (err) => {
@@ -47,8 +31,6 @@ flock(fd, 'ex', (err) => {
 	// file is locked
 });
 ```
-
-For an advanced example checkout `example.js`.
 
 ## API
 
@@ -80,21 +62,6 @@ The supported commands are:
 - 'getlk' ( F_GETLK )
 - 'setlkw' ( F_SETLKW )
 
-Requiring this module adds `FD_CLOEXEC` to the constants module, for use with F_SETFD,
-and also F_RDLCK, F_WRLCK and F_UNLCK for use with F_SETLK (etc).
-
-File locking can be used like so:
-
-```js
-const { fnctl, constants } = require('fs-ext');
-
-fcntl(fd, 'setlkw', constants.F_WRLCK, (err) => {
-	if (!err) {
-		// Lock succeeded
-	}
-});
-```
-
 ### fcntlSync(fd, flags)
 
 Synchronous fcntl(2). Throws an exception on error.
@@ -112,12 +79,40 @@ plus offset bytes (usually negative or zero to seek to the end of the file).
 
 ### seekSync(fd, offset, whence)
 
-Synchronous lseek(2). Throws an exception on error. Returns current
-file position.
+Synchronous lseek(2). Throws an exception on error. Returns current file position.
 
-[ci-img]: https://travis-ci.org/baudehlo/node-fs-ext.svg?branch=master
-[ci-url]: https://travis-ci.org/baudehlo/node-fs-ext
-[cov-img]: https://codecov.io/github/baudehlo/node-fs-ext/coverage.svg
-[cov-url]: https://codecov.io/github/baudehlo/node-fs-ext?branch=master
-[ci-win-img]: https://ci.appveyor.com/api/projects/status/pqbnutckk0n46uc8?svg=true
-[ci-win-url]: https://ci.appveyor.com/project/baudehlo/node-fs-ext/branch/master
+### lockFileEx(fd, flags, offsetLow, offsetHigh, lengthLow, lengthHigh, [callback]) - Windows only
+
+Asynchronous LockFileEx. Locks a byte range in a file.
+
+Flags:
+
+- `0` - shared lock
+- `constants.LOCKFILE_EXCLUSIVE_LOCK` - exclusive lock
+- `constants.LOCKFILE_FAIL_IMMEDIATELY` - non-blocking (can be OR'd with above)
+
+### lockFileExSync(fd, flags, offsetLow, offsetHigh, lengthLow, lengthHigh) - Windows only
+
+Synchronous LockFileEx. Throws an exception on error.
+
+### unlockFileEx(fd, offsetLow, offsetHigh, lengthLow, lengthHigh, [callback]) - Windows only
+
+Asynchronous UnlockFileEx. Unlocks a byte range in a file.
+
+### unlockFileExSync(fd, offsetLow, offsetHigh, lengthLow, lengthHigh) - Windows only
+
+Synchronous UnlockFileEx. Throws an exception on error.
+
+## Constants
+
+Available via `require('@wp-playground/fs-ext').constants`:
+
+- `LOCK_SH`, `LOCK_EX`, `LOCK_NB`, `LOCK_UN` - flock flags
+- `F_GETFD`, `F_SETFD`, `F_GETLK`, `F_SETLK`, `F_SETLKW` - fcntl commands
+- `F_RDLCK`, `F_WRLCK`, `F_UNLCK` - fcntl lock types
+- `FD_CLOEXEC` - close-on-exec flag
+- `LOCKFILE_EXCLUSIVE_LOCK`, `LOCKFILE_FAIL_IMMEDIATELY` - Windows LockFileEx flags
+
+## License
+
+MIT

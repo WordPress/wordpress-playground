@@ -116,31 +116,25 @@ class OpfsSiteStorage {
 	}
 
 	private async readSite(siteDirName: string) {
-		console.log('before getDirectoryHandle', siteDirName);
 		const siteDirectory = await this.root.getDirectoryHandle(siteDirName);
 		if (!siteDirectory) {
 			return undefined;
 		}
-		console.log('before readSiteFromDirHandle', siteDirectory);
 		return this.readSiteFromDirHandle(siteDirectory);
 	}
 
 	private async readSiteFromDirHandle(
 		siteDirectory: FileSystemDirectoryHandle
 	) {
-		console.log('before getFileHandle', SITE_METADATA_FILENAME);
 		const siteInfoFileHandle = await siteDirectory.getFileHandle(
 			SITE_METADATA_FILENAME
 		);
-		console.log('before getFile', siteInfoFileHandle);
 		const file = await siteInfoFileHandle.getFile();
 		// TODO: Read metadata file and parse and validate via JSON schema
 		// TODO: Backfill site info file if missing, detecting actual WP version if possible
 		//       ^ do not do it implicitly. Require user interaction. Maybe constrain this just
 		//         to the site files import flow.
-		console.log('before text', await file.text());
 		const siteInfo = storedFormatToMetadata(await file.text());
-		console.log('before storedFormatToMetadata', siteInfo);
 		// If the blueprint source points to the bundle directory, load from there.
 		// This allows the site to access bundled resources, not just the JSON declaration.
 		if (siteInfo.metadata.originalBlueprintSource?.type === 'opfs-site') {

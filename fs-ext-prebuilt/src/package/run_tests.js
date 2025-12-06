@@ -8,6 +8,11 @@ require('./tests/test-fs-seek');
 
 require('./tests/test-fs-flock');
 
+// Windows-specific LockFileEx/UnlockFileEx tests
+if (process.platform === 'win32') {
+	require('./tests/test-fs-lockfileex');
+}
+
 require('./tests/worker-test.js');
 
 // for stress testing only

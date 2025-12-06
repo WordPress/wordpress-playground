@@ -23,7 +23,13 @@ class Mutex {
 
 const m = new Mutex('worker-test.lock');
 const write = function (msg) {
-	fs.appendFileSync('worker-test.log', `${msg}\n`, { flags: 'as' });
+	// Use explicit open/write/fsync/close to ensure the write is fully
+	// persisted before returning. This prevents race conditions where
+	// another process reads the file before filesystem caches are flushed.
+	const fd = fs.openSync('worker-test.log', 'a');
+	fs.writeSync(fd, `${msg}\n`);
+	fs.fsyncSync(fd);
+	fs.closeSync(fd);
 };
 
 fs.rmSync('worker-test.log', { force: true });
