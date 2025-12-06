@@ -36,9 +36,6 @@ const LibraryExample = {
 					pid: PHPLoader.processId ?? 42,
 					// TODO: When receiving this context, validate that all these fields exist.
 					constants: {
-						F_RDLCK: Number('{{{cDefs.F_RDLCK}}}'),
-						F_WRLCK: Number('{{{cDefs.F_WRLCK}}}'),
-						F_UNLCK: Number('{{{cDefs.F_UNLCK}}}'),
 						F_GETFL: Number('{{{cDefs.F_GETFL}}}'),
 						O_ACCMODE: Number('{{{cDefs.O_ACCMODE}}}'),
 						O_RDONLY: Number('{{{cDefs.O_RDONLY}}}'),
@@ -65,10 +62,17 @@ const LibraryExample = {
 						SEEK_SET: Number('{{{cDefs.SEEK_SET}}}'),
 						SEEK_CUR: Number('{{{cDefs.SEEK_CUR}}}'),
 						SEEK_END: Number('{{{cDefs.SEEK_END}}}'),
+						// From:
+						// https://github.com/emscripten-core/emscripten/blob/66d2137b0381ac35f7e2346b2d6a90abd0f1211a/system/lib/libc/musl/include/fcntl.h#L58-L60
+						F_RDLCK: 0,
+						F_WRLCK: 1,
+						F_UNLCK: 2,
+						// From:
+						// https://github.com/emscripten-core/emscripten/blob/81bbaa42a7827d88a71bd89701245052c622428c/system/lib/libc/musl/include/sys/file.h#L7-L10
 						LOCK_SH: 1,
 						LOCK_EX: 2,
-						LOCK_NB: 4,
-						LOCK_UN: 8,
+						LOCK_NB: 4, // Non-blocking lock
+						LOCK_UN: 8, // Unlock
 					},
 					errnoCodes: ERRNO_CODES,
 					memory: {
