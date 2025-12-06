@@ -16,7 +16,13 @@ import {
 	FileLockManagerForNode,
 	loadNodeRuntime,
 } from '../lib';
-import { joinPaths, sprintf } from '@php-wasm/util';
+import {
+	joinPaths,
+	/* eslint-disable-next-line @typescript-eslint/no-unused-vars --
+	 * sprintf() is used in a trace function that is commented out by default.
+	 */
+	sprintf,
+} from '@php-wasm/util';
 import { jspi } from 'wasm-feature-detect';
 
 const phpVersionsToTest =
