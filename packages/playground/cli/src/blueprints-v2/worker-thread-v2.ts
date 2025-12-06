@@ -450,25 +450,14 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 					}
 
 					return await loadNodeRuntime(phpVersion, {
+						fileLockManager: this.fileLockManager!,
 						emscriptenOptions: {
-							fileLockManager: this.fileLockManager!,
 							processId,
 							trace: trace ? tracePhpWasm : undefined,
 							ENV: {
 								DOCROOT: '/wordpress',
 							},
-							phpWasmInitOptions: {
-								nativeInternalDirPath,
-								bindUserSpace: (userSpaceContext) => {
-									return bindUserSpace(
-										{
-											fileLockManager:
-												this.fileLockManager!,
-										},
-										userSpaceContext
-									);
-								},
-							},
+							nativeInternalDirPath,
 						},
 						followSymlinks: allow?.includes('follow-symlinks'),
 						withXdebug,

@@ -9,7 +9,8 @@ export class OSKernelSpace {
 		| RemoteAPI<FileLockManager>
 		// Allow promised type for testing without providing true RemoteAPI.
 		| Promised<FileLockManager>
-		| FileLockManager;
+		| FileLockManager
+		| undefined;
 
 	constructor(fileLockManager: FileLockManager) {
 		this.fileLockManager = fileLockManager;

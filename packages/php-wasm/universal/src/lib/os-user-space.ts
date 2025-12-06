@@ -421,6 +421,14 @@ export function bindUserSpace(
 	async function fcntl64(fd: number, cmd: number, varargs?: number) {
 		switch (cmd) {
 			case F_GETLK: {
+				const reportUnlockedFileByDefault =
+					function reportUnlockedFileByDefault() {
+						update_flock_struct(flockStructAddr, {
+							l_type: F_UNLCK,
+						});
+						return 0;
+					};
+
 				js_wasm_trace('fcntl(%d, F_GETLK)', fd);
 				const [vfsPath, vfsPathErrno] =
 					locking.get_vfs_path_from_fd(fd);
@@ -437,7 +445,10 @@ export function bindUserSpace(
 				const varArgsAccessor = new VarArgsAccessor(varargs!);
 				const flockStructAddr = varArgsAccessor.getNextAsPointer();
 
-				if (!locking.is_path_to_shared_fs(vfsPath)) {
+				if (
+					!locking.is_path_to_shared_fs(vfsPath) ||
+					fileLockManager === undefined
+				) {
 					js_wasm_trace(
 						"fcntl(%d, F_GETLK) locking is not implemented for non-NodeFS path '%s'",
 						fd,
@@ -446,10 +457,7 @@ export function bindUserSpace(
 
 					// If not a NodeFS path, we can't lock it.
 					// Default to succeeding as Emscripten does.
-					update_flock_struct(flockStructAddr, {
-						l_type: F_UNLCK,
-					});
-					return 0;
+					return reportUnlockedFileByDefault();
 				}
 
 				const flockStruct = read_flock_struct(flockStructAddr);

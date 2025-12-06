@@ -173,22 +173,11 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 					}
 
 					return await loadNodeRuntime(php, {
+						fileLockManager: this.fileLockManager!,
 						emscriptenOptions: {
-							fileLockManager: this.fileLockManager!,
 							processId,
 							trace: trace ? tracePhpWasm : undefined,
-							phpWasmInitOptions: {
-								nativeInternalDirPath,
-								bindUserSpace: (userSpaceContext) => {
-									return bindUserSpace(
-										{
-											fileLockManager:
-												this.fileLockManager!,
-										},
-										userSpaceContext
-									);
-								},
-							},
+							nativeInternalDirPath,
 						},
 						followSymlinks,
 						withXdebug,
@@ -284,25 +273,14 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 					}
 
 					return await loadNodeRuntime(phpVersion, {
+						fileLockManager: this.fileLockManager!,
 						emscriptenOptions: {
-							fileLockManager: this.fileLockManager!,
 							processId,
 							trace: trace ? tracePhpWasm : undefined,
 							ENV: {
 								DOCROOT: '/wordpress',
 							},
-							phpWasmInitOptions: {
-								nativeInternalDirPath,
-								bindUserSpace: (userSpaceContext) => {
-									return bindUserSpace(
-										{
-											fileLockManager:
-												this.fileLockManager!,
-										},
-										userSpaceContext
-									);
-								},
-							},
+							nativeInternalDirPath,
 						},
 						followSymlinks,
 						withXdebug,

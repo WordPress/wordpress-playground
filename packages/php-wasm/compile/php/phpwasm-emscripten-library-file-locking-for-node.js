@@ -52,7 +52,10 @@ const LibraryForFileLocking = {
 #if ASYNCIFY == 2
 		return Asyncify.handleAsync(async () => {
 #endif
-			return userSpace.fcntl64(fd, cmd, varargs);
+			if (!PHPLoader.fileLockManager) {
+				return _builtin_fcntl64(fd, cmd, varargs);
+			}
+			return Module['userSpace'].fcntl64(fd, cmd, varargs);
 #if ASYNCIFY == 2
 		});
 #endif
@@ -69,7 +72,7 @@ const LibraryForFileLocking = {
 #if ASYNCIFY == 2
 		return Asyncify.handleAsync(async () => {
 #endif
-			return userSpace.flock(fd, op);
+			return Module['userSpace'].flock(fd, op);
 #if ASYNCIFY == 2
 		});
 #endif
@@ -88,7 +91,7 @@ const LibraryForFileLocking = {
 #if ASYNCIFY == 2
 		return Asyncify.handleAsync(async () => {
 #endif
-			return userSpace.fd_close(fd);
+			return Module['userSpace'].fd_close(fd);
 #if ASYNCIFY == 2
 		});
 #endif
@@ -104,7 +107,7 @@ const LibraryForFileLocking = {
 #if ASYNCIFY == 2
 		return Asyncify.handleAsync(async () => {
 #endif
-			return userSpace.js_release_file_locks();
+			return Module['userSpace'].js_release_file_locks();
 #if ASYNCIFY == 2
 		});
 #endif
