@@ -181,6 +181,10 @@ export function bindUserSpace(
 		} as const satisfies Record<FcntlLockState, WholeFileLock['type']>,
 		is_path_to_shared_fs(path: string) {
 			const { node } = FS.lookupPath(path, { noent_okay: true });
+			if (!node) {
+				return false;
+			}
+
 			if (node.mount.type !== PROXYFS) {
 				return !!node.isSharedFS;
 			}
