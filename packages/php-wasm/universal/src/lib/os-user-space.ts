@@ -270,6 +270,7 @@ export function bindUserSpace(
 
 	// NOTE: With the exception of l_type, these offsets are not exposed to
 	// JS by Emscripten, so we hardcode them here.
+	// We name them with snake case to better reflect the struct field names.
 	const emscripten_flock_l_type_offset = 0;
 	const emscripten_flock_l_whence_offset = 2;
 	const emscripten_flock_l_start_offset = 8;
@@ -283,7 +284,7 @@ export function bindUserSpace(
 	 * @returns the flock struct
 	 */
 	// TODO: Does this arg type need to be a bigint?
-	function read_flock_struct(flockStructAddress: number) {
+	function readFlockStruct(flockStructAddress: number) {
 		/*
 		 * NOTE: Since we are using HEAP<WORD_SIZE> vars like HEAP16 and HEAP64,
 		 * we need to adjust offsets to address the word size of each HEAP.
@@ -328,7 +329,7 @@ export function bindUserSpace(
 	 * @param {bigint} flockStructAddress - the address of the flock struct
 	 * @param {object} fields - the fields to update
 	 */
-	function update_flock_struct(
+	function updateFlockStruct(
 		flockStructAddress: number,
 		fields: Partial<FlockStruct>
 	) {
@@ -385,7 +386,7 @@ export function bindUserSpace(
 	 * @returns The resolved offset and the errno. If there is an error,
 	 *          the resolved offset is null, and the errno is non-zero.
 	 */
-	function get_base_address(fd: number, whence: number, startOffset: bigint) {
+	function getBaseAddress(fd: number, whence: number, startOffset: bigint) {
 		let baseAddress;
 		switch (whence) {
 			case SEEK_SET:
@@ -445,7 +446,7 @@ export function bindUserSpace(
 			case F_GETLK: {
 				const reportUnlockedFileByDefault =
 					function reportUnlockedFileByDefault() {
-						update_flock_struct(flockStructAddr, {
+						updateFlockStruct(flockStructAddr, {
 							l_type: F_UNLCK,
 						});
 						return 0;
@@ -482,7 +483,7 @@ export function bindUserSpace(
 					return reportUnlockedFileByDefault();
 				}
 
-				const flockStruct = read_flock_struct(flockStructAddr);
+				const flockStruct = readFlockStruct(flockStructAddr);
 
 				if (!(flockStruct.l_type in locking.fcntlToLockState)) {
 					return -EINVAL;
@@ -504,12 +505,11 @@ export function bindUserSpace(
 
 				const requestedLockType =
 					locking.fcntlToLockState[flockStruct.l_type];
-				const [absoluteStartOffset, baseAddressErrno] =
-					get_base_address(
-						fd,
-						flockStruct.l_whence,
-						flockStruct.l_start
-					);
+				const [absoluteStartOffset, baseAddressErrno] = getBaseAddress(
+					fd,
+					flockStruct.l_whence,
+					flockStruct.l_start
+				);
 				if (baseAddressErrno !== 0) {
 					js_wasm_trace(
 						'fcntl(%d, F_GETLK) %s get_base_address errno %d',
@@ -542,7 +542,7 @@ export function bindUserSpace(
 							absoluteStartOffset + flockStruct.l_len
 						);
 
-						update_flock_struct(flockStructAddr, {
+						updateFlockStruct(flockStructAddr, {
 							l_type: F_UNLCK,
 						});
 						return 0;
@@ -560,7 +560,7 @@ export function bindUserSpace(
 
 					const fcntlLockState =
 						locking.lockStateToFcntl[conflictingLock.type];
-					update_flock_struct(flockStructAddr, {
+					updateFlockStruct(flockStructAddr, {
 						l_type: fcntlLockState,
 						l_whence: SEEK_SET,
 						l_start: conflictingLock.start,
@@ -608,14 +608,13 @@ export function bindUserSpace(
 
 				const varArgsAccessor = new VarArgsAccessor(varargs!);
 				const flockStructAddr = varArgsAccessor.getNextAsPointer();
-				const flockStruct = read_flock_struct(flockStructAddr);
+				const flockStruct = readFlockStruct(flockStructAddr);
 
-				const [absoluteStartOffset, baseAddressErrno] =
-					get_base_address(
-						fd,
-						flockStruct.l_whence,
-						flockStruct.l_start
-					);
+				const [absoluteStartOffset, baseAddressErrno] = getBaseAddress(
+					fd,
+					flockStruct.l_whence,
+					flockStruct.l_start
+				);
 				if (baseAddressErrno !== 0) {
 					js_wasm_trace(
 						'fcntl(%d, F_SETLK) %s get_base_address errno %d',
