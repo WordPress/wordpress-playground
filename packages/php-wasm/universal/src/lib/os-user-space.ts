@@ -150,7 +150,9 @@ export function bindUserSpace(
 		}
 
 		getNextAsInt(): number {
-			const value = HEAP32[this.argsAddr];
+			// Shift right by 2 to divide by 2^2.
+			const fourByteOffset = this.argsAddr >> 2;
+			const value = HEAP32[fourByteOffset];
 			this.argsAddr += 4;
 			return value;
 		}
@@ -178,7 +180,6 @@ export function bindUserSpace(
 			[F_UNLCK as FcntlLockState]: 'unlocked',
 		} as const satisfies Record<FcntlLockState, WholeFileLock['type']>,
 		is_path_to_shared_fs(path: string) {
-			js_wasm_trace('is_path_to_shared_fs(%s)', path);
 			const { node } = FS.lookupPath(path, { noent_okay: true });
 			if (node.mount.type !== PROXYFS) {
 				return !!node.isSharedFS;
@@ -872,15 +873,18 @@ export function bindUserSpace(
 			return fdCloseResult;
 		}
 
+		if (!locking.is_path_to_shared_fs(vfsPath)) {
+			return fdCloseResult;
+		}
+
 		try {
+			js_wasm_trace('fd_close(%d) %s release locks', fd, vfsPath);
 			const nativeFilePath =
 				locking.get_native_path_from_vfs_path(vfsPath);
 			fileLockManager.releaseLocksForProcessFd(pid, fd, nativeFilePath);
-			js_wasm_trace('fd_close(%d) release locks success', fd);
+			js_wasm_trace('fd_close(%d) %s release locks success', fd, vfsPath);
 		} catch (e) {
-			js_wasm_trace("fd_close(%d) error '%s'", fd, e);
-		} finally {
-			locking.maybeLockedFds.delete(fd);
+			js_wasm_trace("fd_close(%d) %s error '%s'", fd, vfsPath, e);
 		}
 		return fdCloseResult;
 	}
