@@ -52,9 +52,6 @@ const LibraryForFileLocking = {
 #if ASYNCIFY == 2
 		return Asyncify.handleAsync(async () => {
 #endif
-			if (!PHPLoader.fileLockManager) {
-				return _builtin_fcntl64(fd, cmd, varargs);
-			}
 			return Module['userSpace'].fcntl64(fd, cmd, varargs);
 #if ASYNCIFY == 2
 		});
