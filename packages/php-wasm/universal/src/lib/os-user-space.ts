@@ -817,7 +817,7 @@ export function bindUserSpace(
 		try {
 			const nativeFilePath =
 				locking.get_native_path_from_vfs_path(vfsPath);
-			const obtainedLock = fileLockManager.lockWholeFile(nativeFilePath, {
+			const succeeded = fileLockManager.lockWholeFile(nativeFilePath, {
 				type: lockOpType,
 				pid: pid,
 				fd,
@@ -827,9 +827,12 @@ export function bindUserSpace(
 				fd,
 				op,
 				vfsPath,
-				obtainedLock
+				succeeded
 			);
-			return obtainedLock ? 0 : -EWOULDBLOCK;
+			if (succeeded) {
+				locking.maybeLockedFds.add(fd);
+			}
+			return succeeded ? 0 : -EWOULDBLOCK;
 		} catch (e) {
 			js_wasm_trace('js_flock(%d, %d) lockWholeFile error %s', fd, op, e);
 			return -EINVAL;
@@ -852,8 +855,22 @@ export function bindUserSpace(
 			locking.get_vfs_path_from_fd(fd);
 
 		const fdCloseResult = builtin_fd_close(fd);
-		if (fdCloseResult !== 0 || !locking.maybeLockedFds.has(fd)) {
-			js_wasm_trace('fd_close(%d) result %d', fd, fdCloseResult);
+		if (fdCloseResult !== 0) {
+			js_wasm_trace(
+				'fd_close(%d) %s result %d',
+				fd,
+				vfsPath,
+				fdCloseResult
+			);
+			return fdCloseResult;
+		}
+		if (!locking.maybeLockedFds.has(fd)) {
+			js_wasm_trace(
+				'fd_close(%d) not in maybe-locked-list %s result %d',
+				fd,
+				vfsPath,
+				fdCloseResult
+			);
 			return fdCloseResult;
 		}
 
