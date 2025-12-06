@@ -95,6 +95,13 @@ export type OSUserSpaceContext = {
 	};
 };
 
+export type OSUserSpaceAPI = {
+	fcntl64: (fd: number, cmd: number, varargs?: number) => Promise<number>;
+	flock: (fd: number, op: number) => Promise<number>;
+	fd_close: (fd: number) => Promise<number>;
+	js_release_file_locks: () => Promise<void>;
+};
+
 export function bindUserSpace(
 	{ fileLockManager }: OSKernelSpace,
 	{
@@ -130,7 +137,7 @@ export function bindUserSpace(
 		PROXYFS,
 		NODEFS,
 	}: OSUserSpaceContext
-) {
+): OSUserSpaceAPI {
 	class VarArgsAccessor {
 		argsAddr: number;
 
@@ -180,7 +187,7 @@ export function bindUserSpace(
 			// TODO: Do we still need to support PROXYFS now that Playground CLI uses NODEFS everywhere?
 			// This looks like a PROXYFS node. Let's try a lookup.
 			const nodePath = PROXYFS.realPath(node);
-			const backingFs = node?.mount?.opts?.fs;
+			const backingFs = node?.mount?.opts?.['fs'];
 			if (backingFs) {
 				// Tolerate ENOENT because looking up a MEMFS node by path always fails.
 				const { node: backingNode } = backingFs.lookupPath(nodePath, {
@@ -214,7 +221,7 @@ export function bindUserSpace(
 			} else if (node.mount.type === PROXYFS) {
 				// TODO: Tolerate ENOENT here?
 				const { node: backingNode, path: backingPath } =
-					node.mount.opts.fs.lookupPath(vfsPath);
+					node.mount.opts['fs'].lookupPath(vfsPath);
 				js_wasm_trace(
 					'backingNode for %s: %s',
 					vfsPath,
@@ -487,7 +494,7 @@ export function bindUserSpace(
 					const nativeFilePath =
 						locking.get_native_path_from_vfs_path(vfsPath);
 					const conflictingLock =
-						fileLockManager.findFirstConflictingByteRangeLock(
+						await fileLockManager.findFirstConflictingByteRangeLock(
 							nativeFilePath,
 							{
 								type: requestedLockType,

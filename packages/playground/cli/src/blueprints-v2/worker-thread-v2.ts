@@ -1,5 +1,5 @@
 import { errorLogPath, logger } from '@php-wasm/logger';
-import type { FileLockManager } from '@php-wasm/node';
+import type { FileLockManager } from '@php-wasm/universal';
 import { createNodeFsMountHandler, loadNodeRuntime } from '@php-wasm/node';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import type {
@@ -12,6 +12,7 @@ import {
 	PHPExecutionFailureError,
 	PHPResponse,
 	PHPWorker,
+	bindUserSpace,
 	consumeAPI,
 	consumeAPISync,
 	exposeAPI,
@@ -456,7 +457,18 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 							ENV: {
 								DOCROOT: '/wordpress',
 							},
-							phpWasmInitOptions: { nativeInternalDirPath },
+							phpWasmInitOptions: {
+								nativeInternalDirPath,
+								bindUserSpace: (userSpaceContext) => {
+									return bindUserSpace(
+										{
+											fileLockManager:
+												this.fileLockManager!,
+										},
+										userSpaceContext
+									);
+								},
+							},
 						},
 						followSymlinks: allow?.includes('follow-symlinks'),
 						withXdebug,

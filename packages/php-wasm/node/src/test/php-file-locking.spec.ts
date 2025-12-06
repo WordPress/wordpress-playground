@@ -7,7 +7,10 @@ import {
 	proxyFileSystem,
 	type SupportedPHPVersion,
 } from '@php-wasm/universal';
-import { SupportedPHPVersions } from '@php-wasm/universal';
+import {
+	SupportedPHPVersions,
+	type FileLockManager,
+} from '@php-wasm/universal';
 import {
 	createNodeFsMountHandler,
 	FileLockManagerForNode,
@@ -19,7 +22,6 @@ import {
 	type Promised,
 } from '@php-wasm/util';
 import { jspi } from 'wasm-feature-detect';
-import type { FileLockManager } from '../lib/file-lock-manager';
 
 const phpVersionsToTest =
 	'PHP' in process.env

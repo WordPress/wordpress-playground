@@ -2,8 +2,8 @@ import type {
 	SupportedPHPVersion,
 	EmscriptenOptions,
 	PHPRuntime,
-	RemoteAPI,
-	FileLockManager,
+	OSUserSpaceAPI,
+	OSUserSpaceContext,
 } from '@php-wasm/universal';
 import { loadPHPRuntime, FSHelpers } from '@php-wasm/universal';
 import fs from 'fs';
@@ -12,7 +12,6 @@ import { withNetworking } from './networking/with-networking';
 import { withXdebug, type XdebugOptions } from './xdebug/with-xdebug';
 import { withIntl } from './extensions/intl/with-intl';
 import { joinPaths } from '@php-wasm/util';
-import type { Promised } from '@php-wasm/util';
 import { dirname } from 'path';
 
 export interface PHPLoaderOptions {
@@ -35,20 +34,21 @@ type PHPLoaderOptionsForNode = PHPLoaderOptions & {
 		 */
 		processId?: number;
 
-		/**
-		 * An optional file lock manager to use for the PHP runtime.
-		 *
-		 * The lock manager is optional when running a single php-wasm process.
-		 *
-		 * When running with JSPI, both synchronous and asynchronous
-		 * file lock managers are supported.
-		 * When running with Asyncify, the file lock manager must be synchronous.
-		 */
-		fileLockManager?:
-			| RemoteAPI<FileLockManager>
-			// Allow promised type for testing without providing true RemoteAPI.
-			| Promised<FileLockManager>
-			| FileLockManager;
+		// TODO: Remove this.
+		// /**
+		//  * An optional file lock manager to use for the PHP runtime.
+		//  *
+		//  * The lock manager is optional when running a single php-wasm process.
+		//  *
+		//  * When running with JSPI, both synchronous and asynchronous
+		//  * file lock managers are supported.
+		//  * When running with Asyncify, the file lock manager must be synchronous.
+		//  */
+		// fileLockManager?:
+		// 	| RemoteAPI<FileLockManager>
+		// 	// Allow promised type for testing without providing true RemoteAPI.
+		// 	| Promised<FileLockManager>
+		// 	| FileLockManager;
 
 		/**
 		 * An optional function to collect trace messages.
@@ -69,6 +69,10 @@ type PHPLoaderOptionsForNode = PHPLoaderOptions & {
 		 */
 		phpWasmInitOptions?: {
 			nativeInternalDirPath?: string;
+			// TODO: Document this.
+			bindUserSpace?: (
+				userSpaceContext: OSUserSpaceContext
+			) => OSUserSpaceAPI;
 		};
 	};
 };

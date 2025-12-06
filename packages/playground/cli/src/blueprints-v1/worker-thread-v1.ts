@@ -1,9 +1,10 @@
-import type { FileLockManager } from '@php-wasm/node';
+import type { FileLockManager } from '@php-wasm/universal';
 import { loadNodeRuntime } from '@php-wasm/node';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import type { RemoteAPI, SupportedPHPVersion } from '@php-wasm/universal';
 import {
 	PHPWorker,
+	bindUserSpace,
 	consumeAPI,
 	consumeAPISync,
 	exposeAPI,
@@ -176,7 +177,18 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 							fileLockManager: this.fileLockManager!,
 							processId,
 							trace: trace ? tracePhpWasm : undefined,
-							phpWasmInitOptions: { nativeInternalDirPath },
+							phpWasmInitOptions: {
+								nativeInternalDirPath,
+								bindUserSpace: (userSpaceContext) => {
+									return bindUserSpace(
+										{
+											fileLockManager:
+												this.fileLockManager!,
+										},
+										userSpaceContext
+									);
+								},
+							},
 						},
 						followSymlinks,
 						withXdebug,
@@ -192,7 +204,7 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 						? new File(
 								[sqliteIntegrationPluginZip],
 								'sqlite-integration-plugin.zip'
-						  )
+							)
 						: undefined,
 				sapiName: 'cli',
 				createFiles: {
@@ -279,7 +291,18 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 							ENV: {
 								DOCROOT: '/wordpress',
 							},
-							phpWasmInitOptions: { nativeInternalDirPath },
+							phpWasmInitOptions: {
+								nativeInternalDirPath,
+								bindUserSpace: (userSpaceContext) => {
+									return bindUserSpace(
+										{
+											fileLockManager:
+												this.fileLockManager!,
+										},
+										userSpaceContext
+									);
+								},
+							},
 						},
 						followSymlinks,
 						withXdebug,

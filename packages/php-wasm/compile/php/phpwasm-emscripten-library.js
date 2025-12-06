@@ -29,6 +29,69 @@ const LibraryExample = {
 		// emscripten_O_DIRECT |
 		// emscripten_O_NOATIME
 		init: function (phpWasmInitOptions) {
+			// TODO: Consider limiting this to Node.js builds.
+			if (phpWasmInitOptions.bindUserSpace) {
+				phpWasmInitOptions.bindUserSpace({
+					// TODO: Require PID instead of defaulting to 42.
+					pid: PHPLoader.processId ?? 42,
+					// TODO: When receiving this context, validate that all these fields exist.
+					constants: {
+						F_RDLCK: Number('{{{cDefs.F_RDLCK}}}'),
+						F_WRLCK: Number('{{{cDefs.F_WRLCK}}}'),
+						F_UNLCK: Number('{{{cDefs.F_UNLCK}}}'),
+						F_GETFL: Number('{{{cDefs.F_GETFL}}}'),
+						O_ACCMODE: Number('{{{cDefs.O_ACCMODE}}}'),
+						O_RDONLY: Number('{{{cDefs.O_RDONLY}}}'),
+						O_WRONLY: Number('{{{cDefs.O_WRONLY}}}'),
+						O_APPEND: Number('{{{cDefs.O_APPEND}}}'),
+						O_NONBLOCK: Number('{{{cDefs.O_NONBLOCK}}}'),
+						F_SETFL: Number('{{{cDefs.F_SETFL}}}'),
+						F_GETLK: Number('{{{cDefs.F_GETLK}}}'),
+						F_SETLK: Number('{{{cDefs.F_SETLK}}}'),
+						F_SETLKW: Number('{{{cDefs.F_SETLKW}}}'),
+						SEEK_SET: Number('{{{cDefs.SEEK_SET}}}'),
+						SEEK_CUR: Number('{{{cDefs.SEEK_CUR}}}'),
+						SEEK_END: Number('{{{cDefs.SEEK_END}}}'),
+						F_GETFL: Number('{{{cDefs.F_GETFL}}}'),
+						O_ACCMODE: Number('{{{cDefs.O_ACCMODE}}}'),
+						O_RDONLY: Number('{{{cDefs.O_RDONLY}}}'),
+						O_WRONLY: Number('{{{cDefs.O_WRONLY}}}'),
+						O_APPEND: Number('{{{cDefs.O_APPEND}}}'),
+						O_NONBLOCK: Number('{{{cDefs.O_NONBLOCK}}}'),
+						F_SETFL: Number('{{{cDefs.F_SETFL}}}'),
+						F_GETLK: Number('{{{cDefs.F_GETLK}}}'),
+						F_SETLK: Number('{{{cDefs.F_SETLK}}}'),
+						F_SETLKW: Number('{{{cDefs.F_SETLKW}}}'),
+						SEEK_SET: Number('{{{cDefs.SEEK_SET}}}'),
+						SEEK_CUR: Number('{{{cDefs.SEEK_CUR}}}'),
+						SEEK_END: Number('{{{cDefs.SEEK_END}}}'),
+						LOCK_SH: 1,
+						LOCK_EX: 2,
+						LOCK_NB: 4,
+						LOCK_UN: 8,
+					},
+					errnoCodes: ERRNO_CODES,
+					memory: {
+						HEAP8,
+						HEAPU8,
+						HEAP16,
+						HEAPU16,
+						HEAP32,
+						HEAPU32,
+						HEAPF32,
+						HEAP64,
+						HEAPU64,
+						HEAPF64,
+					},
+					wasmImports,
+					wasmExports,
+					syscalls: SYSCALLS,
+					FS: typeof Emscripten.FS,
+					PROXYFS,
+					NODEFS,
+				});
+			}
+
 			Module['ENV'] = Module['ENV'] || {};
 			// Ensure a platform-level bin directory for a fallback `php` binary.
 			Module['ENV']['PATH'] = [
