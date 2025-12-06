@@ -7,7 +7,6 @@ import type {
 } from '@php-wasm/universal';
 import {
 	PHPResponse,
-	exposeAPI,
 	exposeSyncAPI,
 	printDebugDetails,
 } from '@php-wasm/universal';
@@ -38,7 +37,6 @@ import { LoadBalancer } from './load-balancer';
 /* eslint-disable no-console */
 import { SupportedPHPVersions } from '@php-wasm/universal';
 import { cpus } from 'os';
-import { jspi } from 'wasm-feature-detect';
 import type { MessagePort as NodeMessagePort } from 'worker_threads';
 import yargs from 'yargs';
 import { isValidWordPressSlug } from './is-valid-wordpress-slug';
@@ -1209,25 +1207,16 @@ async function spawnWorkerThread(workerType: 'v1' | 'v2') {
  */
 async function exposeFileLockManager(fileLockManager: FileLockManagerForNode) {
 	const { port1, port2 } = new NodeMessageChannel();
-	if (await jspi()) {
-		/**
-		 * When JSPI is available, the worker thread expects an asynchronous API.
-		 *
-		 * @see worker-thread.ts
-		 * @see comlink-sync.ts
-		 * @see phpwasm-emscripten-library-file-locking-for-node.js
-		 */
-		exposeAPI(fileLockManager, null, port1);
-	} else {
-		/**
-		 * When JSPI is not available, the worker thread expects a synchronous API.
-		 *
-		 * @see worker-thread.ts
-		 * @see comlink-sync.ts
-		 * @see phpwasm-emscripten-library-file-locking-for-node.js
-		 */
-		await exposeSyncAPI(fileLockManager, port1);
-	}
+	/**
+	 * Always expose a synchronous API for the file lock manager
+	 * so our injected system call overrides don't have to switch
+	 * between synchronous and asynchronous APIs.
+	 *
+	 * @todo: Fill in the file containing the injected file locking system calls.
+	 * @see comlink-sync.ts
+	 * @see phpwasm-emscripten-library-file-locking-for-node.js
+	 */
+	await exposeSyncAPI(fileLockManager, port1);
 	return port2;
 }
 

@@ -96,10 +96,10 @@ export type OSUserSpaceContext = {
 };
 
 export type OSUserSpaceAPI = {
-	fcntl64: (fd: number, cmd: number, varargs?: number) => Promise<number>;
-	flock: (fd: number, op: number) => Promise<number>;
-	fd_close: (fd: number) => Promise<number>;
-	js_release_file_locks: () => Promise<void>;
+	fcntl64: (fd: number, cmd: number, varargs?: number) => number;
+	flock: (fd: number, op: number) => number;
+	fd_close: (fd: number) => number;
+	js_release_file_locks: () => void;
 };
 
 export function bindUserSpace(
@@ -242,6 +242,12 @@ export function bindUserSpace(
 				(l_type === F_WRLCK && accessMode === O_RDONLY) ||
 				(l_type === F_RDLCK && accessMode === O_WRONLY)
 			) {
+				js_wasm_trace(
+					'check_lock_params(%d, %d, %d) EBADF',
+					fd,
+					l_type,
+					accessMode
+				);
 				return EBADF;
 			}
 
@@ -418,7 +424,18 @@ export function bindUserSpace(
 	}
 
 	// TODO: Should command just be a string representation of const name?
-	async function fcntl64(fd: number, cmd: number, varargs?: number) {
+	function fcntl64(fd: number, cmd: number, varargs?: number) {
+		js_wasm_trace('fcntl64(%d, %d)', fd, cmd);
+		if (!fileLockManager) {
+			js_wasm_trace(
+				'fcntl64(%d, %d) file lock manager is not available. ' +
+					'delegate to Emscripten builtin fcntl64.',
+				fd,
+				cmd
+			);
+			return builtin_fcntl64(fd, cmd, varargs);
+		}
+
 		switch (cmd) {
 			case F_GETLK: {
 				const reportUnlockedFileByDefault =
@@ -502,7 +519,7 @@ export function bindUserSpace(
 					const nativeFilePath =
 						locking.get_native_path_from_vfs_path(vfsPath);
 					const conflictingLock =
-						await fileLockManager.findFirstConflictingByteRangeLock(
+						fileLockManager.findFirstConflictingByteRangeLock(
 							nativeFilePath,
 							{
 								type: requestedLockType,
@@ -710,8 +727,17 @@ export function bindUserSpace(
 		}
 	}
 
-	async function flock(fd: number, op: number) {
+	function flock(fd: number, op: number) {
 		js_wasm_trace('js_flock(%d, %d)', fd, op);
+		if (!fileLockManager) {
+			js_wasm_trace(
+				'js_flock(%d, %d) file lock manager is not available. ' +
+					'succeed by default as Emscripten does.',
+				fd,
+				op
+			);
+			return 0;
+		}
 
 		type FlockOp = typeof LOCK_SH | typeof LOCK_EX | typeof LOCK_UN;
 		const flockToLockOpType = {
@@ -747,9 +773,10 @@ export function bindUserSpace(
 		const paramsCheckErrno = locking.check_lock_params(fd, op);
 		if (paramsCheckErrno !== 0) {
 			js_wasm_trace(
-				'js_flock(%d, %d) check_lock_params errno %d',
+				'js_flock(%d, %d) %s check_lock_params errno %d',
 				fd,
 				op,
+				vfsPath,
 				paramsCheckErrno
 			);
 			return -paramsCheckErrno;
@@ -765,7 +792,9 @@ export function bindUserSpace(
 			// We do not yet support the blocking form of flock().
 			// We respond with EINVAL to indicate failure
 			// because it is a known errno for a failed blocking flock().
-			return -EINVAL;
+			// return -EINVAL;
+			// TODO: Implement blocking mode of flock()
+			return 0;
 		}
 
 		const maskedOp = op & ((LOCK_SH | LOCK_EX | LOCK_UN) as FlockOp | 0);
@@ -784,14 +813,11 @@ export function bindUserSpace(
 		try {
 			const nativeFilePath =
 				locking.get_native_path_from_vfs_path(vfsPath);
-			const obtainedLock = await fileLockManager.lockWholeFile(
-				nativeFilePath,
-				{
-					type: lockOpType,
-					pid: pid,
-					fd,
-				}
-			);
+			const obtainedLock = fileLockManager.lockWholeFile(nativeFilePath, {
+				type: lockOpType,
+				pid: pid,
+				fd,
+			});
 			js_wasm_trace(
 				'js_flock(%d, %d) lockWholeFile %s returned %d',
 				fd,
@@ -806,7 +832,16 @@ export function bindUserSpace(
 		}
 	}
 
-	async function fd_close(fd: number) {
+	function fd_close(fd: number) {
+		if (!fileLockManager) {
+			js_wasm_trace(
+				'fd_close(%d) file lock manager is not available. ' +
+					'delegate to Emscripten builtin fd_close.',
+				fd
+			);
+			return builtin_fd_close(fd);
+		}
+
 		// We have to get the VFS path from the file descriptor
 		// before closing it.
 		const [vfsPath, vfsPathResolutionErrno] =
@@ -840,11 +875,7 @@ export function bindUserSpace(
 		try {
 			const nativeFilePath =
 				locking.get_native_path_from_vfs_path(vfsPath);
-			await fileLockManager.releaseLocksForProcessFd(
-				pid,
-				fd,
-				nativeFilePath
-			);
+			fileLockManager.releaseLocksForProcessFd(pid, fd, nativeFilePath);
 			js_wasm_trace('fd_close(%d) release locks success', fd);
 		} catch (e) {
 			js_wasm_trace("fd_close(%d) error '%s'", fd, e);
@@ -856,15 +887,21 @@ export function bindUserSpace(
 
 	// TODO: Implement based on current process
 	// TODO: Replace with process exit handler
-	async function js_release_file_locks() {
+	function js_release_file_locks() {
 		js_wasm_trace('js_release_file_locks()');
-		if (!pid || !fileLockManager) {
-			js_wasm_trace('js_release_file_locks no pid or file lock manager');
+		if (pid === undefined) {
+			js_wasm_trace('js_release_file_locks pid is undefined');
+			return;
+		}
+		if (fileLockManager === undefined) {
+			js_wasm_trace(
+				'js_release_file_locks file lock manager is undefined'
+			);
 			return;
 		}
 
 		try {
-			await fileLockManager.releaseLocksForProcess(pid);
+			fileLockManager.releaseLocksForProcess(pid);
 			js_wasm_trace('js_release_file_locks succeeded');
 		} catch (e) {
 			js_wasm_trace('js_release_file_locks error %s', e);
