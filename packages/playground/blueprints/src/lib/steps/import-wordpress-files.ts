@@ -5,10 +5,6 @@ import type { UniversalPHP } from '@php-wasm/universal';
 import { ensureWpConfig } from '@wp-playground/wordpress';
 import { wpContentFilesExcludedFromExport } from '../utils/wp-content-files-excluded-from-exports';
 import { defineSiteUrl } from './define-site-url';
-import {
-	PLAYGROUND_EXPORT_MANIFEST_FILENAME,
-	type PlaygroundExportManifest,
-} from './zip-wp-content';
 
 /**
  * @inheritDoc importWordPressFiles
@@ -67,17 +63,13 @@ export const importWordPressFiles: StepHandler<
 	// Read the export manifest if it exists. The manifest contains the
 	// site URL (including scope) at export time, which we'll use later
 	// to update URLs in the database when the scope changes.
-	const manifestPath = joinPaths(
-		importPath,
-		PLAYGROUND_EXPORT_MANIFEST_FILENAME
-	);
+	const manifestPath = joinPaths(importPath, 'playground-export.json');
 	let oldSiteUrl: string | null = null;
 	if (await playground.fileExists(manifestPath)) {
 		try {
 			const manifestContent =
 				await playground.readFileAsText(manifestPath);
-			const manifest: PlaygroundExportManifest =
-				JSON.parse(manifestContent);
+			const manifest = JSON.parse(manifestContent);
 			oldSiteUrl = manifest.siteUrl;
 			// Remove the manifest file - it's not needed in the document root
 			await playground.unlink(manifestPath);
@@ -140,6 +132,13 @@ export const importWordPressFiles: StepHandler<
 	await ensureWpConfig(playground, documentRoot);
 
 	const newSiteUrl = await playground.absoluteUrl;
+
+	// If the manifest didn't provide the old site URL, try to infer it from
+	// the database. The siteurl option still contains the URL from the export
+	// at this point, before we update it with defineSiteUrl.
+	if (!oldSiteUrl) {
+		oldSiteUrl = await inferSiteUrlFromDatabase(playground, documentRoot);
+	}
 
 	// Adjust the site URL
 	await defineSiteUrl(playground, {
@@ -239,6 +238,30 @@ async function replaceSiteUrl(
 		));
 		`,
 	});
+}
+
+/**
+ * Attempts to infer the old site URL from the WordPress database.
+ * This is used when importing legacy exports that don't have a manifest file.
+ * We query the siteurl option directly from the database using raw SQL because
+ * get_option('siteurl') would return the WP_SITEURL constant value instead of
+ * what's stored in the database.
+ */
+async function inferSiteUrlFromDatabase(
+	playground: UniversalPHP,
+	documentRoot: string
+): Promise<string | null> {
+	const js = phpVars({ documentRoot });
+	const result = await playground.run({
+		code: `<?php
+		require_once ${js.documentRoot} . '/wp-load.php';
+		global $wpdb;
+		$row = $wpdb->get_row("SELECT option_value FROM {$wpdb->options} WHERE option_name = 'siteurl'");
+		echo $row ? $row->option_value : '';
+		`,
+	});
+	const siteUrl = result.text.trim();
+	return siteUrl || null;
 }
 
 async function removePath(playground: UniversalPHP, path: string) {

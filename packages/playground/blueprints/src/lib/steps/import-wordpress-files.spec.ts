@@ -1,10 +1,7 @@
 import type { PHP, PHPRequestHandler } from '@php-wasm/universal';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import { importWordPressFiles } from './import-wordpress-files';
-import {
-	zipWpContent,
-	PLAYGROUND_EXPORT_MANIFEST_FILENAME,
-} from './zip-wp-content';
+import { zipWpContent } from './zip-wp-content';
 import {
 	getSqliteDriverModule,
 	getWordPressModule,
@@ -71,7 +68,7 @@ describe('Blueprint step importWordPressFiles', () => {
 			code: `<?php
 			$zip = new ZipArchive();
 			$zip->open('/tmp/check.zip');
-			$manifest = $zip->getFromName(${phpVar(PLAYGROUND_EXPORT_MANIFEST_FILENAME)});
+			$manifest = $zip->getFromName('playground-export.json');
 			$zip->close();
 			echo $manifest;
 			`,
@@ -187,25 +184,67 @@ describe('Blueprint step importWordPressFiles', () => {
 		expect(result.text).not.toContain(`scope:${sourceScope}`);
 	});
 
-	it('should handle imports without a manifest gracefully', async () => {
-		// Create a zip without a manifest (simulating legacy exports)
+	it('should infer scope from database when manifest is missing and still replace URLs', async () => {
+		// Create a post with an image URL containing the source scope
+		const sourceUrl = sourcePHP.absoluteUrl;
+		const imageUrl = `${sourceUrl.replace(/\/$/, '')}/wp-content/uploads/2024/01/legacy-image.png`;
+
+		// First, update the siteurl option in the database to match the scoped URL.
+		// This simulates a site where the user changed the URL or where the option
+		// was set correctly during setup. By default, the database may contain a
+		// different URL than the scoped one we're using.
 		await sourcePHP.run({
 			code: `<?php
+			require ${phpVar(sourcePHP.documentRoot)} . '/wp-load.php';
+			global $wpdb;
+			$wpdb->update(
+				$wpdb->options,
+				['option_value' => ${phpVar(sourceUrl)}],
+				['option_name' => 'siteurl']
+			);
+			wp_insert_post([
+				'post_title' => 'Legacy Post with Image',
+				'post_content' => '<img src="${imageUrl}" alt="legacy">',
+				'post_status' => 'publish',
+			]);
+			`,
+		});
+
+		// Export from source, then remove the manifest to simulate a legacy export
+		const zipBuffer = await zipWpContent(sourcePHP);
+		await targetPHP.writeFile('/tmp/with-manifest.zip', zipBuffer);
+
+		// Remove the manifest from the zip
+		await targetPHP.run({
+			code: `<?php
 			$zip = new ZipArchive();
-			$zip->open('/tmp/legacy.zip', ZipArchive::CREATE);
-			$zip->addFromString('wp-content/test.txt', 'test content');
+			$zip->open('/tmp/with-manifest.zip');
+			$zip->deleteName('playground-export.json');
 			$zip->close();
 			`,
 		});
 
-		const zipBuffer = await sourcePHP.readFileAsBuffer('/tmp/legacy.zip');
-		const zipFile = new File([zipBuffer], 'legacy.zip');
+		const modifiedZipBuffer = await targetPHP.readFileAsBuffer(
+			'/tmp/with-manifest.zip'
+		);
+		const zipFile = new File([modifiedZipBuffer], 'legacy-export.zip');
 
-		// Import should not throw an error
-		await expect(
-			importWordPressFiles(targetPHP, {
-				wordPressFilesZip: zipFile,
-			})
-		).resolves.not.toThrow();
+		// Import into target - should infer the old scope from the database
+		await importWordPressFiles(targetPHP, {
+			wordPressFilesZip: zipFile,
+		});
+
+		// Check that the URLs were updated despite no manifest
+		const result = await targetPHP.run({
+			code: `<?php
+			require ${phpVar(targetPHP.documentRoot)} . '/wp-load.php';
+			$posts = get_posts(['post_status' => 'publish', 'numberposts' => 1]);
+			echo $posts[0]->post_content;
+			`,
+		});
+
+		// The image URL should now contain the target scope instead of source scope
+		expect(result.text).toContain(`scope:${targetScope}`);
+		expect(result.text).not.toContain(`scope:${sourceScope}`);
 	});
 });

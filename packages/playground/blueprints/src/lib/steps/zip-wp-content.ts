@@ -1,17 +1,6 @@
 import { joinPaths, phpVars } from '@php-wasm/util';
 import type { UniversalPHP } from '@php-wasm/universal';
 import { wpContentFilesExcludedFromExport } from '../utils/wp-content-files-excluded-from-exports';
-import { getURLScope } from '@php-wasm/scopes';
-
-export const PLAYGROUND_EXPORT_MANIFEST_FILENAME = 'playground-export.json';
-
-export interface PlaygroundExportManifest {
-	/**
-	 * The scope of the Playground instance at export time.
-	 * This is used to update URLs when importing into a different scope.
-	 */
-	siteUrl: string;
-}
 
 interface ZipWpContentOptions {
 	/**
@@ -33,7 +22,7 @@ export const zipWpContent = async (
 	{ selfContained = false }: ZipWpContentOptions = {}
 ) => {
 	const zipPath = '/tmp/wordpress-playground.zip';
-	const manifestPath = '/tmp/' + PLAYGROUND_EXPORT_MANIFEST_FILENAME;
+	const manifestPath = '/tmp/playground-export.json';
 
 	const documentRoot = await playground.documentRoot;
 	const wpContentPath = joinPaths(documentRoot, 'wp-content');
@@ -42,12 +31,9 @@ export const zipWpContent = async (
 	// including the site URL (with scope). This will be used during import
 	// to update URLs in the database when the scope changes.
 	const siteUrl = await playground.absoluteUrl;
-	const manifest: PlaygroundExportManifest = {
-		siteUrl,
-	};
 	await playground.writeFile(
 		manifestPath,
-		new TextEncoder().encode(JSON.stringify(manifest))
+		new TextEncoder().encode(JSON.stringify({ siteUrl }))
 	);
 
 	let exceptPaths = wpContentFilesExcludedFromExport;
@@ -71,7 +57,7 @@ export const zipWpContent = async (
 	}
 
 	const additionalPaths: Record<string, string> = {
-		[manifestPath]: PLAYGROUND_EXPORT_MANIFEST_FILENAME,
+		[manifestPath]: 'playground-export.json',
 	};
 	if (selfContained) {
 		additionalPaths[joinPaths(documentRoot, 'wp-config.php')] =
