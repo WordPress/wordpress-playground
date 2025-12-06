@@ -206,8 +206,8 @@ test('should rename a saved Playground and persist after reload', async ({
 	// Verify the name is also updated in the saved playgrounds overlay
 	await website.openSavedPlaygroundsOverlay();
 	await expect(
-		website.page.locator('[class*="siteRowName"]').first()
-	).toContainText(newName);
+		website.page.locator('[class*="siteRowName"]', { hasText: newName })
+	).toBeVisible();
 	await website.closeSavedPlaygroundsOverlay();
 });
 
