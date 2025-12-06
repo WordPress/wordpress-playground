@@ -21,6 +21,7 @@ import {
 	setActiveModal,
 	setSiteManagerOpen,
 	setSiteManagerSection,
+	setSiteSlugToRename,
 } from '../../../lib/state/redux/slice-ui';
 import { useAppDispatch, useAppSelector } from '../../../lib/state/redux/store';
 import { usePlaygroundClientInfo } from '../../../lib/use-playground-client';
@@ -242,13 +243,18 @@ export function SiteInfoPanel({
 															showTooltip={true}
 															variant="tertiary"
 															isSmall={true}
-															onClick={() =>
+															onClick={() => {
+																dispatch(
+																	setSiteSlugToRename(
+																		site.slug
+																	)
+																);
 																dispatch(
 																	setActiveModal(
 																		modalSlugs.RENAME_SITE
 																	)
-																)
-															}
+																);
+															}}
 														/>
 													)}
 												</span>
