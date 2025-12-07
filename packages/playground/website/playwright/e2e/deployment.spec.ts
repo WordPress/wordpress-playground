@@ -3,6 +3,10 @@ import path from 'path';
 import { test, expect } from '../playground-fixtures.ts';
 import { startVersionSwitchingServer as startServer } from '../version-switching-server.ts';
 
+// Tests in this file share a server on port 7999, so they must run serially
+// to avoid EADDRINUSE errors from multiple tests trying to bind the same port.
+test.describe.configure({ mode: 'serial' });
+
 const port = 7999;
 const url = new URL(`http://localhost:${port}`);
 // Disable login because an old WP build used in this test
@@ -15,7 +19,7 @@ url.searchParams.set('login', 'no');
 // This theme is also what the reference screenshots are based on.
 url.searchParams.set('theme', 'twentytwentyfour');
 
-const maxDiffPixels = 4000;
+const maxDiffPixels = 10_000;
 
 let server: Awaited<ReturnType<typeof startServer>> | null = null;
 

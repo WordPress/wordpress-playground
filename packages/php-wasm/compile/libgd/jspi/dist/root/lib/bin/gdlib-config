@@ -1,0 +1,10 @@
+#!/bin/sh
+case "$1" in
+  --version) echo 2.3.3 ;;
+  --features) echo "PNG JPEG WEBP AVIF GIF XBM WBMP FREETYPE" ;;
+  --libs) echo "-L/root/lib/lib -lgd -lpng16 -lz -ljpeg -lwebp -lsharpyuv -lavif" ;;
+  --cflags|--includes) echo "-I/root/lib/include" ;;
+  --libdir) echo "/root/lib/lib" ;;
+  --includedir) echo "/root/lib/include" ;;
+  *) echo "--version --features --libs --cflags --includedir --libdir" ;;
+esac

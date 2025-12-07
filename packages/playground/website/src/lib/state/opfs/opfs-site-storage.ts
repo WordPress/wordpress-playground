@@ -17,6 +17,7 @@ import {
 } from '@wp-playground/blueprints';
 import type { SupportedPHPVersion } from '@php-wasm/universal';
 import { RecommendedPHPVersion } from '@wp-playground/common';
+import { loadPersistedBlueprintBundle } from './opfs-blueprint-bundle-storage';
 
 const ROOT_PATH = '/sites';
 // TODO: Decide on metadata filename
@@ -131,7 +132,24 @@ class OpfsSiteStorage {
 		// TODO: Backfill site info file if missing, detecting actual WP version if possible
 		//       ^ do not do it implicitly. Require user interaction. Maybe constrain this just
 		//         to the site files import flow.
-		return storedFormatToMetadata(await file.text());
+		const siteInfo = storedFormatToMetadata(await file.text());
+
+		// If the blueprint source points to the bundle directory, load from there.
+		// This allows the site to access bundled resources, not just the JSON declaration.
+		if (siteInfo.metadata.originalBlueprintSource?.type === 'opfs-site') {
+			try {
+				siteInfo.metadata.originalBlueprint =
+					await loadPersistedBlueprintBundle(siteInfo.slug);
+			} catch (error) {
+				logger.error(
+					`Failed to load blueprint bundle for site ${siteInfo.slug}`,
+					error
+				);
+				// Continue with the JSON declaration
+			}
+		}
+
+		return siteInfo;
 	}
 
 	async delete(slug: string): Promise<void> {
@@ -156,12 +174,18 @@ export function getDirectoryNameForSlug(slug: string) {
 
 async function metadataToStoredFormat(
 	slug: string,
-	{ originalBlueprint, ...metadata }: SiteMetadata
+	{ originalBlueprint, originalBlueprintSource, ...metadata }: SiteMetadata
 ): Promise<string> {
 	return JSON.stringify(
 		{
 			slug,
-			originalBlueprint: await getBlueprintDeclaration(originalBlueprint),
+			originalBlueprintSource,
+			// Only store the blueprint declaration if it's NOT a bundle directory.
+			// For bundle directories, the full bundle is stored separately.
+			originalBlueprint:
+				originalBlueprintSource?.type === 'opfs-site'
+					? undefined
+					: await getBlueprintDeclaration(originalBlueprint),
 			...metadata,
 		},
 		undefined,

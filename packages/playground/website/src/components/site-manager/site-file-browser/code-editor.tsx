@@ -43,6 +43,7 @@ import {
 	defaultHighlightStyle,
 	type LanguageSupport,
 } from '@codemirror/language';
+import type { Extension } from '@codemirror/state';
 import { php } from '@codemirror/lang-php';
 
 /**
@@ -124,7 +125,10 @@ const loadLanguageExtension = async (
 
 // Plugin to handle clicks below the content and move cursor to end of document
 class ClickBelowContentHandler implements PluginValue {
-	constructor(private view: EditorViewType) {
+	private view: EditorViewType;
+
+	constructor(view: EditorViewType) {
+		this.view = view;
 		this.handleClick = this.handleClick.bind(this);
 		this.view.dom.addEventListener('mousedown', this.handleClick);
 	}
@@ -183,6 +187,7 @@ export type CodeEditorProps = {
 	className?: string;
 	onSaveShortcut?: () => void;
 	readOnly?: boolean;
+	additionalExtensions?: Extension[];
 };
 
 export const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
@@ -194,6 +199,7 @@ export const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
 			className,
 			onSaveShortcut,
 			readOnly = false,
+			additionalExtensions,
 		},
 		ref
 	) {
@@ -203,7 +209,9 @@ export const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
 		const viewRef = useRef<EditorView | null>(null);
 		const languageCompartmentRef = useRef(new Compartment());
 		const editableCompartmentRef = useRef(new Compartment());
+		const extraCompartmentRef = useRef(new Compartment());
 		const latestCodeRef = useRef(code);
+		const onChangeRef = useRef(onChange);
 		const shouldRestoreFocusRef = useRef(false);
 
 		useImperativeHandle(ref, () => ({
@@ -245,6 +253,10 @@ export const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
 		}, [code]);
 
 		useEffect(() => {
+			onChangeRef.current = onChange;
+		}, [onChange]);
+
+		useEffect(() => {
 			if (viewRef.current) {
 				return;
 			}
@@ -256,6 +268,7 @@ export const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
 			const state = EditorState.create({
 				doc: code,
 				extensions: [
+					extraCompartmentRef.current.of(additionalExtensions ?? []),
 					lineNumbers(),
 					highlightActiveLineGutter(),
 					highlightActiveLine(),
@@ -284,7 +297,7 @@ export const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
 							return;
 						}
 						latestCodeRef.current = nextDoc;
-						onChange(nextDoc);
+						onChangeRef.current(nextDoc);
 					}),
 					keymap.of([
 						{
@@ -316,6 +329,18 @@ export const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
 			// The editor instance should be created only once.
 			// eslint-disable-next-line react-hooks/exhaustive-deps
 		}, []);
+
+		useEffect(() => {
+			const view = viewRef.current;
+			if (!view) {
+				return;
+			}
+			view.dispatch({
+				effects: extraCompartmentRef.current.reconfigure(
+					additionalExtensions ?? []
+				),
+			});
+		}, [additionalExtensions]);
 
 		useEffect(() => {
 			const view = viewRef.current;

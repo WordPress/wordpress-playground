@@ -1,3 +1,17 @@
+import { basename, dirname, joinPaths } from '@php-wasm/util';
+import type { AsyncWritableFilesystem } from '@wp-playground/storage';
+import {
+	Button,
+	MenuItem,
+	NavigableMenu,
+	Popover,
+	__experimentalTreeGrid as TreeGrid,
+	__experimentalTreeGridCell as TreeGridCell,
+	__experimentalTreeGridRow as TreeGridRow,
+} from '@wordpress/components';
+import '@wordpress/components/build-style/style.css';
+import { Icon, chevronDown, chevronRight } from '@wordpress/icons';
+import classNames from 'classnames';
 import React, {
 	forwardRef,
 	useEffect,
@@ -6,21 +20,8 @@ import React, {
 	useRef,
 	useState,
 } from 'react';
-import {
-	__experimentalTreeGrid as TreeGrid,
-	__experimentalTreeGridRow as TreeGridRow,
-	__experimentalTreeGridCell as TreeGridCell,
-	Button,
-	Popover,
-	NavigableMenu,
-	MenuItem,
-} from '@wordpress/components';
-import { Icon, chevronDown, chevronRight } from '@wordpress/icons';
-import '@wordpress/components/build-style/style.css';
-import css from './style.module.css';
-import classNames from 'classnames';
 import { file, folder } from '../icons';
-import { basename, dirname, joinPaths } from '@php-wasm/util';
+import css from './style.module.css';
 
 type ExpandedNodePaths = Record<string, boolean>;
 
@@ -65,19 +66,6 @@ type FileSystemEntryLike =
 	| FileSystemFileEntryLike
 	| FileSystemDirectoryEntryLike;
 
-export interface AsyncWritableFilesystem {
-	isDir: (path: string) => Promise<boolean>;
-	fileExists: (path: string) => Promise<boolean>;
-	readFileAsBuffer: (path: string) => Promise<Uint8Array>;
-	readFileAsText: (path: string) => Promise<string>;
-	listFiles: (path: string) => Promise<string[]>;
-	writeFile: (path: string, data: Uint8Array | string) => Promise<void>;
-	mkdir: (path: string) => Promise<void>;
-	rmdir: (path: string, options?: { recursive?: boolean }) => Promise<void>;
-	mv: (source: string, destination: string) => Promise<void>;
-	unlink: (path: string) => Promise<void>;
-}
-
 export type FileNode = {
 	name: string;
 	type: 'file' | 'folder';
@@ -85,6 +73,7 @@ export type FileNode = {
 };
 
 export type FilePickerTreeProps = {
+	withContextMenu?: boolean;
 	filesystem: AsyncWritableFilesystem;
 	root?: string; // default '/wordpress'
 	initialSelectedPath?: string;
@@ -158,6 +147,7 @@ export const FilePickerTree = forwardRef<
 	FilePickerTreeProps
 >(function FilePickerTree(
 	{
+		withContextMenu = true,
 		filesystem,
 		root = '/wordpress',
 		initialSelectedPath,
@@ -831,6 +821,9 @@ export const FilePickerTree = forwardRef<
 		node: FileNode,
 		path: string
 	) => {
+		if (!withContextMenu) {
+			return;
+		}
 		event.preventDefault();
 		event.stopPropagation();
 		setRenamingAbsolutePath(null);
@@ -1115,6 +1108,27 @@ export const FilePickerTree = forwardRef<
 		}
 	};
 
+	const handleDownloadPath = async (absPath: string) => {
+		if (!filesystem) {
+			return;
+		}
+		try {
+			const file = await filesystem.read(absPath);
+			const buffer = await file.arrayBuffer();
+			const blob = new Blob([buffer as BlobPart]);
+			const url = URL.createObjectURL(blob);
+			const anchor = document.createElement('a');
+			anchor.href = url;
+			anchor.download = basename(absPath) || 'download';
+			document.body.appendChild(anchor);
+			anchor.click();
+			document.body.removeChild(anchor);
+			setTimeout(() => URL.revokeObjectURL(url), 60_000);
+		} catch (error) {
+			console.error('Failed to download file', error);
+		}
+	};
+
 	const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
 		// Skip type-ahead when renaming to avoid interfering with rename input
 		if (renamingAbsolutePath) {
@@ -1391,6 +1405,19 @@ export const FilePickerTree = forwardRef<
 						>
 							Rename
 						</MenuItem>
+						{contextMenu.type === 'file' && (
+							<MenuItem
+								role="menuitem"
+								onClick={async () => {
+									setContextMenu(null);
+									await handleDownloadPath(
+										contextMenu.absPath
+									);
+								}}
+							>
+								Download
+							</MenuItem>
+						)}
 						<MenuItem
 							role="menuitem"
 							onClick={() =>

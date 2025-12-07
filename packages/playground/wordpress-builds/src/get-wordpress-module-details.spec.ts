@@ -12,6 +12,6 @@ import { getWordPressModuleDetails } from './wordpress/get-wordpress-module-deta
 describe('getWordPressModuleDetails()', () => {
 	it('should return a data loader module', async () => {
 		const module = getWordPressModuleDetails();
-		expect(module.url).toMatch(/\/wp-\d.\d.zip$/);
+		expect(module.url).toMatch(/\/wp-\d\.\d\.zip$/);
 	});
 });

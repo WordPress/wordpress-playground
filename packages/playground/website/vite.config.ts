@@ -7,6 +7,8 @@ import { viteTsConfigPaths } from '../../vite-extensions/vite-ts-config-paths';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import ignoreWasmImports from '../ignore-wasm-imports';
 // eslint-disable-next-line @nx/enforce-module-boundaries
+import ignoreLibImports from '../ignore-lib-imports';
+// eslint-disable-next-line @nx/enforce-module-boundaries
 import ignoreDataImports from '../ignore-data-imports';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import {
@@ -45,8 +47,8 @@ export default defineConfig(({ command, mode }) => {
 		'CORS_PROXY_URL' in process.env
 			? process.env.CORS_PROXY_URL
 			: mode === 'production'
-			? 'https://wordpress-playground-cors-proxy.net/?'
-			: 'http://127.0.0.1:5263/cors-proxy.php?';
+				? 'https://wordpress-playground-cors-proxy.net/?'
+				: 'http://127.0.0.1:5263/cors-proxy.php?';
 
 	return {
 		// Split traffic from this server on dev so that the iframe content and
@@ -54,6 +56,8 @@ export default defineConfig(({ command, mode }) => {
 		// already the same host, but dev builds run two separate servers. See proxy
 		// config above.
 		base: mode === 'production' ? '/' : '/website-server/',
+
+		assetsInclude: ['**/*.so', '**/*.dat'],
 
 		cacheDir: '../../../node_modules/.vite/packages-playground-website',
 
@@ -97,6 +101,7 @@ export default defineConfig(({ command, mode }) => {
 				root: '../../../',
 			}),
 			ignoreWasmImports(),
+			ignoreLibImports(),
 			ignoreDataImports(),
 			...viteGlobalExtensions,
 			buildVersionPlugin('website-config'),
@@ -230,8 +235,11 @@ export default defineConfig(({ command, mode }) => {
 						// Split CodeMirror and Lezer packages into separate chunks
 						// that will be placed in assets/optional/ directory
 
-						// Check for specific language extensions FIRST (before general @codemirror check)
-						// These are lazy-loaded in code-editor.tsx
+						// Check for specific language extensions FIRST, before the general @codemirror.
+						// We want to package each of them separately so they can be downloaded on demand
+						// and not all together.
+
+						// These are lazy-loaded in code-editor.tsx:
 						if (id.includes('node_modules/@codemirror/lang-css')) {
 							return 'optional/lang-css';
 						}
@@ -268,6 +276,23 @@ export default defineConfig(({ command, mode }) => {
 						if (id.includes('node_modules/@lezer/')) {
 							return 'optional/vendor-lezer';
 						}
+
+						// Optional, lazy loaded Blueprint Editor package
+						if (id.includes('blueprint-editor')) {
+							return 'optional/blueprint-editor';
+						}
+					},
+					assetFileNames: (chunkInfo) => {
+						// Split Extensions or associated shared files into separate chunks
+						// that will be placed in assets/extensions/ directory
+						if (
+							chunkInfo.names?.[0]?.endsWith('.so') ||
+							chunkInfo.names?.[0]?.endsWith('.dat')
+						) {
+							return 'assets/extensions/[name]-[hash][extname]';
+						}
+
+						return 'assets/[name]-[hash][extname]';
 					},
 				},
 				external: [],

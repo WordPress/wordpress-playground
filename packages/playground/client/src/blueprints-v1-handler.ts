@@ -11,7 +11,11 @@ import { collectPhpLogs, logger } from '@php-wasm/logger';
 import { consumeAPI } from '@php-wasm/universal';
 
 export class BlueprintsV1Handler {
-	constructor(private readonly options: StartPlaygroundOptions) {}
+	private readonly options: StartPlaygroundOptions;
+
+	constructor(options: StartPlaygroundOptions) {
+		this.options = options;
+	}
 
 	async bootPlayground(
 		iframe: HTMLIFrameElement,
@@ -44,9 +48,8 @@ export class BlueprintsV1Handler {
 		await playground.isConnected();
 		progressTracker.pipe(playground);
 
-		const runtimeConfiguration = await resolveRuntimeConfiguration(
-			blueprint
-		);
+		const runtimeConfiguration =
+			await resolveRuntimeConfiguration(blueprint);
 		await playground.onDownloadProgress(downloadProgress.loadingListener);
 		await playground.boot({
 			mounts,
@@ -55,7 +58,7 @@ export class BlueprintsV1Handler {
 			shouldInstallWordPress,
 			phpVersion: runtimeConfiguration.phpVersion,
 			wpVersion: runtimeConfiguration.wpVersion,
-			withICU: runtimeConfiguration.intl,
+			withIntl: runtimeConfiguration.intl,
 			withNetworking: runtimeConfiguration.networking,
 			corsProxyUrl: corsProxy,
 			sqliteDriverVersion,

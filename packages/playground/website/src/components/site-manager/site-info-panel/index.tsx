@@ -1,42 +1,49 @@
-import classNames from 'classnames';
-import css from './style.module.css';
-import { getLogoDataURL, WordPressIcon } from '@wp-playground/components';
 import {
 	Button,
+	DropdownMenu,
 	Flex,
 	FlexItem,
 	Icon,
-	DropdownMenu,
 	MenuGroup,
 	MenuItem,
 	TabPanel,
 } from '@wordpress/components';
-import { moreVertical, external, chevronLeft, edit } from '@wordpress/icons';
-import { SiteLogs } from '../../log-modal';
+import { chevronLeft, edit, moreVertical } from '@wordpress/icons';
+import { getLogoDataURL, WordPressIcon } from '@wp-playground/components';
+import classNames from 'classnames';
+import { lazy, Suspense, useEffect, useState } from 'react';
+import { getRelativeDate } from '../../../lib/get-relative-date';
+import { selectClientInfoBySiteSlug } from '../../../lib/state/redux/slice-clients';
+import type { SiteInfo } from '../../../lib/state/redux/slice-sites';
+import { removeSite } from '../../../lib/state/redux/slice-sites';
+import {
+	modalSlugs,
+	setActiveModal,
+	setSiteManagerOpen,
+	setSiteManagerSection,
+} from '../../../lib/state/redux/slice-ui';
 import { useAppDispatch, useAppSelector } from '../../../lib/state/redux/store';
 import { usePlaygroundClientInfo } from '../../../lib/use-playground-client';
+import { SiteLogs } from '../../log-modal';
 import { OfflineNotice } from '../../offline-notice';
 import { DownloadAsZipMenuItem } from '../../toolbar-buttons/download-as-zip';
 import { GithubExportMenuItem } from '../../toolbar-buttons/github-export-menu-item';
 import { ReportError } from '../../toolbar-buttons/report-error';
-import { TemporarySiteNotice } from '../temporary-site-notice';
-import type { SiteInfo } from '../../../lib/state/redux/slice-sites';
-import {
-	setSiteManagerOpen,
-	setSiteManagerSection,
-	setActiveModal,
-	modalSlugs,
-} from '../../../lib/state/redux/slice-ui';
-import { selectClientInfoBySiteSlug } from '../../../lib/state/redux/slice-clients';
-import { encodeStringAsBase64 } from '../../../lib/base64';
+import { SiteDatabasePanel } from '../site-database-panel';
 import { ActiveSiteSettingsForm } from '../site-settings-form/active-site-settings-form';
-import { getRelativeDate } from '../../../lib/get-relative-date';
-import { removeSite } from '../../../lib/state/redux/slice-sites';
-import { BlueprintReflection } from '@wp-playground/blueprints';
-import { lazy, Suspense, useState, useEffect } from 'react';
+import { TemporarySiteNotice } from '../temporary-site-notice';
+import css from './style.module.css';
 
 const SiteFileBrowser = lazy(() =>
 	import('../site-file-browser').then((m) => ({ default: m.SiteFileBrowser }))
+);
+
+const AutosavedBlueprintBundleEditor = lazy(() =>
+	import('../../blueprint-editor/AutosavedBlueprintBundleEditor').then(
+		(m) => ({
+			default: m.AutosavedBlueprintBundleEditor,
+		})
+	)
 );
 
 const LAST_TAB_STORAGE_KEY = 'playground-site-last-tabs';
@@ -93,6 +100,8 @@ export function SiteInfoPanel({
 		setSiteLastTab(site.slug, tabName);
 	};
 
+	const isTemporary = site.metadata.storage === 'none';
+
 	const removeSiteAndCloseMenu = async (onClose: () => void) => {
 		// TODO: Replace with HTML-based dialog
 		const proceed = window.confirm(
@@ -131,7 +140,6 @@ export function SiteInfoPanel({
 			playground.goTo(path);
 		}
 	}
-	const isTemporary = site.metadata.storage === 'none';
 
 	const { opfsMountDescriptor } = usePlaygroundClientInfo(site.slug) || {};
 
@@ -266,7 +274,7 @@ export function SiteInfoPanel({
 															site.metadata
 																.whenCreated - 2
 														)
-												  )
+													)
 												: '';
 											switch (site.metadata.storage) {
 												case 'local-fs':
@@ -356,37 +364,6 @@ export function SiteInfoPanel({
 											/>
 										</MenuGroup>
 										<MenuGroup>
-											<MenuItem
-												onClick={async () => {
-													const reflection =
-														await BlueprintReflection.create(
-															site.metadata
-																.originalBlueprint as any
-														);
-													const declaration =
-														reflection.getDeclaration() as any;
-													const encoded =
-														encodeStringAsBase64(
-															JSON.stringify(
-																declaration
-															) as string
-														);
-													window.open(
-														`/builder/builder.html#${encoded}`,
-														'_blank',
-														'noopener,noreferrer'
-													);
-													onClose();
-												}}
-												icon={external}
-												iconPosition="right"
-												aria-label="View Blueprint"
-												disabled={offline}
-											>
-												View Blueprint
-											</MenuItem>
-										</MenuGroup>
-										<MenuGroup>
 											<ReportError
 												onClose={onClose}
 												disabled={offline}
@@ -411,6 +388,14 @@ export function SiteInfoPanel({
 							{
 								name: 'files',
 								title: 'File browser',
+							},
+							{
+								name: 'blueprint',
+								title: 'Blueprint',
+							},
+							{
+								name: 'database',
+								title: 'Database',
 							},
 							{
 								name: 'logs',
@@ -468,6 +453,56 @@ export function SiteInfoPanel({
 											/>
 										)}
 									</Suspense>
+								</div>
+								<div
+									className={classNames(
+										css.blueprintWrapper,
+										{
+											[css.tabHidden]:
+												tab.name !== 'blueprint',
+										}
+									)}
+									hidden={tab.name !== 'blueprint'}
+								>
+									{!isTemporary && (
+										<div className={css.blueprintNotice}>
+											This Blueprint is read-only for
+											saved Playgrounds. Create a
+											temporary Playground to edit and
+											test Blueprint changes.
+										</div>
+									)}
+									<Suspense
+										fallback={
+											<div>
+												Loading Blueprint editor...
+											</div>
+										}
+									>
+										<AutosavedBlueprintBundleEditor
+											key={site.slug}
+											site={site}
+											isVisible={tab.name === 'blueprint'}
+											className={classNames(
+												css.blueprintEditor
+											)}
+										/>
+									</Suspense>
+								</div>
+								<div
+									className={classNames(
+										css.tabContents,
+										css.padded,
+										{
+											[css.tabHidden]:
+												tab.name !== 'database',
+										}
+									)}
+									hidden={tab.name !== 'database'}
+								>
+									<SiteDatabasePanel
+										playground={playground}
+									/>
 								</div>
 								<div
 									className={classNames(

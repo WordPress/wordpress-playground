@@ -269,26 +269,19 @@ test('Intl functions should be disabled by default', async ({
 				path: '/wordpress/intl-test.php',
 				data: `<?php
 					$functions = get_extension_funcs('intl');
-					var_dump(
-						count(
-							$functions
-						)
-					);
+					var_dump($functions);
 				`,
 			},
 		],
 	};
 	await website.goto(`/#${JSON.stringify(blueprint)}`);
-	await expect(wordpress.locator('body')).toContainText('int(0)');
+	await expect(wordpress.locator('body')).toContainText('bool(false)');
 });
 
 test('Intl functions should work when intl is enabled', async ({
 	website,
 	wordpress,
-}, testInfo) => {
-	if (testInfo.project.name === 'chromium') {
-		test.skip(true, 'Skipping this test on Chromium due to unknown issues');
-	}
+}) => {
 	const blueprint: Blueprint = {
 		landingPage: '/intl-test.php',
 		features: { intl: true },
@@ -665,7 +658,7 @@ test('should correctly redirect to a multisite wp-admin url', async ({
 	await expect(wordpress.locator('body')).toContainText('General Settings');
 });
 
-['latest', 'nightly', 'beta'].forEach((wpVersion) => {
+['latest', 'trunk', 'beta'].forEach((wpVersion) => {
 	test(`should translate WP-admin to Spanish for the ${wpVersion} WordPress build`, async ({
 		website,
 		wordpress,

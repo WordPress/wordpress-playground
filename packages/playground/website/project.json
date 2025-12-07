@@ -89,6 +89,13 @@
 				}
 			}
 		},
+		"preview:ci-with-proxy": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "node packages/playground/website/bin/run-ci-preview-with-cors-proxy.cjs",
+				"parallel": false
+			}
+		},
 		"test": {
 			"executor": "@nx/vite:test",
 			"outputs": ["{workspaceRoot}/coverage/packages/playground/website"],

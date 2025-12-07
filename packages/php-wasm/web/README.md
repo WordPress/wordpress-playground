@@ -8,7 +8,7 @@ Here's how to use it:
 import { PHP, PHPRequestHandler } from '@php-wasm/universal';
 import { loadWebRuntime } from '@php-wasm/web';
 
-// loadWebRuntime() calls import('php.wasm') and import('icudt74l.dat') internally.
+// loadWebRuntime() calls import('php.wasm') and import('icu.dat') internally.
 // Your bundler must resolve import('php.wasm') as a static file URL.
 // If you use Webpack, you can use the file-loader to do so.
 const php = new PHP(await loadWebRuntime('8.3'));

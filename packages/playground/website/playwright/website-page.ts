@@ -2,7 +2,11 @@ import type { Page } from '@playwright/test';
 import { expect } from '@playwright/test';
 
 export class WebsitePage {
-	constructor(public readonly page: Page) {}
+	public readonly page: Page;
+
+	constructor(page: Page) {
+		this.page = page;
+	}
 
 	// Wait for WordPress to load
 	async waitForNestedIframes(page = this.page) {

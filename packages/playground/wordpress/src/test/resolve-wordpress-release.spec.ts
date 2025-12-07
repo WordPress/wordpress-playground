@@ -160,20 +160,20 @@ describe('resolveWordPressRelease', () => {
 		expect(result.source).toBe('inferred');
 	});
 
-	it('resolves trunk to nightly build', async () => {
+	it('resolves trunk to trunk build', async () => {
 		const result = await resolveWordPressRelease('trunk');
-		expect(result.version).toContain('nightly-');
-		expect(result.releaseUrl).toBe(
-			'https://wordpress.org/nightly-builds/wordpress-latest.zip'
+		expect(result.version).toBe('trunk');
+		expect(result.releaseUrl).toMatch(
+			/^https:\/\/github.com\/WordPress\/WordPress\/archive\/refs\/heads\/master\.zip\?ts=\d{4}-\d{2}-\d{2}$/
 		);
 		expect(result.source).toBe('inferred');
 	});
 
-	it('resolves nightly to nightly build', async () => {
+	it('resolves nightly to trunk build', async () => {
 		const result = await resolveWordPressRelease('nightly');
-		expect(result.version).toContain('nightly-');
-		expect(result.releaseUrl).toBe(
-			'https://wordpress.org/nightly-builds/wordpress-latest.zip'
+		expect(result.version).toBe('trunk');
+		expect(result.releaseUrl).toMatch(
+			/^https:\/\/github.com\/WordPress\/WordPress\/archive\/refs\/heads\/master\.zip\?ts=\d{4}-\d{2}-\d{2}$/
 		);
 		expect(result.source).toBe('inferred');
 	});

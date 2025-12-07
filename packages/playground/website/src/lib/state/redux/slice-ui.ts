@@ -172,7 +172,7 @@ const uiSlice = createSlice({
 						slug: action.payload,
 						error: undefined,
 						errorDetails: undefined,
-				  }
+					}
 				: undefined;
 		},
 		setActiveSiteError: {
