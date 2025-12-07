@@ -22,9 +22,11 @@ export class LoadBalancer {
 		// Playground CLI initialization, as of 2025-06-11, requires that
 		// an initial worker is booted alone and initialized via Blueprint
 		// before additional workers are created based on the initialized worker.
-		initialWorker: RemoteAPI<PlaygroundCliWorker>
+		initialWorkers: RemoteAPI<PlaygroundCliWorker>[]
 	) {
-		this.addWorker(initialWorker);
+		for (const worker of initialWorkers) {
+			this.addWorker(worker);
+		}
 	}
 
 	addWorker(worker: RemoteAPI<PlaygroundCliWorker>) {

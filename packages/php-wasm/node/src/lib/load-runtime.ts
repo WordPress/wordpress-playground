@@ -1,13 +1,18 @@
-import type {
-	SupportedPHPVersion,
-	EmscriptenOptions,
-	PHPRuntime,
-	OSUserSpaceAPI,
-	OSUserSpaceContext,
+import {
+	type SupportedPHPVersion,
+	type EmscriptenOptions,
+	type PHPRuntime,
+	type FileLockManager,
+	loadPHPRuntime,
+	FSHelpers,
+	FileLockManagerComposite,
 } from '@php-wasm/universal';
-import { loadPHPRuntime, FSHelpers, bindUserSpace } from '@php-wasm/universal';
+import type { OSUserSpaceAPI, OSUserSpaceContext } from './os-user-space';
+import { bindUserSpace } from './os-user-space';
 import fs from 'fs';
 import { getPHPLoaderModule } from '.';
+import { FileLockManagerForPosix } from './file-lock-manager-for-posix';
+import { FileLockManagerForWindows } from './file-lock-manager-for-windows';
 import { withNetworking } from './networking/with-networking';
 import {
 	withXdebug,
@@ -17,6 +22,7 @@ import { withIntl } from './extensions/intl/with-intl';
 import { withRedis } from './extensions/redis/with-redis';
 import { withMemcached } from './extensions/memcached/with-memcached';
 import { dirname, joinPaths, toPosixPath } from '@php-wasm/util';
+import { platform } from 'os';
 
 export interface PHPLoaderOptions {
 	followSymlinks?: boolean;
@@ -28,6 +34,7 @@ export interface PHPLoaderOptions {
 }
 
 export type PHPLoaderOptionsForNode = PHPLoaderOptions & {
+	fileLockManager?: FileLockManager;
 	emscriptenOptions?: EmscriptenOptions & {
 		/**
 		 * The process ID for the PHP runtime.
@@ -59,7 +66,7 @@ export type PHPLoaderOptionsForNode = PHPLoaderOptions & {
 		 */
 		nativeInternalDirPath?: string;
 	};
-}
+};
 
 /**
  * Does what load() does, but synchronously returns
@@ -70,7 +77,7 @@ export type PHPLoaderOptionsForNode = PHPLoaderOptions & {
  */
 export async function loadNodeRuntime(
 	phpVersion: SupportedPHPVersion,
-	options: PHPLoaderOptions = {}
+	options: PHPLoaderOptionsForNode = {}
 ) {
 	// TODO: Throw an error if a file lock manager is provided but not a process ID.
 
@@ -84,12 +91,17 @@ export async function loadNodeRuntime(
 			throw error;
 		},
 		bindUserSpace: (userSpaceContext: OSUserSpaceContext) => {
-			return bindUserSpace(
-				{
-					fileLockManager: options?.fileLockManager,
-				},
-				userSpaceContext
-			);
+			const nativeFileLockManager =
+				platform() === 'win32'
+					? new FileLockManagerForWindows()
+					: new FileLockManagerForPosix();
+			const fileLockManager = options.fileLockManager
+				? new FileLockManagerComposite(
+						nativeFileLockManager,
+						options.fileLockManager
+					)
+				: nativeFileLockManager;
+			return bindUserSpace({ fileLockManager }, userSpaceContext);
 		},
 		...(options.emscriptenOptions || {}),
 		onRuntimeInitialized: (phpRuntime: PHPRuntime) => {

@@ -10,12 +10,10 @@ import {
 import {
 	SupportedPHPVersions,
 	type FileLockManager,
+	// TODO: Test with native file lock managers?
+	FileLockManagerInMemory,
 } from '@php-wasm/universal';
-import {
-	createNodeFsMountHandler,
-	FileLockManagerForNode,
-	loadNodeRuntime,
-} from '../lib';
+import { createNodeFsMountHandler, loadNodeRuntime } from '../lib';
 import {
 	joinPaths,
 	/* eslint-disable-next-line @typescript-eslint/no-unused-vars --
@@ -34,12 +32,12 @@ describe.each(phpVersionsToTest)('PHP %s: File locking', (phpVersion) => {
 
 	let tempDir: string;
 	// TODO: Use one file lock manager per test
-	let fileLockManager: FileLockManagerForNode;
+	let fileLockManager: FileLockManagerInMemory;
 	let nextProcessId: number;
 
 	beforeEach(async () => {
 		tempDir = mkdtempSync(join(tmpdir(), 'php-wasm-file-locking-'));
-		fileLockManager = new FileLockManagerForNode();
+		fileLockManager = new FileLockManagerInMemory();
 		nextProcessId = 1;
 	});
 	afterEach(async () => {
@@ -1425,7 +1423,7 @@ error_log = ${errorLogPath}
 				findFirstConflictingByteRangeLock: vi
 					.fn()
 					.mockReturnValue(undefined),
-				releaseLocksForProcessFd: vi.fn().mockReturnValue(undefined),
+				releaseLocksOnFdClose: vi.fn().mockReturnValue(undefined),
 				releaseLocksForProcess: vi.fn().mockReturnValue(undefined),
 			};
 		}

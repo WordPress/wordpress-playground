@@ -1,6 +1,6 @@
 import { logger } from '@php-wasm/logger';
 import { EmscriptenDownloadMonitor, ProgressTracker } from '@php-wasm/progress';
-import { consumeAPI } from '@php-wasm/universal';
+import { consumeAPI, type UniversalPHP } from '@php-wasm/universal';
 import type { BlueprintV1Declaration } from '@wp-playground/blueprints';
 import {
 	compileBlueprintV1,
@@ -57,10 +57,9 @@ export class BlueprintsV1Handler {
 		return 'v1';
 	}
 
-	async bootAndSetUpInitialPlayground(
+	async bootWordPress(
 		phpPort: NodeMessagePort,
-		fileLockManagerPort: NodeMessagePort,
-		nativeInternalDirPath: string
+		workerPostInstallMountsPort: NodeMessagePort
 	) {
 		let wpDetails: any = undefined;
 		let wordPressZip: any = undefined;
@@ -118,12 +117,6 @@ export class BlueprintsV1Handler {
 			sqliteIntegrationPluginZip = await fetchSqliteIntegration();
 		}
 
-		const followSymlinks = this.args.followSymlinks === true;
-		const trace = this.args.experimentalTrace === true;
-
-		const mountsBeforeWpInstall = this.args['mount-before-install'] || [];
-		const mountsAfterWpInstall = this.args.mount || [];
-
 		const playground = consumeAPI<PlaygroundCliBlueprintV1Worker>(phpPort);
 
 		// Comlink communication proxy
@@ -135,35 +128,19 @@ export class BlueprintsV1Handler {
 			this.getEffectiveBlueprint()
 		);
 
-		await playground.useFileLockManager(fileLockManagerPort);
-		await playground.bootAndSetUpInitialWorker({
-			phpVersion: runtimeConfiguration.phpVersion,
-			wpVersion: runtimeConfiguration.wpVersion,
-			siteUrl: this.siteUrl,
-			mountsBeforeWpInstall,
-			mountsAfterWpInstall,
-			wordpressInstallMode:
-				this.args.wordpressInstallMode || 'download-and-install',
-			wordPressZip: wordPressZip && (await wordPressZip!.arrayBuffer()),
-			sqliteIntegrationPluginZip:
-				await sqliteIntegrationPluginZip?.arrayBuffer(),
-			firstProcessId: 0,
-			processIdSpaceLength: this.processIdSpaceLength,
-			followSymlinks,
-			trace,
-			internalCookieStore: this.args.internalCookieStore,
-			withIntl: this.args.intl,
-			withRedis: this.args.redis,
-			withMemcached: this.args.memcached,
-			// We do not enable Xdebug by default for the initial worker
-			// because we do not imagine users expect to hit breakpoints
-			// until Playground has fully booted.
-			// TODO: Consider supporting Xdebug for the initial worker via a dedicated flag.
-			withXdebug: false,
-			nativeInternalDirPath,
-			constants: mergeDefinedConstants(this.args),
-			pathAliases: this.args.pathAliases,
-		});
+		await playground.bootWordPress(
+			{
+				wpVersion: runtimeConfiguration.wpVersion,
+				siteUrl: this.siteUrl,
+				wordpressInstallMode:
+					this.args.wordpressInstallMode || 'download-and-install',
+				wordPressZip:
+					wordPressZip && (await wordPressZip!.arrayBuffer()),
+				sqliteIntegrationPluginZip:
+					await sqliteIntegrationPluginZip?.arrayBuffer(),
+			},
+			workerPostInstallMountsPort
+		);
 
 		if (
 			preinstalledWpContentPath &&
@@ -173,7 +150,8 @@ export class BlueprintsV1Handler {
 			this.cliOutput.updateProgress('Caching WordPress for next boot');
 			fs.writeFileSync(
 				preinstalledWpContentPath,
-				(await zipDirectory(playground, '/wordpress'))!
+				// TODO: Fix this type issue and remove the cast.
+				(await zipDirectory(playground as UniversalPHP, '/wordpress'))!
 			);
 		}
 

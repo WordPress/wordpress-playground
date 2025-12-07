@@ -98,9 +98,13 @@ export { sandboxedSpawnHandlerFactory } from './sandboxed-spawn-handler-factory'
 
 export * from './api';
 export type { WithAPIState as WithIsReady } from './api';
+
+export * from './file-lock-manager';
+export * from './file-lock-manager-in-memory';
+export * from './file-lock-manager-composite';
+export * from './file-lock-interval-tree';
+
+// TODO: Review exported names and improve if needed.
 export type { Remote } from './comlink-sync';
 
-export type * from './file-lock-manager';
-// TODO: Review exported names and improve if needed.
-export * from './os-user-space';
-export type * from './os-user-space';
+export * from './file-lock-manager';

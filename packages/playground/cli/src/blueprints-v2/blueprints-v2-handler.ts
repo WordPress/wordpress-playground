@@ -46,39 +46,24 @@ export class BlueprintsV2Handler {
 		return 'v2';
 	}
 
-	async bootAndSetUpInitialPlayground(
+	async bootWordPress(
 		phpPort: NodeMessagePort,
-		fileLockManagerPort: NodeMessagePort,
-		nativeInternalDirPath: string
+		workerPostInstallMountsPort: NodeMessagePort
 	) {
 		const playground: RemoteAPI<PlaygroundCliBlueprintV2Worker> =
 			consumeAPI(phpPort);
 
-		await playground.useFileLockManager(fileLockManagerPort);
 		const workerBootArgs = {
-			...this.args,
-			phpVersion: this.phpVersion,
+			command: this.args.command,
 			siteUrl: this.siteUrl,
-			firstProcessId: 1,
-			processIdSpaceLength: this.processIdSpaceLength,
-			trace: this.args.verbosity === 'debug',
 			blueprint: this.args.blueprint!,
-			withIntl: this.args.intl,
-			withRedis: this.args.redis,
-			withMemcached: this.args.memcached,
-			// We do not enable Xdebug by default for the initial worker
-			// because we do not imagine users expect to hit breakpoints
-			// until Playground has fully booted.
-			// TODO: Consider supporting Xdebug for the initial worker via a dedicated flag.
-			withXdebug: false,
-			xdebug: undefined,
-			nativeInternalDirPath,
-			mountsBeforeWpInstall: this.args['mount-before-install'] || [],
-			mountsAfterWpInstall: this.args.mount || [],
-			constants: mergeDefinedConstants(this.args),
+			workerPostInstallMountsPort,
 		};
 
-		await playground.bootAndSetUpInitialWorker(workerBootArgs);
+		await playground.bootWordPress(
+			workerBootArgs,
+			workerPostInstallMountsPort
+		);
 		return playground;
 	}
 

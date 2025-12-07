@@ -1,5 +1,5 @@
 // TODO: Consider merging FileLockManager file with os-kernel-space.
-import type { FileLockManager } from './file-lock-manager';
+import type { FileLockManager } from '@php-wasm/universal';
 
 // TODO: Consider merging FileLockManager into this type.
 export class OSKernelSpace {

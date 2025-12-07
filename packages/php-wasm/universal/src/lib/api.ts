@@ -3,13 +3,23 @@ import { PHPResponse, StreamedPHPResponse } from './php-response';
 import * as Comlink from './comlink-sync';
 import {
 	NodeSABSyncReceiveMessageTransport,
-	nodeEndpoint,
-	type NodeEndpoint,
+	nodeEndpoint as nodeWorkerEndpoint,
+	releaseProxy,
+	type NodeEndpoint as NodeWorker,
 	type Remote,
 	type Endpoint,
 	type IsomorphicMessagePort,
+	type ProxyMethods,
 } from './comlink-sync';
+import {
+	type NodeProcess,
+	NodeProcessAdapter,
+} from './comlink-node-process-adapter';
 import * as ErrorSerializer from './serialize-error';
+
+// NOTE: It seems like we wouldn't have to explicitly specify
+// symbol type here, but it seems to resolve some type errors.
+export const releaseApiProxy: typeof releaseProxy = releaseProxy;
 
 export type WithAPIState = {
 	/**
@@ -23,7 +33,7 @@ export type WithAPIState = {
 	 */
 	isReady: () => Promise<void>;
 };
-export type RemoteAPI<T> = Remote<T> & WithAPIState;
+export type RemoteAPI<T> = Remote<T> & ProxyMethods & WithAPIState;
 
 export async function consumeAPISync<APIType>(
 	remote: IsomorphicMessagePort
@@ -34,7 +44,7 @@ export async function consumeAPISync<APIType>(
 }
 
 export function consumeAPI<APIType>(
-	remote: Worker | Window | NodeEndpoint,
+	remote: Worker | Window | NodeWorker | NodeProcess,
 	context: undefined | EventTarget = undefined
 ): RemoteAPI<APIType> {
 	setupTransferHandlers();
@@ -54,7 +64,12 @@ export function consumeAPI<APIType>(
 		typeof process.versions !== 'undefined' &&
 		typeof process.versions.node !== 'undefined';
 	if (appearsToBeNodeEnvironment) {
-		endpoint = nodeEndpoint(remote as NodeEndpoint);
+		if ('postMessage' in remote) {
+			endpoint = nodeWorkerEndpoint(remote as NodeWorker);
+		} else {
+			// TODO: Strengthen the surrounding checks to confirm process interface
+			endpoint = new NodeProcessAdapter(remote as NodeProcess);
+		}
 	} else {
 		endpoint =
 			remote instanceof Worker
@@ -114,7 +129,7 @@ export type PublicAPI<Methods, PipedAPI = unknown> = RemoteAPI<
 export function exposeAPI<Methods, PipedAPI>(
 	apiMethods?: Methods,
 	pipedApi?: PipedAPI,
-	targetWorker?: NodeEndpoint
+	targetWorker?: MessagePort | NodeWorker | NodeProcess
 ): [() => void, (e: Error) => void, PublicAPI<Methods, PipedAPI>] {
 	const { setReady, setFailed, exposedApi } = prepareForExpose(
 		apiMethods,
@@ -122,9 +137,15 @@ export function exposeAPI<Methods, PipedAPI>(
 	);
 	let endpoint: Endpoint | undefined;
 	if (targetWorker) {
-		// NOTE: If there are other target types, we could expand this later,
-		// but for now, we only need support for NodeEndpoints.
-		endpoint = nodeEndpoint(targetWorker);
+		if ('addEventListener' in targetWorker) {
+			// TODO: Deal with these type errors
+			endpoint = targetWorker as Endpoint;
+		} else if ('postMessage' in targetWorker) {
+			endpoint = nodeWorkerEndpoint(targetWorker);
+		} else {
+			// TODO: Strengthen the surrounding checks to confirm process interface
+			endpoint = new NodeProcessAdapter(targetWorker);
+		}
 	} else {
 		endpoint =
 			typeof window !== 'undefined'
@@ -141,7 +162,7 @@ export async function exposeSyncAPI<Methods>(
 ): Promise<[() => void, (e: Error) => void, Methods]> {
 	const { setReady, setFailed, exposedApi } = prepareForExpose(apiMethods);
 	const transport = await NodeSABSyncReceiveMessageTransport.create();
-	const endpoint = nodeEndpoint(port as any);
+	const endpoint = nodeWorkerEndpoint(port as any);
 	Comlink.exposeSync(exposedApi, endpoint, transport);
 	return [setReady, setFailed, exposedApi as Methods];
 }

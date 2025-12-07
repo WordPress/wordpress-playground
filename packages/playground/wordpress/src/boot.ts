@@ -162,6 +162,28 @@ export interface BootWordPressOptions {
 	 */
 	constants?: Record<string, string | number | boolean | null>;
 	/**
+	 * PHP.ini entries to define before running any code. They'll
+	 * be used for all requests.
+	 */
+	phpIniEntries?: PhpIniOptions;
+	/**
+	 * Files to create in the filesystem before any mounts are applied.
+	 *
+	 * Example:
+	 *
+	 * ```ts
+	 * {
+	 * 		createFiles: {
+	 * 			'/tmp/hello.txt': 'Hello, World!',
+	 * 			'/internal/preload': {
+	 * 				'1-custom-mu-plugin.php': '<?php echo "Hello, World!";',
+	 * 			}
+	 * 		}
+	 * }
+	 * ```
+	 */
+	createFiles?: FileTree;
+	/**
 	 * URL to use as the site URL. This is used to set the WP_HOME
 	 * and WP_SITEURL constants in WordPress.
 	 */

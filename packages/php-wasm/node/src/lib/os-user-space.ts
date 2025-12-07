@@ -1,11 +1,12 @@
-// TODO: Move file manager into kernel space.
+// TODO: Document why we use the term "user space" for this file.
+// TODO: Rename this module to php-wasm-user-space.ts.
 // TODO: Move FileLockManager into php-wasm/universal to resolve this
 import type {
+	Emscripten,
 	RequestedRangeLock,
 	WholeFileLock,
 	WholeFileLockOp,
-} from './file-lock-manager';
-import type { Emscripten } from './emscripten-types';
+} from '@php-wasm/universal';
 import type { OSKernelSpace } from './os-kernel-space';
 
 type FSNode = Emscripten.FS.FSNode;
@@ -129,7 +130,7 @@ export function bindUserSpace(
 			LOCK_NB,
 			LOCK_UN,
 		},
-		errnoCodes: { EBADF, EINVAL, EAGAIN, EDEADLK, EWOULDBLOCK },
+		errnoCodes: { EBADF, EINVAL, EAGAIN, EWOULDBLOCK, EDEADLK },
 		wasmImports: { builtin_fcntl64, builtin_fd_close, js_wasm_trace },
 		wasmExports: { wasm_get_end_offset },
 		syscalls: { getStreamFromFD },
@@ -160,14 +161,15 @@ export function bindUserSpace(
 
 	type FcntlLockState = typeof F_RDLCK | typeof F_WRLCK | typeof F_UNLCK;
 	const locking = {
-		/*
-		 * This is a set of possibly locked file descriptors.
-		 *
-		 * When a file descriptor is closed, we need to release any associated held by this process.
-		 * Instead of trying remember and forget file descriptors as they are locked and unlocked,
-		 * we just track file descriptors we have locked before and try an unlock when they are closed.
-		 */
-		maybeLockedFds: new Set(),
+		// TODO: Does it make sense to drop or keep maybeLockedFds?
+		// /*
+		//  * This is a set of possibly locked file descriptors.
+		//  *
+		//  * When a file descriptor is closed, we need to release any associated held by this process.
+		//  * Instead of trying remember and forget file descriptors as they are locked and unlocked,
+		//  * we just track file descriptors we have locked before and try an unlock when they are closed.
+		//  */
+		// maybeLockedFds: new Set(),
 
 		lockStateToFcntl: {
 			shared: F_RDLCK,
@@ -238,6 +240,21 @@ export function bindUserSpace(
 				throw new Error(
 					`Unsupported filesystem type for path ${vfsPath}`
 				);
+			}
+		},
+
+		get_native_fd_from_emscripten_fd(fd: number): ResultTuple<number> {
+			try {
+				type MaybeNODEFSStream = Emscripten.FS.FSStream & {
+					nfd?: number;
+				};
+				const stream = getStreamFromFD(fd) as MaybeNODEFSStream;
+				if (stream.nfd === undefined) {
+					return [null as never, EBADF];
+				}
+				return [stream.nfd, 0];
+			} catch {
+				return [null as never, EBADF];
 			}
 		},
 
@@ -520,6 +537,17 @@ export function bindUserSpace(
 					return -EINVAL;
 				}
 
+				const [nativeFd, nativeFdErrno] =
+					locking.get_native_fd_from_emscripten_fd(fd);
+				if (nativeFdErrno !== 0) {
+					js_wasm_trace(
+						'fcntl(%d, F_GETLK) get_native_fd_from_emscripten_fd errno %d',
+						fd,
+						nativeFdErrno
+					);
+					return -nativeFdErrno;
+				}
+
 				try {
 					const nativeFilePath =
 						locking.get_native_path_from_vfs_path(vfsPath);
@@ -531,6 +559,7 @@ export function bindUserSpace(
 								start: absoluteStartOffset,
 								end: absoluteStartOffset + flockStruct.l_len,
 								pid,
+								fd: nativeFd,
 							}
 						);
 					if (conflictingLock === undefined) {
@@ -649,7 +678,19 @@ export function bindUserSpace(
 					return -paramsCheckErrno;
 				}
 
-				locking.maybeLockedFds.add(fd);
+				// TODO: Do we need to keep or drop maybeLockedFds?
+				// locking.maybeLockedFds.add(fd);
+
+				const [nativeFd, nativeFdErrno] =
+					locking.get_native_fd_from_emscripten_fd(fd);
+				if (nativeFdErrno !== 0) {
+					js_wasm_trace(
+						'fcntl(%d, F_SETLK) get_native_fd_from_emscripten_fd errno %d',
+						fd,
+						nativeFdErrno
+					);
+					return -nativeFdErrno;
+				}
 
 				const requestedLockType =
 					locking.fcntlToLockState[flockStruct.l_type];
@@ -658,6 +699,7 @@ export function bindUserSpace(
 					start: absoluteStartOffset,
 					end: absoluteStartOffset + flockStruct.l_len,
 					pid,
+					fd: nativeFd,
 				};
 
 				try {
@@ -670,9 +712,11 @@ export function bindUserSpace(
 						rangeLock
 					);
 
+					const waitForLock = cmd === F_SETLKW;
 					const succeeded = fileLockManager.lockFileByteRange(
 						nativeFilePath,
-						rangeLock
+						rangeLock,
+						waitForLock
 					);
 
 					js_wasm_trace(
@@ -732,10 +776,10 @@ export function bindUserSpace(
 	}
 
 	function flock(fd: number, op: number) {
-		js_wasm_trace('js_flock(%d, %d)', fd, op);
+		js_wasm_trace('flock(%d, %d)', fd, op);
 		if (!fileLockManager) {
 			js_wasm_trace(
-				'js_flock(%d, %d) file lock manager is not available. ' +
+				'flock(%d, %d) file lock manager is not available. ' +
 					'succeed by default as Emscripten does.',
 				fd,
 				op
@@ -753,7 +797,7 @@ export function bindUserSpace(
 		const [vfsPath, vfsPathErrno] = locking.get_vfs_path_from_fd(fd);
 		if (vfsPathErrno !== 0) {
 			js_wasm_trace(
-				'js_flock(%d, %d) get_vfs_path_from_fd errno %d',
+				'flock(%d, %d) get_vfs_path_from_fd errno %d',
 				fd,
 				op,
 				vfsPath,
@@ -777,7 +821,7 @@ export function bindUserSpace(
 		const paramsCheckErrno = locking.check_lock_params(fd, op);
 		if (paramsCheckErrno !== 0) {
 			js_wasm_trace(
-				'js_flock(%d, %d) %s check_lock_params errno %d',
+				'flock(%d, %d) %s check_lock_params errno %d',
 				fd,
 				op,
 				vfsPath,
@@ -786,32 +830,30 @@ export function bindUserSpace(
 			return -paramsCheckErrno;
 		}
 
-		// @TODO: Consider supporting blocking mode of flock()
-		if ((op & LOCK_NB) === 0) {
-			js_wasm_trace(
-				'js_flock(%d, %d) blocking mode of flock() is not implemented',
-				fd,
-				op
-			);
-			// We do not yet support the blocking form of flock().
-			// We respond with EINVAL to indicate failure
-			// because it is a known errno for a failed blocking flock().
-			// return -EINVAL;
-			// TODO: Implement blocking mode of flock()
-			return 0;
-		}
-
 		const maskedOp = op & ((LOCK_SH | LOCK_EX | LOCK_UN) as FlockOp | 0);
+		const waitForLock = (op & LOCK_NB) === 0;
 
 		if (maskedOp === 0) {
-			js_wasm_trace('js_flock(%d, %d) invalid flock() operation', fd, op);
+			js_wasm_trace('flock(%d, %d) invalid flock() operation', fd, op);
 			return -EINVAL;
 		}
 
 		const lockOpType = flockToLockOpType[maskedOp as FlockOp];
 		if (lockOpType === undefined) {
-			js_wasm_trace('js_flock(%d, %d) invalid flock() operation', fd, op);
+			js_wasm_trace('flock(%d, %d) invalid flock() operation', fd, op);
 			return -EINVAL;
+		}
+
+		const [nativeFd, nativeFdErrno] =
+			locking.get_native_fd_from_emscripten_fd(fd);
+		if (nativeFdErrno !== 0) {
+			js_wasm_trace(
+				'js_flock(%d, %d) get_native_fd_from_emscripten_fd errno %d',
+				fd,
+				op,
+				nativeFdErrno
+			);
+			return -nativeFdErrno;
 		}
 
 		try {
@@ -820,21 +862,23 @@ export function bindUserSpace(
 			const succeeded = fileLockManager.lockWholeFile(nativeFilePath, {
 				type: lockOpType,
 				pid: pid,
-				fd,
+				fd: nativeFd,
+				waitForLock,
 			});
 			js_wasm_trace(
-				'js_flock(%d, %d) lockWholeFile %s returned %d',
+				'flock(%d, %d) lockWholeFile %s returned %d',
 				fd,
 				op,
 				vfsPath,
 				succeeded
 			);
-			if (succeeded) {
-				locking.maybeLockedFds.add(fd);
-			}
+			// TODO: Do we need to keep or drop maybeLockedFds?
+			// if (succeeded) {
+			// 	locking.maybeLockedFds.add(fd);
+			// }
 			return succeeded ? 0 : -EWOULDBLOCK;
 		} catch (e) {
-			js_wasm_trace('js_flock(%d, %d) lockWholeFile error %s', fd, op, e);
+			js_wasm_trace('flock(%d, %d) lockWholeFile error %s', fd, op, e);
 			return -EINVAL;
 		}
 	}
@@ -849,10 +893,12 @@ export function bindUserSpace(
 			return builtin_fd_close(fd);
 		}
 
-		// We have to get the VFS path from the file descriptor
-		// before closing it.
+		// We have to get the VFS path and native fd from the Emscripten file
+		// descriptor before closing it.
 		const [vfsPath, vfsPathResolutionErrno] =
 			locking.get_vfs_path_from_fd(fd);
+		const [nativeFd, nativeFdErrno] =
+			locking.get_native_fd_from_emscripten_fd(fd);
 
 		const fdCloseResult = builtin_fd_close(fd);
 		if (fdCloseResult !== 0) {
@@ -864,15 +910,16 @@ export function bindUserSpace(
 			);
 			return fdCloseResult;
 		}
-		if (!locking.maybeLockedFds.has(fd)) {
-			js_wasm_trace(
-				'fd_close(%d) not in maybe-locked-list %s result %d',
-				fd,
-				vfsPath,
-				fdCloseResult
-			);
-			return fdCloseResult;
-		}
+		// TODO: Do we need to keep or drop maybeLockedFds?
+		// if (!locking.maybeLockedFds.has(fd)) {
+		// 	js_wasm_trace(
+		// 		'fd_close(%d) not in maybe-locked-list %s result %d',
+		// 		fd,
+		// 		vfsPath,
+		// 		fdCloseResult
+		// 	);
+		// 	return fdCloseResult;
+		// }
 
 		if (vfsPathResolutionErrno !== 0) {
 			js_wasm_trace(
@@ -893,6 +940,15 @@ export function bindUserSpace(
 			return fdCloseResult;
 		}
 
+		if (nativeFdErrno !== 0) {
+			js_wasm_trace(
+				'fd_close(%d) get_native_fd_from_emscripten_fd error %d',
+				fd,
+				nativeFdErrno
+			);
+			return fdCloseResult;
+		}
+
 		if (!locking.is_path_to_shared_fs(vfsPath)) {
 			return fdCloseResult;
 		}
@@ -901,7 +957,11 @@ export function bindUserSpace(
 			js_wasm_trace('fd_close(%d) %s release locks', fd, vfsPath);
 			const nativeFilePath =
 				locking.get_native_path_from_vfs_path(vfsPath);
-			fileLockManager.releaseLocksForProcessFd(pid, fd, nativeFilePath);
+			fileLockManager.releaseLocksOnFdClose(
+				pid,
+				nativeFd,
+				nativeFilePath
+			);
 			js_wasm_trace('fd_close(%d) %s release locks success', fd, vfsPath);
 		} catch (e) {
 			js_wasm_trace("fd_close(%d) %s error '%s'", fd, vfsPath, e);
