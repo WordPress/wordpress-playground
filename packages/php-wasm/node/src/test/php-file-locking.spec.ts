@@ -1432,7 +1432,7 @@ error_log = ${errorLogPath}
 
 		// TODO: Test fcntl() somehow. The DB tests should use fcntl(), but explicit tests would be better.
 
-		test.only(`should attempt to lock a NODEFS file and a PROXYFS node that wraps a NODEFS file`, async () => {
+		test(`should attempt to lock a NODEFS file and a PROXYFS node that wraps a NODEFS file`, async () => {
 			// NOTE: Normally, we would use a single file lock manager across all runtimes,
 			// but to keep state clearer within this test, we use a separate manager per runtime.
 			const fileLockManagerForRuntime1 = createMockFileLockManager();
