@@ -8,7 +8,7 @@ import path from 'path';
 
 const dependencyFilename = path.join(__dirname, '7_3_33', 'php_7_3.wasm');
 export { dependencyFilename };
-export const dependenciesTotalSize = 22208352;
+export const dependenciesTotalSize = 22208349;
 const phpVersionString = '7.3.33';
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
@@ -7038,9 +7038,6 @@ export function init(RuntimeName, PHPLoader) {
 
 	var ___syscall_fcntl64 = function __syscall_fcntl64(fd, cmd, varargs) {
 		return Asyncify.handleAsync(async () => {
-			if (!PHPLoader.fileLockManager) {
-				return _builtin_fcntl64(fd, cmd, varargs);
-			}
 			return Module['userSpace'].fcntl64(fd, cmd, varargs);
 		});
 	};

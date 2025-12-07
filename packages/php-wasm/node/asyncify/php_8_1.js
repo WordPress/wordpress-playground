@@ -7194,9 +7194,6 @@ export function init(RuntimeName, PHPLoader) {
 	}
 
 	function ___syscall_fcntl64(fd, cmd, varargs) {
-		if (!PHPLoader.fileLockManager) {
-			return _builtin_fcntl64(fd, cmd, varargs);
-		}
 		return Module['userSpace'].fcntl64(fd, cmd, varargs);
 	}
 	___syscall_fcntl64.sig = 'iiip';

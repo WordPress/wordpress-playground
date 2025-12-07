@@ -7038,9 +7038,6 @@ export function init(RuntimeName, PHPLoader) {
 
 	var ___syscall_fcntl64 = function __syscall_fcntl64(fd, cmd, varargs) {
 		return Asyncify.handleAsync(async () => {
-			if (!PHPLoader.fileLockManager) {
-				return _builtin_fcntl64(fd, cmd, varargs);
-			}
 			return Module['userSpace'].fcntl64(fd, cmd, varargs);
 		});
 	};
