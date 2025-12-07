@@ -23,7 +23,6 @@ import {
 	 */
 	sprintf,
 } from '@php-wasm/util';
-import { jspi } from 'wasm-feature-detect';
 
 const phpVersionsToTest =
 	'PHP' in process.env
@@ -1419,19 +1418,15 @@ error_log = ${errorLogPath}
 	}, 5000);
 
 	describe(`Additional tests with multiple php-wasm instances`, async () => {
-		const mockFnWithResult = (await jspi())
-			? // Use async mocks for JSPI to match the async FileLockManager
-				// used by JSPI PHP builds.
-				(value: any) => vi.fn().mockResolvedValue(value)
-			: (value: any) => vi.fn().mockReturnValue(value);
-
 		function createMockFileLockManager(): FileLockManager {
 			return {
-				lockWholeFile: mockFnWithResult(true),
-				lockFileByteRange: mockFnWithResult(true),
-				findFirstConflictingByteRangeLock: mockFnWithResult(undefined),
-				releaseLocksForProcessFd: mockFnWithResult(undefined),
-				releaseLocksForProcess: mockFnWithResult(undefined),
+				lockWholeFile: vi.fn().mockReturnValue(true),
+				lockFileByteRange: vi.fn().mockReturnValue(true),
+				findFirstConflictingByteRangeLock: vi
+					.fn()
+					.mockReturnValue(undefined),
+				releaseLocksForProcessFd: vi.fn().mockReturnValue(undefined),
+				releaseLocksForProcess: vi.fn().mockReturnValue(undefined),
 			};
 		}
 
