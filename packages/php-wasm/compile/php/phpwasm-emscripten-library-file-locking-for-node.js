@@ -49,6 +49,9 @@ const LibraryForFileLocking = {
 	],
 	__syscall_fcntl64__sig: LibraryManager.library.__syscall_fcntl64__sig,
 	__syscall_fcntl64: function __syscall_fcntl64(fd, cmd, varargs) {
+		if (typeof Module['userSpace'] === 'undefined') {
+			return _builtin_fcntl64(fd, cmd, varargs);
+		}
 		return Module['userSpace'].fcntl64(fd, cmd, varargs);
 	},
 
@@ -60,6 +63,11 @@ const LibraryForFileLocking = {
 	 * @returns Zero on success, or a negative errno on failure.
 	 */
 	js_flock: function js_flock(fd, op) {
+		if (typeof Module['userSpace'] === 'undefined') {
+			// In the absence of a real locking facility,
+			// return success by default as Emscripten does.
+			return 0;
+		}
 		return Module['userSpace'].flock(fd, op);
 	},
 
@@ -73,6 +81,9 @@ const LibraryForFileLocking = {
 	 * @returns Zero on success, or a negative errno on failure.
 	 */
 	fd_close(fd) {
+		if (typeof Module['userSpace'] === 'undefined') {
+			return _builtin_fd_close(fd);
+		}
 		return Module['userSpace'].fd_close(fd);
 	},
 	fd_close__deps: ['builtin_fd_close', 'js_wasm_trace'],
@@ -83,6 +94,9 @@ const LibraryForFileLocking = {
 	 * This function should be called at the end of each PHP request.
 	 */
 	js_release_file_locks: function js_release_file_locks() {
+		if (typeof Module['userSpace'] === 'undefined') {
+			return;
+		}
 		return Module['userSpace'].js_release_file_locks();
 	},
 };

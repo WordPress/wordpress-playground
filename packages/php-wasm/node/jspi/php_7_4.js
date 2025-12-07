@@ -8,7 +8,7 @@ import path from 'path';
 
 const dependencyFilename = path.join(__dirname, '7_4_33', 'php_7_4.wasm');
 export { dependencyFilename };
-export const dependenciesTotalSize = 22437564;
+export const dependenciesTotalSize = 22437565;
 const phpVersionString = '7.4.33';
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
@@ -6971,6 +6971,9 @@ export function init(RuntimeName, PHPLoader) {
 	}
 
 	function _fd_close(fd) {
+		if (typeof Module['userSpace'] === 'undefined') {
+			return _builtin_fd_close(fd);
+		}
 		return Module['userSpace'].fd_close(fd);
 	}
 	_fd_close.sig = 'ii';
@@ -7035,6 +7038,9 @@ export function init(RuntimeName, PHPLoader) {
 	}
 
 	function ___syscall_fcntl64(fd, cmd, varargs) {
+		if (typeof Module['userSpace'] === 'undefined') {
+			return _builtin_fcntl64(fd, cmd, varargs);
+		}
 		return Module['userSpace'].fcntl64(fd, cmd, varargs);
 	}
 	___syscall_fcntl64.sig = 'iiip';
@@ -16419,6 +16425,11 @@ export function init(RuntimeName, PHPLoader) {
 	_getprotobynumber.sig = 'pi';
 
 	function _js_flock(fd, op) {
+		if (typeof Module['userSpace'] === 'undefined') {
+			// In the absence of a real locking facility,
+			// return success by default as Emscripten does.
+			return 0;
+		}
 		return Module['userSpace'].flock(fd, op);
 	}
 
@@ -16772,6 +16783,9 @@ export function init(RuntimeName, PHPLoader) {
 	}
 
 	function _js_release_file_locks() {
+		if (typeof Module['userSpace'] === 'undefined') {
+			return;
+		}
 		return Module['userSpace'].js_release_file_locks();
 	}
 
