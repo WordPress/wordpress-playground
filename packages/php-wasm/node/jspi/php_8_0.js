@@ -6970,11 +6970,9 @@ export function init(RuntimeName, PHPLoader) {
 		}
 	}
 
-	var _fd_close = function fd_close(fd) {
-		return Asyncify.handleAsync(async () => {
-			return Module['userSpace'].fd_close(fd);
-		});
-	};
+	function _fd_close(fd) {
+		return Module['userSpace'].fd_close(fd);
+	}
 	_fd_close.sig = 'ii';
 	function _builtin_fd_close(fd) {
 		try {
@@ -7036,11 +7034,9 @@ export function init(RuntimeName, PHPLoader) {
 		}
 	}
 
-	var ___syscall_fcntl64 = function __syscall_fcntl64(fd, cmd, varargs) {
-		return Asyncify.handleAsync(async () => {
-			return Module['userSpace'].fcntl64(fd, cmd, varargs);
-		});
-	};
+	function ___syscall_fcntl64(fd, cmd, varargs) {
+		return Module['userSpace'].fcntl64(fd, cmd, varargs);
+	}
 	___syscall_fcntl64.sig = 'iiip';
 
 	function ___syscall_fdatasync(fd) {
@@ -16422,11 +16418,9 @@ export function init(RuntimeName, PHPLoader) {
 	};
 	_getprotobynumber.sig = 'pi';
 
-	var _js_flock = function js_flock(fd, op) {
-		return Asyncify.handleAsync(async () => {
-			return Module['userSpace'].flock(fd, op);
-		});
-	};
+	function _js_flock(fd, op) {
+		return Module['userSpace'].flock(fd, op);
+	}
 
 	function _js_open_process(
 		command,
@@ -16777,11 +16771,9 @@ export function init(RuntimeName, PHPLoader) {
 		return 0;
 	}
 
-	var _js_release_file_locks = function js_release_file_locks() {
-		return Asyncify.handleAsync(async () => {
-			return Module['userSpace'].js_release_file_locks();
-		});
-	};
+	function _js_release_file_locks() {
+		return Module['userSpace'].js_release_file_locks();
+	}
 
 	function _js_waitpid(pid, exitCodePtr) {
 		if (!PHPWASM.processTable[pid]) {

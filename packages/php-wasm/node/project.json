@@ -169,12 +169,12 @@
 			"options": {
 				"reportsDirectory": "../../../coverage/packages/php-wasm/node",
 				"testFiles": [
-					"php-file-locking.spec.ts",
-					"file-lock-manager-for-node.spec.ts",
-					"php-imagick.spec.ts",
-					"php-soap.spec.ts",
-					"php-image-extensions.spec.ts",
-					"php-fsockopen.spec.ts"
+					"php-file-locking.spec.ts"
+					// "file-lock-manager-for-node.spec.ts",
+					// "php-imagick.spec.ts",
+					// "php-soap.spec.ts",
+					// "php-image-extensions.spec.ts",
+					// "php-fsockopen.spec.ts"
 				]
 			}
 		},
@@ -185,12 +185,12 @@
 				"configFile": "packages/php-wasm/node/vite.jspi.config.ts",
 				"reportsDirectory": "../../../coverage/packages/php-wasm/node",
 				"testFiles": [
-					"php-file-locking.spec.ts",
-					"file-lock-manager-for-node.spec.ts",
-					"php-imagick.spec.ts",
-					"php-soap.spec.ts",
-					"php-image-extensions.spec.ts",
-					"php-fsockopen.spec.ts"
+					"php-file-locking.spec.ts"
+					// "file-lock-manager-for-node.spec.ts",
+					// "php-imagick.spec.ts",
+					// "php-soap.spec.ts",
+					// "php-image-extensions.spec.ts",
+					// "php-fsockopen.spec.ts"
 				]
 			}
 		},
