@@ -172,7 +172,6 @@ for (const serverConfiguration of serverConfigurations) {
 									echo "\\n=== Test AVIF Encoding ===\\n";
 									$img = imagecreatetruecolor(10, 10);
 									$result = @imageavif($img);
-									imagedestroy($img);
 									echo "Encoding result: " . ($result ? 'SUCCESS' : 'FAILED') . "\\n";
 
 									if (!$result) {
@@ -221,7 +220,6 @@ for (const serverConfiguration of serverConfigurations) {
 									$result = imageavif($img);
 									$avifData = ob_get_clean();
 									file_put_contents('/saved.avif', $avifData);
-									imagedestroy($img);
 									$last_error = error_get_last();
 
 									if (function_exists('imagecreatefromavif')) {
@@ -244,8 +242,6 @@ for (const serverConfiguration of serverConfigurations) {
 												),
 												'saved_last_error' => $saved_last_error ? $saved_last_error['message'] : null,
 											]);
-
-											imagedestroy($img);
 										} else {
 											echo json_encode(['success' => false, 'error' => 'Failed to load saved image']);
 										}
@@ -299,7 +295,6 @@ for (const serverConfiguration of serverConfigurations) {
 												'width' => imagesx($img),
 												'height' => imagesy($img),
 											]);
-											imagedestroy($img);
 										} else {
 											echo json_encode(['success' => false, 'error' => 'Failed to load image']);
 										}
@@ -330,7 +325,6 @@ for (const serverConfiguration of serverConfigurations) {
 												'width' => imagesx($img),
 												'height' => imagesy($img),
 											]);
-											imagedestroy($img);
 										} else {
 											echo json_encode(['success' => false, 'error' => 'Failed to load image']);
 										}
@@ -364,7 +358,6 @@ for (const serverConfiguration of serverConfigurations) {
 									ob_start();
 									@imageavif($img);
 									$avifData = ob_get_clean();
-									imagedestroy($img);
 
 									$decoded = @imagecreatefromstring($avifData);
 									if ($decoded) {
@@ -374,7 +367,6 @@ for (const serverConfiguration of serverConfigurations) {
 											'width' => imagesx($decoded),
 											'height' => imagesy($decoded),
 										]);
-										imagedestroy($decoded);
 									} else {
 										echo json_encode(['success' => false, 'error' => 'Failed to decode AVIF']);
 									}

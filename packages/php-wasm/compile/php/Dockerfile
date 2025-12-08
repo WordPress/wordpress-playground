@@ -92,7 +92,7 @@ RUN if [ "$WITH_OPCACHE" = "yes" ]; \
 	then \
 		# Ensure mmap() shared memory is recognized, even if not true.
 		# This will #declare HAVE_SHM_MMAP_ANON 1 in php_config.h
-		if [[ "${PHP_VERSION:0:1}" -eq "8" && "${PHP_VERSION:2:1}" -eq "4" ]]; then \
+		if [[ "${PHP_VERSION:0:1}" -eq "8" && "${PHP_VERSION:2:1}" -ge "4" ]]; then \
 			# Name changed in 8.4. See https://github.com/php/php-src/commit/ca55603d8a27b4e1f9c12cf72acd0fd39a6ac059
 			/root/replace.sh 's/php_cv_shm_mmap_anon=no/php_cv_shm_mmap_anon=yes/g' /root/php-src/ext/opcache/config.m4; \
 		else \
@@ -103,8 +103,11 @@ RUN if [ "$WITH_OPCACHE" = "yes" ]; \
 		fi; \
 		# Force OPcache to be built as a static extension. OPcache is always built as a shared extension.
 		/root/replace.sh 's/ext_shared=yes/ext_shared=no/g' /root/php-src/ext/opcache/config.m4; \
-		# Add the dummy opcache_module.c to the list of files to build.
-		/root/replace.sh 's/shared_alloc_mmap.c/shared_alloc_mmap.c opcache_module.c/g' /root/php-src/ext/opcache/config.m4; \
+		# Add the dummy opcache_module.c to the list of files to build for PHP < 8.5.0.
+		# PHP 8.5 made OPcache a non-optional part of PHP https://wiki.php.net/rfc/make_opcache_required
+		if [[ "${PHP_VERSION:0:1}" -lt "8" || ("${PHP_VERSION:0:1}" -eq "8" && "${PHP_VERSION:2:1}" -le "4") ]]; then \
+			/root/replace.sh 's/shared_alloc_mmap.c/shared_alloc_mmap.c opcache_module.c/g' /root/php-src/ext/opcache/config.m4; \
+		fi; \
 		# Enable OPcache.
 		echo -n ' --enable-opcache --disable-opcache-jit --disable-huge-code-pages ' >> /root/.php-configure-flags; \
 	else \
@@ -365,13 +368,15 @@ RUN cd /root && \
 	fi && \
 	chmod +x /root/apply-mysqlnd-patch.sh && \
 	/root/apply-mysqlnd-patch.sh && \
-	( [[ "${PHP_VERSION:0:3}" == '8.3' ]] && \
-		git apply --no-index /root/php-chunk-alloc-zend-assert-8.3.patch -v || \
-		( [[ "${PHP_VERSION:0:3}" == '8.4' ]] && \
-			git apply --no-index /root/php-chunk-alloc-zend-assert-8.4.patch -v || \
-			git apply --no-index /root/php-chunk-alloc-zend-assert.patch -v \
-		) \
-	) && \
+	if [[ "${PHP_VERSION:0:3}" < '8.3' ]]; then \
+		git apply --no-index /root/php-chunk-alloc-zend-assert.patch -v; \
+	elif [[ "${PHP_VERSION:0:3}" == '8.3' ]]; then \
+		git apply --no-index /root/php-chunk-alloc-zend-assert-8.3.patch -v; \
+	elif [[ "${PHP_VERSION:0:3}" == '8.4' ]]; then \
+		git apply --no-index /root/php-chunk-alloc-zend-assert-8.4.patch -v; \
+	elif [[ "${PHP_VERSION:0:3}" == '8.5' ]]; then \
+		git apply --no-index /root/php-chunk-alloc-zend-assert-8.5.patch -v; \
+	fi && \
 	touch php-src/patched
 
 # Install Mysql support if needed

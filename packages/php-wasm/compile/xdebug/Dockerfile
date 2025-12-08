@@ -52,11 +52,18 @@ RUN cd /root && git apply --no-index /root/php${PHP_VERSION:0:3}*.patch -v
 
 RUN source /root/emsdk/emsdk_env.sh && \
 	cd php-src && \
+	OPCACHE_FLAGS=""; \
+	# Enable opcache for PHP 8.5+ since it's a required part of PHP since 8.5.
+	if [[ "${PHP_VERSION:0:1}" -ge "8" && "${PHP_VERSION:2:1}" -ge "5" ]]; then \
+		OPCACHE_FLAGS="--enable-opcache --disable-opcache-jit --disable-huge-code-pages"; \
+	else \
+		OPCACHE_FLAGS="--disable-opcache"; \
+	fi; \
 	emconfigure ./configure \
 	--disable-fiber-asm \
 	--enable-embed \
 	--disable-cgi \
-	--disable-opcache \
+	$OPCACHE_FLAGS \
 	--disable-phpdbg \
 	--without-pcre-jit \
 	--disable-cli \
@@ -94,8 +101,9 @@ RUN source /root/emsdk/emsdk_env.sh && \
 
 # Build Xdebug
 RUN set -euxo pipefail; \
-
-	if [[ "${PHP_VERSION:0:1}" -ge 8 ]]; then \
+	if [[ "${PHP_VERSION:0:1}" -ge "8" && "${PHP_VERSION:2:1}" -ge "5" ]]; then \
+		export XDEBUG_BRANCH="xdebug_3_5"; \
+	elif [[ "${PHP_VERSION:0:1}" -ge 8 ]]; then \
 		export XDEBUG_BRANCH="xdebug_3_4"; \
 	else \
 		export XDEBUG_BRANCH="xdebug_3_1"; \

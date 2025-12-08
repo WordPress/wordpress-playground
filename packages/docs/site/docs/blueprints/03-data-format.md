@@ -55,8 +55,8 @@ The `landingPage` property tells Playground which URL to navigate to after the B
 
 The `preferredVersions` property declares your preferred PHP and WordPress versions. It can contain the following properties:
 
--   `php` (string): Loads the specified PHP version. Accepts `7.0`, `7.1`, `7.2`, `7.3`, `7.4`, `8.0`, `8.1`, `8.2`, `8.3`, `8.4`, or `latest`. Minor versions like `7.4.1` are not supported.
--   `wp` (string): Loads the specified WordPress version. Accepts the last six major WordPress versions. As of September 1, 2025, that's `6.3`, `6.4`, `6.5`, `6.6`, `6.7` or `6.8`. You can also use the generic values `latest`, `nightly`, or `beta`. To use a pre-release version of WordPress, `beta` will load the latest beta or release candidate versions of a release cycle (Beta or RC).
+- `php` (string): Loads the specified PHP version. Accepts `7.0`, `7.1`, `7.2`, `7.3`, `7.4`, `8.0`, `8.1`, `8.2`, `8.3`, `8.4`, `8.5`, or `latest`. Minor versions like `7.4.1` are not supported.
+- `wp` (string): Loads the specified WordPress version. Accepts the last six major WordPress versions. As of September 1, 2025, that's `6.3`, `6.4`, `6.5`, `6.6`, `6.7` or `6.8`. You can also use the generic values `latest`, `nightly`, or `beta`. To use a pre-release version of WordPress, `beta` will load the latest beta or release candidate versions of a release cycle (Beta or RC).
 
 ```js
 {
@@ -71,7 +71,7 @@ The `preferredVersions` property declares your preferred PHP and WordPress versi
 
 You can use the `features` property to turn on or off certain features of the Playground instance. It can contain the following properties:
 
--   `networking`: Defaults to `true`. Enables or disables the networking support for Playground. If enabled, [`wp_safe_remote_get`](https://developer.wordpress.org/reference/functions/wp_safe_remote_get/) and similar WordPress functions will actually use `fetch()` to make HTTP requests. If disabled, they will immediately fail instead. You will need this property enabled if you want the user to be able to install plugins or themes.
+- `networking`: Defaults to `true`. Enables or disables the networking support for Playground. If enabled, [`wp_safe_remote_get`](https://developer.wordpress.org/reference/functions/wp_safe_remote_get/) and similar WordPress functions will actually use `fetch()` to make HTTP requests. If disabled, they will immediately fail instead. You will need this property enabled if you want the user to be able to install plugins or themes.
 
 ```js
 {
@@ -85,7 +85,7 @@ You can use the `features` property to turn on or off certain features of the Pl
 
 You can preload extra libraries into the Playground instance. The following libraries are supported:
 
--   `wp-cli`: Enables WP-CLI support for Playground. If included, WP-CLI will be installed during boot. If not included, you will get an error message when trying to run WP-CLI commands using the JS API. WP-CLI will be installed by default if the blueprint contains any `wp-cli` steps.
+- `wp-cli`: Enables WP-CLI support for Playground. If included, WP-CLI will be installed during boot. If not included, you will get an error message when trying to run WP-CLI commands using the JS API. WP-CLI will be installed by default if the blueprint contains any `wp-cli` steps.
 
 ```js
 {

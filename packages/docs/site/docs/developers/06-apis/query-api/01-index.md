@@ -24,7 +24,7 @@ You can go ahead and try it out. The Playground will automatically install the t
 
 | Option                   | Default Value         | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | ------------------------ | --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `php`                    | `8.0`                 | Loads the specified PHP version. Accepts `7.0`, `7.1`, `7.2`, `7.3`, `7.4`, `8.0`, `8.1`, `8.2`, `8.3`, `8.4` or `latest`.                                                                                                                                                                                                                                                                                                                                                  |
+| `php`                    | `8.0`                 | Loads the specified PHP version. Accepts `7.0`, `7.1`, `7.2`, `7.3`, `7.4`, `8.0`, `8.1`, `8.2`, `8.3`, `8.4`, `8.5` or `latest`.                                                                                                                                                                                                                                                                                                                                           |
 | `wp`                     | `latest`              | Loads the specified WordPress version. Accepts the last three major WordPress versions. As of June 1, 2024, that's `6.3`, `6.4`, or `6.5`. You can also use the generic values `latest`, `nightly`, or `beta`.                                                                                                                                                                                                                                                              |
 | `blueprint-url`          |                       | The URL of the Blueprint that will be used to configure this Playground instance.                                                                                                                                                                                                                                                                                                                                                                                           |
 | `networking`             | `yes`                 | Enables or disables the networking support for Playground. Accepts `yes` or `no`.                                                                                                                                                                                                                                                                                                                                                                                           |
@@ -60,17 +60,17 @@ To import files from a URL, such as a site zip package, they must be served with
 
 The following additional query parameters may be used to pre-configure the GitHub export form:
 
--   `gh-ensure-auth`: If set to `yes`, Playground will display a modal to ensure the
-    user is authenticated with GitHub before proceeding.
--   `ghexport-repo-url`: The URL of the GitHub repository to export to.
--   `ghexport-pr-action`: The action to take when exporting (create or update).
--   `ghexport-playground-root`: The root directory in the Playground to export from.
--   `ghexport-repo-root`: The root directory in the repository to export to.
--   `ghexport-content-type`: The content type of the export (plugin, theme, wp-content, custom-paths).
--   `ghexport-plugin`: Plugin path. When the content type is `plugin`, pre-select the plugin to export.
--   `ghexport-theme`: Theme directory name. When the content type is `theme`, pre-select the theme to export.
--   `ghexport-path`: A path relative to `ghexport-playground-root`. Can be provided multiple times. When the
-    content type is `custom-paths`, it pre-populates the list of paths to export.
--   `ghexport-commit-message`: The commit message to use when exporting.
--   `ghexport-allow-include-zip`: Whether to offer an option to include a zip file in the GitHub
-    export (yes, no). Optional. Defaults to `yes`.
+- `gh-ensure-auth`: If set to `yes`, Playground will display a modal to ensure the
+  user is authenticated with GitHub before proceeding.
+- `ghexport-repo-url`: The URL of the GitHub repository to export to.
+- `ghexport-pr-action`: The action to take when exporting (create or update).
+- `ghexport-playground-root`: The root directory in the Playground to export from.
+- `ghexport-repo-root`: The root directory in the repository to export to.
+- `ghexport-content-type`: The content type of the export (plugin, theme, wp-content, custom-paths).
+- `ghexport-plugin`: Plugin path. When the content type is `plugin`, pre-select the plugin to export.
+- `ghexport-theme`: Theme directory name. When the content type is `theme`, pre-select the theme to export.
+- `ghexport-path`: A path relative to `ghexport-playground-root`. Can be provided multiple times. When the
+  content type is `custom-paths`, it pre-populates the list of paths to export.
+- `ghexport-commit-message`: The commit message to use when exporting.
+- `ghexport-allow-include-zip`: Whether to offer an option to include a zip file in the GitHub
+  export (yes, no). Optional. Defaults to `yes`.
