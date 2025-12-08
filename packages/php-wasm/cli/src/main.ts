@@ -153,13 +153,14 @@ ${process.argv[0]} ${process.execArgv.join(' ')} ${process.argv[1]}
 			// Display IDE-specific instructions
 			const hasVSCode = ides.includes('vscode');
 			const hasPhpStorm = ides.includes('phpstorm');
+			const configFiles = Object.values(modifiedConfig);
 
 			console.log('');
 
-			if (modifiedConfig.length > 0) {
+			if (configFiles.length > 0) {
 				console.log(bold(`Xdebug configured successfully`));
 				console.log(
-					highlight(`Updated IDE config: `) + modifiedConfig.join(' ')
+					highlight(`Updated IDE config: `) + configFiles.join(' ')
 				);
 			} else {
 				console.log(bold(`Xdebug configuration failed.`));
@@ -170,7 +171,7 @@ ${process.argv[0]} ${process.execArgv.join(' ')} ${process.argv[1]}
 
 			console.log('');
 
-			if (hasVSCode) {
+			if (hasVSCode && modifiedConfig['vscode']) {
 				console.log(bold('VS Code / Cursor instructions:'));
 				console.log(
 					'  1. Ensure you have installed an IDE extension for PHP Debugging'
@@ -194,7 +195,7 @@ ${process.argv[0]} ${process.execArgv.join(' ')} ${process.argv[1]}
 				}
 			}
 
-			if (hasPhpStorm) {
+			if (hasPhpStorm && modifiedConfig['phpstorm']) {
 				console.log(bold('PhpStorm instructions:'));
 				console.log(
 					`  1. Choose "${italic(

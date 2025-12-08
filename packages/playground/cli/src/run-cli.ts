@@ -736,25 +736,35 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 					const ides = args.experimentalUnsafeIdeIntegration;
 					const hasVSCode = ides.includes('vscode');
 					const hasPhpStorm = ides.includes('phpstorm');
+					const configFiles = Object.values(modifiedConfig);
 
 					console.log('');
-					console.log(bold(`Xdebug configured successfully`));
-					console.log(
-						highlight(`Updated IDE config: `) +
-							modifiedConfig.join(' ')
-					);
-					console.log(
-						highlight('Playground source root: ') +
-							`.playground-xdebug-root` +
-							italic(
-								dim(
-									` – you can set breakpoints and preview Playground's VFS structure in there.`
+
+					if (configFiles.length > 0) {
+						console.log(bold(`Xdebug configured successfully`));
+						console.log(
+							highlight(`Updated IDE config: `) +
+								configFiles.join(' ')
+						);
+						console.log(
+							highlight('Playground source root: ') +
+								`.playground-xdebug-root` +
+								italic(
+									dim(
+										` – you can set breakpoints and preview Playground's VFS structure in there.`
+									)
 								)
-							)
-					);
+						);
+					} else {
+						console.log(bold(`Xdebug configuration failed.`));
+						console.log(
+							'No IDE-specific project settings directory was found in the current working directory.'
+						);
+					}
+
 					console.log('');
 
-					if (hasVSCode) {
+					if (hasVSCode && modifiedConfig['vscode']) {
 						console.log(bold('VS Code / Cursor instructions:'));
 						console.log(
 							'  1. Ensure you have installed an IDE extension for PHP Debugging'
@@ -784,7 +794,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 						}
 					}
 
-					if (hasPhpStorm) {
+					if (hasPhpStorm && modifiedConfig['phpstorm']) {
 						console.log(bold('PhpStorm instructions:'));
 						console.log(
 							`  1. Choose "${italic(

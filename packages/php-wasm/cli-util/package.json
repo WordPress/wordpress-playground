@@ -8,13 +8,6 @@
 	},
 	"homepage": "https://developer.wordpress.org/playground",
 	"author": "The WordPress contributors",
-	"contributors": [
-		{
-			"name": "Adam Zielinski",
-			"email": "adam@adamziel.com",
-			"url": "https://github.com/adamziel"
-		}
-	],
 	"exports": {
 		".": {
 			"import": "./index.js",

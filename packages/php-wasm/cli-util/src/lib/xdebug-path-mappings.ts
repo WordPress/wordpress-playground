@@ -468,7 +468,7 @@ export async function addXdebugIDEConfig({
 	ideKey = 'PHPWASMCLI',
 }: IDEConfig) {
 	const mappings = mounts ? filterLocalMounts(cwd, mounts) : [];
-	const modifiedConfig: string[] = [];
+	const modifiedConfig: Record<string, string> = {};
 
 	// PHPstorm
 	if (ides.includes('phpstorm')) {
@@ -504,7 +504,7 @@ export async function addXdebugIDEConfig({
 				ideKey,
 			});
 			fs.writeFileSync(phpStormConfigFilePath, updatedXml);
-			modifiedConfig.push(phpStormRelativeConfigFilePath);
+			modifiedConfig['phpstorm'] = phpStormRelativeConfigFilePath;
 		}
 	}
 
@@ -542,7 +542,7 @@ export async function addXdebugIDEConfig({
 			// Only write and track the file if changes were made
 			if (updatedJson !== content) {
 				fs.writeFileSync(vsCodeConfigFilePath, updatedJson);
-				modifiedConfig.push(vsCodeRelativeConfigFilePath);
+				modifiedConfig['vscode'] = vsCodeRelativeConfigFilePath;
 			}
 		}
 	}
