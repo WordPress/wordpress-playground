@@ -25,13 +25,15 @@ export type FileLockManager = {
 	 * @param path - The path of the file to lock. This should be the path of the file in the
 	 *               underlying filesystem.
 	 * @param requestedLock - The lock to request, including start, end, type, and pid.
+	 * @param waitForLock - Whether to block until the lock is acquired.
 	 * @returns A promise for a boolean value.
 	 *          When locking: True if the lock was acquired, false if it was not.
 	 *          When unlocking: Always true.
 	 */
 	lockFileByteRange: (
 		path: string,
-		requestedLock: RequestedRangeLock
+		requestedLock: RequestedRangeLock,
+		waitForLock: boolean
 	) => boolean;
 
 	/**
@@ -72,8 +74,16 @@ export type FileLockManager = {
 };
 
 export type RequestedRangeLock = Readonly<{
-	/** The type of lock request */
+	/**
+	 * The type of lock request
+	 */
 	type: 'shared' | 'exclusive' | 'unlocked';
+	/**
+	 * The file descriptor to use. This should be the native file descriptor,
+	 * not the Emscripten file descriptor because it may be used to lock the file
+	 * using native OS file locking APIs.
+	 */
+	fd: Fd;
 	/** The start offset of the lock range */
 	start: bigint;
 	/** The end of the lock range */
@@ -107,8 +117,16 @@ export type WholeFileLock_Unlocked = {
 	type: 'unlocked';
 };
 
-export type WholeFileLockOp = {
-	pid: number;
-	fd: number;
-	type: 'shared' | 'exclusive' | 'unlock';
-};
+export type WholeFileLockOp =
+	| {
+			pid: number;
+			fd: number;
+			type: 'shared' | 'exclusive';
+			/** Whether to block until the lock is acquired. */
+			waitForLock: boolean;
+	  }
+	| {
+			pid: number;
+			fd: number;
+			type: 'unlock';
+	  };

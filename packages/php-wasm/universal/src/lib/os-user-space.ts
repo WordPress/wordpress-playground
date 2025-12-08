@@ -1,4 +1,5 @@
-// TODO: Move file manager into kernel space.
+// TODO: Document why we use the term "user space" for this file.
+// TODO: Rename this module to php-wasm-user-space.ts.
 // TODO: Move FileLockManager into php-wasm/universal to resolve this
 import type {
 	RequestedRangeLock,
@@ -6,6 +7,7 @@ import type {
 	WholeFileLockOp,
 } from './file-lock-manager';
 import type { Emscripten } from './emscripten-types';
+// TODO: Rename this imported to php-wasm-kernel-space.ts.
 import type { OSKernelSpace } from './os-kernel-space';
 
 type FSNode = Emscripten.FS.FSNode;
@@ -129,7 +131,7 @@ export function bindUserSpace(
 			LOCK_NB,
 			LOCK_UN,
 		},
-		errnoCodes: { EBADF, EINVAL, EAGAIN, EDEADLK, EWOULDBLOCK },
+		errnoCodes: { EBADF, EINVAL, EAGAIN, EWOULDBLOCK },
 		wasmImports: { builtin_fcntl64, builtin_fd_close, js_wasm_trace },
 		wasmExports: { wasm_get_end_offset },
 		syscalls: { getStreamFromFD },
@@ -160,15 +162,6 @@ export function bindUserSpace(
 
 	type FcntlLockState = typeof F_RDLCK | typeof F_WRLCK | typeof F_UNLCK;
 	const locking = {
-		/*
-		 * This is a set of possibly locked file descriptors.
-		 *
-		 * When a file descriptor is closed, we need to release any associated held by this process.
-		 * Instead of trying remember and forget file descriptors as they are locked and unlocked,
-		 * we just track file descriptors we have locked before and try an unlock when they are closed.
-		 */
-		maybeLockedFds: new Set(),
-
 		lockStateToFcntl: {
 			shared: F_RDLCK,
 			exclusive: F_WRLCK,
@@ -523,11 +516,15 @@ export function bindUserSpace(
 				try {
 					const nativeFilePath =
 						locking.get_native_path_from_vfs_path(vfsPath);
+					const fdStream = getStreamFromFD(fd);
+
 					const conflictingLock =
 						fileLockManager.findFirstConflictingByteRangeLock(
 							nativeFilePath,
 							{
 								type: requestedLockType,
+								// TODO: Say why
+								fd: (fdStream as any).nfd as number,
 								start: absoluteStartOffset,
 								end: absoluteStartOffset + flockStruct.l_len,
 								pid,
@@ -580,7 +577,12 @@ export function bindUserSpace(
 					return -EINVAL;
 				}
 			}
-			case F_SETLK: {
+			case F_SETLK:
+			case F_SETLKW: {
+				// TODO: Test both blocking and non-blocking modes in the integration tests.
+				// TODO: Make sure to return correct errno if waiting fails. EDEADLK may be the right errno.
+				const waitForLock = cmd === F_SETLKW;
+
 				js_wasm_trace('fcntl(%d, F_SETLK)', fd);
 				const [vfsPath, vfsPathErrno] =
 					locking.get_vfs_path_from_fd(fd);
@@ -649,12 +651,14 @@ export function bindUserSpace(
 					return -paramsCheckErrno;
 				}
 
-				locking.maybeLockedFds.add(fd);
+				const fdStream = getStreamFromFD(fd);
 
 				const requestedLockType =
 					locking.fcntlToLockState[flockStruct.l_type];
 				const rangeLock: RequestedRangeLock = {
 					type: requestedLockType,
+					// TODO: Can we improve the type checking story here?
+					fd: (fdStream as any).nfd as number,
 					start: absoluteStartOffset,
 					end: absoluteStartOffset + flockStruct.l_len,
 					pid,
@@ -672,7 +676,8 @@ export function bindUserSpace(
 
 					const succeeded = fileLockManager.lockFileByteRange(
 						nativeFilePath,
-						rangeLock
+						rangeLock,
+						waitForLock
 					);
 
 					js_wasm_trace(
@@ -693,13 +698,6 @@ export function bindUserSpace(
 					);
 					return -EINVAL;
 				}
-			}
-			// @TODO: Implement waiting for lock
-			case F_SETLKW: {
-				// We do not yet support the blocking form of flock().
-				// We respond with EDEADLK to indicate failure
-				// because it is a known errno for a failed F_SETLKW command.
-				return -EDEADLK;
 			}
 			case F_SETFL: {
 				/**
@@ -732,10 +730,10 @@ export function bindUserSpace(
 	}
 
 	function flock(fd: number, op: number) {
-		js_wasm_trace('js_flock(%d, %d)', fd, op);
+		js_wasm_trace('flock(%d, %d)', fd, op);
 		if (!fileLockManager) {
 			js_wasm_trace(
-				'js_flock(%d, %d) file lock manager is not available. ' +
+				'flock(%d, %d) file lock manager is not available. ' +
 					'succeed by default as Emscripten does.',
 				fd,
 				op
@@ -753,7 +751,7 @@ export function bindUserSpace(
 		const [vfsPath, vfsPathErrno] = locking.get_vfs_path_from_fd(fd);
 		if (vfsPathErrno !== 0) {
 			js_wasm_trace(
-				'js_flock(%d, %d) get_vfs_path_from_fd errno %d',
+				'flock(%d, %d) get_vfs_path_from_fd errno %d',
 				fd,
 				op,
 				vfsPath,
@@ -777,7 +775,7 @@ export function bindUserSpace(
 		const paramsCheckErrno = locking.check_lock_params(fd, op);
 		if (paramsCheckErrno !== 0) {
 			js_wasm_trace(
-				'js_flock(%d, %d) %s check_lock_params errno %d',
+				'flock(%d, %d) %s check_lock_params errno %d',
 				fd,
 				op,
 				vfsPath,
@@ -786,55 +784,43 @@ export function bindUserSpace(
 			return -paramsCheckErrno;
 		}
 
-		// @TODO: Consider supporting blocking mode of flock()
-		if ((op & LOCK_NB) === 0) {
-			js_wasm_trace(
-				'js_flock(%d, %d) blocking mode of flock() is not implemented',
-				fd,
-				op
-			);
-			// We do not yet support the blocking form of flock().
-			// We respond with EINVAL to indicate failure
-			// because it is a known errno for a failed blocking flock().
-			// return -EINVAL;
-			// TODO: Implement blocking mode of flock()
-			return 0;
-		}
-
 		const maskedOp = op & ((LOCK_SH | LOCK_EX | LOCK_UN) as FlockOp | 0);
 
 		if (maskedOp === 0) {
-			js_wasm_trace('js_flock(%d, %d) invalid flock() operation', fd, op);
+			js_wasm_trace('flock(%d, %d) invalid flock() operation', fd, op);
 			return -EINVAL;
 		}
 
 		const lockOpType = flockToLockOpType[maskedOp as FlockOp];
 		if (lockOpType === undefined) {
-			js_wasm_trace('js_flock(%d, %d) invalid flock() operation', fd, op);
+			js_wasm_trace('flock(%d, %d) invalid flock() operation', fd, op);
 			return -EINVAL;
 		}
 
 		try {
 			const nativeFilePath =
 				locking.get_native_path_from_vfs_path(vfsPath);
+			const fdStream = getStreamFromFD(fd);
+			// TODO: Test both blocking and non-blocking modes in the integration tests.
+			// TODO: Make sure to return correct errno if waiting fails. EDEADLK may be the right errno.
+			const waitForLock = (op & LOCK_NB) === 0;
 			const succeeded = fileLockManager.lockWholeFile(nativeFilePath, {
 				type: lockOpType,
 				pid: pid,
-				fd,
+				// TODO: Say why
+				fd: (fdStream as any).nfd as number,
+				waitForLock,
 			});
 			js_wasm_trace(
-				'js_flock(%d, %d) lockWholeFile %s returned %d',
+				'flock(%d, %d) lockWholeFile %s returned %d',
 				fd,
 				op,
 				vfsPath,
 				succeeded
 			);
-			if (succeeded) {
-				locking.maybeLockedFds.add(fd);
-			}
 			return succeeded ? 0 : -EWOULDBLOCK;
 		} catch (e) {
-			js_wasm_trace('js_flock(%d, %d) lockWholeFile error %s', fd, op, e);
+			js_wasm_trace('flock(%d, %d) lockWholeFile error %s', fd, op, e);
 			return -EINVAL;
 		}
 	}
@@ -854,59 +840,40 @@ export function bindUserSpace(
 		const [vfsPath, vfsPathResolutionErrno] =
 			locking.get_vfs_path_from_fd(fd);
 
-		const fdCloseResult = builtin_fd_close(fd);
-		if (fdCloseResult !== 0) {
-			js_wasm_trace(
-				'fd_close(%d) %s result %d',
-				fd,
-				vfsPath,
-				fdCloseResult
-			);
-			return fdCloseResult;
-		}
-		if (!locking.maybeLockedFds.has(fd)) {
-			js_wasm_trace(
-				'fd_close(%d) not in maybe-locked-list %s result %d',
-				fd,
-				vfsPath,
-				fdCloseResult
-			);
-			return fdCloseResult;
-		}
-
 		if (vfsPathResolutionErrno !== 0) {
 			js_wasm_trace(
 				'fd_close(%d) get_vfs_path_from_fd error %d',
 				fd,
 				vfsPathResolutionErrno
 			);
-			/*
-			 * It looks like the file may have had an associated lock,
-			 * but since we cannot look up the path,
-			 * there is nothing more for us to do.
-			 *
-			 * NOTE: This seems possible for files that are locked and
-			 * then unlinked before close. It is an opportunity for a
-			 * lock to be orphaned in the lock manager.
-			 * @TODO: Explore how to ensure cleanup in this case.
-			 */
-			return fdCloseResult;
 		}
 
-		if (!locking.is_path_to_shared_fs(vfsPath)) {
-			return fdCloseResult;
+		if (
+			vfsPathResolutionErrno === 0 &&
+			locking.is_path_to_shared_fs(vfsPath)
+		) {
+			try {
+				const fdStream = getStreamFromFD(fd);
+				js_wasm_trace('fd_close(%d) %s release locks', fd, vfsPath);
+				const nativeFilePath =
+					locking.get_native_path_from_vfs_path(vfsPath);
+				fileLockManager.releaseLocksForProcessFd(
+					pid,
+					// TODO: Say why
+					(fdStream as any).nfd as number,
+					nativeFilePath
+				);
+				js_wasm_trace(
+					'fd_close(%d) %s release locks success',
+					fd,
+					vfsPath
+				);
+			} catch (e) {
+				js_wasm_trace("fd_close(%d) %s error '%s'", fd, vfsPath, e);
+			}
 		}
 
-		try {
-			js_wasm_trace('fd_close(%d) %s release locks', fd, vfsPath);
-			const nativeFilePath =
-				locking.get_native_path_from_vfs_path(vfsPath);
-			fileLockManager.releaseLocksForProcessFd(pid, fd, nativeFilePath);
-			js_wasm_trace('fd_close(%d) %s release locks success', fd, vfsPath);
-		} catch (e) {
-			js_wasm_trace("fd_close(%d) %s error '%s'", fd, vfsPath, e);
-		}
-		return fdCloseResult;
+		return builtin_fd_close(fd);
 	}
 
 	// TODO: Implement based on current process
