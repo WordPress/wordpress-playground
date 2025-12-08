@@ -976,6 +976,13 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 						initialPlayground
 					);
 
+					[...workers, initialWorker].map(async (worker) => {
+						playgroundsToCleanUp.push({
+							playground: initialPlayground,
+							worker: worker.worker,
+						});
+					});
+
 					await initialPlayground.isReady();
 					wordPressReady = true;
 					logger.log(`Booted!`);
@@ -1127,6 +1134,10 @@ export type SpawnedWorker = {
 	phpPort: NodeMessagePort;
 };
 
+export type WorkerData = {
+	verbosity: LogVerbosity;
+};
+
 async function spawnWorkerThreads(
 	count: number,
 	workerType: WorkerType,
@@ -1194,10 +1205,22 @@ async function spawnWorkerThread(workerType: 'v1' | 'v2') {
 		// @ts-expect-error
 		globalThis['__WORKER_V2_URL__'] = './blueprints-v2/worker-thread-v2.ts';
 	}
+
+	// Pass logger verbosity to the worker thread.
+	const currentSeverity = logger.getSeverityFilterLevel();
+	const verbosity = Object.values(LogVerbosity).find(
+		(v) => v.severity === currentSeverity
+	)?.name;
+
+	// Prepare worker options.
+	const options = {
+		workerData: { verbosity },
+	} as const;
+
 	if (workerType === 'v1') {
-		return new Worker(new URL(__WORKER_V1_URL__, import.meta.url));
+		return new Worker(new URL(__WORKER_V1_URL__, import.meta.url), options);
 	} else {
-		return new Worker(new URL(__WORKER_V2_URL__, import.meta.url));
+		return new Worker(new URL(__WORKER_V2_URL__, import.meta.url), options);
 	}
 }
 

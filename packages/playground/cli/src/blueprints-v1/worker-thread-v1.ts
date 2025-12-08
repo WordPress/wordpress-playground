@@ -1,3 +1,4 @@
+import { logger } from '@php-wasm/logger';
 import type { FileLockManager } from '@php-wasm/node';
 import { loadNodeRuntime } from '@php-wasm/node';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
@@ -18,9 +19,14 @@ import {
 } from '@wp-playground/wordpress';
 import { rootCertificates } from 'tls';
 import { jspi } from 'wasm-feature-detect';
-import { MessageChannel, type MessagePort, parentPort } from 'worker_threads';
+import {
+	MessageChannel,
+	type MessagePort,
+	parentPort,
+	workerData,
+} from 'worker_threads';
 import { mountResources } from '../mounts';
-import { logger } from '@php-wasm/logger';
+import { LogVerbosity, type WorkerData } from '../run-cli';
 
 export interface Mount {
 	hostPath: string;
@@ -308,6 +314,17 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 	// Provide a named disposal method that can be invoked via comlink.
 	async dispose() {
 		await this[Symbol.asyncDispose]();
+	}
+}
+
+// Configure logger verbosity from workerData
+if (typeof workerData === 'object') {
+	const verbosity = (workerData as WorkerData).verbosity;
+	const severity = Object.values(LogVerbosity).find(
+		(v) => v.name === verbosity
+	)?.severity;
+	if (severity) {
+		logger.setSeverityFilterLevel(severity);
 	}
 }
 

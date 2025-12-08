@@ -1,0 +1,19 @@
+{
+	"steps": [
+		{
+			"step": "mkdir",
+			"path": "wordpress/wp-content/mu-plugins"
+		},
+		{
+			"step": "writeFile",
+			"path": "wordpress/wp-content/mu-plugins/load.php",
+			"data": "<?php var_dump( get_class($GLOBALS['wpdb']->dbh));"
+		}
+	],
+	"login": true,
+	"preferredVersions": {
+		"php": "8.3",
+		"wp": "latest"
+	},
+	"features": {}
+}

@@ -97,6 +97,15 @@ export class Logger extends EventTarget {
 	}
 
 	/**
+	 * Get the current severity filter level.
+	 *
+	 * @returns LogSeverity
+	 */
+	public getSeverityFilterLevel(): LogSeverity {
+		return this.severity;
+	}
+
+	/**
 	 * Filter message based on severity
 	 * @param severity LogSeverity
 	 */
