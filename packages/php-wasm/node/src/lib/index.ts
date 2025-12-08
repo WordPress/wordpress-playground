@@ -6,3 +6,10 @@ export * from './node-fs-mount';
 export * from './file-lock-manager';
 export * from './file-lock-manager-for-node';
 export * from './xdebug/with-xdebug';
+export {
+	createNodePhpCliHandler,
+	createRemotePhpCliHandler,
+	PhpSubprocessManager,
+	type PhpSubprocessOptions,
+	type PhpSubprocessResult,
+} from './node-php-cli-handler';

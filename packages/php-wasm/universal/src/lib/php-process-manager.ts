@@ -7,6 +7,16 @@ export type PHPFactoryOptions = {
 
 export type PHPFactory = (options: PHPFactoryOptions) => Promise<PHP>;
 
+/**
+ * Common interface for PHP process managers.
+ */
+export interface PHPProcessManagerInterface extends AsyncDisposable {
+	getPrimaryPhp(): Promise<PHP>;
+	acquirePHPInstance(options?: {
+		considerPrimary?: boolean;
+	}): Promise<SpawnedPHP>;
+}
+
 export interface ProcessManagerOptions {
 	/**
 	 * The maximum number of PHP instances that can exist at
@@ -71,7 +81,7 @@ export class MaxPhpInstancesError extends Error {
  * requests requires extra time to spin up a few PHP instances. This is a more
  * resource-friendly tradeoff than keeping 5 idle instances at all times.
  */
-export class PHPProcessManager implements AsyncDisposable {
+export class PHPProcessManager implements PHPProcessManagerInterface {
 	private primaryPhp?: PHP;
 	private primaryPhpPromise?: Promise<SpawnedPHP>;
 	private primaryIdle = true;
@@ -264,5 +274,68 @@ export class PHPProcessManager implements AsyncDisposable {
 				instance.then(({ reap }) => reap())
 			)
 		);
+	}
+}
+
+/**
+ * A PHP Process manager that manages exactly one PHP instance.
+ *
+ * This is useful for CLI environments where we want each OS process to have
+ * exactly one PHP instance for correct file locking behavior. Kernel-level
+ * file locks are per-process, so multiple PHP instances in the same process
+ * would share locks and defeat the purpose of locking.
+ *
+ * Unlike PHPProcessManager which can spawn multiple instances, this manager:
+ * - Never creates or destroys PHP instances (the instance is provided at construction)
+ * - Refuses to acquire if the instance is already acquired
+ * - Implements the same interface as PHPProcessManager for compatibility
+ */
+export class SingularPHPProcessManager implements PHPProcessManagerInterface {
+	private php: PHP;
+	private phpPromise?: Promise<PHP>;
+	private phpFactory?: PHPFactory;
+	private acquired = false;
+
+	constructor(options: { php?: PHP; phpFactory?: PHPFactory }) {
+		if (!options.php && !options.phpFactory) {
+			throw new Error(
+				'SingularPHPProcessManager requires either php or phpFactory'
+			);
+		}
+		this.php = options.php!;
+		this.phpFactory = options.phpFactory;
+	}
+
+	async getPrimaryPhp(): Promise<PHP> {
+		if (!this.php) {
+			if (!this.phpPromise) {
+				this.phpPromise = this.phpFactory!({ isPrimary: true });
+			}
+			this.php = await this.phpPromise;
+			this.phpPromise = undefined;
+		}
+		return this.php;
+	}
+
+	async acquirePHPInstance(): Promise<SpawnedPHP> {
+		if (this.acquired) {
+			throw new AcquireTimeoutError(
+				'SingularPHPProcessManager: Cannot acquire PHP instance - already in use. ' +
+					'This manager only supports one concurrent acquisition.'
+			);
+		}
+		this.acquired = true;
+		return {
+			php: await this.getPrimaryPhp(),
+			reap: () => {
+				this.acquired = false;
+			},
+		};
+	}
+
+	async [Symbol.asyncDispose]() {
+		if (this.php) {
+			this.php.exit();
+		}
 	}
 }

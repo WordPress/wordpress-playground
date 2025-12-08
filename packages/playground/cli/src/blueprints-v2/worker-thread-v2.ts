@@ -1,6 +1,10 @@
 import { errorLogPath, logger } from '@php-wasm/logger';
 import type { FileLockManager } from '@php-wasm/node';
-import { createNodeFsMountHandler, loadNodeRuntime } from '@php-wasm/node';
+import {
+	createNodeFsMountHandler,
+	createRemotePhpCliHandler,
+	loadNodeRuntime,
+} from '@php-wasm/node';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import type {
 	PHP,
@@ -9,13 +13,13 @@ import type {
 	SupportedPHPVersion,
 } from '@php-wasm/universal';
 import {
+	createPhpSpawnHandler,
 	PHPExecutionFailureError,
 	PHPResponse,
 	PHPWorker,
 	consumeAPI,
 	consumeAPISync,
 	exposeAPI,
-	sandboxedSpawnHandlerFactory,
 } from '@php-wasm/universal';
 import { sprintf } from '@php-wasm/util';
 import {
@@ -153,10 +157,16 @@ export type SecondaryWorkerBootArgs = {
 	firstProcessId: number;
 	processIdSpaceLength: number;
 	trace: boolean;
+	maxPhpInstances: number;
 	nativeInternalDirPath: string;
 	withXdebug?: boolean;
 	mountsBeforeWpInstall?: Array<Mount>;
 	mountsAfterWpInstall?: Array<Mount>;
+	/**
+	 * MessagePort connected to a PhpSubprocessManager in the main process.
+	 * Used for spawning PHP subprocesses when PHP calls proc_open('php ...').
+	 */
+	phpSubprocessManagerPort?: MessagePort;
 };
 
 export type WorkerBootRequestHandlerOptions = Omit<
@@ -224,6 +234,7 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 			phpIniEntries: {
 				'openssl.cafile': '/internal/shared/ca-bundle.crt',
 			},
+			maxPhpInstances: 1,
 			onPHPInstanceCreated: async (php: PHP) => {
 				await mountResources(php, args['mount-before-install'] || []);
 				if (this.blueprintTargetResolved) {
@@ -269,6 +280,7 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 
 	async runBlueprintV2(args: WorkerRunBlueprintArgs) {
 		const requestHandler = this.__internal_getRequestHandler()!;
+
 		const { php, reap } =
 			await requestHandler.processManager.acquirePHPInstance({
 				considerPrimary: false,
@@ -426,6 +438,8 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 		nativeInternalDirPath,
 		withXdebug,
 		onPHPInstanceCreated,
+		maxPhpInstances,
+		phpSubprocessManagerPort,
 	}: WorkerBootRequestHandlerOptions) {
 		if (this.booted) {
 			throw new Error('Playground already booted');
@@ -468,7 +482,16 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 				constants,
 				phpIniEntries,
 				cookieStore: false,
-				spawnHandler: sandboxedSpawnHandlerFactory,
+				spawnHandler: (requestHandler) =>
+					createPhpSpawnHandler({
+						getPrimaryPhp: () => requestHandler.getPrimaryPhp(),
+						phpCliHandler: phpSubprocessManagerPort
+							? createRemotePhpCliHandler(
+									phpSubprocessManagerPort
+								)
+							: undefined,
+					}),
+				maxPhpInstances,
 			});
 			this.__internal_setRequestHandler(requestHandler);
 

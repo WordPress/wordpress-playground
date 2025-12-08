@@ -97,6 +97,7 @@ export class BlueprintsV2Handler {
 			nativeInternalDirPath,
 			mountsBeforeWpInstall: this.args['mount-before-install'] || [],
 			mountsAfterWpInstall: this.args.mount || [],
+			maxPhpInstances: 1,
 		};
 
 		await playground.bootWorker(workerBootArgs);

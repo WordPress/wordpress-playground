@@ -1,13 +1,13 @@
 import type { FileLockManager } from '@php-wasm/node';
-import { loadNodeRuntime } from '@php-wasm/node';
+import { createRemotePhpCliHandler, loadNodeRuntime } from '@php-wasm/node';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import type { RemoteAPI, SupportedPHPVersion } from '@php-wasm/universal';
 import {
+	createPhpSpawnHandler,
 	PHPWorker,
 	consumeAPI,
 	consumeAPISync,
 	exposeAPI,
-	sandboxedSpawnHandlerFactory,
 } from '@php-wasm/universal';
 import { sprintf } from '@php-wasm/util';
 import { RecommendedPHPVersion } from '@wp-playground/common';
@@ -46,6 +46,11 @@ export type WorkerBootOptions = {
 	internalCookieStore?: boolean;
 	withXdebug?: boolean;
 	nativeInternalDirPath: string;
+	/**
+	 * MessagePort connected to a PhpSubprocessManager in the main process.
+	 * Used for spawning PHP subprocesses when PHP calls proc_open('php ...').
+	 */
+	phpSubprocessManagerPort?: MessagePort;
 };
 
 export type PrimaryWorkerBootOptions = WorkerBootOptions & {
@@ -67,6 +72,7 @@ interface WorkerBootRequestHandlerOptions {
 	mountsBeforeWpInstall: Array<Mount>;
 	mountsAfterWpInstall: Array<Mount>;
 	withXdebug?: boolean;
+	phpSubprocessManagerPort?: MessagePort;
 }
 
 /**
@@ -142,6 +148,7 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 		internalCookieStore,
 		withXdebug,
 		nativeInternalDirPath,
+		phpSubprocessManagerPort,
 	}: PrimaryWorkerBootOptions) {
 		if (this.booted) {
 			throw new Error('Playground already booted');
@@ -192,7 +199,7 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 						? new File(
 								[sqliteIntegrationPluginZip],
 								'sqlite-integration-plugin.zip'
-						  )
+							)
 						: undefined,
 				sapiName: 'cli',
 				createFiles: {
@@ -205,9 +212,18 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 					allow_url_fopen: '1',
 					disable_functions: '',
 				},
+				maxPhpInstances: 1,
 				cookieStore: internalCookieStore ? undefined : false,
 				dataSqlPath,
-				spawnHandler: sandboxedSpawnHandlerFactory,
+				spawnHandler: (requestHandler) =>
+					createPhpSpawnHandler({
+						getPrimaryPhp: () => requestHandler.getPrimaryPhp(),
+						phpCliHandler: phpSubprocessManagerPort
+							? createRemotePhpCliHandler(
+									phpSubprocessManagerPort
+								)
+							: undefined,
+					}),
 				async onPHPInstanceCreated(php) {
 					await mountResources(php, mountsBeforeWpInstall);
 					if (wordpressBooted) {
@@ -249,6 +265,7 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 		mountsBeforeWpInstall,
 		mountsAfterWpInstall,
 		withXdebug,
+		phpSubprocessManagerPort,
 	}: WorkerBootRequestHandlerOptions) {
 		if (this.booted) {
 			throw new Error('Playground already booted');
@@ -291,7 +308,16 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 				},
 				sapiName: 'cli',
 				cookieStore: false,
-				spawnHandler: sandboxedSpawnHandlerFactory,
+				maxPhpInstances: 1,
+				spawnHandler: (requestHandler) =>
+					createPhpSpawnHandler({
+						getPrimaryPhp: () => requestHandler.getPrimaryPhp(),
+						phpCliHandler: phpSubprocessManagerPort
+							? createRemotePhpCliHandler(
+									phpSubprocessManagerPort
+								)
+							: undefined,
+					}),
 			});
 			this.__internal_setRequestHandler(requestHandler);
 

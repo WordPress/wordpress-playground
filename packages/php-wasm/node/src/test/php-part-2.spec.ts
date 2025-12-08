@@ -2,7 +2,7 @@ import {
 	__private__dont__use,
 	loadPHPRuntime,
 	PHP,
-	PHPProcessManager,
+	PHPRequestHandler,
 	sandboxedSpawnHandlerFactory,
 	setPhpIniEntries,
 	type SpawnedPHP,
@@ -1160,9 +1160,9 @@ describe('sandboxedSpawnHandlerFactory', () => {
 	const phpVersion = RecommendedPHPVersion;
 	let php: PHP;
 	let spawnedPhp: SpawnedPHP;
-	let processManager: PHPProcessManager;
+	let requestHandler: PHPRequestHandler;
 	beforeEach(async () => {
-		processManager = new PHPProcessManager({
+		requestHandler = new PHPRequestHandler({
 			phpFactory: async () => {
 				const php = new PHP(
 					await loadNodeRuntime(phpVersion as any, {})
@@ -1180,17 +1180,19 @@ describe('sandboxedSpawnHandlerFactory', () => {
 					'Hello, world!'
 				);
 				await php.setSpawnHandler(
-					sandboxedSpawnHandlerFactory(processManager)
+					sandboxedSpawnHandlerFactory(requestHandler)
 				);
 				return php;
 			},
 			maxPhpInstances: 5,
+			documentRoot: '/tmp/shared-test-directory',
+			absoluteUrl: 'http://localhost',
 		});
-		spawnedPhp = await processManager.acquirePHPInstance();
+		spawnedPhp = await requestHandler.processManager!.acquirePHPInstance();
 		php = spawnedPhp.php;
 	});
 	afterEach(async () => {
-		await processManager[Symbol.asyncDispose]();
+		await requestHandler[Symbol.asyncDispose]();
 		spawnedPhp?.reap();
 	});
 	it.each([

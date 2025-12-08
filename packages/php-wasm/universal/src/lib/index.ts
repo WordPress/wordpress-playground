@@ -24,11 +24,15 @@ export { HttpCookieStore } from './http-cookie-store';
 export type { IteratePhpFilesOptions as IterateFilesOptions } from './iterate-files';
 export { iteratePhpFiles as iterateFiles } from './iterate-files';
 export { writeFilesStreamToPhp } from './write-files-stream-to-php';
-export { PHPProcessManager } from './php-process-manager';
+export {
+	PHPProcessManager,
+	SingularPHPProcessManager,
+} from './php-process-manager';
 export type {
 	MaxPhpInstancesError,
 	PHPFactory,
 	PHPFactoryOptions,
+	PHPProcessManagerInterface,
 	ProcessManagerOptions,
 	SpawnedPHP,
 } from './php-process-manager';
@@ -84,7 +88,14 @@ export {
 
 export { isExitCode } from './is-exit-code';
 export { proxyFileSystem, isPathToSharedFS } from './proxy-file-system';
-export { sandboxedSpawnHandlerFactory } from './sandboxed-spawn-handler-factory';
+export {
+	createPhpSpawnHandler,
+	createProcessManagerCliHandler,
+	sandboxedSpawnHandlerFactory,
+	type PHPCliHandler,
+	type ProcessOptions,
+	type SpawnHandlerOptions,
+} from './sandboxed-spawn-handler-factory';
 
 export * from './api';
 export type { WithAPIState as WithIsReady } from './api';

@@ -3,13 +3,11 @@ import type {
 	FileNotFoundAction,
 	FileNotFoundGetActionCallback,
 	FileTree,
-	PHPProcessManager,
 	SpawnHandler,
 } from '@php-wasm/universal';
 import {
 	PHP,
 	PHPRequestHandler,
-	sandboxedSpawnHandlerFactory,
 	setPhpIniEntries,
 	withPHPIniValues,
 	writeFiles,
@@ -62,7 +60,13 @@ export interface BootRequestHandlerOptions {
 	 */
 	siteUrl: string;
 	documentRoot?: string;
-	spawnHandler?: (processManager: PHPProcessManager) => SpawnHandler;
+	/**
+	 * Factory function that creates a spawn handler for proc_open() calls.
+	 * Receives the PHPRequestHandler which provides access to:
+	 * - getPrimaryPhp(): For filesystem operations
+	 * - processManager: For multi-instance spawning (when maxPhpInstances > 1)
+	 */
+	spawnHandler?: (requestHandler: PHPRequestHandler) => SpawnHandler;
 	/**
 	 * PHP.ini entries to define before running any code. They'll
 	 * be used for all requests.
@@ -111,6 +115,12 @@ export interface BootRequestHandlerOptions {
 	 * the CookieStore interface.
 	 */
 	cookieStore?: CookieStore | false;
+
+	/**
+	 * The maximum number of PHP instances that can exist at
+	 * the same time. Passed to the PHPProcessManager constructor.
+	 */
+	maxPhpInstances?: number;
 }
 
 export type WordPressInstallMode =
@@ -354,7 +364,7 @@ async function assertValidDatabaseConnection(
 }
 
 export async function bootRequestHandler(options: BootRequestHandlerOptions) {
-	const spawnHandler = options.spawnHandler ?? sandboxedSpawnHandlerFactory;
+	const spawnHandler = options.spawnHandler;
 	async function createPhp(
 		requestHandler: PHPRequestHandler,
 		isPrimary: boolean
@@ -414,9 +424,7 @@ export async function bootRequestHandler(options: BootRequestHandlerOptions) {
 		// Spawn handler is responsible for spawning processes for all the
 		// `popen()`, `proc_open()` etc. calls.
 		if (spawnHandler) {
-			await php.setSpawnHandler(
-				spawnHandler(requestHandler.processManager)
-			);
+			await php.setSpawnHandler(spawnHandler(requestHandler));
 		}
 
 		// Rotate the PHP runtime periodically to avoid memory leak-related crashes.
@@ -442,6 +450,7 @@ export async function bootRequestHandler(options: BootRequestHandlerOptions) {
 		getFileNotFoundAction:
 			options.getFileNotFoundAction ?? getFileNotFoundActionForWordPress,
 		cookieStore: options.cookieStore,
+		maxPhpInstances: options.maxPhpInstances,
 	});
 
 	return requestHandler;

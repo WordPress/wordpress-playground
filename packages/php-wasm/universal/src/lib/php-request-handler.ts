@@ -10,8 +10,16 @@ import { normalizeHeaders } from './php';
 import { PHPResponse } from './php-response';
 import type { PHPRequest, PHPRunOptions } from './universal-php';
 import { encodeAsMultipart } from './encode-as-multipart';
-import type { PHPFactoryOptions, SpawnedPHP } from './php-process-manager';
-import { MaxPhpInstancesError, PHPProcessManager } from './php-process-manager';
+import type {
+	PHPFactoryOptions,
+	PHPProcessManagerInterface,
+	SpawnedPHP,
+} from './php-process-manager';
+import {
+	MaxPhpInstancesError,
+	PHPProcessManager,
+	SingularPHPProcessManager,
+} from './php-process-manager';
 import { HttpCookieStore } from './http-cookie-store';
 import mimeTypes from './mime-types.json';
 
@@ -84,35 +92,16 @@ export type PHPRequestHandlerFactoryArgs = PHPFactoryOptions & {
 	requestHandler: PHPRequestHandler;
 };
 
-export type PHPRequestHandlerConfiguration = BaseConfiguration &
-	(
-		| {
-				/**
-				 * PHPProcessManager is required because the request handler needs
-				 * to make a decision for each request.
-				 *
-				 * Static assets are served using the primary PHP's filesystem, even
-				 * when serving 100 static files concurrently. No new PHP interpreter
-				 * is ever created as there's no need for it.
-				 *
-				 * Dynamic PHP requests, however, require grabbing an available PHP
-				 * interpreter, and that's where the PHPProcessManager comes in.
-				 */
-				processManager: PHPProcessManager;
-		  }
-		| {
-				phpFactory: (
-					requestHandler: PHPRequestHandlerFactoryArgs
-				) => Promise<PHP>;
-				/**
-				 * The maximum number of PHP instances that can exist at
-				 * the same time.
-				 */
-				maxPhpInstances?: number;
-		  }
-	) & {
-		cookieStore?: CookieStore | false;
-	};
+export type PHPRequestHandlerConfiguration = BaseConfiguration & {
+	phpFactory: (requestHandler: PHPRequestHandlerFactoryArgs) => Promise<PHP>;
+	/**
+	 * The maximum number of PHP instances that can exist at
+	 * the same time.
+	 */
+	maxPhpInstances?: number;
+} & {
+	cookieStore?: CookieStore | false;
+};
 
 /**
  * Handles HTTP requests using PHP runtime as a backend.
@@ -178,7 +167,7 @@ export class PHPRequestHandler implements AsyncDisposable {
 	#ABSOLUTE_URL: string;
 	#cookieStore: CookieStore | false;
 	rewriteRules: RewriteRule[];
-	processManager: PHPProcessManager;
+	processManager: PHPProcessManagerInterface;
 	getFileNotFoundAction: FileNotFoundGetActionCallback;
 
 	/**
@@ -202,26 +191,28 @@ export class PHPRequestHandler implements AsyncDisposable {
 			getFileNotFoundAction = () => ({ type: '404' }),
 		} = config;
 
-		if ('processManager' in config) {
-			this.processManager = config.processManager;
+		const phpFactory = async (info: PHPFactoryOptions) => {
+			const php = await config.phpFactory!({
+				...info,
+				requestHandler: this,
+			});
+
+			// Always set managed PHP's cwd to the document root.
+			if (!php.isDir(documentRoot)) {
+				php.mkdir(documentRoot);
+			}
+			php.chdir(documentRoot);
+
+			// @TODO: Decouple PHP and request handler
+			(php as any).requestHandler = this;
+			return php;
+		};
+
+		if (config.maxPhpInstances === 1) {
+			this.processManager = new SingularPHPProcessManager({ phpFactory });
 		} else {
 			this.processManager = new PHPProcessManager({
-				phpFactory: async (info) => {
-					const php = await config.phpFactory!({
-						...info,
-						requestHandler: this,
-					});
-
-					// Always set managed PHP's cwd to the document root.
-					if (!php.isDir(documentRoot)) {
-						php.mkdir(documentRoot);
-					}
-					php.chdir(documentRoot);
-
-					// @TODO: Decouple PHP and request handler
-					(php as any).requestHandler = this;
-					return php;
-				},
+				phpFactory,
 				maxPhpInstances: config.maxPhpInstances,
 			});
 		}
@@ -245,8 +236,8 @@ export class PHPRequestHandler implements AsyncDisposable {
 		this.#PORT = url.port
 			? Number(url.port)
 			: url.protocol === 'https:'
-			? 443
-			: 80;
+				? 443
+				: 80;
 		this.#PROTOCOL = (url.protocol || '').replace(':', '');
 		const isNonStandardPort = this.#PORT !== 443 && this.#PORT !== 80;
 		this.#HOST = [
@@ -578,7 +569,7 @@ export class PHPRequestHandler implements AsyncDisposable {
 	): Promise<PHPResponse> {
 		let spawnedPHP: SpawnedPHP | undefined = undefined;
 		try {
-			spawnedPHP = await this.processManager!.acquirePHPInstance({
+			spawnedPHP = await this.processManager.acquirePHPInstance({
 				considerPrimary: true,
 			});
 		} catch (e) {

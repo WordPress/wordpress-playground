@@ -12,8 +12,8 @@ export interface SemaphoreOptions {
 }
 
 export class AcquireTimeoutError extends Error {
-	constructor() {
-		super('Acquiring lock timed out');
+	constructor(message = 'Acquiring lock timed out') {
+		super(message);
 	}
 }
 

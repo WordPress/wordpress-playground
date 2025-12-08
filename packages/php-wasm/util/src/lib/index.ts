@@ -10,7 +10,11 @@ export {
 	isParentOf,
 	ensureAbsolutePath,
 } from './paths';
-export { createSpawnHandler } from './create-spawn-handler';
+export {
+	createSpawnHandler,
+	ProcessApi,
+	type ProcessOptions,
+} from './create-spawn-handler';
 export { randomString } from './random-string';
 export { randomFilename } from './random-filename';
 export { splitShellCommand } from './split-shell-command';
