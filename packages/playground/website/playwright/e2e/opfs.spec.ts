@@ -351,8 +351,8 @@ test('should save site with custom name', async ({ website, browserName }) => {
 	// Verify the name also appears in the saved playgrounds overlay
 	await website.openSavedPlaygroundsOverlay();
 	await expect(
-		website.page.locator('[class*="siteRowName"]').first()
-	).toContainText(customName);
+		website.page.locator('[class*="siteRowName"]', { hasText: customName })
+	).toBeVisible();
 	await website.closeSavedPlaygroundsOverlay();
 });
 
