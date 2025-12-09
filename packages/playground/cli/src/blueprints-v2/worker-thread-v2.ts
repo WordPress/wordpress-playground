@@ -469,7 +469,8 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 				constants,
 				phpIniEntries,
 				cookieStore: false,
-				spawnHandler: sandboxedSpawnHandlerFactory,
+				spawnHandler: (getPHPInstance) =>
+					sandboxedSpawnHandlerFactory(getPHPInstance),
 			});
 			this.__internal_setRequestHandler(requestHandler);
 

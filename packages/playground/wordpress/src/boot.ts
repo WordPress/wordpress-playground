@@ -420,10 +420,10 @@ export async function bootRequestHandler(options: BootRequestHandlerOptions) {
 
 		// Spawn handler is responsible for spawning processes for all the
 		// `popen()`, `proc_open()` etc. calls.
-		if (spawnHandler) {
+		if (spawnHandler && requestHandler) {
 			await php.setSpawnHandler(
 				spawnHandler(() =>
-					requestHandler.processManager.acquirePHPInstance({
+					requestHandler.instanceManager.acquirePHPInstance({
 						considerPrimary: false,
 					})
 				)
