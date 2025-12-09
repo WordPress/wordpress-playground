@@ -50,6 +50,7 @@ export async function bootWordPressAndRequestHandler(
 export interface BootRequestHandlerOptions {
 	createPhpRuntime: (isPrimary?: boolean) => Promise<number>;
 	onPHPInstanceCreated?: PHPInstanceCreatedHook;
+	maxPhpInstances?: number;
 	/**
 	 * PHP SAPI name to be returned by get_sapi_name(). Overriding
 	 * it is useful for running programs that check for this value,
@@ -62,7 +63,7 @@ export interface BootRequestHandlerOptions {
 	 */
 	siteUrl: string;
 	documentRoot?: string;
-	spawnHandler?: (instanceManager: PHPInstanceManager) => SpawnHandler;
+	spawnHandler?: (instanceManager?: PHPInstanceManager) => SpawnHandler;
 	/**
 	 * PHP.ini entries to define before running any code. They'll
 	 * be used for all requests.
@@ -356,8 +357,8 @@ async function assertValidDatabaseConnection(
 export async function bootRequestHandler(options: BootRequestHandlerOptions) {
 	const spawnHandler = options.spawnHandler ?? sandboxedSpawnHandlerFactory;
 	async function createPhp(
-		requestHandler: PHPRequestHandler,
-		isPrimary: boolean
+		requestHandler?: PHPRequestHandler,
+		isPrimary = false
 	) {
 		const runtimeId = await options.createPhpRuntime(isPrimary);
 		const php = new PHP(runtimeId);
@@ -415,7 +416,7 @@ export async function bootRequestHandler(options: BootRequestHandlerOptions) {
 		// `popen()`, `proc_open()` etc. calls.
 		if (spawnHandler) {
 			await php.setSpawnHandler(
-				spawnHandler(requestHandler.processManager)
+				spawnHandler(requestHandler?.processManager)
 			);
 		}
 
@@ -434,14 +435,30 @@ export async function bootRequestHandler(options: BootRequestHandlerOptions) {
 	}
 
 	const requestHandler: PHPRequestHandler = new PHPRequestHandler({
-		phpFactory: async ({ isPrimary }) =>
-			createPhp(requestHandler, isPrimary),
 		documentRoot: options.documentRoot || '/wordpress',
 		absoluteUrl: options.siteUrl,
 		rewriteRules: wordPressRewriteRules,
 		getFileNotFoundAction:
 			options.getFileNotFoundAction ?? getFileNotFoundActionForWordPress,
 		cookieStore: options.cookieStore,
+
+		/**
+		 * If maxPhpInstances is 1, we use a single PHP instance for all requests.
+		 */
+		php:
+			options.maxPhpInstances === 1
+				? await createPhp(undefined, true)
+				: undefined,
+
+		/**
+		 * If maxPhpInstances is not 1, we use a PHPProcessManager that dynamically
+		 * spawns and reaps PHP instances as needed.
+		 */
+		phpFactory:
+			options.maxPhpInstances !== 1
+				? async ({ isPrimary }) => createPhp(requestHandler, isPrimary)
+				: (undefined as any),
+		maxPhpInstances: options.maxPhpInstances,
 	});
 
 	return requestHandler;

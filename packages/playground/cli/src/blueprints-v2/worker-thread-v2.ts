@@ -462,6 +462,7 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 						withXdebug,
 					});
 				},
+				maxPhpInstances: 1,
 				onPHPInstanceCreated,
 				sapiName: 'cli',
 				createFiles,

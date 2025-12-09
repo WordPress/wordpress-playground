@@ -1,5 +1,6 @@
 import { createSpawnHandler } from '@php-wasm/util';
 import type { PHPInstanceManager } from './php-instance-manager';
+import { logger } from '@php-wasm/logger';
 
 /**
  * An isomorphic proc_open() handler that implements typical shell in TypeScript
@@ -12,7 +13,7 @@ import type { PHPInstanceManager } from './php-instance-manager';
  * parser.
  */
 export function sandboxedSpawnHandlerFactory(
-	instanceManager: PHPInstanceManager
+	instanceManager?: PHPInstanceManager
 ) {
 	return createSpawnHandler(async function (args, processApi, options) {
 		processApi.notifySpawn();
@@ -60,6 +61,15 @@ export function sandboxedSpawnHandlerFactory(
 		if (!['php', 'ls', 'pwd'].includes(binaryName ?? '')) {
 			// 127 is the exit code "for command not found".
 			processApi.exit(127);
+			return;
+		}
+
+		if (!instanceManager) {
+			// 127 is the exit code "for command not found".
+			processApi.exit(127);
+			logger.warn(
+				'sandboxedSpawnHandlerFactory tried to spawn a PHP subprocess but was called without an instance manager'
+			);
 			return;
 		}
 

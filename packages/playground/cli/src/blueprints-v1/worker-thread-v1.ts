@@ -178,6 +178,7 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 						withXdebug,
 					});
 				},
+				maxPhpInstances: 1,
 				wordpressInstallMode,
 				wordPressZip:
 					wordPressZip !== undefined
@@ -281,6 +282,7 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 						withXdebug,
 					});
 				},
+				maxPhpInstances: 1,
 				onPHPInstanceCreated: async (php) => {
 					await mountResources(php, mountsBeforeWpInstall);
 					await mountResources(php, mountsAfterWpInstall);
