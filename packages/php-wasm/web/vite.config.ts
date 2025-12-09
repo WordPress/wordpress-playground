@@ -12,7 +12,7 @@ import viteGlobalExtensions from '../../vite-extensions/vite-global-extensions';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { getExternalModules } from '../../vite-extensions/vite-external-modules';
 
-export default defineConfig(({ command }) => {
+export default defineConfig(() => {
 	return {
 		cacheDir: '../../../node_modules/.vite/php-wasm',
 
