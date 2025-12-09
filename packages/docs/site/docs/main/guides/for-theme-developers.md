@@ -46,17 +46,13 @@ You can also load any theme from the WordPress themes directory by setting the [
 
 A theme stored in a GitHub repository can also be loaded in a Playground instance with Blueprints.
 
-In the `themeData` property of the [`installTheme` blueprint step](/blueprints/steps#InstallThemeStep), you can define a [`url` resource](/blueprints/steps/resources#urlreference) that points to the location of the `.zip` file containing the theme you want to load in the Playground instance.
+With the `themeData` property of the [`installTheme` blueprint step](/blueprints/steps#InstallThemeStep), you can define a [`git:directory` resource](/blueprints/steps/resources#gitdirectoryreference) that will build a theme from the files from a repository in the Playground instance.
 
-To avoid CORS issues, the Playground project provides a [GitHub proxy](https://playground.wordpress.net/proxy) that allows you to generate a `.zip` from a repository (or even a folder inside a repo) containing your or theme.
-
-:::tip
-[GitHub proxy](https://playground.wordpress.net/proxy) is an incredibly useful tool to load themes from GitHub repositories as it allows you to load a theme from a specific branch, a specific directory, a specific commit or a specific PR.
-
-If your theme is hosted on GitHub, you can automatically add preview buttons to your pull requests using the Playground PR Preview GitHub Action. This lets reviewers test your changes instantly without any setup. See [Adding PR Preview Buttons with GitHub Actions](/guides/github-action-pr-preview) for details.
+:::info
+For the past few months, the [GitHub proxy](https://playground.wordpress.net/proxy) was an incredibly useful tool to load themes from GitHub repositories, as it allows you to load a theme from a specific branch, a specific directory, a specific commit, or a specific PR. But with the recent improvements to Playground, this feature is no longer necessary. The GitHub Proxy will be discontinued soon, please update your blueprints to `git:directory` resource.
 :::
 
-For example the following `blueprint.json` installs a theme from a GitHub repository leveraging the https://github-proxy.com tool:
+For example the following `blueprint.json` installs a theme from a GitHub repository:
 
 ```json
 {
@@ -64,8 +60,10 @@ For example the following `blueprint.json` installs a theme from a GitHub reposi
 		{
 			"step": "installTheme",
 			"themeData": {
-				"resource": "url",
-				"url": "https://github-proxy.com/proxy/?repo=Automattic/themes&branch=trunk&directory=assembler"
+				"resource": "git:directory",
+				"url": "https://github.com/Automattic/themes",
+				"ref": "trunk",
+				"path": "assembler"
 			},
 			"options": {
 				"activate": true
@@ -75,7 +73,11 @@ For example the following `blueprint.json` installs a theme from a GitHub reposi
 }
 ```
 
-[<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](https://playground.wordpress.net/builder/builder.html#{%22steps%22:[{%22step%22:%22installTheme%22,%22themeData%22:{%22resource%22:%22url%22,%22url%22:%22https://github-proxy.com/proxy/?repo=Automattic/themes&branch=trunk&directory=assembler%22},%22options%22:{%22activate%22:true}}]})
+:::tip
+If your theme is hosted on GitHub, you can automatically add preview buttons to your pull requests using the Playground PR Preview GitHub Action. This lets reviewers test your changes instantly without any setup. See [Adding PR Preview Buttons with GitHub Actions](/guides/github-action-pr-preview) for details.
+:::
+
+[<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](https://playground.wordpress.net/#{%22steps%22:[{%22step%22:%22installTheme%22,%22themeData%22:{%22resource%22:%22git:directory%22,%22url%22:%22https://github.com/Automattic/themes%22,%22ref%22:%22trunk%22,%22path%22:%22assembler%22},%22options%22:{%22activate%22:true}}],%22$schema%22:%22https://playground.wordpress.net/blueprint-schema.json%22,%22meta%22:{%22title%22:%22Empty%20Blueprint%22,%22author%22:%22https://github.com/akirk/playground-step-library%22}})
 
 A blueprint can be passed to a Playground instance [in several ways](/blueprints/using-blueprints).
 
@@ -87,9 +89,9 @@ When providing a link to a WordPress Playground instance with a specific theme a
 
 Some useful tools and resources provided by the Playground project to work with blueprints are:
 
--   Check the [Blueprints Gallery](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) to explore real-world code examples of using WordPress Playground to launch a WordPress site with a variety of setups.
--   The [WordPress Playground Step Library](https://akirk.github.io/playground-step-library/#) tool provides a visual interface to drag or click the steps to create a blueprint for WordPress Playground. You can also create your own steps!
--   The [Blueprints builder](https://playground.wordpress.net/builder/builder.html) tool allows you edit your blueprint online and run it directly in a Playground instance.
+- Check the [Blueprints Gallery](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) to explore real-world code examples of using WordPress Playground to launch a WordPress site with a variety of setups.
+- The [WordPress Playground Step Library](https://akirk.github.io/playground-step-library/#) tool provides a visual interface to drag or click the steps to create a blueprint for WordPress Playground. You can also create your own steps!
+- The [Blueprints builder](https://playground.wordpress.net/builder/builder.html) tool allows you edit your blueprint online and run it directly in a Playground instance.
 
 :::
 
