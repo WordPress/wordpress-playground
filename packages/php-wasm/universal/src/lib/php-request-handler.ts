@@ -91,14 +91,6 @@ export type PHPRequestHandlerConfiguration = BaseConfiguration & {
 } & (
 		| {
 				/**
-				 * Provide a custom instance manager for advanced use cases.
-				 * Use SinglePHPInstanceManager for CLI contexts with a single PHP instance.
-				 * Use PHPProcessManager for web contexts with multiple concurrent instances.
-				 */
-				instanceManager: PHPInstanceManager;
-		  }
-		| {
-				/**
 				 * Provide a single PHP instance directly.
 				 * PHPRequestHandler will create a SinglePHPInstanceManager internally.
 				 * This is the simplest option for CLI contexts with a single PHP instance.
@@ -214,9 +206,7 @@ export class PHPRequestHandler implements AsyncDisposable {
 			getFileNotFoundAction = () => ({ type: '404' }),
 		} = config;
 
-		if ('instanceManager' in config) {
-			this.processManager = config.instanceManager;
-		} else if ('php' in config) {
+		if ('php' in config) {
 			const php = config.php;
 
 			// Always set managed PHP's cwd to the document root.
