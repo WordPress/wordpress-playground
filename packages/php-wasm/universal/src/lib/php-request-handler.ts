@@ -206,9 +206,7 @@ export class PHPRequestHandler implements AsyncDisposable {
 			getFileNotFoundAction = () => ({ type: '404' }),
 		} = config;
 
-		if ('php' in config) {
-			const php = config.php;
-
+		const setChroot = (php: PHP) => {
 			// Always set managed PHP's cwd to the document root.
 			if (!php.isDir(documentRoot)) {
 				php.mkdir(documentRoot);
@@ -217,8 +215,13 @@ export class PHPRequestHandler implements AsyncDisposable {
 
 			// @TODO: Decouple PHP and request handler
 			(php as any).requestHandler = this;
+		};
 
-			this.processManager = new SinglePHPInstanceManager({ php });
+		if ('php' in config) {
+			setChroot(config.php);
+			this.processManager = new SinglePHPInstanceManager({
+				php: config.php,
+			});
 		} else {
 			this.processManager = new PHPProcessManager({
 				phpFactory: async (info) => {
@@ -226,15 +229,7 @@ export class PHPRequestHandler implements AsyncDisposable {
 						...info,
 						requestHandler: this,
 					});
-
-					// Always set managed PHP's cwd to the document root.
-					if (!php.isDir(documentRoot)) {
-						php.mkdir(documentRoot);
-					}
-					php.chdir(documentRoot);
-
-					// @TODO: Decouple PHP and request handler
-					(php as any).requestHandler = this;
+					setChroot(php);
 					return php;
 				},
 				maxPhpInstances: config.maxPhpInstances,
