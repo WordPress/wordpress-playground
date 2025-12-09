@@ -8,11 +8,6 @@ export type PHPFactoryOptions = {
 
 export type PHPFactory = (options: PHPFactoryOptions) => Promise<PHP>;
 
-/**
- * @deprecated Use AcquiredPHP from './php-instance-manager' instead.
- */
-export type SpawnedPHP = AcquiredPHP;
-
 export interface ProcessManagerOptions {
 	/**
 	 * The maximum number of PHP instances that can exist at
@@ -74,14 +69,14 @@ export class MaxPhpInstancesError extends Error {
  */
 export class PHPProcessManager implements PHPInstanceManager {
 	private primaryPhp?: PHP;
-	private primaryPhpPromise?: Promise<SpawnedPHP>;
+	private primaryPhpPromise?: Promise<AcquiredPHP>;
 	private primaryIdle = true;
-	private nextInstance: Promise<SpawnedPHP> | null = null;
+	private nextInstance: Promise<AcquiredPHP> | null = null;
 	/**
 	 * All spawned PHP instances, including the primary PHP instance.
 	 * Used for bookkeeping and reaping all instances on dispose.
 	 */
-	private allInstances: Promise<SpawnedPHP>[] = [];
+	private allInstances: Promise<AcquiredPHP>[] = [];
 	private phpFactory?: PHPFactory;
 	private maxPhpInstances: number;
 	private semaphore: Semaphore;
@@ -148,7 +143,7 @@ export class PHPProcessManager implements PHPInstanceManager {
 		considerPrimary = false,
 	}: {
 		considerPrimary?: boolean;
-	} = {}): Promise<SpawnedPHP> {
+	} = {}): Promise<AcquiredPHP> {
 		/**
 		 * First and foremost, make sure we have the primary PHP instance in place.
 		 * We may not actually acquire it. We just need it to exist.
@@ -179,7 +174,7 @@ export class PHPProcessManager implements PHPInstanceManager {
 		 *   budget left to optimistically start spawning the next
 		 *   instance.
 		 */
-		const spawnedPhp =
+		const AcquiredPHP =
 			this.nextInstance || this.spawn({ isPrimary: false });
 
 		/**
@@ -192,7 +187,7 @@ export class PHPProcessManager implements PHPInstanceManager {
 		} else {
 			this.nextInstance = null;
 		}
-		return await spawnedPhp;
+		return await AcquiredPHP;
 	}
 
 	/**
@@ -201,7 +196,7 @@ export class PHPProcessManager implements PHPInstanceManager {
 	 * add the spawn promise to the allInstances array without waiting
 	 * for PHP to spawn.
 	 */
-	private spawn(factoryArgs: PHPFactoryOptions): Promise<SpawnedPHP> {
+	private spawn(factoryArgs: PHPFactoryOptions): Promise<AcquiredPHP> {
 		if (factoryArgs.isPrimary && this.allInstances.length > 0) {
 			throw new Error(
 				'Requested spawning a primary PHP instance when another primary instance already started spawning.'
@@ -231,7 +226,9 @@ export class PHPProcessManager implements PHPInstanceManager {
 	/**
 	 * Actually acquires the lock and spawns a new PHP instance.
 	 */
-	private async doSpawn(factoryArgs: PHPFactoryOptions): Promise<SpawnedPHP> {
+	private async doSpawn(
+		factoryArgs: PHPFactoryOptions
+	): Promise<AcquiredPHP> {
 		let release: () => void;
 		try {
 			release = await this.semaphore.acquire();
