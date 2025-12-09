@@ -6,7 +6,7 @@ import type {
 // TODO: Add these types to the fs-ext-extra-prebuilt package.
 import { fcntlSync, flockSync } from 'fs-ext-extra-prebuilt';
 
-export class FileLockManagerForWindows implements FileLockManager {
+export class FileLockManagerForPosix implements FileLockManager {
 	lockWholeFile(path: string, op: WholeFileLockOp): boolean {
 		const opType =
 			op.type === 'unlock'
