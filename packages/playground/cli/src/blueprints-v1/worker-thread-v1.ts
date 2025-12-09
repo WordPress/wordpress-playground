@@ -7,9 +7,8 @@ import {
 	consumeAPI,
 	consumeAPISync,
 	exposeAPI,
-	sandboxedSpawnHandlerFactory,
 } from '@php-wasm/universal';
-import { sprintf } from '@php-wasm/util';
+import { createSpawnHandler, sprintf } from '@php-wasm/util';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import {
 	type WordPressInstallMode,
@@ -21,6 +20,8 @@ import { jspi } from 'wasm-feature-detect';
 import { MessageChannel, type MessagePort, parentPort } from 'worker_threads';
 import { mountResources } from '../mounts';
 import { logger } from '@php-wasm/logger';
+import { spawn } from 'child_process';
+import { type SpawnedWorker, spawnWorkerThread } from '../run-cli';
 
 export interface Mount {
 	hostPath: string;
@@ -126,23 +127,24 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 		}
 	}
 
-	async bootAndSetUpInitialWorker({
-		siteUrl,
-		mountsBeforeWpInstall,
-		mountsAfterWpInstall,
-		phpVersion: php = RecommendedPHPVersion,
-		wordpressInstallMode,
-		wordPressZip,
-		sqliteIntegrationPluginZip,
-		firstProcessId,
-		processIdSpaceLength,
-		dataSqlPath,
-		followSymlinks,
-		trace,
-		internalCookieStore,
-		withXdebug,
-		nativeInternalDirPath,
-	}: PrimaryWorkerBootOptions) {
+	async bootAndSetUpInitialWorker(options: PrimaryWorkerBootOptions) {
+		const {
+			siteUrl,
+			mountsBeforeWpInstall,
+			mountsAfterWpInstall,
+			phpVersion: php = RecommendedPHPVersion,
+			wordpressInstallMode,
+			wordPressZip,
+			sqliteIntegrationPluginZip,
+			firstProcessId,
+			processIdSpaceLength,
+			dataSqlPath,
+			followSymlinks,
+			trace,
+			internalCookieStore,
+			withXdebug,
+			nativeInternalDirPath,
+		} = options;
 		if (this.booted) {
 			throw new Error('Playground already booted');
 		}
@@ -192,7 +194,7 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 						? new File(
 								[sqliteIntegrationPluginZip],
 								'sqlite-integration-plugin.zip'
-						  )
+							)
 						: undefined,
 				sapiName: 'cli',
 				createFiles: {
@@ -207,7 +209,75 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 				},
 				cookieStore: internalCookieStore ? undefined : false,
 				dataSqlPath,
-				spawnHandler: sandboxedSpawnHandlerFactory,
+				spawnHandler: () =>
+					createSpawnHandler(async (args, processApi, options) => {
+						console.log('primary worker', { args });
+						processApi.notifySpawn();
+						if (args[0] === 'exec') {
+							args.shift();
+						}
+
+						if (
+							args[0].endsWith('.php') ||
+							args[0].endsWith('.phar')
+						) {
+							args.unshift('php');
+						}
+
+						const binaryName = args[0].split('/').pop();
+						if (binaryName !== 'php') {
+							throw new Error(
+								`Unsupported binary: ${binaryName}. Only PHP is supported for now.`
+							);
+						}
+
+						const newPhpProcess = spawn(process.argv[0], args, {
+							...options,
+							stdio: ['pipe', 'pipe', 'pipe'],
+						});
+						const subPhpPort = await new Promise<MessagePort>(
+							(resolve, reject) => {
+								newPhpProcess.addListener(
+									'message',
+									(message: any) => {
+										if (
+											message.command ===
+											'worker-script-initialized'
+										) {
+											resolve(message.phpPort);
+										}
+									}
+								);
+								newPhpProcess.once('error', (e: Error) => {
+									reject(
+										new Error(
+											`Worker failed to initialize: ${e.message}`
+										)
+									);
+								});
+							}
+						);
+
+						const handler =
+							consumeAPI<PlaygroundCliBlueprintV1Worker>(
+								subPhpPort
+							);
+						handler.useFileLockManager(this.fileLockManager as any);
+						await handler.bootWorker({
+							phpVersion: php,
+							siteUrl,
+							mountsBeforeWpInstall,
+							mountsAfterWpInstall,
+							firstProcessId,
+							processIdSpaceLength,
+							followSymlinks,
+							trace,
+							nativeInternalDirPath,
+						});
+
+						handler.cli(['php', '-v']);
+						console.log(await handler.hello());
+					}),
 				async onPHPInstanceCreated(php) {
 					await mountResources(php, mountsBeforeWpInstall);
 					if (wordpressBooted) {
@@ -232,6 +302,10 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 			setAPIError(e as Error);
 			throw e;
 		}
+	}
+
+	async hello() {
+		return 'hello';
 	}
 
 	async bootWorker(args: WorkerBootOptions) {
@@ -291,7 +365,89 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 				},
 				sapiName: 'cli',
 				cookieStore: false,
-				spawnHandler: sandboxedSpawnHandlerFactory,
+				spawnHandler: () =>
+					createSpawnHandler(async (args, processApi) => {
+						console.log('secondary worker', { args });
+						if (args[0] === 'exec') {
+							args.shift();
+						}
+
+						if (
+							args[0].endsWith('.php') ||
+							args[0].endsWith('.phar')
+						) {
+							args.unshift('php');
+						}
+
+						const binaryName = args[0].split('/').pop();
+						if (binaryName !== 'php') {
+							throw new Error(
+								`Unsupported binary: ${binaryName}. Only PHP is supported for now.`
+							);
+						}
+
+						let cliCalled = false;
+						let spawnedWorker: SpawnedWorker | undefined =
+							undefined;
+						try {
+							spawnedWorker = await spawnWorkerThread('v1', {
+								onExit: () => {
+									if (cliCalled) {
+										// We're already handling the exit code using
+										// the cliResponse.exitCode promise.
+										return;
+									}
+									// The process died before we could call cli().
+									// Let's exit with an error code.
+									processApi.exit(1);
+								},
+							});
+						} catch (e) {
+							processApi.exit(1);
+							throw e;
+						}
+
+						const handler =
+							consumeAPI<PlaygroundCliBlueprintV1Worker>(
+								spawnedWorker.phpPort
+							);
+						handler.useFileLockManager(this.fileLockManager as any);
+						await handler.bootWorker({
+							phpVersion: phpVersion,
+							siteUrl,
+							mountsBeforeWpInstall,
+							mountsAfterWpInstall,
+							firstProcessId,
+							processIdSpaceLength,
+							followSymlinks,
+							trace,
+							nativeInternalDirPath,
+						});
+
+						processApi.notifySpawn();
+
+						const cliResponse = await handler.cli(args, {
+							env: process.env as Record<string, string>,
+						});
+						cliResponse.stdout.pipeTo(
+							new WritableStream({
+								write(chunk) {
+									processApi.stdout(chunk);
+								},
+							})
+						);
+						cliResponse.stderr.pipeTo(
+							new WritableStream({
+								write(chunk) {
+									processApi.stderr(chunk);
+								},
+							})
+						);
+						await cliResponse.exitCode.finally(async () => {
+							processApi.exit(await cliResponse.exitCode);
+						});
+						cliCalled = true;
+					}),
 			});
 			this.__internal_setRequestHandler(requestHandler);
 
@@ -330,3 +486,5 @@ parentPort?.postMessage(
 	},
 	[phpChannel.port2 as any]
 );
+
+console.log('Worker script initialized!');
