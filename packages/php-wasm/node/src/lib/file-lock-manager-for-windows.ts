@@ -116,7 +116,7 @@ export class FileLockManagerForWindows implements FileLockManager {
 	}
 
 	// TODO: Rename this to something clearer like releaseLockOnFileDescriptorClose
-	releaseLocksForProcessFd(pid: number, fd: number, path: string): void {
+	releaseLocksOnFdClose(pid: number, fd: number, path: string): void {
 		// TODO: Implement POSIX fcntl() semantics where a lock is released
 		// when any FD associated with the file is closed.
 	}

@@ -70,7 +70,7 @@ export type FileLockManager = {
 	 * @param path The path to the file to release locks for. This should be the path
 	 *             of the file in the underlying filesystem.
 	 */
-	releaseLocksForProcessFd: (pid: number, fd: number, path: string) => void;
+	releaseLocksOnFdClose: (pid: number, fd: number, path: string) => void;
 };
 
 export type RequestedRangeLock = Readonly<{

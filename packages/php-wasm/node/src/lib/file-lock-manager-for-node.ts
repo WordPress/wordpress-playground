@@ -116,12 +116,12 @@ export class FileLockManagerForNode implements FileLockManager {
 	 * @param fd The file descriptor to release locks for.
 	 * @param path The path to the file to release locks for.
 	 */
-	releaseLocksForProcessFd(pid: number, fd: number, nativePath: string) {
+	releaseLocksOnFdClose(pid: number, fd: number, nativePath: string) {
 		const lock = this.locks.get(nativePath);
 		if (!lock) {
 			return;
 		}
-		lock.releaseLocksForProcessFd(pid, fd);
+		lock.releaseLocksOnFdClose(pid, fd);
 		this.forgetPathIfUnlocked(nativePath);
 	}
 
@@ -400,7 +400,7 @@ export class FileLock {
 	 * @param pid The process ID to release locks for.
 	 * @param fd The file descriptor to release locks for.
 	 */
-	releaseLocksForProcessFd(pid: Pid, fd: Fd) {
+	releaseLocksOnFdClose(pid: Pid, fd: Fd) {
 		// Closing an fd for a file releases all fcntl locks for that file by the process.
 		// POSIX Ref: https://pubs.opengroup.org/onlinepubs/9799919799/functions/fcntl.html
 		//   "Closing a file descriptor shall release all locks held by the process on the file

@@ -4,7 +4,7 @@ import type {
 	RequestedRangeLock,
 } from '@php-wasm/universal';
 // TODO: Add these types to the fs-ext-extra-prebuilt package.
-import { fcntlSync, flockSync, constants } from 'fs-ext-extra-prebuilt';
+import { fcntlSync, flockSync } from 'fs-ext-extra-prebuilt';
 
 export class FileLockManagerForWindows implements FileLockManager {
 	lockWholeFile(path: string, op: WholeFileLockOp): boolean {
@@ -78,7 +78,7 @@ export class FileLockManagerForWindows implements FileLockManager {
 	}
 
 	// TODO: Rename this to something clearer like releaseLockOnFileDescriptorClose
-	releaseLocksForProcessFd(pid: number, fd: number, path: string): void {
+	releaseLocksOnFdClose(pid: number, fd: number, path: string): void {
 		// TODO: Implement POSIX fcntl() semantics where a lock is released
 		// when any FD associated with the file is closed.
 	}

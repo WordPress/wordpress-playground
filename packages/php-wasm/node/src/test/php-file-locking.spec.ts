@@ -1425,7 +1425,7 @@ error_log = ${errorLogPath}
 				findFirstConflictingByteRangeLock: vi
 					.fn()
 					.mockReturnValue(undefined),
-				releaseLocksForProcessFd: vi.fn().mockReturnValue(undefined),
+				releaseLocksOnFdClose: vi.fn().mockReturnValue(undefined),
 				releaseLocksForProcess: vi.fn().mockReturnValue(undefined),
 			};
 		}

@@ -857,7 +857,7 @@ export function bindUserSpace(
 				js_wasm_trace('fd_close(%d) %s release locks', fd, vfsPath);
 				const nativeFilePath =
 					locking.get_native_path_from_vfs_path(vfsPath);
-				fileLockManager.releaseLocksForProcessFd(
+				fileLockManager.releaseLocksOnFdClose(
 					pid,
 					// TODO: Say why
 					(fdStream as any).nfd as number,
