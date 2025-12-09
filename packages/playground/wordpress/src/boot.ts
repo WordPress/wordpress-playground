@@ -3,7 +3,7 @@ import type {
 	FileNotFoundAction,
 	FileNotFoundGetActionCallback,
 	FileTree,
-	PHPProcessManager,
+	PHPInstanceManager,
 	SpawnHandler,
 } from '@php-wasm/universal';
 import {
@@ -62,7 +62,7 @@ export interface BootRequestHandlerOptions {
 	 */
 	siteUrl: string;
 	documentRoot?: string;
-	spawnHandler?: (processManager: PHPProcessManager) => SpawnHandler;
+	spawnHandler?: (instanceManager: PHPInstanceManager) => SpawnHandler;
 	/**
 	 * PHP.ini entries to define before running any code. They'll
 	 * be used for all requests.
