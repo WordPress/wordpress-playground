@@ -33,7 +33,7 @@ import path from 'path';
 import { rootCertificates } from 'tls';
 import { MessageChannel, type MessagePort, parentPort } from 'worker_threads';
 import { jspi } from 'wasm-feature-detect';
-import { type RunCLIArgs, spawnWorkerThread } from '../run-cli';
+import { spawnWorkerThread, type RunCLIArgs } from '../run-cli';
 import type {
 	PhpIniOptions,
 	PHPInstanceCreatedHook,
@@ -413,25 +413,20 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 		}
 	}
 
-	async bootRequestHandler(
-		options: SecondaryWorkerBootArgs & {
-			onPHPInstanceCreated?: PHPInstanceCreatedHook;
-		}
-	) {
-		const {
-			siteUrl,
-			allow,
-			phpVersion,
-			createFiles,
-			constants,
-			phpIniEntries,
-			firstProcessId,
-			processIdSpaceLength,
-			trace,
-			nativeInternalDirPath,
-			withXdebug,
-			onPHPInstanceCreated,
-		} = options;
+	async bootRequestHandler({
+		siteUrl,
+		allow,
+		phpVersion,
+		createFiles,
+		constants,
+		phpIniEntries,
+		firstProcessId,
+		processIdSpaceLength,
+		trace,
+		nativeInternalDirPath,
+		withXdebug,
+		onPHPInstanceCreated,
+	}: WorkerBootRequestHandlerOptions) {
 		if (this.booted) {
 			throw new Error('Playground already booted');
 		}
@@ -476,7 +471,22 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 				cookieStore: false,
 				spawnHandler: () =>
 					sandboxedSpawnHandlerFactory(() =>
-						createPHPWorker(options, this.fileLockManager!)
+						createPHPWorker(
+							{
+								siteUrl,
+								allow,
+								phpVersion,
+								createFiles,
+								constants,
+								phpIniEntries,
+								firstProcessId,
+								processIdSpaceLength,
+								trace,
+								nativeInternalDirPath,
+								withXdebug,
+							},
+							this.fileLockManager!
+						)
 					),
 			});
 			this.__internal_setRequestHandler(requestHandler);
@@ -499,7 +509,7 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 
 /**
  * Spawns a new PHP process to be used in the PHP spawn handler (in proc_open() etc. calls).
- * It boots from this worker-thread-v2.ts file, but is a separate process.
+ * It boots from this worker-thread-v1.ts file, but is a separate process.
  *
  * We explicitly avoid using PHPProcessManager.acquirePHPInstance() here.
  *
