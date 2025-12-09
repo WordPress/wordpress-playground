@@ -1,5 +1,5 @@
 import { writeFileSync, unlinkSync } from 'fs';
-import { FileLockManagerForNode } from '../lib/file-lock-manager-for-node';
+import { FileLockManagerForNode } from '../lib';
 import { fork } from 'child_process';
 import type { ChildProcess } from 'child_process';
 import { join } from 'path';

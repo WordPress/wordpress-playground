@@ -1,3 +1,7 @@
+export type Path = string;
+export type Pid = number;
+export type Fd = number;
+
 /**
  * This is an interface used to abstract byte range locking like fcntl()
  * and whole-file locking like flock().
@@ -14,7 +18,7 @@ export type FileLockManager = {
 	 * @param op - The operation to perform, including 'shared', 'exclusive', or 'unlock'.
 	 * @returns A promise for a boolean value.
 	 */
-	lockWholeFile: (path: string, op: WholeFileLockOp) => boolean;
+	lockWholeFile: (path: Path, op: WholeFileLockOp) => boolean;
 
 	/**
 	 * Update the lock on a byte range of a file.
@@ -31,7 +35,7 @@ export type FileLockManager = {
 	 *          When unlocking: Always true.
 	 */
 	lockFileByteRange: (
-		path: string,
+		path: Path,
 		requestedLock: RequestedRangeLock,
 		waitForLock: boolean
 	) => boolean;
@@ -49,7 +53,7 @@ export type FileLockManager = {
 	 *          or undefined if there is no conflict.
 	 */
 	findFirstConflictingByteRangeLock: (
-		path: string,
+		path: Path,
 		desiredLock: RequestedRangeLock
 	) => Omit<RequestedRangeLock, 'fd'> | undefined;
 
@@ -70,7 +74,7 @@ export type FileLockManager = {
 	 * @param path The path to the file to release locks for. This should be the path
 	 *             of the file in the underlying filesystem.
 	 */
-	releaseLocksOnFdClose: (pid: number, fd: number, path: string) => void;
+	releaseLocksOnFdClose: (pid: number, fd: number, path: Path) => void;
 };
 
 export type RequestedRangeLock = Readonly<{
@@ -96,9 +100,6 @@ export type RequestedRangeLock = Readonly<{
 export type WholeFileLock = Readonly<
 	WholeFileLock_Exclusive | WholeFileLock_Shared | WholeFileLock_Unlocked
 >;
-
-export type Pid = number;
-export type Fd = number;
 
 export type WholeFileLock_Exclusive = {
 	type: 'exclusive';

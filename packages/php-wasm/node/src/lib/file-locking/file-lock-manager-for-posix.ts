@@ -4,12 +4,15 @@ import type {
 	RequestedRangeLock,
 	Pid,
 	Fd,
+	Path,
 } from '@php-wasm/universal';
-// TODO: Add these types to the fs-ext-extra-prebuilt package.
 import { fcntlSync, flockSync } from 'fs-ext-extra-prebuilt';
+import { MAX_64BIT_OFFSET } from './constants';
 
 export class FileLockManagerForPosix implements FileLockManager {
+	// TODO: Move path of whole file lock into leaf. It is never used for lookup.
 	wholeFileLockMap = new Map<string, Map<Pid, Map<Fd, WholeFileLockOp>>>();
+	rangeLockedFds = new Map<Pid, Map<Path, Set<Fd>>>();
 
 	lockWholeFile(path: string, op: WholeFileLockOp): boolean {
 		const opType =
@@ -55,6 +58,19 @@ export class FileLockManagerForPosix implements FileLockManager {
 		const fcntlCmd = waitForLock ? 'setlkw' : 'setlk';
 		try {
 			fcntlSync(op.fd, fcntlCmd);
+
+			// Remember that we have seen range locks for this PID and FD.
+			// It should be enough to release all locks with a single fcntl() call
+			// to unlock the entire file range when the FD is closed or the process exits.
+			if (!this.rangeLockedFds.has(op.pid)) {
+				this.rangeLockedFds.set(op.pid, new Map());
+			}
+			const pidMap = this.rangeLockedFds.get(op.pid)!;
+			if (!pidMap.has(path)) {
+				pidMap.set(path, new Set());
+			}
+			pidMap.get(path)!.add(op.fd);
+
 			return true;
 		} catch {
 			// TODO: Catch and report errors unrelated to fcntl() denials.
@@ -106,35 +122,33 @@ export class FileLockManagerForPosix implements FileLockManager {
 			pidMap.delete(targetPid);
 		}
 
-		// TODO: Implement tracking of range locks held by a process and release them.
-	}
-
-	// TODO: Rename this to something clearer like releaseLockOnFileDescriptorClose
-	releaseLocksOnFdClose(
-		targetPid: number,
-		targetFd: number,
-		targetPath: string
-	): void {
-		const wholeFilePidMap = this.wholeFileLockMap.get(targetPath);
-		const wholeFilePidFdMap = wholeFilePidMap?.get(targetPid);
-		const wholeFileLock = wholeFilePidFdMap?.get(targetFd);
-
-		if (wholeFileLock) {
-			this.lockWholeFile(targetPath, {
-				...wholeFileLock,
-				type: 'unlock',
-			});
-
-			wholeFilePidFdMap?.delete(targetFd);
-			if (wholeFilePidFdMap?.size === 0) {
-				wholeFilePidMap?.delete(targetPid);
-			}
-			if (wholeFilePidMap?.size === 0) {
-				this.wholeFileLockMap.delete(targetPath);
+		for (const [path, fdSet] of this.rangeLockedFds.get(targetPid) ?? []) {
+			for (const fd of fdSet) {
+				/*
+				 * fcntl() lets us request to unlock the entire byte range for this process,
+				 * so we do that instead of tracking and unlocking specific ranges.
+				 * NOTE: Actually, the native OS is not aware of the php-wasm process ID,
+				 * but since we track which FDs are associated with each process,
+				 * we can simply unlock for all FDs associated with the php-wasm process.
+				 */
+				this.lockFileByteRange(
+					path,
+					{
+						pid: targetPid,
+						fd,
+						type: 'unlocked',
+						start: 0n,
+						end: MAX_64BIT_OFFSET,
+					},
+					false
+				);
 			}
 		}
+		this.rangeLockedFds.delete(targetPid);
+	}
 
-		// TODO: Implement POSIX fcntl() semantics where a lock is released
-		// when any FD associated with the file is closed.
+	releaseLocksOnFdClose(): void {
+		// Do nothing because the native OS is responsible for releasing
+		// locks when the FD is closed.
 	}
 }

@@ -56,6 +56,9 @@ export class FileLockManagerForWindows implements FileLockManager {
 		const lengthLow = Number(op.end & 0xffffffffn);
 		const lengthHigh = Number((op.end >> 32n) & 0xffffffffn);
 
+		// TODO: Track locked ranges
+		// TODO: Make sure zero length ranges are treated as covering the entire remaining range.
+
 		// TODO: Add exception handling for Sync calls.
 		if (op.type === 'unlocked') {
 			return unlockFileExSync(
