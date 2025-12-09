@@ -13,6 +13,7 @@ import { encodeAsMultipart } from './encode-as-multipart';
 import type { PHPFactoryOptions } from './php-process-manager';
 import { MaxPhpInstancesError, PHPProcessManager } from './php-process-manager';
 import type { PHPInstanceManager, AcquiredPHP } from './php-instance-manager';
+import { SinglePHPInstanceManager } from './single-php-instance-manager';
 import { HttpCookieStore } from './http-cookie-store';
 import mimeTypes from './mime-types.json';
 
@@ -95,6 +96,14 @@ export type PHPRequestHandlerConfiguration = BaseConfiguration & {
 				 * Use PHPProcessManager for web contexts with multiple concurrent instances.
 				 */
 				instanceManager: PHPInstanceManager;
+		  }
+		| {
+				/**
+				 * Provide a single PHP instance directly.
+				 * PHPRequestHandler will create a SinglePHPInstanceManager internally.
+				 * This is the simplest option for CLI contexts with a single PHP instance.
+				 */
+				php: PHP;
 		  }
 		| {
 				/**
@@ -207,6 +216,19 @@ export class PHPRequestHandler implements AsyncDisposable {
 
 		if ('instanceManager' in config) {
 			this.processManager = config.instanceManager;
+		} else if ('php' in config) {
+			const php = config.php;
+
+			// Always set managed PHP's cwd to the document root.
+			if (!php.isDir(documentRoot)) {
+				php.mkdir(documentRoot);
+			}
+			php.chdir(documentRoot);
+
+			// @TODO: Decouple PHP and request handler
+			(php as any).requestHandler = this;
+
+			this.processManager = new SinglePHPInstanceManager({ php });
 		} else {
 			this.processManager = new PHPProcessManager({
 				phpFactory: async (info) => {
