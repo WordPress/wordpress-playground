@@ -1,5 +1,7 @@
 import { createSpawnHandler } from '@php-wasm/util';
-import type { PHPProcessManager } from './php-process-manager';
+import type { PHP } from './php';
+import type { PHPWorker } from './php-worker';
+import type { Remote } from './comlink-sync';
 
 /**
  * An isomorphic proc_open() handler that implements typical shell in TypeScript
@@ -12,7 +14,10 @@ import type { PHPProcessManager } from './php-process-manager';
  * parser.
  */
 export function sandboxedSpawnHandlerFactory(
-	processManager: PHPProcessManager
+	getPHPInstance: () => Promise<{
+		php: PHP | Remote<PHPWorker>;
+		reap: () => void;
+	}>
 ) {
 	return createSpawnHandler(async function (args, processApi, options) {
 		processApi.notifySpawn();
@@ -63,16 +68,14 @@ export function sandboxedSpawnHandlerFactory(
 			return;
 		}
 
-		const { php, reap } = await processManager.acquirePHPInstance({
-			considerPrimary: false,
-		});
+		const { php, reap } = await getPHPInstance();
 
 		try {
 			if (options.cwd) {
-				php.chdir(options.cwd as string);
+				await php.chdir(options.cwd as string);
 			}
 
-			const cwd = php.cwd();
+			const cwd = await php.cwd();
 			switch (binaryName) {
 				case 'php': {
 					// Figure out more about setting env, putenv(), etc.
@@ -105,7 +108,7 @@ export function sandboxedSpawnHandlerFactory(
 					break;
 				}
 				case 'ls': {
-					const files = php.listFiles(args[1] ?? cwd);
+					const files = await php.listFiles(args[1] ?? cwd);
 					for (const file of files) {
 						processApi.stdout(file + '\n');
 					}

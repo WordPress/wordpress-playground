@@ -1159,7 +1159,7 @@ async function spawnWorkerThreads(
  */
 export function spawnWorkerThread(
 	workerType: 'v1' | 'v2',
-	{ onExit }: { onExit: (code: number) => void }
+	{ onExit }: { onExit?: (code: number) => void } = {}
 ) {
 	/**
 	 * When running the CLI from source via `node cli.ts`, the Vite-provided
@@ -1199,7 +1199,16 @@ export function spawnWorkerThread(
 			);
 			reject(error);
 		});
-		worker.once('exit', onExit);
+		let spawned = false;
+		worker.once('spawn', () => {
+			spawned = true;
+		});
+		worker.once('exit', (code) => {
+			if (!spawned) {
+				reject(new Error(`Worker exited before spawning: ${code}`));
+			}
+			onExit?.(code);
+		});
 	});
 }
 
