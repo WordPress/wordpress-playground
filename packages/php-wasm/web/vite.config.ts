@@ -8,11 +8,13 @@ import { viteTsConfigPaths } from '../../vite-extensions/vite-ts-config-paths';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { viteIgnoreImports } from '../../vite-extensions/vite-ignore-imports';
 // eslint-disable-next-line @nx/enforce-module-boundaries
+import { vitePreserveLoadersImports } from '../../vite-extensions/vite-preserve-loaders-imports';
+// eslint-disable-next-line @nx/enforce-module-boundaries
 import viteGlobalExtensions from '../../vite-extensions/vite-global-extensions';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { getExternalModules } from '../../vite-extensions/vite-external-modules';
 
-export default defineConfig(() => {
+export default defineConfig(({}) => {
 	return {
 		cacheDir: '../../../node_modules/.vite/php-wasm',
 
@@ -28,93 +30,44 @@ export default defineConfig(() => {
 			viteIgnoreImports({
 				extensions: ['wasm', 'so', 'dat'],
 			}),
-			/**
-			 * Vite can't extract static asset in the library mode:
-			 * https://github.com/vitejs/vite/issues/3295
-			 *
-			 * This workaround replaces the actual php_5_6.js modules paths used
-			 * in the dev mode with their filenames. Then, the filenames are marked
-			 * as external further down in this config. As a result, the final
-			 * bundle contains literal `import('php_5_6.js')` and
-			 * `import('php_5_6.wasm')` statements which allows the consumers to use
-			 * their own loaders.
-			 *
-			 * This keeps the dev mode working AND avoids inlining 5mb of
-			 * wasm via base64 in the final bundle.
-			 */
-			{
-				name: 'preserve-php-loaders-imports',
-
-				resolveDynamicImport(specifier): string | void {
-					if (
-						command === 'build' &&
-						typeof specifier === 'string' &&
-						specifier.match(/php_\d_\d\.js$/)
-					) {
-						/**
-						 * The ../ is weird but necessary to make the final build say
-						 * import("./php/jspi/php_8_2.js")
-						 * and not
-						 * import("php/jspi/php_8_2.js")
-						 *
-						 * The slice(-3) will ensure the 'php/jspi/'
-						 * portion of the path is preserved.
-						 */
-						return '../' + specifier.split('/').slice(-3).join('/');
-					}
+			vitePreserveLoadersImports([
+				{
+					regex: /php_\d_\d\.js$/,
+					/*
+					 * ../ lifts the file up to the dist entryRoot
+					 * web/src/lib/get-php-loader-module.ts > web/src/get-php-loader-module.ts
+					 *
+					 * slice(-3) strips the `public` directory from the path
+					 * web/public/php/jspi/php_8_4.js > ./web/php/jspi/php_8_4.js
+					 */
+					transform: (specifier) =>
+						`../${specifier.split('/').slice(-3).join('/')}`,
 				},
-			},
-			{
-				name: 'preserve-data-loaders-imports',
-
-				resolveDynamicImport(specifier): string | void {
-					if (
-						command === 'build' &&
-						typeof specifier === 'string' &&
-						specifier.match(/icu\.dat$/)
-					) {
-						/**
-						 * The ../../../ is weird but necessary to make the final build say
-						 * import("./shared/icu.dat")
-						 * and not
-						 * import("shared/icu.dat")
-						 *
-						 * The slice(-2) will ensure the 'shared/'
-						 * portion of the path is preserved.
-						 */
-						return (
-							'../../../' +
-							specifier.split('/').slice(-2).join('/')
-						);
-					}
+				{
+					regex: /intl\.so$/,
+					/*
+					 * ../../../ lifts the file up to the dist entryRoot
+					 * web/src/lib/extensions/intl/get-intl-loader-module.ts > web/src/get-intl-loader-module.ts
+					 *
+					 * slice(-6) strips the `public` directory from the path
+					 * web/public/php/jspi/extensions/8_4/intl/intl.so > ./web/php/jspi/extensions/8_4/intl/intl.so
+					 */
+					transform: (specifier) =>
+						`../../../${specifier.split('/').slice(-6).join('/')}`,
 				},
-			},
-			{
-				name: 'preserve-extension-loaders-imports',
-
-				resolveDynamicImport(specifier): string | void {
-					if (
-						command === 'build' &&
-						typeof specifier === 'string' &&
-						specifier.match(/intl\.so$/)
-					) {
-						/**
-						 * The ../../../ is weird but necessary to make the final build say
-						 * import("./php/{mode}/extensions/intl/{php_version}/intl.so")
-						 * and not
-						 * import("php/{mode}/extensions/intl/{php_version}/intl.so")
-						 *
-						 * The slice(-6) will ensure the 'php/{mode}/extensions/intl/{php_version}'
-						 * portion of the path is preserved.
-						 */
-						return (
-							'../../../' +
-							specifier.split('/').slice(-6).join('/')
-						);
-					}
+				{
+					regex: /icu\.dat$/,
+					/*
+					 * ../../../ lifts the file up to the dist entryRoot
+					 * web/src/lib/extensions/intl/with-intl.ts > web/src/with-intl.ts
+					 *
+					 * slice(-2) strips the `public` directory from the path
+					 * web/public/shared/icu.dat > ./web/shared/icu.dat
+					 */
+					transform: (specifier) =>
+						`../../../${specifier.split('/').slice(-2).join('/')}`,
 				},
-			},
-
+			]),
 			...viteGlobalExtensions,
 		],
 
