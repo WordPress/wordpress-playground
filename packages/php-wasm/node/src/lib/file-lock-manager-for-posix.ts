@@ -2,11 +2,15 @@ import type {
 	FileLockManager,
 	WholeFileLockOp,
 	RequestedRangeLock,
+	Pid,
+	Fd,
 } from '@php-wasm/universal';
 // TODO: Add these types to the fs-ext-extra-prebuilt package.
 import { fcntlSync, flockSync } from 'fs-ext-extra-prebuilt';
 
 export class FileLockManagerForPosix implements FileLockManager {
+	wholeFileLockMap = new Map<string, Map<Pid, Map<Fd, WholeFileLockOp>>>();
+
 	lockWholeFile(path: string, op: WholeFileLockOp): boolean {
 		const opType =
 			op.type === 'unlock'
@@ -21,6 +25,21 @@ export class FileLockManagerForPosix implements FileLockManager {
 
 		try {
 			flockSync(op.fd, opType);
+
+			// Remember lock so we can release them
+			// when the process exits or the file descriptor is closed.
+			if (op.type === 'unlock') {
+				this.wholeFileLockMap.get(path)?.get(op.pid)?.delete(op.fd);
+			} else {
+				if (!this.wholeFileLockMap.has(path)) {
+					this.wholeFileLockMap.set(path, new Map());
+				}
+				if (!this.wholeFileLockMap.get(path)!.has(op.pid)) {
+					this.wholeFileLockMap.get(path)!.set(op.pid, new Map());
+				}
+				this.wholeFileLockMap.get(path)!.get(op.pid)!.set(op.fd, op);
+			}
+
 			return true;
 		} catch {
 			// TODO: Catch and report errors unrelated to flock() denials.
@@ -73,12 +92,48 @@ export class FileLockManagerForPosix implements FileLockManager {
 		};
 	}
 
-	releaseLocksForProcess(pid: number): void {
-		// TODO: Implement tracking of locks held by a process and release them.
+	releaseLocksForProcess(targetPid: number): void {
+		for (const [path, pidMap] of this.wholeFileLockMap.entries()) {
+			const fdMap = pidMap.get(targetPid);
+			if (!fdMap) {
+				continue;
+			}
+
+			for (const op of fdMap.values()) {
+				this.lockWholeFile(path, { ...op, type: 'unlock' });
+			}
+
+			pidMap.delete(targetPid);
+		}
+
+		// TODO: Implement tracking of range locks held by a process and release them.
 	}
 
 	// TODO: Rename this to something clearer like releaseLockOnFileDescriptorClose
-	releaseLocksOnFdClose(pid: number, fd: number, path: string): void {
+	releaseLocksOnFdClose(
+		targetPid: number,
+		targetFd: number,
+		targetPath: string
+	): void {
+		const wholeFilePidMap = this.wholeFileLockMap.get(targetPath);
+		const wholeFilePidFdMap = wholeFilePidMap?.get(targetPid);
+		const wholeFileLock = wholeFilePidFdMap?.get(targetFd);
+
+		if (wholeFileLock) {
+			this.lockWholeFile(targetPath, {
+				...wholeFileLock,
+				type: 'unlock',
+			});
+
+			wholeFilePidFdMap?.delete(targetFd);
+			if (wholeFilePidFdMap?.size === 0) {
+				wholeFilePidMap?.delete(targetPid);
+			}
+			if (wholeFilePidMap?.size === 0) {
+				this.wholeFileLockMap.delete(targetPath);
+			}
+		}
+
 		// TODO: Implement POSIX fcntl() semantics where a lock is released
 		// when any FD associated with the file is closed.
 	}
