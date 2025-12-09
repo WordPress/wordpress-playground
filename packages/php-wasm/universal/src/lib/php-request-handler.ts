@@ -84,35 +84,16 @@ export type PHPRequestHandlerFactoryArgs = PHPFactoryOptions & {
 	requestHandler: PHPRequestHandler;
 };
 
-export type PHPRequestHandlerConfiguration = BaseConfiguration &
-	(
-		| {
-				/**
-				 * PHPProcessManager is required because the request handler needs
-				 * to make a decision for each request.
-				 *
-				 * Static assets are served using the primary PHP's filesystem, even
-				 * when serving 100 static files concurrently. No new PHP interpreter
-				 * is ever created as there's no need for it.
-				 *
-				 * Dynamic PHP requests, however, require grabbing an available PHP
-				 * interpreter, and that's where the PHPProcessManager comes in.
-				 */
-				processManager: PHPProcessManager;
-		  }
-		| {
-				phpFactory: (
-					requestHandler: PHPRequestHandlerFactoryArgs
-				) => Promise<PHP>;
-				/**
-				 * The maximum number of PHP instances that can exist at
-				 * the same time.
-				 */
-				maxPhpInstances?: number;
-		  }
-	) & {
-		cookieStore?: CookieStore | false;
-	};
+export type PHPRequestHandlerConfiguration = BaseConfiguration & {
+	phpFactory: (requestHandler: PHPRequestHandlerFactoryArgs) => Promise<PHP>;
+	/**
+	 * The maximum number of PHP instances that can exist at
+	 * the same time.
+	 */
+	maxPhpInstances?: number;
+
+	cookieStore?: CookieStore | false;
+};
 
 /**
  * Handles HTTP requests using PHP runtime as a backend.
@@ -202,29 +183,25 @@ export class PHPRequestHandler implements AsyncDisposable {
 			getFileNotFoundAction = () => ({ type: '404' }),
 		} = config;
 
-		if ('processManager' in config) {
-			this.processManager = config.processManager;
-		} else {
-			this.processManager = new PHPProcessManager({
-				phpFactory: async (info) => {
-					const php = await config.phpFactory!({
-						...info,
-						requestHandler: this,
-					});
+		this.processManager = new PHPProcessManager({
+			phpFactory: async (info) => {
+				const php = await config.phpFactory!({
+					...info,
+					requestHandler: this,
+				});
 
-					// Always set managed PHP's cwd to the document root.
-					if (!php.isDir(documentRoot)) {
-						php.mkdir(documentRoot);
-					}
-					php.chdir(documentRoot);
+				// Always set managed PHP's cwd to the document root.
+				if (!php.isDir(documentRoot)) {
+					php.mkdir(documentRoot);
+				}
+				php.chdir(documentRoot);
 
-					// @TODO: Decouple PHP and request handler
-					(php as any).requestHandler = this;
-					return php;
-				},
-				maxPhpInstances: config.maxPhpInstances,
-			});
-		}
+				// @TODO: Decouple PHP and request handler
+				(php as any).requestHandler = this;
+				return php;
+			},
+			maxPhpInstances: config.maxPhpInstances,
+		});
 
 		/**
 		 * By default, config.cookieStore is undefined, so we use the
@@ -245,8 +222,8 @@ export class PHPRequestHandler implements AsyncDisposable {
 		this.#PORT = url.port
 			? Number(url.port)
 			: url.protocol === 'https:'
-			? 443
-			: 80;
+				? 443
+				: 80;
 		this.#PROTOCOL = (url.protocol || '').replace(':', '');
 		const isNonStandardPort = this.#PORT !== 443 && this.#PORT !== 80;
 		this.#HOST = [
