@@ -174,7 +174,7 @@ export class PHPProcessManager implements PHPInstanceManager {
 		 *   budget left to optimistically start spawning the next
 		 *   instance.
 		 */
-		const AcquiredPHP =
+		const acquiredPHP =
 			this.nextInstance || this.spawn({ isPrimary: false });
 
 		/**
@@ -187,7 +187,7 @@ export class PHPProcessManager implements PHPInstanceManager {
 		} else {
 			this.nextInstance = null;
 		}
-		return await AcquiredPHP;
+		return await acquiredPHP;
 	}
 
 	/**

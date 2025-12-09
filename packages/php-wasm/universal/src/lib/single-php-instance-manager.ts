@@ -28,6 +28,7 @@ export class SinglePHPInstanceManager implements PHPInstanceManager {
 	private php: PHP | undefined;
 	private phpPromise: Promise<PHP> | undefined;
 	private phpFactory?: () => Promise<PHP>;
+	private isAcquired = false;
 
 	constructor(options: SinglePHPInstanceManagerOptions) {
 		if (!options.php && !options.phpFactory) {
@@ -53,17 +54,20 @@ export class SinglePHPInstanceManager implements PHPInstanceManager {
 		return this.php;
 	}
 
-	async acquirePHPInstance(
-		// eslint-disable-next-line @typescript-eslint/no-unused-vars
-		_options: { considerPrimary?: boolean } = {}
-	): Promise<AcquiredPHP> {
+	async acquirePHPInstance(): Promise<AcquiredPHP> {
+		if (this.isAcquired) {
+			throw new Error(
+				'The PHP instance already acquired. SinglePHPInstanceManager cannot spawn another PHP instance since, by definition, it only manages a single PHP instance.'
+			);
+		}
 		const php = await this.getPrimaryPhp();
-
+		this.isAcquired = true;
 		return {
 			php,
 			reap: () => {
 				// For single-instance manager, reap is a no-op.
 				// The instance is reused for all requests.
+				this.isAcquired = false;
 			},
 		};
 	}

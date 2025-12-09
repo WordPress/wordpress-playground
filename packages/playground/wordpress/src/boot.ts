@@ -416,7 +416,7 @@ export async function bootRequestHandler(options: BootRequestHandlerOptions) {
 		// `popen()`, `proc_open()` etc. calls.
 		if (spawnHandler) {
 			await php.setSpawnHandler(
-				spawnHandler(requestHandler?.processManager)
+				spawnHandler(requestHandler?.instanceManager)
 			);
 		}
 
@@ -443,7 +443,9 @@ export async function bootRequestHandler(options: BootRequestHandlerOptions) {
 		cookieStore: options.cookieStore,
 
 		/**
-		 * If maxPhpInstances is 1, we use a single PHP instance for all requests.
+		 * If maxPhpInstances is 1, the PHPRequestHandler constructor needs
+		 * a PHP instance. Internally, it creates a SinglePHPInstanceManager
+		 * and uses the same PHP instance to handle all requests.
 		 */
 		php:
 			options.maxPhpInstances === 1
@@ -451,8 +453,9 @@ export async function bootRequestHandler(options: BootRequestHandlerOptions) {
 				: undefined,
 
 		/**
-		 * If maxPhpInstances is not 1, we use a PHPProcessManager that dynamically
-		 * spawns and reaps PHP instances as needed.
+		 * If maxPhpInstances is not 1, the PHPRequestHandler constructor needs
+		 * a PHP factory function. Internally, it creates a PHPProcessManager that
+		 * dynamically starts new PHP instances and reaps them after they're used.
 		 */
 		phpFactory:
 			options.maxPhpInstances !== 1

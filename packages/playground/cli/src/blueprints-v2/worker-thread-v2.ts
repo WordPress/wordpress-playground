@@ -270,7 +270,7 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 	async runBlueprintV2(args: WorkerRunBlueprintArgs) {
 		const requestHandler = this.__internal_getRequestHandler()!;
 		const { php, reap } =
-			await requestHandler.processManager.acquirePHPInstance({
+			await requestHandler.instanceManager.acquirePHPInstance({
 				considerPrimary: false,
 			});
 

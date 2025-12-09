@@ -1,6 +1,88 @@
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import { loadNodeRuntime } from '..';
-import { PHP, PHPProcessManager } from '@php-wasm/universal';
+import { PHP, PHPProcessManager, SinglePHPInstanceManager } from '@php-wasm/universal';
+
+describe('SinglePHPInstanceManager', () => {
+	it('should return the PHP instance passed in the constructor', async () => {
+		const php = new PHP(await loadNodeRuntime(RecommendedPHPVersion));
+		const mgr = new SinglePHPInstanceManager({ php });
+
+		const primaryPhp = await mgr.getPrimaryPhp();
+		expect(primaryPhp).toBe(php);
+	});
+
+	it('should create a PHP instance using the factory when no instance is provided', async () => {
+		const phpFactory = vitest.fn(
+			async () => new PHP(await loadNodeRuntime(RecommendedPHPVersion))
+		);
+		const mgr = new SinglePHPInstanceManager({ phpFactory });
+
+		expect(phpFactory).not.toHaveBeenCalled();
+		const php = await mgr.getPrimaryPhp();
+		expect(phpFactory).toHaveBeenCalledTimes(1);
+		expect(php).toBeInstanceOf(PHP);
+	});
+
+	it('should return the same PHP instance on subsequent getPrimaryPhp calls', async () => {
+		const phpFactory = vitest.fn(
+			async () => new PHP(await loadNodeRuntime(RecommendedPHPVersion))
+		);
+		const mgr = new SinglePHPInstanceManager({ phpFactory });
+
+		const php1 = await mgr.getPrimaryPhp();
+		const php2 = await mgr.getPrimaryPhp();
+		expect(php1).toBe(php2);
+		expect(phpFactory).toHaveBeenCalledTimes(1);
+	});
+
+	it('should acquire and release the PHP instance', async () => {
+		const php = new PHP(await loadNodeRuntime(RecommendedPHPVersion));
+		const mgr = new SinglePHPInstanceManager({ php });
+
+		const acquired = await mgr.acquirePHPInstance();
+		expect(acquired.php).toBe(php);
+
+		acquired.reap();
+
+		// Should be able to acquire again after reaping
+		const acquired2 = await mgr.acquirePHPInstance();
+		expect(acquired2.php).toBe(php);
+	});
+
+	it('should throw an error when trying to acquire twice without reaping', async () => {
+		const php = new PHP(await loadNodeRuntime(RecommendedPHPVersion));
+		const mgr = new SinglePHPInstanceManager({ php });
+
+		await mgr.acquirePHPInstance();
+		await expect(() => mgr.acquirePHPInstance()).rejects.toThrowError(
+			/already acquired/
+		);
+	});
+
+	it('should throw an error when neither php nor phpFactory is provided', () => {
+		expect(
+			() => new SinglePHPInstanceManager({})
+		).toThrowError(/requires either php or phpFactory/);
+	});
+
+	it('should only call the factory once even with concurrent getPrimaryPhp calls', async () => {
+		const phpFactory = vitest.fn(
+			async () => new PHP(await loadNodeRuntime(RecommendedPHPVersion))
+		);
+		const mgr = new SinglePHPInstanceManager({ phpFactory });
+
+		// Make concurrent calls
+		const [php1, php2, php3] = await Promise.all([
+			mgr.getPrimaryPhp(),
+			mgr.getPrimaryPhp(),
+			mgr.getPrimaryPhp(),
+		]);
+
+		expect(phpFactory).toHaveBeenCalledTimes(1);
+		expect(php1).toBe(php2);
+		expect(php2).toBe(php3);
+	});
+});
 
 describe('PHPProcessManager', () => {
 	it('should return the primary PHP instance', async () => {

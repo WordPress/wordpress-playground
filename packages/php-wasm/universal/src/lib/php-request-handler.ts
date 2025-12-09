@@ -182,7 +182,7 @@ export class PHPRequestHandler implements AsyncDisposable {
 	 * This is either a provided instanceManager or a PHPProcessManager
 	 * created from the phpFactory.
 	 */
-	processManager: PHPInstanceManager;
+	instanceManager: PHPInstanceManager;
 	getFileNotFoundAction: FileNotFoundGetActionCallback;
 
 	/**
@@ -219,11 +219,11 @@ export class PHPRequestHandler implements AsyncDisposable {
 
 		if ('php' in config) {
 			setChroot(config.php);
-			this.processManager = new SinglePHPInstanceManager({
+			this.instanceManager = new SinglePHPInstanceManager({
 				php: config.php,
 			});
 		} else {
-			this.processManager = new PHPProcessManager({
+			this.instanceManager = new PHPProcessManager({
 				phpFactory: async (info) => {
 					const php = await config.phpFactory({
 						...info,
@@ -274,7 +274,7 @@ export class PHPRequestHandler implements AsyncDisposable {
 	}
 
 	async getPrimaryPhp() {
-		return await this.processManager.getPrimaryPhp();
+		return await this.instanceManager.getPrimaryPhp();
 	}
 
 	/**
@@ -588,7 +588,7 @@ export class PHPRequestHandler implements AsyncDisposable {
 	): Promise<PHPResponse> {
 		let spawnedPHP: AcquiredPHP | undefined = undefined;
 		try {
-			spawnedPHP = await this.processManager!.acquirePHPInstance({
+			spawnedPHP = await this.instanceManager!.acquirePHPInstance({
 				considerPrimary: true,
 			});
 		} catch (e) {
@@ -903,7 +903,7 @@ export class PHPRequestHandler implements AsyncDisposable {
 	}
 
 	async [Symbol.asyncDispose]() {
-		await this.processManager[Symbol.asyncDispose]();
+		await this.instanceManager[Symbol.asyncDispose]();
 	}
 }
 
