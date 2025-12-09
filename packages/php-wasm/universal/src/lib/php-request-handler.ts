@@ -10,8 +10,9 @@ import { normalizeHeaders } from './php';
 import { PHPResponse } from './php-response';
 import type { PHPRequest, PHPRunOptions } from './universal-php';
 import { encodeAsMultipart } from './encode-as-multipart';
-import type { PHPFactoryOptions, SpawnedPHP } from './php-process-manager';
+import type { PHPFactoryOptions } from './php-process-manager';
 import { MaxPhpInstancesError, PHPProcessManager } from './php-process-manager';
+import type { PHPInstanceManager, AcquiredPHP } from './php-instance-manager';
 import { HttpCookieStore } from './http-cookie-store';
 import mimeTypes from './mime-types.json';
 
@@ -85,15 +86,31 @@ export type PHPRequestHandlerFactoryArgs = PHPFactoryOptions & {
 };
 
 export type PHPRequestHandlerConfiguration = BaseConfiguration & {
-	phpFactory: (requestHandler: PHPRequestHandlerFactoryArgs) => Promise<PHP>;
-	/**
-	 * The maximum number of PHP instances that can exist at
-	 * the same time.
-	 */
-	maxPhpInstances?: number;
-
 	cookieStore?: CookieStore | false;
-};
+} & (
+		| {
+				/**
+				 * Provide a custom instance manager for advanced use cases.
+				 * Use SinglePHPInstanceManager for CLI contexts with a single PHP instance.
+				 * Use PHPProcessManager for web contexts with multiple concurrent instances.
+				 */
+				instanceManager: PHPInstanceManager;
+		  }
+		| {
+				/**
+				 * Provide a factory function to create PHP instances.
+				 * PHPRequestHandler will create a PHPProcessManager internally.
+				 */
+				phpFactory: (
+					requestHandler: PHPRequestHandlerFactoryArgs
+				) => Promise<PHP>;
+				/**
+				 * The maximum number of PHP instances that can exist at
+				 * the same time. Only used when phpFactory is provided.
+				 */
+				maxPhpInstances?: number;
+		  }
+	);
 
 /**
  * Handles HTTP requests using PHP runtime as a backend.
@@ -159,7 +176,12 @@ export class PHPRequestHandler implements AsyncDisposable {
 	#ABSOLUTE_URL: string;
 	#cookieStore: CookieStore | false;
 	rewriteRules: RewriteRule[];
-	processManager: PHPProcessManager;
+	/**
+	 * The instance manager used for PHP instance lifecycle.
+	 * This is either a provided instanceManager or a PHPProcessManager
+	 * created from the phpFactory.
+	 */
+	processManager: PHPInstanceManager;
 	getFileNotFoundAction: FileNotFoundGetActionCallback;
 
 	/**
@@ -183,25 +205,29 @@ export class PHPRequestHandler implements AsyncDisposable {
 			getFileNotFoundAction = () => ({ type: '404' }),
 		} = config;
 
-		this.processManager = new PHPProcessManager({
-			phpFactory: async (info) => {
-				const php = await config.phpFactory!({
-					...info,
-					requestHandler: this,
-				});
+		if ('instanceManager' in config) {
+			this.processManager = config.instanceManager;
+		} else {
+			this.processManager = new PHPProcessManager({
+				phpFactory: async (info) => {
+					const php = await config.phpFactory({
+						...info,
+						requestHandler: this,
+					});
 
-				// Always set managed PHP's cwd to the document root.
-				if (!php.isDir(documentRoot)) {
-					php.mkdir(documentRoot);
-				}
-				php.chdir(documentRoot);
+					// Always set managed PHP's cwd to the document root.
+					if (!php.isDir(documentRoot)) {
+						php.mkdir(documentRoot);
+					}
+					php.chdir(documentRoot);
 
-				// @TODO: Decouple PHP and request handler
-				(php as any).requestHandler = this;
-				return php;
-			},
-			maxPhpInstances: config.maxPhpInstances,
-		});
+					// @TODO: Decouple PHP and request handler
+					(php as any).requestHandler = this;
+					return php;
+				},
+				maxPhpInstances: config.maxPhpInstances,
+			});
+		}
 
 		/**
 		 * By default, config.cookieStore is undefined, so we use the
@@ -553,7 +579,7 @@ export class PHPRequestHandler implements AsyncDisposable {
 		rewrittenRequestUrl: URL,
 		scriptPath: string
 	): Promise<PHPResponse> {
-		let spawnedPHP: SpawnedPHP | undefined = undefined;
+		let spawnedPHP: AcquiredPHP | undefined = undefined;
 		try {
 			spawnedPHP = await this.processManager!.acquirePHPInstance({
 				considerPrimary: true,

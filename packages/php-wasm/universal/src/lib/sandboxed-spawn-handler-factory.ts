@@ -1,5 +1,5 @@
 import { createSpawnHandler } from '@php-wasm/util';
-import type { PHPProcessManager } from './php-process-manager';
+import type { PHPInstanceManager } from './php-instance-manager';
 
 /**
  * An isomorphic proc_open() handler that implements typical shell in TypeScript
@@ -12,7 +12,7 @@ import type { PHPProcessManager } from './php-process-manager';
  * parser.
  */
 export function sandboxedSpawnHandlerFactory(
-	processManager: PHPProcessManager
+	instanceManager: PHPInstanceManager
 ) {
 	return createSpawnHandler(async function (args, processApi, options) {
 		processApi.notifySpawn();
@@ -63,7 +63,7 @@ export function sandboxedSpawnHandlerFactory(
 			return;
 		}
 
-		const { php, reap } = await processManager.acquirePHPInstance({
+		const { php, reap } = await instanceManager.acquirePHPInstance({
 			considerPrimary: false,
 		});
 

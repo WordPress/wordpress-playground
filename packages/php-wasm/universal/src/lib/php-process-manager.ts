@@ -1,11 +1,17 @@
 import { AcquireTimeoutError, Semaphore } from '@php-wasm/util';
 import type { PHP } from './php';
+import type { PHPInstanceManager, AcquiredPHP } from './php-instance-manager';
 
 export type PHPFactoryOptions = {
 	isPrimary: boolean;
 };
 
 export type PHPFactory = (options: PHPFactoryOptions) => Promise<PHP>;
+
+/**
+ * @deprecated Use AcquiredPHP from './php-instance-manager' instead.
+ */
+export type SpawnedPHP = AcquiredPHP;
 
 export interface ProcessManagerOptions {
 	/**
@@ -31,11 +37,6 @@ export interface ProcessManagerOptions {
 	 * A factory function used for spawning new PHP instances.
 	 */
 	phpFactory?: PHPFactory;
-}
-
-export interface SpawnedPHP {
-	php: PHP;
-	reap: () => void;
 }
 
 export class MaxPhpInstancesError extends Error {
@@ -71,7 +72,7 @@ export class MaxPhpInstancesError extends Error {
  * requests requires extra time to spin up a few PHP instances. This is a more
  * resource-friendly tradeoff than keeping 5 idle instances at all times.
  */
-export class PHPProcessManager implements AsyncDisposable {
+export class PHPProcessManager implements PHPInstanceManager {
 	private primaryPhp?: PHP;
 	private primaryPhpPromise?: Promise<SpawnedPHP>;
 	private primaryIdle = true;
