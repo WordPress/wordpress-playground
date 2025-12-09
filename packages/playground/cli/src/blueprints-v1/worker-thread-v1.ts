@@ -363,5 +363,3 @@ parentPort?.postMessage(
 	},
 	[phpChannel.port2 as any]
 );
-
-console.log('Worker script initialized!');
