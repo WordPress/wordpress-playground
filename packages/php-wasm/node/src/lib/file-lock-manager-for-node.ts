@@ -65,6 +65,8 @@ export class FileLockManagerForNode implements FileLockManager {
 	lockFileByteRange(
 		path: string,
 		requestedLock: RequestedRangeLock
+		// TODO: Support waiting for locks.
+		// waitForLock: boolean
 	): boolean {
 		if (!this.locks.has(path)) {
 			if (requestedLock.type === 'unlocked') {
