@@ -3,8 +3,9 @@ import type {
 	FileNotFoundAction,
 	FileNotFoundGetActionCallback,
 	FileTree,
-	PHPInstanceManager,
+	PHPWorker,
 	SpawnHandler,
+	Remote,
 } from '@php-wasm/universal';
 import {
 	PHP,
@@ -63,7 +64,12 @@ export interface BootRequestHandlerOptions {
 	 */
 	siteUrl: string;
 	documentRoot?: string;
-	spawnHandler?: (instanceManager?: PHPInstanceManager) => SpawnHandler;
+	spawnHandler?: (
+		getPHPInstance: () => Promise<{
+			php: PHP | Remote<PHPWorker>;
+			reap: () => void;
+		}>
+	) => SpawnHandler;
 	/**
 	 * PHP.ini entries to define before running any code. They'll
 	 * be used for all requests.
@@ -416,7 +422,11 @@ export async function bootRequestHandler(options: BootRequestHandlerOptions) {
 		// `popen()`, `proc_open()` etc. calls.
 		if (spawnHandler) {
 			await php.setSpawnHandler(
-				spawnHandler(requestHandler?.instanceManager)
+				spawnHandler(() =>
+					requestHandler.processManager.acquirePHPInstance({
+						considerPrimary: false,
+					})
+				)
 			);
 		}
 

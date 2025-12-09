@@ -1,6 +1,7 @@
 import { createSpawnHandler } from '@php-wasm/util';
-import type { PHPInstanceManager } from './php-instance-manager';
-import { logger } from '@php-wasm/logger';
+import type { PHP } from './php';
+import type { PHPWorker } from './php-worker';
+import type { Remote } from './comlink-sync';
 
 /**
  * An isomorphic proc_open() handler that implements typical shell in TypeScript
@@ -13,7 +14,10 @@ import { logger } from '@php-wasm/logger';
  * parser.
  */
 export function sandboxedSpawnHandlerFactory(
-	instanceManager?: PHPInstanceManager
+	getPHPInstance: () => Promise<{
+		php: PHP | Remote<PHPWorker>;
+		reap: () => void;
+	}>
 ) {
 	return createSpawnHandler(async function (args, processApi, options) {
 		processApi.notifySpawn();
@@ -64,25 +68,14 @@ export function sandboxedSpawnHandlerFactory(
 			return;
 		}
 
-		if (!instanceManager) {
-			// 127 is the exit code "for command not found".
-			processApi.exit(127);
-			logger.warn(
-				'sandboxedSpawnHandlerFactory tried to spawn a PHP subprocess but was called without an instance manager'
-			);
-			return;
-		}
-
-		const { php, reap } = await instanceManager.acquirePHPInstance({
-			considerPrimary: false,
-		});
+		const { php, reap } = await getPHPInstance();
 
 		try {
 			if (options.cwd) {
-				php.chdir(options.cwd as string);
+				await php.chdir(options.cwd as string);
 			}
 
-			const cwd = php.cwd();
+			const cwd = await php.cwd();
 			switch (binaryName) {
 				case 'php': {
 					// Figure out more about setting env, putenv(), etc.
@@ -115,7 +108,7 @@ export function sandboxedSpawnHandlerFactory(
 					break;
 				}
 				case 'ls': {
-					const files = php.listFiles(args[1] ?? cwd);
+					const files = await php.listFiles(args[1] ?? cwd);
 					for (const file of files) {
 						processApi.stdout(file + '\n');
 					}
