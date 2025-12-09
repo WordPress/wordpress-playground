@@ -1,0 +1,39 @@
+{
+	"name": "@php-wasm/cli-util",
+	"version": "3.0.22",
+	"description": "Utilities for PHP.wasm related CLIs",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/WordPress/wordpress-playground"
+	},
+	"homepage": "https://developer.wordpress.org/playground",
+	"author": "The WordPress contributors",
+	"exports": {
+		".": {
+			"import": "./index.js",
+			"require": "./index.cjs"
+		},
+		"./package.json": "./package.json",
+		"./README.md": "./README.md"
+	},
+	"main": "./index.cjs",
+	"module": "./index.js",
+	"type": "module",
+	"types": "index.d.ts",
+	"typedoc": {
+		"entryPoint": "./src/index.ts",
+		"readmeFile": "./README.md",
+		"displayName": "@php-wasm/cli-util",
+		"tsconfig": "./tsconfig.lib.json"
+	},
+	"publishConfig": {
+		"access": "public",
+		"directory": "../../../dist/packages/php-wasm/cli-util"
+	},
+	"license": "GPL-2.0-or-later",
+	"gitHead": "2f8d8f3cea548fbd75111e8659a92f601cddc593",
+	"engines": {
+		"node": ">=20.18.3",
+		"npm": ">=10.1.0"
+	}
+}

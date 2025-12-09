@@ -32,7 +32,6 @@ import { existsSync } from 'fs';
 import path from 'path';
 import { rootCertificates } from 'tls';
 import { MessageChannel, type MessagePort, parentPort } from 'worker_threads';
-import type { Mount } from '../mounts';
 import { jspi } from 'wasm-feature-detect';
 import { type RunCLIArgs } from '../run-cli';
 import type {
@@ -40,6 +39,7 @@ import type {
 	PHPInstanceCreatedHook,
 } from '@wp-playground/wordpress';
 import { shouldRenderProgress } from '../utils/progress';
+import type { Mount } from '@php-wasm/cli-util';
 
 async function mountResources(php: PHP, mounts: Mount[]) {
 	for (const mount of mounts) {

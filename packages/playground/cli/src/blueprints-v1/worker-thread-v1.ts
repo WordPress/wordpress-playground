@@ -23,10 +23,7 @@ import { mountResources } from '../mounts';
 import { logger } from '@php-wasm/logger';
 import { spawnWorkerThread } from '../run-cli';
 
-export interface Mount {
-	hostPath: string;
-	vfsPath: string;
-}
+import type { Mount } from '@php-wasm/cli-util';
 
 export type WorkerBootOptions = {
 	phpVersion: SupportedPHPVersion;

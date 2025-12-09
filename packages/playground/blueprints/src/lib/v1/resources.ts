@@ -388,7 +388,8 @@ export abstract class FetchResource extends Resource<File> {
 			throw new Error(
 				`Could not download "${url}".\n\n` +
 					`Confirm that the URL is correct, the server is reachable, and the file is` +
-					`actually served at that URL. Original error: \n ${e}`
+					`actually served at that URL. Original error: \n ${e}`,
+				{ cause: e }
 			);
 		}
 	}
