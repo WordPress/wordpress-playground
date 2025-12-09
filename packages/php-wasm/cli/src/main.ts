@@ -9,18 +9,28 @@ import {
 	LatestSupportedPHPVersion,
 	SupportedPHPVersionsList,
 } from '@php-wasm/universal';
+/* eslint-disable no-console */
 import type { SupportedPHPVersion } from '@php-wasm/universal';
-
 import { FileLockManagerForNode } from '@php-wasm/node';
 import { PHP } from '@php-wasm/universal';
 import { loadNodeRuntime, useHostFilesystem } from '@php-wasm/node';
 import { startBridge } from '@php-wasm/xdebug-bridge';
+import { addXdebugIDEConfig, clearXdebugIDEConfig } from '@php-wasm/cli-util';
 import path from 'path';
 
 let args = process.argv.slice(2);
 if (!args.length) {
 	args = ['--help'];
 }
+
+const bold = (text: string) =>
+	process.stdout.isTTY ? '\x1b[1m' + text + '\x1b[0m' : text;
+
+const italic = (text: string) =>
+	process.stdout.isTTY ? `\x1b[3m${text}\x1b[0m` : text;
+
+const highlight = (text: string) =>
+	process.stdout.isTTY ? `\x1b[33m${text}\x1b[0m` : text;
 
 const baseUrl = (import.meta || {}).url;
 
@@ -49,6 +59,23 @@ async function run() {
 	);
 	if (hasDevtoolsOption) {
 		args = args.filter((arg) => arg !== '--experimental-devtools');
+	}
+
+	const experimentalUnsafeIDEIntegrationOptions =
+		args
+			.filter((arg) =>
+				arg.startsWith('--experimental-unsafe-ide-integration')
+			)
+			.map((arg) => {
+				const value = arg.split('=')[1];
+				if (value === undefined) return ['vscode', 'phpstorm'];
+				if (value.includes(',')) return value.split(',');
+				return [value];
+			})[0] ?? false;
+	if (experimentalUnsafeIDEIntegrationOptions) {
+		args = args.filter(
+			(arg) => !arg.startsWith('--experimental-unsafe-ide-integration')
+		);
 	}
 
 	// npm scripts set the TMPDIR env variable
@@ -105,7 +132,90 @@ ${process.argv[0]} ${process.execArgv.join(' ')} ${process.argv[1]}
 
 	useHostFilesystem(php);
 
-	if (hasDevtoolsOption && hasXdebugOption) {
+	// If xdebug, and experimental IDE are enabled,
+	// add the new IDE config.
+	if (hasXdebugOption && experimentalUnsafeIDEIntegrationOptions) {
+		try {
+			const IDEConfigName = 'PHP.wasm CLI - Listen for Xdebug';
+			const ides = experimentalUnsafeIDEIntegrationOptions;
+
+			// NOTE: Both the 'clear' and 'add' operations can throw errors.
+			await clearXdebugIDEConfig(IDEConfigName, process.cwd());
+
+			const modifiedConfig = await addXdebugIDEConfig({
+				name: IDEConfigName,
+				host: 'example.com',
+				port: 443,
+				ides: ides,
+				cwd: process.cwd(),
+			});
+
+			// Display IDE-specific instructions
+			const hasVSCode = ides.includes('vscode');
+			const hasPhpStorm = ides.includes('phpstorm');
+			const configFiles = Object.values(modifiedConfig);
+
+			console.log('');
+
+			if (configFiles.length > 0) {
+				console.log(bold(`Xdebug configured successfully`));
+				console.log(
+					highlight(`Updated IDE config: `) + configFiles.join(' ')
+				);
+			} else {
+				console.log(bold(`Xdebug configuration failed.`));
+				console.log(
+					'No IDE-specific project settings directory was found in the current working directory.'
+				);
+			}
+
+			console.log('');
+
+			if (hasVSCode && modifiedConfig['vscode']) {
+				console.log(bold('VS Code / Cursor instructions:'));
+				console.log(
+					'  1. Ensure you have installed an IDE extension for PHP Debugging'
+				);
+				console.log(
+					`     (The ${bold('PHP Debug')} extension by ${bold(
+						'Xdebug'
+					)} has been a solid option)`
+				);
+				console.log(
+					'  2. Open the Run and Debug panel on the left sidebar'
+				);
+				console.log(
+					`  3. Select "${italic(IDEConfigName)}" from the dropdown`
+				);
+				console.log('  3. Click "start debugging"');
+				console.log('  5. Set a breakpoint.');
+				console.log('  6. Run your command with PHP.wasm CLI.');
+				if (hasPhpStorm) {
+					console.log('');
+				}
+			}
+
+			if (hasPhpStorm && modifiedConfig['phpstorm']) {
+				console.log(bold('PhpStorm instructions:'));
+				console.log(
+					`  1. Choose "${italic(
+						IDEConfigName
+					)}" debug configuration in the toolbar`
+				);
+				console.log('  2. Click the debug button (bug icon)`');
+				console.log('  3. Set a breakpoint.');
+				console.log('  4. Run your command with PHP.wasm CLI.');
+			}
+
+			console.log('');
+		} catch (error) {
+			throw new Error('Could not configure Xdebug', {
+				cause: error,
+			});
+		}
+	}
+
+	if (hasXdebugOption && hasDevtoolsOption) {
 		const bridge = await startBridge({ breakOnFirstLine: true });
 
 		bridge.start();

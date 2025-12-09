@@ -3,7 +3,7 @@ import { defineConfig } from 'vite';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { viteTsConfigPaths } from '../../vite-extensions/vite-ts-config-paths';
 // eslint-disable-next-line @nx/enforce-module-boundaries
-import ignoreWasmImports from '../ignore-wasm-imports';
+import { viteIgnoreImports } from '../../vite-extensions/vite-ignore-imports';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { getExternalModules } from '../../vite-extensions/vite-external-modules';
 // eslint-disable-next-line @nx/enforce-module-boundaries
@@ -24,8 +24,9 @@ export default defineConfig({
 		viteTsConfigPaths({
 			root: '../../../',
 		}),
-		ignoreWasmImports(),
-
+		viteIgnoreImports({
+			extensions: ['wasm'],
+		}),
 		...viteGlobalExtensions,
 	],
 
