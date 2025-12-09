@@ -33,7 +33,7 @@ import path from 'path';
 import { rootCertificates } from 'tls';
 import { MessageChannel, type MessagePort, parentPort } from 'worker_threads';
 import { jspi } from 'wasm-feature-detect';
-import { type RunCLIArgs } from '../run-cli';
+import { type RunCLIArgs, spawnWorkerThread } from '../run-cli';
 import type {
 	PhpIniOptions,
 	PHPInstanceCreatedHook,
@@ -469,8 +469,26 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 				constants,
 				phpIniEntries,
 				cookieStore: false,
-				spawnHandler: (getPHPInstance) =>
-					sandboxedSpawnHandlerFactory(getPHPInstance),
+				spawnHandler: () =>
+					sandboxedSpawnHandlerFactory(() =>
+						createPHPWorker(
+							{
+								siteUrl,
+								allow,
+								phpVersion,
+								phpIniEntries,
+								constants,
+								createFiles,
+								firstProcessId,
+								processIdSpaceLength,
+								trace,
+								nativeInternalDirPath,
+								withXdebug,
+								onPHPInstanceCreated,
+							},
+							this.fileLockManager!
+						)
+					),
 			});
 			this.__internal_setRequestHandler(requestHandler);
 
@@ -488,6 +506,66 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 	async dispose() {
 		await this[Symbol.asyncDispose]();
 	}
+}
+
+/**
+ * Spawns a new PHP process to be used in the PHP spawn handler (in proc_open() etc. calls).
+ * It boots from this worker-thread-v2.ts file, but is a separate process.
+ *
+ * We explicitly avoid using PHPProcessManager.acquirePHPInstance() here.
+ *
+ * Why?
+ *
+ * Because each PHP instance acquires actual OS-level file locks via fcntl() and LockFileEx()
+ * syscalls. Running multiple PHP instances from the same OS process would allow them to
+ * acquire overlapping locks. Running every PHP instance in a separate OS process ensures
+ * any locks that overlap between PHP instances conflict with each other as expected.
+ *
+ * @param options - The options for the worker.
+ * @param fileLockManager - The file lock manager to use.
+ * @returns A promise that resolves to the PHP worker.
+ */
+async function createPHPWorker(
+	options: WorkerBootRequestHandlerOptions,
+	fileLockManager: FileLockManager | RemoteAPI<FileLockManager>
+) {
+	const spawnedWorker = await spawnWorkerThread('v2');
+
+	const handler = consumeAPI<PlaygroundCliBlueprintV2Worker>(
+		spawnedWorker.phpPort
+	);
+	handler.useFileLockManager(fileLockManager as any);
+	await handler.bootWorker({
+		siteUrl: options.siteUrl,
+		allow: options.allow,
+		phpVersion: options.phpVersion,
+		phpIniEntries: options.phpIniEntries,
+		constants: options.constants,
+		createFiles: options.createFiles,
+		firstProcessId: options.firstProcessId,
+		processIdSpaceLength: options.processIdSpaceLength,
+		trace: options.trace,
+		nativeInternalDirPath: options.nativeInternalDirPath,
+		withXdebug: options.withXdebug,
+		mountsBeforeWpInstall: [],
+		mountsAfterWpInstall: [],
+	});
+
+	return {
+		php: handler,
+		reap: () => {
+			try {
+				handler.dispose();
+			} catch {
+				/** */
+			}
+			try {
+				spawnedWorker.worker.terminate();
+			} catch {
+				/** */
+			}
+		},
+	};
 }
 
 process.on('unhandledRejection', (e: any) => {
