@@ -159,6 +159,7 @@ Há um conjunto de redirecionamentos disponíveis para facilitar o acesso a algu
 -   [Is WordPress playground only for developers?](https://wordpress.tv/2025/10/25/is-wordpress-playground-only-for-developers/) by Fellyph Cintra
 -   [How to test the next WordPress release with WordPress Playground](https://wordpress.tv/2025/11/13/how-to-test-the-next-wordpress-release-with-wordpress-playground/) by Fellyph cintra
 -   [Running WordPress directly from the JavaScript code with runCLI](https://wordpress.tv/2025/10/22/running-wordpress-directly-from-the-javascript-code-with-runcli/) by Fellyph Cintra
+-   [WordPress Playground: The Path to Test Automation](https://wordpress.tv/2025/11/24/wordpress-playground-the-path-to-test-automation/) by Fellyph Cintra
 -->
 
 - Vídeos do Developer Hours:
@@ -193,3 +194,4 @@ Há um conjunto de redirecionamentos disponíveis para facilitar o acesso a algu
 - [O WordPress Playground é apenas para desenvolvedores?](https://wordpress.tv/2025/10/25/is-wordpress-playground-only-for-developers/) por Fellyph Cintra
 - [Como testar a próxima versão do WordPress com WordPress Playground](https://wordpress.tv/2025/11/13/how-to-test-the-next-wordpress-release-with-wordpress-playground/) por Fellyph Cintra
 - [Executando WordPress diretamente do código JavaScript com runCLI](https://wordpress.tv/2025/10/22/running-wordpress-directly-from-the-javascript-code-with-runcli/) por Fellyph Cintra
+- [WordPress Playground: O Caminho para Automação de Testes](https://wordpress.tv/2025/11/24/wordpress-playground-the-path-to-test-automation/) por Fellyph Cintra
