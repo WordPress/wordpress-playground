@@ -50,7 +50,7 @@ export default defineConfig(({ mode }) => {
 			? process.env['CORS_PROXY_URL']
 			: mode === 'production'
 				? 'https://wordpress-playground-cors-proxy.net/?'
-				: 'http://127.0.0.1:5263/cors-proxy.php?';
+				: '/cors-proxy/?';
 
 	plugins.push(
 		virtualModule({
@@ -92,6 +92,17 @@ export default defineConfig(({ mode }) => {
 			port: remoteDevServerPort,
 			host: remoteDevServerHost,
 			allowedHosts: ['playground.test', 'playground-preview.test'],
+			proxy: {
+				// Proxy CORS requests to the local PHP CORS proxy server.
+				// This avoids Private Network Access (PNA) restrictions in Chrome
+				// when making cross-origin requests between different local ports.
+				'/cors-proxy': {
+					target: 'http://127.0.0.1:5263',
+					changeOrigin: true,
+					rewrite: (path) =>
+						path.replace(/^\/cors-proxy\/\?/, '/cors-proxy.php?'),
+				},
+			},
 			fs: {
 				// Allow serving files from the 'packages' directory
 				allow: ['../../'],

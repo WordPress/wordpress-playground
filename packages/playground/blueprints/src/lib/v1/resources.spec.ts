@@ -2,6 +2,9 @@ import {
 	UrlResource,
 	GitDirectoryResource,
 	BundledResource,
+	parseGithubProxyUrl,
+	ZipResource,
+	Resource,
 } from './resources';
 import { expect, describe, it, vi, beforeEach, afterEach } from 'vitest';
 import { StreamedFile } from '@php-wasm/stream-compression';
@@ -397,5 +400,278 @@ describe('BlueprintResource', () => {
 			/This Blueprint refers to a/
 		);
 		expect(streamFile).toHaveBeenCalledWith('missing.txt');
+	});
+});
+
+describe('parseGithubProxyUrl', () => {
+	it('should return null for non-github-proxy.com URLs', () => {
+		expect(parseGithubProxyUrl('https://example.com/file.zip')).toBeNull();
+		expect(parseGithubProxyUrl('https://github.com/owner/repo')).toBeNull();
+	});
+
+	it('should return null for invalid URLs', () => {
+		expect(parseGithubProxyUrl('not a url')).toBeNull();
+	});
+
+	it('should return null for github-proxy.com URLs without repo parameter', () => {
+		expect(
+			parseGithubProxyUrl('https://github-proxy.com/proxy/?branch=trunk')
+		).toBeNull();
+	});
+
+	it('should parse basic repo URL (default branch)', () => {
+		const result = parseGithubProxyUrl(
+			'https://github-proxy.com/proxy/?repo=owner/name'
+		);
+		expect(result).toEqual({
+			resource: 'zip',
+			inner: {
+				resource: 'git:directory',
+				url: 'https://github.com/owner/name',
+				ref: 'HEAD',
+			},
+		});
+	});
+
+	it('should parse repo URL with branch', () => {
+		const result = parseGithubProxyUrl(
+			'https://github-proxy.com/proxy/?repo=owner/name&branch=trunk'
+		);
+		expect(result).toEqual({
+			resource: 'zip',
+			inner: {
+				resource: 'git:directory',
+				url: 'https://github.com/owner/name',
+				ref: 'trunk',
+			},
+		});
+	});
+
+	it('should parse repo URL with PR number', () => {
+		const result = parseGithubProxyUrl(
+			'https://github-proxy.com/proxy/?repo=owner/name&pr=123'
+		);
+		expect(result).toEqual({
+			resource: 'zip',
+			inner: {
+				resource: 'git:directory',
+				url: 'https://github.com/owner/name',
+				ref: 'refs/pull/123/head',
+			},
+		});
+	});
+
+	it('should parse repo URL with commit SHA', () => {
+		const result = parseGithubProxyUrl(
+			'https://github-proxy.com/proxy/?repo=owner/name&commit=abc123def'
+		);
+		expect(result).toEqual({
+			resource: 'zip',
+			inner: {
+				resource: 'git:directory',
+				url: 'https://github.com/owner/name',
+				ref: 'abc123def',
+				refType: 'commit',
+			},
+		});
+	});
+
+	it('should parse repo URL with release tag', () => {
+		const result = parseGithubProxyUrl(
+			'https://github-proxy.com/proxy/?repo=owner/name&release=v1.0.0'
+		);
+		expect(result).toEqual({
+			resource: 'zip',
+			inner: {
+				resource: 'git:directory',
+				url: 'https://github.com/owner/name',
+				ref: 'v1.0.0',
+				refType: 'tag',
+			},
+		});
+	});
+
+	it('should parse repo URL with directory', () => {
+		const result = parseGithubProxyUrl(
+			'https://github-proxy.com/proxy/?repo=owner/name&branch=trunk&directory=packages/plugin'
+		);
+		expect(result).toEqual({
+			resource: 'zip',
+			inner: {
+				resource: 'git:directory',
+				url: 'https://github.com/owner/name',
+				ref: 'trunk',
+				path: 'packages/plugin',
+			},
+		});
+	});
+
+	it('should parse release asset URL with specific version', () => {
+		const result = parseGithubProxyUrl(
+			'https://github-proxy.com/proxy/?repo=owner/name&release=v1.0.0&asset=plugin.zip'
+		);
+		expect(result).toEqual({
+			resource: 'url',
+			url: 'https://github.com/owner/name/releases/download/v1.0.0/plugin.zip',
+		});
+	});
+
+	it('should parse release asset URL with latest', () => {
+		const result = parseGithubProxyUrl(
+			'https://github-proxy.com/proxy/?repo=owner/name&release=latest&asset=plugin.zip'
+		);
+		expect(result).toEqual({
+			resource: 'url',
+			url: 'https://github.com/owner/name/releases/latest/download/plugin.zip',
+		});
+	});
+
+	it('should parse direct GitHub URL proxy (https)', () => {
+		const result = parseGithubProxyUrl(
+			'https://github-proxy.com/https://github.com/owner/repo/releases/download/v1.0/file.zip'
+		);
+		expect(result).toEqual({
+			resource: 'url',
+			url: 'https://github.com/owner/repo/releases/download/v1.0/file.zip',
+		});
+	});
+
+	it('should parse direct GitHub URL proxy (http)', () => {
+		const result = parseGithubProxyUrl(
+			'https://github-proxy.com/http://github.com/owner/repo/raw/main/file.txt'
+		);
+		expect(result).toEqual({
+			resource: 'url',
+			url: 'http://github.com/owner/repo/raw/main/file.txt',
+		});
+	});
+});
+
+describe('ZipResource', () => {
+	it('should wrap a literal directory resource in a ZIP', async () => {
+		const innerResource = Resource.create(
+			{
+				resource: 'literal:directory',
+				name: 'my-plugin',
+				files: {
+					'readme.txt': 'Hello World',
+					'plugin.php': '<?php // Plugin',
+				},
+			},
+			{}
+		);
+
+		const zipResource = new ZipResource(
+			{
+				resource: 'zip',
+				inner: {
+					resource: 'literal:directory',
+					name: 'my-plugin',
+					files: {},
+				},
+			},
+			innerResource
+		);
+
+		const zipFile = await zipResource.resolve();
+
+		expect(zipFile).toBeInstanceOf(File);
+		expect(zipFile.name).toBe('my-plugin.zip');
+		expect(zipFile.size).toBeGreaterThan(0);
+	});
+
+	it('should use custom name if provided', async () => {
+		const innerResource = Resource.create(
+			{
+				resource: 'literal:directory',
+				name: 'my-plugin',
+				files: { 'test.txt': 'test' },
+			},
+			{}
+		);
+
+		const zipResource = new ZipResource(
+			{
+				resource: 'zip',
+				inner: {
+					resource: 'literal:directory',
+					name: 'my-plugin',
+					files: {},
+				},
+				name: 'custom.zip',
+			},
+			innerResource
+		);
+
+		const zipFile = await zipResource.resolve();
+		expect(zipFile.name).toBe('custom.zip');
+	});
+
+	it('should not double .zip extension', async () => {
+		const innerResource = Resource.create(
+			{
+				resource: 'literal:directory',
+				name: 'already.zip',
+				files: { 'test.txt': 'test' },
+			},
+			{}
+		);
+
+		const zipResource = new ZipResource(
+			{
+				resource: 'zip',
+				inner: {
+					resource: 'literal:directory',
+					name: 'already.zip',
+					files: {},
+				},
+			},
+			innerResource
+		);
+
+		const zipFile = await zipResource.resolve();
+		expect(zipFile.name).toBe('already.zip');
+	});
+});
+
+describe('Resource.create with github-proxy.com URLs', () => {
+	let consoleWarnSpy: ReturnType<typeof vi.spyOn>;
+
+	beforeEach(() => {
+		consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+	});
+
+	afterEach(() => {
+		consoleWarnSpy.mockRestore();
+	});
+
+	it('should rewrite github-proxy.com URL to zip resource and emit warning', () => {
+		const resource = Resource.create(
+			{
+				resource: 'url',
+				url: 'https://github-proxy.com/proxy/?repo=owner/name&branch=trunk',
+			},
+			{}
+		);
+
+		// Check that a warning was emitted
+		expect(consoleWarnSpy).toHaveBeenCalledWith(
+			expect.stringContaining('github-proxy.com is deprecated')
+		);
+
+		// The resource should be a ZipResource (wrapped in decorators)
+		expect(resource).toBeDefined();
+	});
+
+	it('should not emit warning for non-github-proxy.com URLs', () => {
+		Resource.create(
+			{
+				resource: 'url',
+				url: 'https://example.com/file.zip',
+			},
+			{}
+		);
+
+		expect(consoleWarnSpy).not.toHaveBeenCalled();
 	});
 });

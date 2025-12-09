@@ -223,7 +223,7 @@ function playground_maybe_redirect( $requested_path ) {
 
 	if ( str_ends_with( $requested_path, '/proxy' ) ) {
 		return array(
-			'location' => 'https://github-proxy.com/',
+			'location' => 'https://wordpress.github.io/wordpress-playground/blueprints/steps/resources#gitdirectoryreference',
 			'status' => 301
 		);
 	}
