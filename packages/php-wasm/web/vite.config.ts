@@ -6,9 +6,11 @@ import dts from 'vite-plugin-dts';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { viteTsConfigPaths } from '../../vite-extensions/vite-ts-config-paths';
 // eslint-disable-next-line @nx/enforce-module-boundaries
-import { getExternalModules } from '../../vite-extensions/vite-external-modules';
+import { viteIgnoreImports } from '../../vite-extensions/vite-ignore-imports';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import viteGlobalExtensions from '../../vite-extensions/vite-global-extensions';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import { getExternalModules } from '../../vite-extensions/vite-external-modules';
 
 export default defineConfig(({ command }) => {
 	return {
@@ -23,42 +25,9 @@ export default defineConfig(({ command }) => {
 				tsconfigPath: path.join(__dirname, 'tsconfig.lib.json'),
 				pathsToAliases: false,
 			}),
-			{
-				name: 'ignore-wasm-imports',
-
-				load(id: string): any {
-					if (id?.endsWith('.wasm')) {
-						return {
-							code: 'export default {}',
-							map: null,
-						};
-					}
-				},
-			},
-			{
-				name: 'ignore-data-imports',
-
-				load(id: string): any {
-					if (id?.endsWith('.dat')) {
-						return {
-							code: 'export default {}',
-							map: null,
-						};
-					}
-				},
-			},
-			{
-				name: 'ignore-lib-imports',
-
-				load(id: string): any {
-					if (id?.endsWith('.so')) {
-						return {
-							code: 'export default {}',
-							map: null,
-						};
-					}
-				},
-			},
+			viteIgnoreImports({
+				extensions: ['wasm', 'so', 'dat'],
+			}),
 			/**
 			 * Vite can't extract static asset in the library mode:
 			 * https://github.com/vitejs/vite/issues/3295

@@ -21,11 +21,7 @@ import { jspi } from 'wasm-feature-detect';
 import { MessageChannel, type MessagePort, parentPort } from 'worker_threads';
 import { mountResources } from '../mounts';
 import { logger } from '@php-wasm/logger';
-
-export interface Mount {
-	hostPath: string;
-	vfsPath: string;
-}
+import type { Mount } from '@php-wasm/cli-util';
 
 export type WorkerBootOptions = {
 	phpVersion: SupportedPHPVersion;
@@ -192,7 +188,7 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 						? new File(
 								[sqliteIntegrationPluginZip],
 								'sqlite-integration-plugin.zip'
-						  )
+							)
 						: undefined,
 				sapiName: 'cli',
 				createFiles: {

@@ -28,10 +28,7 @@ import {
 	parseMountWithDelimiterArguments,
 } from './mounts';
 import { startServer } from './start-server';
-import type {
-	Mount,
-	PlaygroundCliBlueprintV1Worker,
-} from './blueprints-v1/worker-thread-v1';
+import type { PlaygroundCliBlueprintV1Worker } from './blueprints-v1/worker-thread-v1';
 import type { PlaygroundCliBlueprintV2Worker } from './blueprints-v2/worker-thread-v2';
 import { FileLockManagerForNode } from '@php-wasm/node';
 import { LoadBalancer } from './load-balancer';
@@ -54,11 +51,12 @@ import {
 } from './temp-dir';
 import { type WordPressInstallMode } from '@wp-playground/wordpress';
 import {
+	type Mount,
 	addXdebugIDEConfig,
 	clearXdebugIDEConfig,
-	createPlaygroundCliTempDirSymlink,
-	removePlaygroundCliTempDirSymlink,
-} from './xdebug-path-mappings';
+	createTempDirSymlink,
+	removeTempDirSymlink,
+} from '@php-wasm/cli-util';
 
 // Inlined worker URLs for static analysis by downstream bundlers
 // These are replaced at build time by the Vite plugin in vite.config.ts
@@ -695,13 +693,13 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 			const symlinkName = '.playground-xdebug-root';
 			const symlinkPath = path.join(process.cwd(), symlinkName);
 
-			await removePlaygroundCliTempDirSymlink(symlinkPath);
+			await removeTempDirSymlink(symlinkPath);
 
 			// Then, if xdebug, and experimental IDE are enabled,
 			// recreate the symlink pointing to the temporary
 			// directory and add the new IDE config.
 			if (args.xdebug && args.experimentalUnsafeIdeIntegration) {
-				await createPlaygroundCliTempDirSymlink(
+				await createTempDirSymlink(
 					nativeDir.path,
 					symlinkPath,
 					process.platform
@@ -738,25 +736,35 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 					const ides = args.experimentalUnsafeIdeIntegration;
 					const hasVSCode = ides.includes('vscode');
 					const hasPhpStorm = ides.includes('phpstorm');
+					const configFiles = Object.values(modifiedConfig);
 
 					console.log('');
-					console.log(bold(`Xdebug configured successfully`));
-					console.log(
-						highlight(`Updated IDE config: `) +
-							modifiedConfig.join(' ')
-					);
-					console.log(
-						highlight('Playground source root: ') +
-							`.playground-xdebug-root` +
-							italic(
-								dim(
-									` – you can set breakpoints and preview Playground's VFS structure in there.`
+
+					if (configFiles.length > 0) {
+						console.log(bold(`Xdebug configured successfully`));
+						console.log(
+							highlight(`Updated IDE config: `) +
+								configFiles.join(' ')
+						);
+						console.log(
+							highlight('Playground source root: ') +
+								`.playground-xdebug-root` +
+								italic(
+									dim(
+										` – you can set breakpoints and preview Playground's VFS structure in there.`
+									)
 								)
-							)
-					);
+						);
+					} else {
+						console.log(bold(`Xdebug configuration failed.`));
+						console.log(
+							'No IDE-specific project settings directory was found in the current working directory.'
+						);
+					}
+
 					console.log('');
 
-					if (hasVSCode) {
+					if (hasVSCode && modifiedConfig['vscode']) {
 						console.log(bold('VS Code / Cursor instructions:'));
 						console.log(
 							'  1. Ensure you have installed an IDE extension for PHP Debugging'
@@ -786,7 +794,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 						}
 					}
 
-					if (hasPhpStorm) {
+					if (hasPhpStorm && modifiedConfig['phpstorm']) {
 						console.log(bold('PhpStorm instructions:'));
 						console.log(
 							`  1. Choose "${italic(

@@ -3,7 +3,7 @@ import {
 	updateVSCodeConfig,
 	type PhpStormConfigOptions,
 	type VSCodeConfigOptions,
-} from '../src/xdebug-path-mappings';
+} from '../lib/xdebug-path-mappings';
 import { XMLParser } from 'fast-xml-parser';
 import * as JSONC from 'jsonc-parser';
 
@@ -99,7 +99,7 @@ describe('updatePhpStormConfig', () => {
 				vfsPath: '/var/www/html/src',
 			},
 		],
-		ideKey: 'PLAYGROUNDCLI',
+		ideKey: 'PHPWASMCLI',
 	};
 
 	describe('valid configurations', () => {
@@ -120,7 +120,7 @@ describe('updatePhpStormConfig', () => {
 		</servers>
 	</component>
 	<component name="RunManager">
-		<configuration name="Test Server" type="PhpRemoteDebugRunConfigurationType" factoryName="PHP Remote Debug" filter_connections="FILTER" server_name="Test Server" session_id="PLAYGROUNDCLI">
+		<configuration name="Test Server" type="PhpRemoteDebugRunConfigurationType" factoryName="PHP Remote Debug" filter_connections="FILTER" server_name="Test Server" session_id="PHPWASMCLI">
 			<method v="2"/>
 		</configuration>
 	</component>
@@ -146,7 +146,7 @@ describe('updatePhpStormConfig', () => {
 		</servers>
 	</component>
 	<component name="RunManager">
-		<configuration name="Test Server" type="PhpRemoteDebugRunConfigurationType" factoryName="PHP Remote Debug" filter_connections="FILTER" server_name="Test Server" session_id="PLAYGROUNDCLI">
+		<configuration name="Test Server" type="PhpRemoteDebugRunConfigurationType" factoryName="PHP Remote Debug" filter_connections="FILTER" server_name="Test Server" session_id="PHPWASMCLI">
 			<method v="2"/>
 		</configuration>
 	</component>
@@ -179,7 +179,7 @@ describe('updatePhpStormConfig', () => {
 		</servers>
 	</component>
 	<component name="RunManager">
-		<configuration name="Test Server" type="PhpRemoteDebugRunConfigurationType" factoryName="PHP Remote Debug" filter_connections="FILTER" server_name="Test Server" session_id="PLAYGROUNDCLI">
+		<configuration name="Test Server" type="PhpRemoteDebugRunConfigurationType" factoryName="PHP Remote Debug" filter_connections="FILTER" server_name="Test Server" session_id="PHPWASMCLI">
 			<method v="2"/>
 		</configuration>
 	</component>
@@ -203,6 +203,37 @@ describe('updatePhpStormConfig', () => {
 			const configMatches =
 				result2.match(/<configuration[^>]*name="Test Server"/g) || [];
 			expect(configMatches.length).toBe(1);
+		});
+
+		it('should handle no path mapping', () => {
+			const options: PhpStormConfigOptions = {
+				name: 'Test Server',
+				host: 'localhost',
+				port: 8080,
+				projectDir: process.cwd(),
+				ideKey: 'PHPWASMCLI',
+			};
+
+			const xml =
+				'<?xml version="1.0" encoding="UTF-8"?>\n<project version="4">\n</project>';
+			const result = updatePhpStormConfig(xml, options);
+
+			const expected = `<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+	<component name="PhpServers">
+		<servers>
+			<server name="Test Server" host="localhost:8080" use_path_mappings="true">
+			</server>
+		</servers>
+	</component>
+	<component name="RunManager">
+		<configuration name="Test Server" type="PhpRemoteDebugRunConfigurationType" factoryName="PHP Remote Debug" filter_connections="FILTER" server_name="Test Server" session_id="PHPWASMCLI">
+			<method v="2"/>
+		</configuration>
+	</component>
+</project>`;
+
+			expectXMLEquals(result, expected);
 		});
 
 		it('should handle multiple path mappings', () => {
@@ -242,7 +273,7 @@ describe('updatePhpStormConfig', () => {
 		</servers>
 	</component>
 	<component name="RunManager">
-		<configuration name="Test Server" type="PhpRemoteDebugRunConfigurationType" factoryName="PHP Remote Debug" filter_connections="FILTER" server_name="Test Server" session_id="PLAYGROUNDCLI">
+		<configuration name="Test Server" type="PhpRemoteDebugRunConfigurationType" factoryName="PHP Remote Debug" filter_connections="FILTER" server_name="Test Server" session_id="PHPWASMCLI">
 			<method v="2"/>
 		</configuration>
 	</component>
@@ -283,7 +314,7 @@ describe('updatePhpStormConfig', () => {
 		</servers>
 	</component>
 	<component name="RunManager">
-		<configuration name="Test Server" type="PhpRemoteDebugRunConfigurationType" factoryName="PHP Remote Debug" filter_connections="FILTER" server_name="Test Server" session_id="PLAYGROUNDCLI">
+		<configuration name="Test Server" type="PhpRemoteDebugRunConfigurationType" factoryName="PHP Remote Debug" filter_connections="FILTER" server_name="Test Server" session_id="PHPWASMCLI">
 			<method v="2"/>
 		</configuration>
 	</component>
@@ -324,7 +355,7 @@ describe('updatePhpStormConfig', () => {
 		</servers>
 	</component>
 	<component name="RunManager">
-		<configuration name="Test Server" type="PhpRemoteDebugRunConfigurationType" factoryName="PHP Remote Debug" filter_connections="FILTER" server_name="Test Server" session_id="PLAYGROUNDCLI">
+		<configuration name="Test Server" type="PhpRemoteDebugRunConfigurationType" factoryName="PHP Remote Debug" filter_connections="FILTER" server_name="Test Server" session_id="PHPWASMCLI">
 			<method v="2"/>
 		</configuration>
 	</component>
@@ -354,7 +385,7 @@ describe('updatePhpStormConfig', () => {
 		</servers>
 	</component>
 	<component name="RunManager">
-		<configuration name="Test Server" type="PhpRemoteDebugRunConfigurationType" factoryName="PHP Remote Debug" filter_connections="FILTER" server_name="Test Server" session_id="PLAYGROUNDCLI">
+		<configuration name="Test Server" type="PhpRemoteDebugRunConfigurationType" factoryName="PHP Remote Debug" filter_connections="FILTER" server_name="Test Server" session_id="PHPWASMCLI">
 			<method v="2"/>
 		</configuration>
 	</component>
@@ -376,7 +407,7 @@ describe('updatePhpStormConfig', () => {
 <project version="4">
 	<component name="RunManager">
 		<configuration name="Other Config" type="PHPUnitRunConfigurationType" />
-		<configuration name="Test Server" type="PhpRemoteDebugRunConfigurationType" factoryName="PHP Remote Debug" filter_connections="FILTER" server_name="Test Server" session_id="PLAYGROUNDCLI">
+		<configuration name="Test Server" type="PhpRemoteDebugRunConfigurationType" factoryName="PHP Remote Debug" filter_connections="FILTER" server_name="Test Server" session_id="PHPWASMCLI">
 			<method v="2"/>
 		</configuration>
 	</component>
@@ -448,7 +479,7 @@ describe('updatePhpStormConfig', () => {
 		</servers>
 	</component>
 	<component name="RunManager">
-		<configuration name="Test Server" type="PhpRemoteDebugRunConfigurationType" factoryName="PHP Remote Debug" filter_connections="FILTER" server_name="Test Server" session_id="PLAYGROUNDCLI">
+		<configuration name="Test Server" type="PhpRemoteDebugRunConfigurationType" factoryName="PHP Remote Debug" filter_connections="FILTER" server_name="Test Server" session_id="PHPWASMCLI">
 			<method v="2"/>
 		</configuration>
 	</component>
@@ -514,12 +545,11 @@ describe('updatePhpStormConfig', () => {
 	<component name="PhpServers">
 		<servers>
 			<server name="Test Server" host="localhost:8080" use_path_mappings="true">
-				<path_mappings/>
 			</server>
 		</servers>
 	</component>
 	<component name="RunManager">
-		<configuration name="Test Server" type="PhpRemoteDebugRunConfigurationType" factoryName="PHP Remote Debug" filter_connections="FILTER" server_name="Test Server" session_id="PLAYGROUNDCLI">
+		<configuration name="Test Server" type="PhpRemoteDebugRunConfigurationType" factoryName="PHP Remote Debug" filter_connections="FILTER" server_name="Test Server" session_id="PHPWASMCLI">
 			<method v="2"/>
 		</configuration>
 	</component>
@@ -552,7 +582,7 @@ describe('updatePhpStormConfig', () => {
 		</servers>
 	</component>
 	<component name="RunManager">
-		<configuration name="Test Server" type="PhpRemoteDebugRunConfigurationType" factoryName="PHP Remote Debug" filter_connections="FILTER" server_name="Test Server" session_id="PLAYGROUNDCLI">
+		<configuration name="Test Server" type="PhpRemoteDebugRunConfigurationType" factoryName="PHP Remote Debug" filter_connections="FILTER" server_name="Test Server" session_id="PHPWASMCLI">
 			<method v="2"/>
 		</configuration>
 	</component>
@@ -585,7 +615,7 @@ describe('updatePhpStormConfig', () => {
 		</servers>
 	</component>
 	<component name="RunManager">
-		<configuration name="Test Server" type="PhpRemoteDebugRunConfigurationType" factoryName="PHP Remote Debug" filter_connections="FILTER" server_name="Test Server" session_id="PLAYGROUNDCLI">
+		<configuration name="Test Server" type="PhpRemoteDebugRunConfigurationType" factoryName="PHP Remote Debug" filter_connections="FILTER" server_name="Test Server" session_id="PHPWASMCLI">
 			<method v="2"/>
 		</configuration>
 	</component>
@@ -616,7 +646,7 @@ describe('updatePhpStormConfig', () => {
 		</servers>
 	</component>
 	<component name="RunManager">
-		<configuration name="Test &amp; Server &quot;With&quot; Quotes" type="PhpRemoteDebugRunConfigurationType" factoryName="PHP Remote Debug" filter_connections="FILTER" server_name="Test &amp; Server &quot;With&quot; Quotes" session_id="PLAYGROUNDCLI">
+		<configuration name="Test &amp; Server &quot;With&quot; Quotes" type="PhpRemoteDebugRunConfigurationType" factoryName="PHP Remote Debug" filter_connections="FILTER" server_name="Test &amp; Server &quot;With&quot; Quotes" session_id="PHPWASMCLI">
 			<method v="2"/>
 		</configuration>
 	</component>
@@ -652,7 +682,7 @@ describe('updatePhpStormConfig', () => {
 		</servers>
 	</component>
 	<component name="RunManager">
-		<configuration name="Test Server" type="PhpRemoteDebugRunConfigurationType" factoryName="PHP Remote Debug" filter_connections="FILTER" server_name="Test Server" session_id="PLAYGROUNDCLI">
+		<configuration name="Test Server" type="PhpRemoteDebugRunConfigurationType" factoryName="PHP Remote Debug" filter_connections="FILTER" server_name="Test Server" session_id="PHPWASMCLI">
 			<method v="2"/>
 		</configuration>
 	</component>
@@ -693,7 +723,7 @@ describe('updatePhpStormConfig', () => {
 		</servers>
 	</component>
 	<component name="RunManager">
-		<configuration name="Test Server" type="PhpRemoteDebugRunConfigurationType" factoryName="PHP Remote Debug" filter_connections="FILTER" server_name="Test Server" session_id="PLAYGROUNDCLI">
+		<configuration name="Test Server" type="PhpRemoteDebugRunConfigurationType" factoryName="PHP Remote Debug" filter_connections="FILTER" server_name="Test Server" session_id="PHPWASMCLI">
 			<method v="2"/>
 		</configuration>
 	</component>
@@ -722,7 +752,7 @@ describe('updatePhpStormConfig', () => {
 		</servers>
 	</component>
 	<component name="RunManager">
-		<configuration name="Test Server" type="PhpRemoteDebugRunConfigurationType" factoryName="PHP Remote Debug" filter_connections="FILTER" server_name="Test Server" session_id="PLAYGROUNDCLI">
+		<configuration name="Test Server" type="PhpRemoteDebugRunConfigurationType" factoryName="PHP Remote Debug" filter_connections="FILTER" server_name="Test Server" session_id="PHPWASMCLI">
 			<method v="2"/>
 		</configuration>
 	</component>
@@ -853,6 +883,29 @@ describe('updateVSCodeConfig', () => {
 			// Count occurrences of the configuration name
 			const matches = result2.match(/"name": "Test Configuration"/g);
 			expect(matches?.length).toBe(1);
+		});
+
+		it('should handle no path mapping', () => {
+			const options: VSCodeConfigOptions = {
+				name: 'Test Configuration',
+				workspaceDir: process.cwd(),
+			};
+
+			const json = '{\n    "configurations": []\n}';
+			const result = updateVSCodeConfig(json, options);
+
+			const expected = `{
+	"configurations": [
+		{
+			"name": "Test Configuration",
+			"type": "php",
+			"request": "launch",
+			"port": 9003,
+		}
+    ]
+}`;
+
+			expectJSONEquals(result, expected);
 		});
 
 		it('should handle multiple path mappings', () => {
@@ -1120,7 +1173,6 @@ describe('updateVSCodeConfig', () => {
             "type": "php",
             "request": "launch",
             "port": 9003,
-            "pathMappings": {}
         }
     ]
 }`;
