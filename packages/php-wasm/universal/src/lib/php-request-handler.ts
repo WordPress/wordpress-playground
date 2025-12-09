@@ -88,30 +88,28 @@ export type PHPRequestHandlerFactoryArgs = PHPFactoryOptions & {
 
 export type PHPRequestHandlerConfiguration = BaseConfiguration & {
 	cookieStore?: CookieStore | false;
-} & (
-		| {
-				/**
-				 * Provide a single PHP instance directly.
-				 * PHPRequestHandler will create a SinglePHPInstanceManager internally.
-				 * This is the simplest option for CLI contexts with a single PHP instance.
-				 */
-				php: PHP;
-		  }
-		| {
-				/**
-				 * Provide a factory function to create PHP instances.
-				 * PHPRequestHandler will create a PHPProcessManager internally.
-				 */
-				phpFactory: (
-					requestHandler: PHPRequestHandlerFactoryArgs
-				) => Promise<PHP>;
-				/**
-				 * The maximum number of PHP instances that can exist at
-				 * the same time. Only used when phpFactory is provided.
-				 */
-				maxPhpInstances?: number;
-		  }
-	);
+
+	// One of the following must be provided:
+
+	/**
+	 * Provide a single PHP instance directly.
+	 * PHPRequestHandler will create a SinglePHPInstanceManager internally.
+	 * This is the simplest option for CLI contexts with a single PHP instance.
+	 */
+	php?: PHP;
+
+	/**
+	 * Provide a factory function to create PHP instances.
+	 * PHPRequestHandler will create a PHPProcessManager internally.
+	 */
+	phpFactory?: (requestHandler: PHPRequestHandlerFactoryArgs) => Promise<PHP>;
+
+	/**
+	 * The maximum number of PHP instances that can exist at
+	 * the same time. Only used when phpFactory is provided.
+	 */
+	maxPhpInstances?: number;
+};
 
 /**
  * Handles HTTP requests using PHP runtime as a backend.
@@ -217,15 +215,15 @@ export class PHPRequestHandler implements AsyncDisposable {
 			(php as any).requestHandler = this;
 		};
 
-		if ('php' in config) {
+		if (config.php) {
 			setChroot(config.php);
 			this.instanceManager = new SinglePHPInstanceManager({
 				php: config.php,
 			});
-		} else {
+		} else if (config.phpFactory) {
 			this.instanceManager = new PHPProcessManager({
 				phpFactory: async (info) => {
-					const php = await config.phpFactory({
+					const php = await config.phpFactory!({
 						...info,
 						requestHandler: this,
 					});
@@ -234,6 +232,10 @@ export class PHPRequestHandler implements AsyncDisposable {
 				},
 				maxPhpInstances: config.maxPhpInstances,
 			});
+		} else {
+			throw new Error(
+				'Either php or phpFactory must be provided in the configuration.'
+			);
 		}
 
 		/**
