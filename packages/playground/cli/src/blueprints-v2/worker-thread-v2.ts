@@ -413,20 +413,25 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 		}
 	}
 
-	async bootRequestHandler({
-		siteUrl,
-		allow,
-		phpVersion,
-		createFiles,
-		constants,
-		phpIniEntries,
-		firstProcessId,
-		processIdSpaceLength,
-		trace,
-		nativeInternalDirPath,
-		withXdebug,
-		onPHPInstanceCreated,
-	}: WorkerBootRequestHandlerOptions) {
+	async bootRequestHandler(
+		options: SecondaryWorkerBootArgs & {
+			onPHPInstanceCreated?: PHPInstanceCreatedHook;
+		}
+	) {
+		const {
+			siteUrl,
+			allow,
+			phpVersion,
+			createFiles,
+			constants,
+			phpIniEntries,
+			firstProcessId,
+			processIdSpaceLength,
+			trace,
+			nativeInternalDirPath,
+			withXdebug,
+			onPHPInstanceCreated,
+		} = options;
 		if (this.booted) {
 			throw new Error('Playground already booted');
 		}
@@ -471,23 +476,7 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 				cookieStore: false,
 				spawnHandler: () =>
 					sandboxedSpawnHandlerFactory(() =>
-						createPHPWorker(
-							{
-								siteUrl,
-								allow,
-								phpVersion,
-								phpIniEntries,
-								constants,
-								createFiles,
-								firstProcessId,
-								processIdSpaceLength,
-								trace,
-								nativeInternalDirPath,
-								withXdebug,
-								onPHPInstanceCreated,
-							},
-							this.fileLockManager!
-						)
+						createPHPWorker(options, this.fileLockManager!)
 					),
 			});
 			this.__internal_setRequestHandler(requestHandler);
@@ -526,7 +515,7 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
  * @returns A promise that resolves to the PHP worker.
  */
 async function createPHPWorker(
-	options: WorkerBootRequestHandlerOptions,
+	options: SecondaryWorkerBootArgs,
 	fileLockManager: FileLockManager | RemoteAPI<FileLockManager>
 ) {
 	const spawnedWorker = await spawnWorkerThread('v2');
@@ -535,21 +524,7 @@ async function createPHPWorker(
 		spawnedWorker.phpPort
 	);
 	handler.useFileLockManager(fileLockManager as any);
-	await handler.bootWorker({
-		siteUrl: options.siteUrl,
-		allow: options.allow,
-		phpVersion: options.phpVersion,
-		phpIniEntries: options.phpIniEntries,
-		constants: options.constants,
-		createFiles: options.createFiles,
-		firstProcessId: options.firstProcessId,
-		processIdSpaceLength: options.processIdSpaceLength,
-		trace: options.trace,
-		nativeInternalDirPath: options.nativeInternalDirPath,
-		withXdebug: options.withXdebug,
-		mountsBeforeWpInstall: [],
-		mountsAfterWpInstall: [],
-	});
+	await handler.bootWorker(options);
 
 	return {
 		php: handler,
