@@ -81,7 +81,7 @@ export function sandboxedSpawnHandlerFactory(
 			return;
 		}
 
-		if (!['php', 'ls', 'pwd'].includes(binaryName ?? '')) {
+		if (!['php', 'ls', 'pwd', 'rm'].includes(binaryName ?? '')) {
 			// 127 is the exit code "for command not found".
 			processApi.exit(127);
 			return;
@@ -148,6 +148,20 @@ export function sandboxedSpawnHandlerFactory(
 				}
 				case 'pwd': {
 					processApi.stdout(cwd + '\n');
+					// Technical limitation of subprocesses – we need to
+					// wait before exiting to give consumer a chance to read
+					// the output.
+					await new Promise((resolve) => setTimeout(resolve, 10));
+					processApi.exit(0);
+					break;
+				}
+				case 'rm': {
+					const target = args[args.length - 1];
+					if (await php.isDir(target)) {
+						await php.rmdir(target, { recursive: true });
+					} else if (await php.isFile(target)) {
+						await php.unlink(target);
+					}
 					// Technical limitation of subprocesses – we need to
 					// wait before exiting to give consumer a chance to read
 					// the output.
