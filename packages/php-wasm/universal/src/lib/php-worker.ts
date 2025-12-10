@@ -231,7 +231,7 @@ export class PHPWorker implements LimitedPHPApi, AsyncDisposable {
 	private async acquirePHPInstance() {
 		const { php, reap } = await _private
 			.get(this)!
-			.requestHandler!.processManager.acquirePHPInstance();
+			.requestHandler!.instanceManager.acquirePHPInstance();
 		if (this.chroot !== null) {
 			php.chdir(this.chroot);
 		}

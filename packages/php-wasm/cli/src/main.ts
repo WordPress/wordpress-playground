@@ -129,6 +129,7 @@ ${process.argv[0]} ${process.execArgv.join(' ')} ${process.argv[1]}
 			withXdebug: hasXdebugOption,
 		})
 	);
+	php.setSpawnHandler(require('child_process').spawn);
 
 	useHostFilesystem(php);
 

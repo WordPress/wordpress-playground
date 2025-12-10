@@ -1,5 +1,5 @@
 ---
-title: WordPress Playground for Theme Developers
+title: WordPress Playground para desenvolvedores de temas
 slug: /guides/for-theme-developers
 description: Um guia para desenvolvedores de temas sobre como usar o Playground para construir, testar e criar demos de seus temas com Blueprints.
 ---

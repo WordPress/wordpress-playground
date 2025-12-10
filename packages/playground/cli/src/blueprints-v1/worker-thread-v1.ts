@@ -21,6 +21,8 @@ import { jspi } from 'wasm-feature-detect';
 import { MessageChannel, type MessagePort, parentPort } from 'worker_threads';
 import { mountResources } from '../mounts';
 import { logger } from '@php-wasm/logger';
+import { spawnWorkerThread } from '../run-cli';
+
 import type { Mount } from '@php-wasm/cli-util';
 
 export type WorkerBootOptions = {
@@ -122,30 +124,21 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 		}
 	}
 
-	async bootAndSetUpInitialWorker({
-		siteUrl,
-		mountsBeforeWpInstall,
-		mountsAfterWpInstall,
-		phpVersion: php = RecommendedPHPVersion,
-		wordpressInstallMode,
-		wordPressZip,
-		sqliteIntegrationPluginZip,
-		firstProcessId,
-		processIdSpaceLength,
-		dataSqlPath,
-		followSymlinks,
-		trace,
-		internalCookieStore,
-		withXdebug,
-		nativeInternalDirPath,
-	}: PrimaryWorkerBootOptions) {
+	async bootAndSetUpInitialWorker(options: PrimaryWorkerBootOptions) {
+		const {
+			siteUrl,
+			mountsBeforeWpInstall,
+			mountsAfterWpInstall,
+			wordpressInstallMode,
+			wordPressZip,
+			sqliteIntegrationPluginZip,
+			dataSqlPath,
+			internalCookieStore,
+		} = options;
 		if (this.booted) {
 			throw new Error('Playground already booted');
 		}
 		this.booted = true;
-
-		let nextProcessId = firstProcessId;
-		const lastProcessId = firstProcessId + processIdSpaceLength - 1;
 
 		try {
 			const constants: Record<string, string | number | boolean | null> =
@@ -157,27 +150,10 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 			let wordpressBooted = false;
 			const requestHandler = await bootWordPressAndRequestHandler({
 				siteUrl,
-				createPhpRuntime: async () => {
-					const processId = nextProcessId;
-
-					if (nextProcessId < lastProcessId) {
-						nextProcessId++;
-					} else {
-						// We've reached the end of the process ID space. Start over.
-						nextProcessId = firstProcessId;
-					}
-
-					return await loadNodeRuntime(php, {
-						emscriptenOptions: {
-							fileLockManager: this.fileLockManager!,
-							processId,
-							trace: trace ? tracePhpWasm : undefined,
-							phpWasmInitOptions: { nativeInternalDirPath },
-						},
-						followSymlinks,
-						withXdebug,
-					});
-				},
+				createPhpRuntime: createPhpRuntimeFactory(
+					options,
+					this.fileLockManager!
+				),
 				wordpressInstallMode,
 				wordPressZip:
 					wordPressZip !== undefined
@@ -203,7 +179,10 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 				},
 				cookieStore: internalCookieStore ? undefined : false,
 				dataSqlPath,
-				spawnHandler: sandboxedSpawnHandlerFactory,
+				spawnHandler: () =>
+					sandboxedSpawnHandlerFactory(() =>
+						createPHPWorker(options, this.fileLockManager!)
+					),
 				async onPHPInstanceCreated(php) {
 					await mountResources(php, mountsBeforeWpInstall);
 					if (wordpressBooted) {
@@ -230,64 +209,37 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 		}
 	}
 
+	async hello() {
+		return 'hello';
+	}
+
 	async bootWorker(args: WorkerBootOptions) {
 		await this.bootRequestHandler(args);
 	}
 
-	async bootRequestHandler({
-		siteUrl,
-		followSymlinks,
-		phpVersion,
-		firstProcessId,
-		processIdSpaceLength,
-		trace,
-		nativeInternalDirPath,
-		mountsBeforeWpInstall,
-		mountsAfterWpInstall,
-		withXdebug,
-	}: WorkerBootRequestHandlerOptions) {
+	async bootRequestHandler(options: WorkerBootRequestHandlerOptions) {
 		if (this.booted) {
 			throw new Error('Playground already booted');
 		}
 		this.booted = true;
 
-		let nextProcessId = firstProcessId;
-		const lastProcessId = firstProcessId + processIdSpaceLength - 1;
-
 		try {
 			const requestHandler = await bootRequestHandler({
-				siteUrl,
-				createPhpRuntime: async () => {
-					const processId = nextProcessId;
-
-					if (nextProcessId < lastProcessId) {
-						nextProcessId++;
-					} else {
-						// We've reached the end of the process ID space. Start over.
-						nextProcessId = firstProcessId;
-					}
-
-					return await loadNodeRuntime(phpVersion, {
-						emscriptenOptions: {
-							fileLockManager: this.fileLockManager!,
-							processId,
-							trace: trace ? tracePhpWasm : undefined,
-							ENV: {
-								DOCROOT: '/wordpress',
-							},
-							phpWasmInitOptions: { nativeInternalDirPath },
-						},
-						followSymlinks,
-						withXdebug,
-					});
-				},
+				siteUrl: options.siteUrl,
+				createPhpRuntime: createPhpRuntimeFactory(
+					options,
+					this.fileLockManager!
+				),
 				onPHPInstanceCreated: async (php) => {
-					await mountResources(php, mountsBeforeWpInstall);
-					await mountResources(php, mountsAfterWpInstall);
+					await mountResources(php, options.mountsBeforeWpInstall);
+					await mountResources(php, options.mountsAfterWpInstall);
 				},
 				sapiName: 'cli',
 				cookieStore: false,
-				spawnHandler: sandboxedSpawnHandlerFactory,
+				spawnHandler: () =>
+					sandboxedSpawnHandlerFactory(() =>
+						createPHPWorker(options, this.fileLockManager!)
+					),
 			});
 			this.__internal_setRequestHandler(requestHandler);
 
@@ -305,6 +257,91 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 	async dispose() {
 		await this[Symbol.asyncDispose]();
 	}
+}
+
+/**
+ * Returns a factory function that starts a new PHP runtime in the currently
+ * running process. This is used for rotating the PHP runtime periodically.
+ */
+function createPhpRuntimeFactory(
+	options: WorkerBootRequestHandlerOptions,
+	fileLockManager: FileLockManager | RemoteAPI<FileLockManager>
+) {
+	let nextProcessId = options.firstProcessId;
+	const lastProcessId =
+		options.firstProcessId + options.processIdSpaceLength - 1;
+	return async () => {
+		const processId = nextProcessId;
+
+		if (nextProcessId < lastProcessId) {
+			nextProcessId++;
+		} else {
+			// We've reached the end of the process ID space. Start over.
+			nextProcessId = options.firstProcessId;
+		}
+
+		return await loadNodeRuntime(
+			options.phpVersion || RecommendedPHPVersion,
+			{
+				emscriptenOptions: {
+					fileLockManager,
+					processId,
+					trace: options.trace ? tracePhpWasm : undefined,
+					phpWasmInitOptions: {
+						nativeInternalDirPath: options.nativeInternalDirPath,
+					},
+				},
+				followSymlinks: options.followSymlinks,
+				withXdebug: options.withXdebug,
+			}
+		);
+	};
+}
+
+/**
+ * Spawns a new PHP process to be used in the PHP spawn handler (in proc_open() etc. calls).
+ * It boots from this worker-thread-v1.ts file, but is a separate process.
+ *
+ * We explicitly avoid using PHPProcessManager.acquirePHPInstance() here.
+ *
+ * Why?
+ *
+ * Because each PHP instance acquires actual OS-level file locks via fcntl() and LockFileEx()
+ * syscalls. Running multiple PHP instances from the same OS process would allow them to
+ * acquire overlapping locks. Running every PHP instance in a separate OS process ensures
+ * any locks that overlap between PHP instances conflict with each other as expected.
+ *
+ * @param options - The options for the worker.
+ * @param fileLockManager - The file lock manager to use.
+ * @returns A promise that resolves to the PHP worker.
+ */
+async function createPHPWorker(
+	options: WorkerBootRequestHandlerOptions,
+	fileLockManager: FileLockManager | RemoteAPI<FileLockManager>
+) {
+	const spawnedWorker = await spawnWorkerThread('v1');
+
+	const handler = consumeAPI<PlaygroundCliBlueprintV1Worker>(
+		spawnedWorker.phpPort
+	);
+	handler.useFileLockManager(fileLockManager as any);
+	await handler.bootWorker(options);
+
+	return {
+		php: handler,
+		reap: () => {
+			try {
+				handler.dispose();
+			} catch {
+				/** */
+			}
+			try {
+				spawnedWorker.worker.terminate();
+			} catch {
+				/** */
+			}
+		},
+	};
 }
 
 process.on('unhandledRejection', (e: any) => {

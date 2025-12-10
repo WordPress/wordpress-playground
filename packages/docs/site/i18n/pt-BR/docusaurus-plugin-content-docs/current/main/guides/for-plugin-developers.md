@@ -1,5 +1,5 @@
 ---
-title: WordPress Playground for Plugin Developers
+title: WordPress Playground para desenvolvedores de plugins
 slug: /guides/for-plugin-developers
 description: Um guia para desenvolvedores de plugins sobre como usar o Playground para construir, testar e criar demos de seus plugins.
 ---

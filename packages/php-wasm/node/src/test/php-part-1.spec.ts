@@ -1850,7 +1850,11 @@ describe('sandboxedSpawnHandlerFactory', () => {
 					'Hello, world!'
 				);
 				await php.setSpawnHandler(
-					sandboxedSpawnHandlerFactory(processManager)
+					sandboxedSpawnHandlerFactory(() =>
+						processManager.acquirePHPInstance({
+							considerPrimary: false,
+						})
+					)
 				);
 				return php;
 			},
