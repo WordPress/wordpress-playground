@@ -7,6 +7,7 @@ import type {
 	FileTree,
 	RemoteAPI,
 	SupportedPHPVersion,
+	SpawnHandler,
 } from '@php-wasm/universal';
 import {
 	PHPExecutionFailureError,
@@ -107,22 +108,25 @@ const output = {
 		}
 	},
 	stdout(data: string) {
+		process.stdout.write('\n\n\n');
 		if (output.lastWriteWasProgress) {
-			process.stdout.write('\n');
 			output.lastWriteWasProgress = false;
 		}
 		process.stdout.write(data);
 	},
 	stderr(data: string) {
+		process.stdout.write('\n\n\n');
 		if (output.lastWriteWasProgress) {
-			process.stdout.write('\n');
 			output.lastWriteWasProgress = false;
 		}
 		process.stderr.write(data);
 	},
 };
 
-export type PrimaryWorkerBootArgs = RunCLIArgs & {
+export type PrimaryWorkerBootArgs = Omit<
+	RunCLIArgs,
+	'mount-before-install' | 'mount'
+> & {
 	phpVersion: SupportedPHPVersion;
 	siteUrl: string;
 	firstProcessId: number;
@@ -133,14 +137,20 @@ export type PrimaryWorkerBootArgs = RunCLIArgs & {
 		| ParsedBlueprintV2String
 		| BlueprintV1Declaration;
 	nativeInternalDirPath: string;
+	mountsBeforeWpInstall?: Array<Mount>;
+	mountsAfterWpInstall?: Array<Mount>;
 };
 
-type WorkerRunBlueprintArgs = RunCLIArgs & {
+type WorkerRunBlueprintArgs = Omit<
+	RunCLIArgs,
+	'mount-before-install' | 'mount'
+> & {
 	siteUrl: string;
 	blueprint:
 		| RawBlueprintV2Data
 		| ParsedBlueprintV2String
 		| BlueprintV1Declaration;
+	mountsAfterWpInstall?: Array<Mount>;
 };
 
 export type SecondaryWorkerBootArgs = {
@@ -164,6 +174,7 @@ export type WorkerBootRequestHandlerOptions = Omit<
 	'mountsBeforeWpInstall' | 'mountsAfterWpInstall'
 > & {
 	onPHPInstanceCreated: PHPInstanceCreatedHook;
+	spawnHandler: () => SpawnHandler;
 };
 
 export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
@@ -225,9 +236,9 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 				'openssl.cafile': '/internal/shared/ca-bundle.crt',
 			},
 			onPHPInstanceCreated: async (php: PHP) => {
-				await mountResources(php, args['mount-before-install'] || []);
+				await mountResources(php, args.mountsBeforeWpInstall || []);
 				if (this.blueprintTargetResolved) {
-					await mountResources(php, args.mount || []);
+					await mountResources(php, args.mountsAfterWpInstall || []);
 				} else {
 					// NOTE: Today (2025-09-11), during boot with a plugin auto-mount,
 					// the Blueprint runner fails unless post-resolution mounts are
@@ -244,17 +255,24 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 					});
 				}
 			},
+			spawnHandler: () =>
+				sandboxedSpawnHandlerFactory(() =>
+					createPHPWorker(args, this.fileLockManager!)
+				),
 		};
 		await this.bootRequestHandler(requestHandlerOptions);
 
 		const primaryPhp = this.__internal_getPHP()!;
 
 		if (args.mode === 'mount-only') {
-			await mountResources(primaryPhp, args.mount || []);
+			await mountResources(primaryPhp, args.mountsAfterWpInstall || []);
 			return;
 		}
 
-		await this.runBlueprintV2(args);
+		await this.runBlueprintV2({
+			...args,
+			mountsAfterWpInstall: args.mountsAfterWpInstall || [],
+		});
 	}
 
 	async bootWorker(args: SecondaryWorkerBootArgs) {
@@ -264,6 +282,10 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 				await mountResources(php, args.mountsBeforeWpInstall || []);
 				await mountResources(php, args.mountsAfterWpInstall || []);
 			},
+			spawnHandler: () =>
+				sandboxedSpawnHandlerFactory(() =>
+					createPHPWorker(args, this.fileLockManager!)
+				),
 		});
 	}
 
@@ -329,7 +351,10 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 									this.phpInstancesThatNeedMountsAfterTargetResolved.delete(
 										php
 									);
-									await mountResources(php, args.mount || []);
+									await mountResources(
+										php,
+										args.mountsAfterWpInstall || []
+									);
 								}
 							}
 							break;
@@ -390,7 +415,7 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 				const syncResponse =
 					await PHPResponse.fromStreamedResponse(streamedResponse);
 				throw new PHPExecutionFailureError(
-					`PHP.run() failed with exit code ${syncResponse.exitCode}.`,
+					`PHP.run() failed with exit code ${syncResponse.exitCode}. ${syncResponse.errors} ${syncResponse.text}`,
 					syncResponse,
 					'request'
 				);
@@ -426,6 +451,7 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 		nativeInternalDirPath,
 		withXdebug,
 		onPHPInstanceCreated,
+		spawnHandler,
 	}: WorkerBootRequestHandlerOptions) {
 		if (this.booted) {
 			throw new Error('Playground already booted');
@@ -452,7 +478,7 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 						emscriptenOptions: {
 							fileLockManager: this.fileLockManager!,
 							processId,
-							trace: trace ? tracePhpWasm : undefined,
+							// trace: trace ? tracePhpWasm : undefined,
 							ENV: {
 								DOCROOT: '/wordpress',
 							},
@@ -469,25 +495,7 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 				constants,
 				phpIniEntries,
 				cookieStore: false,
-				spawnHandler: () =>
-					sandboxedSpawnHandlerFactory(() =>
-						createPHPWorker(
-							{
-								siteUrl,
-								allow,
-								phpVersion,
-								createFiles,
-								constants,
-								phpIniEntries,
-								firstProcessId,
-								processIdSpaceLength,
-								trace,
-								nativeInternalDirPath,
-								withXdebug,
-							},
-							this.fileLockManager!
-						)
-					),
+				spawnHandler,
 			});
 			this.__internal_setRequestHandler(requestHandler);
 
@@ -525,7 +533,21 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
  * @returns A promise that resolves to the PHP worker.
  */
 async function createPHPWorker(
-	options: SecondaryWorkerBootArgs,
+	{
+		siteUrl,
+		allow,
+		phpVersion,
+		createFiles,
+		constants,
+		phpIniEntries,
+		firstProcessId,
+		processIdSpaceLength,
+		trace,
+		nativeInternalDirPath,
+		withXdebug,
+		mountsBeforeWpInstall,
+		mountsAfterWpInstall,
+	}: SecondaryWorkerBootArgs,
 	fileLockManager: FileLockManager | RemoteAPI<FileLockManager>
 ) {
 	const spawnedWorker = await spawnWorkerThread('v2');
@@ -534,7 +556,21 @@ async function createPHPWorker(
 		spawnedWorker.phpPort
 	);
 	handler.useFileLockManager(fileLockManager as any);
-	await handler.bootWorker(options);
+	await handler.bootWorker({
+		siteUrl,
+		allow,
+		phpVersion,
+		createFiles,
+		constants,
+		phpIniEntries,
+		firstProcessId,
+		processIdSpaceLength,
+		trace,
+		nativeInternalDirPath,
+		withXdebug,
+		mountsBeforeWpInstall,
+		mountsAfterWpInstall,
+	});
 
 	return {
 		php: handler,
