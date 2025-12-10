@@ -238,7 +238,7 @@
 					"php-networking.spec.ts",
 					"php-dynamic-loading.spec.ts",
 					"php-mysqli.spec.ts",
-					"php-instance-manager.spec.ts"
+					"php-process-manager.spec.ts"
 				]
 			}
 		},
@@ -254,7 +254,7 @@
 					"php-networking.spec.ts",
 					"php-dynamic-loading.spec.ts",
 					"php-mysqli.spec.ts",
-					"php-instance-manager.spec.ts"
+					"php-process-manager.spec.ts"
 				]
 			}
 		},

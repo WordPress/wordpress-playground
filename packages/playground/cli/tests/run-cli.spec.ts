@@ -31,6 +31,7 @@ const blueprintVersions = [
 	{
 		version: 2,
 		suiteCliArgs: {
+			php: '8.0',
 			'experimental-blueprints-v2-runner': true,
 		},
 		expectedHomePageTitle: 'WordPress Site',

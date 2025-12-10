@@ -1513,6 +1513,7 @@ export class PHP implements Disposable {
 		argv: string[],
 		options: { env?: Record<string, string>; cwd?: string } = {}
 	): Promise<StreamedPHPResponse> {
+		console.log('PHP.cli', { argv, options });
 		if (basename(argv[0] ?? '') !== 'php') {
 			return this.subProcess(argv, options);
 		}

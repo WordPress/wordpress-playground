@@ -4,7 +4,7 @@ import {
 	PHPProcessManager,
 	sandboxedSpawnHandlerFactory,
 	setPhpIniEntries,
-	type AcquiredPHP,
+	type SpawnedPHP,
 	SupportedPHPVersions,
 } from '@php-wasm/universal';
 import { createSpawnHandler, phpVar } from '@php-wasm/util';
@@ -1829,7 +1829,7 @@ phpLoaderOptions.forEach((options) => {
 describe('sandboxedSpawnHandlerFactory', () => {
 	const phpVersion = RecommendedPHPVersion;
 	let php: PHP;
-	let spawnedPhp: AcquiredPHP;
+	let spawnedPhp: SpawnedPHP;
 	let processManager: PHPProcessManager;
 	beforeEach(async () => {
 		processManager = new PHPProcessManager({

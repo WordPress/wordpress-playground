@@ -65,7 +65,7 @@ export interface BootRequestHandlerOptions {
 	siteUrl: string;
 	documentRoot?: string;
 	spawnHandler?: (
-		getPHPInstance: () => Promise<{
+		getPHPInstance?: () => Promise<{
 			php: PHP | Remote<PHPWorker>;
 			reap: () => void;
 		}>
@@ -361,7 +361,8 @@ async function assertValidDatabaseConnection(
 }
 
 export async function bootRequestHandler(options: BootRequestHandlerOptions) {
-	const spawnHandler = options.spawnHandler ?? sandboxedSpawnHandlerFactory;
+	const createSpawnHandler =
+		options.spawnHandler ?? sandboxedSpawnHandlerFactory;
 	async function createPhp(
 		requestHandler?: PHPRequestHandler,
 		isPrimary = false
@@ -420,12 +421,17 @@ export async function bootRequestHandler(options: BootRequestHandlerOptions) {
 
 		// Spawn handler is responsible for spawning processes for all the
 		// `popen()`, `proc_open()` etc. calls.
-		if (spawnHandler && requestHandler) {
+		if (createSpawnHandler) {
 			await php.setSpawnHandler(
-				spawnHandler(() =>
-					requestHandler.instanceManager.acquirePHPInstance({
-						considerPrimary: false,
-					})
+				createSpawnHandler(
+					requestHandler
+						? () =>
+								requestHandler.instanceManager.acquirePHPInstance(
+									{
+										considerPrimary: false,
+									}
+								)
+						: undefined
 				)
 			);
 		}
