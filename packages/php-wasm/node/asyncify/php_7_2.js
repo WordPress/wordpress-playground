@@ -7003,7 +7003,7 @@ export function init(RuntimeName, PHPLoader) {
 				});
 			}
 			const e = new Error(
-				'popen(), proc_open() etc. are unsupported in the browser. Call php.setSpawnHandler() ' +
+				'popen(), proc_open() etc. are unsupported on this PHP instance. Call php.setSpawnHandler() ' +
 					'and provide a callback to handle spawning processes, or disable a popen(), proc_open() ' +
 					'and similar functions via php.ini.'
 			);
