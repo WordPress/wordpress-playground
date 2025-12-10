@@ -212,6 +212,9 @@ export default defineConfig({
 		// - Ensure CLI tests can download WordPress
 		// - Ensure worker threads have time to boot
 		testTimeout: 30000,
+		// Run test files sequentially to avoid race conditions when multiple
+		// tests try to download WordPress concurrently
+		fileParallelism: false,
 		poolOptions: {
 			forks: {
 				execArgv: [
