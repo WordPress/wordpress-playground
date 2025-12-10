@@ -13,12 +13,12 @@ import type {
 	Fd,
 	Path,
 } from '@php-wasm/universal';
+import { FileLockIntervalTree } from './file-lock-interval-tree';
 
 export class FileLockManagerForWindows implements FileLockManager {
 	// TODO: Move path of whole file lock into leaf. It is never used for lookup.
 	wholeFileLockMap = new Map<Path, Map<Pid, Map<Fd, WholeFileLockOp>>>();
-
-	rangeLockedFds = new Map<Pid, Map<Path, Set<Fd>>>();
+	rangeLockedFds = new Map<Path, FileLockIntervalTree>();
 
 	lockWholeFile(path: string, op: WholeFileLockOp): boolean {
 		// For whole-file locks, we address the entire byte range of the file.
@@ -188,19 +188,15 @@ export class FileLockManagerForWindows implements FileLockManager {
 		const lengthLow = Number(op.end & 0xffffffffn);
 		const lengthHigh = Number((op.end >> 32n) & 0xffffffffn);
 
-		// TODO: Track locked ranges
 		// TODO: Make sure zero length ranges are treated as covering the entire remaining range.
 
+		if (!this.rangeLockedFds.has(path)) {
+			this.rangeLockedFds.set(path, new FileLockIntervalTree());
+		}
+		const lockedRangeTree = this.rangeLockedFds.get(path)!;
+
 		// TODO: Add exception handling for Sync calls.
-		if (op.type === 'unlocked') {
-			return unlockFileExSync(
-				op.fd,
-				offsetLow,
-				offsetHigh,
-				lengthLow,
-				lengthHigh
-			);
-		} else {
+		if (op.type === 'shared' || op.type === 'exclusive') {
 			let flags = 0;
 			if (op.type === 'exclusive') {
 				flags |= constants.LOCKFILE_EXCLUSIVE_LOCK;
@@ -208,7 +204,12 @@ export class FileLockManagerForWindows implements FileLockManager {
 			if (!waitForLock) {
 				flags |= constants.LOCKFILE_FAIL_IMMEDIATELY;
 			}
-			return lockFileExSync(
+
+			// TODO: Implement lock upgrading and downgrading like fcntl() allows.
+			// TODO: Implement relocking of preexisting locks like fcntl() allows.
+			// TODO: Implement merging locked ranges like fcntl() allows.
+
+			const lockResult = lockFileExSync(
 				op.fd,
 				flags,
 				offsetLow,
@@ -216,6 +217,31 @@ export class FileLockManagerForWindows implements FileLockManager {
 				lengthLow,
 				lengthHigh
 			);
+			if (!lockResult) {
+				return false;
+			}
+
+			// TODO: Why is this a type error without `any`? Didn't we pass a shared/exclusive type guard?
+			lockedRangeTree.insert(op as any);
+			return true;
+		} else {
+			// TODO: Implement partial unlocking like fcntl() allows.
+
+			const unlockResult = unlockFileExSync(
+				op.fd,
+				offsetLow,
+				offsetHigh,
+				lengthLow,
+				lengthHigh
+			);
+			if (!unlockResult) {
+				// TODO: Report if the lock does not exist.
+				return false;
+			}
+
+			// TODO: Report if the lock does not exist.
+			lockedRangeTree.remove(op);
+			return true;
 		}
 	}
 
@@ -263,7 +289,20 @@ export class FileLockManagerForWindows implements FileLockManager {
 			pidMap.delete(targetPid);
 		}
 
-		// TODO: Implement release of range locks.
+		for (const [path, lockedRangeTree] of this.rangeLockedFds.entries()) {
+			const rangesLockedByTargetPid =
+				lockedRangeTree.findLocksForProcess(targetPid);
+			for (const op of rangesLockedByTargetPid) {
+				// TODO: Check for errors and log them.
+				// TODO: Consider throwing an error if this fails.
+				this.lockFileByteRange(
+					path,
+					{ ...op, type: 'unlocked' },
+					false
+				);
+				lockedRangeTree.remove(op);
+			}
+		}
 	}
 
 	// TODO: Rename this to something clearer like releaseLockOnFileDescriptorClose
@@ -277,14 +316,18 @@ export class FileLockManagerForWindows implements FileLockManager {
 
 		this.wholeFileLockMap.get(targetPath)?.get(targetPid)?.delete(targetFd);
 
-		// TODO: Once we implement proper ranged fcntl()-based locks,
-		// release all locks for the given PID and path when the FD is closed.
-		// fcntl()-based locks are released whenever any file descriptor for the
-		// target file is closed, regardless of which FD was used to obtain the lock.
-
-		this.rangeLockedFds.get(targetPid)?.delete(targetPath);
-
-		// TODO: Implement POSIX fcntl() semantics where a lock is released
-		// when any FD associated with the file is closed.
+		const lockedRangeTree = this.rangeLockedFds.get(targetPath);
+		for (const op of lockedRangeTree?.findLocksForProcess(targetPid) ??
+			[]) {
+			// POSIX fcntl() semantics where a lock is released
+			// when any FD associated with the file is closed.
+			// TODO: Quote spec and link to it.
+			this.lockFileByteRange(
+				targetPath,
+				{ ...op, type: 'unlocked' },
+				false
+			);
+			lockedRangeTree!.remove(op);
+		}
 	}
 }
