@@ -11,7 +11,7 @@ import { MAX_64BIT_OFFSET } from './constants';
 
 export class FileLockManagerForPosix implements FileLockManager {
 	// TODO: Move path of whole file lock into leaf. It is never used for lookup.
-	wholeFileLockMap = new Map<string, Map<Pid, Map<Fd, WholeFileLockOp>>>();
+	wholeFileLockMap = new Map<Path, Map<Pid, Map<Fd, WholeFileLockOp>>>();
 	rangeLockedFds = new Map<Pid, Map<Path, Set<Fd>>>();
 
 	lockWholeFile(path: string, op: WholeFileLockOp): boolean {
