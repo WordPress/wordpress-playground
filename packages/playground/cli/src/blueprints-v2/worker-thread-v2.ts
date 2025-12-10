@@ -503,7 +503,7 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 						emscriptenOptions: {
 							fileLockManager: this.fileLockManager!,
 							processId,
-							// trace: trace ? tracePhpWasm : undefined,
+							trace: trace ? tracePhpWasm : undefined,
 							ENV: {
 								DOCROOT: '/wordpress',
 							},
