@@ -149,6 +149,10 @@ export class FileLockManagerForPosix implements FileLockManager {
 
 	releaseLocksOnFdClose(): void {
 		// Do nothing because the native OS is responsible for releasing
-		// locks when the FD is closed.
+		// whole-file locks when the FD is closed.
+		// TODO: Once we implement proper ranged fcntl()-based locks,
+		// release all locks for the given PID and path when the FD is closed.
+		// fcntl()-based locks are released whenever any file descriptor for the
+		// target file is closed, regardless of which FD was used to obtain the lock.
 	}
 }
