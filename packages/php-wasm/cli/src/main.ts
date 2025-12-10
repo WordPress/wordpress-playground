@@ -4,13 +4,14 @@
 import os from 'os';
 import { writeFileSync, existsSync, mkdtempSync, chmodSync } from 'fs';
 import { rootCertificates } from 'tls';
+import { spawn } from 'child_process';
 
 import {
 	LatestSupportedPHPVersion,
 	SupportedPHPVersionsList,
 } from '@php-wasm/universal';
 /* eslint-disable no-console */
-import type { SupportedPHPVersion } from '@php-wasm/universal';
+import type { SpawnHandler, SupportedPHPVersion } from '@php-wasm/universal';
 import { FileLockManagerForNode } from '@php-wasm/node';
 import { PHP } from '@php-wasm/universal';
 import { loadNodeRuntime, useHostFilesystem } from '@php-wasm/node';
@@ -129,7 +130,7 @@ ${process.argv[0]} ${process.execArgv.join(' ')} ${process.argv[1]}
 			withXdebug: hasXdebugOption,
 		})
 	);
-	php.setSpawnHandler(require('child_process').spawn);
+	php.setSpawnHandler(spawn as SpawnHandler);
 
 	useHostFilesystem(php);
 
