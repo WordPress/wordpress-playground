@@ -365,13 +365,6 @@ const LibraryExample = {
 				});
 			}
 
-			if (ENVIRONMENT_IS_NODE) {
-				return require('child_process').spawn(command, args, {
-					...options,
-					shell: true,
-					stdio: ['pipe', 'pipe', 'pipe'],
-				});
-			}
 			const e = new Error(
 				'popen(), proc_open() etc. are unsupported in the browser. Call php.setSpawnHandler() ' +
 					'and provide a callback to handle spawning processes, or disable a popen(), proc_open() ' +
