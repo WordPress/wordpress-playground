@@ -1,3 +1,13 @@
+/*
+ * NOTE: These types are not important structurally,
+ * but it helps clarity to use these aliases when making
+ * data structures based on them.
+ *
+ * For example, the type
+ *     `Map<Path, Map<Pid, Map<Fd, WholeFileLockOp>>>`
+ * conveys more intention to a reader than
+ *     `Map<string, Map<number, Map<number, WholeFileLockOp>>>`.
+ */
 export type Path = string;
 export type Pid = number;
 export type Fd = number;
