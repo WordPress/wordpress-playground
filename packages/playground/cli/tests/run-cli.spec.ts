@@ -653,7 +653,7 @@ describe.each(blueprintVersions)(
 				}
 			);
 
-			test.only('should not output debug logs with verbosity option set to normal', async () => {
+			test('should not output debug logs with verbosity option set to normal', async () => {
 				cliServer = await runCLI({
 					...suiteCliArgs,
 					command: 'server',
