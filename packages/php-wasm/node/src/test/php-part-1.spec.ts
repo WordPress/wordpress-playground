@@ -9,6 +9,7 @@ import {
 } from '@php-wasm/universal';
 import { createSpawnHandler, phpVar } from '@php-wasm/util';
 import { RecommendedPHPVersion } from '@wp-playground/common';
+import { spawn } from 'child_process';
 import { existsSync, mkdirSync, rmSync, writeFileSync } from 'fs';
 import type { PHPLoaderOptions } from '..';
 import { loadNodeRuntime } from '..';
@@ -88,6 +89,13 @@ phpLoaderOptions.forEach((options) => {
 				disable_functions: '',
 				html_errors: false,
 			});
+			// Set up a default spawn handler for tests that use shell_exec, exec, popen, etc.
+			php.setSpawnHandler((command: string, args: string[]): any =>
+				spawn(command, args, {
+					shell: true,
+					stdio: ['pipe', 'pipe', 'pipe'],
+				})
+			);
 		});
 		afterEach(async () => {
 			php.exit();
