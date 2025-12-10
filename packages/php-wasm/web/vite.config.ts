@@ -37,7 +37,10 @@ export default defineConfig({
 				 * web/src/lib/get-php-loader-module.ts > web/src/get-php-loader-module.ts
 				 *
 				 * slice(-3) strips the `public` directory from the path
-				 * web/public/php/jspi/php_8_4.js > ./web/php/jspi/php_8_4.js
+				 * web/public/php/jspi/php_8_4.js > php/jspi/php_8_4.js
+				 *
+				 * yielding
+				 * ../../public/php/jspi/php_8_4.js > ./php/jspi/php_8_4.js
 				 */
 				transform: (specifier) =>
 					`../${specifier.split('/').slice(-3).join('/')}`,
@@ -46,10 +49,13 @@ export default defineConfig({
 				regex: /intl\.so$/,
 				/*
 				 * ../../../ lifts the import located file to the dist entryRoot
-				 * web/src/lib/extensions/intl/get-intl-loader-module.ts > web/src/get-intl-loader-module.ts
+				 * web/src/lib/extensions/intl/get-intl-extension-module.ts > web/src/get-intl-extension-module.ts
 				 *
 				 * slice(-6) strips the `public` directory from the path
-				 * web/public/php/jspi/extensions/8_4/intl/intl.so > ./web/php/jspi/extensions/8_4/intl/intl.so
+				 * web/public/php/jspi/extensions/8_4/intl/intl.so > php/jspi/extensions/8_4/intl/intl.so
+				 *
+				 * yielding
+				 * ../../../../public/php/jspi/extensions/intl/8_4/intl.so > ./php/jspi/extensions/intl/8_4/intl.so
 				 */
 				transform: (specifier) =>
 					`../../../${specifier.split('/').slice(-6).join('/')}`,
@@ -61,7 +67,10 @@ export default defineConfig({
 				 * web/src/lib/extensions/intl/with-intl.ts > web/src/with-intl.ts
 				 *
 				 * slice(-2) strips the `public` directory from the path
-				 * web/public/shared/icu.dat > ./web/shared/icu.dat
+				 * web/public/shared/icu.dat > shared/icu.dat
+				 *
+				 * yielding
+				 * ../../../../public/shared/icu.dat > ./shared/icu.dat
 				 */
 				transform: (specifier) =>
 					`../../../${specifier.split('/').slice(-2).join('/')}`,
