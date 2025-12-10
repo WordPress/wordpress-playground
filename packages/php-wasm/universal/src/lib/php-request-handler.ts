@@ -10,8 +10,10 @@ import { normalizeHeaders } from './php';
 import { PHPResponse } from './php-response';
 import type { PHPRequest, PHPRunOptions } from './universal-php';
 import { encodeAsMultipart } from './encode-as-multipart';
-import type { PHPFactoryOptions, SpawnedPHP } from './php-process-manager';
+import type { PHPFactoryOptions } from './php-process-manager';
 import { MaxPhpInstancesError, PHPProcessManager } from './php-process-manager';
+import type { PHPInstanceManager, AcquiredPHP } from './php-instance-manager';
+import { SinglePHPInstanceManager } from './single-php-instance-manager';
 import { HttpCookieStore } from './http-cookie-store';
 import mimeTypes from './mime-types.json';
 
@@ -85,14 +87,28 @@ export type PHPRequestHandlerFactoryArgs = PHPFactoryOptions & {
 };
 
 export type PHPRequestHandlerConfiguration = BaseConfiguration & {
-	phpFactory: (requestHandler: PHPRequestHandlerFactoryArgs) => Promise<PHP>;
+	cookieStore?: CookieStore | false;
+
+	// One of the following must be provided:
+
+	/**
+	 * Provide a single PHP instance directly.
+	 * PHPRequestHandler will create a SinglePHPInstanceManager internally.
+	 * This is the simplest option for CLI contexts with a single PHP instance.
+	 */
+	php?: PHP;
+
+	/**
+	 * Provide a factory function to create PHP instances.
+	 * PHPRequestHandler will create a PHPProcessManager internally.
+	 */
+	phpFactory?: (requestHandler: PHPRequestHandlerFactoryArgs) => Promise<PHP>;
+
 	/**
 	 * The maximum number of PHP instances that can exist at
-	 * the same time.
+	 * the same time. Only used when phpFactory is provided.
 	 */
 	maxPhpInstances?: number;
-
-	cookieStore?: CookieStore | false;
 };
 
 /**
@@ -159,7 +175,12 @@ export class PHPRequestHandler implements AsyncDisposable {
 	#ABSOLUTE_URL: string;
 	#cookieStore: CookieStore | false;
 	rewriteRules: RewriteRule[];
-	processManager: PHPProcessManager;
+	/**
+	 * The instance manager used for PHP instance lifecycle.
+	 * This is either a provided instanceManager or a PHPProcessManager
+	 * created from the phpFactory.
+	 */
+	instanceManager: PHPInstanceManager;
 	getFileNotFoundAction: FileNotFoundGetActionCallback;
 
 	/**
@@ -183,25 +204,39 @@ export class PHPRequestHandler implements AsyncDisposable {
 			getFileNotFoundAction = () => ({ type: '404' }),
 		} = config;
 
-		this.processManager = new PHPProcessManager({
-			phpFactory: async (info) => {
-				const php = await config.phpFactory!({
-					...info,
-					requestHandler: this,
-				});
+		const setChroot = (php: PHP) => {
+			// Always set managed PHP's cwd to the document root.
+			if (!php.isDir(documentRoot)) {
+				php.mkdir(documentRoot);
+			}
+			php.chdir(documentRoot);
 
-				// Always set managed PHP's cwd to the document root.
-				if (!php.isDir(documentRoot)) {
-					php.mkdir(documentRoot);
-				}
-				php.chdir(documentRoot);
+			// @TODO: Decouple PHP and request handler
+			(php as any).requestHandler = this;
+		};
 
-				// @TODO: Decouple PHP and request handler
-				(php as any).requestHandler = this;
-				return php;
-			},
-			maxPhpInstances: config.maxPhpInstances,
-		});
+		if (config.php) {
+			setChroot(config.php);
+			this.instanceManager = new SinglePHPInstanceManager({
+				php: config.php,
+			});
+		} else if (config.phpFactory) {
+			this.instanceManager = new PHPProcessManager({
+				phpFactory: async (info) => {
+					const php = await config.phpFactory!({
+						...info,
+						requestHandler: this,
+					});
+					setChroot(php);
+					return php;
+				},
+				maxPhpInstances: config.maxPhpInstances,
+			});
+		} else {
+			throw new Error(
+				'Either php or phpFactory must be provided in the configuration.'
+			);
+		}
 
 		/**
 		 * By default, config.cookieStore is undefined, so we use the
@@ -241,7 +276,7 @@ export class PHPRequestHandler implements AsyncDisposable {
 	}
 
 	async getPrimaryPhp() {
-		return await this.processManager.getPrimaryPhp();
+		return await this.instanceManager.getPrimaryPhp();
 	}
 
 	/**
@@ -553,9 +588,9 @@ export class PHPRequestHandler implements AsyncDisposable {
 		rewrittenRequestUrl: URL,
 		scriptPath: string
 	): Promise<PHPResponse> {
-		let spawnedPHP: SpawnedPHP | undefined = undefined;
+		let spawnedPHP: AcquiredPHP | undefined = undefined;
 		try {
-			spawnedPHP = await this.processManager!.acquirePHPInstance({
+			spawnedPHP = await this.instanceManager!.acquirePHPInstance({
 				considerPrimary: true,
 			});
 		} catch (e) {
@@ -870,7 +905,7 @@ export class PHPRequestHandler implements AsyncDisposable {
 	}
 
 	async [Symbol.asyncDispose]() {
-		await this.processManager[Symbol.asyncDispose]();
+		await this.instanceManager[Symbol.asyncDispose]();
 	}
 }
 

@@ -24,13 +24,22 @@ export { HttpCookieStore } from './http-cookie-store';
 export type { IteratePhpFilesOptions as IterateFilesOptions } from './iterate-files';
 export { iteratePhpFiles as iterateFiles } from './iterate-files';
 export { writeFilesStreamToPhp } from './write-files-stream-to-php';
+export type {
+	PHPInstanceManager,
+	AcquiredPHP,
+	/**
+	 * Backwards compatibility alias.
+	 */
+	AcquiredPHP as SpawnedPHP,
+} from './php-instance-manager';
+export { SinglePHPInstanceManager } from './single-php-instance-manager';
+export type { SinglePHPInstanceManagerOptions } from './single-php-instance-manager';
 export { PHPProcessManager } from './php-process-manager';
 export type {
 	MaxPhpInstancesError,
 	PHPFactory,
 	PHPFactoryOptions,
 	ProcessManagerOptions,
-	SpawnedPHP,
 } from './php-process-manager';
 
 export { PHPResponse, StreamedPHPResponse } from './php-response';

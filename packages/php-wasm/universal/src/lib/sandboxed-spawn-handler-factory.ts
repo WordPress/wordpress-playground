@@ -1,7 +1,8 @@
-import { createSpawnHandler } from '@php-wasm/util';
+import { createSpawnHandler, splitShellCommand } from '@php-wasm/util';
 import type { PHP } from './php';
 import type { PHPWorker } from './php-worker';
 import type { Remote } from './comlink-sync';
+import { logger } from '@php-wasm/logger';
 
 /**
  * An isomorphic proc_open() handler that implements typical shell in TypeScript
@@ -14,13 +15,31 @@ import type { Remote } from './comlink-sync';
  * parser.
  */
 export function sandboxedSpawnHandlerFactory(
-	getPHPInstance: () => Promise<{
+	getPHPInstance?: () => Promise<{
 		php: PHP | Remote<PHPWorker>;
 		reap: () => void;
 	}>
 ) {
 	return createSpawnHandler(async function (args, processApi, options) {
 		processApi.notifySpawn();
+		/**
+		 * Blueprints v2 spawn through the Symfony Process class, which wraps the command in
+		 *
+		 * `/bin/sh -c "exec ..."`
+		 *
+		 * We need to unwrap it.
+		 *
+		 * We can't just call the /bin/sh binary because we're running a sandboxed shell handler with
+		 * no access to OS binaries. The OS binaries wouldn't be able to resolve PHP VFS paths anyway.
+		 */
+		if (
+			args?.[0] === '/bin/sh' &&
+			args?.[1] === '-c' &&
+			typeof args[2] === 'string'
+		) {
+			args = splitShellCommand(args[2]);
+		}
+
 		if (args[0] === 'exec') {
 			args.shift();
 		}
@@ -64,6 +83,14 @@ export function sandboxedSpawnHandlerFactory(
 
 		if (!['php', 'ls', 'pwd'].includes(binaryName ?? '')) {
 			// 127 is the exit code "for command not found".
+			processApi.exit(127);
+			return;
+		}
+
+		if (!getPHPInstance) {
+			logger.warn(
+				'Tried to spawn a PHP subprocess, but the sandboxed spawn handler was created without a getPHPInstance function.'
+			);
 			processApi.exit(127);
 			return;
 		}

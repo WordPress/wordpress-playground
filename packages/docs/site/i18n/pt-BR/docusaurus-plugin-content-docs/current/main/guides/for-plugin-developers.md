@@ -1,5 +1,5 @@
 ---
-title: WordPress Playground for Plugin Developers
+title: WordPress Playground para desenvolvedores de plugins
 slug: /guides/for-plugin-developers
 description: Um guia para desenvolvedores de plugins sobre como usar o Playground para construir, testar e criar demos de seus plugins.
 ---
@@ -236,9 +236,9 @@ Some useful tools and resources provided by the Playground project to work with 
 
 Algumas ferramentas e recursos úteis fornecidos pelo projeto Playground para trabalhar com blueprints são:
 
--   Verifique a [Galeria de Blueprints](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) para explorar exemplos de código reais de uso do WordPress Playground para iniciar um site WordPress com várias configurações.
--   A ferramenta [Biblioteca de Passos do WordPress Playground](https://akirk.github.io/playground-step-library/#) fornece uma interface visual para arrastar ou clicar nos passos para criar um blueprint para o WordPress Playground. Você também pode criar seus próprios passos!
--   A ferramenta [Construtor de Blueprints](https://playground.wordpress.net/builder/builder.html) permite editar seu blueprint online e executá-lo diretamente em uma instância do Playground.
+- Verifique a [Galeria de Blueprints](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) para explorar exemplos de código reais de uso do WordPress Playground para iniciar um site WordPress com várias configurações.
+- A ferramenta [Biblioteca de Passos do WordPress Playground](https://akirk.github.io/playground-step-library/#) fornece uma interface visual para arrastar ou clicar nos passos para criar um blueprint para o WordPress Playground. Você também pode criar seus próprios passos!
+- A ferramenta [Construtor de Blueprints](https://playground.wordpress.net/builder/builder.html) permite editar seu blueprint online e executá-lo diretamente em uma instância do Playground.
 
 :::
 
@@ -406,8 +406,8 @@ Com o Google Chrome, você pode sincronizar uma instância do Playground com o c
 -   Create PRs in the GitHub repo with your changes
 -->
 
--   Ver ao vivo (na instância do Playground) suas alterações locais
--   Criar PRs no repo GitHub com suas alterações
+- Ver ao vivo (na instância do Playground) suas alterações locais
+- Criar PRs no repo GitHub com suas alterações
 
 <!--
 Here's a little demo of this workflow in action:

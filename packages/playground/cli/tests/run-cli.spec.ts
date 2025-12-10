@@ -385,7 +385,6 @@ describe.each(blueprintVersions)(
 		}
 
 		// TODO: Test resolving absolute symlinks within a mounted dir with and without follow-symlinks
-		// TODO: Test resolving relative symlinks within a mounted dir with and without follow-symlinks
 
 		describe('auto-mount', () => {
 			const getDirectoryChecksum = async (dir: string) => {
@@ -654,22 +653,19 @@ describe.each(blueprintVersions)(
 				}
 			);
 
-			test.skipIf(isBlueprintsV2OnWindows)(
-				'should not output debug logs with verbosity option set to normal',
-				async () => {
-					cliServer = await runCLI({
-						...suiteCliArgs,
-						command: 'server',
-						verbosity: 'normal',
-					});
+			test('should not output debug logs with verbosity option set to normal', async () => {
+				cliServer = await runCLI({
+					...suiteCliArgs,
+					command: 'server',
+					verbosity: 'normal',
+				});
 
-					const test = 'Debug log';
+				const test = 'Debug log';
 
-					logger.debug(test);
+				logger.debug(test);
 
-					expect(output).not.toContain(test);
-				}
-			);
+				expect(output).not.toContain(test);
+			});
 
 			test.skipIf(isBlueprintsV2OnWindows)(
 				'should output debug logs bridge with verbosity option set to debug',
