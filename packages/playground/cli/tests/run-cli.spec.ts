@@ -82,6 +82,34 @@ describe.each(blueprintVersions)(
 		);
 
 		test.skipIf(isBlueprintsV2OnWindows)(
+			'should have Intl extension enabled by default',
+			async () => {
+				cliServer = await runCLI({
+					...suiteCliArgs,
+					command: 'server',
+					php: '8.0',
+					// Let's skip the cost of WordPress setup because it is
+					// irrelevant for this test.
+					wordpressInstallMode: 'do-not-attempt-installing',
+					skipSqliteSetup: true,
+					blueprint: undefined,
+				});
+
+				await cliServer.playground.writeFile(
+					'/wordpress/intl.php',
+					`<?php
+					var_dump(extension_loaded(\'intl\'));
+					var_dump(class_exists(\'Collator\'));`
+				);
+				const versionUrl = new URL('/intl.php', cliServer.serverUrl);
+				const response = await fetch(versionUrl);
+				expect(response.status).toBe(200);
+				const text = await response.text();
+				expect(text).toContain('bool(true)\nbool(true)\n');
+			}
+		);
+
+		test.skipIf(isBlueprintsV2OnWindows)(
 			'should use custom site-url when provided',
 			async () => {
 				const customSiteUrl = 'https://example.com';

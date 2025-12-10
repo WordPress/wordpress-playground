@@ -240,6 +240,11 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 				type: 'boolean',
 				default: false,
 			})
+			.option('intl', {
+				describe: 'Enable Intl.',
+				type: 'boolean',
+				default: true,
+			})
 			.option('xdebug', {
 				describe: 'Enable Xdebug.',
 				type: 'boolean',
@@ -506,6 +511,7 @@ export interface RunCLIArgs {
 	experimentalTrace?: boolean;
 	internalCookieStore?: boolean;
 	'additional-blueprint-steps'?: any[];
+	intl?: boolean;
 	xdebug?: boolean | { ideKey?: string };
 	experimentalUnsafeIdeIntegration?: string[];
 	experimentalDevtools?: boolean;
@@ -620,6 +626,11 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 			(v) => v.name === args.verbosity
 		)!.severity;
 		logger.setSeverityFilterLevel(severity);
+	}
+
+	// Enables Intl dynamic extension by default
+	if (!args.intl) {
+		args.intl = true;
 	}
 
 	// Declare file lock manager outside scope of startServer
