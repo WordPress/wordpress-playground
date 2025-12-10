@@ -836,6 +836,7 @@ phpLoaderOptions.forEach((options) => {
 						processApi.exit(0);
 					}
 				);
+				php.setSpawnHandler(handler);
 
 				const result = await php.run({
 					code: `<?php
