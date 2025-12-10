@@ -1,0 +1,130 @@
+---
+slug: /blueprints/steps/shorthands
+description: Um guia para a sintaxe abreviada para etapas comuns do Blueprint, como login, plugins e siteOptions para um código mais conciso.
+---
+
+# Abreviações
+
+Você pode especificar algumas `etapas` usando uma sintaxe `abreviada`. As seguintes `etapas` são atualmente suportadas:
+
+### `login`
+
+Use
+
+```json
+	"login": true,
+```
+
+Ou
+
+```json
+{
+	"step": "login",
+	"username": "admin",
+	"password": "senha"
+}
+```
+
+### `plugins`
+
+(substitui a etapa `installPlugin`)
+
+Use
+
+```json
+	"plugins": [
+		"hello-dolly",
+		"https://raw.githubusercontent.com/adamziel/blueprints/trunk/docs/assets/hello-from-the-dashboard.zip"
+	]
+```
+
+Ou
+
+```json
+[
+	{
+		"step": "installPlugin",
+		"pluginData": {
+			"resource": "wordpress.org/plugins",
+			"slug": "hello-dolly"
+		}
+	},
+	{
+		"step": "installPlugin",
+		"pluginData": {
+			"resource": "url",
+			"url": "https://raw.githubusercontent.com/adamziel/blueprints/trunk/docs/assets/hello-from-the-dashboard.zip"
+		}
+	}
+]
+```
+
+### `siteOptions`
+
+Use
+
+```json
+	"siteOptions": {
+		"blogname": "Meu primeiro Blueprint"
+	}
+```
+
+Ou
+
+```json
+	"step": "setSiteOptions",
+	"options": {
+		"blogname": "Meu primeiro Blueprint"
+	}
+```
+
+### `defineWpConfigConsts`
+
+(`constantes` apenas)
+
+Use
+
+```json
+{
+	"step": "defineWpConfigConsts",
+	"consts": {
+		"WP_DISABLE_FATAL_ERROR_HANDLER": true,
+		"WP_DEBUG": true,
+		"WP_DEBUG_DISPLAY": true
+	}
+}
+```
+
+Ou
+
+```json
+	{
+		"step": "defineWpConfigConsts",
+		"consts": {
+			"WP_DISABLE_FATAL_ERROR_HANDLER": true
+		}
+	},
+	{
+		"step": "defineWpConfigConsts",
+		"consts": {
+			"WP_DEBUG": true
+		}
+	},
+	{
+		"step": "defineWpConfigConsts",
+		"consts": {
+			"WP_DEBUG_DISPLAY": true
+		}
+	}
+```
+
+---
+
+A sintaxe `abreviada` e a sintaxe `step` correspondem uma à outra. Cada `etapa` especificada com a sintaxe `abreviada` é adicionada ao topo do array de `etapas` em ordem arbitrária.
+
+:::info **Qual você deve escolher?**
+
+-   Use `abreviações` quando a **brevidade** for sua principal preocupação.
+-   Use `etapas` explícitas quando precisar de mais controle sobre a **ordem de execução**.
+
+:::
