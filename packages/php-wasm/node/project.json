@@ -171,6 +171,8 @@
 				"testFiles": [
 					"php-file-locking.spec.ts",
 					"file-lock-manager-for-node.spec.ts",
+					"file-lock-manager-for-posix.spec.ts",
+					"file-lock-manager-for-windows.spec.ts",
 					"php-imagick.spec.ts",
 					"php-soap.spec.ts",
 					"php-image-extensions.spec.ts",
