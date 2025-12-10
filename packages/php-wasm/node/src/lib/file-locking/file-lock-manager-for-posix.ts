@@ -116,6 +116,8 @@ export class FileLockManagerForPosix implements FileLockManager {
 			}
 
 			for (const op of fdMap.values()) {
+				// TODO: Log any errors.
+				// TODO: Does a failure here justify throwing an error (and conceding total brokenness)?
 				this.lockWholeFile(path, { ...op, type: 'unlock' });
 			}
 
@@ -147,12 +149,21 @@ export class FileLockManagerForPosix implements FileLockManager {
 		this.rangeLockedFds.delete(targetPid);
 	}
 
-	releaseLocksOnFdClose(): void {
+	releaseLocksOnFdClose(
+		targetPid: number,
+		targetFd: number,
+		targetPath: string
+	): void {
 		// Do nothing because the native OS is responsible for releasing
 		// whole-file locks when the FD is closed.
+
+		this.wholeFileLockMap.get(targetPath)?.get(targetPid)?.delete(targetFd);
+
 		// TODO: Once we implement proper ranged fcntl()-based locks,
 		// release all locks for the given PID and path when the FD is closed.
 		// fcntl()-based locks are released whenever any file descriptor for the
 		// target file is closed, regardless of which FD was used to obtain the lock.
+
+		this.rangeLockedFds.get(targetPid)?.delete(targetPath);
 	}
 }
