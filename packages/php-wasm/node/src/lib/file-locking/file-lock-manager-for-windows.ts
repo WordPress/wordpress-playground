@@ -1,7 +1,11 @@
+import { logger } from '@php-wasm/logger';
 import type {
 	FileLockManager,
 	WholeFileLockOp,
 	RequestedRangeLock,
+	Pid,
+	Fd,
+	Path,
 } from '@php-wasm/universal';
 // TODO: Add these types to the fs-ext-extra-prebuilt package.
 import {
@@ -11,6 +15,10 @@ import {
 } from 'fs-ext-extra-prebuilt';
 
 export class FileLockManagerForWindows implements FileLockManager {
+	// TODO: Move path of whole file lock into leaf. It is never used for lookup.
+	wholeFileLockMap = new Map<Path, Map<Pid, Map<Fd, WholeFileLockOp>>>();
+	rangeLockedFds = new Map<Pid, Map<Path, Set<Fd>>>();
+
 	lockWholeFile(path: string, op: WholeFileLockOp): boolean {
 		// For whole-file locks, we address the entire byte range of the file.
 		// TODO: Consider converting the exposed Win API to just use bigint for offset and length.
@@ -20,29 +28,152 @@ export class FileLockManagerForWindows implements FileLockManager {
 		const lengthHigh = 0xffffffff;
 
 		if (op.type === 'unlock') {
-			return unlockFileExSync(
+			// TODO: Should we skip unlocking if we do not have record of the lock?
+
+			// TODO: Catch errors
+			const result = unlockFileExSync(
 				op.fd,
 				offsetLow,
 				offsetHigh,
 				lengthLow,
 				lengthHigh
 			);
-		} else {
-			let flags = 0;
-			if (op.type === 'exclusive') {
-				flags |= constants.LOCKFILE_EXCLUSIVE_LOCK;
+
+			if (result) {
+				this.wholeFileLockMap.get(path)?.get(op.pid)?.delete(op.fd);
+				if (this.wholeFileLockMap.get(path)?.get(op.pid)?.size === 0) {
+					this.wholeFileLockMap.get(path)?.delete(op.pid);
+				}
+				if (this.wholeFileLockMap.get(path)?.size === 0) {
+					this.wholeFileLockMap.delete(path);
+				}
 			}
+
+			// TODO: Else if unlock failed in Windows, probably log an error.
+			return result;
+		} else {
+			const preexistingLock = this.wholeFileLockMap
+				.get(path)
+				?.get(op.pid)
+				?.get(op.fd);
+			if (op.type === preexistingLock?.type) {
+				// There is nothing to do.
+				return true;
+			}
+
+			let flags = 0;
 			if (!op.waitForLock) {
 				flags |= constants.LOCKFILE_FAIL_IMMEDIATELY;
 			}
-			return lockFileExSync(
-				op.fd,
-				flags,
-				offsetLow,
-				offsetHigh,
-				lengthLow,
-				lengthHigh
-			);
+
+			let lockResult;
+			if (op.type === 'shared') {
+				/**
+				 * Since we are requesting a shared lock, we can obtain it first
+				 * even if we already hold the exclusive lock.
+				 *
+				 * "Shared locks can overlap a locked region provided locks held
+				 * on that region are shared locks. A shared lock can overlap an
+				 * exclusive lock if both locks were created using the same file handle."
+				 * @see https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-lockfileex
+				 */
+				lockResult = lockFileExSync(
+					op.fd,
+					flags,
+					offsetLow,
+					offsetHigh,
+					lengthLow,
+					lengthHigh
+				);
+
+				if (lockResult && preexistingLock?.type === 'exclusive') {
+					const exclusiveUnlockResult = unlockFileExSync(
+						op.fd,
+						offsetLow,
+						offsetHigh,
+						lengthLow,
+						lengthHigh
+					);
+
+					if (!exclusiveUnlockResult) {
+						// This should never happen. Log and throw an error.
+						const message =
+							'Failed to unlock preexisting exclusive lock after failing to obtain shared lock';
+						logger.error(message);
+						throw new Error(message);
+					}
+				}
+			}
+
+			if (op.type === 'exclusive') {
+				flags |= constants.LOCKFILE_EXCLUSIVE_LOCK;
+
+				let sharedUnlockResult;
+				if (preexistingLock?.type === 'shared') {
+					sharedUnlockResult = unlockFileExSync(
+						op.fd,
+						offsetLow,
+						offsetHigh,
+						lengthLow,
+						lengthHigh
+					);
+					// TODO: Log if there's an error
+				}
+
+				lockResult = lockFileExSync(
+					op.fd,
+					flags,
+					offsetLow,
+					offsetHigh,
+					lengthLow,
+					lengthHigh
+				);
+				// TODO: Log if there's an error
+
+				if (!lockResult && sharedUnlockResult) {
+					/*
+					 * We failed to obtain the exclusive lock but already
+					 * dropped the shared lock because preexisting shared locks
+					 * will block the exclusive lock.
+					 *
+					 * "If an exclusive lock is requested for a range of a file that
+					 * already has a shared or exclusive lock, the function returns
+					 * the error ERROR_IO_PENDING."
+					 * @see https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-lockfileex
+					 */
+					const sharedReLockResult = lockFileExSync(
+						op.fd,
+						// Wait to restore the shared lock.
+						0,
+						offsetLow,
+						offsetHigh,
+						lengthLow,
+						lengthHigh
+					);
+
+					if (!sharedReLockResult) {
+						// This should never happen. Log and throw an error.
+						const message =
+							'Failed to re-lock preexisting shared lock after failing to obtain exclusive lock';
+						logger.error(message);
+						throw new Error(message);
+					}
+				}
+			}
+
+			if (lockResult) {
+				if (!this.wholeFileLockMap.has(path)) {
+					this.wholeFileLockMap.set(path, new Map());
+				}
+				const pidMap = this.wholeFileLockMap.get(path)!;
+				if (!pidMap.has(op.pid)) {
+					pidMap.set(op.pid, new Map());
+				}
+				const pathMap = pidMap.get(op.pid)!;
+				pathMap.set(op.fd, op);
+			}
+
+			return !!lockResult;
 		}
 	}
 
