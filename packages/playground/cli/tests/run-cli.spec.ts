@@ -98,8 +98,8 @@ describe.each(blueprintVersions)(
 				await cliServer.playground.writeFile(
 					'/wordpress/intl.php',
 					`<?php
-					var_dump(extension_loaded(\'intl\'));
-					var_dump(class_exists(\'Collator\'));`
+					var_dump(extension_loaded('intl'));
+					var_dump(class_exists('Collator'));`
 				);
 				const versionUrl = new URL('/intl.php', cliServer.serverUrl);
 				const response = await fetch(versionUrl);
