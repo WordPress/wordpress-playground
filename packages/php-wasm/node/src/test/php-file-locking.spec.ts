@@ -13,7 +13,7 @@ import {
 } from '@php-wasm/universal';
 import {
 	createNodeFsMountHandler,
-	FileLockManagerForNode,
+	FileLockManagerInMemory,
 	loadNodeRuntime,
 } from '../lib';
 import {
@@ -34,12 +34,12 @@ describe.each(phpVersionsToTest)('PHP %s: File locking', (phpVersion) => {
 
 	let tempDir: string;
 	// TODO: Use one file lock manager per test
-	let fileLockManager: FileLockManagerForNode;
+	let fileLockManager: FileLockManagerInMemory;
 	let nextProcessId: number;
 
 	beforeEach(async () => {
 		tempDir = mkdtempSync(join(tmpdir(), 'php-wasm-file-locking-'));
-		fileLockManager = new FileLockManagerForNode();
+		fileLockManager = new FileLockManagerInMemory();
 		nextProcessId = 1;
 	});
 	afterEach(async () => {

@@ -15,14 +15,14 @@ import { MAX_64BIT_OFFSET } from './constants';
 /**
  * This is the file lock manager for use within JS runtimes like Node.js.
  *
- * A FileLockManagerForNode is a wrapper around a Map of FileLock instances.
+ * A FileLockManagerInMemory is a wrapper around a Map of FileLock instances.
  * It provides methods for locking and unlocking files, as well as finding conflicting locks.
  */
-export class FileLockManagerForNode implements FileLockManager {
+export class FileLockManagerInMemory implements FileLockManager {
 	locks: Map<string, FileLock>;
 
 	/**
-	 * Create a new FileLockManagerForNode instance.
+	 * Create a new FileLockManagerInMemory instance.
 	 *
 	 * @param nativeFlockSync A synchronous flock() function to lock files via the host OS.
 	 */

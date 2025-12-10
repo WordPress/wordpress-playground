@@ -11,7 +11,7 @@ import {
 } from '@php-wasm/universal';
 import type { SupportedPHPVersion } from '@php-wasm/universal';
 
-import { FileLockManagerForNode } from '@php-wasm/node';
+import { FileLockManagerInMemory } from '@php-wasm/node';
 import { PHP } from '@php-wasm/universal';
 import { loadNodeRuntime, useHostFilesystem } from '@php-wasm/node';
 import { startBridge } from '@php-wasm/xdebug-bridge';
@@ -89,7 +89,7 @@ ${process.argv[0]} ${process.execArgv.join(' ')} ${process.argv[1]}
 	const sysTempDir = mkdtempSync(path.join(os.tmpdir(), 'php-wasm-sys-tmp'));
 	const php = new PHP(
 		await loadNodeRuntime(phpVersion, {
-			fileLockManager: new FileLockManagerForNode(),
+			fileLockManager: new FileLockManagerInMemory(),
 			emscriptenOptions: {
 				processId: 1,
 				ENV: {
