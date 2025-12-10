@@ -6,7 +6,7 @@ import type {
 	Fd,
 	Path,
 } from '@php-wasm/universal';
-import { fcntlSync, flockSync } from 'fs-ext-extra-prebuilt';
+import { constants, fcntlSync, flockSync } from 'fs-ext-extra-prebuilt';
 import { MAX_64BIT_OFFSET } from './constants';
 
 export class FileLockManagerForPosix implements FileLockManager {
@@ -55,9 +55,29 @@ export class FileLockManagerForPosix implements FileLockManager {
 		op: RequestedRangeLock,
 		waitForLock: boolean
 	): boolean {
+		if (op.start === op.end) {
+			/*
+			 * Treat a range with zero length as covering the entire remaining range.
+			 * POSIX Ref: https://pubs.opengroup.org/onlinepubs/9799919799/functions/fcntl.html
+			 *   "A lock shall be set to extend to the largest possible value of the file offset
+			 *    for that file by setting l_len to 0."
+			 */
+			op = {
+				...op,
+				end: MAX_64BIT_OFFSET,
+			};
+		}
+
 		const fcntlCmd = waitForLock ? 'setlkw' : 'setlk';
+		const fcntlOp =
+			op.type === 'shared'
+				? constants.F_UNLCK
+				: op.type === 'exclusive'
+					? constants.F_WRLCK
+					: constants.F_RDLCK;
+
 		try {
-			fcntlSync(op.fd, fcntlCmd);
+			fcntlSync(op.fd, fcntlCmd, fcntlOp);
 
 			// Remember that we have seen range locks for this PID and FD.
 			// It should be enough to release all locks with a single fcntl() call
