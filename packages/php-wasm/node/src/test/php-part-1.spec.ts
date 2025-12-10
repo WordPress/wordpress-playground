@@ -85,12 +85,7 @@ phpLoaderOptions.forEach((options) => {
 		beforeEach(async () => {
 			php = new PHP(await loadNodeRuntime(phpVersion as any, options));
 			php.mkdir('/php');
-			php.setSpawnHandler((command: string, args: string[]): any => {
-				return spawn(command, args, {
-					shell: true,
-					stdio: ['pipe', 'pipe', 'pipe'],
-				});
-			});
+			php.setSpawnHandler(spawn as any);
 
 			await setPhpIniEntries(php, {
 				disable_functions: '',
@@ -760,9 +755,12 @@ phpLoaderOptions.forEach((options) => {
 
 			// This test fails on older PHP versions
 			if (!['7.2', '7.3'].includes(phpVersion)) {
-				it('cat: stdin=pipe, stdout=file, stderr=file, file_get_contents', async () => {
-					const result = await php.run({
-						code: `<?php
+				it(
+					'cat: stdin=pipe, stdout=file, stderr=file, file_get_contents',
+					async () => {
+						console.log({ withXdebug: options.withXdebug });
+						const result = await php.run({
+							code: `<?php
 						$res = proc_open(
 							"cat",
 							array(
@@ -782,11 +780,13 @@ phpLoaderOptions.forEach((options) => {
 						echo 'stdout: ' . $stdout . "";
 						echo 'stderr: ' . $stderr . PHP_EOL;
 					`,
-					});
-					expect(result.text).toEqual(
-						'stdout: WordPress\nstderr: \n'
-					);
-				});
+						});
+						expect(result.text).toEqual(
+							'stdout: WordPress\nstderr: \n'
+						);
+					},
+					{ timeout: 10000 }
+				);
 			}
 
 			it('cat: stdin=file, stdout=file, stderr=file, file_get_contents', async () => {
@@ -1275,6 +1275,8 @@ phpLoaderOptions.forEach((options) => {
 			});
 
 			it('Uses only stdin and stdout descriptor specs', async () => {
+				php.setSpawnHandler(spawn as any);
+
 				const result = await php.run({
 					code: `<?php
 

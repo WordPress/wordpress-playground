@@ -6821,12 +6821,37 @@ export function init(RuntimeName, PHPLoader) {
 		noop: function () {},
 		spawnProcess: function (command, args, options) {
 			if (Module['spawnProcess']) {
-				const spawnedPromise = Module['spawnProcess'](
+				const spawned = Module['spawnProcess'](
 					command,
 					args,
-					options
+					/**
+					 * We're providing the same extra options we would pass to child_process.spawn().
+					 *
+					 * Why?
+					 *
+					 * spawnProcess() follows the same interface as child_process.spawn()
+					 * and some consumers pass `child_process.spawn` directly to php.setSpawnHandler()
+					 */
+					{
+						...options,
+						shell: true,
+						stdio: ['pipe', 'pipe', 'pipe'],
+					}
 				);
-				return Promise.resolve(spawnedPromise).then(function (spawned) {
+				if (spawned && !('then' in spawned) && 'on' in spawned) {
+					/**
+					 * If we get the child process directly, return it immediately.
+					 * Delaying it to the next tick via Promise.resolve() would create
+					 * a race condition where it might emit some events before the
+					 * caller has a chance to bind event listeners to them.
+					 *
+					 * Without this condition, this callback would be at least flaky:
+					 *
+					 *    php.setSpawnHandler(require('child_process').spawn);
+					 */
+					return spawned;
+				}
+				return Promise.resolve(spawned).then(function (spawned) {
 					if (!spawned || !spawned.on) {
 						throw new Error(
 							'spawnProcess() must return an EventEmitter but returned a different type.'
