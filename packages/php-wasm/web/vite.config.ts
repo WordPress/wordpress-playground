@@ -8,7 +8,7 @@ import { viteTsConfigPaths } from '../../vite-extensions/vite-ts-config-paths';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { viteIgnoreImports } from '../../vite-extensions/vite-ignore-imports';
 // eslint-disable-next-line @nx/enforce-module-boundaries
-import { vitePreserveLoadersImports } from '../../vite-extensions/vite-preserve-loaders-imports';
+import { viteExternalDynamicImports } from '../../vite-extensions/vite-external-dynamic-imports';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import viteGlobalExtensions from '../../vite-extensions/vite-global-extensions';
 // eslint-disable-next-line @nx/enforce-module-boundaries
@@ -29,49 +29,53 @@ export default defineConfig({
 		viteIgnoreImports({
 			extensions: ['wasm', 'so', 'dat'],
 		}),
-		vitePreserveLoadersImports([
+		/*
+		 * These transforms rewrite dynamic import paths so they work from the dist output.
+		 *
+		 * Each transform does two things:
+		 * 1. slice(-N) extracts the path segments we want to keep (strips the 'public' prefix)
+		 * 2. The '../' prefix compensates for the source file's directory depth
+		 *
+		 * Why the '../' prefix? Rollup computes the final import path relative to
+		 * where the source file was located. Since everything gets bundled into
+		 * index.js at the dist root, we need to "climb out" of the source directory
+		 * structure. Rollup then normalizes '../foo' to './foo' in the output.
+		 *
+		 * Example for php_8_4.js:
+		 *   Source file: src/lib/get-php-loader-module.ts (2 levels deep: src/lib/)
+		 *   Input:       '../../public/php/jspi/php_8_4.js'
+		 *   slice(-3):   'php/jspi/php_8_4.js'
+		 *   With '../':  '../php/jspi/php_8_4.js'
+		 *   Output:      './php/jspi/php_8_4.js' (rollup normalizes for dist root)
+		 */
+		viteExternalDynamicImports([
 			{
+				// Source: src/lib/get-php-loader-module.ts (1 dir from src/)
+				// Input:      '../../public/php/jspi/php_8_4.js'
+				// slice(-3):  'php/jspi/php_8_4.js'
+				// With '../': '../php/jspi/php_8_4.js'
+				// Output:     './php/jspi/php_8_4.js'
 				regex: /php_\d_\d\.js$/,
-				/*
-				 * ../ lifts the import located file up to the dist entryRoot
-				 * web/src/lib/get-php-loader-module.ts > web/src/get-php-loader-module.ts
-				 *
-				 * slice(-3) strips the `public` directory from the path
-				 * web/public/php/jspi/php_8_4.js > php/jspi/php_8_4.js
-				 *
-				 * yielding
-				 * ../../public/php/jspi/php_8_4.js > ./php/jspi/php_8_4.js
-				 */
 				transform: (specifier) =>
 					`../${specifier.split('/').slice(-3).join('/')}`,
 			},
 			{
+				// Source: src/lib/extensions/intl/get-intl-extension-module.ts (3 dirs from src/)
+				// Input:          '../../../../public/php/jspi/extensions/intl/8_4/intl.so'
+				// slice(-6):      'php/jspi/extensions/intl/8_4/intl.so'
+				// With '../../../': '../../../php/jspi/extensions/intl/8_4/intl.so'
+				// Output:         './php/jspi/extensions/intl/8_4/intl.so'
 				regex: /intl\.so$/,
-				/*
-				 * ../../../ lifts the import located file to the dist entryRoot
-				 * web/src/lib/extensions/intl/get-intl-extension-module.ts > web/src/get-intl-extension-module.ts
-				 *
-				 * slice(-6) strips the `public` directory from the path
-				 * web/public/php/jspi/extensions/8_4/intl/intl.so > php/jspi/extensions/8_4/intl/intl.so
-				 *
-				 * yielding
-				 * ../../../../public/php/jspi/extensions/intl/8_4/intl.so > ./php/jspi/extensions/intl/8_4/intl.so
-				 */
 				transform: (specifier) =>
 					`../../../${specifier.split('/').slice(-6).join('/')}`,
 			},
 			{
+				// Source: src/lib/extensions/intl/with-intl.ts (3 dirs from src/)
+				// Input:          '../../../../public/shared/icu.dat'
+				// slice(-2):      'shared/icu.dat'
+				// With '../../../': '../../../shared/icu.dat'
+				// Output:         './shared/icu.dat'
 				regex: /icu\.dat$/,
-				/*
-				 * ../../../ lifts the import located file to the dist entryRoot
-				 * web/src/lib/extensions/intl/with-intl.ts > web/src/with-intl.ts
-				 *
-				 * slice(-2) strips the `public` directory from the path
-				 * web/public/shared/icu.dat > shared/icu.dat
-				 *
-				 * yielding
-				 * ../../../../public/shared/icu.dat > ./shared/icu.dat
-				 */
 				transform: (specifier) =>
 					`../../../${specifier.split('/').slice(-2).join('/')}`,
 			},
@@ -92,7 +96,7 @@ export default defineConfig({
 		sourcemap: true,
 		rollupOptions: {
 			// Don't bundle the PHP loaders in the final build. See
-			// the preserve-php-loaders-imports plugin above.
+			// the viteExternalDynamicImports plugin above.
 			external: [
 				/php_\d_\d.js$/,
 				/icu.dat$/,
