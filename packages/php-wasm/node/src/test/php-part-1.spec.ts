@@ -9,11 +9,11 @@ import {
 } from '@php-wasm/universal';
 import { createSpawnHandler, phpVar } from '@php-wasm/util';
 import { RecommendedPHPVersion } from '@wp-playground/common';
-import { spawn } from 'child_process';
 import { existsSync, mkdirSync, rmSync, writeFileSync } from 'fs';
 import type { PHPLoaderOptions } from '..';
 import { loadNodeRuntime } from '..';
 import { createNodeFsMountHandler } from '../lib/node-fs-mount';
+import { spawn } from 'child_process';
 
 const testDirPath = '/__test987654321';
 const testFilePath = '/__test987654321.txt';
@@ -85,17 +85,17 @@ phpLoaderOptions.forEach((options) => {
 		beforeEach(async () => {
 			php = new PHP(await loadNodeRuntime(phpVersion as any, options));
 			php.mkdir('/php');
+			php.setSpawnHandler((command: string, args: string[]): any => {
+				return spawn(command, args, {
+					shell: true,
+					stdio: ['pipe', 'pipe', 'pipe'],
+				});
+			});
+
 			await setPhpIniEntries(php, {
 				disable_functions: '',
 				html_errors: false,
 			});
-			// Set up a default spawn handler for tests that use shell_exec, exec, popen, etc.
-			php.setSpawnHandler((command: string, args: string[]): any =>
-				spawn(command, args, {
-					shell: true,
-					stdio: ['pipe', 'pipe', 'pipe'],
-				})
-			);
 		});
 		afterEach(async () => {
 			php.exit();
@@ -836,8 +836,6 @@ phpLoaderOptions.forEach((options) => {
 						processApi.exit(0);
 					}
 				);
-
-				php.setSpawnHandler(handler);
 
 				const result = await php.run({
 					code: `<?php
