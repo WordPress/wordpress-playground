@@ -219,6 +219,6 @@
 		"npm": ">=10.1.0"
 	},
 	"optionalDependencies": {
-		"fs-ext-extra-prebuilt": "2.2.4"
+		"fs-ext-extra-prebuilt": "2.2.6"
 	}
 }
