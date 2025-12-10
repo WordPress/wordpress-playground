@@ -1,3 +1,9 @@
+// TODO: Add these types to the fs-ext-extra-prebuilt package.
+import {
+	lockFileExSync,
+	unlockFileExSync,
+	constants,
+} from 'fs-ext-extra-prebuilt';
 import { logger } from '@php-wasm/logger';
 import type {
 	FileLockManager,
@@ -7,16 +13,11 @@ import type {
 	Fd,
 	Path,
 } from '@php-wasm/universal';
-// TODO: Add these types to the fs-ext-extra-prebuilt package.
-import {
-	lockFileExSync,
-	unlockFileExSync,
-	constants,
-} from 'fs-ext-extra-prebuilt';
 
 export class FileLockManagerForWindows implements FileLockManager {
 	// TODO: Move path of whole file lock into leaf. It is never used for lookup.
 	wholeFileLockMap = new Map<Path, Map<Pid, Map<Fd, WholeFileLockOp>>>();
+
 	rangeLockedFds = new Map<Pid, Map<Path, Set<Fd>>>();
 
 	lockWholeFile(path: string, op: WholeFileLockOp): boolean {
@@ -245,12 +246,44 @@ export class FileLockManagerForWindows implements FileLockManager {
 		};
 	}
 
-	releaseLocksForProcess(pid: number): void {
+	releaseLocksForProcess(targetPid: number): void {
 		// TODO: Implement tracking of locks held by a process and release them.
+		for (const [path, pidMap] of this.wholeFileLockMap.entries()) {
+			const fdMap = pidMap.get(targetPid);
+			if (!fdMap) {
+				continue;
+			}
+
+			for (const op of fdMap.values()) {
+				// TODO: Log any errors.
+				// TODO: Does a failure here justify throwing an error (and conceding total brokenness)?
+				this.lockWholeFile(path, { ...op, type: 'unlock' });
+			}
+
+			pidMap.delete(targetPid);
+		}
+
+		// TODO: Implement release of range locks.
 	}
 
 	// TODO: Rename this to something clearer like releaseLockOnFileDescriptorClose
-	releaseLocksOnFdClose(pid: number, fd: number, path: string): void {
+	releaseLocksOnFdClose(
+		targetPid: number,
+		targetFd: number,
+		targetPath: string
+	): void {
+		// Do nothing because the native OS is responsible for releasing
+		// whole-file locks when the FD is closed.
+
+		this.wholeFileLockMap.get(targetPath)?.get(targetPid)?.delete(targetFd);
+
+		// TODO: Once we implement proper ranged fcntl()-based locks,
+		// release all locks for the given PID and path when the FD is closed.
+		// fcntl()-based locks are released whenever any file descriptor for the
+		// target file is closed, regardless of which FD was used to obtain the lock.
+
+		this.rangeLockedFds.get(targetPid)?.delete(targetPath);
+
 		// TODO: Implement POSIX fcntl() semantics where a lock is released
 		// when any FD associated with the file is closed.
 	}
