@@ -45,7 +45,6 @@ import { BlueprintsV2Handler } from './blueprints-v2/blueprints-v2-handler';
 import { BlueprintsV1Handler } from './blueprints-v1/blueprints-v1-handler';
 import { startBridge } from '@php-wasm/xdebug-bridge';
 import path from 'path';
-import os from 'os';
 import {
 	cleanupStalePlaygroundTempDirs,
 	createPlaygroundCliTempDir,
@@ -624,21 +623,22 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 
 	// Declare file lock manager outside scope of startServer
 	// so we can look at it when debugging request handling.
-	const nativeFlockSync =
-		os.platform() === 'win32'
-			? // @TODO: Enable fs-ext here when it works with Windows.
-				undefined
-			: await import('fs-ext')
-					.then((m) => m.flockSync)
-					.catch(() => {
-						logger.warn(
-							'The fs-ext package is not installed. ' +
-								'Internal file locking will not be integrated with ' +
-								'host OS file locking.'
-						);
-						return undefined;
-					});
-	const fileLockManager = new FileLockManagerForNode(nativeFlockSync);
+	// TODO: Remove this and replace with selecting new FileLockManager or just warn if native not supported.
+	// const nativeFlockSync =
+	// 	os.platform() === 'win32'
+	// 		? // @TODO: Enable fs-ext here when it works with Windows.
+	// 			undefined
+	// 		: await import('fs-ext')
+	// 				.then((m) => m.flockSync)
+	// 				.catch(() => {
+	// 					logger.warn(
+	// 						'The fs-ext package is not installed. ' +
+	// 							'Internal file locking will not be integrated with ' +
+	// 							'host OS file locking.'
+	// 					);
+	// 					return undefined;
+	// 				});
+	const fileLockManager = new FileLockManagerForNode();
 
 	let wordPressReady = false;
 	let isFirstRequest = true;
