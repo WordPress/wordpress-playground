@@ -23,15 +23,14 @@ import { MinifiedWordPressVersionsList } from '@wp-playground/wordpress-builds';
 import { type Log, logger } from '@php-wasm/logger';
 
 const blueprintVersions = [
-	// {
-	// 	version: 1,
-	// 	suiteCliArgs: {},
-	// 	expectedHomePageTitle: 'My WordPress Website',
-	// },
+	{
+		version: 1,
+		suiteCliArgs: {},
+		expectedHomePageTitle: 'My WordPress Website',
+	},
 	{
 		version: 2,
 		suiteCliArgs: {
-			php: '8.0',
 			'experimental-blueprints-v2-runner': true,
 		},
 		expectedHomePageTitle: 'WordPress Site',
@@ -181,419 +180,418 @@ describe.each(blueprintVersions)(
 			}
 		);
 
-		// test.skipIf(isBlueprintsV2OnWindows)(
-		// 	'should be able to follow external symlinks in primary and secondary PHP instances',
-		// 	async ({ skip }) => {
-		// 		if (os.platform() === 'win32') {
-		// 			// @TODO: Find out why this test fails on Windows and fix it.
-		// 			// Issue here: https://github.com/WordPress/wordpress-playground/issues/2936
-		// 			skip();
-		// 		}
-		// 		if (version === 2) {
-		// 			// @TODO: Fix this feature for Blueprints v2 (or fix the test if it is just a test issue)
-		// 			skip();
-		// 		}
+		test.skipIf(isBlueprintsV2OnWindows)(
+			'should be able to follow external symlinks in primary and secondary PHP instances',
+			async ({ skip }) => {
+				if (os.platform() === 'win32') {
+					// @TODO: Find out why this test fails on Windows and fix it.
+					// Issue here: https://github.com/WordPress/wordpress-playground/issues/2936
+					skip();
+				}
+				if (version === 2) {
+					// @TODO: Fix this feature for Blueprints v2 (or fix the test if it is just a test issue)
+					skip();
+				}
 
-		// 		const testArgs: Partial<RunCLIArgs> =
-		// 			version === 2
-		// 				? { allow: 'follow-symlinks' }
-		// 				: { followSymlinks: true };
+				const testArgs: Partial<RunCLIArgs> =
+					version === 2
+						? { allow: 'follow-symlinks' }
+						: { followSymlinks: true };
 
-		// 		// TODO: Make sure test always uses a single worker.
-		// 		// TODO: Is there a way to confirm we are testing use of a non-primary PHP instance?
-		// 		const tmpDir = await mkdtemp(
-		// 			path.join(tmpdir(), 'playground-test-')
-		// 		);
-		// 		writeFileSync(
-		// 			path.join(tmpDir, 'sleep.php'),
-		// 			'<?php sleep(1); echo "Slept"; '
-		// 		);
-		// 		const symlinkPath = path.join(
-		// 			import.meta.dirname,
-		// 			'mount-examples',
-		// 			'symlinking',
-		// 			'symlinked-script'
-		// 		);
+				// TODO: Make sure test always uses a single worker.
+				// TODO: Is there a way to confirm we are testing use of a non-primary PHP instance?
+				const tmpDir = await mkdtemp(
+					path.join(tmpdir(), 'playground-test-')
+				);
+				writeFileSync(
+					path.join(tmpDir, 'sleep.php'),
+					'<?php sleep(1); echo "Slept"; '
+				);
+				const symlinkPath = path.join(
+					import.meta.dirname,
+					'mount-examples',
+					'symlinking',
+					'symlinked-script'
+				);
 
-		// 		mkdirSync(path.dirname(symlinkPath), { recursive: true });
+				mkdirSync(path.dirname(symlinkPath), { recursive: true });
 
-		// 		try {
-		// 			if (existsSync(symlinkPath)) {
-		// 				unlinkSync(symlinkPath);
-		// 			}
-		// 			// TODO: Confirm that symlink target is outside of current working dir tree.
-		// 			symlinkSync(
-		// 				tmpDir,
-		// 				symlinkPath,
-		// 				// Use a junction on Windows to avoid elevated permissions requirement.
-		// 				os.platform() === 'win32' ? 'junction' : null
-		// 			);
-		// 			cliServer = await runCLI({
-		// 				...suiteCliArgs,
-		// 				...testArgs,
-		// 				debug: true,
-		// 				command: 'server',
-		// 				'mount-before-install': [
-		// 					{
-		// 						hostPath: symlinkPath,
-		// 						vfsPath: '/wordpress/wp-content/test-script',
-		// 					},
-		// 				],
-		// 			});
-		// 			expect(
-		// 				cliServer[internalsKeyForTesting].workerThreadCount
-		// 			).toBe(1);
-		// 			// Make multiple simultaneous requests to force the use of a secondary PHP instance.
-		// 			// TODO: Find way to confirm this. Maybe a custom response header that announces the worker.
-		// 			const sleepUrl = new URL(
-		// 				'/wp-content/test-script/sleep.php',
-		// 				cliServer.serverUrl
-		// 			);
-		// 			const responses = await Promise.all([
-		// 				fetch(sleepUrl),
-		// 				fetch(sleepUrl),
-		// 				// Test a third request to hopefully test more than one secondary instance.
-		// 				fetch(sleepUrl),
-		// 			]);
-		// 			for (const response of responses) {
-		// 				expect(response.status).toBe(200);
-		// 				const text = await response.text();
-		// 				expect(text).toContain('Slept');
-		// 			}
-		// 		} finally {
-		// 			if (existsSync(symlinkPath)) {
-		// 				unlinkSync(symlinkPath);
-		// 			}
-		// 		}
-		// 	}
-		// );
+				try {
+					if (existsSync(symlinkPath)) {
+						unlinkSync(symlinkPath);
+					}
+					// TODO: Confirm that symlink target is outside of current working dir tree.
+					symlinkSync(
+						tmpDir,
+						symlinkPath,
+						// Use a junction on Windows to avoid elevated permissions requirement.
+						os.platform() === 'win32' ? 'junction' : null
+					);
+					cliServer = await runCLI({
+						...suiteCliArgs,
+						...testArgs,
+						debug: true,
+						command: 'server',
+						'mount-before-install': [
+							{
+								hostPath: symlinkPath,
+								vfsPath: '/wordpress/wp-content/test-script',
+							},
+						],
+					});
+					expect(
+						cliServer[internalsKeyForTesting].workerThreadCount
+					).toBe(1);
+					// Make multiple simultaneous requests to force the use of a secondary PHP instance.
+					// TODO: Find way to confirm this. Maybe a custom response header that announces the worker.
+					const sleepUrl = new URL(
+						'/wp-content/test-script/sleep.php',
+						cliServer.serverUrl
+					);
+					const responses = await Promise.all([
+						fetch(sleepUrl),
+						fetch(sleepUrl),
+						// Test a third request to hopefully test more than one secondary instance.
+						fetch(sleepUrl),
+					]);
+					for (const response of responses) {
+						expect(response.status).toBe(200);
+						const text = await response.text();
+						expect(text).toContain('Slept');
+					}
+				} finally {
+					if (existsSync(symlinkPath)) {
+						unlinkSync(symlinkPath);
+					}
+				}
+			}
+		);
 
 		// TODO: Testing mounting NODEFS within a NODEFS mount
 
-		// if (version === 2) {
-		// 	// @TODO: Test modes
-		// 	test.skipIf(isBlueprintsV2OnWindows)(
-		// 		'should support --mode=create-new-site',
-		// 		async () => {
-		// 			const tmpDir = await mkdtemp(
-		// 				path.join(tmpdir(), 'playground-test-')
-		// 			);
-		// 			cliServer = await runCLI({
-		// 				...suiteCliArgs,
-		// 				command: 'server',
-		// 				'experimental-blueprints-v2-runner': true,
-		// 				mode: 'create-new-site',
-		// 				'mount-before-install': [
-		// 					{
-		// 						hostPath: tmpDir,
-		// 						vfsPath: '/wordpress',
-		// 					},
-		// 				],
-		// 			});
-		// 			const homeUrl = new URL('/', cliServer.serverUrl);
-		// 			const response = await fetch(homeUrl);
-		// 			expect(response.status).toBe(200);
-		// 			const text = await response.text();
-		// 			expect(text).toContain(
-		// 				`<title>${expectedHomePageTitle}</title>`
-		// 			);
-		// 		}
-		// 	);
+		if (version === 2) {
+			// @TODO: Test modes
+			test.skipIf(isBlueprintsV2OnWindows)(
+				'should support --mode=create-new-site',
+				async () => {
+					const tmpDir = await mkdtemp(
+						path.join(tmpdir(), 'playground-test-')
+					);
+					cliServer = await runCLI({
+						...suiteCliArgs,
+						command: 'server',
+						'experimental-blueprints-v2-runner': true,
+						mode: 'create-new-site',
+						'mount-before-install': [
+							{
+								hostPath: tmpDir,
+								vfsPath: '/wordpress',
+							},
+						],
+					});
+					const homeUrl = new URL('/', cliServer.serverUrl);
+					const response = await fetch(homeUrl);
+					expect(response.status).toBe(200);
+					const text = await response.text();
+					expect(text).toContain(
+						`<title>${expectedHomePageTitle}</title>`
+					);
+				}
+			);
 
-		// 	test.skipIf(isBlueprintsV2OnWindows)(
-		// 		'should support --mode=apply-to-existing-site',
-		// 		async () => {
-		// 			const tmpDir = await mkdtemp(
-		// 				path.join(tmpdir(), 'playground-test-')
-		// 			);
+			test.skipIf(isBlueprintsV2OnWindows)(
+				'should support --mode=apply-to-existing-site',
+				async () => {
+					const tmpDir = await mkdtemp(
+						path.join(tmpdir(), 'playground-test-')
+					);
 
-		// 			const port = 3019;
+					const port = 3019;
 
-		// 			// Create a new site so we can load it as an existing site later.
-		// 			cliServer = await runCLI({
-		// 				...suiteCliArgs,
-		// 				port,
-		// 				command: 'server',
-		// 				'experimental-blueprints-v2-runner': true,
-		// 				mode: 'create-new-site',
-		// 				'mount-before-install': [
-		// 					{
-		// 						hostPath: tmpDir,
-		// 						vfsPath: '/wordpress',
-		// 					},
-		// 				],
-		// 			});
-		// 			// Confirm the new site looks intact with its WP installed.
-		// 			const homeUrl = new URL('/', cliServer.serverUrl);
-		// 			const setupResponse = await fetch(homeUrl);
-		// 			expect(setupResponse.status).toBe(200);
-		// 			const setupText = await setupResponse.text();
-		// 			expect(setupText).toContain(
-		// 				`<title>${expectedHomePageTitle}</title>`
-		// 			);
-		// 			await cliServer.server.close();
+					// Create a new site so we can load it as an existing site later.
+					cliServer = await runCLI({
+						...suiteCliArgs,
+						port,
+						command: 'server',
+						'experimental-blueprints-v2-runner': true,
+						mode: 'create-new-site',
+						'mount-before-install': [
+							{
+								hostPath: tmpDir,
+								vfsPath: '/wordpress',
+							},
+						],
+					});
+					// Confirm the new site looks intact with its WP installed.
+					const homeUrl = new URL('/', cliServer.serverUrl);
+					const setupResponse = await fetch(homeUrl);
+					expect(setupResponse.status).toBe(200);
+					const setupText = await setupResponse.text();
+					expect(setupText).toContain(
+						`<title>${expectedHomePageTitle}</title>`
+					);
+					await cliServer.server.close();
 
-		// 			cliServer = await runCLI({
-		// 				...suiteCliArgs,
-		// 				port,
-		// 				command: 'server',
-		// 				'experimental-blueprints-v2-runner': true,
-		// 				mode: 'apply-to-existing-site',
-		// 				'mount-before-install': [
-		// 					{
-		// 						hostPath: tmpDir,
-		// 						vfsPath: '/wordpress',
-		// 					},
-		// 				],
-		// 			});
-		// 			const redirectResponse = await fetch(homeUrl);
-		// 			expect(redirectResponse.status).toBe(200);
-		// 			const redirectText = await redirectResponse.text();
-		// 			expect(redirectText).toContain(
-		// 				`<title>${expectedHomePageTitle}</title>`
-		// 			);
-		// 		}
-		// 	);
+					cliServer = await runCLI({
+						...suiteCliArgs,
+						port,
+						command: 'server',
+						'experimental-blueprints-v2-runner': true,
+						mode: 'apply-to-existing-site',
+						'mount-before-install': [
+							{
+								hostPath: tmpDir,
+								vfsPath: '/wordpress',
+							},
+						],
+					});
+					const redirectResponse = await fetch(homeUrl);
+					expect(redirectResponse.status).toBe(200);
+					const redirectText = await redirectResponse.text();
+					expect(redirectText).toContain(
+						`<title>${expectedHomePageTitle}</title>`
+					);
+				}
+			);
 
-		// 	test.skipIf(isBlueprintsV2OnWindows)(
-		// 		'should put WordPress in the document root',
-		// 		async () => {
-		// 			const tmpDir = await mkdtemp(
-		// 				path.join(tmpdir(), 'playground-test-')
-		// 			);
+			test.skipIf(isBlueprintsV2OnWindows)(
+				'should put WordPress in the document root',
+				async () => {
+					const tmpDir = await mkdtemp(
+						path.join(tmpdir(), 'playground-test-')
+					);
 
-		// 			// Create a new site so we can load it as an existing site later.
-		// 			cliServer = await runCLI({
-		// 				...suiteCliArgs,
-		// 				'site-url': 'http://playground-domain/',
-		// 				'db-engine': 'sqlite',
-		// 				command: 'server',
-		// 				mode: 'create-new-site',
-		// 				'mount-before-install': [
-		// 					{
-		// 						hostPath: tmpDir,
-		// 						vfsPath: '/wordpress',
-		// 					},
-		// 				],
-		// 			});
-		// 			const wpContentDirPath = path.join(tmpDir, 'wp-content');
-		// 			expect(
-		// 				await lstatSync(wpContentDirPath)?.isDirectory()
-		// 			).toBe(true);
-		// 		},
-		// 		60000
-		// 	);
-		// }
+					// Create a new site so we can load it as an existing site later.
+					cliServer = await runCLI({
+						...suiteCliArgs,
+						'site-url': 'http://playground-domain/',
+						'db-engine': 'sqlite',
+						command: 'server',
+						mode: 'create-new-site',
+						'mount-before-install': [
+							{
+								hostPath: tmpDir,
+								vfsPath: '/wordpress',
+							},
+						],
+					});
+					const wpContentDirPath = path.join(tmpDir, 'wp-content');
+					expect(
+						await lstatSync(wpContentDirPath)?.isDirectory()
+					).toBe(true);
+				},
+				60000
+			);
+		}
 
 		// TODO: Test resolving absolute symlinks within a mounted dir with and without follow-symlinks
-		// TODO: Test resolving relative symlinks within a mounted dir with and without follow-symlinks
 
-		// describe('auto-mount', () => {
-		// 	const getDirectoryChecksum = async (dir: string) => {
-		// 		const hash = createHash('sha256');
-		// 		for (const file of readdirSync(dir)) {
-		// 			hash.update(file);
-		// 		}
-		// 		return hash.digest('hex');
-		// 	};
-		// 	const getActiveTheme = async () => {
-		// 		const response = await cliServer.playground.run({
-		// 			code: `<?php
-		// 			require_once '/wordpress/wp-load.php';
-		// 			$theme = wp_get_theme();
-		// 			echo $theme->get('Name');
-		// 		?>`,
-		// 		});
-		// 		return response.text;
-		// 	};
-		// 	afterEach(() => {
-		// 		if ((process.cwd as unknown as MockInstance).mockRestore) {
-		// 			(process.cwd as unknown as MockInstance).mockRestore();
-		// 		}
-		// 	});
+		describe('auto-mount', () => {
+			const getDirectoryChecksum = async (dir: string) => {
+				const hash = createHash('sha256');
+				for (const file of readdirSync(dir)) {
+					hash.update(file);
+				}
+				return hash.digest('hex');
+			};
+			const getActiveTheme = async () => {
+				const response = await cliServer.playground.run({
+					code: `<?php
+					require_once '/wordpress/wp-load.php';
+					$theme = wp_get_theme();
+					echo $theme->get('Name');
+				?>`,
+				});
+				return response.text;
+			};
+			afterEach(() => {
+				if ((process.cwd as unknown as MockInstance).mockRestore) {
+					(process.cwd as unknown as MockInstance).mockRestore();
+				}
+			});
 
-		// 	test.skipIf(isBlueprintsV2OnWindows)(
-		// 		`should run a plugin project using --auto-mount`,
-		// 		async () => {
-		// 			vi.spyOn(process, 'cwd').mockReturnValue(
-		// 				path.join(
-		// 					import.meta.dirname,
-		// 					'mount-examples',
-		// 					'plugin'
-		// 				)
-		// 			);
-		// 			cliServer = await runCLI({
-		// 				...suiteCliArgs,
-		// 				command: 'server',
-		// 				autoMount: '',
-		// 			});
-		// 			const phpResponse = await cliServer.playground.run({
-		// 				code: `<?php
-		// 			require_once '/wordpress/wp-load.php';
-		// 			require_once '/wordpress/wp-admin/includes/plugin.php';
-		// 			echo is_plugin_active('plugin/sample-plugin.php') ? '1' : '0';
-		// 		?>`,
-		// 			});
-		// 			expect(phpResponse.text).toBe('1');
+			test.skipIf(isBlueprintsV2OnWindows)(
+				`should run a plugin project using --auto-mount`,
+				async () => {
+					vi.spyOn(process, 'cwd').mockReturnValue(
+						path.join(
+							import.meta.dirname,
+							'mount-examples',
+							'plugin'
+						)
+					);
+					cliServer = await runCLI({
+						...suiteCliArgs,
+						command: 'server',
+						autoMount: '',
+					});
+					const phpResponse = await cliServer.playground.run({
+						code: `<?php
+					require_once '/wordpress/wp-load.php';
+					require_once '/wordpress/wp-admin/includes/plugin.php';
+					echo is_plugin_active('plugin/sample-plugin.php') ? '1' : '0';
+				?>`,
+					});
+					expect(phpResponse.text).toBe('1');
 
-		// 			const homeUrl = new URL('/', cliServer.serverUrl);
-		// 			const response = await fetch(homeUrl);
-		// 			expect(response.status).toBe(200);
-		// 			const text = await response.text();
-		// 			expect(text).toContain(
-		// 				`<title>${expectedHomePageTitle}</title>`
-		// 			);
-		// 		}
-		// 	);
-		// 	test.skipIf(isBlueprintsV2OnWindows)(
-		// 		`should run a theme project using --auto-mount`,
-		// 		async () => {
-		// 			vi.spyOn(process, 'cwd').mockReturnValue(
-		// 				path.join(
-		// 					import.meta.dirname,
-		// 					'mount-examples',
-		// 					'theme'
-		// 				)
-		// 			);
-		// 			cliServer = await runCLI({
-		// 				...suiteCliArgs,
-		// 				command: 'server',
-		// 				autoMount: '',
-		// 			});
+					const homeUrl = new URL('/', cliServer.serverUrl);
+					const response = await fetch(homeUrl);
+					expect(response.status).toBe(200);
+					const text = await response.text();
+					expect(text).toContain(
+						`<title>${expectedHomePageTitle}</title>`
+					);
+				}
+			);
+			test.skipIf(isBlueprintsV2OnWindows)(
+				`should run a theme project using --auto-mount`,
+				async () => {
+					vi.spyOn(process, 'cwd').mockReturnValue(
+						path.join(
+							import.meta.dirname,
+							'mount-examples',
+							'theme'
+						)
+					);
+					cliServer = await runCLI({
+						...suiteCliArgs,
+						command: 'server',
+						autoMount: '',
+					});
 
-		// 			expect(await getActiveTheme()).toBe('Yolo Theme');
+					expect(await getActiveTheme()).toBe('Yolo Theme');
 
-		// 			const homeUrl = new URL('/', cliServer.serverUrl);
-		// 			const response = await fetch(homeUrl);
-		// 			expect(response.status).toBe(200);
-		// 			const text = await response.text();
-		// 			expect(text).toContain(
-		// 				`<title>${expectedHomePageTitle}</title>`
-		// 			);
-		// 		}
-		// 	);
+					const homeUrl = new URL('/', cliServer.serverUrl);
+					const response = await fetch(homeUrl);
+					expect(response.status).toBe(200);
+					const text = await response.text();
+					expect(text).toContain(
+						`<title>${expectedHomePageTitle}</title>`
+					);
+				}
+			);
 
-		// 	test.skipIf(isBlueprintsV2OnWindows)(
-		// 		`should run a wp-content project using --auto-mount`,
-		// 		async ({ skip }) => {
-		// 			if (version === 2) {
-		// 				// @TODO: Fix this feature for Blueprints v2 (or fix the test if it is just a test issue)
-		// 				skip();
-		// 			}
+			test.skipIf(isBlueprintsV2OnWindows)(
+				`should run a wp-content project using --auto-mount`,
+				async ({ skip }) => {
+					if (version === 2) {
+						// @TODO: Fix this feature for Blueprints v2 (or fix the test if it is just a test issue)
+						skip();
+					}
 
-		// 			vi.spyOn(process, 'cwd').mockReturnValue(
-		// 				path.join(
-		// 					import.meta.dirname,
-		// 					'mount-examples',
-		// 					'wp-content'
-		// 				)
-		// 			);
-		// 			cliServer = await runCLI({
-		// 				...suiteCliArgs,
-		// 				command: 'server',
-		// 				autoMount: '',
-		// 			});
-		// 			const loginUrl = new URL(
-		// 				'/wp-login.php',
-		// 				cliServer.serverUrl
-		// 			);
-		// 			const response = await fetch(loginUrl);
-		// 			expect(response.status).toBe(200);
-		// 		}
-		// 	);
+					vi.spyOn(process, 'cwd').mockReturnValue(
+						path.join(
+							import.meta.dirname,
+							'mount-examples',
+							'wp-content'
+						)
+					);
+					cliServer = await runCLI({
+						...suiteCliArgs,
+						command: 'server',
+						autoMount: '',
+					});
+					const loginUrl = new URL(
+						'/wp-login.php',
+						cliServer.serverUrl
+					);
+					const response = await fetch(loginUrl);
+					expect(response.status).toBe(200);
+				}
+			);
 
-		// 	test.skipIf(isBlueprintsV2OnWindows)(
-		// 		'should run a static html project using --auto-mount',
-		// 		async () => {
-		// 			vi.spyOn(process, 'cwd').mockReturnValue(
-		// 				path.join(
-		// 					import.meta.dirname,
-		// 					'mount-examples',
-		// 					'static-html'
-		// 				)
-		// 			);
-		// 			cliServer = await runCLI({
-		// 				...suiteCliArgs,
-		// 				command: 'server',
-		// 				autoMount: '',
-		// 			});
-		// 			const homeUrl = new URL('/', cliServer.serverUrl);
-		// 			const response = await fetch(homeUrl);
-		// 			expect(response.status).toBe(200);
-		// 			const text = await response.text();
-		// 			expect(text).toContain('<title>Static HTML</title>');
-		// 		}
-		// 	);
+			test.skipIf(isBlueprintsV2OnWindows)(
+				'should run a static html project using --auto-mount',
+				async () => {
+					vi.spyOn(process, 'cwd').mockReturnValue(
+						path.join(
+							import.meta.dirname,
+							'mount-examples',
+							'static-html'
+						)
+					);
+					cliServer = await runCLI({
+						...suiteCliArgs,
+						command: 'server',
+						autoMount: '',
+					});
+					const homeUrl = new URL('/', cliServer.serverUrl);
+					const response = await fetch(homeUrl);
+					expect(response.status).toBe(200);
+					const text = await response.text();
+					expect(text).toContain('<title>Static HTML</title>');
+				}
+			);
 
-		// 	test.skipIf(isBlueprintsV2OnWindows)(
-		// 		'should run a php project using --auto-mount',
-		// 		async () => {
-		// 			vi.spyOn(process, 'cwd').mockReturnValue(
-		// 				path.join(import.meta.dirname, 'mount-examples', 'php')
-		// 			);
-		// 			cliServer = await runCLI({
-		// 				...suiteCliArgs,
-		// 				command: 'server',
-		// 				autoMount: '',
-		// 			});
-		// 			const homeUrl = new URL('/', cliServer.serverUrl);
-		// 			const response = await fetch(homeUrl);
-		// 			expect(response.status).toBe(200);
-		// 			const text = await response.text();
-		// 			expect(text).toContain('Hello world');
-		// 		}
-		// 	);
+			test.skipIf(isBlueprintsV2OnWindows)(
+				'should run a php project using --auto-mount',
+				async () => {
+					vi.spyOn(process, 'cwd').mockReturnValue(
+						path.join(import.meta.dirname, 'mount-examples', 'php')
+					);
+					cliServer = await runCLI({
+						...suiteCliArgs,
+						command: 'server',
+						autoMount: '',
+					});
+					const homeUrl = new URL('/', cliServer.serverUrl);
+					const response = await fetch(homeUrl);
+					expect(response.status).toBe(200);
+					const text = await response.text();
+					expect(text).toContain('Hello world');
+				}
+			);
 
-		// 	test.skipIf(isBlueprintsV2OnWindows)(
-		// 		'should run a wordpress project using --auto-mount',
-		// 		async ({ skip }) => {
-		// 			if (os.platform() === 'win32') {
-		// 				// @TODO: Find out why this test fails on Windows and fix it.
-		// 				skip();
-		// 			}
-		// 			if (version === 2) {
-		// 				// @TODO: Fix this test for Blueprints v2.
-		// 				// It makes a valid complaint that the unzipped WP is not yet installed.
-		// 				skip();
-		// 			}
+			test.skipIf(isBlueprintsV2OnWindows)(
+				'should run a wordpress project using --auto-mount',
+				async ({ skip }) => {
+					if (os.platform() === 'win32') {
+						// @TODO: Find out why this test fails on Windows and fix it.
+						skip();
+					}
+					if (version === 2) {
+						// @TODO: Fix this test for Blueprints v2.
+						// It makes a valid complaint that the unzipped WP is not yet installed.
+						skip();
+					}
 
-		// 			const tmpDir = await mkdtemp(
-		// 				path.join(tmpdir(), 'playground-test-')
-		// 			);
-		// 			vi.spyOn(process, 'cwd').mockReturnValue(
-		// 				path.join(tmpDir, 'wordpress')
-		// 			);
+					const tmpDir = await mkdtemp(
+						path.join(tmpdir(), 'playground-test-')
+					);
+					vi.spyOn(process, 'cwd').mockReturnValue(
+						path.join(tmpDir, 'wordpress')
+					);
 
-		// 			const zip = await fetch('https://wordpress.org/latest.zip');
-		// 			const zipPath = path.join(tmpDir, 'wp.zip');
-		// 			await writeFile(
-		// 				zipPath,
-		// 				new Uint8Array(await zip.arrayBuffer())
-		// 			);
-		// 			await promisify(exec)(`unzip "${zipPath}" -d "${tmpDir}"`);
+					const zip = await fetch('https://wordpress.org/latest.zip');
+					const zipPath = path.join(tmpDir, 'wp.zip');
+					await writeFile(
+						zipPath,
+						new Uint8Array(await zip.arrayBuffer())
+					);
+					await promisify(exec)(`unzip "${zipPath}" -d "${tmpDir}"`);
 
-		// 			const checksum = await getDirectoryChecksum(tmpDir);
+					const checksum = await getDirectoryChecksum(tmpDir);
 
-		// 			cliServer = await runCLI({
-		// 				...suiteCliArgs,
-		// 				command: 'server',
-		// 				autoMount: '',
-		// 			});
-		// 			const homeUrl = new URL('/', cliServer.serverUrl);
-		// 			const response = await fetch(homeUrl);
-		// 			expect(response.status).toBe(200);
-		// 			const text = await response.text();
-		// 			expect(text).toContain(
-		// 				`<title>${expectedHomePageTitle}</title>`
-		// 			);
+					cliServer = await runCLI({
+						...suiteCliArgs,
+						command: 'server',
+						autoMount: '',
+					});
+					const homeUrl = new URL('/', cliServer.serverUrl);
+					const response = await fetch(homeUrl);
+					expect(response.status).toBe(200);
+					const text = await response.text();
+					expect(text).toContain(
+						`<title>${expectedHomePageTitle}</title>`
+					);
 
-		// 			/**
-		// 			 * Playground should not modify the mounted directory.
-		// 			 */
-		// 			expect(await getDirectoryChecksum(tmpDir)).toBe(checksum);
-		// 		}
-		// 	);
-		// });
+					/**
+					 * Playground should not modify the mounted directory.
+					 */
+					expect(await getDirectoryChecksum(tmpDir)).toBe(checksum);
+				}
+			);
+		});
 
 		describe('verbosity', () => {
 			let output: string[];
@@ -611,56 +609,55 @@ describe.each(blueprintVersions)(
 				output = [];
 			});
 
-			// test.skipIf(isBlueprintsV2OnWindows)(
-			// 	'should output main logs by default',
-			// 	async ({ skip }) => {
-			// 		cliServer = await runCLI({
-			// 			...suiteCliArgs,
-			// 			command: 'server',
-			// 		});
+			test.skipIf(isBlueprintsV2OnWindows)(
+				'should output main logs by default',
+				async ({ skip }) => {
+					cliServer = await runCLI({
+						...suiteCliArgs,
+						command: 'server',
+					});
 
-			// 		if (version === 1) {
-			// 			expect(output).toEqual(
-			// 				expect.arrayContaining([
-			// 					'Starting a PHP server...',
-			// 					'Starting up workers',
-			// 					expect.stringMatching(
-			// 						/^Resolved WordPress release URL: https:\/\/downloads\.w(ordpress)?\.org\/release\/wordpress-\d+\.\d+(?:\.\d+|-RC\d+|-beta\d+)?\.zip$/
-			// 					),
-			// 					'Fetching SQLite integration plugin...',
-			// 					'Booting WordPress...',
-			// 					'Booted!',
-			// 					'Running the Blueprint...',
-			// 					'Finished running the blueprint',
-			// 					'Preparing workers...',
-			// 					expect.stringMatching(
-			// 						/^WordPress is running on http:\/\/127\.0\.0\.1:\d+ with \d+ worker\(s\)$/
-			// 					),
-			// 				])
-			// 			);
-			// 		} else {
-			// 			// @TODO: Fix this test in CI. It passes locally but not on GitHub.
-			// 			skip();
-			// 			expect(output).toEqual(
-			// 				expect.arrayContaining([
-			// 					'Starting a PHP server...',
-			// 					'Setting up WordPress undefined',
-			// 					'Booted!',
-			// 					expect.stringMatching(
-			// 						/^WordPress is running on http:\/\/127\.0\.0\.1:\d+$/
-			// 					),
-			// 				])
-			// 			);
-			// 		}
-			// 	}
-			// );
+					if (version === 1) {
+						expect(output).toEqual(
+							expect.arrayContaining([
+								'Starting a PHP server...',
+								'Starting up workers',
+								expect.stringMatching(
+									/^Resolved WordPress release URL: https:\/\/downloads\.w(ordpress)?\.org\/release\/wordpress-\d+\.\d+(?:\.\d+|-RC\d+|-beta\d+)?\.zip$/
+								),
+								'Fetching SQLite integration plugin...',
+								'Booting WordPress...',
+								'Booted!',
+								'Running the Blueprint...',
+								'Finished running the blueprint',
+								'Preparing workers...',
+								expect.stringMatching(
+									/^WordPress is running on http:\/\/127\.0\.0\.1:\d+ with \d+ worker\(s\)$/
+								),
+							])
+						);
+					} else {
+						// @TODO: Fix this test in CI. It passes locally but not on GitHub.
+						skip();
+						expect(output).toEqual(
+							expect.arrayContaining([
+								'Starting a PHP server...',
+								'Setting up WordPress undefined',
+								'Booted!',
+								expect.stringMatching(
+									/^WordPress is running on http:\/\/127\.0\.0\.1:\d+$/
+								),
+							])
+						);
+					}
+				}
+			);
 
 			test.only('should not output debug logs with verbosity option set to normal', async () => {
 				cliServer = await runCLI({
 					...suiteCliArgs,
 					command: 'server',
-					verbosity: 'debug',
-					debug: true,
+					verbosity: 'normal',
 				});
 
 				const test = 'Debug log';

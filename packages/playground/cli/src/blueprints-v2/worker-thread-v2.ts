@@ -281,6 +281,31 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 			onPHPInstanceCreated: async (php: PHP) => {
 				await mountResources(php, args.mountsBeforeWpInstall || []);
 				await mountResources(php, args.mountsAfterWpInstall || []);
+
+				// Temporary workaround for LOCK_EX in sqlite-database-integration.
+				// Creation of these files results in this error:
+				// PHP Warning:  file_put_contents(): Exclusive locks are not supported for this stream
+				// in
+				// /wordpress/wp-content/plugins/sqlite-database-integration/wp-includes/sqlite/class-wp-sqlite-db.php
+				// on line 670
+				if (!php.isDir('/wordpress/wp-content')) {
+					php.mkdir('/wordpress/wp-content');
+				}
+				if (!php.isDir('/wordpress/wp-content/database')) {
+					php.mkdir('/wordpress/wp-content/database');
+				}
+				if (!php.isFile('/wordpress/wp-content/database/.htaccess')) {
+					php.writeFile(
+						'/wordpress/wp-content/database/.htaccess',
+						'deny from all'
+					);
+				}
+				if (!php.isFile('/wordpress/wp-content/database/index.php')) {
+					php.writeFile(
+						'/wordpress/wp-content/database/index.php',
+						'deny from all'
+					);
+				}
 			},
 			spawnHandler: () =>
 				sandboxedSpawnHandlerFactory(() =>

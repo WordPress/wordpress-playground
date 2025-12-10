@@ -193,21 +193,13 @@ export class PHPWorker implements LimitedPHPApi, AsyncDisposable {
 		argv: string[],
 		options?: { env?: Record<string, string> }
 	): Promise<StreamedPHPResponse> {
-		console.log('PHPWorker.cli', { argv, options });
 		const { php, reap } = await this.acquirePHPInstance();
-		console.log('PHPWorker.cli acquired PHP instance');
-		console.log(php.isDir);
-		console.log('After reading file');
-		console.log(php.readFileAsText(argv[1]));
-		console.log('After reading file');
 		let response: StreamedPHPResponse;
 		try {
 			response = await php.cli(argv, options);
 		} catch (error) {
 			reap();
 			throw error;
-		} finally {
-			console.log('PHPWorker.cli finally');
 		}
 		/**
 		 * Register the reap() callback to run asynchronously once
