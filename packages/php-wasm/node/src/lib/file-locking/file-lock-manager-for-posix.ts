@@ -77,7 +77,14 @@ export class FileLockManagerForPosix implements FileLockManager {
 					: constants.F_RDLCK;
 
 		try {
-			fcntlSync(op.fd, fcntlCmd, fcntlOp);
+			// TODO: Fix this API to take bigint for start and end. Possible optionally.
+			fcntlSync(
+				op.fd,
+				fcntlCmd,
+				fcntlOp,
+				Number(op.start),
+				Number(op.end - op.start)
+			);
 
 			// Remember that we have seen range locks for this PID and FD.
 			// It should be enough to release all locks with a single fcntl() call
