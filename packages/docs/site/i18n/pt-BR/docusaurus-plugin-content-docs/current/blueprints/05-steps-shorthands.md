@@ -3,6 +3,12 @@ slug: /blueprints/steps/shorthands
 description: Um guia para a sintaxe abreviada para etapas comuns do Blueprint, como login, plugins e siteOptions para um código mais conciso.
 ---
 
+<!--
+# Shorthands
+
+You can specify some `steps` using a `shorthand` syntax. The following `steps` are currently supported:
+-->
+
 # Abreviações
 
 Você pode especificar algumas `etapas` usando uma sintaxe `abreviada`. As seguintes `etapas` são atualmente suportadas:
@@ -26,6 +32,10 @@ Ou
 ```
 
 ### `plugins`
+
+<!--
+(replaces the `installPlugin` step)
+-->
 
 (substitui a etapa `installPlugin`)
 
@@ -120,11 +130,22 @@ Ou
 
 ---
 
+<!--
+The `shorthand` syntax and the `step` syntax correspond to each other. Every `step` specified with the `shorthand` syntax is added to the top of the `steps` array in arbitrary order.
+
+:::info **Which should you choose?**
+
+-   Use `shorthands` when **brevity** is your main concern.
+-   Use explicit `steps` when you need more control over the **execution order**.
+
+:::
+-->
+
 A sintaxe `abreviada` e a sintaxe `step` correspondem uma à outra. Cada `etapa` especificada com a sintaxe `abreviada` é adicionada ao topo do array de `etapas` em ordem arbitrária.
 
 :::info **Qual você deve escolher?**
 
--   Use `abreviações` quando a **brevidade** for sua principal preocupação.
--   Use `etapas` explícitas quando precisar de mais controle sobre a **ordem de execução**.
+- Use `abreviações` quando a **brevidade** for sua principal preocupação.
+- Use `etapas` explícitas quando precisar de mais controle sobre a **ordem de execução**.
 
 :::
