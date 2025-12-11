@@ -12,7 +12,11 @@ export async function fetchWithCorsProxy(
 	let requestUrlObj = playgroundUrlObj
 		? new URL(requestObject.url, playgroundUrlObj)
 		: new URL(requestObject.url);
-	if (requestUrlObj.protocol === 'http:') {
+	// Upgrade HTTP to HTTPS, except for localhost where HTTPS is usually not available.
+	const isLocalhost =
+		requestUrlObj.hostname === 'localhost' ||
+		requestUrlObj.hostname === '127.0.0.1';
+	if (requestUrlObj.protocol === 'http:' && !isLocalhost) {
 		requestUrlObj.protocol = 'https:';
 		const httpsUrl = requestUrlObj.toString();
 		requestObject = await cloneRequest(requestObject, { url: httpsUrl });

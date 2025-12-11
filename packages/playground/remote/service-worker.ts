@@ -512,6 +512,9 @@ function emptyHtml() {
 			status: 200,
 			headers: {
 				'content-type': 'text/html',
+				// Enable cross-origin isolation for SharedArrayBuffer support.
+				// See: https://github.com/WordPress/wordpress-playground/issues/2954
+				'document-isolation-policy': 'isolate-and-credentialless',
 			},
 		}
 	);

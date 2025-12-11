@@ -60,6 +60,16 @@ export async function convertFetchEventToPHPRequest(event: FetchEvent) {
 		delete phpResponse.headers['x-frame-options'];
 
 		/*
+		 * Remove COEP/COOP headers set by Gutenberg's client-side media processing.
+		 * These headers require all iframes to also have COEP, breaking embeds.
+		 * We use Document-Isolation-Policy instead, which provides cross-origin
+		 * isolation without cascading requirements to child frames.
+		 * See: https://github.com/WordPress/wordpress-playground/issues/2954
+		 */
+		delete phpResponse.headers['cross-origin-embedder-policy'];
+		delete phpResponse.headers['cross-origin-opener-policy'];
+
+		/*
 		 * Content-Security-Policy can get in the way when PHP is
 		 * being displayed in an iframe. WordPress 6.9 added a new
 		 * `Content-Security-Policy: frame-ancestors 'self';` header that
@@ -92,6 +102,17 @@ export async function convertFetchEventToPHPRequest(event: FetchEvent) {
 				delete phpResponse.headers['content-security-policy'];
 			}
 		}
+
+		/*
+		 * Add Document-Isolation-Policy header to enable SharedArrayBuffer
+		 * for Gutenberg's client-side media processing experiment.
+		 * This header enables cross-origin isolation on a per-frame basis
+		 * without requiring child frames to support COEP.
+		 * See: https://github.com/WordPress/wordpress-playground/issues/2954
+		 */
+		phpResponse.headers['document-isolation-policy'] = [
+			'isolate-and-credentialless',
+		];
 	} catch (e) {
 		console.error(e, { url: url.toString() });
 		throw e;
@@ -286,27 +307,32 @@ export function removeContentSecurityPolicyDirective(
 
 	// Parse based on the CSP spec:
 	// https://w3c.github.io/webappsec-csp/#parse-serialized-policy
-	return cspHeader
-		// "For each token returned by strictly splitting serialized
-		// on the U+003B SEMICOLON character (;):"
-		.split(';')
-		.filter((rawDirective: string) => {
-			// "Strip leading and trailing ASCII whitespace from token."
-			const trimmedDirective = rawDirective
-				.replace(leadingAsciiWhitespace, '')
-				.replace(trailingAsciiWhitespace, '');
+	return (
+		cspHeader
+			// "For each token returned by strictly splitting serialized
+			// on the U+003B SEMICOLON character (;):"
+			.split(';')
+			.filter((rawDirective: string) => {
+				// "Strip leading and trailing ASCII whitespace from token."
+				const trimmedDirective = rawDirective
+					.replace(leadingAsciiWhitespace, '')
+					.replace(trailingAsciiWhitespace, '');
 
-			// "Let directive name be the result of collecting a sequence
-			// of code points from token which are not ASCII whitespace."
-			const [directiveName] = trimmedDirective.split(
-				asciiWhitespace,
-				// The directive name is the first token.
-				1
-			);
+				// "Let directive name be the result of collecting a sequence
+				// of code points from token which are not ASCII whitespace."
+				const [directiveName] = trimmedDirective.split(
+					asciiWhitespace,
+					// The directive name is the first token.
+					1
+				);
 
-			// "Directive names are case-insensitive, that is:
-			// script-SRC 'none' and ScRiPt-sRc 'none' are equivalent."
-			return directiveName.toLowerCase() !== directiveToRemove.toLowerCase();
-		})
-		.join(';');
+				// "Directive names are case-insensitive, that is:
+				// script-SRC 'none' and ScRiPt-sRc 'none' are equivalent."
+				return (
+					directiveName.toLowerCase() !==
+					directiveToRemove.toLowerCase()
+				);
+			})
+			.join(';')
+	);
 }
