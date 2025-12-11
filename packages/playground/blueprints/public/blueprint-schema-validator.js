@@ -74,7 +74,11 @@ const schema11 = {
 				features: {
 					type: 'object',
 					properties: {
-						intl: { type: 'boolean' },
+						intl: {
+							type: 'boolean',
+							description:
+								'Should boot with support for Intl dynamic extension',
+						},
 						networking: {
 							type: 'boolean',
 							description:
@@ -1452,7 +1456,11 @@ const schema12 = {
 		features: {
 			type: 'object',
 			properties: {
-				intl: { type: 'boolean' },
+				intl: {
+					type: 'boolean',
+					description:
+						'Should boot with support for Intl dynamic extension',
+				},
 				networking: {
 					type: 'boolean',
 					description:

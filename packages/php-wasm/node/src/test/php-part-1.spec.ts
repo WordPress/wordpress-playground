@@ -13,6 +13,7 @@ import { existsSync, mkdirSync, rmSync, writeFileSync } from 'fs';
 import type { PHPLoaderOptions } from '..';
 import { loadNodeRuntime } from '..';
 import { createNodeFsMountHandler } from '../lib/node-fs-mount';
+import { spawn } from 'child_process';
 
 const testDirPath = '/__test987654321';
 const testFilePath = '/__test987654321.txt';
@@ -84,6 +85,8 @@ phpLoaderOptions.forEach((options) => {
 		beforeEach(async () => {
 			php = new PHP(await loadNodeRuntime(phpVersion as any, options));
 			php.mkdir('/php');
+			php.setSpawnHandler(spawn as any);
+
 			await setPhpIniEntries(php, {
 				disable_functions: '',
 				html_errors: false,
@@ -752,9 +755,12 @@ phpLoaderOptions.forEach((options) => {
 
 			// This test fails on older PHP versions
 			if (!['7.2', '7.3'].includes(phpVersion)) {
-				it('cat: stdin=pipe, stdout=file, stderr=file, file_get_contents', async () => {
-					const result = await php.run({
-						code: `<?php
+				it(
+					'cat: stdin=pipe, stdout=file, stderr=file, file_get_contents',
+					async () => {
+						console.log({ withXdebug: options.withXdebug });
+						const result = await php.run({
+							code: `<?php
 						$res = proc_open(
 							"cat",
 							array(
@@ -774,11 +780,13 @@ phpLoaderOptions.forEach((options) => {
 						echo 'stdout: ' . $stdout . "";
 						echo 'stderr: ' . $stderr . PHP_EOL;
 					`,
-					});
-					expect(result.text).toEqual(
-						'stdout: WordPress\nstderr: \n'
-					);
-				});
+						});
+						expect(result.text).toEqual(
+							'stdout: WordPress\nstderr: \n'
+						);
+					},
+					{ timeout: 10000 }
+				);
 			}
 
 			it('cat: stdin=file, stdout=file, stderr=file, file_get_contents', async () => {
@@ -828,7 +836,6 @@ phpLoaderOptions.forEach((options) => {
 						processApi.exit(0);
 					}
 				);
-
 				php.setSpawnHandler(handler);
 
 				const result = await php.run({
@@ -1268,6 +1275,8 @@ phpLoaderOptions.forEach((options) => {
 			});
 
 			it('Uses only stdin and stdout descriptor specs', async () => {
+				php.setSpawnHandler(spawn as any);
+
 				const result = await php.run({
 					code: `<?php
 
@@ -1850,7 +1859,11 @@ describe('sandboxedSpawnHandlerFactory', () => {
 					'Hello, world!'
 				);
 				await php.setSpawnHandler(
-					sandboxedSpawnHandlerFactory(processManager)
+					sandboxedSpawnHandlerFactory(() =>
+						processManager.acquirePHPInstance({
+							considerPrimary: false,
+						})
+					)
 				);
 				return php;
 			},

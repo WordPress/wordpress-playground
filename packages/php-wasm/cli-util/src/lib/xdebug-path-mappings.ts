@@ -1,16 +1,16 @@
 import fs from 'fs';
 import path from 'path';
-import { type Mount } from './mounts';
+import type { Mount } from './mounts';
 import {
 	type X2jOptions,
 	type XmlBuilderOptions,
 	XMLParser,
 	XMLBuilder,
 } from 'fast-xml-parser';
-import JSONC from 'jsonc-parser';
+import * as JSONC from 'jsonc-parser';
 
 /**
- * Create a symlink to temp dir for the Playground CLI.
+ * Create a symlink to a tempory directory.
  *
  * The symlink is created to access the system temp dir
  * inside the current debugging directory.
@@ -18,7 +18,7 @@ import JSONC from 'jsonc-parser';
  * @param nativeDirPath The system temp dir path.
  * @param symlinkPath The symlink name.
  */
-export async function createPlaygroundCliTempDirSymlink(
+export async function createTempDirSymlink(
 	nativeDirPath: string,
 	symlinkPath: string,
 	platform: string
@@ -26,19 +26,19 @@ export async function createPlaygroundCliTempDirSymlink(
 	const type =
 		platform === 'win32'
 			? // On Windows, creating a 'dir' symlink can require elevated permissions.
-			  // In this case, let's make junction points because they function like
-			  // symlinks and do not require elevated permissions.
-			  'junction'
+				// In this case, let's make junction points because they function like
+				// symlinks and do not require elevated permissions.
+				'junction'
 			: 'dir';
 	fs.symlinkSync(nativeDirPath, symlinkPath, type);
 }
 
 /**
- * Remove the temp dir symlink if it exists.
+ * Remove the given temporary directory symlink if it exists.
  *
  * @param symlinkPath The symlink path.
  */
-export async function removePlaygroundCliTempDirSymlink(symlinkPath: string) {
+export async function removeTempDirSymlink(symlinkPath: string) {
 	try {
 		const stats = fs.lstatSync(symlinkPath);
 		if (stats.isSymbolicLink()) {
@@ -52,7 +52,7 @@ export async function removePlaygroundCliTempDirSymlink(symlinkPath: string) {
 /**
  * Filters out mounts that are not in the current working directory
  *
- * @param mounts The Playground CLI mount options.
+ * @param mounts The mounts list.
  */
 function filterLocalMounts(cwd: string, mounts: Mount[]) {
 	return mounts.filter((mount) => {
@@ -91,7 +91,7 @@ export type IDEConfig = {
 	/**
 	 * The mounts to consider for debugger path mapping.
 	 */
-	mounts: Mount[];
+	mounts?: Mount[];
 	/**
 	 * The IDE key to use for the debug configuration. Defaults to 'PLAYGROUNDCLI'.
 	 */
@@ -137,7 +137,7 @@ type VSCodeConfigNode = {
 	type: string;
 	request: string;
 	port: number;
-	pathMappings: VSCodeConfigMetaData;
+	pathMappings?: VSCodeConfigMetaData;
 };
 
 const xmlParserOptions: X2jOptions = {
@@ -170,7 +170,7 @@ export type PhpStormConfigOptions = {
 	host: string;
 	port: number;
 	projectDir: string;
-	mappings: Mount[];
+	mappings?: Mount[];
 	ideKey: string;
 };
 
@@ -201,19 +201,7 @@ export function updatePhpStormConfig(
 
 	// Create the server element with path mappings
 	const serverElement: PhpStormConfigNode = {
-		server: [
-			{
-				path_mappings: mappings.map((mapping) => ({
-					mapping: [],
-					':@': {
-						'local-root': `$PROJECT_DIR$/${toPosixPath(
-							path.relative(options.projectDir, mapping.hostPath)
-						)}`,
-						'remote-root': mapping.vfsPath,
-					},
-				})),
-			},
-		],
+		server: [{}],
 		':@': {
 			name,
 			// NOTE: PhpStorm quirk: Xdebug only works when the full URL (including port)
@@ -223,6 +211,18 @@ export function updatePhpStormConfig(
 			use_path_mappings: 'true',
 		},
 	};
+
+	if (mappings && mappings.length) {
+		serverElement.server![0].path_mappings = mappings.map((mapping) => ({
+			mapping: [],
+			':@': {
+				'local-root': `$PROJECT_DIR$/${toPosixPath(
+					path.relative(options.projectDir, mapping.hostPath)
+				)}`,
+				'remote-root': mapping.vfsPath,
+			},
+		}));
+	}
 
 	// Find or create project element
 	let projectElement = config?.find((c: PhpStormConfigNode) => !!c?.project);
@@ -364,7 +364,7 @@ export function updatePhpStormConfig(
 export type VSCodeConfigOptions = {
 	name: string;
 	workspaceDir: string;
-	mappings: Mount[];
+	mappings?: Mount[];
 };
 
 /**
@@ -408,7 +408,8 @@ export function updateVSCodeConfig(
 
 	// Check if configuration already exists
 	const configurationIndex = configurationsNode?.children?.findIndex(
-		(child) => JSONC.findNodeAtLocation(child, ['name'])?.value === name
+		(child: any) =>
+			JSONC.findNodeAtLocation(child, ['name'])?.value === name
 	);
 
 	// Only add configuration if it doesn't exist
@@ -418,13 +419,16 @@ export function updateVSCodeConfig(
 			type: 'php',
 			request: 'launch',
 			port: 9003,
-			pathMappings: mappings.reduce((acc, mount) => {
+		};
+
+		if (mappings && mappings.length) {
+			configuration.pathMappings = mappings.reduce((acc, mount) => {
 				acc[mount.vfsPath] = `\${workspaceFolder}/${toPosixPath(
 					path.relative(options.workspaceDir, mount.hostPath)
 				)}`;
 				return acc;
-			}, {} as VSCodeConfigMetaData),
-		};
+			}, {} as VSCodeConfigMetaData);
+		}
 
 		// Get the current length to append at the end
 		const currentLength = configurationsNode?.children?.length || 0;
@@ -452,7 +456,7 @@ export function updateVSCodeConfig(
  * Implement necessary parameters and path mappings in IDE configuration files.
  *
  * @param name The configuration name.
- * @param mounts The Playground CLI mount options.
+ * @param mounts The mounts options.
  */
 export async function addXdebugIDEConfig({
 	name,
@@ -461,10 +465,10 @@ export async function addXdebugIDEConfig({
 	port,
 	cwd,
 	mounts,
-	ideKey = 'PLAYGROUNDCLI',
+	ideKey = 'PHPWASMCLI',
 }: IDEConfig) {
-	const mappings = filterLocalMounts(cwd, mounts);
-	const modifiedConfig: string[] = [];
+	const mappings = mounts ? filterLocalMounts(cwd, mounts) : [];
+	const modifiedConfig: Record<string, string> = {};
 
 	// PHPstorm
 	if (ides.includes('phpstorm')) {
@@ -500,9 +504,8 @@ export async function addXdebugIDEConfig({
 				ideKey,
 			});
 			fs.writeFileSync(phpStormConfigFilePath, updatedXml);
+			modifiedConfig['phpstorm'] = phpStormRelativeConfigFilePath;
 		}
-
-		modifiedConfig.push(phpStormRelativeConfigFilePath);
 	}
 
 	// VSCode
@@ -539,7 +542,7 @@ export async function addXdebugIDEConfig({
 			// Only write and track the file if changes were made
 			if (updatedJson !== content) {
 				fs.writeFileSync(vsCodeConfigFilePath, updatedJson);
-				modifiedConfig.push(vsCodeRelativeConfigFilePath);
+				modifiedConfig['vscode'] = vsCodeRelativeConfigFilePath;
 			}
 		}
 	}
@@ -626,7 +629,8 @@ export async function clearXdebugIDEConfig(name: string, cwd: string) {
 		]);
 
 		const configurationIndex = configurationsNode?.children?.findIndex(
-			(child) => JSONC.findNodeAtLocation(child, ['name'])?.value === name
+			(child: any) =>
+				JSONC.findNodeAtLocation(child, ['name'])?.value === name
 		);
 
 		if (configurationIndex !== undefined && configurationIndex >= 0) {
@@ -682,8 +686,8 @@ function jsoncApplyEdits(content: string, edits: JSONC.Edit[]) {
 			(edit) => `At ${edit.offset}:${edit.length} - (${edit.content})`
 		);
 		throw new Error(
-			`VS Code configuration file (.vscode/launch.json) is not valid a JSONC after Playground CLI modifications. This is likely ` +
-				`a Playground CLI bug. Please report it at https://github.com/WordPress/wordpress-playground/issues and include the contents ` +
+			`VS Code configuration file (.vscode/launch.json) is not valid a JSONC after CLI modifications. This is likely ` +
+				`a CLI bug. Please report it at https://github.com/WordPress/wordpress-playground/issues and include the contents ` +
 				`of your ".vscode/launch.json" file. \n\n Applied edits: ${formattedEdits.join(
 					'\n'
 				)}\n\n The errors are: ${formattedErrors.join('\n')}`
