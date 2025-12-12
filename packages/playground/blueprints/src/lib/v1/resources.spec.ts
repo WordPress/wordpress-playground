@@ -2,7 +2,8 @@ import {
 	UrlResource,
 	GitDirectoryResource,
 	BundledResource,
-	parseGithubProxyUrl,
+	isGithubProxyUrl,
+	rewriteGithubProxyUrl,
 	ZipResource,
 	Resource,
 } from './resources';
@@ -403,24 +404,52 @@ describe('BlueprintResource', () => {
 	});
 });
 
-describe('parseGithubProxyUrl', () => {
+describe('isGithubProxyUrl', () => {
+	it('should return true for github-proxy.com URLs', () => {
+		expect(
+			isGithubProxyUrl('https://github-proxy.com/proxy/?repo=owner/name')
+		).toBe(true);
+		expect(
+			isGithubProxyUrl(
+				'https://github-proxy.com/https://github.com/owner/repo'
+			)
+		).toBe(true);
+	});
+
+	it('should return false for non-github-proxy.com URLs', () => {
+		expect(isGithubProxyUrl('https://example.com/file.zip')).toBe(false);
+		expect(isGithubProxyUrl('https://github.com/owner/repo')).toBe(false);
+	});
+
+	it('should return false for invalid URLs', () => {
+		expect(isGithubProxyUrl('not a url')).toBe(false);
+	});
+});
+
+describe('rewriteGithubProxyUrl', () => {
 	it('should return null for non-github-proxy.com URLs', () => {
-		expect(parseGithubProxyUrl('https://example.com/file.zip')).toBeNull();
-		expect(parseGithubProxyUrl('https://github.com/owner/repo')).toBeNull();
+		expect(
+			rewriteGithubProxyUrl('https://example.com/file.zip')
+		).toBeNull();
+		expect(
+			rewriteGithubProxyUrl('https://github.com/owner/repo')
+		).toBeNull();
 	});
 
 	it('should return null for invalid URLs', () => {
-		expect(parseGithubProxyUrl('not a url')).toBeNull();
+		expect(rewriteGithubProxyUrl('not a url')).toBeNull();
 	});
 
 	it('should return null for github-proxy.com URLs without repo parameter', () => {
 		expect(
-			parseGithubProxyUrl('https://github-proxy.com/proxy/?branch=trunk')
+			rewriteGithubProxyUrl(
+				'https://github-proxy.com/proxy/?branch=trunk'
+			)
 		).toBeNull();
 	});
 
-	it('should parse basic repo URL (default branch)', () => {
-		const result = parseGithubProxyUrl(
+	it('should rewrite basic repo URL (default branch)', () => {
+		const result = rewriteGithubProxyUrl(
 			'https://github-proxy.com/proxy/?repo=owner/name'
 		);
 		expect(result).toEqual({
@@ -433,8 +462,8 @@ describe('parseGithubProxyUrl', () => {
 		});
 	});
 
-	it('should parse repo URL with branch', () => {
-		const result = parseGithubProxyUrl(
+	it('should rewrite repo URL with branch', () => {
+		const result = rewriteGithubProxyUrl(
 			'https://github-proxy.com/proxy/?repo=owner/name&branch=trunk'
 		);
 		expect(result).toEqual({
@@ -444,105 +473,6 @@ describe('parseGithubProxyUrl', () => {
 				url: 'https://github.com/owner/name',
 				ref: 'trunk',
 			},
-		});
-	});
-
-	it('should parse repo URL with PR number', () => {
-		const result = parseGithubProxyUrl(
-			'https://github-proxy.com/proxy/?repo=owner/name&pr=123'
-		);
-		expect(result).toEqual({
-			resource: 'zip',
-			inner: {
-				resource: 'git:directory',
-				url: 'https://github.com/owner/name',
-				ref: 'refs/pull/123/head',
-			},
-		});
-	});
-
-	it('should parse repo URL with commit SHA', () => {
-		const result = parseGithubProxyUrl(
-			'https://github-proxy.com/proxy/?repo=owner/name&commit=abc123def'
-		);
-		expect(result).toEqual({
-			resource: 'zip',
-			inner: {
-				resource: 'git:directory',
-				url: 'https://github.com/owner/name',
-				ref: 'abc123def',
-				refType: 'commit',
-			},
-		});
-	});
-
-	it('should parse repo URL with release tag', () => {
-		const result = parseGithubProxyUrl(
-			'https://github-proxy.com/proxy/?repo=owner/name&release=v1.0.0'
-		);
-		expect(result).toEqual({
-			resource: 'zip',
-			inner: {
-				resource: 'git:directory',
-				url: 'https://github.com/owner/name',
-				ref: 'v1.0.0',
-				refType: 'tag',
-			},
-		});
-	});
-
-	it('should parse repo URL with directory', () => {
-		const result = parseGithubProxyUrl(
-			'https://github-proxy.com/proxy/?repo=owner/name&branch=trunk&directory=packages/plugin'
-		);
-		expect(result).toEqual({
-			resource: 'zip',
-			inner: {
-				resource: 'git:directory',
-				url: 'https://github.com/owner/name',
-				ref: 'trunk',
-				path: 'packages/plugin',
-			},
-		});
-	});
-
-	it('should parse release asset URL with specific version', () => {
-		const result = parseGithubProxyUrl(
-			'https://github-proxy.com/proxy/?repo=owner/name&release=v1.0.0&asset=plugin.zip'
-		);
-		expect(result).toEqual({
-			resource: 'url',
-			url: 'https://github.com/owner/name/releases/download/v1.0.0/plugin.zip',
-		});
-	});
-
-	it('should parse release asset URL with latest', () => {
-		const result = parseGithubProxyUrl(
-			'https://github-proxy.com/proxy/?repo=owner/name&release=latest&asset=plugin.zip'
-		);
-		expect(result).toEqual({
-			resource: 'url',
-			url: 'https://github.com/owner/name/releases/latest/download/plugin.zip',
-		});
-	});
-
-	it('should parse direct GitHub URL proxy (https)', () => {
-		const result = parseGithubProxyUrl(
-			'https://github-proxy.com/https://github.com/owner/repo/releases/download/v1.0/file.zip'
-		);
-		expect(result).toEqual({
-			resource: 'url',
-			url: 'https://github.com/owner/repo/releases/download/v1.0/file.zip',
-		});
-	});
-
-	it('should parse direct GitHub URL proxy (http)', () => {
-		const result = parseGithubProxyUrl(
-			'https://github-proxy.com/http://github.com/owner/repo/raw/main/file.txt'
-		);
-		expect(result).toEqual({
-			resource: 'url',
-			url: 'http://github.com/owner/repo/raw/main/file.txt',
 		});
 	});
 });

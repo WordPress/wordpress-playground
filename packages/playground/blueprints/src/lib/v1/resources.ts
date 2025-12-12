@@ -151,7 +151,22 @@ export function isResourceReference(ref: any): ref is FileReference {
 }
 
 /**
- * Parses a github-proxy.com URL and returns an equivalent Blueprint resource reference.
+ * Checks if a URL is a github-proxy.com URL that can be rewritten.
+ *
+ * @param url The URL to check
+ * @returns true if the URL is a github-proxy.com URL
+ */
+export function isGithubProxyUrl(url: string): boolean {
+	try {
+		const parsed = new URL(url);
+		return parsed.hostname === 'github-proxy.com';
+	} catch {
+		return false;
+	}
+}
+
+/**
+ * Rewrites a github-proxy.com URL to an equivalent Blueprint resource reference.
  *
  * github-proxy.com is being deprecated. This function enables automatic migration
  * of existing Blueprints that use github-proxy.com URLs to native Blueprint resources.
@@ -166,10 +181,10 @@ export function isResourceReference(ref: any): ref is FileReference {
  * - `?repo=owner/name&release=v1.0&asset=file.zip` - Release asset download
  * - `https://github-proxy.com/https://github.com/...` - Direct GitHub URL proxy
  *
- * @param url The URL to parse
- * @returns A ZipWrapperReference (wrapping git:directory) or UrlReference, or null if not a github-proxy.com URL
+ * @param url The github-proxy.com URL to rewrite
+ * @returns A ZipWrapperReference (wrapping git:directory) or UrlReference, or null if URL cannot be rewritten
  */
-export function parseGithubProxyUrl(
+export function rewriteGithubProxyUrl(
 	url: string
 ): ZipWrapperReference | UrlReference | null {
 	let parsed: URL;
@@ -308,8 +323,8 @@ export abstract class Resource<T extends File | Directory> {
 	): Resource<File | Directory> {
 		// Automatically rewrite github-proxy.com URLs to native Blueprint resources.
 		// github-proxy.com is being deprecated - this provides graceful migration.
-		if (ref.resource === 'url') {
-			const rewritten = parseGithubProxyUrl(ref.url);
+		if (ref.resource === 'url' && isGithubProxyUrl(ref.url)) {
+			const rewritten = rewriteGithubProxyUrl(ref.url);
 			if (rewritten) {
 				// eslint-disable-next-line no-console
 				console.warn(
