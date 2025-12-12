@@ -73,6 +73,9 @@ RUN chmod a+x /root/replace-across-lines.sh
 
 COPY ./emcc-for-php-wasm.sh /root/emcc-for-php-wasm.sh
 
+# Disable compiler-rt profiling runtime introduced by emscripten 4.0.11 #24160
+RUN /root/replace.sh "s/src_files\s*\+=\s*glob_in_path\(profile_src_dir,\s*'\*\.cpp'\)//g" /root/emsdk/upstream/emscripten/tools/system_libs.py
+
 # Patch emcc to allow skipping flags and passing additional flags using environment variables.
 #
 # We're compiling libraries statically using emscripten's -sSIDE_MODULE. It differs from the usual unix

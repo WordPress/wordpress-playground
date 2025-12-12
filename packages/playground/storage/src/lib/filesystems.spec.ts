@@ -584,6 +584,11 @@ describe('InMemoryFilesystemBackend', () => {
 			const files = await backend.listFiles('/file.txt');
 			expect(files).toEqual([]);
 		});
+
+		it('should not write LLVM profiling data at runtime', async () => {
+			const files = await backend.listFiles('/');
+			expect(files).not.toContain('default.profraw');
+		});
 	});
 
 	describe('unlink', () => {

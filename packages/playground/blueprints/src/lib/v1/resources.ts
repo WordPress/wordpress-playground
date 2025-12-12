@@ -240,7 +240,7 @@ export abstract class Resource<T extends File | Directory> {
 }
 
 export abstract class ResourceDecorator<
-	T extends File | Directory
+	T extends File | Directory,
 > extends Resource<T> {
 	protected resource: Resource<T>;
 	constructor(resource: Resource<T>) {
@@ -388,7 +388,8 @@ export abstract class FetchResource extends Resource<File> {
 			throw new Error(
 				`Could not download "${url}".\n\n` +
 					`Confirm that the URL is correct, the server is reachable, and the file is` +
-					`actually served at that URL. Original error: \n ${e}`
+					`actually served at that URL. Original error: \n ${e}`,
+				{ cause: e }
 			);
 		}
 	}
@@ -769,7 +770,7 @@ export function toDirectoryZipName(rawInput: string) {
  * A decorator for a resource that adds caching functionality.
  */
 export class CachedResource<
-	T extends File | Directory
+	T extends File | Directory,
 > extends ResourceDecorator<T> {
 	protected override promise?: Promise<T>;
 
@@ -787,7 +788,7 @@ export class CachedResource<
  * through a semaphore.
  */
 export class SemaphoreResource<
-	T extends File | Directory
+	T extends File | Directory,
 > extends ResourceDecorator<T> {
 	private readonly semaphore: Semaphore;
 	constructor(resource: Resource<T>, semaphore: Semaphore) {

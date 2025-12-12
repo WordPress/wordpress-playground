@@ -7,6 +7,9 @@ export async function getPHPLoaderModule(
 ): Promise<PHPLoaderModule> {
 	if (await jspi()) {
 		switch (version) {
+			case '8.5':
+				// @ts-ignore
+				return await import(`../../jspi/php_8_5.js`);
 			case '8.4':
 				// @ts-ignore
 				return await import(`../../jspi/php_8_4.js`);
@@ -34,6 +37,9 @@ export async function getPHPLoaderModule(
 		}
 	} else {
 		switch (version) {
+			case '8.5':
+				// @ts-ignore
+				return await import(`../../asyncify/php_8_5.js`);
 			case '8.4':
 				// @ts-ignore
 				return await import(`../../asyncify/php_8_4.js`);

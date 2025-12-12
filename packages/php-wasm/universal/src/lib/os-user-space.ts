@@ -580,6 +580,9 @@ export function bindUserSpace(
 					return -EINVAL;
 				}
 			}
+			// @TODO: Implement a blocking version of F_SETLKW instead of
+			// treating it the same as F_SETLK.
+			case F_SETLKW:
 			case F_SETLK: {
 				js_wasm_trace('fcntl(%d, F_SETLK)', fd);
 				const [vfsPath, vfsPathErrno] =
@@ -693,13 +696,6 @@ export function bindUserSpace(
 					);
 					return -EINVAL;
 				}
-			}
-			// @TODO: Implement waiting for lock
-			case F_SETLKW: {
-				// We do not yet support the blocking form of flock().
-				// We respond with EDEADLK to indicate failure
-				// because it is a known errno for a failed F_SETLKW command.
-				return -EDEADLK;
 			}
 			case F_SETFL: {
 				/**

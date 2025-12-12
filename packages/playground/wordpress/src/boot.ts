@@ -3,8 +3,9 @@ import type {
 	FileNotFoundAction,
 	FileNotFoundGetActionCallback,
 	FileTree,
-	PHPProcessManager,
+	PHPWorker,
 	SpawnHandler,
+	Remote,
 } from '@php-wasm/universal';
 import {
 	PHP,
@@ -50,6 +51,7 @@ export async function bootWordPressAndRequestHandler(
 export interface BootRequestHandlerOptions {
 	createPhpRuntime: (isPrimary?: boolean) => Promise<number>;
 	onPHPInstanceCreated?: PHPInstanceCreatedHook;
+	maxPhpInstances?: number;
 	/**
 	 * PHP SAPI name to be returned by get_sapi_name(). Overriding
 	 * it is useful for running programs that check for this value,
@@ -62,7 +64,12 @@ export interface BootRequestHandlerOptions {
 	 */
 	siteUrl: string;
 	documentRoot?: string;
-	spawnHandler?: (processManager: PHPProcessManager) => SpawnHandler;
+	spawnHandler?: (
+		getPHPInstance?: () => Promise<{
+			php: PHP | Remote<PHPWorker>;
+			reap: () => void;
+		}>
+	) => SpawnHandler;
 	/**
 	 * PHP.ini entries to define before running any code. They'll
 	 * be used for all requests.
@@ -354,10 +361,11 @@ async function assertValidDatabaseConnection(
 }
 
 export async function bootRequestHandler(options: BootRequestHandlerOptions) {
-	const spawnHandler = options.spawnHandler ?? sandboxedSpawnHandlerFactory;
+	const createSpawnHandler =
+		options.spawnHandler ?? sandboxedSpawnHandlerFactory;
 	async function createPhp(
-		requestHandler: PHPRequestHandler,
-		isPrimary: boolean
+		requestHandler?: PHPRequestHandler,
+		isPrimary = false
 	) {
 		const runtimeId = await options.createPhpRuntime(isPrimary);
 		const php = new PHP(runtimeId);
@@ -413,9 +421,18 @@ export async function bootRequestHandler(options: BootRequestHandlerOptions) {
 
 		// Spawn handler is responsible for spawning processes for all the
 		// `popen()`, `proc_open()` etc. calls.
-		if (spawnHandler) {
+		if (createSpawnHandler) {
 			await php.setSpawnHandler(
-				spawnHandler(requestHandler.processManager)
+				createSpawnHandler(
+					requestHandler
+						? () =>
+								requestHandler.instanceManager.acquirePHPInstance(
+									{
+										considerPrimary: false,
+									}
+								)
+						: undefined
+				)
 			);
 		}
 
@@ -434,14 +451,33 @@ export async function bootRequestHandler(options: BootRequestHandlerOptions) {
 	}
 
 	const requestHandler: PHPRequestHandler = new PHPRequestHandler({
-		phpFactory: async ({ isPrimary }) =>
-			createPhp(requestHandler, isPrimary),
 		documentRoot: options.documentRoot || '/wordpress',
 		absoluteUrl: options.siteUrl,
 		rewriteRules: wordPressRewriteRules,
 		getFileNotFoundAction:
 			options.getFileNotFoundAction ?? getFileNotFoundActionForWordPress,
 		cookieStore: options.cookieStore,
+
+		/**
+		 * If maxPhpInstances is 1, the PHPRequestHandler constructor needs
+		 * a PHP instance. Internally, it creates a SinglePHPInstanceManager
+		 * and uses the same PHP instance to handle all requests.
+		 */
+		php:
+			options.maxPhpInstances === 1
+				? await createPhp(undefined, true)
+				: undefined,
+
+		/**
+		 * If maxPhpInstances is not 1, the PHPRequestHandler constructor needs
+		 * a PHP factory function. Internally, it creates a PHPProcessManager that
+		 * dynamically starts new PHP instances and reaps them after they're used.
+		 */
+		phpFactory:
+			options.maxPhpInstances !== 1
+				? async ({ isPrimary }) => createPhp(requestHandler, isPrimary)
+				: (undefined as any),
+		maxPhpInstances: options.maxPhpInstances,
 	});
 
 	return requestHandler;

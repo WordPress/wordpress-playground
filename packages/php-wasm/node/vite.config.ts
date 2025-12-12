@@ -71,8 +71,6 @@ export default defineConfig(function () {
 			},
 			sourcemap: true,
 			rollupOptions: {
-				// Don't bundle the PHP loaders in the final build. See
-				// the preserve-php-loaders-imports plugin above.
 				external: getExternalModules(),
 				output: {
 					entryFileNames: '[name].js',
