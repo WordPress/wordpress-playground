@@ -25,12 +25,17 @@ import { type Log, logger } from '@php-wasm/logger';
 const blueprintVersions = [
 	{
 		version: 1,
-		suiteCliArgs: {},
+		suiteCliArgs: {
+			// Use a consistent port to avoid conflicts with other test suites
+			port: 9500,
+		},
 		expectedHomePageTitle: 'My WordPress Website',
 	},
 	{
 		version: 2,
 		suiteCliArgs: {
+			// Use a consistent port to avoid conflicts with other test suites
+			port: 9500,
 			'experimental-blueprints-v2-runner': true,
 		},
 		expectedHomePageTitle: 'WordPress Site',
@@ -139,7 +144,6 @@ describe.each(blueprintVersions)(
 				cliServer = await runCLI({
 					...suiteCliArgs,
 					command: 'server',
-					port: 9500,
 				});
 				await cliServer.playground.writeFile(
 					'/wordpress/site-url.php',
