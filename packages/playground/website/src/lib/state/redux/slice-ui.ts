@@ -12,7 +12,8 @@ export type SiteError =
 	| 'github-artifact-expired'
 	| 'blueprint-fetch-failed'
 	| 'blueprint-filesystem-required'
-	| 'blueprint-validation-failed';
+	| 'blueprint-validation-failed'
+	| 'network-firewall-interference';
 
 export type SiteManagerSection = 'sidebar' | 'site-details' | 'blueprints';
 
@@ -37,8 +38,7 @@ export type SerializedPlainErrorDetails = {
 	stack?: string;
 };
 
-export interface SerializedBlueprintStepErrorDetails
-	extends SerializedPlainErrorDetails {
+export interface SerializedBlueprintStepErrorDetails extends SerializedPlainErrorDetails {
 	type: 'blueprint-step-error';
 	stepNumber: number;
 	step: Record<string, unknown>;

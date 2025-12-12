@@ -46,6 +46,8 @@ export function getSiteErrorView(
 			return blueprintValidationFailedView(context);
 		case 'directory-handle-unknown-error':
 			return directoryHandleUnknownErrorView();
+		case 'network-firewall-interference':
+			return networkFirewallInterferenceView(context);
 		case 'site-boot-failed':
 		default:
 			return genericSiteBootFailedView(context);
@@ -271,6 +273,64 @@ function directoryHandleUnknownErrorView(): SiteErrorViewConfig {
 			</p>
 		),
 		actions: [],
+	};
+}
+
+function networkFirewallInterferenceView({
+	helpers,
+}: SiteErrorViewContext): SiteErrorViewConfig {
+	return {
+		title: 'Network blocked this request',
+		isDeveloperError: false,
+		detailSummaryOverride: 'Technical details',
+		body: (
+			<>
+				<p className={css.errorLead}>
+					Your network appears to be blocking requests to external
+					resources. This commonly happens on university, school, or
+					corporate networks with security filters.
+				</p>
+				<p>
+					<strong>What you can try:</strong>
+				</p>
+				<ul className={css.errorList}>
+					<li>
+						Switch to a different network (like mobile data or a
+						personal Wi-Fi)
+					</li>
+					<li>Use a VPN to bypass network restrictions</li>
+					<li>
+						Ask your network administrator to allow requests to{' '}
+						<code>playground.wordpress.net</code>
+					</li>
+				</ul>
+				<p>
+					<a
+						target="_blank"
+						rel="noopener noreferrer"
+						href="https://wordpress.github.io/wordpress-playground/troubleshooting/network-issues"
+					>
+						Learn more about network troubleshooting ↗
+					</a>
+				</p>
+			</>
+		),
+		actions: [
+			<Button
+				variant="secondary"
+				key="retry"
+				onClick={() => window.location.reload()}
+			>
+				Retry
+			</Button>,
+			<Button
+				variant="primary"
+				key="start-without-blueprint"
+				onClick={helpers.reloadWithoutBlueprint}
+			>
+				Start without a Blueprint
+			</Button>,
+		],
 	};
 }
 

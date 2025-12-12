@@ -22,8 +22,28 @@ import {
 	applyQueryOverrides,
 } from '../url/resolve-blueprint-from-url';
 import { logger } from '@php-wasm/logger';
+import { FirewallInterferenceError } from '@php-wasm/web';
 import { setActiveSiteError, type SiteError } from './slice-ui';
 import { RecommendedPHPVersion } from '@wp-playground/common';
+
+/**
+ * Search through an error's cause chain to find an instance of a specific error type.
+ * Returns the found error instance or undefined if not found.
+ */
+function findErrorInCauseChain<T extends Error>(
+	error: unknown,
+	errorClass: new (...args: any[]) => T
+): T | undefined {
+	let current: unknown = error;
+	while (current) {
+		if (current instanceof errorClass) {
+			return current;
+		}
+		current =
+			current instanceof Error ? (current as Error).cause : undefined;
+	}
+	return undefined;
+}
 
 /**
  * The Site model used to represent a site within Playground.
@@ -350,6 +370,18 @@ export function setTemporarySiteSpec(
 				'Error resolving blueprint: Blueprint could not be downloaded or loaded.',
 				e
 			);
+
+			// Check if the error (or its cause chain) is a FirewallInterferenceError
+			const isFirewallError = findErrorInCauseChain(
+				e,
+				FirewallInterferenceError
+			);
+			if (isFirewallError) {
+				return showTemporarySiteError({
+					error: 'network-firewall-interference',
+					details: isFirewallError,
+				});
+			}
 
 			return showTemporarySiteError({
 				error: 'blueprint-fetch-failed',
