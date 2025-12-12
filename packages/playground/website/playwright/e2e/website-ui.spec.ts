@@ -242,7 +242,12 @@ test('should edit a file in the code editor and see changes in the viewport', as
 test('should edit a blueprint in the blueprint editor and recreate the playground', async ({
 	website,
 	wordpress,
+	browserName,
 }) => {
+	test.skip(
+		browserName === 'firefox',
+		'Firefox has inconsistent keyboard handling in the CodeMirror editor, causing the blueprint to have validation errors'
+	);
 	await website.goto('./');
 
 	// Open site manager
@@ -318,7 +323,13 @@ test('should edit a blueprint in the blueprint editor and recreate the playgroun
 test('should copy blueprint link to clipboard when share button is clicked', async ({
 	website,
 	context,
+	browserName,
 }) => {
+	test.skip(
+		browserName === 'firefox',
+		'Firefox does not support clipboard-read permission through Playwright'
+	);
+
 	// Grant clipboard permissions
 	await context.grantPermissions(['clipboard-read', 'clipboard-write']);
 
