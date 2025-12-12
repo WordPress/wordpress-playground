@@ -10,8 +10,10 @@ import { normalizeHeaders } from './php';
 import { PHPResponse } from './php-response';
 import type { PHPRequest, PHPRunOptions } from './universal-php';
 import { encodeAsMultipart } from './encode-as-multipart';
-import type { PHPFactoryOptions, SpawnedPHP } from './php-process-manager';
+import type { PHPFactoryOptions } from './php-process-manager';
 import { MaxPhpInstancesError, PHPProcessManager } from './php-process-manager';
+import type { PHPInstanceManager, AcquiredPHP } from './php-instance-manager';
+import { SinglePHPInstanceManager } from './single-php-instance-manager';
 import { HttpCookieStore } from './http-cookie-store';
 import mimeTypes from './mime-types.json';
 
@@ -84,35 +86,30 @@ export type PHPRequestHandlerFactoryArgs = PHPFactoryOptions & {
 	requestHandler: PHPRequestHandler;
 };
 
-export type PHPRequestHandlerConfiguration = BaseConfiguration &
-	(
-		| {
-				/**
-				 * PHPProcessManager is required because the request handler needs
-				 * to make a decision for each request.
-				 *
-				 * Static assets are served using the primary PHP's filesystem, even
-				 * when serving 100 static files concurrently. No new PHP interpreter
-				 * is ever created as there's no need for it.
-				 *
-				 * Dynamic PHP requests, however, require grabbing an available PHP
-				 * interpreter, and that's where the PHPProcessManager comes in.
-				 */
-				processManager: PHPProcessManager;
-		  }
-		| {
-				phpFactory: (
-					requestHandler: PHPRequestHandlerFactoryArgs
-				) => Promise<PHP>;
-				/**
-				 * The maximum number of PHP instances that can exist at
-				 * the same time.
-				 */
-				maxPhpInstances?: number;
-		  }
-	) & {
-		cookieStore?: CookieStore | false;
-	};
+export type PHPRequestHandlerConfiguration = BaseConfiguration & {
+	cookieStore?: CookieStore | false;
+
+	// One of the following must be provided:
+
+	/**
+	 * Provide a single PHP instance directly.
+	 * PHPRequestHandler will create a SinglePHPInstanceManager internally.
+	 * This is the simplest option for CLI contexts with a single PHP instance.
+	 */
+	php?: PHP;
+
+	/**
+	 * Provide a factory function to create PHP instances.
+	 * PHPRequestHandler will create a PHPProcessManager internally.
+	 */
+	phpFactory?: (requestHandler: PHPRequestHandlerFactoryArgs) => Promise<PHP>;
+
+	/**
+	 * The maximum number of PHP instances that can exist at
+	 * the same time. Only used when phpFactory is provided.
+	 */
+	maxPhpInstances?: number;
+};
 
 /**
  * Handles HTTP requests using PHP runtime as a backend.
@@ -178,7 +175,12 @@ export class PHPRequestHandler implements AsyncDisposable {
 	#ABSOLUTE_URL: string;
 	#cookieStore: CookieStore | false;
 	rewriteRules: RewriteRule[];
-	processManager: PHPProcessManager;
+	/**
+	 * The instance manager used for PHP instance lifecycle.
+	 * This is either a provided instanceManager or a PHPProcessManager
+	 * created from the phpFactory.
+	 */
+	instanceManager: PHPInstanceManager;
 	getFileNotFoundAction: FileNotFoundGetActionCallback;
 
 	/**
@@ -202,28 +204,38 @@ export class PHPRequestHandler implements AsyncDisposable {
 			getFileNotFoundAction = () => ({ type: '404' }),
 		} = config;
 
-		if ('processManager' in config) {
-			this.processManager = config.processManager;
-		} else {
-			this.processManager = new PHPProcessManager({
+		const setChroot = (php: PHP) => {
+			// Always set managed PHP's cwd to the document root.
+			if (!php.isDir(documentRoot)) {
+				php.mkdir(documentRoot);
+			}
+			php.chdir(documentRoot);
+
+			// @TODO: Decouple PHP and request handler
+			(php as any).requestHandler = this;
+		};
+
+		if (config.php) {
+			setChroot(config.php);
+			this.instanceManager = new SinglePHPInstanceManager({
+				php: config.php,
+			});
+		} else if (config.phpFactory) {
+			this.instanceManager = new PHPProcessManager({
 				phpFactory: async (info) => {
 					const php = await config.phpFactory!({
 						...info,
 						requestHandler: this,
 					});
-
-					// Always set managed PHP's cwd to the document root.
-					if (!php.isDir(documentRoot)) {
-						php.mkdir(documentRoot);
-					}
-					php.chdir(documentRoot);
-
-					// @TODO: Decouple PHP and request handler
-					(php as any).requestHandler = this;
+					setChroot(php);
 					return php;
 				},
 				maxPhpInstances: config.maxPhpInstances,
 			});
+		} else {
+			throw new Error(
+				'Either php or phpFactory must be provided in the configuration.'
+			);
 		}
 
 		/**
@@ -245,8 +257,8 @@ export class PHPRequestHandler implements AsyncDisposable {
 		this.#PORT = url.port
 			? Number(url.port)
 			: url.protocol === 'https:'
-			? 443
-			: 80;
+				? 443
+				: 80;
 		this.#PROTOCOL = (url.protocol || '').replace(':', '');
 		const isNonStandardPort = this.#PORT !== 443 && this.#PORT !== 80;
 		this.#HOST = [
@@ -264,7 +276,7 @@ export class PHPRequestHandler implements AsyncDisposable {
 	}
 
 	async getPrimaryPhp() {
-		return await this.processManager.getPrimaryPhp();
+		return await this.instanceManager.getPrimaryPhp();
 	}
 
 	/**
@@ -576,9 +588,9 @@ export class PHPRequestHandler implements AsyncDisposable {
 		rewrittenRequestUrl: URL,
 		scriptPath: string
 	): Promise<PHPResponse> {
-		let spawnedPHP: SpawnedPHP | undefined = undefined;
+		let spawnedPHP: AcquiredPHP | undefined = undefined;
 		try {
-			spawnedPHP = await this.processManager!.acquirePHPInstance({
+			spawnedPHP = await this.instanceManager!.acquirePHPInstance({
 				considerPrimary: true,
 			});
 		} catch (e) {
@@ -893,7 +905,7 @@ export class PHPRequestHandler implements AsyncDisposable {
 	}
 
 	async [Symbol.asyncDispose]() {
-		await this.processManager[Symbol.asyncDispose]();
+		await this.instanceManager[Symbol.asyncDispose]();
 	}
 }
 

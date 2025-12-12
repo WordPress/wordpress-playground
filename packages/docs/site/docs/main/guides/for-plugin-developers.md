@@ -50,19 +50,13 @@ Blueprints can be passed to a Playground instance [in several ways](/blueprints/
 
 A plugin stored in a GitHub repository can also be loaded in a Playground instance via Blueprints.
 
-With the `pluginData` property of the [`installPlugin` blueprint step](/blueprints/steps#installPlugin), you can define a [`url` resource](/blueprints/steps/resources#urlreference) that points to the location of the `.zip` file containing the plugin you want to load in the Playground instance.
-
-To avoid CORS issues, the Playground project provides a [GitHub proxy](https://playground.wordpress.net/proxy) that allows you to generate a `.zip` from a repository (or even a folder inside a repo) containing your plugin.
+With the `pluginData` property of the [`installPlugin` blueprint step](/blueprints/steps#installPlugin), you can define a [`git:directory` resource](/blueprints/steps/resources#gitdirectoryreference) that will build a plugin from the files from a repository in the Playground instance.
 
 :::info
-[GitHub proxy](https://playground.wordpress.net/proxy) is an incredibly useful tool to load plugins from GitHub repositories as it allows you to load a plugin from a specific branch, a specific directory, a specific commit or a specific PR.
+For the past few months, the [GitHub proxy](https://playground.wordpress.net/proxy) was an incredibly useful tool to load plugins from GitHub repositories, as it allows you to load a plugin from a specific branch, a specific directory, a specific commit, or a specific PR. But with the recent improvements to Playground, this feature is no longer necessary. The GitHub Proxy will be discontinued soon, please update your blueprints to `git:directory` resource.
 :::
 
-:::tip
-If your plugin is hosted on GitHub, you can automatically add preview buttons to your pull requests using the Playground PR Preview GitHub Action. This lets reviewers test your changes instantly without any setup. See [Adding PR Preview Buttons with GitHub Actions](/guides/github-action-pr-preview) for details.
-:::
-
-For example, the following `blueprint.json` installs a plugin from a GitHub repository leveraging the https://github-proxy.com tool:
+For example, the following `blueprint.json` installs a plugin from a GitHub repository:
 
 ```json
 {
@@ -72,15 +66,21 @@ For example, the following `blueprint.json` installs a plugin from a GitHub repo
 		{
 			"step": "installPlugin",
 			"pluginData": {
-				"resource": "url",
-				"url": "https://github-proxy.com/proxy/?repo=wptrainingteam/devblog-dataviews-plugin"
+				"resource": "git:directory",
+				"url": "https://github.com/wptrainingteam/devblog-dataviews-plugin",
+				"ref": "HEAD",
+				"refType": "refname"
 			}
 		}
 	]
 }
 ```
 
-[<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](https://playground.wordpress.net/builder/builder.html#{%22landingPage%22:%22/wp-admin/admin.php?page=add-media-from-third-party-service%22,%22login%22:true,%22steps%22:[{%22step%22:%22installPlugin%22,%22pluginData%22:{%22resource%22:%22url%22,%22url%22:%22https://github-proxy.com/proxy/?repo=wptrainingteam/devblog-dataviews-plugin%22}}]})
+:::tip
+If your plugin is hosted on GitHub, you can automatically add preview buttons to your pull requests using the Playground PR Preview GitHub Action. This lets reviewers test your changes instantly without any setup. See [Adding PR Preview Buttons with GitHub Actions](/guides/github-action-pr-preview) for details.
+:::
+
+[<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](https://playground.wordpress.net/#{%22landingPage%22:%22/wp-admin/admin.php?page=add-media-from-third-party-service%22,%22login%22:true,%22steps%22:[{%22step%22:%22installPlugin%22,%22pluginData%22:{%22resource%22:%22git:directory%22,%22url%22:%22https://github.com/wptrainingteam/devblog-dataviews-plugin%22,%22ref%22:%22HEAD%22,%22refType%22:%22refname%22}}],%22$schema%22:%22https://playground.wordpress.net/blueprint-schema.json%22,%22meta%22:{%22title%22:%22Empty%20Blueprint%22,%22author%22:%22https://github.com/akirk/playground-step-library%22}})
 
 ### Plugin from code in a file or gist in GitHub
 
@@ -126,9 +126,9 @@ When providing a link to a WordPress Playground instance with some plugins activ
 
 Some useful tools and resources provided by the Playground project to work with blueprints are:
 
--   Check the [Blueprints Gallery](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) to explore real-world code examples of using WordPress Playground to launch a WordPress site with a variety of setups.
--   The [WordPress Playground Step Library](https://akirk.github.io/playground-step-library/#) tool provides a visual interface to drag or click the steps to create a blueprint for WordPress Playground. You can also create your own steps!
--   The [Blueprints builder](https://playground.wordpress.net/builder/builder.html) tool allows you edit your blueprint online and run it directly in a Playground instance.
+- Check the [Blueprints Gallery](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) to explore real-world code examples of using WordPress Playground to launch a WordPress site with a variety of setups.
+- The [WordPress Playground Step Library](https://akirk.github.io/playground-step-library/#) tool provides a visual interface to drag or click the steps to create a blueprint for WordPress Playground. You can also create your own steps!
+- The [Blueprints builder](https://playground.wordpress.net/builder/builder.html) tool allows you edit your blueprint online and run it directly in a Playground instance.
 
 :::
 
@@ -213,8 +213,8 @@ npx @wp-playground/cli server --auto-mount
 
 With Google Chrome you can synchronize a Playground instance with your local plugin's code and your plugin's GitHub repo. With this connection you can:
 
--   See live (in the Playground instance) your local changes
--   Create PRs in the GitHub repo with your changes
+- See live (in the Playground instance) your local changes
+- Create PRs in the GitHub repo with your changes
 
 Here's a little demo of this workflow in action:
 

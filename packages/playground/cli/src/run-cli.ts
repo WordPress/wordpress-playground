@@ -28,10 +28,7 @@ import {
 	parseMountWithDelimiterArguments,
 } from './mounts';
 import { startServer } from './start-server';
-import type {
-	Mount,
-	PlaygroundCliBlueprintV1Worker,
-} from './blueprints-v1/worker-thread-v1';
+import type { PlaygroundCliBlueprintV1Worker } from './blueprints-v1/worker-thread-v1';
 import type { PlaygroundCliBlueprintV2Worker } from './blueprints-v2/worker-thread-v2';
 import { FileLockManagerForNode } from '@php-wasm/node';
 import { LoadBalancer } from './load-balancer';
@@ -54,11 +51,12 @@ import {
 } from './temp-dir';
 import { type WordPressInstallMode } from '@wp-playground/wordpress';
 import {
+	type Mount,
 	addXdebugIDEConfig,
 	clearXdebugIDEConfig,
-	createPlaygroundCliTempDirSymlink,
-	removePlaygroundCliTempDirSymlink,
-} from './xdebug-path-mappings';
+	createTempDirSymlink,
+	removeTempDirSymlink,
+} from '@php-wasm/cli-util';
 
 // Inlined worker URLs for static analysis by downstream bundlers
 // These are replaced at build time by the Vite plugin in vite.config.ts
@@ -241,6 +239,11 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 					'externally (e.g., by a browser in Node.js environments).',
 				type: 'boolean',
 				default: false,
+			})
+			.option('intl', {
+				describe: 'Enable Intl.',
+				type: 'boolean',
+				default: true,
 			})
 			.option('xdebug', {
 				describe: 'Enable Xdebug.',
@@ -508,6 +511,7 @@ export interface RunCLIArgs {
 	experimentalTrace?: boolean;
 	internalCookieStore?: boolean;
 	'additional-blueprint-steps'?: any[];
+	intl?: boolean;
 	xdebug?: boolean | { ideKey?: string };
 	experimentalUnsafeIdeIntegration?: string[];
 	experimentalDevtools?: boolean;
@@ -624,6 +628,11 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 		logger.setSeverityFilterLevel(severity);
 	}
 
+	// Enables Intl dynamic extension by default
+	if (!args.intl) {
+		args.intl = true;
+	}
+
 	// Declare file lock manager outside scope of startServer
 	// so we can look at it when debugging request handling.
 	const nativeFlockSync =
@@ -695,13 +704,13 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 			const symlinkName = '.playground-xdebug-root';
 			const symlinkPath = path.join(process.cwd(), symlinkName);
 
-			await removePlaygroundCliTempDirSymlink(symlinkPath);
+			await removeTempDirSymlink(symlinkPath);
 
 			// Then, if xdebug, and experimental IDE are enabled,
 			// recreate the symlink pointing to the temporary
 			// directory and add the new IDE config.
 			if (args.xdebug && args.experimentalUnsafeIdeIntegration) {
-				await createPlaygroundCliTempDirSymlink(
+				await createTempDirSymlink(
 					nativeDir.path,
 					symlinkPath,
 					process.platform
@@ -738,25 +747,35 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 					const ides = args.experimentalUnsafeIdeIntegration;
 					const hasVSCode = ides.includes('vscode');
 					const hasPhpStorm = ides.includes('phpstorm');
+					const configFiles = Object.values(modifiedConfig);
 
 					console.log('');
-					console.log(bold(`Xdebug configured successfully`));
-					console.log(
-						highlight(`Updated IDE config: `) +
-							modifiedConfig.join(' ')
-					);
-					console.log(
-						highlight('Playground source root: ') +
-							`.playground-xdebug-root` +
-							italic(
-								dim(
-									` – you can set breakpoints and preview Playground's VFS structure in there.`
+
+					if (configFiles.length > 0) {
+						console.log(bold(`Xdebug configured successfully`));
+						console.log(
+							highlight(`Updated IDE config: `) +
+								configFiles.join(' ')
+						);
+						console.log(
+							highlight('Playground source root: ') +
+								`.playground-xdebug-root` +
+								italic(
+									dim(
+										` – you can set breakpoints and preview Playground's VFS structure in there.`
+									)
 								)
-							)
-					);
+						);
+					} else {
+						console.log(bold(`Xdebug configuration failed.`));
+						console.log(
+							'No IDE-specific project settings directory was found in the current working directory.'
+						);
+					}
+
 					console.log('');
 
-					if (hasVSCode) {
+					if (hasVSCode && modifiedConfig['vscode']) {
 						console.log(bold('VS Code / Cursor instructions:'));
 						console.log(
 							'  1. Ensure you have installed an IDE extension for PHP Debugging'
@@ -786,7 +805,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 						}
 					}
 
-					if (hasPhpStorm) {
+					if (hasPhpStorm && modifiedConfig['phpstorm']) {
 						console.log(bold('PhpStorm instructions:'));
 						console.log(
 							`  1. Choose "${italic(
@@ -1134,37 +1153,14 @@ async function spawnWorkerThreads(
 ): Promise<SpawnedWorker[]> {
 	const promises = [];
 	for (let i = 0; i < count; i++) {
-		const worker = await spawnWorkerThread(workerType);
 		const onExit: (code: number) => void = (code: number) => {
 			onWorkerExit({
 				exitCode: code,
 				workerIndex: i,
 			});
 		};
-		promises.push(
-			new Promise<{ worker: Worker; phpPort: NodeMessagePort }>(
-				(resolve, reject) => {
-					worker.once('message', function (message: any) {
-						// Let the worker confirm it has initialized.
-						// We could use the 'online' event to detect start of JS execution,
-						// but that would miss initialization errors.
-						if (message.command === 'worker-script-initialized') {
-							resolve({ worker, phpPort: message.phpPort });
-						}
-					});
-					worker.once('error', function (e: Error) {
-						console.error(e);
-						const error = new Error(
-							`Worker failed to load worker. ${
-								e.message ? `Original error: ${e.message}` : ''
-							}`
-						);
-						reject(error);
-					});
-					worker.once('exit', onExit);
-				}
-			)
-		);
+		const worker = spawnWorkerThread(workerType, { onExit });
+		promises.push(worker);
 	}
 	return Promise.all(promises);
 }
@@ -1180,7 +1176,10 @@ async function spawnWorkerThreads(
  * @param workerType
  * @returns
  */
-async function spawnWorkerThread(workerType: 'v1' | 'v2') {
+export function spawnWorkerThread(
+	workerType: 'v1' | 'v2',
+	{ onExit }: { onExit?: (code: number) => void } = {}
+) {
 	/**
 	 * When running the CLI from source via `node cli.ts`, the Vite-provided
 	 * __WORKER_V1_URL__ and __WORKER_V2_URL__ are undefined. Let's set them to
@@ -1194,11 +1193,42 @@ async function spawnWorkerThread(workerType: 'v1' | 'v2') {
 		// @ts-expect-error
 		globalThis['__WORKER_V2_URL__'] = './blueprints-v2/worker-thread-v2.ts';
 	}
+	let worker: Worker;
 	if (workerType === 'v1') {
-		return new Worker(new URL(__WORKER_V1_URL__, import.meta.url));
+		worker = new Worker(new URL(__WORKER_V1_URL__, import.meta.url));
 	} else {
-		return new Worker(new URL(__WORKER_V2_URL__, import.meta.url));
+		worker = new Worker(new URL(__WORKER_V2_URL__, import.meta.url));
 	}
+
+	return new Promise<SpawnedWorker>((resolve, reject) => {
+		worker.once('message', function (message: any) {
+			// Let the worker confirm it has initialized.
+			// We could use the 'online' event to detect start of JS execution,
+			// but that would miss initialization errors.
+			if (message.command === 'worker-script-initialized') {
+				resolve({ worker, phpPort: message.phpPort });
+			}
+		});
+		worker.once('error', function (e: Error) {
+			console.error(e);
+			const error = new Error(
+				`Worker failed to load worker. ${
+					e.message ? `Original error: ${e.message}` : ''
+				}`
+			);
+			reject(error);
+		});
+		let spawned = false;
+		worker.once('spawn', () => {
+			spawned = true;
+		});
+		worker.once('exit', (code) => {
+			if (!spawned) {
+				reject(new Error(`Worker exited before spawning: ${code}`));
+			}
+			onExit?.(code);
+		});
+	});
 }
 
 /**

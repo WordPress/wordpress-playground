@@ -26,29 +26,41 @@ describe.each(phpVersions)('PHP %s – ', async (phpVersion) => {
 		});
 
 		if (!(await jspi())) {
-			it('Does not crash due to an unhandled Asyncify error ', async () => {
-				let caughtError: unknown;
-				let unhandledRejection: unknown;
+			/**
+			 * PHP 8.5+ changed clone from an opcode to a function,
+			 * which changes how asyncify errors are handled during clone operations.
+			 *
+			 * This breaks the test as it no longer triggers the unhandled asyncify error.
+			 *
+			 * See: https://wiki.php.net/rfc/clone_with_v2
+			 * Implementation: https://github.com/php/php-src/commit/ca49a7bec2a0a8d77bfa4b6d375ca0ffa4edc5ee
+			 */
+			it(
+				'Does not crash due to an unhandled Asyncify error',
+				{ skip: parseFloat(phpVersion) >= 8.5 },
+				async () => {
+					let caughtError: unknown;
+					let unhandledRejection: unknown;
 
-				function unhandledRejectionHandler(error: string) {
-					unhandledRejection = error;
-				}
+					function unhandledRejectionHandler(error: string) {
+						unhandledRejection = error;
+					}
 
-				process.on('unhandledRejection', unhandledRejectionHandler);
+					process.on('unhandledRejection', unhandledRejectionHandler);
 
-				/**
-				 * PHP is intentionally built without network support for __clone()
-				 * because it's an extremely unlikely place for any network activity
-				 * and not supporting it allows us to test the error handling here.
-				 *
-				 * `clone $x` will throw an asynchronous error out when attempting
-				 * to do a network call ("unreachable" WASM instruction executed).
-				 * This test should gracefully catch and handle that error.
-				 *
-				 * A failure to do so will crash the entire process
-				 */
-				php.run({
-					code: `<?php
+					/**
+					 * PHP is intentionally built without network support for __clone()
+					 * because it's an extremely unlikely place for any network activity
+					 * and not supporting it allows us to test the error handling here.
+					 *
+					 * `clone $x` will throw an asynchronous error out when attempting
+					 * to do a network call ("unreachable" WASM instruction executed).
+					 * This test should gracefully catch and handle that error.
+					 *
+					 * A failure to do so will crash the entire process
+					 */
+					php.run({
+						code: `<?php
 					class Top {
 						function __clone() {
 							file_get_contents("http://127.0.0.1");
@@ -57,38 +69,42 @@ describe.each(phpVersions)('PHP %s – ', async (phpVersion) => {
 					$x = new Top();
 					clone $x;
 					`,
-				}).catch((error) => (caughtError = error));
+					}).catch((error) => (caughtError = error));
 
-				// Make sure the process exits and give any unhandled rejections a chance to be caught
-				await new Promise((resolve) => setTimeout(resolve, 1000));
+					// Make sure the process exits and give any unhandled rejections a chance to be caught
+					await new Promise((resolve) => setTimeout(resolve, 1000));
 
-				// Accept either a caught error or an unhandled rejection
-				if (!caughtError && !unhandledRejection) {
-					expect.fail(
-						'php.run should have thrown an error or caused an unhandled rejection'
+					// Accept either a caught error or an unhandled rejection
+					if (!caughtError && !unhandledRejection) {
+						expect.fail(
+							'php.run should have thrown an error or caused an unhandled rejection'
+						);
+					}
+
+					if (caughtError instanceof Error) {
+						expect(
+							(caughtError as any).cause?.message ||
+								caughtError.message
+						).toMatch(
+							/Aborted|Program terminated with exit\(1\)|unreachable|null function or function signature|out of bounds/
+						);
+					}
+
+					if (unhandledRejection instanceof Error) {
+						expect(
+							(unhandledRejection as any).cause?.message ||
+								unhandledRejection.message
+						).toMatch(
+							/Aborted|Program terminated with exit\(1\)|unreachable|null function or function signature|out of bounds/
+						);
+					}
+
+					process.off(
+						'unhandledRejection',
+						unhandledRejectionHandler
 					);
 				}
-
-				if (caughtError instanceof Error) {
-					expect(
-						(caughtError as any).cause?.message ||
-							caughtError.message
-					).toMatch(
-						/Aborted|Program terminated with exit\(1\)|unreachable|null function or function signature|out of bounds/
-					);
-				}
-
-				if (unhandledRejection instanceof Error) {
-					expect(
-						(unhandledRejection as any).cause?.message ||
-							unhandledRejection.message
-					).toMatch(
-						/Aborted|Program terminated with exit\(1\)|unreachable|null function or function signature|out of bounds/
-					);
-				}
-
-				process.off('unhandledRejection', unhandledRejectionHandler);
-			});
+			);
 		}
 
 		it('Does not crash due to an unhandled non promise error ', async () => {

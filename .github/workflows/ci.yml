@@ -391,6 +391,15 @@ jobs:
             - uses: ./.github/actions/prepare-playground
             - run: packages/playground/cli/tests/test-running-unbuilt-cli.sh
 
+    test-php-wasm-cli-smoke:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  submodules: true
+            - uses: ./.github/actions/prepare-playground
+            - run: packages/php-wasm/cli/tests/smoke-test.sh
+
     build:
         runs-on: ubuntu-latest
         steps:

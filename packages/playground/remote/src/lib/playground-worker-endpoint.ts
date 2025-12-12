@@ -103,6 +103,7 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 
 	constructor(monitor: EmscriptenDownloadMonitor) {
 		super(undefined, monitor);
+
 		this.downloadMonitor = monitor;
 		const monitoredFetch = (input: RequestInfo | URL, init?: RequestInit) =>
 			this.downloadMonitor.monitorFetch(fetch(input, init));

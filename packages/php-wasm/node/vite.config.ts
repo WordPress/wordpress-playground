@@ -71,8 +71,6 @@ export default defineConfig(function () {
 			},
 			sourcemap: true,
 			rollupOptions: {
-				// Don't bundle the PHP loaders in the final build. See
-				// the preserve-php-loaders-imports plugin above.
 				external: getExternalModules(),
 				output: {
 					entryFileNames: '[name].js',
@@ -85,6 +83,9 @@ export default defineConfig(function () {
 			globals: true,
 			cache: {
 				dir: '../../../node_modules/.vitest',
+			},
+			env: {
+				TEST: JSON.stringify(true),
 			},
 			poolOptions: {
 				// This is needed to allow `--expose-gc` to be passed to the

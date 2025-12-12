@@ -360,7 +360,7 @@ test.describe('Database panel', () => {
 
 	test('should load and open Adminer', async ({ website, context }) => {
 		const adminerButton = website.page.getByRole('button', {
-			name: /Open Adminer/i,
+			name: 'Open Adminer',
 		});
 		await expect(adminerButton).toBeVisible();
 		await expect(adminerButton).toBeEnabled();
@@ -432,7 +432,7 @@ test.describe('Database panel', () => {
 
 	test('should load and open phpMyAdmin', async ({ website, context }) => {
 		const phpMyAdminButton = website.page.getByRole('button', {
-			name: /Open phpMyAdmin/i,
+			name: 'Open phpMyAdmin',
 		});
 		await expect(phpMyAdminButton).toBeVisible();
 		await expect(phpMyAdminButton).toBeEnabled();
@@ -450,32 +450,43 @@ test.describe('Database panel', () => {
 		await expect(newPage.locator('body')).toContainText('phpMyAdmin');
 		await expect(newPage.locator('body')).toContainText('wp_posts');
 
+		/*
+		 * Before clicking a link in phpMyAdmin, we need to wait for any AJAX
+		 * requests to be done. This prevents flaky tests (mainly in Firefox).
+		 *
+		 * @see https://github.com/phpmyadmin/phpmyadmin/blob/3925c2237701050ee34f5ba79d74fda808673d4f/resources/js/modules/ajax.ts
+		 */
+		const waitForAjaxIdle = async () =>
+			newPage.waitForFunction(() => {
+				return (window as any).AJAX?.active === false;
+			});
+
 		// Browse the "wp_posts" table
 		const wpPostsRow = newPage
 			.locator('tr')
 			.filter({ hasText: 'wp_posts' })
 			.first();
-		await expect(wpPostsRow).toBeVisible({ timeout: 10000 });
+		await expect(wpPostsRow).toBeVisible();
+		await waitForAjaxIdle();
 		await wpPostsRow.getByRole('link', { name: 'Browse' }).click();
 		await newPage.waitForLoadState();
 		const pmaRows = newPage.locator('table.table_results tbody tr');
 		await expect(pmaRows.first()).toContainText('Welcome to WordPress.');
 
 		// Click "edit" on a row
+		await waitForAjaxIdle();
 		await pmaRows
 			.first()
 			.getByRole('link', { name: 'Edit' })
 			.first()
 			.click();
 		await newPage.waitForLoadState();
-		const pmaForm = newPage.locator(
-			'form#insertForm, form[name="insertForm"]'
-		);
-		await expect(pmaForm).toBeVisible({ timeout: 10000 });
-		await expect(pmaForm).toContainText('Welcome to WordPress.');
+		const editForm = newPage.locator('form#insertForm');
+		await expect(editForm).toBeVisible();
+		await expect(editForm).toContainText('Welcome to WordPress.');
 
 		// Update the post content
-		const postContentRow = pmaForm
+		const postContentRow = editForm
 			.locator('tr')
 			.filter({ hasText: 'post_content' })
 			.first();

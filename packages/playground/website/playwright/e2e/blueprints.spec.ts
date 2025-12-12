@@ -335,7 +335,6 @@ test('HTTPS requests via curl_exec() should work', async ({
 					curl_setopt($ch, CURLOPT_TCP_NODELAY, 0);
 					curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
 					$result = curl_exec($ch);
-					curl_close($ch);
 					var_dump(
 						strlen(
 							$result
@@ -382,7 +381,6 @@ test('HTTPS requests via curl_exec() should fail when networking is disabled', a
 					curl_setopt($ch, CURLOPT_TCP_NODELAY, 0);
 					curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
 					$result = curl_exec($ch);
-					curl_close($ch);
 					var_dump(
 						strlen(
 							$result

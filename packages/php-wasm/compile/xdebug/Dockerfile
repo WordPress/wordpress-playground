@@ -50,16 +50,30 @@ RUN cd php-src && ./buildconf --force
 COPY ./php/php*.patch /root/
 RUN cd /root && git apply --no-index /root/php${PHP_VERSION:0:3}*.patch -v
 
+#
+# This PHP compilation is not the runtime PHP used in Playground.
+# It is only built because 'phpize' requires a matching PHP version.
+#
+# Therefore, this PHP build is intentionally configured with
+# the smallest possible feature set.
+#
+# The resulting PHP version is not used at runtime.
+# It only exists to enable 'phpize' to build extensions.
+#
 RUN source /root/emsdk/emsdk_env.sh && \
 	cd php-src && \
 	emconfigure ./configure \
 	--disable-fiber-asm \
 	--enable-embed \
 	--disable-cgi \
+	# PHP 8.5
+	--disable-opcache-jit \
+	# PHP < 8.5
 	--disable-opcache \
 	--disable-phpdbg \
 	--without-pcre-jit \
 	--disable-cli \
+	# PHP < 8.5
 	--disable-libxml \
 	--without-libxml \
 	--disable-dom \
@@ -94,8 +108,9 @@ RUN source /root/emsdk/emsdk_env.sh && \
 
 # Build Xdebug
 RUN set -euxo pipefail; \
-
-	if [[ "${PHP_VERSION:0:1}" -ge 8 ]]; then \
+	if [[ "${PHP_VERSION:0:1}" -ge "8" && "${PHP_VERSION:2:1}" -ge "5" ]]; then \
+		export XDEBUG_BRANCH="xdebug_3_5"; \
+	elif [[ "${PHP_VERSION:0:1}" -ge 8 ]]; then \
 		export XDEBUG_BRANCH="xdebug_3_4"; \
 	else \
 		export XDEBUG_BRANCH="xdebug_3_1"; \
@@ -136,3 +151,13 @@ RUN set -euxo pipefail; \
 	fi; \
 
 	emmake make -j1
+
+# Post-process with wasm-opt
+RUN	/root/emsdk/upstream/bin/wasm-opt -Oz \
+		--enable-bulk-memory \
+		--enable-nontrapping-float-to-int \
+		--enable-sign-ext \
+		--enable-mutable-globals \
+		--enable-exception-handling \
+		/root/xdebug/modules/xdebug.so \
+		-o /root/xdebug/modules/xdebug.so;

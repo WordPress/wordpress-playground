@@ -1,5 +1,6 @@
 import { AcquireTimeoutError, Semaphore } from '@php-wasm/util';
 import type { PHP } from './php';
+import type { PHPInstanceManager, AcquiredPHP } from './php-instance-manager';
 
 export type PHPFactoryOptions = {
 	isPrimary: boolean;
@@ -31,11 +32,6 @@ export interface ProcessManagerOptions {
 	 * A factory function used for spawning new PHP instances.
 	 */
 	phpFactory?: PHPFactory;
-}
-
-export interface SpawnedPHP {
-	php: PHP;
-	reap: () => void;
 }
 
 export class MaxPhpInstancesError extends Error {
@@ -71,16 +67,16 @@ export class MaxPhpInstancesError extends Error {
  * requests requires extra time to spin up a few PHP instances. This is a more
  * resource-friendly tradeoff than keeping 5 idle instances at all times.
  */
-export class PHPProcessManager implements AsyncDisposable {
+export class PHPProcessManager implements PHPInstanceManager {
 	private primaryPhp?: PHP;
-	private primaryPhpPromise?: Promise<SpawnedPHP>;
+	private primaryPhpPromise?: Promise<AcquiredPHP>;
 	private primaryIdle = true;
-	private nextInstance: Promise<SpawnedPHP> | null = null;
+	private nextInstance: Promise<AcquiredPHP> | null = null;
 	/**
 	 * All spawned PHP instances, including the primary PHP instance.
 	 * Used for bookkeeping and reaping all instances on dispose.
 	 */
-	private allInstances: Promise<SpawnedPHP>[] = [];
+	private allInstances: Promise<AcquiredPHP>[] = [];
 	private phpFactory?: PHPFactory;
 	private maxPhpInstances: number;
 	private semaphore: Semaphore;
@@ -147,7 +143,7 @@ export class PHPProcessManager implements AsyncDisposable {
 		considerPrimary = false,
 	}: {
 		considerPrimary?: boolean;
-	} = {}): Promise<SpawnedPHP> {
+	} = {}): Promise<AcquiredPHP> {
 		/**
 		 * First and foremost, make sure we have the primary PHP instance in place.
 		 * We may not actually acquire it. We just need it to exist.
@@ -178,7 +174,7 @@ export class PHPProcessManager implements AsyncDisposable {
 		 *   budget left to optimistically start spawning the next
 		 *   instance.
 		 */
-		const spawnedPhp =
+		const acquiredPHP =
 			this.nextInstance || this.spawn({ isPrimary: false });
 
 		/**
@@ -191,7 +187,7 @@ export class PHPProcessManager implements AsyncDisposable {
 		} else {
 			this.nextInstance = null;
 		}
-		return await spawnedPhp;
+		return await acquiredPHP;
 	}
 
 	/**
@@ -200,7 +196,7 @@ export class PHPProcessManager implements AsyncDisposable {
 	 * add the spawn promise to the allInstances array without waiting
 	 * for PHP to spawn.
 	 */
-	private spawn(factoryArgs: PHPFactoryOptions): Promise<SpawnedPHP> {
+	private spawn(factoryArgs: PHPFactoryOptions): Promise<AcquiredPHP> {
 		if (factoryArgs.isPrimary && this.allInstances.length > 0) {
 			throw new Error(
 				'Requested spawning a primary PHP instance when another primary instance already started spawning.'
@@ -230,7 +226,9 @@ export class PHPProcessManager implements AsyncDisposable {
 	/**
 	 * Actually acquires the lock and spawns a new PHP instance.
 	 */
-	private async doSpawn(factoryArgs: PHPFactoryOptions): Promise<SpawnedPHP> {
+	private async doSpawn(
+		factoryArgs: PHPFactoryOptions
+	): Promise<AcquiredPHP> {
 		let release: () => void;
 		try {
 			release = await this.semaphore.acquire();
