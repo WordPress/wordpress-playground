@@ -13,7 +13,7 @@ import type {
 	Fd,
 	Path,
 } from '@php-wasm/universal';
-import { FileLockIntervalTree } from './file-lock-interval-tree';
+import { FileLockIntervalTree } from '@php-wasm/universal';
 
 export class FileLockManagerForWindows implements FileLockManager {
 	// TODO: Move path of whole file lock into leaf. It is never used for lookup.

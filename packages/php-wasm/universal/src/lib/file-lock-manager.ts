@@ -1,3 +1,5 @@
+export const MAX_64BIT_OFFSET = BigInt(2n ** 64n - 1n);
+
 /*
  * NOTE: These types are not important structurally,
  * but it helps clarity to use these aliases when making

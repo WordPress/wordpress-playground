@@ -1,4 +1,4 @@
-import type { RequestedRangeLock } from '@php-wasm/universal';
+import type { RequestedRangeLock } from './file-lock-manager';
 
 export type LockedRange = RequestedRangeLock & {
 	type: Exclude<RequestedRangeLock['type'], 'unlocked'>;

@@ -6,8 +6,8 @@ import type {
 	Fd,
 	Path,
 } from '@php-wasm/universal';
+import { MAX_64BIT_OFFSET } from '@php-wasm/universal';
 import { constants, fcntlSync, flockSync } from 'fs-ext-extra-prebuilt';
-import { MAX_64BIT_OFFSET } from './constants';
 
 export class FileLockManagerForPosix implements FileLockManager {
 	// TODO: Move path of whole file lock into leaf. It is never used for lookup.

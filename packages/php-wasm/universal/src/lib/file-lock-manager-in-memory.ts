@@ -5,12 +5,12 @@ import type {
 	WholeFileLockOp,
 	Pid,
 	Fd,
-} from '@php-wasm/universal';
+} from './file-lock-manager';
+import { MAX_64BIT_OFFSET } from './file-lock-manager';
 import {
 	FileLockIntervalTree,
 	type LockedRange,
 } from './file-lock-interval-tree';
-import { MAX_64BIT_OFFSET } from './constants';
 
 /**
  * This is the file lock manager for use within JS runtimes like Node.js.
