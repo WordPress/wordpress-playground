@@ -212,8 +212,16 @@ self.addEventListener('fetch', (event) => {
 		return;
 	}
 
+	if (url.pathname === '/feature-detect/document-isolation-policy.html') {
+		return event.respondWith(documentIsolationPolicyHtml());
+	}
+
 	if (isURLScoped(url)) {
-		return event.respondWith(handleScopedRequest(event, getURLScope(url)!));
+		return event.respondWith(
+			handleScopedRequest(event, getURLScope(url)!).then(
+				rewriteCoopHeadersToDocumentIsolationPolicy
+			)
+		);
 	}
 
 	let referrerUrl;
@@ -225,7 +233,9 @@ self.addEventListener('fetch', (event) => {
 
 	if (referrerUrl && isURLScoped(referrerUrl)) {
 		return event.respondWith(
-			handleScopedRequest(event, getURLScope(referrerUrl)!)
+			handleScopedRequest(event, getURLScope(referrerUrl)!).then(
+				rewriteCoopHeadersToDocumentIsolationPolicy
+			)
 		);
 	}
 
@@ -512,6 +522,7 @@ function emptyHtml() {
 			status: 200,
 			headers: {
 				'content-type': 'text/html',
+				'Document-Isolation-Policy': 'isolate-and-credentialless',
 			},
 		}
 	);
@@ -533,4 +544,137 @@ async function getScopedWpDetails(scope: string): Promise<WPModuleDetails> {
 		scopeToWpModule[scope] = await awaitReply(self, requestId);
 	}
 	return scopeToWpModule[scope];
+}
+
+/**
+ * Rewrites COEP/COOP headers to the newer Document-Isolation-Policy spec
+ * in browsers that support it.
+ *
+ * ## Origin isolation
+ *
+ * The client-side media processing experiment relies on SharedArrayBuffer support.
+ * However, SharedArrayBuffer is only available in cross-origin isolated contexts. The
+ * usual way of achieving cross-origin isolation is via the Cross-Origin-Embedder-Policy (COEP)
+ * and Cross-Origin-Resource-Policy (CORP) headers.
+ *
+ * However, COEP/COOP are viral-ish. Once a part of a site sets them, the rest of the site must
+ * follow. This breaks external embeds, like YouTube videos, that don't set the necessary headers.
+ * Serving them by default on the entire playground.wordpress.net site would break existing
+ * WordPress features.
+ *
+ * Gutenberg only uses them in the block editor iframe and only when the
+ * client-side media processing experiment is enabled. This is fine for native WordPress, where
+ * navigating between wp-admin pages triggers a full page reload, but it's problematic in
+ * Playground, where the top-level page remains open the entire time you use WordPress.
+ *
+ * ## Document-Isolation-Policy
+ *
+ * There is a newer specification called Document-Isolation-Policy:
+ *
+ * https://developer.chrome.com/blog/document-isolation-policy
+ *
+ * That spec enables origin isolation on a per-document basis, without affecting the rest of the
+ * site. It also supports embedding external resources that don't set COEP/COOP headers. This is
+ * exactly what we need for Playground.
+ *
+ * In a perfect world, we could just make WordPress use that header. However, it is not
+ * widely supported yet and WordPress would have no easy way of detecting that support
+ * server-side.
+ *
+ * ## Header rewriting
+ *
+ * Playground rewrites the COEP/COOP headers to Document-Isolation-Policy in the supporting
+ * browsers. The support is decided using feature detection. As more browsers implement the
+ * specification, they'll automatically start receiving the new header and a better experience.
+ *
+ *
+ * @see boot-playground-remote.ts for the other part of the feature detection logic.
+ * @see https://github.com/WordPress/wordpress-playground/issues/2954
+ * @see https://developer.chrome.com/blog/document-isolation-policy
+ */
+/**
+ * Whether the browser supports Document-Isolation-Policy.
+ * This is set via the 'message' event listener below.
+ */
+let browserSupportsDocumentIsolationPolicy: boolean | undefined;
+
+self.addEventListener('message', (event) => {
+	if (event.data?.type === 'document-isolation-policy-support-check') {
+		browserSupportsDocumentIsolationPolicy = event.data.supported === true;
+	}
+});
+
+/**
+ * Rewrites COEP/COOP headers to Document-Isolation-Policy for browsers that support it.
+ *
+ * When the browser supports Document-Isolation-Policy, this function:
+ * - Removes Cross-Origin-Embedder-Policy (COEP) header
+ * - Removes Cross-Origin-Opener-Policy (COOP) header
+ * - Adds Document-Isolation-Policy: isolate-and-credentialless
+ *
+ * This enables cross-origin isolation (for SharedArrayBuffer) without breaking
+ * external embeds like YouTube videos that don't set COEP/COOP headers.
+ *
+ * @param request The original request (unused, but kept for potential future use)
+ * @param response The response to potentially modify
+ * @returns A new Response with rewritten headers, or the original response if no rewriting is needed
+ */
+function rewriteCoopHeadersToDocumentIsolationPolicy(
+	response: Response
+): Response {
+	// If we don't know whether the browser supports Document-Isolation-Policy,
+	// or if it doesn't support it, return the original response unchanged.
+	if (!browserSupportsDocumentIsolationPolicy) {
+		return response;
+	}
+
+	// Check if the response has COEP or COOP headers that we should rewrite
+	if (
+		!response.headers.has('cross-origin-embedder-policy') &&
+		!response.headers.has('cross-origin-opener-policy')
+	) {
+		return response;
+	}
+
+	// Clone the headers and perform the rewrite
+	const newHeaders = new Headers(response.headers);
+	newHeaders.delete('cross-origin-embedder-policy');
+	newHeaders.delete('cross-origin-opener-policy');
+	newHeaders.set('document-isolation-policy', 'isolate-and-credentialless');
+
+	return new Response(response.body, {
+		status: response.status,
+		statusText: response.statusText,
+		headers: newHeaders,
+	});
+}
+
+/**
+ * Serves a minimal HTML document with the `Document-Isolation-Policy` header
+ * for feature detection.
+ *
+ * The document is served at `/feature-detection/document-isolation-policy.html` and
+ * with the `Document-Isolation-Policy` header. SharedArrayBuffer is only available
+ * in this document if the browser supports `Document-Isolation-Policy`.
+ *
+ * @see rewriteCoopHeadersToDocumentIsolationPolicy
+ */
+function documentIsolationPolicyHtml() {
+	return new Response(
+		`<!doctype html><script>
+		window.parent.postMessage(
+			{
+				supported: typeof SharedArrayBuffer !== 'undefined'
+			},
+			'*'
+		);
+		</script>`,
+		{
+			status: 200,
+			headers: {
+				'content-type': 'text/html',
+				'document-isolation-policy': 'isolate-and-credentialless',
+			},
+		}
+	);
 }
