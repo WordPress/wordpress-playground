@@ -55,6 +55,7 @@ export class FileLockManagerForPosix implements FileLockManager {
 		op: RequestedRangeLock,
 		waitForLock: boolean
 	): boolean {
+		console.log('lockFileByteRange', path, op, waitForLock);
 		if (op.start === op.end) {
 			/*
 			 * Treat a range with zero length as covering the entire remaining range.

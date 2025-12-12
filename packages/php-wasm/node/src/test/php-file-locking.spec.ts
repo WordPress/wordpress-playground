@@ -1,6 +1,10 @@
 import { mkdtempSync, rmSync, writeFileSync } from 'fs';
-import { join } from 'path';
+import { join, dirname } from 'path';
 import { tmpdir } from 'os';
+import { fork, type ChildProcess } from 'child_process';
+import { fileURLToPath } from 'url';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 import {
 	getLoadedRuntime,
 	PHP,
@@ -11,11 +15,7 @@ import {
 	SupportedPHPVersions,
 	type FileLockManager,
 } from '@php-wasm/universal';
-import {
-	createNodeFsMountHandler,
-	FileLockManagerInMemory,
-	loadNodeRuntime,
-} from '../lib';
+import { createNodeFsMountHandler, loadNodeRuntime } from '../lib';
 import {
 	joinPaths,
 	/* eslint-disable-next-line @typescript-eslint/no-unused-vars --
@@ -23,6 +23,111 @@ import {
 	 */
 	sprintf,
 } from '@php-wasm/util';
+
+/**
+ * Wrapper for a PHP instance running in a child process.
+ * This allows testing real OS-level file locking via fcntl().
+ */
+class PHPChildProcess {
+	private childProcess: ChildProcess;
+	private initPromise: Promise<void>;
+
+	constructor(
+		phpVersion: SupportedPHPVersion,
+		tempDir: string,
+		vfsMountPoint: string,
+		processId: number
+	) {
+		const workerPath = join(__dirname, 'php-file-locking-worker.ts');
+		/**
+		 * Use Node's experimental TypeScript support along with
+		 * the custom ESM loader that resolves workspace packages
+		 * to their source TypeScript files.
+		 */
+		this.childProcess = fork(workerPath, [], {
+			stdio: ['inherit', 'inherit', 'inherit', 'ipc'],
+			execArgv: [
+				'--experimental-strip-types',
+				'--experimental-transform-types',
+				'--disable-warning=ExperimentalWarning',
+				'--import',
+				'./packages/meta/src/node-es-module-loader/register.mts',
+			],
+		});
+
+		this.initPromise = new Promise((resolve, reject) => {
+			const onMessage = (message: any) => {
+				if (message.type === 'worker-ready') {
+					this.childProcess.send({
+						type: 'init',
+						config: {
+							phpVersion,
+							tempDir,
+							vfsMountPoint,
+							processId,
+						},
+					});
+				} else if (message.type === 'init-done') {
+					this.childProcess.off('message', onMessage);
+					resolve();
+				} else if (message.type === 'error') {
+					this.childProcess.off('message', onMessage);
+					reject(new Error(message.error));
+				}
+			};
+			this.childProcess.on('message', onMessage);
+			this.childProcess.on('exit', (code) => {
+				reject(new Error(`Child process exited with code ${code}`));
+			});
+		});
+	}
+
+	async waitForInit(): Promise<void> {
+		return this.initPromise;
+	}
+
+	async run(options: { code: string }): Promise<{
+		exitCode: number;
+		text: string;
+		errors: string;
+	}> {
+		return new Promise((resolve, reject) => {
+			const onMessage = (message: any) => {
+				if (message.type === 'run-done') {
+					this.childProcess.off('message', onMessage);
+					resolve({
+						exitCode: message.result.exitCode,
+						text: message.result.text,
+						errors: message.result.stderr,
+					});
+				} else if (message.type === 'error') {
+					this.childProcess.off('message', onMessage);
+					reject(new Error(message.error));
+				}
+			};
+			this.childProcess.on('message', onMessage);
+			this.childProcess.send({ type: 'run', code: options.code });
+		});
+	}
+
+	async dispose(): Promise<void> {
+		return new Promise((resolve) => {
+			const onMessage = (message: any) => {
+				if (message.type === 'dispose-done') {
+					this.childProcess.off('message', onMessage);
+					resolve();
+				}
+			};
+			this.childProcess.on('message', onMessage);
+			this.childProcess.on('exit', () => resolve());
+			this.childProcess.send({ type: 'dispose' });
+		});
+	}
+
+	[Symbol.dispose]() {
+		this.childProcess.kill();
+	}
+}
 
 const phpVersionsToTest =
 	'PHP' in process.env
@@ -33,54 +138,36 @@ describe.each(phpVersionsToTest)('PHP %s: File locking', (phpVersion) => {
 	const vfsMountPoint = '/test';
 
 	let tempDir: string;
-	// TODO: Use one file lock manager per test
-	let fileLockManager: FileLockManagerInMemory;
 	let nextProcessId: number;
+	// Track child processes for cleanup
+	let childProcesses: PHPChildProcess[];
 
 	beforeEach(async () => {
 		tempDir = mkdtempSync(join(tmpdir(), 'php-wasm-file-locking-'));
-		fileLockManager = new FileLockManagerInMemory();
 		nextProcessId = 1;
+		childProcesses = [];
 	});
 	afterEach(async () => {
+		// Clean up all child processes
+		await Promise.all(childProcesses.map((cp) => cp.dispose()));
 		rmSync(tempDir, { recursive: true, force: true });
 	});
 
-	async function createPhpRuntimeWithFileLockingAndTestMount(): Promise<PHP> {
-		const runtimeId = await loadNodeRuntime(phpVersion, {
-			fileLockManager: fileLockManager!,
-			emscriptenOptions: {
-				processId: nextProcessId++,
-				// NOTE: You can uncomment this for debugging test failures.
-				// trace: function tracePhpWasm(
-				// 	processId: number,
-				// 	format: string,
-				// 	...args: any[]
-				// ) {
-				// 	// eslint-disable-next-line no-console
-				// 	console.log(
-				// 		performance.now().toFixed(6).padStart(15, '0'),
-				// 		processId.toString().padStart(16, '0'),
-				// 		sprintf(format, ...args)
-				// 	);
-				// },
-			},
-		});
-		const php = new PHP(runtimeId);
-		const errorLogPath = `${vfsMountPoint}/error.log`;
-		// Set php.ini to disable display_errors and log errors to a file.
-		php.writeFile(
-			'/internal/shared/php.ini',
-			`memory_limit = 128M
-max_execution_time = 30 ; seconds
-error_reporting = E_ALL & ~E_DEPRECATED & ~E_STRICT
-display_errors = Off
-log_errors = On
-error_log = ${errorLogPath}
-`
+	/**
+	 * Creates a PHP instance in a separate child process.
+	 * This enables real OS-level file locking via fcntl().
+	 */
+	async function createPhpInChildProcess(): Promise<PHPChildProcess> {
+		const processId = nextProcessId++;
+		const phpChild = new PHPChildProcess(
+			phpVersion,
+			tempDir,
+			vfsMountPoint,
+			processId
 		);
-		php.mount(vfsMountPoint, createNodeFsMountHandler(tempDir));
-		return php;
+		childProcesses.push(phpChild);
+		await phpChild.waitForInit();
+		return phpChild;
 	}
 
 	describe('SQLite DB locking (relying upon fcntl())', () => {
@@ -88,8 +175,8 @@ error_log = ${errorLogPath}
 		const vfsDbFilePath = `${vfsMountPoint}/${dbFileName}`;
 
 		beforeEach(async () => {
-			using php = await createPhpRuntimeWithFileLockingAndTestMount();
-			const result = await php.runStream({
+			const php = await createPhpInChildProcess();
+			const result = await php.run({
 				code: `<?php
 					$db = new SQLite3('${vfsDbFilePath}');
 					$result = $db->exec('CREATE TABLE test (id INTEGER PRIMARY KEY, name TEXT)');
@@ -106,16 +193,16 @@ error_log = ${errorLogPath}
 			// if (!existsSync(dbFilePath)) {
 			// 	throw new Error(`Database file not created: ${dbFilePath}`);
 			// }
-			if ((await result.exitCode) !== 0) {
+			if (result.exitCode !== 0) {
 				throw new Error(
-					`Failed to create table: ${(await result.stderrText) || 'Unknown error'}`
+					`Failed to create table: ${result.errors || 'Unknown error'}`
 				);
 			}
 		});
 
 		it('cannot write to DB while another process has an exclusive lock', async () => {
-			using php1 = await createPhpRuntimeWithFileLockingAndTestMount();
-			using php2 = await createPhpRuntimeWithFileLockingAndTestMount();
+			const php1 = await createPhpInChildProcess();
+			const php2 = await createPhpInChildProcess();
 
 			const phpCoordinationFile = join(
 				tempDir,
@@ -202,8 +289,8 @@ error_log = ${errorLogPath}
 			});
 		});
 		it('cannot read from DB while another process has an exclusive lock', async () => {
-			using php1 = await createPhpRuntimeWithFileLockingAndTestMount();
-			using php2 = await createPhpRuntimeWithFileLockingAndTestMount();
+			const php1 = await createPhpInChildProcess();
+			const php2 = await createPhpInChildProcess();
 
 			const phpCoordinationFile = join(
 				tempDir,
@@ -290,8 +377,8 @@ error_log = ${errorLogPath}
 			});
 		});
 		it('cannot write to DB while another process has a shared lock', async () => {
-			using php1 = await createPhpRuntimeWithFileLockingAndTestMount();
-			using php2 = await createPhpRuntimeWithFileLockingAndTestMount();
+			const php1 = await createPhpInChildProcess();
+			const php2 = await createPhpInChildProcess();
 
 			const phpCoordinationFile = join(
 				tempDir,
@@ -378,8 +465,8 @@ error_log = ${errorLogPath}
 			});
 		});
 		it('can read from DB while another process has a shared lock', async () => {
-			using php1 = await createPhpRuntimeWithFileLockingAndTestMount();
-			using php2 = await createPhpRuntimeWithFileLockingAndTestMount();
+			const php1 = await createPhpInChildProcess();
+			const php2 = await createPhpInChildProcess();
 
 			const phpCoordinationFile = join(
 				tempDir,
@@ -469,8 +556,8 @@ error_log = ${errorLogPath}
 			});
 		});
 		it('should release a shared lock when its associated process exits', async () => {
-			using php1 = await createPhpRuntimeWithFileLockingAndTestMount();
-			using php2 = await createPhpRuntimeWithFileLockingAndTestMount();
+			const php1 = await createPhpInChildProcess();
+			const php2 = await createPhpInChildProcess();
 
 			const phpCoordinationFile = join(
 				tempDir,
@@ -557,8 +644,8 @@ error_log = ${errorLogPath}
 			});
 		});
 		it('should release an exclusive lock when its associated process exits', async () => {
-			using php1 = await createPhpRuntimeWithFileLockingAndTestMount();
-			using php2 = await createPhpRuntimeWithFileLockingAndTestMount();
+			const php1 = await createPhpInChildProcess();
+			const php2 = await createPhpInChildProcess();
 
 			const phpCoordinationFile = join(
 				tempDir,
@@ -645,8 +732,8 @@ error_log = ${errorLogPath}
 			});
 		});
 		it('should release a lock when its database connection is closed', async () => {
-			using php1 = await createPhpRuntimeWithFileLockingAndTestMount();
-			using php2 = await createPhpRuntimeWithFileLockingAndTestMount();
+			const php1 = await createPhpInChildProcess();
+			const php2 = await createPhpInChildProcess();
 
 			const phpCoordinationFile = join(
 				tempDir,
@@ -746,7 +833,7 @@ error_log = ${errorLogPath}
 
 	describe('PHP flock()', () => {
 		it('should be able to acquire an exclusive lock on a file', async () => {
-			using php = await createPhpRuntimeWithFileLockingAndTestMount();
+			const php = await createPhpInChildProcess();
 
 			const testFilePath = `${vfsMountPoint}/test.txt`;
 			const result = await php.run({
@@ -770,7 +857,7 @@ error_log = ${errorLogPath}
 			expect(resultData.file_contents).toBe('test content');
 		});
 		it('should be able to acquire a shared lock on a file', async () => {
-			using php = await createPhpRuntimeWithFileLockingAndTestMount();
+			const php = await createPhpInChildProcess();
 
 			const testFilePath = `${vfsMountPoint}/test.txt`;
 			const result = await php.run({
@@ -800,8 +887,8 @@ error_log = ${errorLogPath}
 			expect(resultData.file_contents).toBe('test content');
 		});
 		it('should deny an exclusive lock when another process has a shared lock on a file', async () => {
-			using php1 = await createPhpRuntimeWithFileLockingAndTestMount();
-			using php2 = await createPhpRuntimeWithFileLockingAndTestMount();
+			const php1 = await createPhpInChildProcess();
+			const php2 = await createPhpInChildProcess();
 
 			const testFilePath = `${vfsMountPoint}/test.txt`;
 			const phpCoordinationFile = join(
@@ -891,8 +978,8 @@ error_log = ${errorLogPath}
 			expect(result2Data.attempt_while_unlocked.lock_acquired).toBe(true);
 		});
 		it('should deny a shared lock when another process has an exclusive lock on a file', async () => {
-			using php1 = await createPhpRuntimeWithFileLockingAndTestMount();
-			using php2 = await createPhpRuntimeWithFileLockingAndTestMount();
+			const php1 = await createPhpInChildProcess();
+			const php2 = await createPhpInChildProcess();
 
 			const testFilePath = `${vfsMountPoint}/test.txt`;
 			const phpCoordinationFile = join(
@@ -982,9 +1069,9 @@ error_log = ${errorLogPath}
 			expect(result2Data.attempt_while_unlocked.lock_acquired).toBe(true);
 		});
 		it('should grant multiple shared locks on a file', async () => {
-			using php1 = await createPhpRuntimeWithFileLockingAndTestMount();
-			using php2 = await createPhpRuntimeWithFileLockingAndTestMount();
-			using php3 = await createPhpRuntimeWithFileLockingAndTestMount();
+			const php1 = await createPhpInChildProcess();
+			const php2 = await createPhpInChildProcess();
+			const php3 = await createPhpInChildProcess();
 
 			const testFilePath = `${vfsMountPoint}/test.txt`;
 			const phpCoordinationFile = join(
@@ -1082,8 +1169,8 @@ error_log = ${errorLogPath}
 			expect(result3Data.lock_acquired).toBe(true);
 		});
 		it('should release a shared lock when its associated file descriptor is closed', async () => {
-			using php1 = await createPhpRuntimeWithFileLockingAndTestMount();
-			using php2 = await createPhpRuntimeWithFileLockingAndTestMount();
+			const php1 = await createPhpInChildProcess();
+			const php2 = await createPhpInChildProcess();
 
 			const vfsTestFilePath = `${vfsMountPoint}/test.txt`;
 			const phpCoordinationFile = join(
@@ -1182,8 +1269,8 @@ error_log = ${errorLogPath}
 			);
 		});
 		it('should release an exclusive lock when its associated file descriptor is closed', async () => {
-			using php1 = await createPhpRuntimeWithFileLockingAndTestMount();
-			using php2 = await createPhpRuntimeWithFileLockingAndTestMount();
+			const php1 = await createPhpInChildProcess();
+			const php2 = await createPhpInChildProcess();
 
 			const testFilePath = `${vfsMountPoint}/test.txt`;
 			const phpCoordinationFile = join(
@@ -1282,8 +1369,8 @@ error_log = ${errorLogPath}
 			);
 		});
 		it('should release a shared lock when the owning process exits', async () => {
-			using php1 = await createPhpRuntimeWithFileLockingAndTestMount();
-			using php2 = await createPhpRuntimeWithFileLockingAndTestMount();
+			const php1 = await createPhpInChildProcess();
+			const php2 = await createPhpInChildProcess();
 
 			const testFilePath = `${vfsMountPoint}/test.txt`;
 			const phpCoordinationFile = join(
@@ -1349,8 +1436,8 @@ error_log = ${errorLogPath}
 			expect(result2Data.attempt_after_exit).toBe(true);
 		});
 		it('should release an exclusive lock when the owning process exits', async () => {
-			using php1 = await createPhpRuntimeWithFileLockingAndTestMount();
-			using php2 = await createPhpRuntimeWithFileLockingAndTestMount();
+			const php1 = await createPhpInChildProcess();
+			const php2 = await createPhpInChildProcess();
 
 			const testFilePath = `${vfsMountPoint}/test.txt`;
 			const phpCoordinationFile = join(
