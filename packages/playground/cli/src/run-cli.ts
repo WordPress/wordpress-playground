@@ -288,31 +288,31 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 			},
 		};
 
-		const commandWithOptions =
-			(commandOptions: Record<string, YargsOptions> = {}) =>
-			(yargsInstance: Argv) =>
-				yargsInstance.options({ ...sharedOptions, ...commandOptions });
-
 		const yargsObject = yargs(argsToParse)
 			.usage('Usage: wp-playground <command> [options]')
 			.command(
 				'server',
 				'Start a local WordPress server',
-				commandWithOptions({
-					...serverOnlyOptions,
-				})
+				(yargsInstance: Argv) =>
+					yargsInstance.options({
+						...sharedOptions,
+						...serverOnlyOptions,
+					})
 			)
 			.command(
 				'run-blueprint',
 				'Execute a Blueprint without starting a server',
-				commandWithOptions()
+				(yargsInstance: Argv) =>
+					yargsInstance.options({ ...sharedOptions })
 			)
 			.command(
 				'build-snapshot',
 				'Build a ZIP snapshot of a WordPress site based on a Blueprint',
-				commandWithOptions({
-					...buildSnapshotOnlyOptions,
-				})
+				(yargsInstance: Argv) =>
+					yargsInstance.options({
+						...sharedOptions,
+						...buildSnapshotOnlyOptions,
+					})
 			)
 			.demandCommand(1, 'Please specify a command')
 			.strictCommands()
@@ -675,7 +675,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 	}
 
 	const selectedPort =
-		args.command === 'server' ? (args['port'] as number) ?? 9400 : 0;
+		args.command === 'server' ? ((args['port'] as number) ?? 9400) : 0;
 
 	// Declare file lock manager outside scope of startServer
 	// so we can look at it when debugging request handling.
