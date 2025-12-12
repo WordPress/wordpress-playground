@@ -317,11 +317,7 @@ self.addEventListener('fetch', (event) => {
 	 * details.
 	 */
 	if (url.pathname === '/remote.html' || url.pathname === '/') {
-		event.respondWith(
-			networkFirstFetch(event.request).then(
-				rewriteCoopHeadersToDocumentIsolationPolicy
-			)
-		);
+		event.respondWith(networkFirstFetch(event.request));
 		return;
 	}
 
@@ -526,6 +522,12 @@ function emptyHtml() {
 			status: 200,
 			headers: {
 				'content-type': 'text/html',
+				/**
+				 * Without this header in empty.html, Gutenberg fails to
+				 * populate the editor iframe with the editor markup in
+				 * scenarios when the editor page is loaded with COOP/COEP
+				 * headers set.
+				 */
 				'Document-Isolation-Policy': 'isolate-and-credentialless',
 			},
 		}
