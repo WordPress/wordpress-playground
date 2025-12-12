@@ -587,10 +587,10 @@ export const BlueprintBundleEditor = forwardRef<
 		try {
 			// Check if the bundle contains anything other than blueprint.json
 			const rootEntries = await filesystem.listFiles('/');
-			const hasOtherFiles = rootEntries.some(
-				(name) => name !== 'blueprint.json'
-			);
-			if (hasOtherFiles) {
+			if (
+				rootEntries.length !== 1 ||
+				rootEntries[0] !== 'blueprint.json'
+			) {
 				alert(
 					'Linking to blueprint bundles is not supported yet. Only single-file blueprints can be shared via link.'
 				);
