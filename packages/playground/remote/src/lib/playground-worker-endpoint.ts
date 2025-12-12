@@ -51,7 +51,6 @@ import { WordPressFetchNetworkTransport } from './wordpress-fetch-network-transp
 
 export interface PHPWorkerGlobalScope extends WorkerGlobalScope {
 	setImmediate: (fn: () => void) => void;
-	clearImmediate: (id?: number) => void;
 }
 
 export interface MountDescriptor {
