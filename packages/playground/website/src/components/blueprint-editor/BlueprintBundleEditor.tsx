@@ -585,24 +585,12 @@ export const BlueprintBundleEditor = forwardRef<
 
 	const handleShareBlueprint = useCallback(async () => {
 		try {
-			// Count files in the bundle to check if it's more than just blueprint.json
-			const countFiles = async (dirPath: string): Promise<number> => {
-				const entries = await filesystem.listFiles(dirPath);
-				let count = 0;
-				for (const name of entries) {
-					const absPath =
-						dirPath === '/' ? `/${name}` : `${dirPath}/${name}`;
-					if (await filesystem.isDir(absPath)) {
-						count += await countFiles(absPath);
-					} else {
-						count++;
-					}
-				}
-				return count;
-			};
-
-			const fileCount = await countFiles('/');
-			if (fileCount > 1) {
+			// Check if the bundle contains anything other than blueprint.json
+			const rootEntries = await filesystem.listFiles('/');
+			const hasOtherFiles = rootEntries.some(
+				(name) => name !== 'blueprint.json'
+			);
+			if (hasOtherFiles) {
 				alert(
 					'Linking to blueprint bundles is not supported yet. Only single-file blueprints can be shared via link.'
 				);
