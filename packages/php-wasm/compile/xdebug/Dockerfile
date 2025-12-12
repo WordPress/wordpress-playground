@@ -50,6 +50,16 @@ RUN cd php-src && ./buildconf --force
 COPY ./php/php*.patch /root/
 RUN cd /root && git apply --no-index /root/php${PHP_VERSION:0:3}*.patch -v
 
+#
+# This PHP compilation is not the runtime PHP used in Playground.
+# It is only built because 'phpize' requires a matching PHP version.
+#
+# Therefore, this PHP build is intentionally configured with
+# the smallest possible feature set.
+#
+# The resulting PHP version is not used at runtime.
+# It only exists to enable 'phpize' to build extensions.
+#
 RUN source /root/emsdk/emsdk_env.sh && \
 	cd php-src && \
 	emconfigure ./configure \
