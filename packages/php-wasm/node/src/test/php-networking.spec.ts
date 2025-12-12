@@ -2,7 +2,7 @@ import {
 	PHP,
 	SupportedPHPVersions,
 	setPhpIniEntries,
-	getLoadedRuntime,
+	popLoadedRuntime,
 	type SupportedPHPVersion,
 } from '@php-wasm/universal';
 import express from 'express';
@@ -344,7 +344,7 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 			it('should close server when runtime is exited', async () => {
 				const id = await loadNodeRuntime(phpVersion, options);
 				const php = new PHP(id);
-				const rt = getLoadedRuntime(id);
+				const rt = popLoadedRuntime(id);
 
 				expect(rt.outboundNetworkProxyServer).toBeDefined();
 				expect(rt.outboundNetworkProxyServer).toBeInstanceOf(

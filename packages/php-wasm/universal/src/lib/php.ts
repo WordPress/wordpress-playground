@@ -10,7 +10,7 @@ import type { ListFilesOptions, RmDirOptions } from './fs-helpers';
 import { FSHelpers } from './fs-helpers';
 import { isExitCode } from './is-exit-code';
 import type { PHPRuntimeId } from './load-php-runtime';
-import { getLoadedRuntime } from './load-php-runtime';
+import { popLoadedRuntime } from './load-php-runtime';
 import type { PHPRequestHandler } from './php-request-handler';
 import { PHPResponse, StreamedPHPResponse } from './php-response';
 import type {
@@ -258,7 +258,7 @@ export class PHP implements Disposable {
 		if (this[__private__dont__use]) {
 			throw new Error('PHP runtime already initialized.');
 		}
-		const runtime = getLoadedRuntime(runtimeId);
+		const runtime = popLoadedRuntime(runtimeId);
 		if (!runtime) {
 			throw new Error('Invalid PHP runtime id.');
 		}

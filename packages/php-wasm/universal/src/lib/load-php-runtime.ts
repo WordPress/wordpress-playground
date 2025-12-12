@@ -186,8 +186,13 @@ declare const WorkerGlobalScope: object | undefined;
 
 export type PHPRuntimeId = number;
 
-export function getLoadedRuntime(id: PHPRuntimeId): PHPRuntime {
-	return loadedRuntimes.get(id);
+export function popLoadedRuntime(id: PHPRuntimeId): PHPRuntime {
+	const runtime = loadedRuntimes.get(id);
+	if (!runtime) {
+		throw new Error(`Runtime with id ${id} not found`);
+	}
+	loadedRuntimes.delete(id);
+	return runtime;
 }
 
 export const currentJsRuntime = (function () {
