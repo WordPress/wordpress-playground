@@ -1,7 +1,6 @@
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import { exposeAPI } from '@php-wasm/web';
 import {
-	PHPWorkerGlobalScope,
 	PlaygroundWorkerEndpoint,
 	type WorkerBootOptions,
 } from './playground-worker-endpoint';
@@ -27,6 +26,10 @@ import { corsProxyUrl as defaultCorsProxyUrl } from 'virtual:cors-proxy-url';
  *
  * https://github.com/emscripten-core/emscripten/blob/6d61ffd7076309cb08af37aba496f25c23cdb5a4/src/lib/libeventloop.js#L57
  */
+interface PHPWorkerGlobalScope extends WorkerGlobalScope {
+	setImmediate: (fn: () => void) => void;
+}
+
 (globalThis as PHPWorkerGlobalScope).setImmediate = (fn: () => void) =>
 	setTimeout(fn, 0);
 
