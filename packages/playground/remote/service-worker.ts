@@ -317,7 +317,11 @@ self.addEventListener('fetch', (event) => {
 	 * details.
 	 */
 	if (url.pathname === '/remote.html' || url.pathname === '/') {
-		event.respondWith(networkFirstFetch(event.request));
+		event.respondWith(
+			networkFirstFetch(event.request).then(
+				rewriteCoopHeadersToDocumentIsolationPolicy
+			)
+		);
 		return;
 	}
 
