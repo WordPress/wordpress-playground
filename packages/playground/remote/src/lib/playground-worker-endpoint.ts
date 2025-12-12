@@ -49,6 +49,10 @@ import { networkingDisabledFunctions } from './disabled-functions';
 import playgroundWebMuPlugin from './playground-mu-plugin/0-playground.php?raw';
 import { WordPressFetchNetworkTransport } from './wordpress-fetch-network-transport';
 
+interface PHPWorkerGlobalScope extends WorkerGlobalScope {
+	setImmediate: (fn: () => void) => void;
+}
+
 export interface MountDescriptor {
 	mountpoint: string;
 	device: MountDevice;
@@ -103,6 +107,17 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 
 	constructor(monitor: EmscriptenDownloadMonitor) {
 		super(undefined, monitor);
+
+		/*
+		 * Provide `setImmediate` so Emscripten doesn’t install its message-based
+		 * polyfill, which retains references to the Wasm HEAP and prevents the
+		 * PHP instance from being garbage-collected.
+		 *
+		 * https://github.com/emscripten-core/emscripten/blob/6d61ffd7076309cb08af37aba496f25c23cdb5a4/src/lib/libeventloop.js#L57
+		 */
+		(globalThis as PHPWorkerGlobalScope).setImmediate = (fn: () => void) =>
+			setTimeout(fn, 0);
+
 		this.downloadMonitor = monitor;
 		const monitoredFetch = (input: RequestInfo | URL, init?: RequestInit) =>
 			this.downloadMonitor.monitorFetch(fetch(input, init));

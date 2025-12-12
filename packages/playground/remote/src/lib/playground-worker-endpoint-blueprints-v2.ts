@@ -9,20 +9,6 @@ import type { BlueprintV2Declaration } from '@wp-playground/blueprints';
 /* @ts-ignore */
 import { corsProxyUrl as defaultCorsProxyUrl } from 'virtual:cors-proxy-url';
 
-/*
- * Provide `setImmediate` so Emscripten doesn’t install its message-based
- * polyfill, which retains references to the Wasm HEAP and prevents the
- * PHP instance from being garbage-collected.
- *
- * https://github.com/emscripten-core/emscripten/blob/6d61ffd7076309cb08af37aba496f25c23cdb5a4/src/lib/libeventloop.js#L57
- */
-interface PHPWorkerGlobalScope extends WorkerGlobalScope {
-	setImmediate: (fn: () => void) => void;
-}
-
-(globalThis as PHPWorkerGlobalScope).setImmediate = (fn: () => void) =>
-	setTimeout(fn, 0);
-
 // post message to parent
 self.postMessage('worker-script-started');
 
