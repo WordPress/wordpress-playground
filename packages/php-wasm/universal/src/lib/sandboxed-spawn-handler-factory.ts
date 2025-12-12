@@ -4,6 +4,10 @@ import type { PHPWorker } from './php-worker';
 import type { Remote } from './comlink-sync';
 import { logger } from '@php-wasm/logger';
 
+function wait(ms: number): Promise<void> {
+	return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 /**
  * An isomorphic proc_open() handler that implements typical shell in TypeScript
  * without relying on a server runtime. It can be used in the browser and Node.js
@@ -142,7 +146,7 @@ export function sandboxedSpawnHandlerFactory(
 					// Technical limitation of subprocesses – we need to
 					// wait before exiting to give consumer a chance to read
 					// the output.
-					await new Promise((resolve) => setTimeout(resolve, 10));
+					await wait(10);
 					processApi.exit(0);
 					break;
 				}
@@ -151,22 +155,52 @@ export function sandboxedSpawnHandlerFactory(
 					// Technical limitation of subprocesses – we need to
 					// wait before exiting to give consumer a chance to read
 					// the output.
-					await new Promise((resolve) => setTimeout(resolve, 10));
+					await wait(10);
 					processApi.exit(0);
 					break;
 				}
 				case 'rm': {
 					const target = args[args.length - 1];
+					const flags = args.slice(1, -1).join(' ');
+
+					if (args.length < 2 || target.startsWith('-')) {
+						processApi.stderr('usage: rm [-rf] file\n');
+						// Technical limitation of subprocesses – we need to
+						// wait before exiting to give consumer a chance to read
+						// the output.
+						await wait(10);
+						processApi.exit(1);
+						break;
+					}
+
+					const isRecursive = flags.includes('r');
+					const isForce = flags.includes('f');
+
+					let errorMessage = '';
+
 					if (await php.isDir(target)) {
-						await php.rmdir(target, { recursive: true });
+						if (isRecursive) {
+							await php.rmdir(target, { recursive: true });
+						} else {
+							errorMessage = `rm: cannot remove '${target}': Is a directory\n`;
+						}
 					} else if (await php.isFile(target)) {
 						await php.unlink(target);
 					}
-					// Technical limitation of subprocesses – we need to
-					// wait before exiting to give consumer a chance to read
-					// the output.
-					await new Promise((resolve) => setTimeout(resolve, 10));
-					processApi.exit(0);
+					// Target doesn't exist and -f flag is not set
+					else if (!isForce) {
+						errorMessage = `rm: cannot remove '${target}': No such file or directory\n`;
+					}
+
+					if (errorMessage) {
+						processApi.stderr(errorMessage);
+						// Technical limitation of subprocesses – we need to
+						// wait before exiting to give consumer a chance to read
+						// the output.
+						await wait(10);
+					}
+
+					processApi.exit(errorMessage ? 1 : 0);
 					break;
 				}
 			}
