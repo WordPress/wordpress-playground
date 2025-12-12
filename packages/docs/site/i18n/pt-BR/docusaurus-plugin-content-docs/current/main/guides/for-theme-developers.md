@@ -89,26 +89,32 @@ A theme stored in a GitHub repository can also be loaded in a Playground instanc
 Um tema armazenado em um repositório GitHub também pode ser carregado em uma instância do Playground com Blueprints.
 
 <!--
-With the `themeData` property of the [`installTheme` blueprint step](/blueprints/steps#InstallThemeStep), you can define a [`git:directory` resource](/blueprints/steps/resources#gitdirectoryreference) that will build a theme from the files from a repository in the Playground instance.
+In the `themeData` property of the [`installTheme` blueprint step](/blueprints/steps#InstallThemeStep), you can define a [`url` resource](/blueprints/steps/resources#urlreference) that points to the location of the `.zip` file containing the theme you want to load in the Playground instance.
 -->
 
-Com a propriedade `themeData` do [passo do blueprint `installTheme`](/blueprints/steps#InstallThemeStep), você pode definir um [recurso `git:directory`](/blueprints/steps/resources#gitdirectoryreference) que criará um tema a partir dos arquivos de um repositório na instância do Playground.
+Na propriedade `themeData` do [passo blueprint `installTheme`](/blueprints/steps#InstallThemeStep), você pode definir um [recurso `url`](/blueprints/steps/resources#urlreference) que aponta para a localização do arquivo `.zip` contendo o tema que você deseja carregar na instância do Playground.
 
 <!--
-:::info
-For the past few months, the [GitHub proxy](https://playground.wordpress.net/proxy) was an incredibly useful tool to load themes from GitHub repositories, as it allows you to load a theme from a specific branch, a specific directory, a specific commit, or a specific PR. But with the recent improvements to Playground, this feature is no longer necessary. The GitHub Proxy will be discontinued soon, please update your blueprints to `git:directory` resource.
+To avoid CORS issues, the Playground project provides a [GitHub proxy](https://github-proxy.com/) that allows you to generate a `.zip` from a repository (or even a folder inside a repo) containing your or theme.
+-->
+
+Para evitar problemas de CORS, o projeto Playground fornece um [proxy GitHub](https://github-proxy.com/) que permite gerar um `.zip` de um repositório (ou mesmo uma pasta dentro de um repo) contendo seu tema.
+
+<!--
+:::tip
+[GitHub proxy](https://playground.wordpress.net/proxy) is an incredibly useful tool to load themes from GitHub repositories as it allows you to load a theme from a specific branch, a specific directory, a specific commit or a specific PR.
 :::
 -->
 
-:::info
-Durante os últimos meses, o [proxy do GitHub](https://playground.wordpress.net/proxy) foi uma ferramenta incrivelmente útil para carregar temas de repositórios do GitHub, pois permitia carregar um tema de uma branch específica, um diretório específico, um commit específico ou um PR específico. Mas com as melhorias recentes no Playground, esse recurso não é mais necessário. O Proxy do GitHub será descontinuado em breve, por favor atualize seus blueprints para o recurso `git:directory`.
+:::tip
+O [proxy GitHub](https://github-proxy.com/) é uma ferramenta incrivelmente útil para carregar temas de repositórios GitHub, pois permite carregar um tema de uma branch específica, um diretório específico, um commit específico ou um PR específico.
 :::
 
 <!--
-For example the following `blueprint.json` installs a theme from a GitHub repository:
+For example the following `blueprint.json` installs a theme from a GitHub repository leveraging the https://github-proxy.com tool:
 -->
 
-Por exemplo, o seguinte `blueprint.json` instala um tema de um repositório GitHub:
+Por exemplo, o seguinte `blueprint.json` instala um tema de um repositório GitHub aproveitando a ferramenta https://github-proxy.com:
 
 ```json
 {
@@ -116,10 +122,8 @@ Por exemplo, o seguinte `blueprint.json` instala um tema de um repositório GitH
 		{
 			"step": "installTheme",
 			"themeData": {
-				"resource": "git:directory",
-				"url": "https://github.com/Automattic/themes",
-				"ref": "trunk",
-				"path": "assembler"
+				"resource": "url",
+				"url": "https://github-proxy.com/proxy/?repo=Automattic/themes&branch=trunk&directory=assembler"
 			},
 			"options": {
 				"activate": true
@@ -130,20 +134,10 @@ Por exemplo, o seguinte `blueprint.json` instala um tema de um repositório GitH
 ```
 
 <!--
-:::tip
-If your theme is hosted on GitHub, you can automatically add preview buttons to your pull requests using the Playground PR Preview GitHub Action. This lets reviewers test your changes instantly without any setup. See [Adding PR Preview Buttons with GitHub Actions](/guides/github-action-pr-preview) for details.
-:::
+[<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](https://playground.wordpress.net/builder/builder.html#{%22steps%22:[{%22step%22:%22installTheme%22,%22themeData%22:{%22resource%22:%22url%22,%22url%22:%22https://github-proxy.com/proxy/?repo=Automattic/themes&branch=trunk&directory=assembler%22},%22options%22:{%22activate%22:true}}]})
 -->
 
-:::tip
-Se o seu tema estiver hospedado no GitHub, você pode adicionar automaticamente botões de visualização às suas solicitações pull usando o GitHub Action Playground PR Preview. Isso permite que os revisores testem suas alterações instantaneamente, sem qualquer configuração. Consulte [Adicionando botões de visualização de PR com ações do GitHub](/guides/github-action-pr-preview) para obter detalhes.
-:::
-
-<!--
-[<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](https://playground.wordpress.net/builder/builder.html#{%22steps%22:[{%22step%22:%22installTheme%22,%22themeData%22:{%22resource%22:%22git:directory%22,%22url%22:%22https://github.com/Automattic/themes%22,%22ref%22:%22trunk%22,%22path%22:%22assembler%22},%22options%22:{%22activate%22:true}}]})
--->
-
-[<kbd> &nbsp; Executar Blueprint &nbsp; </kbd>](https://playground.wordpress.net/#{%22steps%22:[{%22step%22:%22installTheme%22,%22themeData%22:{%22resource%22:%22git:directory%22,%22url%22:%22https://github.com/Automattic/themes%22,%22ref%22:%22trunk%22,%22path%22:%22assembler%22},%22options%22:{%22activate%22:true}}],%22$schema%22:%22https://playground.wordpress.net/blueprint-schema.json%22,%22meta%22:{%22title%22:%22Empty%20Blueprint%22,%22author%22:%22https://github.com/akirk/playground-step-library%22}})
+[<kbd> &nbsp; Executar Blueprint &nbsp; </kbd>](https://playground.wordpress.net/builder/builder.html#{%22steps%22:[{%22step%22:%22installTheme%22,%22themeData%22:{%22resource%22:%22url%22,%22url%22:%22https://github-proxy.com/proxy/?repo=Automattic/themes&branch=trunk&directory=assembler%22},%22options%22:{%22activate%22:true}}]})
 
 <!--
 A blueprint can be passed to a Playground instance [in several ways](/blueprints/using-blueprints).
