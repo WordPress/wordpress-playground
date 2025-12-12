@@ -14,7 +14,7 @@ export class FirewallInterferenceError extends Error {
 		super(
 			`Could not fetch ${url} – your network appears to be blocking this request (HTTP ${status}). ` +
 				`This often happens on school, university, or corporate networks. ` +
-				`Try switching to a different network, using a VPN, or asking your IT administrator to allow requests to playground.wordpress.net.`
+				`Try switching to a different network or using a VPN.`
 		);
 		this.name = 'FirewallInterferenceError';
 		this.url = url;

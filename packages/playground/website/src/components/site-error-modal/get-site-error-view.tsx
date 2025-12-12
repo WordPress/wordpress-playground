@@ -5,6 +5,8 @@ import type { SiteError } from '../../lib/state/redux/slice-ui';
 import type { SiteInfo } from '../../lib/state/redux/slice-sites';
 import type { BlueprintStepError, PresentationHelpers } from './types';
 import { BlueprintStepErrorDetails } from './blueprint-step-error-details';
+// @ts-ignore
+import { corsProxyUrl } from 'virtual:cors-proxy-url';
 
 export interface SiteErrorViewContext {
 	error: SiteError;
@@ -279,6 +281,15 @@ function directoryHandleUnknownErrorView(): SiteErrorViewConfig {
 function networkFirewallInterferenceView({
 	helpers,
 }: SiteErrorViewContext): SiteErrorViewConfig {
+	// Extract hostnames from the current site and CORS proxy URLs
+	const currentHost = window.location.hostname;
+	let corsProxyHost: string | undefined;
+	try {
+		corsProxyHost = new URL(corsProxyUrl).hostname;
+	} catch {
+		// corsProxyUrl might be a relative URL or invalid
+	}
+
 	return {
 		title: 'Network blocked this request',
 		isDeveloperError: false,
@@ -301,7 +312,13 @@ function networkFirewallInterferenceView({
 					<li>Use a VPN to bypass network restrictions</li>
 					<li>
 						Ask your network administrator to allow requests to{' '}
-						<code>playground.wordpress.net</code>
+						<code>{currentHost}</code>
+						{corsProxyHost && corsProxyHost !== currentHost && (
+							<>
+								{' '}
+								and <code>{corsProxyHost}</code>
+							</>
+						)}
 					</li>
 				</ul>
 				<p>
