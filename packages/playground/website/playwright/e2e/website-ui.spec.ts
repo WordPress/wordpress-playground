@@ -315,6 +315,55 @@ test('should edit a blueprint in the blueprint editor and recreate the playgroun
 	});
 });
 
+test('should copy blueprint link to clipboard when share button is clicked', async ({
+	website,
+	context,
+}) => {
+	// Grant clipboard permissions
+	await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+
+	await website.goto('./');
+
+	// Open site manager
+	await website.ensureSiteManagerIsOpen();
+
+	// Navigate to Blueprint tab
+	await website.page.getByRole('tab', { name: 'Blueprint' }).click();
+
+	// Wait for CodeMirror editor to load
+	const editor = website.page.locator(
+		'[class*="blueprint-editor"] .cm-editor'
+	);
+	await editor.waitFor({ timeout: 10000 });
+
+	// Click the share button (copy link to blueprint)
+	const shareButton = website.page.getByRole('button', {
+		name: 'Copy link to blueprint',
+	});
+	await expect(shareButton).toBeVisible();
+	await shareButton.click();
+
+	// Verify success message appears
+	await expect(
+		website.page.getByText('Link copied to clipboard!')
+	).toBeVisible();
+
+	// Verify clipboard contains the correct URL format
+	const clipboardContent = await website.page.evaluate(() =>
+		navigator.clipboard.readText()
+	);
+	expect(clipboardContent).toMatch(/^https?:\/\/[^/]+\/#[A-Za-z0-9+/=]+$/);
+
+	// Verify the base64 portion decodes to valid JSON
+	const base64Part = clipboardContent.split('#')[1];
+	const decodedBlueprint = JSON.parse(
+		new TextDecoder().decode(
+			Uint8Array.from(atob(base64Part), (c) => c.charCodeAt(0))
+		)
+	);
+	expect(decodedBlueprint).toHaveProperty('landingPage');
+});
+
 test.describe('Database panel', () => {
 	test.beforeEach(async ({ website }) => {
 		await website.goto('./');
