@@ -5,6 +5,9 @@ import { platform } from 'os';
 declareFileLockManagerTests({
 	name: 'FileLockManagerForPosix',
 	fileLockManagerFactory: () => new FileLockManagerForPosix(),
-	includeNativeTests: true,
+	testWorkerUrl: new URL(
+		'./file-lock-manager-for-posix--test-process.ts',
+		import.meta.url
+	),
 	shouldSkip: platform() === 'win32',
 });

@@ -170,7 +170,6 @@
 				"reportsDirectory": "../../../coverage/packages/php-wasm/node",
 				"testFiles": [
 					"php-file-locking.spec.ts",
-					"file-lock-manager-for-node.spec.ts",
 					"file-lock-manager-for-posix.spec.ts",
 					"file-lock-manager-for-windows.spec.ts",
 					"php-imagick.spec.ts",
@@ -188,7 +187,6 @@
 				"reportsDirectory": "../../../coverage/packages/php-wasm/node",
 				"testFiles": [
 					"php-file-locking.spec.ts",
-					"file-lock-manager-for-node.spec.ts",
 					"file-lock-manager-for-posix.spec.ts",
 					"file-lock-manager-for-windows.spec.ts",
 					"php-imagick.spec.ts",

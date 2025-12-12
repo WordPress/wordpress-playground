@@ -3,12 +3,16 @@ import { PHPResponse, StreamedPHPResponse } from './php-response';
 import * as Comlink from './comlink-sync';
 import {
 	NodeSABSyncReceiveMessageTransport,
-	nodeEndpoint,
-	type NodeEndpoint,
+	nodeEndpoint as nodeWorkerEndpoint,
+	type NodeEndpoint as NodeWorker,
 	type Remote,
 	type Endpoint,
 	type IsomorphicMessagePort,
 } from './comlink-sync';
+import {
+	type NodeProcess,
+	NodeProcessAdapter,
+} from './comlink-node-process-adapter';
 import * as ErrorSerializer from './serialize-error';
 
 export type WithAPIState = {
@@ -34,7 +38,7 @@ export async function consumeAPISync<APIType>(
 }
 
 export function consumeAPI<APIType>(
-	remote: Worker | Window | NodeEndpoint,
+	remote: Worker | Window | NodeWorker | NodeProcess,
 	context: undefined | EventTarget = undefined
 ): RemoteAPI<APIType> {
 	setupTransferHandlers();
@@ -42,7 +46,11 @@ export function consumeAPI<APIType>(
 	let endpoint;
 	const appearsToBeNodeEnvironment = import.meta.url.startsWith('file://');
 	if (appearsToBeNodeEnvironment) {
-		endpoint = nodeEndpoint(remote as NodeEndpoint);
+		if ('postMessage' in remote) {
+			endpoint = nodeWorkerEndpoint(remote as NodeWorker);
+		} else {
+			endpoint = new NodeProcessAdapter(remote as NodeProcess);
+		}
 	} else {
 		endpoint =
 			remote instanceof Worker
@@ -102,7 +110,7 @@ export type PublicAPI<Methods, PipedAPI = unknown> = RemoteAPI<
 export function exposeAPI<Methods, PipedAPI>(
 	apiMethods?: Methods,
 	pipedApi?: PipedAPI,
-	targetWorker?: NodeEndpoint
+	targetWorker?: NodeWorker | NodeProcess
 ): [() => void, (e: Error) => void, PublicAPI<Methods, PipedAPI>] {
 	const { setReady, setFailed, exposedApi } = prepareForExpose(
 		apiMethods,
@@ -110,9 +118,11 @@ export function exposeAPI<Methods, PipedAPI>(
 	);
 	let endpoint: Endpoint | undefined;
 	if (targetWorker) {
-		// NOTE: If there are other target types, we could expand this later,
-		// but for now, we only need support for NodeEndpoints.
-		endpoint = nodeEndpoint(targetWorker);
+		if ('postMessage' in targetWorker) {
+			endpoint = nodeWorkerEndpoint(targetWorker);
+		} else {
+			endpoint = new NodeProcessAdapter(targetWorker);
+		}
 	} else {
 		endpoint =
 			typeof window !== 'undefined'
@@ -129,7 +139,7 @@ export async function exposeSyncAPI<Methods>(
 ): Promise<[() => void, (e: Error) => void, Methods]> {
 	const { setReady, setFailed, exposedApi } = prepareForExpose(apiMethods);
 	const transport = await NodeSABSyncReceiveMessageTransport.create();
-	const endpoint = nodeEndpoint(port as any);
+	const endpoint = nodeWorkerEndpoint(port as any);
 	Comlink.exposeSync(exposedApi, endpoint, transport);
 	return [setReady, setFailed, exposedApi as Methods];
 }

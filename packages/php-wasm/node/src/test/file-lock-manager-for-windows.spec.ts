@@ -5,6 +5,9 @@ import { platform } from 'os';
 declareFileLockManagerTests({
 	name: 'FileLockManagerForWindows',
 	fileLockManagerFactory: () => new FileLockManagerForWindows(),
-	includeNativeTests: true,
+	testWorkerUrl: new URL(
+		'./file-lock-manager-for-windows--test-process.ts',
+		import.meta.url
+	),
 	shouldSkip: platform() !== 'win32',
 });

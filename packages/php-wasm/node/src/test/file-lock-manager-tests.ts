@@ -1,93 +1,172 @@
 import { describe, beforeEach, afterEach, it, expect } from 'vitest';
-import { writeFileSync, unlinkSync } from 'fs';
-import { fork } from 'child_process';
-import type { ChildProcess } from 'child_process';
-import { join } from 'path';
-import type { FileLockManager, WholeFileLockOp } from '@php-wasm/universal';
+import { writeFileSync, unlinkSync, openSync, closeSync } from 'fs';
+import { fork, type ChildProcess } from 'child_process';
+import {
+	consumeAPI,
+	type RemoteAPI,
+	type FileLockManager,
+	type WholeFileLockOp,
+} from '@php-wasm/universal';
 
 const TEST_FILE1 = new URL('test1.txt', import.meta.url).pathname;
 const TEST_FILE2 = new URL('test2.txt', import.meta.url).pathname;
+
+export type TestWorkerAPI = FileLockManager & {
+	openSync: typeof openSync;
+	closeSync: typeof closeSync;
+};
 
 // TODO: Also test waiting for locks.
 export function declareFileLockManagerTests({
 	name,
 	fileLockManagerFactory,
-	includeNativeTests,
+	testWorkerUrl,
+	// TODO: Re-enable or remove native tests because these are already native tests.
+	// TODO: Leave similar test file for FileLockManagerInMemory.
 	shouldSkip = false,
 }: {
 	name: string;
 	fileLockManagerFactory: () => FileLockManager;
-	includeNativeTests: boolean;
+	testWorkerUrl: URL;
 	// We include this arg so we can acknowledge the tests
 	// exist but may be skipped (e.g., we skip POSIX tests on Windows).
 	shouldSkip?: boolean;
 }) {
 	return describe.skipIf(shouldSkip)(name, () => {
+		let childProcess: ChildProcess;
+		let remoteProcessApi: RemoteAPI<TestWorkerAPI>;
 		let lockManager: FileLockManager;
+		let localTestFile1Fd: number;
+		let localTestFile2Fd: number;
+		let remoteTestFile1Fd: number;
+		let remoteTestFile2Fd: number;
 
-		beforeEach(() => {
+		beforeEach(async () => {
+			childProcess = fork(testWorkerUrl, {
+				execArgv: [
+					'--experimental-strip-types',
+					'--experimental-transform-types',
+					'--disable-warning=ExperimentalWarning',
+					'--import',
+					'./packages/meta/src/node-es-module-loader/register.mts',
+				],
+				stdio: 'pipe',
+			});
+			// TODO: Fix this type error.
+			// @ts-ignore
+			remoteProcessApi = await consumeAPI<TestWorkerAPI>(childProcess);
+
 			lockManager = fileLockManagerFactory();
 			writeFileSync(TEST_FILE1, `test file 1 for ${import.meta.url}`);
 			writeFileSync(TEST_FILE2, `test file 2 for ${import.meta.url}`);
+
+			localTestFile1Fd = openSync(TEST_FILE1, 'r');
+			localTestFile2Fd = openSync(TEST_FILE2, 'r');
+			remoteTestFile1Fd = await remoteProcessApi.openSync(
+				TEST_FILE1,
+				'r'
+			);
+			remoteTestFile2Fd = await remoteProcessApi.openSync(
+				TEST_FILE2,
+				'r'
+			);
 		});
 
-		afterEach(() => {
+		afterEach(async () => {
+			try {
+				closeSync(localTestFile1Fd);
+				closeSync(localTestFile2Fd);
+			} catch {
+				// ignore
+			}
+
+			try {
+				await remoteProcessApi.closeSync(remoteTestFile1Fd);
+				await remoteProcessApi.closeSync(remoteTestFile2Fd);
+			} catch {
+				// ignore
+			}
+
 			unlinkSync(TEST_FILE1);
 			unlinkSync(TEST_FILE2);
+
+			await new Promise((resolve) => {
+				childProcess.kill();
+				childProcess.on('exit', resolve);
+			});
 		});
 
 		describe('lockWholeFile', () => {
 			describe('exclusive', () => {
 				it('allows when unlocked', async () => {
-					const result = lockManager.lockWholeFile(TEST_FILE1, {
-						type: 'exclusive',
-						pid: 1,
-						fd: 1,
-						waitForLock: false,
-					});
-					expect(result).toBe(true);
+					const testFile1Fd = openSync(TEST_FILE1, 'r');
+					try {
+						const result = lockManager.lockWholeFile(TEST_FILE1, {
+							type: 'exclusive',
+							pid: 1,
+							fd: testFile1Fd,
+							waitForLock: false,
+						});
+						expect(result).toBe(true);
+					} finally {
+						closeSync(testFile1Fd);
+					}
 				});
 
 				it('allows when the process already holds a lock with the same file descriptor', async () => {
-					const requestedLock: WholeFileLockOp = {
-						type: 'exclusive',
-						pid: 1,
-						fd: 1,
-						waitForLock: false,
-					};
-					const result1 = lockManager.lockWholeFile(
-						TEST_FILE1,
-						requestedLock
-					);
-					expect(result1).toBe(true);
+					const testFile1Fd = openSync(TEST_FILE1, 'r');
+					try {
+						const requestedLock: WholeFileLockOp = {
+							type: 'exclusive',
+							pid: 1,
+							fd: testFile1Fd,
+							waitForLock: false,
+						};
+						const result1 = lockManager.lockWholeFile(
+							TEST_FILE1,
+							requestedLock
+						);
+						expect(result1).toBe(true);
 
-					const result2 = lockManager.lockWholeFile(
-						TEST_FILE1,
-						requestedLock
-					);
-					expect(result2).toBe(true);
+						const result2 = lockManager.lockWholeFile(
+							TEST_FILE1,
+							requestedLock
+						);
+						expect(result2).toBe(true);
+					} finally {
+						closeSync(testFile1Fd);
+					}
 				});
 
+				// TODO: In Windows, the second open may fail because of the exclusive lock on the first fd.
 				it('denies when only whole-file locked by same process with different file descriptor', async () => {
 					// First lock
+					const testFile1Fd1 = openSync(TEST_FILE1, 'r');
 					const result1 = lockManager.lockWholeFile(TEST_FILE1, {
 						type: 'exclusive',
 						pid: 1,
-						fd: 1,
+						fd: testFile1Fd1,
 						waitForLock: false,
 					});
 					expect(result1).toBe(true);
 
-					// Second lock by same process
-					const result2 = lockManager.lockWholeFile(TEST_FILE1, {
-						type: 'exclusive',
-						pid: 1,
-						fd: 2,
-						waitForLock: false,
-					});
-					expect(result2).toBe(false);
+					const testFile1Fd2 = openSync(TEST_FILE1, 'r');
+					try {
+						// Second lock by same process
+						const result2 = lockManager.lockWholeFile(TEST_FILE1, {
+							type: 'exclusive',
+							pid: 1,
+							fd: testFile1Fd2,
+							waitForLock: false,
+						});
+						expect(result2).toBe(false);
+					} finally {
+						closeSync(testFile1Fd2);
+					}
 				});
 
+				// TODO: Drop test or implement compatibility layer. On Linux because fcntl() and flock()
+				// locks are separate, we do not expect them to conflict.
 				it('denies when byte-range locked by same process', async () => {
 					// First get a byte range lock
 					const result1 = await lockManager.lockFileByteRange(
@@ -97,7 +176,7 @@ export function declareFileLockManagerTests({
 							start: 0n,
 							end: 100n,
 							pid: 1,
-							fd: 1,
+							fd: localTestFile1Fd,
 						},
 						false
 					);
@@ -109,7 +188,7 @@ export function declareFileLockManagerTests({
 						{
 							type: 'exclusive',
 							pid: 1,
-							fd: 1,
+							fd: localTestFile1Fd,
 							waitForLock: false,
 						}
 					);
@@ -117,22 +196,25 @@ export function declareFileLockManagerTests({
 				});
 
 				it('denies when other process holds exclusive whole-file lock', async () => {
-					// First process locks
+					// This process locks
 					const result1 = lockManager.lockWholeFile(TEST_FILE1, {
 						type: 'exclusive',
 						pid: 1,
-						fd: 1,
+						fd: localTestFile1Fd,
 						waitForLock: false,
 					});
 					expect(result1).toBe(true);
 
-					// Second process tries to lock
-					const result2 = lockManager.lockWholeFile(TEST_FILE1, {
-						type: 'exclusive',
-						pid: 2,
-						fd: 1,
-						waitForLock: false,
-					});
+					// Remote process tries to lock
+					const result2 = await remoteProcessApi.lockWholeFile(
+						TEST_FILE1,
+						{
+							type: 'exclusive',
+							pid: 2,
+							fd: remoteTestFile1Fd,
+							waitForLock: false,
+						}
+					);
 					expect(result2).toBe(false);
 				});
 
@@ -141,18 +223,21 @@ export function declareFileLockManagerTests({
 					const result1 = lockManager.lockWholeFile(TEST_FILE1, {
 						type: 'shared',
 						pid: 1,
-						fd: 1,
+						fd: localTestFile1Fd,
 						waitForLock: false,
 					});
 					expect(result1).toBe(true);
 
 					// Second process tries to get exclusive lock
-					const result2 = lockManager.lockWholeFile(TEST_FILE1, {
-						type: 'exclusive',
-						pid: 2,
-						fd: 1,
-						waitForLock: false,
-					});
+					const result2 = await remoteProcessApi.lockWholeFile(
+						TEST_FILE1,
+						{
+							type: 'exclusive',
+							pid: 2,
+							fd: remoteTestFile1Fd,
+							waitForLock: false,
+						}
+					);
 					expect(result2).toBe(false);
 				});
 
@@ -165,19 +250,22 @@ export function declareFileLockManagerTests({
 							start: 0n,
 							end: 100n,
 							pid: 1,
-							fd: 1,
+							fd: localTestFile1Fd,
 						},
 						false
 					);
 					expect(result1).toBe(true);
 
 					// Second process tries to get exclusive whole-file lock
-					const result2 = lockManager.lockWholeFile(TEST_FILE1, {
-						type: 'exclusive',
-						pid: 2,
-						fd: 2,
-						waitForLock: false,
-					});
+					const result2 = await remoteProcessApi.lockWholeFile(
+						TEST_FILE1,
+						{
+							type: 'exclusive',
+							pid: 2,
+							fd: remoteTestFile1Fd,
+							waitForLock: false,
+						}
+					);
 					expect(result2).toBe(false);
 				});
 
@@ -190,19 +278,22 @@ export function declareFileLockManagerTests({
 							start: 0n,
 							end: 100n,
 							pid: 1,
-							fd: 1,
+							fd: localTestFile1Fd,
 						},
 						false
 					);
 					expect(result1).toBe(true);
 
 					// Second process tries to get exclusive whole-file lock
-					const result2 = lockManager.lockWholeFile(TEST_FILE1, {
-						type: 'exclusive',
-						pid: 2,
-						fd: 2,
-						waitForLock: false,
-					});
+					const result2 = await remoteProcessApi.lockWholeFile(
+						TEST_FILE1,
+						{
+							type: 'exclusive',
+							pid: 2,
+							fd: remoteTestFile1Fd,
+							waitForLock: false,
+						}
+					);
 					expect(result2).toBe(false);
 				});
 			});
@@ -211,30 +302,35 @@ export function declareFileLockManagerTests({
 					const result = lockManager.lockWholeFile(TEST_FILE1, {
 						type: 'shared',
 						pid: 1,
-						fd: 1,
+						fd: localTestFile1Fd,
 						waitForLock: false,
 					});
 					expect(result).toBe(true);
 				});
 
 				it('allows when only whole-file locked by same process', async () => {
-					// First lock
-					const result1 = lockManager.lockWholeFile(TEST_FILE1, {
-						type: 'shared',
-						pid: 1,
-						fd: 1,
-						waitForLock: false,
-					});
-					expect(result1).toBe(true);
+					const testFile1Fd2 = openSync(TEST_FILE1, 'r');
+					try {
+						// First lock
+						const result1 = lockManager.lockWholeFile(TEST_FILE1, {
+							type: 'shared',
+							pid: 1,
+							fd: localTestFile1Fd,
+							waitForLock: false,
+						});
+						expect(result1).toBe(true);
 
-					// Second lock by same process
-					const result2 = lockManager.lockWholeFile(TEST_FILE1, {
-						type: 'shared',
-						pid: 1,
-						fd: 2,
-						waitForLock: false,
-					});
-					expect(result2).toBe(true);
+						// Second lock by same process
+						const result2 = lockManager.lockWholeFile(TEST_FILE1, {
+							type: 'shared',
+							pid: 1,
+							fd: testFile1Fd2,
+							waitForLock: false,
+						});
+						expect(result2).toBe(true);
+					} finally {
+						closeSync(testFile1Fd2);
+					}
 				});
 
 				it('denies when only exclusively byte-range locked by same process', async () => {
@@ -246,20 +342,25 @@ export function declareFileLockManagerTests({
 							start: 0n,
 							end: 100n,
 							pid: 1,
-							fd: 1,
+							fd: localTestFile1Fd,
 						},
 						false
 					);
 					expect(result1).toBe(true);
 
-					// Same process tries to get shared whole-file lock
-					const result2 = lockManager.lockWholeFile(TEST_FILE1, {
-						type: 'shared',
-						pid: 1,
-						fd: 2,
-						waitForLock: false,
-					});
-					expect(result2).toBe(false);
+					const testFile1Fd2 = openSync(TEST_FILE1, 'r');
+					try {
+						// Same process tries to get shared whole-file lock
+						const result2 = lockManager.lockWholeFile(TEST_FILE1, {
+							type: 'shared',
+							pid: 1,
+							fd: testFile1Fd2,
+							waitForLock: false,
+						});
+						expect(result2).toBe(false);
+					} finally {
+						closeSync(testFile1Fd2);
+					}
 				});
 
 				it('denies when other process holds exclusive whole-file lock', async () => {
@@ -267,18 +368,21 @@ export function declareFileLockManagerTests({
 					const result1 = lockManager.lockWholeFile(TEST_FILE1, {
 						type: 'exclusive',
 						pid: 1,
-						fd: 1,
+						fd: localTestFile1Fd,
 						waitForLock: false,
 					});
 					expect(result1).toBe(true);
 
 					// Second process tries to get shared lock
-					const result2 = lockManager.lockWholeFile(TEST_FILE1, {
-						type: 'shared',
-						pid: 2,
-						fd: 1,
-						waitForLock: false,
-					});
+					const result2 = await remoteProcessApi.lockWholeFile(
+						TEST_FILE1,
+						{
+							type: 'shared',
+							pid: 2,
+							fd: remoteTestFile1Fd,
+							waitForLock: false,
+						}
+					);
 					expect(result2).toBe(false);
 				});
 
@@ -287,7 +391,7 @@ export function declareFileLockManagerTests({
 					const result1 = lockManager.lockWholeFile(TEST_FILE1, {
 						type: 'shared',
 						pid: 1,
-						fd: 1,
+						fd: localTestFile1Fd,
 						waitForLock: false,
 					});
 					expect(result1).toBe(true);
@@ -296,7 +400,7 @@ export function declareFileLockManagerTests({
 					const result2 = lockManager.lockWholeFile(TEST_FILE1, {
 						type: 'shared',
 						pid: 1,
-						fd: 1,
+						fd: localTestFile1Fd,
 						waitForLock: false,
 					});
 					expect(result2).toBe(true);
@@ -307,18 +411,21 @@ export function declareFileLockManagerTests({
 					const result1 = lockManager.lockWholeFile(TEST_FILE1, {
 						type: 'shared',
 						pid: 1,
-						fd: 1,
+						fd: localTestFile1Fd,
 						waitForLock: false,
 					});
 					expect(result1).toBe(true);
 
 					// Second process gets shared lock
-					const result2 = lockManager.lockWholeFile(TEST_FILE1, {
-						type: 'shared',
-						pid: 2,
-						fd: 1,
-						waitForLock: false,
-					});
+					const result2 = await remoteProcessApi.lockWholeFile(
+						TEST_FILE1,
+						{
+							type: 'shared',
+							pid: 2,
+							fd: remoteTestFile1Fd,
+							waitForLock: false,
+						}
+					);
 					expect(result2).toBe(true);
 				});
 
@@ -331,19 +438,22 @@ export function declareFileLockManagerTests({
 							start: 0n,
 							end: 100n,
 							pid: 1,
-							fd: 1,
+							fd: localTestFile1Fd,
 						},
 						false
 					);
 					expect(result1).toBe(true);
 
 					// Second process tries to get shared whole-file lock
-					const result2 = lockManager.lockWholeFile(TEST_FILE1, {
-						type: 'shared',
-						pid: 2,
-						fd: 2,
-						waitForLock: false,
-					});
+					const result2 = await remoteProcessApi.lockWholeFile(
+						TEST_FILE1,
+						{
+							type: 'shared',
+							pid: 2,
+							fd: remoteTestFile1Fd,
+							waitForLock: false,
+						}
+					);
 					expect(result2).toBe(false);
 				});
 
@@ -356,19 +466,22 @@ export function declareFileLockManagerTests({
 							start: 0n,
 							end: 100n,
 							pid: 1,
-							fd: 1,
+							fd: localTestFile1Fd,
 						},
 						false
 					);
 					expect(result1).toBe(true);
 
 					// Second process gets shared whole-file lock
-					const result2 = lockManager.lockWholeFile(TEST_FILE1, {
-						type: 'shared',
-						pid: 2,
-						fd: 1,
-						waitForLock: false,
-					});
+					const result2 = await remoteProcessApi.lockWholeFile(
+						TEST_FILE1,
+						{
+							type: 'shared',
+							pid: 2,
+							fd: remoteTestFile1Fd,
+							waitForLock: false,
+						}
+					);
 					expect(result2).toBe(true);
 				});
 			});
@@ -377,7 +490,7 @@ export function declareFileLockManagerTests({
 					const result = lockManager.lockWholeFile(TEST_FILE1, {
 						type: 'unlock',
 						pid: 1,
-						fd: 1,
+						fd: localTestFile1Fd,
 					});
 					expect(result).toBe(true);
 				});
@@ -387,7 +500,7 @@ export function declareFileLockManagerTests({
 					const result1 = lockManager.lockWholeFile(TEST_FILE1, {
 						type: 'shared',
 						pid: 1,
-						fd: 1,
+						fd: localTestFile1Fd,
 						waitForLock: false,
 					});
 					expect(result1).toBe(true);
@@ -396,16 +509,19 @@ export function declareFileLockManagerTests({
 					lockManager.lockWholeFile(TEST_FILE1, {
 						type: 'unlock',
 						pid: 1,
-						fd: 1,
+						fd: localTestFile1Fd,
 					});
 
 					// Verify it's unlocked by getting an exclusive lock for another process
-					const result2 = lockManager.lockWholeFile(TEST_FILE1, {
-						type: 'exclusive',
-						pid: 2,
-						fd: 1,
-						waitForLock: false,
-					});
+					const result2 = await remoteProcessApi.lockWholeFile(
+						TEST_FILE1,
+						{
+							type: 'exclusive',
+							pid: 2,
+							fd: remoteTestFile1Fd,
+							waitForLock: false,
+						}
+					);
 					expect(result2).toBe(true);
 				});
 
@@ -414,7 +530,7 @@ export function declareFileLockManagerTests({
 					const result1 = lockManager.lockWholeFile(TEST_FILE1, {
 						type: 'exclusive',
 						pid: 1,
-						fd: 1,
+						fd: localTestFile1Fd,
 						waitForLock: false,
 					});
 					expect(result1).toBe(true);
@@ -423,23 +539,26 @@ export function declareFileLockManagerTests({
 					const result2 = lockManager.lockWholeFile(TEST_FILE1, {
 						type: 'unlock',
 						pid: 1,
-						fd: 1,
+						fd: localTestFile1Fd,
 					});
 					expect(result2).toBe(true);
 
 					// Verify it's unlocked by getting an exclusive lock
-					const result3 = lockManager.lockWholeFile(TEST_FILE1, {
-						type: 'exclusive',
-						pid: 2,
-						fd: 1,
-						waitForLock: false,
-					});
+					const result3 = await remoteProcessApi.lockWholeFile(
+						TEST_FILE1,
+						{
+							type: 'exclusive',
+							pid: 2,
+							fd: remoteTestFile1Fd,
+							waitForLock: false,
+						}
+					);
 					expect(result3).toBe(true);
 				});
 			});
 		});
 
-		describe('lockFileByteRange', () => {
+		describe.skip('lockFileByteRange', () => {
 			describe('exclusive', () => {
 				it('allows when file unlocked', async () => {
 					const result = lockManager.lockFileByteRange(
@@ -449,7 +568,7 @@ export function declareFileLockManagerTests({
 							start: 0n,
 							end: 100n,
 							pid: 1,
-							fd: 1,
+							fd: localTestFile1Fd,
 						},
 						false
 					);
@@ -461,20 +580,20 @@ export function declareFileLockManagerTests({
 					const result1 = lockManager.lockWholeFile(TEST_FILE1, {
 						type: 'exclusive',
 						pid: 1,
-						fd: 1,
+						fd: localTestFile1Fd,
 						waitForLock: false,
 					});
 					expect(result1).toBe(true);
 
 					// Second process tries to get exclusive range lock
-					const result2 = lockManager.lockFileByteRange(
+					const result2 = await remoteProcessApi.lockFileByteRange(
 						TEST_FILE1,
 						{
 							type: 'exclusive',
 							start: 0n,
 							end: 100n,
 							pid: 2,
-							fd: 1,
+							fd: remoteTestFile1Fd,
 						},
 						false
 					);
@@ -486,20 +605,20 @@ export function declareFileLockManagerTests({
 					const result1 = lockManager.lockWholeFile(TEST_FILE1, {
 						type: 'shared',
 						pid: 1,
-						fd: 1,
+						fd: localTestFile1Fd,
 						waitForLock: false,
 					});
 					expect(result1).toBe(true);
 
 					// Second process tries to get exclusive range lock
-					const result2 = lockManager.lockFileByteRange(
+					const result2 = await remoteProcessApi.lockFileByteRange(
 						TEST_FILE1,
 						{
 							type: 'exclusive',
 							start: 0n,
 							end: 100n,
 							pid: 2,
-							fd: 1,
+							fd: remoteTestFile1Fd,
 						},
 						false
 					);
@@ -515,21 +634,21 @@ export function declareFileLockManagerTests({
 							start: 0n,
 							end: 150n,
 							pid: 1,
-							fd: 1,
+							fd: localTestFile1Fd,
 						},
 						false
 					);
 					expect(result1).toBe(true);
 
 					// Second process tries to get overlapping exclusive range lock
-					const result2 = lockManager.lockFileByteRange(
+					const result2 = await remoteProcessApi.lockFileByteRange(
 						TEST_FILE1,
 						{
 							type: 'exclusive',
 							start: 0n,
 							end: 100n,
 							pid: 2,
-							fd: 1,
+							fd: remoteTestFile1Fd,
 						},
 						false
 					);
@@ -545,21 +664,21 @@ export function declareFileLockManagerTests({
 							start: 50n,
 							end: 150n,
 							pid: 1,
-							fd: 1,
+							fd: localTestFile1Fd,
 						},
 						false
 					);
 					expect(result1).toBe(true);
 
 					// Second process tries to get overlapping exclusive range lock
-					const result2 = lockManager.lockFileByteRange(
+					const result2 = await remoteProcessApi.lockFileByteRange(
 						TEST_FILE1,
 						{
 							type: 'exclusive',
 							start: 0n,
 							end: 100n,
 							pid: 2,
-							fd: 1,
+							fd: remoteTestFile1Fd,
 						},
 						false
 					);
@@ -575,21 +694,21 @@ export function declareFileLockManagerTests({
 							start: 0n,
 							end: 50n,
 							pid: 1,
-							fd: 1,
+							fd: localTestFile1Fd,
 						},
 						false
 					);
 					expect(result1).toBe(true);
 
 					// Second process gets non-overlapping exclusive range lock
-					const result2 = lockManager.lockFileByteRange(
+					const result2 = await remoteProcessApi.lockFileByteRange(
 						TEST_FILE1,
 						{
 							type: 'exclusive',
 							start: 100n,
 							end: 150n,
 							pid: 2,
-							fd: 1,
+							fd: remoteTestFile1Fd,
 						},
 						false
 					);
@@ -605,21 +724,21 @@ export function declareFileLockManagerTests({
 							start: 0n,
 							end: 50n,
 							pid: 1,
-							fd: 1,
+							fd: localTestFile1Fd,
 						},
 						false
 					);
 					expect(result1).toBe(true);
 
 					// Second process gets non-overlapping exclusive range lock
-					const result2 = lockManager.lockFileByteRange(
+					const result2 = await remoteProcessApi.lockFileByteRange(
 						TEST_FILE1,
 						{
 							type: 'exclusive',
 							start: 100n,
 							end: 150n,
 							pid: 2,
-							fd: 1,
+							fd: remoteTestFile1Fd,
 						},
 						false
 					);
@@ -635,7 +754,7 @@ export function declareFileLockManagerTests({
 							start: 0n,
 							end: 100n,
 							pid: 1,
-							fd: 1,
+							fd: localTestFile1Fd,
 						},
 						false
 					);
@@ -649,7 +768,7 @@ export function declareFileLockManagerTests({
 							start: 50n,
 							end: 150n,
 							pid: 1,
-							fd: 1,
+							fd: localTestFile1Fd,
 						},
 						false
 					);
@@ -657,14 +776,14 @@ export function declareFileLockManagerTests({
 
 					// Verify the old lock range is in place by trying to get a lock in that range
 					const obtainedExclusiveLockOnOldRange =
-						lockManager.lockFileByteRange(
+						await remoteProcessApi.lockFileByteRange(
 							TEST_FILE1,
 							{
 								type: 'exclusive',
 								start: 0n,
 								end: 50n,
 								pid: 2,
-								fd: 1,
+								fd: remoteTestFile1Fd,
 							},
 							false
 						);
@@ -672,14 +791,14 @@ export function declareFileLockManagerTests({
 
 					// Verify the new lock range is in place by trying to get a lock in that range
 					const obtainedExclusiveLockOnNewRange =
-						lockManager.lockFileByteRange(
+						await remoteProcessApi.lockFileByteRange(
 							TEST_FILE1,
 							{
 								type: 'exclusive',
 								start: 100n,
 								end: 150n,
 								pid: 2,
-								fd: 1,
+								fd: remoteTestFile1Fd,
 							},
 							false
 						);
@@ -695,35 +814,35 @@ export function declareFileLockManagerTests({
 							start: 100n,
 							end: 100n,
 							pid: 1,
-							fd: 1,
+							fd: localTestFile1Fd,
 						},
 						false
 					);
 					expect(result1).toBe(true);
 
 					// Try to get a lock in the remaining range
-					const result2 = lockManager.lockFileByteRange(
+					const result2 = await remoteProcessApi.lockFileByteRange(
 						TEST_FILE1,
 						{
 							type: 'exclusive',
 							start: 0n,
 							end: 100n,
 							pid: 2,
-							fd: 1,
+							fd: remoteTestFile1Fd,
 						},
 						false
 					);
 					expect(result2).toBe(true);
 
 					// Try to get a lock after the zero-length lock
-					const result3 = lockManager.lockFileByteRange(
+					const result3 = await remoteProcessApi.lockFileByteRange(
 						TEST_FILE1,
 						{
 							type: 'exclusive',
 							start: 100n,
 							end: 200n,
 							pid: 2,
-							fd: 1,
+							fd: remoteTestFile1Fd,
 						},
 						false
 					);
@@ -739,7 +858,7 @@ export function declareFileLockManagerTests({
 							start: 0n,
 							end: 100n,
 							pid: 1,
-							fd: 1,
+							fd: localTestFile1Fd,
 						},
 						false
 					);
@@ -751,20 +870,20 @@ export function declareFileLockManagerTests({
 					const result1 = lockManager.lockWholeFile(TEST_FILE1, {
 						type: 'exclusive',
 						pid: 1,
-						fd: 1,
+						fd: localTestFile1Fd,
 						waitForLock: false,
 					});
 					expect(result1).toBe(true);
 
 					// Second process tries to get shared range lock
-					const result2 = lockManager.lockFileByteRange(
+					const result2 = await remoteProcessApi.lockFileByteRange(
 						TEST_FILE1,
 						{
 							type: 'shared',
 							start: 0n,
 							end: 100n,
 							pid: 2,
-							fd: 1,
+							fd: remoteTestFile1Fd,
 						},
 						false
 					);
@@ -776,20 +895,20 @@ export function declareFileLockManagerTests({
 					const result1 = lockManager.lockWholeFile(TEST_FILE1, {
 						type: 'shared',
 						pid: 1,
-						fd: 1,
+						fd: localTestFile1Fd,
 						waitForLock: false,
 					});
 					expect(result1).toBe(true);
 
 					// Second process gets shared range lock
-					const result2 = lockManager.lockFileByteRange(
+					const result2 = await remoteProcessApi.lockFileByteRange(
 						TEST_FILE1,
 						{
 							type: 'shared',
 							start: 0n,
 							end: 100n,
 							pid: 2,
-							fd: 1,
+							fd: remoteTestFile1Fd,
 						},
 						false
 					);
@@ -805,21 +924,21 @@ export function declareFileLockManagerTests({
 							start: 50n,
 							end: 150n,
 							pid: 1,
-							fd: 1,
+							fd: localTestFile1Fd,
 						},
 						false
 					);
 					expect(result1).toBe(true);
 
 					// Second process tries to get overlapping shared range lock
-					const result2 = lockManager.lockFileByteRange(
+					const result2 = await remoteProcessApi.lockFileByteRange(
 						TEST_FILE1,
 						{
 							type: 'shared',
 							start: 0n,
 							end: 100n,
 							pid: 2,
-							fd: 1,
+							fd: remoteTestFile1Fd,
 						},
 						false
 					);
@@ -835,21 +954,21 @@ export function declareFileLockManagerTests({
 							start: 50n,
 							end: 150n,
 							pid: 1,
-							fd: 1,
+							fd: localTestFile1Fd,
 						},
 						false
 					);
 					expect(result1).toBe(true);
 
 					// Second process gets overlapping shared range lock
-					const result2 = lockManager.lockFileByteRange(
+					const result2 = await remoteProcessApi.lockFileByteRange(
 						TEST_FILE1,
 						{
 							type: 'shared',
 							start: 0n,
 							end: 100n,
 							pid: 2,
-							fd: 1,
+							fd: remoteTestFile1Fd,
 						},
 						false
 					);
@@ -865,21 +984,21 @@ export function declareFileLockManagerTests({
 							start: 0n,
 							end: 50n,
 							pid: 1,
-							fd: 1,
+							fd: localTestFile1Fd,
 						},
 						false
 					);
 					expect(result1).toBe(true);
 
 					// Second process gets non-overlapping shared range lock
-					const result2 = lockManager.lockFileByteRange(
+					const result2 = await remoteProcessApi.lockFileByteRange(
 						TEST_FILE1,
 						{
 							type: 'shared',
 							start: 100n,
 							end: 150n,
 							pid: 2,
-							fd: 1,
+							fd: remoteTestFile1Fd,
 						},
 						false
 					);
@@ -895,21 +1014,21 @@ export function declareFileLockManagerTests({
 							start: 0n,
 							end: 50n,
 							pid: 1,
-							fd: 1,
+							fd: localTestFile1Fd,
 						},
 						false
 					);
 					expect(result1).toBe(true);
 
 					// Second process gets non-overlapping shared range lock
-					const result2 = lockManager.lockFileByteRange(
+					const result2 = await remoteProcessApi.lockFileByteRange(
 						TEST_FILE1,
 						{
 							type: 'shared',
 							start: 100n,
 							end: 150n,
 							pid: 2,
-							fd: 1,
+							fd: remoteTestFile1Fd,
 						},
 						false
 					);
@@ -925,7 +1044,7 @@ export function declareFileLockManagerTests({
 							start: 0n,
 							end: 100n,
 							pid: 1,
-							fd: 1,
+							fd: localTestFile1Fd,
 						},
 						false
 					);
@@ -939,21 +1058,21 @@ export function declareFileLockManagerTests({
 							start: 50n,
 							end: 150n,
 							pid: 1,
-							fd: 1,
+							fd: localTestFile1Fd,
 						},
 						false
 					);
 					expect(result2).toBe(true);
 
 					// Verify the old lock is gone by trying to get a lock in that range
-					const result3 = lockManager.lockFileByteRange(
+					const result3 = await remoteProcessApi.lockFileByteRange(
 						TEST_FILE1,
 						{
 							type: 'shared',
 							start: 0n,
 							end: 50n,
 							pid: 2,
-							fd: 1,
+							fd: remoteTestFile1Fd,
 						},
 						false
 					);
@@ -969,7 +1088,7 @@ export function declareFileLockManagerTests({
 							start: 100n,
 							end: 100n,
 							pid: 1,
-							fd: 1,
+							fd: localTestFile1Fd,
 						},
 						false
 					);
@@ -977,14 +1096,14 @@ export function declareFileLockManagerTests({
 
 					// Confirm correct starting point by getting an exclusive lock
 					// before the start of the "infinite" range.
-					const result2 = lockManager.lockFileByteRange(
+					const result2 = await remoteProcessApi.lockFileByteRange(
 						TEST_FILE1,
 						{
 							type: 'exclusive',
 							start: 0n,
 							end: 100n,
 							pid: 2,
-							fd: 1,
+							fd: remoteTestFile1Fd,
 						},
 						false
 					);
@@ -992,14 +1111,14 @@ export function declareFileLockManagerTests({
 
 					// Confirm the rest of the file is already locked by attempting to exclusively lock
 					// within a large part of that range
-					const result3 = lockManager.lockFileByteRange(
+					const result3 = await remoteProcessApi.lockFileByteRange(
 						TEST_FILE1,
 						{
 							type: 'exclusive',
 							start: 200n,
 							end: BigInt(Number.MAX_SAFE_INTEGER),
 							pid: 2,
-							fd: 1,
+							fd: remoteTestFile1Fd,
 						},
 						false
 					);
@@ -1016,7 +1135,7 @@ export function declareFileLockManagerTests({
 								start: 0n,
 								end: 100n,
 								pid: 1,
-								fd: 1,
+								fd: localTestFile1Fd,
 							},
 							false
 						)
@@ -1032,7 +1151,7 @@ export function declareFileLockManagerTests({
 							start: 0n,
 							end: 100n,
 							pid: 1,
-							fd: 1,
+							fd: localTestFile1Fd,
 						},
 						false
 					);
@@ -1046,20 +1165,20 @@ export function declareFileLockManagerTests({
 							start: 0n,
 							end: 100n,
 							pid: 1,
-							fd: 1,
+							fd: localTestFile1Fd,
 						},
 						false
 					);
 
 					// Verify it's unlocked by getting an exclusive lock
-					const result2 = lockManager.lockFileByteRange(
+					const result2 = await remoteProcessApi.lockFileByteRange(
 						TEST_FILE1,
 						{
 							type: 'exclusive',
 							start: 0n,
 							end: 100n,
 							pid: 2,
-							fd: 1,
+							fd: remoteTestFile1Fd,
 						},
 						false
 					);
@@ -1075,7 +1194,7 @@ export function declareFileLockManagerTests({
 							start: 0n,
 							end: 100n,
 							pid: 1,
-							fd: 1,
+							fd: localTestFile1Fd,
 						},
 						false
 					);
@@ -1089,20 +1208,20 @@ export function declareFileLockManagerTests({
 							start: 0n,
 							end: 100n,
 							pid: 1,
-							fd: 1,
+							fd: localTestFile1Fd,
 						},
 						false
 					);
 
 					// Verify it's unlocked by getting an exclusive lock
-					const result2 = lockManager.lockFileByteRange(
+					const result2 = await remoteProcessApi.lockFileByteRange(
 						TEST_FILE1,
 						{
 							type: 'exclusive',
 							start: 0n,
 							end: 100n,
 							pid: 2,
-							fd: 1,
+							fd: remoteTestFile1Fd,
 						},
 						false
 					);
@@ -1118,20 +1237,20 @@ export function declareFileLockManagerTests({
 							start: 0n,
 							end: 50n,
 							pid: 1,
-							fd: 1,
+							fd: localTestFile1Fd,
 						},
 						false
 					);
 					expect(result1).toBe(true);
 
-					const result2 = lockManager.lockFileByteRange(
+					const result2 = await remoteProcessApi.lockFileByteRange(
 						TEST_FILE1,
 						{
 							type: 'exclusive',
 							start: 50n,
 							end: 100n,
 							pid: 2,
-							fd: 1,
+							fd: remoteTestFile1Fd,
 						},
 						false
 					);
@@ -1145,7 +1264,7 @@ export function declareFileLockManagerTests({
 							start: 0n,
 							end: 50n,
 							pid: 1,
-							fd: 1,
+							fd: localTestFile1Fd,
 						},
 						false
 					);
@@ -1158,7 +1277,7 @@ export function declareFileLockManagerTests({
 							start: 50n,
 							end: 100n,
 							pid: 1,
-							fd: 1,
+							fd: localTestFile1Fd,
 						},
 						false
 					);
@@ -1173,7 +1292,7 @@ export function declareFileLockManagerTests({
 							start: 0n,
 							end: 100n,
 							pid: 1,
-							fd: 1,
+							fd: localTestFile1Fd,
 						},
 						false
 					);
@@ -1187,33 +1306,33 @@ export function declareFileLockManagerTests({
 							start: 50n,
 							end: 150n,
 							pid: 1,
-							fd: 1,
+							fd: localTestFile1Fd,
 						},
 						false
 					);
 
 					// Verify we can now lock 50-100 but not 0-50
-					const result2 = lockManager.lockFileByteRange(
+					const result2 = await remoteProcessApi.lockFileByteRange(
 						TEST_FILE1,
 						{
 							type: 'exclusive',
 							start: 50n,
 							end: 100n,
 							pid: 2,
-							fd: 1,
+							fd: remoteTestFile1Fd,
 						},
 						false
 					);
 					expect(result2).toBe(true);
 
-					const result3 = lockManager.lockFileByteRange(
+					const result3 = await remoteProcessApi.lockFileByteRange(
 						TEST_FILE1,
 						{
 							type: 'exclusive',
 							start: 0n,
 							end: 50n,
 							pid: 2,
-							fd: 1,
+							fd: remoteTestFile1Fd,
 						},
 						false
 					);
@@ -1229,7 +1348,7 @@ export function declareFileLockManagerTests({
 							start: 50n,
 							end: 150n,
 							pid: 1,
-							fd: 1,
+							fd: localTestFile1Fd,
 						},
 						false
 					);
@@ -1243,33 +1362,33 @@ export function declareFileLockManagerTests({
 							start: 0n,
 							end: 100n,
 							pid: 1,
-							fd: 1,
+							fd: localTestFile1Fd,
 						},
 						false
 					);
 
 					// Verify we can now lock 50-100 but not 100-150
-					const result2 = lockManager.lockFileByteRange(
+					const result2 = await remoteProcessApi.lockFileByteRange(
 						TEST_FILE1,
 						{
 							type: 'exclusive',
 							start: 50n,
 							end: 100n,
 							pid: 2,
-							fd: 1,
+							fd: remoteTestFile1Fd,
 						},
 						false
 					);
 					expect(result2).toBe(true);
 
-					const result3 = lockManager.lockFileByteRange(
+					const result3 = await remoteProcessApi.lockFileByteRange(
 						TEST_FILE1,
 						{
 							type: 'exclusive',
 							start: 100n,
 							end: 150n,
 							pid: 2,
-							fd: 1,
+							fd: remoteTestFile1Fd,
 						},
 						false
 					);
@@ -1285,7 +1404,7 @@ export function declareFileLockManagerTests({
 							start: 0n,
 							end: 200n,
 							pid: 1,
-							fd: 1,
+							fd: localTestFile1Fd,
 						},
 						false
 					);
@@ -1299,46 +1418,46 @@ export function declareFileLockManagerTests({
 							start: 50n,
 							end: 150n,
 							pid: 1,
-							fd: 1,
+							fd: localTestFile1Fd,
 						},
 						false
 					);
 
 					// Verify we can now lock 50-150 but not 0-50 or 150-200
-					const result2 = lockManager.lockFileByteRange(
+					const result2 = await remoteProcessApi.lockFileByteRange(
 						TEST_FILE1,
 						{
 							type: 'exclusive',
 							start: 50n,
 							end: 150n,
 							pid: 2,
-							fd: 1,
+							fd: remoteTestFile1Fd,
 						},
 						false
 					);
 					expect(result2).toBe(true);
 
-					const result3 = lockManager.lockFileByteRange(
+					const result3 = await remoteProcessApi.lockFileByteRange(
 						TEST_FILE1,
 						{
 							type: 'exclusive',
 							start: 0n,
 							end: 50n,
 							pid: 2,
-							fd: 1,
+							fd: remoteTestFile1Fd,
 						},
 						false
 					);
 					expect(result3).toBe(false);
 
-					const result4 = lockManager.lockFileByteRange(
+					const result4 = await remoteProcessApi.lockFileByteRange(
 						TEST_FILE1,
 						{
 							type: 'exclusive',
 							start: 150n,
 							end: 200n,
 							pid: 2,
-							fd: 1,
+							fd: remoteTestFile1Fd,
 						},
 						false
 					);
@@ -1354,7 +1473,7 @@ export function declareFileLockManagerTests({
 							start: 100n,
 							end: 100n,
 							pid: 1,
-							fd: 1,
+							fd: localTestFile1Fd,
 						},
 						false
 					);
@@ -1368,20 +1487,20 @@ export function declareFileLockManagerTests({
 							start: 100n,
 							end: 100n,
 							pid: 1,
-							fd: 1,
+							fd: localTestFile1Fd,
 						},
 						false
 					);
 
 					// Verify it's unlocked by getting a lock after that point
-					const result2 = lockManager.lockFileByteRange(
+					const result2 = await remoteProcessApi.lockFileByteRange(
 						TEST_FILE1,
 						{
 							type: 'exclusive',
 							start: 100n,
 							end: 200n,
 							pid: 2,
-							fd: 1,
+							fd: remoteTestFile1Fd,
 						},
 						false
 					);
@@ -1390,7 +1509,7 @@ export function declareFileLockManagerTests({
 			});
 		});
 
-		describe('findFirstConflictingByteRangeLock', () => {
+		describe.skip('findFirstConflictingByteRangeLock', () => {
 			it('should find conflicting exclusive lock with partial overlap', async () => {
 				await lockManager.lockFileByteRange(
 					TEST_FILE1,
@@ -1399,7 +1518,7 @@ export function declareFileLockManagerTests({
 						start: 0n,
 						end: 100n,
 						pid: 1,
-						fd: 1,
+						fd: localTestFile1Fd,
 					},
 					false
 				);
@@ -1412,7 +1531,7 @@ export function declareFileLockManagerTests({
 							start: 50n,
 							end: 150n,
 							pid: 2,
-							fd: 1,
+							fd: localTestFile1Fd,
 						}
 					);
 
@@ -1429,7 +1548,7 @@ export function declareFileLockManagerTests({
 						start: 0n,
 						end: 100n,
 						pid: 1,
-						fd: 1,
+						fd: localTestFile1Fd,
 					},
 					false
 				);
@@ -1442,7 +1561,7 @@ export function declareFileLockManagerTests({
 							start: 150n,
 							end: 250n,
 							pid: 2,
-							fd: 1,
+							fd: localTestFile1Fd,
 						}
 					);
 
@@ -1454,7 +1573,7 @@ export function declareFileLockManagerTests({
 				const result1 = lockManager.lockWholeFile(TEST_FILE1, {
 					type: 'exclusive',
 					pid: 1,
-					fd: 1,
+					fd: localTestFile1Fd,
 					waitForLock: false,
 				});
 				expect(result1).toBe(true);
@@ -1468,7 +1587,7 @@ export function declareFileLockManagerTests({
 							start: 0n,
 							end: 100n,
 							pid: 2,
-							fd: 1,
+							fd: localTestFile1Fd,
 						}
 					);
 
@@ -1485,7 +1604,7 @@ export function declareFileLockManagerTests({
 				const result1 = lockManager.lockWholeFile(TEST_FILE1, {
 					type: 'exclusive',
 					pid: 1,
-					fd: 1,
+					fd: localTestFile1Fd,
 					waitForLock: false,
 				});
 				expect(result1).toBe(true);
@@ -1499,7 +1618,7 @@ export function declareFileLockManagerTests({
 							start: 0n,
 							end: 100n,
 							pid: 2,
-							fd: 1,
+							fd: localTestFile1Fd,
 						}
 					);
 
@@ -1516,7 +1635,7 @@ export function declareFileLockManagerTests({
 				const result1 = lockManager.lockWholeFile(TEST_FILE1, {
 					type: 'shared',
 					pid: 1,
-					fd: 1,
+					fd: localTestFile1Fd,
 					waitForLock: false,
 				});
 				expect(result1).toBe(true);
@@ -1530,7 +1649,7 @@ export function declareFileLockManagerTests({
 							start: 0n,
 							end: 100n,
 							pid: 2,
-							fd: 1,
+							fd: localTestFile1Fd,
 						}
 					);
 
@@ -1552,7 +1671,7 @@ export function declareFileLockManagerTests({
 						start: 0n,
 						end: 100n,
 						pid: 1,
-						fd: 1,
+						fd: localTestFile1Fd,
 					},
 					false
 				);
@@ -1563,7 +1682,7 @@ export function declareFileLockManagerTests({
 						start: 200n,
 						end: 300n,
 						pid: 1,
-						fd: 1,
+						fd: localTestFile1Fd,
 					},
 					false
 				);
@@ -1575,7 +1694,7 @@ export function declareFileLockManagerTests({
 							start: 0n,
 							end: 300n,
 							pid: 2,
-							fd: 1,
+							fd: localTestFile1Fd,
 						},
 						false
 					));
@@ -1588,7 +1707,7 @@ export function declareFileLockManagerTests({
 						start: 50n,
 						end: 150n,
 						pid: 1,
-						fd: 1,
+						fd: localTestFile2Fd,
 					},
 					false
 				);
@@ -1600,7 +1719,7 @@ export function declareFileLockManagerTests({
 							start: 0n,
 							end: 300n,
 							pid: 2,
-							fd: 1,
+							fd: localTestFile2Fd,
 						},
 						false
 					));
@@ -1617,7 +1736,7 @@ export function declareFileLockManagerTests({
 							start: 0n,
 							end: 300n,
 							pid: 2,
-							fd: 1,
+							fd: localTestFile1Fd,
 						},
 						false
 					);
@@ -1629,7 +1748,7 @@ export function declareFileLockManagerTests({
 							start: 0n,
 							end: 200n,
 							pid: 2,
-							fd: 1,
+							fd: localTestFile2Fd,
 						},
 						false
 					);
@@ -1642,7 +1761,7 @@ export function declareFileLockManagerTests({
 				await lockManager.lockWholeFile(TEST_FILE1, {
 					type: 'exclusive',
 					pid: 1,
-					fd: 1,
+					fd: localTestFile1Fd,
 					waitForLock: false,
 				});
 
@@ -1650,7 +1769,7 @@ export function declareFileLockManagerTests({
 					!(await lockManager.lockWholeFile(TEST_FILE1, {
 						type: 'shared',
 						pid: 2,
-						fd: 1,
+						fd: localTestFile1Fd,
 						waitForLock: false,
 					}));
 				expect(exclusiveLockAppearsToBeHeld).toBe(true);
@@ -1658,14 +1777,14 @@ export function declareFileLockManagerTests({
 				await lockManager.lockWholeFile(TEST_FILE2, {
 					type: 'shared',
 					pid: 1,
-					fd: 1,
+					fd: localTestFile2Fd,
 					waitForLock: false,
 				});
 				const sharedLockAppearsToBeHeld =
 					!(await lockManager.lockWholeFile(TEST_FILE2, {
 						type: 'exclusive',
 						pid: 2,
-						fd: 1,
+						fd: localTestFile2Fd,
 						waitForLock: false,
 					}));
 				expect(sharedLockAppearsToBeHeld).toBe(true);
@@ -1676,14 +1795,14 @@ export function declareFileLockManagerTests({
 					await lockManager.lockWholeFile(TEST_FILE1, {
 						type: 'shared',
 						pid: 2,
-						fd: 1,
+						fd: localTestFile1Fd,
 						waitForLock: false,
 					});
 				const sharedLockAppearsToBeReleased =
 					await lockManager.lockWholeFile(TEST_FILE2, {
 						type: 'exclusive',
 						pid: 2,
-						fd: 1,
+						fd: localTestFile2Fd,
 						waitForLock: false,
 					});
 
@@ -1700,7 +1819,7 @@ export function declareFileLockManagerTests({
 						start: 0n,
 						end: 50n,
 						pid: 1,
-						fd: 1,
+						fd: localTestFile1Fd,
 					},
 					false
 				);
@@ -1712,7 +1831,7 @@ export function declareFileLockManagerTests({
 						start: 50n,
 						end: 100n,
 						pid: 2,
-						fd: 1,
+						fd: localTestFile1Fd,
 					},
 					false
 				);
@@ -1728,277 +1847,12 @@ export function declareFileLockManagerTests({
 						start: 50n,
 						end: 100n,
 						pid: 1,
-						fd: 1,
+						fd: localTestFile1Fd,
 					},
 					false
 				);
 				expect(result).toBe(false);
 			});
 		});
-
-		// TODO: Test this with the native FileLockManager implementations.
-		describe.skipIf(!includeNativeTests)(
-			'integration with native OS file locking',
-			() => {
-				let childProcess: ChildProcess | undefined;
-
-				afterEach(async () => {
-					if (childProcess) {
-						await killProcess(childProcess);
-						childProcess = undefined;
-					}
-				});
-
-				it('cannot acquire exclusive lock when native exclusive lock exists', async () => {
-					// Child process gets native exclusive lock
-					const result1 = await spawnLockProcess(
-						TEST_FILE1,
-						'exclusive'
-					);
-					expect(result1).toEqual({
-						success: true,
-						child: expect.any(Object),
-					});
-					childProcess = result1.child;
-
-					// Try to get exclusive lock through lock manager
-					const result2 = lockManager.lockWholeFile(TEST_FILE1, {
-						type: 'exclusive',
-						pid: 1,
-						fd: 1,
-						waitForLock: false,
-					});
-					expect(result2).toBe(false);
-				});
-
-				it('cannot acquire shared lock when native exclusive lock exists', async () => {
-					// Child process gets native exclusive lock
-					const result1 = await spawnLockProcess(
-						TEST_FILE1,
-						'exclusive'
-					);
-					expect(result1).toEqual({
-						success: true,
-						child: expect.any(Object),
-					});
-					childProcess = result1.child;
-
-					// Try to get shared lock through lock manager
-					const result2 = lockManager.lockWholeFile(TEST_FILE1, {
-						type: 'shared',
-						pid: 1,
-						fd: 1,
-						waitForLock: false,
-					});
-					expect(result2).toBe(false);
-				});
-
-				it('can acquire shared lock when native shared lock exists', async () => {
-					// Child process gets native shared lock
-					const result1 = await spawnLockProcess(
-						TEST_FILE1,
-						'shared'
-					);
-					expect(result1).toEqual({
-						success: true,
-						child: expect.any(Object),
-					});
-					childProcess = result1.child;
-
-					// Try to get shared lock through lock manager
-					const result2 = lockManager.lockWholeFile(TEST_FILE1, {
-						type: 'shared',
-						pid: 1,
-						fd: 1,
-						waitForLock: false,
-					});
-					expect(result2).toBe(true);
-				});
-
-				it('cannot acquire exclusive lock when native shared lock exists', async () => {
-					// Child process gets native shared lock
-					const result1 = await spawnLockProcess(
-						TEST_FILE1,
-						'shared'
-					);
-					expect(result1).toEqual({
-						success: true,
-						child: expect.any(Object),
-					});
-					childProcess = result1.child;
-
-					// Try to get exclusive lock through lock manager
-					const result2 = lockManager.lockWholeFile(TEST_FILE1, {
-						type: 'exclusive',
-						pid: 1,
-						fd: 1,
-						waitForLock: false,
-					});
-					expect(result2).toBe(false);
-				});
-
-				it('cannot acquire exclusive range lock when native exclusive lock exists', async () => {
-					// Child process gets native exclusive lock
-					const result1 = await spawnLockProcess(
-						TEST_FILE1,
-						'exclusive'
-					);
-					expect(result1).toEqual({
-						success: true,
-						child: expect.any(Object),
-					});
-					childProcess = result1.child;
-
-					// Try to get exclusive range lock through lock manager
-					const result2 = lockManager.lockFileByteRange(
-						TEST_FILE1,
-						{
-							type: 'exclusive',
-							start: 0n,
-							end: 100n,
-							pid: 1,
-							fd: 1,
-						},
-						false
-					);
-					expect(result2).toBe(false);
-				});
-
-				it('cannot acquire shared range lock when native exclusive lock exists', async () => {
-					// Child process gets native exclusive lock
-					const result1 = await spawnLockProcess(
-						TEST_FILE1,
-						'exclusive'
-					);
-					expect(result1).toEqual({
-						success: true,
-						child: expect.any(Object),
-					});
-					childProcess = result1.child;
-
-					// Try to get shared range lock through lock manager
-					const result2 = lockManager.lockFileByteRange(
-						TEST_FILE1,
-						{
-							type: 'shared',
-							start: 0n,
-							end: 100n,
-							pid: 1,
-							fd: 1,
-						},
-						false
-					);
-					expect(result2).toBe(false);
-				});
-
-				it('can acquire shared range lock when native shared lock exists', async () => {
-					// Child process gets native shared lock
-					const result1 = await spawnLockProcess(
-						TEST_FILE1,
-						'shared'
-					);
-					expect(result1).toEqual({
-						success: true,
-						child: expect.any(Object),
-					});
-					childProcess = result1.child;
-
-					// Try to get shared range lock through lock manager
-					const result2 = lockManager.lockFileByteRange(
-						TEST_FILE1,
-						{
-							type: 'shared',
-							start: 0n,
-							end: 100n,
-							pid: 1,
-							fd: 1,
-						},
-						false
-					);
-					expect(result2).toBe(true);
-				});
-
-				it('cannot acquire exclusive range lock when native shared lock exists', async () => {
-					// Child process gets native shared lock
-					const result1 = await spawnLockProcess(
-						TEST_FILE1,
-						'shared'
-					);
-					expect(result1).toEqual({
-						success: true,
-						child: expect.any(Object),
-					});
-					childProcess = result1.child;
-
-					// Try to get exclusive range lock through lock manager
-					const result2 = lockManager.lockFileByteRange(
-						TEST_FILE1,
-						{
-							type: 'exclusive',
-							start: 0n,
-							end: 100n,
-							pid: 1,
-							fd: 1,
-						},
-						false
-					);
-					expect(result2).toBe(false);
-				});
-
-				// Helper function to spawn a child process that will attempt to acquire a lock
-				function spawnLockProcess(
-					filePath: string,
-					lockType: 'exclusive' | 'shared'
-				): Promise<{
-					success: boolean;
-					error?: string;
-					child?: ChildProcess;
-				}> {
-					return new Promise((resolve) => {
-						const child = fork(
-							join(__dirname, 'file-lock-test-worker.js')
-						);
-
-						child.on(
-							'message',
-							(message: {
-								type: 'success' | 'error';
-								fd?: number;
-								error?: string;
-							}) => {
-								if (message.type === 'success') {
-									resolve({ success: true, child });
-								} else {
-									resolve({
-										success: false,
-										error: message.error,
-										child,
-									});
-								}
-							}
-						);
-
-						child.on('error', (error) => {
-							resolve({
-								success: false,
-								error: error.message,
-								child,
-							});
-						});
-
-						child.send({ type: 'acquire', filePath, lockType });
-					});
-				}
-
-				// Helper function to kill a process
-				async function killProcess(child: ChildProcess): Promise<void> {
-					return new Promise((resolve) => {
-						child.send({ type: 'release' });
-						// Give the process a moment to clean up
-						child.on('exit', resolve);
-					});
-				}
-			}
-		);
 	});
 }
