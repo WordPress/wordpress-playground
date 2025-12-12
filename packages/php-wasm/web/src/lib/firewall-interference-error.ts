@@ -12,7 +12,9 @@ export class FirewallInterferenceError extends Error {
 
 	constructor(url: string, status: number, statusText: string) {
 		super(
-			`Response from ${url} appears intercepted by network firewall (HTTP ${status})`
+			`Could not fetch ${url} – your network appears to be blocking this request (HTTP ${status}). ` +
+				`This often happens on school, university, or corporate networks. ` +
+				`Try switching to a different network, using a VPN, or asking your IT administrator to allow requests to playground.wordpress.net.`
 		);
 		this.name = 'FirewallInterferenceError';
 		this.url = url;
