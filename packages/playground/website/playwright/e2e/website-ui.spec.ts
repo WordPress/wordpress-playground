@@ -343,9 +343,11 @@ test('should copy blueprint link to clipboard when share button is clicked', asy
 	await expect(shareButton).toBeVisible();
 	await shareButton.click();
 
-	// Verify success message appears
+	// Verify success message appears in the notice component
 	await expect(
-		website.page.getByText('Link copied to clipboard!')
+		website.page
+			.locator('.components-notice')
+			.getByText('Link copied to clipboard!')
 	).toBeVisible();
 
 	// Verify clipboard contains the correct URL format
