@@ -1,7 +1,9 @@
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import { exposeAPI } from '@php-wasm/web';
-import { PlaygroundWorkerEndpoint } from './playground-worker-endpoint';
-import type { WorkerBootOptions } from './playground-worker-endpoint';
+import {
+	PlaygroundWorkerEndpoint,
+	type WorkerBootOptions,
+} from './playground-worker-endpoint';
 import { runBlueprintV2 } from '@wp-playground/blueprints';
 import type { BlueprintV2Declaration } from '@wp-playground/blueprints';
 /* @ts-ignore */
