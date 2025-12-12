@@ -1,11 +1,18 @@
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import { exposeAPI } from '@php-wasm/web';
-import { PlaygroundWorkerEndpoint } from './playground-worker-endpoint';
-import type { WorkerBootOptions } from './playground-worker-endpoint';
+import {
+	PHPWorkerGlobalScope,
+	PlaygroundWorkerEndpoint,
+	type WorkerBootOptions,
+} from './playground-worker-endpoint';
 import { runBlueprintV2 } from '@wp-playground/blueprints';
 import type { BlueprintV2Declaration } from '@wp-playground/blueprints';
 /* @ts-ignore */
 import { corsProxyUrl as defaultCorsProxyUrl } from 'virtual:cors-proxy-url';
+
+(globalThis as PHPWorkerGlobalScope).setImmediate = (fn: () => void) =>
+	setTimeout(fn, 0);
+(globalThis as PHPWorkerGlobalScope).clearImmediate = () => {};
 
 // post message to parent
 self.postMessage('worker-script-started');

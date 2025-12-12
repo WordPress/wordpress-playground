@@ -1,6 +1,10 @@
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import { exposeAPI } from '@php-wasm/web';
-import { PlaygroundWorkerEndpoint } from './playground-worker-endpoint';
+import {
+	PHPWorkerGlobalScope,
+	PlaygroundWorkerEndpoint,
+	type WorkerBootOptions,
+} from './playground-worker-endpoint';
 import { randomString } from '@php-wasm/util';
 import {
 	getSqliteDriverModuleDetails,
@@ -15,7 +19,10 @@ import { createDirectoryHandleMountHandler } from '@php-wasm/web';
 import type { PHP } from '@php-wasm/universal';
 /* @ts-ignore */
 import { corsProxyUrl as defaultCorsProxyUrl } from 'virtual:cors-proxy-url';
-import type { WorkerBootOptions } from './playground-worker-endpoint';
+
+(globalThis as PHPWorkerGlobalScope).setImmediate = (fn: () => void) =>
+	setTimeout(fn, 0);
+(globalThis as PHPWorkerGlobalScope).clearImmediate = () => {};
 
 // post message to parent
 self.postMessage('worker-script-started');

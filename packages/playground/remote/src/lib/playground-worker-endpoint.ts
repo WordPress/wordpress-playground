@@ -49,6 +49,11 @@ import { networkingDisabledFunctions } from './disabled-functions';
 import playgroundWebMuPlugin from './playground-mu-plugin/0-playground.php?raw';
 import { WordPressFetchNetworkTransport } from './wordpress-fetch-network-transport';
 
+export interface PHPWorkerGlobalScope extends WorkerGlobalScope {
+	setImmediate: (fn: () => void) => void;
+	clearImmediate: (id?: number) => void;
+}
+
 export interface MountDescriptor {
 	mountpoint: string;
 	device: MountDevice;
