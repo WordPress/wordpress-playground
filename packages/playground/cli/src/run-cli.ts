@@ -240,6 +240,11 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 				type: 'boolean',
 				default: false,
 			})
+			.option('intl', {
+				describe: 'Enable Intl.',
+				type: 'boolean',
+				default: true,
+			})
 			.option('xdebug', {
 				describe: 'Enable Xdebug.',
 				type: 'boolean',
@@ -506,6 +511,7 @@ export interface RunCLIArgs {
 	experimentalTrace?: boolean;
 	internalCookieStore?: boolean;
 	'additional-blueprint-steps'?: any[];
+	intl?: boolean;
 	xdebug?: boolean | { ideKey?: string };
 	experimentalUnsafeIdeIntegration?: string[];
 	experimentalDevtools?: boolean;
@@ -620,6 +626,11 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 			(v) => v.name === args.verbosity
 		)!.severity;
 		logger.setSeverityFilterLevel(severity);
+	}
+
+	// Enables Intl dynamic extension by default
+	if (!args.intl) {
+		args.intl = true;
 	}
 
 	// Declare file lock manager outside scope of startServer
@@ -1142,37 +1153,14 @@ async function spawnWorkerThreads(
 ): Promise<SpawnedWorker[]> {
 	const promises = [];
 	for (let i = 0; i < count; i++) {
-		const worker = await spawnWorkerThread(workerType);
 		const onExit: (code: number) => void = (code: number) => {
 			onWorkerExit({
 				exitCode: code,
 				workerIndex: i,
 			});
 		};
-		promises.push(
-			new Promise<{ worker: Worker; phpPort: NodeMessagePort }>(
-				(resolve, reject) => {
-					worker.once('message', function (message: any) {
-						// Let the worker confirm it has initialized.
-						// We could use the 'online' event to detect start of JS execution,
-						// but that would miss initialization errors.
-						if (message.command === 'worker-script-initialized') {
-							resolve({ worker, phpPort: message.phpPort });
-						}
-					});
-					worker.once('error', function (e: Error) {
-						console.error(e);
-						const error = new Error(
-							`Worker failed to load worker. ${
-								e.message ? `Original error: ${e.message}` : ''
-							}`
-						);
-						reject(error);
-					});
-					worker.once('exit', onExit);
-				}
-			)
-		);
+		const worker = spawnWorkerThread(workerType, { onExit });
+		promises.push(worker);
 	}
 	return Promise.all(promises);
 }
@@ -1188,7 +1176,10 @@ async function spawnWorkerThreads(
  * @param workerType
  * @returns
  */
-async function spawnWorkerThread(workerType: 'v1' | 'v2') {
+export function spawnWorkerThread(
+	workerType: 'v1' | 'v2',
+	{ onExit }: { onExit?: (code: number) => void } = {}
+) {
 	/**
 	 * When running the CLI from source via `node cli.ts`, the Vite-provided
 	 * __WORKER_V1_URL__ and __WORKER_V2_URL__ are undefined. Let's set them to
@@ -1202,11 +1193,42 @@ async function spawnWorkerThread(workerType: 'v1' | 'v2') {
 		// @ts-expect-error
 		globalThis['__WORKER_V2_URL__'] = './blueprints-v2/worker-thread-v2.ts';
 	}
+	let worker: Worker;
 	if (workerType === 'v1') {
-		return new Worker(new URL(__WORKER_V1_URL__, import.meta.url));
+		worker = new Worker(new URL(__WORKER_V1_URL__, import.meta.url));
 	} else {
-		return new Worker(new URL(__WORKER_V2_URL__, import.meta.url));
+		worker = new Worker(new URL(__WORKER_V2_URL__, import.meta.url));
 	}
+
+	return new Promise<SpawnedWorker>((resolve, reject) => {
+		worker.once('message', function (message: any) {
+			// Let the worker confirm it has initialized.
+			// We could use the 'online' event to detect start of JS execution,
+			// but that would miss initialization errors.
+			if (message.command === 'worker-script-initialized') {
+				resolve({ worker, phpPort: message.phpPort });
+			}
+		});
+		worker.once('error', function (e: Error) {
+			console.error(e);
+			const error = new Error(
+				`Worker failed to load worker. ${
+					e.message ? `Original error: ${e.message}` : ''
+				}`
+			);
+			reject(error);
+		});
+		let spawned = false;
+		worker.once('spawn', () => {
+			spawned = true;
+		});
+		worker.once('exit', (code) => {
+			if (!spawned) {
+				reject(new Error(`Worker exited before spawning: ${code}`));
+			}
+			onExit?.(code);
+		});
+	});
 }
 
 /**

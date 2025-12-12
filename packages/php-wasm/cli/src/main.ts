@@ -1,21 +1,24 @@
 /**
  * A CLI script that runs PHP CLI via the WebAssembly build.
  */
-import os from 'os';
-import { writeFileSync, existsSync, mkdtempSync, chmodSync } from 'fs';
-import { rootCertificates } from 'tls';
-
 import {
 	LatestSupportedPHPVersion,
 	SupportedPHPVersionsList,
 } from '@php-wasm/universal';
+import { spawn } from 'child_process';
+import { chmodSync, existsSync, mkdtempSync, writeFileSync } from 'fs';
+import os from 'os';
+import { rootCertificates } from 'tls';
 /* eslint-disable no-console */
-import type { SupportedPHPVersion } from '@php-wasm/universal';
-import { FileLockManagerForNode } from '@php-wasm/node';
-import { PHP } from '@php-wasm/universal';
-import { loadNodeRuntime, useHostFilesystem } from '@php-wasm/node';
-import { startBridge } from '@php-wasm/xdebug-bridge';
 import { addXdebugIDEConfig, clearXdebugIDEConfig } from '@php-wasm/cli-util';
+import {
+	FileLockManagerForNode,
+	loadNodeRuntime,
+	useHostFilesystem,
+} from '@php-wasm/node';
+import type { SupportedPHPVersion } from '@php-wasm/universal';
+import { PHP } from '@php-wasm/universal';
+import { startBridge } from '@php-wasm/xdebug-bridge';
 import path from 'path';
 
 let args = process.argv.slice(2);
@@ -127,6 +130,12 @@ ${process.argv[0]} ${process.execArgv.join(' ')} ${process.argv[1]}
 				},
 			},
 			withXdebug: hasXdebugOption,
+		})
+	);
+	php.setSpawnHandler((command: string, args: string[]): any =>
+		spawn(command, args, {
+			shell: true,
+			stdio: ['pipe', 'pipe', 'pipe'],
 		})
 	);
 

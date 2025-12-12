@@ -15,13 +15,11 @@ const argParser = yargs(process.argv.slice(2))
 		},
 		PHP_VERSION: {
 			type: 'string',
-			default: '8.0.24',
 			description: 'The PHP version to build',
 		},
 		PLATFORM: {
 			type: 'string',
 			choices: ['web', 'node'],
-			default: 'web',
 			description: 'The platform to build for',
 		},
 		JSPI: {
