@@ -70,7 +70,7 @@ export class FileLockManagerForPosix implements FileLockManager {
 
 		const fcntlCmd = waitForLock ? 'setlkw' : 'setlk';
 		const fcntlOp =
-			op.type === 'shared'
+			op.type === 'unlocked'
 				? constants.F_UNLCK
 				: op.type === 'exclusive'
 					? constants.F_WRLCK
