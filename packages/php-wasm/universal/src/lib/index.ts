@@ -106,3 +106,4 @@ export * from './os-user-space';
 export type * from './os-user-space';
 
 export type { Remote } from './comlink-sync';
+export { releaseProxy as releaseComlinkProxy } from './comlink-sync';

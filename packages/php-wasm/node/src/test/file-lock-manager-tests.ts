@@ -3,10 +3,13 @@ import { writeFileSync, unlinkSync } from 'fs';
 import { fork, type ChildProcess } from 'child_process';
 import {
 	consumeAPI,
+	releaseComlinkProxy,
 	type RemoteAPI,
 	type WholeFileLockOp,
 } from '@php-wasm/universal';
 import type { TestWorkerAPI } from './file-lock-manager-test-utils';
+
+// TODO: Review all tests with `end: 0` ranges. AI editing seems to have left broken tests.
 
 // TODO: Also test waiting for locks.
 export function declareFileLockManagerTests({
@@ -91,6 +94,10 @@ export function declareFileLockManagerTests({
 		});
 
 		afterEach(async () => {
+			await Promise.all([
+				remoteProcessApi1[releaseComlinkProxy](),
+				remoteProcessApi2[releaseComlinkProxy](),
+			]);
 			await Promise.all([
 				killLockingProcess(childProcess1),
 				killLockingProcess(childProcess2),
@@ -736,13 +743,12 @@ export function declareFileLockManagerTests({
 				});
 
 				it('treats a range with zero length as covering entire remaining range', async () => {
-					// First get an exclusive range lock with zero length
 					const result1 = await remoteProcessApi1.lockFileByteRange(
 						TEST_FILE1,
 						{
 							type: 'exclusive',
-							start: 0,
-							end: 0,
+							start: 10,
+							end: 10,
 							pid: PROCESS1_PID,
 							fd: process1TestFile1Fd,
 						},
@@ -750,27 +756,13 @@ export function declareFileLockManagerTests({
 					);
 					expect(result1).toBe(true);
 
-					// Try to get a lock in the remaining range
-					const result2 = await remoteProcessApi2.lockFileByteRange(
-						TEST_FILE1,
-						{
-							type: 'exclusive',
-							start: 0,
-							end: 0,
-							pid: PROCESS2_PID,
-							fd: process2TestFile1Fd,
-						},
-						false
-					);
-					expect(result2).toBe(true);
-
 					// Try to get a lock after the zero-length lock
 					const result3 = await remoteProcessApi2.lockFileByteRange(
 						TEST_FILE1,
 						{
 							type: 'exclusive',
-							start: 0,
-							end: 0,
+							start: 15,
+							end: 20,
 							pid: PROCESS2_PID,
 							fd: process2TestFile1Fd,
 						},
@@ -1022,8 +1014,8 @@ export function declareFileLockManagerTests({
 						TEST_FILE1,
 						{
 							type: 'shared',
-							start: 0,
-							end: 0,
+							start: 30,
+							end: 30,
 							pid: PROCESS1_PID,
 							fd: process1TestFile1Fd,
 						},
@@ -1037,8 +1029,8 @@ export function declareFileLockManagerTests({
 						TEST_FILE1,
 						{
 							type: 'exclusive',
-							start: 0,
-							end: 0,
+							start: 10,
+							end: 29,
 							pid: PROCESS2_PID,
 							fd: process2TestFile1Fd,
 						},
@@ -1052,8 +1044,8 @@ export function declareFileLockManagerTests({
 						TEST_FILE1,
 						{
 							type: 'exclusive',
-							start: 0,
-							end: Number.MAX_SAFE_INTEGER,
+							start: 40,
+							end: Number.MAX_SAFE_INTEGER - 100,
 							pid: PROCESS2_PID,
 							fd: process2TestFile1Fd,
 						},
@@ -1164,62 +1156,6 @@ export function declareFileLockManagerTests({
 					);
 					expect(result2).toBe(true);
 				});
-
-				it('leaves locks owned by other processes intact', async () => {
-					// First process gets two locks
-					const result1 = await remoteProcessApi1.lockFileByteRange(
-						TEST_FILE1,
-						{
-							type: 'exclusive',
-							start: 0,
-							end: 0,
-							pid: PROCESS1_PID,
-							fd: process1TestFile1Fd,
-						},
-						false
-					);
-					expect(result1).toBe(true);
-
-					const result2 = await remoteProcessApi2.lockFileByteRange(
-						TEST_FILE1,
-						{
-							type: 'exclusive',
-							start: 0,
-							end: 0,
-							pid: PROCESS2_PID,
-							fd: process2TestFile1Fd,
-						},
-						false
-					);
-					expect(result2).toBe(true);
-
-					// Unlock the first process's lock
-					await remoteProcessApi1.lockFileByteRange(
-						TEST_FILE1,
-						{
-							type: 'unlocked',
-							start: 0,
-							end: 0,
-							pid: PROCESS1_PID,
-							fd: process1TestFile1Fd,
-						},
-						false
-					);
-
-					// Verify second process's lock is still there
-					const result3 = await remoteProcessApi1.lockFileByteRange(
-						TEST_FILE1,
-						{
-							type: 'exclusive',
-							start: 0,
-							end: 0,
-							pid: PROCESS1_PID,
-							fd: process1TestFile1Fd,
-						},
-						false
-					);
-					expect(result3).toBe(false);
-				});
 				it('unlocks tail of owned locked range when that range overlaps head of unlocked range', async () => {
 					// Get a lock from 0-100
 					const result1 = await remoteProcessApi1.lockFileByteRange(
@@ -1276,7 +1212,7 @@ export function declareFileLockManagerTests({
 					expect(result3).toBe(false);
 				});
 
-				// TODO: Re-enable this once native lock managers support fcntl() partial unlocking of locked ranges.
+				// TODO: Re-enable this once native lock managers support fcntl() partial range unlocking.
 				it.skip('unlocks head of owned locked range when that range overlaps tail of unlocked range', async () => {
 					// Get a lock from 50-150
 					const result1 = await remoteProcessApi1.lockFileByteRange(
@@ -1764,50 +1700,6 @@ export function declareFileLockManagerTests({
 
 				expect(exclusiveLockAppearsToBeReleased).toBe(true);
 				expect(sharedLockAppearsToBeReleased).toBe(true);
-			});
-
-			it('leaves locks owned by others intact', async () => {
-				// First process gets two locks
-				await remoteProcessApi1.lockFileByteRange(
-					TEST_FILE1,
-					{
-						type: 'exclusive',
-						start: 0,
-						end: 0,
-						pid: PROCESS1_PID,
-						fd: process1TestFile1Fd,
-					},
-					false
-				);
-
-				await remoteProcessApi1.lockFileByteRange(
-					TEST_FILE1,
-					{
-						type: 'exclusive',
-						start: 0,
-						end: 0,
-						pid: PROCESS2_PID,
-						fd: process1TestFile1Fd,
-					},
-					false
-				);
-
-				// Release first process's locks
-				await remoteProcessApi1.releaseLocksForProcess(PROCESS1_PID);
-
-				// Verify second process's lock is still there
-				const result = await remoteProcessApi1.lockFileByteRange(
-					TEST_FILE1,
-					{
-						type: 'exclusive',
-						start: 0,
-						end: 0,
-						pid: PROCESS1_PID,
-						fd: process1TestFile1Fd,
-					},
-					false
-				);
-				expect(result).toBe(false);
 			});
 		});
 	});
