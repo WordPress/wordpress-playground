@@ -57,6 +57,7 @@ export class BlueprintsV2Handler {
 			processIdSpaceLength: this.processIdSpaceLength,
 			trace: this.args.debug || false,
 			blueprint: this.args.blueprint!,
+			withIntl: this.args.intl,
 			// We do not enable Xdebug by default for the initial worker
 			// because we do not imagine users expect to hit breakpoints
 			// until Playground has fully booted.
@@ -64,6 +65,8 @@ export class BlueprintsV2Handler {
 			withXdebug: false,
 			xdebug: undefined,
 			nativeInternalDirPath,
+			mountsBeforeWpInstall: this.args['mount-before-install'] || [],
+			mountsAfterWpInstall: this.args.mount || [],
 		};
 
 		await playground.bootAndSetUpInitialWorker(workerBootArgs);
@@ -93,6 +96,7 @@ export class BlueprintsV2Handler {
 			firstProcessId,
 			processIdSpaceLength: this.processIdSpaceLength,
 			trace: this.args.debug || false,
+			withIntl: this.args.intl,
 			withXdebug: !!this.args.xdebug,
 			nativeInternalDirPath,
 			mountsBeforeWpInstall: this.args['mount-before-install'] || [],

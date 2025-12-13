@@ -1,9 +1,9 @@
 import { defineConfig, mergeConfig } from 'vite';
 import config from './vite.config';
 
-export default defineConfig((env) =>
+export default defineConfig(() =>
 	mergeConfig(
-		config(env),
+		config,
 		defineConfig({
 			assetsInclude: ['**/*.wasm', '**/*.so', '**/*.dat'],
 

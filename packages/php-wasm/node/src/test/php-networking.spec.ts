@@ -168,7 +168,6 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 							curl_setopt($ch, CURLOPT_TCP_NODELAY, 0);
 							curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
 							echo curl_exec($ch);
-							curl_close($ch);
 					`
 					);
 					const { text } = await php.run({
@@ -229,8 +228,6 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 							curl_multi_remove_handle($mh, $ch1);
 							curl_multi_remove_handle($mh, $ch2);
 							curl_multi_close($mh);
-							curl_close($ch1);
-							curl_close($ch2);
 					`
 						);
 						const { text } = await php.run({
@@ -269,7 +266,6 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 							curl_setopt($ch, CURLOPT_TCP_NODELAY, 0);
 							curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
 							echo curl_exec($ch);
-							curl_close($ch);
 					`
 					);
 					const { text } = await php.run({
@@ -305,7 +301,6 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 						curl_setopt($ch, CURLOPT_TCP_NODELAY, 0);
 						curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
 						$result = curl_exec($ch);
-						curl_close($ch);
 						$json = json_decode($result, true);
 						var_dump(array_key_exists('8.3', $json));
 						`,
@@ -336,7 +331,6 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 						curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
 						curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
 						$result = curl_exec($ch);
-						curl_close($ch);
 						$json = json_decode($result, true);
 						var_dump(array_key_exists('8.3', $json));
 						`,

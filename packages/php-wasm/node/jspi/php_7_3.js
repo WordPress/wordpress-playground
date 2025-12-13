@@ -8,7 +8,7 @@ import path from 'path';
 
 const dependencyFilename = path.join(__dirname, '7_3_33', 'php_7_3.wasm');
 export { dependencyFilename };
-export const dependenciesTotalSize = 22208352;
+export const dependenciesTotalSize = 22198121;
 const phpVersionString = '7.3.33';
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
@@ -521,22 +521,7 @@ export function init(RuntimeName, PHPLoader) {
 
 	var GOT = {};
 
-	var currentModuleWeakSymbols = new Set([
-		'__start___llvm_prf_data',
-		'__stop___llvm_prf_data',
-		'__start___llvm_prf_names',
-		'__stop___llvm_prf_names',
-		'__start___llvm_prf_vns',
-		'__stop___llvm_prf_vns',
-		'__start___llvm_prf_vtab',
-		'__stop___llvm_prf_vtab',
-		'__start___llvm_prf_cnts',
-		'__stop___llvm_prf_cnts',
-		'__start___llvm_prf_bits',
-		'__stop___llvm_prf_bits',
-		'__start___llvm_prf_vnds',
-		'__stop___llvm_prf_vnds',
-	]);
+	var currentModuleWeakSymbols = new Set([]);
 	var GOTHandler = {
 		get(obj, symName) {
 			var rtn = GOT[symName];
@@ -6910,12 +6895,37 @@ export function init(RuntimeName, PHPLoader) {
 		noop: function () {},
 		spawnProcess: function (command, args, options) {
 			if (Module['spawnProcess']) {
-				const spawnedPromise = Module['spawnProcess'](
+				const spawned = Module['spawnProcess'](
 					command,
 					args,
-					options
+					/**
+					 * We're providing the same extra options we would pass to child_process.spawn().
+					 *
+					 * Why?
+					 *
+					 * spawnProcess() follows the same interface as child_process.spawn()
+					 * and some consumers pass `child_process.spawn` directly to php.setSpawnHandler()
+					 */
+					{
+						...options,
+						shell: true,
+						stdio: ['pipe', 'pipe', 'pipe'],
+					}
 				);
-				return Promise.resolve(spawnedPromise).then(function (spawned) {
+				if (spawned && !('then' in spawned) && 'on' in spawned) {
+					/**
+					 * If we get the child process directly, return it immediately.
+					 * Delaying it to the next tick via Promise.resolve() would create
+					 * a race condition where it might emit some events before the
+					 * caller has a chance to bind event listeners to them.
+					 *
+					 * Without this condition, this callback would be at least flaky:
+					 *
+					 *    php.setSpawnHandler(require('child_process').spawn);
+					 */
+					return spawned;
+				}
+				return Promise.resolve(spawned).then(function (spawned) {
 					if (!spawned || !spawned.on) {
 						throw new Error(
 							'spawnProcess() must return an EventEmitter but returned a different type.'
@@ -6925,15 +6935,8 @@ export function init(RuntimeName, PHPLoader) {
 				});
 			}
 
-			if (ENVIRONMENT_IS_NODE) {
-				return require('child_process').spawn(command, args, {
-					...options,
-					shell: true,
-					stdio: ['pipe', 'pipe', 'pipe'],
-				});
-			}
 			const e = new Error(
-				'popen(), proc_open() etc. are unsupported in the browser. Call php.setSpawnHandler() ' +
+				'popen(), proc_open() etc. are unsupported on this PHP instance. Call php.setSpawnHandler() ' +
 					'and provide a callback to handle spawning processes, or disable a popen(), proc_open() ' +
 					'and similar functions via php.ini.'
 			);
@@ -30222,13 +30225,13 @@ export function init(RuntimeName, PHPLoader) {
 	// end include: postlibrary.js
 
 	var ASM_CONSTS = {
-		10983938: ($0) => {
+		10981842: ($0) => {
 			if (!$0) {
 				AL.alcErr = 0xa004;
 				return 1;
 			}
 		},
-		10983986: ($0) => {
+		10981890: ($0) => {
 			if (!AL.currentCtx) {
 				err('alGetProcAddress() called without a valid context');
 				return 1;
@@ -30716,7 +30719,7 @@ export function init(RuntimeName, PHPLoader) {
 		___cpp_exception = wasmExports['__cpp_exception'];
 	}
 
-	var ___heap_base = 12207584;
+	var ___heap_base = 12196704;
 
 	var wasmImports = {
 		/** @export */

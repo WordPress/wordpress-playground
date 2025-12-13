@@ -5,11 +5,7 @@ import react from '@vitejs/plugin-react';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { viteTsConfigPaths } from '../../vite-extensions/vite-ts-config-paths';
 // eslint-disable-next-line @nx/enforce-module-boundaries
-import ignoreWasmImports from '../ignore-wasm-imports';
-// eslint-disable-next-line @nx/enforce-module-boundaries
-import ignoreLibImports from '../ignore-lib-imports';
-// eslint-disable-next-line @nx/enforce-module-boundaries
-import ignoreDataImports from '../ignore-data-imports';
+import { viteIgnoreImports } from '../../vite-extensions/vite-ignore-imports';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import {
 	websiteDevServerHost,
@@ -100,9 +96,9 @@ export default defineConfig(({ command, mode }) => {
 			viteTsConfigPaths({
 				root: '../../../',
 			}),
-			ignoreWasmImports(),
-			ignoreLibImports(),
-			ignoreDataImports(),
+			viteIgnoreImports({
+				extensions: ['wasm', 'so', 'dat'],
+			}),
 			...viteGlobalExtensions,
 			buildVersionPlugin('website-config'),
 			virtualModule({
