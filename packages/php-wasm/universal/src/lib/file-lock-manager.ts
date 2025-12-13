@@ -1,4 +1,6 @@
-export const MAX_64BIT_OFFSET = BigInt(2n ** 64n - 1n);
+export const MAX_ADDRESSABLE_FILE_OFFSET = BigInt(Number.MAX_SAFE_INTEGER);
+// TODO: Use this BigInt once the native fs-ext-extra-prebuilt package supports it.
+//BigInt(2n ** 64n - 1n);
 
 /*
  * NOTE: These types are not important structurally,

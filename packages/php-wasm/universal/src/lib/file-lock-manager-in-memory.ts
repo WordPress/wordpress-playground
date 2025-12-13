@@ -6,7 +6,7 @@ import type {
 	Pid,
 	Fd,
 } from './file-lock-manager';
-import { MAX_64BIT_OFFSET } from './file-lock-manager';
+import { MAX_ADDRESSABLE_FILE_OFFSET } from './file-lock-manager';
 import {
 	FileLockIntervalTree,
 	type LockedRange,
@@ -251,7 +251,7 @@ export class FileLock {
 			 */
 			requestedLock = {
 				...requestedLock,
-				end: MAX_64BIT_OFFSET,
+				end: MAX_ADDRESSABLE_FILE_OFFSET,
 			};
 		}
 
@@ -474,7 +474,7 @@ export class FileLock {
 			const overlappingLocks = this.rangeLocks.findOverlapping({
 				type: 'unlocked',
 				start: 0n,
-				end: MAX_64BIT_OFFSET,
+				end: MAX_ADDRESSABLE_FILE_OFFSET,
 				pid: -1,
 				fd: -1,
 			});
@@ -498,7 +498,7 @@ export class FileLock {
 			const overlappingLocks = this.rangeLocks.findOverlapping({
 				type: 'unlocked',
 				start: 0n,
-				end: MAX_64BIT_OFFSET,
+				end: MAX_ADDRESSABLE_FILE_OFFSET,
 				pid: -1,
 				fd: -1,
 			});

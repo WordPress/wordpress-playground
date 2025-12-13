@@ -6,7 +6,7 @@ import type {
 	Fd,
 	Path,
 } from '@php-wasm/universal';
-import { MAX_64BIT_OFFSET } from '@php-wasm/universal';
+import { MAX_ADDRESSABLE_FILE_OFFSET } from '@php-wasm/universal';
 import { constants, fcntlSync, flockSync } from 'fs-ext-extra-prebuilt';
 
 export class FileLockManagerForPosix implements FileLockManager {
@@ -64,7 +64,7 @@ export class FileLockManagerForPosix implements FileLockManager {
 			 */
 			op = {
 				...op,
-				end: MAX_64BIT_OFFSET,
+				end: MAX_ADDRESSABLE_FILE_OFFSET,
 			};
 		}
 
@@ -120,13 +120,14 @@ export class FileLockManagerForPosix implements FileLockManager {
 		// We can fix this in our fs-ext fork,
 		// but for now, let just try to lock the requested range.
 		const obtainedLock = this.lockFileByteRange(path, op, false);
-		if (!obtainedLock) {
+		if (obtainedLock) {
+			this.lockFileByteRange(path, { ...op, type: 'unlocked' }, true);
 			return undefined;
 		}
 
-		// There is a conflicting lock. Since we query what lock conflicts
+		// Since we cannot obtain a lock, assume there is a conflicting lock.
+		// Since we query what lock conflicts
 		// until our fs-ext fork fixes that, let's report that the entire range is locked.
-		this.lockFileByteRange(path, { ...op, type: 'unlocked' }, true);
 		return {
 			type: 'exclusive',
 			start: 0n,
@@ -167,7 +168,7 @@ export class FileLockManagerForPosix implements FileLockManager {
 						fd,
 						type: 'unlocked',
 						start: 0n,
-						end: MAX_64BIT_OFFSET,
+						end: MAX_ADDRESSABLE_FILE_OFFSET,
 					},
 					false
 				);
