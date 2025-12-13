@@ -13,7 +13,7 @@ import { rootCertificates } from 'tls';
 import { addXdebugIDEConfig, clearXdebugIDEConfig } from '@php-wasm/cli-util';
 import { loadNodeRuntime, useHostFilesystem } from '@php-wasm/node';
 import type { SupportedPHPVersion } from '@php-wasm/universal';
-import { FileLockManagerInMemory, PHP } from '@php-wasm/universal';
+import { PHP } from '@php-wasm/universal';
 import { startBridge } from '@php-wasm/xdebug-bridge';
 import path from 'path';
 
@@ -115,7 +115,6 @@ ${process.argv[0]} ${process.execArgv.join(' ')} ${process.argv[1]}
 	const sysTempDir = mkdtempSync(path.join(os.tmpdir(), 'php-wasm-sys-tmp'));
 	const php = new PHP(
 		await loadNodeRuntime(phpVersion, {
-			fileLockManager: new FileLockManagerInMemory(),
 			emscriptenOptions: {
 				processId: 1,
 				ENV: {

@@ -1,10 +1,9 @@
-import type { FileLockManager } from '@php-wasm/universal';
 import { loadNodeRuntime } from '@php-wasm/node';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import type { SupportedPHPVersion } from '@php-wasm/universal';
 import {
 	PHPWorker,
-	consumeAPISync,
+	consumeAPI,
 	exposeAPI,
 	sandboxedSpawnHandlerFactory,
 } from '@php-wasm/universal';
@@ -16,7 +15,7 @@ import {
 	bootWordPressAndRequestHandler,
 } from '@wp-playground/wordpress';
 import { rootCertificates } from 'tls';
-import { MessageChannel, type MessagePort, parentPort } from 'worker_threads';
+import { MessageChannel, parentPort } from 'worker_threads';
 import { mountResources } from '../mounts';
 import { logger } from '@php-wasm/logger';
 import { spawnWorkerThread } from '../run-cli';
@@ -85,31 +84,9 @@ function tracePhpWasm(processId: number, format: string, ...args: any[]) {
 
 export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 	booted = false;
-	fileLockManager: FileLockManager | undefined;
 
 	constructor(monitor: EmscriptenDownloadMonitor) {
 		super(undefined, monitor);
-	}
-
-	/**
-	 * Call this method before boot() to use file locking.
-	 *
-	 * This method is separate from boot() to simplify the related Comlink.transferHandlers
-	 * setup – if an argument is a MessagePort, we're transferring it, not copying it.
-	 *
-	 * @see comlink-sync.ts
-	 * @see phpwasm-emscripten-library-file-locking-for-node.js
-	 */
-	async useFileLockManager(port: MessagePort) {
-		/**
-		 * If JSPI is not available, php.js only supports synchronous locking syscalls.
-		 * Let's use the synchronous API. Every method call will block this thread
-		 * until the result is available.
-		 *
-		 * @see comlink-sync.ts
-		 * @see phpwasm-emscripten-library-file-locking-for-node.js
-		 */
-		this.fileLockManager = await consumeAPISync<FileLockManager>(port);
 	}
 
 	async bootAndSetUpInitialWorker(options: PrimaryWorkerBootOptions) {
@@ -138,10 +115,7 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 			let wordpressBooted = false;
 			const requestHandler = await bootWordPressAndRequestHandler({
 				siteUrl,
-				createPhpRuntime: createPhpRuntimeFactory(
-					options,
-					this.fileLockManager!
-				),
+				createPhpRuntime: createPhpRuntimeFactory(options),
 				wordpressInstallMode,
 				wordPressZip:
 					wordPressZip !== undefined
@@ -169,7 +143,7 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 				dataSqlPath,
 				spawnHandler: () =>
 					sandboxedSpawnHandlerFactory(() =>
-						createPHPWorker(options, this.fileLockManager!)
+						createPHPWorker(options)
 					),
 				async onPHPInstanceCreated(php) {
 					await mountResources(php, mountsBeforeWpInstall);
@@ -214,10 +188,7 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 		try {
 			const requestHandler = await bootRequestHandler({
 				siteUrl: options.siteUrl,
-				createPhpRuntime: createPhpRuntimeFactory(
-					options,
-					this.fileLockManager!
-				),
+				createPhpRuntime: createPhpRuntimeFactory(options),
 				onPHPInstanceCreated: async (php) => {
 					await mountResources(php, options.mountsBeforeWpInstall);
 					await mountResources(php, options.mountsAfterWpInstall);
@@ -226,7 +197,7 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 				cookieStore: false,
 				spawnHandler: () =>
 					sandboxedSpawnHandlerFactory(() =>
-						createPHPWorker(options, this.fileLockManager!)
+						createPHPWorker(options)
 					),
 			});
 			this.__internal_setRequestHandler(requestHandler);
@@ -251,10 +222,7 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
  * Returns a factory function that starts a new PHP runtime in the currently
  * running process. This is used for rotating the PHP runtime periodically.
  */
-function createPhpRuntimeFactory(
-	options: WorkerBootRequestHandlerOptions,
-	fileLockManager: FileLockManager | RemoteAPI<FileLockManager>
-) {
+function createPhpRuntimeFactory(options: WorkerBootRequestHandlerOptions) {
 	let nextProcessId = options.firstProcessId;
 	const lastProcessId =
 		options.firstProcessId + options.processIdSpaceLength - 1;
@@ -271,7 +239,6 @@ function createPhpRuntimeFactory(
 		return await loadNodeRuntime(
 			options.phpVersion || RecommendedPHPVersion,
 			{
-				fileLockManager,
 				emscriptenOptions: {
 					processId,
 					trace: options.trace ? tracePhpWasm : undefined,
@@ -301,19 +268,14 @@ function createPhpRuntimeFactory(
  * any locks that overlap between PHP instances conflict with each other as expected.
  *
  * @param options - The options for the worker.
- * @param fileLockManager - The file lock manager to use.
  * @returns A promise that resolves to the PHP worker.
  */
-async function createPHPWorker(
-	options: WorkerBootRequestHandlerOptions,
-	fileLockManager: FileLockManager | RemoteAPI<FileLockManager>
-) {
+async function createPHPWorker(options: WorkerBootRequestHandlerOptions) {
 	const spawnedWorker = await spawnWorkerThread('v1');
 
 	const handler = consumeAPI<PlaygroundCliBlueprintV1Worker>(
 		spawnedWorker.phpPort
 	);
-	handler.useFileLockManager(fileLockManager as any);
 	await handler.bootWorker(options);
 
 	return {

@@ -41,13 +41,10 @@ export class BlueprintsV2Handler {
 
 	async bootAndSetUpInitialPlayground(
 		phpPort: NodeMessagePort,
-		fileLockManagerPort: NodeMessagePort,
 		nativeInternalDirPath: string
 	) {
 		const playground: RemoteAPI<PlaygroundCliBlueprintV2Worker> =
 			consumeAPI(phpPort);
-
-		await playground.useFileLockManager(fileLockManagerPort);
 
 		const workerBootArgs = {
 			...this.args,
@@ -75,19 +72,15 @@ export class BlueprintsV2Handler {
 
 	async bootPlayground({
 		worker,
-		fileLockManagerPort,
 		firstProcessId,
 		nativeInternalDirPath,
 	}: {
 		worker: SpawnedWorker;
-		fileLockManagerPort: NodeMessagePort;
 		firstProcessId: number;
 		nativeInternalDirPath: string;
 	}) {
 		const playground: RemoteAPI<PlaygroundCliBlueprintV2Worker> =
 			consumeAPI(worker.phpPort);
-
-		await playground.useFileLockManager(fileLockManagerPort);
 
 		const workerBootArgs: SecondaryWorkerBootArgs = {
 			...this.args,

@@ -10,12 +10,9 @@ import {
 import {
 	SupportedPHPVersions,
 	type FileLockManager,
-} from '@php-wasm/universal';
-import {
-	createNodeFsMountHandler,
 	FileLockManagerInMemory,
-	loadNodeRuntime,
-} from '../lib';
+} from '@php-wasm/universal';
+import { createNodeFsMountHandler, loadNodeRuntime } from '../lib';
 import {
 	joinPaths,
 	/* eslint-disable-next-line @typescript-eslint/no-unused-vars --

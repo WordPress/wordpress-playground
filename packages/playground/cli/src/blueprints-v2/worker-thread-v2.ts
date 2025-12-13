@@ -1,11 +1,9 @@
 import { errorLogPath, logger } from '@php-wasm/logger';
-import type { FileLockManager } from '@php-wasm/universal';
 import { createNodeFsMountHandler, loadNodeRuntime } from '@php-wasm/node';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import type {
 	PHP,
 	FileTree,
-	RemoteAPI,
 	SupportedPHPVersion,
 	SpawnHandler,
 } from '@php-wasm/universal';
@@ -13,7 +11,7 @@ import {
 	PHPExecutionFailureError,
 	PHPResponse,
 	PHPWorker,
-	consumeAPISync,
+	consumeAPI,
 	exposeAPI,
 	sandboxedSpawnHandlerFactory,
 } from '@php-wasm/universal';
@@ -31,7 +29,7 @@ import { bootRequestHandler } from '@wp-playground/wordpress';
 import { existsSync } from 'fs';
 import path from 'path';
 import { rootCertificates } from 'tls';
-import { MessageChannel, type MessagePort, parentPort } from 'worker_threads';
+import { MessageChannel, parentPort } from 'worker_threads';
 import { spawnWorkerThread, type RunCLIArgs } from '../run-cli';
 import type {
 	PhpIniOptions,
@@ -180,31 +178,9 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 	booted = false;
 	blueprintTargetResolved = false;
 	phpInstancesThatNeedMountsAfterTargetResolved = new Set<PHP>();
-	fileLockManager: FileLockManager | undefined;
 
 	constructor(monitor: EmscriptenDownloadMonitor) {
 		super(undefined, monitor);
-	}
-
-	/**
-	 * Call this method before boot() to use file locking.
-	 *
-	 * This method is separate from boot() to simplify the related Comlink.transferHandlers
-	 * setup – if an argument is a MessagePort, we're transferring it, not copying it.
-	 *
-	 * @see comlink-sync.ts
-	 * @see phpwasm-emscripten-library-file-locking-for-node.js
-	 */
-	async useFileLockManager(port: MessagePort) {
-		/**
-		 * If JSPI is not available, php.js only supports synchronous locking syscalls.
-		 * Let's use the synchronous API. Every method call will block this thread
-		 * until the result is available.
-		 *
-		 * @see comlink-sync.ts
-		 * @see phpwasm-emscripten-library-file-locking-for-node.js
-		 */
-		this.fileLockManager = await consumeAPISync<FileLockManager>(port);
 	}
 
 	async bootAndSetUpInitialWorker(args: PrimaryWorkerBootArgs) {
@@ -243,9 +219,7 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 				}
 			},
 			spawnHandler: () =>
-				sandboxedSpawnHandlerFactory(() =>
-					createPHPWorker(args, this.fileLockManager!)
-				),
+				sandboxedSpawnHandlerFactory(() => createPHPWorker(args)),
 		};
 		await this.bootRequestHandler(requestHandlerOptions);
 
@@ -295,9 +269,7 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 				}
 			},
 			spawnHandler: () =>
-				sandboxedSpawnHandlerFactory(() =>
-					createPHPWorker(args, this.fileLockManager!)
-				),
+				sandboxedSpawnHandlerFactory(() => createPHPWorker(args)),
 		});
 	}
 
@@ -488,7 +460,6 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 					}
 
 					return await loadNodeRuntime(phpVersion, {
-						fileLockManager: this.fileLockManager!,
 						emscriptenOptions: {
 							processId,
 							trace: trace ? tracePhpWasm : undefined,
@@ -543,33 +514,28 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
  * any locks that overlap between PHP instances conflict with each other as expected.
  *
  * @param options - The options for the worker.
- * @param fileLockManager - The file lock manager to use.
  * @returns A promise that resolves to the PHP worker.
  */
-async function createPHPWorker(
-	{
-		siteUrl,
-		allow,
-		phpVersion,
-		createFiles,
-		constants,
-		phpIniEntries,
-		firstProcessId,
-		processIdSpaceLength,
-		trace,
-		nativeInternalDirPath,
-		withXdebug,
-		mountsBeforeWpInstall,
-		mountsAfterWpInstall,
-	}: SecondaryWorkerBootArgs,
-	fileLockManager: FileLockManager | RemoteAPI<FileLockManager>
-) {
+async function createPHPWorker({
+	siteUrl,
+	allow,
+	phpVersion,
+	createFiles,
+	constants,
+	phpIniEntries,
+	firstProcessId,
+	processIdSpaceLength,
+	trace,
+	nativeInternalDirPath,
+	withXdebug,
+	mountsBeforeWpInstall,
+	mountsAfterWpInstall,
+}: SecondaryWorkerBootArgs) {
 	const spawnedWorker = await spawnWorkerThread('v2');
 
 	const handler = consumeAPI<PlaygroundCliBlueprintV2Worker>(
 		spawnedWorker.phpPort
 	);
-	handler.useFileLockManager(fileLockManager as any);
 	await handler.bootWorker({
 		siteUrl,
 		allow,

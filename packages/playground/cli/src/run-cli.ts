@@ -5,11 +5,7 @@ import type {
 	SupportedPHPVersion,
 	UniversalPHP,
 } from '@php-wasm/universal';
-import {
-	PHPResponse,
-	exposeSyncAPI,
-	printDebugDetails,
-} from '@php-wasm/universal';
+import { PHPResponse, printDebugDetails } from '@php-wasm/universal';
 import type {
 	BlueprintBundle,
 	BlueprintV1Declaration,
@@ -19,7 +15,7 @@ import { runBlueprintV1Steps } from '@wp-playground/blueprints';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import fs, { mkdirSync } from 'fs';
 import type { Server } from 'http';
-import { MessageChannel as NodeMessageChannel, Worker } from 'worker_threads';
+import { Worker } from 'worker_threads';
 // @ts-ignore
 import {
 	expandAutoMounts,
@@ -29,7 +25,6 @@ import {
 import { startServer } from './start-server';
 import type { PlaygroundCliBlueprintV1Worker } from './blueprints-v1/worker-thread-v1';
 import type { PlaygroundCliBlueprintV2Worker } from './blueprints-v2/worker-thread-v2';
-import { FileLockManagerInMemory } from '@php-wasm/node';
 import { LoadBalancer } from './load-balancer';
 /* eslint-disable no-console */
 import { SupportedPHPVersions } from '@php-wasm/universal';
@@ -630,25 +625,6 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 		args.intl = true;
 	}
 
-	// Declare file lock manager outside scope of startServer
-	// so we can look at it when debugging request handling.
-	// TODO: Remove this and replace with selecting new FileLockManager or just warn if native not supported.
-	// const nativeFlockSync =
-	// 	os.platform() === 'win32'
-	// 		? // @TODO: Enable fs-ext here when it works with Windows.
-	// 			undefined
-	// 		: await import('fs-ext')
-	// 				.then((m) => m.flockSync)
-	// 				.catch(() => {
-	// 					logger.warn(
-	// 						'The fs-ext package is not installed. ' +
-	// 							'Internal file locking will not be integrated with ' +
-	// 							'host OS file locking.'
-	// 					);
-	// 					return undefined;
-	// 				});
-	const fileLockManager = new FileLockManagerInMemory();
-
 	let wordPressReady = false;
 	let isFirstRequest = true;
 
@@ -974,9 +950,6 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 			try {
 				const workers = await promisedWorkers;
 
-				const fileLockManagerPort =
-					await exposeFileLockManager(fileLockManager);
-
 				// NOTE: Using a free-standing block to isolate initial boot vars
 				// while keeping the logic inline.
 				{
@@ -985,7 +958,6 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 					const initialPlayground =
 						await handler.bootAndSetUpInitialPlayground(
 							initialWorker.phpPort,
-							fileLockManagerPort,
 							nativeInternalDirPath
 						);
 					playgroundsToCleanUp.set(
@@ -1047,13 +1019,9 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 							initialWorkerProcessIdSpace +
 							index * processIdSpaceLength;
 
-						const fileLockManagerPort =
-							await exposeFileLockManager(fileLockManager);
-
 						const additionalPlayground =
 							await handler.bootPlayground({
 								worker,
-								fileLockManagerPort,
 								firstProcessId,
 								nativeInternalDirPath,
 							});
@@ -1227,27 +1195,6 @@ export function spawnWorkerThread(
 			onExit?.(code);
 		});
 	});
-}
-
-/**
- * Expose the file lock manager API on a MessagePort and return it.
- *
- * @see comlink-sync.ts
- * @see phpwasm-emscripten-library-file-locking-for-node.js
- */
-async function exposeFileLockManager(fileLockManager: FileLockManagerInMemory) {
-	const { port1, port2 } = new NodeMessageChannel();
-	/**
-	 * Always expose a synchronous API for the file lock manager
-	 * so our injected system call overrides don't have to switch
-	 * between synchronous and asynchronous APIs.
-	 *
-	 * @todo: Fill in the file containing the injected file locking system calls.
-	 * @see comlink-sync.ts
-	 * @see phpwasm-emscripten-library-file-locking-for-node.js
-	 */
-	await exposeSyncAPI(fileLockManager, port1);
-	return port2;
 }
 
 async function zipSite(

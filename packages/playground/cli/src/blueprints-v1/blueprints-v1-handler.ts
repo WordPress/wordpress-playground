@@ -58,7 +58,6 @@ export class BlueprintsV1Handler {
 
 	async bootAndSetUpInitialPlayground(
 		phpPort: NodeMessagePort,
-		fileLockManagerPort: NodeMessagePort,
 		nativeInternalDirPath: string
 	) {
 		let wpDetails: any = undefined;
@@ -135,7 +134,6 @@ export class BlueprintsV1Handler {
 			this.getEffectiveBlueprint()
 		);
 
-		await playground.useFileLockManager(fileLockManagerPort);
 		await playground.bootAndSetUpInitialWorker({
 			phpVersion: runtimeConfiguration.phpVersion,
 			wpVersion: runtimeConfiguration.wpVersion,
@@ -179,12 +177,10 @@ export class BlueprintsV1Handler {
 
 	async bootPlayground({
 		worker,
-		fileLockManagerPort,
 		firstProcessId,
 		nativeInternalDirPath,
 	}: {
 		worker: SpawnedWorker;
-		fileLockManagerPort: NodeMessagePort;
 		firstProcessId: number;
 		nativeInternalDirPath: string;
 	}) {
@@ -196,7 +192,6 @@ export class BlueprintsV1Handler {
 		const runtimeConfiguration = await resolveRuntimeConfiguration(
 			this.getEffectiveBlueprint()
 		);
-		await playground.useFileLockManager(fileLockManagerPort);
 		await playground.bootWorker({
 			phpVersion: runtimeConfiguration.phpVersion,
 			siteUrl: this.siteUrl,
