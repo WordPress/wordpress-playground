@@ -34,6 +34,7 @@
 	},
 	"license": "GPL-2.0-or-later",
 	"type": "module",
+	"types": "index.d.ts",
 	"dependencies": {
 		"async-lock": "^1.4.1",
 		"clean-git-ref": "^2.0.1",

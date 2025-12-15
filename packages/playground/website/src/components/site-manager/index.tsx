@@ -1,17 +1,11 @@
-import { Sidebar } from './sidebar';
 import { useMediaQuery } from '@wordpress/compose';
-import {
-	useAppDispatch,
-	useActiveSite,
-	useAppSelector,
-} from '../../lib/state/redux/store';
+import { useActiveSite, useAppSelector } from '../../lib/state/redux/store';
 
 import css from './style.module.css';
 import { SiteInfoPanel } from './site-info-panel';
 import classNames from 'classnames';
 
 import { forwardRef, useState } from 'react';
-import { setSiteManagerOpen } from '../../lib/state/redux/slice-ui';
 import { BlueprintsPanel } from './blueprints-panel';
 import { ResizableBox } from '@wordpress/components';
 
@@ -26,9 +20,6 @@ export const SiteManager = forwardRef<
 	}
 >(({ className }, ref) => {
 	const activeSite = useActiveSite();
-	const dispatch = useAppDispatch();
-
-	const fullScreenSiteManager = useMediaQuery('(max-width: 1126px)');
 	const fullScreenSections = useMediaQuery('(max-width: 875px)');
 	const activeSiteManagerSection = useAppSelector(
 		(state) => state.ui.siteManagerSection
@@ -68,19 +59,6 @@ export const SiteManager = forwardRef<
 		}
 	};
 
-	const sidebar = (
-		<Sidebar
-			className={css.sidebar}
-			mobileUi={fullScreenSections}
-			afterSiteClick={() => {
-				if (fullScreenSiteManager) {
-					// Close the site manager so the site view is visible.
-					dispatch(setSiteManagerOpen(false));
-				}
-			}}
-		/>
-	);
-
 	let activePanel;
 	switch (activeSiteManagerSection) {
 		case 'blueprints':
@@ -91,6 +69,7 @@ export const SiteManager = forwardRef<
 				/>
 			);
 			break;
+		default:
 		case 'site-details':
 			activePanel = activeSite ? (
 				fullScreenSections ? (
@@ -130,22 +109,16 @@ export const SiteManager = forwardRef<
 				)
 			) : null;
 			break;
-		default:
-			activePanel = null;
-			break;
 	}
-	if (fullScreenSections) {
-		return (
-			<div className={classNames(css.siteManager, className)} ref={ref}>
-				{activeSiteManagerSection === 'sidebar' || !activePanel
-					? sidebar
-					: activePanel}
-			</div>
-		);
+
+	// If the site manager is open but there's no active panel,
+	// close it (this can happen if the sidebar was the only content)
+	if (!activePanel) {
+		return null;
 	}
+
 	return (
 		<div className={classNames(css.siteManager, className)} ref={ref}>
-			{sidebar}
 			{activePanel}
 		</div>
 	);

@@ -84,6 +84,9 @@ export default defineConfig(function () {
 			cache: {
 				dir: '../../../node_modules/.vitest',
 			},
+			env: {
+				TEST: JSON.stringify(true),
+			},
 			poolOptions: {
 				// This is needed to allow `--expose-gc` to be passed to the
 				// forked test process.

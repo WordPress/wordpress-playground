@@ -24,7 +24,8 @@
 				"outputPath": "dist/packages/playground/remote",
 				"main": "packages/playground/remote/remote.html",
 				"tsConfig": "packages/playground/remote/tsconfig.lib.json"
-			}
+			},
+			"dependsOn": ["playground-blueprints:build:blueprint-schema"]
 		},
 		"dev": {
 			"executor": "@nx/vite:dev-server",

@@ -12,10 +12,6 @@
 
 	display: flex;
 	flex-direction: row;
-
-	@media (min-width: 876px) {
-		padding-left: 0;
-	}
 }
 
 .sidebar {
@@ -46,7 +42,7 @@
 	max-width: var(--site-info-panel-max-width);
 }
 
-@media (max-width: 1126px) {
+@media (max-width: 875px) {
 	.site-info-resize-handle {
 		display: none !important;
 	}

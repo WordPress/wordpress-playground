@@ -37,7 +37,7 @@ import { SupportedPHPVersions } from '@php-wasm/universal';
 import { cpus } from 'os';
 import { jspi } from 'wasm-feature-detect';
 import type { MessagePort as NodeMessagePort } from 'worker_threads';
-import yargs from 'yargs';
+import yargs, { type Argv, type Options as YargsOptions } from 'yargs';
 import { isValidWordPressSlug } from './is-valid-wordpress-slug';
 import { resolveBlueprint } from './resolve-blueprint';
 import { BlueprintsV2Handler } from './blueprints-v2/blueprints-v2-handler';
@@ -84,93 +84,71 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 		 * @TODO This looks similar to Query API args https://wordpress.github.io/wordpress-playground/developers/apis/query-api/
 		 *       Perhaps the two could be handled by the same code?
 		 */
-		const yargsObject = yargs(argsToParse)
-			.usage('Usage: wp-playground <command> [options]')
-			.command('server', 'Start a local WordPress server')
-			.command(
-				'run-blueprint',
-				'Execute a Blueprint without starting a server'
-			)
-			.command(
-				'build-snapshot',
-				'Build a ZIP snapshot of a WordPress site based on a Blueprint'
-			)
-			.demandCommand(1, 'Please specify a command')
-			.strictCommands()
-			.option('outfile', {
-				describe: 'When building, write to this output file.',
-				type: 'string',
-				default: 'wordpress.zip',
-			})
-			.option('port', {
-				describe: 'Port to listen on when serving.',
-				type: 'number',
-				default: 9400,
-			})
-			.option('site-url', {
+		const sharedOptions: Record<string, YargsOptions> = {
+			'site-url': {
 				describe:
 					'Site URL to use for WordPress. Defaults to http://127.0.0.1:{port}',
 				type: 'string',
-			})
-			.option('php', {
+			},
+			php: {
 				describe: 'PHP version to use.',
 				type: 'string',
 				default: RecommendedPHPVersion,
 				choices: SupportedPHPVersions,
-			})
-			.option('wp', {
+			},
+			wp: {
 				describe: 'WordPress version to use.',
 				type: 'string',
 				default: 'latest',
-			})
+			},
 			// @TODO: Support read-only mounts, e.g. via WORKERFS, a custom
 			// ReadOnlyNODEFS, or by copying the files into MEMFS
-			.option('mount', {
+			mount: {
 				describe:
 					'Mount a directory to the PHP runtime (can be used multiple times). Format: /host/path:/vfs/path',
 				type: 'array',
 				string: true,
 				coerce: parseMountWithDelimiterArguments,
-			})
-			.option('mount-before-install', {
+			},
+			'mount-before-install': {
 				describe:
 					'Mount a directory to the PHP runtime before WordPress installation (can be used multiple times). Format: /host/path:/vfs/path',
 				type: 'array',
 				string: true,
 				coerce: parseMountWithDelimiterArguments,
-			})
-			.option('mount-dir', {
+			},
+			'mount-dir': {
 				describe:
 					'Mount a directory to the PHP runtime (can be used multiple times). Format: "/host/path" "/vfs/path"',
 				type: 'array',
 				nargs: 2,
 				array: true,
 				coerce: parseMountDirArguments,
-			})
-			.option('mount-dir-before-install', {
+			},
+			'mount-dir-before-install': {
 				describe:
 					'Mount a directory before WordPress installation (can be used multiple times). Format: "/host/path" "/vfs/path"',
 				type: 'string',
 				nargs: 2,
 				array: true,
 				coerce: parseMountDirArguments,
-			})
-			.option('login', {
+			},
+			login: {
 				describe: 'Should log the user in',
 				type: 'boolean',
 				default: false,
-			})
-			.option('blueprint', {
+			},
+			blueprint: {
 				describe: 'Blueprint to execute.',
 				type: 'string',
-			})
-			.option('blueprint-may-read-adjacent-files', {
+			},
+			'blueprint-may-read-adjacent-files': {
 				describe:
 					'Consent flag: Allow "bundled" resources in a local blueprint to read files in the same directory as the blueprint file.',
 				type: 'boolean',
 				default: false,
-			})
-			.option('wordpress-install-mode', {
+			},
+			'wordpress-install-mode': {
 				describe:
 					'Control how Playground prepares WordPress before booting.',
 				type: 'string',
@@ -181,76 +159,76 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 					'install-from-existing-files-if-needed',
 					'do-not-attempt-installing',
 				] as const,
-			})
-			.option('skip-wordpress-install', {
+			},
+			'skip-wordpress-install': {
 				describe: '[Deprecated] Use --wordpress-install-mode instead.',
 				type: 'boolean',
 				hidden: true,
-			})
-			.option('skip-sqlite-setup', {
+			},
+			'skip-sqlite-setup': {
 				describe:
 					'Skip the SQLite integration plugin setup to allow the WordPress site to use MySQL.',
 				type: 'boolean',
 				default: false,
-			})
+			},
 			// Hidden - Deprecated in favor of verbosity
-			.option('quiet', {
+			quiet: {
 				describe: 'Do not output logs and progress messages.',
 				type: 'boolean',
 				default: false,
 				hidden: true,
-			})
-			.option('verbosity', {
+			},
+			verbosity: {
 				describe: 'Output logs and progress messages.',
 				type: 'string',
 				choices: Object.values(LogVerbosity).map(
 					(verbosity) => verbosity.name
 				),
 				default: 'normal',
-			})
-			.option('debug', {
+			},
+			debug: {
 				describe:
 					'Print PHP error log content if an error occurs during Playground boot.',
 				type: 'boolean',
 				default: false,
-			})
-			.option('auto-mount', {
+			},
+			'auto-mount': {
 				describe: `Automatically mount the specified directory. If no path is provided, mount the current working directory. You can mount a WordPress directory, a plugin directory, a theme directory, a wp-content directory, or any directory containing PHP and HTML files.`,
 				type: 'string',
-			})
-			.option('follow-symlinks', {
+			},
+			'follow-symlinks': {
 				describe:
 					'Allow Playground to follow symlinks by automatically mounting symlinked directories and files encountered in mounted directories. \nWarning: Following symlinks will expose files outside mounted directories to Playground and could be a security risk.',
 				type: 'boolean',
 				default: false,
-			})
-			.option('experimental-trace', {
+			},
+			'experimental-trace': {
 				describe:
 					'Print detailed messages about system behavior to the console. Useful for troubleshooting.',
 				type: 'boolean',
 				default: false,
 				// Hide this option because we want to replace with a more general log-level flag.
 				hidden: true,
-			})
-			.option('internal-cookie-store', {
+			},
+			'internal-cookie-store': {
 				describe:
 					'Enable internal cookie handling. When enabled, Playground will manage cookies internally using ' +
 					'an HttpCookieStore that persists cookies across requests. When disabled, cookies are handled ' +
 					'externally (e.g., by a browser in Node.js environments).',
 				type: 'boolean',
 				default: false,
-			})
-			.option('intl', {
+			},
+			intl: {
 				describe: 'Enable Intl.',
 				type: 'boolean',
 				default: true,
-			})
-			.option('xdebug', {
+			},
+			xdebug: {
 				describe: 'Enable Xdebug.',
 				type: 'boolean',
 				default: false,
-			})
-			.option('experimental-unsafe-ide-integration', {
+			},
+			'experimental-unsafe-ide-integration': {
 				describe:
 					'Enable experimental IDE development tools. This option edits IDE config files ' +
 					'to set Xdebug path mappings and web server details. CAUTION: If there are bugs, ' +
@@ -263,16 +241,31 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 				choices: ['', 'vscode', 'phpstorm'],
 				coerce: (value?: string) =>
 					value === '' ? ['vscode', 'phpstorm'] : [value],
-			})
-			.option('experimental-devtools', {
-				describe: 'Enable experimental browser development tools.',
+			},
+			'experimental-blueprints-v2-runner': {
+				describe: 'Use the experimental Blueprint V2 runner.',
 				type: 'boolean',
-			})
-			.conflicts(
-				'experimental-unsafe-ide-integration',
-				'experimental-devtools'
-			)
-			.option('experimental-multi-worker', {
+				default: false,
+				// Remove the "hidden" flag once Blueprint V2 is fully supported
+				hidden: true,
+			},
+			mode: {
+				describe:
+					'Blueprints v2 runner mode to use. This option is required when using the --experimental-blueprints-v2-runner flag with a blueprint.',
+				type: 'string',
+				choices: ['create-new-site', 'apply-to-existing-site'],
+				// Remove the "hidden" flag once Blueprint V2 is fully supported
+				hidden: true,
+			},
+		};
+
+		const serverOnlyOptions: Record<string, YargsOptions> = {
+			port: {
+				describe: 'Port to listen on when serving.',
+				type: 'number',
+				default: 9400,
+			},
+			'experimental-multi-worker': {
 				describe:
 					'Enable experimental multi-worker support which requires ' +
 					'a /wordpress directory backed by a real filesystem. ' +
@@ -280,22 +273,53 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 					'Otherwise, default to the number of CPUs minus 1.',
 				type: 'number',
 				coerce: (value?: number) => value ?? cpus().length - 1,
-			})
-			.option('experimental-blueprints-v2-runner', {
-				describe: 'Use the experimental Blueprint V2 runner.',
+			},
+			'experimental-devtools': {
+				describe: 'Enable experimental browser development tools.',
 				type: 'boolean',
-				default: false,
-				// Remove the "hidden" flag once Blueprint V2 is fully supported
-				hidden: true,
-			})
-			.option('mode', {
-				describe:
-					'Blueprints v2 runner mode to use. This option is required when using the --experimental-blueprints-v2-runner flag with a blueprint.',
+			},
+		};
+
+		const buildSnapshotOnlyOptions: Record<string, YargsOptions> = {
+			outfile: {
+				describe: 'When building, write to this output file.',
 				type: 'string',
-				choices: ['create-new-site', 'apply-to-existing-site'],
-				// Remove the "hidden" flag once Blueprint V2 is fully supported
-				hidden: true,
-			})
+				default: 'wordpress.zip',
+			},
+		};
+
+		const yargsObject = yargs(argsToParse)
+			.usage('Usage: wp-playground <command> [options]')
+			.command(
+				'server',
+				'Start a local WordPress server',
+				(yargsInstance: Argv) =>
+					yargsInstance.options({
+						...sharedOptions,
+						...serverOnlyOptions,
+					})
+			)
+			.command(
+				'run-blueprint',
+				'Execute a Blueprint without starting a server',
+				(yargsInstance: Argv) =>
+					yargsInstance.options({ ...sharedOptions })
+			)
+			.command(
+				'build-snapshot',
+				'Build a ZIP snapshot of a WordPress site based on a Blueprint',
+				(yargsInstance: Argv) =>
+					yargsInstance.options({
+						...sharedOptions,
+						...buildSnapshotOnlyOptions,
+					})
+			)
+			.demandCommand(1, 'Please specify a command')
+			.strictCommands()
+			.conflicts(
+				'experimental-unsafe-ide-integration',
+				'experimental-devtools'
+			)
 			.showHelpOnFail(false)
 			.fail((msg, err, yargsInstance) => {
 				if (err) {
@@ -317,10 +341,14 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 					args['wordpressInstallMode'] = 'do-not-attempt-installing';
 				}
 
-				if (args.wp !== undefined && !isValidWordPressSlug(args.wp)) {
+				if (
+					args['wp'] !== undefined &&
+					typeof args['wp'] === 'string' &&
+					!isValidWordPressSlug(args['wp'])
+				) {
 					try {
 						// Check if is valid URL
-						new URL(args.wp);
+						new URL(args['wp']);
 					} catch {
 						throw new Error(
 							'Unrecognized WordPress version. Please use "latest", a URL, or a numeric version such as "6.2", "6.0.1", "6.2-beta1", or "6.2-RC1"'
@@ -328,12 +356,16 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 					}
 				}
 
-				if (args['site-url'] !== undefined && args['site-url'] !== '') {
+				const siteUrlArg = args['site-url'];
+				if (
+					typeof siteUrlArg === 'string' &&
+					siteUrlArg.trim() !== ''
+				) {
 					try {
-						new URL(args['site-url']);
+						new URL(siteUrlArg);
 					} catch {
 						throw new Error(
-							`Invalid site-url "${args['site-url']}". Please provide a valid URL (e.g., http://localhost:8080 or https://example.com)`
+							`Invalid site-url "${siteUrlArg}". Please provide a valid URL (e.g., http://localhost:8080 or https://example.com)`
 						);
 					}
 				}
@@ -341,7 +373,9 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 				if (args['auto-mount']) {
 					let autoMountIsDir = false;
 					try {
-						const autoMountStats = fs.statSync(args['auto-mount']);
+						const autoMountStats = fs.statSync(
+							args['auto-mount'] as string
+						);
 						autoMountIsDir = autoMountStats.isDirectory();
 					} catch {
 						autoMountIsDir = false;
@@ -361,7 +395,11 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 							'The --experimental-multi-worker flag is only supported when running the server command.'
 						);
 					}
-					if (args['experimental-multi-worker'] <= 1) {
+					if (
+						args['experimental-multi-worker'] !== undefined &&
+						typeof args['experimental-multi-worker'] === 'number' &&
+						args['experimental-multi-worker'] <= 1
+					) {
 						throw new Error(
 							'The --experimental-multi-worker flag must be a positive integer greater than 1.'
 						);
@@ -433,10 +471,13 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 		const cliArgs = {
 			...args,
 			command,
-			mount: [...(args.mount || []), ...(args['mount-dir'] || [])],
+			mount: [
+				...((args['mount'] as Mount[]) || []),
+				...((args['mount-dir'] as Mount[]) || []),
+			],
 			'mount-before-install': [
-				...(args['mount-before-install'] || []),
-				...(args['mount-dir-before-install'] || []),
+				...((args['mount-before-install'] as Mount[]) || []),
+				...((args['mount-dir-before-install'] as Mount[]) || []),
 			],
 		} as RunCLIArgs;
 
@@ -633,6 +674,9 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 		args.intl = true;
 	}
 
+	const selectedPort =
+		args.command === 'server' ? ((args['port'] as number) ?? 9400) : 0;
+
 	// Declare file lock manager outside scope of startServer
 	// so we can look at it when debugging request handling.
 	const nativeFlockSync =
@@ -657,7 +701,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 	logger.log('Starting a PHP server...');
 
 	return startServer({
-		port: args['port'] as number,
+		port: selectedPort,
 		onBind: async (server: Server, port: number) => {
 			const host = '127.0.0.1';
 			const serverUrl = `http://${host}:${port}`;

@@ -218,7 +218,14 @@ function setupTransferHandlers() {
 			'exitCode' in obj &&
 			'httpStatusCode' in obj,
 		serialize(obj: PHPResponse): [PHPResponseData, Transferable[]] {
-			return [obj.toRawData(), []];
+			const data = obj.toRawData();
+			// Transfer the ArrayBuffer instead of cloning it to avoid
+			// "could not be cloned" errors when the buffer is detached
+			const transferables: Transferable[] = [];
+			if (data.bytes.buffer.byteLength > 0) {
+				transferables.push(data.bytes.buffer);
+			}
+			return [data, transferables];
 		},
 		deserialize(responseData: PHPResponseData): PHPResponse {
 			return PHPResponse.fromRawData(responseData);

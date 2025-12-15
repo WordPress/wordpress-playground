@@ -20,7 +20,6 @@ export const modalSlugs = {
 	LOG: 'log',
 	ERROR_REPORT: 'error-report',
 	START_ERROR: 'start-error',
-	IMPORT_FORM: 'import-form',
 	GITHUB_IMPORT: 'github-import',
 	GITHUB_EXPORT: 'github-export',
 	GITHUB_PRIVATE_REPO_AUTH: 'github-private-repo-auth',
@@ -29,6 +28,7 @@ export const modalSlugs = {
 	MISSING_SITE_PROMPT: 'missing-site-prompt',
 	RENAME_SITE: 'rename-site',
 	SAVE_SITE: 'save-site',
+	BLUEPRINT_URL: 'blueprint-url',
 } as const;
 
 export type SerializedPlainErrorDetails = {
@@ -37,8 +37,7 @@ export type SerializedPlainErrorDetails = {
 	stack?: string;
 };
 
-export interface SerializedBlueprintStepErrorDetails
-	extends SerializedPlainErrorDetails {
+export interface SerializedBlueprintStepErrorDetails extends SerializedPlainErrorDetails {
 	type: 'blueprint-step-error';
 	stepNumber: number;
 	step: Record<string, unknown>;
@@ -117,6 +116,7 @@ export interface UIState {
 		errorDetails?: SerializedSiteErrorDetails;
 	};
 	activeModal: string | null;
+	siteSlugToRename?: string;
 	githubAuthRepoUrl?: string;
 	offline: boolean;
 	siteManagerIsOpen: boolean;
@@ -230,6 +230,12 @@ const uiSlice = createSlice({
 		) => {
 			state.siteManagerSection = action.payload;
 		},
+		setSiteSlugToRename: (
+			state,
+			action: PayloadAction<string | undefined>
+		) => {
+			state.siteSlugToRename = action.payload;
+		},
 	},
 });
 
@@ -274,6 +280,7 @@ export const {
 	setOffline,
 	setSiteManagerOpen,
 	setSiteManagerSection,
+	setSiteSlugToRename,
 } = uiSlice.actions;
 
 export default uiSlice.reducer;

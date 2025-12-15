@@ -8,7 +8,8 @@ import {
 } from '@codemirror/view';
 import { logger } from '@php-wasm/logger';
 import { Button, Icon, Notice } from '@wordpress/components';
-import { download } from '@wordpress/icons';
+import { download, link } from '@wordpress/icons';
+import { encodeStringAsBase64 } from '../../lib/base64';
 import {
 	resolveRuntimeConfiguration,
 	type BlueprintValidationResult,
@@ -276,6 +277,7 @@ export const BlueprintBundleEditor = forwardRef<
 	const [currentPath, setCurrentPath] = useState<string | null>(null);
 	const [code, setCode] = useState<string>('');
 	const [saveError, setSaveError] = useState<string | null>(null);
+	const [successMessage, setSuccessMessage] = useState<string | null>(null);
 	const [showExplorerOnMobile, setShowExplorerOnMobile] =
 		useState<boolean>(false);
 	const [treeFocusPath, setTreeFocusPath] = useState<string | null>(null);
@@ -581,6 +583,36 @@ export const BlueprintBundleEditor = forwardRef<
 		}
 	}, [filesystem]);
 
+	const handleShareBlueprint = useCallback(async () => {
+		try {
+			// Check if the bundle contains anything other than blueprint.json
+			const rootEntries = await filesystem.listFiles('/');
+			if (
+				rootEntries.length !== 1 ||
+				rootEntries[0] !== 'blueprint.json'
+			) {
+				alert(
+					'Linking to blueprint bundles is not supported yet. Only single-file blueprints can be shared via link.'
+				);
+				return;
+			}
+
+			// Read the blueprint.json content
+			const blueprintContent =
+				await filesystem.readFileAsText(BLUEPRINT_JSON_PATH);
+
+			const base64Blueprint = encodeStringAsBase64(blueprintContent);
+			const shareUrl = `${window.location.origin}${window.location.pathname}#${base64Blueprint}`;
+			await navigator.clipboard.writeText(shareUrl);
+
+			setSuccessMessage('Link copied to clipboard!');
+			setTimeout(() => setSuccessMessage(null), 2000);
+		} catch (error) {
+			logger.error('Failed to share blueprint', error);
+			setSaveError('Could not copy link. Try again.');
+		}
+	}, [filesystem]);
+
 	useImperativeHandle(
 		ref,
 		() => ({
@@ -653,6 +685,14 @@ export const BlueprintBundleEditor = forwardRef<
 								<Button
 									variant="tertiary"
 									className={styles.editorToolbarButton}
+									onClick={handleShareBlueprint}
+									title="Copy link to blueprint"
+								>
+									<Icon icon={link} />
+								</Button>
+								<Button
+									variant="tertiary"
+									className={styles.editorToolbarButton}
 									onClick={handleDownloadBundle}
 									title="Download bundle"
 								>
@@ -691,6 +731,13 @@ export const BlueprintBundleEditor = forwardRef<
 							<div style={{ padding: '8px 16px' }}>
 								<Notice status="error" isDismissible={false}>
 									{saveError}
+								</Notice>
+							</div>
+						) : null}
+						{successMessage ? (
+							<div style={{ padding: '8px 16px' }}>
+								<Notice status="success" isDismissible={false}>
+									{successMessage}
 								</Notice>
 							</div>
 						) : null}

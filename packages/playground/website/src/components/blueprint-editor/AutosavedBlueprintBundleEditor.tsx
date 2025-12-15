@@ -186,10 +186,12 @@ export const AutosavedBlueprintBundleEditor = forwardRef<
 
 				// Otherwise, populate an in-memory filesystem with the Blueprint JSON.
 				fs = new EventedFilesystem(new InMemoryFilesystemBackend());
-				await populateFilesystemFromBlueprint(
-					fs,
-					originalBlueprint as Blueprint
-				);
+				if (originalBlueprint) {
+					await populateFilesystemFromBlueprint(
+						fs,
+						originalBlueprint as Blueprint
+					);
+				}
 				setFilesystem(fs);
 				return;
 			}

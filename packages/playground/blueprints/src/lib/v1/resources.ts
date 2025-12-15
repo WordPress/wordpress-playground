@@ -15,7 +15,11 @@ import {
 } from '@wp-playground/storage';
 import { zipNameToHumanName } from '../utils/zip-name-to-human-name';
 import { fetchWithCorsProxy } from '@php-wasm/web';
-import { StreamedFile } from '@php-wasm/stream-compression';
+import {
+	StreamedFile,
+	encodeZip,
+	collectFile,
+} from '@php-wasm/stream-compression';
 import type { StreamBundledFile } from './types';
 import { createDotGitDirectory } from '@wp-playground/storage';
 
@@ -47,6 +51,7 @@ export const ResourceTypes = [
 	'url',
 	'git:directory',
 	'bundled',
+	'zip',
 ] as const;
 
 export type VFSReference = {
@@ -114,13 +119,23 @@ export type BundledReference = {
 	path: string;
 };
 
+export type ZipWrapperReference = {
+	/** Identifies the resource as a ZIP wrapper */
+	resource: 'zip';
+	/** The inner resource to wrap in a ZIP file */
+	inner: FileReference | DirectoryReference;
+	/** Optional filename for the ZIP (defaults to inner resource name + .zip) */
+	name?: string;
+};
+
 export type FileReference =
 	| VFSReference
 	| LiteralReference
 	| CoreThemeReference
 	| CorePluginReference
 	| UrlReference
-	| BundledReference;
+	| BundledReference
+	| ZipWrapperReference;
 
 export type DirectoryReference =
 	| GitDirectoryReference
@@ -133,6 +148,123 @@ export function isResourceReference(ref: any): ref is FileReference {
 		typeof ref.resource === 'string' &&
 		ResourceTypes.includes(ref.resource)
 	);
+}
+
+/**
+ * Checks if a URL is a github-proxy.com URL that can be rewritten.
+ *
+ * @param url The URL to check
+ * @returns true if the URL is a github-proxy.com URL
+ */
+export function isGithubProxyUrl(url: string): boolean {
+	try {
+		const parsed = new URL(url);
+		return parsed.hostname === 'github-proxy.com';
+	} catch {
+		return false;
+	}
+}
+
+/**
+ * Rewrites a github-proxy.com URL to an equivalent Blueprint resource reference.
+ *
+ * github-proxy.com is being deprecated. This function enables automatic migration
+ * of existing Blueprints that use github-proxy.com URLs to native Blueprint resources.
+ *
+ * Supported URL patterns:
+ * - `?repo=owner/name` - Full repository at default branch
+ * - `?repo=owner/name&branch=trunk` - Full repository at specific branch
+ * - `?repo=owner/name&pr=123` - Full repository at PR head
+ * - `?repo=owner/name&commit=abc` - Full repository at specific commit
+ * - `?repo=owner/name&release=v1.0` - Full repository at release tag
+ * - `?repo=owner/name&directory=subdir` - Subdirectory of repository
+ * - `?repo=owner/name&release=v1.0&asset=file.zip` - Release asset download
+ * - `https://github-proxy.com/https://github.com/...` - Direct GitHub URL proxy
+ *
+ * @param url The github-proxy.com URL to rewrite
+ * @returns A ZipWrapperReference (wrapping git:directory) or UrlReference, or null if URL cannot be rewritten
+ */
+export function rewriteGithubProxyUrl(
+	url: string
+): ZipWrapperReference | UrlReference | null {
+	let parsed: URL;
+	try {
+		parsed = new URL(url);
+	} catch {
+		return null;
+	}
+
+	if (parsed.hostname !== 'github-proxy.com') {
+		return null;
+	}
+
+	// Handle direct GitHub URL proxy: https://github-proxy.com/https://github.com/...
+	// The pathname starts with a slash, so we slice it off
+	const pathAsUrl = parsed.pathname.slice(1);
+	if (
+		pathAsUrl.startsWith('https://github.com/') ||
+		pathAsUrl.startsWith('http://github.com/')
+	) {
+		return { resource: 'url', url: pathAsUrl };
+	}
+
+	// For /proxy/ endpoints, extract query parameters
+	const params = parsed.searchParams;
+	const repo = params.get('repo');
+	if (!repo) {
+		return null;
+	}
+
+	// Handle release asset downloads (returns a file, not a directory)
+	const release = params.get('release');
+	const asset = params.get('asset');
+	if (release && asset) {
+		// GitHub supports /releases/latest/download/ URLs natively
+		const releasePath =
+			release === 'latest'
+				? 'releases/latest/download'
+				: `releases/download/${release}`;
+		return {
+			resource: 'url',
+			url: `https://github.com/${repo}/${releasePath}/${asset}`,
+		};
+	}
+
+	// Determine the git ref based on the URL parameters
+	let ref: string;
+	let refType: 'branch' | 'tag' | 'commit' | undefined;
+
+	const pr = params.get('pr');
+	const commit = params.get('commit');
+	const branch = params.get('branch');
+
+	if (pr) {
+		ref = `refs/pull/${pr}/head`;
+	} else if (commit) {
+		ref = commit;
+		refType = 'commit';
+	} else if (release) {
+		ref = release;
+		refType = 'tag';
+	} else {
+		ref = branch || 'HEAD';
+	}
+
+	const directory = params.get('directory');
+
+	// Always wrap in zip to match github-proxy.com semantics (which always returns ZIP files)
+	const gitDirectoryRef: GitDirectoryReference = {
+		resource: 'git:directory',
+		url: `https://github.com/${repo}`,
+		ref,
+		...(refType && { refType }),
+		...(directory && { path: directory }),
+	};
+
+	return {
+		resource: 'zip',
+		inner: gitDirectoryRef,
+	};
 }
 
 export abstract class Resource<T extends File | Directory> {
@@ -189,6 +321,22 @@ export abstract class Resource<T extends File | Directory> {
 			) => Record<string, string>;
 		}
 	): Resource<File | Directory> {
+		// Automatically rewrite github-proxy.com URLs to native Blueprint resources.
+		// github-proxy.com is being deprecated - this provides graceful migration.
+		if (ref.resource === 'url' && isGithubProxyUrl(ref.url)) {
+			const rewritten = rewriteGithubProxyUrl(ref.url);
+			if (rewritten) {
+				// eslint-disable-next-line no-console
+				console.warn(
+					`[Blueprints] github-proxy.com is deprecated and will stop working soon. ` +
+						`The URL "${ref.url}" has been automatically converted to a ${rewritten.resource} resource. ` +
+						`Please update your Blueprint to use native resource types. ` +
+						`See: https://wordpress.github.io/wordpress-playground/blueprints/steps/resources`
+				);
+				ref = rewritten;
+			}
+		}
+
 		let resource: Resource<File | Directory>;
 		switch (ref.resource) {
 			case 'vfs':
@@ -225,6 +373,18 @@ export abstract class Resource<T extends File | Directory> {
 					progress
 				);
 				break;
+			case 'zip': {
+				// Recursively create the inner resource
+				const innerResource = Resource.create(ref.inner, {
+					semaphore,
+					progress,
+					corsProxy,
+					streamBundledFile,
+					gitAdditionalHeadersCallback,
+				});
+				resource = new ZipResource(ref, innerResource, progress);
+				break;
+			}
 			default:
 				throw new Error(
 					`Unknown resource type: ${(ref as any).resource}`
@@ -240,7 +400,7 @@ export abstract class Resource<T extends File | Directory> {
 }
 
 export abstract class ResourceDecorator<
-	T extends File | Directory
+	T extends File | Directory,
 > extends Resource<T> {
 	protected resource: Resource<T>;
 	constructor(resource: Resource<T>) {
@@ -770,7 +930,7 @@ export function toDirectoryZipName(rawInput: string) {
  * A decorator for a resource that adds caching functionality.
  */
 export class CachedResource<
-	T extends File | Directory
+	T extends File | Directory,
 > extends ResourceDecorator<T> {
 	protected override promise?: Promise<T>;
 
@@ -788,7 +948,7 @@ export class CachedResource<
  * through a semaphore.
  */
 export class SemaphoreResource<
-	T extends File | Directory
+	T extends File | Directory,
 > extends ResourceDecorator<T> {
 	private readonly semaphore: Semaphore;
 	constructor(resource: Resource<T>, semaphore: Semaphore) {
@@ -885,4 +1045,96 @@ export class BundledResource extends Resource<File> {
 	override get isAsync(): boolean {
 		return true;
 	}
+}
+
+/**
+ * A `Resource` that wraps another resource and outputs it as a ZIP file.
+ * This is useful for converting directory resources to ZIP files, enabling
+ * compatibility with steps that expect ZIP input (like `unzip`).
+ */
+export class ZipResource extends Resource<File> {
+	private reference: ZipWrapperReference;
+	private innerResource: Resource<File | Directory>;
+
+	constructor(
+		reference: ZipWrapperReference,
+		innerResource: Resource<File | Directory>,
+		_progress?: ProgressTracker
+	) {
+		super();
+		this.reference = reference;
+		this.innerResource = innerResource;
+		this._progress = _progress;
+	}
+
+	/** @inheritDoc */
+	async resolve(): Promise<File> {
+		this.progress?.setCaption(`Creating ZIP: ${this.name}`);
+
+		// Resolve the inner resource first
+		const innerResult = await this.innerResource.resolve();
+
+		// Convert to an iterable of File objects for encodeZip
+		let files: File[];
+
+		if (innerResult instanceof File) {
+			// Inner resource is already a File - wrap it in a ZIP
+			files = [innerResult];
+		} else {
+			// Inner resource is a Directory - convert FileTree to Files
+			files = fileTreeToFiles(innerResult.files, innerResult.name);
+		}
+
+		// Create the ZIP using encodeZip
+		const zipStream = encodeZip(files);
+		const zipFile = await collectFile(this.name, zipStream);
+
+		this.progress?.set(100);
+		return zipFile;
+	}
+
+	/** @inheritDoc */
+	get name(): string {
+		if (this.reference.name) {
+			return this.reference.name;
+		}
+		const innerName = this.innerResource.name;
+		return innerName.endsWith('.zip') ? innerName : `${innerName}.zip`;
+	}
+
+	/** @inheritDoc */
+	override get isAsync(): boolean {
+		return true;
+	}
+}
+
+/**
+ * Converts a FileTree to an array of File objects suitable for ZIP encoding.
+ * Each file's name includes its relative path within the tree.
+ */
+function fileTreeToFiles(tree: FileTree, baseName: string): File[] {
+	const files: File[] = [];
+
+	function traverse(node: FileTree, currentPath: string) {
+		for (const [name, value] of Object.entries(node)) {
+			const fullPath = currentPath ? `${currentPath}/${name}` : name;
+
+			if (value instanceof Uint8Array) {
+				files.push(new File([value], `${baseName}/${fullPath}`));
+			} else if (typeof value === 'string') {
+				files.push(
+					new File(
+						[new TextEncoder().encode(value)],
+						`${baseName}/${fullPath}`
+					)
+				);
+			} else {
+				// It's a nested FileTree
+				traverse(value, fullPath);
+			}
+		}
+	}
+
+	traverse(tree, '');
+	return files;
 }

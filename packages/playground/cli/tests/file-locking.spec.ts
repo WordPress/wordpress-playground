@@ -23,6 +23,8 @@ describe('Playground CLI file locking', () => {
 
 		cliServer = await runCLI({
 			command: 'server',
+			// Use a unique port to avoid conflicts with other test suites
+			port: 9600,
 			mount: [
 				{
 					hostPath: nativeTestDir,

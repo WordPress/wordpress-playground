@@ -223,7 +223,11 @@ export function removeSite(slug: string) {
 		if (siteInfo.metadata.storage === 'none') {
 			throw new Error('Cannot remove a temporary site.');
 		}
-		await opfsSiteStorage?.delete(siteInfo.slug);
+		try {
+			await opfsSiteStorage?.delete(siteInfo.slug);
+		} catch (error: any) {
+			logger.error('Error deleting site from OPFS:', error);
+		}
 		dispatch(sitesSlice.actions.removeSite(siteInfo.slug));
 
 		// Select the most recently created site

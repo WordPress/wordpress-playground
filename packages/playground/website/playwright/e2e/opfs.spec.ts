@@ -66,24 +66,24 @@ test('should switch between sites', async ({ website, browserName }) => {
 	// Save the temporary site using the modal
 	await saveSiteViaModal(website.page);
 
-	await expect(
-		website.page.locator('[aria-current="page"]')
-	).not.toContainText('Temporary Playground', {
-		// Saving the site takes a while on CI
-		timeout: 90000,
-	});
 	await expect(website.page.getByLabel('Playground title')).not.toContainText(
-		'Temporary Playground'
+		'Temporary Playground',
+		{
+			// Saving the site takes a while on CI
+			timeout: 90000,
+		}
 	);
 
+	// Open the saved playgrounds overlay to switch sites
+	await website.openSavedPlaygroundsOverlay();
+
+	// Click on Temporary Playground in the overlay's site list
 	await website.page
-		.locator('button')
+		.locator('[class*="siteRowContent"]')
 		.filter({ hasText: 'Temporary Playground' })
 		.click();
 
-	await expect(website.page.locator('[aria-current="page"]')).toContainText(
-		'Temporary Playground'
-	);
+	// The overlay closes and site manager opens with the selected site
 	await expect(website.page.getByLabel('Playground title')).toContainText(
 		'Temporary Playground'
 	);
@@ -118,12 +118,13 @@ test('should preserve PHP constants when saving a temporary site to OPFS', async
 	// Save the temporary site using the modal
 	await saveSiteViaModal(website.page);
 
-	await expect(
-		website.page.locator('[aria-current="page"]')
-	).not.toContainText('Temporary Playground', {
-		// Saving the site takes a while on CI
-		timeout: 90000,
-	});
+	await expect(website.page.getByLabel('Playground title')).not.toContainText(
+		'Temporary Playground',
+		{
+			// Saving the site takes a while on CI
+			timeout: 90000,
+		}
+	);
 
 	const storedPlaygroundTitleText = await website.page
 		.getByLabel('Playground title')
@@ -131,14 +132,21 @@ test('should preserve PHP constants when saving a temporary site to OPFS', async
 	await expect(storedPlaygroundTitleText).not.toBeNull();
 	await expect(storedPlaygroundTitleText).not.toMatch('Temporary Playground');
 
+	// Open the saved playgrounds overlay to switch sites
+	await website.openSavedPlaygroundsOverlay();
+
+	// Switch to Temporary Playground
 	await website.page
-		.locator('button')
+		.locator('[class*="siteRowContent"]')
 		.filter({ hasText: 'Temporary Playground' })
 		.click();
 
+	// Open the overlay again to switch back to the stored site
+	await website.openSavedPlaygroundsOverlay();
+
 	// Switch back to the stored site and confirm the PHP constant is still present.
 	await website.page
-		.locator('button')
+		.locator('[class*="siteRowContent"]')
 		.filter({ hasText: storedPlaygroundTitleText! })
 		.click();
 
@@ -194,9 +202,13 @@ test('should rename a saved Playground and persist after reload', async ({
 	await expect(website.page.getByLabel('Playground title')).toContainText(
 		newName
 	);
+
+	// Verify the name is also updated in the saved playgrounds overlay
+	await website.openSavedPlaygroundsOverlay();
 	await expect(
-		website.page.locator('[aria-current="page"]').first()
-	).toContainText(newName);
+		website.page.locator('[class*="siteRowName"]', { hasText: newName })
+	).toBeVisible();
+	await website.closeSavedPlaygroundsOverlay();
 });
 
 test('should show save site modal with correct elements', async ({
@@ -335,9 +347,13 @@ test('should save site with custom name', async ({ website, browserName }) => {
 			timeout: 90000,
 		}
 	);
-	await expect(website.page.locator('[aria-current="page"]')).toContainText(
-		customName
-	);
+
+	// Verify the name also appears in the saved playgrounds overlay
+	await website.openSavedPlaygroundsOverlay();
+	await expect(
+		website.page.locator('[class*="siteRowName"]', { hasText: customName })
+	).toBeVisible();
+	await website.closeSavedPlaygroundsOverlay();
 });
 
 test('should not persist save site modal through page refresh', async ({

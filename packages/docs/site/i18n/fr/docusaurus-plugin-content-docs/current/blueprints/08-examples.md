@@ -1,8 +1,8 @@
 ---
 sidebar_position: 8
-title: Exemplos
+title: Exemples
 slug: /blueprints/examples
-description: Uma galeria de exemplos práticos de Blueprint para várias tarefas, como instalar temas, executar PHP e ativar recursos.
+description: Une galerie d'exemples pratiques de Blueprint pour diverses tâches, telles que l'installation de thèmes, l'exécution de PHP et l'activation de fonctionnalités.
 ---
 
 <!-- title: Examples -->
@@ -10,22 +10,22 @@ description: Uma galeria de exemplos práticos de Blueprint para várias tarefas
 
 import BlueprintExample from '@site/src/components/Blueprints/BlueprintExample.mdx';
 
-# Exemplos de Blueprints
+# Exemples de Blueprints
 
 <!-- # Blueprints Examples -->
 
 :::tip
-Confira a [Galeria de Blueprints](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) para explorar exemplos de código do mundo real usando o WordPress Playground para lançar um site WordPress com uma variedade de configurações.
+Consultez la [Galerie de Blueprints](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) pour explorer des exemples de code réels utilisant WordPress Playground pour lancer un site WordPress avec une variété de configurations.
 
 <!-- Check the [Blueprints Gallery](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) to explore real-world code examples of using WordPress Playground to launch a WordPress site with a variety of setups. -->
 
 :::
 
-Vamos ver algumas coisas legais que você pode fazer com Blueprints.
+Voyons quelques choses intéressantes que vous pouvez faire avec les Blueprints.
 
 <!-- Let's see some cool things you can do with Blueprints. -->
 
-## Instalar um Tema e um Plugin
+## Installer un Thème et un Plugin
 
 <!-- ## Install a Theme and a Plugin -->
 
@@ -48,24 +48,24 @@ Vamos ver algumas coisas legais que você pode fazer com Blueprints.
 	]
 }} />
 
-## O objeto `meta`
+## L'objet `meta`
 
 <!-- ## The `meta` object -->
 
-O objeto opcional `meta` fornece informações descritivas sobre seu Blueprint. Embora não afete como o Blueprint é executado, essas informações são cruciais para fins de exibição em galerias, seletores de Blueprint e ferramentas integradas como [WordPress Studio](https://developer.wordpress.com/studio/) e [Galeria de Blueprints](https://wordpress.github.io/blueprints/).
+L'objet optionnel `meta` fournit des informations descriptives sur votre Blueprint. Bien qu'il n'affecte pas l'exécution du Blueprint, ces informations sont cruciales pour l'affichage dans les galeries, les sélecteurs de Blueprint et les outils intégrés tels que [WordPress Studio](https://developer.wordpress.com/studio/) et la [Galerie de Blueprints](https://wordpress.github.io/blueprints/).
 
 <!-- The optional `meta` object provides descriptive information about your Blueprint. While it doesn't affect how the Blueprint executes, this information is crucial for display purposes in galleries, Blueprint selectors, and integrated tools like [WordPress Studio](https://developer.wordpress.com/studio/) and [Blueprints Gallery](https://wordpress.github.io/blueprints/). -->
 
-### Propriedades
+### Propriétés
 
 <!-- ### Properties -->
 
-| Campo             | Tipo            | Descrição                                      |
-| :---------------- | :-------------- | :--------------------------------------------- |
-| **`title`**       | `string`        | Um nome curto e legível para o Blueprint.      |
-| **`description`** | `string`        | Um breve resumo explicando a configuração.     |
-| **`author`**      | `string`        | O nome ou identificador do criador.            |
-| **`categories`**  | `array<string>` | Tags usadas para filtrar e agrupar Blueprints. |
+| Champ             | Type            | Description                                                 |
+| :---------------- | :-------------- | :---------------------------------------------------------- |
+| **`title`**       | `string`        | Un nom court et lisible pour le Blueprint.                  |
+| **`description`** | `string`        | Un bref résumé expliquant la configuration.                 |
+| **`author`**      | `string`        | Le nom ou l'identifiant du créateur.                        |
+| **`categories`**  | `array<string>` | Balises utilisées pour filtrer et regrouper les Blueprints. |
 
 <!-- | Field             | Type            | Description                                      |
 | :---------------- | :-------------- | :----------------------------------------------- |
@@ -78,9 +78,9 @@ O objeto opcional `meta` fornece informações descritivas sobre seu Blueprint. 
 {
 	"$schema": "https://playground.wordpress.net/blueprint-schema.json",
 	"meta": {
-		"title": "Configuração Padrão do Playground",
-		"description": "Uma configuração básica para um novo site WordPress com as versões mais recentes.",
-		"author": "Equipe Playground",
+		"title": "Configuration par Défaut du Playground",
+		"description": "Une configuration de base pour un nouveau site WordPress avec les dernières versions.",
+		"author": "Équipe Playground",
 		"categories": ["starter", "default"]
 	},
 	"landingPage": "/wp-admin/",
@@ -91,7 +91,7 @@ O objeto opcional `meta` fornece informações descritivas sobre seu Blueprint. 
 }
 ```
 
-## Executar código PHP personalizado
+## Exécuter du code PHP personnalisé
 
 <!-- ## Run custom PHP code -->
 
@@ -121,11 +121,11 @@ wp_insert_post(array(
 ]
 }} />
 
-## Habilitar uma opção na página de Experimentos do Gutenberg
+## Activer une option sur la page des Expériences Gutenberg
 
 <!-- ## Enable an option on the Gutenberg Experiments page -->
 
-Aqui: Ative o recurso "novas visualizações de administração".
+Ici : Activez la fonctionnalité "nouvelles vues administrateur".
 
 <!-- Here: Switch on the "new admin views" feature. -->
 
@@ -147,26 +147,26 @@ blueprint={{
 		]
 }} />
 
-## Como trabalhar com WP-CLI a partir do terminal e do Playground
+## Comment travailler avec WP-CLI depuis le terminal et Playground
 
 <!-- ## How to work with WP-CLI from the terminal and Playground -->
 
-Você pode executar comandos WP-CLI em uma instância do Playground tanto do seu terminal quanto diretamente dentro de um Blueprint.
+Vous pouvez exécuter des commandes WP-CLI sur une instance Playground depuis votre terminal ou directement dans un Blueprint.
 
 <!-- You can run WP-CLI commands on a Playground instance either from your terminal or directly within a Blueprint. -->
 
-Para usar seu terminal, você deve primeiro montar o diretório `/wordpress/` e garantir que a integração com o banco de dados SQLite esteja configurada. Isso ocorre porque o banco de dados interno do Playground não persiste em um site montado, então você deve instalar explicitamente o plugin de banco de dados via Blueprint. Isso permite que o WP-CLI reconheça a instalação do WordPress e se conecte ao seu banco de dados.
+Pour utiliser votre terminal, vous devez d'abord monter le répertoire `/wordpress/` et vous assurer que l'intégration de la base de données SQLite est configurée. Ceci est nécessaire car la base de données interne de Playground ne persiste pas sur un site monté, vous devez donc installer explicitement le plugin de base de données via un Blueprint. Cela permet à WP-CLI de reconnaître l'installation WordPress et de se connecter à sa base de données.
 
 <!-- To use your terminal, you must first mount the `/wordpress/` directory and ensure the SQLite database integration is configured. This is because Playground's internal database doesn't persist on a mounted site, so you must explicitly install the database plugin via a Blueprint. This allows WP-CLI to recognize the WordPress installation and connect to its database. -->
 
 :::note
-Se você executar comandos WP-CLI como etapas dentro do seu arquivo Blueprint, essa configuração manual não é necessária.
+Si vous exécutez des commandes WP-CLI en tant qu'étapes dans votre fichier Blueprint, cette configuration manuelle n'est pas nécessaire.
 
 <!-- If you run WP-CLI commands as steps within your Blueprint file, this manual setup is not needed. -->
 
 :::
 
-O seguinte trecho de Blueprint lida com essa configuração:
+Le fragment de Blueprint suivant gère cette configuration :
 
 <!-- The following Blueprint snippet handles this setup: -->
 
@@ -174,11 +174,11 @@ O seguinte trecho de Blueprint lida com essa configuração:
     "plugins": [ "sqlite-database-integration" ]
 }} />
 
-Para uma explicação detalhada de por que isso é necessário, consulte a seção [Solucionar problemas e depurar Blueprints](/blueprints/troubleshoot-and-debug#wp-cli-error-establishing-a-database-connection-on-mounted-sites).
+Pour une explication détaillée de pourquoi cela est nécessaire, consultez la section [Dépanner et déboguer les Blueprints](/blueprints/troubleshoot-and-debug#wp-cli-error-establishing-a-database-connection-on-mounted-sites).
 
 <!-- For a detailed explanation of why this is needed, refer to the [Troubleshoot and Debug Blueprints](/blueprints/troubleshoot-and-debug#wp-cli-error-establishing-a-database-connection-on-mounted-sites) section. -->
 
-## Apresentar uma demonstração de produto
+## Présenter une démonstration de produit
 
 <!-- ## Showcase a product demo -->
 
@@ -215,7 +215,7 @@ Para uma explicação detalhada de por que isso é necessário, consulte a seç�
 	]
 }} />
 
-## Habilitar rede
+## Activer le réseau
 
 <!-- ## Enable networking -->
 
@@ -231,11 +231,11 @@ Para uma explicação detalhada de por que isso é necessário, consulte a seç�
 	]
 }} />
 
-## Carregar código PHP em cada requisição (mu-plugin)
+## Charger du code PHP à chaque requête (mu-plugin)
 
 <!-- ## Load PHP code on every request (mu-plugin) -->
 
-Use a etapa `writeFile` para adicionar código a um mu-plugin que é executado em cada requisição.
+Utilisez l'étape `writeFile` pour ajouter du code à un mu-plugin qui s'exécute à chaque requête.
 
 <!-- Use the `writeFile` step to add code to a mu-plugin that runs on every request. -->
 
@@ -256,7 +256,7 @@ Use a etapa `writeFile` para adicionar código a um mu-plugin que é executado e
 	]
 }} />
 
-## Editor de código (como um bloco Gutenberg)
+## Éditeur de code (en tant que bloc Gutenberg)
 
 <!-- ## Code editor (as a Gutenberg block) -->
 
@@ -282,19 +282,19 @@ Use a etapa `writeFile` para adicionar código a um mu-plugin que é executado e
   ]
 }} />
 
-Você pode compartilhar seus próprios exemplos de Blueprint nesta [wiki dedicada](https://github.com/WordPress/wordpress-playground/wiki/Blueprint-examples).
+Vous pouvez partager vos propres exemples de Blueprint dans [ce wiki dédié](https://github.com/WordPress/wordpress-playground/wiki/Blueprint-examples).
 
 <!-- You can share your own Blueprint examples in [this dedicated wiki](https://github.com/WordPress/wordpress-playground/wiki/Blueprint-examples). -->
 
-## Carregar uma versão antiga do WordPress
+## Charger une ancienne version de WordPress
 
 <!-- ## Load an older WordPress version -->
 
-O Playground vem apenas com algumas versões recentes do WordPress. Se você precisar usar uma versão mais antiga, este Blueprint pode ajudá-lo: altere o número da versão em `"url": "https://playground.wordpress.net/plugin-proxy.php?url=https://wordpress.org/wordpress-6.2.1.zip"` de `6.2.1` para a versão que você deseja carregar.
+Playground ne contient que quelques versions récentes de WordPress. Si vous avez besoin d'utiliser une version plus ancienne, ce Blueprint peut vous aider : modifiez le numéro de version dans `"url": "https://playground.wordpress.net/plugin-proxy.php?url=https://wordpress.org/wordpress-6.2.1.zip"` de `6.2.1` à la version que vous souhaitez charger.
 
 <!-- Playground only ships with a few recent WordPress releases. If you need to use an older version, this Blueprint can help you: change the version number in `"url": "https://playground.wordpress.net/plugin-proxy.php?url=https://wordpress.org/wordpress-6.2.1.zip"` from `6.2.1` to the release you want to load. -->
 
-**Nota:** a versão mais antiga suportada do WordPress é `6.2.1`, seguindo o plugin de integração SQLite.
+**Note :** la version la plus ancienne prise en charge de WordPress est `6.2.1`, suite au plugin d'intégration SQLite.
 
 <!-- **Note:** the oldest supported WordPress version is `6.2.1`, following the SQLite integration plugin. -->
 
@@ -316,23 +316,23 @@ O Playground vem apenas com algumas versões recentes do WordPress. Se você pre
   ]
 }} />
 
-## Executar WordPress do trunk ou de um commit específico
+## Exécuter WordPress depuis trunk ou un commit spécifique
 
 <!-- ## Run WordPress from trunk or a specific commit. -->
 
-O WordPress Playground pode executar o `trunk` (o commit mais recente), o HEAD de um branch específico ou um commit específico do repositório GitHub [WordPress/WordPress](https://github.com/WordPress/WordPress).
+WordPress Playground peut exécuter `trunk` (le dernier commit), le HEAD d'une branche spécifique ou un commit spécifique du référentiel GitHub [WordPress/WordPress](https://github.com/WordPress/WordPress).
 
 <!-- WordPress Playground can run `trunk` (the latest commit), the HEAD of a specific branch or a specific commit from the [WordPress/WordPress](https://github.com/WordPress/WordPress) GitHub repository. -->
 
-Você pode especificar a referência em `"url": "https://playground.wordpress.net/plugin-proxy.php?build-ref=trunk"`.
+Vous pouvez spécifier la référence dans `"url": "https://playground.wordpress.net/plugin-proxy.php?build-ref=trunk"`.
 
 <!-- You can specify the reference in `"url": "https://playground.wordpress.net/plugin-proxy.php?build-ref=trunk"`. -->
 
-Para especificar o commit mais recente de um branch específico, você pode alterar a referência para o número da versão do branch, por exemplo `6.6`. Para executar um commit específico, você pode usar o hash do commit de [WordPress/WordPress](https://github.com/WordPress/WordPress), por exemplo `7d7a52367dee9925337e7d901886c2e9b21f70b6`.
+Pour spécifier le dernier commit d'une branche particulière, vous pouvez changer la référence au numéro de version de la branche, par exemple `6.6`. Pour exécuter un commit spécifique, vous pouvez utiliser le hash du commit depuis [WordPress/WordPress](https://github.com/WordPress/WordPress), par exemple `7d7a52367dee9925337e7d901886c2e9b21f70b6`.
 
 <!-- To specify the latest commit of a particular branch, you can change the reference to the branch version number, eg `6.6`. To run a specific commit, you can use the commit hash from [WordPress/WordPress](https://github.com/WordPress/WordPress), eg `7d7a52367dee9925337e7d901886c2e9b21f70b6`. -->
 
-**Nota:** a versão mais antiga suportada do WordPress é `6.2.1`, seguindo o plugin de integração SQLite.
+**Note :** la version la plus ancienne prise en charge de WordPress est `6.2.1`, suite au plugin d'intégration SQLite.
 
 <!-- **Note:** the oldest supported WordPress version is `6.2.1`, following the SQLite integration plugin. -->
 
@@ -345,11 +345,11 @@ Para especificar o commit mais recente de um branch específico, você pode alte
 	}
 }} />
 
-## Usando Bundles de Blueprint
+## Utilisation des Bundles Blueprint
 
 <!-- ## Using Blueprint Bundles -->
 
-Aqui está um exemplo de um Blueprint que usa recursos agrupados de um bundle de Blueprint:
+Voici un exemple de Blueprint qui utilise des ressources groupées à partir d'un bundle Blueprint :
 
 <!-- Here's an example of a Blueprint that uses bundled resources from a Blueprint bundle: -->
 
@@ -389,30 +389,30 @@ Aqui está um exemplo de um Blueprint que usa recursos agrupados de um bundle de
 }
 ```
 
-Este bundle de Blueprint seria um arquivo zip contendo os seguintes arquivos:
+Ce bundle Blueprint serait un fichier zip contenant les fichiers suivants :
 
 <!-- This Blueprint bundle would be zip file containing the following files: -->
 
-- `/blueprint.json` - A declaração do blueprint descrita acima
+- `/blueprint.json` - La déclaration du blueprint décrite ci-dessus
   <!-- - `/blueprint.json` - The blueprint declaration outlined above -->
-- `/my-theme.zip` - Um pacote de tema
+- `/my-theme.zip` - Un paquet de thème
   <!-- - `/my-theme.zip` - A theme package -->
-- `/my-plugin.zip` - Um pacote de plugin
+- `/my-plugin.zip` - Un paquet de plugin
   <!-- - `/my-plugin.zip` - A plugin package -->
-- `/assets/custom-page.html` - Um arquivo HTML personalizado
+- `/assets/custom-page.html` - Un fichier HTML personnalisé
   <!-- - `/assets/custom-page.html` - A custom HTML file -->
 
-Você pode usar este bundle de Blueprint ao:
+Vous pouvez utiliser ce bundle Blueprint en :
 
 <!-- You can use this Blueprint bundle by: -->
 
-1. Criar um arquivo ZIP com esses arquivos e o blueprint.json
+1. Créant un fichier ZIP avec ces fichiers et le blueprint.json
  <!-- 1. Creating a ZIP file with these files and the blueprint.json -->
-2. Hospedar o arquivo ZIP em um servidor
+2. Hébergeant le fichier ZIP sur un serveur
  <!-- 2. Hosting the ZIP file on a server -->
-3. Carregá-lo com `?blueprint-url=https://example.com/my-blueprint-bundle.zip`
+3. Le chargeant avec `?blueprint-url=https://example.com/my-blueprint-bundle.zip`
  <!-- 3. Loading it with `?blueprint-url=https://example.com/my-blueprint-bundle.zip` -->
 
-Para mais informações sobre bundles de Blueprint, consulte a documentação de [Bundles de Blueprint](/blueprints/bundles).
+Pour plus d'informations sur les bundles Blueprint, consultez la documentation des [Bundles Blueprint](/blueprints/bundles).
 
 <!-- For more information on Blueprint bundles, see the [Blueprint Bundles](/blueprints/bundles) documentation. -->

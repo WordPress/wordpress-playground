@@ -53,7 +53,7 @@ export {
 export type { SupportedPHPVersion } from './supported-php-versions';
 export { PHP, __private__dont__use, PHPExecutionFailureError } from './php';
 export type { MountHandler, UnmountFunction } from './php';
-export { loadPHPRuntime, getLoadedRuntime } from './load-php-runtime';
+export { loadPHPRuntime, popLoadedRuntime } from './load-php-runtime';
 export type { Emscripten } from './emscripten-types';
 export type {
 	DataModule,

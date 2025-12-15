@@ -242,7 +242,12 @@ test('should edit a file in the code editor and see changes in the viewport', as
 test('should edit a blueprint in the blueprint editor and recreate the playground', async ({
 	website,
 	wordpress,
+	browserName,
 }) => {
+	test.skip(
+		browserName === 'firefox',
+		'Firefox has inconsistent keyboard handling in the CodeMirror editor, causing the blueprint to have validation errors'
+	);
 	await website.goto('./');
 
 	// Open site manager
@@ -313,6 +318,63 @@ test('should edit a blueprint in the blueprint editor and recreate the playgroun
 	await expect(wordpress.locator('body')).toContainText('Blueprint test', {
 		timeout: 10000,
 	});
+});
+
+test('should copy blueprint link to clipboard when share button is clicked', async ({
+	website,
+	context,
+	browserName,
+}) => {
+	test.skip(
+		browserName === 'firefox',
+		'Firefox does not support clipboard-read permission through Playwright'
+	);
+
+	// Grant clipboard permissions
+	await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+
+	await website.goto('./');
+
+	// Open site manager
+	await website.ensureSiteManagerIsOpen();
+
+	// Navigate to Blueprint tab
+	await website.page.getByRole('tab', { name: 'Blueprint' }).click();
+
+	// Wait for CodeMirror editor to load
+	const editor = website.page.locator(
+		'[class*="blueprint-editor"] .cm-editor'
+	);
+	await editor.waitFor({ timeout: 10000 });
+
+	// Click the share button (copy link to blueprint)
+	const shareButton = website.page.getByRole('button', {
+		name: 'Copy link to blueprint',
+	});
+	await expect(shareButton).toBeVisible();
+	await shareButton.click();
+
+	// Verify success message appears in the notice component
+	await expect(
+		website.page
+			.locator('.components-notice')
+			.getByText('Link copied to clipboard!')
+	).toBeVisible();
+
+	// Verify clipboard contains the correct URL format
+	const clipboardContent = await website.page.evaluate(() =>
+		navigator.clipboard.readText()
+	);
+	expect(clipboardContent).toMatch(/^https?:\/\/[^/]+\/#[A-Za-z0-9+/=]+$/);
+
+	// Verify the base64 portion decodes to valid JSON
+	const base64Part = clipboardContent.split('#')[1];
+	const decodedBlueprint = JSON.parse(
+		new TextDecoder().decode(
+			Uint8Array.from(atob(base64Part), (c) => c.charCodeAt(0))
+		)
+	);
+	expect(decodedBlueprint).toHaveProperty('landingPage');
 });
 
 test.describe('Database panel', () => {

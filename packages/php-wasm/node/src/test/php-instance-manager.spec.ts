@@ -1,6 +1,10 @@
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import { loadNodeRuntime } from '..';
-import { PHP, PHPProcessManager, SinglePHPInstanceManager } from '@php-wasm/universal';
+import {
+	PHP,
+	PHPProcessManager,
+	SinglePHPInstanceManager,
+} from '@php-wasm/universal';
 
 describe('SinglePHPInstanceManager', () => {
 	it('should return the PHP instance passed in the constructor', async () => {
@@ -60,9 +64,9 @@ describe('SinglePHPInstanceManager', () => {
 	});
 
 	it('should throw an error when neither php nor phpFactory is provided', () => {
-		expect(
-			() => new SinglePHPInstanceManager({})
-		).toThrowError(/requires either php or phpFactory/);
+		expect(() => new SinglePHPInstanceManager({})).toThrowError(
+			/requires either php or phpFactory/
+		);
 	});
 
 	it('should only call the factory once even with concurrent getPrimaryPhp calls', async () => {

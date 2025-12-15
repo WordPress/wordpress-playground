@@ -21,6 +21,7 @@ import {
 	setActiveModal,
 	setSiteManagerOpen,
 	setSiteManagerSection,
+	setSiteSlugToRename,
 } from '../../../lib/state/redux/slice-ui';
 import { useAppDispatch, useAppSelector } from '../../../lib/state/redux/store';
 import { usePlaygroundClientInfo } from '../../../lib/use-playground-client';
@@ -28,7 +29,6 @@ import { SiteLogs } from '../../log-modal';
 import { OfflineNotice } from '../../offline-notice';
 import { DownloadAsZipMenuItem } from '../../toolbar-buttons/download-as-zip';
 import { GithubExportMenuItem } from '../../toolbar-buttons/github-export-menu-item';
-import { ReportError } from '../../toolbar-buttons/report-error';
 import { SiteDatabasePanel } from '../site-database-panel';
 import { ActiveSiteSettingsForm } from '../site-settings-form/active-site-settings-form';
 import { TemporarySiteNotice } from '../temporary-site-notice';
@@ -180,15 +180,13 @@ export function SiteInfoPanel({
 							<FlexItem style={{ marginLeft: -20 }}>
 								<Button
 									variant="link"
-									label="Back to sites list"
+									label="Back to Playground"
 									icon={() => (
 										<Icon icon={chevronLeft} size={38} />
 									)}
 									className={css.grayLinkDark}
 									onClick={() => {
-										dispatch(
-											setSiteManagerSection('sidebar')
-										);
+										dispatch(setSiteManagerOpen(false));
 									}}
 								/>
 							</FlexItem>
@@ -243,13 +241,18 @@ export function SiteInfoPanel({
 															showTooltip={true}
 															variant="tertiary"
 															isSmall={true}
-															onClick={() =>
+															onClick={() => {
+																dispatch(
+																	setSiteSlugToRename(
+																		site.slug
+																	)
+																);
 																dispatch(
 																	setActiveModal(
 																		modalSlugs.RENAME_SITE
 																	)
-																)
-															}
+																);
+															}}
 														/>
 													)}
 												</span>
@@ -361,12 +364,6 @@ export function SiteInfoPanel({
 											<DownloadAsZipMenuItem
 												onClose={onClose}
 												disabled={!playground}
-											/>
-										</MenuGroup>
-										<MenuGroup>
-											<ReportError
-												onClose={onClose}
-												disabled={offline}
 											/>
 										</MenuGroup>
 									</>

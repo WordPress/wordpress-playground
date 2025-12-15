@@ -64,6 +64,7 @@ export function EnsurePlaygroundSiteIsSelected({
 		opfsSiteStorage.list().then(
 			(sites) => dispatch(OPFSSitesLoaded(sites)),
 			(error) => {
+				// @TODO: Display an error modal explaining what happened.
 				logger.error('Error loading sites:', error);
 				dispatch(OPFSSitesLoaded([]));
 			}

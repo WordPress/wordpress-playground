@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import {
-	getLoadedRuntime,
+	popLoadedRuntime,
 	PHP,
 	proxyFileSystem,
 	type SupportedPHPVersion,
@@ -1544,12 +1544,12 @@ error_log = ${errorLogPath}
 			const opts = {
 				emscriptenOptions: { ENV: { DOCROOT: '/wordpress' } },
 			};
-			const runtime1 = getLoadedRuntime(
+			const runtime1 = popLoadedRuntime(
 				await loadNodeRuntime('8.3', opts)
 			);
 			runtime1.FS.mkdir('/wordpress');
 
-			const runtime2 = getLoadedRuntime(
+			const runtime2 = popLoadedRuntime(
 				await loadNodeRuntime('8.3', opts)
 			);
 			runtime2.FS.mkdir('/wordpress');

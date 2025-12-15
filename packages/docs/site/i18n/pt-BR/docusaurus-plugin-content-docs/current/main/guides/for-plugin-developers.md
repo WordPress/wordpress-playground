@@ -6,11 +6,13 @@ description: Um guia para desenvolvedores de plugins sobre como usar o Playgroun
 
 <!--
 The WordPress Playground is an innovative tool that allows plugin developers to build, test and showcase their plugins directly in a browser environment.
-
-This guide will show you how to use WordPress Playground to improve your plugin development workflow, create live demos to showcase your plugin, and simplify your plugin testing and review.
 -->
 
 O WordPress Playground é uma ferramenta inovadora que permite aos desenvolvedores de plugins construir, testar e exibir seus plugins diretamente em um ambiente de navegador.
+
+<!--
+This guide will show you how to use WordPress Playground to improve your plugin development workflow, create live demos to showcase your plugin, and simplify your plugin testing and review.
+-->
 
 Este guia mostrará como usar o WordPress Playground para melhorar seu fluxo de trabalho de desenvolvimento de plugins, criar demonstrações ao vivo para exibir seu plugin e simplificar seus testes e revisão de plugins.
 
@@ -58,6 +60,24 @@ Você pode instalar e ativar vários plugins via parâmetros de consulta repetin
 
 <!--
 You can also load any plugin from the WordPress plugins directory by setting the [`installPlugin` step](/blueprints/steps#InstallPluginStep) of a [Blueprint](/blueprints/getting-started) passed to the Playground instance.
+
+```json
+{
+	"landingPage": "/wp-admin/plugins.php",
+	"login": true,
+	"steps": [
+		{
+			"step": "installPlugin",
+			"pluginData": {
+				"resource": "wordpress.org/plugins",
+				"slug": "gutenberg"
+			}
+		}
+	]
+}
+```
+
+[<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](https://playground.wordpress.net/builder/builder.html#{%22landingPage%22:%22/wp-admin/plugins.php%22,%22login%22:true,%22steps%22:[{%22step%22:%22installPlugin%22,%22pluginData%22:{%22resource%22:%22wordpress.org/plugins%22,%22slug%22:%22gutenberg%22}}]})
 -->
 
 Você também pode carregar qualquer plugin do diretório de plugins do WordPress definindo o passo [`installPlugin`](/blueprints/steps#InstallPluginStep) de um [Blueprint](/blueprints/getting-started) passado para a instância do Playground.
@@ -77,10 +97,6 @@ Você também pode carregar qualquer plugin do diretório de plugins do WordPres
 	]
 }
 ```
-
-<!--
-[<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](https://playground.wordpress.net/builder/builder.html#{%22landingPage%22:%22/wp-admin/plugins.php%22,%22login%22:true,%22steps%22:[{%22step%22:%22installPlugin%22,%22pluginData%22:{%22resource%22:%22wordpress.org/plugins%22,%22slug%22:%22gutenberg%22}}]})
--->
 
 [<kbd> &nbsp; Executar Blueprint &nbsp; </kbd>](https://playground.wordpress.net/builder/builder.html#{%22landingPage%22:%22/wp-admin/plugins.php%22,%22login%22:true,%22steps%22:[{%22step%22:%22installPlugin%22,%22pluginData%22:{%22resource%22:%22wordpress.org/plugins%22,%22slug%22:%22gutenberg%22}}]})
 
@@ -103,32 +119,23 @@ A plugin stored in a GitHub repository can also be loaded in a Playground instan
 Um plugin armazenado em um repositório GitHub também pode ser carregado em uma instância do Playground via Blueprints.
 
 <!--
-With the `pluginData` property of the [`installPlugin` blueprint step](/blueprints/steps#installPlugin), you can define a [`url` resource](/blueprints/steps/resources#urlreference) that points to the location of the `.zip` file containing the plugin you want to load in the Playground instance.
+With the `pluginData` property of the [`installPlugin` blueprint step](/blueprints/steps#installPlugin), you can define a [`git:directory` resource](/blueprints/steps/resources#gitdirectoryreference) that will build a plugin from the files from a repository in the Playground instance.
 -->
 
-Com a propriedade `pluginData` do [passo blueprint `installPlugin`](/blueprints/steps#installPlugin), você pode definir um [recurso `url`](/blueprints/steps/resources#urlreference) que aponta para a localização do arquivo `.zip` contendo o plugin que você deseja carregar na instância do Playground.
-
-<!--
-To avoid CORS issues, the Playground project provides a [GitHub proxy](https://playground.wordpress.net/proxy) that allows you to generate a `.zip` from a repository (or even a folder inside a repo) containing your plugin.
--->
-
-Para evitar problemas de CORS, o projeto Playground fornece um [proxy GitHub](https://github-proxy.com/) que permite gerar um `.zip` de um repositório (ou mesmo uma pasta dentro de um repo) contendo seu plugin.
+Com a propriedade `pluginData` do [passo do blueprint `installPlugin`](/blueprints/steps#installPlugin), você pode definir um [recurso `git:directory`](/blueprints/steps/resources#gitdirectoryreference) que criará um plugin a partir dos arquivos de um repositório na instância do Playground.
 
 <!--
 :::info
-[GitHub proxy](https://playground.wordpress.net/proxy) is an incredibly useful tool to load plugins from GitHub repositories as it allows you to load a plugin from a specific branch, a specific directory, a specific commit or a specific PR.
+For the past few months, the [GitHub proxy](https://playground.wordpress.net/proxy) was an incredibly useful tool to load plugins from GitHub repositories, as it allows you to load a plugin from a specific branch, a specific directory, a specific commit, or a specific PR. But with the recent improvements to Playground, this feature is no longer necessary. The GitHub Proxy will be discontinued soon, please update your blueprints to `git:directory` resource.
 :::
 -->
 
 :::info
-O [proxy GitHub](https://github-proxy.com/) é uma ferramenta incrivelmente útil para carregar plugins de repositórios GitHub, pois permite carregar um plugin de uma branch específica, um diretório específico, um commit específico ou um PR específico.
+Durante os últimos meses, o [proxy do GitHub](https://playground.wordpress.net/proxy) foi uma ferramenta incrivelmente útil para carregar plugins de repositórios do GitHub, pois permitia carregar um plugin de uma branch específica, um diretório específico, um commit específico ou um PR específico. Mas com as melhorias recentes no Playground, esse recurso não é mais necessário. O Proxy do GitHub será descontinuado em breve, por favor atualize seus blueprints para o recurso `git:directory`.
 :::
 
 <!--
-For example, the following `blueprint.json` installs a plugin from a GitHub repository leveraging the https://github-proxy.com tool:
--->
-
-Por exemplo, o seguinte `blueprint.json` instala um plugin de um repositório GitHub aproveitando a ferramenta https://github-proxy.com:
+For example, the following `blueprint.json` installs a plugin from a GitHub repository:
 
 ```json
 {
@@ -138,8 +145,31 @@ Por exemplo, o seguinte `blueprint.json` instala um plugin de um repositório Gi
 		{
 			"step": "installPlugin",
 			"pluginData": {
-				"resource": "url",
-				"url": "https://github-proxy.com/proxy/?repo=wptrainingteam/devblog-dataviews-plugin"
+				"resource": "git:directory",
+				"url": "https://github.com/wptrainingteam/devblog-dataviews-plugin",
+				"ref": "HEAD",
+    			"refType": "refname"
+			}
+		}
+	]
+}
+```
+-->
+
+Por exemplo, o seguinte `blueprint.json` instala um plugin de um repositório GitHub:
+
+```json
+{
+	"landingPage": "/wp-admin/admin.php?page=add-media-from-third-party-service",
+	"login": true,
+	"steps": [
+		{
+			"step": "installPlugin",
+			"pluginData": {
+				"resource": "git:directory",
+				"url": "https://github.com/wptrainingteam/devblog-dataviews-plugin",
+				"ref": "HEAD",
+				"refType": "refname"
 			}
 		}
 	]
@@ -147,10 +177,20 @@ Por exemplo, o seguinte `blueprint.json` instala um plugin de um repositório Gi
 ```
 
 <!--
-[<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](https://playground.wordpress.net/builder/builder.html#{%22landingPage%22:%22/wp-admin/admin.php?page=add-media-from-third-party-service%22,%22login%22:true,%22steps%22:[{%22step%22:%22installPlugin%22,%22pluginData%22:{%22resource%22:%22url%22,%22url%22:%22https://github-proxy.com/proxy/?repo=wptrainingteam/devblog-dataviews-plugin%22}}]})
+:::tip
+If your plugin is hosted on GitHub, you can automatically add preview buttons to your pull requests using the Playground PR Preview GitHub Action. This lets reviewers test your changes instantly without any setup. See [Adding PR Preview Buttons with GitHub Actions](/guides/github-action-pr-preview) for details.
+:::
 -->
 
-[<kbd> &nbsp; Executar Blueprint &nbsp; </kbd>](https://playground.wordpress.net/builder/builder.html#{%22landingPage%22:%22/wp-admin/admin.php?page=add-media-from-third-party-service%22,%22login%22:true,%22steps%22:[{%22step%22:%22installPlugin%22,%22pluginData%22:{%22resource%22:%22url%22,%22url%22:%22https://github-proxy.com/proxy/?repo=wptrainingteam/devblog-dataviews-plugin%22}}]})
+:::tip
+Se o seu plugin estiver hospedado no GitHub, você poderá adicionar automaticamente botões de visualização às suas solicitações pull usando o GitHub Action Playground PR Preview. Isso permite que os revisores testem suas alterações instantaneamente, sem qualquer configuração. Consulte [Adicionando botões de visualização de PR com ações do GitHub](/guides/github-action-pr-preview) para obter detalhes.
+:::
+
+<!--
+[<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](https://playground.wordpress.net/#{%22landingPage%22:%22/wp-admin/admin.php?page=add-media-from-third-party-service%22,%22login%22:true,%22steps%22:[{%22step%22:%22installPlugin%22,%22pluginData%22:{%22resource%22:%22git:directory%22,%22url%22:%22https://github.com/wptrainingteam/devblog-dataviews-plugin%22,%22ref%22:%22HEAD%22,%22refType%22:%22refname%22}}],%22$schema%22:%22https://playground.wordpress.net/blueprint-schema.json%22,%22meta%22:{%22title%22:%22Empty%20Blueprint%22,%22author%22:%22https://github.com/akirk/playground-step-library%22}})
+-->
+
+[<kbd> &nbsp; Executar Blueprint &nbsp; </kbd>](https://playground.wordpress.net/#{%22landingPage%22:%22/wp-admin/admin.php?page=add-media-from-third-party-service%22,%22login%22:true,%22steps%22:[{%22step%22:%22installPlugin%22,%22pluginData%22:{%22resource%22:%22git:directory%22,%22url%22:%22https://github.com/wptrainingteam/devblog-dataviews-plugin%22,%22ref%22:%22HEAD%22,%22refType%22:%22refname%22}}],%22$schema%22:%22https://playground.wordpress.net/blueprint-schema.json%22,%22meta%22:{%22title%22:%22Empty%20Blueprint%22,%22author%22:%22https://github.com/akirk/playground-step-library%22}})
 
 <!--
 ### Plugin from code in a file or gist in GitHub
@@ -160,6 +200,32 @@ Por exemplo, o seguinte `blueprint.json` instala um plugin de um repositório Gi
 
 <!--
 By combining the [`writeFile`](/blueprints/steps#WriteFileStep) and [`activatePlugin`](/blueprints/steps#activatePlugin) steps you can also launch a WP Playground instance with a plugin built on the fly from code stored on a gist or [a file in GitHub](https://raw.githubusercontent.com/WordPress/blueprints/trunk/blueprints/custom-post/books.php):
+
+```json
+{
+	"landingPage": "/wp-admin/plugins.php",
+	"login": true,
+	"steps": [
+		{
+			"step": "login"
+		},
+		{
+			"step": "writeFile",
+			"path": "/wordpress/wp-content/plugins/cpt-books.php",
+			"data": {
+				"resource": "url",
+				"url": "https://raw.githubusercontent.com/WordPress/blueprints/trunk/blueprints/custom-post/books.php"
+			}
+		},
+		{
+			"step": "activatePlugin",
+			"pluginPath": "cpt-books.php"
+		}
+	]
+}
+```
+
+[<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](https://playground.wordpress.net/builder/builder.html#{%22landingPage%22:%22/wp-admin/plugins.php%22,%22login%22:true,%22steps%22:[{%22step%22:%22login%22},{%22step%22:%22writeFile%22,%22path%22:%22/wordpress/wp-content/plugins/cpt-books.php%22,%22data%22:{%22resource%22:%22url%22,%22url%22:%22https://raw.githubusercontent.com/WordPress/blueprints/trunk/blueprints/custom-post/books.php%22}},{%22step%22:%22activatePlugin%22,%22pluginPath%22:%22cpt-books.php%22}]})
 -->
 
 Combinando os passos [`writeFile`](/blueprints/steps#WriteFileStep) e [`activatePlugin`](/blueprints/steps#activatePlugin), você também pode iniciar uma instância do WP Playground com um plugin construído dinamicamente a partir de código armazenado em um gist ou [um arquivo no GitHub](https://raw.githubusercontent.com/WordPress/blueprints/trunk/blueprints/custom-post/books.php):
@@ -187,10 +253,6 @@ Combinando os passos [`writeFile`](/blueprints/steps#WriteFileStep) e [`activate
 	]
 }
 ```
-
-<!--
-[<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](https://playground.wordpress.net/builder/builder.html#{%22landingPage%22:%22/wp-admin/plugins.php%22,%22login%22:true,%22steps%22:[{%22step%22:%22login%22},{%22step%22:%22writeFile%22,%22path%22:%22/wordpress/wp-content/plugins/cpt-books.php%22,%22data%22:{%22resource%22:%22url%22,%22url%22:%22https://raw.githubusercontent.com/WordPress/blueprints/trunk/blueprints/custom-post/books.php%22}},{%22step%22:%22activatePlugin%22,%22pluginPath%22:%22cpt-books.php%22}]})
--->
 
 [<kbd> &nbsp; Executar Blueprint &nbsp; </kbd>](https://playground.wordpress.net/builder/builder.html#{%22landingPage%22:%22/wp-admin/plugins.php%22,%22login%22:true,%22steps%22:[{%22step%22:%22login%22},{%22step%22:%22writeFile%22,%22path%22:%22/wordpress/wp-content/plugins/cpt-books.php%22,%22data%22:{%22resource%22:%22url%22,%22url%22:%22https://raw.githubusercontent.com/WordPress/blueprints/trunk/blueprints/custom-post/books.php%22}},{%22step%22:%22activatePlugin%22,%22pluginPath%22:%22cpt-books.php%22}]})
 
@@ -262,15 +324,28 @@ Uma ótima demonstração com o WordPress Playground pode exigir que você carre
 
 :::
 
+<!--
+### `plugins`
+-->
+
 ### `plugins`
 
 <!--
 If your plugin has dependencies on other plugins you can use the `plugins` shorthand to install yours along with any other needed plugins.
+
+```json
+{
+	"landingPage": "/wp-admin/plugins.php",
+	"plugins": ["gutenberg", "sql-buddy", "create-block-theme"],
+	"login": true
+}
+```
+
+[<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](https://playground.wordpress.net/builder/builder.html#{%22landingPage%22:%22/wp-admin/plugins.php%22,%22plugins%22:[%22gutenberg%22,%22sql-buddy%22,%22create-block-theme%22],%22login%22:true})
 -->
 
 Se seu plugin tem dependências de outros plugins, você pode usar a abreviação `plugins` para instalar o seu junto com quaisquer outros plugins necessários.
 
-<!--
 ```json
 {
 	"landingPage": "/wp-admin/plugins.php",
@@ -278,26 +353,27 @@ Se seu plugin tem dependências de outros plugins, você pode usar a abreviaçã
 	"login": true
 }
 ```
--->
-
-```json
-{
-	"landingPage": "/wp-admin/plugins.php",
-	"plugins": ["gutenberg", "sql-buddy", "create-block-theme"],
-	"login": true
-}
-```
-
-<!--
-[<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](https://playground.wordpress.net/builder/builder.html#{%22landingPage%22:%22/wp-admin/plugins.php%22,%22plugins%22:[%22gutenberg%22,%22sql-buddy%22,%22create-block-theme%22],%22login%22:true})
--->
 
 [<kbd> &nbsp; Executar Blueprint &nbsp; </kbd>](https://playground.wordpress.net/builder/builder.html#{%22landingPage%22:%22/wp-admin/plugins.php%22,%22plugins%22:[%22gutenberg%22,%22sql-buddy%22,%22create-block-theme%22],%22login%22:true})
+
+<!--
+### `landingPage`
+-->
 
 ### `landingPage`
 
 <!--
 If your plugin has a settings view or onboarding wizard, you can use the `landingPage` shorthand to automatically redirect to any page in the Playground instance upon loading.
+
+```json
+{
+	"landingPage": "/wp-admin/admin.php?page=my-custom-gutenberg-app",
+	"login": true,
+	"plugins": ["https://raw.githubusercontent.com/WordPress/block-development-examples/deploy/zips/data-basics-59c8f8.zip"]
+}
+```
+
+[<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](https://playground.wordpress.net/builder/builder.html#{%22landingPage%22:%22/wp-admin/admin.php?page=my-custom-gutenberg-app%22,%22login%22:true,%22plugins%22:[%22https://raw.githubusercontent.com/WordPress/block-development-examples/deploy/zips/data-basics-59c8f8.zip%22]})
 -->
 
 Se seu plugin tem uma visualização de configurações ou assistente de integração, você pode usar a abreviação `landingPage` para redirecionar automaticamente para qualquer página na instância do Playground ao carregar.
@@ -310,11 +386,11 @@ Se seu plugin tem uma visualização de configurações ou assistente de integra
 }
 ```
 
-<!--
-[<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](https://playground.wordpress.net/builder/builder.html#{%22landingPage%22:%22/wp-admin/admin.php?page=my-custom-gutenberg-app%22,%22login%22:true,%22plugins%22:[%22https://raw.githubusercontent.com/WordPress/block-development-examples/deploy/zips/data-basics-59c8f8.zip%22]})
--->
-
 [<kbd> &nbsp; Executar Blueprint &nbsp; </kbd>](https://playground.wordpress.net/builder/builder.html#{%22landingPage%22:%22/wp-admin/admin.php?page=my-custom-gutenberg-app%22,%22login%22:true,%22plugins%22:[%22https://raw.githubusercontent.com/WordPress/block-development-examples/deploy/zips/data-basics-59c8f8.zip%22]})
+
+<!--
+### `writeFile`
+-->
 
 ### `writeFile`
 
@@ -325,7 +401,24 @@ With the [`writeFile` step](/blueprints/steps#writeFile) you can create any plug
 Com o [passo `writeFile`](/blueprints/steps#writeFile), você pode criar qualquer arquivo de plugin dinamicamente, referenciando código de um arquivo \*.php armazenado no GitHub ou Gist.
 
 <!--
-Here's an example of a **[plugin that generates Custom Post Types](https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/custom-post/books.php)**, placed in the `mu-plugins` folder to ensure the code runs automatically on load:
+Here’s an example of a **[plugin that generates Custom Post Types](https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/custom-post/books.php)**, placed in the `mu-plugins` folder to ensure the code runs automatically on load:
+
+```json
+{
+	"landingPage": "/wp-admin/",
+	"login": true,
+	"steps": [
+		{
+			"step": "writeFile",
+			"path": "/wordpress/wp-content/mu-plugins/books.php",
+			"data": {
+				"resource": "url",
+				"url": "https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/custom-post/books.php"
+			}
+		}
+	]
+}
+```
 -->
 
 Aqui está um exemplo de um **[plugin que gera Custom Post Types](https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/custom-post/books.php)**, colocado na pasta `mu-plugins` para garantir que o código seja executado automaticamente ao carregar:
@@ -379,6 +472,12 @@ Com o IDE [Visual Studio Code](https://code.visualstudio.com/), você também po
 
 <!--
 For example:
+
+```bash
+git clone git@github.com:wptrainingteam/devblog-dataviews-plugin.git
+cd devblog-dataviews-plugin
+npx @wp-playground/cli server --auto-mount
+```
 -->
 
 Por exemplo:
@@ -397,21 +496,20 @@ npx @wp-playground/cli server --auto-mount
 
 <!--
 With Google Chrome you can synchronize a Playground instance with your local plugin's code and your plugin's GitHub repo. With this connection you can:
+
+-   See live (in the Playground instance) your local changes
+-   Create PRs in the GitHub repo with your changes
+
+Here's a little demo of this workflow in action:
+
+<iframe width="800" src="https://www.youtube.com/embed/UYK88eZqrjo" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+<p></p>
 -->
 
 Com o Google Chrome, você pode sincronizar uma instância do Playground com o código do seu plugin local e o repo GitHub do seu plugin. Com essa conexão, você pode:
 
-<!--
--   See live (in the Playground instance) your local changes
--   Create PRs in the GitHub repo with your changes
--->
-
 - Ver ao vivo (na instância do Playground) suas alterações locais
 - Criar PRs no repo GitHub com suas alterações
-
-<!--
-Here's a little demo of this workflow in action:
--->
 
 Aqui está uma pequena demonstração deste fluxo de trabalho em ação:
 

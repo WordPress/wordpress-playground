@@ -4,7 +4,6 @@ import { SiteManager } from '../site-manager';
 import { CSSTransition } from 'react-transition-group';
 import type { PlaygroundReduxState } from '../../lib/state/redux/store';
 import { useAppSelector } from '../../lib/state/redux/store';
-import type { BlueprintV1Declaration } from '@wp-playground/blueprints';
 import { useState, useRef } from 'react';
 import { acquireOAuthTokenIfNeeded } from '../../github/acquire-oauth-token-if-needed';
 import { GithubExportModal } from '../../github/github-export-form';
@@ -20,13 +19,13 @@ import {
 	supportedDisplayModes,
 	PlaygroundViewport,
 } from '../playground-viewport';
-import { ImportFormModal } from '../import-form-modal';
 import { PreviewPRModal } from '../../github/preview-pr';
 import { MissingSiteModal } from '../missing-site-modal';
 import { RenameSiteModal } from '../rename-site-modal';
 import { SaveSiteModal } from '../save-site-modal';
 import { modalSlugs } from '../../lib/state/redux/slice-ui';
 import { GitHubPrivateRepoAuthModal } from '../github-private-repo-auth-modal';
+import { BlueprintUrlModal } from '../blueprint-url-modal';
 
 acquireOAuthTokenIfNeeded();
 const displayMode = getDisplayModeFromQuery();
@@ -80,7 +79,7 @@ export function Layout() {
  * over other modals (e.g. connect to GitHub). Discuss whether modals should be declared at the
  * top level, like here, or contextual to where the "Show modal" button is rendered.
  */
-function Modals(blueprint: BlueprintV1Declaration) {
+function Modals() {
 	const query = new URL(document.location.href).searchParams;
 
 	const [githubExportFiles, setGithubExportFiles] = useState<any[]>();
@@ -133,8 +132,6 @@ function Modals(blueprint: BlueprintV1Declaration) {
 		return <LogModal />;
 	} else if (currentModal === modalSlugs.START_ERROR) {
 		return <StartErrorModal />;
-	} else if (currentModal === modalSlugs.IMPORT_FORM) {
-		return <ImportFormModal />;
 	} else if (currentModal === modalSlugs.PREVIEW_PR_WP) {
 		return <PreviewPRModal target="wordpress" />;
 	} else if (currentModal === modalSlugs.PREVIEW_PR_GUTENBERG) {
@@ -185,6 +182,8 @@ function Modals(blueprint: BlueprintV1Declaration) {
 		return <SaveSiteModal />;
 	} else if (currentModal === modalSlugs.GITHUB_PRIVATE_REPO_AUTH) {
 		return <GitHubPrivateRepoAuthModal />;
+	} else if (currentModal === modalSlugs.BLUEPRINT_URL) {
+		return <BlueprintUrlModal />;
 	}
 
 	if (query.get('gh-ensure-auth') === 'yes') {
