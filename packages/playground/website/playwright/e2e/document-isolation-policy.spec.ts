@@ -121,26 +121,20 @@ test('Navigation URL should update in address bar with Document-Isolation-Policy
 		timeout: 120000,
 	});
 
-	// Exit fullscreen mode to access the admin menu, then navigate to Dashboard
-	// First, try to find and click the "Exit fullscreen" button if visible
-	const exitFullscreenButton = wordpress.locator(
-		'button[aria-label="Exit fullscreen"]'
+	// Navigate to Dashboard by clicking the WordPress logo in the editor header
+	// (the admin menu may be hidden when the editor is in fullscreen mode)
+	const wpLogoLink = wordpress.locator(
+		'a.edit-post-fullscreen-mode-close, a[aria-label="View Posts"]'
 	);
-	if (
-		await exitFullscreenButton
-			.isVisible({ timeout: 2000 })
-			.catch(() => false)
-	) {
-		await exitFullscreenButton.click();
-	}
+	await wpLogoLink.first().click({ timeout: 30000 });
 
-	// Navigate to a different page via WordPress admin menu
-	await wordpress.locator('#menu-dashboard a').first().click();
-
-	// Wait for Dashboard to load
-	await expect(wordpress.locator('body')).toContainText('Dashboard', {
-		timeout: 30000,
-	});
+	// Wait for the next page to load - it could be the posts list or dashboard
+	await expect(wordpress.locator('body')).toContainText(
+		/(Dashboard|Posts|All Posts)/,
+		{
+			timeout: 30000,
+		}
+	);
 
 	// The URL should reflect the navigation (even with Document-Isolation-Policy
 	// which prevents direct access to iframe.contentWindow.location.href)
@@ -149,7 +143,8 @@ test('Navigation URL should update in address bar with Document-Isolation-Policy
 		.locator('.address-bar-url input, input[type="text"]')
 		.first();
 	if (await addressBar.isVisible()) {
-		await expect(addressBar).toHaveValue(/\/wp-admin\/?$/, {
+		// The URL should be wp-admin (dashboard) or wp-admin/edit.php (posts list)
+		await expect(addressBar).toHaveValue(/\/wp-admin(\/edit\.php|\/?)$/, {
 			timeout: 10000,
 		});
 	}
