@@ -642,11 +642,42 @@ function rewriteCoopHeadersToDocumentIsolationPolicy(
 		return response;
 	}
 
-	// Clone the headers and perform the rewrite
+	// Only rewrite if the response has COEP headers that indicate cross-origin isolation intent.
+	// COOP alone doesn't achieve cross-origin isolation, so we key off COEP.
+	const coep = response.headers.get('cross-origin-embedder-policy');
+	if (!coep || (coep !== 'require-corp' && coep !== 'credentialless')) {
+		return response;
+	}
+
+	/**
+	 * Map COEP value to the equivalent Document-Isolation-Policy value.
+	 * - require-corp → isolate-and-require-corp (strict: requires CORP/CORS on all resources)
+	 * - credentialless → isolate-and-credentialless (relaxed: strips credentials instead)
+	 *
+	 * ## Mapping explanation
+	 *
+	 * COEP has three values:
+	 * - `unsafe-none` (default): No cross-origin restrictions
+	 * - `require-corp`: Cross-origin resources must have CORP header or use CORS
+	 * - `credentialless`: Cross-origin no-cors requests sent without credentials
+	 *
+	 * Document-Isolation-Policy has two values that map directly to COEP's isolation modes:
+	 * - `isolate-and-require-corp` ← COEP: require-corp
+	 * - `isolate-and-credentialless` ← COEP: credentialless
+	 *
+	 * COOP is not directly mapped because Document-Isolation-Policy inherently provides the
+	 * cross-origin isolation that COOP: same-origin would provide, but without breaking
+	 * cross-origin popup communication.
+	 */
+	const dipValue =
+		coep === 'require-corp'
+			? 'isolate-and-require-corp'
+			: 'isolate-and-credentialless';
+
 	const newHeaders = new Headers(response.headers);
 	newHeaders.delete('cross-origin-embedder-policy');
 	newHeaders.delete('cross-origin-opener-policy');
-	newHeaders.set('document-isolation-policy', 'isolate-and-credentialless');
+	newHeaders.set('document-isolation-policy', dipValue);
 
 	return new Response(response.body, {
 		status: response.status,
