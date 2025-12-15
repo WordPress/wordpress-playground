@@ -347,7 +347,7 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 				string: true,
 				coerce: parseMountWithDelimiterArguments,
 			},
-			'no-auto-detect': {
+			'no-auto-mount': {
 				describe:
 					'Disable automatic project type detection. Use --mount to manually specify mounts instead.',
 				type: 'boolean',
@@ -379,7 +379,8 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 								'  wp-playground start                    # Start in current directory\n' +
 								'  wp-playground start --path=./my-plugin # Start with a specific path\n' +
 								'  wp-playground start --wp=6.7 --php=8.3 # Use specific versions\n' +
-								'  wp-playground start --no-browser       # Skip opening browser'
+								'  wp-playground start --no-browser       # Skip opening browser\n' +
+								'  wp-playground start --no-auto-mount    # Disable auto-detection'
 						)
 						.options(startCommandOptions)
 			)
@@ -573,7 +574,7 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 			shouldOpenBrowser = args['browser'] !== false;
 
 			// Enable auto-mount unless explicitly disabled
-			if (!args['no-auto-detect']) {
+			if (!args['no-auto-mount']) {
 				args['auto-mount'] = (args['path'] as string) || process.cwd();
 			}
 
@@ -704,7 +705,7 @@ export interface RunCLIArgs {
 	// --------- Start command args -----------
 	path?: string;
 	browser?: boolean;
-	noAutoDetect?: boolean;
+	noAutoMount?: boolean;
 }
 
 type PlaygroundCliWorker =
