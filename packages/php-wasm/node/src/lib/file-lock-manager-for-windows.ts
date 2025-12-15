@@ -15,6 +15,46 @@ import type {
 } from '@php-wasm/universal';
 import { FileLockIntervalTree } from '@php-wasm/universal';
 
+function tryLockFileExSync(
+	fd: number,
+	flags: number,
+	offsetLow: number,
+	offsetHigh: number,
+	lengthLow: number,
+	lengthHigh: number
+): number {
+	try {
+		tryLockFileExSync(
+			fd,
+			flags,
+			offsetLow,
+			offsetHigh,
+			lengthLow,
+			lengthHigh
+		);
+		return 0;
+	} catch (e) {
+		console.error('Error in tryLockFileExSync:', e);
+		return -1;
+	}
+}
+
+function tryUnlockFileExSync(
+	fd: number,
+	offsetLow: number,
+	offsetHigh: number,
+	lengthLow: number,
+	lengthHigh: number
+): number {
+	try {
+		tryUnlockFileExSync(fd, offsetLow, offsetHigh, lengthLow, lengthHigh);
+		return 0;
+	} catch (e) {
+		console.error('Error in tryUnlockFileExSync:', e);
+		return -1;
+	}
+}
+
 export class FileLockManagerForWindows implements FileLockManager {
 	// TODO: Move path of whole file lock into leaf. It is never used for lookup.
 	wholeFileLockMap = new Map<Path, Map<Pid, Map<Fd, WholeFileLockOp>>>();
@@ -32,7 +72,7 @@ export class FileLockManagerForWindows implements FileLockManager {
 			// TODO: Should we skip unlocking if we do not have record of the lock?
 
 			// TODO: Catch errors
-			const result = unlockFileExSync(
+			const result = tryUnlockFileExSync(
 				op.fd,
 				offsetLow,
 				offsetHigh,
@@ -81,7 +121,7 @@ export class FileLockManagerForWindows implements FileLockManager {
 			 * exclusive lock if both locks were created using the same file handle."
 			 * @see https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-lockfileex
 			 */
-			const lockResult = lockFileExSync(
+			const lockResult = tryLockFileExSync(
 				op.fd,
 				flags,
 				offsetLow,
@@ -92,7 +132,7 @@ export class FileLockManagerForWindows implements FileLockManager {
 			success = lockResult === 0;
 
 			if (lockResult && preexistingLock?.type === 'exclusive') {
-				const exclusiveUnlockResult = unlockFileExSync(
+				const exclusiveUnlockResult = tryUnlockFileExSync(
 					op.fd,
 					offsetLow,
 					offsetHigh,
@@ -113,7 +153,7 @@ export class FileLockManagerForWindows implements FileLockManager {
 
 			let sharedUnlockResult;
 			if (preexistingLock?.type === 'shared') {
-				sharedUnlockResult = unlockFileExSync(
+				sharedUnlockResult = tryUnlockFileExSync(
 					op.fd,
 					offsetLow,
 					offsetHigh,
@@ -123,7 +163,7 @@ export class FileLockManagerForWindows implements FileLockManager {
 				// TODO: Log if there's an error
 			}
 
-			const lockResult = lockFileExSync(
+			const lockResult = tryLockFileExSync(
 				op.fd,
 				flags,
 				offsetLow,
@@ -145,7 +185,7 @@ export class FileLockManagerForWindows implements FileLockManager {
 				 * the error ERROR_IO_PENDING."
 				 * @see https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-lockfileex
 				 */
-				const sharedReLockResult = lockFileExSync(
+				const sharedReLockResult = tryLockFileExSync(
 					op.fd,
 					// Wait to restore the shared lock.
 					0,
@@ -213,7 +253,7 @@ export class FileLockManagerForWindows implements FileLockManager {
 			// TODO: Implement relocking of preexisting locks like fcntl() allows.
 			// TODO: Implement merging locked ranges like fcntl() allows.
 
-			const lockResult = lockFileExSync(
+			const lockResult = tryLockFileExSync(
 				op.fd,
 				flags,
 				offsetLow,
@@ -231,7 +271,7 @@ export class FileLockManagerForWindows implements FileLockManager {
 		} else {
 			// TODO: Implement partial unlocking like fcntl() allows.
 
-			const unlockResult = unlockFileExSync(
+			const unlockResult = tryUnlockFileExSync(
 				op.fd,
 				offsetLow,
 				offsetHigh,
