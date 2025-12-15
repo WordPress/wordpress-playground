@@ -1,5 +1,9 @@
 /// <reference types="vitest" />
 import { defineConfig } from 'vite';
+
+import dts from 'vite-plugin-dts';
+import { join } from 'path';
+
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { viteTsConfigPaths } from '../../vite-extensions/vite-ts-config-paths';
 // eslint-disable-next-line @nx/enforce-module-boundaries
@@ -21,6 +25,11 @@ export default defineConfig({
 	},
 
 	plugins: [
+		dts({
+			entryRoot: 'src',
+			tsconfigPath: join(__dirname, 'tsconfig.lib.json'),
+			pathsToAliases: false,
+		}),
 		viteTsConfigPaths({
 			root: '../../../',
 		}),
