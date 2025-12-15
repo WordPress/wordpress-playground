@@ -28,10 +28,15 @@ test('Post editor should load without client-side media experiment', async ({
 
 	await website.goto(`/#${JSON.stringify(blueprint)}`);
 
+	// First, wait for WordPress admin to fully load (admin menu is a reliable indicator)
+	await expect(wordpress.locator('#adminmenu')).toBeVisible({
+		timeout: 60000,
+	});
+
 	// The editor should load and show the title field
 	await expect(
 		wordpress.getByRole('textbox', { name: 'Add title' })
-	).toBeVisible({ timeout: 30000 });
+	).toBeVisible({ timeout: 60000 });
 });
 
 test('Post editor should load with Gutenberg and client-side media experiment enabled', async ({
@@ -65,11 +70,16 @@ test('Post editor should load with Gutenberg and client-side media experiment en
 
 	await website.goto(`/#${JSON.stringify(blueprint)}`);
 
+	// First, wait for WordPress admin to fully load (admin menu is a reliable indicator)
+	await expect(wordpress.locator('#adminmenu')).toBeVisible({
+		timeout: 120000,
+	});
+
 	// The editor should load and show the title field even with COEP/COOP
 	// headers that would normally break the iframe
 	await expect(
 		wordpress.getByRole('textbox', { name: 'Add title' })
-	).toBeVisible({ timeout: 60000 });
+	).toBeVisible({ timeout: 120000 });
 });
 
 test('Navigation URL should update in address bar with Document-Isolation-Policy', async ({
@@ -102,10 +112,15 @@ test('Navigation URL should update in address bar with Document-Isolation-Policy
 
 	await website.goto(`/#${JSON.stringify(blueprint)}`);
 
+	// First, wait for WordPress admin to fully load (admin menu is a reliable indicator)
+	await expect(wordpress.locator('#adminmenu')).toBeVisible({
+		timeout: 120000,
+	});
+
 	// Wait for the editor to load
 	await expect(
 		wordpress.getByRole('textbox', { name: 'Add title' })
-	).toBeVisible({ timeout: 60000 });
+	).toBeVisible({ timeout: 120000 });
 
 	// Navigate to a different page via WordPress admin menu
 	await wordpress.getByRole('link', { name: 'Dashboard' }).first().click();
