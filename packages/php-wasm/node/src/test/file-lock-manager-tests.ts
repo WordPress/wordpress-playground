@@ -38,8 +38,8 @@ export function declareFileLockManagerTests({
 		const PROCESS1_PID = 1;
 		const PROCESS2_PID = 2;
 
-		const TEST_FILE1 = new URL('test1.txt', import.meta.url).pathname;
-		const TEST_FILE2 = new URL('test2.txt', import.meta.url).pathname;
+		const TEST_FILE1_URL = new URL('test1.txt', import.meta.url);
+		const TEST_FILE2_URL = new URL('test2.txt', import.meta.url);
 
 		const createLockingProcess = async (): Promise<
 			[ChildProcess, RemoteAPI<TestWorkerAPI>]
@@ -69,49 +69,49 @@ export function declareFileLockManagerTests({
 			});
 
 		beforeEach(async () => {
-			writeFileSync(TEST_FILE1, `test file 1 for ${import.meta.url}`);
-			writeFileSync(TEST_FILE2, `test file 2 for ${import.meta.url}`);
+			writeFileSync(TEST_FILE1_URL, `test file 1 for ${import.meta.url}`);
+			writeFileSync(TEST_FILE2_URL, `test file 2 for ${import.meta.url}`);
 
 			[childProcess1, remoteProcessApi1] = await createLockingProcess();
 			[childProcess2, remoteProcessApi2] = await createLockingProcess();
 
 			process1TestFile1Fd = await remoteProcessApi1.openSync(
-				TEST_FILE1,
+				TEST_FILE1_URL,
 				'r+'
 			);
 			process1TestFile2Fd = await remoteProcessApi1.openSync(
-				TEST_FILE2,
+				TEST_FILE2_URL,
 				'r+'
 			);
 			process2TestFile1Fd = await remoteProcessApi2.openSync(
-				TEST_FILE1,
+				TEST_FILE1_URL,
 				'r+'
 			);
 			process2TestFile2Fd = await remoteProcessApi2.openSync(
-				TEST_FILE2,
+				TEST_FILE2_URL,
 				'r+'
 			);
 		});
 
 		afterEach(async () => {
 			await Promise.all([
-				remoteProcessApi1[releaseComlinkProxy](),
-				remoteProcessApi2[releaseComlinkProxy](),
+				remoteProcessApi1 && remoteProcessApi1[releaseComlinkProxy](),
+				remoteProcessApi2 && remoteProcessApi2[releaseComlinkProxy](),
 			]);
 			await Promise.all([
 				killLockingProcess(childProcess1),
 				killLockingProcess(childProcess2),
 			]);
 
-			unlinkSync(TEST_FILE1);
-			unlinkSync(TEST_FILE2);
+			unlinkSync(TEST_FILE1_URL);
+			unlinkSync(TEST_FILE2_URL);
 		});
 
 		describe('lockWholeFile', () => {
 			describe('exclusive', () => {
 				it('allows when unlocked', async () => {
 					const result = await remoteProcessApi1.lockWholeFile(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						{
 							type: 'exclusive',
 							pid: PROCESS1_PID,
@@ -130,13 +130,13 @@ export function declareFileLockManagerTests({
 						waitForLock: false,
 					};
 					const result1 = await remoteProcessApi1.lockWholeFile(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						requestedLock
 					);
 					expect(result1).toBe(true);
 
 					const result2 = await remoteProcessApi1.lockWholeFile(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						requestedLock
 					);
 					expect(result2).toBe(true);
@@ -146,7 +146,7 @@ export function declareFileLockManagerTests({
 				it('denies when only whole-file locked by same process with different file descriptor', async () => {
 					// First lock
 					const result1 = await remoteProcessApi1.lockWholeFile(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						{
 							type: 'exclusive',
 							pid: PROCESS1_PID,
@@ -157,12 +157,12 @@ export function declareFileLockManagerTests({
 					expect(result1).toBe(true);
 
 					const testFile1Fd2 = await remoteProcessApi1.openSync(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						'r'
 					);
 					// Second lock by same process
 					const result2 = await remoteProcessApi1.lockWholeFile(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						{
 							type: 'exclusive',
 							pid: PROCESS1_PID,
@@ -176,7 +176,7 @@ export function declareFileLockManagerTests({
 				it('denies when other process holds exclusive whole-file lock', async () => {
 					// This process locks
 					const result1 = await remoteProcessApi1.lockWholeFile(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						{
 							type: 'exclusive',
 							pid: PROCESS1_PID,
@@ -188,7 +188,7 @@ export function declareFileLockManagerTests({
 
 					// Remote process tries to lock
 					const result2 = await remoteProcessApi2.lockWholeFile(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						{
 							type: 'exclusive',
 							pid: PROCESS2_PID,
@@ -202,7 +202,7 @@ export function declareFileLockManagerTests({
 				it('denies when other process holds shared whole-file lock', async () => {
 					// First process gets shared lock
 					const result1 = await remoteProcessApi1.lockWholeFile(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						{
 							type: 'shared',
 							pid: PROCESS1_PID,
@@ -214,7 +214,7 @@ export function declareFileLockManagerTests({
 
 					// Second process tries to get exclusive lock
 					const result2 = await remoteProcessApi2.lockWholeFile(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						{
 							type: 'exclusive',
 							pid: PROCESS2_PID,
@@ -228,7 +228,7 @@ export function declareFileLockManagerTests({
 				it('denies when other process holds shared range lock', async () => {
 					// First process gets shared range lock
 					const result1 = await remoteProcessApi1.lockFileByteRange(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						{
 							type: 'shared',
 							start: 0,
@@ -242,7 +242,7 @@ export function declareFileLockManagerTests({
 
 					// Second process tries to get exclusive whole-file lock
 					const result2 = await remoteProcessApi2.lockWholeFile(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						{
 							type: 'exclusive',
 							pid: PROCESS2_PID,
@@ -256,7 +256,7 @@ export function declareFileLockManagerTests({
 			describe('shared', () => {
 				it('allows when unlocked', async () => {
 					const result = await remoteProcessApi1.lockWholeFile(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						{
 							type: 'shared',
 							pid: PROCESS1_PID,
@@ -269,12 +269,12 @@ export function declareFileLockManagerTests({
 
 				it('allows when only whole-file locked by same process', async () => {
 					const testFile1Fd2 = await remoteProcessApi1.openSync(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						'r'
 					);
 					// First lock
 					const result1 = await remoteProcessApi1.lockWholeFile(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						{
 							type: 'shared',
 							pid: PROCESS1_PID,
@@ -286,7 +286,7 @@ export function declareFileLockManagerTests({
 
 					// Second lock by same process
 					const result2 = await remoteProcessApi1.lockWholeFile(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						{
 							type: 'shared',
 							pid: PROCESS1_PID,
@@ -300,7 +300,7 @@ export function declareFileLockManagerTests({
 				it('denies when other process holds exclusive whole-file lock', async () => {
 					// First process gets exclusive lock
 					const result1 = await remoteProcessApi1.lockWholeFile(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						{
 							type: 'exclusive',
 							pid: PROCESS1_PID,
@@ -312,7 +312,7 @@ export function declareFileLockManagerTests({
 
 					// Second process tries to get shared lock
 					const result2 = await remoteProcessApi2.lockWholeFile(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						{
 							type: 'shared',
 							pid: PROCESS2_PID,
@@ -326,7 +326,7 @@ export function declareFileLockManagerTests({
 				it('allows when same process holds shared whole-file lock', async () => {
 					// First process gets shared lock
 					const result1 = await remoteProcessApi1.lockWholeFile(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						{
 							type: 'shared',
 							pid: PROCESS1_PID,
@@ -338,7 +338,7 @@ export function declareFileLockManagerTests({
 
 					// Second process gets shared lock
 					const result2 = await remoteProcessApi1.lockWholeFile(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						{
 							type: 'shared',
 							pid: PROCESS1_PID,
@@ -352,7 +352,7 @@ export function declareFileLockManagerTests({
 				it('allows when other process holds shared whole-file lock', async () => {
 					// First process gets shared lock
 					const result1 = await remoteProcessApi1.lockWholeFile(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						{
 							type: 'shared',
 							pid: PROCESS1_PID,
@@ -364,7 +364,7 @@ export function declareFileLockManagerTests({
 
 					// Second process gets shared lock
 					const result2 = await remoteProcessApi2.lockWholeFile(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						{
 							type: 'shared',
 							pid: PROCESS2_PID,
@@ -378,7 +378,7 @@ export function declareFileLockManagerTests({
 				it('allows when other process holds shared range lock', async () => {
 					// First process gets shared range lock
 					const result1 = await remoteProcessApi1.lockFileByteRange(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						{
 							type: 'shared',
 							start: 0,
@@ -392,7 +392,7 @@ export function declareFileLockManagerTests({
 
 					// Second process gets shared whole-file lock
 					const result2 = await remoteProcessApi2.lockWholeFile(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						{
 							type: 'shared',
 							pid: PROCESS2_PID,
@@ -406,7 +406,7 @@ export function declareFileLockManagerTests({
 			describe('unlock', () => {
 				it('does not error when file already unlocked', async () => {
 					const result = await remoteProcessApi1.lockWholeFile(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						{
 							type: 'unlock',
 							pid: PROCESS1_PID,
@@ -419,7 +419,7 @@ export function declareFileLockManagerTests({
 				it('unlocks shared lock for matching process', async () => {
 					// First get a shared lock
 					const result1 = await remoteProcessApi1.lockWholeFile(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						{
 							type: 'shared',
 							pid: PROCESS1_PID,
@@ -430,15 +430,18 @@ export function declareFileLockManagerTests({
 					expect(result1).toBe(true);
 
 					// Unlock it
-					await remoteProcessApi1.lockWholeFile(TEST_FILE1, {
-						type: 'unlock',
-						pid: PROCESS1_PID,
-						fd: process1TestFile1Fd,
-					});
+					await remoteProcessApi1.lockWholeFile(
+						TEST_FILE1_URL.pathname,
+						{
+							type: 'unlock',
+							pid: PROCESS1_PID,
+							fd: process1TestFile1Fd,
+						}
+					);
 
 					// Verify it's unlocked by getting an exclusive lock for another process
 					const result2 = await remoteProcessApi2.lockWholeFile(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						{
 							type: 'exclusive',
 							pid: PROCESS2_PID,
@@ -452,7 +455,7 @@ export function declareFileLockManagerTests({
 				it('unlocks exclusive lock for matching process', async () => {
 					// First get an exclusive lock
 					const result1 = await remoteProcessApi1.lockWholeFile(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						{
 							type: 'exclusive',
 							pid: PROCESS1_PID,
@@ -464,7 +467,7 @@ export function declareFileLockManagerTests({
 
 					// Unlock it
 					const result2 = await remoteProcessApi1.lockWholeFile(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						{
 							type: 'unlock',
 							pid: PROCESS1_PID,
@@ -475,7 +478,7 @@ export function declareFileLockManagerTests({
 
 					// Verify it's unlocked by getting an exclusive lock
 					const result3 = await remoteProcessApi2.lockWholeFile(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						{
 							type: 'exclusive',
 							pid: PROCESS2_PID,
@@ -492,7 +495,7 @@ export function declareFileLockManagerTests({
 			describe('exclusive', () => {
 				it('allows when file unlocked', async () => {
 					const result = await remoteProcessApi1.lockFileByteRange(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						{
 							type: 'exclusive',
 							start: 0,
@@ -508,7 +511,7 @@ export function declareFileLockManagerTests({
 				it('denies when other process holds exclusive whole-file lock', async () => {
 					// First process gets exclusive whole-file lock
 					const result1 = await remoteProcessApi1.lockWholeFile(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						{
 							type: 'exclusive',
 							pid: PROCESS1_PID,
@@ -520,7 +523,7 @@ export function declareFileLockManagerTests({
 
 					// Second process tries to get exclusive range lock
 					const result2 = await remoteProcessApi2.lockFileByteRange(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						{
 							type: 'exclusive',
 							start: 0,
@@ -536,7 +539,7 @@ export function declareFileLockManagerTests({
 				it('denies when other process holds shared whole-file lock', async () => {
 					// First process gets shared whole-file lock
 					const result1 = await remoteProcessApi1.lockWholeFile(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						{
 							type: 'shared',
 							pid: PROCESS1_PID,
@@ -548,7 +551,7 @@ export function declareFileLockManagerTests({
 
 					// Second process tries to get exclusive range lock
 					const result2 = await remoteProcessApi2.lockFileByteRange(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						{
 							type: 'exclusive',
 							start: 0,
@@ -564,7 +567,7 @@ export function declareFileLockManagerTests({
 				it('denies when other process holds overlapping exclusive range lock', async () => {
 					// First process gets exclusive range lock
 					const result1 = await remoteProcessApi1.lockFileByteRange(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						{
 							type: 'exclusive',
 							start: 0,
@@ -578,7 +581,7 @@ export function declareFileLockManagerTests({
 
 					// Second process tries to get overlapping exclusive range lock
 					const result2 = await remoteProcessApi2.lockFileByteRange(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						{
 							type: 'exclusive',
 							start: 5,
@@ -594,7 +597,7 @@ export function declareFileLockManagerTests({
 				it('denies when other process holds overlapping shared range lock', async () => {
 					// First process gets shared range lock
 					const result1 = await remoteProcessApi1.lockFileByteRange(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						{
 							type: 'shared',
 							start: 0,
@@ -608,7 +611,7 @@ export function declareFileLockManagerTests({
 
 					// Second process tries to get overlapping exclusive range lock
 					const result2 = await remoteProcessApi2.lockFileByteRange(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						{
 							type: 'exclusive',
 							start: 0,
@@ -624,7 +627,7 @@ export function declareFileLockManagerTests({
 				it('allows when other process holds non-overlapping exclusive range lock', async () => {
 					// First process gets exclusive range lock
 					const result1 = await remoteProcessApi1.lockFileByteRange(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						{
 							type: 'exclusive',
 							start: 0,
@@ -638,7 +641,7 @@ export function declareFileLockManagerTests({
 
 					// Second process gets non-overlapping exclusive range lock
 					const result2 = await remoteProcessApi2.lockFileByteRange(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						{
 							type: 'exclusive',
 							start: 15,
@@ -655,7 +658,7 @@ export function declareFileLockManagerTests({
 				it('allows when other process holds non-overlapping shared range lock', async () => {
 					// First process gets shared range lock
 					const result1 = await remoteProcessApi1.lockFileByteRange(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						{
 							type: 'shared',
 							start: 0,
@@ -669,7 +672,7 @@ export function declareFileLockManagerTests({
 
 					// Second process gets non-overlapping exclusive range lock
 					const result2 = await remoteProcessApi2.lockFileByteRange(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						{
 							type: 'exclusive',
 							start: 20,
@@ -685,7 +688,7 @@ export function declareFileLockManagerTests({
 				it('new lock request merges with overlapping locks from same process', async () => {
 					// First get an exclusive range lock
 					const result1 = await remoteProcessApi1.lockFileByteRange(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						{
 							type: 'exclusive',
 							start: 0,
@@ -699,7 +702,7 @@ export function declareFileLockManagerTests({
 
 					// Replace it with a new overlapping lock
 					const result2 = await remoteProcessApi1.lockFileByteRange(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						{
 							type: 'exclusive',
 							start: 0,
@@ -714,7 +717,7 @@ export function declareFileLockManagerTests({
 					// Verify the old lock range is in place by trying to get a lock in that range
 					const obtainedExclusiveLockOnOldRange =
 						await remoteProcessApi2.lockFileByteRange(
-							TEST_FILE1,
+							TEST_FILE1_URL.pathname,
 							{
 								type: 'exclusive',
 								start: 0,
@@ -729,7 +732,7 @@ export function declareFileLockManagerTests({
 					// Verify the new lock range is in place by trying to get a lock in that range
 					const obtainedExclusiveLockOnNewRange =
 						await remoteProcessApi2.lockFileByteRange(
-							TEST_FILE1,
+							TEST_FILE1_URL.pathname,
 							{
 								type: 'exclusive',
 								start: 0,
@@ -744,7 +747,7 @@ export function declareFileLockManagerTests({
 
 				it('treats a range with zero length as covering entire remaining range', async () => {
 					const result1 = await remoteProcessApi1.lockFileByteRange(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						{
 							type: 'exclusive',
 							start: 10,
@@ -758,7 +761,7 @@ export function declareFileLockManagerTests({
 
 					// Try to get a lock after the zero-length lock
 					const result3 = await remoteProcessApi2.lockFileByteRange(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						{
 							type: 'exclusive',
 							start: 15,
@@ -774,7 +777,7 @@ export function declareFileLockManagerTests({
 			describe('shared', () => {
 				it('allows when file unlocked', async () => {
 					const result = await remoteProcessApi1.lockFileByteRange(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						{
 							type: 'shared',
 							start: 0,
@@ -790,7 +793,7 @@ export function declareFileLockManagerTests({
 				it('denies when other process holds exclusive whole-file lock', async () => {
 					// First process gets exclusive whole-file lock
 					const result1 = await remoteProcessApi1.lockWholeFile(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						{
 							type: 'exclusive',
 							pid: PROCESS1_PID,
@@ -802,7 +805,7 @@ export function declareFileLockManagerTests({
 
 					// Second process tries to get shared range lock
 					const result2 = await remoteProcessApi2.lockFileByteRange(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						{
 							type: 'shared',
 							start: 0,
@@ -818,7 +821,7 @@ export function declareFileLockManagerTests({
 				it('allows when other process holds shared whole-file lock', async () => {
 					// First process gets shared whole-file lock
 					const result1 = await remoteProcessApi1.lockWholeFile(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						{
 							type: 'shared',
 							pid: PROCESS1_PID,
@@ -830,7 +833,7 @@ export function declareFileLockManagerTests({
 
 					// Second process gets shared range lock
 					const result2 = await remoteProcessApi2.lockFileByteRange(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						{
 							type: 'shared',
 							start: 0,
@@ -846,7 +849,7 @@ export function declareFileLockManagerTests({
 				it('denies when other process holds overlapping exclusive range lock', async () => {
 					// First process gets exclusive range lock
 					const result1 = await remoteProcessApi1.lockFileByteRange(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						{
 							type: 'exclusive',
 							start: 0,
@@ -860,7 +863,7 @@ export function declareFileLockManagerTests({
 
 					// Second process tries to get overlapping shared range lock
 					const result2 = await remoteProcessApi2.lockFileByteRange(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						{
 							type: 'shared',
 							start: 5,
@@ -876,7 +879,7 @@ export function declareFileLockManagerTests({
 				it('allows when other process holds overlapping shared range lock', async () => {
 					// First process gets shared range lock
 					const result1 = await remoteProcessApi1.lockFileByteRange(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						{
 							type: 'shared',
 							start: 0,
@@ -890,7 +893,7 @@ export function declareFileLockManagerTests({
 
 					// Second process gets overlapping shared range lock
 					const result2 = await remoteProcessApi2.lockFileByteRange(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						{
 							type: 'shared',
 							start: 5,
@@ -906,7 +909,7 @@ export function declareFileLockManagerTests({
 				it('allows when other process holds non-overlapping exclusive range lock', async () => {
 					// First process gets exclusive range lock
 					const result1 = await remoteProcessApi1.lockFileByteRange(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						{
 							type: 'exclusive',
 							start: 0,
@@ -920,7 +923,7 @@ export function declareFileLockManagerTests({
 
 					// Second process gets non-overlapping shared range lock
 					const result2 = await remoteProcessApi2.lockFileByteRange(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						{
 							type: 'shared',
 							start: 15,
@@ -936,7 +939,7 @@ export function declareFileLockManagerTests({
 				it('allows when other process holds non-overlapping shared range lock', async () => {
 					// First process gets shared range lock
 					const result1 = await remoteProcessApi1.lockFileByteRange(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						{
 							type: 'shared',
 							start: 0,
@@ -950,7 +953,7 @@ export function declareFileLockManagerTests({
 
 					// Second process gets non-overlapping shared range lock
 					const result2 = await remoteProcessApi2.lockFileByteRange(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						{
 							type: 'shared',
 							start: 15,
@@ -967,7 +970,7 @@ export function declareFileLockManagerTests({
 				it.skip('new lock request merges with overlapping locks from same process', async () => {
 					// First get a shared range lock
 					const result1 = await remoteProcessApi1.lockFileByteRange(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						{
 							type: 'shared',
 							start: 0,
@@ -981,7 +984,7 @@ export function declareFileLockManagerTests({
 
 					// Replace it with a new overlapping lock
 					const result2 = await remoteProcessApi1.lockFileByteRange(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						{
 							type: 'shared',
 							start: 0,
@@ -995,7 +998,7 @@ export function declareFileLockManagerTests({
 
 					// Verify the old lock is gone by trying to get a lock in that range
 					const result3 = await remoteProcessApi2.lockFileByteRange(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						{
 							type: 'shared',
 							start: 0,
@@ -1011,7 +1014,7 @@ export function declareFileLockManagerTests({
 				it('treats a range with zero length as covering entire remaining range', async () => {
 					// First get a shared range lock with zero length
 					const result1 = await remoteProcessApi1.lockFileByteRange(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						{
 							type: 'shared',
 							start: 30,
@@ -1026,7 +1029,7 @@ export function declareFileLockManagerTests({
 					// Confirm correct starting point by getting an exclusive lock
 					// before the start of the "infinite" range.
 					const result2 = await remoteProcessApi2.lockFileByteRange(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						{
 							type: 'exclusive',
 							start: 10,
@@ -1041,7 +1044,7 @@ export function declareFileLockManagerTests({
 					// Confirm the rest of the file is already locked by attempting to exclusively lock
 					// within a large part of that range
 					const result3 = await remoteProcessApi2.lockFileByteRange(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						{
 							type: 'exclusive',
 							start: 40,
@@ -1058,7 +1061,7 @@ export function declareFileLockManagerTests({
 				it('does not error when range not locked by current process', async () => {
 					await expect(
 						remoteProcessApi1.lockFileByteRange(
-							TEST_FILE1,
+							TEST_FILE1_URL.pathname,
 							{
 								type: 'unlocked',
 								start: 0,
@@ -1074,7 +1077,7 @@ export function declareFileLockManagerTests({
 				it('unlocks shared lock', async () => {
 					// First get a shared range lock
 					const result1 = await remoteProcessApi1.lockFileByteRange(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						{
 							type: 'shared',
 							start: 0,
@@ -1088,7 +1091,7 @@ export function declareFileLockManagerTests({
 
 					// Unlock it
 					await remoteProcessApi1.lockFileByteRange(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						{
 							type: 'unlocked',
 							start: 0,
@@ -1101,7 +1104,7 @@ export function declareFileLockManagerTests({
 
 					// Verify it's unlocked by getting an exclusive lock
 					const result2 = await remoteProcessApi2.lockFileByteRange(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						{
 							type: 'exclusive',
 							start: 0,
@@ -1117,7 +1120,7 @@ export function declareFileLockManagerTests({
 				it('unlocks exclusive lock', async () => {
 					// First get an exclusive range lock
 					const result1 = await remoteProcessApi1.lockFileByteRange(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						{
 							type: 'exclusive',
 							start: 0,
@@ -1131,7 +1134,7 @@ export function declareFileLockManagerTests({
 
 					// Unlock it
 					await remoteProcessApi1.lockFileByteRange(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						{
 							type: 'unlocked',
 							start: 0,
@@ -1144,7 +1147,7 @@ export function declareFileLockManagerTests({
 
 					// Verify it's unlocked by getting an exclusive lock
 					const result2 = await remoteProcessApi2.lockFileByteRange(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						{
 							type: 'exclusive',
 							start: 0,
@@ -1159,7 +1162,7 @@ export function declareFileLockManagerTests({
 				it('unlocks tail of owned locked range when that range overlaps head of unlocked range', async () => {
 					// Get a lock from 0-100
 					const result1 = await remoteProcessApi1.lockFileByteRange(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						{
 							type: 'exclusive',
 							start: 0,
@@ -1173,7 +1176,7 @@ export function declareFileLockManagerTests({
 
 					// Unlock range 50-150 which overlaps tail of existing lock
 					await remoteProcessApi1.lockFileByteRange(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						{
 							type: 'unlocked',
 							start: 0,
@@ -1186,7 +1189,7 @@ export function declareFileLockManagerTests({
 
 					// Verify we can now lock 50-100 but not 0-50
 					const result2 = await remoteProcessApi2.lockFileByteRange(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						{
 							type: 'exclusive',
 							start: 0,
@@ -1199,7 +1202,7 @@ export function declareFileLockManagerTests({
 					expect(result2).toBe(true);
 
 					const result3 = await remoteProcessApi2.lockFileByteRange(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						{
 							type: 'exclusive',
 							start: 0,
@@ -1216,7 +1219,7 @@ export function declareFileLockManagerTests({
 				it.skip('unlocks head of owned locked range when that range overlaps tail of unlocked range', async () => {
 					// Get a lock from 50-150
 					const result1 = await remoteProcessApi1.lockFileByteRange(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						{
 							type: 'exclusive',
 							start: 0,
@@ -1230,7 +1233,7 @@ export function declareFileLockManagerTests({
 
 					// Unlock range 0-100 which overlaps head of existing lock
 					await remoteProcessApi1.lockFileByteRange(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						{
 							type: 'unlocked',
 							start: 0,
@@ -1243,7 +1246,7 @@ export function declareFileLockManagerTests({
 
 					// Verify we can now lock 50-100 but not 100-150
 					const result2 = await remoteProcessApi2.lockFileByteRange(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						{
 							type: 'exclusive',
 							start: 0,
@@ -1256,7 +1259,7 @@ export function declareFileLockManagerTests({
 					expect(result2).toBe(true);
 
 					const result3 = await remoteProcessApi2.lockFileByteRange(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						{
 							type: 'exclusive',
 							start: 0,
@@ -1273,7 +1276,7 @@ export function declareFileLockManagerTests({
 				it.skip('splits locked range when that range completely contains unlocked range', async () => {
 					// Get a lock from 0-200
 					const result1 = await remoteProcessApi1.lockFileByteRange(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						{
 							type: 'exclusive',
 							start: 0,
@@ -1287,7 +1290,7 @@ export function declareFileLockManagerTests({
 
 					// Unlock range 50-150 which is contained within existing lock
 					await remoteProcessApi1.lockFileByteRange(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						{
 							type: 'unlocked',
 							start: 0,
@@ -1300,7 +1303,7 @@ export function declareFileLockManagerTests({
 
 					// Verify we can now lock 50-150 but not 0-50 or 150-200
 					const result2 = await remoteProcessApi2.lockFileByteRange(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						{
 							type: 'exclusive',
 							start: 0,
@@ -1313,7 +1316,7 @@ export function declareFileLockManagerTests({
 					expect(result2).toBe(true);
 
 					const result3 = await remoteProcessApi2.lockFileByteRange(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						{
 							type: 'exclusive',
 							start: 0,
@@ -1326,7 +1329,7 @@ export function declareFileLockManagerTests({
 					expect(result3).toBe(false);
 
 					const result4 = await remoteProcessApi2.lockFileByteRange(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						{
 							type: 'exclusive',
 							start: 0,
@@ -1342,7 +1345,7 @@ export function declareFileLockManagerTests({
 				it('treats a range with zero length as covering entire remaining range', async () => {
 					// First get a lock with zero length
 					const result1 = await remoteProcessApi1.lockFileByteRange(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						{
 							type: 'exclusive',
 							start: 0,
@@ -1356,7 +1359,7 @@ export function declareFileLockManagerTests({
 
 					// Unlock it
 					await remoteProcessApi1.lockFileByteRange(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						{
 							type: 'unlocked',
 							start: 0,
@@ -1369,7 +1372,7 @@ export function declareFileLockManagerTests({
 
 					// Verify it's unlocked by getting a lock after that point
 					const result2 = await remoteProcessApi2.lockFileByteRange(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						{
 							type: 'exclusive',
 							start: 0,
@@ -1387,7 +1390,7 @@ export function declareFileLockManagerTests({
 		describe('findFirstConflictingByteRangeLock', () => {
 			it('should find conflicting exclusive lock with partial overlap', async () => {
 				await remoteProcessApi1.lockFileByteRange(
-					TEST_FILE1,
+					TEST_FILE1_URL.pathname,
 					{
 						type: 'exclusive',
 						start: 0,
@@ -1400,7 +1403,7 @@ export function declareFileLockManagerTests({
 
 				const conflict =
 					await remoteProcessApi2.findFirstConflictingByteRangeLock(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						{
 							type: 'shared',
 							start: 0,
@@ -1423,7 +1426,7 @@ export function declareFileLockManagerTests({
 
 			it('should return undefined when no conflict exists', async () => {
 				await remoteProcessApi1.lockFileByteRange(
-					TEST_FILE1,
+					TEST_FILE1_URL.pathname,
 					{
 						type: 'shared',
 						start: 0,
@@ -1436,7 +1439,7 @@ export function declareFileLockManagerTests({
 
 				const conflict =
 					await remoteProcessApi2.findFirstConflictingByteRangeLock(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						{
 							type: 'shared',
 							start: 20,
@@ -1453,7 +1456,7 @@ export function declareFileLockManagerTests({
 			it.skip('should handle an exclusive range lock conflict with a shared whole-file lock', async () => {
 				// First get an exclusive whole-file lock
 				const result1 = await remoteProcessApi1.lockWholeFile(
-					TEST_FILE1,
+					TEST_FILE1_URL.pathname,
 					{
 						type: 'exclusive',
 						pid: PROCESS1_PID,
@@ -1466,7 +1469,7 @@ export function declareFileLockManagerTests({
 				// Try to get a range lock
 				const conflict =
 					await remoteProcessApi1.findFirstConflictingByteRangeLock(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						{
 							type: 'shared',
 							start: 0,
@@ -1488,7 +1491,7 @@ export function declareFileLockManagerTests({
 			it.skip('should handle an exclusive range lock conflict with an exclusive whole-file lock', async () => {
 				// First get an exclusive whole-file lock
 				const result1 = await remoteProcessApi1.lockWholeFile(
-					TEST_FILE1,
+					TEST_FILE1_URL.pathname,
 					{
 						type: 'exclusive',
 						pid: PROCESS1_PID,
@@ -1501,7 +1504,7 @@ export function declareFileLockManagerTests({
 				// Try to get a range lock
 				const conflict =
 					await remoteProcessApi1.findFirstConflictingByteRangeLock(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						{
 							type: 'exclusive',
 							start: 0,
@@ -1523,7 +1526,7 @@ export function declareFileLockManagerTests({
 			it.skip('should handle a shared range lock conflict with an exclusive whole-file lock', async () => {
 				// First get an exclusive whole-file lock
 				const result1 = await remoteProcessApi1.lockWholeFile(
-					TEST_FILE1,
+					TEST_FILE1_URL.pathname,
 					{
 						type: 'shared',
 						pid: PROCESS1_PID,
@@ -1536,7 +1539,7 @@ export function declareFileLockManagerTests({
 				// Try to get a range lock
 				const conflict =
 					await remoteProcessApi1.findFirstConflictingByteRangeLock(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						{
 							type: 'exclusive',
 							start: 0,
@@ -1558,7 +1561,7 @@ export function declareFileLockManagerTests({
 		describe('releaseLocksForProcess', () => {
 			it('should release all range locks held by a process across multiple ranges', async () => {
 				await remoteProcessApi1.lockFileByteRange(
-					TEST_FILE1,
+					TEST_FILE1_URL.pathname,
 					{
 						type: 'exclusive',
 						start: 0,
@@ -1569,7 +1572,7 @@ export function declareFileLockManagerTests({
 					false
 				);
 				await remoteProcessApi1.lockFileByteRange(
-					TEST_FILE1,
+					TEST_FILE1_URL.pathname,
 					{
 						type: 'exclusive',
 						start: 0,
@@ -1581,7 +1584,7 @@ export function declareFileLockManagerTests({
 				);
 				const exclusiveLockAppearsToBeHeld =
 					!(await remoteProcessApi2.lockFileByteRange(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						{
 							type: 'shared',
 							start: 0,
@@ -1594,7 +1597,7 @@ export function declareFileLockManagerTests({
 				expect(exclusiveLockAppearsToBeHeld).toBe(true);
 
 				await remoteProcessApi1.lockFileByteRange(
-					TEST_FILE2,
+					TEST_FILE2_URL.pathname,
 					{
 						type: 'shared',
 						start: 0,
@@ -1606,7 +1609,7 @@ export function declareFileLockManagerTests({
 				);
 				const sharedLockAppearsToBeHeld =
 					!(await remoteProcessApi2.lockFileByteRange(
-						TEST_FILE2,
+						TEST_FILE2_URL.pathname,
 						{
 							type: 'exclusive',
 							start: 0,
@@ -1623,7 +1626,7 @@ export function declareFileLockManagerTests({
 				// Verify locks are released by trying to acquire conflicting locks
 				const exclusiveLockAppearsToBeReleased =
 					await remoteProcessApi2.lockFileByteRange(
-						TEST_FILE1,
+						TEST_FILE1_URL.pathname,
 						{
 							type: 'shared',
 							start: 0,
@@ -1635,7 +1638,7 @@ export function declareFileLockManagerTests({
 					);
 				const sharedLockAppearsToBeReleased =
 					await remoteProcessApi2.lockFileByteRange(
-						TEST_FILE2,
+						TEST_FILE2_URL.pathname,
 						{
 							type: 'exclusive',
 							start: 0,
@@ -1651,52 +1654,64 @@ export function declareFileLockManagerTests({
 			});
 
 			it('should release all whole-file locks held by a process', async () => {
-				await remoteProcessApi1.lockWholeFile(TEST_FILE1, {
+				await remoteProcessApi1.lockWholeFile(TEST_FILE1_URL.pathname, {
 					type: 'exclusive',
 					pid: PROCESS1_PID,
 					fd: process1TestFile1Fd,
 					waitForLock: false,
 				});
 				const exclusiveLockAppearsToBeHeld =
-					!(await remoteProcessApi2.lockWholeFile(TEST_FILE1, {
-						type: 'shared',
-						pid: PROCESS2_PID,
-						fd: process2TestFile1Fd,
-						waitForLock: false,
-					}));
+					!(await remoteProcessApi2.lockWholeFile(
+						TEST_FILE1_URL.pathname,
+						{
+							type: 'shared',
+							pid: PROCESS2_PID,
+							fd: process2TestFile1Fd,
+							waitForLock: false,
+						}
+					));
 				expect(exclusiveLockAppearsToBeHeld).toBe(true);
 
-				await remoteProcessApi1.lockWholeFile(TEST_FILE2, {
+				await remoteProcessApi1.lockWholeFile(TEST_FILE2_URL.pathname, {
 					type: 'shared',
 					pid: PROCESS1_PID,
 					fd: process1TestFile2Fd,
 					waitForLock: false,
 				});
 				const sharedLockAppearsToBeHeld =
-					!(await remoteProcessApi2.lockWholeFile(TEST_FILE2, {
-						type: 'exclusive',
-						pid: PROCESS2_PID,
-						fd: process2TestFile2Fd,
-						waitForLock: false,
-					}));
+					!(await remoteProcessApi2.lockWholeFile(
+						TEST_FILE2_URL.pathname,
+						{
+							type: 'exclusive',
+							pid: PROCESS2_PID,
+							fd: process2TestFile2Fd,
+							waitForLock: false,
+						}
+					));
 				expect(sharedLockAppearsToBeHeld).toBe(true);
 
 				await remoteProcessApi1.releaseLocksForProcess(PROCESS1_PID);
 
 				const exclusiveLockAppearsToBeReleased =
-					await remoteProcessApi2.lockWholeFile(TEST_FILE1, {
-						type: 'shared',
-						pid: PROCESS2_PID,
-						fd: process2TestFile2Fd,
-						waitForLock: false,
-					});
+					await remoteProcessApi2.lockWholeFile(
+						TEST_FILE1_URL.pathname,
+						{
+							type: 'shared',
+							pid: PROCESS2_PID,
+							fd: process2TestFile2Fd,
+							waitForLock: false,
+						}
+					);
 				const sharedLockAppearsToBeReleased =
-					await remoteProcessApi2.lockWholeFile(TEST_FILE2, {
-						type: 'exclusive',
-						pid: PROCESS2_PID,
-						fd: process2TestFile2Fd,
-						waitForLock: false,
-					});
+					await remoteProcessApi2.lockWholeFile(
+						TEST_FILE2_URL.pathname,
+						{
+							type: 'exclusive',
+							pid: PROCESS2_PID,
+							fd: process2TestFile2Fd,
+							waitForLock: false,
+						}
+					);
 
 				expect(exclusiveLockAppearsToBeReleased).toBe(true);
 				expect(sharedLockAppearsToBeReleased).toBe(true);

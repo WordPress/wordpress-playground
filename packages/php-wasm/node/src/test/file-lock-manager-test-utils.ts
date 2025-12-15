@@ -94,7 +94,15 @@ export function createRemoteProcessAPIFromFileLockManager(
 			end: Number(result.end as bigint),
 		};
 	};
-	api.openSync = openSync;
+	// TODO: Make this less strange
+	// IPC with child processes uses JSON, and the URL type is not supported by JSON.
+	// So, if the input is a string that looks like a file URL, we convert it to a URL.
+	api.openSync = ((name: string | URL, ...rest) => {
+		if (typeof name === 'string' && name.startsWith('file://')) {
+			name = new URL(name);
+		}
+		return openSync(name, ...rest);
+	}) as typeof openSync;
 	api.closeSync = closeSync;
 	return api;
 }
