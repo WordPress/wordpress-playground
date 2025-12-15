@@ -184,6 +184,7 @@
 
 .section:last-child {
 	margin-bottom: 0;
+	padding-bottom: 32px;
 }
 
 .sectionHeader {
@@ -284,7 +285,7 @@
 	text-align: center;
 }
 
-/* Blueprint preview row */
+/* Blueprint preview row (grid on desktop) */
 .blueprintsRow {
 	display: flex;
 	gap: 16px;
@@ -587,20 +588,52 @@
 	}
 }
 
-@media (max-width: 865px) {
+/* Switch blueprints to list layout on tablet/mobile */
+@media (max-width: 875px) {
 	.blueprintsRow {
-		flex-wrap: wrap;
+		flex-direction: column;
+		gap: 8px;
 	}
 
 	.blueprintPreviewCard {
-		flex: 1 1 calc(25% - 12px);
-		min-width: 120px;
-		max-width: calc(25% - 12px);
+		flex-direction: row;
+		align-items: center;
+		gap: 12px;
+		height: 75px;
+		min-width: unset;
+		background: #2c3338;
+		border: 1px solid #3c4349;
+		border-radius: 8px;
+		padding: 8px 12px;
+		transition: all 0.15s ease;
 	}
 
-	/* Hide cards from 5th position onwards, but always show the last one (View all) */
-	.blueprintPreviewCard:nth-child(n + 5):not(:last-child) {
-		display: none;
+	.blueprintPreviewCard:hover {
+		border-color: #3858e9;
+		background: #353b41;
+	}
+
+	.blueprintPreviewCard:hover .blueprintPreviewThumbnail {
+		border-color: transparent;
+	}
+
+	.blueprintPreviewThumbnail {
+		width: 80px;
+		height: 55px;
+		aspect-ratio: unset;
+		flex-shrink: 0;
+		background: #252a2e;
+		border: none;
+		border-radius: 6px;
+	}
+
+	.blueprintPreviewTitle {
+		text-align: left;
+		flex: 1;
+		width: auto;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
 }
 
@@ -628,24 +661,18 @@
 		padding: 12px 8px;
 	}
 
-	.blueprintsRow {
-		flex-wrap: wrap;
+	.blueprintPreviewThumbnail {
+		width: 70px;
+		height: 50px;
 	}
 
 	.blueprintPreviewCard {
-		flex: 1 1 0;
-		min-width: 0;
-		max-width: none;
+		height: 70px;
+		padding: 10px 14px;
 	}
 
-	/* Hide cards from 4th position onwards, but always show the last one (View all) */
-	.blueprintPreviewCard:nth-child(n + 4):not(:last-child) {
-		display: none;
-	}
-
-	.blueprintPreviewThumbnail {
-		aspect-ratio: 4 / 3;
-		height: auto;
+	.blueprintPreviewTitle {
+		font-size: 15px;
 	}
 
 	.blueprintsFullGrid {
