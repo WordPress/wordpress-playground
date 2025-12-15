@@ -26,7 +26,7 @@ test('Post editor should load without client-side media experiment', async ({
 		login: true,
 	};
 
-	await website.goto(`/#${JSON.stringify(blueprint)}`);
+	await website.goto(`./#${JSON.stringify(blueprint)}`);
 
 	// First, wait for WordPress admin to fully load (admin menu is a reliable indicator)
 	await expect(wordpress.locator('#adminmenu')).toBeVisible({
@@ -68,7 +68,7 @@ test('Post editor should load with Gutenberg and client-side media experiment en
 		],
 	};
 
-	await website.goto(`/#${JSON.stringify(blueprint)}`);
+	await website.goto(`./#${JSON.stringify(blueprint)}`);
 
 	// First, wait for WordPress admin to fully load (admin menu is a reliable indicator)
 	await expect(wordpress.locator('#adminmenu')).toBeVisible({
@@ -110,7 +110,7 @@ test('Navigation URL should update in address bar with Document-Isolation-Policy
 		],
 	};
 
-	await website.goto(`/#${JSON.stringify(blueprint)}`);
+	await website.goto(`./#${JSON.stringify(blueprint)}`);
 
 	// First, wait for WordPress admin to fully load (admin menu is a reliable indicator)
 	await expect(wordpress.locator('#adminmenu')).toBeVisible({
