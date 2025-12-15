@@ -1,4 +1,5 @@
 import type { UniversalPHP } from '@php-wasm/universal';
+import { PHPResponse, StreamedPHPResponse } from '@php-wasm/universal';
 
 /**
  * Exports the WordPress database as a WXR file using
@@ -11,5 +12,12 @@ export async function exportWXR(playground: UniversalPHP) {
 	const databaseExportResponse = await playground.request({
 		url: '/wp-admin/export.php?download=true&content=all',
 	});
-	return new File([databaseExportResponse.bytes], 'export.xml');
+
+	// Handle both buffered and streamed responses
+	const bytes =
+		databaseExportResponse instanceof StreamedPHPResponse
+			? await databaseExportResponse.stdoutBytes
+			: databaseExportResponse.bytes;
+
+	return new File([bytes], 'export.xml');
 }

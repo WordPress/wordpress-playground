@@ -7,7 +7,7 @@ import {
 } from './urls';
 import type { PHP, PHPExecutionFailureError } from './php';
 import { normalizeHeaders } from './php';
-import { PHPResponse } from './php-response';
+import { PHPResponse, StreamedPHPResponse } from './php-response';
 import type { PHPRequest, PHPRunOptions } from './universal-php';
 import { encodeAsMultipart } from './encode-as-multipart';
 import type { PHPFactoryOptions } from './php-process-manager';
@@ -371,7 +371,9 @@ export class PHPRequestHandler implements AsyncDisposable {
 	 *
 	 * @param  request - PHP Request data.
 	 */
-	async request(request: PHPRequest): Promise<PHPResponse> {
+	async request(
+		request: PHPRequest
+	): Promise<PHPResponse | StreamedPHPResponse> {
 		const isAbsolute = looksLikeAbsoluteUrl(request.url);
 		const originalRequestUrl = new URL(
 			// Remove the hash part of the URL as it's not meant for the server.
@@ -508,18 +510,23 @@ export class PHPRequestHandler implements AsyncDisposable {
 				);
 
 				/**
-				 * If the response is but the exit code is non-zero, let's rewrite the
+				 * If the response is buffered and the exit code is non-zero, let's rewrite the
 				 * HTTP status code as 500. We're acting as a HTTP server here and
 				 * this behavior is in line with what Nginx and Apache do.
+				 *
+				 * For streamed responses, we can't rewrite the status code since the
+				 * response is already being consumed, so we return it as-is.
 				 */
-				if (response.ok() && response.exitCode !== 0) {
-					return new PHPResponse(
-						500,
-						response.headers,
-						response.bytes,
-						response.errors,
-						response.exitCode
-					);
+				if (response instanceof PHPResponse) {
+					if (response.ok() && response.exitCode !== 0) {
+						return new PHPResponse(
+							500,
+							response.headers,
+							response.bytes,
+							response.errors,
+							response.exitCode
+						);
+					}
 				}
 				return response;
 			} else {
@@ -587,7 +594,7 @@ export class PHPRequestHandler implements AsyncDisposable {
 		originalRequestUrl: URL,
 		rewrittenRequestUrl: URL,
 		scriptPath: string
-	): Promise<PHPResponse> {
+	): Promise<PHPResponse | StreamedPHPResponse> {
 		let spawnedPHP: AcquiredPHP | undefined = undefined;
 		try {
 			spawnedPHP = await this.instanceManager!.acquirePHPInstance({
@@ -626,7 +633,7 @@ export class PHPRequestHandler implements AsyncDisposable {
 		originalRequestUrl: URL,
 		rewrittenRequestUrl: URL,
 		scriptPath: string
-	): Promise<PHPResponse> {
+	): Promise<PHPResponse | StreamedPHPResponse> {
 		let preferredMethod: PHPRunOptions['method'] = 'GET';
 
 		const headers: Record<string, string> = {
@@ -646,7 +653,8 @@ export class PHPRequestHandler implements AsyncDisposable {
 		}
 
 		try {
-			const response = await php.run({
+			// Use runStream() to keep responses as streams
+			const streamedResponse = await php.runStream({
 				relativeUri: ensurePathPrefix(
 					toRelativeUrl(new URL(rewrittenRequestUrl.toString())),
 					this.#PATHNAME
@@ -662,13 +670,14 @@ export class PHPRequestHandler implements AsyncDisposable {
 				scriptPath,
 				headers,
 			});
+
 			if (this.#cookieStore) {
-				this.#cookieStore.rememberCookiesFromResponseHeaders(
-					response.headers
-				);
+				const headers = await streamedResponse.headers;
+				this.#cookieStore.rememberCookiesFromResponseHeaders(headers);
 			}
 
-			return response;
+			// Return the stream as-is to avoid buffering large files
+			return streamedResponse;
 		} catch (error) {
 			const executionError = error as PHPExecutionFailureError;
 			if (executionError?.response) {

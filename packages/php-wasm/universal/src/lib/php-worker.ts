@@ -173,7 +173,9 @@ export class PHPWorker implements LimitedPHPApi, AsyncDisposable {
 	}
 
 	/** @inheritDoc @php-wasm/universal!PHPRequestHandler.request */
-	async request(request: PHPRequest): Promise<PHPResponse> {
+	async request(
+		request: PHPRequest
+	): Promise<PHPResponse | StreamedPHPResponse> {
 		const requestHandler = _private.get(this)!.requestHandler!;
 		return await requestHandler.request(request);
 	}
@@ -186,6 +188,24 @@ export class PHPWorker implements LimitedPHPApi, AsyncDisposable {
 		} finally {
 			reap();
 		}
+	}
+
+	/** @inheritDoc @php-wasm/universal!/PHP.runStream */
+	async runStream(request: PHPRunOptions): Promise<StreamedPHPResponse> {
+		const { php, reap } = await this.acquirePHPInstance();
+		let response: StreamedPHPResponse;
+		try {
+			response = await php.runStream(request);
+		} catch (error) {
+			reap();
+			throw error;
+		}
+		/**
+		 * The StreamedPHPResponse object must be reapable.
+		 * Let's ensure all streams complete before reaping.
+		 */
+		response.finished.then(reap, reap);
+		return response;
 	}
 
 	/** @inheritDoc @php-wasm/universal!/PHP.cli */

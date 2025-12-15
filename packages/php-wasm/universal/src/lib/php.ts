@@ -424,7 +424,9 @@ export class PHP implements Disposable {
 	 * Do not use. Use new PHPRequestHandler() instead.
 	 * @deprecated
 	 */
-	async request(request: PHPRequest): Promise<PHPResponse> {
+	async request(
+		request: PHPRequest
+	): Promise<PHPResponse | StreamedPHPResponse> {
 		logger.warn(
 			'PHP.request() is deprecated. Please use new PHPRequestHandler() instead.'
 		);

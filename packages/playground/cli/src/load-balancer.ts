@@ -1,4 +1,9 @@
-import type { PHPRequest, PHPResponse, RemoteAPI } from '@php-wasm/universal';
+import type {
+	PHPRequest,
+	PHPResponse,
+	StreamedPHPResponse,
+	RemoteAPI,
+} from '@php-wasm/universal';
 import type { PlaygroundCliBlueprintV1Worker as PlaygroundCliWorkerV1 } from './blueprints-v1/worker-thread-v1';
 import type { PlaygroundCliBlueprintV2Worker as PlaygroundCliWorkerV2 } from './blueprints-v2/worker-thread-v2';
 
@@ -11,7 +16,7 @@ type PlaygroundCliWorker = PlaygroundCliWorkerV1 | PlaygroundCliWorkerV2;
 // TODO: Could we just spawn a worker using the factory function to PHPProcessManager?
 type WorkerLoad = {
 	worker: RemoteAPI<PlaygroundCliWorker>;
-	activeRequests: Set<Promise<PHPResponse>>;
+	activeRequests: Set<Promise<PHPResponse | StreamedPHPResponse>>;
 };
 export class LoadBalancer {
 	workerLoads: WorkerLoad[] = [];

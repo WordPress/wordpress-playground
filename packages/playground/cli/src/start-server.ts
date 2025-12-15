@@ -1,4 +1,8 @@
-import { type PHPRequest, PHPResponse } from '@php-wasm/universal';
+import {
+	type PHPRequest,
+	PHPResponse,
+	StreamedPHPResponse,
+} from '@php-wasm/universal';
 import type { Request } from 'express';
 import express from 'express';
 import type { IncomingMessage, Server, ServerResponse } from 'http';
@@ -9,7 +13,9 @@ import { logger } from '@php-wasm/logger';
 export interface ServerOptions {
 	port: number;
 	onBind: (server: Server, port: number) => Promise<RunCLIServer | void>;
-	handleRequest: (request: PHPRequest) => Promise<PHPResponse>;
+	handleRequest: (
+		request: PHPRequest
+	) => Promise<PHPResponse | StreamedPHPResponse>;
 }
 
 export async function startServer(
@@ -31,7 +37,7 @@ export async function startServer(
 	});
 
 	app.use('/', async (req, res) => {
-		let phpResponse: PHPResponse;
+		let phpResponse: PHPResponse | StreamedPHPResponse;
 		try {
 			phpResponse = await options.handleRequest({
 				url: req.url,
@@ -44,11 +50,37 @@ export async function startServer(
 			phpResponse = PHPResponse.forHttpCode(500);
 		}
 
-		res.statusCode = phpResponse.httpStatusCode;
-		for (const key in phpResponse.headers) {
-			res.setHeader(key, phpResponse.headers[key]);
+		// Handle streamed responses
+		if (phpResponse instanceof StreamedPHPResponse) {
+			res.statusCode = await phpResponse.httpStatusCode;
+			const headers = await phpResponse.headers;
+			for (const key in headers) {
+				res.setHeader(key, headers[key]);
+			}
+
+			// Stream the response body
+			const reader = phpResponse.stdout.getReader();
+			try {
+				while (true) {
+					const { done, value } = await reader.read();
+					if (done) break;
+					if (value) {
+						res.write(value);
+					}
+				}
+				res.end();
+			} catch (error) {
+				logger.error('Error streaming response:', error);
+				res.end();
+			}
+		} else {
+			// Handle buffered responses
+			res.statusCode = phpResponse.httpStatusCode;
+			for (const key in phpResponse.headers) {
+				res.setHeader(key, phpResponse.headers[key]);
+			}
+			res.end(phpResponse.bytes);
 		}
-		res.end(phpResponse.bytes);
 	});
 
 	const address = server.address();
