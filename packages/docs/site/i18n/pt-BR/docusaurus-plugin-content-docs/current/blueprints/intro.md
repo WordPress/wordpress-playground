@@ -1,8 +1,8 @@
 ---
-title: Introduction
+title: Introdução
 slug: /blueprints
 id: introduction
-description: The main introduction to the Blueprints documentation. Discover the structure of the docs and find key sections.
+description: A introdução principal à documentação dos Blueprints. Descubra a estrutura dos documentos e encontre seções principais.
 ---
 
 import BlueprintExample from '@site/src/components/Blueprints/BlueprintExample.mdx';

@@ -9,7 +9,7 @@ description: A referência principal da API para a propriedade de etapas. Descub
 The `steps` property of a Blueprint is an array of steps to run. For example this Blueprint logs the user in as an admin:
 -->
 
-# Etapas
+# Etapas (steps)
 
 <!-- A propriedade `steps` de uma Blueprint é um array de etapas a serem executadas. Por exemplo, esta Blueprint faz o login do usuário como administrador: -->
 

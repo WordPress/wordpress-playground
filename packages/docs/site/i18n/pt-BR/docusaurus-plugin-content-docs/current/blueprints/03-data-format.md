@@ -1,8 +1,8 @@
 ---
 sidebar_position: 1
-title: Blueprint data Format
+title: Formato de dados do Blueprint
 slug: /blueprints/data-format
-description: An overview of the Blueprint data format. Learn about key properties like landingPage, preferredVersions, and steps.
+description_long: Uma visão geral do formato de dados do Blueprint. Saiba mais sobre propriedades-chave como landingPage, preferredVersions e as etapas.
 ---
 
 <!--
