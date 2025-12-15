@@ -16,7 +16,10 @@ import {
 	InvalidBlueprintError,
 } from '@wp-playground/blueprints';
 import { logger } from '@php-wasm/logger';
-import { setupPostMessageRelay } from '@php-wasm/web';
+import {
+	FirewallInterferenceError,
+	setupPostMessageRelay,
+} from '@php-wasm/web';
 import { startPlaygroundWeb } from '@wp-playground/client';
 import type { PlaygroundClient } from '@wp-playground/remote';
 import { getRemoteUrl } from '../../config';
@@ -34,6 +37,27 @@ import {
 	createGitAuthHeaders,
 	shouldShowGitHubAuthModal,
 } from '../../../github/git-auth-helpers';
+
+/**
+ * Search through an error's cause chain to find an error with a specific name.
+ * Checks both instanceof and the error's name property to handle cases where
+ * instanceof fails due to module boundaries or error serialization.
+ */
+function findFirewallErrorInCauseChain(error: unknown): boolean {
+	let current: unknown = error;
+	while (current) {
+		if (
+			current instanceof FirewallInterferenceError ||
+			(current instanceof Error &&
+				current.name === 'FirewallInterferenceError')
+		) {
+			return true;
+		}
+		current =
+			current instanceof Error ? (current as Error).cause : undefined;
+	}
+	return false;
+}
 
 export function bootSiteClient(
 	siteSlug: string,
@@ -189,6 +213,13 @@ export function bootSiteClient(
 				dispatch(
 					setActiveSiteError({
 						error: 'blueprint-validation-failed',
+						details: e,
+					})
+				);
+			} else if (findFirewallErrorInCauseChain(e)) {
+				dispatch(
+					setActiveSiteError({
+						error: 'network-firewall-interference',
 						details: e,
 					})
 				);

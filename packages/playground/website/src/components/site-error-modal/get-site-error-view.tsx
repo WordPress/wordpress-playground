@@ -13,12 +13,14 @@ export interface SiteErrorViewContext {
 	site: SiteInfo;
 	blueprintStepError?: BlueprintStepError;
 	helpers: PresentationHelpers;
+	errorDetails?: unknown;
 }
 
 export interface SiteErrorViewConfig {
 	title: string;
 	isDeveloperError: boolean;
 	detailSummaryOverride?: string;
+	hideReportButton?: boolean;
 	body: React.ReactNode;
 	actions: React.ReactNode[];
 }
@@ -28,7 +30,10 @@ export function getSiteErrorView(
 ): SiteErrorViewConfig {
 	const { error, blueprintStepError } = context;
 
-	if (blueprintStepError) {
+	// Show specific error views for certain error types, even if they occurred
+	// during a blueprint step. These errors have dedicated user-friendly views
+	// that provide better guidance than the generic step error view.
+	if (blueprintStepError && error !== 'network-firewall-interference') {
 		return blueprintStepExecutionView(context);
 	}
 
@@ -278,57 +283,152 @@ function directoryHandleUnknownErrorView(): SiteErrorViewConfig {
 	};
 }
 
+/**
+ * Extract the target URL that Playground was trying to fetch from the error details.
+ * This is the original URL (e.g., a plugin download), not the CORS proxy URL.
+ */
+function extractTargetUrl(errorDetails: unknown): string | undefined {
+	if (!errorDetails || typeof errorDetails !== 'object') {
+		return undefined;
+	}
+
+	const details = errorDetails as Record<string, unknown>;
+	const message = (details.rawMessage || details.message || '') as string;
+
+	// "Could not fetch {url}" from FirewallInterferenceError
+	const fetchMatch = message.match(/Could not fetch ([^\s]+)/);
+	if (fetchMatch) {
+		return fetchMatch[1];
+	}
+
+	// "Could not download "{url}"" from resource fetching
+	const downloadMatch = message.match(/Could not download "([^"]+)"/);
+	if (downloadMatch) {
+		return downloadMatch[1];
+	}
+
+	return undefined;
+}
+
 function networkFirewallInterferenceView({
 	helpers,
+	errorDetails,
 }: SiteErrorViewContext): SiteErrorViewConfig {
-	// Extract hostnames from the current site and CORS proxy URLs
-	const currentHost = window.location.hostname;
+	// The target URL is what Playground was trying to download (e.g., a plugin)
+	const targetUrl = extractTargetUrl(errorDetails);
+
+	// The CORS proxy is what's actually being blocked - all external requests
+	// go through it due to browser security restrictions
 	let corsProxyHost: string | undefined;
+	let testUrl: string | undefined;
 	try {
 		corsProxyHost = new URL(corsProxyUrl).hostname;
+		testUrl = `${corsProxyUrl}https://wordpress.org`;
 	} catch {
-		// corsProxyUrl might be a relative URL or invalid
+		// corsProxyUrl might be a relative URL
+	}
+
+	const effectiveTargetUrl = targetUrl
+		? corsProxyUrl
+			? `${corsProxyUrl}?${encodeURIComponent(targetUrl)}`
+			: targetUrl
+		: undefined;
+	let effectiveTargetHost: string | undefined;
+	try {
+		if (effectiveTargetUrl) {
+			effectiveTargetHost = new URL(effectiveTargetUrl).hostname;
+		}
+	} catch {
+		// Invalid URL
 	}
 
 	return {
 		title: 'Network blocked this request',
 		isDeveloperError: false,
+		hideReportButton: true,
 		detailSummaryOverride: 'Technical details',
 		body: (
 			<>
-				<p className={css.errorLead}>
-					Your network appears to be blocking requests to external
-					resources. This commonly happens on university, school, or
-					corporate networks with security filters.
-				</p>
 				<p>
-					<strong>What you can try:</strong>
-				</p>
-				<ul className={css.errorList}>
-					<li>
-						Switch to a different network (like mobile data or a
-						personal Wi-Fi)
-					</li>
-					<li>Use a VPN to bypass network restrictions</li>
-					<li>
-						Ask your network administrator to allow requests to{' '}
-						<code>{currentHost}</code>
-						{corsProxyHost && corsProxyHost !== currentHost && (
+					<strong style={{ fontWeight: 'bold' }}>
+						Playground couldn't download a file
+						{effectiveTargetHost && (
 							<>
 								{' '}
-								and <code>{corsProxyHost}</code>
+								from <code>{effectiveTargetHost}</code>
 							</>
 						)}
+						.
+					</strong>{' '}
+					Your network appears to be blocking the request.
+				</p>
+
+				<p>
+					Playground runs entirely in your browser. To download
+					plugins, themes, and other files, it routes requests through
+					a CORS proxy server
+					{corsProxyHost && (
+						<>
+							{' '}
+							at <code>{corsProxyHost}</code>
+						</>
+					)}
+					. Your network seems to be blocking this proxy — a common
+					issue on school, university, and corporate networks.
+				</p>
+
+				<p>
+					<strong style={{ fontWeight: 'bold' }}>
+						Verify this is a network issue
+					</strong>
+				</p>
+				<p>Try opening this link in a new browser tab:</p>
+				<p>
+					<a href={testUrl} target="_blank" rel="noopener noreferrer">
+						{testUrl}
+					</a>
+				</p>
+
+				<ul className={css.errorList}>
+					<li>
+						<strong style={{ fontWeight: 'bold' }}>
+							Link fails to load?
+						</strong>{' '}
+						Your network is blocking the proxy. Try a different
+						network (mobile data, personal Wi-Fi), use a VPN, or
+						contact your IT administrator.
+					</li>
+					<li>
+						<strong style={{ fontWeight: 'bold' }}>
+							Link works fine?
+						</strong>{' '}
+						This might be a bug in Playground. Please{' '}
+						<a
+							href="https://github.com/WordPress/wordpress-playground/issues/new"
+							target="_blank"
+							rel="noopener noreferrer"
+						>
+							open an issue on GitHub
+						</a>{' '}
+						so we can investigate.
 					</li>
 				</ul>
+
 				<p>
-					<a
-						target="_blank"
-						rel="noopener noreferrer"
-						href="https://wordpress.github.io/wordpress-playground/troubleshooting/network-issues"
-					>
-						Learn more about network troubleshooting ↗
-					</a>
+					<strong style={{ fontWeight: 'bold' }}>
+						For IT administrators
+					</strong>
+				</p>
+				<p>
+					Allow outbound HTTPS requests to{' '}
+					<code>{corsProxyHost || 'the CORS proxy domain'}</code>
+					{window.location.hostname !== corsProxyHost && (
+						<>
+							{' '}
+							and <code>{window.location.hostname}</code>
+						</>
+					)}
+					.
 				</p>
 			</>
 		),

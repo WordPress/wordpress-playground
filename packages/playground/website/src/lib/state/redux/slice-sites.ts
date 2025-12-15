@@ -27,22 +27,24 @@ import { setActiveSiteError, type SiteError } from './slice-ui';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 
 /**
- * Search through an error's cause chain to find an instance of a specific error type.
- * Returns the found error instance or undefined if not found.
+ * Search through an error's cause chain to find an error with a specific name.
+ * Checks both instanceof and the error's name property to handle cases where
+ * instanceof fails due to module boundaries or error serialization.
  */
-function findErrorInCauseChain<T extends Error>(
-	error: unknown,
-	errorClass: new (...args: any[]) => T
-): T | undefined {
+function findFirewallErrorInCauseChain(error: unknown): boolean {
 	let current: unknown = error;
 	while (current) {
-		if (current instanceof errorClass) {
-			return current;
+		if (
+			current instanceof FirewallInterferenceError ||
+			(current instanceof Error &&
+				current.name === 'FirewallInterferenceError')
+		) {
+			return true;
 		}
 		current =
 			current instanceof Error ? (current as Error).cause : undefined;
 	}
-	return undefined;
+	return false;
 }
 
 /**
@@ -372,14 +374,10 @@ export function setTemporarySiteSpec(
 			);
 
 			// Check if the error (or its cause chain) is a FirewallInterferenceError
-			const isFirewallError = findErrorInCauseChain(
-				e,
-				FirewallInterferenceError
-			);
-			if (isFirewallError) {
+			if (findFirewallErrorInCauseChain(e)) {
 				return showTemporarySiteError({
 					error: 'network-firewall-interference',
-					details: isFirewallError,
+					details: e,
 				});
 			}
 
