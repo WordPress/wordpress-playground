@@ -69,6 +69,7 @@ export const SiteManager = forwardRef<
 				/>
 			);
 			break;
+		default:
 		case 'site-details':
 			activePanel = activeSite ? (
 				fullScreenSections ? (
@@ -107,9 +108,6 @@ export const SiteManager = forwardRef<
 					</ResizableBox>
 				)
 			) : null;
-			break;
-		default:
-			activePanel = null;
 			break;
 	}
 

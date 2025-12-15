@@ -128,6 +128,10 @@ export const KeepAliveTemporarySitesViewport = () => {
 		]);
 	}, [siteSlugsToRender]);
 
+	const hasVisibleSite = !!slugsSeenSoFar.find(
+		(slug) => slug === activeSite?.slug
+	);
+
 	const sitesFinishedLoading = useAppSelector(selectSitesLoaded);
 	if (!sitesFinishedLoading) {
 		return (
@@ -160,12 +164,14 @@ export const KeepAliveTemporarySitesViewport = () => {
 					</div>
 				</div>
 			)}
-			<div className={css.loadingViewport}>
-				<h3 className={css.loadingCaption}>&nbsp;</h3>
-				<div className={css.progressWrapper}>
-					<div className={css.progressBar} />
+			{!hasVisibleSite && (
+				<div className={css.loadingViewport}>
+					<h3 className={css.loadingCaption}>&nbsp;</h3>
+					<div className={css.progressWrapper}>
+						<div className={css.progressBar} />
+					</div>
 				</div>
-			</div>
+			)}
 			{slugsSeenSoFar.map((slug) => {
 				const site = sitesBySlug.get(slug);
 				const viewportKey = site

@@ -180,15 +180,13 @@ export function SiteInfoPanel({
 							<FlexItem style={{ marginLeft: -20 }}>
 								<Button
 									variant="link"
-									label="Back to sites list"
+									label="Back to Playground"
 									icon={() => (
 										<Icon icon={chevronLeft} size={38} />
 									)}
 									className={css.grayLinkDark}
 									onClick={() => {
-										dispatch(
-											setSiteManagerSection('sidebar')
-										);
+										dispatch(setSiteManagerOpen(false));
 									}}
 								/>
 							</FlexItem>
