@@ -296,6 +296,8 @@ export const BlueprintBundleEditor = forwardRef<
 			contentStart: 0,
 			contentEnd: 0,
 		});
+	// Track whether the bundle only contains blueprint.json (and thus can be shared via URL)
+	const [isBundleShareable, setIsBundleShareable] = useState(true);
 
 	const editorRef = useRef<CodeEditorHandle | null>(null);
 	// Store the CodeMirror EditorView for string editor operations
@@ -350,6 +352,72 @@ export const BlueprintBundleEditor = forwardRef<
 			cancelled = true;
 		};
 	}, [filesystem]);
+
+	// Check if the bundle only contains blueprint.json (can be shared via URL).
+	// Blueprint bundles with additional files cannot be encoded in a URL hash.
+	const checkBundleShareability = useCallback(async () => {
+		try {
+			const rootEntries = await filesystem.listFiles('/');
+			const isShareable =
+				rootEntries.length === 1 && rootEntries[0] === 'blueprint.json';
+			setIsBundleShareable(isShareable);
+			return isShareable;
+		} catch {
+			setIsBundleShareable(false);
+			return false;
+		}
+	}, [filesystem]);
+
+	// Check shareability on initial load and whenever the filesystem changes
+	useEffect(() => {
+		checkBundleShareability();
+
+		const handleFilesystemChange = () => {
+			checkBundleShareability();
+		};
+		filesystem.addEventListener('change', handleFilesystemChange);
+		return () => {
+			filesystem.removeEventListener('change', handleFilesystemChange);
+		};
+	}, [filesystem, checkBundleShareability]);
+
+	// Update URL hash when blueprint.json changes for shareable URLs.
+	// This keeps the URL in sync with the editor content so users can share
+	// their work in progress by copying the current URL.
+	const updateUrlHash = useDebouncedCallback(
+		(blueprintContent: string, shareable: boolean) => {
+			const newUrl = new URL(window.location.href);
+
+			if (!shareable) {
+				// Bundle has additional files - clear the URL hash
+				if (newUrl.hash) {
+					newUrl.hash = '';
+					window.history.replaceState(null, '', newUrl.toString());
+				}
+				return;
+			}
+
+			try {
+				// Validate that it's valid JSON before updating the URL
+				JSON.parse(blueprintContent);
+				const encodedBlueprint = encodeStringAsBase64(blueprintContent);
+				newUrl.hash = encodedBlueprint;
+				window.history.replaceState(null, '', newUrl.toString());
+			} catch {
+				// Don't update URL if blueprint is invalid JSON
+			}
+		},
+		500,
+		[]
+	);
+
+	useEffect(() => {
+		// Only update URL for temporary sites when editing blueprint.json
+		if (readOnly || currentPath !== BLUEPRINT_JSON_PATH) {
+			return;
+		}
+		updateUrlHash(code, isBundleShareable);
+	}, [code, currentPath, readOnly, isBundleShareable, updateUrlHash]);
 
 	const handleRecreateFromBlueprint = useCallback(async () => {
 		if (!site || site.metadata.storage !== 'none' || readOnly) {
@@ -738,6 +806,16 @@ export const BlueprintBundleEditor = forwardRef<
 							<div style={{ padding: '8px 16px' }}>
 								<Notice status="success" isDismissible={false}>
 									{successMessage}
+								</Notice>
+							</div>
+						) : null}
+						{!readOnly && !isBundleShareable ? (
+							<div style={{ padding: '8px 16px' }}>
+								<Notice status="warning" isDismissible={false}>
+									This Blueprint bundle contains multiple
+									files and cannot be shared via URL. Use the
+									download button to export the bundle as a
+									zip file.
 								</Notice>
 							</div>
 						) : null}
