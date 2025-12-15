@@ -598,14 +598,14 @@
 	.blueprintPreviewCard {
 		flex-direction: row;
 		align-items: center;
-		gap: 12px;
-		height: 75px;
+		gap: 16px;
 		min-width: unset;
 		background: #2c3338;
 		border: 1px solid #3c4349;
 		border-radius: 8px;
-		padding: 8px 12px;
+		padding: 0 16px 0 0;
 		transition: all 0.15s ease;
+		overflow: hidden;
 	}
 
 	.blueprintPreviewCard:hover {
@@ -618,13 +618,13 @@
 	}
 
 	.blueprintPreviewThumbnail {
-		width: 80px;
-		height: 55px;
+		height: 115px;
+		width: 140px !important;
 		aspect-ratio: unset;
 		flex-shrink: 0;
 		background: #252a2e;
 		border: none;
-		border-radius: 6px;
+		border-radius: 7px 0 0 7px;
 	}
 
 	.blueprintPreviewTitle {
@@ -634,6 +634,7 @@
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
+		font-weight: 500;
 	}
 }
 
@@ -661,14 +662,8 @@
 		padding: 12px 8px;
 	}
 
-	.blueprintPreviewThumbnail {
-		width: 70px;
-		height: 50px;
-	}
-
 	.blueprintPreviewCard {
-		height: 70px;
-		padding: 10px 14px;
+		padding: 0 14px 0 0;
 	}
 
 	.blueprintPreviewTitle {
