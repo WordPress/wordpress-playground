@@ -121,6 +121,18 @@ test('Navigation URL should update in address bar with Document-Isolation-Policy
 		timeout: 120000,
 	});
 
+	// Close the "Welcome to the editor" modal if it appears
+	const welcomeModalCloseButton = wordpress.locator(
+		'.components-modal__header button[aria-label="Close"]'
+	);
+	if (
+		await welcomeModalCloseButton
+			.isVisible({ timeout: 3000 })
+			.catch(() => false)
+	) {
+		await welcomeModalCloseButton.click();
+	}
+
 	// Navigate to Dashboard by clicking the WordPress logo in the editor header
 	// (the admin menu may be hidden when the editor is in fullscreen mode)
 	const wpLogoLink = wordpress.locator(
