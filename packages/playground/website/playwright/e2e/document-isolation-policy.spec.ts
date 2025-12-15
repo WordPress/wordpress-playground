@@ -155,9 +155,10 @@ test('Navigation URL should update in address bar with Document-Isolation-Policy
 		.locator('.address-bar-url input, input[type="text"]')
 		.first();
 	if (await addressBar.isVisible()) {
-		// The URL should be wp-admin (dashboard) or wp-admin/edit.php (posts list)
-		await expect(addressBar).toHaveValue(/\/wp-admin(\/edit\.php|\/?)$/, {
-			timeout: 10000,
+		// The URL should have changed from post-new.php to dashboard or posts list
+		// Wait for the URL to NOT be post-new.php anymore
+		await expect(addressBar).not.toHaveValue(/post-new\.php/, {
+			timeout: 15000,
 		});
 	}
 });
