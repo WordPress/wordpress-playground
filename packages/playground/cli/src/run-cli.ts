@@ -324,10 +324,11 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 				type: 'boolean',
 				default: false,
 			},
-			browser: {
-				describe: 'Open the site in your default browser on startup.',
+			'skip-browser': {
+				describe:
+					'Do not open the site in your default browser on startup.',
 				type: 'boolean',
-				default: true,
+				default: false,
 			},
 			quiet: {
 				describe: 'Suppress non-essential output.',
@@ -379,7 +380,7 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 								'  wp-playground start                    # Start in current directory\n' +
 								'  wp-playground start --path=./my-plugin # Start with a specific path\n' +
 								'  wp-playground start --wp=6.7 --php=8.3 # Use specific versions\n' +
-								'  wp-playground start --no-browser       # Skip opening browser\n' +
+								'  wp-playground start --skip-browser     # Skip opening browser\n' +
 								'  wp-playground start --no-auto-mount    # Disable auto-detection'
 						)
 						.options(startCommandOptions)
@@ -571,7 +572,7 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 
 		// Transform 'start' command args to server-compatible args
 		if (command === 'start') {
-			shouldOpenBrowser = args['browser'] !== false;
+			shouldOpenBrowser = args['skip-browser'] !== true;
 
 			// Enable auto-mount unless explicitly disabled
 			if (!args['no-auto-mount']) {
@@ -704,7 +705,7 @@ export interface RunCLIArgs {
 
 	// --------- Start command args -----------
 	path?: string;
-	browser?: boolean;
+	skipBrowser?: boolean;
 	noAutoMount?: boolean;
 }
 
