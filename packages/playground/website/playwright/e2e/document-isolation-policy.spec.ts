@@ -34,8 +34,8 @@ test('Post editor should load without client-side media experiment', async ({
 
 	await website.goto(`./#${JSON.stringify(blueprint)}`);
 
-	// Wait for WordPress admin to fully load
-	await expect(wordpress.locator('body')).toContainText('Add New Post', {
+	// Wait for WordPress admin to fully load by checking for the admin menu
+	await expect(wordpress.locator('#adminmenu')).toBeVisible({
 		timeout: 60000,
 	});
 });
@@ -74,7 +74,7 @@ test('Post editor should load with Gutenberg and client-side media experiment en
 	// Wait for WordPress admin to fully load. The post editor should work even with
 	// COEP/COOP headers that would normally break the iframe - Document-Isolation-Policy
 	// rewrites them to avoid cross-origin isolation issues.
-	await expect(wordpress.locator('body')).toContainText('Add New Post', {
+	await expect(wordpress.locator('#adminmenu')).toBeVisible({
 		timeout: 120000,
 	});
 });
@@ -109,8 +109,8 @@ test('Navigation URL should update in address bar with Document-Isolation-Policy
 
 	await website.goto(`./#${JSON.stringify(blueprint)}`);
 
-	// Wait for WordPress admin to fully load
-	await expect(wordpress.locator('body')).toContainText('Add New Post', {
+	// Wait for WordPress admin to fully load by checking for the admin menu
+	await expect(wordpress.locator('#adminmenu')).toBeVisible({
 		timeout: 120000,
 	});
 

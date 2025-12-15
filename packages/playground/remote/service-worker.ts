@@ -217,9 +217,10 @@ self.addEventListener('fetch', (event) => {
 	}
 
 	if (isURLScoped(url)) {
+		const scope = getURLScope(url)!;
 		return event.respondWith(
-			handleScopedRequest(event, getURLScope(url)!).then(
-				rewriteCoopHeadersToDocumentIsolationPolicy
+			handleScopedRequest(event, scope).then((response) =>
+				rewriteCoopHeadersToDocumentIsolationPolicy(response, scope)
 			)
 		);
 	}
@@ -232,9 +233,10 @@ self.addEventListener('fetch', (event) => {
 	}
 
 	if (referrerUrl && isURLScoped(referrerUrl)) {
+		const scope = getURLScope(referrerUrl)!;
 		return event.respondWith(
-			handleScopedRequest(event, getURLScope(referrerUrl)!).then(
-				rewriteCoopHeadersToDocumentIsolationPolicy
+			handleScopedRequest(event, scope).then((response) =>
+				rewriteCoopHeadersToDocumentIsolationPolicy(response, scope)
 			)
 		);
 	}
@@ -333,7 +335,7 @@ async function handleScopedRequest(event: FetchEvent, scope: string) {
 	const fullUrl = new URL(event.request.url);
 	const unscopedUrl = removeURLScope(fullUrl);
 	if (fullUrl.pathname.endsWith('/wp-includes/empty.html')) {
-		return emptyHtml();
+		return emptyHtml(scope);
 	}
 
 	const workerResponse = await convertFetchEventToPHPRequest(event);
@@ -514,22 +516,34 @@ window.__playground_ControlledIframe = window.wp.element.forwardRef(function (pr
 
 /**
  * The empty HTML file loaded by the patched editor iframe.
+ *
+ * @param scope The scope of the request, used to determine whether cross-origin isolation is needed
  */
-function emptyHtml() {
+function emptyHtml(scope: string) {
+	const headers: Record<string, string> = {
+		'content-type': 'text/html',
+	};
+
+	/**
+	 * Only add Document-Isolation-Policy when the parent page also has cross-origin
+	 * isolation headers (COEP/COOP that were rewritten to Document-Isolation-Policy).
+	 *
+	 * Without this header in empty.html, Gutenberg fails to populate the editor iframe
+	 * with the editor markup when the editor page is loaded with COOP/COEP headers set.
+	 *
+	 * However, adding this header unconditionally breaks REST API authentication because
+	 * `isolate-and-credentialless` causes cross-origin requests to be sent without
+	 * credentials (cookies), resulting in "Session expired" errors.
+	 */
+	if (scopesWithCrossOriginIsolation.has(scope)) {
+		headers['Document-Isolation-Policy'] = 'isolate-and-credentialless';
+	}
+
 	return new Response(
 		'<!doctype html><script>const hash = window.location.hash.substring(1); if ( hash ) document.write(decodeURIComponent(hash))</script>',
 		{
 			status: 200,
-			headers: {
-				'content-type': 'text/html',
-				/**
-				 * Without this header in empty.html, Gutenberg fails to
-				 * populate the editor iframe with the editor markup in
-				 * scenarios when the editor page is loaded with COOP/COEP
-				 * headers set.
-				 */
-				'Document-Isolation-Policy': 'isolate-and-credentialless',
-			},
+			headers,
 		}
 	);
 }
@@ -604,6 +618,13 @@ async function getScopedWpDetails(scope: string): Promise<WPModuleDetails> {
  */
 let browserSupportsDocumentIsolationPolicy: boolean | undefined;
 
+/**
+ * Scopes that have cross-origin isolation enabled (COEP headers were rewritten to
+ * Document-Isolation-Policy). This is used to determine whether empty.html should
+ * also have Document-Isolation-Policy header.
+ */
+const scopesWithCrossOriginIsolation = new Set<string>();
+
 self.addEventListener('message', (event) => {
 	if (event.data?.type === 'document-isolation-policy-support-check') {
 		browserSupportsDocumentIsolationPolicy = event.data.supported === true;
@@ -621,12 +642,13 @@ self.addEventListener('message', (event) => {
  * This enables cross-origin isolation (for SharedArrayBuffer) without breaking
  * external embeds like YouTube videos that don't set COEP/COOP headers.
  *
- * @param request The original request (unused, but kept for potential future use)
  * @param response The response to potentially modify
+ * @param scope The scope of the request, used to track which scopes have cross-origin isolation
  * @returns A new Response with rewritten headers, or the original response if no rewriting is needed
  */
 function rewriteCoopHeadersToDocumentIsolationPolicy(
-	response: Response
+	response: Response,
+	scope: string
 ): Response {
 	// If we don't know whether the browser supports Document-Isolation-Policy,
 	// or if it doesn't support it, return the original response unchanged.
@@ -678,6 +700,10 @@ function rewriteCoopHeadersToDocumentIsolationPolicy(
 	newHeaders.delete('cross-origin-embedder-policy');
 	newHeaders.delete('cross-origin-opener-policy');
 	newHeaders.set('document-isolation-policy', dipValue);
+
+	// Track that this scope has cross-origin isolation enabled so that
+	// empty.html (the editor iframe) can also get the Document-Isolation-Policy header.
+	scopesWithCrossOriginIsolation.add(scope);
 
 	return new Response(response.body, {
 		status: response.status,
