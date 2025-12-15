@@ -116,6 +116,7 @@ export function SavedPlaygroundsOverlay({
 	const [searchQuery, setSearchQuery] = useState('');
 	const [selectedTag, setSelectedTag] = useState<string | null>(null);
 	const [isClosing, setIsClosing] = useState(false);
+	const [pendingZipFile, setPendingZipFile] = useState<File | null>(null);
 
 	const closeWithFade = (callback?: () => void) => {
 		setIsClosing(true);
@@ -127,9 +128,63 @@ export function SavedPlaygroundsOverlay({
 		}, 200); // Match the fadeOut animation duration
 	};
 
+	// Ensure we import into a temporary site, not a saved site.
+	// This effect handles the actual import once we're on a temporary site.
+	const isTemporarySite = activeSite?.metadata.storage === 'none';
+	useEffect(() => {
+		if (!pendingZipFile || !isTemporarySite || !playground) {
+			return;
+		}
+
+		const doImport = async () => {
+			try {
+				await importWordPressFiles(playground, {
+					wordPressFilesZip: pendingZipFile,
+				});
+				// TODO: Do not prefetch update checks at this stage, it delays
+				//       refreshing the page.
+				setTimeout(async () => {
+					await playground.goTo('/');
+				}, 200);
+				alert(
+					'File imported! This Playground instance has been updated and will refresh shortly.'
+				);
+				onClose();
+			} catch (error) {
+				logger.error(error);
+				alert(
+					'Unable to import file. Is it a valid WordPress Playground export?'
+				);
+			} finally {
+				setPendingZipFile(null);
+				// Reset the input so the same file can be selected again
+				if (zipFileInputRef.current) {
+					zipFileInputRef.current.value = '';
+				}
+			}
+		};
+		doImport();
+	}, [pendingZipFile, isTemporarySite, playground, onClose]);
+
 	const handleImportZip = async (e: React.ChangeEvent<HTMLInputElement>) => {
 		const file = e.target.files?.[0];
 		if (!file) return;
+
+		// Always import into a temporary site, never into a saved site.
+		// If we're on a saved site, switch to/create a temporary one first.
+		if (!isTemporarySite) {
+			setPendingZipFile(file);
+			if (temporarySite) {
+				// Switch to existing temporary site, then import will happen via effect
+				dispatch(setActiveSite(temporarySite.slug));
+			} else {
+				// No temporary site exists, create one by redirecting.
+				// Note: This will cause a page reload, losing the file selection.
+				// We store it in state hoping the switch happens without redirect.
+				redirectTo(PlaygroundRoute.newTemporarySite());
+			}
+			return;
+		}
 
 		if (!playground) {
 			alert(
