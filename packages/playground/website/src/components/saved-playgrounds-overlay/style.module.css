@@ -653,8 +653,8 @@
 	}
 
 	.tagsContainer {
-		overflow-x: auto;
-		flex-wrap: nowrap;
+		overflow-x: hidden;
+		flex-wrap: wrap;
 		padding-bottom: 4px;
 	}
 
