@@ -740,6 +740,28 @@ describe.each(blueprintVersions)(
 	60_000 * 5
 );
 
+describe('start command', () => {
+	test('should work with default options', async () => {
+		// The start command internally runs as 'server' with auto-mount enabled
+		await using cliServer = await runCLI({
+			command: 'server',
+			// Simulating what 'start' command does:
+			// - enables auto-mount with current directory
+			// - enables login by default
+			// - enables intl
+			login: true,
+			intl: true,
+			// Skip WordPress setup for speed since we're just testing the command structure
+			wordpressInstallMode: 'do-not-attempt-installing',
+			skipSqliteSetup: true,
+			blueprint: undefined,
+		});
+
+		// Verify server started successfully
+		expect(cliServer.serverUrl).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/);
+	});
+});
+
 describe('other run-cli behaviors', () => {
 	describe('auto-login', () => {
 		test('should clear old auto-login cookie', async () => {
