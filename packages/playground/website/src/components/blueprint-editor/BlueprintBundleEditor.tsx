@@ -601,16 +601,10 @@ export const BlueprintBundleEditor = forwardRef<
 			const blueprintContent =
 				await filesystem.readFileAsText(BLUEPRINT_JSON_PATH);
 
-			// Encode as base64
 			const base64Blueprint = encodeStringAsBase64(blueprintContent);
-
-			// Build the shareable URL using the current origin
-			const shareUrl = `${window.location.origin}/#${base64Blueprint}`;
-
-			// Copy to clipboard
+			const shareUrl = `${window.location.origin}${window.location.pathname}#${base64Blueprint}`;
 			await navigator.clipboard.writeText(shareUrl);
 
-			// Show success feedback
 			setSuccessMessage('Link copied to clipboard!');
 			setTimeout(() => setSuccessMessage(null), 2000);
 		} catch (error) {
