@@ -363,7 +363,8 @@ test('should copy blueprint link to clipboard when share button is clicked', asy
 	const clipboardContent = await website.page.evaluate(() =>
 		navigator.clipboard.readText()
 	);
-	expect(clipboardContent).toMatch(/^https?:\/\/[^/]+\/#[A-Za-z0-9+/=]+$/);
+	// URL format: http(s)://host/optional-path/#base64
+	expect(clipboardContent).toMatch(/^https?:\/\/[^#]+#[A-Za-z0-9+/=]+$/);
 
 	// Verify the base64 portion decodes to valid JSON
 	const base64Part = clipboardContent.split('#')[1];
