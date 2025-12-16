@@ -1,4 +1,5 @@
 import { useActiveSite } from '../../../lib/state/redux/store';
+import { isTemporarySite } from '../../../lib/state/redux/slice-sites';
 import { StoredSiteSettingsForm } from './stored-site-settings-form';
 import { TemporarySiteSettingsForm } from './temporary-site-settings-form';
 
@@ -13,23 +14,15 @@ export function ActiveSiteSettingsForm({
 		return null;
 	}
 
-	switch (activeSite.metadata?.storage) {
-		case 'none':
-			return (
-				<TemporarySiteSettingsForm
-					siteSlug={activeSite.slug}
-					onSubmit={onSubmit}
-				/>
-			);
-		case 'opfs':
-		case 'local-fs':
-			return (
-				<StoredSiteSettingsForm
-					siteSlug={activeSite.slug}
-					onSubmit={onSubmit}
-				/>
-			);
-		default:
-			return null;
-	}
+	return isTemporarySite(activeSite) ? (
+		<TemporarySiteSettingsForm
+			siteSlug={activeSite.slug}
+			onSubmit={onSubmit}
+		/>
+	) : (
+		<StoredSiteSettingsForm
+			siteSlug={activeSite.slug}
+			onSubmit={onSubmit}
+		/>
+	);
 }

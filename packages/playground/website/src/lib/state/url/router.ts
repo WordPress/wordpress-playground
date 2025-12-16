@@ -13,6 +13,8 @@ interface QueryAPIParams {
 	language?: string;
 	multisite?: 'yes' | 'no';
 	networking?: 'yes' | 'no';
+	/** Prefer OPFS-backed autosaved temporary sites when available. */
+	'site-autosave'?: 'yes' | 'no';
 	theme?: string[];
 	login?: 'yes' | 'no';
 	plugin?: string[];
@@ -64,6 +66,13 @@ export class PlaygroundRoute {
 	) {
 		const query =
 			(config.query as Record<string, string | undefined>) || {};
+		// Preserve query flags that affect how the site is created (but are not
+		// part of the Blueprint / runtime configuration).
+		const baseParams = new URLSearchParams(baseUrl.split('?')[1]);
+		if (!('site-autosave' in query) && baseParams.has('site-autosave')) {
+			query['site-autosave'] =
+				baseParams.get('site-autosave') || undefined;
+		}
 		return updateUrl(
 			baseUrl,
 			{

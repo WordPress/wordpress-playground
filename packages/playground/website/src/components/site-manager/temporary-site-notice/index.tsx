@@ -16,21 +16,35 @@ export function TemporarySiteNotice({
 	const [isDismissed, setIsDismissed] = useState(false);
 	const site = useActiveSite()!;
 	const playground = usePlaygroundClient(site.slug);
+	const isAutosavedTemporary = site.metadata.kind === 'autosave';
 	if (isDismissed) {
 		return null;
 	}
 	return (
 		<Notice
 			className={classNames(css.siteNotice, className)}
-			spokenMessage="This is a temporary Playground. Your changes will be lost on page refresh."
+			spokenMessage={
+				isAutosavedTemporary
+					? 'This Playground is auto-saved in this browser.'
+					: 'This is a temporary Playground. Your changes will be lost on page refresh.'
+			}
 			status="info"
 			isDismissible={isDismissible}
 			onDismiss={() => setIsDismissed(true)}
 		>
 			<Flex direction="row" gap={2} expanded={true}>
 				<FlexItem>
-					<b>This is a temporary Playground.</b> Your changes will be
-					lost on page refresh.
+					{isAutosavedTemporary ? (
+						<>
+							<b>This Playground is auto-saved.</b> We keep the
+							last five temporary Playgrounds in this browser.
+						</>
+					) : (
+						<>
+							<b>This is a temporary Playground.</b> Your changes
+							will be lost on page refresh.
+						</>
+					)}
 				</FlexItem>
 				<FlexItem>
 					<SitePersistButton siteSlug={site.slug}>
@@ -39,7 +53,7 @@ export function TemporarySiteNotice({
 							disabled={!playground}
 							aria-label="Save site locally"
 						>
-							Save
+							{isAutosavedTemporary ? 'Save permanently' : 'Save'}
 						</Button>
 					</SitePersistButton>
 				</FlexItem>

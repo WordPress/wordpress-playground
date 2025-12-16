@@ -49,6 +49,13 @@ export function persistTemporarySite(
 		if (!siteInfo) {
 			throw new Error(`Cannot find site ${siteSlug} to save.`);
 		}
+		const isAutosavedTemporary = siteInfo.metadata.kind === 'autosave';
+		const isInMemoryTemporary = siteInfo.metadata.storage === 'none';
+		if (!isAutosavedTemporary && !isInMemoryTemporary) {
+			throw new Error(
+				`Site ${siteSlug} is not a temporary Playground and cannot be saved.`
+			);
+		}
 		const trimmedName = options.siteName?.trim();
 		if (trimmedName && trimmedName !== siteInfo.metadata.name) {
 			await dispatch(
@@ -60,27 +67,71 @@ export function persistTemporarySite(
 			siteInfo = selectSiteBySlug(getState(), siteSlug)!;
 		}
 
-		try {
-			const existingSiteInfo = await opfsSiteStorage?.read(siteInfo.slug);
-			if (existingSiteInfo?.metadata.storage === 'none') {
-				// It is likely we are dealing with the remnants of a failed save
-				// of a temporary site to OPFS. Let's clean up an try again.
-				await opfsSiteStorage?.delete(siteInfo.slug);
+		// Autosaved temporary sites already persist in OPFS. "Saving in this browser"
+		// means promoting them to a regular stored site (excluded from autosave rotation).
+		if (isAutosavedTemporary && storageType === 'opfs') {
+			await dispatch(
+				updateSite({
+					slug: siteSlug,
+					changes: {
+						originalUrlParams: undefined,
+					},
+				})
+			);
+			await dispatch(
+				updateSiteMetadata({
+					slug: siteSlug,
+					changes: {
+						kind: undefined,
+						whenCreated: Date.now(),
+						whenLastUsed: Date.now(),
+						runtimeConfiguration: {
+							...siteInfo.metadata.runtimeConfiguration,
+							constants:
+								await getPlaygroundDefinedPHPConstants(
+									playground
+								),
+						},
+						...(trimmedName ? { name: trimmedName } : {}),
+					},
+				})
+			);
+
+			const updatedSite = selectSiteBySlug(getState(), siteSlug);
+			if (updatedSite) {
+				redirectTo(PlaygroundRoute.site(updatedSite));
 			}
-		} catch (error: any) {
-			if (error?.name === 'NotFoundError') {
-				// Do nothing
-			} else {
-				throw error;
+			if (!options.skipRenameModal) {
+				dispatch(setActiveModal('rename-site'));
 			}
+			return;
 		}
-		await opfsSiteStorage?.create(siteInfo.slug, {
-			...siteInfo.metadata,
-			// Start with storage type of 'none' to represent a temporary site
-			// that the site is being saved. This will help us distinguish
-			// between successful and failed saves.
-			storage: 'none',
-		});
+
+		if (!isAutosavedTemporary) {
+			try {
+				const existingSiteInfo = await opfsSiteStorage?.read(
+					siteInfo.slug
+				);
+				if (existingSiteInfo?.metadata.storage === 'none') {
+					// It is likely we are dealing with the remnants of a failed save
+					// of a temporary site to OPFS. Let's clean up an try again.
+					await opfsSiteStorage?.delete(siteInfo.slug);
+				}
+			} catch (error: any) {
+				if (error?.name === 'NotFoundError') {
+					// Do nothing
+				} else {
+					throw error;
+				}
+			}
+			await opfsSiteStorage?.create(siteInfo.slug, {
+				...siteInfo.metadata,
+				// Start with storage type of 'none' to represent a temporary site
+				// that the site is being saved. This will help us distinguish
+				// between successful and failed saves.
+				storage: 'none',
+			});
+		}
 
 		// Persist the blueprint bundle if available.
 		// First, check if originalBlueprint is already a filesystem (from clicking "Run Blueprint").
@@ -174,6 +225,16 @@ export function persistTemporarySite(
 			})
 		);
 		try {
+			// Autosaved temporary sites are already mounted to OPFS.
+			// If we're switching to another backend (e.g. local-fs), unmount first.
+			if (isAutosavedTemporary) {
+				const docroot = await playground.documentRoot;
+				await playground.unmountOpfs(docroot);
+				mountDescriptor = {
+					...mountDescriptor,
+					mountpoint: docroot,
+				};
+			}
 			await playground!.mountOpfs(
 				{
 					...mountDescriptor,
@@ -230,6 +291,7 @@ export function persistTemporarySite(
 			updateSiteMetadata({
 				slug: siteSlug,
 				changes: {
+					kind: undefined,
 					storage: storageType,
 					// Reset the created date. Mental model: From the perspective of
 					// the storage backend, the site was just created.

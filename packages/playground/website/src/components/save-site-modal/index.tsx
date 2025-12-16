@@ -121,20 +121,10 @@ export function SaveSiteModal() {
 	const isSaving = isSubmitting || saveProgress?.status === 'syncing';
 	const savingProgress =
 		saveProgress?.status === 'syncing' ? saveProgress.progress : undefined;
-
-	// Close modal when save completes successfully
-	useEffect(() => {
-		if (
-			isSubmitting &&
-			saveProgress?.status !== 'syncing' &&
-			saveProgress?.status !== 'error' &&
-			site?.metadata?.storage !== 'none'
-		) {
-			dispatch(setActiveModal(null));
-		}
-	}, [isSubmitting, saveProgress?.status, site?.metadata?.storage, dispatch]);
-
-	if (!site || site.metadata.storage !== 'none') {
+	const isAutosavedTemporary = site?.metadata.kind === 'autosave';
+	const isTemporaryLike =
+		site?.metadata.storage === 'none' || isAutosavedTemporary;
+	if (!site || !isTemporaryLike) {
 		return null;
 	}
 
@@ -239,6 +229,7 @@ export function SaveSiteModal() {
 			if (selectedStorage === 'local-fs') {
 				if (!directoryHandle) {
 					setDirectoryError('Choose a directory to continue.');
+					setIsSubmitting(false);
 					return;
 				}
 				const permission = await ensureWriteAccess(directoryHandle);
@@ -247,6 +238,7 @@ export function SaveSiteModal() {
 					setDirectoryError(
 						'Allow Playground to edit that directory in the browser prompt to continue.'
 					);
+					setIsSubmitting(false);
 					return;
 				}
 				await dispatch(
@@ -265,7 +257,7 @@ export function SaveSiteModal() {
 				);
 			}
 
-			// Don't close modal here - useEffect will close it when save completes
+			dispatch(setActiveModal(null));
 		} catch (error) {
 			logger.error(error);
 			setSubmitError('Saving failed. Please try again.');
@@ -326,7 +318,9 @@ export function SaveSiteModal() {
 					options={[
 						{
 							label:
-								'Save in this browser' +
+								(isAutosavedTemporary
+									? 'Keep permanently in this browser'
+									: 'Save in this browser') +
 								(!isOpfsAvailable ? ' (not available)' : ''),
 							value: 'opfs',
 						},

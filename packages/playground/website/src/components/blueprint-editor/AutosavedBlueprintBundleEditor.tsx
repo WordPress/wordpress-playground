@@ -19,7 +19,10 @@ import {
 	useState,
 } from 'react';
 // Reuse the file browser layout styles to keep UI consistent
-import type { SiteInfo } from '../../lib/state/redux/slice-sites';
+import {
+	isTemporarySite,
+	type SiteInfo,
+} from '../../lib/state/redux/slice-sites';
 import styles from '../site-manager/site-file-browser/style.module.css';
 import {
 	type BlueprintBundleEditorHandle,
@@ -166,7 +169,7 @@ export const AutosavedBlueprintBundleEditor = forwardRef<
 
 	// On stored sites, we can only view the Blueprint without editing (or autosaving) it.
 	// Let's just populate an in-memory filesystem with the Blueprint.
-	const readOnly = site?.metadata.storage !== 'none';
+	const readOnly = !isTemporarySite(site);
 
 	// Initialize the filesystem.
 	useEffect(() => {

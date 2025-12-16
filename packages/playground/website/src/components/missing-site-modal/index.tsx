@@ -8,6 +8,7 @@ import {
 } from '../../lib/state/redux/store';
 import { setActiveModal } from '../../lib/state/redux/slice-ui';
 import { selectClientInfoBySiteSlug } from '../../lib/state/redux/slice-clients';
+import { isTemporarySite } from '../../lib/state/redux/slice-sites';
 
 export function MissingSiteModal() {
 	const dispatch = useAppDispatch();
@@ -23,14 +24,19 @@ export function MissingSiteModal() {
 	if (!activeSite) {
 		return null;
 	}
-	if (activeSite.metadata.storage !== 'none') {
+	if (!isTemporarySite(activeSite)) {
 		return null;
 	}
+	const isAutosavedTemporary = activeSite.metadata.kind === 'autosave';
 
 	// TODO: Improve language for this modal
 	return (
 		<Modal
-			title="Save to browser storage?"
+			title={
+				isAutosavedTemporary
+					? 'Save permanently?'
+					: 'Save to browser storage?'
+			}
 			contentLabel="This is a dialog window which overlays the main content of the
 				page. It offers the user a choice between using a temporary Playground
 				and a persistent Playground that is saved to browser storage."
@@ -40,11 +46,16 @@ export function MissingSiteModal() {
 		>
 			<p>
 				The <b>{activeSite.metadata.name}</b> Playground does not exist,
-				so we loaded a temporary Playground instead.
+				so we loaded{' '}
+				{isAutosavedTemporary
+					? 'an auto-saved temporary Playground'
+					: 'a temporary Playground'}{' '}
+				instead.
 			</p>
 			<p>
-				If you want to preserve your changes, you can save the
-				Playground to browser storage.
+				{isAutosavedTemporary
+					? 'If you want to keep it permanently (so it is not rotated out), save it.'
+					: 'If you want to preserve your changes, you can save the Playground to browser storage.'}
 			</p>
 			{/* Note: We are using row-reverse direction so the secondary
 				button can display first in row orientation and last when
@@ -66,7 +77,9 @@ export function MissingSiteModal() {
 						storage="opfs"
 					>
 						<Button variant="primary">
-							Save Playground to browser storage
+							{isAutosavedTemporary
+								? 'Save permanently'
+								: 'Save Playground to browser storage'}
 						</Button>
 					</SitePersistButton>
 				</FlexItem>

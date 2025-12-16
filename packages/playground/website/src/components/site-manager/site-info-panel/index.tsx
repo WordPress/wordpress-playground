@@ -14,8 +14,11 @@ import classNames from 'classnames';
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { getRelativeDate } from '../../../lib/get-relative-date';
 import { selectClientInfoBySiteSlug } from '../../../lib/state/redux/slice-clients';
-import type { SiteInfo } from '../../../lib/state/redux/slice-sites';
-import { removeSite } from '../../../lib/state/redux/slice-sites';
+import {
+	isTemporarySite,
+	removeSite,
+	type SiteInfo,
+} from '../../../lib/state/redux/slice-sites';
 import {
 	modalSlugs,
 	setActiveModal,
@@ -100,7 +103,7 @@ export function SiteInfoPanel({
 		setSiteLastTab(site.slug, tabName);
 	};
 
-	const isTemporary = site.metadata.storage === 'none';
+	const isTemporary = isTemporarySite(site);
 
 	const removeSiteAndCloseMenu = async (onClose: () => void) => {
 		// TODO: Replace with HTML-based dialog

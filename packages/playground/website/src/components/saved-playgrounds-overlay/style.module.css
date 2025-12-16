@@ -205,6 +205,15 @@
 	color: #fff !important;
 }
 
+.subsectionTitle {
+	margin: 18px 0 10px 0;
+	font-size: clamp(13px, 1.4vw, 14px);
+	font-weight: 600;
+	color: #9ca3af;
+	text-transform: uppercase;
+	letter-spacing: 0.02em;
+}
+
 .viewAllLink {
 	background: none;
 	border: none;

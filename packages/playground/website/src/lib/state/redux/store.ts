@@ -8,6 +8,8 @@ import type { SiteInfo } from './slice-sites';
 import sitesReducer, {
 	selectSiteBySlug,
 	selectTemporarySites,
+	isAutoSavedTemporarySite,
+	updateSiteMetadata,
 } from './slice-sites';
 import { PlaygroundRoute, redirectTo } from '../url/router';
 import type { ClientInfo } from './slice-clients';
@@ -109,6 +111,17 @@ export const setActiveSite = (slug: string | undefined) => {
 		dispatch(__internal_uiSlice.actions.setActiveSite(slug));
 		if (slug) {
 			const site = selectSiteBySlug(getState(), slug);
+			if (site && isAutoSavedTemporarySite(site)) {
+				// Promote autosaved temporary sites (MRU) when opened.
+				void dispatch(
+					updateSiteMetadata({
+						slug: site.slug,
+						changes: {
+							whenLastUsed: Date.now(),
+						},
+					})
+				);
+			}
 			redirectTo(PlaygroundRoute.site(site));
 		}
 	};

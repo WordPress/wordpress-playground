@@ -45,8 +45,12 @@ import { StringEditorModal } from './string-editor-modal';
 // Reuse the file browser layout styles to keep UI consistent
 import { useDebouncedCallback } from '../../lib/hooks/use-debounced-callback';
 import { removeClientInfo } from '../../lib/state/redux/slice-clients';
-import type { SiteInfo } from '../../lib/state/redux/slice-sites';
-import { sitesSlice } from '../../lib/state/redux/slice-sites';
+import {
+	isTemporarySite,
+	sitesSlice,
+	updateSite,
+	type SiteInfo,
+} from '../../lib/state/redux/slice-sites';
 import { useAppDispatch } from '../../lib/state/redux/store';
 import styles from '../site-manager/site-file-browser/style.module.css';
 import hideRootStyles from './hide-root.module.css';
@@ -352,7 +356,7 @@ export const BlueprintBundleEditor = forwardRef<
 	}, [filesystem]);
 
 	const handleRecreateFromBlueprint = useCallback(async () => {
-		if (!site || site.metadata.storage !== 'none' || readOnly) {
+		if (!site || !isTemporarySite(site) || readOnly) {
 			return;
 		}
 		try {
@@ -368,9 +372,9 @@ export const BlueprintBundleEditor = forwardRef<
 				bundle as any
 			);
 			dispatch(removeClientInfo(site.slug));
-			dispatch(
-				sitesSlice.actions.updateSite({
-					id: site.slug,
+			await dispatch(
+				updateSite({
+					slug: site.slug,
 					changes: {
 						metadata: {
 							...site.metadata,
@@ -381,7 +385,7 @@ export const BlueprintBundleEditor = forwardRef<
 						},
 						originalUrlParams: undefined,
 					},
-				})
+				}) as any
 			);
 		} catch (error) {
 			logger.error('Failed to recreate from blueprint', error);

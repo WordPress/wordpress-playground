@@ -405,6 +405,195 @@ export function setTemporarySiteSpec(
 	};
 }
 
+const MAX_AUTOSAVED_TEMP_SITES = 5;
+
+/**
+ * Creates a new autosaved temporary site persisted to OPFS.
+ *
+ * Autosaved temporary sites behave like temporary sites in the UI, but persist
+ * across refreshes. Only the last few are retained (MRU), and opening an
+ * autosave promotes it.
+ */
+export function setAutoSavedTemporarySiteSpec(
+	siteName: string,
+	playgroundUrlWithQueryApiArgs: URL,
+	options: { slug?: string } = {}
+) {
+	return async (
+		dispatch: PlaygroundDispatch,
+		getState: () => PlaygroundReduxState
+	) => {
+		if (!opfsSiteStorage) {
+			throw new Error(
+				'Cannot create an autosaved temporary site because OPFS is not available.'
+			);
+		}
+
+		const baseSlug = deriveSlugFromSiteName(siteName);
+		const siteSlug =
+			options.slug ??
+			`${baseSlug}-${crypto.randomUUID().replaceAll('-', '').slice(0, 8)}`;
+		const newSiteUrlParams = {
+			searchParams: parseSearchParams(
+				playgroundUrlWithQueryApiArgs.searchParams
+			),
+			hash: playgroundUrlWithQueryApiArgs.hash,
+		};
+
+		const showTemporarySiteError = (params: {
+			error: SiteError;
+			details: unknown;
+		}) => {
+			// Create a mock temporary site to associate the error with.
+			const errorSite: SiteInfo = {
+				slug: siteSlug,
+				originalUrlParams: newSiteUrlParams,
+				metadata: {
+					name: siteName,
+					id: crypto.randomUUID(),
+					whenCreated: Date.now(),
+					storage: 'none' as const,
+					originalBlueprint: {},
+					originalBlueprintSource: {
+						type: 'none',
+					},
+					// Any default values are fine here.
+					runtimeConfiguration: {
+						phpVersion: RecommendedPHPVersion,
+						wpVersion: 'latest',
+						intl: false,
+						networking: true,
+						extraLibraries: [],
+						constants: {},
+					},
+				},
+			};
+
+			if (resolvedBlueprint) {
+				errorSite.metadata.originalBlueprint =
+					resolvedBlueprint.blueprint;
+				errorSite.metadata.originalBlueprintSource =
+					resolvedBlueprint.source;
+			} else if (params.details instanceof BlueprintFetchError) {
+				errorSite.metadata.originalBlueprintSource = {
+					type: 'remote-url',
+					url: params.details.url,
+				};
+			}
+
+			dispatch(sitesSlice.actions.addSite(errorSite));
+			dispatch(sitesSlice.actions.setFirstTemporarySiteCreated());
+
+			setTimeout(() => {
+				dispatch(
+					setActiveSiteError({
+						error: params.error,
+						details: params.details,
+					})
+				);
+			}, 0);
+
+			return errorSite;
+		};
+
+		// Ensure uniqueness in the redux entity map (slug is the entity ID).
+		if (getState().sites.entities[siteSlug]) {
+			throw new Error(
+				`Cannot create autosaved temporary site. Slug '${siteSlug}' is already in use.`
+			);
+		}
+
+		const defaultBlueprint =
+			'https://raw.githubusercontent.com/WordPress/blueprints/refs/heads/trunk/blueprints/welcome/blueprint.json';
+
+		let resolvedBlueprint: ResolvedBlueprint | undefined = undefined;
+		try {
+			resolvedBlueprint = await resolveBlueprintFromURL(
+				playgroundUrlWithQueryApiArgs,
+				defaultBlueprint
+			);
+		} catch (e) {
+			logger.error(
+				'Error resolving blueprint: Blueprint could not be downloaded or loaded.',
+				e
+			);
+
+			return showTemporarySiteError({
+				error: 'blueprint-fetch-failed',
+				details: e,
+			});
+		}
+
+		try {
+			const reflection = await BlueprintReflection.create(
+				resolvedBlueprint.blueprint
+			);
+			if (reflection.getVersion() === 1) {
+				resolvedBlueprint.blueprint = await applyQueryOverrides(
+					resolvedBlueprint.blueprint,
+					playgroundUrlWithQueryApiArgs.searchParams
+				);
+			}
+
+			const now = Date.now();
+			const newSiteInfo: SiteInfo = {
+				slug: siteSlug,
+				originalUrlParams: newSiteUrlParams,
+				metadata: {
+					name: siteName,
+					id: crypto.randomUUID(),
+					whenCreated: now,
+					whenLastUsed: now,
+					storage: 'opfs' as const,
+					kind: 'autosave',
+					originalBlueprint: resolvedBlueprint.blueprint,
+					originalBlueprintSource: resolvedBlueprint.source!,
+					runtimeConfiguration: await resolveRuntimeConfiguration(
+						resolvedBlueprint.blueprint
+					)!,
+				},
+			};
+
+			await opfsSiteStorage.create(
+				newSiteInfo.slug,
+				newSiteInfo.metadata
+			);
+			dispatch(sitesSlice.actions.addSite(newSiteInfo));
+			dispatch(sitesSlice.actions.setFirstTemporarySiteCreated());
+
+			// Enforce autosave retention limit (MRU ordering).
+			const autosaves = selectAutoSavedTemporarySitesSorted(getState());
+			const toRemove = autosaves.slice(MAX_AUTOSAVED_TEMP_SITES);
+			for (const site of toRemove) {
+				// Avoid deleting the newly created site.
+				if (site.slug === newSiteInfo.slug) {
+					continue;
+				}
+				try {
+					await dispatch(removeSite(site.slug));
+				} catch (e) {
+					logger.error(
+						`Failed to remove autosaved temporary site '${site.slug}'`,
+						e
+					);
+				}
+			}
+
+			return newSiteInfo;
+		} catch (e) {
+			logger.error(
+				'Error preparing the Blueprint after it was downloaded.',
+				e
+			);
+			const errorType =
+				e instanceof InvalidBlueprintError
+					? 'blueprint-validation-failed'
+					: 'site-boot-failed';
+			return showTemporarySiteError({ error: errorType, details: e });
+		}
+	};
+}
+
 function parseSearchParams(searchParams: URLSearchParams) {
 	const params: Record<string, any> = {};
 	for (const key of searchParams.keys()) {
@@ -426,6 +615,9 @@ function parseSearchParams(searchParams: URLSearchParams) {
 export const SiteStorageTypes = ['opfs', 'local-fs', 'none'] as const;
 export type SiteStorageType = (typeof SiteStorageTypes)[number];
 
+export const SiteKinds = ['stored', 'autosave'] as const;
+export type SiteKind = (typeof SiteKinds)[number];
+
 /**
  * The site logo data.
  */
@@ -440,12 +632,23 @@ export type SiteLogo = {
  */
 export interface SiteMetadata {
 	storage: SiteStorageType;
+	/**
+	 * Distinguishes a user-saved site from an auto-saved temporary site.
+	 *
+	 * - Stored sites behave like saved Playgrounds (e.g. read-only Blueprint editor)
+	 * - Autosaved sites behave like temporary Playgrounds, but persist to OPFS
+	 */
+	kind?: SiteKind;
 	id: string;
 	name: string;
 	logo?: SiteLogo;
 
 	// TODO: The designs show keeping admin username and password. Why do we want that?
 	whenCreated?: number;
+	/**
+	 * Used for ordering autosaved temporary sites (LRU/MRU promotion).
+	 */
+	whenLastUsed?: number;
 	// TODO: Consider keeping timestamps.
 	//       For a user, timestamps might be useful to disambiguate identically-named sites.
 	//       For playground, we might choose to sort by most recently used.
@@ -489,6 +692,38 @@ export const selectTemporarySites = createSelector(
 	(sites: SiteInfo[]) => {
 		return sites.filter((site) => site.metadata.storage === 'none');
 	}
+);
+
+export function isAutoSavedTemporarySite(site: SiteInfo) {
+	return site.metadata.kind === 'autosave';
+}
+
+export function isTemporarySite(site: SiteInfo) {
+	return site.metadata.storage === 'none' || isAutoSavedTemporarySite(site);
+}
+
+export function isStoredSite(site: SiteInfo) {
+	return site.metadata.storage !== 'none' && !isAutoSavedTemporarySite(site);
+}
+
+export const selectAutoSavedTemporarySites = createSelector(
+	[selectAllSites],
+	(sites: SiteInfo[]) => sites.filter(isAutoSavedTemporarySite)
+);
+
+export const selectAutoSavedTemporarySitesSorted = createSelector(
+	[selectAutoSavedTemporarySites],
+	(sites: SiteInfo[]) =>
+		sites.sort(
+			(a, b) =>
+				(b.metadata.whenLastUsed || b.metadata.whenCreated || 0) -
+				(a.metadata.whenLastUsed || a.metadata.whenCreated || 0)
+		)
+);
+
+export const selectStoredSites = createSelector(
+	[selectAllSites],
+	(sites: SiteInfo[]) => sites.filter(isStoredSite)
 );
 
 export const selectSitesLoaded = createSelector(

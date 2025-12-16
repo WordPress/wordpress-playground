@@ -5,6 +5,7 @@ import {
 	OPFSSitesLoaded,
 	selectSiteBySlug,
 	setTemporarySiteSpec,
+	setAutoSavedTemporarySiteSpec,
 	deriveSiteNameFromSlug,
 } from '../../lib/state/redux/slice-sites';
 import {
@@ -158,8 +159,17 @@ async function createNewTemporarySite(
 	const siteName = requestedSiteSlug
 		? deriveSiteNameFromSlug(requestedSiteSlug)
 		: randomSiteName();
-	const newSiteInfo = await dispatch(
-		setTemporarySiteSpec(siteName, new URL(window.location.href))
-	);
+	const currentUrl = new URL(window.location.href);
+	const siteAutosavePreference = currentUrl.searchParams.get('site-autosave');
+	const forceInMemoryTemporarySite = siteAutosavePreference === 'no';
+	const shouldUseAutosave = !!opfsSiteStorage && !forceInMemoryTemporarySite;
+
+	const newSiteInfo = shouldUseAutosave
+		? await dispatch(
+				setAutoSavedTemporarySiteSpec(siteName, currentUrl, {
+					slug: requestedSiteSlug,
+				})
+			)
+		: await dispatch(setTemporarySiteSpec(siteName, currentUrl));
 	await dispatch(setActiveSite(newSiteInfo.slug));
 }
