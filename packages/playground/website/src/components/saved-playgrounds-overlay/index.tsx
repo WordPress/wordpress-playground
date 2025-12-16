@@ -155,6 +155,7 @@ export function SavedPlaygroundsOverlay({
 				alert(
 					'Unable to import file. Is it a valid WordPress Playground export?'
 				);
+				return;
 			} finally {
 				setPendingZipFile(null);
 				// Reset the input so the same file can be selected again
@@ -178,9 +179,13 @@ export function SavedPlaygroundsOverlay({
 				// Switch to existing temporary site, then import will happen via effect
 				dispatch(setActiveSite(temporarySite.slug));
 			} else {
-				// No temporary site exists, create one by redirecting.
-				// Note: This will cause a page reload, losing the file selection.
-				// We store it in state hoping the switch happens without redirect.
+				// No temporary site exists, create one with a pushState-driven
+				// redirect that will trigger the temporary site route and create
+				// a new temporary site for us.
+				//
+				// Note it might take a moment so we won't call importWordPressFiles()
+				// right away. Instead, we've stored the pendingZipFile in state, and
+				// the effect above will handle the import once the temporary site loads.
 				redirectTo(PlaygroundRoute.newTemporarySite());
 			}
 			return;
