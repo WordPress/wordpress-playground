@@ -22,30 +22,9 @@ import {
 	applyQueryOverrides,
 } from '../url/resolve-blueprint-from-url';
 import { logger } from '@php-wasm/logger';
-import { FirewallInterferenceError } from '@php-wasm/web';
 import { setActiveSiteError, type SiteError } from './slice-ui';
 import { RecommendedPHPVersion } from '@wp-playground/common';
-
-/**
- * Search through an error's cause chain to find an error with a specific name.
- * Checks both instanceof and the error's name property to handle cases where
- * instanceof fails due to module boundaries or error serialization.
- */
-function findFirewallErrorInCauseChain(error: unknown): boolean {
-	let current: unknown = error;
-	while (current) {
-		if (
-			current instanceof FirewallInterferenceError ||
-			(current instanceof Error &&
-				current.name === 'FirewallInterferenceError')
-		) {
-			return true;
-		}
-		current =
-			current instanceof Error ? (current as Error).cause : undefined;
-	}
-	return false;
-}
+import { findFirewallErrorInCauseChain } from './error-utils';
 
 /**
  * The Site model used to represent a site within Playground.
