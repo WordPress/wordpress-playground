@@ -273,27 +273,32 @@ test('should edit a blueprint in the blueprint editor and recreate the playgroun
 		2
 	);
 
-	// Focus the editor and select all existing content
+	// Focus the editor
 	await editor.click();
+	// Wait a moment for the editor to be fully ready
+	await website.page.waitForTimeout(100);
+
+	// Select all existing content
 	await website.page.keyboard.press(
 		process.platform === 'darwin' ? 'Meta+A' : 'Control+A'
 	);
 
-	// Dispatch a paste event to replace content - avoids auto-bracket insertion issues
-	await website.page.evaluate((content) => {
-		const dataTransfer = new DataTransfer();
-		dataTransfer.setData('text/plain', content);
-		document.activeElement?.dispatchEvent(
-			new ClipboardEvent('paste', {
-				clipboardData: dataTransfer,
-				bubbles: true,
-				cancelable: true,
-			})
-		);
-	}, blueprint);
+	// Delete the selected content
+	await website.page.keyboard.press('Backspace');
+	await website.page.waitForTimeout(100);
+
+	// Use Playwright's fill method on the contenteditable .cm-content element
+	// This is more reliable than synthetic clipboard events
+	const cmContent = editor.locator('.cm-content');
+	await cmContent.fill(blueprint);
 
 	// Wait for validation to complete (linter has 300ms debounce)
 	await website.page.waitForTimeout(500);
+
+	// Verify the blueprint was inserted by checking the editor content
+	await expect(cmContent).toContainText('writeFile', {
+		timeout: 5000,
+	});
 
 	// Click the "Run Blueprint" button
 	await website.page
