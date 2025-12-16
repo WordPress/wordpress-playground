@@ -20,7 +20,7 @@ import {
 } from 'react';
 // Reuse the file browser layout styles to keep UI consistent
 import type { SiteInfo } from '../../lib/state/redux/slice-sites';
-import styles from '../site-manager/site-file-browser/style.module.css';
+import styles from './blueprint-bundle-editor.module.css';
 import {
 	type BlueprintBundleEditorHandle,
 	BlueprintBundleEditor,

@@ -25,10 +25,7 @@ import {
 	useRef,
 	useState,
 } from 'react';
-import {
-	CodeEditor,
-	type CodeEditorHandle,
-} from '../site-manager/site-file-browser/code-editor';
+import { CodeEditor, type CodeEditorHandle } from '@wp-playground/components';
 import { FileExplorerSidebar } from './file-explorer-sidebar';
 import {
 	formatEditor,
@@ -47,7 +44,7 @@ import { removeClientInfo } from '../../lib/state/redux/slice-clients';
 import type { SiteInfo } from '../../lib/state/redux/slice-sites';
 import { sitesSlice } from '../../lib/state/redux/slice-sites';
 import { useAppDispatch } from '../../lib/state/redux/store';
-import styles from '../site-manager/site-file-browser/style.module.css';
+import styles from './blueprint-bundle-editor.module.css';
 import hideRootStyles from './hide-root.module.css';
 import validationStyles from './validation-panel.module.css';
 import type { EventedFilesystem } from '@wp-playground/storage';

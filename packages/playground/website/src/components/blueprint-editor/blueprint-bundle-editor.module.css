@@ -14,7 +14,7 @@
 	background: var(--color-gray-000);
 }
 
-.sidebar-wrapper {
+.sidebarWrapper {
 	display: flex;
 	flex-direction: column;
 	width: 280px;
@@ -25,7 +25,7 @@
 	z-index: 3;
 }
 
-.editor-wrapper {
+.editorWrapper {
 	position: relative;
 	display: flex;
 	flex-direction: column;
@@ -34,7 +34,7 @@
 	min-height: 0;
 }
 
-.editor-header {
+.editorHeader {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
@@ -46,7 +46,7 @@
 	z-index: 1;
 }
 
-.editor-path {
+.editorPath {
 	flex: 1;
 	min-width: 0;
 	font-family:
@@ -57,32 +57,15 @@
 	word-break: break-all;
 }
 
-.editor-path-placeholder {
+.editorPathPlaceholder {
 	color: var(--color-gray-500);
 }
 
-.editor-header-actions {
+.editorHeaderActions {
 	display: flex;
 	align-items: center;
 	gap: 8px;
 	flex-shrink: 0;
-}
-
-.save-status {
-	font-size: 12px;
-	line-height: 16px;
-	color: var(--color-gray-600);
-	white-space: nowrap;
-}
-
-.save-status-saving,
-.save-status-pending {
-	color: var(--color-gray-900);
-}
-
-.save-status-error {
-	color: var(--color-alert-red);
-	font-weight: 500;
 }
 
 .editor {
@@ -113,7 +96,7 @@
 	background: #ffffff;
 }
 
-.message-area {
+.messageArea {
 	flex: 1;
 	display: flex;
 	flex-direction: column;
@@ -129,23 +112,23 @@
 	line-height: 1.6;
 }
 
-.message-area p {
+.messageArea p {
 	margin: 0;
 	padding: 0;
 	display: block;
 }
 
-.message-area p + p {
+.messageArea p + p {
 	margin-top: 4px;
 }
 
-.message-area a {
+.messageArea a {
 	color: #2271b1;
 	text-decoration: underline;
 	cursor: pointer;
 }
 
-.message-area a:hover {
+.messageArea a:hover {
 	color: #135e96;
 }
 
@@ -158,6 +141,14 @@
 .editorToolbarPlayIcon {
 	width: 18px;
 	height: 18px;
+}
+
+.mobileToggle {
+	display: none;
+}
+
+.mobileOverlay {
+	display: none;
 }
 
 .autosaveOverlay {
@@ -205,16 +196,8 @@
 	margin-top: 4px;
 }
 
-.mobile-toggle {
-	display: none;
-}
-
-.mobile-overlay {
-	display: none;
-}
-
 @media (max-width: 960px) {
-	.sidebar-wrapper {
+	.sidebarWrapper {
 		position: absolute;
 		top: 0;
 		bottom: 0;
@@ -224,15 +207,11 @@
 		display: none;
 	}
 
-	.sidebar-open {
-		/* Marker class applied in JS when the sidebar should be visible on mobile. */
-	}
-
-	.sidebar-open .sidebar-wrapper {
+	.sidebarOpen .sidebarWrapper {
 		display: flex;
 	}
 
-	.mobile-overlay {
+	.mobileOverlay {
 		position: absolute;
 		inset: 0;
 		background: rgba(0, 0, 0, 0.3);
@@ -240,22 +219,22 @@
 		display: none;
 	}
 
-	.sidebar-open .mobile-overlay {
+	.sidebarOpen .mobileOverlay {
 		display: block;
 	}
 
-	.editor-header {
+	.editorHeader {
 		flex-wrap: wrap;
 		gap: 8px;
 		background: #ffffff;
 	}
 
-	.editor-path {
+	.editorPath {
 		width: 100%;
 		order: 2;
 	}
 
-	.mobile-toggle {
+	.mobileToggle {
 		display: inline-flex;
 		order: 1;
 	}

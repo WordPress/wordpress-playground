@@ -26,6 +26,13 @@ export type SiteEditorProps = {
 	initialPath?: string | null;
 	placeholderText?: string;
 	onSaveFile?: (path: string, content: string) => Promise<void>;
+	/**
+	 * Called before the filesystem changes, allowing the parent to flush
+	 * any pending saves to the old filesystem.
+	 */
+	onBeforeFilesystemChange?: (
+		oldFilesystem: AsyncWritableFilesystem
+	) => Promise<void>;
 };
 
 /**
@@ -40,11 +47,12 @@ export function SiteEditor({
 	initialPath = null,
 	placeholderText = 'Select a file to view or edit its contents.',
 	onSaveFile,
+	onBeforeFilesystemChange,
 }: SiteEditorProps) {
 	const [selectedDirPath, setSelectedDirPath] = useState<string | null>(
 		documentRoot
 	);
-	const [currentPath, setCurrentPath] = useState<string | null>(initialPath);
+	const [currentPath, setCurrentPath] = useState<string | null>(null);
 	const [code, setCode] = useState<string>('');
 	const [readOnly, setReadOnly] = useState<boolean>(true);
 	const [saveState, setSaveState] = useState<SaveState>(SaveState.IDLE);
@@ -61,7 +69,9 @@ export function SiteEditor({
 	const codeRef = useRef<string>(code);
 	const currentPathRef = useRef<string | null>(currentPath);
 	const filesystemRef = useRef<AsyncWritableFilesystem | null>(filesystem);
+	const previousFilesystemRef = useRef<AsyncWritableFilesystem | null>(null);
 	const cursorPositionsRef = useRef<Map<string, number>>(new Map());
+	const hasAutoOpenedRef = useRef<boolean>(false);
 
 	useEffect(() => {
 		codeRef.current = code;
@@ -75,6 +85,18 @@ export function SiteEditor({
 		filesystemRef.current = filesystem;
 	}, [filesystem]);
 
+	// Call onBeforeFilesystemChange when filesystem changes
+	useEffect(() => {
+		const oldFilesystem = previousFilesystemRef.current;
+		if (oldFilesystem && oldFilesystem !== filesystem) {
+			// Filesystem is changing - notify parent to flush saves
+			if (onBeforeFilesystemChange) {
+				void onBeforeFilesystemChange(oldFilesystem);
+			}
+		}
+		previousFilesystemRef.current = filesystem;
+	}, [filesystem, onBeforeFilesystemChange]);
+
 	// Reset state when filesystem changes
 	useEffect(() => {
 		if (!filesystem) {
@@ -86,8 +108,43 @@ export function SiteEditor({
 			setSaveError(null);
 			setShowExplorerOnMobile(false);
 			setMessageContent(null);
+			hasAutoOpenedRef.current = false;
 		}
 	}, [filesystem]);
+
+	// Auto-open initialPath when filesystem becomes available
+	useEffect(() => {
+		if (!filesystem || !initialPath || hasAutoOpenedRef.current) {
+			return;
+		}
+
+		const tryAutoOpen = async () => {
+			try {
+				const exists = await filesystem.fileExists(initialPath);
+				if (exists) {
+					const content =
+						await filesystem.readFileAsText(initialPath);
+					skipNextSaveRef.current = true;
+					setCurrentPath(initialPath);
+					setCode(content);
+					setReadOnly(false);
+					setSaveState(SaveState.IDLE);
+					setSaveError(null);
+					// Focus the editor after opening
+					setTimeout(() => {
+						editorRef.current?.focus();
+					}, 100);
+				}
+			} catch (error) {
+				// Silently fail - file may not exist or may not be readable
+				logger.debug('Could not auto-open initial path:', error);
+			} finally {
+				hasAutoOpenedRef.current = true;
+			}
+		};
+
+		void tryAutoOpen();
+	}, [filesystem, initialPath]);
 
 	// Reset when documentRoot changes
 	useEffect(() => {
@@ -99,6 +156,7 @@ export function SiteEditor({
 		setSaveError(null);
 		skipNextSaveRef.current = true;
 		setMessageContent(null);
+		hasAutoOpenedRef.current = false;
 	}, [documentRoot]);
 
 	// Flush pending save on unmount
