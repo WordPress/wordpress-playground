@@ -1,23 +1,10 @@
-import {
-	useCallback,
-	useEffect,
-	useMemo,
-	useRef,
-	useState,
-	type MutableRefObject,
-} from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import classNames from 'classnames';
 import { Button, Notice } from '@wordpress/components';
-import type { SiteInfo } from '../../../lib/state/redux/slice-sites';
-import { usePlaygroundClient } from '../../../lib/use-playground-client';
 import type { AsyncWritableFilesystem } from '@wp-playground/storage';
-import type { PlaygroundClient } from '@wp-playground/remote';
-import {
-	FileExplorerSidebar,
-	CodeEditor,
-	type CodeEditorHandle,
-} from '@wp-playground/components';
-import styles from './style.module.css';
+import { FileExplorerSidebar } from './file-explorer-sidebar';
+import { CodeEditor, type CodeEditorHandle } from './code-editor';
+import styles from './site-editor.module.css';
 import { logger } from '@php-wasm/logger';
 
 const SAVE_DEBOUNCE_MS = 1500;
@@ -32,30 +19,38 @@ const SaveState = {
 
 type SaveState = (typeof SaveState)[keyof typeof SaveState];
 
-export function SiteFileBrowser({
-	site,
-	isVisible = true,
-	documentRoot,
-}: {
-	site: SiteInfo;
+export type SiteEditorProps = {
+	filesystem: AsyncWritableFilesystem | null;
 	isVisible?: boolean;
 	documentRoot: string;
-}) {
-	const client = usePlaygroundClient(site.slug);
-	const filesystem = useFilesystem(client);
+	initialPath?: string | null;
+	placeholderText?: string;
+	onSaveFile?: (path: string, content: string) => Promise<void>;
+};
 
+/**
+ * A reusable file browser component with a file tree on the left and
+ * a code editor on the right. Supports auto-save with debouncing,
+ * cursor position preservation, and binary file handling.
+ */
+export function SiteEditor({
+	filesystem,
+	isVisible = true,
+	documentRoot,
+	initialPath = null,
+	placeholderText = 'Select a file to view or edit its contents.',
+	onSaveFile,
+}: SiteEditorProps) {
 	const [selectedDirPath, setSelectedDirPath] = useState<string | null>(
-		`${documentRoot}/workspace`
+		documentRoot
 	);
-	const [currentPath, setCurrentPath] = useState<string | null>(null);
+	const [currentPath, setCurrentPath] = useState<string | null>(initialPath);
 	const [code, setCode] = useState<string>('');
 	const [readOnly, setReadOnly] = useState<boolean>(true);
 	const [saveState, setSaveState] = useState<SaveState>(SaveState.IDLE);
 	const [saveError, setSaveError] = useState<string | null>(null);
 	const [showExplorerOnMobile, setShowExplorerOnMobile] =
 		useState<boolean>(false);
-	const [treeTypeAheadEnabled, setTreeTypeAheadEnabled] =
-		useState<boolean>(true);
 	const [messageContent, setMessageContent] = useState<
 		string | JSX.Element | null
 	>(null);
@@ -65,9 +60,7 @@ export function SiteFileBrowser({
 	const skipNextSaveRef = useRef<boolean>(false);
 	const codeRef = useRef<string>(code);
 	const currentPathRef = useRef<string | null>(currentPath);
-	const clientRef = useRef<PlaygroundClient | null>(client);
-	const previousClientRef = useRef<PlaygroundClient | null>(client);
-	const hasAutoOpenedRef = useRef<boolean>(false);
+	const filesystemRef = useRef<AsyncWritableFilesystem | null>(filesystem);
 	const cursorPositionsRef = useRef<Map<string, number>>(new Map());
 
 	useEffect(() => {
@@ -79,36 +72,12 @@ export function SiteFileBrowser({
 	}, [currentPath]);
 
 	useEffect(() => {
-		clientRef.current = client ?? null;
-	}, [client]);
+		filesystemRef.current = filesystem;
+	}, [filesystem]);
 
+	// Reset state when filesystem changes
 	useEffect(() => {
-		if (previousClientRef.current && previousClientRef.current !== client) {
-			void flushPendingSave(previousClientRef.current, {
-				saveTimeoutRef,
-				currentPathRef,
-				codeRef,
-				setSaveState,
-				setSaveError,
-			});
-		}
-		previousClientRef.current = client ?? null;
-	}, [client]);
-
-	useEffect(() => {
-		return () => {
-			void flushPendingSave(clientRef.current, {
-				saveTimeoutRef,
-				currentPathRef,
-				codeRef,
-				setSaveState,
-				setSaveError,
-			});
-		};
-	}, []);
-
-	useEffect(() => {
-		if (!client) {
+		if (!filesystem) {
 			skipNextSaveRef.current = true;
 			setCode('');
 			setCurrentPath(null);
@@ -118,10 +87,11 @@ export function SiteFileBrowser({
 			setShowExplorerOnMobile(false);
 			setMessageContent(null);
 		}
-	}, [client]);
+	}, [filesystem]);
 
+	// Reset when documentRoot changes
 	useEffect(() => {
-		setSelectedDirPath(`${documentRoot}/workspace`);
+		setSelectedDirPath(documentRoot);
 		setCurrentPath(null);
 		setCode('');
 		setReadOnly(true);
@@ -129,12 +99,22 @@ export function SiteFileBrowser({
 		setSaveError(null);
 		skipNextSaveRef.current = true;
 		setMessageContent(null);
-		hasAutoOpenedRef.current = false;
-	}, [site.slug, documentRoot]);
+	}, [documentRoot]);
 
+	// Flush pending save on unmount
 	useEffect(() => {
-		const activeClient = clientRef.current;
-		if (!activeClient || !currentPath) {
+		return () => {
+			if (saveTimeoutRef.current !== null) {
+				window.clearTimeout(saveTimeoutRef.current);
+				saveTimeoutRef.current = null;
+			}
+		};
+	}, []);
+
+	// Auto-save effect
+	useEffect(() => {
+		const activeFilesystem = filesystemRef.current;
+		if (!activeFilesystem || !currentPath) {
 			if (saveTimeoutRef.current !== null) {
 				window.clearTimeout(saveTimeoutRef.current);
 				saveTimeoutRef.current = null;
@@ -157,10 +137,13 @@ export function SiteFileBrowser({
 			saveTimeoutRef.current = null;
 			setSaveState(SaveState.SAVING);
 			try {
-				await activeClient.writeFile(
-					currentPathRef.current as string,
-					codeRef.current
-				);
+				const pathToSave = currentPathRef.current as string;
+				const contentToSave = codeRef.current;
+				if (onSaveFile) {
+					await onSaveFile(pathToSave, contentToSave);
+				} else {
+					await activeFilesystem.writeFile(pathToSave, contentToSave);
+				}
 				setSaveState(SaveState.SAVED);
 				setSaveError(null);
 			} catch (error) {
@@ -177,8 +160,9 @@ export function SiteFileBrowser({
 				saveTimeoutRef.current = null;
 			}
 		};
-	}, [code, currentPath]);
+	}, [code, currentPath, onSaveFile]);
 
+	// Clear "Saved" state after 2 seconds
 	useEffect(() => {
 		if (saveState !== SaveState.SAVED) {
 			return;
@@ -190,41 +174,6 @@ export function SiteFileBrowser({
 		}, 2000);
 		return () => window.clearTimeout(timeout);
 	}, [saveState]);
-
-	// Auto-open wp-config.php if it exists
-	useEffect(() => {
-		if (!client || hasAutoOpenedRef.current) {
-			return;
-		}
-
-		const wpConfigPath = `${documentRoot}/wp-config.php`;
-
-		const tryAutoOpen = async () => {
-			try {
-				const exists = await client.fileExists(wpConfigPath);
-				if (exists) {
-					const content = await client.readFileAsText(wpConfigPath);
-					skipNextSaveRef.current = true;
-					setCurrentPath(wpConfigPath);
-					setCode(content);
-					setReadOnly(false);
-					setSaveState(SaveState.IDLE);
-					setSaveError(null);
-					// Focus the editor after opening
-					setTimeout(() => {
-						editorRef.current?.focus();
-					}, 100);
-				}
-			} catch (error) {
-				// Silently fail - wp-config.php may not exist or may not be readable
-				logger.debug('Could not auto-open wp-config.php:', error);
-			} finally {
-				hasAutoOpenedRef.current = true;
-			}
-		};
-
-		void tryAutoOpen();
-	}, [client, documentRoot]);
 
 	const handleFileOpened = useCallback(
 		async (path: string, content: string, shouldFocus = true) => {
@@ -241,17 +190,6 @@ export function SiteFileBrowser({
 				);
 			}
 
-			try {
-				await flushPendingSave(clientRef.current, {
-					saveTimeoutRef,
-					currentPathRef,
-					codeRef,
-					setSaveState,
-					setSaveError,
-				});
-			} catch {
-				// Best-effort save; ignore errors so the new file can still open.
-			}
 			skipNextSaveRef.current = true;
 			setCurrentPath(path);
 			setCode(content);
@@ -269,10 +207,8 @@ export function SiteFileBrowser({
 				}
 				if (shouldFocus) {
 					editorRef.current?.focus();
-					setTreeTypeAheadEnabled(false);
 				} else {
 					editorRef.current?.blur();
-					setTreeTypeAheadEnabled(true);
 				}
 			}, 50);
 		},
@@ -320,13 +256,10 @@ export function SiteFileBrowser({
 			if (savedPos !== undefined) {
 				editorRef.current?.setCursorPosition(savedPos);
 			}
-			if (!treeTypeAheadEnabled) {
-				editorRef.current?.focus();
-			}
 		}, 100);
 
 		return () => clearTimeout(timeout);
-	}, [isVisible, currentPath, treeTypeAheadEnabled]);
+	}, [isVisible, currentPath]);
 
 	const handleClearSelection = useCallback(async () => {
 		// Save cursor position before clearing
@@ -339,17 +272,6 @@ export function SiteFileBrowser({
 			cursorPositionsRef.current.set(currentPathRef.current, currentPos);
 		}
 
-		try {
-			await flushPendingSave(clientRef.current, {
-				saveTimeoutRef,
-				currentPathRef,
-				codeRef,
-				setSaveState,
-				setSaveError,
-			});
-		} catch {
-			/* noop */
-		}
 		skipNextSaveRef.current = true;
 		setCurrentPath(null);
 		setCode('');
@@ -361,17 +283,6 @@ export function SiteFileBrowser({
 
 	const handleShowMessage = useCallback(
 		async (_path: string | null, message: string | JSX.Element) => {
-			try {
-				await flushPendingSave(clientRef.current, {
-					saveTimeoutRef,
-					currentPathRef,
-					codeRef,
-					setSaveState,
-					setSaveError,
-				});
-			} catch {
-				/* noop */
-			}
 			skipNextSaveRef.current = true;
 			setCurrentPath(null);
 
@@ -393,41 +304,61 @@ export function SiteFileBrowser({
 		[]
 	);
 
-	const handleManualSave = useCallback(() => {
-		void flushPendingSave(clientRef.current, {
-			saveTimeoutRef,
-			currentPathRef,
-			codeRef,
-			setSaveState,
-			setSaveError,
-		});
-	}, []);
+	const handleManualSave = useCallback(async () => {
+		if (saveTimeoutRef.current === null) {
+			return;
+		}
+		if (!filesystemRef.current || !currentPathRef.current) {
+			window.clearTimeout(saveTimeoutRef.current);
+			saveTimeoutRef.current = null;
+			return;
+		}
+		window.clearTimeout(saveTimeoutRef.current);
+		saveTimeoutRef.current = null;
+		setSaveState(SaveState.SAVING);
+		try {
+			const pathToSave = currentPathRef.current;
+			const contentToSave = codeRef.current;
+			if (onSaveFile) {
+				await onSaveFile(pathToSave, contentToSave);
+			} else {
+				await filesystemRef.current.writeFile(
+					pathToSave,
+					contentToSave
+				);
+			}
+			setSaveState(SaveState.SAVED);
+			setSaveError(null);
+		} catch (error) {
+			logger.error('Failed to save file', error);
+			setSaveState(SaveState.ERROR);
+			setSaveError('Could not save changes. Try again.');
+		}
+	}, [onSaveFile]);
 
 	const saveStatusLabel = getSaveStatusLabel(saveState, saveError);
 	const saveStatusClassName = getSaveStatusClassName(saveState, styles);
 
-	if (!client || !filesystem) {
+	if (!filesystem) {
 		return (
-			<div className={styles.container}>
-				<div className={styles.placeholder}>
-					Start this Playground to browse and edit its files.
-				</div>
+			<div className={styles['container']}>
+				<div className={styles['placeholder']}>{placeholderText}</div>
 			</div>
 		);
 	}
 
 	return (
-		<div className={styles.container}>
+		<div className={styles['container']}>
 			<div
-				className={classNames(styles.content, {
-					[styles.sidebarOpen]: showExplorerOnMobile,
+				className={classNames(styles['content'], {
+					[styles['sidebarOpen']]: showExplorerOnMobile,
 				})}
 			>
 				<div
-					className={styles.mobileOverlay}
+					className={styles['mobileOverlay']}
 					onClick={() => setShowExplorerOnMobile(false)}
 				/>
-				<aside className={styles.sidebarWrapper}>
+				<aside className={styles['sidebarWrapper']}>
 					<FileExplorerSidebar
 						filesystem={filesystem}
 						currentPath={currentPath}
@@ -439,10 +370,10 @@ export function SiteFileBrowser({
 						documentRoot={documentRoot}
 					/>
 				</aside>
-				<section className={styles.editorWrapper}>
-					<div className={styles.editorHeader}>
+				<section className={styles['editorWrapper']}>
+					<div className={styles['editorHeader']}>
 						<Button
-							className={styles.mobileToggle}
+							className={styles['mobileToggle']}
 							variant="secondary"
 							onClick={() =>
 								setShowExplorerOnMobile((previous) => !previous)
@@ -453,8 +384,8 @@ export function SiteFileBrowser({
 								: 'Browse files'}
 						</Button>
 						<div
-							className={classNames(styles.editorPath, {
-								[styles.editorPathPlaceholder]:
+							className={classNames(styles['editorPath'], {
+								[styles['editorPathPlaceholder']]:
 									!currentPath?.length,
 							})}
 						>
@@ -464,7 +395,7 @@ export function SiteFileBrowser({
 						</div>
 						<div
 							className={classNames(
-								styles.saveStatus,
+								styles['saveStatus'],
 								saveStatusClassName
 							)}
 						>
@@ -480,7 +411,7 @@ export function SiteFileBrowser({
 					) : null}
 					{currentPath || code || messageContent ? (
 						messageContent ? (
-							<div className={styles.messageArea}>
+							<div className={styles['messageArea']}>
 								{messageContent}
 							</div>
 						) : (
@@ -489,80 +420,20 @@ export function SiteFileBrowser({
 								code={code}
 								onChange={setCode}
 								currentPath={currentPath}
-								className={styles.editor}
+								className={styles['editor']}
 								onSaveShortcut={handleManualSave}
 								readOnly={readOnly}
 							/>
 						)
 					) : (
-						<div className={styles.placeholder}>
-							Select a file to view or edit its contents.
+						<div className={styles['placeholder']}>
+							{placeholderText}
 						</div>
 					)}
 				</section>
 			</div>
 		</div>
 	);
-}
-
-/**
- * Wraps a PlaygroundClient to satisfy AsyncWritableFilesystem interface
- * which requires EventTarget methods.
- */
-class ClientFilesystemWrapper
-	extends EventTarget
-	implements AsyncWritableFilesystem
-{
-	private client: PlaygroundClient;
-
-	constructor(client: PlaygroundClient) {
-		super();
-		this.client = client;
-	}
-	isDir(path: string) {
-		return this.client.isDir(path);
-	}
-	fileExists(path: string) {
-		return this.client.fileExists(path);
-	}
-	async read(path: string): Promise<{ arrayBuffer(): Promise<ArrayBuffer> }> {
-		const buffer = await this.client.readFileAsBuffer(path);
-		return {
-			arrayBuffer: async () => buffer.buffer,
-		};
-	}
-	readFileAsText(path: string) {
-		return this.client.readFileAsText(path);
-	}
-	listFiles(path: string) {
-		return this.client.listFiles(path);
-	}
-	writeFile(path: string, data: string | Uint8Array) {
-		return this.client.writeFile(path, data);
-	}
-	mkdir(path: string) {
-		return this.client.mkdir(path);
-	}
-	rmdir(path: string, options?: { recursive?: boolean }) {
-		return this.client.rmdir(path, options);
-	}
-	mv(source: string, destination: string) {
-		return this.client.mv(source, destination);
-	}
-	unlink(path: string) {
-		return this.client.unlink(path);
-	}
-}
-
-function useFilesystem(
-	client: PlaygroundClient | null
-): AsyncWritableFilesystem | null {
-	return useMemo(() => {
-		if (!client) {
-			return null;
-		}
-		return new ClientFilesystemWrapper(client);
-	}, [client]);
 }
 
 function getSaveStatusLabel(saveState: SaveState, saveError: string | null) {
@@ -585,51 +456,12 @@ function getSaveStatusClassName(
 ) {
 	switch (saveState) {
 		case SaveState.PENDING:
-			return styleSheet.saveStatusPending;
+			return styleSheet['saveStatusPending'];
 		case SaveState.SAVING:
-			return styleSheet.saveStatusSaving;
+			return styleSheet['saveStatusSaving'];
 		case SaveState.ERROR:
-			return styleSheet.saveStatusError;
+			return styleSheet['saveStatusError'];
 		default:
 			return undefined;
-	}
-}
-
-async function flushPendingSave(
-	client: PlaygroundClient | null,
-	{
-		saveTimeoutRef,
-		currentPathRef,
-		codeRef,
-		setSaveState,
-		setSaveError,
-	}: {
-		saveTimeoutRef: MutableRefObject<number | null>;
-		currentPathRef: MutableRefObject<string | null>;
-		codeRef: MutableRefObject<string>;
-		setSaveState: React.Dispatch<React.SetStateAction<SaveState>>;
-		setSaveError: React.Dispatch<React.SetStateAction<string | null>>;
-	}
-) {
-	if (saveTimeoutRef.current === null) {
-		return;
-	}
-	if (!client || !currentPathRef.current) {
-		window.clearTimeout(saveTimeoutRef.current);
-		saveTimeoutRef.current = null;
-		return;
-	}
-	window.clearTimeout(saveTimeoutRef.current);
-	saveTimeoutRef.current = null;
-	setSaveState(SaveState.SAVING);
-	try {
-		await client.writeFile(currentPathRef.current, codeRef.current);
-		setSaveState(SaveState.SAVED);
-		setSaveError(null);
-	} catch (error) {
-		logger.error('Failed to save file', error);
-		setSaveState(SaveState.ERROR);
-		setSaveError('Could not save changes. Try again.');
-		throw error;
 	}
 }

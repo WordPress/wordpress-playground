@@ -1,0 +1,26 @@
+{
+	"manifest_version": 3,
+	"name": "WordPress Playground DevTools",
+	"version": "1.0.0",
+	"description": "DevTools panel for inspecting and editing WordPress Playground instances",
+	"icons": {
+		"16": "icons/icon-16.png",
+		"48": "icons/icon-48.png",
+		"128": "icons/icon-128.png"
+	},
+	"devtools_page": "devtools/index.html",
+	"permissions": ["scripting", "activeTab", "webNavigation"],
+	"host_permissions": ["<all_urls>"],
+	"background": {
+		"service_worker": "background.js",
+		"type": "module"
+	},
+	"content_scripts": [
+		{
+			"matches": ["<all_urls>"],
+			"js": ["content-script.js"],
+			"run_at": "document_idle",
+			"all_frames": true
+		}
+	]
+}
