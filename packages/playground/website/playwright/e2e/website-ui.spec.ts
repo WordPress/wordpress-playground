@@ -345,6 +345,10 @@ test('should copy blueprint link to clipboard when share button is clicked', asy
 	);
 	await editor.waitFor({ timeout: 10000 });
 
+	// Wait for the URL hash to be computed (debounced by 500ms in the component)
+	// and the share button to be ready
+	await website.page.waitForTimeout(1000);
+
 	// Click the share button (copy link to blueprint)
 	const shareButton = website.page.getByRole('button', {
 		name: 'Copy link to blueprint',
