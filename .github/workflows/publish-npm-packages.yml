@@ -69,9 +69,14 @@ jobs:
                   registry-url: 'https://registry.npmjs.org'
                   cache: 'npm'
 
+            # npm 11.5.1+ is required for trusted publisher OIDC authentication
+            - name: Upgrade npm for trusted publishing
+              run: npm install -g npm@latest
+
             - uses: ./.github/actions/prepare-playground
 
             - name: Publish NPM packages
               # Version bump, release, tag a new version on GitHub
+              # Lerna 9+ is required for OIDC trusted publishing support
               run: >
-                  npx lerna@7.1.3 publish ${{ inputs.version_bump || 'patch' }} --yes --no-private --loglevel=verbose --dist-tag=${{ inputs.dist_tag || 'latest' }}
+                  npx lerna@9 publish ${{ inputs.version_bump || 'patch' }} --yes --no-private --loglevel=verbose --dist-tag=${{ inputs.dist_tag || 'latest' }}
