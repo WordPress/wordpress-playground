@@ -1,76 +1,77 @@
 name: Release NPM packages
 
 on:
-  workflow_dispatch:
-    inputs:
-      version_bump:
-        description: 'Version bump (patch, minor, or major)'
-        required: true
-        default: 'patch'
-      dist_tag:
-        description: 'Dist tag (latest, next, etc.)'
-        required: false
-        default: 'latest'
-  schedule:
-    # Auto-publish every Monday
-    - cron: '0 9 * * 1'
+    workflow_dispatch:
+        inputs:
+            version_bump:
+                description: 'Version bump (patch, minor, or major)'
+                required: true
+                default: 'patch'
+            dist_tag:
+                description: 'Dist tag (latest, next, etc.)'
+                required: false
+                default: 'latest'
+    schedule:
+        # Auto-publish every Monday
+        - cron: '0 9 * * 1'
 
 permissions:
-  id-token: write
-  contents: write
+    id-token: write
+    contents: write
 
 jobs:
-  release:
-    # Only run this workflow from the trunk branch and when it's triggered by a Playground maintainer
-    if: >
-      github.ref == 'refs/heads/trunk' && (
-        github.actor == 'adamziel' ||
-        github.actor == 'dmsnell' ||
-        github.actor == 'bgrgicak' ||
-        github.actor == 'brandonpayton' ||
-        github.actor == 'zaerl' ||
-        github.actor == 'janjakes' ||
-        github.actor == 'mho22'
-      )
+    release:
+        # Only run this workflow from the trunk branch and when it's triggered by a Playground maintainer
+        if: >
+            github.ref == 'refs/heads/trunk' && (
+              github.actor == 'adamziel' ||
+              github.actor == 'dmsnell' ||
+              github.actor == 'bgrgicak' ||
+              github.actor == 'brandonpayton' ||
+              github.actor == 'zaerl' ||
+              github.actor == 'janjakes' ||
+              github.actor == 'mho22'
+            )
 
-    runs-on: ubuntu-latest
-    environment:
-      name: npm
+        runs-on: ubuntu-latest
+        environment:
+            name: npm
 
-    steps:
-      - name: Free up runner disk space
-        run: |
-          set -euo pipefail
-          df -h
-          sudo rm -rf /usr/local/lib/android
-          sudo rm -rf /usr/share/dotnet
-          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
-          sudo rm -rf /opt/ghc
-          sudo rm -rf /opt/hostedtoolcache/CodeQL
-          df -h
+        steps:
+            - name: Free up runner disk space
+              run: |
+                  set -euo pipefail
+                  df -h
+                  sudo rm -rf /usr/local/lib/android
+                  sudo rm -rf /usr/share/dotnet
+                  sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+                  sudo rm -rf /opt/ghc
+                  sudo rm -rf /opt/hostedtoolcache/CodeQL
+                  df -h
 
-      - uses: actions/checkout@v4
-        with:
-          ref: trunk
-          clean: true
-          persist-credentials: true
-          submodules: true
+            - uses: actions/checkout@v4
+              with:
+                  ref: trunk
+                  clean: true
+                  persist-credentials: false
+                  submodules: true
 
-      - name: Configure git user
-        run: |
-          git config --global user.name "deployment_bot"
-          git config --global user.email "deployment_bot@users.noreply.github.com"
+            - name: Configure git
+              run: |
+                  git config --global user.name "deployment_bot"
+                  git config --global user.email "deployment_bot@users.noreply.github.com"
+                  git remote set-url origin https://${{ secrets.GH_ACTOR }}:${{ secrets.GH_TOKEN }}@github.com/${{ github.repository }}
 
-      - name: Set up Node.js with OIDC
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          registry-url: 'https://registry.npmjs.org'
-          cache: 'npm'
+            - name: Set up Node.js with OIDC
+              uses: actions/setup-node@v4
+              with:
+                  node-version: '22'
+                  registry-url: 'https://registry.npmjs.org'
+                  cache: 'npm'
 
-      - uses: ./.github/actions/prepare-playground
+            - uses: ./.github/actions/prepare-playground
 
-      - name: Publish NPM packages
-        # Version bump, release, tag a new version on GitHub
-        run: >
-          npx lerna@7.1.3 publish ${{ inputs.version_bump || 'patch' }} --yes --no-private --loglevel=verbose --dist-tag=${{ inputs.dist_tag || 'latest' }}
+            - name: Publish NPM packages
+              # Version bump, release, tag a new version on GitHub
+              run: >
+                  npx lerna@7.1.3 publish ${{ inputs.version_bump || 'patch' }} --yes --no-private --loglevel=verbose --dist-tag=${{ inputs.dist_tag || 'latest' }}
