@@ -167,6 +167,22 @@ export function SavedPlaygroundsOverlay({
 		doImport();
 	}, [pendingZipFile, isTemporarySite, playground, onClose]);
 
+	function switchToTemporarySite() {
+		if (temporarySite) {
+			// Switch to existing temporary site, then import will happen via effect
+			dispatch(setActiveSite(temporarySite.slug));
+		} else {
+			// No temporary site exists, create one with a pushState-driven
+			// redirect that will trigger the temporary site route and create
+			// a new temporary site for us.
+			//
+			// Note it might take a moment so we won't call importWordPressFiles()
+			// right away. Instead, we've stored the pendingZipFile in state, and
+			// the effect above will handle the import once the temporary site loads.
+			redirectTo(PlaygroundRoute.newTemporarySite());
+		}
+	}
+
 	const handleImportZip = async (e: React.ChangeEvent<HTMLInputElement>) => {
 		const file = e.target.files?.[0];
 		if (!file) return;
@@ -175,19 +191,7 @@ export function SavedPlaygroundsOverlay({
 		// If we're on a saved site, switch to/create a temporary one first.
 		if (!isTemporarySite) {
 			setPendingZipFile(file);
-			if (temporarySite) {
-				// Switch to existing temporary site, then import will happen via effect
-				dispatch(setActiveSite(temporarySite.slug));
-			} else {
-				// No temporary site exists, create one with a pushState-driven
-				// redirect that will trigger the temporary site route and create
-				// a new temporary site for us.
-				//
-				// Note it might take a moment so we won't call importWordPressFiles()
-				// right away. Instead, we've stored the pendingZipFile in state, and
-				// the effect above will handle the import once the temporary site loads.
-				redirectTo(PlaygroundRoute.newTemporarySite());
-			}
+			switchToTemporarySite();
 			return;
 		}
 
@@ -409,6 +413,9 @@ export function SavedPlaygroundsOverlay({
 			title: 'From GitHub',
 			iconComponent: GitHubIcon,
 			onClick: () => {
+				if (!isTemporarySite) {
+					switchToTemporarySite();
+				}
 				modalDispatch(setActiveModal(modalSlugs.GITHUB_IMPORT));
 			},
 			disabled: offline,
