@@ -291,13 +291,14 @@ test('should edit a blueprint in the blueprint editor and recreate the playgroun
 	// Type the new blueprint with a delay between keystrokes
 	await website.page.keyboard.type(blueprint, { delay: 50 });
 
-	// Remove the autoinserted brackets until the end of the Blueprint
-	await website.page.keyboard.down('Shift');
-	for (let i = 0; i < 4; i++) {
-		await website.page.keyboard.press('ArrowDown');
-	}
-
-	// Delete the selected lines
+	// Remove autoinserted brackets by selecting to end of document and deleting.
+	// CodeMirror's closeBrackets feature auto-inserts closing brackets, so we
+	// need to clean up any extra characters after the typed content.
+	await website.page.keyboard.press(
+		process.platform === 'darwin'
+			? 'Meta+Shift+ArrowDown'
+			: 'Control+Shift+End'
+	);
 	await website.page.keyboard.press('Backspace');
 
 	// Wait a moment for the change to be processed
