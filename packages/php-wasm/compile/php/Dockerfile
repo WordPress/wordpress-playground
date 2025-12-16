@@ -776,6 +776,7 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "__vfprintf_internal",\
 "vfprintf",\
 "vsnprintf",\
+"var_destroy",\
 "__xmlRaiseError",\
 "__xmlLoaderErr",\
 "zim_SoapClient___construct",\
@@ -824,6 +825,7 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "_erealloc",\
 "_erealloc2",\
 "_estrdup",\
+"_efree_large",\
 "_get_zval_cv_lookup",\
 "_is_numeric_string_ex",\
 "_mysqlnd_init_ps_subsystem",\
@@ -872,6 +874,7 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "_zval_dtor_func_for_ptr",\
 "_zval_dtor_func",\
 "_zval_ptr_dtor",\
+"_zval_undefined_op1",\
 "add_property_resource_ex",\
 "autoVacuumCommit",\
 "bsearch",\
@@ -882,6 +885,7 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "call",\
 "callCollNeeded",\
 "callFinaliser",\
+"concat_function",\
 "checkTreePage",\
 "cleanup_unfinished_calls",\
 "clearDatabasePage",\
@@ -937,6 +941,11 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "dynCall_i",\
 "dynCall_ii",\
 "dynCall_iidiiii",\
+"i",\
+"ii",\
+"iii",\
+"iiii",\
+"iiiii",\
 "dynCall_iii",\
 "dynCall_iiid",\
 "dynCall_iiii",\
@@ -1016,6 +1025,7 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "ZEND_FE_FETCH_R_SPEC_VAR_HANDLER",\
 "zend_generator_resume",\
 "zend_generator_iterator_rewind",\
+"zend_get_properties_for",\
 "zend_fe_reset_iterator",\
 "ZEND_FE_RESET_R_SPEC_VAR_HANDLER",\
 "zend_user_it_get_new_iterator",\
@@ -1086,6 +1096,8 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "zend_std_write_property",\
 "ZEND_ASSIGN_OBJ_SPEC_CV_CONST_OP_DATA_CONST_HANDLER",\
 "zend_objects_store_del",\
+"ZEND_CLONE_SPEC_CV_HANDLER",\
+"ZEND_CONCAT_SPEC_CONST_CV_HANDLER",\
 "ZEND_UNSET_CV_SPEC_CV_UNUSED_HANDLER",\
 "ZEND_DO_FCALL_BY_NAME_SPEC_HANDLER",\
 "ZEND_DO_FCALL_BY_NAME_SPEC_OBSERVER_HANDLER",\
@@ -1434,6 +1446,7 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "php_var_dump",\
 "php_var_serialize_intern",\
 "php_var_unserialize_internal",\
+"php_var_unserialize_destroy",\
 "php_verror",\
 "php_wasm_init",\
 "php_zend_stream_closer",\
@@ -1859,6 +1872,7 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "zend_hash_del_key_or_index",\
 "zend_hash_graceful_reverse_destroy",\
 "zend_hash_reverse_apply",\
+"zend_hash_destroy",\
 "ZEND_INCLUDE_OR_EVAL_SPEC_CV_HANDLER",\
 "ZEND_INCLUDE_OR_EVAL_SPEC_OBSERVER_HANDLER",\
 "zend_include_or_eval",\
@@ -1946,7 +1960,9 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "zend_startup",\
 "zend_std_call_getter",\
 "zend_std_call_user_call",\
+"zend_std_cast_object_tostring",\
 "zend_std_compare_objects",\
+"zend_std_get_debug_info",\
 "zend_std_has_dimension",\
 "zend_std_has_property",\
 "zend_std_read_dimension",\
@@ -2119,8 +2135,11 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "zif_stream_socket_client",\
 "zif_stream_socket_enable_crypto",\
 "zif_system",\
+"zif_serialize",\
+"zif_unserialize",\
 "zif_touch",\
 "zif_unlink",\
+"zif_var_dump",\
 "zif_wasm_popen",\
 "zim_AppendIterator_append",\
 "zim_AppendIterator_current",\
