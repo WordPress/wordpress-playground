@@ -702,6 +702,7 @@ export const BlueprintBundleEditor = forwardRef<
 									className={styles.editorToolbarButton}
 									onClick={handleShareBlueprint}
 									title="Copy link to blueprint"
+									aria-label="Copy link to blueprint"
 									disabled={!isBundleShareable}
 								>
 									<Icon icon={link} />
