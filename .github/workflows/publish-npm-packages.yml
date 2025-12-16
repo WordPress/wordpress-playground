@@ -12,6 +12,7 @@ on:
         required: false
         default: 'latest'
   schedule:
+    # Auto-publish every Monday
     - cron: '0 9 * * 1'
 
 permissions:
