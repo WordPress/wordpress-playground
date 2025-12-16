@@ -12,7 +12,8 @@ export type SiteError =
 	| 'github-artifact-expired'
 	| 'blueprint-fetch-failed'
 	| 'blueprint-filesystem-required'
-	| 'blueprint-validation-failed';
+	| 'blueprint-validation-failed'
+	| 'network-firewall-interference';
 
 export type SiteManagerSection = 'sidebar' | 'site-details' | 'blueprints';
 
@@ -35,6 +36,7 @@ export type SerializedPlainErrorDetails = {
 	message?: string;
 	name?: string;
 	stack?: string;
+	url?: string;
 };
 
 export interface SerializedBlueprintStepErrorDetails extends SerializedPlainErrorDetails {
@@ -54,6 +56,21 @@ const serializeSiteErrorDetails = (
 	details?: unknown
 ): SerializedSiteErrorDetails | undefined => {
 	if (details instanceof BlueprintStepExecutionError) {
+		// Look for a url property in the cause chain
+		let url: string | undefined;
+		let current: unknown = details.cause;
+		while (current && !url) {
+			if (
+				current &&
+				typeof current === 'object' &&
+				'url' in current &&
+				typeof (current as any).url === 'string'
+			) {
+				url = (current as any).url;
+			}
+			current = current instanceof Error ? current.cause : undefined;
+		}
+
 		return {
 			type: 'blueprint-step-error',
 			stepNumber: details.stepNumber,
@@ -66,6 +83,7 @@ const serializeSiteErrorDetails = (
 					: details.message,
 			name: details.name,
 			stack: details.stack,
+			url,
 		};
 	}
 	if (details instanceof Error) {
@@ -73,6 +91,10 @@ const serializeSiteErrorDetails = (
 			message: details.message,
 			name: details.name,
 			stack: details.stack,
+			url:
+				'url' in details && typeof details.url === 'string'
+					? details.url
+					: undefined,
 		};
 	}
 	if (typeof details === 'string') {
@@ -94,11 +116,16 @@ const serializeSiteErrorDetails = (
 			'stack' in details && typeof (details as any).stack === 'string'
 				? (details as any).stack
 				: undefined;
-		if (maybeMessage || maybeName || maybeStack) {
+		const maybeUrl =
+			'url' in details && typeof (details as any).url === 'string'
+				? (details as any).url
+				: undefined;
+		if (maybeMessage || maybeName || maybeStack || maybeUrl) {
 			return {
 				message: maybeMessage,
 				name: maybeName,
 				stack: maybeStack,
+				url: maybeUrl,
 			};
 		}
 	}

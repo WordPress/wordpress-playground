@@ -5,6 +5,7 @@ export default defineConfig({
 	testDir: './src/test',
 	fullyParallel: false,
 	forbidOnly: !!process.env['CI'],
+	workers: 1,
 
 	// Comment this line for more debugging informations
 	reporter: [['./src/test/playwright/reporter.ts']],

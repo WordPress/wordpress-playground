@@ -1,0 +1,59 @@
+{
+	"name": "php-wasm-compile-shared-xdebug",
+	"$schema": "../../../../../node_modules/nx/schemas/project-schema.json",
+	"targets": {
+		"jspi": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"node packages/php-wasm/compile/shared/build.js --LIBRARY=xdebug --JSPI=yes --OUTPUT_DIR=packages/php-wasm/node/jspi"
+				],
+				"parallel": false
+			}
+		},
+		"jspi:all": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"nx run php-wasm-compile-shared-xdebug:jspi --PHP_VERSION=8.5",
+					"nx run php-wasm-compile-shared-xdebug:jspi --PHP_VERSION=8.4",
+					"nx run php-wasm-compile-shared-xdebug:jspi --PHP_VERSION=8.3",
+					"nx run php-wasm-compile-shared-xdebug:jspi --PHP_VERSION=8.2",
+					"nx run php-wasm-compile-shared-xdebug:jspi --PHP_VERSION=8.1",
+					"nx run php-wasm-compile-shared-xdebug:jspi --PHP_VERSION=8.0",
+					"nx run php-wasm-compile-shared-xdebug:jspi --PHP_VERSION=7.4",
+					"nx run php-wasm-compile-shared-xdebug:jspi --PHP_VERSION=7.3",
+					"nx run php-wasm-compile-shared-xdebug:jspi --PHP_VERSION=7.2"
+				],
+				"parallel": false
+			}
+		},
+		"asyncify": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"node packages/php-wasm/compile/shared/build.js --LIBRARY=xdebug --OUTPUT_DIR=packages/php-wasm/node/asyncify"
+				],
+				"parallel": false
+			}
+		},
+		"asyncify:all": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"nx run php-wasm-compile-shared-xdebug:asyncify --PHP_VERSION=8.5",
+					"nx run php-wasm-compile-shared-xdebug:asyncify --PHP_VERSION=8.4",
+					"nx run php-wasm-compile-shared-xdebug:asyncify --PHP_VERSION=8.3",
+					"nx run php-wasm-compile-shared-xdebug:asyncify --PHP_VERSION=8.2",
+					"nx run php-wasm-compile-shared-xdebug:asyncify --PHP_VERSION=8.1",
+					"nx run php-wasm-compile-shared-xdebug:asyncify --PHP_VERSION=8.0",
+					"nx run php-wasm-compile-shared-xdebug:asyncify --PHP_VERSION=7.4",
+					"nx run php-wasm-compile-shared-xdebug:asyncify --PHP_VERSION=7.3",
+					"nx run php-wasm-compile-shared-xdebug:asyncify --PHP_VERSION=7.2"
+				],
+				"parallel": false
+			}
+		}
+	},
+	"tags": []
+}

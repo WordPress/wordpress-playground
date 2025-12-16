@@ -103,6 +103,23 @@ export async function bootPlaygroundRemote() {
 		logger.error('Failed to update service worker.', e);
 	}
 
+	/**
+	 * Feature-detect Document-Isolation-Policy support.
+	 *
+	 * Note this is not awaited on purpose. We don't want to delay the entire
+	 * loading pipeline here. This information is only needed before the first
+	 * page load inside the iframe so it's awaited later on in goTo().
+	 *
+	 * See `service-worker.ts` for the full story on why Playground does this.
+	 */
+	const documentIsolationSupportDetected =
+		detectDocumentIsolationPolicySuport().then((isolationSupported) => {
+			navigator.serviceWorker.controller?.postMessage({
+				type: 'document-isolation-policy-support-check',
+				supported: isolationSupported,
+			});
+		});
+
 	const workerUrl = new URL(getWorkerUrl(), origin) + '';
 
 	const phpWorkerApi = consumeAPI<PlaygroundWorkerEndpoint>(
@@ -153,6 +170,40 @@ export async function bootPlaygroundRemote() {
 			 * Even if we wanted to clean up these resources manually, it would have to be onbeforeunload.
 			 * We'll let the browser handle that.
 			 */
+
+			let lastPath: string | undefined;
+
+			/**
+			 * Listen for URL change messages from the WordPress iframe.
+			 *
+			 * When Document-Isolation-Policy is enabled, we can't access the
+			 * iframe's location.href due to cross-origin restrictions. Instead,
+			 * a WordPress MU plugin posts a message with the current URL.
+			 *
+			 * @see packages/playground/remote/src/lib/playground-mu-plugin/0-playground.php
+			 */
+			window.addEventListener('message', async (event) => {
+				if (event.source !== wpFrame.contentWindow) {
+					return;
+				}
+				try {
+					const data =
+						typeof event.data === 'string'
+							? JSON.parse(event.data)
+							: event.data;
+					if (data?.type !== 'playground-url-change') {
+						return;
+					}
+					const path = await playground.internalUrlToPath(data.url);
+					if (path !== lastPath) {
+						lastPath = path;
+						fn(path);
+					}
+				} catch {
+					// Ignore JSON parse errors
+				}
+			});
+
 			// Listen for iframe load events (for navigation)
 			wpFrame.addEventListener('load', async (e: any) => {
 				try {
@@ -186,7 +237,10 @@ export async function bootPlaygroundRemote() {
 					const path = await playground.internalUrlToPath(
 						contentWindow.location.href
 					);
-					fn(path);
+					if (path !== lastPath) {
+						lastPath = path;
+						fn(path);
+					}
 				} catch {
 					// @TODO: The above call can fail if the remote iframe
 					// is embedded in StackBlitz, or presumably, any other
@@ -205,7 +259,6 @@ export async function bootPlaygroundRemote() {
 			// * https://github.com/WordPress/wordpress-playground/pull/1945
 			// * https://html.spec.whatwg.org/multipage/document-sequences.html#nav-active-history-entry
 			// * https://html.spec.whatwg.org/dev/browsing-the-web.html#centralized-modifications-of-session-history
-			let lastPath: string | undefined;
 			setInterval(async () => {
 				try {
 					let href = '';
@@ -225,6 +278,10 @@ export async function bootPlaygroundRemote() {
 			}, 500);
 		},
 		async goTo(requestedPath: string) {
+			// We need to know whether the browser supports
+			// Document-Isolation-Policy before the first navigation.
+			await documentIsolationSupportDetected;
+
 			if (!requestedPath.startsWith('/')) {
 				requestedPath = '/' + requestedPath;
 			}
@@ -443,6 +500,56 @@ export async function bootPlaygroundRemote() {
 	 * with Remote<PlaygroundClient>
 	 */
 	return playground;
+}
+
+/**
+ * Interacts with the service-worker served HTML document to check
+ * the browser support for Document-Isolation-Policy.
+ *
+ * See `service-worker.ts` for more details.
+ */
+function detectDocumentIsolationPolicySuport(): Promise<boolean> {
+	return new Promise((resolve) => {
+		const testFrame = document.createElement('iframe');
+		testFrame.style.display = 'none';
+		// This file does not exist on the server. It is served by the
+		// service worker.
+		testFrame.src = '/feature-detect/document-isolation-policy.html';
+
+		// From here, we're:
+		// 1. Creating an iframe.
+		// 2. Waiting for a message that confirms support for Document-Isolation-Policy.
+		// 3. If anything goes wrong or we time out, we assume no support.
+		let resolved = false;
+		const cleanup = () => {
+			if (resolved) return;
+			resolved = true;
+			window.removeEventListener('message', messageHandler);
+			clearTimeout(timeoutId);
+			testFrame.remove();
+		};
+
+		const messageHandler = (event: MessageEvent) => {
+			if (event.source !== testFrame.contentWindow) {
+				return;
+			}
+			cleanup();
+			resolve(event.data.supported === true);
+		};
+		window.addEventListener('message', messageHandler);
+
+		const timeoutId = setTimeout(() => {
+			cleanup();
+			resolve(false);
+		}, 1000);
+
+		testFrame.onerror = () => {
+			cleanup();
+			resolve(false);
+		};
+
+		document.body.appendChild(testFrame);
+	});
 }
 
 function getOrigin(url: string) {

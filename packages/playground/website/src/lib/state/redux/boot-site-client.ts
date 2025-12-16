@@ -34,6 +34,7 @@ import {
 	createGitAuthHeaders,
 	shouldShowGitHubAuthModal,
 } from '../../../github/git-auth-helpers';
+import { findFirewallErrorInCauseChain } from './error-utils';
 
 export function bootSiteClient(
 	siteSlug: string,
@@ -168,6 +169,7 @@ export function bootSiteClient(
 			logger.error(e);
 			logTrackingEvent('error', { source: 'bootSiteClient' });
 
+			const firewallError = findFirewallErrorInCauseChain(e);
 			if (
 				(e as any).name === 'ArtifactExpiredError' ||
 				(e as any).originalErrorClassName === 'ArtifactExpiredError'
@@ -190,6 +192,13 @@ export function bootSiteClient(
 					setActiveSiteError({
 						error: 'blueprint-validation-failed',
 						details: e,
+					})
+				);
+			} else if (firewallError) {
+				dispatch(
+					setActiveSiteError({
+						error: 'network-firewall-interference',
+						details: firewallError,
 					})
 				);
 			} else if (

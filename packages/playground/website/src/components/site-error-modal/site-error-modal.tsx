@@ -65,6 +65,7 @@ export function SiteErrorModal({
 		site,
 		blueprintStepError,
 		helpers,
+		errorDetails,
 	});
 
 	const detailText = formatErrorDetails(errorDetails);
@@ -145,6 +146,7 @@ export function SiteErrorModal({
 				{view.actions.length || !view.isDeveloperError ? (
 					<div className={css.errorModalFooter}>
 						{!view.isDeveloperError &&
+						!view.hideReportButton &&
 						!isReporting &&
 						!reportSubmitted ? (
 							<Button
