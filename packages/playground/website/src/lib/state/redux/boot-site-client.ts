@@ -39,24 +39,30 @@ import {
 } from '../../../github/git-auth-helpers';
 
 /**
- * Search through an error's cause chain to find an error with a specific name.
+ * Search through an error's cause chain to find a FirewallInterferenceError.
  * Checks both instanceof and the error's name property to handle cases where
  * instanceof fails due to module boundaries or error serialization.
+ *
+ * Returns the FirewallInterferenceError if found, or undefined if not.
  */
-function findFirewallErrorInCauseChain(error: unknown): boolean {
+function findFirewallErrorInCauseChain(
+	error: unknown
+): FirewallInterferenceError | Error | undefined {
 	let current: unknown = error;
 	while (current) {
+		if (current instanceof FirewallInterferenceError) {
+			return current;
+		}
 		if (
-			current instanceof FirewallInterferenceError ||
-			(current instanceof Error &&
-				current.name === 'FirewallInterferenceError')
+			current instanceof Error &&
+			current.name === 'FirewallInterferenceError'
 		) {
-			return true;
+			return current;
 		}
 		current =
 			current instanceof Error ? (current as Error).cause : undefined;
 	}
-	return false;
+	return undefined;
 }
 
 export function bootSiteClient(
@@ -192,6 +198,7 @@ export function bootSiteClient(
 			logger.error(e);
 			logTrackingEvent('error', { source: 'bootSiteClient' });
 
+			const firewallError = findFirewallErrorInCauseChain(e);
 			if (
 				(e as any).name === 'ArtifactExpiredError' ||
 				(e as any).originalErrorClassName === 'ArtifactExpiredError'
@@ -216,11 +223,11 @@ export function bootSiteClient(
 						details: e,
 					})
 				);
-			} else if (findFirewallErrorInCauseChain(e)) {
+			} else if (firewallError) {
 				dispatch(
 					setActiveSiteError({
 						error: 'network-firewall-interference',
-						details: e,
+						details: firewallError,
 					})
 				);
 			} else if (

@@ -286,6 +286,9 @@ function directoryHandleUnknownErrorView(): SiteErrorViewConfig {
 /**
  * Extract the target URL that Playground was trying to fetch from the error details.
  * This is the original URL (e.g., a plugin download), not the CORS proxy URL.
+ *
+ * First checks for a structured `url` property on the error object (preferred),
+ * then falls back to pattern matching in the error message.
  */
 function extractTargetUrl(errorDetails: unknown): string | undefined {
 	if (!errorDetails || typeof errorDetails !== 'object') {
@@ -293,6 +296,13 @@ function extractTargetUrl(errorDetails: unknown): string | undefined {
 	}
 
 	const details = errorDetails as Record<string, unknown>;
+
+	// Prefer the structured url property if available
+	if (typeof details.url === 'string' && details.url) {
+		return details.url;
+	}
+
+	// Fall back to pattern matching in the message for backwards compatibility
 	const message = (details.rawMessage || details.message || '') as string;
 
 	// "Could not fetch {url}" from FirewallInterferenceError
