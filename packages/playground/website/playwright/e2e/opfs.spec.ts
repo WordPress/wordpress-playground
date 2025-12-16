@@ -1,201 +1,20 @@
 import { test, expect } from '../playground-fixtures.ts';
 import type { Blueprint } from '@wp-playground/blueprints';
 import type { Page } from '@playwright/test';
+import { encodeZip, collectBytes } from '@php-wasm/stream-compression';
 
 /**
  * Creates a minimal WordPress export ZIP file for testing imports.
  * The ZIP contains just an index.php file with the given marker content.
- *
- * This is a pre-built minimal ZIP structure created with the following layout:
- * /wp-content/
- *   index.php -> "<?php echo 'IMPORTED_MARKER';"
- *
- * The ZIP is created using standard ZIP format with no compression (store method).
  */
-function createTestWordPressZip(markerContent: string): Buffer {
-	// Create a simple PHP file content
+async function createTestWordPressZip(markerContent: string): Promise<Buffer> {
 	const phpContent = `<?php echo '${markerContent}';`;
-	const phpBytes = Buffer.from(phpContent, 'utf-8');
-
-	// File path in the ZIP
-	const filePath = 'wp-content/index.php';
-	const filePathBytes = Buffer.from(filePath, 'utf-8');
-
-	// Current date/time for DOS format
-	const now = new Date();
-	const dosTime =
-		(now.getSeconds() >> 1) |
-		(now.getMinutes() << 5) |
-		(now.getHours() << 11);
-	const dosDate =
-		now.getDate() |
-		((now.getMonth() + 1) << 5) |
-		((now.getFullYear() - 1980) << 9);
-
-	// Calculate CRC32 for the content
-	const crc32 = calculateCrc32(phpBytes);
-
-	// Build the ZIP file structure
-	const localFileHeader = Buffer.alloc(30 + filePathBytes.length);
-	let offset = 0;
-
-	// Local file header signature
-	localFileHeader.writeUInt32LE(0x04034b50, offset);
-	offset += 4;
-	// Version needed to extract
-	localFileHeader.writeUInt16LE(20, offset);
-	offset += 2;
-	// General purpose bit flag
-	localFileHeader.writeUInt16LE(0, offset);
-	offset += 2;
-	// Compression method (0 = stored)
-	localFileHeader.writeUInt16LE(0, offset);
-	offset += 2;
-	// Last mod file time
-	localFileHeader.writeUInt16LE(dosTime, offset);
-	offset += 2;
-	// Last mod file date
-	localFileHeader.writeUInt16LE(dosDate, offset);
-	offset += 2;
-	// CRC-32
-	localFileHeader.writeUInt32LE(crc32, offset);
-	offset += 4;
-	// Compressed size
-	localFileHeader.writeUInt32LE(phpBytes.length, offset);
-	offset += 4;
-	// Uncompressed size
-	localFileHeader.writeUInt32LE(phpBytes.length, offset);
-	offset += 4;
-	// File name length
-	localFileHeader.writeUInt16LE(filePathBytes.length, offset);
-	offset += 2;
-	// Extra field length
-	localFileHeader.writeUInt16LE(0, offset);
-	offset += 2;
-	// File name
-	filePathBytes.copy(localFileHeader, offset);
-
-	// Central directory file header
-	const centralDirHeader = Buffer.alloc(46 + filePathBytes.length);
-	offset = 0;
-
-	// Central file header signature
-	centralDirHeader.writeUInt32LE(0x02014b50, offset);
-	offset += 4;
-	// Version made by
-	centralDirHeader.writeUInt16LE(20, offset);
-	offset += 2;
-	// Version needed to extract
-	centralDirHeader.writeUInt16LE(20, offset);
-	offset += 2;
-	// General purpose bit flag
-	centralDirHeader.writeUInt16LE(0, offset);
-	offset += 2;
-	// Compression method
-	centralDirHeader.writeUInt16LE(0, offset);
-	offset += 2;
-	// Last mod file time
-	centralDirHeader.writeUInt16LE(dosTime, offset);
-	offset += 2;
-	// Last mod file date
-	centralDirHeader.writeUInt16LE(dosDate, offset);
-	offset += 2;
-	// CRC-32
-	centralDirHeader.writeUInt32LE(crc32, offset);
-	offset += 4;
-	// Compressed size
-	centralDirHeader.writeUInt32LE(phpBytes.length, offset);
-	offset += 4;
-	// Uncompressed size
-	centralDirHeader.writeUInt32LE(phpBytes.length, offset);
-	offset += 4;
-	// File name length
-	centralDirHeader.writeUInt16LE(filePathBytes.length, offset);
-	offset += 2;
-	// Extra field length
-	centralDirHeader.writeUInt16LE(0, offset);
-	offset += 2;
-	// File comment length
-	centralDirHeader.writeUInt16LE(0, offset);
-	offset += 2;
-	// Disk number start
-	centralDirHeader.writeUInt16LE(0, offset);
-	offset += 2;
-	// Internal file attributes
-	centralDirHeader.writeUInt16LE(0, offset);
-	offset += 2;
-	// External file attributes
-	centralDirHeader.writeUInt32LE(0, offset);
-	offset += 4;
-	// Relative offset of local header
-	centralDirHeader.writeUInt32LE(0, offset);
-	offset += 4;
-	// File name
-	filePathBytes.copy(centralDirHeader, offset);
-
-	// End of central directory record
-	const centralDirOffset = localFileHeader.length + phpBytes.length;
-	const centralDirSize = centralDirHeader.length;
-
-	const endOfCentralDir = Buffer.alloc(22);
-	offset = 0;
-
-	// End of central dir signature
-	endOfCentralDir.writeUInt32LE(0x06054b50, offset);
-	offset += 4;
-	// Number of this disk
-	endOfCentralDir.writeUInt16LE(0, offset);
-	offset += 2;
-	// Disk where central directory starts
-	endOfCentralDir.writeUInt16LE(0, offset);
-	offset += 2;
-	// Number of central directory records on this disk
-	endOfCentralDir.writeUInt16LE(1, offset);
-	offset += 2;
-	// Total number of central directory records
-	endOfCentralDir.writeUInt16LE(1, offset);
-	offset += 2;
-	// Size of central directory
-	endOfCentralDir.writeUInt32LE(centralDirSize, offset);
-	offset += 4;
-	// Offset of start of central directory
-	endOfCentralDir.writeUInt32LE(centralDirOffset, offset);
-	offset += 4;
-	// Comment length
-	endOfCentralDir.writeUInt16LE(0, offset);
-
-	return Buffer.concat([
-		localFileHeader,
-		phpBytes,
-		centralDirHeader,
-		endOfCentralDir,
-	]);
-}
-
-/**
- * Simple CRC32 implementation for ZIP file creation
- */
-function calculateCrc32(buffer: Buffer): number {
-	let crc = 0xffffffff;
-	const table = getCrc32Table();
-	for (let i = 0; i < buffer.length; i++) {
-		crc = (crc >>> 8) ^ table[(crc ^ buffer[i]) & 0xff];
-	}
-	return (crc ^ 0xffffffff) >>> 0;
-}
-
-let crc32Table: number[] | null = null;
-function getCrc32Table(): number[] {
-	if (crc32Table) return crc32Table;
-	crc32Table = [];
-	for (let i = 0; i < 256; i++) {
-		let c = i;
-		for (let j = 0; j < 8; j++) {
-			c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
-		}
-		crc32Table[i] = c;
-	}
-	return crc32Table;
+	const file = new File([phpContent], 'wp-content/index.php', {
+		type: 'text/plain',
+	});
+	const zipStream = encodeZip([file]);
+	const zipBytes = await collectBytes(zipStream);
+	return Buffer.from(zipBytes!);
 }
 
 // OPFS tests must run serially because OPFS storage is shared at the browser
@@ -660,7 +479,7 @@ test('should import ZIP into temporary site when a saved site exists', async ({
 
 	// Create a test ZIP with imported content marker
 	const importedMarker = 'IMPORTED_CONTENT_MARKER_67890';
-	const zipBuffer = createTestWordPressZip(importedMarker);
+	const zipBuffer = await createTestWordPressZip(importedMarker);
 
 	// Find the hidden file input and upload the ZIP
 	const fileInput = website.page.locator(
@@ -770,7 +589,7 @@ test('should create temporary site when importing ZIP while on a saved site with
 
 	// Create a test ZIP
 	const importedMarker = 'FRESH_IMPORT_MARKER_BBBBB';
-	const zipBuffer = createTestWordPressZip(importedMarker);
+	const zipBuffer = await createTestWordPressZip(importedMarker);
 
 	// Find the file input
 	const fileInput = website.page.locator(
