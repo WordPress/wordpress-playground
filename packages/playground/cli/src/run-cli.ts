@@ -1197,6 +1197,8 @@ export function spawnWorkerThread(
 	});
 }
 
+// TODO: Move this to the initial worker process so we can
+// avoid passing non-JSON-serializable objects to and from the worker.
 async function zipSite(
 	playground: RemoteAPI<PlaygroundCliWorker>,
 	outfile: string
