@@ -941,11 +941,6 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "dynCall_i",\
 "dynCall_ii",\
 "dynCall_iidiiii",\
-"i",\
-"ii",\
-"iii",\
-"iiii",\
-"iiiii",\
 "dynCall_iii",\
 "dynCall_iiid",\
 "dynCall_iiii",\
@@ -1052,6 +1047,7 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "zif_array_filter",\
 "zend_unclean_zval_ptr_dtor",\
 "zend_call_known_instance_method_with_2_params",\
+"ZEND_CALL_TRAMPOLINE_SPEC_HANDLER",\
 "ZEND_CALL_TRAMPOLINE_SPEC_OBSERVER_HANDLER",\
 "zend_fetch_dimension_address_read_R",\
 "_zval_dtor_func_for_ptr",\
@@ -1405,6 +1401,8 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "php_openssl_sockop_read",\
 "php_openssl_sockop_set_option",\
 "php_openssl_sockop_write",\
+"php_output_op",\
+"php_output_write",\
 "php_pcre_replace_func_impl",\
 "php_pdo_free_statement",\
 "php_pollfd_for",\
@@ -1838,6 +1836,7 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "zend_execute",\
 "zend_extension_statement_handler",\
 "ZEND_EXT_STMT_SPEC_HANDLER",\
+"ZEND_ECHO_SPEC_CV_HANDLER",\
 "ZEND_FE_FETCH_R_SPEC_VAR_HANDLER",\
 "zend_fe_reset_iterator",\
 "ZEND_FE_RESET_R_SPEC_VAR_HANDLER",\

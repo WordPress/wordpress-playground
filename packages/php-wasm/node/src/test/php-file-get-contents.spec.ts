@@ -46,24 +46,29 @@ const httpsServer = https.createServer(
 	requestHandler
 );
 
-[
-	{
-		protocol: 'http',
-		port: new Promise((resolve) => {
-			httpServer.listen(0, function () {
-				resolve((httpServer.address() as any).port);
+const startServerAndGetConfig = async (
+	protocol: string,
+	server: http.Server | https.Server
+): Promise<{
+	protocol: string;
+	port: number;
+}> => {
+	return new Promise((resolve) => {
+		server.listen(0, () => {
+			resolve({
+				protocol,
+				port: (server.address() as any).port,
 			});
-		}),
-	},
-	{
-		protocol: 'https',
-		port: new Promise((resolve) => {
-			httpsServer.listen(0, function () {
-				resolve((httpsServer.address() as any).port);
-			});
-		}),
-	},
-].forEach(({ protocol, port }) => {
+		});
+	});
+};
+
+const serverConfigs = await Promise.all([
+	startServerAndGetConfig('http', httpServer),
+	startServerAndGetConfig('https', httpsServer),
+]);
+
+serverConfigs.forEach(({ protocol, port }) => {
 	const host = '127.0.0.1';
 
 	const httpUrl = `${protocol}://${host}:${port}`;
@@ -177,53 +182,6 @@ const httpsServer = https.createServer(
 								function my_method() { ${networkCall} }
 							}
 							call_user_func_array([new Top(), 'my_method'], []);
-							`));
-								test('Constructor', () =>
-									assertNoCrash(`
-							class Top {
-								function __construct() { ${networkCall} }
-							}
-							new Top();
-						`));
-								test('Destructor', () =>
-									assertNoCrash(`
-							class Top {
-								function __destruct() { ${networkCall} }
-							}
-							$x = new Top();
-							unset($x);
-						`));
-								test('__call', () =>
-									assertNoCrash(`
-							class Top {
-								function __call($method, $args) { ${networkCall} }
-							}
-							$x = new Top();
-							$x->test();
-						`));
-								test('__get', () =>
-									assertNoCrash(`
-							class Top {
-								function __get($prop) { ${networkCall} }
-							}
-							$x = new Top();
-							$x->test;
-						`));
-								test('__set', () =>
-									assertNoCrash(`
-							class Top {
-								function __set($prop, $value) { ${networkCall} }
-							}
-							$x = new Top();
-							$x->test = 1;
-						`));
-								test('__isset', () =>
-									assertNoCrash(`
-							class Top {
-								function __isset($prop) { ${networkCall} }
-							}
-							$x = new Top();
-							isset($x->test);
 						`));
 								test('ArrayAccess', () => {
 									assertNoCrash(`
@@ -276,6 +234,165 @@ const httpsServer = https.createServer(
 								echo $number;
 							}
 						`));
+							});
+
+							/**
+							 * Verifies that PHP magic methods can invoke asynchronous functions such as file_get_contents,
+							 * correctly handle their results, and ensure proper stack management and context switching.
+							 *
+							 * @see https://www.php.net/manual/en/language.oop5.magic.php
+							 */
+							describe('PHP Magic Methods', () => {
+								it('__construct', () => {
+									return assertNoCrash(`
+										class Top {
+											function __construct() { ${networkCall} }
+										}
+										new Top();`);
+								});
+
+								it('__destruct', () => {
+									return assertNoCrash(`
+										class Top {
+											function __destruct() { ${networkCall} }
+										}
+										$x = new Top();`);
+								});
+
+								it('__call', () => {
+									return assertNoCrash(`
+										class Top {
+											function __call($method, $args) { ${networkCall} }
+										}
+										$x = new Top();
+										$x->test();`);
+								});
+
+								it('__callStatic', () => {
+									return assertNoCrash(`
+										class Top {
+											static function __callStatic($method, $args) { ${networkCall} }
+										}
+										Top::test();`);
+								});
+
+								it('__get', () => {
+									return assertNoCrash(`
+										class Top {
+											function __get($prop) { ${networkCall} }
+										}
+										$x = new Top();
+										$a = $x->test;`);
+								});
+
+								it('__set', () => {
+									return assertNoCrash(`
+										class Top {
+											function __set($prop, $value) { ${networkCall} }
+										}
+										$x = new Top();
+										$x->test = 1;`);
+								});
+
+								it('__isset', () => {
+									return assertNoCrash(`
+										class Top {
+											function __isset($prop) { ${networkCall} }
+										}
+										$x = new Top();
+										isset($x->test);
+										empty($x->test);`);
+								});
+
+								it('__unset', () => {
+									return assertNoCrash(`
+										class Top {
+											function __unset($prop) { ${networkCall} }
+										}
+										$x = new Top();
+										unset($x->test);`);
+								});
+
+								it('__sleep', () => {
+									return assertNoCrash(`
+										class Top {
+											function __sleep() { ${networkCall} return []; }
+										}
+										$x = new Top();
+										serialize($x);`);
+								});
+
+								it('__wakeup', () => {
+									return assertNoCrash(`
+										class Top {
+											function __wakeup() { ${networkCall} }
+										}
+										$serialized = serialize(new Top());
+										unserialize($serialized);`);
+								});
+
+								it('__serialize', () => {
+									return assertNoCrash(`
+										class Top {
+											function __serialize() { ${networkCall} return []; }
+										}
+										$x = new Top();
+										serialize($x);`);
+								});
+
+								it('__unserialize', () => {
+									return assertNoCrash(`
+										class Top {
+											function __unserialize($data) { ${networkCall} }
+										}
+										$serialized = serialize(new Top());
+										unserialize($serialized);`);
+								});
+
+								it('__toString', () => {
+									return assertNoCrash(`
+										class Top {
+											function __toString() { ${networkCall} return ""; }
+										}
+										$x = new Top();
+										echo $x;`);
+								});
+
+								it('__invoke', () => {
+									return assertNoCrash(`
+										class Top {
+											function __invoke() { ${networkCall} }
+										}
+										$x = new Top();
+										$x();`);
+								});
+
+								it('__set_state', () => {
+									return assertNoCrash(`
+										class Top {
+											static function __set_state($an_array) { ${networkCall} }
+										}
+										$exported = var_export(new Top(), true);
+										eval('$x = ' . $exported . ';');`);
+								});
+
+								it('__clone', () => {
+									return assertNoCrash(`
+										class Top {
+											function __clone() { ${networkCall} }
+										}
+										$x = new Top();
+										$y = clone $x;`);
+								});
+
+								it('__debugInfo', () => {
+									return assertNoCrash(`
+										class Top {
+											function __debugInfo() { ${networkCall} return []; }
+										}
+										$x = new Top();
+										var_dump($x);`);
+								});
 							});
 
 							describe('exif extension support', () => {
