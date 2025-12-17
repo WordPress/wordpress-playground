@@ -3,8 +3,9 @@ import { jspi } from 'wasm-feature-detect';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+// Use custom names to avoid conflicts with esbuild's __filename/__dirname polyfills
+const currentFilePath = fileURLToPath(import.meta.url);
+const currentDirPath = dirname(currentFilePath);
 
 export async function getPHPLoaderModule(): Promise<PHPLoaderModule> {
 	if (await jspi()) {
@@ -18,17 +19,20 @@ export async function getPHPLoaderModule(): Promise<PHPLoaderModule> {
 
 export async function getIntlExtensionPath(): Promise<string> {
 	if (await jspi()) {
-		return join(__dirname, '../jspi/extensions/intl/7_3/intl.so');
+		return join(currentDirPath, '../jspi/extensions/intl/7_3/intl.so');
 	} else {
-		return join(__dirname, '../asyncify/extensions/intl/7_3/intl.so');
+		return join(currentDirPath, '../asyncify/extensions/intl/7_3/intl.so');
 	}
 }
 
 export async function getXdebugExtensionPath(): Promise<string> {
 	if (await jspi()) {
-		return join(__dirname, '../jspi/extensions/xdebug/7_3/xdebug.so');
+		return join(currentDirPath, '../jspi/extensions/xdebug/7_3/xdebug.so');
 	} else {
-		return join(__dirname, '../asyncify/extensions/xdebug/7_3/xdebug.so');
+		return join(
+			currentDirPath,
+			'../asyncify/extensions/xdebug/7_3/xdebug.so'
+		);
 	}
 }
 
