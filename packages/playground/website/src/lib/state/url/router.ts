@@ -39,23 +39,66 @@ export function parseBlueprint(rawData: string) {
 }
 
 export class PlaygroundRoute {
-	static site(site: SiteInfo, baseUrl: string = window.location.href) {
-		if (site.metadata.storage === 'none') {
-			return updateUrl(baseUrl, site.originalUrlParams || {});
-		} else {
-			const baseParams = new URLSearchParams(baseUrl.split('?')[1]);
-			const preserveParamsKeys = ['mode', 'networking', 'login', 'url'];
-			const preserveParams: Record<string, string | null> = {};
-			for (const param of preserveParamsKeys) {
-				if (baseParams.has(param)) {
-					preserveParams[param] = baseParams.get(param);
-				}
+	static site(
+		site: SiteInfo,
+		baseUrl: string = window.location.href,
+		options: {
+			/**
+			 * Whether to include `site-slug` in the URL.
+			 *
+			 * - Stored sites always include it.
+			 * - Autosaved temporary sites include it only when explicitly opened
+			 *   from the Site Manager (or when already in `site-slug` mode).
+			 * - In-memory temporary sites never include it.
+			 */
+			includeSiteSlug?: boolean;
+		} = {}
+	) {
+		const baseParams = new URLSearchParams(baseUrl.split('?')[1]);
+		const baseHasSiteSlug = baseParams.has('site-slug');
+		const isInMemoryTemporary = site.metadata.storage === 'none';
+		const isAutosavedTemporary = site.metadata.kind === 'autosave';
+
+		const includeSiteSlug =
+			options.includeSiteSlug ??
+			(!isInMemoryTemporary &&
+				(!isAutosavedTemporary || baseHasSiteSlug));
+
+		if (!includeSiteSlug) {
+			if (site.originalUrlParams) {
+				return updateUrl(baseUrl, site.originalUrlParams);
 			}
-			return updateUrl(baseUrl, {
-				searchParams: { 'site-slug': site.slug, ...preserveParams },
-				hash: '',
-			});
+			// If we don't have enough information to reconstruct the original
+			// Query API URL, keep the current URL but ensure we don't keep a
+			// stale `site-slug` parameter.
+			if (baseHasSiteSlug) {
+				return updateUrl(
+					baseUrl,
+					{ searchParams: { 'site-slug': undefined } },
+					'merge'
+				);
+			}
+			return baseUrl;
 		}
+
+		const preserveParamsKeys = [
+			'mode',
+			'networking',
+			'login',
+			'url',
+			'site-autosave',
+		];
+		const preserveParams: Record<string, string> = {};
+		for (const param of preserveParamsKeys) {
+			const value = baseParams.get(param);
+			if (value !== null) {
+				preserveParams[param] = value;
+			}
+		}
+		return updateUrl(baseUrl, {
+			searchParams: { 'site-slug': site.slug, ...preserveParams },
+			hash: '',
+		});
 	}
 	static newTemporarySite(
 		config: {

@@ -98,17 +98,32 @@ export const selectActiveSiteErrorDetails = (
 
 export const useActiveSite = () => useAppSelector(selectActiveSite);
 
-export const setActiveSite = (slug: string | undefined) => {
+export const setActiveSite = (
+	slug: string | undefined,
+	options: {
+		/**
+		 * Force the URL into `site-slug` mode.
+		 *
+		 * Used for autosaved temporary sites when explicitly opened from the
+		 * Site Manager. In Query API mode (no `site-slug`), refresh should still
+		 * create a new autosaved temporary site.
+		 */
+		forceSiteSlugInUrl?: boolean;
+	} = {}
+) => {
 	return (
 		dispatch: PlaygroundDispatch,
 		getState: () => PlaygroundReduxState
 	) => {
 		// Short-circuit if the provided slug already points to the active site.
 		const activeSite = selectActiveSite(getState());
-		if (activeSite?.slug === slug) {
+		const isSameSite = activeSite?.slug === slug;
+		if (isSameSite && !options.forceSiteSlugInUrl) {
 			return;
 		}
-		dispatch(__internal_uiSlice.actions.setActiveSite(slug));
+		if (!isSameSite) {
+			dispatch(__internal_uiSlice.actions.setActiveSite(slug));
+		}
 		if (slug) {
 			const site = selectSiteBySlug(getState(), slug);
 			if (site && isAutoSavedTemporarySite(site)) {
@@ -122,7 +137,13 @@ export const setActiveSite = (slug: string | undefined) => {
 					})
 				);
 			}
-			redirectTo(PlaygroundRoute.site(site));
+			redirectTo(
+				PlaygroundRoute.site(site, window.location.href, {
+					includeSiteSlug: options.forceSiteSlugInUrl
+						? true
+						: undefined,
+				})
+			);
 		}
 	};
 };

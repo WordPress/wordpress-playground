@@ -243,8 +243,12 @@ export function SavedPlaygroundsOverlay({
 		};
 	}, [handleKeyDown]);
 
-	const onSiteClick = (slug: string) => {
-		dispatch(setActiveSite(slug));
+	const onSiteClick = (site: SiteInfo) => {
+		dispatch(
+			setActiveSite(site.slug, {
+				forceSiteSlugInUrl: site.metadata.kind === 'autosave',
+			})
+		);
 		dispatch(setSiteManagerSection('site-details'));
 		closeWithFade();
 	};
@@ -774,7 +778,7 @@ export function SavedPlaygroundsOverlay({
 														css.siteRowContent
 													}
 													onClick={() =>
-														onSiteClick(site.slug)
+														onSiteClick(site)
 													}
 												>
 													<div
@@ -865,7 +869,7 @@ export function SavedPlaygroundsOverlay({
 											<button
 												className={css.siteRowContent}
 												onClick={() =>
-													onSiteClick(site.slug)
+													onSiteClick(site)
 												}
 											>
 												<div
