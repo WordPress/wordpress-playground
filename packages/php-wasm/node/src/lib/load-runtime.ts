@@ -8,12 +8,17 @@ import type {
 } from '@php-wasm/universal';
 import { loadPHPRuntime, FSHelpers, bindUserSpace } from '@php-wasm/universal';
 import fs from 'fs';
-import { getPHPLoaderModule } from '.';
+import {
+	FileLockManagerForPosix,
+	FileLockManagerForWindows,
+	getPHPLoaderModule,
+} from '.';
 import { withNetworking } from './networking/with-networking';
 import { withXdebug, type XdebugOptions } from './xdebug/with-xdebug';
 import { withIntl } from './extensions/intl/with-intl';
 import { joinPaths } from '@php-wasm/util';
 import { dirname } from 'path';
+import { platform } from 'os';
 
 export interface PHPLoaderOptions {
 	followSymlinks?: boolean;
@@ -80,7 +85,11 @@ export async function loadNodeRuntime(
 		bindUserSpace: (userSpaceContext: OSUserSpaceContext) => {
 			return bindUserSpace(
 				{
-					fileLockManager: options?.fileLockManager,
+					fileLockManager:
+						options?.fileLockManager ??
+						(platform() === 'win32'
+							? new FileLockManagerForWindows()
+							: new FileLockManagerForPosix()),
 				},
 				userSpaceContext
 			);
