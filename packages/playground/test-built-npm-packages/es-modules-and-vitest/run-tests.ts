@@ -38,6 +38,7 @@ for (const phpVersion of SupportedPHPVersions.filter(
 			'--experimental-strip-types',
 			'--experimental-transform-types',
 			'--test',
+			'--test-concurrency=1',
 			'./tests/wp.spec.ts',
 		],
 		{
