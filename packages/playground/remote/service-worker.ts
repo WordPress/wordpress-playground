@@ -687,11 +687,10 @@ function rewriteCoopHeadersToDocumentIsolationPolicy(
 	 * - `isolate-and-require-corp` ← COEP: require-corp
 	 * - `isolate-and-credentialless` ← COEP: credentialless
 	 *
-	 * COOP is not directly mapped because Document-Isolation-Policy inherently provides the
-	 * cross-origin isolation that COOP: same-origin would provide, but without breaking
-	 * cross-origin popup communication.
+	 * COOP is not directly mapped as Document-Isolation-Policy inherently provides the
+	 * same cross-origin isolation as `COOP: same-origin` would.
 	 */
-	const dipValue =
+	const documentIsolationPolicy =
 		coep === 'require-corp'
 			? 'isolate-and-require-corp'
 			: 'isolate-and-credentialless';
@@ -699,7 +698,7 @@ function rewriteCoopHeadersToDocumentIsolationPolicy(
 	const newHeaders = new Headers(response.headers);
 	newHeaders.delete('cross-origin-embedder-policy');
 	newHeaders.delete('cross-origin-opener-policy');
-	newHeaders.set('document-isolation-policy', dipValue);
+	newHeaders.set('document-isolation-policy', documentIsolationPolicy);
 
 	// Track that this scope has cross-origin isolation enabled so that
 	// empty.html (the editor iframe) can also get the Document-Isolation-Policy header.

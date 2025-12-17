@@ -42,6 +42,19 @@ export class BlueprintFilesystemRequiredError extends Error {
 	}
 }
 
+/**
+ * Error thrown when a resource could not be downloaded from a URL.
+ */
+export class ResourceDownloadError extends Error {
+	public readonly url: string;
+
+	constructor(message: string, url: string, options?: ErrorOptions) {
+		super(message, options);
+		this.name = 'ResourceDownloadError';
+		this.url = url;
+	}
+}
+
 export type { FileTree };
 export const ResourceTypes = [
 	'vfs',
@@ -528,14 +541,20 @@ export abstract class FetchResource extends Resource<File> {
 				await this.playground?.absoluteUrl
 			);
 			if (!response.ok) {
-				throw new Error(`Could not download "${url}"`);
+				throw new ResourceDownloadError(
+					`Could not download "${url}"`,
+					url
+				);
 			}
 			response = await cloneResponseMonitorProgress(
 				response,
 				this.progress?.loadingListener ?? noop
 			);
 			if (response.status !== 200) {
-				throw new Error(`Could not download "${url}"`);
+				throw new ResourceDownloadError(
+					`Could not download "${url}"`,
+					url
+				);
 			}
 			const filename =
 				this.name ||
@@ -545,10 +564,11 @@ export abstract class FetchResource extends Resource<File> {
 				encodeURIComponent(url);
 			return new File([await response.blob()], filename);
 		} catch (e) {
-			throw new Error(
+			throw new ResourceDownloadError(
 				`Could not download "${url}".\n\n` +
 					`Confirm that the URL is correct, the server is reachable, and the file is` +
 					`actually served at that URL. Original error: \n ${e}`,
+				url,
 				{ cause: e }
 			);
 		}

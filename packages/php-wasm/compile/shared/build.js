@@ -15,12 +15,8 @@ const argParser = yargs(process.argv.slice(2))
 		},
 		PHP_VERSION: {
 			type: 'string',
+			required: true,
 			description: 'The PHP version to build',
-		},
-		PLATFORM: {
-			type: 'string',
-			choices: ['web', 'node'],
-			description: 'The platform to build for',
 		},
 		JSPI: {
 			type: 'string',
@@ -41,7 +37,6 @@ const argParser = yargs(process.argv.slice(2))
 		},
 		SHARED_DIR: {
 			type: 'string',
-			required: true,
 			description: 'The shared directory',
 		},
 	});
@@ -87,8 +82,6 @@ await asyncSpawn(
 		'--build-arg',
 		getArg('PHP_VERSION'),
 		'--build-arg',
-		getArg('PLATFORM'),
-		'--build-arg',
 		getArg('DEBUG'),
 		'--build-arg',
 		getArg('JSPI'),
@@ -120,37 +113,39 @@ await asyncSpawn(
 	{ cwd: path.dirname(sourceDir), stdio: 'inherit' }
 );
 
-// Store the shared data if any
-await asyncSpawn(
-	'docker',
-	[
-		'run',
-		'--name',
-		'playground-php-data-tmp',
-		'--rm',
-		'-v',
-		`${sourceDir}/${library}:/output`,
-		`playground-php-wasm:${library}`,
-		// Use sh -c because wildcards are a shell feature and
-		// they don't work without running cp through shell.
-		'sh',
-		'-c',
-		`[ -d /root/${library}/data ] &&
-			rm -rf /output/data && mkdir -p /output/data && \
-			cp -rf /root/${library}/data/* /output/data || true`,
-	],
-	{ cwd: path.dirname(sourceDir), stdio: 'inherit' }
-);
+if (args['SHARED_DIR']) {
+	const sharedDir = path.resolve(process.cwd(), args['SHARED_DIR']);
 
-const sharedDir = path.resolve(process.cwd(), args['SHARED_DIR']);
-
-// Copy data files
-if (fs.existsSync(`${sourceDir}/${library}/data`)) {
+	// Store the shared data if any
 	await asyncSpawn(
-		'sh',
-		['-c', `cp ${sourceDir}/${library}/data/* ${sharedDir}`],
-		{ cwd: sourceDir, stdio: 'inherit' }
+		'docker',
+		[
+			'run',
+			'--name',
+			'playground-php-data-tmp',
+			'--rm',
+			'-v',
+			`${sourceDir}/${library}:/output`,
+			`playground-php-wasm:${library}`,
+			// Use sh -c because wildcards are a shell feature and
+			// they don't work without running cp through shell.
+			'sh',
+			'-c',
+			`[ -d /root/${library}/data ] &&
+				rm -rf /output/data && mkdir -p /output/data && \
+				cp -rf /root/${library}/data/* /output/data || true`,
+		],
+		{ cwd: path.dirname(sourceDir), stdio: 'inherit' }
 	);
+
+	// Copy data files
+	if (fs.existsSync(`${sourceDir}/${library}/data`)) {
+		await asyncSpawn(
+			'sh',
+			['-c', `cp ${sourceDir}/${library}/data/* ${sharedDir}`],
+			{ cwd: sourceDir, stdio: 'inherit' }
+		);
+	}
 }
 
 function asyncSpawn(...args) {

@@ -6,8 +6,6 @@ FROM playground-php-wasm:base
 # compatible with a particular Zend Engine API version.
 ARG PHP_VERSION
 
-ARG PLATFORM
-
 ARG JSPI
 
 ARG DEBUG

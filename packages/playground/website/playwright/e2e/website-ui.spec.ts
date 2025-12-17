@@ -262,16 +262,6 @@ test('should edit a blueprint in the blueprint editor and recreate the playgroun
 	);
 	await editor.waitFor({ timeout: 10000 });
 
-	await editor.click();
-
-	// Delete all content in the editor (Cmd+A or Ctrl+A)
-	await website.page.keyboard.press(
-		process.platform === 'darwin' ? 'Meta+A' : 'Control+A'
-	);
-
-	await website.page.keyboard.press('Backspace');
-	await website.page.waitForTimeout(200);
-
 	// Create a simple blueprint that writes "Blueprint test" to index.php
 	const blueprint = JSON.stringify(
 		{
@@ -288,19 +278,26 @@ test('should edit a blueprint in the blueprint editor and recreate the playgroun
 		2
 	);
 
-	// Type the new blueprint with a delay between keystrokes
-	await website.page.keyboard.type(blueprint, { delay: 50 });
+	// Focus the editor and select all existing content
+	await editor.click();
+	await website.page.keyboard.press(
+		process.platform === 'darwin' ? 'Meta+A' : 'Control+A'
+	);
 
-	// Remove the autoinserted brackets until the end of the Blueprint
-	await website.page.keyboard.down('Shift');
-	for (let i = 0; i < 4; i++) {
-		await website.page.keyboard.press('ArrowDown');
-	}
+	// Dispatch a paste event to replace content - avoids auto-bracket insertion issues
+	await website.page.evaluate((content) => {
+		const dataTransfer = new DataTransfer();
+		dataTransfer.setData('text/plain', content);
+		document.activeElement?.dispatchEvent(
+			new ClipboardEvent('paste', {
+				clipboardData: dataTransfer,
+				bubbles: true,
+				cancelable: true,
+			})
+		);
+	}, blueprint);
 
-	// Delete the selected lines
-	await website.page.keyboard.press('Backspace');
-
-	// Wait a moment for the change to be processed
+	// Wait for validation to complete (linter has 300ms debounce)
 	await website.page.waitForTimeout(500);
 
 	// Click the "Run Blueprint" button

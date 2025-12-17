@@ -20,6 +20,11 @@ if (should_respond_with_cors_headers($server_host, $origin)) {
     header('Access-Control-Allow-Credentials: true');
     header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
     header('Access-Control-Allow-Headers: Accept, Authorization, Content-Type, git-protocol, wp_blog, wp_install, x-cors-proxy-allowed-request-headers');
+    // Identify this response as coming from the legitimate CORS proxy.
+    // Network firewalls may intercept requests and return error responses
+    // without this header, allowing clients to detect interference.
+    header('X-Playground-Cors-Proxy: true');
+    header('Access-Control-Expose-Headers: X-Playground-Cors-Proxy');
 }
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     header("Allow: GET, POST, OPTIONS");
