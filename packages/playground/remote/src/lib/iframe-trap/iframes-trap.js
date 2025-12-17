@@ -1,22 +1,20 @@
 /**
  * iframes-trap.js
  *
- * This script intercepts iframe creation and modification to ensure all iframes
- * are controlled by the service worker. Iframes created with about:blank, srcdoc,
- * data:, or blob: URLs are NOT controlled by the parent page's service worker,
- * which means network requests from these iframes bypass the service worker entirely.
+ * This script ensures resources loaded from uncontrolled iframes (about:blank, srcdoc,
+ * data:, blob:) can still be fetched through the service worker.
  *
- * This causes issues in WordPress Playground where:
- * - CSS files fail to load in the site editor
- * - TinyMCE can't load media images
- * - Other assets requested from uncontrolled iframes fail
+ * The problem: Iframes with these URLs are NOT controlled by the parent's service worker,
+ * which means fetch/XHR requests and resource loading bypass the SW entirely. This causes
+ * CSS files, images, and other assets to fail with 404 errors in WordPress Playground.
  *
  * The solution:
- * 1. Override DOM methods used to create/modify iframes
- * 2. When src/srcdoc is set on an iframe, intercept it
- * 3. Store the initial HTML in a shared storage (window.__iframeContents)
- * 4. Set the iframe's src to a controlled URL (/wp-includes/playground-iframe-loader.html)
- * 5. The loader requests content from parent via postMessage and renders it
+ * 1. For iframes using src/srcdoc with static content, redirect to a SW-controlled loader
+ * 2. For iframes populated via document.write() (like TinyMCE), inject a resource proxy
+ *    script that routes fetch/XHR through the parent window (which IS SW-controlled)
+ *
+ * This approach preserves TinyMCE's ability to interact with its iframe document while
+ * still allowing resources to load through the service worker.
  *
  * Related browser bugs:
  * - Chrome: https://bugs.chromium.org/p/chromium/issues/detail?id=880768
@@ -32,163 +30,297 @@
     }
     window.__playgroundIframesTrapInstalled = true;
 
-    // Storage for iframe initial content, keyed by unique ID
-    if (!window.__iframeContents) {
-        window.__iframeContents = new Map();
+    // Get scope prefix for URLs
+    function getScopePrefix() {
+        const currentPath = window.location.pathname;
+        const scopeMatch = currentPath.match(/^(\/scope:[^/]+\/)/);
+        return scopeMatch ? scopeMatch[1] : '/';
     }
+    const scopePrefix = getScopePrefix();
 
-    // Map from iframe element to its content ID
-    if (!window.__iframeIdMap) {
-        window.__iframeIdMap = new WeakMap();
-    }
+    // Counter for generating unique request IDs
+    let requestIdCounter = 0;
 
-    // Counter for generating unique iframe IDs
-    let iframeIdCounter = 0;
-
-    // The base URL for the iframe loader (controlled by the service worker)
-    const IFRAME_LOADER_URL = '/wp-includes/playground-iframe-loader.html';
+    // Pending resource requests from child iframes
+    const pendingRequests = new Map();
 
     /**
-     * Listen for content requests from iframe loaders
+     * The resource proxy script that gets injected into iframes.
+     * This script intercepts fetch/XHR and routes them through the parent window.
      */
+    const resourceProxyScript = `
+(function() {
+    if (window.__playgroundResourceProxyInstalled) return;
+    window.__playgroundResourceProxyInstalled = true;
+
+    const pendingRequests = new Map();
+    let requestId = 0;
+
+    // Listen for responses from parent
     window.addEventListener('message', function(event) {
-        if (event.data && event.data.type === 'playground-iframe-content-request') {
-            const id = event.data.id;
-            const contentData = window.__iframeContents.get(id);
-
-            if (contentData && event.source) {
-                event.source.postMessage({
-                    type: 'playground-iframe-content-response',
-                    id: id,
-                    content: contentData.content,
-                    originalUrl: contentData.originalUrl
-                }, '*');
-
-                // Clean up after delivering content
-                window.__iframeContents.delete(id);
+        if (event.data && event.data.type === 'playground-resource-response') {
+            const pending = pendingRequests.get(event.data.requestId);
+            if (pending) {
+                pendingRequests.delete(event.data.requestId);
+                if (event.data.error) {
+                    pending.reject(new Error(event.data.error));
+                } else {
+                    pending.resolve(event.data);
+                }
             }
         }
     });
 
-    /**
-     * Determines if a URL needs to be trapped (redirected through our loader)
-     */
-    function shouldTrapUrl(url) {
-        if (!url) return false;
+    // Request a resource through the parent window
+    function requestResource(url, options) {
+        return new Promise(function(resolve, reject) {
+            const id = ++requestId;
+            pendingRequests.set(id, { resolve: resolve, reject: reject });
 
-        // Trap about:blank
-        if (url === 'about:blank') return true;
-
-        // Trap blob: URLs
-        if (url.startsWith('blob:')) return true;
-
-        // Trap data: URLs
-        if (url.startsWith('data:')) return true;
-
-        // Trap javascript: URLs
-        if (url.startsWith('javascript:')) return true;
-
-        return false;
-    }
-
-    /**
-     * Read a blob URL synchronously and return its text content
-     */
-    function readBlobSync(blobUrl) {
-        try {
-            const xhr = new XMLHttpRequest();
-            xhr.open('GET', blobUrl, false); // synchronous
-            xhr.overrideMimeType('text/plain;charset=utf-8');
-            xhr.send();
-            return xhr.responseText;
-        } catch (e) {
-            console.warn('[iframes-trap] Failed to read blob URL:', e);
-            return '';
-        } finally {
-            // Revoke the blob URL to free memory
+            // Resolve relative URLs against current location
+            let absoluteUrl;
             try {
-                URL.revokeObjectURL(blobUrl);
+                absoluteUrl = new URL(url, window.location.href).href;
             } catch (e) {
-                // Ignore errors
+                absoluteUrl = url;
             }
-        }
-    }
 
-    /**
-     * Generate a unique ID for storing iframe content
-     */
-    function generateIframeId() {
-        return `iframe-${Date.now()}-${++iframeIdCounter}`;
-    }
+            window.parent.postMessage({
+                type: 'playground-resource-request',
+                requestId: id,
+                url: absoluteUrl,
+                options: options || {}
+            }, '*');
 
-    /**
-     * Store content and return the loader URL
-     */
-    function storeContentAndGetLoaderUrl(content, originalUrl) {
-        const id = generateIframeId();
-        window.__iframeContents.set(id, {
-            content: content,
-            originalUrl: originalUrl,
-            timestamp: Date.now()
-        });
-
-        // Clean up old entries (older than 1 minute)
-        const now = Date.now();
-        for (const [key, value] of window.__iframeContents.entries()) {
-            if (now - value.timestamp > 60000) {
-                window.__iframeContents.delete(key);
-            }
-        }
-
-        return `${IFRAME_LOADER_URL}?id=${id}`;
-    }
-
-    /**
-     * Process a src value and return either the original or a trapped URL
-     */
-    function processSrc(src) {
-        if (!shouldTrapUrl(src)) {
-            return { trapped: false, url: src };
-        }
-
-        let content = '';
-
-        if (src === 'about:blank') {
-            content = '<!doctype html><html><head></head><body></body></html>';
-        } else if (src.startsWith('blob:')) {
-            content = readBlobSync(src);
-        } else if (src.startsWith('data:')) {
-            // Parse data URL
-            try {
-                const match = src.match(/^data:([^;,]*)(;base64)?,(.*)$/);
-                if (match) {
-                    const isBase64 = !!match[2];
-                    const data = match[3];
-                    content = isBase64 ? atob(data) : decodeURIComponent(data);
+            // Timeout after 30 seconds
+            setTimeout(function() {
+                if (pendingRequests.has(id)) {
+                    pendingRequests.delete(id);
+                    reject(new Error('Resource request timeout: ' + url));
                 }
-            } catch (e) {
-                console.warn('[iframes-trap] Failed to parse data URL:', e);
-            }
-        } else if (src.startsWith('javascript:')) {
-            // For javascript: URLs, create an empty document
-            content = '<!doctype html><html><head></head><body></body></html>';
+            }, 30000);
+        });
+    }
+
+    // Override fetch
+    const originalFetch = window.fetch;
+    window.fetch = function(input, init) {
+        const url = typeof input === 'string' ? input : input.url;
+
+        // Only proxy http/https URLs or relative URLs
+        if (url && (url.startsWith('http') || url.startsWith('/') || !url.includes(':'))) {
+            return requestResource(url, {
+                method: init?.method || 'GET',
+                headers: init?.headers || {},
+                body: init?.body
+            }).then(function(response) {
+                return new Response(response.body, {
+                    status: response.status,
+                    statusText: response.statusText,
+                    headers: response.headers
+                });
+            });
         }
 
-        const loaderUrl = storeContentAndGetLoaderUrl(content, src);
-        return { trapped: true, url: loaderUrl };
+        return originalFetch.apply(this, arguments);
+    };
+
+    // Override XMLHttpRequest
+    const OriginalXHR = window.XMLHttpRequest;
+    window.XMLHttpRequest = function() {
+        const xhr = new OriginalXHR();
+        const originalOpen = xhr.open.bind(xhr);
+        const originalSend = xhr.send.bind(xhr);
+
+        let method = 'GET';
+        let url = '';
+        let async = true;
+
+        xhr.open = function(m, u, a) {
+            method = m;
+            url = u;
+            async = a !== false;
+            return originalOpen.apply(this, arguments);
+        };
+
+        xhr.send = function(body) {
+            // Only proxy http/https URLs or relative URLs
+            if (url && (url.startsWith('http') || url.startsWith('/') || !url.includes(':'))) {
+                const self = this;
+
+                requestResource(url, { method: method, body: body })
+                    .then(function(response) {
+                        Object.defineProperty(self, 'status', { value: response.status, writable: false });
+                        Object.defineProperty(self, 'statusText', { value: response.statusText, writable: false });
+                        Object.defineProperty(self, 'responseText', { value: response.body, writable: false });
+                        Object.defineProperty(self, 'response', { value: response.body, writable: false });
+                        Object.defineProperty(self, 'readyState', { value: 4, writable: false });
+
+                        if (self.onreadystatechange) self.onreadystatechange();
+                        if (self.onload) self.onload();
+                    })
+                    .catch(function(error) {
+                        Object.defineProperty(self, 'status', { value: 0, writable: false });
+                        Object.defineProperty(self, 'readyState', { value: 4, writable: false });
+
+                        if (self.onreadystatechange) self.onreadystatechange();
+                        if (self.onerror) self.onerror(error);
+                    });
+
+                return;
+            }
+
+            return originalSend.apply(this, arguments);
+        };
+
+        return xhr;
+    };
+
+    // Handle CSS loading by observing link elements
+    const observer = new MutationObserver(function(mutations) {
+        for (const mutation of mutations) {
+            for (const node of mutation.addedNodes) {
+                if (node.nodeType !== Node.ELEMENT_NODE) continue;
+
+                // Handle <link rel="stylesheet">
+                if (node.tagName === 'LINK' && node.rel === 'stylesheet' && node.href) {
+                    loadStylesheet(node);
+                }
+
+                // Handle <img> elements
+                if (node.tagName === 'IMG' && node.src) {
+                    loadImage(node);
+                }
+
+                // Check children
+                if (node.querySelectorAll) {
+                    node.querySelectorAll('link[rel="stylesheet"]').forEach(loadStylesheet);
+                    node.querySelectorAll('img[src]').forEach(loadImage);
+                }
+            }
+        }
+    });
+
+    function loadStylesheet(link) {
+        if (link.dataset.proxyLoading) return;
+        link.dataset.proxyLoading = 'true';
+
+        const href = link.href;
+        requestResource(href, { method: 'GET' })
+            .then(function(response) {
+                if (response.status === 200) {
+                    const style = document.createElement('style');
+                    style.textContent = response.body;
+                    link.parentNode.insertBefore(style, link);
+                    link.remove();
+                }
+            })
+            .catch(function(err) {
+                console.warn('[resource-proxy] Failed to load stylesheet:', href, err);
+            });
     }
+
+    function loadImage(img) {
+        if (img.dataset.proxyLoading) return;
+        img.dataset.proxyLoading = 'true';
+
+        const src = img.src;
+        // Skip data URLs and blob URLs
+        if (src.startsWith('data:') || src.startsWith('blob:')) return;
+
+        requestResource(src, { method: 'GET', responseType: 'base64' })
+            .then(function(response) {
+                if (response.status === 200 && response.base64) {
+                    img.src = 'data:' + (response.contentType || 'image/png') + ';base64,' + response.base64;
+                }
+            })
+            .catch(function(err) {
+                console.warn('[resource-proxy] Failed to load image:', src, err);
+            });
+    }
+
+    // Start observing
+    if (document.body) {
+        observer.observe(document.body, { childList: true, subtree: true });
+    } else {
+        document.addEventListener('DOMContentLoaded', function() {
+            observer.observe(document.body, { childList: true, subtree: true });
+        });
+    }
+
+    console.log('[resource-proxy] Installed in iframe');
+})();
+`;
 
     /**
-     * Process a srcdoc value and return a trapped URL
+     * Listen for resource requests from child iframes and fulfill them
+     * through our SW-controlled context
      */
-    function processSrcdoc(srcdoc) {
-        if (!srcdoc) {
-            return { trapped: false, url: null };
-        }
+    window.addEventListener('message', function(event) {
+        if (event.data && event.data.type === 'playground-resource-request') {
+            const { requestId, url, options } = event.data;
 
-        const loaderUrl = storeContentAndGetLoaderUrl(srcdoc, 'srcdoc');
-        return { trapped: true, url: loaderUrl };
-    }
+            // Resolve the URL relative to our scope
+            let resolvedUrl;
+            try {
+                resolvedUrl = new URL(url, window.location.href).href;
+            } catch (e) {
+                resolvedUrl = url;
+            }
+
+            // Fetch the resource through our SW-controlled context
+            const fetchOptions = {
+                method: options.method || 'GET',
+                headers: options.headers || {},
+            };
+            if (options.body && fetchOptions.method !== 'GET') {
+                fetchOptions.body = options.body;
+            }
+
+            fetch(resolvedUrl, fetchOptions)
+                .then(async function(response) {
+                    let body;
+                    let base64;
+                    const contentType = response.headers.get('content-type') || '';
+
+                    // For images, return as base64
+                    if (options.responseType === 'base64' || contentType.startsWith('image/')) {
+                        const arrayBuffer = await response.arrayBuffer();
+                        const bytes = new Uint8Array(arrayBuffer);
+                        let binary = '';
+                        for (let i = 0; i < bytes.length; i++) {
+                            binary += String.fromCharCode(bytes[i]);
+                        }
+                        base64 = btoa(binary);
+                    } else {
+                        body = await response.text();
+                    }
+
+                    // Send response back to iframe
+                    if (event.source) {
+                        event.source.postMessage({
+                            type: 'playground-resource-response',
+                            requestId: requestId,
+                            status: response.status,
+                            statusText: response.statusText,
+                            headers: Object.fromEntries(response.headers.entries()),
+                            body: body,
+                            base64: base64,
+                            contentType: contentType
+                        }, '*');
+                    }
+                })
+                .catch(function(error) {
+                    if (event.source) {
+                        event.source.postMessage({
+                            type: 'playground-resource-response',
+                            requestId: requestId,
+                            error: error.message
+                        }, '*');
+                    }
+                });
+        }
+    });
 
     // Store original descriptors
     const originalSrcDescriptor = Object.getOwnPropertyDescriptor(
@@ -197,134 +329,182 @@
     const originalSrcdocDescriptor = Object.getOwnPropertyDescriptor(
         HTMLIFrameElement.prototype, 'srcdoc'
     );
+    const originalContentDocumentDescriptor = Object.getOwnPropertyDescriptor(
+        HTMLIFrameElement.prototype, 'contentDocument'
+    );
+    const originalContentWindowDescriptor = Object.getOwnPropertyDescriptor(
+        HTMLIFrameElement.prototype, 'contentWindow'
+    );
 
-    // Track which iframes we've trapped to avoid infinite loops
-    const trappedIframes = new WeakSet();
-
-    /**
-     * Override the src property
-     */
-    Object.defineProperty(HTMLIFrameElement.prototype, 'src', {
-        get: function() {
-            return originalSrcDescriptor.get.call(this);
-        },
-        set: function(value) {
-            // If we're in the middle of trapping, use the original setter
-            if (trappedIframes.has(this)) {
-                trappedIframes.delete(this);
-                return originalSrcDescriptor.set.call(this, value);
-            }
-
-            const result = processSrc(value);
-            if (result.trapped) {
-                // Mark as trapped and set the loader URL
-                trappedIframes.add(this);
-                // Also clear any srcdoc that might interfere
-                if (this.hasAttribute('srcdoc')) {
-                    this.removeAttribute('srcdoc');
-                }
-            }
-            return originalSrcDescriptor.set.call(this, result.url);
-        },
-        configurable: true,
-        enumerable: true
-    });
+    // Track iframes we've processed
+    const processedIframes = new WeakSet();
 
     /**
-     * Override the srcdoc property
+     * Inject the resource proxy script into an iframe's document
      */
-    Object.defineProperty(HTMLIFrameElement.prototype, 'srcdoc', {
-        get: function() {
-            return originalSrcdocDescriptor.get.call(this);
-        },
-        set: function(value) {
-            const result = processSrcdoc(value);
-            if (result.trapped) {
-                // When srcdoc is set, we need to use src instead
-                trappedIframes.add(this);
-                return originalSrcDescriptor.set.call(this, result.url);
+    function injectResourceProxy(iframe) {
+        if (processedIframes.has(iframe)) return;
+
+        try {
+            const doc = originalContentDocumentDescriptor.get.call(iframe);
+            if (!doc) return;
+
+            // Check if script already injected
+            if (doc.__playgroundResourceProxyInstalled) return;
+
+            processedIframes.add(iframe);
+
+            // Inject the script
+            const script = doc.createElement('script');
+            script.textContent = resourceProxyScript;
+            if (doc.head) {
+                doc.head.appendChild(script);
+            } else if (doc.body) {
+                doc.body.insertBefore(script, doc.body.firstChild);
+            } else if (doc.documentElement) {
+                doc.documentElement.appendChild(script);
             }
-            return originalSrcdocDescriptor.set.call(this, value);
-        },
-        configurable: true,
-        enumerable: true
-    });
 
-    /**
-     * Override setAttribute to catch src and srcdoc attribute changes
-     */
-    const originalSetAttribute = Element.prototype.setAttribute;
-    Element.prototype.setAttribute = function(name, value) {
-        if (this.tagName === 'IFRAME') {
-            const lowerName = name.toLowerCase();
-            if (lowerName === 'src') {
-                this.src = value;
-                return;
-            }
-            if (lowerName === 'srcdoc') {
-                this.srcdoc = value;
-                return;
-            }
-        }
-        return originalSetAttribute.call(this, name, value);
-    };
-
-    /**
-     * Override document.createElement to intercept iframe creation with attributes
-     * This handles cases like: createElement('iframe', { src: 'about:blank' })
-     */
-    const originalCreateElement = document.createElement.bind(document);
-    document.createElement = function(tagName, options) {
-        const element = originalCreateElement(tagName, options);
-        // The interception happens when src/srcdoc are set, so no extra work needed here
-        return element;
-    };
-
-    /**
-     * Observe DOM for dynamically inserted iframes with src/srcdoc attributes
-     * This catches iframes inserted via innerHTML or similar methods
-     */
-    const observer = new MutationObserver(function(mutations) {
-        for (const mutation of mutations) {
-            for (const node of mutation.addedNodes) {
-                if (node.nodeType !== Node.ELEMENT_NODE) continue;
-
-                // Check if the added node is an iframe
-                if (node.tagName === 'IFRAME') {
-                    processIframe(node);
-                }
-
-                // Check for iframes within the added node
-                if (node.querySelectorAll) {
-                    const iframes = node.querySelectorAll('iframe');
-                    for (const iframe of iframes) {
-                        processIframe(iframe);
-                    }
-                }
-            }
-        }
-    });
-
-    function processIframe(iframe) {
-        // If the iframe already has a srcdoc attribute, trap it
-        const srcdoc = iframe.getAttribute('srcdoc');
-        if (srcdoc) {
-            iframe.srcdoc = srcdoc;
-            return;
-        }
-
-        // If the iframe has a src that should be trapped
-        const src = iframe.getAttribute('src');
-        if (src && shouldTrapUrl(src)) {
-            iframe.src = src;
+            console.log('[iframes-trap] Injected resource proxy into iframe');
+        } catch (e) {
+            // Cross-origin iframes will throw, which is fine
         }
     }
 
-    // Start observing the document
-    observer.observe(document.documentElement || document.body || document, {
-        childList: true,
-        subtree: true
+    /**
+     * Track iframes that are being written to via contentDocument.write()
+     */
+    const iframesBeingWritten = new WeakMap();
+
+    function getWriteTracker(iframe) {
+        if (!iframesBeingWritten.has(iframe)) {
+            iframesBeingWritten.set(iframe, {
+                content: '',
+                isOpen: false
+            });
+        }
+        return iframesBeingWritten.get(iframe);
+    }
+
+    /**
+     * Create a proxy for the document that injects our resource proxy script
+     * into content written via document.write()
+     */
+    function createDocumentProxy(iframe, originalDoc) {
+        if (originalDoc.__playgroundProxied) return originalDoc;
+        originalDoc.__playgroundProxied = true;
+
+        const tracker = getWriteTracker(iframe);
+
+        const originalOpen = originalDoc.open.bind(originalDoc);
+        const originalWrite = originalDoc.write.bind(originalDoc);
+        const originalWriteln = originalDoc.writeln.bind(originalDoc);
+        const originalClose = originalDoc.close.bind(originalDoc);
+
+        originalDoc.open = function() {
+            tracker.content = '';
+            tracker.isOpen = true;
+            return originalOpen.apply(this, arguments);
+        };
+
+        originalDoc.write = function(content) {
+            if (tracker.isOpen && content) {
+                tracker.content += content;
+            }
+            return originalWrite.apply(this, arguments);
+        };
+
+        originalDoc.writeln = function(content) {
+            if (tracker.isOpen && content) {
+                tracker.content += content + '\n';
+            }
+            return originalWriteln.apply(this, arguments);
+        };
+
+        originalDoc.close = function() {
+            const result = originalClose.apply(this, arguments);
+
+            // After close, inject our resource proxy script
+            if (tracker.isOpen) {
+                tracker.isOpen = false;
+
+                // Inject resource proxy script after a microtask to let the DOM settle
+                Promise.resolve().then(function() {
+                    try {
+                        const script = originalDoc.createElement('script');
+                        script.textContent = resourceProxyScript;
+                        if (originalDoc.head) {
+                            originalDoc.head.appendChild(script);
+                        } else if (originalDoc.body) {
+                            originalDoc.body.appendChild(script);
+                        }
+                        console.log('[iframes-trap] Injected resource proxy after document.write');
+                    } catch (e) {
+                        console.warn('[iframes-trap] Failed to inject resource proxy:', e);
+                    }
+                });
+            }
+
+            return result;
+        };
+
+        return originalDoc;
+    }
+
+    // Track which iframes have been proxied
+    const proxiedIframes = new WeakSet();
+
+    /**
+     * Check if an iframe should have its document proxied
+     */
+    function shouldProxyIframe(iframe) {
+        if (proxiedIframes.has(iframe)) return false;
+
+        const src = originalSrcDescriptor.get.call(iframe);
+
+        // Proxy if no src (about:blank) or explicitly about:blank
+        if (!src || src === '' || src === 'about:blank') {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Override contentDocument to intercept document.write() calls
+     */
+    Object.defineProperty(HTMLIFrameElement.prototype, 'contentDocument', {
+        get: function() {
+            const doc = originalContentDocumentDescriptor.get.call(this);
+
+            if (doc && shouldProxyIframe(this)) {
+                proxiedIframes.add(this);
+                return createDocumentProxy(this, doc);
+            }
+
+            return doc;
+        },
+        configurable: true,
+        enumerable: true
     });
 
-    console.log('[iframes-trap] Installed successfully');
+    /**
+     * Override contentWindow to also intercept document access
+     */
+    Object.defineProperty(HTMLIFrameElement.prototype, 'contentWindow', {
+        get: function() {
+            const win = originalContentWindowDescriptor.get.call(this);
+
+            if (win && win.document && shouldProxyIframe(this)) {
+                proxiedIframes.add(this);
+                createDocumentProxy(this, win.document);
+            }
+
+            return win;
+        },
+        configurable: true,
+        enumerable: true
+    });
+
+    console.log('[iframes-trap] Installed successfully (resource proxy mode)');
 })();
