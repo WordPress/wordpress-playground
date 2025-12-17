@@ -9,7 +9,6 @@ import {
 import { logger } from '@php-wasm/logger';
 import { Button, Icon, Notice } from '@wordpress/components';
 import { download, link } from '@wordpress/icons';
-import { encodeStringAsBase64 } from '../../lib/base64';
 import {
 	resolveRuntimeConfiguration,
 	type BlueprintValidationResult,
@@ -26,10 +25,7 @@ import {
 	useRef,
 	useState,
 } from 'react';
-import {
-	CodeEditor,
-	type CodeEditorHandle,
-} from '../site-manager/site-file-browser/code-editor';
+import { CodeEditor, type CodeEditorHandle } from '@wp-playground/components';
 import { FileExplorerSidebar } from './file-explorer-sidebar';
 import {
 	formatEditor,
@@ -42,7 +38,7 @@ import {
 	type SupportedLanguage,
 } from './infer-language-from-blueprint';
 import { StringEditorModal } from './string-editor-modal';
-// Reuse the file browser layout styles to keep UI consistent
+import { useBlueprintUrlHash } from '../../lib/hooks/use-blueprint-url-hash';
 import { useDebouncedCallback } from '../../lib/hooks/use-debounced-callback';
 import { removeClientInfo } from '../../lib/state/redux/slice-clients';
 import {
@@ -51,7 +47,7 @@ import {
 	type SiteInfo,
 } from '../../lib/state/redux/slice-sites';
 import { useAppDispatch } from '../../lib/state/redux/store';
-import styles from '../site-manager/site-file-browser/style.module.css';
+import styles from './blueprint-bundle-editor.module.css';
 import hideRootStyles from './hide-root.module.css';
 import validationStyles from './validation-panel.module.css';
 import type { EventedFilesystem } from '@wp-playground/storage';
@@ -300,6 +296,27 @@ export const BlueprintBundleEditor = forwardRef<
 			contentEnd: 0,
 		});
 
+	// Use the URL hash hook to track shareability and compute URL hash
+	const { urlHash, isShareable: isBundleShareable } = useBlueprintUrlHash(
+		filesystem as EventedFilesystem,
+		currentPath === BLUEPRINT_JSON_PATH ? code : '',
+		{ disabled: readOnly || currentPath !== BLUEPRINT_JSON_PATH }
+	);
+	const newUrl = useMemo(() => {
+		if (readOnly) {
+			return false;
+		}
+		const url = new URL(window.location.href);
+		if (urlHash) {
+			url.hash = urlHash;
+		} else if (url.hash) {
+			url.hash = '';
+		} else {
+			return false;
+		}
+		return url.toString();
+	}, [urlHash, readOnly]);
+
 	const editorRef = useRef<CodeEditorHandle | null>(null);
 	// Store the CodeMirror EditorView for string editor operations
 	const cmViewRef = useRef<EditorView | null>(null);
@@ -353,6 +370,13 @@ export const BlueprintBundleEditor = forwardRef<
 			cancelled = true;
 		};
 	}, [filesystem]);
+
+	// Sync the URL hash from the hook to the browser's location
+	useEffect(() => {
+		if (false !== newUrl) {
+			window.history.replaceState(null, '', newUrl.toString());
+		}
+	}, [newUrl]);
 
 	const handleRecreateFromBlueprint = useCallback(async () => {
 		if (!site || !isTemporarySite(site) || readOnly) {
@@ -586,27 +610,15 @@ export const BlueprintBundleEditor = forwardRef<
 		}
 	}, [filesystem]);
 
-	const handleShareBlueprint = useCallback(async () => {
+	const handleShareBlueprint = async () => {
+		if (false === newUrl) {
+			alert(
+				'Linking to blueprint bundles is not supported yet. Only single-file blueprints can be shared via link.'
+			);
+			return;
+		}
 		try {
-			// Check if the bundle contains anything other than blueprint.json
-			const rootEntries = await filesystem.listFiles('/');
-			if (
-				rootEntries.length !== 1 ||
-				rootEntries[0] !== 'blueprint.json'
-			) {
-				alert(
-					'Linking to blueprint bundles is not supported yet. Only single-file blueprints can be shared via link.'
-				);
-				return;
-			}
-
-			// Read the blueprint.json content
-			const blueprintContent =
-				await filesystem.readFileAsText(BLUEPRINT_JSON_PATH);
-
-			const base64Blueprint = encodeStringAsBase64(blueprintContent);
-			const shareUrl = `${window.location.origin}${window.location.pathname}#${base64Blueprint}`;
-			await navigator.clipboard.writeText(shareUrl);
+			await navigator.clipboard.writeText(newUrl);
 
 			setSuccessMessage('Link copied to clipboard!');
 			setTimeout(() => setSuccessMessage(null), 2000);
@@ -614,7 +626,7 @@ export const BlueprintBundleEditor = forwardRef<
 			logger.error('Failed to share blueprint', error);
 			setSaveError('Could not copy link. Try again.');
 		}
-	}, [filesystem]);
+	};
 
 	useImperativeHandle(
 		ref,
@@ -690,6 +702,8 @@ export const BlueprintBundleEditor = forwardRef<
 									className={styles.editorToolbarButton}
 									onClick={handleShareBlueprint}
 									title="Copy link to blueprint"
+									aria-label="Copy link to blueprint"
+									disabled={!isBundleShareable}
 								>
 									<Icon icon={link} />
 								</Button>
@@ -741,6 +755,16 @@ export const BlueprintBundleEditor = forwardRef<
 							<div style={{ padding: '8px 16px' }}>
 								<Notice status="success" isDismissible={false}>
 									{successMessage}
+								</Notice>
+							</div>
+						) : null}
+						{!readOnly && !isBundleShareable ? (
+							<div style={{ padding: '8px 16px' }}>
+								<Notice status="warning" isDismissible={false}>
+									This Blueprint bundle contains multiple
+									files and cannot be shared via URL. Use the
+									download button to export the bundle as a
+									zip file.
 								</Notice>
 							</div>
 						) : null}

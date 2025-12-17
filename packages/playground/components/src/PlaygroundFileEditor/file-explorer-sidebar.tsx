@@ -1,4 +1,4 @@
-import {
+import React, {
 	useMemo,
 	useRef,
 	useState,
@@ -16,48 +16,13 @@ import type { AsyncWritableFilesystem } from '@wp-playground/storage';
 import { logger } from '@php-wasm/logger';
 import { dirname, normalizePath } from '@php-wasm/util';
 import { BinaryFilePreview } from '@wp-playground/components';
-import mimeTypes from '@php-wasm/universal/mime-types';
-
-export const MAX_INLINE_FILE_BYTES = 1024 * 1024; // 1MB
-
-const seemsLikeBinary = (buffer: Uint8Array) => {
-	// Assume that anything with a null byte in the first 4096 bytes is binary.
-	// This isn't a perfect test, but it catches a lot of binary files.
-	const len = buffer.byteLength;
-	for (let i = 0; i < Math.min(len, 4096); i++) {
-		if (buffer[i] === 0) {
-			return true;
-		}
-	}
-
-	// Next, try to decode the buffer as UTF-8. If it fails, it's probably binary.
-	try {
-		new TextDecoder('utf-8', { fatal: true }).decode(buffer);
-		return false;
-	} catch {
-		return true;
-	}
-};
-
-const createDownloadUrl = (data: Uint8Array, filename: string) => {
-	const blob = new Blob([data]);
-	const url = URL.createObjectURL(blob);
-	setTimeout(() => URL.revokeObjectURL(url), 60_000);
-	return { url, filename };
-};
-
-const getMimeType = (filename: string): string => {
-	const extension = filename.split('.').pop() as keyof typeof mimeTypes;
-	return mimeTypes[extension] || mimeTypes['_default'];
-};
-
-const isPreviewableBinary = (mimeType: string): boolean => {
-	return (
-		mimeType.startsWith('image/') ||
-		mimeType.startsWith('video/') ||
-		mimeType.startsWith('audio/')
-	);
-};
+import {
+	MAX_INLINE_FILE_BYTES,
+	seemsLikeBinary,
+	createDownloadUrl,
+	getMimeType,
+	isPreviewableBinary,
+} from './file-utils';
 
 export type FileExplorerSidebarProps = {
 	filesystem: AsyncWritableFilesystem;
@@ -178,12 +143,12 @@ export function FileExplorerSidebar({
 	};
 
 	return (
-		<div className={styles.fileExplorerContainer}>
-			<div className={styles.fileExplorerHeader}>
-				<span className={styles.fileExplorerTitle}>Files</span>
-				<div className={styles.fileExplorerActions}>
+		<div className={styles['fileExplorerContainer']}>
+			<div className={styles['fileExplorerHeader']}>
+				<span className={styles['fileExplorerTitle']}>Files</span>
+				<div className={styles['fileExplorerActions']}>
 					<button
-						className={styles.fileExplorerButton}
+						className={styles['fileExplorerButton']}
 						type="button"
 						onClick={() => {
 							if (!treeRef.current) {
@@ -199,7 +164,7 @@ export function FileExplorerSidebar({
 						New File
 					</button>
 					<button
-						className={styles.fileExplorerButton}
+						className={styles['fileExplorerButton']}
 						type="button"
 						onClick={() => {
 							if (!treeRef.current) {
@@ -216,7 +181,7 @@ export function FileExplorerSidebar({
 					</button>
 				</div>
 			</div>
-			<div className={styles.fileExplorerTree}>
+			<div className={styles['fileExplorerTree']}>
 				<FilePickerTree
 					ref={treeRef}
 					filesystem={filesystem}

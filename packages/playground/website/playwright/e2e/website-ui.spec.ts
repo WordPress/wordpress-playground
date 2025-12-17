@@ -242,12 +242,7 @@ test('should edit a file in the code editor and see changes in the viewport', as
 test('should edit a blueprint in the blueprint editor and recreate the playground', async ({
 	website,
 	wordpress,
-	browserName,
 }) => {
-	test.skip(
-		browserName === 'firefox',
-		'Firefox has inconsistent keyboard handling in the CodeMirror editor, causing the blueprint to have validation errors'
-	);
 	await website.goto('./');
 
 	// Open site manager
@@ -278,27 +273,33 @@ test('should edit a blueprint in the blueprint editor and recreate the playgroun
 		2
 	);
 
-	// Focus the editor and select all existing content
+	// Focus the editor
 	await editor.click();
+	// Wait a moment for the editor to be fully ready
+	await website.page.waitForTimeout(100);
+
+	// Select all existing content
 	await website.page.keyboard.press(
 		process.platform === 'darwin' ? 'Meta+A' : 'Control+A'
 	);
 
-	// Dispatch a paste event to replace content - avoids auto-bracket insertion issues
-	await website.page.evaluate((content) => {
-		const dataTransfer = new DataTransfer();
-		dataTransfer.setData('text/plain', content);
-		document.activeElement?.dispatchEvent(
-			new ClipboardEvent('paste', {
-				clipboardData: dataTransfer,
-				bubbles: true,
-				cancelable: true,
-			})
-		);
-	}, blueprint);
+	// Delete the selected content
+	await website.page.keyboard.press('Backspace');
+	await website.page.waitForTimeout(100);
+
+	// Use Playwright's fill method on the contenteditable .cm-content element
+	// This is more reliable than character-by-character typing which triggers
+	// auto-bracket insertion
+	const cmContent = editor.locator('.cm-content');
+	await cmContent.fill(blueprint);
 
 	// Wait for validation to complete (linter has 300ms debounce)
 	await website.page.waitForTimeout(500);
+
+	// Verify the blueprint was inserted by checking the editor content
+	await expect(cmContent).toContainText('writeFile', {
+		timeout: 5000,
+	});
 
 	// Click the "Run Blueprint" button
 	await website.page
@@ -344,6 +345,10 @@ test('should copy blueprint link to clipboard when share button is clicked', asy
 	);
 	await editor.waitFor({ timeout: 10000 });
 
+	// Wait for the URL hash to be computed (debounced by 500ms in the component)
+	// and the share button to be ready
+	await website.page.waitForTimeout(1000);
+
 	// Click the share button (copy link to blueprint)
 	const shareButton = website.page.getByRole('button', {
 		name: 'Copy link to blueprint',
@@ -362,7 +367,8 @@ test('should copy blueprint link to clipboard when share button is clicked', asy
 	const clipboardContent = await website.page.evaluate(() =>
 		navigator.clipboard.readText()
 	);
-	expect(clipboardContent).toMatch(/^https?:\/\/[^/]+\/#[A-Za-z0-9+/=]+$/);
+	// URL format: http(s)://host/optional-path/#base64
+	expect(clipboardContent).toMatch(/^https?:\/\/[^#]+#[A-Za-z0-9+/=]+$/);
 
 	// Verify the base64 portion decodes to valid JSON
 	const base64Part = clipboardContent.split('#')[1];

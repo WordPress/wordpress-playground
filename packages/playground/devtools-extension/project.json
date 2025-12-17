@@ -1,0 +1,47 @@
+{
+	"name": "playground-devtools-extension",
+	"$schema": "../../../node_modules/nx/schemas/project-schema.json",
+	"sourceRoot": "packages/playground/devtools-extension/src",
+	"projectType": "application",
+	"targets": {
+		"build": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"cd packages/playground/devtools-extension && npx vite build"
+				]
+			},
+			"dependsOn": ["^build"]
+		},
+		"dev": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"cd packages/playground/devtools-extension && npx vite build --watch"
+				]
+			},
+			"dependsOn": ["^build"]
+		},
+		"lint": {
+			"executor": "@nx/linter:eslint",
+			"outputs": ["{options.outputFile}"],
+			"options": {
+				"useFlatConfig": false,
+				"lintFilePatterns": [
+					"packages/playground/devtools-extension/**/*.ts",
+					"packages/playground/devtools-extension/**/*.tsx"
+				],
+				"maxWarnings": 0
+			}
+		},
+		"typecheck": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"tsc -p packages/playground/devtools-extension/tsconfig.lib.json --noEmit"
+				]
+			}
+		}
+	},
+	"tags": []
+}

@@ -1,6 +1,21 @@
 import { test, expect } from '../playground-fixtures.ts';
 import type { Blueprint } from '@wp-playground/blueprints';
 import type { Page } from '@playwright/test';
+import { encodeZip, collectBytes } from '@php-wasm/stream-compression';
+
+/**
+ * Creates a minimal WordPress export ZIP file for testing imports.
+ * The ZIP contains just an index.php file with the given marker content.
+ */
+async function createTestWordPressZip(markerContent: string): Promise<Buffer> {
+	const phpContent = `<?php echo '${markerContent}';`;
+	const file = new File([phpContent], 'wp-content/index.php', {
+		type: 'text/plain',
+	});
+	const zipStream = encodeZip([file]);
+	const zipBytes = await collectBytes(zipStream);
+	return Buffer.from(zipBytes!);
+}
 
 // OPFS tests must run serially because OPFS storage is shared at the browser
 // level, so tests would interfere with each other's saved sites if run in parallel.
@@ -439,4 +454,200 @@ test('should display OPFS storage option as selected by default', async ({
 
 	// Close the modal
 	await dialog.getByRole('button', { name: 'Cancel' }).click();
+});
+
+test('should import ZIP into temporary site when a saved site exists', async ({
+	website,
+	wordpress,
+	browserName,
+}) => {
+	test.skip(
+		browserName !== 'chromium',
+		`This test relies on OPFS which isn't available in Playwright's flavor of ${browserName}.`
+	);
+
+	// Start with a blueprint that writes a distinctive marker to distinguish the saved site
+	const savedSiteMarker = 'SAVED_SITE_CONTENT_MARKER_12345';
+	const blueprint: Blueprint = {
+		landingPage: '/test-marker.php',
+		steps: [
+			{
+				step: 'writeFile',
+				path: '/wordpress/test-marker.php',
+				data: `<?php echo '${savedSiteMarker}';`,
+			},
+		],
+	};
+	await website.goto(`./#${JSON.stringify(blueprint)}`);
+
+	// Verify the marker is present
+	await expect(wordpress.locator('body')).toContainText(savedSiteMarker);
+
+	await website.ensureSiteManagerIsOpen();
+
+	// Save the site with a custom name
+	const savedSiteName = 'ZIP Import Test Site';
+	await saveSiteViaModal(website.page, { customName: savedSiteName });
+
+	// Wait for the site to be saved (title should change from "Temporary Playground")
+	await expect(website.page.getByLabel('Playground title')).toContainText(
+		savedSiteName,
+		{ timeout: 90000 }
+	);
+
+	// Open the saved playgrounds overlay
+	await website.openSavedPlaygroundsOverlay();
+
+	// Create a test ZIP with imported content marker
+	const importedMarker = 'IMPORTED_CONTENT_MARKER_67890';
+	const zipBuffer = await createTestWordPressZip(importedMarker);
+
+	// Find the hidden file input and upload the ZIP
+	const fileInput = website.page.locator(
+		'input[type="file"][accept*=".zip"]'
+	);
+
+	// Set up dialog handler for the import success alert
+	website.page.once('dialog', async (dialog) => {
+		await dialog.accept();
+	});
+
+	// Upload the ZIP file
+	await fileInput.setInputFiles({
+		name: 'test-import.zip',
+		mimeType: 'application/zip',
+		buffer: zipBuffer,
+	});
+
+	// The import should switch us to a temporary playground.
+	// Wait for the site title to show "Temporary Playground"
+	await expect(website.page.getByLabel('Playground title')).toContainText(
+		'Temporary Playground',
+		{ timeout: 30000 }
+	);
+
+	// Now verify the saved site still has the original content.
+	// Open the saved playgrounds overlay and switch to the saved site
+	await website.openSavedPlaygroundsOverlay();
+
+	await website.page
+		.locator('[class*="siteRowContent"]')
+		.filter({ hasText: savedSiteName })
+		.click();
+
+	// Wait for the saved site to load - this verifies the saved site wasn't overwritten
+	// by the ZIP import (which went to a temporary site instead)
+	await expect(website.page.getByLabel('Playground title')).toContainText(
+		savedSiteName,
+		{ timeout: 30000 }
+	);
+});
+
+test('should create temporary site when importing ZIP while on a saved site with no existing temporary site', async ({
+	website,
+	wordpress,
+	browserName,
+}) => {
+	test.skip(
+		browserName !== 'chromium',
+		`This test relies on OPFS which isn't available in Playwright's flavor of ${browserName}.`
+	);
+
+	// First, create and save a site
+	const savedSiteMarker = 'SAVED_ONLY_MARKER_AAAAA';
+	const blueprint: Blueprint = {
+		landingPage: '/saved-only-marker.php',
+		steps: [
+			{
+				step: 'writeFile',
+				path: '/wordpress/saved-only-marker.php',
+				data: `<?php echo '${savedSiteMarker}';`,
+			},
+		],
+	};
+	await website.goto(`./#${JSON.stringify(blueprint)}`);
+	await expect(wordpress.locator('body')).toContainText(savedSiteMarker);
+
+	await website.ensureSiteManagerIsOpen();
+
+	// Save the site
+	const savedSiteName = 'Direct Slug Test Site';
+	await saveSiteViaModal(website.page, { customName: savedSiteName });
+
+	await expect(website.page.getByLabel('Playground title')).toContainText(
+		savedSiteName,
+		{ timeout: 90000 }
+	);
+
+	// Get the site slug from the URL
+	const urlAfterSave = website.page.url();
+	const urlObj = new URL(urlAfterSave);
+	const siteSlug = urlObj.searchParams.get('site-slug');
+	expect(siteSlug).toBeTruthy();
+
+	// Now reload the page directly with the site-slug parameter.
+	// This simulates starting fresh with just the saved site (no temporary site).
+	await website.page.goto(`./?site-slug=${siteSlug}`);
+	await website.waitForNestedIframes();
+	await website.ensureSiteManagerIsOpen();
+
+	// Verify we're on the saved site
+	await expect(website.page.getByLabel('Playground title')).toContainText(
+		savedSiteName
+	);
+
+	// Open the saved playgrounds overlay
+	await website.openSavedPlaygroundsOverlay();
+
+	// Verify there's no "Temporary Playground" in the list initially
+	// (the temporary site row should show but clicking it would create one)
+	const tempPlaygroundRow = website.page
+		.locator('[class*="siteRowContent"]')
+		.filter({ hasText: 'Temporary Playground' });
+
+	// The row exists but it's for creating a new temporary playground
+	await expect(tempPlaygroundRow).toBeVisible();
+
+	// Create a test ZIP
+	const importedMarker = 'FRESH_IMPORT_MARKER_BBBBB';
+	const zipBuffer = await createTestWordPressZip(importedMarker);
+
+	// Find the file input
+	const fileInput = website.page.locator(
+		'input[type="file"][accept*=".zip"]'
+	);
+
+	// Set up dialog handler
+	website.page.once('dialog', async (dialog) => {
+		await dialog.accept();
+	});
+
+	// Upload the ZIP file
+	await fileInput.setInputFiles({
+		name: 'test-import-direct.zip',
+		mimeType: 'application/zip',
+		buffer: zipBuffer,
+	});
+
+	// The import should trigger creation of a new temporary site.
+	// Wait for the site title to show "Temporary Playground"
+	await expect(website.page.getByLabel('Playground title')).toContainText(
+		'Temporary Playground',
+		{ timeout: 30000 }
+	);
+
+	// Verify the saved site is still intact by switching to it
+	await website.openSavedPlaygroundsOverlay();
+
+	await website.page
+		.locator('[class*="siteRowContent"]')
+		.filter({ hasText: savedSiteName })
+		.click();
+
+	// Wait for the saved site to load - this verifies the saved site wasn't overwritten
+	// by the ZIP import (which went to a temporary site instead)
+	await expect(website.page.getByLabel('Playground title')).toContainText(
+		savedSiteName,
+		{ timeout: 30000 }
+	);
 });

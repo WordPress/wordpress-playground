@@ -58,8 +58,9 @@ export async function loadWebRuntime(
 	 * https://github.com/emscripten-core/emscripten/blob/6d61ffd7076309cb08af37aba496f25c23cdb5a4/src/lib/libeventloop.js#L57
 	 */
 	if (!('setImmediate' in globalThis)) {
-		(globalThis as PHPWorkerGlobalScope).setImmediate = (fn: () => void) =>
-			setTimeout(fn, 0);
+		(globalThis as unknown as PHPWorkerGlobalScope).setImmediate = (
+			fn: () => void
+		) => setTimeout(fn, 0);
 	}
 
 	let emscriptenOptions: EmscriptenOptions | Promise<EmscriptenOptions> = {
