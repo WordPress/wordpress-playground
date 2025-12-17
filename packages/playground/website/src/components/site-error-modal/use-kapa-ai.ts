@@ -1,6 +1,6 @@
 import { useEffect, useCallback, useState, useRef } from 'react';
-// @ts-ignore - Virtual module injected by Vite
-import { kapaWebsiteId } from 'virtual:kapa-ai-config';
+
+const KAPA_WEBSITE_ID = 'a8b85529-1773-4710-b35f-c9ebc70ffcb6';
 
 declare global {
 	interface Window {
@@ -21,14 +21,9 @@ const KAPA_SCRIPT_ID = 'kapa-widget-script';
 
 export function useKapaAI() {
 	const [isLoaded, setIsLoaded] = useState(false);
-	const isConfigured = Boolean(kapaWebsiteId);
 	const hasSubmittedQuery = useRef(false);
 
 	useEffect(() => {
-		if (!isConfigured) {
-			return;
-		}
-
 		// Check if script already exists
 		if (document.getElementById(KAPA_SCRIPT_ID)) {
 			if (window.Kapa) {
@@ -41,7 +36,7 @@ export function useKapaAI() {
 		script.id = KAPA_SCRIPT_ID;
 		script.src = 'https://widget.kapa.ai/kapa-widget.bundle.js';
 		script.async = true;
-		script.setAttribute('data-website-id', kapaWebsiteId);
+		script.setAttribute('data-website-id', KAPA_WEBSITE_ID);
 		script.setAttribute(
 			'data-project-name',
 			'WordPress Playground AI Assistant'
@@ -67,7 +62,7 @@ export function useKapaAI() {
 		};
 
 		document.body.appendChild(script);
-	}, [isConfigured]);
+	}, []);
 
 	const openWithQuery = useCallback((query: string) => {
 		if (window.Kapa) {
@@ -85,7 +80,6 @@ export function useKapaAI() {
 	}, []);
 
 	return {
-		isConfigured,
 		isLoaded,
 		openWithQuery,
 	};

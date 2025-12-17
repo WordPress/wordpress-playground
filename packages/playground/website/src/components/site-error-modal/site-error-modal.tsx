@@ -39,7 +39,7 @@ export function SiteErrorModal({
 		isSubmittingReport,
 		handleSubmitReport,
 	} = useErrorReporting(site);
-	const { isConfigured: isKapaAIConfigured, openWithQuery } = useKapaAI();
+	const { openWithQuery } = useKapaAI();
 
 	const helpers: PresentationHelpers = {
 		deleteSite: () => {
@@ -147,7 +147,7 @@ export function SiteErrorModal({
 				</div>
 				{view.actions.length || !view.isDeveloperError || detailText ? (
 					<div className={css.errorModalFooter}>
-						{isKapaAIConfigured && !isReporting && detailText && (
+						{!isReporting && detailText && (
 							<Button
 								variant="secondary"
 								onClick={() => openWithQuery(detailText)}

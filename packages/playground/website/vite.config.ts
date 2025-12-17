@@ -43,8 +43,8 @@ export default defineConfig(({ command, mode }) => {
 		'CORS_PROXY_URL' in process.env
 			? process.env.CORS_PROXY_URL
 			: mode === 'production'
-				? 'https://wordpress-playground-cors-proxy.net/?'
-				: '/cors-proxy/?';
+			? 'https://wordpress-playground-cors-proxy.net/?'
+			: '/cors-proxy/?';
 
 	return {
 		// Split traffic from this server on dev so that the iframe content and
@@ -114,13 +114,6 @@ export default defineConfig(({ command, mode }) => {
 				name: 'cors-proxy-url',
 				content: `
 				export const corsProxyUrl = ${JSON.stringify(corsProxyUrl || undefined)};`,
-			}),
-			virtualModule({
-				name: 'kapa-ai-config',
-				content: `
-				export const kapaWebsiteId = ${JSON.stringify(
-					process.env.KAPA_WEBSITE_ID || ''
-				)};`,
 			}),
 			// GitHub OAuth flow
 			{
