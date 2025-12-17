@@ -121,6 +121,10 @@ import {
 	shouldCacheUrl,
 } from './src/lib/offline-mode-cache';
 
+// The iframes-trap script that gets injected into HTML responses
+/* @ts-ignore */
+import iframesTrapScript from './src/lib/iframe-trap/iframes-trap.js?raw';
+
 if (!(self as any).document) {
 	// Workaround: vite translates import.meta.url
 	// to document.currentScript which fails inside of
@@ -338,6 +342,11 @@ async function handleScopedRequest(event: FetchEvent, scope: string) {
 		return emptyHtml(scope);
 	}
 
+	// Serve the iframe loader HTML for trapped iframes
+	if (fullUrl.pathname.endsWith('/wp-includes/playground-iframe-loader.html')) {
+		return iframeLoaderHtml(scope);
+	}
+
 	const workerResponse = await convertFetchEventToPHPRequest(event);
 
 	if (
@@ -423,7 +432,59 @@ async function handleScopedRequest(event: FetchEvent, scope: string) {
 		});
 	}
 
+	// Inject the iframes-trap script into HTML responses to ensure all iframes
+	// are controlled by the service worker.
+	const contentType = workerResponse.headers.get('content-type') || '';
+	if (contentType.includes('text/html')) {
+		return injectIframesTrapScript(workerResponse);
+	}
+
 	return workerResponse;
+}
+
+/**
+ * Injects the iframes-trap.js script into an HTML response.
+ *
+ * This script intercepts iframe creation and modification to ensure all iframes
+ * use URLs controlled by the service worker, preventing network requests from
+ * bypassing the service worker.
+ *
+ * The script is injected as early as possible in the document to intercept
+ * iframe creation before any other scripts run.
+ */
+async function injectIframesTrapScript(response: Response): Promise<Response> {
+	const html = await response.text();
+
+	// Create the script tag to inject
+	const scriptTag = `<script data-playground-iframes-trap>${iframesTrapScript}</script>`;
+
+	let modifiedHtml: string;
+
+	// Try to inject right after <head> for earliest execution
+	if (html.includes('<head>')) {
+		modifiedHtml = html.replace('<head>', '<head>' + scriptTag);
+	} else if (html.includes('<head ')) {
+		// Handle <head with attributes
+		modifiedHtml = html.replace(/<head[^>]*>/, '$&' + scriptTag);
+	} else if (html.includes('<html>')) {
+		// Fallback: inject after <html>
+		modifiedHtml = html.replace('<html>', '<html>' + scriptTag);
+	} else if (html.includes('<html ')) {
+		// Handle <html with attributes
+		modifiedHtml = html.replace(/<html[^>]*>/, '$&' + scriptTag);
+	} else if (html.toLowerCase().startsWith('<!doctype')) {
+		// Fallback: inject after doctype
+		modifiedHtml = html.replace(/(<!doctype[^>]*>)/i, '$1' + scriptTag);
+	} else {
+		// Last resort: prepend to document
+		modifiedHtml = scriptTag + html;
+	}
+
+	return new Response(modifiedHtml, {
+		status: response.status,
+		statusText: response.statusText,
+		headers: response.headers,
+	});
 }
 
 reportServiceWorkerMetrics(self);
@@ -541,6 +602,100 @@ function emptyHtml(scope: string) {
 
 	return new Response(
 		'<!doctype html><script>const hash = window.location.hash.substring(1); if ( hash ) document.write(decodeURIComponent(hash))</script>',
+		{
+			status: 200,
+			headers,
+		}
+	);
+}
+
+/**
+ * The iframe loader HTML file used by iframes-trap.js.
+ *
+ * This file is served at /wp-includes/playground-iframe-loader.html and is used
+ * to load content for trapped iframes (srcdoc, about:blank, blob:, data: URLs).
+ *
+ * The loader:
+ * 1. Reads the content ID from the URL query string
+ * 2. Requests the content from the parent window via postMessage
+ * 3. Writes the content to the document
+ * 4. Injects the iframes-trap.js script to handle nested iframes
+ *
+ * @param scope The scope of the request
+ */
+function iframeLoaderHtml(scope: string) {
+	const headers: Record<string, string> = {
+		'content-type': 'text/html',
+	};
+
+	if (scopesWithCrossOriginIsolation.has(scope)) {
+		headers['Document-Isolation-Policy'] = 'isolate-and-credentialless';
+	}
+
+	// The loader script that requests content from the parent window
+	const loaderScript = `
+(function() {
+	const params = new URLSearchParams(window.location.search);
+	const id = params.get('id');
+
+	if (!id) {
+		console.error('[iframe-loader] No content ID provided');
+		return;
+	}
+
+	// Request content from parent
+	function requestContent() {
+		if (window.parent && window.parent !== window) {
+			window.parent.postMessage({
+				type: 'playground-iframe-content-request',
+				id: id
+			}, '*');
+		}
+	}
+
+	// Listen for content response
+	window.addEventListener('message', function handler(event) {
+		if (event.data && event.data.type === 'playground-iframe-content-response' && event.data.id === id) {
+			window.removeEventListener('message', handler);
+
+			let content = event.data.content || '';
+
+			// Inject the iframes-trap script INTO the content BEFORE writing it.
+			// This ensures the trap runs before any inline scripts in the content,
+			// allowing us to intercept nested iframe creation.
+			const trapScript = '<script data-playground-iframes-trap>' + ${JSON.stringify(iframesTrapScript)} + '<\\/script>';
+
+			// Try to inject right after <head> for earliest execution
+			if (content.includes('<head>')) {
+				content = content.replace('<head>', '<head>' + trapScript);
+			} else if (content.match(/<head\\s/)) {
+				content = content.replace(/<head[^>]*>/, '\$&' + trapScript);
+			} else if (content.includes('<html>')) {
+				content = content.replace('<html>', '<html>' + trapScript);
+			} else if (content.match(/<html\\s/)) {
+				content = content.replace(/<html[^>]*>/, '\$&' + trapScript);
+			} else if (content.toLowerCase().startsWith('<!doctype')) {
+				content = content.replace(/(<!doctype[^>]*>)/i, '\$1' + trapScript);
+			} else {
+				content = trapScript + content;
+			}
+
+			// Write the content to the document (trap script will run first)
+			document.open();
+			document.write(content);
+			document.close();
+		}
+	});
+
+	// Request content immediately and also after a short delay in case parent isn't ready
+	requestContent();
+	setTimeout(requestContent, 50);
+	setTimeout(requestContent, 200);
+})();
+`;
+
+	return new Response(
+		`<!doctype html><html><head></head><body><script>${loaderScript}</script></body></html>`,
 		{
 			status: 200,
 			headers,
