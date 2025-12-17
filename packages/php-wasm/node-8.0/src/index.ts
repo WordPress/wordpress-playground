@@ -6,6 +6,8 @@ import { dirname, join } from 'node:path';
 // Use custom names to avoid conflicts with esbuild's __filename/__dirname polyfills
 const currentFilePath = fileURLToPath(import.meta.url);
 const currentDirPath = dirname(currentFilePath);
+// The package root is one level up from src/
+const packageDir = dirname(currentDirPath);
 
 export async function getPHPLoaderModule(): Promise<PHPLoaderModule> {
 	if (await jspi()) {
@@ -19,17 +21,17 @@ export async function getPHPLoaderModule(): Promise<PHPLoaderModule> {
 
 export async function getIntlExtensionPath(): Promise<string> {
 	if (await jspi()) {
-		return join(currentDirPath, 'jspi/extensions/intl/8_0/intl.so');
+		return join(packageDir, 'jspi/extensions/intl/8_0/intl.so');
 	} else {
-		return join(currentDirPath, 'asyncify/extensions/intl/8_0/intl.so');
+		return join(packageDir, 'asyncify/extensions/intl/8_0/intl.so');
 	}
 }
 
 export async function getXdebugExtensionPath(): Promise<string> {
 	if (await jspi()) {
-		return join(currentDirPath, 'jspi/extensions/xdebug/8_0/xdebug.so');
+		return join(packageDir, 'jspi/extensions/xdebug/8_0/xdebug.so');
 	} else {
-		return join(currentDirPath, 'asyncify/extensions/xdebug/8_0/xdebug.so');
+		return join(packageDir, 'asyncify/extensions/xdebug/8_0/xdebug.so');
 	}
 }
 
