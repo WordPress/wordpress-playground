@@ -17,9 +17,6 @@ import { getExternalModules } from '../../vite-extensions/vite-external-modules'
 export default defineConfig({
 	cacheDir: '../../../node_modules/.vite/php-wasm',
 
-	// Disable copying the public directory - PHP loaders are now in version packages
-	publicDir: false,
-
 	plugins: [
 		viteTsConfigPaths({
 			root: '../../../',
@@ -41,14 +38,12 @@ export default defineConfig({
 		 */
 		viteExternalDynamicImports([
 			{
-				// Source: src/lib/extensions/intl/with-intl.ts (3 dirs from src/)
-				// Input:          '../../../../public/shared/icu.dat'
-				// slice(-2):      'shared/icu.dat'
-				// With '../../../': '../../../shared/icu.dat'
-				// Output:         './shared/icu.dat'
+				// Source: src/lib/extensions/intl/with-intl.ts
+				// Input:  '../../../../public/shared/icu.dat'
+				// Output: './shared/icu.dat' (Vite copies public/ to dist output)
 				regex: /icu\.dat$/,
 				transform: (specifier) =>
-					`../../../${specifier.split('/').slice(-2).join('/')}`,
+					`./${specifier.split('/').slice(-2).join('/')}`,
 			},
 		]),
 		...viteGlobalExtensions,

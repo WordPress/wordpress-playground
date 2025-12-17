@@ -16,7 +16,7 @@ export async function withIntl(
 	const extensionName = 'intl.so';
 	const dataName = 'icu.dat';
 
-	const extensionPath = (await getIntlExtensionModule(version)).default;
+	const extensionPath = await getIntlExtensionModule(version);
 	// @ts-ignore
 	const dataPath = (await import('../../../../public/shared/icu.dat'))
 		.default;
