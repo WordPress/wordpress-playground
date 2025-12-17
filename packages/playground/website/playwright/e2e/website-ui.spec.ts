@@ -545,7 +545,6 @@ test.describe('Database panel', () => {
 		await newPage.waitForLoadState();
 		const editForm = newPage.locator('form#insertForm');
 		await expect(editForm).toBeVisible();
-		await expect(editForm).toContainText('Welcome to WordPress.');
 
 		// Update the post content
 		const postContentRow = editForm
@@ -553,6 +552,7 @@ test.describe('Database panel', () => {
 			.filter({ hasText: 'post_content' })
 			.first();
 		const postContentTextarea = postContentRow.locator('textarea').first();
+		await expect(postContentTextarea).toHaveValue(/Welcome to WordPress/);
 		await postContentTextarea.click();
 		await postContentTextarea.clear();
 		await postContentTextarea.fill('Updated post content.');
