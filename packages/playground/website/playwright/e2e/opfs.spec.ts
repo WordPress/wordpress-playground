@@ -268,7 +268,9 @@ test('should show save site modal with correct elements', async ({
 
 	// Verify storage location radio buttons exist
 	await expect(dialog.getByText('Storage location')).toBeVisible();
-	await expect(dialog.getByText('Save in this browser')).toBeVisible();
+	await expect(
+		dialog.getByRole('radio', { name: /this browser/i })
+	).toBeVisible();
 	await expect(dialog.getByText('Save to a local directory')).toBeVisible();
 
 	// Verify action buttons exist
@@ -450,7 +452,7 @@ test('should display OPFS storage option as selected by default', async ({
 
 	// Verify OPFS option is selected by default
 	const opfsRadio = dialog.getByRole('radio', {
-		name: /Save in this browser/,
+		name: /this browser/i,
 	});
 	await expect(opfsRadio).toBeChecked();
 
