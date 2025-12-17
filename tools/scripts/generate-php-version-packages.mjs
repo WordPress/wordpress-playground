@@ -130,6 +130,11 @@ function generateProjectJson(platform, version) {
 				},
 				dependsOn: ['build'],
 			},
+			'package-for-self-hosting': {
+				executor:
+					'@wp-playground/nx-extensions:package-for-self-hosting',
+				dependsOn: ['build'],
+			},
 			// No lint target - these packages contain only generated code
 		},
 		tags: ['scope:php-binaries'],
