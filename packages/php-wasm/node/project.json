@@ -18,17 +18,6 @@
 			},
 			"dependsOn": ["build:mkdir"]
 		},
-		"build:copy-wasms": {
-			"executor": "nx:run-commands",
-			"options": {
-				"commands": [
-					"cp -rf packages/php-wasm/node/jspi dist/packages/php-wasm/node",
-					"cp -rf packages/php-wasm/node/asyncify dist/packages/php-wasm/node"
-				],
-				"parallel": false
-			},
-			"dependsOn": ["build:package-json"]
-		},
 		"build:package-json": {
 			"executor": "@wp-playground/nx-extensions:package-json",
 			"options": {
@@ -48,7 +37,18 @@
 				],
 				"parallel": false
 			},
-			"dependsOn": ["build:copy-wasms"]
+			"dependsOn": ["build:copy-shared"]
+		},
+		"build:copy-shared": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"mkdir -p dist/packages/php-wasm/node/shared",
+					"cp -rf packages/php-wasm/node/src/lib/extensions/intl/shared/* dist/packages/php-wasm/node/shared/"
+				],
+				"parallel": false
+			},
+			"dependsOn": ["build:bundle"]
 		},
 		"build:bundle": {
 			"executor": "nx:run-commands",

@@ -1,155 +1,64 @@
 import { LatestSupportedPHPVersion } from '@php-wasm/universal';
 import type { SupportedPHPVersion } from '@php-wasm/universal';
-import { jspi } from 'wasm-feature-detect';
 
+/**
+ * Returns the path to the xdebug extension for the specified PHP version.
+ *
+ * Each PHP version's xdebug extension is packaged separately. Install the
+ * version-specific package you need:
+ * - @php-wasm/node-8.5
+ * - @php-wasm/node-8.4
+ * - etc.
+ */
 export async function getXdebugExtensionModule(
 	version: SupportedPHPVersion = LatestSupportedPHPVersion
 ): Promise<any> {
-	/**
-	 * Keeping the path working in both
-	 * the source file and the final bundle requires
-	 * ESBuild and Vite to rewrite the below path.
-	 * Vite will return the xdebug extension's
-	 * absolute path during tests while ESBuild
-	 * returns a resolved path between __dirname and
-	 * the extension's relative path during build
-	 * since target directories are not identically
-	 * located in built and unbuilt versions.
-	 * Hack: Dynamic imports must be static for bundlers,
-	 * so we hack around this by enumerating each
-	 * version explicitly.
-	 */
-	if (await jspi()) {
-		switch (version) {
-			case '8.5':
-				return (
-					await import(
-						// @ts-ignore
-						`../../../jspi/extensions/xdebug/8_5/xdebug.so?url`
-					)
-				).default;
-			case '8.4':
-				return (
-					await import(
-						// @ts-ignore
-						`../../../jspi/extensions/xdebug/8_4/xdebug.so?url`
-					)
-				).default;
-			case '8.3':
-				return (
-					await import(
-						// @ts-ignore
-						`../../../jspi/extensions/xdebug/8_3/xdebug.so?url`
-					)
-				).default;
-			case '8.2':
-				return (
-					await import(
-						// @ts-ignore
-						`../../../jspi/extensions/xdebug/8_2/xdebug.so?url`
-					)
-				).default;
-			case '8.1':
-				return (
-					await import(
-						// @ts-ignore
-						`../../../jspi/extensions/xdebug/8_1/xdebug.so?url`
-					)
-				).default;
-			case '8.0':
-				return (
-					await import(
-						// @ts-ignore
-						`../../../jspi/extensions/xdebug/8_0/xdebug.so?url`
-					)
-				).default;
-			case '7.4':
-				return (
-					await import(
-						// @ts-ignore
-						`../../../jspi/extensions/xdebug/7_4/xdebug.so?url`
-					)
-				).default;
-			case '7.3':
-				return (
-					await import(
-						// @ts-ignore
-						`../../../jspi/extensions/xdebug/7_3/xdebug.so?url`
-					)
-				).default;
-			case '7.2':
-				return (
-					await import(
-						// @ts-ignore
-						`../../../jspi/extensions/xdebug/7_2/xdebug.so?url`
-					)
-				).default;
-		}
-	} else {
-		switch (version) {
-			case '8.5':
-				return (
-					await import(
-						// @ts-ignore
-						`../../../asyncify/extensions/xdebug/8_5/xdebug.so?url`
-					)
-				).default;
-			case '8.4':
-				return (
-					await import(
-						// @ts-ignore
-						`../../../asyncify/extensions/xdebug/8_4/xdebug.so?url`
-					)
-				).default;
-			case '8.3':
-				return (
-					await import(
-						// @ts-ignore
-						`../../../asyncify/extensions/xdebug/8_3/xdebug.so?url`
-					)
-				).default;
-			case '8.2':
-				return (
-					await import(
-						// @ts-ignore
-						`../../../asyncify/extensions/xdebug/8_2/xdebug.so?url`
-					)
-				).default;
-			case '8.1':
-				return (
-					await import(
-						// @ts-ignore
-						`../../../asyncify/extensions/xdebug/8_1/xdebug.so?url`
-					)
-				).default;
-			case '8.0':
-				return (
-					await import(
-						// @ts-ignore
-						`../../../asyncify/extensions/xdebug/8_0/xdebug.so?url`
-					)
-				).default;
-			case '7.4':
-				return (
-					await import(
-						// @ts-ignore
-						`../../../asyncify/extensions/xdebug/7_4/xdebug.so?url`
-					)
-				).default;
-			case '7.3':
-				return (
-					await import(
-						// @ts-ignore
-						`../../../asyncify/extensions/xdebug/7_3/xdebug.so?url`
-					)
-				).default;
-			case '7.2':
-				return (
-					await import(
-						// @ts-ignore
-						`../../../asyncify/extensions/xdebug/7_2/xdebug.so?url`
-					)
-				).default;
-		}
+	switch (version) {
+		case '8.5':
+			// @ts-ignore
+			return (
+				await import('@php-wasm/node-8.5')
+			).getXdebugExtensionPath();
+		case '8.4':
+			// @ts-ignore
+			return (
+				await import('@php-wasm/node-8.4')
+			).getXdebugExtensionPath();
+		case '8.3':
+			// @ts-ignore
+			return (
+				await import('@php-wasm/node-8.3')
+			).getXdebugExtensionPath();
+		case '8.2':
+			// @ts-ignore
+			return (
+				await import('@php-wasm/node-8.2')
+			).getXdebugExtensionPath();
+		case '8.1':
+			// @ts-ignore
+			return (
+				await import('@php-wasm/node-8.1')
+			).getXdebugExtensionPath();
+		case '8.0':
+			// @ts-ignore
+			return (
+				await import('@php-wasm/node-8.0')
+			).getXdebugExtensionPath();
+		case '7.4':
+			// @ts-ignore
+			return (
+				await import('@php-wasm/node-7.4')
+			).getXdebugExtensionPath();
+		case '7.3':
+			// @ts-ignore
+			return (
+				await import('@php-wasm/node-7.3')
+			).getXdebugExtensionPath();
+		case '7.2':
+			// @ts-ignore
+			return (
+				await import('@php-wasm/node-7.2')
+			).getXdebugExtensionPath();
 	}
+	throw new Error(`Unsupported PHP version ${version}`);
 }

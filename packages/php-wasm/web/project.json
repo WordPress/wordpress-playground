@@ -16,6 +16,17 @@
 					"cp packages/php-wasm/web/README.md dist/packages/php-wasm/web"
 				]
 			},
+			"dependsOn": ["build:copy-shared"]
+		},
+		"build:copy-shared": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"mkdir -p dist/packages/php-wasm/web/shared",
+					"cp -rf packages/php-wasm/web/public/shared/* dist/packages/php-wasm/web/shared/"
+				],
+				"parallel": false
+			},
 			"dependsOn": ["build:package-json"]
 		},
 		"build:package-json": {
