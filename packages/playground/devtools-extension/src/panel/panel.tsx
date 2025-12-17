@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
-import { SiteEditor } from '@wp-playground/components';
+import { PlaygroundFileEditor } from '@wp-playground/components';
 import type { AsyncWritableFilesystem } from '@wp-playground/storage';
 import styles from './panel.module.css';
 
@@ -253,7 +253,7 @@ function PlaygroundPanel() {
 			)}
 			{selectedFrame ? (
 				<div className={styles.browserContainer}>
-					<SiteEditor
+					<PlaygroundFileEditor
 						filesystem={filesystem}
 						documentRoot={documentRoot}
 						placeholderText="Select a file to view or edit."

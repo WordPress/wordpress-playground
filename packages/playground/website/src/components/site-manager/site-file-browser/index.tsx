@@ -3,7 +3,7 @@ import type { SiteInfo } from '../../../lib/state/redux/slice-sites';
 import { usePlaygroundClient } from '../../../lib/use-playground-client';
 import type { AsyncWritableFilesystem } from '@wp-playground/storage';
 import type { PlaygroundClient } from '@wp-playground/remote';
-import { SiteEditor } from '@wp-playground/components';
+import { PlaygroundFileEditor } from '@wp-playground/components';
 import { logger } from '@php-wasm/logger';
 
 export function SiteFileBrowser({
@@ -48,7 +48,7 @@ export function SiteFileBrowser({
 	);
 
 	return (
-		<SiteEditor
+		<PlaygroundFileEditor
 			filesystem={filesystem}
 			documentRoot={documentRoot}
 			isVisible={isVisible}

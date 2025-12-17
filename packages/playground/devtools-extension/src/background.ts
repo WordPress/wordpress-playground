@@ -81,6 +81,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 				sendResponse(result || { hasPlayground: false });
 			})
 			.catch((error) => {
+				// eslint-disable-next-line no-console
 				console.error('Failed to detect playground:', error);
 				sendResponse({ hasPlayground: false });
 			});
@@ -165,6 +166,9 @@ chrome.runtime.onConnect.addListener((port) => {
 	port.onMessage.addListener((message) => {
 		if (message.type === 'INIT') {
 			tabId = message.tabId;
+			if (tabId === null) {
+				return;
+			}
 			devToolsConnections.set(tabId, port);
 
 			// Send current frames to the newly connected panel
@@ -284,5 +288,3 @@ chrome.webNavigation.onBeforeNavigate.addListener((details) => {
 		}
 	}
 });
-
-console.log('WordPress Playground DevTools background script loaded');

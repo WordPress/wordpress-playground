@@ -6,13 +6,6 @@
  * to communicate with the background script to execute code in the page context.
  */
 
-interface PlaygroundFrameInfo {
-	frameId: number;
-	url: string;
-	hasPlayground: boolean;
-	documentRoot?: string;
-}
-
 /**
  * Check for window.playground by asking the background script to execute
  * code in the page context using chrome.scripting.executeScript.

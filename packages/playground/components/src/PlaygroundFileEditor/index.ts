@@ -7,7 +7,10 @@ export {
 	FileExplorerSidebar,
 	type FileExplorerSidebarProps,
 } from './file-explorer-sidebar';
-export { SiteEditor, type SiteEditorProps } from './site-editor';
+export {
+	PlaygroundFileEditor,
+	type PlaygroundFileEditorProps,
+} from './playground-file-editor';
 export {
 	MAX_INLINE_FILE_BYTES,
 	seemsLikeBinary,

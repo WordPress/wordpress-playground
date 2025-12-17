@@ -4,7 +4,7 @@ import { Button, Notice } from '@wordpress/components';
 import type { AsyncWritableFilesystem } from '@wp-playground/storage';
 import { FileExplorerSidebar } from './file-explorer-sidebar';
 import { CodeEditor, type CodeEditorHandle } from './code-editor';
-import styles from './site-editor.module.css';
+import styles from './playground-file-editor.module.css';
 import { logger } from '@php-wasm/logger';
 
 const SAVE_DEBOUNCE_MS = 1500;
@@ -19,7 +19,7 @@ const SaveState = {
 
 type SaveState = (typeof SaveState)[keyof typeof SaveState];
 
-export type SiteEditorProps = {
+export type PlaygroundFileEditorProps = {
 	filesystem: AsyncWritableFilesystem | null;
 	isVisible?: boolean;
 	documentRoot: string;
@@ -40,7 +40,7 @@ export type SiteEditorProps = {
  * a code editor on the right. Supports auto-save with debouncing,
  * cursor position preservation, and binary file handling.
  */
-export function SiteEditor({
+export function PlaygroundFileEditor({
 	filesystem,
 	isVisible = true,
 	documentRoot,
@@ -48,7 +48,7 @@ export function SiteEditor({
 	placeholderText = 'Select a file to view or edit its contents.',
 	onSaveFile,
 	onBeforeFilesystemChange,
-}: SiteEditorProps) {
+}: PlaygroundFileEditorProps) {
 	const [selectedDirPath, setSelectedDirPath] = useState<string | null>(
 		documentRoot
 	);
