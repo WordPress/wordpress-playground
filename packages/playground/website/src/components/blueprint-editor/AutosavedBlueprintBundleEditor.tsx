@@ -164,6 +164,9 @@ export const AutosavedBlueprintBundleEditor = forwardRef<
 	>(null);
 	// Track whether we've already migrated to OPFS (to avoid migrating twice)
 	const hasMigratedToOpfs = useRef(false);
+	const migrateToOpfsTimeoutRef = useRef<ReturnType<
+		typeof window.setTimeout
+	> | null>(null);
 
 	const innerEditorRef = useRef<BlueprintBundleEditorHandle | null>(null);
 
@@ -309,33 +312,45 @@ export const AutosavedBlueprintBundleEditor = forwardRef<
 		if (!filesystem || readOnly || hasMigratedToOpfs.current) {
 			return;
 		}
-		async function migrateToOpfs() {
+		const scheduleMigration = () => {
 			if (hasMigratedToOpfs.current || readOnly || !filesystem) {
 				return;
 			}
-			hasMigratedToOpfs.current = true;
-
-			try {
-				// Replace the in-memory filesystem with an OPFS filesystem.
-				const opfsBackend = await createOpfsBackend();
-				await opfsBackend.clear();
-				const opfsFilesystem = new EventedFilesystem(opfsBackend);
-				await copyFilesystem(filesystem.backend, opfsBackend);
-				setFilesystem(opfsFilesystem);
-
-				// Mark the prompt as answered since the user is now editing
-				// their own autosave. They shouldn't be asked again.
-				autosavePromptAnswered[site.slug] = true;
-			} catch (error) {
-				logger.error(
-					'Failed to migrate to OPFS for autosave. Continuing with in-memory filesystem.',
-					error
-				);
+			if (migrateToOpfsTimeoutRef.current) {
+				window.clearTimeout(migrateToOpfsTimeoutRef.current);
 			}
-		}
-		filesystem.addEventListener('change', migrateToOpfs);
+			migrateToOpfsTimeoutRef.current = window.setTimeout(async () => {
+				if (hasMigratedToOpfs.current || readOnly || !filesystem) {
+					return;
+				}
+				hasMigratedToOpfs.current = true;
+
+				try {
+					// Replace the in-memory filesystem with an OPFS filesystem.
+					// Debounce the migration to avoid racing with rapid edits that
+					// could otherwise be overwritten by a filesystem swap.
+					const opfsBackend = await createOpfsBackend();
+					await copyFilesystem(filesystem.backend, opfsBackend);
+					const opfsFilesystem = new EventedFilesystem(opfsBackend);
+					setFilesystem(opfsFilesystem);
+
+					// Mark the prompt as answered since the user is now editing
+					// their own autosave. They shouldn't be asked again.
+					autosavePromptAnswered[site.slug] = true;
+				} catch (error) {
+					logger.error(
+						'Failed to migrate to OPFS for autosave. Continuing with in-memory filesystem.',
+						error
+					);
+				}
+			}, 1000);
+		};
+		filesystem.addEventListener('change', scheduleMigration);
 		return () => {
-			filesystem.removeEventListener('change', migrateToOpfs);
+			filesystem.removeEventListener('change', scheduleMigration);
+			if (migrateToOpfsTimeoutRef.current) {
+				window.clearTimeout(migrateToOpfsTimeoutRef.current);
+			}
 		};
 	}, [filesystem, readOnly, site.slug]);
 

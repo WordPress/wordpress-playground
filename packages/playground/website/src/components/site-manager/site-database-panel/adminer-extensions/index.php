@@ -17,7 +17,10 @@ if (!count($_GET)) {
         'server'   => '127.0.0.1',
         'username' => 'db_user',
         'password' => 'db_password',
-        'db'       => 'wordpress'
+        'db'       => 'wordpress',
+        // Use permanent login to avoid relying on PHP session persistence
+        // across redirects (e.g. /adminer/ -> /adminer/?server=...).
+        'permanent' => 1,
     ];
 }
 
