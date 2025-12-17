@@ -77,13 +77,14 @@ test('should switch between sites', async ({ website, browserName }) => {
 	// Open the saved playgrounds overlay to switch sites
 	await website.openSavedPlaygroundsOverlay();
 
-	// Click on Temporary Playground in the overlay's site list
+	// Create a new temporary Playground (autosaved temporary when OPFS is available).
 	await website.page
-		.locator('[class*="siteRowContent"]')
-		.filter({ hasText: 'Temporary Playground' })
+		.getByRole('button', { name: 'Vanilla WordPress' })
 		.click();
+	await website.closeSavedPlaygroundsOverlay();
 
-	// The overlay closes and site manager opens with the selected site
+	// The overlay closes and a new temporary site is created
+	await website.ensureSiteManagerIsOpen();
 	await expect(website.page.getByLabel('Playground title')).toContainText(
 		'Temporary Playground'
 	);
@@ -135,11 +136,15 @@ test('should preserve PHP constants when saving a temporary site to OPFS', async
 	// Open the saved playgrounds overlay to switch sites
 	await website.openSavedPlaygroundsOverlay();
 
-	// Switch to Temporary Playground
+	// Create a new temporary Playground so we can switch back to the stored one.
 	await website.page
-		.locator('[class*="siteRowContent"]')
-		.filter({ hasText: 'Temporary Playground' })
+		.getByRole('button', { name: 'Vanilla WordPress' })
 		.click();
+	await website.closeSavedPlaygroundsOverlay();
+	await website.ensureSiteManagerIsOpen();
+	await expect(website.page.getByLabel('Playground title')).toContainText(
+		'Temporary Playground'
+	);
 
 	// Open the overlay again to switch back to the stored site
 	await website.openSavedPlaygroundsOverlay();
