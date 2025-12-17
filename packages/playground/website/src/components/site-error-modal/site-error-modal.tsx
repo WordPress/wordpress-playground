@@ -154,7 +154,7 @@ export function SiteErrorModal({
 							<Button
 								variant="secondary"
 								onClick={() =>
-									kapaAI.openWithQuery(detailText!)
+									kapaAI.openWithErrorMessage(detailText!)
 								}
 							>
 								Troubleshoot with AI

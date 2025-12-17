@@ -78,7 +78,7 @@ export function useKapaAI() {
 		);
 	};
 
-	const openWithQuery = useCallback(async (query: string) => {
+	const openWithErrorMessage = useCallback(async (errorMessage: string) => {
 		if (!isEnabled()) {
 			return;
 		}
@@ -89,9 +89,15 @@ export function useKapaAI() {
 			if (hasSubmittedQuery.current) {
 				window.Kapa.open();
 			} else {
+				const urlParams = new URLSearchParams(window.location.search);
+				const hasExternalBlueprint = urlParams.has('blueprint-url');
+				const contextPrefix = hasExternalBlueprint
+					? ''
+					: `Given the URL query parameters ${window.location.search}, `;
+
 				window.Kapa.open({
 					mode: 'ai',
-					query: `Suggest a solution or troubleshooting steps for the following error: ${query}`,
+					query: `${contextPrefix}Suggest a solution or troubleshooting steps for the following error: ${errorMessage}`,
 					submit: true,
 				});
 				hasSubmittedQuery.current = true;
@@ -101,6 +107,6 @@ export function useKapaAI() {
 
 	return {
 		isEnabled,
-		openWithQuery,
+		openWithErrorMessage,
 	};
 }
