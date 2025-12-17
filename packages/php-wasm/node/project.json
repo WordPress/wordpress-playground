@@ -16,7 +16,7 @@
 					"cp packages/php-wasm/node/README.md dist/packages/php-wasm/node"
 				]
 			},
-			"dependsOn": ["build:mkdir"]
+			"dependsOn": ["build:package-json"]
 		},
 		"build:package-json": {
 			"executor": "@wp-playground/nx-extensions:package-json",

@@ -51,15 +51,6 @@
 				"parallel": false
 			},
 			"dependsOn": ["build"]
-		},
-		"lint": {
-			"executor": "@nx/linter:eslint",
-			"outputs": ["{options.outputFile}"],
-			"options": {
-				"useFlatConfig": false,
-				"lintFilePatterns": ["packages/php-wasm/web-7.3/**/*.ts"],
-				"maxWarnings": 0
-			}
 		}
 	},
 	"tags": ["scope:php-binaries"]

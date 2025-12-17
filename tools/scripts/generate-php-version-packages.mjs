@@ -130,15 +130,7 @@ function generateProjectJson(platform, version) {
 				},
 				dependsOn: ['build'],
 			},
-			lint: {
-				executor: '@nx/linter:eslint',
-				outputs: ['{options.outputFile}'],
-				options: {
-					useFlatConfig: false,
-					lintFilePatterns: [`${packagePath}/**/*.ts`],
-					maxWarnings: 0,
-				},
-			},
+			// No lint target - these packages contain only generated code
 		},
 		tags: ['scope:php-binaries'],
 	};
