@@ -154,21 +154,19 @@ type AutosavedBlueprintBundleEditorProps = {
 export const AutosavedBlueprintBundleEditor = forwardRef<
 	AutosavedBlueprintBundleEditorHandle,
 	AutosavedBlueprintBundleEditorProps
->(function ({ className, site }, ref) {
-	const [filesystem, setFilesystem] = useState<EventedFilesystem | null>(
-		null
-	);
+	>(function ({ className, site }, ref) {
+		const [filesystem, setFilesystem] = useState<EventedFilesystem | null>(
+			null
+		);
 	const [autosavePromptVisible, setAutosavePromptVisible] = useState(false);
 	const [autosaveErrorMessage, setAutosaveErrorMessage] = useState<
 		string | null
-	>(null);
-	// Track whether we've already migrated to OPFS (to avoid migrating twice)
-	const hasMigratedToOpfs = useRef(false);
-	const migrateToOpfsTimeoutRef = useRef<ReturnType<
-		typeof window.setTimeout
-	> | null>(null);
+		>(null);
+		// Track whether we've already migrated to OPFS (to avoid migrating twice)
+		const hasMigratedToOpfs = useRef(false);
+		const migrateToOpfsTimeoutRef = useRef<number | null>(null);
 
-	const innerEditorRef = useRef<BlueprintBundleEditorHandle | null>(null);
+		const innerEditorRef = useRef<BlueprintBundleEditorHandle | null>(null);
 
 	// On stored sites, we can only view the Blueprint without editing (or autosaving) it.
 	// Let's just populate an in-memory filesystem with the Blueprint.
