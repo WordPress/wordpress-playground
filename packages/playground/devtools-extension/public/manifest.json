@@ -1,7 +1,7 @@
 {
 	"manifest_version": 3,
 	"name": "WordPress Playground DevTools",
-	"version": "1.0.0",
+	"version": "0.0.0",
 	"description": "DevTools panel for inspecting and editing WordPress Playground instances",
 	"icons": {
 		"16": "icons/icon-16.png",
