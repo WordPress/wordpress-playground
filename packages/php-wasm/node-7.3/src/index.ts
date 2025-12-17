@@ -19,20 +19,17 @@ export async function getPHPLoaderModule(): Promise<PHPLoaderModule> {
 
 export async function getIntlExtensionPath(): Promise<string> {
 	if (await jspi()) {
-		return join(currentDirPath, '../jspi/extensions/intl/7_3/intl.so');
+		return join(currentDirPath, 'jspi/extensions/intl/7_3/intl.so');
 	} else {
-		return join(currentDirPath, '../asyncify/extensions/intl/7_3/intl.so');
+		return join(currentDirPath, 'asyncify/extensions/intl/7_3/intl.so');
 	}
 }
 
 export async function getXdebugExtensionPath(): Promise<string> {
 	if (await jspi()) {
-		return join(currentDirPath, '../jspi/extensions/xdebug/7_3/xdebug.so');
+		return join(currentDirPath, 'jspi/extensions/xdebug/7_3/xdebug.so');
 	} else {
-		return join(
-			currentDirPath,
-			'../asyncify/extensions/xdebug/7_3/xdebug.so'
-		);
+		return join(currentDirPath, 'asyncify/extensions/xdebug/7_3/xdebug.so');
 	}
 }
 

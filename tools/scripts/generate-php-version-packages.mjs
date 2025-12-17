@@ -201,9 +201,9 @@ export async function getPHPLoaderModule(): Promise<PHPLoaderModule> {
 
 export async function getIntlExtensionPath(): Promise<string> {
 	if (await jspi()) {
-		return join(currentDirPath, '../jspi/extensions/intl/${majorMinor}/intl.so');
+		return join(currentDirPath, 'jspi/extensions/intl/${majorMinor}/intl.so');
 	} else {
-		return join(currentDirPath, '../asyncify/extensions/intl/${majorMinor}/intl.so');
+		return join(currentDirPath, 'asyncify/extensions/intl/${majorMinor}/intl.so');
 	}
 }
 `;
@@ -212,9 +212,9 @@ export async function getIntlExtensionPath(): Promise<string> {
 			code += `
 export async function getXdebugExtensionPath(): Promise<string> {
 	if (await jspi()) {
-		return join(currentDirPath, '../jspi/extensions/xdebug/${majorMinor}/xdebug.so');
+		return join(currentDirPath, 'jspi/extensions/xdebug/${majorMinor}/xdebug.so');
 	} else {
-		return join(currentDirPath, '../asyncify/extensions/xdebug/${majorMinor}/xdebug.so');
+		return join(currentDirPath, 'asyncify/extensions/xdebug/${majorMinor}/xdebug.so');
 	}
 }
 `;
