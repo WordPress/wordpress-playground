@@ -14,14 +14,17 @@ export async function withIntl(
 	const memoizedFetch = createMemoizedFetch(fetch);
 
 	const extensionName = 'intl.so';
-	const extensionPath = (await getIntlExtensionModule(version)).default;
-	const extension = await (await memoizedFetch(extensionPath)).arrayBuffer();
-
 	const dataName = 'icu.dat';
+
+	const extensionPath = (await getIntlExtensionModule(version)).default;
 	// @ts-ignore
 	const dataPath = (await import('../../../../public/shared/icu.dat'))
 		.default;
-	const ICUData = await (await memoizedFetch(dataPath)).arrayBuffer();
+
+	const [extension, ICUData] = await Promise.all([
+		memoizedFetch(extensionPath).then((response) => response.arrayBuffer()),
+		memoizedFetch(dataPath).then((response) => response.arrayBuffer()),
+	]);
 
 	return {
 		...options,
