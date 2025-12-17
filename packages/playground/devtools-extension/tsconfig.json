@@ -8,10 +8,15 @@
 		"target": "ES2021",
 		"module": "esnext",
 		"moduleResolution": "bundler",
-		"lib": ["ES2022", "dom"],
-		"types": ["chrome", "@nx/react/typings/cssmodule.d.ts"]
+		"lib": ["ES2022", "esnext.disposable", "dom"],
+		"types": ["chrome"]
 	},
-	"include": ["src/**/*.ts", "src/**/*.tsx"],
-	"exclude": ["node_modules"],
+	"files": [],
+	"include": [],
+	"references": [
+		{
+			"path": "./tsconfig.lib.json"
+		}
+	],
 	"extends": "../../../tsconfig.base.json"
 }

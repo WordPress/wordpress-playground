@@ -38,7 +38,7 @@
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
-					"tsc -p packages/playground/devtools-extension/tsconfig.json --noEmit"
+					"tsc -p packages/playground/devtools-extension/tsconfig.lib.json --noEmit"
 				]
 			}
 		}
