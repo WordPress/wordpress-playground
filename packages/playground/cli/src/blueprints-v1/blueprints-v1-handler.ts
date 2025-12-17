@@ -1,4 +1,5 @@
 import { logger } from '@php-wasm/logger';
+// TODO: Wire up download progress tracking with initial worker
 import { EmscriptenDownloadMonitor, ProgressTracker } from '@php-wasm/progress';
 import { consumeAPI } from '@php-wasm/universal';
 import type { BlueprintV1Declaration } from '@wp-playground/blueprints';
@@ -7,16 +8,7 @@ import {
 	isBlueprintBundle,
 	resolveRuntimeConfiguration,
 } from '@wp-playground/blueprints';
-import { RecommendedPHPVersion, zipDirectory } from '@wp-playground/common';
-import fs from 'fs';
-import path from 'path';
-import { resolveWordPressRelease } from '@wp-playground/wordpress';
-import {
-	CACHE_FOLDER,
-	cachedDownload,
-	fetchSqliteIntegration,
-	readAsFile,
-} from './download';
+import { RecommendedPHPVersion } from '@wp-playground/common';
 import type { PlaygroundCliBlueprintV1Worker } from './worker-thread-v1';
 import type { MessagePort as NodeMessagePort } from 'worker_threads';
 import {
@@ -60,63 +52,6 @@ export class BlueprintsV1Handler {
 		phpPort: NodeMessagePort,
 		nativeInternalDirPath: string
 	) {
-		let wpDetails: any = undefined;
-		let wordPressZip: any = undefined;
-		let preinstalledWpContentPath: string | undefined = undefined;
-		// @TODO: Rename to FetchProgressMonitor. There's nothing Emscripten
-		// about that class anymore.
-		const monitor = new EmscriptenDownloadMonitor();
-		if (this.args.wordpressInstallMode === 'download-and-install') {
-			let progressReached100 = false;
-			monitor.addEventListener('progress', ((
-				e: CustomEvent<ProgressEvent & { finished: boolean }>
-			) => {
-				if (progressReached100) {
-					return;
-				}
-
-				// @TODO Every progress bar will want percentages. The
-				//       download monitor should just provide that.
-				const { loaded, total } = e.detail;
-				// Use floor() so we don't report 100% until truly there.
-				const percentProgress = Math.floor(
-					Math.min(100, (100 * loaded) / total)
-				);
-				progressReached100 = percentProgress === 100;
-
-				this.writeProgressUpdate(
-					process.stdout,
-					`Downloading WordPress ${percentProgress}%...`,
-					progressReached100
-				);
-			}) as any);
-
-			wpDetails = await resolveWordPressRelease(this.args.wp);
-			preinstalledWpContentPath = path.join(
-				CACHE_FOLDER,
-				`prebuilt-wp-content-for-wp-${wpDetails.version}.zip`
-			);
-			wordPressZip = fs.existsSync(preinstalledWpContentPath)
-				? readAsFile(preinstalledWpContentPath)
-				: await cachedDownload(
-						wpDetails.releaseUrl,
-						`${wpDetails.version}.zip`,
-						monitor
-					);
-			logger.log(
-				`Resolved WordPress release URL: ${wpDetails?.releaseUrl}`
-			);
-		}
-
-		let sqliteIntegrationPluginZip;
-		if (this.args.skipSqliteSetup) {
-			logger.log(`Skipping SQLite integration plugin setup...`);
-			sqliteIntegrationPluginZip = undefined;
-		} else {
-			logger.log(`Fetching SQLite integration plugin...`);
-			sqliteIntegrationPluginZip = await fetchSqliteIntegration(monitor);
-		}
-
 		const followSymlinks = this.args.followSymlinks === true;
 		const trace = this.args.experimentalTrace === true;
 
@@ -142,9 +77,7 @@ export class BlueprintsV1Handler {
 			mountsAfterWpInstall,
 			wordpressInstallMode:
 				this.args.wordpressInstallMode || 'download-and-install',
-			wordPressZip: wordPressZip && (await wordPressZip!.arrayBuffer()),
-			sqliteIntegrationPluginZip:
-				await sqliteIntegrationPluginZip?.arrayBuffer(),
+			skipSqliteSetup: !!this.args.skipSqliteSetup,
 			firstProcessId: 0,
 			processIdSpaceLength: this.processIdSpaceLength,
 			followSymlinks,
@@ -158,19 +91,6 @@ export class BlueprintsV1Handler {
 			withXdebug: false,
 			nativeInternalDirPath,
 		});
-
-		if (
-			preinstalledWpContentPath &&
-			!this.args['mount-before-install'] &&
-			!fs.existsSync(preinstalledWpContentPath)
-		) {
-			logger.log(`Caching preinstalled WordPress for the next boot...`);
-			fs.writeFileSync(
-				preinstalledWpContentPath,
-				(await zipDirectory(playground, '/wordpress'))!
-			);
-			logger.log(`Cached!`);
-		}
 
 		return playground;
 	}

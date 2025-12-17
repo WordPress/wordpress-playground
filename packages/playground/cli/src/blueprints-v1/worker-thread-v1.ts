@@ -8,11 +8,12 @@ import {
 	sandboxedSpawnHandlerFactory,
 } from '@php-wasm/universal';
 import { sprintf } from '@php-wasm/util';
-import { RecommendedPHPVersion } from '@wp-playground/common';
+import { RecommendedPHPVersion, zipDirectory } from '@wp-playground/common';
 import {
 	type WordPressInstallMode,
 	bootRequestHandler,
 	bootWordPressAndRequestHandler,
+	resolveWordPressRelease,
 } from '@wp-playground/wordpress';
 import { rootCertificates } from 'tls';
 import { MessageChannel, parentPort } from 'worker_threads';
@@ -21,6 +22,14 @@ import { logger } from '@php-wasm/logger';
 import { spawnWorkerThread } from '../run-cli';
 
 import type { Mount } from '@php-wasm/cli-util';
+import path from 'path';
+import {
+	CACHE_FOLDER,
+	cachedDownload,
+	fetchSqliteIntegration,
+	readAsFile,
+} from './download';
+import fs from 'fs';
 
 export type WorkerBootOptions = {
 	phpVersion: SupportedPHPVersion;
@@ -46,9 +55,8 @@ export type WorkerBootOptions = {
 
 export type PrimaryWorkerBootOptions = WorkerBootOptions & {
 	wordpressInstallMode: WordPressInstallMode;
+	skipSqliteSetup: boolean;
 	wpVersion?: string;
-	wordPressZip?: ArrayBuffer;
-	sqliteIntegrationPluginZip?: ArrayBuffer;
 	dataSqlPath?: string;
 };
 
@@ -95,8 +103,8 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 			mountsBeforeWpInstall,
 			mountsAfterWpInstall,
 			wordpressInstallMode,
-			wordPressZip,
-			sqliteIntegrationPluginZip,
+			wpVersion,
+			skipSqliteSetup,
 			dataSqlPath,
 			internalCookieStore,
 		} = options;
@@ -104,6 +112,77 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 			throw new Error('Playground already booted');
 		}
 		this.booted = true;
+
+		let wpDetails: any = undefined;
+		let wordPressZip: any = undefined;
+		let preinstalledWpContentPath: string | undefined = undefined;
+		// @TODO: Rename to FetchProgressMonitor. There's nothing Emscripten
+		// about that class anymore.
+		const monitor = new EmscriptenDownloadMonitor();
+		if (wordpressInstallMode === 'download-and-install') {
+			let progressReached100 = false;
+			monitor.addEventListener('progress', ((
+				e: CustomEvent<ProgressEvent & { finished: boolean }>
+			) => {
+				if (progressReached100) {
+					return;
+				}
+
+				// @TODO Every progress bar will want percentages. The
+				//       download monitor should just provide that.
+				const { loaded, total } = e.detail;
+				// Use floor() so we don't report 100% until truly there.
+				const percentProgress = Math.floor(
+					Math.min(100, (100 * loaded) / total)
+				);
+				progressReached100 = percentProgress === 100;
+
+				// TODO: Relay WordPress install progress to main process
+				// this.writeProgressUpdate(
+				// process.stdout,
+				// `Downloading WordPress ${percentProgress}%...`,
+				// progressReached100
+				// );
+			}) as any);
+
+			wpDetails = await resolveWordPressRelease(wpVersion);
+			preinstalledWpContentPath = path.join(
+				CACHE_FOLDER,
+				`prebuilt-wp-content-for-wp-${wpDetails.version}.zip`
+			);
+			wordPressZip = fs.existsSync(preinstalledWpContentPath)
+				? readAsFile(preinstalledWpContentPath)
+				: await cachedDownload(
+						wpDetails.releaseUrl,
+						`${wpDetails.version}.zip`,
+						monitor
+					);
+			logger.log(
+				`Resolved WordPress release URL: ${wpDetails?.releaseUrl}`
+			);
+		}
+
+		let sqliteIntegrationPluginZip;
+		if (skipSqliteSetup) {
+			logger.log(`Skipping SQLite integration plugin setup...`);
+			sqliteIntegrationPluginZip = undefined;
+		} else {
+			logger.log(`Fetching SQLite integration plugin...`);
+			sqliteIntegrationPluginZip = await fetchSqliteIntegration(monitor);
+		}
+
+		if (
+			preinstalledWpContentPath &&
+			mountsBeforeWpInstall.length === 0 &&
+			!fs.existsSync(preinstalledWpContentPath)
+		) {
+			logger.log(`Caching preinstalled WordPress for the next boot...`);
+			fs.writeFileSync(
+				preinstalledWpContentPath,
+				(await zipDirectory(this, '/wordpress'))!
+			);
+			logger.log(`Cached!`);
+		}
 
 		try {
 			const constants: Record<string, string | number | boolean | null> =
