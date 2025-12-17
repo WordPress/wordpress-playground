@@ -20,6 +20,30 @@ const playgroundFrames = new Map<number, Map<number, PlaygroundFrame>>();
 const devToolsConnections = new Map<number, chrome.runtime.Port>();
 
 /**
+ * Inject content script into a tab/frame programmatically.
+ * Used when permission is granted for a non-allowlisted domain.
+ */
+async function injectContentScript(tabId: number, frameIds?: number[]) {
+	try {
+		const target: chrome.scripting.InjectionTarget = { tabId };
+		if (frameIds && frameIds.length > 0) {
+			target.frameIds = frameIds;
+		} else {
+			target.allFrames = true;
+		}
+
+		await chrome.scripting.executeScript({
+			target,
+			files: ['content-script.js'],
+		});
+	} catch (error) {
+		// Ignore errors - may fail if page doesn't allow script injection
+		// eslint-disable-next-line no-console
+		console.debug('Failed to inject content script:', error);
+	}
+}
+
+/**
  * Handle messages from content scripts.
  */
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -259,6 +283,14 @@ chrome.runtime.onConnect.addListener((port) => {
 						error: error.message,
 					});
 				});
+		}
+
+		// Handle request to inject content script after permission is granted
+		if (message.type === 'INJECT_CONTENT_SCRIPT' && tabId !== null) {
+			injectContentScript(tabId).then(() => {
+				// After injection, trigger a refresh to detect playgrounds
+				port.postMessage({ type: 'INJECTION_COMPLETE' });
+			});
 		}
 	});
 

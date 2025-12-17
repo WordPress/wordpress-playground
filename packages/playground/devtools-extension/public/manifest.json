@@ -10,14 +10,31 @@
 	},
 	"devtools_page": "devtools/index.html",
 	"permissions": ["scripting", "activeTab", "webNavigation"],
-	"host_permissions": ["<all_urls>"],
+	"host_permissions": [
+		"*://playground.wordpress.net/*",
+		"*://developer.wordpress.org/*",
+		"*://developer.woocommerce.com/*",
+		"*://developer.wordpress.com/*",
+		"*://wordpress.org/*",
+		"*://localhost/*",
+		"*://127.0.0.1/*"
+	],
+	"optional_host_permissions": ["<all_urls>"],
 	"background": {
 		"service_worker": "background.js",
 		"type": "module"
 	},
 	"content_scripts": [
 		{
-			"matches": ["<all_urls>"],
+			"matches": [
+				"*://playground.wordpress.net/*",
+				"*://developer.wordpress.org/*",
+				"*://developer.woocommerce.com/*",
+				"*://developer.wordpress.com/*",
+				"*://wordpress.org/*",
+				"*://localhost/*",
+				"*://127.0.0.1/*"
+			],
 			"js": ["content-script.js"],
 			"run_at": "document_idle",
 			"all_frames": true

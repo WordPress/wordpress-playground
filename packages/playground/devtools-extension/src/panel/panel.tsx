@@ -1,7 +1,12 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { createRoot } from 'react-dom/client';
 import { PlaygroundFileEditor } from '@wp-playground/components';
 import type { AsyncWritableFilesystem } from '@wp-playground/storage';
+import {
+	hasPermissionForUrl,
+	requestPermissionForUrl,
+	isAllowlistedUrl,
+} from '../permissions';
 import styles from './panel.module.css';
 
 interface PlaygroundFrame {
@@ -119,11 +124,70 @@ function PlaygroundPanel() {
 	const [filesystem, setFilesystem] =
 		useState<AsyncWritableFilesystem | null>(null);
 	const [isConnected, setIsConnected] = useState(false);
+	const [tabUrl, setTabUrl] = useState<string | null>(null);
+	const [hasPermission, setHasPermission] = useState<boolean | null>(null);
+	const [isRequestingPermission, setIsRequestingPermission] = useState(false);
 	const portRef = useRef<chrome.runtime.Port | null>(null);
 	const refreshIntervalRef = useRef<number | null>(null);
 
+	// Check permission for the current tab
+	const checkPermission = useCallback(async () => {
+		try {
+			// Get the inspected tab's URL via eval since we can't directly query it
+			chrome.devtools.inspectedWindow.eval(
+				'window.location.href',
+				(result: unknown, error) => {
+					if (error || typeof result !== 'string') {
+						// Fallback: assume we need permission
+						setTabUrl(null);
+						setHasPermission(false);
+						return;
+					}
+					const url = result;
+					setTabUrl(url);
+
+					// If URL is in allowlist, we have permission by default
+					if (isAllowlistedUrl(url)) {
+						setHasPermission(true);
+						return;
+					}
+
+					// Check if we have permission for this URL
+					hasPermissionForUrl(url).then(setHasPermission);
+				}
+			);
+		} catch {
+			setHasPermission(false);
+		}
+	}, []);
+
+	// Request permission for the current tab
+	const handleRequestPermission = useCallback(async () => {
+		if (!tabUrl) return;
+
+		setIsRequestingPermission(true);
+		try {
+			const granted = await requestPermissionForUrl(tabUrl);
+			setHasPermission(granted);
+
+			if (granted && portRef.current) {
+				// Inject content script now that we have permission
+				portRef.current.postMessage({ type: 'INJECT_CONTENT_SCRIPT' });
+				// Trigger a refresh after injection
+				setTimeout(() => {
+					portRef.current?.postMessage({ type: 'REFRESH_FRAMES' });
+				}, 500);
+			}
+		} finally {
+			setIsRequestingPermission(false);
+		}
+	}, [tabUrl]);
+
 	// Connect to the background script and set up frame detection
 	useEffect(() => {
+		// Check permission first
+		checkPermission();
+
 		const port = chrome.runtime.connect({ name: 'playground-devtools' });
 		portRef.current = port;
 
@@ -141,6 +205,10 @@ function PlaygroundPanel() {
 				if (message.frames.length === 1 && !selectedFrame) {
 					setSelectedFrame(message.frames[0]);
 				}
+			}
+			if (message.type === 'INJECTION_COMPLETE') {
+				// Re-check for frames after content script injection
+				port.postMessage({ type: 'REFRESH_FRAMES' });
 			}
 		});
 
@@ -165,7 +233,7 @@ function PlaygroundPanel() {
 			}
 			port.disconnect();
 		};
-	}, []);
+	}, [checkPermission]);
 
 	// Create filesystem when a frame is selected
 	useEffect(() => {
@@ -197,6 +265,35 @@ function PlaygroundPanel() {
 					<p>
 						The connection to the page was lost. Please refresh the
 						DevTools panel.
+					</p>
+				</div>
+			</div>
+		);
+	}
+
+	// If we don't have permission for this domain
+	if (hasPermission === false && !isAllowlistedUrl(tabUrl || '')) {
+		const hostname = tabUrl ? new URL(tabUrl).hostname : 'this site';
+		return (
+			<div className={styles.container}>
+				<div className={styles.message}>
+					<h2>Permission Required</h2>
+					<p>
+						To inspect WordPress Playground on{' '}
+						<strong>{hostname}</strong>, this extension needs
+						permission to access the page.
+					</p>
+					<button
+						className={styles.permissionButton}
+						onClick={handleRequestPermission}
+						disabled={isRequestingPermission}
+					>
+						{isRequestingPermission
+							? 'Requesting...'
+							: 'Grant Permission'}
+					</button>
+					<p className={styles.hint}>
+						This permission only applies to {hostname}
 					</p>
 				</div>
 			</div>
