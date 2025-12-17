@@ -177,6 +177,55 @@ function generateIndexTs(platform, version, loaderFilename) {
 	const majorMinor = getMajorMinorDir(version);
 	const hasXdebug = platform === 'node';
 
+	// Node packages use path resolution since ?url only works with Vite
+	// Web packages use ?url which Vite handles correctly
+	if (platform === 'node') {
+		let code = `import type { PHPLoaderModule } from '@php-wasm/universal';
+import { jspi } from 'wasm-feature-detect';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+export async function getPHPLoaderModule(): Promise<PHPLoaderModule> {
+	if (await jspi()) {
+		// @ts-ignore
+		return await import('../jspi/${loaderFilename}');
+	} else {
+		// @ts-ignore
+		return await import('../asyncify/${loaderFilename}');
+	}
+}
+
+export async function getIntlExtensionPath(): Promise<string> {
+	if (await jspi()) {
+		return join(__dirname, '../jspi/extensions/intl/${majorMinor}/intl.so');
+	} else {
+		return join(__dirname, '../asyncify/extensions/intl/${majorMinor}/intl.so');
+	}
+}
+`;
+
+		if (hasXdebug) {
+			code += `
+export async function getXdebugExtensionPath(): Promise<string> {
+	if (await jspi()) {
+		return join(__dirname, '../jspi/extensions/xdebug/${majorMinor}/xdebug.so');
+	} else {
+		return join(__dirname, '../asyncify/extensions/xdebug/${majorMinor}/xdebug.so');
+	}
+}
+`;
+		}
+
+		code += `
+export { jspi };
+`;
+		return code;
+	}
+
+	// Web packages use ?url which Vite handles correctly
 	let code = `import type { PHPLoaderModule } from '@php-wasm/universal';
 import { jspi } from 'wasm-feature-detect';
 
