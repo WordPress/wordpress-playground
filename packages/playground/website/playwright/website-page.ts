@@ -27,12 +27,14 @@ export class WebsitePage {
 			.poll(
 				async () => {
 					try {
-						const baseURI = await wordpressBody.evaluate(
-							(body) => body.baseURI
+						// Use window.location (not Element.baseURI) so we don't get
+						// tripped up by <base> tags or other base URL shenanigans.
+						const href = await wordpressBody.evaluate(
+							() => window.location.href
 						);
 						return (
-							baseURI.startsWith('http') &&
-							!baseURI.includes('/remote.html')
+							href.startsWith('http') &&
+							!href.includes('/remote.html')
 						);
 					} catch {
 						return false;

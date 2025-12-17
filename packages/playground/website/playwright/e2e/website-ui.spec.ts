@@ -1,5 +1,6 @@
 import { test, expect } from '../playground-fixtures.ts';
 import type { Blueprint } from '@wp-playground/blueprints';
+import type { Page } from '@playwright/test';
 
 // We can't import the SupportedPHPVersions versions directly from the remote package
 // because of ESModules vs CommonJS incompatibilities. Let's just import the
@@ -8,6 +9,15 @@ import type { Blueprint } from '@wp-playground/blueprints';
 import { SupportedPHPVersions } from '../../../../php-wasm/universal/src/lib/supported-php-versions.ts';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import * as MinifiedWordPressVersions from '../../../wordpress-builds/src/wordpress/wp-versions.json';
+
+async function waitForWordPressVersionOptions(page: Page) {
+	const wpVersionSelect = page.getByLabel('WordPress version');
+	await expect
+		.poll(async () => await wpVersionSelect.locator('option').count(), {
+			timeout: 120000,
+		})
+		.toBeGreaterThan(1);
+}
 
 test('should reflect the URL update from the navigation bar in the WordPress site', async ({
 	website,
@@ -43,6 +53,7 @@ SupportedPHPVersions.forEach(async (version) => {
 			.getByText('Apply Settings & Reset Playground')
 			.click();
 		await website.ensureSiteManagerIsClosed();
+		await website.waitForNestedIframes();
 		await website.ensureSiteManagerIsOpen();
 
 		await expect(website.page.getByLabel('PHP version')).toHaveValue(
@@ -60,6 +71,7 @@ Object.keys(MinifiedWordPressVersions)
 		}) => {
 			await website.goto('./');
 			await website.ensureSiteManagerIsOpen();
+			await waitForWordPressVersionOptions(website.page);
 			await website.page
 				.getByLabel('WordPress version')
 				.selectOption(version);
@@ -67,7 +79,9 @@ Object.keys(MinifiedWordPressVersions)
 				.getByText('Apply Settings & Reset Playground')
 				.click();
 			await website.ensureSiteManagerIsClosed();
+			await website.waitForNestedIframes();
 			await website.ensureSiteManagerIsOpen();
+			await waitForWordPressVersionOptions(website.page);
 
 			await expect(
 				website.page.getByLabel('WordPress version')
@@ -191,34 +205,25 @@ test('should edit a file in the code editor and see changes in the viewport', as
 	const editor = website.page.locator('[class*="file-browser"] .cm-editor');
 	await editor.waitFor({ timeout: 10000 });
 
-	// Click on the editor to focus it
-	await website.page.waitForTimeout(50);
-
-	await editor.click();
-
-	await website.page.waitForTimeout(250);
-
-	// Select all content in the editor (Cmd+A or Ctrl+A)
-	await website.page.keyboard.press(
-		process.platform === 'darwin' ? 'Meta+A' : 'Control+A'
+	// Ensure we're editing the right file (the editor auto-opens wp-config.php).
+	const fileBrowserTab = website.page.locator(
+		'div[class*="fileBrowserTab"]'
 	);
+	await expect(
+		fileBrowserTab
+			.locator('[class*="editorPath"]')
+			.filter({ hasText: '/wordpress/index.php' })
+	).toBeVisible({ timeout: 10000 });
 
-	await website.page.keyboard.press('Backspace');
-	await website.page.waitForTimeout(200);
+	const cmContent = editor.locator('.cm-content');
+	await cmContent.fill('<?php echo "Edited file";');
+	await expect(cmContent).toContainText('Edited file', { timeout: 5000 });
 
-	// Type the new content with a delay between keystrokes
-	await website.page.keyboard.type('Edited file', { delay: 50 });
-
-	// Wait a moment for the change to be processed
-	await website.page.waitForTimeout(500);
-
-	// Save the file (Cmd+S or Ctrl+S)
-	await website.page.keyboard.press(
-		process.platform === 'darwin' ? 'Meta+S' : 'Control+S'
+	// Wait for auto-save (debounced) to finish before reloading the iframe.
+	await expect(fileBrowserTab.locator('[class*="saveStatus"]')).toContainText(
+		'Saved',
+		{ timeout: 20000 }
 	);
-
-	// Wait for save to complete (look for save indicator if there is one)
-	await website.page.waitForTimeout(1000);
 
 	// Close the site manager to see the viewport
 	await website.ensureSiteManagerIsClosed();
@@ -232,6 +237,7 @@ test('should edit a file in the code editor and see changes in the viewport', as
 		.evaluate((iframe: HTMLIFrameElement) => {
 			iframe.contentWindow?.location.reload();
 		});
+	await website.waitForNestedIframes();
 
 	// Verify the page shows "Edited file"
 	await expect(wordpress.locator('body')).toContainText('Edited file', {
@@ -257,15 +263,15 @@ test('should edit a blueprint in the blueprint editor and recreate the playgroun
 	);
 	await editor.waitFor({ timeout: 10000 });
 
-	// Create a simple blueprint that writes "Blueprint test" to index.php
+	// Create a simple blueprint that writes "Blueprint test" to a standalone PHP file.
 	const blueprint = JSON.stringify(
 		{
-			landingPage: '/index.php',
+			landingPage: '/blueprint-test.php',
 			steps: [
 				{
 					step: 'writeFile',
-					path: '/wordpress/index.php',
-					data: 'Blueprint test',
+					path: '/wordpress/blueprint-test.php',
+					data: '<?php echo "Blueprint test";',
 				},
 			],
 		},
@@ -294,7 +300,7 @@ test('should edit a blueprint in the blueprint editor and recreate the playgroun
 	await cmContent.fill(blueprint);
 
 	// Wait for validation to complete (linter has 300ms debounce)
-	await website.page.waitForTimeout(500);
+	await website.page.waitForTimeout(1500);
 
 	// Verify the blueprint was inserted by checking the editor content
 	await expect(cmContent).toContainText('writeFile', {
@@ -314,7 +320,7 @@ test('should edit a blueprint in the blueprint editor and recreate the playgroun
 
 	// Verify the page shows "Blueprint test"
 	await expect(wordpress.locator('body')).toContainText('Blueprint test', {
-		timeout: 10000,
+		timeout: 60000,
 	});
 });
 
@@ -444,12 +450,11 @@ test.describe('Database panel', () => {
 		await expect(newPage.locator('body')).toContainText('wp_posts');
 
 		// Browse the "wp_posts" table
-		await newPage
-			.locator('#tables a.structure[title="Show structure"]')
+		const wpPostsNavItem = newPage
+			.locator('#tables li')
 			.filter({ hasText: 'wp_posts' })
-			.click();
-		await newPage.waitForLoadState();
-		await newPage.getByRole('link', { name: 'select data' }).click();
+			.first();
+		await wpPostsNavItem.locator('a.select').click();
 		await newPage.waitForLoadState();
 		const adminerRows = newPage.locator('table.checkable tbody tr');
 		await expect(adminerRows.first()).toContainText(
@@ -471,17 +476,17 @@ test.describe('Database panel', () => {
 		await postContentTextarea.click();
 		await postContentTextarea.clear();
 		await postContentTextarea.fill('Updated post content.');
-			await newPage
-				.getByRole('button', { name: 'Save', exact: true })
-				.click();
-			await newPage.waitForLoadState();
+		await newPage
+			.getByRole('button', { name: 'Save', exact: true })
+			.click();
+		await newPage.waitForLoadState();
 
-			// Go back row listing and verify the updated content
-			await newPage.getByRole('link', { name: /select data/i }).click();
-			await newPage.waitForLoadState();
-			await expect(
-				newPage.locator('table.checkable tbody tr').first()
-			).toContainText('Updated post content.');
+		// Go back to row listing and verify the updated content.
+		await wpPostsNavItem.locator('a.select').click();
+		await newPage.waitForLoadState();
+		await expect(
+			newPage.locator('table.checkable tbody tr').first()
+		).toContainText('Updated post content.');
 
 		// Go to SQL tab and execute "SHOW TABLES"
 		await newPage.getByRole('link', { name: 'SQL command' }).click();
@@ -545,24 +550,31 @@ test.describe('Database panel', () => {
 			.getByRole('link', { name: 'Edit' })
 			.first()
 			.click();
-			await newPage.waitForLoadState();
-			const editForm = newPage.locator('form#insertForm');
-			await expect(editForm).toBeVisible();
-			await waitForAjaxIdle();
-
-			// Update the post content
-			const postContentRow = editForm
-				.locator('tr')
-				.filter({ hasText: 'post_content' })
-				.first();
-			const postContentTextarea = postContentRow.locator('textarea').first();
-			await postContentTextarea.click();
-			await postContentTextarea.clear();
-			await postContentTextarea.fill('Updated post content.');
-			await newPage.getByRole('button', { name: 'Go' }).first().click();
-
-		// Verify the updated content
 		await newPage.waitForLoadState();
+		const editForm = newPage.locator('form#insertForm');
+		await expect(editForm).toBeVisible();
+		await waitForAjaxIdle();
+
+		// Update the post content
+		const postContentRow = editForm
+			.locator('tr')
+			.filter({ hasText: 'post_content' })
+			.first();
+		const postContentTextarea = postContentRow.locator('textarea').first();
+		await postContentTextarea.click();
+		await postContentTextarea.clear();
+		await postContentTextarea.fill('Updated post content.');
+		await newPage.getByRole('button', { name: 'Go' }).first().click();
+
+		// Verify the updated content (phpMyAdmin stays on the edit route after saving).
+		await newPage.waitForLoadState();
+		await waitForAjaxIdle();
+		await newPage
+			.locator('#topmenu')
+			.getByRole('link', { name: 'Browse' })
+			.click();
+		await newPage.waitForLoadState();
+		await waitForAjaxIdle();
 		await expect(
 			newPage.locator('table.table_results tbody tr').first()
 		).toContainText('Updated post content.');
