@@ -1,4 +1,6 @@
-const DEFAULT_RESPONSE_TIMEOUT = 25000;
+// Some operations (e.g. booting a site, large blueprint bundles, OPFS work)
+// can legitimately take longer than 25s on CI and slower devices.
+const DEFAULT_RESPONSE_TIMEOUT = 60000;
 
 let lastRequestId = 0;
 

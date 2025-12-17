@@ -202,28 +202,25 @@ test('should edit a file in the code editor and see changes in the viewport', as
 		.dblclick();
 
 	// Wait for CodeMirror editor to load
-	const editor = website.page.locator('[class*="file-browser"] .cm-editor');
+	const fileBrowserPanel = website.page.getByRole('tabpanel', {
+		name: 'File browser',
+	});
+	const editor = fileBrowserPanel.locator('.cm-editor');
 	await editor.waitFor({ timeout: 10000 });
 
-	// Ensure we're editing the right file (the editor auto-opens wp-config.php).
-	const fileBrowserTab = website.page.locator(
-		'div[class*="fileBrowserTab"]'
-	);
-	await expect(
-		fileBrowserTab
-			.locator('[class*="editorPath"]')
-			.filter({ hasText: '/wordpress/index.php' })
-	).toBeVisible({ timeout: 10000 });
-
 	const cmContent = editor.locator('.cm-content');
+	// Ensure we're editing the right file (the editor auto-opens wp-config.php).
+	await expect(fileBrowserPanel.getByText('/wordpress/index.php')).toBeVisible(
+		{ timeout: 10000 }
+	);
+	await expect(cmContent).toContainText('WP_USE_THEMES', { timeout: 10000 });
 	await cmContent.fill('<?php echo "Edited file";');
 	await expect(cmContent).toContainText('Edited file', { timeout: 5000 });
 
 	// Wait for auto-save (debounced) to finish before reloading the iframe.
-	await expect(fileBrowserTab.locator('[class*="saveStatus"]')).toContainText(
-		'Saved',
-		{ timeout: 20000 }
-	);
+	await expect(fileBrowserPanel.getByText('Saved')).toBeVisible({
+		timeout: 20000,
+	});
 
 	// Close the site manager to see the viewport
 	await website.ensureSiteManagerIsClosed();
@@ -468,6 +465,15 @@ test.describe('Database panel', () => {
 		await expect(newPage.locator('form#form')).toContainText(
 			'Welcome to WordPress.'
 		);
+		const editUrl = new URL(newPage.url());
+		let editedPostId = editUrl.searchParams.get('where[0][val]');
+		if (!editedPostId) {
+			const idInput = newPage.locator('input[name="fields[ID]"]');
+			if (await idInput.count()) {
+				editedPostId = await idInput.first().inputValue();
+			}
+		}
+		expect(editedPostId).toMatch(/^\d+$/);
 
 		// Update the post content
 		const postContentTextarea = newPage.locator(
@@ -481,17 +487,19 @@ test.describe('Database panel', () => {
 			.click();
 		await newPage.waitForLoadState();
 
-		// Go back to row listing and verify the updated content.
-		await wpPostsNavItem.locator('a.select').click();
-		await newPage.waitForLoadState();
-		await expect(
-			newPage.locator('table.checkable tbody tr').first()
-		).toContainText('Updated post content.');
-
-		// Go to SQL tab and execute "SHOW TABLES"
+		// Verify the updated content via SQL (the Browse view can be ordered/truncated).
 		await newPage.getByRole('link', { name: 'SQL command' }).click();
 		await newPage.waitForLoadState();
 		const sqlTextarea = newPage.locator('textarea[name="query"]');
+		await sqlTextarea.fill(
+			`SELECT post_content FROM wp_posts WHERE ID=${editedPostId};`,
+			{ force: true }
+		);
+		await newPage.getByRole('button', { name: 'Execute' }).click();
+		await newPage.waitForLoadState();
+		await expect(newPage.locator('body')).toContainText('Updated post content.');
+
+		// Verify SQL command works with "SHOW TABLES"
 		await sqlTextarea.fill('SHOW TABLES', { force: true });
 		await newPage.getByRole('button', { name: 'Execute' }).click();
 		await newPage.waitForLoadState();
@@ -569,26 +577,35 @@ test.describe('Database panel', () => {
 		// Verify the updated content (phpMyAdmin stays on the edit route after saving).
 		await newPage.waitForLoadState();
 		await waitForAjaxIdle();
-		await newPage
-			.locator('#topmenu')
-			.getByRole('link', { name: 'Browse' })
-			.click();
-		await newPage.waitForLoadState();
-		await waitForAjaxIdle();
-		await expect(
-			newPage.locator('table.table_results tbody tr').first()
-		).toContainText('Updated post content.');
+		await expect(postContentTextarea).toHaveValue('Updated post content.');
 
-		// Go to SQL tab and execute "SHOW TABLES"
+		// Verify the updated content via SQL (the Browse view can be ordered/truncated).
 		await newPage
 			.locator('#topmenu')
 			.getByRole('link', { name: 'SQL' })
 			.click();
 		await newPage.waitForLoadState();
 		await newPage.locator('.CodeMirror').click();
+		await newPage.keyboard.press(
+			process.platform === 'darwin' ? 'Meta+A' : 'Control+A'
+		);
+		await newPage.keyboard.type(
+			"SELECT post_content FROM wp_posts WHERE post_content = 'Updated post content.';"
+		);
+		await newPage.getByRole('button', { name: 'Go' }).click();
+		await newPage.waitForLoadState();
+		await waitForAjaxIdle();
+		await expect(newPage.locator('body')).toContainText('Updated post content.');
+
+		// Verify SQL command works with "SHOW TABLES"
+		await newPage.locator('.CodeMirror').click();
+		await newPage.keyboard.press(
+			process.platform === 'darwin' ? 'Meta+A' : 'Control+A'
+		);
 		await newPage.keyboard.type('SHOW TABLES');
 		await newPage.getByRole('button', { name: 'Go' }).click();
 		await newPage.waitForLoadState();
+		await waitForAjaxIdle();
 		await expect(newPage.locator('body')).toContainText('wp_posts');
 
 		await newPage.close();

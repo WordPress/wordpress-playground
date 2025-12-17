@@ -93,14 +93,27 @@ export class WebsitePage {
 	}
 
 	async openSavedPlaygroundsOverlay() {
-		await this.page
-			.getByRole('button', { name: 'Saved Playgrounds' })
-			.click();
-		await expect(
-			this.page
-				.locator('[class*="overlay"]')
-				.filter({ hasText: 'Playground' })
-		).toBeVisible();
+		const overlay = this.page
+			.locator('[class*="overlay"]')
+			.filter({ hasText: 'Playground' });
+
+		// Make this method idempotent. Some flows can already have the overlay open
+		// (e.g. a previous click, or tests that call this helper twice).
+		if (await overlay.isVisible()) {
+			return;
+		}
+
+		const button = this.page.getByRole('button', {
+			name: 'Saved Playgrounds',
+		});
+		const expanded = await button.getAttribute('aria-expanded');
+		if (expanded === 'true') {
+			await expect(overlay).toBeVisible();
+			return;
+		}
+
+		await button.click();
+		await expect(overlay).toBeVisible();
 	}
 
 	async closeSavedPlaygroundsOverlay() {
