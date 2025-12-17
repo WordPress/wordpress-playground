@@ -18,14 +18,20 @@ import {
 	MAX_ADDRESSABLE_FILE_OFFSET,
 } from '@php-wasm/universal';
 
+function toLowAndHigh32BitNumbers(num: bigint): [number, number] {
+	const low = Number(num & 0xffffffffn);
+	const high = Number((num >> 32n) & 0xffffffffn);
+	return [low, high];
+}
+
 function tryLockFileExSync(
 	fd: number,
 	flags: number,
-	offsetLow: number,
-	offsetHigh: number,
-	lengthLow: number,
-	lengthHigh: number
+	start: bigint,
+	end: bigint
 ): boolean {
+	const [offsetLow, offsetHigh] = toLowAndHigh32BitNumbers(start);
+	const [lengthLow, lengthHigh] = toLowAndHigh32BitNumbers(end - start);
 	try {
 		lockFileExSync(fd, flags, offsetLow, offsetHigh, lengthLow, lengthHigh);
 		return true;
@@ -35,13 +41,9 @@ function tryLockFileExSync(
 	}
 }
 
-function tryUnlockFileExSync(
-	fd: number,
-	offsetLow: number,
-	offsetHigh: number,
-	lengthLow: number,
-	lengthHigh: number
-): boolean {
+function tryUnlockFileExSync(fd: number, start: bigint, end: bigint): boolean {
+	const [offsetLow, offsetHigh] = toLowAndHigh32BitNumbers(start);
+	const [lengthLow, lengthHigh] = toLowAndHigh32BitNumbers(end - start);
 	try {
 		unlockFileExSync(fd, offsetLow, offsetHigh, lengthLow, lengthHigh);
 		return true;
@@ -59,22 +61,14 @@ export class FileLockManagerForWindows implements FileLockManager {
 	lockWholeFile(path: string, op: WholeFileLockOp): boolean {
 		// For whole-file locks, we address the entire byte range of the file.
 		// TODO: Consider converting the exposed Win API to just use bigint for offset and length.
-		const offsetLow = 0;
-		const offsetHigh = 0;
-		const lengthLow = 0xffffffff;
-		const lengthHigh = 0xffffffff;
+		const start = 0n;
+		const end = 2n ** 64n - 1n;
 
 		if (op.type === 'unlock') {
 			// TODO: Should we skip unlocking if we do not have record of the lock?
 
 			// TODO: Catch errors
-			const success = tryUnlockFileExSync(
-				op.fd,
-				offsetLow,
-				offsetHigh,
-				lengthLow,
-				lengthHigh
-			);
+			const success = tryUnlockFileExSync(op.fd, start, end);
 
 			if (success) {
 				this.wholeFileLockMap.get(path)?.get(op.pid)?.delete(op.fd);
@@ -116,22 +110,13 @@ export class FileLockManagerForWindows implements FileLockManager {
 			 * exclusive lock if both locks were created using the same file handle."
 			 * @see https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-lockfileex
 			 */
-			success = tryLockFileExSync(
-				op.fd,
-				flags,
-				offsetLow,
-				offsetHigh,
-				lengthLow,
-				lengthHigh
-			);
+			success = tryLockFileExSync(op.fd, flags, start, end);
 
 			if (success && preexistingLock?.type === 'exclusive') {
 				const exclusiveUnlockSuccess = tryUnlockFileExSync(
 					op.fd,
-					offsetLow,
-					offsetHigh,
-					lengthLow,
-					lengthHigh
+					start,
+					end
 				);
 
 				if (exclusiveUnlockSuccess) {
@@ -147,24 +132,11 @@ export class FileLockManagerForWindows implements FileLockManager {
 
 			let sharedUnlockSuccess;
 			if (preexistingLock?.type === 'shared') {
-				sharedUnlockSuccess = tryUnlockFileExSync(
-					op.fd,
-					offsetLow,
-					offsetHigh,
-					lengthLow,
-					lengthHigh
-				);
+				sharedUnlockSuccess = tryUnlockFileExSync(op.fd, start, end);
 				// TODO: Log if there's an error
 			}
 
-			success = tryLockFileExSync(
-				op.fd,
-				flags,
-				offsetLow,
-				offsetHigh,
-				lengthLow,
-				lengthHigh
-			);
+			success = tryLockFileExSync(op.fd, flags, start, end);
 			// TODO: Log if there's an error
 
 			if (!success && sharedUnlockSuccess) {
@@ -187,10 +159,8 @@ export class FileLockManagerForWindows implements FileLockManager {
 					op.fd,
 					// Wait to restore the shared lock.
 					0,
-					offsetLow,
-					offsetHigh,
-					lengthLow,
-					lengthHigh
+					start,
+					end
 				);
 
 				if (!sharedReLockResult) {
@@ -238,42 +208,95 @@ export class FileLockManagerForWindows implements FileLockManager {
 			};
 		}
 
-		const offsetLow = Number(op.start & 0xffffffffn);
-		const offsetHigh = Number((op.start >> 32n) & 0xffffffffn);
-		const length = op.end - op.start;
-		const lengthLow = Number(length & 0xffffffffn);
-		const lengthHigh = Number((length >> 32n) & 0xffffffffn);
-
-		// TODO: Make sure zero length ranges are treated as covering the entire remaining range.
-
 		if (!this.rangeLockedFds.has(path)) {
 			this.rangeLockedFds.set(path, new FileLockIntervalTree());
 		}
 		const lockedRangeTree = this.rangeLockedFds.get(path)!;
 
+		const overlappingLocks = lockedRangeTree.findOverlapping(op);
+		let preexistingLock;
+		if (
+			overlappingLocks.length === 1 &&
+			overlappingLocks[0].pid === op.pid &&
+			// NOTE: FD shouldn't matter for fcntl() F_SETLK because it is a process-level lock,
+			// but it matters for Windows where locks are fd-specific.
+			overlappingLocks[0].fd === op.fd &&
+			overlappingLocks[0].start === op.start &&
+			overlappingLocks[0].end === op.end
+		) {
+			preexistingLock = overlappingLocks[0];
+		}
+
+		if (op.type === preexistingLock?.type) {
+			// There is nothing to do.
+			return true;
+		}
+
+		// TODO: Implement lock upgrading and downgrading like fcntl() allows?
+		// TODO: Implement relocking of preexisting locks like fcntl() allows?
+		// TODO: Implement merging locked ranges like fcntl() allows?
+
+		let flags = 0;
+		if (!waitForLock) {
+			flags |= constants.LOCKFILE_FAIL_IMMEDIATELY;
+		}
 		// TODO: Add exception handling for Sync calls.
-		if (op.type === 'shared' || op.type === 'exclusive') {
-			let flags = 0;
+		if (op.type === 'shared') {
+			const success = tryLockFileExSync(op.fd, flags, op.start, op.end);
+			if (!success) {
+				return false;
+			}
+
+			if (preexistingLock?.type === 'exclusive') {
+				const releasedPreexistingExclusiveLock = tryUnlockFileExSync(
+					preexistingLock.fd,
+					preexistingLock.start,
+					preexistingLock.end
+				);
+				if (!releasedPreexistingExclusiveLock) {
+					// This should never happen. Log and throw an error.
+					const message =
+						'Failed to unlock preexisting exclusive lock after obtaining a shared lock';
+					logger.error(message);
+					throw new Error(message);
+				}
+			}
+
+			// TODO: Why is this a type error without `any`? Didn't we pass a shared/exclusive type guard?
+			lockedRangeTree.insert(op as any);
+			return true;
+		} else if (op.type === 'exclusive') {
+			let sharedUnlockSuccess;
+			if (preexistingLock?.type === 'shared') {
+				sharedUnlockSuccess = tryUnlockFileExSync(
+					op.fd,
+					op.start,
+					op.end
+				);
+			}
+
 			if (op.type === 'exclusive') {
 				flags |= constants.LOCKFILE_EXCLUSIVE_LOCK;
 			}
-			if (!waitForLock) {
-				flags |= constants.LOCKFILE_FAIL_IMMEDIATELY;
-			}
 
-			// TODO: Implement lock upgrading and downgrading like fcntl() allows?
-			// TODO: Implement relocking of preexisting locks like fcntl() allows?
-			// TODO: Implement merging locked ranges like fcntl() allows?
-
-			const success = tryLockFileExSync(
-				op.fd,
-				flags,
-				offsetLow,
-				offsetHigh,
-				lengthLow,
-				lengthHigh
-			);
+			const success = tryLockFileExSync(op.fd, flags, op.start, op.end);
 			if (!success) {
+				if (preexistingLock && sharedUnlockSuccess) {
+					// TODO: Explain what and why
+					const sharedRelockSuccess = tryLockFileExSync(
+						op.fd,
+						0,
+						op.start,
+						op.end
+					);
+					if (!sharedRelockSuccess) {
+						// This should never happen. Log and throw an error.
+						const message =
+							'Failed to re-lock preexisting shared lock after failing to obtain exclusive lock';
+						logger.error(message);
+						throw new Error(message);
+					}
+				}
 				return false;
 			}
 
@@ -285,20 +308,29 @@ export class FileLockManagerForWindows implements FileLockManager {
 
 			// TODO: Implement range unlocks
 
-			const success = tryUnlockFileExSync(
-				op.fd,
-				offsetLow,
-				offsetHigh,
-				lengthLow,
-				lengthHigh
-			);
-			if (!success) {
-				// TODO: Report if the lock does not exist.
-				return false;
-			}
+			// TODO: Say why supporting ranged unlocks
+			const intersectingLocksForThisProcess = overlappingLocks
+				.filter((lock) => lock.pid === op.pid)
+				// TODO: Say why we are treating ranged locks as fd-specific
+				.filter((lock) => lock.fd === op.fd)
+				.filter((lock) => lock.start >= op.start && lock.end <= op.end);
 
-			// TODO: Report if the lock does not exist.
-			lockedRangeTree.remove(op);
+			for (const lock of intersectingLocksForThisProcess) {
+				const success = tryUnlockFileExSync(
+					lock.fd,
+					lock.start,
+					lock.end
+				);
+
+				if (!success) {
+					// TODO: Why if partial unlock before failure. Should we throw?
+					// TODO: Report if the lock does not exist.
+					return false;
+				}
+
+				// TODO: Report if the lock does not exist.
+				lockedRangeTree.remove(lock);
+			}
 			return true;
 		}
 	}
