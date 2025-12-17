@@ -19,8 +19,11 @@ async function saveSiteViaModal(
 	const { customName, storageType = 'opfs' } = options || {};
 
 	// Click the Save button to open the modal
-	await expect(page.getByText('Save').first()).toBeEnabled();
-	await page.getByText('Save').first().click();
+	const openSaveModalButton = page.getByRole('button', {
+		name: /save site locally/i,
+	});
+	await expect(openSaveModalButton).toBeEnabled();
+	await openSaveModalButton.click();
 
 	// Wait for the Save Playground dialog to appear
 	const dialog = page.getByRole('dialog', { name: 'Save Playground' });
@@ -229,8 +232,11 @@ test('should show save site modal with correct elements', async ({
 	await website.ensureSiteManagerIsOpen();
 
 	// Click the Save button
-	await expect(website.page.getByText('Save').first()).toBeEnabled();
-	await website.page.getByText('Save').first().click();
+	const openSaveModalButton = website.page.getByRole('button', {
+		name: /save site locally/i,
+	});
+	await expect(openSaveModalButton).toBeEnabled();
+	await openSaveModalButton.click();
 
 	// Verify the modal appears with correct title
 	const dialog = website.page.getByRole('dialog', {
@@ -270,7 +276,9 @@ test('should close save site modal without saving', async ({
 	await website.ensureSiteManagerIsOpen();
 
 	// Open the modal
-	await website.page.getByText('Save').first().click();
+	await website.page
+		.getByRole('button', { name: /save site locally/i })
+		.click();
 	const dialog = website.page.getByRole('dialog', {
 		name: 'Save Playground',
 	});
@@ -286,7 +294,9 @@ test('should close save site modal without saving', async ({
 	);
 
 	// Open the modal again
-	await website.page.getByText('Save').first().click();
+	await website.page
+		.getByRole('button', { name: /save site locally/i })
+		.click();
 	await expect(dialog).toBeVisible({ timeout: 10000 });
 
 	// Close using ESC key
@@ -312,7 +322,9 @@ test('should have playground name input text selected by default', async ({
 	await website.ensureSiteManagerIsOpen();
 
 	// Open the modal
-	await website.page.getByText('Save').first().click();
+	await website.page
+		.getByRole('button', { name: /save site locally/i })
+		.click();
 	const dialog = website.page.getByRole('dialog', {
 		name: 'Save Playground',
 	});
@@ -374,7 +386,9 @@ test('should not persist save site modal through page refresh', async ({
 	await website.ensureSiteManagerIsOpen();
 
 	// Open the save modal
-	await website.page.getByText('Save').first().click();
+	await website.page
+		.getByRole('button', { name: /save site locally/i })
+		.click();
 	const dialog = website.page.getByRole('dialog', {
 		name: 'Save Playground',
 	});
@@ -409,7 +423,9 @@ test('should display OPFS storage option as selected by default', async ({
 	await website.ensureSiteManagerIsOpen();
 
 	// Open the save modal
-	await website.page.getByText('Save').first().click();
+	await website.page
+		.getByRole('button', { name: /save site locally/i })
+		.click();
 	const dialog = website.page.getByRole('dialog', {
 		name: 'Save Playground',
 	});
