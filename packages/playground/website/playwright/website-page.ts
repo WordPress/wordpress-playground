@@ -10,16 +10,37 @@ export class WebsitePage {
 
 	// Wait for WordPress to load
 	async waitForNestedIframes(page = this.page) {
-		await expect(
-			page
-				/* There are multiple viewports possible, so we need to select
-				   the one that is visible. */
-				.frameLocator(
-					'#playground-viewport:visible,.playground-viewport:visible'
-				)
-				.frameLocator('#wp')
-				.locator('body')
-		).not.toBeEmpty();
+		const wordpressBody = page
+			/* There are multiple viewports possible, so we need to select
+			   the one that is visible. */
+			.frameLocator('#playground-viewport:visible,.playground-viewport:visible')
+			.frameLocator('#wp')
+			.locator('body');
+
+		// WP (especially when booting from a blueprint-url) can take longer than the
+		// default expect timeout on CI, particularly in Firefox.
+		await expect(wordpressBody).not.toBeEmpty({ timeout: 120000 });
+
+		// The nested iframe can briefly show remote.html during reloads; wait until we
+		// actually have the WordPress document loaded.
+		await expect
+			.poll(
+				async () => {
+					try {
+						const baseURI = await wordpressBody.evaluate(
+							(body) => body.baseURI
+						);
+						return (
+							baseURI.startsWith('http') &&
+							!baseURI.includes('/remote.html')
+						);
+					} catch {
+						return false;
+					}
+				},
+				{ timeout: 120000 }
+			)
+			.toBe(true);
 	}
 
 	wordpress(page = this.page) {

@@ -53,10 +53,12 @@ async function saveSiteViaModal(
 
 	// Select storage location - wait for the radio button to be available first
 	if (storageType === 'opfs') {
+		// The label differs depending on whether we're saving an autosaved temp site.
 		// We shouldn't need to explicitly call .waitFor(), but the test fails without it.
 		// Playwright logs that something "intercepts pointer events", that's probably related.
-		await dialog.getByText('Save in this browser').waitFor();
-		await dialog.getByText('Save in this browser').click({ force: true });
+		const opfsRadio = dialog.getByRole('radio', { name: /this browser/i });
+		await opfsRadio.waitFor();
+		await opfsRadio.check({ force: true });
 	} else {
 		await dialog.getByText('Save to a local directory').waitFor();
 		await dialog

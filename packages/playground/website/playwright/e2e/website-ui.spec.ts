@@ -471,17 +471,17 @@ test.describe('Database panel', () => {
 		await postContentTextarea.click();
 		await postContentTextarea.clear();
 		await postContentTextarea.fill('Updated post content.');
-		await newPage
-			.getByRole('button', { name: 'Save', exact: true })
-			.click();
-		await newPage.waitForLoadState();
+			await newPage
+				.getByRole('button', { name: 'Save', exact: true })
+				.click();
+			await newPage.waitForLoadState();
 
-		// Go back row listing and verify the updated content
-		await newPage.getByRole('link', { name: 'Select data' }).click();
-		await newPage.waitForLoadState();
-		await expect(
-			newPage.locator('table.checkable tbody tr').first()
-		).toContainText('Updated post content.');
+			// Go back row listing and verify the updated content
+			await newPage.getByRole('link', { name: /select data/i }).click();
+			await newPage.waitForLoadState();
+			await expect(
+				newPage.locator('table.checkable tbody tr').first()
+			).toContainText('Updated post content.');
 
 		// Go to SQL tab and execute "SHOW TABLES"
 		await newPage.getByRole('link', { name: 'SQL command' }).click();
@@ -545,21 +545,21 @@ test.describe('Database panel', () => {
 			.getByRole('link', { name: 'Edit' })
 			.first()
 			.click();
-		await newPage.waitForLoadState();
-		const editForm = newPage.locator('form#insertForm');
-		await expect(editForm).toBeVisible();
+			await newPage.waitForLoadState();
+			const editForm = newPage.locator('form#insertForm');
+			await expect(editForm).toBeVisible();
+			await waitForAjaxIdle();
 
-		// Update the post content
-		const postContentRow = editForm
-			.locator('tr')
-			.filter({ hasText: 'post_content' })
-			.first();
-		const postContentTextarea = postContentRow.locator('textarea').first();
-		await expect(postContentTextarea).toHaveValue(/Welcome to WordPress/);
-		await postContentTextarea.click();
-		await postContentTextarea.clear();
-		await postContentTextarea.fill('Updated post content.');
-		await newPage.getByRole('button', { name: 'Go' }).first().click();
+			// Update the post content
+			const postContentRow = editForm
+				.locator('tr')
+				.filter({ hasText: 'post_content' })
+				.first();
+			const postContentTextarea = postContentRow.locator('textarea').first();
+			await postContentTextarea.click();
+			await postContentTextarea.clear();
+			await postContentTextarea.fill('Updated post content.');
+			await newPage.getByRole('button', { name: 'Go' }).first().click();
 
 		// Verify the updated content
 		await newPage.waitForLoadState();

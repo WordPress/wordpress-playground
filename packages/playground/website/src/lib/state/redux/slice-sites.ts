@@ -603,6 +603,125 @@ export function setAutoSavedTemporarySiteSpec(
 	};
 }
 
+/**
+ * Creates a new temporary site using a blueprint bundle directly (without resolving
+ * it from the URL). Used for e.g. recreating a Playground from the Blueprint editor.
+ */
+export function createTemporarySiteFromBlueprintBundle(
+	siteName: string,
+	blueprint: BlueprintV1,
+	options: {
+		/** When true and OPFS is available, create an autosaved temporary site. */
+		useAutosave?: boolean;
+	} = {}
+) {
+	return async (
+		dispatch: PlaygroundDispatch,
+		getState: () => PlaygroundReduxState
+	) => {
+		const now = Date.now();
+		const siteSlugBase = deriveSlugFromSiteName(siteName);
+		const originalUrlParams = {
+			searchParams: parseSearchParams(
+				new URL(window.location.href).searchParams
+			),
+			hash: window.location.hash,
+		};
+
+		const runtimeConfiguration = (await resolveRuntimeConfiguration(
+			blueprint
+		))!;
+
+		if (options.useAutosave && opfsSiteStorage) {
+			const siteSlug = `${siteSlugBase}-${crypto
+				.randomUUID()
+				.replaceAll('-', '')
+				.slice(0, 8)}`;
+
+			// Ensure uniqueness in the redux entity map (slug is the entity ID).
+			if (getState().sites.entities[siteSlug]) {
+				throw new Error(
+					`Cannot create autosaved temporary site. Slug '${siteSlug}' is already in use.`
+				);
+			}
+
+			const newSiteInfo: SiteInfo = {
+				slug: siteSlug,
+				originalUrlParams,
+				metadata: {
+					name: siteName,
+					id: crypto.randomUUID(),
+					whenCreated: now,
+					whenLastUsed: now,
+					storage: 'opfs' as const,
+					kind: 'autosave',
+					originalBlueprint: blueprint,
+					originalBlueprintSource: { type: 'last-autosave' },
+					runtimeConfiguration,
+				},
+			};
+
+			await opfsSiteStorage.create(newSiteInfo.slug, newSiteInfo.metadata);
+			dispatch(sitesSlice.actions.addSite(newSiteInfo));
+			dispatch(sitesSlice.actions.setFirstTemporarySiteCreated());
+
+			// Enforce autosave retention limit (MRU ordering).
+			const autosaves = selectAutoSavedTemporarySitesSorted(getState());
+			const toRemove = autosaves.slice(MAX_AUTOSAVED_TEMP_SITES);
+			for (const site of toRemove) {
+				// Avoid deleting the newly created site.
+				if (site.slug === newSiteInfo.slug) {
+					continue;
+				}
+				try {
+					await dispatch(removeSite(site.slug));
+				} catch (e) {
+					logger.error(
+						`Failed to remove autosaved temporary site '${site.slug}'`,
+						e
+					);
+				}
+			}
+
+			return newSiteInfo;
+		}
+
+		// In-memory temporary site: remove any existing in-memory temporary sites,
+		// then create a new one.
+		for (const site of Object.values(getState().sites.entities)) {
+			if (site?.metadata.storage === 'none') {
+				dispatch(sitesSlice.actions.removeSite(site.slug));
+			}
+		}
+
+		let siteSlug = siteSlugBase;
+		if (getState().sites.entities[siteSlug]) {
+			siteSlug = `${siteSlugBase}-${crypto
+				.randomUUID()
+				.replaceAll('-', '')
+				.slice(0, 8)}`;
+		}
+
+		const newSiteInfo: SiteInfo = {
+			slug: siteSlug,
+			originalUrlParams,
+			metadata: {
+				name: siteName,
+				id: crypto.randomUUID(),
+				whenCreated: now,
+				storage: 'none' as const,
+				originalBlueprint: blueprint,
+				originalBlueprintSource: { type: 'last-autosave' },
+				runtimeConfiguration,
+			},
+		};
+
+		dispatch(sitesSlice.actions.addSite(newSiteInfo));
+		dispatch(sitesSlice.actions.setFirstTemporarySiteCreated());
+		return newSiteInfo;
+	};
+}
+
 function parseSearchParams(searchParams: URLSearchParams) {
 	const params: Record<string, any> = {};
 	for (const key of searchParams.keys()) {

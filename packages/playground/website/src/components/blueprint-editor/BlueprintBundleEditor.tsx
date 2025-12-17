@@ -42,11 +42,12 @@ import { useBlueprintUrlHash } from '../../lib/hooks/use-blueprint-url-hash';
 import { useDebouncedCallback } from '../../lib/hooks/use-debounced-callback';
 import { removeClientInfo } from '../../lib/state/redux/slice-clients';
 import {
+	createTemporarySiteFromBlueprintBundle,
 	isTemporarySite,
 	updateSite,
 	type SiteInfo,
 } from '../../lib/state/redux/slice-sites';
-import { useAppDispatch } from '../../lib/state/redux/store';
+import { setActiveSite, useAppDispatch } from '../../lib/state/redux/store';
 import styles from './blueprint-bundle-editor.module.css';
 import hideRootStyles from './hide-root.module.css';
 import validationStyles from './validation-panel.module.css';
@@ -391,25 +392,42 @@ export const BlueprintBundleEditor = forwardRef<
 			if (!bundle) {
 				throw new Error('Blueprint bundle is not available.');
 			}
-			const runtimeConfiguration = await resolveRuntimeConfiguration(
-				bundle as any
-			);
-			dispatch(removeClientInfo(site.slug));
-			await dispatch(
-				updateSite({
-					slug: site.slug,
-					changes: {
-						metadata: {
-							...site.metadata,
-							originalBlueprintSource: { type: 'last-autosave' },
-							originalBlueprint: bundle,
-							runtimeConfiguration,
-							whenCreated: Date.now(),
+			// In-memory temporary sites can be recreated in-place. Autosaved temporary
+			// sites boot from OPFS and already have WordPress installed, so recreating
+			// them from a Blueprint is best modeled as a *new* temporary site.
+			if (site.metadata.storage === 'none') {
+				const runtimeConfiguration = await resolveRuntimeConfiguration(
+					bundle as any
+				);
+				dispatch(removeClientInfo(site.slug));
+				await dispatch(
+					updateSite({
+						slug: site.slug,
+						changes: {
+							metadata: {
+								...site.metadata,
+								originalBlueprintSource: { type: 'last-autosave' },
+								originalBlueprint: bundle,
+								runtimeConfiguration,
+								whenCreated: Date.now(),
+							},
+							originalUrlParams: undefined,
 						},
-						originalUrlParams: undefined,
-					},
-				}) as any
+					}) as any
+				);
+				return;
+			}
+
+			const newSite = await dispatch(
+				createTemporarySiteFromBlueprintBundle(
+					site.metadata.name,
+					bundle as any,
+					{
+						useAutosave: site.metadata.kind === 'autosave',
+					}
+				) as any
 			);
+			await dispatch(setActiveSite(newSite.slug));
 		} catch (error) {
 			logger.error('Failed to recreate from blueprint', error);
 			setSaveError('Could not recreate Playground. Try again.');
