@@ -15,7 +15,7 @@ if (!SupportedPHPVersions.includes(phpVersion)) {
 	throw new Error(`PHP_VERSION '${phpVersion}' is not supported`);
 }
 
-describe(`PHP ${phpVersion}`, () => {
+describe(`PHP ${phpVersion}`, { concurrency: 1 }, () => {
 	it('Should load WordPress', { timeout: 30000 }, async () => {
 		const cli = await runCLI({
 			command: 'server',
