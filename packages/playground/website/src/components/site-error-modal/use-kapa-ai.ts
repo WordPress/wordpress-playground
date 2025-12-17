@@ -1,6 +1,7 @@
-import { useEffect, useCallback, useState, useRef } from 'react';
+import { useCallback, useRef } from 'react';
 
 const KAPA_WEBSITE_ID = 'a8b85529-1773-4710-b35f-c9ebc70ffcb6';
+const KAPA_SCRIPT_ID = 'kapa-widget-script';
 
 declare global {
 	interface Window {
@@ -17,17 +18,21 @@ declare global {
 	}
 }
 
-const KAPA_SCRIPT_ID = 'kapa-widget-script';
-
-export function useKapaAI() {
-	const [isLoaded, setIsLoaded] = useState(false);
-	const hasSubmittedQuery = useRef(false);
-
-	useEffect(() => {
-		// Check if script already exists
+function loadKapaScript(): Promise<void> {
+	return new Promise((resolve) => {
+		// Check if script already exists and loaded
 		if (document.getElementById(KAPA_SCRIPT_ID)) {
 			if (window.Kapa) {
-				setIsLoaded(true);
+				resolve();
+			} else {
+				// Script exists but not loaded yet, wait for it
+				const checkKapa = setInterval(() => {
+					if (window.Kapa) {
+						clearInterval(checkKapa);
+						resolve();
+					}
+				}, 100);
+				setTimeout(() => clearInterval(checkKapa), 5000);
 			}
 			return;
 		}
@@ -54,17 +59,32 @@ export function useKapaAI() {
 			const checkKapa = setInterval(() => {
 				if (window.Kapa) {
 					clearInterval(checkKapa);
-					setIsLoaded(true);
+					resolve();
 				}
 			}, 100);
-
 			setTimeout(() => clearInterval(checkKapa), 5000);
 		};
 
 		document.body.appendChild(script);
-	}, []);
+	});
+}
 
-	const openWithQuery = useCallback((query: string) => {
+export function useKapaAI() {
+	const hasSubmittedQuery = useRef(false);
+	const isEnabled = () => {
+		return (
+			window.location.hostname === 'playground.wordpress.net' ||
+			process.env.NODE_ENV === 'development'
+		);
+	};
+
+	const openWithQuery = useCallback(async (query: string) => {
+		if (!isEnabled()) {
+			return;
+		}
+
+		await loadKapaScript();
+
 		if (window.Kapa) {
 			if (hasSubmittedQuery.current) {
 				window.Kapa.open();
@@ -80,7 +100,7 @@ export function useKapaAI() {
 	}, []);
 
 	return {
-		isLoaded,
+		isEnabled,
 		openWithQuery,
 	};
 }
