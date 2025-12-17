@@ -242,9 +242,7 @@ function createPhpRuntimeFactory(options: WorkerBootRequestHandlerOptions) {
 				emscriptenOptions: {
 					processId,
 					trace: options.trace ? tracePhpWasm : undefined,
-					phpWasmInitOptions: {
-						nativeInternalDirPath: options.nativeInternalDirPath,
-					},
+					nativeInternalDirPath: options.nativeInternalDirPath,
 				},
 				followSymlinks: options.followSymlinks,
 				withIntl: options.withIntl,
