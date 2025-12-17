@@ -47,7 +47,6 @@ import { useDebouncedCallback } from '../../lib/hooks/use-debounced-callback';
 import { removeClientInfo } from '../../lib/state/redux/slice-clients';
 import {
 	isTemporarySite,
-	sitesSlice,
 	updateSite,
 	type SiteInfo,
 } from '../../lib/state/redux/slice-sites';
