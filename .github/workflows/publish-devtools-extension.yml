@@ -46,34 +46,55 @@ jobs:
 
             - uses: ./.github/actions/prepare-playground
 
+            # Version Bumping Strategy:
+            #
+            # The extension uses semantic versioning (MAJOR.MINOR.PATCH) with its own
+            # version sequence independent of the main WordPress Playground project.
+            #
+            # Version tags follow the pattern: devtools-extension-vX.Y.Z
+            # This naming clearly indicates these versions are extension-specific.
+            #
+            # How bumping works:
+            # - If no tags exist yet, we start at 0.0.1
+            # - Otherwise, we find the latest tag and increment based on the bump type:
+            #   - patch: 0.0.1 -> 0.0.2 (bug fixes, small changes)
+            #   - minor: 0.0.2 -> 0.1.0 (new features, backwards compatible)
+            #   - major: 0.1.0 -> 1.0.0 (breaking changes)
+            #
+            # The version is stored in Git tags only, not committed to the repository.
+            # The manifest.json version is updated at build time from the computed version.
             - name: Determine version
               id: version
               run: |
-                  # Get the latest devtools-extension tag
+                  # Find the most recent devtools-extension tag, sorted by version number
                   LATEST_TAG=$(git tag -l 'devtools-extension-v*' --sort=-v:refname | head -n 1)
 
                   if [ -z "$LATEST_TAG" ]; then
-                      # No existing tags, start at 0.0.1
+                      # No existing tags found - this is the first release
                       NEW_VERSION="0.0.1"
                   else
-                      # Extract version from tag (devtools-extension-v0.0.1 -> 0.0.1)
+                      # Extract the version number from the tag name
+                      # Example: devtools-extension-v0.0.1 -> 0.0.1
                       CURRENT_VERSION="${LATEST_TAG#devtools-extension-v}"
 
-                      # Split version into parts
+                      # Split version string into components
                       IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
 
-                      # Bump according to input
+                      # Apply the requested version bump
                       case "${{ inputs.version_bump }}" in
                           major)
+                              # Breaking changes: increment major, reset minor and patch
                               MAJOR=$((MAJOR + 1))
                               MINOR=0
                               PATCH=0
                               ;;
                           minor)
+                              # New features: increment minor, reset patch
                               MINOR=$((MINOR + 1))
                               PATCH=0
                               ;;
                           patch)
+                              # Bug fixes: increment patch only
                               PATCH=$((PATCH + 1))
                               ;;
                       esac
