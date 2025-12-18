@@ -1,9 +1,16 @@
 import esbuild from 'esbuild';
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 
-const packagePath = 'packages/php-wasm/web-builds/7-3';
-const distPath = 'dist/packages/php-wasm/web-builds/7-3';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const projectRoot = path.resolve(__dirname, '..', '..', '..', '..');
+const packagePath = path.join(projectRoot, 'packages/php-wasm/web-builds/7-3');
+const distPath = path.join(
+	projectRoot,
+	'dist/packages/php-wasm/web-builds/7-3'
+);
 
 try {
 	fs.mkdirSync(distPath, { recursive: true });
