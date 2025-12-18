@@ -72,7 +72,7 @@
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
-					"node packages/php-wasm/compile/build.js --PLATFORM=web --output-dir=packages/php-wasm/web/public/php/jspi --WITH_JSPI=yes"
+					"node packages/php-wasm/compile/build.js --PLATFORM=web --output-dir=packages/php-wasm/web-builds/8-3/jspi --WITH_JSPI=yes"
 				],
 				"parallel": false
 			}
@@ -81,15 +81,15 @@
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
-					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=8.5 --output-dir=packages/php-wasm/web/public/php/jspi --WITH_JSPI=yes",
-					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=8.4 --output-dir=packages/php-wasm/web/public/php/jspi --WITH_JSPI=yes",
-					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=8.3 --output-dir=packages/php-wasm/web/public/php/jspi --WITH_JSPI=yes",
-					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=8.2 --output-dir=packages/php-wasm/web/public/php/jspi --WITH_JSPI=yes",
-					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=8.1 --output-dir=packages/php-wasm/web/public/php/jspi --WITH_JSPI=yes",
-					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=8.0 --output-dir=packages/php-wasm/web/public/php/jspi --WITH_JSPI=yes",
-					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=7.4 --output-dir=packages/php-wasm/web/public/php/jspi --WITH_JSPI=yes",
-					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=7.3 --output-dir=packages/php-wasm/web/public/php/jspi --WITH_JSPI=yes",
-					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=7.2 --output-dir=packages/php-wasm/web/public/php/jspi --WITH_JSPI=yes"
+					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=8.5 --output-dir=packages/php-wasm/web-builds/8-5/jspi --WITH_JSPI=yes",
+					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=8.4 --output-dir=packages/php-wasm/web-builds/8-4/jspi --WITH_JSPI=yes",
+					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=8.3 --output-dir=packages/php-wasm/web-builds/8-3/jspi --WITH_JSPI=yes",
+					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=8.2 --output-dir=packages/php-wasm/web-builds/8-2/jspi --WITH_JSPI=yes",
+					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=8.1 --output-dir=packages/php-wasm/web-builds/8-1/jspi --WITH_JSPI=yes",
+					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=8.0 --output-dir=packages/php-wasm/web-builds/8-0/jspi --WITH_JSPI=yes",
+					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=7.4 --output-dir=packages/php-wasm/web-builds/7-4/jspi --WITH_JSPI=yes",
+					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=7.3 --output-dir=packages/php-wasm/web-builds/7-3/jspi --WITH_JSPI=yes",
+					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=7.2 --output-dir=packages/php-wasm/web-builds/7-2/jspi --WITH_JSPI=yes"
 				],
 				"parallel": false
 			}
@@ -98,7 +98,7 @@
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
-					"node packages/php-wasm/compile/build.js --PLATFORM=web --output-dir=packages/php-wasm/web/public/php/asyncify"
+					"node packages/php-wasm/compile/build.js --PLATFORM=web --output-dir=packages/php-wasm/web-builds/8-3/asyncify"
 				],
 				"parallel": false
 			}
@@ -107,15 +107,15 @@
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
-					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=8.5 --output-dir=packages/php-wasm/web/public/php/asyncify",
-					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=8.4 --output-dir=packages/php-wasm/web/public/php/asyncify",
-					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=8.3 --output-dir=packages/php-wasm/web/public/php/asyncify",
-					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=8.2 --output-dir=packages/php-wasm/web/public/php/asyncify",
-					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=8.1 --output-dir=packages/php-wasm/web/public/php/asyncify",
-					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=8.0 --output-dir=packages/php-wasm/web/public/php/asyncify",
-					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=7.4 --output-dir=packages/php-wasm/web/public/php/asyncify",
-					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=7.3 --output-dir=packages/php-wasm/web/public/php/asyncify",
-					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=7.2 --output-dir=packages/php-wasm/web/public/php/asyncify"
+					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=8.5 --output-dir=packages/php-wasm/web-builds/8-5/asyncify",
+					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=8.4 --output-dir=packages/php-wasm/web-builds/8-4/asyncify",
+					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=8.3 --output-dir=packages/php-wasm/web-builds/8-3/asyncify",
+					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=8.2 --output-dir=packages/php-wasm/web-builds/8-2/asyncify",
+					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=8.1 --output-dir=packages/php-wasm/web-builds/8-1/asyncify",
+					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=8.0 --output-dir=packages/php-wasm/web-builds/8-0/asyncify",
+					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=7.4 --output-dir=packages/php-wasm/web-builds/7-4/asyncify",
+					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=7.3 --output-dir=packages/php-wasm/web-builds/7-3/asyncify",
+					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=7.2 --output-dir=packages/php-wasm/web-builds/7-2/asyncify"
 				],
 				"parallel": false
 			}
