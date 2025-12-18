@@ -1,3 +1,4 @@
+// TODO: Rename this file to worker-process-v2.ts
 import { errorLogPath, logger } from '@php-wasm/logger';
 import { createNodeFsMountHandler, loadNodeRuntime } from '@php-wasm/node';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
@@ -30,7 +31,11 @@ import { existsSync } from 'fs';
 import path from 'path';
 import { rootCertificates } from 'tls';
 import { MessageChannel, parentPort } from 'worker_threads';
-import { spawnWorkerThread, type RunCLIArgs } from '../run-cli';
+import {
+	killWorkerProcess,
+	spawnWorkerProcess,
+	type RunCLIArgs,
+} from '../run-cli';
 import type {
 	PhpIniOptions,
 	PHPInstanceCreatedHook,
@@ -531,10 +536,12 @@ async function createPHPWorker({
 	mountsBeforeWpInstall,
 	mountsAfterWpInstall,
 }: SecondaryWorkerBootArgs) {
-	const spawnedWorker = await spawnWorkerThread('v2');
+	const spawnedWorkerProcess = await spawnWorkerProcess('v2');
 
 	const handler = consumeAPI<PlaygroundCliBlueprintV2Worker>(
-		spawnedWorker.phpPort
+		// TODO: Fix this type error.
+		// @ts-ignore
+		spawnedWorkerProcess
 	);
 	await handler.bootWorker({
 		siteUrl,
@@ -554,14 +561,14 @@ async function createPHPWorker({
 
 	return {
 		php: handler,
-		reap: () => {
+		reap: async () => {
 			try {
 				handler.dispose();
 			} catch {
 				/** */
 			}
 			try {
-				spawnedWorker.worker.terminate();
+				await killWorkerProcess(spawnedWorkerProcess);
 			} catch {
 				/** */
 			}

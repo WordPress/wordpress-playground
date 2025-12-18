@@ -1,6 +1,11 @@
+// TODO: Rename this file to worker-process-v1.ts
 import { loadNodeRuntime } from '@php-wasm/node';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
-import type { SupportedPHPVersion } from '@php-wasm/universal';
+import type {
+	NodeProcess,
+	PHPRequest,
+	SupportedPHPVersion,
+} from '@php-wasm/universal';
 import {
 	PHPWorker,
 	consumeAPI,
@@ -16,10 +21,10 @@ import {
 	resolveWordPressRelease,
 } from '@wp-playground/wordpress';
 import { rootCertificates } from 'tls';
-import { MessageChannel, parentPort } from 'worker_threads';
 import { mountResources } from '../mounts';
 import { logger } from '@php-wasm/logger';
-import { spawnWorkerThread } from '../run-cli';
+import { killWorkerProcess, spawnWorkerProcess } from '../run-cli';
+import { startServer } from '../start-server';
 
 import type { Mount } from '@php-wasm/cli-util';
 import path from 'path';
@@ -30,10 +35,12 @@ import {
 	readAsFile,
 } from './download';
 import fs from 'fs';
+import cluster from 'cluster';
 
 export type WorkerBootOptions = {
 	phpVersion: SupportedPHPVersion;
 	siteUrl: string;
+	port: number;
 	mountsBeforeWpInstall: Array<Mount>;
 	mountsAfterWpInstall: Array<Mount>;
 	firstProcessId: number;
@@ -61,6 +68,7 @@ export type PrimaryWorkerBootOptions = WorkerBootOptions & {
 };
 
 interface WorkerBootRequestHandlerOptions {
+	port: number;
 	siteUrl: string;
 	followSymlinks: boolean;
 	phpVersion: SupportedPHPVersion;
@@ -99,6 +107,7 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 
 	async bootAndSetUpInitialWorker(options: PrimaryWorkerBootOptions) {
 		const {
+			port,
 			siteUrl,
 			mountsBeforeWpInstall,
 			mountsAfterWpInstall,
@@ -243,15 +252,19 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 			// these mounts automatically.
 			await mountResources(primaryPhp, mountsAfterWpInstall);
 
+			if (cluster.isWorker) {
+				await startServer({
+					port,
+					handleRequest: async (request: PHPRequest) => {
+						return await this.request(request);
+					},
+				});
+			}
 			setApiReady();
 		} catch (e) {
 			setAPIError(e as Error);
 			throw e;
 		}
-	}
-
-	async hello() {
-		return 'hello';
 	}
 
 	async bootWorker(args: WorkerBootOptions) {
@@ -283,6 +296,15 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 
 			const primaryPhp = await requestHandler.getPrimaryPhp();
 			await this.setPrimaryPHP(primaryPhp);
+
+			if (cluster.isWorker) {
+				await startServer({
+					port: options.port,
+					handleRequest: async (request: PHPRequest) => {
+						return await this.request(request);
+					},
+				});
+			}
 
 			setApiReady();
 		} catch (e) {
@@ -348,23 +370,25 @@ function createPhpRuntimeFactory(options: WorkerBootRequestHandlerOptions) {
  * @returns A promise that resolves to the PHP worker.
  */
 async function createPHPWorker(options: WorkerBootRequestHandlerOptions) {
-	const spawnedWorker = await spawnWorkerThread('v1');
+	const spawnedWorker = await spawnWorkerProcess('v1');
 
 	const handler = consumeAPI<PlaygroundCliBlueprintV1Worker>(
-		spawnedWorker.phpPort
+		// TODO: Fix this type error.
+		// @ts-ignore
+		spawnedWorker
 	);
 	await handler.bootWorker(options);
 
 	return {
 		php: handler,
-		reap: () => {
+		reap: async () => {
 			try {
 				handler.dispose();
 			} catch {
 				/** */
 			}
 			try {
-				spawnedWorker.worker.terminate();
+				await killWorkerProcess(spawnedWorker);
 			} catch {
 				/** */
 			}
@@ -376,18 +400,12 @@ process.on('unhandledRejection', (e: any) => {
 	logger.error('Unhandled rejection:', e);
 });
 
-const phpChannel = new MessageChannel();
-
 const [setApiReady, setAPIError] = exposeAPI(
 	new PlaygroundCliBlueprintV1Worker(new EmscriptenDownloadMonitor()),
 	undefined,
-	phpChannel.port1
+	// TODO: Fix this type error.
+	// @ts-ignore
+	process as NodeProcess
 );
 
-parentPort?.postMessage(
-	{
-		command: 'worker-script-initialized',
-		phpPort: phpChannel.port2,
-	},
-	[phpChannel.port2 as any]
-);
+process.send!({ command: 'worker-script-initialized' });

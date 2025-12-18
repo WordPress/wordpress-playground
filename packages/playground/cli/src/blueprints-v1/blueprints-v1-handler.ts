@@ -1,5 +1,6 @@
 import { logger } from '@php-wasm/logger';
 // TODO: Wire up download progress tracking with initial worker
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { EmscriptenDownloadMonitor, ProgressTracker } from '@php-wasm/progress';
 import { consumeAPI } from '@php-wasm/universal';
 import type { BlueprintV1Declaration } from '@wp-playground/blueprints';
@@ -10,11 +11,10 @@ import {
 } from '@wp-playground/blueprints';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import type { PlaygroundCliBlueprintV1Worker } from './worker-thread-v1';
-import type { MessagePort as NodeMessagePort } from 'worker_threads';
 import {
 	LogVerbosity,
-	type RunCLIArgs,
 	type SpawnedWorker,
+	type RunCLIArgs,
 	type WorkerType,
 } from '../run-cli';
 import { shouldRenderProgress } from '../utils/progress';
@@ -49,7 +49,7 @@ export class BlueprintsV1Handler {
 	}
 
 	async bootAndSetUpInitialPlayground(
-		phpPort: NodeMessagePort,
+		workerProcess: SpawnedWorker,
 		nativeInternalDirPath: string
 	) {
 		const followSymlinks = this.args.followSymlinks === true;
@@ -58,7 +58,10 @@ export class BlueprintsV1Handler {
 		const mountsBeforeWpInstall = this.args['mount-before-install'] || [];
 		const mountsAfterWpInstall = this.args.mount || [];
 
-		const playground = consumeAPI<PlaygroundCliBlueprintV1Worker>(phpPort);
+		// TODO: Fix this type error.
+		// @ts-ignore
+		const playground =
+			consumeAPI<PlaygroundCliBlueprintV1Worker>(workerProcess);
 
 		// Comlink communication proxy
 		await playground.isConnected();
@@ -70,6 +73,7 @@ export class BlueprintsV1Handler {
 		);
 
 		await playground.bootAndSetUpInitialWorker({
+			port: this.args.port!,
 			phpVersion: runtimeConfiguration.phpVersion,
 			wpVersion: runtimeConfiguration.wpVersion,
 			siteUrl: this.siteUrl,
@@ -96,16 +100,18 @@ export class BlueprintsV1Handler {
 	}
 
 	async bootPlayground({
-		worker,
+		workerProcess,
 		firstProcessId,
 		nativeInternalDirPath,
 	}: {
-		worker: SpawnedWorker;
+		workerProcess: SpawnedWorker;
 		firstProcessId: number;
 		nativeInternalDirPath: string;
 	}) {
 		const playground = consumeAPI<PlaygroundCliBlueprintV1Worker>(
-			worker.phpPort
+			// TODO: Fix this type error.
+			// @ts-ignore
+			workerProcess
 		);
 
 		await playground.isConnected();
@@ -113,6 +119,7 @@ export class BlueprintsV1Handler {
 			this.getEffectiveBlueprint()
 		);
 		await playground.bootWorker({
+			port: this.args.port!,
 			phpVersion: runtimeConfiguration.phpVersion,
 			siteUrl: this.siteUrl,
 			mountsBeforeWpInstall: this.args['mount-before-install'] || [],

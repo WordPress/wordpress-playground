@@ -4,7 +4,6 @@ import type {
 	PlaygroundCliBlueprintV2Worker,
 	SecondaryWorkerBootArgs,
 } from './worker-thread-v2';
-import type { MessagePort as NodeMessagePort } from 'worker_threads';
 import type { RunCLIArgs, SpawnedWorker, WorkerType } from '../run-cli';
 import { shouldRenderProgress } from '../utils/progress';
 
@@ -40,11 +39,13 @@ export class BlueprintsV2Handler {
 	}
 
 	async bootAndSetUpInitialPlayground(
-		phpPort: NodeMessagePort,
+		workerProcess: SpawnedWorker,
 		nativeInternalDirPath: string
 	) {
 		const playground: RemoteAPI<PlaygroundCliBlueprintV2Worker> =
-			consumeAPI(phpPort);
+			// TODO: Fix this type error.
+			// @ts-ignore
+			consumeAPI<PlaygroundCliBlueprintV2Worker>(workerProcess);
 
 		const workerBootArgs = {
 			...this.args,
@@ -71,16 +72,18 @@ export class BlueprintsV2Handler {
 	}
 
 	async bootPlayground({
-		worker,
+		workerProcess,
 		firstProcessId,
 		nativeInternalDirPath,
 	}: {
-		worker: SpawnedWorker;
+		workerProcess: SpawnedWorker;
 		firstProcessId: number;
 		nativeInternalDirPath: string;
 	}) {
 		const playground: RemoteAPI<PlaygroundCliBlueprintV2Worker> =
-			consumeAPI(worker.phpPort);
+			// TODO: Fix this type error.
+			// @ts-ignore
+			consumeAPI<PlaygroundCliBlueprintV2Worker>(workerProcess);
 
 		const workerBootArgs: SecondaryWorkerBootArgs = {
 			...this.args,
