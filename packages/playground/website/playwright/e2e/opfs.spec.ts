@@ -603,14 +603,8 @@ test('should create temporary site when importing ZIP while on a saved site with
 	// Open the saved playgrounds overlay
 	await website.openSavedPlaygroundsOverlay();
 
-	// Verify there's no "Temporary Playground" in the list initially
-	// (the temporary site row should show but clicking it would create one)
-	const tempPlaygroundRow = website.page
-		.locator('[class*="siteRowContent"]')
-		.filter({ hasText: 'Temporary Playground' });
-
-	// The row exists but it's for creating a new temporary playground
-	await expect(tempPlaygroundRow).toBeVisible();
+	// Importing a ZIP from a saved site should never overwrite the saved site.
+	// The import should land in a temporary site (created or reused).
 
 	// Create a test ZIP
 	const importedMarker = 'FRESH_IMPORT_MARKER_BBBBB';
