@@ -1,10 +1,10 @@
 {
 	"name": "@wp-playground/common",
-	"version": "3.0.30",
+	"version": "3.0.31",
 	"description": "Common exports and utilities for WordPress Playground",
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/common/common-playground"
+		"url": "https://github.com/WordPress/wordpress-playground"
 	},
 	"homepage": "https://developer.wordpress.org/playground",
 	"author": "The WordPress contributors",

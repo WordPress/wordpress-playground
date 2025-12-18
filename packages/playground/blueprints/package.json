@@ -1,12 +1,16 @@
 {
 	"name": "@wp-playground/blueprints",
-	"version": "3.0.30",
+	"version": "3.0.31",
 	"exports": {
 		".": {
 			"import": "./index.js",
 			"require": "./index.cjs"
 		},
 		"./package.json": "./package.json"
+	},
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/WordPress/wordpress-playground"
 	},
 	"type": "module",
 	"main": "./index.cjs",
