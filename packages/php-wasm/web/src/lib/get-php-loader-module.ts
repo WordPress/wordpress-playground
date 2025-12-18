@@ -5,7 +5,6 @@ import { LatestSupportedPHPVersion } from '@php-wasm/universal';
  * Loads the PHP loader module for the given PHP version.
  *
  * Each PHP version is packaged separately to reduce bundle size.
- * Install only the versions you need:
  * - @php-wasm/web-8-5
  * - @php-wasm/web-8-4
  * - @php-wasm/web-8-3

@@ -4,8 +4,7 @@ import type { PHPLoaderModule, SupportedPHPVersion } from '@php-wasm/universal';
 /**
  * Loads the PHP loader module for the given PHP version.
  *
- * Each PHP version is packaged separately to reduce bundle size.
- * Install only the versions you need:
+ * Each PHP version is packaged separately to reduce bundle size:
  * - @php-wasm/node-8-5
  * - @php-wasm/node-8-4
  * - @php-wasm/node-8-3
