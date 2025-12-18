@@ -4,7 +4,10 @@
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 // Note: The path module is currently needed by code injected by the php-wasm Dockerfile.
+import { fileURLToPath } from 'url';
 import path from 'path';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const dependencyFilename = path.join(__dirname, '8_3_28', 'php_8_3.wasm');
 export { dependencyFilename };
