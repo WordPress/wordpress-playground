@@ -32,9 +32,14 @@ export default defineConfig({
 		/*
 		 * These transforms rewrite dynamic import paths so they work from the dist output.
 		 *
-		 * Note: PHP loaders and extensions are now imported from version-specific
-		 * packages like @php-wasm/web-8-4, so most path transforms are no longer needed.
-		 * Only shared resources like icu.dat still need path transforms.
+		 * Each transform does two things:
+		 * 1. slice(-N) extracts the path segments we want to keep (strips the 'public' prefix)
+		 * 2. The '../' prefix compensates for the source file's directory depth
+		 *
+		 * Why the '../' prefix? Rollup computes the final import path relative to
+		 * where the source file was located. Since everything gets bundled into
+		 * index.js at the dist root, we need to "climb out" of the source directory
+		 * structure. Rollup then normalizes '../foo' to './foo' in the output.
 		 */
 		viteExternalDynamicImports([
 			{
