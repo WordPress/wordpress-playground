@@ -72,7 +72,7 @@
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
-					"node packages/php-wasm/compile/build.js --PLATFORM=web --output-dir=packages/php-wasm/web-builds/8-3/jspi --WITH_JSPI=yes"
+					"node packages/php-wasm/compile/build.js --PLATFORM=web --WITH_JSPI=yes"
 				],
 				"parallel": false
 			}
@@ -98,7 +98,7 @@
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
-					"node packages/php-wasm/compile/build.js --PLATFORM=web --output-dir=packages/php-wasm/web-builds/8-3/asyncify"
+					"node packages/php-wasm/compile/build.js --PLATFORM=web"
 				],
 				"parallel": false
 			}
