@@ -124,14 +124,13 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 				}
 			}
 
-			let sqliteIntegrationRequest: Promise<Response> | null = null;
 			const sqliteDriverModuleDetails = getSqliteDriverModuleDetails(
 				sqliteDriverVersion!
 			);
 			this.downloadMonitor.expectAssets({
 				[sqliteDriverModuleDetails.url]: sqliteDriverModuleDetails.size,
 			});
-			sqliteIntegrationRequest = this.downloadMonitor.monitorFetch(
+			const sqliteIntegrationRequest = this.downloadMonitor.monitorFetch(
 				fetch(sqliteDriverModuleDetails.url)
 			);
 
@@ -152,19 +151,22 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 							NONCE_SALT: randomString(40),
 						}
 					: {},
+				// Passing this even when shouldInstallWordPress is false is counter-intuitive.
+				// Before this line was introduced, `wordpressInstallMode` was always undefined
+				// which defaulted to 'install-from-existing-files'. Using the `-if-needed` variant
+				// saves around 600ms during the boot on a macbook pro so it's worth it.
+				// @TODO: Deprecate the `shouldInstallWordPress` semantics entirely and get the client
+				//        and the Playground website to pass `wordpressInstallMode` directly.
+				wordpressInstallMode: 'install-from-existing-files-if-needed',
 				// Do not await the WordPress download or the sqlite integration download.
 				// Let bootWordPress start the PHP runtime download first, and then await
 				// all the ZIP files right before they're used.
-				wordPressZip: shouldInstallWordPress
-					? wordPressRequest!
-							.then((r) => r.blob())
-							.then((b) => new File([b], 'wp.zip'))
-					: undefined,
+				wordPressZip: wordPressRequest
+					?.then((r) => r.blob())
+					.then((b) => new File([b], 'wp.zip')),
 				sqliteIntegrationPluginZip: sqliteIntegrationRequest
-					? sqliteIntegrationRequest
-							.then((r) => r.blob())
-							.then((b) => new File([b], 'sqlite.zip'))
-					: undefined,
+					.then((r) => r.blob())
+					.then((b) => new File([b], 'sqlite.zip')),
 				hooks: {
 					async beforeWordPressFiles(php: PHP) {
 						for (const mount of mounts) {
