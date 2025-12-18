@@ -254,8 +254,11 @@ test('should edit a file in the code editor and see changes in the viewport', as
 	const cmContent = fileBrowserPanel.locator('.cm-content').first();
 	await expect(cmContent).toBeVisible({ timeout: 20000 });
 	// Ensure we're editing the right file (the editor auto-opens wp-config.php).
+	// Use exact: true to avoid matching the same path inside the editor content.
 	await expect(
-		fileBrowserPanel.getByText('/wordpress/e2e-file-editor.php')
+		fileBrowserPanel.getByText('/wordpress/e2e-file-editor.php', {
+			exact: true,
+		})
 	).toBeVisible({ timeout: 10000 });
 
 	// Replace the whole file content reliably (CodeMirror sometimes delays initial text rendering).
