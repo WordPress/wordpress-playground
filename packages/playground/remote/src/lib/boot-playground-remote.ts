@@ -301,11 +301,16 @@ export async function bootPlaygroundRemote() {
 			const newUrl = await playground.pathToInternalUrl(requestedPath);
 			const oldUrl = wpFrame.src;
 
+			const navigationComplete = new Promise<void>((resolve) => {
+				wpFrame.addEventListener('load', () => resolve(), { once: true });
+			});
+
 			// If the URL is the same, we need to force a reload
 			// because otherwise the iframe will not reload the page.
 			if (newUrl === oldUrl && wpFrame.contentWindow) {
 				try {
 					wpFrame.contentWindow.location.href = newUrl;
+					await navigationComplete;
 					return;
 				} catch {
 					// The above call can fail if we're embedded in an
@@ -313,6 +318,7 @@ export async function bootPlaygroundRemote() {
 				}
 			}
 			wpFrame.src = newUrl;
+			await navigationComplete;
 		},
 		async getCurrentURL() {
 			let url = '';
