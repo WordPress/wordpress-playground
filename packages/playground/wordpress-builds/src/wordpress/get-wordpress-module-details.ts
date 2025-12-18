@@ -41,49 +41,49 @@ export function getWordPressModuleDetails(wpVersion: string = "6.9"): { size: nu
 		case '6.9':
 			/** @ts-ignore */
 			return {
-				size: 24778796,
+				size: 24779145,
 				url: url_6_9,
 			};
 			
 		case '6.8':
 			/** @ts-ignore */
 			return {
-				size: 24743772,
+				size: 24744359,
 				url: url_6_8,
 			};
 			
 		case '6.7':
 			/** @ts-ignore */
 			return {
-				size: 24594721,
+				size: 24595355,
 				url: url_6_7,
 			};
 			
 		case '6.6':
 			/** @ts-ignore */
 			return {
-				size: 18386194,
+				size: 18386737,
 				url: url_6_6,
 			};
 			
 		case '6.5':
 			/** @ts-ignore */
 			return {
-				size: 18457511,
+				size: 18458067,
 				url: url_6_5,
 			};
 			
 		case '6.4':
 			/** @ts-ignore */
 			return {
-				size: 18265208,
+				size: 18269292,
 				url: url_6_4,
 			};
 			
 		case '6.3':
 			/** @ts-ignore */
 			return {
-				size: 3595053,
+				size: 15722609,
 				url: url_6_3,
 			};
 			

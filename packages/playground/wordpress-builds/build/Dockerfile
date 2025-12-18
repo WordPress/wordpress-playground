@@ -28,7 +28,9 @@ RUN export KEEP_THEME=$(cat wordpress/.default_theme); \
 # get many spammy comments :-)
 RUN rm -rf wordpress/wp-content/plugins/akismet
 
-# Separate WordPress static files
+# Separate WordPress static files (the SQLite database stays in wp.zip,
+# not in static assets, so clients get the pre-installed database when
+# they download wp.zip but we don't ship it as a static asset)
 RUN cp -r wordpress wordpress-static && \
     cd wordpress-static && \
     find ./ -name '*.php' -delete && \
