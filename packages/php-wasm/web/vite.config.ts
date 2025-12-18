@@ -33,7 +33,7 @@ export default defineConfig({
 		 * These transforms rewrite dynamic import paths so they work from the dist output.
 		 *
 		 * Note: PHP loaders and extensions are now imported from version-specific
-		 * packages like @php-wasm/web-8.4, so most path transforms are no longer needed.
+		 * packages like @php-wasm/web-8-4, so most path transforms are no longer needed.
 		 * Only shared resources like icu.dat still need path transforms.
 		 */
 		viteExternalDynamicImports([
@@ -62,9 +62,9 @@ export default defineConfig({
 		sourcemap: true,
 		rollupOptions: {
 			// Don't bundle the PHP loaders or extensions in the final build.
-			// PHP loaders are now in version-specific packages like @php-wasm/web-8.4
+			// PHP loaders are now in version-specific packages like @php-wasm/web-8-4
 			external: [
-				/^@php-wasm\/web-\d+\.\d+$/,
+				/^@php-wasm\/web-\d+-\d+$/,
 				/icu.dat$/,
 				/intl.so$/,
 				...getExternalModules(),

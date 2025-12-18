@@ -6,8 +6,8 @@ import type { SupportedPHPVersion } from '@php-wasm/universal';
  *
  * Each PHP version's xdebug extension is packaged separately. Install the
  * version-specific package you need:
- * - @php-wasm/node-8.5
- * - @php-wasm/node-8.4
+ * - @php-wasm/node-8-5
+ * - @php-wasm/node-8-4
  * - etc.
  */
 export async function getXdebugExtensionModule(
@@ -17,47 +17,47 @@ export async function getXdebugExtensionModule(
 		case '8.5':
 			// @ts-ignore
 			return (
-				await import('@php-wasm/node-8.5')
+				await import('@php-wasm/node-8-5')
 			).getXdebugExtensionPath();
 		case '8.4':
 			// @ts-ignore
 			return (
-				await import('@php-wasm/node-8.4')
+				await import('@php-wasm/node-8-4')
 			).getXdebugExtensionPath();
 		case '8.3':
 			// @ts-ignore
 			return (
-				await import('@php-wasm/node-8.3')
+				await import('@php-wasm/node-8-3')
 			).getXdebugExtensionPath();
 		case '8.2':
 			// @ts-ignore
 			return (
-				await import('@php-wasm/node-8.2')
+				await import('@php-wasm/node-8-2')
 			).getXdebugExtensionPath();
 		case '8.1':
 			// @ts-ignore
 			return (
-				await import('@php-wasm/node-8.1')
+				await import('@php-wasm/node-8-1')
 			).getXdebugExtensionPath();
 		case '8.0':
 			// @ts-ignore
 			return (
-				await import('@php-wasm/node-8.0')
+				await import('@php-wasm/node-8-0')
 			).getXdebugExtensionPath();
 		case '7.4':
 			// @ts-ignore
 			return (
-				await import('@php-wasm/node-7.4')
+				await import('@php-wasm/node-7-4')
 			).getXdebugExtensionPath();
 		case '7.3':
 			// @ts-ignore
 			return (
-				await import('@php-wasm/node-7.3')
+				await import('@php-wasm/node-7-3')
 			).getXdebugExtensionPath();
 		case '7.2':
 			// @ts-ignore
 			return (
-				await import('@php-wasm/node-7.2')
+				await import('@php-wasm/node-7-2')
 			).getXdebugExtensionPath();
 	}
 	throw new Error(`Unsupported PHP version ${version}`);
