@@ -245,7 +245,9 @@ test('should edit a file in the code editor and see changes in the viewport', as
 	await expect(cmContent).toContainText('Edited file', { timeout: 10000 });
 
 	// Wait for auto-save (debounced) to finish before reloading the iframe.
-	await expect(fileBrowserPanel.getByText('Saved')).toBeVisible({
+	await expect(
+		fileBrowserPanel.getByText('Saved', { exact: true })
+	).toBeVisible({
 		timeout: 20000,
 	});
 
