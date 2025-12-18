@@ -343,7 +343,9 @@ async function handleScopedRequest(event: FetchEvent, scope: string) {
 	}
 
 	// Serve the iframe loader HTML for trapped iframes
-	if (fullUrl.pathname.endsWith('/wp-includes/playground-iframe-loader.html')) {
+	if (
+		fullUrl.pathname.endsWith('/wp-includes/playground-iframe-loader.html')
+	) {
 		return iframeLoaderHtml(scope);
 	}
 
@@ -669,13 +671,13 @@ function iframeLoaderHtml(scope: string) {
 			if (content.includes('<head>')) {
 				content = content.replace('<head>', '<head>' + trapScript);
 			} else if (content.match(/<head\\s/)) {
-				content = content.replace(/<head[^>]*>/, '\$&' + trapScript);
+				content = content.replace(/<head[^>]*>/, '$&' + trapScript);
 			} else if (content.includes('<html>')) {
 				content = content.replace('<html>', '<html>' + trapScript);
 			} else if (content.match(/<html\\s/)) {
-				content = content.replace(/<html[^>]*>/, '\$&' + trapScript);
+				content = content.replace(/<html[^>]*>/, '$&' + trapScript);
 			} else if (content.toLowerCase().startsWith('<!doctype')) {
-				content = content.replace(/(<!doctype[^>]*>)/i, '\$1' + trapScript);
+				content = content.replace(/(<!doctype[^>]*>)/i, '$1' + trapScript);
 			} else {
 				content = trapScript + content;
 			}
