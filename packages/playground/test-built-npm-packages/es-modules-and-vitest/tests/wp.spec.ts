@@ -20,6 +20,7 @@ describe(`PHP ${phpVersion}`, () => {
 		const cli = await runCLI({
 			command: 'server',
 			php: phpVersion,
+			port: 0,
 			quiet: true,
 		});
 		try {
@@ -124,6 +125,7 @@ describe(`PHP ${phpVersion}`, () => {
 			const cli = await runCLI({
 				command: 'server',
 				php: phpVersion,
+				port: 0,
 				quiet: true,
 				blueprint: {
 					steps: [

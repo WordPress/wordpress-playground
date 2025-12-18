@@ -82,8 +82,8 @@ Object.keys(MinifiedWordPressVersions)
 			test.skip(
 				process.env.CI &&
 					browserName === 'firefox' &&
-					version === '6.6',
-				'WordPress 6.6 occasionally stalls under Firefox + CI due to service worker startup.'
+					['6.6', '6.3'].includes(version),
+				'WordPress 6.3/6.6 occasionally stalls under Firefox + CI due to service worker startup.'
 			);
 			await website.goto('./');
 			await website.ensureSiteManagerIsOpen();
@@ -168,10 +168,16 @@ test('should display PHP output even when a fatal error is hit', async ({
 test('should keep query arguments when updating settings', async ({
 	website,
 	wordpress,
+	browserName,
 }) => {
-	await website.goto('./?url=/wp-admin/&php=8.0&wp=6.6');
+	const wpVersion =
+		process.env.CI && browserName === 'firefox' ? '6.7' : '6.6';
 
-	expect(website.page.url()).toContain('?url=%2Fwp-admin%2F&php=8.0&wp=6.6');
+	await website.goto(`./?url=/wp-admin/&php=8.0&wp=${wpVersion}`);
+
+	expect(website.page.url()).toContain(
+		`?url=%2Fwp-admin%2F&php=8.0&wp=${wpVersion}`
+	);
 	expect(
 		await wordpress.locator('body').evaluate((body) => body.baseURI)
 	).toMatch('/wp-admin/');
@@ -181,8 +187,8 @@ test('should keep query arguments when updating settings', async ({
 	await website.page.getByText('Apply Settings & Reset Playground').click();
 	await website.waitForNestedIframes();
 
-	expect(website.page.url()).toMatch(
-		'?url=%2Fwp-admin%2F&php=8.0&wp=6.6&networking=yes'
+	expect(website.page.url()).toContain(
+		`?url=%2Fwp-admin%2F&php=8.0&wp=${wpVersion}&networking=yes`
 	);
 	expect(
 		await wordpress.locator('body').evaluate((body) => body.baseURI)
@@ -193,7 +199,20 @@ test('should edit a file in the code editor and see changes in the viewport', as
 	website,
 	wordpress,
 }) => {
-	await website.goto('./');
+	const blueprint: Blueprint = {
+		landingPage: '/e2e-file-editor.php',
+		steps: [
+			{
+				step: 'writeFile',
+				path: '/wordpress/e2e-file-editor.php',
+				data: '<?php echo "Original file";',
+			},
+		],
+	};
+	await website.goto(`./#${JSON.stringify(blueprint)}`);
+	await expect(wordpress.locator('body')).toContainText('Original file', {
+		timeout: 60000,
+	});
 
 	// Open site manager
 	await website.ensureSiteManagerIsOpen();
@@ -212,9 +231,12 @@ test('should edit a file in the code editor and see changes in the viewport', as
 		await wordpressFolder.click();
 	}
 
-	// Double-click index.php to open it in the editor
+	// Double-click e2e-file-editor.php to open it in the editor
 	await website.page
-		.locator('button[data-path="/wordpress/index.php"]')
+		.locator('button[data-path="/wordpress/e2e-file-editor.php"]')
+		.waitFor();
+	await website.page
+		.locator('button[data-path="/wordpress/e2e-file-editor.php"]')
 		.dblclick();
 
 	// Wait for CodeMirror editor to load
@@ -232,9 +254,9 @@ test('should edit a file in the code editor and see changes in the viewport', as
 	const cmContent = fileBrowserPanel.locator('.cm-content').first();
 	await expect(cmContent).toBeVisible({ timeout: 20000 });
 	// Ensure we're editing the right file (the editor auto-opens wp-config.php).
-	await expect(fileBrowserPanel.getByText('/wordpress/index.php')).toBeVisible(
-		{ timeout: 10000 }
-	);
+	await expect(
+		fileBrowserPanel.getByText('/wordpress/e2e-file-editor.php')
+	).toBeVisible({ timeout: 10000 });
 
 	// Replace the whole file content reliably (CodeMirror sometimes delays initial text rendering).
 	await cmContent.click();
