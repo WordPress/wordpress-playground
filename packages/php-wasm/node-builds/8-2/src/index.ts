@@ -4,9 +4,14 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { existsSync } from 'node:fs';
 
-// Use custom names to avoid conflicts with esbuild's __filename/__dirname polyfills
-const currentFilePath = fileURLToPath(import.meta.url);
-const currentDirPath = dirname(currentFilePath);
+// Determine the current directory path. In CJS mode, __dirname is available.
+// In ESM mode, we derive it from import.meta.url.
+// We use a type assertion to avoid TypeScript errors about __dirname in ESM.
+declare const __dirname: string | undefined;
+const currentDirPath =
+	typeof __dirname !== 'undefined'
+		? __dirname
+		: dirname(fileURLToPath(import.meta.url));
 // In development, the file is in src/ so we need to go up one level.
 // In the built package, the file is at the package root.
 // Detect by checking if jspi/ exists in the current directory.
