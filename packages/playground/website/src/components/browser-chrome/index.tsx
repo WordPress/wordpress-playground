@@ -18,6 +18,7 @@ import { ActiveSiteSettingsForm } from '../site-manager/site-settings-form';
 import { setSiteManagerOpen } from '../../lib/state/redux/slice-ui';
 import { SiteManagerIcon } from '@wp-playground/components';
 import { SavedPlaygroundsOverlay } from '../saved-playgrounds-overlay';
+import { SaveStatusIndicator } from './save-status-indicator';
 
 interface BrowserChromeProps {
 	children?: React.ReactNode;
@@ -69,6 +70,8 @@ export default function BrowserChrome({
 							}
 						/>
 					</div>
+
+					<SaveStatusIndicator />
 
 					<div className={css.toolbarButtons}>
 						<Button

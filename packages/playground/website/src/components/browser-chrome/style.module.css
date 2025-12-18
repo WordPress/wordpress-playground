@@ -138,3 +138,24 @@ body.is-embedded .fake-window-wrapper {
 		padding: 0;
 	}
 }
+
+/* Mobile: split toolbar into two lines */
+@media (max-width: 500px) {
+	.toolbar {
+		flex-wrap: wrap;
+		height: auto;
+		padding: 8px;
+		gap: 8px;
+	}
+
+	.address-bar-slot {
+		order: 1;
+		flex-basis: 100%;
+		min-width: 0;
+	}
+
+	.toolbar-buttons {
+		order: 3;
+		margin-left: auto;
+	}
+}
