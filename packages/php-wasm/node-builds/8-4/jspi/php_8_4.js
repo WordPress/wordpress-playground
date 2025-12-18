@@ -4,15 +4,12 @@
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 // Note: The path module is currently needed by code injected by the php-wasm Dockerfile.
-import { fileURLToPath } from 'url';
 import path from 'path';
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
-const dependencyFilename = path.join(__dirname, '8_4_15', 'php_8_4.wasm');
+const dependencyFilename = path.join(__dirname, '8_4_16', 'php_8_4.wasm');
 export { dependencyFilename };
-export const dependenciesTotalSize = 29263184;
-const phpVersionString = '8.4.15';
+export const dependenciesTotalSize = 29264775;
+const phpVersionString = '8.4.16';
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
 	// include: shell.js
