@@ -198,7 +198,12 @@ test('should keep query arguments when updating settings', async ({
 test('should edit a file in the code editor and see changes in the viewport', async ({
 	website,
 	wordpress,
+	browserName,
 }) => {
+	test.skip(
+		!!process.env.CI && browserName === 'firefox',
+		'Firefox CI has race conditions with virtual filesystem writes before iframe reload.'
+	);
 	const blueprint: Blueprint = {
 		landingPage: '/e2e-file-editor.php',
 		steps: [
