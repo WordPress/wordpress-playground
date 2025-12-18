@@ -25,6 +25,15 @@ type Result = {
 };
 
 const results: Result[] = [];
+const timeoutMs = Number.parseInt(
+	process.env.PER_PHP_TEST_TIMEOUT_MS ?? '60000',
+	10
+);
+if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
+	throw new Error(
+		`Invalid PER_PHP_TEST_TIMEOUT_MS value: "${process.env.PER_PHP_TEST_TIMEOUT_MS}"`
+	);
+}
 
 // Exclude PHP 7.2 – it often times out on CI.
 for (const phpVersion of SupportedPHPVersions.filter(
@@ -43,36 +52,42 @@ for (const phpVersion of SupportedPHPVersions.filter(
 		],
 		{
 			env: {
+				...process.env,
 				PHP_VERSION: phpVersion,
 			},
 			stdio: 'inherit',
 		}
 	);
 
-	const promiseToClose = new Promise<void>((resolve) => {
-		child.on('close', (code) => {
-			results.push({
-				phpVersion,
-				code,
-			});
-			resolve();
-		});
+	let timeoutHandle: NodeJS.Timeout | undefined;
+	const promiseToClose = new Promise<number | null>((resolve) => {
+		child.on('close', (code) => resolve(code));
 	});
-	const promiseToTimeout = new Promise<void>((resolve, reject) => {
-		setTimeout(() => {
-			console.error(`PHP ${phpVersion}: timed out.`);
-			reject(new Error('Test timed out'));
-		}, 30000);
+	const promiseToTimeout = new Promise<never>((_, reject) => {
+		timeoutHandle = setTimeout(() => {
+			reject(new Error(`Test timed out after ${timeoutMs}ms`));
+		}, timeoutMs);
 	});
+
 	try {
-		await Promise.race([promiseToClose, promiseToTimeout]);
+		const code = await Promise.race([promiseToClose, promiseToTimeout]);
+		results.push({
+			phpVersion,
+			code,
+		});
 	} catch (e) {
+		console.error(`PHP ${phpVersion}: timed out after ${timeoutMs}ms.`);
 		results.push({
 			phpVersion,
 			code: null,
 			timeout: true,
 		});
 		child.kill('SIGKILL');
+		await promiseToClose;
+	} finally {
+		if (timeoutHandle) {
+			clearTimeout(timeoutHandle);
+		}
 	}
 }
 

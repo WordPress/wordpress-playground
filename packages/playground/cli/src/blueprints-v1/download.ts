@@ -5,9 +5,20 @@ import path, { basename } from 'path';
 
 export const CACHE_FOLDER = path.join(os.homedir(), '.wordpress-playground');
 
+const BUNDLED_SQLITE_ZIP_URL = new URL(
+	/* @vite-ignore */ './sqlite-database-integration-develop.zip',
+	import.meta.url
+);
+
 export async function fetchSqliteIntegration(
 	monitor: EmscriptenDownloadMonitor
 ) {
+	if (fs.existsSync(BUNDLED_SQLITE_ZIP_URL)) {
+		return readAsFile(
+			BUNDLED_SQLITE_ZIP_URL,
+			'sqlite-database-integration-develop.zip'
+		);
+	}
 	const sqliteZip = await cachedDownload(
 		'https://github.com/WordPress/sqlite-database-integration/archive/refs/heads/develop.zip',
 		'sqlite.zip',
@@ -64,6 +75,9 @@ async function downloadTo(
 	}
 }
 
-export function readAsFile(path: string, fileName?: string): File {
-	return new File([fs.readFileSync(path)], fileName ?? basename(path));
+export function readAsFile(path: string | URL, fileName?: string): File {
+	const inferredFileName =
+		fileName ??
+		(typeof path === 'string' ? basename(path) : basename(path.pathname));
+	return new File([fs.readFileSync(path)], inferredFileName);
 }

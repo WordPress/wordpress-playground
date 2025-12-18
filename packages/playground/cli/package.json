@@ -34,5 +34,16 @@
 	"bin": {
 		"wp-playground-cli": "wp-playground.js"
 	},
+	"dependencies": {
+		"@php-wasm/node-8-5": "3.0.31",
+		"@php-wasm/node-8-4": "3.0.31",
+		"@php-wasm/node-8-3": "3.0.31",
+		"@php-wasm/node-8-2": "3.0.31",
+		"@php-wasm/node-8-1": "3.0.31",
+		"@php-wasm/node-8-0": "3.0.31",
+		"@php-wasm/node-7-4": "3.0.31",
+		"@php-wasm/node-7-3": "3.0.31",
+		"@php-wasm/node-7-2": "3.0.31"
+	},
 	"gitHead": "2f8d8f3cea548fbd75111e8659a92f601cddc593"
 }
