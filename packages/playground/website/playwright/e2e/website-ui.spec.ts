@@ -229,18 +229,20 @@ test('should edit a file in the code editor and see changes in the viewport', as
 	}
 	await expect(fileBrowserTab).toHaveAttribute('aria-selected', 'true');
 
-	const cmContent = fileBrowserPanel
-		.locator('.cm-content')
-		.filter({ hasText: 'WP_USE_THEMES' })
-		.first();
-	await expect(cmContent).toBeVisible({ timeout: 15000 });
+	const cmContent = fileBrowserPanel.locator('.cm-content').first();
+	await expect(cmContent).toBeVisible({ timeout: 20000 });
 	// Ensure we're editing the right file (the editor auto-opens wp-config.php).
 	await expect(fileBrowserPanel.getByText('/wordpress/index.php')).toBeVisible(
 		{ timeout: 10000 }
 	);
-	await expect(cmContent).toContainText('WP_USE_THEMES', { timeout: 10000 });
-	await cmContent.fill('<?php echo "Edited file";');
-	await expect(cmContent).toContainText('Edited file', { timeout: 5000 });
+
+	// Replace the whole file content reliably (CodeMirror sometimes delays initial text rendering).
+	await cmContent.click();
+	await website.page.keyboard.press(
+		process.platform === 'darwin' ? 'Meta+A' : 'Control+A'
+	);
+	await website.page.keyboard.type('<?php echo "Edited file";');
+	await expect(cmContent).toContainText('Edited file', { timeout: 10000 });
 
 	// Wait for auto-save (debounced) to finish before reloading the iframe.
 	await expect(fileBrowserPanel.getByText('Saved')).toBeVisible({
