@@ -18,6 +18,15 @@ import {
 	type WorkerType,
 } from '../run-cli';
 import { shouldRenderProgress } from '../utils/progress';
+import { resolveWordPressRelease } from '@wp-playground/wordpress';
+import {
+	CACHE_FOLDER,
+	cachedDownload,
+	fetchSqliteIntegration,
+	readAsFile,
+} from './download';
+import path from 'path';
+import fs from 'fs';
 
 /**
  * Boots Playground CLI workers using Blueprint version 1.
@@ -52,6 +61,63 @@ export class BlueprintsV1Handler {
 		workerProcess: SpawnedWorker,
 		nativeInternalDirPath: string
 	) {
+		let wpDetails: any = undefined;
+		let wordPressZip: any = undefined;
+		let preinstalledWpContentPath: string | undefined = undefined;
+		// @TODO: Rename to FetchProgressMonitor. There's nothing Emscripten
+		// about that class anymore.
+		const monitor = new EmscriptenDownloadMonitor();
+		if (this.args.wordpressInstallMode === 'download-and-install') {
+			let progressReached100 = false;
+			monitor.addEventListener('progress', ((
+				e: CustomEvent<ProgressEvent & { finished: boolean }>
+			) => {
+				if (progressReached100) {
+					return;
+				}
+
+				// @TODO Every progress bar will want percentages. The
+				//       download monitor should just provide that.
+				const { loaded, total } = e.detail;
+				// Use floor() so we don't report 100% until truly there.
+				const percentProgress = Math.floor(
+					Math.min(100, (100 * loaded) / total)
+				);
+				progressReached100 = percentProgress === 100;
+
+				this.writeProgressUpdate(
+					process.stdout,
+					`Downloading WordPress ${percentProgress}%...`,
+					progressReached100
+				);
+			}) as any);
+
+			wpDetails = await resolveWordPressRelease(this.args.wp);
+			preinstalledWpContentPath = path.join(
+				CACHE_FOLDER,
+				`prebuilt-wp-content-for-wp-${wpDetails.version}.zip`
+			);
+			wordPressZip = fs.existsSync(preinstalledWpContentPath)
+				? readAsFile(preinstalledWpContentPath)
+				: await cachedDownload(
+						wpDetails.releaseUrl,
+						`${wpDetails.version}.zip`,
+						monitor
+					);
+			logger.log(
+				`Resolved WordPress release URL: ${wpDetails?.releaseUrl}`
+			);
+		}
+
+		let sqliteIntegrationPluginZip;
+		if (this.args.skipSqliteSetup) {
+			logger.log(`Skipping SQLite integration plugin setup...`);
+			sqliteIntegrationPluginZip = undefined;
+		} else {
+			logger.log(`Fetching SQLite integration plugin...`);
+			sqliteIntegrationPluginZip = await fetchSqliteIntegration(monitor);
+		}
+
 		const followSymlinks = this.args.followSymlinks === true;
 		const trace = this.args.experimentalTrace === true;
 
@@ -61,6 +127,8 @@ export class BlueprintsV1Handler {
 		// TODO: Fix this type error.
 		// @ts-ignore
 		const playground =
+			// TODO: Fix this type error.
+			// @ts-ignore
 			consumeAPI<PlaygroundCliBlueprintV1Worker>(workerProcess);
 
 		// Comlink communication proxy
@@ -75,13 +143,14 @@ export class BlueprintsV1Handler {
 		await playground.bootAndSetUpInitialWorker({
 			port: this.args.port!,
 			phpVersion: runtimeConfiguration.phpVersion,
-			wpVersion: runtimeConfiguration.wpVersion,
 			siteUrl: this.siteUrl,
 			mountsBeforeWpInstall,
 			mountsAfterWpInstall,
 			wordpressInstallMode:
 				this.args.wordpressInstallMode || 'download-and-install',
-			skipSqliteSetup: !!this.args.skipSqliteSetup,
+			wordPressZip: await wordPressZip?.arrayBuffer(),
+			sqliteIntegrationPluginZip:
+				await sqliteIntegrationPluginZip?.arrayBuffer(),
 			firstProcessId: 0,
 			processIdSpaceLength: this.processIdSpaceLength,
 			followSymlinks,

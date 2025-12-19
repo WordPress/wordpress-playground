@@ -4,7 +4,7 @@ import type {
 	SupportedPHPVersion,
 	UniversalPHP,
 } from '@php-wasm/universal';
-import { printDebugDetails } from '@php-wasm/universal';
+import { printDebugDetails, releaseRemoteApiProxy } from '@php-wasm/universal';
 import type {
 	BlueprintBundle,
 	BlueprintV1Declaration,
@@ -575,6 +575,10 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 		RemoteAPI<PlaygroundCliWorker>
 	> = new Map();
 
+	if (args.port === undefined) {
+		args.port = 9400;
+	}
+
 	/**
 	 * Expand auto-mounts to include the necessary mounts and steps
 	 * when running in auto-mount mode.
@@ -889,10 +893,8 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 			[...playgroundsToCleanUp].map(
 				async ([workerProcess, playground]) => {
 					await playground.dispose();
-					await new Promise<void>((resolve) => {
-						workerProcess.on('exit', resolve);
-						workerProcess.kill();
-					});
+					await playground[releaseRemoteApiProxy]();
+					await killWorkerProcess(workerProcess);
 				}
 			)
 		);
@@ -911,7 +913,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 				return;
 			}
 
-			if (exitCode !== 0) {
+			if (exitCode === 0) {
 				return;
 			}
 
@@ -922,7 +924,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 		}
 	);
 
-	logger.log(`Starting up workers`);
+	logger.log(`Starting workers...`);
 
 	try {
 		const workerProcesses = await promisedWorkerProcesses;
@@ -930,6 +932,8 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 		// NOTE: Using a free-standing block to isolate initial boot vars
 		// while keeping the logic inline.
 		{
+			// TODO: Restore "WordPress is not ready yet" server response before WP setup?
+
 			// Create an initial server to:
 			// 1. Prove that we can listen on the specified port before spawning workers.
 			// 2. Respond to requests until WordPress is ready.
@@ -983,7 +987,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 			}
 
 			await initialPlayground.dispose();
-			// await new Promise((resolve) => initialServer.close(resolve));
+			await initialPlayground[releaseRemoteApiProxy]();
 			await killWorkerProcess(initialWorkerProcess);
 			playgroundsToCleanUp.delete(initialWorkerProcess);
 		}
@@ -1120,14 +1124,13 @@ export function spawnWorkerProcess(
 		// @ts-expect-error
 		globalThis['__WORKER_V2_URL__'] = './blueprints-v2/worker-thread-v2.ts';
 	}
-	console.log('forking worker', workerType);
 	let workerProcess: SpawnedWorker;
 
 	const fork = cluster.isPrimary
 		? (workerUrl: URL) => {
-				console.log('create cluster process');
 				cluster.setupPrimary({
 					exec: fileURLToPath(workerUrl),
+					serialization: 'advanced',
 				});
 				return cluster.fork();
 			}
@@ -1135,8 +1138,10 @@ export function spawnWorkerProcess(
 			// we need to spawn a child process instead.
 			// In this case, we expect to be spawning workers for proc_open().
 			(workerUrl: URL) => {
-				console.log('create child process');
-				return childProcess.fork(workerUrl, { stdio: 'inherit' });
+				return childProcess.fork(workerUrl, {
+					stdio: 'inherit',
+					serialization: 'advanced',
+				});
 			};
 	if (workerType === 'v1') {
 		workerProcess = fork(new URL(__WORKER_V1_URL__, import.meta.url));

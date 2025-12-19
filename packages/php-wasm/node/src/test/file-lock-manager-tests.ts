@@ -3,7 +3,7 @@ import { writeFileSync, unlinkSync } from 'fs';
 import { fork, type ChildProcess } from 'child_process';
 import {
 	consumeAPI,
-	releaseComlinkProxy,
+	releaseRemoteApiProxy,
 	type RemoteAPI,
 	type WholeFileLockOp,
 } from '@php-wasm/universal';
@@ -95,8 +95,8 @@ export function declareFileLockManagerTests({
 
 		afterEach(async () => {
 			await Promise.all([
-				remoteProcessApi1 && remoteProcessApi1[releaseComlinkProxy](),
-				remoteProcessApi2 && remoteProcessApi2[releaseComlinkProxy](),
+				remoteProcessApi1 && remoteProcessApi1[releaseRemoteApiProxy](),
+				remoteProcessApi2 && remoteProcessApi2[releaseRemoteApiProxy](),
 			]);
 			await Promise.all([
 				killLockingProcess(childProcess1),

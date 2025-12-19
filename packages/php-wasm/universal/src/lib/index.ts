@@ -107,4 +107,4 @@ export type * from './os-user-space';
 
 export type { Remote } from './comlink-sync';
 export type { NodeProcess } from './comlink-node-process-adapter';
-export { releaseProxy as releaseComlinkProxy } from './comlink-sync';
+export { releaseProxy as releaseRemoteApiProxy } from './comlink-sync';
