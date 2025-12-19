@@ -797,7 +797,7 @@ export function SavedPlaygroundsOverlay({
 									</div>
 									<div className={css.siteRowInfo}>
 										<span className={css.siteRowName}>
-											Temporary Playground
+											Unsaved Playground
 										</span>
 										<span className={css.siteRowDate}>
 											Not saved to browser storage

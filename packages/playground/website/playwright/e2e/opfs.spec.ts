@@ -82,7 +82,7 @@ test('should switch between sites', async ({ website, browserName }) => {
 	await saveSiteViaModal(website.page);
 
 	await expect(website.page.getByLabel('Playground title')).not.toContainText(
-		'Temporary Playground',
+		'Unsaved Playground',
 		{
 			// Saving the site takes a while on CI
 			timeout: 90000,
@@ -95,12 +95,12 @@ test('should switch between sites', async ({ website, browserName }) => {
 	// Click on Temporary Playground in the overlay's site list
 	await website.page
 		.locator('[class*="siteRowContent"]')
-		.filter({ hasText: 'Temporary Playground' })
+		.filter({ hasText: 'Unsaved Playground' })
 		.click();
 
 	// The overlay closes and site manager opens with the selected site
 	await expect(website.page.getByLabel('Playground title')).toContainText(
-		'Temporary Playground'
+		'Unsaved Playground'
 	);
 });
 
@@ -134,7 +134,7 @@ test('should preserve PHP constants when saving a temporary site to OPFS', async
 	await saveSiteViaModal(website.page);
 
 	await expect(website.page.getByLabel('Playground title')).not.toContainText(
-		'Temporary Playground',
+		'Unsaved Playground',
 		{
 			// Saving the site takes a while on CI
 			timeout: 90000,
@@ -145,7 +145,7 @@ test('should preserve PHP constants when saving a temporary site to OPFS', async
 		.getByLabel('Playground title')
 		.textContent();
 	await expect(storedPlaygroundTitleText).not.toBeNull();
-	await expect(storedPlaygroundTitleText).not.toMatch('Temporary Playground');
+	await expect(storedPlaygroundTitleText).not.toMatch('Unsaved Playground');
 
 	// Open the saved playgrounds overlay to switch sites
 	await website.openSavedPlaygroundsOverlay();
@@ -153,7 +153,7 @@ test('should preserve PHP constants when saving a temporary site to OPFS', async
 	// Switch to Temporary Playground
 	await website.page
 		.locator('[class*="siteRowContent"]')
-		.filter({ hasText: 'Temporary Playground' })
+		.filter({ hasText: 'Unsaved Playground' })
 		.click();
 
 	// Open the overlay again to switch back to the stored site
@@ -184,7 +184,7 @@ test('should rename a saved Playground and persist after reload', async ({
 	await saveSiteViaModal(website.page);
 
 	await expect(website.page.getByLabel('Playground title')).not.toContainText(
-		'Temporary Playground',
+		'Unsaved Playground',
 		{
 			timeout: 90000,
 		}
@@ -292,7 +292,7 @@ test('should close save site modal without saving', async ({
 
 	// Verify the site is still temporary
 	await expect(website.page.getByLabel('Playground title')).toContainText(
-		'Temporary Playground'
+		'Unsaved Playground'
 	);
 
 	// Open the modal again
@@ -305,7 +305,7 @@ test('should close save site modal without saving', async ({
 
 	// Verify the site is still temporary
 	await expect(website.page.getByLabel('Playground title')).toContainText(
-		'Temporary Playground'
+		'Unsaved Playground'
 	);
 });
 
@@ -501,7 +501,7 @@ test('should import ZIP into temporary site when a saved site exists', async ({
 	// The import should switch us to a temporary playground.
 	// Wait for the site title to show "Temporary Playground"
 	await expect(website.page.getByLabel('Playground title')).toContainText(
-		'Temporary Playground',
+		'Unsaved Playground',
 		{ timeout: 30000 }
 	);
 
@@ -582,7 +582,7 @@ test('should create temporary site when importing ZIP while on a saved site with
 	// (the temporary site row should show but clicking it would create one)
 	const tempPlaygroundRow = website.page
 		.locator('[class*="siteRowContent"]')
-		.filter({ hasText: 'Temporary Playground' });
+		.filter({ hasText: 'Unsaved Playground' });
 
 	// The row exists but it's for creating a new temporary playground
 	await expect(tempPlaygroundRow).toBeVisible();
@@ -611,7 +611,7 @@ test('should create temporary site when importing ZIP while on a saved site with
 	// The import should trigger creation of a new temporary site.
 	// Wait for the site title to show "Temporary Playground"
 	await expect(website.page.getByLabel('Playground title')).toContainText(
-		'Temporary Playground',
+		'Unsaved Playground',
 		{ timeout: 30000 }
 	);
 
