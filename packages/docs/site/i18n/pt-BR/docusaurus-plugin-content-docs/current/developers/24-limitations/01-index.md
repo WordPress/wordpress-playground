@@ -1,5 +1,6 @@
 ---
 slug: /developers/limitations
+description: Principais limitações do WordPress Playground incluindo armazenamento temporário, compatibilidade de navegadores e restrições de desenvolvimento.
 ---
 
 <!-- # Limitations -->
@@ -28,7 +29,7 @@ Como o Playground [transmite ao invés de servir](/about#streamed-not-served) o 
 
 <blockquote>
 <figure>
-<figcaption><i><!-- The Open Playground site manager: -->O gerenciador de sites do Playground:</i></figcaption>
+<figcaption><i>O gerenciador de sites do Playground:</i></figcaption>
 
 ![Open Playground Manager](@site/static/img/site-manager/saving-playgrounds.webp)
 
