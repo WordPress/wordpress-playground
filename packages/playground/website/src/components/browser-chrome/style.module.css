@@ -156,17 +156,17 @@ body.is-embedded .fake-window-wrapper {
 	}
 
 	.address-bar-slot {
-		order: 1;
+		order: 2;
 		flex-basis: 100%;
 		min-width: 0;
 	}
 
 	.save-status-slot {
-		order: 2;
+		order: 1;
+		margin-left: auto;
 	}
 
 	.toolbar-buttons {
-		order: 2;
-		margin-left: auto;
+		order: 1;
 	}
 }
