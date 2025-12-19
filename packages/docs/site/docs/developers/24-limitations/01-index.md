@@ -12,23 +12,18 @@ You can track the status of these issues on the [Playground Project board](https
 
 ### Temporary by design
 
-As Playground [streams rather than serves](/about#streamed-not-served) WordPress, all database changes and uploads will be gone when you refresh the page. To avoid losing your work, either [export your work](/quick-start-guide#save-your-site) before or enable storage in the browser/device via the "Save" button found in the "Open Playground Manager" menu on the top left of the site.
+As Playground [streams rather than serves](/about#streamed-not-served) WordPress, all database changes and uploads will be gone when you refresh the page. To avoid losing your work, either [export your work](/quick-start-guide#save-your-site) before or enable storage in the browser/device via the "Save" button found in the "Open Playground site manager" menu on the top right of the site.
 
 <blockquote>
 <figure>
-<figcaption><i>The open Playground Manager button:</i></figcaption>
+<figcaption><i>The Open Playground site manager:</i></figcaption>
 
-![Open Playground Manager](@site/static/img/open-site-manager.png)
-
-</figure>
-
-<figure>
-<figcaption><i>The save button:</i></figcaption>
-
-![Save Button](@site/static/img/save-button.png)
+![Open Playground Manager](@site/static/img/site-manager/saving-playgrounds.webp)
 
 </figure>
 </blockquote>
+
+To better organize your saved playground, a pop-up will appear for you to set its name.
 
 ### Browser support
 
