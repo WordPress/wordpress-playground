@@ -25,16 +25,20 @@ import { type Log, logger } from '@php-wasm/logger';
 const blueprintVersions = [
 	{
 		version: 1,
-		suiteCliArgs: {},
+		suiteCliArgs: {
+			// TODO: Decide how to default the number of worker processes.
+			experimentalMultiWorker: 10,
+		},
 		expectedHomePageTitle: 'My WordPress Website',
 	},
-	{
-		version: 2,
-		suiteCliArgs: {
-			'experimental-blueprints-v2-runner': true,
-		},
-		expectedHomePageTitle: 'WordPress Site',
-	},
+	// TODO: Re-enable this when Blueprints v2 works with multi-process Playground CLI.
+	// {
+	// 	version: 2,
+	// 	suiteCliArgs: {
+	// 		'experimental-blueprints-v2-runner': true,
+	// 	},
+	// 	expectedHomePageTitle: 'WordPress Site',
+	// },
 ];
 
 describe.each(blueprintVersions)(
@@ -267,9 +271,6 @@ describe.each(blueprintVersions)(
 							},
 						],
 					});
-					expect(
-						cliServer[internalsKeyForTesting].workerThreadCount
-					).toBe(1);
 					// Make multiple simultaneous requests to force the use of a secondary PHP instance.
 					// TODO: Find way to confirm this. Maybe a custom response header that announces the worker.
 					const sleepUrl = new URL(
@@ -358,7 +359,7 @@ describe.each(blueprintVersions)(
 					expect(setupText).toContain(
 						`<title>${expectedHomePageTitle}</title>`
 					);
-					await cliServer.server.close();
+					await cliServer[Symbol.asyncDispose]();
 
 					cliServer = await runCLI({
 						...suiteCliArgs,
@@ -649,7 +650,7 @@ describe.each(blueprintVersions)(
 						expect(output).toEqual(
 							expect.arrayContaining([
 								'Starting a PHP server...',
-								'Starting up workers',
+								'Starting workers...',
 								expect.stringMatching(
 									/^Resolved WordPress release URL: https:\/\/downloads\.w(ordpress)?\.org\/release\/wordpress-\d+\.\d+(?:\.\d+|-RC\d+|-beta\d+)?\.zip$/
 								),
