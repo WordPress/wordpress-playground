@@ -71,6 +71,11 @@ body.is-embedded .fake-window-wrapper {
 	color: #fff;
 }
 
+.save-status-slot {
+	display: flex;
+	align-items: center;
+}
+
 .address-bar-slot {
 	display: flex;
 	flex-grow: 1;
@@ -156,8 +161,12 @@ body.is-embedded .fake-window-wrapper {
 		min-width: 0;
 	}
 
+	.save-status-slot {
+		order: 2;
+	}
+
 	.toolbar-buttons {
-		order: 3;
+		order: 2;
 		margin-left: auto;
 	}
 }

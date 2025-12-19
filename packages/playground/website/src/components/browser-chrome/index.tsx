@@ -71,7 +71,9 @@ export default function BrowserChrome({
 						/>
 					</div>
 
-					<SaveStatusIndicator />
+					<div className={css.saveStatusSlot}>
+						<SaveStatusIndicator />
+					</div>
 
 					<div className={css.toolbarButtons}>
 						<Button
