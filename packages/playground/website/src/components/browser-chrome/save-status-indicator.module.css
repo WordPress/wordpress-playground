@@ -2,7 +2,7 @@
 	display: flex;
 	align-items: center;
 	gap: 6px;
-	padding: 4px 10px;
+	padding: 4px 0;
 	border-radius: 4px;
 	font-size: 14px;
 	font-weight: 500;
@@ -19,14 +19,6 @@
 
 .saved {
 	color: #86efac;
-	/*
-	Flexbox takes care of the gap.
-	This component has no border so a side padding
-	only makes it look like the horizontal gap
-	is doubled.
-	*/
-	padding-left: 0;
-	padding-right: 0;
 }
 
 .saved svg {
