@@ -1,5 +1,6 @@
 ---
 slug: /developers/limitations
+description: Key limitations of WordPress Playground including temporary storage, browser compatibility, iframe behavior, and development constraints.
 ---
 
 # Limitations
