@@ -144,6 +144,8 @@ body.is-embedded .fake-window-wrapper {
 	.toolbar {
 		flex-wrap: wrap;
 		height: auto;
+		max-height: none;
+		overflow: visible;
 		padding: 8px;
 		gap: 8px;
 	}

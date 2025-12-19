@@ -99,15 +99,8 @@
 
 /* Mobile responsive styles */
 @media (max-width: 500px) {
-	/* Hide label text on small screens, show only icon */
-	.saved .label,
-	.saving .label {
-		display: none;
-	}
-
-	/* Hide "Unsaved Playground" text on mobile, keep save button */
-	.unsaved .label {
-		display: none;
+	.indicator {
+		font-size: 13px;
 	}
 
 	.saveButton {
