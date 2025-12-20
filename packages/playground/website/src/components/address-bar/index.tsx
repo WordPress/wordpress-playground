@@ -1,12 +1,5 @@
-import React, {
-	useCallback,
-	useState,
-	useRef,
-	useEffect,
-	useLayoutEffect,
-} from 'react';
-import { createPortal } from 'react-dom';
-import { Icon } from '@wordpress/components';
+import React, { useState, useRef, useEffect } from 'react';
+import { Icon, MenuItem, NavigableMenu, Popover } from '@wordpress/components';
 import { home, wordpress, layout, pin } from '@wordpress/icons';
 import css from './style.module.css';
 
@@ -81,15 +74,12 @@ interface AddressBarProps {
 export default function AddressBar({ url, onUpdate }: AddressBarProps) {
 	const inputRef = useRef<HTMLInputElement>(null);
 	const containerRef = useRef<HTMLDivElement>(null);
+	const menuRef = useRef<HTMLDivElement>(null);
 	const [value, setValue] = useState(url || '');
 	const [isFocused, setIsFocused] = useState(false);
 	const [isOpen, setIsOpen] = useState(false);
-	const [selectedIndex, setSelectedIndex] = useState(-1);
-	const [dropdownPosition, setDropdownPosition] = useState({
-		top: 0,
-		left: 0,
-		width: 0,
-	});
+	const [focusMenu, setFocusMenu] = useState(false);
+	const [menuWidth, setMenuWidth] = useState(0);
 
 	useEffect(() => {
 		if (!isFocused && url) {
@@ -97,178 +87,108 @@ export default function AddressBar({ url, onUpdate }: AddressBarProps) {
 		}
 	}, [isFocused, url]);
 
-	// Update dropdown position when open
-	useLayoutEffect(() => {
-		if (isOpen && inputRef.current) {
-			const rect = inputRef.current.getBoundingClientRect();
-			setDropdownPosition({
-				top: rect.bottom + 4,
-				left: rect.left,
-				width: rect.width,
-			});
+	// Update menu width when popover opens and track resize
+	useEffect(() => {
+		if (!isOpen || !inputRef.current) {
+			return;
 		}
+		setMenuWidth(inputRef.current.offsetWidth);
+
+		const resizeObserver = new ResizeObserver((entries) => {
+			for (const entry of entries) {
+				setMenuWidth(entry.contentRect.width);
+			}
+		});
+		resizeObserver.observe(inputRef.current);
+		return () => resizeObserver.disconnect();
 	}, [isOpen]);
 
-	// Close dropdown when clicking outside
+	// Focus the first menu item when focusMenu is set
 	useEffect(() => {
-		function handleClickOutside(e: MouseEvent) {
-			const target = e.target as Node;
-			if (
-				containerRef.current &&
-				!containerRef.current.contains(target) &&
-				!(target as Element).closest?.('#address-bar-suggestions')
-			) {
-				setIsOpen(false);
-				setSelectedIndex(-1);
+		if (focusMenu && menuRef.current) {
+			const firstItem = menuRef.current.querySelector(
+				'button, [role="menuitem"]'
+			) as HTMLElement;
+			if (firstItem) {
+				firstItem.focus();
 			}
+			setFocusMenu(false);
 		}
-		document.addEventListener('mousedown', handleClickOutside);
-		return () =>
-			document.removeEventListener('mousedown', handleClickOutside);
-	}, []);
+	}, [focusMenu]);
 
-	const handleSubmit = useCallback(
-		function (e: React.FormEvent<HTMLFormElement>) {
+	function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+		e.preventDefault();
+		const requestedPath = inputRef.current!.value;
+		onUpdate?.(requestedPath);
+		inputRef.current!.blur();
+		setIsOpen(false);
+	}
+
+	function handleRefresh(e: React.MouseEvent<HTMLButtonElement>) {
+		e.preventDefault();
+		if (url) {
+			onUpdate?.(url);
+		}
+	}
+
+	function handleNavigation(path: string) {
+		onUpdate?.(path);
+		setIsOpen(false);
+		inputRef.current?.blur();
+	}
+
+	function handleInputKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+		if (e.key === 'ArrowDown') {
 			e.preventDefault();
-			if (selectedIndex >= 0) {
-				onUpdate?.(quickNavItems[selectedIndex].path);
-				setIsOpen(false);
-				setSelectedIndex(-1);
-			} else {
-				const requestedPath = inputRef.current!.value;
-				onUpdate?.(requestedPath);
-			}
-			inputRef.current!.blur();
-		},
-		[onUpdate, selectedIndex]
-	);
-
-	const handleRefresh = useCallback(
-		function (e: React.MouseEvent<HTMLButtonElement>) {
-			e.preventDefault();
-			if (url) {
-				onUpdate?.(url);
-			}
-		},
-		[url, onUpdate]
-	);
-
-	const handleNavigation = useCallback(
-		(path: string) => {
-			onUpdate?.(path);
-			setIsOpen(false);
-			setSelectedIndex(-1);
-			inputRef.current?.blur();
-		},
-		[onUpdate]
-	);
-
-	const handleKeyDown = useCallback(
-		(e: React.KeyboardEvent<HTMLInputElement>) => {
 			if (!isOpen) {
-				if (e.key === 'ArrowDown') {
-					e.preventDefault();
-					setIsOpen(true);
-					setSelectedIndex(0);
-				}
-				return;
+				setIsOpen(true);
 			}
+			setFocusMenu(true);
+		} else if (e.key === 'Escape') {
+			setIsOpen(false);
+		}
+	}
 
-			switch (e.key) {
-				case 'ArrowDown':
-					e.preventDefault();
-					setSelectedIndex((prev) =>
-						prev < quickNavItems.length - 1 ? prev + 1 : prev
-					);
-					break;
-				case 'ArrowUp':
-					e.preventDefault();
-					setSelectedIndex((prev) => (prev > 0 ? prev - 1 : -1));
-					if (selectedIndex === 0) {
-						setIsOpen(false);
-					}
-					break;
-				case 'Escape':
-					e.preventDefault();
-					setIsOpen(false);
-					setSelectedIndex(-1);
-					break;
-				case 'Enter':
-					if (selectedIndex >= 0) {
-						e.preventDefault();
-						handleNavigation(quickNavItems[selectedIndex].path);
-					}
-					break;
-			}
-		},
-		[isOpen, selectedIndex, handleNavigation]
-	);
-
-	const handleFocus = useCallback(() => {
+	function handleFocus() {
 		setIsFocused(true);
 		setIsOpen(true);
-		setSelectedIndex(-1);
-	}, []);
+	}
 
-	const handleBlur = useCallback(() => {
+	function handleBlur() {
 		setIsFocused(false);
-		// Small delay to allow click events on dropdown items to fire
+		// Close popover if focus moves outside the component
+		// Use setTimeout to allow focus to move to menu items first
 		setTimeout(() => {
-			if (!document.activeElement?.closest('#address-bar-suggestions')) {
+			const isInInput = inputRef.current?.contains(
+				document.activeElement
+			);
+			const isInMenu = menuRef.current?.contains(document.activeElement);
+			if (!isInInput && !isInMenu) {
 				setIsOpen(false);
-				setSelectedIndex(-1);
 			}
-		}, 150);
-	}, []);
+		}, 0);
+	}
 
-	const handleChange = useCallback(
-		(e: React.ChangeEvent<HTMLInputElement>) => {
-			setValue(e.target.value);
-			setSelectedIndex(-1);
-		},
-		[]
-	);
+	function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
+		setValue(e.target.value);
+	}
 
-	const dropdown = isOpen
-		? createPortal(
-				<ul
-					id="address-bar-suggestions"
-					className={css.suggestions}
-					role="listbox"
-					style={{
-						top: dropdownPosition.top,
-						left: dropdownPosition.left,
-						width: dropdownPosition.width,
-					}}
-				>
-					{quickNavItems.map((item, index) => (
-						<li
-							key={item.path}
-							id={`suggestion-${index}`}
-							role="option"
-							aria-selected={index === selectedIndex}
-							className={`${css.suggestionItem} ${index === selectedIndex ? css.suggestionItemSelected : ''}`}
-							onMouseDown={(e) => {
-								e.preventDefault();
-								handleNavigation(item.path);
-							}}
-							onMouseEnter={() => setSelectedIndex(index)}
-						>
-							<span className={css.suggestionIcon}>
-								{item.icon}
-							</span>
-							<span className={css.suggestionLabel}>
-								{item.label}
-							</span>
-							<span className={css.suggestionPath}>
-								{item.path}
-							</span>
-						</li>
-					))}
-				</ul>,
-				document.body
-			)
-		: null;
+	function handleMenuKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
+		if (e.key === 'Escape') {
+			e.preventDefault();
+			setIsOpen(false);
+			inputRef.current?.focus();
+		} else if (e.key === 'ArrowUp') {
+			const firstItem = menuRef.current?.querySelector(
+				'button, [role="menuitem"]'
+			);
+			if (document.activeElement === firstItem) {
+				e.preventDefault();
+				e.stopPropagation();
+				inputRef.current?.focus();
+			}
+		}
+	}
 
 	return (
 		<form className={css.form} onSubmit={handleSubmit}>
@@ -300,22 +220,49 @@ export default function AddressBar({ url, onUpdate }: AddressBarProps) {
 					onChange={handleChange}
 					onFocus={handleFocus}
 					onBlur={handleBlur}
-					onKeyDown={handleKeyDown}
+					onKeyDown={handleInputKeyDown}
 					name="url"
 					type="text"
 					aria-label='URL to visit in the WordPress site, like "/wp-admin"'
-					aria-expanded={isOpen}
-					aria-haspopup="listbox"
-					aria-controls="address-bar-suggestions"
-					aria-activedescendant={
-						selectedIndex >= 0
-							? `suggestion-${selectedIndex}`
-							: undefined
-					}
 					autoComplete="off"
 				/>
+				{isOpen && (
+					<Popover
+						placement="bottom-start"
+						onClose={() => setIsOpen(false)}
+						anchor={inputRef.current}
+						noArrow={true}
+						focusOnMount={false}
+						className={css.popover}
+					>
+						<NavigableMenu
+							ref={menuRef}
+							className={css.suggestions}
+							onKeyDownCapture={handleMenuKeyDown}
+							onBlur={handleBlur}
+							style={{ width: menuWidth }}
+						>
+							{quickNavItems.map((item) => (
+								<MenuItem
+									key={item.path}
+									className={css.suggestionItem}
+									onClick={() => handleNavigation(item.path)}
+								>
+									<span className={css.suggestionIcon}>
+										{item.icon}
+									</span>
+									<span className={css.suggestionLabel}>
+										{item.label}
+									</span>
+									<span className={css.suggestionPath}>
+										{item.path}
+									</span>
+								</MenuItem>
+							))}
+						</NavigableMenu>
+					</Popover>
+				)}
 			</div>
-			{dropdown}
 			<input className={css.submit} type="submit" tabIndex={-1} />
 		</form>
 	);
