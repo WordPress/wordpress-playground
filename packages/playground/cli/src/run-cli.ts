@@ -62,6 +62,8 @@ type LogVerbosity = (typeof LogVerbosity)[keyof typeof LogVerbosity]['name'];
 
 export type WorkerType = 'v1' | 'v2';
 
+const MINIMUM_SERVER_WORKER_COUNT = 5;
+
 /**
  * Parse the CLI args and run the appropriate command.
  *
@@ -261,6 +263,16 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 				'experimental-unsafe-ide-integration',
 				'experimental-devtools'
 			)
+			.option('workers', {
+				describe:
+					`Specify the number of workers to use for the 'server' command. ` +
+					`Must be greater than ${MINIMUM_SERVER_WORKER_COUNT}.`,
+				default: Math.max(
+					MINIMUM_SERVER_WORKER_COUNT,
+					cpus().length - 1
+				),
+				type: 'number',
+			})
 			.option('experimental-multi-worker', {
 				describe:
 					'Enable experimental multi-worker support which requires ' +
@@ -268,6 +280,7 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 					'Pass a positive number to specify the number of workers to use. ' +
 					'Otherwise, default to the number of CPUs minus 1.',
 				type: 'number',
+				deprecated: 'Use --workers instead.',
 				coerce: (value?: number) => value ?? cpus().length - 1,
 			})
 			.option('experimental-blueprints-v2-runner', {
@@ -496,6 +509,7 @@ export interface RunCLIArgs {
 	verbosity?: LogVerbosity;
 	wp?: string;
 	autoMount?: string;
+	workers?: number;
 	experimentalMultiWorker?: number;
 	experimentalTrace?: boolean;
 	internalCookieStore?: boolean;
@@ -629,8 +643,29 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 	const serverUrl = `http://${host}:${args['port'] as number}`;
 	const siteUrl = args['site-url'] || serverUrl;
 
-	const targetWorkerCount =
-		args.command === 'server' ? (args.experimentalMultiWorker ?? 1) : 1;
+	const targetWorkerCount = (() => {
+		if (args.command === 'server') {
+			const requestedWorkers =
+				args.workers ?? args.experimentalMultiWorker;
+			if (requestedWorkers === undefined) {
+				return Math.max(MINIMUM_SERVER_WORKER_COUNT, cpus().length - 1);
+			}
+
+			if (requestedWorkers < MINIMUM_SERVER_WORKER_COUNT) {
+				logger.warn(
+					`There were ${args.experimentalMultiWorker} worker(s) requested, ` +
+						`but this is less than the minimum required for a server. ` +
+						`Using the minimum of ${MINIMUM_SERVER_WORKER_COUNT} workers instead.`
+				);
+				return MINIMUM_SERVER_WORKER_COUNT;
+			}
+
+			return requestedWorkers;
+		} else {
+			return 1;
+		}
+	})();
+
 	const totalWorkersToSpawn =
 		args.command === 'server'
 			? // Account for the initial worker which is discarded by the server after setup.
