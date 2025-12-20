@@ -69,7 +69,9 @@ const MINIMUM_SERVER_WORKER_COUNT = 5;
  *
  * @param argsToParse string[] The CLI args to parse.
  */
-export async function parseOptionsAndRunCLI(argsToParse: string[]) {
+export async function parseOptionsAndRunCLI(
+	argsToParse: string[]
+): Promise<RunCLIServer> {
 	try {
 		/**
 		 * @TODO This looks similar to Query API args https://wordpress.github.io/wordpress-playground/developers/apis/query-api/
@@ -469,6 +471,8 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 		// NOTE: Windows does not support SIGTERM, but Node.js provides some emulation.
 		process.on('SIGINT', cleanUpCliAndExit);
 		process.on('SIGTERM', cleanUpCliAndExit);
+
+		return cliServer;
 	} catch (e) {
 		if (!(e instanceof Error)) {
 			throw e;
@@ -1103,7 +1107,8 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 	// 		)
 	// 	) {
 	// 		headers['Set-Cookie'] = [
-	// 			'playground_auto_login_already_happened=1; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=/',
+	// 			'playground_auto_login_already_happened=1; Max-Age=0; ' +
+	// 			'Expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=/',
 	// 		];
 	// 	}
 	// 	return new PHPResponse(302, headers, new Uint8Array());
