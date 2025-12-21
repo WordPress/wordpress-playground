@@ -14,8 +14,8 @@ import type { PlaygroundCliBlueprintV1Worker } from './worker-thread-v1';
 import {
 	LogVerbosity,
 	type SpawnedWorker,
-	type RunCLIArgs,
 	type WorkerType,
+	type RunCLIArgsWithResolvedRequiredArgs,
 } from '../run-cli';
 import { shouldRenderProgress } from '../utils/progress';
 import { resolveWordPressRelease } from '@wp-playground/wordpress';
@@ -39,10 +39,10 @@ export class BlueprintsV1Handler {
 
 	private siteUrl: string;
 	private processIdSpaceLength: number;
-	private args: RunCLIArgs;
+	private args: RunCLIArgsWithResolvedRequiredArgs;
 
 	constructor(
-		args: RunCLIArgs,
+		args: RunCLIArgsWithResolvedRequiredArgs,
 		options: {
 			siteUrl: string;
 			processIdSpaceLength: number;
@@ -141,7 +141,7 @@ export class BlueprintsV1Handler {
 		);
 
 		await playground.bootAndSetUpInitialWorker({
-			port: this.args.port!,
+			port: this.args.port,
 			phpVersion: runtimeConfiguration.phpVersion,
 			siteUrl: this.siteUrl,
 			mountsBeforeWpInstall,
@@ -188,7 +188,7 @@ export class BlueprintsV1Handler {
 			this.getEffectiveBlueprint()
 		);
 		await playground.bootWorker({
-			port: this.args.port!,
+			port: this.args.port,
 			phpVersion: runtimeConfiguration.phpVersion,
 			siteUrl: this.siteUrl,
 			mountsBeforeWpInstall: this.args['mount-before-install'] || [],

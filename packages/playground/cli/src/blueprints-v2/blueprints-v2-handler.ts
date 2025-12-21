@@ -4,7 +4,11 @@ import type {
 	PlaygroundCliBlueprintV2Worker,
 	SecondaryWorkerBootArgs,
 } from './worker-thread-v2';
-import type { RunCLIArgs, SpawnedWorker, WorkerType } from '../run-cli';
+import type {
+	RunCLIArgsWithResolvedRequiredArgs,
+	SpawnedWorker,
+	WorkerType,
+} from '../run-cli';
 import { shouldRenderProgress } from '../utils/progress';
 
 /**
@@ -19,10 +23,10 @@ export class BlueprintsV2Handler {
 
 	private siteUrl: string;
 	private processIdSpaceLength: number;
-	private args: RunCLIArgs;
+	private args: RunCLIArgsWithResolvedRequiredArgs;
 
 	constructor(
-		args: RunCLIArgs,
+		args: RunCLIArgsWithResolvedRequiredArgs,
 		options: {
 			siteUrl: string;
 			processIdSpaceLength: number;

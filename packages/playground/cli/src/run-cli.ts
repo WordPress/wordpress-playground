@@ -544,6 +544,10 @@ export interface RunCLIArgs {
 	allow?: string;
 }
 
+export type RunCLIArgsWithResolvedRequiredArgs = RunCLIArgs & {
+	port: number;
+};
+
 type PlaygroundCliWorker =
 	| PlaygroundCliBlueprintV1Worker
 	| PlaygroundCliBlueprintV2Worker;
@@ -900,15 +904,21 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 
 	let handler: BlueprintsV1Handler | BlueprintsV2Handler;
 	if (args['experimental-blueprints-v2-runner']) {
-		handler = new BlueprintsV2Handler(args, {
-			siteUrl,
-			processIdSpaceLength,
-		});
+		handler = new BlueprintsV2Handler(
+			args as RunCLIArgsWithResolvedRequiredArgs,
+			{
+				siteUrl,
+				processIdSpaceLength,
+			}
+		);
 	} else {
-		handler = new BlueprintsV1Handler(args, {
-			siteUrl,
-			processIdSpaceLength,
-		});
+		handler = new BlueprintsV1Handler(
+			args as RunCLIArgsWithResolvedRequiredArgs,
+			{
+				siteUrl,
+				processIdSpaceLength,
+			}
+		);
 
 		if (typeof args.blueprint === 'string') {
 			args.blueprint = await resolveBlueprint({
