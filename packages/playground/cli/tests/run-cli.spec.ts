@@ -1,7 +1,7 @@
 import path from 'node:path';
 import os from 'node:os';
 import http from 'node:http';
-import { runCLI, internalsKeyForTesting } from '../src/run-cli';
+import { runCLI } from '../src/run-cli';
 import type { RunCLIArgs, RunCLIServer } from '../src/run-cli';
 import type { MockInstance } from 'vitest';
 import { vi } from 'vitest';

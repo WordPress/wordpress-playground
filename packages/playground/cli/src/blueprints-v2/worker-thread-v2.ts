@@ -7,6 +7,7 @@ import type {
 	FileTree,
 	SupportedPHPVersion,
 	SpawnHandler,
+	PHPRequest,
 } from '@php-wasm/universal';
 import {
 	PHPExecutionFailureError,
@@ -30,7 +31,6 @@ import { bootRequestHandler } from '@wp-playground/wordpress';
 import { existsSync } from 'fs';
 import path from 'path';
 import { rootCertificates } from 'tls';
-import { MessageChannel, parentPort } from 'worker_threads';
 import {
 	killWorkerProcess,
 	spawnWorkerProcess,
@@ -42,6 +42,8 @@ import type {
 } from '@wp-playground/wordpress';
 import { shouldRenderProgress } from '../utils/progress';
 import type { Mount } from '@php-wasm/cli-util';
+import cluster from 'cluster';
+import { startServer } from '../start-server';
 
 async function mountResources(php: PHP, mounts: Mount[]) {
 	for (const mount of mounts) {
@@ -130,6 +132,7 @@ export type PrimaryWorkerBootArgs = Omit<
 > & {
 	phpVersion: SupportedPHPVersion;
 	siteUrl: string;
+	port: number;
 	firstProcessId: number;
 	processIdSpaceLength: number;
 	trace: boolean;
@@ -156,6 +159,7 @@ type WorkerRunBlueprintArgs = Omit<
 
 export type SecondaryWorkerBootArgs = {
 	siteUrl: string;
+	port: number;
 	allow?: string;
 	phpVersion: SupportedPHPVersion;
 	phpIniEntries?: PhpIniOptions;
@@ -336,7 +340,6 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 								this.blueprintTargetResolved = true;
 								for (const php of this
 									.phpInstancesThatNeedMountsAfterTargetResolved) {
-									// console.log('mounting resources for php', php);
 									this.phpInstancesThatNeedMountsAfterTargetResolved.delete(
 										php
 									);
@@ -429,6 +432,7 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 
 	async bootRequestHandler({
 		siteUrl,
+		port,
 		allow,
 		phpVersion,
 		createFiles,
@@ -492,6 +496,15 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 			const primaryPhp = await requestHandler.getPrimaryPhp();
 			await this.setPrimaryPHP(primaryPhp);
 
+			if (cluster.isWorker) {
+				await startServer({
+					port,
+					handleRequest: async (request: PHPRequest) => {
+						return await this.request(request);
+					},
+				});
+			}
+
 			setApiReady();
 		} catch (e) {
 			setAPIError(e as Error);
@@ -523,6 +536,7 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
  */
 async function createPHPWorker({
 	siteUrl,
+	port,
 	allow,
 	phpVersion,
 	createFiles,
@@ -545,6 +559,7 @@ async function createPHPWorker({
 	);
 	await handler.bootWorker({
 		siteUrl,
+		port,
 		allow,
 		phpVersion,
 		createFiles,
@@ -580,18 +595,12 @@ process.on('unhandledRejection', (e: any) => {
 	logger.error('Unhandled rejection:', e);
 });
 
-const phpChannel = new MessageChannel();
-
 const [setApiReady, setAPIError] = exposeAPI(
 	new PlaygroundCliBlueprintV2Worker(new EmscriptenDownloadMonitor()),
 	undefined,
-	phpChannel.port1
+	// TODO: Fix this type error.
+	// @ts-ignore
+	process as NodeProcess
 );
 
-parentPort?.postMessage(
-	{
-		command: 'worker-script-initialized',
-		phpPort: phpChannel.port2,
-	},
-	[phpChannel.port2 as any]
-);
+process.send!({ command: 'worker-script-initialized' });

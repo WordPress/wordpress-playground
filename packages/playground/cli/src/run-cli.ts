@@ -826,6 +826,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 		}
 	}
 
+	// TODO: File an issue to override Emscripten mkdir to create native top-level dirs.
 	// We do not know the system temp dir,
 	// but we can try to infer from the location of the current temp dir.
 	const tempDirRoot = path.dirname(nativeDir.path);
