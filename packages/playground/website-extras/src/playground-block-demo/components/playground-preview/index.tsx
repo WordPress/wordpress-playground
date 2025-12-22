@@ -254,6 +254,7 @@ export default function PlaygroundPreview({
 					};
 				}
 			} catch (e) {
+				// eslint-disable-next-line no-console
 				console.error('Failed to parse blueprint:', e);
 			}
 
@@ -269,6 +270,7 @@ export default function PlaygroundPreview({
 				configuration.blueprint = finalBlueprint;
 			}
 
+			// eslint-disable-next-line no-console
 			console.log('Initializing Playground');
 			const client = await startPlaygroundWeb(configuration);
 			await client.isReady();
@@ -311,7 +313,7 @@ export default function PlaygroundPreview({
 	}, [isLivePreviewActivated]);
 
 	function getFullPageUrl(): string {
-		const fullPageUrl = new URL(location.href);
+		const fullPageUrl = new URL(window.location.href);
 		fullPageUrl.search = '?playground-full-page';
 
 		const fullPageAttributes = {
@@ -359,6 +361,7 @@ export default function PlaygroundPreview({
 				await transpilePluginFiles(finalFiles);
 			if (failures.length) {
 				for (const failure of failures) {
+					// eslint-disable-next-line no-console
 					console.error(
 						`Failed to transpile ${failure.file.name}:`,
 						failure.error
@@ -612,16 +615,15 @@ export default function PlaygroundPreview({
 							>
 								{beforePlaygroundPreviewLabel}
 							</span>
-							<a
-								href="#"
+							<button
+								type="button"
 								className="screen-reader-text"
-								onClick={(event) => {
-									event.preventDefault();
+								onClick={() => {
 									afterPreviewRef.current?.focus();
 								}}
 							>
 								{__('Skip Playground Preview')}
-							</a>
+							</button>
 						</>
 					)}
 					{!isLivePreviewActivated && (
@@ -660,9 +662,7 @@ export default function PlaygroundPreview({
 					)}
 					{isLivePreviewActivated && (
 						<iframe
-							aria-label={__(
-								'Live Preview in WordPress Playground'
-							)}
+							title={__('Live Preview in WordPress Playground')}
 							key="playground-iframe"
 							ref={iframeRef}
 							className="playground-iframe"

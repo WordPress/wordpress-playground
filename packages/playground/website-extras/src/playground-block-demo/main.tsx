@@ -19,11 +19,12 @@ import './styles.scss';
 function renderPlaygroundPreview() {
 	const rootElement = document.getElementById('root');
 	if (!rootElement) {
+		// eslint-disable-next-line no-console
 		console.error('Root element not found');
 		return;
 	}
 
-	const urlParams = new URLSearchParams(location.search);
+	const urlParams = new URLSearchParams(window.location.search);
 
 	// Check for full-page mode with attributes in URL
 	if (
@@ -42,6 +43,7 @@ function renderPlaygroundPreview() {
 				<PlaygroundPreview {...attributes} inFullPageView={true} />
 			);
 		} catch (error) {
+			// eslint-disable-next-line no-console
 			console.error('Failed to parse playground attributes:', error);
 			rootElement.innerHTML = `
 				<div style="padding: 20px; font-family: sans-serif;">
@@ -68,6 +70,7 @@ function renderPlaygroundPreview() {
 				/>
 			);
 		} catch (error) {
+			// eslint-disable-next-line no-console
 			console.error('Failed to parse playground attributes:', error);
 			rootElement.innerHTML = `
 				<div style="padding: 20px; font-family: sans-serif;">

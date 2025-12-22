@@ -45,6 +45,7 @@ export async function writeThemeFiles(
 			themeFolderName: 'demo-theme',
 		});
 	} catch (error) {
+		// eslint-disable-next-line no-console
 		console.error('Failed to activate theme:', error);
 	}
 }
