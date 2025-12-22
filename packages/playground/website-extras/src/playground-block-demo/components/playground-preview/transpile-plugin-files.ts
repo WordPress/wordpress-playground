@@ -6,6 +6,8 @@
  */
 
 import * as esbuild from 'esbuild-wasm';
+// @ts-ignore - Vite ?url import
+import esbuildWasmUrl from 'esbuild-wasm/esbuild.wasm?url';
 import type { EditorFile } from '../../base64';
 import { phpVar } from '@php-wasm/util';
 
@@ -27,10 +29,7 @@ export const transpilePluginFiles = async (
 	if (esbuildInitialized === undefined) {
 		esbuildInitialized = esbuild.initialize({
 			worker: true,
-			wasmURL: new URL(
-				'./esbuild.wasm',
-				(document as any).currentScript.src
-			),
+			wasmURL: esbuildWasmUrl,
 		});
 	}
 
@@ -78,9 +77,7 @@ export const transpilePluginFiles = async (
 		if (file.name.endsWith('.js')) {
 			await esbuildInitialized;
 			try {
-				const transpiled = await (
-					await esbuild!
-				).transform(file.contents, {
+				const transpiled = await esbuild.transform(file.contents, {
 					loader: 'jsx',
 					target: 'esnext',
 					jsxFactory: 'wp.element.createElement',

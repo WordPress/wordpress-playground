@@ -15,7 +15,8 @@ export async function writeThemeFiles(
 	files: EditorFile[]
 ) {
 	const docroot = await client.documentRoot;
-	const themePath = `${docroot}/wp-content/themes/demo-theme`;
+	const themeFolderName = 'demo-theme';
+	const themePath = docroot + '/wp-content/themes/' + themeFolderName;
 
 	// Remove existing theme directory if it exists
 	const pathExists = await client.fileExists(themePath);
@@ -42,7 +43,7 @@ export async function writeThemeFiles(
 	// Activate the theme
 	try {
 		await activateTheme(client, {
-			themeFolderName: 'demo-theme',
+			themeFolderName,
 		});
 	} catch (error) {
 		// eslint-disable-next-line no-console

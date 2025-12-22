@@ -110,10 +110,8 @@ export function base64EncodeBlockAttributes(
 	for (const [key, value] of Object.entries(attributes)) {
 		if (attributesToBase64.includes(key)) {
 			if (key === 'files' && Array.isArray(value)) {
-				result[key] = value.map((file: EditorFile) => ({
-					...file,
-					contents: stringToBase64(file.contents || ''),
-				}));
+				// Wrap files array as base64 JSON string in an array
+				result[key] = [stringToBase64(JSON.stringify(value))];
 			} else if (typeof value === 'string') {
 				result[key] = stringToBase64(value);
 			} else if (typeof value === 'object' && value !== null) {

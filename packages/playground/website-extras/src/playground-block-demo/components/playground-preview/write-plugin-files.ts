@@ -42,7 +42,7 @@ export async function writePluginFiles(
 	// Activate the plugin
 	try {
 		await activatePlugin(client as any, {
-			pluginPath: 'demo-plugin/plugin.php',
+			pluginPath,
 		});
 	} catch (error) {
 		// eslint-disable-next-line no-console
