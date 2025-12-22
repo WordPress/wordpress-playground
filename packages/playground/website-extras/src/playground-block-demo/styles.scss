@@ -261,6 +261,7 @@ $playground-height: 700px;
 			max-width: 100%;
 			border: 0;
 			position: relative;
+			border: 2px solid rgb(30, 30, 30);
 
 			.wordpress-playground-before-preview:focus {
 				z-index: -1;
