@@ -319,7 +319,7 @@ $playground-height: 700px;
 		}
 	}
 
-	.is-full-page-view {
+	&.is-full-page-view {
 		height: 100vh;
 		display: flex;
 		flex-direction: column;
@@ -331,7 +331,7 @@ $playground-height: 700px;
 		}
 
 		.wordpress-playground-footer {
-			text-align: center !important;
+			text-align: center;
 		}
 
 		.wordpress-playground-content-container {
