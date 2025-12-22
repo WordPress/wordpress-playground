@@ -129,6 +129,9 @@ export function base64EncodeBlockAttributes(
 	return result;
 }
 
+// Attributes that were JSON-stringified before base64 encoding
+const jsonEncodedAttributes = ['constants'];
+
 /**
  * Decode block attributes from Base64.
  * This function never throws - it gracefully handles decoding errors
@@ -155,7 +158,13 @@ export function base64DecodeBlockAttributes(
 				});
 			} else if (typeof value === 'string') {
 				try {
-					result[key] = base64ToString(value);
+					const decoded = base64ToString(value);
+					// Parse JSON for attributes that were stringified before encoding
+					if (jsonEncodedAttributes.includes(key)) {
+						result[key] = JSON.parse(decoded);
+					} else {
+						result[key] = decoded;
+					}
 				} catch {
 					result[key] = value;
 				}

@@ -329,6 +329,10 @@ $playground-height: 700px;
 			display: none;
 		}
 
+		.wordpress-playground-footer {
+			text-align: center;
+		}
+
 		.wordpress-playground-content-container {
 			flex-grow: 1;
 
@@ -346,6 +350,28 @@ $playground-height: 700px;
 				.playground-container {
 					flex-basis: 300px;
 					flex-grow: 1;
+				}
+			}
+
+			// When there's no code editor, make playground fill available space
+			&.is-side-by-side,
+			&.is-one-under-another {
+				.playground-container:only-child {
+					width: 100%;
+					height: 100%;
+					flex: 1;
+					flex-basis: auto;
+					min-height: 0;
+
+					.playground-iframe {
+						width: 100%;
+						height: 100%;
+					}
+
+					.playground-activation-placeholder {
+						width: 100%;
+						height: 100%;
+					}
 				}
 			}
 		}
