@@ -114,9 +114,19 @@ export async function setupPlatformLevelMuPlugins(php: UniversalPHP) {
 			 * playground_auto_login_already_happened cookie.
 			 * This is used to allow the user to logout.
 			 */
-			if ( defined('PLAYGROUND_AUTO_LOGIN_AS_USER') && !isset($_COOKIE['playground_auto_login_already_happened']) ) {
+			if (
+				defined('PLAYGROUND_AUTO_LOGIN_AS_USER') &&
+				defined('PLAYGROUND_AUTO_LOGIN_SESSION_ID')
+			) {
+				$auto_login_happened_cookie =
+					$_COOKIE['playground_auto_login_already_happened'] ?? false;
+				if ($auto_login_happened_cookie === PLAYGROUND_AUTO_LOGIN_SESSION_ID) {
+					return false;
+				}
+
 				return PLAYGROUND_AUTO_LOGIN_AS_USER;
 			}
+
 			/**
 			 * Allow users to auto-login as a specific user by passing the
 			 * playground_force_auto_login_as_user GET parameter.
@@ -188,7 +198,12 @@ export async function setupPlatformLevelMuPlugins(php: UniversalPHP) {
 			wp_set_auth_cookie( $user->ID );
 			do_action( 'wp_login', $user->user_login, $user );
 
-			setcookie('playground_auto_login_already_happened', '1');
+			error_log('setting playground_auto_login_already_happened cookie');
+			$auto_login_session_id = defined('PLAYGROUND_AUTO_LOGIN_SESSION_ID')
+				? PLAYGROUND_AUTO_LOGIN_SESSION_ID
+				: 'unknown-session-id';
+			// Set a cookie to confirm that the auto-login happened during this session.
+			setcookie('playground_auto_login_already_happened', $auto_login_session_id);
 
 			/**
 			 * Confirm that nothing in WordPress, plugins, or filters have finalized

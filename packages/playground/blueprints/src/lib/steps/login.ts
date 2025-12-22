@@ -39,6 +39,11 @@ export const login: StepHandler<LoginStep> = async (
 ) => {
 	progress?.tracker.setCaption(progress?.initialCaption || 'Logging in');
 
-	// TODO: Make defineConstant apply to all workers
 	playground.defineConstant('PLAYGROUND_AUTO_LOGIN_AS_USER', username);
+	// Define a session ID so we can set an auto-login cookie and later
+	// confirm whether the user was auto-logged-in during this session.
+	playground.defineConstant(
+		'PLAYGROUND_AUTO_LOGIN_SESSION_ID',
+		crypto.randomUUID()
+	);
 };
