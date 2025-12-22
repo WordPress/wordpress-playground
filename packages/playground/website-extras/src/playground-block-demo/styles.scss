@@ -324,13 +324,14 @@ $playground-height: 700px;
 		display: flex;
 		flex-direction: column;
 		flex-wrap: nowrap;
+		align-items: stretch;
 
 		.wordpress-playground-footer__full-page-link {
 			display: none;
 		}
 
 		.wordpress-playground-footer {
-			text-align: center;
+			text-align: center !important;
 		}
 
 		.wordpress-playground-content-container {
