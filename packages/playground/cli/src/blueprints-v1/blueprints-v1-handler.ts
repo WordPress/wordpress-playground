@@ -2,7 +2,7 @@ import { logger } from '@php-wasm/logger';
 // TODO: Wire up download progress tracking with initial worker
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { EmscriptenDownloadMonitor, ProgressTracker } from '@php-wasm/progress';
-import { consumeAPI } from '@php-wasm/universal';
+import { consumeAPI, exposeAPI, type NodeProcess } from '@php-wasm/universal';
 import type { BlueprintV1Declaration } from '@wp-playground/blueprints';
 import {
 	compileBlueprintV1,
@@ -57,9 +57,9 @@ export class BlueprintsV1Handler {
 		return 'v1';
 	}
 
-	async bootAndSetUpInitialPlayground(
+	async bootWordPress(
 		workerProcess: SpawnedWorker,
-		nativeInternalDirPath: string
+		onWordPressInstalled: () => Promise<void>
 	) {
 		let wpDetails: any = undefined;
 		let wordPressZip: any = undefined;
@@ -118,12 +118,6 @@ export class BlueprintsV1Handler {
 			sqliteIntegrationPluginZip = await fetchSqliteIntegration(monitor);
 		}
 
-		const followSymlinks = this.args.followSymlinks === true;
-		const trace = this.args.experimentalTrace === true;
-
-		const mountsBeforeWpInstall = this.args['mount-before-install'] || [];
-		const mountsAfterWpInstall = this.args.mount || [];
-
 		// TODO: Fix this type error.
 		// @ts-ignore
 		const playground =
@@ -136,33 +130,20 @@ export class BlueprintsV1Handler {
 
 		logger.log(`Booting WordPress...`);
 
-		const runtimeConfiguration = await resolveRuntimeConfiguration(
-			this.getEffectiveBlueprint()
+		// TODO: Fix this need to cast due to type error.
+		// @ts-ignore
+		exposeAPI(
+			onWordPressInstalled,
+			undefined,
+			workerProcess as NodeProcess
 		);
-
-		await playground.bootAndSetUpInitialWorker({
-			port: this.args.port,
-			phpVersion: runtimeConfiguration.phpVersion,
+		await playground.bootWordPress({
 			siteUrl: this.siteUrl,
-			mountsBeforeWpInstall,
-			mountsAfterWpInstall,
 			wordpressInstallMode:
 				this.args.wordpressInstallMode || 'download-and-install',
 			wordPressZip: await wordPressZip?.arrayBuffer(),
 			sqliteIntegrationPluginZip:
 				await sqliteIntegrationPluginZip?.arrayBuffer(),
-			firstProcessId: 0,
-			processIdSpaceLength: this.processIdSpaceLength,
-			followSymlinks,
-			trace,
-			internalCookieStore: this.args.internalCookieStore,
-			withIntl: this.args.intl,
-			// We do not enable Xdebug by default for the initial worker
-			// because we do not imagine users expect to hit breakpoints
-			// until Playground has fully booted.
-			// TODO: Consider supporting Xdebug for the initial worker via a dedicated flag.
-			withXdebug: false,
-			nativeInternalDirPath,
 		});
 
 		return playground;

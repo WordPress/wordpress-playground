@@ -8,6 +8,7 @@ import type {
 	SupportedPHPVersion,
 	SpawnHandler,
 	PHPRequest,
+	NodeProcess,
 } from '@php-wasm/universal';
 import {
 	PHPExecutionFailureError,
@@ -15,9 +16,12 @@ import {
 	PHPWorker,
 	consumeAPI,
 	exposeAPI,
+	releaseRemoteApiProxy,
 	sandboxedSpawnHandlerFactory,
+	setPhpIniEntries,
+	writeFiles,
 } from '@php-wasm/universal';
-import { sprintf } from '@php-wasm/util';
+import { joinPaths, sprintf } from '@php-wasm/util';
 import {
 	type BlueprintMessage,
 	runBlueprintV2,
@@ -27,7 +31,11 @@ import {
 	type ParsedBlueprintV2String,
 	type RawBlueprintV2Data,
 } from '@wp-playground/blueprints';
-import { bootRequestHandler } from '@wp-playground/wordpress';
+import {
+	bootRequestHandler,
+	preloadPhpInfoRoute,
+	setupPlatformLevelMuPlugins,
+} from '@wp-playground/wordpress';
 import { existsSync } from 'fs';
 import path from 'path';
 import { rootCertificates } from 'tls';
@@ -126,23 +134,15 @@ const output = {
 	},
 };
 
-export type PrimaryWorkerBootArgs = Omit<
+export type WordPressBootArgs = Omit<
 	RunCLIArgs,
 	'mount-before-install' | 'mount'
 > & {
-	phpVersion: SupportedPHPVersion;
 	siteUrl: string;
-	port: number;
-	firstProcessId: number;
-	processIdSpaceLength: number;
-	trace: boolean;
 	blueprint:
 		| RawBlueprintV2Data
 		| ParsedBlueprintV2String
 		| BlueprintV1Declaration;
-	nativeInternalDirPath: string;
-	mountsBeforeWpInstall?: Array<Mount>;
-	mountsAfterWpInstall?: Array<Mount>;
 };
 
 type WorkerRunBlueprintArgs = Omit<
@@ -154,10 +154,9 @@ type WorkerRunBlueprintArgs = Omit<
 		| RawBlueprintV2Data
 		| ParsedBlueprintV2String
 		| BlueprintV1Declaration;
-	mountsAfterWpInstall?: Array<Mount>;
 };
 
-export type SecondaryWorkerBootArgs = {
+export type WorkerBootArgs = {
 	siteUrl: string;
 	port: number;
 	allow?: string;
@@ -176,7 +175,7 @@ export type SecondaryWorkerBootArgs = {
 };
 
 export type WorkerBootRequestHandlerOptions = Omit<
-	SecondaryWorkerBootArgs,
+	WorkerBootArgs,
 	'mountsBeforeWpInstall' | 'mountsAfterWpInstall'
 > & {
 	onPHPInstanceCreated: PHPInstanceCreatedHook;
@@ -192,94 +191,83 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 		super(undefined, monitor);
 	}
 
-	async bootAndSetUpInitialWorker(args: PrimaryWorkerBootArgs) {
-		const constants = {
-			WP_DEBUG: true,
-			WP_DEBUG_LOG: true,
-			WP_DEBUG_DISPLAY: false,
-		};
-		const requestHandlerOptions: WorkerBootRequestHandlerOptions = {
-			...args,
-			createFiles: {
-				'/internal/shared/ca-bundle.crt': rootCertificates.join('\n'),
-			},
-			constants,
-			phpIniEntries: {
-				'openssl.cafile': '/internal/shared/ca-bundle.crt',
-			},
-			onPHPInstanceCreated: async (php: PHP) => {
-				await mountResources(php, args.mountsBeforeWpInstall || []);
-				if (this.blueprintTargetResolved) {
-					await mountResources(php, args.mountsAfterWpInstall || []);
-				} else {
-					// NOTE: Today (2025-09-11), during boot with a plugin auto-mount,
-					// the Blueprint runner fails unless post-resolution mounts are
-					// added to existing PHP instances. So we track them here so they
-					// can be mounted at the necessary time.
-					// Only plugin auto-mounts seem to need this, so perhaps there
-					// is a change we can make to the Blueprint runner so such
-					// a dance is unnecessary.
-					this.phpInstancesThatNeedMountsAfterTargetResolved.add(php);
-					php.addEventListener('runtime.beforeExit', () => {
-						this.phpInstancesThatNeedMountsAfterTargetResolved.delete(
-							php
-						);
-					});
-				}
-			},
-			spawnHandler: () =>
-				sandboxedSpawnHandlerFactory(() => createPHPWorker(args)),
-		};
-		await this.bootRequestHandler(requestHandlerOptions);
+	async bootWordPress(args: WordPressBootArgs) {
+		// TODO: Should we move a process like this back into the
+		// `@wp-playground/wordpress` package?
+		const php = await this.__internal_getRequestHandler()!.getPrimaryPhp();
+		php.defineConstant('WP_DEBUG', 'true');
+		php.defineConstant('WP_DEBUG_LOG', 'true');
+		php.defineConstant('WP_DEBUG_DISPLAY', 'false');
+		php.defineConstant('WP_HOME', args.siteUrl);
+		php.defineConstant('WP_SITEURL', args.siteUrl);
 
-		const primaryPhp = this.__internal_getPHP()!;
-
-		if (args.mode === 'mount-only') {
-			await mountResources(primaryPhp, args.mountsAfterWpInstall || []);
-			return;
-		}
-
-		await this.runBlueprintV2({
-			...args,
-			mountsAfterWpInstall: args.mountsAfterWpInstall || [],
+		await setPhpIniEntries(php, {
+			'openssl.cafile': '/internal/shared/ca-bundle.crt',
+			allow_url_fopen: '1',
+			disable_functions: '',
 		});
+
+		await setupPlatformLevelMuPlugins(php);
+		await writeFiles(php, '/', {
+			'/internal/shared/ca-bundle.crt': rootCertificates.join('\n'),
+		});
+		await preloadPhpInfoRoute(
+			php,
+			joinPaths(new URL(args.siteUrl).pathname, 'phpinfo.php')
+		);
+
+		// TODO: Do we really want to change the timing of our mounts in this mode?
+		//       If so, should run-cli just merge all mounts into the initial before-install set?
+		// if (args.mode === 'mount-only') {
+		// 	await mountResources(primaryPhp, args.mountsAfterWpInstall || []);
+		// 	return;
+		// }
+
+		await this.runBlueprintV2({ ...args });
 	}
 
-	async bootWorker(args: SecondaryWorkerBootArgs) {
+	async bootWorker(args: WorkerBootArgs) {
 		await this.bootRequestHandler({
 			...args,
 			onPHPInstanceCreated: async (php: PHP) => {
 				await mountResources(php, args.mountsBeforeWpInstall || []);
 				await mountResources(php, args.mountsAfterWpInstall || []);
 
-				// Temporary workaround for LOCK_EX in sqlite-database-integration.
-				// Creation of these files results in this error:
-				// PHP Warning:  file_put_contents(): Exclusive locks are not supported for this stream
-				// in
-				// /wordpress/wp-content/plugins/sqlite-database-integration/wp-includes/sqlite/class-wp-sqlite-db.php
-				// on line 670
-				if (!php.isDir('/wordpress/wp-content')) {
-					php.mkdir('/wordpress/wp-content');
-				}
-				if (!php.isDir('/wordpress/wp-content/database')) {
-					php.mkdir('/wordpress/wp-content/database');
-				}
-				if (!php.isFile('/wordpress/wp-content/database/.htaccess')) {
-					php.writeFile(
-						'/wordpress/wp-content/database/.htaccess',
-						'deny from all'
-					);
-				}
-				if (!php.isFile('/wordpress/wp-content/database/index.php')) {
-					php.writeFile(
-						'/wordpress/wp-content/database/index.php',
-						'deny from all'
-					);
-				}
+				// TODO: Is this still a problem with this PR?
+				// // Temporary workaround for LOCK_EX in sqlite-database-integration.
+				// // Creation of these files results in this error:
+				// // PHP Warning:  file_put_contents(): Exclusive locks are not supported for this stream
+				// // in
+				// // /wordpress/wp-content/plugins/sqlite-database-integration/wp-includes/sqlite/class-wp-sqlite-db.php
+				// // on line 670
+				// if (!php.isDir('/wordpress/wp-content')) {
+				// 	php.mkdir('/wordpress/wp-content');
+				// }
+				// if (!php.isDir('/wordpress/wp-content/database')) {
+				// 	php.mkdir('/wordpress/wp-content/database');
+				// }
+				// if (!php.isFile('/wordpress/wp-content/database/.htaccess')) {
+				// 	php.writeFile(
+				// 		'/wordpress/wp-content/database/.htaccess',
+				// 		'deny from all'
+				// 	);
+				// }
+				// if (!php.isFile('/wordpress/wp-content/database/index.php')) {
+				// 	php.writeFile(
+				// 		'/wordpress/wp-content/database/index.php',
+				// 		'deny from all'
+				// 	);
+				// }
 			},
 			spawnHandler: () =>
 				sandboxedSpawnHandlerFactory(() => createPHPWorker(args)),
 		});
+	}
+
+	async mountAfterWordPressInstall(mountsAfterWpInstall: Array<Mount>) {
+		const primaryPhp =
+			await this.__internal_getRequestHandler()!.getPrimaryPhp();
+		await mountResources(primaryPhp, mountsAfterWpInstall);
 	}
 
 	async runBlueprintV2(args: WorkerRunBlueprintArgs) {
@@ -343,10 +331,21 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 									this.phpInstancesThatNeedMountsAfterTargetResolved.delete(
 										php
 									);
-									await mountResources(
-										php,
-										args.mountsAfterWpInstall || []
-									);
+									// TODO: Does PHP wait for this message to be handled before continuing?
+									// If not, we need to wait for the message to be handled before continuing,
+									// so all workers have a chance to apply their mounts before they may
+									// receive requests from the blueprint runner.
+									// TODO: Explain that we had difficulty passing callbacks to remote worker API
+									// TODO: Fix this type error. process doesn't match NodeProcess Type
+									// @ts-ignore
+									const onWordPressInstalled =
+										await consumeAPI<() => Promise<void>>(
+											process as NodeProcess
+										);
+									await onWordPressInstalled();
+									await onWordPressInstalled[
+										releaseRemoteApiProxy
+									]();
 								}
 							}
 							break;
@@ -549,7 +548,7 @@ async function createPHPWorker({
 	withXdebug,
 	mountsBeforeWpInstall,
 	mountsAfterWpInstall,
-}: SecondaryWorkerBootArgs) {
+}: WorkerBootArgs) {
 	const spawnedWorkerProcess = await spawnWorkerProcess('v2');
 
 	const handler = consumeAPI<PlaygroundCliBlueprintV2Worker>(

@@ -148,6 +148,28 @@ export interface BootWordPressOptions {
 	 */
 	constants?: Record<string, string | number | boolean | null>;
 	/**
+	 * PHP.ini entries to define before running any code. They'll
+	 * be used for all requests.
+	 */
+	phpIniEntries?: PhpIniOptions;
+	/**
+	 * Files to create in the filesystem before any mounts are applied.
+	 *
+	 * Example:
+	 *
+	 * ```ts
+	 * {
+	 * 		createFiles: {
+	 * 			'/tmp/hello.txt': 'Hello, World!',
+	 * 			'/internal/preload': {
+	 * 				'1-custom-mu-plugin.php': '<?php echo "Hello, World!";',
+	 * 			}
+	 * 		}
+	 * }
+	 * ```
+	 */
+	createFiles?: FileTree;
+	/**
 	 * URL to use as the site URL. This is used to set the WP_HOME
 	 * and WP_SITEURL constants in WordPress.
 	 */
@@ -187,6 +209,27 @@ export async function bootWordPress(
 			php.defineConstant(key, options.constants[key] as string);
 		}
 	}
+
+	if (options.phpIniEntries) {
+		setPhpIniEntries(php, options.phpIniEntries);
+	}
+
+	/**
+	 * Set up mu-plugins in /internal/mu-plugins
+	 * using auto_prepend_file to provide platform-level
+	 * customization without altering the installed WordPress
+	 * site.
+	 *
+	 * We only do that in the primary PHP instance –
+	 * the filesystem there is the source of truth
+	 * for all other PHP instances.
+	 */
+	await setupPlatformLevelMuPlugins(php);
+	await writeFiles(php, '/', options.createFiles || {});
+	await preloadPhpInfoRoute(
+		php,
+		joinPaths(new URL(options.siteUrl).pathname, 'phpinfo.php')
+	);
 
 	if (options.dataSqlPath) {
 		php.defineConstant('DB_DIR', dirname(options.dataSqlPath));
@@ -383,41 +426,6 @@ export async function bootRequestHandler(options: BootRequestHandlerOptions) {
 		// TODO: Remove this once the new driver is the default; when this is closed:
 		//         https://github.com/WordPress/sqlite-database-integration/issues/195
 		php.defineConstant('WP_SQLITE_AST_DRIVER', true);
-
-		/**
-		 * Set up mu-plugins in /internal/mu-plugins
-		 * using auto_prepend_file to provide platform-level
-		 * customization without altering the installed WordPress
-		 * site.
-		 *
-		 * We only do that in the primary PHP instance –
-		 * the filesystem there is the source of truth
-		 * for all other PHP instances.
-		 */
-		if (
-			isPrimary &&
-			/**
-			 * Only the first PHP instance of the first worker created
-			 * during WordPress boot writes these files – otherwise we'll keep
-			 * overwriting them with concurrent writers living in other worker
-			 * threads.
-			 *
-			 * The `.boot-files-written` file is our primitive synchronization
-			 * mechanism. It works, because secondary workers are only booted
-			 * once the primary worker has fully booted.
-			 */
-			!php.isFile('/internal/.boot-files-written')
-		) {
-			await setupPlatformLevelMuPlugins(php);
-			await writeFiles(php, '/', options.createFiles || {});
-			await preloadPhpInfoRoute(
-				php,
-				joinPaths(new URL(options.siteUrl).pathname, 'phpinfo.php')
-			);
-			await writeFiles(php, '/internal', {
-				'.boot-files-written': '',
-			});
-		}
 
 		// Spawn handler is responsible for spawning processes for all the
 		// `popen()`, `proc_open()` etc. calls.

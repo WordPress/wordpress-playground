@@ -592,9 +592,9 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void>;
 export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 	let playground: RemoteAPI<PlaygroundCliWorker> | null = null;
 
-	const playgroundsToCleanUp: Map<
+	const playgroundWorkerPairs: Map<
 		SpawnedWorker,
-		RemoteAPI<PlaygroundCliWorker>
+		RemoteAPI<PlaygroundCliWorker> | null
 	> = new Map();
 
 	if (args.port === undefined) {
@@ -674,12 +674,6 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 		}
 	})();
 
-	const totalWorkersToSpawn =
-		args.command === 'server'
-			? // Account for the initial worker which is discarded by the server after setup.
-				targetWorkerCount + 1
-			: targetWorkerCount;
-
 	// Process IDs appear to be defined as `int` in Emscripten:
 	// https://github.com/emscripten-core/emscripten/blob/95d2bf9c5c27b88ab7de6eba2d8e61ea1af977ac/system/lib/libc/musl/arch/emscripten/bits/alltypes.h#L290
 	// and those are typically 32 bits wide in both 32-bit and 64-bit systems.
@@ -687,7 +681,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 	const maxValueForSigned32BitInteger = 2 ** (32 - 1) - 1;
 	const maxProcessIdValue = maxValueForSigned32BitInteger;
 	const processIdSpaceLength = Math.floor(
-		maxProcessIdValue / totalWorkersToSpawn
+		maxProcessIdValue / targetWorkerCount
 	);
 
 	/*
@@ -902,6 +896,18 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 		}
 	}
 
+	async function applyMountsAfterWordPressInstall(): Promise<void> {
+		await Promise.all(
+			Array.from(playgroundWorkerPairs.values()).map(
+				async (playground) => {
+					await playground?.mountAfterWordPressInstall(
+						args['mount'] || []
+					);
+				}
+			)
+		);
+	}
+
 	let handler: BlueprintsV1Handler | BlueprintsV2Handler;
 	if (args['experimental-blueprints-v2-runner']) {
 		handler = new BlueprintsV2Handler(
@@ -940,10 +946,10 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 
 		disposing = true;
 		await Promise.all(
-			[...playgroundsToCleanUp].map(
+			[...playgroundWorkerPairs].map(
 				async ([workerProcess, playground]) => {
-					await playground.dispose();
-					await playground[releaseRemoteApiProxy]();
+					await playground?.dispose();
+					await playground?.[releaseRemoteApiProxy]();
 					await killWorkerProcess(workerProcess);
 				}
 			)
@@ -951,118 +957,109 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 		await nativeDir.cleanup();
 	};
 
-	// Kick off worker threads now to save time later.
-	// There is no need to wait for other async processes to complete.
-	const promisedWorkerProcesses = spawnWorkerProcesses(
-		totalWorkersToSpawn,
-		handler.getWorkerType(),
-		({ exitCode, workerIndex }) => {
-			// We are already disposing, so worker exit is expected
-			// and does not need to be logged.
-			if (disposing) {
-				return;
-			}
-
-			if (exitCode === 0) {
-				return;
-			}
-
-			logger.error(
-				`Worker ${workerIndex} exited with code ${exitCode}\n`
-			);
-			// @TODO: Should we respawn the worker if it exited with an error and the CLI is not shutting down?
-		}
-	);
-
-	logger.log(`Starting workers...`);
-
 	try {
-		const workerProcesses = await promisedWorkerProcesses;
+		logger.log(`Starting workers...`);
 
-		// NOTE: Using a free-standing block to isolate initial boot vars
-		// while keeping the logic inline.
-		{
-			// TODO: Restore "WordPress is not ready yet" server response before WP setup?
+		// Kick off worker threads now to save time later.
+		// There is no need to wait for other async processes to complete.
+		const promisesToBoot = [];
+		const workerType = handler.getWorkerType();
+		for (
+			let workerIndex = 0;
+			workerIndex < targetWorkerCount;
+			workerIndex++
+		) {
+			const promiseToBootWorker = spawnWorkerProcess(workerType, {
+				onExit(exitCode: number): void {
+					// We are already disposing, so worker exit is expected
+					// and does not need to be logged.
+					if (disposing) {
+						return;
+					}
 
-			// Create an initial server to:
-			// 1. Prove that we can listen on the specified port before spawning workers.
-			// 2. Respond to requests until WordPress is ready.
-			// const initialServer = await startServer({
-			// 	port: args['port']!,
-			// 	handleRequest: async () => {
-			// 		return PHPResponse.forHttpCode(
-			// 			502,
-			// 			'WordPress is not ready yet'
-			// 		);
-			// 	}
-			// });
-			// Boot the primary worker using the handler
-			const initialWorkerProcess = workerProcesses.shift()!;
-			const initialPlayground =
-				await handler.bootAndSetUpInitialPlayground(
-					initialWorkerProcess,
-					nativeInternalDirPath
-				);
-			playgroundsToCleanUp.set(initialWorkerProcess, initialPlayground);
+					if (exitCode === 0) {
+						return;
+					}
 
-			await initialPlayground.isReady();
-			logger.log(`Booted!`);
-
-			if (!args['experimental-blueprints-v2-runner']) {
-				const compiledBlueprint = await (
-					handler as BlueprintsV1Handler
-				).compileInputBlueprint(
-					args['additional-blueprint-steps'] || []
-				);
-
-				if (compiledBlueprint) {
-					logger.log(`Running the Blueprint...`);
-					await runBlueprintV1Steps(
-						compiledBlueprint,
-						initialPlayground as UniversalPHP
+					logger.error(
+						`Worker ${workerIndex} exited with code ${exitCode}\n`
 					);
-					logger.log(`Finished running the blueprint`);
+					// @TODO: Should we respawn the worker if it exited with an error and the CLI is not shutting down?
+				},
+			}).then(
+				async (
+					workerProcess: SpawnedWorker
+				): Promise<
+					[
+						SpawnedWorker,
+						(
+							| RemoteAPI<PlaygroundCliBlueprintV1Worker>
+							| RemoteAPI<PlaygroundCliBlueprintV2Worker>
+						),
+					]
+				> => {
+					// Remember the worker process before booting the Playground
+					// so we can clean it up if there is an error during boot.
+					playgroundWorkerPairs.set(workerProcess, null);
+
+					const firstProcessId = workerIndex * processIdSpaceLength;
+
+					const playgroundApi = await handler.bootPlayground({
+						workerProcess,
+						firstProcessId,
+						nativeInternalDirPath,
+					});
+
+					playgroundWorkerPairs.set(workerProcess, playgroundApi);
+
+					return [workerProcess, playgroundApi];
 				}
-			}
-
-			if (args.command === 'build-snapshot') {
-				await zipSite(initialPlayground, args.outfile as string);
-				logger.log(`WordPress exported to ${args.outfile}`);
-				await disposeCLI();
-				return;
-			} else if (args.command === 'run-blueprint') {
-				logger.log(`Blueprint executed`);
-				await disposeCLI();
-				return;
-			}
-
-			await initialPlayground.dispose();
-			await initialPlayground[releaseRemoteApiProxy]();
-			await killWorkerProcess(initialWorkerProcess);
-			playgroundsToCleanUp.delete(initialWorkerProcess);
+			);
+			promisesToBoot.push(promiseToBootWorker);
 		}
 
-		logger.log(`Preparing workers...`);
+		const [[initialWorkerProcess, initialPlayground]] =
+			await Promise.all(promisesToBoot);
 
-		// Boot additional workers using the handler
-		const initialWorkerProcessIdSpace = processIdSpaceLength;
-		// Just take the first Playground instance to be returned to the caller.
-		[playground] = (await Promise.all(
-			workerProcesses.map(async (workerProcess, index) => {
-				const firstProcessId =
-					initialWorkerProcessIdSpace + index * processIdSpaceLength;
+		// TODO: comment on picking a playground to return to the caller
+		playground = playgroundWorkerPairs.values().next().value!;
 
-				const additionalPlayground = await handler.bootPlayground({
-					workerProcess,
-					firstProcessId,
-					nativeInternalDirPath,
-				});
+		// TODO: Restore "WordPress is not ready yet" server response before WP setup?
 
-				playgroundsToCleanUp.set(workerProcess, additionalPlayground);
+		await handler.bootWordPress(
+			initialWorkerProcess,
+			applyMountsAfterWordPressInstall
+		);
+		playgroundWorkerPairs.set(initialWorkerProcess, initialPlayground);
 
-				return additionalPlayground;
-			})
-		)) as [RemoteAPI<PlaygroundCliWorker>];
+		await initialPlayground.isReady();
+		logger.log(`Booted!`);
+
+		if (!args['experimental-blueprints-v2-runner']) {
+			const compiledBlueprint = await (
+				handler as BlueprintsV1Handler
+			).compileInputBlueprint(args['additional-blueprint-steps'] || []);
+
+			if (compiledBlueprint) {
+				logger.log(`Running the Blueprint...`);
+				await runBlueprintV1Steps(
+					compiledBlueprint,
+					initialPlayground as UniversalPHP
+				);
+				logger.log(`Finished running the blueprint`);
+			}
+		}
+
+		if (args.command === 'build-snapshot') {
+			await zipSite(initialPlayground, args.outfile as string);
+			logger.log(`WordPress exported to ${args.outfile}`);
+			await disposeCLI();
+			return;
+		} else if (args.command === 'run-blueprint') {
+			logger.log(`Blueprint executed`);
+			await disposeCLI();
+			return;
+		}
 
 		logger.log(
 			`WordPress is running on ${serverUrl} with ${targetWorkerCount} worker(s)`
@@ -1070,7 +1067,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 
 		if (args.xdebug && args.experimentalDevtools) {
 			const bridge = await startBridge({
-				phpInstance: playground,
+				phpInstance: playground!,
 				phpRoot: '/wordpress',
 			});
 
@@ -1078,7 +1075,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 		}
 
 		return {
-			playground,
+			playground: playground!,
 			serverUrl,
 			[Symbol.asyncDispose]: disposeCLI,
 			[internalsKeyForTesting]: {
@@ -1127,25 +1124,6 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 }
 
 export type SpawnedWorker = ClusterProcess | ChildProcess;
-
-async function spawnWorkerProcesses(
-	count: number,
-	workerType: WorkerType,
-	onWorkerExit: (options: { exitCode: number; workerIndex: number }) => void
-): Promise<SpawnedWorker[]> {
-	const promises = [];
-	for (let i = 0; i < count; i++) {
-		const onExit: (code: number) => void = (code: number) => {
-			onWorkerExit({
-				exitCode: code,
-				workerIndex: i,
-			});
-		};
-		const worker = spawnWorkerProcess(workerType, { onExit });
-		promises.push(worker);
-	}
-	return Promise.all(promises);
-}
 
 /**
  * A statically analyzable function that spawns a worker thread of a given type.

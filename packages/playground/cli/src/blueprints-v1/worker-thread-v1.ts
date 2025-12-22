@@ -10,6 +10,7 @@ import {
 	PHPWorker,
 	consumeAPI,
 	exposeAPI,
+	releaseRemoteApiProxy,
 	sandboxedSpawnHandlerFactory,
 } from '@php-wasm/universal';
 import { sprintf } from '@php-wasm/util';
@@ -17,7 +18,7 @@ import { RecommendedPHPVersion } from '@wp-playground/common';
 import {
 	type WordPressInstallMode,
 	bootRequestHandler,
-	bootWordPressAndRequestHandler,
+	bootWordPress,
 } from '@wp-playground/wordpress';
 import { rootCertificates } from 'tls';
 import { mountResources } from '../mounts';
@@ -51,7 +52,8 @@ export type WorkerBootOptions = {
 	nativeInternalDirPath: string;
 };
 
-export type PrimaryWorkerBootOptions = WorkerBootOptions & {
+export type WordPressBootOptions = {
+	siteUrl: string;
 	wordpressInstallMode: WordPressInstallMode;
 	wordPressZip?: ArrayBuffer;
 	sqliteIntegrationPluginZip?: ArrayBuffer;
@@ -96,98 +98,58 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 		super(undefined, monitor);
 	}
 
-	async bootAndSetUpInitialWorker(options: PrimaryWorkerBootOptions) {
+	async bootWordPress(options: WordPressBootOptions) {
 		const {
-			port,
 			siteUrl,
-			mountsBeforeWpInstall,
-			mountsAfterWpInstall,
 			wordpressInstallMode,
 			wordPressZip,
 			sqliteIntegrationPluginZip,
 			dataSqlPath,
-			internalCookieStore,
 		} = options;
-		if (this.booted) {
-			throw new Error('Playground already booted');
-		}
-		this.booted = true;
 
-		try {
-			const constants: Record<string, string | number | boolean | null> =
-				{
-					WP_DEBUG: true,
-					WP_DEBUG_LOG: true,
-					WP_DEBUG_DISPLAY: false,
-				};
-			let wordpressBooted = false;
-			const requestHandler = await bootWordPressAndRequestHandler({
-				siteUrl,
-				createPhpRuntime: createPhpRuntimeFactory(options),
-				wordpressInstallMode,
-				wordPressZip:
-					wordPressZip !== undefined
-						? new File([wordPressZip], 'wordpress.zip')
-						: undefined,
-				sqliteIntegrationPluginZip:
-					sqliteIntegrationPluginZip !== undefined
-						? new File(
-								[sqliteIntegrationPluginZip],
-								'sqlite-integration-plugin.zip'
-							)
-						: undefined,
-				sapiName: 'cli',
-				createFiles: {
-					'/internal/shared/ca-bundle.crt':
-						rootCertificates.join('\n'),
-				},
-				constants,
-				phpIniEntries: {
-					'openssl.cafile': '/internal/shared/ca-bundle.crt',
-					allow_url_fopen: '1',
-					disable_functions: '',
-				},
-				cookieStore: internalCookieStore ? undefined : false,
-				dataSqlPath,
-				spawnHandler: () =>
-					sandboxedSpawnHandlerFactory(() =>
-						createPHPWorker(options)
-					),
-				async onPHPInstanceCreated(php) {
-					await mountResources(php, mountsBeforeWpInstall);
-					if (wordpressBooted) {
-						await mountResources(php, mountsAfterWpInstall);
-					}
-				},
-			});
-			this.__internal_setRequestHandler(requestHandler);
-			wordpressBooted = true;
+		const constants: Record<string, string | number | boolean | null> = {
+			WP_DEBUG: true,
+			WP_DEBUG_LOG: true,
+			WP_DEBUG_DISPLAY: false,
+		};
+		await bootWordPress(this.__internal_getRequestHandler()!, {
+			siteUrl,
+			wordpressInstallMode,
+			wordPressZip:
+				wordPressZip !== undefined
+					? new File([wordPressZip], 'wordpress.zip')
+					: undefined,
+			sqliteIntegrationPluginZip:
+				sqliteIntegrationPluginZip !== undefined
+					? new File(
+							[sqliteIntegrationPluginZip],
+							'sqlite-integration-plugin.zip'
+						)
+					: undefined,
+			createFiles: {
+				'/internal/shared/ca-bundle.crt': rootCertificates.join('\n'),
+			},
+			constants,
+			phpIniEntries: {
+				'openssl.cafile': '/internal/shared/ca-bundle.crt',
+				allow_url_fopen: '1',
+				disable_functions: '',
+			},
+			dataSqlPath,
+		});
 
-			const primaryPhp = await requestHandler.getPrimaryPhp();
-			await this.setPrimaryPHP(primaryPhp);
-
-			// The primary PHP instance is persistent, so we need to apply
-			// post-install mounts now that WordPress has been booted.
-			// All secondary PHP instances created after WP boot will get
-			// these mounts automatically.
-			await mountResources(primaryPhp, mountsAfterWpInstall);
-
-			if (cluster.isWorker) {
-				await startServer({
-					port,
-					handleRequest: async (request: PHPRequest) => {
-						return await this.request(request);
-					},
-				});
-			}
-			setApiReady();
-		} catch (e) {
-			setAPIError(e as Error);
-			throw e;
-		}
+		// TODO: Explain that we had difficulty passing callbacks to remote worker API
+		const onWordPressInstalled = await consumeAPI<() => Promise<void>>(
+			process as NodeProcess
+		);
+		await onWordPressInstalled();
+		await onWordPressInstalled[releaseRemoteApiProxy]();
 	}
 
 	async bootWorker(args: WorkerBootOptions) {
+		// TODO: What about mounts after WP install?
+		//       We add them to all HTTP server processes immediately
+		//       after install. But what about spawned bin/php processes?
 		await this.bootRequestHandler(args);
 	}
 
@@ -203,7 +165,6 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 				createPhpRuntime: createPhpRuntimeFactory(options),
 				onPHPInstanceCreated: async (php) => {
 					await mountResources(php, options.mountsBeforeWpInstall);
-					await mountResources(php, options.mountsAfterWpInstall);
 				},
 				sapiName: 'cli',
 				cookieStore: false,
@@ -232,6 +193,12 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 			setAPIError(e as Error);
 			throw e;
 		}
+	}
+
+	async mountAfterWordPressInstall(mountsAfterWpInstall: Array<Mount>) {
+		const primaryPhp =
+			await this.__internal_getRequestHandler()!.getPrimaryPhp();
+		await mountResources(primaryPhp, mountsAfterWpInstall);
 	}
 
 	// Provide a named disposal method that can be invoked via comlink.
