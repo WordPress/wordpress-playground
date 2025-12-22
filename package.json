@@ -72,6 +72,7 @@
 	"private": true,
 	"dependencies": {
 		"@codemirror/autocomplete": "6.19.0",
+		"@uiw/react-codemirror": "4.23.0",
 		"@codemirror/commands": "6.8.1",
 		"@codemirror/lang-css": "6.3.1",
 		"@codemirror/lang-html": "6.4.10",
@@ -166,6 +167,7 @@
 		"docusaurus-plugin-typedoc-api": "^4.4.0",
 		"dts-bundle-generator": "^7.2.0",
 		"esbuild": "0.19.9",
+		"esbuild-wasm": "0.20.1",
 		"eslint": "9.24.0",
 		"eslint-plugin-comment-length": "2.2.1",
 		"eslint-plugin-cypress": "4.3.0",
@@ -189,6 +191,7 @@
 		"react-markdown": "^8.0.7",
 		"rimraf": "^4.4.0",
 		"rollup": "^4.34.6",
+		"sass": "1.71.1",
 		"tar-fs": "3.1.1",
 		"ts-jest": "29.1.0",
 		"ts-json-schema-generator": "1.2.0",
