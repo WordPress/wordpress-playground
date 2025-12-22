@@ -51,36 +51,7 @@ import {
 	IconLink,
 	IconPlay,
 } from './icons';
-
-/**
- * Announce a message to screen readers using an ARIA live region.
- * This replicates the functionality of WordPress's `withSpokenMessages` HOC.
- */
-function useSpeak() {
-	const [message, setMessage] = useState('');
-	const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-	function speak(text: string) {
-		// Clear any pending message
-		if (timeoutRef.current) {
-			clearTimeout(timeoutRef.current);
-		}
-		// Clear and re-set to ensure screen readers announce repeated messages
-		setMessage('');
-		timeoutRef.current = setTimeout(() => setMessage(text), 50);
-	}
-
-	// Cleanup on unmount
-	useEffect(() => {
-		return () => {
-			if (timeoutRef.current) {
-				clearTimeout(timeoutRef.current);
-			}
-		};
-	}, []);
-
-	return { message, speak };
-}
+import { speak } from '@wordpress/a11y';
 
 export type PlaygroundDemoProps = Partial<Attributes> & {
 	showAddNewFile?: boolean;
@@ -185,8 +156,6 @@ export default function PlaygroundPreview({
 			)) || '',
 	});
 
-	const { message: speakMessage, speak } = useSpeak();
-	const speakRegionId = useId();
 	const runButtonDescId = useId();
 	const activateButtonDescId = useId();
 
@@ -238,7 +207,7 @@ export default function PlaygroundPreview({
 			localStorage[dismissedExitWithKeyboardTipKey] = 'true';
 		}
 		setDismissedExitWithKeyboardTip(true);
-		speak(__('Notice dismissed.'));
+		speak(__('Notice dismissed.'), 'polite');
 	}
 
 	// Notify parent component of state changes
@@ -314,7 +283,10 @@ export default function PlaygroundPreview({
 			setIsPlaygroundReady(true);
 
 			// Delay the announcement to let iframe loading announcements finish first
-			setTimeout(() => speak(__('WordPress Playground loaded.')), 500);
+			setTimeout(
+				() => speak(__('WordPress Playground loaded.'), 'polite'),
+				500
+			);
 
 			await reinstallEditedCode();
 
@@ -774,16 +746,6 @@ export default function PlaygroundPreview({
 					</button>
 				)}
 			</footer>
-			{/* ARIA live region for screen reader announcements */}
-			<div
-				id={speakRegionId}
-				role="status"
-				aria-live="polite"
-				aria-atomic="true"
-				className="screen-reader-text"
-			>
-				{speakMessage}
-			</div>
 		</section>
 	);
 }
