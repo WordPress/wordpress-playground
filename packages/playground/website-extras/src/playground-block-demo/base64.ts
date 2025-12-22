@@ -129,52 +129,45 @@ export function base64EncodeBlockAttributes(
 	return result;
 }
 
-// Attributes that were JSON-stringified before base64 encoding
-const jsonEncodedAttributes = ['constants'];
-
 /**
- * Decode block attributes from Base64.
- * This function never throws - it gracefully handles decoding errors
- * by returning the original value, maintaining backward compatibility.
+ * Turns base64 encoded attributes back into their original form.
+ * It never throws, bales out early if we can't decode, and always
+ * returns a valid object. If any attribute cannot be decoded, it
+ * will be kept in its original form and presumed to have a non-base64
+ * value to keep the older version of the block working without
+ * migrating the attributes.
+ *
+ * @param base64Attributes
+ * @returns
  */
 export function base64DecodeBlockAttributes(
-	attributes: Record<string, unknown>
+	base64Attributes: Record<string, any>
 ): Attributes {
-	const result: Record<string, unknown> = {};
-
-	for (const [key, value] of Object.entries(attributes)) {
-		if (attributesToBase64.includes(key)) {
-			if (key === 'files' && Array.isArray(value)) {
-				result[key] = value.map((file: EditorFile) => {
-					try {
-						return {
-							...file,
-							contents: base64ToString(file.contents || ''),
-						};
-					} catch {
-						// If decoding fails, keep the original value
-						return file;
-					}
-				});
-			} else if (typeof value === 'string') {
-				try {
-					const decoded = base64ToString(value);
-					// Parse JSON for attributes that were stringified before encoding
-					if (jsonEncodedAttributes.includes(key)) {
-						result[key] = JSON.parse(decoded);
-					} else {
-						result[key] = decoded;
-					}
-				} catch {
-					result[key] = value;
-				}
-			} else {
-				result[key] = value;
+	const attributes: Record<string, any> = {};
+	for (const key in base64Attributes) {
+		let valueToDecode = base64Attributes[key];
+		// The "files" attribute is of type array
+		if (key === 'files') {
+			valueToDecode = valueToDecode[0];
+		}
+		if (
+			!attributesToBase64.includes(key) ||
+			!(typeof valueToDecode === 'string')
+		) {
+			attributes[key] = base64Attributes[key];
+			continue;
+		}
+		if (key in base64Attributes) {
+			try {
+				attributes[key] = JSON.parse(base64ToString(valueToDecode));
+			} catch {
+				// Ignore errors and keep the base64 encoded string.
+				// Note this will also preserve any non-base64 encoded values.
+				// This is intentional as it seems to make more sense than
+				// throwing an error and breaking the block.
+				attributes[key] = base64Attributes[key];
 			}
-		} else {
-			result[key] = value;
 		}
 	}
-
-	return result as Attributes;
+	return attributes as Attributes;
 }

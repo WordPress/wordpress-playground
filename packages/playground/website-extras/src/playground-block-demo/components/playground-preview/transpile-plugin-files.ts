@@ -7,150 +7,175 @@
 
 import * as esbuild from 'esbuild-wasm';
 import type { EditorFile } from '../../base64';
+import { phpVar } from '@php-wasm/util';
 
-let esbuildInitialized = false;
+let esbuildInitialized: any = undefined;
+
+const pluginNameRegex = /^(?:[ \t]*<\?php)?[ \t/*#@]*Plugin Name:(.*)$/im;
 
 export interface TranspilationFailure {
 	file: EditorFile;
 	error: Error;
 }
 
-export interface TranspilationResult {
-	failures: TranspilationFailure[];
-	transpiledFiles: EditorFile[];
-}
-
-const pluginFilePattern = /^(?:[ \t]*<\?php)?[ \t/*#@]*Plugin Name:(.*)$/im;
-
-/**
- * Transpile plugin files with JSX support.
- *
- * This function:
- * 1. Initializes esbuild-wasm if not already initialized
- * 2. Transpiles .js files with JSX syntax
- * 3. Creates ES module wrappers for block.json files
- * 4. Injects module preloading code into the main plugin PHP file
- */
-export async function transpilePluginFiles(
+export const transpilePluginFiles = async (
 	files: EditorFile[]
-): Promise<TranspilationResult> {
-	// Initialize esbuild if needed
-	if (!esbuildInitialized) {
-		await esbuild.initialize({
-			wasmURL: 'https://unpkg.com/esbuild-wasm@0.20.1/esbuild.wasm',
+): Promise<{
+	transpiledFiles: EditorFile[];
+	failures: TranspilationFailure[];
+}> => {
+	if (esbuildInitialized === undefined) {
+		esbuildInitialized = esbuild.initialize({
+			worker: true,
+			wasmURL: new URL(
+				'./esbuild.wasm',
+				(document as any).currentScript.src
+			),
 		});
-		esbuildInitialized = true;
 	}
 
-	const failures: TranspilationFailure[] = [];
-	const transpiledFiles: EditorFile[] = [];
-
-	// Find block.json files and JavaScript files
-	const blockJsonFiles = files.filter((f) => f.name.endsWith('block.json'));
-	const jsFiles = files.filter((f) => f.name.endsWith('.js'));
-	const otherFiles = files.filter(
-		(f) => !f.name.endsWith('block.json') && !f.name.endsWith('.js')
-	);
-
-	// Process JavaScript files with JSX transpilation
-	for (const file of jsFiles) {
-		try {
-			const result = await esbuild.transform(file.contents, {
-				loader: 'jsx',
-				jsx: 'automatic',
-				jsxImportSource: 'react',
-				format: 'esm',
-				target: 'es2020',
-			});
-			transpiledFiles.push({
-				...file,
-				contents: result.code,
-			});
-		} catch (error) {
-			failures.push({
+	const transpiled = files.map(async (file) => {
+		/**
+		 * block.json is often imported, let's emit an importable ES Module.
+		 * We can't just use this modern `import` syntax because it's not widely
+		 * supported yet:
+		 * ```js
+		 * import json from "block.json" with "json".
+		 * ```
+		 */
+		if (file.name.match(/(\/|^)block.json$/)) {
+			return [
 				file,
-				error:
-					error instanceof Error ? error : new Error(String(error)),
-			});
+				{
+					name: file.name + '.esmodule.js',
+					contents: `export default ${file.contents}`,
+				},
+			];
 		}
-	}
 
-	// Create ES module wrappers for block.json files
-	for (const file of blockJsonFiles) {
-		const moduleName = file.name.replace('.json', '.js');
-		const moduleContents = `export default ${file.contents};`;
-		transpiledFiles.push({
-			name: moduleName,
-			contents: moduleContents,
-		});
-		// Also keep the original JSON file
-		transpiledFiles.push(file);
-	}
-
-	// Process PHP files - inject module preloading if this is the main plugin file
-	for (const file of otherFiles) {
+		/**
+		 * If we're working on a WordPress block plugin, we need to preload
+		 * all the ES Modules to prevent a "block isn't registered" warning.
+		 * Furthermore, we need to remap the block.json file to JS so that
+		 * it can be imported as an ES Module.
+		 */
 		if (
 			file.name.endsWith('.php') &&
-			pluginFilePattern.test(file.contents)
+			pluginNameRegex.test(file.contents.substring(0, 4096))
 		) {
-			// This is the main plugin file - inject module preloading
-			const moduleFiles = transpiledFiles.filter((f) =>
-				f.name.endsWith('.js')
-			);
-			if (moduleFiles.length > 0) {
-				const preloadCode = generatePreloadCode(moduleFiles);
-				const modifiedContents = injectPreloadCode(
-					file.contents,
-					preloadCode
-				);
-				transpiledFiles.push({
+			return [
+				{
 					...file,
-					contents: modifiedContents,
+					contents: preloadESMAndImportMapBlockJson(
+						file.contents,
+						files
+					),
+				},
+			];
+		}
+
+		// Transpile .js files
+		if (file.name.endsWith('.js')) {
+			await esbuildInitialized;
+			try {
+				const transpiled = await (
+					await esbuild!
+				).transform(file.contents, {
+					loader: 'jsx',
+					target: 'esnext',
+					jsxFactory: 'wp.element.createElement',
+					format: 'esm',
 				});
-			} else {
-				transpiledFiles.push(file);
+				return [
+					{
+						name: file.name + '.src',
+						contents: file.contents,
+					},
+					{
+						name: file.name,
+						contents: transpiled.code,
+					},
+				];
+			} catch (e) {
+				return [
+					{
+						file,
+						error: e,
+					} as TranspilationFailure,
+				];
 			}
-		} else {
-			transpiledFiles.push(file);
+		}
+
+		return [file];
+	});
+
+	// Flatten the array
+	const results = (await Promise.all(transpiled)).flatMap((x) => x as any);
+
+	const transpiledFiles = results.filter(
+		(result: any): result is EditorFile => 'name' in result
+	);
+	const failures = results.filter(
+		(result): result is TranspilationFailure =>
+			(result as TranspilationFailure).error !== undefined
+	);
+	return {
+		transpiledFiles,
+		failures,
+	};
+};
+
+function preloadESMAndImportMapBlockJson(
+	phpContents: string,
+	files: EditorFile[]
+) {
+	const jsonPaths = files
+		.map((file) => file.name)
+		.filter((name) => name.endsWith('.json'));
+	const jsModulesRelativePaths = files
+		.map((file) => file.name)
+		.filter((name) => name.endsWith('.js'))
+		.concat(jsonPaths.map((name) => name + '.esmodule.js'));
+
+	phpContents = phpContents.trim();
+	if (!phpContents.endsWith('?>')) {
+		phpContents += '?>';
+	}
+
+	return `${phpContents}<?php
+	// Preload ES Modules using <link rel="modulepreload" href="" /> to prevent a
+	// "block isn't registered" warning in the editor. This ensures the registerBlockType()
+	// call is done before the block is rendered.
+	function playground_block_add_modulepreload_in_admin() {
+		$js_relative_paths = ${phpVar(jsModulesRelativePaths)};
+		foreach($js_relative_paths as $relative_path) {
+			$file = basename($relative_path);
+			$url = json_encode(plugins_url($relative_path, __FILE__));
+			$script = <<<SCRIPT
+			(function() {
+			  const link = document.createElement("link");
+			  link.rel = "modulepreload";
+			  link.href = $url;
+			  document.head.append(link);
+			})();
+SCRIPT;
+			wp_add_inline_script('wp-blocks', $script);
 		}
 	}
-
-	return { failures, transpiledFiles };
-}
-
-/**
- * Generate PHP code to preload ES modules.
- */
-function generatePreloadCode(moduleFiles: EditorFile[]): string {
-	const moduleNames = moduleFiles.map((f) => f.name).join("', '");
-	return `
-// Preload ES modules
-add_action('wp_head', function() {
-	$plugin_url = plugins_url('', __FILE__);
-	$modules = ['${moduleNames}'];
-	foreach ($modules as $module) {
-		echo '<link rel="modulepreload" href="' . esc_url($plugin_url . '/' . $module) . '">';
+	add_action('enqueue_block_editor_assets', 'playground_block_add_modulepreload_in_admin');
+	
+	// Remap ESM imports from block.json, that aren't widely supported,
+	// to imports from a JavaScript file, that are widely supported.
+	function playground_wp_esm_import_map($import_map) {
+		$json_paths = ${phpVar(jsonPaths)};
+		$json_mapping = array();
+		foreach($json_paths as $json_path) {
+			$json_path = plugins_url($json_path, __FILE__);
+			$js_path = plugins_url($json_path . '.esmodule.js', __FILE__);
+			$json_mapping[$json_path] = $js_path;
+		}
+		return array_merge($import_map, $json_mapping);
 	}
-}, 1);
-`;
-}
-
-/**
- * Inject preload code after the plugin header.
- */
-function injectPreloadCode(phpContents: string, preloadCode: string): string {
-	// Find the end of the plugin header comment
-	const headerEndMatch = phpContents.match(/\*\/\s*\n/);
-	if (headerEndMatch && headerEndMatch.index !== undefined) {
-		const insertPosition = headerEndMatch.index + headerEndMatch[0].length;
-		return (
-			phpContents.slice(0, insertPosition) +
-			'\n' +
-			preloadCode +
-			'\n' +
-			phpContents.slice(insertPosition)
-		);
-	}
-	// If no header found, append at the end of the opening PHP tag
-	return phpContents.replace(/<\?php/, '<?php\n' + preloadCode);
+	add_filter('wp_esm_import_map', 'playground_wp_esm_import_map');
+	`;
 }
