@@ -9,7 +9,7 @@
  * React component without WordPress dependencies.
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useId } from 'react';
 import ReactCodeMirror from '@uiw/react-codemirror';
 import { keymap, EditorView } from '@codemirror/view';
 import { html } from '@codemirror/lang-html';
@@ -51,6 +51,36 @@ import {
 	IconLink,
 	IconPlay,
 } from './icons';
+
+/**
+ * Announce a message to screen readers using an ARIA live region.
+ * This replicates the functionality of WordPress's `withSpokenMessages` HOC.
+ */
+function useSpeak() {
+	const [message, setMessage] = useState('');
+	const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+	function speak(text: string) {
+		// Clear any pending message
+		if (timeoutRef.current) {
+			clearTimeout(timeoutRef.current);
+		}
+		// Clear and re-set to ensure screen readers announce repeated messages
+		setMessage('');
+		timeoutRef.current = setTimeout(() => setMessage(text), 50);
+	}
+
+	// Cleanup on unmount
+	useEffect(() => {
+		return () => {
+			if (timeoutRef.current) {
+				clearTimeout(timeoutRef.current);
+			}
+		};
+	}, []);
+
+	return { message, speak };
+}
 
 export type PlaygroundDemoProps = Partial<Attributes> & {
 	showAddNewFile?: boolean;
@@ -155,6 +185,11 @@ export default function PlaygroundPreview({
 			)) || '',
 	});
 
+	const { message: speakMessage, speak } = useSpeak();
+	const speakRegionId = useId();
+	const runButtonDescId = useId();
+	const activateButtonDescId = useId();
+
 	const iframeRef = useRef<HTMLIFrameElement>(null);
 	const beforePreviewRef = useRef<HTMLSpanElement>(null);
 	const afterPreviewRef = useRef<HTMLSpanElement>(null);
@@ -203,6 +238,7 @@ export default function PlaygroundPreview({
 			localStorage[dismissedExitWithKeyboardTipKey] = 'true';
 		}
 		setDismissedExitWithKeyboardTip(true);
+		speak(__('Notice dismissed.'));
 	}
 
 	// Notify parent component of state changes
@@ -276,6 +312,9 @@ export default function PlaygroundPreview({
 			await client.isReady();
 			playgroundClientRef.current = client;
 			setIsPlaygroundReady(true);
+
+			// Delay the announcement to let iframe loading announcements finish first
+			setTimeout(() => speak(__('WordPress Playground loaded.')), 500);
 
 			await reinstallEditedCode();
 
@@ -599,9 +638,26 @@ export default function PlaygroundPreview({
 								type="button"
 								onClick={handleReRunCode}
 								className="wordpress-playground-run-button playground-button playground-button-primary"
+								aria-describedby={
+									requireLivePreviewActivation &&
+									!isLivePreviewActivated
+										? runButtonDescId
+										: undefined
+								}
 							>
 								{__('Run')} <IconPlay />
 							</button>
+							{requireLivePreviewActivation &&
+								!isLivePreviewActivated && (
+									<span
+										id={runButtonDescId}
+										className="screen-reader-text"
+									>
+										{__(
+											'This button runs the code in the Preview iframe. If the Preview iframe has not yet been activated, this button creates the Preview iframe which contains a full WordPress website and may be a challenge for screen readers.'
+										)}
+									</span>
+								)}
 						</div>
 					</div>
 				)}
@@ -635,9 +691,18 @@ export default function PlaygroundPreview({
 									setLivePreviewActivated(true);
 									beforePreviewRef.current?.focus();
 								}}
+								aria-describedby={activateButtonDescId}
 							>
 								{__('Activate Live Preview')}
 							</button>
+							<span
+								id={activateButtonDescId}
+								className="screen-reader-text"
+							>
+								{__(
+									'This button creates the Preview iframe containing a full WordPress website which may be a challenge for screen readers.'
+								)}
+							</span>
 						</div>
 					)}
 					{transpilationFailures.length > 0 && (
@@ -709,6 +774,16 @@ export default function PlaygroundPreview({
 					</button>
 				)}
 			</footer>
+			{/* ARIA live region for screen reader announcements */}
+			<div
+				id={speakRegionId}
+				role="status"
+				aria-live="polite"
+				aria-atomic="true"
+				className="screen-reader-text"
+			>
+				{speakMessage}
+			</div>
 		</section>
 	);
 }
