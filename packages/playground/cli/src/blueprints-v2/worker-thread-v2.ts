@@ -185,7 +185,6 @@ export type WorkerBootRequestHandlerOptions = Omit<
 export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 	booted = false;
 	blueprintTargetResolved = false;
-	phpInstancesThatNeedMountsAfterTargetResolved = new Set<PHP>();
 
 	constructor(monitor: EmscriptenDownloadMonitor) {
 		super(undefined, monitor);
@@ -326,27 +325,16 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 						case 'blueprint.target_resolved': {
 							if (!this.blueprintTargetResolved) {
 								this.blueprintTargetResolved = true;
-								for (const php of this
-									.phpInstancesThatNeedMountsAfterTargetResolved) {
-									this.phpInstancesThatNeedMountsAfterTargetResolved.delete(
-										php
-									);
-									// TODO: Does PHP wait for this message to be handled before continuing?
-									// If not, we need to wait for the message to be handled before continuing,
-									// so all workers have a chance to apply their mounts before they may
-									// receive requests from the blueprint runner.
-									// TODO: Explain that we had difficulty passing callbacks to remote worker API
-									// TODO: Fix this type error. process doesn't match NodeProcess Type
-									// @ts-ignore
-									const onWordPressInstalled =
-										await consumeAPI<() => Promise<void>>(
-											process as NodeProcess
-										);
-									await onWordPressInstalled();
-									await onWordPressInstalled[
-										releaseRemoteApiProxy
-									]();
-								}
+								// TODO: Explain that we had difficulty passing callbacks to remote worker API
+								// TODO: Fix this type error. process doesn't match NodeProcess Type
+								// @ts-ignore
+								const onWordPressInstalled = await consumeAPI<
+									() => Promise<void>
+								>(process as NodeProcess);
+								await onWordPressInstalled();
+								await onWordPressInstalled[
+									releaseRemoteApiProxy
+								]();
 							}
 							break;
 						}
