@@ -1,0 +1,7 @@
+{
+	"type": "module",
+	"dependencies": {
+		"@php-wasm/node": "^3.0.32",
+		"@php-wasm/xdebug-bridge": "^3.0.32"
+	}
+}
