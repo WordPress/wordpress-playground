@@ -13,16 +13,20 @@ export async function withIntl(
 ): Promise<EmscriptenOptions> {
 	const memoizedFetch = createMemoizedFetch(fetch);
 
+	/*
+	 * The Intl extension is hard-coded to look for the `icudt74l` filename,
+	 * which means the ICU data file must use that exact name.
+	 */
+	const dataName = 'icudt74l.dat';
 	const extensionName = 'intl.so';
-	const dataName = 'icu.dat';
 
-	const extensionPath = await getIntlExtensionModule(version);
 	// @ts-ignore
 	const dataPath = (await import('./shared/icu.dat')).default;
+	const extensionPath = await getIntlExtensionModule(version);
 
-	const [extension, ICUData] = await Promise.all([
-		memoizedFetch(extensionPath).then((response) => response.arrayBuffer()),
+	const [ICUData, extension] = await Promise.all([
 		memoizedFetch(dataPath).then((response) => response.arrayBuffer()),
+		memoizedFetch(extensionPath).then((response) => response.arrayBuffer()),
 	]);
 
 	return {
@@ -81,19 +85,16 @@ export async function withIntl(
 			 * via the ICU_DATA environment variable.
 			 * By default, this variable is set to '/internal/shared',
 			 * which corresponds to the actual file location.
-			 *
-			 * The Intl extension is hard-coded to look for the `icudt74l` filename,
-			 * which means the ICU data file must use that exact name.
 			 */
 			if (
 				!FSHelpers.fileExists(
 					phpRuntime.FS,
-					`${phpRuntime.ENV.ICU_DATA}/icudt74l.dat`
+					`${phpRuntime.ENV.ICU_DATA}/${dataName}`
 				)
 			) {
 				phpRuntime.FS.mkdirTree(phpRuntime.ENV.ICU_DATA);
 				phpRuntime.FS.writeFile(
-					`${phpRuntime.ENV.ICU_DATA}/icudt74l.dat`,
+					`${phpRuntime.ENV.ICU_DATA}/${dataName}`,
 					new Uint8Array(ICUData)
 				);
 			}
