@@ -26,7 +26,7 @@ async function build() {
 			'packages/php-wasm/node/src/noop.ts',
 		],
 		supported: {
-			'dynamic-import': false,
+			'dynamic-import': true,
 		},
 		outExtension: { '.js': '.cjs' },
 		outdir: 'dist/packages/php-wasm/node',

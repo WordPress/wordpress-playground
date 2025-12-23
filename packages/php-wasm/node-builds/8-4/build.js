@@ -48,7 +48,7 @@ async function build() {
 	// CommonJS build
 	await esbuild.build({
 		entryPoints: [`${packagePath}/src/index.ts`],
-		supported: { 'dynamic-import': false },
+		supported: { 'dynamic-import': true },
 		outExtension: { '.js': '.cjs' },
 		outdir: distPath,
 		platform: 'node',
