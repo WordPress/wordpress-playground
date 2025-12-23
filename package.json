@@ -99,6 +99,7 @@
 		"express": "4.21.2",
 		"fast-xml-parser": "5.3.0",
 		"file-saver": "^2.0.5",
+		"fs-ext-extra-prebuilt": "2.2.6",
 		"fs-extra": "11.1.1",
 		"ini": "4.1.2",
 		"jsonc-parser": "3.3.1",
@@ -147,6 +148,7 @@
 		"@types/react-dom": "18.3.0",
 		"@types/react-modal": "3.16.3",
 		"@types/react-transition-group": "4.4.11",
+		"@types/set-cookie-parser": "2.4.10",
 		"@types/tar-fs": "2.0.4",
 		"@types/wicg-file-system-access": "2023.10.5",
 		"@types/wordpress__block-editor": "11.5.15",
@@ -189,6 +191,7 @@
 		"react-markdown": "^8.0.7",
 		"rimraf": "^4.4.0",
 		"rollup": "^4.34.6",
+		"set-cookie-parser": "2.7.2",
 		"tar-fs": "3.1.1",
 		"ts-jest": "29.1.0",
 		"ts-json-schema-generator": "1.2.0",
@@ -222,7 +225,5 @@
 		"node": ">=20.18.3",
 		"npm": ">=10.1.0"
 	},
-	"optionalDependencies": {
-		"fs-ext-extra-prebuilt": "2.2.6"
-	}
+	"optionalDependencies": {}
 }
