@@ -512,7 +512,7 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 							phpWasmInitOptions: { nativeInternalDirPath },
 						},
 						followSymlinks: allow?.includes('follow-symlinks'),
-						withIntl: withIntl,
+						withIntl,
 						withXdebug,
 					});
 				},

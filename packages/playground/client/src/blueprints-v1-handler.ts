@@ -8,7 +8,7 @@ import {
 	BlueprintReflection,
 } from '.';
 import { collectPhpLogs, logger } from '@php-wasm/logger';
-import { consumeAPI } from '@php-wasm/universal';
+import { consumeAPI, type UniversalPHP } from '@php-wasm/universal';
 
 export class BlueprintsV1Handler {
 	private readonly options: StartPlaygroundOptions;
@@ -78,7 +78,7 @@ export class BlueprintsV1Handler {
 				corsProxy,
 				gitAdditionalHeadersCallback,
 			});
-			await runBlueprintV1Steps(compiled, playground);
+			await runBlueprintV1Steps(compiled, playground as UniversalPHP);
 		}
 
 		/**
