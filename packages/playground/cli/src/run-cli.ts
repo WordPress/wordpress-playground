@@ -324,6 +324,8 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 				type: 'boolean',
 				default: false,
 			},
+			'experimental-unsafe-ide-integration':
+				sharedOptions['experimental-unsafe-ide-integration'],
 			'skip-browser': {
 				describe:
 					'Do not open the site in your default browser on startup.',
