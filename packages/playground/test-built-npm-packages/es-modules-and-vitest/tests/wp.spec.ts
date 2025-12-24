@@ -20,6 +20,7 @@ describe(`PHP ${phpVersion}`, { concurrency: 1 }, () => {
 		const cli = await runCLI({
 			command: 'server',
 			php: phpVersion,
+			port: 0, // Use random available port to avoid conflicts
 			quiet: true,
 		});
 		try {
@@ -124,6 +125,7 @@ describe(`PHP ${phpVersion}`, { concurrency: 1 }, () => {
 			const cli = await runCLI({
 				command: 'server',
 				php: phpVersion,
+				port: 0, // Use random available port to avoid conflicts
 				quiet: true,
 				blueprint: {
 					steps: [
