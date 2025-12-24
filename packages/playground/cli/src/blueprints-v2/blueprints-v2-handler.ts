@@ -55,7 +55,7 @@ export class BlueprintsV2Handler {
 			siteUrl: this.siteUrl,
 			firstProcessId: 1,
 			processIdSpaceLength: this.processIdSpaceLength,
-			trace: this.args.debug || false,
+			trace: this.args.verbosity === 'debug',
 			blueprint: this.args.blueprint!,
 			withIntl: this.args.intl,
 			// We do not enable Xdebug by default for the initial worker
@@ -95,7 +95,7 @@ export class BlueprintsV2Handler {
 			siteUrl: this.siteUrl,
 			firstProcessId,
 			processIdSpaceLength: this.processIdSpaceLength,
-			trace: this.args.debug || false,
+			trace: this.args.verbosity === 'debug',
 			withIntl: this.args.intl,
 			withXdebug: !!this.args.xdebug,
 			nativeInternalDirPath,
