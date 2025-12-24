@@ -34,7 +34,7 @@ This guide includes links to the main repository, but all the steps and options 
 Browse [the list of open issues](https://github.com/wordpress/wordpress-playground/issues) to find what to work on. The [`Good First Issue`](https://github.com/wordpress/wordpress-playground/issues?q=is%3Aopen+is%3Aissue+label%3A%22Good+First+Issue%22) label is a recommended starting point for first-time contributors.
 -->
 
-কী নিয়ে কাজ করবেন তা খুঁজতে [ওপেন ইস্যুগুলির তালিকা](https://github.com/wordpress/wordpress-playground/issues) ব্রাউজ করুন। আপনি যদি প্রথমবার কন্ট্রিবিউট করছেন, [`Good First Issue`](https://github.com/wordpress/wordpress-playground/issues?q=is%3Aopen+is%3Aissue+label%3A%22Good+First+Issue%22) লেবেলযুক্ত ইস্যুগুলো দিয়ে শুরু করতে পারেন।
+কী নিয়ে কাজ করবেন তা খুঁজতে [ওপেন ইস্যুগুলির তালিকা](https://github.com/wordpress/wordpress-playground/issues) ব্রাউজ করুন। আপনি যেহেতু প্রথমবার কন্ট্রিবিউট করছেন, [`Good First Issue`](https://github.com/wordpress/wordpress-playground/issues?q=is%3Aopen+is%3Aissue+label%3A%22Good+First+Issue%22) লেবেলযুক্ত ইস্যুগুলো দিয়ে শুরু করতে পারেন।
 
 <!--
 Be sure to review the following resources before you begin:
