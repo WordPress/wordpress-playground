@@ -121,7 +121,7 @@ export function expandAutoMounts(args: RunCLIArgs): RunCLIArgs {
 		],
 	};
 
-	if (isPluginFilename(path)) {
+	if (isPluginDirectory(path)) {
 		const pluginName = basename(path);
 		mount.push({
 			hostPath: path,
@@ -219,7 +219,7 @@ export function isThemeDirectory(path: string): boolean {
 	return !!themeNameRegex.exec(styleCssContent);
 }
 
-export function isPluginFilename(path: string): boolean {
+export function isPluginDirectory(path: string): boolean {
 	const files = fs.readdirSync(path);
 	const pluginNameRegex = /^(?:[ \t]*<\?php)?[ \t/*#@]*Plugin Name:(.*)$/im;
 	const pluginNameMatch = files
