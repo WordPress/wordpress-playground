@@ -191,6 +191,8 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 					'Print PHP error log content if an error occurs during Playground boot.',
 				type: 'boolean',
 				default: false,
+				// Hide this deprecated option. Use verbosity=debug instead.
+				hidden: true,
 			},
 			'auto-mount': {
 				describe: `Automatically mount the specified directory. If no path is provided, mount the current working directory. You can mount a WordPress directory, a plugin directory, a theme directory, a wp-content directory, or any directory containing PHP and HTML files.`,
@@ -647,19 +649,15 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 		args.wordpressInstallMode = 'download-and-install';
 	}
 
-	// Keeping 'quiet' option to preserve backward compatibility
+	// Keeping the '--quiet' option to preserve backward compatibility
 	if (args.quiet) {
 		args.verbosity = 'quiet';
 		delete args['quiet'];
 	}
-
-	// Promote "debug" flag to verbosity but keep args.debug around – the
-	// program behavior may change in more ways than just logging verbosity
-	// when debug mode is enabled, e.g. error objects may carry additional details.
+	// Keeping the '--debug' option to preserve backward compatibility
 	if (args.debug) {
 		args.verbosity = 'debug';
-	} else if (args.verbosity === 'debug') {
-		args.debug = true;
+		delete args['debug'];
 	}
 
 	if (args.verbosity) {
@@ -1140,7 +1138,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 					},
 				};
 			} catch (error) {
-				if (!args.debug) {
+				if (args.verbosity !== 'debug') {
 					throw error;
 				}
 				let phpLogs = '';
