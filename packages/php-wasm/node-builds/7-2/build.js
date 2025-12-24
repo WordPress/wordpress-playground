@@ -69,13 +69,6 @@ async function build() {
 	// ESM build
 	await esbuild.build({
 		entryPoints: [`${packagePath}/src/index.ts`],
-		banner: {
-			js: `import { createRequire as topLevelCreateRequire } from 'module';
-const require = topLevelCreateRequire(import.meta.url);
-const __filename = import.meta.filename;
-const __dirname = import.meta.dirname;
-`,
-		},
 		outdir: distPath,
 		platform: 'node',
 		assetNames: '[name]',
