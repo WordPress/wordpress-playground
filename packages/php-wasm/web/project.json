@@ -23,7 +23,7 @@
 			"options": {
 				"commands": [
 					"mkdir -p dist/packages/php-wasm/web/shared",
-					"cp -rf packages/php-wasm/web/public/shared/* dist/packages/php-wasm/web/shared/"
+					"cp -rf packages/php-wasm/web/src/lib/extensions/intl/shared/* dist/packages/php-wasm/web/shared/"
 				],
 				"parallel": false
 			},
