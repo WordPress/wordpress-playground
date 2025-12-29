@@ -355,9 +355,9 @@ const LibraryExample = {
 					args,
 					/**
 					 * We're providing the same extra options we would pass to child_process.spawn().
-					 * 
+					 *
 					 * Why?
-					 * 
+					 *
 					 * spawnProcess() follows the same interface as child_process.spawn()
 					 * and some consumers pass `child_process.spawn` directly to php.setSpawnHandler()
 					 */
@@ -373,7 +373,7 @@ const LibraryExample = {
 					 * Delaying it to the next tick via Promise.resolve() would create
 					 * a race condition where it might emit some events before the
 					 * caller has a chance to bind event listeners to them.
-					 * 
+					 *
 					 * Without this condition, this callback would be at least flaky:
 					 *
 					 *    php.setSpawnHandler(require('child_process').spawn);
@@ -749,9 +749,9 @@ const LibraryExample = {
 					if (!cp.stdin.closed) {
 						cp.stdin.end();
 					}
-					_free(buffer);
-					_free(iov);
-					_free(pnum);
+					_wasm_free(buffer);
+					_wasm_free(iov);
+					_wasm_free(pnum);
 				}
 
 				// pump() can never alter the result of this function.
