@@ -781,7 +781,7 @@ RUN set -euxo pipefail; \
 	-lproxyfs.js \
 	$ASYNCIFY_FLAGS \
 	$(cat /root/.emcc-php-wasm-flags) \
-	-s MAIN_MODULE \
+	-s MAIN_MODULE=2 \
 	-s EXPORTED_FUNCTIONS="$EXPORTED_FUNCTIONS" \
 	-s WASM_BIGINT=1 \
 	-s MIN_NODE_VERSION=200900 \
@@ -895,11 +895,7 @@ RUN set -euxo pipefail; \
 	# Expose required functions to the module.
 		# Emscripten 4.0.10 removed the runtime exposure of `_malloc` and `_free`,
 		# so we rebind them from `wasmExports` and attach them to PHPLoader.
-		if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then \
-			/root/replace.sh "s/_free\s*=\s*wasmExports\['free'\];/_free = PHPLoader['free'] = wasmExports['free'];/g" /root/output/php.js; \
-		else \
-			/root/replace.sh "s/_wasm_free\s*=\s*Module\[[\"']_wasm_free[\"']\]/_wasm_free = PHPLoader['free'] = Module['_wasm_free']/g" /root/output/php.js; \
-		fi ; \
+		/root/replace.sh "s/_wasm_free\s*=\s*Module\[[\"']_wasm_free[\"']\]/_wasm_free = PHPLoader['free'] = Module['_wasm_free']/g" /root/output/php.js; \
 		/root/replace.sh "s/_malloc\s*=\s*Module\[[\"']_malloc[\"']\]/_malloc = PHPLoader['malloc'] = Module['_malloc']/g" /root/output/php.js; \
 	# Patch Emscripten exit status to include a stack trace
 		# Override Emscripten's default ExitStatus class which gets
