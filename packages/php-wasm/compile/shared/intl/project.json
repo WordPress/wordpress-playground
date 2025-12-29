@@ -6,7 +6,7 @@
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
-					"node packages/php-wasm/compile/shared/build.js --LIBRARY=intl --JSPI=yes --OUTPUT_DIR=packages/php-wasm/node-builds/8-3/jspi --SHARED_DIR=packages/php-wasm/node/src/lib/extensions/intl/shared"
+					"node packages/php-wasm/compile/shared/build.js --LIBRARY=intl --PLATFORM=node --JSPI=yes"
 				],
 				"parallel": false
 			}
@@ -15,15 +15,15 @@
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
-					"node packages/php-wasm/compile/shared/build.js --LIBRARY=intl --JSPI=yes --PHP_VERSION=8.5 --OUTPUT_DIR=packages/php-wasm/node-builds/8-5/jspi --SHARED_DIR=packages/php-wasm/node/src/lib/extensions/intl/shared",
-					"node packages/php-wasm/compile/shared/build.js --LIBRARY=intl --JSPI=yes --PHP_VERSION=8.4 --OUTPUT_DIR=packages/php-wasm/node-builds/8-4/jspi --SHARED_DIR=packages/php-wasm/node/src/lib/extensions/intl/shared",
-					"node packages/php-wasm/compile/shared/build.js --LIBRARY=intl --JSPI=yes --PHP_VERSION=8.3 --OUTPUT_DIR=packages/php-wasm/node-builds/8-3/jspi --SHARED_DIR=packages/php-wasm/node/src/lib/extensions/intl/shared",
-					"node packages/php-wasm/compile/shared/build.js --LIBRARY=intl --JSPI=yes --PHP_VERSION=8.2 --OUTPUT_DIR=packages/php-wasm/node-builds/8-2/jspi --SHARED_DIR=packages/php-wasm/node/src/lib/extensions/intl/shared",
-					"node packages/php-wasm/compile/shared/build.js --LIBRARY=intl --JSPI=yes --PHP_VERSION=8.1 --OUTPUT_DIR=packages/php-wasm/node-builds/8-1/jspi --SHARED_DIR=packages/php-wasm/node/src/lib/extensions/intl/shared",
-					"node packages/php-wasm/compile/shared/build.js --LIBRARY=intl --JSPI=yes --PHP_VERSION=8.0 --OUTPUT_DIR=packages/php-wasm/node-builds/8-0/jspi --SHARED_DIR=packages/php-wasm/node/src/lib/extensions/intl/shared",
-					"node packages/php-wasm/compile/shared/build.js --LIBRARY=intl --JSPI=yes --PHP_VERSION=7.4 --OUTPUT_DIR=packages/php-wasm/node-builds/7-4/jspi --SHARED_DIR=packages/php-wasm/node/src/lib/extensions/intl/shared",
-					"node packages/php-wasm/compile/shared/build.js --LIBRARY=intl --JSPI=yes --PHP_VERSION=7.3 --OUTPUT_DIR=packages/php-wasm/node-builds/7-3/jspi --SHARED_DIR=packages/php-wasm/node/src/lib/extensions/intl/shared",
-					"node packages/php-wasm/compile/shared/build.js --LIBRARY=intl --JSPI=yes --PHP_VERSION=7.2 --OUTPUT_DIR=packages/php-wasm/node-builds/7-2/jspi --SHARED_DIR=packages/php-wasm/node/src/lib/extensions/intl/shared"
+					"nx run php-wasm-compile-shared-intl:node:jspi --PHP_VERSION=8.5",
+					"nx run php-wasm-compile-shared-intl:node:jspi --PHP_VERSION=8.4",
+					"nx run php-wasm-compile-shared-intl:node:jspi --PHP_VERSION=8.3",
+					"nx run php-wasm-compile-shared-intl:node:jspi --PHP_VERSION=8.2",
+					"nx run php-wasm-compile-shared-intl:node:jspi --PHP_VERSION=8.1",
+					"nx run php-wasm-compile-shared-intl:node:jspi --PHP_VERSION=8.0",
+					"nx run php-wasm-compile-shared-intl:node:jspi --PHP_VERSION=7.4",
+					"nx run php-wasm-compile-shared-intl:node:jspi --PHP_VERSION=7.3",
+					"nx run php-wasm-compile-shared-intl:node:jspi --PHP_VERSION=7.2"
 				],
 				"parallel": false
 			}
@@ -32,7 +32,7 @@
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
-					"node packages/php-wasm/compile/shared/build.js --LIBRARY=intl --OUTPUT_DIR=packages/php-wasm/node-builds/8-3/asyncify --SHARED_DIR=packages/php-wasm/node/src/lib/extensions/intl/shared"
+					"node packages/php-wasm/compile/shared/build.js --LIBRARY=intl --PLATFORM=node"
 				],
 				"parallel": false
 			}
@@ -41,15 +41,15 @@
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
-					"node packages/php-wasm/compile/shared/build.js --LIBRARY=intl --PHP_VERSION=8.5 --OUTPUT_DIR=packages/php-wasm/node-builds/8-5/asyncify --SHARED_DIR=packages/php-wasm/node/src/lib/extensions/intl/shared",
-					"node packages/php-wasm/compile/shared/build.js --LIBRARY=intl --PHP_VERSION=8.4 --OUTPUT_DIR=packages/php-wasm/node-builds/8-4/asyncify --SHARED_DIR=packages/php-wasm/node/src/lib/extensions/intl/shared",
-					"node packages/php-wasm/compile/shared/build.js --LIBRARY=intl --PHP_VERSION=8.3 --OUTPUT_DIR=packages/php-wasm/node-builds/8-3/asyncify --SHARED_DIR=packages/php-wasm/node/src/lib/extensions/intl/shared",
-					"node packages/php-wasm/compile/shared/build.js --LIBRARY=intl --PHP_VERSION=8.2 --OUTPUT_DIR=packages/php-wasm/node-builds/8-2/asyncify --SHARED_DIR=packages/php-wasm/node/src/lib/extensions/intl/shared",
-					"node packages/php-wasm/compile/shared/build.js --LIBRARY=intl --PHP_VERSION=8.1 --OUTPUT_DIR=packages/php-wasm/node-builds/8-1/asyncify --SHARED_DIR=packages/php-wasm/node/src/lib/extensions/intl/shared",
-					"node packages/php-wasm/compile/shared/build.js --LIBRARY=intl --PHP_VERSION=8.0 --OUTPUT_DIR=packages/php-wasm/node-builds/8-0/asyncify --SHARED_DIR=packages/php-wasm/node/src/lib/extensions/intl/shared",
-					"node packages/php-wasm/compile/shared/build.js --LIBRARY=intl --PHP_VERSION=7.4 --OUTPUT_DIR=packages/php-wasm/node-builds/7-4/asyncify --SHARED_DIR=packages/php-wasm/node/src/lib/extensions/intl/shared",
-					"node packages/php-wasm/compile/shared/build.js --LIBRARY=intl --PHP_VERSION=7.3 --OUTPUT_DIR=packages/php-wasm/node-builds/7-3/asyncify --SHARED_DIR=packages/php-wasm/node/src/lib/extensions/intl/shared",
-					"node packages/php-wasm/compile/shared/build.js --LIBRARY=intl --PHP_VERSION=7.2 --OUTPUT_DIR=packages/php-wasm/node-builds/7-2/asyncify --SHARED_DIR=packages/php-wasm/node/src/lib/extensions/intl/shared"
+					"nx run php-wasm-compile-shared-intl:node:asyncify --PHP_VERSION=8.5",
+					"nx run php-wasm-compile-shared-intl:node:asyncify --PHP_VERSION=8.4",
+					"nx run php-wasm-compile-shared-intl:node:asyncify --PHP_VERSION=8.3",
+					"nx run php-wasm-compile-shared-intl:node:asyncify --PHP_VERSION=8.2",
+					"nx run php-wasm-compile-shared-intl:node:asyncify --PHP_VERSION=8.1",
+					"nx run php-wasm-compile-shared-intl:node:asyncify --PHP_VERSION=8.0",
+					"nx run php-wasm-compile-shared-intl:node:asyncify --PHP_VERSION=7.4",
+					"nx run php-wasm-compile-shared-intl:node:asyncify --PHP_VERSION=7.3",
+					"nx run php-wasm-compile-shared-intl:node:asyncify --PHP_VERSION=7.2"
 				],
 				"parallel": false
 			}
@@ -58,7 +58,7 @@
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
-					"node packages/php-wasm/compile/shared/build.js --LIBRARY=intl --JSPI=yes --OUTPUT_DIR=packages/php-wasm/web-builds/8-3/jspi --SHARED_DIR=packages/php-wasm/web/public/shared"
+					"node packages/php-wasm/compile/shared/build.js --LIBRARY=intl --PLATFORM=web --JSPI=yes"
 				],
 				"parallel": false
 			}
@@ -67,15 +67,15 @@
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
-					"node packages/php-wasm/compile/shared/build.js --LIBRARY=intl --JSPI=yes --PHP_VERSION=8.5 --OUTPUT_DIR=packages/php-wasm/web-builds/8-5/jspi --SHARED_DIR=packages/php-wasm/web/public/shared",
-					"node packages/php-wasm/compile/shared/build.js --LIBRARY=intl --JSPI=yes --PHP_VERSION=8.4 --OUTPUT_DIR=packages/php-wasm/web-builds/8-4/jspi --SHARED_DIR=packages/php-wasm/web/public/shared",
-					"node packages/php-wasm/compile/shared/build.js --LIBRARY=intl --JSPI=yes --PHP_VERSION=8.3 --OUTPUT_DIR=packages/php-wasm/web-builds/8-3/jspi --SHARED_DIR=packages/php-wasm/web/public/shared",
-					"node packages/php-wasm/compile/shared/build.js --LIBRARY=intl --JSPI=yes --PHP_VERSION=8.2 --OUTPUT_DIR=packages/php-wasm/web-builds/8-2/jspi --SHARED_DIR=packages/php-wasm/web/public/shared",
-					"node packages/php-wasm/compile/shared/build.js --LIBRARY=intl --JSPI=yes --PHP_VERSION=8.1 --OUTPUT_DIR=packages/php-wasm/web-builds/8-1/jspi --SHARED_DIR=packages/php-wasm/web/public/shared",
-					"node packages/php-wasm/compile/shared/build.js --LIBRARY=intl --JSPI=yes --PHP_VERSION=8.0 --OUTPUT_DIR=packages/php-wasm/web-builds/8-0/jspi --SHARED_DIR=packages/php-wasm/web/public/shared",
-					"node packages/php-wasm/compile/shared/build.js --LIBRARY=intl --JSPI=yes --PHP_VERSION=7.4 --OUTPUT_DIR=packages/php-wasm/web-builds/7-4/jspi --SHARED_DIR=packages/php-wasm/web/public/shared",
-					"node packages/php-wasm/compile/shared/build.js --LIBRARY=intl --JSPI=yes --PHP_VERSION=7.3 --OUTPUT_DIR=packages/php-wasm/web-builds/7-3/jspi --SHARED_DIR=packages/php-wasm/web/public/shared",
-					"node packages/php-wasm/compile/shared/build.js --LIBRARY=intl --JSPI=yes --PHP_VERSION=7.2 --OUTPUT_DIR=packages/php-wasm/web-builds/7-2/jspi --SHARED_DIR=packages/php-wasm/web/public/shared"
+					"nx run php-wasm-compile-shared-intl:web:jspi --PHP_VERSION=8.5",
+					"nx run php-wasm-compile-shared-intl:web:jspi --PHP_VERSION=8.4",
+					"nx run php-wasm-compile-shared-intl:web:jspi --PHP_VERSION=8.3",
+					"nx run php-wasm-compile-shared-intl:web:jspi --PHP_VERSION=8.2",
+					"nx run php-wasm-compile-shared-intl:web:jspi --PHP_VERSION=8.1",
+					"nx run php-wasm-compile-shared-intl:web:jspi --PHP_VERSION=8.0",
+					"nx run php-wasm-compile-shared-intl:web:jspi --PHP_VERSION=7.4",
+					"nx run php-wasm-compile-shared-intl:web:jspi --PHP_VERSION=7.3",
+					"nx run php-wasm-compile-shared-intl:web:jspi --PHP_VERSION=7.2"
 				],
 				"parallel": false
 			}
@@ -84,7 +84,7 @@
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
-					"node packages/php-wasm/compile/shared/build.js --LIBRARY=intl --OUTPUT_DIR=packages/php-wasm/web-builds/8-3/asyncify --SHARED_DIR=packages/php-wasm/web/public/shared"
+					"node packages/php-wasm/compile/shared/build.js --LIBRARY=intl --PLATFORM=web"
 				],
 				"parallel": false
 			}
@@ -93,15 +93,15 @@
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
-					"node packages/php-wasm/compile/shared/build.js --LIBRARY=intl --PHP_VERSION=8.5 --OUTPUT_DIR=packages/php-wasm/web-builds/8-5/asyncify --SHARED_DIR=packages/php-wasm/web/public/shared",
-					"node packages/php-wasm/compile/shared/build.js --LIBRARY=intl --PHP_VERSION=8.4 --OUTPUT_DIR=packages/php-wasm/web-builds/8-4/asyncify --SHARED_DIR=packages/php-wasm/web/public/shared",
-					"node packages/php-wasm/compile/shared/build.js --LIBRARY=intl --PHP_VERSION=8.3 --OUTPUT_DIR=packages/php-wasm/web-builds/8-3/asyncify --SHARED_DIR=packages/php-wasm/web/public/shared",
-					"node packages/php-wasm/compile/shared/build.js --LIBRARY=intl --PHP_VERSION=8.2 --OUTPUT_DIR=packages/php-wasm/web-builds/8-2/asyncify --SHARED_DIR=packages/php-wasm/web/public/shared",
-					"node packages/php-wasm/compile/shared/build.js --LIBRARY=intl --PHP_VERSION=8.1 --OUTPUT_DIR=packages/php-wasm/web-builds/8-1/asyncify --SHARED_DIR=packages/php-wasm/web/public/shared",
-					"node packages/php-wasm/compile/shared/build.js --LIBRARY=intl --PHP_VERSION=8.0 --OUTPUT_DIR=packages/php-wasm/web-builds/8-0/asyncify --SHARED_DIR=packages/php-wasm/web/public/shared",
-					"node packages/php-wasm/compile/shared/build.js --LIBRARY=intl --PHP_VERSION=7.4 --OUTPUT_DIR=packages/php-wasm/web-builds/7-4/asyncify --SHARED_DIR=packages/php-wasm/web/public/shared",
-					"node packages/php-wasm/compile/shared/build.js --LIBRARY=intl --PHP_VERSION=7.3 --OUTPUT_DIR=packages/php-wasm/web-builds/7-3/asyncify --SHARED_DIR=packages/php-wasm/web/public/shared",
-					"node packages/php-wasm/compile/shared/build.js --LIBRARY=intl --PHP_VERSION=7.2 --OUTPUT_DIR=packages/php-wasm/web-builds/7-2/asyncify --SHARED_DIR=packages/php-wasm/web/public/shared"
+					"nx run php-wasm-compile-shared-intl:web:asyncify --PHP_VERSION=8.5",
+					"nx run php-wasm-compile-shared-intl:web:asyncify --PHP_VERSION=8.4",
+					"nx run php-wasm-compile-shared-intl:web:asyncify --PHP_VERSION=8.3",
+					"nx run php-wasm-compile-shared-intl:web:asyncify --PHP_VERSION=8.2",
+					"nx run php-wasm-compile-shared-intl:web:asyncify --PHP_VERSION=8.1",
+					"nx run php-wasm-compile-shared-intl:web:asyncify --PHP_VERSION=8.0",
+					"nx run php-wasm-compile-shared-intl:web:asyncify --PHP_VERSION=7.4",
+					"nx run php-wasm-compile-shared-intl:web:asyncify --PHP_VERSION=7.3",
+					"nx run php-wasm-compile-shared-intl:web:asyncify --PHP_VERSION=7.2"
 				],
 				"parallel": false
 			}

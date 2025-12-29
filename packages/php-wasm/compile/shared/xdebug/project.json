@@ -6,7 +6,7 @@
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
-					"node packages/php-wasm/compile/shared/build.js --LIBRARY=xdebug --JSPI=yes --OUTPUT_DIR=packages/php-wasm/node-builds/8-3/jspi"
+					"node packages/php-wasm/compile/shared/build.js --LIBRARY=xdebug --PLATFORM=node --JSPI=yes"
 				],
 				"parallel": false
 			}
@@ -15,15 +15,15 @@
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
-					"node packages/php-wasm/compile/shared/build.js --LIBRARY=xdebug --JSPI=yes --PHP_VERSION=8.5 --OUTPUT_DIR=packages/php-wasm/node-builds/8-5/jspi",
-					"node packages/php-wasm/compile/shared/build.js --LIBRARY=xdebug --JSPI=yes --PHP_VERSION=8.4 --OUTPUT_DIR=packages/php-wasm/node-builds/8-4/jspi",
-					"node packages/php-wasm/compile/shared/build.js --LIBRARY=xdebug --JSPI=yes --PHP_VERSION=8.3 --OUTPUT_DIR=packages/php-wasm/node-builds/8-3/jspi",
-					"node packages/php-wasm/compile/shared/build.js --LIBRARY=xdebug --JSPI=yes --PHP_VERSION=8.2 --OUTPUT_DIR=packages/php-wasm/node-builds/8-2/jspi",
-					"node packages/php-wasm/compile/shared/build.js --LIBRARY=xdebug --JSPI=yes --PHP_VERSION=8.1 --OUTPUT_DIR=packages/php-wasm/node-builds/8-1/jspi",
-					"node packages/php-wasm/compile/shared/build.js --LIBRARY=xdebug --JSPI=yes --PHP_VERSION=8.0 --OUTPUT_DIR=packages/php-wasm/node-builds/8-0/jspi",
-					"node packages/php-wasm/compile/shared/build.js --LIBRARY=xdebug --JSPI=yes --PHP_VERSION=7.4 --OUTPUT_DIR=packages/php-wasm/node-builds/7-4/jspi",
-					"node packages/php-wasm/compile/shared/build.js --LIBRARY=xdebug --JSPI=yes --PHP_VERSION=7.3 --OUTPUT_DIR=packages/php-wasm/node-builds/7-3/jspi",
-					"node packages/php-wasm/compile/shared/build.js --LIBRARY=xdebug --JSPI=yes --PHP_VERSION=7.2 --OUTPUT_DIR=packages/php-wasm/node-builds/7-2/jspi"
+					"nx run php-wasm-compile-shared-xdebug:jspi --PHP_VERSION=8.5",
+					"nx run php-wasm-compile-shared-xdebug:jspi --PHP_VERSION=8.4",
+					"nx run php-wasm-compile-shared-xdebug:jspi --PHP_VERSION=8.3",
+					"nx run php-wasm-compile-shared-xdebug:jspi --PHP_VERSION=8.2",
+					"nx run php-wasm-compile-shared-xdebug:jspi --PHP_VERSION=8.1",
+					"nx run php-wasm-compile-shared-xdebug:jspi --PHP_VERSION=8.0",
+					"nx run php-wasm-compile-shared-xdebug:jspi --PHP_VERSION=7.4",
+					"nx run php-wasm-compile-shared-xdebug:jspi --PHP_VERSION=7.3",
+					"nx run php-wasm-compile-shared-xdebug:jspi --PHP_VERSION=7.2"
 				],
 				"parallel": false
 			}
@@ -32,7 +32,7 @@
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
-					"node packages/php-wasm/compile/shared/build.js --LIBRARY=xdebug --OUTPUT_DIR=packages/php-wasm/node-builds/8-3/asyncify"
+					"node packages/php-wasm/compile/shared/build.js --LIBRARY=xdebug --PLATFORM=node"
 				],
 				"parallel": false
 			}
@@ -41,15 +41,15 @@
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
-					"node packages/php-wasm/compile/shared/build.js --LIBRARY=xdebug --PHP_VERSION=8.5 --OUTPUT_DIR=packages/php-wasm/node-builds/8-5/asyncify",
-					"node packages/php-wasm/compile/shared/build.js --LIBRARY=xdebug --PHP_VERSION=8.4 --OUTPUT_DIR=packages/php-wasm/node-builds/8-4/asyncify",
-					"node packages/php-wasm/compile/shared/build.js --LIBRARY=xdebug --PHP_VERSION=8.3 --OUTPUT_DIR=packages/php-wasm/node-builds/8-3/asyncify",
-					"node packages/php-wasm/compile/shared/build.js --LIBRARY=xdebug --PHP_VERSION=8.2 --OUTPUT_DIR=packages/php-wasm/node-builds/8-2/asyncify",
-					"node packages/php-wasm/compile/shared/build.js --LIBRARY=xdebug --PHP_VERSION=8.1 --OUTPUT_DIR=packages/php-wasm/node-builds/8-1/asyncify",
-					"node packages/php-wasm/compile/shared/build.js --LIBRARY=xdebug --PHP_VERSION=8.0 --OUTPUT_DIR=packages/php-wasm/node-builds/8-0/asyncify",
-					"node packages/php-wasm/compile/shared/build.js --LIBRARY=xdebug --PHP_VERSION=7.4 --OUTPUT_DIR=packages/php-wasm/node-builds/7-4/asyncify",
-					"node packages/php-wasm/compile/shared/build.js --LIBRARY=xdebug --PHP_VERSION=7.3 --OUTPUT_DIR=packages/php-wasm/node-builds/7-3/asyncify",
-					"node packages/php-wasm/compile/shared/build.js --LIBRARY=xdebug --PHP_VERSION=7.2 --OUTPUT_DIR=packages/php-wasm/node-builds/7-2/asyncify"
+					"nx run php-wasm-compile-shared-xdebug:asyncify --PHP_VERSION=8.5",
+					"nx run php-wasm-compile-shared-xdebug:asyncify --PHP_VERSION=8.4",
+					"nx run php-wasm-compile-shared-xdebug:asyncify --PHP_VERSION=8.3",
+					"nx run php-wasm-compile-shared-xdebug:asyncify --PHP_VERSION=8.2",
+					"nx run php-wasm-compile-shared-xdebug:asyncify --PHP_VERSION=8.1",
+					"nx run php-wasm-compile-shared-xdebug:asyncify --PHP_VERSION=8.0",
+					"nx run php-wasm-compile-shared-xdebug:asyncify --PHP_VERSION=7.4",
+					"nx run php-wasm-compile-shared-xdebug:asyncify --PHP_VERSION=7.3",
+					"nx run php-wasm-compile-shared-xdebug:asyncify --PHP_VERSION=7.2"
 				],
 				"parallel": false
 			}
