@@ -23,34 +23,34 @@ RUN git clone https://github.com/php/php-src.git php-src \
 	--depth 1;
 
 # Work around memory leak due to PHP using Emscripten's incomplete mmap/munmap support
-COPY ./php-wasm-memory-storage /root/php-src/ext/wasm_memory_storage
+COPY ./compile/php-wasm-memory-storage /root/php-src/ext/wasm_memory_storage
 
 # Polyfill for dns functions
-COPY ./php-wasm-dns-polyfill/ /root/php-src/ext/dns_polyfill
+COPY ./compile/php-wasm-dns-polyfill/ /root/php-src/ext/dns_polyfill
 
 # Polyfill for post_message_to_js functions
-COPY ./php-post-message-to-js/ /root/php-src/ext/post_message_to_js
+COPY ./compile/php-post-message-to-js/ /root/php-src/ext/post_message_to_js
 
 # Copy the opcache_module.c and php_opcache.h files.
-COPY ./opcache/ /root/php-src/ext/opcache
+COPY ./compile/opcache/ /root/php-src/ext/opcache
 
 # Bring in the libraries
 RUN mkdir -p /root/lib/include /root/lib/lib /libs
-COPY ./bison2.7/dist/ /libs/bison2.7
-COPY ./libiconv/ /root/builds/libiconv
-COPY ./libcurl/ /root/builds/libcurl
-COPY ./libopenssl/ /root/builds/libopenssl
-COPY ./libpng16/ /root/builds/libpng16
-COPY ./libjpeg/ /root/builds/libjpeg
-COPY ./libwebp/ /root/builds/libwebp
-COPY ./libaom/ /root/builds/libaom
-COPY ./libavif/ /root/builds/libavif
-COPY ./libsqlite3/ /root/builds/libsqlite3
-COPY ./libxml2/ /root/builds/libxml2
-COPY ./libz/ /root/builds/libz
-COPY ./oniguruma/ /root/builds/oniguruma
-COPY ./libImageMagick/ /root/builds/libImageMagick
-COPY ./libgd/ /root/builds/libgd
+COPY ./compile/bison2.7/dist/ /libs/bison2.7
+COPY ./compile/libiconv/ /root/builds/libiconv
+COPY ./compile/libcurl/ /root/builds/libcurl
+COPY ./compile/libopenssl/ /root/builds/libopenssl
+COPY ./compile/libpng16/ /root/builds/libpng16
+COPY ./compile/libjpeg/ /root/builds/libjpeg
+COPY ./compile/libwebp/ /root/builds/libwebp
+COPY ./compile/libaom/ /root/builds/libaom
+COPY ./compile/libavif/ /root/builds/libavif
+COPY ./compile/libsqlite3/ /root/builds/libsqlite3
+COPY ./compile/libxml2/ /root/builds/libxml2
+COPY ./compile/libz/ /root/builds/libz
+COPY ./compile/oniguruma/ /root/builds/oniguruma
+COPY ./compile/libImageMagick/ /root/builds/libImageMagick
+COPY ./compile/libgd/ /root/builds/libgd
 
 RUN if [ "$WITH_JSPI" = "yes" ]; then \
 	find /root/builds -path '*/jspi/dist/root/lib' -type d -exec cp -r {}/. /root/lib \; ; \
@@ -58,7 +58,7 @@ else \
 	find /root/builds -path '*/asyncify/dist/root/lib' -type d -exec cp -r {}/. /root/lib \; ; \
 fi
 
-COPY ./libzip/ /root/builds-libzip/
+COPY ./compile/libzip/ /root/builds-libzip/
 RUN mkdir -p /libs/libzip
 RUN if [ "$WITH_JSPI" = "yes" ]; then \
 	cp -r /root/builds-libzip/jspi/dist/1.2.0/root/lib /libs/libzip/1.2.0; \
@@ -68,7 +68,7 @@ else \
 	cp -r /root/builds-libzip/asyncify/dist/1.9.2/root/lib /libs/libzip/1.9.2; \
 fi
 
-COPY ./libopenssl/ /root/builds-libopenssl/
+COPY ./compile/libopenssl/ /root/builds-libopenssl/
 RUN mkdir -p /libs/libopenssl
 RUN if [ "$WITH_JSPI" = "yes" ]; then \
 	cp -r /root/builds-libopenssl/jspi/dist/root/lib /libs/libopenssl; \
@@ -150,7 +150,7 @@ RUN touch /root/.configure-flags && \
 	touch /root/.EXPORTED_FUNCTIONS
 
 # Grab Bison 2.7 patch in case we need it
-COPY ./bison2.7/bison27.patch /root/bison27.patch
+COPY ./compile/bison2.7/bison27.patch /root/bison27.patch
 
 # PHP <= 7.3 requires Bison 2.7
 # PHP >= 7.4 and Bison 3.0
@@ -355,8 +355,8 @@ RUN if [ "$WITH_MBREGEX" = "yes" ] && [ "${PHP_VERSION:0:3}" != "7.0" ]; \
 	fi;
 
 # Get and patch PHP
-COPY ./php/php*.patch /root/
-COPY ./php/apply-mysqlnd-patch.sh /root/
+COPY ./compile/php/php*.patch /root/
+COPY ./compile/php/apply-mysqlnd-patch.sh /root/
 RUN cd /root && \
 	git apply --no-index /root/php${PHP_VERSION:0:3}*.patch -v && \
 	if [[ "${PHP_VERSION:0:3}" == "7.3" || "${PHP_VERSION:0:3}" == "7.2" ]]; then \
@@ -419,7 +419,6 @@ RUN /root/replace.sh 's/pharcmd=pharcmd/pharcmd=/g' /root/php-src/configure && \
 # Build the patched PHP
 WORKDIR /root/php-src
 RUN source /root/emsdk/emsdk_env.sh && \
-	ICU_CFLAGS="-D__x86_64__ -fPIC -I/root/lib/include" \
 	CURL_CFLAGS="-I/root/lib/include" \
 	WEBP_LIBS="-L/root/lib/lib -lwebp -lsharpyuv" \
 	WEBP_CFLAGS="-I/root/lib/include" \
@@ -605,8 +604,8 @@ RUN source /root/emsdk/emsdk_env.sh && \
 RUN cp -v /root/php-src/.libs/libphp*.la /root/lib/libphp.la
 RUN cp -v /root/php-src/.libs/libphp*.a /root/lib/libphp.a
 
-COPY ./php/php_wasm.c /root/
-COPY ./php/proc_open* /root/
+COPY ./compile/php/php_wasm.c /root/
+COPY ./compile/php/proc_open* /root/
 
 RUN if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "3" ]]; then \
 		 cp /root/proc_open7.0.c /root/proc_open.c; \
@@ -682,7 +681,7 @@ RUN if [ "$WITH_WS_NETWORKING_PROXY" = "yes" ]; \
 # due to an async call – it means the same PHP files are loaded before
 # the previous request, where they're already loaded, is concluded.
 # TODO: Consider reverting asyncify additions before merging this PR if file locking doesn't support asyncify.
-COPY ./php/asyncify-imports.list /root/asyncify-imports.list
+COPY ./compile/php/asyncify-imports.list /root/asyncify-imports.list
 RUN sed 's/.*/"&",/' /root/asyncify-imports.list \
     | sed '$ s/,$//' \
     | sed '1s/^/[\n/; $s/$/\n]/' \
@@ -690,7 +689,7 @@ RUN sed 's/.*/"&",/' /root/asyncify-imports.list \
     | sed 's/^/ -s ASYNCIFY_IMPORTS=/' \
     >> /root/.emcc-php-asyncify-flags
 
-COPY ./php/asyncify-only.list /root/asyncify-only.list
+COPY ./compile/php/asyncify-only.list /root/asyncify-only.list
 RUN sed 's/.*/"&",/' /root/asyncify-only.list \
     | sed '$ s/,$//' \
     | sed '1s/^/[\n/; $s/$/\n]/' \
@@ -698,12 +697,21 @@ RUN sed 's/.*/"&",/' /root/asyncify-only.list \
     | sed 's/^/ -s ASYNCIFY_ONLY=/' \
     >> /root/.emcc-php-asyncify-flags
 
+COPY ./${EMSCRIPTEN_ENVIRONMENT}-builds/ /root/${EMSCRIPTEN_ENVIRONMENT}-builds
+
+RUN set -eux; \
+    PHP_VERSION_DIR="$(echo "$PHP_VERSION" | cut -d. -f1,2 | tr . -)"; \
+	JSPI_DIR=$([ "$WITH_JSPI" = "yes" ] && echo "jspi" || echo "asyncify"); \
+    mkdir -p /root/extensions; \
+    cp /root/${EMSCRIPTEN_ENVIRONMENT}-builds/${PHP_VERSION_DIR}/${JSPI_DIR}/extensions/intl/intl.so /root/extensions/intl.so; \
+    cp /root/${EMSCRIPTEN_ENVIRONMENT}-builds/${PHP_VERSION_DIR}/${JSPI_DIR}/extensions/xdebug/xdebug.so /root/extensions/xdebug.so
+
 # Build the final .wasm file
 RUN mkdir /root/output
-COPY ./php/phpwasm-emscripten-library.js /root/phpwasm-emscripten-library.js
-COPY ./php/phpwasm-emscripten-library-dynamic-linking.js /root/phpwasm-emscripten-library-dynamic-linking.js
-COPY ./php/phpwasm-emscripten-library-file-locking-for-node.js /root/phpwasm-emscripten-library-file-locking-for-node.js
-COPY ./php/phpwasm-emscripten-library-known-undefined-functions.js /root/phpwasm-emscripten-library-known-undefined-functions.js
+COPY ./compile/php/phpwasm-emscripten-library.js /root/phpwasm-emscripten-library.js
+COPY ./compile/php/phpwasm-emscripten-library-dynamic-linking.js /root/phpwasm-emscripten-library-dynamic-linking.js
+COPY ./compile/php/phpwasm-emscripten-library-file-locking-for-node.js /root/phpwasm-emscripten-library-file-locking-for-node.js
+COPY ./compile/php/phpwasm-emscripten-library-known-undefined-functions.js /root/phpwasm-emscripten-library-known-undefined-functions.js
 ARG WITH_SOURCEMAPS
 ARG WITH_DEBUG
 ARG STACK_SIZE
@@ -756,7 +764,7 @@ RUN set -euxo pipefail; \
 	ENVIRONMENT="$EMSCRIPTEN_ENVIRONMENT"; \
 	if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then \
 		PLATFORM_SPECIFIC_ARGS="$PLATFORM_SPECIFIC_ARGS -DPHP_WASM_FILE_LOCKING_SUPPORT=1"; \
-		PLATFORM_SPECIFIC_ARGS="$PLATFORM_SPECIFIC_ARGS --js-library /root/phpwasm-emscripten-library-file-locking-for-node.js -Wl,--wrap=getpid"; \
+		PLATFORM_SPECIFIC_ARGS="$PLATFORM_SPECIFIC_ARGS --js-library /root/phpwasm-emscripten-library-file-locking-for-node.js"; \
 	else \
 		# Prevents "document is not defined" errors in Web Workers when using MAIN_MODULE.
 		# By default, Emscripten assumes MAIN_MODULE runs only in a web environment,
@@ -781,6 +789,8 @@ RUN set -euxo pipefail; \
 	-lproxyfs.js \
 	$ASYNCIFY_FLAGS \
 	$(cat /root/.emcc-php-wasm-flags) \
+	/root/extensions/intl.so \
+	/root/extensions/xdebug.so \
 	-s MAIN_MODULE=2 \
 	-s EXPORTED_FUNCTIONS="$EXPORTED_FUNCTIONS" \
 	-s WASM_BIGINT=1 \
@@ -818,9 +828,9 @@ RUN set -euxo pipefail; \
 #     fi
 
 # Postprocess the build php.js module:
-COPY ./php/esm-node-boilerplate.js /root/esm-node-boilerplate.js
-COPY ./php/esm-prefix.js /root/esm-prefix.js
-COPY ./php/esm-suffix.js /root/esm-suffix.js
+COPY ./compile/php/esm-node-boilerplate.js /root/esm-node-boilerplate.js
+COPY ./compile/php/esm-prefix.js /root/esm-prefix.js
+COPY ./compile/php/esm-suffix.js /root/esm-suffix.js
 RUN set -euxo pipefail; \
 	cp -rfv /build/output/* /root/output/; \
 	# Figure out the target file names and URLs
@@ -897,8 +907,6 @@ RUN set -euxo pipefail; \
 		# so we rebind them from `wasmExports` and attach them to PHPLoader.
 		/root/replace.sh "s/_wasm_free\s*=\s*Module\[[\"']_wasm_free[\"']\]/_wasm_free = PHPLoader['free'] = Module['_wasm_free']/g" /root/output/php.js; \
 		/root/replace.sh "s/_malloc\s*=\s*Module\[[\"']_malloc[\"']\]/_malloc = PHPLoader['malloc'] = Module['_malloc']/g" /root/output/php.js; \
-		# Test
-		/root/replace.sh "s/[\"']__stack_pointer[\"'],//g" /root/output/php.js; \
 	# Patch Emscripten exit status to include a stack trace
 		# Override Emscripten's default ExitStatus class which gets
 		# thrown on failure. Unfortunately, the default object is not

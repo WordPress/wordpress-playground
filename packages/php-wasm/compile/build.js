@@ -293,7 +293,7 @@ await asyncSpawn(
 		'build',
 		'-f',
 		'php/Dockerfile',
-		'.',
+		'..',
 		'--tag=php-wasm',
 		'--progress=plain',
 		'--build-arg',
