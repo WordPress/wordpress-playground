@@ -1,7 +1,7 @@
-import dependencyFilename from './8_5_0/php_8_5.wasm';
+import dependencyFilename from './8_5_1/php_8_5.wasm';
 export { dependencyFilename };
-export const dependenciesTotalSize = 27471905;
-const phpVersionString = '8.5.0';
+export const dependenciesTotalSize = 27473454;
+const phpVersionString = '8.5.1';
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
 	var Module = typeof PHPLoader != 'undefined' ? PHPLoader : {};
@@ -13167,25 +13167,21 @@ export function init(RuntimeName, PHPLoader) {
 		noop: function () {},
 		spawnProcess: function (command, args, options) {
 			if (Module['spawnProcess']) {
-				const spawnedPromise = Module['spawnProcess'](
-					command,
-					args,
-					options
-				);
-				return Promise.resolve(spawnedPromise).then(function (spawned) {
+				const spawned = Module['spawnProcess'](command, args, {
+					...options,
+					shell: true,
+					stdio: ['pipe', 'pipe', 'pipe'],
+				});
+				if (spawned && !('then' in spawned) && 'on' in spawned) {
+					return spawned;
+				}
+				return Promise.resolve(spawned).then(function (spawned) {
 					if (!spawned || !spawned.on) {
 						throw new Error(
 							'spawnProcess() must return an EventEmitter but returned a different type.'
 						);
 					}
 					return spawned;
-				});
-			}
-			if (ENVIRONMENT_IS_NODE) {
-				return require('child_process').spawn(command, args, {
-					...options,
-					shell: true,
-					stdio: ['pipe', 'pipe', 'pipe'],
 				});
 			}
 			const e = new Error(
