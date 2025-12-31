@@ -3,13 +3,15 @@
 // this code in Node.js as an ES module.
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
-// Note: The path module is currently needed by code injected by the php-wasm Dockerfile.
-import { fileURLToPath } from 'url';
+// Note: The path and url modules are currently needed by code injected by the php-wasm Dockerfile.
 import path from 'path';
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+import { fileURLToPath } from 'url';
 
-const dependencyFilename = path.join(__dirname, '7_3_33', 'php_7_3.wasm');
+const currentDirPath =
+	typeof __dirname !== 'undefined'
+		? __dirname
+		: path.dirname(fileURLToPath(import.meta.url));
+const dependencyFilename = path.join(currentDirPath, '7_3_33', 'php_7_3.wasm');
 export { dependencyFilename };
 export const dependenciesTotalSize = 22198114;
 const phpVersionString = '7.3.33';
@@ -75,7 +77,7 @@ export function init(RuntimeName, PHPLoader) {
 		// the complexity of lazy-loading.
 		var fs = require('fs');
 
-		scriptDirectory = __dirname + '/';
+		scriptDirectory = currentDirPath + '/';
 
 		// include: node_shell_read.js
 		readBinary = (filename) => {
