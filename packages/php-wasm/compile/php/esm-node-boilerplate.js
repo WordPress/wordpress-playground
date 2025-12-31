@@ -3,6 +3,11 @@
 // this code in Node.js as an ES module.
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
-// Note: The path module is currently needed by code injected by the php-wasm Dockerfile.
+// Note: The path and url modules are currently needed by code injected by the php-wasm Dockerfile.
 import path from 'path';
+import { fileURLToPath } from 'url';
 
+const currentDirPath =
+	typeof __dirname !== 'undefined'
+		? __dirname
+		: path.dirname(fileURLToPath(import.meta.url));
