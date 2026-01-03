@@ -153,6 +153,8 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 		await this.bootRequestHandler(args);
 	}
 
+	// TODO: Add run() method that spawns a new PHP process
+
 	async bootRequestHandler(options: WorkerBootRequestHandlerOptions) {
 		if (this.booted) {
 			throw new Error('Playground already booted');

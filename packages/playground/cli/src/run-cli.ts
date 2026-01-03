@@ -1167,6 +1167,8 @@ export function spawnWorkerProcess(
 			// we need to spawn a child process instead.
 			// In this case, we expect to be spawning workers for proc_open().
 			(workerUrl: URL) => {
+				// TODO: Probably stop exporting this function and make it an exposed API of the main process
+				// TODO: ^ Or, somehow, track all spawned processes and clean them up when the CLI exits.
 				return childProcess.fork(workerUrl, {
 					stdio: 'inherit',
 					serialization: 'advanced',

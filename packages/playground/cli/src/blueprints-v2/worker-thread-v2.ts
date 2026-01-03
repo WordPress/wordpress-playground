@@ -417,6 +417,8 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 		}
 	}
 
+	// TODO: Add run() method that spawns a new PHP process
+
 	async bootRequestHandler({
 		siteUrl,
 		port,
