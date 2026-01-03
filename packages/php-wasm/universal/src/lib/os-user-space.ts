@@ -577,8 +577,6 @@ export function bindUserSpace(
 					return -EINVAL;
 				}
 			}
-			// @TODO: Implement a blocking version of F_SETLKW instead of
-			// treating it the same as F_SETLK.
 			case F_SETLK:
 			case F_SETLKW: {
 				// TODO: Test both blocking and non-blocking modes in the integration tests.

@@ -741,6 +741,7 @@ error_log = ${errorLogPath}
 		});
 	}, 5000);
 
+	// TODO: Tests tests involve a race condition. They sometimes just hang.
 	describe('PHP flock()', () => {
 		it('should be able to acquire an exclusive lock on a file', async () => {
 			using php = await createPhpRuntimeWithFileLockingAndTestMount();
