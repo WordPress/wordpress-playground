@@ -31,17 +31,17 @@ export async function getPHPLoaderModule(): Promise<PHPLoaderModule> {
 
 export async function getIntlExtensionPath(): Promise<string> {
 	if (await jspi()) {
-		return join(packageDir, 'jspi/extensions/intl/8_1/intl.so');
+		return join(packageDir, 'jspi/extensions/intl/intl.so');
 	} else {
-		return join(packageDir, 'asyncify/extensions/intl/8_1/intl.so');
+		return join(packageDir, 'asyncify/extensions/intl/intl.so');
 	}
 }
 
 export async function getXdebugExtensionPath(): Promise<string> {
 	if (await jspi()) {
-		return join(packageDir, 'jspi/extensions/xdebug/8_1/xdebug.so');
+		return join(packageDir, 'jspi/extensions/xdebug/xdebug.so');
 	} else {
-		return join(packageDir, 'asyncify/extensions/xdebug/8_1/xdebug.so');
+		return join(packageDir, 'asyncify/extensions/xdebug/xdebug.so');
 	}
 }
 
