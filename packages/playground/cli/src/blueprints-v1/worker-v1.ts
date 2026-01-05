@@ -1,6 +1,6 @@
 // TODO: Rename this file to worker-process-v1.ts
 import { loadNodeRuntime } from '@php-wasm/node';
-import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
+import { type EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import type {
 	NodeProcess,
 	PHPRequest,
@@ -22,7 +22,6 @@ import {
 } from '@wp-playground/wordpress';
 import { rootCertificates } from 'tls';
 import { mountResources } from '../mounts';
-import { logger } from '@php-wasm/logger';
 import { killWorkerProcess, spawnWorkerProcess } from '../run-cli';
 import { startServer } from '../start-server';
 
@@ -94,8 +93,19 @@ function tracePhpWasm(processId: number, format: string, ...args: any[]) {
 export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 	booted = false;
 
-	constructor(monitor: EmscriptenDownloadMonitor) {
+	#setApiReady: () => void;
+	#setAPIError: (e: Error) => void;
+
+	constructor(monitor: EmscriptenDownloadMonitor, nodeEndpoint: NodeProcess) {
 		super(undefined, monitor);
+
+		const [setApiReady, setAPIError] = exposeAPI(
+			this,
+			undefined,
+			nodeEndpoint
+		);
+		this.#setApiReady = setApiReady;
+		this.#setAPIError = setAPIError;
 	}
 
 	async bootWordPress(options: WordPressBootOptions) {
@@ -190,9 +200,9 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 				});
 			}
 
-			setApiReady();
+			this.#setApiReady();
 		} catch (e) {
-			setAPIError(e as Error);
+			this.#setAPIError(e as Error);
 			throw e;
 		}
 	}
@@ -285,17 +295,3 @@ async function createPHPWorker(options: WorkerBootRequestHandlerOptions) {
 		},
 	};
 }
-
-process.on('unhandledRejection', (e: any) => {
-	logger.error('Unhandled rejection:', e);
-});
-
-const [setApiReady, setAPIError] = exposeAPI(
-	new PlaygroundCliBlueprintV1Worker(new EmscriptenDownloadMonitor()),
-	undefined,
-	// TODO: Fix this type error.
-	// @ts-ignore
-	process as NodeProcess
-);
-
-process.send!({ command: 'worker-script-initialized' });

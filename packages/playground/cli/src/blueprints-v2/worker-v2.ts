@@ -1,7 +1,7 @@
 // TODO: Rename this file to worker-process-v2.ts
-import { errorLogPath, logger } from '@php-wasm/logger';
+import { errorLogPath } from '@php-wasm/logger';
 import { createNodeFsMountHandler, loadNodeRuntime } from '@php-wasm/node';
-import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
+
 import type {
 	PHP,
 	FileTree,
@@ -52,6 +52,7 @@ import { shouldRenderProgress } from '../utils/progress';
 import type { Mount } from '@php-wasm/cli-util';
 import cluster from 'cluster';
 import { startServer } from '../start-server';
+import { type EmscriptenDownloadMonitor } from '@php-wasm/progress';
 
 async function mountResources(php: PHP, mounts: Mount[]) {
 	for (const mount of mounts) {
@@ -185,9 +186,19 @@ export type WorkerBootRequestHandlerOptions = Omit<
 export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 	booted = false;
 	blueprintTargetResolved = false;
+	#setApiReady: () => void;
+	#setAPIError: (e: Error) => void;
 
-	constructor(monitor: EmscriptenDownloadMonitor) {
+	constructor(monitor: EmscriptenDownloadMonitor, nodeEndpoint: NodeProcess) {
 		super(undefined, monitor);
+
+		const [setApiReady, setAPIError] = exposeAPI(
+			this,
+			undefined,
+			nodeEndpoint
+		);
+		this.#setApiReady = setApiReady;
+		this.#setAPIError = setAPIError;
 	}
 
 	async bootWordPress(args: WordPressBootArgs) {
@@ -215,12 +226,10 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 			joinPaths(new URL(args.siteUrl).pathname, 'phpinfo.php')
 		);
 
-		// TODO: Do we really want to change the timing of our mounts in this mode?
-		//       If so, should run-cli just merge all mounts into the initial before-install set?
-		// if (args.mode === 'mount-only') {
-		// 	await mountResources(primaryPhp, args.mountsAfterWpInstall || []);
-		// 	return;
-		// }
+		if (args.mode === 'mount-only') {
+			await this.mountAfterWordPressInstall();
+			return;
+		}
 
 		await this.runBlueprintV2({ ...args });
 	}
@@ -261,12 +270,6 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 			spawnHandler: () =>
 				sandboxedSpawnHandlerFactory(() => createPHPWorker(args)),
 		});
-	}
-
-	async mountAfterWordPressInstall(mountsAfterWpInstall: Array<Mount>) {
-		const primaryPhp =
-			await this.__internal_getRequestHandler()!.getPrimaryPhp();
-		await mountResources(primaryPhp, mountsAfterWpInstall);
 	}
 
 	async runBlueprintV2(args: WorkerRunBlueprintArgs) {
@@ -325,16 +328,7 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 						case 'blueprint.target_resolved': {
 							if (!this.blueprintTargetResolved) {
 								this.blueprintTargetResolved = true;
-								// TODO: Explain that we had difficulty passing callbacks to remote worker API
-								// TODO: Fix this type error. process doesn't match NodeProcess Type
-								// @ts-ignore
-								const onWordPressInstalled = await consumeAPI<
-									() => Promise<void>
-								>(process as NodeProcess);
-								await onWordPressInstalled();
-								await onWordPressInstalled[
-									releaseRemoteApiProxy
-								]();
+								this.mountAfterWordPressInstall();
 							}
 							break;
 						}
@@ -494,9 +488,9 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 				});
 			}
 
-			setApiReady();
+			this.#setApiReady();
 		} catch (e) {
-			setAPIError(e as Error);
+			this.#setAPIError(e as Error);
 			throw e;
 		}
 	}
@@ -504,6 +498,17 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 	// Provide a named disposal method that can be invoked via comlink.
 	async dispose() {
 		await this[Symbol.asyncDispose]();
+	}
+
+	async mountAfterWordPressInstall() {
+		// TODO: Explain that we had difficulty passing callbacks to remote worker API
+		// TODO: Fix this type error. process doesn't match NodeProcess Type
+		// @ts-ignore
+		const onWordPressInstalled = await consumeAPI<() => Promise<void>>(
+			process as NodeProcess
+		);
+		await onWordPressInstalled();
+		await onWordPressInstalled[releaseRemoteApiProxy]();
 	}
 }
 
@@ -579,17 +584,3 @@ async function createPHPWorker({
 		},
 	};
 }
-
-process.on('unhandledRejection', (e: any) => {
-	logger.error('Unhandled rejection:', e);
-});
-
-const [setApiReady, setAPIError] = exposeAPI(
-	new PlaygroundCliBlueprintV2Worker(new EmscriptenDownloadMonitor()),
-	undefined,
-	// TODO: Fix this type error.
-	// @ts-ignore
-	process as NodeProcess
-);
-
-process.send!({ command: 'worker-script-initialized' });

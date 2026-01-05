@@ -19,8 +19,8 @@ import {
 	parseMountDirArguments,
 	parseMountWithDelimiterArguments,
 } from './mounts';
-import type { PlaygroundCliBlueprintV1Worker } from './blueprints-v1/worker-thread-v1';
-import type { PlaygroundCliBlueprintV2Worker } from './blueprints-v2/worker-thread-v2';
+import type { PlaygroundCliBlueprintV1Worker } from './blueprints-v1/worker-v1';
+import type { PlaygroundCliBlueprintV2Worker } from './blueprints-v2/worker-v2';
 /* eslint-disable no-console */
 import { SupportedPHPVersions } from '@php-wasm/universal';
 import { cpus } from 'os';
@@ -1147,11 +1147,13 @@ export function spawnWorkerProcess(
 	 */
 	if (typeof __WORKER_V1_URL__ === 'undefined') {
 		// @ts-expect-error
-		globalThis['__WORKER_V1_URL__'] = './blueprints-v1/worker-thread-v1.ts';
+		globalThis['__WORKER_V1_URL__'] =
+			'./blueprints-v1/worker-v1-process.ts';
 	}
 	if (typeof __WORKER_V2_URL__ === 'undefined') {
 		// @ts-expect-error
-		globalThis['__WORKER_V2_URL__'] = './blueprints-v2/worker-thread-v2.ts';
+		globalThis['__WORKER_V2_URL__'] =
+			'./blueprints-v2/worker-v2-process.ts';
 	}
 	let workerProcess: SpawnedWorker;
 

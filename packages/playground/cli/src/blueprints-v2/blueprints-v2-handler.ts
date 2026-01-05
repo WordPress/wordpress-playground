@@ -4,7 +4,7 @@ import { consumeAPI } from '@php-wasm/universal';
 import type {
 	PlaygroundCliBlueprintV2Worker,
 	WorkerBootArgs,
-} from './worker-thread-v2';
+} from './worker-v2';
 import type {
 	RunCLIArgsWithResolvedRequiredArgs,
 	SpawnedWorker,
