@@ -117,6 +117,6 @@ if (numTimedOut > 0) {
 	console.log(red(`${numTimedOut} / ${results.length} tests timed out`));
 }
 
-if (numFailed > 0) {
+if (numFailed > 0 || numTimedOut > 0) {
 	process.exit(1);
 }
