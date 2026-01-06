@@ -22,6 +22,9 @@ describe('Playground CLI file locking', () => {
 		);
 
 		cliServer = await runCLI({
+			// Use a different port to avoid conflicts with other suites
+			// running in parallel.
+			port: 9401,
 			command: 'server',
 			mount: [
 				{
