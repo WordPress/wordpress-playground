@@ -44,11 +44,11 @@ describe(`PHP ${phpVersion}`, () => {
 	 * Verify the built Playground packages ship worker files that have stable names.
 	 * This is important for downstream consumers that may need to statically declare
 	 * a separate entrypoint for each worker file. Including a hash in the filename,
-	 * e.g. `worker-thread-v1-af872f.cjs`, would break their build config on every
+	 * e.g. `worker-v1-process-af872f.cjs`, would break their build config on every
 	 * @wp-playground/cli release.
 	 */
 	it('Should include required worker thread files in CLI package', async () => {
-		const requiredFiles = ['worker-thread-v1.js', 'worker-thread-v2.js'];
+		const requiredFiles = ['worker-v1-process.js', 'worker-v2-process.js'];
 
 		for (const file of requiredFiles) {
 			try {

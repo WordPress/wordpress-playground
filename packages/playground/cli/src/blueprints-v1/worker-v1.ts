@@ -255,7 +255,7 @@ function createPhpRuntimeFactory(options: WorkerBootRequestHandlerOptions) {
 
 /**
  * Spawns a new PHP process to be used in the PHP spawn handler (in proc_open() etc. calls).
- * It boots from this worker-thread-v1.ts file, but is a separate process.
+ * It boots from the worker-thread-v1.ts file and is a separate process.
  *
  * We explicitly avoid using PHPProcessManager.acquirePHPInstance() here.
  *

@@ -10,7 +10,7 @@ import {
 	resolveRuntimeConfiguration,
 } from '@wp-playground/blueprints';
 import { RecommendedPHPVersion } from '@wp-playground/common';
-import type { PlaygroundCliBlueprintV1Worker } from './worker-thread-v1';
+import type { PlaygroundCliBlueprintV1Worker } from './worker-v1';
 import {
 	LogVerbosity,
 	type SpawnedWorker,
