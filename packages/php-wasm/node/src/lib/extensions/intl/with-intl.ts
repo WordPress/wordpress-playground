@@ -5,7 +5,6 @@ import type {
 } from '@php-wasm/universal';
 import { LatestSupportedPHPVersion, FSHelpers } from '@php-wasm/universal';
 import fs from 'fs';
-import path from 'path';
 import { getIntlExtensionModule } from './get-intl-extension-module';
 
 export async function withIntl(
@@ -17,9 +16,7 @@ export async function withIntl(
 	const extension = fs.readFileSync(extensionPath);
 
 	const dataName = 'icu.dat';
-	const moduleDir =
-		typeof __dirname !== 'undefined' ? __dirname : import.meta.dirname;
-	const dataPath = path.join(moduleDir, 'shared', dataName);
+	const dataPath = `${__dirname}/shared/${dataName}`;
 	const ICUData = fs.readFileSync(dataPath);
 
 	return {
