@@ -7,6 +7,8 @@ const require = createRequire(import.meta.url);
 import path from 'path';
 import { fileURLToPath } from 'url';
 
+// Determine the current directory path. In CJS mode, __dirname is available.
+// In ESM mode, we derive it from import.meta.url.
 const currentDirPath =
 	typeof __dirname !== 'undefined'
 		? __dirname

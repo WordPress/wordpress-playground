@@ -16,7 +16,7 @@ ARG PHP_VERSION
 # ./buildconf script is generated.
 ARG WITH_OPCACHE
 
-# Clone PHP
+# Clone PHP from a tag [ php-$PHP_VERSION ] instead of a branch [ PHP-$PHP_VERSION ]
 RUN git clone https://github.com/php/php-src.git php-src \
 	--branch php-$PHP_VERSION \
 	--single-branch  \
@@ -2457,7 +2457,7 @@ RUN set -euxo pipefail; \
 		# But the alternative `onExit()` handling is conditional and has different semantics.
 		# To avoid bugs due to this change, let's just restore support for quit callback customization.
 		/root/replace.sh "s/(if\s*\(Module\[['\"]thisProgram['\"]\]\)\s*thisProgram\s*=\s*Module\[['\"]thisProgram['\"]\];)/\$1\nif (Module[\"quit\"]) quit_=Module[\"quit\"];/" /root/output/php.js; \
-	# Node.js: Add __dirname declaration and create a require() function
+	# Node.js: Create a require() function and add 'currentDirPath' declaration
 	# because Emscripten generates Node.js code that requires them.
 		if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then \
 			cat /root/esm-node-boilerplate.js >> /root/output/php-module.js; \
