@@ -51,7 +51,7 @@ async function build() {
 		supported: { 'dynamic-import': true },
 		outExtension: { '.js': '.cjs' },
 		outdir: distPath,
-		platform: 'node',
+		platform: 'browser',
 		assetNames: '[name]',
 		chunkNames: '[name]',
 		logOverride: {
@@ -70,7 +70,7 @@ async function build() {
 	await esbuild.build({
 		entryPoints: [`${packagePath}/src/index.ts`],
 		outdir: distPath,
-		platform: 'node',
+		platform: 'browser',
 		assetNames: '[name]',
 		chunkNames: '[name]',
 		logOverride: {

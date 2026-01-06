@@ -9,6 +9,33 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
+## [v3.0.36] (2026-01-05) 
+
+
+
+
+## [v3.0.35] (2025-12-29) 
+
+### PHP WebAssembly
+
+- [PHP] Use platform: "browser" in esbuild configuration for web builds. ([#3083](https://github.com/WordPress/wordpress-playground/pull/3083))
+
+### Internal
+
+- [PHP] Remove unnecessary createRequire() banner from the remaining builds. ([#3081](https://github.com/WordPress/wordpress-playground/pull/3081))
+
+### Various
+
+- [i18n] Translate code md to bangla. ([#3082](https://github.com/WordPress/wordpress-playground/pull/3082))
+- [i18n] ja translations developer architecture PHP.js JavaScript module. ([#3080](https://github.com/WordPress/wordpress-playground/pull/3080))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @noruzzamans @shimotmk
+
+
 ## [v3.0.34] (2025-12-24) 
 
 ### PHP WebAssembly
