@@ -1147,13 +1147,11 @@ export function spawnWorkerProcess(
 	 */
 	if (typeof __WORKER_V1_URL__ === 'undefined') {
 		// @ts-expect-error
-		globalThis['__WORKER_V1_URL__'] =
-			'./blueprints-v1/worker-v1-process.ts';
+		globalThis['__WORKER_V1_URL__'] = './blueprints-v1/worker-thread-v1.ts';
 	}
 	if (typeof __WORKER_V2_URL__ === 'undefined') {
 		// @ts-expect-error
-		globalThis['__WORKER_V2_URL__'] =
-			'./blueprints-v2/worker-v2-process.ts';
+		globalThis['__WORKER_V2_URL__'] = './blueprints-v2/worker-thread-v2.ts';
 	}
 	let workerProcess: SpawnedWorker;
 
