@@ -220,7 +220,7 @@ If you're unsure about the steps listed above, visit the official [Gutenberg Pro
 :::
 -->
 
-:::info
+:::তথ্য
 
 আপনি যদি উপরে তালিকাভুক্ত স্টেপগুলো নিয়ে অনিশ্চিত হন, অফিসিয়াল [গুটেনবার্গ প্রজেক্ট কন্ট্রিবিউটর গাইড](https://developer.wordpress.org/block-editor/contributors/) দেখুন। মনে রাখুন এই ক্ষেত্রে, `@wp-playground/cli` `wp-env`-কে রিপ্লেস করে।
 
