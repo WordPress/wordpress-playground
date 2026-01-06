@@ -1,6 +1,6 @@
 import dependencyFilename from './8_0_30/php_8_0.wasm';
 export { dependencyFilename };
-export const dependenciesTotalSize = 20682574;
+export const dependenciesTotalSize = 20682510;
 const phpVersionString = '8.0.30';
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
@@ -13289,25 +13289,21 @@ export function init(RuntimeName, PHPLoader) {
 		noop: function () {},
 		spawnProcess: function (command, args, options) {
 			if (Module['spawnProcess']) {
-				const spawnedPromise = Module['spawnProcess'](
-					command,
-					args,
-					options
-				);
-				return Promise.resolve(spawnedPromise).then(function (spawned) {
+				const spawned = Module['spawnProcess'](command, args, {
+					...options,
+					shell: true,
+					stdio: ['pipe', 'pipe', 'pipe'],
+				});
+				if (spawned && !('then' in spawned) && 'on' in spawned) {
+					return spawned;
+				}
+				return Promise.resolve(spawned).then(function (spawned) {
 					if (!spawned || !spawned.on) {
 						throw new Error(
 							'spawnProcess() must return an EventEmitter but returned a different type.'
 						);
 					}
 					return spawned;
-				});
-			}
-			if (ENVIRONMENT_IS_NODE) {
-				return require('child_process').spawn(command, args, {
-					...options,
-					shell: true,
-					stdio: ['pipe', 'pipe', 'pipe'],
 				});
 			}
 			const e = new Error(
@@ -24716,13 +24712,13 @@ export function init(RuntimeName, PHPLoader) {
 		___cxa_rethrow_primary_exception;
 	Module['___syscall_shutdown'] = ___syscall_shutdown;
 	var ASM_CONSTS = {
-		12292625: ($0) => {
+		12292609: ($0) => {
 			if (!$0) {
 				AL.alcErr = 40964;
 				return 1;
 			}
 		},
-		12292673: ($0) => {
+		12292657: ($0) => {
 			if (!AL.currentCtx) {
 				err('alGetProcAddress() called without a valid context');
 				return 1;

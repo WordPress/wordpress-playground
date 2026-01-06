@@ -3,12 +3,17 @@
 // this code in Node.js as an ES module.
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
-// Note: The path module is currently needed by code injected by the php-wasm Dockerfile.
+// Note: The path and url modules are currently needed by code injected by the php-wasm Dockerfile.
 import path from 'path';
+import { fileURLToPath } from 'url';
 
-const dependencyFilename = path.join(__dirname, '8_4_16', 'php_8_4.wasm');
+const currentDirPath =
+	typeof __dirname !== 'undefined'
+		? __dirname
+		: path.dirname(fileURLToPath(import.meta.url));
+const dependencyFilename = path.join(currentDirPath, '8_4_16', 'php_8_4.wasm');
 export { dependencyFilename };
-export const dependenciesTotalSize = 29264775;
+export const dependenciesTotalSize = 29265092;
 const phpVersionString = '8.4.16';
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
@@ -72,7 +77,7 @@ export function init(RuntimeName, PHPLoader) {
 		// the complexity of lazy-loading.
 		var fs = require('fs');
 
-		scriptDirectory = __dirname + '/';
+		scriptDirectory = currentDirPath + '/';
 
 		// include: node_shell_read.js
 		readBinary = (filename) => {

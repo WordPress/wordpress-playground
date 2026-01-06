@@ -8,8 +8,6 @@ import { viteTsConfigPaths } from '../../vite-extensions/vite-ts-config-paths';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { viteIgnoreImports } from '../../vite-extensions/vite-ignore-imports';
 // eslint-disable-next-line @nx/enforce-module-boundaries
-import { viteExternalDynamicImports } from '../../vite-extensions/vite-external-dynamic-imports';
-// eslint-disable-next-line @nx/enforce-module-boundaries
 import viteGlobalExtensions from '../../vite-extensions/vite-global-extensions';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { getExternalModules } from '../../vite-extensions/vite-external-modules';
@@ -29,28 +27,6 @@ export default defineConfig({
 		viteIgnoreImports({
 			extensions: ['wasm', 'so', 'dat'],
 		}),
-		/*
-		 * These transforms rewrite dynamic import paths so they work from the dist output.
-		 *
-		 * Each transform does two things:
-		 * 1. slice(-N) extracts the path segments we want to keep (strips the 'public' prefix)
-		 * 2. The '../' prefix compensates for the source file's directory depth
-		 *
-		 * Why the '../' prefix? Rollup computes the final import path relative to
-		 * where the source file was located. Since everything gets bundled into
-		 * index.js at the dist root, we need to "climb out" of the source directory
-		 * structure. Rollup then normalizes '../foo' to './foo' in the output.
-		 */
-		viteExternalDynamicImports([
-			{
-				// Source: src/lib/extensions/intl/with-intl.ts
-				// Input:  '../../../../public/shared/icu.dat'
-				// Output: './shared/icu.dat' (Vite copies public/ to dist output)
-				regex: /icu\.dat$/,
-				transform: (specifier) =>
-					`./${specifier.split('/').slice(-2).join('/')}`,
-			},
-		]),
 		...viteGlobalExtensions,
 	],
 
