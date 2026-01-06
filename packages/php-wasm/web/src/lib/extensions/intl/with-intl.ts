@@ -18,8 +18,7 @@ export async function withIntl(
 
 	const extensionPath = await getIntlExtensionModule(version);
 	// @ts-ignore
-	const dataPath = (await import('../../../../public/shared/icu.dat'))
-		.default;
+	const dataPath = (await import('./shared/icu.dat')).default;
 
 	const [extension, ICUData] = await Promise.all([
 		memoizedFetch(extensionPath).then((response) => response.arrayBuffer()),

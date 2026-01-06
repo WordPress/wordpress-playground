@@ -16,9 +16,9 @@ ARG PHP_VERSION
 # ./buildconf script is generated.
 ARG WITH_OPCACHE
 
-# Clone PHP
+# Clone PHP from a tag [ php-$PHP_VERSION ] instead of a branch [ PHP-$PHP_VERSION ]
 RUN git clone https://github.com/php/php-src.git php-src \
-	--branch PHP-$PHP_VERSION \
+	--branch php-$PHP_VERSION \
 	--single-branch  \
 	--depth 1;
 
@@ -2457,7 +2457,7 @@ RUN set -euxo pipefail; \
 		# But the alternative `onExit()` handling is conditional and has different semantics.
 		# To avoid bugs due to this change, let's just restore support for quit callback customization.
 		/root/replace.sh "s/(if\s*\(Module\[['\"]thisProgram['\"]\]\)\s*thisProgram\s*=\s*Module\[['\"]thisProgram['\"]\];)/\$1\nif (Module[\"quit\"]) quit_=Module[\"quit\"];/" /root/output/php.js; \
-	# Node.js: Add __dirname declaration and create a require() function
+	# Node.js: Create a require() function and add 'currentDirPath' declaration
 	# because Emscripten generates Node.js code that requires them.
 		if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then \
 			cat /root/esm-node-boilerplate.js >> /root/output/php-module.js; \
@@ -2466,7 +2466,8 @@ RUN set -euxo pipefail; \
 		# Manually turn the output into a esm module instead of relying on -s MODULARIZE=1.
 		# which pollutes the global namespace and does not play well with import() mechanics.
 		if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then \
-			echo "const dependencyFilename = path.join(__dirname, '${PHP_VERSION_ESCAPED}', '$WASM_FILENAME');" >> /root/output/php-module.js;\
+			echo "const dependencyFilename = path.join(currentDirPath, '${PHP_VERSION_ESCAPED}', '$WASM_FILENAME');" >> /root/output/php-module.js;\
+			/root/replace.sh "s/scriptDirectory\s*=\s*__dirname/scriptDirectory = currentDirPath/" /root/output/php.js; \
 		else \
 			echo "import dependencyFilename from './${PHP_VERSION_ESCAPED}/$WASM_FILENAME'; " >> /root/output/php-module.js; \
 		fi; \

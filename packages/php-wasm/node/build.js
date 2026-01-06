@@ -53,13 +53,6 @@ async function build() {
 			'packages/php-wasm/node/src/index.ts',
 			'packages/php-wasm/node/src/noop.ts',
 		],
-		banner: {
-			js: `import { createRequire as topLevelCreateRequire } from 'module';
-const require = topLevelCreateRequire(import.meta.url);
-const __filename = import.meta.filename;
-const __dirname = import.meta.dirname;
-`,
-		},
 		outdir: 'dist/packages/php-wasm/node',
 		platform: 'node',
 		assetNames: '[name]',

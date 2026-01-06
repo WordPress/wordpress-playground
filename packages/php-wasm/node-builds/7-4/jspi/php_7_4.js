@@ -3,15 +3,17 @@
 // this code in Node.js as an ES module.
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
-// Note: The path module is currently needed by code injected by the php-wasm Dockerfile.
-import { fileURLToPath } from 'url';
+// Note: The path and url modules are currently needed by code injected by the php-wasm Dockerfile.
 import path from 'path';
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+import { fileURLToPath } from 'url';
 
-const dependencyFilename = path.join(__dirname, '7_4_33', 'php_7_4.wasm');
+const currentDirPath =
+	typeof __dirname !== 'undefined'
+		? __dirname
+		: path.dirname(fileURLToPath(import.meta.url));
+const dependencyFilename = path.join(currentDirPath, '7_4_33', 'php_7_4.wasm');
 export { dependencyFilename };
-export const dependenciesTotalSize = 22427163;
+export const dependenciesTotalSize = 22427158;
 const phpVersionString = '7.4.33';
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
@@ -75,7 +77,7 @@ export function init(RuntimeName, PHPLoader) {
 		// the complexity of lazy-loading.
 		var fs = require('fs');
 
-		scriptDirectory = __dirname + '/';
+		scriptDirectory = currentDirPath + '/';
 
 		// include: node_shell_read.js
 		readBinary = (filename) => {
@@ -30972,13 +30974,13 @@ export function init(RuntimeName, PHPLoader) {
 	// end include: postlibrary.js
 
 	var ASM_CONSTS = {
-		11305970: ($0) => {
+		11305954: ($0) => {
 			if (!$0) {
 				AL.alcErr = 0xa004;
 				return 1;
 			}
 		},
-		11306018: ($0) => {
+		11306002: ($0) => {
 			if (!AL.currentCtx) {
 				err('alGetProcAddress() called without a valid context');
 				return 1;

@@ -1,6 +1,6 @@
 import dependencyFilename from './7_2_34/php_7_2.wasm';
 export { dependencyFilename };
-export const dependenciesTotalSize = 19763591;
+export const dependenciesTotalSize = 19763601;
 const phpVersionString = '7.2.34';
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
@@ -13165,25 +13165,21 @@ export function init(RuntimeName, PHPLoader) {
 		noop: function () {},
 		spawnProcess: function (command, args, options) {
 			if (Module['spawnProcess']) {
-				const spawnedPromise = Module['spawnProcess'](
-					command,
-					args,
-					options
-				);
-				return Promise.resolve(spawnedPromise).then(function (spawned) {
+				const spawned = Module['spawnProcess'](command, args, {
+					...options,
+					shell: true,
+					stdio: ['pipe', 'pipe', 'pipe'],
+				});
+				if (spawned && !('then' in spawned) && 'on' in spawned) {
+					return spawned;
+				}
+				return Promise.resolve(spawned).then(function (spawned) {
 					if (!spawned || !spawned.on) {
 						throw new Error(
 							'spawnProcess() must return an EventEmitter but returned a different type.'
 						);
 					}
 					return spawned;
-				});
-			}
-			if (ENVIRONMENT_IS_NODE) {
-				return require('child_process').spawn(command, args, {
-					...options,
-					shell: true,
-					stdio: ['pipe', 'pipe', 'pipe'],
 				});
 			}
 			const e = new Error(
@@ -24490,13 +24486,13 @@ export function init(RuntimeName, PHPLoader) {
 	Module['_sched_yield'] = _sched_yield;
 	Module['___syscall_shutdown'] = ___syscall_shutdown;
 	var ASM_CONSTS = {
-		10533362: ($0) => {
+		10533346: ($0) => {
 			if (!$0) {
 				AL.alcErr = 40964;
 				return 1;
 			}
 		},
-		10533410: ($0) => {
+		10533394: ($0) => {
 			if (!AL.currentCtx) {
 				err('alGetProcAddress() called without a valid context');
 				return 1;

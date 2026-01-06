@@ -9,6 +9,28 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
+## [v3.0.37] (2026-01-06) 
+
+### PHP WebAssembly
+
+- [PHP] Refactor files following up on split PHP.wasm packages. ([#3085](https://github.com/WordPress/wordpress-playground/pull/3085))
+
+### Bug Fixes
+
+- Exclude wordpress-builds/public path in dependabot. ([#3088](https://github.com/WordPress/wordpress-playground/pull/3088))
+
+### Various
+
+- Update `express` dependency to 4.22.0 to fix `qs` security issue. ([#3089](https://github.com/WordPress/wordpress-playground/pull/3089))
+- [i18n] Docs: Add Bengali translation for contributor-day-table-lead.md. ([#3087](https://github.com/WordPress/wordpress-playground/pull/3087))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@mho22 @noruzzamans
+
+
 ## [v3.0.36] (2026-01-05) 
 
 
