@@ -147,7 +147,8 @@ ARG EMSCRIPTEN_ENVIRONMENT=web
 RUN touch /root/.configure-flags && \
 	touch /root/.emcc-php-wasm-flags && \
 	touch /root/.emcc-php-wasm-sources && \
-	touch /root/.EXPORTED_FUNCTIONS
+	touch /root/.JS_ABI_EXPORTS && \
+	touch /root/.WASM_ABI_EXPORTS
 
 # Grab Bison 2.7 patch in case we need it
 COPY ./compile/bison2.7/bison27.patch /root/bison27.patch
@@ -207,7 +208,7 @@ RUN if [ "$WITH_CLI_SAPI" = "yes" ]; \
 			'/root/php-src/sapi/cli/php_http_parser.c /root/php-src/sapi/cli/php_cli_server.c ' \
 			'/root/php-src/sapi/cli/php_cli.c ' \
 			>> /root/.emcc-php-wasm-sources && \
-		echo -n ', "_run_cli", "_wasm_add_cli_arg"' >> /root/.EXPORTED_FUNCTIONS && \
+		echo "_run_cli" >> /root/.JS_ABI_EXPORTS && echo "_wasm_add_cli_arg" >> /root/.JS_ABI_EXPORTS && \
 		echo -n ' -DWITH_CLI_SAPI=1 ' >> /root/.emcc-php-wasm-flags && \
 		/root/replace.sh 's/GET_SHELL_CB\(cb\);/(cb) = php_cli_get_shell_callbacks();/g' /root/php-src/ext/readline/readline_cli.c; \
 		# Avoid a symbol conflict between php_cli.c and php_embed.c
@@ -594,7 +595,7 @@ RUN source /root/emsdk/emsdk_env.sh && \
 	# We're compiling PHP as emscripten's side module...
 	export JSPI_FLAGS=$(if [ "$WITH_JSPI" = "yes" ]; then echo "-sSUPPORT_LONGJMP=wasm -fwasm-exceptions"; else echo ""; fi) && \
 	export PHP_VERSION_ESCAPED="${PHP_VERSION//./_}" && \
-	EMCC_FLAGS=" -D__x86_64__ -sSIDE_MODULE -Dsetsockopt=wasm_setsockopt -Dphp_exec=wasm_php_exec \
+	EMCC_FLAGS=" -D__x86_64__ -sSIDE_MODULE -Dsetsockopt=wasm_setsockopt -Dphp_exec=wasm_php_exec -Drecv=wasm_recv \
 		$JSPI_FLAGS \
 		-fdebug-compilation-dir=${DEBUG_DWARF_COMPILATION_DIR}/ \
 		-fdebug-prefix-map=/root/php-src/=${OUTPUT_DIR_ON_HOST}/${PHP_VERSION_ESCAPED}/php-src/ " \
@@ -683,28 +684,47 @@ RUN if [ "$WITH_WS_NETWORKING_PROXY" = "yes" ]; \
 # TODO: Consider reverting asyncify additions before merging this PR if file locking doesn't support asyncify.
 COPY ./compile/php/asyncify-imports.list /root/asyncify-imports.list
 RUN sed 's/.*/"&",/' /root/asyncify-imports.list \
-    | sed '$ s/,$//' \
-    | sed '1s/^/[\n/; $s/$/\n]/' \
-    | tr -d "\n" \
-    | sed 's/^/ -s ASYNCIFY_IMPORTS=/' \
-    >> /root/.emcc-php-asyncify-flags
+	| sed '$ s/,$//' \
+	| sed '1s/^/[\n/; $s/$/\n]/' \
+	| tr -d "\n" \
+	| sed 's/^/ -s ASYNCIFY_IMPORTS=/' \
+	>> /root/.emcc-php-asyncify-flags
 
 COPY ./compile/php/asyncify-only.list /root/asyncify-only.list
 RUN sed 's/.*/"&",/' /root/asyncify-only.list \
-    | sed '$ s/,$//' \
-    | sed '1s/^/[\n/; $s/$/\n]/' \
-    | tr -d "\n" \
-    | sed 's/^/ -s ASYNCIFY_ONLY=/' \
-    >> /root/.emcc-php-asyncify-flags
+	| sed '$ s/,$//' \
+	| sed '1s/^/[\n/; $s/$/\n]/' \
+	| tr -d "\n" \
+	| sed 's/^/ -s ASYNCIFY_ONLY=/' \
+	>> /root/.emcc-php-asyncify-flags
+
+COPY ./compile/php/exported-functions.list /root/exported-functions.list
+RUN cat /root/exported-functions.list >> /root/.JS_ABI_EXPORTS
 
 COPY ./${EMSCRIPTEN_ENVIRONMENT}-builds/ /root/${EMSCRIPTEN_ENVIRONMENT}-builds
+RUN set -eux; \
+	PHP_VERSION_DIR="$(echo "$PHP_VERSION" | cut -d. -f1,2 | tr . -)"; \
+	JSPI_DIR=$([ "$WITH_JSPI" = "yes" ] && echo "jspi" || echo "asyncify"); \
+	EXTENSIONS_DIR_PATH="/root/${EMSCRIPTEN_ENVIRONMENT}-builds/${PHP_VERSION_DIR}/${JSPI_DIR}/extensions"; \
+	for path in "$EXTENSIONS_DIR_PATH"/*; do \
+		extension="${path##*/}"; \
+		cat "$EXTENSIONS_DIR_PATH/${extension}/${extension}.globals.list" >> /root/.JS_ABI_EXPORTS; \
+		cat "$EXTENSIONS_DIR_PATH/${extension}/${extension}.exports.list" >> /root/.WASM_ABI_EXPORTS; \
+	done
 
 RUN set -eux; \
-    PHP_VERSION_DIR="$(echo "$PHP_VERSION" | cut -d. -f1,2 | tr . -)"; \
-	JSPI_DIR=$([ "$WITH_JSPI" = "yes" ] && echo "jspi" || echo "asyncify"); \
-    mkdir -p /root/extensions; \
-    cp /root/${EMSCRIPTEN_ENVIRONMENT}-builds/${PHP_VERSION_DIR}/${JSPI_DIR}/extensions/intl/intl.so /root/extensions/intl.so; \
-    cp /root/${EMSCRIPTEN_ENVIRONMENT}-builds/${PHP_VERSION_DIR}/${JSPI_DIR}/extensions/xdebug/xdebug.so /root/extensions/xdebug.so
+	sort -u /root/.JS_ABI_EXPORTS | \
+	grep -v '^[[:space:]]*$' | \
+	sed 's/^/  "/; s/$/",/' | \
+	sed '$ s/,$//' | \
+	{ echo '['; cat; echo ']'; } \
+	> /root/.exported-functions
+
+RUN set -eux; \
+	sort -u /root/.WASM_ABI_EXPORTS | \
+	grep -v '^[[:space:]]*$' | \
+	sed 's/^/-Wl,--export=/' \
+	> /root/.wasm-exports
 
 # Build the final .wasm file
 RUN mkdir /root/output
@@ -726,36 +746,6 @@ RUN set -euxo pipefail; \
 		export ASYNCIFY_FLAGS=" -s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1 -s EXPORTED_RUNTIME_METHODS=HEAPU32,HEAPU8,ccall,PROXYFS,wasmExports $(cat /root/.emcc-php-asyncify-flags)  "; \
 		echo '' > /root/php_wasm_asyncify.h; \
 	fi; \
-	export EXPORTED_FUNCTIONS=$'["_exit", \n\
-"UTF8ToString", \n\
-"stringToUTF8", \n\
-"lengthBytesUTF8", \n\
-"FS", \n\
-"_malloc", \n\
-"___errno_location", \n\
-"___wrap_select", \n\
-"_wasm_set_sapi_name", \n\
-"_php_wasm_init", \n\
-"_emscripten_sleep", \n\
-"_wasm_sleep", \n\
-"_wasm_set_phpini_path", \n\
-"_wasm_add_SERVER_entry", \n\
-"_wasm_add_ENV_entry", \n\
-"_wasm_read", \n\
-"_wasm_free", \n\
-"_wasm_sapi_handle_request", \n\
-"_wasm_sapi_request_shutdown", \n\
-"_wasm_set_content_length", \n\
-"_wasm_set_content_type", \n\
-"_wasm_set_cookies", \n\
-"_wasm_set_path_translated", \n\
-"_wasm_set_query_string", \n\
-"_wasm_set_request_body", \n\
-"_wasm_set_request_host", \n\
-"_wasm_set_request_method", \n\
-"_wasm_set_request_port", \n\
-"_wasm_set_request_uri", \n\
-"_wasm_set_skip_shebang" '"$(cat /root/.EXPORTED_FUNCTIONS)"']'; \
 	export OPTIMIZATION_FLAGS="-O3"; \
 	if [ "${WITH_SOURCEMAPS}" = "yes" ] || [ "${WITH_DEBUG}" = "yes" ]; then \
 		export OPTIMIZATION_FLAGS="-O0"; \
@@ -789,10 +779,8 @@ RUN set -euxo pipefail; \
 	-lproxyfs.js \
 	$ASYNCIFY_FLAGS \
 	$(cat /root/.emcc-php-wasm-flags) \
-	/root/extensions/intl.so \
-	/root/extensions/xdebug.so \
 	-s MAIN_MODULE=2 \
-	-s EXPORTED_FUNCTIONS="$EXPORTED_FUNCTIONS" \
+	-s EXPORTED_FUNCTIONS=@/root/.exported-functions \
 	-s WASM_BIGINT=1 \
 	-s MIN_NODE_VERSION=200900 \
 	-s INITIAL_MEMORY=1024MB \
@@ -805,6 +793,7 @@ RUN set -euxo pipefail; \
 	-s INVOKE_RUN=0 \
 	-o /build/output/php.js \
 	-s EXIT_RUNTIME=1 \
+	-Wl,@/root/.wasm-exports \
 	-Wl,--wrap=select \
 	-Wl,--wrap=usleep \
 		/root/lib/libphp.a \

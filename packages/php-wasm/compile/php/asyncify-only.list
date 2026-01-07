@@ -9,7 +9,6 @@ Curl_socket_check
 Curl_ssl_connect_nonblocking
 Curl_wait_ms
 EVP_PKEY_encrypt
-IsDelegateCacheInstantiated
 MagickReadImageFile
 PHPWasm_Magick_ImageToFile
 PHPWasm_Magick_ReadBlob
@@ -17,7 +16,6 @@ PHPWasm_Magick_ReadBlobStream
 PHPWasm_Magick_ReadImage
 PHPWasm_Magick_SetImageInfo
 RAND_bytes
-RAND_poll
 RAND_status
 RSA_padding_add_PKCS1_OAEP_mgf1
 ReadImage
@@ -96,7 +94,6 @@ __fwritex
 __netlink_enumerate
 __overflow
 __stdio_close
-__synccall
 __toread
 __uflow
 __vfprintf_internal
@@ -113,10 +110,8 @@ _estrdup
 _is_numeric_string_ex
 _pcre2_memctl_malloc_8
 _pdo_mysql_error
-_php_error_log_ex
 _php_image_create_from
 _php_import_environment_variables
-_php_libxml_pre_ext_ent_loader
 _php_stream_cast
 _php_stream_copy_to_mem
 _php_stream_copy_to_stream_ex
@@ -132,7 +127,6 @@ _php_stream_open_wrapper_ex
 _php_stream_opendir
 _php_stream_passthru
 _php_stream_read
-_php_stream_rmdir
 _php_stream_seek
 _php_stream_set_option
 _php_stream_stat
@@ -151,7 +145,6 @@ _zend_new_array_0
 _zend_observer_class_linked_notify
 _zend_observer_error_notify
 _zend_observer_function_declared_notify
-add_property_resource_ex
 bsearch
 btreeEndTransaction
 call
@@ -165,7 +158,6 @@ close
 closeUnixFile
 close_stmt_and_copy_errors
 compile_file
-compile_filename
 cookieread
 createCollation
 createFunctionApi
@@ -233,7 +225,6 @@ dynCall_jijj
 dynCall_jj
 dynCall_vid
 dynCall_vii
-dynCall_viidii
 dynCall_viii
 dynCall_viiii
 dynCall_viiiii
@@ -247,7 +238,6 @@ dynCall_vijii
 dynCall_vji
 dynCall_vjiii
 execute_ex
-execute_internal
 exif_error_docref
 fclose
 fcntl
@@ -269,7 +259,6 @@ iter_wrapper_get_gc
 lex_scan
 list_entry_destructor
 load_wsdl_ex
-main
 make_http_soap_request
 module_destructor
 module_destructor_zval
@@ -322,7 +311,6 @@ mysqlnd_read_header
 mysqlnd_read_packet_header_and_body
 mysqlnd_run_authentication
 mysqlnd_stmt_execute_parse_response
-object_and_properties_init
 object_init_ex
 openDatabase
 open_file_for_scanning
@@ -373,7 +361,6 @@ php_call_shutdown_functions
 php_cli_server_do_event_for_each_fd_callback
 php_cli_server_recv_event_read_request
 php_crc32_stream_bulk_update
-php_embed_startup
 php_error_docref
 php_exec_ex
 php_execute_script
@@ -400,14 +387,12 @@ php_mysqlnd_rset_header_read
 php_mysqlnd_sha256_pk_request_response_read
 php_network_accept_incoming
 php_network_connect_socket
-php_network_connect_socket_to_host
 php_openssl_sockop_close
 php_openssl_sockop_io
 php_openssl_sockop_read
 php_openssl_sockop_set_option
 php_openssl_sockop_write
 php_pcre_replace_func_impl
-php_pdo_free_statement
 php_pollfd_for
 php_replace_in_subject_func
 php_request_shutdown
@@ -421,14 +406,11 @@ php_stdiop_read
 php_stdiop_set_option
 php_stdiop_write
 php_stream_bucket_attach
-php_stream_context_free
 php_stream_filter_append_ex
 php_stream_filter_create
 php_stream_filter_free
 php_stream_filter_register_factory
 php_stream_filter_remove
-php_stream_notification_free
-php_stream_notification_notify
 php_stream_open_for_zend
 php_stream_read_to_str
 php_stream_temp_cast
@@ -461,7 +443,6 @@ pkey_rsa_encrypt
 plist_entry_destructor
 pop_arg
 pow_function
-preg_replace_func_impl
 printf_core
 proc_open_rsrc_dtor
 ptrmapPutOvflPtr
@@ -488,7 +469,6 @@ shutdown_destructors
 shutdown_executor
 singleipconnect
 slow_index_convert
-smart_str_append_printf
 smart_str_erealloc
 soap_xmlParseFile
 spl_append_it_fetch
@@ -676,7 +656,6 @@ xmlDefaultExternalEntityLoader
 xmlLoadExternalEntity
 xmlNewInputFromFile
 xmlParserInputBufferCreateFilename
-zend_activate_auto_globals
 zend_activate_modules
 zend_add_class_name_literal
 zend_add_helper_SPEC
@@ -707,7 +686,6 @@ zend_deactivate
 zend_default_exception_new
 zend_deprecated_function
 zend_destroy_file_handle
-zend_destroy_modules
 zend_destroy_rsrc_list
 zend_emit_op
 zend_emit_op_tmp
@@ -716,7 +694,6 @@ zend_error
 zend_error_noreturn
 zend_error_va
 zend_error_va_list
-zend_error_zstr
 zend_error_zstr_at
 zend_eval_const_expr
 zend_eval_string
@@ -726,7 +703,6 @@ zend_exception_error
 zend_exception_restore
 zend_execute
 zend_execute_script
-zend_execute_scripts
 zend_extension_statement_handler
 zend_fe_reset_iterator
 zend_fetch_class_by_name
@@ -759,28 +735,22 @@ zend_list_free
 zend_llist_apply
 zend_llist_apply_with_argument
 zend_llist_apply_with_arguments
-zend_llist_apply_with_del
 zend_llist_del_element
 zend_llist_destroy
 zend_load_extension_handle
 zend_lookup_class_ex
-zend_merge_properties
 zend_message_dispatcher
 zend_mm_alloc_huge
 zend_mm_free_huge
 zend_mm_free_pages
 zend_mm_gc
 zend_mm_realloc_huge
-zend_multibyte_check_lexer_compatibility
-zend_non_static_method_call
 zend_objects_destroy_object
 zend_objects_store_call_destructors
 zend_objects_store_del
-zend_objects_store_free_object_storage
 zend_observer_fcall_begin
 zend_observer_fcall_begin_prechecked
 zend_observer_fcall_end_prechecked
-zend_parse_arg
 zend_parse_arg_number_or_str_slow
 zend_parse_arg_str_weak
 zend_parse_ini_file
@@ -794,7 +764,6 @@ zend_print_zval
 zend_print_zval_r
 zend_print_zval_r_to_buf
 zend_ptr_stack_clean
-zend_ptr_stack_reverse_apply
 zend_read_property
 zend_read_property_ex
 zend_readonly_property_modification_error
@@ -849,7 +818,6 @@ zend_unset_property
 zend_update_class_constant
 zend_update_class_constants
 zend_update_property
-zend_update_property_ex
 zend_update_property_long
 zend_update_property_str
 zend_update_property_string
@@ -863,7 +831,6 @@ zend_vm_stack_extend
 zend_vspprintf
 zend_vstrpprintf
 zend_wrong_assign_to_variable_reference
-zend_wrong_clone_call
 zend_wrong_property_read
 zendi_smart_streq
 zendi_try_get_long

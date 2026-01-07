@@ -161,3 +161,18 @@ RUN	/root/emsdk/upstream/bin/wasm-opt -Oz \
 		--enable-exception-handling \
 		/root/xdebug/modules/xdebug.so \
 		-o /root/xdebug/modules/xdebug.so;
+
+# List globals symbols from Xdebug [ env func and globals without invoke_ and libc++(_Z) prefixed ones ]
+RUN	/root/emsdk/upstream/bin/wasm-dis /root/xdebug/modules/xdebug.so \
+	| sed -n 's/^[[:space:]]*(import "env" "\([^"]*\)"[[:space:]]*(\(func\|global\).*/\1/p' \
+	| sed '/^invoke_/d' \
+	| sed '/^_Z/d' \
+	| sed 's/^/_/' \
+	| sort \
+	> /root/xdebug/modules/xdebug.globals.list;
+
+# List exports symbols from Xdebug [ GOT.mem and GOT.func globals ]
+RUN	/root/emsdk/upstream/bin/wasm-dis /root/xdebug/modules/xdebug.so \
+	| sed -n 's/^[[:space:]]*(import "\(GOT\.mem\|GOT\.func\)" "\([^"]*\)"[[:space:]]*(global.*/\2/p' \
+	| sort \
+	> /root/xdebug/modules/xdebug.exports.list;
