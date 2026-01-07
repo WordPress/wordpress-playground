@@ -3,153 +3,47 @@
 @import url('../../../../node_modules/@wordpress/components/build-style/style.css');
 @import url('../../../../node_modules/@wordpress/dataviews/build-style/style.css');
 
-/* http://meyerweb.com/eric/tools/css/reset/ 
-   v2.0 | 20110126
-   License: none (public domain)
-*/
+/*
+ * Minimal Modern CSS Reset
+ */
 
-html,
-body,
-div,
-span,
-applet,
-object,
-iframe,
-h1,
-h2,
-h3,
-h4,
-h5,
-h6,
-p,
-blockquote,
-pre,
-a,
-abbr,
-acronym,
-address,
-big,
-cite,
-code,
-del,
-dfn,
-em,
-img,
-ins,
-kbd,
-q,
-s,
-samp,
-small,
-strike,
-strong,
-sub,
-sup,
-tt,
-var,
-b,
-u,
-i,
-center,
-dl,
-dt,
-dd,
-ol,
-ul,
-li,
-fieldset,
-form,
-label,
-legend,
-table,
-caption,
-tbody,
-tfoot,
-thead,
-tr,
-th,
-td,
-article,
-aside,
-canvas,
-details,
-embed,
-figure,
-figcaption,
-footer,
-header,
-hgroup,
-menu,
-nav,
-output,
-ruby,
-section,
-summary,
-time,
-mark,
-audio,
-video {
+*,
+*::before,
+*::after {
+	box-sizing: border-box;
 	margin: 0;
 	padding: 0;
-	border: 0;
-	font-size: 100%;
-	font: inherit;
-	vertical-align: baseline;
-}
-/* HTML5 display-role reset for older browsers */
-article,
-aside,
-details,
-figcaption,
-figure,
-footer,
-header,
-hgroup,
-menu,
-nav,
-section {
-	display: block;
-}
-body {
-	line-height: 1;
-}
-ol,
-ul {
-	list-style: none;
-}
-blockquote,
-q {
-	quotes: none;
-}
-blockquote:before,
-blockquote:after,
-q:before,
-q:after {
-	content: '';
-	content: none;
-}
-table {
-	border-collapse: collapse;
-	border-spacing: 0;
 }
 
 html {
 	overflow: hidden;
 }
 
+ol,
+ul {
+	list-style: none;
+}
+
+table {
+	border-collapse: collapse;
+	border-spacing: 0;
+}
+
 /**
  * Playground styles
  */
-
-* {
-	box-sizing: border-box;
-}
 
 :root {
 	--color-gray-200: #ddd;
 	--color-gray-600: #6a6a6a;
 	--color-gray-900: #1e1e1e;
 	--color-alert-red: #cc1818;
+	--wp-admin-theme-color: #007cba;
+	--wp-admin-theme-color--rgb: 0, 124, 186;
+	--wp-admin-theme-color-darker-10: #006ba1;
+	--wp-admin-theme-color-darker-10--rgb: 0, 107, 161;
+	--wp-admin-theme-color-darker-20: #005a87;
+	--wp-admin-theme-color-darker-20--rgb: 0, 90, 135;
 }
 
 html,
@@ -159,19 +53,11 @@ body {
 	height: 100%;
 	/* The same font settings as in wp-admin */
 	font-size: 13px;
-	font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
-		Oxygen-Sans, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;
+	font-family:
+		-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen-Sans,
+		Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;
 	line-height: 1.3;
 	font-weight: 300;
-}
-
-:root {
-	--wp-admin-theme-color: #007cba;
-	--wp-admin-theme-color--rgb: 0, 124, 186;
-	--wp-admin-theme-color-darker-10: #006ba1;
-	--wp-admin-theme-color-darker-10--rgb: 0, 107, 161;
-	--wp-admin-theme-color-darker-20: #005a87;
-	--wp-admin-theme-color-darker-20--rgb: 0, 90, 135;
 }
 
 .components-button.is-link {
