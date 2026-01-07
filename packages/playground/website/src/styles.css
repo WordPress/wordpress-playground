@@ -4,29 +4,67 @@
 @import url('../../../../node_modules/@wordpress/dataviews/build-style/style.css');
 
 /*
- * Minimal Modern CSS Reset
- */
+  Josh's Custom CSS Reset
+  https://www.joshwcomeau.com/css/custom-css-reset/
+*/
 
 *,
 *::before,
 *::after {
 	box-sizing: border-box;
+}
+
+*:not(dialog) {
 	margin: 0;
-	padding: 0;
 }
 
-html {
-	overflow: hidden;
+@media (prefers-reduced-motion: no-preference) {
+	html {
+		interpolate-size: allow-keywords;
+	}
 }
 
-ol,
-ul {
-	list-style: none;
+body {
+	line-height: 1.5;
+	-webkit-font-smoothing: antialiased;
 }
 
-table {
-	border-collapse: collapse;
-	border-spacing: 0;
+img,
+picture,
+video,
+canvas,
+svg {
+	display: block;
+	max-width: 100%;
+}
+
+input,
+button,
+textarea,
+select {
+	font: inherit;
+}
+
+p,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+	overflow-wrap: break-word;
+}
+
+p {
+	text-wrap: pretty;
+}
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+	text-wrap: balance;
 }
 
 /**
