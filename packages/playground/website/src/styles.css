@@ -38,6 +38,11 @@ table {
 	--color-gray-600: #6a6a6a;
 	--color-gray-900: #1e1e1e;
 	--color-alert-red: #cc1818;
+	--color-white: #fff;
+	--color-shadow: 0, 0, 0;
+	--color-success: #4caf50;
+	--color-success-hover: #45a049;
+	--color-success-active: #387c3b;
 	--wp-admin-theme-color: #007cba;
 	--wp-admin-theme-color--rgb: 0, 124, 186;
 	--wp-admin-theme-color-darker-10: #006ba1;
@@ -101,7 +106,7 @@ h4 {
 }
 
 .sr-only:not(:focus):not(:active) {
-	clip: rect(0 0 0 0);
+	clip: rect(0, 0, 0, 0);
 	clip-path: inset(50%);
 	height: 1px;
 	overflow: hidden;
@@ -121,28 +126,29 @@ h4 {
 	align-items: center;
 }
 
+/* Lazy load button */
 #lazy-load-initiator {
 	display: inline-block;
-	background-color: #4caf50; /* Change this color to your desired green */
-	color: white;
+	background-color: var(--color-success);
+	color: var(--color-white);
 	padding: 10px 20px;
 	text-align: center;
 	text-decoration: none;
 	font-size: 34px;
 	border-radius: 4px;
-	transition: all 0.3s ease 0s;
-	box-shadow: 0px 5px 15px rgba(0, 0, 0, 0.2); /* This creates the shadow effect */
+	transition: all 0.3s ease;
+	box-shadow: 0 5px 15px rgba(var(--color-shadow), 0.2);
 }
 
 #lazy-load-initiator:hover {
-	background-color: #45a049; /* A darker shade of green for hover */
-	box-shadow: 0px 2px 10px rgba(0, 0, 0, 0.4); /* Increased shadow on hover */
+	background-color: var(--color-success-hover);
+	box-shadow: 0 2px 10px rgba(var(--color-shadow), 0.4);
 }
 
 #lazy-load-initiator:active {
-	background-color: #387c3b; /* An even darker shade of green for active click */
-	box-shadow: 0px 1px 5px rgba(0, 0, 0, 0.4); /* Less shadow during active click */
-	transform: translateY(2px); /* Button is pressed down a bit */
+	background-color: var(--color-success-active);
+	box-shadow: 0 1px 5px rgba(var(--color-shadow), 0.4);
+	transform: translateY(2px);
 }
 
 .typography p {
