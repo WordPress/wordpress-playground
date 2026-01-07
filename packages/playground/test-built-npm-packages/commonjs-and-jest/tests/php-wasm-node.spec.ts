@@ -1,12 +1,5 @@
 /**
  * Test that @php-wasm/node works directly in Jest (CommonJS environment).
- *
- * This test verifies that the published @php-wasm/node package can be used
- * directly in Jest without requiring --experimental-vm-modules or spawning
- * a separate process via runCLI().
- *
- * Related issue: The per-version packages (@php-wasm/node-8-3, etc.) contain
- * ESM syntax (import.meta.url) that breaks in Jest's CommonJS sandbox.
  */
 
 const originalNode = jest.requireActual('@php-wasm/node');
