@@ -1406,6 +1406,7 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "php_pcre_replace_func_impl",\
 "php_pdo_free_statement",\
 "php_pollfd_for",\
+"php_printf_to_smart_str",\
 "php_replace_in_subject_func",\
 "php_request_shutdown",\
 "php_sock_stream_wait_for_data",\
@@ -1438,6 +1439,7 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "php_stream_xport_register",\
 "php_tcp_sockop_set_option",\
 "php_tick_iterator",\
+"php_unserialize_with_options",\
 "php_url_encode_hash_ex",\
 "php_userstreamop_read",\
 "php_userstreamop_set_option",\
@@ -1751,6 +1753,7 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "wasm_sapi_request_shutdown",\
 "wasm_sleep",\
 "wrapper_cmp",\
+"xbuf_format_converter",\
 "yy_reduce",\
 "zend_activate_auto_globals",\
 "zend_activate_modules",\
