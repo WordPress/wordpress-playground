@@ -15,7 +15,7 @@ const currentDirPath =
 		: path.dirname(fileURLToPath(import.meta.url));
 const dependencyFilename = path.join(currentDirPath, '8_4_16', 'php_8_4.wasm');
 export { dependencyFilename };
-export const dependenciesTotalSize = 29869880;
+export const dependenciesTotalSize = 29265082;
 const phpVersionString = '8.4.16';
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
@@ -320,6 +320,19 @@ export function init(RuntimeName, PHPLoader) {
 		// definition for WebAssembly.RuntimeError claims it takes no arguments even
 		// though it can.
 		// TODO(https://github.com/google/closure-compiler/pull/3913): Remove if/when upstream closure gets fixed.
+		// See above, in the meantime, we resort to wasm code for trapping.
+		//
+		// In case abort() is called before the module is initialized, wasmExports
+		// and its exported '__trap' function is not available, in which case we throw
+		// a RuntimeError.
+		//
+		// We trap instead of throwing RuntimeError to prevent infinite-looping in
+		// Wasm EH code (because RuntimeError is considered as a foreign exception and
+		// caught by 'catch_all'), but in case throwing RuntimeError is fine because
+		// the module has not even been instantiated, even less running.
+		if (runtimeInitialized) {
+			___trap();
+		}
 		/** @suppress {checkTypes} */
 		var e = new WebAssembly.RuntimeError(what);
 
@@ -405,6 +418,10 @@ export function init(RuntimeName, PHPLoader) {
 	}
 
 	function getWasmImports() {
+		// instrumenting imports is used in asyncify in two ways: to add assertions
+		// that check for proper import use, and for ASYNCIFY=2 we use them to set up
+		// the Promise API on the import side.
+		Asyncify.instrumentWasmImports(wasmImports);
 		// prepare imports
 		var imports = {
 			env: wasmImports,
@@ -563,22 +580,6 @@ export function init(RuntimeName, PHPLoader) {
 		runDependencies++;
 
 		Module['monitorRunDependencies']?.(runDependencies);
-	};
-
-	var dynCalls = {};
-	var dynCallLegacy = (sig, ptr, args) => {
-		sig = sig.replace(/p/g, 'i');
-		var f = dynCalls[sig];
-		return f(ptr, ...args);
-	};
-	var dynCall = (sig, ptr, args = [], promising = false) => {
-		var rtn = dynCallLegacy(sig, ptr, args);
-
-		function convert(rtn) {
-			return rtn;
-		}
-
-		return convert(rtn);
 	};
 
 	var UTF8Decoder = globalThis.TextDecoder && new TextDecoder();
@@ -886,6 +887,10 @@ export function init(RuntimeName, PHPLoader) {
 		if (!func) {
 			/** @suppress {checkTypes} */
 			wasmTableMirror[funcPtr] = func = wasmTable.get(funcPtr);
+			if (Asyncify.isAsyncExport(func)) {
+				wasmTableMirror[funcPtr] = func =
+					Asyncify.makeAsyncFunction(func);
+			}
 		}
 		return func;
 	};
@@ -1111,42 +1116,10 @@ export function init(RuntimeName, PHPLoader) {
 
 	var createNamedFunction = (name, func) =>
 		Object.defineProperty(func, 'name', { value: name });
-
-	var stackSave = () => _emscripten_stack_get_current();
-
-	var stackRestore = (val) => __emscripten_stack_restore(val);
-	var createInvokeFunction =
-		(sig) =>
-		(ptr, ...args) => {
-			var sp = stackSave();
-			try {
-				return dynCall(sig, ptr, args);
-			} catch (e) {
-				stackRestore(sp);
-				// Create a try-catch guard that rethrows the Emscripten EH exception.
-				// Exceptions thrown from C++ will be a pointer (number) and longjmp
-				// will throw the number Infinity. Use the compact and fast "e !== e+0"
-				// test to check if e was not a Number.
-				if (e !== e + 0) throw e;
-				_setThrew(1, 0);
-				// In theory this if statement could be done on
-				// creating the function, but I just added this to
-				// save wasting code space as it only happens on exception.
-				if (sig[0] == 'j') return 0n;
-			}
-		};
 	var resolveGlobalSymbol = (symName, direct = false) => {
 		var sym;
 		if (isSymbolDefined(symName)) {
 			sym = wasmImports[symName];
-		}
-		// Asm.js-style exception handling: invoke wrapper generation
-		else if (symName.startsWith('invoke_')) {
-			// Create (and cache) new invoke_ functions on demand.
-			sym = wasmImports[symName] = createNamedFunction(
-				symName,
-				createInvokeFunction(symName.split('_')[1])
-			);
 		}
 		return { sym, name: symName };
 	};
@@ -1415,7 +1388,6 @@ export function init(RuntimeName, PHPLoader) {
 	};
 
 	var mergeLibSymbols = (exports, libName) => {
-		registerDynCallSymbols(exports);
 		// add symbols into global namespace TODO: weak linking etc.
 		for (var [sym, exp] of Object.entries(exports)) {
 			// When RTLD_GLOBAL is enabled, the symbols defined by this shared object
@@ -1562,6 +1534,9 @@ export function init(RuntimeName, PHPLoader) {
 		return rpath;
 	};
 
+	var stackSave = () => _emscripten_stack_get_current();
+
+	var stackRestore = (val) => __emscripten_stack_restore(val);
 	var withStackSave = (f) => {
 		var stack = stackSave();
 		var ret = f();
@@ -4880,17 +4855,6 @@ export function init(RuntimeName, PHPLoader) {
 		});
 	};
 
-	var registerDynCallSymbols = (exports) => {
-		for (var [sym, exp] of Object.entries(exports)) {
-			if (sym.startsWith('dynCall_')) {
-				var sig = sym.substring(8);
-				if (!dynCalls.hasOwnProperty(sig)) {
-					dynCalls[sig] = exp;
-				}
-			}
-		}
-	};
-
 	/**
 	 * @param {number=} handle
 	 * @param {Object=} localScope
@@ -4911,7 +4875,6 @@ export function init(RuntimeName, PHPLoader) {
 				if (localScope) {
 					Object.assign(localScope, dso.exports);
 				}
-				registerDynCallSymbols(dso.exports);
 			} else if (!dso.global) {
 				// The library was previously loaded only locally but not
 				// we have a request with global=true.
@@ -5002,7 +4965,6 @@ export function init(RuntimeName, PHPLoader) {
 				mergeLibSymbols(exports, libName);
 			} else if (localScope) {
 				Object.assign(localScope, exports);
-				registerDynCallSymbols(exports);
 			}
 			dso.exports = exports;
 		}
@@ -5114,129 +5076,8 @@ export function init(RuntimeName, PHPLoader) {
 		);
 	___assert_fail.sig = 'vppip';
 
-	var ___asyncify_data = new WebAssembly.Global(
-		{ value: 'i32', mutable: true },
-		0
-	);
-
-	var ___asyncify_state = new WebAssembly.Global(
-		{ value: 'i32', mutable: true },
-		0
-	);
-
-	var ___call_sighandler = (fp, sig) =>
-		((
-			a1
-		) => {}) /* a dynamic function call to signature vi, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-			sig
-		);
+	var ___call_sighandler = (fp, sig) => getWasmTableEntry(fp)(sig);
 	___call_sighandler.sig = 'vpi';
-
-	var exceptionLast = 0;
-
-	class ExceptionInfo {
-		// excPtr - Thrown object pointer to wrap. Metadata pointer is calculated from it.
-		constructor(excPtr) {
-			this.excPtr = excPtr;
-			this.ptr = excPtr - 24;
-		}
-
-		set_type(type) {
-			HEAPU32[(this.ptr + 4) >> 2] = type;
-		}
-
-		get_type() {
-			return HEAPU32[(this.ptr + 4) >> 2];
-		}
-
-		set_destructor(destructor) {
-			HEAPU32[(this.ptr + 8) >> 2] = destructor;
-		}
-
-		get_destructor() {
-			return HEAPU32[(this.ptr + 8) >> 2];
-		}
-
-		set_caught(caught) {
-			caught = caught ? 1 : 0;
-			HEAP8[this.ptr + 12] = caught;
-		}
-
-		get_caught() {
-			return HEAP8[this.ptr + 12] != 0;
-		}
-
-		set_rethrown(rethrown) {
-			rethrown = rethrown ? 1 : 0;
-			HEAP8[this.ptr + 13] = rethrown;
-		}
-
-		get_rethrown() {
-			return HEAP8[this.ptr + 13] != 0;
-		}
-
-		// Initialize native structure fields. Should be called once after allocated.
-		init(type, destructor) {
-			this.set_adjusted_ptr(0);
-			this.set_type(type);
-			this.set_destructor(destructor);
-		}
-
-		set_adjusted_ptr(adjustedPtr) {
-			HEAPU32[(this.ptr + 16) >> 2] = adjustedPtr;
-		}
-
-		get_adjusted_ptr() {
-			return HEAPU32[(this.ptr + 16) >> 2];
-		}
-	}
-
-	var setTempRet0 = (val) => __emscripten_tempret_set(val);
-	var findMatchingCatch = (args) => {
-		var thrown = exceptionLast;
-		if (!thrown) {
-			// just pass through the null ptr
-			setTempRet0(0);
-			return 0;
-		}
-		var info = new ExceptionInfo(thrown);
-		info.set_adjusted_ptr(thrown);
-		var thrownType = info.get_type();
-		if (!thrownType) {
-			// just pass through the thrown ptr
-			setTempRet0(0);
-			return thrown;
-		}
-
-		// can_catch receives a **, add indirection
-		// The different catch blocks are denoted by different types.
-		// Due to inheritance, those types may not precisely match the
-		// type of the thrown object. Find one which matches, and
-		// return the type of the catch block which should be called.
-		for (var caughtType of args) {
-			if (caughtType === 0 || caughtType === thrownType) {
-				// Catch all clause matched or exactly the same type is caught
-				break;
-			}
-			var adjusted_ptr_addr = info.ptr + 16;
-			if (___cxa_can_catch(caughtType, thrownType, adjusted_ptr_addr)) {
-				setTempRet0(caughtType);
-				return thrown;
-			}
-		}
-		setTempRet0(thrownType);
-		return thrown;
-	};
-	var ___cxa_find_matching_catch_2 = () => findMatchingCatch([]);
-	___cxa_find_matching_catch_2.sig = 'p';
-
-	var ___resumeException = (ptr) => {
-		if (!exceptionLast) {
-			exceptionLast = ptr;
-		}
-		throw exceptionLast;
-	};
-	___resumeException.sig = 'vp';
 
 	var SYSCALLS = {
 		DEFAULT_POLLMASK: 5,
@@ -7065,53 +6906,55 @@ export function init(RuntimeName, PHPLoader) {
 		}
 	}
 
-	function _fd_close(fd) {
-		// We have to get the VFS path from the file descriptor
-		// before closing it.
-		const [vfsPath, vfsPathResolutionErrno] =
-			locking.get_vfs_path_from_fd(fd);
+	var _fd_close = function fd_close(fd) {
+		return Asyncify.handleAsync(async () => {
+			// We have to get the VFS path from the file descriptor
+			// before closing it.
+			const [vfsPath, vfsPathResolutionErrno] =
+				locking.get_vfs_path_from_fd(fd);
 
-		const fdCloseResult = _builtin_fd_close(fd);
-		if (fdCloseResult !== 0 || !locking.maybeLockedFds.has(fd)) {
-			_js_wasm_trace('fd_close(%d) result %d', fd, fdCloseResult);
+			const fdCloseResult = _builtin_fd_close(fd);
+			if (fdCloseResult !== 0 || !locking.maybeLockedFds.has(fd)) {
+				_js_wasm_trace('fd_close(%d) result %d', fd, fdCloseResult);
+				return fdCloseResult;
+			}
+
+			if (vfsPathResolutionErrno !== 0) {
+				_js_wasm_trace(
+					'fd_close(%d) get_vfs_path_from_fd error %d',
+					fd,
+					vfsPathResolutionErrno
+				);
+				/*
+				 * It looks like the file may have had an associated lock,
+				 * but since we cannot look up the path,
+				 * there is nothing more for us to do.
+				 *
+				 * NOTE: This seems possible for files that are locked and
+				 * then unlinked before close. It is an opportunity for a
+				 * lock to be orphaned in the lock manager.
+				 * @TODO: Explore how to ensure cleanup in this case.
+				 */
+				return fdCloseResult;
+			}
+
+			try {
+				const nativeFilePath =
+					locking.get_native_path_from_vfs_path(vfsPath);
+				await PHPLoader.fileLockManager.releaseLocksForProcessFd(
+					PHPLoader.processId,
+					fd,
+					nativeFilePath
+				);
+				_js_wasm_trace('fd_close(%d) release locks success', fd);
+			} catch (e) {
+				_js_wasm_trace("fd_close(%d) error '%s'", fd, e);
+			} finally {
+				locking.maybeLockedFds.delete(fd);
+			}
 			return fdCloseResult;
-		}
-
-		if (vfsPathResolutionErrno !== 0) {
-			_js_wasm_trace(
-				'fd_close(%d) get_vfs_path_from_fd error %d',
-				fd,
-				vfsPathResolutionErrno
-			);
-			/*
-			 * It looks like the file may have had an associated lock,
-			 * but since we cannot look up the path,
-			 * there is nothing more for us to do.
-			 *
-			 * NOTE: This seems possible for files that are locked and
-			 * then unlinked before close. It is an opportunity for a
-			 * lock to be orphaned in the lock manager.
-			 * @TODO: Explore how to ensure cleanup in this case.
-			 */
-			return fdCloseResult;
-		}
-
-		try {
-			const nativeFilePath =
-				locking.get_native_path_from_vfs_path(vfsPath);
-			PHPLoader.fileLockManager.releaseLocksForProcessFd(
-				PHPLoader.processId,
-				fd,
-				nativeFilePath
-			);
-			_js_wasm_trace('fd_close(%d) release locks success', fd);
-		} catch (e) {
-			_js_wasm_trace("fd_close(%d) error '%s'", fd, e);
-		} finally {
-			locking.maybeLockedFds.delete(fd);
-		}
-		return fdCloseResult;
-	}
+		});
+	};
 	_fd_close.sig = 'ii';
 	function _builtin_fd_close(fd) {
 		try {
@@ -7274,546 +7117,562 @@ export function init(RuntimeName, PHPLoader) {
 		if (!PHPLoader.fileLockManager) {
 			return _builtin_fcntl64(fd, cmd, varargs);
 		}
-		// Necessary to use varargs accessor
-		SYSCALLS.varargs = varargs;
+		return Asyncify.handleAsync(async () => {
+			// Necessary to use varargs accessor
+			SYSCALLS.varargs = varargs;
 
-		// These constants are replaced by Emscripten during the build process
-		const emscripten_F_SETFL = Number('4');
-		const emscripten_F_GETLK = Number('12');
-		const emscripten_F_SETLK = Number('13');
-		const emscripten_F_SETLKW = Number('14');
-		const emscripten_SEEK_SET = Number('0');
+			// These constants are replaced by Emscripten during the build process
+			const emscripten_F_SETFL = Number('4');
+			const emscripten_F_GETLK = Number('12');
+			const emscripten_F_SETLK = Number('13');
+			const emscripten_F_SETLKW = Number('14');
+			const emscripten_SEEK_SET = Number('0');
 
-		// NOTE: With the exception of l_type, these offsets are not exposed to
-		// JS by Emscripten, so we hardcode them here.
-		const emscripten_flock_l_type_offset = 0;
-		const emscripten_flock_l_whence_offset = 2;
-		const emscripten_flock_l_start_offset = 8;
-		const emscripten_flock_l_len_offset = 16;
-		const emscripten_flock_l_pid_offset = 24;
+			// NOTE: With the exception of l_type, these offsets are not exposed to
+			// JS by Emscripten, so we hardcode them here.
+			const emscripten_flock_l_type_offset = 0;
+			const emscripten_flock_l_whence_offset = 2;
+			const emscripten_flock_l_start_offset = 8;
+			const emscripten_flock_l_len_offset = 16;
+			const emscripten_flock_l_pid_offset = 24;
 
-		/**
-		 * Read the flock struct at the given address.
-		 *
-		 * @param {bigint} flockStructAddress - the address of the flock struct
-		 * @returns the flock struct
-		 */
-		function read_flock_struct(flockStructAddress) {
-			/*
-			 * NOTE: Since we are using HEAP<WORD_SIZE> vars like HEAP16 and HEAP64,
-			 * we need to adjust offsets to address the word size of each HEAP.
+			/**
+			 * Read the flock struct at the given address.
 			 *
-			 * For example, an offset of 64 bytes is the following for each HEAP:
-			 * - HEAP8: 64  (the 64th byte)
-			 * - HEAP16: 32 (the 32nd 16-bit word)
-			 * - HEAP32: 16 (the 16th 32-bit word)
-			 * - HEAP64: 8  (the 8th 64-bit word)
-			 *
-			 * We get a word offset by dividing the byte offset by the word size.
+			 * @param {bigint} flockStructAddress - the address of the flock struct
+			 * @returns the flock struct
 			 */
-			return {
-				l_type: HEAP16[
-					// Shift right by 1 to divide by 2^1.
-					(flockStructAddress + emscripten_flock_l_type_offset) >> 1
-				],
-				l_whence:
+			function read_flock_struct(flockStructAddress) {
+				/*
+				 * NOTE: Since we are using HEAP<WORD_SIZE> vars like HEAP16 and HEAP64,
+				 * we need to adjust offsets to address the word size of each HEAP.
+				 *
+				 * For example, an offset of 64 bytes is the following for each HEAP:
+				 * - HEAP8: 64  (the 64th byte)
+				 * - HEAP16: 32 (the 32nd 16-bit word)
+				 * - HEAP32: 16 (the 16th 32-bit word)
+				 * - HEAP64: 8  (the 8th 64-bit word)
+				 *
+				 * We get a word offset by dividing the byte offset by the word size.
+				 */
+				return {
+					l_type: HEAP16[
+						// Shift right by 1 to divide by 2^1.
+						(flockStructAddress + emscripten_flock_l_type_offset) >>
+							1
+					],
+					l_whence:
+						HEAP16[
+							// Shift right by 1 to divide by 2^1.
+							(flockStructAddress +
+								emscripten_flock_l_whence_offset) >>
+								1
+						],
+					l_start:
+						HEAP64[
+							// Shift right by 3 to divide by 2^3.
+							(flockStructAddress +
+								emscripten_flock_l_start_offset) >>
+								3
+						],
+					l_len: HEAP64[
+						// Shift right by 3 to divide by 2^3.
+						(flockStructAddress + emscripten_flock_l_len_offset) >>
+							3
+					],
+					l_pid: HEAP32[
+						// Shift right by 2 to divide by 2^2.
+						(flockStructAddress + emscripten_flock_l_pid_offset) >>
+							2
+					],
+				};
+			}
+
+			/**
+			 * Update the flock struct at the given address with the given fields.
+			 *
+			 * @param {bigint} flockStructAddress - the address of the flock struct
+			 * @param {object} fields - the fields to update
+			 */
+			function update_flock_struct(flockStructAddress, fields) {
+				/*
+				 * NOTE: Since we are using HEAP<WORD_SIZE> vars like HEAP16 and HEAP64,
+				 * we need to adjust offsets to address the word size of each HEAP.
+				 *
+				 * For example, an offset of 64 bytes is the following for each HEAP:
+				 * - HEAP8: 64  (the 64th byte)
+				 * - HEAP16: 32 (the 32nd 16-bit word)
+				 * - HEAP32: 16 (the 16th 32-bit word)
+				 * - HEAP64: 8  (the 8th 64-bit word)
+				 *
+				 * We get a word offset by dividing the byte offset by the word size.
+				 */
+				if (fields.l_type !== undefined) {
+					HEAP16[
+						// Shift right by 1 to divide by 2^1.
+						(flockStructAddress + emscripten_flock_l_type_offset) >>
+							1
+					] = fields.l_type;
+				}
+				if (fields.l_whence !== undefined) {
 					HEAP16[
 						// Shift right by 1 to divide by 2^1.
 						(flockStructAddress +
 							emscripten_flock_l_whence_offset) >>
 							1
-					],
-				l_start:
+					] = fields.l_whence;
+				}
+				if (fields.l_start !== undefined) {
 					HEAP64[
 						// Shift right by 3 to divide by 2^3.
 						(flockStructAddress +
 							emscripten_flock_l_start_offset) >>
 							3
-					],
-				l_len: HEAP64[
-					// Shift right by 3 to divide by 2^3.
-					(flockStructAddress + emscripten_flock_l_len_offset) >> 3
-				],
-				l_pid: HEAP32[
-					// Shift right by 2 to divide by 2^2.
-					(flockStructAddress + emscripten_flock_l_pid_offset) >> 2
-				],
-			};
-		}
+					] = fields.l_start;
+				}
+				if (fields.l_len !== undefined) {
+					HEAP64[
+						// Shift right by 3 to divide by 2^3.
+						(flockStructAddress + emscripten_flock_l_len_offset) >>
+							3
+					] = fields.l_len;
+				}
+				if (fields.l_pid !== undefined) {
+					HEAP32[
+						// Shift right by 2 to divide by 2^2.
+						(flockStructAddress + emscripten_flock_l_pid_offset) >>
+							2
+					] = fields.l_pid;
+				}
+			}
 
-		/**
-		 * Update the flock struct at the given address with the given fields.
-		 *
-		 * @param {bigint} flockStructAddress - the address of the flock struct
-		 * @param {object} fields - the fields to update
-		 */
-		function update_flock_struct(flockStructAddress, fields) {
-			/*
-			 * NOTE: Since we are using HEAP<WORD_SIZE> vars like HEAP16 and HEAP64,
-			 * we need to adjust offsets to address the word size of each HEAP.
+			/**
+			 * Resolve the base address of the range depending on the whence and start offset.
 			 *
-			 * For example, an offset of 64 bytes is the following for each HEAP:
-			 * - HEAP8: 64  (the 64th byte)
-			 * - HEAP16: 32 (the 32nd 16-bit word)
-			 * - HEAP32: 16 (the 16th 32-bit word)
-			 * - HEAP64: 8  (the 8th 64-bit word)
-			 *
-			 * We get a word offset by dividing the byte offset by the word size.
+			 * @param {number} fd - the file descriptor
+			 * @param {number} whence - what the start offset is relative to
+			 * @param {bigint} startOffset - the offset from the whence
+			 * @returns The resolved offset and the errno. If there is an error,
+			 *          the resolved offset is null, and the errno is non-zero.
 			 */
-			if (fields.l_type !== undefined) {
-				HEAP16[
-					// Shift right by 1 to divide by 2^1.
-					(flockStructAddress + emscripten_flock_l_type_offset) >> 1
-				] = fields.l_type;
-			}
-			if (fields.l_whence !== undefined) {
-				HEAP16[
-					// Shift right by 1 to divide by 2^1.
-					(flockStructAddress + emscripten_flock_l_whence_offset) >> 1
-				] = fields.l_whence;
-			}
-			if (fields.l_start !== undefined) {
-				HEAP64[
-					// Shift right by 3 to divide by 2^3.
-					(flockStructAddress + emscripten_flock_l_start_offset) >> 3
-				] = fields.l_start;
-			}
-			if (fields.l_len !== undefined) {
-				HEAP64[
-					// Shift right by 3 to divide by 2^3.
-					(flockStructAddress + emscripten_flock_l_len_offset) >> 3
-				] = fields.l_len;
-			}
-			if (fields.l_pid !== undefined) {
-				HEAP32[
-					// Shift right by 2 to divide by 2^2.
-					(flockStructAddress + emscripten_flock_l_pid_offset) >> 2
-				] = fields.l_pid;
-			}
-		}
+			function get_base_address(fd, whence, startOffset) {
+				let baseAddress;
+				switch (whence) {
+					case emscripten_SEEK_SET:
+						baseAddress = 0n;
+						break;
+					case emscripten_SEEK_CUR:
+						baseAddress = FS.lseek(fd, 0, whence);
+						break;
+					case emscripten_SEEK_END:
+						baseAddress = _wasm_get_end_offset(fd);
+						break;
+					default:
+						return [null, ERRNO_CODES.EINVAL];
+				}
 
-		/**
-		 * Resolve the base address of the range depending on the whence and start offset.
-		 *
-		 * @param {number} fd - the file descriptor
-		 * @param {number} whence - what the start offset is relative to
-		 * @param {bigint} startOffset - the offset from the whence
-		 * @returns The resolved offset and the errno. If there is an error,
-		 *          the resolved offset is null, and the errno is non-zero.
-		 */
-		function get_base_address(fd, whence, startOffset) {
-			let baseAddress;
-			switch (whence) {
-				case emscripten_SEEK_SET:
-					baseAddress = 0n;
-					break;
-				case emscripten_SEEK_CUR:
-					baseAddress = FS.lseek(fd, 0, whence);
-					break;
-				case emscripten_SEEK_END:
-					baseAddress = _wasm_get_end_offset(fd);
-					break;
-				default:
+				if (baseAddress == -1) {
+					// We cannot resolve the offset within the file.
+					// Let's treat this as a problem with the file descriptor.
+					return [null, ERRNO_CODES.EBADF];
+				}
+
+				const resolvedOffset = baseAddress + startOffset;
+				if (resolvedOffset < 0) {
+					// This is not a valid offset. Report args as invalid.
 					return [null, ERRNO_CODES.EINVAL];
+				}
+
+				return [resolvedOffset, 0];
 			}
 
-			if (baseAddress == -1) {
-				// We cannot resolve the offset within the file.
-				// Let's treat this as a problem with the file descriptor.
-				return [null, ERRNO_CODES.EBADF];
-			}
+			const pid = PHPLoader.processId;
+			switch (cmd) {
+				case emscripten_F_GETLK: {
+					_js_wasm_trace('fcntl(%d, F_GETLK)', fd);
+					let vfsPath;
+					let errno;
 
-			const resolvedOffset = baseAddress + startOffset;
-			if (resolvedOffset < 0) {
-				// This is not a valid offset. Report args as invalid.
-				return [null, ERRNO_CODES.EINVAL];
-			}
-
-			return [resolvedOffset, 0];
-		}
-
-		const pid = PHPLoader.processId;
-		switch (cmd) {
-			case emscripten_F_GETLK: {
-				_js_wasm_trace('fcntl(%d, F_GETLK)', fd);
-				let vfsPath;
-				let errno;
-
-				[vfsPath, errno] = locking.get_vfs_path_from_fd(fd);
-				if (errno !== 0) {
-					_js_wasm_trace(
-						'fcntl(%d, F_GETLK) %s get_vfs_path_from_fd errno %d',
-						fd,
-						vfsPath,
-						errno
-					);
-					return -ERRNO_CODES.EBADF;
-				}
-
-				const flockStructAddr = syscallGetVarargP();
-
-				if (!locking.is_path_to_shared_fs(vfsPath)) {
-					_js_wasm_trace(
-						"fcntl(%d, F_GETLK) locking is not implemented for non-NodeFS path '%s'",
-						fd,
-						vfsPath
-					);
-
-					// If not a NodeFS path, we can't lock it.
-					// Default to succeeding as Emscripten does.
-					update_flock_struct(flockStructAddr, {
-						l_type: F_UNLCK,
-					});
-					return 0;
-				}
-
-				const flockStruct = read_flock_struct(flockStructAddr);
-
-				if (!(flockStruct.l_type in locking.fcntlToLockState)) {
-					return -ERRNO_CODES.EINVAL;
-				}
-
-				errno = locking.check_lock_params(fd, flockStruct.l_type);
-				if (errno !== 0) {
-					_js_wasm_trace(
-						'fcntl(%d, F_GETLK) %s check_lock_params errno %d',
-						fd,
-						vfsPath,
-						errno
-					);
-					return -ERRNO_CODES.EINVAL;
-				}
-
-				const requestedLockType =
-					locking.fcntlToLockState[flockStruct.l_type];
-				let absoluteStartOffset;
-				[absoluteStartOffset, errno] = get_base_address(
-					fd,
-					flockStruct.l_whence,
-					flockStruct.l_start
-				);
-				if (errno !== 0) {
-					_js_wasm_trace(
-						'fcntl(%d, F_GETLK) %s get_base_address errno %d',
-						fd,
-						vfsPath,
-						errno
-					);
-					return -ERRNO_CODES.EINVAL;
-				}
-
-				try {
-					const nativeFilePath =
-						locking.get_native_path_from_vfs_path(vfsPath);
-					const conflictingLock =
-						PHPLoader.fileLockManager.findFirstConflictingByteRangeLock(
-							nativeFilePath,
-							{
-								type: requestedLockType,
-								start: absoluteStartOffset,
-								end: absoluteStartOffset + flockStruct.l_len,
-								pid,
-							}
-						);
-					if (conflictingLock === undefined) {
+					[vfsPath, errno] = locking.get_vfs_path_from_fd(fd);
+					if (errno !== 0) {
 						_js_wasm_trace(
-							'fcntl(%d, F_GETLK) %s findFirstConflictingByteRangeLock type=unlocked start=0x%x end=0x%x',
+							'fcntl(%d, F_GETLK) %s get_vfs_path_from_fd errno %d',
 							fd,
 							vfsPath,
-							absoluteStartOffset,
-							absoluteStartOffset + flockStruct.l_len
+							errno
+						);
+						return -ERRNO_CODES.EBADF;
+					}
+
+					const flockStructAddr = syscallGetVarargP();
+
+					if (!locking.is_path_to_shared_fs(vfsPath)) {
+						_js_wasm_trace(
+							"fcntl(%d, F_GETLK) locking is not implemented for non-NodeFS path '%s'",
+							fd,
+							vfsPath
 						);
 
+						// If not a NodeFS path, we can't lock it.
+						// Default to succeeding as Emscripten does.
 						update_flock_struct(flockStructAddr, {
 							l_type: F_UNLCK,
 						});
 						return 0;
 					}
 
-					_js_wasm_trace(
-						'fcntl(%d, F_GETLK) %s findFirstConflictingByteRangeLock type=%s start=0x%x end=0x%x conflictingLock %d',
-						fd,
-						vfsPath,
-						conflictingLock.type,
-						conflictingLock.start,
-						conflictingLock.end,
-						conflictingLock.pid
-					);
+					const flockStruct = read_flock_struct(flockStructAddr);
 
-					const fcntlLockState =
-						locking.lockStateToFcntl[conflictingLock.type];
-					update_flock_struct(flockStructAddr, {
-						l_type: fcntlLockState,
-						l_whence: emscripten_SEEK_SET,
-						l_start: conflictingLock.start,
-						l_len: conflictingLock.end - conflictingLock.start,
-						l_pid: conflictingLock.pid,
-					});
-					return 0;
-				} catch (e) {
-					_js_wasm_trace(
-						'fcntl(%d, F_GETLK) %s findFirstConflictingByteRangeLock error %s',
+					if (!(flockStruct.l_type in locking.fcntlToLockState)) {
+						return -ERRNO_CODES.EINVAL;
+					}
+
+					errno = locking.check_lock_params(fd, flockStruct.l_type);
+					if (errno !== 0) {
+						_js_wasm_trace(
+							'fcntl(%d, F_GETLK) %s check_lock_params errno %d',
+							fd,
+							vfsPath,
+							errno
+						);
+						return -ERRNO_CODES.EINVAL;
+					}
+
+					const requestedLockType =
+						locking.fcntlToLockState[flockStruct.l_type];
+					let absoluteStartOffset;
+					[absoluteStartOffset, errno] = get_base_address(
 						fd,
-						vfsPath,
-						e
+						flockStruct.l_whence,
+						flockStruct.l_start
 					);
-					return -ERRNO_CODES.EINVAL;
+					if (errno !== 0) {
+						_js_wasm_trace(
+							'fcntl(%d, F_GETLK) %s get_base_address errno %d',
+							fd,
+							vfsPath,
+							errno
+						);
+						return -ERRNO_CODES.EINVAL;
+					}
+
+					try {
+						const nativeFilePath =
+							locking.get_native_path_from_vfs_path(vfsPath);
+						const conflictingLock = await Promise.resolve(
+							PHPLoader.fileLockManager.findFirstConflictingByteRangeLock(
+								nativeFilePath,
+								{
+									type: requestedLockType,
+									start: absoluteStartOffset,
+									end:
+										absoluteStartOffset + flockStruct.l_len,
+									pid,
+								}
+							)
+						);
+						if (conflictingLock === undefined) {
+							_js_wasm_trace(
+								'fcntl(%d, F_GETLK) %s findFirstConflictingByteRangeLock type=unlocked start=0x%x end=0x%x',
+								fd,
+								vfsPath,
+								absoluteStartOffset,
+								absoluteStartOffset + flockStruct.l_len
+							);
+
+							update_flock_struct(flockStructAddr, {
+								l_type: F_UNLCK,
+							});
+							return 0;
+						}
+
+						_js_wasm_trace(
+							'fcntl(%d, F_GETLK) %s findFirstConflictingByteRangeLock type=%s start=0x%x end=0x%x conflictingLock %d',
+							fd,
+							vfsPath,
+							conflictingLock.type,
+							conflictingLock.start,
+							conflictingLock.end,
+							conflictingLock.pid
+						);
+
+						const fcntlLockState =
+							locking.lockStateToFcntl[conflictingLock.type];
+						update_flock_struct(flockStructAddr, {
+							l_type: fcntlLockState,
+							l_whence: emscripten_SEEK_SET,
+							l_start: conflictingLock.start,
+							l_len: conflictingLock.end - conflictingLock.start,
+							l_pid: conflictingLock.pid,
+						});
+						return 0;
+					} catch (e) {
+						_js_wasm_trace(
+							'fcntl(%d, F_GETLK) %s findFirstConflictingByteRangeLock error %s',
+							fd,
+							vfsPath,
+							e
+						);
+						return -ERRNO_CODES.EINVAL;
+					}
 				}
-			}
-			case emscripten_F_SETLK: {
-				_js_wasm_trace('fcntl(%d, F_SETLK)', fd);
-				let vfsPath;
-				let errno;
-				[vfsPath, errno] = locking.get_vfs_path_from_fd(fd);
-				if (errno !== 0) {
-					_js_wasm_trace(
-						'fcntl(%d, F_SETLK) %s get_vfs_path_from_fd errno %d',
+				case emscripten_F_SETLK: {
+					_js_wasm_trace('fcntl(%d, F_SETLK)', fd);
+					let vfsPath;
+					let errno;
+					[vfsPath, errno] = locking.get_vfs_path_from_fd(fd);
+					if (errno !== 0) {
+						_js_wasm_trace(
+							'fcntl(%d, F_SETLK) %s get_vfs_path_from_fd errno %d',
+							fd,
+							vfsPath,
+							errno
+						);
+						return -errno;
+					}
+
+					if (!locking.is_path_to_shared_fs(vfsPath)) {
+						_js_wasm_trace(
+							'fcntl(%d, F_SETLK) locking is not implemented for non-NodeFS path %s',
+							fd,
+							vfsPath
+						);
+
+						// If not a NodeFS path, we can't lock it.
+						// Default to succeeding as Emscripten does.
+						return 0;
+					}
+
+					var flockStructAddr = syscallGetVarargP();
+					const flockStruct = read_flock_struct(flockStructAddr);
+
+					let absoluteStartOffset;
+					[absoluteStartOffset, errno] = get_base_address(
 						fd,
-						vfsPath,
-						errno
+						flockStruct.l_whence,
+						flockStruct.l_start
 					);
-					return -errno;
-				}
+					if (errno !== 0) {
+						_js_wasm_trace(
+							'fcntl(%d, F_SETLK) %s get_base_address errno %d',
+							fd,
+							vfsPath,
+							errno
+						);
+						return -errno;
+					}
 
-				if (!locking.is_path_to_shared_fs(vfsPath)) {
-					_js_wasm_trace(
-						'fcntl(%d, F_SETLK) locking is not implemented for non-NodeFS path %s',
-						fd,
-						vfsPath
-					);
+					if (!(flockStruct.l_type in locking.fcntlToLockState)) {
+						_js_wasm_trace(
+							'fcntl(%d, F_SETLK) %s invalid lock type %d',
+							fd,
+							vfsPath,
+							flockStruct.l_type
+						);
+						return -ERRNO_CODES.EINVAL;
+					}
 
-					// If not a NodeFS path, we can't lock it.
-					// Default to succeeding as Emscripten does.
-					return 0;
-				}
+					errno = locking.check_lock_params(fd, flockStruct.l_type);
+					if (errno !== 0) {
+						_js_wasm_trace(
+							'fcntl(%d, F_SETLK) %s check_lock_params errno %d',
+							fd,
+							vfsPath,
+							errno
+						);
+						return -errno;
+					}
 
-				var flockStructAddr = syscallGetVarargP();
-				const flockStruct = read_flock_struct(flockStructAddr);
+					locking.maybeLockedFds.add(fd);
 
-				let absoluteStartOffset;
-				[absoluteStartOffset, errno] = get_base_address(
-					fd,
-					flockStruct.l_whence,
-					flockStruct.l_start
-				);
-				if (errno !== 0) {
-					_js_wasm_trace(
-						'fcntl(%d, F_SETLK) %s get_base_address errno %d',
-						fd,
-						vfsPath,
-						errno
-					);
-					return -errno;
-				}
+					const requestedLockType =
+						locking.fcntlToLockState[flockStruct.l_type];
+					const rangeLock = {
+						type: requestedLockType,
+						start: absoluteStartOffset,
+						end: absoluteStartOffset + flockStruct.l_len,
+						pid,
+					};
 
-				if (!(flockStruct.l_type in locking.fcntlToLockState)) {
-					_js_wasm_trace(
-						'fcntl(%d, F_SETLK) %s invalid lock type %d',
-						fd,
-						vfsPath,
-						flockStruct.l_type
-					);
-					return -ERRNO_CODES.EINVAL;
-				}
-
-				errno = locking.check_lock_params(fd, flockStruct.l_type);
-				if (errno !== 0) {
-					_js_wasm_trace(
-						'fcntl(%d, F_SETLK) %s check_lock_params errno %d',
-						fd,
-						vfsPath,
-						errno
-					);
-					return -errno;
-				}
-
-				locking.maybeLockedFds.add(fd);
-
-				const requestedLockType =
-					locking.fcntlToLockState[flockStruct.l_type];
-				const rangeLock = {
-					type: requestedLockType,
-					start: absoluteStartOffset,
-					end: absoluteStartOffset + flockStruct.l_len,
-					pid,
-				};
-
-				try {
-					const nativeFilePath =
-						locking.get_native_path_from_vfs_path(vfsPath);
-					_js_wasm_trace(
-						'fcntl(%d, F_SETLK) %s calling lockFileByteRange for range lock %s',
-						fd,
-						vfsPath,
-						rangeLock
-					);
-
-					const succeeded =
-						PHPLoader.fileLockManager.lockFileByteRange(
-							nativeFilePath,
+					try {
+						const nativeFilePath =
+							locking.get_native_path_from_vfs_path(vfsPath);
+						_js_wasm_trace(
+							'fcntl(%d, F_SETLK) %s calling lockFileByteRange for range lock %s',
+							fd,
+							vfsPath,
 							rangeLock
 						);
 
-					_js_wasm_trace(
-						'fcntl(%d, F_SETLK) %s lockFileByteRange returned %d for range lock %s',
-						fd,
-						vfsPath,
-						succeeded,
-						rangeLock
-					);
-					return succeeded ? 0 : -ERRNO_CODES.EAGAIN;
-				} catch (e) {
-					_js_wasm_trace(
-						'fcntl(%d, F_SETLK) %s lockFileByteRange error %s for range lock %s',
-						fd,
-						vfsPath,
-						e,
-						rangeLock
-					);
-					return -ERRNO_CODES.EINVAL;
+						const succeeded = await Promise.resolve(
+							PHPLoader.fileLockManager.lockFileByteRange(
+								nativeFilePath,
+								rangeLock
+							)
+						);
+
+						_js_wasm_trace(
+							'fcntl(%d, F_SETLK) %s lockFileByteRange returned %d for range lock %s',
+							fd,
+							vfsPath,
+							succeeded,
+							rangeLock
+						);
+						return succeeded ? 0 : -ERRNO_CODES.EAGAIN;
+					} catch (e) {
+						_js_wasm_trace(
+							'fcntl(%d, F_SETLK) %s lockFileByteRange error %s for range lock %s',
+							fd,
+							vfsPath,
+							e,
+							rangeLock
+						);
+						return -ERRNO_CODES.EINVAL;
+					}
 				}
-			}
-			// @TODO: Implement a blocking version of F_SETLKW instead of
-			// treating it the same as F_SETLK.
-			case emscripten_F_SETLKW: {
-				// F_SETLKW is the blocking version of F_SETLK.
-				// For now, we treat it the same as F_SETLK (non-blocking).
-				// In a true blocking implementation, this would wait for the lock to become available.
-				_js_wasm_trace('fcntl(%d, F_SETLKW)', fd);
-				let vfsPath;
-				let errno;
-				[vfsPath, errno] = locking.get_vfs_path_from_fd(fd);
-				if (errno !== 0) {
-					_js_wasm_trace(
-						'fcntl(%d, F_SETLKW) %s get_vfs_path_from_fd errno %d',
+				// @TODO: Implement a blocking version of F_SETLKW instead of
+				// treating it the same as F_SETLK.
+				case emscripten_F_SETLKW: {
+					// F_SETLKW is the blocking version of F_SETLK.
+					// For now, we treat it the same as F_SETLK (non-blocking).
+					// In a true blocking implementation, this would wait for the lock to become available.
+					_js_wasm_trace('fcntl(%d, F_SETLKW)', fd);
+					let vfsPath;
+					let errno;
+					[vfsPath, errno] = locking.get_vfs_path_from_fd(fd);
+					if (errno !== 0) {
+						_js_wasm_trace(
+							'fcntl(%d, F_SETLKW) %s get_vfs_path_from_fd errno %d',
+							fd,
+							vfsPath,
+							errno
+						);
+						return -errno;
+					}
+
+					if (!locking.is_path_to_shared_fs(vfsPath)) {
+						_js_wasm_trace(
+							'fcntl(%d, F_SETLKW) locking is not implemented for non-NodeFS path %s',
+							fd,
+							vfsPath
+						);
+
+						// If not a NodeFS path, we can't lock it.
+						// Default to succeeding as Emscripten does.
+						return 0;
+					}
+
+					var flockStructAddr = syscallGetVarargP();
+					const flockStruct = read_flock_struct(flockStructAddr);
+
+					let absoluteStartOffset;
+					[absoluteStartOffset, errno] = get_base_address(
 						fd,
-						vfsPath,
-						errno
+						flockStruct.l_whence,
+						flockStruct.l_start
 					);
-					return -errno;
-				}
+					if (errno !== 0) {
+						_js_wasm_trace(
+							'fcntl(%d, F_SETLKW) %s get_base_address errno %d',
+							fd,
+							vfsPath,
+							errno
+						);
+						return -errno;
+					}
 
-				if (!locking.is_path_to_shared_fs(vfsPath)) {
-					_js_wasm_trace(
-						'fcntl(%d, F_SETLKW) locking is not implemented for non-NodeFS path %s',
-						fd,
-						vfsPath
-					);
+					if (!(flockStruct.l_type in locking.fcntlToLockState)) {
+						_js_wasm_trace(
+							'fcntl(%d, F_SETLKW) %s invalid lock type %d',
+							fd,
+							vfsPath,
+							flockStruct.l_type
+						);
+						return -ERRNO_CODES.EINVAL;
+					}
 
-					// If not a NodeFS path, we can't lock it.
-					// Default to succeeding as Emscripten does.
-					return 0;
-				}
+					errno = locking.check_lock_params(fd, flockStruct.l_type);
+					if (errno !== 0) {
+						_js_wasm_trace(
+							'fcntl(%d, F_SETLKW) %s check_lock_params errno %d',
+							fd,
+							vfsPath,
+							errno
+						);
+						return -errno;
+					}
 
-				var flockStructAddr = syscallGetVarargP();
-				const flockStruct = read_flock_struct(flockStructAddr);
+					locking.maybeLockedFds.add(fd);
 
-				let absoluteStartOffset;
-				[absoluteStartOffset, errno] = get_base_address(
-					fd,
-					flockStruct.l_whence,
-					flockStruct.l_start
-				);
-				if (errno !== 0) {
-					_js_wasm_trace(
-						'fcntl(%d, F_SETLKW) %s get_base_address errno %d',
-						fd,
-						vfsPath,
-						errno
-					);
-					return -errno;
-				}
+					const requestedLockType =
+						locking.fcntlToLockState[flockStruct.l_type];
+					const rangeLock = {
+						type: requestedLockType,
+						start: absoluteStartOffset,
+						end: absoluteStartOffset + flockStruct.l_len,
+						pid,
+					};
 
-				if (!(flockStruct.l_type in locking.fcntlToLockState)) {
-					_js_wasm_trace(
-						'fcntl(%d, F_SETLKW) %s invalid lock type %d',
-						fd,
-						vfsPath,
-						flockStruct.l_type
-					);
-					return -ERRNO_CODES.EINVAL;
-				}
-
-				errno = locking.check_lock_params(fd, flockStruct.l_type);
-				if (errno !== 0) {
-					_js_wasm_trace(
-						'fcntl(%d, F_SETLKW) %s check_lock_params errno %d',
-						fd,
-						vfsPath,
-						errno
-					);
-					return -errno;
-				}
-
-				locking.maybeLockedFds.add(fd);
-
-				const requestedLockType =
-					locking.fcntlToLockState[flockStruct.l_type];
-				const rangeLock = {
-					type: requestedLockType,
-					start: absoluteStartOffset,
-					end: absoluteStartOffset + flockStruct.l_len,
-					pid,
-				};
-
-				try {
-					const nativeFilePath =
-						locking.get_native_path_from_vfs_path(vfsPath);
-					_js_wasm_trace(
-						'fcntl(%d, F_SETLKW) %s calling lockFileByteRange for range lock %s',
-						fd,
-						vfsPath,
-						rangeLock
-					);
-
-					const succeeded =
-						PHPLoader.fileLockManager.lockFileByteRange(
-							nativeFilePath,
+					try {
+						const nativeFilePath =
+							locking.get_native_path_from_vfs_path(vfsPath);
+						_js_wasm_trace(
+							'fcntl(%d, F_SETLKW) %s calling lockFileByteRange for range lock %s',
+							fd,
+							vfsPath,
 							rangeLock
 						);
 
-					_js_wasm_trace(
-						'fcntl(%d, F_SETLKW) %s lockFileByteRange returned %d for range lock %s',
-						fd,
-						vfsPath,
-						succeeded,
-						rangeLock
-					);
-					return succeeded ? 0 : -ERRNO_CODES.EAGAIN;
-				} catch (e) {
-					_js_wasm_trace(
-						'fcntl(%d, F_SETLKW) %s lockFileByteRange error %s for range lock %s',
-						fd,
-						vfsPath,
-						e,
-						rangeLock
-					);
-					return -ERRNO_CODES.EINVAL;
+						const succeeded = await Promise.resolve(
+							PHPLoader.fileLockManager.lockFileByteRange(
+								nativeFilePath,
+								rangeLock
+							)
+						);
+
+						_js_wasm_trace(
+							'fcntl(%d, F_SETLKW) %s lockFileByteRange returned %d for range lock %s',
+							fd,
+							vfsPath,
+							succeeded,
+							rangeLock
+						);
+						return succeeded ? 0 : -ERRNO_CODES.EAGAIN;
+					} catch (e) {
+						_js_wasm_trace(
+							'fcntl(%d, F_SETLKW) %s lockFileByteRange error %s for range lock %s',
+							fd,
+							vfsPath,
+							e,
+							rangeLock
+						);
+						return -ERRNO_CODES.EINVAL;
+					}
 				}
-			}
-			case emscripten_F_SETFL: {
-				/**
-				 * Overrides the core Emscripten implementation to reflect what
-				 * fcntl does in linux kernel. This implementation is still missing
-				 * a bunch of nuance, but, unlike the core Emscripten implementation,
-				 * it overrides the stream flags while preserving non-stream flags.
-				 *
-				 * @see fcntl.c:
-				 * https://github.com/torvalds/linux/blob/a79a588fc1761dc12a3064fc2f648ae66cea3c5a/fs/fcntl.c#L39
-				 */
-				const arg = varargs ? syscallGetVarargI() : 0;
-				const stream = SYSCALLS.getStreamFromFD(fd);
+				case emscripten_F_SETFL: {
+					/**
+					 * Overrides the core Emscripten implementation to reflect what
+					 * fcntl does in linux kernel. This implementation is still missing
+					 * a bunch of nuance, but, unlike the core Emscripten implementation,
+					 * it overrides the stream flags while preserving non-stream flags.
+					 *
+					 * @see fcntl.c:
+					 * https://github.com/torvalds/linux/blob/a79a588fc1761dc12a3064fc2f648ae66cea3c5a/fs/fcntl.c#L39
+					 */
+					const arg = varargs ? syscallGetVarargI() : 0;
+					const stream = SYSCALLS.getStreamFromFD(fd);
 
-				// Update the stream flags
-				stream.flags =
-					(arg & PHPWASM.SETFL_MASK) |
-					(stream.flags & ~PHPWASM.SETFL_MASK);
+					// Update the stream flags
+					stream.flags =
+						(arg & PHPWASM.SETFL_MASK) |
+						(stream.flags & ~PHPWASM.SETFL_MASK);
 
-				return 0;
+					return 0;
+				}
+				default:
+					return _builtin_fcntl64(fd, cmd, varargs);
 			}
-			default:
-				return _builtin_fcntl64(fd, cmd, varargs);
-		}
+		});
 	}
 	___syscall_fcntl64.sig = 'iiip';
 
@@ -8994,25 +8853,13 @@ export function init(RuntimeName, PHPLoader) {
 			dlSetError(`'Could not load dynamic lib: ${filename}\n${e}`);
 			runtimeKeepalivePop();
 			callUserCallback(() =>
-				((
-					a1,
-					a2
-				) => {}) /* a dynamic function call to signature vii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-					handle,
-					user_data
-				)
+				getWasmTableEntry(onerror)(handle, user_data)
 			);
 		}
 		function successCallback() {
 			runtimeKeepalivePop();
 			callUserCallback(() =>
-				((
-					a1,
-					a2
-				) => {}) /* a dynamic function call to signature vii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-					handle,
-					user_data
-				)
+				getWasmTableEntry(onsuccess)(handle, user_data)
 			);
 		}
 
@@ -9191,11 +9038,6 @@ export function init(RuntimeName, PHPLoader) {
 		return -52;
 	};
 	__emscripten_system.sig = 'ip';
-
-	var __emscripten_throw_longjmp = () => {
-		throw Infinity;
-	};
-	__emscripten_throw_longjmp.sig = 'v';
 
 	function __gmtime_js(time, tmPtr) {
 		time = bigintToI53Checked(time);
@@ -17217,120 +17059,122 @@ export function init(RuntimeName, PHPLoader) {
 	};
 	_getprotobynumber.sig = 'pi';
 
-	function _js_flock(fd, op) {
-		_js_wasm_trace('js_flock(%d, %d)', fd, op);
-		// Emscripten does not expose these constants to JS, so we hardcode them here.
-		// Based on
-		// https://github.com/emscripten-core/emscripten/blob/76860cc47cef67f5712a7a03a247bc1baabf7ba4/system/lib/libc/musl/include/sys/file.h#L7-L10
-		const emscripten_LOCK_SH = 1;
-		const emscripten_LOCK_EX = 2;
-		const emscripten_LOCK_NB = 4;
-		const emscripten_LOCK_UN = 8;
+	var _js_flock = function js_flock(fd, op) {
+		return Asyncify.handleAsync(async () => {
+			_js_wasm_trace('js_flock(%d, %d)', fd, op);
+			// Emscripten does not expose these constants to JS, so we hardcode them here.
+			// Based on
+			// https://github.com/emscripten-core/emscripten/blob/76860cc47cef67f5712a7a03a247bc1baabf7ba4/system/lib/libc/musl/include/sys/file.h#L7-L10
+			const emscripten_LOCK_SH = 1;
+			const emscripten_LOCK_EX = 2;
+			const emscripten_LOCK_NB = 4;
+			const emscripten_LOCK_UN = 8;
 
-		const flockToLockOpType = {
-			[emscripten_LOCK_SH]: 'shared',
-			[emscripten_LOCK_EX]: 'exclusive',
-			[emscripten_LOCK_UN]: 'unlocked',
-		};
+			const flockToLockOpType = {
+				[emscripten_LOCK_SH]: 'shared',
+				[emscripten_LOCK_EX]: 'exclusive',
+				[emscripten_LOCK_UN]: 'unlocked',
+			};
 
-		let vfsPath;
-		let errno;
+			let vfsPath;
+			let errno;
 
-		[vfsPath, errno] = locking.get_vfs_path_from_fd(fd);
-		if (errno !== 0) {
-			_js_wasm_trace(
-				'js_flock(%d, %d) get_vfs_path_from_fd errno %d',
-				fd,
-				op,
-				vfsPath,
-				errno
-			);
-			return -errno;
-		}
-
-		if (!locking.is_path_to_shared_fs(vfsPath)) {
-			_js_wasm_trace(
-				'flock(%d, %d) locking is not implemented for non-NodeFS path %s',
-				fd,
-				op,
-				vfsPath
-			);
-			// If not a NodeFS path, we can't lock it.
-			// Default to succeeding as Emscripten does.
-			return 0;
-		}
-
-		errno = locking.check_lock_params(fd, op);
-		if (errno !== 0) {
-			_js_wasm_trace(
-				'js_flock(%d, %d) check_lock_params errno %d',
-				fd,
-				op,
-				errno
-			);
-			return -errno;
-		}
-
-		// @TODO: Consider supporting blocking mode of flock()
-		if (op & (emscripten_LOCK_NB === 0)) {
-			_js_wasm_trace(
-				'js_flock(%d, %d) blocking mode of flock() is not implemented',
-				fd,
-				op
-			);
-			// We do not yet support the blocking form of flock().
-			// We respond with EINVAL to indicate failure
-			// because it is a known errno for a failed blocking flock().
-			return -ERRNO_CODES.EINVAL;
-		}
-
-		const maskedOp =
-			op & (emscripten_LOCK_SH | emscripten_LOCK_EX | emscripten_LOCK_UN);
-
-		const lockOpType = flockToLockOpType[maskedOp];
-		if (lockOpType === undefined) {
-			_js_wasm_trace(
-				'js_flock(%d, %d) invalid flock() operation',
-				fd,
-				op
-			);
-			return -ERRNO_CODES.EINVAL;
-		}
-
-		try {
-			const nativeFilePath =
-				locking.get_native_path_from_vfs_path(vfsPath);
-			const obtainedLock = PHPLoader.fileLockManager.lockWholeFile(
-				nativeFilePath,
-				{
-					type: lockOpType,
-					pid: PHPLoader.processId,
+			[vfsPath, errno] = locking.get_vfs_path_from_fd(fd);
+			if (errno !== 0) {
+				_js_wasm_trace(
+					'js_flock(%d, %d) get_vfs_path_from_fd errno %d',
 					fd,
-				}
-			);
-			_js_wasm_trace(
-				'js_flock(%d, %d) lockWholeFile %s returned %d',
-				fd,
-				op,
-				vfsPath,
-				obtainedLock
-			);
-			if (obtainedLock) {
-				locking.maybeLockedFds.add(fd);
-				return 0;
-			} else {
-				return -ERRNO_CODES.EWOULDBLOCK;
+					op,
+					vfsPath,
+					errno
+				);
+				return -errno;
 			}
-		} catch (e) {
-			_js_wasm_trace(
-				'js_flock(%d, %d) lockWholeFile error %s',
-				fd,
-				op,
-				e
-			);
-			return -ERRNO_CODES.EINVAL;
-		}
-	}
+
+			if (!locking.is_path_to_shared_fs(vfsPath)) {
+				_js_wasm_trace(
+					'flock(%d, %d) locking is not implemented for non-NodeFS path %s',
+					fd,
+					op,
+					vfsPath
+				);
+				// If not a NodeFS path, we can't lock it.
+				// Default to succeeding as Emscripten does.
+				return 0;
+			}
+
+			errno = locking.check_lock_params(fd, op);
+			if (errno !== 0) {
+				_js_wasm_trace(
+					'js_flock(%d, %d) check_lock_params errno %d',
+					fd,
+					op,
+					errno
+				);
+				return -errno;
+			}
+
+			// @TODO: Consider supporting blocking mode of flock()
+			if (op & (emscripten_LOCK_NB === 0)) {
+				_js_wasm_trace(
+					'js_flock(%d, %d) blocking mode of flock() is not implemented',
+					fd,
+					op
+				);
+				// We do not yet support the blocking form of flock().
+				// We respond with EINVAL to indicate failure
+				// because it is a known errno for a failed blocking flock().
+				return -ERRNO_CODES.EINVAL;
+			}
+
+			const maskedOp =
+				op &
+				(emscripten_LOCK_SH | emscripten_LOCK_EX | emscripten_LOCK_UN);
+
+			const lockOpType = flockToLockOpType[maskedOp];
+			if (lockOpType === undefined) {
+				_js_wasm_trace(
+					'js_flock(%d, %d) invalid flock() operation',
+					fd,
+					op
+				);
+				return -ERRNO_CODES.EINVAL;
+			}
+
+			try {
+				const nativeFilePath =
+					locking.get_native_path_from_vfs_path(vfsPath);
+				const obtainedLock = await Promise.resolve(
+					PHPLoader.fileLockManager.lockWholeFile(nativeFilePath, {
+						type: lockOpType,
+						pid: PHPLoader.processId,
+						fd,
+					})
+				);
+				_js_wasm_trace(
+					'js_flock(%d, %d) lockWholeFile %s returned %d',
+					fd,
+					op,
+					vfsPath,
+					obtainedLock
+				);
+				if (obtainedLock) {
+					locking.maybeLockedFds.add(fd);
+					return 0;
+				} else {
+					return -ERRNO_CODES.EWOULDBLOCK;
+				}
+			} catch (e) {
+				_js_wasm_trace(
+					'js_flock(%d, %d) lockWholeFile error %s',
+					fd,
+					op,
+					e
+				);
+				return -ERRNO_CODES.EINVAL;
+			}
+		});
+	};
 
 	function _js_open_process(
 		command,
@@ -17681,21 +17525,27 @@ export function init(RuntimeName, PHPLoader) {
 		return 0;
 	}
 
-	function _js_release_file_locks() {
-		_js_wasm_trace('js_release_file_locks()');
-		const pid = PHPLoader.processId;
-		if (!pid || !PHPLoader.fileLockManager) {
-			_js_wasm_trace('js_release_file_locks no pid or file lock manager');
-			return 0;
-		}
+	var _js_release_file_locks = function js_release_file_locks() {
+		return Asyncify.handleAsync(async () => {
+			_js_wasm_trace('js_release_file_locks()');
+			const pid = PHPLoader.processId;
+			if (!pid || !PHPLoader.fileLockManager) {
+				_js_wasm_trace(
+					'js_release_file_locks no pid or file lock manager'
+				);
+				return 0;
+			}
 
-		try {
-			PHPLoader.fileLockManager.releaseLocksForProcess(pid);
-			_js_wasm_trace('js_release_file_locks succeeded');
-		} catch (e) {
-			_js_wasm_trace('js_release_file_locks error %s', e);
-		}
-	}
+			try {
+				await Promise.resolve(
+					PHPLoader.fileLockManager.releaseLocksForProcess(pid)
+				);
+				_js_wasm_trace('js_release_file_locks succeeded');
+			} catch (e) {
+				_js_wasm_trace('js_release_file_locks error %s', e);
+			}
+		});
+	};
 
 	function _js_waitpid(pid, exitCodePtr) {
 		if (!PHPWASM.processTable[pid]) {
@@ -18165,35 +18015,41 @@ export function init(RuntimeName, PHPLoader) {
 	var Asyncify = {
 		instrumentWasmImports(imports) {
 			var importPattern =
-				/^(invoke_i|invoke_ii|invoke_iii|invoke_iiii|invoke_iiiii|invoke_iiiiii|invoke_iiiiiii|invoke_iiiiiiii|invoke_iiiiiiiii|invoke_iiiiiiiiii|invoke_v|invoke_vi|invoke_vii|invoke_viidii|invoke_viii|invoke_viiii|invoke_viiiii|invoke_viiiiii|invoke_viiiiiii|invoke_viiiiiiiii|invoke_i|invoke_ii|invoke_iii|invoke_iiii|invoke_iiiii|invoke_iiiiii|invoke_iiiiiii|invoke_iiiiiiii|invoke_iiiiiiiiii|invoke_iij|invoke_iiji|invoke_iiij|invoke_iijii|invoke_iijiji|invoke_jii|invoke_jiii|invoke_viijii|invoke_vji|js_open_process|_js_open_process|_asyncjs__js_open_process|js_popen_to_file|_js_popen_to_file|_asyncjs__js_popen_to_file|__syscall_fcntl64|___syscall_fcntl64|_asyncjs___syscall_fcntl64|js_release_file_locks|_js_release_file_locks|_async_js_release_file_locks|js_flock|_js_flock|_async_js_flock|js_fd_read|_js_fd_read|fd_close|_fd_close|_asyncjs__fd_close|close|_close|js_module_onMessage|zend_hash_str_find|_js_module_onMessage|_asyncjs__js_module_onMessage|js_waitpid|_js_waitpid|_asyncjs__js_waitpid|wasm_poll_socket|_wasm_poll_socket|_asyncjs__wasm_poll_socket|_wasm_shutdown|_asyncjs__wasm_shutdown|__asyncjs__.*)$/;
+				/^(js_open_process|js_fd_read|js_waitpid|js_process_status|js_create_input_device|wasm_setsockopt|wasm_shutdown|wasm_close|wasm_recv|__syscall_fcntl64|js_flock|js_release_file_locks|js_waitpid|invoke_.*|__asyncjs__.*)$/;
 
 			for (let [x, original] of Object.entries(imports)) {
 				if (typeof original == 'function') {
 					let isAsyncifyImport =
 						original.isAsync || importPattern.test(x);
+					// Wrap async imports with a suspending WebAssembly function.
+					if (isAsyncifyImport) {
+						imports[x] = original = new WebAssembly.Suspending(
+							original
+						);
+					}
 				}
 			}
 		},
 		instrumentFunction(original) {
 			var wrapper = (...args) => {
-				Asyncify.exportCallStack.push(original);
-				try {
-					return original(...args);
-				} finally {
-					if (!ABORT) {
-						var top = Asyncify.exportCallStack.pop();
-						Asyncify.maybeStopUnwind();
-					}
-				}
+				return original(...args);
 			};
-			Asyncify.funcWrappers.set(original, wrapper);
 			wrapper.orig = original;
 			return wrapper;
 		},
 		instrumentWasmExports(exports) {
+			var exportPattern =
+				/^(php_wasm_init|wasm_sleep|wasm_read|emscripten_sleep|wasm_sapi_handle_request|wasm_sapi_request_shutdown|wasm_poll_socket|wrap_select|__wrap_select|select|php_pollfd_for|fflush|wasm_popen|wasm_read|wasm_php_exec|run_cli|wasm_recv|__wasm_call_ctors|__errno_location|__funcs_on_exit|main|__main_argc_argv)$/;
+			Asyncify.asyncExports = new Set();
 			var ret = {};
 			for (let [x, original] of Object.entries(exports)) {
 				if (typeof original == 'function') {
+					// Wrap all exports with a promising WebAssembly function.
+					let isAsyncifyExport = exportPattern.test(x);
+					if (isAsyncifyExport) {
+						Asyncify.asyncExports.add(original);
+						original = Asyncify.makeAsyncFunction(original);
+					}
 					var wrapper = Asyncify.instrumentFunction(original);
 					ret[x] = wrapper;
 				} else {
@@ -18202,191 +18058,23 @@ export function init(RuntimeName, PHPLoader) {
 			}
 			return ret;
 		},
-		State: {
-			Normal: 0,
-			Unwinding: 1,
-			Rewinding: 2,
-			Disabled: 3,
+		asyncExports: null,
+		isAsyncExport(func) {
+			return Asyncify.asyncExports?.has(func);
 		},
-		state: 0,
-		StackSize: 4096,
-		currData: null,
-		handleSleepReturnValue: 0,
-		exportCallStack: [],
-		callstackFuncToId: new Map(),
-		callStackIdToFunc: new Map(),
-		funcWrappers: new Map(),
-		callStackId: 0,
-		asyncPromiseHandlers: null,
-		sleepCallbacks: [],
-		getCallStackId(func) {
-			if (!Asyncify.callstackFuncToId.has(func)) {
-				var id = Asyncify.callStackId++;
-				Asyncify.callstackFuncToId.set(func, id);
-				Asyncify.callStackIdToFunc.set(id, func);
-			}
-			return Asyncify.callstackFuncToId.get(func);
-		},
-		maybeStopUnwind() {
-			if (
-				Asyncify.currData &&
-				Asyncify.state === Asyncify.State.Unwinding &&
-				Asyncify.exportCallStack.length === 0
-			) {
-				// We just finished unwinding.
-				// Be sure to set the state before calling any other functions to avoid
-				// possible infinite recursion here (For example in debug pthread builds
-				// the dbg() function itself can call back into WebAssembly to get the
-				// current pthread_self() pointer).
-				Asyncify.state = Asyncify.State.Normal;
-				runtimeKeepalivePush();
-				// Keep the runtime alive so that a re-wind can be done later.
-				runAndAbortIfError(_asyncify_stop_unwind);
-				if (typeof Fibers != 'undefined') {
-					Fibers.trampoline();
-				}
+		handleAsync: async (startAsync) => {
+			runtimeKeepalivePush();
+			try {
+				return await startAsync();
+			} finally {
+				runtimeKeepalivePop();
 			}
 		},
-		whenDone() {
-			return new Promise((resolve, reject) => {
-				Asyncify.asyncPromiseHandlers = { resolve, reject };
-			});
+		handleSleep: (startAsync) =>
+			Asyncify.handleAsync(() => new Promise(startAsync)),
+		makeAsyncFunction(original) {
+			return WebAssembly.promising(original);
 		},
-		allocateData() {
-			// An asyncify data structure has three fields:
-			//  0  current stack pos
-			//  4  max stack pos
-			//  8  id of function at bottom of the call stack (callStackIdToFunc[id] == wasm func)
-			//
-			// The Asyncify ABI only interprets the first two fields, the rest is for the runtime.
-			// We also embed a stack in the same memory region here, right next to the structure.
-			// This struct is also defined as asyncify_data_t in emscripten/fiber.h
-			var ptr = _malloc(12 + Asyncify.StackSize);
-			Asyncify.setDataHeader(ptr, ptr + 12, Asyncify.StackSize);
-			Asyncify.setDataRewindFunc(ptr);
-			return ptr;
-		},
-		setDataHeader(ptr, stack, stackSize) {
-			HEAPU32[ptr >> 2] = stack;
-			HEAPU32[(ptr + 4) >> 2] = stack + stackSize;
-		},
-		setDataRewindFunc(ptr) {
-			var bottomOfCallStack = Asyncify.exportCallStack[0];
-			var rewindId = Asyncify.getCallStackId(bottomOfCallStack);
-			HEAP32[(ptr + 8) >> 2] = rewindId;
-		},
-		getDataRewindFunc(ptr) {
-			var id = HEAP32[(ptr + 8) >> 2];
-			var func = Asyncify.callStackIdToFunc.get(id);
-			return func;
-		},
-		doRewind(ptr) {
-			var original = Asyncify.getDataRewindFunc(ptr);
-			var func = Asyncify.funcWrappers.get(original);
-			// Once we have rewound and the stack we no longer need to artificially
-			// keep the runtime alive.
-			runtimeKeepalivePop();
-			return func();
-		},
-		handleSleep(startAsync) {
-			if (ABORT) return;
-			if (Asyncify.state === Asyncify.State.Normal) {
-				// Prepare to sleep. Call startAsync, and see what happens:
-				// if the code decided to call our callback synchronously,
-				// then no async operation was in fact begun, and we don't
-				// need to do anything.
-				var reachedCallback = false;
-				var reachedAfterCallback = false;
-				startAsync((handleSleepReturnValue = 0) => {
-					if (ABORT) return;
-					Asyncify.handleSleepReturnValue = handleSleepReturnValue;
-					reachedCallback = true;
-					if (!reachedAfterCallback) {
-						// We are happening synchronously, so no need for async.
-						return;
-					}
-					Asyncify.state = Asyncify.State.Rewinding;
-					runAndAbortIfError(() =>
-						_asyncify_start_rewind(Asyncify.currData)
-					);
-					if (typeof MainLoop != 'undefined' && MainLoop.func) {
-						MainLoop.resume();
-					}
-					var asyncWasmReturnValue,
-						isError = false;
-					try {
-						asyncWasmReturnValue = Asyncify.doRewind(
-							Asyncify.currData
-						);
-					} catch (err) {
-						asyncWasmReturnValue = err;
-						isError = true;
-					}
-					// Track whether the return value was handled by any promise handlers.
-					var handled = false;
-					if (!Asyncify.currData) {
-						// All asynchronous execution has finished.
-						// `asyncWasmReturnValue` now contains the final
-						// return value of the exported async WASM function.
-						//
-						// Note: `asyncWasmReturnValue` is distinct from
-						// `Asyncify.handleSleepReturnValue`.
-						// `Asyncify.handleSleepReturnValue` contains the return
-						// value of the last C function to have executed
-						// `Asyncify.handleSleep()`, where as `asyncWasmReturnValue`
-						// contains the return value of the exported WASM function
-						// that may have called C functions that
-						// call `Asyncify.handleSleep()`.
-						var asyncPromiseHandlers =
-							Asyncify.asyncPromiseHandlers;
-						if (asyncPromiseHandlers) {
-							Asyncify.asyncPromiseHandlers = null;
-							(isError
-								? asyncPromiseHandlers.reject
-								: asyncPromiseHandlers.resolve)(
-								asyncWasmReturnValue
-							);
-							handled = true;
-						}
-					}
-					if (isError && !handled) {
-						// If there was an error and it was not handled by now, we have no choice but to
-						// rethrow that error into the global scope where it can be caught only by
-						// `onerror` or `onunhandledpromiserejection`.
-						throw asyncWasmReturnValue;
-					}
-				});
-				reachedAfterCallback = true;
-				if (!reachedCallback) {
-					// A true async operation was begun; start a sleep.
-					Asyncify.state = Asyncify.State.Unwinding;
-					// TODO: reuse, don't alloc/free every sleep
-					Asyncify.currData = Asyncify.allocateData();
-					if (typeof MainLoop != 'undefined' && MainLoop.func) {
-						MainLoop.pause();
-					}
-					runAndAbortIfError(() =>
-						_asyncify_start_unwind(Asyncify.currData)
-					);
-				}
-			} else if (Asyncify.state === Asyncify.State.Rewinding) {
-				// Stop a resume.
-				Asyncify.state = Asyncify.State.Normal;
-				runAndAbortIfError(_asyncify_stop_rewind);
-				_free(Asyncify.currData);
-				Asyncify.currData = null;
-				// Call all sleep callbacks now that the sleep-resume is all done.
-				Asyncify.sleepCallbacks.forEach(callUserCallback);
-			} else {
-				abort(`invalid state: ${Asyncify.state}`);
-			}
-			return Asyncify.handleSleepReturnValue;
-		},
-		handleAsync: (startAsync) =>
-			Asyncify.handleSleep((wakeUp) => {
-				// TODO: add error handling as a second param when handleSleep implements it.
-				startAsync().then(wakeUp);
-			}),
 	};
 
 	var getCFunc = (ident) => {
@@ -18444,29 +18132,16 @@ export function init(RuntimeName, PHPLoader) {
 				}
 			}
 		}
-		// Data for a previous async operation that was in flight before us.
-		var previousAsync = Asyncify.currData;
 		var ret = func(...cArgs);
 		function onDone(ret) {
-			runtimeKeepalivePop();
 			if (stack !== 0) stackRestore(stack);
 			return convertReturnValue(ret);
 		}
 		var asyncMode = opts?.async;
 
-		// Keep the runtime alive through all calls. Note that this call might not be
-		// async, but for simplicity we push and pop in all calls.
-		runtimeKeepalivePush();
-		if (Asyncify.currData != previousAsync) {
-			// This is a new async operation. The wasm is paused and has unwound its stack.
-			// We need to return a Promise that resolves the return value
-			// once the stack is rewound and execution finishes.
-			return Asyncify.whenDone().then(onDone);
-		}
+		if (asyncMode) return ret.then(onDone);
 
 		ret = onDone(ret);
-		// If this is an async ccall, ensure we return a promise
-		if (asyncMode) return Promise.resolve(ret);
 		return ret;
 	};
 
@@ -18535,6 +18210,8 @@ export function init(RuntimeName, PHPLoader) {
 	};
 
 	var getTempRet0 = (val) => __emscripten_tempret_get();
+
+	var setTempRet0 = (val) => __emscripten_tempret_set(val);
 
 	var _stackAlloc = stackAlloc;
 
@@ -18643,7 +18320,7 @@ export function init(RuntimeName, PHPLoader) {
 		);
 	_emscripten_get_compiler_setting.sig = 'pp';
 
-	var _emscripten_has_asyncify = () => 1;
+	var _emscripten_has_asyncify = () => 2;
 	_emscripten_has_asyncify.sig = 'i';
 
 	var _emscripten_debugger = () => {
@@ -18702,13 +18379,7 @@ export function init(RuntimeName, PHPLoader) {
 		var trace = getCallstack();
 		var parts = trace.split('\n');
 		for (var i = 0; i < parts.length; i++) {
-			var ret = ((
-				a1,
-				a2
-			) => {}) /* a dynamic function call to signature iii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-				0,
-				arg
-			);
+			var ret = getWasmTableEntry(func)(0, arg);
 			if (ret !== 0) return;
 		}
 	};
@@ -18720,16 +18391,6 @@ export function init(RuntimeName, PHPLoader) {
 	var __Unwind_FindEnclosingFunction = (ip) => 0;
 	__Unwind_FindEnclosingFunction.sig = 'pp';
 
-	var uncaughtExceptionCount = 0;
-	var ___cxa_throw = (ptr, type, destructor) => {
-		var info = new ExceptionInfo(ptr);
-		// Initialize ExceptionInfo content after it was allocated in __cxa_allocate_exception.
-		info.init(type, destructor);
-		exceptionLast = ptr;
-		uncaughtExceptionCount++;
-		throw exceptionLast;
-	};
-	___cxa_throw.sig = 'vppp';
 	var __Unwind_RaiseException = (ex) => {
 		err('Warning: _Unwind_RaiseException is not correctly implemented');
 		return ___cxa_throw(ex, 0, 0);
@@ -18739,6 +18400,16 @@ export function init(RuntimeName, PHPLoader) {
 	var __Unwind_DeleteException = (ex) => err('TODO: Unwind_DeleteException');
 	__Unwind_DeleteException.sig = 'vp';
 
+	var dynCall = (sig, ptr, args = [], promising = false) => {
+		var func = getWasmTableEntry(ptr);
+		var rtn = func(...args);
+
+		function convert(rtn) {
+			return rtn;
+		}
+
+		return convert(rtn);
+	};
 	var getDynCaller = (sig, ptr, promising = false) => {
 		return (...args) => dynCall(sig, ptr, args, promising);
 	};
@@ -18784,7 +18455,7 @@ export function init(RuntimeName, PHPLoader) {
 		if (x == '__main_argc_argv') {
 			x = 'main';
 		}
-		return x.startsWith('dynCall_') ? x : '_' + x;
+		return '_' + x;
 	};
 
 	var __emscripten_fs_load_embedded_files = (ptr) => {
@@ -19250,11 +18921,7 @@ export function init(RuntimeName, PHPLoader) {
 			stringToUTF8(e.locale || '', keyEventData + 128, 32);
 
 			if (
-				((
-					a1,
-					a2,
-					a3
-				) => {}) /* a dynamic function call to signature iiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
+				getWasmTableEntry(callbackfunc)(
 					eventTypeId,
 					keyEventData,
 					userData
@@ -19373,11 +19040,7 @@ export function init(RuntimeName, PHPLoader) {
 			fillMouseEventData(JSEvents.mouseEvent, e, target);
 
 			if (
-				((
-					a1,
-					a2,
-					a3
-				) => {}) /* a dynamic function call to signature iiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
+				getWasmTableEntry(callbackfunc)(
 					eventTypeId,
 					JSEvents.mouseEvent,
 					userData
@@ -19592,11 +19255,7 @@ export function init(RuntimeName, PHPLoader) {
 			HEAPF64[(wheelEvent + 80) >> 3] = e['deltaZ'];
 			HEAP32[(wheelEvent + 88) >> 2] = e['deltaMode'];
 			if (
-				((
-					a1,
-					a2,
-					a3
-				) => {}) /* a dynamic function call to signature iiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
+				getWasmTableEntry(callbackfunc)(
 					eventTypeId,
 					wheelEvent,
 					userData
@@ -19677,17 +19336,7 @@ export function init(RuntimeName, PHPLoader) {
 			HEAP32[(uiEvent + 24) >> 2] = outerHeight;
 			HEAP32[(uiEvent + 28) >> 2] = pageXOffset | 0; // scroll offsets are float
 			HEAP32[(uiEvent + 32) >> 2] = pageYOffset | 0;
-			if (
-				((
-					a1,
-					a2,
-					a3
-				) => {}) /* a dynamic function call to signature iiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-					eventTypeId,
-					uiEvent,
-					userData
-				)
-			)
+			if (getWasmTableEntry(callbackfunc)(eventTypeId, uiEvent, userData))
 				e.preventDefault();
 		};
 
@@ -19757,11 +19406,7 @@ export function init(RuntimeName, PHPLoader) {
 			stringToUTF8(id, focusEvent + 128, 128);
 
 			if (
-				((
-					a1,
-					a2,
-					a3
-				) => {}) /* a dynamic function call to signature iiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
+				getWasmTableEntry(callbackfunc)(
 					eventTypeId,
 					focusEvent,
 					userData
@@ -19878,11 +19523,7 @@ export function init(RuntimeName, PHPLoader) {
 			); // TODO: Thread-safety with respect to emscripten_get_deviceorientation_status()
 
 			if (
-				((
-					a1,
-					a2,
-					a3
-				) => {}) /* a dynamic function call to signature iiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
+				getWasmTableEntry(callbackfunc)(
 					eventTypeId,
 					JSEvents.deviceOrientationEvent,
 					userData
@@ -19967,11 +19608,7 @@ export function init(RuntimeName, PHPLoader) {
 			fillDeviceMotionEventData(JSEvents.deviceMotionEvent, e, target); // TODO: Thread-safety with respect to emscripten_get_devicemotion_status()
 
 			if (
-				((
-					a1,
-					a2,
-					a3
-				) => {}) /* a dynamic function call to signature iiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
+				getWasmTableEntry(callbackfunc)(
 					eventTypeId,
 					JSEvents.deviceMotionEvent,
 					userData
@@ -20079,11 +19716,7 @@ export function init(RuntimeName, PHPLoader) {
 			fillOrientationChangeEventData(orientationChangeEvent);
 
 			if (
-				((
-					a1,
-					a2,
-					a3
-				) => {}) /* a dynamic function call to signature iiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
+				getWasmTableEntry(callbackfunc)(
 					eventTypeId,
 					orientationChangeEvent,
 					userData
@@ -20213,11 +19846,7 @@ export function init(RuntimeName, PHPLoader) {
 			fillFullscreenChangeEventData(fullscreenChangeEvent);
 
 			if (
-				((
-					a1,
-					a2,
-					a3
-				) => {}) /* a dynamic function call to signature iiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
+				getWasmTableEntry(callbackfunc)(
 					eventTypeId,
 					fullscreenChangeEvent,
 					userData
@@ -20301,6 +19930,7 @@ export function init(RuntimeName, PHPLoader) {
 	};
 
 	var currentFullscreenStrategy = {};
+
 	var registerRestoreOldStyle = (canvas) => {
 		var canvasSize = getCanvasElementSize(canvas);
 		var oldWidth = canvasSize[0];
@@ -20363,11 +19993,9 @@ export function init(RuntimeName, PHPLoader) {
 					);
 
 				if (currentFullscreenStrategy.canvasResizedCallback) {
-					((
-						a1,
-						a2,
-						a3
-					) => {}) /* a dynamic function call to signature iiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
+					getWasmTableEntry(
+						currentFullscreenStrategy.canvasResizedCallback
+					)(
 						37,
 						0,
 						currentFullscreenStrategy.canvasResizedCallbackUserData
@@ -20451,6 +20079,7 @@ export function init(RuntimeName, PHPLoader) {
 		}
 		return restoreOldStyle;
 	};
+
 	var JSEvents_requestFullscreen = (target, strategy) => {
 		// EMSCRIPTEN_FULLSCREEN_SCALE_DEFAULT + EMSCRIPTEN_FULLSCREEN_CANVAS_SCALE_NONE is a mode where no extra logic is performed to the DOM elements.
 		if (
@@ -20469,11 +20098,7 @@ export function init(RuntimeName, PHPLoader) {
 		currentFullscreenStrategy = strategy;
 
 		if (strategy.canvasResizedCallback) {
-			((
-				a1,
-				a2,
-				a3
-			) => {}) /* a dynamic function call to signature iiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
+			getWasmTableEntry(strategy.canvasResizedCallback)(
 				37,
 				0,
 				strategy.canvasResizedCallbackUserData
@@ -20574,11 +20199,7 @@ export function init(RuntimeName, PHPLoader) {
 			!inCenteredWithoutScalingFullscreenMode &&
 			currentFullscreenStrategy.canvasResizedCallback
 		) {
-			((
-				a1,
-				a2,
-				a3
-			) => {}) /* a dynamic function call to signature iiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
+			getWasmTableEntry(currentFullscreenStrategy.canvasResizedCallback)(
 				37,
 				0,
 				currentFullscreenStrategy.canvasResizedCallbackUserData
@@ -20678,11 +20299,7 @@ export function init(RuntimeName, PHPLoader) {
 				softFullscreenResizeWebGLRenderTarget
 			);
 			if (strategy.canvasResizedCallback) {
-				((
-					a1,
-					a2,
-					a3
-				) => {}) /* a dynamic function call to signature iiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
+				getWasmTableEntry(strategy.canvasResizedCallback)(
 					37,
 					0,
 					strategy.canvasResizedCallbackUserData
@@ -20696,11 +20313,7 @@ export function init(RuntimeName, PHPLoader) {
 
 		// Inform the caller that the canvas size has changed.
 		if (strategy.canvasResizedCallback) {
-			((
-				a1,
-				a2,
-				a3
-			) => {}) /* a dynamic function call to signature iiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
+			getWasmTableEntry(strategy.canvasResizedCallback)(
 				37,
 				0,
 				strategy.canvasResizedCallbackUserData
@@ -20763,11 +20376,7 @@ export function init(RuntimeName, PHPLoader) {
 			fillPointerlockChangeEventData(pointerlockChangeEvent);
 
 			if (
-				((
-					a1,
-					a2,
-					a3
-				) => {}) /* a dynamic function call to signature iiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
+				getWasmTableEntry(callbackfunc)(
 					eventTypeId,
 					pointerlockChangeEvent,
 					userData
@@ -20821,17 +20430,7 @@ export function init(RuntimeName, PHPLoader) {
 		targetThread
 	) => {
 		var pointerlockErrorEventHandlerFunc = (e = event) => {
-			if (
-				((
-					a1,
-					a2,
-					a3
-				) => {}) /* a dynamic function call to signature iiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-					eventTypeId,
-					0,
-					userData
-				)
-			)
+			if (getWasmTableEntry(callbackfunc)(eventTypeId, 0, userData))
 				e.preventDefault();
 		};
 
@@ -20981,11 +20580,7 @@ export function init(RuntimeName, PHPLoader) {
 			fillVisibilityChangeEventData(visibilityChangeEvent);
 
 			if (
-				((
-					a1,
-					a2,
-					a3
-				) => {}) /* a dynamic function call to signature iiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
+				getWasmTableEntry(callbackfunc)(
 					eventTypeId,
 					visibilityChangeEvent,
 					userData
@@ -21106,11 +20701,7 @@ export function init(RuntimeName, PHPLoader) {
 			HEAP32[(touchEvent + 8) >> 2] = numTouches;
 
 			if (
-				((
-					a1,
-					a2,
-					a3
-				) => {}) /* a dynamic function call to signature iiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
+				getWasmTableEntry(callbackfunc)(
 					eventTypeId,
 					touchEvent,
 					userData
@@ -21249,11 +20840,7 @@ export function init(RuntimeName, PHPLoader) {
 			fillGamepadEventData(gamepadEvent, e['gamepad']);
 
 			if (
-				((
-					a1,
-					a2,
-					a3
-				) => {}) /* a dynamic function call to signature iiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
+				getWasmTableEntry(callbackfunc)(
 					eventTypeId,
 					gamepadEvent,
 					userData
@@ -21356,11 +20943,7 @@ export function init(RuntimeName, PHPLoader) {
 	) => {
 		var beforeUnloadEventHandlerFunc = (e = event) => {
 			// Note: This is always called on the main browser thread, since it needs synchronously return a value!
-			var confirmationMessage = ((
-				a1,
-				a2,
-				a3
-			) => {}) /* a dynamic function call to signature iiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
+			var confirmationMessage = getWasmTableEntry(callbackfunc)(
 				eventTypeId,
 				0,
 				userData
@@ -21432,11 +21015,7 @@ export function init(RuntimeName, PHPLoader) {
 			fillBatteryEventData(batteryEvent, battery);
 
 			if (
-				((
-					a1,
-					a2,
-					a3
-				) => {}) /* a dynamic function call to signature iiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
+				getWasmTableEntry(callbackfunc)(
 					eventTypeId,
 					batteryEvent,
 					userData
@@ -21539,13 +21118,7 @@ export function init(RuntimeName, PHPLoader) {
 
 	var _emscripten_request_animation_frame = (cb, userData) =>
 		requestAnimationFrame((timeStamp) =>
-			((
-				a1,
-				a2
-			) => {}) /* a dynamic function call to signature idi, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-				timeStamp,
-				userData
-			)
+			getWasmTableEntry(cb)(timeStamp, userData)
 		);
 	_emscripten_request_animation_frame.sig = 'ipp';
 
@@ -21554,15 +21127,7 @@ export function init(RuntimeName, PHPLoader) {
 
 	var _emscripten_request_animation_frame_loop = (cb, userData) => {
 		function tick(timeStamp) {
-			if (
-				((
-					a1,
-					a2
-				) => {}) /* a dynamic function call to signature idi, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-					timeStamp,
-					userData
-				)
-			) {
+			if (getWasmTableEntry(cb)(timeStamp, userData)) {
 				requestAnimationFrame(tick);
 			}
 		}
@@ -21815,13 +21380,7 @@ export function init(RuntimeName, PHPLoader) {
 		runtimeKeepalivePush();
 		return emSetImmediate(() => {
 			runtimeKeepalivePop();
-			callUserCallback(() =>
-				((
-					a1
-				) => {}) /* a dynamic function call to signature vi, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-					userData
-				)
-			);
+			callUserCallback(() => getWasmTableEntry(cb)(userData));
 		});
 	};
 	_emscripten_set_immediate.sig = 'ipp';
@@ -21835,13 +21394,7 @@ export function init(RuntimeName, PHPLoader) {
 	var _emscripten_set_immediate_loop = (cb, userData) => {
 		function tick() {
 			callUserCallback(() => {
-				if (
-					((
-						a1
-					) => {}) /* a dynamic function call to signature ii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-						userData
-					)
-				) {
+				if (getWasmTableEntry(cb)(userData)) {
 					emSetImmediate(tick);
 				} else {
 					runtimeKeepalivePop();
@@ -21854,15 +21407,7 @@ export function init(RuntimeName, PHPLoader) {
 	_emscripten_set_immediate_loop.sig = 'vpp';
 
 	var _emscripten_set_timeout = (cb, msecs, userData) =>
-		safeSetTimeout(
-			() =>
-				((
-					a1
-				) => {}) /* a dynamic function call to signature vi, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-					userData
-				),
-			msecs
-		);
+		safeSetTimeout(() => getWasmTableEntry(cb)(userData), msecs);
 	_emscripten_set_timeout.sig = 'ipdp';
 
 	var _emscripten_clear_timeout = clearTimeout;
@@ -21874,15 +21419,7 @@ export function init(RuntimeName, PHPLoader) {
 			var n = t + msecs;
 			runtimeKeepalivePop();
 			callUserCallback(() => {
-				if (
-					((
-						a1,
-						a2
-					) => {}) /* a dynamic function call to signature idi, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-						t,
-						userData
-					)
-				) {
+				if (getWasmTableEntry(cb)(t, userData)) {
 					runtimeKeepalivePush();
 					// Save a little bit of code space: modern browsers should treat
 					// negative setTimeout as timeout of 0
@@ -21902,13 +21439,7 @@ export function init(RuntimeName, PHPLoader) {
 	var _emscripten_set_interval = (cb, msecs, userData) => {
 		runtimeKeepalivePush();
 		return setInterval(() => {
-			callUserCallback(() =>
-				((
-					a1
-				) => {}) /* a dynamic function call to signature vi, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-					userData
-				)
-			);
+			callUserCallback(() => getWasmTableEntry(cb)(userData));
 		}, msecs);
 	};
 	_emscripten_set_interval.sig = 'ipdp';
@@ -21920,12 +21451,7 @@ export function init(RuntimeName, PHPLoader) {
 	_emscripten_clear_interval.sig = 'vi';
 
 	var _emscripten_async_call = (func, arg, millis) => {
-		var wrapper = () =>
-			((
-				a1
-			) => {}) /* a dynamic function call to signature vi, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-				arg
-			);
+		var wrapper = () => getWasmTableEntry(func)(arg);
 
 		if (
 			millis >= 0 ||
@@ -21956,8 +21482,7 @@ export function init(RuntimeName, PHPLoader) {
 	_emscripten_get_main_loop_timing.sig = 'vpp';
 
 	var _emscripten_set_main_loop = (func, fps, simulateInfiniteLoop) => {
-		var iterFunc =
-			() => {} /* a dynamic function call to signature v, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */;
+		var iterFunc = getWasmTableEntry(func);
 		setMainLoop(iterFunc, fps, simulateInfiniteLoop);
 	};
 	_emscripten_set_main_loop.sig = 'vpii';
@@ -21968,12 +21493,7 @@ export function init(RuntimeName, PHPLoader) {
 		fps,
 		simulateInfiniteLoop
 	) => {
-		var iterFunc = () =>
-			((
-				a1
-			) => {}) /* a dynamic function call to signature vi, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-				arg
-			);
+		var iterFunc = () => getWasmTableEntry(func)(arg);
 		setMainLoop(iterFunc, fps, simulateInfiniteLoop, arg);
 	};
 	_emscripten_set_main_loop_arg.sig = 'vppii';
@@ -21993,11 +21513,7 @@ export function init(RuntimeName, PHPLoader) {
 	var __emscripten_push_main_loop_blocker = (func, arg, name) => {
 		MainLoop.queue.push({
 			func: () => {
-				((
-					a1
-				) => {}) /* a dynamic function call to signature vi, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-					arg
-				);
+				getWasmTableEntry(func)(arg);
 			},
 			name: UTF8ToString(name),
 			counted: true,
@@ -22009,11 +21525,7 @@ export function init(RuntimeName, PHPLoader) {
 	var __emscripten_push_uncounted_main_loop_blocker = (func, arg, name) => {
 		MainLoop.queue.push({
 			func: () => {
-				((
-					a1
-				) => {}) /* a dynamic function call to signature vi, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-					arg
-				);
+				getWasmTableEntry(func)(arg);
 			},
 			name: UTF8ToString(name),
 			counted: false,
@@ -22046,11 +21558,7 @@ export function init(RuntimeName, PHPLoader) {
 			var resultPtr = stackAlloc(POINTER_SIZE);
 			HEAPU32[resultPtr >> 2] = 0;
 			try {
-				var result = ((
-					a1,
-					a2,
-					a3
-				) => {}) /* a dynamic function call to signature iiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
+				var result = getWasmTableEntry(callback)(
 					resultPtr,
 					userData,
 					value
@@ -22179,96 +21687,47 @@ export function init(RuntimeName, PHPLoader) {
 	_emscripten_promise_await.sig = 'vpp';
 	_emscripten_promise_await.isAsync = true;
 
-	var ___cxa_find_matching_catch_3 = (arg0) => findMatchingCatch([arg0]);
-	___cxa_find_matching_catch_3.sig = 'pp';
-
-	var ___cxa_find_matching_catch_4 = (arg0, arg1) =>
-		findMatchingCatch([arg0, arg1]);
-	___cxa_find_matching_catch_4.sig = 'ppp';
-
-	var exceptionCaught = [];
-
-	var ___cxa_rethrow = () => {
-		var info = exceptionCaught.pop();
-		if (!info) {
-			abort('no exception to throw');
+	var getExceptionMessageCommon = (ptr) => {
+		var sp = stackSave();
+		var type_addr_addr = stackAlloc(4);
+		var message_addr_addr = stackAlloc(4);
+		___get_exception_message(ptr, type_addr_addr, message_addr_addr);
+		var type_addr = HEAPU32[type_addr_addr >> 2];
+		var message_addr = HEAPU32[message_addr_addr >> 2];
+		var type = UTF8ToString(type_addr);
+		_free(type_addr);
+		var message;
+		if (message_addr) {
+			message = UTF8ToString(message_addr);
+			_free(message_addr);
 		}
-		var ptr = info.excPtr;
-		if (!info.get_rethrown()) {
-			// Only pop if the corresponding push was through rethrow_primary_exception
-			exceptionCaught.push(info);
-			info.set_rethrown(true);
-			info.set_caught(false);
-			uncaughtExceptionCount++;
-		}
-		exceptionLast = ptr;
-		throw exceptionLast;
+		stackRestore(sp);
+		return [type, message];
 	};
-	___cxa_rethrow.sig = 'v';
 
-	var _llvm_eh_typeid_for = (type) => type;
-	_llvm_eh_typeid_for.sig = 'vp';
+	var getCppExceptionTag = () => ___cpp_exception;
 
-	var ___cxa_begin_catch = (ptr) => {
-		var info = new ExceptionInfo(ptr);
-		if (!info.get_caught()) {
-			info.set_caught(true);
-			uncaughtExceptionCount--;
-		}
-		info.set_rethrown(false);
-		exceptionCaught.push(info);
+	var getCppExceptionThrownObjectFromWebAssemblyException = (ex) => {
+		// In Wasm EH, the value extracted from WebAssembly.Exception is a pointer
+		// to the unwind header. Convert it to the actual thrown value.
+		var unwind_header = ex.getArg(getCppExceptionTag(), 0);
+		return ___thrown_object_from_unwind_exception(unwind_header);
+	};
+
+	var incrementExceptionRefcount = (ex) => {
+		var ptr = getCppExceptionThrownObjectFromWebAssemblyException(ex);
 		___cxa_increment_exception_refcount(ptr);
-		return ___cxa_get_exception_ptr(ptr);
 	};
-	___cxa_begin_catch.sig = 'pp';
 
-	var ___cxa_end_catch = () => {
-		// Clear state flag.
-		_setThrew(0, 0);
-		// Call destructor if one is registered then clear it.
-		var info = exceptionCaught.pop();
-
-		___cxa_decrement_exception_refcount(info.excPtr);
-		exceptionLast = 0; // XXX in decRef?
+	var decrementExceptionRefcount = (ex) => {
+		var ptr = getCppExceptionThrownObjectFromWebAssemblyException(ex);
+		___cxa_decrement_exception_refcount(ptr);
 	};
-	___cxa_end_catch.sig = 'v';
 
-	var ___cxa_uncaught_exceptions = () => uncaughtExceptionCount;
-	___cxa_uncaught_exceptions.sig = 'i';
-
-	var ___cxa_call_unexpected = (exception) =>
-		abort(
-			'Unexpected exception thrown, this is not properly supported - aborting'
-		);
-	___cxa_call_unexpected.sig = 'vp';
-
-	var ___cxa_current_primary_exception = () => {
-		if (!exceptionCaught.length) {
-			return 0;
-		}
-		var info = exceptionCaught[exceptionCaught.length - 1];
-		___cxa_increment_exception_refcount(info.excPtr);
-		return info.excPtr;
+	var getExceptionMessage = (ex) => {
+		var ptr = getCppExceptionThrownObjectFromWebAssemblyException(ex);
+		return getExceptionMessageCommon(ptr);
 	};
-	___cxa_current_primary_exception.sig = 'p';
-
-	function ___cxa_current_exception_type() {
-		if (!exceptionCaught.length) {
-			return 0;
-		}
-		var info = exceptionCaught[exceptionCaught.length - 1];
-		return info.get_type();
-	}
-	___cxa_current_exception_type.sig = 'p';
-
-	var ___cxa_rethrow_primary_exception = (ptr) => {
-		if (!ptr) return;
-		var info = new ExceptionInfo(ptr);
-		exceptionCaught.push(info);
-		info.set_rethrown(true);
-		___cxa_rethrow();
-	};
-	___cxa_rethrow_primary_exception.sig = 'vp';
 
 	var Browser = {
 		useWebGL: false,
@@ -22887,21 +22346,11 @@ export function init(RuntimeName, PHPLoader) {
 			true,
 			() => {
 				runtimeKeepalivePop();
-				if (onload)
-					((
-						a1
-					) => {}) /* a dynamic function call to signature vi, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-						file
-					);
+				if (onload) getWasmTableEntry(onload)(file);
 			},
 			() => {
 				runtimeKeepalivePop();
-				if (onerror)
-					((
-						a1
-					) => {}) /* a dynamic function call to signature vi, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-						file
-					);
+				if (onerror) getWasmTableEntry(onerror)(file);
 			},
 			true // don'tCreateFile - it's already there
 		);
@@ -22933,23 +22382,11 @@ export function init(RuntimeName, PHPLoader) {
 			true,
 			() => {
 				runtimeKeepalivePop();
-				if (onload)
-					((
-						a1,
-						a2
-					) => {}) /* a dynamic function call to signature vii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-						arg,
-						cname
-					);
+				if (onload) getWasmTableEntry(onload)(arg, cname);
 			},
 			() => {
 				runtimeKeepalivePop();
-				if (onerror)
-					((
-						a1
-					) => {}) /* a dynamic function call to signature vi, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-						arg
-					);
+				if (onerror) getWasmTableEntry(onerror)(arg);
 			},
 			true // don'tCreateFile - it's already there
 		);
@@ -22970,9 +22407,7 @@ export function init(RuntimeName, PHPLoader) {
 			runtimeKeepalivePop();
 			if (onload) {
 				var onloadCallback = () =>
-					callUserCallback(
-						() => {} /* a dynamic function call to signature v, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */
-					);
+					callUserCallback(getWasmTableEntry(onload));
 				if (runDependencies > 0) {
 					dependenciesFulfilled = onloadCallback;
 				} else {
@@ -22984,9 +22419,7 @@ export function init(RuntimeName, PHPLoader) {
 		var loadError = () => {
 			runtimeKeepalivePop();
 			if (onerror) {
-				callUserCallback(
-					() => {} /* a dynamic function call to signature v, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */
-				);
+				callUserCallback(getWasmTableEntry(onerror));
 			}
 		};
 
@@ -23122,11 +22555,7 @@ export function init(RuntimeName, PHPLoader) {
 			runtimeKeepalivePush();
 			callbackId = info.callbacks.length;
 			info.callbacks.push({
-				func: (
-					a1,
-					a2,
-					a3
-				) => {} /* a dynamic function call to signature viii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */,
+				func: getWasmTableEntry(callback),
 				arg,
 			});
 			info.awaited++;
@@ -23216,11 +22645,7 @@ export function init(RuntimeName, PHPLoader) {
 				runtimeKeepalivePop();
 				callUserCallback(() =>
 					withStackSave(() =>
-						((
-							a1
-						) => {}) /* a dynamic function call to signature vi, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-							stringToUTF8OnStack(_file)
-						)
+						getWasmTableEntry(callback)(stringToUTF8OnStack(_file))
 					)
 				);
 			}
@@ -23263,26 +22688,14 @@ export function init(RuntimeName, PHPLoader) {
 			callUserCallback(() => {
 				var buffer = _malloc(byteArray.length);
 				HEAPU8.set(byteArray, buffer);
-				((
-					a1,
-					a2,
-					a3
-				) => {}) /* a dynamic function call to signature viii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-					userdata,
-					buffer,
-					byteArray.length
-				);
+				getWasmTableEntry(onload)(userdata, buffer, byteArray.length);
 				_free(buffer);
 			});
 		} catch (e) {
 			if (onerror) {
 				runtimeKeepalivePop();
 				callUserCallback(() => {
-					((
-						a1
-					) => {}) /* a dynamic function call to signature vi, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-						userdata
-					);
+					getWasmTableEntry(onerror)(userdata);
 				});
 			}
 		}
@@ -23337,11 +22750,7 @@ export function init(RuntimeName, PHPLoader) {
 				);
 				if (onload) {
 					var sp = stackSave();
-					((
-						a1,
-						a2,
-						a3
-					) => {}) /* a dynamic function call to signature viii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
+					getWasmTableEntry(onload)(
 						handle,
 						userdata,
 						stringToUTF8OnStack(_file)
@@ -23350,15 +22759,7 @@ export function init(RuntimeName, PHPLoader) {
 				}
 			} else {
 				if (onerror)
-					((
-						a1,
-						a2,
-						a3
-					) => {}) /* a dynamic function call to signature viii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-						handle,
-						userdata,
-						http.status
-					);
+					getWasmTableEntry(onerror)(handle, userdata, http.status);
 			}
 
 			delete wget.wgetRequests[handle];
@@ -23368,15 +22769,7 @@ export function init(RuntimeName, PHPLoader) {
 		http.onerror = (e) => {
 			runtimeKeepalivePop();
 			if (onerror)
-				((
-					a1,
-					a2,
-					a3
-				) => {}) /* a dynamic function call to signature viii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-					handle,
-					userdata,
-					http.status
-				);
+				getWasmTableEntry(onerror)(handle, userdata, http.status);
 			delete wget.wgetRequests[handle];
 		};
 
@@ -23388,11 +22781,7 @@ export function init(RuntimeName, PHPLoader) {
 			) {
 				var percentComplete = (e.loaded / e.total) * 100;
 				if (onprogress)
-					((
-						a1,
-						a2,
-						a3
-					) => {}) /* a dynamic function call to signature viii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
+					getWasmTableEntry(onprogress)(
 						handle,
 						userdata,
 						percentComplete
@@ -23450,12 +22839,7 @@ export function init(RuntimeName, PHPLoader) {
 				if (http.statusText) {
 					statusText = stringToUTF8OnStack(http.statusText);
 				}
-				((
-					a1,
-					a2,
-					a3,
-					a4
-				) => {}) /* a dynamic function call to signature viiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
+				getWasmTableEntry(onerror)(
 					handle,
 					userdata,
 					http.status,
@@ -23477,12 +22861,7 @@ export function init(RuntimeName, PHPLoader) {
 				var buffer = _malloc(byteArray.length);
 				HEAPU8.set(byteArray, buffer);
 				if (onload)
-					((
-						a1,
-						a2,
-						a3,
-						a4
-					) => {}) /* a dynamic function call to signature viiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
+					getWasmTableEntry(onload)(
 						handle,
 						userdata,
 						buffer,
@@ -23504,12 +22883,7 @@ export function init(RuntimeName, PHPLoader) {
 		// PROGRESS
 		http.onprogress = (e) => {
 			if (onprogress)
-				((
-					a1,
-					a2,
-					a3,
-					a4
-				) => {}) /* a dynamic function call to signature viiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
+				getWasmTableEntry(onprogress)(
 					handle,
 					userdata,
 					e.loaded,
@@ -23841,12 +23215,7 @@ export function init(RuntimeName, PHPLoader) {
 				if (event === 'error') {
 					withStackSave(() => {
 						var msg = stringToUTF8OnStack(data[2]);
-						((
-							a1,
-							a2,
-							a3,
-							a4
-						) => {}) /* a dynamic function call to signature viiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
+						getWasmTableEntry(callback)(
 							data[0],
 							data[1],
 							msg,
@@ -23854,13 +23223,7 @@ export function init(RuntimeName, PHPLoader) {
 						);
 					});
 				} else {
-					((
-						a1,
-						a2
-					) => {}) /* a dynamic function call to signature vii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-						data,
-						userData
-					);
+					getWasmTableEntry(callback)(data, userData);
 				}
 			});
 		}
@@ -24810,17 +24173,7 @@ export function init(RuntimeName, PHPLoader) {
 		targetThread
 	) => {
 		var webGlEventHandlerFunc = (e = event) => {
-			if (
-				((
-					a1,
-					a2,
-					a3
-				) => {}) /* a dynamic function call to signature iiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-					eventTypeId,
-					0,
-					userData
-				)
-			)
+			if (getWasmTableEntry(callbackfunc)(eventTypeId, 0, userData))
 				e.preventDefault();
 		};
 
@@ -24980,9 +24333,7 @@ export function init(RuntimeName, PHPLoader) {
 			GLUT.requestedAnimationFrame = true;
 			MainLoop.requestAnimationFrame(() => {
 				GLUT.requestedAnimationFrame = false;
-				MainLoop.runIter(() =>
-					(() => {})(/* a dynamic function call to signature v, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */)
-				);
+				MainLoop.runIter(() => getWasmTableEntry(GLUT.displayFunc)());
 			});
 		}
 	};
@@ -25035,23 +24386,11 @@ export function init(RuntimeName, PHPLoader) {
 			) {
 				event.preventDefault();
 				GLUT.saveModifiers(event);
-				((
-					a1,
-					a2
-				) => {}) /* a dynamic function call to signature vii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-					lastX,
-					lastY
-				);
+				getWasmTableEntry(GLUT.passiveMotionFunc)(lastX, lastY);
 			} else if (GLUT.buttons != 0 && GLUT.motionFunc) {
 				event.preventDefault();
 				GLUT.saveModifiers(event);
-				((
-					a1,
-					a2
-				) => {}) /* a dynamic function call to signature vii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-					lastX,
-					lastY
-				);
+				getWasmTableEntry(GLUT.motionFunc)(lastX, lastY);
 			}
 		},
 		getSpecialKey: (keycode) => {
@@ -25210,11 +24549,7 @@ export function init(RuntimeName, PHPLoader) {
 					if (GLUT.specialFunc) {
 						event.preventDefault();
 						GLUT.saveModifiers(event);
-						((
-							a1,
-							a2,
-							a3
-						) => {}) /* a dynamic function call to signature viii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
+						getWasmTableEntry(GLUT.specialFunc)(
 							key,
 							Browser.mouseX,
 							Browser.mouseY
@@ -25225,11 +24560,7 @@ export function init(RuntimeName, PHPLoader) {
 					if (key !== null && GLUT.keyboardFunc) {
 						event.preventDefault();
 						GLUT.saveModifiers(event);
-						((
-							a1,
-							a2,
-							a3
-						) => {}) /* a dynamic function call to signature viii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
+						getWasmTableEntry(GLUT.keyboardFunc)(
 							key,
 							Browser.mouseX,
 							Browser.mouseY
@@ -25245,11 +24576,7 @@ export function init(RuntimeName, PHPLoader) {
 					if (GLUT.specialUpFunc) {
 						event.preventDefault();
 						GLUT.saveModifiers(event);
-						((
-							a1,
-							a2,
-							a3
-						) => {}) /* a dynamic function call to signature viii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
+						getWasmTableEntry(GLUT.specialUpFunc)(
 							key,
 							Browser.mouseX,
 							Browser.mouseY
@@ -25260,11 +24587,7 @@ export function init(RuntimeName, PHPLoader) {
 					if (key !== null && GLUT.keyboardUpFunc) {
 						event.preventDefault();
 						GLUT.saveModifiers(event);
-						((
-							a1,
-							a2,
-							a3
-						) => {}) /* a dynamic function call to signature viii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
+						getWasmTableEntry(GLUT.keyboardUpFunc)(
 							key,
 							Browser.mouseX,
 							Browser.mouseY
@@ -25329,12 +24652,7 @@ export function init(RuntimeName, PHPLoader) {
 				} catch (e) {}
 				event.preventDefault();
 				GLUT.saveModifiers(event);
-				((
-					a1,
-					a2,
-					a3,
-					a4
-				) => {}) /* a dynamic function call to signature viiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
+				getWasmTableEntry(GLUT.mouseFunc)(
 					event['button'],
 					0 /*GLUT_DOWN*/,
 					Browser.mouseX,
@@ -25350,12 +24668,7 @@ export function init(RuntimeName, PHPLoader) {
 			if (GLUT.mouseFunc) {
 				event.preventDefault();
 				GLUT.saveModifiers(event);
-				((
-					a1,
-					a2,
-					a3,
-					a4
-				) => {}) /* a dynamic function call to signature viiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
+				getWasmTableEntry(GLUT.mouseFunc)(
 					event['button'],
 					1 /*GLUT_UP*/,
 					Browser.mouseX,
@@ -25385,12 +24698,7 @@ export function init(RuntimeName, PHPLoader) {
 			if (GLUT.mouseFunc) {
 				event.preventDefault();
 				GLUT.saveModifiers(event);
-				((
-					a1,
-					a2,
-					a3,
-					a4
-				) => {}) /* a dynamic function call to signature viiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
+				getWasmTableEntry(GLUT.mouseFunc)(
 					button,
 					0 /*GLUT_DOWN*/,
 					Browser.mouseX,
@@ -25429,13 +24737,7 @@ export function init(RuntimeName, PHPLoader) {
 			/* Can't call _glutReshapeWindow as that requests cancelling fullscreen. */
 			if (GLUT.reshapeFunc) {
 				// out("GLUT.reshapeFunc (from FS): " + width + ", " + height);
-				((
-					a1,
-					a2
-				) => {}) /* a dynamic function call to signature vii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-					width,
-					height
-				);
+				getWasmTableEntry(GLUT.reshapeFunc)(width, height);
 			}
 			_glutPostRedisplay();
 		},
@@ -25489,13 +24791,7 @@ export function init(RuntimeName, PHPLoader) {
 		// Resize callback stage 2: updateResizeListeners notifies reshapeFunc
 		Browser.resizeListeners.push((width, height) => {
 			if (GLUT.reshapeFunc) {
-				((
-					a1,
-					a2
-				) => {}) /* a dynamic function call to signature vii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-					width,
-					height
-				);
+				getWasmTableEntry(GLUT.reshapeFunc)(width, height);
 			}
 		});
 
@@ -25594,7 +24890,7 @@ export function init(RuntimeName, PHPLoader) {
 	var _glutIdleFunc = (func) => {
 		function callback() {
 			if (GLUT.idleFunc) {
-				(() => {})(/* a dynamic function call to signature v, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */);
+				getWasmTableEntry(GLUT.idleFunc)();
 				safeSetTimeout(callback, 4); // HTML spec specifies a 4ms minimum delay on the main thread; workers might get more, but we standardize here
 			}
 		}
@@ -25606,15 +24902,7 @@ export function init(RuntimeName, PHPLoader) {
 	_glutIdleFunc.sig = 'vp';
 
 	var _glutTimerFunc = (msec, func, value) =>
-		safeSetTimeout(
-			() =>
-				((
-					a1
-				) => {}) /* a dynamic function call to signature vi, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-					value
-				),
-			msec
-		);
+		safeSetTimeout(() => getWasmTableEntry(func)(value), msec);
 	_glutTimerFunc.sig = 'vipi';
 
 	var _glutDisplayFunc = (func) => {
@@ -25771,13 +25059,7 @@ export function init(RuntimeName, PHPLoader) {
 		Browser.setCanvasSize(width, height, true); // N.B. GLUT.reshapeFunc is also registered as a canvas resize callback.
 		// Just call it once here.
 		if (GLUT.reshapeFunc) {
-			((
-				a1,
-				a2
-			) => {}) /* a dynamic function call to signature vii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-				width,
-				height
-			);
+			getWasmTableEntry(GLUT.reshapeFunc)(width, height);
 		}
 		_glutPostRedisplay();
 	};
@@ -26828,25 +26110,12 @@ export function init(RuntimeName, PHPLoader) {
 				runtimeKeepalivePop();
 				callUserCallback(() => {
 					if (error) {
-						if (onerror)
-							((
-								a1
-							) => {}) /* a dynamic function call to signature vi, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-								arg
-							);
+						if (onerror) getWasmTableEntry(onerror)(arg);
 						return;
 					}
 					var buffer = _malloc(byteArray.length);
 					HEAPU8.set(byteArray, buffer);
-					((
-						a1,
-						a2,
-						a3
-					) => {}) /* a dynamic function call to signature viii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-						arg,
-						buffer,
-						byteArray.length
-					);
+					getWasmTableEntry(onload)(arg, buffer, byteArray.length);
 					_free(buffer);
 				});
 			}
@@ -26874,20 +26143,10 @@ export function init(RuntimeName, PHPLoader) {
 				runtimeKeepalivePop();
 				callUserCallback(() => {
 					if (error) {
-						if (onerror)
-							((
-								a1
-							) => {}) /* a dynamic function call to signature vi, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-								arg
-							);
+						if (onerror) getWasmTableEntry(onerror)(arg);
 						return;
 					}
-					if (onstore)
-						((
-							a1
-						) => {}) /* a dynamic function call to signature vi, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-							arg
-						);
+					if (onstore) getWasmTableEntry(onstore)(arg);
 				});
 			}
 		);
@@ -26900,20 +26159,10 @@ export function init(RuntimeName, PHPLoader) {
 			runtimeKeepalivePop();
 			callUserCallback(() => {
 				if (error) {
-					if (onerror)
-						((
-							a1
-						) => {}) /* a dynamic function call to signature vi, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-							arg
-						);
+					if (onerror) getWasmTableEntry(onerror)(arg);
 					return;
 				}
-				if (ondelete)
-					((
-						a1
-					) => {}) /* a dynamic function call to signature vi, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-						arg
-					);
+				if (ondelete) getWasmTableEntry(ondelete)(arg);
 			});
 		});
 	};
@@ -26928,22 +26177,10 @@ export function init(RuntimeName, PHPLoader) {
 				runtimeKeepalivePop();
 				callUserCallback(() => {
 					if (error) {
-						if (onerror)
-							((
-								a1
-							) => {}) /* a dynamic function call to signature vi, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-								arg
-							);
+						if (onerror) getWasmTableEntry(onerror)(arg);
 						return;
 					}
-					if (oncheck)
-						((
-							a1,
-							a2
-						) => {}) /* a dynamic function call to signature vii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-							arg,
-							exists
-						);
+					if (oncheck) getWasmTableEntry(oncheck)(arg, exists);
 				});
 			}
 		);
@@ -26956,20 +26193,10 @@ export function init(RuntimeName, PHPLoader) {
 			runtimeKeepalivePop();
 			callUserCallback(() => {
 				if (error) {
-					if (onerror)
-						((
-							a1
-						) => {}) /* a dynamic function call to signature vi, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-							arg
-						);
+					if (onerror) getWasmTableEntry(onerror)(arg);
 					return;
 				}
-				if (onclear)
-					((
-						a1
-					) => {}) /* a dynamic function call to signature vi, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-						arg
-					);
+				if (onclear) getWasmTableEntry(onclear)(arg);
 			});
 		});
 	};
@@ -27125,13 +26352,7 @@ export function init(RuntimeName, PHPLoader) {
 			safeSetTimeout(() => {
 				var stackBegin = Asyncify.currData + 12;
 				var stackEnd = HEAPU32[Asyncify.currData >> 2];
-				((
-					a1,
-					a2
-				) => {}) /* a dynamic function call to signature vii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-					stackBegin,
-					stackEnd
-				);
+				getWasmTableEntry(func)(stackBegin, stackEnd);
 				wakeUp();
 			}, 0);
 		});
@@ -27178,11 +26399,7 @@ export function init(RuntimeName, PHPLoader) {
 				HEAPU32[(newFiber + 12) >> 2] = 0;
 
 				var userData = HEAPU32[(newFiber + 16) >> 2];
-				((
-					a1
-				) => {}) /* a dynamic function call to signature vi, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-					userData
-				);
+				getWasmTableEntry(entryPoint)(userData);
 			} else {
 				var asyncifyData = newFiber + 20;
 				Asyncify.currData = asyncifyData;
@@ -28192,10 +27409,7 @@ export function init(RuntimeName, PHPLoader) {
 			if (!SDL.eventHandler) return;
 
 			while (SDL.pollEvent(SDL.eventHandlerTemp)) {
-				((
-					a1,
-					a2
-				) => {}) /* a dynamic function call to signature iii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
+				getWasmTableEntry(SDL.eventHandler)(
 					SDL.eventHandlerContext,
 					SDL.eventHandlerTemp
 				);
@@ -29820,11 +29034,7 @@ export function init(RuntimeName, PHPLoader) {
 						return;
 
 					// Ask SDL audio data from the user code.
-					((
-						a1,
-						a2,
-						a3
-					) => {}) /* a dynamic function call to signature viii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
+					getWasmTableEntry(SDL.audio.callback)(
 						SDL.audio.userdata,
 						SDL.audio.buffer,
 						SDL.audio.bufferSize
@@ -30283,11 +29493,7 @@ export function init(RuntimeName, PHPLoader) {
 				info.audio = null;
 			}
 			if (SDL.channelFinished) {
-				((
-					a1
-				) => {}) /* a dynamic function call to signature vi, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-					channel
-				);
+				getWasmTableEntry(SDL.channelFinished)(channel);
 			}
 		}
 		if (channel != -1) {
@@ -30354,11 +29560,7 @@ export function init(RuntimeName, PHPLoader) {
 				channelInfo.audio = null;
 			}
 			if (SDL.channelFinished)
-				((
-					a1
-				) => {}) /* a dynamic function call to signature vi, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-					channel
-				);
+				getWasmTableEntry(SDL.channelFinished)(channel);
 		};
 		if (channelInfo.audio) {
 			_Mix_HaltChannel(channel);
@@ -30384,7 +29586,7 @@ export function init(RuntimeName, PHPLoader) {
 		}
 		SDL.music.audio = null;
 		if (SDL.hookMusicFinished) {
-			(() => {})(/* a dynamic function call to signature v, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */);
+			getWasmTableEntry(SDL.hookMusicFinished)();
 		}
 		return 0;
 	};
@@ -31091,14 +30293,7 @@ export function init(RuntimeName, PHPLoader) {
 
 	var _SDL_AddTimer = (interval, callback, param) =>
 		safeSetTimeout(
-			() =>
-				((
-					a1,
-					a2
-				) => {}) /* a dynamic function call to signature iii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-					interval,
-					param
-				),
+			() => getWasmTableEntry(callback)(interval, param),
 			interval
 		);
 	_SDL_AddTimer.sig = 'iipp';
@@ -31469,15 +30664,7 @@ export function init(RuntimeName, PHPLoader) {
 
 		socket.onopen = function (e) {
 			var eventPtr = WS.getSocketEvent(socketId);
-			((
-				a1,
-				a2,
-				a3
-			) => {}) /* a dynamic function call to signature iiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-				0 /*TODO*/,
-				eventPtr,
-				userData
-			);
+			getWasmTableEntry(callbackFunc)(0 /*TODO*/, eventPtr, userData);
 		};
 		return 0;
 	};
@@ -31496,15 +30683,7 @@ export function init(RuntimeName, PHPLoader) {
 
 		socket.onerror = function (e) {
 			var eventPtr = WS.getSocketEvent(socketId);
-			((
-				a1,
-				a2,
-				a3
-			) => {}) /* a dynamic function call to signature iiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-				0 /*TODO*/,
-				eventPtr,
-				userData
-			);
+			getWasmTableEntry(callbackFunc)(0 /*TODO*/, eventPtr, userData);
 		};
 		return 0;
 	};
@@ -31526,15 +30705,7 @@ export function init(RuntimeName, PHPLoader) {
 			((HEAP8[eventPtr + 4] = e.wasClean),
 				(HEAP16[(eventPtr + 6) >> 1] = e.code),
 				stringToUTF8(e.reason, eventPtr + 8, 512));
-			((
-				a1,
-				a2,
-				a3
-			) => {}) /* a dynamic function call to signature iiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
-				0 /*TODO*/,
-				eventPtr,
-				userData
-			);
+			getWasmTableEntry(callbackFunc)(0 /*TODO*/, eventPtr, userData);
 		};
 		return 0;
 	};
@@ -31565,11 +30736,7 @@ export function init(RuntimeName, PHPLoader) {
 			((HEAPU32[(eventPtr + 4) >> 2] = buf),
 				(HEAP32[(eventPtr + 8) >> 2] = len),
 				(HEAP8[eventPtr + 12] = isText),
-				((
-					a1,
-					a2,
-					a3
-				) => {}) /* a dynamic function call to signature iiii, but there are no exported function pointers with that signature, so this path should never be taken. Build with ASSERTIONS enabled to validate. */(
+				getWasmTableEntry(callbackFunc)(
 					0 /*TODO*/,
 					eventPtr,
 					userData
@@ -31800,25 +30967,22 @@ export function init(RuntimeName, PHPLoader) {
 	Module['_emscripten_sleep'] = _emscripten_sleep;
 	Module['_setTempRet0'] = _setTempRet0;
 	Module['_getTempRet0'] = _getTempRet0;
+	Module['__Unwind_RaiseException'] = __Unwind_RaiseException;
+	Module['__Unwind_DeleteException'] = __Unwind_DeleteException;
 	Module['_sched_yield'] = _sched_yield;
-	Module['___cxa_uncaught_exceptions'] = ___cxa_uncaught_exceptions;
-	Module['___cxa_current_primary_exception'] =
-		___cxa_current_primary_exception;
-	Module['___cxa_rethrow_primary_exception'] =
-		___cxa_rethrow_primary_exception;
 	Module['___syscall_shutdown'] = ___syscall_shutdown;
 	// End JS library exports
 
 	// end include: postlibrary.js
 
 	var ASM_CONSTS = {
-		15812097: ($0) => {
+		15812658: ($0) => {
 			if (!$0) {
 				AL.alcErr = 0xa004;
 				return 1;
 			}
 		},
-		15812145: ($0) => {
+		15812706: ($0) => {
 			if (!AL.currentCtx) {
 				err('alGetProcAddress() called without a valid context');
 				return 1;
@@ -31829,194 +30993,202 @@ export function init(RuntimeName, PHPLoader) {
 			}
 		},
 	};
-	function js_popen_to_file(command, mode, exitCodePtr) {
-		const returnCallback = (resolver) => Asyncify.handleSleep(resolver);
-		if (!command) return 1;
-		const cmdstr = UTF8ToString(command);
-		if (!cmdstr.length) return 0;
-		const modestr = UTF8ToString(mode);
-		if (!modestr.length) return 0;
-		if (modestr === 'w') {
-			console.error('popen($cmd, "w") is not implemented yet');
-		}
-		return returnCallback(async (wakeUp) => {
-			let cp;
-			try {
-				cp = PHPWASM.spawnProcess(cmdstr, []);
-				if (cp instanceof Promise) {
-					cp = await cp;
-				}
-			} catch (e) {
-				console.error(e);
-				if (e.code === 'SPAWN_UNSUPPORTED') {
-					return 1;
-				}
-				throw e;
+	function __asyncjs__js_popen_to_file(command, mode, exitCodePtr) {
+		return Asyncify.handleAsync(async () => {
+			const returnCallback = (resolver) => new Promise(resolver);
+			if (!command) return 1;
+			const cmdstr = UTF8ToString(command);
+			if (!cmdstr.length) return 0;
+			const modestr = UTF8ToString(mode);
+			if (!modestr.length) return 0;
+			if (modestr === 'w') {
+				console.error('popen($cmd, "w") is not implemented yet');
 			}
-			const outByteArrays = [];
-			cp.stdout.on('data', function (data) {
-				outByteArrays.push(data);
-			});
-			const outputPath = '/tmp/popen_output';
-			cp.on('exit', function (exitCode) {
-				const outBytes = new Uint8Array(
-					outByteArrays.reduce((acc, curr) => acc + curr.length, 0)
-				);
-				let offset = 0;
-				for (const byteArray of outByteArrays) {
-					outBytes.set(byteArray, offset);
-					offset += byteArray.length;
+			return returnCallback(async (wakeUp) => {
+				let cp;
+				try {
+					cp = PHPWASM.spawnProcess(cmdstr, []);
+					if (cp instanceof Promise) {
+						cp = await cp;
+					}
+				} catch (e) {
+					console.error(e);
+					if (e.code === 'SPAWN_UNSUPPORTED') {
+						return 1;
+					}
+					throw e;
 				}
-				FS.writeFile(outputPath, outBytes);
-				HEAPU8[exitCodePtr] = exitCode;
-				wakeUp(allocateUTF8OnStack(outputPath));
+				const outByteArrays = [];
+				cp.stdout.on('data', function (data) {
+					outByteArrays.push(data);
+				});
+				const outputPath = '/tmp/popen_output';
+				cp.on('exit', function (exitCode) {
+					const outBytes = new Uint8Array(
+						outByteArrays.reduce(
+							(acc, curr) => acc + curr.length,
+							0
+						)
+					);
+					let offset = 0;
+					for (const byteArray of outByteArrays) {
+						outBytes.set(byteArray, offset);
+						offset += byteArray.length;
+					}
+					FS.writeFile(outputPath, outBytes);
+					HEAPU8[exitCodePtr] = exitCode;
+					wakeUp(allocateUTF8OnStack(outputPath));
+				});
 			});
 		});
 	}
-	js_popen_to_file.sig = 'iiii';
-	function wasm_poll_socket(socketd, events, timeout) {
-		const returnCallback = (resolver) => Asyncify.handleSleep(resolver);
-		const POLLIN = 0x0001;
-		const POLLPRI = 0x0002;
-		const POLLOUT = 0x0004;
-		const POLLERR = 0x0008;
-		const POLLHUP = 0x0010;
-		const POLLNVAL = 0x0020;
-		return returnCallback((wakeUp) => {
-			const polls = [];
-			const stream = FS.getStream(socketd);
-			if (FS.isSocket(stream?.node.mode)) {
-				const sock = getSocketFromFD(socketd);
-				if (!sock) {
-					wakeUp(0);
-					return;
-				}
-				const lookingFor = new Set();
-				if (events & POLLIN || events & POLLPRI) {
-					if (sock.server) {
-						for (const client of sock.pending) {
-							if ((client.recv_queue || []).length > 0) {
-								wakeUp(1);
-								return;
-							}
-						}
-					} else if ((sock.recv_queue || []).length > 0) {
-						wakeUp(1);
+	__asyncjs__js_popen_to_file.sig = 'iiii';
+	function __asyncjs__wasm_poll_socket(socketd, events, timeout) {
+		return Asyncify.handleAsync(async () => {
+			const returnCallback = (resolver) => new Promise(resolver);
+			const POLLIN = 0x0001;
+			const POLLPRI = 0x0002;
+			const POLLOUT = 0x0004;
+			const POLLERR = 0x0008;
+			const POLLHUP = 0x0010;
+			const POLLNVAL = 0x0020;
+			return returnCallback((wakeUp) => {
+				const polls = [];
+				const stream = FS.getStream(socketd);
+				if (FS.isSocket(stream?.node.mode)) {
+					const sock = getSocketFromFD(socketd);
+					if (!sock) {
+						wakeUp(0);
 						return;
 					}
-				}
-				const webSockets = PHPWASM.getAllWebSockets(sock);
-				if (!webSockets.length) {
-					wakeUp(0);
+					const lookingFor = new Set();
+					if (events & POLLIN || events & POLLPRI) {
+						if (sock.server) {
+							for (const client of sock.pending) {
+								if ((client.recv_queue || []).length > 0) {
+									wakeUp(1);
+									return;
+								}
+							}
+						} else if ((sock.recv_queue || []).length > 0) {
+							wakeUp(1);
+							return;
+						}
+					}
+					const webSockets = PHPWASM.getAllWebSockets(sock);
+					if (!webSockets.length) {
+						wakeUp(0);
+						return;
+					}
+					for (const ws of webSockets) {
+						if (events & POLLIN || events & POLLPRI) {
+							polls.push(PHPWASM.awaitData(ws));
+							lookingFor.add('POLLIN');
+						}
+						if (events & POLLOUT) {
+							polls.push(PHPWASM.awaitConnection(ws));
+							lookingFor.add('POLLOUT');
+						}
+						if (
+							events & POLLHUP ||
+							events & POLLIN ||
+							events & POLLOUT ||
+							events & POLLERR
+						) {
+							polls.push(PHPWASM.awaitClose(ws));
+							lookingFor.add('POLLHUP');
+						}
+						if (events & POLLERR || events & POLLNVAL) {
+							polls.push(PHPWASM.awaitError(ws));
+							lookingFor.add('POLLERR');
+						}
+					}
+				} else if (stream?.stream_ops?.poll) {
+					let interrupted = false;
+					async function poll() {
+						try {
+							while (true) {
+								var mask = POLLNVAL;
+								mask = SYSCALLS.DEFAULT_POLLMASK;
+								if (FS.isClosed(stream)) {
+									return ERRNO_CODES.EBADF;
+								}
+								if (stream.stream_ops?.poll) {
+									mask = stream.stream_ops.poll(stream, -1);
+								}
+								mask &= events | POLLERR | POLLHUP;
+								if (mask) {
+									return mask;
+								}
+								if (interrupted) {
+									return ERRNO_CODES.ETIMEDOUT;
+								}
+								await new Promise((resolve) =>
+									setTimeout(resolve, 10)
+								);
+							}
+						} catch (e) {
+							if (
+								typeof FS == 'undefined' ||
+								!(e.name === 'ErrnoError')
+							)
+								throw e;
+							return -e.errno;
+						}
+					}
+					polls.push([
+						poll(),
+						() => {
+							interrupted = true;
+						},
+					]);
+				} else {
+					setTimeout(function () {
+						wakeUp(1);
+					}, timeout);
 					return;
 				}
-				for (const ws of webSockets) {
-					if (events & POLLIN || events & POLLPRI) {
-						polls.push(PHPWASM.awaitData(ws));
-						lookingFor.add('POLLIN');
-					}
-					if (events & POLLOUT) {
-						polls.push(PHPWASM.awaitConnection(ws));
-						lookingFor.add('POLLOUT');
-					}
-					if (
-						events & POLLHUP ||
-						events & POLLIN ||
-						events & POLLOUT ||
-						events & POLLERR
-					) {
-						polls.push(PHPWASM.awaitClose(ws));
-						lookingFor.add('POLLHUP');
-					}
-					if (events & POLLERR || events & POLLNVAL) {
-						polls.push(PHPWASM.awaitError(ws));
-						lookingFor.add('POLLERR');
-					}
+				if (polls.length === 0) {
+					console.warn(
+						'Unsupported poll event ' +
+							events +
+							', defaulting to setTimeout().'
+					);
+					setTimeout(function () {
+						wakeUp(0);
+					}, timeout);
+					return;
 				}
-			} else if (stream?.stream_ops?.poll) {
-				let interrupted = false;
-				async function poll() {
-					try {
-						while (true) {
-							var mask = POLLNVAL;
-							mask = SYSCALLS.DEFAULT_POLLMASK;
-							if (FS.isClosed(stream)) {
-								return ERRNO_CODES.EBADF;
-							}
-							if (stream.stream_ops?.poll) {
-								mask = stream.stream_ops.poll(stream, -1);
-							}
-							mask &= events | POLLERR | POLLHUP;
-							if (mask) {
-								return mask;
-							}
-							if (interrupted) {
-								return ERRNO_CODES.ETIMEDOUT;
-							}
-							await new Promise((resolve) =>
-								setTimeout(resolve, 10)
-							);
-						}
-					} catch (e) {
-						if (
-							typeof FS == 'undefined' ||
-							!(e.name === 'ErrnoError')
-						)
-							throw e;
-						return -e.errno;
-					}
-				}
-				polls.push([
-					poll(),
-					() => {
-						interrupted = true;
-					},
-				]);
-			} else {
-				setTimeout(function () {
-					wakeUp(1);
-				}, timeout);
-				return;
-			}
-			if (polls.length === 0) {
-				console.warn(
-					'Unsupported poll event ' +
-						events +
-						', defaulting to setTimeout().'
-				);
-				setTimeout(function () {
-					wakeUp(0);
-				}, timeout);
-				return;
-			}
-			const promises = polls.map(([promise]) => promise);
-			const clearPolling = () => polls.forEach(([, clear]) => clear());
-			let awaken = false;
-			let timeoutId;
-			Promise.race(promises).then(function (results) {
-				if (!awaken) {
-					awaken = true;
-					wakeUp(1);
-					if (timeoutId) {
-						clearTimeout(timeoutId);
-					}
-					clearPolling();
-				}
-			});
-			if (timeout !== -1) {
-				timeoutId = setTimeout(function () {
+				const promises = polls.map(([promise]) => promise);
+				const clearPolling = () =>
+					polls.forEach(([, clear]) => clear());
+				let awaken = false;
+				let timeoutId;
+				Promise.race(promises).then(function (results) {
 					if (!awaken) {
 						awaken = true;
-						wakeUp(0);
+						wakeUp(1);
+						if (timeoutId) {
+							clearTimeout(timeoutId);
+						}
 						clearPolling();
 					}
-				}, timeout);
-			}
+				});
+				if (timeout !== -1) {
+					timeoutId = setTimeout(function () {
+						if (!awaken) {
+							awaken = true;
+							wakeUp(0);
+							clearPolling();
+						}
+					}, timeout);
+				}
+			});
 		});
 	}
-	wasm_poll_socket.sig = 'iiii';
+	__asyncjs__wasm_poll_socket.sig = 'iiii';
 	function js_fd_read(fd, iov, iovcnt, pnum) {
-		const returnCallback = (resolver) => Asyncify.handleSleep(resolver);
+		const returnCallback = (resolver) => new Promise(resolver);
 		const pollAsync = arguments[4] === undefined ? true : !!arguments[4];
 		if (
 			Asyncify?.State?.Normal === undefined ||
@@ -32170,7 +31342,7 @@ export function init(RuntimeName, PHPLoader) {
 		_emscripten_builtin_memalign,
 		__emscripten_timeout,
 		_emscripten_get_sbrk_ptr,
-		_setThrew,
+		___trap,
 		__emscripten_tempret_set,
 		__emscripten_tempret_get,
 		_emscripten_stack_set_limits,
@@ -32178,17 +31350,15 @@ export function init(RuntimeName, PHPLoader) {
 		__emscripten_stack_alloc,
 		_emscripten_stack_get_current,
 		___cxa_demangle,
-		___cxa_increment_exception_refcount,
 		___cxa_decrement_exception_refcount,
-		___cxa_can_catch,
-		___cxa_get_exception_ptr,
-		_asyncify_start_unwind,
-		_asyncify_stop_unwind,
-		_asyncify_start_rewind,
-		_asyncify_stop_rewind,
+		___cxa_throw,
+		___cxa_increment_exception_refcount,
+		___thrown_object_from_unwind_exception,
+		___get_exception_message,
 		memory,
 		___stack_pointer,
 		__indirect_function_table,
+		___cpp_exception,
 		wasmTable,
 		wasmMemory;
 
@@ -32275,7 +31445,7 @@ export function init(RuntimeName, PHPLoader) {
 			wasmExports['emscripten_builtin_memalign'];
 		__emscripten_timeout = wasmExports['_emscripten_timeout'];
 		_emscripten_get_sbrk_ptr = wasmExports['emscripten_get_sbrk_ptr'];
-		_setThrew = wasmExports['setThrew'];
+		___trap = wasmExports['__trap'];
 		__emscripten_tempret_set = wasmExports['_emscripten_tempret_set'];
 		__emscripten_tempret_get = wasmExports['_emscripten_tempret_get'];
 		_emscripten_stack_set_limits =
@@ -32285,23 +31455,22 @@ export function init(RuntimeName, PHPLoader) {
 		_emscripten_stack_get_current =
 			wasmExports['emscripten_stack_get_current'];
 		___cxa_demangle = wasmExports['__cxa_demangle'];
-		___cxa_increment_exception_refcount =
-			wasmExports['__cxa_increment_exception_refcount'];
 		___cxa_decrement_exception_refcount =
 			wasmExports['__cxa_decrement_exception_refcount'];
-		___cxa_can_catch = wasmExports['__cxa_can_catch'];
-		___cxa_get_exception_ptr = wasmExports['__cxa_get_exception_ptr'];
-		_asyncify_start_unwind = wasmExports['asyncify_start_unwind'];
-		_asyncify_stop_unwind = wasmExports['asyncify_stop_unwind'];
-		_asyncify_start_rewind = wasmExports['asyncify_start_rewind'];
-		_asyncify_stop_rewind = wasmExports['asyncify_stop_rewind'];
+		___cxa_throw = wasmExports['__cxa_throw'];
+		___cxa_increment_exception_refcount =
+			wasmExports['__cxa_increment_exception_refcount'];
+		___thrown_object_from_unwind_exception =
+			wasmExports['__thrown_object_from_unwind_exception'];
+		___get_exception_message = wasmExports['__get_exception_message'];
 		memory = wasmMemory = wasmExports['memory'];
 		___stack_pointer = wasmExports['__stack_pointer'];
 		__indirect_function_table = wasmTable =
 			wasmExports['__indirect_function_table'];
+		___cpp_exception = wasmExports['__cpp_exception'];
 	}
 
-	var ___heap_base = 17370624;
+	var ___heap_base = 17371680;
 
 	var wasmImports = {
 		/** @export */
@@ -32725,45 +31894,21 @@ export function init(RuntimeName, PHPLoader) {
 		/** @export */
 		_Unwind_Backtrace: __Unwind_Backtrace,
 		/** @export */
-		_Unwind_DeleteException: __Unwind_DeleteException,
-		/** @export */
 		_Unwind_FindEnclosingFunction: __Unwind_FindEnclosingFunction,
 		/** @export */
 		_Unwind_GetIPInfo: __Unwind_GetIPInfo,
-		/** @export */
-		_Unwind_RaiseException: __Unwind_RaiseException,
 		/** @export */
 		__asctime_r: ___asctime_r,
 		/** @export */
 		__assert_fail: ___assert_fail,
 		/** @export */
-		__asyncify_data: ___asyncify_data,
-		/** @export */
-		__asyncify_state: ___asyncify_state,
-		/** @export */
 		__asyncjs__js_module_onMessage,
 		/** @export */
+		__asyncjs__js_popen_to_file,
+		/** @export */
+		__asyncjs__wasm_poll_socket,
+		/** @export */
 		__call_sighandler: ___call_sighandler,
-		/** @export */
-		__cxa_begin_catch: ___cxa_begin_catch,
-		/** @export */
-		__cxa_call_unexpected: ___cxa_call_unexpected,
-		/** @export */
-		__cxa_current_exception_type: ___cxa_current_exception_type,
-		/** @export */
-		__cxa_end_catch: ___cxa_end_catch,
-		/** @export */
-		__cxa_find_matching_catch_2: ___cxa_find_matching_catch_2,
-		/** @export */
-		__cxa_find_matching_catch_3: ___cxa_find_matching_catch_3,
-		/** @export */
-		__cxa_find_matching_catch_4: ___cxa_find_matching_catch_4,
-		/** @export */
-		__cxa_rethrow: ___cxa_rethrow,
-		/** @export */
-		__cxa_throw: ___cxa_throw,
-		/** @export */
-		__resumeException: ___resumeException,
 		/** @export */
 		__syscall__newselect: ___syscall__newselect,
 		/** @export */
@@ -32892,8 +32037,6 @@ export function init(RuntimeName, PHPLoader) {
 			__emscripten_runtime_keepalive_clear,
 		/** @export */
 		_emscripten_system: __emscripten_system,
-		/** @export */
-		_emscripten_throw_longjmp: __emscripten_throw_longjmp,
 		/** @export */
 		_glGetActiveAttribOrUniform: __glGetActiveAttribOrUniform,
 		/** @export */
@@ -34726,102 +33869,6 @@ export function init(RuntimeName, PHPLoader) {
 		/** @export */
 		glutTimerFunc: _glutTimerFunc,
 		/** @export */
-		invoke_dii,
-		/** @export */
-		invoke_i,
-		/** @export */
-		invoke_id,
-		/** @export */
-		invoke_ii,
-		/** @export */
-		invoke_iifi,
-		/** @export */
-		invoke_iii,
-		/** @export */
-		invoke_iiii,
-		/** @export */
-		invoke_iiiii,
-		/** @export */
-		invoke_iiiiii,
-		/** @export */
-		invoke_iiiiiii,
-		/** @export */
-		invoke_iiiiiiii,
-		/** @export */
-		invoke_iiiiiiiii,
-		/** @export */
-		invoke_iiiiiiiiii,
-		/** @export */
-		invoke_iiiiiiiiiii,
-		/** @export */
-		invoke_iiiiiiiiiiii,
-		/** @export */
-		invoke_iiiijj,
-		/** @export */
-		invoke_iiij,
-		/** @export */
-		invoke_iiijj,
-		/** @export */
-		invoke_iij,
-		/** @export */
-		invoke_iiji,
-		/** @export */
-		invoke_iijii,
-		/** @export */
-		invoke_iijiji,
-		/** @export */
-		invoke_ij,
-		/** @export */
-		invoke_ji,
-		/** @export */
-		invoke_jii,
-		/** @export */
-		invoke_jiii,
-		/** @export */
-		invoke_jiji,
-		/** @export */
-		invoke_v,
-		/** @export */
-		invoke_vi,
-		/** @export */
-		invoke_vii,
-		/** @export */
-		invoke_viid,
-		/** @export */
-		invoke_viidddddddd,
-		/** @export */
-		invoke_viidii,
-		/** @export */
-		invoke_viii,
-		/** @export */
-		invoke_viiii,
-		/** @export */
-		invoke_viiiii,
-		/** @export */
-		invoke_viiiiii,
-		/** @export */
-		invoke_viiiiiii,
-		/** @export */
-		invoke_viiiiiiii,
-		/** @export */
-		invoke_viiiiiiiii,
-		/** @export */
-		invoke_viiiiiiiiiii,
-		/** @export */
-		invoke_viiiiiiiiiiiii,
-		/** @export */
-		invoke_viiiiiiiiiiiiiii,
-		/** @export */
-		invoke_viiij,
-		/** @export */
-		invoke_viijii,
-		/** @export */
-		invoke_vij,
-		/** @export */
-		invoke_vijj,
-		/** @export */
-		invoke_vji,
-		/** @export */
 		js_fd_read,
 		/** @export */
 		js_flock: _js_flock,
@@ -34829,8 +33876,6 @@ export function init(RuntimeName, PHPLoader) {
 		js_getpid: _js_getpid,
 		/** @export */
 		js_open_process: _js_open_process,
-		/** @export */
-		js_popen_to_file,
 		/** @export */
 		js_process_status: _js_process_status,
 		/** @export */
@@ -34843,8 +33888,6 @@ export function init(RuntimeName, PHPLoader) {
 		lineColor: _lineColor,
 		/** @export */
 		lineRGBA: _lineRGBA,
-		/** @export */
-		llvm_eh_typeid_for: _llvm_eh_typeid_for,
 		/** @export */
 		makecontext: _makecontext,
 		/** @export */
@@ -34900,8 +33943,6 @@ export function init(RuntimeName, PHPLoader) {
 		/** @export */
 		wasm_close: _wasm_close,
 		/** @export */
-		wasm_poll_socket,
-		/** @export */
 		wasm_recv: _wasm_recv,
 		/** @export */
 		wasm_setsockopt: _wasm_setsockopt,
@@ -34911,717 +33952,10 @@ export function init(RuntimeName, PHPLoader) {
 		zoomSurface: _zoomSurface,
 	};
 
-	function invoke_iiii(index, a1, a2, a3) {
-		var sp = stackSave();
-		try {
-			return dynCalls['iiii'](index, a1, a2, a3);
-		} catch (e) {
-			stackRestore(sp);
-			if (e !== e + 0) throw e;
-			_setThrew(1, 0);
-		}
-	}
-
-	function invoke_viii(index, a1, a2, a3) {
-		var sp = stackSave();
-		try {
-			dynCalls['viii'](index, a1, a2, a3);
-		} catch (e) {
-			stackRestore(sp);
-			if (e !== e + 0) throw e;
-			_setThrew(1, 0);
-		}
-	}
-
-	function invoke_vii(index, a1, a2) {
-		var sp = stackSave();
-		try {
-			dynCalls['vii'](index, a1, a2);
-		} catch (e) {
-			stackRestore(sp);
-			if (e !== e + 0) throw e;
-			_setThrew(1, 0);
-		}
-	}
-
-	function invoke_iii(index, a1, a2) {
-		var sp = stackSave();
-		try {
-			return dynCalls['iii'](index, a1, a2);
-		} catch (e) {
-			stackRestore(sp);
-			if (e !== e + 0) throw e;
-			_setThrew(1, 0);
-		}
-	}
-
-	function invoke_vi(index, a1) {
-		var sp = stackSave();
-		try {
-			dynCalls['vi'](index, a1);
-		} catch (e) {
-			stackRestore(sp);
-			if (e !== e + 0) throw e;
-			_setThrew(1, 0);
-		}
-	}
-
-	function invoke_ii(index, a1) {
-		var sp = stackSave();
-		try {
-			return dynCalls['ii'](index, a1);
-		} catch (e) {
-			stackRestore(sp);
-			if (e !== e + 0) throw e;
-			_setThrew(1, 0);
-		}
-	}
-
-	function invoke_jii(index, a1, a2) {
-		var sp = stackSave();
-		try {
-			return dynCalls['jii'](index, a1, a2);
-		} catch (e) {
-			stackRestore(sp);
-			if (e !== e + 0) throw e;
-			_setThrew(1, 0);
-			return 0n;
-		}
-	}
-
-	function invoke_i(index) {
-		var sp = stackSave();
-		try {
-			return dynCalls['i'](index);
-		} catch (e) {
-			stackRestore(sp);
-			if (e !== e + 0) throw e;
-			_setThrew(1, 0);
-		}
-	}
-
-	function invoke_v(index) {
-		var sp = stackSave();
-		try {
-			dynCalls['v'](index);
-		} catch (e) {
-			stackRestore(sp);
-			if (e !== e + 0) throw e;
-			_setThrew(1, 0);
-		}
-	}
-
-	function invoke_iiiii(index, a1, a2, a3, a4) {
-		var sp = stackSave();
-		try {
-			return dynCalls['iiiii'](index, a1, a2, a3, a4);
-		} catch (e) {
-			stackRestore(sp);
-			if (e !== e + 0) throw e;
-			_setThrew(1, 0);
-		}
-	}
-
-	function invoke_iiiiii(index, a1, a2, a3, a4, a5) {
-		var sp = stackSave();
-		try {
-			return dynCalls['iiiiii'](index, a1, a2, a3, a4, a5);
-		} catch (e) {
-			stackRestore(sp);
-			if (e !== e + 0) throw e;
-			_setThrew(1, 0);
-		}
-	}
-
-	function invoke_vji(index, a1, a2) {
-		var sp = stackSave();
-		try {
-			dynCalls['vji'](index, a1, a2);
-		} catch (e) {
-			stackRestore(sp);
-			if (e !== e + 0) throw e;
-			_setThrew(1, 0);
-		}
-	}
-
-	function invoke_ji(index, a1) {
-		var sp = stackSave();
-		try {
-			return dynCalls['ji'](index, a1);
-		} catch (e) {
-			stackRestore(sp);
-			if (e !== e + 0) throw e;
-			_setThrew(1, 0);
-			return 0n;
-		}
-	}
-
-	function invoke_viiii(index, a1, a2, a3, a4) {
-		var sp = stackSave();
-		try {
-			dynCalls['viiii'](index, a1, a2, a3, a4);
-		} catch (e) {
-			stackRestore(sp);
-			if (e !== e + 0) throw e;
-			_setThrew(1, 0);
-		}
-	}
-
-	function invoke_vijj(index, a1, a2, a3) {
-		var sp = stackSave();
-		try {
-			dynCalls['vijj'](index, a1, a2, a3);
-		} catch (e) {
-			stackRestore(sp);
-			if (e !== e + 0) throw e;
-			_setThrew(1, 0);
-		}
-	}
-
-	function invoke_iij(index, a1, a2) {
-		var sp = stackSave();
-		try {
-			return dynCalls['iij'](index, a1, a2);
-		} catch (e) {
-			stackRestore(sp);
-			if (e !== e + 0) throw e;
-			_setThrew(1, 0);
-		}
-	}
-
-	function invoke_viiiii(index, a1, a2, a3, a4, a5) {
-		var sp = stackSave();
-		try {
-			dynCalls['viiiii'](index, a1, a2, a3, a4, a5);
-		} catch (e) {
-			stackRestore(sp);
-			if (e !== e + 0) throw e;
-			_setThrew(1, 0);
-		}
-	}
-
-	function invoke_iijii(index, a1, a2, a3, a4) {
-		var sp = stackSave();
-		try {
-			return dynCalls['iijii'](index, a1, a2, a3, a4);
-		} catch (e) {
-			stackRestore(sp);
-			if (e !== e + 0) throw e;
-			_setThrew(1, 0);
-		}
-	}
-
-	function invoke_iijiji(index, a1, a2, a3, a4, a5) {
-		var sp = stackSave();
-		try {
-			return dynCalls['iijiji'](index, a1, a2, a3, a4, a5);
-		} catch (e) {
-			stackRestore(sp);
-			if (e !== e + 0) throw e;
-			_setThrew(1, 0);
-		}
-	}
-
-	function invoke_iiiiiiii(index, a1, a2, a3, a4, a5, a6, a7) {
-		var sp = stackSave();
-		try {
-			return dynCalls['iiiiiiii'](index, a1, a2, a3, a4, a5, a6, a7);
-		} catch (e) {
-			stackRestore(sp);
-			if (e !== e + 0) throw e;
-			_setThrew(1, 0);
-		}
-	}
-
-	function invoke_iiji(index, a1, a2, a3) {
-		var sp = stackSave();
-		try {
-			return dynCalls['iiji'](index, a1, a2, a3);
-		} catch (e) {
-			stackRestore(sp);
-			if (e !== e + 0) throw e;
-			_setThrew(1, 0);
-		}
-	}
-
-	function invoke_iiiiiii(index, a1, a2, a3, a4, a5, a6) {
-		var sp = stackSave();
-		try {
-			return dynCalls['iiiiiii'](index, a1, a2, a3, a4, a5, a6);
-		} catch (e) {
-			stackRestore(sp);
-			if (e !== e + 0) throw e;
-			_setThrew(1, 0);
-		}
-	}
-
-	function invoke_iiij(index, a1, a2, a3) {
-		var sp = stackSave();
-		try {
-			return dynCalls['iiij'](index, a1, a2, a3);
-		} catch (e) {
-			stackRestore(sp);
-			if (e !== e + 0) throw e;
-			_setThrew(1, 0);
-		}
-	}
-
-	function invoke_viiij(index, a1, a2, a3, a4) {
-		var sp = stackSave();
-		try {
-			dynCalls['viiij'](index, a1, a2, a3, a4);
-		} catch (e) {
-			stackRestore(sp);
-			if (e !== e + 0) throw e;
-			_setThrew(1, 0);
-		}
-	}
-
-	function invoke_viiiiiii(index, a1, a2, a3, a4, a5, a6, a7) {
-		var sp = stackSave();
-		try {
-			dynCalls['viiiiiii'](index, a1, a2, a3, a4, a5, a6, a7);
-		} catch (e) {
-			stackRestore(sp);
-			if (e !== e + 0) throw e;
-			_setThrew(1, 0);
-		}
-	}
-
-	function invoke_jiii(index, a1, a2, a3) {
-		var sp = stackSave();
-		try {
-			return dynCalls['jiii'](index, a1, a2, a3);
-		} catch (e) {
-			stackRestore(sp);
-			if (e !== e + 0) throw e;
-			_setThrew(1, 0);
-			return 0n;
-		}
-	}
-
-	function invoke_iiiiiiiii(index, a1, a2, a3, a4, a5, a6, a7, a8) {
-		var sp = stackSave();
-		try {
-			return dynCalls['iiiiiiiii'](index, a1, a2, a3, a4, a5, a6, a7, a8);
-		} catch (e) {
-			stackRestore(sp);
-			if (e !== e + 0) throw e;
-			_setThrew(1, 0);
-		}
-	}
-
-	function invoke_viiiiii(index, a1, a2, a3, a4, a5, a6) {
-		var sp = stackSave();
-		try {
-			dynCalls['viiiiii'](index, a1, a2, a3, a4, a5, a6);
-		} catch (e) {
-			stackRestore(sp);
-			if (e !== e + 0) throw e;
-			_setThrew(1, 0);
-		}
-	}
-
-	function invoke_viijii(index, a1, a2, a3, a4, a5) {
-		var sp = stackSave();
-		try {
-			dynCalls['viijii'](index, a1, a2, a3, a4, a5);
-		} catch (e) {
-			stackRestore(sp);
-			if (e !== e + 0) throw e;
-			_setThrew(1, 0);
-		}
-	}
-
-	function invoke_viidii(index, a1, a2, a3, a4, a5) {
-		var sp = stackSave();
-		try {
-			dynCalls['viidii'](index, a1, a2, a3, a4, a5);
-		} catch (e) {
-			stackRestore(sp);
-			if (e !== e + 0) throw e;
-			_setThrew(1, 0);
-		}
-	}
-
-	function invoke_iiiiiiiiii(index, a1, a2, a3, a4, a5, a6, a7, a8, a9) {
-		var sp = stackSave();
-		try {
-			return dynCalls['iiiiiiiiii'](
-				index,
-				a1,
-				a2,
-				a3,
-				a4,
-				a5,
-				a6,
-				a7,
-				a8,
-				a9
-			);
-		} catch (e) {
-			stackRestore(sp);
-			if (e !== e + 0) throw e;
-			_setThrew(1, 0);
-		}
-	}
-
-	function invoke_viiiiiiiii(index, a1, a2, a3, a4, a5, a6, a7, a8, a9) {
-		var sp = stackSave();
-		try {
-			dynCalls['viiiiiiiii'](index, a1, a2, a3, a4, a5, a6, a7, a8, a9);
-		} catch (e) {
-			stackRestore(sp);
-			if (e !== e + 0) throw e;
-			_setThrew(1, 0);
-		}
-	}
-
-	function invoke_viiiiiiiiiiiii(
-		index,
-		a1,
-		a2,
-		a3,
-		a4,
-		a5,
-		a6,
-		a7,
-		a8,
-		a9,
-		a10,
-		a11,
-		a12,
-		a13
-	) {
-		var sp = stackSave();
-		try {
-			dynCalls['viiiiiiiiiiiii'](
-				index,
-				a1,
-				a2,
-				a3,
-				a4,
-				a5,
-				a6,
-				a7,
-				a8,
-				a9,
-				a10,
-				a11,
-				a12,
-				a13
-			);
-		} catch (e) {
-			stackRestore(sp);
-			if (e !== e + 0) throw e;
-			_setThrew(1, 0);
-		}
-	}
-
-	function invoke_viiiiiiiiiiiiiii(
-		index,
-		a1,
-		a2,
-		a3,
-		a4,
-		a5,
-		a6,
-		a7,
-		a8,
-		a9,
-		a10,
-		a11,
-		a12,
-		a13,
-		a14,
-		a15
-	) {
-		var sp = stackSave();
-		try {
-			dynCalls['viiiiiiiiiiiiiii'](
-				index,
-				a1,
-				a2,
-				a3,
-				a4,
-				a5,
-				a6,
-				a7,
-				a8,
-				a9,
-				a10,
-				a11,
-				a12,
-				a13,
-				a14,
-				a15
-			);
-		} catch (e) {
-			stackRestore(sp);
-			if (e !== e + 0) throw e;
-			_setThrew(1, 0);
-		}
-	}
-
-	function invoke_iiiiiiiiiiii(
-		index,
-		a1,
-		a2,
-		a3,
-		a4,
-		a5,
-		a6,
-		a7,
-		a8,
-		a9,
-		a10,
-		a11
-	) {
-		var sp = stackSave();
-		try {
-			return dynCalls['iiiiiiiiiiii'](
-				index,
-				a1,
-				a2,
-				a3,
-				a4,
-				a5,
-				a6,
-				a7,
-				a8,
-				a9,
-				a10,
-				a11
-			);
-		} catch (e) {
-			stackRestore(sp);
-			if (e !== e + 0) throw e;
-			_setThrew(1, 0);
-		}
-	}
-
-	function invoke_iiiijj(index, a1, a2, a3, a4, a5) {
-		var sp = stackSave();
-		try {
-			return dynCalls['iiiijj'](index, a1, a2, a3, a4, a5);
-		} catch (e) {
-			stackRestore(sp);
-			if (e !== e + 0) throw e;
-			_setThrew(1, 0);
-		}
-	}
-
-	function invoke_ij(index, a1) {
-		var sp = stackSave();
-		try {
-			return dynCalls['ij'](index, a1);
-		} catch (e) {
-			stackRestore(sp);
-			if (e !== e + 0) throw e;
-			_setThrew(1, 0);
-		}
-	}
-
-	function invoke_iiiiiiiiiii(
-		index,
-		a1,
-		a2,
-		a3,
-		a4,
-		a5,
-		a6,
-		a7,
-		a8,
-		a9,
-		a10
-	) {
-		var sp = stackSave();
-		try {
-			return dynCalls['iiiiiiiiiii'](
-				index,
-				a1,
-				a2,
-				a3,
-				a4,
-				a5,
-				a6,
-				a7,
-				a8,
-				a9,
-				a10
-			);
-		} catch (e) {
-			stackRestore(sp);
-			if (e !== e + 0) throw e;
-			_setThrew(1, 0);
-		}
-	}
-
-	function invoke_viiiiiiii(index, a1, a2, a3, a4, a5, a6, a7, a8) {
-		var sp = stackSave();
-		try {
-			dynCalls['viiiiiiii'](index, a1, a2, a3, a4, a5, a6, a7, a8);
-		} catch (e) {
-			stackRestore(sp);
-			if (e !== e + 0) throw e;
-			_setThrew(1, 0);
-		}
-	}
-
-	function invoke_viiiiiiiiiii(
-		index,
-		a1,
-		a2,
-		a3,
-		a4,
-		a5,
-		a6,
-		a7,
-		a8,
-		a9,
-		a10,
-		a11
-	) {
-		var sp = stackSave();
-		try {
-			dynCalls['viiiiiiiiiii'](
-				index,
-				a1,
-				a2,
-				a3,
-				a4,
-				a5,
-				a6,
-				a7,
-				a8,
-				a9,
-				a10,
-				a11
-			);
-		} catch (e) {
-			stackRestore(sp);
-			if (e !== e + 0) throw e;
-			_setThrew(1, 0);
-		}
-	}
-
-	function invoke_jiji(index, a1, a2, a3) {
-		var sp = stackSave();
-		try {
-			return dynCalls['jiji'](index, a1, a2, a3);
-		} catch (e) {
-			stackRestore(sp);
-			if (e !== e + 0) throw e;
-			_setThrew(1, 0);
-			return 0n;
-		}
-	}
-
-	function invoke_iiijj(index, a1, a2, a3, a4) {
-		var sp = stackSave();
-		try {
-			return dynCalls['iiijj'](index, a1, a2, a3, a4);
-		} catch (e) {
-			stackRestore(sp);
-			if (e !== e + 0) throw e;
-			_setThrew(1, 0);
-		}
-	}
-
-	function invoke_vij(index, a1, a2) {
-		var sp = stackSave();
-		try {
-			dynCalls['vij'](index, a1, a2);
-		} catch (e) {
-			stackRestore(sp);
-			if (e !== e + 0) throw e;
-			_setThrew(1, 0);
-		}
-	}
-
-	function invoke_dii(index, a1, a2) {
-		var sp = stackSave();
-		try {
-			return dynCalls['dii'](index, a1, a2);
-		} catch (e) {
-			stackRestore(sp);
-			if (e !== e + 0) throw e;
-			_setThrew(1, 0);
-		}
-	}
-
-	function invoke_viid(index, a1, a2, a3) {
-		var sp = stackSave();
-		try {
-			dynCalls['viid'](index, a1, a2, a3);
-		} catch (e) {
-			stackRestore(sp);
-			if (e !== e + 0) throw e;
-			_setThrew(1, 0);
-		}
-	}
-
-	function invoke_viidddddddd(
-		index,
-		a1,
-		a2,
-		a3,
-		a4,
-		a5,
-		a6,
-		a7,
-		a8,
-		a9,
-		a10
-	) {
-		var sp = stackSave();
-		try {
-			dynCalls['viidddddddd'](
-				index,
-				a1,
-				a2,
-				a3,
-				a4,
-				a5,
-				a6,
-				a7,
-				a8,
-				a9,
-				a10
-			);
-		} catch (e) {
-			stackRestore(sp);
-			if (e !== e + 0) throw e;
-			_setThrew(1, 0);
-		}
-	}
-
-	function invoke_id(index, a1) {
-		var sp = stackSave();
-		try {
-			return dynCalls['id'](index, a1);
-		} catch (e) {
-			stackRestore(sp);
-			if (e !== e + 0) throw e;
-			_setThrew(1, 0);
-		}
-	}
-
-	function invoke_iifi(index, a1, a2, a3) {
-		var sp = stackSave();
-		try {
-			return dynCalls['iifi'](index, a1, a2, a3);
-		} catch (e) {
-			stackRestore(sp);
-			if (e !== e + 0) throw e;
-			_setThrew(1, 0);
-		}
-	}
-
 	// include: postamble.js
 	// === Auto-generated postamble setup entry stuff ===
 
-	function callMain(args = []) {
+	async function callMain(args = []) {
 		var entryFunction = resolveGlobalSymbol('main').sym;
 
 		// Main modules can't tell if they have main() at compile time, since it may
@@ -35642,6 +33976,10 @@ export function init(RuntimeName, PHPLoader) {
 		try {
 			var ret = entryFunction(argc, argv);
 
+			// The current spec of JSPI returns a promise only if the function suspends
+			// and a plain value otherwise. This will likely change:
+			// https://github.com/WebAssembly/js-promise-integration/issues/11
+			ret = await ret;
 			// if we're not running an evented main loop, it's time to exit
 			exitJS(ret, /* implicit = */ true);
 			return ret;
@@ -35664,7 +34002,7 @@ export function init(RuntimeName, PHPLoader) {
 			return;
 		}
 
-		function doRun() {
+		async function doRun() {
 			// run may have just been called through dependencies being fulfilled just in this very frame,
 			// or while the async setStatus time below was happening
 			Module['calledRun'] = true;
@@ -35678,7 +34016,7 @@ export function init(RuntimeName, PHPLoader) {
 			Module['onRuntimeInitialized']?.();
 
 			var noInitialRun = Module['noInitialRun'] || true;
-			if (!noInitialRun) callMain(args);
+			if (!noInitialRun) await callMain(args);
 
 			postRun();
 		}
