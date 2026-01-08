@@ -12,7 +12,8 @@
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
-					"cp packages/playground/cli/README.md dist/packages/playground/cli"
+					"cp packages/playground/cli/README.md dist/packages/playground/cli",
+					"cp packages/playground/wordpress-builds/src/sqlite-database-integration/sqlite-database-integration-develop.zip dist/packages/playground/cli/sqlite-database-integration-develop.zip"
 				]
 			},
 			"dependsOn": ["build:package-json"]

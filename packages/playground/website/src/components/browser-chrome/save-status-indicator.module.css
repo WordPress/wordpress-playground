@@ -1,0 +1,103 @@
+.indicator {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 4px 0;
+	border-radius: 4px;
+	font-size: 14px;
+	font-weight: 500;
+	white-space: nowrap;
+	border: none;
+	background: transparent;
+	cursor: default;
+	flex-shrink: 0;
+}
+
+.indicator svg {
+	flex-shrink: 0;
+}
+
+.saved {
+	color: #86efac;
+}
+
+.saved svg {
+	fill: #86efac;
+}
+
+.unsaved {
+	color: #fcd34d;
+}
+
+.unsaved svg {
+	fill: #fcd34d;
+}
+
+.saveButton {
+	margin-left: 2px;
+	padding: 4px 10px;
+	background: #fcd34d;
+	color: #1e2327;
+	border: none;
+	border-radius: 4px;
+	font-size: 13px;
+	font-weight: 600;
+	cursor: pointer;
+	transition: background 0.15s ease;
+	min-height: 28px;
+}
+
+.saveButton:hover {
+	background: #fde68a;
+}
+
+.saving {
+	color: #93c5fd;
+}
+
+.error {
+	color: #fca5a5;
+	cursor: pointer;
+	transition: background 0.15s ease;
+}
+
+.error:hover {
+	background: rgba(255, 255, 255, 0.1);
+}
+
+.error svg {
+	fill: #fca5a5;
+}
+
+.label {
+	display: inline;
+}
+
+.spinner {
+	width: 16px;
+	height: 16px;
+	border: 2px solid rgba(147, 197, 253, 0.3);
+	border-top-color: #93c5fd;
+	border-radius: 50%;
+	animation: spin 0.8s linear infinite;
+	flex-shrink: 0;
+}
+
+@keyframes spin {
+	to {
+		transform: rotate(360deg);
+	}
+}
+
+/* Mobile responsive styles */
+@media (max-width: 500px) {
+	.indicator {
+		font-size: 13px;
+	}
+
+	.saveButton {
+		min-width: 40px;
+		min-height: 40px;
+		padding: 8px 12px;
+	}
+}

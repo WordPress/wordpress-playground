@@ -120,7 +120,7 @@ test.skip(
 		await modal.getByLabel('PHP version').selectOption('7.4');
 		await modal.getByLabel('WordPress version').selectOption('6.5');
 		await modal.getByLabel('Language').selectOption('pl_PL');
-		await website.page.getByText('Create a temporary Playground').click();
+		await website.page.getByText('Create an Unsaved Playground').click();
 
 		await website.waitForNestedIframes();
 

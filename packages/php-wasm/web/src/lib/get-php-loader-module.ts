@@ -1,77 +1,49 @@
 import type { PHPLoaderModule, SupportedPHPVersion } from '@php-wasm/universal';
 import { LatestSupportedPHPVersion } from '@php-wasm/universal';
-import { jspi } from 'wasm-feature-detect';
 
 /**
  * Loads the PHP loader module for the given PHP version.
  *
+ * Each PHP version is packaged separately to reduce bundle size.
+ * - @php-wasm/web-8-5
+ * - @php-wasm/web-8-4
+ * - @php-wasm/web-8-3
+ * - etc.
+ *
  * @param version The PHP version to load.
- * @param variant Internal. Do not use.
  * @returns The PHP loader module.
  */
 export async function getPHPLoaderModule(
 	version: SupportedPHPVersion = LatestSupportedPHPVersion
 ): Promise<PHPLoaderModule> {
-	if (await jspi()) {
-		switch (version) {
-			case '8.5':
-				// @ts-ignore
-				return await import('../../public/php/jspi/php_8_5.js');
-			case '8.4':
-				// @ts-ignore
-				return await import('../../public/php/jspi/php_8_4.js');
-			case '8.3':
-				// @ts-ignore
-				return await import('../../public/php/jspi/php_8_3.js');
-			case '8.2':
-				// @ts-ignore
-				return await import('../../public/php/jspi/php_8_2.js');
-			case '8.1':
-				// @ts-ignore
-				return await import('../../public/php/jspi/php_8_1.js');
-			case '8.0':
-				// @ts-ignore
-				return await import('../../public/php/jspi/php_8_0.js');
-			case '7.4':
-				// @ts-ignore
-				return await import('../../public/php/jspi/php_7_4.js');
-			case '7.3':
-				// @ts-ignore
-				return await import('../../public/php/jspi/php_7_3.js');
-			case '7.2':
-				// @ts-ignore
-				return await import('../../public/php/jspi/php_7_2.js');
-		}
-	} else {
-		switch (version) {
-			case '8.5':
-				// @ts-ignore
-				return await import('../../public/php/asyncify/php_8_5.js');
-			case '8.4':
-				// @ts-ignore
-				return await import('../../public/php/asyncify/php_8_4.js');
-			case '8.3':
-				// @ts-ignore
-				return await import('../../public/php/asyncify/php_8_3.js');
-			case '8.2':
-				// @ts-ignore
-				return await import('../../public/php/asyncify/php_8_2.js');
-			case '8.1':
-				// @ts-ignore
-				return await import('../../public/php/asyncify/php_8_1.js');
-			case '8.0':
-				// @ts-ignore
-				return await import('../../public/php/asyncify/php_8_0.js');
-			case '7.4':
-				// @ts-ignore
-				return await import('../../public/php/asyncify/php_7_4.js');
-			case '7.3':
-				// @ts-ignore
-				return await import('../../public/php/asyncify/php_7_3.js');
-			case '7.2':
-				// @ts-ignore
-				return await import('../../public/php/asyncify/php_7_2.js');
-		}
+	switch (version) {
+		case '8.5':
+			// @ts-ignore
+			return (await import('@php-wasm/web-8-5')).getPHPLoaderModule();
+		case '8.4':
+			// @ts-ignore
+			return (await import('@php-wasm/web-8-4')).getPHPLoaderModule();
+		case '8.3':
+			// @ts-ignore
+			return (await import('@php-wasm/web-8-3')).getPHPLoaderModule();
+		case '8.2':
+			// @ts-ignore
+			return (await import('@php-wasm/web-8-2')).getPHPLoaderModule();
+		case '8.1':
+			// @ts-ignore
+			return (await import('@php-wasm/web-8-1')).getPHPLoaderModule();
+		case '8.0':
+			// @ts-ignore
+			return (await import('@php-wasm/web-8-0')).getPHPLoaderModule();
+		case '7.4':
+			// @ts-ignore
+			return (await import('@php-wasm/web-7-4')).getPHPLoaderModule();
+		case '7.3':
+			// @ts-ignore
+			return (await import('@php-wasm/web-7-3')).getPHPLoaderModule();
+		case '7.2':
+			// @ts-ignore
+			return (await import('@php-wasm/web-7-2')).getPHPLoaderModule();
 	}
 	throw new Error(`Unsupported PHP version ${version}`);
 }

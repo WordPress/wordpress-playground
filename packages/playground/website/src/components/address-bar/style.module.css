@@ -29,6 +29,7 @@
 }
 
 .input-container {
+	position: relative;
 	display: flex;
 	width: 100%;
 	align-items: center;
@@ -54,9 +55,89 @@
 	border-radius: 8px;
 	color: #b4becb;
 	transition: color 0.5s ease;
+	width: 100%;
 }
 
 .input:focus,
 .input:hover {
 	color: #fff;
+}
+
+.input:focus {
+	outline: none;
+}
+
+/* Popover container */
+.popover {
+	z-index: 100000;
+}
+
+/* Override WordPress Popover default styles */
+.popover :global(.components-popover__content) {
+	background: #3c434a;
+	border: none;
+	border-radius: 8px;
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+	padding: 0;
+}
+
+/* Suggestions dropdown - styled like browser autocomplete */
+.suggestions {
+	background: #3c434a;
+	border-radius: 8px;
+	margin: 0;
+	padding: 4px 0;
+	list-style: none;
+	max-height: 320px;
+	overflow-y: auto;
+}
+
+.suggestion-item {
+	display: flex;
+	align-items: center;
+	padding: 8px 12px;
+	cursor: pointer;
+	gap: 10px;
+	color: #e0e6eb;
+	font-size: 14px;
+	transition: background 0.1s ease;
+	height: auto;
+	min-height: 0;
+}
+
+.suggestion-item:hover,
+.suggestion-item:focus {
+	background: #4f5861;
+	color: #e0e6eb;
+	outline: none;
+	box-shadow: none;
+}
+
+.suggestion-icon {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: #8ab4f8;
+	flex-shrink: 0;
+	width: 20px;
+	margin-right: 8px;
+}
+
+.suggestion-icon svg {
+	fill: currentColor;
+}
+
+.suggestion-label {
+	color: #e8eaed;
+	font-size: 14px;
+	white-space: nowrap;
+	margin-right: 8px;
+}
+
+.suggestion-path {
+	color: #9aa0a6;
+	font-size: 13px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }

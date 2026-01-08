@@ -84,6 +84,13 @@
 					"tsc -p packages/playground/website-extras/tsconfig.app.json --noEmit"
 				]
 			}
+		},
+		"e2e": {
+			"executor": "nx:run-commands",
+			"options": {
+				"cwd": "packages/playground/website-extras/playwright",
+				"commands": ["npx playwright test"]
+			}
 		}
 	},
 	"tags": ["scope:web-client"]

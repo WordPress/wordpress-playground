@@ -13,6 +13,12 @@ const argParser = yargs(process.argv.slice(2))
 			required: true,
 			description: 'The library to build',
 		},
+		PLATFORM: {
+			type: 'string',
+			choices: ['web', 'node'],
+			required: true,
+			description: 'The platform to build',
+		},
 		PHP_VERSION: {
 			type: 'string',
 			required: true,
@@ -29,15 +35,6 @@ const argParser = yargs(process.argv.slice(2))
 			choices: ['yes', 'no'],
 			default: 'no',
 			description: 'Build with DWARF debug information.',
-		},
-		OUTPUT_DIR: {
-			type: 'string',
-			required: true,
-			description: 'The output directory',
-		},
-		SHARED_DIR: {
-			type: 'string',
-			description: 'The shared directory',
 		},
 	});
 
@@ -59,7 +56,8 @@ if (!requestedVersion || requestedVersion === 'undefined') {
 }
 
 const sourceDir = path.dirname(new URL(import.meta.url).pathname);
-const outputDir = path.resolve(process.cwd(), args['OUTPUT_DIR']);
+
+const outputDir = computeOutputDir();
 
 // Build the base image
 await asyncSpawn('make', ['base-image'], {
@@ -113,39 +111,37 @@ await asyncSpawn(
 	{ cwd: path.dirname(sourceDir), stdio: 'inherit' }
 );
 
-if (args['SHARED_DIR']) {
-	const sharedDir = path.resolve(process.cwd(), args['SHARED_DIR']);
+const sharedDir = computeSharedDir();
 
-	// Store the shared data if any
+// Store the shared data if any
+await asyncSpawn(
+	'docker',
+	[
+		'run',
+		'--name',
+		'playground-php-data-tmp',
+		'--rm',
+		'-v',
+		`${sourceDir}/${library}:/output`,
+		`playground-php-wasm:${library}`,
+		// Use sh -c because wildcards are a shell feature and
+		// they don't work without running cp through shell.
+		'sh',
+		'-c',
+		`[ -d /root/${library}/data ] &&
+			rm -rf /output/data && mkdir -p /output/data && \
+			cp -rf /root/${library}/data/* /output/data || true`,
+	],
+	{ cwd: path.dirname(sourceDir), stdio: 'inherit' }
+);
+
+// Copy data files
+if (fs.existsSync(`${sourceDir}/${library}/data`)) {
 	await asyncSpawn(
-		'docker',
-		[
-			'run',
-			'--name',
-			'playground-php-data-tmp',
-			'--rm',
-			'-v',
-			`${sourceDir}/${library}:/output`,
-			`playground-php-wasm:${library}`,
-			// Use sh -c because wildcards are a shell feature and
-			// they don't work without running cp through shell.
-			'sh',
-			'-c',
-			`[ -d /root/${library}/data ] &&
-				rm -rf /output/data && mkdir -p /output/data && \
-				cp -rf /root/${library}/data/* /output/data || true`,
-		],
-		{ cwd: path.dirname(sourceDir), stdio: 'inherit' }
+		'sh',
+		['-c', `cp ${sourceDir}/${library}/data/* ${sharedDir}`],
+		{ cwd: sourceDir, stdio: 'inherit' }
 	);
-
-	// Copy data files
-	if (fs.existsSync(`${sourceDir}/${library}/data`)) {
-		await asyncSpawn(
-			'sh',
-			['-c', `cp ${sourceDir}/${library}/data/* ${sharedDir}`],
-			{ cwd: sourceDir, stdio: 'inherit' }
-		);
-	}
 }
 
 function asyncSpawn(...args) {
@@ -166,4 +162,21 @@ function fullyQualifiedPHPVersion(requestedVersion) {
 		}
 	}
 	return requestedVersion;
+}
+
+function computeOutputDir() {
+	const platformDir = `${args.PLATFORM}-builds`;
+	const versionDir = args.PHP_VERSION.split('.').slice(0, 2).join('-');
+	const jspiOrAsyncify = args.JSPI === 'yes' ? 'jspi' : 'asyncify';
+	return path.resolve(
+		process.cwd(),
+		`packages/php-wasm/${platformDir}/${versionDir}/${jspiOrAsyncify}`
+	);
+}
+
+function computeSharedDir() {
+	return path.resolve(
+		process.cwd(),
+		`packages/php-wasm/${args.PLATFORM}/src/lib/extensions/${args.LIBRARY}/shared`
+	);
 }

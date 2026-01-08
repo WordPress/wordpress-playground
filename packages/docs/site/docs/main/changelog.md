@@ -9,6 +9,131 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
+## [v3.0.39] (2026-01-07) 
+
+### PHP WebAssembly
+
+- [CLI] Fix __dirname not defined error in intl extension. ([#3094](https://github.com/WordPress/wordpress-playground/pull/3094))
+
+### Various
+
+- Gujarati translation: For-plugin-developers documentation. ([#3091](https://github.com/WordPress/wordpress-playground/pull/3091))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@brandonpayton @iamsohilvahora
+
+
+## [v3.0.38] (2026-01-06) 
+
+
+
+
+## [v3.0.37] (2026-01-06) 
+
+### PHP WebAssembly
+
+- [PHP] Refactor files following up on split PHP.wasm packages. ([#3085](https://github.com/WordPress/wordpress-playground/pull/3085))
+
+### Bug Fixes
+
+- Exclude wordpress-builds/public path in dependabot. ([#3088](https://github.com/WordPress/wordpress-playground/pull/3088))
+
+### Various
+
+- Update `express` dependency to 4.22.0 to fix `qs` security issue. ([#3089](https://github.com/WordPress/wordpress-playground/pull/3089))
+- [i18n] Docs: Add Bengali translation for contributor-day-table-lead.md. ([#3087](https://github.com/WordPress/wordpress-playground/pull/3087))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@mho22 @noruzzamans
+
+
+## [v3.0.36] (2026-01-05) 
+
+
+
+
+## [v3.0.35] (2025-12-29) 
+
+### PHP WebAssembly
+
+- [PHP] Use platform: "browser" in esbuild configuration for web builds. ([#3083](https://github.com/WordPress/wordpress-playground/pull/3083))
+
+### Internal
+
+- [PHP] Remove unnecessary createRequire() banner from the remaining builds. ([#3081](https://github.com/WordPress/wordpress-playground/pull/3081))
+
+### Various
+
+- [i18n] Translate code md to bangla. ([#3082](https://github.com/WordPress/wordpress-playground/pull/3082))
+- [i18n] ja translations developer architecture PHP.js JavaScript module. ([#3080](https://github.com/WordPress/wordpress-playground/pull/3080))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @noruzzamans @shimotmk
+
+
+## [v3.0.34] (2025-12-24) 
+
+### PHP WebAssembly
+
+- [PHP] Enable dynamic-import for published CJS packages. ([#3077](https://github.com/WordPress/wordpress-playground/pull/3077))
+- [PHP] Remove unnecessary createRequire() from @php-wasm/web build scripts. ([#3076](https://github.com/WordPress/wordpress-playground/pull/3076))
+
+### Website
+
+- Add quick navigation popover to address bar. ([#3070](https://github.com/WordPress/wordpress-playground/pull/3070))
+- Add standalone playground block demo page. ([#3071](https://github.com/WordPress/wordpress-playground/pull/3071))
+
+### Internal
+
+- [CI] Extract npm package integration tests to reusable scripts. ([#3078](https://github.com/WordPress/wordpress-playground/pull/3078))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel
+
+
+## [v3.0.33] (2025-12-22) 
+
+### Website
+
+- Add save status indicator to the toolbar. ([#3067](https://github.com/WordPress/wordpress-playground/pull/3067))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel
+
+
+## [v3.0.32] (2025-12-18) 
+
+### PHP WebAssembly
+
+- [PHP] Split php-wasm packages into per-PHP-version packages. ([#3062](https://github.com/WordPress/wordpress-playground/pull/3062))
+
+### Website
+
+- Await the iframe load event in `playground.goTo()`. ([#3066](https://github.com/WordPress/wordpress-playground/pull/3066))
+- Skip WordPress installation when WordPress files already exist. ([#3065](https://github.com/WordPress/wordpress-playground/pull/3065))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel
+
+
 ## [v3.0.31] (2025-12-17) 
 
 

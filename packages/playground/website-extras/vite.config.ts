@@ -84,6 +84,12 @@ export default defineConfig(({ mode }) => {
 					'beta-php-playground.html': fileURLToPath(
 						new URL('./beta-php-playground.html', import.meta.url)
 					),
+					'playground-block-frame.html': fileURLToPath(
+						new URL(
+							'./playground-block-frame.html',
+							import.meta.url
+						)
+					),
 				},
 				external: [],
 			},

@@ -40,7 +40,7 @@ RUN if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "3" ]]; then 
 
 # Clone PHP
 RUN git clone https://github.com/php/php-src.git php-src \
-	--branch PHP-$PHP_VERSION \
+	--branch php-$PHP_VERSION \
 	--single-branch \
 	--depth 1;
 

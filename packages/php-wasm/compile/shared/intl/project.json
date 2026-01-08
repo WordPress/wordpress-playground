@@ -6,7 +6,7 @@
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
-					"node packages/php-wasm/compile/shared/build.js --LIBRARY=intl --JSPI=yes --OUTPUT_DIR=packages/php-wasm/node/jspi --SHARED_DIR=packages/php-wasm/node/src/lib/extensions/intl/shared"
+					"node packages/php-wasm/compile/shared/build.js --LIBRARY=intl --PLATFORM=node --JSPI=yes"
 				],
 				"parallel": false
 			}
@@ -32,7 +32,7 @@
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
-					"node packages/php-wasm/compile/shared/build.js --LIBRARY=intl --OUTPUT_DIR=packages/php-wasm/node/asyncify --SHARED_DIR=packages/php-wasm/node/src/lib/extensions/intl/shared"
+					"node packages/php-wasm/compile/shared/build.js --LIBRARY=intl --PLATFORM=node"
 				],
 				"parallel": false
 			}
@@ -58,7 +58,7 @@
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
-					"node packages/php-wasm/compile/shared/build.js --LIBRARY=intl --JSPI=yes --OUTPUT_DIR=packages/php-wasm/web/public/php/jspi --SHARED_DIR=packages/php-wasm/web/public/shared"
+					"node packages/php-wasm/compile/shared/build.js --LIBRARY=intl --PLATFORM=web --JSPI=yes"
 				],
 				"parallel": false
 			}
@@ -84,7 +84,7 @@
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
-					"node packages/php-wasm/compile/shared/build.js --LIBRARY=intl --OUTPUT_DIR=packages/php-wasm/web/public/php/asyncify --SHARED_DIR=packages/php-wasm/web/public/shared"
+					"node packages/php-wasm/compile/shared/build.js --LIBRARY=intl --PLATFORM=web"
 				],
 				"parallel": false
 			}

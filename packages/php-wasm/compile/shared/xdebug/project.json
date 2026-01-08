@@ -6,7 +6,7 @@
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
-					"node packages/php-wasm/compile/shared/build.js --LIBRARY=xdebug --JSPI=yes --OUTPUT_DIR=packages/php-wasm/node/jspi"
+					"node packages/php-wasm/compile/shared/build.js --LIBRARY=xdebug --PLATFORM=node --JSPI=yes"
 				],
 				"parallel": false
 			}
@@ -32,7 +32,7 @@
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
-					"node packages/php-wasm/compile/shared/build.js --LIBRARY=xdebug --OUTPUT_DIR=packages/php-wasm/node/asyncify"
+					"node packages/php-wasm/compile/shared/build.js --LIBRARY=xdebug --PLATFORM=node"
 				],
 				"parallel": false
 			}

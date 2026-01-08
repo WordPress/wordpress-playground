@@ -185,6 +185,7 @@ const schema11 = {
 				{ $ref: '#/definitions/CorePluginReference' },
 				{ $ref: '#/definitions/UrlReference' },
 				{ $ref: '#/definitions/BundledReference' },
+				{ $ref: '#/definitions/ZipWrapperReference' },
 			],
 		},
 		VFSReference: {
@@ -317,6 +318,102 @@ const schema11 = {
 			},
 			required: ['resource', 'path'],
 			additionalProperties: false,
+		},
+		ZipWrapperReference: {
+			type: 'object',
+			properties: {
+				resource: {
+					type: 'string',
+					const: 'zip',
+					description: 'Identifies the resource as a ZIP wrapper',
+				},
+				inner: {
+					anyOf: [
+						{ $ref: '#/definitions/FileReference' },
+						{ $ref: '#/definitions/DirectoryReference' },
+					],
+					description: 'The inner resource to wrap in a ZIP file',
+				},
+				name: {
+					type: 'string',
+					description:
+						'Optional filename for the ZIP (defaults to inner resource name + .zip)',
+				},
+			},
+			required: ['resource', 'inner'],
+			additionalProperties: false,
+		},
+		DirectoryReference: {
+			anyOf: [
+				{ $ref: '#/definitions/GitDirectoryReference' },
+				{ $ref: '#/definitions/DirectoryLiteralReference' },
+			],
+		},
+		GitDirectoryReference: {
+			type: 'object',
+			properties: {
+				resource: {
+					type: 'string',
+					const: 'git:directory',
+					description:
+						'Identifies the file resource as a git directory',
+				},
+				url: {
+					type: 'string',
+					description: 'The URL of the git repository',
+				},
+				ref: {
+					type: 'string',
+					description:
+						'The ref (branch, tag, or commit) of the git repository',
+				},
+				refType: {
+					$ref: '#/definitions/GitDirectoryRefType',
+					description:
+						'Explicit hint about the ref type (branch, tag, commit, refname)',
+				},
+				path: {
+					type: 'string',
+					description:
+						'The path to the directory in the git repository. Defaults to the repo root.',
+				},
+				'.git': {
+					type: 'boolean',
+					description:
+						'When true, include a `.git` directory with Git metadata (experimental).',
+				},
+			},
+			required: ['resource', 'url', 'ref'],
+			additionalProperties: false,
+		},
+		GitDirectoryRefType: {
+			type: 'string',
+			enum: ['branch', 'tag', 'commit', 'refname'],
+		},
+		DirectoryLiteralReference: {
+			type: 'object',
+			additionalProperties: false,
+			properties: {
+				resource: {
+					type: 'string',
+					const: 'literal:directory',
+					description:
+						'Identifies the file resource as a git directory',
+				},
+				files: { $ref: '#/definitions/FileTree' },
+				name: { type: 'string' },
+			},
+			required: ['files', 'name', 'resource'],
+		},
+		FileTree: {
+			type: 'object',
+			additionalProperties: {
+				anyOf: [
+					{ $ref: '#/definitions/FileTree' },
+					{ type: ['object', 'string'] },
+				],
+			},
+			properties: {},
 		},
 		StepDefinition: {
 			type: 'object',
@@ -1082,78 +1179,6 @@ const schema11 = {
 				},
 			],
 		},
-		DirectoryReference: {
-			anyOf: [
-				{ $ref: '#/definitions/GitDirectoryReference' },
-				{ $ref: '#/definitions/DirectoryLiteralReference' },
-			],
-		},
-		GitDirectoryReference: {
-			type: 'object',
-			properties: {
-				resource: {
-					type: 'string',
-					const: 'git:directory',
-					description:
-						'Identifies the file resource as a git directory',
-				},
-				url: {
-					type: 'string',
-					description: 'The URL of the git repository',
-				},
-				ref: {
-					type: 'string',
-					description:
-						'The ref (branch, tag, or commit) of the git repository',
-				},
-				refType: {
-					$ref: '#/definitions/GitDirectoryRefType',
-					description:
-						'Explicit hint about the ref type (branch, tag, commit, refname)',
-				},
-				path: {
-					type: 'string',
-					description:
-						'The path to the directory in the git repository. Defaults to the repo root.',
-				},
-				'.git': {
-					type: 'boolean',
-					description:
-						'When true, include a `.git` directory with Git metadata (experimental).',
-				},
-			},
-			required: ['resource', 'url', 'ref'],
-			additionalProperties: false,
-		},
-		GitDirectoryRefType: {
-			type: 'string',
-			enum: ['branch', 'tag', 'commit', 'refname'],
-		},
-		DirectoryLiteralReference: {
-			type: 'object',
-			additionalProperties: false,
-			properties: {
-				resource: {
-					type: 'string',
-					const: 'literal:directory',
-					description:
-						'Identifies the file resource as a git directory',
-				},
-				files: { $ref: '#/definitions/FileTree' },
-				name: { type: 'string' },
-			},
-			required: ['files', 'name', 'resource'],
-		},
-		FileTree: {
-			type: 'object',
-			additionalProperties: {
-				anyOf: [
-					{ $ref: '#/definitions/FileTree' },
-					{ type: ['object', 'string'] },
-				],
-			},
-			properties: {},
-		},
 		InstallPluginOptions: {
 			type: 'object',
 			properties: {
@@ -1555,6 +1580,7 @@ const schema16 = {
 		{ $ref: '#/definitions/CorePluginReference' },
 		{ $ref: '#/definitions/UrlReference' },
 		{ $ref: '#/definitions/BundledReference' },
+		{ $ref: '#/definitions/ZipWrapperReference' },
 	],
 };
 const schema17 = {
@@ -1683,6 +1709,866 @@ const schema22 = {
 	required: ['resource', 'path'],
 	additionalProperties: false,
 };
+const schema23 = {
+	type: 'object',
+	properties: {
+		resource: {
+			type: 'string',
+			const: 'zip',
+			description: 'Identifies the resource as a ZIP wrapper',
+		},
+		inner: {
+			anyOf: [
+				{ $ref: '#/definitions/FileReference' },
+				{ $ref: '#/definitions/DirectoryReference' },
+			],
+			description: 'The inner resource to wrap in a ZIP file',
+		},
+		name: {
+			type: 'string',
+			description:
+				'Optional filename for the ZIP (defaults to inner resource name + .zip)',
+		},
+	},
+	required: ['resource', 'inner'],
+	additionalProperties: false,
+};
+const wrapper0 = { validate: validate12 };
+const schema24 = {
+	anyOf: [
+		{ $ref: '#/definitions/GitDirectoryReference' },
+		{ $ref: '#/definitions/DirectoryLiteralReference' },
+	],
+};
+const schema25 = {
+	type: 'object',
+	properties: {
+		resource: {
+			type: 'string',
+			const: 'git:directory',
+			description: 'Identifies the file resource as a git directory',
+		},
+		url: { type: 'string', description: 'The URL of the git repository' },
+		ref: {
+			type: 'string',
+			description:
+				'The ref (branch, tag, or commit) of the git repository',
+		},
+		refType: {
+			$ref: '#/definitions/GitDirectoryRefType',
+			description:
+				'Explicit hint about the ref type (branch, tag, commit, refname)',
+		},
+		path: {
+			type: 'string',
+			description:
+				'The path to the directory in the git repository. Defaults to the repo root.',
+		},
+		'.git': {
+			type: 'boolean',
+			description:
+				'When true, include a `.git` directory with Git metadata (experimental).',
+		},
+	},
+	required: ['resource', 'url', 'ref'],
+	additionalProperties: false,
+};
+const schema26 = {
+	type: 'string',
+	enum: ['branch', 'tag', 'commit', 'refname'],
+};
+function validate15(
+	data,
+	{ instancePath = '', parentData, parentDataProperty, rootData = data } = {}
+) {
+	let vErrors = null;
+	let errors = 0;
+	if (errors === 0) {
+		if (data && typeof data == 'object' && !Array.isArray(data)) {
+			let missing0;
+			if (
+				(data.resource === undefined && (missing0 = 'resource')) ||
+				(data.url === undefined && (missing0 = 'url')) ||
+				(data.ref === undefined && (missing0 = 'ref'))
+			) {
+				validate15.errors = [
+					{
+						instancePath,
+						schemaPath: '#/required',
+						keyword: 'required',
+						params: { missingProperty: missing0 },
+						message:
+							"must have required property '" + missing0 + "'",
+					},
+				];
+				return false;
+			} else {
+				const _errs1 = errors;
+				for (const key0 in data) {
+					if (
+						!(
+							key0 === 'resource' ||
+							key0 === 'url' ||
+							key0 === 'ref' ||
+							key0 === 'refType' ||
+							key0 === 'path' ||
+							key0 === '.git'
+						)
+					) {
+						validate15.errors = [
+							{
+								instancePath,
+								schemaPath: '#/additionalProperties',
+								keyword: 'additionalProperties',
+								params: { additionalProperty: key0 },
+								message: 'must NOT have additional properties',
+							},
+						];
+						return false;
+						break;
+					}
+				}
+				if (_errs1 === errors) {
+					if (data.resource !== undefined) {
+						let data0 = data.resource;
+						const _errs2 = errors;
+						if (typeof data0 !== 'string') {
+							validate15.errors = [
+								{
+									instancePath: instancePath + '/resource',
+									schemaPath: '#/properties/resource/type',
+									keyword: 'type',
+									params: { type: 'string' },
+									message: 'must be string',
+								},
+							];
+							return false;
+						}
+						if ('git:directory' !== data0) {
+							validate15.errors = [
+								{
+									instancePath: instancePath + '/resource',
+									schemaPath: '#/properties/resource/const',
+									keyword: 'const',
+									params: { allowedValue: 'git:directory' },
+									message: 'must be equal to constant',
+								},
+							];
+							return false;
+						}
+						var valid0 = _errs2 === errors;
+					} else {
+						var valid0 = true;
+					}
+					if (valid0) {
+						if (data.url !== undefined) {
+							const _errs4 = errors;
+							if (typeof data.url !== 'string') {
+								validate15.errors = [
+									{
+										instancePath: instancePath + '/url',
+										schemaPath: '#/properties/url/type',
+										keyword: 'type',
+										params: { type: 'string' },
+										message: 'must be string',
+									},
+								];
+								return false;
+							}
+							var valid0 = _errs4 === errors;
+						} else {
+							var valid0 = true;
+						}
+						if (valid0) {
+							if (data.ref !== undefined) {
+								const _errs6 = errors;
+								if (typeof data.ref !== 'string') {
+									validate15.errors = [
+										{
+											instancePath: instancePath + '/ref',
+											schemaPath: '#/properties/ref/type',
+											keyword: 'type',
+											params: { type: 'string' },
+											message: 'must be string',
+										},
+									];
+									return false;
+								}
+								var valid0 = _errs6 === errors;
+							} else {
+								var valid0 = true;
+							}
+							if (valid0) {
+								if (data.refType !== undefined) {
+									let data3 = data.refType;
+									const _errs8 = errors;
+									if (typeof data3 !== 'string') {
+										validate15.errors = [
+											{
+												instancePath:
+													instancePath + '/refType',
+												schemaPath:
+													'#/definitions/GitDirectoryRefType/type',
+												keyword: 'type',
+												params: { type: 'string' },
+												message: 'must be string',
+											},
+										];
+										return false;
+									}
+									if (
+										!(
+											data3 === 'branch' ||
+											data3 === 'tag' ||
+											data3 === 'commit' ||
+											data3 === 'refname'
+										)
+									) {
+										validate15.errors = [
+											{
+												instancePath:
+													instancePath + '/refType',
+												schemaPath:
+													'#/definitions/GitDirectoryRefType/enum',
+												keyword: 'enum',
+												params: {
+													allowedValues:
+														schema26.enum,
+												},
+												message:
+													'must be equal to one of the allowed values',
+											},
+										];
+										return false;
+									}
+									var valid0 = _errs8 === errors;
+								} else {
+									var valid0 = true;
+								}
+								if (valid0) {
+									if (data.path !== undefined) {
+										const _errs11 = errors;
+										if (typeof data.path !== 'string') {
+											validate15.errors = [
+												{
+													instancePath:
+														instancePath + '/path',
+													schemaPath:
+														'#/properties/path/type',
+													keyword: 'type',
+													params: { type: 'string' },
+													message: 'must be string',
+												},
+											];
+											return false;
+										}
+										var valid0 = _errs11 === errors;
+									} else {
+										var valid0 = true;
+									}
+									if (valid0) {
+										if (data['.git'] !== undefined) {
+											const _errs13 = errors;
+											if (
+												typeof data['.git'] !==
+												'boolean'
+											) {
+												validate15.errors = [
+													{
+														instancePath:
+															instancePath +
+															'/.git',
+														schemaPath:
+															'#/properties/.git/type',
+														keyword: 'type',
+														params: {
+															type: 'boolean',
+														},
+														message:
+															'must be boolean',
+													},
+												];
+												return false;
+											}
+											var valid0 = _errs13 === errors;
+										} else {
+											var valid0 = true;
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		} else {
+			validate15.errors = [
+				{
+					instancePath,
+					schemaPath: '#/type',
+					keyword: 'type',
+					params: { type: 'object' },
+					message: 'must be object',
+				},
+			];
+			return false;
+		}
+	}
+	validate15.errors = vErrors;
+	return errors === 0;
+}
+const schema27 = {
+	type: 'object',
+	additionalProperties: false,
+	properties: {
+		resource: {
+			type: 'string',
+			const: 'literal:directory',
+			description: 'Identifies the file resource as a git directory',
+		},
+		files: { $ref: '#/definitions/FileTree' },
+		name: { type: 'string' },
+	},
+	required: ['files', 'name', 'resource'],
+};
+const schema28 = {
+	type: 'object',
+	additionalProperties: {
+		anyOf: [
+			{ $ref: '#/definitions/FileTree' },
+			{ type: ['object', 'string'] },
+		],
+	},
+	properties: {},
+};
+const wrapper1 = { validate: validate18 };
+function validate18(
+	data,
+	{ instancePath = '', parentData, parentDataProperty, rootData = data } = {}
+) {
+	let vErrors = null;
+	let errors = 0;
+	if (errors === 0) {
+		if (data && typeof data == 'object' && !Array.isArray(data)) {
+			for (const key0 in data) {
+				let data0 = data[key0];
+				const _errs2 = errors;
+				const _errs3 = errors;
+				let valid1 = false;
+				const _errs4 = errors;
+				if (
+					!wrapper1.validate(data0, {
+						instancePath:
+							instancePath +
+							'/' +
+							key0.replace(/~/g, '~0').replace(/\//g, '~1'),
+						parentData: data,
+						parentDataProperty: key0,
+						rootData,
+					})
+				) {
+					vErrors =
+						vErrors === null
+							? wrapper1.validate.errors
+							: vErrors.concat(wrapper1.validate.errors);
+					errors = vErrors.length;
+				}
+				var _valid0 = _errs4 === errors;
+				valid1 = valid1 || _valid0;
+				if (!valid1) {
+					const _errs5 = errors;
+					if (
+						!(
+							data0 &&
+							typeof data0 == 'object' &&
+							!Array.isArray(data0)
+						) &&
+						typeof data0 !== 'string'
+					) {
+						const err0 = {
+							instancePath:
+								instancePath +
+								'/' +
+								key0.replace(/~/g, '~0').replace(/\//g, '~1'),
+							schemaPath: '#/additionalProperties/anyOf/1/type',
+							keyword: 'type',
+							params: {
+								type: schema28.additionalProperties.anyOf[1]
+									.type,
+							},
+							message: 'must be object,string',
+						};
+						if (vErrors === null) {
+							vErrors = [err0];
+						} else {
+							vErrors.push(err0);
+						}
+						errors++;
+					}
+					var _valid0 = _errs5 === errors;
+					valid1 = valid1 || _valid0;
+				}
+				if (!valid1) {
+					const err1 = {
+						instancePath:
+							instancePath +
+							'/' +
+							key0.replace(/~/g, '~0').replace(/\//g, '~1'),
+						schemaPath: '#/additionalProperties/anyOf',
+						keyword: 'anyOf',
+						params: {},
+						message: 'must match a schema in anyOf',
+					};
+					if (vErrors === null) {
+						vErrors = [err1];
+					} else {
+						vErrors.push(err1);
+					}
+					errors++;
+					validate18.errors = vErrors;
+					return false;
+				} else {
+					errors = _errs3;
+					if (vErrors !== null) {
+						if (_errs3) {
+							vErrors.length = _errs3;
+						} else {
+							vErrors = null;
+						}
+					}
+				}
+				var valid0 = _errs2 === errors;
+				if (!valid0) {
+					break;
+				}
+			}
+		} else {
+			validate18.errors = [
+				{
+					instancePath,
+					schemaPath: '#/type',
+					keyword: 'type',
+					params: { type: 'object' },
+					message: 'must be object',
+				},
+			];
+			return false;
+		}
+	}
+	validate18.errors = vErrors;
+	return errors === 0;
+}
+function validate17(
+	data,
+	{ instancePath = '', parentData, parentDataProperty, rootData = data } = {}
+) {
+	let vErrors = null;
+	let errors = 0;
+	if (errors === 0) {
+		if (data && typeof data == 'object' && !Array.isArray(data)) {
+			let missing0;
+			if (
+				(data.files === undefined && (missing0 = 'files')) ||
+				(data.name === undefined && (missing0 = 'name')) ||
+				(data.resource === undefined && (missing0 = 'resource'))
+			) {
+				validate17.errors = [
+					{
+						instancePath,
+						schemaPath: '#/required',
+						keyword: 'required',
+						params: { missingProperty: missing0 },
+						message:
+							"must have required property '" + missing0 + "'",
+					},
+				];
+				return false;
+			} else {
+				const _errs1 = errors;
+				for (const key0 in data) {
+					if (
+						!(
+							key0 === 'resource' ||
+							key0 === 'files' ||
+							key0 === 'name'
+						)
+					) {
+						validate17.errors = [
+							{
+								instancePath,
+								schemaPath: '#/additionalProperties',
+								keyword: 'additionalProperties',
+								params: { additionalProperty: key0 },
+								message: 'must NOT have additional properties',
+							},
+						];
+						return false;
+						break;
+					}
+				}
+				if (_errs1 === errors) {
+					if (data.resource !== undefined) {
+						let data0 = data.resource;
+						const _errs2 = errors;
+						if (typeof data0 !== 'string') {
+							validate17.errors = [
+								{
+									instancePath: instancePath + '/resource',
+									schemaPath: '#/properties/resource/type',
+									keyword: 'type',
+									params: { type: 'string' },
+									message: 'must be string',
+								},
+							];
+							return false;
+						}
+						if ('literal:directory' !== data0) {
+							validate17.errors = [
+								{
+									instancePath: instancePath + '/resource',
+									schemaPath: '#/properties/resource/const',
+									keyword: 'const',
+									params: {
+										allowedValue: 'literal:directory',
+									},
+									message: 'must be equal to constant',
+								},
+							];
+							return false;
+						}
+						var valid0 = _errs2 === errors;
+					} else {
+						var valid0 = true;
+					}
+					if (valid0) {
+						if (data.files !== undefined) {
+							const _errs4 = errors;
+							if (
+								!validate18(data.files, {
+									instancePath: instancePath + '/files',
+									parentData: data,
+									parentDataProperty: 'files',
+									rootData,
+								})
+							) {
+								vErrors =
+									vErrors === null
+										? validate18.errors
+										: vErrors.concat(validate18.errors);
+								errors = vErrors.length;
+							}
+							var valid0 = _errs4 === errors;
+						} else {
+							var valid0 = true;
+						}
+						if (valid0) {
+							if (data.name !== undefined) {
+								const _errs5 = errors;
+								if (typeof data.name !== 'string') {
+									validate17.errors = [
+										{
+											instancePath:
+												instancePath + '/name',
+											schemaPath:
+												'#/properties/name/type',
+											keyword: 'type',
+											params: { type: 'string' },
+											message: 'must be string',
+										},
+									];
+									return false;
+								}
+								var valid0 = _errs5 === errors;
+							} else {
+								var valid0 = true;
+							}
+						}
+					}
+				}
+			}
+		} else {
+			validate17.errors = [
+				{
+					instancePath,
+					schemaPath: '#/type',
+					keyword: 'type',
+					params: { type: 'object' },
+					message: 'must be object',
+				},
+			];
+			return false;
+		}
+	}
+	validate17.errors = vErrors;
+	return errors === 0;
+}
+function validate14(
+	data,
+	{ instancePath = '', parentData, parentDataProperty, rootData = data } = {}
+) {
+	let vErrors = null;
+	let errors = 0;
+	const _errs0 = errors;
+	let valid0 = false;
+	const _errs1 = errors;
+	if (
+		!validate15(data, {
+			instancePath,
+			parentData,
+			parentDataProperty,
+			rootData,
+		})
+	) {
+		vErrors =
+			vErrors === null
+				? validate15.errors
+				: vErrors.concat(validate15.errors);
+		errors = vErrors.length;
+	}
+	var _valid0 = _errs1 === errors;
+	valid0 = valid0 || _valid0;
+	if (!valid0) {
+		const _errs2 = errors;
+		if (
+			!validate17(data, {
+				instancePath,
+				parentData,
+				parentDataProperty,
+				rootData,
+			})
+		) {
+			vErrors =
+				vErrors === null
+					? validate17.errors
+					: vErrors.concat(validate17.errors);
+			errors = vErrors.length;
+		}
+		var _valid0 = _errs2 === errors;
+		valid0 = valid0 || _valid0;
+	}
+	if (!valid0) {
+		const err0 = {
+			instancePath,
+			schemaPath: '#/anyOf',
+			keyword: 'anyOf',
+			params: {},
+			message: 'must match a schema in anyOf',
+		};
+		if (vErrors === null) {
+			vErrors = [err0];
+		} else {
+			vErrors.push(err0);
+		}
+		errors++;
+		validate14.errors = vErrors;
+		return false;
+	} else {
+		errors = _errs0;
+		if (vErrors !== null) {
+			if (_errs0) {
+				vErrors.length = _errs0;
+			} else {
+				vErrors = null;
+			}
+		}
+	}
+	validate14.errors = vErrors;
+	return errors === 0;
+}
+function validate13(
+	data,
+	{ instancePath = '', parentData, parentDataProperty, rootData = data } = {}
+) {
+	let vErrors = null;
+	let errors = 0;
+	if (errors === 0) {
+		if (data && typeof data == 'object' && !Array.isArray(data)) {
+			let missing0;
+			if (
+				(data.resource === undefined && (missing0 = 'resource')) ||
+				(data.inner === undefined && (missing0 = 'inner'))
+			) {
+				validate13.errors = [
+					{
+						instancePath,
+						schemaPath: '#/required',
+						keyword: 'required',
+						params: { missingProperty: missing0 },
+						message:
+							"must have required property '" + missing0 + "'",
+					},
+				];
+				return false;
+			} else {
+				const _errs1 = errors;
+				for (const key0 in data) {
+					if (
+						!(
+							key0 === 'resource' ||
+							key0 === 'inner' ||
+							key0 === 'name'
+						)
+					) {
+						validate13.errors = [
+							{
+								instancePath,
+								schemaPath: '#/additionalProperties',
+								keyword: 'additionalProperties',
+								params: { additionalProperty: key0 },
+								message: 'must NOT have additional properties',
+							},
+						];
+						return false;
+						break;
+					}
+				}
+				if (_errs1 === errors) {
+					if (data.resource !== undefined) {
+						let data0 = data.resource;
+						const _errs2 = errors;
+						if (typeof data0 !== 'string') {
+							validate13.errors = [
+								{
+									instancePath: instancePath + '/resource',
+									schemaPath: '#/properties/resource/type',
+									keyword: 'type',
+									params: { type: 'string' },
+									message: 'must be string',
+								},
+							];
+							return false;
+						}
+						if ('zip' !== data0) {
+							validate13.errors = [
+								{
+									instancePath: instancePath + '/resource',
+									schemaPath: '#/properties/resource/const',
+									keyword: 'const',
+									params: { allowedValue: 'zip' },
+									message: 'must be equal to constant',
+								},
+							];
+							return false;
+						}
+						var valid0 = _errs2 === errors;
+					} else {
+						var valid0 = true;
+					}
+					if (valid0) {
+						if (data.inner !== undefined) {
+							let data1 = data.inner;
+							const _errs4 = errors;
+							const _errs5 = errors;
+							let valid1 = false;
+							const _errs6 = errors;
+							if (
+								!wrapper0.validate(data1, {
+									instancePath: instancePath + '/inner',
+									parentData: data,
+									parentDataProperty: 'inner',
+									rootData,
+								})
+							) {
+								vErrors =
+									vErrors === null
+										? wrapper0.validate.errors
+										: vErrors.concat(
+												wrapper0.validate.errors
+											);
+								errors = vErrors.length;
+							}
+							var _valid0 = _errs6 === errors;
+							valid1 = valid1 || _valid0;
+							if (!valid1) {
+								const _errs7 = errors;
+								if (
+									!validate14(data1, {
+										instancePath: instancePath + '/inner',
+										parentData: data,
+										parentDataProperty: 'inner',
+										rootData,
+									})
+								) {
+									vErrors =
+										vErrors === null
+											? validate14.errors
+											: vErrors.concat(validate14.errors);
+									errors = vErrors.length;
+								}
+								var _valid0 = _errs7 === errors;
+								valid1 = valid1 || _valid0;
+							}
+							if (!valid1) {
+								const err0 = {
+									instancePath: instancePath + '/inner',
+									schemaPath: '#/properties/inner/anyOf',
+									keyword: 'anyOf',
+									params: {},
+									message: 'must match a schema in anyOf',
+								};
+								if (vErrors === null) {
+									vErrors = [err0];
+								} else {
+									vErrors.push(err0);
+								}
+								errors++;
+								validate13.errors = vErrors;
+								return false;
+							} else {
+								errors = _errs5;
+								if (vErrors !== null) {
+									if (_errs5) {
+										vErrors.length = _errs5;
+									} else {
+										vErrors = null;
+									}
+								}
+							}
+							var valid0 = _errs4 === errors;
+						} else {
+							var valid0 = true;
+						}
+						if (valid0) {
+							if (data.name !== undefined) {
+								const _errs8 = errors;
+								if (typeof data.name !== 'string') {
+									validate13.errors = [
+										{
+											instancePath:
+												instancePath + '/name',
+											schemaPath:
+												'#/properties/name/type',
+											keyword: 'type',
+											params: { type: 'string' },
+											message: 'must be string',
+										},
+									];
+									return false;
+								}
+								var valid0 = _errs8 === errors;
+							} else {
+								var valid0 = true;
+							}
+						}
+					}
+				}
+			}
+		} else {
+			validate13.errors = [
+				{
+					instancePath,
+					schemaPath: '#/type',
+					keyword: 'type',
+					params: { type: 'object' },
+					message: 'must be object',
+				},
+			];
+			return false;
+		}
+	}
+	validate13.errors = vErrors;
+	return errors === 0;
+}
 function validate12(
 	data,
 	{ instancePath = '', parentData, parentDataProperty, rootData = data } = {}
@@ -3208,6 +4094,25 @@ function validate12(
 						}
 						var _valid0 = _errs65 === errors;
 						valid0 = valid0 || _valid0;
+						if (!valid0) {
+							const _errs73 = errors;
+							if (
+								!validate13(data, {
+									instancePath,
+									parentData,
+									parentDataProperty,
+									rootData,
+								})
+							) {
+								vErrors =
+									vErrors === null
+										? validate13.errors
+										: vErrors.concat(validate13.errors);
+								errors = vErrors.length;
+							}
+							var _valid0 = _errs73 === errors;
+							valid0 = valid0 || _valid0;
+						}
 					}
 				}
 			}
@@ -3242,7 +4147,7 @@ function validate12(
 	validate12.errors = vErrors;
 	return errors === 0;
 }
-const schema23 = {
+const schema29 = {
 	type: 'object',
 	discriminator: { propertyName: 'step' },
 	required: ['step'],
@@ -3979,7 +4884,7 @@ const schema23 = {
 		},
 	],
 };
-const schema29 = {
+const schema30 = {
 	type: 'object',
 	properties: {
 		activate: {
@@ -3994,7 +4899,7 @@ const schema29 = {
 	},
 	additionalProperties: false,
 };
-const schema30 = {
+const schema31 = {
 	type: 'object',
 	properties: {
 		activate: {
@@ -4014,7 +4919,7 @@ const schema30 = {
 	},
 	additionalProperties: false,
 };
-const schema37 = {
+const schema38 = {
 	type: 'object',
 	properties: {
 		adminUsername: { type: 'string' },
@@ -4022,648 +4927,7 @@ const schema37 = {
 	},
 	additionalProperties: false,
 };
-const schema24 = {
-	anyOf: [
-		{ $ref: '#/definitions/GitDirectoryReference' },
-		{ $ref: '#/definitions/DirectoryLiteralReference' },
-	],
-};
-const schema25 = {
-	type: 'object',
-	properties: {
-		resource: {
-			type: 'string',
-			const: 'git:directory',
-			description: 'Identifies the file resource as a git directory',
-		},
-		url: { type: 'string', description: 'The URL of the git repository' },
-		ref: {
-			type: 'string',
-			description:
-				'The ref (branch, tag, or commit) of the git repository',
-		},
-		refType: {
-			$ref: '#/definitions/GitDirectoryRefType',
-			description:
-				'Explicit hint about the ref type (branch, tag, commit, refname)',
-		},
-		path: {
-			type: 'string',
-			description:
-				'The path to the directory in the git repository. Defaults to the repo root.',
-		},
-		'.git': {
-			type: 'boolean',
-			description:
-				'When true, include a `.git` directory with Git metadata (experimental).',
-		},
-	},
-	required: ['resource', 'url', 'ref'],
-	additionalProperties: false,
-};
-const schema26 = {
-	type: 'string',
-	enum: ['branch', 'tag', 'commit', 'refname'],
-};
-function validate19(
-	data,
-	{ instancePath = '', parentData, parentDataProperty, rootData = data } = {}
-) {
-	let vErrors = null;
-	let errors = 0;
-	if (errors === 0) {
-		if (data && typeof data == 'object' && !Array.isArray(data)) {
-			let missing0;
-			if (
-				(data.resource === undefined && (missing0 = 'resource')) ||
-				(data.url === undefined && (missing0 = 'url')) ||
-				(data.ref === undefined && (missing0 = 'ref'))
-			) {
-				validate19.errors = [
-					{
-						instancePath,
-						schemaPath: '#/required',
-						keyword: 'required',
-						params: { missingProperty: missing0 },
-						message:
-							"must have required property '" + missing0 + "'",
-					},
-				];
-				return false;
-			} else {
-				const _errs1 = errors;
-				for (const key0 in data) {
-					if (
-						!(
-							key0 === 'resource' ||
-							key0 === 'url' ||
-							key0 === 'ref' ||
-							key0 === 'refType' ||
-							key0 === 'path' ||
-							key0 === '.git'
-						)
-					) {
-						validate19.errors = [
-							{
-								instancePath,
-								schemaPath: '#/additionalProperties',
-								keyword: 'additionalProperties',
-								params: { additionalProperty: key0 },
-								message: 'must NOT have additional properties',
-							},
-						];
-						return false;
-						break;
-					}
-				}
-				if (_errs1 === errors) {
-					if (data.resource !== undefined) {
-						let data0 = data.resource;
-						const _errs2 = errors;
-						if (typeof data0 !== 'string') {
-							validate19.errors = [
-								{
-									instancePath: instancePath + '/resource',
-									schemaPath: '#/properties/resource/type',
-									keyword: 'type',
-									params: { type: 'string' },
-									message: 'must be string',
-								},
-							];
-							return false;
-						}
-						if ('git:directory' !== data0) {
-							validate19.errors = [
-								{
-									instancePath: instancePath + '/resource',
-									schemaPath: '#/properties/resource/const',
-									keyword: 'const',
-									params: { allowedValue: 'git:directory' },
-									message: 'must be equal to constant',
-								},
-							];
-							return false;
-						}
-						var valid0 = _errs2 === errors;
-					} else {
-						var valid0 = true;
-					}
-					if (valid0) {
-						if (data.url !== undefined) {
-							const _errs4 = errors;
-							if (typeof data.url !== 'string') {
-								validate19.errors = [
-									{
-										instancePath: instancePath + '/url',
-										schemaPath: '#/properties/url/type',
-										keyword: 'type',
-										params: { type: 'string' },
-										message: 'must be string',
-									},
-								];
-								return false;
-							}
-							var valid0 = _errs4 === errors;
-						} else {
-							var valid0 = true;
-						}
-						if (valid0) {
-							if (data.ref !== undefined) {
-								const _errs6 = errors;
-								if (typeof data.ref !== 'string') {
-									validate19.errors = [
-										{
-											instancePath: instancePath + '/ref',
-											schemaPath: '#/properties/ref/type',
-											keyword: 'type',
-											params: { type: 'string' },
-											message: 'must be string',
-										},
-									];
-									return false;
-								}
-								var valid0 = _errs6 === errors;
-							} else {
-								var valid0 = true;
-							}
-							if (valid0) {
-								if (data.refType !== undefined) {
-									let data3 = data.refType;
-									const _errs8 = errors;
-									if (typeof data3 !== 'string') {
-										validate19.errors = [
-											{
-												instancePath:
-													instancePath + '/refType',
-												schemaPath:
-													'#/definitions/GitDirectoryRefType/type',
-												keyword: 'type',
-												params: { type: 'string' },
-												message: 'must be string',
-											},
-										];
-										return false;
-									}
-									if (
-										!(
-											data3 === 'branch' ||
-											data3 === 'tag' ||
-											data3 === 'commit' ||
-											data3 === 'refname'
-										)
-									) {
-										validate19.errors = [
-											{
-												instancePath:
-													instancePath + '/refType',
-												schemaPath:
-													'#/definitions/GitDirectoryRefType/enum',
-												keyword: 'enum',
-												params: {
-													allowedValues:
-														schema26.enum,
-												},
-												message:
-													'must be equal to one of the allowed values',
-											},
-										];
-										return false;
-									}
-									var valid0 = _errs8 === errors;
-								} else {
-									var valid0 = true;
-								}
-								if (valid0) {
-									if (data.path !== undefined) {
-										const _errs11 = errors;
-										if (typeof data.path !== 'string') {
-											validate19.errors = [
-												{
-													instancePath:
-														instancePath + '/path',
-													schemaPath:
-														'#/properties/path/type',
-													keyword: 'type',
-													params: { type: 'string' },
-													message: 'must be string',
-												},
-											];
-											return false;
-										}
-										var valid0 = _errs11 === errors;
-									} else {
-										var valid0 = true;
-									}
-									if (valid0) {
-										if (data['.git'] !== undefined) {
-											const _errs13 = errors;
-											if (
-												typeof data['.git'] !==
-												'boolean'
-											) {
-												validate19.errors = [
-													{
-														instancePath:
-															instancePath +
-															'/.git',
-														schemaPath:
-															'#/properties/.git/type',
-														keyword: 'type',
-														params: {
-															type: 'boolean',
-														},
-														message:
-															'must be boolean',
-													},
-												];
-												return false;
-											}
-											var valid0 = _errs13 === errors;
-										} else {
-											var valid0 = true;
-										}
-									}
-								}
-							}
-						}
-					}
-				}
-			}
-		} else {
-			validate19.errors = [
-				{
-					instancePath,
-					schemaPath: '#/type',
-					keyword: 'type',
-					params: { type: 'object' },
-					message: 'must be object',
-				},
-			];
-			return false;
-		}
-	}
-	validate19.errors = vErrors;
-	return errors === 0;
-}
-const schema27 = {
-	type: 'object',
-	additionalProperties: false,
-	properties: {
-		resource: {
-			type: 'string',
-			const: 'literal:directory',
-			description: 'Identifies the file resource as a git directory',
-		},
-		files: { $ref: '#/definitions/FileTree' },
-		name: { type: 'string' },
-	},
-	required: ['files', 'name', 'resource'],
-};
-const schema28 = {
-	type: 'object',
-	additionalProperties: {
-		anyOf: [
-			{ $ref: '#/definitions/FileTree' },
-			{ type: ['object', 'string'] },
-		],
-	},
-	properties: {},
-};
-const wrapper0 = { validate: validate22 };
-function validate22(
-	data,
-	{ instancePath = '', parentData, parentDataProperty, rootData = data } = {}
-) {
-	let vErrors = null;
-	let errors = 0;
-	if (errors === 0) {
-		if (data && typeof data == 'object' && !Array.isArray(data)) {
-			for (const key0 in data) {
-				let data0 = data[key0];
-				const _errs2 = errors;
-				const _errs3 = errors;
-				let valid1 = false;
-				const _errs4 = errors;
-				if (
-					!wrapper0.validate(data0, {
-						instancePath:
-							instancePath +
-							'/' +
-							key0.replace(/~/g, '~0').replace(/\//g, '~1'),
-						parentData: data,
-						parentDataProperty: key0,
-						rootData,
-					})
-				) {
-					vErrors =
-						vErrors === null
-							? wrapper0.validate.errors
-							: vErrors.concat(wrapper0.validate.errors);
-					errors = vErrors.length;
-				}
-				var _valid0 = _errs4 === errors;
-				valid1 = valid1 || _valid0;
-				if (!valid1) {
-					const _errs5 = errors;
-					if (
-						!(
-							data0 &&
-							typeof data0 == 'object' &&
-							!Array.isArray(data0)
-						) &&
-						typeof data0 !== 'string'
-					) {
-						const err0 = {
-							instancePath:
-								instancePath +
-								'/' +
-								key0.replace(/~/g, '~0').replace(/\//g, '~1'),
-							schemaPath: '#/additionalProperties/anyOf/1/type',
-							keyword: 'type',
-							params: {
-								type: schema28.additionalProperties.anyOf[1]
-									.type,
-							},
-							message: 'must be object,string',
-						};
-						if (vErrors === null) {
-							vErrors = [err0];
-						} else {
-							vErrors.push(err0);
-						}
-						errors++;
-					}
-					var _valid0 = _errs5 === errors;
-					valid1 = valid1 || _valid0;
-				}
-				if (!valid1) {
-					const err1 = {
-						instancePath:
-							instancePath +
-							'/' +
-							key0.replace(/~/g, '~0').replace(/\//g, '~1'),
-						schemaPath: '#/additionalProperties/anyOf',
-						keyword: 'anyOf',
-						params: {},
-						message: 'must match a schema in anyOf',
-					};
-					if (vErrors === null) {
-						vErrors = [err1];
-					} else {
-						vErrors.push(err1);
-					}
-					errors++;
-					validate22.errors = vErrors;
-					return false;
-				} else {
-					errors = _errs3;
-					if (vErrors !== null) {
-						if (_errs3) {
-							vErrors.length = _errs3;
-						} else {
-							vErrors = null;
-						}
-					}
-				}
-				var valid0 = _errs2 === errors;
-				if (!valid0) {
-					break;
-				}
-			}
-		} else {
-			validate22.errors = [
-				{
-					instancePath,
-					schemaPath: '#/type',
-					keyword: 'type',
-					params: { type: 'object' },
-					message: 'must be object',
-				},
-			];
-			return false;
-		}
-	}
-	validate22.errors = vErrors;
-	return errors === 0;
-}
-function validate21(
-	data,
-	{ instancePath = '', parentData, parentDataProperty, rootData = data } = {}
-) {
-	let vErrors = null;
-	let errors = 0;
-	if (errors === 0) {
-		if (data && typeof data == 'object' && !Array.isArray(data)) {
-			let missing0;
-			if (
-				(data.files === undefined && (missing0 = 'files')) ||
-				(data.name === undefined && (missing0 = 'name')) ||
-				(data.resource === undefined && (missing0 = 'resource'))
-			) {
-				validate21.errors = [
-					{
-						instancePath,
-						schemaPath: '#/required',
-						keyword: 'required',
-						params: { missingProperty: missing0 },
-						message:
-							"must have required property '" + missing0 + "'",
-					},
-				];
-				return false;
-			} else {
-				const _errs1 = errors;
-				for (const key0 in data) {
-					if (
-						!(
-							key0 === 'resource' ||
-							key0 === 'files' ||
-							key0 === 'name'
-						)
-					) {
-						validate21.errors = [
-							{
-								instancePath,
-								schemaPath: '#/additionalProperties',
-								keyword: 'additionalProperties',
-								params: { additionalProperty: key0 },
-								message: 'must NOT have additional properties',
-							},
-						];
-						return false;
-						break;
-					}
-				}
-				if (_errs1 === errors) {
-					if (data.resource !== undefined) {
-						let data0 = data.resource;
-						const _errs2 = errors;
-						if (typeof data0 !== 'string') {
-							validate21.errors = [
-								{
-									instancePath: instancePath + '/resource',
-									schemaPath: '#/properties/resource/type',
-									keyword: 'type',
-									params: { type: 'string' },
-									message: 'must be string',
-								},
-							];
-							return false;
-						}
-						if ('literal:directory' !== data0) {
-							validate21.errors = [
-								{
-									instancePath: instancePath + '/resource',
-									schemaPath: '#/properties/resource/const',
-									keyword: 'const',
-									params: {
-										allowedValue: 'literal:directory',
-									},
-									message: 'must be equal to constant',
-								},
-							];
-							return false;
-						}
-						var valid0 = _errs2 === errors;
-					} else {
-						var valid0 = true;
-					}
-					if (valid0) {
-						if (data.files !== undefined) {
-							const _errs4 = errors;
-							if (
-								!validate22(data.files, {
-									instancePath: instancePath + '/files',
-									parentData: data,
-									parentDataProperty: 'files',
-									rootData,
-								})
-							) {
-								vErrors =
-									vErrors === null
-										? validate22.errors
-										: vErrors.concat(validate22.errors);
-								errors = vErrors.length;
-							}
-							var valid0 = _errs4 === errors;
-						} else {
-							var valid0 = true;
-						}
-						if (valid0) {
-							if (data.name !== undefined) {
-								const _errs5 = errors;
-								if (typeof data.name !== 'string') {
-									validate21.errors = [
-										{
-											instancePath:
-												instancePath + '/name',
-											schemaPath:
-												'#/properties/name/type',
-											keyword: 'type',
-											params: { type: 'string' },
-											message: 'must be string',
-										},
-									];
-									return false;
-								}
-								var valid0 = _errs5 === errors;
-							} else {
-								var valid0 = true;
-							}
-						}
-					}
-				}
-			}
-		} else {
-			validate21.errors = [
-				{
-					instancePath,
-					schemaPath: '#/type',
-					keyword: 'type',
-					params: { type: 'object' },
-					message: 'must be object',
-				},
-			];
-			return false;
-		}
-	}
-	validate21.errors = vErrors;
-	return errors === 0;
-}
-function validate18(
-	data,
-	{ instancePath = '', parentData, parentDataProperty, rootData = data } = {}
-) {
-	let vErrors = null;
-	let errors = 0;
-	const _errs0 = errors;
-	let valid0 = false;
-	const _errs1 = errors;
-	if (
-		!validate19(data, {
-			instancePath,
-			parentData,
-			parentDataProperty,
-			rootData,
-		})
-	) {
-		vErrors =
-			vErrors === null
-				? validate19.errors
-				: vErrors.concat(validate19.errors);
-		errors = vErrors.length;
-	}
-	var _valid0 = _errs1 === errors;
-	valid0 = valid0 || _valid0;
-	if (!valid0) {
-		const _errs2 = errors;
-		if (
-			!validate21(data, {
-				instancePath,
-				parentData,
-				parentDataProperty,
-				rootData,
-			})
-		) {
-			vErrors =
-				vErrors === null
-					? validate21.errors
-					: vErrors.concat(validate21.errors);
-			errors = vErrors.length;
-		}
-		var _valid0 = _errs2 === errors;
-		valid0 = valid0 || _valid0;
-	}
-	if (!valid0) {
-		const err0 = {
-			instancePath,
-			schemaPath: '#/anyOf',
-			keyword: 'anyOf',
-			params: {},
-			message: 'must match a schema in anyOf',
-		};
-		if (vErrors === null) {
-			vErrors = [err0];
-		} else {
-			vErrors.push(err0);
-		}
-		errors++;
-		validate18.errors = vErrors;
-		return false;
-	} else {
-		errors = _errs0;
-		if (vErrors !== null) {
-			if (_errs0) {
-				vErrors.length = _errs0;
-			} else {
-				vErrors = null;
-			}
-		}
-	}
-	validate18.errors = vErrors;
-	return errors === 0;
-}
-const schema31 = {
+const schema32 = {
 	type: 'object',
 	properties: {
 		method: {
@@ -4760,12 +5024,12 @@ const schema31 = {
 	required: ['url'],
 	additionalProperties: false,
 };
-const schema32 = {
+const schema33 = {
 	type: 'string',
 	enum: ['GET', 'POST', 'HEAD', 'OPTIONS', 'PATCH', 'PUT', 'DELETE'],
 };
-const schema33 = { type: 'object', additionalProperties: { type: 'string' } };
-function validate30(
+const schema34 = { type: 'object', additionalProperties: { type: 'string' } };
+function validate33(
 	data,
 	{ instancePath = '', parentData, parentDataProperty, rootData = data } = {}
 ) {
@@ -4775,7 +5039,7 @@ function validate30(
 		if (data && typeof data == 'object' && !Array.isArray(data)) {
 			let missing0;
 			if (data.url === undefined && (missing0 = 'url')) {
-				validate30.errors = [
+				validate33.errors = [
 					{
 						instancePath,
 						schemaPath: '#/required',
@@ -4797,7 +5061,7 @@ function validate30(
 							key0 === 'body'
 						)
 					) {
-						validate30.errors = [
+						validate33.errors = [
 							{
 								instancePath,
 								schemaPath: '#/additionalProperties',
@@ -4815,7 +5079,7 @@ function validate30(
 						let data0 = data.method;
 						const _errs2 = errors;
 						if (typeof data0 !== 'string') {
-							validate30.errors = [
+							validate33.errors = [
 								{
 									instancePath: instancePath + '/method',
 									schemaPath: '#/definitions/HTTPMethod/type',
@@ -4837,12 +5101,12 @@ function validate30(
 								data0 === 'DELETE'
 							)
 						) {
-							validate30.errors = [
+							validate33.errors = [
 								{
 									instancePath: instancePath + '/method',
 									schemaPath: '#/definitions/HTTPMethod/enum',
 									keyword: 'enum',
-									params: { allowedValues: schema32.enum },
+									params: { allowedValues: schema33.enum },
 									message:
 										'must be equal to one of the allowed values',
 								},
@@ -4857,7 +5121,7 @@ function validate30(
 						if (data.url !== undefined) {
 							const _errs5 = errors;
 							if (typeof data.url !== 'string') {
-								validate30.errors = [
+								validate33.errors = [
 									{
 										instancePath: instancePath + '/url',
 										schemaPath: '#/properties/url/type',
@@ -4888,7 +5152,7 @@ function validate30(
 											if (
 												typeof data2[key1] !== 'string'
 											) {
-												validate30.errors = [
+												validate33.errors = [
 													{
 														instancePath:
 															instancePath +
@@ -4920,7 +5184,7 @@ function validate30(
 											}
 										}
 									} else {
-										validate30.errors = [
+										validate33.errors = [
 											{
 												instancePath:
 													instancePath + '/headers',
@@ -6909,7 +7173,7 @@ function validate30(
 											vErrors.push(err34);
 										}
 										errors++;
-										validate30.errors = vErrors;
+										validate33.errors = vErrors;
 										return false;
 									} else {
 										errors = _errs14;
@@ -6931,7 +7195,7 @@ function validate30(
 				}
 			}
 		} else {
-			validate30.errors = [
+			validate33.errors = [
 				{
 					instancePath,
 					schemaPath: '#/type',
@@ -6943,10 +7207,10 @@ function validate30(
 			return false;
 		}
 	}
-	validate30.errors = vErrors;
+	validate33.errors = vErrors;
 	return errors === 0;
 }
-const schema34 = {
+const schema35 = {
 	type: 'object',
 	properties: {
 		relativeUri: {
@@ -7013,7 +7277,7 @@ const schema34 = {
 	},
 	additionalProperties: false,
 };
-function validate32(
+function validate35(
 	data,
 	{ instancePath = '', parentData, parentDataProperty, rootData = data } = {}
 ) {
@@ -7023,8 +7287,8 @@ function validate32(
 		if (data && typeof data == 'object' && !Array.isArray(data)) {
 			const _errs1 = errors;
 			for (const key0 in data) {
-				if (!func2.call(schema34.properties, key0)) {
-					validate32.errors = [
+				if (!func2.call(schema35.properties, key0)) {
+					validate35.errors = [
 						{
 							instancePath,
 							schemaPath: '#/additionalProperties',
@@ -7041,7 +7305,7 @@ function validate32(
 				if (data.relativeUri !== undefined) {
 					const _errs2 = errors;
 					if (typeof data.relativeUri !== 'string') {
-						validate32.errors = [
+						validate35.errors = [
 							{
 								instancePath: instancePath + '/relativeUri',
 								schemaPath: '#/properties/relativeUri/type',
@@ -7060,7 +7324,7 @@ function validate32(
 					if (data.scriptPath !== undefined) {
 						const _errs4 = errors;
 						if (typeof data.scriptPath !== 'string') {
-							validate32.errors = [
+							validate35.errors = [
 								{
 									instancePath: instancePath + '/scriptPath',
 									schemaPath: '#/properties/scriptPath/type',
@@ -7079,7 +7343,7 @@ function validate32(
 						if (data.protocol !== undefined) {
 							const _errs6 = errors;
 							if (typeof data.protocol !== 'string') {
-								validate32.errors = [
+								validate35.errors = [
 									{
 										instancePath:
 											instancePath + '/protocol',
@@ -7101,7 +7365,7 @@ function validate32(
 								let data3 = data.method;
 								const _errs8 = errors;
 								if (typeof data3 !== 'string') {
-									validate32.errors = [
+									validate35.errors = [
 										{
 											instancePath:
 												instancePath + '/method',
@@ -7125,7 +7389,7 @@ function validate32(
 										data3 === 'DELETE'
 									)
 								) {
-									validate32.errors = [
+									validate35.errors = [
 										{
 											instancePath:
 												instancePath + '/method',
@@ -7133,7 +7397,7 @@ function validate32(
 												'#/definitions/HTTPMethod/enum',
 											keyword: 'enum',
 											params: {
-												allowedValues: schema32.enum,
+												allowedValues: schema33.enum,
 											},
 											message:
 												'must be equal to one of the allowed values',
@@ -7162,7 +7426,7 @@ function validate32(
 													typeof data4[key1] !==
 													'string'
 												) {
-													validate32.errors = [
+													validate35.errors = [
 														{
 															instancePath:
 																instancePath +
@@ -7194,7 +7458,7 @@ function validate32(
 												}
 											}
 										} else {
-											validate32.errors = [
+											validate35.errors = [
 												{
 													instancePath:
 														instancePath +
@@ -7832,7 +8096,7 @@ function validate32(
 												vErrors.push(err12);
 											}
 											errors++;
-											validate32.errors = vErrors;
+											validate35.errors = vErrors;
 											return false;
 										} else {
 											errors = _errs18;
@@ -7865,7 +8129,7 @@ function validate32(
 																key4
 															] !== 'string'
 														) {
-															validate32.errors =
+															validate35.errors =
 																[
 																	{
 																		instancePath:
@@ -7900,7 +8164,7 @@ function validate32(
 														}
 													}
 												} else {
-													validate32.errors = [
+													validate35.errors = [
 														{
 															instancePath:
 																instancePath +
@@ -7941,7 +8205,7 @@ function validate32(
 																	key5
 																] !== 'string'
 															) {
-																validate32.errors =
+																validate35.errors =
 																	[
 																		{
 																			instancePath:
@@ -7977,7 +8241,7 @@ function validate32(
 															}
 														}
 													} else {
-														validate32.errors = [
+														validate35.errors = [
 															{
 																instancePath:
 																	instancePath +
@@ -8006,7 +8270,7 @@ function validate32(
 														typeof data.code !==
 														'string'
 													) {
-														validate32.errors = [
+														validate35.errors = [
 															{
 																instancePath:
 																	instancePath +
@@ -8038,7 +8302,7 @@ function validate32(
 				}
 			}
 		} else {
-			validate32.errors = [
+			validate35.errors = [
 				{
 					instancePath,
 					schemaPath: '#/type',
@@ -8050,10 +8314,10 @@ function validate32(
 			return false;
 		}
 	}
-	validate32.errors = vErrors;
+	validate35.errors = vErrors;
 	return errors === 0;
 }
-function validate14(
+function validate24(
 	data,
 	{ instancePath = '', parentData, parentDataProperty, rootData = data } = {}
 ) {
@@ -8063,7 +8327,7 @@ function validate14(
 		if (data && typeof data == 'object' && !Array.isArray(data)) {
 			let missing0;
 			if (data.step === undefined && (missing0 = 'step')) {
-				validate14.errors = [
+				validate24.errors = [
 					{
 						instancePath,
 						schemaPath: '#/required',
@@ -8092,7 +8356,7 @@ function validate14(
 									(data.step === undefined &&
 										(missing1 = 'step'))
 								) {
-									validate14.errors = [
+									validate24.errors = [
 										{
 											instancePath,
 											schemaPath: '#/oneOf/0/required',
@@ -8118,7 +8382,7 @@ function validate14(
 												key0 === 'pluginName'
 											)
 										) {
-											validate14.errors = [
+											validate24.errors = [
 												{
 													instancePath,
 													schemaPath:
@@ -8157,7 +8421,7 @@ function validate14(
 																	'caption'
 															)
 														) {
-															validate14.errors =
+															validate24.errors =
 																[
 																	{
 																		instancePath:
@@ -8197,7 +8461,7 @@ function validate14(
 																	)
 																)
 															) {
-																validate14.errors =
+																validate24.errors =
 																	[
 																		{
 																			instancePath:
@@ -8233,7 +8497,7 @@ function validate14(
 																	typeof data0.caption !==
 																	'string'
 																) {
-																	validate14.errors =
+																	validate24.errors =
 																		[
 																			{
 																				instancePath:
@@ -8261,7 +8525,7 @@ function validate14(
 														}
 													}
 												} else {
-													validate14.errors = [
+													validate24.errors = [
 														{
 															instancePath:
 																instancePath +
@@ -8288,7 +8552,7 @@ function validate14(
 												let data3 = data.step;
 												const _errs12 = errors;
 												if (typeof data3 !== 'string') {
-													validate14.errors = [
+													validate24.errors = [
 														{
 															instancePath:
 																instancePath +
@@ -8308,7 +8572,7 @@ function validate14(
 												if (
 													'activatePlugin' !== data3
 												) {
-													validate14.errors = [
+													validate24.errors = [
 														{
 															instancePath:
 																instancePath +
@@ -8340,7 +8604,7 @@ function validate14(
 														typeof data.pluginPath !==
 														'string'
 													) {
-														validate14.errors = [
+														validate24.errors = [
 															{
 																instancePath:
 																	instancePath +
@@ -8372,7 +8636,7 @@ function validate14(
 															typeof data.pluginName !==
 															'string'
 														) {
-															validate14.errors =
+															validate24.errors =
 																[
 																	{
 																		instancePath:
@@ -8402,7 +8666,7 @@ function validate14(
 									}
 								}
 							} else {
-								validate14.errors = [
+								validate24.errors = [
 									{
 										instancePath,
 										schemaPath: '#/oneOf/0/type',
@@ -8429,7 +8693,7 @@ function validate14(
 									(data.themeFolderName === undefined &&
 										(missing2 = 'themeFolderName'))
 								) {
-									validate14.errors = [
+									validate24.errors = [
 										{
 											instancePath,
 											schemaPath: '#/oneOf/1/required',
@@ -8454,7 +8718,7 @@ function validate14(
 												key2 === 'themeFolderName'
 											)
 										) {
-											validate14.errors = [
+											validate24.errors = [
 												{
 													instancePath,
 													schemaPath:
@@ -8493,7 +8757,7 @@ function validate14(
 																	'caption'
 															)
 														) {
-															validate14.errors =
+															validate24.errors =
 																[
 																	{
 																		instancePath:
@@ -8533,7 +8797,7 @@ function validate14(
 																	)
 																)
 															) {
-																validate14.errors =
+																validate24.errors =
 																	[
 																		{
 																			instancePath:
@@ -8569,7 +8833,7 @@ function validate14(
 																	typeof data6.caption !==
 																	'string'
 																) {
-																	validate14.errors =
+																	validate24.errors =
 																		[
 																			{
 																				instancePath:
@@ -8597,7 +8861,7 @@ function validate14(
 														}
 													}
 												} else {
-													validate14.errors = [
+													validate24.errors = [
 														{
 															instancePath:
 																instancePath +
@@ -8624,7 +8888,7 @@ function validate14(
 												let data9 = data.step;
 												const _errs28 = errors;
 												if (typeof data9 !== 'string') {
-													validate14.errors = [
+													validate24.errors = [
 														{
 															instancePath:
 																instancePath +
@@ -8642,7 +8906,7 @@ function validate14(
 													return false;
 												}
 												if ('activateTheme' !== data9) {
-													validate14.errors = [
+													validate24.errors = [
 														{
 															instancePath:
 																instancePath +
@@ -8674,7 +8938,7 @@ function validate14(
 														typeof data.themeFolderName !==
 														'string'
 													) {
-														validate14.errors = [
+														validate24.errors = [
 															{
 																instancePath:
 																	instancePath +
@@ -8701,7 +8965,7 @@ function validate14(
 									}
 								}
 							} else {
-								validate14.errors = [
+								validate24.errors = [
 									{
 										instancePath,
 										schemaPath: '#/oneOf/1/type',
@@ -8730,7 +8994,7 @@ function validate14(
 									(data.toPath === undefined &&
 										(missing3 = 'toPath'))
 								) {
-									validate14.errors = [
+									validate24.errors = [
 										{
 											instancePath,
 											schemaPath: '#/oneOf/2/required',
@@ -8756,7 +9020,7 @@ function validate14(
 												key4 === 'toPath'
 											)
 										) {
-											validate14.errors = [
+											validate24.errors = [
 												{
 													instancePath,
 													schemaPath:
@@ -8795,7 +9059,7 @@ function validate14(
 																	'caption'
 															)
 														) {
-															validate14.errors =
+															validate24.errors =
 																[
 																	{
 																		instancePath:
@@ -8835,7 +9099,7 @@ function validate14(
 																	)
 																)
 															) {
-																validate14.errors =
+																validate24.errors =
 																	[
 																		{
 																			instancePath:
@@ -8871,7 +9135,7 @@ function validate14(
 																	typeof data11.caption !==
 																	'string'
 																) {
-																	validate14.errors =
+																	validate24.errors =
 																		[
 																			{
 																				instancePath:
@@ -8899,7 +9163,7 @@ function validate14(
 														}
 													}
 												} else {
-													validate14.errors = [
+													validate24.errors = [
 														{
 															instancePath:
 																instancePath +
@@ -8928,7 +9192,7 @@ function validate14(
 												if (
 													typeof data14 !== 'string'
 												) {
-													validate14.errors = [
+													validate24.errors = [
 														{
 															instancePath:
 																instancePath +
@@ -8946,7 +9210,7 @@ function validate14(
 													return false;
 												}
 												if ('cp' !== data14) {
-													validate14.errors = [
+													validate24.errors = [
 														{
 															instancePath:
 																instancePath +
@@ -8977,7 +9241,7 @@ function validate14(
 														typeof data.fromPath !==
 														'string'
 													) {
-														validate14.errors = [
+														validate24.errors = [
 															{
 																instancePath:
 																	instancePath +
@@ -9009,7 +9273,7 @@ function validate14(
 															typeof data.toPath !==
 															'string'
 														) {
-															validate14.errors =
+															validate24.errors =
 																[
 																	{
 																		instancePath:
@@ -9039,7 +9303,7 @@ function validate14(
 									}
 								}
 							} else {
-								validate14.errors = [
+								validate24.errors = [
 									{
 										instancePath,
 										schemaPath: '#/oneOf/2/type',
@@ -9066,7 +9330,7 @@ function validate14(
 									(data.step === undefined &&
 										(missing4 = 'step'))
 								) {
-									validate14.errors = [
+									validate24.errors = [
 										{
 											instancePath,
 											schemaPath: '#/oneOf/3/required',
@@ -9093,7 +9357,7 @@ function validate14(
 												key6 === 'virtualize'
 											)
 										) {
-											validate14.errors = [
+											validate24.errors = [
 												{
 													instancePath,
 													schemaPath:
@@ -9132,7 +9396,7 @@ function validate14(
 																	'caption'
 															)
 														) {
-															validate14.errors =
+															validate24.errors =
 																[
 																	{
 																		instancePath:
@@ -9172,7 +9436,7 @@ function validate14(
 																	)
 																)
 															) {
-																validate14.errors =
+																validate24.errors =
 																	[
 																		{
 																			instancePath:
@@ -9208,7 +9472,7 @@ function validate14(
 																	typeof data17.caption !==
 																	'string'
 																) {
-																	validate14.errors =
+																	validate24.errors =
 																		[
 																			{
 																				instancePath:
@@ -9236,7 +9500,7 @@ function validate14(
 														}
 													}
 												} else {
-													validate14.errors = [
+													validate24.errors = [
 														{
 															instancePath:
 																instancePath +
@@ -9265,7 +9529,7 @@ function validate14(
 												if (
 													typeof data20 !== 'string'
 												) {
-													validate14.errors = [
+													validate24.errors = [
 														{
 															instancePath:
 																instancePath +
@@ -9286,7 +9550,7 @@ function validate14(
 													'defineWpConfigConsts' !==
 													data20
 												) {
-													validate14.errors = [
+													validate24.errors = [
 														{
 															instancePath:
 																instancePath +
@@ -9333,7 +9597,7 @@ function validate14(
 																}
 															}
 														} else {
-															validate14.errors =
+															validate24.errors =
 																[
 																	{
 																		instancePath:
@@ -9370,7 +9634,7 @@ function validate14(
 															typeof data23 !==
 															'string'
 														) {
-															validate14.errors =
+															validate24.errors =
 																[
 																	{
 																		instancePath:
@@ -9397,7 +9661,7 @@ function validate14(
 																	'define-before-run'
 															)
 														) {
-															validate14.errors =
+															validate24.errors =
 																[
 																	{
 																		instancePath:
@@ -9409,7 +9673,7 @@ function validate14(
 																			'enum',
 																		params: {
 																			allowedValues:
-																				schema23
+																				schema29
 																					.oneOf[3]
 																					.properties
 																					.method
@@ -9437,7 +9701,7 @@ function validate14(
 																typeof data.virtualize !==
 																'boolean'
 															) {
-																validate14.errors =
+																validate24.errors =
 																	[
 																		{
 																			instancePath:
@@ -9469,7 +9733,7 @@ function validate14(
 									}
 								}
 							} else {
-								validate14.errors = [
+								validate24.errors = [
 									{
 										instancePath,
 										schemaPath: '#/oneOf/3/type',
@@ -9496,7 +9760,7 @@ function validate14(
 									(data.step === undefined &&
 										(missing5 = 'step'))
 								) {
-									validate14.errors = [
+									validate24.errors = [
 										{
 											instancePath,
 											schemaPath: '#/oneOf/4/required',
@@ -9521,7 +9785,7 @@ function validate14(
 												key9 === 'siteUrl'
 											)
 										) {
-											validate14.errors = [
+											validate24.errors = [
 												{
 													instancePath,
 													schemaPath:
@@ -9560,7 +9824,7 @@ function validate14(
 																	'caption'
 															)
 														) {
-															validate14.errors =
+															validate24.errors =
 																[
 																	{
 																		instancePath:
@@ -9600,7 +9864,7 @@ function validate14(
 																	)
 																)
 															) {
-																validate14.errors =
+																validate24.errors =
 																	[
 																		{
 																			instancePath:
@@ -9636,7 +9900,7 @@ function validate14(
 																	typeof data25.caption !==
 																	'string'
 																) {
-																	validate14.errors =
+																	validate24.errors =
 																		[
 																			{
 																				instancePath:
@@ -9664,7 +9928,7 @@ function validate14(
 														}
 													}
 												} else {
-													validate14.errors = [
+													validate24.errors = [
 														{
 															instancePath:
 																instancePath +
@@ -9693,7 +9957,7 @@ function validate14(
 												if (
 													typeof data28 !== 'string'
 												) {
-													validate14.errors = [
+													validate24.errors = [
 														{
 															instancePath:
 																instancePath +
@@ -9713,7 +9977,7 @@ function validate14(
 												if (
 													'defineSiteUrl' !== data28
 												) {
-													validate14.errors = [
+													validate24.errors = [
 														{
 															instancePath:
 																instancePath +
@@ -9745,7 +10009,7 @@ function validate14(
 														typeof data.siteUrl !==
 														'string'
 													) {
-														validate14.errors = [
+														validate24.errors = [
 															{
 																instancePath:
 																	instancePath +
@@ -9772,7 +10036,7 @@ function validate14(
 									}
 								}
 							} else {
-								validate14.errors = [
+								validate24.errors = [
 									{
 										instancePath,
 										schemaPath: '#/oneOf/4/type',
@@ -9797,7 +10061,7 @@ function validate14(
 									data.step === undefined &&
 									(missing6 = 'step')
 								) {
-									validate14.errors = [
+									validate24.errors = [
 										{
 											instancePath,
 											schemaPath: '#/oneOf/5/required',
@@ -9822,7 +10086,7 @@ function validate14(
 												key11 === 'wpCliPath'
 											)
 										) {
-											validate14.errors = [
+											validate24.errors = [
 												{
 													instancePath,
 													schemaPath:
@@ -9861,7 +10125,7 @@ function validate14(
 																	'caption'
 															)
 														) {
-															validate14.errors =
+															validate24.errors =
 																[
 																	{
 																		instancePath:
@@ -9901,7 +10165,7 @@ function validate14(
 																	)
 																)
 															) {
-																validate14.errors =
+																validate24.errors =
 																	[
 																		{
 																			instancePath:
@@ -9937,7 +10201,7 @@ function validate14(
 																	typeof data30.caption !==
 																	'string'
 																) {
-																	validate14.errors =
+																	validate24.errors =
 																		[
 																			{
 																				instancePath:
@@ -9965,7 +10229,7 @@ function validate14(
 														}
 													}
 												} else {
-													validate14.errors = [
+													validate24.errors = [
 														{
 															instancePath:
 																instancePath +
@@ -9994,7 +10258,7 @@ function validate14(
 												if (
 													typeof data33 !== 'string'
 												) {
-													validate14.errors = [
+													validate24.errors = [
 														{
 															instancePath:
 																instancePath +
@@ -10014,7 +10278,7 @@ function validate14(
 												if (
 													'enableMultisite' !== data33
 												) {
-													validate14.errors = [
+													validate24.errors = [
 														{
 															instancePath:
 																instancePath +
@@ -10046,7 +10310,7 @@ function validate14(
 														typeof data.wpCliPath !==
 														'string'
 													) {
-														validate14.errors = [
+														validate24.errors = [
 															{
 																instancePath:
 																	instancePath +
@@ -10073,7 +10337,7 @@ function validate14(
 									}
 								}
 							} else {
-								validate14.errors = [
+								validate24.errors = [
 									{
 										instancePath,
 										schemaPath: '#/oneOf/5/type',
@@ -10100,7 +10364,7 @@ function validate14(
 									(data.step === undefined &&
 										(missing7 = 'step'))
 								) {
-									validate14.errors = [
+									validate24.errors = [
 										{
 											instancePath,
 											schemaPath: '#/oneOf/6/required',
@@ -10126,7 +10390,7 @@ function validate14(
 												key13 === 'importer'
 											)
 										) {
-											validate14.errors = [
+											validate24.errors = [
 												{
 													instancePath,
 													schemaPath:
@@ -10165,7 +10429,7 @@ function validate14(
 																	'caption'
 															)
 														) {
-															validate14.errors =
+															validate24.errors =
 																[
 																	{
 																		instancePath:
@@ -10205,7 +10469,7 @@ function validate14(
 																	)
 																)
 															) {
-																validate14.errors =
+																validate24.errors =
 																	[
 																		{
 																			instancePath:
@@ -10241,7 +10505,7 @@ function validate14(
 																	typeof data35.caption !==
 																	'string'
 																) {
-																	validate14.errors =
+																	validate24.errors =
 																		[
 																			{
 																				instancePath:
@@ -10269,7 +10533,7 @@ function validate14(
 														}
 													}
 												} else {
-													validate14.errors = [
+													validate24.errors = [
 														{
 															instancePath:
 																instancePath +
@@ -10298,7 +10562,7 @@ function validate14(
 												if (
 													typeof data38 !== 'string'
 												) {
-													validate14.errors = [
+													validate24.errors = [
 														{
 															instancePath:
 																instancePath +
@@ -10316,7 +10580,7 @@ function validate14(
 													return false;
 												}
 												if ('importWxr' !== data38) {
-													validate14.errors = [
+													validate24.errors = [
 														{
 															instancePath:
 																instancePath +
@@ -10378,7 +10642,7 @@ function validate14(
 															typeof data40 !==
 															'string'
 														) {
-															validate14.errors =
+															validate24.errors =
 																[
 																	{
 																		instancePath:
@@ -10405,7 +10669,7 @@ function validate14(
 																	'default'
 															)
 														) {
-															validate14.errors =
+															validate24.errors =
 																[
 																	{
 																		instancePath:
@@ -10417,7 +10681,7 @@ function validate14(
 																			'enum',
 																		params: {
 																			allowedValues:
-																				schema23
+																				schema29
 																					.oneOf[6]
 																					.properties
 																					.importer
@@ -10440,7 +10704,7 @@ function validate14(
 									}
 								}
 							} else {
-								validate14.errors = [
+								validate24.errors = [
 									{
 										instancePath,
 										schemaPath: '#/oneOf/6/type',
@@ -10465,7 +10729,7 @@ function validate14(
 									data.step === undefined &&
 									(missing8 = 'step')
 								) {
-									validate14.errors = [
+									validate24.errors = [
 										{
 											instancePath,
 											schemaPath: '#/oneOf/7/required',
@@ -10490,7 +10754,7 @@ function validate14(
 												key15 === 'themeSlug'
 											)
 										) {
-											validate14.errors = [
+											validate24.errors = [
 												{
 													instancePath,
 													schemaPath:
@@ -10529,7 +10793,7 @@ function validate14(
 																	'caption'
 															)
 														) {
-															validate14.errors =
+															validate24.errors =
 																[
 																	{
 																		instancePath:
@@ -10569,7 +10833,7 @@ function validate14(
 																	)
 																)
 															) {
-																validate14.errors =
+																validate24.errors =
 																	[
 																		{
 																			instancePath:
@@ -10605,7 +10869,7 @@ function validate14(
 																	typeof data41.caption !==
 																	'string'
 																) {
-																	validate14.errors =
+																	validate24.errors =
 																		[
 																			{
 																				instancePath:
@@ -10633,7 +10897,7 @@ function validate14(
 														}
 													}
 												} else {
-													validate14.errors = [
+													validate24.errors = [
 														{
 															instancePath:
 																instancePath +
@@ -10662,7 +10926,7 @@ function validate14(
 												if (
 													typeof data44 !== 'string'
 												) {
-													validate14.errors = [
+													validate24.errors = [
 														{
 															instancePath:
 																instancePath +
@@ -10683,7 +10947,7 @@ function validate14(
 													'importThemeStarterContent' !==
 													data44
 												) {
-													validate14.errors = [
+													validate24.errors = [
 														{
 															instancePath:
 																instancePath +
@@ -10715,7 +10979,7 @@ function validate14(
 														typeof data.themeSlug !==
 														'string'
 													) {
-														validate14.errors = [
+														validate24.errors = [
 															{
 																instancePath:
 																	instancePath +
@@ -10742,7 +11006,7 @@ function validate14(
 									}
 								}
 							} else {
-								validate14.errors = [
+								validate24.errors = [
 									{
 										instancePath,
 										schemaPath: '#/oneOf/7/type',
@@ -10769,7 +11033,7 @@ function validate14(
 									(data.wordPressFilesZip === undefined &&
 										(missing9 = 'wordPressFilesZip'))
 								) {
-									validate14.errors = [
+									validate24.errors = [
 										{
 											instancePath,
 											schemaPath: '#/oneOf/8/required',
@@ -10795,7 +11059,7 @@ function validate14(
 												key17 === 'pathInZip'
 											)
 										) {
-											validate14.errors = [
+											validate24.errors = [
 												{
 													instancePath,
 													schemaPath:
@@ -10834,7 +11098,7 @@ function validate14(
 																	'caption'
 															)
 														) {
-															validate14.errors =
+															validate24.errors =
 																[
 																	{
 																		instancePath:
@@ -10874,7 +11138,7 @@ function validate14(
 																	)
 																)
 															) {
-																validate14.errors =
+																validate24.errors =
 																	[
 																		{
 																			instancePath:
@@ -10910,7 +11174,7 @@ function validate14(
 																	typeof data46.caption !==
 																	'string'
 																) {
-																	validate14.errors =
+																	validate24.errors =
 																		[
 																			{
 																				instancePath:
@@ -10938,7 +11202,7 @@ function validate14(
 														}
 													}
 												} else {
-													validate14.errors = [
+													validate24.errors = [
 														{
 															instancePath:
 																instancePath +
@@ -10967,7 +11231,7 @@ function validate14(
 												if (
 													typeof data49 !== 'string'
 												) {
-													validate14.errors = [
+													validate24.errors = [
 														{
 															instancePath:
 																instancePath +
@@ -10988,7 +11252,7 @@ function validate14(
 													'importWordPressFiles' !==
 													data49
 												) {
-													validate14.errors = [
+													validate24.errors = [
 														{
 															instancePath:
 																instancePath +
@@ -11055,7 +11319,7 @@ function validate14(
 															typeof data.pathInZip !==
 															'string'
 														) {
-															validate14.errors =
+															validate24.errors =
 																[
 																	{
 																		instancePath:
@@ -11085,7 +11349,7 @@ function validate14(
 									}
 								}
 							} else {
-								validate14.errors = [
+								validate24.errors = [
 									{
 										instancePath,
 										schemaPath: '#/oneOf/8/type',
@@ -11112,7 +11376,7 @@ function validate14(
 									(data.step === undefined &&
 										(missing10 = 'step'))
 								) {
-									validate14.errors = [
+									validate24.errors = [
 										{
 											instancePath,
 											schemaPath: '#/oneOf/9/required',
@@ -11141,7 +11405,7 @@ function validate14(
 												key19 === 'options'
 											)
 										) {
-											validate14.errors = [
+											validate24.errors = [
 												{
 													instancePath,
 													schemaPath:
@@ -11180,7 +11444,7 @@ function validate14(
 																	'caption'
 															)
 														) {
-															validate14.errors =
+															validate24.errors =
 																[
 																	{
 																		instancePath:
@@ -11220,7 +11484,7 @@ function validate14(
 																	)
 																)
 															) {
-																validate14.errors =
+																validate24.errors =
 																	[
 																		{
 																			instancePath:
@@ -11256,7 +11520,7 @@ function validate14(
 																	typeof data52.caption !==
 																	'string'
 																) {
-																	validate14.errors =
+																	validate24.errors =
 																		[
 																			{
 																				instancePath:
@@ -11284,7 +11548,7 @@ function validate14(
 														}
 													}
 												} else {
-													validate14.errors = [
+													validate24.errors = [
 														{
 															instancePath:
 																instancePath +
@@ -11317,7 +11581,7 @@ function validate14(
 												if (
 													typeof data55 !== 'string'
 												) {
-													validate14.errors = [
+													validate24.errors = [
 														{
 															instancePath:
 																instancePath +
@@ -11342,7 +11606,7 @@ function validate14(
 														data55 === 'error'
 													)
 												) {
-													validate14.errors = [
+													validate24.errors = [
 														{
 															instancePath:
 																instancePath +
@@ -11352,7 +11616,7 @@ function validate14(
 															keyword: 'enum',
 															params: {
 																allowedValues:
-																	schema23
+																	schema29
 																		.oneOf[9]
 																		.properties
 																		.ifAlreadyInstalled
@@ -11377,7 +11641,7 @@ function validate14(
 														typeof data56 !==
 														'string'
 													) {
-														validate14.errors = [
+														validate24.errors = [
 															{
 																instancePath:
 																	instancePath +
@@ -11398,7 +11662,7 @@ function validate14(
 														'installPlugin' !==
 														data56
 													) {
-														validate14.errors = [
+														validate24.errors = [
 															{
 																instancePath:
 																	instancePath +
@@ -11465,7 +11729,7 @@ function validate14(
 															const _errs157 =
 																errors;
 															if (
-																!validate18(
+																!validate14(
 																	data57,
 																	{
 																		instancePath:
@@ -11482,9 +11746,9 @@ function validate14(
 																vErrors =
 																	vErrors ===
 																	null
-																		? validate18.errors
+																		? validate14.errors
 																		: vErrors.concat(
-																				validate18.errors
+																				validate14.errors
 																			);
 																errors =
 																	vErrors.length;
@@ -11521,7 +11785,7 @@ function validate14(
 																);
 															}
 															errors++;
-															validate14.errors =
+															validate24.errors =
 																vErrors;
 															return false;
 														} else {
@@ -11615,7 +11879,7 @@ function validate14(
 																						'targetFolderName'
 																				)
 																			) {
-																				validate14.errors =
+																				validate24.errors =
 																					[
 																						{
 																							instancePath:
@@ -11651,7 +11915,7 @@ function validate14(
 																					typeof data59.activate !==
 																					'boolean'
 																				) {
-																					validate14.errors =
+																					validate24.errors =
 																						[
 																							{
 																								instancePath:
@@ -11689,7 +11953,7 @@ function validate14(
 																						typeof data59.targetFolderName !==
 																						'string'
 																					) {
-																						validate14.errors =
+																						validate24.errors =
 																							[
 																								{
 																									instancePath:
@@ -11717,7 +11981,7 @@ function validate14(
 																			}
 																		}
 																	} else {
-																		validate14.errors =
+																		validate24.errors =
 																			[
 																				{
 																					instancePath:
@@ -11751,7 +12015,7 @@ function validate14(
 									}
 								}
 							} else {
-								validate14.errors = [
+								validate24.errors = [
 									{
 										instancePath,
 										schemaPath: '#/oneOf/9/type',
@@ -11778,7 +12042,7 @@ function validate14(
 									(data.themeData === undefined &&
 										(missing11 = 'themeData'))
 								) {
-									validate14.errors = [
+									validate24.errors = [
 										{
 											instancePath,
 											schemaPath: '#/oneOf/10/required',
@@ -11807,7 +12071,7 @@ function validate14(
 												key22 === 'options'
 											)
 										) {
-											validate14.errors = [
+											validate24.errors = [
 												{
 													instancePath,
 													schemaPath:
@@ -11846,7 +12110,7 @@ function validate14(
 																	'caption'
 															)
 														) {
-															validate14.errors =
+															validate24.errors =
 																[
 																	{
 																		instancePath:
@@ -11886,7 +12150,7 @@ function validate14(
 																	)
 																)
 															) {
-																validate14.errors =
+																validate24.errors =
 																	[
 																		{
 																			instancePath:
@@ -11922,7 +12186,7 @@ function validate14(
 																	typeof data62.caption !==
 																	'string'
 																) {
-																	validate14.errors =
+																	validate24.errors =
 																		[
 																			{
 																				instancePath:
@@ -11950,7 +12214,7 @@ function validate14(
 														}
 													}
 												} else {
-													validate14.errors = [
+													validate24.errors = [
 														{
 															instancePath:
 																instancePath +
@@ -11983,7 +12247,7 @@ function validate14(
 												if (
 													typeof data65 !== 'string'
 												) {
-													validate14.errors = [
+													validate24.errors = [
 														{
 															instancePath:
 																instancePath +
@@ -12008,7 +12272,7 @@ function validate14(
 														data65 === 'error'
 													)
 												) {
-													validate14.errors = [
+													validate24.errors = [
 														{
 															instancePath:
 																instancePath +
@@ -12018,7 +12282,7 @@ function validate14(
 															keyword: 'enum',
 															params: {
 																allowedValues:
-																	schema23
+																	schema29
 																		.oneOf[10]
 																		.properties
 																		.ifAlreadyInstalled
@@ -12043,7 +12307,7 @@ function validate14(
 														typeof data66 !==
 														'string'
 													) {
-														validate14.errors = [
+														validate24.errors = [
 															{
 																instancePath:
 																	instancePath +
@@ -12064,7 +12328,7 @@ function validate14(
 														'installTheme' !==
 														data66
 													) {
-														validate14.errors = [
+														validate24.errors = [
 															{
 																instancePath:
 																	instancePath +
@@ -12131,7 +12395,7 @@ function validate14(
 															const _errs184 =
 																errors;
 															if (
-																!validate18(
+																!validate14(
 																	data67,
 																	{
 																		instancePath:
@@ -12148,9 +12412,9 @@ function validate14(
 																vErrors =
 																	vErrors ===
 																	null
-																		? validate18.errors
+																		? validate14.errors
 																		: vErrors.concat(
-																				validate18.errors
+																				validate14.errors
 																			);
 																errors =
 																	vErrors.length;
@@ -12187,7 +12451,7 @@ function validate14(
 																);
 															}
 															errors++;
-															validate14.errors =
+															validate24.errors =
 																vErrors;
 															return false;
 														} else {
@@ -12283,7 +12547,7 @@ function validate14(
 																						'targetFolderName'
 																				)
 																			) {
-																				validate14.errors =
+																				validate24.errors =
 																					[
 																						{
 																							instancePath:
@@ -12319,7 +12583,7 @@ function validate14(
 																					typeof data69.activate !==
 																					'boolean'
 																				) {
-																					validate14.errors =
+																					validate24.errors =
 																						[
 																							{
 																								instancePath:
@@ -12357,7 +12621,7 @@ function validate14(
 																						typeof data69.importStarterContent !==
 																						'boolean'
 																					) {
-																						validate14.errors =
+																						validate24.errors =
 																							[
 																								{
 																									instancePath:
@@ -12395,7 +12659,7 @@ function validate14(
 																							typeof data69.targetFolderName !==
 																							'string'
 																						) {
-																							validate14.errors =
+																							validate24.errors =
 																								[
 																									{
 																										instancePath:
@@ -12424,7 +12688,7 @@ function validate14(
 																			}
 																		}
 																	} else {
-																		validate14.errors =
+																		validate24.errors =
 																			[
 																				{
 																					instancePath:
@@ -12458,7 +12722,7 @@ function validate14(
 									}
 								}
 							} else {
-								validate14.errors = [
+								validate24.errors = [
 									{
 										instancePath,
 										schemaPath: '#/oneOf/10/type',
@@ -12483,7 +12747,7 @@ function validate14(
 									data.step === undefined &&
 									(missing12 = 'step')
 								) {
-									validate14.errors = [
+									validate24.errors = [
 										{
 											instancePath,
 											schemaPath: '#/oneOf/11/required',
@@ -12509,7 +12773,7 @@ function validate14(
 												key25 === 'password'
 											)
 										) {
-											validate14.errors = [
+											validate24.errors = [
 												{
 													instancePath,
 													schemaPath:
@@ -12548,7 +12812,7 @@ function validate14(
 																	'caption'
 															)
 														) {
-															validate14.errors =
+															validate24.errors =
 																[
 																	{
 																		instancePath:
@@ -12588,7 +12852,7 @@ function validate14(
 																	)
 																)
 															) {
-																validate14.errors =
+																validate24.errors =
 																	[
 																		{
 																			instancePath:
@@ -12624,7 +12888,7 @@ function validate14(
 																	typeof data73.caption !==
 																	'string'
 																) {
-																	validate14.errors =
+																	validate24.errors =
 																		[
 																			{
 																				instancePath:
@@ -12652,7 +12916,7 @@ function validate14(
 														}
 													}
 												} else {
-													validate14.errors = [
+													validate24.errors = [
 														{
 															instancePath:
 																instancePath +
@@ -12681,7 +12945,7 @@ function validate14(
 												if (
 													typeof data76 !== 'string'
 												) {
-													validate14.errors = [
+													validate24.errors = [
 														{
 															instancePath:
 																instancePath +
@@ -12699,7 +12963,7 @@ function validate14(
 													return false;
 												}
 												if ('login' !== data76) {
-													validate14.errors = [
+													validate24.errors = [
 														{
 															instancePath:
 																instancePath +
@@ -12731,7 +12995,7 @@ function validate14(
 														typeof data.username !==
 														'string'
 													) {
-														validate14.errors = [
+														validate24.errors = [
 															{
 																instancePath:
 																	instancePath +
@@ -12763,7 +13027,7 @@ function validate14(
 															typeof data.password !==
 															'string'
 														) {
-															validate14.errors =
+															validate24.errors =
 																[
 																	{
 																		instancePath:
@@ -12793,7 +13057,7 @@ function validate14(
 									}
 								}
 							} else {
-								validate14.errors = [
+								validate24.errors = [
 									{
 										instancePath,
 										schemaPath: '#/oneOf/11/type',
@@ -12820,7 +13084,7 @@ function validate14(
 									(data.step === undefined &&
 										(missing13 = 'step'))
 								) {
-									validate14.errors = [
+									validate24.errors = [
 										{
 											instancePath,
 											schemaPath: '#/oneOf/12/required',
@@ -12845,7 +13109,7 @@ function validate14(
 												key27 === 'path'
 											)
 										) {
-											validate14.errors = [
+											validate24.errors = [
 												{
 													instancePath,
 													schemaPath:
@@ -12884,7 +13148,7 @@ function validate14(
 																	'caption'
 															)
 														) {
-															validate14.errors =
+															validate24.errors =
 																[
 																	{
 																		instancePath:
@@ -12924,7 +13188,7 @@ function validate14(
 																	)
 																)
 															) {
-																validate14.errors =
+																validate24.errors =
 																	[
 																		{
 																			instancePath:
@@ -12960,7 +13224,7 @@ function validate14(
 																	typeof data79.caption !==
 																	'string'
 																) {
-																	validate14.errors =
+																	validate24.errors =
 																		[
 																			{
 																				instancePath:
@@ -12988,7 +13252,7 @@ function validate14(
 														}
 													}
 												} else {
-													validate14.errors = [
+													validate24.errors = [
 														{
 															instancePath:
 																instancePath +
@@ -13017,7 +13281,7 @@ function validate14(
 												if (
 													typeof data82 !== 'string'
 												) {
-													validate14.errors = [
+													validate24.errors = [
 														{
 															instancePath:
 																instancePath +
@@ -13035,7 +13299,7 @@ function validate14(
 													return false;
 												}
 												if ('mkdir' !== data82) {
-													validate14.errors = [
+													validate24.errors = [
 														{
 															instancePath:
 																instancePath +
@@ -13065,7 +13329,7 @@ function validate14(
 														typeof data.path !==
 														'string'
 													) {
-														validate14.errors = [
+														validate24.errors = [
 															{
 																instancePath:
 																	instancePath +
@@ -13092,7 +13356,7 @@ function validate14(
 									}
 								}
 							} else {
-								validate14.errors = [
+								validate24.errors = [
 									{
 										instancePath,
 										schemaPath: '#/oneOf/12/type',
@@ -13121,7 +13385,7 @@ function validate14(
 									(data.toPath === undefined &&
 										(missing14 = 'toPath'))
 								) {
-									validate14.errors = [
+									validate24.errors = [
 										{
 											instancePath,
 											schemaPath: '#/oneOf/13/required',
@@ -13147,7 +13411,7 @@ function validate14(
 												key29 === 'toPath'
 											)
 										) {
-											validate14.errors = [
+											validate24.errors = [
 												{
 													instancePath,
 													schemaPath:
@@ -13186,7 +13450,7 @@ function validate14(
 																	'caption'
 															)
 														) {
-															validate14.errors =
+															validate24.errors =
 																[
 																	{
 																		instancePath:
@@ -13226,7 +13490,7 @@ function validate14(
 																	)
 																)
 															) {
-																validate14.errors =
+																validate24.errors =
 																	[
 																		{
 																			instancePath:
@@ -13262,7 +13526,7 @@ function validate14(
 																	typeof data84.caption !==
 																	'string'
 																) {
-																	validate14.errors =
+																	validate24.errors =
 																		[
 																			{
 																				instancePath:
@@ -13290,7 +13554,7 @@ function validate14(
 														}
 													}
 												} else {
-													validate14.errors = [
+													validate24.errors = [
 														{
 															instancePath:
 																instancePath +
@@ -13319,7 +13583,7 @@ function validate14(
 												if (
 													typeof data87 !== 'string'
 												) {
-													validate14.errors = [
+													validate24.errors = [
 														{
 															instancePath:
 																instancePath +
@@ -13337,7 +13601,7 @@ function validate14(
 													return false;
 												}
 												if ('mv' !== data87) {
-													validate14.errors = [
+													validate24.errors = [
 														{
 															instancePath:
 																instancePath +
@@ -13369,7 +13633,7 @@ function validate14(
 														typeof data.fromPath !==
 														'string'
 													) {
-														validate14.errors = [
+														validate24.errors = [
 															{
 																instancePath:
 																	instancePath +
@@ -13401,7 +13665,7 @@ function validate14(
 															typeof data.toPath !==
 															'string'
 														) {
-															validate14.errors =
+															validate24.errors =
 																[
 																	{
 																		instancePath:
@@ -13431,7 +13695,7 @@ function validate14(
 									}
 								}
 							} else {
-								validate14.errors = [
+								validate24.errors = [
 									{
 										instancePath,
 										schemaPath: '#/oneOf/13/type',
@@ -13456,7 +13720,7 @@ function validate14(
 									data.step === undefined &&
 									(missing15 = 'step')
 								) {
-									validate14.errors = [
+									validate24.errors = [
 										{
 											instancePath,
 											schemaPath: '#/oneOf/14/required',
@@ -13480,7 +13744,7 @@ function validate14(
 												key31 === 'step'
 											)
 										) {
-											validate14.errors = [
+											validate24.errors = [
 												{
 													instancePath,
 													schemaPath:
@@ -13519,7 +13783,7 @@ function validate14(
 																	'caption'
 															)
 														) {
-															validate14.errors =
+															validate24.errors =
 																[
 																	{
 																		instancePath:
@@ -13559,7 +13823,7 @@ function validate14(
 																	)
 																)
 															) {
-																validate14.errors =
+																validate24.errors =
 																	[
 																		{
 																			instancePath:
@@ -13595,7 +13859,7 @@ function validate14(
 																	typeof data90.caption !==
 																	'string'
 																) {
-																	validate14.errors =
+																	validate24.errors =
 																		[
 																			{
 																				instancePath:
@@ -13623,7 +13887,7 @@ function validate14(
 														}
 													}
 												} else {
-													validate14.errors = [
+													validate24.errors = [
 														{
 															instancePath:
 																instancePath +
@@ -13652,7 +13916,7 @@ function validate14(
 												if (
 													typeof data93 !== 'string'
 												) {
-													validate14.errors = [
+													validate24.errors = [
 														{
 															instancePath:
 																instancePath +
@@ -13670,7 +13934,7 @@ function validate14(
 													return false;
 												}
 												if ('resetData' !== data93) {
-													validate14.errors = [
+													validate24.errors = [
 														{
 															instancePath:
 																instancePath +
@@ -13697,7 +13961,7 @@ function validate14(
 									}
 								}
 							} else {
-								validate14.errors = [
+								validate24.errors = [
 									{
 										instancePath,
 										schemaPath: '#/oneOf/14/type',
@@ -13724,7 +13988,7 @@ function validate14(
 									(data.step === undefined &&
 										(missing16 = 'step'))
 								) {
-									validate14.errors = [
+									validate24.errors = [
 										{
 											instancePath,
 											schemaPath: '#/oneOf/15/required',
@@ -13749,7 +14013,7 @@ function validate14(
 												key33 === 'request'
 											)
 										) {
-											validate14.errors = [
+											validate24.errors = [
 												{
 													instancePath,
 													schemaPath:
@@ -13788,7 +14052,7 @@ function validate14(
 																	'caption'
 															)
 														) {
-															validate14.errors =
+															validate24.errors =
 																[
 																	{
 																		instancePath:
@@ -13828,7 +14092,7 @@ function validate14(
 																	)
 																)
 															) {
-																validate14.errors =
+																validate24.errors =
 																	[
 																		{
 																			instancePath:
@@ -13864,7 +14128,7 @@ function validate14(
 																	typeof data94.caption !==
 																	'string'
 																) {
-																	validate14.errors =
+																	validate24.errors =
 																		[
 																			{
 																				instancePath:
@@ -13892,7 +14156,7 @@ function validate14(
 														}
 													}
 												} else {
-													validate14.errors = [
+													validate24.errors = [
 														{
 															instancePath:
 																instancePath +
@@ -13921,7 +14185,7 @@ function validate14(
 												if (
 													typeof data97 !== 'string'
 												) {
-													validate14.errors = [
+													validate24.errors = [
 														{
 															instancePath:
 																instancePath +
@@ -13939,7 +14203,7 @@ function validate14(
 													return false;
 												}
 												if ('request' !== data97) {
-													validate14.errors = [
+													validate24.errors = [
 														{
 															instancePath:
 																instancePath +
@@ -13968,7 +14232,7 @@ function validate14(
 												) {
 													const _errs266 = errors;
 													if (
-														!validate30(
+														!validate33(
 															data.request,
 															{
 																instancePath:
@@ -13984,9 +14248,9 @@ function validate14(
 													) {
 														vErrors =
 															vErrors === null
-																? validate30.errors
+																? validate33.errors
 																: vErrors.concat(
-																		validate30.errors
+																		validate33.errors
 																	);
 														errors = vErrors.length;
 													}
@@ -14000,7 +14264,7 @@ function validate14(
 									}
 								}
 							} else {
-								validate14.errors = [
+								validate24.errors = [
 									{
 										instancePath,
 										schemaPath: '#/oneOf/15/type',
@@ -14027,7 +14291,7 @@ function validate14(
 									(data.step === undefined &&
 										(missing17 = 'step'))
 								) {
-									validate14.errors = [
+									validate24.errors = [
 										{
 											instancePath,
 											schemaPath: '#/oneOf/16/required',
@@ -14052,7 +14316,7 @@ function validate14(
 												key35 === 'path'
 											)
 										) {
-											validate14.errors = [
+											validate24.errors = [
 												{
 													instancePath,
 													schemaPath:
@@ -14091,7 +14355,7 @@ function validate14(
 																	'caption'
 															)
 														) {
-															validate14.errors =
+															validate24.errors =
 																[
 																	{
 																		instancePath:
@@ -14131,7 +14395,7 @@ function validate14(
 																	)
 																)
 															) {
-																validate14.errors =
+																validate24.errors =
 																	[
 																		{
 																			instancePath:
@@ -14167,7 +14431,7 @@ function validate14(
 																	typeof data99.caption !==
 																	'string'
 																) {
-																	validate14.errors =
+																	validate24.errors =
 																		[
 																			{
 																				instancePath:
@@ -14195,7 +14459,7 @@ function validate14(
 														}
 													}
 												} else {
-													validate14.errors = [
+													validate24.errors = [
 														{
 															instancePath:
 																instancePath +
@@ -14224,7 +14488,7 @@ function validate14(
 												if (
 													typeof data102 !== 'string'
 												) {
-													validate14.errors = [
+													validate24.errors = [
 														{
 															instancePath:
 																instancePath +
@@ -14242,7 +14506,7 @@ function validate14(
 													return false;
 												}
 												if ('rm' !== data102) {
-													validate14.errors = [
+													validate24.errors = [
 														{
 															instancePath:
 																instancePath +
@@ -14272,7 +14536,7 @@ function validate14(
 														typeof data.path !==
 														'string'
 													) {
-														validate14.errors = [
+														validate24.errors = [
 															{
 																instancePath:
 																	instancePath +
@@ -14299,7 +14563,7 @@ function validate14(
 									}
 								}
 							} else {
-								validate14.errors = [
+								validate24.errors = [
 									{
 										instancePath,
 										schemaPath: '#/oneOf/16/type',
@@ -14326,7 +14590,7 @@ function validate14(
 									(data.step === undefined &&
 										(missing18 = 'step'))
 								) {
-									validate14.errors = [
+									validate24.errors = [
 										{
 											instancePath,
 											schemaPath: '#/oneOf/17/required',
@@ -14351,7 +14615,7 @@ function validate14(
 												key37 === 'path'
 											)
 										) {
-											validate14.errors = [
+											validate24.errors = [
 												{
 													instancePath,
 													schemaPath:
@@ -14391,7 +14655,7 @@ function validate14(
 																	'caption'
 															)
 														) {
-															validate14.errors =
+															validate24.errors =
 																[
 																	{
 																		instancePath:
@@ -14431,7 +14695,7 @@ function validate14(
 																	)
 																)
 															) {
-																validate14.errors =
+																validate24.errors =
 																	[
 																		{
 																			instancePath:
@@ -14467,7 +14731,7 @@ function validate14(
 																	typeof data104.caption !==
 																	'string'
 																) {
-																	validate14.errors =
+																	validate24.errors =
 																		[
 																			{
 																				instancePath:
@@ -14495,7 +14759,7 @@ function validate14(
 														}
 													}
 												} else {
-													validate14.errors = [
+													validate24.errors = [
 														{
 															instancePath:
 																instancePath +
@@ -14524,7 +14788,7 @@ function validate14(
 												if (
 													typeof data107 !== 'string'
 												) {
-													validate14.errors = [
+													validate24.errors = [
 														{
 															instancePath:
 																instancePath +
@@ -14542,7 +14806,7 @@ function validate14(
 													return false;
 												}
 												if ('rmdir' !== data107) {
-													validate14.errors = [
+													validate24.errors = [
 														{
 															instancePath:
 																instancePath +
@@ -14572,7 +14836,7 @@ function validate14(
 														typeof data.path !==
 														'string'
 													) {
-														validate14.errors = [
+														validate24.errors = [
 															{
 																instancePath:
 																	instancePath +
@@ -14599,7 +14863,7 @@ function validate14(
 									}
 								}
 							} else {
-								validate14.errors = [
+								validate24.errors = [
 									{
 										instancePath,
 										schemaPath: '#/oneOf/17/type',
@@ -14626,7 +14890,7 @@ function validate14(
 									(data.step === undefined &&
 										(missing19 = 'step'))
 								) {
-									validate14.errors = [
+									validate24.errors = [
 										{
 											instancePath,
 											schemaPath: '#/oneOf/18/required',
@@ -14651,7 +14915,7 @@ function validate14(
 												key39 === 'code'
 											)
 										) {
-											validate14.errors = [
+											validate24.errors = [
 												{
 													instancePath,
 													schemaPath:
@@ -14691,7 +14955,7 @@ function validate14(
 																	'caption'
 															)
 														) {
-															validate14.errors =
+															validate24.errors =
 																[
 																	{
 																		instancePath:
@@ -14731,7 +14995,7 @@ function validate14(
 																	)
 																)
 															) {
-																validate14.errors =
+																validate24.errors =
 																	[
 																		{
 																			instancePath:
@@ -14767,7 +15031,7 @@ function validate14(
 																	typeof data109.caption !==
 																	'string'
 																) {
-																	validate14.errors =
+																	validate24.errors =
 																		[
 																			{
 																				instancePath:
@@ -14795,7 +15059,7 @@ function validate14(
 														}
 													}
 												} else {
-													validate14.errors = [
+													validate24.errors = [
 														{
 															instancePath:
 																instancePath +
@@ -14824,7 +15088,7 @@ function validate14(
 												if (
 													typeof data112 !== 'string'
 												) {
-													validate14.errors = [
+													validate24.errors = [
 														{
 															instancePath:
 																instancePath +
@@ -14842,7 +15106,7 @@ function validate14(
 													return false;
 												}
 												if ('runPHP' !== data112) {
-													validate14.errors = [
+													validate24.errors = [
 														{
 															instancePath:
 																instancePath +
@@ -15156,7 +15420,7 @@ function validate14(
 															vErrors.push(err8);
 														}
 														errors++;
-														validate14.errors =
+														validate24.errors =
 															vErrors;
 														return false;
 													} else {
@@ -15180,7 +15444,7 @@ function validate14(
 									}
 								}
 							} else {
-								validate14.errors = [
+								validate24.errors = [
 									{
 										instancePath,
 										schemaPath: '#/oneOf/18/type',
@@ -15207,7 +15471,7 @@ function validate14(
 									(data.step === undefined &&
 										(missing21 = 'step'))
 								) {
-									validate14.errors = [
+									validate24.errors = [
 										{
 											instancePath,
 											schemaPath: '#/oneOf/19/required',
@@ -15232,7 +15496,7 @@ function validate14(
 												key42 === 'options'
 											)
 										) {
-											validate14.errors = [
+											validate24.errors = [
 												{
 													instancePath,
 													schemaPath:
@@ -15272,7 +15536,7 @@ function validate14(
 																	'caption'
 															)
 														) {
-															validate14.errors =
+															validate24.errors =
 																[
 																	{
 																		instancePath:
@@ -15312,7 +15576,7 @@ function validate14(
 																	)
 																)
 															) {
-																validate14.errors =
+																validate24.errors =
 																	[
 																		{
 																			instancePath:
@@ -15348,7 +15612,7 @@ function validate14(
 																	typeof data116.caption !==
 																	'string'
 																) {
-																	validate14.errors =
+																	validate24.errors =
 																		[
 																			{
 																				instancePath:
@@ -15376,7 +15640,7 @@ function validate14(
 														}
 													}
 												} else {
-													validate14.errors = [
+													validate24.errors = [
 														{
 															instancePath:
 																instancePath +
@@ -15405,7 +15669,7 @@ function validate14(
 												if (
 													typeof data119 !== 'string'
 												) {
-													validate14.errors = [
+													validate24.errors = [
 														{
 															instancePath:
 																instancePath +
@@ -15426,7 +15690,7 @@ function validate14(
 													'runPHPWithOptions' !==
 													data119
 												) {
-													validate14.errors = [
+													validate24.errors = [
 														{
 															instancePath:
 																instancePath +
@@ -15455,7 +15719,7 @@ function validate14(
 												) {
 													const _errs330 = errors;
 													if (
-														!validate32(
+														!validate35(
 															data.options,
 															{
 																instancePath:
@@ -15471,9 +15735,9 @@ function validate14(
 													) {
 														vErrors =
 															vErrors === null
-																? validate32.errors
+																? validate35.errors
 																: vErrors.concat(
-																		validate32.errors
+																		validate35.errors
 																	);
 														errors = vErrors.length;
 													}
@@ -15487,7 +15751,7 @@ function validate14(
 									}
 								}
 							} else {
-								validate14.errors = [
+								validate24.errors = [
 									{
 										instancePath,
 										schemaPath: '#/oneOf/19/type',
@@ -15514,7 +15778,7 @@ function validate14(
 									(data.step === undefined &&
 										(missing22 = 'step'))
 								) {
-									validate14.errors = [
+									validate24.errors = [
 										{
 											instancePath,
 											schemaPath: '#/oneOf/20/required',
@@ -15539,7 +15803,7 @@ function validate14(
 												key44 === 'options'
 											)
 										) {
-											validate14.errors = [
+											validate24.errors = [
 												{
 													instancePath,
 													schemaPath:
@@ -15579,7 +15843,7 @@ function validate14(
 																	'caption'
 															)
 														) {
-															validate14.errors =
+															validate24.errors =
 																[
 																	{
 																		instancePath:
@@ -15619,7 +15883,7 @@ function validate14(
 																	)
 																)
 															) {
-																validate14.errors =
+																validate24.errors =
 																	[
 																		{
 																			instancePath:
@@ -15655,7 +15919,7 @@ function validate14(
 																	typeof data121.caption !==
 																	'string'
 																) {
-																	validate14.errors =
+																	validate24.errors =
 																		[
 																			{
 																				instancePath:
@@ -15683,7 +15947,7 @@ function validate14(
 														}
 													}
 												} else {
-													validate14.errors = [
+													validate24.errors = [
 														{
 															instancePath:
 																instancePath +
@@ -15712,7 +15976,7 @@ function validate14(
 												if (
 													typeof data124 !== 'string'
 												) {
-													validate14.errors = [
+													validate24.errors = [
 														{
 															instancePath:
 																instancePath +
@@ -15733,7 +15997,7 @@ function validate14(
 													'runWpInstallationWizard' !==
 													data124
 												) {
-													validate14.errors = [
+													validate24.errors = [
 														{
 															instancePath:
 																instancePath +
@@ -15783,7 +16047,7 @@ function validate14(
 																			'adminPassword'
 																	)
 																) {
-																	validate14.errors =
+																	validate24.errors =
 																		[
 																			{
 																				instancePath:
@@ -15819,7 +16083,7 @@ function validate14(
 																		typeof data125.adminUsername !==
 																		'string'
 																	) {
-																		validate14.errors =
+																		validate24.errors =
 																			[
 																				{
 																					instancePath:
@@ -15855,7 +16119,7 @@ function validate14(
 																			typeof data125.adminPassword !==
 																			'string'
 																		) {
-																			validate14.errors =
+																			validate24.errors =
 																				[
 																					{
 																						instancePath:
@@ -15883,7 +16147,7 @@ function validate14(
 																}
 															}
 														} else {
-															validate14.errors =
+															validate24.errors =
 																[
 																	{
 																		instancePath:
@@ -15913,7 +16177,7 @@ function validate14(
 									}
 								}
 							} else {
-								validate14.errors = [
+								validate24.errors = [
 									{
 										instancePath,
 										schemaPath: '#/oneOf/20/type',
@@ -15940,7 +16204,7 @@ function validate14(
 									(data.step === undefined &&
 										(missing23 = 'step'))
 								) {
-									validate14.errors = [
+									validate24.errors = [
 										{
 											instancePath,
 											schemaPath: '#/oneOf/21/required',
@@ -15965,7 +16229,7 @@ function validate14(
 												key47 === 'sql'
 											)
 										) {
-											validate14.errors = [
+											validate24.errors = [
 												{
 													instancePath,
 													schemaPath:
@@ -16005,7 +16269,7 @@ function validate14(
 																	'caption'
 															)
 														) {
-															validate14.errors =
+															validate24.errors =
 																[
 																	{
 																		instancePath:
@@ -16045,7 +16309,7 @@ function validate14(
 																	)
 																)
 															) {
-																validate14.errors =
+																validate24.errors =
 																	[
 																		{
 																			instancePath:
@@ -16081,7 +16345,7 @@ function validate14(
 																	typeof data128.caption !==
 																	'string'
 																) {
-																	validate14.errors =
+																	validate24.errors =
 																		[
 																			{
 																				instancePath:
@@ -16109,7 +16373,7 @@ function validate14(
 														}
 													}
 												} else {
-													validate14.errors = [
+													validate24.errors = [
 														{
 															instancePath:
 																instancePath +
@@ -16138,7 +16402,7 @@ function validate14(
 												if (
 													typeof data131 !== 'string'
 												) {
-													validate14.errors = [
+													validate24.errors = [
 														{
 															instancePath:
 																instancePath +
@@ -16156,7 +16420,7 @@ function validate14(
 													return false;
 												}
 												if ('runSql' !== data131) {
-													validate14.errors = [
+													validate24.errors = [
 														{
 															instancePath:
 																instancePath +
@@ -16211,7 +16475,7 @@ function validate14(
 									}
 								}
 							} else {
-								validate14.errors = [
+								validate24.errors = [
 									{
 										instancePath,
 										schemaPath: '#/oneOf/21/type',
@@ -16238,7 +16502,7 @@ function validate14(
 									(data.step === undefined &&
 										(missing24 = 'step'))
 								) {
-									validate14.errors = [
+									validate24.errors = [
 										{
 											instancePath,
 											schemaPath: '#/oneOf/22/required',
@@ -16263,7 +16527,7 @@ function validate14(
 												key49 === 'options'
 											)
 										) {
-											validate14.errors = [
+											validate24.errors = [
 												{
 													instancePath,
 													schemaPath:
@@ -16303,7 +16567,7 @@ function validate14(
 																	'caption'
 															)
 														) {
-															validate14.errors =
+															validate24.errors =
 																[
 																	{
 																		instancePath:
@@ -16343,7 +16607,7 @@ function validate14(
 																	)
 																)
 															) {
-																validate14.errors =
+																validate24.errors =
 																	[
 																		{
 																			instancePath:
@@ -16379,7 +16643,7 @@ function validate14(
 																	typeof data133.caption !==
 																	'string'
 																) {
-																	validate14.errors =
+																	validate24.errors =
 																		[
 																			{
 																				instancePath:
@@ -16407,7 +16671,7 @@ function validate14(
 														}
 													}
 												} else {
-													validate14.errors = [
+													validate24.errors = [
 														{
 															instancePath:
 																instancePath +
@@ -16436,7 +16700,7 @@ function validate14(
 												if (
 													typeof data136 !== 'string'
 												) {
-													validate14.errors = [
+													validate24.errors = [
 														{
 															instancePath:
 																instancePath +
@@ -16456,7 +16720,7 @@ function validate14(
 												if (
 													'setSiteOptions' !== data136
 												) {
-													validate14.errors = [
+													validate24.errors = [
 														{
 															instancePath:
 																instancePath +
@@ -16505,7 +16769,7 @@ function validate14(
 																}
 															}
 														} else {
-															validate14.errors =
+															validate24.errors =
 																[
 																	{
 																		instancePath:
@@ -16535,7 +16799,7 @@ function validate14(
 									}
 								}
 							} else {
-								validate14.errors = [
+								validate24.errors = [
 									{
 										instancePath,
 										schemaPath: '#/oneOf/22/type',
@@ -16562,7 +16826,7 @@ function validate14(
 									(data.step === undefined &&
 										(missing25 = 'step'))
 								) {
-									validate14.errors = [
+									validate24.errors = [
 										{
 											instancePath,
 											schemaPath: '#/oneOf/23/required',
@@ -16589,7 +16853,7 @@ function validate14(
 												key52 === 'extractToPath'
 											)
 										) {
-											validate14.errors = [
+											validate24.errors = [
 												{
 													instancePath,
 													schemaPath:
@@ -16629,7 +16893,7 @@ function validate14(
 																	'caption'
 															)
 														) {
-															validate14.errors =
+															validate24.errors =
 																[
 																	{
 																		instancePath:
@@ -16669,7 +16933,7 @@ function validate14(
 																	)
 																)
 															) {
-																validate14.errors =
+																validate24.errors =
 																	[
 																		{
 																			instancePath:
@@ -16705,7 +16969,7 @@ function validate14(
 																	typeof data139.caption !==
 																	'string'
 																) {
-																	validate14.errors =
+																	validate24.errors =
 																		[
 																			{
 																				instancePath:
@@ -16733,7 +16997,7 @@ function validate14(
 														}
 													}
 												} else {
-													validate14.errors = [
+													validate24.errors = [
 														{
 															instancePath:
 																instancePath +
@@ -16762,7 +17026,7 @@ function validate14(
 												if (
 													typeof data142 !== 'string'
 												) {
-													validate14.errors = [
+													validate24.errors = [
 														{
 															instancePath:
 																instancePath +
@@ -16780,7 +17044,7 @@ function validate14(
 													return false;
 												}
 												if ('unzip' !== data142) {
-													validate14.errors = [
+													validate24.errors = [
 														{
 															instancePath:
 																instancePath +
@@ -16846,7 +17110,7 @@ function validate14(
 															typeof data.zipPath !==
 															'string'
 														) {
-															validate14.errors =
+															validate24.errors =
 																[
 																	{
 																		instancePath:
@@ -16881,7 +17145,7 @@ function validate14(
 																typeof data.extractToPath !==
 																'string'
 															) {
-																validate14.errors =
+																validate24.errors =
 																	[
 																		{
 																			instancePath:
@@ -16913,7 +17177,7 @@ function validate14(
 									}
 								}
 							} else {
-								validate14.errors = [
+								validate24.errors = [
 									{
 										instancePath,
 										schemaPath: '#/oneOf/23/type',
@@ -16942,7 +17206,7 @@ function validate14(
 									(data.userId === undefined &&
 										(missing26 = 'userId'))
 								) {
-									validate14.errors = [
+									validate24.errors = [
 										{
 											instancePath,
 											schemaPath: '#/oneOf/24/required',
@@ -16968,7 +17232,7 @@ function validate14(
 												key54 === 'userId'
 											)
 										) {
-											validate14.errors = [
+											validate24.errors = [
 												{
 													instancePath,
 													schemaPath:
@@ -17008,7 +17272,7 @@ function validate14(
 																	'caption'
 															)
 														) {
-															validate14.errors =
+															validate24.errors =
 																[
 																	{
 																		instancePath:
@@ -17048,7 +17312,7 @@ function validate14(
 																	)
 																)
 															) {
-																validate14.errors =
+																validate24.errors =
 																	[
 																		{
 																			instancePath:
@@ -17084,7 +17348,7 @@ function validate14(
 																	typeof data146.caption !==
 																	'string'
 																) {
-																	validate14.errors =
+																	validate24.errors =
 																		[
 																			{
 																				instancePath:
@@ -17112,7 +17376,7 @@ function validate14(
 														}
 													}
 												} else {
-													validate14.errors = [
+													validate24.errors = [
 														{
 															instancePath:
 																instancePath +
@@ -17141,7 +17405,7 @@ function validate14(
 												if (
 													typeof data149 !== 'string'
 												) {
-													validate14.errors = [
+													validate24.errors = [
 														{
 															instancePath:
 																instancePath +
@@ -17161,7 +17425,7 @@ function validate14(
 												if (
 													'updateUserMeta' !== data149
 												) {
-													validate14.errors = [
+													validate24.errors = [
 														{
 															instancePath:
 																instancePath +
@@ -17208,7 +17472,7 @@ function validate14(
 																}
 															}
 														} else {
-															validate14.errors =
+															validate24.errors =
 																[
 																	{
 																		instancePath:
@@ -17250,7 +17514,7 @@ function validate14(
 																)
 															)
 														) {
-															validate14.errors =
+															validate24.errors =
 																[
 																	{
 																		instancePath:
@@ -17280,7 +17544,7 @@ function validate14(
 									}
 								}
 							} else {
-								validate14.errors = [
+								validate24.errors = [
 									{
 										instancePath,
 										schemaPath: '#/oneOf/24/type',
@@ -17309,7 +17573,7 @@ function validate14(
 									(data.step === undefined &&
 										(missing27 = 'step'))
 								) {
-									validate14.errors = [
+									validate24.errors = [
 										{
 											instancePath,
 											schemaPath: '#/oneOf/25/required',
@@ -17335,7 +17599,7 @@ function validate14(
 												key57 === 'data'
 											)
 										) {
-											validate14.errors = [
+											validate24.errors = [
 												{
 													instancePath,
 													schemaPath:
@@ -17375,7 +17639,7 @@ function validate14(
 																	'caption'
 															)
 														) {
-															validate14.errors =
+															validate24.errors =
 																[
 																	{
 																		instancePath:
@@ -17415,7 +17679,7 @@ function validate14(
 																	)
 																)
 															) {
-																validate14.errors =
+																validate24.errors =
 																	[
 																		{
 																			instancePath:
@@ -17451,7 +17715,7 @@ function validate14(
 																	typeof data153.caption !==
 																	'string'
 																) {
-																	validate14.errors =
+																	validate24.errors =
 																		[
 																			{
 																				instancePath:
@@ -17479,7 +17743,7 @@ function validate14(
 														}
 													}
 												} else {
-													validate14.errors = [
+													validate24.errors = [
 														{
 															instancePath:
 																instancePath +
@@ -17508,7 +17772,7 @@ function validate14(
 												if (
 													typeof data156 !== 'string'
 												) {
-													validate14.errors = [
+													validate24.errors = [
 														{
 															instancePath:
 																instancePath +
@@ -17526,7 +17790,7 @@ function validate14(
 													return false;
 												}
 												if ('writeFile' !== data156) {
-													validate14.errors = [
+													validate24.errors = [
 														{
 															instancePath:
 																instancePath +
@@ -17556,7 +17820,7 @@ function validate14(
 														typeof data.path !==
 														'string'
 													) {
-														validate14.errors = [
+														validate24.errors = [
 															{
 																instancePath:
 																	instancePath +
@@ -18299,7 +18563,7 @@ function validate14(
 																);
 															}
 															errors++;
-															validate14.errors =
+															validate24.errors =
 																vErrors;
 															return false;
 														} else {
@@ -18327,7 +18591,7 @@ function validate14(
 									}
 								}
 							} else {
-								validate14.errors = [
+								validate24.errors = [
 									{
 										instancePath,
 										schemaPath: '#/oneOf/25/type',
@@ -18356,7 +18620,7 @@ function validate14(
 									(data.writeToPath === undefined &&
 										(missing30 = 'writeToPath'))
 								) {
-									validate14.errors = [
+									validate24.errors = [
 										{
 											instancePath,
 											schemaPath: '#/oneOf/26/required',
@@ -18382,7 +18646,7 @@ function validate14(
 												key61 === 'filesTree'
 											)
 										) {
-											validate14.errors = [
+											validate24.errors = [
 												{
 													instancePath,
 													schemaPath:
@@ -18422,7 +18686,7 @@ function validate14(
 																	'caption'
 															)
 														) {
-															validate14.errors =
+															validate24.errors =
 																[
 																	{
 																		instancePath:
@@ -18462,7 +18726,7 @@ function validate14(
 																	)
 																)
 															) {
-																validate14.errors =
+																validate24.errors =
 																	[
 																		{
 																			instancePath:
@@ -18498,7 +18762,7 @@ function validate14(
 																	typeof data166.caption !==
 																	'string'
 																) {
-																	validate14.errors =
+																	validate24.errors =
 																		[
 																			{
 																				instancePath:
@@ -18526,7 +18790,7 @@ function validate14(
 														}
 													}
 												} else {
-													validate14.errors = [
+													validate24.errors = [
 														{
 															instancePath:
 																instancePath +
@@ -18555,7 +18819,7 @@ function validate14(
 												if (
 													typeof data169 !== 'string'
 												) {
-													validate14.errors = [
+													validate24.errors = [
 														{
 															instancePath:
 																instancePath +
@@ -18573,7 +18837,7 @@ function validate14(
 													return false;
 												}
 												if ('writeFiles' !== data169) {
-													validate14.errors = [
+													validate24.errors = [
 														{
 															instancePath:
 																instancePath +
@@ -18606,7 +18870,7 @@ function validate14(
 														typeof data.writeToPath !==
 														'string'
 													) {
-														validate14.errors = [
+														validate24.errors = [
 															{
 																instancePath:
 																	instancePath +
@@ -18635,7 +18899,7 @@ function validate14(
 													) {
 														const _errs466 = errors;
 														if (
-															!validate18(
+															!validate14(
 																data.filesTree,
 																{
 																	instancePath:
@@ -18651,9 +18915,9 @@ function validate14(
 														) {
 															vErrors =
 																vErrors === null
-																	? validate18.errors
+																	? validate14.errors
 																	: vErrors.concat(
-																			validate18.errors
+																			validate14.errors
 																		);
 															errors =
 																vErrors.length;
@@ -18669,7 +18933,7 @@ function validate14(
 									}
 								}
 							} else {
-								validate14.errors = [
+								validate24.errors = [
 									{
 										instancePath,
 										schemaPath: '#/oneOf/26/type',
@@ -18696,7 +18960,7 @@ function validate14(
 									(data.step === undefined &&
 										(missing31 = 'step'))
 								) {
-									validate14.errors = [
+									validate24.errors = [
 										{
 											instancePath,
 											schemaPath: '#/oneOf/27/required',
@@ -18722,7 +18986,7 @@ function validate14(
 												key63 === 'wpCliPath'
 											)
 										) {
-											validate14.errors = [
+											validate24.errors = [
 												{
 													instancePath,
 													schemaPath:
@@ -18762,7 +19026,7 @@ function validate14(
 																	'caption'
 															)
 														) {
-															validate14.errors =
+															validate24.errors =
 																[
 																	{
 																		instancePath:
@@ -18802,7 +19066,7 @@ function validate14(
 																	)
 																)
 															) {
-																validate14.errors =
+																validate24.errors =
 																	[
 																		{
 																			instancePath:
@@ -18838,7 +19102,7 @@ function validate14(
 																	typeof data172.caption !==
 																	'string'
 																) {
-																	validate14.errors =
+																	validate24.errors =
 																		[
 																			{
 																				instancePath:
@@ -18866,7 +19130,7 @@ function validate14(
 														}
 													}
 												} else {
-													validate14.errors = [
+													validate24.errors = [
 														{
 															instancePath:
 																instancePath +
@@ -18895,7 +19159,7 @@ function validate14(
 												if (
 													typeof data175 !== 'string'
 												) {
-													validate14.errors = [
+													validate24.errors = [
 														{
 															instancePath:
 																instancePath +
@@ -18913,7 +19177,7 @@ function validate14(
 													return false;
 												}
 												if ('wp-cli' !== data175) {
-													validate14.errors = [
+													validate24.errors = [
 														{
 															instancePath:
 																instancePath +
@@ -19092,7 +19356,7 @@ function validate14(
 															vErrors.push(err25);
 														}
 														errors++;
-														validate14.errors =
+														validate24.errors =
 															vErrors;
 														return false;
 													} else {
@@ -19121,7 +19385,7 @@ function validate14(
 															typeof data.wpCliPath !==
 															'string'
 														) {
-															validate14.errors =
+															validate24.errors =
 																[
 																	{
 																		instancePath:
@@ -19151,7 +19415,7 @@ function validate14(
 									}
 								}
 							} else {
-								validate14.errors = [
+								validate24.errors = [
 									{
 										instancePath,
 										schemaPath: '#/oneOf/27/type',
@@ -19178,7 +19442,7 @@ function validate14(
 									(data.step === undefined &&
 										(missing32 = 'step'))
 								) {
-									validate14.errors = [
+									validate24.errors = [
 										{
 											instancePath,
 											schemaPath: '#/oneOf/28/required',
@@ -19203,7 +19467,7 @@ function validate14(
 												key65 === 'language'
 											)
 										) {
-											validate14.errors = [
+											validate24.errors = [
 												{
 													instancePath,
 													schemaPath:
@@ -19243,7 +19507,7 @@ function validate14(
 																	'caption'
 															)
 														) {
-															validate14.errors =
+															validate24.errors =
 																[
 																	{
 																		instancePath:
@@ -19283,7 +19547,7 @@ function validate14(
 																	)
 																)
 															) {
-																validate14.errors =
+																validate24.errors =
 																	[
 																		{
 																			instancePath:
@@ -19319,7 +19583,7 @@ function validate14(
 																	typeof data179.caption !==
 																	'string'
 																) {
-																	validate14.errors =
+																	validate24.errors =
 																		[
 																			{
 																				instancePath:
@@ -19347,7 +19611,7 @@ function validate14(
 														}
 													}
 												} else {
-													validate14.errors = [
+													validate24.errors = [
 														{
 															instancePath:
 																instancePath +
@@ -19376,7 +19640,7 @@ function validate14(
 												if (
 													typeof data182 !== 'string'
 												) {
-													validate14.errors = [
+													validate24.errors = [
 														{
 															instancePath:
 																instancePath +
@@ -19397,7 +19661,7 @@ function validate14(
 													'setSiteLanguage' !==
 													data182
 												) {
-													validate14.errors = [
+													validate24.errors = [
 														{
 															instancePath:
 																instancePath +
@@ -19429,7 +19693,7 @@ function validate14(
 														typeof data.language !==
 														'string'
 													) {
-														validate14.errors = [
+														validate24.errors = [
 															{
 																instancePath:
 																	instancePath +
@@ -19456,7 +19720,7 @@ function validate14(
 									}
 								}
 							} else {
-								validate14.errors = [
+								validate24.errors = [
 									{
 										instancePath,
 										schemaPath: '#/oneOf/28/type',
@@ -19469,7 +19733,7 @@ function validate14(
 							}
 						}
 					} else {
-						validate14.errors = [
+						validate24.errors = [
 							{
 								instancePath,
 								schemaPath: '#/discriminator',
@@ -19485,7 +19749,7 @@ function validate14(
 						return false;
 					}
 				} else {
-					validate14.errors = [
+					validate24.errors = [
 						{
 							instancePath,
 							schemaPath: '#/discriminator',
@@ -19502,7 +19766,7 @@ function validate14(
 				}
 			}
 		} else {
-			validate14.errors = [
+			validate24.errors = [
 				{
 					instancePath,
 					schemaPath: '#/type',
@@ -19514,7 +19778,7 @@ function validate14(
 			return false;
 		}
 	}
-	validate14.errors = vErrors;
+	validate24.errors = vErrors;
 	return errors === 0;
 }
 function validate11(
@@ -21125,7 +21389,7 @@ function validate11(
 																		const _errs78 =
 																			errors;
 																		if (
-																			!validate14(
+																			!validate24(
 																				data27,
 																				{
 																					instancePath:
@@ -21143,9 +21407,9 @@ function validate11(
 																			vErrors =
 																				vErrors ===
 																				null
-																					? validate14.errors
+																					? validate24.errors
 																					: vErrors.concat(
-																							validate14.errors
+																							validate24.errors
 																						);
 																			errors =
 																				vErrors.length;

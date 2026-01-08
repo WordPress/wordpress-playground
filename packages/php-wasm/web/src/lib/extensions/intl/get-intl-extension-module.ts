@@ -1,119 +1,46 @@
 import { LatestSupportedPHPVersion } from '@php-wasm/universal';
 import type { SupportedPHPVersion } from '@php-wasm/universal';
-import { jspi } from 'wasm-feature-detect';
 
+/**
+ * Returns the path to the intl extension for the specified PHP version.
+ *
+ * Each PHP version's intl extension is packaged separately. Install the
+ * version-specific package you need:
+ * - @php-wasm/web-8-5
+ * - @php-wasm/web-8-4
+ * - etc.
+ */
 export async function getIntlExtensionModule(
 	version: SupportedPHPVersion = LatestSupportedPHPVersion
 ): Promise<any> {
-	/**
-	 * Keeping the path working in both
-	 * the source file and the final bundle requires
-	 * ESBuild and Vite to rewrite the below path.
-	 * Vite will return the intl extension's
-	 * absolute path during tests while ESBuild
-	 * returns a resolved path between __dirname and
-	 * the extension's relative path during build
-	 * since target directories are not identically
-	 * located in built and unbuilt versions.
-	 * Hack: Dynamic imports must be static for bundlers,
-	 * so we hack around this by enumerating each
-	 * version explicitly.
-	 */
-	if (await jspi()) {
-		switch (version) {
-			case '8.5':
-				return await import(
-					// @ts-ignore
-					`../../../../public/php/jspi/extensions/intl/8_5/intl.so`
-				);
-			case '8.4':
-				return await import(
-					// @ts-ignore
-					`../../../../public/php/jspi/extensions/intl/8_4/intl.so`
-				);
-			case '8.3':
-				return await import(
-					// @ts-ignore
-					`../../../../public/php/jspi/extensions/intl/8_3/intl.so`
-				);
-			case '8.2':
-				return await import(
-					// @ts-ignore
-					`../../../../public/php/jspi/extensions/intl/8_2/intl.so`
-				);
-			case '8.1':
-				return await import(
-					// @ts-ignore
-					`../../../../public/php/jspi/extensions/intl/8_1/intl.so`
-				);
-			case '8.0':
-				return await import(
-					// @ts-ignore
-					`../../../../public/php/jspi/extensions/intl/8_0/intl.so`
-				);
-			case '7.4':
-				return await import(
-					// @ts-ignore
-					`../../../../public/php/jspi/extensions/intl/7_4/intl.so`
-				);
-			case '7.3':
-				return await import(
-					// @ts-ignore
-					`../../../../public/php/jspi/extensions/intl/7_3/intl.so`
-				);
-			case '7.2':
-				return await import(
-					// @ts-ignore
-					`../../../../public/php/jspi/extensions/intl/7_2/intl.so`
-				);
-		}
-	} else {
-		switch (version) {
-			case '8.5':
-				return await import(
-					// @ts-ignore
-					`../../../../public/php/asyncify/extensions/intl/8_5/intl.so`
-				);
-			case '8.4':
-				return await import(
-					// @ts-ignore
-					`../../../../public/php/asyncify/extensions/intl/8_4/intl.so`
-				);
-			case '8.3':
-				return await import(
-					// @ts-ignore
-					`../../../../public/php/asyncify/extensions/intl/8_3/intl.so`
-				);
-			case '8.2':
-				return await import(
-					// @ts-ignore
-					`../../../../public/php/asyncify/extensions/intl/8_2/intl.so`
-				);
-			case '8.1':
-				return await import(
-					// @ts-ignore
-					`../../../../public/php/asyncify/extensions/intl/8_1/intl.so`
-				);
-			case '8.0':
-				return await import(
-					// @ts-ignore
-					`../../../../public/php/asyncify/extensions/intl/8_0/intl.so`
-				);
-			case '7.4':
-				return await import(
-					// @ts-ignore
-					`../../../../public/php/asyncify/extensions/intl/7_4/intl.so`
-				);
-			case '7.3':
-				return await import(
-					// @ts-ignore
-					`../../../../public/php/asyncify/extensions/intl/7_3/intl.so`
-				);
-			case '7.2':
-				return await import(
-					// @ts-ignore
-					`../../../../public/php/asyncify/extensions/intl/7_2/intl.so`
-				);
-		}
+	switch (version) {
+		case '8.5':
+			// @ts-ignore
+			return (await import('@php-wasm/web-8-5')).getIntlExtensionPath();
+		case '8.4':
+			// @ts-ignore
+			return (await import('@php-wasm/web-8-4')).getIntlExtensionPath();
+		case '8.3':
+			// @ts-ignore
+			return (await import('@php-wasm/web-8-3')).getIntlExtensionPath();
+		case '8.2':
+			// @ts-ignore
+			return (await import('@php-wasm/web-8-2')).getIntlExtensionPath();
+		case '8.1':
+			// @ts-ignore
+			return (await import('@php-wasm/web-8-1')).getIntlExtensionPath();
+		case '8.0':
+			// @ts-ignore
+			return (await import('@php-wasm/web-8-0')).getIntlExtensionPath();
+		case '7.4':
+			// @ts-ignore
+			return (await import('@php-wasm/web-7-4')).getIntlExtensionPath();
+		case '7.3':
+			// @ts-ignore
+			return (await import('@php-wasm/web-7-3')).getIntlExtensionPath();
+		case '7.2':
+			// @ts-ignore
+			return (await import('@php-wasm/web-7-2')).getIntlExtensionPath();
 	}
+	throw new Error(`Unsupported PHP version ${version}`);
 }

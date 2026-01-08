@@ -215,6 +215,9 @@
 				},
 				{
 					"$ref": "#/definitions/BundledReference"
+				},
+				{
+					"$ref": "#/definitions/ZipWrapperReference"
 				}
 			]
 		},
@@ -362,6 +365,111 @@
 			},
 			"required": ["resource", "path"],
 			"additionalProperties": false
+		},
+		"ZipWrapperReference": {
+			"type": "object",
+			"properties": {
+				"resource": {
+					"type": "string",
+					"const": "zip",
+					"description": "Identifies the resource as a ZIP wrapper"
+				},
+				"inner": {
+					"anyOf": [
+						{
+							"$ref": "#/definitions/FileReference"
+						},
+						{
+							"$ref": "#/definitions/DirectoryReference"
+						}
+					],
+					"description": "The inner resource to wrap in a ZIP file"
+				},
+				"name": {
+					"type": "string",
+					"description": "Optional filename for the ZIP (defaults to inner resource name + .zip)"
+				}
+			},
+			"required": ["resource", "inner"],
+			"additionalProperties": false
+		},
+		"DirectoryReference": {
+			"anyOf": [
+				{
+					"$ref": "#/definitions/GitDirectoryReference"
+				},
+				{
+					"$ref": "#/definitions/DirectoryLiteralReference"
+				}
+			]
+		},
+		"GitDirectoryReference": {
+			"type": "object",
+			"properties": {
+				"resource": {
+					"type": "string",
+					"const": "git:directory",
+					"description": "Identifies the file resource as a git directory"
+				},
+				"url": {
+					"type": "string",
+					"description": "The URL of the git repository"
+				},
+				"ref": {
+					"type": "string",
+					"description": "The ref (branch, tag, or commit) of the git repository"
+				},
+				"refType": {
+					"$ref": "#/definitions/GitDirectoryRefType",
+					"description": "Explicit hint about the ref type (branch, tag, commit, refname)"
+				},
+				"path": {
+					"type": "string",
+					"description": "The path to the directory in the git repository. Defaults to the repo root."
+				},
+				".git": {
+					"type": "boolean",
+					"description": "When true, include a `.git` directory with Git metadata (experimental)."
+				}
+			},
+			"required": ["resource", "url", "ref"],
+			"additionalProperties": false
+		},
+		"GitDirectoryRefType": {
+			"type": "string",
+			"enum": ["branch", "tag", "commit", "refname"]
+		},
+		"DirectoryLiteralReference": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"resource": {
+					"type": "string",
+					"const": "literal:directory",
+					"description": "Identifies the file resource as a git directory"
+				},
+				"files": {
+					"$ref": "#/definitions/FileTree"
+				},
+				"name": {
+					"type": "string"
+				}
+			},
+			"required": ["files", "name", "resource"]
+		},
+		"FileTree": {
+			"type": "object",
+			"additionalProperties": {
+				"anyOf": [
+					{
+						"$ref": "#/definitions/FileTree"
+					},
+					{
+						"type": ["object", "string"]
+					}
+				]
+			},
+			"properties": {}
 		},
 		"StepDefinition": {
 			"type": "object",
@@ -1331,84 +1439,6 @@
 					"required": ["language", "step"]
 				}
 			]
-		},
-		"DirectoryReference": {
-			"anyOf": [
-				{
-					"$ref": "#/definitions/GitDirectoryReference"
-				},
-				{
-					"$ref": "#/definitions/DirectoryLiteralReference"
-				}
-			]
-		},
-		"GitDirectoryReference": {
-			"type": "object",
-			"properties": {
-				"resource": {
-					"type": "string",
-					"const": "git:directory",
-					"description": "Identifies the file resource as a git directory"
-				},
-				"url": {
-					"type": "string",
-					"description": "The URL of the git repository"
-				},
-				"ref": {
-					"type": "string",
-					"description": "The ref (branch, tag, or commit) of the git repository"
-				},
-				"refType": {
-					"$ref": "#/definitions/GitDirectoryRefType",
-					"description": "Explicit hint about the ref type (branch, tag, commit, refname)"
-				},
-				"path": {
-					"type": "string",
-					"description": "The path to the directory in the git repository. Defaults to the repo root."
-				},
-				".git": {
-					"type": "boolean",
-					"description": "When true, include a `.git` directory with Git metadata (experimental)."
-				}
-			},
-			"required": ["resource", "url", "ref"],
-			"additionalProperties": false
-		},
-		"GitDirectoryRefType": {
-			"type": "string",
-			"enum": ["branch", "tag", "commit", "refname"]
-		},
-		"DirectoryLiteralReference": {
-			"type": "object",
-			"additionalProperties": false,
-			"properties": {
-				"resource": {
-					"type": "string",
-					"const": "literal:directory",
-					"description": "Identifies the file resource as a git directory"
-				},
-				"files": {
-					"$ref": "#/definitions/FileTree"
-				},
-				"name": {
-					"type": "string"
-				}
-			},
-			"required": ["files", "name", "resource"]
-		},
-		"FileTree": {
-			"type": "object",
-			"additionalProperties": {
-				"anyOf": [
-					{
-						"$ref": "#/definitions/FileTree"
-					},
-					{
-						"type": ["object", "string"]
-					}
-				]
-			},
-			"properties": {}
 		},
 		"InstallPluginOptions": {
 			"type": "object",
