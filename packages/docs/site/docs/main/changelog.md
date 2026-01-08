@@ -9,6 +9,23 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
+## [v3.0.39] (2026-01-07) 
+
+### PHP WebAssembly
+
+- [CLI] Fix __dirname not defined error in intl extension. ([#3094](https://github.com/WordPress/wordpress-playground/pull/3094))
+
+### Various
+
+- Gujarati translation: For-plugin-developers documentation. ([#3091](https://github.com/WordPress/wordpress-playground/pull/3091))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@brandonpayton @iamsohilvahora
+
+
 ## [v3.0.38] (2026-01-06) 
 
 
