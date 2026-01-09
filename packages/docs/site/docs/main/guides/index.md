@@ -9,6 +9,10 @@ sidebar_class_name: navbar-build-item
 
 In this section we present a selection of guides that will help you to both work with, and to better understand, a variety of topics related to [WordPress Playground](/).
 
+## [WordPress Playground for Everyone](/guides/playground-for-everyone)
+
+Think Playground is only for developers? Think again. This guide shows how WordPress Playground helps beginners, site owners, and everyday users experiment safely — no technical expertise required.
+
 ## [How to ship a real WordPress site in a native iOS app via Playground?](/guides/wordpress-native-ios-app)
 
 Check "Blocknotes", the first app to run WordPress natively on iOS via WordPress Playground. It showcases the potential for seamless mobile web integration using WebAssembly and the WordPress block editor.
