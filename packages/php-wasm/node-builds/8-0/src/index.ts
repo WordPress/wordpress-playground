@@ -20,12 +20,33 @@ const packageDir = existsSync(join(currentDirPath, 'jspi'))
 	: dirname(currentDirPath);
 
 export async function getPHPLoaderModule(): Promise<PHPLoaderModule> {
-	if (await jspi()) {
-		// @ts-ignore
-		return await import('../jspi/php_8_0.js');
+	// Detect Jest environment and use require() to avoid dynamic import() issues
+	// For all other environments (ESM, modern CommonJS, Vitest), use dynamic import()
+	// which works in Node.js 12.20+ regardless of whether the code is running in ESM or CJS.
+	// Jest runs tests in a VM context that doesn't support dynamic import() without
+	// the --experimental-vm-modules flag. Jest sets JEST_WORKER_ID when running tests.
+	// Error without flag: "A dynamic import callback was invoked without --experimental-vm-modules"
+	// See: https://jestjs.io/docs/ecmascript-modules
+	const shouldUseRequire = process.env && process.env['JEST_WORKER_ID'];
+
+	if (shouldUseRequire) {
+		// Use require() specifically for Jest
+		if (await jspi()) {
+			// @ts-ignore
+			return require('../jspi/php_8_0.js');
+		} else {
+			// @ts-ignore
+			return require('../asyncify/php_8_0.js');
+		}
 	} else {
-		// @ts-ignore
-		return await import('../asyncify/php_8_0.js');
+		// Use dynamic import() for all other environments
+		if (await jspi()) {
+			// @ts-ignore
+			return await import('../jspi/php_8_0.js');
+		} else {
+			// @ts-ignore
+			return await import('../asyncify/php_8_0.js');
+		}
 	}
 }
 
