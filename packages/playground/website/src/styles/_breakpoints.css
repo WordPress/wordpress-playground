@@ -1,0 +1,15 @@
+:root {
+	/* Breakpoint values in pixels */
+	--breakpoint-mobile: 600px;
+	--breakpoint-tablet: 875px;
+	--breakpoint-desktop: 1024px;
+}
+
+/* Mobile-first approach */
+@media (min-width: 600px) {
+	/* Tablet styles */
+}
+
+@media (min-width: 875px) {
+	/* Desktop styles */
+}

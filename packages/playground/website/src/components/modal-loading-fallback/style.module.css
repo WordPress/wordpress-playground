@@ -1,0 +1,22 @@
+.fallback {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	min-height: 300px;
+	gap: 16px;
+	padding: 24px;
+}
+
+.spinner {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.text {
+	margin: 0;
+	font-size: 14px;
+	color: #666;
+	font-weight: 500;
+}

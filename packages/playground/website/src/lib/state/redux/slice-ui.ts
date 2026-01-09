@@ -1,6 +1,7 @@
 import type { PayloadAction, Middleware } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
 import { BlueprintStepExecutionError } from '@wp-playground/blueprints';
+import { isMobile as checkIsMobile } from '../../constants/breakpoints';
 
 export type SiteError =
 	| 'directory-handle-not-found-in-indexeddb'
@@ -152,8 +153,8 @@ export interface UIState {
 
 const query = new URL(document.location.href).searchParams;
 const isEmbeddedInAnIframe = window.self !== window.top;
-// @TODO: Centralize these breakpoint sizes.
-const isMobile = window.innerWidth < 875;
+// Centralized breakpoint check using imported helper
+const isMobile = checkIsMobile();
 
 const shouldOpenSiteManagerByDefault = false;
 
