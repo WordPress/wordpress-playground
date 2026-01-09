@@ -1,4 +1,5 @@
-import { lazy, ComponentType } from 'react';
+import { lazy } from 'react';
+import type { ComponentType } from 'react';
 
 /**
  * Modal metadata for registry
@@ -45,6 +46,7 @@ export function createModalRegistry(): ModalRegistry {
 	return {
 		register(metadata: ModalMetadata) {
 			if (registry.has(metadata.slug)) {
+				/* eslint-disable-next-line no-console */
 				console.warn(
 					`Modal with slug "${metadata.slug}" is already registered`
 				);
