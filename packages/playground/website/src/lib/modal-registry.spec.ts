@@ -223,8 +223,6 @@ describe('Modal Registry', () => {
 
 	describe('initializeModalRegistry()', () => {
 		it('should register static modals', () => {
-			const registry = createModalRegistry();
-
 			initializeModalRegistry(
 				{
 					'static-1': {
@@ -239,14 +237,11 @@ describe('Modal Registry', () => {
 				{}
 			);
 
-			const all = registry.getAll();
-			// Note: This will be empty because initializeModalRegistry uses
-			// the default registry internally
+			const defaultRegistry = getDefaultModalRegistry();
+			expect(defaultRegistry.get('static-1')).toBeDefined();
 		});
 
 		it('should mark lazy modals appropriately', () => {
-			const registry = createModalRegistry();
-
 			initializeModalRegistry(
 				{},
 				{
