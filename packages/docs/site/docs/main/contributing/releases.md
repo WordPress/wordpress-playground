@@ -49,7 +49,7 @@ After the initial publish, go to the package's settings on npmjs.com and set up 
     - **Workflow filename**: `publish-npm-packages.yml`
     - **Environment**: `npm`
 
-![Setting up OIDC trusted publishing on npm](/img/php-wasm-node-oidc.png)
+![Setting up OIDC trusted publishing on npm](/img/php-wasm-node-oidc.webp)
 
 ### 3. Transfer ownership (if needed)
 
