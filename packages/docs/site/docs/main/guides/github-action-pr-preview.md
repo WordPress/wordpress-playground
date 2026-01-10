@@ -6,7 +6,7 @@ description: Automatically add Playground preview buttons to pull requests for y
 
 The Playground PR Preview action adds a preview button to your pull requests. Clicking the button launches Playground with your plugin or theme installed from the PR branch:
 
-![PR Preview Button](@site/static/img/try-it-in-playground.png)
+![PR Preview Button](@site/static/img/try-it-in-playground.webp)
 
 For complete configuration options and advanced features, see the [action-wp-playground-pr-preview workflow README](https://github.com/WordPress/action-wp-playground-pr-preview/tree/v2).
 
@@ -274,13 +274,13 @@ More: [workflow README](https://github.com/WordPress/action-wp-playground-pr-pre
 
 ## Examples
 
--   [WordPress/blueprints](https://github.com/WordPress/blueprints/pull/155) - Blueprint previews
--   [adamziel/preview-in-playground-button-plugin-example](https://github.com/adamziel/preview-in-playground-button-plugin-example/pull/3) - Plugin without build
--   [adamziel/preview-in-playground-button-built-artifact-example](https://github.com/adamziel/preview-in-playground-button-built-artifact-example/pull/2) - Plugin with build
+- [WordPress/blueprints](https://github.com/WordPress/blueprints/pull/155) - Blueprint previews
+- [adamziel/preview-in-playground-button-plugin-example](https://github.com/adamziel/preview-in-playground-button-plugin-example/pull/3) - Plugin without build
+- [adamziel/preview-in-playground-button-built-artifact-example](https://github.com/adamziel/preview-in-playground-button-built-artifact-example/pull/2) - Plugin with build
 
 ## Next steps
 
--   Add demo content ([guide](/guides/providing-content-for-your-demo))
--   Create custom blueprints ([docs](/blueprints))
--   Integrate with testing workflows
--   Customize templates for reviewers
+- Add demo content ([guide](/guides/providing-content-for-your-demo))
+- Create custom blueprints ([docs](/blueprints))
+- Integrate with testing workflows
+- Customize templates for reviewers
