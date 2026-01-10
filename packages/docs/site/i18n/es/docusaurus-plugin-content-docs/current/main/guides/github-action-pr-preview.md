@@ -10,7 +10,7 @@ The Playground PR Preview action adds a preview button to your pull requests. Cl
 
 La acción de vista previa de PR de Playground agrega un botón de vista previa a tus solicitudes de extracción. Al hacer clic en el botón se inicia Playground con tu plugin o tema instalado desde la rama del PR:
 
-![PR Preview Button](@site/static/img/try-it-in-playground.png)
+![PR Preview Button](@site/static/img/try-it-in-playground.webp)
 
 <!--
 For complete configuration options and advanced features, see the [action-wp-playground-pr-preview workflow README](https://github.com/WordPress/action-wp-playground-pr-preview/tree/v2).
@@ -428,9 +428,9 @@ Más información: [README del flujo de trabajo](https://github.com/WordPress/ac
 -   [adamziel/preview-in-playground-button-built-artifact-example](https://github.com/adamziel/preview-in-playground-button-built-artifact-example/pull/2) - Plugin with build
 -->
 
--   [WordPress/blueprints](https://github.com/WordPress/blueprints/pull/155) - Vistas previas de blueprint
--   [adamziel/preview-in-playground-button-plugin-example](https://github.com/adamziel/preview-in-playground-button-plugin-example/pull/3) - Plugin sin compilación
--   [adamziel/preview-in-playground-button-built-artifact-example](https://github.com/adamziel/preview-in-playground-button-built-artifact-example/pull/2) - Plugin con compilación
+- [WordPress/blueprints](https://github.com/WordPress/blueprints/pull/155) - Vistas previas de blueprint
+- [adamziel/preview-in-playground-button-plugin-example](https://github.com/adamziel/preview-in-playground-button-plugin-example/pull/3) - Plugin sin compilación
+- [adamziel/preview-in-playground-button-built-artifact-example](https://github.com/adamziel/preview-in-playground-button-built-artifact-example/pull/2) - Plugin con compilación
 
 <!--
 ## Next steps
@@ -445,7 +445,7 @@ Más información: [README del flujo de trabajo](https://github.com/WordPress/ac
 -   Customize templates for reviewers
 -->
 
--   Agregar contenido de demostración ([guía](/guides/providing-content-for-your-demo))
--   Crear blueprints personalizados ([documentación](/blueprints))
--   Integrar con flujos de trabajo de pruebas
--   Personalizar plantillas para revisores
+- Agregar contenido de demostración ([guía](/guides/providing-content-for-your-demo))
+- Crear blueprints personalizados ([documentación](/blueprints))
+- Integrar con flujos de trabajo de pruebas
+- Personalizar plantillas para revisores
