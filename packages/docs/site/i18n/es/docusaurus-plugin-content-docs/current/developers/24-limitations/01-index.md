@@ -1,37 +1,37 @@
 ---
 slug: /developers/limitations
 <!-- description: Learn about the current limitations of WordPress Playground, including browser-specific behaviors, temporary storage by design, iframe quirks, and WP-CLI support. -->
-description: Conheça as limitações atuais do WordPress Playground, incluindo comportamentos específicos do navegador, armazenamento temporário por design, peculiaridades de iframe e suporte ao WP-CLI.
+description: Conoce las limitaciones actuales de WordPress Playground, incluyendo comportamientos específicos del navegador, almacenamiento temporal por diseño, peculiaridades de iframe y soporte de WP-CLI.
 ---
 
 <!-- # Limitations -->
 
-# Limitações
+# Limitaciones
 
 <!-- WordPress Playground is under active development and has some limitations you should keep in mind when running it and developing with it. -->
 
-O WordPress Playground está em desenvolvimento ativo e possui algumas limitações que você deve ter em mente ao utilizá-lo e desenvolver com ele.
+WordPress Playground está en desarrollo activo y tiene algunas limitaciones que debes tener en cuenta al ejecutarlo y desarrollar con él.
 
 <!-- You can track the status of these issues on the [Playground Project board](https://github.com/orgs/WordPress/projects/180). -->
 
-Você pode acompanhar o status dessas questões no [quadro do projeto Playground](https://github.com/orgs/WordPress/projects/180).
+Puedes seguir el estado de estos problemas en el [tablero del proyecto Playground](https://github.com/orgs/WordPress/projects/180).
 
 <!-- ## In the browser -->
 
-## No navegador
+## En el navegador
 
 <!-- ### Temporary by design -->
 
-### Temporário por design
+### Temporal por diseño
 
 <!-- As Playground [streams rather than serves](/about#streamed-not-served) WordPress, all database changes and uploads will be gone when you refresh the page. To avoid losing your work, either [export your work](/quick-start-guide#save-your-site) before or enable storage in the browser/device via the "Save" button found in the top right on the side of the address bar. -->
 
-Como o Playground [transmite ao invés de servir](/about#streamed-not-served) o WordPress, todas as alterações no banco de dados e uploads serão perdidos ao atualizar a página. Para evitar perder seu trabalho, [exporte seu trabalho](/quick-start-guide#save-your-site) antes ou ative o armazenamento no navegador/dispositivo através do botão "Salvar" encontrado no canto superior direito, ao lado da barra de endereços.
+Como Playground [transmite en lugar de servir](/about#streamed-not-served) WordPress, todos los cambios en la base de datos y las subidas se perderán cuando actualices la página. Para evitar perder tu trabajo, [exporta tu trabajo](/quick-start-guide#save-your-site) antes o activa el almacenamiento en el navegador/dispositivo mediante el botón "Guardar" que se encuentra en la parte superior derecha, al lado de la barra de direcciones.
 
 <blockquote>
 <figure>
 <!-- <figcaption><i>1. Exporting Playground:</i></figcaption> -->
-<figcaption><i>1. Exportando o Playground:</i></figcaption>
+<figcaption><i>1. Exportando Playground:</i></figcaption>
 
 ![Save Button](@site/static/img/export-playground.webp)
 
@@ -39,7 +39,7 @@ Como o Playground [transmite ao invés de servir](/about#streamed-not-served) o 
 
 <figure>
 <!-- <figcaption><i>2. Save button:</i></figcaption> -->
-<figcaption><i>2. Botão Salvar:</i></figcaption>
+<figcaption><i>2. Botón Guardar:</i></figcaption>
 
 ![Save Button](@site/static/img/save-button.webp)
 
@@ -48,50 +48,50 @@ Como o Playground [transmite ao invés de servir](/about#streamed-not-served) o 
 
 <!-- ### Browser support -->
 
-### Suporte a navegadores
+### Compatibilidad con navegadores
 
 <!-- WordPress Playground is designed to work across all major desktop and mobile browsers. This includes: -->
 
-O WordPress Playground foi projetado para funcionar em todos os principais navegadores de desktop e mobile. Isso inclui:
+WordPress Playground está diseñado para funcionar en todos los principales navegadores de escritorio y móviles. Esto incluye:
 
 <!-- - **Desktop browsers**: Chrome, Firefox, Safari, Edge, and other Chromium-based browsers -->
 <!-- - **Mobile browsers**: Safari (iOS), Chrome (Android), and other mobile browser variants -->
 
-- **Navegadores desktop**: Chrome, Firefox, Safari, Edge e outros navegadores baseados em Chromium
-- **Navegadores mobile**: Safari (iOS), Chrome (Android) e outras variantes de navegadores mobile
+- **Navegadores de escritorio**: Chrome, Firefox, Safari, Edge y otros navegadores basados en Chromium
+- **Navegadores móviles**: Safari (iOS), Chrome (Android) y otras variantes de navegadores móviles
 
 <!-- Playground leverages modern web technologies and should function consistently across these browser environments. However, some advanced features may have varying levels of support depending on the specific browser and its version. -->
 
-O Playground utiliza tecnologias web modernas e deve funcionar consistentemente nesses ambientes de navegador. No entanto, alguns recursos avançados podem ter diferentes níveis de suporte dependendo do navegador específico e sua versão.
+Playground aprovecha las tecnologías web modernas y debería funcionar de manera consistente en estos entornos de navegador. Sin embargo, algunas funciones avanzadas pueden tener diferentes niveles de soporte dependiendo del navegador específico y su versión.
 
 <blockquote>
 <!-- <strong>Note:</strong> Opera Mini support is not currently confirmed. -->
-<strong>Nota:</strong> O suporte ao Opera Mini não está confirmado atualmente.
+<strong>Nota:</strong> El soporte para Opera Mini no está confirmado actualmente.
 </blockquote>
 
 <!-- ## When developing with Playground -->
 
-## Ao desenvolver com o Playground
+## Al desarrollar con Playground
 
 <!-- ### Iframe quirks -->
 
-### Peculiaridades do iframe
+### Peculiaridades del iframe
 
 <!-- Playground renders WordPress in an [`iframe`](/developers/architecture/browser-iframe-rendering) so clicking links with `target="_top"` will reload the page you're working on. -->
 
-O Playground renderiza o WordPress em um [`iframe`](/developers/architecture/browser-iframe-rendering), então clicar em links com `target="_top"` recarregará a página em que você está trabalhando.
+Playground renderiza WordPress en un [`iframe`](/developers/architecture/browser-iframe-rendering), por lo que hacer clic en enlaces con `target="_top"` recargará la página en la que estás trabajando.
 
 <!-- Also, JavaScript popups originating in the `iframe` may not always display. -->
 
-Além disso, pop-ups JavaScript originados no `iframe` podem nem sempre ser exibidos.
+Además, los popups de JavaScript que se originan en el `iframe` pueden no mostrarse siempre.
 
 <!-- ### Run WordPress PHP functions -->
 
-### Executar funções PHP do WordPress
+### Ejecutar funciones PHP de WordPress
 
 <!-- Playground supports running PHP code in Blueprints using the [`runPHP` step](/blueprints/steps#RunPHPStep). To run WordPress-specific PHP functions, you'd need to first require [wp-load.php](https://github.com/WordPress/WordPress/blob/master/wp-load.php): -->
 
-O Playground suporta a execução de código PHP em Blueprints usando o [passo `runPHP`](/blueprints/steps#RunPHPStep). Para executar funções PHP específicas do WordPress, é necessário primeiro importar [wp-load.php](https://github.com/WordPress/WordPress/blob/master/wp-load.php):
+Playground soporta la ejecución de código PHP en Blueprints usando el [paso `runPHP`](/blueprints/steps#RunPHPStep). Para ejecutar funciones PHP específicas de WordPress, primero necesitas requerir [wp-load.php](https://github.com/WordPress/WordPress/blob/master/wp-load.php):
 
 ```json
 {
@@ -106,4 +106,4 @@ O Playground suporta a execução de código PHP em Blueprints usando o [passo `
 
 <!-- You can execute `wp-cli` commands via the Blueprints [`wp-cli`](/blueprints/steps#WPCLIStep) step. However, since Playground runs in the browser, it doesn't support the [full array](https://developer.wordpress.org/cli/commands/) of available commands. While there is no definite list of supported commands, experimenting in [the online demo](https://playground.wordpress.net/demos/wp-cli.html) will help you assess what's possible. -->
 
-Você pode executar comandos `wp-cli` através do passo [`wp-cli`](/blueprints/steps#WPCLIStep) dos Blueprints. No entanto, como o Playground roda no navegador, ele não suporta a [lista completa](https://developer.wordpress.org/cli/commands/) de comandos disponíveis. Embora não haja uma lista definitiva de comandos suportados, experimentar na [demonstração online](https://playground.wordpress.net/demos/wp-cli.html) ajudará você a avaliar o que é possível.
+Puedes ejecutar comandos `wp-cli` a través del paso [`wp-cli`](/blueprints/steps#WPCLIStep) de Blueprints. Sin embargo, como Playground se ejecuta en el navegador, no soporta la [lista completa](https://developer.wordpress.org/cli/commands/) de comandos disponibles. Aunque no existe una lista definitiva de comandos soportados, experimentar en [la demo en línea](https://playground.wordpress.net/demos/wp-cli.html) te ayudará a evaluar lo que es posible.
