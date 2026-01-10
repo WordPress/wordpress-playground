@@ -22,7 +22,7 @@ For a detailed guide on the contribution workflow (forking, creating PRs, etc.),
 :::
 -->
 
-:::info
+:::তথ্য
 কন্ট্রিবিউশন ওয়ার্কফ্লো (ফর্কিং, PR তৈরি ইত্যাদি) সম্পর্কে বিস্তারিত গাইডের জন্য, অনুগ্রহ করে আমাদের [ডকুমেন্টেশন কন্ট্রিবিউশন গাইড](/contributing/documentation#how-can-i-contribute) দেখুন
 :::
 
@@ -44,7 +44,7 @@ To learn more about how Docusaurus manages translations, see the [Internationali
 :::
 -->
 
-:::info
+:::তথ্য
 Docusaurus কীভাবে অনুবাদ ম্যানেজ করে সে সম্পর্কে আরো জানতে, অফিসিয়াল Docusaurus ডকুমেন্টেশনের [ইন্টারন্যাশনালাইজেশন সেকশন](https://docusaurus.io/docs/i18n/introduction) দেখুন।
 :::
 
@@ -58,7 +58,7 @@ Docusaurus কীভাবে অনুবাদ ম্যানেজ করে
 Available languages are defined in the `packages/docs/site/docusaurus.config.js` file. For example:
 -->
 
-উপলব্ধ ভাষাগুলো `packages/docs/site/docusaurus.config.js` ফাইলে সংজ্ঞায়িত করা হয়। উদাহরণস্বরূপ:
+সহজলভ্য ভাষাগুলো `packages/docs/site/docusaurus.config.js` ফাইলে সংজ্ঞায়িত করা হয়। উদাহরণস্বরূপ:
 
 ```
 i18n: {
@@ -313,7 +313,7 @@ We highly recommend submitting pull requests with a small number of translated p
 :::
 -->
 
-:::info
+:::তথ্য
 আমরা অল্প সংখ্যক অনুবাদিত পেজ সহ পুল রিকোয়েস্ট জমা দেওয়ার জোর সুপারিশ করি। এই পদ্ধতি রিভিউ প্রক্রিয়া সহজ করে এবং আপনার কাজের আরো ধীরে ধীরে এবং ম্যানেজেবল ইন্টিগ্রেশনের সুযোগ দেয়।
 :::
 
@@ -589,7 +589,7 @@ This practice also helps the maintenance team identify outdated translations. Wh
 :::
 -->
 
-:::info
+:::তথ্য
 এই অভ্যাসটি মেইনটেন্যান্স টিমকে পুরনো অনুবাদ চিহ্নিত করতেও সাহায্য করে। যখন মূল ইংরেজি কনটেন্ট আপডেট করা হয়, আমরা কোডবেসে পুরনো টেক্সট (এখন কমেন্টে) সার্চ করতে পারি এবং রিভিউয়ের জন্য সংশ্লিষ্ট অনুবাদ ফ্ল্যাগ করতে পারি।
 :::
 
