@@ -137,5 +137,4 @@ When you save to the browser, copy the unique URL it generates. That link is you
 Now that you know Playground is for everyone, explore further:
 
 - [Quick Start Guide](/quick-start-guide) — A 5-minute walkthrough of Playground basics
-- [Test Plugins and Themes Safely](/guides/testing-plugins-and-themes) — Step-by-step plugin testing
 - [About WordPress Playground](/about) — Learn what you can build, test, and launch
