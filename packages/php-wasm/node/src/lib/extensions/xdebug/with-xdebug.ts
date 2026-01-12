@@ -62,7 +62,7 @@ export async function withXdebug(
 					'/internal/shared/extensions/xdebug.ini'
 				)
 			) {
-				const ideKey = xdebugOptions?.ideKey || 'PLAYGROUNDCLI';
+				const ideKey = xdebugOptions?.ideKey || 'PHPWASMCLI';
 				phpRuntime.FS.writeFile(
 					'/internal/shared/extensions/xdebug.ini',
 					[
@@ -70,6 +70,7 @@ export async function withXdebug(
 						'xdebug.mode=debug,develop',
 						'xdebug.start_with_request=yes',
 						`xdebug.idekey="${ideKey}"`,
+						'xdebug.path_mapping=yes',
 					].join('\n')
 				);
 			}

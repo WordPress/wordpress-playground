@@ -94,7 +94,7 @@ export type IDEConfig = {
 	 */
 	mounts?: Mount[];
 	/**
-	 * The IDE key to use for the debug configuration. Defaults to 'PLAYGROUNDCLI'.
+	 * The IDE key to use for the debug configuration. Defaults to 'PHPWASMCLI'.
 	 */
 	ideKey?: string;
 };
