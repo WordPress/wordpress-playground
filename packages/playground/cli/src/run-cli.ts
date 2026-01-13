@@ -18,7 +18,7 @@ import type {
 } from '@wp-playground/blueprints';
 import { runBlueprintV1Steps } from '@wp-playground/blueprints';
 import { RecommendedPHPVersion } from '@wp-playground/common';
-import fs, { mkdirSync, readdirSync } from 'fs';
+import fs, { existsSync, mkdirSync, readdirSync, rmdirSync } from 'fs';
 import type { Server } from 'http';
 import { MessageChannel as NodeMessageChannel, Worker } from 'worker_threads';
 // @ts-ignore
@@ -352,6 +352,12 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 				type: 'array',
 				string: true,
 				coerce: parseMountWithDelimiterArguments,
+			},
+			'reset-site': {
+				describe:
+					'Deletes the stored site directory and starts a new site from scratch.',
+				type: 'boolean',
+				default: false,
 			},
 			'no-auto-mount': {
 				describe:
@@ -720,6 +726,9 @@ export interface RunCLIServer extends AsyncDisposable {
 
 const bold = (text: string) =>
 	process.stdout.isTTY ? '\x1b[1m' + text + '\x1b[0m' : text;
+
+const red = (text: string) =>
+	process.stdout.isTTY ? '\x1b[31m' + text + '\x1b[0m' : text;
 
 const dim = (text: string) =>
 	process.stdout.isTTY ? `\x1b[2m${text}\x1b[0m` : text;
@@ -1315,7 +1324,9 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
  * (Yes, the `start` command is just a convenience wrapper to provide useful defaults
  * for the `server` command.)
  */
-function expandStartCommandArgs(args: RunCLIArgs): RunCLIArgs {
+function expandStartCommandArgs(
+	args: RunCLIArgs & { 'reset-site'?: boolean }
+): RunCLIArgs {
 	let newArgs = { ...args, command: 'server' };
 
 	/**
@@ -1365,6 +1376,12 @@ function expandStartCommandArgs(args: RunCLIArgs): RunCLIArgs {
 			'.wordpress-playground/sites',
 			currentSiteHash
 		);
+		console.log('Site files stored at:', hostPath);
+
+		if (existsSync(hostPath) && (args['reset-site'] as boolean)) {
+			console.log('Resetting site...');
+			rmdirSync(hostPath, { recursive: true });
+		}
 		mkdirSync(hostPath, { recursive: true });
 		newArgs['mount-before-install'] = [
 			...((newArgs['mount-before-install'] || []) as Mount[]),
@@ -1378,10 +1395,24 @@ function expandStartCommandArgs(args: RunCLIArgs): RunCLIArgs {
 					'download-and-install'
 				: // After that, reuse the WordPress installation from the initial run.
 					'install-from-existing-files-if-needed';
-
-		console.log('Site files stored at:', hostPath);
 	} else {
 		console.log('Site files stored at:', existingSiteRootMount?.hostPath);
+		if (args['reset-site']) {
+			console.log(``);
+			console.log(
+				red(
+					`This site is not managed by Playground CLI and cannot be reset.`
+				)
+			);
+			console.log(
+				`(It's not stored in the ~/.wordpress-playground/sites/<site-id> directory.)`
+			);
+			console.log(``);
+			console.log(
+				`You may still remove the site's directory manually if you wish.`
+			);
+			process.exit(1);
+		}
 	}
 
 	return newArgs as RunCLIArgs;
