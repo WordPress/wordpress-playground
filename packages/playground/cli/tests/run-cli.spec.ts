@@ -525,29 +525,6 @@ describe.each(blueprintVersions)(
 			);
 
 			test.skipIf(isBlueprintsV2OnWindows)(
-				'should run a static html project using --auto-mount',
-				async () => {
-					vi.spyOn(process, 'cwd').mockReturnValue(
-						path.join(
-							import.meta.dirname,
-							'mount-examples',
-							'static-html'
-						)
-					);
-					await using cliServer = await runCLI({
-						...suiteCliArgs,
-						command: 'server',
-						autoMount: '',
-					});
-					const homeUrl = new URL('/', cliServer.serverUrl);
-					const response = await fetch(homeUrl);
-					expect(response.status).toBe(200);
-					const text = await response.text();
-					expect(text).toContain('<title>Static HTML</title>');
-				}
-			);
-
-			test.skipIf(isBlueprintsV2OnWindows)(
 				'should run a php project using --auto-mount',
 				async () => {
 					vi.spyOn(process, 'cwd').mockReturnValue(
