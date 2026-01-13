@@ -353,7 +353,7 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 				string: true,
 				coerce: parseMountWithDelimiterArguments,
 			},
-			'reset-site': {
+			reset: {
 				describe:
 					'Deletes the stored site directory and starts a new site from scratch.',
 				type: 'boolean',
@@ -702,7 +702,7 @@ export interface RunCLIArgs {
 	path?: string;
 	skipBrowser?: boolean;
 	noAutoMount?: boolean;
-	'reset-site'?: boolean;
+	reset?: boolean;
 }
 
 type PlaygroundCliWorker =
@@ -1326,7 +1326,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
  * for the `server` command.)
  */
 function expandStartCommandArgs(
-	args: RunCLIArgs & { 'reset-site'?: boolean }
+	args: RunCLIArgs & { reset?: boolean }
 ): RunCLIArgs {
 	let newArgs = { ...args, command: 'server' };
 
@@ -1379,7 +1379,7 @@ function expandStartCommandArgs(
 		);
 		console.log('Site files stored at:', hostPath);
 
-		if (existsSync(hostPath) && (args['reset-site'] as boolean)) {
+		if (existsSync(hostPath) && (args['reset'] as boolean)) {
 			console.log('Resetting site...');
 			rmdirSync(hostPath, { recursive: true });
 		}
@@ -1398,7 +1398,7 @@ function expandStartCommandArgs(
 					'install-from-existing-files-if-needed';
 	} else {
 		console.log('Site files stored at:', existingSiteRootMount?.hostPath);
-		if (args['reset-site']) {
+		if (args['reset']) {
 			console.log(``);
 			console.log(
 				red(

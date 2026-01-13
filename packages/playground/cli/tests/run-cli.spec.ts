@@ -841,7 +841,7 @@ describe('start command', () => {
 		}
 	}, 180000);
 
-	test('should reset site when --reset-site is provided', async () => {
+	test('should reset site when --reset is provided', async () => {
 		const tmpDir = await mkdtemp(path.join(tmpdir(), 'playground-test-'));
 		const homeDir = os.homedir();
 		const currentSiteHash = createHash('sha256')
@@ -874,12 +874,12 @@ describe('start command', () => {
 			);
 		}
 
-		// Second run with --reset-site - should delete the old site
+		// Second run with --reset - should delete the old site
 		{
 			await using cliServer = await runCLI({
 				command: 'start',
 				skipBrowser: true,
-				'reset-site': true,
+				reset: true,
 			});
 
 			// Verify the marker file does not exist
