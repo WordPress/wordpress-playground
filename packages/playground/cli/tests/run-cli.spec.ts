@@ -17,6 +17,7 @@ import {
 	unlinkSync,
 	existsSync,
 	lstatSync,
+	rmSync,
 } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { MinifiedWordPressVersionsList } from '@wp-playground/wordpress-builds';
@@ -399,9 +400,9 @@ describe.each(blueprintVersions)(
 						],
 					});
 					const wpContentDirPath = path.join(tmpDir, 'wp-content');
-					expect(
-						await lstatSync(wpContentDirPath)?.isDirectory()
-					).toBe(true);
+					expect(lstatSync(wpContentDirPath)?.isDirectory()).toBe(
+						true
+					);
 				},
 				60000
 			);
@@ -760,6 +761,189 @@ describe('start command', () => {
 		// Verify server started successfully
 		expect(cliServer.serverUrl).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/);
 	});
+
+	test('should persist site in home directory', async () => {
+		const tmpDir = await mkdtemp(path.join(tmpdir(), 'playground-test-'));
+		const homeDir = os.homedir();
+		const currentSiteHash = createHash('sha256')
+			.update(tmpDir)
+			.digest('hex');
+		const expectedSitePath = path.join(
+			homeDir,
+			'.wordpress-playground/sites',
+			currentSiteHash
+		);
+
+		// Clean up if the site directory already exists
+		if (existsSync(expectedSitePath)) {
+			rmSync(expectedSitePath, { recursive: true, force: true });
+		}
+
+		vi.spyOn(process, 'cwd').mockReturnValue(tmpDir);
+
+		await using cliServer = await runCLI({
+			command: 'start',
+			skipBrowser: true,
+		});
+
+		// Verify server started successfully
+		expect(cliServer.serverUrl).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/);
+
+		// Verify the site directory was created
+		expect(existsSync(expectedSitePath)).toBe(true);
+		expect(lstatSync(expectedSitePath).isDirectory()).toBe(true);
+
+		// Verify WordPress files exist in the persisted directory
+		const wpContentPath = path.join(expectedSitePath, 'wp-content');
+		expect(existsSync(wpContentPath)).toBe(true);
+		expect(lstatSync(wpContentPath).isDirectory()).toBe(true);
+
+		// Clean up
+		if ((process.cwd as unknown as MockInstance).mockRestore) {
+			(process.cwd as unknown as MockInstance).mockRestore();
+		}
+	}, 120000);
+
+	test('should reuse existing persisted site on subsequent runs', async () => {
+		const tmpDir = await mkdtemp(path.join(tmpdir(), 'playground-test-'));
+		const homeDir = os.homedir();
+		const currentSiteHash = createHash('sha256')
+			.update(tmpDir)
+			.digest('hex');
+		const expectedSitePath = path.join(
+			homeDir,
+			'.wordpress-playground/sites',
+			currentSiteHash
+		);
+
+		// Clean up if the site directory already exists
+		if (existsSync(expectedSitePath)) {
+			rmSync(expectedSitePath, { recursive: true, force: true });
+		}
+
+		vi.spyOn(process, 'cwd').mockReturnValue(tmpDir);
+
+		// First run - create the site
+		{
+			await using cliServer = await runCLI({
+				command: 'start',
+				skipBrowser: true,
+			});
+
+			// Add a marker file to verify the site is reused
+			await cliServer.playground.writeFile(
+				'/wordpress/marker.txt',
+				'site-marker'
+			);
+		}
+
+		// Second run - should reuse the same site
+		{
+			await using cliServer = await runCLI({
+				command: 'start',
+				skipBrowser: true,
+			});
+
+			// Verify the marker file exists
+			const markerExists = await cliServer.playground.fileExists(
+				'/wordpress/marker.txt'
+			);
+			expect(markerExists).toBe(true);
+
+			if (markerExists) {
+				const markerContent = await cliServer.playground.readFileAsText(
+					'/wordpress/marker.txt'
+				);
+				expect(markerContent).toBe('site-marker');
+			}
+		}
+
+		// Clean up
+		if ((process.cwd as unknown as MockInstance).mockRestore) {
+			(process.cwd as unknown as MockInstance).mockRestore();
+		}
+	}, 180000);
+
+	test('should reset site when --reset-site is provided', async () => {
+		const tmpDir = await mkdtemp(path.join(tmpdir(), 'playground-test-'));
+		const homeDir = os.homedir();
+		const currentSiteHash = createHash('sha256')
+			.update(tmpDir)
+			.digest('hex');
+		const expectedSitePath = path.join(
+			homeDir,
+			'.wordpress-playground/sites',
+			currentSiteHash
+		);
+
+		// Clean up if the site directory already exists
+		if (existsSync(expectedSitePath)) {
+			rmSync(expectedSitePath, { recursive: true, force: true });
+		}
+
+		vi.spyOn(process, 'cwd').mockReturnValue(tmpDir);
+
+		// First run - create the site with a marker
+		{
+			await using cliServer = await runCLI({
+				command: 'start',
+				skipBrowser: true,
+			});
+
+			// Add a marker file
+			await cliServer.playground.writeFile(
+				'/wordpress/marker.txt',
+				'should-be-deleted'
+			);
+		}
+
+		// Second run with --reset-site - should delete the old site
+		{
+			await using cliServer = await runCLI({
+				command: 'start',
+				skipBrowser: true,
+				'reset-site': true,
+			});
+
+			// Verify the marker file does not exist
+			const markerExists = await cliServer.playground.fileExists(
+				'/wordpress/marker.txt'
+			);
+			expect(markerExists).toBe(false);
+		}
+
+		// Clean up
+		if ((process.cwd as unknown as MockInstance).mockRestore) {
+			(process.cwd as unknown as MockInstance).mockRestore();
+		}
+	}, 180000);
+
+	test('should not persist when using explicit mount for /wordpress', async () => {
+		const tmpDir = await mkdtemp(path.join(tmpdir(), 'playground-test-'));
+		const wordpressDir = path.join(tmpDir, 'wordpress-custom');
+		mkdirSync(wordpressDir, { recursive: true });
+
+		// When we explicitly mount /wordpress, the site should be stored there,
+		// not in ~/.wordpress-playground/sites/
+		await using cliServer = await runCLI({
+			command: 'start',
+			skipBrowser: true,
+			'mount-before-install': [
+				{
+					hostPath: wordpressDir,
+					vfsPath: '/wordpress',
+				},
+			],
+		});
+
+		// Verify server started successfully
+		expect(cliServer.serverUrl).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/);
+
+		// Verify WordPress files are in the explicit mount location
+		const wpContentPath = path.join(wordpressDir, 'wp-content');
+		expect(existsSync(wpContentPath)).toBe(true);
+		expect(lstatSync(wpContentPath).isDirectory()).toBe(true);
+	}, 120000);
 });
 
 describe('other run-cli behaviors', () => {

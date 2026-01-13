@@ -702,6 +702,7 @@ export interface RunCLIArgs {
 	path?: string;
 	skipBrowser?: boolean;
 	noAutoMount?: boolean;
+	'reset-site'?: boolean;
 }
 
 type PlaygroundCliWorker =
