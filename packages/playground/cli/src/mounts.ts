@@ -177,14 +177,6 @@ export function expandAutoMounts(args: RunCLIArgs): RunCLIArgs {
 			newArgs.wordpressInstallMode =
 				'install-from-existing-files-if-needed';
 		}
-	} else {
-		/**
-		 * By default, mount the current working directory as the Playground root.
-		 * This allows users to run and PHP or HTML files using the Playground CLI.
-		 */
-		mount.push({ hostPath: path, vfsPath: '/wordpress' });
-		// @TODO: If overriding another mode, throw an error or print a warning.
-		newArgs.mode = 'mount-only';
 	}
 
 	return newArgs as RunCLIArgs;
