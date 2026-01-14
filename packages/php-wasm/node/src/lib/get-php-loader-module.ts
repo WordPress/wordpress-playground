@@ -81,8 +81,8 @@ export async function getPHPLoaderModule(
 					`in a node:vm context. Some testing libraries like Jest use heavily customized ` +
 					`runtime contexts, involving node:vm, jest-runtime, and custom require() implementations. ` +
 					`These contexts do not support 'import.meta' statements and, by extension, cannot ` +
-					`run the @php-wasm/node package. Consider using a different test runner ` +
-					`such as vitest.`,
+					`run the @php-wasm/node package. ` +
+					`Consider using the --experimental-vm-modules flag or switching to a different test runner such as vitest.`,
 				{
 					cause: error,
 				}
@@ -102,7 +102,7 @@ export async function getPHPLoaderModule(
 					`in a node:vm context. Some testing libraries like Jest use runtime contexts, ` +
 					`involving node:vm, jest-runtime, or other custom require() implementations. These contexts do not support ` +
 					'import() statements and, by extension, cannot run the @php-wasm/node package. ' +
-					`Consider using a different test runner such as vitest.`,
+					`Consider using the --experimental-vm-modules flag or switching to a different test runner such as vitest.`,
 				{
 					cause: error,
 				}
