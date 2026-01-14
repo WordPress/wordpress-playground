@@ -95,7 +95,8 @@ export async function getPHPLoaderModule(
 			) ||
 			error?.message?.includes(
 				`A dynamic import callback was not specified`
-			)
+			) ||
+			error?.message?.includes(`Must use import to load ES Module`)
 		) {
 			throw new Error(
 				`Node.js crashed on a 'import()' statement. This happens when running ` +
