@@ -86,6 +86,26 @@ Everything you build stays in your browser and is **not** sent anywhere. Once yo
 You can upload any plugin or theme you want in [/wp-admin/](https://playground.wordpress.net/?url=/wp-admin/).
  -->
 
+どのプラグインやテーマを使用すればよいかわからない場合は、次の公式ディレクトリを参照してください。
+
+<!--
+If you're not sure which plugin or theme to use, you can explore the official directories here:
+ -->
+
+- [WordPress プラグイン ディレクトリ](https://wordpress.org/plugins/)
+- [WordPress テーマ ディレクトリ](https://wordpress.org/themes/)
+
+<!--
+-   [WordPress Plugin Directory](https://wordpress.org/plugins/)
+-   [WordPress Theme Directory](https://wordpress.org/themes/)
+ -->
+
+URL のプラグインまたはテーマのスラッグを使用して、Playground 経由でそれらをプリインストールします。
+
+<!--
+Use the plugin or theme slug from the URL to preinstall theme via Playground.
+ -->
+
 クリック数を減らすために、URL に`plugin`または`theme`パラメータを追加することで、 WordPress プラグインディレクトリからプラグインやテーマをプリインストールできます。例えば、coblocks 　プラグインをインストールするには、次の URL を使用します。
 
 <!--

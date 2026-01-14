@@ -1,6 +1,6 @@
 {
 	"name": "@php-wasm/web-7-2",
-	"version": "3.0.39",
+	"version": "3.0.40",
 	"description": "PHP 7.2 WebAssembly binaries for web",
 	"repository": {
 		"type": "git",

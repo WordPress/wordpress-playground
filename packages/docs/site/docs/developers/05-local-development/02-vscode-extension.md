@@ -8,8 +8,8 @@ Start a zero-setup development environment using the [VS Code extension](https:/
 
 Key Features:
 
--   **Integrated Development**: Develop WordPress sites directly within VS Code.
--   **Ease of Use**: Simplifies the development workflow with integrated tools.
+- **Integrated Development**: Develop WordPress sites directly within VS Code.
+- **Ease of Use**: Simplifies the development workflow with integrated tools.
 
 :::info **Documentation**
 
@@ -26,6 +26,6 @@ The VS Code extension is maintained in a different GitHub repository, [Playgroun
 The extension ships with a portable WebAssembly version of PHP and sets up WordPress to use SQLite. Once installed, all you have to do is click the **Start WordPress Server** button in VS Code:
 
 import Image from '@theme/IdealImage';
-import vsCodeScreenshot from '@site/static/img/start-wordpress-server.png';
+import vsCodeScreenshot from '@site/static/img/start-wordpress-server.webp';
 
 <div style={{maxWidth:350}}><Image img={vsCodeScreenshot} /></div>
