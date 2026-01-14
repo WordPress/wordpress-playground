@@ -9,6 +9,31 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
+## [v3.0.41] (2026-01-14) 
+
+### Enhancements
+
+- Update Node.js version in .nvmrc to v22.12.0. ([#3114](https://github.com/WordPress/wordpress-playground/pull/3114))
+- [CLI] Add high-level `start` command for easy local WordPress development. ([#3040](https://github.com/WordPress/wordpress-playground/pull/3040))
+- [CLI] Deprecate `--debug` switch in favor of `--verbosity=debug`. ([#3084](https://github.com/WordPress/wordpress-playground/pull/3084))
+- [CLI] `@wp-playground/cli start` persist sites. ([#3119](https://github.com/WordPress/wordpress-playground/pull/3119))
+
+### PHP WebAssembly
+
+- [Node] Improve error messages when dynamic imports fail in Node vm contexts. ([#3121](https://github.com/WordPress/wordpress-playground/pull/3121))
+- [PHP] Fix external dynamic imports issue in PHP.wasm Web. ([#3093](https://github.com/WordPress/wordpress-playground/pull/3093))
+
+### Website
+
+- Customizable page title via `?page-title` query parameter. ([#3116](https://github.com/WordPress/wordpress-playground/pull/3116))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @fellyph @mho22
+
+
 ## [v3.0.40] (2026-01-12) 
 
 ### Documentation
