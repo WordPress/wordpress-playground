@@ -109,6 +109,46 @@ SupportedPHPVersions.forEach((phpVersion) => {
 			test.expect(result).toContain('icudt74l.dat');
 		});
 
+		test('reads the icu data in PROXYFS', async ({ page }) => {
+			const result = await page.evaluate(async (phpVersion) => {
+				const oldPhp = new window.PHP(
+					await window.loadWebRuntime(phpVersion as any, {
+						withIntl: true,
+					})
+				);
+				const newPhp = new window.PHP(
+					await window.loadWebRuntime(phpVersion as any, {
+						withIntl: true,
+					})
+				);
+
+				window.proxyFileSystem(oldPhp, newPhp, ['/internal/shared']);
+
+				const response = await newPhp.runStream({
+					code: `<?php
+							$data = array(
+								'F' => 'Foo',
+								'Br' => 'Bar',
+								'Bz' => 'Bz',
+							);
+
+							$collator = new Collator('en_US');
+							$collator->asort($data, Collator::SORT_STRING);
+							var_dump($data);
+						?>`,
+				});
+
+				newPhp.exit();
+				oldPhp.exit();
+
+				return await response.stdoutText;
+			}, phpVersion);
+
+			test.expect(result).toEqual(
+				'array(3) {\n  ["Br"]=>\n  string(3) "Bar"\n  ["Bz"]=>\n  string(2) "Bz"\n  ["F"]=>\n  string(3) "Foo"\n}\n'
+			);
+		});
+
 		test('uses intl functions', async ({ page }) => {
 			const result = await page.evaluate(async (phpVersion) => {
 				const php = new window.PHP(

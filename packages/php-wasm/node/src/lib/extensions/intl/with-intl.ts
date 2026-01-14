@@ -19,7 +19,7 @@ export async function withIntl(
 	const dataName = 'icudt74l.dat';
 	const moduleDir =
 		typeof __dirname !== 'undefined' ? __dirname : import.meta.dirname;
-	const dataPath = path.join(moduleDir, 'shared', dataName);
+	const dataPath = path.join(moduleDir, 'shared', 'icu.dat');
 	const ICUData = fs.readFileSync(dataPath);
 
 	const extensionName = 'intl.so';
