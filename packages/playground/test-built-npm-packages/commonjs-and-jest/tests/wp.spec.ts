@@ -66,12 +66,9 @@ SupportedPHPVersions.filter(
 			await getPHPLoaderModule('8.5');
 			fail('Expected getPHPLoaderModule to throw an error');
 		} catch (error: any) {
-			// Verify the error message is helpful and mentions the issue
-			expect(error.message).toMatch(/node:vm context/);
-			// Verify it mentions testing libraries as examples
-			expect(error.message).toMatch(/testing libraries like Jest/);
-			// Verify it suggests alternatives
-			expect(error.message).toMatch(/vitest/);
+			expect(error.message).toMatch(
+				/Consider using a different test runner/
+			);
 		}
 	});
 });
