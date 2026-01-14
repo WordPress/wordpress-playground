@@ -67,7 +67,7 @@ SupportedPHPVersions.filter(
 			fail('Expected getPHPLoaderModule to throw an error');
 		} catch (error: any) {
 			expect(error.message).toMatch(
-				/Consider using a different test runner/
+				/switching to a different test runner such as vitest/
 			);
 		}
 	});
