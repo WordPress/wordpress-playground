@@ -121,7 +121,7 @@ export function expandAutoMounts(args: RunCLIArgs): RunCLIArgs {
 		],
 	};
 
-	if (isPluginFilename(path)) {
+	if (isPluginDirectory(path)) {
 		const pluginName = basename(path);
 		mount.push({
 			hostPath: path,
@@ -177,14 +177,6 @@ export function expandAutoMounts(args: RunCLIArgs): RunCLIArgs {
 			newArgs.wordpressInstallMode =
 				'install-from-existing-files-if-needed';
 		}
-	} else {
-		/**
-		 * By default, mount the current working directory as the Playground root.
-		 * This allows users to run and PHP or HTML files using the Playground CLI.
-		 */
-		mount.push({ hostPath: path, vfsPath: '/wordpress' });
-		// @TODO: If overriding another mode, throw an error or print a warning.
-		newArgs.mode = 'mount-only';
 	}
 
 	return newArgs as RunCLIArgs;
@@ -219,7 +211,7 @@ export function isThemeDirectory(path: string): boolean {
 	return !!themeNameRegex.exec(styleCssContent);
 }
 
-export function isPluginFilename(path: string): boolean {
+export function isPluginDirectory(path: string): boolean {
 	const files = fs.readdirSync(path);
 	const pluginNameRegex = /^(?:[ \t]*<\?php)?[ \t/*#@]*Plugin Name:(.*)$/im;
 	const pluginNameMatch = files

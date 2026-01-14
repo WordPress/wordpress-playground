@@ -1,6 +1,6 @@
 {
 	"name": "@php-wasm/node-7-3",
-	"version": "3.0.39",
+	"version": "3.0.40",
 	"description": "PHP 7.3 WebAssembly binaries for node",
 	"repository": {
 		"type": "git",

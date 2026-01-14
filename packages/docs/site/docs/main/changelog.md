@@ -9,6 +9,26 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
+## [v3.0.40] (2026-01-12) 
+
+### Documentation
+
+- [docs] Replace PNG images with WEBP format for improved performance. ([#3105](https://github.com/WordPress/wordpress-playground/pull/3105))
+
+### Various
+
+- Document how to publish new npm packages. ([#3068](https://github.com/WordPress/wordpress-playground/pull/3068))
+- [docs] Updating images from Release page to webp. ([#3107](https://github.com/WordPress/wordpress-playground/pull/3107))
+- [i18n] Add Bengali translation for contributor-day.md. ([#3096](https://github.com/WordPress/wordpress-playground/pull/3096))
+- [i18n] Add Bengali translation for translations.md. ([#3106](https://github.com/WordPress/wordpress-playground/pull/3106))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @fellyph @noruzzamans
+
+
 ## [v3.0.39] (2026-01-07) 
 
 ### PHP WebAssembly
