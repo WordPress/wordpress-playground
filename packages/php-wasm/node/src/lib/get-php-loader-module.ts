@@ -78,10 +78,10 @@ export async function getPHPLoaderModule(
 		) {
 			throw new Error(
 				`Node.js crashed on a 'import.meta' statement. This happens when running ` +
-					`in a node:vm context. Jest, the testing library, does that. Unfortunately, ` +
-					`node:vm does not support 'import.meta' statements and, by extension, it cannot ` +
-					`run the @php-wasm/node package. Consider switching from Jest to vitest ` +
-					`or another testing library.`,
+					`in a node:vm context. Some testing libraries like Jest use node:vm contexts, ` +
+					`which do not support 'import.meta' statements and, by extension, cannot ` +
+					`run the @php-wasm/node package. Consider using a different test runner ` +
+					`such as vitest, or running your code outside of a vm context.`,
 				{
 					cause: error,
 				}
@@ -98,10 +98,10 @@ export async function getPHPLoaderModule(
 		) {
 			throw new Error(
 				`Node.js crashed on a 'import()' statement. This happens when running ` +
-					`in a node:vm context. Jest, the testing library, does that. Unfortunately, ` +
-					`node:vm does not support 'import()' statements and, by extension, it cannot ` +
-					`run the @php-wasm/node package. Consider switching from Jest to vitest ` +
-					`or another testing library.`,
+					`in a node:vm context. Some testing libraries like Jest use node:vm contexts, ` +
+					`which do not support 'import()' statements and, by extension, cannot ` +
+					`run the @php-wasm/node package. Consider using a different test runner ` +
+					`such as vitest, or running your code outside of a vm context.`,
 				{
 					cause: error,
 				}

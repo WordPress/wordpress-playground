@@ -55,10 +55,10 @@ SupportedPHPVersions.filter(
 	 * @see https://github.com/vercel/next.js/issues/41725
 	 * @see https://github.com/WordPress/wordpress-playground/pull/3099 and the discussion.
 	 */
-	it('Should throw a helpful error when loading PHP loader module in Jest', async () => {
+	it('Should throw a helpful error when loading PHP loader module in vm context', async () => {
 		await expect(getPHPLoaderModule('8.5')).rejects.toThrow(
 			expect.objectContaining({
-				message: expect.stringContaining('Jest'),
+				message: expect.stringContaining('node:vm context'),
 			})
 		);
 
@@ -66,10 +66,12 @@ SupportedPHPVersions.filter(
 			await getPHPLoaderModule('8.5');
 			fail('Expected getPHPLoaderModule to throw an error');
 		} catch (error: any) {
-			// Verify the error message is helpful and mentions Jest
-			expect(error.message).toMatch(
-				/Consider switching from Jest to vitest/
-			);
+			// Verify the error message is helpful and mentions the issue
+			expect(error.message).toMatch(/node:vm context/);
+			// Verify it mentions testing libraries as examples
+			expect(error.message).toMatch(/testing libraries like Jest/);
+			// Verify it suggests alternatives
+			expect(error.message).toMatch(/vitest/);
 		}
 	});
 });
