@@ -92,8 +92,8 @@ You can upload any plugin or theme you want in [/wp-admin/](https://playground.w
 If you're not sure which plugin or theme to use, you can explore the official directories here:
  -->
 
--   [WordPress プラグイン ディレクトリ](https://wordpress.org/plugins/)
--   [WordPress テーマ ディレクトリ](https://wordpress.org/themes/)
+- [WordPress プラグイン ディレクトリ](https://wordpress.org/plugins/)
+- [WordPress テーマ ディレクトリ](https://wordpress.org/themes/)
 
 <!--
 -   [WordPress Plugin Directory](https://wordpress.org/plugins/)
@@ -198,7 +198,7 @@ You can restore the saved site using the "Import from .zip" button in the site m
 The easiest way is to use the version switcher on [the official demo site](https://playground.wordpress.net/):
  -->
 
-![WordPress Version switcher](@site/static/img/wp-version-switcher.png)
+![WordPress Version switcher](@site/static/img/wp-version-switcher.webp)
 
 :::info プラグインまたはテーマをテストする
 
@@ -232,9 +232,9 @@ Compatibility testing with so many WordPres and PHP versions was always a pain. 
 You can also use the `wp` and `php` query parameters to open Playground with the right versions already loaded:
  -->
 
--   https://playground.wordpress.net/?wp=6.5
--   https://playground.wordpress.net/?php=8.3
--   https://playground.wordpress.net/?php=8.2&wp=6.2
+- https://playground.wordpress.net/?wp=6.5
+- https://playground.wordpress.net/?php=8.3
+- https://playground.wordpress.net/?php=8.2&wp=6.2
 
 <ThisIsQueryApi />
 

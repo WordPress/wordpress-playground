@@ -130,6 +130,13 @@ export function EnsurePlaygroundSiteIsSelected({
 		dispatch,
 	]);
 
+	useEffect(() => {
+		const pageTitle = url.searchParams.get('page-title');
+		if (pageTitle) {
+			document.title = pageTitle;
+		}
+	}, [url.searchParams]);
+
 	return children;
 }
 
