@@ -109,6 +109,29 @@ describe('parseDefineArguments', () => {
 		expect(result).toEqual({ EQUATION: 'a=b' });
 	});
 
+	it('should handle quoted strings as literal strings', () => {
+		const result = parseDefineArguments([
+			'STRING_TRUE="true"',
+			'STRING_FALSE="false"',
+			'STRING_NUMBER="123"',
+			"SINGLE_QUOTE='value'",
+		]);
+		expect(result).toEqual({
+			STRING_TRUE: 'true', // String, not boolean
+			STRING_FALSE: 'false', // String, not boolean
+			STRING_NUMBER: '123', // String, not number
+			SINGLE_QUOTE: 'value',
+		});
+	});
+
+	it('should handle empty quoted strings', () => {
+		const result = parseDefineArguments(['EMPTY=""', "EMPTY2=''"]);
+		expect(result).toEqual({
+			EMPTY: '',
+			EMPTY2: '',
+		});
+	});
+
 	it('should handle multiple constants', () => {
 		const result = parseDefineArguments([
 			'CONST1=value1',

@@ -108,7 +108,8 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 			define: {
 				describe:
 					'Define PHP constants (can be used multiple times). Format: NAME=value or just NAME for boolean true. ' +
-					'Types are auto-detected: numbers (123), booleans (true/false), strings ("text"). ' +
+					'Types are auto-detected: numbers (123), booleans (true/false), strings. ' +
+					'Use quotes to force string type: --define \'MY_CONST="true"\'. ' +
 					'Note: null values are not supported for PHP constants and will be skipped. ' +
 					'Examples: --define WP_DEBUG=true --define CUSTOM_LIMIT=100 --define MY_FEATURE',
 				type: 'array',

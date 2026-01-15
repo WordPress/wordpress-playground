@@ -140,15 +140,26 @@ export function parseDefineArguments(
  * Auto-detect the type of a string value and convert it appropriately.
  *
  * Type detection order:
- * 1. Null: "null" (case-insensitive)
- * 2. Boolean: "true" or "false" (case-insensitive)
- * 3. Number: valid numeric string
- * 4. String: everything else
+ * 1. Quoted strings: Values wrapped in single or double quotes are always strings
+ * 2. Null: "null" (case-insensitive)
+ * 3. Boolean: "true" or "false" (case-insensitive)
+ * 4. Number: valid numeric string
+ * 5. String: everything else
  *
  * @param value - The string value to convert
  * @returns The value converted to its detected type
  */
 function autoDetectType(value: string): string | number | boolean | null {
+	// Check for quoted strings (double or single quotes)
+	// If wrapped in quotes, treat as literal string and strip the quotes
+	if (
+		(value.startsWith('"') && value.endsWith('"')) ||
+		(value.startsWith("'") && value.endsWith("'"))
+	) {
+		// Strip the surrounding quotes and return as string
+		return value.slice(1, -1);
+	}
+
 	const lowerValue = value.toLowerCase();
 
 	// Check for null
