@@ -14,9 +14,6 @@ const phpVersionsToTest =
 		? [process.env['PHP']! as SupportedPHPVersion]
 		: SupportedPHPVersions;
 
-// PHP versions that support the Intl extension with ICU
-const phpVersionsWithIntl: SupportedPHPVersion[] = ['7.2', '7.3', '7.4', '8.0', '8.1', '8.2', '8.3', '8.4', '8.5'];
-
 /**
  * These tests verify that PROXYFS properly supports mmap operations.
  *
@@ -181,9 +178,7 @@ describe.each(phpVersionsToTest)('PHP %s: PROXYFS mmap', (phpVersion) => {
  *
  * See: https://github.com/WordPress/wordpress-playground/pull/3073
  */
-describe.each(
-	phpVersionsToTest.filter((v) => phpVersionsWithIntl.includes(v))
-)('PHP %s: Intl extension via PROXYFS (mmap)', (phpVersion) => {
+describe.each(phpVersionsToTest)('PHP %s: Intl extension via PROXYFS (mmap)', (phpVersion) => {
 	it('should use Collator through PROXYFS', async () => {
 		// Create php1 with Intl support - it has the ICU data file
 		using php1 = new PHP(
