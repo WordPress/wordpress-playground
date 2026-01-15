@@ -26,7 +26,9 @@ import {
 	expandAutoMounts,
 	parseMountDirArguments,
 	parseMountWithDelimiterArguments,
-	parseDefineArguments,
+	parseDefineStringArguments,
+	parseDefineBoolArguments,
+	parseDefineNumberArguments,
 } from './mounts';
 import { startServer } from './start-server';
 import type { PlaygroundCliBlueprintV1Worker } from './blueprints-v1/worker-thread-v1';
@@ -107,14 +109,28 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 			},
 			define: {
 				describe:
-					'Define PHP constants (can be used multiple times). Format: NAME=value or just NAME for boolean true. ' +
-					'Types are auto-detected: numbers (123), booleans (true/false), strings. ' +
-					'Use quotes to force string type: --define \'MY_CONST="true"\'. ' +
-					'Note: null values are not supported for PHP constants and will be skipped. ' +
-					'Examples: --define WP_DEBUG=true --define CUSTOM_LIMIT=100 --define MY_FEATURE',
+					'Define PHP string constants (can be used multiple times). Format: NAME=value or just NAME for empty string. ' +
+					'Examples: --define API_KEY=secret --define TITLE="Hello World" --define EMPTY',
 				type: 'array',
 				string: true,
-				coerce: parseDefineArguments,
+				coerce: parseDefineStringArguments,
+			},
+			'define-bool': {
+				describe:
+					'Define PHP boolean constants (can be used multiple times). Format: NAME=value or just NAME for true. ' +
+					'Value must be "true", "false", "1", or "0". ' +
+					'Examples: --define-bool WP_DEBUG=true --define-bool MY_FEATURE',
+				type: 'array',
+				string: true,
+				coerce: parseDefineBoolArguments,
+			},
+			'define-number': {
+				describe:
+					'Define PHP number constants (can be used multiple times). Format: NAME=value. ' +
+					'Examples: --define-number LIMIT=100 --define-number RATE=45.67',
+				type: 'array',
+				string: true,
+				coerce: parseDefineNumberArguments,
 			},
 			// @TODO: Support read-only mounts, e.g. via WORKERFS, a custom
 			// ReadOnlyNODEFS, or by copying the files into MEMFS
@@ -693,11 +709,17 @@ export interface RunCLIArgs {
 	'experimental-blueprints-v2-runner'?: boolean;
 	wordpressInstallMode?: WordPressInstallMode;
 	/**
-	 * PHP constants to define via CLI flags.
-	 * These will be merged with any Blueprint-provided constants,
-	 * with CLI constants taking precedence.
+	 * PHP string constants defined via --define flag.
 	 */
-	define?: Record<string, string | number | boolean | null>;
+	define?: Record<string, string>;
+	/**
+	 * PHP boolean constants defined via --define-bool flag.
+	 */
+	'define-bool'?: Record<string, boolean>;
+	/**
+	 * PHP number constants defined via --define-number flag.
+	 */
+	'define-number'?: Record<string, number>;
 
 	// --------- Blueprint V1 args -----------
 	skipSqliteSetup?: boolean;
@@ -762,6 +784,43 @@ const highlight = (text: string) =>
 // These overloads are declared for convenience so runCLI() can return
 // different things depending on the CLI command without forcing the
 // callers (mostly automated tests) to check return values.
+/**
+ * Merge separate constant types into a single object.
+ * Validates that there are no duplicate constant names across types.
+ */
+export function mergeConstants(
+	args: RunCLIArgs
+): Record<string, string | number | boolean> {
+	const merged: Record<string, string | number | boolean> = {};
+	const defineString = args.define || {};
+	const defineBool = args['define-bool'] || {};
+	const defineNumber = args['define-number'] || {};
+
+	// Check for duplicates
+	const allKeys = [
+		...Object.keys(defineString),
+		...Object.keys(defineBool),
+		...Object.keys(defineNumber),
+	];
+	const uniqueKeys = new Set(allKeys);
+	if (allKeys.length !== uniqueKeys.size) {
+		// Find the duplicate
+		const seen = new Set<string>();
+		for (const key of allKeys) {
+			if (seen.has(key)) {
+				throw new Error(
+					`Constant "${key}" is defined multiple times with different types. Each constant can only be defined once.`
+				);
+			}
+			seen.add(key);
+		}
+	}
+
+	// Merge all constants
+	Object.assign(merged, defineString, defineBool, defineNumber);
+	return merged;
+}
+
 export async function runCLI(
 	args: RunCLIArgs & { command: 'build-snapshot' | 'run-blueprint' }
 ): Promise<void>;

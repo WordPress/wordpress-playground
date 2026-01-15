@@ -23,6 +23,7 @@ import {
 	type RunCLIArgs,
 	type SpawnedWorker,
 	type WorkerType,
+	mergeConstants,
 } from '../run-cli';
 import type { CLIOutput } from '../cli-output';
 
@@ -158,7 +159,7 @@ export class BlueprintsV1Handler {
 			// TODO: Consider supporting Xdebug for the initial worker via a dedicated flag.
 			withXdebug: false,
 			nativeInternalDirPath,
-			constants: this.args.define,
+			constants: mergeConstants(this.args),
 		});
 
 		if (
@@ -211,7 +212,7 @@ export class BlueprintsV1Handler {
 			withIntl: this.args.intl,
 			withXdebug: !!this.args.xdebug,
 			nativeInternalDirPath,
-			constants: this.args.define,
+			constants: mergeConstants(this.args),
 		});
 		await playground.isReady();
 		return playground;

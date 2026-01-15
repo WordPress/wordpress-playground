@@ -102,7 +102,7 @@ describe.each(blueprintVersions)(
 		);
 
 		test.skipIf(isBlueprintsV2OnWindows)(
-			'should define constants via --define flag',
+			'should define constants via --define flags',
 			async () => {
 				await using cliServer = await runCLI({
 					...suiteCliArgs,
@@ -113,9 +113,13 @@ describe.each(blueprintVersions)(
 					blueprint: undefined,
 					define: {
 						MY_STRING_CONSTANT: 'test_value',
-						MY_NUMBER_CONSTANT: 42,
+					},
+					'define-bool': {
 						MY_BOOL_CONSTANT: true,
 						MY_FALSE_CONSTANT: false,
+					},
+					'define-number': {
+						MY_NUMBER_CONSTANT: 42,
 					},
 				});
 
