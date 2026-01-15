@@ -9,6 +9,23 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
+## [v3.0.42] (2026-01-15) 
+
+### Enhancements
+
+- Clean up CLI output and simplify mount tracking. ([#3122](https://github.com/WordPress/wordpress-playground/pull/3122))
+
+### Various
+
+- [Docs] Updating limitations page. ([#3108](https://github.com/WordPress/wordpress-playground/pull/3108))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @fellyph
+
+
 ## [v3.0.41] (2026-01-14) 
 
 ### Enhancements
