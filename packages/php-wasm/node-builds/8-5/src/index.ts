@@ -45,4 +45,12 @@ export async function getXdebugExtensionPath(): Promise<string> {
 	}
 }
 
+export async function getRedisExtensionPath(): Promise<string> {
+	if (await jspi()) {
+		return join(packageDir, 'jspi/extensions/redis/8_5/redis.so');
+	} else {
+		return join(packageDir, 'asyncify/extensions/redis/8_5/redis.so');
+	}
+}
+
 export { jspi };

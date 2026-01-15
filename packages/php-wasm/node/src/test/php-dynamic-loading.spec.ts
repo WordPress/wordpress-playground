@@ -287,4 +287,63 @@ describe.each(phpVersions)('PHP %s', async (phpVersion) => {
 			);
 		});
 	});
+
+	describe('Redis', () => {
+		let php: PHP;
+		beforeEach(async () => {
+			php = new PHP(
+				await loadNodeRuntime(phpVersion as any, { withRedis: true })
+			);
+		});
+
+		afterEach(async () => {
+			php.exit();
+		});
+
+		it('does not load dynamically by default', async () => {
+			php = new PHP(await loadNodeRuntime(phpVersion as any));
+
+			const result = await php.runStream({
+				code: `<?php
+					var_dump(extension_loaded('redis'));
+					var_dump(class_exists('Redis'));`,
+			});
+
+			expect(await result.stdoutText).toEqual(
+				'bool(false)\nbool(false)\n'
+			);
+		});
+
+		it('supports dynamic loading', async () => {
+			const result = await php.runStream({
+				code: `<?php
+					var_dump(extension_loaded('redis'));
+					var_dump(class_exists('Redis'));`,
+			});
+
+			expect(await result.stdoutText).toEqual('bool(true)\nbool(true)\n');
+		});
+
+		it('has its own ini file and entries', async () => {
+			const entries = php.readFileAsText(
+				'/internal/shared/extensions/redis.ini'
+			);
+
+			const expected = [
+				'extension=/internal/shared/extensions/redis.so',
+			].join('\n');
+
+			expect(entries).toEqual(expected);
+		});
+
+		it('can instantiate Redis class', async () => {
+			const result = await php.runStream({
+				code: `<?php
+					$redis = new Redis();
+					var_dump(get_class($redis));`,
+			});
+
+			expect(await result.stdoutText).toEqual('string(5) "Redis"\n');
+		});
+	});
 });
