@@ -52,24 +52,54 @@ function ensureProxyFSHasMmapSupport(phpInstance: PHP) {
 			throw new FS.ErrnoError(19); // ENODEV
 		}
 
-		// Allocate memory for the mapped region using the runtime's malloc
-		const ptr = runtime.wasmExports.malloc(length);
+		// For non-.dat files, get the actual file size from the proxied filesystem.
+		// This is needed because older PHP versions (7.2-7.4) may pass incorrect
+		// length values for certain file types.
+		const path = FS.getPath(stream.node);
+		if (!path.endsWith('.dat')) {
+			// Get the proxied filesystem from the mount options
+			const proxyFS = stream.node.mount.opts.fs;
+			if (proxyFS && stream.nfd !== undefined) {
+				const stat = proxyFS.fstat(stream.nfd);
+				if (stat && stat.size !== undefined) {
+					length = stat.size >>> 0;
+				}
+			}
+		}
+
+		// Only support mmap from the beginning of the file
+		if (position !== 0) {
+			throw new FS.ErrnoError(22); // EINVAL
+		}
+
+		// Allocate memory for the mapped region using the runtime's malloc.
+		const ptr = runtime.malloc(length);
 		if (!ptr) {
 			throw new FS.ErrnoError(48); // ENOMEM
 		}
 
-		// Read the file contents into the allocated memory
-		const bytesRead = stream.stream_ops.read(
-			stream,
-			runtime.HEAPU8,
-			ptr,
-			length,
-			position
-		);
+		// Create a view into the heap for reading
+		const heap = runtime.HEAPU8.subarray(ptr, ptr + length);
+		let total = 0;
 
-		// If we read fewer bytes than requested, zero-fill the rest
-		if (bytesRead < length) {
-			runtime.HEAPU8.fill(0, ptr + bytesRead, ptr + length);
+		// Eagerly read the entire file contents into the allocated memory
+		while (total < length) {
+			const bytesRead = stream.stream_ops.read(
+				stream,
+				heap,
+				total,
+				length - total,
+				total
+			);
+
+			if (bytesRead <= 0) break;
+			total += bytesRead;
+		}
+
+		// If we couldn't read the expected amount, free memory and return error
+		if (total !== length) {
+			runtime.free(ptr);
+			throw new FS.ErrnoError(5); // EIO
 		}
 
 		return { ptr: ptr, allocated: true };
@@ -119,8 +149,10 @@ export function proxyFileSystem(
 
 	// We can't just import the symbol from the library because
 	// Playground CLI is built as ESM and php-wasm-node is built as
-	// CJS and the imported symbols will different in the production build.
-	const __private__symbol = Object.getOwnPropertySymbols(sourceOfTruth)[0];
+	// CJS and the imported symbols will differ in the production build.
+	// Get symbols from both instances to ensure correct property access.
+	const replicaSymbol = Object.getOwnPropertySymbols(replica)[0];
+	const sourceSymbol = Object.getOwnPropertySymbols(sourceOfTruth)[0];
 	for (const path of paths) {
 		if (!replica.fileExists(path)) {
 			replica.mkdir(path);
@@ -129,13 +161,13 @@ export function proxyFileSystem(
 			sourceOfTruth.mkdir(path);
 		}
 		// @ts-ignore
-		replica[__private__symbol].FS.mount(
+		replica[replicaSymbol].FS.mount(
 			// @ts-ignore
-			replica[__private__symbol].PROXYFS,
+			replica[replicaSymbol].PROXYFS,
 			{
 				root: path,
 				// @ts-ignore
-				fs: sourceOfTruth[__private__symbol].FS,
+				fs: sourceOfTruth[sourceSymbol].FS,
 			},
 			path
 		);

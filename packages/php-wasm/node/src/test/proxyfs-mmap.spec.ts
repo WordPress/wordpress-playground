@@ -15,7 +15,7 @@ const phpVersionsToTest =
 		: SupportedPHPVersions;
 
 // PHP versions that support the Intl extension with ICU
-const phpVersionsWithIntl: SupportedPHPVersion[] = ['8.0', '8.1', '8.2', '8.3', '8.4', '8.5'];
+const phpVersionsWithIntl: SupportedPHPVersion[] = ['7.2', '7.3', '7.4', '8.0', '8.1', '8.2', '8.3', '8.4', '8.5'];
 
 /**
  * These tests verify that PROXYFS properly supports mmap operations.
