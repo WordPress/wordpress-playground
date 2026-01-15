@@ -58,15 +58,15 @@ describe('Breakpoints', () => {
 	});
 
 	describe('isDesktop()', () => {
-		it('should return true when width is at or above tablet breakpoint', () => {
-			expect(isDesktop(875)).toBe(true);
+		it('should return true when width is at or above desktop breakpoint', () => {
 			expect(isDesktop(1024)).toBe(true);
 			expect(isDesktop(1920)).toBe(true);
 		});
 
-		it('should return false when width is below tablet breakpoint', () => {
+		it('should return false when width is below desktop breakpoint', () => {
 			expect(isDesktop(599)).toBe(false);
 			expect(isDesktop(874)).toBe(false);
+			expect(isDesktop(1023)).toBe(false);
 		});
 	});
 
@@ -100,7 +100,12 @@ describe('Breakpoints', () => {
 		it('should correctly handle edge cases at 875px', () => {
 			expect(isTablet(874)).toBe(true);
 			expect(isTablet(875)).toBe(false);
-			expect(isDesktop(875)).toBe(true);
+			expect(isDesktop(875)).toBe(false);
+		});
+
+		it('should correctly handle edge cases at 1024px', () => {
+			expect(isDesktop(1023)).toBe(false);
+			expect(isDesktop(1024)).toBe(true);
 		});
 	});
 });

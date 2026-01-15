@@ -34,12 +34,12 @@ export function isTablet(width?: number): boolean {
 
 /**
  * Check if window width is in desktop range
- * Default: >= 875px
+ * Default: >= 1024px
  */
 export function isDesktop(width?: number): boolean {
 	const currentWidth =
 		width ?? (typeof window !== 'undefined' ? window.innerWidth : 0);
-	return currentWidth >= BREAKPOINTS.tablet;
+	return currentWidth >= BREAKPOINTS.desktop;
 }
 
 /**

@@ -25,6 +25,13 @@ import { GitHubPrivateRepoAuthModal } from '../github-private-repo-auth-modal';
 import { BlueprintUrlModal } from '../blueprint-url-modal';
 import { ModalLoadingFallback } from '../modal-loading-fallback';
 
+/**
+ * Lazy modal wrapper component to reduce Suspense repetition
+ */
+function LazyModal({ children }: { children: React.ReactNode }) {
+	return <Suspense fallback={<ModalLoadingFallback />}>{children}</Suspense>;
+}
+
 // Lazy-loaded heavy modals for code splitting
 const GithubExportModal = lazy(() =>
 	import('../../github/github-export-form').then((m) => ({
@@ -171,19 +178,19 @@ function Modals() {
 	// Wrapped in Suspense to show loading state while chunks load
 	if (currentModal === modalSlugs.PREVIEW_PR_WP) {
 		return (
-			<Suspense fallback={<ModalLoadingFallback />}>
+			<LazyModal>
 				<PreviewPRModal target="wordpress" />
-			</Suspense>
+			</LazyModal>
 		);
 	} else if (currentModal === modalSlugs.PREVIEW_PR_GUTENBERG) {
 		return (
-			<Suspense fallback={<ModalLoadingFallback />}>
+			<LazyModal>
 				<PreviewPRModal target="gutenberg" />
-			</Suspense>
+			</LazyModal>
 		);
 	} else if (currentModal === modalSlugs.GITHUB_IMPORT) {
 		return (
-			<Suspense fallback={<ModalLoadingFallback />}>
+			<LazyModal>
 				<GithubImportModal
 					onImported={({
 						url,
@@ -205,11 +212,11 @@ function Modals() {
 						setGithubExportFiles(files);
 					}}
 				/>
-			</Suspense>
+			</LazyModal>
 		);
 	} else if (currentModal === modalSlugs.GITHUB_EXPORT) {
 		return (
-			<Suspense fallback={<ModalLoadingFallback />}>
+			<LazyModal>
 				<GithubExportModal
 					allowZipExport={
 						(query.get('ghexport-allow-include-zip') ?? 'yes') ===
@@ -222,7 +229,7 @@ function Modals() {
 						setGithubExportFiles(undefined);
 					}}
 				/>
-			</Suspense>
+			</LazyModal>
 		);
 	}
 
