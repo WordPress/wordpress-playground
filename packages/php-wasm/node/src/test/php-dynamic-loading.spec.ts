@@ -288,7 +288,9 @@ describe.each(phpVersions)('PHP %s', async (phpVersion) => {
 		});
 	});
 
-	describe('Redis', () => {
+	// Redis extension is not yet supported for PHP 8.5 due to internal API changes.
+	// phpredis 6.3.0 doesn't support PHP 8.5's changed zend_throw_exception signature.
+	(phpVersion === '8.5' ? describe.skip : describe)('Redis', () => {
 		let php: PHP;
 		beforeEach(async () => {
 			php = new PHP(

@@ -15,8 +15,12 @@ export async function getRedisExtensionModule(
 ): Promise<any> {
 	switch (version) {
 		case '8.5':
-			// @ts-ignore
-			return (await import('@php-wasm/node-8-5')).getRedisExtensionPath();
+			// PHP 8.5 has internal API changes that phpredis 6.3.0 doesn't support yet.
+			// The zend_throw_exception signature changed, causing WebAssembly LinkError.
+			throw new Error(
+				'Redis extension is not yet supported for PHP 8.5. ' +
+					'phpredis needs to be updated for PHP 8.5 internal API changes.'
+			);
 		case '8.4':
 			// @ts-ignore
 			return (await import('@php-wasm/node-8-4')).getRedisExtensionPath();
