@@ -31,7 +31,14 @@ function ensureProxyFSHasMmapSupport(phpInstance: PHP) {
 	 *
 	 * Since PROXYFS doesn't have direct access to the underlying buffer,
 	 * we allocate new memory and copy the file contents into it.
+	 *
+	 * @param stream - The file stream to map
+	 * @param length - Number of bytes to map
+	 * @param position - File offset to start mapping from
+	 * @param prot - Memory protection flags (unused, we always allocate read/write)
+	 * @param flags - Mapping flags (unused)
 	 */
+	/* eslint-disable @typescript-eslint/no-unused-vars */
 	PROXYFS.stream_ops.mmap = function (
 		stream: any,
 		length: number,
@@ -39,6 +46,7 @@ function ensureProxyFSHasMmapSupport(phpInstance: PHP) {
 		prot: number,
 		flags: number
 	) {
+		/* eslint-enable @typescript-eslint/no-unused-vars */
 		// Only files can be memory-mapped
 		if (!FS.isFile(stream.node.mode)) {
 			throw new FS.ErrnoError(19); // ENODEV
