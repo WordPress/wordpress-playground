@@ -1,4 +1,5 @@
 const { SupportedPHPVersions } = require('@php-wasm/universal');
+const { getPHPLoaderModule } = require('@php-wasm/node');
 const { runCLI } = require('@wp-playground/cli');
 const path = require('path');
 
@@ -44,6 +45,30 @@ SupportedPHPVersions.filter(
 			const resolvedBasePath = require.resolve(`@wp-playground/cli`);
 			const filePath = path.join(resolvedBasePath, file);
 			expect(filePath).toBeTruthy();
+		}
+	});
+
+	/**
+	 * Jest struggles with dynamic imports in vm contexts. This test ensures that
+	 * the error thrown is helpful and actionable.
+	 *
+	 * @see https://github.com/vercel/next.js/issues/41725
+	 * @see https://github.com/WordPress/wordpress-playground/pull/3099 and the discussion.
+	 */
+	it('Should throw a helpful error when loading PHP loader module in vm context', async () => {
+		await expect(getPHPLoaderModule('8.5')).rejects.toThrow(
+			expect.objectContaining({
+				message: expect.stringContaining('node:vm context'),
+			})
+		);
+
+		try {
+			await getPHPLoaderModule('8.5');
+			fail('Expected getPHPLoaderModule to throw an error');
+		} catch (error: any) {
+			expect(error.message).toMatch(
+				/switching to a different test runner such as vitest/
+			);
 		}
 	});
 });

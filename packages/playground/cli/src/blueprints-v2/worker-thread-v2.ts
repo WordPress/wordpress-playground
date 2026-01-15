@@ -396,7 +396,7 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 							const red = '\x1b[31m';
 							const bold = '\x1b[1m';
 							const reset = '\x1b[0m';
-							if (args.debug && message.details) {
+							if (args.verbosity === 'debug' && message.details) {
 								output.stderr(
 									`${red}${bold}Fatal error:${reset} Uncaught ${message.details.exception}: ${message.details.message}\n` +
 										`  at ${message.details.file}:${message.details.line}\n` +
@@ -418,7 +418,7 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 			 * When we're debugging, every bit of information matters – let's immediately output
 			 * everything we get from the PHP output streams.
 			 */
-			if (args.debug) {
+			if (args.verbosity === 'debug') {
 				streamedResponse!.stdout.pipeTo(
 					new WritableStream({
 						write(chunk) {

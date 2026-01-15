@@ -9,6 +9,51 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
+## [v3.0.41] (2026-01-14) 
+
+### Enhancements
+
+- Update Node.js version in .nvmrc to v22.12.0. ([#3114](https://github.com/WordPress/wordpress-playground/pull/3114))
+- [CLI] Add high-level `start` command for easy local WordPress development. ([#3040](https://github.com/WordPress/wordpress-playground/pull/3040))
+- [CLI] Deprecate `--debug` switch in favor of `--verbosity=debug`. ([#3084](https://github.com/WordPress/wordpress-playground/pull/3084))
+- [CLI] `@wp-playground/cli start` persist sites. ([#3119](https://github.com/WordPress/wordpress-playground/pull/3119))
+
+### PHP WebAssembly
+
+- [Node] Improve error messages when dynamic imports fail in Node vm contexts. ([#3121](https://github.com/WordPress/wordpress-playground/pull/3121))
+- [PHP] Fix external dynamic imports issue in PHP.wasm Web. ([#3093](https://github.com/WordPress/wordpress-playground/pull/3093))
+
+### Website
+
+- Customizable page title via `?page-title` query parameter. ([#3116](https://github.com/WordPress/wordpress-playground/pull/3116))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @fellyph @mho22
+
+
+## [v3.0.40] (2026-01-12) 
+
+### Documentation
+
+- [docs] Replace PNG images with WEBP format for improved performance. ([#3105](https://github.com/WordPress/wordpress-playground/pull/3105))
+
+### Various
+
+- Document how to publish new npm packages. ([#3068](https://github.com/WordPress/wordpress-playground/pull/3068))
+- [docs] Updating images from Release page to webp. ([#3107](https://github.com/WordPress/wordpress-playground/pull/3107))
+- [i18n] Add Bengali translation for contributor-day.md. ([#3096](https://github.com/WordPress/wordpress-playground/pull/3096))
+- [i18n] Add Bengali translation for translations.md. ([#3106](https://github.com/WordPress/wordpress-playground/pull/3106))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @fellyph @noruzzamans
+
+
 ## [v3.0.39] (2026-01-07) 
 
 ### PHP WebAssembly
