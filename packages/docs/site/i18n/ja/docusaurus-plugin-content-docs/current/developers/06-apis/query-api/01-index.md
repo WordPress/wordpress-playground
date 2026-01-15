@@ -44,7 +44,7 @@ You can go ahead and try it out. The Playground will automatically install the t
 
 | オプション               | デフォルト値          | 説明                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | ------------------------ | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `php`                    | `8.0`                 | 指定された PHP バージョンをロードします。 `7.0`, `7.1`, `7.2`, `7.3`, `7.4`, `8.0`, `8.1`, `8.2`, `8.3`, `8.4` or `latest`.                                                                                                                                                                                                                                                                                                                                                                                         |
+| `php`                    | `8.0`                 | 指定された PHP バージョンをロードします。 `7.4`, `8.0`, `8.1`, `8.2`, `8.3`, `8.4`, `8.5` or `latest`.                                                                                                                                                                                                                                                                                                                                                                                                              |
 | `wp`                     | `latest`              | 指定された WordPress バージョンを読み込みます。直近 3 つのメジャー WordPress バージョンに対応しています。2024 年 6 月 1 日時点では、`6.3`、`6.4`、`6.5`が該当します。また、汎用的な値として`latest`、`nightly`、`beta`も使用できます。                                                                                                                                                                                                                                                                              |
 | `blueprint-url`          |                       | この Playground インスタンスを構成するために使用されるブループリントの URL。                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | `networking`             | `yes`                 | Playground のネットワークサポートを有効または無効にします。`yes` または `no` を指定します。                                                                                                                                                                                                                                                                                                                                                                                                                         |
@@ -66,7 +66,7 @@ You can go ahead and try it out. The Playground will automatically install the t
 <!--
 | Option                   | Default Value         | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | ------------------------ | --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `php`                    | `8.0`                 | Loads the specified PHP version. Accepts `7.0`, `7.1`, `7.2`, `7.3`, `7.4`, `8.0`, `8.1`, `8.2`, `8.3`, `8.4` or `latest`.                                                                                                                                                                                                                                                                                                                                                  |
+| `php`                    | `8.0`                 | Loads the specified PHP version. Accepts `7.4`, `8.0`, `8.1`, `8.2`, `8.3`, `8.4`, `8.5` or `latest`.                                                                                                                                                                                                                                                                                                                                                  |
 | `wp`                     | `latest`              | Loads the specified WordPress version. Accepts the last three major WordPress versions. As of June 1, 2024, that's `6.3`, `6.4`, or `6.5`. You can also use the generic values `latest`, `nightly`, or `beta`.                                                                                                                                                                                                                                                              |
 | `blueprint-url`          |                       | The URL of the Blueprint that will be used to configure this Playground instance.                                                                                                                                                                                                                                                                                                                                                                                           |
 | `networking`             | `yes`                 | Enables or disables the networking support for Playground. Accepts `yes` or `no`.                                                                                                                                                                                                                                                                                                                                                                                           |
@@ -122,18 +122,18 @@ To import files from a URL, such as a site zip package, they must be served with
 The following additional query parameters may be used to pre-configure the GitHub export form:
 -->
 
--   `gh-ensure-auth`: `yes` に設定すると、Playground は続行する前にユーザーが GitHub で認証されていることを確認するためのモーダルを表示します。
--   `ghexport-repo-url`: エクスポート先の GitHub リポジトリの URL。
--   `ghexport-pr-action`: エクスポート時に実行するアクション (作成または更新)。
--   `ghexport-playground-root`: エクスポート元の Playground のルートディレクトリ。
--   `ghexport-repo-root`: エクスポート先のリポジトリのルートディレクトリ。
--   `ghexport-content-type`: エクスポートのコンテンツタイプ (plugin、theme、wp-content、custom-paths)。
--   `ghexport-plugin`: プラグインのパス。コンテンツタイプが `plugin` の場合、エクスポートするプラグインを事前に選択します。
--   `ghexport-theme`: テーマのディレクトリ名。コンテンツタイプが「theme」の場合、エクスポートするテーマを事前に選択します。
--   `ghexport-path`: `ghexport-playground-root` からの相対パス。複数回指定できます。
-    コンテンツタイプが「custom-paths」の場合、エクスポートするパスのリストが事前に入力されます。
--   `ghexport-commit-message`: エクスポート時に使用するコミットメッセージ。
--   `ghexport-allow-include-zip`: GitHub エクスポートに zip ファイルを含めるオプションを提供するかどうか (yes、no)。オプション。デフォルトは「yes」です。
+- `gh-ensure-auth`: `yes` に設定すると、Playground は続行する前にユーザーが GitHub で認証されていることを確認するためのモーダルを表示します。
+- `ghexport-repo-url`: エクスポート先の GitHub リポジトリの URL。
+- `ghexport-pr-action`: エクスポート時に実行するアクション (作成または更新)。
+- `ghexport-playground-root`: エクスポート元の Playground のルートディレクトリ。
+- `ghexport-repo-root`: エクスポート先のリポジトリのルートディレクトリ。
+- `ghexport-content-type`: エクスポートのコンテンツタイプ (plugin、theme、wp-content、custom-paths)。
+- `ghexport-plugin`: プラグインのパス。コンテンツタイプが `plugin` の場合、エクスポートするプラグインを事前に選択します。
+- `ghexport-theme`: テーマのディレクトリ名。コンテンツタイプが「theme」の場合、エクスポートするテーマを事前に選択します。
+- `ghexport-path`: `ghexport-playground-root` からの相対パス。複数回指定できます。
+  コンテンツタイプが「custom-paths」の場合、エクスポートするパスのリストが事前に入力されます。
+- `ghexport-commit-message`: エクスポート時に使用するコミットメッセージ。
+- `ghexport-allow-include-zip`: GitHub エクスポートに zip ファイルを含めるオプションを提供するかどうか (yes、no)。オプション。デフォルトは「yes」です。
 
 <!--
 -   `gh-ensure-auth`: If set to `yes`, Playground will display a modal to ensure the

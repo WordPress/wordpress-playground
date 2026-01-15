@@ -3,10 +3,7 @@ const { getPHPLoaderModule } = require('@php-wasm/node');
 const { runCLI } = require('@wp-playground/cli');
 const path = require('path');
 
-// Exclude PHP 7.2 – it often times out on CI.
-SupportedPHPVersions.filter(
-	(phpVersion: string) => !['7.2', '7.3'].includes(phpVersion)
-).forEach((phpVersion: string) => {
+SupportedPHPVersions.forEach((phpVersion: string) => {
 	describe(`PHP ${phpVersion}`, () => {
 		it('WordPress should load', async () => {
 			const cli = await runCLI({
