@@ -1,5 +1,6 @@
 ---
 slug: /developers/limitations
+description: Learn about the current limitations of WordPress Playground, including browser-specific behaviors, temporary storage by design, iframe quirks, and WP-CLI support.
 ---
 
 # Limitations
@@ -12,20 +13,20 @@ You can track the status of these issues on the [Playground Project board](https
 
 ### Temporary by design
 
-As Playground [streams rather than serves](/about#streamed-not-served) WordPress, all database changes and uploads will be gone when you refresh the page. To avoid losing your work, either [export your work](/quick-start-guide#save-your-site) before or enable storage in the browser/device via the "Save" button found in the "Open Playground Manager" menu on the top left of the site.
+As Playground [streams rather than serves](/about#streamed-not-served) WordPress, all database changes and uploads will be gone when you refresh the page. To avoid losing your work, either [export your work](/quick-start-guide#save-your-site) before or enable storage in the browser/device via the "Save" button found in the top right on the side of the address bar.
 
 <blockquote>
 <figure>
-<figcaption><i>The open Playground Manager button:</i></figcaption>
+<figcaption><i>1. Exporting Playground:</i></figcaption>
 
-![Open Playground Manager](@site/static/img/open-site-manager.png)
+![Save Button](@site/static/img/export-playground.webp)
 
 </figure>
 
 <figure>
-<figcaption><i>The save button:</i></figcaption>
+<figcaption><i>2. Save button:</i></figcaption>
 
-![Save Button](@site/static/img/save-button.png)
+![Save Button](@site/static/img/save-button.webp)
 
 </figure>
 </blockquote>
