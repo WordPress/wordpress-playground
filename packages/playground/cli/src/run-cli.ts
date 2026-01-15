@@ -59,6 +59,7 @@ import {
 	removeTempDirSymlink,
 } from '@php-wasm/cli-util';
 import { createHash } from 'crypto';
+import { CLIOutput } from './cli-output';
 
 // Inlined worker URLs for static analysis by downstream bundlers
 // These are replaced at build time by the Vite plugin in vite.config.ts
@@ -803,6 +804,29 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 		args.intl = true;
 	}
 
+	// Create CLI output handler
+	const cliOutput = new CLIOutput({
+		verbosity: args.verbosity || 'normal',
+	});
+
+	// Display banner for server commands
+	if (args.command === 'server') {
+		cliOutput.printBanner();
+		cliOutput.printConfig({
+			phpVersion: args.php || RecommendedPHPVersion,
+			wpVersion: args.wp || 'latest',
+			port: (args['port'] as number) || 9400,
+			xdebug: !!args.xdebug,
+			intl: !!args.intl,
+			mounts: [
+				...(args.mount || []),
+				...(args['mount-before-install'] || []),
+			],
+			blueprint:
+				typeof args.blueprint === 'string' ? args.blueprint : undefined,
+		});
+	}
+
 	const selectedPort =
 		args.command === 'server' ? ((args['port'] as number) ?? 9400) : 0;
 
@@ -815,7 +839,9 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 			: await import('fs-ext')
 					.then((m) => m.flockSync)
 					.catch(() => {
-						logger.warn(
+						// Only show this in debug mode since it's technical and
+						// doesn't affect normal operation
+						logger.debug(
 							'The fs-ext package is not installed. ' +
 								'Internal file locking will not be integrated with ' +
 								'host OS file locking.'
@@ -826,8 +852,6 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 
 	let wordPressReady = false;
 	let isFirstRequest = true;
-
-	logger.log('Starting a PHP server...');
 
 	const server = await startServer({
 		port: selectedPort,
@@ -1081,11 +1105,13 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 				handler = new BlueprintsV2Handler(args, {
 					siteUrl,
 					processIdSpaceLength,
+					cliOutput,
 				});
 			} else {
 				handler = new BlueprintsV1Handler(args, {
 					siteUrl,
 					processIdSpaceLength,
+					cliOutput,
 				});
 
 				if (typeof args.blueprint === 'string') {
@@ -1144,7 +1170,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 				}
 			);
 
-			logger.log(`Starting up workers`);
+			cliOutput.startProgress('Starting...');
 
 			try {
 				const workers = await promisedWorkers;
@@ -1170,7 +1196,6 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 
 					await initialPlayground.isReady();
 					wordPressReady = true;
-					logger.log(`Booted!`);
 
 					loadBalancer = new LoadBalancer(initialPlayground);
 
@@ -1182,22 +1207,20 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 						);
 
 						if (compiledBlueprint) {
-							logger.log(`Running the Blueprint...`);
 							await runBlueprintV1Steps(
 								compiledBlueprint,
 								initialPlayground as UniversalPHP
 							);
-							logger.log(`Finished running the blueprint`);
 						}
 					}
 
 					if (args.command === 'build-snapshot') {
 						await zipSite(playground, args.outfile as string);
-						logger.log(`WordPress exported to ${args.outfile}`);
+						cliOutput.printStatus(`Exported to ${args.outfile}`);
 						await disposeCLI();
 						return;
 					} else if (args.command === 'run-blueprint') {
-						logger.log(`Blueprint executed`);
+						cliOutput.finishProgress('Done');
 						await disposeCLI();
 						return;
 					}
@@ -1210,8 +1233,6 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 					await initialWorker.worker.terminate();
 					playgroundsToCleanUp.delete(initialWorker.worker);
 				}
-
-				logger.log(`Preparing workers...`);
 
 				// Boot additional workers using the handler
 				const initialWorkerProcessIdSpace = processIdSpaceLength;
@@ -1243,9 +1264,8 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 					})
 				);
 
-				logger.log(
-					`WordPress is running on ${serverUrl} with ${targetWorkerCount} worker(s)`
-				);
+				cliOutput.finishProgress();
+				cliOutput.printReady(serverUrl, targetWorkerCount);
 
 				if (args.xdebug && args.experimentalDevtools) {
 					const bridge = await startBridge({

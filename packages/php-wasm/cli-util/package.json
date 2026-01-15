@@ -1,6 +1,6 @@
 {
 	"name": "@php-wasm/cli-util",
-	"version": "3.0.40",
+	"version": "3.0.41",
 	"description": "Utilities for PHP.wasm related CLIs",
 	"repository": {
 		"type": "git",

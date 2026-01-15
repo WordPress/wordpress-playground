@@ -123,9 +123,11 @@ export function expandAutoMounts(args: RunCLIArgs): RunCLIArgs {
 
 	if (isPluginDirectory(path)) {
 		const pluginName = basename(path);
+		const vfsPath = `/wordpress/wp-content/plugins/${pluginName}`;
 		mount.push({
 			hostPath: path,
-			vfsPath: `/wordpress/wp-content/plugins/${pluginName}`,
+			vfsPath,
+			autoMounted: true,
 		});
 		newArgs['additional-blueprint-steps'].push({
 			step: 'activatePlugin',
@@ -133,9 +135,11 @@ export function expandAutoMounts(args: RunCLIArgs): RunCLIArgs {
 		});
 	} else if (isThemeDirectory(path)) {
 		const themeName = basename(path);
+		const vfsPath = `/wordpress/wp-content/themes/${themeName}`;
 		mount.push({
 			hostPath: path,
-			vfsPath: `/wordpress/wp-content/themes/${themeName}`,
+			vfsPath,
+			autoMounted: true,
 		});
 		newArgs['additional-blueprint-steps'].push(
 			args['experimental-blueprints-v2-runner']
@@ -165,11 +169,16 @@ export function expandAutoMounts(args: RunCLIArgs): RunCLIArgs {
 			mount.push({
 				hostPath: `${path}/${file}`,
 				vfsPath: `/wordpress/wp-content/${file}`,
+				autoMounted: true,
 			});
 		}
 		newArgs['additional-blueprint-steps'].push(ACTIVATE_FIRST_THEME_STEP);
 	} else if (containsFullWordPressInstallation(path)) {
-		mountBeforeInstall.push({ hostPath: path, vfsPath: '/wordpress' });
+		mountBeforeInstall.push({
+			hostPath: path,
+			vfsPath: '/wordpress',
+			autoMounted: true,
+		});
 		// @TODO: If overriding another mode, throw an error or print a warning.
 		newArgs.mode = 'apply-to-existing-site';
 		newArgs['additional-blueprint-steps'].push(ACTIVATE_FIRST_THEME_STEP);
