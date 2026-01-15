@@ -22,6 +22,7 @@ interface QueryAPIParams {
 	'import-content'?: string;
 	url?: string;
 	'blueprint-url'?: string;
+	'page-title'?: string;
 }
 
 export function parseBlueprint(rawData: string) {
@@ -42,7 +43,13 @@ export class PlaygroundRoute {
 			return updateUrl(baseUrl, site.originalUrlParams || {});
 		} else {
 			const baseParams = new URLSearchParams(baseUrl.split('?')[1]);
-			const preserveParamsKeys = ['mode', 'networking', 'login', 'url'];
+			const preserveParamsKeys = [
+				'mode',
+				'networking',
+				'login',
+				'url',
+				'page-title',
+			];
 			const preserveParams: Record<string, string | null> = {};
 			for (const param of preserveParamsKeys) {
 				if (baseParams.has(param)) {
