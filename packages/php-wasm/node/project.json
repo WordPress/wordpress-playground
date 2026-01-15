@@ -238,7 +238,8 @@
 					"php-networking.spec.ts",
 					"php-dynamic-loading.spec.ts",
 					"php-mysqli.spec.ts",
-					"php-process-manager.spec.ts"
+					"php-process-manager.spec.ts",
+					"proxyfs-mmap.spec.ts"
 				]
 			}
 		},
@@ -254,7 +255,8 @@
 					"php-networking.spec.ts",
 					"php-dynamic-loading.spec.ts",
 					"php-mysqli.spec.ts",
-					"php-process-manager.spec.ts"
+					"php-process-manager.spec.ts",
+					"proxyfs-mmap.spec.ts"
 				]
 			}
 		},
