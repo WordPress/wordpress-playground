@@ -45,6 +45,11 @@ export type WorkerBootOptions = {
 	withIntl?: boolean;
 	withXdebug?: boolean;
 	nativeInternalDirPath: string;
+	/**
+	 * PHP constants to define.
+	 * These will be merged with any Blueprint-provided constants.
+	 */
+	constants?: Record<string, string | number | boolean | null>;
 };
 
 export type PrimaryWorkerBootOptions = WorkerBootOptions & {
@@ -143,11 +148,10 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 		this.booted = true;
 
 		try {
+			// Start with CLI-provided constants (if any)
 			const constants: Record<string, string | number | boolean | null> =
 				{
-					WP_DEBUG: true,
-					WP_DEBUG_LOG: true,
-					WP_DEBUG_DISPLAY: false,
+					...(options.constants || {}),
 				};
 			let wordpressBooted = false;
 			const requestHandler = await bootWordPressAndRequestHandler({

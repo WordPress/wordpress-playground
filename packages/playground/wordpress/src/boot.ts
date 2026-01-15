@@ -384,6 +384,17 @@ export async function bootRequestHandler(options: BootRequestHandlerOptions) {
 		//         https://github.com/WordPress/sqlite-database-integration/issues/195
 		php.defineConstant('WP_SQLITE_AST_DRIVER', true);
 
+		// Define any custom constants provided via CLI or configuration
+		if (options.constants) {
+			for (const key in options.constants) {
+				const value = options.constants[key];
+				// Skip null values as PHP constants cannot be null
+				if (value !== null) {
+					php.defineConstant(key, value as string);
+				}
+			}
+		}
+
 		/**
 		 * Set up mu-plugins in /internal/mu-plugins
 		 * using auto_prepend_file to provide platform-level

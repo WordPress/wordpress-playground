@@ -74,6 +74,106 @@ export function parseMountDirArguments(mounts: string[]): Mount[] {
 	return parsedMounts;
 }
 
+/**
+ * Parse an array of constant definition strings into a constants object.
+ *
+ * Supports multiple formats:
+ * - NAME=value (e.g., "WP_DEBUG=true", "LIMIT=100", "TITLE=Hello")
+ * - NAME (boolean true)
+ *
+ * Type auto-detection:
+ * - Booleans: "true" or "false" (case-insensitive)
+ * - Numbers: numeric strings like "123", "45.67"
+ * - Null: "null" (case-insensitive) - Note: null values are skipped as PHP constants cannot be null
+ * - Strings: everything else
+ *
+ * Examples:
+ *     parseDefineArguments(['WP_DEBUG=true', 'LIMIT=100', 'MY_FEATURE'])
+ *     // returns: { WP_DEBUG: true, LIMIT: 100, MY_FEATURE: true }
+ *
+ * @param defines - An array of constant definition strings
+ * @returns An object mapping constant names to their values (null values are omitted)
+ */
+export function parseDefineArguments(
+	defines: string[]
+): Record<string, string | number | boolean | null> {
+	const constants: Record<string, string | number | boolean | null> = {};
+
+	for (const define of defines) {
+		const equalIndex = define.indexOf('=');
+
+		if (equalIndex === -1) {
+			// No equals sign: treat as boolean true
+			// e.g., --define MY_FEATURE
+			const name = define.trim();
+			if (!name) {
+				throw new Error(
+					'Invalid constant definition: empty constant name'
+				);
+			}
+			constants[name] = true;
+			continue;
+		}
+
+		const name = define.substring(0, equalIndex).trim();
+		const value = define.substring(equalIndex + 1).trim();
+
+		if (!name) {
+			throw new Error(
+				`Invalid constant definition: "${define}". Constant name cannot be empty.`
+			);
+		}
+
+		// Auto-detect type
+		const detectedValue = autoDetectType(value);
+
+		// Skip null values as PHP constants cannot be null
+		if (detectedValue !== null) {
+			constants[name] = detectedValue;
+		}
+	}
+
+	return constants;
+}
+
+/**
+ * Auto-detect the type of a string value and convert it appropriately.
+ *
+ * Type detection order:
+ * 1. Null: "null" (case-insensitive)
+ * 2. Boolean: "true" or "false" (case-insensitive)
+ * 3. Number: valid numeric string
+ * 4. String: everything else
+ *
+ * @param value - The string value to convert
+ * @returns The value converted to its detected type
+ */
+function autoDetectType(value: string): string | number | boolean | null {
+	const lowerValue = value.toLowerCase();
+
+	// Check for null
+	if (lowerValue === 'null') {
+		return null;
+	}
+
+	// Check for boolean
+	if (lowerValue === 'true') {
+		return true;
+	}
+	if (lowerValue === 'false') {
+		return false;
+	}
+
+	// Check for number
+	// Use a simple check: if it's a valid number and not empty
+	if (value !== '' && !isNaN(Number(value))) {
+		return Number(value);
+	}
+
+	// Default to string
+	return value;
+}
+
 export async function mountResources(php: PHP, mounts: Mount[]) {
 	for (const mount of mounts) {
 		await php.mount(

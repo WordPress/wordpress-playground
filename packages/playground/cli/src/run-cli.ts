@@ -26,6 +26,7 @@ import {
 	expandAutoMounts,
 	parseMountDirArguments,
 	parseMountWithDelimiterArguments,
+	parseDefineArguments,
 } from './mounts';
 import { startServer } from './start-server';
 import type { PlaygroundCliBlueprintV1Worker } from './blueprints-v1/worker-thread-v1';
@@ -103,6 +104,16 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 				describe: 'WordPress version to use.',
 				type: 'string',
 				default: 'latest',
+			},
+			define: {
+				describe:
+					'Define PHP constants (can be used multiple times). Format: NAME=value or just NAME for boolean true. ' +
+					'Types are auto-detected: numbers (123), booleans (true/false), strings ("text"). ' +
+					'Note: null values are not supported for PHP constants and will be skipped. ' +
+					'Examples: --define WP_DEBUG=true --define CUSTOM_LIMIT=100 --define MY_FEATURE',
+				type: 'array',
+				string: true,
+				coerce: parseDefineArguments,
 			},
 			// @TODO: Support read-only mounts, e.g. via WORKERFS, a custom
 			// ReadOnlyNODEFS, or by copying the files into MEMFS
@@ -680,6 +691,12 @@ export interface RunCLIArgs {
 	experimentalDevtools?: boolean;
 	'experimental-blueprints-v2-runner'?: boolean;
 	wordpressInstallMode?: WordPressInstallMode;
+	/**
+	 * PHP constants to define via CLI flags.
+	 * These will be merged with any Blueprint-provided constants,
+	 * with CLI constants taking precedence.
+	 */
+	define?: Record<string, string | number | boolean | null>;
 
 	// --------- Blueprint V1 args -----------
 	skipSqliteSetup?: boolean;

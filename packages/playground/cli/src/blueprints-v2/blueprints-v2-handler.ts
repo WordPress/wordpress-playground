@@ -69,6 +69,7 @@ export class BlueprintsV2Handler {
 			nativeInternalDirPath,
 			mountsBeforeWpInstall: this.args['mount-before-install'] || [],
 			mountsAfterWpInstall: this.args.mount || [],
+			constants: this.args.define,
 		};
 
 		await playground.bootAndSetUpInitialWorker(workerBootArgs);
@@ -103,6 +104,7 @@ export class BlueprintsV2Handler {
 			nativeInternalDirPath,
 			mountsBeforeWpInstall: this.args['mount-before-install'] || [],
 			mountsAfterWpInstall: this.args.mount || [],
+			constants: this.args.define,
 		};
 
 		await playground.bootWorker(workerBootArgs);
