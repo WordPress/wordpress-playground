@@ -20,12 +20,11 @@ import {
 import type { PlaygroundCliBlueprintV1Worker } from './worker-thread-v1';
 import type { MessagePort as NodeMessagePort } from 'worker_threads';
 import {
-	LogVerbosity,
 	type RunCLIArgs,
 	type SpawnedWorker,
 	type WorkerType,
 } from '../run-cli';
-import { shouldRenderProgress } from '../utils/progress';
+import type { CLIOutput } from '../cli-output';
 
 /**
  * Boots Playground CLI workers using Blueprint version 1.
@@ -34,22 +33,23 @@ import { shouldRenderProgress } from '../utils/progress';
  * implemented in TypeScript and orchestrated by this class.
  */
 export class BlueprintsV1Handler {
-	private lastProgressMessage = '';
-
 	private siteUrl: string;
 	private processIdSpaceLength: number;
 	private args: RunCLIArgs;
+	private cliOutput: CLIOutput;
 
 	constructor(
 		args: RunCLIArgs,
 		options: {
 			siteUrl: string;
 			processIdSpaceLength: number;
+			cliOutput: CLIOutput;
 		}
 	) {
 		this.args = args;
 		this.siteUrl = options.siteUrl;
 		this.processIdSpaceLength = options.processIdSpaceLength;
+		this.cliOutput = options.cliOutput;
 	}
 
 	getWorkerType(): WorkerType {
@@ -85,10 +85,9 @@ export class BlueprintsV1Handler {
 				);
 				progressReached100 = percentProgress === 100;
 
-				this.writeProgressUpdate(
-					process.stdout,
-					`Downloading WordPress ${percentProgress}%...`,
-					progressReached100
+				this.cliOutput.updateProgress(
+					'Downloading WordPress',
+					percentProgress
 				);
 			}) as any);
 
@@ -104,17 +103,17 @@ export class BlueprintsV1Handler {
 						`${wpDetails.version}.zip`,
 						monitor
 					);
-			logger.log(
+			logger.debug(
 				`Resolved WordPress release URL: ${wpDetails?.releaseUrl}`
 			);
 		}
 
 		let sqliteIntegrationPluginZip;
 		if (this.args.skipSqliteSetup) {
-			logger.log(`Skipping SQLite integration plugin setup...`);
+			logger.debug(`Skipping SQLite integration plugin setup...`);
 			sqliteIntegrationPluginZip = undefined;
 		} else {
-			logger.log(`Fetching SQLite integration plugin...`);
+			this.cliOutput.updateProgress('Preparing SQLite database');
 			sqliteIntegrationPluginZip = await fetchSqliteIntegration(monitor);
 		}
 
@@ -129,7 +128,7 @@ export class BlueprintsV1Handler {
 		// Comlink communication proxy
 		await playground.isConnected();
 
-		logger.log(`Booting WordPress...`);
+		this.cliOutput.updateProgress('Booting WordPress');
 
 		const runtimeConfiguration = await resolveRuntimeConfiguration(
 			this.getEffectiveBlueprint()
@@ -166,12 +165,11 @@ export class BlueprintsV1Handler {
 			!this.args['mount-before-install'] &&
 			!fs.existsSync(preinstalledWpContentPath)
 		) {
-			logger.log(`Caching preinstalled WordPress for the next boot...`);
+			this.cliOutput.updateProgress('Caching WordPress for next boot');
 			fs.writeFileSync(
 				preinstalledWpContentPath,
 				(await zipDirectory(playground, '/wordpress'))!
 			);
-			logger.log(`Cached!`);
 		}
 
 		return playground;
@@ -232,13 +230,8 @@ export class BlueprintsV1Handler {
 			// Use floor() so we don't report 100% until truly there.
 			const progressInteger = Math.floor(e.detail.progress);
 			lastCaption =
-				e.detail.caption || lastCaption || 'Running the Blueprint';
-			const message = `${lastCaption.trim()} – ${progressInteger}%`;
-			this.writeProgressUpdate(
-				process.stdout,
-				message,
-				progressReached100
-			);
+				e.detail.caption || lastCaption || 'Running Blueprint';
+			this.cliOutput.updateProgress(lastCaption.trim(), progressInteger);
 		});
 		return await compileBlueprintV1(blueprint as BlueprintV1Declaration, {
 			progress: tracker,
@@ -272,37 +265,5 @@ export class BlueprintsV1Handler {
 						...(resolvedBlueprint?.preferredVersions || {}),
 					},
 				};
-	}
-
-	writeProgressUpdate(
-		writeStream: NodeJS.WriteStream,
-		message: string,
-		finalUpdate: boolean
-	) {
-		if (this.args.verbosity === LogVerbosity.Quiet.name) {
-			return;
-		}
-		if (!shouldRenderProgress(writeStream)) {
-			return;
-		}
-		if (message === this.lastProgressMessage) {
-			// Avoid repeating the same message
-			return;
-		}
-		this.lastProgressMessage = message;
-
-		if (writeStream.isTTY) {
-			// Overwrite previous progress updates in-place for a quieter UX.
-			writeStream.cursorTo(0);
-			writeStream.write(message);
-			writeStream.clearLine(1);
-
-			if (finalUpdate) {
-				writeStream.write('\n');
-			}
-		} else {
-			// Fall back to writing one line per progress update
-			writeStream.write(`${message}\n`);
-		}
 	}
 }

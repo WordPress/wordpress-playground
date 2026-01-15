@@ -6,7 +6,7 @@ import type {
 } from './worker-thread-v2';
 import type { MessagePort as NodeMessagePort } from 'worker_threads';
 import type { RunCLIArgs, SpawnedWorker, WorkerType } from '../run-cli';
-import { shouldRenderProgress } from '../utils/progress';
+import type { CLIOutput } from '../cli-output';
 
 /**
  * Boots Playground CLI workers using Blueprint version 2.
@@ -16,23 +16,25 @@ import { shouldRenderProgress } from '../utils/progress';
  */
 export class BlueprintsV2Handler {
 	private phpVersion: SupportedPHPVersion;
-	private lastProgressMessage = '';
 
 	private siteUrl: string;
 	private processIdSpaceLength: number;
 	private args: RunCLIArgs;
+	private cliOutput: CLIOutput;
 
 	constructor(
 		args: RunCLIArgs,
 		options: {
 			siteUrl: string;
 			processIdSpaceLength: number;
+			cliOutput: CLIOutput;
 		}
 	) {
 		this.args = args;
 		this.siteUrl = options.siteUrl;
 		this.processIdSpaceLength = options.processIdSpaceLength;
 		this.phpVersion = args.php as SupportedPHPVersion;
+		this.cliOutput = options.cliOutput;
 	}
 
 	getWorkerType(): WorkerType {
@@ -106,34 +108,5 @@ export class BlueprintsV2Handler {
 		await playground.bootWorker(workerBootArgs);
 
 		return playground;
-	}
-
-	writeProgressUpdate(
-		writeStream: NodeJS.WriteStream,
-		message: string,
-		finalUpdate: boolean
-	) {
-		if (!shouldRenderProgress(writeStream)) {
-			return;
-		}
-		if (message === this.lastProgressMessage) {
-			// Avoid repeating the same message
-			return;
-		}
-		this.lastProgressMessage = message;
-
-		if (writeStream.isTTY) {
-			// Overwrite previous progress updates in-place for a quieter UX.
-			writeStream.cursorTo(0);
-			writeStream.write(message);
-			writeStream.clearLine(1);
-
-			if (finalUpdate) {
-				writeStream.write('\n');
-			}
-		} else {
-			// Fall back to writing one line per progress update
-			writeStream.write(`${message}\n`);
-		}
 	}
 }

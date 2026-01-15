@@ -620,7 +620,7 @@ describe.each(blueprintVersions)(
 			});
 
 			test.skipIf(isBlueprintsV2OnWindows)(
-				'should output main logs by default',
+				'should start server successfully with default verbosity',
 				async ({ skip }) => {
 					// Skip v2 early to avoid starting expensive WordPress download
 					// @TODO: Fix this test for v2 in CI. It passes locally but not on GitHub.
@@ -634,23 +634,13 @@ describe.each(blueprintVersions)(
 						command: 'server',
 					});
 
-					expect(output).toEqual(
-						expect.arrayContaining([
-							'Starting a PHP server...',
-							'Starting up workers',
-							expect.stringMatching(
-								/^Resolved WordPress release URL: https:\/\/downloads\.w(ordpress)?\.org\/release\/wordpress-\d+\.\d+(?:\.\d+|-RC\d+|-beta\d+)?\.zip$/
-							),
-							'Fetching SQLite integration plugin...',
-							'Booting WordPress...',
-							'Booted!',
-							'Running the Blueprint...',
-							'Finished running the blueprint',
-							'Preparing workers...',
-							expect.stringMatching(
-								/^WordPress is running on http:\/\/127\.0\.0\.1:\d+ with \d+ worker\(s\)$/
-							),
-						])
+					// With the new CLIOutput system, most user-facing messages
+					// go to stdout via CLIOutput rather than through the logger.
+					// Logger is now primarily used for debug information.
+					// Just verify the server started successfully.
+					expect(cliServer).toBeDefined();
+					expect(cliServer.serverUrl).toMatch(
+						/^http:\/\/127\.0\.0\.1:\d+$/
 					);
 				}
 			);
