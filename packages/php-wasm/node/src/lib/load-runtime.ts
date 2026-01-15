@@ -9,7 +9,10 @@ import fs from 'fs';
 import { getPHPLoaderModule } from '.';
 import { withNetworking } from './networking/with-networking';
 import type { FileLockManager } from './file-lock-manager';
-import { withXdebug, type XdebugOptions } from './extensions/xdebug/with-xdebug';
+import {
+	withXdebug,
+	type XdebugOptions,
+} from './extensions/xdebug/with-xdebug';
 import { withIntl } from './extensions/intl/with-intl';
 import { joinPaths } from '@php-wasm/util';
 import type { Promised } from '@php-wasm/util';
@@ -222,6 +225,68 @@ export async function loadNodeRuntime(
 			 * https://github.com/emscripten-core/emscripten/pull/19400/files#diff-456b6256111c90ca5e6bdb583ab87108cd51cbbefc812c4785ea315c0728b3a8R11
 			 */
 			phpRuntime.FS.root.mount.opts.root = '.';
+
+			/**
+			 * Emscripten's PROXYFS does not support real kernel-backed mmap().
+			 * However, some native code relies on mmap() to obtain a contiguous
+			 * read-only view of a file. This implementation emulates mmap by
+			 * allocating memory in the Wasm heap and eagerly reading the file
+			 * contents into it.
+			 *
+			 * This preserves expected mmap behavior (read-only, offset-based access)
+			 * while remaining compatible with virtual filesystem backends.
+			 */
+			phpRuntime.FS.filesystems.PROXYFS.stream_ops.mmap = (
+				stream: any,
+				length: number,
+				position: number
+			) => {
+				if (
+					phpRuntime.phpVersion.major === 7 &&
+					phpRuntime.phpVersion.minor <= 3
+				) {
+					const path = phpRuntime.FS.getPath(stream.node);
+
+					if (!path.endsWith('.dat')) {
+						const fs = stream.node.mount.opts.fs;
+						const stat = fs.fstat(stream.nfd);
+						length = stat.size >>> 0;
+					}
+				}
+
+				if (position !== 0) return -22;
+
+				const ptr = phpRuntime.malloc(length);
+
+				if (!ptr) return -12;
+
+				const heap = phpRuntime.HEAPU8.subarray(ptr, ptr + length);
+
+				let total = 0;
+
+				while (total < length) {
+					const n = phpRuntime.FS.filesystems.PROXYFS.stream_ops.read(
+						stream,
+						heap,
+						total,
+						length - total,
+						null
+					);
+
+					if (n <= 0) break;
+					total += n;
+				}
+
+				if (total !== length) {
+					phpRuntime.free(ptr);
+					return -5;
+				}
+
+				return {
+					ptr,
+					allocated: true,
+				};
+			};
 		},
 	};
 
