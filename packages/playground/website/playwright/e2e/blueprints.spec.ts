@@ -283,12 +283,12 @@ test('Intl functions should work when intl is enabled', async ({
 	wordpress,
 }) => {
 	const blueprint: Blueprint = {
-		landingPage: '/intl-test.php',
+		landingPage: '/intl-functions-test.php',
 		features: { intl: true },
 		steps: [
 			{
 				step: 'writeFile',
-				path: '/wordpress/intl-test.php',
+				path: '/wordpress/intl-functions-test.php',
 				data: `<?php
 					$formatter = numfmt_create('en-US', NumberFormatter::CURRENCY);
 					echo numfmt_format($formatter, 100.00);
@@ -300,6 +300,37 @@ test('Intl functions should work when intl is enabled', async ({
 	};
 	await website.goto(`/#${JSON.stringify(blueprint)}`);
 	await expect(wordpress.locator('body')).toContainText('$100.00100,00\xA0€');
+});
+
+test('Intl classes should work when intl is enabled', async ({
+	website,
+	wordpress,
+}) => {
+	const blueprint: Blueprint = {
+		landingPage: '/intl-classes-test.php',
+		features: { intl: true },
+		steps: [
+			{
+				step: 'writeFile',
+				path: '/wordpress/intl-classes-test.php',
+				data: `<?php
+							$data = array(
+								'F' => 'Foo',
+								'Br' => 'Bar',
+								'Bz' => 'Bz',
+							);
+
+							$collator = new Collator('en_US');
+							$collator->asort($data, Collator::SORT_STRING);
+							var_dump($data);
+						?>`,
+			},
+		],
+	};
+	await website.goto(`/#${JSON.stringify(blueprint)}`);
+	await expect(wordpress.locator('body')).toContainText(
+		'array(3) {\n  ["Br"]=>\n  string(3) "Bar"\n  ["Bz"]=>\n  string(2) "Bz"\n  ["F"]=>\n  string(3) "Foo"\n}\n'
+	);
 });
 
 test('HTTPS requests via curl_exec() should work', async ({
