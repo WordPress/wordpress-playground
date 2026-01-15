@@ -16,7 +16,8 @@ export type BlueprintV1 = BlueprintV1Declaration | BlueprintBundle;
 
 /**
  * PHP versions accepted in Blueprint schema.
- * Includes deprecated versions (7.2, 7.3) which are automatically upgraded to 7.4 during compilation.
+ * Includes deprecated versions (7.2, 7.3) which are automatically
+ * upgraded to 7.4 during compilation.
  */
 export type BlueprintPHPVersion = SupportedPHPVersion | '7.2' | '7.3';
 
