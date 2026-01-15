@@ -22,7 +22,7 @@ Vous pouvez suivre l'état de ces problèmes sur le [tableau de bord du projet P
 
 <!-- ### Temporary by design -->
 
-### Temporaire par conception
+### Conçu pour être temporaire
 
 <!-- As Playground [streams rather than serves](/about#streamed-not-served) WordPress, all database changes and uploads will be gone when you refresh the page. To avoid losing your work, either [export your work](/quick-start-guide#save-your-site) before or enable storage in the browser/device via the "Save" button found in the top right on the side of the address bar. -->
 
