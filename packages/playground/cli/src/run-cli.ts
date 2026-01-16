@@ -107,27 +107,58 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 				type: 'string',
 				default: 'latest',
 			},
-			define: {
+			'define-for-this-run': {
 				describe:
-					'Define PHP string constants (can be used multiple times). Format: NAME=value or just NAME for empty string. ' +
-					'Examples: --define API_KEY=secret --define TITLE="Hello World" --define EMPTY',
+					'Define PHP string constants for the current process only (can be used multiple times). ' +
+					'Format: NAME=value or just NAME for empty string. ' +
+					'These constants are set via php.defineConstant() and only exist for the current request. ' +
+					'Examples: --define-for-this-run API_KEY=secret --define-for-this-run TITLE="Hello World"',
 				type: 'array',
 				string: true,
 				coerce: parseDefineStringArguments,
 			},
-			'define-bool': {
+			'define-bool-for-this-run': {
 				describe:
-					'Define PHP boolean constants (can be used multiple times). Format: NAME=value or just NAME for true. ' +
-					'Value must be "true", "false", "1", or "0". ' +
-					'Examples: --define-bool WP_DEBUG=true --define-bool MY_FEATURE',
+					'Define PHP boolean constants for the current process only (can be used multiple times). ' +
+					'Format: NAME=value or just NAME for true. Value must be "true", "false", "1", or "0". ' +
+					'Examples: --define-bool-for-this-run WP_DEBUG=true --define-bool-for-this-run MY_FEATURE',
 				type: 'array',
 				string: true,
 				coerce: parseDefineBoolArguments,
 			},
-			'define-number': {
+			'define-number-for-this-run': {
 				describe:
-					'Define PHP number constants (can be used multiple times). Format: NAME=value. ' +
-					'Examples: --define-number LIMIT=100 --define-number RATE=45.67',
+					'Define PHP number constants for the current process only (can be used multiple times). ' +
+					'Format: NAME=value. ' +
+					'Examples: --define-number-for-this-run LIMIT=100 --define-number-for-this-run RATE=45.67',
+				type: 'array',
+				string: true,
+				coerce: parseDefineNumberArguments,
+			},
+			'define-in-wp-config': {
+				describe:
+					'Define PHP string constants in wp-config.php (can be used multiple times). ' +
+					'Format: NAME=value or just NAME for empty string. ' +
+					'These constants are written to wp-config.php and persist across requests. ' +
+					'Examples: --define-in-wp-config WP_HOME=https://example.com --define-in-wp-config CUSTOM_VAL=test',
+				type: 'array',
+				string: true,
+				coerce: parseDefineStringArguments,
+			},
+			'define-bool-in-wp-config': {
+				describe:
+					'Define PHP boolean constants in wp-config.php (can be used multiple times). ' +
+					'Format: NAME=value or just NAME for true. Value must be "true", "false", "1", or "0". ' +
+					'Examples: --define-bool-in-wp-config WP_DEBUG=true --define-bool-in-wp-config WP_DEBUG_LOG=false',
+				type: 'array',
+				string: true,
+				coerce: parseDefineBoolArguments,
+			},
+			'define-number-in-wp-config': {
+				describe:
+					'Define PHP number constants in wp-config.php (can be used multiple times). ' +
+					'Format: NAME=value. ' +
+					'Examples: --define-number-in-wp-config WP_MEMORY_LIMIT=256 --define-number-in-wp-config AUTOSAVE_INTERVAL=160',
 				type: 'array',
 				string: true,
 				coerce: parseDefineNumberArguments,
@@ -394,6 +425,17 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 				type: 'boolean',
 				default: false,
 			},
+			// Define constants
+			'define-for-this-run': sharedOptions['define-for-this-run'],
+			'define-bool-for-this-run':
+				sharedOptions['define-bool-for-this-run'],
+			'define-number-for-this-run':
+				sharedOptions['define-number-for-this-run'],
+			'define-in-wp-config': sharedOptions['define-in-wp-config'],
+			'define-bool-in-wp-config':
+				sharedOptions['define-bool-in-wp-config'],
+			'define-number-in-wp-config':
+				sharedOptions['define-number-in-wp-config'],
 		};
 
 		const buildSnapshotOnlyOptions: Record<string, YargsOptions> = {
@@ -709,17 +751,35 @@ export interface RunCLIArgs {
 	'experimental-blueprints-v2-runner'?: boolean;
 	wordpressInstallMode?: WordPressInstallMode;
 	/**
-	 * PHP string constants defined via --define flag.
+	 * PHP string constants defined via --define-for-this-run flag.
+	 * Set via php.defineConstant(), process-specific only.
 	 */
-	define?: Record<string, string>;
+	'define-for-this-run'?: Record<string, string>;
 	/**
-	 * PHP boolean constants defined via --define-bool flag.
+	 * PHP boolean constants defined via --define-bool-for-this-run flag.
+	 * Set via php.defineConstant(), process-specific only.
 	 */
-	'define-bool'?: Record<string, boolean>;
+	'define-bool-for-this-run'?: Record<string, boolean>;
 	/**
-	 * PHP number constants defined via --define-number flag.
+	 * PHP number constants defined via --define-number-for-this-run flag.
+	 * Set via php.defineConstant(), process-specific only.
 	 */
-	'define-number'?: Record<string, number>;
+	'define-number-for-this-run'?: Record<string, number>;
+	/**
+	 * PHP string constants defined via --define-in-wp-config flag.
+	 * Written to wp-config.php, persist across requests.
+	 */
+	'define-in-wp-config'?: Record<string, string>;
+	/**
+	 * PHP boolean constants defined via --define-bool-in-wp-config flag.
+	 * Written to wp-config.php, persist across requests.
+	 */
+	'define-bool-in-wp-config'?: Record<string, boolean>;
+	/**
+	 * PHP number constants defined via --define-number-in-wp-config flag.
+	 * Written to wp-config.php, persist across requests.
+	 */
+	'define-number-in-wp-config'?: Record<string, number>;
 
 	// --------- Blueprint V1 args -----------
 	skipSqliteSetup?: boolean;
@@ -785,16 +845,16 @@ const highlight = (text: string) =>
 // different things depending on the CLI command without forcing the
 // callers (mostly automated tests) to check return values.
 /**
- * Merge separate constant types into a single object.
+ * Merge separate constant types into a single object for process-specific constants.
  * Validates that there are no duplicate constant names across types.
  */
-export function mergeConstants(
+export function mergeConstantsForThisRun(
 	args: RunCLIArgs
 ): Record<string, string | number | boolean> {
 	const merged: Record<string, string | number | boolean> = {};
-	const defineString = args.define || {};
-	const defineBool = args['define-bool'] || {};
-	const defineNumber = args['define-number'] || {};
+	const defineString = args['define-for-this-run'] || {};
+	const defineBool = args['define-bool-for-this-run'] || {};
+	const defineNumber = args['define-number-for-this-run'] || {};
 
 	// Check for duplicates
 	const allKeys = [
@@ -810,6 +870,43 @@ export function mergeConstants(
 			if (seen.has(key)) {
 				throw new Error(
 					`Constant "${key}" is defined multiple times with different types. Each constant can only be defined once.`
+				);
+			}
+			seen.add(key);
+		}
+	}
+
+	// Merge all constants
+	Object.assign(merged, defineString, defineBool, defineNumber);
+	return merged;
+}
+
+/**
+ * Merge separate constant types into a single object for wp-config.php constants.
+ * Validates that there are no duplicate constant names across types.
+ */
+export function mergeConstantsForWpConfig(
+	args: RunCLIArgs
+): Record<string, string | number | boolean> {
+	const merged: Record<string, string | number | boolean> = {};
+	const defineString = args['define-in-wp-config'] || {};
+	const defineBool = args['define-bool-in-wp-config'] || {};
+	const defineNumber = args['define-number-in-wp-config'] || {};
+
+	// Check for duplicates
+	const allKeys = [
+		...Object.keys(defineString),
+		...Object.keys(defineBool),
+		...Object.keys(defineNumber),
+	];
+	const uniqueKeys = new Set(allKeys);
+	if (allKeys.length !== uniqueKeys.size) {
+		// Find the duplicate
+		const seen = new Set<string>();
+		for (const key of allKeys) {
+			if (seen.has(key)) {
+				throw new Error(
+					`Constant "${key}" is defined multiple times in wp-config with different types. Each constant can only be defined once.`
 				);
 			}
 			seen.add(key);

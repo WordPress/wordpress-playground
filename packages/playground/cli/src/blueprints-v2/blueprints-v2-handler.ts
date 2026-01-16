@@ -9,7 +9,8 @@ import {
 	type RunCLIArgs,
 	type SpawnedWorker,
 	type WorkerType,
-	mergeConstants,
+	mergeConstantsForThisRun,
+	mergeConstantsForWpConfig,
 } from '../run-cli';
 import type { CLIOutput } from '../cli-output';
 
@@ -74,7 +75,8 @@ export class BlueprintsV2Handler {
 			nativeInternalDirPath,
 			mountsBeforeWpInstall: this.args['mount-before-install'] || [],
 			mountsAfterWpInstall: this.args.mount || [],
-			constants: mergeConstants(this.args),
+			constants: mergeConstantsForThisRun(this.args),
+			wpConfigConstants: mergeConstantsForWpConfig(this.args),
 		};
 
 		await playground.bootAndSetUpInitialWorker(workerBootArgs);
@@ -109,7 +111,8 @@ export class BlueprintsV2Handler {
 			nativeInternalDirPath,
 			mountsBeforeWpInstall: this.args['mount-before-install'] || [],
 			mountsAfterWpInstall: this.args.mount || [],
-			constants: mergeConstants(this.args),
+			constants: mergeConstantsForThisRun(this.args),
+			wpConfigConstants: mergeConstantsForWpConfig(this.args),
 		};
 
 		await playground.bootWorker(workerBootArgs);

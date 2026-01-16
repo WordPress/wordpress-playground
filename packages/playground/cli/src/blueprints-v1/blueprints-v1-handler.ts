@@ -23,7 +23,8 @@ import {
 	type RunCLIArgs,
 	type SpawnedWorker,
 	type WorkerType,
-	mergeConstants,
+	mergeConstantsForThisRun,
+	mergeConstantsForWpConfig,
 } from '../run-cli';
 import type { CLIOutput } from '../cli-output';
 
@@ -159,7 +160,8 @@ export class BlueprintsV1Handler {
 			// TODO: Consider supporting Xdebug for the initial worker via a dedicated flag.
 			withXdebug: false,
 			nativeInternalDirPath,
-			constants: mergeConstants(this.args),
+			constants: mergeConstantsForThisRun(this.args),
+			wpConfigConstants: mergeConstantsForWpConfig(this.args),
 		});
 
 		if (
@@ -212,7 +214,8 @@ export class BlueprintsV1Handler {
 			withIntl: this.args.intl,
 			withXdebug: !!this.args.xdebug,
 			nativeInternalDirPath,
-			constants: mergeConstants(this.args),
+			constants: mergeConstantsForThisRun(this.args),
+			wpConfigConstants: mergeConstantsForWpConfig(this.args),
 		});
 		await playground.isReady();
 		return playground;

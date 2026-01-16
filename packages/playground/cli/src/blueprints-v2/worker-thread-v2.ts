@@ -18,7 +18,7 @@ import {
 	exposeAPI,
 	sandboxedSpawnHandlerFactory,
 } from '@php-wasm/universal';
-import { sprintf } from '@php-wasm/util';
+import { sprintf, joinPaths } from '@php-wasm/util';
 import {
 	type BlueprintMessage,
 	runBlueprintV2,
@@ -28,7 +28,10 @@ import {
 	type ParsedBlueprintV2String,
 	type RawBlueprintV2Data,
 } from '@wp-playground/blueprints';
-import { bootRequestHandler } from '@wp-playground/wordpress';
+import {
+	bootRequestHandler,
+	defineWpConfigConstants,
+} from '@wp-playground/wordpress';
 import { existsSync } from 'fs';
 import path from 'path';
 import { rootCertificates } from 'tls';
@@ -139,7 +142,16 @@ export type PrimaryWorkerBootArgs = Omit<
 	nativeInternalDirPath: string;
 	mountsBeforeWpInstall?: Array<Mount>;
 	mountsAfterWpInstall?: Array<Mount>;
+	/**
+	 * PHP constants to define via php.defineConstant().
+	 * Process-specific, set for each PHP instance.
+	 */
 	constants?: Record<string, string | number | boolean | null>;
+	/**
+	 * PHP constants to define in wp-config.php.
+	 * Persistent across requests.
+	 */
+	wpConfigConstants?: Record<string, string | number | boolean | null>;
 };
 
 type WorkerRunBlueprintArgs = Omit<
@@ -160,6 +172,7 @@ export type SecondaryWorkerBootArgs = {
 	phpVersion: SupportedPHPVersion;
 	phpIniEntries?: PhpIniOptions;
 	constants?: Record<string, string | number | boolean | null>;
+	wpConfigConstants?: Record<string, string | number | boolean | null>;
 	createFiles?: FileTree;
 	firstProcessId: number;
 	processIdSpaceLength: number;
@@ -274,6 +287,23 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 			...args,
 			mountsAfterWpInstall: args.mountsAfterWpInstall || [],
 		});
+
+		// Define wp-config.php constants if any were provided
+		if (
+			args.wpConfigConstants &&
+			Object.keys(args.wpConfigConstants).length > 0
+		) {
+			const wpConfigPath = joinPaths(
+				await primaryPhp.documentRoot,
+				'wp-config.php'
+			);
+			await defineWpConfigConstants(
+				primaryPhp,
+				wpConfigPath,
+				args.wpConfigConstants,
+				'rewrite'
+			);
+		}
 	}
 
 	async bootWorker(args: SecondaryWorkerBootArgs) {
@@ -567,6 +597,7 @@ async function createPHPWorker(
 		phpVersion,
 		createFiles,
 		constants,
+		wpConfigConstants,
 		phpIniEntries,
 		firstProcessId,
 		processIdSpaceLength,
@@ -590,6 +621,7 @@ async function createPHPWorker(
 		phpVersion,
 		createFiles,
 		constants,
+		wpConfigConstants,
 		phpIniEntries,
 		firstProcessId,
 		processIdSpaceLength,
