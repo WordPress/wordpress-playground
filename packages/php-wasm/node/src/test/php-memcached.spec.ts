@@ -7,6 +7,11 @@
  * To run locally:
  *   docker run -d -p 11211:11211 memcached:1.6-alpine
  *   MEMCACHED_HOST=127.0.0.1 npx vitest run php-memcached
+ *
+ * Note: Network tests verify that the memcached extension can communicate
+ * with a real memcached server. In WebAssembly, TCP connections are proxied
+ * through WebSockets, which may have timing differences compared to native
+ * socket implementations.
  */
 
 import { PHP, SupportedPHPVersions, type SupportedPHPVersion } from '@php-wasm/universal';
@@ -20,9 +25,120 @@ const phpVersions =
 		? [process.env['PHP']! as SupportedPHPVersion]
 		: SupportedPHPVersions;
 
+/**
+ * Test that the memcached extension loads and provides the expected API.
+ * This test does not require a running memcached server.
+ */
+describe('Memcached Extension', () => {
+	describe.each(phpVersions)('PHP %s', (phpVersion) => {
+		let php: PHP;
+
+		beforeEach(async () => {
+			php = new PHP(
+				await loadNodeRuntime(phpVersion as any, { withMemcached: true })
+			);
+		});
+
+		afterEach(() => {
+			php?.exit();
+		});
+
+		it('loads the memcached extension', async () => {
+			const result = await php.run({
+				code: `<?php
+					echo extension_loaded('memcached') ? 'LOADED' : 'NOT_LOADED';
+				?>`,
+			});
+			expect(result.text).toBe('LOADED');
+			expect(result.errors).toBeFalsy();
+		});
+
+		it('can instantiate Memcached class', async () => {
+			const result = await php.run({
+				code: `<?php
+					$m = new Memcached();
+					echo ($m instanceof Memcached) ? 'SUCCESS' : 'FAILED';
+				?>`,
+			});
+			expect(result.text).toBe('SUCCESS');
+			expect(result.errors).toBeFalsy();
+		});
+
+		it('has expected methods available', async () => {
+			const result = await php.run({
+				code: `<?php
+					$methods = [
+						'addServer', 'addServers', 'getServerList',
+						'get', 'set', 'add', 'replace', 'delete',
+						'getMulti', 'setMulti', 'deleteMulti',
+						'increment', 'decrement',
+						'flush', 'getStats', 'getVersion',
+						'setOption', 'getOption',
+						'getResultCode', 'getResultMessage'
+					];
+					$m = new Memcached();
+					$missing = [];
+					foreach ($methods as $method) {
+						if (!method_exists($m, $method)) {
+							$missing[] = $method;
+						}
+					}
+					echo empty($missing) ? 'ALL_PRESENT' : 'MISSING: ' . implode(', ', $missing);
+				?>`,
+			});
+			expect(result.text).toBe('ALL_PRESENT');
+			expect(result.errors).toBeFalsy();
+		});
+
+		it('has expected constants defined', async () => {
+			const result = await php.run({
+				code: `<?php
+					$constants = [
+						'Memcached::RES_SUCCESS',
+						'Memcached::RES_NOTFOUND',
+						'Memcached::RES_NOTSTORED',
+						'Memcached::OPT_BINARY_PROTOCOL',
+						'Memcached::OPT_CONNECT_TIMEOUT',
+						'Memcached::OPT_SEND_TIMEOUT',
+						'Memcached::OPT_RECV_TIMEOUT'
+					];
+					$missing = [];
+					foreach ($constants as $const) {
+						if (!defined($const)) {
+							$missing[] = $const;
+						}
+					}
+					echo empty($missing) ? 'ALL_DEFINED' : 'MISSING: ' . implode(', ', $missing);
+				?>`,
+			});
+			expect(result.text).toBe('ALL_DEFINED');
+			expect(result.errors).toBeFalsy();
+		});
+	});
+});
+
 const describeIfMemcached = MEMCACHED_HOST ? describe : describe.skip;
 
-describeIfMemcached('Memcached Integration', () => {
+/**
+ * PHP helper function that creates a configured memcached instance with proper
+ * timeout settings for WebSocket-based TCP connections.
+ */
+const createMemcachedPHP = (useBinaryProtocol = false) => `
+	function createMemcached() {
+		$m = new Memcached();
+		// Set timeouts to give WebSocket proxy time to connect
+		$m->setOption(Memcached::OPT_CONNECT_TIMEOUT, 5000);
+		$m->setOption(Memcached::OPT_SEND_TIMEOUT, 5000);
+		$m->setOption(Memcached::OPT_RECV_TIMEOUT, 5000);
+		// Blocking mode for more reliable connections in WASM
+		$m->setOption(Memcached::OPT_NO_BLOCK, false);
+		${useBinaryProtocol ? "$m->setOption(Memcached::OPT_BINARY_PROTOCOL, true);" : ''}
+		$m->addServer('${MEMCACHED_HOST}', ${MEMCACHED_PORT});
+		return $m;
+	}
+`;
+
+describeIfMemcached('Memcached Network Integration', () => {
 	describe.each(phpVersions)('PHP %s', (phpVersion) => {
 		let php: PHP;
 
@@ -39,8 +155,8 @@ describeIfMemcached('Memcached Integration', () => {
 		it('can connect to memcached server', async () => {
 			const result = await php.run({
 				code: `<?php
-					$m = new Memcached();
-					$m->addServer('${MEMCACHED_HOST}', ${MEMCACHED_PORT});
+					${createMemcachedPHP()}
+					$m = createMemcached();
 
 					// getVersion() returns an array of server versions if connected
 					$versions = $m->getVersion();
@@ -64,8 +180,8 @@ describeIfMemcached('Memcached Integration', () => {
 
 			const result = await php.run({
 				code: `<?php
-					$m = new Memcached();
-					$m->addServer('${MEMCACHED_HOST}', ${MEMCACHED_PORT});
+					${createMemcachedPHP()}
+					$m = createMemcached();
 
 					$key = '${testKey}';
 					$value = '${testValue}';
@@ -100,8 +216,8 @@ describeIfMemcached('Memcached Integration', () => {
 
 			const result = await php.run({
 				code: `<?php
-					$m = new Memcached();
-					$m->addServer('${MEMCACHED_HOST}', ${MEMCACHED_PORT});
+					${createMemcachedPHP()}
+					$m = createMemcached();
 
 					$key = '${testKey}';
 
@@ -127,8 +243,8 @@ describeIfMemcached('Memcached Integration', () => {
 
 			const result = await php.run({
 				code: `<?php
-					$m = new Memcached();
-					$m->addServer('${MEMCACHED_HOST}', ${MEMCACHED_PORT});
+					${createMemcachedPHP()}
+					$m = createMemcached();
 
 					$key = '${testKey}';
 
@@ -155,10 +271,8 @@ describeIfMemcached('Memcached Integration', () => {
 
 			const result = await php.run({
 				code: `<?php
-					$m = new Memcached();
-					$m->addServer('${MEMCACHED_HOST}', ${MEMCACHED_PORT});
-					// Use binary protocol for increment/decrement to work properly
-					$m->setOption(Memcached::OPT_BINARY_PROTOCOL, true);
+					${createMemcachedPHP(true)}
+					$m = createMemcached();
 
 					$key = '${testKey}';
 
@@ -194,8 +308,8 @@ describeIfMemcached('Memcached Integration', () => {
 
 			const result = await php.run({
 				code: `<?php
-					$m = new Memcached();
-					$m->addServer('${MEMCACHED_HOST}', ${MEMCACHED_PORT});
+					${createMemcachedPHP()}
+					$m = createMemcached();
 
 					$prefix = '${prefix}';
 					$items = [
@@ -238,8 +352,8 @@ describeIfMemcached('Memcached Integration', () => {
 
 			const result = await php.run({
 				code: `<?php
-					$m = new Memcached();
-					$m->addServer('${MEMCACHED_HOST}', ${MEMCACHED_PORT});
+					${createMemcachedPHP()}
+					$m = createMemcached();
 
 					$key = '${testKey}';
 
@@ -290,8 +404,8 @@ describeIfMemcached('Memcached Integration', () => {
 		it('handles non-existent keys gracefully', async () => {
 			const result = await php.run({
 				code: `<?php
-					$m = new Memcached();
-					$m->addServer('${MEMCACHED_HOST}', ${MEMCACHED_PORT});
+					${createMemcachedPHP()}
+					$m = createMemcached();
 
 					$value = $m->get('definitely_does_not_exist_' . uniqid());
 					$resultCode = $m->getResultCode();
@@ -311,8 +425,8 @@ describeIfMemcached('Memcached Integration', () => {
 
 			const result = await php.run({
 				code: `<?php
-					$m = new Memcached();
-					$m->addServer('${MEMCACHED_HOST}', ${MEMCACHED_PORT});
+					${createMemcachedPHP()}
+					$m = createMemcached();
 
 					$key = '${testKey}';
 
@@ -343,8 +457,8 @@ describeIfMemcached('Memcached Integration', () => {
 
 			const result = await php.run({
 				code: `<?php
-					$m = new Memcached();
-					$m->addServer('${MEMCACHED_HOST}', ${MEMCACHED_PORT});
+					${createMemcachedPHP()}
+					$m = createMemcached();
 
 					$key = '${testKey}';
 
@@ -378,8 +492,8 @@ describeIfMemcached('Memcached Integration', () => {
 
 			const result = await php.run({
 				code: `<?php
-					$m = new Memcached();
-					$m->addServer('${MEMCACHED_HOST}', ${MEMCACHED_PORT});
+					${createMemcachedPHP()}
+					$m = createMemcached();
 
 					$prefix = '${prefix}';
 
