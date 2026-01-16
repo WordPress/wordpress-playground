@@ -911,6 +911,27 @@ const LibraryExample = {
 	},
 
 	/**
+	 * Alias for wasm_recv to support dynamically loaded extensions like memcached
+	 * that import `recv` by its POSIX name instead of the WASM-specific name.
+	 *
+	 * This allows extensions compiled without the -Drecv=wasm_recv flag to still
+	 * benefit from the async-aware implementation.
+	 */
+	recv: function (sockfd, buffer, size, flags) {
+		return _wasm_recv(sockfd, buffer, size, flags);
+	},
+	recv__deps: ['wasm_recv'],
+
+	/**
+	 * Alias for wasm_setsockopt to support dynamically loaded extensions like memcached
+	 * that import `setsockopt` by its POSIX name instead of the WASM-specific name.
+	 */
+	setsockopt: function (socketd, level, optionName, optionValuePtr, optionLen) {
+		return _wasm_setsockopt(socketd, level, optionName, optionValuePtr, optionLen);
+	},
+	setsockopt__deps: ['wasm_setsockopt'],
+
+	/**
 	 * Returns the assigned process ID of the current process or 42 if not available.
 	 *
 	 * Emscripten's built-in getpid() always returns 42,

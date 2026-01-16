@@ -133,6 +133,10 @@ RUN if [ "$JSPI" = "yes" ]; then \
 
 # Build libmemcached for Emscripten
 # Using libmemcached-awesome (maintained fork) version 1.1.4
+#
+# We build libmemcached without socket redirections first. The recv/setsockopt
+# calls in libmemcached will import the POSIX names. Later, we'll handle this
+# by having the main PHP module export these functions.
 RUN set -euxo pipefail; \
 	apt-get update && apt-get install -y cmake; \
 	source /root/emsdk/emsdk_env.sh; \
@@ -157,8 +161,8 @@ RUN set -euxo pipefail; \
 		-DENABLE_HASH_MURMUR=ON \
 		-DENABLE_MEMASLAP=OFF \
 		-DENABLE_DTRACE=OFF; \
-	emmake make -j$(nproc) || true; \
-	emmake make install || true;
+	emmake make -j$(nproc); \
+	emmake make install;
 
 # Clone php-memcached (the PHP extension)
 # Using version 3.4.0 which supports PHP 7.4 through 8.5
@@ -194,8 +198,8 @@ RUN set -euxo pipefail; \
 		--disable-memcached-msgpack \
 		--disable-memcached-protocol; \
 	\
-	# Redirect socket functions to WASM-compatible versions provided by the main PHP module
-	export EMCC_FLAGS="-sSIDE_MODULE -fPIC -sWASM_BIGINT -Dsetsockopt=wasm_setsockopt -Drecv=wasm_recv"; \
+	# Build as a side module
+	export EMCC_FLAGS="-sSIDE_MODULE -fPIC -sWASM_BIGINT"; \
 	\
 	if [ "$DEBUG" = "yes" ]; then \
 		export EMCC_FLAGS="${EMCC_FLAGS} -O0 -g3"; \
@@ -213,7 +217,8 @@ RUN set -euxo pipefail; \
 	# We must include all required static libraries with --whole-archive to ensure
 	# all symbols are available in the shared module.
 	# --allow-multiple-definition is needed because libmemcached and libmemcachedutil share some code
-	/root/replace.sh 's|^archive_cmds="\\\$CC|archive_cmds="emcc \\\$EMCC_FLAGS -shared -Wl,--allow-multiple-definition --whole-archive /root/zlib/lib/libz.a /root/libmemcached-install/lib/libmemcached.a /root/libmemcached-install/lib/libmemcachedutil.a --no-whole-archive|' libtool; \
+	# libhashkit.a provides hashkit_* functions used by libmemcached
+	/root/replace.sh 's|^archive_cmds="\\\$CC|archive_cmds="emcc \\\$EMCC_FLAGS -shared -Wl,--allow-multiple-definition --whole-archive /root/zlib/lib/libz.a /root/libmemcached-install/lib/libhashkit.a /root/libmemcached-install/lib/libmemcached.a /root/libmemcached-install/lib/libmemcachedutil.a --no-whole-archive|' libtool; \
 	# Skip dependency checking that prevents shared library creation
 	/root/replace.sh 's|^deplibs_check_method=.*|deplibs_check_method=pass_all|' libtool; \
 	# Remove the duplicate -l flags from the Makefile since we're already linking static libs

@@ -33982,6 +33982,10 @@ export function init(RuntimeName, PHPLoader) {
 		/** @export */
 		wasm_setsockopt: _wasm_setsockopt,
 		/** @export */
+		recv: _wasm_recv,
+		/** @export */
+		setsockopt: _wasm_setsockopt,
+		/** @export */
 		wasm_shutdown: _wasm_shutdown,
 		/** @export */
 		zoomSurface: _zoomSurface,
