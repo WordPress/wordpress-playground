@@ -57,4 +57,12 @@ export async function getRedisExtensionPath(): Promise<string> {
 	);
 }
 
+export async function getMemcachedExtensionPath(): Promise<string> {
+	if (await jspi()) {
+		return join(packageDir, 'jspi/extensions/memcached/8_4/memcached.so');
+	} else {
+		return join(packageDir, 'asyncify/extensions/memcached/8_4/memcached.so');
+	}
+}
+
 export { jspi };

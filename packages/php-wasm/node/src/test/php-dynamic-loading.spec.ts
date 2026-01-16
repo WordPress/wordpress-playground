@@ -367,4 +367,78 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 			}
 		);
 	});
+
+	describe('Memcached', () => {
+		let php: PHP;
+		beforeEach(async () => {
+			php = new PHP(
+				await loadNodeRuntime(phpVersion as any, { withMemcached: true })
+			);
+		});
+
+		afterEach(async () => {
+			php.exit();
+		});
+
+		it('does not load dynamically by default', async () => {
+			php = new PHP(await loadNodeRuntime(phpVersion as any));
+
+			const result = await php.runStream({
+				code: `<?php
+					var_dump(extension_loaded('memcached'));
+					var_dump(class_exists('Memcached'));`,
+			});
+
+			expect(await result.stdoutText).toEqual(
+				'bool(false)\nbool(false)\n'
+			);
+		});
+
+		it('supports dynamic loading', async () => {
+			const result = await php.runStream({
+				code: `<?php
+					var_dump(extension_loaded('memcached'));
+					var_dump(class_exists('Memcached'));`,
+			});
+
+			expect(await result.stdoutText).toEqual('bool(true)\nbool(true)\n');
+		});
+
+		it('has its own ini file and entries', async () => {
+			const entries = php.readFileAsText(
+				'/internal/shared/extensions/memcached.ini'
+			);
+
+			const expected = [
+				'extension=/internal/shared/extensions/memcached.so',
+			].join('\n');
+
+			expect(entries).toEqual(expected);
+		});
+
+		it('can instantiate Memcached class', async () => {
+			const response = await php.runStream({
+				code: `<?php
+						$memcached = new Memcached();
+						var_dump(get_class($memcached));
+					?>`,
+			});
+			expect(await response.stdoutText).toEqual(
+				'string(9) "Memcached"\n'
+			);
+		});
+
+		it('has expected Memcached constants', async () => {
+			const response = await php.runStream({
+				code: `<?php
+						echo defined('Memcached::OPT_COMPRESSION') ? 'true' : 'false';
+						echo '|';
+						echo defined('Memcached::OPT_SERIALIZER') ? 'true' : 'false';
+						echo '|';
+						echo defined('Memcached::HAVE_IGBINARY') ? 'true' : 'false';
+					?>`,
+			});
+			expect(await response.stdoutText).toEqual('true|true|true');
+		});
+	});
 });
