@@ -39,7 +39,7 @@ By default, the WordPress Playground loads a landing page to introduce some of t
 
 ## If You're Learning WordPress
 
-Are you new to WordPress or trying to understand features like the Site Editor or the new features of the latest WordPress Releaseß? Playground is your perfect practice space.
+Are you new to WordPress or trying to understand features like the Site Editor or the new features of the latest WordPress Release? Playground is your perfect practice space.
 
 ### Explore How Pages Are Built
 
