@@ -662,7 +662,8 @@ test('should show missing site modal when loading a non-existent site slug', asy
 	);
 
 	// Try to load a site slug that doesn't exist
-	const nonExistentSlug = 'this-site-does-not-exist-12345';
+	// Use timestamp to ensure uniqueness across test runs
+	const nonExistentSlug = `nonexistent-${Date.now()}`;
 	await website.goto(`./?site-slug=${nonExistentSlug}`);
 	await website.waitForNestedIframes();
 
@@ -701,7 +702,8 @@ test('should save site from missing site modal', async ({
 	);
 
 	// Try to load a site slug that doesn't exist
-	const nonExistentSlug = 'test-save-from-modal';
+	// Use timestamp to ensure uniqueness
+	const nonExistentSlug = `save-test-${Date.now()}`;
 	await website.goto(`./?site-slug=${nonExistentSlug}`);
 	await website.waitForNestedIframes();
 
@@ -750,7 +752,8 @@ test('should dismiss missing site modal and keep using unsaved playground', asyn
 	);
 
 	// Try to load a site slug that doesn't exist
-	const nonExistentSlug = 'test-dismiss-modal';
+	// Use timestamp to ensure uniqueness
+	const nonExistentSlug = `dismiss-test-${Date.now()}`;
 	await website.goto(`./?site-slug=${nonExistentSlug}`);
 	await website.waitForNestedIframes();
 
