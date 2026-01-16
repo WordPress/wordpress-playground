@@ -33,7 +33,7 @@ Você pode testar isso agora mesmo. O Playground irá instalar automaticamente o
 
 | Opção                    | Valor padrão          | Descrição                                                                                                                                                                                                                                                                                                                                                                               |
 | ------------------------ | --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `php`                    | `8.0`                 | Carrega a versão especificada do PHP. Aceita `7.0`, `7.1`, `7.2`, `7.3`, `7.4`, `8.0`, `8.1`, `8.2`, `8.3`, `8.4` ou `latest`.                                                                                                                                                                                                                                                          |
+| `php`                    | `8.0`                 | Carrega a versão especificada do PHP. Aceita `7.4`, `8.0`, `8.1`, `8.2`, `8.3`, `8.4`, `8.5` ou `latest`.                                                                                                                                                                                                                                                                               |
 | `wp`                     | `latest`              | Carrega a versão especificada do WordPress. Aceita as três últimas versões principais do WordPress. Em junho de 2024, são `6.3`, `6.4` ou `6.5`. Você também pode usar os valores genéricos `latest`, `nightly` ou `beta`.                                                                                                                                                              |
 | `blueprint-url`          |                       | A URL do Blueprint que será usada para configurar esta instância do Playground.                                                                                                                                                                                                                                                                                                         |
 | `networking`             | `yes`                 | Ativa ou desativa o suporte a rede no Playground. Aceita `yes` ou `no`.                                                                                                                                                                                                                                                                                                                 |
@@ -76,14 +76,14 @@ Para importar arquivos de uma URL, como um pacote zip de site, eles devem ser se
 
 Os seguintes parâmetros de consulta adicionais podem ser usados para pré-configurar o formulário de exportação para o GitHub:
 
--   `gh-ensure-auth`: Se definido como `yes`, o Playground exibirá um modal para garantir que o usuário esteja autenticado com o GitHub antes de prosseguir.
--   `ghexport-repo-url`: A URL do repositório GitHub para exportação.
--   `ghexport-pr-action`: A ação a ser tomada ao exportar (criar ou atualizar).
--   `ghexport-playground-root`: O diretório raiz no Playground de onde exportar.
--   `ghexport-repo-root`: O diretório raiz no repositório para onde exportar.
--   `ghexport-content-type`: O tipo de conteúdo da exportação (plugin, theme, wp-content, custom-paths).
--   `ghexport-plugin`: Caminho do plugin. Quando o tipo de conteúdo for `plugin`, pré-seleciona o plugin a ser exportado.
--   `ghexport-theme`: Nome do diretório do tema. Quando o tipo de conteúdo for `theme`, pré-seleciona o tema a ser exportado.
--   `ghexport-path`: Um caminho relativo a `ghexport-playground-root`. Pode ser fornecido múltiplas vezes. Quando o tipo de conteúdo for `custom-paths`, pré-preenche a lista de caminhos a exportar.
--   `ghexport-commit-message`: A mensagem de commit a ser usada na exportação.
--   `ghexport-allow-include-zip`: Se deve oferecer uma opção para incluir um arquivo zip na exportação para o GitHub (`yes`, `no`). Opcional. O padrão é `yes`.
+- `gh-ensure-auth`: Se definido como `yes`, o Playground exibirá um modal para garantir que o usuário esteja autenticado com o GitHub antes de prosseguir.
+- `ghexport-repo-url`: A URL do repositório GitHub para exportação.
+- `ghexport-pr-action`: A ação a ser tomada ao exportar (criar ou atualizar).
+- `ghexport-playground-root`: O diretório raiz no Playground de onde exportar.
+- `ghexport-repo-root`: O diretório raiz no repositório para onde exportar.
+- `ghexport-content-type`: O tipo de conteúdo da exportação (plugin, theme, wp-content, custom-paths).
+- `ghexport-plugin`: Caminho do plugin. Quando o tipo de conteúdo for `plugin`, pré-seleciona o plugin a ser exportado.
+- `ghexport-theme`: Nome do diretório do tema. Quando o tipo de conteúdo for `theme`, pré-seleciona o tema a ser exportado.
+- `ghexport-path`: Um caminho relativo a `ghexport-playground-root`. Pode ser fornecido múltiplas vezes. Quando o tipo de conteúdo for `custom-paths`, pré-preenche a lista de caminhos a exportar.
+- `ghexport-commit-message`: A mensagem de commit a ser usada na exportação.
+- `ghexport-allow-include-zip`: Se deve oferecer uma opção para incluir um arquivo zip na exportação para o GitHub (`yes`, `no`). Opcional. O padrão é `yes`.
