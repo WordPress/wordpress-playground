@@ -12,31 +12,7 @@ ARG DEBUG
 
 # Install Bison, required to build PHP
 RUN mkdir -p /libs
-COPY ./bison2.7/dist/ /libs/bison2.7
-COPY ./bison2.7/bison27.patch /root/bison27.patch
-
-RUN if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "3" ]]; then \
-		if /libs/bison2.7/usr/local/bison/bin/bison -h >/dev/null; then \
-			mv /libs/bison2.7/usr/local/bison /usr/local/bison && \
-			ln -s /usr/local/bison/bin/bison /usr/bin/bison && \
-			ln -s /usr/local/bison/bin/yacc /usr/bin/yacc; \
-		else \
-			wget https://ftp.gnu.org/gnu/bison/bison-2.7.tar.gz && \
-			tar -xvf bison-2.7.tar.gz && \
-			rm bison-2.7.tar.gz && \
-			cd bison-2.7 && \
-			git apply --no-index /root/bison27.patch && \
-			./configure --prefix=/usr/local && \
-			make && \
-			make install; \
-			if [[ $? -ne 0 ]]; then \
-				echo 'Failed to build Bison 2.7 dependency.'; \
-				exit -1; \
-			fi; \
-		fi; \
-	else \
-		apt install -y bison; \
-	fi;
+RUN apt install -y bison;
 
 # Build PHP
 RUN git clone https://github.com/php/php-src.git php-src \
@@ -87,20 +63,10 @@ RUN source /root/emsdk/emsdk_env.sh && \
 	--without-iconv
 
 # Disable asm arithmetic.
-RUN if [[ ("${PHP_VERSION:0:1}" -eq "7" && "${PHP_VERSION:2:1}" -ge "4") || "${PHP_VERSION:0:1}" -ge "8" ]]; then \
-		/root/replace.sh 's/ZEND_USE_ASM_ARITHMETIC 1/ZEND_USE_ASM_ARITHMETIC 0/g' /root/php-src/Zend/zend_operators.h; \
-	elif [[ "${PHP_VERSION:0:1}" -eq "7" && "${PHP_VERSION:2:1}" -eq "3" ]]; then \
-		/root/replace.sh 's/defined\(HAVE_ASM_GOTO\)/0/g' /root/php-src/Zend/zend_operators.h; \
-	fi;
+RUN /root/replace.sh 's/ZEND_USE_ASM_ARITHMETIC 1/ZEND_USE_ASM_ARITHMETIC 0/g' /root/php-src/Zend/zend_operators.h;
 RUN /root/replace.sh 's/defined\(__GNUC__\)/0/g' /root/php-src/Zend/zend_multiply.h
 RUN /root/replace.sh 's/defined\(__GNUC__\)/0/g' /root/php-src/Zend/zend_cpuinfo.c
 RUN /root/replace.sh 's/defined\(__clang__\)/0/g' /root/php-src/Zend/zend_cpuinfo.c
-
-# PHP <= 7.3 is not very good at detecting the presence of the POSIX readdir_r function
-# so we need to force it to be enabled.
-RUN if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "3" ]]; then \
-		echo '#define HAVE_POSIX_READDIR_R 1' >> /root/php-src/main/php_config.h; \
-	fi;
 
 RUN source /root/emsdk/emsdk_env.sh && \
 	cd /root/php-src && \
