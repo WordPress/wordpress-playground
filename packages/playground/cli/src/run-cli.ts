@@ -26,10 +26,12 @@ import {
 	expandAutoMounts,
 	parseMountDirArguments,
 	parseMountWithDelimiterArguments,
+} from './mounts';
+import {
 	parseDefineStringArguments,
 	parseDefineBoolArguments,
 	parseDefineNumberArguments,
-} from './mounts';
+} from './defines';
 import { startServer } from './start-server';
 import type { PlaygroundCliBlueprintV1Worker } from './blueprints-v1/worker-thread-v1';
 import type { PlaygroundCliBlueprintV2Worker } from './blueprints-v2/worker-thread-v2';
@@ -850,79 +852,9 @@ const highlight = (text: string) =>
 // These overloads are declared for convenience so runCLI() can return
 // different things depending on the CLI command without forcing the
 // callers (mostly automated tests) to check return values.
-/**
- * Merge separate constant types into a single object for process-specific constants.
- * Validates that there are no duplicate constant names across types.
- */
-export function mergeConstantsForThisRun(
-	args: RunCLIArgs
-): Record<string, string | number | boolean> {
-	const merged: Record<string, string | number | boolean> = {};
-	const defineString = args['define-for-this-run'] || {};
-	const defineBool = args['define-bool-for-this-run'] || {};
-	const defineNumber = args['define-number-for-this-run'] || {};
 
-	// Check for duplicates
-	const allKeys = [
-		...Object.keys(defineString),
-		...Object.keys(defineBool),
-		...Object.keys(defineNumber),
-	];
-	const uniqueKeys = new Set(allKeys);
-	if (allKeys.length !== uniqueKeys.size) {
-		// Find the duplicate
-		const seen = new Set<string>();
-		for (const key of allKeys) {
-			if (seen.has(key)) {
-				throw new Error(
-					`Constant "${key}" is defined multiple times with different types. Each constant can only be defined once.`
-				);
-			}
-			seen.add(key);
-		}
-	}
-
-	// Merge all constants
-	Object.assign(merged, defineString, defineBool, defineNumber);
-	return merged;
-}
-
-/**
- * Merge separate constant types into a single object for wp-config.php constants.
- * Validates that there are no duplicate constant names across types.
- */
-export function mergeConstantsForWpConfig(
-	args: RunCLIArgs
-): Record<string, string | number | boolean> {
-	const merged: Record<string, string | number | boolean> = {};
-	const defineString = args['define-in-wp-config'] || {};
-	const defineBool = args['define-bool-in-wp-config'] || {};
-	const defineNumber = args['define-number-in-wp-config'] || {};
-
-	// Check for duplicates
-	const allKeys = [
-		...Object.keys(defineString),
-		...Object.keys(defineBool),
-		...Object.keys(defineNumber),
-	];
-	const uniqueKeys = new Set(allKeys);
-	if (allKeys.length !== uniqueKeys.size) {
-		// Find the duplicate
-		const seen = new Set<string>();
-		for (const key of allKeys) {
-			if (seen.has(key)) {
-				throw new Error(
-					`Constant "${key}" is defined multiple times in wp-config with different types. Each constant can only be defined once.`
-				);
-			}
-			seen.add(key);
-		}
-	}
-
-	// Merge all constants
-	Object.assign(merged, defineString, defineBool, defineNumber);
-	return merged;
-}
+// Re-export merge functions from defines.ts
+export { mergeConstantsForThisRun, mergeConstantsForWpConfig } from './defines';
 
 export async function runCLI(
 	args: RunCLIArgs & { command: 'build-snapshot' | 'run-blueprint' }

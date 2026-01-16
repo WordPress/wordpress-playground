@@ -2,7 +2,7 @@ import {
 	parseDefineStringArguments,
 	parseDefineBoolArguments,
 	parseDefineNumberArguments,
-} from '../src/mounts';
+} from '../src/defines';
 
 describe('parseDefineStringArguments', () => {
 	it('should parse string constants with values', () => {

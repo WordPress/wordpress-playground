@@ -184,7 +184,7 @@ export async function bootWordPress(
 
 	if (options.constants) {
 		for (const key in options.constants) {
-			php.defineConstant(key, options.constants[key] as string);
+			php.defineConstant(key, options.constants[key]);
 		}
 	}
 
@@ -390,7 +390,7 @@ export async function bootRequestHandler(options: BootRequestHandlerOptions) {
 				const value = options.constants[key];
 				// Skip null values as PHP constants cannot be null
 				if (value !== null) {
-					php.defineConstant(key, value as string);
+					php.defineConstant(key, value);
 				}
 			}
 		}
