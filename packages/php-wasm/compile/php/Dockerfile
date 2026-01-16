@@ -655,7 +655,11 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "_wasm_poll_socket",\n\
 "_asyncjs__wasm_poll_socket",\n\
 "_wasm_shutdown",\n\
-"_asyncjs__wasm_shutdown"]'; \
+"_asyncjs__wasm_shutdown",\n\
+"recv",\n\
+"_recv",\n\
+"setsockopt",\n\
+"_setsockopt"]'; \
 	echo -n " -s ASYNCIFY_IMPORTS=$ASYNCIFY_IMPORTS " | tr -d "\n" >> /root/.emcc-php-asyncify-flags; \
 	export ASYNCIFY_ONLY_UNPREFIXED=$'"null.<anonymous>",\
 "cookieread",\
@@ -2150,7 +2154,7 @@ RUN set -euxo pipefail; \
 	source /root/emsdk/emsdk_env.sh; \
 	if [ "$WITH_JSPI" = "yes" ]; then \
 		# Both imports and exports are required for inter-module communication with wrapped methods, e.g., wasm_recv.
-		export ASYNCIFY_FLAGS=" -s ASYNCIFY=2 -sSUPPORT_LONGJMP=wasm -fwasm-exceptions -sJSPI_IMPORTS=js_open_process,js_fd_read,js_waitpid,js_process_status,js_create_input_device,wasm_setsockopt,wasm_shutdown,wasm_close,wasm_recv,__syscall_fcntl64,__emscripten_lookup_name,js_flock,js_release_file_locks,js_waitpid -sJSPI_EXPORTS=php_wasm_init,wasm_sleep,wasm_read,emscripten_sleep,wasm_sapi_handle_request,wasm_sapi_request_shutdown,wasm_poll_socket,wrap_select,__wrap_select,select,php_pollfd_for,fflush,wasm_popen,wasm_read,wasm_php_exec,run_cli,wasm_recv,__wasm_call_ctors,__errno_location,__funcs_on_exit -s EXPORTED_RUNTIME_METHODS=HEAPU32,HEAPU8,ccall,PROXYFS,wasmExports,UTF8ToString,lengthBytesUTF8,stringToUTF8 "; \
+		export ASYNCIFY_FLAGS=" -s ASYNCIFY=2 -sSUPPORT_LONGJMP=wasm -fwasm-exceptions -sJSPI_IMPORTS=js_open_process,js_fd_read,js_waitpid,js_process_status,js_create_input_device,wasm_setsockopt,wasm_shutdown,wasm_close,wasm_recv,recv,setsockopt,__syscall_fcntl64,js_flock,js_release_file_locks,js_waitpid -sJSPI_EXPORTS=php_wasm_init,wasm_sleep,wasm_read,emscripten_sleep,wasm_sapi_handle_request,wasm_sapi_request_shutdown,wasm_poll_socket,wrap_select,__wrap_select,select,php_pollfd_for,fflush,wasm_popen,wasm_read,wasm_php_exec,run_cli,wasm_recv,recv,setsockopt,__wasm_call_ctors,__errno_location,__funcs_on_exit -s EXPORTED_RUNTIME_METHODS=HEAPU32,HEAPU8,ccall,PROXYFS,wasmExports "; \
 		echo '#define PLAYGROUND_JSPI 1' > /root/php_wasm_asyncify.h; \
 	else \
 		export ASYNCIFY_FLAGS=" -s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1 -s EXPORTED_RUNTIME_METHODS=HEAPU32,HEAPU8,ccall,PROXYFS,wasmExports,UTF8ToString,lengthBytesUTF8,stringToUTF8 $(cat /root/.emcc-php-asyncify-flags)  "; \
@@ -2185,7 +2189,9 @@ RUN set -euxo pipefail; \
 "_wasm_set_request_method", \n\
 "_wasm_set_request_port", \n\
 "_wasm_set_request_uri", \n\
-"_wasm_set_skip_shebang" '"$(cat /root/.EXPORTED_FUNCTIONS)"']'; \
+"_wasm_set_skip_shebang", \n\
+"_recv", \n\
+"_setsockopt" '"$(cat /root/.EXPORTED_FUNCTIONS)"']'; \
 	export OPTIMIZATION_FLAGS="-O3"; \
 	if [ "${WITH_SOURCEMAPS}" = "yes" ] || [ "${WITH_DEBUG}" = "yes" ]; then \
 		export OPTIMIZATION_FLAGS="-O0"; \
@@ -2339,6 +2345,12 @@ RUN set -euxo pipefail; \
 			/root/replace.sh "s/_wasm_free\s*=\s*Module\[[\"']_wasm_free[\"']\]/_wasm_free = PHPLoader['free'] = Module['_wasm_free']/g" /root/output/php.js; \
 		fi ; \
 		/root/replace.sh "s/_malloc\s*=\s*Module\[[\"']_malloc[\"']\]/_malloc = PHPLoader['malloc'] = Module['_malloc']/g" /root/output/php.js; \
+	# Add recv and setsockopt aliases to wasmImports for dynamic extensions
+		# Dynamic extensions like memcached import socket functions by their POSIX names
+		# (recv, setsockopt) but the main module only defines wasm_recv and wasm_setsockopt.
+		# We add these aliases so dynamically loaded extensions can resolve them.
+		/root/replace.sh 's/wasm_recv: _wasm_recv,/wasm_recv: _wasm_recv,\n  \/** @export *\/\n  recv: _recv,/g' /root/output/php.js; \
+		/root/replace.sh 's/wasm_setsockopt: _wasm_setsockopt,/wasm_setsockopt: _wasm_setsockopt,\n  \/** @export *\/\n  setsockopt: _setsockopt,/g' /root/output/php.js; \
 	# Patch Emscripten exit status to include a stack trace
 		# Override Emscripten's default ExitStatus class which gets
 		# thrown on failure. Unfortunately, the default object is not
