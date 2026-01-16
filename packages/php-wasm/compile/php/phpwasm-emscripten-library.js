@@ -932,6 +932,143 @@ const LibraryExample = {
 	setsockopt__deps: ['wasm_setsockopt'],
 
 	/**
+	 * Async-aware connect(2) for WebSocket-based sockets.
+	 *
+	 * The standard Emscripten connect() creates a WebSocket but returns
+	 * immediately before the connection is established. This wrapper
+	 * performs the connection and waits for the WebSocket to actually
+	 * connect before returning.
+	 *
+	 * @param {int} sockfd Socket file descriptor
+	 * @param {int} addr Pointer to sockaddr structure
+	 * @param {int} addrlen Length of sockaddr structure
+	 * @returns {int} 0 on success, negative errno on failure
+	 */
+	wasm_connect: function (sockfd, addr, addrlen) {
+		return Asyncify.handleSleep((wakeUp) => {
+			const ETIMEDOUT = 110;
+			const ECONNREFUSED = 111;
+
+			// Get the socket
+			let sock;
+			try {
+				sock = getSocketFromFD(sockfd);
+			} catch (e) {
+				wakeUp(-8); // EBADF
+				return;
+			}
+
+			if (!sock) {
+				wakeUp(-8); // EBADF
+				return;
+			}
+
+			// Parse the address
+			let info;
+			try {
+				info = getSocketAddress(addr, addrlen);
+			} catch (e) {
+				if (typeof FS == 'undefined' || !(e.name === 'ErrnoError')) {
+					wakeUp(-14); // EFAULT
+					return;
+				}
+				wakeUp(-e.errno);
+				return;
+			}
+
+			// Perform the connect (this creates the WebSocket but doesn't wait)
+			try {
+				sock.sock_ops.connect(sock, info.addr, info.port);
+			} catch (e) {
+				if (typeof FS == 'undefined' || !(e.name === 'ErrnoError')) {
+					wakeUp(-ECONNREFUSED);
+					return;
+				}
+				wakeUp(-e.errno);
+				return;
+			}
+
+			// Get all websockets for this socket
+			const webSockets = PHPWASM.getAllWebSockets(sock);
+			if (!webSockets.length) {
+				// No WebSocket yet, this shouldn't happen after connect
+				wakeUp(-ECONNREFUSED);
+				return;
+			}
+
+			const ws = webSockets[0];
+
+			// If already connected, return success
+			if (ws.readyState === ws.OPEN) {
+				wakeUp(0);
+				return;
+			}
+
+			// If already closed or closing, return error
+			if (ws.readyState === ws.CLOSING || ws.readyState === ws.CLOSED) {
+				wakeUp(-ECONNREFUSED);
+				return;
+			}
+
+			// Wait for the connection to be established
+			const timeout = 30000; // 30 second timeout
+			let resolved = false;
+
+			const timeoutId = setTimeout(() => {
+				if (!resolved) {
+					resolved = true;
+					wakeUp(-ETIMEDOUT);
+				}
+			}, timeout);
+
+			const handleOpen = () => {
+				if (!resolved) {
+					resolved = true;
+					clearTimeout(timeoutId);
+					ws.removeEventListener('error', handleError);
+					ws.removeEventListener('close', handleClose);
+					wakeUp(0);
+				}
+			};
+
+			const handleError = () => {
+				if (!resolved) {
+					resolved = true;
+					clearTimeout(timeoutId);
+					ws.removeEventListener('open', handleOpen);
+					ws.removeEventListener('close', handleClose);
+					wakeUp(-ECONNREFUSED);
+				}
+			};
+
+			const handleClose = () => {
+				if (!resolved) {
+					resolved = true;
+					clearTimeout(timeoutId);
+					ws.removeEventListener('open', handleOpen);
+					ws.removeEventListener('error', handleError);
+					wakeUp(-ECONNREFUSED);
+				}
+			};
+
+			ws.addEventListener('open', handleOpen);
+			ws.addEventListener('error', handleError);
+			ws.addEventListener('close', handleClose);
+		});
+	},
+	wasm_connect__deps: ['$PHPWASM'],
+
+	/**
+	 * Override Emscripten's __syscall_connect to use our async-aware implementation.
+	 * This ensures all connect() calls (from PHP core, extensions, and dynamic modules)
+	 * properly wait for WebSocket connections to be established.
+	 */
+	__syscall_connect: function (sockfd, addr, addrlen, d1, d2, d3) {
+		return _wasm_connect(sockfd, addr, addrlen);
+	},
+	__syscall_connect__deps: ['wasm_connect'],
+
+	/**
 	 * Returns the assigned process ID of the current process or 42 if not available.
 	 *
 	 * Emscripten's built-in getpid() always returns 42,

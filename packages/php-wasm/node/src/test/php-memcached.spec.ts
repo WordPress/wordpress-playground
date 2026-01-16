@@ -276,15 +276,15 @@ describeIfMemcached('Memcached Network Integration', () => {
 
 					$key = '${testKey}';
 
-					// Use increment with initial value (third and fourth parameters)
-					// This atomically sets the key if it doesn't exist
-					$afterIncr = $m->increment($key, 5, 10); // initial=10, then +5 = 15
+					// Use increment with initial value (third parameter)
+					// When key doesn't exist, it's set to initial_value (not initial + offset)
+					$afterIncr = $m->increment($key, 5, 10); // key doesn't exist, so set to 10
 					if ($afterIncr === false) {
 						echo 'INCREMENT_FAILED: ' . $m->getResultMessage();
 						exit(1);
 					}
 
-					// Decrement by 3
+					// Decrement by 3 (10 - 3 = 7)
 					$afterDecr = $m->decrement($key, 3);
 					if ($afterDecr === false) {
 						echo 'DECREMENT_FAILED: ' . $m->getResultMessage();
@@ -294,12 +294,12 @@ describeIfMemcached('Memcached Network Integration', () => {
 					// Clean up
 					$m->delete($key);
 
-					// Should be 10 + 5 = 15, then 15 - 3 = 12
+					// When key doesn't exist: set to initial=10, then decrement by 3 = 7
 					echo "incr:$afterIncr,decr:$afterDecr";
 				?>`,
 			});
 
-			expect(result.text).toBe('incr:15,decr:12');
+			expect(result.text).toBe('incr:10,decr:7');
 			expect(result.errors).toBeFalsy();
 		});
 
