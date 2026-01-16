@@ -517,9 +517,6 @@ RUN cp -v /root/php-src/.libs/libphp*.a /root/lib/libphp.a
 COPY ./php/php_wasm.c /root/
 COPY ./php/proc_open* /root/
 
-RUN cp /root/proc_open.c /root/proc_open.c; \
-	cp /root/proc_open.h /root/proc_open.h;
-
 ARG WITH_SOURCEMAPS
 ARG OUTPUT_DIR_ON_HOST
 ARG DEBUG_DWARF_COMPILATION_DIR

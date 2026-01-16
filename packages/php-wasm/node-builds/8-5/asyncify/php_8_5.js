@@ -7,14 +7,16 @@ const require = createRequire(import.meta.url);
 import path from 'path';
 import { fileURLToPath } from 'url';
 
+// Determine the current directory path. In CJS mode, __dirname is available.
+// In ESM mode, we derive it from import.meta.url.
 const currentDirPath =
 	typeof __dirname !== 'undefined'
 		? __dirname
 		: path.dirname(fileURLToPath(import.meta.url));
-const dependencyFilename = path.join(currentDirPath, '8_5_1', 'php_8_5.wasm');
+const dependencyFilename = path.join(currentDirPath, '8_5_2', 'php_8_5.wasm');
 export { dependencyFilename };
-export const dependenciesTotalSize = 31304989;
-const phpVersionString = '8.5.1';
+export const dependenciesTotalSize = 31307064;
+const phpVersionString = '8.5.2';
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
 	// include: shell.js

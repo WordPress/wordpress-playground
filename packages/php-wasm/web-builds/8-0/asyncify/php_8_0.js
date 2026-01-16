@@ -1,6 +1,6 @@
 import dependencyFilename from './8_0_30/php_8_0.wasm';
 export { dependencyFilename };
-export const dependenciesTotalSize = 20682510;
+export const dependenciesTotalSize = 20682557;
 const phpVersionString = '8.0.30';
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
@@ -24712,13 +24712,13 @@ export function init(RuntimeName, PHPLoader) {
 		___cxa_rethrow_primary_exception;
 	Module['___syscall_shutdown'] = ___syscall_shutdown;
 	var ASM_CONSTS = {
-		12292609: ($0) => {
+		12292625: ($0) => {
 			if (!$0) {
 				AL.alcErr = 40964;
 				return 1;
 			}
 		},
-		12292657: ($0) => {
+		12292673: ($0) => {
 			if (!AL.currentCtx) {
 				err('alGetProcAddress() called without a valid context');
 				return 1;
