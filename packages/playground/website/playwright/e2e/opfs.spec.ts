@@ -653,6 +653,7 @@ test('should create temporary site when importing ZIP while on a saved site with
 
 test('should show missing site modal when loading a non-existent site slug', async ({
 	website,
+	wordpress,
 	browserName,
 }) => {
 	test.skip(
