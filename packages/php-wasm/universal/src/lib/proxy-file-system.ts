@@ -53,19 +53,11 @@ function ensureProxyFSHasMmapSupport(phpInstance: PHP) {
 			throw new FS.ErrnoError(19); // ENODEV
 		}
 
-		// PHP 7.4's mmap implementation passes the wrong length for files that aren't
-		// ICU data files (.dat). Instead of passing the actual file size, it passes
-		// a value from the stat buffer that doesn't represent the file's true length.
-		// Work around this by querying the actual file size from the proxied filesystem
-		// using fstat. ICU .dat files work correctly, so skip this workaround for them.
-		const path = FS.getPath(stream.node);
-		if (!path.endsWith('.dat')) {
-			const proxyFS = stream.node.mount.opts.fs;
-			if (proxyFS && stream.nfd !== undefined) {
-				const stat = proxyFS.fstat(stream.nfd);
-				if (stat && stat.size !== undefined) {
-					length = stat.size >>> 0;
-				}
+		const proxyFS = stream.node.mount.opts.fs;
+		if (proxyFS && stream.nfd !== undefined) {
+			const stat = proxyFS.fstat(stream.nfd);
+			if (stat && stat.size !== undefined) {
+				length = stat.size >>> 0;
 			}
 		}
 
