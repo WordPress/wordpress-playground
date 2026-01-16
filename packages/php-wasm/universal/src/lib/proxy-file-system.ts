@@ -1,16 +1,16 @@
 import type { PHP } from './php';
 
 /**
- * Ensures PROXYFS has mmap support.
+ * Adds mmap support to PROXYFS for memory-mapping files across PHP instances.
  *
- * PROXYFS proxies filesystem operations from one Emscripten FS instance to another,
- * enabling file sharing between PHP instances. However, PROXYFS lacks mmap support
- * by default, which causes libraries like ICU (used by the Intl extension) to fail
- * when trying to memory-map data files through a proxied filesystem.
+ * Without mmap, libraries like ICU fail when accessing data files through PROXYFS.
+ * ICU calls mmap to load icudt74l.dat when initializing Intl classes like Collator
+ * and NumberFormatter. PROXYFS has no mmap implementation by default, causing these
+ * calls to fail even when the data file exists in the proxied filesystem.
  *
- * This function adds mmap and msync methods to PROXYFS.stream_ops if they don't
- * already exist. The mmap implementation reads the file contents via the proxied
- * filesystem and copies them into allocated memory, simulating mmap behavior.
+ * This patches PROXYFS.stream_ops to add mmap and msync methods. The mmap implementation
+ * allocates memory, reads the file through PROXYFS's existing read operations, and
+ * returns a pointer to the allocated buffer—matching the behavior of POSIX mmap.
  *
  * @param phpInstance - The PHP instance whose PROXYFS should be patched
  */
@@ -27,16 +27,17 @@ function ensureProxyFSHasMmapSupport(phpInstance: PHP) {
 	}
 
 	/**
-	 * Memory-map a file from a proxied filesystem.
+	 * Maps a file into memory by allocating a buffer and reading the file contents into it.
 	 *
-	 * Since PROXYFS doesn't have direct access to the underlying buffer,
-	 * we allocate new memory and copy the file contents into it.
+	 * PROXYFS has no direct access to the underlying file buffer, so we simulate mmap
+	 * by allocating memory with malloc and copying the file contents through read operations.
 	 *
 	 * @param stream - The file stream to map
-	 * @param length - Number of bytes to map
-	 * @param position - File offset to start mapping from
+	 * @param length - Number of bytes to map (may be incorrect for non-.dat files in PHP 7.4)
+	 * @param position - File offset to start mapping from (must be 0)
 	 * @param prot - Memory protection flags (unused, we always allocate read/write)
 	 * @param flags - Mapping flags (unused)
+	 * @returns Object with ptr (pointer to allocated memory) and allocated flag
 	 */
 	/* eslint-disable @typescript-eslint/no-unused-vars */
 	PROXYFS.stream_ops.mmap = function (
@@ -52,12 +53,13 @@ function ensureProxyFSHasMmapSupport(phpInstance: PHP) {
 			throw new FS.ErrnoError(19); // ENODEV
 		}
 
-		// For non-.dat files, get the actual file size from the proxied filesystem.
-		// This is needed because PHP 7.4 may pass incorrect length values for
-		// certain file types.
+		// PHP 7.4's mmap implementation passes the wrong length for files that aren't
+		// ICU data files (.dat). Instead of passing the actual file size, it passes
+		// a value from the stat buffer that doesn't represent the file's true length.
+		// Work around this by querying the actual file size from the proxied filesystem
+		// using fstat. ICU .dat files work correctly, so skip this workaround for them.
 		const path = FS.getPath(stream.node);
 		if (!path.endsWith('.dat')) {
-			// Get the proxied filesystem from the mount options
 			const proxyFS = stream.node.mount.opts.fs;
 			if (proxyFS && stream.nfd !== undefined) {
 				const stat = proxyFS.fstat(stream.nfd);
@@ -67,37 +69,37 @@ function ensureProxyFSHasMmapSupport(phpInstance: PHP) {
 			}
 		}
 
-		// Only support mmap from the beginning of the file
+		// ICU only maps files from offset 0, so we don't support partial mapping
 		if (position !== 0) {
 			throw new FS.ErrnoError(22); // EINVAL
 		}
 
-		// Allocate memory for the mapped region using the runtime's malloc.
 		const ptr = runtime.malloc(length);
 		if (!ptr) {
 			throw new FS.ErrnoError(48); // ENOMEM
 		}
 
-		// Create a view into the heap for reading
+		// Read the file into the allocated memory. Create a subarray view of the heap
+		// so read operations write directly to the correct memory location without
+		// needing offset calculations.
 		const heap = runtime.HEAPU8.subarray(ptr, ptr + length);
-		let total = 0;
+		let totalBytesRead = 0;
 
-		// Eagerly read the entire file contents into the allocated memory
-		while (total < length) {
+		while (totalBytesRead < length) {
 			const bytesRead = stream.stream_ops.read(
 				stream,
 				heap,
-				total,
-				length - total,
-				total
+				totalBytesRead,
+				length - totalBytesRead,
+				totalBytesRead
 			);
 
 			if (bytesRead <= 0) break;
-			total += bytesRead;
+			totalBytesRead += bytesRead;
 		}
 
-		// If we couldn't read the expected amount, free memory and return error
-		if (total !== length) {
+		// Partial reads indicate I/O errors or premature EOF
+		if (totalBytesRead !== length) {
 			runtime.free(ptr);
 			throw new FS.ErrnoError(5); // EIO
 		}
@@ -106,10 +108,20 @@ function ensureProxyFSHasMmapSupport(phpInstance: PHP) {
 	};
 
 	/**
-	 * Sync memory-mapped changes back to the file.
+	 * Writes memory-mapped changes back to the file when the mapping is shared.
 	 *
-	 * This is called when munmap is invoked. If the mapping was MAP_SHARED,
-	 * the changes should be written back to the file.
+	 * Called by munmap to persist changes made to the mapped memory region.
+	 * MAP_PRIVATE mappings (flag bit 2) keep changes in memory only, while
+	 * MAP_SHARED mappings write changes back to the underlying file.
+	 *
+	 * ICU only reads from its data files, so this rarely gets called in practice.
+	 *
+	 * @param stream - The file stream
+	 * @param buffer - The memory buffer containing changes
+	 * @param offset - Offset in the buffer
+	 * @param length - Number of bytes to sync
+	 * @param mmapFlags - Flags from the original mmap call
+	 * @returns 0 on success
 	 */
 	PROXYFS.stream_ops.msync = function (
 		stream: any,
@@ -118,7 +130,7 @@ function ensureProxyFSHasMmapSupport(phpInstance: PHP) {
 		length: number,
 		mmapFlags: number
 	) {
-		// MAP_PRIVATE (flags & 2) means changes are not written back
+		// MAP_PRIVATE (flag bit 2) means changes stay in memory
 		if (!(mmapFlags & 2)) {
 			stream.stream_ops.write(
 				stream,
@@ -134,17 +146,24 @@ function ensureProxyFSHasMmapSupport(phpInstance: PHP) {
 }
 
 /**
- * Proxy specific paths to the parent's MEMFS instance.
- * This is useful for sharing the WordPress installation
- * between the parent and child processes.
+ * Mounts directories from one PHP instance's filesystem into another using PROXYFS.
+ *
+ * This enables file sharing between PHP instances without duplicating the files in memory.
+ * For example, mounting /wordpress from the parent instance into a child worker allows
+ * both to access the same WordPress installation without copying the entire directory.
+ *
+ * The function automatically patches PROXYFS with mmap support before mounting, ensuring
+ * libraries like ICU can memory-map data files through the proxied filesystem.
+ *
+ * @param sourceOfTruth - The PHP instance containing the original files
+ * @param replica - The PHP instance that will access files through PROXYFS
+ * @param paths - Absolute paths to mount (e.g., ['/wordpress', '/internal/shared'])
  */
 export function proxyFileSystem(
 	sourceOfTruth: PHP,
 	replica: PHP,
 	paths: string[]
 ) {
-	// Ensure PROXYFS has mmap support before mounting.
-	// This is needed for libraries like ICU that rely on memory-mapping files.
 	ensureProxyFSHasMmapSupport(replica);
 
 	// We can't just import the symbol from the library because
