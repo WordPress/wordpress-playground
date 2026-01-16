@@ -722,9 +722,12 @@ test('should save site from missing site modal', async ({
 
 	// Verify the site is now in the saved playgrounds list
 	await website.openSavedPlaygroundsOverlay();
-	await expect(
-		website.page.locator('[class*="siteRowContent"]')
-	).not.toHaveCount(1); // Should have more than just the temporary playground row
+	// Look for a saved site with a name that's not "Unsaved Playground"
+	// The site should have been saved with a derived name from the slug
+	const savedSiteList = website.page.locator('[class*="siteRowContent"]');
+	const count = await savedSiteList.count();
+	// Should have at least 2 items: the "Unsaved Playground" row and our saved site
+	expect(count).toBeGreaterThanOrEqual(2);
 });
 
 test('should dismiss missing site modal and keep using unsaved playground', async ({
