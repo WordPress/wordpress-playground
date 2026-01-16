@@ -9,12 +9,13 @@ import {
 	exposeAPI,
 	sandboxedSpawnHandlerFactory,
 } from '@php-wasm/universal';
-import { sprintf } from '@php-wasm/util';
+import { sprintf, joinPaths } from '@php-wasm/util';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import {
 	type WordPressInstallMode,
 	bootRequestHandler,
 	bootWordPressAndRequestHandler,
+	defineWpConfigConstants,
 } from '@wp-playground/wordpress';
 import { rootCertificates } from 'tls';
 import { jspi } from 'wasm-feature-detect';
@@ -46,10 +47,15 @@ export type WorkerBootOptions = {
 	withXdebug?: boolean;
 	nativeInternalDirPath: string;
 	/**
-	 * PHP constants to define.
-	 * These will be merged with any Blueprint-provided constants.
+	 * PHP constants to define via php.defineConstant().
+	 * Process-specific, set for each PHP instance.
 	 */
 	constants?: Record<string, string | number | boolean | null>;
+	/**
+	 * PHP constants to define in wp-config.php.
+	 * Persistent across requests.
+	 */
+	wpConfigConstants?: Record<string, string | number | boolean | null>;
 };
 
 export type PrimaryWorkerBootOptions = WorkerBootOptions & {
@@ -207,6 +213,23 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 			// All secondary PHP instances created after WP boot will get
 			// these mounts automatically.
 			await mountResources(primaryPhp, mountsAfterWpInstall);
+
+			// Define wp-config.php constants if any were provided
+			if (
+				options.wpConfigConstants &&
+				Object.keys(options.wpConfigConstants).length > 0
+			) {
+				const wpConfigPath = joinPaths(
+					await primaryPhp.documentRoot,
+					'wp-config.php'
+				);
+				await defineWpConfigConstants(
+					primaryPhp,
+					wpConfigPath,
+					options.wpConfigConstants,
+					'rewrite'
+				);
+			}
 
 			setApiReady();
 		} catch (e) {
