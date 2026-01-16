@@ -650,3 +650,130 @@ test('should create temporary site when importing ZIP while on a saved site with
 		{ timeout: 30000 }
 	);
 });
+
+// Missing site modal tests in a separate describe block to avoid state pollution
+test.describe('Missing site modal', () => {
+	// These tests also need serial mode since they use OPFS
+	test.describe.configure({ mode: 'serial' });
+
+	test('should show modal when loading non-existent site slug', async ({
+		website,
+		wordpress,
+		browserName,
+		context,
+	}) => {
+		test.skip(
+			browserName !== 'chromium',
+			`This test relies on OPFS which isn't available in Playwright's flavor of ${browserName}.`
+		);
+
+		// Clear all storage to ensure clean state
+		await context.clearCookies();
+
+		// Use a unique slug that definitely doesn't exist
+		const uniqueSlug = `missing-modal-test-${Date.now()}`;
+		await website.goto(`./?site-slug=${uniqueSlug}`);
+
+		// Wait for WordPress to load
+		await website.waitForNestedIframes();
+		await expect(wordpress.locator('body')).toBeVisible({
+			timeout: 30000,
+		});
+
+		// The modal should appear - wait for it with a reasonable timeout
+		await expect(
+			website.page.getByRole('dialog', {
+				name: 'Save to browser storage?',
+			})
+		).toBeVisible({ timeout: 20000 });
+	});
+
+	test('should save site when clicking save button in modal', async ({
+		website,
+		wordpress,
+		browserName,
+		context,
+	}) => {
+		test.skip(
+			browserName !== 'chromium',
+			`This test relies on OPFS which isn't available in Playwright's flavor of ${browserName}.`
+		);
+
+		// Clear storage
+		await context.clearCookies();
+
+		const uniqueSlug = `save-modal-test-${Date.now()}`;
+		await website.goto(`./?site-slug=${uniqueSlug}`);
+		await website.waitForNestedIframes();
+		await expect(wordpress.locator('body')).toBeVisible({
+			timeout: 30000,
+		});
+
+		// Wait for modal
+		const dialog = website.page.getByRole('dialog', {
+			name: 'Save to browser storage?',
+		});
+		await expect(dialog).toBeVisible({ timeout: 20000 });
+
+		// Click save button
+		await dialog
+			.getByRole('button', {
+				name: 'Save Playground to browser storage',
+			})
+			.click();
+
+		// Wait for modal to close
+		await expect(dialog).not.toBeVisible({ timeout: 60000 });
+
+		// Verify site was saved - title should change from "Unsaved Playground"
+		await website.ensureSiteManagerIsOpen();
+		const title = website.page.getByLabel('Playground title');
+		await expect(title).not.toContainText('Unsaved Playground', {
+			timeout: 90000,
+		});
+	});
+
+	test('should keep unsaved playground when dismissing modal', async ({
+		website,
+		wordpress,
+		browserName,
+		context,
+	}) => {
+		test.skip(
+			browserName !== 'chromium',
+			`This test relies on OPFS which isn't available in Playwright's flavor of ${browserName}.`
+		);
+
+		// Clear storage
+		await context.clearCookies();
+
+		const uniqueSlug = `dismiss-modal-test-${Date.now()}`;
+		await website.goto(`./?site-slug=${uniqueSlug}`);
+		await website.waitForNestedIframes();
+		await expect(wordpress.locator('body')).toBeVisible({
+			timeout: 30000,
+		});
+
+		// Wait for modal
+		const dialog = website.page.getByRole('dialog', {
+			name: 'Save to browser storage?',
+		});
+		await expect(dialog).toBeVisible({ timeout: 20000 });
+
+		// Click dismiss button
+		await dialog
+			.getByRole('button', {
+				name: 'Keep using an Unsaved Playground',
+			})
+			.click();
+
+		// Modal should close
+		await expect(dialog).not.toBeVisible();
+
+		// Site should still be temporary
+		await website.ensureSiteManagerIsOpen();
+		await expect(website.page.getByLabel('Playground title')).toContainText(
+			'Unsaved Playground'
+		);
+	});
+});
