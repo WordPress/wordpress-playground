@@ -2,6 +2,12 @@ import { test, expect } from '../playground-fixtures';
 import type { Blueprint } from '@wp-playground/blueprints';
 import { encodeStringAsBase64 } from '../../src/lib/base64';
 
+// We can't import the SupportedPHPVersions versions directly from the remote package
+// because of ESModules vs CommonJS incompatibilities. Let's just import the
+// JSON file directly. @ts-ignore
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import { SupportedPHPVersions } from '../../../../php-wasm/universal/src/lib/supported-php-versions.ts';
+
 test('Base64-encoded Blueprints should work', async ({
 	website,
 	wordpress,
@@ -278,7 +284,7 @@ test('Intl functions should be disabled by default', async ({
 	await expect(wordpress.locator('body')).toContainText('bool(false)');
 });
 
-['8.5', '8.4', '8.3', '8.2', '8.1', '8.0', '7.4'].forEach((phpVersion) => {
+SupportedPHPVersions.forEach((phpVersion) => {
 	test(`Intl functions should work when intl is enabled for PHP ${phpVersion}`, async ({
 		website,
 		wordpress,
@@ -309,7 +315,7 @@ test('Intl functions should be disabled by default', async ({
 	});
 });
 
-['8.5', '8.4', '8.3', '8.2', '8.1', '8.0', '7.4'].forEach((phpVersion) => {
+SupportedPHPVersions.forEach((phpVersion) => {
 	test(`Intl classes should work when intl is enabled for PHP ${phpVersion}`, async ({
 		website,
 		wordpress,
