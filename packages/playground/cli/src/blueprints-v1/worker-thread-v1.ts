@@ -9,13 +9,12 @@ import {
 	exposeAPI,
 	sandboxedSpawnHandlerFactory,
 } from '@php-wasm/universal';
-import { sprintf, joinPaths } from '@php-wasm/util';
+import { sprintf } from '@php-wasm/util';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import {
 	type WordPressInstallMode,
 	bootRequestHandler,
 	bootWordPressAndRequestHandler,
-	defineWpConfigConstants,
 } from '@wp-playground/wordpress';
 import { rootCertificates } from 'tls';
 import { jspi } from 'wasm-feature-detect';
@@ -213,23 +212,6 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 			// All secondary PHP instances created after WP boot will get
 			// these mounts automatically.
 			await mountResources(primaryPhp, mountsAfterWpInstall);
-
-			// Define wp-config.php constants if any were provided
-			if (
-				options.wpConfigConstants &&
-				Object.keys(options.wpConfigConstants).length > 0
-			) {
-				const wpConfigPath = joinPaths(
-					await primaryPhp.documentRoot,
-					'wp-config.php'
-				);
-				await defineWpConfigConstants(
-					primaryPhp,
-					wpConfigPath,
-					options.wpConfigConstants,
-					'rewrite'
-				);
-			}
 
 			setApiReady();
 		} catch (e) {

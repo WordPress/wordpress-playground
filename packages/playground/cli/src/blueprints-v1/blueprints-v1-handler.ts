@@ -239,9 +239,21 @@ export class BlueprintsV1Handler {
 				e.detail.caption || lastCaption || 'Running Blueprint';
 			this.cliOutput.updateProgress(lastCaption.trim(), progressInteger);
 		});
+
+		// Add wp-config constants as a Blueprint step if provided
+		const allAdditionalSteps = [...additionalBlueprintSteps];
+		const wpConfigConstants = mergeConstantsForWpConfig(this.args);
+		if (Object.keys(wpConfigConstants).length > 0) {
+			allAdditionalSteps.push({
+				step: 'defineWpConfigConsts',
+				consts: wpConfigConstants,
+				method: 'rewrite-wp-config',
+			});
+		}
+
 		return await compileBlueprintV1(blueprint as BlueprintV1Declaration, {
 			progress: tracker,
-			additionalSteps: additionalBlueprintSteps,
+			additionalSteps: allAdditionalSteps,
 		});
 	}
 

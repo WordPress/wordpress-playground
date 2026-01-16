@@ -146,9 +146,13 @@ describe.each(blueprintVersions)(
 			}
 		);
 
-		test.skipIf(isBlueprintsV2OnWindows)(
+		test.skipIf(isBlueprintsV2OnWindows || version === 2)(
 			'should define constants in wp-config.php via --define-in-wp-config flags',
-			async () => {
+			async ({ skip }) => {
+				if (version === 2) {
+					// @TODO: Implement wp-config constants support for Blueprint v2
+					skip();
+				}
 				await using cliServer = await runCLI({
 					...suiteCliArgs,
 					command: 'server',

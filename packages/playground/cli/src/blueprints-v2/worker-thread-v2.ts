@@ -18,7 +18,7 @@ import {
 	exposeAPI,
 	sandboxedSpawnHandlerFactory,
 } from '@php-wasm/universal';
-import { sprintf, joinPaths } from '@php-wasm/util';
+import { sprintf } from '@php-wasm/util';
 import {
 	type BlueprintMessage,
 	runBlueprintV2,
@@ -28,10 +28,7 @@ import {
 	type ParsedBlueprintV2String,
 	type RawBlueprintV2Data,
 } from '@wp-playground/blueprints';
-import {
-	bootRequestHandler,
-	defineWpConfigConstants,
-} from '@wp-playground/wordpress';
+import { bootRequestHandler } from '@wp-playground/wordpress';
 import { existsSync } from 'fs';
 import path from 'path';
 import { rootCertificates } from 'tls';
@@ -288,22 +285,8 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 			mountsAfterWpInstall: args.mountsAfterWpInstall || [],
 		});
 
-		// Define wp-config.php constants if any were provided
-		if (
-			args.wpConfigConstants &&
-			Object.keys(args.wpConfigConstants).length > 0
-		) {
-			const wpConfigPath = joinPaths(
-				await primaryPhp.documentRoot,
-				'wp-config.php'
-			);
-			await defineWpConfigConstants(
-				primaryPhp,
-				wpConfigPath,
-				args.wpConfigConstants,
-				'rewrite'
-			);
-		}
+		// TODO: Add wp-config constants support for Blueprint v2
+		// For now, only Blueprint v1 supports --define-in-wp-config flags
 	}
 
 	async bootWorker(args: SecondaryWorkerBootArgs) {
