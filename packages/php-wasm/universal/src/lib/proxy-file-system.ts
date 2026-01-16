@@ -53,14 +53,6 @@ function ensureProxyFSHasMmapSupport(phpInstance: PHP) {
 			throw new FS.ErrnoError(19); // ENODEV
 		}
 
-		const proxyFS = stream.node.mount.opts.fs;
-		if (proxyFS && stream.nfd !== undefined) {
-			const stat = proxyFS.fstat(stream.nfd);
-			if (stat && stat.size !== undefined) {
-				length = stat.size >>> 0;
-			}
-		}
-
 		// ICU only maps files from offset 0, so we don't support partial mapping
 		if (position !== 0) {
 			throw new FS.ErrnoError(22); // EINVAL
