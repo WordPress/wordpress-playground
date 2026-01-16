@@ -53,8 +53,8 @@ function ensureProxyFSHasMmapSupport(phpInstance: PHP) {
 		}
 
 		// For non-.dat files, get the actual file size from the proxied filesystem.
-		// This is needed because older PHP versions (7.2-7.4) may pass incorrect
-		// length values for certain file types.
+		// This is needed because PHP 7.4 may pass incorrect length values for
+		// certain file types.
 		const path = FS.getPath(stream.node);
 		if (!path.endsWith('.dat')) {
 			// Get the proxied filesystem from the mount options
