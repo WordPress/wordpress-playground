@@ -650,3 +650,118 @@ test('should create temporary site when importing ZIP while on a saved site with
 		{ timeout: 30000 }
 	);
 });
+
+test('should show missing site modal when loading a non-existent site slug', async ({
+	website,
+	browserName,
+}) => {
+	test.skip(
+		browserName !== 'chromium',
+		`This test relies on OPFS which isn't available in Playwright's flavor of ${browserName}.`
+	);
+
+	// Try to load a site slug that doesn't exist
+	const nonExistentSlug = 'this-site-does-not-exist-12345';
+	await website.goto(`./?site-slug=${nonExistentSlug}`);
+	await website.waitForNestedIframes();
+
+	// Verify the missing site modal appears
+	const dialog = website.page.getByRole('dialog', {
+		name: 'Save to browser storage?',
+	});
+	await expect(dialog).toBeVisible({ timeout: 10000 });
+
+	// Verify the modal content mentions the site doesn't exist
+	await expect(dialog).toContainText('does not exist');
+
+	// Verify both action buttons are present
+	await expect(
+		dialog.getByRole('button', {
+			name: 'Save Playground to browser storage',
+		})
+	).toBeVisible();
+	await expect(
+		dialog.getByRole('button', { name: 'Keep using an Unsaved Playground' })
+	).toBeVisible();
+});
+
+test('should save site from missing site modal', async ({
+	website,
+	browserName,
+}) => {
+	test.skip(
+		browserName !== 'chromium',
+		`This test relies on OPFS which isn't available in Playwright's flavor of ${browserName}.`
+	);
+
+	// Try to load a site slug that doesn't exist
+	const nonExistentSlug = 'test-save-from-modal';
+	await website.goto(`./?site-slug=${nonExistentSlug}`);
+	await website.waitForNestedIframes();
+
+	// Wait for the missing site modal to appear
+	const dialog = website.page.getByRole('dialog', {
+		name: 'Save to browser storage?',
+	});
+	await expect(dialog).toBeVisible({ timeout: 10000 });
+
+	// Click the Save button
+	await dialog
+		.getByRole('button', { name: 'Save Playground to browser storage' })
+		.click();
+
+	// Wait for the dialog to close
+	await expect(dialog).not.toBeVisible({ timeout: 60000 });
+
+	// Verify the site was saved - the title should no longer say "Unsaved Playground"
+	await website.ensureSiteManagerIsOpen();
+	await expect(website.page.getByLabel('Playground title')).not.toContainText(
+		'Unsaved Playground',
+		{ timeout: 90000 }
+	);
+
+	// Verify the site is now in the saved playgrounds list
+	await website.openSavedPlaygroundsOverlay();
+	await expect(
+		website.page.locator('[class*="siteRowContent"]')
+	).not.toHaveCount(1); // Should have more than just the temporary playground row
+});
+
+test('should dismiss missing site modal and keep using unsaved playground', async ({
+	website,
+	browserName,
+}) => {
+	test.skip(
+		browserName !== 'chromium',
+		`This test relies on OPFS which isn't available in Playwright's flavor of ${browserName}.`
+	);
+
+	// Try to load a site slug that doesn't exist
+	const nonExistentSlug = 'test-dismiss-modal';
+	await website.goto(`./?site-slug=${nonExistentSlug}`);
+	await website.waitForNestedIframes();
+
+	// Wait for the missing site modal to appear
+	const dialog = website.page.getByRole('dialog', {
+		name: 'Save to browser storage?',
+	});
+	await expect(dialog).toBeVisible({ timeout: 10000 });
+
+	// Click the "Keep using an Unsaved Playground" button
+	await dialog
+		.getByRole('button', { name: 'Keep using an Unsaved Playground' })
+		.click();
+
+	// Wait for the dialog to close
+	await expect(dialog).not.toBeVisible();
+
+	// Verify the site is still temporary
+	await website.ensureSiteManagerIsOpen();
+	await expect(website.page.getByLabel('Playground title')).toContainText(
+		'Unsaved Playground'
+	);
+
+	// Verify the site slug parameter is still in the URL
+	const currentUrl = website.page.url();
+	expect(currentUrl).toContain(`site-slug=${nonExistentSlug}`);
+});
