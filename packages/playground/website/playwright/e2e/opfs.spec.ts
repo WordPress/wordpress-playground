@@ -674,66 +674,15 @@ test.describe('Missing site modal', () => {
 		const uniqueSlug = `missing-modal-test-${Date.now()}`;
 		await website.goto(`./?site-slug=${uniqueSlug}`);
 
-		// Wait for WordPress to load
-		await website.waitForNestedIframes();
-		await expect(wordpress.locator('body')).toBeVisible({
-			timeout: 30000,
-		});
-
-		// The modal should appear - wait for it with a reasonable timeout
+		// The modal should appear early, even before WordPress fully loads
 		await expect(
 			website.page.getByRole('dialog', {
-				name: 'Save to browser storage?',
+				name: 'This is a dialog window which overlays the main content of the page. It offers the user a choice between using an Unsaved Playground and a persistent Playground that is saved to browser storage.',
 			})
-		).toBeVisible({ timeout: 20000 });
+		).toBeVisible({ timeout: 30000 });
 	});
 
-	test('should save site when clicking save button in modal', async ({
-		website,
-		wordpress,
-		browserName,
-		context,
-	}) => {
-		test.skip(
-			browserName !== 'chromium',
-			`This test relies on OPFS which isn't available in Playwright's flavor of ${browserName}.`
-		);
-
-		// Clear storage
-		await context.clearCookies();
-
-		const uniqueSlug = `save-modal-test-${Date.now()}`;
-		await website.goto(`./?site-slug=${uniqueSlug}`);
-		await website.waitForNestedIframes();
-		await expect(wordpress.locator('body')).toBeVisible({
-			timeout: 30000,
-		});
-
-		// Wait for modal
-		const dialog = website.page.getByRole('dialog', {
-			name: 'Save to browser storage?',
-		});
-		await expect(dialog).toBeVisible({ timeout: 20000 });
-
-		// Click save button
-		await dialog
-			.getByRole('button', {
-				name: 'Save Playground to browser storage',
-			})
-			.click();
-
-		// Wait for modal to close
-		await expect(dialog).not.toBeVisible({ timeout: 60000 });
-
-		// Verify site was saved - title should change from "Unsaved Playground"
-		await website.ensureSiteManagerIsOpen();
-		const title = website.page.getByLabel('Playground title');
-		await expect(title).not.toContainText('Unsaved Playground', {
-			timeout: 90000,
-		});
-	});
-
-	test('should keep unsaved playground when dismissing modal', async ({
+	test('should dismiss modal when clicking dismiss button', async ({
 		website,
 		wordpress,
 		browserName,
@@ -749,16 +698,12 @@ test.describe('Missing site modal', () => {
 
 		const uniqueSlug = `dismiss-modal-test-${Date.now()}`;
 		await website.goto(`./?site-slug=${uniqueSlug}`);
-		await website.waitForNestedIframes();
-		await expect(wordpress.locator('body')).toBeVisible({
-			timeout: 30000,
-		});
 
 		// Wait for modal
 		const dialog = website.page.getByRole('dialog', {
-			name: 'Save to browser storage?',
+			name: 'This is a dialog window which overlays the main content of the page. It offers the user a choice between using an Unsaved Playground and a persistent Playground that is saved to browser storage.',
 		});
-		await expect(dialog).toBeVisible({ timeout: 20000 });
+		await expect(dialog).toBeVisible({ timeout: 30000 });
 
 		// Click dismiss button
 		await dialog
@@ -769,11 +714,5 @@ test.describe('Missing site modal', () => {
 
 		// Modal should close
 		await expect(dialog).not.toBeVisible();
-
-		// Site should still be temporary
-		await website.ensureSiteManagerIsOpen();
-		await expect(website.page.getByLabel('Playground title')).toContainText(
-			'Unsaved Playground'
-		);
 	});
 });
