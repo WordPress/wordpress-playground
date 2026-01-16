@@ -157,19 +157,25 @@ describeIfMemcached('Memcached Integration', () => {
 				code: `<?php
 					$m = new Memcached();
 					$m->addServer('${MEMCACHED_HOST}', ${MEMCACHED_PORT});
+					// Use binary protocol for increment/decrement to work properly
+					$m->setOption(Memcached::OPT_BINARY_PROTOCOL, true);
 
 					$key = '${testKey}';
 
-					// Set initial value (must be numeric string for increment)
-					$m->set($key, '10');
-
-					// Increment by 5
-					$m->increment($key, 5);
-					$afterIncr = $m->get($key);
+					// Use increment with initial value (third and fourth parameters)
+					// This atomically sets the key if it doesn't exist
+					$afterIncr = $m->increment($key, 5, 10); // initial=10, then +5 = 15
+					if ($afterIncr === false) {
+						echo 'INCREMENT_FAILED: ' . $m->getResultMessage();
+						exit(1);
+					}
 
 					// Decrement by 3
-					$m->decrement($key, 3);
-					$afterDecr = $m->get($key);
+					$afterDecr = $m->decrement($key, 3);
+					if ($afterDecr === false) {
+						echo 'DECREMENT_FAILED: ' . $m->getResultMessage();
+						exit(1);
+					}
 
 					// Clean up
 					$m->delete($key);
@@ -246,11 +252,22 @@ describeIfMemcached('Memcached Integration', () => {
 						'nested' => ['a' => 1, 'b' => 2],
 					];
 
-					$m->set($key, $data);
+					$setResult = $m->set($key, $data);
+					if (!$setResult) {
+						echo 'SET_FAILED: ' . $m->getResultMessage();
+						exit(1);
+					}
+
 					$retrieved = $m->get($key);
 
 					// Clean up
 					$m->delete($key);
+
+					// Check if get succeeded
+					if (!is_array($retrieved)) {
+						echo 'GET_FAILED: expected array, got ' . gettype($retrieved) . ' - ' . $m->getResultMessage();
+						exit(1);
+					}
 
 					// Verify the data is intact
 					$isValid = (
