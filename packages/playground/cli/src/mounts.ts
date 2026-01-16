@@ -75,105 +75,80 @@ export function parseMountDirArguments(mounts: string[]): Mount[] {
 }
 
 /**
- * Parse an array of string constant definitions into a constants object.
+ * Parse an array of constant name-value pairs into a constants object.
+ * Works similarly to parseMountDirArguments - each pair of array elements
+ * represents a constant name and its value.
  *
- * Supports two formats:
- * - NAME=value (e.g., "API_KEY=secret123", "TITLE=Hello World")
- * - NAME (empty string value, e.g., --define EMPTY results in EMPTY="")
- *
+ * Format: --define-for-this-run NAME value
  * Examples:
- *     parseDefineStringArguments(['API_KEY=secret', 'TITLE=Hello'])
- *     // returns: { API_KEY: 'secret', TITLE: 'Hello' }
+ *     --define-for-this-run API_KEY secret
+ *     --define-for-this-run CON=ST "va=lu=e"
  *
- * @param defines - An array of constant definition strings
+ * @param defines - An array where each pair is [name, value]
  * @returns An object mapping constant names to their string values
  */
 export function parseDefineStringArguments(
 	defines: string[]
 ): Record<string, string> {
+	if (defines.length % 2 !== 0) {
+		throw new Error(
+			'Invalid constant definition format. Expected pairs of NAME value'
+		);
+	}
+
 	const constants: Record<string, string> = {};
 
-	for (const define of defines) {
-		const equalIndex = define.indexOf('=');
+	for (let i = 0; i < defines.length; i += 2) {
+		const name = defines[i];
+		const value = defines[i + 1];
 
-		if (equalIndex === -1) {
-			// No equals sign: treat as empty string
-			const name = define.trim();
-			if (!name) {
-				throw new Error(
-					'Invalid constant definition: empty constant name'
-				);
-			}
-			constants[name] = '';
-			continue;
+		if (!name || !name.trim()) {
+			throw new Error('Constant name cannot be empty');
 		}
 
-		const name = define.substring(0, equalIndex).trim();
-		const value = define.substring(equalIndex + 1);
-
-		if (!name) {
-			throw new Error(
-				`Invalid constant definition: "${define}". Constant name cannot be empty.`
-			);
-		}
-
-		constants[name] = value;
+		constants[name.trim()] = value;
 	}
 
 	return constants;
 }
 
 /**
- * Parse an array of boolean constant definitions into a constants object.
+ * Parse an array of constant name-value pairs into a boolean constants object.
+ * Works similarly to parseMountDirArguments - each pair of array elements
+ * represents a constant name and its value.
  *
- * Supports two formats:
- * - NAME=value where value is "true", "false", "1", or "0" (case-insensitive)
- * - NAME (defaults to true)
- *
+ * Format: --define-bool-for-this-run NAME value
  * Examples:
- *     parseDefineBoolArguments(['WP_DEBUG=true', 'MY_FEATURE'])
- *     // returns: { WP_DEBUG: true, MY_FEATURE: true }
+ *     --define-bool-for-this-run WP_DEBUG true
+ *     --define-bool-for-this-run WP_DEBUG_LOG false
  *
- * @param defines - An array of constant definition strings
+ * @param defines - An array where each pair is [name, value]
  * @returns An object mapping constant names to their boolean values
  */
 export function parseDefineBoolArguments(
 	defines: string[]
 ): Record<string, boolean> {
+	if (defines.length % 2 !== 0) {
+		throw new Error(
+			'Invalid boolean constant definition format. Expected pairs of NAME value'
+		);
+	}
+
 	const constants: Record<string, boolean> = {};
 
-	for (const define of defines) {
-		const equalIndex = define.indexOf('=');
+	for (let i = 0; i < defines.length; i += 2) {
+		const name = defines[i];
+		const value = defines[i + 1].trim().toLowerCase();
 
-		if (equalIndex === -1) {
-			// No equals sign: default to true
-			const name = define.trim();
-			if (!name) {
-				throw new Error(
-					'Invalid boolean constant definition: empty constant name'
-				);
-			}
-			constants[name] = true;
-			continue;
-		}
-
-		const name = define.substring(0, equalIndex).trim();
-		const value = define
-			.substring(equalIndex + 1)
-			.trim()
-			.toLowerCase();
-
-		if (!name) {
-			throw new Error(
-				`Invalid boolean constant definition: "${define}". Constant name cannot be empty.`
-			);
+		if (!name || !name.trim()) {
+			throw new Error('Constant name cannot be empty');
 		}
 
 		// Parse boolean value
 		if (value === 'true' || value === '1') {
-			constants[name] = true;
+			constants[name.trim()] = true;
 		} else if (value === 'false' || value === '0') {
-			constants[name] = false;
+			constants[name.trim()] = false;
 		} else {
 			throw new Error(
 				`Invalid boolean value for constant "${name}": "${value}". Must be "true", "false", "1", or "0".`
@@ -185,38 +160,35 @@ export function parseDefineBoolArguments(
 }
 
 /**
- * Parse an array of number constant definitions into a constants object.
+ * Parse an array of constant name-value pairs into a number constants object.
+ * Works similarly to parseMountDirArguments - each pair of array elements
+ * represents a constant name and its value.
  *
- * Format: NAME=value where value is a valid number
- *
+ * Format: --define-number-for-this-run NAME value
  * Examples:
- *     parseDefineNumberArguments(['LIMIT=100', 'RATE=45.67'])
- *     // returns: { LIMIT: 100, RATE: 45.67 }
+ *     --define-number-for-this-run LIMIT 100
+ *     --define-number-for-this-run RATE 45.67
  *
- * @param defines - An array of constant definition strings
+ * @param defines - An array where each pair is [name, value]
  * @returns An object mapping constant names to their numeric values
  */
 export function parseDefineNumberArguments(
 	defines: string[]
 ): Record<string, number> {
+	if (defines.length % 2 !== 0) {
+		throw new Error(
+			'Invalid number constant definition format. Expected pairs of NAME value'
+		);
+	}
+
 	const constants: Record<string, number> = {};
 
-	for (const define of defines) {
-		const equalIndex = define.indexOf('=');
+	for (let i = 0; i < defines.length; i += 2) {
+		const name = defines[i];
+		const value = defines[i + 1].trim();
 
-		if (equalIndex === -1) {
-			throw new Error(
-				`Invalid number constant definition: "${define}". Must include a value (e.g., NAME=123).`
-			);
-		}
-
-		const name = define.substring(0, equalIndex).trim();
-		const value = define.substring(equalIndex + 1).trim();
-
-		if (!name) {
-			throw new Error(
-				`Invalid number constant definition: "${define}". Constant name cannot be empty.`
-			);
+		if (!name || !name.trim()) {
+			throw new Error('Constant name cannot be empty');
 		}
 
 		const numValue = Number(value);
@@ -226,7 +198,7 @@ export function parseDefineNumberArguments(
 			);
 		}
 
-		constants[name] = numValue;
+		constants[name.trim()] = numValue;
 	}
 
 	return constants;

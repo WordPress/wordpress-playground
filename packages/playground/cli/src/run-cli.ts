@@ -110,57 +110,63 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 			'define-for-this-run': {
 				describe:
 					'Define PHP string constants for the current process only (can be used multiple times). ' +
-					'Format: NAME=value or just NAME for empty string. ' +
+					'Format: NAME value. ' +
 					'These constants are set via php.defineConstant() and only exist for the current request. ' +
-					'Examples: --define-for-this-run API_KEY=secret --define-for-this-run TITLE="Hello World"',
-				type: 'array',
-				string: true,
+					'Examples: --define-for-this-run API_KEY secret --define-for-this-run CON=ST "va=lu=e"',
+				type: 'string',
+				nargs: 2,
+				array: true,
 				coerce: parseDefineStringArguments,
 			},
 			'define-bool-for-this-run': {
 				describe:
 					'Define PHP boolean constants for the current process only (can be used multiple times). ' +
-					'Format: NAME=value or just NAME for true. Value must be "true", "false", "1", or "0". ' +
-					'Examples: --define-bool-for-this-run WP_DEBUG=true --define-bool-for-this-run MY_FEATURE',
-				type: 'array',
-				string: true,
+					'Format: NAME value. Value must be "true", "false", "1", or "0". ' +
+					'Examples: --define-bool-for-this-run WP_DEBUG true --define-bool-for-this-run MY_FEATURE false',
+				type: 'string',
+				nargs: 2,
+				array: true,
 				coerce: parseDefineBoolArguments,
 			},
 			'define-number-for-this-run': {
 				describe:
 					'Define PHP number constants for the current process only (can be used multiple times). ' +
-					'Format: NAME=value. ' +
-					'Examples: --define-number-for-this-run LIMIT=100 --define-number-for-this-run RATE=45.67',
-				type: 'array',
-				string: true,
+					'Format: NAME value. ' +
+					'Examples: --define-number-for-this-run LIMIT 100 --define-number-for-this-run RATE 45.67',
+				type: 'string',
+				nargs: 2,
+				array: true,
 				coerce: parseDefineNumberArguments,
 			},
 			'define-in-wp-config': {
 				describe:
 					'Define PHP string constants in wp-config.php (can be used multiple times). ' +
-					'Format: NAME=value or just NAME for empty string. ' +
+					'Format: NAME value. ' +
 					'These constants are written to wp-config.php and persist across requests. ' +
-					'Examples: --define-in-wp-config WP_HOME=https://example.com --define-in-wp-config CUSTOM_VAL=test',
-				type: 'array',
-				string: true,
+					'Examples: --define-in-wp-config WP_HOME https://example.com --define-in-wp-config CUSTOM_VAL test',
+				type: 'string',
+				nargs: 2,
+				array: true,
 				coerce: parseDefineStringArguments,
 			},
 			'define-bool-in-wp-config': {
 				describe:
 					'Define PHP boolean constants in wp-config.php (can be used multiple times). ' +
-					'Format: NAME=value or just NAME for true. Value must be "true", "false", "1", or "0". ' +
-					'Examples: --define-bool-in-wp-config WP_DEBUG=true --define-bool-in-wp-config WP_DEBUG_LOG=false',
-				type: 'array',
-				string: true,
+					'Format: NAME value. Value must be "true", "false", "1", or "0". ' +
+					'Examples: --define-bool-in-wp-config WP_DEBUG true --define-bool-in-wp-config WP_DEBUG_LOG false',
+				type: 'string',
+				nargs: 2,
+				array: true,
 				coerce: parseDefineBoolArguments,
 			},
 			'define-number-in-wp-config': {
 				describe:
 					'Define PHP number constants in wp-config.php (can be used multiple times). ' +
-					'Format: NAME=value. ' +
-					'Examples: --define-number-in-wp-config WP_MEMORY_LIMIT=256 --define-number-in-wp-config AUTOSAVE_INTERVAL=160',
-				type: 'array',
-				string: true,
+					'Format: NAME value. ' +
+					'Examples: --define-number-in-wp-config WP_MEMORY_LIMIT 256 --define-number-in-wp-config AUTOSAVE_INTERVAL 160',
+				type: 'string',
+				nargs: 2,
+				array: true,
 				coerce: parseDefineNumberArguments,
 			},
 			// @TODO: Support read-only mounts, e.g. via WORKERFS, a custom
