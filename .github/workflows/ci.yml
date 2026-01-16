@@ -369,7 +369,7 @@ jobs:
             - uses: ./.github/actions/prepare-playground
               with:
                   node-version: 23
-            - run: npx vitest run php-memcached
+            - run: node --expose-gc node_modules/nx/bin/nx run php-wasm-node:test-memcached-jspi
               env:
                   MEMCACHED_HOST: 127.0.0.1
                   MEMCACHED_PORT: 11211
