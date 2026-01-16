@@ -144,11 +144,7 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 
 		try {
 			const constants: Record<string, string | number | boolean | null> =
-				{
-					WP_DEBUG: true,
-					WP_DEBUG_LOG: true,
-					WP_DEBUG_DISPLAY: false,
-				};
+				{};
 			let wordpressBooted = false;
 			const requestHandler = await bootWordPressAndRequestHandler({
 				siteUrl,
