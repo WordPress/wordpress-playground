@@ -142,7 +142,10 @@ RUN set -euxo pipefail; \
 	\
 	# Use non-linux host type or configure will try to require linux kernel
 	# features that are unsupported by emscripten (e.g., rtnetlink.h).
+	# ZEND_ENABLE_ZVAL_LONG64 is required to match PHP's zend_long type (64-bit)
+	# which is used in function signatures like zend_throw_exception.
 	emconfigure ./configure \
+		CFLAGS="-DZEND_ENABLE_ZVAL_LONG64" \
 		--host="i386-unknown-freebsd" \
 		--disable-static \
 		--enable-shared \
