@@ -22,7 +22,6 @@ RUN git clone https://github.com/php/php-src.git php-src \
 
 RUN cd php-src && ./buildconf --force
 
-# PHP <= 7.3 Get and patch PHP
 COPY ./php/php*.patch /root/
 RUN cd /root && git apply --no-index /root/php${PHP_VERSION:0:3}*.patch -v
 

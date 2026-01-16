@@ -137,7 +137,7 @@ RUN touch /root/.configure-flags && \
 	touch /root/.emcc-php-wasm-sources && \
 	touch /root/.EXPORTED_FUNCTIONS
 
-RUN apt install -y bison; 
+RUN apt install -y bison;
 
 # Add libzip and zlib files if needed
 RUN if [ "$WITH_LIBZIP" = "yes" ]; then \
@@ -211,7 +211,7 @@ RUN if [ "$WITH_GD" = "yes" ]; \
 				echo -n ' --with-avif ' >> /root/.php-configure-flags; \
 			fi; \
 		else \
-			# Bundled gd for PHP 7.x and 8.0
+			# Bundled gd for PHP 7.4 and 8.0
 			echo -n ' --enable-gd ' >> /root/.php-configure-flags; \
 			if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "4" ]]; then \
 				/root/replace.sh 's/static long php_jpeg_emit_message/static void php_jpeg_emit_message/g' /root/php-src/ext/gd/libgd/gd_jpeg.c; \
@@ -306,7 +306,7 @@ RUN if [ "$WITH_MYSQL" = "yes" ]; then \
 		echo -n ' -DMYSQLND_FORCE_TCP_LOCALHOST ' >> /root/.emcc-php-wasm-flags; \
 	fi
 
-# Download and prepare imagick extension if needed (PHP 7.2+)
+# Download and prepare imagick extension if needed (PHP 7.4+)
 # Use version 3.7.0 for PHP 7.x, master for PHP 8.x
 RUN 	if [ "${PHP_VERSION:0:1}" -eq "7" ]; then \
 			IMAGICK_BRANCH="3.7.0"; \

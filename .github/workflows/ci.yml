@@ -352,6 +352,28 @@ jobs:
                   REDIS_HOST: 127.0.0.1
                   REDIS_PORT: 6379
 
+    # Memcached integration tests - requires a running memcached server
+    # These tests verify that the php-memcached extension can actually
+    # connect to and interact with a real memcached instance.
+    test-memcached-integration:
+        runs-on: ubuntu-latest
+        services:
+            memcached:
+                image: memcached:1.6-alpine
+                ports:
+                    - 11211:11211
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  submodules: true
+            - uses: ./.github/actions/prepare-playground
+              with:
+                  node-version: 23
+            - run: npx vitest run php-memcached
+              env:
+                  MEMCACHED_HOST: 127.0.0.1
+                  MEMCACHED_PORT: 11211
+
     build:
         runs-on: ubuntu-latest
         steps:
