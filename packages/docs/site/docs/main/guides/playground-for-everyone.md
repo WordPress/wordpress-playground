@@ -29,7 +29,7 @@ When you visit [playground.wordpress.net](https://playground.wordpress.net), you
 - Change WordPress and PHP versions
 - Explore features you've never tried before
 
-By default, the WordPress Playground loads a landing page to introduce some of the features of the Playground and where you can learn more about it. But you can also load a vanilla WordPress version without the landing page. At the Launching Playground panel, one option is to load a vanilla WordPress version.
+By default, WordPress Playground loads a landing page to introduce some of the features of Playground and where you can learn more about it. But you can also load a vanilla WordPress version without the landing page. At the Launching Playground panel, one option is to load a vanilla WordPress version.
 
 1. Open Launch WordPress Panel
    ![Launch WordPress Panel](@site/static/img/about/open-playground-dashboard.webp)
