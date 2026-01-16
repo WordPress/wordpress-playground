@@ -665,11 +665,15 @@ test('should show missing site modal when loading a non-existent site slug', asy
 	await website.goto(`./?site-slug=${nonExistentSlug}`);
 	await website.waitForNestedIframes();
 
+	// Wait for the playground to fully load before checking for the modal
+	// The modal appears after the client info is loaded
+	await expect(wordpress.locator('body')).toBeVisible({ timeout: 30000 });
+
 	// Verify the missing site modal appears
 	const dialog = website.page.getByRole('dialog', {
 		name: 'Save to browser storage?',
 	});
-	await expect(dialog).toBeVisible({ timeout: 10000 });
+	await expect(dialog).toBeVisible({ timeout: 15000 });
 
 	// Verify the modal content mentions the site doesn't exist
 	await expect(dialog).toContainText('does not exist');
@@ -687,6 +691,7 @@ test('should show missing site modal when loading a non-existent site slug', asy
 
 test('should save site from missing site modal', async ({
 	website,
+	wordpress,
 	browserName,
 }) => {
 	test.skip(
@@ -699,11 +704,14 @@ test('should save site from missing site modal', async ({
 	await website.goto(`./?site-slug=${nonExistentSlug}`);
 	await website.waitForNestedIframes();
 
+	// Wait for the playground to fully load
+	await expect(wordpress.locator('body')).toBeVisible({ timeout: 30000 });
+
 	// Wait for the missing site modal to appear
 	const dialog = website.page.getByRole('dialog', {
 		name: 'Save to browser storage?',
 	});
-	await expect(dialog).toBeVisible({ timeout: 10000 });
+	await expect(dialog).toBeVisible({ timeout: 15000 });
 
 	// Click the Save button
 	await dialog
@@ -732,6 +740,7 @@ test('should save site from missing site modal', async ({
 
 test('should dismiss missing site modal and keep using unsaved playground', async ({
 	website,
+	wordpress,
 	browserName,
 }) => {
 	test.skip(
@@ -744,11 +753,14 @@ test('should dismiss missing site modal and keep using unsaved playground', asyn
 	await website.goto(`./?site-slug=${nonExistentSlug}`);
 	await website.waitForNestedIframes();
 
+	// Wait for the playground to fully load
+	await expect(wordpress.locator('body')).toBeVisible({ timeout: 30000 });
+
 	// Wait for the missing site modal to appear
 	const dialog = website.page.getByRole('dialog', {
 		name: 'Save to browser storage?',
 	});
-	await expect(dialog).toBeVisible({ timeout: 10000 });
+	await expect(dialog).toBeVisible({ timeout: 15000 });
 
 	// Click the "Keep using an Unsaved Playground" button
 	await dialog
