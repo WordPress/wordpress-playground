@@ -891,17 +891,34 @@ const LibraryExample = {
 		const optionValue = HEAPU8[optionValuePtr];
 		const SOL_SOCKET = 1;
 		const SO_KEEPALIVE = 9;
+		const SO_RCVTIMEO = 66;
+		const SO_SNDTIMEO = 67;
 		const IPPROTO_TCP = 6;
 		const TCP_NODELAY = 1;
-		const isSupported =
+
+		// Options that we can forward to the WebSocket proxy
+		const isForwardable =
 			(level === SOL_SOCKET && optionName === SO_KEEPALIVE) ||
 			(level === IPPROTO_TCP && optionName === TCP_NODELAY);
-		if (!isSupported) {
+
+		// Options that we acknowledge but don't actually implement
+		// (WebSocket connections handle timeouts differently)
+		const isIgnorable =
+			level === SOL_SOCKET &&
+			(optionName === SO_RCVTIMEO || optionName === SO_SNDTIMEO);
+
+		if (!isForwardable && !isIgnorable) {
 			console.warn(
 				`Unsupported socket option: ${level}, ${optionName}, ${optionValue}`
 			);
 			return -1;
 		}
+
+		// For ignorable options, just return success
+		if (isIgnorable) {
+			return 0;
+		}
+
 		const ws = PHPWASM.getAllWebSockets(socketd)[0];
 		if (!ws) {
 			return -1;
