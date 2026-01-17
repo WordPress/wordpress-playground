@@ -7,11 +7,11 @@ slug: /developers/architecture
 
 WordPress Playground consists of the following high-level components:
 
--   [WordPress](/developers/architecture/wordpress)
--   [WebAssembly PHP](/developers/architecture/wasm-php-overview)
--   [Browser bindings](/developers/architecture/browser-concepts)
--   Node.js bindings via [@php-wasm/node](https://npmjs.com/package/@php-wasm/node)
--   [Public API](/developers/apis/)
+- [WordPress](/developers/architecture/wordpress)
+- [WebAssembly PHP](/developers/architecture/wasm-php-overview)
+- [Browser bindings](/developers/architecture/browser-concepts)
+- Node.js bindings via [@php-wasm/node](https://npmjs.com/package/@php-wasm/node)
+- [Public API](/developers/apis/)
 
 Visit each section to learn more about the specific parts of the architecture.
 
@@ -22,7 +22,7 @@ Visit each section to learn more about the specific parts of the architecture.
 WordPress Playground uses [NX](https://nx.dev/), a build system designed for monorepos.
 
 The dependencies between Playground packages and projects [are too complex](https://github.com/WordPress/wordpress-playground/pull/151) for a bundler like Webpack, and NX handles this complexity much better:
-![Dependency graph](@site/static/img/dependencies.png)
+![Dependency graph](@site/static/img/dependencies.webp)
 
 To learn more, head over to the [NX developer docs](https://nx.dev/getting-started/intro).
 

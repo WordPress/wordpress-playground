@@ -132,8 +132,8 @@ export default defineConfig(({ mode }) => {
 						// Split Extensions or associated shared files into separate chunks
 						// that will be placed in assets/extensions/ directory
 						if (
-							chunkInfo.facadeModuleId.endsWith('.so') ||
-							chunkInfo.facadeModuleId.endsWith('.dat')
+							chunkInfo.facadeModuleId?.endsWith('.so') ||
+							chunkInfo.facadeModuleId?.endsWith('.dat')
 						) {
 							return 'assets/extensions/[name]-[hash].js';
 						}

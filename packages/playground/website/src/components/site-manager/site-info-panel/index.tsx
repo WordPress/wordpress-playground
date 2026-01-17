@@ -148,7 +148,7 @@ export function SiteInfoPanel({
 			? (opfsMountDescriptor as any)?.device?.handle?.name
 			: undefined;
 
-	const title = isTemporary ? 'Temporary Playground' : site.metadata.name;
+	const title = isTemporary ? 'Unsaved Playground' : site.metadata.name;
 	const titleWords = title.split(' ');
 	const titleStart = titleWords.slice(0, -1).join(' ');
 	const titleEnd = titleWords[titleWords.length - 1];
@@ -464,9 +464,9 @@ export function SiteInfoPanel({
 									{!isTemporary && (
 										<div className={css.blueprintNotice}>
 											This Blueprint is read-only for
-											saved Playgrounds. Create a
-											temporary Playground to edit and
-											test Blueprint changes.
+											saved Playgrounds. Create an Unsaved
+											Playground to edit and test
+											Blueprint changes.
 										</div>
 									)}
 									<Suspense

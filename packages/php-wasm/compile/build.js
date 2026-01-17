@@ -158,8 +158,8 @@ const argParser = yargs(process.argv.slice(2))
 		},
 		['output-dir']: {
 			type: 'string',
-			description: 'The output directory',
-			required: true,
+			description:
+				'The output directory. If not provided, it will be computed from the PHP version and platform.',
 		},
 		WITH_OPENSSL_VERSION: {
 			type: 'string',
@@ -235,7 +235,54 @@ if (!requestedVersion || requestedVersion === 'undefined') {
 }
 
 const sourceDir = path.dirname(new URL(import.meta.url).pathname);
-const outputDir = path.resolve(process.cwd(), args.outputDir);
+
+// Compute output directory if not provided
+function computeOutputDir() {
+	if (args.outputDir) {
+		return path.resolve(process.cwd(), args.outputDir);
+	}
+	// Extract major.minor from the PHP version (e.g., "8.4.16" -> "8-4")
+	const phpVersion = args.PHP_VERSION || '8.3';
+	const [major, minor] = phpVersion.split('.');
+	const versionDir = `${major}-${minor}`;
+	// Check both --JSPI (boolean) and --WITH_JSPI=yes (string from legacy format)
+	const isJspi = args.JSPI || args.WITH_JSPI === 'yes';
+	const jspiOrAsyncify = isJspi ? 'jspi' : 'asyncify';
+	const platformDir = platform === 'node' ? 'node-builds' : 'web-builds';
+	return path.resolve(
+		process.cwd(),
+		`packages/php-wasm/${platformDir}/${versionDir}/${jspiOrAsyncify}`
+	);
+}
+
+const outputDir = computeOutputDir();
+
+// Clean up outdated minor versions in the output directory to avoid shipping
+// multiple binaries for the same major.minor PHP version.
+async function cleanupOldMinorVersions() {
+	if (!fs.existsSync(outputDir)) {
+		return;
+	}
+	const phpVersion = args.PHP_VERSION || '8.3';
+	const [major, minor] = phpVersion.split('.');
+	const versionPrefix = `${major}_${minor}`;
+
+	const entries = fs.readdirSync(outputDir);
+	for (const entry of entries) {
+		// Match files and directories like "8_4_15", "php_8_4.js", etc.
+		// that belong to the same major.minor version
+		if (
+			entry.startsWith(versionPrefix) ||
+			entry.startsWith(`php_${major}_${minor}`)
+		) {
+			const fullPath = path.join(outputDir, entry);
+			console.log(`Removing outdated: ${fullPath}`);
+			await rmAsync(fullPath, { recursive: true, force: true });
+		}
+	}
+}
+
+await cleanupOldMinorVersions();
 
 // Build the base image
 await asyncSpawn('make', ['base-image'], { cwd: sourceDir, stdio: 'inherit' });

@@ -309,6 +309,10 @@ export function SaveSiteModal() {
 				style={{ display: 'flex', flexDirection: 'column', gap: 16 }}
 				autoComplete="off"
 			>
+				<p style={{ margin: 0, color: '#1e1e1e' }}>
+					This Playground is temporary and will be lost when you
+					refresh or close this page. Save it to keep your work.
+				</p>
 				<TextControl
 					label="Playground name"
 					value={name}

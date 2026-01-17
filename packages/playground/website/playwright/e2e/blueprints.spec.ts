@@ -2,6 +2,12 @@ import { test, expect } from '../playground-fixtures';
 import type { Blueprint } from '@wp-playground/blueprints';
 import { encodeStringAsBase64 } from '../../src/lib/base64';
 
+// We can't import the SupportedPHPVersions versions directly from the remote package
+// because of ESModules vs CommonJS incompatibilities. Let's just import the
+// JSON file directly. @ts-ignore
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import { SupportedPHPVersions } from '../../../../php-wasm/universal/src/lib/supported-php-versions.ts';
+
 test('Base64-encoded Blueprints should work', async ({
 	website,
 	wordpress,
@@ -278,28 +284,71 @@ test('Intl functions should be disabled by default', async ({
 	await expect(wordpress.locator('body')).toContainText('bool(false)');
 });
 
-test('Intl functions should work when intl is enabled', async ({
-	website,
-	wordpress,
-}) => {
-	const blueprint: Blueprint = {
-		landingPage: '/intl-test.php',
-		features: { intl: true },
-		steps: [
-			{
-				step: 'writeFile',
-				path: '/wordpress/intl-test.php',
-				data: `<?php
+SupportedPHPVersions.forEach((phpVersion) => {
+	test(`Intl functions should work when intl is enabled for PHP ${phpVersion}`, async ({
+		website,
+		wordpress,
+	}) => {
+		const blueprint: Blueprint = {
+			landingPage: '/intl-functions-test.php',
+			preferredVersions: {
+				php: phpVersion,
+			},
+			features: { intl: true },
+			steps: [
+				{
+					step: 'writeFile',
+					path: '/wordpress/intl-functions-test.php',
+					data: `<?php
 					$formatter = numfmt_create('en-US', NumberFormatter::CURRENCY);
 					echo numfmt_format($formatter, 100.00);
 					$formatter = numfmt_create('fr-FR', NumberFormatter::CURRENCY);
 					echo numfmt_format($formatter, 100.00);
 				`,
+				},
+			],
+		};
+		await website.goto(`/#${JSON.stringify(blueprint)}`);
+		await expect(wordpress.locator('body')).toContainText(
+			'$100.00100,00\xA0€'
+		);
+	});
+});
+
+SupportedPHPVersions.forEach((phpVersion) => {
+	test(`Intl classes should work when intl is enabled for PHP ${phpVersion}`, async ({
+		website,
+		wordpress,
+	}) => {
+		const blueprint: Blueprint = {
+			landingPage: '/intl-classes-test.php',
+			preferredVersions: {
+				php: phpVersion,
 			},
-		],
-	};
-	await website.goto(`/#${JSON.stringify(blueprint)}`);
-	await expect(wordpress.locator('body')).toContainText('$100.00100,00\xA0€');
+			features: { intl: true },
+			steps: [
+				{
+					step: 'writeFile',
+					path: '/wordpress/intl-classes-test.php',
+					data: `<?php
+							$data = array(
+								'F' => 'Foo',
+								'Br' => 'Bar',
+								'Bz' => 'Bz',
+							);
+
+							$collator = new Collator('en_US');
+							$collator->asort($data, Collator::SORT_STRING);
+							var_dump($data);
+						?>`,
+				},
+			],
+		};
+		await website.goto(`/#${JSON.stringify(blueprint)}`);
+		await expect(wordpress.locator('body')).toContainText(
+			'array(3) {\n  ["Br"]=>\n  string(3) "Bar"\n  ["Bz"]=>\n  string(2) "Bz"\n  ["F"]=>\n  string(3) "Foo"\n}\n'
+		);
+	});
 });
 
 test('HTTPS requests via curl_exec() should work', async ({

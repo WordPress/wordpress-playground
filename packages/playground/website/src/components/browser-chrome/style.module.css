@@ -71,6 +71,11 @@ body.is-embedded .fake-window-wrapper {
 	color: #fff;
 }
 
+.save-status-slot {
+	display: flex;
+	align-items: center;
+}
+
 .address-bar-slot {
 	display: flex;
 	flex-grow: 1;
@@ -136,5 +141,32 @@ body.is-embedded .fake-window-wrapper {
 	}
 	.toolbar-buttons {
 		padding: 0;
+	}
+}
+
+/* Mobile: split toolbar into two lines */
+@media (max-width: 500px) {
+	.toolbar {
+		flex-wrap: wrap;
+		height: auto;
+		max-height: none;
+		overflow: visible;
+		padding: 8px;
+		gap: 8px;
+	}
+
+	.address-bar-slot {
+		order: 2;
+		flex-basis: 100%;
+		min-width: 0;
+	}
+
+	.save-status-slot {
+		order: 1;
+		margin-left: auto;
+	}
+
+	.toolbar-buttons {
+		order: 1;
 	}
 }

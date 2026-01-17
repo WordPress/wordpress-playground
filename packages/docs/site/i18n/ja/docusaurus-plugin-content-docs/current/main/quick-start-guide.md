@@ -86,6 +86,26 @@ Everything you build stays in your browser and is **not** sent anywhere. Once yo
 You can upload any plugin or theme you want in [/wp-admin/](https://playground.wordpress.net/?url=/wp-admin/).
  -->
 
+どのプラグインやテーマを使用すればよいかわからない場合は、次の公式ディレクトリを参照してください。
+
+<!--
+If you're not sure which plugin or theme to use, you can explore the official directories here:
+ -->
+
+- [WordPress プラグイン ディレクトリ](https://wordpress.org/plugins/)
+- [WordPress テーマ ディレクトリ](https://wordpress.org/themes/)
+
+<!--
+-   [WordPress Plugin Directory](https://wordpress.org/plugins/)
+-   [WordPress Theme Directory](https://wordpress.org/themes/)
+ -->
+
+URL のプラグインまたはテーマのスラッグを使用して、Playground 経由でそれらをプリインストールします。
+
+<!--
+Use the plugin or theme slug from the URL to preinstall theme via Playground.
+ -->
+
 クリック数を減らすために、URL に`plugin`または`theme`パラメータを追加することで、 WordPress プラグインディレクトリからプラグインやテーマをプリインストールできます。例えば、coblocks 　プラグインをインストールするには、次の URL を使用します。
 
 <!--
@@ -200,7 +220,7 @@ WordPress または PHP のバージョンを変更する最も迅速な方法�
 The quickest way to change the version of WordPress or PHP is by using the settings panel on the [official demo site](https://playground.wordpress.net/):
  -->
 
-![WordPress Playground Settings menu](@site/static/img/playground-settings-menu.webp)
+![WordPress Version switcher](@site/static/img/wp-version-switcher.webp)
 
 :::info プラグインまたはテーマをテストする
 
@@ -222,11 +242,14 @@ Compatibility testing with so many WordPress and PHP versions was always a pain.
 You can also use the `wp` and `php` [query parameters](/developers/apis/query-api) to open Playground with the right versions already loaded:
  -->
 
+また、`wp` および `php` クエリ パラメータを使用して、適切なバージョンがすでにロードされた状態で Playground を開くこともできます。
+
+-->
+
 - https://playground.wordpress.net/?wp=6.5
 - https://playground.wordpress.net/?php=8.3
 - https://playground.wordpress.net/?php=8.2&wp=6.2
-
-<ThisIsQueryApi />
+  <ThisIsQueryApi />
 
 <!--
 To learn more about preparing content for demos, see the [providing content for your demo guide](/guides/providing-content-for-your-demo).
