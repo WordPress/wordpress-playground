@@ -220,7 +220,7 @@ WordPress または PHP のバージョンを変更する最も迅速な方法�
 The quickest way to change the version of WordPress or PHP is by using the settings panel on the [official demo site](https://playground.wordpress.net/):
  -->
 
-![WordPress Version switcher](@site/static/img/wp-version-switcher.webp)
+![WordPress Playground Settings menu](@site/static/img/playground-settings-menu.webp)
 
 :::info プラグインまたはテーマをテストする
 
@@ -241,10 +241,6 @@ Compatibility testing with so many WordPress and PHP versions was always a pain.
 <!--
 You can also use the `wp` and `php` [query parameters](/developers/apis/query-api) to open Playground with the right versions already loaded:
  -->
-
-また、`wp` および `php` クエリ パラメータを使用して、適切なバージョンがすでにロードされた状態で Playground を開くこともできます。
-
--->
 
 - https://playground.wordpress.net/?wp=6.5
 - https://playground.wordpress.net/?php=8.3
