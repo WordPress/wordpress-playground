@@ -305,6 +305,33 @@ export async function setupPlatformLevelMuPlugins(php: UniversalPHP) {
         ?>`
 	);
 
+	/**
+	 * WordPress 6.7+ only generates the sitemap.xml → wp-sitemap.xml rewrite
+	 * rule when installed at the domain root. Since Playground uses scoped
+	 * URLs like /scope:xyz/, the rule isn't generated. This preload file
+	 * handles the redirect manually.
+	 *
+	 * The regex matches URLs like:
+	 * - /sitemap.xml
+	 * - /scope:xyz/sitemap.xml
+	 * - /sitemap.xml?foo=bar
+	 *
+	 * @see https://github.com/WordPress/wordpress-playground/issues/2051
+	 */
+	await php.writeFile(
+		'/internal/shared/preload/sitemap-redirect.php',
+		`<?php
+		if (
+			isset($_SERVER['REQUEST_URI']) &&
+			preg_match('#^(/scope:[^/]+)?/sitemap\\.xml(\\?.*)?$#i', $_SERVER['REQUEST_URI'], $matches)
+		) {
+			$prefix = isset($matches[1]) ? $matches[1] : '';
+			header('Location: ' . $prefix . '/wp-sitemap.xml', true, 301);
+			exit;
+		}
+		`
+	);
+
 	// Load the error handler before any other PHP file to ensure it
 	// treats all the errors, even those trigerred before mu-plugins
 	// are loaded.
