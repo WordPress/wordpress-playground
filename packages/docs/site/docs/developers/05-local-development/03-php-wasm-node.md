@@ -576,10 +576,6 @@ try {
 }
 ```
 
-## Dynamic extensions
-
-The Node.js runtime supports dynamically loading optional PHP extensions at runtime. These extensions are loaded using options passed to `loadNodeRuntime`.
-
 ## Performance considerations
 
 -   **Reuse PHP instances**: Creating a new PHP instance is expensive. Reuse the same instance when possible.
