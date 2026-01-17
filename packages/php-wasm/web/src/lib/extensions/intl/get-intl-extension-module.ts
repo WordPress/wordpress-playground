@@ -35,12 +35,6 @@ export async function getIntlExtensionModule(
 		case '7.4':
 			// @ts-ignore
 			return (await import('@php-wasm/web-7-4')).getIntlExtensionPath();
-		case '7.3':
-			// @ts-ignore
-			return (await import('@php-wasm/web-7-3')).getIntlExtensionPath();
-		case '7.2':
-			// @ts-ignore
-			return (await import('@php-wasm/web-7-2')).getIntlExtensionPath();
 	}
 	throw new Error(`Unsupported PHP version ${version}`);
 }

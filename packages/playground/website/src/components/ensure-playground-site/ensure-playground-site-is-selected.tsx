@@ -13,7 +13,6 @@ import {
 	useAppDispatch,
 	useAppSelector,
 } from '../../lib/state/redux/store';
-import { redirectTo } from '../../lib/state/url/router';
 import { logger } from '@php-wasm/logger';
 import { usePrevious } from '../../lib/hooks/use-previous';
 import { modalSlugs, setActiveModal } from '../../lib/state/redux/slice-ui';
@@ -51,8 +50,6 @@ export function EnsurePlaygroundSiteIsSelected({
 	const [needMissingSitePromptForSlug, setNeedMissingSitePromptForSlug] =
 		useState<false | string>(false);
 
-	const promptIfSiteMissing =
-		url.searchParams.get('if-stored-site-missing') === 'prompt';
 	const prevUrl = usePrevious(url);
 
 	useEffect(() => {
@@ -83,29 +80,15 @@ export function EnsurePlaygroundSiteIsSelected({
 
 			// If the site slug is provided, try to load the site.
 			if (requestedSiteSlug) {
-				// If the site does not exist, redirect to a new temporary site.
+				// If the site does not exist, create a new temporary site and prompt the user to save it.
 				if (!requestedSiteObject) {
-					if (promptIfSiteMissing) {
-						logger.log(
-							'The requested site was not found. Creating a new temporary site.'
-						);
+					logger.log(
+						'The requested site was not found. Creating a new temporary site.'
+					);
 
-						await createNewTemporarySite(
-							dispatch,
-							requestedSiteSlug
-						);
-						setNeedMissingSitePromptForSlug(requestedSiteSlug);
-						return;
-					} else {
-						// @TODO: Notification: 'The requested site was not found. Redirecting to a new temporary site.'
-						logger.log(
-							'The requested site was not found. Redirecting to a new temporary site.'
-						);
-						const currentUrl = new URL(window.location.href);
-						currentUrl.searchParams.delete('site-slug');
-						redirectTo(currentUrl.toString());
-						return;
-					}
+					await createNewTemporarySite(dispatch, requestedSiteSlug);
+					setNeedMissingSitePromptForSlug(requestedSiteSlug);
+					return;
 				}
 
 				dispatch(setActiveSite(requestedSiteSlug));

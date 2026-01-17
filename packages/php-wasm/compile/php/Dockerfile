@@ -36,7 +36,6 @@ COPY ./opcache/ /root/php-src/ext/opcache
 
 # Bring in the libraries
 RUN mkdir -p /root/lib/include /root/lib/lib /libs
-COPY ./bison2.7/dist/ /libs/bison2.7
 COPY ./libiconv/ /root/builds/libiconv
 COPY ./libcurl/ /root/builds/libcurl
 COPY ./libopenssl/ /root/builds/libopenssl
@@ -75,17 +74,6 @@ RUN if [ "$WITH_JSPI" = "yes" ]; then \
 else \
 	cp -r /root/builds-libopenssl/asyncify/dist/root/lib /libs/libopenssl; \
 fi
-
-# Workaround to unbundle sqlite from PHP <7.4.
-# Prior to 7.4, PHP bundled sqlite internally,
-# leading compilation to fail with : wasm-ld: error: duplicate symbol: [sqlite3_xxx]
-# Unbundling sqlite manually by copying files from 7.4 solves the issue
-# Related discussion: https://github.com/WordPress/wordpress-playground/pull/2248#issuecomment-2988044885
-# And 7.4 commit reference: https://github.com/php/php-src/commit/6083a38
-RUN if [[ "${PHP_VERSION:0:1}" -eq "7" && "${PHP_VERSION:2:1}" -le "3" ]]; then \
-		cp /root/builds/libsqlite3/before_7_4/pdo_sqlite_config.m4 /root/php-src/ext/pdo_sqlite/config.m4; \
-		cp /root/builds/libsqlite3/before_7_4/sqlite_config0.m4 /root/php-src/ext/sqlite3/config0.m4; \
-	fi;
 
 # Patch OPcache config.m4 file if needed
 RUN if [ "$WITH_OPCACHE" = "yes" ]; \
@@ -149,52 +137,14 @@ RUN touch /root/.configure-flags && \
 	touch /root/.emcc-php-wasm-sources && \
 	touch /root/.EXPORTED_FUNCTIONS
 
-# Grab Bison 2.7 patch in case we need it
-COPY ./bison2.7/bison27.patch /root/bison27.patch
-
-# PHP <= 7.3 requires Bison 2.7
-# PHP >= 7.4 and Bison 3.0
-RUN if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "3" ]]; then \
-		if /libs/bison2.7/usr/local/bison/bin/bison -h >/dev/null; then \
-			mv /libs/bison2.7/usr/local/bison /usr/local/bison && \
-			ln -s /usr/local/bison/bin/bison /usr/bin/bison && \
-			ln -s /usr/local/bison/bin/yacc /usr/bin/yacc; \
-		else \
-			wget https://ftp.gnu.org/gnu/bison/bison-2.7.tar.gz && \
-			tar -xvf bison-2.7.tar.gz && \
-			rm bison-2.7.tar.gz && \
-			cd bison-2.7 && \
-			git apply --no-index /root/bison27.patch && \
-			./configure --prefix=/usr/local && \
-			make && \
-			make install; \
-			if [[ $? -ne 0 ]]; then \
-				echo 'Failed to build Bison 2.7 dependency.'; \
-				exit -1; \
-			fi; \
-		fi; \
-	else \
-		apt install -y bison; \
-	fi;
+RUN apt install -y bison; 
 
 # Add libzip and zlib files if needed
 RUN if [ "$WITH_LIBZIP" = "yes" ]; then \
-		if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "3" ]]; then \
-			apt install -y zlib1g zlib1g-dev; \
-            cp -r /libs/libzip/1.2.0/* /root/lib; \
-			# https://php-legacy-docs.zend.com/manual/php5/en/zlib.installation
-			echo -n ' --with-zlib --with-zlib-dir=/root/lib --enable-zip --with-libzip=/root/lib ' >> /root/.php-configure-flags; \
-			echo -n ' /root/lib/lib/libzip.a /root/lib/lib/libz.a ' >> /root/.emcc-php-wasm-sources; \
-			cp /root/lib/lib/libzip/include/zipconf.h /root/lib/lib; \
-			cp /root/lib/lib/libzip/include/zipconf.h /root/lib/include; \
-			echo '#define LIBZIP_VERSION "1.2.0"' >> /root/lib/include/zipconf.h; \
-			cp /root/lib/include/*.h /root/php-src; \
-		else \
-            cp -r /libs/libzip/1.9.2/* /root/lib; \
-			# https://www.php.net/manual/en/zlib.installation.php
-			echo -n ' --with-zlib --with-zlib-dir=/root/lib --with-zip ' >> /root/.php-configure-flags; \
-			echo -n ' /root/lib/lib/libzip.a /root/lib/lib/libz.a ' >> /root/.emcc-php-wasm-sources; \
-		fi; \
+		cp -r /libs/libzip/1.9.2/* /root/lib; \
+		# https://www.php.net/manual/en/zlib.installation.php
+		echo -n ' --with-zlib --with-zlib-dir=/root/lib --with-zip ' >> /root/.php-configure-flags; \
+		echo -n ' /root/lib/lib/libzip.a /root/lib/lib/libz.a ' >> /root/.emcc-php-wasm-sources; \
 	fi;
 
 # Add ncurses if needed and libedit if needed
@@ -263,10 +213,6 @@ RUN if [ "$WITH_GD" = "yes" ]; \
 		else \
 			# Bundled gd for PHP 7.x and 8.0
 			echo -n ' --enable-gd ' >> /root/.php-configure-flags; \
-			if [[ "${PHP_VERSION:0:1}" -eq "7" ]] && [ "${PHP_VERSION:0:3}" != "7.4" ]; then \
-				# PHP 7.0 – 7.3 need older-style flags
-				echo -n ' --with-png-dir=/root/lib --with-jpeg-dir=/root/lib --with-gd ' >> /root/.php-configure-flags; \
-			fi; \
 			if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "4" ]]; then \
 				/root/replace.sh 's/static long php_jpeg_emit_message/static void php_jpeg_emit_message/g' /root/php-src/ext/gd/libgd/gd_jpeg.c; \
 				sed -i '84s/.*return 1;.*//' /root/php-src/ext/gd/libgd/gd_jpeg.c; \
@@ -308,26 +254,8 @@ RUN if [ "$WITH_ICONV" = "yes" ]; \
 # Add curl if needed
 RUN if [ "$WITH_CURL" = "yes" ]; \
 	then \
-		# libcurl version check fails in PHP <= 7.3 even though
-		# the version is correct. Let's make the check always pass.
-		/root/replace.sh 's/\$PKG_CONFIG --atleast-version 7.\d+.\d+ \$PKNAME/test "1" = "1"/g' /root/php-src/configure; \
-		/root/replace.sh 's/test "\$curl_version" -ge 7010005/test "1" = "1"/g' /root/php-src/configure; \
 		echo -n ' --with-curl=/root/lib ' >> /root/.php-configure-flags; \
 		echo -n ' /root/lib/lib/libcurl.a ' >> /root/.emcc-php-wasm-sources; \
-		# The way we build libcurl doesn't produce a `.pc` file that seems
-		# to be required by PHP <= 7.3. Let's create  manually.
-		echo 'prefix=/root/lib \
-exec_prefix=${prefix} \
-libdir=${exec_prefix}/lib \
-includedir=${prefix}/include \
-modules=1 \
-\
-Name: libcurl\
-Version: 7.69.1\
-Description: libcurl.\
-Requires:\
-Libs: -L${libdir} -lcurl\
-Cflags: -I${includedir}' > /root/lib/lib/pkgconfig/libcurl.pc; \
 	fi;
 
 # Add mbstring if needed
@@ -359,13 +287,6 @@ COPY ./php/php*.patch /root/
 COPY ./php/apply-mysqlnd-patch.sh /root/
 RUN cd /root && \
 	git apply --no-index /root/php${PHP_VERSION:0:3}*.patch -v && \
-	if [[ "${PHP_VERSION:0:3}" == "7.3" || "${PHP_VERSION:0:3}" == "7.2" ]]; then \
-		# Emscripten >= 4.0.19 Does not tolerate implicit declarations of strcmp/strchr/memcpy with clang >= C99.
-		# Let's backfill the required includes.
-		sed -i '1i#include <string.h>' /root/php-src/ext/mbstring/libmbfl/filters/mbfilter_htmlent.c; \
-		sed -i '1i#include <string.h>' /root/php-src/ext/mbstring/libmbfl/mbfl/mbfilter.c; \
-		sed -i '1i#include <stdlib.h>' /root/php-src/ext/mbstring/libmbfl/mbfl/mbfl_allocators.c; \
-	fi && \
 	chmod +x /root/apply-mysqlnd-patch.sh && \
 	/root/apply-mysqlnd-patch.sh && \
 	if [[ "${PHP_VERSION:0:3}" < '8.3' ]]; then \
@@ -510,13 +431,7 @@ fi;
 RUN echo '#undef HAVE_ASM_GOTO' >> /root/php-src/main/php_config.h;
 RUN echo '#define HAVE_ASM_GOTO 0' >> /root/php-src/main/php_config.h;
 # Disable asm arithmetic.
-RUN if [[ ("${PHP_VERSION:0:1}" -ge "7" && "${PHP_VERSION:2:1}" -ge "4") || "${PHP_VERSION:0:1}" -ge "8" ]]; then \
-		/root/replace.sh 's/ZEND_USE_ASM_ARITHMETIC 1/ZEND_USE_ASM_ARITHMETIC 0/g' /root/php-src/Zend/zend_operators.h; \
-	elif [[ "${PHP_VERSION:0:1}" -eq "7" && "${PHP_VERSION:2:1}" -eq "3" ]]; then \
-		/root/replace.sh 's/defined\(HAVE_ASM_GOTO\)/0/g' /root/php-src/Zend/zend_operators.h; \
-	elif [[ "${PHP_VERSION:0:1}" -eq "7" && "${PHP_VERSION:2:1}" -le "1" ]]; then \
-		/root/replace.sh 's/defined\(__GNUC__\)/0/g' /root/php-src/Zend/zend_operators.h; \
-	fi;
+RUN /root/replace.sh 's/ZEND_USE_ASM_ARITHMETIC 1/ZEND_USE_ASM_ARITHMETIC 0/g' /root/php-src/Zend/zend_operators.h;
 RUN /root/replace.sh 's/defined\(__GNUC__\)/0/g' /root/php-src/Zend/zend_multiply.h
 RUN /root/replace.sh 's/defined\(__GNUC__\)/0/g' /root/php-src/Zend/zend_cpuinfo.c
 RUN /root/replace.sh 's/defined\(__clang__\)/0/g' /root/php-src/Zend/zend_cpuinfo.c
@@ -527,12 +442,6 @@ RUN /root/replace.sh 's/define php_sleep sleep/define php_sleep wasm_sleep/g' /r
 RUN echo 'extern unsigned int wasm_sleep(unsigned int time);' >> /root/php-src/main/php.h;
 
 RUN /root/replace.sh 's/define HAVE_UNISTD_H 1/define HAVE_UNISTD_H 0/g' /root/php-src/main/php_config.h
-
-# PHP <= 7.3 is not very good at detecting the presence of the POSIX readdir_r function
-# so we need to force it to be enabled.
-RUN if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "3" ]]; then \
-		echo '#define HAVE_POSIX_READDIR_R 1' >> /root/php-src/main/php_config.h; \
-	fi;
 
 # Rename the original php_pollfd_for() implementation so that we can link our own version.
 RUN /root/replace.sh 's/static inline int php_pollfd_for\(/int php_pollfd_for(php_socket_t fd, int events, struct timeval *timeouttv); static inline int __real_php_pollfd_for(/g' /root/php-src/main/php_network.h
@@ -607,14 +516,6 @@ RUN cp -v /root/php-src/.libs/libphp*.a /root/lib/libphp.a
 
 COPY ./php/php_wasm.c /root/
 COPY ./php/proc_open* /root/
-
-RUN if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "3" ]]; then \
-		 cp /root/proc_open7.0.c /root/proc_open.c; \
-		 cp /root/proc_open7.0.h /root/proc_open.h; \
-	else \
-		 cp /root/proc_open7.4.c /root/proc_open.c; \
-		 cp /root/proc_open7.4.h /root/proc_open.h; \
-	fi
 
 ARG WITH_SOURCEMAPS
 ARG OUTPUT_DIR_ON_HOST
