@@ -80,6 +80,12 @@ export function MissingSiteModal() {
 						onClick={(e: React.MouseEvent) => {
 							e.preventDefault();
 							e.stopPropagation();
+
+							// Remove site-slug from URL without reloading
+							const url = new URL(window.location.href);
+							url.searchParams.delete('site-slug');
+							window.history.replaceState({}, '', url.toString());
+
 							closeModal();
 						}}
 					>

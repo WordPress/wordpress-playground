@@ -96,13 +96,17 @@ export function EnsurePlaygroundSiteIsSelected({
 			}
 
 			// If only the 'modal' parameter changes in searchParams, don't reload the page
-			const notRefreshingParam = 'modal';
+			const notRefreshingParams = ['modal', 'site-slug'];
 			const oldParams = new URLSearchParams(prevUrl?.search);
 			const newParams = new URLSearchParams(url?.search);
-			oldParams.delete(notRefreshingParam);
-			newParams.delete(notRefreshingParam);
+			for (const param of notRefreshingParams) {
+				oldParams.delete(param);
+				newParams.delete(param);
+			}
 			const avoidUnnecessaryTempSiteReload =
-				activeSite && oldParams.toString() === newParams.toString();
+				activeSite &&
+				activeSite.metadata.storage === 'none' &&
+				oldParams.toString() === newParams.toString();
 			if (avoidUnnecessaryTempSiteReload) {
 				return;
 			}
