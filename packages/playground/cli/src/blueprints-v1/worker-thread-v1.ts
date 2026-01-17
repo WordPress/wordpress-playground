@@ -43,6 +43,7 @@ export type WorkerBootOptions = {
 	 */
 	internalCookieStore?: boolean;
 	withIntl?: boolean;
+	withRedis?: boolean;
 	withXdebug?: boolean;
 	nativeInternalDirPath: string;
 };
@@ -66,6 +67,7 @@ interface WorkerBootRequestHandlerOptions {
 	mountsBeforeWpInstall: Array<Mount>;
 	mountsAfterWpInstall: Array<Mount>;
 	withIntl?: boolean;
+	withRedis?: boolean;
 	withXdebug?: boolean;
 }
 
@@ -295,6 +297,7 @@ function createPhpRuntimeFactory(
 				},
 				followSymlinks: options.followSymlinks,
 				withIntl: options.withIntl,
+				withRedis: options.withRedis,
 				withXdebug: options.withXdebug,
 			}
 		);

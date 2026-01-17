@@ -165,6 +165,7 @@ export type SecondaryWorkerBootArgs = {
 	trace: boolean;
 	nativeInternalDirPath: string;
 	withIntl?: boolean;
+	withRedis?: boolean;
 	withXdebug?: boolean;
 	mountsBeforeWpInstall?: Array<Mount>;
 	mountsAfterWpInstall?: Array<Mount>;
@@ -476,6 +477,7 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 		trace,
 		nativeInternalDirPath,
 		withIntl,
+		withRedis,
 		withXdebug,
 		onPHPInstanceCreated,
 		spawnHandler,
@@ -513,6 +515,7 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 						},
 						followSymlinks: allow?.includes('follow-symlinks'),
 						withIntl: withIntl,
+						withRedis,
 						withXdebug,
 					});
 				},
