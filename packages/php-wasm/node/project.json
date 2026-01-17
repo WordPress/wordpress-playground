@@ -307,6 +307,26 @@
 				"testFiles": ["php-part-2.spec.ts"]
 			}
 		},
+		"test-redis-extension-jspi": {
+			"executor": "@nx/vite:test",
+			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/node"],
+			"options": {
+				"configFile": "packages/php-wasm/node/vite.jspi.config.ts",
+				"reportsDirectory": "../../../coverage/packages/php-wasm/node",
+				"testFiles": ["php-redis.spec.ts"],
+				"testNamePattern": "Redis Extension"
+			}
+		},
+		"test-redis-network-jspi": {
+			"executor": "@nx/vite:test",
+			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/node"],
+			"options": {
+				"configFile": "packages/php-wasm/node/vite.jspi.config.ts",
+				"reportsDirectory": "../../../coverage/packages/php-wasm/node",
+				"testFiles": ["php-redis.spec.ts"],
+				"testNamePattern": "Redis Network Integration"
+			}
+		},
 		"lint": {
 			"executor": "@nx/linter:eslint",
 			"outputs": ["{options.outputFile}"],
