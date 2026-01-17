@@ -27,19 +27,7 @@ Você pode acompanhar o status dessas questões no [quadro do projeto Playground
 
 Como o Playground [transmite ao invés de servir](/about#streamed-not-served) o WordPress, todas as alterações no banco de dados e uploads serão perdidos ao atualizar a página. Para evitar perder seu trabalho, [exporte seu trabalho](/quick-start-guide#save-your-site) antes ou ative o armazenamento no navegador/dispositivo através do botão "Salvar" encontrado no canto superior direito, ao lado da barra de endereços.
 
-<blockquote>
-<figure>
-<!-- <figcaption><i>1. Exporting Playground:</i></figcaption> -->
-<figcaption><i>1. Exportando o Playground:</i></figcaption>
-
-![Save Button](@site/static/img/export-playground.webp)
-
-</figure>
-</blockquote>
-
-<figure>
-<!-- <figcaption><i>2. Save button:</i></figcaption> -->
-<figcaption><i>2. Botão Salvar:</i></figcaption>
+<i>Botão Salvar:</i>
 
 ![Save Button](@site/static/img/save-button.webp)
 
