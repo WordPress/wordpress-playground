@@ -576,6 +576,36 @@ try {
 }
 ```
 
+## Dynamic extensions
+
+The Node.js runtime supports dynamically loading optional PHP extensions at runtime. These extensions are loaded using options passed to `loadNodeRuntime`.
+
+### Redis
+
+The Redis extension (`phpredis`) enables PHP to communicate with Redis servers:
+
+```javascript
+import { PHP } from '@php-wasm/universal';
+import { loadNodeRuntime } from '@php-wasm/node';
+
+const php = new PHP(await loadNodeRuntime('8.3', { withRedis: true }));
+
+const result = await php.runStream({
+	code: `<?php
+$redis = new Redis();
+$redis->connect('127.0.0.1', 6379);
+$redis->set('greeting', 'Hello from PHP!');
+echo $redis->get('greeting');
+?>`,
+});
+
+console.log(await result.stdoutText);
+```
+
+:::note
+Network connections require a WebSocket-to-TCP proxy. The Node.js runtime automatically configures networking when using the `loadNodeRuntime` function.
+:::
+
 ## Performance considerations
 
 -   **Reuse PHP instances**: Creating a new PHP instance is expensive. Reuse the same instance when possible.
