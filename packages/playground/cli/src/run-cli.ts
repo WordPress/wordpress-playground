@@ -228,6 +228,11 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 				type: 'boolean',
 				default: true,
 			},
+			redis: {
+				describe: 'Enable Redis.',
+				type: 'boolean',
+				default: true,
+			},
 			xdebug: {
 				describe: 'Enable Xdebug.',
 				type: 'boolean',
@@ -675,6 +680,7 @@ export interface RunCLIArgs {
 	internalCookieStore?: boolean;
 	'additional-blueprint-steps'?: any[];
 	intl?: boolean;
+	redis?: boolean;
 	xdebug?: boolean | { ideKey?: string };
 	experimentalUnsafeIdeIntegration?: string[];
 	experimentalDevtools?: boolean;
@@ -804,6 +810,11 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 		args.intl = true;
 	}
 
+	// Enables Redis dynamic extension by default
+	if (!args.redis) {
+		args.redis = true;
+	}
+
 	// Create CLI output handler
 	const cliOutput = new CLIOutput({
 		verbosity: args.verbosity || 'normal',
@@ -818,6 +829,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 			port: (args['port'] as number) || 9400,
 			xdebug: !!args.xdebug,
 			intl: !!args.intl,
+			redis: !!args.redis,
 			mounts: [
 				...(args.mount || []),
 				...(args['mount-before-install'] || []),

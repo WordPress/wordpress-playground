@@ -29,6 +29,7 @@ export interface ConfigSummary {
 	port: number;
 	xdebug: boolean;
 	intl: boolean;
+	redis: boolean;
 	/** All mounts (both manual and auto-detected). Auto-mounts have autoMounted: true */
 	mounts: Mount[];
 	blueprint?: string;
@@ -121,6 +122,7 @@ export class CLIOutput {
 		// Extensions
 		const extensions: string[] = [];
 		if (config.intl) extensions.push('intl');
+		if (config.redis) extensions.push('redis');
 		if (config.xdebug) extensions.push(this.yellow('xdebug'));
 		if (extensions.length > 0) {
 			lines.push(`${this.dim('Extensions')} ${extensions.join(', ')}`);
