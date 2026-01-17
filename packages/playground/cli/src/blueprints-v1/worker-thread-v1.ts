@@ -44,6 +44,7 @@ export type WorkerBootOptions = {
 	internalCookieStore?: boolean;
 	withIntl?: boolean;
 	withRedis?: boolean;
+	withMemcached?: boolean;
 	withXdebug?: boolean;
 	nativeInternalDirPath: string;
 	/**
@@ -73,6 +74,7 @@ interface WorkerBootRequestHandlerOptions {
 	mountsAfterWpInstall: Array<Mount>;
 	withIntl?: boolean;
 	withRedis?: boolean;
+	withMemcached?: boolean;
 	withXdebug?: boolean;
 }
 
@@ -302,6 +304,7 @@ function createPhpRuntimeFactory(
 				followSymlinks: options.followSymlinks,
 				withIntl: options.withIntl,
 				withRedis: options.withRedis,
+				withMemcached: options.withMemcached,
 				withXdebug: options.withXdebug,
 			}
 		);

@@ -269,6 +269,11 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 				type: 'boolean',
 				// No default - will be determined at runtime based on JSPI availability
 			},
+			memcached: {
+				describe: 'Enable Memcached.',
+				type: 'boolean',
+				default: true,
+			},
 			xdebug: {
 				describe: 'Enable Xdebug.',
 				type: 'boolean',
@@ -733,6 +738,7 @@ export interface RunCLIArgs {
 	'additional-blueprint-steps'?: any[];
 	intl?: boolean;
 	redis?: boolean;
+	memcached?: boolean;
 	xdebug?: boolean | { ideKey?: string };
 	experimentalUnsafeIdeIntegration?: string[];
 	experimentalDevtools?: boolean;
@@ -887,6 +893,11 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 		args.redis = await jspi();
 	}
 
+	// Enables Memcached dynamic extension by default
+	if (!args.memcached) {
+		args.memcached = true;
+	}
+
 	// Create CLI output handler
 	const cliOutput = new CLIOutput({
 		verbosity: args.verbosity || 'normal',
@@ -902,6 +913,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 			xdebug: !!args.xdebug,
 			intl: !!args.intl,
 			redis: !!args.redis,
+			memcached: !!args.memcached,
 			mounts: [
 				...(args.mount || []),
 				...(args['mount-before-install'] || []),

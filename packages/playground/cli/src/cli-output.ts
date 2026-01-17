@@ -30,6 +30,7 @@ export interface ConfigSummary {
 	xdebug: boolean;
 	intl: boolean;
 	redis: boolean;
+	memcached: boolean;
 	/** All mounts (both manual and auto-detected). Auto-mounts have autoMounted: true */
 	mounts: Mount[];
 	blueprint?: string;
@@ -123,6 +124,7 @@ export class CLIOutput {
 		const extensions: string[] = [];
 		if (config.intl) extensions.push('intl');
 		if (config.redis) extensions.push('redis');
+		if (config.memcached) extensions.push('memcached');
 		if (config.xdebug) extensions.push(this.yellow('xdebug'));
 		if (extensions.length > 0) {
 			lines.push(`${this.dim('Extensions')} ${extensions.join(', ')}`);
