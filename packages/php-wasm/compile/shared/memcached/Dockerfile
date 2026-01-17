@@ -9,10 +9,6 @@ ARG JSPI
 ARG DEBUG
 
 # Install Bison, required to build PHP
-RUN mkdir -p /libs
-COPY ./bison2.7/dist/ /libs/bison2.7
-COPY ./bison2.7/bison27.patch /root/bison27.patch
-
 RUN apt install -y bison
 
 # Clone PHP

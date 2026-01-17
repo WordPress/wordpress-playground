@@ -576,6 +576,36 @@ try {
 }
 ```
 
+## Dynamic extensions
+
+The Node.js runtime supports dynamically loading optional PHP extensions at runtime. These extensions are loaded using options passed to `loadNodeRuntime`.
+
+### Memcached
+
+The Memcached extension enables PHP to communicate with Memcached servers:
+
+```javascript
+import { PHP } from '@php-wasm/universal';
+import { loadNodeRuntime } from '@php-wasm/node';
+
+const php = new PHP(await loadNodeRuntime('8.3', { withMemcached: true }));
+
+const result = await php.runStream({
+	code: `<?php
+$memcached = new Memcached();
+$memcached->addServer('127.0.0.1', 11211);
+$memcached->set('greeting', 'Hello from PHP!');
+echo $memcached->get('greeting');
+?>`,
+});
+
+console.log(await result.stdoutText);
+```
+
+:::note
+Network connections require a WebSocket-to-TCP proxy. The Node.js runtime automatically configures networking when using the `loadNodeRuntime` function.
+:::
+
 ## Performance considerations
 
 -   **Reuse PHP instances**: Creating a new PHP instance is expensive. Reuse the same instance when possible.
