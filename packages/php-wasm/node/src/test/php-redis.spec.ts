@@ -8,11 +8,30 @@
  * with a real Redis server. In WebAssembly, TCP connections are proxied
  * through WebSockets, which may have timing differences compared to native
  * socket implementations.
+ *
+ * Note: Redis requires JSPI for proper exception handling during network
+ * operations. These tests are skipped when JSPI is not available (e.g.,
+ * when running with asyncify).
  */
 
 import { PHP, SupportedPHPVersions, type SupportedPHPVersion } from '@php-wasm/universal';
 import { loadNodeRuntime } from '../lib';
 import { RedisMemoryServer } from 'redis-memory-server';
+import { jspi } from 'wasm-feature-detect';
+
+// Check JSPI availability at module load time (top-level await)
+// so the value is available when tests are registered.
+const isJspiAvailable = await jspi();
+
+// Skip all Redis tests if JSPI is not available
+if (!isJspiAvailable) {
+	describe.skip('Redis Extension (requires JSPI)', () => {
+		it('skipped - JSPI not available', () => {});
+	});
+	describe.skip('Redis Network Integration (requires JSPI)', () => {
+		it('skipped - JSPI not available', () => {});
+	});
+} else {
 
 let redisServer: RedisMemoryServer | null = null;
 let REDIS_HOST: string;
@@ -583,3 +602,5 @@ describe('Redis Network Integration', () => {
 		});
 	});
 });
+
+} // End of else block for isJspiAvailable check

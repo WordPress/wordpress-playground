@@ -229,9 +229,9 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 				default: true,
 			},
 			redis: {
-				describe: 'Enable Redis.',
+				describe: 'Enable Redis (requires JSPI support).',
 				type: 'boolean',
-				default: true,
+				// No default - will be determined at runtime based on JSPI availability
 			},
 			xdebug: {
 				describe: 'Enable Xdebug.',
@@ -810,9 +810,10 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 		args.intl = true;
 	}
 
-	// Enables Redis dynamic extension by default
-	if (!args.redis) {
-		args.redis = true;
+	// Enable Redis dynamic extension by default only when JSPI is available.
+	// Redis requires JSPI for proper exception handling during network operations.
+	if (args.redis === undefined) {
+		args.redis = await jspi();
 	}
 
 	// Create CLI output handler

@@ -7,10 +7,15 @@ import {
 } from '@php-wasm/universal';
 import fs from 'fs';
 import { createServer, type AddressInfo } from 'net';
+import { jspi } from 'wasm-feature-detect';
+
+// Check JSPI availability at module load time (top-level await)
+// so the value is available when tests are registered.
+const isJspiAvailable = await jspi();
 
 const phpVersions =
 	'PHP' in process.env ? [process.env['PHP']!] : SupportedPHPVersions;
-describe.each(phpVersions)('PHP %s', async (phpVersion) => {
+describe.each(phpVersions)('PHP %s', (phpVersion) => {
 	describe('XDebug', () => {
 		let php: PHP;
 		beforeEach(async () => {
@@ -288,33 +293,43 @@ describe.each(phpVersions)('PHP %s', async (phpVersion) => {
 		});
 	});
 
+	// Redis requires JSPI for proper exception handling during network operations.
+	// Skip these tests when JSPI is not available (e.g., when running with asyncify).
 	describe('Redis', () => {
 		let php: PHP;
 		beforeEach(async () => {
+			if (!isJspiAvailable) {
+				return;
+			}
 			php = new PHP(
 				await loadNodeRuntime(phpVersion as any, { withRedis: true })
 			);
 		});
 
 		afterEach(async () => {
-			php.exit();
+			if (php) {
+				php.exit();
+			}
 		});
 
-		it('does not load dynamically by default', async () => {
-			php = new PHP(await loadNodeRuntime(phpVersion as any));
+		it.skipIf(!isJspiAvailable)(
+			'does not load dynamically by default',
+			async () => {
+				php = new PHP(await loadNodeRuntime(phpVersion as any));
 
-			const result = await php.runStream({
-				code: `<?php
+				const result = await php.runStream({
+					code: `<?php
 					var_dump(extension_loaded('redis'));
 					var_dump(class_exists('Redis'));`,
-			});
+				});
 
-			expect(await result.stdoutText).toEqual(
-				'bool(false)\nbool(false)\n'
-			);
-		});
+				expect(await result.stdoutText).toEqual(
+					'bool(false)\nbool(false)\n'
+				);
+			}
+		);
 
-		it('supports dynamic loading', async () => {
+		it.skipIf(!isJspiAvailable)('supports dynamic loading', async () => {
 			const result = await php.runStream({
 				code: `<?php
 					var_dump(extension_loaded('redis'));
@@ -324,26 +339,32 @@ describe.each(phpVersions)('PHP %s', async (phpVersion) => {
 			expect(await result.stdoutText).toEqual('bool(true)\nbool(true)\n');
 		});
 
-		it('has its own ini file and entries', async () => {
-			const entries = php.readFileAsText(
-				'/internal/shared/extensions/redis.ini'
-			);
+		it.skipIf(!isJspiAvailable)(
+			'has its own ini file and entries',
+			async () => {
+				const entries = php.readFileAsText(
+					'/internal/shared/extensions/redis.ini'
+				);
 
-			const expected = [
-				'extension=/internal/shared/extensions/redis.so',
-			].join('\n');
+				const expected = [
+					'extension=/internal/shared/extensions/redis.so',
+				].join('\n');
 
-			expect(entries).toEqual(expected);
-		});
+				expect(entries).toEqual(expected);
+			}
+		);
 
-		it('can instantiate Redis class', async () => {
-			const result = await php.runStream({
-				code: `<?php
+		it.skipIf(!isJspiAvailable)(
+			'can instantiate Redis class',
+			async () => {
+				const result = await php.runStream({
+					code: `<?php
 					$redis = new Redis();
 					var_dump(get_class($redis));`,
-			});
+				});
 
-			expect(await result.stdoutText).toEqual('string(5) "Redis"\n');
-		});
+				expect(await result.stdoutText).toEqual('string(5) "Redis"\n');
+			}
+		);
 	});
 });
