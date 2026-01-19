@@ -1,3 +1,14 @@
+/**
+ * Site Manager Styles
+ *
+ * Main container for the site management sidebar.
+ * Uses design tokens from tokens.css.
+ */
+
+/* ========================================
+ * MAIN CONTAINER
+ * ======================================== */
+
 .site-manager {
 	padding-left: 0;
 	height: 100dvh;
@@ -14,6 +25,10 @@
 	flex-direction: row;
 }
 
+/* ========================================
+ * SIDEBAR
+ * ======================================== */
+
 .sidebar {
 	width: var(--site-manager-site-list-width);
 	height: 100%;
@@ -21,6 +36,10 @@
 		width: 100%;
 	}
 }
+
+/* ========================================
+ * SITE INFO PANEL
+ * ======================================== */
 
 .site-manager-site-info {
 	min-width: 0;
@@ -42,6 +61,10 @@
 	max-width: var(--site-info-panel-max-width);
 }
 
+/* ========================================
+ * RESIZE HANDLE
+ * ======================================== */
+
 @media (max-width: 875px) {
 	.site-info-resize-handle {
 		display: none !important;
@@ -53,7 +76,7 @@
 	top: 0;
 	right: calc(-1 * var(--site-manager-border-width));
 	height: 100%;
-	width: calc(var(--site-manager-border-width));
+	width: var(--site-manager-border-width);
 	z-index: 2;
 	cursor: ew-resize;
 	display: flex;

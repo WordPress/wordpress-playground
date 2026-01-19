@@ -1,19 +1,38 @@
+/**
+ * Browser Chrome Styles
+ *
+ * Simulated browser UI wrapper for the WordPress Playground iframe.
+ * Uses design tokens from tokens.css.
+ */
+
+/* ========================================
+ * EMBEDDED MODE
+ * ======================================== */
+
 body.is-embedded .fake-window-wrapper {
 	padding: 15px;
 }
 
+/* ========================================
+ * HEADER SECTION
+ * ======================================== */
+
 .header-section {
-	padding: 24px;
+	padding: var(--space-6);
 	padding-bottom: 0;
 }
 
 .header-section:has(+ :global(.site-settings-form.is-stored-site)) {
-	padding-bottom: 24px;
+	padding-bottom: var(--space-6);
 }
+
+/* ========================================
+ * WRAPPER & WINDOW
+ * ======================================== */
 
 .wrapper {
 	height: 100%;
-	transition: padding ease-in-out 0.2s;
+	transition: padding var(--transition-base);
 }
 
 .wrapper.has-full-size-window {
@@ -36,29 +55,33 @@ body.is-embedded .fake-window-wrapper {
 .content {
 	display: flex;
 	flex-grow: 1;
-	background: #ffffff;
+	background: var(--color-bg-surface);
 }
+
+/* ========================================
+ * TOOLBAR
+ * ======================================== */
 
 .toolbar {
 	position: relative;
-	z-index: 5;
+	z-index: var(--z-dropdown);
 	display: flex;
-	background: #1e2327;
+	background: var(--toolbar-bg);
 	width: 100%;
 	margin: 0 auto;
-	padding: 0 12px;
-	height: 50px;
+	padding: 0 var(--space-3);
+	height: var(--toolbar-height);
 	align-items: center;
 	max-height: 100px;
 	overflow: hidden;
 	transition:
-		max-height 0.2s ease-in-out,
-		padding 0.2s ease-in-out;
+		max-height var(--transition-base),
+		padding var(--transition-base);
 	gap: 10px;
 }
 
 .toolbar.with-sidebar-open {
-	padding: 0 4px;
+	padding: 0 var(--space-1);
 }
 
 .toolbar-buttons:empty {
@@ -68,8 +91,12 @@ body.is-embedded .fake-window-wrapper {
 .toolbar-buttons {
 	display: flex;
 	gap: 0;
-	color: #fff;
+	color: var(--color-text-inverse);
 }
+
+/* ========================================
+ * TOOLBAR SLOTS
+ * ======================================== */
 
 .save-status-slot {
 	display: flex;
@@ -90,11 +117,15 @@ body.is-embedded .fake-window-wrapper {
 	pointer-events: none;
 }
 
+/* ========================================
+ * SAVED PLAYGROUNDS BUTTON
+ * ======================================== */
+
 .saved-playgrounds-button {
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	padding: 8px;
+	padding: var(--space-2);
 	background: transparent;
 	border: none;
 	cursor: pointer;
@@ -102,17 +133,25 @@ body.is-embedded .fake-window-wrapper {
 }
 
 .saved-playgrounds-button svg {
-	fill: #fff;
+	fill: var(--color-text-inverse);
 }
 
 .saved-playgrounds-button:hover {
-	background: rgba(255, 255, 255, 0.1);
-	border-radius: 4px;
+	background: var(--color-overlay-light);
+	border-radius: var(--radius-sm);
 }
 
+/* ========================================
+ * UTILITIES
+ * ======================================== */
+
 .padded {
-	padding: 24px;
+	padding: var(--space-6);
 }
+
+/* ========================================
+ * RESPONSIVE STYLES
+ * ======================================== */
 
 @media (max-width: 1100px) {
 	.has-site-manager {
@@ -151,8 +190,8 @@ body.is-embedded .fake-window-wrapper {
 		height: auto;
 		max-height: none;
 		overflow: visible;
-		padding: 8px;
-		gap: 8px;
+		padding: var(--space-2);
+		gap: var(--space-2);
 	}
 
 	.address-bar-slot {

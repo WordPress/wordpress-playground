@@ -1,10 +1,19 @@
-/* Site details */
+/**
+ * Site Info Panel Styles
+ *
+ * Tabbed panel showing site details, files, database, logs, and blueprints.
+ * Uses design tokens from tokens.css.
+ */
+
+/* ========================================
+ * PANEL CONTAINER
+ * ======================================== */
 
 .site-info-panel {
-	--padding-size: 24px;
+	--padding-size: var(--space-6);
 
-	background: #ffffff;
-	box-shadow: 0px 5px 15px rgba(0, 0, 0, 0.08);
+	background: var(--color-bg-surface);
+	box-shadow: var(--shadow-md);
 	border-radius: var(--site-manager-border-radius);
 	overflow: hidden;
 
@@ -21,6 +30,10 @@
 	padding: var(--padding-size);
 }
 
+/* ========================================
+ * TABS
+ * ======================================== */
+
 .tabs {
 	width: 100%;
 	height: 100%;
@@ -28,8 +41,8 @@
 	flex-direction: column;
 
 	& :global(.components-tab-panel__tabs) {
-		--wp-components-color-accent: var(--color-gray-900);
-		border-bottom: 1px solid var(--color-gray-200);
+		--wp-components-color-accent: var(--color-text-primary);
+		border-bottom: 1px solid var(--color-border-input);
 	}
 	& :global(.components-tab-panel__tabs-item) {
 		padding-left: var(--padding-size);
@@ -79,20 +92,24 @@
 	}
 }
 
+/* ========================================
+ * SECTION TITLES & LINKS
+ * ======================================== */
+
 .section-title {
-	color: var(--color-gray-900);
+	color: var(--color-text-primary);
 	padding: 0;
 	margin: 0;
-	font-size: 14px;
-	line-height: 20px; /* 142.857% */
+	font-size: var(--font-size-base);
+	line-height: 20px;
 }
 
 .gray-link {
-	color: var(--color-gray-600) !important;
+	color: var(--color-text-secondary) !important;
 }
 
 .gray-link-dark {
-	color: var(--color-gray-900) !important;
+	color: var(--color-text-primary) !important;
 }
 
 .button-no-padding {
@@ -100,12 +117,20 @@
 	padding-right: 0 !important;
 }
 
+/* ========================================
+ * LOGS SECTION
+ * ======================================== */
+
 .logs-section {
 	display: flex;
 	height: 100%;
 	flex-direction: column;
 	width: 100%;
 }
+
+/* ========================================
+ * SITE INFO HEADER
+ * ======================================== */
 
 .site-info-header {
 	color: inherit;
@@ -120,13 +145,13 @@
 .site-info-header-icon {
 	box-sizing: border-box;
 
-	width: 48px;
-	height: 48px;
-	margin-right: 8px;
+	width: var(--space-12);
+	height: var(--space-12);
+	margin-right: var(--space-2);
 
-	background: #ffffff;
-	border: 1px solid rgba(0, 0, 0, 0.1);
-	border-radius: 4px;
+	background: var(--color-bg-surface);
+	border: 1px solid var(--color-overlay-dark);
+	border-radius: var(--radius-sm);
 
 	flex: none;
 	flex-grow: 0;
@@ -146,13 +171,13 @@
 
 	/* Inside auto layout */
 	font-size: clamp(14px, 2.5vw, 18px);
-	line-height: 24px;
-	font-weight: 500;
+	line-height: var(--space-6);
+	font-weight: var(--font-weight-medium);
 	/* identical to box height, or 150% */
 	letter-spacing: -0.01em;
 
 	/* Gutenberg/Gray 900 */
-	color: var(--color-gray-900);
+	color: var(--color-text-primary);
 
 	display: flex;
 	align-items: baseline;
@@ -183,17 +208,17 @@
 
 .site-info-header-details-created-at {
 	width: 100%;
-	font-size: 14px;
+	font-size: var(--font-size-base);
 	line-height: 20px;
 	/* identical to box height, or 154% */
 
 	/* Gutenberg/Gray 700 */
-	color: #757575;
+	color: var(--color-text-secondary);
 }
 
 .siteInfoHeaderTitleRow {
 	align-items: flex-start;
-	gap: 8px;
+	gap: var(--space-2);
 }
 
 .siteInfoHeaderPrimaryActions {
@@ -201,7 +226,7 @@
 	flex-wrap: wrap;
 	justify-content: flex-end;
 	align-items: stretch;
-	gap: 8px;
+	gap: var(--space-2);
 	flex: 0 1 auto;
 	min-width: 0;
 }
@@ -213,10 +238,10 @@
 
 .siteInfoRenameButton {
 	padding: 2px !important;
-	min-height: 24px;
+	min-height: var(--space-6);
 
 	flex: 0 0 auto;
-	margin-left: 4px;
+	margin-left: var(--space-1);
 	position: static;
 	white-space: nowrap;
 	display: inline-flex;
@@ -224,8 +249,8 @@
 }
 
 .siteInfoRenameButton :global(svg) {
-	width: 16px;
-	height: 16px;
+	width: var(--icon-size-sm);
+	height: var(--icon-size-sm);
 }
 
 .max-width {
@@ -233,8 +258,12 @@
 }
 
 .danger {
-	color: var(--color-alert-red);
+	color: var(--color-error);
 }
+
+/* ========================================
+ * BLUEPRINT SECTION
+ * ======================================== */
 
 .blueprint-wrapper {
 	display: flex;
@@ -247,17 +276,17 @@
 	display: flex;
 	align-items: center;
 	justify-content: flex-end;
-	gap: 12px;
-	padding: 10px 20px 10px 16px;
-	border-bottom: 1px solid var(--color-gray-200);
-	background: #ffffff;
+	gap: var(--space-3);
+	padding: 10px var(--space-5) 10px var(--space-4);
+	border-bottom: 1px solid var(--color-border-input);
+	background: var(--color-bg-surface);
 	flex-wrap: wrap;
 }
 
 .blueprint-header :global(.components-button) {
-	height: 32px;
+	height: var(--button-height-sm);
 	flex-shrink: 0;
-	margin-right: -8px;
+	margin-right: calc(-1 * var(--space-2));
 }
 
 .blueprint-header :global(.components-checkbox-control) {
@@ -268,7 +297,7 @@
 	margin-bottom: 0;
 }
 .blueprint-header :global(.components-checkbox-control__label) {
-	font-size: 13px;
+	font-size: var(--font-size-sm);
 }
 
 .blueprint-header :global(.components-base-control__help) {
@@ -285,7 +314,7 @@
 	flex: 1;
 	min-height: 0;
 	overflow: auto;
-	background: #ffffff;
+	background: var(--color-bg-surface);
 }
 
 .blueprint-editor :global(.cm-editor) {
@@ -297,29 +326,33 @@
 }
 
 .blueprintNotice {
-	padding: 12px 16px;
-	background: #f0f6fc;
-	border-bottom: 1px solid var(--color-gray-200);
-	font-size: 13px;
-	color: var(--color-gray-700);
-	line-height: 1.5;
+	padding: var(--space-3) var(--space-4);
+	background: var(--color-bg-info-alt);
+	border-bottom: 1px solid var(--color-border-input);
+	font-size: var(--font-size-sm);
+	color: var(--color-text-secondary);
+	line-height: var(--line-height-relaxed);
 }
+
+/* ========================================
+ * RESPONSIVE STYLES
+ * ======================================== */
 
 @media (max-width: 600px) {
 	.blueprint-header {
-		padding: 8px 0 8px 12px;
-		gap: 8px;
+		padding: var(--space-2) 0 var(--space-2) var(--space-3);
+		gap: var(--space-2);
 		flex-direction: column-reverse;
 		align-items: stretch;
 	}
 
 	.blueprint-header :global(.components-button) {
 		width: 100%;
-		margin-right: -8px;
+		margin-right: calc(-1 * var(--space-2));
 	}
 
 	.blueprint-header :global(.components-checkbox-control) {
 		width: 100%;
-		padding-right: 12px;
+		padding-right: var(--space-3);
 	}
 }
