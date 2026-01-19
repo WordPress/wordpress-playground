@@ -91,6 +91,12 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 	 */
 	loadedWordPressVersion: string | undefined;
 
+	/**
+	 * Maximum number of blueprint message listeners to prevent memory leaks.
+	 * If exceeded, oldest listeners are automatically removed.
+	 */
+	private readonly MAX_BLUEPRINT_LISTENERS = 50;
+
 	blueprintMessageListeners: Array<(message: any) => void | Promise<void>> =
 		[];
 
@@ -417,6 +423,17 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 	// @TODO: Recycle addEventListener/removeEventListener instead of introducing another
 	// way of listening for events.
 	async onBlueprintMessage(listener: (message: any) => void | Promise<void>) {
+		// Enforce maximum listener count to prevent memory leaks
+		if (this.blueprintMessageListeners.length >= this.MAX_BLUEPRINT_LISTENERS) {
+			logger.warn(
+				`Blueprint message listener limit (${this.MAX_BLUEPRINT_LISTENERS}) exceeded. ` +
+					'Removing oldest listener to prevent memory leak. ' +
+					'This may indicate missing cleanup of listeners.'
+			);
+			// Remove the oldest listener (FIFO)
+			this.blueprintMessageListeners.shift();
+		}
+
 		this.blueprintMessageListeners.push(listener);
 		return async () => {
 			this.blueprintMessageListeners =

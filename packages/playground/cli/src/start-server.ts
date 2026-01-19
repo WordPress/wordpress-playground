@@ -56,14 +56,37 @@ export async function startServer(
 	return await options.onBind(server, port);
 }
 
+/**
+ * Maximum request body size in bytes (100MB).
+ * Prevents unbounded memory allocation for large uploads.
+ */
+const MAX_REQUEST_BODY_SIZE = 100 * 1024 * 1024;
+
 const bufferRequestBody = async (req: Request): Promise<Uint8Array> =>
-	await new Promise((resolve) => {
+	await new Promise((resolve, reject) => {
 		const body: Uint8Array[] = [];
+		let totalSize = 0;
+
 		req.on('data', (chunk) => {
+			totalSize += chunk.length;
+			if (totalSize > MAX_REQUEST_BODY_SIZE) {
+				req.destroy();
+				reject(
+					new Error(
+						`Request body too large: ${totalSize} bytes exceeds maximum of ${MAX_REQUEST_BODY_SIZE} bytes`
+					)
+				);
+				return;
+			}
 			body.push(chunk);
 		});
+
 		req.on('end', () => {
 			resolve(new Uint8Array(Buffer.concat(body)));
+		});
+
+		req.on('error', (err) => {
+			reject(err);
 		});
 	});
 

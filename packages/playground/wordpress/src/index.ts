@@ -19,6 +19,7 @@ export { getLoadedWordPressVersion } from './version-detect';
 
 export * from './version-detect';
 export * from './rewrite-rules';
+export * from './lib/memory-cleanup';
 
 /**
  * Preloads the platform mu-plugins from /internal/shared/mu-plugins.

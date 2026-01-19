@@ -536,6 +536,8 @@ function emptyHtml(scope: string) {
 	 * credentials (cookies), resulting in "Session expired" errors.
 	 */
 	if (scopesWithCrossOriginIsolation.has(scope)) {
+		// Update timestamp to keep scope fresh
+		scopesWithCrossOriginIsolation.set(scope, Date.now());
 		headers['Document-Isolation-Policy'] = 'isolate-and-credentialless';
 	}
 
@@ -622,8 +624,45 @@ let browserSupportsDocumentIsolationPolicy: boolean | undefined;
  * Scopes that have cross-origin isolation enabled (COEP headers were rewritten to
  * Document-Isolation-Policy). This is used to determine whether empty.html should
  * also have Document-Isolation-Policy header.
+ *
+ * Map structure: scope -> lastAccessedTimestamp
+ * Stale entries (>1 hour old) are periodically cleaned up to prevent memory leaks.
  */
-const scopesWithCrossOriginIsolation = new Set<string>();
+const scopesWithCrossOriginIsolation = new Map<string, number>();
+
+/**
+ * Maximum age for scope entries in milliseconds (1 hour).
+ * Scopes not accessed within this time are considered stale and removed.
+ */
+const SCOPE_MAX_AGE_MS = 60 * 60 * 1000;
+
+/**
+ * Removes stale scope entries that haven't been accessed recently.
+ * This prevents unbounded memory growth in long-running service workers.
+ */
+function cleanupStaleScopes() {
+	const now = Date.now();
+	const staleScopes: string[] = [];
+
+	for (const [scope, lastAccessed] of scopesWithCrossOriginIsolation.entries()) {
+		if (now - lastAccessed > SCOPE_MAX_AGE_MS) {
+			staleScopes.push(scope);
+		}
+	}
+
+	for (const scope of staleScopes) {
+		scopesWithCrossOriginIsolation.delete(scope);
+	}
+
+	// Log cleanup activity (debug logging is acceptable in service workers)
+	if (staleScopes.length > 0 && self.console) {
+		// eslint-disable-next-line no-console
+		console.debug(`Cleaned up ${staleScopes.length} stale scope(s)`);
+	}
+}
+
+// Run cleanup every 10 minutes
+setInterval(cleanupStaleScopes, 10 * 60 * 1000);
 
 self.addEventListener('message', (event) => {
 	if (event.data?.type === 'document-isolation-policy-support-check') {
@@ -702,7 +741,7 @@ function rewriteCoopHeadersToDocumentIsolationPolicy(
 
 	// Track that this scope has cross-origin isolation enabled so that
 	// empty.html (the editor iframe) can also get the Document-Isolation-Policy header.
-	scopesWithCrossOriginIsolation.add(scope);
+	scopesWithCrossOriginIsolation.set(scope, Date.now());
 
 	return new Response(response.body, {
 		status: response.status,

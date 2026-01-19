@@ -46,6 +46,13 @@ type WordPressRequest = {
  *
  * @param playground the Playground instance to set up with network support.
  */
+/**
+ * Maximum number of entries to keep in the preloaded response cache.
+ * This prevents unbounded memory growth if many requests are prefetched
+ * but not consumed.
+ */
+const MAX_PRELOADED_CACHE_SIZE = 20;
+
 export class WordPressFetchNetworkTransport {
 	private options: SetupFetchNetworkTransportOptions;
 	private preloadedResponseCache = new Map<
@@ -60,6 +67,19 @@ export class WordPressFetchNetworkTransport {
 
 	constructor(options?: SetupFetchNetworkTransportOptions) {
 		this.options = options || {};
+	}
+
+	/**
+	 * Evicts the oldest cache entries when the cache exceeds the maximum size.
+	 * Uses LRU policy based on Map insertion order.
+	 */
+	private evictOldestCacheEntriesIfNeeded() {
+		while (this.preloadedResponseCache.size > MAX_PRELOADED_CACHE_SIZE) {
+			const oldestKey = this.preloadedResponseCache.keys().next().value;
+			if (oldestKey !== undefined) {
+				this.preloadedResponseCache.delete(oldestKey);
+			}
+		}
 	}
 
 	/**
@@ -101,11 +121,8 @@ export class WordPressFetchNetworkTransport {
 				logger.info('Using cached response for:', data.url);
 
 				// Convert the cached response back to the format expected by PHP
-				const responseHeaders: string[] = [];
-				Object.entries(cachedResponse.headers).forEach(
-					([key, value]) => {
-						responseHeaders.push(key + ': ' + value);
-					}
+				const responseHeaders = Object.entries(cachedResponse.headers).map(
+					([key, value]) => `${key}: ${value}`
 				);
 
 				const headersText =
@@ -313,7 +330,8 @@ export class WordPressFetchNetworkTransport {
 					data,
 				};
 
-				// Store in instance cache
+				// Store in instance cache with LRU eviction
+				this.evictOldestCacheEntriesIfNeeded();
 				this.preloadedResponseCache.set(request.url, cachedResponse);
 
 				return cachedResponse;
@@ -362,10 +380,10 @@ export async function handleRequest(data: RequestData, fetchFn = fetch) {
 			`HTTP/1.1 400 Invalid Request\r\ncontent-type: text/plain\r\n\r\nPlayground could not serve the request.`
 		);
 	}
-	const responseHeaders: string[] = [];
-	response.headers.forEach((value, key) => {
-		responseHeaders.push(key + ': ' + value);
-	});
+	const responseHeaders = Array.from(
+		response.headers.entries(),
+		([key, value]) => `${key}: ${value}`
+	);
 
 	/*
 	 * Technically we should only send ASCII here and ensure we don't send control

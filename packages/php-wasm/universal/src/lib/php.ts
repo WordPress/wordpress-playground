@@ -277,9 +277,9 @@ export class PHP implements Disposable {
 						'opcache.enable = 1',
 						'opcache.enable_cli = 1',
 						'opcache.jit = 0',
-						'opcache.interned_strings_buffer = 8',
+						'opcache.interned_strings_buffer = 4',
 						'opcache.max_accelerated_files = 1000',
-						'opcache.memory_consumption = 64',
+						'opcache.memory_consumption = 32',
 						'opcache.max_wasted_percentage = 5',
 						'opcache.file_cache = ' + OPCACHE_FILE_FOLDER,
 						// Always enable the file cache.
@@ -311,7 +311,7 @@ export class PHP implements Disposable {
 				PHP_INI_PATH,
 				[
 					'auto_prepend_file=' + AUTO_PREPEND_SCRIPT,
-					'memory_limit=256M',
+					'memory_limit=192M',
 					'ignore_repeated_errors = 1',
 					'error_reporting = E_ALL',
 					'display_errors = 1',

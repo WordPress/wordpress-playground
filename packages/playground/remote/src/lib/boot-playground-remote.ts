@@ -59,8 +59,48 @@ if (import.meta.hot) {
 }
 
 const query = new URL(document.location.href).searchParams;
+
+/**
+ * Tracks cleanup functions for resources that need to be disposed
+ * when the Playground instance is destroyed. This prevents memory leaks
+ * from accumulated event listeners and intervals.
+ */
+interface CleanupTracker {
+	intervals: ReturnType<typeof setInterval>[];
+	eventListeners: Array<{
+		target: EventTarget;
+		type: string;
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		listener: any;
+	}>;
+	dispose: () => void;
+}
+
+function createCleanupTracker(): CleanupTracker {
+	const tracker: CleanupTracker = {
+		intervals: [],
+		eventListeners: [],
+		dispose() {
+			// Clear all intervals
+			for (const intervalId of tracker.intervals) {
+				clearInterval(intervalId);
+			}
+			tracker.intervals = [];
+
+			// Remove all event listeners
+			for (const { target, type, listener } of tracker.eventListeners) {
+				target.removeEventListener(type, listener);
+			}
+			tracker.eventListeners = [];
+		},
+	};
+	return tracker;
+}
+
 export async function bootPlaygroundRemote() {
 	assertNotInfiniteLoadingLoop();
+
+	const cleanupTracker = createCleanupTracker();
 
 	const hasProgressBar = query.has('progressbar');
 	let bar: ProgressBar | undefined;
@@ -163,12 +203,8 @@ export async function bootPlaygroundRemote() {
 		 */
 		async onNavigation(fn) {
 			/**
-			 * Note: We do not manually clear the event listener and the interval set in this function.
-			 *
-			 * This is because we're inside remote.html – a Playground instance-specific iframe.
-			 * When a Playground is stopped the iframe is destroyed and the resources – cleaned up.
-			 * Even if we wanted to clean up these resources manually, it would have to be onbeforeunload.
-			 * We'll let the browser handle that.
+			 * Event listeners and intervals are now tracked in cleanupTracker
+			 * and can be cleaned up by calling playground.dispose().
 			 */
 
 			let lastPath: string | undefined;
@@ -182,7 +218,7 @@ export async function bootPlaygroundRemote() {
 			 *
 			 * @see packages/playground/remote/src/lib/playground-mu-plugin/0-playground.php
 			 */
-			window.addEventListener('message', async (event) => {
+			const messageListener = async (event: MessageEvent) => {
 				if (event.source !== wpFrame.contentWindow) {
 					return;
 				}
@@ -202,10 +238,16 @@ export async function bootPlaygroundRemote() {
 				} catch {
 					// Ignore JSON parse errors
 				}
+			};
+			window.addEventListener('message', messageListener);
+			cleanupTracker.eventListeners.push({
+				target: window,
+				type: 'message',
+				listener: messageListener,
 			});
 
 			// Listen for iframe load events (for navigation)
-			wpFrame.addEventListener('load', async (e: any) => {
+			const loadListener = async (e: any) => {
 				try {
 					/**
 					 * When navigating to a page with %0A sequences (encoded newlines)
@@ -248,6 +290,12 @@ export async function bootPlaygroundRemote() {
 					// due to CORS-related stuff crashes the entire remote
 					// so let's ignore it for now and find a correct fix in time.
 				}
+			};
+			wpFrame.addEventListener('load', loadListener);
+			cleanupTracker.eventListeners.push({
+				target: wpFrame,
+				type: 'load',
+				listener: loadListener,
 			});
 
 			// Also propagate navigation changes twice a second for any
@@ -259,7 +307,7 @@ export async function bootPlaygroundRemote() {
 			// * https://github.com/WordPress/wordpress-playground/pull/1945
 			// * https://html.spec.whatwg.org/multipage/document-sequences.html#nav-active-history-entry
 			// * https://html.spec.whatwg.org/dev/browsing-the-web.html#centralized-modifications-of-session-history
-			setInterval(async () => {
+			const intervalId = setInterval(async () => {
 				try {
 					let href = '';
 					if (wpFrame.contentWindow) {
@@ -276,6 +324,7 @@ export async function bootPlaygroundRemote() {
 					// Ignore errors due to CORS or CSP restrictions
 				}
 			}, 500);
+			cleanupTracker.intervals.push(intervalId);
 		},
 		async goTo(requestedPath: string) {
 			// We need to know whether the browser supports
@@ -409,33 +458,36 @@ export async function bootPlaygroundRemote() {
 			await phpWorkerApi.boot(options);
 
 			// Proxy the service worker messages to the web worker:
-			navigator.serviceWorker.addEventListener(
-				'message',
-				async function onMessage(event) {
-					/**
-					 * Ignore events meant for other PHP instances to
-					 * avoid handling the same event twice.
-					 *
-					 * This is important because the service worker posts the
-					 * same message to all application instances across all browser tabs.
-					 */
-					if (options.scope && event.data.scope !== options.scope) {
-						return;
-					}
-
-					// Wait for the PHP API client to be set by bootPlaygroundRemote
-					const args = event.data.args || [];
-					const method = event.data
-						.method as keyof PlaygroundWorkerEndpoint;
-					// eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
-					const result = await (phpWorkerApi[method] as Function)(
-						...args
-					);
-					event.source!.postMessage(
-						responseTo(event.data.requestId, result)
-					);
+			const swMessageListener = async (event: MessageEvent) => {
+				/**
+				 * Ignore events meant for other PHP instances to
+				 * avoid handling the same event twice.
+				 *
+				 * This is important because the service worker posts the
+				 * same message to all application instances across all browser tabs.
+				 */
+				if (options.scope && event.data.scope !== options.scope) {
+					return;
 				}
-			);
+
+				// Wait for the PHP API client to be set by bootPlaygroundRemote
+				const args = event.data.args || [];
+				const method = event.data
+					.method as keyof PlaygroundWorkerEndpoint;
+				// eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
+				const result = await (phpWorkerApi[method] as Function)(
+					...args
+				);
+				event.source!.postMessage(
+					responseTo(event.data.requestId, result)
+				);
+			};
+			navigator.serviceWorker.addEventListener('message', swMessageListener);
+			cleanupTracker.eventListeners.push({
+				target: navigator.serviceWorker,
+				type: 'message',
+				listener: swMessageListener,
+			});
 			sw.startMessages();
 
 			try {
@@ -489,8 +541,14 @@ export async function bootPlaygroundRemote() {
 				 * The static assets are 12MB+ in size. Starting the download before
 				 * Playground is loaded would noticeably delay the first paint.
 				 */
-				wpFrame.addEventListener('load', () => {
+				const backfillListener = () => {
 					phpRemoteApi.backfillStaticFilesRemovedFromMinifiedBuild();
+				};
+				wpFrame.addEventListener('load', backfillListener, { once: true });
+				cleanupTracker.eventListeners.push({
+					target: wpFrame,
+					type: 'load',
+					listener: backfillListener,
 				});
 			}
 		},
@@ -514,6 +572,12 @@ export async function bootPlaygroundRemote() {
 	 * An assertion to make sure Playground Client is compatible
 	 * with Remote<PlaygroundClient>
 	 */
+
+	// Attach dispose method to playground for cleanup
+	(playground as any).dispose = () => {
+		cleanupTracker.dispose();
+	};
+
 	return playground;
 }
 

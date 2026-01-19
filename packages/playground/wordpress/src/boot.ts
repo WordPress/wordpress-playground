@@ -25,6 +25,7 @@ import {
 import { basename, dirname, joinPaths } from '@php-wasm/util';
 import { logger } from '@php-wasm/logger';
 import { ensureWpConfig } from './rewrite-wp-config';
+import { MemoryCleanupScheduler } from './lib/memory-cleanup';
 
 export type PhpIniOptions = Record<string, string>;
 export type Hook = (php: PHP) => void | Promise<void>;
@@ -479,6 +480,19 @@ export async function bootRequestHandler(options: BootRequestHandlerOptions) {
 				: (undefined as any),
 		maxPhpInstances: options.maxPhpInstances,
 	});
+
+	// Set up periodic memory cleanup to prevent bloat in long-running sessions
+	const cleanupScheduler = new MemoryCleanupScheduler(50);
+	const originalRequest = requestHandler.request.bind(requestHandler);
+	requestHandler.request = async function (request) {
+		const response = await originalRequest(request);
+		// Run cleanup after the request completes (non-blocking)
+		const primaryPhp = await requestHandler.getPrimaryPhp();
+		cleanupScheduler.afterRequest(primaryPhp).catch((error) => {
+			logger.warn('Memory cleanup after request failed:', error);
+		});
+		return response;
+	};
 
 	return requestHandler;
 }
