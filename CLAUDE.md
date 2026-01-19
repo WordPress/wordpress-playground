@@ -203,7 +203,7 @@ npx nx e2e playground-website
 The Playground CLI (`@wp-playground/cli`) can be run directly from source:
 
 ```bash
-nvm use 23
+nvm use
 npx nx dev playground-cli server --wp=6.8 --php=8.4 --auto-mount
 ```
 
