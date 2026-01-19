@@ -43,6 +43,18 @@ export function isDesktop(width?: number): boolean {
 }
 
 /**
+ * Check if the window width is considered "small screen" for UI layout purposes
+ * Used to determine if site manager should be open by default
+ * Includes both mobile and tablet sizes
+ * Default: < 875px (tablet breakpoint)
+ */
+export function isSmallerScreen(width?: number): boolean {
+	const currentWidth =
+		width ?? (typeof window !== 'undefined' ? window.innerWidth : 0);
+	return currentWidth < BREAKPOINTS.tablet;
+}
+
+/**
  * Get current device type based on window width
  */
 export type DeviceType = 'mobile' | 'tablet' | 'desktop';

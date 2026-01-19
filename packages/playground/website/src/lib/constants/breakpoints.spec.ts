@@ -4,6 +4,7 @@ import {
 	isMobile,
 	isTablet,
 	isDesktop,
+	isSmallerScreen,
 	getDeviceType,
 } from './breakpoints';
 
@@ -54,6 +55,30 @@ describe('Breakpoints', () => {
 			expect(isTablet(599)).toBe(false);
 			expect(isTablet(875)).toBe(false);
 			expect(isTablet(1024)).toBe(false);
+		});
+	});
+
+	describe('isSmallerScreen()', () => {
+		it('should return true when width is less than tablet breakpoint', () => {
+			expect(isSmallerScreen(0)).toBe(true);
+			expect(isSmallerScreen(600)).toBe(true);
+			expect(isSmallerScreen(874)).toBe(true);
+		});
+
+		it('should return false when width is at or above tablet breakpoint', () => {
+			expect(isSmallerScreen(875)).toBe(false);
+			expect(isSmallerScreen(1024)).toBe(false);
+			expect(isSmallerScreen(1920)).toBe(false);
+		});
+
+		it('should include both mobile and tablet sizes', () => {
+			// Mobile sizes
+			expect(isSmallerScreen(300)).toBe(true);
+			expect(isSmallerScreen(599)).toBe(true);
+			// Tablet sizes
+			expect(isSmallerScreen(600)).toBe(true);
+			expect(isSmallerScreen(700)).toBe(true);
+			expect(isSmallerScreen(874)).toBe(true);
 		});
 	});
 
