@@ -1,0 +1,350 @@
+/**
+ * Design Tokens for WordPress Playground Website
+ *
+ * This file contains all CSS custom properties (variables) used across the application.
+ * Import this file in styles.css to make tokens available globally.
+ *
+ * Usage in CSS Modules:
+ *   color: var(--color-text-primary);
+ *   padding: var(--space-4);
+ *   border-radius: var(--radius-md);
+ *
+ * Naming conventions:
+ *   --color-{category}-{variant}
+ *   --space-{scale}
+ *   --radius-{size}
+ *   --font-{property}-{variant}
+ */
+
+:root {
+	/* ========================================
+	 * COLORS - Background Scale (Dark Theme)
+	 * ======================================== */
+
+	/* Primary dark backgrounds - used for main surfaces */
+	--color-bg-primary: #1e2327; /* Main dark background (toolbar, overlays) */
+	--color-bg-secondary: #2c3338; /* Cards, inputs, elevated surfaces */
+	--color-bg-tertiary: #3c4349; /* Borders, dividers, subtle backgrounds */
+	--color-bg-hover: #353b41; /* Hover state for dark elements */
+	--color-bg-deep: #252a2e; /* Deeper/recessed elements (thumbnails) */
+
+	/* ========================================
+	 * COLORS - Background Scale (Light Theme)
+	 * ======================================== */
+
+	--color-bg-surface: #ffffff; /* Light surface (panels, cards, modals) */
+	--color-bg-subtle: #f6f7f7; /* Subtle light background */
+	--color-bg-muted: #f0f0f0; /* Muted background (code blocks) */
+	--color-bg-info: #f3f6fd; /* Info/notice background */
+	--color-bg-info-alt: #f0f6fc; /* Alternative info background */
+
+	/* ========================================
+	 * COLORS - Text
+	 * ======================================== */
+
+	/* Light mode text */
+	--color-text-primary: #1e1e1e; /* Primary text on light backgrounds */
+	--color-text-primary-alt: #1d2327; /* Alternative primary (WordPress gray) */
+	--color-text-secondary: #757575; /* Secondary/less important text */
+	--color-text-muted: #6b7280; /* Muted text, placeholders */
+	--color-text-muted-alt: #9ca3af; /* Alternative muted (lighter) */
+	--color-text-subtle: #949494; /* Subtle/disabled text */
+	--color-text-hint: #6c7781; /* Hint text */
+
+	/* Dark mode text */
+	--color-text-inverse: #ffffff; /* Primary text on dark backgrounds */
+	--color-text-inverse-secondary: #e5e6e6; /* Secondary text on dark backgrounds */
+	--color-text-inverse-muted: #b4becb; /* Muted text on dark backgrounds */
+
+	/* ========================================
+	 * COLORS - Brand & Accent
+	 * ======================================== */
+
+	--color-primary: #3858e9; /* Primary brand blue */
+	--color-primary-hover: #2a48d0; /* Primary hover state */
+	--color-primary-light: #8ab4f8; /* Light variant for links on dark bg */
+
+	/* WordPress admin colors (for compatibility) */
+	--color-wp-admin: #007cba;
+	--color-wp-admin-rgb: 0, 124, 186;
+	--color-wp-admin-dark: #006ba1;
+	--color-wp-admin-darker: #005a87;
+	--color-wp-link: #2271b1; /* WordPress link blue */
+	--color-wp-link-hover: #135e96;
+
+	/* ========================================
+	 * COLORS - Status & Feedback
+	 * ======================================== */
+
+	/* Success */
+	--color-success: #86efac; /* Success indicator (dark bg) */
+	--color-success-solid: #4caf50; /* Success button/badge */
+	--color-success-hover: #45a049; /* Success hover */
+	--color-success-active: #387c3b; /* Success active/pressed */
+
+	/* Warning */
+	--color-warning: #fcd34d; /* Warning indicator */
+	--color-warning-light: #fde68a; /* Warning light variant */
+	--color-warning-text: #1e2327; /* Text on warning background */
+
+	/* Error/Danger */
+	--color-error: #cc1818; /* Primary error color */
+	--color-error-alt: #dc2626; /* Alternative error (Tailwind red-600) */
+	--color-error-wp: #d63638; /* WordPress error red */
+	--color-error-soft: #e26f56; /* Soft error (form validation) */
+	--color-error-light: #fca5a5; /* Light error (indicators on dark bg) */
+	--color-error-bg: #fff5f5; /* Error background (light) */
+	--color-error-bg-alt: #ffe4e6; /* Alternative error background */
+
+	/* Info */
+	--color-info: #93c5fd; /* Info indicator (dark bg) */
+	--color-info-link: #1d4ed8; /* Info link color */
+
+	/* Decorative */
+	--color-accent-purple-bg: #ede9fe; /* Purple accent background */
+	--color-accent-purple-text: #4c1d95; /* Purple accent text */
+	--color-accent-rose-bg: #ffe4e6; /* Rose accent background */
+	--color-accent-rose-text: #9f1239; /* Rose accent text */
+
+	/* ========================================
+	 * COLORS - Borders
+	 * ======================================== */
+
+	/* Dark theme borders */
+	--color-border-dark: #3c4349; /* Primary border on dark bg */
+	--color-border-dark-subtle: #2c3338; /* Subtle border on dark bg */
+	--color-border-dark-hover: #4a5258; /* Border hover state */
+
+	/* Light theme borders */
+	--color-border-light: #dcdcde; /* Primary border on light bg */
+	--color-border-subtle: #eaeaea; /* Subtle border */
+	--color-border-input: #ddd; /* Input field borders */
+
+	/* ========================================
+	 * COLORS - Selection & Focus
+	 * ======================================== */
+
+	--color-selected-bg: #2a3654; /* Selected item background */
+	--color-selected-border: #3858e9; /* Selected item border accent */
+	--color-focus-ring: rgba(56, 88, 233, 0.5); /* Focus ring color */
+
+	/* ========================================
+	 * COLORS - Overlay & Shadow
+	 * ======================================== */
+
+	--color-overlay: rgba(0, 0, 0, 0.5); /* Modal overlay */
+	--color-overlay-light: rgba(255, 255, 255, 0.1); /* Light overlay on dark */
+	--color-overlay-dark: rgba(0, 0, 0, 0.1); /* Dark overlay on light */
+
+	/* ========================================
+	 * SPACING SCALE
+	 * Based on 4px grid system
+	 * ======================================== */
+
+	--space-0: 0;
+	--space-1: 4px; /* Tight spacing */
+	--space-2: 8px; /* Small spacing */
+	--space-3: 12px; /* Medium-small spacing */
+	--space-4: 16px; /* Base spacing */
+	--space-5: 20px; /* Medium spacing */
+	--space-6: 24px; /* Large spacing */
+	--space-8: 32px; /* Extra large spacing */
+	--space-10: 40px; /* 2x large spacing */
+	--space-12: 48px; /* 3x large spacing */
+
+	/* Semantic spacing aliases */
+	--space-xs: var(--space-1);
+	--space-sm: var(--space-2);
+	--space-md: var(--space-4);
+	--space-lg: var(--space-6);
+	--space-xl: var(--space-8);
+
+	/* ========================================
+	 * BORDER RADIUS
+	 * ======================================== */
+
+	--radius-none: 0;
+	--radius-sm: 4px; /* Small elements (buttons, inputs) */
+	--radius-md: 8px; /* Medium elements (cards, dropdowns) */
+	--radius-lg: 12px; /* Large elements (panels, modals) */
+	--radius-xl: 16px; /* Extra large elements (tags, pills) */
+	--radius-2xl: 24px; /* Very large (search inputs) */
+	--radius-full: 9999px; /* Fully rounded (circles, pills) */
+
+	/* ========================================
+	 * TYPOGRAPHY - Font Sizes
+	 * ======================================== */
+
+	--font-size-xs: 12px;
+	--font-size-sm: 13px;
+	--font-size-base: 14px;
+	--font-size-md: 15px;
+	--font-size-lg: 16px;
+	--font-size-xl: 18px;
+	--font-size-2xl: 20px;
+	--font-size-3xl: 22px;
+	--font-size-4xl: 24px;
+
+	/* Fluid/responsive font sizes */
+	--font-size-fluid-xs: clamp(12px, 1.2vw, 13px);
+	--font-size-fluid-sm: clamp(13px, 1.3vw, 14px);
+	--font-size-fluid-base: clamp(14px, 1.4vw, 15px);
+	--font-size-fluid-lg: clamp(15px, 1.5vw, 16px);
+	--font-size-fluid-xl: clamp(18px, 2vw, 22px);
+	--font-size-fluid-2xl: clamp(18px, 2.5vw, 24px);
+
+	/* ========================================
+	 * TYPOGRAPHY - Font Weights
+	 * ======================================== */
+
+	--font-weight-light: 300;
+	--font-weight-normal: 400;
+	--font-weight-medium: 500;
+	--font-weight-semibold: 600;
+	--font-weight-bold: 700;
+
+	/* ========================================
+	 * TYPOGRAPHY - Line Heights
+	 * ======================================== */
+
+	--line-height-tight: 1.2;
+	--line-height-base: 1.4;
+	--line-height-relaxed: 1.5;
+	--line-height-loose: 1.6;
+
+	/* ========================================
+	 * SHADOWS
+	 * ======================================== */
+
+	--shadow-xs: 0px 1px 2px rgba(0, 0, 0, 0.05);
+	--shadow-sm: 0px 1px 5px rgba(0, 0, 0, 0.1);
+	--shadow-md: 0px 5px 15px rgba(0, 0, 0, 0.08);
+	--shadow-lg: 0px 5px 15px rgba(0, 0, 0, 0.2);
+	--shadow-xl: 0px 10px 25px rgba(0, 0, 0, 0.25);
+
+	/* Inset shadows */
+	--shadow-inset: inset 0 1px 2px rgba(0, 0, 0, 0.1);
+
+	/* ========================================
+	 * TRANSITIONS
+	 * ======================================== */
+
+	--transition-fast: 0.15s ease;
+	--transition-base: 0.2s ease;
+	--transition-slow: 0.3s ease;
+	--transition-slower: 0.45s ease;
+
+	/* Specific transition properties */
+	--transition-colors:
+		color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
+	--transition-transform: transform 0.2s ease;
+	--transition-opacity: opacity 0.2s ease;
+	--transition-all: all 0.2s ease;
+
+	/* ========================================
+	 * Z-INDEX SCALE
+	 * ======================================== */
+
+	--z-base: 0;
+	--z-dropdown: 5;
+	--z-sticky: 10;
+	--z-fixed: 50;
+	--z-modal-backdrop: 90;
+	--z-modal: 100;
+	--z-popover: 110;
+	--z-tooltip: 150;
+	--z-toast: 200;
+
+	/* ========================================
+	 * LAYOUT - Site Manager
+	 * (Moved from layout/style.module.css for centralization)
+	 * ======================================== */
+
+	--site-manager-site-list-width: 280px;
+	--site-manager-site-info-min-width: 555px;
+	--site-manager-border-width: 12px;
+	--site-manager-border-radius: var(--radius-lg);
+	--site-manager-background-color: var(--color-text-primary);
+	--site-view-min-width: 320px;
+
+	/* Computed layout values */
+	--site-manager-width-desktop: calc(
+		var(--site-manager-site-list-width) +
+			var(--site-manager-site-info-min-width) + 2 *
+			var(--site-manager-border-width)
+	);
+	--site-manager-open-max-width: calc(100vw - var(--site-view-min-width));
+	--site-info-panel-max-width: calc(
+		var(--site-manager-open-max-width) -
+			(2 * var(--site-manager-border-width)) -
+			var(--site-manager-site-list-width)
+	);
+
+	/* ========================================
+	 * COMPONENT TOKENS
+	 * Semantic tokens for specific components
+	 * ======================================== */
+
+	/* Toolbar */
+	--toolbar-height: 50px;
+	--toolbar-bg: var(--color-bg-primary);
+	--toolbar-text: var(--color-text-inverse);
+
+	/* Address Bar */
+	--address-bar-bg: #40464d;
+	--address-bar-text: var(--color-text-inverse-muted);
+	--address-bar-text-focus: var(--color-text-inverse);
+
+	/* Modal */
+	--modal-max-width: 600px;
+	--modal-max-width-small: 350px;
+
+	/* Button sizes */
+	--button-height-sm: 32px;
+	--button-height-md: 40px;
+	--button-height-lg: 48px;
+
+	/* Input sizes */
+	--input-height-sm: 32px;
+	--input-height-md: 40px;
+	--input-height-lg: 48px;
+
+	/* Icon sizes */
+	--icon-size-sm: 16px;
+	--icon-size-md: 20px;
+	--icon-size-lg: 24px;
+	--icon-size-xl: 32px;
+
+	/* ========================================
+	 * BREAKPOINTS (for reference in JS)
+	 * CSS cannot use variables in media queries,
+	 * but these document the breakpoint system
+	 * ======================================== */
+
+	/*
+	 * --breakpoint-sm: 500px;   Mobile
+	 * --breakpoint-md: 640px;   Small tablet
+	 * --breakpoint-lg: 875px;   Tablet/Site manager collapse
+	 * --breakpoint-xl: 1100px;  Desktop
+	 * --breakpoint-2xl: 1200px; Large desktop
+	 */
+}
+
+/* ========================================
+ * RESPONSIVE ADJUSTMENTS
+ * ======================================== */
+
+@media screen and (max-width: 890px) {
+	:root {
+		--site-manager-site-info-min-width: 60%;
+	}
+}
+
+@media (max-width: 1126px) {
+	:root {
+		--site-info-panel-max-width: calc(
+			100vw - (2 * var(--site-manager-border-width)) -
+				var(--site-manager-site-list-width)
+		);
+	}
+}
