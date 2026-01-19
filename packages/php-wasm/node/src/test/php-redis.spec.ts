@@ -1,29 +1,27 @@
 /**
  * Redis integration tests.
  *
- * These tests automatically start an in-memory Redis server for testing.
- * If REDIS_HOST is set, it will use that instead.
+ * These tests require a real Redis server running. Set REDIS_HOST and
+ * optionally REDIS_PORT environment variables to run these tests.
  *
- * Note: Network tests verify that the Redis extension can communicate
- * with a real Redis server. In WebAssembly, TCP connections are proxied
- * through WebSockets, which may have timing differences compared to native
- * socket implementations.
+ * Example:
+ *   REDIS_HOST=127.0.0.1 REDIS_PORT=6379 npx nx run php-wasm-node:test-redis-network-jspi
  *
  * Note: Redis requires JSPI for proper exception handling during network
- * operations. These tests are skipped when JSPI is not available (e.g.,
- * when running with asyncify).
+ * operations. These tests are skipped when JSPI is not available.
  */
 
 import { PHP, SupportedPHPVersions, type SupportedPHPVersion } from '@php-wasm/universal';
 import { loadNodeRuntime } from '../lib';
-import { RedisMemoryServer } from 'redis-memory-server';
 import { jspi } from 'wasm-feature-detect';
 
 // Check JSPI availability at module load time (top-level await)
-// so the value is available when tests are registered.
 const isJspiAvailable = await jspi();
 
-// Skip all Redis tests if JSPI is not available
+const REDIS_HOST = process.env['REDIS_HOST'];
+const REDIS_PORT = process.env['REDIS_PORT'] || '6379';
+
+// Skip all Redis tests if JSPI is not available or REDIS_HOST is not set
 if (!isJspiAvailable) {
 	describe.skip('Redis Extension (requires JSPI)', () => {
 		it('skipped - JSPI not available', () => {});
@@ -31,11 +29,20 @@ if (!isJspiAvailable) {
 	describe.skip('Redis Network Integration (requires JSPI)', () => {
 		it('skipped - JSPI not available', () => {});
 	});
+} else if (!REDIS_HOST) {
+	console.log(`
+		Skipping Redis network tests because no Redis server is configured.
+		To run Redis tests, set the following environment variables:
+		- REDIS_HOST (required, e.g., 127.0.0.1)
+		- REDIS_PORT (optional, defaults to 6379)
+	`);
+	describe.skip('Redis Extension (requires REDIS_HOST)', () => {
+		it('skipped - REDIS_HOST not set', () => {});
+	});
+	describe.skip('Redis Network Integration (requires REDIS_HOST)', () => {
+		it('skipped - REDIS_HOST not set', () => {});
+	});
 } else {
-
-let redisServer: RedisMemoryServer | null = null;
-let REDIS_HOST: string;
-let REDIS_PORT: string;
 
 const phpVersions =
 	'PHP' in process.env
@@ -43,27 +50,17 @@ const phpVersions =
 		: SupportedPHPVersions;
 
 /**
- * Start Redis server before all tests if REDIS_HOST is not set
+ * PHP helper function that creates a configured Redis instance with proper
+ * timeout settings for WebSocket-based TCP connections.
  */
-beforeAll(async () => {
-	if (process.env['REDIS_HOST']) {
-		REDIS_HOST = process.env['REDIS_HOST'];
-		REDIS_PORT = process.env['REDIS_PORT'] || '6379';
-	} else {
-		redisServer = await RedisMemoryServer.create();
-		REDIS_HOST = await redisServer.getHost();
-		REDIS_PORT = (await redisServer.getPort()).toString();
+const createRedisPHP = () => `
+	function createRedis() {
+		$r = new Redis();
+		// Set timeouts to give WebSocket proxy time to connect
+		$r->connect('${REDIS_HOST}', ${REDIS_PORT}, 5.0);
+		return $r;
 	}
-}, 180000); // 3 minute timeout for server startup (includes Redis download time)
-
-/**
- * Stop Redis server after all tests
- */
-afterAll(async () => {
-	if (redisServer) {
-		await redisServer.stop();
-	}
-}, 30000); // 30 second timeout for server shutdown
+`;
 
 /**
  * Test that the Redis extension loads and provides the expected API.
@@ -159,19 +156,6 @@ describe('Redis Extension', () => {
 		});
 	});
 });
-
-/**
- * PHP helper function that creates a configured Redis instance with proper
- * timeout settings for WebSocket-based TCP connections.
- */
-const createRedisPHP = () => `
-	function createRedis() {
-		$r = new Redis();
-		// Set timeouts to give WebSocket proxy time to connect
-		$r->connect('${REDIS_HOST}', ${REDIS_PORT}, 5.0);
-		return $r;
-	}
-`;
 
 describe('Redis Network Integration', () => {
 	describe.each(phpVersions)('PHP %s', (phpVersion) => {
@@ -603,4 +587,4 @@ describe('Redis Network Integration', () => {
 	});
 });
 
-} // End of else block for isJspiAvailable check
+} // End of else block for JSPI/REDIS_HOST check

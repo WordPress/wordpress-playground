@@ -189,7 +189,6 @@
 		"prism-react-renderer": "^1.3.5",
 		"raw-loader": "^4.0.2",
 		"react-markdown": "^8.0.7",
-		"redis-memory-server": "0.14.1",
 		"rimraf": "^4.4.0",
 		"rollup": "^4.34.6",
 		"sass": "1.71.1",
