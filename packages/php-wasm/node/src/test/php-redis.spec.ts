@@ -1,12 +1,8 @@
 /**
  * Redis integration tests.
  *
- * These tests require a running Redis server. They are skipped if the
- * REDIS_HOST environment variable is not set.
- *
- * To run locally:
- *   docker run -d -p 6379:6379 redis:7-alpine
- *   REDIS_HOST=127.0.0.1 npx vitest run php-redis
+ * These tests automatically start an in-memory Redis server for testing.
+ * If REDIS_HOST is set, it will use that instead.
  *
  * Note: Network tests verify that the Redis extension can communicate
  * with a real Redis server. In WebAssembly, TCP connections are proxied
@@ -16,14 +12,39 @@
 
 import { PHP, SupportedPHPVersions, type SupportedPHPVersion } from '@php-wasm/universal';
 import { loadNodeRuntime } from '../lib';
+import { RedisMemoryServer } from 'redis-memory-server';
 
-const REDIS_HOST = process.env['REDIS_HOST'];
-const REDIS_PORT = process.env['REDIS_PORT'] || '6379';
+let redisServer: RedisMemoryServer | null = null;
+let REDIS_HOST: string;
+let REDIS_PORT: string;
 
 const phpVersions =
 	'PHP' in process.env
 		? [process.env['PHP']! as SupportedPHPVersion]
 		: SupportedPHPVersions;
+
+/**
+ * Start Redis server before all tests if REDIS_HOST is not set
+ */
+beforeAll(async () => {
+	if (process.env['REDIS_HOST']) {
+		REDIS_HOST = process.env['REDIS_HOST'];
+		REDIS_PORT = process.env['REDIS_PORT'] || '6379';
+	} else {
+		redisServer = await RedisMemoryServer.create();
+		REDIS_HOST = await redisServer.getHost();
+		REDIS_PORT = (await redisServer.getPort()).toString();
+	}
+}, 180000); // 3 minute timeout for server startup (includes Redis download time)
+
+/**
+ * Stop Redis server after all tests
+ */
+afterAll(async () => {
+	if (redisServer) {
+		await redisServer.stop();
+	}
+}, 30000); // 30 second timeout for server shutdown
 
 /**
  * Test that the Redis extension loads and provides the expected API.
@@ -120,8 +141,6 @@ describe('Redis Extension', () => {
 	});
 });
 
-const describeIfRedis = REDIS_HOST ? describe : describe.skip;
-
 /**
  * PHP helper function that creates a configured Redis instance with proper
  * timeout settings for WebSocket-based TCP connections.
@@ -135,7 +154,7 @@ const createRedisPHP = () => `
 	}
 `;
 
-describeIfRedis('Redis Network Integration', () => {
+describe('Redis Network Integration', () => {
 	describe.each(phpVersions)('PHP %s', (phpVersion) => {
 		let php: PHP;
 
