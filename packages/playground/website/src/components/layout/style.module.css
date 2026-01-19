@@ -1,28 +1,8 @@
-:root {
-	--site-manager-site-list-width: 280px;
-	--site-manager-site-info-min-width: 555px;
-	--site-manager-width-desktop: calc(
-		var(--site-manager-site-list-width) +
-			var(--site-manager-site-info-min-width) + 2 *
-			var(--site-manager-border-width)
-	);
-	--site-manager-open-max-width: calc(100vw - var(--site-view-min-width));
-	--site-info-panel-max-width: calc(
-		var(--site-manager-open-max-width) -
-			(2 * var(--site-manager-border-width)) -
-			var(--site-manager-site-list-width)
-	);
-	--site-view-min-width: 320px;
-	--site-manager-background-color: #1e1e1e;
-	--site-manager-border-width: 12px;
-	--site-manager-border-radius: 12px;
-}
-
-@media screen and (max-width: 890px) {
-	:root {
-		--site-manager-site-info-min-width: 60%;
-	}
-}
+/*
+ * Layout-specific styles.
+ * Site manager layout tokens are defined in tokens.css.
+ * This file only contains component-specific styles.
+ */
 
 body {
 	background-color: var(--site-manager-background-color);

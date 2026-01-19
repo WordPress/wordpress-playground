@@ -1,15 +1,26 @@
+/**
+ * Saved Playgrounds Overlay Styles
+ *
+ * This component uses design tokens from tokens.css.
+ * See tokens.css for available variables.
+ */
+
+/* ========================================
+ * OVERLAY CONTAINER
+ * ======================================== */
+
 .overlay {
 	position: fixed;
 	top: 0;
 	left: 0;
 	right: 0;
 	bottom: 0;
-	background: #1e2327;
-	z-index: 100;
+	background: var(--color-bg-primary);
+	z-index: var(--z-modal);
 	display: flex;
 	flex-direction: column;
 	overflow-y: auto;
-	animation: fadeIn 0.15s ease-out;
+	animation: fadeIn var(--transition-fast);
 }
 
 .overlayClosing {
@@ -43,23 +54,27 @@
 	margin: 0 auto;
 }
 
+/* ========================================
+ * HEADER
+ * ======================================== */
+
 .header {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
-	padding: 20px 32px;
-	border-bottom: 1px solid #2c3338;
+	padding: var(--space-5) var(--space-8);
+	border-bottom: 1px solid var(--color-bg-secondary);
 	flex-shrink: 0;
 }
 
 .headerSpacer {
-	width: 40px;
+	width: var(--space-10);
 }
 
 .headerTitle {
-	font-size: clamp(18px, 2vw, 22px);
-	font-weight: 600;
-	color: #fff !important;
+	font-size: var(--font-size-fluid-xl);
+	font-weight: var(--font-weight-semibold);
+	color: var(--color-text-inverse) !important;
 	margin: 0;
 }
 
@@ -71,44 +86,47 @@
 }
 
 .logoIcon {
-	width: 32px;
-	height: 32px;
+	width: var(--icon-size-xl);
+	height: var(--icon-size-xl);
 }
 
 .logoIcon path {
-	fill: #3858e9;
+	fill: var(--color-primary);
 }
 
 .logoText {
-	font-size: clamp(18px, 2vw, 22px);
-	font-weight: 600;
-	color: #fff;
+	font-size: var(--font-size-fluid-xl);
+	font-weight: var(--font-weight-semibold);
+	color: var(--color-text-inverse);
 }
 
 .closeButton {
-	color: #949494 !important;
-	padding: 4px !important;
+	color: var(--color-text-subtle) !important;
+	padding: var(--space-1) !important;
 }
 
 .closeButton:hover {
-	color: #fff !important;
+	color: var(--color-text-inverse) !important;
 }
 
 .backButton {
-	color: #949494 !important;
-	padding: 4px !important;
+	color: var(--color-text-subtle) !important;
+	padding: var(--space-1) !important;
 }
 
 .backButton:hover {
-	color: #fff !important;
+	color: var(--color-text-inverse) !important;
 }
 
-/* Filters bar for blueprints gallery */
+/* ========================================
+ * FILTERS BAR (Blueprints Gallery)
+ * ======================================== */
+
 .filtersBar {
 	display: flex;
 	flex-direction: column;
-	gap: 16px;
-	padding: 20px 32px;
+	gap: var(--space-4);
+	padding: var(--space-5) var(--space-8);
 	flex-shrink: 0;
 }
 
@@ -117,31 +135,31 @@
 	max-width: 400px;
 	align-items: center;
 	width: 100%;
-	background: #2c3338;
-	border: 1px solid #3c4349;
-	border-radius: 24px;
+	background: var(--color-bg-secondary);
+	border: 1px solid var(--color-border-dark);
+	border-radius: var(--radius-2xl);
 }
 
 .searchField {
 	flex: 1;
 	background: transparent;
 	border: none;
-	padding: 12px 16px 12px 0;
-	color: #fff;
-	font-size: clamp(15px, 1.5vw, 16px);
+	padding: var(--space-3) var(--space-4) var(--space-3) 0;
+	color: var(--color-text-inverse);
+	font-size: var(--font-size-fluid-lg);
 	outline: none;
 }
 
 .searchField::placeholder {
-	color: #6b7280;
+	color: var(--color-text-muted);
 }
 
 .searchIcon {
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	padding: 12px 12px 12px 16px;
-	color: #6b7280;
+	padding: var(--space-3) var(--space-3) var(--space-3) var(--space-4);
+	color: var(--color-text-muted);
 }
 
 .tagsContainer {
@@ -152,46 +170,50 @@
 
 .tagButton {
 	padding: 6px 14px;
-	background: #2c3338;
-	border: 1px solid #3c4349;
-	border-radius: 16px;
-	color: #9ca3af;
-	font-size: clamp(14px, 1.4vw, 15px);
+	background: var(--color-bg-secondary);
+	border: 1px solid var(--color-border-dark);
+	border-radius: var(--radius-xl);
+	color: var(--color-text-muted-alt);
+	font-size: var(--font-size-fluid-base);
 	cursor: pointer;
-	transition: all 0.15s ease;
+	transition: var(--transition-all);
 }
 
 .tagButton:hover {
-	background: #353b41;
-	color: #fff;
+	background: var(--color-bg-hover);
+	color: var(--color-text-inverse);
 }
 
 .tagButtonActive {
-	background: #3858e9;
-	border-color: #3858e9;
-	color: #fff;
+	background: var(--color-primary);
+	border-color: var(--color-primary);
+	color: var(--color-text-inverse);
 }
 
+/* ========================================
+ * BODY & SECTIONS
+ * ======================================== */
+
 .body {
-	padding: 32px;
+	padding: var(--space-8);
 	flex: 1;
 }
 
 .section {
-	margin-bottom: 32px;
+	margin-bottom: var(--space-8);
 	width: 100%;
 }
 
 .section:last-child {
 	margin-bottom: 0;
-	padding-bottom: 32px;
+	padding-bottom: var(--space-8);
 }
 
 .sectionHeader {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
-	margin-bottom: 16px;
+	margin-bottom: var(--space-4);
 }
 
 .sectionHeader .sectionTitle {
@@ -199,18 +221,18 @@
 }
 
 .sectionTitle {
-	margin: 0 0 16px 0 !important;
-	font-size: clamp(18px, 2vw, 22px) !important;
-	font-weight: 600 !important;
-	color: #fff !important;
+	margin: 0 0 var(--space-4) 0 !important;
+	font-size: var(--font-size-fluid-xl) !important;
+	font-weight: var(--font-weight-semibold) !important;
+	color: var(--color-text-inverse) !important;
 }
 
 .viewAllLink {
 	background: none;
 	border: none;
-	color: #3858e9;
-	font-size: clamp(14px, 1.4vw, 15px);
-	font-weight: 500;
+	color: var(--color-primary);
+	font-size: var(--font-size-fluid-base);
+	font-weight: var(--font-weight-medium);
 	cursor: pointer;
 	padding: 0;
 }
@@ -220,20 +242,23 @@
 }
 
 .emptyMessage {
-	color: #6b7280;
-	font-size: clamp(14px, 1.4vw, 15px);
+	color: var(--color-text-muted);
+	font-size: var(--font-size-fluid-base);
 	margin: 0;
-	padding: 32px;
+	padding: var(--space-8);
 	text-align: center;
-	background: #2c3338;
-	border-radius: 8px;
+	background: var(--color-bg-secondary);
+	border-radius: var(--radius-md);
 }
 
-/* Creation row - horizontal pills */
+/* ========================================
+ * CREATION ROW (Start New Playground)
+ * ======================================== */
+
 .creationRow {
 	display: flex;
 	flex-wrap: wrap;
-	gap: 12px;
+	gap: var(--space-3);
 }
 
 .creationButton {
@@ -241,21 +266,21 @@
 	flex-direction: column;
 	align-items: center;
 	justify-content: center;
-	gap: 8px;
-	padding: 16px 12px;
+	gap: var(--space-2);
+	padding: var(--space-4) var(--space-3);
 	min-width: 100px;
-	background: #2c3338;
-	border: 1px solid #3c4349;
-	border-radius: 8px;
+	background: var(--color-bg-secondary);
+	border: 1px solid var(--color-border-dark);
+	border-radius: var(--radius-md);
 	cursor: pointer;
-	transition: all 0.15s ease;
+	transition: var(--transition-all);
 	color: inherit;
 	font: inherit;
 }
 
 .creationButton:hover:not(:disabled) {
-	background: #353b41;
-	border-color: #4a5258;
+	background: var(--color-bg-hover);
+	border-color: var(--color-border-dark-hover);
 }
 
 .creationButton:disabled {
@@ -264,39 +289,42 @@
 }
 
 .creationIcon {
-	color: #fff;
+	color: var(--color-text-inverse);
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	width: 32px;
-	height: 32px;
+	width: var(--icon-size-xl);
+	height: var(--icon-size-xl);
 }
 
 .creationIcon :global(svg) {
-	fill: #fff;
+	fill: var(--color-text-inverse);
 	width: 28px;
 	height: 28px;
 }
 
 .creationTitle {
-	font-size: clamp(13px, 1.3vw, 14px);
-	font-weight: 500;
-	color: #fff;
+	font-size: var(--font-size-fluid-sm);
+	font-weight: var(--font-weight-medium);
+	color: var(--color-text-inverse);
 	text-align: center;
 }
 
-/* Blueprint preview row (grid on desktop) */
+/* ========================================
+ * BLUEPRINT PREVIEW ROW
+ * ======================================== */
+
 .blueprintsRow {
 	display: flex;
-	gap: 16px;
-	padding-bottom: 8px;
+	gap: var(--space-4);
+	padding-bottom: var(--space-2);
 }
 
 .blueprintPreviewCard {
 	display: flex;
 	flex-direction: column;
 	align-items: center;
-	gap: 8px;
+	gap: var(--space-2);
 	flex: 1;
 	min-width: 120px;
 	background: none;
@@ -308,20 +336,20 @@
 }
 
 .blueprintPreviewCard:hover .blueprintPreviewThumbnail {
-	border-color: #3858e9;
+	border-color: var(--color-primary);
 }
 
 .blueprintPreviewThumbnail {
 	width: 100%;
 	aspect-ratio: 4 / 3;
-	background: #2c3338;
-	border: 2px solid #3c4349;
-	border-radius: 8px;
+	background: var(--color-bg-secondary);
+	border: 2px solid var(--color-border-dark);
+	border-radius: var(--radius-md);
 	overflow: hidden;
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	transition: border-color 0.15s ease;
+	transition: border-color var(--transition-fast);
 }
 
 .blueprintPreviewThumbnail img {
@@ -331,11 +359,11 @@
 }
 
 .blueprintPreviewTitle {
-	font-size: clamp(13px, 1.3vw, 14px);
-	color: #e5e6e6;
+	font-size: var(--font-size-fluid-sm);
+	color: var(--color-text-inverse-secondary);
 	text-align: center;
 	width: 100%;
-	line-height: 1.4;
+	line-height: var(--line-height-base);
 	word-wrap: break-word;
 }
 
@@ -345,12 +373,12 @@
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	color: #3858e9;
+	color: var(--color-primary);
 }
 
 .blueprintPlaceholder svg {
-	width: 40px;
-	height: 40px;
+	width: var(--space-10);
+	height: var(--space-10);
 }
 
 /* View all thumbnail modifier */
@@ -361,15 +389,18 @@
 }
 
 .viewAllThumbnail svg {
-	fill: #fff;
+	fill: var(--color-text-inverse);
 }
 
-/* Sites list - vertical rows */
+/* ========================================
+ * SITES LIST
+ * ======================================== */
+
 .sitesList {
 	display: flex;
 	flex-direction: column;
-	border: 1px solid #3c4349;
-	border-radius: 8px;
+	border: 1px solid var(--color-border-dark);
+	border-radius: var(--radius-md);
 	overflow: hidden;
 }
 
@@ -377,8 +408,8 @@
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
-	border-bottom: 1px solid #3c4349;
-	transition: background 0.15s ease;
+	border-bottom: 1px solid var(--color-border-dark);
+	transition: background var(--transition-fast);
 }
 
 .siteRow:last-child {
@@ -386,19 +417,19 @@
 }
 
 .siteRow:hover {
-	background: #2c3338;
+	background: var(--color-bg-secondary);
 }
 
 .siteRowSelected {
-	background: #2a3654;
-	border-left: 3px solid #3858e9;
+	background: var(--color-selected-bg);
+	border-left: 3px solid var(--color-primary);
 }
 
 .siteRowContent {
 	display: flex;
 	align-items: center;
-	gap: 16px;
-	padding: 16px 20px;
+	gap: var(--space-4);
+	padding: var(--space-4) var(--space-5);
 	flex: 1;
 	background: none;
 	border: none;
@@ -414,14 +445,14 @@
 }
 
 .siteRowLogo {
-	width: 40px;
-	height: 40px;
+	width: var(--space-10);
+	height: var(--space-10);
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	background: #2a3654;
+	background: var(--color-selected-bg);
 	border-radius: 10px;
-	color: #3858e9;
+	color: var(--color-primary);
 	flex-shrink: 0;
 }
 
@@ -433,8 +464,8 @@
 }
 
 .siteRowLogo svg {
-	width: 24px;
-	height: 24px;
+	width: var(--icon-size-lg);
+	height: var(--icon-size-lg);
 }
 
 .siteRowInfo {
@@ -444,60 +475,66 @@
 }
 
 .siteRowName {
-	font-size: clamp(14px, 1.4vw, 15px);
-	font-weight: 500;
-	color: #fff;
+	font-size: var(--font-size-fluid-base);
+	font-weight: var(--font-weight-medium);
+	color: var(--color-text-inverse);
 }
 
 .siteRowDate {
-	font-size: clamp(12px, 1.2vw, 13px);
-	color: #6b7280;
+	font-size: var(--font-size-fluid-xs);
+	color: var(--color-text-muted);
 }
 
 .siteRowMenu {
-	margin-right: 12px;
+	margin-right: var(--space-3);
 }
 
 .siteRowMenu button {
-	color: #949494 !important;
+	color: var(--color-text-subtle) !important;
 }
 
 .siteRowMenu button:hover {
-	color: #fff !important;
-	background: rgba(255, 255, 255, 0.1) !important;
+	color: var(--color-text-inverse) !important;
+	background: var(--color-overlay-light) !important;
 }
 
 .dangerMenuItem {
-	color: #dc2626 !important;
+	color: var(--color-error-alt) !important;
 }
 
 .dangerMenuItem:hover {
 	background: rgba(220, 38, 38, 0.1) !important;
 }
 
-/* Loading state */
+/* ========================================
+ * LOADING STATE
+ * ======================================== */
+
 .loadingContainer {
 	display: flex;
 	justify-content: center;
-	padding: 32px;
+	padding: var(--space-8);
 }
 
-/* Blueprints full grid (gallery view) */
+/* ========================================
+ * BLUEPRINTS GALLERY GRID
+ * ======================================== */
+
 .blueprintsFullGrid {
 	display: grid;
 	grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-	gap: 16px;
+	gap: var(--space-4);
 }
 
 /* Blueprint card with thumbnail */
 .blueprintCard {
 	display: flex;
 	flex-direction: column;
-	background: #2c3338;
+	background: var(--color-bg-secondary);
 	border: 1px solid transparent;
 	border-radius: 10px;
 	cursor: pointer;
-	transition: all 0.15s ease;
+	transition: var(--transition-all);
 	text-align: left;
 	overflow: hidden;
 	padding: 0;
@@ -506,13 +543,13 @@
 }
 
 .blueprintCard:hover {
-	border-color: #3858e9;
+	border-color: var(--color-primary);
 }
 
 .blueprintThumbnail {
 	width: 100%;
 	aspect-ratio: 16 / 10;
-	background: #252a2e;
+	background: var(--color-bg-deep);
 	overflow: hidden;
 	display: flex;
 	align-items: center;
@@ -526,16 +563,16 @@
 }
 
 .blueprintInfo {
-	padding: 14px 16px;
+	padding: 14px var(--space-4);
 	display: flex;
 	flex-direction: column;
-	gap: 4px;
+	gap: var(--space-1);
 }
 
 .blueprintTitle {
-	font-size: clamp(14px, 1.4vw, 15px);
-	font-weight: 600;
-	color: #fff !important;
+	font-size: var(--font-size-fluid-base);
+	font-weight: var(--font-weight-semibold);
+	color: var(--color-text-inverse) !important;
 	margin: 0;
 	overflow: hidden;
 	text-overflow: ellipsis;
@@ -543,8 +580,8 @@
 }
 
 .blueprintDescription {
-	font-size: clamp(13px, 1.3vw, 14px);
-	color: #9ca3af !important;
+	font-size: var(--font-size-fluid-sm);
+	color: var(--color-text-muted-alt) !important;
 	margin: 0;
 	display: -webkit-box;
 	-webkit-line-clamp: 2;
@@ -552,30 +589,34 @@
 	-webkit-box-orient: vertical;
 	box-orient: vertical;
 	overflow: hidden;
-	line-height: 1.4;
+	line-height: var(--line-height-base);
 }
 
 .blueprintMeta {
-	font-size: clamp(12px, 1.2vw, 13px);
-	color: #6b7280 !important;
+	font-size: var(--font-size-fluid-xs);
+	color: var(--color-text-muted) !important;
 	margin: 0;
-	margin-top: 4px;
+	margin-top: var(--space-1);
 }
 
 .blueprintTags {
 	display: flex;
 	flex-wrap: wrap;
-	gap: 4px;
+	gap: var(--space-1);
 	margin-top: 6px;
 }
 
 .blueprintTag {
-	font-size: clamp(12px, 1.2vw, 13px);
-	padding: 4px 12px;
-	background: #3c4349;
-	border-radius: 12px;
-	color: #9ca3af;
+	font-size: var(--font-size-fluid-xs);
+	padding: var(--space-1) var(--space-3);
+	background: var(--color-border-dark);
+	border-radius: var(--radius-lg);
+	color: var(--color-text-muted-alt);
 }
+
+/* ========================================
+ * RESPONSIVE STYLES
+ * ======================================== */
 
 @media (max-width: 900px) {
 	.creationRow {
@@ -592,25 +633,25 @@
 @media (max-width: 875px) {
 	.blueprintsRow {
 		flex-direction: column;
-		gap: 8px;
+		gap: var(--space-2);
 	}
 
 	.blueprintPreviewCard {
 		flex-direction: row;
 		align-items: center;
-		gap: 16px;
+		gap: var(--space-4);
 		min-width: unset;
-		background: #2c3338;
-		border: 1px solid #3c4349;
-		border-radius: 8px;
-		padding: 0 16px 0 0;
-		transition: all 0.15s ease;
+		background: var(--color-bg-secondary);
+		border: 1px solid var(--color-border-dark);
+		border-radius: var(--radius-md);
+		padding: 0 var(--space-4) 0 0;
+		transition: var(--transition-all);
 		overflow: hidden;
 	}
 
 	.blueprintPreviewCard:hover {
-		border-color: #3858e9;
-		background: #353b41;
+		border-color: var(--color-primary);
+		background: var(--color-bg-hover);
 	}
 
 	.blueprintPreviewCard:hover .blueprintPreviewThumbnail {
@@ -622,7 +663,7 @@
 		width: 140px !important;
 		aspect-ratio: unset;
 		flex-shrink: 0;
-		background: #252a2e;
+		background: var(--color-bg-deep);
 		border: none;
 		border-radius: 7px 0 0 7px;
 	}
@@ -634,32 +675,32 @@
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
-		font-weight: 500;
+		font-weight: var(--font-weight-medium);
 	}
 }
 
 @media (max-width: 640px) {
 	.header {
-		padding: 16px 20px;
+		padding: var(--space-4) var(--space-5);
 	}
 
 	.filtersBar {
-		padding: 16px 20px;
+		padding: var(--space-4) var(--space-5);
 	}
 
 	.body {
-		padding: 20px;
+		padding: var(--space-5);
 	}
 
 	.creationRow {
 		display: grid;
 		grid-template-columns: repeat(3, 1fr);
-		gap: 8px;
+		gap: var(--space-2);
 	}
 
 	.creationButton {
 		min-width: unset;
-		padding: 12px 8px;
+		padding: var(--space-3) var(--space-2);
 	}
 
 	.blueprintPreviewCard {
@@ -667,7 +708,7 @@
 	}
 
 	.blueprintPreviewTitle {
-		font-size: 15px;
+		font-size: var(--font-size-md);
 	}
 
 	.blueprintsFullGrid {
@@ -677,7 +718,7 @@
 	.tagsContainer {
 		overflow-x: hidden;
 		flex-wrap: wrap;
-		padding-bottom: 4px;
+		padding-bottom: var(--space-1);
 	}
 
 	.tagButton {
@@ -685,7 +726,7 @@
 	}
 
 	.siteRowContent {
-		padding: 12px 16px;
+		padding: var(--space-3) var(--space-4);
 	}
 
 	.siteRowLogo {

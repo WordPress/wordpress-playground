@@ -1,5 +1,9 @@
 /* Global styles. Use CSS modules for everything else. */
 
+/* Design tokens - centralized CSS variables */
+@import url('./tokens.css');
+
+/* WordPress component styles */
 @import url('../../../../node_modules/@wordpress/components/build-style/style.css');
 @import url('../../../../node_modules/@wordpress/dataviews/build-style/style.css');
 
@@ -146,10 +150,15 @@ html {
 }
 
 :root {
-	--color-gray-200: #ddd;
-	--color-gray-600: #6a6a6a;
-	--color-gray-900: #1e1e1e;
-	--color-alert-red: #cc1818;
+	/*
+	 * Legacy color aliases - kept for backwards compatibility.
+	 * New code should use tokens directly from tokens.css:
+	 *   --color-border-input, --color-text-secondary, --color-text-primary, --color-error
+	 */
+	--color-gray-200: var(--color-border-input);
+	--color-gray-600: var(--color-text-secondary);
+	--color-gray-900: var(--color-text-primary);
+	--color-alert-red: var(--color-error);
 }
 
 html,
@@ -159,18 +168,23 @@ body {
 	height: 100%;
 	/* The same font settings as in wp-admin */
 	font-size: 13px;
-	font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
-		Oxygen-Sans, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;
+	font-family:
+		-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen-Sans,
+		Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;
 	line-height: 1.3;
 	font-weight: 300;
 }
 
 :root {
-	--wp-admin-theme-color: #007cba;
-	--wp-admin-theme-color--rgb: 0, 124, 186;
-	--wp-admin-theme-color-darker-10: #006ba1;
+	/*
+	 * WordPress admin theme colors - required by @wordpress/components.
+	 * These override component defaults. See also tokens.css for our color system.
+	 */
+	--wp-admin-theme-color: var(--color-wp-admin);
+	--wp-admin-theme-color--rgb: var(--color-wp-admin-rgb);
+	--wp-admin-theme-color-darker-10: var(--color-wp-admin-dark);
 	--wp-admin-theme-color-darker-10--rgb: 0, 107, 161;
-	--wp-admin-theme-color-darker-20: #005a87;
+	--wp-admin-theme-color-darker-20: var(--color-wp-admin-darker);
 	--wp-admin-theme-color-darker-20--rgb: 0, 90, 135;
 }
 
