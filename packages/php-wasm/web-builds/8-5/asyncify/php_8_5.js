@@ -1,7 +1,7 @@
-import dependencyFilename from './8_5_1/php_8_5.wasm';
+import dependencyFilename from './8_5_2/php_8_5.wasm';
 export { dependencyFilename };
-export const dependenciesTotalSize = 27993700;
-const phpVersionString = '8.5.1';
+export const dependenciesTotalSize = 27995169;
+const phpVersionString = '8.5.2';
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
 	var Module = typeof PHPLoader != 'undefined' ? PHPLoader : {};

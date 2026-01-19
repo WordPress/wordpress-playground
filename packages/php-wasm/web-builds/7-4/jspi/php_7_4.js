@@ -1,6 +1,6 @@
 import dependencyFilename from './7_4_33/php_7_4.wasm';
 export { dependencyFilename };
-export const dependenciesTotalSize = 19964833;
+export const dependenciesTotalSize = 19964879;
 const phpVersionString = '7.4.33';
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
@@ -24486,13 +24486,13 @@ export function init(RuntimeName, PHPLoader) {
 	Module['_sched_yield'] = _sched_yield;
 	Module['___syscall_shutdown'] = ___syscall_shutdown;
 	var ASM_CONSTS = {
-		11264706: ($0) => {
+		11264738: ($0) => {
 			if (!$0) {
 				AL.alcErr = 40964;
 				return 1;
 			}
 		},
-		11264754: ($0) => {
+		11264786: ($0) => {
 			if (!AL.currentCtx) {
 				err('alGetProcAddress() called without a valid context');
 				return 1;

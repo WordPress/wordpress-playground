@@ -2,6 +2,7 @@ import { loadNodeRuntime } from '..';
 import {
 	PHP,
 	SupportedPHPVersions,
+	proxyFileSystem,
 	setPhpIniEntries,
 } from '@php-wasm/universal';
 import fs from 'fs';
@@ -223,6 +224,36 @@ describe.each(phpVersions)('PHP %s', async (phpVersion) => {
 			 * which means the ICU data file must use that exact name.
 			 */
 			expect(php.listFiles('/internal/shared')).toContain('icudt74l.dat');
+		});
+
+		it('reads the icu data in PROXYFS', async () => {
+			const newPhp = new PHP(
+				await loadNodeRuntime(phpVersion as any, {
+					withIntl: true,
+				})
+			);
+
+			proxyFileSystem(php, newPhp, ['/internal/shared']);
+
+			const response = await newPhp.runStream({
+				code: `<?php
+						$data = array(
+							'F' => 'Foo',
+							'Br' => 'Bar',
+							'Bz' => 'Bz',
+						);
+
+						$collator = new Collator('en_US');
+						$collator->asort($data, Collator::SORT_STRING);
+						var_dump($data);
+					?>`,
+			});
+
+			newPhp.exit();
+
+			expect(await response.stdoutText).toEqual(
+				'array(3) {\n  ["Br"]=>\n  string(3) "Bar"\n  ["Bz"]=>\n  string(2) "Bz"\n  ["F"]=>\n  string(3) "Foo"\n}\n'
+			);
 		});
 
 		it('uses intl functions', async () => {

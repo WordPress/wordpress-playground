@@ -87,9 +87,7 @@
 					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=8.2 --WITH_JSPI=yes",
 					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=8.1 --WITH_JSPI=yes",
 					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=8.0 --WITH_JSPI=yes",
-					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=7.4 --WITH_JSPI=yes",
-					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=7.3 --WITH_JSPI=yes",
-					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=7.2 --WITH_JSPI=yes"
+					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=7.4 --WITH_JSPI=yes"
 				],
 				"parallel": false
 			}
@@ -113,9 +111,7 @@
 					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=8.2",
 					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=8.1",
 					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=8.0",
-					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=7.4",
-					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=7.3",
-					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=7.2"
+					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=7.4"
 				],
 				"parallel": false
 			}

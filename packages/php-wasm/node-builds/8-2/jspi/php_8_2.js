@@ -7,13 +7,15 @@ const require = createRequire(import.meta.url);
 import path from 'path';
 import { fileURLToPath } from 'url';
 
+// Determine the current directory path. In CJS mode, __dirname is available.
+// In ESM mode, we derive it from import.meta.url.
 const currentDirPath =
 	typeof __dirname !== 'undefined'
 		? __dirname
 		: path.dirname(fileURLToPath(import.meta.url));
 const dependencyFilename = path.join(currentDirPath, '8_2_30', 'php_8_2.wasm');
 export { dependencyFilename };
-export const dependenciesTotalSize = 26936396;
+export const dependenciesTotalSize = 26936464;
 const phpVersionString = '8.2.30';
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
@@ -30974,13 +30976,13 @@ export function init(RuntimeName, PHPLoader) {
 	// end include: postlibrary.js
 
 	var ASM_CONSTS = {
-		13131602: ($0) => {
+		13131858: ($0) => {
 			if (!$0) {
 				AL.alcErr = 0xa004;
 				return 1;
 			}
 		},
-		13131650: ($0) => {
+		13131906: ($0) => {
 			if (!AL.currentCtx) {
 				err('alGetProcAddress() called without a valid context');
 				return 1;
@@ -31468,7 +31470,7 @@ export function init(RuntimeName, PHPLoader) {
 		___cpp_exception = wasmExports['__cpp_exception'];
 	}
 
-	var ___heap_base = 14718432;
+	var ___heap_base = 14718688;
 
 	var wasmImports = {
 		/** @export */
