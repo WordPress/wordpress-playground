@@ -1,11 +1,22 @@
+/**
+ * Save Status Indicator Styles
+ *
+ * Visual indicator showing save state (saved, unsaved, saving, error).
+ * Uses design tokens from tokens.css.
+ */
+
+/* ========================================
+ * BASE INDICATOR
+ * ======================================== */
+
 .indicator {
 	display: flex;
 	align-items: center;
 	gap: 6px;
-	padding: 4px 0;
-	border-radius: 4px;
-	font-size: 14px;
-	font-weight: 500;
+	padding: var(--space-1) 0;
+	border-radius: var(--radius-sm);
+	font-size: var(--font-size-base);
+	font-weight: var(--font-weight-medium);
 	white-space: nowrap;
 	border: none;
 	background: transparent;
@@ -17,68 +28,76 @@
 	flex-shrink: 0;
 }
 
+/* ========================================
+ * STATUS VARIANTS
+ * ======================================== */
+
 .saved {
-	color: #86efac;
+	color: var(--color-success);
 }
 
 .saved svg {
-	fill: #86efac;
+	fill: var(--color-success);
 }
 
 .unsaved {
-	color: #fcd34d;
+	color: var(--color-warning);
 }
 
 .unsaved svg {
-	fill: #fcd34d;
+	fill: var(--color-warning);
 }
 
 .saveButton {
 	margin-left: 2px;
-	padding: 4px 10px;
-	background: #fcd34d;
-	color: #1e2327;
+	padding: var(--space-1) 10px;
+	background: var(--color-warning);
+	color: var(--color-bg-primary);
 	border: none;
-	border-radius: 4px;
-	font-size: 13px;
-	font-weight: 600;
+	border-radius: var(--radius-sm);
+	font-size: var(--font-size-sm);
+	font-weight: var(--font-weight-semibold);
 	cursor: pointer;
-	transition: background 0.15s ease;
+	transition: background var(--transition-fast);
 	min-height: 28px;
 }
 
 .saveButton:hover {
-	background: #fde68a;
+	background: var(--color-warning-light);
 }
 
 .saving {
-	color: #93c5fd;
+	color: var(--color-info);
 }
 
 .error {
-	color: #fca5a5;
+	color: var(--color-error-light);
 	cursor: pointer;
-	transition: background 0.15s ease;
+	transition: background var(--transition-fast);
 }
 
 .error:hover {
-	background: rgba(255, 255, 255, 0.1);
+	background: var(--color-overlay-light);
 }
 
 .error svg {
-	fill: #fca5a5;
+	fill: var(--color-error-light);
 }
+
+/* ========================================
+ * LABEL & SPINNER
+ * ======================================== */
 
 .label {
 	display: inline;
 }
 
 .spinner {
-	width: 16px;
-	height: 16px;
+	width: var(--icon-size-sm);
+	height: var(--icon-size-sm);
 	border: 2px solid rgba(147, 197, 253, 0.3);
-	border-top-color: #93c5fd;
-	border-radius: 50%;
+	border-top-color: var(--color-info);
+	border-radius: var(--radius-full);
 	animation: spin 0.8s linear infinite;
 	flex-shrink: 0;
 }
@@ -89,15 +108,18 @@
 	}
 }
 
-/* Mobile responsive styles */
+/* ========================================
+ * RESPONSIVE STYLES
+ * ======================================== */
+
 @media (max-width: 500px) {
 	.indicator {
-		font-size: 13px;
+		font-size: var(--font-size-sm);
 	}
 
 	.saveButton {
-		min-width: 40px;
-		min-height: 40px;
-		padding: 8px 12px;
+		min-width: var(--space-10);
+		min-height: var(--space-10);
+		padding: var(--space-2) var(--space-3);
 	}
 }
