@@ -307,27 +307,37 @@ export async function setupPlatformLevelMuPlugins(php: UniversalPHP) {
 
 	/**
 	 * WordPress 6.7+ only generates the sitemap.xml → wp-sitemap.xml rewrite
-	 * rule when installed at the domain root. Since Playground uses scoped
-	 * URLs like /scope:xyz/, the rule isn't generated. This preload file
-	 * handles the redirect manually.
-	 *
-	 * The regex matches URLs like:
-	 * - /sitemap.xml
-	 * - /scope:xyz/sitemap.xml
-	 * - /sitemap.xml?foo=bar
+	 * rule when installed at the domain root. Since Playground may use non-root
+	 * installations, the rule isn't generated. This mu-plugin handles the
+	 * redirect manually by using the site URL to determine the correct base path.
 	 *
 	 * @see https://github.com/WordPress/wordpress-playground/issues/2051
 	 */
 	await php.writeFile(
-		'/internal/shared/preload/sitemap-redirect.php',
+		'/internal/shared/mu-plugins/sitemap-redirect.php',
 		`<?php
-		if (
-			isset($_SERVER['REQUEST_URI']) &&
-			preg_match('#^(/scope:[^/]+)?/sitemap\\.xml(\\?.*)?$#i', $_SERVER['REQUEST_URI'], $matches)
-		) {
-			$prefix = isset($matches[1]) ? $matches[1] : '';
-			header('Location: ' . $prefix . '/wp-sitemap.xml', true, 301);
-			exit;
+		/**
+		 * Redirect sitemap.xml to wp-sitemap.xml for non-root installations.
+		 *
+		 * WordPress seems to only generate the sitemap.xml → wp-sitemap.xml rewrite
+		 * rule when installed at the domain root. This mu-plugin handles the
+		 * redirect for non-root installations.
+		 */
+		if (isset($_SERVER['REQUEST_URI'])) {
+			$site_url = site_url();
+			$parsed = parse_url($site_url);
+			$base_path = isset($parsed['path']) ? rtrim($parsed['path'], '/') : '';
+
+			$request_uri = $_SERVER['REQUEST_URI'];
+			if (
+				$request_uri === $base_path . '/sitemap.xml' ||
+				strpos($request_uri, $base_path . '/sitemap.xml?') === 0 ||
+				strpos($request_uri, $base_path . '/sitemap.xml/') === 0
+			) {
+				$query_string = strpos($request_uri, '?') !== false ? substr($request_uri, strpos($request_uri, '?')) : '';
+				header('Location: ' . $base_path . '/wp-sitemap.xml' . $query_string, true, 301);
+				exit;
+			}
 		}
 		`
 	);
