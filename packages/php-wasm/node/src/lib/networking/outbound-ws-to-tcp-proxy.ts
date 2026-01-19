@@ -18,7 +18,22 @@ function log(...args: any[]) {
 	debugLog('[WS Server]', ...args);
 }
 
-const lookup = util.promisify(dns.lookup);
+/**
+ * Resolve a hostname to an IPv4 address.
+ * Prefers IPv4 because many services (including Redis) only listen on IPv4
+ * by default, and macOS's dns.lookup returns IPv6 for 'localhost'.
+ */
+function lookupIPv4(hostname: string): Promise<string> {
+	return new Promise((resolve, reject) => {
+		dns.lookup(hostname, { family: 4 }, (err, address) => {
+			if (err) {
+				reject(err);
+			} else {
+				resolve(address);
+			}
+		});
+	});
+}
 
 function prependByte(
 	chunk: string | ArrayBuffer | ArrayLike<number>,
@@ -203,13 +218,14 @@ async function onWsConnect(client: any, request: http.IncomingMessage) {
 		target.end();
 	});
 
-	// Resolve the target host to an IP address if it isn't one already
+	// Resolve the target host to an IP address if it isn't one already.
+	// Prefer IPv4 addresses because many services (including Redis) only listen
+	// on IPv4 by default, and macOS's dns.lookup returns IPv6 for 'localhost'.
 	let reqTargetIp;
 	if (net.isIP(reqTargetHost) === 0) {
 		clientLog('resolving ' + reqTargetHost + '... ');
 		try {
-			const resolution = await lookup(reqTargetHost);
-			reqTargetIp = resolution.address;
+			reqTargetIp = await lookupIPv4(reqTargetHost);
 			clientLog('resolved ' + reqTargetHost + ' -> ' + reqTargetIp);
 		} catch (e) {
 			clientLog("can't resolve " + reqTargetHost + ' due to:', e);
