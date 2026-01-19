@@ -148,7 +148,7 @@ describe('TCPOverFetchWebsocket', () => {
 		});
 
 		// Now create and start the HTTPS server
-		const { cert, key } = generateCertificate();
+		const { cert, key } = await generateCertificate();
 		server = https.createServer({ cert, key }, app);
 
 		// Wait for server to start listening

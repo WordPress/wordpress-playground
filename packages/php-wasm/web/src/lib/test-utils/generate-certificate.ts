@@ -3,32 +3,33 @@ import selfsigned from 'selfsigned';
 let cachedCertificate: { cert: string; key: string; certPath: string } | null =
 	null;
 
-export function generateCertificate(): {
+export async function generateCertificate(): Promise<{
 	cert: string;
 	key: string;
 	certPath: string;
-} {
+}> {
 	// Return cached certificate if already generated
 	if (cachedCertificate) {
 		return cachedCertificate;
 	}
 
 	const attrs = [{ name: 'commonName', value: 'localhost' }];
-	const options = {
-		days: 365,
+	const notAfterDate = new Date();
+	notAfterDate.setFullYear(notAfterDate.getFullYear() + 1); // 1 year from now
+
+	const pems = await selfsigned.generate(attrs, {
 		keySize: 2048,
-		algorithm: 'sha256',
+		notAfterDate,
 		extensions: [
 			{
-				name: 'subjectAltName',
+				name: 'subjectAltName' as const,
 				altNames: [
 					{ type: 2, value: 'localhost' }, // DNS name
 					{ type: 7, ip: '127.0.0.1' }, // IP address
 				],
 			},
 		],
-	};
-	const pems = selfsigned.generate(attrs, options);
+	});
 
 	// Cache the certificate for reuse
 	// Note: We don't create a certificate file because NODE_EXTRA_CA_CERTS
