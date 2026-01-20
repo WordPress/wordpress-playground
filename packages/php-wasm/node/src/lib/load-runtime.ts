@@ -14,6 +14,7 @@ import {
 	type XdebugOptions,
 } from './extensions/xdebug/with-xdebug';
 import { withIntl } from './extensions/intl/with-intl';
+import { withRedis } from './extensions/redis/with-redis';
 import { joinPaths } from '@php-wasm/util';
 import type { Promised } from '@php-wasm/util';
 import { dirname } from 'path';
@@ -24,9 +25,10 @@ export interface PHPLoaderOptions {
 	withXdebug?: boolean;
 	xdebug?: XdebugOptions;
 	withIntl?: boolean;
+	withRedis?: boolean;
 }
 
-type PHPLoaderOptionsForNode = PHPLoaderOptions & {
+export type PHPLoaderOptionsForNode = PHPLoaderOptions & {
 	emscriptenOptions?: EmscriptenOptions & {
 		/**
 		 * The process ID for the PHP runtime.
@@ -238,6 +240,10 @@ export async function loadNodeRuntime(
 
 	if (options?.withIntl === true) {
 		emscriptenOptions = await withIntl(phpVersion, emscriptenOptions);
+	}
+
+	if (options?.withRedis === true) {
+		emscriptenOptions = await withRedis(phpVersion, emscriptenOptions);
 	}
 
 	emscriptenOptions = await withNetworking(emscriptenOptions);

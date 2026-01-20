@@ -15,7 +15,7 @@ const currentDirPath =
 		: path.dirname(fileURLToPath(import.meta.url));
 const dependencyFilename = path.join(currentDirPath, '8_4_17', 'php_8_4.wasm');
 export { dependencyFilename };
-export const dependenciesTotalSize = 29860179;
+export const dependenciesTotalSize = 29860178;
 const phpVersionString = '8.4.17';
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
@@ -31062,6 +31062,27 @@ export function init(RuntimeName, PHPLoader) {
 		});
 	};
 
+	function ___emscripten_lookup_name(namePtr) {
+		if (!ENVIRONMENT_IS_NODE) {
+			return original__emscripten_lookup_name(namePtr);
+		}
+		if (!PHPLoader.syscalls) {
+			return original__emscripten_lookup_name(namePtr);
+		}
+
+		const hostname = UTF8ToString(namePtr);
+
+		let ipString = '';
+		try {
+			ipString = PHPLoader.syscalls.gethostbyname(hostname);
+		} catch (e) {
+			// Fall through to the default synthetic mapping if native DNS fails.
+		}
+
+		return inetPton4(ipString);
+	}
+	___emscripten_lookup_name.sig = 'ip';
+
 	var webSockets = new HandleAllocator();
 
 	var WS = {
@@ -31465,6 +31486,10 @@ export function init(RuntimeName, PHPLoader) {
 	// invocation, so that we will immediately be able to queue the newest
 	// produced audio samples.
 	registerPostMainLoop(() => SDL.audio?.queueNewAudioData?.());
+	const original__emscripten_lookup_name = __emscripten_lookup_name;
+	if (typeof __emscripten_lookup_name !== 'undefined') {
+		__emscripten_lookup_name = ___emscripten_lookup_name;
+	}
 	// End JS library code
 
 	// include: postlibrary.js
@@ -31500,6 +31525,9 @@ export function init(RuntimeName, PHPLoader) {
 	Module['addRunDependency'] = addRunDependency;
 	Module['removeRunDependency'] = removeRunDependency;
 	Module['ccall'] = ccall;
+	Module['UTF8ToString'] = UTF8ToString;
+	Module['stringToUTF8'] = stringToUTF8;
+	Module['lengthBytesUTF8'] = lengthBytesUTF8;
 	Module['FS_preloadFile'] = FS_preloadFile;
 	Module['FS_unlink'] = FS_unlink;
 	Module['FS_createPath'] = FS_createPath;
@@ -32479,6 +32507,8 @@ export function init(RuntimeName, PHPLoader) {
 		__cxa_rethrow: ___cxa_rethrow,
 		/** @export */
 		__cxa_throw: ___cxa_throw,
+		/** @export */
+		__emscripten_lookup_name: ___emscripten_lookup_name,
 		/** @export */
 		__resumeException: ___resumeException,
 		/** @export */
