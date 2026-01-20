@@ -913,6 +913,31 @@ describe('start command', () => {
 	}, 120000);
 });
 
+describe('build-snapshot command', () => {
+	test('should create a zip file of the WordPress site', async () => {
+		const tmpDir = await mkdtemp(
+			path.join(tmpdir(), 'playground-test-snapshot-')
+		);
+		const zipPath = path.join(tmpDir, 'snapshot.zip');
+
+		try {
+			await runCLI({
+				command: 'build-snapshot',
+				outfile: zipPath,
+			});
+
+			expect(existsSync(zipPath)).toBe(true);
+			const stats = lstatSync(zipPath);
+			expect(stats.isFile()).toBe(true);
+			expect(stats.size).toBeGreaterThan(0);
+		} finally {
+			if (existsSync(tmpDir)) {
+				rmSync(tmpDir, { recursive: true, force: true });
+			}
+		}
+	}, 120000);
+});
+
 describe('other run-cli behaviors', () => {
 	describe('auto-login', () => {
 		test('should clear old auto-login cookie', async () => {
