@@ -756,7 +756,7 @@ export async function runCLI(
 export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void>;
 export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 	let loadBalancer: LoadBalancer;
-	let playground: RemoteAPI<PlaygroundCliWorker>;
+	let playground: RemoteAPI<PlaygroundCliWorker> | undefined;
 
 	const playgroundsToCleanUp: Map<
 		Worker,
@@ -1215,7 +1215,10 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 					}
 
 					if (args.command === 'build-snapshot') {
-						await zipSite(playground, args.outfile as string);
+						await zipSite(
+							initialPlayground,
+							args.outfile as string
+						);
 						cliOutput.printStatus(`Exported to ${args.outfile}`);
 						await disposeCLI();
 						return;
@@ -1293,7 +1296,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 					throw error;
 				}
 				let phpLogs = '';
-				if (await playground?.fileExists(errorLogPath)) {
+				if (playground && (await playground.fileExists(errorLogPath))) {
 					phpLogs = await playground.readFileAsText(errorLogPath);
 				}
 				await disposeCLI();
