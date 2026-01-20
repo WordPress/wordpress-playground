@@ -25,30 +25,6 @@
 				],
 				"parallel": false
 			}
-		},
-		"node:asyncify": {
-			"executor": "nx:run-commands",
-			"options": {
-				"commands": [
-					"node packages/php-wasm/compile/shared/build.js --LIBRARY=redis --PLATFORM=node"
-				],
-				"parallel": false
-			}
-		},
-		"node:asyncify:all": {
-			"executor": "nx:run-commands",
-			"options": {
-				"commands": [
-					"nx run php-wasm-compile-shared-redis:node:asyncify --PHP_VERSION=8.5",
-					"nx run php-wasm-compile-shared-redis:node:asyncify --PHP_VERSION=8.4",
-					"nx run php-wasm-compile-shared-redis:node:asyncify --PHP_VERSION=8.3",
-					"nx run php-wasm-compile-shared-redis:node:asyncify --PHP_VERSION=8.2",
-					"nx run php-wasm-compile-shared-redis:node:asyncify --PHP_VERSION=8.1",
-					"nx run php-wasm-compile-shared-redis:node:asyncify --PHP_VERSION=8.0",
-					"nx run php-wasm-compile-shared-redis:node:asyncify --PHP_VERSION=7.4"
-				],
-				"parallel": false
-			}
 		}
 	},
 	"tags": []
