@@ -1,8 +1,9 @@
 /**
  * Memcached integration tests.
  *
- * These tests require a running memcached server. They are skipped if the
- * MEMCACHED_HOST environment variable is not set.
+ * These tests require a running memcached server and the MEMCACHED_HOST
+ * environment variable to be set. Tests will fail if the environment is
+ * not properly configured.
  *
  * To run locally:
  *   docker run -d -p 11211:11211 memcached:1.6-alpine
@@ -19,6 +20,14 @@ import { loadNodeRuntime } from '../lib';
 
 const MEMCACHED_HOST = process.env['MEMCACHED_HOST'];
 const MEMCACHED_PORT = process.env['MEMCACHED_PORT'] || '11211';
+
+if (!MEMCACHED_HOST) {
+	throw new Error(
+		'MEMCACHED_HOST environment variable is required to run memcached tests. ' +
+		'Start a memcached server with: docker run -d -p 11211:11211 memcached:1.6-alpine ' +
+		'Then run: MEMCACHED_HOST=127.0.0.1 npx vitest run php-memcached'
+	);
+}
 
 const phpVersions =
 	'PHP' in process.env
@@ -117,8 +126,6 @@ describe('Memcached Extension', () => {
 	});
 });
 
-const describeIfMemcached = MEMCACHED_HOST ? describe : describe.skip;
-
 /**
  * PHP helper function that creates a configured memcached instance with proper
  * timeout settings for WebSocket-based TCP connections.
@@ -138,7 +145,7 @@ const createMemcachedPHP = (useBinaryProtocol = false) => `
 	}
 `;
 
-describeIfMemcached('Memcached Network Integration', () => {
+describe('Memcached Network Integration', () => {
 	describe.each(phpVersions)('PHP %s', (phpVersion) => {
 		let php: PHP;
 
