@@ -24,8 +24,8 @@ export async function generateCertificate(): Promise<{
 			{
 				name: 'subjectAltName' as const,
 				altNames: [
-					{ type: 2, value: 'localhost' }, // DNS name
-					{ type: 7, ip: '127.0.0.1' }, // IP address
+					{ type: 2 as const, value: 'localhost' }, // DNS name
+					{ type: 7 as const, ip: '127.0.0.1' }, // IP address
 				],
 			},
 		],
