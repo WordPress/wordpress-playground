@@ -45,4 +45,16 @@ export async function getXdebugExtensionPath(): Promise<string> {
 	}
 }
 
+export async function getRedisExtensionPath(): Promise<string> {
+	if (await jspi()) {
+		return join(packageDir, 'jspi/extensions/redis/7_4/redis.so');
+	}
+	throw new Error(
+		'The Redis extension requires JSPI (JavaScript Promise Integration) support. ' +
+			'Your current environment is using asyncify, which cannot properly handle ' +
+			'exceptions during Redis network operations. Please use Node.js 23+ or a ' +
+			'browser with JSPI support to use the Redis extension.'
+	);
+}
+
 export { jspi };

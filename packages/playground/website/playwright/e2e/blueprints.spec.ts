@@ -770,3 +770,28 @@ test('WordPress homepage loads when mu-plugin prints a notice', async ({
 		'Welcome to WordPress. This is your first post.'
 	);
 });
+
+/**
+ * WordPress 6.7 added a redirect from /sitemap.xml to /wp-sitemap.xml
+ * (see https://core.trac.wordpress.org/ticket/61931). This test ensures
+ * that the redirect works correctly in Playground by verifying that
+ * /sitemap.xml returns sitemap content instead of a 404 error.
+ */
+test('/sitemap.xml should redirect to /wp-sitemap.xml', async ({
+	wordpress,
+	website,
+}) => {
+	const blueprint: Blueprint = {
+		landingPage: '/sitemap.xml',
+		preferredVersions: {
+			wp: '6.7',
+			php: '8.0',
+		},
+	};
+
+	const encodedBlueprint = JSON.stringify(blueprint);
+	await website.goto(`/#${encodedBlueprint}`);
+
+	// The sitemap is rendered with XSLT styling, showing "XML Sitemap" heading
+	await expect(wordpress.locator('body')).toContainText('XML Sitemap');
+});
