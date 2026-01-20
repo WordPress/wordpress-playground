@@ -10,7 +10,6 @@
 import * as dns from 'dns';
 import * as http from 'http';
 import * as net from 'net';
-import * as util from 'node:util';
 import { WebSocketServer } from 'ws';
 import { debugLog } from './utils';
 
