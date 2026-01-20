@@ -102,6 +102,51 @@ describe.each(blueprintVersions)(
 		);
 
 		test.skipIf(isBlueprintsV2OnWindows)(
+			'should define constants via --define flags',
+			async () => {
+				await using cliServer = await runCLI({
+					...suiteCliArgs,
+					command: 'server',
+					php: '8.0',
+					wordpressInstallMode: 'do-not-attempt-installing',
+					skipSqliteSetup: true,
+					blueprint: undefined,
+					define: {
+						MY_STRING_CONSTANT: 'test_value',
+					},
+					'define-bool': {
+						MY_BOOL_CONSTANT: true,
+						MY_FALSE_CONSTANT: false,
+					},
+					'define-number': {
+						MY_NUMBER_CONSTANT: 42,
+					},
+				});
+
+				await cliServer.playground.writeFile(
+					'/wordpress/constants.php',
+					`<?php
+					echo "STRING: " . MY_STRING_CONSTANT . "\\n";
+					echo "NUMBER: " . MY_NUMBER_CONSTANT . "\\n";
+					echo "BOOL: " . (MY_BOOL_CONSTANT ? 'true' : 'false') . "\\n";
+					echo "FALSE: " . (MY_FALSE_CONSTANT ? 'true' : 'false') . "\\n";
+					`
+				);
+				const constantsUrl = new URL(
+					'/constants.php',
+					cliServer.serverUrl
+				);
+				const response = await fetch(constantsUrl);
+				expect(response.status).toBe(200);
+				const text = await response.text();
+				expect(text).toContain('STRING: test_value');
+				expect(text).toContain('NUMBER: 42');
+				expect(text).toContain('BOOL: true');
+				expect(text).toContain('FALSE: false');
+			}
+		);
+
+		test.skipIf(isBlueprintsV2OnWindows)(
 			'should use custom site-url when provided',
 			async () => {
 				const customSiteUrl = 'https://example.com';

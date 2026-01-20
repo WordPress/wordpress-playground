@@ -178,30 +178,32 @@ describe.each(phpVersionsToTest)('PHP %s: PROXYFS mmap', (phpVersion) => {
  *
  * See: https://github.com/WordPress/wordpress-playground/pull/3073
  */
-describe.each(phpVersionsToTest)('PHP %s: Intl extension via PROXYFS (mmap)', (phpVersion) => {
-	it('should use Collator through PROXYFS', async () => {
-		// Create php1 with Intl support - it has the ICU data file
-		using php1 = new PHP(
-			await loadNodeRuntime(phpVersion, { withIntl: true })
-		);
+describe.each(phpVersionsToTest)(
+	'PHP %s: Intl extension via PROXYFS (mmap)',
+	(phpVersion) => {
+		it('should use Collator through PROXYFS', async () => {
+			// Create php1 with Intl support - it has the ICU data file
+			using php1 = new PHP(
+				await loadNodeRuntime(phpVersion, { withIntl: true })
+			);
 
-		// Create php2 with Intl support
-		using php2 = new PHP(
-			await loadNodeRuntime(phpVersion, { withIntl: true })
-		);
+			// Create php2 with Intl support
+			using php2 = new PHP(
+				await loadNodeRuntime(phpVersion, { withIntl: true })
+			);
 
-		// Mount PROXYFS on php2, sharing /internal/shared from php1.
-		// This is where the ICU data file (icudt74l.dat) lives.
-		// ICU uses mmap to read this file, so this tests that our
-		// PROXYFS mmap implementation works correctly.
-		// proxyFileSystem() automatically adds mmap support to PROXYFS.
-		proxyFileSystem(php1, php2, ['/internal/shared']);
+			// Mount PROXYFS on php2, sharing /internal/shared from php1.
+			// This is where the ICU data file (icudt74l.dat) lives.
+			// ICU uses mmap to read this file, so this tests that our
+			// PROXYFS mmap implementation works correctly.
+			// proxyFileSystem() automatically adds mmap support to PROXYFS.
+			proxyFileSystem(php1, php2, ['/internal/shared']);
 
-		// Test that Collator works in php2 through PROXYFS.
-		// This would fail without mmap support because ICU's uprv_mapFile
-		// function uses mmap to load the data file.
-		const result = await php2.run({
-			code: `<?php
+			// Test that Collator works in php2 through PROXYFS.
+			// This would fail without mmap support because ICU's uprv_mapFile
+			// function uses mmap to load the data file.
+			const result = await php2.run({
+				code: `<?php
 				try {
 					$collator = new Collator('en_US');
 					$data = ['banana', 'apple', 'cherry'];
@@ -213,25 +215,25 @@ describe.each(phpVersionsToTest)('PHP %s: Intl extension via PROXYFS (mmap)', (p
 					echo 'Exception: ' . $e->getMessage();
 				}
 			`,
+			});
+
+			expect(result.exitCode).toBe(0);
+			expect(result.text).toBe('["apple","banana","cherry"]');
 		});
 
-		expect(result.exitCode).toBe(0);
-		expect(result.text).toBe('["apple","banana","cherry"]');
-	});
+		it('should use NumberFormatter through PROXYFS', async () => {
+			using php1 = new PHP(
+				await loadNodeRuntime(phpVersion, { withIntl: true })
+			);
 
-	it('should use NumberFormatter through PROXYFS', async () => {
-		using php1 = new PHP(
-			await loadNodeRuntime(phpVersion, { withIntl: true })
-		);
+			using php2 = new PHP(
+				await loadNodeRuntime(phpVersion, { withIntl: true })
+			);
 
-		using php2 = new PHP(
-			await loadNodeRuntime(phpVersion, { withIntl: true })
-		);
+			proxyFileSystem(php1, php2, ['/internal/shared']);
 
-		proxyFileSystem(php1, php2, ['/internal/shared']);
-
-		const result = await php2.run({
-			code: `<?php
+			const result = await php2.run({
+				code: `<?php
 				try {
 					$formatter = new NumberFormatter('en_US', NumberFormatter::CURRENCY);
 					echo $formatter->format(1234.56);
@@ -241,9 +243,10 @@ describe.each(phpVersionsToTest)('PHP %s: Intl extension via PROXYFS (mmap)', (p
 					echo 'Exception: ' . $e->getMessage();
 				}
 			`,
-		});
+			});
 
-		expect(result.exitCode).toBe(0);
-		expect(result.text).toBe('$1,234.56');
-	});
-});
+			expect(result.exitCode).toBe(0);
+			expect(result.text).toBe('$1,234.56');
+		});
+	}
+);

@@ -9,6 +9,31 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
+## [v3.0.44] (2026-01-20) 
+
+### Enhancements
+
+- [CLI] Enable defining WordPress constants via CLI flags. ([#3128](https://github.com/WordPress/wordpress-playground/pull/3128))
+
+### PHP WebAssembly
+
+- [PHP] gethostbyname – native DNS resolution in Node.js builds. ([#2988](https://github.com/WordPress/wordpress-playground/pull/2988))
+
+### Website
+
+- Fix sitemap.xml redirect to wp-sitemap.xml. ([#3140](https://github.com/WordPress/wordpress-playground/pull/3140))
+
+### Internal
+
+- Update CLAUDE.md with Node.js version guidance. ([#3144](https://github.com/WordPress/wordpress-playground/pull/3144))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel
+
+
 ## [v3.0.43] (2026-01-19) 
 
 ### Enhancements

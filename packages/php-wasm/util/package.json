@@ -4,7 +4,7 @@
 		"type": "git",
 		"url": "https://github.com/WordPress/wordpress-playground"
 	},
-	"version": "3.0.43",
+	"version": "3.0.44",
 	"type": "module",
 	"types": "index.d.ts",
 	"typedoc": {

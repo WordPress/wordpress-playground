@@ -1,6 +1,6 @@
 {
 	"name": "@wp-playground/remote",
-	"version": "3.0.43",
+	"version": "3.0.44",
 	"description": "WordPress Playground remote host",
 	"repository": {
 		"type": "git",

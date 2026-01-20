@@ -184,7 +184,7 @@ export async function bootWordPress(
 
 	if (options.constants) {
 		for (const key in options.constants) {
-			php.defineConstant(key, options.constants[key] as string);
+			php.defineConstant(key, options.constants[key]);
 		}
 	}
 
@@ -383,6 +383,13 @@ export async function bootRequestHandler(options: BootRequestHandlerOptions) {
 		// TODO: Remove this once the new driver is the default; when this is closed:
 		//         https://github.com/WordPress/sqlite-database-integration/issues/195
 		php.defineConstant('WP_SQLITE_AST_DRIVER', true);
+
+		// Define any custom constants provided via CLI or configuration
+		if (options.constants) {
+			for (const key in options.constants) {
+				php.defineConstant(key, options.constants[key]);
+			}
+		}
 
 		/**
 		 * Set up mu-plugins in /internal/mu-plugins

@@ -139,6 +139,11 @@ export type PrimaryWorkerBootArgs = Omit<
 	nativeInternalDirPath: string;
 	mountsBeforeWpInstall?: Array<Mount>;
 	mountsAfterWpInstall?: Array<Mount>;
+	/**
+	 * PHP constants to define via php.defineConstant().
+	 * Process-specific, set for each PHP instance.
+	 */
+	constants?: Record<string, string | number | boolean | null>;
 };
 
 type WorkerRunBlueprintArgs = Omit<
@@ -165,6 +170,7 @@ export type SecondaryWorkerBootArgs = {
 	trace: boolean;
 	nativeInternalDirPath: string;
 	withIntl?: boolean;
+	withRedis?: boolean;
 	withXdebug?: boolean;
 	mountsBeforeWpInstall?: Array<Mount>;
 	mountsAfterWpInstall?: Array<Mount>;
@@ -222,10 +228,9 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 	}
 
 	async bootAndSetUpInitialWorker(args: PrimaryWorkerBootArgs) {
+		// Start with CLI-provided constants (if any)
 		const constants = {
-			WP_DEBUG: true,
-			WP_DEBUG_LOG: true,
-			WP_DEBUG_DISPLAY: false,
+			...(args.constants || {}),
 		};
 		const requestHandlerOptions: WorkerBootRequestHandlerOptions = {
 			...args,
@@ -476,6 +481,7 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 		trace,
 		nativeInternalDirPath,
 		withIntl,
+		withRedis,
 		withXdebug,
 		onPHPInstanceCreated,
 		spawnHandler,
@@ -513,6 +519,7 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 						},
 						followSymlinks: allow?.includes('follow-symlinks'),
 						withIntl: withIntl,
+						withRedis,
 						withXdebug,
 					});
 				},
