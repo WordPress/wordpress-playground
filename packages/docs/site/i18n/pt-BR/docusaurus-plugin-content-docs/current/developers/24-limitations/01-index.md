@@ -1,5 +1,6 @@
 ---
 slug: /developers/limitations
+<!-- description: Learn about the current limitations of WordPress Playground, including browser-specific behaviors, temporary storage by design, iframe quirks, and WP-CLI support. -->
 description: Conheça as limitações atuais do WordPress Playground, incluindo comportamentos específicos do navegador, armazenamento temporário por design, peculiaridades de iframe e suporte ao WP-CLI.
 ---
 
@@ -27,31 +28,22 @@ Você pode acompanhar o status dessas questões no [quadro do projeto Playground
 
 Como o Playground [transmite ao invés de servir](/about#streamed-not-served) o WordPress, todas as alterações no banco de dados e uploads serão perdidos ao atualizar a página. Para evitar perder seu trabalho, [exporte seu trabalho](/quick-start-guide#save-your-site) antes ou ative o armazenamento no navegador/dispositivo através do botão "Salvar" encontrado no canto superior direito, ao lado da barra de endereços.
 
-<i>Botão Salvar:</i>
+<blockquote>
+<figure>
+<!-- <figcaption><i>1. Exporting Playground:</i></figcaption> -->
+<figcaption><i>1. Exportando o Playground:</i></figcaption>
+
+![Save Button](@site/static/img/export-playground.webp)
+
+</figure>
+
+<figure>
+<!-- <figcaption><i>2. Save button:</i></figcaption> -->
+<figcaption><i>2. Botão Salvar:</i></figcaption>
 
 ![Save Button](@site/static/img/save-button.webp)
 
-<!-- ### Browser support -->
-
-### Suporte a navegadores
-
-<!-- WordPress Playground is designed to work across all major desktop and mobile browsers. This includes: -->
-
-O WordPress Playground foi projetado para funcionar em todos os principais navegadores desktop e mobile. Isso inclui:
-
-<!-- - **Desktop browsers**: Chrome, Firefox, Safari, Edge, and other Chromium-based browsers -->
-<!-- - **Mobile browsers**: Safari (iOS), Chrome (Android), and other mobile browser variants -->
-
-- **Navegadores desktop**: Chrome, Firefox, Safari, Edge e outros navegadores baseados em Chromium
-- **Navegadores mobile**: Safari (iOS), Chrome (Android) e outras variantes de navegadores móveis
-
-<!-- Playground leverages modern web technologies and should function consistently across these browser environments. However, some advanced features may have varying levels of support depending on the specific browser and its version. -->
-
-O Playground aproveita tecnologias web modernas e deve funcionar consistentemente em todos esses ambientes de navegador. No entanto, alguns recursos avançados podem ter níveis variados de suporte dependendo do navegador específico e sua versão.
-
-<blockquote>
-<!-- <strong>Note:</strong> Opera Mini support is not currently confirmed. -->
-<strong>Nota:</strong> O suporte ao Opera Mini não está confirmado no momento.
+</figure>
 </blockquote>
 
 <!-- ### Browser support -->
