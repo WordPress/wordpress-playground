@@ -1,11 +1,14 @@
 /**
  * Memcached integration tests.
  *
- * These tests require a running memcached server and the MEMCACHED_HOST
- * environment variable to be set. Tests will fail if the environment is
- * not properly configured.
+ * The "Memcached Extension" tests verify that the extension loads and provides
+ * the expected API. These do not require a running memcached server.
  *
- * To run locally:
+ * The "Memcached Network Integration" tests require a running memcached server
+ * and the MEMCACHED_HOST environment variable to be set. These tests will fail
+ * if the environment is not properly configured.
+ *
+ * To run network tests locally:
  *   docker run -d -p 11211:11211 memcached:1.6-alpine
  *   MEMCACHED_HOST=127.0.0.1 npx vitest run php-memcached
  *
@@ -20,14 +23,6 @@ import { loadNodeRuntime } from '../lib';
 
 const MEMCACHED_HOST = process.env['MEMCACHED_HOST'];
 const MEMCACHED_PORT = process.env['MEMCACHED_PORT'] || '11211';
-
-if (!MEMCACHED_HOST) {
-	throw new Error(
-		'MEMCACHED_HOST environment variable is required to run memcached tests. ' +
-		'Start a memcached server with: docker run -d -p 11211:11211 memcached:1.6-alpine ' +
-		'Then run: MEMCACHED_HOST=127.0.0.1 npx vitest run php-memcached'
-	);
-}
 
 const phpVersions =
 	'PHP' in process.env
@@ -146,6 +141,16 @@ const createMemcachedPHP = (useBinaryProtocol = false) => `
 `;
 
 describe('Memcached Network Integration', () => {
+	beforeAll(() => {
+		if (!MEMCACHED_HOST) {
+			throw new Error(
+				'MEMCACHED_HOST environment variable is required to run memcached network tests. ' +
+				'Start a memcached server with: docker run -d -p 11211:11211 memcached:1.6-alpine ' +
+				'Then run: MEMCACHED_HOST=127.0.0.1 npx vitest run php-memcached'
+			);
+		}
+	});
+
 	describe.each(phpVersions)('PHP %s', (phpVersion) => {
 		let php: PHP;
 
