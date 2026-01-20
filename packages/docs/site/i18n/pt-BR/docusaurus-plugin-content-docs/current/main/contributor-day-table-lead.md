@@ -12,10 +12,10 @@ Este guia ajuda os contribuidores a se prepararem e gerenciarem uma mesa de cont
 
 ### Lista prévia
 
-- **Organizar "Good First Issues"**: Revise e atualize a [good first issues list](https://github.com/WordPress/wordpress-playground/labels/good%20first%20issue) no GitHub. Devem ser tarefas diretas que novos contribuidores possam completar de forma independente. Se encontrar um erro que não está na lista, mas que poderia fazer parte dela, entre em contato com a equipe do Playground no canal do Slack.
-- **Coordenar com a Equipe do Playground**: Confirme se os membros da equipe do Playground estão disponíveis online para fornecer suporte remoto durante o evento, especialmente para WordCamps de grande porte. Devido a diferenças de fuso horário, alinhe-se com antecedência no canal #playground para verificar a disponibilidade.
-- **Conecte com contribuidores locais**: Identifique contribuidores regulares na região que estão participando do evento. Verifique no Canal Slack #playground se um membro ativo da comunidade está participando do dia do contribuidor. Esta é uma oportunidade para coletar feedback e fortalecer as conexões comunitárias.
-- **Confira o repositorio do Playground**: Se você nunca contribuiu com o repositório do WordPress Playground, você deve primeiro se familiarizar com ele. Uma seção na documentação que pode guiá-lo a entender o projeto é a [Desenvolvedores > Arquitetura](/developers/architecture). Ela conterá informações sobre como o projeto está organizado. Se tiver alguma dúvida, entre em contato com a equipe no canal Slack do Playground.
+-   **Organizar "Good First Issues"**: Revise e atualize a [good first issues list](https://github.com/WordPress/wordpress-playground/labels/good%20first%20issue) no GitHub. Devem ser tarefas diretas que novos contribuidores possam completar de forma independente. Se encontrar um erro que não está na lista, mas que poderia fazer parte dela, entre em contato com a equipe do Playground no canal do Slack.
+-   **Coordenar com a Equipe do Playground**: Confirme se os membros da equipe do Playground estão disponíveis online para fornecer suporte remoto durante o evento, especialmente para WordCamps de grande porte. Devido a diferenças de fuso horário, alinhe-se com antecedência no canal #playground para verificar a disponibilidade.
+-   **Conecte com contribuidores locais**: Identifique contribuidores regulares na região que estão participando do evento. Verifique no Canal Slack #playground se um membro ativo da comunidade está participando do dia do contribuidor. Esta é uma oportunidade para coletar feedback e fortalecer as conexões comunitárias.
+-   **Confira o repositorio do Playground**: Se você nunca contribuiu com o repositório do WordPress Playground, você deve primeiro se familiarizar com ele. Uma seção na documentação que pode guiá-lo a entender o projeto é a [Desenvolvedores > Arquitetura](/developers/architecture). Ela conterá informações sobre como o projeto está organizado. Se tiver alguma dúvida, entre em contato com a equipe no canal Slack do Playground.
 
 ## Iniciando o dia
 
@@ -28,6 +28,7 @@ Este guia ajuda os contribuidores a se prepararem e gerenciarem uma mesa de cont
 3. **Publique uma mensagem de boas-vindas**: Compartilhe uma mensagem inicial no canal Slack anunciando sua presença (pessoalmente ou online) e dando as boas-vindas às contribuições de todos.
 
 4. **Compartilhe links essenciais**: Publique estes recursos no canal `#playground`:
+
     - [Instância Web do WordPress Playground](https://playground.wordpress.net/)
     - [Documentação do Playground](https://wordpress.github.io/wordpress-playground/)
     - [Biblioteca de etapas](https://akirk.github.io/playground-step-library/)
@@ -44,10 +45,10 @@ Este guia ajuda os contribuidores a se prepararem e gerenciarem uma mesa de cont
 
 Verifique os níveis dos contribuidores, tente entender com base no nível deles como podem contribuir para o projeto no curto período de tempo de um dia do contribuidor. Pergunte se os participantes precisam de ajuda e os redirecione para a página de documentação relacionada. Além disso, incentive-os a fazer perguntas no [Canal #playground do Slack](https://wordpress.slack.com/archives/C04EWKGDJ0K). Aqui estão algumas sugestões de formas de contribuir:
 
-- Melhorias e traduções de documentação.
-- Tíquetes cuidadosamente elaborados, descrevendo problemas com soluções acionáveis.
-- Criação de Blueprints e demos de plugins no repositório de plugins do WordPress.
-- Testes e feedback do produto.
+-   Melhorias e traduções de documentação.
+-   Tíquetes cuidadosamente elaborados, descrevendo problemas com soluções acionáveis.
+-   Criação de Blueprints e demos de plugins no repositório de plugins do WordPress.
+-   Testes e feedback do produto.
 
 **Fomentar a Colaboração**: Procure por oportunidades entre mesas. Por exemplo, contribuidores da [mesa de Traduções/Poliglotas ](https://make.wordpress.org/polyglots/) podem traduzir a documentação do Playground, ou a mesa do [time de testes do núcleo](https://make.wordpress.org/test/) pode fornecer feedback valioso sobre o Playground.
 
@@ -60,6 +61,7 @@ Verifique os níveis dos contribuidores, tente entender com base no nível deles
 1. **Revisar Pull Requests (PRs)**: Liste as PRs criadas durante o dia e avalie a probabilidade de serem concluídas. A maioria das contribuições tem uma janela de momentum curta, e o engajamento dentro das primeiras duas semanas é crítico.
 
 2. **Definir expectativas claras**: Para PRs incompletas, siga esta abordagem:
+
     - Após um mês de inatividade, deixe um comentário perguntando se o autor planeja completar o trabalho.
     - Se não houver resposta após mais duas semanas, informe que a PR poderá ser assumida por outro contribuidor ou fechada.
 
@@ -69,8 +71,8 @@ Verifique os níveis dos contribuidores, tente entender com base no nível deles
 
 ## Obtendo ajuda
 
-- **Durante o evento**: Conecte-se com contribuidores na mesa do Playground.
-- **Suporte contínuo**: Use o [canal `#playground` do Slack](https://wordpress.slack.com/archives/C04EWKGDJ0K).
-- **Report Issues**: Envie para o [Repositorio do WordPress Playground no GitHub](https://github.com/WordPress/wordpress-playground/issues/new).
+-   **Durante o evento**: Conecte-se com contribuidores na mesa do Playground.
+-   **Suporte contínuo**: Use o [canal `#playground` do Slack](https://wordpress.slack.com/archives/C04EWKGDJ0K).
+-   **Report Issues**: Envie para o [Repositorio do WordPress Playground no GitHub](https://github.com/WordPress/wordpress-playground/issues/new).
 
 Para mais informações sobre como contribuir para o WordPress Playground, consulte o [Guia do dia do contribuidor](/contributing/contributor-day).

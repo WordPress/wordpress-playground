@@ -199,12 +199,12 @@ As a guideline, a language should be made publicly available in the switcher onl
 -   [Links and Resources](https://wordpress.github.io/wordpress-playground/resources)
 -->
 
-- [দ্রুত শুরু গাইড](https://wordpress.github.io/wordpress-playground/quick-start-guide)
-- [প্লেগ্রাউন্ড ওয়েব ইন্সট্যান্স](https://wordpress.github.io/wordpress-playground/web-instance)
-- [প্লেগ্রাউন্ড সম্পর্কে](https://wordpress.github.io/wordpress-playground/about)
-- [গাইড](https://wordpress.github.io/wordpress-playground/guides)
-- [কন্ট্রিবিউটিং](https://wordpress.github.io/wordpress-playground/contributing)
-- [লিঙ্ক এবং রিসোর্স](https://wordpress.github.io/wordpress-playground/resources)
+-   [দ্রুত শুরু গাইড](https://wordpress.github.io/wordpress-playground/quick-start-guide)
+-   [প্লেগ্রাউন্ড ওয়েব ইন্সট্যান্স](https://wordpress.github.io/wordpress-playground/web-instance)
+-   [প্লেগ্রাউন্ড সম্পর্কে](https://wordpress.github.io/wordpress-playground/about)
+-   [গাইড](https://wordpress.github.io/wordpress-playground/guides)
+-   [কন্ট্রিবিউটিং](https://wordpress.github.io/wordpress-playground/contributing)
+-   [লিঙ্ক এবং রিসোর্স](https://wordpress.github.io/wordpress-playground/resources)
 
 <!--
 All languages are available once the i18n setup for a language is complete and the correct file structure is in place under `i18n`.
@@ -218,9 +218,9 @@ All languages are available once the i18n setup for a language is complete and t
 -   https://wordpress.github.io/wordpress-playground/fr/
 -->
 
-- https://wordpress.github.io/wordpress-playground/
-- https://wordpress.github.io/wordpress-playground/es/
-- https://wordpress.github.io/wordpress-playground/fr/
+-   https://wordpress.github.io/wordpress-playground/
+-   https://wordpress.github.io/wordpress-playground/es/
+-   https://wordpress.github.io/wordpress-playground/fr/
 
 <!--
 Assuming the `fr` language is the first language with the Documentation hub pages (Quick Start Guide, Playground web instance, About Playground, Guides,... ) completely translated to French, the `docusaurus.config.js` should look like this in that branch so `npm run build:docs` properly generate the `fr` subsite and only displays the french language in the `localeDropdown` language switcher.
@@ -281,16 +281,15 @@ Follow these steps to translate a page:
 -   Check if you have the latest version of the documentation
 -   Copy the original .md file from `packages/docs/site/docs/...` to the corresponding path in the language directory (e.g., `packages/docs/site/i18n/<LANGUAGE_CODE>/...`). It is crucial to replicate the original file structure.
 -   Translate the content of the new file, keeping the original content commented out `<!-- English Content -->`.
+-   The assets are listed at `packages/docs/site/static/img/` only place assets inside the translation folder when it requires localized content.
+-   Once the translations are ready, check if the docs build script is running properly `npm run build:docs`.
+-->
 
-- The assets are listed at `packages/docs/site/static/img/` only place assets inside the translation folder when it requires localized content.
-- Once the translations are ready, check if the docs build script is running properly `npm run build:docs`.
-  -->
-
-- আপনার কাছে ডকুমেন্টেশনের সর্বশেষ ভার্সন আছে কিনা চেক করুন
-- মূল .md ফাইল `packages/docs/site/docs/...` থেকে ভাষা ডিরেক্টরিতে সংশ্লিষ্ট পাথে কপি করুন (যেমন, `packages/docs/site/i18n/<LANGUAGE_CODE>/...`)। মূল ফাইল স্ট্রাকচার রেপ্লিকেট করা অত্যন্ত গুরুত্বপূর্ণ।
-- নতুন ফাইলের কনটেন্ট অনুবাদ করুন, মূল কনটেন্ট কমেন্ট আউট রেখে `<!-- English Content -->`।
-- অ্যাসেটগুলো `packages/docs/site/static/img/`-তে তালিকাভুক্ত, শুধুমাত্র লোকালাইজড কনটেন্ট প্রয়োজন হলে অনুবাদ ফোল্ডারে অ্যাসেট রাখুন।
-- অনুবাদ রেডি হলে, ডক্স বিল্ড স্ক্রিপ্ট সঠিকভাবে চলছে কিনা চেক করুন `npm run build:docs`।
+-   আপনার কাছে ডকুমেন্টেশনের সর্বশেষ ভার্সন আছে কিনা চেক করুন
+-   মূল .md ফাইল `packages/docs/site/docs/...` থেকে ভাষা ডিরেক্টরিতে সংশ্লিষ্ট পাথে কপি করুন (যেমন, `packages/docs/site/i18n/<LANGUAGE_CODE>/...`)। মূল ফাইল স্ট্রাকচার রেপ্লিকেট করা অত্যন্ত গুরুত্বপূর্ণ।
+-   নতুন ফাইলের কনটেন্ট অনুবাদ করুন, মূল কনটেন্ট কমেন্ট আউট রেখে `<!-- English Content -->`।
+-   অ্যাসেটগুলো `packages/docs/site/static/img/`-তে তালিকাভুক্ত, শুধুমাত্র লোকালাইজড কনটেন্ট প্রয়োজন হলে অনুবাদ ফোল্ডারে অ্যাসেট রাখুন।
+-   অনুবাদ রেডি হলে, ডক্স বিল্ড স্ক্রিপ্ট সঠিকভাবে চলছে কিনা চেক করুন `npm run build:docs`।
 
 <!--
 4. **Create a pull request with your changes**
@@ -304,9 +303,9 @@ Follow these steps to translate a page:
 -   Request a review at `#playground` or `#polyglots` at `wordpress.slack.com`
 -->
 
-- অনুবাদ চিহ্নিত করতে সাহায্য করতে টাইটেলে `[i18n]` প্রিফিক্স যোগ করুন
-- আপনি যে পেজগুলো অনুবাদ করেছেন সেগুলো বর্ণনা করুন
-- `wordpress.slack.com`-এ `#playground` বা `#polyglots`-এ রিভিউ রিকোয়েস্ট করুন
+-   অনুবাদ চিহ্নিত করতে সাহায্য করতে টাইটেলে `[i18n]` প্রিফিক্স যোগ করুন
+-   আপনি যে পেজগুলো অনুবাদ করেছেন সেগুলো বর্ণনা করুন
+-   `wordpress.slack.com`-এ `#playground` বা `#polyglots`-এ রিভিউ রিকোয়েস্ট করুন
 
 <!--
 :::info
@@ -508,8 +507,9 @@ This guide will show you how to both update an existing translation and add a br
 -->
 
 1.  **সঠিক ফাইল পাথ নির্ধারণ করুন।** নতুন ফাইলের পাথ এবং নাম অবশ্যই মূল ইংরেজি ফাইলের মতো হতে হবে।
-    - **ইংরেজি মূল:** `packages/docs/site/docs/main/contributing/documentation.md`
-    - **ফ্রেঞ্চ অনুবাদ:** `packages/docs/site/i18n/fr/docusaurus-plugin-content-docs/current/main/contributing/documentation.md`
+
+    -   **ইংরেজি মূল:** `packages/docs/site/docs/main/contributing/documentation.md`
+    -   **ফ্রেঞ্চ অনুবাদ:** `packages/docs/site/i18n/fr/docusaurus-plugin-content-docs/current/main/contributing/documentation.md`
 
 <!--
 2.  **Create the new file.** Navigate to the correct language folder (e.g., `/packages/docs/site/i18n/fr/docusaurus-plugin-content-docs/current/`). Click **Add file** > **Create new file**.

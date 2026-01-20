@@ -32,25 +32,25 @@ This guide helps table leads prepare for and manage a WordPress Playground contr
 -   **Curate "Good First Issues"**: Review and update the [good first issues list](https://github.com/WordPress/wordpress-playground/labels/good%20first%20issue) on GitHub. These should be straightforward tasks that new contributors can complete independently. If you find a bug that is not on the list but could be part of it, contact the playground team at the Slack channel.
 -->
 
-- **"Good First Issues" কিউরেট করুন**: গিটহাবে [good first issues list](https://github.com/WordPress/wordpress-playground/labels/good%20first%20issue) রিভিউ এবং আপডেট করুন। এগুলো এমন সহজ টাস্ক হওয়া উচিত যা নতুন কন্ট্রিবিউটররা স্বাধীনভাবে সম্পন্ন করতে পারে। আপনি যদি এমন কোনো বাগ খুঁজে পান যা তালিকায় নেই কিন্তু থাকা উচিত, তাহলে স্ল্যাক চ্যানেলে প্লেগ্রাউন্ড টিমের সাথে যোগাযোগ করুন।
+-   **"Good First Issues" কিউরেট করুন**: গিটহাবে [good first issues list](https://github.com/WordPress/wordpress-playground/labels/good%20first%20issue) রিভিউ এবং আপডেট করুন। এগুলো এমন সহজ টাস্ক হওয়া উচিত যা নতুন কন্ট্রিবিউটররা স্বাধীনভাবে সম্পন্ন করতে পারে। আপনি যদি এমন কোনো বাগ খুঁজে পান যা তালিকায় নেই কিন্তু থাকা উচিত, তাহলে স্ল্যাক চ্যানেলে প্লেগ্রাউন্ড টিমের সাথে যোগাযোগ করুন।
 
 <!--
 -   **Coordinate with the Playground Team**: Confirm if Playground team members are available online to provide remote support during the event, especially for flagship WordCamps. Due to timezone differences, align in advance at the #playground channel to check their availability.
 -->
 
-- **প্লেগ্রাউন্ড টিমের সাথে সমন্বয় করুন**: ইভেন্টের সময় রিমোট সাপোর্ট দেওয়ার জন্য প্লেগ্রাউন্ড টিমের সদস্যরা অনলাইনে আছেন কিনা নিশ্চিত করুন, বিশেষ করে ফ্ল্যাগশিপ ওয়ার্ডক্যাম্পগুলোর জন্য। টাইমজোনের পার্থক্যের কারণে, তাদের অ্যাভেইলেবিলিটি চেক করতে আগে থেকেই #playground চ্যানেলে এলাইন করুন।
+-   **প্লেগ্রাউন্ড টিমের সাথে সমন্বয় করুন**: ইভেন্টের সময় রিমোট সাপোর্ট দেওয়ার জন্য প্লেগ্রাউন্ড টিমের সদস্যরা অনলাইনে আছেন কিনা নিশ্চিত করুন, বিশেষ করে ফ্ল্যাগশিপ ওয়ার্ডক্যাম্পগুলোর জন্য। টাইমজোনের পার্থক্যের কারণে, তাদের অ্যাভেইলেবিলিটি চেক করতে আগে থেকেই #playground চ্যানেলে এলাইন করুন।
 
 <!--
 -   **Connect with Local Contributors**: Identify regular contributors in the region attending the event. Check on the #playground Slack Channel if an active community member is participating in the contributor day. This is an opportunity to gather feedback and strengthen community connections.
 -->
 
-- **লোকাল কন্ট্রিবিউটরদের সাথে সংযোগ করুন**: ইভেন্টে অংশগ্রহণকারী এলাকার নিয়মিত কন্ট্রিবিউটরদের চিহ্নিত করুন। #playground স্ল্যাক চ্যানেলে কোনো অ্যাক্টিভ কমিউনিটি মেম্বার কন্ট্রিবিউটর ডে-তে অংশ নিচ্ছেন কিনা চেক করুন। এটি ফিডব্যাক সংগ্রহ এবং কমিউনিটি কানেকশন শক্তিশালী করার সুযোগ।
+-   **লোকাল কন্ট্রিবিউটরদের সাথে সংযোগ করুন**: ইভেন্টে অংশগ্রহণকারী এলাকার নিয়মিত কন্ট্রিবিউটরদের চিহ্নিত করুন। #playground স্ল্যাক চ্যানেলে কোনো অ্যাক্টিভ কমিউনিটি মেম্বার কন্ট্রিবিউটর ডে-তে অংশ নিচ্ছেন কিনা চেক করুন। এটি ফিডব্যাক সংগ্রহ এবং কমিউনিটি কানেকশন শক্তিশালী করার সুযোগ।
 
 <!--
 -   **Check the Playground Repository**: If you never contribute with the WordPress Playground Repository, you should get familiar with this a good section at the documentation that can guide you to understand the project is [Developers > Architecture](/developers/architecture) it will contain information how the project is organized. If you have any questions, please get in touch with the team at the Playground Slack channel.
 -->
 
-- **প্লেগ্রাউন্ড রিপোজিটরি চেক করুন**: আপনি যদি কখনো ওয়ার্ডপ্রেস প্লেগ্রাউন্ড রিপোজিটরিতে কন্ট্রিবিউট না করে থাকেন, তাহলে এটির সাথে পরিচিত হওয়া উচিত। ডকুমেন্টেশনের একটি ভালো সেকশন যা প্রজেক্ট বুঝতে গাইড করতে পারে তা হলো [Developers > Architecture](/developers/architecture) - এতে প্রজেক্ট কিভাবে অর্গানাইজ করা হয়েছে সেই তথ্য থাকবে। কোনো প্রশ্ন থাকলে, প্লেগ্রাউন্ড স্ল্যাক চ্যানেলে টিমের সাথে যোগাযোগ করুন।
+-   **প্লেগ্রাউন্ড রিপোজিটরি চেক করুন**: আপনি যদি কখনো ওয়ার্ডপ্রেস প্লেগ্রাউন্ড রিপোজিটরিতে কন্ট্রিবিউট না করে থাকেন, তাহলে এটির সাথে পরিচিত হওয়া উচিত। ডকুমেন্টেশনের একটি ভালো সেকশন যা প্রজেক্ট বুঝতে গাইড করতে পারে তা হলো [Developers > Architecture](/developers/architecture) - এতে প্রজেক্ট কিভাবে অর্গানাইজ করা হয়েছে সেই তথ্য থাকবে। কোনো প্রশ্ন থাকলে, প্লেগ্রাউন্ড স্ল্যাক চ্যানেলে টিমের সাথে যোগাযোগ করুন।
 
 <!--
 ## Starting the Day
@@ -93,6 +93,7 @@ This guide helps table leads prepare for and manage a WordPress Playground contr
 -->
 
 4. **এসেনশিয়াল লিঙ্ক শেয়ার করুন**: `#playground` চ্যানেলে এই রিসোর্সগুলো পোস্ট করুন:
+
     - [ওয়ার্ডপ্রেস প্লেগ্রাউন্ড ওয়েব ইন্সট্যান্স](https://playground.wordpress.net/)
     - [প্লেগ্রাউন্ড ডকুমেন্টেশন](https://wordpress.github.io/wordpress-playground/)
     - [প্লেগ্রাউন্ড স্টেপ লাইব্রেরি](https://akirk.github.io/playground-step-library/)
@@ -134,10 +135,10 @@ Check the contributors' levels, try to understand based on their level how they 
 -   Testing and product feedback.
 -->
 
-- ডকুমেন্টেশন উন্নতি এবং অনুবাদ।
-- অ্যাকশনেবল সমাধান সহ সমস্যা বর্ণনা করে সাবধানতার সাথে তৈরি ইস্যু।
-- ওয়ার্ডপ্রেস প্লাগইন রিপোজিটরিতে ব্লুপ্রিন্ট তৈরি এবং প্লাগইন ডেমো।
-- টেস্টিং এবং প্রোডাক্ট ফিডব্যাক।
+-   ডকুমেন্টেশন উন্নতি এবং অনুবাদ।
+-   অ্যাকশনেবল সমাধান সহ সমস্যা বর্ণনা করে সাবধানতার সাথে তৈরি ইস্যু।
+-   ওয়ার্ডপ্রেস প্লাগইন রিপোজিটরিতে ব্লুপ্রিন্ট তৈরি এবং প্লাগইন ডেমো।
+-   টেস্টিং এবং প্রোডাক্ট ফিডব্যাক।
 
 <!--
 **Foster Collaboration**: Look for cross-table opportunities. For example, contributors at the [Polyglots/Translation table](https://make.wordpress.org/polyglots/) might translate Playground documentation, or the [Core Test team](https://make.wordpress.org/test/) could provide valuable Playground feedback.
@@ -177,6 +178,7 @@ Check the contributors' levels, try to understand based on their level how they 
 -->
 
 2. **ক্লিয়ার এক্সপেক্টেশন সেট করুন**: অসম্পূর্ণ PR-এর জন্য, এই অ্যাপ্রোচ ফলো করুন:
+
     - এক মাস নিষ্ক্রিয়তার পরে, লেখক কাজ সম্পন্ন করার প্ল্যান করছেন কিনা জিজ্ঞাসা করে একটি কমেন্ট দিন।
     - আরো দুই সপ্তাহ পরে কোনো রেসপন্স না পেলে, তাদের জানান যে PR অন্য কন্ট্রিবিউটর নিতে পারেন অথবা বন্ধ করা হতে পারে।
 
@@ -204,9 +206,9 @@ Check the contributors' levels, try to understand based on their level how they 
 -   **Report Issues**: Submit to the [WordPress Playground GitHub repository](https://github.com/WordPress/wordpress-playground/issues/new).
 -->
 
-- **ইভেন্টের সময়**: প্লেগ্রাউন্ড টেবিলে কন্ট্রিবিউটরদের সাথে সংযোগ করুন।
-- **চলমান সাপোর্ট**: [`#playground` স্ল্যাক চ্যানেল](https://wordpress.slack.com/archives/C04EWKGDJ0K) ব্যবহার করুন।
-- **ইস্যু রিপোর্ট করুন**: [ওয়ার্ডপ্রেস প্লেগ্রাউন্ড গিটহাব রিপোজিটরিতে](https://github.com/WordPress/wordpress-playground/issues/new) সাবমিট করুন।
+-   **ইভেন্টের সময়**: প্লেগ্রাউন্ড টেবিলে কন্ট্রিবিউটরদের সাথে সংযোগ করুন।
+-   **চলমান সাপোর্ট**: [`#playground` স্ল্যাক চ্যানেল](https://wordpress.slack.com/archives/C04EWKGDJ0K) ব্যবহার করুন।
+-   **ইস্যু রিপোর্ট করুন**: [ওয়ার্ডপ্রেস প্লেগ্রাউন্ড গিটহাব রিপোজিটরিতে](https://github.com/WordPress/wordpress-playground/issues/new) সাবমিট করুন।
 
 <!--
 For more information on contributing to WordPress Playground, see the [Contributor Day guide](/contributing/contributor-day).

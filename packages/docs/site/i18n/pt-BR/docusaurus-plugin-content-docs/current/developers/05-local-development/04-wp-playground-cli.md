@@ -201,8 +201,8 @@ A localização do banco de dados depende do que você montar:
 
 - **Auto-montagem de wp-content ou WordPress completo**:
 
-      <!-- -   Database: `<your-local-project>/wp-content/database/.ht.sqlite` -->
-      <!-- -   ✅ **Persisted locally** in your project folder -->
+    <!-- -   Database: `<your-local-project>/wp-content/database/.ht.sqlite` -->
+    <!-- -   ✅ **Persisted locally** in your project folder -->
     - Banco de dados: `<seu-projeto-local>/wp-content/database/.ht.sqlite`
     - ✅ **Persistido localmente** na pasta do seu projeto
 
@@ -210,8 +210,8 @@ A localização do banco de dados depende do que você montar:
 
 - **Auto-montagem apenas de plugin/tema**:
 
-      <!-- -   Database: `<OS-TEMP-DIR>/playground-<id>/wordpress/wp-content/database/.ht.sqlite` -->
-      <!-- -   ⚠️ **Lost when server stops** (temp directories are cleaned up) -->
+    <!-- -   Database: `<OS-TEMP-DIR>/playground-<id>/wordpress/wp-content/database/.ht.sqlite` -->
+    <!-- -   ⚠️ **Lost when server stops** (temp directories are cleaned up) -->
     - Banco de dados: `<OS-TEMP-DIR>/playground-<id>/wordpress/wp-content/database/.ht.sqlite`
     - ⚠️ **Perdido quando o servidor para** (diretórios temporários são limpos)
 

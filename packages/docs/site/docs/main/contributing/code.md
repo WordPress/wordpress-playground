@@ -18,10 +18,10 @@ Browse [the list of open issues](https://github.com/wordpress/wordpress-playgrou
 
 Be sure to review the following resources before you begin:
 
-- [Coding principles](/contributing/coding-standards)
-- [Architecture](/developers/architecture)
-- [Vision and Philosophy](https://github.com/WordPress/wordpress-playground/issues/472)
-- [WordPress Playground Roadmap](https://github.com/WordPress/wordpress-playground/issues/525)
+-   [Coding principles](/contributing/coding-standards)
+-   [Architecture](/developers/architecture)
+-   [Vision and Philosophy](https://github.com/WordPress/wordpress-playground/issues/472)
+-   [WordPress Playground Roadmap](https://github.com/WordPress/wordpress-playground/issues/525)
 
 ## Contribute Pull Requests
 
@@ -97,8 +97,8 @@ Your dev server is now available on https://playground.test.
 
 If you're using VS Code and have Chrome installed, you can debug Playground in the code editor:
 
-- Open the project folder in VS Code.
-- Select Run > Start Debugging from the main menu or press `F5`/`fn`+`F5`.
+-   Open the project folder in VS Code.
+-   Select Run > Start Debugging from the main menu or press `F5`/`fn`+`F5`.
 
 ### Debugging PHP
 

@@ -13,11 +13,11 @@ Você pode usar Blueprints de uma das seguintes maneiras:
 <!-- -   By passing them as a URL fragment to the Playground. -->
 
 - Passando-os como um fragmento de URL para o Playground.
-    <!-- -   By loading them from a URL using the `blueprint-url` parameter. -->
+  <!-- -   By loading them from a URL using the `blueprint-url` parameter. -->
 - Carregando-os de uma URL usando o parâmetro `blueprint-url`.
-    <!-- -   By using Blueprint bundles (ZIP files or directories). -->
+  <!-- -   By using Blueprint bundles (ZIP files or directories). -->
 - Usando pacotes de Blueprint (arquivos ZIP ou diretórios).
-    <!-- -   By using the JavaScript API. -->
+  <!-- -   By using the JavaScript API. -->
 - Usando a API JavaScript.
 
 ## Fragmento de URL
