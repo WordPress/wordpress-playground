@@ -43,8 +43,8 @@ export default defineConfig(({ command, mode }) => {
 		'CORS_PROXY_URL' in process.env
 			? process.env.CORS_PROXY_URL
 			: mode === 'production'
-				? 'https://wordpress-playground-cors-proxy.net/?'
-				: '/cors-proxy/?';
+			? 'https://wordpress-playground-cors-proxy.net/?'
+			: '/cors-proxy/?';
 
 	return {
 		// Split traffic from this server on dev so that the iframe content and

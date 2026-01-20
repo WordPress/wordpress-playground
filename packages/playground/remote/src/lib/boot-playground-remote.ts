@@ -311,9 +311,7 @@ export async function bootPlaygroundRemote() {
 			 *      the detailed context.
 			 */
 			const navigationComplete = new Promise<void>((resolve) => {
-				wpFrame.addEventListener('load', () => resolve(), {
-					once: true,
-				});
+				wpFrame.addEventListener('load', () => resolve(), { once: true });
 			});
 
 			// If the URL is the same, we need to force a reload
