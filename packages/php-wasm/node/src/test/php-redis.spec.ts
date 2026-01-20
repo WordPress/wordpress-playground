@@ -31,16 +31,15 @@ if (!isJspiAvailable) {
 	});
 } else if (!REDIS_HOST) {
 	console.log(`
-		Skipping Redis network tests because no Redis server is configured.
+		Failing Redis network tests because no Redis server is configured.
 		To run Redis tests, set the following environment variables:
 		- REDIS_HOST (required, e.g., 127.0.0.1)
 		- REDIS_PORT (optional, defaults to 6379)
 	`);
-	describe.skip('Redis Extension (requires REDIS_HOST)', () => {
-		it('skipped - REDIS_HOST not set', () => {});
-	});
-	describe.skip('Redis Network Integration (requires REDIS_HOST)', () => {
-		it('skipped - REDIS_HOST not set', () => {});
+	describe('Redis Extension (requires REDIS_HOST)', () => {
+		it('skipped - REDIS_HOST not set', () => {
+			throw new Error( 'REDIS_HOST not set' );
+		});
 	});
 } else {
 
