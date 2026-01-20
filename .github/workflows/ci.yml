@@ -343,6 +343,9 @@ jobs:
                   node-version: 23
             - name: Run Redis extension tests (JSPI)
               run: node --expose-gc node_modules/nx/bin/nx run php-wasm-node:test-redis-extension-jspi
+              env:
+                  REDIS_HOST: 127.0.0.1
+                  REDIS_PORT: 6379
             - name: Run Redis network tests (JSPI)
               run: node --expose-gc node_modules/nx/bin/nx run php-wasm-node:test-redis-network-jspi
               env:
