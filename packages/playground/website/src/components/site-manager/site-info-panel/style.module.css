@@ -42,7 +42,7 @@
 
 	& :global(.components-tab-panel__tabs) {
 		--wp-components-color-accent: var(--color-text-primary);
-		border-bottom: 1px solid var(--color-border-input);
+		border-bottom: 1px solid var(--color-border-light);
 	}
 	& :global(.components-tab-panel__tabs-item) {
 		padding-left: var(--padding-size);
@@ -278,7 +278,7 @@
 	justify-content: flex-end;
 	gap: var(--space-3);
 	padding: var(--space-2) var(--space-5) var(--space-2) var(--space-4);
-	border-bottom: 1px solid var(--color-border-input);
+	border-bottom: 1px solid var(--color-border-light);
 	background: var(--color-bg-surface);
 	flex-wrap: wrap;
 }
@@ -327,8 +327,8 @@
 
 .blueprintNotice {
 	padding: var(--space-3) var(--space-4);
-	background: var(--color-bg-info-alt);
-	border-bottom: 1px solid var(--color-border-input);
+	background: var(--color-bg-info);
+	border-bottom: 1px solid var(--color-border-light);
 	font-size: var(--font-size-sm);
 	color: var(--color-text-secondary);
 	line-height: var(--line-height-relaxed);

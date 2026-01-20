@@ -35,8 +35,7 @@
 	--color-bg-surface: #ffffff; /* Light surface (panels, cards, modals) */
 	--color-bg-subtle: #f6f7f7; /* Subtle light background */
 	--color-bg-muted: #f0f0f0; /* Muted background (code blocks) */
-	--color-bg-info: #f3f6fd; /* Info/notice background */
-	--color-bg-info-alt: #f0f6fc; /* Alternative info background */
+	--color-bg-info: #f0f6fc; /* Info/notice background */
 
 	/* ========================================
 	 * COLORS - Text
@@ -44,12 +43,9 @@
 
 	/* Light mode text */
 	--color-text-primary: #1e1e1e; /* Primary text on light backgrounds */
-	--color-text-primary-alt: #1d2327; /* Alternative primary (WordPress gray) */
 	--color-text-secondary: #757575; /* Secondary/less important text */
-	--color-text-muted: #6b7280; /* Muted text, placeholders */
-	--color-text-muted-alt: #9ca3af; /* Alternative muted (lighter) */
-	--color-text-subtle: #949494; /* Subtle/disabled text */
-	--color-text-hint: #6c7781; /* Hint text */
+	--color-text-muted: #6b7280; /* Muted text, placeholders, hints */
+	--color-text-subtle: #9ca3af; /* Subtle/disabled text */
 
 	/* Dark mode text */
 	--color-text-inverse: #ffffff; /* Primary text on dark backgrounds */
@@ -66,9 +62,7 @@
 
 	/* WordPress admin colors (for compatibility) */
 	--color-wp-admin: #007cba;
-	--color-wp-admin-rgb: 0, 124, 186;
-	--color-wp-admin-dark: #006ba1;
-	--color-wp-admin-darker: #005a87;
+	--color-wp-admin-hover: #006ba1;
 	--color-wp-link: #2271b1; /* WordPress link blue */
 	--color-wp-link-hover: #135e96;
 
@@ -88,13 +82,10 @@
 	--color-warning-text: #1e2327; /* Text on warning background */
 
 	/* Error/Danger */
-	--color-error: #cc1818; /* Primary error color */
-	--color-error-alt: #dc2626; /* Alternative error (Tailwind red-600) */
-	--color-error-wp: #d63638; /* WordPress error red */
+	--color-error: #d63638; /* Primary error color (WordPress red) */
 	--color-error-soft: #e26f56; /* Soft error (form validation) */
 	--color-error-light: #fca5a5; /* Light error (indicators on dark bg) */
-	--color-error-bg: #fff5f5; /* Error background (light) */
-	--color-error-bg-alt: #ffe4e6; /* Alternative error background */
+	--color-error-bg: #ffe4e6; /* Error background (light) */
 
 	/* Info */
 	--color-info: #93c5fd; /* Info indicator (dark bg) */
@@ -103,22 +94,27 @@
 	/* Decorative */
 	--color-accent-purple-bg: #ede9fe; /* Purple accent background */
 	--color-accent-purple-text: #4c1d95; /* Purple accent text */
-	--color-accent-rose-bg: #ffe4e6; /* Rose accent background */
+	--color-accent-rose-bg: var(
+		--color-error-bg
+	); /* Rose accent (same as error bg) */
 	--color-accent-rose-text: #9f1239; /* Rose accent text */
 
 	/* ========================================
 	 * COLORS - Borders
 	 * ======================================== */
 
-	/* Dark theme borders */
-	--color-border-dark: #3c4349; /* Primary border on dark bg */
-	--color-border-dark-subtle: #2c3338; /* Subtle border on dark bg */
+	/* Dark theme borders (reference background tokens for consistency) */
+	--color-border-dark: var(
+		--color-bg-tertiary
+	); /* Primary border on dark bg */
+	--color-border-dark-subtle: var(
+		--color-bg-secondary
+	); /* Subtle border on dark bg */
 	--color-border-dark-hover: #4a5258; /* Border hover state */
 
 	/* Light theme borders */
-	--color-border-light: #dcdcde; /* Primary border on light bg */
+	--color-border-light: #dcdcde; /* Primary border on light bg, inputs */
 	--color-border-subtle: #eaeaea; /* Subtle border */
-	--color-border-input: #ddd; /* Input field borders */
 
 	/* ========================================
 	 * COLORS - Selection & Focus

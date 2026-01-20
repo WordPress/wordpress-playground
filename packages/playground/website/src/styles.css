@@ -153,9 +153,9 @@ html {
 	/*
 	 * Legacy color aliases - kept for backwards compatibility.
 	 * New code should use tokens directly from tokens.css:
-	 *   --color-border-input, --color-text-secondary, --color-text-primary, --color-error
+	 *   --color-border-light, --color-text-secondary, --color-text-primary, --color-error
 	 */
-	--color-gray-200: var(--color-border-input);
+	--color-gray-200: var(--color-border-light);
 	--color-gray-600: var(--color-text-secondary);
 	--color-gray-900: var(--color-text-primary);
 	--color-alert-red: var(--color-error);
@@ -181,10 +181,10 @@ body {
 	 * These override component defaults. See also tokens.css for our color system.
 	 */
 	--wp-admin-theme-color: var(--color-wp-admin);
-	--wp-admin-theme-color--rgb: var(--color-wp-admin-rgb);
-	--wp-admin-theme-color-darker-10: var(--color-wp-admin-dark);
+	--wp-admin-theme-color--rgb: 0, 124, 186;
+	--wp-admin-theme-color-darker-10: var(--color-wp-admin-hover);
 	--wp-admin-theme-color-darker-10--rgb: 0, 107, 161;
-	--wp-admin-theme-color-darker-20: var(--color-wp-admin-darker);
+	--wp-admin-theme-color-darker-20: #005a87;
 	--wp-admin-theme-color-darker-20--rgb: 0, 90, 135;
 }
 
