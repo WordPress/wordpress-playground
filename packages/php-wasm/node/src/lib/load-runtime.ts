@@ -6,7 +6,7 @@ import type {
 } from '@php-wasm/universal';
 import { loadPHPRuntime, FSHelpers } from '@php-wasm/universal';
 import fs from 'fs';
-import { type SyscallsForNode, getPHPLoaderModule } from '.';
+import { getPHPLoaderModule } from '.';
 import { withNetworking } from './networking/with-networking';
 import type { FileLockManager } from './file-lock-manager';
 import {
@@ -52,16 +52,6 @@ export type PHPLoaderOptionsForNode = PHPLoaderOptions & {
 			// Allow promised type for testing without providing true RemoteAPI.
 			| Promised<FileLockManager>
 			| FileLockManager;
-
-		/**
-		 * An optional syscalls to use for the PHP runtime.
-		 *
-		 * The syscalls are optional when running a single php-wasm process.
-		 *
-		 * When running with JSPI, both synchronous and asynchronous syscalls are supported.
-		 * When running with Asyncify, the syscalls must be synchronous.
-		 */
-		syscalls?: RemoteAPI<SyscallsForNode> | SyscallsForNode | undefined;
 
 		/**
 		 * An optional function to collect trace messages.
