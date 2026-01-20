@@ -893,9 +893,10 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 		args.redis = await jspi();
 	}
 
-	// Enables Memcached dynamic extension by default
-	if (!args.memcached) {
-		args.memcached = true;
+	// Enable Memcached dynamic extension by default only when JSPI is available.
+	// Memcached requires JSPI for proper exception handling during network operations.
+	if (args.memcached === undefined) {
+		args.memcached = await jspi();
 	}
 
 	// Create CLI output handler
