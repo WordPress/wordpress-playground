@@ -12,7 +12,7 @@
 .indicator {
 	display: flex;
 	align-items: center;
-	gap: 6px;
+	gap: var(--space-1);
 	padding: var(--space-1) 0;
 	border-radius: var(--radius-sm);
 	font-size: var(--font-size-base);
@@ -59,7 +59,7 @@
 	font-weight: var(--font-weight-semibold);
 	cursor: pointer;
 	transition: background var(--transition-fast);
-	min-height: 28px;
+	min-height: var(--space-7);
 }
 
 .saveButton:hover {

@@ -10,7 +10,7 @@
  * ======================================== */
 
 body.is-embedded .fake-window-wrapper {
-	padding: 15px;
+	padding: var(--space-4); /* 16px, rounded from 15px */
 }
 
 /* ========================================
@@ -77,7 +77,7 @@ body.is-embedded .fake-window-wrapper {
 	transition:
 		max-height var(--transition-base),
 		padding var(--transition-base);
-	gap: 10px;
+	gap: var(--space-2);
 }
 
 .toolbar.with-sidebar-open {
