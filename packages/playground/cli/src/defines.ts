@@ -3,10 +3,10 @@
  * Works similarly to parseMountDirArguments - each pair of array elements
  * represents a constant name and its value.
  *
- * Format: --define-for-this-run NAME value
+ * Format: --define NAME value
  * Examples:
- *     --define-for-this-run API_KEY secret
- *     --define-for-this-run CON=ST "va=lu=e"
+ *     --define API_KEY secret
+ *     --define CON=ST "va=lu=e"
  *
  * @param defines - An array where each pair is [name, value]
  * @returns An object mapping constant names to their string values
@@ -41,10 +41,10 @@ export function parseDefineStringArguments(
  * Works similarly to parseMountDirArguments - each pair of array elements
  * represents a constant name and its value.
  *
- * Format: --define-bool-for-this-run NAME value
+ * Format: --define-bool NAME value
  * Examples:
- *     --define-bool-for-this-run WP_DEBUG true
- *     --define-bool-for-this-run WP_DEBUG_LOG false
+ *     --define-bool WP_DEBUG true
+ *     --define-bool WP_DEBUG_LOG false
  *
  * @param defines - An array where each pair is [name, value]
  * @returns An object mapping constant names to their boolean values
@@ -88,10 +88,10 @@ export function parseDefineBoolArguments(
  * Works similarly to parseMountDirArguments - each pair of array elements
  * represents a constant name and its value.
  *
- * Format: --define-number-for-this-run NAME value
+ * Format: --define-number NAME value
  * Examples:
- *     --define-number-for-this-run LIMIT 100
- *     --define-number-for-this-run RATE 45.67
+ *     --define-number LIMIT 100
+ *     --define-number RATE 45.67
  *
  * @param defines - An array where each pair is [name, value]
  * @returns An object mapping constant names to their numeric values
@@ -170,37 +170,19 @@ function mergeConstants(
 }
 
 /**
- * Merge all "for-this-run" constants from CLI arguments.
+ * Merge all constants from CLI arguments.
  *
  * @param args - CLI arguments
- * @returns Merged constants for this run
+ * @returns Merged constants
  */
-export function mergeConstantsForThisRun(args: {
-	'define-for-this-run'?: Record<string, string>;
-	'define-bool-for-this-run'?: Record<string, boolean>;
-	'define-number-for-this-run'?: Record<string, number>;
+export function mergeDefinedConstants(args: {
+	define?: Record<string, string>;
+	'define-bool'?: Record<string, boolean>;
+	'define-number'?: Record<string, number>;
 }): Record<string, string | number | boolean> {
 	return mergeConstants(
-		args['define-for-this-run'],
-		args['define-bool-for-this-run'],
-		args['define-number-for-this-run']
-	);
-}
-
-/**
- * Merge all "in-wp-config" constants from CLI arguments.
- *
- * @param args - CLI arguments
- * @returns Merged constants for wp-config
- */
-export function mergeConstantsForWpConfig(args: {
-	'define-in-wp-config'?: Record<string, string>;
-	'define-bool-in-wp-config'?: Record<string, boolean>;
-	'define-number-in-wp-config'?: Record<string, number>;
-}): Record<string, string | number | boolean> {
-	return mergeConstants(
-		args['define-in-wp-config'],
-		args['define-bool-in-wp-config'],
-		args['define-number-in-wp-config']
+		args['define'],
+		args['define-bool'],
+		args['define-number']
 	);
 }

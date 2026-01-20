@@ -50,11 +50,6 @@ export type WorkerBootOptions = {
 	 * Process-specific, set for each PHP instance.
 	 */
 	constants?: Record<string, string | number | boolean | null>;
-	/**
-	 * PHP constants to define in wp-config.php.
-	 * Persistent across requests.
-	 */
-	wpConfigConstants?: Record<string, string | number | boolean | null>;
 };
 
 export type PrimaryWorkerBootOptions = WorkerBootOptions & {

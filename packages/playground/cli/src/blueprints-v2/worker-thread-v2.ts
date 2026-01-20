@@ -144,11 +144,6 @@ export type PrimaryWorkerBootArgs = Omit<
 	 * Process-specific, set for each PHP instance.
 	 */
 	constants?: Record<string, string | number | boolean | null>;
-	/**
-	 * PHP constants to define in wp-config.php.
-	 * Persistent across requests.
-	 */
-	wpConfigConstants?: Record<string, string | number | boolean | null>;
 };
 
 type WorkerRunBlueprintArgs = Omit<
@@ -169,7 +164,6 @@ export type SecondaryWorkerBootArgs = {
 	phpVersion: SupportedPHPVersion;
 	phpIniEntries?: PhpIniOptions;
 	constants?: Record<string, string | number | boolean | null>;
-	wpConfigConstants?: Record<string, string | number | boolean | null>;
 	createFiles?: FileTree;
 	firstProcessId: number;
 	processIdSpaceLength: number;
@@ -284,9 +278,6 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 			...args,
 			mountsAfterWpInstall: args.mountsAfterWpInstall || [],
 		});
-
-		// TODO: Add wp-config constants support for Blueprint v2
-		// For now, only Blueprint v1 supports --define-in-wp-config flags
 	}
 
 	async bootWorker(args: SecondaryWorkerBootArgs) {
@@ -580,7 +571,6 @@ async function createPHPWorker(
 		phpVersion,
 		createFiles,
 		constants,
-		wpConfigConstants,
 		phpIniEntries,
 		firstProcessId,
 		processIdSpaceLength,
@@ -604,7 +594,6 @@ async function createPHPWorker(
 		phpVersion,
 		createFiles,
 		constants,
-		wpConfigConstants,
 		phpIniEntries,
 		firstProcessId,
 		processIdSpaceLength,

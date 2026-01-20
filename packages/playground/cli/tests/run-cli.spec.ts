@@ -102,7 +102,7 @@ describe.each(blueprintVersions)(
 		);
 
 		test.skipIf(isBlueprintsV2OnWindows)(
-			'should define constants via --define-for-this-run flags',
+			'should define constants via --define flags',
 			async () => {
 				await using cliServer = await runCLI({
 					...suiteCliArgs,
@@ -111,14 +111,14 @@ describe.each(blueprintVersions)(
 					wordpressInstallMode: 'do-not-attempt-installing',
 					skipSqliteSetup: true,
 					blueprint: undefined,
-					'define-for-this-run': {
+					define: {
 						MY_STRING_CONSTANT: 'test_value',
 					},
-					'define-bool-for-this-run': {
+					'define-bool': {
 						MY_BOOL_CONSTANT: true,
 						MY_FALSE_CONSTANT: false,
 					},
-					'define-number-for-this-run': {
+					'define-number': {
 						MY_NUMBER_CONSTANT: 42,
 					},
 				});
@@ -141,64 +141,6 @@ describe.each(blueprintVersions)(
 				const text = await response.text();
 				expect(text).toContain('STRING: test_value');
 				expect(text).toContain('NUMBER: 42');
-				expect(text).toContain('BOOL: true');
-				expect(text).toContain('FALSE: false');
-			}
-		);
-
-		test.skipIf(isBlueprintsV2OnWindows || version === 2)(
-			'should define constants in wp-config.php via --define-in-wp-config flags',
-			async ({ skip }) => {
-				if (version === 2) {
-					// @TODO: Implement wp-config constants support for Blueprint v2
-					skip();
-				}
-				await using cliServer = await runCLI({
-					...suiteCliArgs,
-					command: 'server',
-					php: '8.0',
-					'define-in-wp-config': {
-						WP_CONFIG_STRING: 'config_value',
-					},
-					'define-bool-in-wp-config': {
-						WP_CONFIG_BOOL: true,
-						WP_CONFIG_FALSE: false,
-					},
-					'define-number-in-wp-config': {
-						WP_CONFIG_NUMBER: 123,
-					},
-				});
-
-				// Verify wp-config.php was updated with the constants
-				const wpConfigContent =
-					await cliServer.playground.readFileAsText(
-						'/wordpress/wp-config.php'
-					);
-				expect(wpConfigContent).toContain('WP_CONFIG_STRING');
-				expect(wpConfigContent).toContain('WP_CONFIG_BOOL');
-				expect(wpConfigContent).toContain('WP_CONFIG_FALSE');
-				expect(wpConfigContent).toContain('WP_CONFIG_NUMBER');
-
-				// Verify constants are accessible from PHP
-				await cliServer.playground.writeFile(
-					'/wordpress/wp-config-constants.php',
-					`<?php
-					require_once '/wordpress/wp-config.php';
-					echo "STRING: " . WP_CONFIG_STRING . "\\n";
-					echo "NUMBER: " . WP_CONFIG_NUMBER . "\\n";
-					echo "BOOL: " . (WP_CONFIG_BOOL ? 'true' : 'false') . "\\n";
-					echo "FALSE: " . (WP_CONFIG_FALSE ? 'true' : 'false') . "\\n";
-					`
-				);
-				const constantsUrl = new URL(
-					'/wp-config-constants.php',
-					cliServer.serverUrl
-				);
-				const response = await fetch(constantsUrl);
-				expect(response.status).toBe(200);
-				const text = await response.text();
-				expect(text).toContain('STRING: config_value');
-				expect(text).toContain('NUMBER: 123');
 				expect(text).toContain('BOOL: true');
 				expect(text).toContain('FALSE: false');
 			}

@@ -23,8 +23,7 @@ import {
 	type RunCLIArgs,
 	type SpawnedWorker,
 	type WorkerType,
-	mergeConstantsForThisRun,
-	mergeConstantsForWpConfig,
+	mergeDefinedConstants,
 } from '../run-cli';
 import type { CLIOutput } from '../cli-output';
 
@@ -160,8 +159,7 @@ export class BlueprintsV1Handler {
 			// TODO: Consider supporting Xdebug for the initial worker via a dedicated flag.
 			withXdebug: false,
 			nativeInternalDirPath,
-			constants: mergeConstantsForThisRun(this.args),
-			wpConfigConstants: mergeConstantsForWpConfig(this.args),
+			constants: mergeDefinedConstants(this.args),
 		});
 
 		if (
@@ -214,8 +212,7 @@ export class BlueprintsV1Handler {
 			withIntl: this.args.intl,
 			withXdebug: !!this.args.xdebug,
 			nativeInternalDirPath,
-			constants: mergeConstantsForThisRun(this.args),
-			wpConfigConstants: mergeConstantsForWpConfig(this.args),
+			constants: mergeDefinedConstants(this.args),
 		});
 		await playground.isReady();
 		return playground;
@@ -240,20 +237,9 @@ export class BlueprintsV1Handler {
 			this.cliOutput.updateProgress(lastCaption.trim(), progressInteger);
 		});
 
-		// Add wp-config constants as a Blueprint step if provided
-		const allAdditionalSteps = [...additionalBlueprintSteps];
-		const wpConfigConstants = mergeConstantsForWpConfig(this.args);
-		if (Object.keys(wpConfigConstants).length > 0) {
-			allAdditionalSteps.push({
-				step: 'defineWpConfigConsts',
-				consts: wpConfigConstants,
-				method: 'rewrite-wp-config',
-			});
-		}
-
 		return await compileBlueprintV1(blueprint as BlueprintV1Declaration, {
 			progress: tracker,
-			additionalSteps: allAdditionalSteps,
+			additionalSteps: additionalBlueprintSteps,
 		});
 	}
 
