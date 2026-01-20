@@ -31,8 +31,6 @@ As Playground [streams rather than serves](/about#streamed-not-served) WordPress
 </figure>
 </blockquote>
 
-To better organize your saved playground, a pop-up will appear for you to set its name.
-
 ### Browser support
 
 WordPress Playground is designed to work across all major desktop and mobile browsers. This includes:

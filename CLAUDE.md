@@ -203,6 +203,7 @@ npx nx e2e playground-website
 The Playground CLI (`@wp-playground/cli`) can be run directly from source:
 
 ```bash
+nvm use
 npx nx dev playground-cli server --wp=6.8 --php=8.4 --auto-mount
 ```
 
@@ -261,7 +262,7 @@ Located in `packages/nx-extensions/src/executors/`:
 
 ## Node.js Version
 
-Requires Node.js >= 20.18.3 (LTS). Uses npm workspaces and packageManager field set to `npm@10.9.2`.
+Review the package.json file for the required Node.js version. At the time of writing, it's Node.js >= 20.18.3 (LTS) and npm >= `npm@10.9.2`.
 
 ## Documentation
 
