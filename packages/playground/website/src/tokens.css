@@ -148,7 +148,9 @@
 	--space-4: 16px; /* Base spacing */
 	--space-5: 20px; /* Medium spacing */
 	--space-6: 24px; /* Large spacing */
+	--space-7: 28px; /* Between 6 and 8 */
 	--space-8: 32px; /* Extra large spacing */
+	--space-9: 36px; /* Between 8 and 10 */
 	--space-10: 40px; /* 2x large spacing */
 	--space-12: 48px; /* 3x large spacing */
 
