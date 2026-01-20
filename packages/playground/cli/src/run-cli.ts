@@ -619,8 +619,20 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 			process.exit(1);
 		}
 
+		const define = args['define'] as Record<string, string>;
+		if (
+			!('WP_DEBUG' in define) &&
+			!('WP_DEBUG_LOG' in define) &&
+			!('WP_DEBUG_DISPLAY' in define)
+		) {
+			define['WP_DEBUG'] = 'true';
+			define['WP_DEBUG_LOG'] = 'true';
+			define['WP_DEBUG_DISPLAY'] = 'true';
+		}
+
 		const cliArgs = {
 			...args,
+			define,
 			command,
 			mount: [
 				...((args['mount'] as Mount[]) || []),
