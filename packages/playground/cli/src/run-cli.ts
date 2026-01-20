@@ -272,7 +272,7 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 			memcached: {
 				describe: 'Enable Memcached.',
 				type: 'boolean',
-				default: true,
+				// No default - will be determined at runtime based on JSPI availability
 			},
 			xdebug: {
 				describe: 'Enable Xdebug.',
@@ -896,7 +896,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 	// Memcached extension is opt-in via --memcached flag.
 	// It requires JSPI support, so users must run with Node.js 23+ and --experimental-wasm-jspi flag.
 	if (args.memcached === undefined) {
-		args.memcached = false;
+		args.memcached = await jspi();
 	}
 
 	// Create CLI output handler
