@@ -354,14 +354,17 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 			}
 		);
 
-		it.skipIf(!isJspiAvailable)('can instantiate Redis class', async () => {
-			const result = await php.runStream({
-				code: `<?php
+		it.skipIf(!isJspiAvailable)(
+			'can instantiate Redis class',
+			async () => {
+				const result = await php.runStream({
+					code: `<?php
 					$redis = new Redis();
 					var_dump(get_class($redis));`,
-			});
+				});
 
-			expect(await result.stdoutText).toEqual('string(5) "Redis"\n');
-		});
+				expect(await result.stdoutText).toEqual('string(5) "Redis"\n');
+			}
+		);
 	});
 });

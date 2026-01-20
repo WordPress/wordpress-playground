@@ -11,11 +11,7 @@
  * operations. These tests are skipped when JSPI is not available.
  */
 
-import {
-	PHP,
-	SupportedPHPVersions,
-	type SupportedPHPVersion,
-} from '@php-wasm/universal';
+import { PHP, SupportedPHPVersions, type SupportedPHPVersion } from '@php-wasm/universal';
 import { loadNodeRuntime } from '../lib';
 import { jspi } from 'wasm-feature-detect';
 
@@ -42,20 +38,21 @@ if (!isJspiAvailable) {
 	`);
 	describe('Redis Extension (requires REDIS_HOST)', () => {
 		it('skipped - REDIS_HOST not set', () => {
-			throw new Error('REDIS_HOST not set');
+			throw new Error( 'REDIS_HOST not set' );
 		});
 	});
 } else {
-	const phpVersions =
-		'PHP' in process.env
-			? [process.env['PHP']! as SupportedPHPVersion]
-			: SupportedPHPVersions;
 
-	/**
-	 * PHP helper function that creates a configured Redis instance with proper
-	 * timeout settings for WebSocket-based TCP connections.
-	 */
-	const createRedisPHP = () => `
+const phpVersions =
+	'PHP' in process.env
+		? [process.env['PHP']! as SupportedPHPVersion]
+		: SupportedPHPVersions;
+
+/**
+ * PHP helper function that creates a configured Redis instance with proper
+ * timeout settings for WebSocket-based TCP connections.
+ */
+const createRedisPHP = () => `
 	function createRedis() {
 		$r = new Redis();
 		// Set timeouts to give WebSocket proxy time to connect
@@ -64,50 +61,48 @@ if (!isJspiAvailable) {
 	}
 `;
 
-	/**
-	 * Test that the Redis extension loads and provides the expected API.
-	 * This test does not require a running Redis server.
-	 */
-	describe('Redis Extension', () => {
-		describe.each(phpVersions)('PHP %s', (phpVersion) => {
-			let php: PHP;
+/**
+ * Test that the Redis extension loads and provides the expected API.
+ * This test does not require a running Redis server.
+ */
+describe('Redis Extension', () => {
+	describe.each(phpVersions)('PHP %s', (phpVersion) => {
+		let php: PHP;
 
-			beforeEach(async () => {
-				php = new PHP(
-					await loadNodeRuntime(phpVersion as any, {
-						withRedis: true,
-					})
-				);
-			});
+		beforeEach(async () => {
+			php = new PHP(
+				await loadNodeRuntime(phpVersion as any, { withRedis: true })
+			);
+		});
 
-			afterEach(() => {
-				php?.exit();
-			});
+		afterEach(() => {
+			php?.exit();
+		});
 
-			it('loads the redis extension', async () => {
-				const result = await php.run({
-					code: `<?php
+		it('loads the redis extension', async () => {
+			const result = await php.run({
+				code: `<?php
 					echo extension_loaded('redis') ? 'LOADED' : 'NOT_LOADED';
 				?>`,
-				});
-				expect(result.text).toBe('LOADED');
-				expect(result.errors).toBeFalsy();
 			});
+			expect(result.text).toBe('LOADED');
+			expect(result.errors).toBeFalsy();
+		});
 
-			it('can instantiate Redis class', async () => {
-				const result = await php.run({
-					code: `<?php
+		it('can instantiate Redis class', async () => {
+			const result = await php.run({
+				code: `<?php
 					$r = new Redis();
 					echo ($r instanceof Redis) ? 'SUCCESS' : 'FAILED';
 				?>`,
-				});
-				expect(result.text).toBe('SUCCESS');
-				expect(result.errors).toBeFalsy();
 			});
+			expect(result.text).toBe('SUCCESS');
+			expect(result.errors).toBeFalsy();
+		});
 
-			it('has expected methods available', async () => {
-				const result = await php.run({
-					code: `<?php
+		it('has expected methods available', async () => {
+			const result = await php.run({
+				code: `<?php
 					$methods = [
 						'connect', 'pconnect', 'close',
 						'get', 'set', 'del', 'delete',
@@ -130,14 +125,14 @@ if (!isJspiAvailable) {
 					}
 					echo empty($missing) ? 'ALL_PRESENT' : 'MISSING: ' . implode(', ', $missing);
 				?>`,
-				});
-				expect(result.text).toBe('ALL_PRESENT');
-				expect(result.errors).toBeFalsy();
 			});
+			expect(result.text).toBe('ALL_PRESENT');
+			expect(result.errors).toBeFalsy();
+		});
 
-			it('has expected constants defined', async () => {
-				const result = await php.run({
-					code: `<?php
+		it('has expected constants defined', async () => {
+			const result = await php.run({
+				code: `<?php
 					$constants = [
 						'Redis::REDIS_STRING',
 						'Redis::REDIS_SET',
@@ -154,32 +149,30 @@ if (!isJspiAvailable) {
 					}
 					echo empty($missing) ? 'ALL_DEFINED' : 'MISSING: ' . implode(', ', $missing);
 				?>`,
-				});
-				expect(result.text).toBe('ALL_DEFINED');
-				expect(result.errors).toBeFalsy();
 			});
+			expect(result.text).toBe('ALL_DEFINED');
+			expect(result.errors).toBeFalsy();
 		});
 	});
+});
 
-	describe('Redis Network Integration', () => {
-		describe.each(phpVersions)('PHP %s', (phpVersion) => {
-			let php: PHP;
+describe('Redis Network Integration', () => {
+	describe.each(phpVersions)('PHP %s', (phpVersion) => {
+		let php: PHP;
 
-			beforeEach(async () => {
-				php = new PHP(
-					await loadNodeRuntime(phpVersion as any, {
-						withRedis: true,
-					})
-				);
-			});
+		beforeEach(async () => {
+			php = new PHP(
+				await loadNodeRuntime(phpVersion as any, { withRedis: true })
+			);
+		});
 
-			afterEach(() => {
-				php?.exit();
-			});
+		afterEach(() => {
+			php?.exit();
+		});
 
-			it('can connect to Redis server', async () => {
-				const result = await php.run({
-					code: `<?php
+		it('can connect to Redis server', async () => {
+			const result = await php.run({
+				code: `<?php
 					${createRedisPHP()}
 					$r = createRedis();
 
@@ -192,18 +185,18 @@ if (!isJspiAvailable) {
 						echo 'PING_FAILED: ' . var_export($pong, true);
 					}
 				?>`,
-				});
-
-				expect(result.text).toBe('CONNECTED');
-				expect(result.errors).toBeFalsy();
 			});
 
-			it('can set and get values', async () => {
-				const testKey = `test_key_${Date.now()}_${Math.random().toString(36).substring(7)}`;
-				const testValue = 'Hello from PHP-WASM!';
+			expect(result.text).toBe('CONNECTED');
+			expect(result.errors).toBeFalsy();
+		});
 
-				const result = await php.run({
-					code: `<?php
+		it('can set and get values', async () => {
+			const testKey = `test_key_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+			const testValue = 'Hello from PHP-WASM!';
+
+			const result = await php.run({
+				code: `<?php
 					${createRedisPHP()}
 					$r = createRedis();
 
@@ -229,17 +222,17 @@ if (!isJspiAvailable) {
 
 					echo $retrieved;
 				?>`,
-				});
-
-				expect(result.text).toBe(testValue);
-				expect(result.errors).toBeFalsy();
 			});
 
-			it('can set values with expiration', async () => {
-				const testKey = `test_expiry_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+			expect(result.text).toBe(testValue);
+			expect(result.errors).toBeFalsy();
+		});
 
-				const result = await php.run({
-					code: `<?php
+		it('can set values with expiration', async () => {
+			const testKey = `test_expiry_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+
+			const result = await php.run({
+				code: `<?php
 					${createRedisPHP()}
 					$r = createRedis();
 
@@ -257,17 +250,17 @@ if (!isJspiAvailable) {
 
 					echo ($value !== false && $ttl > 0) ? 'SUCCESS' : 'FAILED';
 				?>`,
-				});
-
-				expect(result.text).toBe('SUCCESS');
-				expect(result.errors).toBeFalsy();
 			});
 
-			it('can delete values', async () => {
-				const testKey = `test_delete_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+			expect(result.text).toBe('SUCCESS');
+			expect(result.errors).toBeFalsy();
+		});
 
-				const result = await php.run({
-					code: `<?php
+		it('can delete values', async () => {
+			const testKey = `test_delete_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+
+			const result = await php.run({
+				code: `<?php
 					${createRedisPHP()}
 					$r = createRedis();
 
@@ -284,17 +277,17 @@ if (!isJspiAvailable) {
 
 					echo ($deleteResult >= 1 && $value === false) ? 'SUCCESS' : 'FAILED';
 				?>`,
-				});
-
-				expect(result.text).toBe('SUCCESS');
-				expect(result.errors).toBeFalsy();
 			});
 
-			it('can increment and decrement values', async () => {
-				const testKey = `test_incr_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+			expect(result.text).toBe('SUCCESS');
+			expect(result.errors).toBeFalsy();
+		});
 
-				const result = await php.run({
-					code: `<?php
+		it('can increment and decrement values', async () => {
+			const testKey = `test_incr_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+
+			const result = await php.run({
+				code: `<?php
 					${createRedisPHP()}
 					$r = createRedis();
 
@@ -315,17 +308,17 @@ if (!isJspiAvailable) {
 					// Should be 10 + 5 = 15, then 15 - 3 = 12
 					echo "incr:$afterIncr,decr:$afterDecr";
 				?>`,
-				});
-
-				expect(result.text).toBe('incr:15,decr:12');
-				expect(result.errors).toBeFalsy();
 			});
 
-			it('can handle multiple keys with mget/mset', async () => {
-				const prefix = `test_multi_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+			expect(result.text).toBe('incr:15,decr:12');
+			expect(result.errors).toBeFalsy();
+		});
 
-				const result = await php.run({
-					code: `<?php
+		it('can handle multiple keys with mget/mset', async () => {
+			const prefix = `test_multi_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+
+			const result = await php.run({
+				code: `<?php
 					${createRedisPHP()}
 					$r = createRedis();
 
@@ -354,17 +347,17 @@ if (!isJspiAvailable) {
 
 					echo $allMatch ? 'SUCCESS' : 'FAILED';
 				?>`,
-				});
-
-				expect(result.text).toBe('SUCCESS');
-				expect(result.errors).toBeFalsy();
 			});
 
-			it('can work with hash data structures', async () => {
-				const testKey = `test_hash_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+			expect(result.text).toBe('SUCCESS');
+			expect(result.errors).toBeFalsy();
+		});
 
-				const result = await php.run({
-					code: `<?php
+		it('can work with hash data structures', async () => {
+			const testKey = `test_hash_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+
+			const result = await php.run({
+				code: `<?php
 					${createRedisPHP()}
 					$r = createRedis();
 
@@ -393,17 +386,17 @@ if (!isJspiAvailable) {
 
 					echo $isValid ? 'SUCCESS' : 'FAILED';
 				?>`,
-				});
-
-				expect(result.text).toBe('SUCCESS');
-				expect(result.errors).toBeFalsy();
 			});
 
-			it('can work with list data structures', async () => {
-				const testKey = `test_list_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+			expect(result.text).toBe('SUCCESS');
+			expect(result.errors).toBeFalsy();
+		});
 
-				const result = await php.run({
-					code: `<?php
+		it('can work with list data structures', async () => {
+			const testKey = `test_list_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+
+			const result = await php.run({
+				code: `<?php
 					${createRedisPHP()}
 					$r = createRedis();
 
@@ -428,17 +421,17 @@ if (!isJspiAvailable) {
 
 					echo $isValid ? 'SUCCESS' : "FAILED: len=$len, first=$first";
 				?>`,
-				});
-
-				expect(result.text).toBe('SUCCESS');
-				expect(result.errors).toBeFalsy();
 			});
 
-			it('can work with set data structures', async () => {
-				const testKey = `test_set_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+			expect(result.text).toBe('SUCCESS');
+			expect(result.errors).toBeFalsy();
+		});
 
-				const result = await php.run({
-					code: `<?php
+		it('can work with set data structures', async () => {
+			const testKey = `test_set_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+
+			const result = await php.run({
+				code: `<?php
 					${createRedisPHP()}
 					$r = createRedis();
 
@@ -467,17 +460,17 @@ if (!isJspiAvailable) {
 
 					echo $isValid ? 'SUCCESS' : 'FAILED';
 				?>`,
-				});
-
-				expect(result.text).toBe('SUCCESS');
-				expect(result.errors).toBeFalsy();
 			});
 
-			it('can work with sorted set data structures', async () => {
-				const testKey = `test_zset_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+			expect(result.text).toBe('SUCCESS');
+			expect(result.errors).toBeFalsy();
+		});
 
-				const result = await php.run({
-					code: `<?php
+		it('can work with sorted set data structures', async () => {
+			const testKey = `test_zset_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+
+			const result = await php.run({
+				code: `<?php
 					${createRedisPHP()}
 					$r = createRedis();
 
@@ -507,15 +500,15 @@ if (!isJspiAvailable) {
 
 					echo $isValid ? 'SUCCESS' : 'FAILED';
 				?>`,
-				});
-
-				expect(result.text).toBe('SUCCESS');
-				expect(result.errors).toBeFalsy();
 			});
 
-			it('handles non-existent keys gracefully', async () => {
-				const result = await php.run({
-					code: `<?php
+			expect(result.text).toBe('SUCCESS');
+			expect(result.errors).toBeFalsy();
+		});
+
+		it('handles non-existent keys gracefully', async () => {
+			const result = await php.run({
+				code: `<?php
 					${createRedisPHP()}
 					$r = createRedis();
 
@@ -523,17 +516,17 @@ if (!isJspiAvailable) {
 
 					echo ($value === false) ? 'SUCCESS' : 'FAILED';
 				?>`,
-				});
-
-				expect(result.text).toBe('SUCCESS');
-				expect(result.errors).toBeFalsy();
 			});
 
-			it('can check if keys exist', async () => {
-				const testKey = `test_exists_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+			expect(result.text).toBe('SUCCESS');
+			expect(result.errors).toBeFalsy();
+		});
 
-				const result = await php.run({
-					code: `<?php
+		it('can check if keys exist', async () => {
+			const testKey = `test_exists_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+
+			const result = await php.run({
+				code: `<?php
 					${createRedisPHP()}
 					$r = createRedis();
 
@@ -553,17 +546,17 @@ if (!isJspiAvailable) {
 
 					echo (!$beforeSet && $afterSet) ? 'SUCCESS' : 'FAILED';
 				?>`,
-				});
-
-				expect(result.text).toBe('SUCCESS');
-				expect(result.errors).toBeFalsy();
 			});
 
-			it('can use setnx to only set if key does not exist', async () => {
-				const testKey = `test_setnx_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+			expect(result.text).toBe('SUCCESS');
+			expect(result.errors).toBeFalsy();
+		});
 
-				const result = await php.run({
-					code: `<?php
+		it('can use setnx to only set if key does not exist', async () => {
+			const testKey = `test_setnx_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+
+			const result = await php.run({
+				code: `<?php
 					${createRedisPHP()}
 					$r = createRedis();
 
@@ -585,11 +578,12 @@ if (!isJspiAvailable) {
 						? 'SUCCESS'
 						: 'FAILED';
 				?>`,
-				});
-
-				expect(result.text).toBe('SUCCESS');
-				expect(result.errors).toBeFalsy();
 			});
+
+			expect(result.text).toBe('SUCCESS');
+			expect(result.errors).toBeFalsy();
 		});
 	});
+});
+
 } // End of else block for JSPI/REDIS_HOST check

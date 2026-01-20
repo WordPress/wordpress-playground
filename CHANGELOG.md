@@ -4,7 +4,7 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
-## [v3.0.44] (2026-01-20)
+## [v3.0.44] (2026-01-20) 
 
 ### Enhancements
 
@@ -28,7 +28,8 @@ The following contributors merged PRs in this release:
 
 @adamziel
 
-## [v3.0.43] (2026-01-19)
+
+## [v3.0.43] (2026-01-19) 
 
 ### Enhancements
 
@@ -54,7 +55,8 @@ The following contributors merged PRs in this release:
 
 @adamziel @fellyph
 
-## [v3.0.42] (2026-01-15)
+
+## [v3.0.42] (2026-01-15) 
 
 ### Enhancements
 
