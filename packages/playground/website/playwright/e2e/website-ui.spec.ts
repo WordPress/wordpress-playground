@@ -257,16 +257,6 @@ test('should edit a blueprint in the blueprint editor and recreate the playgroun
 	);
 	await editor.waitFor({ timeout: 10000 });
 
-	await editor.click();
-
-	// Delete all content in the editor (Cmd+A or Ctrl+A)
-	await website.page.keyboard.press(
-		process.platform === 'darwin' ? 'Meta+A' : 'Control+A'
-	);
-
-	await website.page.keyboard.press('Backspace');
-	await website.page.waitForTimeout(200);
-
 	// Create a simple blueprint that writes "Blueprint test" to index.php
 	const blueprint = JSON.stringify(
 		{
@@ -283,20 +273,33 @@ test('should edit a blueprint in the blueprint editor and recreate the playgroun
 		2
 	);
 
-	// Type the new blueprint with a delay between keystrokes
-	await website.page.keyboard.type(blueprint, { delay: 50 });
+	// Focus the editor
+	await editor.click();
+	// Wait a moment for the editor to be fully ready
+	await website.page.waitForTimeout(100);
 
-	// Remove the autoinserted brackets until the end of the Blueprint
-	await website.page.keyboard.down('Shift');
-	for (let i = 0; i < 4; i++) {
-		await website.page.keyboard.press('ArrowDown');
-	}
+	// Select all existing content
+	await website.page.keyboard.press(
+		process.platform === 'darwin' ? 'Meta+A' : 'Control+A'
+	);
 
-	// Delete the selected lines
+	// Delete the selected content
 	await website.page.keyboard.press('Backspace');
+	await website.page.waitForTimeout(100);
 
-	// Wait a moment for the change to be processed
+	// Use Playwright's fill method on the contenteditable .cm-content element
+	// This is more reliable than character-by-character typing which triggers
+	// auto-bracket insertion
+	const cmContent = editor.locator('.cm-content');
+	await cmContent.fill(blueprint);
+
+	// Wait for validation to complete (linter has 300ms debounce)
 	await website.page.waitForTimeout(500);
+
+	// Verify the blueprint was inserted by checking the editor content
+	await expect(cmContent).toContainText('writeFile', {
+		timeout: 5000,
+	});
 
 	// Click the "Run Blueprint" button
 	await website.page
@@ -313,6 +316,68 @@ test('should edit a blueprint in the blueprint editor and recreate the playgroun
 	await expect(wordpress.locator('body')).toContainText('Blueprint test', {
 		timeout: 10000,
 	});
+});
+
+test('should copy blueprint link to clipboard when share button is clicked', async ({
+	website,
+	context,
+	browserName,
+}) => {
+	test.skip(
+		browserName === 'firefox',
+		'Firefox does not support clipboard-read permission through Playwright'
+	);
+
+	// Grant clipboard permissions
+	await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+
+	await website.goto('./');
+
+	// Open site manager
+	await website.ensureSiteManagerIsOpen();
+
+	// Navigate to Blueprint tab
+	await website.page.getByRole('tab', { name: 'Blueprint' }).click();
+
+	// Wait for CodeMirror editor to load
+	const editor = website.page.locator(
+		'[class*="blueprint-editor"] .cm-editor'
+	);
+	await editor.waitFor({ timeout: 10000 });
+
+	// Wait for the URL hash to be computed (debounced by 500ms in the component)
+	// and the share button to be ready
+	await website.page.waitForTimeout(1000);
+
+	// Click the share button (copy link to blueprint)
+	const shareButton = website.page.getByRole('button', {
+		name: 'Copy link to blueprint',
+	});
+	await expect(shareButton).toBeVisible();
+	await shareButton.click();
+
+	// Verify success message appears in the notice component
+	await expect(
+		website.page
+			.locator('.components-notice')
+			.getByText('Link copied to clipboard!')
+	).toBeVisible();
+
+	// Verify clipboard contains the correct URL format
+	const clipboardContent = await website.page.evaluate(() =>
+		navigator.clipboard.readText()
+	);
+	// URL format: http(s)://host/optional-path/#base64
+	expect(clipboardContent).toMatch(/^https?:\/\/[^#]+#[A-Za-z0-9+/=]+$/);
+
+	// Verify the base64 portion decodes to valid JSON
+	const base64Part = clipboardContent.split('#')[1];
+	const decodedBlueprint = JSON.parse(
+		new TextDecoder().decode(
+			Uint8Array.from(atob(base64Part), (c) => c.charCodeAt(0))
+		)
+	);
+	expect(decodedBlueprint).toHaveProperty('landingPage');
 });
 
 test.describe('Database panel', () => {
@@ -360,7 +425,7 @@ test.describe('Database panel', () => {
 
 	test('should load and open Adminer', async ({ website, context }) => {
 		const adminerButton = website.page.getByRole('button', {
-			name: /Open Adminer/i,
+			name: 'Open Adminer',
 		});
 		await expect(adminerButton).toBeVisible();
 		await expect(adminerButton).toBeEnabled();
@@ -432,7 +497,7 @@ test.describe('Database panel', () => {
 
 	test('should load and open phpMyAdmin', async ({ website, context }) => {
 		const phpMyAdminButton = website.page.getByRole('button', {
-			name: /Open phpMyAdmin/i,
+			name: 'Open phpMyAdmin',
 		});
 		await expect(phpMyAdminButton).toBeVisible();
 		await expect(phpMyAdminButton).toBeEnabled();
@@ -450,32 +515,43 @@ test.describe('Database panel', () => {
 		await expect(newPage.locator('body')).toContainText('phpMyAdmin');
 		await expect(newPage.locator('body')).toContainText('wp_posts');
 
+		/*
+		 * Before clicking a link in phpMyAdmin, we need to wait for any AJAX
+		 * requests to be done. This prevents flaky tests (mainly in Firefox).
+		 *
+		 * @see https://github.com/phpmyadmin/phpmyadmin/blob/3925c2237701050ee34f5ba79d74fda808673d4f/resources/js/modules/ajax.ts
+		 */
+		const waitForAjaxIdle = async () =>
+			newPage.waitForFunction(() => {
+				return (window as any).AJAX?.active === false;
+			});
+
 		// Browse the "wp_posts" table
 		const wpPostsRow = newPage
 			.locator('tr')
 			.filter({ hasText: 'wp_posts' })
 			.first();
-		await expect(wpPostsRow).toBeVisible({ timeout: 10000 });
+		await expect(wpPostsRow).toBeVisible();
+		await waitForAjaxIdle();
 		await wpPostsRow.getByRole('link', { name: 'Browse' }).click();
 		await newPage.waitForLoadState();
 		const pmaRows = newPage.locator('table.table_results tbody tr');
 		await expect(pmaRows.first()).toContainText('Welcome to WordPress.');
 
 		// Click "edit" on a row
+		await waitForAjaxIdle();
 		await pmaRows
 			.first()
 			.getByRole('link', { name: 'Edit' })
 			.first()
 			.click();
 		await newPage.waitForLoadState();
-		const pmaForm = newPage.locator(
-			'form#insertForm, form[name="insertForm"]'
-		);
-		await expect(pmaForm).toBeVisible({ timeout: 10000 });
-		await expect(pmaForm).toContainText('Welcome to WordPress.');
+		const editForm = newPage.locator('form#insertForm');
+		await expect(editForm).toBeVisible();
+		await expect(editForm).toContainText('Welcome to WordPress.');
 
 		// Update the post content
-		const postContentRow = pmaForm
+		const postContentRow = editForm
 			.locator('tr')
 			.filter({ hasText: 'post_content' })
 			.first();

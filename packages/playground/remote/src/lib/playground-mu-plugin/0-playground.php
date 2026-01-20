@@ -155,6 +155,34 @@ add_action('wp_head', 'playground_add_target_blank_to_external_links');
 add_action('admin_head', 'playground_add_target_blank_to_external_links');
 
 /**
+ * Reports the current URL to the parent frame.
+ *
+ * When Document-Isolation-Policy is enabled, the parent frame can't access
+ * the iframe's location.href due to cross-origin restrictions. This script
+ * posts a message to the parent frame with the current URL so the address
+ * bar can be updated.
+ *
+ * @see https://github.com/WordPress/wordpress-playground/issues/2954
+ */
+function playground_report_url_to_parent() {
+	?>
+	<script>
+		if (window.parent !== window) {
+			window.parent.postMessage(
+				JSON.stringify({
+					type: 'playground-url-change',
+					url: window.location.href
+				}),
+				'*'
+			);
+		}
+	</script>
+	<?php
+}
+add_action('wp_head', 'playground_report_url_to_parent');
+add_action('admin_head', 'playground_report_url_to_parent');
+
+/**
  * The default WordPress requests transports have been disabled
  * at this point. However, the Requests class requires at least
  * one working transport or else it throws warnings and acts up.

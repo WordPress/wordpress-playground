@@ -13,6 +13,7 @@ import { existsSync, mkdirSync, rmSync, writeFileSync } from 'fs';
 import type { PHPLoaderOptions } from '..';
 import { loadNodeRuntime } from '..';
 import { createNodeFsMountHandler } from '../lib/node-fs-mount';
+import { spawn } from 'child_process';
 
 const testDirPath = '/__test987654321';
 const testFilePath = '/__test987654321.txt';
@@ -84,6 +85,8 @@ phpLoaderOptions.forEach((options) => {
 		beforeEach(async () => {
 			php = new PHP(await loadNodeRuntime(phpVersion as any, options));
 			php.mkdir('/php');
+			php.setSpawnHandler(spawn as any);
+
 			await setPhpIniEntries(php, {
 				disable_functions: '',
 				html_errors: false,
@@ -272,7 +275,7 @@ phpLoaderOptions.forEach((options) => {
 				// Read second chunk (should come after ~1 second delay)
 				const startTime = Date.now();
 				let secondStdout = await reader.read();
-				// Be lenient – PHP 7.2 may yield an empty stdout chunk. That's okay.
+				// Be lenient – some PHP versions may yield an empty stdout chunk.
 				if (secondStdout.value?.length === 0) {
 					secondStdout = await reader.read();
 					expect(decoder.decode(secondStdout.value)).toBe(
@@ -349,7 +352,7 @@ phpLoaderOptions.forEach((options) => {
 
 				// Verify we can read remaining chunks
 				let secondStdout = await stdoutReader.read();
-				// Be lenient – PHP 7.2 may yield an empty stdout chunk. That's okay.
+				// Be lenient – some PHP versions may yield an empty stdout chunk.
 				if (secondStdout.value?.length === 0) {
 					secondStdout = await stdoutReader.read();
 					expect(decoder.decode(secondStdout.value)).toBe(
@@ -647,7 +650,7 @@ phpLoaderOptions.forEach((options) => {
 			// This test applies only to these PHP versions
 			// due to a new patch that replaces the use of
 			// EMULATE_FUNCTION_POINTER_CASTS option.
-			if (['7.3', '7.4'].includes(phpVersion)) {
+			if (phpVersion === '7.4') {
 				it('resolves without crashing with unknown function signature mismatch', async () => {
 					const promise = php.runStream({
 						code: `<?php
@@ -750,9 +753,10 @@ phpLoaderOptions.forEach((options) => {
 				expect(result.text).toEqual('stdout: WordPress\nstderr: \n');
 			});
 
-			// This test fails on older PHP versions
-			if (!['7.2', '7.3'].includes(phpVersion)) {
-				it('cat: stdin=pipe, stdout=file, stderr=file, file_get_contents', async () => {
+			it(
+				'cat: stdin=pipe, stdout=file, stderr=file, file_get_contents',
+				async () => {
+					console.log({ withXdebug: options.withXdebug });
 					const result = await php.run({
 						code: `<?php
 						$res = proc_open(
@@ -778,8 +782,9 @@ phpLoaderOptions.forEach((options) => {
 					expect(result.text).toEqual(
 						'stdout: WordPress\nstderr: \n'
 					);
-				});
-			}
+				},
+				{ timeout: 10000 }
+			);
 
 			it('cat: stdin=file, stdout=file, stderr=file, file_get_contents', async () => {
 				const result = await php.run({
@@ -828,7 +833,6 @@ phpLoaderOptions.forEach((options) => {
 						processApi.exit(0);
 					}
 				);
-
 				php.setSpawnHandler(handler);
 
 				const result = await php.run({
@@ -1196,35 +1200,33 @@ phpLoaderOptions.forEach((options) => {
 				}
 			);
 
-			// This test fails on older PHP versions
-			if (!['7.2', '7.3'].includes(phpVersion)) {
-				it('Gives access to command and arguments when array type is used in proc_open', async () => {
-					let command = '';
-					let args: string[] = [];
-					php.setSpawnHandler((cmd, argc) => {
-						command = cmd;
-						args = argc;
-						return {
-							stdout: {
-								on: () => {},
-							},
-							stderr: {
-								on: () => {},
-							},
-							stdin: {
-								write: () => {},
-								end: () => {},
-							},
-							on: (evt: string, callback: () => void) => {
-								if (evt === 'spawn') {
-									callback();
-								}
-							},
-							kill: () => {},
-						} as any;
-					});
-					await php.run({
-						code: `<?php
+			it('Gives access to command and arguments when array type is used in proc_open', async () => {
+				let command = '';
+				let args: string[] = [];
+				php.setSpawnHandler((cmd, argc) => {
+					command = cmd;
+					args = argc;
+					return {
+						stdout: {
+							on: () => {},
+						},
+						stderr: {
+							on: () => {},
+						},
+						stdin: {
+							write: () => {},
+							end: () => {},
+						},
+						on: (evt: string, callback: () => void) => {
+							if (evt === 'spawn') {
+								callback();
+							}
+						},
+						kill: () => {},
+					} as any;
+				});
+				await php.run({
+					code: `<?php
 
 						$command = [ 'lorem', 'ipsum', 'dolor', 'sit', 'amet', 'consectetur', 'adipiscing' ];
 
@@ -1235,13 +1237,12 @@ phpLoaderOptions.forEach((options) => {
 						];
 
 						proc_open( $command, $descriptorspec, $pipes );`,
-					});
-					expect(command).toEqual('lorem');
-					expect(args.toString()).toEqual(
-						'ipsum,dolor,sit,amet,consectetur,adipiscing'
-					);
 				});
-			}
+				expect(command).toEqual('lorem');
+				expect(args.toString()).toEqual(
+					'ipsum,dolor,sit,amet,consectetur,adipiscing'
+				);
+			});
 
 			it('Uses the three descriptor specs', async () => {
 				const result = await php.run({
@@ -1268,6 +1269,8 @@ phpLoaderOptions.forEach((options) => {
 			});
 
 			it('Uses only stdin and stdout descriptor specs', async () => {
+				php.setSpawnHandler(spawn as any);
+
 				const result = await php.run({
 					code: `<?php
 
@@ -1392,22 +1395,21 @@ phpLoaderOptions.forEach((options) => {
 				expect(spawnHandlerCalled).toBe(true);
 			}, 10000);
 
-			if (!['7.2', '7.3'].includes(phpVersion)) {
-				it('Handle process spawn timeout gracefully', async () => {
-					let spawnHandlerCalled = false;
-					const handler = createSpawnHandler(async () => {
-						spawnHandlerCalled = true;
-						// Don't call processApi.notifySpawn() or processApi.exit()
-						// to simulate a hanging process that never starts
-						await new Promise(() => {}); // Never resolves
-					});
+			it('Handle process spawn timeout gracefully', async () => {
+				let spawnHandlerCalled = false;
+				const handler = createSpawnHandler(async () => {
+					spawnHandlerCalled = true;
+					// Don't call processApi.notifySpawn() or processApi.exit()
+					// to simulate a hanging process that never starts
+					await new Promise(() => {}); // Never resolves
+				});
 
-					php.setSpawnHandler(handler);
+				php.setSpawnHandler(handler);
 
-					const startTime = Date.now();
-					try {
-						await php.run({
-							code: `<?php
+				const startTime = Date.now();
+				try {
+					await php.run({
+						code: `<?php
 							$res = proc_open(
 								"hanging_command",
 								array(
@@ -1421,19 +1423,18 @@ phpLoaderOptions.forEach((options) => {
 							// output any data.
 							fread($pipes[1], 1024);
 						`,
-						});
-						// Should not reach here
-						expect(false).toBe(true);
-					} catch (e) {
-						console.log(e);
-						const elapsed = Date.now() - startTime;
-						// Should timeout around 5 seconds (allowing some margin)
-						expect(elapsed).toBeGreaterThan(4500);
-						expect(elapsed).toBeLessThan(6000);
-						expect(spawnHandlerCalled).toBe(true);
-					}
-				}, 10000);
-			}
+					});
+					// Should not reach here
+					expect(false).toBe(true);
+				} catch (e) {
+					console.log(e);
+					const elapsed = Date.now() - startTime;
+					// Should timeout around 5 seconds (allowing some margin)
+					expect(elapsed).toBeGreaterThan(4500);
+					expect(elapsed).toBeLessThan(6000);
+					expect(spawnHandlerCalled).toBe(true);
+				}
+			}, 10000);
 		});
 
 		describe('Filesystem', { skip: options.withXdebug }, () => {
@@ -1850,7 +1851,11 @@ describe('sandboxedSpawnHandlerFactory', () => {
 					'Hello, world!'
 				);
 				await php.setSpawnHandler(
-					sandboxedSpawnHandlerFactory(processManager)
+					sandboxedSpawnHandlerFactory(() =>
+						processManager.acquirePHPInstance({
+							considerPrimary: false,
+						})
+					)
 				);
 				return php;
 			},

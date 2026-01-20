@@ -24,13 +24,22 @@ export { HttpCookieStore } from './http-cookie-store';
 export type { IteratePhpFilesOptions as IterateFilesOptions } from './iterate-files';
 export { iteratePhpFiles as iterateFiles } from './iterate-files';
 export { writeFilesStreamToPhp } from './write-files-stream-to-php';
+export type {
+	PHPInstanceManager,
+	AcquiredPHP,
+	/**
+	 * Backwards compatibility alias.
+	 */
+	AcquiredPHP as SpawnedPHP,
+} from './php-instance-manager';
+export { SinglePHPInstanceManager } from './single-php-instance-manager';
+export type { SinglePHPInstanceManagerOptions } from './single-php-instance-manager';
 export { PHPProcessManager } from './php-process-manager';
 export type {
 	MaxPhpInstancesError,
 	PHPFactory,
 	PHPFactoryOptions,
 	ProcessManagerOptions,
-	SpawnedPHP,
 } from './php-process-manager';
 
 export { PHPResponse, StreamedPHPResponse } from './php-response';
@@ -44,7 +53,7 @@ export {
 export type { SupportedPHPVersion } from './supported-php-versions';
 export { PHP, __private__dont__use, PHPExecutionFailureError } from './php';
 export type { MountHandler, UnmountFunction } from './php';
-export { loadPHPRuntime, getLoadedRuntime } from './load-php-runtime';
+export { loadPHPRuntime, popLoadedRuntime } from './load-php-runtime';
 export type { Emscripten } from './emscripten-types';
 export type {
 	DataModule,
@@ -88,3 +97,4 @@ export { sandboxedSpawnHandlerFactory } from './sandboxed-spawn-handler-factory'
 
 export * from './api';
 export type { WithAPIState as WithIsReady } from './api';
+export type { Remote } from './comlink-sync';

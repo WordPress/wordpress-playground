@@ -2,7 +2,6 @@ name: Release NPM packages
 
 on:
     workflow_dispatch:
-        # Require a version bump (patch, minor, major) and an optional dist tag
         inputs:
             version_bump:
                 description: 'Version bump (patch, minor, or major)'
@@ -16,59 +15,67 @@ on:
         # Auto-publish every Monday
         - cron: '0 9 * * 1'
 
+permissions:
+    id-token: write
+    contents: write
+
 jobs:
     release:
         # Only run this workflow from the trunk branch and when it's triggered by a Playground maintainer
         if: >
             github.ref == 'refs/heads/trunk' && (
-                github.actor == 'adamziel' ||
-                github.actor == 'dmsnell' ||
-                github.actor == 'bgrgicak' ||
-                github.actor == 'brandonpayton' ||
-                github.actor == 'zaerl' ||
-                github.actor == 'janjakes'
+              github.actor == 'adamziel' ||
+              github.actor == 'dmsnell' ||
+              github.actor == 'bgrgicak' ||
+              github.actor == 'brandonpayton' ||
+              github.actor == 'zaerl' ||
+              github.actor == 'janjakes' ||
+              github.actor == 'mho22'
             )
 
-        # Specify runner + deployment step
         runs-on: ubuntu-latest
         environment:
             name: npm
-        env:
-            NPM_TOKEN: ${{ secrets.NPM_AUTOMATION_TOKEN }}
-            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
         steps:
             - name: Free up runner disk space
-              shell: bash
               run: |
                   set -euo pipefail
-                  echo "Disk usage before cleanup:"
                   df -h
                   sudo rm -rf /usr/local/lib/android
                   sudo rm -rf /usr/share/dotnet
                   sudo rm -rf "$AGENT_TOOLSDIRECTORY"
                   sudo rm -rf /opt/ghc
                   sudo rm -rf /opt/hostedtoolcache/CodeQL
-                  echo "Disk usage after cleanup:"
                   df -h
+
             - uses: actions/checkout@v4
               with:
-                  ref: ${{ github.event.pull_request.head.ref }}
+                  ref: trunk
                   clean: true
                   persist-credentials: false
                   submodules: true
-            - name: Config git user
+
+            - name: Configure git
               run: |
                   git config --global user.name "deployment_bot"
                   git config --global user.email "deployment_bot@users.noreply.github.com"
                   git remote set-url origin https://${{ secrets.GH_ACTOR }}:${{ secrets.GH_TOKEN }}@github.com/${{ github.repository }}
-            - name: Authenticate with Registry
-              run: |
-                  echo "@php-wasm:registry=https://registry.npmjs.org/" > ~/.npmrc
-                  echo "@wp-playground:registry=https://registry.npmjs.org/" >> ~/.npmrc
-                  echo "registry=https://registry.npmjs.org/" >> ~/.npmrc
-                  echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
+
+            - name: Set up Node.js with OIDC
+              uses: actions/setup-node@v4
+              with:
+                  node-version: '22'
+                  registry-url: 'https://registry.npmjs.org'
+                  cache: 'npm'
+
+            # npm 11.5.1+ is required for trusted publisher OIDC authentication
+            - name: Upgrade npm for trusted publishing
+              run: npm install -g npm@latest lerna@9
+
             - uses: ./.github/actions/prepare-playground
-            # Version bump, release, tag a new version on GitHub
-            - name: Release new version of NPM packages
-              shell: bash
-              run: npx lerna@6.6.2 publish ${{ inputs.version_bump || 'patch' }} --yes --no-private --loglevel=verbose --dist-tag=${{ inputs.dist_tag || 'latest' }}
+
+            - name: Publish NPM packages
+              # Version bump, release, tag a new version on GitHub
+              run: >
+                  lerna publish ${{ inputs.version_bump || 'patch' }} --yes --no-private --loglevel=verbose --dist-tag=${{ inputs.dist_tag || 'latest' }}

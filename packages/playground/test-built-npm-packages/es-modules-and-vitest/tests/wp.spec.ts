@@ -15,11 +15,12 @@ if (!SupportedPHPVersions.includes(phpVersion)) {
 	throw new Error(`PHP_VERSION '${phpVersion}' is not supported`);
 }
 
-describe(`PHP ${phpVersion}`, () => {
+describe(`PHP ${phpVersion}`, { concurrency: 1 }, () => {
 	it('Should load WordPress', { timeout: 30000 }, async () => {
 		const cli = await runCLI({
 			command: 'server',
 			php: phpVersion,
+			port: 0, // Use random available port to avoid conflicts
 			quiet: true,
 		});
 		try {
@@ -124,6 +125,7 @@ describe(`PHP ${phpVersion}`, () => {
 			const cli = await runCLI({
 				command: 'server',
 				php: phpVersion,
+				port: 0, // Use random available port to avoid conflicts
 				quiet: true,
 				blueprint: {
 					steps: [

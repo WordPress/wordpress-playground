@@ -42,26 +42,52 @@ export class WebsitePage {
 	}
 
 	async ensureSiteManagerIsOpen() {
-		const siteManager = this.page.locator('.main-sidebar');
-		if (!(await siteManager.isVisible())) {
-			await this.page
-				.getByRole('button', { name: 'Open Site Manager' })
-				.click();
+		const siteManagerButton = this.page.getByRole('button', {
+			name: /Site Manager/,
+		});
+		const isPressed = await siteManagerButton.getAttribute('aria-pressed');
+		if (isPressed !== 'true') {
+			await siteManagerButton.click();
 		}
-		await expect(siteManager).toBeVisible();
+		// Wait for the site info panel section to be visible
+		await expect(
+			this.page.locator('section[class*="site-info-panel"]')
+		).toBeVisible();
 	}
 
 	async ensureSiteManagerIsClosed() {
-		const siteManager = this.page.locator('.main-sidebar');
-		if (await siteManager.isVisible()) {
-			const closeButton = this.page.getByRole('button', {
-				name: 'Close Site Manager',
-			});
-			if (await closeButton.isVisible()) {
-				await closeButton.click();
-			}
+		const siteManagerButton = this.page.getByRole('button', {
+			name: /Site Manager/,
+		});
+		const isPressed = await siteManagerButton.getAttribute('aria-pressed');
+		if (isPressed === 'true') {
+			await siteManagerButton.click();
 		}
-		await expect(siteManager).not.toBeVisible();
+		// Wait for the site info panel section to be hidden
+		await expect(
+			this.page.locator('section[class*="site-info-panel"]')
+		).not.toBeVisible();
+	}
+
+	async openSavedPlaygroundsOverlay() {
+		await this.page
+			.getByRole('button', { name: 'Saved Playgrounds' })
+			.click();
+		await expect(
+			this.page
+				.locator('[class*="overlay"]')
+				.filter({ hasText: 'Playground' })
+		).toBeVisible();
+	}
+
+	async closeSavedPlaygroundsOverlay() {
+		const overlay = this.page
+			.locator('[class*="overlay"]')
+			.filter({ hasText: 'Playground' });
+		if (await overlay.isVisible()) {
+			await this.page.keyboard.press('Escape');
+		}
+		await expect(overlay).not.toBeVisible();
 	}
 
 	async getSiteTitle(): Promise<string> {

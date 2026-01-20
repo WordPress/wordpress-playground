@@ -7,6 +7,7 @@ import type {
 	FileTree,
 	RemoteAPI,
 	SupportedPHPVersion,
+	SpawnHandler,
 } from '@php-wasm/universal';
 import {
 	PHPExecutionFailureError,
@@ -32,14 +33,14 @@ import { existsSync } from 'fs';
 import path from 'path';
 import { rootCertificates } from 'tls';
 import { MessageChannel, type MessagePort, parentPort } from 'worker_threads';
-import type { Mount } from '../mounts';
 import { jspi } from 'wasm-feature-detect';
-import { type RunCLIArgs } from '../run-cli';
+import { spawnWorkerThread, type RunCLIArgs } from '../run-cli';
 import type {
 	PhpIniOptions,
 	PHPInstanceCreatedHook,
 } from '@wp-playground/wordpress';
 import { shouldRenderProgress } from '../utils/progress';
+import type { Mount } from '@php-wasm/cli-util';
 
 async function mountResources(php: PHP, mounts: Mount[]) {
 	for (const mount of mounts) {
@@ -107,22 +108,25 @@ const output = {
 		}
 	},
 	stdout(data: string) {
+		process.stdout.write('\n\n\n');
 		if (output.lastWriteWasProgress) {
-			process.stdout.write('\n');
 			output.lastWriteWasProgress = false;
 		}
 		process.stdout.write(data);
 	},
 	stderr(data: string) {
+		process.stdout.write('\n\n\n');
 		if (output.lastWriteWasProgress) {
-			process.stdout.write('\n');
 			output.lastWriteWasProgress = false;
 		}
 		process.stderr.write(data);
 	},
 };
 
-export type PrimaryWorkerBootArgs = RunCLIArgs & {
+export type PrimaryWorkerBootArgs = Omit<
+	RunCLIArgs,
+	'mount-before-install' | 'mount'
+> & {
 	phpVersion: SupportedPHPVersion;
 	siteUrl: string;
 	firstProcessId: number;
@@ -133,14 +137,20 @@ export type PrimaryWorkerBootArgs = RunCLIArgs & {
 		| ParsedBlueprintV2String
 		| BlueprintV1Declaration;
 	nativeInternalDirPath: string;
+	mountsBeforeWpInstall?: Array<Mount>;
+	mountsAfterWpInstall?: Array<Mount>;
 };
 
-type WorkerRunBlueprintArgs = RunCLIArgs & {
+type WorkerRunBlueprintArgs = Omit<
+	RunCLIArgs,
+	'mount-before-install' | 'mount'
+> & {
 	siteUrl: string;
 	blueprint:
 		| RawBlueprintV2Data
 		| ParsedBlueprintV2String
 		| BlueprintV1Declaration;
+	mountsAfterWpInstall?: Array<Mount>;
 };
 
 export type SecondaryWorkerBootArgs = {
@@ -154,6 +164,7 @@ export type SecondaryWorkerBootArgs = {
 	processIdSpaceLength: number;
 	trace: boolean;
 	nativeInternalDirPath: string;
+	withIntl?: boolean;
 	withXdebug?: boolean;
 	mountsBeforeWpInstall?: Array<Mount>;
 	mountsAfterWpInstall?: Array<Mount>;
@@ -164,6 +175,7 @@ export type WorkerBootRequestHandlerOptions = Omit<
 	'mountsBeforeWpInstall' | 'mountsAfterWpInstall'
 > & {
 	onPHPInstanceCreated: PHPInstanceCreatedHook;
+	spawnHandler: () => SpawnHandler;
 };
 
 export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
@@ -234,9 +246,9 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 				'openssl.cafile': '/internal/shared/ca-bundle.crt',
 			},
 			onPHPInstanceCreated: async (php: PHP) => {
-				await mountResources(php, args['mount-before-install'] || []);
+				await mountResources(php, args.mountsBeforeWpInstall || []);
 				if (this.blueprintTargetResolved) {
-					await mountResources(php, args.mount || []);
+					await mountResources(php, args.mountsAfterWpInstall || []);
 				} else {
 					// NOTE: Today (2025-09-11), during boot with a plugin auto-mount,
 					// the Blueprint runner fails unless post-resolution mounts are
@@ -253,17 +265,24 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 					});
 				}
 			},
+			spawnHandler: () =>
+				sandboxedSpawnHandlerFactory(() =>
+					createPHPWorker(args, this.fileLockManager!)
+				),
 		};
 		await this.bootRequestHandler(requestHandlerOptions);
 
 		const primaryPhp = this.__internal_getPHP()!;
 
 		if (args.mode === 'mount-only') {
-			await mountResources(primaryPhp, args.mount || []);
+			await mountResources(primaryPhp, args.mountsAfterWpInstall || []);
 			return;
 		}
 
-		await this.runBlueprintV2(args);
+		await this.runBlueprintV2({
+			...args,
+			mountsAfterWpInstall: args.mountsAfterWpInstall || [],
+		});
 	}
 
 	async bootWorker(args: SecondaryWorkerBootArgs) {
@@ -272,14 +291,43 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 			onPHPInstanceCreated: async (php: PHP) => {
 				await mountResources(php, args.mountsBeforeWpInstall || []);
 				await mountResources(php, args.mountsAfterWpInstall || []);
+
+				// Temporary workaround for LOCK_EX in sqlite-database-integration.
+				// Creation of these files results in this error:
+				// PHP Warning:  file_put_contents(): Exclusive locks are not supported for this stream
+				// in
+				// /wordpress/wp-content/plugins/sqlite-database-integration/wp-includes/sqlite/class-wp-sqlite-db.php
+				// on line 670
+				if (!php.isDir('/wordpress/wp-content')) {
+					php.mkdir('/wordpress/wp-content');
+				}
+				if (!php.isDir('/wordpress/wp-content/database')) {
+					php.mkdir('/wordpress/wp-content/database');
+				}
+				if (!php.isFile('/wordpress/wp-content/database/.htaccess')) {
+					php.writeFile(
+						'/wordpress/wp-content/database/.htaccess',
+						'deny from all'
+					);
+				}
+				if (!php.isFile('/wordpress/wp-content/database/index.php')) {
+					php.writeFile(
+						'/wordpress/wp-content/database/index.php',
+						'deny from all'
+					);
+				}
 			},
+			spawnHandler: () =>
+				sandboxedSpawnHandlerFactory(() =>
+					createPHPWorker(args, this.fileLockManager!)
+				),
 		});
 	}
 
 	async runBlueprintV2(args: WorkerRunBlueprintArgs) {
 		const requestHandler = this.__internal_getRequestHandler()!;
 		const { php, reap } =
-			await requestHandler.processManager.acquirePHPInstance({
+			await requestHandler.instanceManager.acquirePHPInstance({
 				considerPrimary: false,
 			});
 
@@ -338,7 +386,10 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 									this.phpInstancesThatNeedMountsAfterTargetResolved.delete(
 										php
 									);
-									await mountResources(php, args.mount || []);
+									await mountResources(
+										php,
+										args.mountsAfterWpInstall || []
+									);
 								}
 							}
 							break;
@@ -354,7 +405,7 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 							const red = '\x1b[31m';
 							const bold = '\x1b[1m';
 							const reset = '\x1b[0m';
-							if (args.debug && message.details) {
+							if (args.verbosity === 'debug' && message.details) {
 								output.stderr(
 									`${red}${bold}Fatal error:${reset} Uncaught ${message.details.exception}: ${message.details.message}\n` +
 										`  at ${message.details.file}:${message.details.line}\n` +
@@ -376,7 +427,7 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 			 * When we're debugging, every bit of information matters – let's immediately output
 			 * everything we get from the PHP output streams.
 			 */
-			if (args.debug) {
+			if (args.verbosity === 'debug') {
 				streamedResponse!.stdout.pipeTo(
 					new WritableStream({
 						write(chunk) {
@@ -399,7 +450,7 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 				const syncResponse =
 					await PHPResponse.fromStreamedResponse(streamedResponse);
 				throw new PHPExecutionFailureError(
-					`PHP.run() failed with exit code ${syncResponse.exitCode}.`,
+					`PHP.run() failed with exit code ${syncResponse.exitCode}. ${syncResponse.errors} ${syncResponse.text}`,
 					syncResponse,
 					'request'
 				);
@@ -433,8 +484,10 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 		processIdSpaceLength,
 		trace,
 		nativeInternalDirPath,
+		withIntl,
 		withXdebug,
 		onPHPInstanceCreated,
+		spawnHandler,
 	}: WorkerBootRequestHandlerOptions) {
 		if (this.booted) {
 			throw new Error('Playground already booted');
@@ -469,16 +522,18 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 							phpWasmInitOptions: { nativeInternalDirPath },
 						},
 						followSymlinks: allow?.includes('follow-symlinks'),
+						withIntl: withIntl,
 						withXdebug,
 					});
 				},
+				maxPhpInstances: 1,
 				onPHPInstanceCreated,
 				sapiName: 'cli',
 				createFiles,
 				constants,
 				phpIniEntries,
 				cookieStore: false,
-				spawnHandler: sandboxedSpawnHandlerFactory,
+				spawnHandler,
 			});
 			this.__internal_setRequestHandler(requestHandler);
 
@@ -496,6 +551,80 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 	async dispose() {
 		await this[Symbol.asyncDispose]();
 	}
+}
+
+/**
+ * Spawns a new PHP process to be used in the PHP spawn handler (in proc_open() etc. calls).
+ * It boots from this worker-thread-v1.ts file, but is a separate process.
+ *
+ * We explicitly avoid using PHPProcessManager.acquirePHPInstance() here.
+ *
+ * Why?
+ *
+ * Because each PHP instance acquires actual OS-level file locks via fcntl() and LockFileEx()
+ * syscalls. Running multiple PHP instances from the same OS process would allow them to
+ * acquire overlapping locks. Running every PHP instance in a separate OS process ensures
+ * any locks that overlap between PHP instances conflict with each other as expected.
+ *
+ * @param options - The options for the worker.
+ * @param fileLockManager - The file lock manager to use.
+ * @returns A promise that resolves to the PHP worker.
+ */
+async function createPHPWorker(
+	{
+		siteUrl,
+		allow,
+		phpVersion,
+		createFiles,
+		constants,
+		phpIniEntries,
+		firstProcessId,
+		processIdSpaceLength,
+		trace,
+		nativeInternalDirPath,
+		withXdebug,
+		mountsBeforeWpInstall,
+		mountsAfterWpInstall,
+	}: SecondaryWorkerBootArgs,
+	fileLockManager: FileLockManager | RemoteAPI<FileLockManager>
+) {
+	const spawnedWorker = await spawnWorkerThread('v2');
+
+	const handler = consumeAPI<PlaygroundCliBlueprintV2Worker>(
+		spawnedWorker.phpPort
+	);
+	handler.useFileLockManager(fileLockManager as any);
+	await handler.bootWorker({
+		siteUrl,
+		allow,
+		phpVersion,
+		createFiles,
+		constants,
+		phpIniEntries,
+		firstProcessId,
+		processIdSpaceLength,
+		trace,
+		nativeInternalDirPath,
+		withXdebug,
+		mountsBeforeWpInstall,
+		mountsAfterWpInstall,
+	});
+
+	return {
+		php: handler,
+		reap: () => {
+			try {
+				handler.dispose();
+			} catch {
+				/** */
+			}
+			try {
+				spawnedWorker.worker.terminate();
+			} catch {
+				/** */
+			}
+		},
+	};
 }
 
 process.on('unhandledRejection', (e: any) => {

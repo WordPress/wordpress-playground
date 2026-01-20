@@ -1,6 +1,10 @@
 {
 	"name": "@php-wasm/util",
-	"version": "3.0.22",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/WordPress/wordpress-playground"
+	},
+	"version": "3.0.43",
 	"type": "module",
 	"types": "index.d.ts",
 	"typedoc": {

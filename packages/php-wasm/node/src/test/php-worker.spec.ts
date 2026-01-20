@@ -37,7 +37,7 @@ describe('PHP Worker', () => {
 			 * Block the primary PHP instance to ensure run()
 			 * creates a fresh PHP instance.
 			 */
-			const { reap } = await handler.processManager.acquirePHPInstance({
+			const { reap } = await handler.instanceManager.acquirePHPInstance({
 				considerPrimary: instanceType === 'primary',
 			});
 			try {

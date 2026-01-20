@@ -20,7 +20,7 @@ import {
 } from 'react';
 // Reuse the file browser layout styles to keep UI consistent
 import type { SiteInfo } from '../../lib/state/redux/slice-sites';
-import styles from '../site-manager/site-file-browser/style.module.css';
+import styles from './blueprint-bundle-editor.module.css';
 import {
 	type BlueprintBundleEditorHandle,
 	BlueprintBundleEditor,
@@ -186,10 +186,12 @@ export const AutosavedBlueprintBundleEditor = forwardRef<
 
 				// Otherwise, populate an in-memory filesystem with the Blueprint JSON.
 				fs = new EventedFilesystem(new InMemoryFilesystemBackend());
-				await populateFilesystemFromBlueprint(
-					fs,
-					originalBlueprint as Blueprint
-				);
+				if (originalBlueprint) {
+					await populateFilesystemFromBlueprint(
+						fs,
+						originalBlueprint as Blueprint
+					);
+				}
 				setFilesystem(fs);
 				return;
 			}

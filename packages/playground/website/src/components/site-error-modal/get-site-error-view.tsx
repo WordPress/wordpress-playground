@@ -5,18 +5,22 @@ import type { SiteError } from '../../lib/state/redux/slice-ui';
 import type { SiteInfo } from '../../lib/state/redux/slice-sites';
 import type { BlueprintStepError, PresentationHelpers } from './types';
 import { BlueprintStepErrorDetails } from './blueprint-step-error-details';
+// @ts-ignore
+import { corsProxyUrl } from 'virtual:cors-proxy-url';
 
 export interface SiteErrorViewContext {
 	error: SiteError;
 	site: SiteInfo;
 	blueprintStepError?: BlueprintStepError;
 	helpers: PresentationHelpers;
+	errorDetails?: unknown;
 }
 
 export interface SiteErrorViewConfig {
 	title: string;
 	isDeveloperError: boolean;
 	detailSummaryOverride?: string;
+	hideReportButton?: boolean;
 	body: React.ReactNode;
 	actions: React.ReactNode[];
 }
@@ -26,7 +30,10 @@ export function getSiteErrorView(
 ): SiteErrorViewConfig {
 	const { error, blueprintStepError } = context;
 
-	if (blueprintStepError) {
+	// Show specific error views for certain error types, even if they occurred
+	// during a blueprint step. These errors have dedicated user-friendly views
+	// that provide better guidance than the generic step error view.
+	if (blueprintStepError && error !== 'network-firewall-interference') {
 		return blueprintStepExecutionView(context);
 	}
 
@@ -46,6 +53,8 @@ export function getSiteErrorView(
 			return blueprintValidationFailedView(context);
 		case 'directory-handle-unknown-error':
 			return directoryHandleUnknownErrorView();
+		case 'network-firewall-interference':
+			return networkFirewallInterferenceView(context);
 		case 'site-boot-failed':
 		default:
 			return genericSiteBootFailedView(context);
@@ -271,6 +280,184 @@ function directoryHandleUnknownErrorView(): SiteErrorViewConfig {
 			</p>
 		),
 		actions: [],
+	};
+}
+
+/**
+ * Extract the target URL that Playground was trying to fetch from the error details.
+ * This is the original URL (e.g., a plugin download), not the CORS proxy URL.
+ *
+ * First checks for a structured `url` property on the error object (preferred),
+ * then falls back to pattern matching in the error message.
+ */
+function extractTargetUrl(errorDetails: unknown): string | undefined {
+	if (!errorDetails || typeof errorDetails !== 'object') {
+		return undefined;
+	}
+
+	const details = errorDetails as Record<string, unknown>;
+
+	// Prefer the structured url property if available
+	if (typeof details.url === 'string' && details.url) {
+		return details.url;
+	}
+
+	// Fall back to pattern matching in the message for backwards compatibility
+	const message = (details.rawMessage || details.message || '') as string;
+
+	// "Could not fetch {url}" from FirewallInterferenceError
+	const fetchMatch = message.match(/Could not fetch ([^\s]+)/);
+	if (fetchMatch) {
+		return fetchMatch[1];
+	}
+
+	// "Could not download "{url}"" from resource fetching
+	const downloadMatch = message.match(/Could not download "([^"]+)"/);
+	if (downloadMatch) {
+		return downloadMatch[1];
+	}
+
+	return undefined;
+}
+
+function networkFirewallInterferenceView({
+	helpers,
+	errorDetails,
+}: SiteErrorViewContext): SiteErrorViewConfig {
+	// The target URL is what Playground was trying to download (e.g., a plugin)
+	const targetUrl = extractTargetUrl(errorDetails);
+
+	// The CORS proxy is what's actually being blocked - all external requests
+	// go through it due to browser security restrictions
+	let corsProxyHost: string | undefined;
+	let testUrl: string | undefined;
+	try {
+		corsProxyHost = new URL(corsProxyUrl).hostname;
+		testUrl = `${corsProxyUrl}https://wordpress.org`;
+	} catch {
+		// corsProxyUrl might be a relative URL
+	}
+
+	const effectiveTargetUrl = targetUrl
+		? corsProxyUrl
+			? `${corsProxyUrl}?${encodeURIComponent(targetUrl)}`
+			: targetUrl
+		: undefined;
+	let effectiveTargetHost: string | undefined;
+	try {
+		if (effectiveTargetUrl) {
+			effectiveTargetHost = new URL(effectiveTargetUrl).hostname;
+		}
+	} catch {
+		// Invalid URL
+	}
+
+	return {
+		title: 'Network blocked this request',
+		isDeveloperError: false,
+		hideReportButton: true,
+		detailSummaryOverride: 'Technical details',
+		body: (
+			<>
+				<p>
+					<strong style={{ fontWeight: 'bold' }}>
+						Playground couldn't download a file
+						{effectiveTargetHost && (
+							<>
+								{' '}
+								from <code>{effectiveTargetHost}</code>
+							</>
+						)}
+						.
+					</strong>{' '}
+					Your network appears to be blocking the request.
+				</p>
+
+				<p>
+					Playground runs entirely in your browser. To download
+					plugins, themes, and other files, it routes requests through
+					a CORS proxy server
+					{corsProxyHost && (
+						<>
+							{' '}
+							at <code>{corsProxyHost}</code>
+						</>
+					)}
+					. Your network seems to be blocking this proxy — a common
+					issue on school, university, and corporate networks.
+				</p>
+
+				<p>
+					<strong style={{ fontWeight: 'bold' }}>
+						Verify this is a network issue
+					</strong>
+				</p>
+				<p>Try opening this link in a new browser tab:</p>
+				<p>
+					<a href={testUrl} target="_blank" rel="noopener noreferrer">
+						{testUrl}
+					</a>
+				</p>
+
+				<ul className={css.errorList}>
+					<li>
+						<strong style={{ fontWeight: 'bold' }}>
+							Link fails to load?
+						</strong>{' '}
+						Your network is blocking the proxy. Try a different
+						network (mobile data, personal Wi-Fi), use a VPN, or
+						contact your IT administrator.
+					</li>
+					<li>
+						<strong style={{ fontWeight: 'bold' }}>
+							Link works fine?
+						</strong>{' '}
+						This might be a bug in Playground. Please{' '}
+						<a
+							href="https://github.com/WordPress/wordpress-playground/issues/new"
+							target="_blank"
+							rel="noopener noreferrer"
+						>
+							open an issue on GitHub
+						</a>{' '}
+						so we can investigate.
+					</li>
+				</ul>
+
+				<p>
+					<strong style={{ fontWeight: 'bold' }}>
+						For IT administrators
+					</strong>
+				</p>
+				<p>
+					Allow outbound HTTPS requests to{' '}
+					<code>{corsProxyHost || 'the CORS proxy domain'}</code>
+					{window.location.hostname !== corsProxyHost && (
+						<>
+							{' '}
+							and <code>{window.location.hostname}</code>
+						</>
+					)}
+					.
+				</p>
+			</>
+		),
+		actions: [
+			<Button
+				variant="secondary"
+				key="retry"
+				onClick={() => window.location.reload()}
+			>
+				Retry
+			</Button>,
+			<Button
+				variant="primary"
+				key="start-without-blueprint"
+				onClick={helpers.reloadWithoutBlueprint}
+			>
+				Start without a Blueprint
+			</Button>,
+		],
 	};
 }
 

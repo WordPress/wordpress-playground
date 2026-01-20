@@ -102,6 +102,8 @@ class OpfsSiteStorage {
 				} catch (e) {
 					// @TODO: Still return this site's info, just in an error state.
 					logger.error(`Error reading site ${entry.name}:`, e);
+					// @TODO: Handle per-site errors somehow.
+					// throw e;
 				}
 			}
 		}
@@ -133,7 +135,6 @@ class OpfsSiteStorage {
 		//       ^ do not do it implicitly. Require user interaction. Maybe constrain this just
 		//         to the site files import flow.
 		const siteInfo = storedFormatToMetadata(await file.text());
-
 		// If the blueprint source points to the bundle directory, load from there.
 		// This allows the site to access bundled resources, not just the JSON declaration.
 		if (siteInfo.metadata.originalBlueprintSource?.type === 'opfs-site') {

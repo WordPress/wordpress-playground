@@ -5,11 +5,7 @@ import react from '@vitejs/plugin-react';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { viteTsConfigPaths } from '../../vite-extensions/vite-ts-config-paths';
 // eslint-disable-next-line @nx/enforce-module-boundaries
-import ignoreWasmImports from '../ignore-wasm-imports';
-// eslint-disable-next-line @nx/enforce-module-boundaries
-import ignoreLibImports from '../ignore-lib-imports';
-// eslint-disable-next-line @nx/enforce-module-boundaries
-import ignoreDataImports from '../ignore-data-imports';
+import { viteIgnoreImports } from '../../vite-extensions/vite-ignore-imports';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import {
 	websiteDevServerHost,
@@ -48,7 +44,7 @@ export default defineConfig(({ command, mode }) => {
 			? process.env.CORS_PROXY_URL
 			: mode === 'production'
 				? 'https://wordpress-playground-cors-proxy.net/?'
-				: 'http://127.0.0.1:5263/cors-proxy.php?';
+				: '/cors-proxy/?';
 
 	return {
 		// Split traffic from this server on dev so that the iframe content and
@@ -79,6 +75,15 @@ export default defineConfig(({ command, mode }) => {
 			allowedHosts: ['playground.test', 'playground-preview.test'],
 			proxy: {
 				...proxy,
+				// Proxy CORS requests to the local PHP CORS proxy server.
+				// This avoids Private Network Access (PNA) restrictions in Chrome
+				// when making cross-origin requests between different local ports.
+				'/cors-proxy': {
+					target: 'http://127.0.0.1:5263',
+					changeOrigin: true,
+					rewrite: (path) =>
+						path.replace(/^\/cors-proxy\/\?/, '/cors-proxy.php?'),
+				},
 				// Proxy requests to the website-extras
 				'^/website-extras/': {
 					target: `http://${websiteExtrasDevServerHost}:${websiteExtrasDevServerPort}`,
@@ -100,9 +105,9 @@ export default defineConfig(({ command, mode }) => {
 			viteTsConfigPaths({
 				root: '../../../',
 			}),
-			ignoreWasmImports(),
-			ignoreLibImports(),
-			ignoreDataImports(),
+			viteIgnoreImports({
+				extensions: ['wasm', 'so', 'dat'],
+			}),
 			...viteGlobalExtensions,
 			buildVersionPlugin('website-config'),
 			virtualModule({

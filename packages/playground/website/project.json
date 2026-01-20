@@ -45,7 +45,10 @@
 					"logLevel": "info"
 				}
 			},
-			"dependsOn": ["^build"]
+			"dependsOn": [
+				"^build",
+				"playground-blueprints:build:blueprint-schema"
+			]
 		},
 		"dev": {
 			"executor": "nx:run-commands",

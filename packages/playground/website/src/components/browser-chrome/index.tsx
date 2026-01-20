@@ -12,11 +12,13 @@ import {
 import { SyncLocalFilesButton } from '../sync-local-files-button';
 import { Dropdown, Icon } from '@wordpress/components';
 import { Modal } from '../../components/modal';
-import { cog } from '@wordpress/icons';
+import { cog, category } from '@wordpress/icons';
 import Button from '../button';
 import { ActiveSiteSettingsForm } from '../site-manager/site-settings-form';
 import { setSiteManagerOpen } from '../../lib/state/redux/slice-ui';
 import { SiteManagerIcon } from '@wp-playground/components';
+import { SavedPlaygroundsOverlay } from '../saved-playgrounds-overlay';
+import { SaveStatusIndicator } from './save-status-indicator';
 
 interface BrowserChromeProps {
 	children?: React.ReactNode;
@@ -44,9 +46,12 @@ export default function BrowserChrome({
 		className
 	);
 	const isMobileUi = useMediaQuery('(max-width: 875px)');
-	const [isModalOpen, setIsModalOpen] = React.useState(false);
-	const onToggle = () => setIsModalOpen(!isModalOpen);
-	const closeModal = () => setIsModalOpen(false);
+	const [isSettingsModalOpen, setIsSettingsModalOpen] = React.useState(false);
+	const [isPlaygroundsOverlayOpen, setIsPlaygroundsOverlayOpen] =
+		React.useState(false);
+	const onSettingsToggle = () => setIsSettingsModalOpen(!isSettingsModalOpen);
+	const closeSettingsModal = () => setIsSettingsModalOpen(false);
+	const closePlaygroundsOverlay = () => setIsPlaygroundsOverlayOpen(false);
 
 	return (
 		<div className={wrapperClass} data-cy="simulated-browser">
@@ -66,7 +71,21 @@ export default function BrowserChrome({
 						/>
 					</div>
 
+					<div className={css.saveStatusSlot}>
+						<SaveStatusIndicator />
+					</div>
+
 					<div className={css.toolbarButtons}>
+						<Button
+							variant="browser-chrome"
+							aria-label="Saved Playgrounds"
+							onClick={() => setIsPlaygroundsOverlayOpen(true)}
+							aria-expanded={isPlaygroundsOverlayOpen}
+							className={css.savedPlaygroundsButton}
+						>
+							<Icon icon={category} size={20} />
+						</Button>
+
 						<Button
 							variant="browser-chrome"
 							aria-label={
@@ -95,8 +114,8 @@ export default function BrowserChrome({
 								<Button
 									variant="browser-chrome"
 									aria-label="Edit Playground settings"
-									onClick={onToggle}
-									aria-expanded={isModalOpen}
+									onClick={onSettingsToggle}
+									aria-expanded={isSettingsModalOpen}
 									style={{
 										fill: '#FFF',
 										alignItems: 'center',
@@ -105,14 +124,14 @@ export default function BrowserChrome({
 								>
 									<Icon icon={cog} size={28} />
 								</Button>
-								{isModalOpen && (
+								{isSettingsModalOpen && (
 									<Modal
 										isFullScreen={true}
 										title="Playground settings"
-										onRequestClose={closeModal}
+										onRequestClose={closeSettingsModal}
 									>
 										<ActiveSiteSettingsForm
-											onSubmit={closeModal}
+											onSubmit={closeSettingsModal}
 										/>
 									</Modal>
 								)}
@@ -164,6 +183,9 @@ export default function BrowserChrome({
 				</header>
 				<div className={css.content}>{children}</div>
 			</div>
+			{isPlaygroundsOverlayOpen && (
+				<SavedPlaygroundsOverlay onClose={closePlaygroundsOverlay} />
+			)}
 		</div>
 	);
 }

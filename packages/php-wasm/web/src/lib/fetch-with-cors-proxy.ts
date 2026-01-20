@@ -1,4 +1,7 @@
 import { cloneRequest, teeRequest } from '@php-wasm/web-service-worker';
+import { FirewallInterferenceError } from './firewall-interference-error';
+
+const CORS_PROXY_HEADER = 'X-Playground-Cors-Proxy';
 
 export async function fetchWithCorsProxy(
 	input: RequestInfo,
@@ -60,6 +63,19 @@ export async function fetchWithCorsProxy(
 			...(requestIntendsToPassCredentials && { credentials: 'include' }),
 		});
 
-		return await fetch(newRequest, init);
+		const response = await fetch(newRequest, init);
+
+		// Check for firewall interference: if we got a response but it's
+		// missing the CORS proxy identification header, the response likely
+		// came from a network firewall rather than the actual CORS proxy.
+		if (!response.headers.has(CORS_PROXY_HEADER)) {
+			throw new FirewallInterferenceError(
+				requestObject.url,
+				response.status,
+				response.statusText
+			);
+		}
+
+		return response;
 	}
 }

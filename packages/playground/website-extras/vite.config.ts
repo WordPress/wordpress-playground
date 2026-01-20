@@ -4,9 +4,7 @@ import react from '@vitejs/plugin-react';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { viteTsConfigPaths } from '../../vite-extensions/vite-ts-config-paths';
 // eslint-disable-next-line @nx/enforce-module-boundaries
-import ignoreWasmImports from '../ignore-wasm-imports';
-// eslint-disable-next-line @nx/enforce-module-boundaries
-import ignoreDataImports from '../ignore-data-imports';
+import { viteIgnoreImports } from '../../vite-extensions/vite-ignore-imports';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import {
 	websiteExtrasDevServerPort,
@@ -64,8 +62,9 @@ export default defineConfig(({ mode }) => {
 			viteTsConfigPaths({
 				root: '../../../',
 			}),
-			ignoreWasmImports(),
-			ignoreDataImports(),
+			viteIgnoreImports({
+				extensions: ['wasm', 'dat'],
+			}),
 			...viteGlobalExtensions,
 			buildVersionPlugin('website-config'),
 			virtualModule({
@@ -84,6 +83,12 @@ export default defineConfig(({ mode }) => {
 				input: {
 					'beta-php-playground.html': fileURLToPath(
 						new URL('./beta-php-playground.html', import.meta.url)
+					),
+					'playground-block-frame.html': fileURLToPath(
+						new URL(
+							'./playground-block-frame.html',
+							import.meta.url
+						)
 					),
 				},
 				external: [],

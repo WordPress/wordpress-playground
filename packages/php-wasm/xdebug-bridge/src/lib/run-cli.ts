@@ -62,6 +62,7 @@ Examples:
 		`
 		)
 		.wrap(null)
+		.strict()
 		.parseSync() as CLIArgs;
 }
 

@@ -107,7 +107,7 @@ function encodeZipTransform() {
 					...header,
 					signature: SIGNATURE_CENTRAL_DIRECTORY,
 					fileComment: new Uint8Array(0),
-					diskNumber: 1,
+					diskNumber: 0,
 					internalAttributes: 0,
 					externalAttributes: 0,
 					firstByteAt: fileOffset,
@@ -121,10 +121,10 @@ function encodeZipTransform() {
 			}
 			const centralDirectoryEnd: CentralDirectoryEndEntry = {
 				signature: SIGNATURE_CENTRAL_DIRECTORY_END,
-				numberOfDisks: 1,
+				numberOfDisks: 0,
 				centralDirectoryOffset,
 				centralDirectorySize,
-				centralDirectoryStartDisk: 1,
+				centralDirectoryStartDisk: 0,
 				numberCentralDirectoryRecordsOnThisDisk:
 					offsetToFileHeaderMap.size,
 				numberCentralDirectoryRecords: offsetToFileHeaderMap.size,

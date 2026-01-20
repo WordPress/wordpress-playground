@@ -19,7 +19,7 @@ import {
 	type FilePickerTreeHandle,
 } from '@wp-playground/components';
 import type { AsyncWritableFilesystem } from '@wp-playground/storage';
-import styles from '../site-manager/site-file-browser/file-explorer.module.css';
+import styles from './file-explorer.module.css';
 
 export const MAX_INLINE_FILE_BYTES = 1024 * 1024; // 1MB
 
