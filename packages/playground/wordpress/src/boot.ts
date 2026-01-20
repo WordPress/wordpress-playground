@@ -387,11 +387,7 @@ export async function bootRequestHandler(options: BootRequestHandlerOptions) {
 		// Define any custom constants provided via CLI or configuration
 		if (options.constants) {
 			for (const key in options.constants) {
-				const value = options.constants[key];
-				// Skip null values as PHP constants cannot be null
-				if (value !== null) {
-					php.defineConstant(key, value);
-				}
+				php.defineConstant(key, options.constants[key]);
 			}
 		}
 
