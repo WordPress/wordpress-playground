@@ -26,7 +26,7 @@ As Playground [streams rather than serves](/about#streamed-not-served) WordPress
 <figure>
 <figcaption><i>2. Save button:</i></figcaption>
 
-![Save Button](@site/static/img/save-button.webp)
+![Save Button](@site/static/img/saving-playground.webp)
 
 </figure>
 </blockquote>
