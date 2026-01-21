@@ -6836,8 +6836,7 @@ export function init(RuntimeName, PHPLoader) {
 			ws.addEventListener('error', handleError);
 			ws.addEventListener('close', handleClose);
 		});
-	},
-	wasm_connect__deps: ['$PHPWASM'],
+	};
 
 	function ___syscall_connect(sockfd, addr, addrlen, d1, d2, d3) {
 		return _wasm_connect(sockfd, addr, addrlen);
