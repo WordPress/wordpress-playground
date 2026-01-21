@@ -269,11 +269,6 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 				type: 'boolean',
 				// No default - will be determined at runtime based on JSPI availability
 			},
-			memcached: {
-				describe: 'Enable Memcached.',
-				type: 'boolean',
-				// No default - will be determined at runtime based on JSPI availability
-			},
 			xdebug: {
 				describe: 'Enable Xdebug.',
 				type: 'boolean',
@@ -738,7 +733,6 @@ export interface RunCLIArgs {
 	'additional-blueprint-steps'?: any[];
 	intl?: boolean;
 	redis?: boolean;
-	memcached?: boolean;
 	xdebug?: boolean | { ideKey?: string };
 	experimentalUnsafeIdeIntegration?: string[];
 	experimentalDevtools?: boolean;
@@ -893,12 +887,6 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 		args.redis = await jspi();
 	}
 
-	// Memcached extension is opt-in via --memcached flag.
-	// It requires JSPI support, so users must run with Node.js 23+ and --experimental-wasm-jspi flag.
-	if (args.memcached === undefined) {
-		args.memcached = await jspi();
-	}
-
 	// Create CLI output handler
 	const cliOutput = new CLIOutput({
 		verbosity: args.verbosity || 'normal',
@@ -914,7 +902,6 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 			xdebug: !!args.xdebug,
 			intl: !!args.intl,
 			redis: !!args.redis,
-			memcached: !!args.memcached,
 			mounts: [
 				...(args.mount || []),
 				...(args['mount-before-install'] || []),

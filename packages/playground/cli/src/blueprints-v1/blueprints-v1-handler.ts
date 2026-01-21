@@ -154,7 +154,6 @@ export class BlueprintsV1Handler {
 			internalCookieStore: this.args.internalCookieStore,
 			withIntl: this.args.intl,
 			withRedis: this.args.redis,
-			withMemcached: this.args.memcached,
 			// We do not enable Xdebug by default for the initial worker
 			// because we do not imagine users expect to hit breakpoints
 			// until Playground has fully booted.
@@ -213,7 +212,6 @@ export class BlueprintsV1Handler {
 			internalCookieStore: this.args.internalCookieStore,
 			withIntl: this.args.intl,
 			withRedis: this.args.redis,
-			withMemcached: this.args.memcached,
 			withXdebug: !!this.args.xdebug,
 			nativeInternalDirPath,
 			constants: mergeDefinedConstants(this.args),

@@ -171,7 +171,6 @@ export type SecondaryWorkerBootArgs = {
 	nativeInternalDirPath: string;
 	withIntl?: boolean;
 	withRedis?: boolean;
-	withMemcached?: boolean;
 	withXdebug?: boolean;
 	mountsBeforeWpInstall?: Array<Mount>;
 	mountsAfterWpInstall?: Array<Mount>;
@@ -483,7 +482,6 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 		nativeInternalDirPath,
 		withIntl,
 		withRedis,
-		withMemcached,
 		withXdebug,
 		onPHPInstanceCreated,
 		spawnHandler,
@@ -522,7 +520,6 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 						followSymlinks: allow?.includes('follow-symlinks'),
 						withIntl: withIntl,
 						withRedis,
-						withMemcached,
 						withXdebug,
 					});
 				},

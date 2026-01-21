@@ -15,7 +15,6 @@ import {
 } from './extensions/xdebug/with-xdebug';
 import { withIntl } from './extensions/intl/with-intl';
 import { withRedis } from './extensions/redis/with-redis';
-import { withMemcached } from './extensions/memcached/with-memcached';
 import { joinPaths } from '@php-wasm/util';
 import type { Promised } from '@php-wasm/util';
 import { dirname } from 'path';
@@ -27,7 +26,6 @@ export interface PHPLoaderOptions {
 	xdebug?: XdebugOptions;
 	withIntl?: boolean;
 	withRedis?: boolean;
-	withMemcached?: boolean;
 }
 
 export type PHPLoaderOptionsForNode = PHPLoaderOptions & {
@@ -246,10 +244,6 @@ export async function loadNodeRuntime(
 
 	if (options?.withRedis === true) {
 		emscriptenOptions = await withRedis(phpVersion, emscriptenOptions);
-	}
-
-	if (options?.withMemcached === true) {
-		emscriptenOptions = await withMemcached(phpVersion, emscriptenOptions);
 	}
 
 	emscriptenOptions = await withNetworking(emscriptenOptions);
