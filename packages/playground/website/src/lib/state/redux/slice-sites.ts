@@ -264,15 +264,9 @@ export function setTemporarySiteSpec(
 		dispatch: PlaygroundDispatch,
 		getState: () => PlaygroundReduxState
 	) => {
-		// Use the configured default slug for persistent storage, or derive from name
-		const useDefaultSite =
-			defaultSiteSlug !== undefined && defaultStorageType !== 'none';
-		const siteSlug = useDefaultSite
-			? defaultSiteSlug! // Safe: checked above
-			: deriveSlugFromSiteName(siteName);
-		// Use a name derived from the default slug when configured
-		const effectiveSiteName = useDefaultSite
-			? deriveSiteNameFromSlug(defaultSiteSlug!) // Safe: checked above
+		const siteSlug = defaultSiteSlug ?? deriveSlugFromSiteName(siteName);
+		const effectiveSiteName = defaultSiteSlug
+			? deriveSiteNameFromSlug(defaultSiteSlug)
 			: siteName;
 		const newSiteUrlParams = {
 			searchParams: parseSearchParams(
@@ -351,8 +345,8 @@ export function setTemporarySiteSpec(
 
 		const sites = getState().sites.entities;
 
-		// When a default site slug is configured, check if it already exists and reuse it
-		if (defaultSiteSlug && defaultStorageType !== 'none') {
+		// When a default site slug is configured, reuse the existing site if it exists
+		if (defaultSiteSlug) {
 			const existingDefaultSite = Object.values(sites).find(
 				(site) => site.slug === defaultSiteSlug
 			);

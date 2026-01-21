@@ -37,15 +37,26 @@ export const PlaygroundViewport = ({
 	displayMode = 'browser-full-screen',
 	className,
 }: PlaygroundViewportProps) => {
+	const activeSite = useActiveSite();
+
+	// Persistent mode uses JustViewport directly (no keep-alive needed since data is in OPFS)
+	if (defaultStorageType === 'opfs') {
+		if (displayMode === 'seamless') {
+			return activeSite ? (
+				<JustViewport siteSlug={activeSite.slug} />
+			) : null;
+		}
+		return <PersistentBrowserChrome className={className} />;
+	}
+
+	// Temporary mode uses KeepAliveTemporarySitesViewport to prevent data loss
 	if (displayMode === 'seamless') {
 		return <KeepAliveTemporarySitesViewport />;
 	}
-	const Chrome =
-		defaultStorageType === 'opfs' ? PersistentBrowserChrome : BrowserChrome;
 	return (
-		<Chrome className={className}>
+		<BrowserChrome className={className}>
 			<KeepAliveTemporarySitesViewport />
-		</Chrome>
+		</BrowserChrome>
 	);
 };
 

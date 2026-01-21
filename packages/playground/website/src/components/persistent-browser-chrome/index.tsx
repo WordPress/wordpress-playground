@@ -18,14 +18,13 @@ import { ActiveSiteSettingsForm } from '../site-manager/site-settings-form';
 import { setSiteManagerOpen } from '../../lib/state/redux/slice-ui';
 import { SiteManagerIcon } from '@wp-playground/components';
 import { PersistentPlaygroundOverlay } from '../persistent-playground-overlay';
+import { JustViewport } from '../playground-viewport';
 
 interface PersistentBrowserChromeProps {
-	children?: React.ReactNode;
 	className?: string;
 }
 
 export default function PersistentBrowserChrome({
-	children,
 	className,
 }: PersistentBrowserChromeProps) {
 	const clientInfo = useAppSelector(getActiveClientInfo);
@@ -168,7 +167,9 @@ export default function PersistentBrowserChrome({
 						) : null}
 					</div>
 				</header>
-				<div className={css.content}>{children}</div>
+				<div className={css.content}>
+					{activeSite && <JustViewport siteSlug={activeSite.slug} />}
+				</div>
 			</div>
 			{isPlaygroundsOverlayOpen && (
 				<PersistentPlaygroundOverlay
