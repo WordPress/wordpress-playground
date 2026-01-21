@@ -32,6 +32,7 @@ export const modalSlugs = {
 	RENAME_SITE: 'rename-site',
 	SAVE_SITE: 'save-site',
 	BLUEPRINT_URL: 'blueprint-url',
+	SHARE_PLAYGROUND: 'share-playground',
 } as const;
 
 export type SerializedPlainErrorDetails = {

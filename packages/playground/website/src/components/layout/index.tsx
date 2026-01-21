@@ -23,6 +23,7 @@ import { SaveSiteModal } from '../save-site-modal';
 import { modalSlugs } from '../../lib/state/redux/slice-ui';
 import { GitHubPrivateRepoAuthModal } from '../github-private-repo-auth-modal';
 import { BlueprintUrlModal } from '../blueprint-url-modal';
+import { ShareModal } from '../share-modal';
 import { ModalLoadingFallback } from '../modal-loading-fallback';
 
 /**
@@ -173,6 +174,8 @@ function Modals() {
 		return <GitHubPrivateRepoAuthModal />;
 	} else if (currentModal === modalSlugs.BLUEPRINT_URL) {
 		return <BlueprintUrlModal />;
+	} else if (currentModal === modalSlugs.SHARE_PLAYGROUND) {
+		return <ShareModal />;
 	}
 
 	if (currentModal === modalSlugs.PREVIEW_PR_WP) {

@@ -19,6 +19,8 @@ import {
 import { oAuthMiddleware } from './vite.oauth';
 import { exec as execCb } from 'node:child_process';
 import { promisify } from 'node:util';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import { createRelayMiddleware } from './src/lib/relay-server/relay-middleware';
 import { fileURLToPath } from 'node:url';
 import { copyFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
@@ -123,7 +125,8 @@ export default defineConfig(({ command, mode }) => {
 				},
 				// Proxy requests to the remote content through this server for dev
 				// builds. See base config below.
-				'^[/]((?!website-server).)': {
+				// Exclude /relay/ which is handled by the relay middleware for peer-to-peer sharing.
+				'^[/]((?!website-server|relay).)': {
 					target: `http://${remoteDevServerHost}:${remoteDevServerPort}`,
 					changeOrigin: true,
 				},
@@ -183,11 +186,18 @@ export default defineConfig(({ command, mode }) => {
 				content: `
 				export const corsProxyUrl = ${JSON.stringify(corsProxyUrl || undefined)};`,
 			}),
-			// GitHub OAuth flow
+			// GitHub OAuth flow and relay server for sharing
 			{
 				name: 'configure-server',
 				configureServer(server: ViteDevServer) {
 					server.middlewares.use(oAuthMiddleware);
+					// Add relay middleware for peer-to-peer sharing
+					// In dev mode, include the /website-server/ base path in share URLs
+					const relayBasePath =
+						mode === 'production' ? '/' : '/website-server/';
+					server.middlewares.use(
+						createRelayMiddleware({ basePath: relayBasePath })
+					);
 				},
 			},
 			/**
