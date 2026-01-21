@@ -6730,20 +6730,17 @@ export function init(RuntimeName, PHPLoader) {
 
 	var _wasm_connect = function (sockfd, addr, addrlen) {
 		return Asyncify.handleSleep((wakeUp) => {
-			const ETIMEDOUT = ERRNO_CODES['ETIMEDOUT'];
-			const ECONNREFUSED = ERRNO_CODES['ECONNREFUSED'];
-
 			// Get the socket
 			let sock;
 			try {
 				sock = getSocketFromFD(sockfd);
 			} catch (e) {
-				wakeUp(-8); // EBADF
+				wakeUp(-ERRNO_CODES.EBADF); // EBADF
 				return;
 			}
 
 			if (!sock) {
-				wakeUp(-8); // EBADF
+				wakeUp(-ERRNO_CODES.EBADF); // EBADF
 				return;
 			}
 
@@ -6753,7 +6750,7 @@ export function init(RuntimeName, PHPLoader) {
 				info = getSocketAddress(addr, addrlen);
 			} catch (e) {
 				if (typeof FS == 'undefined' || !(e.name === 'ErrnoError')) {
-					wakeUp(-14); // EFAULT
+					wakeUp(-ERRNO_CODES.EFAULT); // EFAULT
 					return;
 				}
 				wakeUp(-e.errno);
@@ -6765,7 +6762,7 @@ export function init(RuntimeName, PHPLoader) {
 				sock.sock_ops.connect(sock, info.addr, info.port);
 			} catch (e) {
 				if (typeof FS == 'undefined' || !(e.name === 'ErrnoError')) {
-					wakeUp(-ECONNREFUSED);
+					wakeUp(-ERRNO_CODES.ECONNREFUSED);
 					return;
 				}
 				wakeUp(-e.errno);
@@ -6776,7 +6773,7 @@ export function init(RuntimeName, PHPLoader) {
 			const webSockets = PHPWASM.getAllWebSockets(sock);
 			if (!webSockets.length) {
 				// No WebSocket yet, this shouldn't happen after connect
-				wakeUp(-ECONNREFUSED);
+				wakeUp(-ERRNO_CODES.ECONNREFUSED);
 				return;
 			}
 
@@ -6790,7 +6787,7 @@ export function init(RuntimeName, PHPLoader) {
 
 			// If already closed or closing, return error
 			if (ws.readyState === ws.CLOSING || ws.readyState === ws.CLOSED) {
-				wakeUp(-ECONNREFUSED);
+				wakeUp(-ERRNO_CODES.ECONNREFUSED);
 				return;
 			}
 
@@ -6801,7 +6798,7 @@ export function init(RuntimeName, PHPLoader) {
 			const timeoutId = setTimeout(() => {
 				if (!resolved) {
 					resolved = true;
-					wakeUp(-ETIMEDOUT);
+					wakeUp(-ERRNO_CODES.ETIMEDOUT);
 				}
 			}, timeout);
 
@@ -6821,7 +6818,7 @@ export function init(RuntimeName, PHPLoader) {
 					clearTimeout(timeoutId);
 					ws.removeEventListener('open', handleOpen);
 					ws.removeEventListener('close', handleClose);
-					wakeUp(-ECONNREFUSED);
+					wakeUp(-ERRNO_CODES.ECONNREFUSED);
 				}
 			};
 
@@ -6831,7 +6828,7 @@ export function init(RuntimeName, PHPLoader) {
 					clearTimeout(timeoutId);
 					ws.removeEventListener('open', handleOpen);
 					ws.removeEventListener('error', handleError);
-					wakeUp(-ECONNREFUSED);
+					wakeUp(-ERRNO_CODES.ECONNREFUSED);
 				}
 			};
 
@@ -6839,7 +6836,8 @@ export function init(RuntimeName, PHPLoader) {
 			ws.addEventListener('error', handleError);
 			ws.addEventListener('close', handleClose);
 		});
-	};
+	},
+	wasm_connect__deps: ['$PHPWASM'],
 
 	function ___syscall_connect(sockfd, addr, addrlen, d1, d2, d3) {
 		return _wasm_connect(sockfd, addr, addrlen);

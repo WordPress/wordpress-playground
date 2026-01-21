@@ -963,20 +963,17 @@ const LibraryExample = {
 	 */
 	wasm_connect: function (sockfd, addr, addrlen) {
 		return Asyncify.handleSleep((wakeUp) => {
-			const ETIMEDOUT = ERRNO_CODES['ETIMEDOUT'];
-			const ECONNREFUSED = ERRNO_CODES['ECONNREFUSED'];
-
 			// Get the socket
 			let sock;
 			try {
 				sock = getSocketFromFD(sockfd);
 			} catch (e) {
-				wakeUp(-8); // EBADF
+				wakeUp(-ERRNO_CODES.EBADF); // EBADF
 				return;
 			}
 
 			if (!sock) {
-				wakeUp(-8); // EBADF
+				wakeUp(-ERRNO_CODES.EBADF); // EBADF
 				return;
 			}
 
@@ -986,7 +983,7 @@ const LibraryExample = {
 				info = getSocketAddress(addr, addrlen);
 			} catch (e) {
 				if (typeof FS == 'undefined' || !(e.name === 'ErrnoError')) {
-					wakeUp(-14); // EFAULT
+					wakeUp(-ERRNO_CODES.EFAULT); // EFAULT
 					return;
 				}
 				wakeUp(-e.errno);
@@ -998,7 +995,7 @@ const LibraryExample = {
 				sock.sock_ops.connect(sock, info.addr, info.port);
 			} catch (e) {
 				if (typeof FS == 'undefined' || !(e.name === 'ErrnoError')) {
-					wakeUp(-ECONNREFUSED);
+					wakeUp(-ERRNO_CODES.ECONNREFUSED);
 					return;
 				}
 				wakeUp(-e.errno);
@@ -1009,7 +1006,7 @@ const LibraryExample = {
 			const webSockets = PHPWASM.getAllWebSockets(sock);
 			if (!webSockets.length) {
 				// No WebSocket yet, this shouldn't happen after connect
-				wakeUp(-ECONNREFUSED);
+				wakeUp(-ERRNO_CODES.ECONNREFUSED);
 				return;
 			}
 
@@ -1023,7 +1020,7 @@ const LibraryExample = {
 
 			// If already closed or closing, return error
 			if (ws.readyState === ws.CLOSING || ws.readyState === ws.CLOSED) {
-				wakeUp(-ECONNREFUSED);
+				wakeUp(-ERRNO_CODES.ECONNREFUSED);
 				return;
 			}
 
@@ -1034,7 +1031,7 @@ const LibraryExample = {
 			const timeoutId = setTimeout(() => {
 				if (!resolved) {
 					resolved = true;
-					wakeUp(-ETIMEDOUT);
+					wakeUp(-ERRNO_CODES.ETIMEDOUT);
 				}
 			}, timeout);
 
@@ -1054,7 +1051,7 @@ const LibraryExample = {
 					clearTimeout(timeoutId);
 					ws.removeEventListener('open', handleOpen);
 					ws.removeEventListener('close', handleClose);
-					wakeUp(-ECONNREFUSED);
+					wakeUp(-ERRNO_CODES.ECONNREFUSED);
 				}
 			};
 
@@ -1064,7 +1061,7 @@ const LibraryExample = {
 					clearTimeout(timeoutId);
 					ws.removeEventListener('open', handleOpen);
 					ws.removeEventListener('error', handleError);
-					wakeUp(-ECONNREFUSED);
+					wakeUp(-ERRNO_CODES.ECONNREFUSED);
 				}
 			};
 
