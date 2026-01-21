@@ -963,8 +963,8 @@ const LibraryExample = {
 	 */
 	wasm_connect: function (sockfd, addr, addrlen) {
 		return Asyncify.handleSleep((wakeUp) => {
-			const ETIMEDOUT = 110;
-			const ECONNREFUSED = 111;
+			const ETIMEDOUT = ERRNO_CODES['ETIMEDOUT'];
+			const ECONNREFUSED = ERRNO_CODES['ECONNREFUSED'];
 
 			// Get the socket
 			let sock;
