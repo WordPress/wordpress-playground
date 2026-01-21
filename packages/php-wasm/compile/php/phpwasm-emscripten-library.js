@@ -968,12 +968,12 @@ const LibraryExample = {
 			try {
 				sock = getSocketFromFD(sockfd);
 			} catch (e) {
-				wakeUp(-ERRNO_CODES.EBADF); // EBADF
+				wakeUp(-ERRNO_CODES.EBADF);
 				return;
 			}
 
 			if (!sock) {
-				wakeUp(-ERRNO_CODES.EBADF); // EBADF
+				wakeUp(-ERRNO_CODES.EBADF);
 				return;
 			}
 
@@ -983,7 +983,7 @@ const LibraryExample = {
 				info = getSocketAddress(addr, addrlen);
 			} catch (e) {
 				if (typeof FS == 'undefined' || !(e.name === 'ErrnoError')) {
-					wakeUp(-ERRNO_CODES.EFAULT); // EFAULT
+					wakeUp(-ERRNO_CODES.EFAULT);
 					return;
 				}
 				wakeUp(-e.errno);
