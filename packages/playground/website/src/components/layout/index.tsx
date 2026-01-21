@@ -26,6 +26,7 @@ import { SaveSiteModal } from '../save-site-modal';
 import { modalSlugs } from '../../lib/state/redux/slice-ui';
 import { GitHubPrivateRepoAuthModal } from '../github-private-repo-auth-modal';
 import { BlueprintUrlModal } from '../blueprint-url-modal';
+import { ShareModal } from '../share-modal';
 
 acquireOAuthTokenIfNeeded();
 const displayMode = getDisplayModeFromQuery();
@@ -184,6 +185,8 @@ function Modals() {
 		return <GitHubPrivateRepoAuthModal />;
 	} else if (currentModal === modalSlugs.BLUEPRINT_URL) {
 		return <BlueprintUrlModal />;
+	} else if (currentModal === modalSlugs.SHARE_PLAYGROUND) {
+		return <ShareModal />;
 	}
 
 	if (query.get('gh-ensure-auth') === 'yes') {

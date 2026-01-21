@@ -1,0 +1,157 @@
+.sharedPlaygroundViewer {
+	display: flex;
+	flex-direction: column;
+	height: 100vh;
+	width: 100vw;
+	background: #f0f0f0;
+}
+
+.banner {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 8px 16px;
+	background: #2271b1;
+	color: white;
+	font-size: 14px;
+	flex-shrink: 0;
+}
+
+.bannerContent {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+}
+
+.bannerIcon {
+	font-size: 18px;
+}
+
+.bannerText {
+	font-weight: 500;
+}
+
+.statusConnected {
+	color: #7be495;
+	font-size: 12px;
+}
+
+.statusConnecting {
+	color: #ffcc00;
+	font-size: 12px;
+}
+
+.createOwnButton {
+	background: rgba(255, 255, 255, 0.2);
+	color: white;
+	padding: 6px 12px;
+	border-radius: 4px;
+	text-decoration: none;
+	font-size: 13px;
+	transition: background 0.2s;
+}
+
+.createOwnButton:hover {
+	background: rgba(255, 255, 255, 0.3);
+	color: white;
+}
+
+.iframe {
+	flex: 1;
+	width: 100%;
+	border: none;
+	transition: opacity 0.3s;
+}
+
+.errorContainer {
+	flex: 1;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	padding: 24px;
+}
+
+.errorContent {
+	background: white;
+	padding: 32px;
+	border-radius: 8px;
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+	max-width: 400px;
+	text-align: center;
+}
+
+.errorContent h2 {
+	margin: 0 0 16px 0;
+	color: #d63638;
+}
+
+.errorContent p {
+	margin: 0 0 24px 0;
+	color: #666;
+}
+
+.errorActions {
+	display: flex;
+	gap: 12px;
+	justify-content: center;
+}
+
+.retryButton {
+	background: #2271b1;
+	color: white;
+	border: none;
+	padding: 10px 20px;
+	border-radius: 4px;
+	cursor: pointer;
+	font-size: 14px;
+}
+
+.retryButton:hover {
+	background: #135e96;
+}
+
+.homeLink {
+	background: #f0f0f0;
+	color: #333;
+	padding: 10px 20px;
+	border-radius: 4px;
+	text-decoration: none;
+	font-size: 14px;
+}
+
+.homeLink:hover {
+	background: #ddd;
+	color: #333;
+}
+
+.loadingContainer {
+	flex: 1;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+}
+
+.loadingContent {
+	text-align: center;
+}
+
+.loadingContent p {
+	margin-top: 16px;
+	color: #666;
+}
+
+.spinner {
+	width: 40px;
+	height: 40px;
+	border: 3px solid #f0f0f0;
+	border-top-color: #2271b1;
+	border-radius: 50%;
+	animation: spin 1s linear infinite;
+	margin: 0 auto;
+}
+
+@keyframes spin {
+	to {
+		transform: rotate(360deg);
+	}
+}
