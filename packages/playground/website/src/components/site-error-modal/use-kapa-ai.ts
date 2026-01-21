@@ -69,6 +69,51 @@ function loadKapaScript(): Promise<void> {
 	});
 }
 
+function getBlueprintContext(): string {
+	const urlParams = new URLSearchParams(window.location.search);
+	const blueprintUrl = urlParams.get('blueprint-url');
+
+	// Hash-based blueprint: #eyJ...
+	if (window.location.hash.length > 1) {
+		try {
+			const base64 = window.location.hash.slice(1);
+			const json = atob(base64);
+			JSON.parse(json); // Validate it's valid JSON
+			return json;
+		} catch {
+			// Invalid base64 or JSON, ignore
+		}
+	}
+
+	// Data URL blueprint: ?blueprint-url=data:application/json;base64,...
+	if (blueprintUrl?.startsWith('data:')) {
+		try {
+			const base64Match = blueprintUrl.match(
+				/^data:application\/json;base64,(.+)$/
+			);
+			if (base64Match) {
+				const json = atob(base64Match[1]);
+				JSON.parse(json); // Validate it's valid JSON
+				return json;
+			}
+		} catch {
+			// Invalid base64 or JSON, ignore
+		}
+	}
+
+	// Remote URL blueprint: ?blueprint-url=https://...
+	if (blueprintUrl) {
+		return `Blueprint URL: ${blueprintUrl}`;
+	}
+
+	// Query param blueprint: ?plugin=foo&theme=bar
+	if (window.location.search.length > 1) {
+		return `URL query parameters: ${window.location.search}`;
+	}
+
+	return '';
+}
+
 export function useKapaAI() {
 	const hasSubmittedQuery = useRef(false);
 	const isEnabled = () => {
@@ -89,11 +134,10 @@ export function useKapaAI() {
 			if (hasSubmittedQuery.current) {
 				window.Kapa.open();
 			} else {
-				const urlParams = new URLSearchParams(window.location.search);
-				const hasExternalBlueprint = urlParams.has('blueprint-url');
-				const contextPrefix = hasExternalBlueprint
-					? ''
-					: `Given the URL query parameters ${window.location.search}, `;
+				const blueprintContext = getBlueprintContext();
+				const contextPrefix = blueprintContext
+					? `Given the following blueprint:\n${blueprintContext}\n\n`
+					: '';
 
 				window.Kapa.open({
 					mode: 'ai',
