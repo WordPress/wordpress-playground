@@ -9,6 +9,7 @@ import { selectActiveSite, setActiveSite } from './store';
 import { opfsSiteStorage } from '../opfs/opfs-site-storage';
 import {
 	type BlueprintV1,
+	type BlueprintV1Declaration,
 	BlueprintReflection,
 	type RuntimeConfiguration,
 	resolveRuntimeConfiguration,
@@ -33,6 +34,7 @@ import {
 import {
 	shouldUsePersistentBlueprint,
 	loadPersistentBlueprint,
+	resolveUrlParamsForExistingSite,
 } from '../../persistent-playground';
 
 /**
@@ -56,10 +58,17 @@ const sitesAdapter = createEntityAdapter<SiteInfo, string>({
 	sortComparer: (a, b) => a.slug.localeCompare(b.slug),
 });
 
+// Pending blueprint to apply to an existing site after it boots
+export interface PendingUrlBlueprint {
+	siteSlug: string;
+	blueprint: BlueprintV1Declaration;
+}
+
 // Define the initial state using the adapter and include the loading state
 const initialState = sitesAdapter.getInitialState({
 	opfsSitesLoadingState: 'loading' as LoadingState,
 	firstTemporarySiteCreated: false,
+	pendingUrlBlueprint: null as PendingUrlBlueprint | null,
 });
 
 // Create the slice
@@ -97,6 +106,12 @@ const sitesSlice = createSlice({
 		},
 		setFirstTemporarySiteCreated: (state) => {
 			state.firstTemporarySiteCreated = true;
+		},
+		setPendingUrlBlueprint: (
+			state,
+			action: PayloadAction<PendingUrlBlueprint | null>
+		) => {
+			state.pendingUrlBlueprint = action.payload;
 		},
 	},
 });
@@ -351,6 +366,19 @@ export function setTemporarySiteSpec(
 				(site) => site.slug === defaultSiteSlug
 			);
 			if (existingDefaultSite) {
+				// Check if there are actionable URL params that should be applied
+				// to the existing site (e.g., ?plugin=friends, ?blueprint-url=...)
+				const blueprint = await resolveUrlParamsForExistingSite(
+					playgroundUrlWithQueryApiArgs
+				);
+				if (blueprint) {
+					dispatch(
+						sitesSlice.actions.setPendingUrlBlueprint({
+							siteSlug: existingDefaultSite.slug,
+							blueprint,
+						})
+					);
+				}
 				return existingDefaultSite;
 			}
 		}
@@ -505,8 +533,13 @@ export interface SiteMetadata {
 	lastUrl?: string;
 }
 
-export const { setOPFSSitesLoadingState } = sitesSlice.actions;
+export const { setOPFSSitesLoadingState, setPendingUrlBlueprint } =
+	sitesSlice.actions;
 export { sitesSlice };
+
+export const selectPendingUrlBlueprint = (state: {
+	sites: ReturnType<typeof sitesSlice.reducer>;
+}) => state.sites.pendingUrlBlueprint;
 
 export const {
 	selectAll: selectAllSites,

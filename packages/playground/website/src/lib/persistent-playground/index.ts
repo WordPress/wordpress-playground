@@ -1,4 +1,13 @@
-import { type ResolvedBlueprint } from '../state/url/resolve-blueprint-from-url';
+import type { BlueprintV1Declaration } from '@wp-playground/client';
+import {
+	type ResolvedBlueprint,
+	resolveBlueprintFromURL,
+} from '../state/url/resolve-blueprint-from-url';
+import {
+	getBlueprintDeclaration,
+	isBlueprintBundle,
+} from '@wp-playground/blueprints';
+import { logger } from '@php-wasm/logger';
 
 /**
  * Determines whether to use the default persistent blueprint or process URL params.
@@ -49,4 +58,54 @@ export async function loadPersistentBlueprint(
 			url: blueprintUrl,
 		},
 	};
+}
+
+/**
+ * URL parameters that indicate a blueprint should be applied to an existing site.
+ */
+const ACTIONABLE_URL_PARAMS = [
+	'plugin',
+	'theme',
+	'blueprint-url',
+	'import-site',
+	'import-wxr',
+	'import-content',
+	'gutenberg-pr',
+	'gutenberg-branch',
+	'core-pr',
+];
+
+/**
+ * Check if the URL contains parameters that should trigger a blueprint.
+ */
+function hasActionableUrlParams(url: URL): boolean {
+	return ACTIONABLE_URL_PARAMS.some((param) => url.searchParams.has(param));
+}
+
+/**
+ * Resolves URL params as a blueprint to apply to an existing persistent site.
+ * Returns null if there are no actionable URL params.
+ *
+ * This enables applying blueprints to existing sites via URLs like:
+ * - ?plugin=woocommerce
+ * - ?blueprint-url=data:application/json;base64,...
+ */
+export async function resolveUrlParamsForExistingSite(
+	url: URL
+): Promise<BlueprintV1Declaration | null> {
+	if (!hasActionableUrlParams(url)) {
+		return null;
+	}
+
+	try {
+		const resolved = await resolveBlueprintFromURL(url, undefined);
+		// Extract the blueprint declaration from the bundle if needed
+		const blueprint = isBlueprintBundle(resolved.blueprint)
+			? await getBlueprintDeclaration(resolved.blueprint)
+			: (resolved.blueprint as BlueprintV1Declaration);
+		return blueprint;
+	} catch (e) {
+		logger.error('Error resolving URL blueprint for existing site:', e);
+		return null;
+	}
 }

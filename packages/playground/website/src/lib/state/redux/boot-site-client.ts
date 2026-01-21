@@ -12,6 +12,7 @@ import {
 import { logBlueprintEvents, logTrackingEvent } from '../../tracking';
 import {
 	type Blueprint,
+	type BlueprintV1Declaration,
 	BlueprintFilesystemRequiredError,
 	InvalidBlueprintError,
 } from '@wp-playground/blueprints';
@@ -26,7 +27,12 @@ import {
 	setGitHubAuthRepoUrl,
 } from './slice-ui';
 import type { PlaygroundDispatch, PlaygroundReduxState } from './store';
-import { selectSiteBySlug, updateSiteMetadata } from './slice-sites';
+import {
+	selectSiteBySlug,
+	updateSiteMetadata,
+	selectPendingUrlBlueprint,
+	setPendingUrlBlueprint,
+} from './slice-sites';
 // @ts-ignore
 import { corsProxyUrl } from 'virtual:cors-proxy-url';
 import { modalSlugs } from './slice-ui';
@@ -49,6 +55,11 @@ export function bootSiteClient(
 			dispatch(removeClientInfo(siteSlug));
 		};
 		const site = selectSiteBySlug(getState(), siteSlug);
+
+		// Check for pending URL blueprint from redux (set when URL has params like ?plugin=friends)
+		const pendingBlueprint = selectPendingUrlBlueprint(getState());
+		const hasPendingBlueprint =
+			pendingBlueprint && pendingBlueprint.siteSlug === site.slug;
 
 		let mountDescriptor = undefined;
 		if (site.metadata.storage === 'opfs') {
@@ -135,9 +146,22 @@ export function bootSiteClient(
 				constants: site.metadata.runtimeConfiguration.constants,
 				// Auto-login for persistent sites
 				login: true,
-				// Restore last visited URL
+				// Restore last visited URL (pending blueprint may override below)
 				landingPage: urlParamLandingPage || site.metadata.lastUrl,
 			};
+
+			// Merge pending URL blueprint (e.g., ?plugin=friends) into boot blueprint
+			if (hasPendingBlueprint) {
+				const pending = pendingBlueprint.blueprint;
+				const current = blueprint as BlueprintV1Declaration;
+				blueprint = {
+					...blueprint,
+					// Override landing page if pending blueprint has one
+					landingPage: pending.landingPage || current.landingPage,
+					// Merge steps
+					steps: [...(current.steps || []), ...(pending.steps || [])],
+				};
+			}
 		} else {
 			blueprint = site.metadata.originalBlueprint;
 		}
@@ -281,6 +305,15 @@ export function bootSiteClient(
 				);
 			}
 		});
+
+		// Clear pending blueprint and URL params after successful boot
+		if (hasPendingBlueprint) {
+			dispatch(setPendingUrlBlueprint(null));
+			// Clean up the URL to remove blueprint params
+			const cleanUrl = new URL(window.location.href);
+			cleanUrl.search = '';
+			window.history.replaceState({}, '', cleanUrl.toString());
+		}
 
 		signal.onabort = null;
 	};
