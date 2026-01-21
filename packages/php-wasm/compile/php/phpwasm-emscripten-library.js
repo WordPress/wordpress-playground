@@ -962,6 +962,19 @@ const LibraryExample = {
 	 * @returns {int} 0 on success, negative errno on failure
 	 */
 	wasm_connect: function (sockfd, addr, addrlen) {
+		/**
+		 * Use a synchronous connect() call when Asyncify is used.
+		 *
+		 * The async version was originally introduced to support the Memcached and Redis extensions,
+		 * and both are only available with JSPI. Asyncify is too difficult to maintain and
+		 * it's not getting that upgrade.
+		 */
+		if (!("Suspending" in WebAssembly)) {
+			var sock = getSocketFromFD(sockfd);
+			var info = getSocketAddress(addr, addrlen);
+			sock.sock_ops.connect(sock, info.addr, info.port);
+			return 0;
+		}
 		return Asyncify.handleSleep((wakeUp) => {
 			// Get the socket
 			let sock;
