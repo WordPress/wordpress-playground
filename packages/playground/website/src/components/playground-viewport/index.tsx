@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 
 import css from './style.module.css';
 import BrowserChrome from '../browser-chrome';
-import PersonalBrowserChrome from '../personal-browser-chrome';
+import PersonalWPBrowserChrome from '../personalwp-browser-chrome';
 import { defaultStorageType } from 'virtual:website-defaults';
 import {
 	selectActiveSiteError,
@@ -46,7 +46,7 @@ export const PlaygroundViewport = ({
 				<JustViewport siteSlug={activeSite.slug} />
 			) : null;
 		}
-		return <PersonalBrowserChrome className={className} />;
+		return <PersonalWPBrowserChrome className={className} />;
 	}
 
 	// Temporary mode uses KeepAliveTemporarySitesViewport to prevent data loss

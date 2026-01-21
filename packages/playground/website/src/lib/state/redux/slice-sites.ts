@@ -29,13 +29,13 @@ import { findFirewallErrorInCauseChain } from './error-utils';
 import {
 	defaultBlueprintUrl,
 	defaultStorageType,
-	defaultSiteSlug,
+	personalWPSiteSlug,
 } from 'virtual:website-defaults';
 import {
-	shouldUsePersonalBlueprint,
+	shouldUsePersonalWPBlueprint,
 	loadPersonalBlueprint,
 	resolveUrlParamsForExistingSite,
-} from '../../personal-playground';
+} from '../../personalwp';
 
 /**
  * The Site model used to represent a site within Playground.
@@ -58,9 +58,9 @@ const sitesAdapter = createEntityAdapter<SiteInfo, string>({
 	sortComparer: (a, b) => a.slug.localeCompare(b.slug),
 });
 
-// Pending blueprint to apply to an existing site after it boots
-export interface PendingUrlBlueprint {
-	siteSlug: string;
+// Blueprint resolved from URL params to apply to an existing site after it boots
+export interface BlueprintResolvedFromUrl {
+	targetSiteSlug: string;
 	blueprint: BlueprintV1Declaration;
 }
 
@@ -68,7 +68,7 @@ export interface PendingUrlBlueprint {
 const initialState = sitesAdapter.getInitialState({
 	opfsSitesLoadingState: 'loading' as LoadingState,
 	firstTemporarySiteCreated: false,
-	pendingUrlBlueprint: null as PendingUrlBlueprint | null,
+	blueprintResolvedFromUrl: null as BlueprintResolvedFromUrl | null,
 });
 
 // Create the slice
@@ -107,11 +107,11 @@ const sitesSlice = createSlice({
 		setFirstTemporarySiteCreated: (state) => {
 			state.firstTemporarySiteCreated = true;
 		},
-		setPendingUrlBlueprint: (
+		setBlueprintResolvedFromUrl: (
 			state,
-			action: PayloadAction<PendingUrlBlueprint | null>
+			action: PayloadAction<BlueprintResolvedFromUrl | null>
 		) => {
-			state.pendingUrlBlueprint = action.payload;
+			state.blueprintResolvedFromUrl = action.payload;
 		},
 	},
 });
@@ -279,9 +279,9 @@ export function setTemporarySiteSpec(
 		dispatch: PlaygroundDispatch,
 		getState: () => PlaygroundReduxState
 	) => {
-		const siteSlug = defaultSiteSlug ?? deriveSlugFromSiteName(siteName);
-		const effectiveSiteName = defaultSiteSlug
-			? deriveSiteNameFromSlug(defaultSiteSlug)
+		const siteSlug = personalWPSiteSlug ?? deriveSlugFromSiteName(siteName);
+		const effectiveSiteName = personalWPSiteSlug
+			? deriveSiteNameFromSlug(personalWPSiteSlug)
 			: siteName;
 		const newSiteUrlParams = {
 			searchParams: parseSearchParams(
@@ -361,9 +361,9 @@ export function setTemporarySiteSpec(
 		const sites = getState().sites.entities;
 
 		// When a default site slug is configured, reuse the existing site if it exists
-		if (defaultSiteSlug) {
+		if (personalWPSiteSlug) {
 			const existingDefaultSite = Object.values(sites).find(
-				(site) => site.slug === defaultSiteSlug
+				(site) => site.slug === personalWPSiteSlug
 			);
 			if (existingDefaultSite) {
 				// Check if there are actionable URL params that should be applied
@@ -373,8 +373,8 @@ export function setTemporarySiteSpec(
 				);
 				if (blueprint) {
 					dispatch(
-						sitesSlice.actions.setPendingUrlBlueprint({
-							siteSlug: existingDefaultSite.slug,
+						sitesSlice.actions.setBlueprintResolvedFromUrl({
+							targetSiteSlug: existingDefaultSite.slug,
 							blueprint,
 						})
 					);
@@ -394,7 +394,7 @@ export function setTemporarySiteSpec(
 		let resolvedBlueprint: ResolvedBlueprint | undefined = undefined;
 		try {
 			if (
-				shouldUsePersonalBlueprint(
+				shouldUsePersonalWPBlueprint(
 					playgroundUrlWithQueryApiArgs,
 					defaultBlueprintUrl
 				)
@@ -533,13 +533,13 @@ export interface SiteMetadata {
 	lastUrl?: string;
 }
 
-export const { setOPFSSitesLoadingState, setPendingUrlBlueprint } =
+export const { setOPFSSitesLoadingState, setBlueprintResolvedFromUrl } =
 	sitesSlice.actions;
 export { sitesSlice };
 
-export const selectPendingUrlBlueprint = (state: {
+export const selectBlueprintResolvedFromUrl = (state: {
 	sites: ReturnType<typeof sitesSlice.reducer>;
-}) => state.sites.pendingUrlBlueprint;
+}) => state.sites.blueprintResolvedFromUrl;
 
 export const {
 	selectAll: selectAllSites,

@@ -12,13 +12,11 @@ import {
 } from '../overlay';
 import css from './style.module.css';
 
-interface PersonalPlaygroundOverlayProps {
+interface PersonalWPOverlayProps {
 	onClose: () => void;
 }
 
-export function PersonalPlaygroundOverlay({
-	onClose,
-}: PersonalPlaygroundOverlayProps) {
+export function PersonalWPOverlay({ onClose }: PersonalWPOverlayProps) {
 	const activeSite = useActiveSite();
 
 	const [showDeleteButton, setShowDeleteButton] = useState(false);

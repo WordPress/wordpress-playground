@@ -42,7 +42,7 @@ const path = (filename: string) => new URL(filename, import.meta.url).pathname;
 export default defineConfig(({ command, mode }) => {
 	// "personal" mode enables OPFS storage with a fixed site slug.
 	// Use --mode personal for production builds or --mode personal-development for dev.
-	const isPersonalMode = mode.startsWith('personal');
+	const isPersonalWPMode = mode.startsWith('personal');
 	const isProductionBuild = mode === 'production' || mode === 'personal';
 
 	const corsProxyUrl =
@@ -52,16 +52,16 @@ export default defineConfig(({ command, mode }) => {
 				? 'https://wordpress-playground-cors-proxy.net/?'
 				: '/cors-proxy/?';
 
-	const defaultBlueprintUrl = isPersonalMode
+	const defaultBlueprintUrl = isPersonalWPMode
 		? isProductionBuild
 			? '/blueprints/personal-boot.json'
 			: '/website-server/blueprints/personal-boot.json'
 		: 'https://raw.githubusercontent.com/WordPress/blueprints/refs/heads/trunk/blueprints/welcome/blueprint.json';
 
-	const defaultStorageType = isPersonalMode ? 'opfs' : 'none';
-	const defaultSiteSlug = isPersonalMode ? 'default' : undefined;
+	const defaultStorageType = isPersonalWPMode ? 'opfs' : 'none';
+	const personalWPSiteSlug = isPersonalWPMode ? 'default' : undefined;
 
-	const devServerPort = isPersonalMode
+	const devServerPort = isPersonalWPMode
 		? personalWebsiteDevServerPort
 		: websiteDevServerPort;
 
@@ -74,7 +74,7 @@ export default defineConfig(({ command, mode }) => {
 
 		assetsInclude: ['**/*.so', '**/*.dat'],
 
-		cacheDir: isPersonalMode
+		cacheDir: isPersonalWPMode
 			? '../../../node_modules/.vite/packages-playground-website-personal'
 			: '../../../node_modules/.vite/packages-playground-website',
 
@@ -141,14 +141,14 @@ export default defineConfig(({ command, mode }) => {
 				content: `
 				export const defaultBlueprintUrl = ${JSON.stringify(defaultBlueprintUrl || undefined)};
 				export const defaultStorageType = ${JSON.stringify(defaultStorageType || 'none')};
-				export const defaultSiteSlug = ${JSON.stringify(defaultSiteSlug || undefined)};`,
+				export const personalWPSiteSlug = ${JSON.stringify(personalWPSiteSlug || undefined)};`,
 			}),
 			// GitHub OAuth flow and server identification
 			{
 				name: 'configure-server',
 				configureServer(server: ViteDevServer) {
 					server.middlewares.use(oAuthMiddleware);
-					const serverType = isPersonalMode
+					const serverType = isPersonalWPMode
 						? 'Personal Playground'
 						: 'Temporary Playground';
 					server.printUrls = () => {
@@ -234,7 +234,7 @@ export default defineConfig(({ command, mode }) => {
 						// eslint-disable-next-line no-console
 						console.error('Failed to inject commit ID', e);
 					}
-					if (isPersonalMode) {
+					if (isPersonalWPMode) {
 						html = html.replace(
 							/<title>.*?<\/title>/,
 							'<title>My WordPress</title>'

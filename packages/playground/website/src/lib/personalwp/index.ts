@@ -25,7 +25,7 @@ import { logger } from '@php-wasm/logger';
  * - No URL query params or hash fragment present
  * - A local default blueprint URL is configured (starts with '/')
  */
-export function shouldUsePersonalBlueprint(
+export function shouldUsePersonalWPBlueprint(
 	url: URL,
 	defaultBlueprintUrl?: string
 ): boolean {

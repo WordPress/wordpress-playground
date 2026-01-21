@@ -30,11 +30,12 @@ import type { PlaygroundDispatch, PlaygroundReduxState } from './store';
 import {
 	selectSiteBySlug,
 	updateSiteMetadata,
-	selectPendingUrlBlueprint,
-	setPendingUrlBlueprint,
+	selectBlueprintResolvedFromUrl,
+	setBlueprintResolvedFromUrl,
 } from './slice-sites';
 // @ts-ignore
 import { corsProxyUrl } from 'virtual:cors-proxy-url';
+import { personalWPSiteSlug } from 'virtual:website-defaults';
 import { modalSlugs } from './slice-ui';
 import {
 	createGitAuthHeaders,
@@ -56,10 +57,10 @@ export function bootSiteClient(
 		};
 		const site = selectSiteBySlug(getState(), siteSlug);
 
-		// Check for pending URL blueprint from redux (set when URL has params like ?plugin=friends)
-		const pendingBlueprint = selectPendingUrlBlueprint(getState());
-		const hasPendingBlueprint =
-			pendingBlueprint && pendingBlueprint.siteSlug === site.slug;
+		// Check for URL blueprint from redux (set when URL has params like ?plugin=friends)
+		const urlBlueprint = selectBlueprintResolvedFromUrl(getState());
+		const hasUrlBlueprint =
+			urlBlueprint && urlBlueprint.targetSiteSlug === site.slug;
 
 		let mountDescriptor = undefined;
 		if (site.metadata.storage === 'opfs') {
@@ -150,16 +151,17 @@ export function bootSiteClient(
 				landingPage: urlParamLandingPage || site.metadata.lastUrl,
 			};
 
-			// Merge pending URL blueprint (e.g., ?plugin=friends) into boot blueprint
-			if (hasPendingBlueprint) {
-				const pending = pendingBlueprint.blueprint;
+			// Merge URL blueprint (e.g., ?plugin=friends) into boot blueprint
+			if (hasUrlBlueprint) {
+				const resolved = urlBlueprint.blueprint;
 				const current = blueprint as BlueprintV1Declaration;
 				blueprint = {
 					...blueprint,
-					// Override landing page if pending blueprint has one
-					landingPage: pending.landingPage || current.landingPage,
-					// Merge steps
-					steps: [...(current.steps || []), ...(pending.steps || [])],
+					landingPage: resolved.landingPage || current.landingPage,
+					steps: [
+						...(current.steps || []),
+						...(resolved.steps || []),
+					],
 				};
 			}
 		} else {
@@ -295,24 +297,24 @@ export function bootSiteClient(
 					},
 				})
 			);
-			// Persist the last URL for personal sites so we can restore it on next visit
-			if (site.metadata.storage !== 'none') {
-				dispatch(
-					updateSiteMetadata({
-						slug: site.slug,
-						changes: { lastUrl: url },
-					})
-				);
-			}
+			dispatch(
+				updateSiteMetadata({
+					slug: site.slug,
+					changes: { lastUrl: url },
+				})
+			);
 		});
 
-		// Clear pending blueprint and URL params after successful boot
-		if (hasPendingBlueprint) {
-			dispatch(setPendingUrlBlueprint(null));
-			// Clean up the URL to remove blueprint params
-			const cleanUrl = new URL(window.location.href);
-			cleanUrl.search = '';
-			window.history.replaceState({}, '', cleanUrl.toString());
+		// Clear URL blueprint after successful boot
+		if (hasUrlBlueprint) {
+			dispatch(setBlueprintResolvedFromUrl(null));
+			// Clean up the URL to remove blueprint params (PersonalWP only)
+			if (personalWPSiteSlug) {
+				const cleanUrl = new URL(window.location.href);
+				cleanUrl.search = '';
+				cleanUrl.hash = '';
+				window.history.replaceState({}, '', cleanUrl.toString());
+			}
 		}
 
 		signal.onabort = null;
