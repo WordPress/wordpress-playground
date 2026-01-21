@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 
 import css from './style.module.css';
 import BrowserChrome from '../browser-chrome';
+import PersistentBrowserChrome from '../persistent-browser-chrome';
+import { defaultStorageType } from 'virtual:website-defaults';
 import {
 	selectActiveSiteError,
 	selectActiveSiteErrorDetails,
@@ -38,10 +40,12 @@ export const PlaygroundViewport = ({
 	if (displayMode === 'seamless') {
 		return <KeepAliveTemporarySitesViewport />;
 	}
+	const Chrome =
+		defaultStorageType === 'opfs' ? PersistentBrowserChrome : BrowserChrome;
 	return (
-		<BrowserChrome className={className}>
+		<Chrome className={className}>
 			<KeepAliveTemporarySitesViewport />
-		</BrowserChrome>
+		</Chrome>
 	);
 };
 

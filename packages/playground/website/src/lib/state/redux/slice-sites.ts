@@ -25,6 +25,15 @@ import { logger } from '@php-wasm/logger';
 import { setActiveSiteError, type SiteError } from './slice-ui';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import { findFirewallErrorInCauseChain } from './error-utils';
+import {
+	defaultBlueprintUrl,
+	defaultStorageType,
+	defaultSiteSlug,
+} from 'virtual:website-defaults';
+import {
+	shouldUsePersistentBlueprint,
+	loadPersistentBlueprint,
+} from '../../persistent-playground';
 
 /**
  * The Site model used to represent a site within Playground.
@@ -255,7 +264,16 @@ export function setTemporarySiteSpec(
 		dispatch: PlaygroundDispatch,
 		getState: () => PlaygroundReduxState
 	) => {
-		const siteSlug = deriveSlugFromSiteName(siteName);
+		// Use the configured default slug for persistent storage, or derive from name
+		const useDefaultSite =
+			defaultSiteSlug !== undefined && defaultStorageType !== 'none';
+		const siteSlug = useDefaultSite
+			? defaultSiteSlug! // Safe: checked above
+			: deriveSlugFromSiteName(siteName);
+		// Use a name derived from the default slug when configured
+		const effectiveSiteName = useDefaultSite
+			? deriveSiteNameFromSlug(defaultSiteSlug!) // Safe: checked above
+			: siteName;
 		const newSiteUrlParams = {
 			searchParams: parseSearchParams(
 				playgroundUrlWithQueryApiArgs.searchParams
@@ -272,10 +290,10 @@ export function setTemporarySiteSpec(
 				slug: siteSlug,
 				originalUrlParams: newSiteUrlParams,
 				metadata: {
-					name: siteName,
+					name: effectiveSiteName,
 					id: crypto.randomUUID(),
 					whenCreated: Date.now(),
-					storage: 'none' as const,
+					storage: defaultStorageType,
 					originalBlueprint: {},
 					originalBlueprintSource: {
 						type: 'none',
@@ -333,23 +351,41 @@ export function setTemporarySiteSpec(
 
 		const sites = getState().sites.entities;
 
-		// First, delete any existing temporary sites
+		// When a default site slug is configured, check if it already exists and reuse it
+		if (defaultSiteSlug && defaultStorageType !== 'none') {
+			const existingDefaultSite = Object.values(sites).find(
+				(site) => site.slug === defaultSiteSlug
+			);
+			if (existingDefaultSite) {
+				return existingDefaultSite;
+			}
+		}
+
+		// Delete any existing temporary sites
 		for (const site of Object.values(sites)) {
 			if (site.metadata.storage === 'none') {
 				dispatch(sitesSlice.actions.removeSite(site.slug));
 			}
 		}
 
-		// Then create a new temporary site
-		const defaultBlueprint =
-			'https://raw.githubusercontent.com/WordPress/blueprints/refs/heads/trunk/blueprints/welcome/blueprint.json';
-
+		// Then create a new site (temporary or persistent depending on defaultStorageType)
 		let resolvedBlueprint: ResolvedBlueprint | undefined = undefined;
 		try {
-			resolvedBlueprint = await resolveBlueprintFromURL(
-				playgroundUrlWithQueryApiArgs,
-				defaultBlueprint
-			);
+			if (
+				shouldUsePersistentBlueprint(
+					playgroundUrlWithQueryApiArgs,
+					defaultBlueprintUrl
+				)
+			) {
+				resolvedBlueprint = await loadPersistentBlueprint(
+					defaultBlueprintUrl!
+				);
+			} else {
+				resolvedBlueprint = await resolveBlueprintFromURL(
+					playgroundUrlWithQueryApiArgs,
+					defaultBlueprintUrl
+				);
+			}
 		} catch (e) {
 			logger.error(
 				'Error resolving blueprint: Blueprint could not be downloaded or loaded.',
@@ -386,10 +422,10 @@ export function setTemporarySiteSpec(
 				slug: siteSlug,
 				originalUrlParams: newSiteUrlParams,
 				metadata: {
-					name: siteName,
+					name: effectiveSiteName,
 					id: crypto.randomUUID(),
 					whenCreated: Date.now(),
-					storage: 'none' as const,
+					storage: defaultStorageType,
 					originalBlueprint: resolvedBlueprint.blueprint,
 					originalBlueprintSource: resolvedBlueprint.source!,
 					runtimeConfiguration: await resolveRuntimeConfiguration(
@@ -397,6 +433,9 @@ export function setTemporarySiteSpec(
 					)!,
 				},
 			};
+			if (newSiteInfo.metadata.storage !== 'none') {
+				await opfsSiteStorage?.create(siteSlug, newSiteInfo.metadata);
+			}
 			dispatch(sitesSlice.actions.addSite(newSiteInfo));
 			dispatch(sitesSlice.actions.setFirstTemporarySiteCreated());
 			return newSiteInfo;
@@ -464,6 +503,12 @@ export interface SiteMetadata {
 	runtimeConfiguration: RuntimeConfiguration;
 	originalBlueprint: BlueprintV1;
 	originalBlueprintSource: BlueprintSource;
+
+	/**
+	 * The last URL the user visited in this site.
+	 * Used to restore the user's position when returning to a persistent site.
+	 */
+	lastUrl?: string;
 }
 
 export const { setOPFSSitesLoadingState } = sitesSlice.actions;

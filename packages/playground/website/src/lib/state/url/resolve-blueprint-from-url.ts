@@ -21,6 +21,10 @@ export type BlueprintSource =
 			url: string;
 	  }
 	| {
+			type: 'persistent-blueprint';
+			url: string;
+	  }
+	| {
 			type: 'last-autosave';
 	  }
 	| {

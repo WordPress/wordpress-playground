@@ -26,7 +26,7 @@ import {
 	setGitHubAuthRepoUrl,
 } from './slice-ui';
 import type { PlaygroundDispatch, PlaygroundReduxState } from './store';
-import { selectSiteBySlug } from './slice-sites';
+import { selectSiteBySlug, updateSiteMetadata } from './slice-sites';
 // @ts-ignore
 import { corsProxyUrl } from 'virtual:cors-proxy-url';
 import { modalSlugs } from './slice-ui';
@@ -116,6 +116,11 @@ export function bootSiteClient(
 
 		let blueprint: Blueprint;
 		if (isWordPressInstalled) {
+			// Use URL param landing page if present, otherwise restore last URL
+			const urlParamLandingPage = new URLSearchParams(
+				window.location.search
+			).get('url');
+
 			blueprint = {
 				preferredVersions: {
 					php: site.metadata.runtimeConfiguration.phpVersion,
@@ -128,6 +133,10 @@ export function bootSiteClient(
 				extraLibraries: site.metadata.runtimeConfiguration
 					.extraLibraries as any[],
 				constants: site.metadata.runtimeConfiguration.constants,
+				// Auto-login for persistent sites
+				login: true,
+				// Restore last visited URL
+				landingPage: urlParamLandingPage || site.metadata.lastUrl,
 			};
 		} else {
 			blueprint = site.metadata.originalBlueprint;
@@ -262,6 +271,15 @@ export function bootSiteClient(
 					},
 				})
 			);
+			// Persist the last URL for persistent sites so we can restore it on next visit
+			if (site.metadata.storage !== 'none') {
+				dispatch(
+					updateSiteMetadata({
+						slug: site.slug,
+						changes: { lastUrl: url },
+					})
+				);
+			}
 		});
 
 		signal.onabort = null;
