@@ -144,7 +144,7 @@ export function bootSiteClient(
 				extraLibraries: site.metadata.runtimeConfiguration
 					.extraLibraries as any[],
 				constants: site.metadata.runtimeConfiguration.constants,
-				// Auto-login for persistent sites
+				// Auto-login for personal sites
 				login: true,
 				// Restore last visited URL (pending blueprint may override below)
 				landingPage: urlParamLandingPage || site.metadata.lastUrl,
@@ -295,7 +295,7 @@ export function bootSiteClient(
 					},
 				})
 			);
-			// Persist the last URL for persistent sites so we can restore it on next visit
+			// Persist the last URL for personal sites so we can restore it on next visit
 			if (site.metadata.storage !== 'none') {
 				dispatch(
 					updateSiteMetadata({

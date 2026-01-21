@@ -12,13 +12,13 @@ import {
 } from '../overlay';
 import css from './style.module.css';
 
-interface PersistentPlaygroundOverlayProps {
+interface PersonalPlaygroundOverlayProps {
 	onClose: () => void;
 }
 
-export function PersistentPlaygroundOverlay({
+export function PersonalPlaygroundOverlay({
 	onClose,
-}: PersistentPlaygroundOverlayProps) {
+}: PersonalPlaygroundOverlayProps) {
 	const activeSite = useActiveSite();
 
 	const [showDeleteButton, setShowDeleteButton] = useState(false);
@@ -53,11 +53,11 @@ export function PersistentPlaygroundOverlay({
 			<OverlayHeader onClose={onClose} />
 			<OverlayBody>
 				<OverlaySection
-					title="Persistent Playground"
+					title="Personal Playground"
 					description="Your WordPress data is stored in your browser and will persist across sessions."
 				>
 					<p>
-						This is a persistent WordPress installation. Changes you
+						This is a personal WordPress installation. Changes you
 						make will be saved automatically in your browser's
 						storage.
 					</p>

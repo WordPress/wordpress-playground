@@ -10,7 +10,7 @@ import { viteIgnoreImports } from '../../vite-extensions/vite-ignore-imports';
 import {
 	websiteDevServerHost,
 	websiteDevServerPort,
-	persistentWebsiteDevServerPort,
+	personalWebsiteDevServerPort,
 	remoteDevServerHost,
 	remoteDevServerPort,
 	websiteExtrasDevServerHost,
@@ -40,10 +40,10 @@ const proxy: CommonServerOptions['proxy'] = {
 
 const path = (filename: string) => new URL(filename, import.meta.url).pathname;
 export default defineConfig(({ command, mode }) => {
-	// "persistent" mode enables OPFS storage with a fixed site slug.
-	// Use --mode persistent for production builds or --mode persistent-development for dev.
-	const isPersistentMode = mode.startsWith('persistent');
-	const isProductionBuild = mode === 'production' || mode === 'persistent';
+	// "personal" mode enables OPFS storage with a fixed site slug.
+	// Use --mode personal for production builds or --mode personal-development for dev.
+	const isPersonalMode = mode.startsWith('personal');
+	const isProductionBuild = mode === 'production' || mode === 'personal';
 
 	const corsProxyUrl =
 		'CORS_PROXY_URL' in process.env
@@ -52,17 +52,17 @@ export default defineConfig(({ command, mode }) => {
 				? 'https://wordpress-playground-cors-proxy.net/?'
 				: '/cors-proxy/?';
 
-	const defaultBlueprintUrl = isPersistentMode
+	const defaultBlueprintUrl = isPersonalMode
 		? isProductionBuild
-			? '/blueprints/persistent-boot.json'
-			: '/website-server/blueprints/persistent-boot.json'
+			? '/blueprints/personal-boot.json'
+			: '/website-server/blueprints/personal-boot.json'
 		: 'https://raw.githubusercontent.com/WordPress/blueprints/refs/heads/trunk/blueprints/welcome/blueprint.json';
 
-	const defaultStorageType = isPersistentMode ? 'opfs' : 'none';
-	const defaultSiteSlug = isPersistentMode ? 'default' : undefined;
+	const defaultStorageType = isPersonalMode ? 'opfs' : 'none';
+	const defaultSiteSlug = isPersonalMode ? 'default' : undefined;
 
-	const devServerPort = isPersistentMode
-		? persistentWebsiteDevServerPort
+	const devServerPort = isPersonalMode
+		? personalWebsiteDevServerPort
 		: websiteDevServerPort;
 
 	return {
@@ -74,8 +74,8 @@ export default defineConfig(({ command, mode }) => {
 
 		assetsInclude: ['**/*.so', '**/*.dat'],
 
-		cacheDir: isPersistentMode
-			? '../../../node_modules/.vite/packages-playground-website-persistent'
+		cacheDir: isPersonalMode
+			? '../../../node_modules/.vite/packages-playground-website-personal'
 			: '../../../node_modules/.vite/packages-playground-website',
 
 		css: {
@@ -148,8 +148,8 @@ export default defineConfig(({ command, mode }) => {
 				name: 'configure-server',
 				configureServer(server: ViteDevServer) {
 					server.middlewares.use(oAuthMiddleware);
-					const serverType = isPersistentMode
-						? 'Persistent Playground'
+					const serverType = isPersonalMode
+						? 'Personal Playground'
 						: 'Temporary Playground';
 					server.printUrls = () => {
 						const url = `http://${websiteDevServerHost}:${devServerPort}/website-server/`;
@@ -234,7 +234,7 @@ export default defineConfig(({ command, mode }) => {
 						// eslint-disable-next-line no-console
 						console.error('Failed to inject commit ID', e);
 					}
-					if (isPersistentMode) {
+					if (isPersonalMode) {
 						html = html.replace(
 							/<title>.*?<\/title>/,
 							'<title>My WordPress</title>'

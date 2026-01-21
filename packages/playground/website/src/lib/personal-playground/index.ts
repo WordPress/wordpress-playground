@@ -10,13 +10,13 @@ import {
 import { logger } from '@php-wasm/logger';
 
 /**
- * Determines whether to use the default persistent blueprint or process URL params.
+ * Determines whether to use the default personal blueprint or process URL params.
  *
- * Persistent sites support two modes:
- * 1. Clean URL (no params): Use the default persistent blueprint for initial setup
+ * Personal sites support two modes:
+ * 1. Clean URL (no params): Use the default personal blueprint for initial setup
  * 2. URL with params (e.g., ?plugin=friends): Apply the blueprint from URL params
  *
- * This allows users to customize their persistent site by visiting URLs like:
+ * This allows users to customize their personal site by visiting URLs like:
  * - playground.wordpress.net/?plugin=woocommerce
  * - playground.wordpress.net/?blueprint-url=https://example.com/my-blueprint.json
  *
@@ -25,7 +25,7 @@ import { logger } from '@php-wasm/logger';
  * - No URL query params or hash fragment present
  * - A local default blueprint URL is configured (starts with '/')
  */
-export function shouldUsePersistentBlueprint(
+export function shouldUsePersonalBlueprint(
 	url: URL,
 	defaultBlueprintUrl?: string
 ): boolean {
@@ -43,9 +43,9 @@ export function shouldUsePersistentBlueprint(
 }
 
 /**
- * Loads the persistent blueprint from a URL.
+ * Loads the personal blueprint from a URL.
  */
-export async function loadPersistentBlueprint(
+export async function loadPersonalBlueprint(
 	blueprintUrl: string
 ): Promise<ResolvedBlueprint> {
 	const response = await fetch(blueprintUrl);
@@ -54,7 +54,7 @@ export async function loadPersistentBlueprint(
 	return {
 		blueprint,
 		source: {
-			type: 'persistent-blueprint',
+			type: 'personal-blueprint',
 			url: blueprintUrl,
 		},
 	};
@@ -83,7 +83,7 @@ function hasActionableUrlParams(url: URL): boolean {
 }
 
 /**
- * Resolves URL params as a blueprint to apply to an existing persistent site.
+ * Resolves URL params as a blueprint to apply to an existing personal site.
  * Returns null if there are no actionable URL params.
  *
  * This enables applying blueprints to existing sites via URLs like:

@@ -44,11 +44,11 @@
 					"mode": "production",
 					"logLevel": "info"
 				},
-				"persistent-development": {
-					"mode": "persistent-development"
+				"personal-development": {
+					"mode": "personal-development"
 				},
-				"persistent": {
-					"mode": "persistent",
+				"personal": {
+					"mode": "personal",
 					"logLevel": "info"
 				}
 			},
@@ -65,7 +65,7 @@
 					"nx dev playground-remote --configuration=development-for-website",
 					"nx dev playground-website-extras --configuration=development-for-website",
 					"nx dev:standalone playground-website --configuration=development --output-style=stream-without-prefixes",
-					"sleep 2; nx dev:standalone playground-website --configuration=persistent-development --output-style=stream-without-prefixes"
+					"sleep 2; nx dev:standalone playground-website --configuration=personal-development --output-style=stream-without-prefixes"
 				],
 				"parallel": true,
 				"color": true
@@ -86,8 +86,8 @@
 					"buildTarget": "playground-website:build:standalone:production",
 					"hmr": false
 				},
-				"persistent-development": {
-					"buildTarget": "playground-website:build:standalone:persistent-development",
+				"personal-development": {
+					"buildTarget": "playground-website:build:standalone:personal-development",
 					"hmr": true
 				}
 			}

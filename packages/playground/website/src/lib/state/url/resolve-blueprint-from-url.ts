@@ -21,7 +21,7 @@ export type BlueprintSource =
 			url: string;
 	  }
 	| {
-			type: 'persistent-blueprint';
+			type: 'personal-blueprint';
 			url: string;
 	  }
 	| {

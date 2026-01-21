@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 
 import css from './style.module.css';
 import BrowserChrome from '../browser-chrome';
-import PersistentBrowserChrome from '../persistent-browser-chrome';
+import PersonalBrowserChrome from '../personal-browser-chrome';
 import { defaultStorageType } from 'virtual:website-defaults';
 import {
 	selectActiveSiteError,
@@ -39,14 +39,14 @@ export const PlaygroundViewport = ({
 }: PlaygroundViewportProps) => {
 	const activeSite = useActiveSite();
 
-	// Persistent mode uses JustViewport directly (no keep-alive needed since data is in OPFS)
+	// Personal mode uses JustViewport directly (no keep-alive needed since data is in OPFS)
 	if (defaultStorageType === 'opfs') {
 		if (displayMode === 'seamless') {
 			return activeSite ? (
 				<JustViewport siteSlug={activeSite.slug} />
 			) : null;
 		}
-		return <PersistentBrowserChrome className={className} />;
+		return <PersonalBrowserChrome className={className} />;
 	}
 
 	// Temporary mode uses KeepAliveTemporarySitesViewport to prevent data loss
@@ -66,7 +66,7 @@ export const PlaygroundViewport = ({
  * to another site, the iframe is hidden but not removed. This way, the state
  * of each temporary site is preserved as long as the browser tab remains open.
  *
- * Persistent sites are not affected by this. They are unmounted and rendered as usual
+ * Personal sites are not affected by this. They are unmounted and rendered as usual
  * as there's no risk of data loss
  */
 export const KeepAliveTemporarySitesViewport = () => {

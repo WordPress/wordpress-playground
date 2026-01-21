@@ -32,10 +32,10 @@ import {
 	defaultSiteSlug,
 } from 'virtual:website-defaults';
 import {
-	shouldUsePersistentBlueprint,
-	loadPersistentBlueprint,
+	shouldUsePersonalBlueprint,
+	loadPersonalBlueprint,
 	resolveUrlParamsForExistingSite,
-} from '../../persistent-playground';
+} from '../../personal-playground';
 
 /**
  * The Site model used to represent a site within Playground.
@@ -390,16 +390,16 @@ export function setTemporarySiteSpec(
 			}
 		}
 
-		// Then create a new site (temporary or persistent depending on defaultStorageType)
+		// Then create a new site (temporary or personal depending on defaultStorageType)
 		let resolvedBlueprint: ResolvedBlueprint | undefined = undefined;
 		try {
 			if (
-				shouldUsePersistentBlueprint(
+				shouldUsePersonalBlueprint(
 					playgroundUrlWithQueryApiArgs,
 					defaultBlueprintUrl
 				)
 			) {
-				resolvedBlueprint = await loadPersistentBlueprint(
+				resolvedBlueprint = await loadPersonalBlueprint(
 					defaultBlueprintUrl!
 				);
 			} else {
@@ -528,7 +528,7 @@ export interface SiteMetadata {
 
 	/**
 	 * The last URL the user visited in this site.
-	 * Used to restore the user's position when returning to a persistent site.
+	 * Used to restore the user's position when returning to a personal site.
 	 */
 	lastUrl?: string;
 }

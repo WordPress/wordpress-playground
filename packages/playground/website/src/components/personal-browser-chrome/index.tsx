@@ -17,16 +17,16 @@ import Button from '../button';
 import { ActiveSiteSettingsForm } from '../site-manager/site-settings-form';
 import { setSiteManagerOpen } from '../../lib/state/redux/slice-ui';
 import { SiteManagerIcon } from '@wp-playground/components';
-import { PersistentPlaygroundOverlay } from '../persistent-playground-overlay';
+import { PersonalPlaygroundOverlay } from '../personal-playground-overlay';
 import { JustViewport } from '../playground-viewport';
 
-interface PersistentBrowserChromeProps {
+interface PersonalBrowserChromeProps {
 	className?: string;
 }
 
-export default function PersistentBrowserChrome({
+export default function PersonalBrowserChrome({
 	className,
-}: PersistentBrowserChromeProps) {
+}: PersonalBrowserChromeProps) {
 	const clientInfo = useAppSelector(getActiveClientInfo);
 	const activeSite = useActiveSite();
 	const showAddressBar = !!clientInfo || !!activeSite;
@@ -172,9 +172,7 @@ export default function PersistentBrowserChrome({
 				</div>
 			</div>
 			{isPlaygroundsOverlayOpen && (
-				<PersistentPlaygroundOverlay
-					onClose={closePlaygroundsOverlay}
-				/>
+				<PersonalPlaygroundOverlay onClose={closePlaygroundsOverlay} />
 			)}
 		</div>
 	);
