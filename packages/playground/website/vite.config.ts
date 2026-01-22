@@ -10,7 +10,7 @@ import { viteIgnoreImports } from '../../vite-extensions/vite-ignore-imports';
 import {
 	websiteDevServerHost,
 	websiteDevServerPort,
-	personalWebsiteDevServerPort,
+	personalwpWebsiteDevServerPort,
 	remoteDevServerHost,
 	remoteDevServerPort,
 	websiteExtrasDevServerHost,
@@ -40,10 +40,10 @@ const proxy: CommonServerOptions['proxy'] = {
 
 const path = (filename: string) => new URL(filename, import.meta.url).pathname;
 export default defineConfig(({ command, mode }) => {
-	// "personal" mode enables OPFS storage with a fixed site slug.
-	// Use --mode personal for production builds or --mode personal-development for dev.
-	const isPersonalWPMode = mode.startsWith('personal');
-	const isProductionBuild = mode === 'production' || mode === 'personal';
+	// "personalwp" mode enables OPFS storage with a fixed site slug.
+	// Use --mode personalwp for production builds or --mode personalwp-development for dev.
+	const isPersonalWPMode = mode.startsWith('personalwp');
+	const isProductionBuild = mode === 'production' || mode === 'personalwp';
 
 	const corsProxyUrl =
 		'CORS_PROXY_URL' in process.env
@@ -54,15 +54,15 @@ export default defineConfig(({ command, mode }) => {
 
 	const defaultBlueprintUrl = isPersonalWPMode
 		? isProductionBuild
-			? '/blueprints/personal-boot.json'
-			: '/website-server/blueprints/personal-boot.json'
+			? '/blueprints/personalwp-boot.json'
+			: '/website-server/blueprints/personalwp-boot.json'
 		: 'https://raw.githubusercontent.com/WordPress/blueprints/refs/heads/trunk/blueprints/welcome/blueprint.json';
 
 	const defaultStorageType = isPersonalWPMode ? 'opfs' : 'none';
 	const personalWPSiteSlug = isPersonalWPMode ? 'default' : undefined;
 
 	const devServerPort = isPersonalWPMode
-		? personalWebsiteDevServerPort
+		? personalwpWebsiteDevServerPort
 		: websiteDevServerPort;
 
 	return {
@@ -75,7 +75,7 @@ export default defineConfig(({ command, mode }) => {
 		assetsInclude: ['**/*.so', '**/*.dat'],
 
 		cacheDir: isPersonalWPMode
-			? '../../../node_modules/.vite/packages-playground-website-personal'
+			? '../../../node_modules/.vite/packages-playground-website-personalwp'
 			: '../../../node_modules/.vite/packages-playground-website',
 
 		css: {
