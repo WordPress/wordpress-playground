@@ -74,16 +74,6 @@ export default function BrowserChrome({ className }: BrowserChromeProps) {
 								sidebarActive={siteManagerIsOpen}
 							/>
 						</Button>
-
-						<Button
-							variant="browser-chrome"
-							aria-label="Playground Menu"
-							onClick={() => setIsMenuOverlayOpen(true)}
-							aria-expanded={isMenuOverlayOpen}
-							className={css.savedPlaygroundsButton}
-						>
-							<Icon icon={category} size={20} />
-						</Button>
 					</div>
 
 					<div className={addressBarClass}>
@@ -96,6 +86,15 @@ export default function BrowserChrome({ className }: BrowserChromeProps) {
 					</div>
 
 					<div className={css.toolbarButtons}>
+						<Button
+							variant="browser-chrome"
+							aria-label="Playground Menu"
+							onClick={() => setIsMenuOverlayOpen(true)}
+							aria-expanded={isMenuOverlayOpen}
+							className={css.savedPlaygroundsButton}
+						>
+							<Icon icon={category} size={20} />
+						</Button>
 						{activeSite?.metadata?.storage === 'local-fs' ? (
 							<SyncLocalFilesButton />
 						) : null}
