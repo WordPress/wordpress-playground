@@ -1,4 +1,7 @@
 /// <reference types="vitest" />
+import { fileURLToPath } from 'node:url';
+import { copyFileSync, existsSync } from 'node:fs';
+import { join } from 'node:path';
 import { defineConfig } from 'vite';
 import type { CommonServerOptions, Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
@@ -12,11 +15,6 @@ import {
 	remoteDevServerHost,
 	remoteDevServerPort,
 } from '../build-config';
-
-const personalWPDevServerPort = 5401;
-import { fileURLToPath } from 'node:url';
-import { copyFileSync, existsSync } from 'node:fs';
-import { join } from 'node:path';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { buildVersionPlugin } from '../../vite-extensions/vite-build-version';
 // eslint-disable-next-line @nx/enforce-module-boundaries
@@ -25,6 +23,8 @@ import { listAssetsRequiredForOfflineMode } from '../../vite-extensions/vite-lis
 import virtualModule from '../../vite-extensions/vite-virtual-module';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import viteGlobalExtensions from '../../vite-extensions/vite-global-extensions';
+
+const personalWPDevServerPort = 5401;
 
 const proxy: CommonServerOptions['proxy'] = {
 	'^/plugin-proxy': {

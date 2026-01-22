@@ -99,7 +99,7 @@ export function SiteInfoPanel({
 		}
 	}
 
-	const { opfsMountDescriptor } = usePlaygroundClientInfo(site.slug) || {};
+	usePlaygroundClientInfo(site.slug);
 
 	return (
 		<section
