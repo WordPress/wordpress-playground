@@ -11,11 +11,17 @@ const promisedOfflineModeCache = caches.open(LATEST_CACHE_NAME);
 
 export async function cacheFirstFetch(request: Request): Promise<Response> {
 	const offlineModeCache = await promisedOfflineModeCache;
-	const cachedResponse = await offlineModeCache.match(request, {
-		ignoreSearch: true,
-	});
-	if (cachedResponse) {
-		return cachedResponse;
+
+	// The Cache API only supports GET requests
+	const canCache = request.method === 'GET';
+
+	if (canCache) {
+		const cachedResponse = await offlineModeCache.match(request, {
+			ignoreSearch: true,
+		});
+		if (cachedResponse) {
+			return cachedResponse;
+		}
 	}
 
 	/**
@@ -27,7 +33,7 @@ export async function cacheFirstFetch(request: Request): Promise<Response> {
 	 * See service-worker.ts for more details.
 	 */
 	const response = await fetchFresh(request);
-	if (response.ok) {
+	if (response.ok && canCache) {
 		/**
 		 * Confirm the current service worker is still active
 		 * when the asset is fetched. Caching a stale request
