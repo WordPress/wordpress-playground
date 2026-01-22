@@ -191,8 +191,8 @@ export default defineConfig(({ command, mode }) => {
 				name: 'configure-server',
 				configureServer(server: ViteDevServer) {
 					server.middlewares.use(oAuthMiddleware);
-					// Add relay middleware for peer-to-peer sharing
-					// In dev mode, include the /website-server/ base path in share URLs
+					// Add PHP relay middleware for peer-to-peer sharing
+					// Uses PHP WASM to run the same PHP code in dev and production
 					const relayBasePath =
 						mode === 'production' ? '/' : '/website-server/';
 					server.middlewares.use(

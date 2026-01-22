@@ -76,16 +76,10 @@ function parseBody(req: Connect.IncomingMessage): Promise<string> {
 	});
 }
 
-function sendJson(
-	res: ReturnType<typeof import('http').createServer> extends {
-		on(event: 'request', listener: (req: any, res: infer R) => void): any;
-	}
-		? R
-		: never,
-	status: number,
-	data: unknown
-): void {
-	const jsonRes = res as import('http').ServerResponse;
+type HttpServerResponse = import('http').ServerResponse;
+
+function sendJson(res: unknown, status: number, data: unknown): void {
+	const jsonRes = res as HttpServerResponse;
 	jsonRes.statusCode = status;
 	jsonRes.setHeader('Content-Type', 'application/json');
 	jsonRes.setHeader('Access-Control-Allow-Origin', '*');
@@ -100,11 +94,7 @@ function sendJson(
 	jsonRes.end(JSON.stringify(data));
 }
 
-function sendError(
-	res: import('http').ServerResponse,
-	status: number,
-	message: string
-): void {
+function sendError(res: unknown, status: number, message: string): void {
 	sendJson(res, status, { error: message });
 }
 
@@ -160,7 +150,7 @@ export function createRelayMiddleware(
 			const shareUrl = `${protocol}://${host}${basePath}?share=${sessionId}`;
 
 			const response: CreateSessionResponse = { sessionId, shareUrl };
-			sendJson(res as import('http').ServerResponse, 200, response);
+			sendJson(res, 200, response);
 			return;
 		}
 
@@ -173,7 +163,7 @@ export function createRelayMiddleware(
 			if (!session) {
 				console.log(`[Relay] Poll: session ${sessionId} not found`);
 				sendError(
-					res as import('http').ServerResponse,
+					res,
 					404,
 					'Session not found'
 				);
@@ -193,7 +183,7 @@ export function createRelayMiddleware(
 				const response: PollResponse = {
 					request: pendingRequest.request,
 				};
-				sendJson(res as import('http').ServerResponse, 200, response);
+				sendJson(res, 200, response);
 				return;
 			}
 
@@ -224,10 +214,10 @@ export function createRelayMiddleware(
 
 			if (result === null) {
 				const response: PollResponse = { timeout: true };
-				sendJson(res as import('http').ServerResponse, 200, response);
+				sendJson(res, 200, response);
 			} else {
 				const response: PollResponse = { request: result };
-				sendJson(res as import('http').ServerResponse, 200, response);
+				sendJson(res, 200, response);
 			}
 			return;
 		}
@@ -243,7 +233,7 @@ export function createRelayMiddleware(
 
 			if (!session) {
 				sendError(
-					res as import('http').ServerResponse,
+					res,
 					404,
 					'Session not found'
 				);
@@ -253,7 +243,7 @@ export function createRelayMiddleware(
 			const queued = session.pendingRequests.get(requestId);
 			if (!queued) {
 				sendError(
-					res as import('http').ServerResponse,
+					res,
 					404,
 					'Request not found'
 				);
@@ -267,7 +257,7 @@ export function createRelayMiddleware(
 			session.pendingRequests.delete(requestId);
 			queued.resolve(tunnelResponse);
 
-			sendJson(res as import('http').ServerResponse, 200, { ok: true });
+			sendJson(res, 200, { ok: true });
 			return;
 		}
 
@@ -283,7 +273,7 @@ export function createRelayMiddleware(
 			if (!session) {
 				console.log(`[Relay] Guest request: session not found`);
 				sendError(
-					res as import('http').ServerResponse,
+					res,
 					404,
 					'Session not found'
 				);
@@ -293,7 +283,7 @@ export function createRelayMiddleware(
 			if (!session.hostConnected) {
 				console.log(`[Relay] Guest request: host not connected`);
 				sendError(
-					res as import('http').ServerResponse,
+					res,
 					503,
 					'Host not connected'
 				);
@@ -382,7 +372,7 @@ export function createRelayMiddleware(
 				}
 			} catch (error) {
 				sendError(
-					res as import('http').ServerResponse,
+					res,
 					504,
 					'Gateway timeout'
 				);

@@ -1,0 +1,53 @@
+.indicator {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 4px 10px;
+	border-radius: 4px;
+	font-size: 14px;
+	font-weight: 500;
+	white-space: nowrap;
+	border: none;
+	background: rgba(129, 230, 217, 0.15);
+	color: #81e6d9;
+	cursor: pointer;
+	transition: background 0.15s ease;
+	flex-shrink: 0;
+}
+
+.indicator:hover {
+	background: rgba(129, 230, 217, 0.25);
+}
+
+.liveDot {
+	width: 8px;
+	height: 8px;
+	background: #81e6d9;
+	border-radius: 50%;
+	animation: pulse 2s ease-in-out infinite;
+	flex-shrink: 0;
+}
+
+@keyframes pulse {
+	0%,
+	100% {
+		opacity: 1;
+		transform: scale(1);
+	}
+	50% {
+		opacity: 0.6;
+		transform: scale(0.9);
+	}
+}
+
+.label {
+	display: inline;
+}
+
+/* Mobile responsive styles */
+@media (max-width: 500px) {
+	.indicator {
+		font-size: 13px;
+		padding: 4px 8px;
+	}
+}

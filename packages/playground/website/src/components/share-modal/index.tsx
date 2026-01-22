@@ -6,7 +6,13 @@ import ModalButtons from '../modal/modal-buttons';
 import { useAppDispatch, useAppSelector } from '../../lib/state/redux/store';
 import { setActiveModal } from '../../lib/state/redux/slice-ui';
 import { selectClientInfoBySiteSlug } from '../../lib/state/redux/slice-clients';
-import { TunnelHost, type TunnelHostStatus } from '../../lib/relay-server';
+import {
+	startSharing,
+	stopSharing,
+	getSharingStatus,
+	subscribeToSharingStatus,
+	type SharingStatus,
+} from '../../lib/sharing-service';
 
 type ShareState = 'idle' | 'connecting' | 'sharing' | 'error';
 
@@ -16,7 +22,6 @@ export function ShareModal() {
 	const [shareUrl, setShareUrl] = useState<string | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	const [copied, setCopied] = useState(false);
-	const [tunnelHost, setTunnelHost] = useState<TunnelHost | null>(null);
 
 	const clientInfo = useAppSelector((state) =>
 		state.ui.activeSite?.slug
@@ -29,39 +34,41 @@ export function ShareModal() {
 		dispatch(setActiveModal(null));
 	}, [dispatch]);
 
-	// Clean up tunnel host when modal closes
-	useEffect(() => {
-		return () => {
-			if (tunnelHost) {
-				tunnelHost.stopSharing();
-			}
-		};
-	}, [tunnelHost]);
+	// Sync state with sharing service
+	const updateFromSharingStatus = useCallback((status: SharingStatus) => {
+		setShareUrl(status.shareUrl);
 
-	const handleStatusChange = useCallback((status: TunnelHostStatus) => {
-		switch (status) {
-			case 'connecting':
-				setShareState('connecting');
-				break;
-			case 'connected':
-				setShareState('sharing');
-				break;
-			case 'disconnected':
-				setShareState('idle');
-				setShareUrl(null);
-				break;
-			case 'error':
-				setShareState('error');
-				break;
+		if (!status.isActive) {
+			setShareState('idle');
+		} else {
+			switch (status.status) {
+				case 'connecting':
+					setShareState('connecting');
+					break;
+				case 'connected':
+					setShareState('sharing');
+					break;
+				case 'disconnected':
+					setShareState('idle');
+					break;
+				case 'error':
+					setShareState('error');
+					break;
+			}
 		}
 	}, []);
 
-	const handleError = useCallback((err: Error) => {
-		setError(err.message);
-		setShareState('error');
-	}, []);
+	// Initialize state from sharing service and subscribe to updates
+	useEffect(() => {
+		// Initialize from current state
+		updateFromSharingStatus(getSharingStatus());
 
-	const startSharing = async () => {
+		// Subscribe to changes
+		const unsubscribe = subscribeToSharingStatus(updateFromSharingStatus);
+		return unsubscribe;
+	}, [updateFromSharingStatus]);
+
+	const handleStartSharing = async () => {
 		if (!playground) {
 			setError('Playground is not ready');
 			return;
@@ -71,16 +78,7 @@ export function ShareModal() {
 		setError(null);
 
 		try {
-			// Determine relay URL based on current location
-			const relayUrl = window.location.origin;
-			const host = new TunnelHost(playground, relayUrl);
-
-			host.on('statusChange', handleStatusChange);
-			host.on('error', handleError);
-
-			setTunnelHost(host);
-
-			const url = await host.startSharing();
+			const url = await startSharing(playground);
 			setShareUrl(url);
 			setShareState('sharing');
 		} catch (err) {
@@ -89,11 +87,8 @@ export function ShareModal() {
 		}
 	};
 
-	const stopSharing = async () => {
-		if (tunnelHost) {
-			await tunnelHost.stopSharing();
-			setTunnelHost(null);
-		}
+	const handleStopSharing = async () => {
+		await stopSharing();
 		setShareUrl(null);
 		setShareState('idle');
 		setError(null);
@@ -108,6 +103,7 @@ export function ShareModal() {
 	};
 
 	const handleRequestClose = () => {
+		// Allow closing the modal even while sharing - sharing continues in background
 		if (shareState !== 'connecting') {
 			closeModal();
 		}
@@ -159,6 +155,7 @@ export function ShareModal() {
 								label="Share URL"
 								value={shareUrl}
 								readOnly
+								onChange={() => {}}
 								style={{ flexGrow: 1, marginBottom: 0 }}
 								onClick={(e) =>
 									(e.target as HTMLInputElement).select()
@@ -180,8 +177,9 @@ export function ShareModal() {
 								fontSize: 12,
 							}}
 						>
-							Keep this window open to maintain the sharing
-							session. Closing it will disconnect all guests.
+							You can close this modal - sharing will continue in
+							the background. Look for the sharing indicator in the
+							toolbar.
 						</p>
 					</>
 				)}
@@ -206,7 +204,7 @@ export function ShareModal() {
 							areDisabled={!playground}
 							areBusy={false}
 							style={{ marginTop: 0 }}
-							onSubmit={startSharing}
+							onSubmit={handleStartSharing}
 						/>
 					)}
 
@@ -224,7 +222,7 @@ export function ShareModal() {
 							<Button
 								variant="primary"
 								isDestructive
-								onClick={stopSharing}
+								onClick={handleStopSharing}
 							>
 								Stop Sharing
 							</Button>
@@ -238,7 +236,7 @@ export function ShareModal() {
 							areDisabled={!playground}
 							areBusy={false}
 							style={{ marginTop: 0 }}
-							onSubmit={startSharing}
+							onSubmit={handleStartSharing}
 						/>
 					)}
 				</div>

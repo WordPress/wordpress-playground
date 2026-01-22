@@ -23,6 +23,7 @@ import {
 } from '../saved-playgrounds-overlay';
 import { SaveStatusIndicator } from './save-status-indicator';
 import { isSaveDisabledByQueryParam } from '../../lib/state/url/router';
+import { SharingStatusIndicator } from './sharing-status-indicator';
 
 const query = new URL(document.location.href).searchParams;
 const overlayParam = query.get('overlay');
@@ -94,6 +95,8 @@ export default function BrowserChrome({
 					</div>
 
 					{!isSaveDisabledByQueryParam() && <SaveStatusIndicator />}
+
+					<SharingStatusIndicator />
 
 					<div className={css.toolbarButtons}>
 						<Button
