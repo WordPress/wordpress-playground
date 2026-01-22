@@ -1,8 +1,7 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 
 import css from './style.module.css';
 import BrowserChrome from '../browser-chrome';
-import PersonalWPBrowserChrome from '../personalwp-browser-chrome';
 import { defaultStorageType } from 'virtual:website-defaults';
 import {
 	selectActiveSiteError,
@@ -20,6 +19,10 @@ import {
 } from '../../lib/state/redux/slice-sites';
 import classNames from 'classnames';
 import { SiteErrorModal } from '../site-error-modal';
+
+const PersonalWPBrowserChrome = React.lazy(
+	() => import('../personalwp-browser-chrome')
+);
 
 export const supportedDisplayModes = [
 	'browser-full-screen',
@@ -46,7 +49,11 @@ export const PlaygroundViewport = ({
 				<JustViewport siteSlug={activeSite.slug} />
 			) : null;
 		}
-		return <PersonalWPBrowserChrome className={className} />;
+		return (
+			<Suspense fallback={null}>
+				<PersonalWPBrowserChrome className={className} />
+			</Suspense>
+		);
 	}
 
 	// Temporary mode uses KeepAliveTemporarySitesViewport to prevent data loss
