@@ -9,7 +9,6 @@ import { selectActiveSite, setActiveSite } from './store';
 import { opfsSiteStorage } from '../opfs/opfs-site-storage';
 import {
 	type BlueprintV1,
-	type BlueprintV1Declaration,
 	BlueprintReflection,
 	type RuntimeConfiguration,
 	resolveRuntimeConfiguration,
@@ -26,7 +25,6 @@ import { logger } from '@php-wasm/logger';
 import { setActiveSiteError, type SiteError } from './slice-ui';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import { findFirewallErrorInCauseChain } from './error-utils';
-import { defaultBlueprintUrl } from 'virtual:website-defaults';
 
 /**
  * The Site model used to represent a site within Playground.
@@ -49,17 +47,10 @@ const sitesAdapter = createEntityAdapter<SiteInfo, string>({
 	sortComparer: (a, b) => a.slug.localeCompare(b.slug),
 });
 
-// Blueprint resolved from URL params to apply to an existing site after it boots
-export interface BlueprintResolvedFromUrl {
-	targetSiteSlug: string;
-	blueprint: BlueprintV1Declaration;
-}
-
 // Define the initial state using the adapter and include the loading state
 const initialState = sitesAdapter.getInitialState({
 	opfsSitesLoadingState: 'loading' as LoadingState,
 	firstTemporarySiteCreated: false,
-	blueprintResolvedFromUrl: null as BlueprintResolvedFromUrl | null,
 });
 
 // Create the slice
@@ -97,12 +88,6 @@ const sitesSlice = createSlice({
 		},
 		setFirstTemporarySiteCreated: (state) => {
 			state.firstTemporarySiteCreated = true;
-		},
-		setBlueprintResolvedFromUrl: (
-			state,
-			action: PayloadAction<BlueprintResolvedFromUrl | null>
-		) => {
-			state.blueprintResolvedFromUrl = action.payload;
 		},
 	},
 });
@@ -290,7 +275,7 @@ export function setTemporarySiteSpec(
 					name: siteName,
 					id: crypto.randomUUID(),
 					whenCreated: Date.now(),
-					storage: 'none',
+					storage: 'none' as const,
 					originalBlueprint: {},
 					originalBlueprintSource: {
 						type: 'none',
@@ -348,7 +333,7 @@ export function setTemporarySiteSpec(
 
 		const sites = getState().sites.entities;
 
-		// Delete any existing temporary sites
+		// First, delete any existing temporary sites
 		for (const site of Object.values(sites)) {
 			if (site.metadata.storage === 'none') {
 				dispatch(sitesSlice.actions.removeSite(site.slug));
@@ -356,11 +341,14 @@ export function setTemporarySiteSpec(
 		}
 
 		// Then create a new temporary site
+		const defaultBlueprint =
+			'https://raw.githubusercontent.com/WordPress/blueprints/refs/heads/trunk/blueprints/welcome/blueprint.json';
+
 		let resolvedBlueprint: ResolvedBlueprint | undefined = undefined;
 		try {
 			resolvedBlueprint = await resolveBlueprintFromURL(
 				playgroundUrlWithQueryApiArgs,
-				defaultBlueprintUrl
+				defaultBlueprint
 			);
 		} catch (e) {
 			logger.error(
@@ -401,7 +389,7 @@ export function setTemporarySiteSpec(
 					name: siteName,
 					id: crypto.randomUUID(),
 					whenCreated: Date.now(),
-					storage: 'none',
+					storage: 'none' as const,
 					originalBlueprint: resolvedBlueprint.blueprint,
 					originalBlueprintSource: resolvedBlueprint.source!,
 					runtimeConfiguration: await resolveRuntimeConfiguration(
@@ -476,21 +464,10 @@ export interface SiteMetadata {
 	runtimeConfiguration: RuntimeConfiguration;
 	originalBlueprint: BlueprintV1;
 	originalBlueprintSource: BlueprintSource;
-
-	/**
-	 * The last URL the user visited in this site.
-	 * Used to restore the user's position when returning to a personal site.
-	 */
-	lastUrl?: string;
 }
 
-export const { setOPFSSitesLoadingState, setBlueprintResolvedFromUrl } =
-	sitesSlice.actions;
+export const { setOPFSSitesLoadingState } = sitesSlice.actions;
 export { sitesSlice };
-
-export const selectBlueprintResolvedFromUrl = (state: {
-	sites: ReturnType<typeof sitesSlice.reducer>;
-}) => state.sites.blueprintResolvedFromUrl;
 
 export const {
 	selectAll: selectAllSites,

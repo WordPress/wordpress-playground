@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 
 import css from './style.module.css';
 import BrowserChrome from '../browser-chrome';
@@ -51,7 +51,7 @@ export const PlaygroundViewport = ({
  * to another site, the iframe is hidden but not removed. This way, the state
  * of each temporary site is preserved as long as the browser tab remains open.
  *
- * Personal sites are not affected by this. They are unmounted and rendered as usual
+ * Persistent sites are not affected by this. They are unmounted and rendered as usual
  * as there's no risk of data loss
  */
 export const KeepAliveTemporarySitesViewport = () => {

@@ -21,10 +21,6 @@ export type BlueprintSource =
 			url: string;
 	  }
 	| {
-			type: 'personal-blueprint';
-			url: string;
-	  }
-	| {
 			type: 'last-autosave';
 	  }
 	| {

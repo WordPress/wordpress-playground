@@ -12,7 +12,6 @@ import {
 import { logBlueprintEvents, logTrackingEvent } from '../../tracking';
 import {
 	type Blueprint,
-	type BlueprintV1Declaration,
 	BlueprintFilesystemRequiredError,
 	InvalidBlueprintError,
 } from '@wp-playground/blueprints';
@@ -27,12 +26,7 @@ import {
 	setGitHubAuthRepoUrl,
 } from './slice-ui';
 import type { PlaygroundDispatch, PlaygroundReduxState } from './store';
-import {
-	selectSiteBySlug,
-	updateSiteMetadata,
-	selectBlueprintResolvedFromUrl,
-	setBlueprintResolvedFromUrl,
-} from './slice-sites';
+import { selectSiteBySlug } from './slice-sites';
 // @ts-ignore
 import { corsProxyUrl } from 'virtual:cors-proxy-url';
 import { modalSlugs } from './slice-ui';
@@ -42,25 +36,11 @@ import {
 } from '../../../github/git-auth-helpers';
 import { findFirewallErrorInCauseChain } from './error-utils';
 
-export interface BootSiteClientOptions {
-	signal: AbortSignal;
-	/** Clear URL search params and hash after applying a URL blueprint */
-	clearUrlAfterBlueprintApplied?: boolean;
-	/** Auto-login when WordPress is already installed */
-	autoLogin?: boolean;
-}
-
 export function bootSiteClient(
 	siteSlug: string,
 	iframe: HTMLIFrameElement,
-	options: BootSiteClientOptions
+	{ signal }: { signal: AbortSignal }
 ) {
-	const {
-		signal,
-		clearUrlAfterBlueprintApplied = false,
-		autoLogin = false,
-	} = options;
-
 	return async (
 		dispatch: PlaygroundDispatch,
 		getState: () => PlaygroundReduxState
@@ -69,11 +49,6 @@ export function bootSiteClient(
 			dispatch(removeClientInfo(siteSlug));
 		};
 		const site = selectSiteBySlug(getState(), siteSlug);
-
-		// Check for URL blueprint from redux (set when URL has params like ?plugin=friends)
-		const urlBlueprint = selectBlueprintResolvedFromUrl(getState());
-		const hasUrlBlueprint =
-			urlBlueprint && urlBlueprint.targetSiteSlug === site.slug;
 
 		let mountDescriptor = undefined;
 		if (site.metadata.storage === 'opfs') {
@@ -141,11 +116,6 @@ export function bootSiteClient(
 
 		let blueprint: Blueprint;
 		if (isWordPressInstalled) {
-			// Use URL param landing page if present, otherwise restore last URL
-			const urlParamLandingPage = new URLSearchParams(
-				window.location.search
-			).get('url');
-
 			blueprint = {
 				preferredVersions: {
 					php: site.metadata.runtimeConfiguration.phpVersion,
@@ -158,24 +128,7 @@ export function bootSiteClient(
 				extraLibraries: site.metadata.runtimeConfiguration
 					.extraLibraries as any[],
 				constants: site.metadata.runtimeConfiguration.constants,
-				login: autoLogin,
-				// Restore last visited URL (pending blueprint may override below)
-				landingPage: urlParamLandingPage || site.metadata.lastUrl,
 			};
-
-			// Merge URL blueprint (e.g., ?plugin=friends) into boot blueprint
-			if (hasUrlBlueprint) {
-				const resolved = urlBlueprint.blueprint;
-				const current = blueprint as BlueprintV1Declaration;
-				blueprint = {
-					...blueprint,
-					landingPage: resolved.landingPage || current.landingPage,
-					steps: [
-						...(current.steps || []),
-						...(resolved.steps || []),
-					],
-				};
-			}
 		} else {
 			blueprint = site.metadata.originalBlueprint;
 		}
@@ -309,24 +262,7 @@ export function bootSiteClient(
 					},
 				})
 			);
-			dispatch(
-				updateSiteMetadata({
-					slug: site.slug,
-					changes: { lastUrl: url },
-				})
-			);
 		});
-
-		// Clear URL blueprint after successful boot
-		if (hasUrlBlueprint) {
-			dispatch(setBlueprintResolvedFromUrl(null));
-			if (clearUrlAfterBlueprintApplied) {
-				const cleanUrl = new URL(window.location.href);
-				cleanUrl.search = '';
-				cleanUrl.hash = '';
-				window.history.replaceState({}, '', cleanUrl.toString());
-			}
-		}
 
 		signal.onabort = null;
 	};

@@ -1,7 +1,6 @@
 import type { SiteInfo } from '../redux/slice-sites';
 import { updateUrl } from './router-hooks';
 import { decodeBase64ToString } from '../../base64';
-import { personalWPSiteSlug } from 'virtual:website-defaults';
 
 export function redirectTo(url: string) {
 	window.history.pushState({}, '', url);
@@ -43,23 +42,6 @@ export class PlaygroundRoute {
 		if (site.metadata.storage === 'none') {
 			return updateUrl(baseUrl, site.originalUrlParams || {});
 		} else {
-			// If this is the default site, don't add site-slug to the URL
-			if (personalWPSiteSlug && site.slug === personalWPSiteSlug) {
-				// Preserve blueprint-url and url parameters if present
-				const baseParams = new URLSearchParams(baseUrl.split('?')[1]);
-				const preserveParamsKeys = ['blueprint-url', 'url'];
-				const preserveParams: Record<string, string> = {};
-				for (const param of preserveParamsKeys) {
-					const value = baseParams.get(param);
-					if (value !== null) {
-						preserveParams[param] = value;
-					}
-				}
-				return updateUrl(baseUrl, {
-					searchParams: preserveParams,
-					hash: '',
-				});
-			}
 			const baseParams = new URLSearchParams(baseUrl.split('?')[1]);
 			const preserveParamsKeys = [
 				'mode',

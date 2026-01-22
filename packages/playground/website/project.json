@@ -57,7 +57,7 @@
 					"nx run playground-php-cors-proxy:start",
 					"nx dev playground-remote --configuration=development-for-website",
 					"nx dev playground-website-extras --configuration=development-for-website",
-					"nx dev:standalone playground-website --configuration=development --output-style=stream-without-prefixes"
+					"sleep 1; nx dev:standalone playground-website --hmr --output-style=stream-without-prefixes"
 				],
 				"parallel": true,
 				"color": true

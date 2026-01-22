@@ -39,24 +39,19 @@ const proxy: CommonServerOptions['proxy'] = {
 
 const path = (filename: string) => new URL(filename, import.meta.url).pathname;
 export default defineConfig(({ command, mode }) => {
-	const isProductionBuild = mode === 'production';
-
 	const corsProxyUrl =
 		'CORS_PROXY_URL' in process.env
 			? process.env.CORS_PROXY_URL
-			: isProductionBuild
-				? 'https://wordpress-playground-cors-proxy.net/?'
-				: '/cors-proxy/?';
-
-	const defaultBlueprintUrl =
-		'https://raw.githubusercontent.com/WordPress/blueprints/refs/heads/trunk/blueprints/welcome/blueprint.json';
+			: mode === 'production'
+			? 'https://wordpress-playground-cors-proxy.net/?'
+			: '/cors-proxy/?';
 
 	return {
 		// Split traffic from this server on dev so that the iframe content and
 		// outer content can be served from the same origin. In production it's
 		// already the same host, but dev builds run two separate servers. See proxy
 		// config above.
-		base: isProductionBuild ? '/' : '/website-server/',
+		base: mode === 'production' ? '/' : '/website-server/',
 
 		assetsInclude: ['**/*.so', '**/*.dat'],
 
@@ -120,23 +115,11 @@ export default defineConfig(({ command, mode }) => {
 				content: `
 				export const corsProxyUrl = ${JSON.stringify(corsProxyUrl || undefined)};`,
 			}),
-			virtualModule({
-				name: 'website-defaults',
-				content: `
-				export const defaultBlueprintUrl = ${JSON.stringify(defaultBlueprintUrl || undefined)};
-				export const defaultStorageType = 'none';
-				export const personalWPSiteSlug = undefined;`,
-			}),
-			// GitHub OAuth flow and server identification
+			// GitHub OAuth flow
 			{
 				name: 'configure-server',
 				configureServer(server: ViteDevServer) {
 					server.middlewares.use(oAuthMiddleware);
-					server.printUrls = () => {
-						const url = `http://${websiteDevServerHost}:${websiteDevServerPort}/website-server/`;
-						// eslint-disable-next-line no-console
-						console.log(`  Playground: \x1b[36m${url}\x1b[0m`);
-					};
 				},
 			},
 			/**
@@ -206,7 +189,7 @@ export default defineConfig(({ command, mode }) => {
 							.execSync('git rev-parse HEAD')
 							.toString()
 							.trim();
-						html = html.replace(
+						return html.replace(
 							'</head>',
 							`<meta name="commit-id" content="${commitId}" />
 							</head>`
@@ -214,8 +197,8 @@ export default defineConfig(({ command, mode }) => {
 					} catch (e) {
 						// eslint-disable-next-line no-console
 						console.error('Failed to inject commit ID', e);
+						return html;
 					}
-					return html;
 				},
 			},
 		],
