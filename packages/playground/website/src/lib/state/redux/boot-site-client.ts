@@ -35,7 +35,6 @@ import {
 } from './slice-sites';
 // @ts-ignore
 import { corsProxyUrl } from 'virtual:cors-proxy-url';
-import { personalWPSiteSlug } from 'virtual:website-defaults';
 import { modalSlugs } from './slice-ui';
 import {
 	createGitAuthHeaders,
@@ -43,11 +42,25 @@ import {
 } from '../../../github/git-auth-helpers';
 import { findFirewallErrorInCauseChain } from './error-utils';
 
+export interface BootSiteClientOptions {
+	signal: AbortSignal;
+	/** Clear URL search params and hash after applying a URL blueprint */
+	clearUrlAfterBlueprintApplied?: boolean;
+	/** Auto-login when WordPress is already installed */
+	autoLogin?: boolean;
+}
+
 export function bootSiteClient(
 	siteSlug: string,
 	iframe: HTMLIFrameElement,
-	{ signal }: { signal: AbortSignal }
+	options: BootSiteClientOptions
 ) {
+	const {
+		signal,
+		clearUrlAfterBlueprintApplied = false,
+		autoLogin = false,
+	} = options;
+
 	return async (
 		dispatch: PlaygroundDispatch,
 		getState: () => PlaygroundReduxState
@@ -145,8 +158,7 @@ export function bootSiteClient(
 				extraLibraries: site.metadata.runtimeConfiguration
 					.extraLibraries as any[],
 				constants: site.metadata.runtimeConfiguration.constants,
-				// Auto-login for personal sites
-				login: true,
+				login: autoLogin,
 				// Restore last visited URL (pending blueprint may override below)
 				landingPage: urlParamLandingPage || site.metadata.lastUrl,
 			};
@@ -308,8 +320,7 @@ export function bootSiteClient(
 		// Clear URL blueprint after successful boot
 		if (hasUrlBlueprint) {
 			dispatch(setBlueprintResolvedFromUrl(null));
-			// Clean up the URL to remove blueprint params (PersonalWP only)
-			if (personalWPSiteSlug) {
+			if (clearUrlAfterBlueprintApplied) {
 				const cleanUrl = new URL(window.location.href);
 				cleanUrl.search = '';
 				cleanUrl.hash = '';

@@ -235,9 +235,12 @@ export const JustViewport = function JustViewport({
 		}
 
 		const abortController = new AbortController();
+		const isPersonalWP = defaultStorageType === 'opfs';
 		dispatch(
 			bootSiteClient(siteSlug, iframe, {
 				signal: abortController.signal,
+				clearUrlAfterBlueprintApplied: isPersonalWP,
+				autoLogin: isPersonalWP,
 			})
 		);
 
