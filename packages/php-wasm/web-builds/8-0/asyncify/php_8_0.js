@@ -4929,16 +4929,377 @@ export function init(RuntimeName, PHPLoader) {
 		}
 	}
 	___syscall_chmod.sig = 'ipi';
-	function ___syscall_connect(fd, addr, addrlen, d1, d2, d3) {
-		try {
-			var sock = getSocketFromFD(fd);
+	var allocateUTF8OnStack = (...args) => stringToUTF8OnStack(...args);
+	function _js_getpid() {
+		return PHPLoader.processId ?? 42;
+	}
+	function _js_wasm_trace(format, ...args) {
+		if (PHPLoader.trace instanceof Function) {
+			PHPLoader.trace(_js_getpid(), format, ...args);
+		}
+	}
+	var PHPWASM = {
+		O_APPEND: 1024,
+		O_NONBLOCK: 2048,
+		POLLHUP: 16,
+		SETFL_MASK: 3072,
+		init: function (phpWasmInitOptions) {
+			Module['ENV'] = Module['ENV'] || {};
+			Module['ENV']['PATH'] = [
+				Module['ENV']['PATH'],
+				'/internal/shared/bin',
+			]
+				.filter(Boolean)
+				.join(':');
+			FS.mkdir('/request');
+			FS.mkdir('/internal');
+			if (phpWasmInitOptions?.nativeInternalDirPath) {
+				FS.mount(
+					FS.filesystems.NODEFS,
+					{ root: phpWasmInitOptions.nativeInternalDirPath },
+					'/internal'
+				);
+			}
+			FS.mkdirTree('/internal/shared');
+			FS.mkdirTree('/internal/shared/preload');
+			FS.mkdirTree('/internal/shared/bin');
+			const originalOnRuntimeInitialized = Module['onRuntimeInitialized'];
+			Module['onRuntimeInitialized'] = () => {
+				const { node: phpBinaryNode } = FS.lookupPath(
+					'/internal/shared/bin/php',
+					{ noent_okay: true }
+				);
+				if (!phpBinaryNode) {
+					FS.writeFile(
+						'/internal/shared/bin/php',
+						new TextEncoder().encode('#!/bin/sh\nphp "$@"')
+					);
+					FS.chmod('/internal/shared/bin/php', 493);
+				}
+				originalOnRuntimeInitialized();
+			};
+			FS.registerDevice(FS.makedev(64, 0), {
+				open: () => {},
+				close: () => {},
+				read: () => 0,
+				write: (stream, buffer, offset, length, pos) => {
+					const chunk = buffer.subarray(offset, offset + length);
+					PHPWASM.onStdout(chunk);
+					return length;
+				},
+			});
+			FS.mkdev('/request/stdout', FS.makedev(64, 0));
+			FS.registerDevice(FS.makedev(63, 0), {
+				open: () => {},
+				close: () => {},
+				read: () => 0,
+				write: (stream, buffer, offset, length, pos) => {
+					const chunk = buffer.subarray(offset, offset + length);
+					PHPWASM.onStderr(chunk);
+					return length;
+				},
+			});
+			FS.mkdev('/request/stderr', FS.makedev(63, 0));
+			FS.registerDevice(FS.makedev(62, 0), {
+				open: () => {},
+				close: () => {},
+				read: () => 0,
+				write: (stream, buffer, offset, length, pos) => {
+					const chunk = buffer.subarray(offset, offset + length);
+					PHPWASM.onHeaders(chunk);
+					return length;
+				},
+			});
+			FS.mkdev('/request/headers', FS.makedev(62, 0));
+			PHPWASM.EventEmitter = ENVIRONMENT_IS_NODE
+				? require('events').EventEmitter
+				: class EventEmitter {
+						constructor() {
+							this.listeners = {};
+						}
+						emit(eventName, data) {
+							if (this.listeners[eventName]) {
+								this.listeners[eventName].forEach(
+									(callback) => {
+										callback(data);
+									}
+								);
+							}
+						}
+						once(eventName, callback) {
+							const self = this;
+							function removedCallback() {
+								callback(...arguments);
+								self.removeListener(eventName, removedCallback);
+							}
+							this.on(eventName, removedCallback);
+						}
+						removeAllListeners(eventName) {
+							if (eventName) {
+								delete this.listeners[eventName];
+							} else {
+								this.listeners = {};
+							}
+						}
+						removeListener(eventName, callback) {
+							if (this.listeners[eventName]) {
+								const idx =
+									this.listeners[eventName].indexOf(callback);
+								if (idx !== -1) {
+									this.listeners[eventName].splice(idx, 1);
+								}
+							}
+						}
+					};
+			PHPWASM.processTable = {};
+			PHPWASM.input_devices = {};
+			const originalWrite = TTY.stream_ops.write;
+			TTY.stream_ops.write = function (stream, ...rest) {
+				const retval = originalWrite(stream, ...rest);
+				stream.tty.ops.fsync(stream.tty);
+				return retval;
+			};
+			const originalPutChar = TTY.stream_ops.put_char;
+			TTY.stream_ops.put_char = function (tty, val) {
+				if (val === 10) tty.output.push(val);
+				return originalPutChar(tty, val);
+			};
+		},
+		onHeaders: function (chunk) {
+			if (Module['onHeaders']) {
+				Module['onHeaders'](chunk);
+				return;
+			}
+			console.log('headers', { chunk });
+		},
+		onStdout: function (chunk) {
+			if (Module['onStdout']) {
+				Module['onStdout'](chunk);
+				return;
+			}
+			if (ENVIRONMENT_IS_NODE) {
+				process.stdout.write(chunk);
+			} else {
+				console.log('stdout', { chunk });
+			}
+		},
+		onStderr: function (chunk) {
+			if (Module['onStderr']) {
+				Module['onStderr'](chunk);
+				return;
+			}
+			if (ENVIRONMENT_IS_NODE) {
+				process.stderr.write(chunk);
+			} else {
+				console.warn('stderr', { chunk });
+			}
+		},
+		getAllWebSockets: function (sock) {
+			const webSockets = new Set();
+			if (sock.server) {
+				sock.server.clients.forEach((ws) => {
+					webSockets.add(ws);
+				});
+			}
+			for (const peer of PHPWASM.getAllPeers(sock)) {
+				webSockets.add(peer.socket);
+			}
+			return Array.from(webSockets);
+		},
+		getAllPeers: function (sock) {
+			const peers = new Set();
+			if (sock.server) {
+				sock.pending
+					.filter((pending) => pending.peers)
+					.forEach((pending) => {
+						for (const peer of Object.values(pending.peers)) {
+							peers.add(peer);
+						}
+					});
+			}
+			if (sock.peers) {
+				for (const peer of Object.values(sock.peers)) {
+					peers.add(peer);
+				}
+			}
+			return Array.from(peers);
+		},
+		awaitData: function (ws) {
+			return PHPWASM.awaitEvent(ws, 'message');
+		},
+		awaitConnection: function (ws) {
+			if (ws.OPEN === ws.readyState) {
+				return [Promise.resolve(), PHPWASM.noop];
+			}
+			return PHPWASM.awaitEvent(ws, 'open');
+		},
+		awaitClose: function (ws) {
+			if ([ws.CLOSING, ws.CLOSED].includes(ws.readyState)) {
+				return [Promise.resolve(), PHPWASM.noop];
+			}
+			return PHPWASM.awaitEvent(ws, 'close');
+		},
+		awaitError: function (ws) {
+			if ([ws.CLOSING, ws.CLOSED].includes(ws.readyState)) {
+				return [Promise.resolve(), PHPWASM.noop];
+			}
+			return PHPWASM.awaitEvent(ws, 'error');
+		},
+		awaitEvent: function (ws, event) {
+			let resolve;
+			const listener = () => {
+				resolve();
+			};
+			const promise = new Promise(function (_resolve) {
+				resolve = _resolve;
+				ws.once(event, listener);
+			});
+			const cancel = () => {
+				ws.removeListener(event, listener);
+				setTimeout(resolve);
+			};
+			return [promise, cancel];
+		},
+		noop: function () {},
+		spawnProcess: function (command, args, options) {
+			if (Module['spawnProcess']) {
+				const spawned = Module['spawnProcess'](command, args, {
+					...options,
+					shell: true,
+					stdio: ['pipe', 'pipe', 'pipe'],
+				});
+				if (spawned && !('then' in spawned) && 'on' in spawned) {
+					return spawned;
+				}
+				return Promise.resolve(spawned).then(function (spawned) {
+					if (!spawned || !spawned.on) {
+						throw new Error(
+							'spawnProcess() must return an EventEmitter but returned a different type.'
+						);
+					}
+					return spawned;
+				});
+			}
+			const e = new Error(
+				'popen(), proc_open() etc. are unsupported on this PHP instance. Call php.setSpawnHandler() ' +
+					'and provide a callback to handle spawning processes, or disable a popen(), proc_open() ' +
+					'and similar functions via php.ini.'
+			);
+			e.code = 'SPAWN_UNSUPPORTED';
+			throw e;
+		},
+		shutdownSocket: function (socketd, how) {
+			const sock = getSocketFromFD(socketd);
+			const peer = Object.values(sock.peers)[0];
+			if (!peer) {
+				return -1;
+			}
+			try {
+				peer.socket.close();
+				SOCKFS.websocket_sock_ops.removePeer(sock, peer);
+				return 0;
+			} catch (e) {
+				console.log('Socket shutdown error', e);
+				return -1;
+			}
+		},
+	};
+	function _wasm_connect(sockfd, addr, addrlen) {
+		if (!('Suspending' in WebAssembly)) {
+			var sock = getSocketFromFD(sockfd);
 			var info = getSocketAddress(addr, addrlen);
 			sock.sock_ops.connect(sock, info.addr, info.port);
 			return 0;
-		} catch (e) {
-			if (typeof FS == 'undefined' || !(e.name === 'ErrnoError')) throw e;
-			return -e.errno;
 		}
+		return Asyncify.handleSleep((wakeUp) => {
+			let sock;
+			try {
+				sock = getSocketFromFD(sockfd);
+			} catch (e) {
+				wakeUp(-ERRNO_CODES.EBADF);
+				return;
+			}
+			if (!sock) {
+				wakeUp(-ERRNO_CODES.EBADF);
+				return;
+			}
+			let info;
+			try {
+				info = getSocketAddress(addr, addrlen);
+			} catch (e) {
+				if (typeof FS == 'undefined' || !(e.name === 'ErrnoError')) {
+					wakeUp(-ERRNO_CODES.EFAULT);
+					return;
+				}
+				wakeUp(-e.errno);
+				return;
+			}
+			try {
+				sock.sock_ops.connect(sock, info.addr, info.port);
+			} catch (e) {
+				if (typeof FS == 'undefined' || !(e.name === 'ErrnoError')) {
+					wakeUp(-ERRNO_CODES.ECONNREFUSED);
+					return;
+				}
+				wakeUp(-e.errno);
+				return;
+			}
+			const webSockets = PHPWASM.getAllWebSockets(sock);
+			if (!webSockets.length) {
+				wakeUp(-ERRNO_CODES.ECONNREFUSED);
+				return;
+			}
+			const ws = webSockets[0];
+			if (ws.readyState === ws.OPEN) {
+				wakeUp(0);
+				return;
+			}
+			if (ws.readyState === ws.CLOSING || ws.readyState === ws.CLOSED) {
+				wakeUp(-ERRNO_CODES.ECONNREFUSED);
+				return;
+			}
+			const timeout = 3e4;
+			let resolved = false;
+			const timeoutId = setTimeout(() => {
+				if (!resolved) {
+					resolved = true;
+					wakeUp(-ERRNO_CODES.ETIMEDOUT);
+				}
+			}, timeout);
+			const handleOpen = () => {
+				if (!resolved) {
+					resolved = true;
+					clearTimeout(timeoutId);
+					ws.removeEventListener('error', handleError);
+					ws.removeEventListener('close', handleClose);
+					wakeUp(0);
+				}
+			};
+			const handleError = () => {
+				if (!resolved) {
+					resolved = true;
+					clearTimeout(timeoutId);
+					ws.removeEventListener('open', handleOpen);
+					ws.removeEventListener('close', handleClose);
+					wakeUp(-ERRNO_CODES.ECONNREFUSED);
+				}
+			};
+			const handleClose = () => {
+				if (!resolved) {
+					resolved = true;
+					clearTimeout(timeoutId);
+					ws.removeEventListener('open', handleOpen);
+					ws.removeEventListener('error', handleError);
+					wakeUp(-ERRNO_CODES.ECONNREFUSED);
+				}
+			};
+			ws.addEventListener('open', handleOpen);
+			ws.addEventListener('error', handleError);
+			ws.addEventListener('close', handleClose);
+		});
+	}
+	function ___syscall_connect(sockfd, addr, addrlen, d1, d2, d3) {
+		return _wasm_connect(sockfd, addr, addrlen);
 	}
 	___syscall_connect.sig = 'iippiii';
 	function ___syscall_dup(fd) {
@@ -13055,281 +13416,6 @@ export function init(RuntimeName, PHPLoader) {
 		return result;
 	};
 	_getprotobynumber.sig = 'pi';
-	var allocateUTF8OnStack = (...args) => stringToUTF8OnStack(...args);
-	function _js_getpid() {
-		return PHPLoader.processId ?? 42;
-	}
-	function _js_wasm_trace(format, ...args) {
-		if (PHPLoader.trace instanceof Function) {
-			PHPLoader.trace(_js_getpid(), format, ...args);
-		}
-	}
-	var PHPWASM = {
-		O_APPEND: 1024,
-		O_NONBLOCK: 2048,
-		POLLHUP: 16,
-		SETFL_MASK: 3072,
-		init: function (phpWasmInitOptions) {
-			Module['ENV'] = Module['ENV'] || {};
-			Module['ENV']['PATH'] = [
-				Module['ENV']['PATH'],
-				'/internal/shared/bin',
-			]
-				.filter(Boolean)
-				.join(':');
-			FS.mkdir('/request');
-			FS.mkdir('/internal');
-			if (phpWasmInitOptions?.nativeInternalDirPath) {
-				FS.mount(
-					FS.filesystems.NODEFS,
-					{ root: phpWasmInitOptions.nativeInternalDirPath },
-					'/internal'
-				);
-			}
-			FS.mkdirTree('/internal/shared');
-			FS.mkdirTree('/internal/shared/preload');
-			FS.mkdirTree('/internal/shared/bin');
-			const originalOnRuntimeInitialized = Module['onRuntimeInitialized'];
-			Module['onRuntimeInitialized'] = () => {
-				const { node: phpBinaryNode } = FS.lookupPath(
-					'/internal/shared/bin/php',
-					{ noent_okay: true }
-				);
-				if (!phpBinaryNode) {
-					FS.writeFile(
-						'/internal/shared/bin/php',
-						new TextEncoder().encode('#!/bin/sh\nphp "$@"')
-					);
-					FS.chmod('/internal/shared/bin/php', 493);
-				}
-				originalOnRuntimeInitialized();
-			};
-			FS.registerDevice(FS.makedev(64, 0), {
-				open: () => {},
-				close: () => {},
-				read: () => 0,
-				write: (stream, buffer, offset, length, pos) => {
-					const chunk = buffer.subarray(offset, offset + length);
-					PHPWASM.onStdout(chunk);
-					return length;
-				},
-			});
-			FS.mkdev('/request/stdout', FS.makedev(64, 0));
-			FS.registerDevice(FS.makedev(63, 0), {
-				open: () => {},
-				close: () => {},
-				read: () => 0,
-				write: (stream, buffer, offset, length, pos) => {
-					const chunk = buffer.subarray(offset, offset + length);
-					PHPWASM.onStderr(chunk);
-					return length;
-				},
-			});
-			FS.mkdev('/request/stderr', FS.makedev(63, 0));
-			FS.registerDevice(FS.makedev(62, 0), {
-				open: () => {},
-				close: () => {},
-				read: () => 0,
-				write: (stream, buffer, offset, length, pos) => {
-					const chunk = buffer.subarray(offset, offset + length);
-					PHPWASM.onHeaders(chunk);
-					return length;
-				},
-			});
-			FS.mkdev('/request/headers', FS.makedev(62, 0));
-			PHPWASM.EventEmitter = ENVIRONMENT_IS_NODE
-				? require('events').EventEmitter
-				: class EventEmitter {
-						constructor() {
-							this.listeners = {};
-						}
-						emit(eventName, data) {
-							if (this.listeners[eventName]) {
-								this.listeners[eventName].forEach(
-									(callback) => {
-										callback(data);
-									}
-								);
-							}
-						}
-						once(eventName, callback) {
-							const self = this;
-							function removedCallback() {
-								callback(...arguments);
-								self.removeListener(eventName, removedCallback);
-							}
-							this.on(eventName, removedCallback);
-						}
-						removeAllListeners(eventName) {
-							if (eventName) {
-								delete this.listeners[eventName];
-							} else {
-								this.listeners = {};
-							}
-						}
-						removeListener(eventName, callback) {
-							if (this.listeners[eventName]) {
-								const idx =
-									this.listeners[eventName].indexOf(callback);
-								if (idx !== -1) {
-									this.listeners[eventName].splice(idx, 1);
-								}
-							}
-						}
-					};
-			PHPWASM.processTable = {};
-			PHPWASM.input_devices = {};
-			const originalWrite = TTY.stream_ops.write;
-			TTY.stream_ops.write = function (stream, ...rest) {
-				const retval = originalWrite(stream, ...rest);
-				stream.tty.ops.fsync(stream.tty);
-				return retval;
-			};
-			const originalPutChar = TTY.stream_ops.put_char;
-			TTY.stream_ops.put_char = function (tty, val) {
-				if (val === 10) tty.output.push(val);
-				return originalPutChar(tty, val);
-			};
-		},
-		onHeaders: function (chunk) {
-			if (Module['onHeaders']) {
-				Module['onHeaders'](chunk);
-				return;
-			}
-			console.log('headers', { chunk });
-		},
-		onStdout: function (chunk) {
-			if (Module['onStdout']) {
-				Module['onStdout'](chunk);
-				return;
-			}
-			if (ENVIRONMENT_IS_NODE) {
-				process.stdout.write(chunk);
-			} else {
-				console.log('stdout', { chunk });
-			}
-		},
-		onStderr: function (chunk) {
-			if (Module['onStderr']) {
-				Module['onStderr'](chunk);
-				return;
-			}
-			if (ENVIRONMENT_IS_NODE) {
-				process.stderr.write(chunk);
-			} else {
-				console.warn('stderr', { chunk });
-			}
-		},
-		getAllWebSockets: function (sock) {
-			const webSockets = new Set();
-			if (sock.server) {
-				sock.server.clients.forEach((ws) => {
-					webSockets.add(ws);
-				});
-			}
-			for (const peer of PHPWASM.getAllPeers(sock)) {
-				webSockets.add(peer.socket);
-			}
-			return Array.from(webSockets);
-		},
-		getAllPeers: function (sock) {
-			const peers = new Set();
-			if (sock.server) {
-				sock.pending
-					.filter((pending) => pending.peers)
-					.forEach((pending) => {
-						for (const peer of Object.values(pending.peers)) {
-							peers.add(peer);
-						}
-					});
-			}
-			if (sock.peers) {
-				for (const peer of Object.values(sock.peers)) {
-					peers.add(peer);
-				}
-			}
-			return Array.from(peers);
-		},
-		awaitData: function (ws) {
-			return PHPWASM.awaitEvent(ws, 'message');
-		},
-		awaitConnection: function (ws) {
-			if (ws.OPEN === ws.readyState) {
-				return [Promise.resolve(), PHPWASM.noop];
-			}
-			return PHPWASM.awaitEvent(ws, 'open');
-		},
-		awaitClose: function (ws) {
-			if ([ws.CLOSING, ws.CLOSED].includes(ws.readyState)) {
-				return [Promise.resolve(), PHPWASM.noop];
-			}
-			return PHPWASM.awaitEvent(ws, 'close');
-		},
-		awaitError: function (ws) {
-			if ([ws.CLOSING, ws.CLOSED].includes(ws.readyState)) {
-				return [Promise.resolve(), PHPWASM.noop];
-			}
-			return PHPWASM.awaitEvent(ws, 'error');
-		},
-		awaitEvent: function (ws, event) {
-			let resolve;
-			const listener = () => {
-				resolve();
-			};
-			const promise = new Promise(function (_resolve) {
-				resolve = _resolve;
-				ws.once(event, listener);
-			});
-			const cancel = () => {
-				ws.removeListener(event, listener);
-				setTimeout(resolve);
-			};
-			return [promise, cancel];
-		},
-		noop: function () {},
-		spawnProcess: function (command, args, options) {
-			if (Module['spawnProcess']) {
-				const spawned = Module['spawnProcess'](command, args, {
-					...options,
-					shell: true,
-					stdio: ['pipe', 'pipe', 'pipe'],
-				});
-				if (spawned && !('then' in spawned) && 'on' in spawned) {
-					return spawned;
-				}
-				return Promise.resolve(spawned).then(function (spawned) {
-					if (!spawned || !spawned.on) {
-						throw new Error(
-							'spawnProcess() must return an EventEmitter but returned a different type.'
-						);
-					}
-					return spawned;
-				});
-			}
-			const e = new Error(
-				'popen(), proc_open() etc. are unsupported on this PHP instance. Call php.setSpawnHandler() ' +
-					'and provide a callback to handle spawning processes, or disable a popen(), proc_open() ' +
-					'and similar functions via php.ini.'
-			);
-			e.code = 'SPAWN_UNSUPPORTED';
-			throw e;
-		},
-		shutdownSocket: function (socketd, how) {
-			const sock = getSocketFromFD(socketd);
-			const peer = Object.values(sock.peers)[0];
-			if (!peer) {
-				return -1;
-			}
-			try {
-				peer.socket.close();
-				SOCKFS.websocket_sock_ops.removePeer(sock, peer);
-				return 0;
-			} catch (e) {
-				console.log('Socket shutdown error', e);
-				return -1;
-			}
-		},
-	};
 	function _js_open_process(
 		command,
 		argsPtr,
@@ -13909,16 +13995,24 @@ export function init(RuntimeName, PHPLoader) {
 		const optionValue = HEAPU8[optionValuePtr];
 		const SOL_SOCKET = 1;
 		const SO_KEEPALIVE = 9;
+		const SO_RCVTIMEO = 66;
+		const SO_SNDTIMEO = 67;
 		const IPPROTO_TCP = 6;
 		const TCP_NODELAY = 1;
-		const isSupported =
+		const isForwardable =
 			(level === SOL_SOCKET && optionName === SO_KEEPALIVE) ||
 			(level === IPPROTO_TCP && optionName === TCP_NODELAY);
-		if (!isSupported) {
+		const isIgnorable =
+			level === SOL_SOCKET &&
+			(optionName === SO_RCVTIMEO || optionName === SO_SNDTIMEO);
+		if (!isForwardable && !isIgnorable) {
 			console.warn(
 				`Unsupported socket option: ${level}, ${optionName}, ${optionValue}`
 			);
 			return -1;
+		}
+		if (isIgnorable) {
+			return 0;
 		}
 		const ws = PHPWASM.getAllWebSockets(socketd)[0];
 		if (!ws) {
@@ -13940,7 +14034,7 @@ export function init(RuntimeName, PHPLoader) {
 	var Asyncify = {
 		instrumentWasmImports(imports) {
 			var importPattern =
-				/^(invoke_i|invoke_ii|invoke_iii|invoke_iiii|invoke_iiiii|invoke_iiiiii|invoke_iiiiiii|invoke_iiiiiiii|invoke_iiiiiiiii|invoke_iiiiiiiiii|invoke_v|invoke_vi|invoke_vii|invoke_viidii|invoke_viii|invoke_viiii|invoke_viiiii|invoke_viiiiii|invoke_viiiiiii|invoke_viiiiiiiii|invoke_i|invoke_ii|invoke_iii|invoke_iiii|invoke_iiiii|invoke_iiiiii|invoke_iiiiiii|invoke_iiiiiiii|invoke_iiiiiiiiii|invoke_iij|invoke_iiji|invoke_iiij|invoke_iijii|invoke_iijiji|invoke_jii|invoke_jiii|invoke_viijii|invoke_vji|js_open_process|_js_open_process|_asyncjs__js_open_process|js_popen_to_file|_js_popen_to_file|_asyncjs__js_popen_to_file|__syscall_fcntl64|___syscall_fcntl64|_asyncjs___syscall_fcntl64|js_release_file_locks|_js_release_file_locks|_async_js_release_file_locks|js_flock|_js_flock|_async_js_flock|js_fd_read|_js_fd_read|fd_close|_fd_close|_asyncjs__fd_close|close|_close|js_module_onMessage|zend_hash_str_find|_js_module_onMessage|_asyncjs__js_module_onMessage|js_waitpid|_js_waitpid|_asyncjs__js_waitpid|wasm_poll_socket|_wasm_poll_socket|_asyncjs__wasm_poll_socket|_wasm_shutdown|_asyncjs__wasm_shutdown|__asyncjs__.*)$/;
+				/^(invoke_i|invoke_ii|invoke_iii|invoke_iiii|invoke_iiiii|invoke_iiiiii|invoke_iiiiiii|invoke_iiiiiiii|invoke_iiiiiiiii|invoke_iiiiiiiiii|invoke_v|invoke_vi|invoke_vii|invoke_viidii|invoke_viii|invoke_viiii|invoke_viiiii|invoke_viiiiii|invoke_viiiiiii|invoke_viiiiiiiii|invoke_i|invoke_ii|invoke_iii|invoke_iiii|invoke_iiiii|invoke_iiiiii|invoke_iiiiiii|invoke_iiiiiiii|invoke_iiiiiiiiii|invoke_iij|invoke_iiji|invoke_iiij|invoke_iijii|invoke_iijiji|invoke_jii|invoke_jiii|invoke_viijii|invoke_vji|js_open_process|_js_open_process|_asyncjs__js_open_process|js_popen_to_file|_js_popen_to_file|_asyncjs__js_popen_to_file|__syscall_fcntl64|___syscall_fcntl64|_asyncjs___syscall_fcntl64|js_release_file_locks|_js_release_file_locks|_async_js_release_file_locks|js_flock|_js_flock|_async_js_flock|js_fd_read|_js_fd_read|fd_close|_fd_close|_asyncjs__fd_close|close|_close|js_module_onMessage|zend_hash_str_find|_js_module_onMessage|_asyncjs__js_module_onMessage|js_waitpid|_js_waitpid|_asyncjs__js_waitpid|wasm_poll_socket|_wasm_poll_socket|_asyncjs__wasm_poll_socket|_wasm_shutdown|_asyncjs__wasm_shutdown|recv|_recv|setsockopt|_setsockopt|wasm_connect|_wasm_connect|__asyncjs__.*)$/;
 			for (let [x, original] of Object.entries(imports)) {
 				if (typeof original == 'function') {
 					let isAsyncifyImport =
@@ -24338,6 +24432,24 @@ export function init(RuntimeName, PHPLoader) {
 			poll();
 		});
 	};
+	function _recv(sockfd, buffer, size, flags) {
+		return _wasm_recv(sockfd, buffer, size, flags);
+	}
+	function _setsockopt(
+		socketd,
+		level,
+		optionName,
+		optionValuePtr,
+		optionLen
+	) {
+		return _wasm_setsockopt(
+			socketd,
+			level,
+			optionName,
+			optionValuePtr,
+			optionLen
+		);
+	}
 	var _getcontext = () => abort('missing function: ${name}');
 	var _makecontext = () => abort('missing function: ${name}');
 	var _swapcontext = () => abort('missing function: ${name}');
@@ -24620,6 +24732,7 @@ export function init(RuntimeName, PHPLoader) {
 	FS.createPreloadedFile = FS_createPreloadedFile;
 	FS.preloadFile = FS_preloadFile;
 	FS.staticInit();
+	PHPWASM.init(PHPLoader?.phpWasmInitOptions);
 	Module['requestAnimationFrame'] = MainLoop.requestAnimationFrame;
 	Module['pauseMainLoop'] = MainLoop.pause;
 	Module['resumeMainLoop'] = MainLoop.resume;
@@ -24637,7 +24750,6 @@ export function init(RuntimeName, PHPLoader) {
 			i
 		);
 	}
-	PHPWASM.init(PHPLoader?.phpWasmInitOptions);
 	if (globalThis.setImmediate) {
 		emSetImmediate = setImmediateWrapped;
 		emClearImmediate = clearImmediateWrapped;
@@ -24689,6 +24801,9 @@ export function init(RuntimeName, PHPLoader) {
 	Module['addRunDependency'] = addRunDependency;
 	Module['removeRunDependency'] = removeRunDependency;
 	Module['ccall'] = ccall;
+	Module['UTF8ToString'] = UTF8ToString;
+	Module['stringToUTF8'] = stringToUTF8;
+	Module['lengthBytesUTF8'] = lengthBytesUTF8;
 	Module['FS_preloadFile'] = FS_preloadFile;
 	Module['FS_unlink'] = FS_unlink;
 	Module['FS_createPath'] = FS_createPath;
@@ -24711,6 +24826,8 @@ export function init(RuntimeName, PHPLoader) {
 	Module['___cxa_rethrow_primary_exception'] =
 		___cxa_rethrow_primary_exception;
 	Module['___syscall_shutdown'] = ___syscall_shutdown;
+	Module['_recv'] = _recv;
+	Module['_setsockopt'] = _setsockopt;
 	var ASM_CONSTS = {
 		12292625: ($0) => {
 			if (!$0) {
@@ -26540,9 +26657,14 @@ export function init(RuntimeName, PHPLoader) {
 		uuid_unparse_upper: _uuid_unparse_upper,
 		uuid_variant: _uuid_variant,
 		wasm_close: _wasm_close,
+		wasm_connect: _wasm_connect,
 		wasm_poll_socket,
 		wasm_recv: _wasm_recv,
+		/**  */
+		recv: _recv,
 		wasm_setsockopt: _wasm_setsockopt,
+		/**  */
+		setsockopt: _setsockopt,
 		wasm_shutdown: _wasm_shutdown,
 		zoomSurface: _zoomSurface,
 	};
