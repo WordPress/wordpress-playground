@@ -43,13 +43,6 @@
 				"production": {
 					"mode": "production",
 					"logLevel": "info"
-				},
-				"personalwp-development": {
-					"mode": "personalwp-development"
-				},
-				"personalwp": {
-					"mode": "personalwp",
-					"logLevel": "info"
 				}
 			},
 			"dependsOn": [
@@ -64,8 +57,7 @@
 					"nx run playground-php-cors-proxy:start",
 					"nx dev playground-remote --configuration=development-for-website",
 					"nx dev playground-website-extras --configuration=development-for-website",
-					"nx dev:standalone playground-website --configuration=development --output-style=stream-without-prefixes",
-					"sleep 2; nx dev:standalone playground-website --configuration=personalwp-development --output-style=stream-without-prefixes"
+					"nx dev:standalone playground-website --configuration=development --output-style=stream-without-prefixes"
 				],
 				"parallel": true,
 				"color": true
@@ -85,10 +77,6 @@
 				"production": {
 					"buildTarget": "playground-website:build:standalone:production",
 					"hmr": false
-				},
-				"personalwp-development": {
-					"buildTarget": "playground-website:build:standalone:personalwp-development",
-					"hmr": true
 				}
 			}
 		},

@@ -10,7 +10,6 @@ import { viteIgnoreImports } from '../../vite-extensions/vite-ignore-imports';
 import {
 	websiteDevServerHost,
 	websiteDevServerPort,
-	personalwpWebsiteDevServerPort,
 	remoteDevServerHost,
 	remoteDevServerPort,
 	websiteExtrasDevServerHost,
@@ -40,10 +39,7 @@ const proxy: CommonServerOptions['proxy'] = {
 
 const path = (filename: string) => new URL(filename, import.meta.url).pathname;
 export default defineConfig(({ command, mode }) => {
-	// "personalwp" mode enables OPFS storage with a fixed site slug.
-	// Use --mode personalwp for production builds or --mode personalwp-development for dev.
-	const isPersonalWPMode = mode.startsWith('personalwp');
-	const isProductionBuild = mode === 'production' || mode === 'personalwp';
+	const isProductionBuild = mode === 'production';
 
 	const corsProxyUrl =
 		'CORS_PROXY_URL' in process.env
@@ -52,18 +48,8 @@ export default defineConfig(({ command, mode }) => {
 				? 'https://wordpress-playground-cors-proxy.net/?'
 				: '/cors-proxy/?';
 
-	const defaultBlueprintUrl = isPersonalWPMode
-		? isProductionBuild
-			? '/blueprints/personalwp-boot.json'
-			: '/website-server/blueprints/personalwp-boot.json'
-		: 'https://raw.githubusercontent.com/WordPress/blueprints/refs/heads/trunk/blueprints/welcome/blueprint.json';
-
-	const defaultStorageType = isPersonalWPMode ? 'opfs' : 'none';
-	const personalWPSiteSlug = isPersonalWPMode ? 'default' : undefined;
-
-	const devServerPort = isPersonalWPMode
-		? personalwpWebsiteDevServerPort
-		: websiteDevServerPort;
+	const defaultBlueprintUrl =
+		'https://raw.githubusercontent.com/WordPress/blueprints/refs/heads/trunk/blueprints/welcome/blueprint.json';
 
 	return {
 		// Split traffic from this server on dev so that the iframe content and
@@ -74,9 +60,7 @@ export default defineConfig(({ command, mode }) => {
 
 		assetsInclude: ['**/*.so', '**/*.dat'],
 
-		cacheDir: isPersonalWPMode
-			? '../../../node_modules/.vite/packages-playground-website-personalwp'
-			: '../../../node_modules/.vite/packages-playground-website',
+		cacheDir: '../../../node_modules/.vite/packages-playground-website',
 
 		css: {
 			modules: {
@@ -85,13 +69,13 @@ export default defineConfig(({ command, mode }) => {
 		},
 
 		preview: {
-			port: devServerPort,
+			port: websiteDevServerPort,
 			host: websiteDevServerHost,
 			proxy,
 		},
 
 		server: {
-			port: devServerPort,
+			port: websiteDevServerPort,
 			host: websiteDevServerHost,
 			allowedHosts: ['playground.test', 'playground-preview.test'],
 			proxy: {
@@ -140,21 +124,18 @@ export default defineConfig(({ command, mode }) => {
 				name: 'website-defaults',
 				content: `
 				export const defaultBlueprintUrl = ${JSON.stringify(defaultBlueprintUrl || undefined)};
-				export const defaultStorageType = ${JSON.stringify(defaultStorageType || 'none')};
-				export const personalWPSiteSlug = ${JSON.stringify(personalWPSiteSlug || undefined)};`,
+				export const defaultStorageType = 'none';
+				export const personalWPSiteSlug = undefined;`,
 			}),
 			// GitHub OAuth flow and server identification
 			{
 				name: 'configure-server',
 				configureServer(server: ViteDevServer) {
 					server.middlewares.use(oAuthMiddleware);
-					const serverType = isPersonalWPMode
-						? 'Personal Playground'
-						: 'Temporary Playground';
 					server.printUrls = () => {
-						const url = `http://${websiteDevServerHost}:${devServerPort}/website-server/`;
+						const url = `http://${websiteDevServerHost}:${websiteDevServerPort}/website-server/`;
 						// eslint-disable-next-line no-console
-						console.log(`  ${serverType}: \x1b[36m${url}\x1b[0m`);
+						console.log(`  Playground: \x1b[36m${url}\x1b[0m`);
 					};
 				},
 			},
@@ -233,12 +214,6 @@ export default defineConfig(({ command, mode }) => {
 					} catch (e) {
 						// eslint-disable-next-line no-console
 						console.error('Failed to inject commit ID', e);
-					}
-					if (isPersonalWPMode) {
-						html = html.replace(
-							/<title>.*?<\/title>/,
-							'<title>My WordPress</title>'
-						);
 					}
 					return html;
 				},

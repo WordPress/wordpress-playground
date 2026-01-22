@@ -1,0 +1,10 @@
+{
+	"landingPage": "/pygmalion.txt",
+	"steps": [
+		{
+			"step": "writeFile",
+			"path": "/wordpress/pygmalion.txt",
+			"data": "PREFACE TO PYGMALION"
+		}
+	]
+}

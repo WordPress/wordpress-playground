@@ -1,8 +1,7 @@
-import React, { Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import css from './style.module.css';
 import BrowserChrome from '../browser-chrome';
-import { defaultStorageType } from 'virtual:website-defaults';
 import {
 	selectActiveSiteError,
 	selectActiveSiteErrorDetails,
@@ -20,10 +19,6 @@ import {
 import classNames from 'classnames';
 import { SiteErrorModal } from '../site-error-modal';
 
-const PersonalWPBrowserChrome = React.lazy(
-	() => import('../personalwp-browser-chrome')
-);
-
 export const supportedDisplayModes = [
 	'browser-full-screen',
 	'seamless',
@@ -40,23 +35,6 @@ export const PlaygroundViewport = ({
 	displayMode = 'browser-full-screen',
 	className,
 }: PlaygroundViewportProps) => {
-	const activeSite = useActiveSite();
-
-	// Personal mode uses JustViewport directly (no keep-alive needed since data is in OPFS)
-	if (defaultStorageType === 'opfs') {
-		if (displayMode === 'seamless') {
-			return activeSite ? (
-				<JustViewport siteSlug={activeSite.slug} />
-			) : null;
-		}
-		return (
-			<Suspense fallback={null}>
-				<PersonalWPBrowserChrome className={className} />
-			</Suspense>
-		);
-	}
-
-	// Temporary mode uses KeepAliveTemporarySitesViewport to prevent data loss
 	if (displayMode === 'seamless') {
 		return <KeepAliveTemporarySitesViewport />;
 	}
@@ -235,12 +213,9 @@ export const JustViewport = function JustViewport({
 		}
 
 		const abortController = new AbortController();
-		const isPersonalWP = defaultStorageType === 'opfs';
 		dispatch(
 			bootSiteClient(siteSlug, iframe, {
 				signal: abortController.signal,
-				clearUrlAfterBlueprintApplied: isPersonalWP,
-				autoLogin: isPersonalWP,
 			})
 		);
 

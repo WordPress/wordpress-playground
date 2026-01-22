@@ -26,7 +26,16 @@ import { logger } from '@php-wasm/logger';
 import { setActiveSiteError, type SiteError } from './slice-ui';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import { findFirewallErrorInCauseChain } from './error-utils';
-import { defaultBlueprintUrl } from 'virtual:website-defaults';
+import {
+	defaultBlueprintUrl,
+	defaultStorageType,
+	personalWPSiteSlug,
+} from 'virtual:website-defaults';
+import {
+	shouldUsePersonalWPBlueprint,
+	loadPersonalBlueprint,
+	resolveUrlParamsForExistingSite,
+} from '../../personalwp';
 
 /**
  * The Site model used to represent a site within Playground.
@@ -270,7 +279,10 @@ export function setTemporarySiteSpec(
 		dispatch: PlaygroundDispatch,
 		getState: () => PlaygroundReduxState
 	) => {
-		const siteSlug = deriveSlugFromSiteName(siteName);
+		const siteSlug = personalWPSiteSlug ?? deriveSlugFromSiteName(siteName);
+		const effectiveSiteName = personalWPSiteSlug
+			? deriveSiteNameFromSlug(personalWPSiteSlug)
+			: siteName;
 		const newSiteUrlParams = {
 			searchParams: parseSearchParams(
 				playgroundUrlWithQueryApiArgs.searchParams
@@ -287,10 +299,10 @@ export function setTemporarySiteSpec(
 				slug: siteSlug,
 				originalUrlParams: newSiteUrlParams,
 				metadata: {
-					name: siteName,
+					name: effectiveSiteName,
 					id: crypto.randomUUID(),
 					whenCreated: Date.now(),
-					storage: 'none',
+					storage: defaultStorageType,
 					originalBlueprint: {},
 					originalBlueprintSource: {
 						type: 'none',
@@ -348,6 +360,29 @@ export function setTemporarySiteSpec(
 
 		const sites = getState().sites.entities;
 
+		// When a default site slug is configured, reuse the existing site if it exists
+		if (personalWPSiteSlug) {
+			const existingDefaultSite = Object.values(sites).find(
+				(site) => site.slug === personalWPSiteSlug
+			);
+			if (existingDefaultSite) {
+				// Check if there are actionable URL params that should be applied
+				// to the existing site (e.g., ?plugin=friends, ?blueprint-url=...)
+				const blueprint = await resolveUrlParamsForExistingSite(
+					playgroundUrlWithQueryApiArgs
+				);
+				if (blueprint) {
+					dispatch(
+						sitesSlice.actions.setBlueprintResolvedFromUrl({
+							targetSiteSlug: existingDefaultSite.slug,
+							blueprint,
+						})
+					);
+				}
+				return existingDefaultSite;
+			}
+		}
+
 		// Delete any existing temporary sites
 		for (const site of Object.values(sites)) {
 			if (site.metadata.storage === 'none') {
@@ -355,13 +390,24 @@ export function setTemporarySiteSpec(
 			}
 		}
 
-		// Then create a new temporary site
+		// Then create a new site (temporary or personal depending on defaultStorageType)
 		let resolvedBlueprint: ResolvedBlueprint | undefined = undefined;
 		try {
-			resolvedBlueprint = await resolveBlueprintFromURL(
-				playgroundUrlWithQueryApiArgs,
-				defaultBlueprintUrl
-			);
+			if (
+				shouldUsePersonalWPBlueprint(
+					playgroundUrlWithQueryApiArgs,
+					defaultBlueprintUrl
+				)
+			) {
+				resolvedBlueprint = await loadPersonalBlueprint(
+					defaultBlueprintUrl!
+				);
+			} else {
+				resolvedBlueprint = await resolveBlueprintFromURL(
+					playgroundUrlWithQueryApiArgs,
+					defaultBlueprintUrl
+				);
+			}
 		} catch (e) {
 			logger.error(
 				'Error resolving blueprint: Blueprint could not be downloaded or loaded.',
@@ -398,10 +444,10 @@ export function setTemporarySiteSpec(
 				slug: siteSlug,
 				originalUrlParams: newSiteUrlParams,
 				metadata: {
-					name: siteName,
+					name: effectiveSiteName,
 					id: crypto.randomUUID(),
 					whenCreated: Date.now(),
-					storage: 'none',
+					storage: defaultStorageType,
 					originalBlueprint: resolvedBlueprint.blueprint,
 					originalBlueprintSource: resolvedBlueprint.source!,
 					runtimeConfiguration: await resolveRuntimeConfiguration(
@@ -409,6 +455,9 @@ export function setTemporarySiteSpec(
 					)!,
 				},
 			};
+			if (newSiteInfo.metadata.storage !== 'none') {
+				await opfsSiteStorage?.create(siteSlug, newSiteInfo.metadata);
+			}
 			dispatch(sitesSlice.actions.addSite(newSiteInfo));
 			dispatch(sitesSlice.actions.setFirstTemporarySiteCreated());
 			return newSiteInfo;

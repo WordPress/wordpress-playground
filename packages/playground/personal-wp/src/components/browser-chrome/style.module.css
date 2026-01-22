@@ -61,6 +61,13 @@ body.is-embedded .fake-window-wrapper {
 	padding: 0 4px;
 }
 
+.toolbar-buttons-left {
+	display: flex;
+	gap: 0;
+	color: #fff;
+	flex-shrink: 0;
+}
+
 .toolbar-buttons:empty {
 	display: none;
 }
@@ -107,6 +114,32 @@ body.is-embedded .fake-window-wrapper {
 
 .saved-playgrounds-button:hover {
 	background: rgba(255, 255, 255, 0.1);
+	border-radius: 4px;
+}
+
+.open-site-manager-button {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 8px;
+	background: transparent;
+	border: none;
+	cursor: pointer;
+	flex-shrink: 0;
+	color: #fff;
+}
+
+.open-site-manager-button svg {
+	stroke: #fff;
+}
+
+.open-site-manager-button:hover {
+	background: rgba(255, 255, 255, 0.1);
+	border-radius: 4px;
+}
+
+.open-site-manager-button-active {
+	background: rgba(255, 255, 255, 0.15);
 	border-radius: 4px;
 }
 
