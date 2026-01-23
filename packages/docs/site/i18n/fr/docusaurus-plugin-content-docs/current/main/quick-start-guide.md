@@ -5,6 +5,7 @@ description: Un guide de 5 minutes pour débuter avec Playground. Apprenez à te
 ---
 
 import ThisIsQueryApi from '@site/docs/\_fragments/\_this_is_query_api.md';
+import TranslationCredits from '@site/src/components/TranslationCredits';
 
 <!-- # Start using WordPress Playground in 5 minutes -->
 
@@ -159,9 +160,9 @@ Les tests de compatibilité avec tant de versions de WordPress et de PHP ont tou
 
 Vous pouvez également utiliser les [paramètres de requête](/developers/apis/query-api) `wp` et `php` pour ouvrir Playground avec les bonnes versions déjà chargées :
 
--   https://playground.wordpress.net/?wp=6.5
--   https://playground.wordpress.net/?php=8.3
--   https://playground.wordpress.net/?php=8.2&wp=6.2
+- https://playground.wordpress.net/?wp=6.5
+- https://playground.wordpress.net/?php=8.3
+- https://playground.wordpress.net/?php=8.2&wp=6.2
 
 <ThisIsQueryApi />
 Cela s’appelle l’API Query et vous pouvez en apprendre plus [ici](/developers/apis/query-api/).
@@ -208,9 +209,15 @@ WordPress Playground est programmable, ce qui signifie que vous pouvez [créer d
 
 Pour en savoir plus sur le développement avec WordPress Playground, consultez la section [démarrage rapide du développement](/developers/build-your-first-app).
 
-:::
-Traduction par [@omarinier](https://profiles.wordpress.org/omarinier/)
-et relecture par [@beryldlg](https://profiles.wordpress.org/beryldlg/)
-:::
-Dernière mise à jour le 6 octobre 2025
-:::
+<TranslationCredits
+translators={[
+{ name: 'omarinier', profileUrl: 'https://profiles.wordpress.org/omarinier/' }
+]}
+reviewers={[
+{ name: 'beryldlg', profileUrl: 'https://profiles.wordpress.org/beryldlg/' }
+]}
+lastUpdated="6 octobre 2025"
+translationLabel="Traduction par"
+reviewLabel="et relecture par"
+lastUpdatedLabel="Dernière mise à jour le"
+/>
