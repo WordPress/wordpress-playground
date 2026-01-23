@@ -89,40 +89,44 @@ export function TranslationCredits({
 	isAutomated = false,
 }: TranslationCreditsProps) {
 	return (
-		<Admonition type="info" title="">
-			<p className="translation-credits">
-				{isAutomated ? (
-					<>
-						{automatedLabel}
-						{reviewers && reviewers.length > 0 && (
-							<>
-								, {automatedReviewLabel}{' '}
-								<ContributorList contributors={reviewers} />
-							</>
-						)}
-					</>
-				) : (
-					<>
-						{translators && translators.length > 0 && (
-							<>
-								{translationLabel}{' '}
-								<ContributorList contributors={translators} />
-							</>
-						)}
-						{reviewers && reviewers.length > 0 && (
-							<>
-								{' '}
-								{reviewLabel}{' '}
-								<ContributorList contributors={reviewers} />
-							</>
-						)}
-					</>
-				)}
-			</p>
-			<p className="translation-credits-date">
-				{lastUpdatedLabel} {lastUpdated}
-			</p>
-		</Admonition>
+		<div className="translation-credits-wrapper">
+			<Admonition type="info" title="">
+				<span className="translation-credits">
+					{isAutomated ? (
+						<>
+							{automatedLabel}
+							{reviewers && reviewers.length > 0 && (
+								<>
+									, {automatedReviewLabel}{' '}
+									<ContributorList contributors={reviewers} />
+								</>
+							)}
+						</>
+					) : (
+						<>
+							{translators && translators.length > 0 && (
+								<>
+									{translationLabel}{' '}
+									<ContributorList
+										contributors={translators}
+									/>
+								</>
+							)}
+							{reviewers && reviewers.length > 0 && (
+								<>
+									{' '}
+									{reviewLabel}{' '}
+									<ContributorList contributors={reviewers} />
+								</>
+							)}
+						</>
+					)}
+				</span>
+				<span className="translation-credits-date">
+					{lastUpdatedLabel} {lastUpdated}
+				</span>
+			</Admonition>
+		</div>
 	);
 }
 
