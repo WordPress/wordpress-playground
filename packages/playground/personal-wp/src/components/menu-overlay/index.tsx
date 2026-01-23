@@ -4,6 +4,8 @@ import { Icon } from '@wordpress/icons';
 import { logger } from '@php-wasm/logger';
 import { useActiveSite } from '../../lib/state/redux/store';
 import { opfsSiteStorage } from '../../lib/state/opfs/opfs-site-storage';
+import { broadcastSiteReset } from '../../lib/state/redux/tab-coordinator';
+import { useBackup } from '../../lib/hooks/use-backup';
 import {
 	Overlay,
 	OverlayHeader,
@@ -16,6 +18,7 @@ import {
 	healthCheckRecoveryBlueprint,
 } from '../../lib/health-check-recovery';
 import { BackupReminder } from '../backup-reminder';
+import { TabInfoWindow } from '../tab-info-window';
 
 interface MenuOverlayProps {
 	onClose: () => void;
@@ -23,6 +26,7 @@ interface MenuOverlayProps {
 
 export function MenuOverlay({ onClose }: MenuOverlayProps) {
 	const activeSite = useActiveSite();
+	const { isDependentMode } = useBackup();
 
 	const [showDeleteButton, setShowDeleteButton] = useState(false);
 	const [isDeleting, setIsDeleting] = useState(false);
@@ -47,6 +51,7 @@ export function MenuOverlay({ onClose }: MenuOverlayProps) {
 
 		setIsDeleting(true);
 		try {
+			broadcastSiteReset(activeSite.slug);
 			await opfsSiteStorage?.delete(activeSite.slug);
 			window.location.href =
 				window.location.origin + window.location.pathname;
@@ -61,6 +66,7 @@ export function MenuOverlay({ onClose }: MenuOverlayProps) {
 		<Overlay onClose={onClose}>
 			<OverlayHeader onClose={onClose} />
 			<OverlayBody>
+				<TabInfoWindow />
 				<OverlaySection
 					title="Personal Playground"
 					description="Your WordPress data is stored in your browser and will persist across sessions."
@@ -94,31 +100,42 @@ export function MenuOverlay({ onClose }: MenuOverlayProps) {
 					</OverlaySection>
 
 					<OverlaySection title="Start over">
-						<p>
-							If you want to start over,{' '}
-							<button
-								className={css.textButton}
-								onClick={() =>
-									setShowDeleteButton(!showDeleteButton)
-								}
-							>
-								you can reset this WordPress
-							</button>
-							.
-						</p>
-						{showDeleteButton && (
-							<button
-								className={css.dangerButton}
-								onClick={handleStartOver}
-								disabled={isDeleting}
-							>
-								<Icon icon={trash} size={20} />
-								<span>
-									{isDeleting
-										? 'Deleting...'
-										: 'Delete everything'}
-								</span>
-							</button>
+						{isDependentMode ? (
+							<p>
+								To reset this WordPress, use the main tab that
+								has the active connection.
+							</p>
+						) : (
+							<>
+								<p>
+									If you want to start over,{' '}
+									<button
+										className={css.textButton}
+										onClick={() =>
+											setShowDeleteButton(
+												!showDeleteButton
+											)
+										}
+									>
+										you can reset this WordPress
+									</button>
+									.
+								</p>
+								{showDeleteButton && (
+									<button
+										className={css.dangerButton}
+										onClick={handleStartOver}
+										disabled={isDeleting}
+									>
+										<Icon icon={trash} size={20} />
+										<span>
+											{isDeleting
+												? 'Deleting...'
+												: 'Delete everything'}
+										</span>
+									</button>
+								)}
+							</>
 						)}
 					</OverlaySection>
 				</div>

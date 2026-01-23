@@ -13,7 +13,8 @@ export type SiteError =
 	| 'blueprint-fetch-failed'
 	| 'blueprint-filesystem-required'
 	| 'blueprint-validation-failed'
-	| 'network-firewall-interference';
+	| 'network-firewall-interference'
+	| 'tab-superseded';
 
 export type SiteManagerSection = 'sidebar' | 'site-details' | 'blueprints';
 
