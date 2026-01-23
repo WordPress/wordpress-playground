@@ -1,11 +1,14 @@
 import { useState } from 'react';
 import { external, trash } from '@wordpress/icons';
 import { Icon } from '@wordpress/icons';
+import { Spinner } from '@wordpress/components';
 import { logger } from '@php-wasm/logger';
 import { useActiveSite } from '../../lib/state/redux/store';
 import { opfsSiteStorage } from '../../lib/state/opfs/opfs-site-storage';
 import { broadcastSiteReset } from '../../lib/state/redux/tab-coordinator';
 import { useBackup } from '../../lib/hooks/use-backup';
+import useFetch from '../../lib/hooks/use-fetch';
+import { WordPressIcon } from '@wp-playground/components';
 import {
 	Overlay,
 	OverlayHeader,
@@ -20,6 +23,25 @@ import {
 import { BackupReminder } from '../backup-reminder';
 import { TabInfoWindow } from '../tab-info-window';
 
+type AppEntry = {
+	title: string;
+	description: string;
+	author: string;
+	categories: string[];
+};
+
+const APPS_INDEX_URL =
+	'https://raw.githubusercontent.com/WordPress/blueprints/my-wordpress/apps.json';
+const APPS_BASE_URL =
+	'https://raw.githubusercontent.com/WordPress/blueprints/my-wordpress/';
+
+function getAppBlueprintUrl(blueprintUrl: string): string {
+	const url = new URL(window.location.href);
+	url.hash = '';
+	url.searchParams.set('blueprint-url', blueprintUrl);
+	return url.toString();
+}
+
 interface MenuOverlayProps {
 	onClose: () => void;
 }
@@ -31,6 +53,20 @@ export function MenuOverlay({ onClose }: MenuOverlayProps) {
 	const [showDeleteButton, setShowDeleteButton] = useState(false);
 	const [isDeleting, setIsDeleting] = useState(false);
 	const [showRecoveryButton, setShowRecoveryButton] = useState(false);
+
+	const {
+		data: appsData,
+		isLoading: appsLoading,
+		isError: appsError,
+	} = useFetch<Record<string, AppEntry>>(APPS_INDEX_URL);
+
+	const apps = appsData
+		? Object.entries(appsData).map(([path, entry]) => ({
+				...entry,
+				path,
+				blueprintUrl: `${APPS_BASE_URL}${path}`,
+			}))
+		: [];
 
 	async function handleStartOver() {
 		if (!activeSite || activeSite.metadata.storage === 'none') {
@@ -67,15 +103,41 @@ export function MenuOverlay({ onClose }: MenuOverlayProps) {
 			<OverlayHeader onClose={onClose} />
 			<OverlayBody>
 				<TabInfoWindow />
-				<OverlaySection
-					title="Personal Playground"
-					description="Your WordPress data is stored in your browser and will persist across sessions."
-				>
-					<p>
-						This is a personal WordPress installation. Changes you
-						make will be saved automatically in your browser's
-						storage.
-					</p>
+
+				<OverlaySection title="Install Apps">
+					{appsLoading ? (
+						<div className={css.loadingContainer}>
+							<Spinner />
+						</div>
+					) : appsError ? (
+						<p className={css.errorMessage}>
+							Unable to load apps. Check your connection.
+						</p>
+					) : (
+						<div className={css.featuresList}>
+							{apps.map((app) => (
+								<a
+									key={app.path}
+									className={css.featureItem}
+									href={getAppBlueprintUrl(app.blueprintUrl)}
+								>
+									<span className={css.featureIcon}>
+										<WordPressIcon />
+									</span>
+									<span className={css.featureContent}>
+										<span className={css.featureTitle}>
+											{app.title}
+										</span>
+										<span
+											className={css.featureDescription}
+										>
+											{app.description}
+										</span>
+									</span>
+								</a>
+							))}
+						</div>
+					)}
 				</OverlaySection>
 
 				<OverlaySection title="Backup">
