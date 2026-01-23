@@ -25,7 +25,12 @@ const config = {
 	projectName: 'wordpress-playground', // Usually your repo name.
 
 	onBrokenLinks: 'throw',
-	onBrokenMarkdownLinks: 'throw',
+
+	markdown: {
+		hooks: {
+			onBrokenMarkdownLinks: 'throw',
+		},
+	},
 
 	// Even if you don't use internalization, you can use this field to set useful
 	// metadata like HTML lang. For example, if your site is Chinese, you may want
@@ -44,7 +49,7 @@ const config = {
 				path: 'es',
 			},
 			fr: {
-				label: 'French',
+				label: 'Français',
 				path: 'fr',
 			},
 			ja: {
@@ -60,7 +65,7 @@ const config = {
 				path: 'tl',
 			},
 			gu: {
-				label: 'Gujarati',
+				label: 'ગુજરાતી',
 				path: 'gu',
 			},
 		},
@@ -115,9 +120,8 @@ const config = {
 						defaultSidebarItemsGenerator,
 						...args
 					}) {
-						const sidebarItems = await defaultSidebarItemsGenerator(
-							args
-						);
+						const sidebarItems =
+							await defaultSidebarItemsGenerator(args);
 						return flattenDirectoriesWithSingleFile(sidebarItems);
 					},
 				},
