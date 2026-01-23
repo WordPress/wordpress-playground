@@ -15,7 +15,7 @@ const currentDirPath =
 		: path.dirname(fileURLToPath(import.meta.url));
 const dependencyFilename = path.join(currentDirPath, '8_4_17', 'php_8_4.wasm');
 export { dependencyFilename };
-export const dependenciesTotalSize = 29267342;
+export const dependenciesTotalSize = 29267376;
 const phpVersionString = '8.4.17';
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
@@ -6380,185 +6380,17 @@ export function init(RuntimeName, PHPLoader) {
 	}
 	___syscall_chmod.sig = 'ipi';
 
-	function ___syscall_connect(fd, addr, addrlen, d1, d2, d3) {
-		try {
-			var sock = getSocketFromFD(fd);
-			var info = getSocketAddress(addr, addrlen);
-			sock.sock_ops.connect(sock, info.addr, info.port);
-			return 0;
-		} catch (e) {
-			if (typeof FS == 'undefined' || !(e.name === 'ErrnoError')) throw e;
-			return -e.errno;
-		}
-	}
-	___syscall_connect.sig = 'iippiii';
-
-	function ___syscall_dup(fd) {
-		try {
-			var old = SYSCALLS.getStreamFromFD(fd);
-			return FS.dupStream(old).fd;
-		} catch (e) {
-			if (typeof FS == 'undefined' || !(e.name === 'ErrnoError')) throw e;
-			return -e.errno;
-		}
-	}
-	___syscall_dup.sig = 'ii';
-
-	function ___syscall_dup3(fd, newfd, flags) {
-		try {
-			var old = SYSCALLS.getStreamFromFD(fd);
-			if (old.fd === newfd) return -28;
-			// Check newfd is within range of valid open file descriptors.
-			if (newfd < 0 || newfd >= FS.MAX_OPEN_FDS) return -8;
-			var existing = FS.getStream(newfd);
-			if (existing) FS.close(existing);
-			return FS.dupStream(old, newfd).fd;
-		} catch (e) {
-			if (typeof FS == 'undefined' || !(e.name === 'ErrnoError')) throw e;
-			return -e.errno;
-		}
-	}
-	___syscall_dup3.sig = 'iiii';
-
-	function ___syscall_faccessat(dirfd, path, amode, flags) {
-		try {
-			path = SYSCALLS.getStr(path);
-			path = SYSCALLS.calculateAt(dirfd, path);
-			if (amode & ~7) {
-				// need a valid mode
-				return -28;
-			}
-			var lookup = FS.lookupPath(path, { follow: true });
-			var node = lookup.node;
-			if (!node) {
-				return -44;
-			}
-			var perms = '';
-			if (amode & 4) perms += 'r';
-			if (amode & 2) perms += 'w';
-			if (amode & 1) perms += 'x';
-			if (
-				perms /* otherwise, they've just passed F_OK */ &&
-				FS.nodePermissions(node, perms)
-			) {
-				return -2;
-			}
-			return 0;
-		} catch (e) {
-			if (typeof FS == 'undefined' || !(e.name === 'ErrnoError')) throw e;
-			return -e.errno;
-		}
-	}
-	___syscall_faccessat.sig = 'iipii';
-
-	var ___syscall_fadvise64 = (fd, offset, len, advice) => 0;
-	___syscall_fadvise64.sig = 'iijji';
-
-	var INT53_MAX = 9007199254740992;
-
-	var INT53_MIN = -9007199254740992;
-	var bigintToI53Checked = (num) =>
-		num < INT53_MIN || num > INT53_MAX ? NaN : Number(num);
-	function ___syscall_fallocate(fd, mode, offset, len) {
-		offset = bigintToI53Checked(offset);
-		len = bigintToI53Checked(len);
-
-		try {
-			if (isNaN(offset) || isNaN(len)) return -61;
-			if (mode != 0) {
-				return -138;
-			}
-			if (offset < 0 || len < 0) {
-				return -28;
-			}
-			// We only support mode == 0, which means we can implement fallocate
-			// in terms of ftruncate.
-			var oldSize = FS.fstat(fd).size;
-			var newSize = offset + len;
-			if (newSize > oldSize) {
-				FS.ftruncate(fd, newSize);
-			}
-			return 0;
-		} catch (e) {
-			if (typeof FS == 'undefined' || !(e.name === 'ErrnoError')) throw e;
-			return -e.errno;
-		}
-	}
-	___syscall_fallocate.sig = 'iiijj';
-
-	function ___syscall_fchdir(fd) {
-		try {
-			var stream = SYSCALLS.getStreamFromFD(fd);
-			FS.chdir(stream.path);
-			return 0;
-		} catch (e) {
-			if (typeof FS == 'undefined' || !(e.name === 'ErrnoError')) throw e;
-			return -e.errno;
-		}
-	}
-	___syscall_fchdir.sig = 'ii';
-
-	function ___syscall_fchmod(fd, mode) {
-		try {
-			FS.fchmod(fd, mode);
-			return 0;
-		} catch (e) {
-			if (typeof FS == 'undefined' || !(e.name === 'ErrnoError')) throw e;
-			return -e.errno;
-		}
-	}
-	___syscall_fchmod.sig = 'iii';
-
-	function ___syscall_fchmodat2(dirfd, path, mode, flags) {
-		try {
-			var nofollow = flags & 256;
-			path = SYSCALLS.getStr(path);
-			path = SYSCALLS.calculateAt(dirfd, path);
-			FS.chmod(path, mode, nofollow);
-			return 0;
-		} catch (e) {
-			if (typeof FS == 'undefined' || !(e.name === 'ErrnoError')) throw e;
-			return -e.errno;
-		}
-	}
-	___syscall_fchmodat2.sig = 'iipii';
-
-	function ___syscall_fchown32(fd, owner, group) {
-		try {
-			FS.fchown(fd, owner, group);
-			return 0;
-		} catch (e) {
-			if (typeof FS == 'undefined' || !(e.name === 'ErrnoError')) throw e;
-			return -e.errno;
-		}
-	}
-	___syscall_fchown32.sig = 'iiii';
-
-	function ___syscall_fchownat(dirfd, path, owner, group, flags) {
-		try {
-			path = SYSCALLS.getStr(path);
-			var nofollow = flags & 256;
-			flags = flags & ~256;
-			path = SYSCALLS.calculateAt(dirfd, path);
-			(nofollow ? FS.lchown : FS.chown)(path, owner, group);
-			return 0;
-		} catch (e) {
-			if (typeof FS == 'undefined' || !(e.name === 'ErrnoError')) throw e;
-			return -e.errno;
-		}
-	}
-	___syscall_fchownat.sig = 'iipiii';
-
-	var syscallGetVarargI = () => {
-		// the `+` prepended here is necessary to convince the JSCompiler that varargs is indeed a number.
-		var ret = HEAP32[+SYSCALLS.varargs >> 2];
-		SYSCALLS.varargs += 4;
-		return ret;
-	};
-	var syscallGetVarargP = syscallGetVarargI;
-
 	var allocateUTF8OnStack = (...args) => stringToUTF8OnStack(...args);
 
+	function _js_getpid() {
+		return PHPLoader.processId ?? 42;
+	}
+
+	function _js_wasm_trace(format, ...args) {
+		if (PHPLoader.trace instanceof Function) {
+			PHPLoader.trace(_js_getpid(), format, ...args);
+		}
+	}
 	var PHPWASM = {
 		O_APPEND: 1024,
 		O_NONBLOCK: 2048,
@@ -6896,15 +6728,284 @@ export function init(RuntimeName, PHPLoader) {
 		},
 	};
 
-	function _js_getpid() {
-		return PHPLoader.processId ?? 42;
-	}
+	var _wasm_connect = function (sockfd, addr, addrlen) {
+		return Asyncify.handleSleep((wakeUp) => {
+			// Get the socket
+			let sock;
+			try {
+				sock = getSocketFromFD(sockfd);
+			} catch (e) {
+				wakeUp(-ERRNO_CODES.EBADF); // EBADF
+				return;
+			}
 
-	function _js_wasm_trace(format, ...args) {
-		if (PHPLoader.trace instanceof Function) {
-			PHPLoader.trace(_js_getpid(), format, ...args);
+			if (!sock) {
+				wakeUp(-ERRNO_CODES.EBADF); // EBADF
+				return;
+			}
+
+			// Parse the address
+			let info;
+			try {
+				info = getSocketAddress(addr, addrlen);
+			} catch (e) {
+				if (typeof FS == 'undefined' || !(e.name === 'ErrnoError')) {
+					wakeUp(-ERRNO_CODES.EFAULT); // EFAULT
+					return;
+				}
+				wakeUp(-e.errno);
+				return;
+			}
+
+			// Perform the connect (this creates the WebSocket but doesn't wait)
+			try {
+				sock.sock_ops.connect(sock, info.addr, info.port);
+			} catch (e) {
+				if (typeof FS == 'undefined' || !(e.name === 'ErrnoError')) {
+					wakeUp(-ERRNO_CODES.ECONNREFUSED);
+					return;
+				}
+				wakeUp(-e.errno);
+				return;
+			}
+
+			// Get all websockets for this socket
+			const webSockets = PHPWASM.getAllWebSockets(sock);
+			if (!webSockets.length) {
+				// No WebSocket yet, this shouldn't happen after connect
+				wakeUp(-ERRNO_CODES.ECONNREFUSED);
+				return;
+			}
+
+			const ws = webSockets[0];
+
+			// If already connected, return success
+			if (ws.readyState === ws.OPEN) {
+				wakeUp(0);
+				return;
+			}
+
+			// If already closed or closing, return error
+			if (ws.readyState === ws.CLOSING || ws.readyState === ws.CLOSED) {
+				wakeUp(-ERRNO_CODES.ECONNREFUSED);
+				return;
+			}
+
+			// Wait for the connection to be established
+			const timeout = 30000; // 30 second timeout
+			let resolved = false;
+
+			const timeoutId = setTimeout(() => {
+				if (!resolved) {
+					resolved = true;
+					wakeUp(-ERRNO_CODES.ETIMEDOUT);
+				}
+			}, timeout);
+
+			const handleOpen = () => {
+				if (!resolved) {
+					resolved = true;
+					clearTimeout(timeoutId);
+					ws.removeEventListener('error', handleError);
+					ws.removeEventListener('close', handleClose);
+					wakeUp(0);
+				}
+			};
+
+			const handleError = () => {
+				if (!resolved) {
+					resolved = true;
+					clearTimeout(timeoutId);
+					ws.removeEventListener('open', handleOpen);
+					ws.removeEventListener('close', handleClose);
+					wakeUp(-ERRNO_CODES.ECONNREFUSED);
+				}
+			};
+
+			const handleClose = () => {
+				if (!resolved) {
+					resolved = true;
+					clearTimeout(timeoutId);
+					ws.removeEventListener('open', handleOpen);
+					ws.removeEventListener('error', handleError);
+					wakeUp(-ERRNO_CODES.ECONNREFUSED);
+				}
+			};
+
+			ws.addEventListener('open', handleOpen);
+			ws.addEventListener('error', handleError);
+			ws.addEventListener('close', handleClose);
+		});
+	};
+
+	function ___syscall_connect(sockfd, addr, addrlen, d1, d2, d3) {
+		return _wasm_connect(sockfd, addr, addrlen);
+	}
+	___syscall_connect.sig = 'iippiii';
+
+	function ___syscall_dup(fd) {
+		try {
+			var old = SYSCALLS.getStreamFromFD(fd);
+			return FS.dupStream(old).fd;
+		} catch (e) {
+			if (typeof FS == 'undefined' || !(e.name === 'ErrnoError')) throw e;
+			return -e.errno;
 		}
 	}
+	___syscall_dup.sig = 'ii';
+
+	function ___syscall_dup3(fd, newfd, flags) {
+		try {
+			var old = SYSCALLS.getStreamFromFD(fd);
+			if (old.fd === newfd) return -28;
+			// Check newfd is within range of valid open file descriptors.
+			if (newfd < 0 || newfd >= FS.MAX_OPEN_FDS) return -8;
+			var existing = FS.getStream(newfd);
+			if (existing) FS.close(existing);
+			return FS.dupStream(old, newfd).fd;
+		} catch (e) {
+			if (typeof FS == 'undefined' || !(e.name === 'ErrnoError')) throw e;
+			return -e.errno;
+		}
+	}
+	___syscall_dup3.sig = 'iiii';
+
+	function ___syscall_faccessat(dirfd, path, amode, flags) {
+		try {
+			path = SYSCALLS.getStr(path);
+			path = SYSCALLS.calculateAt(dirfd, path);
+			if (amode & ~7) {
+				// need a valid mode
+				return -28;
+			}
+			var lookup = FS.lookupPath(path, { follow: true });
+			var node = lookup.node;
+			if (!node) {
+				return -44;
+			}
+			var perms = '';
+			if (amode & 4) perms += 'r';
+			if (amode & 2) perms += 'w';
+			if (amode & 1) perms += 'x';
+			if (
+				perms /* otherwise, they've just passed F_OK */ &&
+				FS.nodePermissions(node, perms)
+			) {
+				return -2;
+			}
+			return 0;
+		} catch (e) {
+			if (typeof FS == 'undefined' || !(e.name === 'ErrnoError')) throw e;
+			return -e.errno;
+		}
+	}
+	___syscall_faccessat.sig = 'iipii';
+
+	var ___syscall_fadvise64 = (fd, offset, len, advice) => 0;
+	___syscall_fadvise64.sig = 'iijji';
+
+	var INT53_MAX = 9007199254740992;
+
+	var INT53_MIN = -9007199254740992;
+	var bigintToI53Checked = (num) =>
+		num < INT53_MIN || num > INT53_MAX ? NaN : Number(num);
+	function ___syscall_fallocate(fd, mode, offset, len) {
+		offset = bigintToI53Checked(offset);
+		len = bigintToI53Checked(len);
+
+		try {
+			if (isNaN(offset) || isNaN(len)) return -61;
+			if (mode != 0) {
+				return -138;
+			}
+			if (offset < 0 || len < 0) {
+				return -28;
+			}
+			// We only support mode == 0, which means we can implement fallocate
+			// in terms of ftruncate.
+			var oldSize = FS.fstat(fd).size;
+			var newSize = offset + len;
+			if (newSize > oldSize) {
+				FS.ftruncate(fd, newSize);
+			}
+			return 0;
+		} catch (e) {
+			if (typeof FS == 'undefined' || !(e.name === 'ErrnoError')) throw e;
+			return -e.errno;
+		}
+	}
+	___syscall_fallocate.sig = 'iiijj';
+
+	function ___syscall_fchdir(fd) {
+		try {
+			var stream = SYSCALLS.getStreamFromFD(fd);
+			FS.chdir(stream.path);
+			return 0;
+		} catch (e) {
+			if (typeof FS == 'undefined' || !(e.name === 'ErrnoError')) throw e;
+			return -e.errno;
+		}
+	}
+	___syscall_fchdir.sig = 'ii';
+
+	function ___syscall_fchmod(fd, mode) {
+		try {
+			FS.fchmod(fd, mode);
+			return 0;
+		} catch (e) {
+			if (typeof FS == 'undefined' || !(e.name === 'ErrnoError')) throw e;
+			return -e.errno;
+		}
+	}
+	___syscall_fchmod.sig = 'iii';
+
+	function ___syscall_fchmodat2(dirfd, path, mode, flags) {
+		try {
+			var nofollow = flags & 256;
+			path = SYSCALLS.getStr(path);
+			path = SYSCALLS.calculateAt(dirfd, path);
+			FS.chmod(path, mode, nofollow);
+			return 0;
+		} catch (e) {
+			if (typeof FS == 'undefined' || !(e.name === 'ErrnoError')) throw e;
+			return -e.errno;
+		}
+	}
+	___syscall_fchmodat2.sig = 'iipii';
+
+	function ___syscall_fchown32(fd, owner, group) {
+		try {
+			FS.fchown(fd, owner, group);
+			return 0;
+		} catch (e) {
+			if (typeof FS == 'undefined' || !(e.name === 'ErrnoError')) throw e;
+			return -e.errno;
+		}
+	}
+	___syscall_fchown32.sig = 'iiii';
+
+	function ___syscall_fchownat(dirfd, path, owner, group, flags) {
+		try {
+			path = SYSCALLS.getStr(path);
+			var nofollow = flags & 256;
+			flags = flags & ~256;
+			path = SYSCALLS.calculateAt(dirfd, path);
+			(nofollow ? FS.lchown : FS.chown)(path, owner, group);
+			return 0;
+		} catch (e) {
+			if (typeof FS == 'undefined' || !(e.name === 'ErrnoError')) throw e;
+			return -e.errno;
+		}
+	}
+	___syscall_fchownat.sig = 'iipiii';
+
+	var syscallGetVarargI = () => {
+		// the `+` prepended here is necessary to convince the JSCompiler that varargs is indeed a number.
+		var ret = HEAP32[+SYSCALLS.varargs >> 2];
+		SYSCALLS.varargs += 4;
+		return ret;
+	};
+	var syscallGetVarargP = syscallGetVarargI;
 
 	var _fd_close = function fd_close(fd) {
 		return Asyncify.handleAsync(async () => {
@@ -17981,17 +18082,34 @@ export function init(RuntimeName, PHPLoader) {
 		const optionValue = HEAPU8[optionValuePtr];
 		const SOL_SOCKET = 1;
 		const SO_KEEPALIVE = 9;
+		const SO_RCVTIMEO = 66;
+		const SO_SNDTIMEO = 67;
 		const IPPROTO_TCP = 6;
 		const TCP_NODELAY = 1;
-		const isSupported =
+
+		// Options that we can forward to the WebSocket proxy
+		const isForwardable =
 			(level === SOL_SOCKET && optionName === SO_KEEPALIVE) ||
 			(level === IPPROTO_TCP && optionName === TCP_NODELAY);
-		if (!isSupported) {
+
+		// Options that we acknowledge but don't actually implement
+		// (WebSocket connections handle timeouts differently)
+		const isIgnorable =
+			level === SOL_SOCKET &&
+			(optionName === SO_RCVTIMEO || optionName === SO_SNDTIMEO);
+
+		if (!isForwardable && !isIgnorable) {
 			console.warn(
 				`Unsupported socket option: ${level}, ${optionName}, ${optionValue}`
 			);
 			return -1;
 		}
+
+		// For ignorable options, just return success
+		if (isIgnorable) {
+			return 0;
+		}
+
 		const ws = PHPWASM.getAllWebSockets(socketd)[0];
 		if (!ws) {
 			return -1;
@@ -18015,7 +18133,7 @@ export function init(RuntimeName, PHPLoader) {
 	var Asyncify = {
 		instrumentWasmImports(imports) {
 			var importPattern =
-				/^(js_open_process|js_fd_read|js_waitpid|js_process_status|js_create_input_device|wasm_setsockopt|wasm_shutdown|wasm_close|wasm_recv|__syscall_fcntl64|__emscripten_lookup_name|js_flock|js_release_file_locks|js_waitpid|invoke_.*|__asyncjs__.*)$/;
+				/^(js_open_process|js_fd_read|js_waitpid|js_process_status|js_create_input_device|wasm_setsockopt|wasm_shutdown|wasm_close|wasm_recv|wasm_connect|recv|setsockopt|__syscall_fcntl64|js_flock|js_release_file_locks|js_waitpid|invoke_.*|__asyncjs__.*)$/;
 
 			for (let [x, original] of Object.entries(imports)) {
 				if (typeof original == 'function') {
@@ -18039,7 +18157,7 @@ export function init(RuntimeName, PHPLoader) {
 		},
 		instrumentWasmExports(exports) {
 			var exportPattern =
-				/^(php_wasm_init|wasm_sleep|wasm_read|emscripten_sleep|wasm_sapi_handle_request|wasm_sapi_request_shutdown|wasm_poll_socket|wrap_select|__wrap_select|select|php_pollfd_for|fflush|wasm_popen|wasm_read|wasm_php_exec|run_cli|wasm_recv|__wasm_call_ctors|__errno_location|__funcs_on_exit|main|__main_argc_argv)$/;
+				/^(php_wasm_init|wasm_sleep|wasm_read|emscripten_sleep|wasm_sapi_handle_request|wasm_sapi_request_shutdown|wasm_poll_socket|wrap_select|__wrap_select|select|php_pollfd_for|fflush|wasm_popen|wasm_read|wasm_php_exec|run_cli|wasm_recv|wasm_connect|recv|setsockopt|__wasm_call_ctors|__errno_location|__funcs_on_exit|main|__main_argc_argv)$/;
 			Asyncify.asyncExports = new Set();
 			var ret = {};
 			for (let [x, original] of Object.entries(exports)) {
@@ -30524,30 +30642,25 @@ export function init(RuntimeName, PHPLoader) {
 		});
 	};
 
-	var ___emscripten_lookup_name = function __emscripten_lookup_name(namePtr) {
-		return Asyncify.handleAsync(async () => {
-			if (!ENVIRONMENT_IS_NODE) {
-				return original__emscripten_lookup_name(namePtr);
-			}
-			if (!PHPLoader.syscalls) {
-				return original__emscripten_lookup_name(namePtr);
-			}
+	function _recv(sockfd, buffer, size, flags) {
+		return _wasm_recv(sockfd, buffer, size, flags);
+	}
 
-			const hostname = UTF8ToString(namePtr);
-
-			let ipString = '';
-			try {
-				ipString = await Promise.resolve(
-					PHPLoader.syscalls.gethostbyname(hostname)
-				);
-			} catch (e) {
-				// Fall through to the default synthetic mapping if native DNS fails.
-			}
-
-			return inetPton4(ipString);
-		});
-	};
-	___emscripten_lookup_name.sig = 'ip';
+	function _setsockopt(
+		socketd,
+		level,
+		optionName,
+		optionValuePtr,
+		optionLen
+	) {
+		return _wasm_setsockopt(
+			socketd,
+			level,
+			optionName,
+			optionValuePtr,
+			optionLen
+		);
+	}
 
 	var webSockets = new HandleAllocator();
 
@@ -30940,11 +31053,6 @@ export function init(RuntimeName, PHPLoader) {
 	// invocation, so that we will immediately be able to queue the newest
 	// produced audio samples.
 	registerPostMainLoop(() => SDL.audio?.queueNewAudioData?.());
-	const original__emscripten_lookup_name = __emscripten_lookup_name;
-	if (typeof __emscripten_lookup_name !== 'undefined') {
-		__emscripten_lookup_name = ___emscripten_lookup_name;
-	}
-	___emscripten_lookup_name.isAsync = true;
 	// End JS library code
 
 	// include: postlibrary.js
@@ -30980,9 +31088,6 @@ export function init(RuntimeName, PHPLoader) {
 	Module['addRunDependency'] = addRunDependency;
 	Module['removeRunDependency'] = removeRunDependency;
 	Module['ccall'] = ccall;
-	Module['UTF8ToString'] = UTF8ToString;
-	Module['stringToUTF8'] = stringToUTF8;
-	Module['lengthBytesUTF8'] = lengthBytesUTF8;
 	Module['FS_preloadFile'] = FS_preloadFile;
 	Module['FS_unlink'] = FS_unlink;
 	Module['FS_createPath'] = FS_createPath;
@@ -31004,6 +31109,8 @@ export function init(RuntimeName, PHPLoader) {
 	Module['__Unwind_DeleteException'] = __Unwind_DeleteException;
 	Module['_sched_yield'] = _sched_yield;
 	Module['___syscall_shutdown'] = ___syscall_shutdown;
+	Module['_recv'] = _recv;
+	Module['_setsockopt'] = _setsockopt;
 	// End JS library exports
 
 	// end include: postlibrary.js
@@ -31942,8 +32049,6 @@ export function init(RuntimeName, PHPLoader) {
 		__asyncjs__wasm_poll_socket,
 		/** @export */
 		__call_sighandler: ___call_sighandler,
-		/** @export */
-		__emscripten_lookup_name: ___emscripten_lookup_name,
 		/** @export */
 		__syscall__newselect: ___syscall__newselect,
 		/** @export */
@@ -33978,9 +34083,15 @@ export function init(RuntimeName, PHPLoader) {
 		/** @export */
 		wasm_close: _wasm_close,
 		/** @export */
+		wasm_connect: _wasm_connect,
+		/** @export */
 		wasm_recv: _wasm_recv,
+		/**  */
+		recv: _recv,
 		/** @export */
 		wasm_setsockopt: _wasm_setsockopt,
+		/**  */
+		setsockopt: _setsockopt,
 		/** @export */
 		wasm_shutdown: _wasm_shutdown,
 		/** @export */

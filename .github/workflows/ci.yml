@@ -352,6 +352,30 @@ jobs:
                   REDIS_HOST: 127.0.0.1
                   REDIS_PORT: 6379
 
+    # Memcached extension tests - verifies the php-memcached extension loads
+    # and provides the expected API, and can connect to a real memcached server.
+    test-memcached-extension:
+        runs-on: ubuntu-latest
+        services:
+            memcached:
+                image: memcached:1.6-alpine
+                ports:
+                    - 11211:11211
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  submodules: true
+            - uses: ./.github/actions/prepare-playground
+              with:
+                  node-version: 23
+            - name: Run memcached extension tests
+              run: node --expose-gc node_modules/nx/bin/nx run php-wasm-node:test-memcached-extension-jspi
+            - name: Run memcached network tests
+              run: node --expose-gc node_modules/nx/bin/nx run php-wasm-node:test-memcached-network-jspi
+              env:
+                  MEMCACHED_HOST: 127.0.0.1
+                  MEMCACHED_PORT: 11211
+
     build:
         runs-on: ubuntu-latest
         steps:

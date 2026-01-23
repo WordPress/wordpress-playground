@@ -41,7 +41,7 @@ Como o Playground [transmite ao invés de servir](/about#streamed-not-served) o 
 <!-- <figcaption><i>2. Save button:</i></figcaption> -->
 <figcaption><i>2. Botão Salvar:</i></figcaption>
 
-![Save Button](@site/static/img/save-button.webp)
+![Save Button](@site/static/img/saving-playground.webp)
 
 </figure>
 </blockquote>

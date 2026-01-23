@@ -41,7 +41,7 @@ Como Playground [transmite en lugar de servir](/about#streamed-not-served) WordP
 <!-- <figcaption><i>2. Save button:</i></figcaption> -->
 <figcaption><i>2. Botón Guardar:</i></figcaption>
 
-![Save Button](@site/static/img/save-button.webp)
+![Save Button](@site/static/img/saving-playground.webp)
 
 </figure>
 </blockquote>

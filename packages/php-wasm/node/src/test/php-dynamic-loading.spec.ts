@@ -354,16 +354,108 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 			}
 		);
 
-		it.skipIf(!isJspiAvailable)(
-			'can instantiate Redis class',
-			async () => {
-				const result = await php.runStream({
-					code: `<?php
+		it.skipIf(!isJspiAvailable)('can instantiate Redis class', async () => {
+			const result = await php.runStream({
+				code: `<?php
 					$redis = new Redis();
 					var_dump(get_class($redis));`,
+			});
+
+			expect(await result.stdoutText).toEqual('string(5) "Redis"\n');
+		});
+	});
+
+	// Memcached requires JSPI for proper exception handling during network operations.
+	// Skip these tests when JSPI is not available (e.g., when running with asyncify).
+	describe('Memcached', () => {
+		let php: PHP;
+		beforeEach(async () => {
+			if (!isJspiAvailable) {
+				return;
+			}
+			php = new PHP(
+				await loadNodeRuntime(phpVersion as any, {
+					withMemcached: true,
+				})
+			);
+		});
+
+		afterEach(async () => {
+			if (php) {
+				php.exit();
+			}
+		});
+
+		it.skipIf(!isJspiAvailable)(
+			'does not load dynamically by default',
+			async () => {
+				php = new PHP(await loadNodeRuntime(phpVersion as any));
+
+				const result = await php.runStream({
+					code: `<?php
+					var_dump(extension_loaded('memcached'));
+					var_dump(class_exists('Memcached'));`,
 				});
 
-				expect(await result.stdoutText).toEqual('string(5) "Redis"\n');
+				expect(await result.stdoutText).toEqual(
+					'bool(false)\nbool(false)\n'
+				);
+			}
+		);
+
+		it.skipIf(!isJspiAvailable)('supports dynamic loading', async () => {
+			const result = await php.runStream({
+				code: `<?php
+					var_dump(extension_loaded('memcached'));
+					var_dump(class_exists('Memcached'));`,
+			});
+
+			expect(await result.stdoutText).toEqual('bool(true)\nbool(true)\n');
+		});
+
+		it.skipIf(!isJspiAvailable)(
+			'has its own ini file and entries',
+			async () => {
+				const entries = php.readFileAsText(
+					'/internal/shared/extensions/memcached.ini'
+				);
+
+				const expected = [
+					'extension=/internal/shared/extensions/memcached.so',
+				].join('\n');
+
+				expect(entries).toEqual(expected);
+			}
+		);
+
+		it.skipIf(!isJspiAvailable)(
+			'can instantiate Memcached class',
+			async () => {
+				const response = await php.runStream({
+					code: `<?php
+						$memcached = new Memcached();
+						var_dump(get_class($memcached));
+					?>`,
+				});
+				expect(await response.stdoutText).toEqual(
+					'string(9) "Memcached"\n'
+				);
+			}
+		);
+
+		it.skipIf(!isJspiAvailable)(
+			'has expected Memcached constants',
+			async () => {
+				const response = await php.runStream({
+					code: `<?php
+						echo defined('Memcached::OPT_COMPRESSION') ? 'true' : 'false';
+						echo '|';
+						echo defined('Memcached::OPT_SERIALIZER') ? 'true' : 'false';
+						echo '|';
+						echo defined('Memcached::HAVE_IGBINARY') ? 'true' : 'false';
+					?>`,
+				});
+				expect(await response.stdoutText).toEqual('true|true|true');
 			}
 		);
 	});

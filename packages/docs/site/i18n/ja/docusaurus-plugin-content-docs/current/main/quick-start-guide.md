@@ -122,6 +122,14 @@ Or this URL to preinstall the `pendant` theme:
 
 https://playground.wordpress.net/?theme=pendant
 
+<!--
+In case you would like to install multiple themes and plugins, it is possible to repeat the `theme` or `plugin` parameters:
+ -->
+
+複数のテーマとプラグインをインストールしたい場合は、`theme`または`plugin`パラメータを繰り返すことができます:
+
+https://playground.wordpress.net/?theme=pendant&theme=acai
+
 これらのパラメータを組み合わせたり、複数のプラグインを追加したりすることもできます。
 
 <!--
@@ -150,7 +158,7 @@ To keep your WordPress Playground site for longer than a single browser session,
 1. Open the Playground site manager panel:
  -->
 
-![Site Manager](@site/static/img/open-site-manager.webp)
+![Site Manager](@site/static/img/site-manager/open-site-manager.webp)
 
 2. 追加アクションメニューの「.zip としてダウンロード」ボタンを使用します。
 
@@ -158,7 +166,7 @@ To keep your WordPress Playground site for longer than a single browser session,
 2. Use the "Download as .zip" button in the additional actions menu
  -->
 
-![Export button](@site/static/img/site-manager-menu.webp)
+![Export button](@site/static/img/site-manager/export-zip-file.webp)
 
 エクスポートされたファイルには、構築したサイト全体が含まれています。 PHP と SQLite をサポートするサーバーであればどこでもホストできます。 WordPress のコアファイル、プラグイン、テーマ、その他サイトに追加したすべてのファイルが含まれています。
 
@@ -178,13 +186,27 @@ The SQLite database file is also included in the export, you'll find it `wp-cont
 ## Restore a saved site
  -->
 
-サイト管理パネルの「.zip からインポート」ボタンを使用して、保存したサイトを復元できます。
+Playground ダッシュボードパネルの「.zip からインポート」ボタンを使用して、保存したサイトを復元できます。
 
 <!--
-You can restore the saved site using the "Import from .zip" button in the site management panel:
+You can restore the saved site using the "Import from .zip" button in the Playground dashboard panel:
  -->
 
-![Import from .zip button](@site/static/img/site-manager-import-actions-menu.webp)
+<!--
+1. Open the Playground dashboard panel:
+ -->
+
+1. Playground ダッシュボードパネルを開きます:
+
+![Open Playground Dashboard](@site/static/img/dashboard/open-playground-dashboard.webp)
+
+<!--
+1. Use the "Import .zip" button at the end of the "Start a new Playground" section
+ -->
+
+1. 「Start a new Playground」セクションの最後にある「Import .zip」ボタンを使用します
+
+![Open Playground Dashboard](@site/static/img/dashboard/import-playground.webp)
 
 ## 特定の WordPress または PHP バージョンを使用する
 
@@ -192,13 +214,13 @@ You can restore the saved site using the "Import from .zip" button in the site m
 ## Use a specific WordPress or PHP version
  -->
 
-最も簡単な方法は、[公式デモサイト](https://playground.wordpress.net/)のバージョンスイッチャーを使用することです。
+WordPress または PHP のバージョンを変更する最も迅速な方法は、[公式デモサイト](https://playground.wordpress.net/)の設定パネルを使用することです:
 
 <!--
-The easiest way is to use the version switcher on [the official demo site](https://playground.wordpress.net/):
+The quickest way to change the version of WordPress or PHP is by using the settings panel on the [official demo site](https://playground.wordpress.net/):
  -->
 
-![WordPress Version switcher](@site/static/img/wp-version-switcher.webp)
+![WordPress Playground Settings menu](@site/static/img/playground-settings-menu.webp)
 
 :::info プラグインまたはテーマをテストする
 
@@ -214,29 +236,22 @@ Compatibility testing with so many WordPress and PHP versions was always a pain.
 :::
  -->
 
-:::info プラグインまたはテーマをテストする
-
-数多くの WordPress および PHP バージョンとの互換性テストは、いつも面倒でした。 WordPress Playground を使えば、このプロセスが楽になります。ぜひご活用ください !
-
-:::
+また、`wp` および `php` [クエリパラメータ](/developers/apis/query-api) を使用して、適切なバージョンがすでにロードされた状態で Playground を開くこともできます。
 
 <!--
-:::info Test your plugin or theme
-Compatibility testing with so many WordPres and PHP versions was always a pain. WordPress Playground makes this process effortless – use it to your advantage!
-:::
- -->
-
-また、`wp` および `php` クエリ パラメータを使用して、適切なバージョンがすでにロードされた状態で Playground を開くこともできます。
-
-<!--
-You can also use the `wp` and `php` query parameters to open Playground with the right versions already loaded:
+You can also use the `wp` and `php` [query parameters](/developers/apis/query-api) to open Playground with the right versions already loaded:
  -->
 
 - https://playground.wordpress.net/?wp=6.5
 - https://playground.wordpress.net/?php=8.3
 - https://playground.wordpress.net/?php=8.2&wp=6.2
+  <ThisIsQueryApi />
 
-<ThisIsQueryApi />
+<!--
+To learn more about preparing content for demos, see the [providing content for your demo guide](/guides/providing-content-for-your-demo).
+ -->
+
+デモのコンテンツ準備の詳細については、[デモのコンテンツ提供ガイド](/guides/providing-content-for-your-demo)を参照してください。
 
 :::info メジャーバージョンのみ
 `wp=6.2` や `php=8.1` のようなメジャーバージョンを指定すると、そのバージョンラインの最新リリースが期待されます。ただし、古いマイナーバージョンを指定することはできないため、`wp=6.1.2` や `php=7.4.9` は動作しません。
@@ -279,10 +294,10 @@ This is different from the import feature described above. The import feature ex
 ## Build apps with WordPress Playground
  -->
 
-WordPress Playground はプログラム可能なので、WordPress アプリを構築したり、プラグインのデモを設定したり、さらには設定不要のローカル開発環境として使用したりすることもできます。
+WordPress Playground はプログラム可能なので、[WordPress アプリを構築](/developers/build-your-first-app)したり、プラグインのデモを設定したり、さらには設定不要の[ローカル開発環境](/developers/local-development/)として使用したりすることもできます。
 
 <!--
-WordPress Playground is programmable which means you can build WordPress apps, setup plugin demos, and even use it as a zero-setup local development environment.
+WordPress Playground is programmable, which means you can [build WordPress apps](/developers/build-your-first-app), setup plugin demos, and even use it as a zero-setup [local development environment](/developers/local-development/).
  -->
 
 WordPress Playground を使用した開発の詳細については、[開発クイック スタート](/developers/build-your-first-app) セクションをご覧ください。

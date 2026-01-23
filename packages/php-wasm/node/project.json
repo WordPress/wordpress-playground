@@ -327,6 +327,26 @@
 				"testNamePattern": "Redis Network Integration"
 			}
 		},
+		"test-memcached-extension-jspi": {
+			"executor": "@nx/vite:test",
+			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/node"],
+			"options": {
+				"configFile": "packages/php-wasm/node/vite.jspi.config.ts",
+				"reportsDirectory": "../../../coverage/packages/php-wasm/node",
+				"testFiles": ["php-memcached.spec.ts"],
+				"testNamePattern": "Memcached Extension"
+			}
+		},
+		"test-memcached-network-jspi": {
+			"executor": "@nx/vite:test",
+			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/node"],
+			"options": {
+				"configFile": "packages/php-wasm/node/vite.jspi.config.ts",
+				"reportsDirectory": "../../../coverage/packages/php-wasm/node",
+				"testFiles": ["php-memcached.spec.ts"],
+				"testNamePattern": "Memcached Network Integration"
+			}
+		},
 		"lint": {
 			"executor": "@nx/linter:eslint",
 			"outputs": ["{options.outputFile}"],

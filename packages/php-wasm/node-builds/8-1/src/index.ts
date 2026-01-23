@@ -57,4 +57,16 @@ export async function getRedisExtensionPath(): Promise<string> {
 	);
 }
 
+export async function getMemcachedExtensionPath(): Promise<string> {
+	if (await jspi()) {
+		return join(packageDir, 'jspi/extensions/memcached/8_1/memcached.so');
+	}
+	throw new Error(
+		'The Memcached extension requires JSPI (JavaScript Promise Integration) support. ' +
+			'Your current environment is using asyncify, which cannot properly handle ' +
+			'exceptions during Memcached network operations. Please use Node.js 23+ or a ' +
+			'browser with JSPI support to use the Memcached extension.'
+	);
+}
+
 export { jspi };

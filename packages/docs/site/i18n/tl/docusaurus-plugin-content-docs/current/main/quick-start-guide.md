@@ -1,6 +1,7 @@
 ---
 title: Gabay sa Mabilis na Pagsisimula
 slug: /quick-start-guide
+description: Isang 5-minuto na gabay para magsimula sa Playground. Matuto kung paano subukan ang mga plugin, subukan ang mga tema, at gumamit ng iba't ibang bersyon ng WP/PHP.
 ---
 
 import ThisIsQueryApi from '@site/docs/\_fragments/\_this_is_query_api.md';
@@ -45,6 +46,10 @@ O para sa `pendant` theme:
 
 https://playground.wordpress.net/?theme=pendant
 
+Kung nais mong mag-install ng maraming tema at plugin, posibleng ulitin ang `theme` o `plugin` na mga parameter:
+
+https://playground.wordpress.net/?theme=pendant&theme=acai
+
 Maaari ka ring maghalo ng mga parameter at magdagdag ng maraming plugin:
 
 https://playground.wordpress.net/?plugin=coblocks&plugin=friends&theme=pendant
@@ -57,19 +62,25 @@ Para hindi mawala ang iyong site pagkatapos ng single browser session, i-export 
 
 1. Buksan ang Site Manager panel:
 
-![Site Manager](@site/static/img/open-site-manager.webp)
+![Site Manager](@site/static/img/site-manager/open-site-manager.webp)
 
 2. Gamitin ang button na "Download as .zip" sa additional actions menu:
 
-![Export button](@site/static/img/site-manager-menu.webp)
+![Export button](@site/static/img/site-manager/export-zip-file.webp)
 
 Ang na-export na file ay naglalaman ng buong site na iyong binuo, kasama ang database (`wp-content/database/.ht.sqlite`). Tandaan na ang mga nak начин ng tuldok ay nakatago, kaya maaaring kailangan mong i-enable ang "Show hidden files."
 
 ## I-restore ang na-save na site
 
-Maaari mong i-restore ang na-save na site gamit ang "Import from .zip" button sa site management panel:
+Maaari mong i-restore ang na-save na site gamit ang "Import from .zip" button sa Playground dashboard panel:
 
-![Import from .zip button](@site/static/img/site-manager-import-actions-menu.webp)
+1. Buksan ang Playground dashboard panel:
+
+![Open Playground Dashboard](@site/static/img/dashboard/open-playground-dashboard.webp)
+
+1. Gamitin ang "Import .zip" button sa dulo ng "Start a new Playground" section
+
+![Open Playground Dashboard](@site/static/img/dashboard/import-playground.webp)
 
 ## Gamitin ang tiyak na bersyon ng WordPress o PHP
 
@@ -83,16 +94,32 @@ Ang compatibility testing sa maraming bersyon ng WordPress at PHP ay palaging ma
 
 :::
 
-Maaari mo ring gamitin ang `wp` at `php` query parameters para buksan ang Playground na may tamang bersyon na naka-load:
+Maaari mo ring gamitin ang `wp` at `php` [query parameters](/developers/apis/query-api) para buksan ang Playground na may tamang bersyon na naka-load:
 
--   https://playground.wordpress.net/?wp=6.5
--   https://playground.wordpress.net/?php=7.4
--   https://playground.wordpress.net/?php=8.2&wp=6.2
+- https://playground.wordpress.net/?wp=6.5
+- https://playground.wordpress.net/?php=8.3
+- https://playground.wordpress.net/?php=8.2&wp=6.2
 
 <ThisIsQueryApi />
+
+Para matuto pa tungkol sa paghahanda ng content para sa mga demo, tingnan ang [gabay sa pagbibigay ng content para sa iyong demo](/guides/providing-content-for-your-demo).
 
 :::info Major versions only
 
 Maaari kang mag-specify ng major versions tulad ng `wp=6.2` o `php=8.1` at makukuha ang pinakabagong release sa linya na iyon. Hindi ka maaaring humiling ng mas lumang minor versions, kaya `wp=6.1.2` o `php=7.4.9` ay hindi gagana.
 
 :::
+
+## Mag-import ng WXR file
+
+Maaari kang mag-import ng WordPress export file sa pamamagitan ng pag-upload ng WXR file sa [/wp-admin/](https://playground.wordpress.net/?url=/wp-admin/import.php).
+
+Maaari mo ring gamitin ang [JSON Blueprints](/blueprints). Tingnan ang [pagsisimula sa Blueprints](/blueprints/getting-started) para matuto pa.
+
+Ito ay iba sa import feature na nakalagay sa itaas. Ang import feature ay nag-export ng buong site, kasama ang database. Ang import feature na ito ay nag-import ng WXR file sa isang existing site.
+
+## Bumuo ng mga app gamit ang WordPress Playground
+
+Ang WordPress Playground ay programmable, ibig sabihin ay maaari kang [bumuo ng WordPress apps](/developers/build-your-first-app), mag-setup ng plugin demos, at kahit gamitin ito bilang zero-setup [local development environment](/developers/local-development/).
+
+Para matuto pa tungkol sa pag-develop gamit ang WordPress Playground, tingnan ang [development quick start](/developers/build-your-first-app) section.

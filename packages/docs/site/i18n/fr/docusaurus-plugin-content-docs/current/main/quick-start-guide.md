@@ -23,7 +23,6 @@ import TOCInline from '@theme/TOCInline';
 
 Cette page vous guidera à travers chacun de ces éléments. Ah, et si vous préferrez l’apprentissage visuel, voici une vidéo :
 
-<!-- <iframe width="752" height="423.2" title="Getting started with WordPress Playground" src="https://video.wordpress.com/v/3UBIXJ9S?autoPlay=false&amp;height=1080&amp;width=1920&amp;fill=true" class="editor-media-modal-detail__preview is-video" allowFullScreen></iframe> -->
 <iframe width="752" height="423.2" title="Débutez avec WordPress Playground" src="https://video.wordpress.com/v/3UBIXJ9S?autoPlay=false&amp;height=1080&amp;width=1920&amp;fill=true" class="editor-media-modal-detail__preview is-video" allowFullScreen></iframe>
 
 <!-- ## Start a new WordPress site -->
@@ -102,17 +101,17 @@ Pour conserver votre site WordPress Playground au delà d’une seule session de
 
 1. Ouvrez le panneau du gestionnaire de site Playground :
 
-<!-- ![Site Manager](@site/static/img/open-site-manager.webp) -->
+<!-- ![Site Manager](@site/static/img/site-manager/open-site-manager.webp) -->
 
-![Gestionnaire de site](@site/static/img/open-site-manager.webp)
+![Gestionnaire de site](@site/static/img/site-manager/open-site-manager.webp)
 
 <!-- 2. Use the "Download as .zip" button in the additional actions menu -->
 
 2. Utilisez le bouton « Télécharger en tant que .zip » dans le menu supplémentaire des actions
 
-<!-- ![Export button](@site/static/img/site-manager-menu.webp) -->
+<!-- ![Export button](@site/static/img/site-manager/export-zip-file.webp) -->
 
-![Bouton export](@site/static/img/site-manager-menu.webp)
+![Bouton export](@site/static/img/site-manager/export-zip-file.webp)
 
 <!-- The exported file contains the complete site you've built. You could host it on any server that supports PHP and SQLite. All WordPress core files, plugins, themes, and everything else you've added to your site are in there. -->
 
@@ -126,13 +125,25 @@ Le fichier de base de données SQLite est également inclus dans l’export, vou
 
 ## Restaurer un site sauvegardé
 
-<!-- You can restore the saved site using the "Import from .zip" button in the site management panel: -->
+<!-- You can restore the saved site using the "Import from .zip" button in the Playground dashboard panel: -->
 
-Vous pouvez restaurer le site que vous avez sauvegardé en utilisant le bouton « Importer depuis .zip » dans panneau de gestion du site :
+Vous pouvez restaurer le site que vous avez sauvegardé en utilisant le bouton « Importer depuis .zip » dans le panneau de tableau de bord Playground :
 
-<!-- ![Import from .zip button](@site/static/img/site-manager-import-actions-menu.webp) -->
+<!-- 1. Open the Playground dashboard panel: -->
 
-![Importer depuis un bouton .zip](@site/static/img/site-manager-import-actions-menu.webp)
+1. Ouvrez le panneau de tableau de bord Playground :
+
+<!-- ![Open Playground Dashboard](@site/static/img/dashboard/open-playground-dashboard.webp) -->
+
+![Ouvrir le tableau de bord Playground](@site/static/img/dashboard/open-playground-dashboard.webp)
+
+<!-- 1. Use the "Import .zip" button at the end of the "Start a new Playground" section -->
+
+1. Utilisez le bouton « Importer .zip » à la fin de la section « Démarrer un nouveau Playground »
+
+<!-- ![Open Playground Dashboard](@site/static/img/dashboard/import-playground.webp) -->
+
+![Ouvrir le tableau de bord Playground](@site/static/img/dashboard/import-playground.webp)
 
 <!-- ## Use a specific WordPress or PHP version -->
 
@@ -165,7 +176,6 @@ Vous pouvez également utiliser les [paramètres de requête](/developers/apis/q
 - https://playground.wordpress.net/?php=8.2&wp=6.2
 
 <ThisIsQueryApi />
-Cela s’appelle l’API Query et vous pouvez en apprendre plus [ici](/developers/apis/query-api/).
 
 <!-- To learn more about preparing content for demos, see the [providing content for your demo guide](/guides/providing-content-for-your-demo). -->
 

@@ -4,7 +4,47 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
-## [v3.0.44] (2026-01-20) 
+## [v3.0.45] (2026-01-22)
+
+### Tools
+
+#### PHP WebAssembly
+
+- [PHP] Redis as a dynamic extension for Node.js. ([#3129](https://github.com/WordPress/wordpress-playground/pull/3129))
+
+### PHP WebAssembly
+
+- [PHP] Add php-memcached as a dynamically loadable extension for Node.js. ([#3133](https://github.com/WordPress/wordpress-playground/pull/3133))
+
+### Website
+
+- More reliably relay blueprints to kapa. ([#3153](https://github.com/WordPress/wordpress-playground/pull/3153))
+
+### Bug Fixes
+
+- Fix "Cannot read properties of undefined (reading 'data')" with nx. ([#3151](https://github.com/WordPress/wordpress-playground/pull/3151))
+
+### Various
+
+- Added changes to correct automatically translated text in French for …. ([#3159](https://github.com/WordPress/wordpress-playground/pull/3159))
+- Corrections to automattic translation for 08-examples.md. ([#3161](https://github.com/WordPress/wordpress-playground/pull/3161))
+- Update lock file in dev-tools. ([#3154](https://github.com/WordPress/wordpress-playground/pull/3154))
+- [PHP] Use synchronous connect() for Asyncify builds. ([#3160](https://github.com/WordPress/wordpress-playground/pull/3160))
+- [i18n] Add Bengali translation for about/index.md. ([#3149](https://github.com/WordPress/wordpress-playground/pull/3149))
+- [i18n] Add Bengali translation for releases.md. ([#3142](https://github.com/WordPress/wordpress-playground/pull/3142))
+- [i18n] ja translations developer architecture PHP Filesystem and Asyncify. ([#3141](https://github.com/WordPress/wordpress-playground/pull/3141))
+
+#### Personal Playground
+
+- [website] Refactor out an Overlay component from saved-playgrounds-overlay. ([#3152](https://github.com/WordPress/wordpress-playground/pull/3152))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @akirk @beryl-dlg @noruzzamans @shimotmk
+
+## [v3.0.44] (2026-01-20)
 
 ### Enhancements
 
@@ -28,8 +68,7 @@ The following contributors merged PRs in this release:
 
 @adamziel
 
-
-## [v3.0.43] (2026-01-19) 
+## [v3.0.43] (2026-01-19)
 
 ### Enhancements
 
@@ -55,8 +94,7 @@ The following contributors merged PRs in this release:
 
 @adamziel @fellyph
 
-
-## [v3.0.42] (2026-01-15) 
+## [v3.0.42] (2026-01-15)
 
 ### Enhancements
 
@@ -72,8 +110,7 @@ The following contributors merged PRs in this release:
 
 @adamziel @fellyph
 
-
-## [v3.0.41] (2026-01-14) 
+## [v3.0.41] (2026-01-14)
 
 ### Enhancements
 
@@ -97,8 +134,7 @@ The following contributors merged PRs in this release:
 
 @adamziel @fellyph @mho22
 
-
-## [v3.0.40] (2026-01-12) 
+## [v3.0.40] (2026-01-12)
 
 ### Documentation
 
@@ -117,12 +153,11 @@ The following contributors merged PRs in this release:
 
 @adamziel @fellyph @noruzzamans
 
-
-## [v3.0.39] (2026-01-07) 
+## [v3.0.39] (2026-01-07)
 
 ### PHP WebAssembly
 
-- [CLI] Fix __dirname not defined error in intl extension. ([#3094](https://github.com/WordPress/wordpress-playground/pull/3094))
+- [CLI] Fix \_\_dirname not defined error in intl extension. ([#3094](https://github.com/WordPress/wordpress-playground/pull/3094))
 
 ### Various
 
@@ -134,13 +169,9 @@ The following contributors merged PRs in this release:
 
 @brandonpayton @iamsohilvahora
 
+## [v3.0.38] (2026-01-06)
 
-## [v3.0.38] (2026-01-06) 
-
-
-
-
-## [v3.0.37] (2026-01-06) 
+## [v3.0.37] (2026-01-06)
 
 ### PHP WebAssembly
 
@@ -161,13 +192,9 @@ The following contributors merged PRs in this release:
 
 @mho22 @noruzzamans
 
+## [v3.0.36] (2026-01-05)
 
-## [v3.0.36] (2026-01-05) 
-
-
-
-
-## [v3.0.35] (2025-12-29) 
+## [v3.0.35] (2025-12-29)
 
 ### PHP WebAssembly
 
@@ -188,8 +215,7 @@ The following contributors merged PRs in this release:
 
 @adamziel @noruzzamans @shimotmk
 
-
-## [v3.0.34] (2025-12-24) 
+## [v3.0.34] (2025-12-24)
 
 ### PHP WebAssembly
 
@@ -211,8 +237,7 @@ The following contributors merged PRs in this release:
 
 @adamziel
 
-
-## [v3.0.33] (2025-12-22) 
+## [v3.0.33] (2025-12-22)
 
 ### Website
 
@@ -224,8 +249,7 @@ The following contributors merged PRs in this release:
 
 @adamziel
 
-
-## [v3.0.32] (2025-12-18) 
+## [v3.0.32] (2025-12-18)
 
 ### PHP WebAssembly
 
@@ -242,13 +266,9 @@ The following contributors merged PRs in this release:
 
 @adamziel
 
+## [v3.0.31] (2025-12-17)
 
-## [v3.0.31] (2025-12-17) 
-
-
-
-
-## [v3.0.30] (2025-12-17) 
+## [v3.0.30] (2025-12-17)
 
 ### Documentation
 
@@ -268,8 +288,7 @@ The following contributors merged PRs in this release:
 
 @mho22
 
-
-## [v3.0.29] (2025-12-17) 
+## [v3.0.29] (2025-12-17)
 
 ### Tools
 
@@ -289,13 +308,9 @@ The following contributors merged PRs in this release:
 
 @adamziel @akirk
 
+## [v3.0.28] (2025-12-17)
 
-## [v3.0.28] (2025-12-17) 
-
-
-
-
-## [v3.0.27] (2025-12-16) 
+## [v3.0.27] (2025-12-16)
 
 ### Internal
 
@@ -307,13 +322,9 @@ The following contributors merged PRs in this release:
 
 @adamziel
 
+## [v3.0.26] (2025-12-16)
 
-## [v3.0.26] (2025-12-16) 
-
-
-
-
-## [v3.0.25] (2025-12-16) 
+## [v3.0.25] (2025-12-16)
 
 ### Website
 
@@ -334,8 +345,7 @@ The following contributors merged PRs in this release:
 
 @adamziel
 
-
-## [v3.0.24] (2025-12-16) 
+## [v3.0.24] (2025-12-16)
 
 ### Website
 
@@ -351,8 +361,7 @@ The following contributors merged PRs in this release:
 
 @adamziel
 
-
-## [v3.0.23] (2025-12-16) 
+## [v3.0.23] (2025-12-16)
 
 ### Enhancements
 
@@ -415,7 +424,6 @@ The following contributors merged PRs in this release:
 - [i18n] ja translations developer architecture. ([#3000](https://github.com/WordPress/wordpress-playground/pull/3000))
 
 ### Experiments
-
 
 #### GitHub integration
 
@@ -487,7 +495,7 @@ The following contributors merged PRs in this release:
 - [Docs] Fix API reference. ([#2905](https://github.com/WordPress/wordpress-playground/pull/2905))
 - [Docs] Fix documentation site build failures. ([#2913](https://github.com/WordPress/wordpress-playground/pull/2913))
 
-### 
+###
 
 - Xdebug ] Relocate `xdebug` into shared library directory. ([#3045](https://github.com/WordPress/wordpress-playground/pull/3045))
 
@@ -513,11 +521,9 @@ The following contributors merged PRs in this release:
 
 @adamziel @akirk @andr3ribeiro @bgrgicak @brandonpayton @epeicher @fellyph @JanJakes @jeffpaul @mho22 @shimotmk @SirLouen @Utsav-Ladani @wojtekn
 
-
-## [v3.0.22] (2025-11-17) 
+## [v3.0.22] (2025-11-17)
 
 ### Enhancements
-
 
 #### Boot Flow
 
@@ -548,7 +554,7 @@ The following contributors merged PRs in this release:
 - [CLI] Fix null and "latest" WP version resolution and improve unzip error message. ([#2889](https://github.com/WordPress/wordpress-playground/pull/2889))
 - [CLI] Fix run-cli leak which was revealed by repeated runCLI() calls during test. ([#2888](https://github.com/WordPress/wordpress-playground/pull/2888))
 
-### 
+###
 
 - CLI] Allow API consumers to rely upon option validation and default values. ([#2883](https://github.com/WordPress/wordpress-playground/pull/2883))
 
@@ -568,7 +574,6 @@ The following contributors merged PRs in this release:
 The following contributors merged PRs in this release:
 
 @adamziel @brandonpayton @fellyph @mehrazmorshed @praful2111 @shimotmk @SirLouen @Successfulsebunya
-
 
 ## [v3.0.21] (2025-11-10)
 

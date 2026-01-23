@@ -41,7 +41,7 @@ Comme Playground [diffuse plutôt que sert](/about#streamed-not-served) WordPres
 <!-- <figcaption><i>2. Save button:</i></figcaption> -->
 <figcaption><i>2. Bouton Enregistrer :</i></figcaption>
 
-![Save Button](@site/static/img/save-button.webp)
+![Save Button](@site/static/img/saving-playground.webp)
 
 </figure>
 </blockquote>
