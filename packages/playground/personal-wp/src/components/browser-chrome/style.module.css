@@ -209,3 +209,112 @@ body.is-embedded .fake-window-wrapper {
 		order: 1;
 	}
 }
+
+/* Backup status indicator */
+.indicator {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 4px 0;
+	border-radius: 4px;
+	font-size: 14px;
+	font-weight: 500;
+	white-space: nowrap;
+	border: none;
+	background: transparent;
+	cursor: default;
+	flex-shrink: 0;
+}
+
+.indicator svg {
+	flex-shrink: 0;
+}
+
+.current {
+	color: #86efac;
+}
+
+.current svg {
+	fill: #86efac;
+}
+
+.due {
+	color: #fcd34d;
+}
+
+.due svg {
+	fill: #fcd34d;
+}
+
+.overdue {
+	color: #fca5a5;
+}
+
+.overdue svg {
+	fill: #fca5a5;
+}
+
+.backupButton {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	padding: 4px 10px;
+	background: #fcd34d;
+	color: #1e2327;
+	border: none;
+	border-radius: 4px;
+	font-size: 13px;
+	font-weight: 600;
+	cursor: pointer;
+	transition: background 0.15s ease;
+	min-height: 28px;
+}
+
+.backupButton:hover {
+	background: #fde68a;
+}
+
+.backupButton:disabled {
+	opacity: 0.7;
+	cursor: not-allowed;
+}
+
+.backupButton svg {
+	fill: #1e2327;
+}
+
+.currentButton {
+	background: #86efac;
+}
+
+.currentButton:hover {
+	background: #a7f3d0;
+}
+
+.dueButton {
+	background: #fcd34d;
+}
+
+.dueButton:hover {
+	background: #fde68a;
+}
+
+.overdueButton {
+	background: #fca5a5;
+}
+
+.overdueButton:hover {
+	background: #fecaca;
+}
+
+@media (max-width: 500px) {
+	.indicator {
+		font-size: 13px;
+	}
+
+	.backupButton {
+		min-width: 40px;
+		min-height: 40px;
+		padding: 8px 12px;
+	}
+}

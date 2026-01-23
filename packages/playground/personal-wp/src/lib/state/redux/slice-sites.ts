@@ -531,6 +531,23 @@ export interface SiteMetadata {
 	 * Used to restore the user's position when returning to a personal site.
 	 */
 	lastUrl?: string;
+
+	/**
+	 * History of backups for this site.
+	 */
+	backupHistory?: Array<{ filename: string; timestamp: number }>;
+
+	/**
+	 * Timestamp of the last day the site was accessed.
+	 * Used to track usage days for backup reminders.
+	 */
+	lastAccessDate?: number;
+
+	/**
+	 * Number of days the site has been used since the last backup.
+	 * Resets to 0 when a backup is performed.
+	 */
+	daysUsedSinceLastBackup?: number;
 }
 
 export const { setOPFSSitesLoadingState, setBlueprintResolvedFromUrl } =
