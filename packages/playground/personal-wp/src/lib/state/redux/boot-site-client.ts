@@ -319,29 +319,12 @@ export function bootSiteClient(
 						dispatch(removeClientInfo(site.slug));
 					};
 
-					const now = Date.now();
-					const lastAccess = site.metadata.lastAccessDate;
-					const isNewDay =
-						lastAccess &&
-						new Date(lastAccess).toDateString() !==
-							new Date(now).toDateString();
-
-					const changes: {
-						lastAccessDate: number;
-						daysUsedSinceLastBackup?: number;
-					} = {
-						lastAccessDate: now,
-					};
-
-					if (isNewDay) {
-						changes.daysUsedSinceLastBackup =
-							(site.metadata.daysUsedSinceLastBackup || 0) + 1;
-					}
-
 					dispatch(
 						updateSiteMetadata({
 							slug: site.slug,
-							changes,
+							changes: {
+								lastAccessDate: Date.now(),
+							},
 						})
 					);
 

@@ -551,6 +551,11 @@ export interface SiteMetadata {
 		| 'every-2-days'
 		| 'weekly'
 		| 'ignore';
+
+	/**
+	 * Timestamp of the last time this site was accessed.
+	 */
+	lastAccessDate?: number;
 }
 
 export const { setOPFSSitesLoadingState, setBlueprintResolvedFromUrl } =

@@ -126,7 +126,6 @@ describe('cross-tab-sync', () => {
 
 			broadcastMetadataUpdate('my-site', {
 				backupHistory: [{ timestamp: 123, filename: 'backup-123.zip' }],
-				daysUsedSinceLastBackup: 5,
 				lastAccessDate: 999,
 			});
 
@@ -141,7 +140,6 @@ describe('cross-tab-sync', () => {
 			expect(message.slug).toBe('my-site');
 			expect(message.changes).toEqual({
 				backupHistory: [{ timestamp: 123, filename: 'backup-123.zip' }],
-				daysUsedSinceLastBackup: 5,
 				lastAccessDate: 999,
 			});
 			expect(message.senderId).toBeTruthy();
@@ -323,7 +321,7 @@ describe('cross-tab-sync', () => {
 
 			const rebroadcastingDispatch = vi.fn(() => {
 				broadcastMetadataUpdate('my-site', {
-					daysUsedSinceLastBackup: 10,
+					lastAccessDate: Date.now(),
 				});
 			});
 

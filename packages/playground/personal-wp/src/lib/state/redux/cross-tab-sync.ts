@@ -90,7 +90,6 @@ function filterSyncableChanges(
 ): Partial<SiteMetadata> {
 	const syncableFields: (keyof SiteMetadata)[] = [
 		'backupHistory',
-		'daysUsedSinceLastBackup',
 		'lastAccessDate',
 	];
 
