@@ -80,6 +80,14 @@ export default defineConfig(({ command, mode }) => {
 					rewrite: (path) =>
 						path.replace(/^\/cors-proxy\/\?/, '/cors-proxy.php?'),
 				},
+				'/manifest.json': {
+					target: `http://${websiteDevServerHost}:${personalWPDevServerPort}`,
+					rewrite: () => '/website-server/manifest.json',
+				},
+				'^/logo-\\d+\\.png$': {
+					target: `http://${websiteDevServerHost}:${personalWPDevServerPort}`,
+					rewrite: (path) => `/website-server${path}`,
+				},
 				'^[/]((?!website-server).)': {
 					target: `http://${remoteDevServerHost}:${remoteDevServerPort}`,
 				},
