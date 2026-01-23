@@ -3,71 +3,27 @@
  *
  * Detects the user's browser language and maps it to a WordPress locale
  * for automatic language configuration.
+ *
+ * The locale map is loaded dynamically to avoid bundling it in the main chunk,
+ * since it's only needed once during first boot.
  */
+
+type LocaleMap = Record<string, string>;
+
+let localeMapPromise: Promise<LocaleMap> | null = null;
 
 /**
- * Common browser language to WordPress locale mappings.
+ * Lazily loads the browser-to-WordPress locale mapping.
  *
- * Browser languages use BCP 47 format (e.g., "en-US", "de", "pt-BR")
- * WordPress locales use underscore format (e.g., "en_US", "de_DE", "pt_BR")
- *
- * This map provides explicit mappings for cases where the conversion
- * isn't straightforward (e.g., "de" -> "de_DE", not "de").
+ * Generated from the canonical GlotPress locales.php file.
+ * To regenerate: npx tsx packages/playground/personal-wp/bin/generate-locale-map.ts
  */
-const BROWSER_TO_WP_LOCALE: Record<string, string> = {
-	// Languages that need explicit country codes
-	de: 'de_DE',
-	fr: 'fr_FR',
-	es: 'es_ES',
-	it: 'it_IT',
-	nl: 'nl_NL',
-	pl: 'pl_PL',
-	pt: 'pt_PT',
-	ru: 'ru_RU',
-	ja: 'ja',
-	ko: 'ko_KR',
-	zh: 'zh_CN',
-	ar: 'ar',
-	he: 'he_IL',
-	tr: 'tr_TR',
-	sv: 'sv_SE',
-	da: 'da_DK',
-	fi: 'fi',
-	nb: 'nb_NO',
-	nn: 'nn_NO',
-	cs: 'cs_CZ',
-	sk: 'sk_SK',
-	hu: 'hu_HU',
-	ro: 'ro_RO',
-	bg: 'bg_BG',
-	uk: 'uk',
-	el: 'el',
-	th: 'th',
-	vi: 'vi',
-	id: 'id_ID',
-	ms: 'ms_MY',
-	fa: 'fa_IR',
-	hi: 'hi_IN',
-
-	// Region-specific variants
-	'pt-br': 'pt_BR',
-	'zh-tw': 'zh_TW',
-	'zh-hk': 'zh_HK',
-	'zh-hans': 'zh_CN',
-	'zh-hant': 'zh_TW',
-	'es-mx': 'es_MX',
-	'es-ar': 'es_AR',
-	'fr-ca': 'fr_CA',
-	'fr-be': 'fr_BE',
-	'nl-be': 'nl_BE',
-	'de-at': 'de_AT',
-	'de-ch': 'de_CH',
-	'en-gb': 'en_GB',
-	'en-au': 'en_AU',
-	'en-ca': 'en_CA',
-	'en-nz': 'en_NZ',
-	'en-za': 'en_ZA',
-};
+async function getLocaleMap(): Promise<LocaleMap> {
+	if (!localeMapPromise) {
+		localeMapPromise = import('./locale-map.json').then((m) => m.default);
+	}
+	return localeMapPromise;
+}
 
 /**
  * Converts a browser language code (BCP 47) to a WordPress locale.
@@ -75,18 +31,21 @@ const BROWSER_TO_WP_LOCALE: Record<string, string> = {
  * @param browserLang - Browser language code (e.g., "en-US", "de", "pt-BR")
  * @returns WordPress locale (e.g., "en_US", "de_DE", "pt_BR") or null if no mapping
  */
-export function browserLanguageToWpLocale(browserLang: string): string | null {
+export async function browserLanguageToWpLocale(
+	browserLang: string
+): Promise<string | null> {
+	const localeMap = await getLocaleMap();
 	const normalized = browserLang.toLowerCase();
 
 	// Check for explicit mapping first
-	if (BROWSER_TO_WP_LOCALE[normalized]) {
-		return BROWSER_TO_WP_LOCALE[normalized];
+	if (localeMap[normalized]) {
+		return localeMap[normalized];
 	}
 
 	// Try base language without region
 	const baseLang = normalized.split('-')[0];
-	if (baseLang !== normalized && BROWSER_TO_WP_LOCALE[baseLang]) {
-		return BROWSER_TO_WP_LOCALE[baseLang];
+	if (baseLang !== normalized && localeMap[baseLang]) {
+		return localeMap[baseLang];
 	}
 
 	// Convert BCP 47 format to WordPress format (en-US -> en_US)
@@ -108,7 +67,7 @@ export function browserLanguageToWpLocale(browserLang: string): string | null {
  *
  * @returns WordPress locale or null if browser language is English (default)
  */
-export function getBrowserWpLocale(): string | null {
+export async function getBrowserWpLocale(): Promise<string | null> {
 	const languages =
 		typeof navigator !== 'undefined'
 			? navigator.languages || [navigator.language]
@@ -122,7 +81,7 @@ export function getBrowserWpLocale(): string | null {
 			return null;
 		}
 
-		const wpLocale = browserLanguageToWpLocale(lang);
+		const wpLocale = await browserLanguageToWpLocale(lang);
 		if (wpLocale) {
 			return wpLocale;
 		}
@@ -136,11 +95,11 @@ export function getBrowserWpLocale(): string | null {
  *
  * @returns A setSiteLanguage step or null if no translation is needed
  */
-export function createLanguageStep(): {
+export async function createLanguageStep(): Promise<{
 	step: 'setSiteLanguage';
 	language: string;
-} | null {
-	const locale = getBrowserWpLocale();
+} | null> {
+	const locale = await getBrowserWpLocale();
 	if (!locale) {
 		return null;
 	}
