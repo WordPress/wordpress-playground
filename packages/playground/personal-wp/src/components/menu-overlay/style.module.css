@@ -1,0 +1,112 @@
+.bottomRow {
+	display: flex;
+	align-items: flex-start;
+	gap: 32px;
+	margin-bottom: 32px;
+}
+
+.bottomRow > * {
+	flex: 1;
+	margin-bottom: 0;
+	padding-bottom: 0;
+}
+
+@media (max-width: 640px) {
+	.bottomRow {
+		flex-direction: column;
+	}
+}
+
+.externalLink {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	margin-top: 12px;
+	padding: 12px 20px;
+	background: #2c3338;
+	border: 1px solid #3c4349;
+	border-radius: 8px;
+	color: #fff;
+	text-decoration: none;
+	font-size: clamp(14px, 1.4vw, 15px);
+	font-weight: 500;
+	transition: all 0.15s ease;
+}
+
+.externalLink:hover {
+	background: #353b41;
+	border-color: #4a5258;
+	color: #fff;
+	text-decoration: none;
+}
+
+.externalLink svg {
+	fill: currentColor;
+}
+
+.textButton {
+	background: none;
+	border: none;
+	color: #6b7280;
+	font-size: inherit;
+	cursor: pointer;
+	padding: 0;
+	text-decoration: underline;
+	transition: color 0.15s ease;
+}
+
+.textButton:hover {
+	color: #9ca3af;
+}
+
+.dangerButton {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	margin-top: 12px;
+	padding: 12px 20px;
+	background: transparent;
+	border: 1px solid #dc2626;
+	border-radius: 8px;
+	color: #dc2626;
+	font-size: clamp(14px, 1.4vw, 15px);
+	font-weight: 500;
+	cursor: pointer;
+	transition: all 0.15s ease;
+}
+
+.dangerButton:hover:not(:disabled) {
+	background: rgba(220, 38, 38, 0.1);
+}
+
+.dangerButton:disabled {
+	opacity: 0.6;
+	cursor: not-allowed;
+}
+
+.dangerButton svg {
+	fill: currentColor;
+}
+
+.primaryButton {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	margin-top: 12px;
+	padding: 12px 20px;
+	background: #3858e9;
+	color: #fff;
+	border: none;
+	border-radius: 8px;
+	font-size: clamp(14px, 1.4vw, 15px);
+	font-weight: 500;
+	cursor: pointer;
+	text-decoration: none;
+	transition: all 0.15s ease;
+}
+
+.primaryButton:hover {
+	background: #2d4bd1;
+	color: #fff;
+	text-decoration: none;
+}
