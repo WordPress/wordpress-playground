@@ -190,3 +190,14 @@ a.navbar__link--active:hover {
 		display: inline-block;
 	}
 }
+
+/* Translation credits component styles */
+.translation-credits {
+	margin-bottom: 0.25rem;
+}
+
+.translation-credits-date {
+	margin-bottom: 0;
+	font-size: 0.9em;
+	opacity: 0.85;
+}
