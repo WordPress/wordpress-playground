@@ -88,23 +88,6 @@ let backupRequestCallback: (() => Promise<boolean>) | null = null;
 let siteResetCallback: (() => void) | null = null;
 let beforeUnloadHandler: (() => void) | null = null;
 
-// Clean up on Vite HMR to prevent duplicate listeners
-if (
-	typeof import.meta !== 'undefined' &&
-	(import.meta as unknown as { hot?: { dispose: (cb: () => void) => void } })
-		.hot
-) {
-	(
-		import.meta as unknown as { hot: { dispose: (cb: () => void) => void } }
-	).hot.dispose(() => {
-		if (channel) {
-			channel.close();
-			channel = null;
-		}
-		currentTabInfo = null;
-	});
-}
-
 /**
  * Initialize the tab coordinator for a specific site.
  *
@@ -245,7 +228,7 @@ export async function checkForExistingTabs(siteSlug: string): Promise<{
  * @param targetTabId - The tab ID to shut down
  * @param reason - Why the tab should shut down
  */
-export function requestTabShutdown(
+function requestTabShutdown(
 	targetTabId: string,
 	reason: 'stale' | 'superseded'
 ): void {
