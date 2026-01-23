@@ -3,7 +3,7 @@ import Admonition from '@theme/Admonition';
 
 export interface Contributor {
 	name: string;
-	profileUrl: string;
+	profileUrl?: string;
 }
 
 export interface TranslationCreditsProps {
@@ -52,6 +52,9 @@ export interface TranslationCreditsProps {
 }
 
 function ContributorLink({ contributor }: { contributor: Contributor }) {
+	if (!contributor.profileUrl) {
+		return <span>{contributor.name}</span>;
+	}
 	return (
 		<a
 			href={contributor.profileUrl}
@@ -88,13 +91,19 @@ export function TranslationCredits({
 	lastUpdatedLabel = 'Last updated on',
 	isAutomated = false,
 }: TranslationCreditsProps) {
+	const hasHumanTranslators =
+		translators &&
+		translators.length > 0 &&
+		translators.some((t) => t.profileUrl);
+	const isAutoTranslation = isAutomated || !hasHumanTranslators;
+
 	return (
 		<div className="translation-credits-wrapper">
 			<Admonition type="info" title="">
 				<span className="translation-credits">
-					{isAutomated ? (
+					{isAutoTranslation ? (
 						<>
-							{automatedLabel}
+							🤖 {automatedLabel}
 							{reviewers && reviewers.length > 0 && (
 								<>
 									, {automatedReviewLabel}{' '}
