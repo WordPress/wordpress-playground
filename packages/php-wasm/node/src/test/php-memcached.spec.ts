@@ -18,11 +18,7 @@
  * socket implementations.
  */
 
-import {
-	PHP,
-	SupportedPHPVersions,
-	type SupportedPHPVersion,
-} from '@php-wasm/universal';
+import { PHP, SupportedPHPVersions, type SupportedPHPVersion } from '@php-wasm/universal';
 import { loadNodeRuntime } from '../lib';
 
 const MEMCACHED_HOST = process.env['MEMCACHED_HOST'];
@@ -43,9 +39,7 @@ describe('Memcached Extension', () => {
 
 		beforeEach(async () => {
 			php = new PHP(
-				await loadNodeRuntime(phpVersion as any, {
-					withMemcached: true,
-				})
+				await loadNodeRuntime(phpVersion as any, { withMemcached: true })
 			);
 		});
 
@@ -140,7 +134,7 @@ const createMemcachedPHP = (useBinaryProtocol = false) => `
 		$m->setOption(Memcached::OPT_RECV_TIMEOUT, 5000);
 		// Blocking mode for more reliable connections in WASM
 		$m->setOption(Memcached::OPT_NO_BLOCK, false);
-		${useBinaryProtocol ? '$m->setOption(Memcached::OPT_BINARY_PROTOCOL, true);' : ''}
+		${useBinaryProtocol ? "$m->setOption(Memcached::OPT_BINARY_PROTOCOL, true);" : ''}
 		$m->addServer('${MEMCACHED_HOST}', ${MEMCACHED_PORT});
 		return $m;
 	}
@@ -151,8 +145,8 @@ describe('Memcached Network Integration', () => {
 		if (!MEMCACHED_HOST) {
 			throw new Error(
 				'MEMCACHED_HOST environment variable is required to run memcached network tests. ' +
-					'Start a memcached server with: docker run -d -p 11211:11211 memcached:1.6-alpine ' +
-					'Then run: MEMCACHED_HOST=127.0.0.1 npx vitest run php-memcached'
+				'Start a memcached server with: docker run -d -p 11211:11211 memcached:1.6-alpine ' +
+				'Then run: MEMCACHED_HOST=127.0.0.1 npx vitest run php-memcached'
 			);
 		}
 	});
@@ -162,9 +156,7 @@ describe('Memcached Network Integration', () => {
 
 		beforeEach(async () => {
 			php = new PHP(
-				await loadNodeRuntime(phpVersion as any, {
-					withMemcached: true,
-				})
+				await loadNodeRuntime(phpVersion as any, { withMemcached: true })
 			);
 		});
 
