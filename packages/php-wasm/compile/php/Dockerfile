@@ -2351,8 +2351,8 @@ RUN set -euxo pipefail; \
 		# Dynamic extensions like memcached import socket functions by their POSIX names
 		# (recv, setsockopt) but the main module only defines wasm_recv and wasm_setsockopt.
 		# We add these aliases so dynamically loaded extensions can resolve them.
-		/root/replace.sh 's/wasm_recv: _wasm_recv,/wasm_recv: _wasm_recv,\n  \/** @export *\/\n  recv: _recv,/g' /root/output/php.js; \
-		/root/replace.sh 's/wasm_setsockopt: _wasm_setsockopt,/wasm_setsockopt: _wasm_setsockopt,\n  \/** @export *\/\n  setsockopt: _setsockopt,/g' /root/output/php.js; \
+		/root/replace.sh 's/wasm_recv:\s*_wasm_recv,/wasm_recv: _wasm_recv,\n  \/** @export *\/\n  recv: _recv,/g' /root/output/php.js; \
+		/root/replace.sh 's/wasm_setsockopt:\s*_wasm_setsockopt,/wasm_setsockopt: _wasm_setsockopt,\n  \/** @export *\/\n  setsockopt: _setsockopt,/g' /root/output/php.js; \
 	# Patch Emscripten exit status to include a stack trace
 		# Override Emscripten's default ExitStatus class which gets
 		# thrown on failure. Unfortunately, the default object is not
