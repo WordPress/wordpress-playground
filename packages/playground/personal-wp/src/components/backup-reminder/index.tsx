@@ -8,55 +8,7 @@ import { logger } from '@php-wasm/logger';
 import css from './style.module.css';
 import { useBackup } from '../../lib/hooks/use-backup';
 import { isSameDay } from '../../lib/utils/date';
-
-function formatRelativeDate(timestamp: number): string {
-	const now = new Date();
-	const date = new Date(timestamp);
-	const diffMs = now.getTime() - timestamp;
-	const diffHours = diffMs / (1000 * 60 * 60);
-
-	if (diffHours < 6) {
-		const diffMinutes = Math.floor(diffMs / (1000 * 60));
-		if (diffMinutes < 1) {
-			return 'just now';
-		} else if (diffMinutes < 60) {
-			return diffMinutes === 1
-				? '1 minute ago'
-				: `${diffMinutes} minutes ago`;
-		} else {
-			const hours = Math.floor(diffHours);
-			return hours === 1 ? '1 hour ago' : `${hours} hours ago`;
-		}
-	}
-
-	const todayStart = new Date(
-		now.getFullYear(),
-		now.getMonth(),
-		now.getDate()
-	);
-	const dateStart = new Date(
-		date.getFullYear(),
-		date.getMonth(),
-		date.getDate()
-	);
-	const diffDays = Math.round(
-		(todayStart.getTime() - dateStart.getTime()) / (1000 * 60 * 60 * 24)
-	);
-
-	if (diffDays === 0) {
-		return 'today';
-	} else if (diffDays === 1) {
-		return 'yesterday';
-	} else if (diffDays < 7) {
-		return `${diffDays} days ago`;
-	} else {
-		return date.toLocaleDateString(undefined, {
-			year: 'numeric',
-			month: 'short',
-			day: 'numeric',
-		});
-	}
-}
+import { getRelativeDate } from '../../lib/utils/get-relative-date';
 
 export function BackupReminder() {
 	const playground = usePlaygroundClient();
@@ -66,6 +18,8 @@ export function BackupReminder() {
 	const [showHistory, setShowHistory] = useState(false);
 	const importInputRef = useRef<HTMLInputElement>(null);
 
+	// TODO: Support local directory sites. With a directory handle, we could
+	// automatically backup to the user's filesystem once a day or on site open.
 	if (!activeSite || activeSite.metadata.storage === 'none') {
 		return null;
 	}
@@ -118,9 +72,9 @@ export function BackupReminder() {
 	const hasHistory = backupHistory.length > 0;
 	const { whenCreated } = activeSite.metadata;
 	const lastBackupText = lastBackup
-		? `Downloaded ${formatRelativeDate(lastBackup.timestamp)}`
+		? `Downloaded ${getRelativeDate(new Date(lastBackup.timestamp))}`
 		: whenCreated
-			? `Created ${formatRelativeDate(whenCreated)}`
+			? `Created ${getRelativeDate(new Date(whenCreated))}`
 			: 'Never backed up';
 
 	const renderLastBackupDate = () => {
@@ -202,7 +156,7 @@ export function BackupReminder() {
 								{entry.filename}
 							</span>
 							<span className={css.backupDate}>
-								{formatRelativeDate(entry.timestamp)}
+								{getRelativeDate(new Date(entry.timestamp))}
 							</span>
 						</li>
 					))}

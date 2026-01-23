@@ -9,9 +9,9 @@ import saveAs from 'file-saver';
 function sanitizeForFilename(name: string): string {
 	return name
 		.trim()
-		.replace(/['']/g, '')
-		.replace(/[/\\:*?"<>|]/g, '')
-		.replace(/\s+/g, '-');
+		.replaceAll(/[^a-zA-Z0-9_-]/g, '-')
+		.replaceAll(/-+/g, '-')
+		.replace(/^-|-$/g, '');
 }
 
 function formatBackupFilename(siteName: string): string {
@@ -29,7 +29,8 @@ async function getWordPressSiteName(
 		const response = await playground.run({
 			code: `<?php
 				require_once '/wordpress/wp-load.php';
-				echo html_entity_decode(get_option('blogname', 'WordPress'), ENT_QUOTES, 'UTF-8');
+				$name = get_option('blogname', 'WordPress');
+				echo html_entity_decode($name, ENT_QUOTES, 'UTF-8');
 			`,
 		});
 		const name = response.text.trim();
@@ -66,6 +67,8 @@ export function useBackup() {
 			saveAs(new File([bytes], filename));
 
 			// Update backup history for persistent sites
+			// TODO: For local directory sites, the directory itself could be the
+			// source of truth for backup history (scan for backup zips).
 			if (activeSite.metadata.storage !== 'none') {
 				const backupHistory = activeSite.metadata.backupHistory || [];
 				const newHistory = [
