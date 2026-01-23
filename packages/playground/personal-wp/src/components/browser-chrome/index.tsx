@@ -83,6 +83,7 @@ export default function BrowserChrome({ className }: BrowserChromeProps) {
 							onUpdate={(newUrl) =>
 								clientInfo?.client.goTo(newUrl)
 							}
+							onOpenOverlay={() => setIsMenuOverlayOpen(true)}
 						/>
 					</div>
 

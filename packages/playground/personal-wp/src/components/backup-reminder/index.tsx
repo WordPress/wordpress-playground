@@ -26,7 +26,7 @@ export function BackupReminder() {
 	const playground = usePlaygroundClient();
 	const activeSite = useActiveSite();
 	const dispatch = useAppDispatch();
-	const { performBackup, isBackingUp } = useBackup();
+	const { performBackup, isBackingUp, isRequestingRemote } = useBackup();
 	const [isImporting, setIsImporting] = useState(false);
 	const [showHistory, setShowHistory] = useState(false);
 	const importInputRef = useRef<HTMLInputElement>(null);
@@ -157,10 +157,19 @@ export function BackupReminder() {
 					<button
 						className={css.backupButton}
 						onClick={performBackup}
-						disabled={!playground || isBackingUp || isImporting}
+						disabled={
+							!playground ||
+							isBackingUp ||
+							isRequestingRemote ||
+							isImporting
+						}
 						type="button"
 					>
-						{isBackingUp ? 'Backing up...' : 'Download backup'}
+						{isRequestingRemote
+							? 'Requesting...'
+							: isBackingUp
+								? 'Backing up...'
+								: 'Download backup'}
 					</button>
 					<select
 						className={css.autoBackupSelect}
@@ -176,7 +185,12 @@ export function BackupReminder() {
 					<button
 						className={css.importButton}
 						onClick={handleImportClick}
-						disabled={!playground || isBackingUp || isImporting}
+						disabled={
+							!playground ||
+							isBackingUp ||
+							isRequestingRemote ||
+							isImporting
+						}
 						type="button"
 					>
 						<Icon icon={upload} size={16} />

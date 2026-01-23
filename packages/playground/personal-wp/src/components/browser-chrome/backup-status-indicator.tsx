@@ -32,7 +32,8 @@ function getBackupUrgency(days: number): BackupUrgency {
 
 export function BackupStatusIndicator() {
 	const activeSite = useActiveSite();
-	const { performBackup, isBackingUp } = useBackup();
+	const { performBackup, isBackingUp, isRequestingRemote, isDependentMode } =
+		useBackup();
 
 	const {
 		whenCreated,
@@ -65,12 +66,15 @@ export function BackupStatusIndicator() {
 	}
 
 	const urgency = getBackupUrgency(daysSinceBackup);
-	const isWorking = isBackingUp;
-	const buttonText = isBackingUp
-		? 'Backing up...'
-		: formatDaysSinceBackup(daysSinceBackup);
-	const tooltipText =
-		'Your Playground is stored in this browser. Browser data can be cleared unexpectedly. Click to download a backup.';
+	const isWorking = isBackingUp || isRequestingRemote;
+	const buttonText = isRequestingRemote
+		? 'Requesting...'
+		: isBackingUp
+			? 'Backing up...'
+			: formatDaysSinceBackup(daysSinceBackup);
+	const tooltipText = isDependentMode
+		? 'Click to request a backup from the main tab. Your Playground is stored in this browser and may be cleared unexpectedly.'
+		: 'Your Playground is stored in this browser. Browser data can be cleared unexpectedly. Click to download a backup.';
 
 	return (
 		<div className={classNames(css.indicator, css[urgency])}>
