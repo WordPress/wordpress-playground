@@ -16,19 +16,19 @@ description: WordPress Playground દસ્તાવેજીકરણમાં 
 WordPress Playground's documentation site is maintained by volunteers like you, who'd love your help.
 -->
 
-[WordPress/wordpress-playground](https://github.com/WordPress/wordpress-playground) રેપોઝિટરીમાં દસ્તાવેજીકરણ સંબંધિત તમામ ઇશ્યૂઝને [\[Type\] Documentation](https://github.com/WordPress/wordpress-playground/issues?q=is%3Aissue%20state%3Aopen%20label%3A%22%5BType%5D%20Documentation%22)  અથવા [\[Type\] Developer Documentation](https://github.com/WordPress/wordpress-playground/issues?q=is%3Aissue%20state%3Aopen%20label%3A%22%5BType%5D%20Developer%20Documentation%22) લેબલ આપવામાં આવે છે. ખુલ્લા ઇશ્યૂઝની યાદી જુઓ અને જે ઇશ્યૂ પર તમે કામ કરવાનું ઇચ્છો તે પસંદ કરો. અન્યથા, જો તમને લાગે કે વર્તમાન દસ્તાવેજીકરણમાં કંઈક ગૂમ છે, તો તમારી સલાહ પર ચર્ચા કરવા માટે નવો ઇશ્યૂ ખોલો.
+[WordPress/wordpress-playground](https://github.com/WordPress/wordpress-playground) રેપોઝિટરીમાં દસ્તાવેજીકરણ સંબંધિત તમામ ઇશ્યૂઝને [\[Type\] Documentation](https://github.com/WordPress/wordpress-playground/issues?q=is%3Aissue%20state%3Aopen%20label%3A%22%5BType%5D%20Documentation%22) અથવા [\[Type\] Developer Documentation](https://github.com/WordPress/wordpress-playground/issues?q=is%3Aissue%20state%3Aopen%20label%3A%22%5BType%5D%20Developer%20Documentation%22) લેબલ આપવામાં આવે છે. ખુલ્લા ઇશ્યૂઝની યાદી જુઓ અને જે ઇશ્યૂ પર તમે કામ કરવાનું ઇચ્છો તે પસંદ કરો. અન્યથા, જો તમને લાગે કે વર્તમાન દસ્તાવેજીકરણમાં કંઈક ગૂમ છે, તો તમારી સલાહ પર ચર્ચા કરવા માટે નવો ઇશ્યૂ ખોલો.
 
 <!--
 All documentation-related issues are labeled [Type] Documentation or [Type] Developer Documentation in the WordPress/wordpress-playground repository. Browse the list of open issues to find one you'd like to work on. Alternatively, if you believe something is missing from the current documentation, open an issue to discuss your suggestion.
 -->
 
-## હું કેવી રીતે યોગદાન આપી શકું?
+## હું કેવી રીતે યોગદાન આપી શકું? {#how-can-i-contribute}
 
 <!--
 ## How can I contribute?
 -->
 
-તમે [પ્રોજેક્ટ રિપોઝિટરીમાં ઇશ્યૂ ખોલીને](https://github.com/WordPress/wordpress-playground/issues/new) શું ઉમેરવું છે કે શું બદલવું છે તેનું વર્ણન કરી શકો છો।    
+તમે [પ્રોજેક્ટ રિપોઝિટરીમાં ઇશ્યૂ ખોલીને](https://github.com/WordPress/wordpress-playground/issues/new) શું ઉમેરવું છે કે શું બદલવું છે તેનું વર્ણન કરી શકો છો।
 
 <!--
 You can contribute by opening an issue in the project repository and describing what you'd like to add or change.
@@ -82,10 +82,10 @@ The documentation files (`.md` files) are stored in Playground's GitHub reposito
 If logged in GitHub, you can also edit existing files (or add new ones) and submit a PR directly from the GitHub UI:
 -->
 
-1. જે પેજ એડિટ કરવું છે તે શોધો, અથવા જે ચેપ્ટરમાં નવું પેજ ઉમેરવું છે તે ડિરેક્ટરી શોધો।  
-2. નવી ફાઇલ ઉમેરવા માટે **Add files** બટન ક્લિક કરો; અથવા કોઈ હાલની ફાઇલ ખોલીને **પેન્સિલ (edit)** આઇકન ક્લિક કરો।  
-3. GitHub તમારા ફેરફારો માટે રેપોઝિટરી ફૉრკ કરવા અને નવી બ્રાન્ચ બનાવવા કહેશે।  
-4. એડિટર ખુલશે, જ્યાં તમે ફેરફારો કરી શકશો।  
+1. જે પેજ એડિટ કરવું છે તે શોધો, અથવા જે ચેપ્ટરમાં નવું પેજ ઉમેરવું છે તે ડિરેક્ટરી શોધો।
+2. નવી ફાઇલ ઉમેરવા માટે **Add files** બટન ક્લિક કરો; અથવા કોઈ હાલની ફાઇલ ખોલીને **પેન્સિલ (edit)** આઇકન ક્લિક કરો।
+3. GitHub તમારા ફેરફારો માટે રેપોઝિટરી ફૉრკ કરવા અને નવી બ્રાન્ચ બનાવવા કહેશે।
+4. એડિટર ખુલશે, જ્યાં તમે ફેરફારો કરી શકશો।
 5. કામ પૂરૂં થયા બાદ **Commit changes** ક્લિક કરો અને Pull Request મોકલો।
 
 <!--
@@ -120,12 +120,13 @@ This approach means you don't need to clone the repository, set up a local devel
 Clone the repository and navigate to the directory on your device. Now run the following commands:
 -->
 
- ```bash
- npm install
- npm run build:docs
- npm run dev:docs
+````bash
+npm install
+npm run build:docs
+npm run dev:docs
 +```
 
 દસ્તાવેજીકરણ સાઇટ નવા બ્રાઉઝર ટૅબમાં ખુલશે અને દરેક ફેરફાર બાદ આપમેળે રિફ્રેશ થશે. હવે તમારા કોડ એડિટરમાં સંબંધિત ફાઇલ એડિટ કરતા રહો અને બદલાવ રિયલ-ટાઇમમાં ચકાસો।
 
 <!-- The documentation site opens in a new browser tab and refreshes automatically with each change. Continue to edit the relevant file in your code editor and test the changes in real-time. -->
+````

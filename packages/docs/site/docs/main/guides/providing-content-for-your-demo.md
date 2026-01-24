@@ -47,7 +47,7 @@ It is recommended to upload your exported `.xml` file and any referenced assets 
 
 With the [`importWordPressFiles`](/blueprints/steps#importWordPressFiles) step, you can import your own top-level WordPress files from a given `.zip` file into the instance's root folder. For example, if a `.zip` file contains the `wp-content` and `wp-includes` directories, they will replace the corresponding directories in Playground's root folder.
 
-This `zip` file can be created from any Playground instance with the "Download as zip" option in the [Playground Options Menu](/web-instance#playground-options-menu).
+This `zip` file can be created from any Playground instance with the "Download as zip" option in the [Playground Options Menu](/web-instance#playground-settings).
 
 You can prepare a demo for your WordPress theme or plugin (including images and other assets) in a Playground instance and then export a snapshot of that demo into a `.zip` file. This file can be imported later using the `importWordPressFiles` step.
 

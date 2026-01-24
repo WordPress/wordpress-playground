@@ -27,7 +27,7 @@ import TOCInline from '@theme/TOCInline';
 
 <!-- ## Start a new WordPress site -->
 
-## નવી વર્ડપ્રેસ સાઇટ શરૂ કરો
+## નવી વર્ડપ્રેસ સાઇટ શરૂ કરો {#start-a-new-wordpress-site}
 
 <!-- Every time you visit the [official demo on playground.wordpress.net](https://playground.wordpress.net/), you get a fresh WordPress site. -->
 
@@ -57,7 +57,7 @@ import TOCInline from '@theme/TOCInline';
 
 <!-- ## Try a block, a theme, or a plugin -->
 
-## એક બ્લોક, એક થીમ અથવા એક પ્લગિન અજમાવો
+## એક બ્લોક, એક થીમ અથવા એક પ્લગિન અજમાવો {#try-a-block-a-theme-or-a-plugin}
 
 <!-- You can upload any plugin or theme you want in [/wp-admin/](https://playground.wordpress.net/?url=/wp-admin/). -->
 
@@ -97,7 +97,7 @@ https://playground.wordpress.net/?plugin=coblocks&plugin=friends&theme=pendant
 
 <!-- ## Save your site -->
 
-## તમારી સાઇટ સાચવો
+## તમારી સાઇટ સાચવો {#save-your-site}
 
 <!-- To keep your WordPress Playground site for longer than a single browser session, you can export it as a `.zip` file. -->
 
@@ -153,7 +153,7 @@ SQLite ડેટાબેસ ફાઇલ પણ એક્સપોર્ટમ�
 
 <!-- ## Use a specific WordPress or PHP version -->
 
-## ચોક્કસ વર્ડપ્રેસ અથવા PHP વર્ઝનનો ઉપયોગ કરો
+## ચોક્કસ વર્ડપ્રેસ અથવા PHP વર્ઝનનો ઉપયોગ કરો {#use-a-specific-wordpress-or-php-version}
 
 <!-- The quickest way to change the version of WordPress or PHP is by using the settings panel on the [official demo site](https://playground.wordpress.net/): -->
 
