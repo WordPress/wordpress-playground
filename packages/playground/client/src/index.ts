@@ -95,6 +95,11 @@ export interface StartPlaygroundOptions {
 	 * Defaults to the latest development version.
 	 */
 	sqliteDriverVersion?: string;
+	/**
+	 * When true, skip the isWordPressInstalled() check that loads WordPress.
+	 * Used for recovery mode when WordPress crashes due to a plugin error.
+	 */
+	skipWordPressInstallCheck?: boolean;
 }
 
 /**

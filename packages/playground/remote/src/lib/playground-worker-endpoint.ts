@@ -70,6 +70,11 @@ export type WorkerBootOptions = {
 	experimentalBlueprintsV2Runner?: boolean;
 	/** Blueprint v2 declaration to run in the worker when experimental mode is on */
 	blueprint?: BlueprintDeclaration;
+	/**
+	 * When true, skip the isWordPressInstalled() check that loads WordPress.
+	 * Used for recovery mode when WordPress crashes due to a plugin error.
+	 */
+	skipWordPressInstallCheck?: boolean;
 };
 
 /** @inheritDoc PHPClient */

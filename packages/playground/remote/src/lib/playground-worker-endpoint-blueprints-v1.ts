@@ -42,6 +42,7 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 		withIntl = false,
 		withNetworking = true,
 		shouldInstallWordPress = true,
+		skipWordPressInstallCheck = false,
 		corsProxyUrl,
 	}: WorkerBootOptions) {
 		if (this.booted) {
@@ -157,7 +158,11 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 				// saves around 600ms during the boot on a macbook pro so it's worth it.
 				// @TODO: Deprecate the `shouldInstallWordPress` semantics entirely and get the client
 				//        and the Playground website to pass `wordpressInstallMode` directly.
-				wordpressInstallMode: 'install-from-existing-files-if-needed',
+				// When skipWordPressInstallCheck is true (recovery mode), skip the isWordPressInstalled()
+				// check that loads WordPress and crashes due to a broken plugin.
+				wordpressInstallMode: skipWordPressInstallCheck
+					? 'do-not-attempt-installing'
+					: 'install-from-existing-files-if-needed',
 				// Do not await the WordPress download or the sqlite integration download.
 				// Let bootWordPress start the PHP runtime download first, and then await
 				// all the ZIP files right before they're used.
