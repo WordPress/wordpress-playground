@@ -58,7 +58,8 @@ type GitDirectoryReference = {
 	resource: 'git:directory';
 	url: string; // Repository URL (https://, ssh git@..., etc.)
 	path?: string; // Optional subdirectory inside the repository
-	ref?: string; // Optional branch, tag, or commit SHA
+	ref?: string; // Branch, tag, or commit SHA (defaults to HEAD)
+	refType?: 'branch' | 'tag' | 'commit'; // Hint for resolving the ref
 	'.git'?: boolean; // Experimental: include a .git directory with fetched metadata
 };
 ```
@@ -83,6 +84,7 @@ type GitDirectoryReference = {
 
 **Notes:**
 
+- When using a branch or tag name for `ref`, you must specify `refType` (e.g. `"refType": "branch"`). Without it, only `HEAD` is reliably resolved.
 - Playground automatically detects providers like GitHub and GitLab.
 - It handles CORS-proxied fetches and sparse checkouts, so you can use URLs that point to specific subdirectories or branches.
 - This resource can be used with steps like [`installPlugin`](/blueprints/steps#InstallPluginStep) and [`installTheme`](/blueprints/steps#InstallThemeStep).
