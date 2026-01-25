@@ -5,6 +5,7 @@ import { Icon } from '@wordpress/components';
 import { GitHubIcon } from '../../github/github';
 import css from '../../github/github-oauth-guard/style.module.css';
 import { staticAnalyzeGitHubURL } from '../../github/analyze-github-url';
+import { buildOAuthRedirectUrl } from '../../github/git-auth-helpers';
 
 const OAUTH_FLOW_URL = 'oauth.php?redirect=1';
 
@@ -19,11 +20,8 @@ export function GitHubPrivateRepoAuthModal() {
 	const { owner, repo } = staticAnalyzeGitHubURL(repoUrl);
 	const displayRepoName = owner && repo ? `${owner}/${repo}` : repoUrl;
 
-	const redirectUrl = new URL(window.location.href);
-	redirectUrl.searchParams.delete('modal');
-
 	const urlParams = new URLSearchParams();
-	urlParams.set('redirect_uri', redirectUrl.toString());
+	urlParams.set('redirect_uri', buildOAuthRedirectUrl());
 	const oauthUrl = `${OAUTH_FLOW_URL}&${urlParams.toString()}`;
 
 	return (
