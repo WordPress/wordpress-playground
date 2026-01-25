@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { external, trash } from '@wordpress/icons';
 import { Icon } from '@wordpress/icons';
 import { Spinner } from '@wordpress/components';
@@ -8,6 +8,7 @@ import { opfsSiteStorage } from '../../lib/state/opfs/opfs-site-storage';
 import { broadcastSiteReset } from '../../lib/state/redux/tab-coordinator';
 import { useBackup } from '../../lib/hooks/use-backup';
 import useFetch from '../../lib/hooks/use-fetch';
+import { useCustomApps } from '../../lib/hooks/use-custom-apps';
 import { WordPressIcon } from '@wp-playground/components';
 import {
 	Overlay,
@@ -46,13 +47,119 @@ interface MenuOverlayProps {
 	onClose: () => void;
 }
 
+function isValidUrl(str: string): boolean {
+	try {
+		new URL(str);
+		return true;
+	} catch {
+		return false;
+	}
+}
+
+function blueprintToDataUrl(blueprint: string): string {
+	const encoded = btoa(unescape(encodeURIComponent(blueprint)));
+	return `data:application/json;base64,${encoded}`;
+}
+
+function getBlueprintPreview(url: string): string {
+	if (url.startsWith('data:application/json;base64,')) {
+		try {
+			const base64 = url.replace('data:application/json;base64,', '');
+			const json = decodeURIComponent(escape(atob(base64)));
+			return json;
+		} catch {
+			return url;
+		}
+	}
+	return url;
+}
+
+function looksLikeBlueprint(text: string): boolean {
+	const trimmed = text.trim();
+	if (isValidUrl(trimmed)) {
+		return true;
+	}
+	if (trimmed.startsWith('{')) {
+		try {
+			JSON.parse(trimmed);
+			return true;
+		} catch {
+			return false;
+		}
+	}
+	return false;
+}
+
 export function MenuOverlay({ onClose }: MenuOverlayProps) {
 	const activeSite = useActiveSite();
 	const { isDependentMode } = useBackup();
+	const { customApps, addApp, removeApp } = useCustomApps();
 
 	const [showDeleteButton, setShowDeleteButton] = useState(false);
 	const [isDeleting, setIsDeleting] = useState(false);
 	const [showRecoveryButton, setShowRecoveryButton] = useState(false);
+
+	const handlePaste = useCallback(
+		(e: ClipboardEvent) => {
+			const text = e.clipboardData?.getData('text');
+			if (!text) return;
+
+			const trimmed = text.trim();
+			if (!looksLikeBlueprint(trimmed)) return;
+
+			e.preventDefault();
+
+			let title = 'Custom app';
+			let description = '';
+			let author = '';
+			let blueprintUrl: string;
+
+			if (isValidUrl(trimmed)) {
+				blueprintUrl = trimmed;
+				const urlPath = new URL(trimmed).pathname;
+				const filename = urlPath.split('/').pop() || '';
+				if (filename) {
+					title = filename
+						.replace(/\.json$/, '')
+						.replace(/[-_]/g, ' ');
+				}
+			} else {
+				try {
+					const blueprint = JSON.parse(trimmed);
+					if (blueprint.meta?.title) {
+						title = blueprint.meta.title;
+					}
+					if (blueprint.meta?.description) {
+						description = blueprint.meta.description;
+					}
+					if (blueprint.meta?.author) {
+						author = blueprint.meta.author;
+					}
+					// eslint-disable-next-line no-console
+					console.log(
+						'[CustomApps] Blueprint pasted with meta:',
+						blueprint.meta
+					);
+				} catch {
+					return;
+				}
+				blueprintUrl = blueprintToDataUrl(trimmed);
+			}
+
+			addApp({
+				title,
+				description: description || 'Custom app',
+				author: author || undefined,
+				blueprintUrl,
+			});
+		},
+		[addApp]
+	);
+
+	useEffect(() => {
+		document.addEventListener('paste', handlePaste);
+		return () => document.removeEventListener('paste', handlePaste);
+	}, [handlePaste]);
 
 	const {
 		data: appsData,
@@ -60,13 +167,40 @@ export function MenuOverlay({ onClose }: MenuOverlayProps) {
 		isError: appsError,
 	} = useFetch<Record<string, AppEntry>>(APPS_INDEX_URL);
 
-	const apps = appsData
+	const remoteApps = appsData
 		? Object.entries(appsData).map(([path, entry]) => ({
 				...entry,
 				path,
 				blueprintUrl: `${APPS_BASE_URL}${path}`,
+				isCustom: false as const,
 			}))
 		: [];
+
+	const customAppsByTitle = new Map(
+		customApps.map((app) => [app.title.toLowerCase(), app])
+	);
+
+	const allApps = [
+		...remoteApps.map((app) => {
+			const customOverride = customAppsByTitle.get(
+				app.title.toLowerCase()
+			);
+			if (customOverride) {
+				customAppsByTitle.delete(app.title.toLowerCase());
+				return {
+					...customOverride,
+					path: customOverride.id,
+					isCustom: true as const,
+				};
+			}
+			return app;
+		}),
+		...[...customAppsByTitle.values()].map((app) => ({
+			...app,
+			path: app.id,
+			isCustom: true as const,
+		})),
+	];
 
 	async function handleStartOver() {
 		if (!activeSite || activeSite.metadata.storage === 'none') {
@@ -109,32 +243,57 @@ export function MenuOverlay({ onClose }: MenuOverlayProps) {
 						<div className={css.loadingContainer}>
 							<Spinner />
 						</div>
-					) : appsError ? (
+					) : appsError && customApps.length === 0 ? (
 						<p className={css.errorMessage}>
 							Unable to load apps. Check your connection.
 						</p>
 					) : (
 						<div className={css.featuresList}>
-							{apps.map((app) => (
-								<a
-									key={app.path}
-									className={css.featureItem}
-									href={getAppBlueprintUrl(app.blueprintUrl)}
-								>
-									<span className={css.featureIcon}>
-										<WordPressIcon />
-									</span>
-									<span className={css.featureContent}>
-										<span className={css.featureTitle}>
-											{app.title}
+							{allApps.map((app) => (
+								<div key={app.path} className={css.appRow}>
+									<a
+										className={css.featureItem}
+										href={getAppBlueprintUrl(
+											app.blueprintUrl
+										)}
+										title={getBlueprintPreview(
+											app.blueprintUrl
+										)}
+									>
+										<span className={css.featureIcon}>
+											<WordPressIcon />
 										</span>
-										<span
-											className={css.featureDescription}
+										<span className={css.featureContent}>
+											<span className={css.featureTitle}>
+												{app.title}
+											</span>
+											<span
+												className={
+													css.featureDescription
+												}
+											>
+												{app.description}
+												{app.author && (
+													<span
+														className={css.author}
+													>
+														{' '}
+														by {app.author}
+													</span>
+												)}
+											</span>
+										</span>
+									</a>
+									{app.isCustom && (
+										<button
+											className={css.removeButton}
+											onClick={() => removeApp(app.path)}
+											title="Remove app"
 										>
-											{app.description}
-										</span>
-									</span>
-								</a>
+											<Icon icon={trash} size={16} />
+										</button>
+									)}
+								</div>
 							))}
 						</div>
 					)}
