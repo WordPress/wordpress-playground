@@ -187,3 +187,47 @@
 	color: #9ca3af;
 	line-height: 1.4;
 }
+
+.author {
+	color: #6b7280;
+}
+
+.appRow {
+	display: flex;
+	align-items: center;
+}
+
+.appRow .featureItem {
+	flex: 1;
+	min-width: 0;
+}
+
+.removeButton {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 28px;
+	height: 28px;
+	margin-left: -8px;
+	background: none;
+	border: none;
+	border-radius: 6px;
+	color: #9ca3af;
+	cursor: pointer;
+	flex-shrink: 0;
+	opacity: 0;
+	transition: all 0.15s ease;
+}
+
+.removeButton svg {
+	fill: currentColor;
+}
+
+.appRow:hover .removeButton {
+	opacity: 1;
+}
+
+.removeButton:hover {
+	background: rgba(220, 38, 38, 0.15);
+	color: #ef4444;
+}
