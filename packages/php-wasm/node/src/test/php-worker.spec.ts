@@ -53,7 +53,7 @@ describe('PHP Worker', () => {
 
 	it('addEventListener() should add a listener for all PHP instances spawned by the worker', async () => {
 		const received: any[] = [];
-		worker.addEventListener('runtime.beforeExit', (event) => {
+		worker.addEventListener('request.end', (event) => {
 			received.push(event);
 		});
 		await worker.run({
