@@ -9,15 +9,15 @@ import saveAs from 'file-saver';
 /**
  * Securely decodes HTML entities in a string using the DOM.
  * This approach avoids parsing vulnerabilities by leveraging the browser's
- * built-in entity decoding.
+ * built-in entity decoding while preventing XSS attacks.
  *
  * @param encodedString - The string with HTML entities to decode
  * @returns The decoded string
  */
 function decodeHTMLEntities(encodedString: string): string {
 	const textarea = document.createElement('textarea');
-	textarea.innerHTML = encodedString;
-	return textarea.value;
+	textarea.textContent = encodedString;
+	return textarea.innerHTML;
 }
 
 function sanitizeForFilename(name: string): string {
