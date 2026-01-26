@@ -190,6 +190,12 @@
 
 .author {
 	color: #6b7280;
+	opacity: 0;
+	transition: opacity 0.15s ease;
+}
+
+.appRow:hover .author {
+	opacity: 1;
 }
 
 .appRow {
@@ -202,13 +208,42 @@
 	min-width: 0;
 }
 
+.copyButton {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 28px;
+	height: 28px;
+	background: none;
+	border: none;
+	border-radius: 6px;
+	color: #9ca3af;
+	cursor: pointer;
+	flex-shrink: 0;
+	opacity: 0;
+	transition: all 0.15s ease;
+}
+
+.copyButton svg {
+	fill: currentColor;
+}
+
+.appRow:hover .copyButton {
+	opacity: 1;
+}
+
+.copyButton:hover {
+	background: rgba(56, 88, 233, 0.15);
+	color: #3858e9;
+}
+
 .removeButton {
 	display: flex;
 	align-items: center;
 	justify-content: center;
 	width: 28px;
 	height: 28px;
-	margin-left: -8px;
+	margin-left: 4px;
 	background: none;
 	border: none;
 	border-radius: 6px;
