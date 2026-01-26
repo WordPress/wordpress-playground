@@ -82,7 +82,7 @@ export class PHPProcessManager implements PHPInstanceManager {
 	private semaphore: Semaphore;
 
 	constructor(options?: ProcessManagerOptions) {
-		this.maxPhpInstances = options?.maxPhpInstances ?? 5;
+		this.maxPhpInstances = options?.maxPhpInstances ?? 2;
 		this.phpFactory = options?.phpFactory;
 		this.primaryPhp = options?.primaryPhp;
 		this.semaphore = new Semaphore({
@@ -140,7 +140,7 @@ export class PHPProcessManager implements PHPInstanceManager {
 	 *                                and the waiting timeout is exceeded.
 	 */
 	async acquirePHPInstance({
-		considerPrimary = false,
+		considerPrimary = true,
 	}: {
 		considerPrimary?: boolean;
 	} = {}): Promise<AcquiredPHP> {
