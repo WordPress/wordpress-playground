@@ -85,21 +85,103 @@
 			if (window.top != window.self) {
 				document.body.classList.add('is-embedded');
 			}
-			import { bootPlaygroundRemote } from './src/index';
-			try {
-				window.playground = await bootPlaygroundRemote();
-			} catch (e) {
-				console.error(e);
-				document.body.className = 'has-error';
-				document.body.innerHTML = '';
 
-				if (e?.name === 'NotSupportedError') {
-					document.body.append(await renderStorageErrorUI());
+			// Check if this is a guest viewing a shared Playground
+			const urlParams = new URLSearchParams(window.location.search);
+			const shareSessionId = urlParams.get('share');
+
+			(async () => {
+				if (shareSessionId) {
+					// Handle shared playground guest view
+					await handleSharedPlaygroundGuest(shareSessionId);
 				} else {
-					document.body.append(renderGenericErrorUI(e));
+					// Normal playground boot
+					const { bootPlaygroundRemote } =
+						await import('./src/index');
+					try {
+						window.playground = await bootPlaygroundRemote();
+					} catch (e) {
+						console.error(e);
+						document.body.className = 'has-error';
+						document.body.innerHTML = '';
+
+						if (e?.name === 'NotSupportedError') {
+							document.body.append(await renderStorageErrorUI());
+						} else {
+							document.body.append(renderGenericErrorUI(e));
+						}
+					} finally {
+						document.body.classList.remove('is-loading');
+					}
 				}
-			} finally {
-				document.body.classList.remove('is-loading');
+			})();
+
+			async function handleSharedPlaygroundGuest(sessionId) {
+				try {
+					const { bootPlaygroundRemote } =
+						await import('./src/index');
+					await bootPlaygroundRemote();
+
+					const infoResponse = await fetch(
+						`${window.location.origin}/relay/${sessionId}/info`
+					);
+
+					if (!infoResponse.ok) {
+						throw new Error(
+							infoResponse.status === 404
+								? 'This sharing session has expired or does not exist.'
+								: `Connection failed: ${infoResponse.statusText}`
+						);
+					}
+
+					const sessionInfo = await infoResponse.json();
+
+					if (!sessionInfo.hostConnected) {
+						throw new Error(
+							'The host is not connected. Please try again later.'
+						);
+					}
+
+					if (navigator.serviceWorker?.controller) {
+						const messageChannel = new MessageChannel();
+						const registrationPromise = new Promise(
+							(resolve, reject) => {
+								messageChannel.port1.onmessage = (event) => {
+									if (event.data?.success) {
+										resolve();
+									} else {
+										reject(
+											new Error(
+												'Failed to register relay scope'
+											)
+										);
+									}
+								};
+							}
+						);
+
+						navigator.serviceWorker.controller.postMessage(
+							{
+								type: 'register-relay-scope',
+								scope: sessionInfo.scope,
+								sessionId: sessionId,
+							},
+							[messageChannel.port2]
+						);
+
+						await registrationPromise;
+					}
+
+					const wpFrame = document.querySelector('#wp');
+					wpFrame.src = `/scope:${sessionInfo.scope}/`;
+				} catch (error) {
+					console.error(error);
+					document.body.className = 'has-error';
+					document.body.innerHTML = '';
+					document.body.append(renderGenericErrorUI(error));
+				} finally {
+					document.body.classList.remove('is-loading');
+				}
 			}
 
 			function renderGenericErrorUI(error) {

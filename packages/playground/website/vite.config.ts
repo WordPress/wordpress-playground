@@ -43,8 +43,8 @@ export default defineConfig(({ command, mode }) => {
 		'CORS_PROXY_URL' in process.env
 			? process.env.CORS_PROXY_URL
 			: mode === 'production'
-			? 'https://wordpress-playground-cors-proxy.net/?'
-			: '/cors-proxy/?';
+				? 'https://wordpress-playground-cors-proxy.net/?'
+				: '/cors-proxy/?';
 
 	return {
 		// Split traffic from this server on dev so that the iframe content and
@@ -90,7 +90,8 @@ export default defineConfig(({ command, mode }) => {
 				},
 				// Proxy requests to the remote content through this server for dev
 				// builds. See base config below.
-				'^[/]((?!website-server).)': {
+				// Exclude /relay/ which is handled by the relay middleware for peer-to-peer sharing.
+				'^[/]((?!website-server|relay).)': {
 					target: `http://${remoteDevServerHost}:${remoteDevServerPort}`,
 				},
 			},
@@ -115,11 +116,18 @@ export default defineConfig(({ command, mode }) => {
 				content: `
 				export const corsProxyUrl = ${JSON.stringify(corsProxyUrl || undefined)};`,
 			}),
-			// GitHub OAuth flow
+			// GitHub OAuth flow and relay server for sharing
 			{
 				name: 'configure-server',
 				configureServer(server: ViteDevServer) {
 					server.middlewares.use(oAuthMiddleware);
+					// Add PHP relay middleware for peer-to-peer sharing
+					// Uses PHP WASM to run the same PHP code in dev and production
+					const relayBasePath =
+						mode === 'production' ? '/' : '/website-server/';
+					server.middlewares.use(
+						createRelayMiddleware({ basePath: relayBasePath })
+					);
 				},
 			},
 			/**
