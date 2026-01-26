@@ -11,6 +11,10 @@ import {
 	OverlaySection,
 } from '../overlay';
 import css from './style.module.css';
+import {
+	getBlueprintUrl,
+	healthCheckRecoveryBlueprint,
+} from '../../lib/health-check-recovery';
 
 interface MenuOverlayProps {
 	onClose: () => void;
@@ -21,6 +25,7 @@ export function MenuOverlay({ onClose }: MenuOverlayProps) {
 
 	const [showDeleteButton, setShowDeleteButton] = useState(false);
 	const [isDeleting, setIsDeleting] = useState(false);
+	const [showRecoveryButton, setShowRecoveryButton] = useState(false);
 
 	async function handleStartOver() {
 		if (!activeSite || activeSite.metadata.storage === 'none') {
@@ -107,6 +112,29 @@ export function MenuOverlay({ onClose }: MenuOverlayProps) {
 						)}
 					</OverlaySection>
 				</div>
+
+				<OverlaySection title="Recovery">
+					<p>
+						If WordPress crashed,{' '}
+						<button
+							className={css.textButton}
+							onClick={() =>
+								setShowRecoveryButton(!showRecoveryButton)
+							}
+						>
+							you can troubleshoot
+						</button>
+						.
+					</p>
+					{showRecoveryButton && (
+						<a
+							href={getBlueprintUrl(healthCheckRecoveryBlueprint)}
+							className={css.primaryButton}
+						>
+							Install Health Check &amp; Troubleshoot
+						</a>
+					)}
+				</OverlaySection>
 			</OverlayBody>
 		</Overlay>
 	);
