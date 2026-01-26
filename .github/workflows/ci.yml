@@ -191,7 +191,8 @@ jobs:
             matrix:
                 # 3 shards per browser for balanced parallel execution
                 # (4 shards caused uneven distribution due to serial test files)
-                # WebKit disabled - random failures, see PR #2475
+                # WebKit disabled for most tests - random failures, see PR #2475
+                # WebKit enabled only for progress-bar test (critical Safari-specific functionality)
                 include:
                     - browser: 'chromium'
                       shard: '1/3'
@@ -211,6 +212,9 @@ jobs:
                     - browser: 'firefox'
                       shard: '3/3'
                       shard_name: '3-of-3'
+                    - browser: 'webkit-progress-bar'
+                      shard: ''
+                      shard_name: 'progress-bar-only'
         steps:
             - name: Free up runner disk space
               shell: bash
@@ -230,7 +234,13 @@ jobs:
                   submodules: true
             - uses: ./.github/actions/prepare-playground
             - name: Install Playwright Browser
-              run: sudo npx playwright install ${{ matrix.browser }} --with-deps
+              run: |
+                  # For webkit-progress-bar project, install webkit browser
+                  if [ "${{ matrix.browser }}" = "webkit-progress-bar" ]; then
+                    sudo npx playwright install webkit --with-deps
+                  else
+                    sudo npx playwright install ${{ matrix.browser }} --with-deps
+                  fi
             - name: Build app for E2E tests
               run: CORS_PROXY_URL=http://127.0.0.1:5263/cors-proxy.php? npx nx e2e:playwright:prepare-app-deploy-and-offline-mode playground-website
             - name: Run Playwright tests - ${{ matrix.browser }}${{ matrix.shard && format(' (shard {0})', matrix.shard) || '' }}
