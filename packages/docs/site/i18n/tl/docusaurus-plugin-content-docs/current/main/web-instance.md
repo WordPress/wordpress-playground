@@ -1,58 +1,85 @@
 ---
-title: Playground web instance
+title: Web Instance
 slug: /web-instance
+description: Isang detalyadong gabay sa web interface sa playground.wordpress.net, na sumasaklaw sa toolbar, settings, at instance manager.
 ---
 
-# Playground web instance ng WordPress
+# WordPress Playground web instance {#wordpress-playground-web-instance}
 
-[https://playground.wordpress.net/](https://playground.wordpress.net/) ay isang versatile na web tool na nagpapahintulot sa mga developer na patakbuhin ang WordPress sa browser nang hindi nangangailangan ng server. Napakagamitin ito para sa mabilisang pagsusuri ng plugins, themes, at iba pang feature ng WordPress.
+Ang [https://playground.wordpress.net/](https://playground.wordpress.net/) ay nagbibigay-daan sa mga developer na patakbuhin ang WordPress sa browser nang walang server. Ang environment na ito ay nagpapadali at nagpapabilis sa pagsubok ng plugins, themes, at features.
 
-## Mga Pangunahing Tampok:
+Ilang pangunahing tampok:
 
--   **Browser-based**: Hindi kailangan ng lokal na server setup.
--   **Instant Setup**: Patakbuhin ang WordPress nang isang click lang.
--   **Testing Environment**: Perpekto para sa pagsusuri ng plugins at themes.
+- **Browser-based**: Hindi kailangan ng lokal na server setup.
+- **Instant Setup**: Patakbuhin ang WordPress sa isang click lang.
+- **Testing Environment**: Perpekto para sa pagsubok ng plugins at themes.
 
-Sa pamamagitan ng [Query Params](/developers/apis/query-api/) maaari mong direktang i-load sa Playground instance ang partikular na bersyon ng WordPress, theme, plugin, o mas kumplikadong setup gamit ang blueprints (tingnan ang [mga halimbawa](/quick-start-guide#try-a-block-a-theme-or-a-plugin)).
+Ang [Query Params API](/developers/apis/query-api/) ay nagbibigay-daan sa iyo na direktang mag-load ng mga partikular na configuration sa isang Playground instance. Kasama dito ang pagtatakda ng partikular na bersyon ng WordPress, theme, o plugin. Maaari ka ring magtakda ng mas kumplikadong setup gamit ang blueprints (tingnan ang [mga halimbawa dito](/quick-start-guide#try-a-block-a-theme-or-a-plugin)).
 
-Mula sa Playground website, may ilang toolbars na nagagamit upang i-customize ang iyong Playground instance at magbigay ng mabilis na access sa ilang resources at utilities.
+Ang Playground website ay may kasamang mga toolbar na nagpapasadya sa iyong instance at nagbibigay ng mabilis na access sa mga resources at utilities.
 
-![Playground Toolbar Snapshot](@site/static/img/about/toolbar-playground.webp)
+![Playground Toolbar Snapshot](@site/static/img/about/playground-toolbar.webp)
 
-## I-customize ang Playground
+## I-customize ang Playground {#customize-playground}
+
+Sa toolbar, makikita mo ang:
+
+- **Playground Settings**: Isang panel para sa pag-configure ng iyong kasalukuyang instance, tulad ng PHP at WordPress versions.
+- **Playground Dashboard**: Ang panel na ito ay nagbibigay-daan sa iyo na pamahalaan ang mga WordPress Playground instance, i-save at i-export sila, mag-edit ng mga file mula sa iyong WordPress instance, at lumikha ng mga bagong Blueprint.
+- **Playground Launch Panel**: Ang Launch Panel ay nagpapakita ng lahat ng paraan para maglunsad ng WordPress Playground instance.
+
+### Playground Settings {#playground-settings}
 
 ![snapshot of customize Playground window at Playground instance](@site/static/img/about/playground-settings-panel.webp)
 
-Ang mga pagpipilian sa "Customize Playground" window ay tumutugma sa mga sumusunod na [Query API options](/developers/apis/query-api#available-options):
+Ang **Playground Settings Panel** ay may kasamang mga [Query API options](/developers/apis/query-api#available-options) na ito:
 
--   `php`
--   `php-extension-bundle`
--   `networking`
--   `wp`
+- `wp`: Tinutukoy ang bersyon ng WordPress.
+- `php`: Tinutukoy ang bersyon ng PHP para sa instance.
+- `language`: Itinatakda ang wika ng WordPress instance.
+- `multisite`: Pinapagana ang WordPress multisite support.
+- `networking`: Pinapagana ang network access sa WordPress Plugin Directory at WordPress APIs.
 
-:::tip
+## Playground Manager {#playground-manager}
 
-Kailangan mong i-activate ang "Network access" upang makapag-browse para sa [plugins](https://w.org/plugins) at [themes](https://w.org/themes) mula sa iyong WordPress instance.
-:::
+![Playground settings panel allow users to save export and edit the WordPress directly](@site/static/img/about/playground-dashboard.webp)
 
-## Menu ng Playground Options
+Ang panel na ito ay nagbibigay-daan sa iyo na pamahalaan ang mga Playground instance at nagbibigay ng access sa mga sumusunod na panel:
 
-![Playground settings panel allow users to manage multiple instances](@site/static/img/about/playground-manager-panel.webp)
+- **Settings**: Para pamahalaan ang mga setting ng kasalukuyang Playground
+- **File Browser**: Built-in IDE para sa pag-edit ng mga file, pag-upload ng plugins at themes, at live editing. Awtomatikong nire-reload ng Playground ang mga pagbabago sa real time.
+- **Blueprint**: Isang Blueprint editor para sa paglikha, pag-save, at pagpapatakbo ng mga Blueprint sa iyong Playground web instance.
+- **Database**: Mga tool para sa pamamahala ng database gamit ang Adminer at phpMyAdmin, at pag-download bilang `.sqlite` file.
+- **Logs**: Nagpapakita ng mga log message kapag may problema.
 
-Ang menu na ito ay naglalaman ng mga link sa ilang resources at tools ng Playground:
+![Save Playground Button](@site/static/img/about/playground-dashboard-save.webp)
 
--   **Reset Site**: Buburahin nito ang lahat ng data at ire-reload ang page na may bagong site.
--   **Report error**: Kung may isyu ka sa WP Playground, maaari mo itong i-report gamit ang form na makikita sa opsyong ito. Makakatulong kang lutasin ang mga problema sa pamamagitan ng pagbabahagi ng detalye ng error sa development team.
--   **Download as zip**: Gumagawa ito ng `.zip` ng setup ng Playground instance kasama ang anumang themes o plugins na naka-install. Hindi kasama sa `.zip` ang content at database changes.
--   **Restore from zip**: Pinapayagan kang muling likhain ang Playground instance gamit ang anumang `.zip` na ginawa sa pamamagitan ng "Download as zip".
--   **Import from GitHub**: Pinapayagan ka nitong mag-import ng plugins, themes, at wp-content directories direkta mula sa iyong public GitHub repositories. Upang magamit ito, ikonekta ang iyong GitHub account sa WordPress Playground.
--   **Export Pull Request to GitHub**: Pinapayagan ka nitong i-export ang WordPress plugins, themes, at buong wp-content directories bilang pull requests sa anumang public GitHub repository. Tingnan ang demo rito: https://www.youtube.com/watch?v=gKrij8V3nK0&t=2488s
--   **View Logs**: Dadalhin ka nito sa modal na nagpapakita ng anumang error logs para sa Playground, WordPress, at PHP.
--   **Edit the blueprint**: Bubuksan nito ang kasalukuyang blueprint na ginagamit ng Playground instance sa [Blueprints Builder tool](https://playground.wordpress.net/builder/builder.html). Mula rito, maaari mong i-edit ang blueprint online at patakbuhin muli ang Playground instance gamit ang iyong binagong blueprint.
+I-click ang "Save" para lumikha ng instance at ilista ito sa Playground Launch Panel. Ang Playground Dashboard ay nag-aalok din ng mga export at download options sa pamamagitan ng Additional actions menu:
+
+### Additional actions menu {#additional-actions-menu}
+
+![Additional actions Menu](@site/static/img/about/additional-options-playground-dashboard.webp)
+
+- **Export Pull Request to GitHub**: I-export ang mga WordPress plugin, theme, at buong wp-content directory bilang mga pull request sa anumang public GitHub repository. Panoorin ang isang [demo ng feature na ito](https://www.youtube.com/watch?v=gKrij8V3nK0&t=2488s).
+- **Download as .zip**: Gumagawa ng `.zip` file na may setup ng Playground instance, kasama ang anumang naka-install na theme o plugin. Ang `.zip` na ito ay hindi kasama ang content at database changes.
+
+### Blueprint Editor {#blueprint-editor}
+
+![Blueprint editor WordPress Playground](@site/static/img/about/playground-blueprint-editor.webp)
+
+Ang Blueprint editor ay pinalitan ang lumang Blueprint builder, na nag-aalok ng kakayahang pamahalaan ang maraming Blueprint at code validation.
+
+### Launch Playground Panel {#launch-playground-panel}
+
+![Playground Launch Panel](@site/static/img/dashboard/import-playground.webp)
+
+Ang panel na ito ay nagpapakita ng lahat ng paraan para ilunsad ang WordPress Playground: mag-import ng `.zip` files, mag-load mula sa GitHub repositories, at mag-preview ng mga PR mula sa WordPress core at Gutenberg.
+
+Ang Launch Panel ay naglilista rin ng higit sa 40 blueprints mula sa Blueprint Gallery at iyong mga Saved Playground.
 
 :::caution
 
-Ang site sa https://playground.wordpress.net ay para suportahan ang komunidad, ngunit walang garantiya na patuloy itong gagana kung lalobo ang traffic.
+Ang site sa https://playground.wordpress.net ay para suportahan ang komunidad, ngunit walang garantiya na ito ay patuloy na gagana kung ang traffic ay lumaki nang malaki.
 
 Kung kailangan mo ng tiyak na availability, dapat mong [i-host ang sarili mong WordPress Playground](/developers/architecture/host-your-own-playground).
 :::
