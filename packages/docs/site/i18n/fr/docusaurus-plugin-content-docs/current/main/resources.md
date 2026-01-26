@@ -50,7 +50,7 @@ Un ensemble de redirections est en place pour faciliter l'accès à certains out
 ## Apps built with WordPress Playground
 -->
 
-## Applications créées avec WordPress Playground
+## Applications créées avec WordPress Playground {#apps-built-with-wordpress-playground}
 
 <!--
 -   [Official demo](https://playground.wordpress.net/) and the [showcase](https://developer.wordpress.org/playground) app – install a theme, try out a plugin, create a few pages, export what you've built

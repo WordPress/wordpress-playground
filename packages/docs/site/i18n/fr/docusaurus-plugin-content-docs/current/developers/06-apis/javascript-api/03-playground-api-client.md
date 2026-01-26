@@ -24,9 +24,9 @@ Broadly speaking, you can use the client to perform three types of operations:
 
 De manière générale, vous pouvez utiliser le client pour effectuer trois types d'opérations :
 
--   Exécuter du code PHP
--   Personnaliser `PHP.ini`
--   Gérer les fichiers et dossiers
+- Exécuter du code PHP
+- Personnaliser `PHP.ini`
+- Gérer les fichiers et dossiers
 
 <!--
 ## Running PHP code
@@ -43,8 +43,8 @@ The two methods you can use to run PHP code are:
 
 Les deux méthodes que vous pouvez utiliser pour exécuter du code PHP sont :
 
--   [`run()`](#the-run-method) - exécute du code PHP et renvoie la résultat
--   [`request()`](#the-request-method) - effectue une requête HTTP au site web
+- [`run()`](#the-run-method) - exécute du code PHP et renvoie la résultat
+- [`request()`](#the-request-method) - effectue une requête HTTP au site web
 
 <!--
 In Node.js, you can also use the [`cli()`](#the-cli-method) method to run PHP in a CLI mode.
@@ -56,7 +56,7 @@ Dans Node.js, vous pouvez également utiliser la méthode [`cli()`](#the-cli-met
 ### The `run()` method
 -->
 
-### La méthode `run()`
+### La méthode `run()` {#the-run-method}
 
 import TSDocstring from '@site/src/components/TSDocstring';
 
@@ -66,7 +66,7 @@ import TSDocstring from '@site/src/components/TSDocstring';
 ### The `request()` method
 -->
 
-### La méthode `request()`
+### La méthode `request()` {#the-request-method}
 
 <TSDocstring path={[ "@wp-playground/client", "PlaygroundClient", "request" ]} />
 
@@ -142,7 +142,7 @@ You can pass messages from PHP to JavaScript using the `post_message_to_js()` fu
 
 Vous pouvez transmettre des messages de PHP à JavaScript en utilisant la fonction `post_message_to_js()`. Elle accepte un argument :
 
--   `$data` (string) – Données à transmettre à JavaScript.
+- `$data` (string) – Données à transmettre à JavaScript.
 
 <!--
 For example, here's how you would send a message with a JSON-encoded post ID and title:
@@ -185,7 +185,7 @@ await php.runStream({
 ## The `cli()` method
 -->
 
-## La méthode `cli()`
+## La méthode `cli()` {#the-cli-method}
 
 <!--
 In Node.js, you also have access to the `cli()` method that runs PHP in a CLI mode:
