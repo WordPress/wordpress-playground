@@ -73,21 +73,43 @@ test('should display progress updates during WordPress initialization', async ({
 		});
 	});
 
+	// Listen for console errors to understand what's failing
+	page.on('console', (msg) => {
+		if (msg.type() === 'error') {
+			console.log('Browser console error:', msg.text());
+		}
+	});
+
+	page.on('pageerror', (err) => {
+		console.log('Page error:', err.message);
+	});
+
 	// Navigate to playground - this will trigger WordPress initialization
 	await page.goto('./');
 
 	// Wait for WordPress to finish loading - check for the WordPress iframe
 	// This is more reliable than waiting for progress bar which may complete quickly
-	await page.waitForFunction(
-		() => {
-			const iframe = document.querySelector('iframe#wp');
-			return iframe !== null;
-		},
-		{ timeout: 180000 }
-	);
+	try {
+		await page.waitForFunction(
+			() => {
+				const iframe = document.querySelector('iframe#wp');
+				return iframe !== null;
+			},
+			{ timeout: 30000 }
+		);
+	} catch (error) {
+		// Log the page content to help debug
+		const bodyHTML = await page.evaluate(() => document.body.innerHTML);
+		console.log('Page body HTML:', bodyHTML.substring(0, 500));
+		const hasRemoteIframe = await page.evaluate(() =>
+			document.querySelector('iframe')
+		);
+		console.log('Has any iframe:', !!hasRemoteIframe);
+		throw error;
+	}
 
 	// Give extra time for final progress updates to be captured
-	await page.waitForTimeout(1000);
+	await page.waitForTimeout(500);
 
 	// Extract just the progress values
 	const progressValues = progressUpdates.map((u) => u.progress);
