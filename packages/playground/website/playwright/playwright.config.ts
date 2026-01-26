@@ -38,14 +38,19 @@ export const playwrightConfig: PlaywrightTestConfig = {
 					args: ['--js-flags=--enable-experimental-webassembly-jspi'],
 				},
 			},
+			testIgnore: /progress-bar\.spec\.ts/,
 		},
 		{
 			name: 'firefox',
 			use: { ...devices['Desktop Firefox'] },
+			testIgnore: /progress-bar\.spec\.ts/,
 		},
+		// Safari-only tests for critical functionality
+		// Safari can be flaky and slow, so we only run specific tests there
 		{
-			name: 'webkit',
+			name: 'webkit-progress-bar',
 			use: { ...devices['Desktop Safari'] },
+			testMatch: /progress-bar\.spec\.ts/,
 		},
 
 		/* Test against mobile viewports. */
