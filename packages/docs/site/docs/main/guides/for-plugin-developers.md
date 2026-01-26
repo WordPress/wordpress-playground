@@ -50,7 +50,7 @@ Blueprints can be passed to a Playground instance [in several ways](/blueprints/
 
 A plugin stored in a GitHub repository can also be loaded in a Playground instance via Blueprints.
 
-With the `pluginData` property of the [`installPlugin` blueprint step](/blueprints/steps#installPlugin), you can define a [`git:directory` resource](/blueprints/steps/resources#gitdirectoryreference) that will build a plugin from the files from a repository in the Playground instance.
+With the `pluginData` property of the [`installPlugin` blueprint step](/blueprints/steps#InstallPluginStep), you can define a [`git:directory` resource](/blueprints/steps/resources#gitdirectoryreference) that will build a plugin from the files from a repository in the Playground instance.
 
 :::info
 For the past few months, the [GitHub proxy](https://playground.wordpress.net/proxy) was an incredibly useful tool to load plugins from GitHub repositories, as it allows you to load a plugin from a specific branch, a specific directory, a specific commit, or a specific PR. But with the recent improvements to Playground, this feature is no longer necessary. The GitHub Proxy will be discontinued soon, please update your blueprints to `git:directory` resource.
@@ -84,7 +84,7 @@ If your plugin is hosted on GitHub, you can automatically add preview buttons to
 
 ### Plugin from code in a file or gist in GitHub
 
-By combining the [`writeFile`](/blueprints/steps#WriteFileStep) and [`activatePlugin`](/blueprints/steps#activatePlugin) steps you can also launch a WP Playground instance with a plugin built on the fly from code stored on a gist or [a file in GitHub](https://raw.githubusercontent.com/WordPress/blueprints/trunk/blueprints/custom-post/books.php):
+By combining the [`writeFile`](/blueprints/steps#WriteFileStep) and [`activatePlugin`](/blueprints/steps#ActivatePluginStep) steps you can also launch a WP Playground instance with a plugin built on the fly from code stored on a gist or [a file in GitHub](https://raw.githubusercontent.com/WordPress/blueprints/trunk/blueprints/custom-post/books.php):
 
 ```json
 {
@@ -170,7 +170,7 @@ If your plugin has a settings view or onboarding wizard, you can use the `landin
 
 ### `writeFile`
 
-With the [`writeFile` step](/blueprints/steps#writeFile) you can create any plugin file on the fly, referencing code from a \*.php file stored on a GitHub or Gist.
+With the [`writeFile` step](/blueprints/steps#WriteFileStep) you can create any plugin file on the fly, referencing code from a \*.php file stored on a GitHub or Gist.
 
 Here’s an example of a **[plugin that generates Custom Post Types](https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/custom-post/books.php)**, placed in the `mu-plugins` folder to ensure the code runs automatically on load:
 

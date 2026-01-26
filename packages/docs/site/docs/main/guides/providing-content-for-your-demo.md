@@ -10,7 +10,7 @@ There are several [blueprint steps](/blueprints/steps) and strategies you can us
 
 ## `importWxr`
 
-With the [`importWxr`](/blueprints/steps#importWxr) step, you can import your own content via a `.xml` file previously [exported from an existing WordPress installation](https://wordpress.org/documentation/article/tools-export-screen/):
+With the [`importWxr`](/blueprints/steps#ImportWxrStep) step, you can import your own content via a `.xml` file previously [exported from an existing WordPress installation](https://wordpress.org/documentation/article/tools-export-screen/):
 
 ```json
 "steps": [
@@ -45,7 +45,7 @@ It is recommended to upload your exported `.xml` file and any referenced assets 
 
 ## `importWordPressFiles`
 
-With the [`importWordPressFiles`](/blueprints/steps#importWordPressFiles) step, you can import your own top-level WordPress files from a given `.zip` file into the instance's root folder. For example, if a `.zip` file contains the `wp-content` and `wp-includes` directories, they will replace the corresponding directories in Playground's root folder.
+With the [`importWordPressFiles`](/blueprints/steps#ImportWordPressFilesStep) step, you can import your own top-level WordPress files from a given `.zip` file into the instance's root folder. For example, if a `.zip` file contains the `wp-content` and `wp-includes` directories, they will replace the corresponding directories in Playground's root folder.
 
 This `zip` file can be created from any Playground instance with the "Download as zip" option in the [Playground Options Menu](/web-instance#playground-settings).
 
@@ -73,7 +73,7 @@ You can prepare a demo for your WordPress theme or plugin (including images and 
 
 [Some themes have starter content](https://make.wordpress.org/core/2016/11/30/starter-content-for-themes-in-4-7/) that can be published to highlight the features of a theme.
 
-With the [`importThemeStarterContent` step](/blueprints/steps#importThemeStarterContent) you can publish the starter content of any theme even if that theme is not the one activated in the Playground instance.
+With the [`importThemeStarterContent` step](/blueprints/steps#ImportThemeStarterContentStep) you can publish the starter content of any theme even if that theme is not the one activated in the Playground instance.
 
 ```json
 
@@ -105,7 +105,7 @@ With the [`importThemeStarterContent` step](/blueprints/steps#importThemeStarter
 
 [<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](https://playground.wordpress.net/builder/builder.html#{%22steps%22:[{%22step%22:%22installTheme%22,%22themeData%22:{%22resource%22:%22wordpress.org/themes%22,%22slug%22:%22twentytwenty%22}},{%22step%22:%22installTheme%22,%22themeData%22:{%22resource%22:%22wordpress.org/themes%22,%22slug%22:%22twentytwentyone%22},%22options%22:{%22activate%22:true}},{%22step%22:%22importThemeStarterContent%22,%22themeSlug%22:%22twentytwenty%22}]})
 
-You can also publish the starter content of a theme when installing it with the [`installTheme` step](/blueprints/steps#installTheme) by setting to `true` its `importStarterContent` option:
+You can also publish the starter content of a theme when installing it with the [`installTheme` step](/blueprints/steps#InstallThemeStep) by setting to `true` its `importStarterContent` option:
 
 ```json
 {
@@ -192,7 +192,7 @@ Check the ["Use wp-cli to add a post with image"](https://github.com/WordPress/b
 
 ## `runPHP`
 
-With the [`runPHP` step](/blueprints/steps#runPHP) you can run any PHP code you require to insert info into your WordPress installation, for example by using the [`wp_insert_post` function](https://developer.wordpress.org/reference/functions/wp_insert_post/).
+With the [`runPHP` step](/blueprints/steps#RunPHPStep) you can run any PHP code you require to insert info into your WordPress installation, for example by using the [`wp_insert_post` function](https://developer.wordpress.org/reference/functions/wp_insert_post/).
 
 ```json
 {
