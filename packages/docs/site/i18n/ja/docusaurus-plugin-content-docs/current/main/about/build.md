@@ -29,7 +29,7 @@ Playground を開発ワークフローにシームレスに統合することで
 You can seamlessly integrate Playground into your development workflow to launch a local WordPress environment quickly for testing your code. You can do this directly [from the terminal](/developers/local-development/wp-playground-cli) or [your preferred IDE.](/developers/local-development/vscode-extension)
 -->
 
-## ブロックテーマの変更を保存し、GitHub プルリクエストを作成します
+## ブロックテーマの変更を保存し、GitHub プルリクエストを作成します {#save-changes-done-on-a-block-theme-and-create-github-pull-requests}
 
 <!--
 ## Save changes done on a Block Theme and create GitHub Pull Requests
@@ -56,15 +56,15 @@ With this workflow, you could build a block theme completely in your browser and
 Some more examples of this workflow:
 -->
 
--   [Developer Hours: テストとデモ用の WordPress Playground ブループリントの作成](https://www.youtube.com/watch?v=gKrij8V3nK0&t=2488s)
--   [Hallway Hangout のまとめ: Playground、Create-block-theme プラグイン、GitHub を使ったテーマ構築](https://make.wordpress.org/core/2024/06/25/recap-hallway-hangout-theme-building-with-playground-create-block-theme-plugin-and-github/)
+- [Developer Hours: テストとデモ用の WordPress Playground ブループリントの作成](https://www.youtube.com/watch?v=gKrij8V3nK0&t=2488s)
+- [Hallway Hangout のまとめ: Playground、Create-block-theme プラグイン、GitHub を使ったテーマ構築](https://make.wordpress.org/core/2024/06/25/recap-hallway-hangout-theme-building-with-playground-create-block-theme-plugin-and-github/)
 
 <!--
 -   [Developer Hours: Creating WordPress Playground Blueprints for Testing and Demos](https://www.youtube.com/watch?v=gKrij8V3nK0&t=2488s)
 -   [Recap Hallway Hangout: Theme Building with Playground, Create-block-theme plugin, and GitHub](https://make.wordpress.org/core/2024/06/25/recap-hallway-hangout-theme-building-with-playground-create-block-theme-plugin-and-github/)
 -->
 
-## プレイグラウンドインスタンスをローカルフォルダと同期し、GitHub プルリクエストを作成する
+## プレイグラウンドインスタンスをローカルフォルダと同期し、GitHub プルリクエストを作成する {#synchronize-your-playground-instance-with-a-local-folder-and-create-github-pull-requests}
 
 <!--
 ## Synchronize your playground instance with a local folder and create GitHub Pull Requests
@@ -78,8 +78,8 @@ Google Chrome を使用すると、Playground インスタンスを次のいず�
 With Google Chrome you can synchronize your Playground instance with a local directory, that can be either:
 -->
 
--   空のディレクトリ – このプレイグラウンドを保存して同期を開始します
--   既存のディレクトリ – ここで読み込み、同期を開始します
+- 空のディレクトリ – このプレイグラウンドを保存して同期を開始します
+- 既存のディレクトリ – ここで読み込み、同期を開始します
 
 <!--
 -   And empty directory – to save this Playground and start syncing
@@ -106,8 +106,8 @@ This feature is only available for Google Chrome for now. It won't work with oth
 Regarding changes done on both sides of the connection:
 -->
 
--   Playground で変更されたファイルはコンピュータに同期されます。
--   コンピュータで変更されたファイルは Playground に同期されません。「ローカルファイルを同期」ボタンをクリックする必要があります。
+- Playground で変更されたファイルはコンピュータに同期されます。
+- コンピュータで変更されたファイルは Playground に同期されません。「ローカルファイルを同期」ボタンをクリックする必要があります。
 
 <!--
 -   Files changed in Playground will be synchronized to your computer.

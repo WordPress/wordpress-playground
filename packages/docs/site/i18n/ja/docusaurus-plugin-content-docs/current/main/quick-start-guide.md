@@ -30,7 +30,7 @@ This page will guide you through each of these. Oh, and if you're a visual learn
 
 <iframe width="752" height="423.2" title="Getting started with WordPress Playground" src="https://video.wordpress.com/v/3UBIXJ9S?autoPlay=false&amp;height=1080&amp;width=1920&amp;fill=true" class="editor-media-modal-detail__preview is-video" allowFullScreen></iframe>
 
-## 新しい WordPress サイトを始める
+## 新しい WordPress サイトを始める {#start-a-new-wordpress-site}
 
 <!--
 ## Start a new WordPress site
@@ -74,7 +74,7 @@ Everything you build stays in your browser and is **not** sent anywhere. Once yo
 :::
  -->
 
-## ブロック、テーマ、プラグインを試す
+## ブロック、テーマ、プラグインを試す {#try-a-block-a-theme-or-a-plugin}
 
 <!--
 ## Try a block, a theme, or a plugin
@@ -140,7 +140,7 @@ https://playground.wordpress.net/?plugin=coblocks&plugin=friends&theme=pendant
 
 <ThisIsQueryApi />
 
-## サイトを保存する
+## サイトを保存する {#save-your-site}
 
 <!--
 ## Save your site
@@ -208,7 +208,7 @@ You can restore the saved site using the "Import from .zip" button in the Playgr
 
 ![Open Playground Dashboard](@site/static/img/dashboard/import-playground.webp)
 
-## 特定の WordPress または PHP バージョンを使用する
+## 特定の WordPress または PHP バージョンを使用する {#use-a-specific-wordpress-or-php-version}
 
 <!--
 ## Use a specific WordPress or PHP version

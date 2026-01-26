@@ -62,7 +62,7 @@ Playground に関連するいくつかのツールへのアクセスを容易に
 ## Apps built with WordPress Playground
 -->
 
-## WordPress Playground で構築されたアプリ
+## WordPress Playground で構築されたアプリ {#apps-built-with-wordpress-playground}
 
 <!--
 -   [Official demo](https://playground.wordpress.net/) and the [showcase](https://developer.wordpress.org/playground) app – install a theme, try out a plugin, create a few pages, export what you've built

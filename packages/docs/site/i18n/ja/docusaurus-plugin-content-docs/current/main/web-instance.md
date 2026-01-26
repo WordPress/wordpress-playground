@@ -22,9 +22,9 @@ description: ツールバー、設定、インスタンス マネージャーを
 Some key features:
 -->
 
--   **ブラウザベース**: ローカル サーバーのセットアップは不要です。
--   **インスタントセットアップ**: ワンクリックで WordPress を起動できます。
--   **テスト環境**: プラグインやテーマのテストに最適です。
+- **ブラウザベース**: ローカル サーバーのセットアップは不要です。
+- **インスタントセットアップ**: ワンクリックで WordPress を起動できます。
+- **テスト環境**: プラグインやテーマのテストに最適です。
 
 <!--
 -   **Browser-based**: No local server setup required.
@@ -58,15 +58,15 @@ From the Playground website, some toolbars are also available to customize your 
 On the toolbar, you'll find:
 -->
 
--   **Playground 設定**: PHP や WordPress のバージョンなど、現在のインスタンスを設定するためのパネルです。
--   **Playground マネージャー**: このパネルでは、WordPress Playground インスタンスを管理し、保存、インポート、エクスポートを行うことができます。
+- **Playground 設定**: PHP や WordPress のバージョンなど、現在のインスタンスを設定するためのパネルです。
+- **Playground マネージャー**: このパネルでは、WordPress Playground インスタンスを管理し、保存、インポート、エクスポートを行うことができます。
 
 <!--
 -   **Playground Settings**: A panel for configuring your current instance, like PHP and WordPress versions.
 -   **Playground Manager**: This panel lets you manage WordPress Playground instances, allowing you to save, import, and export them.
 -->
 
-### プレイグラウンドの設定
+### プレイグラウンドの設定 {#playground-settings}
 
 <!--
 ### Playground Settings
@@ -80,11 +80,11 @@ On the toolbar, you'll find:
 The options available from the **Playground Settings Panel**, correspond to the following [Query API options](/developers/apis/query-api#available-options):
 -->
 
--   `language`: WordPress インスタンスの言語を設定します。
--   `multisite`: WordPress のマルチサイトサポートを有効にします。
--   `networking`: ネットワークアクセスを許可し、WordPress プラグインディレクトリと内部 WordPress API からのフェッチを許可します。
--   `php`: インスタンスの PHP バージョンを指定します。
--   `wp`: WordPress のバージョンを定義します。
+- `language`: WordPress インスタンスの言語を設定します。
+- `multisite`: WordPress のマルチサイトサポートを有効にします。
+- `networking`: ネットワークアクセスを許可し、WordPress プラグインディレクトリと内部 WordPress API からのフェッチを許可します。
+- `php`: インスタンスの PHP バージョンを指定します。
+- `wp`: WordPress のバージョンを定義します。
 
 <!--
 -   `language`: Sets the WordPress instance language.
@@ -124,10 +124,10 @@ Once you click on save, an instance will be stored with a generated name to be r
 
 ![Additional actions Menu](@site/static/img/about/playground-manager-additional-actions.webp)
 
--   **GitHub にプルリクエストをエクスポート**：このオプションを使用すると、WordPress プラグイン、テーマ、および wp-content ディレクトリ全体をプルリクエストとして、任意のパブリック GitHub リポジトリにエクスポートできます。このオプションの使用方法のデモは [こちら](https://www.youtube.com/watch?v=gKrij8V3nK0&t=2488s) でご確認ください。
--   **zip としてダウンロード**：テーマやプラグインがインストールされた状態を含む、Playground インスタンスのセットアップを含む `.zip` ファイルが作成されます。この `.zip` ファイルには、コンテンツやデータベースの変更は含まれません。
--   **エラーを報告**：WP Playground で問題が発生した場合は、このオプションから利用できるフォームを使用して報告できます。Playground の開発チームにエラーの詳細を共有することで、Playground の問題解決に協力することができます。
--   **ブループリントを表示**: このオプションを選択すると、Playground インスタンスで現在使用されているブループリントが [Blueprints Builder ツール](https://playground.wordpress.net/builder/builder.html) で開きます。このツールからブループリントをオンラインで編集し、編集したブループリントを使用して新しい Playground インスタンスを実行できます。
+- **GitHub にプルリクエストをエクスポート**：このオプションを使用すると、WordPress プラグイン、テーマ、および wp-content ディレクトリ全体をプルリクエストとして、任意のパブリック GitHub リポジトリにエクスポートできます。このオプションの使用方法のデモは [こちら](https://www.youtube.com/watch?v=gKrij8V3nK0&t=2488s) でご確認ください。
+- **zip としてダウンロード**：テーマやプラグインがインストールされた状態を含む、Playground インスタンスのセットアップを含む `.zip` ファイルが作成されます。この `.zip` ファイルには、コンテンツやデータベースの変更は含まれません。
+- **エラーを報告**：WP Playground で問題が発生した場合は、このオプションから利用できるフォームを使用して報告できます。Playground の開発チームにエラーの詳細を共有することで、Playground の問題解決に協力することができます。
+- **ブループリントを表示**: このオプションを選択すると、Playground インスタンスで現在使用されているブループリントが [Blueprints Builder ツール](https://playground.wordpress.net/builder/builder.html) で開きます。このツールからブループリントをオンラインで編集し、編集したブループリントを使用して新しい Playground インスタンスを実行できます。
 
 <!--
 -   **Export Pull Request to GitHub**: This option allows you to export WordPress plugins, themes, and entire wp-content directories as pull requests to any public GitHub repository. Check [here](https://www.youtube.com/watch?v=gKrij8V3nK0&t=2488s) a demo of using this option.
@@ -148,9 +148,9 @@ Once you click on save, an instance will be stored with a generated name to be r
 
 ![Import actions Menu](@site/static/img/about/playground-manager-import-actions.webp)
 
--   **zip からインポート**: 「zip としてダウンロード」オプションで生成された任意の `.zip` ファイルを使用して、Playground インスタンスを再作成できます。
--   **Gutenberg PR をプレビュー**: テスターが Gutenberg リポジトリからブランチを実行し、プルリクエストを即座にテストできるようにします。
--   **GitHub からインポート**: このオプションを使用すると、プラグイン、テーマ、wp-content ディレクトリを GitHub のパブリックリポジトリから直接インポートできます。この機能を有効にするには、GitHub アカウントを WordPress Playground に接続してください。
+- **zip からインポート**: 「zip としてダウンロード」オプションで生成された任意の `.zip` ファイルを使用して、Playground インスタンスを再作成できます。
+- **Gutenberg PR をプレビュー**: テスターが Gutenberg リポジトリからブランチを実行し、プルリクエストを即座にテストできるようにします。
+- **GitHub からインポート**: このオプションを使用すると、プラグイン、テーマ、wp-content ディレクトリを GitHub のパブリックリポジトリから直接インポートできます。この機能を有効にするには、GitHub アカウントを WordPress Playground に接続してください。
 
 <!--
 -   **Import from zip**: It allows you to recreate a Playground instance using any `.zip` generated with the "Download as zip" option.

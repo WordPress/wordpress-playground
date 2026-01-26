@@ -28,9 +28,9 @@ WordPress Playground は、構築、テスト、起動を行う場所です。
 WordPress Playground is your place to build, test, and launch:
 -->
 
--   [ビルド](/about/build): WordPress Playground は、WordPress を使った製品開発をサポートします。ブラウザ、Node.js、モバイルアプリ、VS Code など、作業効率の高い環境からご利用いただけます。
--   [テスト](/about/test): WordPress Playground で QA プロセスをアップグレードしましょう。プラグインやテーマを素早くテストし、プライベートサンドボックスで実験を行い、WP Playground インスタンスから任意のリポジトリに PR を作成できます。
--   [リリース](/about/launch): WordPress Playground を使えば、製品を公開したり、ユーザーにライブで試用してもらったり、リードタイムなしで App Store にリリースしたりできます。
+- [ビルド](/about/build): WordPress Playground は、WordPress を使った製品開発をサポートします。ブラウザ、Node.js、モバイルアプリ、VS Code など、作業効率の高い環境からご利用いただけます。
+- [テスト](/about/test): WordPress Playground で QA プロセスをアップグレードしましょう。プラグインやテーマを素早くテストし、プライベートサンドボックスで実験を行い、WP Playground インスタンスから任意のリポジトリに PR を作成できます。
+- [リリース](/about/launch): WordPress Playground を使えば、製品を公開したり、ユーザーにライブで試用してもらったり、リードタイムなしで App Store にリリースしたりできます。
 
 <!--
 -   [Build](/about/build): WordPress Playground can help you to build products with WordPress. Use it from where you work best, whether that's in the browser, Node.js, mobile apps, VS Code, or elsewhere.
@@ -115,7 +115,7 @@ WordPress Playground を初めてご利用いただくと、WordPress ウェブ�
 When you first start using WordPress Playground, you'll be provided with a separate space where you can create and customise your own WordPress website. This space is completely isolated from your actual website.
 -->
 
-### ストリーミング配信されますが、配信されません。
+### ストリーミング配信されますが、配信されません。 {#streamed-not-served}
 
 <!--
 ### Streamed, not served.
