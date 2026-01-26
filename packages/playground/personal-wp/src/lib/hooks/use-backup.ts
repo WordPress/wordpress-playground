@@ -16,8 +16,8 @@ import saveAs from 'file-saver';
  */
 function decodeHTMLEntities(encodedString: string): string {
 	const textarea = document.createElement('textarea');
-	textarea.textContent = encodedString;
-	return textarea.innerHTML;
+	textarea.innerHTML = encodedString;
+	return textarea.textContent;
 }
 
 function sanitizeForFilename(name: string): string {
