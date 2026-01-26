@@ -161,12 +161,12 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 				// Do not await the WordPress download or the sqlite integration download.
 				// Let bootWordPress start the PHP runtime download first, and then await
 				// all the ZIP files right before they're used.
-				wordPressZip: wordPressRequest
-					?.then((r) => r.blob())
-					.then((b) => new File([b], 'wp.zip')),
-				sqliteIntegrationPluginZip: sqliteIntegrationRequest
-					.then((r) => r.blob())
-					.then((b) => new File([b], 'sqlite.zip')),
+				wordPressZip: wordPressRequest?.then(
+					consumeResponseToFile('wp.zip')
+				),
+				sqliteIntegrationPluginZip: sqliteIntegrationRequest.then(
+					consumeResponseToFile('sqlite.zip')
+				),
 				hooks: {
 					async beforeWordPressFiles(php: PHP) {
 						for (const mount of mounts) {
@@ -203,6 +203,33 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 const [setApiReady, setAPIError] = exposeAPI(
 	new PlaygroundWorkerEndpointBlueprintsV1(downloadMonitor)
 );
+
+/**
+ * Consumes a Response body by manually reading the stream chunk-by-chunk.
+ * This ensures progress events fire properly in all browsers, especially Safari,
+ * which may buffer the entire response when using response.blob().
+ */
+function consumeResponseToFile(filename: string) {
+	return async (response: Response): Promise<File> => {
+		const reader = response.body?.getReader();
+		if (!reader) {
+			return new File([], filename);
+		}
+
+		const chunks: Uint8Array[] = [];
+		while (true) {
+			const { done, value } = await reader.read();
+			if (value) {
+				chunks.push(value);
+			}
+			if (done) {
+				break;
+			}
+		}
+
+		return new File(chunks, filename);
+	};
+}
 
 function maybeProxyUrl(url: string, corsProxyUrl?: string) {
 	if (
