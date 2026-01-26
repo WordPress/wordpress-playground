@@ -8,7 +8,7 @@ Ang [dokumentasyon ng WordPress Playground](/) ay pinamamahalaan ng mga voluntee
 
 Lahat ng isyu na may kinalaman sa dokumentasyon ay nalabelan bilang [`[Type] Documentation`](https://github.com/WordPress/wordpress-playground/issues?q=is%3Aissue%20state%3Aopen%20label%3A%22%5BType%5D%20Documentation%22) o [`[Type] Developer Documentation`](https://github.com/WordPress/wordpress-playground/issues?q=is%3Aissue%20state%3Aopen%20label%3A%22%5BType%5D%20Developer%20Documentation%22) sa repositoryang [WordPress/wordpress-playground](https://github.com/WordPress/wordpress-playground). I-browse ang listahan ng mga bukas na isyu upang makita kung alin ang nais mong trabahuhin. Kung sa tingin mo ay may nawawala sa kasalukuyang dokumentasyon, magbukas ng isyu upang talakayin ang iyong mungkahi.
 
-## Paano Ako Makakatulong?
+## Paano Ako Makakatulong? {#how-can-i-contribute}
 
 Maaari kang mag-ambag sa pamamagitan ng [pagbubukas ng isyu sa repositoryo ng proyekto](https://github.com/WordPress/wordpress-playground/issues/new) at ilarawan kung ano ang nais mong idagdag o baguhin.
 

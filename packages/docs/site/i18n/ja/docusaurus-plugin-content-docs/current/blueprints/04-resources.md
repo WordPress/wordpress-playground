@@ -38,7 +38,7 @@ import TOCInline from '@theme/TOCInline';
 
 <TOCInline toc={toc} />
 
-### URL 参照
+### URL 参照 {#urlreference}
 
 <!--
 ### URLReference
@@ -96,7 +96,7 @@ The Playground project provides a [GitHub Proxy](https://playground.wordpress.ne
 :::
 -->
 
-### コアテーマリファレンス
+### コアテーマリファレンス {#corethemereference}
 
 <!--
 ### CoreThemeReference
@@ -129,7 +129,7 @@ To use the _CoreThemeReference_ resource, you need to provide the slug of the th
 }
 ```
 
-### コアプラグインリファレンス
+### コアプラグインリファレンス {#corepluginreference}
 
 <!--
 ### CorePluginReference
@@ -266,9 +266,9 @@ To use the `BundledReference` resource, you need to provide the relative path to
 Blueprint bundles can be distributed in various formats, including:
 -->
 
--   トップレベルに `blueprint.json` ファイルを含む ZIP ファイル
--   `blueprint.json` ファイルと関連リソースを含むディレクトリ
--   ブループリントとそのリソースが一緒にホストされているリモート URL
+- トップレベルに `blueprint.json` ファイルを含む ZIP ファイル
+- `blueprint.json` ファイルと関連リソースを含むディレクトリ
+- ブループリントとそのリソースが一緒にホストされているリモート URL
 
 <!--
 -   ZIP files with a top-level `blueprint.json` file

@@ -40,8 +40,8 @@ JavaScript API を使用するには、次のものが必要です。
 To use the JavaScript API, you'll need:
  -->
 
--   `<iframe>` 要素
--   `@wp-playground/client` パッケージ（npm または CDN から）
+- `<iframe>` 要素
+- `@wp-playground/client` パッケージ（npm または CDN から）
 
 <!--
 -   An `<iframe>` element
@@ -85,9 +85,9 @@ API endpoint instead of the demo app with the browser UI. Read more about the di
 Now that you have a `client` object, you can use it to control the website inside the iframe. There are three ways to do that:
  -->
 
--   [Playground API Client](/developers/apis/javascript-api/playground-api-client)
--   [ブループリント JSON](/developers/apis/javascript-api/blueprint-json-in-api-client)
--   [ブループリント 関数](/developers/apis/javascript-api/blueprint-functions-in-api-client)
+- [Playground API Client](/developers/apis/javascript-api/playground-api-client)
+- [ブループリント JSON](/developers/apis/javascript-api/blueprint-json-in-api-client)
+- [ブループリント 関数](/developers/apis/javascript-api/blueprint-functions-in-api-client)
 
 <!--
 -   [Playground API Client](/developers/apis/javascript-api/playground-api-client)
@@ -95,7 +95,7 @@ Now that you have a `client` object, you can use it to control the website insid
 -   [Blueprint functions](/developers/apis/javascript-api/blueprint-functions-in-api-client)
  -->
 
-## デバッグとテスト
+## デバッグとテスト {#debugging-and-testing}
 
 <!--
 ## Debugging and testing

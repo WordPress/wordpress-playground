@@ -18,7 +18,7 @@ Ang pahinang ito ang gagabay sa bawat hakbang. At para sa mga visual na nag-aara
 
 <iframe width="752" height="423.2" title="Getting started with WordPress Playground" src="https://video.wordpress.com/v/3UBIXJ9S?autoPlay=false&amp;height=1080&amp;width=1920&amp;fill=true" allowFullScreen></iframe>
 
-## Magsimula ng bagong WordPress site
+## Magsimula ng bagong WordPress site {#start-a-new-wordpress-site}
 
 Sa tuwing bibisita ka sa [opisyal na demo sa playground.wordpress.net](https://playground.wordpress.net/), makakakuha ka ng bagong WordPress site.
 
@@ -34,7 +34,7 @@ Lahat ng iyong ginawa ay nananatili sa browser at **hindi** ipinapadala kahit sa
 
 :::
 
-## Subukan ang isang block, theme, o plugin
+## Subukan ang isang block, theme, o plugin {#try-a-block-a-theme-or-a-plugin}
 
 Maaari kang mag-upload ng anumang plugin o theme sa [/wp-admin/](https://playground.wordpress.net/?url=/wp-admin/).
 
@@ -56,7 +56,7 @@ https://playground.wordpress.net/?plugin=coblocks&plugin=friends&theme=pendant
 
 <ThisIsQueryApi />
 
-## I-save ang iyong site
+## I-save ang iyong site {#save-your-site}
 
 Para hindi mawala ang iyong site pagkatapos ng single browser session, i-export ito bilang `.zip` file.
 
@@ -82,7 +82,7 @@ Maaari mong i-restore ang na-save na site gamit ang "Import from .zip" button sa
 
 ![Open Playground Dashboard](@site/static/img/dashboard/import-playground.webp)
 
-## Gamitin ang tiyak na bersyon ng WordPress o PHP
+## Gamitin ang tiyak na bersyon ng WordPress o PHP {#use-a-specific-wordpress-or-php-version}
 
 Ang pinakamabilis na paraan para baguhin ang bersyon ng WordPress o PHP ay sa settings panel sa [opisyal na demo site](https://playground.wordpress.net/):
 

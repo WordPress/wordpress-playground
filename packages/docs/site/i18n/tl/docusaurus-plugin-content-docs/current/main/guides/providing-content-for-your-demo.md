@@ -47,7 +47,7 @@ Inirerekomenda na i-upload mo ang iyong na-export na `.xml` file at anumang naka
 
 Gamit ang [`importWordPressFiles`](/blueprints/steps#importWordPressFiles) step, maaari mong i-import ang iyong sariling top-level WordPress files mula sa isang `.zip` file tungo sa root folder ng instance. Halimbawa, kung naglalaman ang `.zip` file ng `wp-content` at `wp-includes` directories, papalitan nito ang katumbas na directories sa root folder ng Playground.
 
-Maaaring malikha ang `.zip` file mula sa anumang Playground instance gamit ang option na "Download as zip" sa [Playground Options Menu](/web-instance#playground-options-menu).
+Maaaring malikha ang `.zip` file mula sa anumang Playground instance gamit ang option na "Download as zip" sa [Playground Options Menu](/web-instance#playground-settings).
 
 Maaari mong ihanda ang demo para sa iyong WordPress theme o plugin (kasama ang mga larawan at iba pang asset) sa isang Playground instance at pagkatapos ay i-export ito bilang snapshot sa `.zip` file. Maaari itong i-import muli gamit ang `importWordPressFiles` step.
 

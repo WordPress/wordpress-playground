@@ -15,10 +15,10 @@ slug: /blueprints/using-blueprints
 You can use Blueprints in one of the following ways:
 -->
 
--   URL フラグメントとして Playground に渡す。
--   `blueprint-url` パラメータを使用して URL から読み込む。
--   Blueprint バンドル（ZIP ファイルまたはディレクトリ）を使用する。
--   JavaScript API を使用する。
+- URL フラグメントとして Playground に渡す。
+- `blueprint-url` パラメータを使用して URL から読み込む。
+- Blueprint バンドル（ZIP ファイルまたはディレクトリ）を使用する。
+- JavaScript API を使用する。
 
 <!--
 -   By passing them as a URL fragment to the Playground.
@@ -27,7 +27,7 @@ You can use Blueprints in one of the following ways:
 -   By using the JavaScript API.
 -->
 
-## URL フラグメント
+## URL フラグメント {#url-fragment}
 
 <!--
 ## URL Fragment
@@ -241,7 +241,7 @@ When using a Blueprint bundle, you can reference bundled resources using the `bu
 For more information on Blueprint bundles, see the [Blueprint Bundles](/blueprints/bundles) documentation.
 -->
 
-## JavaScript API
+## JavaScript API {#javascript-api}
 
 <!--
 ## JavaScript API

@@ -11,9 +11,9 @@ slug: /about
 
 Ang WordPress Playground ang iyong lugar para mag:
 
--   [Build](/about/build): Makakatulong ang WordPress Playground na lumikha ng mga produkto gamit ang WordPress. Gamitin ito kung saan ka pinakamahusay magtrabaho, maging sa browser, Node.js, mobile apps, VS Code, o iba pa.
--   [Test](/about/test): I-upgrade ang iyong QA process gamit ang WordPress Playground. Mabilis na subukan ang iyong mga plugin o theme, mag-eksperimento sa isang pribadong sandbox, at lumikha ng PRs mula sa iyong WP Playground instance papunta sa anumang repo.
--   [Launch](/about/launch): Gamitin ang WordPress Playground upang ipakita ang iyong produkto, hayaan ang mga user subukan ito nang live, o ilunsad ito sa App Store nang walang delay.
+- [Build](/about/build): Makakatulong ang WordPress Playground na lumikha ng mga produkto gamit ang WordPress. Gamitin ito kung saan ka pinakamahusay magtrabaho, maging sa browser, Node.js, mobile apps, VS Code, o iba pa.
+- [Test](/about/test): I-upgrade ang iyong QA process gamit ang WordPress Playground. Mabilis na subukan ang iyong mga plugin o theme, mag-eksperimento sa isang pribadong sandbox, at lumikha ng PRs mula sa iyong WP Playground instance papunta sa anumang repo.
+- [Launch](/about/launch): Gamitin ang WordPress Playground upang ipakita ang iyong produkto, hayaan ang mga user subukan ito nang live, o ilunsad ito sa App Store nang walang delay.
 
 ## Bakit WordPress Playground?
 
@@ -42,7 +42,7 @@ Tingnan ang [mga gabay section](/guides) upang malaman kung paano mas mapapakina
 
 Kapag unang beses mong ginamit ang WordPress Playground, bibigyan ka ng hiwalay na espasyo kung saan maaari kang lumikha at mag-customize ng sarili mong WordPress website. Ang espasyong ito ay ganap na hiwalay sa iyong aktwal na website.
 
-### Streamed, hindi served
+### Streamed, hindi served {#streamed-not-served}
 
 Ang WordPress na nakikita mo kapag binuksan mo ang Playground sa browser ay isang WordPress na dapat gumana tulad ng anumang WordPress, na may [ilang limitasyon](/developers/limitations) at ang mahalagang eksepsyon na hindi ito permanenteng server na may internet address na maglilimita ng koneksyon sa ilang third-party na serbisyo (automation, sharing, analysis, email, backups, atbp.) sa isang patuloy na paraan.
 
