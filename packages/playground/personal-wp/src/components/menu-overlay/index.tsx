@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { external, trash, copy } from '@wordpress/icons';
+import { external, trash, copy, check } from '@wordpress/icons';
 import { Icon } from '@wordpress/icons';
 import { Spinner } from '@wordpress/components';
 import { logger } from '@php-wasm/logger';
@@ -98,6 +98,7 @@ export function MenuOverlay({ onClose }: MenuOverlayProps) {
 	const [showDeleteButton, setShowDeleteButton] = useState(false);
 	const [isDeleting, setIsDeleting] = useState(false);
 	const [showRecoveryButton, setShowRecoveryButton] = useState(false);
+	const [copiedAppPath, setCopiedAppPath] = useState<string | null>(null);
 
 	const handlePaste = useCallback(
 		(e: ClipboardEvent) => {
@@ -290,10 +291,22 @@ export function MenuOverlay({ onClose }: MenuOverlayProps) {
 													app.blueprintUrl
 												)
 											);
+											setCopiedAppPath(app.path);
+											setTimeout(
+												() => setCopiedAppPath(null),
+												2000
+											);
 										}}
 										title="Copy blueprint"
 									>
-										<Icon icon={copy} size={16} />
+										<Icon
+											icon={
+												copiedAppPath === app.path
+													? check
+													: copy
+											}
+											size={16}
+										/>
 									</button>
 									{app.isCustom && (
 										<button
