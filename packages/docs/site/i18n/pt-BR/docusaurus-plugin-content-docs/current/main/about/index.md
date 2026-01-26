@@ -31,9 +31,9 @@ WordPress Playground is your place to build, test, and launch:
 
 WordPress Playground é um local para construir, testar e Lançamento:
 
--   [Construir](/about/build): WordPress Playground pode ajudar você a construir produtos com WordPress. Utilize isto onde funcionar melhor, seja no naevgador, Node.js, aplicações móveis, VS Code, ou em qualquer outro lugar.
--   [Test](/about/test): Atualize o seu processo de QA com o WordPress Playground. Rapidamente teste seus plugins ou temas, teste num sandbox privado e crie pull requests da sua instância Playground WordPress para qualquer repositório.
--   [Lançamento](/about/launch): Use o Playgroud WordPress para demostrar o seu produto, permitir que os usuários o experimentem ao vivo ou lançá-lo na App Store com zero tempo de espera.
+- [Construir](/about/build): WordPress Playground pode ajudar você a construir produtos com WordPress. Utilize isto onde funcionar melhor, seja no naevgador, Node.js, aplicações móveis, VS Code, ou em qualquer outro lugar.
+- [Test](/about/test): Atualize o seu processo de QA com o WordPress Playground. Rapidamente teste seus plugins ou temas, teste num sandbox privado e crie pull requests da sua instância Playground WordPress para qualquer repositório.
+- [Lançamento](/about/launch): Use o Playgroud WordPress para demostrar o seu produto, permitir que os usuários o experimentem ao vivo ou lançá-lo na App Store com zero tempo de espera.
 
 <!--
 ## Why WordPress Playground?
@@ -117,7 +117,7 @@ Quando você começa a usar o WordPress Playground, você recebe um espaço sepa
 ### Streamed, not served.
 -->
 
-### Transmitido, não servido.
+### Transmitido, não servido. {#streamed-not-served}
 
 <!--
 The WordPress you see when you open Playground in your browser is a WordPress that should function like any WordPress, with [a few limitations](/developers/limitations) and the important exception that it's not a permanent server with an internet address which will limit connections to some third-party services (automation, sharing, analysis, email, backups, etc.) in a persistent way.

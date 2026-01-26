@@ -18,7 +18,7 @@ description: Um guia com dicas e ferramentas para ajudar você a solucionar prob
 
 <!-- WP-CLI: Error Establishing a Database Connection on Mounted Sites -->
 
-### WP-CLI: Erro ao Estabelecer Conexão com Banco de Dados em Sites Montados
+### WP-CLI: Erro ao Estabelecer Conexão com Banco de Dados em Sites Montados {#wp-cli-error-establishing-a-database-connection-on-mounted-sites}
 
 <!-- When using `wp-cli` with a mounted Playground site (e.g., via `--mount-before-install`), you might encounter an "Error establishing a database connection." This happens because WordPress Playground loads the SQLite database integration plugin from its internal files by default, not from the mounted directory, meaning it's not persisted for external `wp-cli` calls. -->
 
@@ -110,7 +110,7 @@ A janela de ferramentas de desenvolvedor permite inspecionar requisições de re
 
 <!-- You can `error_log` your own error messages through [`runPHP` step](/blueprints/steps#RunPHPStep) (see [blueprint example](https://github.com/wordpress/blueprints/blob/trunk/blueprints/reset-data-and-import-content/blueprint.json) and [live demo](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/reset-data-and-import-content/blueprint.json)) and check them from the ["View Logs" option](/web-instance#playground-options-menu) or from the browser's console. -->
 
-Você pode usar `error_log` para suas próprias mensagens de erro através da [etapa `runPHP`](/blueprints/steps#RunPHPStep) (veja [exemplo de blueprint](https://github.com/wordpress/blueprints/blob/trunk/blueprints/reset-data-and-import-content/blueprint.json) e [demo ao vivo](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/reset-data-and-import-content/blueprint.json)) e verifique-os através da opção ["Ver Logs"](/web-instance#playground-options-menu) ou do console do navegador.
+Você pode usar `error_log` para suas próprias mensagens de erro através da [etapa `runPHP`](/blueprints/steps#RunPHPStep) (veja [exemplo de blueprint](https://github.com/wordpress/blueprints/blob/trunk/blueprints/reset-data-and-import-content/blueprint.json) e [demo ao vivo](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/reset-data-and-import-content/blueprint.json)) e verifique-os através da opção ["Ver Logs"](/web-instance#playground-settings) ou do console do navegador.
 
 <!-- Log errors snapshot -->
 
@@ -119,7 +119,7 @@ Você pode usar `error_log` para suas próprias mensagens de erro através da [e
 <!-- :::info When you download your Playground instance as a `zip` through the ["Download as zip" option](/web-instance#playground-options-menu) you'll also download the `debug.log` file containing all the logs from your Playground instance. ::: -->
 
 :::info
-Quando você baixa sua instância do Playground como um `zip` através da opção ["Baixar como zip"](/web-instance#playground-options-menu), você também baixa o arquivo `debug.log` contendo todos os logs de sua instância do Playground.
+Quando você baixa sua instância do Playground como um `zip` através da opção ["Baixar como zip"](/web-instance#playground-settings), você também baixa o arquivo `debug.log` contendo todos os logs de sua instância do Playground.
 :::
 
 <!-- Ask for help -->

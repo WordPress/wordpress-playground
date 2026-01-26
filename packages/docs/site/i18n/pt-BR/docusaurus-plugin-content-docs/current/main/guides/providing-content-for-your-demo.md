@@ -73,7 +73,7 @@ You can prepare a demo for your WordPress theme or plugin (including images and 
 
 Com o passo [`importWordPressFiles`](/blueprints/steps#importWordPressFiles), você pode importar seus próprios arquivos WordPress de nível superior de um arquivo `.zip` fornecido para a pasta raiz da instância. Por exemplo, se um arquivo `.zip` contém os diretórios `wp-content` e `wp-includes`, eles substituirão os diretórios correspondentes na pasta raiz do Playground.
 
-Este arquivo `zip` pode ser criado a partir de qualquer instância do Playground com a opção "Download as zip" no [Menu de Opções do Playground](/web-instance#playground-options-menu).
+Este arquivo `zip` pode ser criado a partir de qualquer instância do Playground com a opção "Download as zip" no [Menu de Opções do Playground](/web-instance#playground-settings).
 
 Você pode preparar uma demonstração para seu tema ou plugin WordPress (incluindo imagens e outros recursos) em uma instância do Playground e depois exportar um snapshot dessa demonstração para um arquivo `.zip`. Este arquivo pode ser importado posteriormente usando o passo `importWordPressFiles`.
 

@@ -26,7 +26,7 @@ Todas as issues relacionadas à documentação são rotuladas como [`[Type] Docu
 ## How can I contribute?
 -->
 
-## Como posso contribuir?
+## Como posso contribuir? {#how-can-i-contribute}
 
 <!--
 You can contribute by [opening an issue in the project repository](https://github.com/WordPress/wordpress-playground/issues/new) and describing what you'd like to add or change.

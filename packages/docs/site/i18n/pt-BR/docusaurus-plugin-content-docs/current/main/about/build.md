@@ -33,7 +33,7 @@ Você pode integrar perfeitamente o Playground ao seu fluxo de trabalho de desen
 ## Save changes done on a Block Theme and create GitHub Pull Requests
 -->
 
-## Salvar alterações feitas em um Tema de Blocos e criar Pull Requests no GitHub
+## Salvar alterações feitas em um Tema de Blocos e criar Pull Requests no GitHub {#save-changes-done-on-a-block-theme-and-create-github-pull-requests}
 
 <!--
 You can connect your Playground instance to a GitHub repository and create a Pull Request with the changes you've done through the WordPress UI, leveraging the [Create Block Theme](https://wordpress.org/plugins/create-block-theme/) plugin.
@@ -58,14 +58,14 @@ Some more examples of this workflow:
 
 Mais alguns exemplos deste fluxo de trabalho:
 
--   [Developer Hours: Creating WordPress Playground Blueprints for Testing and Demos](https://www.youtube.com/watch?v=gKrij8V3nK0&t=2488s)
--   [Recap Hallway Hangout: Theme Building with Playground, Create-block-theme plugin, and GitHub](https://make.wordpress.org/core/2024/06/25/recap-hallway-hangout-theme-building-with-playground-create-block-theme-plugin-and-github/)
+- [Developer Hours: Creating WordPress Playground Blueprints for Testing and Demos](https://www.youtube.com/watch?v=gKrij8V3nK0&t=2488s)
+- [Recap Hallway Hangout: Theme Building with Playground, Create-block-theme plugin, and GitHub](https://make.wordpress.org/core/2024/06/25/recap-hallway-hangout-theme-building-with-playground-create-block-theme-plugin-and-github/)
 
 <!--
 ## Synchronize your playground instance with a local folder and create GitHub Pull Requests
 -->
 
-## Sincronizar sua instância do playground com uma pasta local e criar Pull Requests no GitHub
+## Sincronizar sua instância do playground com uma pasta local e criar Pull Requests no GitHub {#synchronize-your-playground-instance-with-a-local-folder-and-create-github-pull-requests}
 
 ![Storage Type Device Snapshot](@site/static/img/about/storage-type-device.webp)
 
@@ -78,8 +78,8 @@ With Google Chrome you can synchronize your Playground instance with a local dir
 
 Com o Google Chrome você pode sincronizar sua instância do Playground com um diretório local, que pode ser:
 
--   Um diretório vazio – para salvar este Playground e começar a sincronizar
--   Um diretório existente – para carregá-lo aqui e começar a sincronizar
+- Um diretório vazio – para salvar este Playground e começar a sincronizar
+- Um diretório existente – para carregá-lo aqui e começar a sincronizar
 
 <!--
 :::info
@@ -106,8 +106,8 @@ With this workflow you can create directly GitHub PRs from your changes done on 
 
 Quanto às alterações feitas em ambos os lados da conexão:
 
--   Arquivos alterados no Playground serão sincronizados para o seu computador.
--   Arquivos alterados no seu computador não serão sincronizados para o Playground. Você precisará clicar no botão "Sync local files".
+- Arquivos alterados no Playground serão sincronizados para o seu computador.
+- Arquivos alterados no seu computador não serão sincronizados para o Playground. Você precisará clicar no botão "Sync local files".
 
 Com este fluxo de trabalho você pode criar diretamente PRs do GitHub a partir das suas alterações feitas no seu diretório local.
 

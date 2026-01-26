@@ -34,7 +34,7 @@ Esta página irá guiá-lo por cada um deles. Ah, e se você aprende visualmente
 ## Start a new WordPress site
  -->
 
-## Inicie um novo site WordPress
+## Inicie um novo site WordPress {#start-a-new-wordpress-site}
 
 <!--
 Every time you visit the [official demo on playground.wordpress.net](https://playground.wordpress.net/), you get a fresh WordPress site.
@@ -78,7 +78,7 @@ Tudo o que você cria fica no seu navegador e **não** é enviado para nenhum se
 ## Try a block, a theme, or a plugin
 -->
 
-## Testando Blocos, Temas e plugins
+## Testando Blocos, Temas e plugins {#try-a-block-a-theme-or-a-plugin}
 
 <!--
 You can upload any plugin or theme you want in [/wp-admin/](https://playground.wordpress.net/?url=/wp-admin/).
@@ -124,7 +124,7 @@ https://playground.wordpress.net/?plugin=coblocks&plugin=friends&theme=pendant
 ## Save your site
 -->
 
-## Salve o seu site
+## Salve o seu site {#save-your-site}
 
 <!--
 To keep your WordPress Playground site for longer than a single browser session, you can export it as a zip file.
@@ -196,7 +196,7 @@ Você pode restaurar o site salvo usando o botão "Importar de .zip" no painel d
 ## Use a specific WordPress or PHP version
 -->
 
-## Use uma versão específica do WordPress ou PHP
+## Use uma versão específica do WordPress ou PHP {#use-a-specific-wordpress-or-php-version}
 
 <!--
 The easiest way is to use the version switcher on [the official demo site](https://playground.wordpress.net/):

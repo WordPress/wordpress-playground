@@ -14,9 +14,9 @@ O objeto `PlaygroundClient` implementa a interface `UniversalPHP`. Todos os mét
 
 De modo geral, você pode usar o cliente para realizar três tipos de operações:
 
--   Executar código PHP
--   Personalizar o `PHP.ini`
--   Gerenciar arquivos e diretórios
+- Executar código PHP
+- Personalizar o `PHP.ini`
+- Gerenciar arquivos e diretórios
 
 <!-- ## Running PHP code -->
 
@@ -26,8 +26,8 @@ De modo geral, você pode usar o cliente para realizar três tipos de operaçõe
 
 Os dois métodos que você pode usar para executar código PHP são:
 
--   [`run()`](#the-run-method) – executa código PHP e retorna a saída
--   [`request()`](#the-request-method) – faz uma requisição HTTP para o site
+- [`run()`](#the-run-method) – executa código PHP e retorna a saída
+- [`request()`](#the-request-method) – faz uma requisição HTTP para o site
 
 <!-- In Node.js, you can also use the [`cli()`](#the-cli-method) method to run PHP in a CLI mode. -->
 
@@ -35,7 +35,7 @@ No Node.js, você também pode usar o método [`cli()`](#the-cli-method) para ex
 
 <!-- ### The run() method -->
 
-### O método `run()`
+### O método `run()` {#the-run-method}
 
 import TSDocstring from '@site/src/components/TSDocstring';
 
@@ -43,7 +43,7 @@ import TSDocstring from '@site/src/components/TSDocstring';
 
 <!-- ### The request() method -->
 
-### O método `request()`
+### O método `request()` {#the-request-method}
 
 <TSDocstring path={[ "@wp-playground/client", "PlaygroundClient", "request" ]} />
 
@@ -105,7 +105,7 @@ Você pode enviar mensagens do PHP para o JavaScript usando a função `post_mes
 
 <!-- -   `$data` (string) – Data to pass to JavaScript. -->
 
--   `$data` (string) – Dados a serem enviados para o JavaScript.
+- `$data` (string) – Dados a serem enviados para o JavaScript.
 
 <!-- For example, here's how you would send a message with a JSON-encoded post ID and title: -->
 
@@ -144,7 +144,7 @@ await php.runStream({
 
 <!-- ## The cli() method -->
 
-## O método `cli()`
+## O método `cli()` {#the-cli-method}
 
 <!-- In Node.js, you also have access to the `cli()` method that runs PHP in a CLI mode: -->
 
