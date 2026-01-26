@@ -6,6 +6,20 @@ import { zipWpContent } from '@wp-playground/client';
 import { logger } from '@php-wasm/logger';
 import saveAs from 'file-saver';
 
+/**
+ * Securely decodes HTML entities in a string using the DOM.
+ * This approach avoids parsing vulnerabilities by leveraging the browser's
+ * built-in entity decoding.
+ *
+ * @param encodedString - The string with HTML entities to decode
+ * @returns The decoded string
+ */
+function decodeHTMLEntities(encodedString: string): string {
+	const textarea = document.createElement('textarea');
+	textarea.innerHTML = encodedString;
+	return textarea.value;
+}
+
 function sanitizeForFilename(name: string): string {
 	return name
 		.trim()
@@ -30,10 +44,10 @@ async function getWordPressSiteName(
 			code: `<?php
 				require_once '/wordpress/wp-load.php';
 				$name = get_option('blogname', 'WordPress');
-				echo html_entity_decode($name, ENT_QUOTES, 'UTF-8');
+				echo $name;
 			`,
 		});
-		const name = response.text.trim();
+		const name = decodeHTMLEntities(response.text.trim());
 		return name || null;
 	} catch (error) {
 		logger.debug('Could not retrieve WordPress site name:', error);
