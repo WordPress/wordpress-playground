@@ -4,6 +4,162 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
+## [v3.0.45] (2026-01-22) 
+
+### Tools
+
+
+#### PHP WebAssembly
+
+- [PHP] Redis as a dynamic extension for Node.js. ([#3129](https://github.com/WordPress/wordpress-playground/pull/3129))
+
+### PHP WebAssembly
+
+- [PHP] Add php-memcached as a dynamically loadable extension for Node.js. ([#3133](https://github.com/WordPress/wordpress-playground/pull/3133))
+
+### Website
+
+- More reliably relay blueprints to kapa. ([#3153](https://github.com/WordPress/wordpress-playground/pull/3153))
+
+### Bug Fixes
+
+- Fix "Cannot read properties of undefined (reading 'data')" with nx. ([#3151](https://github.com/WordPress/wordpress-playground/pull/3151))
+
+### Various
+
+- Added changes to correct automatically translated text in French for …. ([#3159](https://github.com/WordPress/wordpress-playground/pull/3159))
+- Corrections to automattic translation for 08-examples.md. ([#3161](https://github.com/WordPress/wordpress-playground/pull/3161))
+- Update lock file in dev-tools. ([#3154](https://github.com/WordPress/wordpress-playground/pull/3154))
+- [PHP] Use synchronous connect() for Asyncify builds. ([#3160](https://github.com/WordPress/wordpress-playground/pull/3160))
+- [i18n] Add Bengali translation for about/index.md. ([#3149](https://github.com/WordPress/wordpress-playground/pull/3149))
+- [i18n] Add Bengali translation for releases.md. ([#3142](https://github.com/WordPress/wordpress-playground/pull/3142))
+- [i18n] ja translations developer architecture PHP Filesystem and Asyncify. ([#3141](https://github.com/WordPress/wordpress-playground/pull/3141))
+
+#### Personal Playground
+
+- [website] Refactor out an Overlay component from saved-playgrounds-overlay. ([#3152](https://github.com/WordPress/wordpress-playground/pull/3152))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @akirk @beryl-dlg @noruzzamans @shimotmk
+
+
+## [v3.0.44] (2026-01-20) 
+
+### Enhancements
+
+- [CLI] Enable defining WordPress constants via CLI flags. ([#3128](https://github.com/WordPress/wordpress-playground/pull/3128))
+
+### PHP WebAssembly
+
+- [PHP] gethostbyname – native DNS resolution in Node.js builds. ([#2988](https://github.com/WordPress/wordpress-playground/pull/2988))
+
+### Website
+
+- Fix sitemap.xml redirect to wp-sitemap.xml. ([#3140](https://github.com/WordPress/wordpress-playground/pull/3140))
+
+### Internal
+
+- Update CLAUDE.md with Node.js version guidance. ([#3144](https://github.com/WordPress/wordpress-playground/pull/3144))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel
+
+
+## [v3.0.43] (2026-01-19) 
+
+### Enhancements
+
+- Add CLAUDE.md for AI assistant guidance. ([#3136](https://github.com/WordPress/wordpress-playground/pull/3136))
+
+### PHP WebAssembly
+
+- Remove support for PHP 7.2 and 7.3. ([#3127](https://github.com/WordPress/wordpress-playground/pull/3127))
+- [PHP] Add mmap support to proxyFS. ([#3126](https://github.com/WordPress/wordpress-playground/pull/3126))
+- [PHP] Cleanup 7.2 and 7.3-specific build code. ([#3137](https://github.com/WordPress/wordpress-playground/pull/3137))
+
+### Website
+
+- Always offer to save the site when unrecognized ?site-slug= is used. ([#3135](https://github.com/WordPress/wordpress-playground/pull/3135))
+
+### Various
+
+- Updating @vitejs/plugin-react to version 5.1.2 in package.json. ([#3110](https://github.com/WordPress/wordpress-playground/pull/3110))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @fellyph
+
+
+## [v3.0.42] (2026-01-15) 
+
+### Enhancements
+
+- Clean up CLI output and simplify mount tracking. ([#3122](https://github.com/WordPress/wordpress-playground/pull/3122))
+
+### Various
+
+- [Docs] Updating limitations page. ([#3108](https://github.com/WordPress/wordpress-playground/pull/3108))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @fellyph
+
+
+## [v3.0.41] (2026-01-14) 
+
+### Enhancements
+
+- Update Node.js version in .nvmrc to v22.12.0. ([#3114](https://github.com/WordPress/wordpress-playground/pull/3114))
+- [CLI] Add high-level `start` command for easy local WordPress development. ([#3040](https://github.com/WordPress/wordpress-playground/pull/3040))
+- [CLI] Deprecate `--debug` switch in favor of `--verbosity=debug`. ([#3084](https://github.com/WordPress/wordpress-playground/pull/3084))
+- [CLI] `@wp-playground/cli start` persist sites. ([#3119](https://github.com/WordPress/wordpress-playground/pull/3119))
+
+### PHP WebAssembly
+
+- [Node] Improve error messages when dynamic imports fail in Node vm contexts. ([#3121](https://github.com/WordPress/wordpress-playground/pull/3121))
+- [PHP] Fix external dynamic imports issue in PHP.wasm Web. ([#3093](https://github.com/WordPress/wordpress-playground/pull/3093))
+
+### Website
+
+- Customizable page title via `?page-title` query parameter. ([#3116](https://github.com/WordPress/wordpress-playground/pull/3116))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @fellyph @mho22
+
+
+## [v3.0.40] (2026-01-12) 
+
+### Documentation
+
+- [docs] Replace PNG images with WEBP format for improved performance. ([#3105](https://github.com/WordPress/wordpress-playground/pull/3105))
+
+### Various
+
+- Document how to publish new npm packages. ([#3068](https://github.com/WordPress/wordpress-playground/pull/3068))
+- [docs] Updating images from Release page to webp. ([#3107](https://github.com/WordPress/wordpress-playground/pull/3107))
+- [i18n] Add Bengali translation for contributor-day.md. ([#3096](https://github.com/WordPress/wordpress-playground/pull/3096))
+- [i18n] Add Bengali translation for translations.md. ([#3106](https://github.com/WordPress/wordpress-playground/pull/3106))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @fellyph @noruzzamans
+
+
 ## [v3.0.39] (2026-01-07) 
 
 ### PHP WebAssembly

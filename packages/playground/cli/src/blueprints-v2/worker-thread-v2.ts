@@ -139,6 +139,11 @@ export type PrimaryWorkerBootArgs = Omit<
 	nativeInternalDirPath: string;
 	mountsBeforeWpInstall?: Array<Mount>;
 	mountsAfterWpInstall?: Array<Mount>;
+	/**
+	 * PHP constants to define via php.defineConstant().
+	 * Process-specific, set for each PHP instance.
+	 */
+	constants?: Record<string, string | number | boolean | null>;
 };
 
 type WorkerRunBlueprintArgs = Omit<
@@ -165,6 +170,8 @@ export type SecondaryWorkerBootArgs = {
 	trace: boolean;
 	nativeInternalDirPath: string;
 	withIntl?: boolean;
+	withRedis?: boolean;
+	withMemcached?: boolean;
 	withXdebug?: boolean;
 	mountsBeforeWpInstall?: Array<Mount>;
 	mountsAfterWpInstall?: Array<Mount>;
@@ -222,10 +229,9 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 	}
 
 	async bootAndSetUpInitialWorker(args: PrimaryWorkerBootArgs) {
+		// Start with CLI-provided constants (if any)
 		const constants = {
-			WP_DEBUG: true,
-			WP_DEBUG_LOG: true,
-			WP_DEBUG_DISPLAY: false,
+			...(args.constants || {}),
 		};
 		const requestHandlerOptions: WorkerBootRequestHandlerOptions = {
 			...args,
@@ -396,7 +402,7 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 							const red = '\x1b[31m';
 							const bold = '\x1b[1m';
 							const reset = '\x1b[0m';
-							if (args.debug && message.details) {
+							if (args.verbosity === 'debug' && message.details) {
 								output.stderr(
 									`${red}${bold}Fatal error:${reset} Uncaught ${message.details.exception}: ${message.details.message}\n` +
 										`  at ${message.details.file}:${message.details.line}\n` +
@@ -418,7 +424,7 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 			 * When we're debugging, every bit of information matters – let's immediately output
 			 * everything we get from the PHP output streams.
 			 */
-			if (args.debug) {
+			if (args.verbosity === 'debug') {
 				streamedResponse!.stdout.pipeTo(
 					new WritableStream({
 						write(chunk) {
@@ -476,6 +482,8 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 		trace,
 		nativeInternalDirPath,
 		withIntl,
+		withRedis,
+		withMemcached,
 		withXdebug,
 		onPHPInstanceCreated,
 		spawnHandler,
@@ -513,6 +521,8 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 						},
 						followSymlinks: allow?.includes('follow-symlinks'),
 						withIntl: withIntl,
+						withRedis,
+						withMemcached,
 						withXdebug,
 					});
 				},

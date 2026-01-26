@@ -2,14 +2,20 @@ import { loadNodeRuntime } from '..';
 import {
 	PHP,
 	SupportedPHPVersions,
+	proxyFileSystem,
 	setPhpIniEntries,
 } from '@php-wasm/universal';
 import fs from 'fs';
 import { createServer, type AddressInfo } from 'net';
+import { jspi } from 'wasm-feature-detect';
+
+// Check JSPI availability at module load time (top-level await)
+// so the value is available when tests are registered.
+const isJspiAvailable = await jspi();
 
 const phpVersions =
 	'PHP' in process.env ? [process.env['PHP']!] : SupportedPHPVersions;
-describe.each(phpVersions)('PHP %s', async (phpVersion) => {
+describe.each(phpVersions)('PHP %s', (phpVersion) => {
 	describe('XDebug', () => {
 		let php: PHP;
 		beforeEach(async () => {
@@ -225,6 +231,36 @@ describe.each(phpVersions)('PHP %s', async (phpVersion) => {
 			expect(php.listFiles('/internal/shared')).toContain('icudt74l.dat');
 		});
 
+		it('reads the icu data in PROXYFS', async () => {
+			const newPhp = new PHP(
+				await loadNodeRuntime(phpVersion as any, {
+					withIntl: true,
+				})
+			);
+
+			proxyFileSystem(php, newPhp, ['/internal/shared']);
+
+			const response = await newPhp.runStream({
+				code: `<?php
+						$data = array(
+							'F' => 'Foo',
+							'Br' => 'Bar',
+							'Bz' => 'Bz',
+						);
+
+						$collator = new Collator('en_US');
+						$collator->asort($data, Collator::SORT_STRING);
+						var_dump($data);
+					?>`,
+			});
+
+			newPhp.exit();
+
+			expect(await response.stdoutText).toEqual(
+				'array(3) {\n  ["Br"]=>\n  string(3) "Bar"\n  ["Bz"]=>\n  string(2) "Bz"\n  ["F"]=>\n  string(3) "Foo"\n}\n'
+			);
+		});
+
 		it('uses intl functions', async () => {
 			const response = await php.runStream({
 				code: `<?php
@@ -255,5 +291,172 @@ describe.each(phpVersions)('PHP %s', async (phpVersion) => {
 				'array(3) {\n  ["Br"]=>\n  string(3) "Bar"\n  ["Bz"]=>\n  string(2) "Bz"\n  ["F"]=>\n  string(3) "Foo"\n}\n'
 			);
 		});
+	});
+
+	// Redis requires JSPI for proper exception handling during network operations.
+	// Skip these tests when JSPI is not available (e.g., when running with asyncify).
+	describe('Redis', () => {
+		let php: PHP;
+		beforeEach(async () => {
+			if (!isJspiAvailable) {
+				return;
+			}
+			php = new PHP(
+				await loadNodeRuntime(phpVersion as any, { withRedis: true })
+			);
+		});
+
+		afterEach(async () => {
+			if (php) {
+				php.exit();
+			}
+		});
+
+		it.skipIf(!isJspiAvailable)(
+			'does not load dynamically by default',
+			async () => {
+				php = new PHP(await loadNodeRuntime(phpVersion as any));
+
+				const result = await php.runStream({
+					code: `<?php
+					var_dump(extension_loaded('redis'));
+					var_dump(class_exists('Redis'));`,
+				});
+
+				expect(await result.stdoutText).toEqual(
+					'bool(false)\nbool(false)\n'
+				);
+			}
+		);
+
+		it.skipIf(!isJspiAvailable)('supports dynamic loading', async () => {
+			const result = await php.runStream({
+				code: `<?php
+					var_dump(extension_loaded('redis'));
+					var_dump(class_exists('Redis'));`,
+			});
+
+			expect(await result.stdoutText).toEqual('bool(true)\nbool(true)\n');
+		});
+
+		it.skipIf(!isJspiAvailable)(
+			'has its own ini file and entries',
+			async () => {
+				const entries = php.readFileAsText(
+					'/internal/shared/extensions/redis.ini'
+				);
+
+				const expected = [
+					'extension=/internal/shared/extensions/redis.so',
+				].join('\n');
+
+				expect(entries).toEqual(expected);
+			}
+		);
+
+		it.skipIf(!isJspiAvailable)('can instantiate Redis class', async () => {
+			const result = await php.runStream({
+				code: `<?php
+					$redis = new Redis();
+					var_dump(get_class($redis));`,
+			});
+
+			expect(await result.stdoutText).toEqual('string(5) "Redis"\n');
+		});
+	});
+
+	// Memcached requires JSPI for proper exception handling during network operations.
+	// Skip these tests when JSPI is not available (e.g., when running with asyncify).
+	describe('Memcached', () => {
+		let php: PHP;
+		beforeEach(async () => {
+			if (!isJspiAvailable) {
+				return;
+			}
+			php = new PHP(
+				await loadNodeRuntime(phpVersion as any, {
+					withMemcached: true,
+				})
+			);
+		});
+
+		afterEach(async () => {
+			if (php) {
+				php.exit();
+			}
+		});
+
+		it.skipIf(!isJspiAvailable)(
+			'does not load dynamically by default',
+			async () => {
+				php = new PHP(await loadNodeRuntime(phpVersion as any));
+
+				const result = await php.runStream({
+					code: `<?php
+					var_dump(extension_loaded('memcached'));
+					var_dump(class_exists('Memcached'));`,
+				});
+
+				expect(await result.stdoutText).toEqual(
+					'bool(false)\nbool(false)\n'
+				);
+			}
+		);
+
+		it.skipIf(!isJspiAvailable)('supports dynamic loading', async () => {
+			const result = await php.runStream({
+				code: `<?php
+					var_dump(extension_loaded('memcached'));
+					var_dump(class_exists('Memcached'));`,
+			});
+
+			expect(await result.stdoutText).toEqual('bool(true)\nbool(true)\n');
+		});
+
+		it.skipIf(!isJspiAvailable)(
+			'has its own ini file and entries',
+			async () => {
+				const entries = php.readFileAsText(
+					'/internal/shared/extensions/memcached.ini'
+				);
+
+				const expected = [
+					'extension=/internal/shared/extensions/memcached.so',
+				].join('\n');
+
+				expect(entries).toEqual(expected);
+			}
+		);
+
+		it.skipIf(!isJspiAvailable)(
+			'can instantiate Memcached class',
+			async () => {
+				const response = await php.runStream({
+					code: `<?php
+						$memcached = new Memcached();
+						var_dump(get_class($memcached));
+					?>`,
+				});
+				expect(await response.stdoutText).toEqual(
+					'string(9) "Memcached"\n'
+				);
+			}
+		);
+
+		it.skipIf(!isJspiAvailable)(
+			'has expected Memcached constants',
+			async () => {
+				const response = await php.runStream({
+					code: `<?php
+						echo defined('Memcached::OPT_COMPRESSION') ? 'true' : 'false';
+						echo '|';
+						echo defined('Memcached::OPT_SERIALIZER') ? 'true' : 'false';
+						echo '|';
+						echo defined('Memcached::HAVE_IGBINARY') ? 'true' : 'false';
+					?>`,
+				});
+				expect(await response.stdoutText).toEqual('true|true|true');
+			}
+		);
 	});
 });

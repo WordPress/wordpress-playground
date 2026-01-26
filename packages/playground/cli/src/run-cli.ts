@@ -18,7 +18,7 @@ import type {
 } from '@wp-playground/blueprints';
 import { runBlueprintV1Steps } from '@wp-playground/blueprints';
 import { RecommendedPHPVersion } from '@wp-playground/common';
-import fs, { mkdirSync } from 'fs';
+import fs, { existsSync, mkdirSync, readdirSync, rmdirSync } from 'fs';
 import type { Server } from 'http';
 import { MessageChannel as NodeMessageChannel, Worker } from 'worker_threads';
 // @ts-ignore
@@ -27,6 +27,11 @@ import {
 	parseMountDirArguments,
 	parseMountWithDelimiterArguments,
 } from './mounts';
+import {
+	parseDefineStringArguments,
+	parseDefineBoolArguments,
+	parseDefineNumberArguments,
+} from './defines';
 import { startServer } from './start-server';
 import type { PlaygroundCliBlueprintV1Worker } from './blueprints-v1/worker-thread-v1';
 import type { PlaygroundCliBlueprintV2Worker } from './blueprints-v2/worker-thread-v2';
@@ -45,6 +50,7 @@ import { BlueprintsV1Handler } from './blueprints-v1/blueprints-v1-handler';
 import { startBridge } from '@php-wasm/xdebug-bridge';
 import path from 'path';
 import os from 'os';
+import { exec } from 'child_process';
 import {
 	cleanupStalePlaygroundTempDirs,
 	createPlaygroundCliTempDir,
@@ -57,6 +63,8 @@ import {
 	createTempDirSymlink,
 	removeTempDirSymlink,
 } from '@php-wasm/cli-util';
+import { createHash } from 'crypto';
+import { CLIOutput } from './cli-output';
 
 // Inlined worker URLs for static analysis by downstream bundlers
 // These are replaced at build time by the Vite plugin in vite.config.ts
@@ -100,6 +108,37 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 				describe: 'WordPress version to use.',
 				type: 'string',
 				default: 'latest',
+			},
+			define: {
+				describe:
+					'Define PHP string constants (can be used multiple times). ' +
+					'Format: NAME value. ' +
+					'These constants are set via php.defineConstant() and only exist for the current request. ' +
+					'Examples: --define API_KEY secret --define CON=ST "va=lu=e"',
+				type: 'string',
+				nargs: 2,
+				array: true,
+				coerce: parseDefineStringArguments,
+			},
+			'define-bool': {
+				describe:
+					'Define PHP boolean constants (can be used multiple times). ' +
+					'Format: NAME value. Value must be "true", "false", "1", or "0". ' +
+					'Examples: --define-bool WP_DEBUG true --define-bool MY_FEATURE false',
+				type: 'string',
+				nargs: 2,
+				array: true,
+				coerce: parseDefineBoolArguments,
+			},
+			'define-number': {
+				describe:
+					'Define PHP number constants (can be used multiple times). ' +
+					'Format: NAME value. ' +
+					'Examples: --define-number LIMIT 100 --define-number RATE 45.67',
+				type: 'string',
+				nargs: 2,
+				array: true,
+				coerce: parseDefineNumberArguments,
 			},
 			// @TODO: Support read-only mounts, e.g. via WORKERFS, a custom
 			// ReadOnlyNODEFS, or by copying the files into MEMFS
@@ -191,6 +230,8 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 					'Print PHP error log content if an error occurs during Playground boot.',
 				type: 'boolean',
 				default: false,
+				// Hide this deprecated option. Use verbosity=debug instead.
+				hidden: true,
 			},
 			'auto-mount': {
 				describe: `Automatically mount the specified directory. If no path is provided, mount the current working directory. You can mount a WordPress directory, a plugin directory, a theme directory, a wp-content directory, or any directory containing PHP and HTML files.`,
@@ -222,6 +263,16 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 				describe: 'Enable Intl.',
 				type: 'boolean',
 				default: true,
+			},
+			redis: {
+				describe: 'Enable Redis (requires JSPI support).',
+				type: 'boolean',
+				// No default - will be determined at runtime based on JSPI availability
+			},
+			memcached: {
+				describe: 'Enable Memcached.',
+				type: 'boolean',
+				// No default - will be determined at runtime based on JSPI availability
 			},
 			xdebug: {
 				describe: 'Enable Xdebug.',
@@ -280,6 +331,93 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 			},
 		};
 
+		/**
+		 * Options for the high-level `start` command.
+		 * This command provides a simplified, opinionated interface for common use cases,
+		 * similar to wp-now. It auto-detects project type and uses sensible defaults.
+		 */
+		const startCommandOptions: Record<string, YargsOptions> = {
+			path: {
+				describe:
+					'Path to the project directory. Playground will auto-detect if this is a plugin, theme, wp-content, or WordPress directory.',
+				type: 'string',
+				default: process.cwd(),
+			},
+			php: {
+				describe: 'PHP version to use.',
+				type: 'string',
+				default: RecommendedPHPVersion,
+				choices: SupportedPHPVersions,
+			},
+			wp: {
+				describe: 'WordPress version to use.',
+				type: 'string',
+				default: 'latest',
+			},
+			port: {
+				describe: 'Port to listen on.',
+				type: 'number',
+				default: 9400,
+			},
+			blueprint: {
+				describe:
+					'Path to a Blueprint JSON file to execute on startup.',
+				type: 'string',
+			},
+			login: {
+				describe: 'Auto-login as the admin user.',
+				type: 'boolean',
+				default: true,
+			},
+			xdebug: {
+				describe: 'Enable Xdebug for debugging.',
+				type: 'boolean',
+				default: false,
+			},
+			'experimental-unsafe-ide-integration':
+				sharedOptions['experimental-unsafe-ide-integration'],
+			'skip-browser': {
+				describe:
+					'Do not open the site in your default browser on startup.',
+				type: 'boolean',
+				default: false,
+			},
+			quiet: {
+				describe: 'Suppress non-essential output.',
+				type: 'boolean',
+				default: false,
+			},
+			// Advanced options for power users who need more control
+			'site-url': {
+				describe:
+					'Override the site URL. By default, derived from the port (http://127.0.0.1:<port>).',
+				type: 'string',
+			},
+			mount: {
+				describe:
+					'Mount a directory to the PHP runtime (can be used multiple times). Format: /host/path:/vfs/path. Use this for additional mounts beyond auto-detection.',
+				type: 'array',
+				string: true,
+				coerce: parseMountWithDelimiterArguments,
+			},
+			reset: {
+				describe:
+					'Deletes the stored site directory and starts a new site from scratch.',
+				type: 'boolean',
+				default: false,
+			},
+			'no-auto-mount': {
+				describe:
+					'Disable automatic project type detection. Use --mount to manually specify mounts instead.',
+				type: 'boolean',
+				default: false,
+			},
+			// Define constants
+			define: sharedOptions['define'],
+			'define-bool': sharedOptions['define-bool'],
+			'define-number': sharedOptions['define-number'],
+		};
+
 		const buildSnapshotOnlyOptions: Record<string, YargsOptions> = {
 			outfile: {
 				describe: 'When building, write to this output file.',
@@ -291,8 +429,27 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 		const yargsObject = yargs(argsToParse)
 			.usage('Usage: wp-playground <command> [options]')
 			.command(
+				'start',
+				'Start a local WordPress server with automatic project detection (recommended)',
+				(yargsInstance: Argv) =>
+					yargsInstance
+						.usage(
+							'Usage: wp-playground start [options]\n\n' +
+								'The easiest way to run WordPress locally. Automatically detects\n' +
+								'if your directory contains a plugin, theme, wp-content, or\n' +
+								'WordPress installation and configures everything for you.\n\n' +
+								'Examples:\n' +
+								'  wp-playground start                    # Start in current directory\n' +
+								'  wp-playground start --path=./my-plugin # Start with a specific path\n' +
+								'  wp-playground start --wp=6.7 --php=8.3 # Use specific versions\n' +
+								'  wp-playground start --skip-browser     # Skip opening browser\n' +
+								'  wp-playground start --no-auto-mount    # Disable auto-detection'
+						)
+						.options(startCommandOptions)
+			)
+			.command(
 				'server',
-				'Start a local WordPress server',
+				'Start a local WordPress server (advanced, low-level)',
 				(yargsInstance: Argv) =>
 					yargsInstance.options({
 						...sharedOptions,
@@ -463,13 +620,29 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 
 		const command = args._[0] as string;
 
-		if (!['run-blueprint', 'server', 'build-snapshot'].includes(command)) {
+		if (
+			!['start', 'run-blueprint', 'server', 'build-snapshot'].includes(
+				command
+			)
+		) {
 			yargsObject.showHelp();
 			process.exit(1);
 		}
 
+		const define = (args['define'] || {}) as Record<string, string>;
+		if (
+			!('WP_DEBUG' in define) &&
+			!('WP_DEBUG_LOG' in define) &&
+			!('WP_DEBUG_DISPLAY' in define)
+		) {
+			define['WP_DEBUG'] = 'true';
+			define['WP_DEBUG_LOG'] = 'true';
+			define['WP_DEBUG_DISPLAY'] = 'true';
+		}
+
 		const cliArgs = {
 			...args,
+			define,
 			command,
 			mount: [
 				...((args['mount'] as Mount[]) || []),
@@ -509,6 +682,7 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 		process.on('SIGINT', cleanUpCliAndExit);
 		process.on('SIGTERM', cleanUpCliAndExit);
 	} catch (e) {
+		console.error(e);
 		if (!(e instanceof Error)) {
 			throw e;
 		}
@@ -530,12 +704,22 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 	}
 }
 
+function getMountForVfsPath(
+	mounts: Mount[],
+	vfsPath: string
+): Mount | undefined {
+	return mounts.find(
+		(mount) =>
+			mount.vfsPath.replace(/\/$/, '') === vfsPath.replace(/\/$/, '')
+	);
+}
+
 export interface RunCLIArgs {
 	blueprint?:
 		| BlueprintV1Declaration
 		| BlueprintV2Declaration
 		| BlueprintBundle;
-	command: 'server' | 'run-blueprint' | 'build-snapshot';
+	command: 'start' | 'server' | 'run-blueprint' | 'build-snapshot';
 	debug?: boolean;
 	login?: boolean;
 	mount?: Mount[];
@@ -553,11 +737,28 @@ export interface RunCLIArgs {
 	internalCookieStore?: boolean;
 	'additional-blueprint-steps'?: any[];
 	intl?: boolean;
+	redis?: boolean;
+	memcached?: boolean;
 	xdebug?: boolean | { ideKey?: string };
 	experimentalUnsafeIdeIntegration?: string[];
 	experimentalDevtools?: boolean;
 	'experimental-blueprints-v2-runner'?: boolean;
 	wordpressInstallMode?: WordPressInstallMode;
+	/**
+	 * PHP string constants defined via --define flag.
+	 * Set via php.defineConstant(), process-specific only.
+	 */
+	define?: Record<string, string>;
+	/**
+	 * PHP boolean constants defined via --define-bool flag.
+	 * Set via php.defineConstant(), process-specific only.
+	 */
+	'define-bool'?: Record<string, boolean>;
+	/**
+	 * PHP number constants defined via --define-number flag.
+	 * Set via php.defineConstant(), process-specific only.
+	 */
+	'define-number'?: Record<string, number>;
 
 	// --------- Blueprint V1 args -----------
 	skipSqliteSetup?: boolean;
@@ -576,6 +777,12 @@ export interface RunCLIArgs {
 	'db-path'?: string;
 	'truncate-new-site-directory'?: boolean;
 	allow?: string;
+
+	// --------- Start command args -----------
+	path?: string;
+	skipBrowser?: boolean;
+	noAutoMount?: boolean;
+	reset?: boolean;
 }
 
 type PlaygroundCliWorker =
@@ -601,6 +808,9 @@ export interface RunCLIServer extends AsyncDisposable {
 const bold = (text: string) =>
 	process.stdout.isTTY ? '\x1b[1m' + text + '\x1b[0m' : text;
 
+const red = (text: string) =>
+	process.stdout.isTTY ? '\x1b[31m' + text + '\x1b[0m' : text;
+
 const dim = (text: string) =>
 	process.stdout.isTTY ? `\x1b[2m${text}\x1b[0m` : text;
 
@@ -613,9 +823,16 @@ const highlight = (text: string) =>
 // These overloads are declared for convenience so runCLI() can return
 // different things depending on the CLI command without forcing the
 // callers (mostly automated tests) to check return values.
+
+// Re-export merge functions from defines.ts
+export { mergeDefinedConstants } from './defines';
+
 export async function runCLI(
 	args: RunCLIArgs & { command: 'build-snapshot' | 'run-blueprint' }
 ): Promise<void>;
+export async function runCLI(
+	args: RunCLIArgs & { command: 'start' }
+): Promise<RunCLIServer>;
 export async function runCLI(
 	args: RunCLIArgs & { command: 'server' }
 ): Promise<RunCLIServer>;
@@ -629,10 +846,10 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 		RemoteAPI<PlaygroundCliWorker>
 	> = new Map();
 
-	/**
-	 * Expand auto-mounts to include the necessary mounts and steps
-	 * when running in auto-mount mode.
-	 */
+	if (args.command === 'start') {
+		args = expandStartCommandArgs(args);
+	}
+
 	if (args.autoMount !== undefined) {
 		if (args.autoMount === '') {
 			// No auto-mount path was provided, so use the current working directory.
@@ -647,19 +864,15 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 		args.wordpressInstallMode = 'download-and-install';
 	}
 
-	// Keeping 'quiet' option to preserve backward compatibility
+	// Keeping the '--quiet' option to preserve backward compatibility
 	if (args.quiet) {
 		args.verbosity = 'quiet';
 		delete args['quiet'];
 	}
-
-	// Promote "debug" flag to verbosity but keep args.debug around – the
-	// program behavior may change in more ways than just logging verbosity
-	// when debug mode is enabled, e.g. error objects may carry additional details.
+	// Keeping the '--debug' option to preserve backward compatibility
 	if (args.debug) {
 		args.verbosity = 'debug';
-	} else if (args.verbosity === 'debug') {
-		args.debug = true;
+		delete args['debug'];
 	}
 
 	if (args.verbosity) {
@@ -674,6 +887,43 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 		args.intl = true;
 	}
 
+	// Enable Redis dynamic extension by default only when JSPI is available.
+	// Redis requires JSPI for proper exception handling during network operations.
+	if (args.redis === undefined) {
+		args.redis = await jspi();
+	}
+
+	// Memcached extension is opt-in via --memcached flag.
+	// It requires JSPI support, so users must run with Node.js 23+ and --experimental-wasm-jspi flag.
+	if (args.memcached === undefined) {
+		args.memcached = await jspi();
+	}
+
+	// Create CLI output handler
+	const cliOutput = new CLIOutput({
+		verbosity: args.verbosity || 'normal',
+	});
+
+	// Display banner for server commands
+	if (args.command === 'server') {
+		cliOutput.printBanner();
+		cliOutput.printConfig({
+			phpVersion: args.php || RecommendedPHPVersion,
+			wpVersion: args.wp || 'latest',
+			port: (args['port'] as number) || 9400,
+			xdebug: !!args.xdebug,
+			intl: !!args.intl,
+			redis: !!args.redis,
+			memcached: !!args.memcached,
+			mounts: [
+				...(args.mount || []),
+				...(args['mount-before-install'] || []),
+			],
+			blueprint:
+				typeof args.blueprint === 'string' ? args.blueprint : undefined,
+		});
+	}
+
 	const selectedPort =
 		args.command === 'server' ? ((args['port'] as number) ?? 9400) : 0;
 
@@ -686,7 +936,9 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 			: await import('fs-ext')
 					.then((m) => m.flockSync)
 					.catch(() => {
-						logger.warn(
+						// Only show this in debug mode since it's technical and
+						// doesn't affect normal operation
+						logger.debug(
 							'The fs-ext package is not installed. ' +
 								'Internal file locking will not be integrated with ' +
 								'host OS file locking.'
@@ -698,9 +950,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 	let wordPressReady = false;
 	let isFirstRequest = true;
 
-	logger.log('Starting a PHP server...');
-
-	return startServer({
+	const server = await startServer({
 		port: selectedPort,
 		onBind: async (server: Server, port: number) => {
 			const host = '127.0.0.1';
@@ -952,11 +1202,13 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 				handler = new BlueprintsV2Handler(args, {
 					siteUrl,
 					processIdSpaceLength,
+					cliOutput,
 				});
 			} else {
 				handler = new BlueprintsV1Handler(args, {
 					siteUrl,
 					processIdSpaceLength,
+					cliOutput,
 				});
 
 				if (typeof args.blueprint === 'string') {
@@ -1015,7 +1267,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 				}
 			);
 
-			logger.log(`Starting up workers`);
+			cliOutput.startProgress('Starting...');
 
 			try {
 				const workers = await promisedWorkers;
@@ -1041,7 +1293,6 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 
 					await initialPlayground.isReady();
 					wordPressReady = true;
-					logger.log(`Booted!`);
 
 					loadBalancer = new LoadBalancer(initialPlayground);
 
@@ -1053,22 +1304,20 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 						);
 
 						if (compiledBlueprint) {
-							logger.log(`Running the Blueprint...`);
 							await runBlueprintV1Steps(
 								compiledBlueprint,
 								initialPlayground as UniversalPHP
 							);
-							logger.log(`Finished running the blueprint`);
 						}
 					}
 
 					if (args.command === 'build-snapshot') {
 						await zipSite(playground, args.outfile as string);
-						logger.log(`WordPress exported to ${args.outfile}`);
+						cliOutput.printStatus(`Exported to ${args.outfile}`);
 						await disposeCLI();
 						return;
 					} else if (args.command === 'run-blueprint') {
-						logger.log(`Blueprint executed`);
+						cliOutput.finishProgress('Done');
 						await disposeCLI();
 						return;
 					}
@@ -1081,8 +1330,6 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 					await initialWorker.worker.terminate();
 					playgroundsToCleanUp.delete(initialWorker.worker);
 				}
-
-				logger.log(`Preparing workers...`);
 
 				// Boot additional workers using the handler
 				const initialWorkerProcessIdSpace = processIdSpaceLength;
@@ -1114,9 +1361,8 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 					})
 				);
 
-				logger.log(
-					`WordPress is running on ${serverUrl} with ${targetWorkerCount} worker(s)`
-				);
+				cliOutput.finishProgress();
+				cliOutput.printReady(serverUrl, targetWorkerCount);
 
 				if (args.xdebug && args.experimentalDevtools) {
 					const bridge = await startBridge({
@@ -1140,7 +1386,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 					},
 				};
 			} catch (error) {
-				if (!args.debug) {
+				if (args.verbosity !== 'debug') {
 					throw error;
 				}
 				let phpLogs = '';
@@ -1183,6 +1429,111 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 			return await loadBalancer.handleRequest(request);
 		},
 	});
+
+	if (server && args.command === 'start' && !args.skipBrowser) {
+		openInBrowser(server.serverUrl);
+	}
+	return server;
+}
+
+/**
+ * Transforms CLI args for the `start` command into the `server` command arguments.
+ *
+ * (Yes, the `start` command is just a convenience wrapper to provide useful defaults
+ * for the `server` command.)
+ */
+function expandStartCommandArgs(
+	args: RunCLIArgs & { reset?: boolean }
+): RunCLIArgs {
+	let newArgs = { ...args, command: 'server' };
+
+	/**
+	 * Enable auto-mount unless explicitly disabled
+	 */
+	if (!args.noAutoMount) {
+		newArgs.autoMount = path.resolve(process.cwd(), newArgs['path'] ?? '');
+		newArgs = expandAutoMounts(newArgs as RunCLIArgs);
+		// Delete the autoMount argument to avoid double expansion later on.
+		delete newArgs.autoMount;
+	}
+
+	const existingSiteRootMount =
+		getMountForVfsPath(
+			newArgs['mount-before-install'] || [],
+			'/wordpress'
+		) || getMountForVfsPath(newArgs.mount || [], '/wordpress');
+
+	/**
+	 * Persist the site into a ~/.wordpress-playground/sites/<site-id> directory,
+	 * but only if we don't have an explicit mount for the /wordpress VFS path.
+	 *
+	 * Why the limitation?
+	 *
+	 * Because we can only do one of the two:
+	 *
+	 * 1. Mount host path /my/wordpress/site directory at /wordpress VFS path
+	 * 2. Mount host path ~/.wordpress-playground/sites/<site-id> directory at /wordpress VFS path
+	 *
+	 * When either the user or expandAutoMounts() already provided a mount for the /wordpress VFS path,
+	 * it means a WordPress installation is already present in that directory. In this case, that's our
+	 * persistent store.
+	 */
+	if (!existingSiteRootMount) {
+		/**
+		 * Persist the sites by default by mounting a real, stable directory
+		 * as the site root.
+		 */
+		const currentSitePath = newArgs['autoMount'] || process.cwd();
+		const currentSiteHash = createHash('sha256')
+			.update(currentSitePath as string)
+			.digest('hex');
+
+		const homeDir = os.homedir();
+		const hostPath = path.join(
+			homeDir,
+			'.wordpress-playground/sites',
+			currentSiteHash
+		);
+		console.log('Site files stored at:', hostPath);
+
+		if (existsSync(hostPath) && (args['reset'] as boolean)) {
+			console.log('Resetting site...');
+			rmdirSync(hostPath, { recursive: true });
+		}
+		mkdirSync(hostPath, { recursive: true });
+		newArgs['mount-before-install'] = [
+			...((newArgs['mount-before-install'] || []) as Mount[]),
+			{ vfsPath: '/wordpress', hostPath },
+		];
+
+		newArgs.wordpressInstallMode =
+			readdirSync(hostPath).length === 0
+				? // Only download WordPress on the first run when the site directory is still
+					// empty.
+					'download-and-install'
+				: // After that, reuse the WordPress installation from the initial run.
+					'install-from-existing-files-if-needed';
+	} else {
+		console.log('Site files stored at:', existingSiteRootMount?.hostPath);
+		if (args['reset']) {
+			console.log(``);
+			console.log(
+				red(
+					`This site is not managed by Playground CLI and cannot be reset.`
+				)
+			);
+			console.log(
+				`(It's not stored in the ~/.wordpress-playground/sites/<site-id> directory.)`
+			);
+			console.log(``);
+			console.log(
+				`You may still remove the site's directory manually if you wish.`
+			);
+			process.exit(1);
+		}
+	}
+
+	return newArgs as RunCLIArgs;
 }
 
 export type SpawnedWorker = {
@@ -1303,6 +1654,35 @@ async function exposeFileLockManager(fileLockManager: FileLockManagerForNode) {
 		await exposeSyncAPI(fileLockManager, port1);
 	}
 	return port2;
+}
+
+/**
+ * Open a URL in the user's default browser.
+ * Works cross-platform: macOS, Windows, and Linux.
+ */
+function openInBrowser(url: string): void {
+	const platform = os.platform();
+	let command: string;
+
+	switch (platform) {
+		case 'darwin':
+			command = `open "${url}"`;
+			break;
+		case 'win32':
+			command = `start "" "${url}"`;
+			break;
+		default:
+			// Linux and other Unix-like systems
+			command = `xdg-open "${url}"`;
+			break;
+	}
+
+	exec(command, (error) => {
+		if (error) {
+			// Don't fail the CLI if browser opening fails, just log a debug message
+			logger.debug(`Could not open browser: ${error.message}`);
+		}
+	});
 }
 
 async function zipSite(

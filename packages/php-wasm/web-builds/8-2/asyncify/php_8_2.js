@@ -1,6 +1,6 @@
 import dependencyFilename from './8_2_30/php_8_2.wasm';
 export { dependencyFilename };
-export const dependenciesTotalSize = 24767499;
+export const dependenciesTotalSize = 24767517;
 const phpVersionString = '8.2.30';
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js

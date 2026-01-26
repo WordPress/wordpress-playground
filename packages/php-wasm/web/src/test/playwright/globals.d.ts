@@ -5,5 +5,6 @@ declare global {
 	interface Window {
 		PHP: typeof PHP;
 		loadWebRuntime: typeof loadWebRuntime;
+		proxyFileSystem: typeof proxyFileSystem;
 	}
 }

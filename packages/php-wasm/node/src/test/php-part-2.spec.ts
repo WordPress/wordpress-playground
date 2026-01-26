@@ -788,7 +788,7 @@ phpLoaderOptions.forEach((options) => {
 
 		/**
 		 * hash extension needs to be explicitly enabled in Dockerfile
-		 * for PHP < 7.3 – let's make sure it works
+		 * for PHP < 7.4 – let's make sure it works
 		 */
 		describe('Hash extension support', { skip: options.withXdebug }, () => {
 			it('Should be able to hash a string', async () => {

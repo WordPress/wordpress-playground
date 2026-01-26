@@ -43,8 +43,15 @@ export type WorkerBootOptions = {
 	 */
 	internalCookieStore?: boolean;
 	withIntl?: boolean;
+	withRedis?: boolean;
+	withMemcached?: boolean;
 	withXdebug?: boolean;
 	nativeInternalDirPath: string;
+	/**
+	 * PHP constants to define via php.defineConstant().
+	 * Process-specific, set for each PHP instance.
+	 */
+	constants?: Record<string, string | number | boolean | null>;
 };
 
 export type PrimaryWorkerBootOptions = WorkerBootOptions & {
@@ -66,6 +73,8 @@ interface WorkerBootRequestHandlerOptions {
 	mountsBeforeWpInstall: Array<Mount>;
 	mountsAfterWpInstall: Array<Mount>;
 	withIntl?: boolean;
+	withRedis?: boolean;
+	withMemcached?: boolean;
 	withXdebug?: boolean;
 }
 
@@ -143,11 +152,10 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 		this.booted = true;
 
 		try {
+			// Start with CLI-provided constants (if any)
 			const constants: Record<string, string | number | boolean | null> =
 				{
-					WP_DEBUG: true,
-					WP_DEBUG_LOG: true,
-					WP_DEBUG_DISPLAY: false,
+					...(options.constants || {}),
 				};
 			let wordpressBooted = false;
 			const requestHandler = await bootWordPressAndRequestHandler({
@@ -295,6 +303,8 @@ function createPhpRuntimeFactory(
 				},
 				followSymlinks: options.followSymlinks,
 				withIntl: options.withIntl,
+				withRedis: options.withRedis,
+				withMemcached: options.withMemcached,
 				withXdebug: options.withXdebug,
 			}
 		);

@@ -1,0 +1,10 @@
+.offline-notice {
+	margin: 0;
+	padding-right: 5px;
+	color: #000;
+	font-size: inherit;
+
+	.components-notice__content {
+		margin-right: 0;
+	}
+}
