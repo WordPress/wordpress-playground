@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { external, trash } from '@wordpress/icons';
+import { external, trash, copy } from '@wordpress/icons';
 import { Icon } from '@wordpress/icons';
 import { Spinner } from '@wordpress/components';
 import { logger } from '@php-wasm/logger';
@@ -256,9 +256,6 @@ export function MenuOverlay({ onClose }: MenuOverlayProps) {
 										href={getAppBlueprintUrl(
 											app.blueprintUrl
 										)}
-										title={getBlueprintPreview(
-											app.blueprintUrl
-										)}
 									>
 										<span className={css.featureIcon}>
 											<WordPressIcon />
@@ -284,6 +281,20 @@ export function MenuOverlay({ onClose }: MenuOverlayProps) {
 											</span>
 										</span>
 									</a>
+									<button
+										className={css.copyButton}
+										onClick={(e) => {
+											e.preventDefault();
+											navigator.clipboard.writeText(
+												getBlueprintPreview(
+													app.blueprintUrl
+												)
+											);
+										}}
+										title="Copy blueprint"
+									>
+										<Icon icon={copy} size={16} />
+									</button>
 									{app.isCustom && (
 										<button
 											className={css.removeButton}
