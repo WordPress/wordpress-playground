@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
 import { usePlaygroundClient } from '../../lib/use-playground-client';
 import { importWordPressFiles } from '@wp-playground/client';
-import { useActiveSite } from '../../lib/state/redux/store';
+import { useActiveSite, useAppDispatch } from '../../lib/state/redux/store';
 import { Icon } from '@wordpress/components';
 import { check, backup, upload } from '@wordpress/icons';
 import { logger } from '@php-wasm/logger';
@@ -9,10 +9,23 @@ import css from './style.module.css';
 import { useBackup } from '../../lib/hooks/use-backup';
 import { isSameDay } from '../../lib/utils/date';
 import { getRelativeDate } from '../../lib/utils/get-relative-date';
+import { updateSiteMetadata } from '../../lib/state/redux/slice-sites';
+import type { SiteMetadata } from '../../lib/state/redux/slice-sites';
+
+type AutoBackupInterval = NonNullable<SiteMetadata['autoBackupInterval']>;
+
+const autoBackupOptions: { value: AutoBackupInterval; label: string }[] = [
+	{ value: 'none', label: 'No auto-download' },
+	{ value: 'daily', label: 'Auto-download daily' },
+	{ value: 'every-2-days', label: 'Auto-download every 2 days' },
+	{ value: 'weekly', label: 'Auto-download weekly' },
+	{ value: 'ignore', label: 'Ignore backups' },
+];
 
 export function BackupReminder() {
 	const playground = usePlaygroundClient();
 	const activeSite = useActiveSite();
+	const dispatch = useAppDispatch();
 	const { performBackup, isBackingUp } = useBackup();
 	const [isImporting, setIsImporting] = useState(false);
 	const [showHistory, setShowHistory] = useState(false);
@@ -24,13 +37,25 @@ export function BackupReminder() {
 		return null;
 	}
 
-	const { backupHistory = [], lastAccessDate } = activeSite.metadata;
+	const { backupHistory = [], autoBackupInterval = 'none' } =
+		activeSite.metadata;
 	const lastBackup = backupHistory[0];
 	const lastBackupDate = lastBackup?.timestamp;
 
 	const needsBackup =
-		!lastBackupDate ||
-		(lastAccessDate && !isSameDay(lastBackupDate, lastAccessDate));
+		!lastBackupDate || !isSameDay(lastBackupDate, Date.now());
+
+	const handleAutoBackupChange = (
+		e: React.ChangeEvent<HTMLSelectElement>
+	) => {
+		const newInterval = e.target.value as AutoBackupInterval;
+		dispatch(
+			updateSiteMetadata({
+				slug: activeSite.slug,
+				changes: { autoBackupInterval: newInterval },
+			})
+		);
+	};
 
 	const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
 		const file = e.target.files?.[0];
@@ -137,6 +162,17 @@ export function BackupReminder() {
 					>
 						{isBackingUp ? 'Backing up...' : 'Download backup'}
 					</button>
+					<select
+						className={css.autoBackupSelect}
+						value={autoBackupInterval}
+						onChange={handleAutoBackupChange}
+					>
+						{autoBackupOptions.map((option) => (
+							<option key={option.value} value={option.value}>
+								{option.label}
+							</option>
+						))}
+					</select>
 					<button
 						className={css.importButton}
 						onClick={handleImportClick}

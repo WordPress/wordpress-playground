@@ -14,6 +14,7 @@ import {
 import { MissingSiteModal } from '../missing-site-modal';
 import { modalSlugs } from '../../lib/state/redux/slice-ui';
 import { SiteManager } from '../site-manager';
+import { useAutoBackup } from '../../lib/hooks/use-auto-backup';
 
 const displayMode = getDisplayModeFromQuery();
 function getDisplayModeFromQuery(): DisplayMode {
@@ -28,6 +29,8 @@ export function Layout() {
 		(state) => state.ui.siteManagerIsOpen
 	);
 	const siteManagerWrapperRef = useRef<HTMLDivElement>(null);
+
+	useAutoBackup();
 
 	return (
 		<div className={`${css.layout}`}>

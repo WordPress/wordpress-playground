@@ -548,6 +548,21 @@ export interface SiteMetadata {
 	 * Resets to 0 when a backup is performed.
 	 */
 	daysUsedSinceLastBackup?: number;
+
+	/**
+	 * Auto-backup interval setting.
+	 * - 'none': No auto-backup (default)
+	 * - 'daily': Backup every day
+	 * - 'every-2-days': Backup every 2 days
+	 * - 'weekly': Backup every week
+	 * - 'ignore': Never show backup reminders
+	 */
+	autoBackupInterval?:
+		| 'none'
+		| 'daily'
+		| 'every-2-days'
+		| 'weekly'
+		| 'ignore';
 }
 
 export const { setOPFSSitesLoadingState, setBlueprintResolvedFromUrl } =

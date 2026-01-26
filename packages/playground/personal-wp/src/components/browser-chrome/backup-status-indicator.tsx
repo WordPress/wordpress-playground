@@ -36,6 +36,7 @@ export function BackupStatusIndicator() {
 		lastAccessDate,
 		whenCreated,
 		daysUsedSinceLastBackup = 0,
+		autoBackupInterval,
 	} = activeSite?.metadata || {};
 
 	// Keep ref in sync with current value
@@ -86,6 +87,11 @@ export function BackupStatusIndicator() {
 			clearInterval(interval);
 		};
 	}, [siteSlug, isTemporarySite, dispatch]);
+
+	// Hide when auto-backup is configured (any value other than 'none' or undefined)
+	if (autoBackupInterval && autoBackupInterval !== 'none') {
+		return null;
+	}
 
 	// Only show backup indicator if user has returned after creation day
 	const hasReturnedAfterCreation =
