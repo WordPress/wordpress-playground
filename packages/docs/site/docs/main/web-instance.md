@@ -6,7 +6,7 @@ description: A detailed guide to the web interface at playground.wordpress.net, 
 
 # WordPress Playground web instance {#wordpress-playground-web-instance}
 
-[https://playground.wordpress.net/](https://playground.wordpress.net/) is a versatile web tool that allows developers to run WordPress in a browser without needing a server. This environment is particularly useful for testing plugins, themes, and other WordPress features quickly and efficiently.
+[https://playground.wordpress.net/](https://playground.wordpress.net/) lets developers run WordPress in a browser without a server. This environment makes testing plugins, themes, and features quick and easy.
 
 Some key features:
 
@@ -16,7 +16,7 @@ Some key features:
 
 The [Query Params API](/developers/apis/query-api/) allows you to directly load specific configurations into a Playground instance. This includes setting a particular WordPress version, theme, or plugin. You can also define more complex setups using blueprints (see [examples here](/quick-start-guide#try-a-block-a-theme-or-a-plugin)).
 
-From the Playground website, some toolbars are also available to customize your Playground instance and provide quick access to some resources and utilities.
+The Playground website includes toolbars that customize your instance and provide quick access to resources and utilities.
 
 ![Playground Toolbar Snapshot](@site/static/img/about/playground-toolbar.webp)
 
@@ -25,57 +25,57 @@ From the Playground website, some toolbars are also available to customize your 
 On the toolbar, you'll find:
 
 - **Playground Settings**: A panel for configuring your current instance, like PHP and WordPress versions.
-- **Playground Dashboard**: This panel lets you manage WordPress Playground instances, allowing you to save and export them. Edit the files from your WordPress Instance and create new Blueplints.
-- **Playground Launch Panel**: With the Launch Panel, the user will have access to all possible ways of launching a WordPress Playground instance.
+- **Playground Dashboard**: This panel lets you manage WordPress Playground instances, save and export them, edit files from your WordPress instance, and create new Blueprints.
+- **Playground Launch Panel**: The Launch Panel shows all the ways to launch a WordPress Playground instance.
 
 ### Playground Settings {#playground-settings}
 
 ![snapshot of customize Playground window at Playground instance](@site/static/img/about/playground-settings-panel.webp)
 
-The options available from the **Playground Settings Panel**, correspond to the following [Query API options](/developers/apis/query-api#available-options):
+The **Playground Settings Panel** includes these [Query API options](/developers/apis/query-api#available-options):
 
 - `wp`: Defines the WordPress version.
 - `php`: Specifies the PHP version for the instance.
 - `language`: Sets the WordPress instance language.
 - `multisite`: Enables WordPress multisite support.
-- `networking`: Grants network access, allowing fetches from the WordPress plugin directory and internal WordPress APIs.
+- `networking`: Enables network access to the WordPress Plugin Directory and WordPress APIs.
 
 ## Playground Manager {#playground-manager}
 
 ![Playground settings panel allow users to save export and edit the WordPress directly](@site/static/img/about/playground-dashboard.webp)
 
-This panel enables users to manage Playground instances. provides access following panels:
+This panel lets you manage Playground instances and provides access to the following panels:
 
 - **Settings**: To manage the current Playground's settings
-- **File Browser**: Built-in IDE that allows developers to edit files from the current WordPress instance, upload Plugins and Themes and edit it all live when the Playground auto-reload the changes.
-- **Blueprint**: It is a Blueprint editor that allows you to create, save, and run Blueprints at your Playground Web Instance.
-- **Database**: Options around managing the database with Adminer and phpMyAdmin, and downloading as a `.sqlite` file.
-- **Logs**: Showing the log messages when something goes wrong.
+- **File Browser**: Built-in IDE for editing files, uploading plugins and themes, and live editing. Playground auto-reloads changes in real time.
+- **Blueprint**: A Blueprint editor for creating, saving, and running Blueprints in your Playground web instance.
+- **Database**: Tools for managing the database with Adminer and phpMyAdmin, and downloading as a `.sqlite` file.
+- **Logs**: Displays log messages when something goes wrong.
 
 ![Save Playground Button](@site/static/img/about/playground-dashboard-save.webp)
 
-Once you click "Save", an instance will be created and listed in the Playground Launch Panel. The Playground Dashboard also has options to export and download (Additional actions menu) WordPress Playground instances:
+Click "Save" to create an instance and list it in the Playground Launch Panel. The Playground Dashboard also offers export and download options through the Additional actions menu:
 
 ### Additional actions menu {#additional-actions-menu}
 
-![Additional actions Menu](@site/static/img/about/playground-manager-additional-actions.webp)
+![Additional actions Menu](@site/static/img/about/additional-options-playground-dashboard.webp)
 
-- **Export Pull Request to GitHub**: This option allows you to export WordPress plugins, themes, and entire wp-content directories as pull requests to any public GitHub repository. Check [here](https://www.youtube.com/watch?v=gKrij8V3nK0&t=2488s) a demo of using this option.
-- **Download as .zip**: Creates a `.zip` file with the setup of the Playground instance, including any themes or plugins installed. This `.zip` won't include content and database changes.
-- **Report error**: If you have any issues with WordPress Playground, you can report them using the form available from this option. You can help resolve issues with Playground by sharing the error details with the development team behind Playground.
-- **View Blueprint**: This option will open the current blueprint used for the Playground instance in the [Blueprints Builder tool](https://playground.wordpress.net/builder/builder.html). From this tool, you'll be able to edit the blueprint online and run a new Playground instance with your edited version of the blueprint.
+- **Export Pull Request to GitHub**: Export WordPress plugins, themes, and entire wp-content directories as pull requests to any public GitHub repository. Watch a [demo of this feature](https://www.youtube.com/watch?v=gKrij8V3nK0&t=2488s).
+- **Download as .zip**: Creates a `.zip` file with the setup of the Playground instance, including any themes or plugins installed. This `.zip` excludes content and database changes.
 
-<span id="edit-the-blueprint"></span>
+### Blueprint Editor {#blueprint-editor}
 
-[![snapshot of Builder mode of WordPress Playground](@site/static/img/about/blueprint-builder.webp)](https://playground.wordpress.net/builder/builder.html)
+![Blueprint editor WordPress Playground](@site/static/img/about/playground-blueprint-editor.webp)
 
-### Import actions menu #import-actions-menu
+The Blueprint editor replaced the older Blueprint builder, offering the ability to manage multiple Blueprints and code validation.
 
-![Import actions Menu](@site/static/img/about/playground-manager-import-actions.webp)
+### Launch Playground Panel {#launch-playground-panel}
 
-- **Import from .zip**: Allows you to recreate a Playground instance using any `.zip` file generated with the "Download as .zip" option.
-- **Preview a Gutenberg PR**: Allows testers to run branches from the Gutenberg repository to test pull requests instantly.
-- **Import from GitHub**: This option allows you to import plugins, themes, and wp-content directories directly from your public GitHub repositories. To enable this feature, connect your GitHub account with WordPress Playground.
+![Playground Launch Panel](@site/static/img/dashboard/import-playground.webp)
+
+This panel shows all the ways to launch WordPress Playground: import `.zip` files, load from GitHub repositories, and preview PRs from WordPress core and Gutenberg.
+
+The Launch Panel also lists more than 40 blueprints from the Blueprint Gallery and your Saved Playgrounds.
 
 :::caution
 
