@@ -1,10 +1,8 @@
-import { useEffect, useRef } from 'react';
 import css from './style.module.css';
 import classNames from 'classnames';
-import { useActiveSite, useAppDispatch } from '../../lib/state/redux/store';
+import { useActiveSite } from '../../lib/state/redux/store';
 import { Icon, Spinner } from '@wordpress/components';
 import { backup } from '@wordpress/icons';
-import { updateSiteMetadata } from '../../lib/state/redux/slice-sites';
 import { useBackup } from '../../lib/hooks/use-backup';
 import {
 	BACKUP_CURRENT_THRESHOLD_DAYS,
@@ -12,111 +10,67 @@ import {
 } from '../../lib/hooks/use-backup-constants';
 import { isSameDay } from '../../lib/utils/date';
 
-function formatUsageDays(days: number): string {
+function getDaysSinceBackup(lastBackupTimestamp: number | undefined): number {
+	if (!lastBackupTimestamp) return Infinity;
+	const now = Date.now();
+	return Math.floor((now - lastBackupTimestamp) / (1000 * 60 * 60 * 24));
+}
+
+function formatDaysSinceBackup(days: number): string {
+	if (days === 0) return 'Backed up today';
 	if (days === 1) return '1 day since backup';
 	return `${days} days since backup`;
 }
 
 type BackupUrgency = 'current' | 'due' | 'overdue';
 
-function getBackupUrgency(daysUsed: number): BackupUrgency {
-	if (daysUsed <= BACKUP_CURRENT_THRESHOLD_DAYS) return 'current';
-	if (daysUsed <= BACKUP_OVERDUE_THRESHOLD_DAYS) return 'due';
+function getBackupUrgency(days: number): BackupUrgency {
+	if (days <= BACKUP_CURRENT_THRESHOLD_DAYS) return 'current';
+	if (days <= BACKUP_OVERDUE_THRESHOLD_DAYS) return 'due';
 	return 'overdue';
 }
 
 export function BackupStatusIndicator() {
 	const activeSite = useActiveSite();
-	const dispatch = useAppDispatch();
 	const { performBackup, isBackingUp } = useBackup();
-	const lastCheckedDateRef = useRef<string>(new Date().toDateString());
-	const daysUsedRef = useRef<number>(0);
 
 	const {
-		lastAccessDate,
 		whenCreated,
-		daysUsedSinceLastBackup = 0,
+		backupHistory = [],
 		autoBackupInterval,
 	} = activeSite?.metadata || {};
 
-	// Keep ref in sync with current value
-	daysUsedRef.current = daysUsedSinceLastBackup;
-
-	const siteSlug = activeSite?.slug;
 	const isTemporarySite = activeSite?.metadata.storage === 'none';
+	const lastBackupTimestamp = backupHistory[0]?.timestamp;
+	const daysSinceBackup = getDaysSinceBackup(lastBackupTimestamp);
 
-	// Check for day change when tab becomes visible or periodically
-	useEffect(() => {
-		if (!siteSlug || isTemporarySite) {
-			return;
-		}
-
-		const checkForNewDay = () => {
-			const today = new Date().toDateString();
-			if (today !== lastCheckedDateRef.current) {
-				lastCheckedDateRef.current = today;
-				// It's a new day - increment the counter
-				dispatch(
-					updateSiteMetadata({
-						slug: siteSlug,
-						changes: {
-							lastAccessDate: Date.now(),
-							daysUsedSinceLastBackup: daysUsedRef.current + 1,
-						},
-					})
-				);
-			}
-		};
-
-		// Check when tab becomes visible
-		const handleVisibilityChange = () => {
-			if (document.visibilityState === 'visible') {
-				checkForNewDay();
-			}
-		};
-
-		// Also check periodically (every minute) in case tab stays visible overnight
-		const interval = setInterval(checkForNewDay, 60000);
-
-		document.addEventListener('visibilitychange', handleVisibilityChange);
-		return () => {
-			document.removeEventListener(
-				'visibilitychange',
-				handleVisibilityChange
-			);
-			clearInterval(interval);
-		};
-	}, [siteSlug, isTemporarySite, dispatch]);
+	// Hide for temporary sites
+	if (isTemporarySite) {
+		return null;
+	}
 
 	// Hide when auto-backup is configured (any value other than 'none' or undefined)
 	if (autoBackupInterval && autoBackupInterval !== 'none') {
 		return null;
 	}
 
-	// Only show backup indicator if user has returned after creation day
-	const hasReturnedAfterCreation =
-		whenCreated &&
-		lastAccessDate &&
-		!isSameDay(whenCreated, lastAccessDate);
-
-	// Hide on first day - no need to prompt for backup yet
-	if (!hasReturnedAfterCreation) {
+	// Hide on first day of site creation - no need to prompt for backup yet
+	if (whenCreated && isSameDay(whenCreated, Date.now())) {
 		return null;
 	}
 
-	// Hide if no usage since last backup (or site is new with 0 days tracked)
-	if (daysUsedSinceLastBackup === 0) {
+	// Hide if backed up today
+	if (lastBackupTimestamp && isSameDay(lastBackupTimestamp, Date.now())) {
 		return null;
 	}
 
-	const urgency = getBackupUrgency(daysUsedSinceLastBackup);
+	const urgency = getBackupUrgency(daysSinceBackup);
 	const isWorking = isBackingUp;
 	const buttonText = isBackingUp
 		? 'Backing up...'
-		: formatUsageDays(daysUsedSinceLastBackup);
+		: formatDaysSinceBackup(daysSinceBackup);
 	const tooltipText =
 		'Your Playground is stored in this browser. Browser data can be cleared unexpectedly. Click to download a backup.';
-	const handleClick = performBackup;
 
 	return (
 		<div className={classNames(css.indicator, css[urgency])}>
@@ -125,7 +79,7 @@ export function BackupStatusIndicator() {
 					css.backupButton,
 					css[`${urgency}Button`]
 				)}
-				onClick={handleClick}
+				onClick={performBackup}
 				disabled={isWorking}
 				type="button"
 				title={tooltipText}

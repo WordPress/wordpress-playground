@@ -80,7 +80,6 @@ export function useBackup() {
 						slug: activeSite.slug,
 						changes: {
 							backupHistory: newHistory,
-							daysUsedSinceLastBackup: 0,
 						},
 					})
 				);

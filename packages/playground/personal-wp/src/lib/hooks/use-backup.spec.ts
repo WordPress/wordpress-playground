@@ -31,14 +31,6 @@ describe('backup urgency thresholds', () => {
 });
 
 describe('backup metadata shape', () => {
-	it('daysUsedSinceLastBackup resets to 0 represent a fresh backup', () => {
-		const beforeBackup = { daysUsedSinceLastBackup: 5 };
-		const afterBackup = { daysUsedSinceLastBackup: 0 };
-
-		expect(beforeBackup.daysUsedSinceLastBackup).toBe(5);
-		expect(afterBackup.daysUsedSinceLastBackup).toBe(0);
-	});
-
 	it('backupHistory is an array of entries with filename and timestamp', () => {
 		const backupHistory = [
 			{

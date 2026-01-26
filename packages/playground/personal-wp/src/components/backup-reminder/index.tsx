@@ -200,7 +200,8 @@ export function BackupReminder() {
 			)}
 			<p className={css.backupDescription}>
 				Your Playground is stored in this browser. Browser data can be
-				cleared unexpectedly, so regular backups keep your work safe.
+				cleared unexpectedly, so regular backups keep your WordPress
+				safe.
 			</p>
 		</div>
 	);

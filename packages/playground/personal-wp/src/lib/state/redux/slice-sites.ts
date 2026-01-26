@@ -538,18 +538,6 @@ export interface SiteMetadata {
 	backupHistory?: Array<{ filename: string; timestamp: number }>;
 
 	/**
-	 * Timestamp of the last day the site was accessed.
-	 * Used to track usage days for backup reminders.
-	 */
-	lastAccessDate?: number;
-
-	/**
-	 * Number of days the site has been used since the last backup.
-	 * Resets to 0 when a backup is performed.
-	 */
-	daysUsedSinceLastBackup?: number;
-
-	/**
 	 * Auto-backup interval setting.
 	 * - 'none': No auto-backup (default)
 	 * - 'daily': Backup every day
