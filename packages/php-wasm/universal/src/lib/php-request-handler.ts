@@ -590,9 +590,7 @@ export class PHPRequestHandler implements AsyncDisposable {
 	): Promise<PHPResponse> {
 		let spawnedPHP: AcquiredPHP | undefined = undefined;
 		try {
-			spawnedPHP = await this.instanceManager!.acquirePHPInstance({
-				considerPrimary: true,
-			});
+			spawnedPHP = await this.instanceManager!.acquirePHPInstance();
 		} catch (e) {
 			if (e instanceof MaxPhpInstancesError) {
 				return PHPResponse.forHttpCode(502);

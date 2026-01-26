@@ -125,25 +125,10 @@ export class PHPProcessManager implements PHPInstanceManager {
 	 * instance, or a newly spawned PHP instance – depending on the resource
 	 * availability.
 	 *
-	 * @param considerPrimary - Whether to consider the primary PHP instance.
-	 *                          It matters because PHP.cli() sets the SAPI to CLI and
-	 *                          kills the entire process after it finishes running,
-	 *                          making the primary PHP instance non-reusable for
-	 *                          subsequent .run() calls. This is fine for one-off
-	 *                          child PHP instances, but not for the primary PHP
-	 *                          that's meant to continue working for the entire duration
-	 *                          of the ProcessManager lifetime. Therefore, we don't
-	 *                          consider the primary PHP instance by default unless
-	 *                          the caller explicitly requests it.
-	 *
 	 * @throws {MaxPhpInstancesError} when the maximum number of PHP instances is reached
 	 *                                and the waiting timeout is exceeded.
 	 */
-	async acquirePHPInstance({
-		considerPrimary = true,
-	}: {
-		considerPrimary?: boolean;
-	} = {}): Promise<AcquiredPHP> {
+	async acquirePHPInstance(): Promise<AcquiredPHP> {
 		/**
 		 * First and foremost, make sure we have the primary PHP instance in place.
 		 * We may not actually acquire it. We just need it to exist.
@@ -156,7 +141,7 @@ export class PHPProcessManager implements PHPInstanceManager {
 			await this.getPrimaryPhp();
 		}
 
-		if (this.primaryIdle && considerPrimary) {
+		if (this.primaryIdle) {
 			this.primaryIdle = false;
 			return {
 				php: await this.getPrimaryPhp(),
