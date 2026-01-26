@@ -34,21 +34,27 @@ On the toolbar, you'll find:
 
 The options available from the **Playground Settings Panel**, correspond to the following [Query API options](/developers/apis/query-api#available-options):
 
+- `wp`: Defines the WordPress version.
+- `php`: Specifies the PHP version for the instance.
 - `language`: Sets the WordPress instance language.
 - `multisite`: Enables WordPress multisite support.
 - `networking`: Grants network access, allowing fetches from the WordPress plugin directory and internal WordPress APIs.
-- `php`: Specifies the PHP version for the instance.
-- `wp`: Defines the WordPress version.
 
 ## Playground Manager {#playground-manager}
 
-![Playground settings panel allow users to manage multiple instances](@site/static/img/about/playground-manager-panel.webp)
+![Playground settings panel allow users to save export and edit the WordPress directly](@site/static/img/about/playground-dashboard.webp)
 
-This panel enables users to manage Playground instances. It displays a list of saved Playgrounds and provides access to the current Playground's settings, along with a **Save Button** to store your configurations locally in your browser for later reloading.
+This panel enables users to manage Playground instances. provides access following panels:
 
-![Save Playground Button](@site/static/img/about/playground-manager-save-instance.webp)
+- **Settings**: To manage the current Playground's settings
+- **File Browser**: Built-in IDE that allows developers to edit files from the current WordPress instance, upload Plugins and Themes and edit it all live when the Playground auto-reload the changes.
+- **Blueprint**: It is a Blueprint editor that allows you to create, save, and run Blueprints at your Playground Web Instance.
+- **Database**: Options around managing the database with Adminer and phpMyAdmin, and downloading as a `.sqlite` file.
+- **Logs**: Showing the log messages when something goes wrong.
 
-Once you click on "Save", an instance will be stored with a generated name and can be revisited anytime. The Playground Manager also has options to export(Additional actions menu) and import(Import actions menu) WordPress Playground instances:
+![Save Playground Button](@site/static/img/about/playground-dashboard-save.webp)
+
+Once you click "Save", an instance will be created and listed in the Playground Launch Panel. The Playground Dashboard also has options to export and download (Additional actions menu) WordPress Playground instances:
 
 ### Additional actions menu {#additional-actions-menu}
 
