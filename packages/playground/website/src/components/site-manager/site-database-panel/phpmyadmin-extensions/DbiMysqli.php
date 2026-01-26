@@ -43,6 +43,8 @@ require_once '/internal/shared/sqlite-database-integration/wp-includes/sqlite-as
 require_once '/internal/shared/sqlite-database-integration/wp-includes/sqlite-ast/class-wp-sqlite-information-schema-builder.php';
 require_once '/internal/shared/sqlite-database-integration/wp-includes/sqlite-ast/class-wp-sqlite-information-schema-exception.php';
 require_once '/internal/shared/sqlite-database-integration/wp-includes/sqlite-ast/class-wp-sqlite-information-schema-reconstructor.php';
+require_once '/internal/shared/sqlite-database-integration/wp-includes/sqlite-ast/class-wp-pdo-proxy-statement.php';
+require_once '/internal/shared/sqlite-database-integration/wp-includes/sqlite-ast/class-wp-pdo-mysql-on-sqlite.php';
 
 // Supress the following phpMyAdmin warning:
 //   "The mysqlnd extension is missing. Please check your PHP configuration."
