@@ -89,7 +89,7 @@ type GitDirectoryReference = {
 - It handles CORS-proxied fetches and sparse checkouts, so you can use URLs that point to specific subdirectories or branches.
 - This resource can be used with steps like [`installPlugin`](/blueprints/steps#InstallPluginStep) and [`installTheme`](/blueprints/steps#InstallThemeStep).
 - Set `".git": true` to include a `.git` folder containing packfiles and refs so Git-aware tooling can detect the checkout. This currently mirrors a shallow clone of the selected ref.
-- The folder name is derived from the URL by default (e.g. `https-github.com-WordPress-block-development-examples-HEAD-at-plugins-data-basics-59c8f8`). Use `options.targetFolderName` in the step to override it, as shown in the example above.
+- The folder name is derived from the URL by default (e.g. `https-github-com-WordPress-block-development-examples-HEAD-at-plugins-data-basics-59c8f8`). Use `options.targetFolderName` in the step to override it, as shown in the example above.
 
 ### CoreThemeReference
 
