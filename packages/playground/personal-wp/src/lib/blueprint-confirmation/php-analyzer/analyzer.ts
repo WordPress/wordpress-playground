@@ -260,12 +260,7 @@ function findFunctionCallAfterVariable(
 			bracketDepth--;
 		} else if (token.type === 'T_OPEN_PAREN' && bracketDepth === 0) {
 			return i;
-		} else if (
-			bracketDepth === 0 &&
-			token.type !== 'T_WHITESPACE' &&
-			token.type !== 'T_OPEN_BRACKET' &&
-			token.type !== 'T_CLOSE_BRACKET'
-		) {
+		} else if (bracketDepth === 0) {
 			// Hit something else, not a function call
 			break;
 		}

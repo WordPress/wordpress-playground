@@ -1,6 +1,7 @@
 import type { BlueprintV1Declaration } from '@wp-playground/client';
 import {
 	type ResolvedBlueprint,
+	type BlueprintSource,
 	resolveBlueprintFromURL,
 } from '../state/url/resolve-blueprint-from-url';
 import {
@@ -91,6 +92,11 @@ function hasActionableUrlParams(url: URL): boolean {
 	return ACTIONABLE_URL_PARAMS.some((param) => url.searchParams.has(param));
 }
 
+export interface ResolvedUrlBlueprint {
+	blueprint: BlueprintV1Declaration;
+	source: BlueprintSource;
+}
+
 /**
  * Resolves URL params as a blueprint to apply to an existing personal site.
  * Returns null if there are no actionable URL params.
@@ -101,7 +107,7 @@ function hasActionableUrlParams(url: URL): boolean {
  */
 export async function resolveUrlParamsForExistingSite(
 	url: URL
-): Promise<BlueprintV1Declaration | null> {
+): Promise<ResolvedUrlBlueprint | null> {
 	if (!hasActionableUrlParams(url)) {
 		return null;
 	}
@@ -112,7 +118,10 @@ export async function resolveUrlParamsForExistingSite(
 		const blueprint = isBlueprintBundle(resolved.blueprint)
 			? await getBlueprintDeclaration(resolved.blueprint)
 			: (resolved.blueprint as BlueprintV1Declaration);
-		return blueprint;
+		return {
+			blueprint,
+			source: resolved.source,
+		};
 	} catch (e) {
 		logger.error('Error resolving URL blueprint for existing site:', e);
 		return null;

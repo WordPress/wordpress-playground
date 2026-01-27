@@ -22,6 +22,7 @@ import {
 	type ResolvedBlueprint,
 	applyQueryOverrides,
 } from '../url/resolve-blueprint-from-url';
+import type { ResolvedUrlBlueprint } from '../../personalwp';
 import { logger } from '@php-wasm/logger';
 import { setActiveSiteError, type SiteError } from './slice-ui';
 import { RecommendedPHPVersion } from '@wp-playground/common';
@@ -62,6 +63,7 @@ const sitesAdapter = createEntityAdapter<SiteInfo, string>({
 export interface BlueprintResolvedFromUrl {
 	targetSiteSlug: string;
 	blueprint: BlueprintV1Declaration;
+	source: BlueprintSource;
 }
 
 // Define the initial state using the adapter and include the loading state
@@ -368,14 +370,16 @@ export function setTemporarySiteSpec(
 			if (existingDefaultSite) {
 				// Check if there are actionable URL params that should be applied
 				// to the existing site (e.g., ?plugin=friends, ?blueprint-url=...)
-				const blueprint = await resolveUrlParamsForExistingSite(
-					playgroundUrlWithQueryApiArgs
-				);
-				if (blueprint) {
+				const resolvedUrlBlueprint =
+					await resolveUrlParamsForExistingSite(
+						playgroundUrlWithQueryApiArgs
+					);
+				if (resolvedUrlBlueprint) {
 					dispatch(
 						sitesSlice.actions.setBlueprintResolvedFromUrl({
 							targetSiteSlug: existingDefaultSite.slug,
-							blueprint,
+							blueprint: resolvedUrlBlueprint.blueprint,
+							source: resolvedUrlBlueprint.source,
 						})
 					);
 				}
