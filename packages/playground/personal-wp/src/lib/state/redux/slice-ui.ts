@@ -1,6 +1,8 @@
 import type { PayloadAction, Middleware } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
 import { BlueprintStepExecutionError } from '@wp-playground/blueprints';
+import type { AnalysisResult } from '../../blueprint-confirmation';
+import type { ResolvedBlueprint } from '../url/resolve-blueprint-from-url';
 
 export type SiteError =
 	| 'directory-handle-not-found-in-indexeddb'
@@ -137,6 +139,11 @@ const serializeSiteErrorDetails = (
 	}
 };
 
+export interface PendingBlueprintConfirmation {
+	blueprint: ResolvedBlueprint;
+	analysisResult: AnalysisResult;
+}
+
 export interface UIState {
 	activeSite?: {
 		slug: string;
@@ -149,6 +156,17 @@ export interface UIState {
 	offline: boolean;
 	siteManagerIsOpen: boolean;
 	siteManagerSection: SiteManagerSection;
+	pendingBlueprintConfirmation: PendingBlueprintConfirmation | null;
+	/**
+	 * URL of a blueprint source that was confirmed by the user.
+	 * Used to skip the confirmation dialog on re-boot.
+	 */
+	confirmedBlueprintSourceUrl: string | null;
+	/**
+	 * Counter that increments to trigger a site re-boot.
+	 * Used after blueprint confirmation.
+	 */
+	bootTrigger: number;
 }
 
 const query = new URL(document.location.href).searchParams;
@@ -188,6 +206,9 @@ const initialState: UIState = {
 		// quite a confusing experience.
 		!isMobile,
 	siteManagerSection: 'site-details',
+	pendingBlueprintConfirmation: null,
+	confirmedBlueprintSourceUrl: null,
+	bootTrigger: 0,
 };
 
 const uiSlice = createSlice({
@@ -264,6 +285,34 @@ const uiSlice = createSlice({
 		) => {
 			state.siteSlugToRename = action.payload;
 		},
+		setPendingBlueprintConfirmation: (
+			state,
+			action: PayloadAction<PendingBlueprintConfirmation | null>
+		) => {
+			state.pendingBlueprintConfirmation = action.payload;
+		},
+		clearPendingBlueprintConfirmation: (state) => {
+			state.pendingBlueprintConfirmation = null;
+		},
+		confirmPendingBlueprint: (state) => {
+			// Store the confirmed source URL so the next boot skips confirmation
+			const pending = state.pendingBlueprintConfirmation;
+			if (pending) {
+				const source = pending.blueprint.source;
+				if (
+					source.type === 'remote-url' ||
+					source.type === 'personal-blueprint'
+				) {
+					state.confirmedBlueprintSourceUrl = source.url;
+				}
+			}
+			// Clear the pending state and trigger re-boot
+			state.pendingBlueprintConfirmation = null;
+			state.bootTrigger += 1;
+		},
+		clearConfirmedBlueprintSource: (state) => {
+			state.confirmedBlueprintSourceUrl = null;
+		},
 	},
 });
 
@@ -309,6 +358,10 @@ export const {
 	setSiteManagerOpen,
 	setSiteManagerSection,
 	setSiteSlugToRename,
+	setPendingBlueprintConfirmation,
+	clearPendingBlueprintConfirmation,
+	confirmPendingBlueprint,
+	clearConfirmedBlueprintSource,
 } = uiSlice.actions;
 
 export default uiSlice.reducer;

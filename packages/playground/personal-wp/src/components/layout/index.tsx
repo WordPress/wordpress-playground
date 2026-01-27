@@ -12,6 +12,7 @@ import {
 	PlaygroundViewport,
 } from '../playground-viewport';
 import { MissingSiteModal } from '../missing-site-modal';
+import { BlueprintConfirmationModal } from '../blueprint-confirmation-modal';
 import { modalSlugs } from '../../lib/state/redux/slice-ui';
 import { SiteManager } from '../site-manager';
 import { useAutoBackup } from '../../lib/hooks/use-auto-backup';
@@ -67,6 +68,14 @@ function Modals() {
 	const currentModal = useAppSelector(
 		(state: PlaygroundReduxState) => state.ui.activeModal
 	);
+	const pendingBlueprintConfirmation = useAppSelector(
+		(state: PlaygroundReduxState) => state.ui.pendingBlueprintConfirmation
+	);
+
+	// Blueprint confirmation modal takes priority
+	if (pendingBlueprintConfirmation) {
+		return <BlueprintConfirmationModal />;
+	}
 
 	if (currentModal === modalSlugs.LOG) {
 		return <LogModal />;

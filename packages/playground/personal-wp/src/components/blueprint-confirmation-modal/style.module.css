@@ -1,0 +1,253 @@
+.confirmation-modal {
+	width: min(600px, calc(100vw - 32px));
+	max-width: none;
+	max-height: 85dvh;
+}
+
+.confirmation-modal :global(.components-modal__content) {
+	display: flex;
+	flex-direction: column;
+	width: 100%;
+	font-size: 15px;
+	padding: 0 24px 20px;
+	padding-top: 0;
+}
+
+.confirmation-modal :global(.components-modal__header) {
+	padding-top: 20px;
+	padding-bottom: 16px;
+	padding-left: 24px;
+	padding-right: 24px;
+	margin: 0;
+}
+
+.confirmation-modal :global(.components-modal__header-heading) {
+	font-size: 20px;
+	line-height: 1.3;
+}
+
+.modal-content {
+	display: flex;
+	flex-direction: column;
+	width: 100%;
+	height: 100%;
+}
+
+.modal-body {
+	flex: 1 1 auto;
+	display: flex;
+	flex-direction: column;
+	gap: 1rem;
+	overflow-y: auto;
+	padding-right: 0.25rem;
+	min-height: 0;
+	padding-top: 4px;
+	padding-bottom: 16px;
+}
+
+.lead-text {
+	font-size: 1rem;
+	line-height: 1.5;
+	color: #1d2327;
+	margin: 0;
+}
+
+.source-info {
+	display: flex;
+	flex-direction: column;
+	gap: 0.25rem;
+	background: #f6f7f7;
+	border-radius: 8px;
+	padding: 0.75rem;
+	border: 1px solid #dcdcde;
+}
+
+.source-label {
+	font-size: 0.75rem;
+	font-weight: 600;
+	letter-spacing: 0.05em;
+	text-transform: uppercase;
+	color: #6c7781;
+}
+
+.source-url {
+	font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+	font-size: 0.8125rem;
+	word-break: break-all;
+	color: #1d2327;
+	background: transparent;
+}
+
+.warnings-container {
+	display: flex;
+	flex-direction: column;
+	gap: 1rem;
+}
+
+.warning-group {
+	border-radius: 10px;
+	padding: 0.875rem;
+	border: 1px solid;
+}
+
+.severity-danger {
+	background: #fef2f2;
+	border-color: #fecaca;
+}
+
+.severity-warning {
+	background: #fffbeb;
+	border-color: #fde68a;
+}
+
+.severity-info {
+	background: #f0f9ff;
+	border-color: #bae6fd;
+}
+
+.warning-group-header {
+	display: flex;
+	align-items: center;
+	gap: 0.75rem;
+	margin-bottom: 0.75rem;
+}
+
+.severity-badge {
+	display: inline-flex;
+	align-items: center;
+	flex-shrink: 0;
+	white-space: nowrap;
+	font-size: 0.6875rem;
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+	font-weight: 600;
+	padding: 0.25rem 0.625rem;
+	border-radius: 999px;
+	line-height: 1;
+}
+
+.badge-danger {
+	background: #fee2e2;
+	color: #991b1b;
+}
+
+.badge-warning {
+	background: #fef3c7;
+	color: #92400e;
+}
+
+.badge-info {
+	background: #e0f2fe;
+	color: #075985;
+}
+
+.severity-description {
+	font-size: 0.8125rem;
+	color: #6c7781;
+}
+
+.warning-list {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+}
+
+.warning-item {
+	display: flex;
+	flex-direction: column;
+	gap: 0.125rem;
+	padding-left: 0.5rem;
+	border-left: 2px solid currentColor;
+}
+
+.severity-danger .warning-item {
+	border-color: #f87171;
+}
+
+.severity-warning .warning-item {
+	border-color: #fbbf24;
+}
+
+.severity-info .warning-item {
+	border-color: #38bdf8;
+}
+
+.warning-title {
+	font-weight: 600;
+	font-size: 0.9375rem;
+	color: #1d2327;
+}
+
+.warning-description {
+	font-size: 0.8125rem;
+	color: #50575e;
+	line-height: 1.4;
+	word-break: break-word;
+}
+
+.no-warnings {
+	color: #6c7781;
+	font-style: italic;
+	margin: 0;
+}
+
+.modal-footer {
+	flex-shrink: 0;
+	display: flex;
+	gap: 0.75rem;
+	padding-top: 16px;
+	margin-top: 4px;
+	border-top: 1px solid #dcdcde;
+	justify-content: flex-end;
+}
+
+.danger-button {
+	background: #dc2626 !important;
+	border-color: #dc2626 !important;
+}
+
+.danger-button:hover {
+	background: #b91c1c !important;
+	border-color: #b91c1c !important;
+}
+
+.danger-button:focus {
+	box-shadow: 0 0 0 2px #fecaca !important;
+}
+
+@media (max-width: 768px) {
+	.confirmation-modal {
+		max-width: none;
+		max-height: none;
+		margin: 0;
+		width: 100dvw;
+		height: 100dvh;
+	}
+
+	.confirmation-modal :global(.components-modal__content) {
+		font-size: 14px;
+		padding: 18px 20px;
+		padding-top: 0;
+	}
+
+	.confirmation-modal :global(.components-modal__header) {
+		padding-bottom: 14px;
+		padding-left: 20px;
+		padding-right: 20px;
+	}
+
+	.confirmation-modal :global(.components-modal__header-heading) {
+		font-size: 18px;
+	}
+
+	.lead-text {
+		font-size: 0.9375rem;
+	}
+
+	.modal-footer {
+		padding-top: 14px;
+	}
+}

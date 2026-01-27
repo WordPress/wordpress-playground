@@ -46,6 +46,7 @@ export const JustViewport = function JustViewport({
 }) {
 	const iframeRef = useRef<HTMLIFrameElement>(null);
 	const site = useAppSelector((state) => selectSiteBySlug(state, siteSlug))!;
+	const bootTrigger = useAppSelector((state) => state.ui.bootTrigger);
 
 	const dispatch = useAppDispatch();
 	const runtimeConfigString = JSON.stringify(
@@ -71,7 +72,7 @@ export const JustViewport = function JustViewport({
 			dispatch(removeClientInfo(siteSlug));
 		};
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [siteSlug, iframeRef, runtimeConfigString]);
+	}, [siteSlug, iframeRef, runtimeConfigString, bootTrigger]);
 
 	const error = useAppSelector(selectActiveSiteError);
 	const errorDetails = useAppSelector(selectActiveSiteErrorDetails);

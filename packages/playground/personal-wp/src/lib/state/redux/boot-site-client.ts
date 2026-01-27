@@ -22,7 +22,12 @@ import { setupPostMessageRelay } from '@php-wasm/web';
 import { startPlaygroundWeb } from '@wp-playground/client';
 import type { PlaygroundClient } from '@wp-playground/remote';
 import { getRemoteUrl } from '../../config';
-import { setActiveSiteError } from './slice-ui';
+import {
+	setActiveSiteError,
+	setPendingBlueprintConfirmation,
+	clearConfirmedBlueprintSource,
+} from './slice-ui';
+import { analyzeBlueprint } from '../../blueprint-confirmation';
 import type { PlaygroundDispatch, PlaygroundReduxState } from './store';
 import {
 	selectSiteBySlug,
@@ -360,8 +365,46 @@ export function bootSiteClient(
 				landingPage: urlParamLandingPage || site.metadata.lastUrl,
 			};
 
-			// Merge URL blueprint (e.g., ?plugin=friends) into boot blueprint
+			// Check if URL blueprint requires user confirmation
 			if (hasUrlBlueprint) {
+				// Check if this blueprint source was already confirmed by the user
+				const confirmedSourceUrl =
+					getState().ui.confirmedBlueprintSourceUrl;
+				const currentSourceUrl =
+					urlBlueprint.source.type === 'remote-url' ||
+					urlBlueprint.source.type === 'personal-blueprint'
+						? urlBlueprint.source.url
+						: null;
+				const isAlreadyConfirmed =
+					confirmedSourceUrl &&
+					currentSourceUrl &&
+					confirmedSourceUrl === currentSourceUrl;
+
+				if (!isAlreadyConfirmed) {
+					const analysisResult = analyzeBlueprint({
+						blueprint:
+							urlBlueprint.blueprint as BlueprintV1Declaration,
+						source: urlBlueprint.source,
+					});
+
+					if (analysisResult.requiresConfirmation) {
+						dispatch(
+							setPendingBlueprintConfirmation({
+								blueprint: urlBlueprint,
+								analysisResult,
+							})
+						);
+						// Wait for user confirmation before proceeding
+						return;
+					}
+				}
+
+				// Clear the confirmed source URL after using it
+				if (isAlreadyConfirmed) {
+					dispatch(clearConfirmedBlueprintSource());
+				}
+
+				// Merge URL blueprint (e.g., ?plugin=friends) into boot blueprint
 				const resolved = urlBlueprint.blueprint;
 				const current = blueprint as BlueprintV1Declaration;
 				blueprint = {
