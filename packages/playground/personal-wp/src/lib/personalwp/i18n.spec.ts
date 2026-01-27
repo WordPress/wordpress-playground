@@ -27,7 +27,7 @@ describe('locale-map.json', () => {
 
 	it('has values matching WordPress locale format', () => {
 		const wpLocalePattern = /^[a-z]{2,3}(_[A-Z]{2})?(_formal|_informal)?$/;
-		for (const [key, value] of Object.entries(localeMap)) {
+		for (const value of Object.values(localeMap)) {
 			expect(value).toMatch(wpLocalePattern);
 		}
 	});
