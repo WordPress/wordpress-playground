@@ -155,8 +155,22 @@ export function cloneStreamMonitorProgress(
 	function notify(loaded: number, total: number, done: boolean) {
 		const now = performance.now();
 
-		// Time-based throttle to prevent progress event
-		// storms on small stream chunks (Safari and Firefox).
+		/*
+		 * This throttling exists to prevent severe UX degradation on mobile browsers,
+		 * particularly Safari. In some mobile environments, loading Playground
+		 * could take tens of seconds and appear frozen or blank, even though the boot
+		 * process eventually completed successfully.
+		 *
+		 * The issue was an excessive number of progress notifications directly tied
+		 * to how often php-wasm was able to read from a download's ReadableStream.
+		 * Each time we received a chunk from a readable stream, we sent a corresponding
+		 * progress notification. This appeared to work OK in Chrome and other browsers,
+		 * but we observed Safari's ReadableStream reading data in such small chunks
+		 * that we flooded the message channel with progress notifications.
+		 * This caused unnecessary main-thread pressure which impacted performance.
+		 *
+		 * To avoid this issue, we now throttle these progress notifications.
+		 */
 		if (!done && now - lastNotifyTime < 500) return;
 
 		lastNotifyTime = now;
