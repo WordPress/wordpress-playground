@@ -2,9 +2,9 @@ name: Deploy my.wordpress.net
 
 on:
     workflow_dispatch:
-    # Deploy every Tuesday at 11am UTC (same as main website)
+    # Deploy every Wednesday at 11am UTC (same as main website)
     schedule:
-        - cron: '0 11 * * 2'
+        - cron: '0 11 * * 3'
 
 concurrency:
     group: my-wordpress-net-deployment

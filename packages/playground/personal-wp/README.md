@@ -112,13 +112,9 @@ The deployment requires these GitHub secrets in the `my-wordpress-net-wp-cloud` 
 - `DEPLOY_MY_WORDPRESS_NET_HOST` - SSH hostname
 
 The deployment also requires these GitHub variables in the `my-wordpress-net-wp-cloud` environment:
+
 - `CORS_PROXY_URL` - The URL prefix to use for CORS proxy requests, like `https://<cors-proxy-domain>/?`.
 - `GIT_REF_TO_DEPLOY` - The Git ref to deploy. Specify "trunk" to deploy the latest from the `trunk` branch.
-
-
-### Environment Variables
-
-- `CORS_PROXY_URL` - URL of the CORS proxy server (set via repository variable)
 
 ## Architecture
 
