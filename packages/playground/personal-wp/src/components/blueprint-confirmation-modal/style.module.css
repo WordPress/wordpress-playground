@@ -4,6 +4,12 @@
 	max-height: 85dvh;
 }
 
+.confirmation-modal:focus,
+.confirmation-modal:focus-visible {
+	outline: none !important;
+	box-shadow: none !important;
+}
+
 .confirmation-modal :global(.components-modal__content) {
 	display: flex;
 	flex-direction: column;
@@ -79,39 +85,223 @@
 	background: transparent;
 }
 
-.blueprint-details {
-	background: #f6f7f7;
-	border-radius: 8px;
-	border: 1px solid #dcdcde;
+.blueprint-contents {
+	overflow: hidden;
 }
 
-.blueprint-summary {
-	padding: 0.75rem;
-	cursor: pointer;
-	font-size: 0.875rem;
-	font-weight: 500;
+.blueprint-meta {
+	margin-bottom: 0.75rem;
+}
+
+.meta-header {
+	display: flex;
+	align-items: baseline;
+	gap: 0.5rem;
+}
+
+.meta-title {
+	margin: 0;
+	font-size: 1rem;
+	font-weight: 600;
 	color: #1d2327;
-	user-select: none;
 }
 
-.blueprint-summary:hover {
+.meta-description {
+	margin: 0.25rem 0 0;
+	font-size: 0.875rem;
+	color: #50575e;
+	line-height: 1.4;
+}
+
+.meta-author {
+	font-size: 0.75rem;
+	color: #6c7781;
+}
+
+.blueprint-footer {
+	display: flex;
+	justify-content: space-between;
+	align-items: flex-start;
+}
+
+.docs-link {
+	font-size: 0.75rem;
 	color: #0073aa;
+	text-decoration: none;
+	padding-top: 0.5rem;
+}
+
+.docs-link:hover {
+	text-decoration: underline;
+}
+
+.view-tabs {
+	display: flex;
+}
+
+.view-tab {
+	padding: 0.5rem 0.875rem;
+	font-size: 0.75rem;
+	font-weight: 500;
+	border: 1px solid transparent;
+	border-top: none;
+	border-radius: 0 0 4px 4px;
+	background: transparent;
+	color: #50575e;
+	cursor: pointer;
+	margin-top: -1px;
+}
+
+.view-tab:hover {
+	color: #1d2327;
+}
+
+.view-tab:focus,
+.view-tab:focus-visible {
+	outline: none;
+	box-shadow: none;
+}
+
+.view-tab-active {
+	background: #fff;
+	color: #1d2327;
+	border-color: #dcdcde;
+	border-top: 1px solid #fff;
+}
+
+.blueprint-panel {
+	background: #fff;
+	height: 220px;
+	overflow-y: auto;
+	border: 1px solid #dcdcde;
+	border-radius: 8px 8px 8px 0;
+}
+
+.blueprint-panel-json {
+	border-radius: 8px;
 }
 
 .blueprint-code {
 	margin: 0;
 	padding: 0.75rem;
-	padding-top: 0;
 	font-family:
 		'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
 	font-size: 0.75rem;
 	line-height: 1.5;
-	overflow-x: auto;
-	max-height: 200px;
-	overflow-y: auto;
 	white-space: pre-wrap;
 	word-break: break-word;
 	color: #1d2327;
+}
+
+.blueprint-overview {
+	padding: 0.75rem;
+}
+
+.blueprint-property {
+	display: flex;
+	align-items: baseline;
+	gap: 0.5rem;
+	padding: 0.375rem 0;
+}
+
+.steps-heading {
+	margin: 0;
+	margin-top: 0.75rem;
+	padding-top: 0.75rem;
+	border-top: 1px solid #e2e4e7;
+	font-size: 0.6875rem;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	color: #6c7781;
+}
+
+.steps-heading-first {
+	margin-top: 0;
+	padding-top: 0;
+	border-top: none;
+}
+
+.steps-tree {
+	margin: 0;
+	margin-top: 0.5rem;
+	padding: 0;
+	list-style: none;
+	counter-reset: step-counter;
+}
+
+.step-item {
+	display: flex;
+	align-items: baseline;
+	gap: 0.5rem;
+	padding: 0.375rem 0;
+	border-bottom: 1px solid #e2e4e7;
+	counter-increment: step-counter;
+}
+
+.step-item:last-child {
+	border-bottom: none;
+}
+
+.severity-icon {
+	flex-shrink: 0;
+	font-size: 0.875rem;
+	line-height: 1;
+}
+
+.step-severity-danger .severity-icon {
+	color: #dc2626;
+}
+
+.step-severity-warning .severity-icon {
+	color: #d97706;
+}
+
+.step-severity-info .severity-icon {
+	color: #0284c7;
+}
+
+.step-item::before {
+	content: counter(step-counter);
+	flex-shrink: 0;
+	width: 1.25rem;
+	height: 1.25rem;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: #e2e4e7;
+	border-radius: 50%;
+	font-size: 0.6875rem;
+	font-weight: 600;
+	color: #50575e;
+}
+
+.step-type {
+	flex-shrink: 0;
+	font-family:
+		'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+	font-size: 0.75rem;
+	font-weight: 600;
+	color: #0073aa;
+	background: #e5f5fa;
+	padding: 0.125rem 0.375rem;
+	border-radius: 3px;
+}
+
+.step-summary {
+	font-size: 0.8125rem;
+	color: #50575e;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.no-steps {
+	margin: 0;
+	padding: 0.75rem;
+	padding-top: 0;
+	color: #6c7781;
+	font-style: italic;
 }
 
 .warnings-container {

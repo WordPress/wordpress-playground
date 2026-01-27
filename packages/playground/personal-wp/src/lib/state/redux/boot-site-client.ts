@@ -26,6 +26,7 @@ import {
 	setActiveSiteError,
 	setPendingBlueprintConfirmation,
 	clearConfirmedBlueprintSource,
+	clearRejectedBlueprintUrl,
 } from './slice-ui';
 import { analyzeBlueprint } from '../../blueprint-confirmation';
 import type { PlaygroundDispatch, PlaygroundReduxState } from './store';
@@ -76,8 +77,21 @@ export function bootSiteClient(
 
 		// Check for URL blueprint from redux (set when URL has params like ?plugin=friends)
 		const urlBlueprint = selectBlueprintResolvedFromUrl(getState());
-		const hasUrlBlueprint =
+		let hasUrlBlueprint =
 			urlBlueprint && urlBlueprint.targetSiteSlug === site.slug;
+
+		// If the user rejected the blueprint confirmation, skip the URL blueprint
+		// and clear the URL params
+		if (getState().ui.rejectedBlueprintUrl) {
+			hasUrlBlueprint = false;
+			dispatch(setBlueprintResolvedFromUrl(null));
+			dispatch(clearRejectedBlueprintUrl());
+			// Clear URL search params and hash
+			const cleanUrl = new URL(window.location.href);
+			cleanUrl.search = '';
+			cleanUrl.hash = '';
+			window.history.replaceState({}, '', cleanUrl.toString());
+		}
 
 		let mountDescriptor = undefined;
 		if (site.metadata.storage === 'opfs') {
@@ -366,7 +380,7 @@ export function bootSiteClient(
 			};
 
 			// Check if URL blueprint requires user confirmation
-			if (hasUrlBlueprint) {
+			if (hasUrlBlueprint && urlBlueprint) {
 				// Check if this blueprint source was already confirmed by the user
 				const confirmedSourceUrl =
 					getState().ui.confirmedBlueprintSourceUrl;

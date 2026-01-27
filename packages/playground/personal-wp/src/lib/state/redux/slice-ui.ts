@@ -163,6 +163,11 @@ export interface UIState {
 	 */
 	confirmedBlueprintSourceUrl: string | null;
 	/**
+	 * Whether the user rejected the blueprint confirmation.
+	 * Used to boot without the blueprint and clear URL params.
+	 */
+	rejectedBlueprintUrl: boolean;
+	/**
 	 * Counter that increments to trigger a site re-boot.
 	 * Used after blueprint confirmation.
 	 */
@@ -208,6 +213,7 @@ const initialState: UIState = {
 	siteManagerSection: 'site-details',
 	pendingBlueprintConfirmation: null,
 	confirmedBlueprintSourceUrl: null,
+	rejectedBlueprintUrl: false,
 	bootTrigger: 0,
 };
 
@@ -310,6 +316,15 @@ const uiSlice = createSlice({
 			state.pendingBlueprintConfirmation = null;
 			state.bootTrigger += 1;
 		},
+		rejectPendingBlueprint: (state) => {
+			// Clear the pending state and trigger re-boot without the blueprint
+			state.pendingBlueprintConfirmation = null;
+			state.rejectedBlueprintUrl = true;
+			state.bootTrigger += 1;
+		},
+		clearRejectedBlueprintUrl: (state) => {
+			state.rejectedBlueprintUrl = false;
+		},
 		clearConfirmedBlueprintSource: (state) => {
 			state.confirmedBlueprintSourceUrl = null;
 		},
@@ -361,7 +376,9 @@ export const {
 	setPendingBlueprintConfirmation,
 	clearPendingBlueprintConfirmation,
 	confirmPendingBlueprint,
+	rejectPendingBlueprint,
 	clearConfirmedBlueprintSource,
+	clearRejectedBlueprintUrl,
 } = uiSlice.actions;
 
 export default uiSlice.reducer;
