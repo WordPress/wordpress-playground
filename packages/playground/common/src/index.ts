@@ -21,7 +21,7 @@ export const RecommendedPHPVersion = '8.3';
  */
 export const unzipFile = async (
 	php: UniversalPHP,
-	zipPath: string | File,
+	zipPath: string | File | ArrayBuffer,
 	extractToPath: string,
 	overwriteFiles = true
 ) => {
@@ -30,19 +30,25 @@ export const unzipFile = async (
 	 * calls.
 	 */
 	const tmpPath = `/tmp/file-${Math.random()}.zip`;
-	if (zipPath instanceof File) {
+	if (zipPath instanceof ArrayBuffer) {
 		const zipFile = zipPath;
 		zipPath = tmpPath;
-		await php.writeFile(
-			zipPath,
-			new Uint8Array(await zipFile.arrayBuffer())
-		);
+		await php.writeFile(tmpPath, new Uint8Array(zipFile));
+	} else if (zipPath instanceof File) {
+		const zipFile = zipPath;
+		zipPath = tmpPath;
+		console.log(new Date().toISOString() + ' before arrayBuffer()');
+		const arrayBuffer = await zipFile.arrayBuffer();
+		console.log(new Date().toISOString() + ' before writeFile()');
+		await php.writeFile(zipPath, new Uint8Array(arrayBuffer));
 	}
+	console.log({ zipPath });
 	const js = phpVars({
 		zipPath,
 		extractToPath,
 		overwriteFiles,
 	});
+	console.log(new Date().toISOString() + ' before php.run()');
 	await php.run({
 		code: `<?php
         function unzip($zipPath, $extractTo, $overwriteFiles = true)
@@ -73,6 +79,7 @@ export const unzipFile = async (
         unzip(${js.zipPath}, ${js.extractToPath}, ${js.overwriteFiles});
         `,
 	});
+	console.log(new Date().toISOString() + ' after php.run()');
 	if (await php.fileExists(tmpPath)) {
 		await php.unlink(tmpPath);
 	}

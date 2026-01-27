@@ -403,6 +403,7 @@ function rewrite_relative_redirect(
  * Answers whether CORS is allowed for the specified origin.
  */
 function should_respond_with_cors_headers($host, $origin) {
+    return true;
     if (empty($origin)) {
         return false;
     }

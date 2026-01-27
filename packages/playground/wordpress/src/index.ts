@@ -576,6 +576,8 @@ if(!function_exists('mysqli_connect')) {
  * as that's viable.
  */
 export async function unzipWordPress(php: PHP, wpZip: File) {
+	console.log(new Date().toISOString() + ' before unzipFile() first call');
+	console.log({ wpZip });
 	php.mkdir('/tmp/unzipped-wordpress');
 	await unzipFile(php, wpZip, '/tmp/unzipped-wordpress');
 
@@ -584,6 +586,9 @@ export async function unzipWordPress(php: PHP, wpZip: File) {
 	// Allow the API consumer to specify the exact "coordinates" of WordPress
 	// inside the zip archive.
 	if (php.fileExists('/tmp/unzipped-wordpress/wordpress.zip')) {
+		console.log(
+			new Date().toISOString() + ' before unzipFile() second call'
+		);
 		await unzipFile(
 			php,
 			'/tmp/unzipped-wordpress/wordpress.zip',
@@ -605,6 +610,7 @@ export async function unzipWordPress(php: PHP, wpZip: File) {
 	// config file. This is relevant when unzipping a zipped branch from the
 	// https://github.com/WordPress/WordPress repository.
 	if (!php.fileExists(joinPaths(wpPath, 'wp-config-sample.php'))) {
+		console.log(new Date().toISOString() + ' before listFiles()');
 		// Still don't know the directory structure of the zip file.
 		// 1. Get the first item in path.
 		const files = php.listFiles(wpPath);
@@ -645,9 +651,11 @@ export async function unzipWordPress(php: PHP, wpZip: File) {
 			php.mv(source, target);
 		}
 	};
+	console.log(new Date().toISOString() + ' before moveRecursively()');
 	moveRecursively(wpPath, php.documentRoot, php);
 	// Remove any directories left because there were existing dirs at the target path.
 	if (php.fileExists(wpPath)) {
+		console.log(new Date().toISOString() + ' before rmdir()');
 		php.rmdir(wpPath, { recursive: true });
 	}
 
@@ -655,6 +663,7 @@ export async function unzipWordPress(php: PHP, wpZip: File) {
 		!php.fileExists(joinPaths(php.documentRoot, 'wp-config.php')) &&
 		php.fileExists(joinPaths(php.documentRoot, 'wp-config-sample.php'))
 	) {
+		console.log(new Date().toISOString() + ' before writeFile()');
 		php.writeFile(
 			joinPaths(php.documentRoot, 'wp-config.php'),
 			php.readFileAsText(

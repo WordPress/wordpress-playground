@@ -85,21 +85,41 @@
 			if (window.top != window.self) {
 				document.body.classList.add('is-embedded');
 			}
-			import { bootPlaygroundRemote } from './src/index';
-			try {
-				window.playground = await bootPlaygroundRemote();
-			} catch (e) {
-				console.error(e);
-				document.body.className = 'has-error';
-				document.body.innerHTML = '';
 
-				if (e?.name === 'NotSupportedError') {
-					document.body.append(await renderStorageErrorUI());
-				} else {
+			const urlParams = new URLSearchParams(window.location.search);
+			const shareSessionId = urlParams.get('share');
+
+			if (shareSessionId) {
+				const { handleSharedPlaygroundGuest } =
+					await import('./src/lib/handle-shared-guest');
+				const wpFrame = document.querySelector('#wp');
+				try {
+					await handleSharedPlaygroundGuest(shareSessionId, wpFrame);
+				} catch (e) {
+					console.error(e);
+					document.body.className = 'has-error';
+					document.body.innerHTML = '';
 					document.body.append(renderGenericErrorUI(e));
+				} finally {
+					document.body.classList.remove('is-loading');
 				}
-			} finally {
-				document.body.classList.remove('is-loading');
+			} else {
+				const { bootPlaygroundRemote } = await import('./src/index');
+				try {
+					window.playground = await bootPlaygroundRemote();
+				} catch (e) {
+					console.error(e);
+					document.body.className = 'has-error';
+					document.body.innerHTML = '';
+
+					if (e?.name === 'NotSupportedError') {
+						document.body.append(await renderStorageErrorUI());
+					} else {
+						document.body.append(renderGenericErrorUI(e));
+					}
+				} finally {
+					document.body.classList.remove('is-loading');
+				}
 			}
 
 			function renderGenericErrorUI(error) {

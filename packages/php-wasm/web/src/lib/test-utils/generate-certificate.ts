@@ -17,7 +17,7 @@ export async function generateCertificate(): Promise<{
 	const notAfterDate = new Date();
 	notAfterDate.setFullYear(notAfterDate.getFullYear() + 1); // 1 year from now
 
-	const pems = await selfsigned.generate(attrs, {
+	const pems = await (selfsigned as any).generate(attrs, {
 		keySize: 2048,
 		notAfterDate,
 		extensions: [

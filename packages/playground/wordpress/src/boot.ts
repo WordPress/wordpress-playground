@@ -173,21 +173,25 @@ export async function bootWordPress(
 	requestHandler: PHPRequestHandler,
 	options: BootWordPressOptions
 ) {
+	logger.info('Booting WordPress');
 	const php = await requestHandler.getPrimaryPhp();
 	if (options.hooks?.beforeWordPressFiles) {
 		await options.hooks.beforeWordPressFiles(php);
 	}
 
+	logger.info(new Date().toISOString() + ' Unzipping WordPress');
 	if (options.wordPressZip) {
 		await unzipWordPress(php, await options.wordPressZip);
 	}
 
+	logger.info(new Date().toISOString() + ' Defining constants');
 	if (options.constants) {
 		for (const key in options.constants) {
 			php.defineConstant(key, options.constants[key]);
 		}
 	}
 
+	logger.info('Defining database constants');
 	if (options.dataSqlPath) {
 		php.defineConstant('DB_DIR', dirname(options.dataSqlPath));
 		php.defineConstant('DB_FILE', basename(options.dataSqlPath));
@@ -201,16 +205,20 @@ export async function bootWordPress(
 	 * This is needed, because some WordPress backups and exports may not include
 	 * definitions for some of the necessary constants.
 	 */
+	logger.info('Ensuring wp-config.php');
 	await ensureWpConfig(php, requestHandler.documentRoot);
+	logger.info('Running before database setup hooks');
 	// Run "before database" hooks to mount/copy more files in
 	if (options.hooks?.beforeDatabaseSetup) {
 		await options.hooks.beforeDatabaseSetup(php);
 	}
 
+	logger.info('Asserting WordPress core files are in place');
 	// @TODO Assert WordPress core files are in place
 
 	let usesSqlite = false;
 	if (options.sqliteIntegrationPluginZip) {
+		logger.info('Preloading SQLite integration');
 		usesSqlite = true;
 		await preloadSqliteIntegration(
 			php,
@@ -218,6 +226,7 @@ export async function bootWordPress(
 		);
 	}
 
+	logger.info('Checking installation mode');
 	const installationMode =
 		options['wordpressInstallMode'] ?? 'download-and-install';
 	const hasCustomDatabasePath = !!options.dataSqlPath;
@@ -227,6 +236,7 @@ export async function bootWordPress(
 			installationMode
 		)
 	) {
+		logger.info('Checking database prerequisites');
 		// Check database prerequisites before attempting installation
 		await assertDatabasePrerequisites(requestHandler, {
 			usesSqlite,
@@ -234,6 +244,7 @@ export async function bootWordPress(
 		});
 		// Install WordPress if it's not installed.
 		try {
+			logger.info('Installing WordPress');
 			await installWordPress(php);
 		} catch (error) {
 			// If installation failed, check if it's a database issue
@@ -249,14 +260,20 @@ export async function bootWordPress(
 			await assertValidDatabaseConnection(requestHandler);
 		}
 	} else if ('install-from-existing-files-if-needed' === installationMode) {
+		logger.info(
+			'Checking database prerequisites before attempting installation'
+		);
 		// Check database prerequisites before attempting installation
 		await assertDatabasePrerequisites(requestHandler, {
 			usesSqlite,
 			hasCustomDatabasePath,
 		});
+		logger.info('Checking if WordPress is installed');
 		if (!(await isWordPressInstalled(php))) {
+			logger.info('WordPress is not installed, installing...');
 			// Install WordPress if it's not installed.
 			try {
+				logger.info('Installing WordPress');
 				await installWordPress(php);
 			} catch (error) {
 				// If installation failed, check if it's a database issue
@@ -270,10 +287,12 @@ export async function bootWordPress(
 		}
 		// Validate the database connection after installation (skip if user provided custom DB path)
 		if (!hasCustomDatabasePath) {
+			logger.info('Validating database connection after installation');
 			await assertValidDatabaseConnection(requestHandler);
 		}
 	}
 
+	logger.info('WordPress boot completed');
 	return requestHandler;
 }
 
