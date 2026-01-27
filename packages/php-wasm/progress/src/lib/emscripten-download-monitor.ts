@@ -152,12 +152,12 @@ export function cloneStreamMonitorProgress(
 ): ReadableStream<Uint8Array> {
 	let lastNotifyTime = 0;
 
-	function notify(loaded: number, total: number) {
+	function notify(loaded: number, total: number, done: boolean) {
 		const now = performance.now();
 
 		// Time-based throttle to prevent progress event
 		// storms on small stream chunks (Safari and Firefox).
-		if (now - lastNotifyTime < 500) return;
+		if (!done && now - lastNotifyTime < 500) return;
 
 		lastNotifyTime = now;
 
@@ -186,11 +186,11 @@ export function cloneStreamMonitorProgress(
 						loaded += value.byteLength;
 					}
 					if (done) {
-						notify(loaded, loaded);
+						notify(loaded, loaded, done);
 						controller.close();
 						break;
 					} else {
-						notify(loaded, total);
+						notify(loaded, total, done);
 						controller.enqueue(value);
 					}
 				} catch (e) {
