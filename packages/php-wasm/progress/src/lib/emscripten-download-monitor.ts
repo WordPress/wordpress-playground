@@ -150,7 +150,17 @@ export function cloneStreamMonitorProgress(
 	total: number,
 	onProgress: (event: CustomEvent<DownloadProgress>) => void
 ): ReadableStream<Uint8Array> {
+	let lastNotifyTime = 0;
+
 	function notify(loaded: number, total: number) {
+		const now = performance.now();
+
+		// Time-based throttle to prevent progress event
+		// storms on small stream chunks (Safari and Firefox).
+		if (now - lastNotifyTime < 500) return;
+
+		lastNotifyTime = now;
+
 		onProgress(
 			new CustomEvent('progress', {
 				detail: {
