@@ -124,7 +124,10 @@ describe('analyzeBlueprint', () => {
 							},
 						},
 						{ step: 'runPHP', code: '<?php echo 1;' },
-						{ step: 'request', url: 'https://example.com' },
+						{
+							step: 'request',
+							request: { url: 'https://example.com' },
+						},
 					],
 				},
 				source: {

@@ -2,10 +2,12 @@ import { describe, it, expect } from 'vitest';
 import { externalPluginSourceRule } from './external-plugin-source';
 import type { RuleContext } from '../types';
 
-const createContext = (steps: unknown[]): RuleContext => ({
-	blueprint: { steps },
-	source: { type: 'remote-url', url: 'https://example.com/bp.json' },
-});
+// Type assertion allows testing edge cases with malformed/incomplete step data
+const createContext = (steps: unknown[]): RuleContext =>
+	({
+		blueprint: { steps },
+		source: { type: 'remote-url', url: 'https://example.com/bp.json' },
+	}) as RuleContext;
 
 describe('externalPluginSourceRule', () => {
 	describe('wordpress.org plugins', () => {
