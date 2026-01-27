@@ -5,12 +5,13 @@ import type { BlueprintSource } from '../state/url/resolve-blueprint-from-url';
  *
  * - Official WordPress blueprints repo
  * - WordPress.org plugin API
- * - Data URLs (internal blueprints from menu overlay)
+ *
+ * Note: data:application/json;base64, URLs are NOT trusted as they can contain
+ * arbitrary blueprint content, similar to inline hash fragments.
  */
 const TRUSTED_URL_PREFIXES = [
 	'https://raw.githubusercontent.com/WordPress/blueprints/',
 	'https://wordpress.org/plugins/wp-json/plugins/v1/plugin',
-	'data:application/json;base64,',
 ];
 
 /**
@@ -19,7 +20,10 @@ const TRUSTED_URL_PREFIXES = [
  * Trusted sources include:
  * - `type: 'none'` - Query param blueprints like `?plugin=friends` (resolves to wordpress.org)
  * - Remote URLs from trusted prefixes (official blueprints repo, wordpress.org)
- * - Data URLs (internal blueprints from menu overlay)
+ *
+ * NOT trusted (requires confirmation):
+ * - data: URLs (can contain arbitrary content, like inline hash fragments)
+ * - Any other external URLs
  *
  * @param source - The blueprint source to check
  * @returns true if the source is trusted
