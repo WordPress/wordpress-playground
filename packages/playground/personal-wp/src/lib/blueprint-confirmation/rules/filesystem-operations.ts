@@ -9,7 +9,6 @@ import {
 	isExecutableSensitivePath,
 	normalizePath,
 	analyzeFileWrite,
-	analyzeFileContent,
 } from './file-patterns';
 
 /**

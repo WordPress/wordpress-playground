@@ -217,14 +217,15 @@ export function tokenize(code: string): Token[] {
 			case ',':
 				addToken('T_COMMA', char);
 				break;
-			default:
+			default: {
 				// Operators and other characters
-				const opMatch = rest.match(/^[+\-*\/%&|^~<>=!?.@:\\]+/);
+				const opMatch = rest.match(/^[+\-*/%&|^~<>=!?.@:\\]+/);
 				if (opMatch) {
 					addToken('T_OPERATOR', opMatch[0]);
 				} else {
 					addToken('T_UNKNOWN', char);
 				}
+			}
 		}
 	}
 

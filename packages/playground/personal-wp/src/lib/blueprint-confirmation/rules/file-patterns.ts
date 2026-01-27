@@ -88,7 +88,7 @@ export const FILE_CONTENT_PATTERNS: FileContentPattern[] = [
 	// PHP code injection
 	{
 		name: 'php-tag',
-		pattern: /<\?php|\<\?=/i,
+		pattern: /<\?php|<\?=/i,
 		severity: 'danger',
 		description: 'Contains PHP code',
 	},
