@@ -6,7 +6,10 @@ import {
 	clearPendingBlueprintConfirmation,
 	confirmPendingBlueprint,
 } from '../../lib/state/redux/slice-ui';
-import type { BlueprintWarning, WarningSeverity } from '../../lib/blueprint-confirmation';
+import type {
+	BlueprintWarning,
+	WarningSeverity,
+} from '../../lib/blueprint-confirmation';
 
 const severityLabels: Record<WarningSeverity, string> = {
 	danger: 'High risk',
@@ -34,7 +37,9 @@ function WarningGroup({
 	return (
 		<div className={`${css.warningGroup} ${css[`severity-${severity}`]}`}>
 			<div className={css.warningGroupHeader}>
-				<span className={`${css.severityBadge} ${css[`badge-${severity}`]}`}>
+				<span
+					className={`${css.severityBadge} ${css[`badge-${severity}`]}`}
+				>
 					{severityLabels[severity]}
 				</span>
 				<span className={css.severityDescription}>
@@ -44,7 +49,9 @@ function WarningGroup({
 			<ul className={css.warningList}>
 				{warnings.map((warning, index) => (
 					<li key={index} className={css.warningItem}>
-						<span className={css.warningTitle}>{warning.title}</span>
+						<span className={css.warningTitle}>
+							{warning.title}
+						</span>
 						<span className={css.warningDescription}>
 							{warning.description}
 						</span>
@@ -81,14 +88,25 @@ export function BlueprintConfirmationModal() {
 		dispatch(confirmPendingBlueprint());
 	};
 
-	// Get source URL for display
+	// Get source URL for display (only for remote URLs, not data: URLs)
 	let sourceUrl = '';
+	let isInlineBlueprint = false;
 	if (
 		blueprint.source.type === 'remote-url' ||
 		blueprint.source.type === 'personal-blueprint'
 	) {
-		sourceUrl = blueprint.source.url;
+		const url = blueprint.source.url;
+		if (url.startsWith('data:')) {
+			isInlineBlueprint = true;
+		} else {
+			sourceUrl = url;
+		}
+	} else if (blueprint.source.type === 'inline-string') {
+		isInlineBlueprint = true;
 	}
+
+	// Format blueprint JSON for display
+	const blueprintJson = JSON.stringify(blueprint.blueprint, null, 2);
 
 	const hasDanger = dangerWarnings.length > 0;
 
@@ -101,25 +119,44 @@ export function BlueprintConfirmationModal() {
 			<div className={css.modalContent}>
 				<div className={css.modalBody}>
 					<p className={css.leadText}>
-						An external blueprint wants to modify your WordPress installation.
-						Please review the following actions before proceeding.
+						An external blueprint wants to modify your WordPress
+						installation. Please review the following actions before
+						proceeding.
 					</p>
 
 					{sourceUrl && (
 						<div className={css.sourceInfo}>
 							<span className={css.sourceLabel}>Source:</span>
-							<code className={css.sourceUrl}>{sourceUrl}</code>
+							<span className={css.sourceUrl}>{sourceUrl}</span>
 						</div>
 					)}
 
+					{isInlineBlueprint && (
+						<details className={css.blueprintDetails}>
+							<summary className={css.blueprintSummary}>
+								View blueprint contents
+							</summary>
+							<pre className={css.blueprintCode}>
+								{blueprintJson}
+							</pre>
+						</details>
+					)}
+
 					<div className={css.warningsContainer}>
-						<WarningGroup severity="danger" warnings={dangerWarnings} />
-						<WarningGroup severity="warning" warnings={warningWarnings} />
+						<WarningGroup
+							severity="danger"
+							warnings={dangerWarnings}
+						/>
+						<WarningGroup
+							severity="warning"
+							warnings={warningWarnings}
+						/>
 						<WarningGroup severity="info" warnings={infoWarnings} />
 
 						{warnings.length === 0 && (
 							<p className={css.noWarnings}>
-								This blueprint does not contain any recognized operations.
+								This blueprint does not contain any recognized
+								operations.
 							</p>
 						)}
 					</div>

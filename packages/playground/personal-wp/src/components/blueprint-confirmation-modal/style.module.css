@@ -71,11 +71,47 @@
 }
 
 .source-url {
-	font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+	font-family:
+		'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
 	font-size: 0.8125rem;
 	word-break: break-all;
 	color: #1d2327;
 	background: transparent;
+}
+
+.blueprint-details {
+	background: #f6f7f7;
+	border-radius: 8px;
+	border: 1px solid #dcdcde;
+}
+
+.blueprint-summary {
+	padding: 0.75rem;
+	cursor: pointer;
+	font-size: 0.875rem;
+	font-weight: 500;
+	color: #1d2327;
+	user-select: none;
+}
+
+.blueprint-summary:hover {
+	color: #0073aa;
+}
+
+.blueprint-code {
+	margin: 0;
+	padding: 0.75rem;
+	padding-top: 0;
+	font-family:
+		'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+	font-size: 0.75rem;
+	line-height: 1.5;
+	overflow-x: auto;
+	max-height: 200px;
+	overflow-y: auto;
+	white-space: pre-wrap;
+	word-break: break-word;
+	color: #1d2327;
 }
 
 .warnings-container {
