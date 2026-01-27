@@ -1,0 +1,72 @@
+name: Deploy my.wordpress.net
+
+on:
+    workflow_dispatch:
+    # Deploy every Wednesday at 11am UTC (same as main website)
+    schedule:
+        - cron: '0 11 * * 3'
+
+concurrency:
+    group: my-wordpress-net-deployment
+
+jobs:
+    build_and_deploy:
+        # Only run this workflow from the trunk branch and when it's triggered by a Playground maintainer
+        if: >
+            github.ref == 'refs/heads/trunk' && (
+                github.event_name == 'workflow_run' ||
+                github.actor == 'adamziel' ||
+                github.actor == 'akirk' ||
+                github.actor == 'dmsnell' ||
+                github.actor == 'bgrgicak' ||
+                github.actor == 'brandonpayton' ||
+                github.actor == 'zaerl' ||
+                github.actor == 'janjakes' ||
+                github.actor == 'mho22'
+            )
+
+        runs-on: ubuntu-latest
+        environment:
+            name: my-wordpress-net-wp-cloud
+        steps:
+            - uses: actions/checkout@v5
+              with:
+                  submodules: true
+                  ref: ${{ vars.GIT_REF_TO_DEPLOY }}
+            - uses: ./.github/actions/prepare-playground
+            - name: Build my-wordpress-net
+              run: npx nx build playground-personal-wp
+              env:
+                  CORS_PROXY_URL: ${{ vars.CORS_PROXY_URL }}
+            - run: tar -czf my-wordpress-net.tar.gz dist/packages/playground/my-wordpress-net
+            - uses: actions/upload-artifact@v4
+              with:
+                  name: my-wordpress-net
+                  path: my-wordpress-net.tar.gz
+
+            - name: Deploy my.wordpress.net build
+              shell: bash
+              run: |
+                  mkdir -p ~/.ssh
+                  echo "${{ secrets.DEPLOY_MY_WORDPRESS_NET_HOST_KEY }}" >> ~/.ssh/known_hosts
+                  echo "${{ secrets.DEPLOY_MY_WORDPRESS_NET_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+                  chmod 0600 ~/.ssh/*
+
+                  # Website files (combined remote + personal-wp)
+                  rsync -avz -e "ssh -i ~/.ssh/id_ed25519" --delete \
+                    dist/packages/playground/my-wordpress-net/ \
+                    ${{ secrets.DEPLOY_MY_WORDPRESS_NET_USER }}@${{ secrets.DEPLOY_MY_WORDPRESS_NET_HOST }}:'~/updated-playground-files'
+
+                  # Include MIME types for use with PHP-served files
+                  cp packages/php-wasm/universal/src/lib/mime-types.json \
+                    packages/playground/website-deployment/
+
+                  # Host-specific deployment scripts and server config (reuse website-deployment)
+                  rsync -avz -e "ssh -i ~/.ssh/id_ed25519" --delete \
+                    packages/playground/website-deployment/ \
+                    ${{ secrets.DEPLOY_MY_WORDPRESS_NET_USER }}@${{ secrets.DEPLOY_MY_WORDPRESS_NET_HOST }}:'~/website-deployment'
+
+                  # Apply update
+                  ssh -i ~/.ssh/id_ed25519 \
+                    ${{ secrets.DEPLOY_MY_WORDPRESS_NET_USER }}@${{ secrets.DEPLOY_MY_WORDPRESS_NET_HOST }} \
+                    -tt -C '~/website-deployment/apply-update.sh'

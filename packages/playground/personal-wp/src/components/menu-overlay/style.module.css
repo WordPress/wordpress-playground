@@ -110,3 +110,159 @@
 	color: #fff;
 	text-decoration: none;
 }
+
+.loadingContainer {
+	display: flex;
+	justify-content: center;
+	padding: 24px;
+}
+
+.errorMessage {
+	color: #9ca3af;
+	font-size: clamp(13px, 1.3vw, 14px);
+}
+
+.featuresList {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.featureItem {
+	display: flex;
+	align-items: center;
+	gap: 16px;
+	padding: 8px 0;
+	background: none;
+	border: none;
+	cursor: pointer;
+	text-align: left;
+	color: inherit;
+	font: inherit;
+	text-decoration: none;
+}
+
+.featureItem:hover {
+	text-decoration: none;
+	color: inherit;
+}
+
+.featureItem:hover .featureIcon {
+	background: #3858e9;
+	color: #fff;
+}
+
+.featureIcon {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 40px;
+	height: 40px;
+	background: #2a3654;
+	border-radius: 8px;
+	color: #3858e9;
+	flex-shrink: 0;
+}
+
+.featureIcon svg {
+	width: 24px;
+	height: 24px;
+}
+
+.featureContent {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	min-width: 0;
+}
+
+.featureTitle {
+	font-size: clamp(14px, 1.4vw, 15px);
+	font-weight: 500;
+	color: #fff;
+}
+
+.featureDescription {
+	font-size: clamp(13px, 1.3vw, 14px);
+	color: #9ca3af;
+	line-height: 1.4;
+}
+
+.author {
+	color: #6b7280;
+	opacity: 0;
+	transition: opacity 0.15s ease;
+}
+
+.appRow:hover .author {
+	opacity: 1;
+}
+
+.appRow {
+	display: flex;
+	align-items: center;
+}
+
+.appRow .featureItem {
+	flex: 1;
+	min-width: 0;
+}
+
+.copyButton {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 28px;
+	height: 28px;
+	background: none;
+	border: none;
+	border-radius: 6px;
+	color: #9ca3af;
+	cursor: pointer;
+	flex-shrink: 0;
+	opacity: 0;
+	transition: all 0.15s ease;
+}
+
+.copyButton svg {
+	fill: currentColor;
+}
+
+.appRow:hover .copyButton {
+	opacity: 1;
+}
+
+.copyButton:hover {
+	background: rgba(56, 88, 233, 0.15);
+	color: #3858e9;
+}
+
+.removeButton {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 28px;
+	height: 28px;
+	margin-left: 4px;
+	background: none;
+	border: none;
+	border-radius: 6px;
+	color: #9ca3af;
+	cursor: pointer;
+	flex-shrink: 0;
+	opacity: 0;
+	transition: all 0.15s ease;
+}
+
+.removeButton svg {
+	fill: currentColor;
+}
+
+.appRow:hover .removeButton {
+	opacity: 1;
+}
+
+.removeButton:hover {
+	background: rgba(220, 38, 38, 0.15);
+	color: #ef4444;
+}
