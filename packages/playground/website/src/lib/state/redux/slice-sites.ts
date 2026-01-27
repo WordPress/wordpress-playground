@@ -342,7 +342,7 @@ export function setTemporarySiteSpec(
 
 		// Then create a new temporary site
 		const defaultBlueprint =
-			'https://raw.githubusercontent.com/WordPress/blueprints/refs/heads/trunk/blueprints/welcome/blueprint.json';
+			'https://raw.githubusercontent.com/WordPress/blueprints/trunk/blueprints/welcome/blueprint.json';
 
 		let resolvedBlueprint: ResolvedBlueprint | undefined = undefined;
 		try {

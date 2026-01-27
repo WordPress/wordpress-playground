@@ -3,38 +3,22 @@
  *
  * Detects the user's browser language and maps it to a WordPress locale
  * for automatic language configuration.
- *
- * The locale map is loaded dynamically to avoid bundling it in the main chunk,
- * since it's only needed once during first boot.
  */
 
-type LocaleMap = Record<string, string>;
+import localeMapJson from './locale-map.json';
 
-let localeMapPromise: Promise<LocaleMap> | null = null;
-
-/**
- * Lazily loads the browser-to-WordPress locale mapping.
- *
- * Generated from the canonical GlotPress locales.php file.
- * To regenerate: npx tsx packages/playground/personal-wp/bin/generate-locale-map.ts
- */
-async function getLocaleMap(): Promise<LocaleMap> {
-	if (!localeMapPromise) {
-		localeMapPromise = import('./locale-map.json').then((m) => m.default);
-	}
-	return localeMapPromise;
-}
+const localeMap: Record<string, string> = localeMapJson;
 
 /**
  * Converts a browser language code (BCP 47) to a WordPress locale.
  *
+ * The locale map is generated from the canonical GlotPress locales.php file.
+ * To regenerate: npx tsx packages/playground/personal-wp/bin/generate-locale-map.ts
+ *
  * @param browserLang - Browser language code (e.g., "en-US", "de", "pt-BR")
  * @returns WordPress locale (e.g., "en_US", "de_DE", "pt_BR") or null if no mapping
  */
-export async function browserLanguageToWpLocale(
-	browserLang: string
-): Promise<string | null> {
-	const localeMap = await getLocaleMap();
+export function browserLanguageToWpLocale(browserLang: string): string | null {
 	const normalized = browserLang.toLowerCase();
 
 	// Check for explicit mapping first
@@ -67,7 +51,7 @@ export async function browserLanguageToWpLocale(
  *
  * @returns WordPress locale or null if browser language is English (default)
  */
-export async function getBrowserWpLocale(): Promise<string | null> {
+export function getBrowserWpLocale(): string | null {
 	const languages =
 		typeof navigator !== 'undefined'
 			? navigator.languages || [navigator.language]
@@ -81,7 +65,7 @@ export async function getBrowserWpLocale(): Promise<string | null> {
 			return null;
 		}
 
-		const wpLocale = await browserLanguageToWpLocale(lang);
+		const wpLocale = browserLanguageToWpLocale(lang);
 		if (wpLocale) {
 			return wpLocale;
 		}
@@ -95,11 +79,11 @@ export async function getBrowserWpLocale(): Promise<string | null> {
  *
  * @returns A setSiteLanguage step or null if no translation is needed
  */
-export async function createLanguageStep(): Promise<{
+export function createLanguageStep(): {
 	step: 'setSiteLanguage';
 	language: string;
-} | null> {
-	const locale = await getBrowserWpLocale();
+} | null {
+	const locale = getBrowserWpLocale();
 	if (!locale) {
 		return null;
 	}

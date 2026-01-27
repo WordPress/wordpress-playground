@@ -53,7 +53,7 @@ export async function loadPersonalBlueprint(
 	const blueprint = await response.json();
 
 	// Add language step based on browser settings (if not English)
-	const languageStep = await createLanguageStep();
+	const languageStep = createLanguageStep();
 	if (languageStep) {
 		blueprint.steps = blueprint.steps || [];
 		// Insert language step at the beginning so translations are applied first

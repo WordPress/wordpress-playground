@@ -10,6 +10,7 @@ import { useBackup } from '../../lib/hooks/use-backup';
 import useFetch from '../../lib/hooks/use-fetch';
 import { useCustomApps } from '../../lib/hooks/use-custom-apps';
 import { WordPressIcon } from '@wp-playground/components';
+import { encodeStringAsBase64, decodeBase64ToString } from '../../lib/base64';
 import {
 	Overlay,
 	OverlayHeader,
@@ -32,9 +33,9 @@ type AppEntry = {
 };
 
 const APPS_INDEX_URL =
-	'https://raw.githubusercontent.com/WordPress/blueprints/my-wordpress/apps.json';
+	'https://raw.githubusercontent.com/WordPress/blueprints/trunk/apps.json';
 const APPS_BASE_URL =
-	'https://raw.githubusercontent.com/WordPress/blueprints/my-wordpress/';
+	'https://raw.githubusercontent.com/WordPress/blueprints/trunk/';
 
 function getAppBlueprintUrl(blueprintUrl: string): string {
 	const url = new URL(window.location.href);
@@ -57,7 +58,7 @@ function isValidUrl(str: string): boolean {
 }
 
 function blueprintToDataUrl(blueprint: string): string {
-	const encoded = btoa(unescape(encodeURIComponent(blueprint)));
+	const encoded = encodeStringAsBase64(blueprint);
 	return `data:application/json;base64,${encoded}`;
 }
 
@@ -65,8 +66,7 @@ function getBlueprintPreview(url: string): string {
 	if (url.startsWith('data:application/json;base64,')) {
 		try {
 			const base64 = url.replace('data:application/json;base64,', '');
-			const json = decodeURIComponent(escape(atob(base64)));
-			return json;
+			return decodeBase64ToString(base64);
 		} catch {
 			return url;
 		}
