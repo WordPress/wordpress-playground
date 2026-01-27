@@ -13,7 +13,7 @@ import {
 } from './comlink-sync';
 import {
 	type NodeProcess,
-	NodeProcessAdapter,
+	nodeProcessEndpoint,
 } from './comlink-node-process-adapter';
 import * as ErrorSerializer from './serialize-error';
 
@@ -66,9 +66,12 @@ export function consumeAPI<APIType>(
 	if (appearsToBeNodeEnvironment) {
 		if ('postMessage' in remote) {
 			endpoint = nodeWorkerEndpoint(remote as NodeWorker);
+		} else if ('send' in remote && 'addListener' in remote) {
+			endpoint = nodeProcessEndpoint(remote as NodeProcess);
 		} else {
-			// TODO: Strengthen the surrounding checks to confirm process interface
-			endpoint = new NodeProcessAdapter(remote as NodeProcess);
+			throw new Error(
+				'consumeAPI: remote does not look like a Worker, MessagePort, or Process'
+			);
 		}
 	} else {
 		endpoint =
@@ -138,13 +141,17 @@ export function exposeAPI<Methods, PipedAPI>(
 	let endpoint: Endpoint | undefined;
 	if (targetWorker) {
 		if ('addEventListener' in targetWorker) {
-			// TODO: Deal with these type errors
+			// TODO: MessagePort satisfies Endpoint at runtime but its
+			// addEventListener overloads don't exactly match EventSource.
 			endpoint = targetWorker as Endpoint;
 		} else if ('postMessage' in targetWorker) {
 			endpoint = nodeWorkerEndpoint(targetWorker);
+		} else if ('send' in targetWorker && 'addListener' in targetWorker) {
+			endpoint = nodeProcessEndpoint(targetWorker);
 		} else {
-			// TODO: Strengthen the surrounding checks to confirm process interface
-			endpoint = new NodeProcessAdapter(targetWorker);
+			throw new Error(
+				'exposeAPI: targetWorker does not look like a Worker, MessagePort, or Process'
+			);
 		}
 	} else {
 		endpoint =

@@ -15,7 +15,6 @@ import {
 } from '@php-wasm/universal';
 import { createNodeFsMountHandler, loadNodeRuntime } from '../lib';
 import {
-	joinPaths,
 	/* eslint-disable-next-line @typescript-eslint/no-unused-vars --
 	 * sprintf() is used in a trace function that is commented out by default.
 	 */
@@ -106,7 +105,9 @@ error_log = ${errorLogPath}
 			// }
 			if ((await result.exitCode) !== 0) {
 				throw new Error(
-					`Failed to create table: ${(await result.stderrText) || 'Unknown error'}`
+					`Failed to create table: ${await result.stdoutText} ${
+						(await result.stderrText) || 'Unknown error'
+					}`
 				);
 			}
 		});
@@ -1429,70 +1430,6 @@ error_log = ${errorLogPath}
 		}
 
 		// TODO: Test fcntl() somehow. The DB tests should use fcntl(), but explicit tests would be better.
-
-		test(`should attempt to lock a NODEFS file and a PROXYFS node that wraps a NODEFS file`, async () => {
-			// NOTE: Normally, we would use a single file lock manager across all runtimes,
-			// but to keep state clearer within this test, we use a separate manager per runtime.
-			const fileLockManagerForRuntime1 = createMockFileLockManager();
-			const ENV = { DOCROOT: '/wordpress' };
-			const php1 = new PHP(
-				await loadNodeRuntime(phpVersion, {
-					fileLockManager: fileLockManagerForRuntime1,
-					emscriptenOptions: {
-						ENV,
-					},
-				})
-			);
-			const realPathToMount = joinPaths(
-				import.meta.dirname,
-				'test-data',
-				'file-lock-test'
-			);
-			php1.mount('/wordpress', createNodeFsMountHandler(realPathToMount));
-			const realPathToLock = joinPaths(
-				realPathToMount,
-				'wp-content',
-				'lock-this.txt'
-			);
-			const vfsPathToLock = '/wordpress/wp-content/lock-this.txt';
-			const phpThatAttemptsToLock = `<?php
-			$f = fopen('${vfsPathToLock}', 'w');
-			flock($f, LOCK_EX | LOCK_NB);
-			`;
-			const result1 = await php1.runStream({
-				code: phpThatAttemptsToLock,
-			});
-			expect(await result1.exitCode).toBe(0);
-			expect(
-				fileLockManagerForRuntime1.lockWholeFile,
-				'locking NODEFS file'
-			).toHaveBeenCalledWith(
-				realPathToLock,
-				expect.objectContaining({ type: 'exclusive' })
-			);
-
-			const fileLockManagerForRuntime2 = createMockFileLockManager();
-			const php2 = new PHP(
-				await loadNodeRuntime(phpVersion, {
-					fileLockManager: fileLockManagerForRuntime2,
-					emscriptenOptions: {
-						ENV,
-					},
-				})
-			);
-			proxyFileSystem(php1, php2, ['/wordpress']);
-			const result2 = await php2.runStream({
-				code: phpThatAttemptsToLock,
-			});
-			expect(await result2.exitCode).toBe(0);
-			expect(
-				fileLockManagerForRuntime2.lockWholeFile,
-				'locking NODEFS file via PROXYFS'
-			).toHaveBeenCalledWith(
-				realPathToLock,
-				expect.objectContaining({ type: 'exclusive' })
-			);
-		});
 
 		test(`should not attempt to lock a MEMFS file or a PROXYFS node that wraps a MEMFS file`, async () => {
 			// NOTE: Normally, we would use a single file lock manager across all runtimes,

@@ -9,7 +9,7 @@
  * JSPI vs Asyncify
  * -----------------
  *
- * This file contains many fragments similar to this one:
+ * This file used to contain many fragments similar to this one:
  *
  *     #if ASYNCIFY == 2
  *         return Asyncify.handleAsync(async () => {
@@ -19,18 +19,26 @@
  *         });
  *     #endif
  *
- * This is a way of making syscalls synchronous with Asyncify (to support Node < 23) and asynchronous with JSPI (to support web browsers).
- * It is cumbersome, but it is much easier than using and debugging Asyncify.
+ * This was a way of making syscalls synchronous with Asyncify (to support Node < 23) and asynchronous with JSPI (to support web browsers).
+ * Making synchronous remote calls is cumbersome, but it is much easier than using and debugging Asyncify.
  *
- * When JSPI is available (ASYNCIFY == 2), we can safely use promises and async/await.
+ * Prior to making the remote fileLockManager calls synchronous, we were
+ * seeing a crash in our fd_close() override in the Asyncify builds. It might be
+ * because `fd_close` is treated differently as part of a set of WASI imports:
+ * https://github.com/emscripten-core/emscripten/blob/08e031ce9d3194a56f684c73b1288a7916d7f543/tools/maint/gen_sig_info.py#L155
  *
- * When JSPI is not available (ASYNCIFY == 1), we still invoke methods from another worker, but we do so
- * synchronously, blocking the execution of the calling thread until the result is available. In this mode,
- * we do not call handleSleep() or handleAsync() to avoid saving and rewinding the stack around each syscall.
+ * Either way, we have not yet found a way to fix this issue for the asyncify builds,
+ * so we opted to use synchronous remote calls instead.
+ *
+ * For the sake of simplicity with the injected wasmUserSpace syscall implementations,
+ * both the JSPI and Asyncify builds use synchronous remote calls in this script.
+ * As of today 2026-01-27, php-wasm/node workers in Playground CLI are single-threaded,
+ * so there should be no harm in blocking the worker to service the one php-wasm instance.
  *
  * See comlink-sync.ts for more details.
  *
  * @see https://github.com/WordPress/wordpress-playground/pull/2317
+ * @see https://github.com/WordPress/wordpress-playground/pull/3150
  * @see https://github.com/WordPress/wordpress-playground/blob/9a9262cc62cc161d220a9992706b9ed2817f2eb5/packages/docs/site/docs/developers/23-architecture/07-wasm-asyncify.md
  * @see https://github.com/adamziel/js-synchronous-messaging for additional ideas.
  */

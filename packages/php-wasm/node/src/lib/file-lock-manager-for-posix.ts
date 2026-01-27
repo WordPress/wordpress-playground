@@ -8,10 +8,24 @@ import type {
 } from '@php-wasm/universal';
 import { MAX_ADDRESSABLE_FILE_OFFSET } from '@php-wasm/universal';
 import { constants, fcntlSync, flockSync } from 'fs-ext-extra-prebuilt';
+import { logger } from '@php-wasm/logger';
+
+/**
+ * Check whether an error is a lock denial (EWOULDBLOCK, EAGAIN, or EACCES)
+ * as opposed to an unexpected system error.
+ */
+function isLockDenialError(e: unknown): boolean {
+	if (e && typeof e === 'object' && 'code' in e) {
+		const code = (e as { code: string }).code;
+		return code === 'EWOULDBLOCK' || code === 'EAGAIN' || code === 'EACCES';
+	}
+	return false;
+}
+
+type StoredWholeFileLock = WholeFileLockOp & { path: Path };
 
 export class FileLockManagerForPosix implements FileLockManager {
-	// TODO: Move path of whole file lock into leaf. It is never used for lookup.
-	wholeFileLockMap = new Map<Path, Map<Pid, Map<Fd, WholeFileLockOp>>>();
+	wholeFileLockMap = new Map<Pid, Map<Fd, StoredWholeFileLock>>();
 	rangeLockedFds = new Map<Pid, Map<Path, Set<Fd>>>();
 
 	lockWholeFile(path: string, op: WholeFileLockOp): boolean {
@@ -32,20 +46,22 @@ export class FileLockManagerForPosix implements FileLockManager {
 			// Remember lock so we can release them
 			// when the process exits or the file descriptor is closed.
 			if (op.type === 'unlock') {
-				this.wholeFileLockMap.get(path)?.get(op.pid)?.delete(op.fd);
+				this.wholeFileLockMap.get(op.pid)?.delete(op.fd);
 			} else {
-				if (!this.wholeFileLockMap.has(path)) {
-					this.wholeFileLockMap.set(path, new Map());
+				if (!this.wholeFileLockMap.has(op.pid)) {
+					this.wholeFileLockMap.set(op.pid, new Map());
 				}
-				if (!this.wholeFileLockMap.get(path)!.has(op.pid)) {
-					this.wholeFileLockMap.get(path)!.set(op.pid, new Map());
-				}
-				this.wholeFileLockMap.get(path)!.get(op.pid)!.set(op.fd, op);
+				this.wholeFileLockMap.get(op.pid)!.set(op.fd, {
+					...op,
+					path,
+				});
 			}
 
 			return true;
-		} catch {
-			// TODO: Catch and report errors unrelated to flock() denials.
+		} catch (e) {
+			if (!isLockDenialError(e)) {
+				logger.warn('flock(): unexpected error', e);
+			}
 			return false;
 		}
 	}
@@ -99,8 +115,10 @@ export class FileLockManagerForPosix implements FileLockManager {
 			pidMap.get(path)!.add(op.fd);
 
 			return true;
-		} catch {
-			// TODO: Catch and report errors unrelated to fcntl() denials.
+		} catch (e) {
+			if (!isLockDenialError(e)) {
+				logger.warn('fcntl(): unexpected error', e);
+			}
 			return false;
 		}
 	}
@@ -113,6 +131,7 @@ export class FileLockManagerForPosix implements FileLockManager {
 			return undefined;
 		}
 
+		// TODO: Is this still true with our fork?
 		// With fs-ext's current fcntl() implementation,
 		// we cannot query existing locks properly with F_GETLK.
 		// It only returns whether the F_GETLK command failed or not,
@@ -137,19 +156,22 @@ export class FileLockManagerForPosix implements FileLockManager {
 	}
 
 	releaseLocksForProcess(targetPid: number): void {
-		for (const [path, pidMap] of this.wholeFileLockMap.entries()) {
-			const fdMap = pidMap.get(targetPid);
-			if (!fdMap) {
-				continue;
+		const fdMap = this.wholeFileLockMap.get(targetPid);
+		if (fdMap) {
+			for (const storedLock of fdMap.values()) {
+				try {
+					this.lockWholeFile(storedLock.path, {
+						...storedLock,
+						type: 'unlock',
+					});
+				} catch (e) {
+					logger.error(
+						`releaseLocksForProcess: failed to unlock whole-file lock for pid=${targetPid} fd=${storedLock.fd}`,
+						e
+					);
+				}
 			}
-
-			for (const op of fdMap.values()) {
-				// TODO: Log any errors.
-				// TODO: Does a failure here justify throwing an error (and conceding total brokenness)?
-				this.lockWholeFile(path, { ...op, type: 'unlock' });
-			}
-
-			pidMap.delete(targetPid);
+			this.wholeFileLockMap.delete(targetPid);
 		}
 
 		for (const [path, fdSet] of this.rangeLockedFds.get(targetPid) ?? []) {
@@ -161,17 +183,24 @@ export class FileLockManagerForPosix implements FileLockManager {
 				 * but since we track which FDs are associated with each process,
 				 * we can simply unlock for all FDs associated with the php-wasm process.
 				 */
-				this.lockFileByteRange(
-					path,
-					{
-						pid: targetPid,
-						fd,
-						type: 'unlocked',
-						start: 0n,
-						end: MAX_ADDRESSABLE_FILE_OFFSET,
-					},
-					false
-				);
+				try {
+					this.lockFileByteRange(
+						path,
+						{
+							pid: targetPid,
+							fd,
+							type: 'unlocked',
+							start: 0n,
+							end: MAX_ADDRESSABLE_FILE_OFFSET,
+						},
+						false
+					);
+				} catch (e) {
+					logger.error(
+						`releaseLocksForProcess: failed to unlock byte range for pid=${targetPid} fd=${fd} path=${path}`,
+						e
+					);
+				}
 			}
 		}
 		this.rangeLockedFds.delete(targetPid);
@@ -185,13 +214,10 @@ export class FileLockManagerForPosix implements FileLockManager {
 		// Do nothing because the native OS is responsible for releasing
 		// whole-file locks when the FD is closed.
 
-		this.wholeFileLockMap.get(targetPath)?.get(targetPid)?.delete(targetFd);
+		this.wholeFileLockMap.get(targetPid)?.delete(targetFd);
 
-		// TODO: Once we implement proper ranged fcntl()-based locks,
-		// release all locks for the given PID and path when the FD is closed.
 		// fcntl()-based locks are released whenever any file descriptor for the
 		// target file is closed, regardless of which FD was used to obtain the lock.
-
 		this.rangeLockedFds.get(targetPid)?.delete(targetPath);
 	}
 }

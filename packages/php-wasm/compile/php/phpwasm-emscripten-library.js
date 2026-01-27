@@ -37,10 +37,13 @@ const LibraryExample = {
 				 * are not yet assigned.
 				 */
 				addOnInit(() => {
+					if (typeof PHPLoader.processId !== 'number') {
+						throw new Error(
+							'PHPLoader.processId must be set before init'
+						);
+					}
 					Module['userSpace'] = PHPLoader.bindUserSpace({
-						// TODO: Require PID instead of defaulting to 42.
-						pid: PHPLoader.processId ?? 42,
-						// TODO: When receiving this context, validate that all these fields exist.
+						pid: PHPLoader.processId,
 						constants: {
 							F_GETFL: Number('{{{cDefs.F_GETFL}}}'),
 							O_ACCMODE: Number('{{{cDefs.O_ACCMODE}}}'),

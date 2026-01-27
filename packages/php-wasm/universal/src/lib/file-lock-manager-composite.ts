@@ -6,50 +6,84 @@ import {
 } from './file-lock-manager';
 import { logger } from '@php-wasm/logger';
 
-// TODO: Add unit tests for this class.
-// TODO: Find a clearer name for this class.
+// TODO: Add optional granular tracing
 export class FileLockManagerComposite implements FileLockManager {
 	nativeLockManager: FileLockManager;
 	wasmLockManager: FileLockManager;
 
-	constructor(
-		nativeLockManager: FileLockManager,
-		wasmLockManager: FileLockManager
-	) {
+	constructor({
+		nativeLockManager,
+		wasmLockManager,
+	}: {
+		nativeLockManager: FileLockManager;
+		wasmLockManager: FileLockManager;
+	}) {
 		this.nativeLockManager = nativeLockManager;
 		this.wasmLockManager = wasmLockManager;
 	}
 
 	lockWholeFile(path: Path, op: WholeFileLockOp): boolean {
-		// TODO: Consider adding printf-style logger.trace() for more granular logging like this.
-		// TODO: Remove console.debug statements after debugging.
-		console.debug(
-			`[Composite] lockWholeFile: path=${path}, type=${op.type}, pid=${op.pid}, fd=${op.fd}`
-		);
+		if (op.type !== 'unlock') {
+			/**
+			 * We lock starting with the outside and moving to the inside.
+			 * - OS locking comes first as the highest authority.
+			 * - WASM locking comes next as our in-house authority.
+			 *
+			 * This ensures that we only offer locks to WASM instances when
+			 * the OS has granted a native lock to our process.
+			 */
+			let nativeResult;
+			let wasmResult;
+			try {
+				nativeResult = this.nativeLockManager.lockWholeFile(path, op);
+				if (!nativeResult) {
+					return false;
+				}
 
-		const nativeResult = this.nativeLockManager.lockWholeFile(path, op);
-		if (!nativeResult) {
-			console.debug(
-				`[Composite] lockWholeFile: native lock failed, returning false`
-			);
-			return false;
+				wasmResult = this.wasmLockManager.lockWholeFile(path, op);
+			} catch (e) {
+				logger.error('Unexpected error in lockWholeFile()', e);
+			} finally {
+				// Rollback the native lock if the wasm lock throws
+				// (e.g. comlink-sync timeout). Without this, the native
+				// lock would be held indefinitely, blocking all other
+				// workers.
+				if (nativeResult && !wasmResult) {
+					// Rollback the native lock if the wasm lock fails.
+					this.nativeLockManager.lockWholeFile(path, {
+						...op,
+						type: 'unlock',
+					});
+				}
+			}
+
+			return !!nativeResult && !!wasmResult;
 		}
-		console.debug(`[Composite] lockWholeFile: native lock succeeded`);
 
-		const wasmResult = this.wasmLockManager.lockWholeFile(path, op);
-		if (!wasmResult) {
-			console.debug(
-				`[Composite] lockWholeFile: wasm lock failed, rolling back native lock`
+		/**
+		 * We unlock starting with the inside and moving to the outside.
+		 * - WASM locking comes first as our in-house authority.
+		 * - OS locking comes last as we return locks to the highest authority.
+		 *
+		 * This ensures that other OS processes cannot contend with WASM instances
+		 * for locks while WASM instances believe they still hold a lock.
+		 */
+		try {
+			this.wasmLockManager.lockWholeFile(path, op);
+		} catch (e) {
+			logger.error(
+				'Unexpected error unlocking whole file with in-memory lock manager',
+				e
 			);
-			// Rollback the native lock if the wasm lock fails.
-			this.nativeLockManager.lockWholeFile(path, {
-				...op,
-				type: 'unlock',
-			});
-			return false;
 		}
-		console.debug(`[Composite] lockWholeFile: wasm lock succeeded`);
-
+		try {
+			this.nativeLockManager.lockWholeFile(path, op);
+		} catch (e) {
+			logger.error(
+				'Unexpected error unlocking whole file with native lock manager',
+				e
+			);
+		}
 		return true;
 	}
 
@@ -58,47 +92,82 @@ export class FileLockManagerComposite implements FileLockManager {
 		requestedLock: RequestedRangeLock,
 		waitForLock: boolean
 	): boolean {
-		console.debug(
-			`[Composite] lockFileByteRange: path=${path}, type=${requestedLock.type}, ` +
-				`pid=${requestedLock.pid}, fd=${requestedLock.fd}, ` +
-				`range=${requestedLock.start}-${requestedLock.end}, wait=${waitForLock}`
-		);
+		if (requestedLock.type !== 'unlocked') {
+			/**
+			 * We lock starting with the outside and moving to the inside.
+			 * - OS locking comes first as the highest authority.
+			 * - WASM locking comes next as our in-house authority.
+			 *
+			 * This ensures that we only offer locks to WASM instances when
+			 * the OS has granted a native lock to our process.
+			 */
+			let nativeResult;
+			let wasmResult;
+			try {
+				nativeResult = this.nativeLockManager.lockFileByteRange(
+					path,
+					requestedLock,
+					waitForLock
+				);
+				if (!nativeResult) {
+					return false;
+				}
 
-		const nativeResult = this.nativeLockManager.lockFileByteRange(
-			path,
-			requestedLock,
-			waitForLock
-		);
-		if (!nativeResult) {
-			console.debug(
-				`[Composite] lockFileByteRange: native lock failed, returning false`
-			);
-			return false;
+				wasmResult = this.wasmLockManager.lockFileByteRange(
+					path,
+					requestedLock,
+					waitForLock
+				);
+			} catch (e) {
+				logger.error('Unexpected error in lockFileByteRange()', e);
+			} finally {
+				if (nativeResult && !wasmResult) {
+					// Rollback the native lock if the wasm lock fails.
+					this.nativeLockManager.lockFileByteRange(
+						path,
+						{
+							...requestedLock,
+							type: 'unlocked',
+						},
+						false
+					);
+				}
+			}
+			return !!nativeResult && !!wasmResult;
 		}
-		console.debug(`[Composite] lockFileByteRange: native lock succeeded`);
 
-		const wasmResult = this.wasmLockManager.lockFileByteRange(
-			path,
-			requestedLock,
-			waitForLock
-		);
-		if (!wasmResult) {
-			console.debug(
-				`[Composite] lockFileByteRange: wasm lock failed, rolling back native lock`
+		/**
+		 * We unlock starting with the inside and moving to the outside.
+		 * - WASM locking comes first as our in-house authority.
+		 * - OS locking comes last as we return locks to the highest authority.
+		 *
+		 * This ensures that other OS processes cannot contend with WASM instances
+		 * for locks while WASM instances believe they still hold a lock.
+		 */
+		try {
+			this.wasmLockManager.lockFileByteRange(
+				path,
+				requestedLock,
+				waitForLock
 			);
-			// Rollback the native lock if the wasm lock fails.
+		} catch (e) {
+			logger.error(
+				'Unexpected error unlocking byte range with in-memory lock manager',
+				e
+			);
+		}
+		try {
 			this.nativeLockManager.lockFileByteRange(
 				path,
-				{
-					...requestedLock,
-					type: 'unlocked',
-				},
-				false
+				requestedLock,
+				waitForLock
 			);
-			return false;
+		} catch (e) {
+			logger.error(
+				'Unexpected error unlocking byte range with native lock manager',
+				e
+			);
 		}
-		console.debug(`[Composite] lockFileByteRange: wasm lock succeeded`);
-
 		return true;
 	}
 
@@ -106,56 +175,86 @@ export class FileLockManagerComposite implements FileLockManager {
 		path: Path,
 		desiredLock: RequestedRangeLock
 	): Omit<RequestedRangeLock, 'fd'> | undefined {
-		console.debug(
-			`[Composite] findFirstConflictingByteRangeLock: path=${path}, type=${desiredLock.type}, ` +
-				`pid=${desiredLock.pid}, range=${desiredLock.start}-${desiredLock.end}`
-		);
+		try {
+			// Check native lock manager first, then wasm lock manager.
+			// Return the first conflict found from either.
+			const nativeConflict =
+				this.nativeLockManager.findFirstConflictingByteRangeLock(
+					path,
+					desiredLock
+				);
+			if (nativeConflict) {
+				return nativeConflict;
+			}
 
-		// Check native lock manager first, then wasm lock manager.
-		// Return the first conflict found from either.
-		const nativeConflict =
-			this.nativeLockManager.findFirstConflictingByteRangeLock(
-				path,
-				desiredLock
+			const wasmConflict =
+				this.wasmLockManager.findFirstConflictingByteRangeLock(
+					path,
+					desiredLock
+				);
+			return wasmConflict;
+		} catch (e) {
+			logger.error(
+				'Unexpected error in findFirstConflictingByteRangeLock()',
+				e
 			);
-		if (nativeConflict) {
-			console.debug(
-				`[Composite] findFirstConflictingByteRangeLock: found native conflict`
-			);
-			return nativeConflict;
+			return undefined;
 		}
-
-		const wasmConflict =
-			this.wasmLockManager.findFirstConflictingByteRangeLock(
-				path,
-				desiredLock
-			);
-		if (wasmConflict) {
-			console.debug(
-				`[Composite] findFirstConflictingByteRangeLock: found wasm conflict`
-			);
-		} else {
-			console.debug(
-				`[Composite] findFirstConflictingByteRangeLock: no conflict found`
-			);
-		}
-		return wasmConflict;
 	}
 
-	// TODO: Consider try/catch for both release methods. OTOH, if one throws, it is catastrophic.
 	releaseLocksForProcess(pid: number): void {
-		console.debug(`[Composite] releaseLocksForProcess: pid=${pid}`);
-		// Release locks on both managers.
-		this.nativeLockManager.releaseLocksForProcess(pid);
-		this.wasmLockManager.releaseLocksForProcess(pid);
+		/**
+		 * We unlock starting with the inside and moving to the outside.
+		 * - WASM locking comes first as our in-house authority.
+		 * - OS locking comes last as we return locks to the highest authority.
+		 *
+		 * This ensures that other OS processes cannot contend with WASM instances
+		 * for locks while WASM instances believe they still hold a lock.
+		 */
+		try {
+			this.wasmLockManager.releaseLocksForProcess(pid);
+		} catch (e) {
+			logger.error(
+				'Unexpected error in wasmLockManager.releaseLocksForProcess()',
+				e
+			);
+		}
+
+		try {
+			this.nativeLockManager.releaseLocksForProcess(pid);
+		} catch (e) {
+			logger.error(
+				'Unexpected error in nativeLockManager.releaseLocksForProcess()',
+				e
+			);
+		}
 	}
 
 	releaseLocksOnFdClose(pid: number, fd: number, path: Path): void {
-		console.debug(
-			`[Composite] releaseLocksOnFdClose: pid=${pid}, fd=${fd}, path=${path}`
-		);
-		// Release locks on both managers.
-		this.nativeLockManager.releaseLocksOnFdClose(pid, fd, path);
-		this.wasmLockManager.releaseLocksOnFdClose(pid, fd, path);
+		/**
+		 * We unlock starting with the inside and moving to the outside.
+		 * - WASM locking comes first as our in-house authority.
+		 * - OS locking comes last as we return locks to the highest authority.
+		 *
+		 * This ensures that other OS processes cannot contend with WASM instances
+		 * for locks while WASM instances believe they still hold a lock.
+		 */
+		try {
+			this.wasmLockManager.releaseLocksOnFdClose(pid, fd, path);
+		} catch (e) {
+			logger.error(
+				'Unexpected error in wasmLockManager.releaseLocksOnFdClose()',
+				e
+			);
+		}
+
+		try {
+			this.nativeLockManager.releaseLocksOnFdClose(pid, fd, path);
+		} catch (e) {
+			logger.error(
+				'Unexpected error in nativeLockManager.releaseLocksOnFdClose()',
+				e
+			);
+		}
 	}
 }

@@ -43,66 +43,51 @@ export type TestWorkerAPI = Omit<
 export function createRemoteProcessAPIFromFileLockManager(
 	fileLockManager: FileLockManager
 ): TestWorkerAPI {
-	// TODO: Clean up these tests.
-	// TODO: Fix this assignment if we proceed with these tests
-	// @ts-ignore
-	const api: TestWorkerAPI = fileLockManager as TestWorkerAPI;
-	const originalLockFileByteRange =
-		fileLockManager.lockFileByteRange.bind(fileLockManager);
-	api.lockFileByteRange = (
-		path,
-		requestedLockWithNonBigIntAddresses,
-		waitForLock
-	) => {
-		// Node.js IPC transfers messages via JSON,
-		// and the BigInt elements of this API are not supported by JSON.
-		// So for testing, we allow numbers to be passed instead,
-		// and we convert them to BigInts here.
-		const requestedLock = {
-			...requestedLockWithNonBigIntAddresses,
-			start: BigInt(requestedLockWithNonBigIntAddresses.start),
-			end: BigInt(requestedLockWithNonBigIntAddresses.end),
-		};
+	const api: TestWorkerAPI = {
+		lockWholeFile: fileLockManager.lockWholeFile.bind(fileLockManager),
+		releaseLocksForProcess:
+			fileLockManager.releaseLocksForProcess.bind(fileLockManager),
+		releaseLocksOnFdClose:
+			fileLockManager.releaseLocksOnFdClose.bind(fileLockManager),
 
-		return originalLockFileByteRange(path, requestedLock, waitForLock);
+		// Node.js IPC transfers messages via JSON, and BigInt is
+		// not supported by JSON. So for testing, the API accepts
+		// numbers and converts them to BigInts before delegating.
+		lockFileByteRange: (path, req, waitForLock) => {
+			return fileLockManager.lockFileByteRange(
+				path,
+				{ ...req, start: BigInt(req.start), end: BigInt(req.end) },
+				waitForLock
+			);
+		},
+		findFirstConflictingByteRangeLock: (path, req) => {
+			const result = fileLockManager.findFirstConflictingByteRangeLock(
+				path,
+				{
+					...req,
+					start: BigInt(req.start),
+					end: BigInt(req.end),
+				}
+			);
+			if (result === undefined) {
+				return undefined;
+			}
+			return {
+				...result,
+				start: Number(result.start as bigint),
+				end: Number(result.end as bigint),
+			};
+		},
+
+		// IPC with child processes uses JSON, and the URL type
+		// is not supported by JSON. Convert file:// strings to URLs.
+		openSync: ((name: string | URL, flags: number, mode?: number) => {
+			if (typeof name === 'string' && name.startsWith('file://')) {
+				name = new URL(name);
+			}
+			return openSync(name, flags, mode);
+		}) as typeof openSync,
+		closeSync,
 	};
-	const originalFindFirstConflictingByteRangeLock =
-		fileLockManager.findFirstConflictingByteRangeLock.bind(fileLockManager);
-	api.findFirstConflictingByteRangeLock = (
-		path,
-		requestedLockWithNonBigIntAddresses
-	): Omit<RequestedRangeLockWithNonBigIntAddresses, 'fd'> | undefined => {
-		// Node.js IPC transfers messages via JSON,
-		// and the BigInt elements of this API are not supported by JSON.
-		// So for testing, we allow numbers to be passed instead,
-		// and we convert them to BigInts here.
-		const requestedLock: RequestedRangeLock = {
-			...requestedLockWithNonBigIntAddresses,
-			start: BigInt(requestedLockWithNonBigIntAddresses.start),
-			end: BigInt(requestedLockWithNonBigIntAddresses.end),
-		};
-		const result = originalFindFirstConflictingByteRangeLock(
-			path,
-			requestedLock
-		);
-		if (result === undefined) {
-			return undefined;
-		}
-		return {
-			...result,
-			start: Number(result.start as bigint),
-			end: Number(result.end as bigint),
-		};
-	};
-	// TODO: Make this less strange
-	// IPC with child processes uses JSON, and the URL type is not supported by JSON.
-	// So, if the input is a string that looks like a file URL, we convert it to a URL.
-	api.openSync = ((name: string | URL, ...rest) => {
-		if (typeof name === 'string' && name.startsWith('file://')) {
-			name = new URL(name);
-		}
-		return openSync(name, ...rest);
-	}) as typeof openSync;
-	api.closeSync = closeSync;
 	return api;
 }

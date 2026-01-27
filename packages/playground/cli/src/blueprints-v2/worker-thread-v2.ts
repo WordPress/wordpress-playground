@@ -4,7 +4,7 @@ import {
 	bindUserSpace,
 	createNodeFsMountHandler,
 	loadNodeRuntime,
-	type OSUserSpaceContext,
+	type WasmUserSpaceContext,
 } from '@php-wasm/node';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import type {
@@ -165,8 +165,7 @@ export type SecondaryWorkerBootArgs = {
 	phpIniEntries?: PhpIniOptions;
 	constants?: Record<string, string | number | boolean | null>;
 	createFiles?: FileTree;
-	firstProcessId: number;
-	processIdSpaceLength: number;
+	processId: number;
 	trace: boolean;
 	nativeInternalDirPath: string;
 	withIntl?: boolean;
@@ -446,11 +445,10 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 		siteUrl,
 		allow,
 		phpVersion,
+		processId,
 		createFiles,
 		constants,
 		phpIniEntries,
-		firstProcessId,
-		processIdSpaceLength,
 		trace,
 		nativeInternalDirPath,
 		withIntl,
@@ -466,22 +464,10 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 		}
 		this.booted = true;
 
-		let nextProcessId = firstProcessId;
-		const lastProcessId = firstProcessId + processIdSpaceLength - 1;
-
 		try {
 			const requestHandler = await bootRequestHandler({
 				siteUrl,
 				createPhpRuntime: async () => {
-					const processId = nextProcessId;
-
-					if (nextProcessId < lastProcessId) {
-						nextProcessId++;
-					} else {
-						// We've reached the end of the process ID space. Start over.
-						nextProcessId = firstProcessId;
-					}
-
 					return await loadNodeRuntime(phpVersion, {
 						fileLockManager: this.fileLockManager!,
 						emscriptenOptions: {
@@ -492,7 +478,7 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 							},
 							nativeInternalDirPath,
 							bindUserSpace: (
-								userSpaceContext: OSUserSpaceContext
+								userSpaceContext: WasmUserSpaceContext
 							) => {
 								return bindUserSpace(
 									{
@@ -576,15 +562,16 @@ async function createPHPWorker(
 		createFiles,
 		constants,
 		phpIniEntries,
-		firstProcessId,
-		processIdSpaceLength,
 		trace,
 		nativeInternalDirPath,
 		withXdebug,
 		pathAliases,
 		mountsBeforeWpInstall,
 		mountsAfterWpInstall,
-	}: SecondaryWorkerBootArgs,
+	}: // NOTE: We explicitly remove processId from the options
+	// type so the type system will catch if we try to reuse
+	// our parent's process ID.
+	Omit<SecondaryWorkerBootArgs, 'processId'>,
 	fileLockManager: FileLockManager | RemoteAPI<FileLockManager>
 ) {
 	const spawnedWorker = await spawnWorkerThread('v2');
@@ -600,8 +587,7 @@ async function createPHPWorker(
 		createFiles,
 		constants,
 		phpIniEntries,
-		firstProcessId,
-		processIdSpaceLength,
+		processId: spawnedWorker.processId,
 		trace,
 		nativeInternalDirPath,
 		withXdebug,

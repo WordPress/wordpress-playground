@@ -1,13 +1,17 @@
-// TODO: Document why we use the term "user space" for this file.
-// TODO: Rename this module to php-wasm-user-space.ts.
-// TODO: Move FileLockManager into php-wasm/universal to resolve this
+/**
+ * Per-process syscall implementations (flock, fcntl, etc.) that run
+ * in the context of a single WASM PHP process. Analogous to OS
+ * user space: each process gets its own instance bound to its PID,
+ * constants, and file descriptor table.
+ */
 import type {
 	Emscripten,
 	RequestedRangeLock,
 	WholeFileLock,
 	WholeFileLockOp,
 } from '@php-wasm/universal';
-import type { OSKernelSpace } from './os-kernel-space';
+import type { WasmKernelSpace } from './wasm-kernel-space';
+import { lookup } from 'dns/promises';
 
 type FSNode = Emscripten.FS.FSNode;
 
@@ -16,8 +20,7 @@ type ResultTuple<T> =
 	| [value: T, errorCode: 0]
 	| [value: never, errorCode: NonZeroNumber];
 
-// TODO: Consider better name than OSUserSpace. Maybe WasmUserSpace, SystemUserSpace, etc?
-export type OSUserSpaceContext = {
+export type WasmUserSpaceContext = {
 	pid: number;
 	// TODO: When receiving this context, validate that all these fields exist.
 	constants: {
@@ -37,7 +40,6 @@ export type OSUserSpaceContext = {
 		SEEK_SET: number;
 		SEEK_CUR: number;
 		SEEK_END: number;
-		// TODO: Move these values to ES prefix or someplace like that.
 		// Emscripten does not expose these constants to JS, so we hardcode them here.
 		// Based on
 		// https://github.com/emscripten-core/emscripten/blob/76860cc47cef67f5712a7a03a247bc1baabf7ba4/system/lib/libc/musl/include/sys/file.h#L7-L10
@@ -87,24 +89,25 @@ export type OSUserSpaceContext = {
 	};
 	FS: typeof Emscripten.FS;
 	PROXYFS: typeof Emscripten.PROXYFS & {
-		// TODO: Add this method to our main Emscripten FS types
+		// Not in Emscripten's FileSystemType; augmented inline here.
 		realPath(node: FSNode): string;
 	};
 	NODEFS: typeof Emscripten.NODEFS & {
-		// TODO: Add this method to our main Emscripten FS types
+		// Not in Emscripten's FileSystemType; augmented inline here.
 		realPath(node: FSNode): string;
 	};
 };
 
-export type OSUserSpaceAPI = {
+export type WasmUserSpaceAPI = {
 	fcntl64: (fd: number, cmd: number, varargs?: number) => number;
 	flock: (fd: number, op: number) => number;
 	fd_close: (fd: number) => number;
 	js_release_file_locks: () => void;
+	gethostbyname: (hostname: string) => Promise<string>;
 };
 
 export function bindUserSpace(
-	{ fileLockManager }: OSKernelSpace,
+	{ fileLockManager }: WasmKernelSpace,
 	{
 		pid,
 		memory: { HEAP16, HEAP64, HEAP32 },
@@ -130,15 +133,15 @@ export function bindUserSpace(
 			LOCK_NB,
 			LOCK_UN,
 		},
-		errnoCodes: { EBADF, EINVAL, EAGAIN, EWOULDBLOCK, EDEADLK },
+		errnoCodes: { EBADF, EINVAL, EAGAIN, EWOULDBLOCK },
 		wasmImports: { builtin_fcntl64, builtin_fd_close, js_wasm_trace },
 		wasmExports: { wasm_get_end_offset },
 		syscalls: { getStreamFromFD },
 		FS,
 		PROXYFS,
 		NODEFS,
-	}: OSUserSpaceContext
-): OSUserSpaceAPI {
+	}: WasmUserSpaceContext
+): WasmUserSpaceAPI {
 	class VarArgsAccessor {
 		argsAddr: number;
 
@@ -161,15 +164,14 @@ export function bindUserSpace(
 
 	type FcntlLockState = typeof F_RDLCK | typeof F_WRLCK | typeof F_UNLCK;
 	const locking = {
-		// TODO: Does it make sense to drop or keep maybeLockedFds?
-		// /*
-		//  * This is a set of possibly locked file descriptors.
-		//  *
-		//  * When a file descriptor is closed, we need to release any associated held by this process.
-		//  * Instead of trying remember and forget file descriptors as they are locked and unlocked,
-		//  * we just track file descriptors we have locked before and try an unlock when they are closed.
-		//  */
-		// maybeLockedFds: new Set(),
+		/*
+		 * This is a set of possibly locked file descriptors.
+		 *
+		 * When a file descriptor is closed, we need to release any associated held by this process.
+		 * Instead of trying remember and forget file descriptors as they are locked and unlocked,
+		 * we just track file descriptors we have locked before and try an unlock when they are closed.
+		 */
+		maybeLockedFds: new Set(),
 
 		lockStateToFcntl: {
 			shared: F_RDLCK,
@@ -446,7 +448,6 @@ export function bindUserSpace(
 		return [resolvedOffset, 0];
 	}
 
-	// TODO: Should command just be a string representation of const name?
 	function fcntl64(fd: number, cmd: number, varargs?: number) {
 		js_wasm_trace('fcntl64(%d, %d)', fd, cmd);
 		if (!fileLockManager) {
@@ -609,6 +610,8 @@ export function bindUserSpace(
 					return -EINVAL;
 				}
 			}
+			// TODO: Double check waiting for lock. PHP 8.5 has been observed waiting for a lock.
+			case F_SETLKW:
 			case F_SETLK: {
 				js_wasm_trace('fcntl(%d, F_SETLK)', fd);
 				const [vfsPath, vfsPathErrno] =
@@ -678,9 +681,6 @@ export function bindUserSpace(
 					return -paramsCheckErrno;
 				}
 
-				// TODO: Do we need to keep or drop maybeLockedFds?
-				// locking.maybeLockedFds.add(fd);
-
 				const [nativeFd, nativeFdErrno] =
 					locking.get_native_fd_from_emscripten_fd(fd);
 				if (nativeFdErrno !== 0) {
@@ -718,6 +718,9 @@ export function bindUserSpace(
 						rangeLock,
 						waitForLock
 					);
+					if (succeeded) {
+						locking.maybeLockedFds.add(nativeFd);
+					}
 
 					js_wasm_trace(
 						'fcntl(%d, F_SETLK) %s lockFileByteRange returned %d for range lock %s',
@@ -737,13 +740,6 @@ export function bindUserSpace(
 					);
 					return -EINVAL;
 				}
-			}
-			// @TODO: Implement waiting for lock
-			case F_SETLKW: {
-				// We do not yet support the blocking form of flock().
-				// We respond with EDEADLK to indicate failure
-				// because it is a known errno for a failed F_SETLKW command.
-				return -EDEADLK;
 			}
 			case F_SETFL: {
 				/**
@@ -872,10 +868,9 @@ export function bindUserSpace(
 				vfsPath,
 				succeeded
 			);
-			// TODO: Do we need to keep or drop maybeLockedFds?
-			// if (succeeded) {
-			// 	locking.maybeLockedFds.add(fd);
-			// }
+			if (succeeded) {
+				locking.maybeLockedFds.add(nativeFd);
+			}
 			return succeeded ? 0 : -EWOULDBLOCK;
 		} catch (e) {
 			js_wasm_trace('flock(%d, %d) lockWholeFile error %s', fd, op, e);
@@ -910,16 +905,15 @@ export function bindUserSpace(
 			);
 			return fdCloseResult;
 		}
-		// TODO: Do we need to keep or drop maybeLockedFds?
-		// if (!locking.maybeLockedFds.has(fd)) {
-		// 	js_wasm_trace(
-		// 		'fd_close(%d) not in maybe-locked-list %s result %d',
-		// 		fd,
-		// 		vfsPath,
-		// 		fdCloseResult
-		// 	);
-		// 	return fdCloseResult;
-		// }
+		if (!locking.maybeLockedFds.has(nativeFd)) {
+			js_wasm_trace(
+				'fd_close(%d) not in maybe-locked-list %s result %d',
+				fd,
+				vfsPath,
+				fdCloseResult
+			);
+			return fdCloseResult;
+		}
 
 		if (vfsPathResolutionErrno !== 0) {
 			js_wasm_trace(
@@ -942,8 +936,9 @@ export function bindUserSpace(
 
 		if (nativeFdErrno !== 0) {
 			js_wasm_trace(
-				'fd_close(%d) get_native_fd_from_emscripten_fd error %d',
+				'fd_close(%d) %s get_native_fd_from_emscripten_fd error %d',
 				fd,
+				vfsPath,
 				nativeFdErrno
 			);
 			return fdCloseResult;
@@ -992,10 +987,26 @@ export function bindUserSpace(
 		}
 	}
 
+	// TODO: Add a test for this.
+	/**
+	 * Resolve a hostname to an IP address.
+	 *
+	 * @param hostname The hostname to resolve.
+	 * @returns The IP address of the hostname as a string.
+	 */
+	async function gethostbyname(hostname: string): Promise<string> {
+		const { address } = await lookup(hostname, {
+			family: 4,
+			verbatim: false,
+		});
+		return address;
+	}
+
 	return {
 		fcntl64,
 		flock,
 		fd_close,
 		js_release_file_locks,
+		gethostbyname,
 	};
 }

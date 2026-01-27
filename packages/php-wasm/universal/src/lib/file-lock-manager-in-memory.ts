@@ -357,6 +357,18 @@ export class FileLock {
 		 */
 		desiredLock: Omit<RequestedRangeLock, 'fd'>
 	) {
+		if (desiredLock.start === desiredLock.end) {
+			/*
+			 * Treat a range with zero length as covering the entire remaining range.
+			 * POSIX Ref: https://pubs.opengroup.org/onlinepubs/9799919799/functions/fcntl.html
+			 *   "A lock shall be set to extend to the largest possible value of the file offset
+			 *    for that file by setting l_len to 0."
+			 */
+			desiredLock = {
+				...desiredLock,
+				end: MAX_ADDRESSABLE_FILE_OFFSET,
+			};
+		}
 		const overlappingLocks = this.rangeLocks.findOverlapping(desiredLock);
 		const firstConflictingRangeLock = overlappingLocks.find(
 			(lock) =>
@@ -480,7 +492,6 @@ export class FileLock {
 	 * @returns True if a conflicting lock exists, false otherwise.
 	 */
 	private isThereAConflictWithRequestedWholeFileLock(
-		// TODO: Declare types for all the reused Omits in this module.
 		requestedLock: Omit<WholeFileLockOp, 'waitForLock'>
 	) {
 		if (requestedLock.type === 'exclusive') {

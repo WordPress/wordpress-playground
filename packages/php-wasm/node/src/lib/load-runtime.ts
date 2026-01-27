@@ -7,8 +7,8 @@ import {
 	FSHelpers,
 	FileLockManagerComposite,
 } from '@php-wasm/universal';
-import type { OSUserSpaceAPI, OSUserSpaceContext } from './os-user-space';
-import { bindUserSpace } from './os-user-space';
+import type { WasmUserSpaceAPI, WasmUserSpaceContext } from './wasm-user-space';
+import { bindUserSpace } from './wasm-user-space';
 import fs from 'fs';
 import { getPHPLoaderModule } from '.';
 import { FileLockManagerForPosix } from './file-lock-manager-for-posix';
@@ -34,6 +34,10 @@ export interface PHPLoaderOptions {
 }
 
 export type PHPLoaderOptionsForNode = PHPLoaderOptions & {
+	/**
+	 * A file lock manager to coordinate file locks between
+	 * multiple php-wasm instances and other OS processes.
+	 */
 	fileLockManager?: FileLockManager;
 	emscriptenOptions?: EmscriptenOptions & {
 		/**
@@ -46,10 +50,16 @@ export type PHPLoaderOptionsForNode = PHPLoaderOptions & {
 		 */
 		processId?: number;
 
-		// TODO: Document this.
+		/**
+		 * Factory called during WASM initialization to create
+		 * user-space syscall implementations (flock, fcntl, etc.)
+		 * for a PHP process. Receives process context (PID,
+		 * constants, errno codes) and returns the bound syscall
+		 * functions.
+		 */
 		bindUserSpace?: (
-			userSpaceContext: OSUserSpaceContext
-		) => OSUserSpaceAPI;
+			userSpaceContext: WasmUserSpaceContext
+		) => WasmUserSpaceAPI;
 
 		/**
 		 * An optional function to collect trace messages.
@@ -90,16 +100,16 @@ export async function loadNodeRuntime(
 		quit: function (code, error) {
 			throw error;
 		},
-		bindUserSpace: (userSpaceContext: OSUserSpaceContext) => {
+		bindUserSpace: (userSpaceContext: WasmUserSpaceContext) => {
 			const nativeFileLockManager =
 				platform() === 'win32'
 					? new FileLockManagerForWindows()
 					: new FileLockManagerForPosix();
 			const fileLockManager = options.fileLockManager
-				? new FileLockManagerComposite(
-						nativeFileLockManager,
-						options.fileLockManager
-					)
+				? new FileLockManagerComposite({
+						nativeLockManager: nativeFileLockManager,
+						wasmLockManager: options.fileLockManager,
+					})
 				: nativeFileLockManager;
 			return bindUserSpace({ fileLockManager }, userSpaceContext);
 		},

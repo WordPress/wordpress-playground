@@ -1,6 +1,10 @@
 import { logger } from '@php-wasm/logger';
 import { EmscriptenDownloadMonitor, ProgressTracker } from '@php-wasm/progress';
-import { consumeAPI, type UniversalPHP } from '@php-wasm/universal';
+import {
+	consumeAPI,
+	type Pooled,
+	type UniversalPHP,
+} from '@php-wasm/universal';
 import type { BlueprintV1Declaration } from '@wp-playground/blueprints';
 import {
 	compileBlueprintV1,
@@ -20,6 +24,7 @@ import {
 import type { PlaygroundCliBlueprintV1Worker } from './worker-thread-v1';
 import type { MessagePort as NodeMessagePort } from 'worker_threads';
 import {
+	type PlaygroundCliWorker,
 	type RunCLIArgs,
 	type SpawnedWorker,
 	type WorkerType,
@@ -35,7 +40,6 @@ import type { CLIOutput } from '../cli-output';
  */
 export class BlueprintsV1Handler {
 	private siteUrl: string;
-	private processIdSpaceLength: number;
 	private args: RunCLIArgs;
 	private cliOutput: CLIOutput;
 
@@ -43,13 +47,11 @@ export class BlueprintsV1Handler {
 		args: RunCLIArgs,
 		options: {
 			siteUrl: string;
-			processIdSpaceLength: number;
 			cliOutput: CLIOutput;
 		}
 	) {
 		this.args = args;
 		this.siteUrl = options.siteUrl;
-		this.processIdSpaceLength = options.processIdSpaceLength;
 		this.cliOutput = options.cliOutput;
 	}
 
@@ -58,7 +60,7 @@ export class BlueprintsV1Handler {
 	}
 
 	async bootWordPress(
-		phpPort: NodeMessagePort,
+		playground: Pooled<PlaygroundCliWorker>,
 		workerPostInstallMountsPort: NodeMessagePort
 	) {
 		let wpDetails: any = undefined;
@@ -117,18 +119,16 @@ export class BlueprintsV1Handler {
 			sqliteIntegrationPluginZip = await fetchSqliteIntegration();
 		}
 
-		const playground = consumeAPI<PlaygroundCliBlueprintV1Worker>(phpPort);
-
-		// Comlink communication proxy
-		await playground.isConnected();
-
 		this.cliOutput.updateProgress('Booting WordPress');
 
 		const runtimeConfiguration = await resolveRuntimeConfiguration(
 			this.getEffectiveBlueprint()
 		);
 
-		await playground.bootWordPress(
+		// TODO: Fix this type issue that requires the cast to unknown
+		await (
+			playground as unknown as PlaygroundCliBlueprintV1Worker
+		).bootWordPress(
 			{
 				wpVersion: runtimeConfiguration.wpVersion,
 				siteUrl: this.siteUrl,
@@ -138,6 +138,7 @@ export class BlueprintsV1Handler {
 					wordPressZip && (await wordPressZip!.arrayBuffer()),
 				sqliteIntegrationPluginZip:
 					await sqliteIntegrationPluginZip?.arrayBuffer(),
+				constants: mergeDefinedConstants(this.args),
 			},
 			workerPostInstallMountsPort
 		);
@@ -150,23 +151,25 @@ export class BlueprintsV1Handler {
 			this.cliOutput.updateProgress('Caching WordPress for next boot');
 			fs.writeFileSync(
 				preinstalledWpContentPath,
-				// TODO: Fix this type issue and remove the cast.
-				(await zipDirectory(playground as UniversalPHP, '/wordpress'))!
+				// Comlink proxy is not assignable to UniversalPHP but
+				// proxies all method calls transparently at runtime.
+				(await zipDirectory(
+					playground as unknown as UniversalPHP,
+					'/wordpress'
+				))!
 			);
 		}
 
 		return playground;
 	}
 
-	async bootPlayground({
+	async bootRequestHandler({
 		worker,
 		fileLockManagerPort,
-		firstProcessId,
 		nativeInternalDirPath,
 	}: {
 		worker: SpawnedWorker;
 		fileLockManagerPort: NodeMessagePort;
-		firstProcessId: number;
 		nativeInternalDirPath: string;
 	}) {
 		const playground = consumeAPI<PlaygroundCliBlueprintV1Worker>(
@@ -178,24 +181,20 @@ export class BlueprintsV1Handler {
 			this.getEffectiveBlueprint()
 		);
 		await playground.useFileLockManager(fileLockManagerPort);
-		await playground.bootWorker({
+		await playground.bootRequestHandler({
 			phpVersion: runtimeConfiguration.phpVersion,
 			siteUrl: this.siteUrl,
 			mountsBeforeWpInstall: this.args['mount-before-install'] || [],
 			mountsAfterWpInstall: this.args['mount'] || [],
-			firstProcessId,
-			processIdSpaceLength: this.processIdSpaceLength,
+			processId: worker.processId,
 			followSymlinks: this.args.followSymlinks === true,
 			trace: this.args.experimentalTrace === true,
-			// @TODO: Move this to the request handler or else every worker
-			//        will have a separate cookie store.
 			internalCookieStore: this.args.internalCookieStore,
 			withIntl: this.args.intl,
 			withRedis: this.args.redis,
 			withMemcached: this.args.memcached,
 			withXdebug: !!this.args.xdebug,
 			nativeInternalDirPath,
-			constants: mergeDefinedConstants(this.args),
 			pathAliases: this.args.pathAliases,
 		});
 		await playground.isReady();

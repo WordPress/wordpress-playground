@@ -451,6 +451,7 @@ export async function bootRequestHandler(options: BootRequestHandlerOptions) {
 			 */
 			!php.isFile('/internal/.boot-files-written')
 		) {
+			// TODO: There is a race here when multiple workers are calling bootRequestHandler(). Fix it.
 			await setupPlatformLevelMuPlugins(php);
 			await writeFiles(php, '/', options.createFiles || {});
 			await preloadPhpInfoRoute(

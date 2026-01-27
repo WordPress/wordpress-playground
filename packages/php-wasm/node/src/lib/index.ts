@@ -6,5 +6,5 @@ export * from './node-fs-mount';
 export * from './file-lock-manager-for-posix';
 export * from './file-lock-manager-for-windows';
 export * from './extensions/xdebug/with-xdebug';
-export * from './os-user-space';
-export * from './os-kernel-space';
+export * from './wasm-user-space';
+export * from './wasm-kernel-space';

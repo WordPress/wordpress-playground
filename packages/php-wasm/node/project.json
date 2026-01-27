@@ -167,18 +167,7 @@
 			"options": {
 				"reportsDirectory": "../../../coverage/packages/php-wasm/node",
 				"testFiles": [
-					"php-file-locking.spec.ts",
-					"file-lock-manager-for-node.spec.ts",
-					"php-imagick.spec.ts"
-				]
-			}
-		},
-		"test-group-2b-asyncify": {
-			"executor": "@nx/vitest:test",
-			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/node"],
-			"options": {
-				"reportsDirectory": "../../../coverage/packages/php-wasm/node",
-				"testFiles": [
+					"php-imagick.spec.ts",
 					"php-soap.spec.ts",
 					"php-image-extensions.spec.ts",
 					"php-fsockopen.spec.ts"
@@ -192,19 +181,7 @@
 				"configFile": "packages/php-wasm/node/vite.jspi.config.ts",
 				"reportsDirectory": "../../../coverage/packages/php-wasm/node",
 				"testFiles": [
-					"php-file-locking.spec.ts",
-					"file-lock-manager-for-node.spec.ts",
-					"php-imagick.spec.ts"
-				]
-			}
-		},
-		"test-group-2b-jspi": {
-			"executor": "@nx/vitest:test",
-			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/node"],
-			"options": {
-				"configFile": "packages/php-wasm/node/vite.jspi.config.ts",
-				"reportsDirectory": "../../../coverage/packages/php-wasm/node",
-				"testFiles": [
+					"php-imagick.spec.ts",
 					"php-soap.spec.ts",
 					"php-image-extensions.spec.ts",
 					"php-fsockopen.spec.ts"
@@ -364,6 +341,35 @@
 				"reportsDirectory": "../../../coverage/packages/php-wasm/node",
 				"testFiles": ["php-memcached.spec.ts"],
 				"testNamePattern": "Memcached Network Integration"
+			}
+		},
+		"test-file-locking-asyncify": {
+			"executor": "@nx/vite:test",
+			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/node"],
+			"options": {
+				"reportsDirectory": "../../../coverage/packages/php-wasm/node",
+				"testFiles": [
+					"php-file-locking.spec.ts",
+					"file-lock-manager-in-memory.spec.ts",
+					"file-lock-manager-for-posix.spec.ts",
+					"file-lock-manager-for-windows.spec.ts",
+					"file-lock-manager-composite.spec.ts"
+				]
+			}
+		},
+		"test-file-locking-jspi": {
+			"executor": "@nx/vite:test",
+			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/node"],
+			"options": {
+				"configFile": "packages/php-wasm/node/vite.jspi.config.ts",
+				"reportsDirectory": "../../../coverage/packages/php-wasm/node",
+				"testFiles": [
+					"php-file-locking.spec.ts",
+					"file-lock-manager-in-memory.spec.ts",
+					"file-lock-manager-for-posix.spec.ts",
+					"file-lock-manager-for-windows.spec.ts",
+					"file-lock-manager-composite.spec.ts"
+				]
 			}
 		},
 		"lint": {

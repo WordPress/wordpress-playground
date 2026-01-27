@@ -4,9 +4,7 @@
 		"forceConsistentCasingInFileNames": true,
 		"strict": true,
 		"noImplicitOverride": true,
-		// "noPropertyAccessFromIndexSignature": true,
-		// TODO: Why do we want to avoid property access from index signature?
-		"noPropertyAccessFromIndexSignature": false,
+		"noPropertyAccessFromIndexSignature": true,
 		"noImplicitReturns": true,
 		"noFallthroughCasesInSwitch": true,
 		"types": ["vitest", "vite/client"]

@@ -8,4 +8,5 @@ declareFileLockManagerTests({
 		import.meta.url
 	),
 	shouldSkip: platform() !== 'win32',
+	workerType: 'childProcess',
 });

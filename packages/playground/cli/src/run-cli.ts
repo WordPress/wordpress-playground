@@ -1,10 +1,12 @@
 import { errorLogPath, logger, LogSeverity } from '@php-wasm/logger';
-import type {
-	PathAlias,
-	PHPRequest,
-	RemoteAPI,
-	SupportedPHPVersion,
-	UniversalPHP,
+import { ProcessIdAllocator } from './process-id-allocator';
+import {
+	createObjectPoolProxy,
+	type Pooled,
+	type PHPRequest,
+	type PathAlias,
+	type RemoteAPI,
+	type SupportedPHPVersion,
 } from '@php-wasm/universal';
 import {
 	PHPResponse,
@@ -39,7 +41,6 @@ import {
 import { startServer } from './start-server';
 import type { PlaygroundCliBlueprintV1Worker } from './blueprints-v1/worker-thread-v1';
 import type { PlaygroundCliBlueprintV2Worker } from './blueprints-v2/worker-thread-v2';
-import { LoadBalancer } from './load-balancer';
 /* eslint-disable no-console */
 import {
 	SupportedPHPVersions,
@@ -338,13 +339,14 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 				default: 9400,
 			},
 			'experimental-multi-worker': {
+				deprecated:
+					'This option is not needed. Multiple workers are always used.',
 				describe:
 					'Enable experimental multi-worker support which requires ' +
 					'a /wordpress directory backed by a real filesystem. ' +
 					'Pass a positive number to specify the number of workers to use. ' +
 					'Otherwise, default to the number of CPUs minus 1.',
 				type: 'number',
-				coerce: (value?: number) => value ?? cpus().length - 1,
 			},
 			'experimental-devtools': {
 				describe: 'Enable experimental browser development tools.',
@@ -568,25 +570,12 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 					}
 				}
 
-				if (args['experimental-multi-worker'] !== undefined) {
-					const cliCommand = args._[0] as string;
-					if (cliCommand !== 'server') {
-						throw new Error(
-							'The --experimental-multi-worker flag is only supported when running the server command.'
-						);
-					}
-					if (
-						args['experimental-multi-worker'] !== undefined &&
-						typeof args['experimental-multi-worker'] === 'number' &&
-						args['experimental-multi-worker'] <= 1
-					) {
-						throw new Error(
-							'The --experimental-multi-worker flag must be a positive integer greater than 1.'
-						);
-					}
-				}
-
 				if (args['experimental-blueprints-v2-runner'] === true) {
+					// TODO: Remove this once we have reworked the Blueprints v2 runner.
+					throw new Error(
+						'Blueprints v2 are temporarily disabled while we rework their runtime implementation.'
+					);
+
 					if (args['mode'] !== undefined) {
 						if (args['wordpress-install-mode'] !== undefined) {
 							throw new Error(
@@ -756,7 +745,6 @@ export interface RunCLIArgs {
 	wp?: string;
 	autoMount?: string;
 	pathAliases?: PathAlias[];
-	experimentalMultiWorker?: number;
 	experimentalTrace?: boolean;
 	internalCookieStore?: boolean;
 	'additional-blueprint-steps'?: any[];
@@ -810,14 +798,15 @@ export interface RunCLIArgs {
 	reset?: boolean;
 }
 
-type PlaygroundCliWorker =
+// TODO: Maybe we should just be declaring an interface instead of a type union
+export type PlaygroundCliWorker =
 	| PlaygroundCliBlueprintV1Worker
 	| PlaygroundCliBlueprintV2Worker;
 
 export const internalsKeyForTesting = Symbol('playground-cli-testing');
 
 export interface RunCLIServer extends AsyncDisposable {
-	playground: RemoteAPI<PlaygroundCliWorker>;
+	playground: Pooled<PlaygroundCliWorker>;
 	server: Server;
 	serverUrl: string;
 
@@ -826,7 +815,6 @@ export interface RunCLIServer extends AsyncDisposable {
 	// Provide some details and helpers for automated testing.
 	[internalsKeyForTesting]: {
 		workerThreadCount: number;
-		getWorkerNumberFromProcessId(processId: number): number;
 	};
 }
 
@@ -863,8 +851,7 @@ export async function runCLI(
 ): Promise<RunCLIServer>;
 export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void>;
 export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
-	let loadBalancer: LoadBalancer;
-	let playground: RemoteAPI<PlaygroundCliWorker>;
+	let playgroundPool: Pooled<PlaygroundCliWorker>;
 
 	const spawnedWorkers: SpawnedWorker[] = [];
 	const workerToPlaygroundMap: Map<
@@ -990,18 +977,8 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 			const siteUrl = args['site-url'] || serverUrl;
 
 			const targetWorkerCount = Math.max(
-				args.experimentalMultiWorker ?? MINIMUM_WORKER_COUNT,
+				cpus().length - 1,
 				MINIMUM_WORKER_COUNT
-			);
-
-			// Process IDs appear to be defined as `int` in Emscripten:
-			// https://github.com/emscripten-core/emscripten/blob/95d2bf9c5c27b88ab7de6eba2d8e61ea1af977ac/system/lib/libc/musl/arch/emscripten/bits/alltypes.h#L290
-			// and those are typically 32 bits wide in both 32-bit and 64-bit systems.
-			// Apparently, this is a signed type, so we cannot use the leftmost bit.
-			const maxValueForSigned32BitInteger = 2 ** (32 - 1) - 1;
-			const maxProcessIdValue = maxValueForSigned32BitInteger;
-			const processIdSpaceLength = Math.floor(
-				maxProcessIdValue / targetWorkerCount
 			);
 
 			/*
@@ -1229,13 +1206,11 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 			if (args['experimental-blueprints-v2-runner']) {
 				handler = new BlueprintsV2Handler(args, {
 					siteUrl,
-					processIdSpaceLength,
 					cliOutput,
 				});
 			} else {
 				handler = new BlueprintsV1Handler(args, {
 					siteUrl,
-					processIdSpaceLength,
 					cliOutput,
 				});
 
@@ -1267,13 +1242,15 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 					})
 				);
 				if (server) {
-					await new Promise((resolve) => server.close(resolve));
+					await new Promise((resolve) => {
+						server.close(resolve);
+						server.closeAllConnections();
+					});
 				}
 				await nativeDir.cleanup();
 			};
 
 			try {
-				// TODO: Add try/catch
 				const promisesToBoot = [];
 				const workerType = handler.getWorkerType();
 				for (
@@ -1300,8 +1277,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 						},
 					}).then(
 						async (
-							// TODO: Rename to spawnResult?
-							workerProcess: SpawnedWorker
+							spawnResult: SpawnedWorker
 						): Promise<
 							[
 								SpawnedWorker,
@@ -1313,35 +1289,43 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 						> => {
 							// Remember the worker process before booting the Playground
 							// so we can clean it up if there is an error during boot.
-							spawnedWorkers.push(workerProcess);
+							spawnedWorkers.push(spawnResult);
 
-							const firstProcessId =
-								workerIndex * processIdSpaceLength;
-
-							// TODO: Make sure the FileLockManager is exposed to proc_open/cli workers.
 							const fileLockManagerPort =
 								await exposeFileLockManager(fileLockManager);
-							const playgroundApi = await handler.bootPlayground({
-								worker: workerProcess,
-								fileLockManagerPort,
-								firstProcessId,
-								nativeInternalDirPath,
-							});
+							const playgroundApi =
+								await handler.bootRequestHandler({
+									worker: spawnResult,
+									fileLockManagerPort,
+									nativeInternalDirPath,
+								});
 
 							workerToPlaygroundMap.set(
-								workerProcess,
+								spawnResult,
 								playgroundApi
 							);
 
-							return [workerProcess, playgroundApi];
+							return [spawnResult, playgroundApi];
 						}
 					);
 
 					promisesToBoot.push(promiseToBoot);
+
+					// TODO: Remove this workaround after we remove the inherent race
+					// from @wp-playground/wordpress's bootRequestHandler() function.
+					if (workerIndex === 0) {
+						// Wait for the first worker to boot to avoid a race condition
+						// with writing initial PHP files in bootRequestHandler().
+						// This is the race condition:
+						// https://github.com/WordPress/wordpress-playground/blob/e758ee0893d199416a2d740195815234584b1b44/packages/playground/wordpress/src/boot.ts#L416-L426
+						// Multiple workers may detect that .boot-files-written does not exist
+						// and proceed to try to write initial boot files.
+						await promiseToBoot;
+					}
 				}
 
 				await Promise.all(promisesToBoot);
-				loadBalancer = new LoadBalancer(
+				playgroundPool = createObjectPoolProxy(
 					spawnedWorkers.map(
 						(spawnedWorker) =>
 							workerToPlaygroundMap.get(spawnedWorker)!
@@ -1352,11 +1336,6 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 				// while keeping the logic inline.
 				{
 					// TODO: Consider how to avoid Xdebug being enabled during boot.
-					// Boot using the first worker
-					// TODO: Comment on picking a playground to return to the caller.
-					const firstWorker = spawnedWorkers[0];
-					const firstPlayground =
-						workerToPlaygroundMap.get(firstWorker)!;
 
 					const messageChannelForPostInstallMounts =
 						new NodeMessageChannel();
@@ -1382,13 +1361,11 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 						mainThreadPostInstallMountsPort
 					);
 					await handler.bootWordPress(
-						firstWorker.phpPort,
+						playgroundPool,
 						workerPostInstallMountsPort
 					);
 					mainThreadPostInstallMountsPort.close();
 
-					await firstPlayground!.isReady();
-					playground = firstPlayground;
 					wordPressReady = true;
 
 					if (!args['experimental-blueprints-v2-runner']) {
@@ -1401,7 +1378,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 						if (compiledBlueprint) {
 							await runBlueprintV1Steps(
 								compiledBlueprint,
-								firstPlayground as UniversalPHP
+								playgroundPool
 							);
 						}
 					}
@@ -1409,20 +1386,17 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 					// If phpMyAdmin is enabled and not already installed, install it.
 					if (
 						args.phpmyadmin &&
-						!(await initialPlayground.fileExists(
+						!(await playgroundPool.fileExists(
 							`${PHPMYADMIN_INSTALL_PATH}/index.php`
 						))
 					) {
 						const steps = await getPhpMyAdminInstallSteps();
 						const compiled = await compileBlueprintV1({ steps });
-						await runBlueprintV1Steps(
-							compiled,
-							initialPlayground as UniversalPHP
-						);
+						await runBlueprintV1Steps(compiled, playgroundPool);
 					}
 
 					if (args.command === 'build-snapshot') {
-						await zipSite(playground, args.outfile as string);
+						await zipSite(playgroundPool, args.outfile as string);
 						cliOutput.printStatus(`Exported to ${args.outfile}`);
 						await disposeCLI();
 						return;
@@ -1433,10 +1407,8 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 					}
 				}
 
-				// TODO: Make sure we haven't broken the improved CLI output
-				logger.log(
-					`WordPress is running on ${serverUrl} with ${targetWorkerCount} worker(s)`
-				);
+				cliOutput.finishProgress();
+				cliOutput.printReady(serverUrl, targetWorkerCount);
 
 				cliOutput.finishProgress();
 				cliOutput.printReady(serverUrl, targetWorkerCount);
@@ -1453,7 +1425,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 
 				if (args.xdebug && args.experimentalDevtools) {
 					const bridge = await startBridge({
-						phpInstance: playground,
+						phpInstance: playgroundPool,
 						phpRoot: '/wordpress',
 					});
 
@@ -1461,15 +1433,12 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 				}
 
 				return {
-					playground,
+					playground: playgroundPool,
 					server,
 					serverUrl,
 					[Symbol.asyncDispose]: disposeCLI,
 					[internalsKeyForTesting]: {
 						workerThreadCount: targetWorkerCount,
-						getWorkerNumberFromProcessId: (processId: number) => {
-							return Math.floor(processId / processIdSpaceLength);
-						},
 					},
 				};
 			} catch (error) {
@@ -1477,15 +1446,14 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 					throw error;
 				}
 				let phpLogs = '';
-				if (await playground?.fileExists(errorLogPath)) {
-					phpLogs = await playground.readFileAsText(errorLogPath);
+				if (await playgroundPool?.fileExists(errorLogPath)) {
+					phpLogs = await playgroundPool.readFileAsText(errorLogPath);
 				}
 				await disposeCLI();
 				throw new Error(phpLogs, { cause: error });
 			}
 		},
 		async handleRequest(request: PHPRequest) {
-			// TODO: We may need to disable this to allow internal requests during boot.
 			if (!wordPressReady) {
 				return PHPResponse.forHttpCode(
 					502,
@@ -1514,7 +1482,9 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 				}
 				return new PHPResponse(302, headers, new Uint8Array());
 			}
-			return await loadBalancer.handleRequest(request);
+			// TODO: Explore switching to a worker thread method to adopt an entire HTTP connection
+			// It might be more efficient to let the worker respond directly
+			return await playgroundPool.request(request);
 		},
 	});
 
@@ -1624,7 +1594,10 @@ function expandStartCommandArgs(
 	return newArgs as RunCLIArgs;
 }
 
+const processIdAllocator = new ProcessIdAllocator();
+
 export type SpawnedWorker = {
+	processId: number;
 	worker: Worker;
 	phpPort: NodeMessagePort;
 };
@@ -1665,15 +1638,23 @@ export function spawnWorkerThread(
 	}
 
 	return new Promise<SpawnedWorker>((resolve, reject) => {
+		const processId = processIdAllocator.claim();
+
 		worker.once('message', function (message: any) {
 			// Let the worker confirm it has initialized.
 			// We could use the 'online' event to detect start of JS execution,
 			// but that would miss initialization errors.
 			if (message.command === 'worker-script-initialized') {
-				resolve({ worker, phpPort: message.phpPort });
+				resolve({
+					processId,
+					worker,
+					phpPort: message.phpPort,
+				});
 			}
 		});
 		worker.once('error', function (e: Error) {
+			processIdAllocator.release(processId);
+
 			console.error(e);
 			const error = new Error(
 				`Worker failed to load worker. ${
@@ -1687,6 +1668,8 @@ export function spawnWorkerThread(
 			spawned = true;
 		});
 		worker.once('exit', (code) => {
+			processIdAllocator.release(processId);
+
 			if (!spawned) {
 				reject(new Error(`Worker exited before spawning: ${code}`));
 			}
@@ -1746,7 +1729,7 @@ function openInBrowser(url: string): void {
 }
 
 async function zipSite(
-	playground: RemoteAPI<PlaygroundCliWorker>,
+	playground: Pooled<PlaygroundCliWorker>,
 	outfile: string
 ) {
 	await playground.run({

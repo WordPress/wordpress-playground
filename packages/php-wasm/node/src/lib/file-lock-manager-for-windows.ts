@@ -1,4 +1,3 @@
-// TODO: Add these types to the fs-ext-extra-prebuilt package.
 import {
 	lockFileExSync,
 	unlockFileExSync,
@@ -9,6 +8,7 @@ import type {
 	FileLockManager,
 	WholeFileLockOp,
 	RequestedRangeLock,
+	LockedRange,
 	Pid,
 	Fd,
 	Path,
@@ -24,6 +24,14 @@ function toLowAndHigh32BitNumbers(num: bigint): [number, number] {
 	return [low, high];
 }
 
+function isErrnoError(e: unknown): boolean {
+	return (
+		e !== null &&
+		typeof e === 'object' &&
+		('errno' in e || 'code' in e || 'syscall' in e)
+	);
+}
+
 function tryLockFileExSync(
 	fd: number,
 	flags: number,
@@ -35,8 +43,10 @@ function tryLockFileExSync(
 	try {
 		lockFileExSync(fd, flags, offsetLow, offsetHigh, lengthLow, lengthHigh);
 		return true;
-	} catch {
-		// TODO: Rethrow if not an errno error
+	} catch (e) {
+		if (!isErrnoError(e)) {
+			throw e;
+		}
 		return false;
 	}
 }
@@ -47,15 +57,18 @@ function tryUnlockFileExSync(fd: number, start: bigint, end: bigint): boolean {
 	try {
 		unlockFileExSync(fd, offsetLow, offsetHigh, lengthLow, lengthHigh);
 		return true;
-	} catch {
-		// TODO: Rethrow if not an errno error
+	} catch (e) {
+		if (!isErrnoError(e)) {
+			throw e;
+		}
 		return false;
 	}
 }
 
+type StoredWholeFileLock = WholeFileLockOp & { path: Path };
+
 export class FileLockManagerForWindows implements FileLockManager {
-	// TODO: Move path of whole file lock into leaf. It is never used for lookup.
-	wholeFileLockMap = new Map<Path, Map<Pid, Map<Fd, WholeFileLockOp>>>();
+	wholeFileLockMap = new Map<Pid, Map<Fd, StoredWholeFileLock>>();
 	rangeLockedFds = new Map<Path, FileLockIntervalTree>();
 
 	lockWholeFile(path: string, op: WholeFileLockOp): boolean {
@@ -65,29 +78,23 @@ export class FileLockManagerForWindows implements FileLockManager {
 		const end = 2n ** 64n - 1n;
 
 		if (op.type === 'unlock') {
-			// TODO: Should we skip unlocking if we do not have record of the lock?
-
-			// TODO: Catch errors
 			const success = tryUnlockFileExSync(op.fd, start, end);
 
 			if (success) {
-				this.wholeFileLockMap.get(path)?.get(op.pid)?.delete(op.fd);
-				if (this.wholeFileLockMap.get(path)?.get(op.pid)?.size === 0) {
-					this.wholeFileLockMap.get(path)?.delete(op.pid);
+				this.wholeFileLockMap.get(op.pid)?.delete(op.fd);
+				if (this.wholeFileLockMap.get(op.pid)?.size === 0) {
+					this.wholeFileLockMap.delete(op.pid);
 				}
-				if (this.wholeFileLockMap.get(path)?.size === 0) {
-					this.wholeFileLockMap.delete(path);
-				}
+			} else {
+				logger.warn(
+					`lockWholeFile: unlock failed for pid=${op.pid} fd=${op.fd} path=${path}`
+				);
 			}
 
-			// TODO: Else if unlock failed in Windows, probably log an error.
 			return success;
 		}
 
-		const preexistingLock = this.wholeFileLockMap
-			.get(path)
-			?.get(op.pid)
-			?.get(op.fd);
+		const preexistingLock = this.wholeFileLockMap.get(op.pid)?.get(op.fd);
 		if (op.type === preexistingLock?.type) {
 			// There is nothing to do.
 			return true;
@@ -133,11 +140,19 @@ export class FileLockManagerForWindows implements FileLockManager {
 			let sharedUnlockSuccess;
 			if (preexistingLock?.type === 'shared') {
 				sharedUnlockSuccess = tryUnlockFileExSync(op.fd, start, end);
-				// TODO: Log if there's an error
+				if (!sharedUnlockSuccess) {
+					logger.warn(
+						`lockWholeFile: failed to release shared lock before exclusive upgrade for pid=${op.pid} fd=${op.fd}`
+					);
+				}
 			}
 
 			success = tryLockFileExSync(op.fd, flags, start, end);
-			// TODO: Log if there's an error
+			if (!success) {
+				logger.debug(
+					`lockWholeFile: failed to obtain exclusive lock for pid=${op.pid} fd=${op.fd}`
+				);
+			}
 
 			if (!success && sharedUnlockSuccess) {
 				/*
@@ -176,15 +191,13 @@ export class FileLockManagerForWindows implements FileLockManager {
 		}
 
 		if (success) {
-			if (!this.wholeFileLockMap.has(path)) {
-				this.wholeFileLockMap.set(path, new Map());
+			if (!this.wholeFileLockMap.has(op.pid)) {
+				this.wholeFileLockMap.set(op.pid, new Map());
 			}
-			const pidMap = this.wholeFileLockMap.get(path)!;
-			if (!pidMap.has(op.pid)) {
-				pidMap.set(op.pid, new Map());
-			}
-			const pathMap = pidMap.get(op.pid)!;
-			pathMap.set(op.fd, op);
+			this.wholeFileLockMap.get(op.pid)!.set(op.fd, {
+				...op,
+				path,
+			});
 		}
 
 		return success;
@@ -240,7 +253,6 @@ export class FileLockManagerForWindows implements FileLockManager {
 		if (!waitForLock) {
 			flags |= constants.LOCKFILE_FAIL_IMMEDIATELY;
 		}
-		// TODO: Add exception handling for Sync calls.
 		if (op.type === 'shared') {
 			const success = tryLockFileExSync(op.fd, flags, op.start, op.end);
 			if (!success) {
@@ -262,8 +274,7 @@ export class FileLockManagerForWindows implements FileLockManager {
 				}
 			}
 
-			// TODO: Why is this a type error without `any`? Didn't we pass a shared/exclusive type guard?
-			lockedRangeTree.insert(op as any);
+			lockedRangeTree.insert(op as LockedRange);
 			return true;
 		} else if (op.type === 'exclusive') {
 			let sharedUnlockSuccess;
@@ -282,7 +293,16 @@ export class FileLockManagerForWindows implements FileLockManager {
 			const success = tryLockFileExSync(op.fd, flags, op.start, op.end);
 			if (!success) {
 				if (preexistingLock && sharedUnlockSuccess) {
-					// TODO: Explain what and why
+					// The exclusive lock attempt failed, but we already
+					// released the shared lock. Re-acquire it to restore
+					// the previous state (Windows doesn't support atomic
+					// lock upgrades).
+					//
+					// NOTE: This may be a sort of race condition because another
+					// process could have obtained a conflicting lock by the time we
+					// try to re-lock. The caller assumes that they never lost a shared
+					// lock during their attempt to obtain an exclusive lock,
+					// bu the truth is that we temporarily gave up the shared lock.
 					const sharedRelockSuccess = tryLockFileExSync(
 						op.fd,
 						0,
@@ -300,18 +320,19 @@ export class FileLockManagerForWindows implements FileLockManager {
 				return false;
 			}
 
-			// TODO: Why is this a type error without `any`? Didn't we pass a shared/exclusive type guard?
-			lockedRangeTree.insert(op as any);
+			lockedRangeTree.insert(op as LockedRange);
 			return true;
 		} else {
 			// TODO: Implement partial unlocking like fcntl() allows.
 
-			// TODO: Implement range unlocks
-
-			// TODO: Say why supporting ranged unlocks
+			// Find locks within the requested unlock range. We support
+			// ranged unlocks to approximate fcntl() semantics, even
+			// though our implementation doesn't yet handle range
+			// splitting or merging.
 			const intersectingLocksForThisProcess = overlappingLocks
 				.filter((lock) => lock.pid === op.pid)
-				// TODO: Say why we are treating ranged locks as fd-specific
+				// On Windows, locks are handle-specific: UnlockFileEx
+				// requires the same handle that called LockFileEx.
 				.filter((lock) => lock.fd === op.fd)
 				.filter((lock) => lock.start >= op.start && lock.end <= op.end);
 
@@ -323,12 +344,12 @@ export class FileLockManagerForWindows implements FileLockManager {
 				);
 
 				if (!success) {
-					// TODO: Why if partial unlock before failure. Should we throw?
-					// TODO: Report if the lock does not exist.
+					logger.warn(
+						`lockFileByteRange: unlock failed for pid=${op.pid} fd=${lock.fd} range=[${lock.start},${lock.end}]`
+					);
 					return false;
 				}
 
-				// TODO: Report if the lock does not exist.
 				lockedRangeTree.remove(lock);
 			}
 			return true;
@@ -351,8 +372,9 @@ export class FileLockManagerForWindows implements FileLockManager {
 		}
 
 		// There is a conflicting lock. Since we cannot directly query
-		// what lock conflicts, let's report that the entire range is locked.
-		// TODO: Explain why this seems better than reporting there is an exactly conflicting lock.
+		// what lock conflicts, report the entire range as locked. This
+		// is more honest than echoing back the requested range, which
+		// would imply we know the conflict matches the query exactly.
 		this.lockFileByteRange(path, { ...op, type: 'unlocked' }, true);
 		return {
 			type: 'exclusive',
@@ -363,67 +385,77 @@ export class FileLockManagerForWindows implements FileLockManager {
 	}
 
 	releaseLocksForProcess(targetPid: number): void {
-		for (const [path, pidMap] of this.wholeFileLockMap.entries()) {
-			const fdMap = pidMap.get(targetPid);
-			if (!fdMap) {
-				continue;
+		const fdMap = this.wholeFileLockMap.get(targetPid);
+		if (fdMap) {
+			for (const storedLock of fdMap.values()) {
+				try {
+					this.lockWholeFile(storedLock.path, {
+						...storedLock,
+						type: 'unlock',
+					});
+				} catch (e) {
+					logger.error(
+						`releaseLocksForProcess: failed to unlock whole-file lock for pid=${targetPid} fd=${storedLock.fd}`,
+						e
+					);
+				}
 			}
-
-			for (const op of fdMap.values()) {
-				// TODO: Log any errors.
-				// TODO: Does a failure here justify throwing an error (and conceding total brokenness)?
-				this.lockWholeFile(path, { ...op, type: 'unlock' });
-			}
-
-			pidMap.delete(targetPid);
+			this.wholeFileLockMap.delete(targetPid);
 		}
 
 		for (const [path, lockedRangeTree] of this.rangeLockedFds.entries()) {
 			const rangesLockedByTargetPid =
 				lockedRangeTree.findLocksForProcess(targetPid);
 			for (const op of rangesLockedByTargetPid) {
-				// TODO: Check for errors and log them.
-				// TODO: Consider throwing an error if this fails.
-				this.lockFileByteRange(
-					path,
-					{ ...op, type: 'unlocked' },
-					false
-				);
+				try {
+					this.lockFileByteRange(
+						path,
+						{ ...op, type: 'unlocked' },
+						false
+					);
+				} catch (e) {
+					logger.error(
+						`releaseLocksForProcess: failed to unlock byte range for pid=${targetPid} fd=${op.fd} path=${path}`,
+						e
+					);
+				}
 				lockedRangeTree.remove(op);
 			}
 		}
 	}
 
-	// TODO: Rename this to something clearer like releaseLockOnFileDescriptorClose
 	releaseLocksOnFdClose(
 		targetPid: number,
 		targetFd: number,
 		targetPath: string
 	): void {
-		const wholeFileLockOp = this.wholeFileLockMap
-			.get(targetPath)
-			?.get(targetPid)
-			?.get(targetFd);
-		if (wholeFileLockOp) {
-			this.lockWholeFile(targetPath, {
-				...wholeFileLockOp,
+		const storedLock = this.wholeFileLockMap.get(targetPid)?.get(targetFd);
+		if (storedLock) {
+			this.lockWholeFile(storedLock.path, {
+				...storedLock,
 				type: 'unlock',
 			});
 		}
-		this.wholeFileLockMap.get(targetPath)?.get(targetPid)?.delete(targetFd);
+		this.wholeFileLockMap.get(targetPid)?.delete(targetFd);
 
 		const lockedRangeTree = this.rangeLockedFds.get(targetPath);
 		for (const op of lockedRangeTree?.findLocksForProcess(targetPid) ??
 			[]) {
-			// POSIX fcntl() semantics where a lock is released
-			// when any FD associated with the file is closed.
-			// TODO: Quote spec and link to it.
+			// POSIX fcntl() semantics: closing any FD for a file releases
+			// all fcntl() locks on that file for the process.
+			// See https://pubs.opengroup.org/onlinepubs/9699919799/functions/fcntl.html
+			// "All locks associated with a file for a given process shall
+			// be removed when a file descriptor for that file is closed
+			// by that process or the process holding that file descriptor
+			// terminates."
 			this.lockFileByteRange(
 				targetPath,
 				{
 					...op,
 					type: 'unlocked',
-					// TODO: Say why using dummy FD
+					// Use a dummy FD because we're releasing locks for
+					// all FDs on this file (POSIX semantics), not just
+					// the one being closed.
 					fd: -1,
 				},
 				false
