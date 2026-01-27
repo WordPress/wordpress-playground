@@ -324,9 +324,7 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 	async runBlueprintV2(args: WorkerRunBlueprintArgs) {
 		const requestHandler = this.__internal_getRequestHandler()!;
 		const { php, reap } =
-			await requestHandler.instanceManager.acquirePHPInstance({
-				considerPrimary: false,
-			});
+			await requestHandler.instanceManager.acquirePHPInstance();
 
 		// Mount the current working directory to the PHP runtime for the purposes of
 		// Blueprint resolution.

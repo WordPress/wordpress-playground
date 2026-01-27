@@ -136,11 +136,11 @@ describe('PHPProcessManager', () => {
 			timeout: 100,
 		});
 
-		await mgr.acquirePHPInstance({ considerPrimary: true });
-		await mgr.acquirePHPInstance({ considerPrimary: true });
-		await expect(() =>
-			mgr.acquirePHPInstance({ considerPrimary: true })
-		).rejects.toThrowError(/Requested more concurrent PHP instances/);
+		await mgr.acquirePHPInstance();
+		await mgr.acquirePHPInstance();
+		await expect(() => mgr.acquirePHPInstance()).rejects.toThrowError(
+			/Requested more concurrent PHP instances/
+		);
 	});
 
 	it('should refuse to spawn more PHP instances than the maximum (limit=3)', async () => {
@@ -151,12 +151,12 @@ describe('PHPProcessManager', () => {
 			timeout: 100,
 		});
 
-		await mgr.acquirePHPInstance({ considerPrimary: true });
-		await mgr.acquirePHPInstance({ considerPrimary: true });
-		await mgr.acquirePHPInstance({ considerPrimary: true });
-		await expect(() =>
-			mgr.acquirePHPInstance({ considerPrimary: true })
-		).rejects.toThrowError(/Requested more concurrent PHP instances/);
+		await mgr.acquirePHPInstance();
+		await mgr.acquirePHPInstance();
+		await mgr.acquirePHPInstance();
+		await expect(() => mgr.acquirePHPInstance()).rejects.toThrowError(
+			/Requested more concurrent PHP instances/
+		);
 	});
 
 	it('should not start a second PHP instance until the first getInstance() call when the primary instance is busy', async () => {
@@ -169,16 +169,16 @@ describe('PHPProcessManager', () => {
 		});
 
 		expect(phpFactory).not.toHaveBeenCalled();
-		const php1 = await mgr.acquirePHPInstance({ considerPrimary: true });
+		const php1 = await mgr.acquirePHPInstance();
 		expect(phpFactory).toHaveBeenCalledTimes(1);
 		php1.reap();
 
-		const php2 = await mgr.acquirePHPInstance({ considerPrimary: true });
+		const php2 = await mgr.acquirePHPInstance();
 		expect(phpFactory).toHaveBeenCalledTimes(1);
 		php2.reap();
 
-		await mgr.acquirePHPInstance({ considerPrimary: true });
-		await mgr.acquirePHPInstance({ considerPrimary: true });
+		await mgr.acquirePHPInstance();
+		await mgr.acquirePHPInstance();
 		expect(phpFactory).toHaveBeenCalledTimes(3);
 	});
 

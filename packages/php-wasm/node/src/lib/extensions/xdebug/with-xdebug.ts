@@ -82,14 +82,20 @@ export async function withXdebug(
 			 * or we may not mount any paths at all and just write a
 			 * bunch of PHP files into /wordpress, e.g.
 			 * when executing a Blueprint.
+			 *
+			 * Skip mounting if cwd is '/' (common in packaged Electron apps)
+			 * as mounting the entire root filesystem would hang.
 			 */
-			phpRuntime.FS.mkdirTree(process.cwd());
-			phpRuntime.FS.mount(
-				phpRuntime.FS.filesystems['NODEFS'],
-				{ root: process.cwd() },
-				process.cwd()
-			);
-			phpRuntime.FS.chdir(process.cwd());
+			const cwd = process.cwd();
+			if (cwd && cwd !== '/') {
+				phpRuntime.FS.mkdirTree(cwd);
+				phpRuntime.FS.mount(
+					phpRuntime.FS.filesystems['NODEFS'],
+					{ root: cwd },
+					cwd
+				);
+				phpRuntime.FS.chdir(cwd);
+			}
 		},
 	};
 }

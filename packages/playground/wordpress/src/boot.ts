@@ -433,11 +433,7 @@ export async function bootRequestHandler(options: BootRequestHandlerOptions) {
 				createSpawnHandler(
 					requestHandler
 						? () =>
-								requestHandler.instanceManager.acquirePHPInstance(
-									{
-										considerPrimary: false,
-									}
-								)
+								requestHandler.instanceManager.acquirePHPInstance()
 						: undefined
 				)
 			);

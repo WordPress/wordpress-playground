@@ -1,0 +1,101 @@
+{
+	"name": "playground-personal-wp",
+	"$schema": "../../../node_modules/nx/schemas/project-schema.json",
+	"sourceRoot": "packages/playground/personal-wp/src",
+	"projectType": "application",
+	"implicitDependencies": ["playground-remote"],
+	"targets": {
+		"build": {
+			"executor": "nx:noop",
+			"dependsOn": ["build:standalone"]
+		},
+		"build:standalone": {
+			"executor": "@nx/vite:build",
+			"outputs": ["{options.outputPath}"],
+			"defaultConfiguration": "production",
+			"options": {
+				"outputPath": "dist/packages/playground/personal-wp"
+			},
+			"configurations": {
+				"development": {
+					"mode": "development"
+				},
+				"production": {
+					"mode": "production",
+					"logLevel": "info"
+				}
+			},
+			"dependsOn": [
+				"^build",
+				"playground-blueprints:build:blueprint-schema"
+			]
+		},
+		"dev": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"nx run playground-php-cors-proxy:start",
+					"nx dev playground-remote --configuration=development-for-website",
+					"nx dev:standalone playground-personal-wp --configuration=development --output-style=stream-without-prefixes"
+				],
+				"parallel": true,
+				"color": true
+			}
+		},
+		"dev:standalone": {
+			"executor": "@nx/vite:dev-server",
+			"defaultConfiguration": "development",
+			"options": {
+				"buildTarget": "playground-personal-wp:build"
+			},
+			"configurations": {
+				"development": {
+					"buildTarget": "playground-personal-wp:build:standalone:development",
+					"hmr": true
+				},
+				"production": {
+					"buildTarget": "playground-personal-wp:build:standalone:production",
+					"hmr": false
+				}
+			}
+		},
+		"preview": {
+			"executor": "@nx/vite:preview-server",
+			"options": {
+				"buildTarget": "playground-personal-wp:build",
+				"staticFilePath": "../../../dist/packages/playground/personal-wp"
+			}
+		},
+		"test": {
+			"executor": "@nx/vite:test",
+			"outputs": [
+				"{workspaceRoot}/coverage/packages/playground/personal-wp"
+			],
+			"options": {
+				"passWithNoTests": true,
+				"reportsDirectory": "../../../coverage/packages/playground/personal-wp"
+			}
+		},
+		"lint": {
+			"executor": "@nx/linter:eslint",
+			"outputs": ["{options.outputFile}"],
+			"options": {
+				"useFlatConfig": false,
+				"lintFilePatterns": [
+					"packages/playground/personal-wp/**/*.{ts,tsx,js,jsx}"
+				],
+				"maxWarnings": 0
+			}
+		},
+		"typecheck": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"tsc -p packages/playground/personal-wp/tsconfig.spec.json --noEmit",
+					"tsc -p packages/playground/personal-wp/tsconfig.app.json --noEmit"
+				]
+			}
+		}
+	},
+	"tags": ["scope:web-client"]
+}
