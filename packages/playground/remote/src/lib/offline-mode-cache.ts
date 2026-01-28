@@ -53,8 +53,22 @@ export async function networkFirstFetch(request: Request): Promise<Response> {
 
 	let response: Response | undefined = undefined;
 	try {
+		/**
+		 * Only use either `no-store` or `reload` here or else Playground won't
+		 * load in Safari after a new version is deployed.
+		 *
+		 * Initially, we used `no-cache` here:
+		 * * Chrome and Firefox did not source the /index.html file from the HTTP cache.
+		 * * Safari still sourced the /index.html file from the HTTP cache.
+		 *
+		 * After a new Playground deployment, the stale cached index.html contained
+		 * references to assets that were no longer available on the server.
+		 *
+		 * The `cache: no-store` option actually makes Safari behave as expected, that is
+		 * go to the network without loading the stale HTTP cache response.
+		 */
 		response = await fetch(request, {
-			cache: 'no-cache',
+			cache: 'no-store',
 		});
 	} catch (e) {
 		if (cachedResponse) {
@@ -101,7 +115,11 @@ export async function cacheOfflineModeAssetsForCurrentRelease(): Promise<any> {
 		 *
 		 * See service-worker.ts for more details.
 		 */
-		(url: string) => new Request(url, { cache: 'no-cache' })
+		(url: string) =>
+			new Request(url, {
+				// Do not use no-cache here. See the comment in networkFirstFetch() for more details.
+				cache: 'no-store',
+			})
 	);
 	const offlineModeCache = await promisedOfflineModeCache;
 	await offlineModeCache.addAll(websiteRequests);
@@ -189,7 +207,8 @@ export function shouldCacheUrl(url: URL) {
 function fetchFresh(resource: RequestInfo | URL, init?: RequestInit) {
 	return fetch(resource, {
 		...init,
-		cache: 'no-cache',
+		// Do not use no-cache here. See the comment in networkFirstFetch() for more details.
+		cache: 'no-store',
 	});
 }
 
