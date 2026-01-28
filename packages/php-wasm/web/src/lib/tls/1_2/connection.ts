@@ -1193,9 +1193,13 @@ class MessageEncoder {
 						);
 					case 'renegotiation_info':
 						/**
-						 * RFC 5746: The server MUST include a "renegotiation_info" extension
-						 * in its ServerHello if the client included one in the ClientHello.
-						 * For initial connections, the renegotiated_connection field is empty.
+						 * RFC 5746: The renegotiation_info extension prevents MITM attacks
+						 * during TLS renegotiation. The server MUST include it in ServerHello
+						 * if the client sent it in ClientHello.
+						 *
+						 * For initial connections (not renegotiations), both sides send an
+						 * empty renegotiated_connection field. Since this implementation
+						 * doesn't support renegotiation, that's all we need to handle.
 						 */
 						return RenegotiationInfoExtension.encodeForClient();
 				}
