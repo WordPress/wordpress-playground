@@ -880,6 +880,14 @@ function applyDevelopmentMode(args: RunCLIArgs): RunCLIArgs {
 		return args;
 	}
 
+	// Validate that --develop is not used with --auto-mount
+	if (args.autoMount !== undefined) {
+		throw new Error(
+			'The --develop and --auto-mount options cannot be used together. ' +
+				'Use --develop alone to automatically configure WordPress development mode.'
+		);
+	}
+
 	const developPath = args.develop;
 
 	// 1. Add mount-before-install
@@ -899,6 +907,9 @@ function applyDevelopmentMode(args: RunCLIArgs): RunCLIArgs {
 	}
 
 	// 3. Inject development mode blueprint (SQLite + Debug constants)
+	// Note: This will set up SQLite even if the WordPress installation
+	// already has a database configuration. This is intentional for development
+	// mode to provide a consistent, portable development environment.
 	const developmentBlueprint = {
 		steps: [
 			{
@@ -913,11 +924,6 @@ function applyDevelopmentMode(args: RunCLIArgs): RunCLIArgs {
 				fromPath:
 					'/wordpress/wp-content/plugins/sqlite-database-integration/db.copy',
 				toPath: '/wordpress/wp-content/db.php',
-			},
-			{
-				step: 'activatePlugin',
-				pluginPath:
-					'/wordpress/wp-content/plugins/sqlite-database-integration',
 			},
 			{
 				step: 'defineWpConfigConsts',

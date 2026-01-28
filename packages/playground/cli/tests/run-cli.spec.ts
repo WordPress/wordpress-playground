@@ -18,8 +18,8 @@ import {
 	existsSync,
 	lstatSync,
 	rmSync,
+	statSync,
 } from 'node:fs';
-import fs from 'node:fs';
 import { createHash } from 'node:crypto';
 import { MinifiedWordPressVersionsList } from '@wp-playground/wordpress-builds';
 import { type Log, logger } from '@php-wasm/logger';
@@ -1151,13 +1151,23 @@ describe('other run-cli behaviors', () => {
 			writeFileSync(filePath, 'content');
 
 			expect(() => {
-				const stats = fs.statSync(filePath);
+				const stats = statSync(filePath);
 				if (!stats.isDirectory()) {
 					throw new Error(
 						`--develop path must be a directory: ${filePath}`
 					);
 				}
 			}).toThrow('must be a directory');
+		});
+
+		test('should throw error if used with --auto-mount', async () => {
+			await expect(
+				runCLI({
+					command: 'server',
+					develop: tempDir,
+					autoMount: tempDir,
+				})
+			).rejects.toThrow('cannot be used together');
 		});
 	});
 });
