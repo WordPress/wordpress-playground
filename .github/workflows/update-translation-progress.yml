@@ -1,0 +1,32 @@
+name: Update Translation Progress
+
+on:
+  push:
+    branches:
+      - trunk
+    paths:
+      - 'packages/docs/site/i18n/**/*.md'
+      - 'packages/docs/site/docs/**/*.md'
+  workflow_dispatch:
+  schedule:
+    # Run once a day at 00:00 UTC
+    - cron: '0 0 * * *'
+
+jobs:
+  update-trackers:
+    name: 'Update Translation Tracker Issues'
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - uses: ./.github/actions/prepare-playground
+
+      - name: Update Translation Tracker Issues
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node .github/scripts/update-translation-trackers.js
