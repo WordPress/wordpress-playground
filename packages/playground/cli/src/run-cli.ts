@@ -23,6 +23,7 @@ import type { Server } from 'http';
 import { MessageChannel as NodeMessageChannel, Worker } from 'worker_threads';
 // @ts-ignore
 import {
+	containsFullWordPressInstallation,
 	expandAutoMounts,
 	parseMountDirArguments,
 	parseMountWithDelimiterArguments,
@@ -236,6 +237,48 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 			'auto-mount': {
 				describe: `Automatically mount the specified directory. If no path is provided, mount the current working directory. You can mount a WordPress directory, a plugin directory, a theme directory, a wp-content directory, or any directory containing PHP and HTML files.`,
 				type: 'string',
+			},
+			develop: {
+				alias: 'dev',
+				type: 'string',
+				describe:
+					'Enable development mode with automatic WordPress detection and SQLite setup. Accepts optional path to WordPress directory (defaults to current directory).',
+				requiresArg: false,
+				default: undefined,
+				coerce: (value: string | boolean | undefined) => {
+					// Return undefined if flag not used at all
+					if (value === undefined) {
+						return undefined;
+					}
+
+					// Default to current directory if flag is present but no path provided
+					const targetPath =
+						typeof value === 'string' && value.length > 0
+							? value
+							: process.cwd();
+
+					// Resolve relative paths to absolute
+					const absolutePath = path.resolve(
+						process.cwd(),
+						targetPath
+					);
+
+					// Validate path exists
+					if (!fs.existsSync(absolutePath)) {
+						throw new Error(
+							`--develop path does not exist: ${absolutePath}`
+						);
+					}
+
+					// Validate it's a directory
+					if (!fs.statSync(absolutePath).isDirectory()) {
+						throw new Error(
+							`--develop path must be a directory: ${absolutePath}`
+						);
+					}
+
+					return absolutePath;
+				},
 			},
 			'follow-symlinks': {
 				describe:
@@ -732,6 +775,12 @@ export interface RunCLIArgs {
 	verbosity?: LogVerbosity;
 	wp?: string;
 	autoMount?: string;
+	/**
+	 * Enable development mode with a local WordPress directory.
+	 * Automatically configures mount, WordPress detection, and SQLite setup.
+	 * If provided, should be an absolute path. If not provided, uses current working directory.
+	 */
+	develop?: string;
 	experimentalMultiWorker?: number;
 	experimentalTrace?: boolean;
 	internalCookieStore?: boolean;
@@ -820,6 +869,97 @@ const italic = (text: string) =>
 const highlight = (text: string) =>
 	process.stdout.isTTY ? `\x1b[33m${text}\x1b[0m` : text;
 
+/**
+ * Configures CLI arguments for development mode.
+ *
+ * @param args - CLI arguments
+ * @returns Modified arguments with development mode configuration
+ */
+function applyDevelopmentMode(args: RunCLIArgs): RunCLIArgs {
+	if (!args.develop) {
+		return args;
+	}
+
+	// Validate that --develop is not used with --auto-mount
+	if (args.autoMount !== undefined) {
+		throw new Error(
+			'The --develop and --auto-mount options cannot be used together. ' +
+				'Use --develop alone to automatically configure WordPress development mode.'
+		);
+	}
+
+	const developPath = args.develop;
+
+	// 1. Add mount-before-install
+	const mountConfig: Mount = {
+		hostPath: developPath,
+		vfsPath: '/wordpress',
+	};
+	const existingMountsBefore = args['mount-before-install'] || [];
+	args['mount-before-install'] = [...existingMountsBefore, mountConfig];
+
+	// 2. Check if WordPress is already installed
+	const hasWordPress = containsFullWordPressInstallation(developPath);
+
+	if (hasWordPress) {
+		// Skip WordPress download if already present
+		args.wordpressInstallMode = 'install-from-existing-files-if-needed';
+	}
+
+	// 3. Inject development mode blueprint (SQLite + Debug constants)
+	// Note: This will set up SQLite even if the WordPress installation
+	// already has a database configuration. This is intentional for development
+	// mode to provide a consistent, portable development environment.
+	const developmentBlueprint = {
+		steps: [
+			{
+				step: 'installPlugin',
+				pluginData: {
+					resource: 'wordpress.org/plugins',
+					slug: 'sqlite-database-integration',
+				},
+			},
+			{
+				step: 'cp',
+				fromPath:
+					'/wordpress/wp-content/plugins/sqlite-database-integration/db.copy',
+				toPath: '/wordpress/wp-content/db.php',
+			},
+			{
+				step: 'defineWpConfigConsts',
+				consts: {
+					WP_DEBUG: true,
+					WP_DEBUG_LOG: true,
+					WP_DEBUG_DISPLAY: true,
+					SCRIPT_DEBUG: true,
+				},
+			},
+		],
+	};
+
+	// If user provided blueprint, combine them
+	if (args.blueprint) {
+		const userBlueprint =
+			typeof args.blueprint === 'string'
+				? JSON.parse(args.blueprint)
+				: args.blueprint;
+
+		// Combine: development mode setup first (SQLite + debug), then user blueprint
+		const combinedBlueprint = {
+			steps: [
+				...developmentBlueprint.steps,
+				...(userBlueprint.steps || []),
+			],
+		};
+
+		args.blueprint = combinedBlueprint as any;
+	} else {
+		args.blueprint = developmentBlueprint as any;
+	}
+
+	return args;
+}
+
 // These overloads are declared for convenience so runCLI() can return
 // different things depending on the CLI command without forcing the
 // callers (mostly automated tests) to check return values.
@@ -849,6 +989,9 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 	if (args.command === 'start') {
 		args = expandStartCommandArgs(args);
 	}
+
+	// Apply development mode configuration early
+	args = applyDevelopmentMode(args);
 
 	if (args.autoMount !== undefined) {
 		if (args.autoMount === '') {
