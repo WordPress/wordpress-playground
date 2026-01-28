@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 	<head>
 		<meta charset="utf-8" />
@@ -132,7 +132,76 @@
 		</main>
 		<script type="module">
 			if (!shouldLazyLoadPlayground) {
-				import('./src/main');
+				const url = new URL(window.location);
+				const hasRetried = url.searchParams.has('_ts');
+
+				/**
+				 * Safari sometimes fail to import this script after playground.wordpress.net
+				 * is deployed. The error message is:
+				 *
+				 * ```
+				 * TypeError: Importing a module script failed.
+				 * ```
+				 *
+				 * It is very difficult to debug as Safari does not provide a useful stack trace,
+				 * line numbers, or any further error details. After some hours of debugging, the
+				 * issue was narrowed down to this import() call.
+				 *
+				 * Somehow, when this import() runs, Safari does not even start a network request
+				 * to fetch this script. The Service Worker `fetch` event handler is also not called.
+				 * It just fails on sight. The root cause is unclear. Everything is fine CORS-wise,
+				 * Safari Memory cache seems unlikely since the "network" devtools tab does not display
+				 * any attempts to fetch this script.
+				 *
+				 * Interestingly, triggering a `fetch()` to the same URL and getting a 200 response
+				 * seems to resolve the issue after a page reload (but not before the page reload!)
+				 * Same for manually clearing Safari cache and reloading the page. This suggest this
+				 * is fundamentally a cache issue. That's why we're also adding a `_ts` query parameter
+				 * for a good measure to make sure a stale `index.html` is not loaded.
+				 */
+				import('./src/main')
+					.then(() => {
+						// If import succeeded and we had retried, clean up the URL
+						if (hasRetried) {
+							url.searchParams.delete('_ts');
+							window.history.replaceState({}, '', url);
+						}
+					})
+					.catch(async (error) => {
+						console.error('Failed to load main module:', error);
+
+						// Only retry once to avoid infinite reload loop
+						if (hasRetried) {
+							console.error(
+								'Failed to load main module after retry'
+							);
+							return;
+						}
+
+						// Try to fetch the module URL to prime the cache/service worker.
+						// Extract the actual built chunk URL by stringifying a function that
+						// imports the module – other techniques of including a literal URL string
+						// in the built file did not work.
+						try {
+							const getModuleUrl = () => import('./src/main');
+							const fnString = getModuleUrl.toString();
+							const urlMatch = fnString.match(
+								/import\(['"](.+?)['"]\)/
+							);
+							if (urlMatch) {
+								const moduleUrl = urlMatch[1];
+								await fetch(moduleUrl, {
+									cache: 'no-store',
+								});
+							}
+						} catch (fetchError) {
+							console.error('Failed to prime cache:', fetchError);
+						}
+
+						// Reload with timestamp to bust cache
+						url.searchParams.set('_ts', String(Date.now()));
+						window.location.href = url.toString();
+					});
 			}
 		</script>
 	</body>
