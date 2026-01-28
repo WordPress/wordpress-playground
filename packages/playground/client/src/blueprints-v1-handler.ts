@@ -31,7 +31,7 @@ export class BlueprintsV1Handler {
 			scope,
 			shouldInstallWordPress,
 			sqliteDriverVersion,
-			skipWordPressInstallCheck,
+			wordpressInstallMode,
 			onClientConnected,
 		} = this.options;
 		const executionProgress = progressTracker!.stage(0.5);
@@ -57,7 +57,7 @@ export class BlueprintsV1Handler {
 			sapiName,
 			scope: scope ?? Math.random().toFixed(16),
 			shouldInstallWordPress,
-			skipWordPressInstallCheck,
+			wordpressInstallMode,
 			phpVersion: runtimeConfiguration.phpVersion,
 			wpVersion: runtimeConfiguration.wpVersion,
 			withIntl: runtimeConfiguration.intl,

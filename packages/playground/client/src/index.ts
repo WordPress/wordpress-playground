@@ -16,6 +16,7 @@ export type {
 	RmDirOptions,
 	RuntimeType,
 } from '@php-wasm/universal';
+export type { WordPressInstallMode } from '@wp-playground/wordpress';
 export {
 	setPhpIniEntries,
 	SupportedPHPVersions,
@@ -30,6 +31,7 @@ import type {
 	BlueprintV1Declaration,
 	OnStepCompleted,
 } from '@wp-playground/blueprints';
+import type { WordPressInstallMode } from '@wp-playground/wordpress';
 import { ProgressTracker } from '@php-wasm/progress';
 import type { MountDescriptor, PlaygroundClient } from '@wp-playground/remote';
 import { additionalRemoteOrigins } from './additional-remote-origins';
@@ -96,10 +98,10 @@ export interface StartPlaygroundOptions {
 	 */
 	sqliteDriverVersion?: string;
 	/**
-	 * When true, skip the isWordPressInstalled() check that loads WordPress.
-	 * Used for recovery mode when WordPress crashes due to a plugin error.
+	 * How to handle WordPress installation.
+	 * Defaults to 'install-from-existing-files-if-needed'.
 	 */
-	skipWordPressInstallCheck?: boolean;
+	wordpressInstallMode?: WordPressInstallMode;
 }
 
 /**
