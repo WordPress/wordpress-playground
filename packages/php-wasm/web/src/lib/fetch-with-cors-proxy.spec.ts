@@ -88,4 +88,55 @@ describe('fetchWithCorsProxy', () => {
 		expect(response.status).toBe(200);
 		expect(await response.text()).toBe('proxied');
 	});
+
+	it('never proxies localhost requests even if direct fetch fails', async () => {
+		const fetchMock = vi
+			.spyOn(globalThis, 'fetch')
+			.mockRejectedValue(new Error('connection refused'));
+
+		await expect(
+			fetchWithCorsProxy(
+				'http://localhost:8080/api',
+				undefined,
+				'https://proxy.test/?url='
+			)
+		).rejects.toThrow('connection refused');
+
+		expect(fetchMock).toHaveBeenCalledTimes(1);
+		const request = fetchMock.mock.calls[0][0] as Request;
+		expect(request.url).toBe('http://localhost:8080/api');
+	});
+
+	it('never proxies 127.0.0.1 requests', async () => {
+		const fetchMock = vi
+			.spyOn(globalThis, 'fetch')
+			.mockResolvedValue(new Response('ok'));
+
+		await fetchWithCorsProxy(
+			'http://127.0.0.1:3000/endpoint',
+			undefined,
+			'https://proxy.test/?url='
+		);
+
+		expect(fetchMock).toHaveBeenCalledTimes(1);
+		const request = fetchMock.mock.calls[0][0] as Request;
+		expect(request.url).toBe('http://127.0.0.1:3000/endpoint');
+	});
+
+	it('does not upgrade localhost HTTP to HTTPS when corsProxyUrl is configured', async () => {
+		const fetchMock = vi
+			.spyOn(globalThis, 'fetch')
+			.mockResolvedValue(new Response('ok'));
+
+		await fetchWithCorsProxy(
+			'http://localhost:1234/v1/chat/completions',
+			undefined,
+			'https://proxy.test/?url='
+		);
+
+		expect(fetchMock).toHaveBeenCalledTimes(1);
+		const request = fetchMock.mock.calls[0][0] as Request;
+		// Should stay as http, not upgraded to https
+		expect(request.url).toBe('http://localhost:1234/v1/chat/completions');
+	});
 });
