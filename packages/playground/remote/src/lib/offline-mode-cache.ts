@@ -19,6 +19,13 @@ export async function cacheFirstFetch(request: Request): Promise<Response> {
 	}
 
 	/**
+	 * Strip the Range header if present. Safari sometimes adds Range headers
+	 * to requests, which results in 206 Partial Content responses that can't
+	 * be cached using .put() since they're incomplete responses.
+	 */
+	const requestWithoutRangeHeader = stripRangeHeader(request);
+
+	/**
 	 * Ensure the response is not coming from HTTP cache.
 	 *
 	 * We never want to put a stale asset in CacheStorage as
@@ -26,7 +33,7 @@ export async function cacheFirstFetch(request: Request): Promise<Response> {
 	 *
 	 * See service-worker.ts for more details.
 	 */
-	const response = await fetchFresh(request);
+	const response = await fetchFresh(requestWithoutRangeHeader);
 	if (response.ok) {
 		/**
 		 * Confirm the current service worker is still active
@@ -38,7 +45,7 @@ export async function cacheFirstFetch(request: Request): Promise<Response> {
 			// Intentionally do not await writing to the cache so the response
 			// promise can be returned immediately and observed for progress events.
 			// NOTE: This is a race condition for simultaneous requests for the same asset.
-			offlineModeCache.put(request, response.clone());
+			offlineModeCache.put(requestWithoutRangeHeader, response.clone());
 		}
 	}
 
@@ -177,6 +184,26 @@ export function shouldCacheUrl(url: URL) {
 	 * Allow only requests to the same hostname to be cached.
 	 */
 	return self.location.hostname === url.hostname;
+}
+
+/**
+ * Removes the Range header from a request if present.
+ *
+ * Safari sometimes adds Range headers which cause 206 Partial Content responses
+ * that can't be cached using Cache API's .put() method.
+ *
+ * @param request The original request
+ * @returns A new request without the Range header
+ */
+function stripRangeHeader(request: Request): Request {
+	if (!request.headers.has('range')) {
+		return request;
+	}
+
+	const headers = new Headers(request.headers);
+	headers.delete('range');
+
+	return new Request(request, { headers });
 }
 
 /**
