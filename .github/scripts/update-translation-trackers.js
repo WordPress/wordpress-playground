@@ -101,7 +101,7 @@ function addToTree(tree, parts, fullPath) {
 /**
  * Generate markdown checklist from file tree
  */
-function generateChecklist(tree, translatedSet, indent = 0, parentPath = '') {
+function generateChecklist(tree, translatedSet, indent = 0) {
     let output = '';
     const indentStr = '  '.repeat(indent);
     
@@ -112,7 +112,7 @@ function generateChecklist(tree, translatedSet, indent = 0, parentPath = '') {
     // Process directories first
     for (const dir of dirs) {
         output += `${indentStr}- ${dir}\n`;
-        output += generateChecklist(tree[dir], translatedSet, indent + 1, path.join(parentPath, dir));
+        output += generateChecklist(tree[dir], translatedSet, indent + 1);
     }
     
     // Process files
