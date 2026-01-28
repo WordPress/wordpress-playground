@@ -1,5 +1,5 @@
 // @ts-ignore
-import url_develop from './sqlite-database-integration-develop.zip?url';
+import url_trunk from './sqlite-database-integration-trunk.zip?url';
 // @ts-ignore
 import url_v2_1_16 from './sqlite-database-integration-v2.1.16.zip?url';
 
@@ -10,7 +10,7 @@ import url_v2_1_16 from './sqlite-database-integration-v2.1.16.zip?url';
  * This file must statically exists in the project because of the way
  * vite resolves imports.
  */
-export const LatestSqliteDriverVersion = 'develop';
+export const LatestSqliteDriverVersion = 'trunk';
 
 export function getSqliteDriverModuleDetails(
 	version = LatestSqliteDriverVersion
@@ -20,11 +20,11 @@ export function getSqliteDriverModuleDetails(
 } {
 	switch (version) {
 		
-		case 'develop':
+		case 'trunk':
 			/** @ts-ignore */
 			return {
-				size: 249712,
-				url: url_develop,
+				size: 249520,
+				url: url_trunk,
 			};
 		case 'v2.1.16':
 			/** @ts-ignore */
