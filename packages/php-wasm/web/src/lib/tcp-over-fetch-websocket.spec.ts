@@ -2,10 +2,15 @@ import {
 	TCPOverFetchWebsocket,
 	RawBytesFetch,
 } from './tcp-over-fetch-websocket';
-import express from 'express';
+import express, { type Express } from 'express';
+import http from 'http';
 import https from 'https';
+import tls from 'tls';
+import { Duplex } from 'stream';
 import type { AddressInfo } from 'net';
 import zlib from 'zlib';
+import { generateCertificate as generateCACertificate } from './tls/certificates';
+import type { GeneratedCertificate } from './tls/certificates';
 import {
 	generateCertificate,
 	cleanupCertificate,
@@ -61,10 +66,89 @@ destructive results fifty years hence. He was, I believe, not in the
 least an ill-natured man: very much the opposite, I should say; but he
 would not suffer fools gladly.`;
 
+function createTestApp(): Express {
+	const app = express();
+
+	// Set up all routes BEFORE creating the server
+	app.get('/simple', (req, res) => {
+		res.send('Hello, World!');
+	});
+
+	app.get('/slow', (req, res) => {
+		setTimeout(() => {
+			res.send('Slow response');
+		}, 1000);
+	});
+
+	app.get('/stream', (req, res) => {
+		res.flushHeaders();
+		res.write('Part 1');
+		setTimeout(() => {
+			res.write('Part 2');
+			res.end();
+		}, 1500);
+	});
+
+	app.get('/headers', (req, res) => {
+		res.set('X-Custom-Header', 'TestValue');
+		res.send('OK');
+	});
+
+	app.get('/gzipped', (req, res) => {
+		const gzip = zlib.createGzip();
+		gzip.write(pygmalion);
+		gzip.end();
+
+		const gzippedChunks: Uint8Array[] = [];
+		gzip.on('data', (chunk) => {
+			gzippedChunks.push(chunk);
+		});
+		gzip.on('end', () => {
+			const length = gzippedChunks.reduce(
+				(acc, chunk) => acc + chunk.length,
+				0
+			);
+			res.setHeader('Content-Encoding', 'gzip');
+			res.setHeader('Content-Length', length.toString());
+			for (const chunk of gzippedChunks) {
+				res.write(chunk);
+			}
+			res.end();
+		});
+	});
+
+	app.post('/echo', (req, res) => {
+		// Set appropriate headers
+		res.setHeader(
+			'Content-Type',
+			req.headers['content-type'] || 'text/plain'
+		);
+		res.setHeader('Transfer-Encoding', 'chunked');
+		// Create readable stream from request body
+		const stream = req;
+
+		// Pipe the input stream directly to the response
+		stream.pipe(res);
+
+		// Handle errors
+		stream.on('error', (error) => {
+			console.error('Stream error:', error);
+			res.status(500).end();
+		});
+	});
+
+	app.get('/error', (req, res) => {
+		res.status(500).send('Internal Server Error');
+	});
+
+	return app;
+}
+
 describe('TCPOverFetchWebsocket', () => {
 	let server: https.Server;
 	let host: string;
 	let port: number;
+	let CAroot: GeneratedCertificate;
 	let originalRejectUnauthorized: string | undefined;
 
 	beforeAll(async () => {
@@ -73,81 +157,18 @@ describe('TCPOverFetchWebsocket', () => {
 			process.env['NODE_TLS_REJECT_UNAUTHORIZED'];
 		process.env['NODE_TLS_REJECT_UNAUTHORIZED'] = '0';
 
-		const app = express();
-
-		// Set up all routes BEFORE creating the server
-		app.get('/simple', (req, res) => {
-			res.send('Hello, World!');
+		CAroot = await generateCACertificate({
+			subject: {
+				countryName: 'US',
+				organizationName: 'Test CA',
+				commonName: 'test-ca.local',
+			},
+			basicConstraints: {
+				ca: true,
+			},
 		});
 
-		app.get('/slow', (req, res) => {
-			setTimeout(() => {
-				res.send('Slow response');
-			}, 1000);
-		});
-
-		app.get('/stream', (req, res) => {
-			res.flushHeaders();
-			res.write('Part 1');
-			setTimeout(() => {
-				res.write('Part 2');
-				res.end();
-			}, 1500);
-		});
-
-		app.get('/headers', (req, res) => {
-			res.set('X-Custom-Header', 'TestValue');
-			res.send('OK');
-		});
-
-		app.get('/gzipped', (req, res) => {
-			const gzip = zlib.createGzip();
-			gzip.write(pygmalion);
-			gzip.end();
-
-			const gzippedChunks: Uint8Array[] = [];
-			gzip.on('data', (chunk) => {
-				gzippedChunks.push(chunk);
-			});
-			gzip.on('end', () => {
-				const length = gzippedChunks.reduce(
-					(acc, chunk) => acc + chunk.length,
-					0
-				);
-				res.setHeader('Content-Encoding', 'gzip');
-				res.setHeader('Content-Length', length.toString());
-				for (const chunk of gzippedChunks) {
-					res.write(chunk);
-				}
-				res.end();
-			});
-		});
-
-		app.post('/echo', (req, res) => {
-			// Set appropriate headers
-			res.setHeader(
-				'Content-Type',
-				req.headers['content-type'] || 'text/plain'
-			);
-			res.setHeader('Transfer-Encoding', 'chunked');
-			// Create readable stream from request body
-			const stream = req;
-
-			// Pipe the input stream directly to the response
-			stream.pipe(res);
-
-			// Handle errors
-			stream.on('error', (error) => {
-				console.error('Stream error:', error);
-				res.status(500).end();
-			});
-		});
-
-		app.get('/error', (req, res) => {
-			res.status(500).send('Internal Server Error');
-		});
-
-		// Now create and start the HTTPS server
+		const app = createTestApp();
 		const { cert, key } = await generateCertificate();
 		server = https.createServer({ cert, key }, app);
 
@@ -157,7 +178,7 @@ describe('TCPOverFetchWebsocket', () => {
 		});
 
 		const address = server.address() as AddressInfo;
-		host = `127.0.0.1`;
+		host = '127.0.0.1';
 		port = address.port;
 	});
 
@@ -171,6 +192,92 @@ describe('TCPOverFetchWebsocket', () => {
 		} else {
 			delete process.env['NODE_TLS_REJECT_UNAUTHORIZED'];
 		}
+	});
+
+	it('should handle a simple HTTPS request via TLS path', async () => {
+		const socket = new TCPOverFetchWebsocket(
+			`ws://playground.internal/?host=${host}&port=443`,
+			[],
+			{ CAroot, outputType: 'stream' }
+		);
+
+		const duplexStream = new Duplex({
+			read() {},
+			write(chunk, encoding, callback) {
+				socket.send(chunk);
+				callback();
+			},
+		});
+
+		const reader = socket.clientDownstream.readable.getReader();
+		(async () => {
+			try {
+				while (true) {
+					const { done, value } = await reader.read();
+					if (done) {
+						duplexStream.push(null);
+						break;
+					}
+					duplexStream.push(value);
+				}
+			} catch {
+				duplexStream.destroy();
+			}
+		})();
+
+		const crypto = await import('crypto');
+		const tlsSocket = tls.connect({
+			socket: duplexStream,
+			rejectUnauthorized: false,
+			secureOptions:
+				crypto.constants.SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION,
+		});
+
+		const response = await new Promise<string>((resolve, reject) => {
+			let data = '';
+
+			tlsSocket.on('secureConnect', () => {
+				const request = `GET /simple HTTP/1.1\r\nHost: ${host}:${port}\r\n\r\n`;
+				tlsSocket.write(request);
+			});
+
+			tlsSocket.on('data', (chunk) => {
+				data += chunk.toString();
+				if (data.includes('Hello, World!')) {
+					tlsSocket.end();
+					resolve(data);
+				}
+			});
+
+			tlsSocket.on('error', reject);
+			tlsSocket.on('end', () => resolve(data));
+		});
+
+		expect(response).toContain('HTTP/1.1 200 OK');
+		expect(response).toContain('Hello, World!');
+	});
+});
+
+describe('TCPOverFetchWebsocket over HTTP', () => {
+	let server: http.Server;
+	let host: string;
+	let port: number;
+
+	beforeAll(async () => {
+		const app = createTestApp();
+		server = http.createServer(app);
+
+		await new Promise<void>((resolve) => {
+			server.listen(0, () => resolve());
+		});
+
+		const address = server.address() as AddressInfo;
+		host = `127.0.0.1`;
+		port = address.port;
+	});
+
+	afterAll(() => {
+		server.close();
 	});
 
 	it('should handle a simple HTTP request', async () => {

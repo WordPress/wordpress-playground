@@ -1,6 +1,8 @@
 import { concatUint8Arrays } from '@php-wasm/util';
 
 import { ServerNameExtension } from '../extensions/0_server_name';
+import { ECPointFormatsExtension } from '../extensions/11_ec_point_formats';
+import { RenegotiationInfoExtension } from '../extensions/65281_renegotiation_info';
 import { CipherSuitesNames } from '../cipher-suites';
 import { CipherSuites } from '../cipher-suites';
 import { parseClientHelloExtensions } from '../extensions/parse-extensions';
@@ -29,7 +31,9 @@ import {
 	CompressionMethod,
 	HandshakeType,
 	ContentTypes,
+	AlertLevels,
 	AlertLevelNames,
+	AlertDescriptions,
 	AlertDescriptionNames,
 	ECCurveTypes,
 	ECNamedCurves,
@@ -480,9 +484,8 @@ export class TLS_1_2_Connection {
 		let accumulatedPayload: false | Uint8Array = false;
 		do {
 			record = await this.readNextTLSRecord(requestedType);
-			accumulatedPayload = await this.accumulateUntilMessageIsComplete(
-				record
-			);
+			accumulatedPayload =
+				await this.accumulateUntilMessageIsComplete(record);
 		} while (accumulatedPayload === false);
 
 		const message = TLSDecoder.TLSMessage(
@@ -529,23 +532,32 @@ export class TLS_1_2_Connection {
 			} as TLSRecord;
 
 			if (record.type === ContentTypes.Alert) {
-				const severity = AlertLevelNames[record.fragment[0]];
-				const description = AlertDescriptionNames[record.fragment[1]];
-				/**
-				 * @TODO: Handle TLS warnings, e.g. this one:
-				 *
-				 * close_notify
-				 *     Either party may initiate a close by sending a close_notify alert.
-				 *     Any data received after a closure alert is ignored.
-				 *
-				 *     Unless some other fatal alert has been transmitted, each party is
-				 *     required to send a close_notify alert before closing the write side
-				 *     of the connection.  The other party MUST respond with a close_notify
-				 *     alert of its own and close down the connection immediately,
-				 *     discarding any pending writes.
-				 */
+				const level = record.fragment[0];
+				const descriptionCode = record.fragment[1];
+				const severity = AlertLevelNames[level];
+				const description = AlertDescriptionNames[descriptionCode];
+
+				if (
+					level === AlertLevels.Warning &&
+					descriptionCode === AlertDescriptions.CloseNotify
+				) {
+					/**
+					 * close_notify
+					 *     Either party may initiate a close by sending a close_notify alert.
+					 *     Any data received after a closure alert is ignored.
+					 *
+					 *     Unless some other fatal alert has been transmitted, each party is
+					 *     required to send a close_notify alert before closing the write side
+					 *     of the connection.  The other party MUST respond with a close_notify
+					 *     alert of its own and close down the connection immediately,
+					 *     discarding any pending writes.
+					 */
+					throw new TLSConnectionClosed(
+						'TLS connection closed by peer (CloseNotify)'
+					);
+				}
 				throw new Error(
-					`TLS non-warning alert received: ${severity} ${description}`
+					`TLS alert received: ${severity} ${description}`
 				);
 			}
 
@@ -1163,9 +1175,33 @@ class MessageEncoder {
 						 * (extended) server hello.  The "extension_data" field of this extension
 						 * SHALL be empty.
 						 *
-						 * Source: dfile:///Users/cloudnik/Library/Application%20Support/Dash/User%20Contributed/RFCs/RFCs.docset/Contents/Resources/Documents/rfc6066.html#section-3
+						 * Source: https://datatracker.ietf.org/doc/html/rfc6066#section-3
 						 */
 						return ServerNameExtension.encodeForClient();
+					case 'ec_point_formats':
+						/**
+						 * RFC 4492 Section 5.2: When a client sends ec_point_formats and
+						 * the server selects an ECC cipher suite, the server responds with
+						 * its supported point formats. A server that cannot satisfy these
+						 * requirements MUST NOT choose an ECC cipher suite.
+						 *
+						 * Since we always use an ECC cipher suite (ECDHE_RSA_WITH_AES_128_GCM_SHA256)
+						 * and only support uncompressed points, we must respond accordingly.
+						 */
+						return ECPointFormatsExtension.encodeForClient(
+							'uncompressed'
+						);
+					case 'renegotiation_info':
+						/**
+						 * RFC 5746: The renegotiation_info extension prevents MITM attacks
+						 * during TLS renegotiation. The server MUST include it in ServerHello
+						 * if the client sent it in ClientHello.
+						 *
+						 * For initial connections (not renegotiations), both sides send an
+						 * empty renegotiated_connection field. Since this implementation
+						 * doesn't support renegotiation, that's all we need to handle.
+						 */
+						return RenegotiationInfoExtension.encodeForClient();
 				}
 				return undefined;
 			})

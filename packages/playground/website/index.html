@@ -142,7 +142,7 @@
 				 *
 				 * It is very difficult to debug as Safari does not provide a useful stack trace,
 				 * line numbers, or any further error details. After some hours of debugging, the
-				 * issue was
+				 * issue was narrowed down to this import() call.
 				 *
 				 * Somehow, when this import() runs, Safari does not even start a network request
 				 * to fetch this script. The Service Worker `fetch` event handler is also not called.
