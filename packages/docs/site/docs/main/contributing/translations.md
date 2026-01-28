@@ -130,12 +130,30 @@ Assuming the `fr` language is the first language with the Documentation hub page
   }
 ```
 
+## Automated Translation Progress Tracking
+
+Translation progress is automatically tracked and updated! The repository includes a GitHub Action that:
+
+- Scans all source documentation files and compares them with translated versions
+- Updates tracking issues automatically when new translations are added
+- Shows real-time completion percentages and checklists
+- Runs daily and whenever translation files are modified
+
+**Active Translation Trackers:**
+- [Bengali (bn) - Issue #3186](https://github.com/WordPress/wordpress-playground/issues/3186)
+- [French (fr) - Issue #2621](https://github.com/WordPress/wordpress-playground/issues/2621)
+- [Tagalog (tl) - Issue #2353](https://github.com/WordPress/wordpress-playground/issues/2353)
+- [Brazilian Portuguese (pt-BR) - Issue #2306](https://github.com/WordPress/wordpress-playground/issues/2306)
+- [Gujarati (gu) - Issue #2320](https://github.com/WordPress/wordpress-playground/issues/2320)
+
+When you submit a pull request with translations, the automation will detect your contribution and update the corresponding tracking issue automatically after your PR is merged.
+
 ## Translation Workflow
 
 Follow these steps to translate a page:
 
 1. **Check for an Existing Translation Issue**: First, [search the repository issues](https://github.com/WordPress/wordpress-playground/issues?q=is%3Aissue%20state%3Aopen%20%5Btranslation%5D%20progress) to see if a tracking issue for your desired language already exists. If it does, comment on the issue to claim the page(s) you would like to translate.
-2. **Create a New Translation Issue**: If no issue exists, please create a new one to track the translation progress for the language. You can model it after issue [#2202](https://github.com/WordPress/wordpress-playground/issues/2202) and use the markdown checklist below to track progress.
+2. **Create a New Translation Issue (if needed)**: If no issue exists for your language, please create a new one to track the translation progress. Once the language has enough translated content, it can be added to the automated tracking system.
 3. **Translate the File**:
 
 -   Check if you have the latest version of the documentation
@@ -154,9 +172,20 @@ Follow these steps to translate a page:
 We highly recommend submitting pull requests with a small number of translated pages. This approach simplifies the review process and allows for a more gradual and manageable integration of your work.
 :::
 
-### Translation Tracking Template
+## Adding a New Language to Automated Tracking
 
-You can use the following markdown in your tracking issue:
+If you're starting translations for a new language and would like it to be included in the automated tracking system:
+
+1. **Create a tracking issue** for your language, similar to existing ones (e.g., [#3186](https://github.com/WordPress/wordpress-playground/issues/3186))
+2. **Submit a pull request** that:
+   - Adds your language to `packages/docs/site/docusaurus.config.js` in the `locales` array and `localeConfigs` object
+   - Updates `.github/scripts/update-translation-trackers.js` to include your language code and issue number in the `TRACKER_ISSUES` object
+
+Once merged, the automation will start tracking your language's progress automatically!
+
+### Manual Translation Tracking Template
+
+If you prefer to manually track progress or are working on a language not yet in the automated system, you can use the following markdown template in your tracking issue:
 
 ```
 ## Remaining translation pages
