@@ -161,11 +161,16 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 				// Do not await the WordPress download or the sqlite integration download.
 				// Let bootWordPress start the PHP runtime download first, and then await
 				// all the ZIP files right before they're used.
+
+				// We use .arrayBuffer() and not .blob() here because blob() throws when the
+				// client is low on disk space. Blobs tend to be stored as temporary files,
+				// array buffers tend to be stored in memory.
+				// @see https://github.com/WordPress/wordpress-playground/issues/2769
 				wordPressZip: wordPressRequest
-					?.then((r) => r.blob())
+					?.then((r) => r.arrayBuffer())
 					.then((b) => new File([b], 'wp.zip')),
 				sqliteIntegrationPluginZip: sqliteIntegrationRequest
-					.then((r) => r.blob())
+					.then((r) => r.arrayBuffer())
 					.then((b) => new File([b], 'sqlite.zip')),
 				hooks: {
 					async beforeWordPressFiles(php: PHP) {
