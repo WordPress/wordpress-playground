@@ -1180,8 +1180,13 @@ class MessageEncoder {
 						return ServerNameExtension.encodeForClient();
 					case 'ec_point_formats':
 						/**
-						 * RFC 4492: If the server understands the Supported Point Formats
-						 * Extension, it MUST include it in the ServerHello.
+						 * RFC 4492 Section 5.2: When a client sends ec_point_formats and
+						 * the server selects an ECC cipher suite, the server responds with
+						 * its supported point formats. A server that cannot satisfy these
+						 * requirements MUST NOT choose an ECC cipher suite.
+						 *
+						 * Since we always use an ECC cipher suite (ECDHE_RSA_WITH_AES_128_GCM_SHA256)
+						 * and only support uncompressed points, we must respond accordingly.
 						 */
 						return ECPointFormatsExtension.encodeForClient(
 							'uncompressed'
