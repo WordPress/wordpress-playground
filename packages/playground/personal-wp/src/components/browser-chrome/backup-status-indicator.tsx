@@ -10,8 +10,7 @@ import {
 } from '../../lib/hooks/use-backup-constants';
 import { isSameDay } from '../../lib/utils/date';
 
-function getDaysSinceBackup(lastBackupTimestamp: number | undefined): number {
-	if (!lastBackupTimestamp) return Infinity;
+function getDaysSinceBackup(lastBackupTimestamp: number): number {
 	const now = Date.now();
 	return Math.floor((now - lastBackupTimestamp) / (1000 * 60 * 60 * 24));
 }
@@ -43,7 +42,6 @@ export function BackupStatusIndicator() {
 
 	const isTemporarySite = activeSite?.metadata.storage === 'none';
 	const lastBackupTimestamp = backupHistory[0]?.timestamp;
-	const daysSinceBackup = getDaysSinceBackup(lastBackupTimestamp);
 
 	// Hide for temporary sites
 	if (isTemporarySite) {
@@ -60,10 +58,17 @@ export function BackupStatusIndicator() {
 		return null;
 	}
 
-	// Hide if backed up today
-	if (lastBackupTimestamp && isSameDay(lastBackupTimestamp, Date.now())) {
+	// Hide if never backed up
+	if (!lastBackupTimestamp) {
 		return null;
 	}
+
+	// Hide if backed up today
+	if (isSameDay(lastBackupTimestamp, Date.now())) {
+		return null;
+	}
+
+	const daysSinceBackup = getDaysSinceBackup(lastBackupTimestamp);
 
 	const urgency = getBackupUrgency(daysSinceBackup);
 	const isWorking = isBackingUp || isRequestingRemote;
