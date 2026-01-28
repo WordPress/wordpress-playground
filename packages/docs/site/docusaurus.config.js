@@ -38,11 +38,15 @@ const config = {
 	i18n: {
 		defaultLocale: 'en',
 		path: 'i18n',
-		locales: ['en', 'es', 'fr', 'ja', 'pt-br', 'tl', 'gu'],
+		locales: ['en', 'bn', 'es', 'fr', 'gu', 'ja', 'pt-br', 'tl'],
 		localeConfigs: {
 			en: {
 				label: 'English',
 				path: 'en',
+			},
+			bn: {
+				label: 'বাংলা',
+				path: 'bn',
 			},
 			es: {
 				label: 'Español',
@@ -51,6 +55,10 @@ const config = {
 			fr: {
 				label: 'Français',
 				path: 'fr',
+			},
+			gu: {
+				label: 'ગુજરાતી',
+				path: 'gu',
 			},
 			ja: {
 				label: 'Japanese',
@@ -63,10 +71,6 @@ const config = {
 			tl: {
 				label: 'Tagalog',
 				path: 'tl',
-			},
-			gu: {
-				label: 'ગુજરાતી',
-				path: 'gu',
 			},
 		},
 	},
