@@ -7,7 +7,25 @@
 	"targets": {
 		"build": {
 			"executor": "nx:noop",
-			"dependsOn": ["build:standalone"]
+			"dependsOn": ["build:my-wordpress-net"]
+		},
+		"build:my-wordpress-net": {
+			"executor": "nx:run-commands",
+			"outputs": [
+				"{workspaceRoot}/dist/packages/playground/my-wordpress-net"
+			],
+			"options": {
+				"commands": [
+					"rm -rf ./my-wordpress-net",
+					"mkdir ./my-wordpress-net",
+					"cp -r ./remote/* ./my-wordpress-net/",
+					"cp -r ./personal-wp/* ./my-wordpress-net/",
+					"cat ./remote/.htaccess ./personal-wp/.htaccess > ./my-wordpress-net/.htaccess"
+				],
+				"cwd": "dist/packages/playground",
+				"parallel": false
+			},
+			"dependsOn": ["build:standalone", "^build"]
 		},
 		"build:standalone": {
 			"executor": "@nx/vite:build",
@@ -63,7 +81,7 @@
 			"executor": "@nx/vite:preview-server",
 			"options": {
 				"buildTarget": "playground-personal-wp:build",
-				"staticFilePath": "../../../dist/packages/playground/personal-wp"
+				"staticFilePath": "../../../dist/packages/playground/my-wordpress-net"
 			}
 		},
 		"test": {

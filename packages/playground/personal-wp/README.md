@@ -1,37 +1,153 @@
-# WordPress Playground website
+# @wp-playground/personal-wp
 
-This package contains the playground.wordpress.net website. Most assets built in this package
-are pre-emptively downloaded and cached in the browser to support the offline mode. If you
-want to add a new, bulky page without increasing the required download size, add it in the
-`playground-website-extras` package instead.
+A user-focused WordPress Playground application for running a personal WordPress site in the browser. This package powers [my.wordpress.net](https://my.wordpress.net).
+
+## Overview
+
+Personal Playground is a streamlined, end-user focused version of WordPress Playground. While [playground.wordpress.net](https://playground.wordpress.net) targets developers with features like blueprint galleries, GitHub integration, and temporary sites, Personal Playground provides a simpler experience for users who want their own persistent WordPress site.
+
+### Key Differences from playground.wordpress.net
+
+**Removed:**
+
+- Blueprint gallery and site list (replaced with a tailored welcome experience)
+- Import from file/URL/GitHub UI
+- Temporary site creation
+- Multiple saved sites management
+
+**Added:**
+
+- Single persistent site stored in OPFS by default
+- Welcome plugin with guided onboarding
+- Automatic language detection from browser settings
+- App catalog with pre-configured blueprints to install
+- Backup reminder system with history
+- Health Check integration for crash recovery
+- Multi-tab coordination (one worker per site, dependent tabs, takeover protocol)
+- Cross-tab sync for backup status
+
+## Features
+
+### Persistent Storage
+
+Your WordPress site is automatically saved in the browser's Origin Private File System (OPFS). No setup required - just start using WordPress and your data persists across sessions.
+
+### Welcome & Onboarding
+
+A welcome plugin guides new users through the initial setup, making it easy to get started with WordPress.
+
+### App Catalog
+
+Browse and install apps from a curated catalog of pre-configured blueprints. Each app is a one-click install that extends your WordPress site with new functionality.
+
+### Backup System
+
+Automatic backup reminders help you keep your data safe. View backup history and export your site data when needed.
+
+### Crash Recovery
+
+Health Check integration detects and recovers from site crashes automatically, ensuring you never lose access to your WordPress site.
+
+### Multi-Tab Support
+
+Sophisticated tab coordination ensures only one worker runs per site. Dependent tabs connect automatically, and a takeover protocol handles tab conflicts gracefully.
+
+### Offline Support
+
+Works as a Progressive Web App (PWA) for offline use. Install it on your device for a native app-like experience.
 
 ## Development
 
-### Tests
-
-To run the end to end tests locally, use the following command:
-
 ```bash
-npx nx run playground-website:e2e:dev:cypress
+# Start the development server (runs on port 5401)
+npx nx dev playground-personal-wp
+
+# Build for production
+npx nx build playground-personal-wp
+
+# Run tests
+npx nx test playground-personal-wp
+
+# Type checking
+npx nx typecheck playground-personal-wp
+
+# Linting
+npx nx lint playground-personal-wp
 ```
 
-### GitHub integration development
+## Build Output
 
-To test the GitHub integration with Playground you will need to connect to GitHub.
-You can skip the connection flow locally by setting your GitHub personal access token in the code.
+The build process combines `playground-remote` and `playground-personal-wp` into a single deployable package at `dist/packages/playground/my-wordpress-net/`.
 
-To set your token add the below code [after this line](https://github.com/WordPress/wordpress-playground/blob/86e8b2d6792259711a127382cb0d2542996915c8/packages/playground/website/src/github/github-export-form/form.tsx#L139).
+Build targets:
+
+- `build` - Full build (runs `build:my-wordpress-net`)
+- `build:my-wordpress-net` - Combines remote + personal-wp into deployable package
+- `build:standalone` - Builds only personal-wp without combining
+
+The combined output includes:
+
+- `index.html` - Main entry point
+- `manifest.json` - PWA manifest
+- `blueprints/boot.json` - Default blueprint (auto-login to wp-admin)
+- `assets/` - Bundled JavaScript, CSS, and source maps
+- `remote.html` - The iframe that runs PHP (from playground-remote)
+
+## Deployment
+
+Personal Playground is deployed to my.wordpress.net via the `deploy-my-wordpress-net.yml` GitHub Actions workflow. The deployment:
+
+1. Builds the package with `npx nx build playground-personal-wp`
+2. Uploads the build as an artifact
+3. Deploys to WP Cloud hosting via rsync/SSH
+4. Uses the shared `website-deployment/` scripts for server configuration
+
+### Required Secrets
+
+The deployment requires these GitHub secrets in the `my-wordpress-net-wp-cloud` environment:
+
+- `DEPLOY_MY_WORDPRESS_NET_HOST_KEY` - SSH host key
+- `DEPLOY_MY_WORDPRESS_NET_PRIVATE_KEY` - SSH private key
+- `DEPLOY_MY_WORDPRESS_NET_USER` - SSH username
+- `DEPLOY_MY_WORDPRESS_NET_HOST` - SSH hostname
+
+The deployment also requires these GitHub variables in the `my-wordpress-net-wp-cloud` environment:
+
+- `CORS_PROXY_URL` - The URL prefix to use for CORS proxy requests, like `https://<cors-proxy-domain>/?`.
+- `GIT_REF_TO_DEPLOY` - The Git ref to deploy. Specify "trunk" to deploy the latest from the `trunk` branch.
+
+## Architecture
 
 ```
-setOAuthToken('YOUR-TOKEN');
+personal-wp/
+├── src/
+│   ├── main.tsx                 # Application entry point
+│   ├── components/
+│   │   ├── layout/              # Main application layout
+│   │   ├── site-manager/        # Site info, files, and database panels
+│   │   ├── browser-chrome/      # Browser-like UI chrome
+│   │   ├── playground-viewport/ # WordPress iframe container
+│   │   └── ...
+│   └── lib/
+│       ├── state/
+│       │   ├── redux/           # Redux store and slices
+│       │   ├── opfs/            # OPFS storage utilities
+│       │   └── url/             # URL routing
+│       ├── health-check-recovery.ts
+│       └── ...
+├── public/
+│   └── blueprints/
+│       └── boot.json            # Default boot blueprint
+└── index.html                   # HTML entry point
 ```
-
-Replace `YOUR-TOKEN` with your [Personal access token](https://github.com/settings/tokens) (with repo scope).
 
 ## Tracking
 
-The WordPress Playground website uses Google Analytics to track user interactions. We use this data to better understand how Playground is being used. We do not track or store any personal information.
+Personal Playground uses Google Analytics to understand usage patterns. No personal information is tracked or stored.
 
-### Custom tracking events
+## Related Packages
 
-We also track custom events whenever a user loads Playground and what blueprint steps are they using. We only record names of steps.
+- `@wp-playground/client` - JavaScript API for embedding Playground
+- `@wp-playground/remote` - The iframe application that runs PHP
+- `@wp-playground/blueprints` - Blueprint execution engine
+- `@php-wasm/web` - Browser-based PHP runtime
