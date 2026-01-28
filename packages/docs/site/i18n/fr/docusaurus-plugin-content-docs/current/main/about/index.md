@@ -21,7 +21,8 @@ WordPress Playground est le parfait endroit où vous pouvez construire, tester, 
 <!--
 -   [Build](/about/build): WordPress Playground can help you to build products with WordPress. Use it from where you work best, whether that’s in the browser, Node.js, mobile apps, VS Code, or elsewhere.
 -   [Test](/about/test): Upgrade your QA process with WordPress Playground. Quickly test your plugins or themes, experiment in a private sandbox, and create PRs from your WP Playground instance to any repo.
--   [Launch](/about/launch): Use WordPress Playground to showcase your product, let users try it live, or launch it in the App Store with zero lead time. -->
+-   [Launch](/about/launch): Use WordPress Playground to showcase your product, let users try it live, or launch it in the App Store with zero lead time. 
+-->
 
 ## Pourquoi WordPress Playground ?
 <!-- ## Why WordPress Playground?
