@@ -38,19 +38,22 @@ export default class Semaphore {
 	}
 
 	async acquire(): Promise<() => void> {
+		// Concurrency exhausted - wait in queue for other workers to finish:
 		if (this._running >= this.concurrency) {
-			// Concurrency exhausted – wait until a lock is released:
+			// Create a promise and store its resolver in the queue.
 			const acquired = new Promise<void>((resolve) => {
 				this.queue.push(resolve);
 			});
+
+			// Wait until it is resolved by another worker or a timeout occurs.
 			if (this.timeout !== undefined) {
-				await Promise.race([acquired, sleep(this.timeout)]).then(
-					(value) => {
-						if (value === SleepFinished) {
-							throw new AcquireTimeoutError();
-						}
-					}
-				);
+				const result = await Promise.race([
+					acquired,
+					sleep(this.timeout),
+				]);
+				if (result === SleepFinished) {
+					throw new AcquireTimeoutError();
+				}
 			} else {
 				await acquired;
 			}
@@ -59,13 +62,16 @@ export default class Semaphore {
 		// Acquire the lock:
 		this._running++;
 		let released = false;
+
+		// Return a release function:
 		return () => {
 			if (released) {
 				return;
 			}
 			released = true;
 			this._running--;
-			// Release the lock:
+
+			// Release the first item in the queue (call its resolver):
 			if (this.queue.length > 0) {
 				this.queue.shift()!();
 			}
