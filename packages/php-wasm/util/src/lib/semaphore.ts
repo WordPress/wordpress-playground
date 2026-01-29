@@ -47,11 +47,15 @@ export default class Semaphore {
 
 			// Wait until it is resolved by another worker or a timeout occurs.
 			if (this.timeout !== undefined) {
+				// Store the resolver for cleanup in case of timeout.
+				const resolve = this.queue.at(-1)!;
 				const result = await Promise.race([
 					acquired,
 					sleep(this.timeout),
 				]);
 				if (result === SleepFinished) {
+					// Remove the resolver for the timed out worker from the queue.
+					this.queue.splice(this.queue.indexOf(resolve), 1);
 					throw new AcquireTimeoutError();
 				}
 			} else {
