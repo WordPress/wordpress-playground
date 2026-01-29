@@ -20,7 +20,7 @@ export interface ProcessManagerOptions {
 	 * cannot spawn a new one. If the timeout is reached, we assume
 	 * all the PHP instances are deadlocked and a throw MaxPhpInstancesError.
 	 *
-	 * Default: 5000
+	 * Default: 30000
 	 */
 	timeout?: number;
 	/**
@@ -91,7 +91,7 @@ export class PHPProcessManager implements PHPInstanceManager {
 			 * Wait up to 5 seconds for resources to become available
 			 * before assuming that all the PHP instances are deadlocked.
 			 */
-			timeout: options?.timeout || 5000,
+			timeout: options?.timeout || 30000,
 		});
 	}
 
