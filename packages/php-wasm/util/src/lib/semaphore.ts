@@ -38,40 +38,38 @@ export default class Semaphore {
 	}
 
 	async acquire(): Promise<() => void> {
-		while (true) {
-			if (this._running >= this.concurrency) {
-				// Concurrency exhausted – wait until a lock is released:
-				const acquired = new Promise<void>((resolve) => {
-					this.queue.push(resolve);
-				});
-				if (this.timeout !== undefined) {
-					await Promise.race([acquired, sleep(this.timeout)]).then(
-						(value) => {
-							if (value === SleepFinished) {
-								throw new AcquireTimeoutError();
-							}
+		if (this._running >= this.concurrency) {
+			// Concurrency exhausted – wait until a lock is released:
+			const acquired = new Promise<void>((resolve) => {
+				this.queue.push(resolve);
+			});
+			if (this.timeout !== undefined) {
+				await Promise.race([acquired, sleep(this.timeout)]).then(
+					(value) => {
+						if (value === SleepFinished) {
+							throw new AcquireTimeoutError();
 						}
-					);
-				} else {
-					await acquired;
-				}
+					}
+				);
 			} else {
-				// Acquire the lock:
-				this._running++;
-				let released = false;
-				return () => {
-					if (released) {
-						return;
-					}
-					released = true;
-					this._running--;
-					// Release the lock:
-					if (this.queue.length > 0) {
-						this.queue.shift()!();
-					}
-				};
+				await acquired;
 			}
 		}
+
+		// Acquire the lock:
+		this._running++;
+		let released = false;
+		return () => {
+			if (released) {
+				return;
+			}
+			released = true;
+			this._running--;
+			// Release the lock:
+			if (this.queue.length > 0) {
+				this.queue.shift()!();
+			}
+		};
 	}
 
 	async run<T>(fn: () => T | Promise<T>): Promise<T> {
