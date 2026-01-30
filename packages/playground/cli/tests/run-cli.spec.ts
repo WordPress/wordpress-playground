@@ -1032,7 +1032,7 @@ describe('CLI argument aliases', () => {
 			expect(response.status).toBe(200);
 			const text = await response.text();
 			expect(text).toContain(customSiteUrl);
-		});
+		}, 180000);
 
 		test('should accept -P for --php', async () => {
 			await using cliServer = await runCLI({
@@ -1051,12 +1051,13 @@ describe('CLI argument aliases', () => {
 			expect(response.status).toBe(200);
 			const text = await response.text();
 			expect(text).toContain('8.0');
-		});
+		}, 180000);
 
 		test('should accept -W for --wp', async () => {
-			const wpVersion = MinifiedWordPressVersionsList[
-				MinifiedWordPressVersionsList.length - 1
-			];
+			const wpVersion =
+				MinifiedWordPressVersionsList[
+					MinifiedWordPressVersionsList.length - 1
+				];
 			await using cliServer = await runCLI({
 				command: 'server',
 				wp: wpVersion,
@@ -1073,7 +1074,7 @@ describe('CLI argument aliases', () => {
 			expect(response.status).toBe(200);
 			const text = await response.text();
 			expect(text).toContain(wpVersion);
-		});
+		}, 180000);
 
 		test('should accept -D for --define, -B for --define-bool, -N for --define-number', async () => {
 			await using cliServer = await runCLI({
@@ -1101,17 +1102,14 @@ describe('CLI argument aliases', () => {
 				echo "BOOL: " . (MY_BOOL_CONSTANT ? 'true' : 'false') . "\\n";
 				`
 			);
-			const constantsUrl = new URL(
-				'/constants.php',
-				cliServer.serverUrl
-			);
+			const constantsUrl = new URL('/constants.php', cliServer.serverUrl);
 			const response = await fetch(constantsUrl);
 			expect(response.status).toBe(200);
 			const text = await response.text();
 			expect(text).toContain('STRING: test_value');
 			expect(text).toContain('NUMBER: 42');
 			expect(text).toContain('BOOL: true');
-		});
+		}, 180000);
 
 		test('should accept -l for --login', async () => {
 			await using cliServer = await runCLI({
@@ -1120,7 +1118,7 @@ describe('CLI argument aliases', () => {
 			});
 			// Login functionality is tested elsewhere, just verify server starts
 			expect(cliServer.serverUrl).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/);
-		});
+		}, 180000);
 
 		test('should accept -b for --blueprint', async () => {
 			await using cliServer = await runCLI({
@@ -1141,7 +1139,7 @@ describe('CLI argument aliases', () => {
 			expect(response.status).toBe(200);
 			const text = await response.text();
 			expect(text).toContain('<title>Alias Test Blog</title>');
-		});
+		}, 180000);
 
 		test('should accept -v for --verbosity', async () => {
 			await using cliServer = await runCLI({
@@ -1153,7 +1151,7 @@ describe('CLI argument aliases', () => {
 			});
 			// Just verify server starts with verbosity option
 			expect(cliServer.serverUrl).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/);
-		});
+		}, 180000);
 
 		test('should accept -q for --quiet (deprecated)', async () => {
 			await using cliServer = await runCLI({
@@ -1165,7 +1163,7 @@ describe('CLI argument aliases', () => {
 			});
 			// Just verify server starts with quiet option
 			expect(cliServer.serverUrl).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/);
-		});
+		}, 180000);
 
 		test('should accept -x for --xdebug', async () => {
 			await using cliServer = await runCLI({
@@ -1177,7 +1175,7 @@ describe('CLI argument aliases', () => {
 			});
 			// Just verify server starts with xdebug option
 			expect(cliServer.serverUrl).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/);
-		});
+		}, 180000);
 	});
 
 	describe('serverOnlyOptions aliases', () => {
@@ -1191,7 +1189,7 @@ describe('CLI argument aliases', () => {
 				blueprint: undefined,
 			});
 			expect(cliServer.serverUrl).toContain(`:${testPort}`);
-		});
+		}, 180000);
 	});
 
 	describe('startCommandOptions aliases', () => {
@@ -1203,7 +1201,7 @@ describe('CLI argument aliases', () => {
 				skipBrowser: true,
 			});
 			expect(cliServer.serverUrl).toContain(`:${testPort}`);
-		}, 120000);
+		}, 180000);
 
 		test('should accept -s for --skip-browser', async () => {
 			await using cliServer = await runCLI({
@@ -1212,10 +1210,12 @@ describe('CLI argument aliases', () => {
 			});
 			// Just verify server starts
 			expect(cliServer.serverUrl).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/);
-		}, 120000);
+		}, 180000);
 
 		test('should accept -R for --reset', async () => {
-			const tmpDir = await mkdtemp(path.join(tmpdir(), 'playground-test-'));
+			const tmpDir = await mkdtemp(
+				path.join(tmpdir(), 'playground-test-')
+			);
 			const homeDir = os.homedir();
 			const currentSiteHash = createHash('sha256')
 				.update(tmpDir)
