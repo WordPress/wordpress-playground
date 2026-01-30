@@ -48,7 +48,9 @@
 	width: 0;
 	background: #3858e9;
 	border-radius: 2px;
-	transition: opacity linear 0.2s, width ease-in 0.2s;
+	transition:
+		opacity linear 0.2s,
+		width ease-in 0.2s;
 }
 
 .progress-bar.is-indefinite {
@@ -84,6 +86,49 @@
 	font-size: 1.1rem;
 }
 
+.tips-container {
+	margin-top: 20px;
+	max-width: 420px;
+	text-align: center;
+	min-height: 48px;
+	padding: 0 16px;
+}
+
+.tip-text {
+	font-size: 0.875rem;
+	font-weight: 400;
+	font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+	color: #555;
+	line-height: 1.5;
+	margin: 0;
+	opacity: 1;
+	animation: fade-in-tip 0.4s ease-out;
+}
+
+.tip-text.fading-out {
+	animation: fade-out-tip 0.3s ease-in forwards;
+}
+
+@keyframes fade-in-tip {
+	from {
+		opacity: 0;
+		transform: translateY(8px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+@keyframes fade-out-tip {
+	from {
+		opacity: 1;
+	}
+	to {
+		opacity: 0;
+	}
+}
+
 @media (prefers-color-scheme: dark) {
 	.overlay {
 		background: #1e1e1e;
@@ -92,5 +137,20 @@
 
 	.wrapper {
 		background: #32363a;
+	}
+
+	.tip-text {
+		color: #aaa;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.tip-text {
+		animation: none;
+	}
+
+	.tip-text.fading-out {
+		animation: none;
+		opacity: 0;
 	}
 }
