@@ -1872,6 +1872,7 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "zend_std_cast_object_tostring",\
 "zend_std_compare_objects",\
 "zend_std_get_debug_info",\
+"zend_std_get_properties_for",\
 "zend_std_has_dimension",\
 "zend_std_has_property",\
 "zend_std_read_dimension",\
