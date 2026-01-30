@@ -109,15 +109,18 @@ export class LoadBalancer {
 		// Track the request while it's active
 		// For streaming responses, we wait for the stream to finish before
 		// considering the request complete (used for worker removal timing)
-		const trackingPromise: Promise<void> = promiseForResponse.then(
-			(response) => {
+		const trackingPromise: Promise<void> = promiseForResponse
+			.then((response) => {
 				if ('finished' in response) {
 					return response.finished;
 				}
 				// Non-streaming response: already complete
 				return;
-			}
-		);
+			})
+			.catch(() => {
+				// Error handling is done in start-server.ts
+				// This catch prevents unhandled rejection warnings
+			});
 		smallestWorkerLoad.activeRequests.add(trackingPromise);
 
 		// Add URL to promise for use while debugging

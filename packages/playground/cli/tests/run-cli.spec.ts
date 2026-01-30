@@ -1004,7 +1004,7 @@ describe('other run-cli behaviors', () => {
 			const throwAnError = (() => {
 				throw new Error('test error');
 			}) as any;
-			cliServer.playground.request = throwAnError;
+			cliServer.playground.requestStreamed = throwAnError;
 
 			const response = await fetch(new URL('/', cliServer.serverUrl));
 			expect(response.status).toBe(500);

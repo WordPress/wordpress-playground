@@ -7,7 +7,8 @@ import {
 } from './urls';
 import type { PHP, PHPExecutionFailureError } from './php';
 import { normalizeHeaders } from './php';
-import { PHPResponse, StreamedPHPResponse } from './php-response';
+import { PHPResponse } from './php-response';
+import type { StreamedPHPResponse } from './php-response';
 import type { PHPRequest, PHPRunOptions } from './universal-php';
 import { encodeAsMultipart } from './encode-as-multipart';
 import type { PHPFactoryOptions } from './php-process-manager';
@@ -722,11 +723,9 @@ export class PHPRequestHandler implements AsyncDisposable {
 
 		// Handle cookies from streaming response
 		if (this.#cookieStore) {
+			const cookieStore = this.#cookieStore;
 			response.headers.then((responseHeaders) => {
-				this.#cookieStore &&
-					this.#cookieStore.rememberCookiesFromResponseHeaders(
-						responseHeaders
-					);
+				cookieStore.rememberCookiesFromResponseHeaders(responseHeaders);
 			});
 		}
 

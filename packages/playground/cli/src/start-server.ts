@@ -1,5 +1,5 @@
-import {
-	type PHPRequest,
+import type {
+	PHPRequest,
 	PHPResponse,
 	StreamedPHPResponse,
 } from '@php-wasm/universal';
