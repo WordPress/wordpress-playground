@@ -248,6 +248,33 @@ export class ZipFilesystem implements ReadableFilesystemBackend {
 		}
 		return this.entries;
 	}
+
+	/**
+	 * Returns the paths of all entries in the zip (file and directory names).
+	 * Used to locate blueprint.json when it may be at root or inside a directory.
+	 */
+	async getEntryPaths(): Promise<string[]> {
+		const entries = await this.getEntries();
+		return Array.from(entries.keys());
+	}
+}
+
+/**
+ * A ReadableFilesystemBackend that exposes a subdirectory of another backend
+ * as the root. Paths are resolved by prepending the prefix (e.g. "foo/").
+ */
+export class PrefixFilesystem implements ReadableFilesystemBackend {
+	constructor(
+		private readonly prefix: string,
+		private readonly backend: ReadableFilesystemBackend
+	) {}
+
+	async read(path: string): Promise<StreamedFile> {
+		const normalizedPath = path.replace(/^\//, '');
+		const prefixedPath =
+			this.prefix === '' ? normalizedPath : this.prefix + normalizedPath;
+		return this.backend.read(prefixedPath);
+	}
 }
 
 /**

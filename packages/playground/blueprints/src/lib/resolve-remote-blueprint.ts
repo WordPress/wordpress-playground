@@ -2,6 +2,7 @@ import {
 	FetchFilesystem,
 	InMemoryFilesystem,
 	OverlayFilesystem,
+	PrefixFilesystem,
 	ZipFilesystem,
 } from '@wp-playground/storage';
 import type { BlueprintBundle } from './types';
@@ -59,13 +60,54 @@ export async function resolveRemoteBlueprint(
 	} catch (error) {
 		// If the blueprint is not a JSON file, check if it's a ZIP file.
 		if (await looksLikeZipFile(blueprintBytes)) {
-			return ZipFilesystem.fromArrayBuffer(blueprintBytes);
+			return createBlueprintBundleFromZip(blueprintBytes);
 		}
 		throw new Error(
 			`Blueprint file at ${url} is neither a valid JSON nor a ZIP file.`,
 			{ cause: error }
 		);
 	}
+}
+
+/**
+ * Finds blueprint.json in zip entry paths: at root or inside a directory.
+ * Prefers root blueprint.json when both exist.
+ * @returns The path to blueprint.json (e.g. "blueprint.json" or "my-dir/blueprint.json"), or null.
+ */
+function findBlueprintJsonPath(entryPaths: string[]): string | null {
+	const normalized = entryPaths.map((p) => p.replace(/\\/g, '/').replace(/\/$/, ''));
+	// Prefer root blueprint.json
+	if (normalized.includes('blueprint.json')) {
+		return 'blueprint.json';
+	}
+	for (const path of normalized) {
+		if (path.endsWith('/blueprint.json')) {
+			return path;
+		}
+	}
+	return null;
+}
+
+/**
+ * Creates a BlueprintBundle from a zip ArrayBuffer. Looks for blueprint.json
+ * at the root or inside any directory so both flat and nested zip layouts work.
+ */
+async function createBlueprintBundleFromZip(
+	arrayBuffer: ArrayBuffer
+): Promise<BlueprintBundle> {
+	const zipFs = ZipFilesystem.fromArrayBuffer(arrayBuffer);
+	const entryPaths = await zipFs.getEntryPaths();
+	const blueprintPath = findBlueprintJsonPath(entryPaths);
+	if (!blueprintPath) {
+		throw new Error(
+			'ZIP file does not contain blueprint.json at root or inside a directory.'
+		);
+	}
+	const prefix =
+		blueprintPath === 'blueprint.json'
+			? ''
+			: blueprintPath.replace(/\/blueprint\.json$/, '/');
+	return prefix === '' ? zipFs : new PrefixFilesystem(prefix, zipFs);
 }
 
 async function looksLikeZipFile(bytes: ArrayBuffer): Promise<boolean> {
