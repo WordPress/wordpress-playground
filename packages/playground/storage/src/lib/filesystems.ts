@@ -264,10 +264,13 @@ export class ZipFilesystem implements ReadableFilesystemBackend {
  * as the root. Paths are resolved by prepending the prefix (e.g. "foo/").
  */
 export class PrefixFilesystem implements ReadableFilesystemBackend {
-	constructor(
-		private readonly prefix: string,
-		private readonly backend: ReadableFilesystemBackend
-	) {}
+	private readonly prefix: string;
+	private readonly backend: ReadableFilesystemBackend;
+
+	constructor(prefix: string, backend: ReadableFilesystemBackend) {
+		this.prefix = prefix;
+		this.backend = backend;
+	}
 
 	async read(path: string): Promise<StreamedFile> {
 		const normalizedPath = path.replace(/^\//, '');
