@@ -273,7 +273,12 @@ export class PrefixFilesystem implements ReadableFilesystemBackend {
 	}
 
 	async read(path: string): Promise<StreamedFile> {
-		const normalizedPath = path.replace(/^\//, '');
+		// Strip leading / and ./, collapse /./ so paths like ./readymade.zip
+		// resolve correctly (zip entries are stored without ./).
+		const normalizedPath = path
+			.replace(/^\//, '')
+			.replace(/^\.\//, '')
+			.replace(/\/\.\//g, '/');
 		const prefixedPath =
 			this.prefix === '' ? normalizedPath : this.prefix + normalizedPath;
 		return this.backend.read(prefixedPath);
