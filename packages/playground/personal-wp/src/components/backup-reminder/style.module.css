@@ -1,0 +1,205 @@
+.backupReminder {
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+	padding: 20px;
+	background: #2c3338;
+	border: 1px solid #3c4349;
+	border-radius: 8px;
+}
+
+.backupContent {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 16px;
+	flex-wrap: wrap;
+}
+
+.backupStatus {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+}
+
+.backupIcon {
+	fill: #fbbf24;
+	width: 24px;
+	height: 24px;
+	flex-shrink: 0;
+}
+
+.checkIcon {
+	fill: #22c55e;
+	width: 24px;
+	height: 24px;
+	flex-shrink: 0;
+}
+
+.statusInfo {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.statusText {
+	font-size: 16px;
+	font-weight: 600;
+	color: #fff;
+}
+
+.lastBackupDate {
+	font-size: 14px;
+	color: #9ca3af;
+}
+
+.lastBackupDateButton {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	background: none;
+	border: none;
+	padding: 0;
+	font-size: 14px;
+	color: #9ca3af;
+	cursor: pointer;
+	transition: color 0.15s ease;
+}
+
+.lastBackupDateButton:hover {
+	color: #d1d5db;
+}
+
+.historyIndicator {
+	font-size: 8px;
+	opacity: 0.7;
+}
+
+.backupActions {
+	display: flex;
+	gap: 8px;
+	flex-wrap: wrap;
+}
+
+.backupButton {
+	padding: 10px 20px;
+	background: #3858e9;
+	color: #fff;
+	border: none;
+	border-radius: 6px;
+	font-size: 14px;
+	font-weight: 500;
+	cursor: pointer;
+	transition: background 0.15s ease;
+	white-space: nowrap;
+}
+
+.backupButton:hover:not(:disabled) {
+	background: #4a6cf7;
+}
+
+.backupButton:disabled {
+	opacity: 0.6;
+	cursor: not-allowed;
+}
+
+.importButton {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 10px 16px;
+	background: transparent;
+	color: #9ca3af;
+	border: 1px solid #4b5563;
+	border-radius: 6px;
+	font-size: 14px;
+	font-weight: 500;
+	cursor: pointer;
+	transition: all 0.15s ease;
+	white-space: nowrap;
+}
+
+.importButton:hover:not(:disabled) {
+	background: rgba(255, 255, 255, 0.05);
+	color: #fff;
+	border-color: #6b7280;
+}
+
+.importButton:disabled {
+	opacity: 0.6;
+	cursor: not-allowed;
+}
+
+.importButton svg {
+	fill: currentColor;
+}
+
+.backupDescription {
+	font-size: 14px;
+	color: #9ca3af;
+	margin: 0;
+	line-height: 1.5;
+}
+
+.backupHistoryList {
+	list-style: none;
+	margin: 0;
+	padding: 12px 16px;
+	background: #252a2e;
+	border-radius: 6px;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.backupHistoryItem {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: 12px;
+	font-size: 13px;
+}
+
+.backupFilename {
+	color: #d1d5db;
+	word-break: break-all;
+}
+
+.backupDate {
+	color: #6b7280;
+	white-space: nowrap;
+	flex-shrink: 0;
+}
+
+.autoBackupSelect {
+	padding: 10px 32px 10px 12px;
+	background: transparent;
+	color: #9ca3af;
+	border: 1px solid #4b5563;
+	border-radius: 6px;
+	font-size: 14px;
+	font-weight: 500;
+	cursor: pointer;
+	appearance: none;
+	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%239ca3af' d='M2 4l4 4 4-4'/%3E%3C/svg%3E");
+	background-repeat: no-repeat;
+	background-position: right 10px center;
+	transition: all 0.15s ease;
+	white-space: nowrap;
+}
+
+.autoBackupSelect:hover {
+	background-color: rgba(255, 255, 255, 0.05);
+	color: #fff;
+	border-color: #6b7280;
+}
+
+.autoBackupSelect:focus {
+	outline: none;
+	border-color: #3858e9;
+}
+
+.autoBackupSelect option {
+	background: #2c3338;
+	color: #fff;
+}

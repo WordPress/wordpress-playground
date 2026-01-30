@@ -244,4 +244,61 @@ describe('Blueprints', () => {
 			});
 		});
 	});
+
+	describe('Deprecated PHP version upgrade', () => {
+		it('should accept PHP 7.2 in blueprint and upgrade to 7.4', async () => {
+			const blueprint = {
+				preferredVersions: {
+					php: '7.2' as any,
+					wp: 'latest',
+				},
+			};
+
+			// Should pass validation
+			const validationResult = validateBlueprint(blueprint);
+			expect(validationResult).toEqual({ valid: true });
+
+			// Should compile and upgrade to 7.4
+			const compiled = await compileBlueprintV1(blueprint);
+			expect(compiled.versions.php).toBe('7.4');
+		});
+
+		it('should accept PHP 7.3 in blueprint and upgrade to 7.4', async () => {
+			const blueprint = {
+				preferredVersions: {
+					php: '7.3' as any,
+					wp: 'latest',
+				},
+			};
+
+			// Should pass validation
+			const validationResult = validateBlueprint(blueprint);
+			expect(validationResult).toEqual({ valid: true });
+
+			// Should compile and upgrade to 7.4
+			const compiled = await compileBlueprintV1(blueprint);
+			expect(compiled.versions.php).toBe('7.4');
+		});
+
+		it('should accept PHP 7.4 and later versions without changes', async () => {
+			const versions = ['7.4', '8.0', '8.1', '8.2', '8.3', '8.4', '8.5'];
+
+			for (const version of versions) {
+				const blueprint = {
+					preferredVersions: {
+						php: version as any,
+						wp: 'latest',
+					},
+				};
+
+				// Should pass validation
+				const validationResult = validateBlueprint(blueprint);
+				expect(validationResult).toEqual({ valid: true });
+
+				// Should compile without changing the version
+				const compiled = await compileBlueprintV1(blueprint);
+				expect(compiled.versions.php).toBe(version);
+			}
+		});
+	});
 });

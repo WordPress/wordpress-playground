@@ -65,6 +65,6 @@ The extension ships with a portable WebAssembly version of PHP and sets up WordP
 -->
 
 import Image from '@theme/IdealImage';
-import vsCodeScreenshot from '@site/static/img/start-wordpress-server.png';
+import vsCodeScreenshot from '@site/static/img/start-wordpress-server.webp';
 
 <div style={{maxWidth:350}}><Image img={vsCodeScreenshot} /></div>

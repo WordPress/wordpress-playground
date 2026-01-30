@@ -11,6 +11,8 @@ import type { ParsedECPointFormats } from './11_ec_point_formats';
 import { ECPointFormatsExtension } from './11_ec_point_formats';
 import type { SignatureAlgorithms } from './13_signature_algorithms';
 import { SignatureAlgorithmsExtension } from './13_signature_algorithms';
+import type { RenegotiationInfo } from './65281_renegotiation_info';
+import { RenegotiationInfoExtension } from './65281_renegotiation_info';
 import { ExtensionNames } from './types';
 
 export const TLSExtensionsHandlers = {
@@ -18,6 +20,7 @@ export const TLSExtensionsHandlers = {
 	signature_algorithms: SignatureAlgorithmsExtension,
 	supported_groups: SupportedGroupsExtension,
 	ec_point_formats: ECPointFormatsExtension,
+	renegotiation_info: RenegotiationInfoExtension,
 } as const;
 
 export type SupportedTLSExtension = keyof typeof TLSExtensionsHandlers;
@@ -41,6 +44,11 @@ export type ParsedExtension =
 	| {
 			type: 'supported_groups';
 			data: ParsedSupportedGroups;
+			raw: Uint8Array;
+	  }
+	| {
+			type: 'renegotiation_info';
+			data: RenegotiationInfo;
 			raw: Uint8Array;
 	  };
 

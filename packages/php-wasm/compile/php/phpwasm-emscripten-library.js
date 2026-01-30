@@ -891,17 +891,34 @@ const LibraryExample = {
 		const optionValue = HEAPU8[optionValuePtr];
 		const SOL_SOCKET = 1;
 		const SO_KEEPALIVE = 9;
+		const SO_RCVTIMEO = 66;
+		const SO_SNDTIMEO = 67;
 		const IPPROTO_TCP = 6;
 		const TCP_NODELAY = 1;
-		const isSupported =
+
+		// Options that we can forward to the WebSocket proxy
+		const isForwardable =
 			(level === SOL_SOCKET && optionName === SO_KEEPALIVE) ||
 			(level === IPPROTO_TCP && optionName === TCP_NODELAY);
-		if (!isSupported) {
+
+		// Options that we acknowledge but don't actually implement
+		// (WebSocket connections handle timeouts differently)
+		const isIgnorable =
+			level === SOL_SOCKET &&
+			(optionName === SO_RCVTIMEO || optionName === SO_SNDTIMEO);
+
+		if (!isForwardable && !isIgnorable) {
 			console.warn(
 				`Unsupported socket option: ${level}, ${optionName}, ${optionValue}`
 			);
 			return -1;
 		}
+
+		// For ignorable options, just return success
+		if (isIgnorable) {
+			return 0;
+		}
+
 		const ws = PHPWASM.getAllWebSockets(socketd)[0];
 		if (!ws) {
 			return -1;
@@ -909,6 +926,174 @@ const LibraryExample = {
 		ws.setSocketOpt(level, optionName, optionValuePtr);
 		return 0;
 	},
+
+	/**
+	 * Alias for wasm_recv to support dynamically loaded extensions like memcached
+	 * that import `recv` by its POSIX name instead of the WASM-specific name.
+	 *
+	 * This allows extensions compiled without the -Drecv=wasm_recv flag to still
+	 * benefit from the async-aware implementation.
+	 */
+	recv: function (sockfd, buffer, size, flags) {
+		return _wasm_recv(sockfd, buffer, size, flags);
+	},
+	recv__deps: ['wasm_recv'],
+
+	/**
+	 * Alias for wasm_setsockopt to support dynamically loaded extensions like memcached
+	 * that import `setsockopt` by its POSIX name instead of the WASM-specific name.
+	 */
+	setsockopt: function (socketd, level, optionName, optionValuePtr, optionLen) {
+		return _wasm_setsockopt(socketd, level, optionName, optionValuePtr, optionLen);
+	},
+	setsockopt__deps: ['wasm_setsockopt'],
+
+	/**
+	 * Async-aware connect(2) for WebSocket-based sockets.
+	 *
+	 * The standard Emscripten connect() creates a WebSocket but returns
+	 * immediately before the connection is established. This wrapper
+	 * performs the connection and waits for the WebSocket to actually
+	 * connect before returning.
+	 *
+	 * @param {int} sockfd Socket file descriptor
+	 * @param {int} addr Pointer to sockaddr structure
+	 * @param {int} addrlen Length of sockaddr structure
+	 * @returns {int} 0 on success, negative errno on failure
+	 */
+	wasm_connect: function (sockfd, addr, addrlen) {
+		/**
+		 * Use a synchronous connect() call when Asyncify is used.
+		 *
+		 * The async version was originally introduced to support the Memcached and Redis extensions,
+		 * and both are only available with JSPI. Asyncify is too difficult to maintain and
+		 * it's not getting that upgrade.
+		 */
+		if (!("Suspending" in WebAssembly)) {
+			var sock = getSocketFromFD(sockfd);
+			var info = getSocketAddress(addr, addrlen);
+			sock.sock_ops.connect(sock, info.addr, info.port);
+			return 0;
+		}
+		return Asyncify.handleSleep((wakeUp) => {
+			// Get the socket
+			let sock;
+			try {
+				sock = getSocketFromFD(sockfd);
+			} catch (e) {
+				wakeUp(-ERRNO_CODES.EBADF);
+				return;
+			}
+
+			if (!sock) {
+				wakeUp(-ERRNO_CODES.EBADF);
+				return;
+			}
+
+			// Parse the address
+			let info;
+			try {
+				info = getSocketAddress(addr, addrlen);
+			} catch (e) {
+				if (typeof FS == 'undefined' || !(e.name === 'ErrnoError')) {
+					wakeUp(-ERRNO_CODES.EFAULT);
+					return;
+				}
+				wakeUp(-e.errno);
+				return;
+			}
+
+			// Perform the connect (this creates the WebSocket but doesn't wait)
+			try {
+				sock.sock_ops.connect(sock, info.addr, info.port);
+			} catch (e) {
+				if (typeof FS == 'undefined' || !(e.name === 'ErrnoError')) {
+					wakeUp(-ERRNO_CODES.ECONNREFUSED);
+					return;
+				}
+				wakeUp(-e.errno);
+				return;
+			}
+
+			// Get all websockets for this socket
+			const webSockets = PHPWASM.getAllWebSockets(sock);
+			if (!webSockets.length) {
+				// No WebSocket yet, this shouldn't happen after connect
+				wakeUp(-ERRNO_CODES.ECONNREFUSED);
+				return;
+			}
+
+			const ws = webSockets[0];
+
+			// If already connected, return success
+			if (ws.readyState === ws.OPEN) {
+				wakeUp(0);
+				return;
+			}
+
+			// If already closed or closing, return error
+			if (ws.readyState === ws.CLOSING || ws.readyState === ws.CLOSED) {
+				wakeUp(-ERRNO_CODES.ECONNREFUSED);
+				return;
+			}
+
+			// Wait for the connection to be established
+			const timeout = 30000; // 30 second timeout
+			let resolved = false;
+
+			const timeoutId = setTimeout(() => {
+				if (!resolved) {
+					resolved = true;
+					wakeUp(-ERRNO_CODES.ETIMEDOUT);
+				}
+			}, timeout);
+
+			const handleOpen = () => {
+				if (!resolved) {
+					resolved = true;
+					clearTimeout(timeoutId);
+					ws.removeEventListener('error', handleError);
+					ws.removeEventListener('close', handleClose);
+					wakeUp(0);
+				}
+			};
+
+			const handleError = () => {
+				if (!resolved) {
+					resolved = true;
+					clearTimeout(timeoutId);
+					ws.removeEventListener('open', handleOpen);
+					ws.removeEventListener('close', handleClose);
+					wakeUp(-ERRNO_CODES.ECONNREFUSED);
+				}
+			};
+
+			const handleClose = () => {
+				if (!resolved) {
+					resolved = true;
+					clearTimeout(timeoutId);
+					ws.removeEventListener('open', handleOpen);
+					ws.removeEventListener('error', handleError);
+					wakeUp(-ERRNO_CODES.ECONNREFUSED);
+				}
+			};
+
+			ws.addEventListener('open', handleOpen);
+			ws.addEventListener('error', handleError);
+			ws.addEventListener('close', handleClose);
+		});
+	},
+	wasm_connect__deps: ['$PHPWASM'],
+
+	/**
+	 * Override Emscripten's __syscall_connect to use our async-aware implementation.
+	 * This ensures all connect() calls (from PHP core, extensions, and dynamic modules)
+	 * properly wait for WebSocket connections to be established.
+	 */
+	__syscall_connect: function (sockfd, addr, addrlen, d1, d2, d3) {
+		return _wasm_connect(sockfd, addr, addrlen);
+	},
+	__syscall_connect__deps: ['wasm_connect'],
 
 	/**
 	 * Returns the assigned process ID of the current process or 42 if not available.

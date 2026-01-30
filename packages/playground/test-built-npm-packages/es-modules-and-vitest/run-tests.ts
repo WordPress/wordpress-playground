@@ -35,10 +35,7 @@ if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
 	);
 }
 
-// Exclude PHP 7.2 – it often times out on CI.
-for (const phpVersion of SupportedPHPVersions.filter(
-	(phpVersion: string) => !['7.2', '7.3'].includes(phpVersion)
-)) {
+for (const phpVersion of SupportedPHPVersions) {
 	console.log(`\nRunning tests for PHP ${phpVersion}...`);
 
 	const child = spawn(
@@ -117,6 +114,6 @@ if (numTimedOut > 0) {
 	console.log(red(`${numTimedOut} / ${results.length} tests timed out`));
 }
 
-if (numFailed > 0) {
+if (numFailed > 0 || numTimedOut > 0) {
 	process.exit(1);
 }

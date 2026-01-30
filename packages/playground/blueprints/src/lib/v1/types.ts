@@ -15,6 +15,13 @@ export type StreamBundledFile = (relativePath: string) => Promise<StreamedFile>;
 export type BlueprintV1 = BlueprintV1Declaration | BlueprintBundle;
 
 /**
+ * PHP versions accepted in Blueprint schema.
+ * Includes deprecated versions (7.2, 7.3) which are automatically
+ * upgraded to 7.4 during compilation.
+ */
+export type BlueprintPHPVersion = SupportedPHPVersion | '7.2' | '7.3';
+
+/**
  * The Blueprint declaration, typically stored in a blueprint.json file.
  */
 export type BlueprintV1Declaration = {
@@ -58,9 +65,11 @@ export type BlueprintV1Declaration = {
 	preferredVersions?: {
 		/**
 		 * The preferred PHP version to use.
-		 * If not specified, the latest supported version will be used
+		 * If not specified, the latest supported version will be used.
+		 *
+		 * Note: PHP 7.2 and 7.3 are deprecated and will be automatically upgraded to 7.4.
 		 */
-		php: SupportedPHPVersion | 'latest';
+		php: BlueprintPHPVersion | 'latest';
 		/**
 		 * The preferred WordPress version to use.
 		 * If not specified, the latest supported version will be used

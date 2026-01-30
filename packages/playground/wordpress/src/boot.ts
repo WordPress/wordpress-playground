@@ -184,7 +184,7 @@ export async function bootWordPress(
 
 	if (options.constants) {
 		for (const key in options.constants) {
-			php.defineConstant(key, options.constants[key] as string);
+			php.defineConstant(key, options.constants[key]);
 		}
 	}
 
@@ -384,6 +384,13 @@ export async function bootRequestHandler(options: BootRequestHandlerOptions) {
 		//         https://github.com/WordPress/sqlite-database-integration/issues/195
 		php.defineConstant('WP_SQLITE_AST_DRIVER', true);
 
+		// Define any custom constants provided via CLI or configuration
+		if (options.constants) {
+			for (const key in options.constants) {
+				php.defineConstant(key, options.constants[key]);
+			}
+		}
+
 		/**
 		 * Set up mu-plugins in /internal/mu-plugins
 		 * using auto_prepend_file to provide platform-level
@@ -426,11 +433,7 @@ export async function bootRequestHandler(options: BootRequestHandlerOptions) {
 				createSpawnHandler(
 					requestHandler
 						? () =>
-								requestHandler.instanceManager.acquirePHPInstance(
-									{
-										considerPrimary: false,
-									}
-								)
+								requestHandler.instanceManager.acquirePHPInstance()
 						: undefined
 				)
 			);
@@ -471,7 +474,7 @@ export async function bootRequestHandler(options: BootRequestHandlerOptions) {
 		/**
 		 * If maxPhpInstances is not 1, the PHPRequestHandler constructor needs
 		 * a PHP factory function. Internally, it creates a PHPProcessManager that
-		 * dynamically starts new PHP instances and reaps them after they're used.
+		 * maintains a pool of reusable PHP instances.
 		 */
 		phpFactory:
 			options.maxPhpInstances !== 1

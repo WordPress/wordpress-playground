@@ -650,3 +650,69 @@ test('should create temporary site when importing ZIP while on a saved site with
 		{ timeout: 30000 }
 	);
 });
+
+// Missing site modal tests in a separate describe block to avoid state pollution
+test.describe('Missing site modal', () => {
+	// These tests also need serial mode since they use OPFS
+	test.describe.configure({ mode: 'serial' });
+
+	test('should show modal when loading non-existent site slug', async ({
+		website,
+		wordpress,
+		browserName,
+		context,
+	}) => {
+		test.skip(
+			browserName !== 'chromium',
+			`This test relies on OPFS which isn't available in Playwright's flavor of ${browserName}.`
+		);
+
+		// Clear all storage to ensure clean state
+		await context.clearCookies();
+
+		// Use a unique slug that definitely doesn't exist
+		const uniqueSlug = `missing-modal-test-${Date.now()}`;
+		await website.goto(`./?site-slug=${uniqueSlug}`);
+
+		// The modal should appear early, even before WordPress fully loads
+		await expect(
+			website.page.getByRole('dialog', {
+				name: 'This is a dialog window which overlays the main content of the page. It offers the user a choice between using an Unsaved Playground and a persistent Playground that is saved to browser storage.',
+			})
+		).toBeVisible({ timeout: 30000 });
+	});
+
+	test('should dismiss modal when clicking dismiss button', async ({
+		website,
+		wordpress,
+		browserName,
+		context,
+	}) => {
+		test.skip(
+			browserName !== 'chromium',
+			`This test relies on OPFS which isn't available in Playwright's flavor of ${browserName}.`
+		);
+
+		// Clear storage
+		await context.clearCookies();
+
+		const uniqueSlug = `dismiss-modal-test-${Date.now()}`;
+		await website.goto(`./?site-slug=${uniqueSlug}`);
+
+		// Wait for modal
+		const dialog = website.page.getByRole('dialog', {
+			name: 'This is a dialog window which overlays the main content of the page. It offers the user a choice between using an Unsaved Playground and a persistent Playground that is saved to browser storage.',
+		});
+		await expect(dialog).toBeVisible({ timeout: 30000 });
+
+		// Click dismiss button
+		await dialog
+			.getByRole('button', {
+				name: 'Keep using an Unsaved Playground',
+			})
+			.click();
+
+		// Modal should close
+		await expect(dialog).not.toBeVisible();
+	});
+});

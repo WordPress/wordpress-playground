@@ -35,5 +35,5 @@
 	"git.branchProtection": [
 		"trunk"
 	],
-	"php.version": "7.2"
+	"php.version": "7.4"
 }

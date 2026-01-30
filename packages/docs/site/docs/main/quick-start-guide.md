@@ -62,11 +62,11 @@ To keep your WordPress Playground site for longer than a single browser session,
 
 1. Open the Playground site manager panel:
 
-![Site Manager](@site/static/img/open-site-manager.webp)
+![Site Manager](@site/static/img/site-manager/open-site-manager.webp)
 
 2. Use the "Download as .zip" button in the additional actions menu
 
-![Export button](@site/static/img/site-manager-menu.webp)
+![Export button](@site/static/img/site-manager/export-zip-file.webp)
 
 The exported file contains the complete site you've built. You could host it on any server that supports PHP and SQLite. All WordPress core files, plugins, themes, and everything else you've added to your site are in there.
 
@@ -74,9 +74,15 @@ The SQLite database file is also included in the export, you'll find it `wp-cont
 
 ## Restore a saved site
 
-You can restore the saved site using the "Import from .zip" button in the site management panel:
+You can restore the saved site using the "Import from .zip" button in the Playground dashboard panel:
 
-![Import from .zip button](@site/static/img/site-manager-import-actions-menu.webp)
+1. Open the Playground dashboard panel:
+
+![Open Playground Dashboard](@site/static/img/dashboard/open-playground-dashboard.webp)
+
+1. Use the "Import .zip" button at the end of the "Start a new Playground" section
+
+![Open Playground Dashboard](@site/static/img/dashboard/import-playground.webp)
 
 ## Use a specific WordPress or PHP version
 
@@ -92,9 +98,9 @@ Compatibility testing with so many WordPress and PHP versions was always a pain.
 
 You can also use the `wp` and `php` [query parameters](/developers/apis/query-api) to open Playground with the right versions already loaded:
 
--   https://playground.wordpress.net/?wp=6.5
--   https://playground.wordpress.net/?php=8.3
--   https://playground.wordpress.net/?php=8.2&wp=6.2
+- https://playground.wordpress.net/?wp=6.5
+- https://playground.wordpress.net/?php=8.3
+- https://playground.wordpress.net/?php=8.2&wp=6.2
 
 <ThisIsQueryApi />
 

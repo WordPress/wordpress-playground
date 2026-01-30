@@ -200,7 +200,7 @@ export async function cloneRequest(
 	request: Request,
 	overrides: Record<string, any>
 ): Promise<Request> {
-	let body: Blob | ReadableStream | undefined;
+	let body: ArrayBuffer | ReadableStream | undefined;
 
 	if (['GET', 'HEAD'].includes(request.method) || 'body' in overrides) {
 		body = undefined;
@@ -210,8 +210,12 @@ export async function cloneRequest(
 		// that's still waiting for more data
 		body = request.body;
 	} else {
-		// Otherwise, we need to read the body as a blob
-		body = await request.blob();
+		// Otherwise, we need to read the body as an arrayBuffer.
+		// We don't use .blob() because it throws when the client is low
+		// on disk space (blobs tend to be stored as temporary files, array
+		// buffers tend to be stored in memory).
+		// see https://github.com/WordPress/wordpress-playground/issues/2769
+		body = await request.arrayBuffer();
 	}
 
 	return new Request(overrides['url'] || request.url, {
@@ -286,27 +290,32 @@ export function removeContentSecurityPolicyDirective(
 
 	// Parse based on the CSP spec:
 	// https://w3c.github.io/webappsec-csp/#parse-serialized-policy
-	return cspHeader
-		// "For each token returned by strictly splitting serialized
-		// on the U+003B SEMICOLON character (;):"
-		.split(';')
-		.filter((rawDirective: string) => {
-			// "Strip leading and trailing ASCII whitespace from token."
-			const trimmedDirective = rawDirective
-				.replace(leadingAsciiWhitespace, '')
-				.replace(trailingAsciiWhitespace, '');
+	return (
+		cspHeader
+			// "For each token returned by strictly splitting serialized
+			// on the U+003B SEMICOLON character (;):"
+			.split(';')
+			.filter((rawDirective: string) => {
+				// "Strip leading and trailing ASCII whitespace from token."
+				const trimmedDirective = rawDirective
+					.replace(leadingAsciiWhitespace, '')
+					.replace(trailingAsciiWhitespace, '');
 
-			// "Let directive name be the result of collecting a sequence
-			// of code points from token which are not ASCII whitespace."
-			const [directiveName] = trimmedDirective.split(
-				asciiWhitespace,
-				// The directive name is the first token.
-				1
-			);
+				// "Let directive name be the result of collecting a sequence
+				// of code points from token which are not ASCII whitespace."
+				const [directiveName] = trimmedDirective.split(
+					asciiWhitespace,
+					// The directive name is the first token.
+					1
+				);
 
-			// "Directive names are case-insensitive, that is:
-			// script-SRC 'none' and ScRiPt-sRc 'none' are equivalent."
-			return directiveName.toLowerCase() !== directiveToRemove.toLowerCase();
-		})
-		.join(';');
+				// "Directive names are case-insensitive, that is:
+				// script-SRC 'none' and ScRiPt-sRc 'none' are equivalent."
+				return (
+					directiveName.toLowerCase() !==
+					directiveToRemove.toLowerCase()
+				);
+			})
+			.join(';')
+	);
 }
