@@ -236,3 +236,18 @@ if (defined('USE_FETCH_FOR_REQUESTS') && USE_FETCH_FOR_REQUESTS) {
 		return [ 'Dummy' ];
 	});
 }
+
+/**
+ * Disable the pattern picker modal to prevent iOS Safari memory crashes.
+ * @see https://github.com/WordPress/gutenberg/issues/75019
+ */
+add_action('init', function() {
+	if (defined('PLAYGROUND_ALLOW_PATTERN_PICKER') && PLAYGROUND_ALLOW_PATTERN_PICKER) return;
+	$user_id = get_current_user_id();
+	if (!$user_id) return;
+
+	$prefs = get_user_meta($user_id, 'wp_persisted_preferences', true) ?: [];
+	if (!isset($prefs['core'])) $prefs['core'] = [];
+	$prefs['core']['enableChoosePatternModal'] = false;
+	update_user_meta($user_id, 'wp_persisted_preferences', $prefs);
+});
