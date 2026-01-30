@@ -1,4 +1,9 @@
-import type { PHPRequest, PHPResponse, RemoteAPI } from '@php-wasm/universal';
+import type {
+	PHPRequest,
+	PHPResponse,
+	RemoteAPI,
+	StreamedPHPResponse,
+} from '@php-wasm/universal';
 import type { PlaygroundCliBlueprintV1Worker as PlaygroundCliWorkerV1 } from './blueprints-v1/worker-thread-v1';
 import type { PlaygroundCliBlueprintV2Worker as PlaygroundCliWorkerV2 } from './blueprints-v2/worker-thread-v2';
 
@@ -11,7 +16,7 @@ type PlaygroundCliWorker = PlaygroundCliWorkerV1 | PlaygroundCliWorkerV2;
 // TODO: Could we just spawn a worker using the factory function to PHPProcessManager?
 type WorkerLoad = {
 	worker: RemoteAPI<PlaygroundCliWorker>;
-	activeRequests: Set<Promise<PHPResponse>>;
+	activeRequests: Set<Promise<PHPResponse | void>>;
 };
 export class LoadBalancer {
 	workerLoads: WorkerLoad[] = [];
@@ -76,5 +81,53 @@ export class LoadBalancer {
 		return promiseForResponse.finally(() => {
 			smallestWorkerLoad.activeRequests.delete(promiseForResponse);
 		});
+	}
+
+	/**
+	 * Handle a request with streaming support for large responses.
+	 * Returns a StreamedPHPResponse that allows processing the response
+	 * body incrementally without buffering in memory.
+	 */
+	async handleRequestStreamed(
+		request: PHPRequest
+	): Promise<StreamedPHPResponse | PHPResponse> {
+		let smallestWorkerLoad = this.workerLoads[0];
+
+		for (let i = 1; i < this.workerLoads.length; i++) {
+			const workerLoad = this.workerLoads[i];
+			if (
+				workerLoad.activeRequests.size <
+				smallestWorkerLoad.activeRequests.size
+			) {
+				smallestWorkerLoad = workerLoad;
+			}
+		}
+
+		const promiseForResponse =
+			smallestWorkerLoad.worker.requestStreamed(request);
+
+		// Track the request while it's active
+		// For streaming responses, we wait for the stream to finish before
+		// considering the request complete (used for worker removal timing)
+		const trackingPromise: Promise<void> = promiseForResponse.then(
+			(response) => {
+				if ('finished' in response) {
+					return response.finished;
+				}
+				// Non-streaming response: already complete
+				return;
+			}
+		);
+		smallestWorkerLoad.activeRequests.add(trackingPromise);
+
+		// Add URL to promise for use while debugging
+		(promiseForResponse as any).url = request.url;
+
+		// Clean up tracking when the response stream is fully consumed
+		trackingPromise.finally(() => {
+			smallestWorkerLoad.activeRequests.delete(trackingPromise);
+		});
+
+		return promiseForResponse;
 	}
 }

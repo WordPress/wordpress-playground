@@ -254,18 +254,28 @@ function setupTransferHandlers() {
 		serialize(obj: StreamedPHPResponse): [any, Transferable[]] {
 			const supportsStreams = supportsTransferableStreams();
 			const exitCodePort = promiseToPort(obj.exitCode);
+			const headersStream = obj.getHeadersStream();
 			if (supportsStreams) {
 				const payload = {
 					__type: 'StreamedPHPResponse',
-					headers: (obj as any)['headersStream'],
+					headers: headersStream,
 					stdout: obj.stdout,
 					stderr: obj.stderr,
 					exitCodePort,
 				};
-				return [payload, [exitCodePort]];
+				// ReadableStreams must be explicitly transferred
+				return [
+					payload,
+					[
+						headersStream as unknown as Transferable,
+						obj.stdout as unknown as Transferable,
+						obj.stderr as unknown as Transferable,
+						exitCodePort,
+					],
+				];
 			}
 			// Fallback: bridge streams via MessagePorts
-			const headersPort = streamToPort((obj as any)['headersStream']);
+			const headersPort = streamToPort(headersStream);
 			const stdoutPort = streamToPort(obj.stdout);
 			const stderrPort = streamToPort(obj.stderr);
 			const payload = {

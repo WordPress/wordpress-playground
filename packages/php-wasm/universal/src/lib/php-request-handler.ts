@@ -7,7 +7,7 @@ import {
 } from './urls';
 import type { PHP, PHPExecutionFailureError } from './php';
 import { normalizeHeaders } from './php';
-import { PHPResponse } from './php-response';
+import { PHPResponse, StreamedPHPResponse } from './php-response';
 import type { PHPRequest, PHPRunOptions } from './universal-php';
 import { encodeAsMultipart } from './encode-as-multipart';
 import type { PHPFactoryOptions } from './php-process-manager';
@@ -528,6 +528,209 @@ export class PHPRequestHandler implements AsyncDisposable {
 		} else {
 			return PHPResponse.forHttpCode(404);
 		}
+	}
+
+	/**
+	 * Serves the request with streaming support – returns a StreamedPHPResponse
+	 * that allows processing the response body incrementally without buffering
+	 * the entire response in memory.
+	 *
+	 * This is useful for large file downloads (>2GB) that would otherwise
+	 * exceed JavaScript's Uint8Array size limits.
+	 *
+	 * @param request - PHP Request data.
+	 * @returns A StreamedPHPResponse or PHPResponse for non-PHP files.
+	 */
+	async requestStreamed(
+		request: PHPRequest
+	): Promise<StreamedPHPResponse | PHPResponse> {
+		const isAbsolute = looksLikeAbsoluteUrl(request.url);
+		const originalRequestUrl = new URL(
+			request.url.split('#')[0],
+			isAbsolute ? undefined : DEFAULT_BASE_URL
+		);
+
+		const rewrittenRequestUrl = this.#applyRewriteRules(originalRequestUrl);
+		const primaryPhp = await this.getPrimaryPhp();
+		let fsPath = joinPaths(
+			this.#DOCROOT,
+			removePathPrefix(
+				decodeURIComponent(rewrittenRequestUrl.pathname),
+				this.#PATHNAME
+			)
+		);
+
+		if (primaryPhp.isDir(fsPath)) {
+			if (!fsPath.endsWith('/')) {
+				return new PHPResponse(
+					301,
+					{ Location: [`${rewrittenRequestUrl.pathname}/`] },
+					new Uint8Array(0)
+				);
+			}
+
+			for (const possibleIndexFile of ['index.php', 'index.html']) {
+				const possibleIndexPath = joinPaths(fsPath, possibleIndexFile);
+				if (primaryPhp.isFile(possibleIndexPath)) {
+					fsPath = possibleIndexPath;
+					rewrittenRequestUrl.pathname = joinPaths(
+						rewrittenRequestUrl.pathname,
+						possibleIndexFile
+					);
+					break;
+				}
+			}
+		}
+
+		if (!primaryPhp.isFile(fsPath)) {
+			let pathToTry = rewrittenRequestUrl.pathname;
+			while (
+				pathToTry.startsWith('/') &&
+				pathToTry !== dirname(pathToTry)
+			) {
+				pathToTry = dirname(pathToTry);
+				const resolvedPathToTry = joinPaths(this.#DOCROOT, pathToTry);
+				if (
+					primaryPhp.isFile(resolvedPathToTry) &&
+					resolvedPathToTry.endsWith('.php')
+				) {
+					fsPath = joinPaths(this.#DOCROOT, pathToTry);
+					break;
+				}
+			}
+		}
+
+		if (!primaryPhp.isFile(fsPath)) {
+			const fileNotFoundAction = this.getFileNotFoundAction(
+				rewrittenRequestUrl.pathname
+			);
+			switch (fileNotFoundAction.type) {
+				case 'response':
+					return fileNotFoundAction.response;
+				case 'internal-redirect':
+					fsPath = joinPaths(this.#DOCROOT, fileNotFoundAction.uri);
+					break;
+				case '404':
+					return PHPResponse.forHttpCode(404);
+				default:
+					throw new Error(
+						'Unsupported file-not-found action type: ' +
+							`'${(fileNotFoundAction as FileNotFoundAction).type}'`
+					);
+			}
+		}
+
+		if (primaryPhp.isFile(fsPath)) {
+			if (fsPath.endsWith('.php')) {
+				return await this.#spawnPHPAndDispatchRequestStreamed(
+					request,
+					originalRequestUrl,
+					rewrittenRequestUrl,
+					fsPath
+				);
+			} else {
+				return this.#serveStaticFile(primaryPhp, fsPath);
+			}
+		} else {
+			return PHPResponse.forHttpCode(404);
+		}
+	}
+
+	/**
+	 * Spawns a new PHP instance and dispatches a request to it with streaming.
+	 */
+	async #spawnPHPAndDispatchRequestStreamed(
+		request: PHPRequest,
+		originalRequestUrl: URL,
+		rewrittenRequestUrl: URL,
+		scriptPath: string
+	): Promise<StreamedPHPResponse> {
+		let spawnedPHP: AcquiredPHP | undefined = undefined;
+		try {
+			spawnedPHP = await this.instanceManager!.acquirePHPInstance();
+		} catch (e) {
+			if (e instanceof MaxPhpInstancesError) {
+				throw new Error('Too many PHP instances');
+			} else {
+				throw e;
+			}
+		}
+
+		// Note: We don't release the PHP instance in finally here because
+		// the stream may still be reading. The caller must handle cleanup
+		// after the stream is consumed.
+		const response = await this.#dispatchToPHPStreamed(
+			spawnedPHP.php,
+			request,
+			originalRequestUrl,
+			rewrittenRequestUrl,
+			scriptPath
+		);
+
+		// Release the PHP instance when the response is finished
+		response.finished.finally(() => {
+			spawnedPHP?.reap();
+		});
+
+		return response;
+	}
+
+	/**
+	 * Runs the requested PHP file with streaming output.
+	 */
+	async #dispatchToPHPStreamed(
+		php: PHP,
+		request: PHPRequest,
+		originalRequestUrl: URL,
+		rewrittenRequestUrl: URL,
+		scriptPath: string
+	): Promise<StreamedPHPResponse> {
+		let preferredMethod: PHPRunOptions['method'] = 'GET';
+
+		const headers: Record<string, string> = {
+			host: this.#HOST,
+			...normalizeHeaders(request.headers || {}),
+		};
+		if (this.#cookieStore) {
+			headers['cookie'] = this.#cookieStore.getCookieRequestHeader();
+		}
+
+		let body = request.body;
+		if (typeof body === 'object' && !(body instanceof Uint8Array)) {
+			preferredMethod = 'POST';
+			const { bytes, contentType } = await encodeAsMultipart(body);
+			body = bytes;
+			headers['content-type'] = contentType;
+		}
+
+		const response = await php.runStream({
+			relativeUri: ensurePathPrefix(
+				toRelativeUrl(new URL(rewrittenRequestUrl.toString())),
+				this.#PATHNAME
+			),
+			protocol: this.#PROTOCOL,
+			method: request.method || preferredMethod,
+			$_SERVER: this.prepare_$_SERVER_superglobal(
+				originalRequestUrl,
+				rewrittenRequestUrl,
+				scriptPath
+			),
+			body,
+			scriptPath,
+			headers,
+		});
+
+		// Handle cookies from streaming response
+		if (this.#cookieStore) {
+			response.headers.then((responseHeaders) => {
+				this.#cookieStore &&
+					this.#cookieStore.rememberCookiesFromResponseHeaders(
+						responseHeaders
+					);
+			});
+		}
+
+		return response;
 	}
 
 	/**

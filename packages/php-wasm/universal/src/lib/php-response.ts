@@ -49,9 +49,9 @@ const responseTexts: Record<number, string> = {
 
 export class StreamedPHPResponse {
 	/**
-	 * Response headers.
+	 * Response headers stream (internal).
 	 */
-	private readonly headersStream: ReadableStream<Uint8Array>;
+	readonly #headersStream: ReadableStream<Uint8Array>;
 
 	/**
 	 * Response body. Contains the output from `echo`,
@@ -84,10 +84,18 @@ export class StreamedPHPResponse {
 		stderr: ReadableStream<Uint8Array>,
 		exitCode: Promise<number>
 	) {
-		this.headersStream = headers;
+		this.#headersStream = headers;
 		this.stdout = stdout;
 		this.stderr = stderr;
 		this.exitCode = exitCode;
+	}
+
+	/**
+	 * Returns the raw headers stream for serialization purposes.
+	 * For parsed headers, use the `headers` property instead.
+	 */
+	getHeadersStream(): ReadableStream<Uint8Array> {
+		return this.#headersStream;
 	}
 
 	/**
@@ -169,7 +177,7 @@ export class StreamedPHPResponse {
 
 	private async getParsedHeaders() {
 		if (!this.parsedHeaders) {
-			this.parsedHeaders = parseHeadersStream(this.headersStream);
+			this.parsedHeaders = parseHeadersStream(this.#headersStream);
 		}
 		return await this.parsedHeaders;
 	}
