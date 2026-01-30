@@ -5,7 +5,7 @@ import {
 	removePathPrefix,
 	DEFAULT_BASE_URL,
 } from './urls';
-import type { PHP, PHPExecutionFailureError } from './php';
+import type { PHP } from './php';
 import { normalizeHeaders } from './php';
 import { PHPResponse } from './php-response';
 import type { StreamedPHPResponse } from './php-response';
@@ -373,162 +373,36 @@ export class PHPRequestHandler implements AsyncDisposable {
 	 * @param  request - PHP Request data.
 	 */
 	async request(request: PHPRequest): Promise<PHPResponse> {
-		const isAbsolute = looksLikeAbsoluteUrl(request.url);
-		const originalRequestUrl = new URL(
-			// Remove the hash part of the URL as it's not meant for the server.
-			request.url.split('#')[0],
-			isAbsolute ? undefined : DEFAULT_BASE_URL
-		);
+		const streamedResponse = await this.requestStreamed(request);
 
-		const rewrittenRequestUrl = this.#applyRewriteRules(originalRequestUrl);
-		const primaryPhp = await this.getPrimaryPhp();
-		let fsPath = joinPaths(
-			this.#DOCROOT,
-			/**
-			 * Turn a URL such as `https://playground/scope:my-site/wp-admin/index.php`
-			 * into a site-relative path, such as `/wp-admin/index.php`.
-			 */
-			removePathPrefix(
-				/**
-				 * URL.pathname returns a URL-encoded path. We need to decode it
-				 * before using it as a filesystem path.
-				 */
-				decodeURIComponent(rewrittenRequestUrl.pathname),
-				this.#PATHNAME
-			)
-		);
-		if (primaryPhp.isDir(fsPath)) {
-			// Ensure directory URIs have a trailing slash. Otherwise,
-			// relative URIs in index.php or index.html files are relative
-			// to the next directory up.
-			//
-			// Example:
-			// For an index page served for URI "/settings", we naturally expect
-			// links to be relative to "/settings", but without the trailing
-			// slash, a relative link "edit.php" resolves to "/edit.php"
-			// rather than "/settings/edit.php".
-			//
-			// This treatment of relative links is correct behavior for the browser:
-			// https://www.rfc-editor.org/rfc/rfc3986#section-5.2.3
-			//
-			// But user intent for `/settings/index.php` is that its relative
-			// URIs are relative to `/settings/`. So we redirect to add a
-			// trailing slash to directory URIs to meet this expecatation.
-			//
-			// This behavior is also necessary for WordPress to function properly.
-			// Otherwise, when viewing the WP admin dashboard at `/wp-admin`,
-			// links to other admin pages like `edit.php` will incorrectly
-			// resolve to `/edit.php` rather than `/wp-admin/edit.php`.
-			if (!fsPath.endsWith('/')) {
-				return new PHPResponse(
-					301,
-					{ Location: [`${rewrittenRequestUrl.pathname}/`] },
-					new Uint8Array(0)
-				);
-			}
-
-			// We can only satisfy requests for directories with a default file
-			// so let's first resolve to a default path when available.
-			for (const possibleIndexFile of ['index.php', 'index.html']) {
-				const possibleIndexPath = joinPaths(fsPath, possibleIndexFile);
-				if (primaryPhp.isFile(possibleIndexPath)) {
-					fsPath = possibleIndexPath;
-
-					// Include the resolved index file in the final rewritten request URL.
-					rewrittenRequestUrl.pathname = joinPaths(
-						rewrittenRequestUrl.pathname,
-						possibleIndexFile
-					);
-					break;
-				}
-			}
+		// If requestStreamed() returned a PHPResponse (static files, redirects, 404s),
+		// return it directly without conversion.
+		if (streamedResponse instanceof PHPResponse) {
+			return streamedResponse;
 		}
 
-		if (!primaryPhp.isFile(fsPath)) {
-			/**
-			 * Try resolving a partial path.
-			 *
-			 * Example:
-			 *
-			 * – Request URL: /file.php/index.php
-			 * – Document Root: /var/www
-			 *
-			 * If /var/www/file.php/index.php does not exist, but /var/www/file.php does,
-			 * use /var/www/file.php. This is also what Apache and PHP Dev Server do.
-			 */
-			let pathToTry = rewrittenRequestUrl.pathname;
-			while (
-				pathToTry.startsWith('/') &&
-				pathToTry !== dirname(pathToTry)
-			) {
-				pathToTry = dirname(pathToTry);
-				const resolvedPathToTry = joinPaths(this.#DOCROOT, pathToTry);
-				if (
-					primaryPhp.isFile(resolvedPathToTry) &&
-					// Only run partial path resolution for PHP files.
-					resolvedPathToTry.endsWith('.php')
-				) {
-					fsPath = joinPaths(this.#DOCROOT, pathToTry);
-					break;
-				}
-			}
-		}
+		// Convert StreamedPHPResponse to buffered PHPResponse
+		const response =
+			await PHPResponse.fromStreamedResponse(streamedResponse);
 
-		if (!primaryPhp.isFile(fsPath)) {
-			const fileNotFoundAction = this.getFileNotFoundAction(
-				rewrittenRequestUrl.pathname
+		/**
+		 * If the response is successful but the exit code is non-zero, let's rewrite the
+		 * HTTP status code as 500. We're acting as a HTTP server here and
+		 * this behavior is in line with what Nginx and Apache do.
+		 *
+		 * Note: This check is only done for buffered responses. For streaming responses,
+		 * headers are already sent before we know the exit code.
+		 */
+		if (response.ok() && response.exitCode !== 0) {
+			return new PHPResponse(
+				500,
+				response.headers,
+				response.bytes,
+				response.errors,
+				response.exitCode
 			);
-			switch (fileNotFoundAction.type) {
-				case 'response':
-					return fileNotFoundAction.response;
-				case 'internal-redirect':
-					fsPath = joinPaths(this.#DOCROOT, fileNotFoundAction.uri);
-					break;
-				case '404':
-					return PHPResponse.forHttpCode(404);
-				default:
-					throw new Error(
-						'Unsupported file-not-found action type: ' +
-							// Cast because TS asserts the remaining possibility is `never`
-							`'${
-								(fileNotFoundAction as FileNotFoundAction).type
-							}'`
-					);
-			}
 		}
-
-		// We need to confirm that the current target file exists because
-		// file-not-found fallback actions may redirect to non-existent files.
-		if (primaryPhp.isFile(fsPath)) {
-			if (fsPath.endsWith('.php')) {
-				const response = await this.#spawnPHPAndDispatchRequest(
-					request,
-					originalRequestUrl,
-					rewrittenRequestUrl,
-					fsPath
-				);
-
-				/**
-				 * If the response is but the exit code is non-zero, let's rewrite the
-				 * HTTP status code as 500. We're acting as a HTTP server here and
-				 * this behavior is in line with what Nginx and Apache do.
-				 */
-				if (response.ok() && response.exitCode !== 0) {
-					return new PHPResponse(
-						500,
-						response.headers,
-						response.bytes,
-						response.errors,
-						response.exitCode
-					);
-				}
-				return response;
-			} else {
-				return this.#serveStaticFile(primaryPhp, fsPath);
-			}
-		} else {
-			return PHPResponse.forHttpCode(404);
-		}
+		return response;
 	}
 
 	/**
@@ -779,103 +653,6 @@ export class PHPRequestHandler implements AsyncDisposable {
 			},
 			arrayBuffer
 		);
-	}
-
-	/**
-	 * Spawns a new PHP instance and dispatches a request to it.
-	 */
-	async #spawnPHPAndDispatchRequest(
-		request: PHPRequest,
-		originalRequestUrl: URL,
-		rewrittenRequestUrl: URL,
-		scriptPath: string
-	): Promise<PHPResponse> {
-		let spawnedPHP: AcquiredPHP | undefined = undefined;
-		try {
-			spawnedPHP = await this.instanceManager!.acquirePHPInstance();
-		} catch (e) {
-			if (e instanceof MaxPhpInstancesError) {
-				return PHPResponse.forHttpCode(502);
-			} else {
-				return PHPResponse.forHttpCode(500);
-			}
-		}
-		try {
-			return await this.#dispatchToPHP(
-				spawnedPHP.php,
-				request,
-				originalRequestUrl,
-				rewrittenRequestUrl,
-				scriptPath
-			);
-		} finally {
-			spawnedPHP.reap();
-		}
-	}
-
-	/**
-	 * Runs the requested PHP file with all the request and $_SERVER
-	 * superglobals populated.
-	 *
-	 * @param  request - The request.
-	 * @returns The response.
-	 */
-	async #dispatchToPHP(
-		php: PHP,
-		request: PHPRequest,
-		originalRequestUrl: URL,
-		rewrittenRequestUrl: URL,
-		scriptPath: string
-	): Promise<PHPResponse> {
-		let preferredMethod: PHPRunOptions['method'] = 'GET';
-
-		const headers: Record<string, string> = {
-			host: this.#HOST,
-			...normalizeHeaders(request.headers || {}),
-		};
-		if (this.#cookieStore) {
-			headers['cookie'] = this.#cookieStore.getCookieRequestHeader();
-		}
-
-		let body = request.body;
-		if (typeof body === 'object' && !(body instanceof Uint8Array)) {
-			preferredMethod = 'POST';
-			const { bytes, contentType } = await encodeAsMultipart(body);
-			body = bytes;
-			headers['content-type'] = contentType;
-		}
-
-		try {
-			const response = await php.run({
-				relativeUri: ensurePathPrefix(
-					toRelativeUrl(new URL(rewrittenRequestUrl.toString())),
-					this.#PATHNAME
-				),
-				protocol: this.#PROTOCOL,
-				method: request.method || preferredMethod,
-				$_SERVER: this.prepare_$_SERVER_superglobal(
-					originalRequestUrl,
-					rewrittenRequestUrl,
-					scriptPath
-				),
-				body,
-				scriptPath,
-				headers,
-			});
-			if (this.#cookieStore) {
-				this.#cookieStore.rememberCookiesFromResponseHeaders(
-					response.headers
-				);
-			}
-
-			return response;
-		} catch (error) {
-			const executionError = error as PHPExecutionFailureError;
-			if (executionError?.response) {
-				return executionError.response;
-			}
-			throw error;
-		}
 	}
 
 	/**
