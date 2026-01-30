@@ -79,6 +79,7 @@ type TabCoordinatorMessage =
 const CHANNEL_NAME = 'playground-tab-coordinator';
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 const PING_TIMEOUT_MS = 150;
+const MIN_CHECK_INTERVAL_MS = 1000;
 
 let channel: BroadcastChannel | null = null;
 let currentTabInfo: TabInfo | null = null;
@@ -87,6 +88,8 @@ let takeoverCallback: (() => void) | null = null;
 let backupRequestCallback: (() => Promise<boolean>) | null = null;
 let siteResetCallback: (() => void) | null = null;
 let beforeUnloadHandler: (() => void) | null = null;
+let isCheckingTabs = false;
+let lastCheckTime = 0;
 
 /**
  * Initialize the tab coordinator for a specific site.
@@ -168,6 +171,8 @@ export function destroyTabCoordinator(): void {
 	takeoverCallback = null;
 	backupRequestCallback = null;
 	siteResetCallback = null;
+	isCheckingTabs = false;
+	lastCheckTime = 0;
 }
 
 /**
@@ -185,8 +190,15 @@ export async function checkForExistingTabs(siteSlug: string): Promise<{
 		return { existingTabs: [], hasFreshTab: false, hasStaleTab: false };
 	}
 
-	const existingTabs: TabInfo[] = [];
+	// Safeguard: prevent concurrent checks and rate limit
 	const now = Date.now();
+	if (isCheckingTabs || now - lastCheckTime < MIN_CHECK_INTERVAL_MS) {
+		return { existingTabs: [], hasFreshTab: false, hasStaleTab: false };
+	}
+	isCheckingTabs = true;
+	lastCheckTime = now;
+
+	const existingTabs: TabInfo[] = [];
 
 	const pongHandler = (event: MessageEvent<TabCoordinatorMessage>) => {
 		const message = event.data;
@@ -212,13 +224,15 @@ export async function checkForExistingTabs(siteSlug: string): Promise<{
 
 	channel.removeEventListener('message', pongHandler);
 
+	const checkTime = Date.now();
 	const hasFreshTab = existingTabs.some(
-		(tab) => now - tab.createdAt < ONE_DAY_MS && !tab.isDependentMode
+		(tab) => checkTime - tab.createdAt < ONE_DAY_MS && !tab.isDependentMode
 	);
 	const hasStaleTab = existingTabs.some(
-		(tab) => now - tab.createdAt >= ONE_DAY_MS && !tab.isDependentMode
+		(tab) => checkTime - tab.createdAt >= ONE_DAY_MS && !tab.isDependentMode
 	);
 
+	isCheckingTabs = false;
 	return { existingTabs, hasFreshTab, hasStaleTab };
 }
 

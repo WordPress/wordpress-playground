@@ -474,7 +474,7 @@ export async function bootRequestHandler(options: BootRequestHandlerOptions) {
 		/**
 		 * If maxPhpInstances is not 1, the PHPRequestHandler constructor needs
 		 * a PHP factory function. Internally, it creates a PHPProcessManager that
-		 * dynamically starts new PHP instances and reaps them after they're used.
+		 * maintains a pool of reusable PHP instances.
 		 */
 		phpFactory:
 			options.maxPhpInstances !== 1

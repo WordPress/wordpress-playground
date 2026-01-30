@@ -366,6 +366,9 @@ export function bootSiteClient(
 				const current = blueprint as BlueprintV1Declaration;
 				blueprint = {
 					...blueprint,
+					...(resolved.plugins?.length
+						? { plugins: resolved.plugins }
+						: {}),
 					landingPage: resolved.landingPage || current.landingPage,
 					steps: [
 						...(current.steps || []),
@@ -376,6 +379,17 @@ export function bootSiteClient(
 		} else {
 			blueprint = site.metadata.originalBlueprint;
 		}
+
+		// Check if we're in recovery mode (Health Check troubleshooting).
+		// Recovery mode uses 'do-not-attempt-installing' to skip the
+		// isWordPressInstalled() check that would load WordPress and crash
+		// due to a broken plugin.
+		const urlBlueprintLandingPage = hasUrlBlueprint
+			? urlBlueprint.blueprint.landingPage
+			: undefined;
+		const isRecoveryMode = urlBlueprintLandingPage?.includes(
+			'health-check-disable-plugin-hash'
+		);
 
 		let playground: PlaygroundClient | undefined = undefined;
 		try {
@@ -389,6 +403,11 @@ export function bootSiteClient(
 					new URLSearchParams(window.location.search).get(
 						'experimental-blueprints-v2-runner'
 					) === 'yes',
+				// In recovery mode, skip the WordPress install check to avoid
+				// loading WordPress before blueprint steps run.
+				wordpressInstallMode: isRecoveryMode
+					? 'do-not-attempt-installing'
+					: undefined,
 				// Intercept the Playground client even if the
 				// Blueprint fails.
 				onClientConnected: (playgroundClient) => {
