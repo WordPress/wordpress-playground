@@ -1,14 +1,14 @@
 ---
 title: নেটিভ iOS অ্যাপে ওয়ার্ডপ্রেস প্লেগ্রাউন্ড
 slug: /guides/wordpress-native-ios-app
-description: প্লেগ্রাউন্ড ব্যবহার করে "ব্লকনোট" কেস স্টাডির ওপর ভিত্তি করে কিভাবে একটি নেটিভ iOS অ্যাপের মধ্যে ওয়ার্ডপ্রেস সাইট চালানো যায় তা জানুন।
+description: প্লেগ্রাউন্ড ব্যবহার করে "ব্লকনোট" কেস স্টাডির ওপর ভিত্তি করে কীভাবে একটি নেটিভ iOS অ্যাপের মধ্যে ওয়ার্ডপ্রেস সাইট চালানো যায় তা জানুন।
 ---
 
 <!--
 ## How to ship a real WordPress site in a native iOS app via Playground?
 -->
 
-## কিভাবে প্লেগ্রাউন্ডের মাধ্যমে একটি নেটিভ iOS অ্যাপে একটি প্রকৃত ওয়ার্ডপ্রেস সাইট পাঠানো যায়?
+## কীভাবে প্লেগ্রাউন্ডের মাধ্যমে একটি নেটিভ iOS অ্যাপে একটি প্রকৃত ওয়ার্ডপ্রেস সাইট পাঠানো যায়?
 
 <!--
 Blocknotes is the first iOS application that ran WordPress natively on iOS devices by leveraging WordPress Playground. Developed by [Ella van Durpe](https://profiles.wordpress.org/ellatrix/), a core committer for WordPress, Blocknotes represents a significant leap in the capabilities of mobile applications by utilizing WebAssembly to run WordPress without the need for a traditional PHP server.
