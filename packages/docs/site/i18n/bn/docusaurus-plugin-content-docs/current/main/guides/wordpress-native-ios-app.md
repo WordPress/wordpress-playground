@@ -56,7 +56,7 @@ Blocknotes operated as a WebView running an HTML page where a WebAssembly versio
 In [Blocknotes GitHub repository](https://github.com/blocknotes-org/blocknotes/tree/e08535883332be9a45a0c75b750c54a4e17f6748) you can review the last Playground-based release. Here are the most important parts:
 -->
 
-[ব্লকনোট গিটহাব রিপোজিটরিতে](https://github.com/blocknotes-org/blocknotes/tree/e08535883332be9a45a0c75b750c54a4e17f6748) আপনি সর্বশেষ প্লেগ্রাউন্ড-ভিত্তিক রিলিজটি রিভিউ করতে পারেন। এখানে সবচেয়ে গুরুত্বপূর্ণ অংশগুলো রয়েছে:
+[ব্লকনোট GitHub রিপোজিটরিতে](https://github.com/blocknotes-org/blocknotes/tree/e08535883332be9a45a0c75b750c54a4e17f6748) আপনি সর্বশেষ প্লেগ্রাউন্ড-ভিত্তিক রিলিজটি রিভিউ করতে পারেন। এখানে সবচেয়ে গুরুত্বপূর্ণ অংশগুলো রয়েছে:
 
 <!--
 -   [A WordPress build](https://github.com/blocknotes-org/blocknotes/blob/e08535883332be9a45a0c75b750c54a4e17f6748/src/js/wp-6.2.data) (packaged as a `.data` file).
