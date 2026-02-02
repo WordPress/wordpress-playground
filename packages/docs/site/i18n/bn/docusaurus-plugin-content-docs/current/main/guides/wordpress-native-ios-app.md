@@ -20,7 +20,7 @@ Blocknotes is the first iOS application that ran WordPress natively on iOS devic
 This case study explores the features, technical implementation, and potential implications of Blocknotes for the future of mobile and web development.
 -->
 
-এই কেস স্টাডিটি মোবাইল এবং ওয়েব ডেভেলপমেন্টের ভবিষ্যতের জন্য ব্লকনোট-এর বৈশিষ্ট্য, টেকনিক্যাল ইমপ্লিমেন্টেশন এবং এর সম্ভাব্য প্রভাবগুলো অন্বেষণ করে।
+এই কেস স্টাডিটি মোবাইল এবং ওয়েব ডেভেলপমেন্টের ভবিষ্যতের জন্য ব্লকনোটের বৈশিষ্ট্য, টেকনিক্যাল ইমপ্লিমেন্টেশন এবং এর সম্ভাব্য প্রভাবগুলো অন্বেষণ করে।
 
 <!--
 **Important!** The current version of Blocknotes isn’t running WordPress Playground anymore. Since the initial release, the app was rewritten to only use the WordPress block editor without the rest of WordPress. This case study covers the early versions of Blocknotes that opened an entire world of new possibilities for WordPress.
