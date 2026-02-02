@@ -213,18 +213,23 @@ async function parseHeadersStream(
 async function streamToText(
 	stream: ReadableStream<Uint8Array>
 ): Promise<string> {
+	const decoderStream = new TextDecoderStream();
 	const reader = (stream as ReadableStream<BufferSource>)
-		.pipeThrough(new TextDecoderStream())
+		.pipeThrough(decoderStream)
 		.getReader();
 	const text: string[] = [];
-	while (true) {
-		const { done, value } = await reader.read();
-		if (done) {
-			return text.join('');
+	try {
+		while (true) {
+			const { done, value } = await reader.read();
+			if (done) {
+				return text.join('');
+			}
+			if (value) {
+				text.push(value);
+			}
 		}
-		if (value) {
-			text.push(value);
-		}
+	} finally {
+		reader.releaseLock();
 	}
 }
 
@@ -234,24 +239,28 @@ async function streamToBytes(
 	const reader = stream.getReader();
 	const chunks: Uint8Array[] = [];
 
-	while (true) {
-		const { done, value } = await reader.read();
-		if (done) {
-			const totalLength = chunks.reduce(
-				(acc, chunk) => acc + chunk.byteLength,
-				0
-			);
-			const result = new Uint8Array(totalLength);
-			let offset = 0;
-			for (const chunk of chunks) {
-				result.set(chunk, offset);
-				offset += chunk.byteLength;
+	try {
+		while (true) {
+			const { done, value } = await reader.read();
+			if (done) {
+				const totalLength = chunks.reduce(
+					(acc, chunk) => acc + chunk.byteLength,
+					0
+				);
+				const result = new Uint8Array(totalLength);
+				let offset = 0;
+				for (const chunk of chunks) {
+					result.set(chunk, offset);
+					offset += chunk.byteLength;
+				}
+				return result;
 			}
-			return result;
+			if (value) {
+				chunks.push(value);
+			}
 		}
-		if (value) {
-			chunks.push(value);
-		}
+	} finally {
+		reader.releaseLock();
 	}
 }
 
