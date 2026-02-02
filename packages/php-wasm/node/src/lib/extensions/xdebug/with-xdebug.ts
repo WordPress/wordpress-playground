@@ -70,7 +70,6 @@ export async function withXdebug(
 						'xdebug.mode=debug,develop',
 						'xdebug.start_with_request=yes',
 						`xdebug.idekey="${ideKey}"`,
-						'xdebug.path_mapping=yes',
 					].join('\n')
 				);
 			}

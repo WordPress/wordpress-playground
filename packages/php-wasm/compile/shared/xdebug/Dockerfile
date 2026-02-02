@@ -84,9 +84,19 @@ RUN set -euxo pipefail; \
 	git clone https://github.com/xdebug/xdebug.git xdebug \
 		--branch "${XDEBUG_BRANCH}" \
 		--single-branch \
-		--depth 1; \
+		--depth 1;
 
-	cd xdebug; \
+# Fix root-level .xdebug mapping discovery.
+# Strict `>` checks skipped resolving "/" for shallow paths.
+# Using `>=` ensures "/.xdebug" is properly scanned.
+# Pending upstream pull request : https://github.com/xdebug/xdebug/pull/1062
+RUN if [[ "${PHP_VERSION:0:3}" != "7.4" ]]; then \
+		/root/replace.sh 's/current_dir\s*=\s*parts->c\s*>\s*2/current_dir = parts->c >= 2/g' /root/xdebug/src/lib/maps/maps.c; \
+		/root/replace.sh 's/parent_dir\s*=\s*parts->c\s*>\s*3/parent_dir = parts->c >= 3/g' /root/xdebug/src/lib/maps/maps.c; \
+		/root/replace.sh 's/grand_dir\s*=\s*parts->c\s*>\s*4/grand_dir = parts->c >= 4/g' /root/xdebug/src/lib/maps/maps.c; \
+	fi;
+
+RUN	cd xdebug; \
 
 	phpize . ; \
 
