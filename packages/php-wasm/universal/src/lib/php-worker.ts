@@ -19,6 +19,16 @@ const _private = new WeakMap<
 	}
 >();
 
+/**
+ * Tracks PHP instances that have already had worker listeners registered.
+ *
+ * This prevents duplicate event listeners from being added when the same
+ * PHP instance is reused across multiple run() calls, which would otherwise
+ * cause progressive performance degradation as each event fires N times
+ * for N accumulated listeners.
+ */
+const registeredPHPInstances = new WeakSet<PHP>();
+
 export type LimitedPHPApi = Pick<
 	PHP,
 	| 'request'
@@ -343,6 +353,14 @@ export class PHPWorker implements LimitedPHPApi, AsyncDisposable {
 	}
 
 	protected registerWorkerListeners(php: PHP) {
+		// Prevent duplicate listener registration when the same PHP instance
+		// is reused across multiple run() calls. Without this check, listeners
+		// would accumulate and cause progressive performance degradation.
+		if (registeredPHPInstances.has(php)) {
+			return;
+		}
+		registeredPHPInstances.add(php);
+
 		php.addEventListener('*', async (event) => {
 			this.dispatchEvent(event);
 		});
