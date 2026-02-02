@@ -62,13 +62,13 @@ Testing pull requests is one of the most exciting use cases for the Playground p
 There are some public implementations of this use case such as [WordPress Core PR previewer](https://playground.wordpress.net/wordpress.html) and [Gutenberg PR previewer](https://playground.wordpress.net/gutenberg.html). Users can input the PR number or URL to be redirected to a WordPress instance, powered by Playground, where the changes from the PR are applied.
 -->
 
-এই ব্যবহারের ক্ষেত্রের কিছু পাবলিক ইমপ্লিমেন্টেশন রয়েছে যেমন [ওয়ার্ডপ্রেস কোর পিআর (PR) প্রিভিউয়ার](https://playground.wordpress.net/wordpress.html) এবং [গুটেনবার্গ পিআর (PR) প্রিভিউয়ার](https://playground.wordpress.net/gutenberg.html)। ব্যবহারকারীরা পিআর নম্বর বা ইউআরএল (URL) ইনপুট দিতে পারেন, যা তাদের প্লেগ্রাউন্ড চালিত একটি ওয়ার্ডপ্রেস ইনস্ট্যান্সে রিডাইরেক্ট করবে, যেখানে পিআর-এর পরিবর্তনগুলো কার্যকর থাকবে।
+এই ব্যবহারের ক্ষেত্রের কিছু পাবলিক ইমপ্লিমেন্টেশন রয়েছে যেমন [ওয়ার্ডপ্রেস কোর পিআর প্রিভিউয়ার](https://playground.wordpress.net/wordpress.html) এবং [গুটেনবার্গ পিআর প্রিভিউয়ার](https://playground.wordpress.net/gutenberg.html)। ব্যবহারকারীরা পিআর নম্বর বা ইউআরএল ইনপুট দিতে পারেন, যা তাদের প্লেগ্রাউন্ড চালিত একটি ওয়ার্ডপ্রেস ইনস্ট্যান্সে রিডাইরেক্ট করবে, যেখানে পিআর-এর পরিবর্তনগুলো কার্যকর থাকবে।
 
 <!--
 You can add automated PR preview buttons to your own plugin or theme repository using the WordPress Playground PR Preview GitHub Action. When someone opens a pull request, the action automatically adds a button that launches a configured WordPress instance with the changes ready to test. For detailed setup instructions and advanced configurations, see the [Adding PR Preview Buttons with GitHub Actions](/guides/github-action-pr-preview) guide.
 -->
 
-আপনি ওয়ার্ডপ্রেস প্লেগ্রাউন্ড পিআর প্রিভিউ গিটহাব অ্যাকশন (GitHub Action) ব্যবহার করে আপনার নিজস্ব প্লাগইন বা থিম রিপোজিটরিতে স্বয়ংক্রিয় পিআর প্রিভিউ বাটন যোগ করতে পারেন। যখন কেউ একটি পুল রিকোয়েস্ট ওপেন করবে, এই অ্যাকশনটি স্বয়ংক্রিয়ভাবে একটি বাটন যোগ করবে যা টেস্ট করার জন্য প্রস্তুত কনফিগার করা একটি ওয়ার্ডপ্রেস ইনস্ট্যান্স চালু করবে। বিস্তারিত সেটআপ নির্দেশাবলী এবং উন্নত কনফিগারেশনের জন্য [গিটহাব অ্যাকশনের সাহায্যে পিআর প্রিভিউ বাটন যোগ করা](/guides/github-action-pr-preview) নির্দেশিকাটি দেখুন।
+আপনি ওয়ার্ডপ্রেস প্লেগ্রাউন্ড পিআর প্রিভিউ গিটহাব অ্যাকশন ব্যবহার করে আপনার নিজস্ব প্লাগইন বা থিম রিপোজিটরিতে স্বয়ংক্রিয় পিআর প্রিভিউ বাটন যোগ করতে পারেন। যখন কেউ একটি পুল রিকোয়েস্ট ওপেন করবে, এই অ্যাকশনটি স্বয়ংক্রিয়ভাবে একটি বাটন যোগ করবে যা টেস্ট করার জন্য প্রস্তুত কনফিগার করা একটি ওয়ার্ডপ্রেস ইনস্ট্যান্স চালু করবে। বিস্তারিত সেটআপ নির্দেশাবলী এবং উন্নত কনফিগারেশনের জন্য [গিটহাব অ্যাকশনের সাহায্যে পিআর প্রিভিউ বাটন যোগ করা](/guides/github-action-pr-preview) নির্দেশিকাটি দেখুন।
 
 <!--
 ## Clone your site and experiment in a private sandbox.
@@ -104,7 +104,7 @@ For example, you can always test the latest development version of WordPress, al
 During the Beta period of any WordPress release, you can also test the latest WordPress Beta or RC release with theme test data and debugging plugins (see [blueprint](https://github.com/WordPress/blueprints/blob/trunk/blueprints/beta-rc/blueprint.json) and [live demo). ](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/beta-rc/blueprint.json)
 -->
 
-যেকোনো ওয়ার্ডপ্রেস রিলিজের বিটা পিরিয়ড চলাকালীন, আপনি থিম টেস্ট ডেটা এবং ডিবাগিং প্লাগইনসহ সর্বশেষ ওয়ার্ডপ্রেস বিটা (Beta) বা আরসি (RC) রিলিজ টেস্ট করতে পারেন ([ব্লুপ্রিন্ট](https://github.com/WordPress/blueprints/blob/trunk/blueprints/beta-rc/blueprint.json) এবং [লাইভ ডেমো](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/beta-rc/blueprint.json) দেখুন)।
+যেকোনো ওয়ার্ডপ্রেস রিলিজের বিটা পিরিয়ড চলাকালীন, আপনি থিম টেস্ট ডেটা এবং ডিবাগিং প্লাগইনসহ সর্বশেষ ওয়ার্ডপ্রেস বিটা বা আরসি রিলিজ টেস্ট করতে পারেন ([ব্লুপ্রিন্ট](https://github.com/WordPress/blueprints/blob/trunk/blueprints/beta-rc/blueprint.json) এবং [লাইভ ডেমো](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/beta-rc/blueprint.json) দেখুন)।
 
 <!--
 You can also load any [theme, plugin](/developers/apis/query-api), or [configuration](/blueprints) in any of the available WordPress and PHP versions to check how they work in that environment.
