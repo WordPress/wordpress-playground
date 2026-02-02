@@ -60,4 +60,15 @@ export const enableMultisite: StepHandler<EnableMultisiteStep> = async (
 	await wpCLI(playground, {
 		command: `wp core multisite-convert --base="${sitePath}"`,
 	});
+
+	// Set $_SERVER['HTTP_HOST'] in wp-config.php for multisite support.
+	// https://make.wordpress.org/cli/handbook/guides/common-issues/#php-notice-undefined-index-on-_server-superglobal
+	const docRoot = await playground.documentRoot;
+	const wpConfigPath = `${docRoot}/wp-config.php`;
+	const wpConfig = await playground.readFileAsText(wpConfigPath);
+	const newWpConfig = wpConfig.replace(
+		/^<\?php\s*/i,
+		`<?php\n$_SERVER['HTTP_HOST'] = '${url.hostname}';\n`
+	);
+	await playground.writeFile(wpConfigPath, newWpConfig);
 };
