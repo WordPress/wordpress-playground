@@ -1228,6 +1228,23 @@ export class PHP implements Disposable {
 	}
 
 	/**
+	 * Copies a file or directory in the PHP filesystem to a
+	 * new location.
+	 *
+	 * @param oldPath The path to rename.
+	 * @param newPath The new path.
+	 */
+	cp(fromPath: string, toPath: string) {
+		const result = FSHelpers.copyRecursive(
+			this[__private__dont__use].FS,
+			fromPath,
+			toPath
+		);
+		this.dispatchEvent({ type: 'filesystem.write' });
+		return result;
+	}
+
+	/**
 	 * Removes a directory from the PHP filesystem.
 	 *
 	 * @param path The directory path to remove.
