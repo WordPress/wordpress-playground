@@ -53,16 +53,6 @@ export async function getPHPLoaderModule(
 				return (
 					await import('@php-wasm/node-7-4')
 				).getPHPLoaderModule();
-			case '7.3':
-				// @ts-ignore
-				return (
-					await import('@php-wasm/node-7-3')
-				).getPHPLoaderModule();
-			case '7.2':
-				// @ts-ignore
-				return (
-					await import('@php-wasm/node-7-2')
-				).getPHPLoaderModule();
 		}
 
 		throw new Error(`Unsupported PHP version ${version}`);

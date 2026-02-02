@@ -138,11 +138,7 @@ for (const serverConfiguration of serverConfigurations) {
 						});
 
 						function skipIfPhpVersionDoesnSupportAVIF() {
-							if (
-								['8.0', '7.4', '7.3', '7.2'].includes(
-									phpVersion
-								)
-							) {
+							if (['8.0', '7.4'].includes(phpVersion)) {
 								console.log(
 									`Skipping AVIF tests for PHP ${phpVersion} because AVIF support was added in PHP 8.1.`
 								);

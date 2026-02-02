@@ -27,6 +27,11 @@ import {
 	parseMountDirArguments,
 	parseMountWithDelimiterArguments,
 } from './mounts';
+import {
+	parseDefineStringArguments,
+	parseDefineBoolArguments,
+	parseDefineNumberArguments,
+} from './defines';
 import { startServer } from './start-server';
 import type { PlaygroundCliBlueprintV1Worker } from './blueprints-v1/worker-thread-v1';
 import type { PlaygroundCliBlueprintV2Worker } from './blueprints-v2/worker-thread-v2';
@@ -103,6 +108,37 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 				describe: 'WordPress version to use.',
 				type: 'string',
 				default: 'latest',
+			},
+			define: {
+				describe:
+					'Define PHP string constants (can be used multiple times). ' +
+					'Format: NAME value. ' +
+					'These constants are set via php.defineConstant() and only exist for the current request. ' +
+					'Examples: --define API_KEY secret --define CON=ST "va=lu=e"',
+				type: 'string',
+				nargs: 2,
+				array: true,
+				coerce: parseDefineStringArguments,
+			},
+			'define-bool': {
+				describe:
+					'Define PHP boolean constants (can be used multiple times). ' +
+					'Format: NAME value. Value must be "true", "false", "1", or "0". ' +
+					'Examples: --define-bool WP_DEBUG true --define-bool MY_FEATURE false',
+				type: 'string',
+				nargs: 2,
+				array: true,
+				coerce: parseDefineBoolArguments,
+			},
+			'define-number': {
+				describe:
+					'Define PHP number constants (can be used multiple times). ' +
+					'Format: NAME value. ' +
+					'Examples: --define-number LIMIT 100 --define-number RATE 45.67',
+				type: 'string',
+				nargs: 2,
+				array: true,
+				coerce: parseDefineNumberArguments,
 			},
 			// @TODO: Support read-only mounts, e.g. via WORKERFS, a custom
 			// ReadOnlyNODEFS, or by copying the files into MEMFS
@@ -227,6 +263,16 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 				describe: 'Enable Intl.',
 				type: 'boolean',
 				default: true,
+			},
+			redis: {
+				describe: 'Enable Redis (requires JSPI support).',
+				type: 'boolean',
+				// No default - will be determined at runtime based on JSPI availability
+			},
+			memcached: {
+				describe: 'Enable Memcached.',
+				type: 'boolean',
+				// No default - will be determined at runtime based on JSPI availability
 			},
 			xdebug: {
 				describe: 'Enable Xdebug.',
@@ -366,6 +412,10 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 				type: 'boolean',
 				default: false,
 			},
+			// Define constants
+			define: sharedOptions['define'],
+			'define-bool': sharedOptions['define-bool'],
+			'define-number': sharedOptions['define-number'],
 		};
 
 		const buildSnapshotOnlyOptions: Record<string, YargsOptions> = {
@@ -579,8 +629,20 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 			process.exit(1);
 		}
 
+		const define = (args['define'] || {}) as Record<string, string>;
+		if (
+			!('WP_DEBUG' in define) &&
+			!('WP_DEBUG_LOG' in define) &&
+			!('WP_DEBUG_DISPLAY' in define)
+		) {
+			define['WP_DEBUG'] = 'true';
+			define['WP_DEBUG_LOG'] = 'true';
+			define['WP_DEBUG_DISPLAY'] = 'true';
+		}
+
 		const cliArgs = {
 			...args,
+			define,
 			command,
 			mount: [
 				...((args['mount'] as Mount[]) || []),
@@ -675,11 +737,28 @@ export interface RunCLIArgs {
 	internalCookieStore?: boolean;
 	'additional-blueprint-steps'?: any[];
 	intl?: boolean;
+	redis?: boolean;
+	memcached?: boolean;
 	xdebug?: boolean | { ideKey?: string };
 	experimentalUnsafeIdeIntegration?: string[];
 	experimentalDevtools?: boolean;
 	'experimental-blueprints-v2-runner'?: boolean;
 	wordpressInstallMode?: WordPressInstallMode;
+	/**
+	 * PHP string constants defined via --define flag.
+	 * Set via php.defineConstant(), process-specific only.
+	 */
+	define?: Record<string, string>;
+	/**
+	 * PHP boolean constants defined via --define-bool flag.
+	 * Set via php.defineConstant(), process-specific only.
+	 */
+	'define-bool'?: Record<string, boolean>;
+	/**
+	 * PHP number constants defined via --define-number flag.
+	 * Set via php.defineConstant(), process-specific only.
+	 */
+	'define-number'?: Record<string, number>;
 
 	// --------- Blueprint V1 args -----------
 	skipSqliteSetup?: boolean;
@@ -744,6 +823,10 @@ const highlight = (text: string) =>
 // These overloads are declared for convenience so runCLI() can return
 // different things depending on the CLI command without forcing the
 // callers (mostly automated tests) to check return values.
+
+// Re-export merge functions from defines.ts
+export { mergeDefinedConstants } from './defines';
+
 export async function runCLI(
 	args: RunCLIArgs & { command: 'build-snapshot' | 'run-blueprint' }
 ): Promise<void>;
@@ -804,6 +887,18 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 		args.intl = true;
 	}
 
+	// Enable Redis dynamic extension by default only when JSPI is available.
+	// Redis requires JSPI for proper exception handling during network operations.
+	if (args.redis === undefined) {
+		args.redis = await jspi();
+	}
+
+	// Memcached extension is opt-in via --memcached flag.
+	// It requires JSPI support, so users must run with Node.js 23+ and --experimental-wasm-jspi flag.
+	if (args.memcached === undefined) {
+		args.memcached = await jspi();
+	}
+
 	// Create CLI output handler
 	const cliOutput = new CLIOutput({
 		verbosity: args.verbosity || 'normal',
@@ -818,6 +913,8 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 			port: (args['port'] as number) || 9400,
 			xdebug: !!args.xdebug,
 			intl: !!args.intl,
+			redis: !!args.redis,
+			memcached: !!args.memcached,
 			mounts: [
 				...(args.mount || []),
 				...(args['mount-before-install'] || []),

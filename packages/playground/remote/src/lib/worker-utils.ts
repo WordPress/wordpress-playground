@@ -99,7 +99,11 @@ export async function backfillStaticFilesRemovedFromMinifiedBuild(php: PHP) {
 		}
 		await unzipFile(
 			php,
-			new File([await response!.blob()], 'wordpress-static.zip'),
+			// We use .arrayBuffer() and not .blob() here because blob() throws when the
+			// client is low on disk space. Blobs tend to be stored as temporary files,
+			// array buffers tend to be stored in memory.
+			// @see https://github.com/WordPress/wordpress-playground/issues/2769
+			new File([await response!.arrayBuffer()], 'wordpress-static.zip'),
 			php.requestHandler!.documentRoot,
 			false
 		);

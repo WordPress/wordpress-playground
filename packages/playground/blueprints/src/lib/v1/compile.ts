@@ -603,6 +603,14 @@ function compileVersion<T>(
 	supported: readonly T[],
 	latest: string
 ): T {
+	// Upgrade deprecated PHP versions 7.2 and 7.3 to 7.4
+	if (value === '7.2' || value === '7.3') {
+		logger.warn(
+			`PHP ${value} is no longer supported. Automatically upgrading to PHP 7.4.`
+		);
+		value = '7.4';
+	}
+
 	if (value && supported.includes(value as any)) {
 		return value as T;
 	}

@@ -101,17 +101,17 @@ Pour conserver votre site WordPress Playground au delà d’une seule session de
 
 1. Ouvrez le panneau du gestionnaire de site Playground :
 
-<!-- ![Site Manager](@site/static/img/open-site-manager.webp) -->
+<!-- ![Site Manager](@site/static/img/site-manager/open-site-manager.webp) -->
 
-![Gestionnaire de site](@site/static/img/open-site-manager.webp)
+![Gestionnaire de site](@site/static/img/site-manager/open-site-manager.webp)
 
 <!-- 2. Use the "Download as .zip" button in the additional actions menu -->
 
 2. Utilisez le bouton « Télécharger en tant que .zip » dans le menu supplémentaire des actions
 
-<!-- ![Export button](@site/static/img/site-manager-menu.webp) -->
+<!-- ![Export button](@site/static/img/site-manager/export-zip-file.webp) -->
 
-![Bouton export](@site/static/img/site-manager-menu.webp)
+![Bouton export](@site/static/img/site-manager/export-zip-file.webp)
 
 <!-- The exported file contains the complete site you've built. You could host it on any server that supports PHP and SQLite. All WordPress core files, plugins, themes, and everything else you've added to your site are in there. -->
 
@@ -125,13 +125,25 @@ Le fichier de base de données SQLite est également inclus dans l’export, vou
 
 ## Restaurer un site sauvegardé
 
-<!-- You can restore the saved site using the "Import from .zip" button in the site management panel: -->
+<!-- You can restore the saved site using the "Import from .zip" button in the Playground dashboard panel: -->
 
-Vous pouvez restaurer le site que vous avez sauvegardé en utilisant le bouton « Importer depuis .zip » dans panneau de gestion du site :
+Vous pouvez restaurer le site que vous avez sauvegardé en utilisant le bouton « Importer depuis .zip » dans le panneau de tableau de bord Playground :
 
-<!-- ![Import from .zip button](@site/static/img/site-manager-import-actions-menu.webp) -->
+<!-- 1. Open the Playground dashboard panel: -->
 
-![Importer depuis un bouton .zip](@site/static/img/site-manager-import-actions-menu.webp)
+1. Ouvrez le panneau de tableau de bord Playground :
+
+<!-- ![Open Playground Dashboard](@site/static/img/dashboard/open-playground-dashboard.webp) -->
+
+![Ouvrir le tableau de bord Playground](@site/static/img/dashboard/open-playground-dashboard.webp)
+
+<!-- 1. Use the "Import .zip" button at the end of the "Start a new Playground" section -->
+
+1. Utilisez le bouton « Importer .zip » à la fin de la section « Démarrer un nouveau Playground »
+
+<!-- ![Open Playground Dashboard](@site/static/img/dashboard/import-playground.webp) -->
+
+![Ouvrir le tableau de bord Playground](@site/static/img/dashboard/import-playground.webp)
 
 <!-- ## Use a specific WordPress or PHP version -->
 
@@ -159,12 +171,11 @@ Les tests de compatibilité avec tant de versions de WordPress et de PHP ont tou
 
 Vous pouvez également utiliser les [paramètres de requête](/developers/apis/query-api) `wp` et `php` pour ouvrir Playground avec les bonnes versions déjà chargées :
 
--   https://playground.wordpress.net/?wp=6.5
--   https://playground.wordpress.net/?php=8.3
--   https://playground.wordpress.net/?php=8.2&wp=6.2
+- https://playground.wordpress.net/?wp=6.5
+- https://playground.wordpress.net/?php=8.3
+- https://playground.wordpress.net/?php=8.2&wp=6.2
 
 <ThisIsQueryApi />
-Cela s’appelle l’API Query et vous pouvez en apprendre plus [ici](/developers/apis/query-api/).
 
 <!-- To learn more about preparing content for demos, see the [providing content for your demo guide](/guides/providing-content-for-your-demo). -->
 
@@ -207,10 +218,3 @@ WordPress Playground est programmable, ce qui signifie que vous pouvez [créer d
 <!-- To learn more about developing with WordPress Playground, check out the [development quick start](/developers/build-your-first-app) section. -->
 
 Pour en savoir plus sur le développement avec WordPress Playground, consultez la section [démarrage rapide du développement](/developers/build-your-first-app).
-
-:::
-Traduction par [@omarinier](https://profiles.wordpress.org/omarinier/)
-et relecture par [@beryldlg](https://profiles.wordpress.org/beryldlg/)
-:::
-Dernière mise à jour le 6 octobre 2025
-:::

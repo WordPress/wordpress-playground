@@ -15,6 +15,20 @@ export async function fetchWithCorsProxy(
 	let requestUrlObj = playgroundUrlObj
 		? new URL(requestObject.url, playgroundUrlObj)
 		: new URL(requestObject.url);
+
+	/**
+	 * Never proxy localhost requests. The remote proxy cannot reach the user's
+	 * localhost, so we must fetch directly to access local APIs.
+	 */
+	const isLocalhost =
+		requestUrlObj.hostname === 'localhost' ||
+		requestUrlObj.hostname === '127.0.0.1' ||
+		requestUrlObj.hostname === '[::1]' ||
+		requestUrlObj.hostname === '::1';
+	if (isLocalhost) {
+		return await fetch(requestObject);
+	}
+
 	if (requestUrlObj.protocol === 'http:') {
 		requestUrlObj.protocol = 'https:';
 		const httpsUrl = requestUrlObj.toString();

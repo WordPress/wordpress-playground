@@ -5,7 +5,12 @@ import type {
 	SecondaryWorkerBootArgs,
 } from './worker-thread-v2';
 import type { MessagePort as NodeMessagePort } from 'worker_threads';
-import type { RunCLIArgs, SpawnedWorker, WorkerType } from '../run-cli';
+import {
+	type RunCLIArgs,
+	type SpawnedWorker,
+	type WorkerType,
+	mergeDefinedConstants,
+} from '../run-cli';
 import type { CLIOutput } from '../cli-output';
 
 /**
@@ -50,7 +55,6 @@ export class BlueprintsV2Handler {
 			consumeAPI(phpPort);
 
 		await playground.useFileLockManager(fileLockManagerPort);
-
 		const workerBootArgs = {
 			...this.args,
 			phpVersion: this.phpVersion,
@@ -60,6 +64,8 @@ export class BlueprintsV2Handler {
 			trace: this.args.verbosity === 'debug',
 			blueprint: this.args.blueprint!,
 			withIntl: this.args.intl,
+			withRedis: this.args.redis,
+			withMemcached: this.args.memcached,
 			// We do not enable Xdebug by default for the initial worker
 			// because we do not imagine users expect to hit breakpoints
 			// until Playground has fully booted.
@@ -69,6 +75,7 @@ export class BlueprintsV2Handler {
 			nativeInternalDirPath,
 			mountsBeforeWpInstall: this.args['mount-before-install'] || [],
 			mountsAfterWpInstall: this.args.mount || [],
+			constants: mergeDefinedConstants(this.args),
 		};
 
 		await playground.bootAndSetUpInitialWorker(workerBootArgs);
@@ -99,10 +106,13 @@ export class BlueprintsV2Handler {
 			processIdSpaceLength: this.processIdSpaceLength,
 			trace: this.args.verbosity === 'debug',
 			withIntl: this.args.intl,
+			withRedis: this.args.redis,
+			withMemcached: this.args.memcached,
 			withXdebug: !!this.args.xdebug,
 			nativeInternalDirPath,
 			mountsBeforeWpInstall: this.args['mount-before-install'] || [],
 			mountsAfterWpInstall: this.args.mount || [],
+			constants: mergeDefinedConstants(this.args),
 		};
 
 		await playground.bootWorker(workerBootArgs);

@@ -1,108 +1,3 @@
-.overlay {
-	position: fixed;
-	top: 0;
-	left: 0;
-	right: 0;
-	bottom: 0;
-	background: #1e2327;
-	z-index: 100;
-	display: flex;
-	flex-direction: column;
-	overflow-y: auto;
-	animation: fadeIn 0.15s ease-out;
-}
-
-.overlayClosing {
-	animation: fadeOut 0.2s ease-out forwards;
-}
-
-@keyframes fadeIn {
-	from {
-		opacity: 0;
-	}
-	to {
-		opacity: 1;
-	}
-}
-
-@keyframes fadeOut {
-	from {
-		opacity: 1;
-	}
-	to {
-		opacity: 0;
-	}
-}
-
-.fullscreenContent {
-	width: 100%;
-	min-height: 100%;
-	display: flex;
-	flex-direction: column;
-	max-width: 1200px;
-	margin: 0 auto;
-}
-
-.header {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	padding: 20px 32px;
-	border-bottom: 1px solid #2c3338;
-	flex-shrink: 0;
-}
-
-.headerSpacer {
-	width: 40px;
-}
-
-.headerTitle {
-	font-size: clamp(18px, 2vw, 22px);
-	font-weight: 600;
-	color: #fff !important;
-	margin: 0;
-}
-
-/* Logo styles */
-.logo {
-	display: flex;
-	align-items: center;
-	gap: 10px;
-}
-
-.logoIcon {
-	width: 32px;
-	height: 32px;
-}
-
-.logoIcon path {
-	fill: #3858e9;
-}
-
-.logoText {
-	font-size: clamp(18px, 2vw, 22px);
-	font-weight: 600;
-	color: #fff;
-}
-
-.closeButton {
-	color: #949494 !important;
-	padding: 4px !important;
-}
-
-.closeButton:hover {
-	color: #fff !important;
-}
-
-.backButton {
-	color: #949494 !important;
-	padding: 4px !important;
-}
-
-.backButton:hover {
-	color: #fff !important;
-}
-
 /* Filters bar for blueprints gallery */
 .filtersBar {
 	display: flex;
@@ -170,53 +65,6 @@
 	background: #3858e9;
 	border-color: #3858e9;
 	color: #fff;
-}
-
-.body {
-	padding: 32px;
-	flex: 1;
-}
-
-.section {
-	margin-bottom: 32px;
-	width: 100%;
-}
-
-.section:last-child {
-	margin-bottom: 0;
-	padding-bottom: 32px;
-}
-
-.sectionHeader {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	margin-bottom: 16px;
-}
-
-.sectionHeader .sectionTitle {
-	margin-bottom: 0 !important;
-}
-
-.sectionTitle {
-	margin: 0 0 16px 0 !important;
-	font-size: clamp(18px, 2vw, 22px) !important;
-	font-weight: 600 !important;
-	color: #fff !important;
-}
-
-.viewAllLink {
-	background: none;
-	border: none;
-	color: #3858e9;
-	font-size: clamp(14px, 1.4vw, 15px);
-	font-weight: 500;
-	cursor: pointer;
-	padding: 0;
-}
-
-.viewAllLink:hover {
-	text-decoration: underline;
 }
 
 .emptyMessage {
@@ -555,13 +403,6 @@
 	line-height: 1.4;
 }
 
-.blueprintMeta {
-	font-size: clamp(12px, 1.2vw, 13px);
-	color: #6b7280 !important;
-	margin: 0;
-	margin-top: 4px;
-}
-
 .blueprintTags {
 	display: flex;
 	flex-wrap: wrap;
@@ -639,16 +480,8 @@
 }
 
 @media (max-width: 640px) {
-	.header {
-		padding: 16px 20px;
-	}
-
 	.filtersBar {
 		padding: 16px 20px;
-	}
-
-	.body {
-		padding: 20px;
 	}
 
 	.creationRow {

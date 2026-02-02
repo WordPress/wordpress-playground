@@ -49,4 +49,27 @@ describe('RequestsPerIntervaledSemaphore', () => {
 		await semaphore.acquire();
 		expect(() => semaphore.acquire()).rejects.toThrow(AcquireTimeoutError);
 	});
+
+	it('should not leave stale resolvers in queue after timeout', async () => {
+		const semaphore = new Semaphore({
+			concurrency: 1,
+			timeout: 5,
+		});
+
+		// Acquire the only slot
+		const release = await semaphore.acquire();
+
+		// This waiter will timeout (stale resolver bug would leave it in queue)
+		await expect(semaphore.acquire()).rejects.toThrow(AcquireTimeoutError);
+
+		// Start a new waiter - should get the slot when released
+		const waiter = semaphore.acquire();
+
+		// Release the slot
+		release();
+
+		// The new waiter should succeed (not timeout waiting behind stale resolver)
+		const releaseWaiter = await waiter;
+		releaseWaiter();
+	});
 });
