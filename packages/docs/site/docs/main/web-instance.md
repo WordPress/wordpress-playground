@@ -67,7 +67,7 @@ Click "Save" to create an instance and list it in the Playground Launch Panel. T
 
 ![Blueprint editor WordPress Playground](@site/static/img/about/playground-blueprint-editor.webp)
 
-The Blueprint editor replaced the older Blueprint builder, offering the ability to manage multiple Blueprints and code validation.
+The Blueprint editor provides the ability to manage multiple Blueprints and to validate code.
 
 ### Launch Playground Panel {#launch-playground-panel}
 
