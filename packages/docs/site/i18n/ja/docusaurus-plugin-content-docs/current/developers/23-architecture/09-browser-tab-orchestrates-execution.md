@@ -32,7 +32,7 @@ Keep this point in mind as you read through the rest of the docs. At this point 
 Here's what a boot sequence for a minimal app looks like:
 -->
 
-![The boot sequence](@site/static/img/boot-sequence.png)
+![The boot sequence](@site/static/img/boot-sequence.webp)
 
 メインアプリは、iframe、サービスワーカー、そしてワーカースレッドを起動します。メインアプリはPHPスタックを直接使用していないことに注意してください。すべてワーカースレッドで処理されます。
 
@@ -110,7 +110,7 @@ iframe が同じドメインのリクエストを発行するたびに、次の�
 Here's what happens whenever the iframe issues a same-domain request:
 -->
 
-![The data flow](@site/static/img/data-flow.png)
+![The data flow](@site/static/img/data-flow.webp)
 
 ステップごとの内訳:
 
