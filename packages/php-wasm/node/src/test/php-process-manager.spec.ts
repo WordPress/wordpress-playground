@@ -3,8 +3,16 @@ import { loadNodeRuntime } from '..';
 import { PHP, PHPProcessManager } from '@php-wasm/universal';
 
 describe('PHPProcessManager', () => {
+	let mgr: PHPProcessManager;
+
+	afterEach(async () => {
+		if (mgr) {
+			await mgr[Symbol.asyncDispose]();
+		}
+	});
+
 	it('should return the primary PHP instance', async () => {
-		const mgr = new PHPProcessManager({
+		mgr = new PHPProcessManager({
 			phpFactory: async () =>
 				new PHP(await loadNodeRuntime(RecommendedPHPVersion)),
 			maxPhpInstances: 4,
@@ -15,7 +23,7 @@ describe('PHPProcessManager', () => {
 	});
 
 	it('should spawn new PHP instances', async () => {
-		const mgr = new PHPProcessManager({
+		mgr = new PHPProcessManager({
 			phpFactory: async () =>
 				new PHP(await loadNodeRuntime(RecommendedPHPVersion)),
 			maxPhpInstances: 4,
@@ -32,7 +40,7 @@ describe('PHPProcessManager', () => {
 		const phpFactory = vitest.fn(
 			async () => new PHP(await loadNodeRuntime(RecommendedPHPVersion))
 		);
-		const mgr = new PHPProcessManager({
+		mgr = new PHPProcessManager({
 			phpFactory,
 			maxPhpInstances: 4,
 		});
@@ -43,7 +51,7 @@ describe('PHPProcessManager', () => {
 	});
 
 	it('should refuse to spawn more PHP instances than the maximum (limit=2)', async () => {
-		const mgr = new PHPProcessManager({
+		mgr = new PHPProcessManager({
 			phpFactory: async () =>
 				new PHP(await loadNodeRuntime(RecommendedPHPVersion)),
 			maxPhpInstances: 2,
@@ -58,7 +66,7 @@ describe('PHPProcessManager', () => {
 	});
 
 	it('should refuse to spawn more PHP instances than the maximum (limit=3)', async () => {
-		const mgr = new PHPProcessManager({
+		mgr = new PHPProcessManager({
 			phpFactory: async () =>
 				new PHP(await loadNodeRuntime(RecommendedPHPVersion)),
 			maxPhpInstances: 3,
@@ -77,7 +85,7 @@ describe('PHPProcessManager', () => {
 		const phpFactory = vitest.fn(
 			async () => new PHP(await loadNodeRuntime(RecommendedPHPVersion))
 		);
-		const mgr = new PHPProcessManager({
+		mgr = new PHPProcessManager({
 			phpFactory,
 			maxPhpInstances: 5,
 		});
@@ -110,7 +118,7 @@ describe('PHPProcessManager', () => {
 		const phpFactory = vitest.fn(
 			async () => new PHP(await loadNodeRuntime(RecommendedPHPVersion))
 		);
-		const mgr = new PHPProcessManager({
+		mgr = new PHPProcessManager({
 			phpFactory,
 			maxPhpInstances: 5,
 		});
