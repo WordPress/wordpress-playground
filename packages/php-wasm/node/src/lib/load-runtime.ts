@@ -27,8 +27,7 @@ import { platform } from 'os';
 
 export interface PHPLoaderOptions {
 	followSymlinks?: boolean;
-	withXdebug?: boolean;
-	xdebug?: XdebugOptions;
+	withXdebug?: boolean | XdebugOptions;
 	withIntl?: boolean;
 	withRedis?: boolean;
 	withMemcached?: boolean;
@@ -266,11 +265,11 @@ export async function loadNodeRuntime(
 		},
 	};
 
-	if (options?.withXdebug === true) {
+	if (options?.withXdebug) {
 		emscriptenOptions = await withXdebug(
 			phpVersion,
 			emscriptenOptions,
-			options.xdebug
+			typeof options.withXdebug === 'object' ? options.withXdebug : {}
 		);
 	}
 
