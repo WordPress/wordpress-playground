@@ -14,7 +14,7 @@ description: প্লেগ্রাউন্ড ব্যবহার কর�
 Blocknotes is the first iOS application that ran WordPress natively on iOS devices by leveraging WordPress Playground. Developed by [Ella van Durpe](https://profiles.wordpress.org/ellatrix/), a core committer for WordPress, Blocknotes represents a significant leap in the capabilities of mobile applications by utilizing WebAssembly to run WordPress without the need for a traditional PHP server.
 -->
 
-ব্লকনোট হলো প্রথম iOS অ্যাপ্লিকেশন যা ওয়ার্ডপ্রেস প্লেগ্রাউন্ড ব্যবহার করে iOS ডিভাইসে নেটিভভাবে ওয়ার্ডপ্রেস চালিয়েছিল। ওয়ার্ডপ্রেসের একজন কোর কমিটার [Ella van Durpe](https://profiles.wordpress.org/ellatrix/) দ্বারা ডেভেলপ করা ব্লকনোট একটি ট্র্যাডিশনাল PHP সার্ভারের প্রয়োজন ছাড়াই ওয়ার্ডপ্রেস চালানোর জন্য ওয়েবঅ্যাসেম্বলি (WebAssembly) ব্যবহার করে মোবাইল অ্যাপ্লিকেশনের সক্ষমতায় একটি উল্লেখযোগ্য অগ্রগতি প্রদর্শন করে।
+ব্লকনোট হলো প্রথম iOS অ্যাপ্লিকেশন যা ওয়ার্ডপ্রেস প্লেগ্রাউন্ড ব্যবহার করে iOS ডিভাইসে নেটিভভাবে ওয়ার্ডপ্রেস চালিয়েছিল। ওয়ার্ডপ্রেসের একজন কোর কমিটার [Ella van Durpe](https://profiles.wordpress.org/ellatrix/) দ্বারা ডেভেলপ করা ব্লকনোট একটি ট্র্যাডিশনাল PHP সার্ভারের প্রয়োজন ছাড়াই ওয়ার্ডপ্রেস চালানোর জন্য ওয়েবঅ্যাসেম্বলি ব্যবহার করে মোবাইল অ্যাপ্লিকেশনের সক্ষমতায় একটি উল্লেখযোগ্য অগ্রগতি প্রদর্শন করে।
 
 <!--
 This case study explores the features, technical implementation, and potential implications of Blocknotes for the future of mobile and web development.
@@ -50,7 +50,7 @@ Blocknotes allows users to create and edit notes using the WordPress block edito
 Blocknotes operated as a WebView running an HTML page where a WebAssembly version of PHP was running WordPress. That HTML page was packaged as a native iOS via [Capacitor](https://capacitorjs.com/). This setup allowed WordPress to function in environments traditionally not supported.
 -->
 
-ব্লকনোট একটি ওয়েবভিউ হিসেবে কাজ করত যা একটি HTML পেজ চালাত যেখানে PHP-র একটি ওয়েবঅ্যাসেম্বলি ভার্সন ওয়ার্ডপ্রেস চালাত। সেই HTML পেজটি [Capacitor](https://capacitorjs.com/)-এর মাধ্যমে নেটিভ iOS হিসেবে প্যাকেজ করা হয়েছিল। এই সেটআপটি ওয়ার্ডপ্রেসকে এমন পরিবেশে কাজ করার সুযোগ দিয়েছিল যেখানে সাধারণত এটি সাপোর্ট করে না।
+ব্লকনোট একটি ওয়েবভিউ হিসেবে কাজ করত যা একটি HTML পেজ চালাত যেখানে PHP-র একটি ওয়েবঅ্যাসেম্বলি ভার্সন ওয়ার্ডপ্রেস চালাত। সেই HTML পেজটি [ক্যাপাসিটর](https://capacitorjs.com/)-এর মাধ্যমে নেটিভ iOS হিসেবে প্যাকেজ করা হয়েছিল। এই সেটআপটি ওয়ার্ডপ্রেসকে এমন পরিবেশে কাজ করার সুযোগ দিয়েছিল যেখানে সাধারণত এটি সাপোর্ট করে না।
 
 <!--
 In [Blocknotes GitHub repository](https://github.com/blocknotes-org/blocknotes/tree/e08535883332be9a45a0c75b750c54a4e17f6748) you can review the last Playground-based release. Here are the most important parts:
