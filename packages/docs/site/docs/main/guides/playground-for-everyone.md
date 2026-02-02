@@ -6,7 +6,7 @@ description: Discover how WordPress Playground helps beginners, site owners, and
 
 # WordPress Playground for Everyone
 
-**WordPress Playground is simply WordPress running in your browser** — not an expert-only tool. It helps anyone, regardless of technical experience.
+**WordPress Playground lets you run WordPress instantly—no server, no setup, no risk.** It works in your browser at [playground.wordpress.net](https://playground.wordpress.net), and developers can also use it via CLI, Node.js, or embedded in their own apps. But you don't need to be technical to benefit from it.
 
 Watch this quick overview:
 
