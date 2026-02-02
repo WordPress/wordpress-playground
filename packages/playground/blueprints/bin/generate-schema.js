@@ -59,7 +59,46 @@ schema.definitions.StepDefinition.oneOf =
 	schema.definitions.StepDefinition.anyOf;
 delete schema.definitions.StepDefinition.anyOf;
 
-const rawSchemaString = JSON.stringify(schema, null, 2)
+/**
+ * Recursively converts JSON Schema union type arrays to anyOf format
+ * for Ajv strict mode compatibility.
+ *
+ * Transforms: { "type": ["string", "boolean", "number"] }
+ * Into: { "anyOf": [{ "type": "string" }, { "type": "boolean" }, { "type": "number" }] }
+ */
+function convertTypeArraysToAnyOf(schema) {
+	if (schema === null || typeof schema !== 'object') {
+		return schema;
+	}
+	if (Array.isArray(schema)) {
+		return schema.map(convertTypeArraysToAnyOf);
+	}
+
+	const result = {};
+	for (const [key, value] of Object.entries(schema)) {
+		if (key === 'type' && Array.isArray(value)) {
+			// Convert type array to anyOf (only if no conflicts)
+			if (
+				!schema.anyOf &&
+				!schema.oneOf &&
+				!schema.const &&
+				!schema.enum
+			) {
+				result.anyOf = value.map((type) => ({ type }));
+			} else {
+				result[key] = value;
+			}
+		} else {
+			result[key] = convertTypeArraysToAnyOf(value);
+		}
+	}
+	return result;
+}
+
+// Convert type arrays to anyOf for Ajv strict mode compatibility
+const transformedSchema = convertTypeArraysToAnyOf(schema);
+
+const rawSchemaString = JSON.stringify(transformedSchema, null, 2)
 	// Naively remove TypeScript generics <T> from the schema:
 	.replaceAll(/%3C[a-zA-Z]+%3E/g, '')
 	.replaceAll(/<[a-zA-Z]+>/g, '');
@@ -81,7 +120,7 @@ const ajv = new Ajv({
 		esm: true,
 	},
 });
-const validate = ajv.compile(schema);
+const validate = ajv.compile(transformedSchema);
 const rawValidationCode = ajvStandaloneCode(ajv, validate);
 
 const formattedValidationCode = await prettier.format(rawValidationCode, {
