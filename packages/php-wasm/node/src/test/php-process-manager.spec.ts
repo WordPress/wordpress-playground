@@ -132,4 +132,56 @@ describe('PHPProcessManager', () => {
 		expect(php1).toBe(php2);
 		expect(phpFactory).toHaveBeenCalledTimes(1);
 	});
+
+	it('should correctly queue requests and reuse PHP instances', async () => {
+		const phpFactory = vitest.fn(
+			async () => new PHP(await loadNodeRuntime(RecommendedPHPVersion))
+		);
+
+		/**
+		 * To test that PHP requests are queued and instances are reused correctly,
+		 * set up the following testing scenario:
+		 *   - Pre-boot 2 PHP instances (primary + 1 additional instance).
+		 *   - Simulate 6 concurrent, each taking 50ms to complete.
+		 *   - Set a timeout to 200ms.
+		 *
+		 * When the resources are used correctly, 6 requests taking 50ms each
+		 * should take 2 instances about 150ms to complete (3x50ms each).
+		 */
+		mgr = new PHPProcessManager({
+			phpFactory,
+			maxPhpInstances: 2,
+			timeout: 200,
+		});
+
+		// Pre-boot the PHP instances so that they are ready to process requests.
+		const { reap: reap1 } = await mgr.acquirePHPInstance();
+		const { reap: reap2 } = await mgr.acquirePHPInstance();
+		reap1();
+		reap2();
+
+		// Simulate 6 concurrent requests, each taking 50ms.
+		const simulateRequest = async () => {
+			const { php, reap } = await mgr.acquirePHPInstance();
+			await new Promise((resolve) => setTimeout(resolve, 50));
+			reap();
+			return php;
+		};
+
+		const results = await Promise.all([
+			simulateRequest(),
+			simulateRequest(),
+			simulateRequest(),
+			simulateRequest(),
+			simulateRequest(),
+			simulateRequest(),
+		]);
+
+		// All 6 requests should complete successfully within the 200ms timeout.
+		expect(results).toHaveLength(6);
+		results.forEach((php) => expect(php).toBeInstanceOf(PHP));
+
+		// Only 2 instances should have been spawned (reused for all 6 requests).
+		expect(phpFactory).toHaveBeenCalledTimes(2);
+	});
 });
