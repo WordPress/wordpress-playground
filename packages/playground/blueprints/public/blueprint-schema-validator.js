@@ -174,7 +174,13 @@ const schema11 = {
 		ExtraLibrary: { type: 'string', const: 'wp-cli' },
 		PHPConstants: {
 			type: 'object',
-			additionalProperties: { type: ['string', 'boolean', 'number'] },
+			additionalProperties: {
+				anyOf: [
+					{ type: 'string' },
+					{ type: 'boolean' },
+					{ type: 'number' },
+				],
+			},
 		},
 		FileReference: {
 			anyOf: [
@@ -409,7 +415,7 @@ const schema11 = {
 			additionalProperties: {
 				anyOf: [
 					{ $ref: '#/definitions/FileTree' },
-					{ type: ['object', 'string'] },
+					{ anyOf: [{ type: 'object' }, { type: 'string' }] },
 				],
 			},
 			properties: {},
@@ -1564,7 +1570,9 @@ const schema12 = {
 const schema15 = { type: 'string', const: 'wp-cli' };
 const schema16 = {
 	type: 'object',
-	additionalProperties: { type: ['string', 'boolean', 'number'] },
+	additionalProperties: {
+		anyOf: [{ type: 'string' }, { type: 'boolean' }, { type: 'number' }],
+	},
 };
 const func2 = Object.prototype.hasOwnProperty;
 const schema13 = {
@@ -2194,7 +2202,7 @@ const schema29 = {
 	additionalProperties: {
 		anyOf: [
 			{ $ref: '#/definitions/FileTree' },
-			{ type: ['object', 'string'] },
+			{ anyOf: [{ type: 'object' }, { type: 'string' }] },
 		],
 	},
 	properties: {},
@@ -2235,26 +2243,26 @@ function validate20(
 				valid1 = valid1 || _valid0;
 				if (!valid1) {
 					const _errs5 = errors;
+					const _errs6 = errors;
+					let valid2 = false;
+					const _errs7 = errors;
 					if (
 						!(
 							data0 &&
 							typeof data0 == 'object' &&
 							!Array.isArray(data0)
-						) &&
-						typeof data0 !== 'string'
+						)
 					) {
 						const err0 = {
 							instancePath:
 								instancePath +
 								'/' +
 								key0.replace(/~/g, '~0').replace(/\//g, '~1'),
-							schemaPath: '#/additionalProperties/anyOf/1/type',
+							schemaPath:
+								'#/additionalProperties/anyOf/1/anyOf/0/type',
 							keyword: 'type',
-							params: {
-								type: schema29.additionalProperties.anyOf[1]
-									.type,
-							},
-							message: 'must be object,string',
+							params: { type: 'object' },
+							message: 'must be object',
 						};
 						if (vErrors === null) {
 							vErrors = [err0];
@@ -2263,11 +2271,66 @@ function validate20(
 						}
 						errors++;
 					}
+					var _valid1 = _errs7 === errors;
+					valid2 = valid2 || _valid1;
+					if (!valid2) {
+						const _errs9 = errors;
+						if (typeof data0 !== 'string') {
+							const err1 = {
+								instancePath:
+									instancePath +
+									'/' +
+									key0
+										.replace(/~/g, '~0')
+										.replace(/\//g, '~1'),
+								schemaPath:
+									'#/additionalProperties/anyOf/1/anyOf/1/type',
+								keyword: 'type',
+								params: { type: 'string' },
+								message: 'must be string',
+							};
+							if (vErrors === null) {
+								vErrors = [err1];
+							} else {
+								vErrors.push(err1);
+							}
+							errors++;
+						}
+						var _valid1 = _errs9 === errors;
+						valid2 = valid2 || _valid1;
+					}
+					if (!valid2) {
+						const err2 = {
+							instancePath:
+								instancePath +
+								'/' +
+								key0.replace(/~/g, '~0').replace(/\//g, '~1'),
+							schemaPath: '#/additionalProperties/anyOf/1/anyOf',
+							keyword: 'anyOf',
+							params: {},
+							message: 'must match a schema in anyOf',
+						};
+						if (vErrors === null) {
+							vErrors = [err2];
+						} else {
+							vErrors.push(err2);
+						}
+						errors++;
+					} else {
+						errors = _errs6;
+						if (vErrors !== null) {
+							if (_errs6) {
+								vErrors.length = _errs6;
+							} else {
+								vErrors = null;
+							}
+						}
+					}
 					var _valid0 = _errs5 === errors;
 					valid1 = valid1 || _valid0;
 				}
 				if (!valid1) {
-					const err1 = {
+					const err3 = {
 						instancePath:
 							instancePath +
 							'/' +
@@ -2278,9 +2341,9 @@ function validate20(
 						message: 'must match a schema in anyOf',
 					};
 					if (vErrors === null) {
-						vErrors = [err1];
+						vErrors = [err3];
 					} else {
-						vErrors.push(err1);
+						vErrors.push(err3);
 					}
 					errors++;
 					validate20.errors = vErrors;
@@ -20758,46 +20821,211 @@ function validate11(
 														let data17 =
 															data16[key4];
 														const _errs45 = errors;
+														const _errs46 = errors;
+														let valid10 = false;
+														const _errs47 = errors;
 														if (
 															typeof data17 !==
-																'string' &&
-															typeof data17 !==
-																'boolean' &&
-															!(
-																typeof data17 ==
-																	'number' &&
-																isFinite(data17)
-															)
+															'string'
 														) {
-															validate11.errors =
-																[
-																	{
-																		instancePath:
-																			instancePath +
-																			'/constants/' +
-																			key4
-																				.replace(
-																					/~/g,
-																					'~0'
-																				)
-																				.replace(
-																					/\//g,
-																					'~1'
-																				),
-																		schemaPath:
-																			'#/definitions/PHPConstants/additionalProperties/type',
-																		keyword:
-																			'type',
-																		params: {
-																			type: schema16
-																				.additionalProperties
-																				.type,
-																		},
-																		message:
-																			'must be string,boolean,number',
-																	},
+															const err3 = {
+																instancePath:
+																	instancePath +
+																	'/constants/' +
+																	key4
+																		.replace(
+																			/~/g,
+																			'~0'
+																		)
+																		.replace(
+																			/\//g,
+																			'~1'
+																		),
+																schemaPath:
+																	'#/definitions/PHPConstants/additionalProperties/anyOf/0/type',
+																keyword: 'type',
+																params: {
+																	type: 'string',
+																},
+																message:
+																	'must be string',
+															};
+															if (
+																vErrors === null
+															) {
+																vErrors = [
+																	err3,
 																];
+															} else {
+																vErrors.push(
+																	err3
+																);
+															}
+															errors++;
+														}
+														var _valid1 =
+															_errs47 === errors;
+														valid10 =
+															valid10 || _valid1;
+														if (!valid10) {
+															const _errs49 =
+																errors;
+															if (
+																typeof data17 !==
+																'boolean'
+															) {
+																const err4 = {
+																	instancePath:
+																		instancePath +
+																		'/constants/' +
+																		key4
+																			.replace(
+																				/~/g,
+																				'~0'
+																			)
+																			.replace(
+																				/\//g,
+																				'~1'
+																			),
+																	schemaPath:
+																		'#/definitions/PHPConstants/additionalProperties/anyOf/1/type',
+																	keyword:
+																		'type',
+																	params: {
+																		type: 'boolean',
+																	},
+																	message:
+																		'must be boolean',
+																};
+																if (
+																	vErrors ===
+																	null
+																) {
+																	vErrors = [
+																		err4,
+																	];
+																} else {
+																	vErrors.push(
+																		err4
+																	);
+																}
+																errors++;
+															}
+															var _valid1 =
+																_errs49 ===
+																errors;
+															valid10 =
+																valid10 ||
+																_valid1;
+															if (!valid10) {
+																const _errs51 =
+																	errors;
+																if (
+																	!(
+																		typeof data17 ==
+																			'number' &&
+																		isFinite(
+																			data17
+																		)
+																	)
+																) {
+																	const err5 =
+																		{
+																			instancePath:
+																				instancePath +
+																				'/constants/' +
+																				key4
+																					.replace(
+																						/~/g,
+																						'~0'
+																					)
+																					.replace(
+																						/\//g,
+																						'~1'
+																					),
+																			schemaPath:
+																				'#/definitions/PHPConstants/additionalProperties/anyOf/2/type',
+																			keyword:
+																				'type',
+																			params: {
+																				type: 'number',
+																			},
+																			message:
+																				'must be number',
+																		};
+																	if (
+																		vErrors ===
+																		null
+																	) {
+																		vErrors =
+																			[
+																				err5,
+																			];
+																	} else {
+																		vErrors.push(
+																			err5
+																		);
+																	}
+																	errors++;
+																}
+																var _valid1 =
+																	_errs51 ===
+																	errors;
+																valid10 =
+																	valid10 ||
+																	_valid1;
+															}
+														}
+														if (!valid10) {
+															const err6 = {
+																instancePath:
+																	instancePath +
+																	'/constants/' +
+																	key4
+																		.replace(
+																			/~/g,
+																			'~0'
+																		)
+																		.replace(
+																			/\//g,
+																			'~1'
+																		),
+																schemaPath:
+																	'#/definitions/PHPConstants/additionalProperties/anyOf',
+																keyword:
+																	'anyOf',
+																params: {},
+																message:
+																	'must match a schema in anyOf',
+															};
+															if (
+																vErrors === null
+															) {
+																vErrors = [
+																	err6,
+																];
+															} else {
+																vErrors.push(
+																	err6
+																);
+															}
+															errors++;
+															validate11.errors =
+																vErrors;
 															return false;
+														} else {
+															errors = _errs46;
+															if (
+																vErrors !== null
+															) {
+																if (_errs46) {
+																	vErrors.length =
+																		_errs46;
+																} else {
+																	vErrors =
+																		null;
+																}
+															}
 														}
 														var valid9 =
 															_errs45 === errors;
@@ -20831,10 +21059,10 @@ function validate11(
 										if (valid0) {
 											if (data.plugins !== undefined) {
 												let data18 = data.plugins;
-												const _errs47 = errors;
-												if (errors === _errs47) {
+												const _errs53 = errors;
+												if (errors === _errs53) {
 													if (Array.isArray(data18)) {
-														var valid10 = true;
+														var valid11 = true;
 														const len2 =
 															data18.length;
 														for (
@@ -20844,18 +21072,18 @@ function validate11(
 														) {
 															let data19 =
 																data18[i2];
-															const _errs49 =
+															const _errs55 =
 																errors;
-															const _errs50 =
+															const _errs56 =
 																errors;
-															let valid11 = false;
-															const _errs51 =
+															let valid12 = false;
+															const _errs57 =
 																errors;
 															if (
 																typeof data19 !==
 																'string'
 															) {
-																const err3 = {
+																const err7 = {
 																	instancePath:
 																		instancePath +
 																		'/plugins/' +
@@ -20875,23 +21103,23 @@ function validate11(
 																	null
 																) {
 																	vErrors = [
-																		err3,
+																		err7,
 																	];
 																} else {
 																	vErrors.push(
-																		err3
+																		err7
 																	);
 																}
 																errors++;
 															}
-															var _valid1 =
-																_errs51 ===
+															var _valid2 =
+																_errs57 ===
 																errors;
-															valid11 =
-																valid11 ||
-																_valid1;
-															if (!valid11) {
-																const _errs53 =
+															valid12 =
+																valid12 ||
+																_valid2;
+															if (!valid12) {
+																const _errs59 =
 																	errors;
 																if (
 																	!validate14(
@@ -20919,15 +21147,15 @@ function validate11(
 																	errors =
 																		vErrors.length;
 																}
-																var _valid1 =
-																	_errs53 ===
+																var _valid2 =
+																	_errs59 ===
 																	errors;
-																valid11 =
-																	valid11 ||
-																	_valid1;
+																valid12 =
+																	valid12 ||
+																	_valid2;
 															}
-															if (!valid11) {
-																const err4 = {
+															if (!valid12) {
+																const err8 = {
 																	instancePath:
 																		instancePath +
 																		'/plugins/' +
@@ -20945,11 +21173,11 @@ function validate11(
 																	null
 																) {
 																	vErrors = [
-																		err4,
+																		err8,
 																	];
 																} else {
 																	vErrors.push(
-																		err4
+																		err8
 																	);
 																}
 																errors++;
@@ -20958,26 +21186,26 @@ function validate11(
 																return false;
 															} else {
 																errors =
-																	_errs50;
+																	_errs56;
 																if (
 																	vErrors !==
 																	null
 																) {
 																	if (
-																		_errs50
+																		_errs56
 																	) {
 																		vErrors.length =
-																			_errs50;
+																			_errs56;
 																	} else {
 																		vErrors =
 																			null;
 																	}
 																}
 															}
-															var valid10 =
-																_errs49 ===
+															var valid11 =
+																_errs55 ===
 																errors;
-															if (!valid10) {
+															if (!valid11) {
 																break;
 															}
 														}
@@ -21000,7 +21228,7 @@ function validate11(
 														return false;
 													}
 												}
-												var valid0 = _errs47 === errors;
+												var valid0 = _errs53 === errors;
 											} else {
 												var valid0 = true;
 											}
@@ -21011,8 +21239,8 @@ function validate11(
 												) {
 													let data20 =
 														data.siteOptions;
-													const _errs54 = errors;
-													if (errors === _errs54) {
+													const _errs60 = errors;
+													if (errors === _errs60) {
 														if (
 															data20 &&
 															typeof data20 ==
@@ -21021,7 +21249,7 @@ function validate11(
 																data20
 															)
 														) {
-															const _errs56 =
+															const _errs62 =
 																errors;
 															for (const key5 in data20) {
 																if (
@@ -21030,7 +21258,7 @@ function validate11(
 																		'blogname'
 																	)
 																) {
-																	const _errs57 =
+																	const _errs63 =
 																		errors;
 																	if (
 																		typeof data20[
@@ -21066,18 +21294,18 @@ function validate11(
 																			];
 																		return false;
 																	}
-																	var valid12 =
-																		_errs57 ===
+																	var valid13 =
+																		_errs63 ===
 																		errors;
 																	if (
-																		!valid12
+																		!valid13
 																	) {
 																		break;
 																	}
 																}
 															}
 															if (
-																_errs56 ===
+																_errs62 ===
 																errors
 															) {
 																if (
@@ -21131,7 +21359,7 @@ function validate11(
 														}
 													}
 													var valid0 =
-														_errs54 === errors;
+														_errs60 === errors;
 												} else {
 													var valid0 = true;
 												}
@@ -21140,15 +21368,15 @@ function validate11(
 														data.login !== undefined
 													) {
 														let data23 = data.login;
-														const _errs61 = errors;
-														const _errs62 = errors;
-														let valid14 = false;
-														const _errs63 = errors;
+														const _errs67 = errors;
+														const _errs68 = errors;
+														let valid15 = false;
+														const _errs69 = errors;
 														if (
 															typeof data23 !==
 															'boolean'
 														) {
-															const err5 = {
+															const err9 = {
 																instancePath:
 																	instancePath +
 																	'/login',
@@ -21165,25 +21393,25 @@ function validate11(
 																vErrors === null
 															) {
 																vErrors = [
-																	err5,
+																	err9,
 																];
 															} else {
 																vErrors.push(
-																	err5
+																	err9
 																);
 															}
 															errors++;
 														}
-														var _valid2 =
-															_errs63 === errors;
-														valid14 =
-															valid14 || _valid2;
-														if (!valid14) {
-															const _errs65 =
+														var _valid3 =
+															_errs69 === errors;
+														valid15 =
+															valid15 || _valid3;
+														if (!valid15) {
+															const _errs71 =
 																errors;
 															if (
 																errors ===
-																_errs65
+																_errs71
 															) {
 																if (
 																	data23 &&
@@ -21204,7 +21432,7 @@ function validate11(
 																			(missing2 =
 																				'password'))
 																	) {
-																		const err6 =
+																		const err10 =
 																			{
 																				instancePath:
 																					instancePath +
@@ -21228,16 +21456,16 @@ function validate11(
 																		) {
 																			vErrors =
 																				[
-																					err6,
+																					err10,
 																				];
 																		} else {
 																			vErrors.push(
-																				err6
+																				err10
 																			);
 																		}
 																		errors++;
 																	} else {
-																		const _errs67 =
+																		const _errs73 =
 																			errors;
 																		for (const key6 in data23) {
 																			if (
@@ -21248,7 +21476,7 @@ function validate11(
 																						'password'
 																				)
 																			) {
-																				const err7 =
+																				const err11 =
 																					{
 																						instancePath:
 																							instancePath +
@@ -21270,11 +21498,11 @@ function validate11(
 																				) {
 																					vErrors =
 																						[
-																							err7,
+																							err11,
 																						];
 																				} else {
 																					vErrors.push(
-																						err7
+																						err11
 																					);
 																				}
 																				errors++;
@@ -21282,20 +21510,20 @@ function validate11(
 																			}
 																		}
 																		if (
-																			_errs67 ===
+																			_errs73 ===
 																			errors
 																		) {
 																			if (
 																				data23.username !==
 																				undefined
 																			) {
-																				const _errs68 =
+																				const _errs74 =
 																					errors;
 																				if (
 																					typeof data23.username !==
 																					'string'
 																				) {
-																					const err8 =
+																					const err12 =
 																						{
 																							instancePath:
 																								instancePath +
@@ -21316,35 +21544,35 @@ function validate11(
 																					) {
 																						vErrors =
 																							[
-																								err8,
+																								err12,
 																							];
 																					} else {
 																						vErrors.push(
-																							err8
+																							err12
 																						);
 																					}
 																					errors++;
 																				}
-																				var valid15 =
-																					_errs68 ===
+																				var valid16 =
+																					_errs74 ===
 																					errors;
 																			} else {
-																				var valid15 = true;
+																				var valid16 = true;
 																			}
 																			if (
-																				valid15
+																				valid16
 																			) {
 																				if (
 																					data23.password !==
 																					undefined
 																				) {
-																					const _errs70 =
+																					const _errs76 =
 																						errors;
 																					if (
 																						typeof data23.password !==
 																						'string'
 																					) {
-																						const err9 =
+																						const err13 =
 																							{
 																								instancePath:
 																									instancePath +
@@ -21365,26 +21593,26 @@ function validate11(
 																						) {
 																							vErrors =
 																								[
-																									err9,
+																									err13,
 																								];
 																						} else {
 																							vErrors.push(
-																								err9
+																								err13
 																							);
 																						}
 																						errors++;
 																					}
-																					var valid15 =
-																						_errs70 ===
+																					var valid16 =
+																						_errs76 ===
 																						errors;
 																				} else {
-																					var valid15 = true;
+																					var valid16 = true;
 																				}
 																			}
 																		}
 																	}
 																} else {
-																	const err10 =
+																	const err14 =
 																		{
 																			instancePath:
 																				instancePath +
@@ -21405,25 +21633,25 @@ function validate11(
 																	) {
 																		vErrors =
 																			[
-																				err10,
+																				err14,
 																			];
 																	} else {
 																		vErrors.push(
-																			err10
+																			err14
 																		);
 																	}
 																	errors++;
 																}
 															}
-															var _valid2 =
-																_errs65 ===
+															var _valid3 =
+																_errs71 ===
 																errors;
-															valid14 =
-																valid14 ||
-																_valid2;
+															valid15 =
+																valid15 ||
+																_valid3;
 														}
-														if (!valid14) {
-															const err11 = {
+														if (!valid15) {
+															const err15 = {
 																instancePath:
 																	instancePath +
 																	'/login',
@@ -21439,11 +21667,11 @@ function validate11(
 																vErrors === null
 															) {
 																vErrors = [
-																	err11,
+																	err15,
 																];
 															} else {
 																vErrors.push(
-																	err11
+																	err15
 																);
 															}
 															errors++;
@@ -21451,13 +21679,13 @@ function validate11(
 																vErrors;
 															return false;
 														} else {
-															errors = _errs62;
+															errors = _errs68;
 															if (
 																vErrors !== null
 															) {
-																if (_errs62) {
+																if (_errs68) {
 																	vErrors.length =
-																		_errs62;
+																		_errs68;
 																} else {
 																	vErrors =
 																		null;
@@ -21465,7 +21693,7 @@ function validate11(
 															}
 														}
 														var valid0 =
-															_errs61 === errors;
+															_errs67 === errors;
 													} else {
 														var valid0 = true;
 													}
@@ -21476,18 +21704,18 @@ function validate11(
 														) {
 															let data26 =
 																data.steps;
-															const _errs72 =
+															const _errs78 =
 																errors;
 															if (
 																errors ===
-																_errs72
+																_errs78
 															) {
 																if (
 																	Array.isArray(
 																		data26
 																	)
 																) {
-																	var valid16 = true;
+																	var valid17 = true;
 																	const len3 =
 																		data26.length;
 																	for (
@@ -21500,12 +21728,12 @@ function validate11(
 																			data26[
 																				i3
 																			];
-																		const _errs74 =
+																		const _errs80 =
 																			errors;
-																		const _errs75 =
+																		const _errs81 =
 																			errors;
-																		let valid17 = false;
-																		const _errs76 =
+																		let valid18 = false;
+																		const _errs82 =
 																			errors;
 																		if (
 																			!validate26(
@@ -21533,22 +21761,22 @@ function validate11(
 																			errors =
 																				vErrors.length;
 																		}
-																		var _valid3 =
-																			_errs76 ===
+																		var _valid4 =
+																			_errs82 ===
 																			errors;
-																		valid17 =
-																			valid17 ||
-																			_valid3;
+																		valid18 =
+																			valid18 ||
+																			_valid4;
 																		if (
-																			!valid17
+																			!valid18
 																		) {
-																			const _errs77 =
+																			const _errs83 =
 																				errors;
 																			if (
 																				typeof data27 !==
 																				'string'
 																			) {
-																				const err12 =
+																				const err16 =
 																					{
 																						instancePath:
 																							instancePath +
@@ -21570,27 +21798,27 @@ function validate11(
 																				) {
 																					vErrors =
 																						[
-																							err12,
+																							err16,
 																						];
 																				} else {
 																					vErrors.push(
-																						err12
+																						err16
 																					);
 																				}
 																				errors++;
 																			}
-																			var _valid3 =
-																				_errs77 ===
+																			var _valid4 =
+																				_errs83 ===
 																				errors;
-																			valid17 =
-																				valid17 ||
-																				_valid3;
+																			valid18 =
+																				valid18 ||
+																				_valid4;
 																			if (
-																				!valid17
+																				!valid18
 																			) {
-																				const _errs79 =
+																				const _errs85 =
 																					errors;
-																				const err13 =
+																				const err17 =
 																					{
 																						instancePath:
 																							instancePath +
@@ -21610,30 +21838,30 @@ function validate11(
 																				) {
 																					vErrors =
 																						[
-																							err13,
+																							err17,
 																						];
 																				} else {
 																					vErrors.push(
-																						err13
+																						err17
 																					);
 																				}
 																				errors++;
-																				var _valid3 =
-																					_errs79 ===
+																				var _valid4 =
+																					_errs85 ===
 																					errors;
-																				valid17 =
-																					valid17 ||
-																					_valid3;
+																				valid18 =
+																					valid18 ||
+																					_valid4;
 																				if (
-																					!valid17
+																					!valid18
 																				) {
-																					const _errs81 =
+																					const _errs87 =
 																						errors;
 																					if (
 																						typeof data27 !==
 																						'boolean'
 																					) {
-																						const err14 =
+																						const err18 =
 																							{
 																								instancePath:
 																									instancePath +
@@ -21655,11 +21883,11 @@ function validate11(
 																						) {
 																							vErrors =
 																								[
-																									err14,
+																									err18,
 																								];
 																						} else {
 																							vErrors.push(
-																								err14
+																								err18
 																							);
 																						}
 																						errors++;
@@ -21668,7 +21896,7 @@ function validate11(
 																						false !==
 																						data27
 																					) {
-																						const err15 =
+																						const err19 =
 																							{
 																								instancePath:
 																									instancePath +
@@ -21690,31 +21918,31 @@ function validate11(
 																						) {
 																							vErrors =
 																								[
-																									err15,
+																									err19,
 																								];
 																						} else {
 																							vErrors.push(
-																								err15
+																								err19
 																							);
 																						}
 																						errors++;
 																					}
-																					var _valid3 =
-																						_errs81 ===
+																					var _valid4 =
+																						_errs87 ===
 																						errors;
-																					valid17 =
-																						valid17 ||
-																						_valid3;
+																					valid18 =
+																						valid18 ||
+																						_valid4;
 																					if (
-																						!valid17
+																						!valid18
 																					) {
-																						const _errs83 =
+																						const _errs89 =
 																							errors;
 																						if (
 																							data27 !==
 																							null
 																						) {
-																							const err16 =
+																							const err20 =
 																								{
 																									instancePath:
 																										instancePath +
@@ -21736,29 +21964,29 @@ function validate11(
 																							) {
 																								vErrors =
 																									[
-																										err16,
+																										err20,
 																									];
 																							} else {
 																								vErrors.push(
-																									err16
+																									err20
 																								);
 																							}
 																							errors++;
 																						}
-																						var _valid3 =
-																							_errs83 ===
+																						var _valid4 =
+																							_errs89 ===
 																							errors;
-																						valid17 =
-																							valid17 ||
-																							_valid3;
+																						valid18 =
+																							valid18 ||
+																							_valid4;
 																					}
 																				}
 																			}
 																		}
 																		if (
-																			!valid17
+																			!valid18
 																		) {
-																			const err17 =
+																			const err21 =
 																				{
 																					instancePath:
 																						instancePath +
@@ -21778,11 +22006,11 @@ function validate11(
 																			) {
 																				vErrors =
 																					[
-																						err17,
+																						err21,
 																					];
 																			} else {
 																				vErrors.push(
-																					err17
+																					err21
 																				);
 																			}
 																			errors++;
@@ -21791,27 +22019,27 @@ function validate11(
 																			return false;
 																		} else {
 																			errors =
-																				_errs75;
+																				_errs81;
 																			if (
 																				vErrors !==
 																				null
 																			) {
 																				if (
-																					_errs75
+																					_errs81
 																				) {
 																					vErrors.length =
-																						_errs75;
+																						_errs81;
 																				} else {
 																					vErrors =
 																						null;
 																				}
 																			}
 																		}
-																		var valid16 =
-																			_errs74 ===
+																		var valid17 =
+																			_errs80 ===
 																			errors;
 																		if (
-																			!valid16
+																			!valid17
 																		) {
 																			break;
 																		}
@@ -21838,7 +22066,7 @@ function validate11(
 																}
 															}
 															var valid0 =
-																_errs72 ===
+																_errs78 ===
 																errors;
 														} else {
 															var valid0 = true;
@@ -21848,7 +22076,7 @@ function validate11(
 																data.$schema !==
 																undefined
 															) {
-																const _errs85 =
+																const _errs91 =
 																	errors;
 																if (
 																	typeof data.$schema !==
@@ -21874,7 +22102,7 @@ function validate11(
 																	return false;
 																}
 																var valid0 =
-																	_errs85 ===
+																	_errs91 ===
 																	errors;
 															} else {
 																var valid0 = true;
