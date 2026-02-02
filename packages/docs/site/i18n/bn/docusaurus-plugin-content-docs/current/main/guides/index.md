@@ -15,7 +15,7 @@ sidebar_class_name: navbar-build-item
 In this section we present a selection of guides that will help you to both work with, and to better understand, a variety of topics related to [WordPress Playground](/).
 -->
 
-এই বিভাগে আমরা কিছু নির্বাচিত নির্দেশিকা উপস্থাপন করছি যা আপনাকে [ওয়ার্ডপ্রেস প্লেগ্রাউন্ড (WordPress Playground)](/) সম্পর্কিত বিভিন্ন বিষয় বুঝতে এবং সেগুলো নিয়ে কাজ করতে সাহায্য করবে।
+এই বিভাগে আমরা কিছু নির্বাচিত নির্দেশিকা উপস্থাপন করছি যা আপনাকে [ওয়ার্ডপ্রেস প্লেগ্রাউন্ড](/) সম্পর্কিত বিভিন্ন বিষয় বুঝতে এবং সেগুলো নিয়ে কাজ করতে সাহায্য করবে।
 
 <!--
 ## [How to ship a real WordPress site in a native iOS app via Playground?](/guides/wordpress-native-ios-app)
@@ -27,7 +27,7 @@ In this section we present a selection of guides that will help you to both work
 Check "Blocknotes", the first app to run WordPress natively on iOS via WordPress Playground. It showcases the potential for seamless mobile web integration using WebAssembly and the WordPress block editor.
 -->
 
-"Blocknotes" দেখুন, যা ওয়ার্ডপ্রেস প্লেগ্রাউন্ডের মাধ্যমে iOS-এ নেটিভভাবে ওয়ার্ডপ্রেস চালানো প্রথম অ্যাপ। এটি ওয়েবঅ্যাসেম্বলি (WebAssembly) এবং ওয়ার্ডপ্রেস ব্লক এডিটর ব্যবহার করে নিরবিচ্ছিন্ন মোবাইল ওয়েব ইন্টিগ্রেশনের সম্ভাবনা প্রদর্শন করে।
+"ব্লকনোট" দেখুন, যা ওয়ার্ডপ্রেস প্লেগ্রাউন্ডের মাধ্যমে iOS-এ নেটিভভাবে ওয়ার্ডপ্রেস চালানো প্রথম অ্যাপ। এটি ওয়েবঅ্যাসেম্বলি এবং ওয়ার্ডপ্রেস ব্লক এডিটর ব্যবহার করে নিরবিচ্ছিন্ন মোবাইল ওয়েব ইন্টিগ্রেশনের সম্ভাবনা প্রদর্শন করে।
 
 <!--
 ## [Providing content for your demo with WordPress Playground](/guides/providing-content-for-your-demo)
@@ -75,4 +75,4 @@ This guide will show you the basic settings to showcase your plugin using WordPr
 Learn how to automatically add one-click preview buttons to your pull requests. When someone opens a PR on your plugin or theme repository, they get an instant link to test the changes in a fully configured WordPress instance running in the browser.
 -->
 
-কিভাবে আপনার পুল রিকোয়েস্টে স্বয়ংক্রিয়ভাবে ওয়ান-ক্লিক প্রিভিউ বাটন যোগ করবেন তা জানুন। যখন কেউ আপনার প্লাগইন বা থিম রিপোজিটরিতে একটি পিআর (PR) ওপেন করবে, তখন তারা ব্রাউজারে চলমান একটি সম্পূর্ণ কনফিগার করা ওয়ার্ডপ্রেস ইনস্ট্যান্সে পরিবর্তনগুলো টেস্ট করার জন্য একটি তাৎক্ষণিক লিঙ্ক পাবে।
+কিভাবে আপনার পুল রিকোয়েস্টে স্বয়ংক্রিয়ভাবে ওয়ান-ক্লিক প্রিভিউ বাটন যোগ করবেন তা জানুন। যখন কেউ আপনার প্লাগইন বা থিম রিপোজিটরিতে একটি পিআর ওপেন করবে, তখন তারা ব্রাউজারে চলমান একটি সম্পূর্ণ কনফিগার করা ওয়ার্ডপ্রেস ইনস্ট্যান্সে পরিবর্তনগুলো টেস্ট করার জন্য একটি তাৎক্ষণিক লিঙ্ক পাবে।
