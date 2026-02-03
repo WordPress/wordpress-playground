@@ -421,6 +421,7 @@ export class PHPRequestHandler implements AsyncDisposable {
 	): Promise<StreamedPHPResponse | PHPResponse> {
 		const isAbsolute = looksLikeAbsoluteUrl(request.url);
 		const originalRequestUrl = new URL(
+			// Remove the hash part of the URL as it's not meant for the server.
 			request.url.split('#')[0],
 			isAbsolute ? undefined : DEFAULT_BASE_URL
 		);
@@ -429,13 +430,41 @@ export class PHPRequestHandler implements AsyncDisposable {
 		const primaryPhp = await this.getPrimaryPhp();
 		let fsPath = joinPaths(
 			this.#DOCROOT,
+			/**
+			 * Turn a URL such as `https://playground/scope:my-site/wp-admin/index.php`
+			 * into a site-relative path, such as `/wp-admin/index.php`.
+			 */
 			removePathPrefix(
+				/**
+				 * URL.pathname returns a URL-encoded path. We need to decode it
+				 * before using it as a filesystem path.
+				 */
 				decodeURIComponent(rewrittenRequestUrl.pathname),
 				this.#PATHNAME
 			)
 		);
-
 		if (primaryPhp.isDir(fsPath)) {
+			// Ensure directory URIs have a trailing slash. Otherwise,
+			// relative URIs in index.php or index.html files are relative
+			// to the next directory up.
+			//
+			// Example:
+			// For an index page served for URI "/settings", we naturally expect
+			// links to be relative to "/settings", but without the trailing
+			// slash, a relative link "edit.php" resolves to "/edit.php"
+			// rather than "/settings/edit.php".
+			//
+			// This treatment of relative links is correct behavior for the browser:
+			// https://www.rfc-editor.org/rfc/rfc3986#section-5.2.3
+			//
+			// But user intent for `/settings/index.php` is that its relative
+			// URIs are relative to `/settings/`. So we redirect to add a
+			// trailing slash to directory URIs to meet this expecatation.
+			//
+			// This behavior is also necessary for WordPress to function properly.
+			// Otherwise, when viewing the WP admin dashboard at `/wp-admin`,
+			// links to other admin pages like `edit.php` will incorrectly
+			// resolve to `/edit.php` rather than `/wp-admin/edit.php`.
 			if (!fsPath.endsWith('/')) {
 				return new PHPResponse(
 					301,
@@ -444,10 +473,14 @@ export class PHPRequestHandler implements AsyncDisposable {
 				);
 			}
 
+			// We can only satisfy requests for directories with a default file
+			// so let's first resolve to a default path when available.
 			for (const possibleIndexFile of ['index.php', 'index.html']) {
 				const possibleIndexPath = joinPaths(fsPath, possibleIndexFile);
 				if (primaryPhp.isFile(possibleIndexPath)) {
 					fsPath = possibleIndexPath;
+
+					// Include the resolved index file in the final rewritten request URL.
 					rewrittenRequestUrl.pathname = joinPaths(
 						rewrittenRequestUrl.pathname,
 						possibleIndexFile
@@ -458,6 +491,17 @@ export class PHPRequestHandler implements AsyncDisposable {
 		}
 
 		if (!primaryPhp.isFile(fsPath)) {
+			/**
+			 * Try resolving a partial path.
+			 *
+			 * Example:
+			 *
+			 * – Request URL: /file.php/index.php
+			 * – Document Root: /var/www
+			 *
+			 * If /var/www/file.php/index.php does not exist, but /var/www/file.php does,
+			 * use /var/www/file.php. This is also what Apache and PHP Dev Server do.
+			 */
 			let pathToTry = rewrittenRequestUrl.pathname;
 			while (
 				pathToTry.startsWith('/') &&
@@ -467,6 +511,7 @@ export class PHPRequestHandler implements AsyncDisposable {
 				const resolvedPathToTry = joinPaths(this.#DOCROOT, pathToTry);
 				if (
 					primaryPhp.isFile(resolvedPathToTry) &&
+					// Only run partial path resolution for PHP files.
 					resolvedPathToTry.endsWith('.php')
 				) {
 					fsPath = joinPaths(this.#DOCROOT, pathToTry);
@@ -490,11 +535,16 @@ export class PHPRequestHandler implements AsyncDisposable {
 				default:
 					throw new Error(
 						'Unsupported file-not-found action type: ' +
-							`'${(fileNotFoundAction as FileNotFoundAction).type}'`
+							// Cast because TS asserts the remaining possibility is `never`
+							`'${
+								(fileNotFoundAction as FileNotFoundAction).type
+							}'`
 					);
 			}
 		}
 
+		// We need to confirm that the current target file exists because
+		// file-not-found fallback actions may redirect to non-existent files.
 		if (primaryPhp.isFile(fsPath)) {
 			if (fsPath.endsWith('.php')) {
 				return await this.#spawnPHPAndDispatchRequestStreamed(
