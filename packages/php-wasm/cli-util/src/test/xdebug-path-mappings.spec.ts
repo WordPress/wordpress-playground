@@ -1,9 +1,11 @@
 import {
+	setXdebugConfig,
 	updatePhpStormConfig,
 	updateVSCodeConfig,
 	type PhpStormConfigOptions,
 	type VSCodeConfigOptions,
 } from '../lib/xdebug-path-mappings';
+import type { Mount } from '../lib/mounts';
 import { XMLParser } from 'fast-xml-parser';
 import * as JSONC from 'jsonc-parser';
 
@@ -1416,6 +1418,66 @@ describe('updateVSCodeConfig', () => {
 }`;
 
 			expectJSONEquals(result, expected);
+		});
+	});
+});
+
+describe('setXdebugConfig', () => {
+	it('should return pathMappings from filterLocalMounts when cwd and mounts are provided', () => {
+		const cwd = process.cwd();
+		const mounts = [{ hostPath: './src', vfsPath: '/var/www/html/src' }];
+		const pathSkippings = ['/vendor'];
+
+		const result = setXdebugConfig({
+			cwd,
+			mounts,
+			pathSkippings,
+		});
+
+		expect(result).toEqual({
+			pathMappings: mounts,
+			pathSkippings,
+		});
+	});
+
+	it('should return empty pathMappings when cwd is missing', () => {
+		const mounts = [{ hostPath: './src', vfsPath: '/var/www/html/src' }];
+
+		const result = setXdebugConfig({
+			mounts,
+			pathSkippings: ['/vendor'],
+		});
+
+		expect(result).toEqual({
+			pathMappings: undefined,
+			pathSkippings: ['/vendor'],
+		});
+	});
+
+	it('should allow pathMappings to be undefined', () => {
+		const result = setXdebugConfig({
+			cwd: '/project',
+			pathSkippings: ['/vendor'],
+		});
+
+		expect(result).toEqual({
+			pathMappings: undefined,
+			pathSkippings: ['/vendor'],
+		});
+	});
+
+	it('should allow pathSkippings to be undefined', () => {
+		const cwd = '/project';
+		const mounts: Mount[] = [];
+
+		const result = setXdebugConfig({
+			cwd,
+			mounts,
+		});
+
+		expect(result).toEqual({
+			pathMappings: [],
+			pathSkippings: undefined,
 		});
 	});
 });

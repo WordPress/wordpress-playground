@@ -43,7 +43,7 @@ import {
 import { isPortInUse, startServer } from './start-server';
 import type { PlaygroundCliBlueprintV1Worker } from './blueprints-v1/worker-thread-v1';
 import type { PlaygroundCliBlueprintV2Worker } from './blueprints-v2/worker-thread-v2';
-import { XdebugOptions } from '@php-wasm/node';
+import type { XdebugOptions } from '@php-wasm/node';
 /* eslint-disable no-console */
 import {
 	SupportedPHPVersions,

@@ -9,7 +9,12 @@ import {
 	XMLBuilder,
 } from 'fast-xml-parser';
 import * as JSONC from 'jsonc-parser';
-import { XdebugOptions } from '@php-wasm/node';
+
+export interface XdebugOptions {
+	ideKey?: string;
+	pathMappings?: Mount[];
+	pathSkippings?: string[];
+}
 
 /**
  * Create a symlink to a tempory directory.
@@ -687,9 +692,10 @@ export function setXdebugConfig({
 	mounts,
 	pathSkippings,
 }: XdebugConfig): XdebugOptions {
-	const mappings = cwd && mounts ? filterLocalMounts(cwd, mounts) : [];
+	const pathMappings =
+		cwd && mounts ? filterLocalMounts(cwd, mounts) : undefined;
 
-	return { pathMappings: mappings, pathSkippings } as XdebugOptions;
+	return { pathMappings, pathSkippings };
 }
 
 function jsoncApplyEdits(content: string, edits: JSONC.Edit[]) {
