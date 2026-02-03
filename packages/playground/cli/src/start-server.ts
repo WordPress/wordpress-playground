@@ -11,7 +11,7 @@ import { logger } from '@php-wasm/logger';
 export interface ServerOptions {
 	port: number;
 	onBind: (server: Server, port: number) => Promise<RunCLIServer | void>;
-	onError: (error: Error) => void;
+	onError: (error: NodeJS.ErrnoException) => void;
 	/**
 	 * Handler for requests. Always returns StreamedPHPResponse.
 	 */

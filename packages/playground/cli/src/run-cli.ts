@@ -984,8 +984,15 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 
 	const server = await startServer({
 		port: selectedPort,
-		onError: (error: Error) => {
+		onError: (error: NodeJS.ErrnoException) => {
 			cliOutput.printError(error.message);
+			switch (error.code) {
+				case 'EADDRINUSE':
+					cliOutput.printInfo(
+						'Use the --port flag to specify a different port.',
+						true
+					);
+			}
 		},
 		onBind: async (server: Server, port: number) => {
 			const host = '127.0.0.1';
