@@ -22,9 +22,9 @@ Playground CLI supports auto-mounting a directory with a plugin, theme, or WordP
 **Key features:**
 -->
 
--   **クイックセットアップ**: わずか数秒でローカルの WordPress 環境をセットアップできます。
--   **柔軟性**: さまざまなシナリオに合わせて設定を調整できます。
--   **シンプルな環境**: 追加の設定は不要で、互換性のある Node バージョンをインストールするだけですぐに使用できます。
+- **クイックセットアップ**: わずか数秒でローカルの WordPress 環境をセットアップできます。
+- **柔軟性**: さまざまなシナリオに合わせて設定を調整できます。
+- **シンプルな環境**: 追加の設定は不要で、互換性のある Node バージョンをインストールするだけですぐに使用できます。
 
 <!--
 -   **Quick Setup**: Set up a local WordPress environment in seconds.
@@ -38,10 +38,10 @@ Playground CLI supports auto-mounting a directory with a plugin, theme, or WordP
 ## Requirements
 -->
 
-Playground CLI を使用するには、Node.js 20.18 以降が必要です。これは推奨される長期サポート (LTS) バージョンです。[Node.js ウェブサイト](https://nodejs.org/en/download) からダウンロードできます。
+Playground CLI を使用するには、Node.js 22.12 以降が必要です。これは推奨される長期サポート (LTS) バージョンです。[Node.js ウェブサイト](https://nodejs.org/en/download) からダウンロードできます。
 
 <!--
-The Playground CLI requires Node.js 20.18 or higher, which is the recommended Long-Term Support (LTS) version. You can download it from the [Node.js website](https://nodejs.org/en/download).
+The Playground CLI requires Node.js 22.12 or higher, which is the recommended Long-Term Support (LTS) version. You can download it from the [Node.js website](https://nodejs.org/en/download).
 -->
 
 ## クイックスタート
@@ -185,9 +185,9 @@ Playground CLI is simple, configurable, and unopinionated. You can set it up acc
 to your unique WordPress setup. With the Playground CLI, you can use the following top-level commands:
 -->
 
--   **`server`**: (デフォルト) ローカルの WordPress サーバーを起動します。
--   **`run-blueprint`**: Web サーバーを起動せずに Blueprint ファイルを実行します。
--   **`build-snapshot`**: Blueprint に基づいて WordPress サイトの ZIP スナップショットを構築します。
+- **`server`**: (デフォルト) ローカルの WordPress サーバーを起動します。
+- **`run-blueprint`**: Web サーバーを起動せずに Blueprint ファイルを実行します。
+- **`build-snapshot`**: Blueprint に基づいて WordPress サイトの ZIP スナップショットを構築します。
 
 <!--
 -   **`server`**: (Default) Starts a local WordPress server.
@@ -201,21 +201,21 @@ to your unique WordPress setup. With the Playground CLI, you can use the followi
 The `server` command supports the following optional arguments:
 -->
 
--   `--port=<port>`: サーバーが listen するポート番号。デフォルトは 9400 です。
--   `--outfile`: ビルド時にこの出力ファイルに書き込みます。
--   `--wp=<version>`: 使用する WordPress のバージョン。デフォルトは最新です。
--   `--auto-mount`: 現在のディレクトリ (プラグイン、テーマ、wp-content など) を自動的にマウントします。
--   `--mount=<mapping>`: ディレクトリを手動でマウントします (複数回使用可能)。形式: `"/host/path:/vfs/path"`。
--   `--mount-before-install`: WordPress をインストールする前に、ディレクトリを PHP ランタイムにマウントします (複数回使用可能)。形式: `"/host/path:/vfs/path"`。
--   `--mount-dir`: ディレクトリを PHP ランタイムにマウントします (複数回使用可能)。フォーマット: `"/host/path"` `"/vfs/path"`
--   `--mount-dir-before-install`: WordPress をインストールする前にディレクトリをマウントします（複数回使用可能）。フォーマット: `"/host/path"` `"/vfs/path"`
--   `--blueprint=<path>`: 実行する JSON ブループリント ファイルへのパス。
--   `--blueprint-may-read-adjacent-files`: 同意フラグ: ローカル ブループリント内の「バンドル」リソースが、ブループリント ファイルと同じディレクトリにあるファイルを読み取ることを許可します。
--   `--login`: ユーザーを管理者として自動的にログインします。
--   `--wordpress-install-mode <mode>`: WordPress の準備方法を制御します。既定値は `download-and-install` です。他のオプション: `install-from-existing-files` (マウント済みのファイルを使ってインストール)、`install-from-existing-files-if-needed` (既存サイトを検出した場合はセットアップを省略) 、`do-not-attempt-installing` (WordPress をダウンロードもインストールもしません)。
--   `--skip-sqlite-setup`: SQLite データベース統合をセットアップしません。
--   `--verbosity`: ログと進捗メッセージを出力します。選択肢は「quiet」、「normal」、「debug」です。デフォルトは「normal」です。
--   `--debug`: 起動中にエラーが発生した場合、PHP のエラーログを出力します。
+- `--port=<port>`: サーバーが listen するポート番号。デフォルトは 9400 です。
+- `--outfile`: ビルド時にこの出力ファイルに書き込みます。
+- `--wp=<version>`: 使用する WordPress のバージョン。デフォルトは最新です。
+- `--auto-mount`: 現在のディレクトリ (プラグイン、テーマ、wp-content など) を自動的にマウントします。
+- `--mount=<mapping>`: ディレクトリを手動でマウントします (複数回使用可能)。形式: `"/host/path:/vfs/path"`。
+- `--mount-before-install`: WordPress をインストールする前に、ディレクトリを PHP ランタイムにマウントします (複数回使用可能)。形式: `"/host/path:/vfs/path"`。
+- `--mount-dir`: ディレクトリを PHP ランタイムにマウントします (複数回使用可能)。フォーマット: `"/host/path"` `"/vfs/path"`
+- `--mount-dir-before-install`: WordPress をインストールする前にディレクトリをマウントします（複数回使用可能）。フォーマット: `"/host/path"` `"/vfs/path"`
+- `--blueprint=<path>`: 実行する JSON ブループリント ファイルへのパス。
+- `--blueprint-may-read-adjacent-files`: 同意フラグ: ローカル ブループリント内の「バンドル」リソースが、ブループリント ファイルと同じディレクトリにあるファイルを読み取ることを許可します。
+- `--login`: ユーザーを管理者として自動的にログインします。
+- `--wordpress-install-mode <mode>`: WordPress の準備方法を制御します。既定値は `download-and-install` です。他のオプション: `install-from-existing-files` (マウント済みのファイルを使ってインストール)、`install-from-existing-files-if-needed` (既存サイトを検出した場合はセットアップを省略) 、`do-not-attempt-installing` (WordPress をダウンロードもインストールもしません)。
+- `--skip-sqlite-setup`: SQLite データベース統合をセットアップしません。
+- `--verbosity`: ログと進捗メッセージを出力します。選択肢は「quiet」、「normal」、「debug」です。デフォルトは「normal」です。
+- `--debug`: 起動中にエラーが発生した場合、PHP のエラーログを出力します。
 
 <!--
 -   `--port=<port>`: The port number for the server to listen on. Defaults to 9400.

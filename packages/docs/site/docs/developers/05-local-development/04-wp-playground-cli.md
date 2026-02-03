@@ -16,7 +16,7 @@ Playground CLI supports auto-mounting a directory with a plugin, theme, or WordP
 
 ## Requirements
 
-The Playground CLI requires Node.js 20.18 or higher, which is the recommended Long-Term Support (LTS) version. You can download it from the [Node.js website](https://nodejs.org/en/download).
+The Playground CLI requires Node.js 22.12 or higher, which is the recommended Long-Term Support (LTS) version. You can download it from the [Node.js website](https://nodejs.org/en/download).
 
 ## Quickstart
 

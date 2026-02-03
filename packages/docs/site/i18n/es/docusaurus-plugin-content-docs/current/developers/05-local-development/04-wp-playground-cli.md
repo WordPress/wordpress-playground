@@ -16,7 +16,7 @@ Playground CLI soporta el montaje automático de un directorio con un plugin, te
 
 ## Requisitos
 
-El Playground CLI requiere Node.js 20.18 o superior, que es la versión recomendada de Soporte a Largo Plazo (LTS). Puedes descargarlo desde el [sitio web de Node.js](https://nodejs.org/en/download).
+El Playground CLI requiere Node.js 22.12 o superior, que es la versión recomendada de Soporte a Largo Plazo (LTS). Puedes descargarlo desde el [sitio web de Node.js](https://nodejs.org/en/download).
 
 ## Inicio Rápido
 

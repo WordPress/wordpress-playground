@@ -29,9 +29,9 @@ O Playground CLI suporta auto-montagem de um diretório com um plugin, tema ou i
 
 ## Requisitos
 
-<!-- The Playground CLI requires Node.js 20.18 or higher, which is the recommended Long-Term Support (LTS) version. You can download it from the [Node.js website](https://nodejs.org/en/download). -->
+<!-- The Playground CLI requires Node.js 22.12 or higher, which is the recommended Long-Term Support (LTS) version. You can download it from the [Node.js website](https://nodejs.org/en/download). -->
 
-O Playground CLI requer Node.js 20.18 ou superior, que é a versão recomendada de Suporte de Longo Prazo (LTS). Você pode baixá-la no [site do Node.js](https://nodejs.org/en/download).
+O Playground CLI requer Node.js 22.12 ou superior, que é a versão recomendada de Suporte de Longo Prazo (LTS). Você pode baixá-la no [site do Node.js](https://nodejs.org/en/download).
 
 <!-- ## Quickstart -->
 
@@ -201,8 +201,8 @@ A localização do banco de dados depende do que você montar:
 
 - **Auto-montagem de wp-content ou WordPress completo**:
 
-    <!-- -   Database: `<your-local-project>/wp-content/database/.ht.sqlite` -->
-    <!-- -   ✅ **Persisted locally** in your project folder -->
+      <!-- -   Database: `<your-local-project>/wp-content/database/.ht.sqlite` -->
+      <!-- -   ✅ **Persisted locally** in your project folder -->
     - Banco de dados: `<seu-projeto-local>/wp-content/database/.ht.sqlite`
     - ✅ **Persistido localmente** na pasta do seu projeto
 
@@ -210,8 +210,8 @@ A localização do banco de dados depende do que você montar:
 
 - **Auto-montagem apenas de plugin/tema**:
 
-    <!-- -   Database: `<OS-TEMP-DIR>/playground-<id>/wordpress/wp-content/database/.ht.sqlite` -->
-    <!-- -   ⚠️ **Lost when server stops** (temp directories are cleaned up) -->
+      <!-- -   Database: `<OS-TEMP-DIR>/playground-<id>/wordpress/wp-content/database/.ht.sqlite` -->
+      <!-- -   ⚠️ **Lost when server stops** (temp directories are cleaned up) -->
     - Banco de dados: `<OS-TEMP-DIR>/playground-<id>/wordpress/wp-content/database/.ht.sqlite`
     - ⚠️ **Perdido quando o servidor para** (diretórios temporários são limpos)
 
