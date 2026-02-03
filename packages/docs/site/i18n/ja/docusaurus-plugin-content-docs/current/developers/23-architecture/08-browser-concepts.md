@@ -50,7 +50,7 @@ The [`@php-wasm/web`](https://github.com/WordPress/wordpress-playground/blob/tru
 
 - [**ブラウザタブがすべてをオーケストレーション**](/developers/architecture/browser-tab-orchestrates-execution) – ブラウザタブがメインプログラムです。タブを閉じたりリロードしたりすると、実行環境全体が破壊されます。
 - [**iframeベースのレンダリング**](/developers/architecture/browser-iframe-rendering) – PHPサーバーが生成するすべてのレスポンスはiframeでレンダリングする必要があります。これにより、ユーザーがリンクをクリックしてもブラウザタブがリロードされるのを防ぎます。
-- [**PHPワーカースレッド**](/developers/architecture/browser-php-worker-threads) – PHPサーバーは処理が遅いため、Webワーカーで実行する必要があります。そうしないと、リクエスト処理中にウェブサイトのUIがフリーズしてしまいます。
+- [**PHP ワーカースレッド**](/developers/architecture/browser-php-worker-threads) – PHPサーバーは処理が遅いため、Webワーカーで実行する必要があります。そうしないと、リクエスト処理中にウェブサイトのUIがフリーズしてしまいます。
 - [**サービス ワーカー ルーティング**](/developers/architecture/browser-service-workers) – iframe内で発生するすべてのHTTPリクエストはService Workerによって傍受され、レンダリングのためにPHPワーカーに渡されます。
 
 <!--
