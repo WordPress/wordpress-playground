@@ -70,10 +70,10 @@ The [Visual Studio Code Playground extension](https://marketplace.visualstudio.c
 #### Prerequisites
 -->
 
-`@wp-playground/cli` には Node.js 20.18 以降と NPM が必要です。まだインストールしていない場合は、始める前に両方を[ダウンロードしてインストール](https://nodejs.org/en/download)してください。
+`@wp-playground/cli` には Node.js 22.12 以降と NPM が必要です。まだインストールしていない場合は、始める前に両方を[ダウンロードしてインストール](https://nodejs.org/en/download)してください。
 
 <!--
-`@wp-playground/cli` requires Node.js 20.18 or newer and NPM. If you haven’t yet, [download and install](https://nodejs.org/en/download) both before you begin.
+`@wp-playground/cli` requires Node.js 22.12 or newer and NPM. If you haven’t yet, [download and install](https://nodejs.org/en/download) both before you begin.
 -->
 
 参加する Make WordPress チームによっては、インストール済みのものとは異なるバージョンの Node.js が必要になる場合があります。Node Version Manager（NVM）を使用してバージョンを切り替えることができます。[インストールガイドはこちら](https://github.com/nvm-sh/nvm#installing-and-updating)。
@@ -234,9 +234,9 @@ You can translate supported WordPress Plugins by loading the plugin you want to 
 Have a question or an idea for a new feature? Found a bug? Something’s not working as expected? We’re here to help:
 -->
 
--   コントリビューター デイ 中は、**Playground テーブル** でご連絡ください。
--   [WordPress Playground GitHub リポジトリ](https://github.com/WordPress/wordpress-playground/issues/new) で Issue を開いてください。VS Code 拡張機能、NPM パッケージ、またはプラグインに関する問題の場合は、[Playground Tools リポジトリ](https://github.com/WordPress/playground-tools/issues/new) で Issue を開いてください。
--   [**#playground** Slack チャンネル](https://wordpress.slack.com/archives/C04EWKGDJ0K) でフィードバックを共有してください。
+- コントリビューター デイ 中は、**Playground テーブル** でご連絡ください。
+- [WordPress Playground GitHub リポジトリ](https://github.com/WordPress/wordpress-playground/issues/new) で Issue を開いてください。VS Code 拡張機能、NPM パッケージ、またはプラグインに関する問題の場合は、[Playground Tools リポジトリ](https://github.com/WordPress/playground-tools/issues/new) で Issue を開いてください。
+- [**#playground** Slack チャンネル](https://wordpress.slack.com/archives/C04EWKGDJ0K) でフィードバックを共有してください。
 
 <!--
 -   During Contributor Day, you can reach us at the **Playground table**.

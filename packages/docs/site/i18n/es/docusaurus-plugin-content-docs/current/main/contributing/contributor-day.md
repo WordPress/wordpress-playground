@@ -53,10 +53,10 @@ Esta sección describe cómo puedes contribuir directamente al proyecto WordPres
 -   **Product Feedback:** Your insights are invaluable for improving the Playground experience. This includes general feedback on the web instance, the application, and any server-side tools.
 -->
 
--   **Documentación:** Mejora nuestra documentación perfeccionando el contenido existente, desarrollando nuevas guías o traduciendo materiales a diferentes idiomas.
--   **Blueprints:** Crea demostraciones de plugins para los plugins del repositorio de plugins de WordPress o desarrolla nuevos Blueprints para enriquecer la documentación de nuestro proyecto.
--   **Pruebas del entorno Playground:** Participa en las pruebas del propio proyecto WordPress Playground. Puedes hacerlo elaborando cuidadosamente nuevas incidencias que describan los problemas que encuentres y sugiriendo soluciones viables. Prueba nuestra instancia web de WordPress (el sitio playground.wordpress.net) o explora las diversas aplicaciones que funcionan con Playground. Prueba estas herramientas, observa su funcionalidad y proporciona comentarios detallados.
--   **Comentarios sobre el producto:** Tus opiniones son muy valiosas para mejorar la experiencia de Playground. Esto incluye comentarios generales sobre la instancia web, la aplicación y cualquier herramienta del lado del servidor.
+- **Documentación:** Mejora nuestra documentación perfeccionando el contenido existente, desarrollando nuevas guías o traduciendo materiales a diferentes idiomas.
+- **Blueprints:** Crea demostraciones de plugins para los plugins del repositorio de plugins de WordPress o desarrolla nuevos Blueprints para enriquecer la documentación de nuestro proyecto.
+- **Pruebas del entorno Playground:** Participa en las pruebas del propio proyecto WordPress Playground. Puedes hacerlo elaborando cuidadosamente nuevas incidencias que describan los problemas que encuentres y sugiriendo soluciones viables. Prueba nuestra instancia web de WordPress (el sitio playground.wordpress.net) o explora las diversas aplicaciones que funcionan con Playground. Prueba estas herramientas, observa su funcionalidad y proporciona comentarios detallados.
+- **Comentarios sobre el producto:** Tus opiniones son muy valiosas para mejorar la experiencia de Playground. Esto incluye comentarios generales sobre la instancia web, la aplicación y cualquier herramienta del lado del servidor.
 
 <!--
 All feedback, including reported issues and test results, can be submitted through our GitHub repository.
@@ -155,10 +155,10 @@ La [extensión de Playground para Visual Studio Code](https://marketplace.visual
 #### Requisitos previos
 
 <!--
-`@wp-playground/cli` requires Node.js 20.18 or newer and NPM. If you haven't yet, [download and install](https://nodejs.org/en/download) both before you begin.
+`@wp-playground/cli` requires Node.js 22.12 or newer and NPM. If you haven't yet, [download and install](https://nodejs.org/en/download) both before you begin.
 -->
 
-`@wp-playground/cli` requiere Node.js 20.18 o superior y NPM. Si aún no lo has hecho, [descarga e instala](https://nodejs.org/en/download) ambos antes de comenzar.
+`@wp-playground/cli` requiere Node.js 22.12 o superior y NPM. Si aún no lo has hecho, [descarga e instala](https://nodejs.org/en/download) ambos antes de comenzar.
 
 <!--
 Depending on the Make WordPress team you contribute to, you may need a different Node.js version than the one you have installed. You can use Node Version Manager (NVM) to switch between versions. [Find the installation guide here](https://github.com/nvm-sh/nvm#installing-and-updating).
@@ -205,7 +205,7 @@ npx @wp-playground/cli@latest server --auto-mount
 2. Luego, clona el repositorio bifurcado para descargar los archivos.
 3. Instala las dependencias necesarias y compila el código en modo de desarrollo.
 
-```bash
+````bash
 git clone git@github.com:WordPress/gutenberg.git
 cd gutenberg
 npm install
@@ -234,7 +234,7 @@ Abre una nueva pestaña en tu terminal, navega hasta el directorio de Gutenberg 
 ```bash
 cd gutenberg
 npx @wp-playground/cli@latest server --auto-mount
-```
+````
 
 <!--
 When you're ready, commit and push your changes to your forked repository on GitHub and open a Pull Request on the Gutenberg repository.
@@ -323,6 +323,6 @@ Have a question or an idea for a new feature? Found a bug? Something's not worki
 -   Share your feedback on the [**#playground** Slack channel](https://wordpress.slack.com/archives/C04EWKGDJ0K).
 -->
 
--   Durante el día del contribuidor, puedes encontrarnos en la **mesa de Playground**.
--   Abre una incidencia en el [repositorio de WordPress Playground en GitHub](https://github.com/WordPress/wordpress-playground/issues/new). Si te interesa la extensión de VS Code, el paquete NPM o los plugins, abre una incidencia en el [repositorio de Playground Tools](https://github.com/WordPress/playground-tools/issues/new).
--   Comparte tus comentarios en el canal de Slack de [**#playground**](https://wordpress.slack.com/archives/C04EWKGDJ0K).
+- Durante el día del contribuidor, puedes encontrarnos en la **mesa de Playground**.
+- Abre una incidencia en el [repositorio de WordPress Playground en GitHub](https://github.com/WordPress/wordpress-playground/issues/new). Si te interesa la extensión de VS Code, el paquete NPM o los plugins, abre una incidencia en el [repositorio de Playground Tools](https://github.com/WordPress/playground-tools/issues/new).
+- Comparte tus comentarios en el canal de Slack de [**#playground**](https://wordpress.slack.com/archives/C04EWKGDJ0K).

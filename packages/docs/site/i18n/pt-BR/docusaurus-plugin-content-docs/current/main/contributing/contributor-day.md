@@ -53,10 +53,10 @@ Esta seção descreve como você pode contribuir diretamente com o projeto WordP
 -   **Product Feedback:** Your insights are invaluable for improving the Playground experience. This includes general feedback on the web instance, the application, and any server-side tools.
 -->
 
--   **Documentação:** Melhore nossa documentação aprimorando o conteúdo existente, desenvolvendo novos guias ou traduzindo materiais para diferentes idiomas.
--   **Blueprints:** Crie demonstrações de plugins para os plugins no repositório de Plugins do WordPress, ou desenvolva novos Blueprints para enriquecer nossa documentação do projeto.
--   **Testes do ambiente Playground:** Participe dos testes do próprio projeto WordPress Playground. Você pode fazer isso criando cuidadosamente novos issues que descrevam os problemas que você encontrou e sugerindo soluções práticas. Teste nossa instância web do WordPress (o site playground.wordpress.net), ou explore os vários aplicativos alimentados pelo Playground. Teste essas ferramentas, observe sua funcionalidade e forneça feedback detalhado.
--   **Feedback do produto:** Suas ideias são inestimáveis para melhorar a experiência do Playground. Isso inclui feedback geral sobre a instância web, o aplicativo e quaisquer ferramentas do lado do servidor.
+- **Documentação:** Melhore nossa documentação aprimorando o conteúdo existente, desenvolvendo novos guias ou traduzindo materiais para diferentes idiomas.
+- **Blueprints:** Crie demonstrações de plugins para os plugins no repositório de Plugins do WordPress, ou desenvolva novos Blueprints para enriquecer nossa documentação do projeto.
+- **Testes do ambiente Playground:** Participe dos testes do próprio projeto WordPress Playground. Você pode fazer isso criando cuidadosamente novos issues que descrevam os problemas que você encontrou e sugerindo soluções práticas. Teste nossa instância web do WordPress (o site playground.wordpress.net), ou explore os vários aplicativos alimentados pelo Playground. Teste essas ferramentas, observe sua funcionalidade e forneça feedback detalhado.
+- **Feedback do produto:** Suas ideias são inestimáveis para melhorar a experiência do Playground. Isso inclui feedback geral sobre a instância web, o aplicativo e quaisquer ferramentas do lado do servidor.
 
 <!--
 All feedback, including reported issues and test results, can be submitted through our GitHub repository.
@@ -155,10 +155,10 @@ A [extensão Playground para Visual Studio Code](https://marketplace.visualstudi
 #### Pré-requisitos
 
 <!--
-`@wp-playground/cli` requires Node.js 20.18 or newer and NPM. If you haven't yet, [download and install](https://nodejs.org/en/download) both before you begin.
+`@wp-playground/cli` requires Node.js 22.12 or newer and NPM. If you haven't yet, [download and install](https://nodejs.org/en/download) both before you begin.
 -->
 
-`@wp-playground/cli` requer Node.js 20.18 ou mais recente e NPM. Se você ainda não fez isso, [baixe e instale](https://nodejs.org/en/download) ambos antes de começar.
+`@wp-playground/cli` requer Node.js 22.12 ou mais recente e NPM. Se você ainda não fez isso, [baixe e instale](https://nodejs.org/en/download) ambos antes de começar.
 
 <!--
 Depending on the Make WordPress team you contribute to, you may need a different Node.js version than the one you have installed. You can use Node Version Manager (NVM) to switch between versions. [Find the installation guide here](https://github.com/nvm-sh/nvm#installing-and-updating).
@@ -324,6 +324,6 @@ Tem uma pergunta ou uma ideia para um novo recurso? Encontrou um bug? Algo não 
 -   Share your feedback on the [**#playground** Slack channel](https://wordpress.slack.com/archives/C04EWKGDJ0K).
 -->
 
--   Durante o Dia do Contribuidor, você pode nos encontrar na **mesa do Playground**.
--   Abra um issue no [repositório GitHub do WordPress Playground](https://github.com/WordPress/wordpress-playground/issues/new). Se seu foco é a extensão VS Code, pacote NPM ou os plugins, abra um issue no [repositório Playground Tools](https://github.com/WordPress/playground-tools/issues/new).
--   Compartilhe seu feedback no [canal Slack **#playground**](https://wordpress.slack.com/archives/C04EWKGDJ0K).
+- Durante o Dia do Contribuidor, você pode nos encontrar na **mesa do Playground**.
+- Abra um issue no [repositório GitHub do WordPress Playground](https://github.com/WordPress/wordpress-playground/issues/new). Se seu foco é a extensão VS Code, pacote NPM ou os plugins, abra um issue no [repositório Playground Tools](https://github.com/WordPress/playground-tools/issues/new).
+- Compartilhe seu feedback no [canal Slack **#playground**](https://wordpress.slack.com/archives/C04EWKGDJ0K).

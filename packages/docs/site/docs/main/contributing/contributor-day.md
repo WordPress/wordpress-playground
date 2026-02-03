@@ -18,10 +18,10 @@ We value diverse contributions across various areas, including community buildin
 
 This section outlines how you can contribute directly to the WordPress Playground project and its associated tools:
 
--   **Documentation:** Enhance our documentation by improving existing content, developing new guides, or translating materials into different languages.
--   **Blueprints:** Create plugin demos for plugins at the WordPress Plugin repository, or develop new Blueprints to enrich our project documentation.
--   **Testing the Playground Environment:** Engage in testing the WordPress Playground project itself. You can do this by carefully crafting new issues that describe problems you encounter and suggesting actionable solutions. Test our WordPress web instance (the playground.wordpress.net site), or explore the various applications powered by Playground. Test these tools, observe their functionality, and provide detailed feedback.
--   **Product Feedback:** Your insights are invaluable for improving the Playground experience. This includes general feedback on the web instance, the application, and any server-side tools.
+- **Documentation:** Enhance our documentation by improving existing content, developing new guides, or translating materials into different languages.
+- **Blueprints:** Create plugin demos for plugins at the WordPress Plugin repository, or develop new Blueprints to enrich our project documentation.
+- **Testing the Playground Environment:** Engage in testing the WordPress Playground project itself. You can do this by carefully crafting new issues that describe problems you encounter and suggesting actionable solutions. Test our WordPress web instance (the playground.wordpress.net site), or explore the various applications powered by Playground. Test these tools, observe their functionality, and provide detailed feedback.
+- **Product Feedback:** Your insights are invaluable for improving the Playground experience. This includes general feedback on the web instance, the application, and any server-side tools.
 
 All feedback, including reported issues and test results, can be submitted through our GitHub repository.
 
@@ -56,7 +56,7 @@ The [Visual Studio Code Playground extension](https://marketplace.visualstudio.c
 
 #### Prerequisites
 
-`@wp-playground/cli` requires Node.js 20.18 or newer and NPM. If you haven’t yet, [download and install](https://nodejs.org/en/download) both before you begin.
+`@wp-playground/cli` requires Node.js 22.12 or newer and NPM. If you haven’t yet, [download and install](https://nodejs.org/en/download) both before you begin.
 
 Depending on the Make WordPress team you contribute to, you may need a different Node.js version than the one you have installed. You can use Node Version Manager (NVM) to switch between versions. [Find the installation guide here](https://github.com/nvm-sh/nvm#installing-and-updating).
 
@@ -133,6 +133,6 @@ You can translate supported WordPress Plugins by loading the plugin you want to 
 
 Have a question or an idea for a new feature? Found a bug? Something’s not working as expected? We’re here to help:
 
--   During Contributor Day, you can reach us at the **Playground table**.
--   Open an issue on the [WordPress Playground GitHub repository](https://github.com/WordPress/wordpress-playground/issues/new). If your focus is the VS Code extension, NPM package, or the plugins, open an issue on the [Playground Tools repository](https://github.com/WordPress/playground-tools/issues/new).
--   Share your feedback on the [**#playground** Slack channel](https://wordpress.slack.com/archives/C04EWKGDJ0K).
+- During Contributor Day, you can reach us at the **Playground table**.
+- Open an issue on the [WordPress Playground GitHub repository](https://github.com/WordPress/wordpress-playground/issues/new). If your focus is the VS Code extension, NPM package, or the plugins, open an issue on the [Playground Tools repository](https://github.com/WordPress/playground-tools/issues/new).
+- Share your feedback on the [**#playground** Slack channel](https://wordpress.slack.com/archives/C04EWKGDJ0K).

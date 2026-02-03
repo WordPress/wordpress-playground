@@ -53,10 +53,10 @@ This section outlines how you can contribute directly to the WordPress Playgroun
 -   **Product Feedback:** Your insights are invaluable for improving the Playground experience. This includes general feedback on the web instance, the application, and any server-side tools.
 -->
 
--   **ডকুমেন্টেশন:** বিদ্যমান কনটেন্ট উন্নত করে, নতুন গাইড ডেভেলপ করে, অথবা বিভিন্ন ভাষায় ম্যাটেরিয়াল ট্রান্সলেট করে আমাদের ডকুমেন্টেশন সমৃদ্ধ করুন।
--   **ব্লুপ্রিন্ট:** ওয়ার্ডপ্রেস প্লাগইন রিপোজিটরির প্লাগইনগুলোর জন্য প্লাগইন ডেমো তৈরি করুন, অথবা আমাদের প্রজেক্ট ডকুমেন্টেশন সমৃদ্ধ করতে নতুন ব্লুপ্রিন্ট ডেভেলপ করুন।
--   **প্লেগ্রাউন্ড এনভায়রনমেন্ট টেস্টিং:** ওয়ার্ডপ্রেস প্লেগ্রাউন্ড প্রজেক্ট নিজেই টেস্ট করতে এনগেজ হন। আপনি সাবধানে নতুন ইস্যু তৈরি করে এটি করতে পারেন যা আপনার সম্মুখীন হওয়া সমস্যাগুলো বর্ণনা করে এবং অ্যাকশনেবল সমাধান সাজেস্ট করে। আমাদের ওয়ার্ডপ্রেস ওয়েব ইন্সট্যান্স (playground.wordpress.net সাইট) টেস্ট করুন, অথবা প্লেগ্রাউন্ড দ্বারা পাওয়ার্ড বিভিন্ন অ্যাপ্লিকেশন এক্সপ্লোর করুন। এই টুলস টেস্ট করুন, তাদের ফাংশনালিটি অবজার্ভ করুন এবং বিস্তারিত ফিডব্যাক প্রদান করুন।
--   **প্রোডাক্ট ফিডব্যাক:** প্লেগ্রাউন্ড এক্সপেরিয়েন্স উন্নত করার জন্য আপনার ইনসাইট অমূল্য। এর মধ্যে ওয়েব ইন্সট্যান্স, অ্যাপ্লিকেশন এবং যেকোনো সার্ভার-সাইড টুলসের উপর সাধারণ ফিডব্যাক অন্তর্ভুক্ত।
+- **ডকুমেন্টেশন:** বিদ্যমান কনটেন্ট উন্নত করে, নতুন গাইড ডেভেলপ করে, অথবা বিভিন্ন ভাষায় ম্যাটেরিয়াল ট্রান্সলেট করে আমাদের ডকুমেন্টেশন সমৃদ্ধ করুন।
+- **ব্লুপ্রিন্ট:** ওয়ার্ডপ্রেস প্লাগইন রিপোজিটরির প্লাগইনগুলোর জন্য প্লাগইন ডেমো তৈরি করুন, অথবা আমাদের প্রজেক্ট ডকুমেন্টেশন সমৃদ্ধ করতে নতুন ব্লুপ্রিন্ট ডেভেলপ করুন।
+- **প্লেগ্রাউন্ড এনভায়রনমেন্ট টেস্টিং:** ওয়ার্ডপ্রেস প্লেগ্রাউন্ড প্রজেক্ট নিজেই টেস্ট করতে এনগেজ হন। আপনি সাবধানে নতুন ইস্যু তৈরি করে এটি করতে পারেন যা আপনার সম্মুখীন হওয়া সমস্যাগুলো বর্ণনা করে এবং অ্যাকশনেবল সমাধান সাজেস্ট করে। আমাদের ওয়ার্ডপ্রেস ওয়েব ইন্সট্যান্স (playground.wordpress.net সাইট) টেস্ট করুন, অথবা প্লেগ্রাউন্ড দ্বারা পাওয়ার্ড বিভিন্ন অ্যাপ্লিকেশন এক্সপ্লোর করুন। এই টুলস টেস্ট করুন, তাদের ফাংশনালিটি অবজার্ভ করুন এবং বিস্তারিত ফিডব্যাক প্রদান করুন।
+- **প্রোডাক্ট ফিডব্যাক:** প্লেগ্রাউন্ড এক্সপেরিয়েন্স উন্নত করার জন্য আপনার ইনসাইট অমূল্য। এর মধ্যে ওয়েব ইন্সট্যান্স, অ্যাপ্লিকেশন এবং যেকোনো সার্ভার-সাইড টুলসের উপর সাধারণ ফিডব্যাক অন্তর্ভুক্ত।
 
 <!--
 All feedback, including reported issues and test results, can be submitted through our GitHub repository.
@@ -155,10 +155,10 @@ The [Visual Studio Code Playground extension](https://marketplace.visualstudio.c
 #### পূর্বশর্ত
 
 <!--
-`@wp-playground/cli` requires Node.js 20.18 or newer and NPM. If you haven't yet, [download and install](https://nodejs.org/en/download) both before you begin.
+`@wp-playground/cli` requires Node.js 22.12 or newer and NPM. If you haven't yet, [download and install](https://nodejs.org/en/download) both before you begin.
 -->
 
-`@wp-playground/cli`-এর জন্য Node.js 20.18 বা নতুন এবং NPM প্রয়োজন। আপনি যদি এখনো না করে থাকেন, শুরু করার আগে উভয়ই [ডাউনলোড এবং ইন্সটল](https://nodejs.org/en/download) করুন।
+`@wp-playground/cli`-এর জন্য Node.js 22.12 বা নতুন এবং NPM প্রয়োজন। আপনি যদি এখনো না করে থাকেন, শুরু করার আগে উভয়ই [ডাউনলোড এবং ইন্সটল](https://nodejs.org/en/download) করুন।
 
 <!--
 Depending on the Make WordPress team you contribute to, you may need a different Node.js version than the one you have installed. You can use Node Version Manager (NVM) to switch between versions. [Find the installation guide here](https://github.com/nvm-sh/nvm#installing-and-updating).
@@ -324,6 +324,6 @@ Have a question or an idea for a new feature? Found a bug? Something's not worki
 -   Share your feedback on the [**#playground** Slack channel](https://wordpress.slack.com/archives/C04EWKGDJ0K).
 -->
 
--   কন্ট্রিবিউটর ডে-এর সময়, আপনি আমাদের **প্লেগ্রাউন্ড টেবিলে** পেতে পারেন।
--   [ওয়ার্ডপ্রেস প্লেগ্রাউন্ড গিটহাব রিপোজিটরিতে](https://github.com/WordPress/wordpress-playground/issues/new) একটি ইস্যু ওপেন করুন। আপনার ফোকাস যদি VS Code এক্সটেনশন, NPM প্যাকেজ, অথবা প্লাগইন হয়, [প্লেগ্রাউন্ড টুলস রিপোজিটরিতে](https://github.com/WordPress/playground-tools/issues/new) একটি ইস্যু ওপেন করুন।
--   [**#playground** স্ল্যাক চ্যানেলে](https://wordpress.slack.com/archives/C04EWKGDJ0K) আপনার ফিডব্যাক শেয়ার করুন।
+- কন্ট্রিবিউটর ডে-এর সময়, আপনি আমাদের **প্লেগ্রাউন্ড টেবিলে** পেতে পারেন।
+- [ওয়ার্ডপ্রেস প্লেগ্রাউন্ড গিটহাব রিপোজিটরিতে](https://github.com/WordPress/wordpress-playground/issues/new) একটি ইস্যু ওপেন করুন। আপনার ফোকাস যদি VS Code এক্সটেনশন, NPM প্যাকেজ, অথবা প্লাগইন হয়, [প্লেগ্রাউন্ড টুলস রিপোজিটরিতে](https://github.com/WordPress/playground-tools/issues/new) একটি ইস্যু ওপেন করুন।
+- [**#playground** স্ল্যাক চ্যানেলে](https://wordpress.slack.com/archives/C04EWKGDJ0K) আপনার ফিডব্যাক শেয়ার করুন।
