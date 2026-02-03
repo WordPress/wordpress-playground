@@ -1,6 +1,6 @@
 import dependencyFilename from './7_4_33/php_7_4.wasm';
 export { dependencyFilename };
-export const dependenciesTotalSize = 19964878;
+export const dependenciesTotalSize = 19964839;
 const phpVersionString = '7.4.33';
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
@@ -24600,13 +24600,13 @@ export function init(RuntimeName, PHPLoader) {
 	Module['_recv'] = _recv;
 	Module['_setsockopt'] = _setsockopt;
 	var ASM_CONSTS = {
-		11264738: ($0) => {
+		11264706: ($0) => {
 			if (!$0) {
 				AL.alcErr = 40964;
 				return 1;
 			}
 		},
-		11264786: ($0) => {
+		11264754: ($0) => {
 			if (!AL.currentCtx) {
 				err('alGetProcAddress() called without a valid context');
 				return 1;

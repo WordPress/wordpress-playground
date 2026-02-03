@@ -1,6 +1,6 @@
 import dependencyFilename from './8_0_30/php_8_0.wasm';
 export { dependencyFilename };
-export const dependenciesTotalSize = 20235049;
+export const dependenciesTotalSize = 20235024;
 const phpVersionString = '8.0.30';
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
@@ -24600,13 +24600,13 @@ export function init(RuntimeName, PHPLoader) {
 	Module['_recv'] = _recv;
 	Module['_setsockopt'] = _setsockopt;
 	var ASM_CONSTS = {
-		12293186: ($0) => {
+		12293170: ($0) => {
 			if (!$0) {
 				AL.alcErr = 40964;
 				return 1;
 			}
 		},
-		12293234: ($0) => {
+		12293218: ($0) => {
 			if (!AL.currentCtx) {
 				err('alGetProcAddress() called without a valid context');
 				return 1;
@@ -25085,7 +25085,7 @@ export function init(RuntimeName, PHPLoader) {
 			wasmExports['__indirect_function_table'];
 		___cpp_exception = wasmExports['__cpp_exception'];
 	}
-	var ___heap_base = 13573792;
+	var ___heap_base = 13573728;
 	var wasmImports = {
 		IMG_Init: _IMG_Init,
 		IMG_Load: _IMG_Load,

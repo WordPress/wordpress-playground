@@ -15,7 +15,7 @@ const currentDirPath =
 		: path.dirname(fileURLToPath(import.meta.url));
 const dependencyFilename = path.join(currentDirPath, '8_0_30', 'php_8_0.wasm');
 export { dependencyFilename };
-export const dependenciesTotalSize = 22718317;
+export const dependenciesTotalSize = 22718297;
 const phpVersionString = '8.0.30';
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
@@ -6728,19 +6728,32 @@ export function init(RuntimeName, PHPLoader) {
 		},
 	};
 
-	var _wasm_connect = function (sockfd, addr, addrlen) {
+	function _wasm_connect(sockfd, addr, addrlen) {
+		/**
+		 * Use a synchronous connect() call when Asyncify is used.
+		 *
+		 * The async version was originally introduced to support the Memcached and Redis extensions,
+		 * and both are only available with JSPI. Asyncify is too difficult to maintain and
+		 * it's not getting that upgrade.
+		 */
+		if (!('Suspending' in WebAssembly)) {
+			var sock = getSocketFromFD(sockfd);
+			var info = getSocketAddress(addr, addrlen);
+			sock.sock_ops.connect(sock, info.addr, info.port);
+			return 0;
+		}
 		return Asyncify.handleSleep((wakeUp) => {
 			// Get the socket
 			let sock;
 			try {
 				sock = getSocketFromFD(sockfd);
 			} catch (e) {
-				wakeUp(-ERRNO_CODES.EBADF); // EBADF
+				wakeUp(-ERRNO_CODES.EBADF);
 				return;
 			}
 
 			if (!sock) {
-				wakeUp(-ERRNO_CODES.EBADF); // EBADF
+				wakeUp(-ERRNO_CODES.EBADF);
 				return;
 			}
 
@@ -6750,7 +6763,7 @@ export function init(RuntimeName, PHPLoader) {
 				info = getSocketAddress(addr, addrlen);
 			} catch (e) {
 				if (typeof FS == 'undefined' || !(e.name === 'ErrnoError')) {
-					wakeUp(-ERRNO_CODES.EFAULT); // EFAULT
+					wakeUp(-ERRNO_CODES.EFAULT);
 					return;
 				}
 				wakeUp(-e.errno);
@@ -6836,7 +6849,7 @@ export function init(RuntimeName, PHPLoader) {
 			ws.addEventListener('error', handleError);
 			ws.addEventListener('close', handleClose);
 		});
-	};
+	}
 
 	function ___syscall_connect(sockfd, addr, addrlen, d1, d2, d3) {
 		return _wasm_connect(sockfd, addr, addrlen);
@@ -30662,6 +30675,31 @@ export function init(RuntimeName, PHPLoader) {
 
 	var _getdtablesize = () => abort('missing function: ${name}');
 
+	var ___emscripten_lookup_name = function __emscripten_lookup_name(namePtr) {
+		return Asyncify.handleAsync(async () => {
+			if (!ENVIRONMENT_IS_NODE) {
+				return original__emscripten_lookup_name(namePtr);
+			}
+			if (!PHPLoader.syscalls) {
+				return original__emscripten_lookup_name(namePtr);
+			}
+
+			const hostname = UTF8ToString(namePtr);
+
+			let ipString = '';
+			try {
+				ipString = await Promise.resolve(
+					PHPLoader.syscalls.gethostbyname(hostname)
+				);
+			} catch (e) {
+				// Fall through to the default synthetic mapping if native DNS fails.
+			}
+
+			return inetPton4(ipString);
+		});
+	};
+	___emscripten_lookup_name.sig = 'ip';
+
 	var webSockets = new HandleAllocator();
 
 	var WS = {
@@ -31053,6 +31091,11 @@ export function init(RuntimeName, PHPLoader) {
 	// invocation, so that we will immediately be able to queue the newest
 	// produced audio samples.
 	registerPostMainLoop(() => SDL.audio?.queueNewAudioData?.());
+	const original__emscripten_lookup_name = __emscripten_lookup_name;
+	if (typeof __emscripten_lookup_name !== 'undefined') {
+		__emscripten_lookup_name = ___emscripten_lookup_name;
+	}
+	___emscripten_lookup_name.isAsync = true;
 	// End JS library code
 
 	// include: postlibrary.js
@@ -31116,13 +31159,13 @@ export function init(RuntimeName, PHPLoader) {
 	// end include: postlibrary.js
 
 	var ASM_CONSTS = {
-		12337234: ($0) => {
+		12337202: ($0) => {
 			if (!$0) {
 				AL.alcErr = 0xa004;
 				return 1;
 			}
 		},
-		12337282: ($0) => {
+		12337250: ($0) => {
 			if (!AL.currentCtx) {
 				err('alGetProcAddress() called without a valid context');
 				return 1;
@@ -31610,7 +31653,7 @@ export function init(RuntimeName, PHPLoader) {
 		___cpp_exception = wasmExports['__cpp_exception'];
 	}
 
-	var ___heap_base = 13623328;
+	var ___heap_base = 13623264;
 
 	var wasmImports = {
 		/** @export */
@@ -32049,6 +32092,8 @@ export function init(RuntimeName, PHPLoader) {
 		__asyncjs__wasm_poll_socket,
 		/** @export */
 		__call_sighandler: ___call_sighandler,
+		/** @export */
+		__emscripten_lookup_name: ___emscripten_lookup_name,
 		/** @export */
 		__syscall__newselect: ___syscall__newselect,
 		/** @export */
