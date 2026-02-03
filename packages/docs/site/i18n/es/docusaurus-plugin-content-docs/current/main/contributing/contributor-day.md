@@ -205,11 +205,12 @@ npx @wp-playground/cli@latest server --auto-mount
 2. Luego, clona el repositorio bifurcado para descargar los archivos.
 3. Instala las dependencias necesarias y compila el código en modo de desarrollo.
 
-````bash
+```bash
 git clone git@github.com:WordPress/gutenberg.git
 cd gutenberg
 npm install
 npm run dev
+```
 
 <!--
 :::info
@@ -234,7 +235,7 @@ Abre una nueva pestaña en tu terminal, navega hasta el directorio de Gutenberg 
 ```bash
 cd gutenberg
 npx @wp-playground/cli@latest server --auto-mount
-````
+```
 
 <!--
 When you're ready, commit and push your changes to your forked repository on GitHub and open a Pull Request on the Gutenberg repository.
