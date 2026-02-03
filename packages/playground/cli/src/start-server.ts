@@ -11,6 +11,7 @@ import { logger } from '@php-wasm/logger';
 export interface ServerOptions {
 	port: number;
 	onBind: (server: Server, port: number) => Promise<RunCLIServer | void>;
+	onError: (error: Error) => void;
 	/**
 	 * Handler for requests. Always returns StreamedPHPResponse.
 	 */
@@ -25,14 +26,16 @@ export async function startServer(
 	const server = await new Promise<
 		Server<typeof IncomingMessage, typeof ServerResponse>
 	>((resolve, reject) => {
-		const server = app.listen(options.port, () => {
-			const address = server.address();
-			if (address === null || typeof address === 'string') {
-				reject(new Error('Server address is not available'));
-			} else {
-				resolve(server);
-			}
-		});
+		const server = app
+			.listen(options.port, () => {
+				const address = server.address();
+				if (address === null || typeof address === 'string') {
+					reject(new Error('Server address is not available'));
+				} else {
+					resolve(server);
+				}
+			})
+			.once('error', (error) => options.onError(error));
 	});
 
 	app.use('/', async (req, res) => {
