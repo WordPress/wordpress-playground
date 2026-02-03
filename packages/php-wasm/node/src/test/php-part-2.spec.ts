@@ -44,7 +44,7 @@ phpLoaderOptions.forEach((options) => {
 			php.exit();
 		});
 
-		describe('Exit codes', { skip: options.withXdebug }, () => {
+		describe('Exit codes', { skip: !!options.withXdebug }, () => {
 			describe('Returns exit code 0', () => {
 				const testsSnippets = {
 					'on empty code': '',
@@ -157,7 +157,7 @@ phpLoaderOptions.forEach((options) => {
 			});
 		});
 
-		describe('Stdio', { skip: options.withXdebug }, () => {
+		describe('Stdio', { skip: !!options.withXdebug }, () => {
 			it('should output strings (1)', async () => {
 				expect(
 					await php.run({ code: '<?php echo "Hello world!";' })
@@ -244,7 +244,7 @@ phpLoaderOptions.forEach((options) => {
 			});
 		});
 
-		describe('Interface', { skip: options.withXdebug }, () => {
+		describe('Interface', { skip: !!options.withXdebug }, () => {
 			it('run() should throw an error when neither `code` nor `scriptFile` is provided', async () => {
 				await expect(() => php.run({})).rejects.toThrowError(
 					/The request object must have either a `code` or a `scriptPath` property/
@@ -254,7 +254,7 @@ phpLoaderOptions.forEach((options) => {
 
 		describe(
 			'Startup sequence – basics',
-			{ skip: options.withXdebug },
+			{ skip: !!options.withXdebug },
 			() => {
 				/**
 				 * This test ensures that the PHP runtime can be loaded twice.
@@ -281,7 +281,7 @@ phpLoaderOptions.forEach((options) => {
 			}
 		);
 
-		describe('Startup sequence', { skip: options.withXdebug }, () => {
+		describe('Startup sequence', { skip: !!options.withXdebug }, () => {
 			const testScriptPath = '/test.php';
 			afterEach(() => {
 				if (existsSync(testScriptPath)) {
@@ -752,7 +752,7 @@ phpLoaderOptions.forEach((options) => {
 		 * libsqlite3 path needs to be explicitly provided in Dockerfile
 		 * for PHP < 7.4 – let's make sure it works
 		 */
-		describe('PDO SQLite support', { skip: options.withXdebug }, () => {
+		describe('PDO SQLite support', { skip: !!options.withXdebug }, () => {
 			it('Should be able to create a database', async () => {
 				const response = await php.run({
 					code: `<?php
@@ -790,32 +790,36 @@ phpLoaderOptions.forEach((options) => {
 		 * hash extension needs to be explicitly enabled in Dockerfile
 		 * for PHP < 7.4 – let's make sure it works
 		 */
-		describe('Hash extension support', { skip: options.withXdebug }, () => {
-			it('Should be able to hash a string', async () => {
-				const response = await php.run({
-					code: `<?php
+		describe(
+			'Hash extension support',
+			{ skip: !!options.withXdebug },
+			() => {
+				it('Should be able to hash a string', async () => {
+					const response = await php.run({
+						code: `<?php
 							echo json_encode([
 								'md5' => md5('test'),
 								'sha1' => sha1('test'),
 								'hash' => hash('sha256', 'test'),
 							]);
 						?>`,
+					});
+					const bodyText = new TextDecoder().decode(response.bytes);
+					expect(JSON.parse(bodyText)).toEqual({
+						md5: '098f6bcd4621d373cade4e832627b4f6',
+						sha1: 'a94a8fe5ccb19ba61c4c0873d391e987982fbbd3',
+						hash: '9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08',
+					});
 				});
-				const bodyText = new TextDecoder().decode(response.bytes);
-				expect(JSON.parse(bodyText)).toEqual({
-					md5: '098f6bcd4621d373cade4e832627b4f6',
-					sha1: 'a94a8fe5ccb19ba61c4c0873d391e987982fbbd3',
-					hash: '9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08',
-				});
-			});
-		});
+			}
+		);
 
 		/**
 		 * mbregex support
 		 */
 		describe(
 			'mbregex extension support',
-			{ skip: options.withXdebug },
+			{ skip: !!options.withXdebug },
 			() => {
 				it('Should be able to use mb_regex_encoding functions', async () => {
 					const promise = php.run({
@@ -829,94 +833,98 @@ phpLoaderOptions.forEach((options) => {
 			}
 		);
 
-		describe('64 bit integer support', { skip: options.withXdebug }, () => {
-			it('Should be able to use 64 bit integers', async () => {
-				const response = await php.run({
-					code: `<?php echo json_encode(9223372036854775807);`,
+		describe(
+			'64 bit integer support',
+			{ skip: !!options.withXdebug },
+			() => {
+				it('Should be able to use 64 bit integers', async () => {
+					const response = await php.run({
+						code: `<?php echo json_encode(9223372036854775807);`,
+					});
+					expect(response.text).toEqual('9223372036854775807');
 				});
-				expect(response.text).toEqual('9223372036854775807');
-			});
 
-			it('Should handle strtotime() correctly', async () => {
-				const response = await php.run({
-					code: `<?php
+				it('Should handle strtotime() correctly', async () => {
+					const response = await php.run({
+						code: `<?php
 						$timestamp = strtotime('2040-01-19 03:14:07');
 						echo json_encode([
 							'value' => $timestamp,
 							'type' => gettype($timestamp),
 						]);`,
+					});
+					const result = JSON.parse(response.text);
+					expect(result.value).toEqual(2210555647);
+					expect(result.type).toBe('integer');
 				});
-				const result = JSON.parse(response.text);
-				expect(result.value).toEqual(2210555647);
-				expect(result.type).toBe('integer');
-			});
 
-			it('Should handle adding 64 bit integers', async () => {
-				const response = await php.run({
-					code: `<?php
+				it('Should handle adding 64 bit integers', async () => {
+					const response = await php.run({
+						code: `<?php
 						$product = 4611686018427387000 + 4611686018427387000;
 						echo json_encode([
 							'value' => $product,
 							'type' => gettype($product),
 						]);
 						`,
+					});
+					const result = JSON.parse(response.text);
+					expect(result.value + '').toEqual('9223372036854774000');
+					expect(result.type).toEqual('integer');
 				});
-				const result = JSON.parse(response.text);
-				expect(result.value + '').toEqual('9223372036854774000');
-				expect(result.type).toEqual('integer');
-			});
 
-			it('Should handle multiplying 64 bit integers', async () => {
-				const response = await php.run({
-					code: `<?php
+				it('Should handle multiplying 64 bit integers', async () => {
+					const response = await php.run({
+						code: `<?php
 						$product = 2 * 4611686018427387000;
 						echo json_encode([
 							'value' => $product,
 							'type' => gettype($product),
 						]);
 						`,
+					});
+					const result = JSON.parse(response.text);
+					expect(result.value + '').toEqual('9223372036854774000');
+					expect(result.type).toEqual('integer');
 				});
-				const result = JSON.parse(response.text);
-				expect(result.value + '').toEqual('9223372036854774000');
-				expect(result.type).toEqual('integer');
-			});
 
-			it('Should handle large integer division', async () => {
-				const response = await php.run({
-					code: `<?php
+				it('Should handle large integer division', async () => {
+					const response = await php.run({
+						code: `<?php
 						$division = intdiv(9223372036854774000, 2);
 						echo json_encode([
 							'value' => $division,
 							'type' => gettype($division),
 						]);`,
+					});
+					const result = JSON.parse(response.text);
+					expect(result.value + '').toEqual('4611686018427387000');
+					expect(result.type).toEqual('integer');
 				});
-				const result = JSON.parse(response.text);
-				expect(result.value + '').toEqual('4611686018427387000');
-				expect(result.type).toEqual('integer');
-			});
 
-			it('Should handle PHP_MAX_INT', async () => {
-				const response = await php.run({
-					code: `<?php
+				it('Should handle PHP_MAX_INT', async () => {
+					const response = await php.run({
+						code: `<?php
 					$maxInt = PHP_INT_MAX;
 					echo json_encode([
 						'value' => $maxInt,
 						'type' => gettype($maxInt),
 					]);
 					`,
+					});
+					const result = JSON.parse(response.text);
+					expect(result.value + '').toEqual('9223372036854776000');
+					expect(result.type).toEqual('integer');
 				});
-				const result = JSON.parse(response.text);
-				expect(result.value + '').toEqual('9223372036854776000');
-				expect(result.type).toEqual('integer');
-			});
-		});
+			}
+		);
 
 		/**
 		 * fileinfo support
 		 */
 		describe(
 			'fileinfo extension support',
-			{ skip: options.withXdebug },
+			{ skip: !!options.withXdebug },
 			() => {
 				it('Should be able to use finfo_file', async () => {
 					await php.writeFile(
@@ -937,65 +945,69 @@ phpLoaderOptions.forEach((options) => {
 		/**
 		 *  exif support
 		 */
-		describe('exif extension support', { skip: options.withXdebug }, () => {
-			beforeEach(async () => {
-				await php.writeFile(
-					'/image.jpg',
-					new Uint8Array(
-						readFileSync(
-							joinPaths(__dirname, 'test-data', 'image.jpg')
+		describe(
+			'exif extension support',
+			{ skip: !!options.withXdebug },
+			() => {
+				beforeEach(async () => {
+					await php.writeFile(
+						'/image.jpg',
+						new Uint8Array(
+							readFileSync(
+								joinPaths(__dirname, 'test-data', 'image.jpg')
+							)
 						)
-					)
-				);
-			});
-			it('should return correct image type using exif_imagetype', async () => {
-				const response = await php.run({
-					code: `<?php echo exif_imagetype('/image.jpg');`,
+					);
 				});
-				expect(response.errors).toBe('');
-				expect(response.text).toBe('2');
-			});
-			it('should be able to use exif_read_data', async () => {
-				const response = await php.run({
-					code: `<?php echo json_encode(exif_read_data('/image.jpg'));`,
+				it('should return correct image type using exif_imagetype', async () => {
+					const response = await php.run({
+						code: `<?php echo exif_imagetype('/image.jpg');`,
+					});
+					expect(response.errors).toBe('');
+					expect(response.text).toBe('2');
 				});
-				expect(response.errors).toBe('');
-				expect(response.json).toMatchObject({
-					FileName: 'image.jpg',
-					FileDateTime: expect.any(Number),
-					FileSize: 1241,
-					FileType: 2,
-					MimeType: 'image/jpeg',
-					SectionsFound: 'COMMENT',
-					COMPUTED: {
-						html: 'width="30" height="30"',
-						Height: 30,
-						Width: 30,
-						IsColor: 1,
-					},
-					COMMENT: ['Created with GIMP'],
+				it('should be able to use exif_read_data', async () => {
+					const response = await php.run({
+						code: `<?php echo json_encode(exif_read_data('/image.jpg'));`,
+					});
+					expect(response.errors).toBe('');
+					expect(response.json).toMatchObject({
+						FileName: 'image.jpg',
+						FileDateTime: expect.any(Number),
+						FileSize: 1241,
+						FileType: 2,
+						MimeType: 'image/jpeg',
+						SectionsFound: 'COMMENT',
+						COMPUTED: {
+							html: 'width="30" height="30"',
+							Height: 30,
+							Width: 30,
+							IsColor: 1,
+						},
+						COMMENT: ['Created with GIMP'],
+					});
 				});
-			});
-			it('should be able to use exif_tagname ', async () => {
-				const response = await php.run({
-					code: `<?php echo exif_tagname(256);`,
+				it('should be able to use exif_tagname ', async () => {
+					const response = await php.run({
+						code: `<?php echo exif_tagname(256);`,
+					});
+					expect(response.errors).toBe('');
+					expect(response.text).toBe('ImageWidth');
 				});
-				expect(response.errors).toBe('');
-				expect(response.text).toBe('ImageWidth');
-			});
-			it('should be able to use exif_thumbnail', async () => {
-				const response = await php.run({
-					code: `<?php
+				it('should be able to use exif_thumbnail', async () => {
+					const response = await php.run({
+						code: `<?php
 						var_dump(exif_thumbnail('/image.jpg'));
 						`,
+					});
+					expect(response.errors).toBe('');
+					// TODO: we could improve this by providing an image with a valid thumbnail
+					expect(response.text).toBe('bool(false)\n');
 				});
-				expect(response.errors).toBe('');
-				// TODO: we could improve this by providing an image with a valid thumbnail
-				expect(response.text).toBe('bool(false)\n');
-			});
-		});
+			}
+		);
 
-		describe('onMessage', { skip: options.withXdebug }, () => {
+		describe('onMessage', { skip: !!options.withXdebug }, () => {
 			it('should pass messages to JS', async () => {
 				let messageReceived = '';
 				php.onMessage((message) => {
@@ -1048,7 +1060,7 @@ phpLoaderOptions.forEach((options) => {
 			});
 		});
 
-		describe('CLI', { skip: options.withXdebug }, () => {
+		describe('CLI', { skip: !!options.withXdebug }, () => {
 			let consoleLogMock: any;
 			let consoleErrorMock: any;
 			beforeEach(() => {
@@ -1098,7 +1110,7 @@ phpLoaderOptions.forEach((options) => {
 			});
 		});
 
-		describe('Response parsing', { skip: options.withXdebug }, () => {
+		describe('Response parsing', { skip: !!options.withXdebug }, () => {
 			it('should encode response headers', async () => {
 				const out = await php.run({
 					code: `<?php header('Location: /(?P<id>[\\d]+)');`,
@@ -1107,7 +1119,7 @@ phpLoaderOptions.forEach((options) => {
 			});
 		});
 
-		describe('Disk space', { skip: options.withXdebug }, () => {
+		describe('Disk space', { skip: !!options.withXdebug }, () => {
 			it('should return the correct total disk space', async () => {
 				const response = await php.run({
 					code: `<?php echo disk_total_space('/');`,

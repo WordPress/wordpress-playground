@@ -96,7 +96,7 @@ phpLoaderOptions.forEach((options) => {
 			php.exit();
 		});
 
-		describe('php.runStream()', { skip: options.withXdebug }, () => {
+		describe('php.runStream()', { skip: !!options.withXdebug }, () => {
 			it('should return a StreamedPHPResponse', async () => {
 				const streamed = await php.runStream({
 					code: '<?php echo "test";',
@@ -447,7 +447,7 @@ phpLoaderOptions.forEach((options) => {
 			});
 		});
 
-		describe('ENV variables', { skip: options.withXdebug }, () => {
+		describe('ENV variables', { skip: !!options.withXdebug }, () => {
 			it('Supports setting per-request ENV variables', async () => {
 				const result = await php.run({
 					env: {
@@ -478,7 +478,7 @@ phpLoaderOptions.forEach((options) => {
 			});
 		});
 
-		describe('exec()', { skip: options.withXdebug }, () => {
+		describe('exec()', { skip: !!options.withXdebug }, () => {
 			it('echo', async () => {
 				const result = await php.run({
 					code: `<?php
@@ -489,7 +489,7 @@ phpLoaderOptions.forEach((options) => {
 			});
 		});
 
-		describe('shell_exec()', { skip: options.withXdebug }, () => {
+		describe('shell_exec()', { skip: !!options.withXdebug }, () => {
 			it('echo', async () => {
 				const result = await php.run({
 					code: `<?php
@@ -505,7 +505,7 @@ phpLoaderOptions.forEach((options) => {
 		 */
 		describe(
 			'dns_* function warnings',
-			{ skip: options.withXdebug },
+			{ skip: !!options.withXdebug },
 			() => {
 				it('dns_check_record should throw a warning', async () => {
 					const result = await php.run({
@@ -520,7 +520,7 @@ phpLoaderOptions.forEach((options) => {
 			}
 		);
 
-		describe('dns_* functions()', { skip: options.withXdebug }, () => {
+		describe('dns_* functions()', { skip: !!options.withXdebug }, () => {
 			beforeEach(async () => {
 				await setPhpIniEntries(php, {
 					...getPhpIniEntries(php),
@@ -570,7 +570,7 @@ phpLoaderOptions.forEach((options) => {
 			});
 		});
 
-		describe('dns constants', { skip: options.withXdebug }, () => {
+		describe('dns constants', { skip: !!options.withXdebug }, () => {
 			it('DNS_* constants should exist', async () => {
 				const result = await php.run({
 					code: `<?php echo json_encode(array(
@@ -756,7 +756,7 @@ phpLoaderOptions.forEach((options) => {
 			it(
 				'cat: stdin=pipe, stdout=file, stderr=file, file_get_contents',
 				async () => {
-					console.log({ withXdebug: options.withXdebug });
+					console.log({ withXdebug: !!options.withXdebug });
 					const result = await php.run({
 						code: `<?php
 						$res = proc_open(
@@ -1107,7 +1107,7 @@ phpLoaderOptions.forEach((options) => {
 
 			it(
 				'feof() returns true when exhausted the synchronous data',
-				{ skip: options.withXdebug },
+				{ skip: !!options.withXdebug },
 				async () => {
 					const handler = createSpawnHandler(
 						async (command: string[], processApi: any) => {
@@ -1150,7 +1150,7 @@ phpLoaderOptions.forEach((options) => {
 
 			it(
 				'feof() returns true when exhausted the asynchronous data',
-				{ skip: options.withXdebug },
+				{ skip: !!options.withXdebug },
 				async () => {
 					const handler = createSpawnHandler(
 						async (command: string[], processApi: any) => {
@@ -1437,7 +1437,7 @@ phpLoaderOptions.forEach((options) => {
 			}, 10000);
 		});
 
-		describe('Filesystem', { skip: options.withXdebug }, () => {
+		describe('Filesystem', { skip: !!options.withXdebug }, () => {
 			// Unit tests for the filesystem methods of the
 			// PHP runtime.
 			it('writeFile() should create a file when it does not exist', () => {
