@@ -547,7 +547,7 @@ export class PHPRequestHandler implements AsyncDisposable {
 		// file-not-found fallback actions may redirect to non-existent files.
 		if (primaryPhp.isFile(fsPath)) {
 			if (fsPath.endsWith('.php')) {
-				return await this.#spawnPHPAndDispatchRequestStreamed(
+				return await this.#spawnPHPAndDispatchRequest(
 					request,
 					originalRequestUrl,
 					rewrittenRequestUrl,
@@ -562,9 +562,58 @@ export class PHPRequestHandler implements AsyncDisposable {
 	}
 
 	/**
-	 * Spawns a new PHP instance and dispatches a request to it with streaming.
+	 * Apply the rewrite rules to the original request URL.
+	 *
+	 * @param originalRequestUrl - The original request URL.
+	 * @returns The rewritten request URL.
 	 */
-	async #spawnPHPAndDispatchRequestStreamed(
+	#applyRewriteRules(originalRequestUrl: URL): URL {
+		const siteRelativePath = removePathPrefix(
+			decodeURIComponent(originalRequestUrl.pathname),
+			this.#PATHNAME
+		);
+		const rewrittenRequestPath = applyRewriteRules(
+			siteRelativePath,
+			this.rewriteRules
+		);
+		const rewrittenRequestUrl = new URL(
+			joinPaths(this.#PATHNAME, rewrittenRequestPath),
+			originalRequestUrl.toString()
+		);
+		// Merge the query string parameters from the original request URL.
+		for (const [key, value] of originalRequestUrl.searchParams.entries()) {
+			rewrittenRequestUrl.searchParams.append(key, value);
+		}
+		return rewrittenRequestUrl;
+	}
+
+	/**
+	 * Serves a static file from the PHP filesystem.
+	 *
+	 * @param  fsPath - Absolute path of the static file to serve.
+	 * @returns The response.
+	 */
+	#serveStaticFile(php: PHP, fsPath: string): PHPResponse {
+		const arrayBuffer = php.readFileAsBuffer(fsPath);
+		return new PHPResponse(
+			200,
+			{
+				'content-length': [`${arrayBuffer.byteLength}`],
+				// @TODO: Infer the content-type from the arrayBuffer instead of the
+				// file path. The code below won't return the correct mime-type if the
+				// extension was tampered with.
+				'content-type': [inferMimeType(fsPath)],
+				'accept-ranges': ['bytes'],
+				'cache-control': ['public, max-age=0'],
+			},
+			arrayBuffer
+		);
+	}
+
+	/**
+	 * Spawns a new PHP instance and dispatches a request to it.
+	 */
+	async #spawnPHPAndDispatchRequest(
 		request: PHPRequest,
 		originalRequestUrl: URL,
 		rewrittenRequestUrl: URL,
@@ -584,7 +633,7 @@ export class PHPRequestHandler implements AsyncDisposable {
 		// Note: We don't release the PHP instance in finally here because
 		// the stream may still be reading. The caller must handle cleanup
 		// after the stream is consumed.
-		const response = await this.#dispatchToPHPStreamed(
+		const response = await this.#dispatchToPHP(
 			spawnedPHP.php,
 			request,
 			originalRequestUrl,
@@ -601,9 +650,13 @@ export class PHPRequestHandler implements AsyncDisposable {
 	}
 
 	/**
-	 * Runs the requested PHP file with streaming output.
+	 * Runs the requested PHP file with all the request and $_SERVER
+	 * superglobals populated.
+	 *
+	 * @param  request - The request.
+	 * @returns The response.
 	 */
-	async #dispatchToPHPStreamed(
+	async #dispatchToPHP(
 		php: PHP,
 		request: PHPRequest,
 		originalRequestUrl: URL,
@@ -654,55 +707,6 @@ export class PHPRequestHandler implements AsyncDisposable {
 		}
 
 		return response;
-	}
-
-	/**
-	 * Apply the rewrite rules to the original request URL.
-	 *
-	 * @param originalRequestUrl - The original request URL.
-	 * @returns The rewritten request URL.
-	 */
-	#applyRewriteRules(originalRequestUrl: URL): URL {
-		const siteRelativePath = removePathPrefix(
-			decodeURIComponent(originalRequestUrl.pathname),
-			this.#PATHNAME
-		);
-		const rewrittenRequestPath = applyRewriteRules(
-			siteRelativePath,
-			this.rewriteRules
-		);
-		const rewrittenRequestUrl = new URL(
-			joinPaths(this.#PATHNAME, rewrittenRequestPath),
-			originalRequestUrl.toString()
-		);
-		// Merge the query string parameters from the original request URL.
-		for (const [key, value] of originalRequestUrl.searchParams.entries()) {
-			rewrittenRequestUrl.searchParams.append(key, value);
-		}
-		return rewrittenRequestUrl;
-	}
-
-	/**
-	 * Serves a static file from the PHP filesystem.
-	 *
-	 * @param  fsPath - Absolute path of the static file to serve.
-	 * @returns The response.
-	 */
-	#serveStaticFile(php: PHP, fsPath: string): PHPResponse {
-		const arrayBuffer = php.readFileAsBuffer(fsPath);
-		return new PHPResponse(
-			200,
-			{
-				'content-length': [`${arrayBuffer.byteLength}`],
-				// @TODO: Infer the content-type from the arrayBuffer instead of the
-				// file path. The code below won't return the correct mime-type if the
-				// extension was tampered with.
-				'content-type': [inferMimeType(fsPath)],
-				'accept-ranges': ['bytes'],
-				'cache-control': ['public, max-age=0'],
-			},
-			arrayBuffer
-		);
 	}
 
 	/**
