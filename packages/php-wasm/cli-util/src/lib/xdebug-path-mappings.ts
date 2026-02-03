@@ -9,6 +9,7 @@ import {
 	XMLBuilder,
 } from 'fast-xml-parser';
 import * as JSONC from 'jsonc-parser';
+import { XdebugOptions } from '@php-wasm/node';
 
 /**
  * Create a symlink to a tempory directory.
@@ -67,6 +68,21 @@ function filterLocalMounts(cwd: string, mounts: Mount[]) {
 		);
 	});
 }
+
+export type XdebugConfig = {
+	/**
+	 * The current working directory to consider for debugger path mapping.
+	 */
+	cwd?: string;
+	/**
+	 * The mounts to consider for debugger path mapping.
+	 */
+	mounts?: Mount[];
+	/**
+	 * The paths to consider for debugger path skipping.
+	 */
+	pathSkippings?: string[];
+};
 
 export type IDEConfig = {
 	/**
@@ -176,7 +192,7 @@ export type PhpStormConfigOptions = {
 };
 
 /**
- * Pure function to update PHPStorm XML config with XDebug server and run configuration.
+ * Pure function to update PHPStorm XML config with Xdebug server and run configuration.
  *
  * @param xmlContent The original XML content of workspace.xml
  * @param options Configuration options for the server
@@ -369,7 +385,7 @@ export type VSCodeConfigOptions = {
 };
 
 /**
- * Pure function to update VS Code launch.json config with XDebug configuration.
+ * Pure function to update VS Code JSON config with Xdebug configuration.
  *
  * @param jsonContent The original JSON content of launch.json
  * @param options Configuration options
@@ -656,6 +672,24 @@ export async function clearXdebugIDEConfig(name: string, cwd: string) {
 			}
 		}
 	}
+}
+
+/**
+ * Implement path mapping and path skipping in Xdebug.
+ *
+ * @param name The configuration name.
+ * @param mounts The mounts options.
+ * @param pathSkippings The skipping paths options.
+ * @returns Xdebug options
+ */
+export function setXdebugConfig({
+	cwd,
+	mounts,
+	pathSkippings,
+}: XdebugConfig): XdebugOptions {
+	const mappings = cwd && mounts ? filterLocalMounts(cwd, mounts) : [];
+
+	return { pathMappings: mappings, pathSkippings } as XdebugOptions;
 }
 
 function jsoncApplyEdits(content: string, edits: JSONC.Edit[]) {
