@@ -5,9 +5,6 @@ slug: /blueprints/examples
 description: Une galerie d’exemples pratiques de Blueprint pour diverses tâches, telles que l’installation de thèmes, l’exécution de PHP et l’activation de fonctionnalités.
 ---
 
-<!-- title: Examples -->
-<!-- description: A gallery of practical Blueprint examples for various tasks, such as installing themes, running PHP, and enabling features. -->
-
 import BlueprintExample from '@site/src/components/Blueprints/BlueprintExample.mdx';
 import TranslationCredits from '@site/src/components/TranslationCredits';
 

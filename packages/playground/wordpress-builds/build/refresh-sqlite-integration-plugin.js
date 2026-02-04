@@ -2,7 +2,7 @@ import yargs from 'yargs';
 import { promises as fs, statSync } from 'fs';
 
 // The latest version of the SQLite plugin is the develop branch.
-const latestVersion = 'develop';
+const latestVersion = 'trunk';
 
 const parser = yargs(process.argv.slice(2))
 	.usage('Usage: $0 [options]')
@@ -24,7 +24,7 @@ const args = parser.argv;
 
 // Get version and URL.
 const version = args.pluginVersion;
-const url = 'develop' === version
+const url = 'trunk' === version
 	? `https://github.com/WordPress/sqlite-database-integration/archive/refs/heads/${version}.zip`
 	: `https://github.com/WordPress/sqlite-database-integration/archive/refs/tags/${version}.zip`;
 

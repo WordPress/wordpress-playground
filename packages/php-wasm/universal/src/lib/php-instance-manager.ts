@@ -31,11 +31,7 @@ export interface PHPInstanceManager extends AsyncDisposable {
 	/**
 	 * Acquire a PHP instance for processing a request.
 	 *
-	 * @param options.considerPrimary - Whether the primary instance can be used.
-	 *        Set to false for operations that would corrupt the primary (e.g., CLI commands).
 	 * @returns An acquired PHP instance with a reap function.
 	 */
-	acquirePHPInstance(options?: {
-		considerPrimary?: boolean;
-	}): Promise<AcquiredPHP>;
+	acquirePHPInstance(): Promise<AcquiredPHP>;
 }

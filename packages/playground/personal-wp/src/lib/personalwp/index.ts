@@ -2,12 +2,14 @@ import type { BlueprintV1Declaration } from '@wp-playground/client';
 import {
 	type ResolvedBlueprint,
 	resolveBlueprintFromURL,
+	applyQueryOverrides,
 } from '../state/url/resolve-blueprint-from-url';
 import {
 	getBlueprintDeclaration,
 	isBlueprintBundle,
 } from '@wp-playground/blueprints';
 import { logger } from '@php-wasm/logger';
+import { createLanguageStep } from './i18n';
 
 /**
  * Determines whether to use the default personal blueprint or process URL params.
@@ -23,7 +25,7 @@ import { logger } from '@php-wasm/logger';
  * Returns true (use default blueprint) when:
  * - We're in the top window (not embedded in an iframe)
  * - No URL query params or hash fragment present
- * - A local default blueprint URL is configured (starts with '/')
+ * - A default blueprint URL is configured
  */
 export function shouldUsePersonalWPBlueprint(
 	url: URL,
@@ -31,25 +33,33 @@ export function shouldUsePersonalWPBlueprint(
 ): boolean {
 	const hasUrlParams = url.searchParams.size > 0;
 	const hasHashFragment = url.hash.length > 1; // More than just '#'
-	const hasLocalDefaultBlueprint = defaultBlueprintUrl?.startsWith('/');
+	const hasDefaultBlueprint = !!defaultBlueprintUrl;
 	const isTopWindow = window.self === window.top;
 
 	return (
-		isTopWindow &&
-		!hasUrlParams &&
-		!hasHashFragment &&
-		!!hasLocalDefaultBlueprint
+		isTopWindow && !hasUrlParams && !hasHashFragment && hasDefaultBlueprint
 	);
 }
 
 /**
- * Loads the personal blueprint from a URL.
+ * Loads the personal blueprint from a URL and applies i18n settings.
+ *
+ * If the browser language is not English, a setSiteLanguage step is
+ * automatically added to configure WordPress in the user's language.
  */
 export async function loadPersonalBlueprint(
 	blueprintUrl: string
 ): Promise<ResolvedBlueprint> {
 	const response = await fetch(blueprintUrl);
 	const blueprint = await response.json();
+
+	// Add language step based on browser settings (if not English)
+	const languageStep = createLanguageStep();
+	if (languageStep) {
+		blueprint.steps = blueprint.steps || [];
+		// Insert language step at the beginning so translations are applied first
+		blueprint.steps.unshift(languageStep);
+	}
 
 	return {
 		blueprint,
@@ -70,9 +80,6 @@ const ACTIONABLE_URL_PARAMS = [
 	'import-site',
 	'import-wxr',
 	'import-content',
-	'gutenberg-pr',
-	'gutenberg-branch',
-	'core-pr',
 ];
 
 /**
@@ -100,9 +107,14 @@ export async function resolveUrlParamsForExistingSite(
 	try {
 		const resolved = await resolveBlueprintFromURL(url, undefined);
 		// Extract the blueprint declaration from the bundle if needed
-		const blueprint = isBlueprintBundle(resolved.blueprint)
+		let blueprint = isBlueprintBundle(resolved.blueprint)
 			? await getBlueprintDeclaration(resolved.blueprint)
 			: (resolved.blueprint as BlueprintV1Declaration);
+		// Apply query overrides (e.g., ?url= for landing page, ?login=, etc.)
+		blueprint = (await applyQueryOverrides(
+			blueprint,
+			url.searchParams
+		)) as BlueprintV1Declaration;
 		return blueprint;
 	} catch (e) {
 		logger.error('Error resolving URL blueprint for existing site:', e);

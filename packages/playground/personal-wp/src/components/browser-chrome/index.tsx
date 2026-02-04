@@ -16,6 +16,7 @@ import { MenuOverlay } from '../menu-overlay';
 import { JustViewport } from '../playground-viewport';
 import { setSiteManagerOpen } from '../../lib/state/redux/slice-ui';
 import { SiteManagerIcon } from '@wp-playground/components';
+import { BackupStatusIndicator } from './backup-status-indicator';
 
 interface BrowserChromeProps {
 	className?: string;
@@ -82,8 +83,11 @@ export default function BrowserChrome({ className }: BrowserChromeProps) {
 							onUpdate={(newUrl) =>
 								clientInfo?.client.goTo(newUrl)
 							}
+							onOpenOverlay={() => setIsMenuOverlayOpen(true)}
 						/>
 					</div>
+
+					<BackupStatusIndicator />
 
 					<div className={css.toolbarButtons}>
 						<Button

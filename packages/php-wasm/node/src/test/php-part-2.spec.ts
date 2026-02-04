@@ -1181,9 +1181,7 @@ describe('sandboxedSpawnHandlerFactory', () => {
 				);
 				await php.setSpawnHandler(
 					sandboxedSpawnHandlerFactory(() =>
-						processManager.acquirePHPInstance({
-							considerPrimary: false,
-						})
+						processManager.acquirePHPInstance()
 					)
 				);
 				return php;
