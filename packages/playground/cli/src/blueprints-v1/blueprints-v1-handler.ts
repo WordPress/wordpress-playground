@@ -162,6 +162,7 @@ export class BlueprintsV1Handler {
 			withXdebug: false,
 			nativeInternalDirPath,
 			constants: mergeDefinedConstants(this.args),
+			pathAliases: this.args.pathAliases,
 		});
 
 		if (
@@ -217,6 +218,7 @@ export class BlueprintsV1Handler {
 			withXdebug: !!this.args.xdebug,
 			nativeInternalDirPath,
 			constants: mergeDefinedConstants(this.args),
+			pathAliases: this.args.pathAliases,
 		});
 		await playground.isReady();
 		return playground;

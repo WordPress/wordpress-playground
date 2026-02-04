@@ -3,6 +3,7 @@ import type {
 	FileNotFoundAction,
 	FileNotFoundGetActionCallback,
 	FileTree,
+	PathAlias,
 	PHPWorker,
 	SpawnHandler,
 	Remote,
@@ -102,6 +103,19 @@ export interface BootRequestHandlerOptions {
 	 * given request URI.
 	 */
 	getFileNotFoundAction?: FileNotFoundGetActionCallback;
+
+	/**
+	 * Path aliases that map URL prefixes to filesystem paths outside
+	 * the document root. Similar to Nginx's `alias` directive.
+	 *
+	 * @example
+	 * ```ts
+	 * pathAliases: [
+	 *   { urlPrefix: '/phpmyadmin', fsPath: '/tools/phpmyadmin' }
+	 * ]
+	 * ```
+	 */
+	pathAliases?: PathAlias[];
 
 	/**
 	 * The CookieStore instance to use.
@@ -457,6 +471,7 @@ export async function bootRequestHandler(options: BootRequestHandlerOptions) {
 		documentRoot: options.documentRoot || '/wordpress',
 		absoluteUrl: options.siteUrl,
 		rewriteRules: wordPressRewriteRules,
+		pathAliases: options.pathAliases,
 		getFileNotFoundAction:
 			options.getFileNotFoundAction ?? getFileNotFoundActionForWordPress,
 		cookieStore: options.cookieStore,

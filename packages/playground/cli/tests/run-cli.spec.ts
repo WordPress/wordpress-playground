@@ -749,6 +749,65 @@ describe.each(blueprintVersions)(
 				}
 			);
 		});
+
+		describe('pathAliases', () => {
+			test.skipIf(isBlueprintsV2OnWindows)(
+				'should serve static and PHP files from a path alias',
+				async ({ skip }) => {
+					if (version === 2) {
+						// @TODO: Fix path aliases for Blueprints v2
+						skip();
+					}
+
+					await using cliServer = await runCLI({
+						...suiteCliArgs,
+						command: 'server',
+						wordpressInstallMode: 'do-not-attempt-installing',
+						skipSqliteSetup: true,
+						blueprint: undefined,
+						pathAliases: [
+							{
+								urlPrefix: '/my-alias',
+								fsPath: '/tools/my-alias',
+							},
+						],
+					});
+
+					// Create the aliased directory and populate it with test files
+					await cliServer.playground.mkdir('/tools/my-alias');
+					await cliServer.playground.writeFile(
+						'/tools/my-alias/hello.txt',
+						'Hello from alias!'
+					);
+					await cliServer.playground.writeFile(
+						'/tools/my-alias/info.php',
+						'<?php echo "PHP works in alias"; ?>'
+					);
+
+					// Verify static file is served from the alias
+					const staticUrl = new URL(
+						'/my-alias/hello.txt',
+						cliServer.serverUrl
+					);
+					const staticResponse = await fetch(staticUrl);
+					expect(staticResponse.status).toBe(200);
+					expect(await staticResponse.text()).toContain(
+						'Hello from alias!'
+					);
+
+					// Verify PHP file is executed and served from the alias
+					const phpUrl = new URL(
+						'/my-alias/info.php',
+						cliServer.serverUrl
+					);
+					const phpResponse = await fetch(phpUrl);
+					expect(phpResponse.status).toBe(200);
+					expect(await phpResponse.text()).toContain(
+						'PHP works in alias'
+					);
+				}
+			);
+		});
 	},
 	60_000 * 5
 );
