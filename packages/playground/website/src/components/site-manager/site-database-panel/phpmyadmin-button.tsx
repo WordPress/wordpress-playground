@@ -4,54 +4,24 @@ import { external } from '@wordpress/icons';
 import css from './style.module.css';
 import {
 	type PlaygroundClient,
-	type StepDefinition,
 	type UniversalPHP,
 	compileBlueprintV1,
 	runBlueprintV1Steps,
 } from '@wp-playground/client';
+import {
+	getPhpMyAdminInstallSteps,
+	PHPMYADMIN_ENTRY_PATH,
+	PHPMYADMIN_INSTALL_PATH,
+} from '@wp-playground/tools';
 // @ts-ignore
 import { corsProxyUrl } from 'virtual:cors-proxy-url';
 
-const phpMyAdminUrl =
-	'https://files.phpmyadmin.net/phpMyAdmin/5.2.3/phpMyAdmin-5.2.3-english.zip';
-
 async function installPhpMyAdmin(playground: PlaygroundClient) {
-	const documentRoot = await playground.documentRoot;
-	const phpMyAdminPath = `${documentRoot}/phpmyadmin`;
-
-	const steps: StepDefinition[] = [
-		{
-			step: 'unzip',
-			zipFile: {
-				resource: 'url',
-				url: phpMyAdminUrl,
-			},
-			extractToPath: documentRoot,
-		},
-		{
-			step: 'mv',
-			fromPath: `${documentRoot}/phpMyAdmin-5.2.3-english`,
-			toPath: phpMyAdminPath,
-		},
-		{
-			step: 'writeFile',
-			path: `${phpMyAdminPath}/libraries/classes/Dbal/DbiMysqli.php`,
-			data: (await import('./phpmyadmin-extensions/DbiMysqli.php?raw'))
-				.default as string,
-		},
-		{
-			step: 'writeFile',
-			path: `${phpMyAdminPath}/config.inc.php`,
-			data: (await import('./phpmyadmin-extensions/config.inc.php?raw'))
-				.default as string,
-		},
-	];
-
+	const steps = await getPhpMyAdminInstallSteps();
 	const blueprint = await compileBlueprintV1(
 		{ steps },
 		{ corsProxy: corsProxyUrl }
 	);
-
 	await runBlueprintV1Steps(blueprint, playground as UniversalPHP);
 }
 
@@ -69,10 +39,7 @@ export function PhpMyAdminButton({
 				return;
 			}
 
-			const documentRoot = await playground.documentRoot;
-			const phpMyAdminPath = `${documentRoot}/phpmyadmin`;
-
-			if (await playground.isDir(phpMyAdminPath)) {
+			if (await playground.isDir(PHPMYADMIN_INSTALL_PATH)) {
 				setState('ready');
 			} else {
 				setState('idle');
@@ -107,7 +74,7 @@ export function PhpMyAdminButton({
 		const playgroundUrl = await playground.absoluteUrl;
 		if (playgroundUrl) {
 			window.open(
-				`${playgroundUrl}/phpmyadmin/index.php?route=/database/structure&db=wordpress`,
+				`${playgroundUrl}/phpmyadmin${PHPMYADMIN_ENTRY_PATH}`,
 				'_blank',
 				'noopener,noreferrer'
 			);
