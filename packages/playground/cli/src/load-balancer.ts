@@ -56,6 +56,10 @@ export class LoadBalancer {
 	async handleRequest(request: PHPRequest): Promise<StreamedPHPResponse> {
 		let smallestWorkerLoad = this.workerLoads[0];
 
+		// TODO: Is there any way for us to track CPU load so we could avoid
+		//       picking a worker that is under heavy load despite few requests?
+		// Possibly this: https://nodejs.org/api/worker_threads.html#workerperformance
+		// Though we probably don't need to worry about it.
 		for (let i = 1; i < this.workerLoads.length; i++) {
 			const workerLoad = this.workerLoads[i];
 			if (
@@ -65,6 +69,8 @@ export class LoadBalancer {
 				smallestWorkerLoad = workerLoad;
 			}
 		}
+
+		// TODO: Add trace facility to Playground CLI to observe internals like request routing.
 
 		const promiseForResponse = smallestWorkerLoad.worker
 			.requestStreamed(request)
