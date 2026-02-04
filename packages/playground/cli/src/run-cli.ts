@@ -7,6 +7,7 @@ import type {
 } from '@php-wasm/universal';
 import {
 	PHPResponse,
+	StreamedPHPResponse,
 	exposeAPI,
 	exposeSyncAPI,
 	printDebugDetails,
@@ -1397,11 +1398,10 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 				throw new Error(phpLogs, { cause: error });
 			}
 		},
-		async handleRequest(request: PHPRequest) {
+		async handleRequest(request: PHPRequest): Promise<StreamedPHPResponse> {
 			if (!wordPressReady) {
-				return PHPResponse.forHttpCode(
-					502,
-					'WordPress is not ready yet'
+				return StreamedPHPResponse.fromPHPResponse(
+					PHPResponse.forHttpCode(502, 'WordPress is not ready yet')
 				);
 			}
 			// Clear the playground_auto_login_already_happened cookie on the first request.
@@ -1424,7 +1424,9 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 						'playground_auto_login_already_happened=1; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=/',
 					];
 				}
-				return new PHPResponse(302, headers, new Uint8Array());
+				return StreamedPHPResponse.fromPHPResponse(
+					new PHPResponse(302, headers, new Uint8Array())
+				);
 			}
 			return await loadBalancer.handleRequest(request);
 		},

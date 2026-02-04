@@ -91,6 +91,44 @@ export class StreamedPHPResponse {
 	}
 
 	/**
+	 * Creates a StreamedPHPResponse from a buffered PHPResponse.
+	 * Useful for unifying response handling when both types may be returned.
+	 */
+	static fromPHPResponse(response: PHPResponse): StreamedPHPResponse {
+		// Create a ReadableStream containing the response bytes
+		const stdout = new ReadableStream<Uint8Array>({
+			start(controller) {
+				controller.enqueue(response.bytes);
+				controller.close();
+			},
+		});
+
+		// Create empty streams for headers and stderr (won't be used since
+		// we set parsedHeaders directly below)
+		const emptyStream = () =>
+			new ReadableStream<Uint8Array>({
+				start(controller) {
+					controller.close();
+				},
+			});
+
+		const streamed = new StreamedPHPResponse(
+			emptyStream(),
+			stdout,
+			emptyStream(),
+			Promise.resolve(response.exitCode)
+		);
+
+		// Set pre-parsed headers to bypass header stream parsing
+		streamed.parsedHeaders = Promise.resolve({
+			headers: response.headers,
+			httpStatusCode: response.httpStatusCode,
+		});
+
+		return streamed;
+	}
+
+	/**
 	 * Returns the raw headers stream for serialization purposes.
 	 * For parsed headers, use the `headers` property instead.
 	 */

@@ -1,8 +1,4 @@
-import type {
-	PHPRequest,
-	PHPResponse,
-	StreamedPHPResponse,
-} from '@php-wasm/universal';
+import type { PHPRequest, StreamedPHPResponse } from '@php-wasm/universal';
 import type { Request, Response } from 'express';
 import express from 'express';
 import type { IncomingMessage, Server, ServerResponse } from 'http';
@@ -10,32 +6,13 @@ import type { AddressInfo } from 'net';
 import type { RunCLIServer } from './run-cli';
 import { logger } from '@php-wasm/logger';
 
-/**
- * Duck-type check for StreamedPHPResponse.
- * We can't use instanceof because objects don't preserve their prototype
- * chain when crossing Comlink worker boundaries.
- */
-function isStreamedResponse(
-	response: StreamedPHPResponse | PHPResponse
-): response is StreamedPHPResponse {
-	return (
-		'stdout' in response &&
-		'stderr' in response &&
-		'finished' in response &&
-		response.stdout instanceof ReadableStream
-	);
-}
-
 export interface ServerOptions {
 	port: number;
 	onBind: (server: Server, port: number) => Promise<RunCLIServer | void>;
 	/**
-	 * Handler for requests. Returns StreamedPHPResponse for PHP requests,
-	 * or PHPResponse for static files.
+	 * Handler for requests. Always returns StreamedPHPResponse.
 	 */
-	handleRequest: (
-		request: PHPRequest
-	) => Promise<StreamedPHPResponse | PHPResponse>;
+	handleRequest: (request: PHPRequest) => Promise<StreamedPHPResponse>;
 }
 
 export async function startServer(
@@ -66,14 +43,7 @@ export async function startServer(
 			};
 
 			const response = await options.handleRequest(phpRequest);
-
-			// Use duck typing to detect StreamedPHPResponse since instanceof
-			// doesn't work across Comlink worker boundaries
-			if (isStreamedResponse(response)) {
-				await handleStreamedResponse(response, res);
-			} else {
-				handleBufferedResponse(response as PHPResponse, res);
-			}
+			await handleStreamedResponse(response, res);
 		} catch (error) {
 			logger.error(error);
 			if (!res.headersSent) {
@@ -162,18 +132,6 @@ async function handleStreamedResponse(
 	} catch (error) {
 		logger.error('Error waiting for PHP process:', error);
 	}
-}
-
-/**
- * Handles a regular PHPResponse by sending the buffered response.
- * Used for static files which are returned as PHPResponse.
- */
-function handleBufferedResponse(response: PHPResponse, res: Response): void {
-	res.statusCode = response.httpStatusCode;
-	for (const key in response.headers) {
-		res.setHeader(key, response.headers[key]);
-	}
-	res.end(response.bytes);
 }
 
 const bufferRequestBody = async (req: Request): Promise<Uint8Array> =>

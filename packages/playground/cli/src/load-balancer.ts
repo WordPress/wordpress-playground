@@ -1,9 +1,5 @@
-import type {
-	PHPRequest,
-	PHPResponse,
-	RemoteAPI,
-	StreamedPHPResponse,
-} from '@php-wasm/universal';
+import type { PHPRequest, RemoteAPI } from '@php-wasm/universal';
+import { PHPResponse, StreamedPHPResponse } from '@php-wasm/universal';
 import type { PlaygroundCliBlueprintV1Worker as PlaygroundCliWorkerV1 } from './blueprints-v1/worker-thread-v1';
 import type { PlaygroundCliBlueprintV2Worker as PlaygroundCliWorkerV2 } from './blueprints-v2/worker-thread-v2';
 
@@ -54,13 +50,10 @@ export class LoadBalancer {
 	}
 
 	/**
-	 * Handle a request with streaming support for large responses.
-	 * Returns a StreamedPHPResponse that allows processing the response
-	 * body incrementally without buffering in memory.
+	 * Handle a request with streaming support.
+	 * Always returns a StreamedPHPResponse for uniform handling.
 	 */
-	async handleRequest(
-		request: PHPRequest
-	): Promise<StreamedPHPResponse | PHPResponse> {
+	async handleRequest(request: PHPRequest): Promise<StreamedPHPResponse> {
 		let smallestWorkerLoad = this.workerLoads[0];
 
 		for (let i = 1; i < this.workerLoads.length; i++) {
@@ -73,20 +66,20 @@ export class LoadBalancer {
 			}
 		}
 
-		const promiseForResponse =
-			smallestWorkerLoad.worker.requestStreamed(request);
+		const promiseForResponse = smallestWorkerLoad.worker
+			.requestStreamed(request)
+			.then((response) => {
+				// Convert PHPResponse (static files) to StreamedPHPResponse
+				if (response instanceof PHPResponse) {
+					return StreamedPHPResponse.fromPHPResponse(response);
+				}
+				return response;
+			});
 
 		// Track the request while it's active
-		// For streaming responses, we wait for the stream to finish before
-		// considering the request complete (used for worker removal timing)
+		// Wait for the stream to finish before considering the request complete
 		const trackingPromise: Promise<void> = promiseForResponse
-			.then((response) => {
-				if ('finished' in response) {
-					return response.finished;
-				}
-				// Non-streaming response: already complete
-				return;
-			})
+			.then((response) => response.finished)
 			.catch(() => {
 				// Error handling is done in start-server.ts
 				// This catch prevents unhandled rejection warnings
