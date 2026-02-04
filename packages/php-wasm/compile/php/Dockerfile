@@ -23,33 +23,33 @@ RUN git clone https://github.com/php/php-src.git php-src \
 	--depth 1;
 
 # Work around memory leak due to PHP using Emscripten's incomplete mmap/munmap support
-COPY ./php-wasm-memory-storage /root/php-src/ext/wasm_memory_storage
+COPY ./compile/php-wasm-memory-storage /root/php-src/ext/wasm_memory_storage
 
 # Polyfill for dns functions
-COPY ./php-wasm-dns-polyfill/ /root/php-src/ext/dns_polyfill
+COPY ./compile/php-wasm-dns-polyfill/ /root/php-src/ext/dns_polyfill
 
 # Polyfill for post_message_to_js functions
-COPY ./php-post-message-to-js/ /root/php-src/ext/post_message_to_js
+COPY ./compile/php-post-message-to-js/ /root/php-src/ext/post_message_to_js
 
 # Copy the opcache_module.c and php_opcache.h files.
-COPY ./opcache/ /root/php-src/ext/opcache
+COPY ./compile/opcache/ /root/php-src/ext/opcache
 
 # Bring in the libraries
 RUN mkdir -p /root/lib/include /root/lib/lib /libs
-COPY ./libiconv/ /root/builds/libiconv
-COPY ./libcurl/ /root/builds/libcurl
-COPY ./libopenssl/ /root/builds/libopenssl
-COPY ./libpng16/ /root/builds/libpng16
-COPY ./libjpeg/ /root/builds/libjpeg
-COPY ./libwebp/ /root/builds/libwebp
-COPY ./libaom/ /root/builds/libaom
-COPY ./libavif/ /root/builds/libavif
-COPY ./libsqlite3/ /root/builds/libsqlite3
-COPY ./libxml2/ /root/builds/libxml2
-COPY ./libz/ /root/builds/libz
-COPY ./oniguruma/ /root/builds/oniguruma
-COPY ./libImageMagick/ /root/builds/libImageMagick
-COPY ./libgd/ /root/builds/libgd
+COPY ./compile/libiconv/ /root/builds/libiconv
+COPY ./compile/libcurl/ /root/builds/libcurl
+COPY ./compile/libopenssl/ /root/builds/libopenssl
+COPY ./compile/libpng16/ /root/builds/libpng16
+COPY ./compile/libjpeg/ /root/builds/libjpeg
+COPY ./compile/libwebp/ /root/builds/libwebp
+COPY ./compile/libaom/ /root/builds/libaom
+COPY ./compile/libavif/ /root/builds/libavif
+COPY ./compile/libsqlite3/ /root/builds/libsqlite3
+COPY ./compile/libxml2/ /root/builds/libxml2
+COPY ./compile/libz/ /root/builds/libz
+COPY ./compile/oniguruma/ /root/builds/oniguruma
+COPY ./compile/libImageMagick/ /root/builds/libImageMagick
+COPY ./compile/libgd/ /root/builds/libgd
 
 RUN if [ "$WITH_JSPI" = "yes" ]; then \
 	find /root/builds -path '*/jspi/dist/root/lib' -type d -exec cp -r {}/. /root/lib \; ; \
@@ -57,7 +57,7 @@ else \
 	find /root/builds -path '*/asyncify/dist/root/lib' -type d -exec cp -r {}/. /root/lib \; ; \
 fi
 
-COPY ./libzip/ /root/builds-libzip/
+COPY ./compile/libzip/ /root/builds-libzip/
 RUN mkdir -p /libs/libzip
 RUN if [ "$WITH_JSPI" = "yes" ]; then \
 	cp -r /root/builds-libzip/jspi/dist/1.2.0/root/lib /libs/libzip/1.2.0; \
@@ -67,7 +67,7 @@ else \
 	cp -r /root/builds-libzip/asyncify/dist/1.9.2/root/lib /libs/libzip/1.9.2; \
 fi
 
-COPY ./libopenssl/ /root/builds-libopenssl/
+COPY ./compile/libopenssl/ /root/builds-libopenssl/
 RUN mkdir -p /libs/libopenssl
 RUN if [ "$WITH_JSPI" = "yes" ]; then \
 	cp -r /root/builds-libopenssl/jspi/dist/root/lib /libs/libopenssl; \
@@ -283,8 +283,8 @@ RUN if [ "$WITH_MBREGEX" = "yes" ] && [ "${PHP_VERSION:0:3}" != "7.0" ]; \
 	fi;
 
 # Get and patch PHP
-COPY ./php/php*.patch /root/
-COPY ./php/apply-mysqlnd-patch.sh /root/
+COPY ./compile/php/php*.patch /root/
+COPY ./compile/php/apply-mysqlnd-patch.sh /root/
 RUN cd /root && \
 	git apply --no-index /root/php${PHP_VERSION:0:3}*.patch -v && \
 	chmod +x /root/apply-mysqlnd-patch.sh && \
@@ -514,8 +514,8 @@ RUN source /root/emsdk/emsdk_env.sh && \
 RUN cp -v /root/php-src/.libs/libphp*.la /root/lib/libphp.la
 RUN cp -v /root/php-src/.libs/libphp*.a /root/lib/libphp.a
 
-COPY ./php/php_wasm.c /root/
-COPY ./php/proc_open* /root/
+COPY ./compile/php/php_wasm.c /root/
+COPY ./compile/php/proc_open* /root/
 
 ARG WITH_SOURCEMAPS
 ARG OUTPUT_DIR_ON_HOST
@@ -2166,11 +2166,11 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 
 # Build the final .wasm file
 RUN mkdir /root/output
-COPY ./php/phpwasm-emscripten-library.js /root/phpwasm-emscripten-library.js
-COPY ./php/phpwasm-emscripten-library-dynamic-linking.js /root/phpwasm-emscripten-library-dynamic-linking.js
-COPY ./php/phpwasm-emscripten-library-file-locking-for-node.js /root/phpwasm-emscripten-library-file-locking-for-node.js
-COPY ./php/phpwasm-emscripten-library-dns-lookup-for-node.js /root/phpwasm-emscripten-library-dns-lookup-for-node.js
-COPY ./php/phpwasm-emscripten-library-known-undefined-functions.js /root/phpwasm-emscripten-library-known-undefined-functions.js
+COPY ./compile/php/phpwasm-emscripten-library.js /root/phpwasm-emscripten-library.js
+COPY ./compile/php/phpwasm-emscripten-library-dynamic-linking.js /root/phpwasm-emscripten-library-dynamic-linking.js
+COPY ./compile/php/phpwasm-emscripten-library-file-locking-for-node.js /root/phpwasm-emscripten-library-file-locking-for-node.js
+COPY ./compile/php/phpwasm-emscripten-library-dns-lookup-for-node.js /root/phpwasm-emscripten-library-dns-lookup-for-node.js
+COPY ./compile/php/phpwasm-emscripten-library-known-undefined-functions.js /root/phpwasm-emscripten-library-known-undefined-functions.js
 ARG WITH_SOURCEMAPS
 ARG WITH_DEBUG
 ARG STACK_SIZE
@@ -2287,9 +2287,9 @@ RUN set -euxo pipefail; \
 #     fi
 
 # Postprocess the build php.js module:
-COPY ./php/esm-node-boilerplate.js /root/esm-node-boilerplate.js
-COPY ./php/esm-prefix.js /root/esm-prefix.js
-COPY ./php/esm-suffix.js /root/esm-suffix.js
+COPY ./compile/php/esm-node-boilerplate.js /root/esm-node-boilerplate.js
+COPY ./compile/php/esm-prefix.js /root/esm-prefix.js
+COPY ./compile/php/esm-suffix.js /root/esm-suffix.js
 RUN set -euxo pipefail; \
 	cp -rfv /build/output/* /root/output/; \
 	# Figure out the target file names and URLs
