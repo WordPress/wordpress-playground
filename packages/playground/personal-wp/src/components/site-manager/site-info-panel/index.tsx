@@ -64,8 +64,11 @@ export function SiteInfoPanel({
 		return 'files';
 	});
 
-	// Resolve documentRoot from playground client
-	const [documentRoot, setDocumentRoot] = useState<string | null>(null);
+	// Resolve documentRoot from playground client, or use fallback for direct OPFS access
+	// Initialize to "/" for OPFS sites so the file browser can render immediately
+	const [documentRoot, setDocumentRoot] = useState<string | null>(
+		site.metadata.storage === 'opfs' ? '/' : null
+	);
 
 	// Save the tab when it changes
 	const handleTabSelect = (tabName: string) => {
@@ -77,17 +80,21 @@ export function SiteInfoPanel({
 	);
 	const playground = clientInfo?.client;
 
-	// Resolve documentRoot from playground
+	// Resolve documentRoot from playground, or use fallback for direct OPFS access
 	useEffect(() => {
-		if (!playground) {
+		if (playground) {
+			void playground.documentRoot.then((root) => {
+				setDocumentRoot(root);
+			});
+		} else if (site.metadata.storage === 'opfs') {
+			// When accessing OPFS directly (no client), the root is "/".
+			// This also handles the case where playground becomes null after being set
+			// (e.g., site crashes mid-session), resetting documentRoot for direct OPFS access.
+			setDocumentRoot('/');
+		} else {
 			setDocumentRoot(null);
-			return;
 		}
-
-		void playground.documentRoot.then((root) => {
-			setDocumentRoot(root);
-		});
-	}, [playground]);
+	}, [playground, site.metadata.storage]);
 
 	function navigateTo(path: string) {
 		if (siteViewHidden) {

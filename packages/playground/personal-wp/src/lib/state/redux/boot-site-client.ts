@@ -8,6 +8,7 @@ import {
 	addClientInfo,
 	removeClientInfo,
 	updateClientInfo,
+	selectClientInfoBySiteSlug,
 } from './slice-clients';
 import { logBlueprintEvents, logTrackingEvent } from '../../tracking';
 import {
@@ -32,6 +33,13 @@ import {
 // @ts-ignore
 import { corsProxyUrl } from 'virtual:cors-proxy-url';
 import { findFirewallErrorInCauseChain } from './error-utils';
+import {
+	initTabCoordinator,
+	checkForExistingTabs,
+	requestStaleTabsShutdown,
+	setDependentMode,
+	requestTakeover,
+} from './tab-coordinator';
 
 export interface BootSiteClientOptions {
 	signal: AbortSignal;
@@ -130,6 +138,204 @@ export function bootSiteClient(
 
 		logTrackingEvent('load');
 
+		// Initialize tab coordinator for multi-tab detection
+		// Only for persistent sites - temporary sites don't need coordination
+		if (site.metadata.storage !== 'none') {
+			initTabCoordinator(
+				site.slug,
+				(reason) => {
+					dispatch(
+						setActiveSiteError({
+							error: 'tab-superseded',
+							details: new Error(reason),
+						})
+					);
+				},
+				() => {
+					// This callback is called when another tab requests to take over as main
+					// We switch to dependent mode without showing an error
+					const remoteUrl = getRemoteUrl();
+					const scopedSiteUrl = `/scope:${encodeURIComponent(site.slug)}/`;
+
+					const dependentModeClient = {
+						goTo: async (path: string) => {
+							const newUrl = new URL(
+								scopedSiteUrl + path.replace(/^\//, ''),
+								remoteUrl
+							);
+							iframe.src = newUrl.toString();
+						},
+						getCurrentURL: async () => {
+							try {
+								const iframeUrl = new URL(
+									iframe.contentWindow?.location?.href || ''
+								);
+								return iframeUrl.pathname.replace(
+									new RegExp(
+										`^${scopedSiteUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`
+									),
+									'/'
+								);
+							} catch {
+								return '/';
+							}
+						},
+					} as PlaygroundClient;
+
+					dispatch(
+						updateClientInfo({
+							siteSlug: site.slug,
+							changes: {
+								client: dependentModeClient,
+								isDependentMode: true,
+								opfsMountDescriptor: undefined,
+							},
+						})
+					);
+
+					setDependentMode(true);
+
+					logger.info(
+						'Switched to dependent mode - another tab has taken over as main'
+					);
+				},
+				undefined,
+				() => {
+					// Site was reset by another tab - reload to start fresh
+					window.location.href =
+						window.location.origin + window.location.pathname;
+				}
+			);
+
+			const { existingTabs, hasFreshTab, hasStaleTab } =
+				await checkForExistingTabs(site.slug);
+
+			if (hasStaleTab) {
+				requestStaleTabsShutdown(existingTabs);
+			}
+
+			if (hasFreshTab) {
+				const urlParams = new URLSearchParams(window.location.search);
+				const hasBlueprintUrl = !!urlParams.get('blueprint-url');
+				const pendingBlueprintForCheck =
+					selectBlueprintResolvedFromUrl(getState());
+				const hasPendingBlueprintForSite =
+					pendingBlueprintForCheck &&
+					pendingBlueprintForCheck.targetSiteSlug === site.slug;
+				const needsMainMode =
+					hasBlueprintUrl || hasPendingBlueprintForSite;
+
+				if (needsMainMode) {
+					await requestTakeover(site.slug);
+				} else {
+					const existingClient = selectClientInfoBySiteSlug(
+						getState(),
+						site.slug
+					);
+					if (existingClient?.isDependentMode) {
+						return;
+					}
+
+					const remoteUrl = getRemoteUrl();
+					const scopedSiteUrl = `/scope:${encodeURIComponent(site.slug)}/`;
+					const scopedUrl = new URL(scopedSiteUrl, remoteUrl);
+
+					const dependentUrlParams = new URLSearchParams(
+						window.location.search
+					);
+					const landingPage =
+						dependentUrlParams.get('url') ||
+						site.metadata.lastUrl ||
+						'/wp-admin/';
+					scopedUrl.pathname += landingPage.replace(/^\//, '');
+					iframe.src = scopedUrl.toString();
+
+					const dependentModeClient = {
+						goTo: async (path: string) => {
+							const newUrl = new URL(
+								scopedSiteUrl + path.replace(/^\//, ''),
+								remoteUrl
+							);
+							iframe.src = newUrl.toString();
+						},
+						getCurrentURL: async () => {
+							try {
+								const iframeUrl = new URL(
+									iframe.contentWindow?.location?.href || ''
+								);
+								return iframeUrl.pathname.replace(
+									new RegExp(
+										`^${scopedSiteUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`
+									),
+									'/'
+								);
+							} catch {
+								return '/';
+							}
+						},
+					} as PlaygroundClient;
+
+					dispatch(
+						addClientInfo({
+							siteSlug: site.slug,
+							url: landingPage,
+							client: dependentModeClient,
+							opfsMountDescriptor: undefined,
+							isDependentMode: true,
+						})
+					);
+
+					const handleIframeNavigation = () => {
+						try {
+							const iframeHref =
+								iframe.contentWindow?.location?.href;
+							if (iframeHref) {
+								const iframeUrl = new URL(iframeHref);
+								const path = iframeUrl.pathname.replace(
+									new RegExp(
+										`^${scopedSiteUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`
+									),
+									'/'
+								);
+								dispatch(
+									updateClientInfo({
+										siteSlug: site.slug,
+										changes: { url: path },
+									})
+								);
+							}
+						} catch {
+							// Cross-origin access denied
+						}
+					};
+
+					iframe.addEventListener('load', handleIframeNavigation);
+
+					signal.onabort = () => {
+						iframe.removeEventListener(
+							'load',
+							handleIframeNavigation
+						);
+						dispatch(removeClientInfo(site.slug));
+					};
+
+					dispatch(
+						updateSiteMetadata({
+							slug: site.slug,
+							changes: {
+								lastAccessDate: Date.now(),
+							},
+						})
+					);
+
+					logger.info(
+						'Playground running in dependent mode - reusing existing service worker from another tab'
+					);
+					return;
+				}
+			}
+		}
+
 		let blueprint: Blueprint;
 		if (isWordPressInstalled) {
 			// Use URL param landing page if present, otherwise restore last URL
@@ -160,6 +366,9 @@ export function bootSiteClient(
 				const current = blueprint as BlueprintV1Declaration;
 				blueprint = {
 					...blueprint,
+					...(resolved.plugins?.length
+						? { plugins: resolved.plugins }
+						: {}),
 					landingPage: resolved.landingPage || current.landingPage,
 					steps: [
 						...(current.steps || []),
@@ -170,6 +379,17 @@ export function bootSiteClient(
 		} else {
 			blueprint = site.metadata.originalBlueprint;
 		}
+
+		// Check if we're in recovery mode (Health Check troubleshooting).
+		// Recovery mode uses 'do-not-attempt-installing' to skip the
+		// isWordPressInstalled() check that would load WordPress and crash
+		// due to a broken plugin.
+		const urlBlueprintLandingPage = hasUrlBlueprint
+			? urlBlueprint.blueprint.landingPage
+			: undefined;
+		const isRecoveryMode = urlBlueprintLandingPage?.includes(
+			'health-check-disable-plugin-hash'
+		);
 
 		let playground: PlaygroundClient | undefined = undefined;
 		try {
@@ -183,6 +403,11 @@ export function bootSiteClient(
 					new URLSearchParams(window.location.search).get(
 						'experimental-blueprints-v2-runner'
 					) === 'yes',
+				// In recovery mode, skip the WordPress install check to avoid
+				// loading WordPress before blueprint steps run.
+				wordpressInstallMode: isRecoveryMode
+					? 'do-not-attempt-installing'
+					: undefined,
 				// Intercept the Playground client even if the
 				// Blueprint fails.
 				onClientConnected: (playgroundClient) => {

@@ -38,6 +38,7 @@ import {
 } from '@php-wasm/universal';
 import { certificateToPEM, generateCertificate } from '@php-wasm/web';
 import type { BlueprintDeclaration } from '@wp-playground/blueprints';
+import type { WordPressInstallMode } from '@wp-playground/wordpress';
 import {
 	bootRequestHandler,
 	getFileNotFoundActionForWordPress,
@@ -70,6 +71,11 @@ export type WorkerBootOptions = {
 	experimentalBlueprintsV2Runner?: boolean;
 	/** Blueprint v2 declaration to run in the worker when experimental mode is on */
 	blueprint?: BlueprintDeclaration;
+	/**
+	 * How to handle WordPress installation.
+	 * Defaults to 'install-from-existing-files-if-needed'.
+	 */
+	wordpressInstallMode?: WordPressInstallMode;
 };
 
 /** @inheritDoc PHPClient */

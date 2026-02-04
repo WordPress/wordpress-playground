@@ -531,6 +531,31 @@ export interface SiteMetadata {
 	 * Used to restore the user's position when returning to a personal site.
 	 */
 	lastUrl?: string;
+
+	/**
+	 * History of backups for this site.
+	 */
+	backupHistory?: Array<{ filename: string; timestamp: number }>;
+
+	/**
+	 * Auto-backup interval setting.
+	 * - 'none': No auto-backup (default)
+	 * - 'daily': Backup every day
+	 * - 'every-2-days': Backup every 2 days
+	 * - 'weekly': Backup every week
+	 * - 'ignore': Never show backup reminders
+	 */
+	autoBackupInterval?:
+		| 'none'
+		| 'daily'
+		| 'every-2-days'
+		| 'weekly'
+		| 'ignore';
+
+	/**
+	 * Timestamp of the last time this site was accessed.
+	 */
+	lastAccessDate?: number;
 }
 
 export const { setOPFSSitesLoadingState, setBlueprintResolvedFromUrl } =

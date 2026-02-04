@@ -45,9 +45,8 @@ export default defineConfig(({ command, mode }) => {
 				? 'https://wordpress-playground-cors-proxy.net/?'
 				: '/cors-proxy/?';
 
-	const defaultBlueprintUrl = isProductionBuild
-		? '/blueprints/boot.json'
-		: '/website-server/blueprints/boot.json';
+	const defaultBlueprintUrl =
+		'https://raw.githubusercontent.com/WordPress/blueprints/trunk/blueprints/my-wordpress/blueprint.json';
 
 	return {
 		base: isProductionBuild ? '/' : '/website-server/',

@@ -175,12 +175,12 @@ Nous recommandons d'ajouter une langue au sélecteur uniquement lorsqu'une parti
 
 À titre indicatif, une langue devrait être rendue publiquement disponible dans le sélecteur uniquement lorsque l'ensemble du hub "Documentation" est traduit, y compris ces sections clés :
 
--   [Guide de démarrage rapide](https://wordpress.github.io/wordpress-playground/quick-start-guide)
--   [Instance web Playground](https://wordpress.github.io/wordpress-playground/web-instance)
--   [À propos de Playground](https://wordpress.github.io/wordpress-playground/about)
--   [Guides](https://wordpress.github.io/wordpress-playground/guides)
--   [Contribuer](https://wordpress.github.io/wordpress-playground/contributing)
--   [Liens et ressources](https://wordpress.github.io/wordpress-playground/resources)
+- [Guide de démarrage rapide](https://wordpress.github.io/wordpress-playground/quick-start-guide)
+- [Instance web Playground](https://wordpress.github.io/wordpress-playground/web-instance)
+- [À propos de Playground](https://wordpress.github.io/wordpress-playground/about)
+- [Guides](https://wordpress.github.io/wordpress-playground/guides)
+- [Contribuer](https://wordpress.github.io/wordpress-playground/contributing)
+- [Liens et ressources](https://wordpress.github.io/wordpress-playground/resources)
 
 <!--
 All languages are available once the i18n setup for a language is complete and the correct file structure is in place under `i18n`.
@@ -192,9 +192,9 @@ All languages are available once the i18n setup for a language is complete and t
 
 Toutes les langues sont disponibles une fois que la configuration i18n pour une langue est complète et que la structure de fichiers correcte est en place sous `i18n`.
 
--   https://wordpress.github.io/wordpress-playground/
--   https://wordpress.github.io/wordpress-playground/es/
--   https://wordpress.github.io/wordpress-playground/fr/
+- https://wordpress.github.io/wordpress-playground/
+- https://wordpress.github.io/wordpress-playground/es/
+- https://wordpress.github.io/wordpress-playground/fr/
 
 <!--
 Assuming the `fr` language is the first language with the Documentation hub pages (Quick Start Guide, Playground web instance, About Playground, Guides,... ) completely translated to French, the `docusaurus.config.js` should look like this in that branch so `npm run build:docs` properly generate the `fr` subsite and only displays the french language in the `localeDropdown` language switcher.
@@ -258,16 +258,16 @@ Suivez ces étapes pour traduire une page :
 2. **Créez une nouvelle issue de traduction** : Si aucune issue n’existe, veuillez en créer une nouvelle pour suivre les progrès de traduction pour la langue. Vous pouvez vous inspirer de l’issue [#2202](https://github.com/WordPress/wordpress-playground/issues/2202) et utiliser la liste de vérification en markdown ci-dessous pour suivre l’avancée.
 3. **Traduisez le fichier** :
 
--   Vérifiez si vous avez la dernière version de la documentation
--   Copiez le fichier .md original de `packages/docs/site/docs/...` vers le chemin correspondant dans le répertoire de langue (par exemple, `packages/docs/site/i18n/<CODE_LANGUE>/...`). Il est crucial de reproduire la structure de fichiers originale.
--   Traduisez le contenu du nouveau fichier, en gardant le contenu original commenté `<!-- Contenu anglais -->`.
--   Les ressources sont listées dans `packages/docs/site/static/img/`, ne placez les ressources dans le dossier de traduction que lorsqu'elles nécessitent du contenu localisé.
--   Une fois les traductions prêtes, vérifiez si le script de build de la documentation fonctionne correctement `npm run build:docs`.
+- Vérifiez si vous avez la dernière version de la documentation
+- Copiez le fichier .md original de `packages/docs/site/docs/...` vers le chemin correspondant dans le répertoire de langue (par exemple, `packages/docs/site/i18n/<CODE_LANGUE>/...`). Il est crucial de reproduire la structure de fichiers originale.
+- Traduisez le contenu du nouveau fichier, en gardant le contenu original commenté `<!-- Contenu anglais -->`.
+- Les ressources sont listées dans `packages/docs/site/static/img/`, ne placez les ressources dans le dossier de traduction que lorsqu'elles nécessitent du contenu localisé.
+- Une fois les traductions prêtes, vérifiez si le script de build de la documentation fonctionne correctement `npm run build:docs`.
 
 4. **Créez une pull request avec vos modifications**
 
--   Décrivez les pages que vous avez traduites
--   Demandez une révision sur `#playground` ou `#polyglots` sur `wordpress.slack.com`
+- Décrivez les pages que vous avez traduites
+- Demandez une révision sur `#playground` ou `#polyglots` sur `wordpress.slack.com`
 
 <!--
 :::info
@@ -295,93 +295,106 @@ Vous pouvez utiliser le markdown suivant dans votre issue de suivi:
 <details open>
 <summary><h3>Principal</h3></summary>
 
--   about
-    -   [ ] build.md #2291
-    -   [ ] index.md #2282
-    -   [ ] launch.md #2292
-    -   [ ] test.md #2302
--   contributing
-    -   [ ] code.md #2218
-    -   [ ] coding-standards.md #2219
-    -   [ ] contributor-day.md #2246
-    -   [ ] contributor-badge.md
-    -   [ ] documentation.md #2271
-    -   [ ] translations.md #2201
--   guides
-    -   [ ] for-plugin-developers.md #2210
-    -   [ ] for-theme-developers.md #2211
-    -   [ ] index.md #2209
-    -   [ ] providing-content-for-your-demo.md #2213
-    -   [ ] wordpress-native-ios-app.md #2214
--   [ ] intro.md #2198
--   [ ] quick-start-guide.md #2204
--   [ ] resources.md #2207
--   [ ] web-instance.md #2208
+- about
+    - [ ] build.md
+    - [ ] index.md
+    - [ ] launch.md
+    - [ ] test.md
+- contributing
+    - [ ] code.md
+    - [ ] coding-standards.md
+    - [ ] contributor-badge.md
+    - [ ] contributor-day.md
+    - [ ] contributor-day-table-lead.md
+    - [ ] documentation.md
+    - [ ] index.md
+    - [ ] releases.md
+    - [ ] translations.md
+- guides
+    - [ ] for-plugin-developers.md
+    - [ ] for-theme-developers.md
+    - [ ] github-action-pr-preview.md
+    - [ ] index.md
+    - [ ] providing-content-for-your-demo.md
+    - [ ] wordpress-native-ios-app.md
+- [ ] changelog.md
+- [ ] intro.md
+- [ ] quick-start-guide.md
+- [ ] resources.md
+- [ ] web-instance.md
 
 </details>
 
 <details open>
 <summary><h3>Blueprints</h3></summary>
 
--   blueprints
-    -   [ ] 01-index.md #2305
-    -   [ ] 02-using-blueprints.md #2330
-    -   [ ] 03-data-format.md #2340
-    -   [ ] 04-resources.md #2352
-    -   [ ] 05-steps-shorthands.md #2386
-    -   [ ] 05-steps.md #2386
-    -   [ ] 06-bundles.md #2438
-    -   [ ] 07-json-api-and-function-api.md #2438
-    -   [ ] 08-examples.md #2474
-    -   [ ] 09-troubleshoot-and-debug-blueprints.md #2474
-    -   [ ] intro.md #2489
-    -   tutorial - [ ] 01-what-are-blueprints-what-you-can-do-with-them.md #2511 - [ ] 02-how-to-load-run-blueprints.md #2526 - [ ] 03-build-your-first-blueprint.md - [ ] index.md #2511
-    </details>
+- [ ] 01-index.md
+- [ ] 02-using-blueprints.md
+- [ ] 03-data-format.md
+- [ ] 04-resources.md
+- [ ] 05-steps.md
+- [ ] 05-steps-shorthands.md
+- [ ] 06-bundles.md
+- [ ] 07-json-api-and-function-api.md
+- [ ] 08-examples.md
+- [ ] 09-troubleshoot-and-debug-blueprints.md
+- [ ] intro.md
+- tutorial
+    - [ ] 01-what-are-blueprints-what-you-can-do-with-them.md
+    - [ ] 02-how-to-load-run-blueprints.md
+    - [ ] 03-build-your-first-blueprint.md
+    - [ ] index.md
+
+</details>
 
 <details open>
 <summary><h3>Développeurs</h3></summary>
 
--   [ ] developers
-    -   [ ] 03-build-an-app
-        -   [ ] 01-index.md
-    -   [ ] 05-local-development
-        -   [ ] 01-wp-now.md
-        -   [ ] 02-vscode-extension.md
-        -   [ ] 03-php-wasm-node.md
-        -   [ ] intro.md
-    -   [ ] 06-apis
-        -   [ ] 01-index.md
-        -   [ ] javascript-api
-            -   [ ] 01-index.md
-            -   [ ] 02-index-html-vs-remote-html.md
-            -   [ ] 03-playground-api-client.md
-            -   [ ] 04-blueprint-json-in-api-client.md
-            -   [ ] 05-blueprint-functions-in-api-client.md
-            -   [ ] 06-mount-data.md
-        -   [ ] query-api
-            -   [ ] 01-index.md
-    -   [ ] 23-architecture
-        -   [ ] 01-index.md
-        -   [ ] 02-wasm-php-overview.md
-        -   [ ] 03-wasm-php-compiling.md
-        -   [ ] 04-wasm-php-javascript-module.md
-        -   [ ] 05-wasm-php-filesystem.md
-        -   [ ] 07-wasm-asyncify.md
-        -   [ ] 08-browser-concepts.md
-        -   [ ] 09-browser-tab-orchestrates-execution.md
-        -   [ ] 10-browser-iframe-rendering.md
-        -   [ ] 11-browser-php-worker-threads.md
-        -   [ ] 12-browser-service-workers.md
-        -   [ ] 13-browser-scopes.md
-        -   [ ] 14-browser-cross-process-communication.md
-        -   [ ] 15-wordpress.md
-        -   [ ] 16-wordpress-database.md
-        -   [ ] 17-browser-wordpress.md
-        -   [ ] 18-host-your-own-playground.md
-    -   [ ] 24-limitations
-        -   [ ] 01-index.md
-    -   [ ] intro-devs.md
-    </details>
+- 03-build-an-app
+    - [ ] 01-index.md
+- 05-local-development
+    - [ ] 01-wp-now.md
+    - [ ] 02-vscode-extension.md
+    - [ ] 03-php-wasm-node.md
+    - [ ] 04-wp-playground-cli.md
+    - [ ] intro.md
+- 06-apis
+    - [ ] 01-index.md
+    - javascript-api
+        - [ ] 01-index.md
+        - [ ] 02-index-html-vs-remote-html.md
+        - [ ] 03-playground-api-client.md
+        - [ ] 04-blueprint-json-in-api-client.md
+        - [ ] 05-blueprint-functions-in-api-client.md
+        - [ ] 06-mount-data.md
+    - query-api
+        - [ ] 01-index.md
+- 07-xdebug
+    - [ ] 01-introduction.md
+    - [ ] 02-getting-started.md
+- 23-architecture
+    - [ ] 01-index.md
+    - [ ] 02-wasm-php-overview.md
+    - [ ] 03-wasm-php-compiling.md
+    - [ ] 04-wasm-php-javascript-module.md
+    - [ ] 05-wasm-php-filesystem.md
+    - [ ] 07-wasm-asyncify.md
+    - [ ] 08-browser-concepts.md
+    - [ ] 09-browser-tab-orchestrates-execution.md
+    - [ ] 10-browser-iframe-rendering.md
+    - [ ] 11-browser-php-worker-threads.md
+    - [ ] 12-browser-service-workers.md
+    - [ ] 13-browser-scopes.md
+    - [ ] 14-browser-cross-process-communication.md
+    - [ ] 15-wordpress.md
+    - [ ] 16-wordpress-database.md
+    - [ ] 17-browser-wordpress.md
+    - [ ] 18-host-your-own-playground.md
+- 24-limitations
+    - [ ] 01-index.md
+- [ ] intro-devs.md
+
+</details>
 ```
 
 <!--

@@ -54,6 +54,7 @@ function loadKapaScript(): Promise<void> {
 		script.setAttribute('data-button-hide', 'true');
 		script.setAttribute('data-modal-z-index', '100001');
 		script.setAttribute('data-scale-factor', '1.3');
+		script.setAttribute('data-bot-protection-mechanism', 'hcaptcha');
 
 		script.onload = () => {
 			const checkKapa = setInterval(() => {

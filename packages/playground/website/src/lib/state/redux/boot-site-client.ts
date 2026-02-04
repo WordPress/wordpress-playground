@@ -236,6 +236,8 @@ export function bootSiteClient(
 					})
 				);
 			}
+			// Don't continue to client setup after an error
+			return;
 		}
 
 		if (signal.aborted || !playground) {

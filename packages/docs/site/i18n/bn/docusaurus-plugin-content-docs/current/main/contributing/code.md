@@ -47,10 +47,10 @@ Be sure to review the following resources before you begin:
 
 শুরু করার আগে নিম্নলিখিত রিসোর্সগুলি রিভিউ করতে ভুলবেন না:
 
--   [কোডিং প্রিন্সিপলস](/contributing/coding-standards)
--   [আর্কিটেকচার](/developers/architecture)
--   [ভিশন এবং ফিলোসফি](https://github.com/WordPress/wordpress-playground/issues/472)
--   [ওয়ার্ডপ্রেস প্লেগ্রাউন্ড রোডম্যাপ](https://github.com/WordPress/wordpress-playground/issues/525)
+- [কোডিং প্রিন্সিপলস](/contributing/coding-standards)
+- [আর্কিটেকচার](/developers/architecture)
+- [ভিশন এবং ফিলোসফি](https://github.com/WordPress/wordpress-playground/issues/472)
+- [ওয়ার্ডপ্রেস প্লেগ্রাউন্ড রোডম্যাপ](https://github.com/WordPress/wordpress-playground/issues/525)
 
 <!--
 ## Contribute Pull Requests
@@ -101,6 +101,8 @@ To fix this, first check your current limit:
 
 Linux-এ, `npm run dev` রান করার সময় আপনি `ENOSPC: System limit for number of file watchers reached` এর মতো একটি এরর দেখতে পারেন। এটি হয় কারণ প্লেগ্রাউন্ড রিপোজিটরিতে ডিফল্ট সিস্টেম লিমিটের চেয়ে বেশি ফাইল রয়েছে যা ওয়াচ করার অনুমতি দেয়।
 
+:::
+
 এটি ফিক্স করতে, প্রথমে আপনার বর্তমান লিমিট চেক করুন:
 
 ```bash
@@ -120,13 +122,9 @@ sudo sysctl -p
 
 <!--
 Then try `npm run dev` again. This is a common issue on Debian, Ubuntu, and other Linux distributions.
-
-:::
 -->
 
 তারপর আবার `npm run dev` ট্রাই করুন। এটি Debian, Ubuntu এবং অন্যান্য Linux ডিস্ট্রিবিউশনে একটি কমন ইস্যু।
-
-:::
 
 <!--
 When your'e ready, commit the changes and submit a Pull Request.
@@ -207,8 +205,8 @@ If you're using VS Code and have Chrome installed, you can debug Playground in t
 
 আপনি যদি VS Code ব্যবহার করেন এবং Chrome ইন্সটল করা থাকে, আপনি কোড এডিটরে প্লেগ্রাউন্ড ডিবাগ করতে পারেন:
 
--   VS Code-এ প্রজেক্ট ফোল্ডার ওপেন করুন।
--   মেইন মেনু থেকে Run > Start Debugging সিলেক্ট করুন অথবা `F5`/`fn`+`F5` প্রেস করুন।
+- VS Code-এ প্রজেক্ট ফোল্ডার ওপেন করুন।
+- মেইন মেনু থেকে Run > Start Debugging সিলেক্ট করুন অথবা `F5`/`fn`+`F5` প্রেস করুন।
 
 <!--
 ### Debugging PHP

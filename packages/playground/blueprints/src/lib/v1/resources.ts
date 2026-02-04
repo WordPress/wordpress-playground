@@ -562,7 +562,7 @@ export abstract class FetchResource extends Resource<File> {
 					response.headers.get('content-disposition') || ''
 				) ||
 				encodeURIComponent(url);
-			return new File([await response.blob()], filename);
+			return new File([await response.arrayBuffer()], filename);
 		} catch (e) {
 			throw new ResourceDownloadError(
 				`Could not download "${url}".\n\n` +
