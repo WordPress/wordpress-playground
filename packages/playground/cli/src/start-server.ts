@@ -11,12 +11,6 @@ import type { RunCLIServer } from './run-cli';
 import { logger } from '@php-wasm/logger';
 
 /**
- * Threshold in bytes above which responses are streamed.
- * Default: 100MB
- */
-const STREAMING_THRESHOLD_BYTES = 100 * 1024 * 1024;
-
-/**
  * Duck-type check for StreamedPHPResponse.
  * We can't use instanceof because objects don't preserve their prototype
  * chain when crossing Comlink worker boundaries.
@@ -36,10 +30,10 @@ export interface ServerOptions {
 	port: number;
 	onBind: (server: Server, port: number) => Promise<RunCLIServer | void>;
 	/**
-	 * Handler for streaming requests. Returns StreamedPHPResponse for
-	 * large file downloads, allowing incremental processing.
+	 * Handler for requests. Returns StreamedPHPResponse for PHP requests,
+	 * or PHPResponse for static files.
 	 */
-	handleRequestStreamed: (
+	handleRequest: (
 		request: PHPRequest
 	) => Promise<StreamedPHPResponse | PHPResponse>;
 }
@@ -71,7 +65,7 @@ export async function startServer(
 				body: await bufferRequestBody(req),
 			};
 
-			const response = await options.handleRequestStreamed(phpRequest);
+			const response = await options.handleRequest(phpRequest);
 
 			// Use duck typing to detect StreamedPHPResponse since instanceof
 			// doesn't work across Comlink worker boundaries
@@ -95,55 +89,6 @@ export async function startServer(
 }
 
 /**
- * Determines if a response should be streamed based on its headers.
- *
- * A response should be streamed if:
- * - It has a Content-Disposition: attachment header (file download)
- * - It has a large Content-Length (> threshold)
- * - It has a binary content type (application/octet-stream, application/zip, etc.)
- * - Content-Length is missing (unknown size - stream to be safe)
- */
-function shouldStreamResponse(headers: Record<string, string[]>): boolean {
-	// Check Content-Disposition for file downloads
-	const contentDisposition = headers['content-disposition']?.[0] || '';
-	if (contentDisposition.toLowerCase().includes('attachment')) {
-		return true;
-	}
-
-	// Check Content-Length for large responses
-	const contentLengthHeader = headers['content-length']?.[0];
-	const contentLength = parseInt(contentLengthHeader || '0', 10);
-	if (contentLength > STREAMING_THRESHOLD_BYTES) {
-		return true;
-	}
-
-	// Check Content-Type for binary data
-	const contentType = headers['content-type']?.[0] || '';
-	const binaryTypes = [
-		'application/octet-stream',
-		'application/zip',
-		'application/x-gzip',
-		'application/x-tar',
-		'application/x-rar',
-		'application/x-7z-compressed',
-		'application/wpress', // All-in-One WP Migration backup format
-	];
-	if (binaryTypes.some((type) => contentType.includes(type))) {
-		return true;
-	}
-
-	// If Content-Length is missing or 0, we can't know the response size upfront.
-	// Stream to be safe, since buffering an unknown-size response could fail
-	// for very large responses (e.g., >2GB file downloads).
-	// Only buffer when we have a small, known Content-Length.
-	if (!contentLengthHeader || contentLength === 0) {
-		return true;
-	}
-
-	return false;
-}
-
-/**
  * Handles a StreamedPHPResponse by piping the stdout stream directly
  * to the HTTP response, avoiding buffering the entire response in memory.
  */
@@ -156,27 +101,6 @@ async function handleStreamedResponse(
 		streamedResponse.headers,
 		streamedResponse.httpStatusCode,
 	]);
-
-	// Determine if we should actually stream or buffer based on headers
-	if (!shouldStreamResponse(headers)) {
-		// For small/non-file responses, buffer and send normally
-		// This avoids streaming overhead for regular page requests
-		try {
-			const bytes = await streamedResponse.stdoutBytes;
-			res.statusCode = httpStatusCode;
-			for (const key in headers) {
-				res.setHeader(key, headers[key]);
-			}
-			res.end(bytes);
-		} catch (error) {
-			logger.error('Error buffering response:', error);
-			if (!res.headersSent) {
-				res.statusCode = 500;
-				res.end('Internal Server Error');
-			}
-		}
-		return;
-	}
 
 	// Set response headers
 	res.statusCode = httpStatusCode;
@@ -242,6 +166,7 @@ async function handleStreamedResponse(
 
 /**
  * Handles a regular PHPResponse by sending the buffered response.
+ * Used for static files which are returned as PHPResponse.
  */
 function handleBufferedResponse(response: PHPResponse, res: Response): void {
 	res.statusCode = response.httpStatusCode;

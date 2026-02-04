@@ -1397,7 +1397,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 				throw new Error(phpLogs, { cause: error });
 			}
 		},
-		async handleRequestStreamed(request: PHPRequest) {
+		async handleRequest(request: PHPRequest) {
 			if (!wordPressReady) {
 				return PHPResponse.forHttpCode(
 					502,
@@ -1426,7 +1426,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 				}
 				return new PHPResponse(302, headers, new Uint8Array());
 			}
-			return await loadBalancer.handleRequestStreamed(request);
+			return await loadBalancer.handleRequest(request);
 		},
 	});
 

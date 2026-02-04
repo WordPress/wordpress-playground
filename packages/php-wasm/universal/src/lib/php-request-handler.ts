@@ -630,18 +630,22 @@ export class PHPRequestHandler implements AsyncDisposable {
 			}
 		}
 
-		// Note: We don't release the PHP instance in finally here because
-		// the stream may still be reading. The caller must handle cleanup
-		// after the stream is consumed.
-		const response = await this.#dispatchToPHP(
-			spawnedPHP.php,
-			request,
-			originalRequestUrl,
-			rewrittenRequestUrl,
-			scriptPath
-		);
+		let response: StreamedPHPResponse;
+		try {
+			response = await this.#dispatchToPHP(
+				spawnedPHP.php,
+				request,
+				originalRequestUrl,
+				rewrittenRequestUrl,
+				scriptPath
+			);
+		} catch (e) {
+			// Release the PHP instance if dispatch fails
+			spawnedPHP.reap();
+			throw e;
+		}
 
-		// Release the PHP instance when the response is finished
+		// Release the PHP instance when the response stream is finished
 		response.finished.finally(() => {
 			spawnedPHP?.reap();
 		});

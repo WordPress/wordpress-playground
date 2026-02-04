@@ -16,7 +16,7 @@ type PlaygroundCliWorker = PlaygroundCliWorkerV1 | PlaygroundCliWorkerV2;
 // TODO: Could we just spawn a worker using the factory function to PHPProcessManager?
 type WorkerLoad = {
 	worker: RemoteAPI<PlaygroundCliWorker>;
-	activeRequests: Set<Promise<PHPResponse | void>>;
+	activeRequests: Set<Promise<void>>;
 };
 export class LoadBalancer {
 	workerLoads: WorkerLoad[] = [];
@@ -53,42 +53,12 @@ export class LoadBalancer {
 		await Promise.allSettled(removedWorker.activeRequests);
 	}
 
-	async handleRequest(request: PHPRequest) {
-		let smallestWorkerLoad = this.workerLoads[0];
-
-		// TODO: Is there any way for us to track CPU load so we could avoid
-		//       picking a worker that is under heavy load despite few requests?
-		// Possibly this: https://nodejs.org/api/worker_threads.html#workerperformance
-		// Though we probably don't need to worry about it.
-		for (let i = 1; i < this.workerLoads.length; i++) {
-			const workerLoad = this.workerLoads[i];
-			if (
-				workerLoad.activeRequests.size <
-				smallestWorkerLoad.activeRequests.size
-			) {
-				smallestWorkerLoad = workerLoad;
-			}
-		}
-
-		// TODO: Add trace facility to Playground CLI to observe internals like request routing.
-
-		const promiseForResponse = smallestWorkerLoad.worker.request(request);
-		smallestWorkerLoad.activeRequests.add(promiseForResponse);
-
-		// Add URL to promise for use while debugging
-		(promiseForResponse as any).url = request.url;
-
-		return promiseForResponse.finally(() => {
-			smallestWorkerLoad.activeRequests.delete(promiseForResponse);
-		});
-	}
-
 	/**
 	 * Handle a request with streaming support for large responses.
 	 * Returns a StreamedPHPResponse that allows processing the response
 	 * body incrementally without buffering in memory.
 	 */
-	async handleRequestStreamed(
+	async handleRequest(
 		request: PHPRequest
 	): Promise<StreamedPHPResponse | PHPResponse> {
 		let smallestWorkerLoad = this.workerLoads[0];
