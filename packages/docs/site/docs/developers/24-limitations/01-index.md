@@ -53,7 +53,7 @@ WordPress Playground is designed to work across all major desktop and mobile bro
 
 Playground leverages modern web technologies and should function consistently across these browser environments. However, some advanced features may have varying levels of support depending on the specific browser and its version.
 
-### Performance expectations
+### Performance expectations {#performance-expectations}
 
 Loading times vary based on what Playground needs to set up:
 
@@ -77,12 +77,12 @@ Loading times vary based on what Playground needs to set up:
 
 ## When developing with Playground {#when-developing-with-playground}
 
-### Iframe quirks
+### Iframe quirks {#iframe-quirks}
 
 Playground renders WordPress in an [`iframe`](/developers/architecture/browser-iframe-rendering) so clicking links with `target="_top"` will reload the page you’re working on.
 Also, JavaScript popups originating in the `iframe` may not always display.
 
-### Run WordPress PHP functions
+### Run WordPress PHP functions {#run-wordpress-php-functions}
 
 Playground supports running PHP code in Blueprints using the [`runPHP` step](/blueprints/steps#RunPHPStep). To run WordPress-specific PHP functions, you’d need to first require [wp-load.php](https://github.com/WordPress/WordPress/blob/master/wp-load.php):
 
@@ -93,6 +93,6 @@ Playground supports running PHP code in Blueprints using the [`runPHP` step](/
 }
 ```
 
-### Using WP-CLI
+### Using WP-CLI {#using-wp-cli}
 
 You can execute `wp-cli` commands via the Blueprints [`wp-cli`](/blueprints/steps#WPCLIStep) step. However, since Playground runs in the browser, it doesn't support the [full array](https://developer.wordpress.org/cli/commands/) of available commands. While there is no definite list of supported commands, experimenting in [the online demo](https://playground.wordpress.net/demos/wp-cli.html) will help you assess what's possible.
