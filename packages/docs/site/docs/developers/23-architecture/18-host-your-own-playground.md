@@ -29,8 +29,6 @@ Loading times depend on several factors:
 | **Browser**       | Chrome/Edge perform best; Safari uses fallback mechanisms           | Test across browsers                        |
 | **Device**        | Mobile devices load slower than desktop                             | Warn mobile users about longer load times   |
 
-**Tip**: For production sites with heavy plugins, pre-install them in the WordPress build rather than at runtime. This improves load times.
-
 ### Browser compatibility
 
 Playground works across modern browsers, but with some differences:
