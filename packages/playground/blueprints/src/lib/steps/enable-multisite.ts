@@ -67,9 +67,12 @@ export const enableMultisite: StepHandler<EnableMultisiteStep> = async (
 	const docRoot = await playground.documentRoot;
 	const wpConfigPath = `${docRoot}/wp-config.php`;
 	const wpConfig = await playground.readFileAsText(wpConfigPath);
-	const newWpConfig = wpConfig.replace(
-		/^<\?php\s*/i,
-		`<?php\n$_SERVER['HTTP_HOST'] = ${phpVar(url.hostname)};\n`
-	);
+	let newWpConfig = wpConfig;
+	if (!wpConfig.includes("$_SERVER['HTTP_HOST']")) {
+		newWpConfig = wpConfig.replace(
+			/^<\?php\s*/i,
+			`<?php\n$_SERVER['HTTP_HOST'] = ${phpVar(url.hostname)};\n`
+		);
+	}
 	await playground.writeFile(wpConfigPath, newWpConfig);
 };
