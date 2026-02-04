@@ -240,7 +240,7 @@ Before going live, verify your self-hosted Playground meets these requirements:
 
 - [ ] **CDN**: Serve static assets from a CDN for faster global delivery
 - [ ] **Pre-installed plugins**: Bundle frequently-used plugins in your WordPress build
-- [ ] **Minimal blueprints**: Keep runtime plugin installations to a minimum
+- [ ] **Limit additional downloads**: Minimize runtime plugin installations (by blueprints, for example)
 
 ## Troubleshooting
 
