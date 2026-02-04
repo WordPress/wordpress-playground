@@ -26,7 +26,7 @@ Playground creates fresh WordPress instances on each page load. Refreshing the b
 The dedicated refresh button inside Playground only reloads WordPress content—it preserves your PHP/WP state. The browser's refresh button (F5 or Cmd+R) destroys the entire instance.
 :::
 
-![Refresh Button](@site/static/img/refresh-button.webp)
+![Refresh Playground Button](@site/static/img/refresh-playground-button.webp)
 
 <blockquote>
 <figure>
