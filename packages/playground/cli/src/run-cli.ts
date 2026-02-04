@@ -1,5 +1,6 @@
 import { errorLogPath, logger, LogSeverity } from '@php-wasm/logger';
 import type {
+	PathAlias,
 	PHPRequest,
 	RemoteAPI,
 	SupportedPHPVersion,
@@ -732,6 +733,7 @@ export interface RunCLIArgs {
 	verbosity?: LogVerbosity;
 	wp?: string;
 	autoMount?: string;
+	pathAliases?: PathAlias[];
 	experimentalMultiWorker?: number;
 	experimentalTrace?: boolean;
 	internalCookieStore?: boolean;
