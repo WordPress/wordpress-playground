@@ -40,6 +40,17 @@ WordPress Playground is designed to work across all major desktop and mobile bro
 
 Playground leverages modern web technologies and should function consistently across these browser environments. However, some advanced features may have varying levels of support depending on the specific browser and its version.
 
+### Performance considerations
+
+Loading times depend on several factors:
+
+| Factor            | Impact                                                              | Optimization                                |
+| ----------------- | ------------------------------------------------------------------- | ------------------------------------------- |
+| **Plugin size**   | Large plugins (e.g., WooCommerce) can take 30-60 seconds to install | Pre-install plugins in your WordPress build |
+| **Network speed** | WASM files are ~15-30MB                                             | Use CDN with proper caching headers         |
+| **Browser**       | Chrome/Edge perform best; Safari uses fallback mechanisms           | Test across browsers                        |
+| **Device**        | Mobile devices load slower than desktop                             | Warn mobile users about longer load times   |
+
 <blockquote>
 <strong>Note:</strong> Opera Mini support is not currently confirmed.
 </blockquote>
