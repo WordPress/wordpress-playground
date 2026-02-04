@@ -1,3 +1,4 @@
+import { phpVar } from '@php-wasm/util';
 import type { StepHandler } from '.';
 import { defineWpConfigConsts } from './define-wp-config-consts';
 import { setSiteOptions } from './site-data';
@@ -68,7 +69,7 @@ export const enableMultisite: StepHandler<EnableMultisiteStep> = async (
 	const wpConfig = await playground.readFileAsText(wpConfigPath);
 	const newWpConfig = wpConfig.replace(
 		/^<\?php\s*/i,
-		`<?php\n$_SERVER['HTTP_HOST'] = '${url.hostname}';\n`
+		`<?php\n$_SERVER['HTTP_HOST'] = ${phpVar(url.hostname)};\n`
 	);
 	await playground.writeFile(wpConfigPath, newWpConfig);
 };
