@@ -50,7 +50,7 @@ O Playground cria instâncias frescas do WordPress a cada carregamento de págin
 O botão de atualização dedicado dentro do Playground apenas recarrega o conteúdo do WordPress—ele preserva seu estado PHP/WP. O botão de atualização do navegador (F5 ou Cmd+R) destrói a instância inteira.
 :::
 
-![Refresh Button](@site/static/img/refresh-button.webp)
+![Refresh Button](@site/static/img/refresh-playground-button.webp)
 
 <blockquote>
 <figure>
@@ -96,19 +96,7 @@ O Playground utiliza tecnologias web modernas e deve funcionar consistentemente 
 
 Os tempos de carregamento variam de acordo com o que o Playground precisa configurar:
 
-<!-- | Scenario                               | Typical Load Time          | -->
-<!-- | -------------------------------------- | -------------------------- | -->
-<!-- | Fresh WordPress (no plugins)           | 5-10 seconds               | -->
-<!-- | With small plugins                     | 10-20 seconds              | -->
-<!-- | With large plugins (e.g., WooCommerce) | 30-60 seconds              | -->
-<!-- | On mobile devices                      | 1.5-2x slower than desktop | -->
-
-| Cenário                               | Tempo de Carregamento Típico  |
-| ------------------------------------- | ----------------------------- |
-| WordPress novo (sem plugins)          | 5-10 segundos                 |
-| Com plugins pequenos                  | 10-20 segundos                |
-| Com plugins grandes (ex. WooCommerce) | 30-60 segundos                |
-| Em dispositivos móveis                | 1,5-2x mais lento que desktop |
+![Save Button](@site/static/img/playground-performance-graph.webp)
 
 <!-- **Factors that affect performance:** -->
 
