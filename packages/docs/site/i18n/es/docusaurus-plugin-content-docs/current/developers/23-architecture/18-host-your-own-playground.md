@@ -2,9 +2,9 @@
 slug: /developers/architecture/host-your-own-playground
 ---
 
-<!-- # Host your own Playground -->
+<!-- # Host your own Playground {#host-your-own-playground} -->
 
-# Hospeda tu propio Playground
+# Hospeda tu propio Playground {#host-your-own-playground}
 
 <!-- You can host the Playground on your own domain instead of `playground.wordpress.net`. -->
 
@@ -14,17 +14,17 @@ Puedes hospedar el Playground en tu propio dominio en lugar de `playground.wordp
 
 Esto es útil para tener control total sobre su contenido y comportamiento, así como eliminar la dependencia de un servidor de terceros. Puede proporcionar una experiencia de usuario más personalizada, por ejemplo: un playground con plugins y temas preinstalados, configuraciones predeterminadas del sitio o contenido de demostración.
 
-<!-- ## Before you start -->
+<!-- ## Before you start {#before-you-start} -->
 
-## Antes de comenzar
+## Antes de comenzar {#before-you-start}
 
 <!-- Self-hosting Playground gives you full control, but requires understanding a few key concepts: -->
 
 Hospedar Playground por tu cuenta te da control total, pero requiere entender algunos conceptos clave:
 
-<!-- ### What to expect -->
+<!-- ### What to expect {#what-to-expect} -->
 
-### Qué esperar
+### Qué esperar {#what-to-expect}
 
 <!-- - **Initial setup complexity**: Building and deploying Playground involves multiple steps. Allow time for troubleshooting during your first deployment. -->
 <!-- - **Static file hosting**: Playground is primarily static files (HTML, JS, WASM) with minimal server-side requirements. -->
@@ -34,9 +34,9 @@ Hospedar Playground por tu cuenta te da control total, pero requiere entender al
 - **Alojamiento de archivos estáticos**: Playground es principalmente archivos estáticos (HTML, JS, WASM) con requisitos mínimos del lado del servidor.
 - **Ejecución basada en navegador**: Todo el procesamiento de WordPress ocurre en el navegador del usuario vía WebAssembly—tu servidor solo entrega archivos.
 
-<!-- ### Performance considerations -->
+<!-- ### Performance considerations {#performance-considerations} -->
 
-### Consideraciones de rendimiento
+### Consideraciones de rendimiento {#performance-considerations}
 
 <!-- Loading times depend on several factors: -->
 
@@ -56,13 +56,9 @@ Los tiempos de carga dependen de varios factores:
 | **Navegador**         | Chrome/Edge tienen mejor rendimiento; Safari usa mecanismos de respaldo   | Prueba en diferentes navegadores                              |
 | **Dispositivo**       | Los dispositivos móviles cargan más lento que escritorio                  | Advierte a usuarios móviles sobre tiempos de carga más largos |
 
-<!-- **Tip**: For production sites with heavy plugins, pre-install them in the WordPress build rather than at runtime. This improves load times. -->
+<!-- ### Browser compatibility {#browser-compatibility} -->
 
-**Consejo**: Para sitios de producción con plugins pesados, pre-instálalos en el build de WordPress en lugar de en tiempo de ejecución. Esto mejora los tiempos de carga.
-
-<!-- ### Browser compatibility -->
-
-### Compatibilidad con navegadores
+### Compatibilidad con navegadores {#browser-compatibility}
 
 <!-- Playground works across modern browsers, but with some differences: -->
 
@@ -86,9 +82,9 @@ Playground funciona en navegadores modernos, pero con algunas diferencias:
 
 **Nota técnica**: Safari usa MessagePorts en lugar de SharedArrayBuffer para respuestas en streaming. Este mecanismo de respaldo funciona de manera confiable pero añade una ligera sobrecarga comparado con Chrome/Edge.
 
-<!-- ## Usage -->
+<!-- ## Usage {#usage} -->
 
-## Uso
+## Uso {#usage}
 
 <!-- A self-hosted Playground can be embedded as an iframe. -->
 
@@ -111,9 +107,9 @@ const client = await startPlaygroundWeb({
 });
 ```
 
-<!-- ## Static assets -->
+<!-- ## Static assets {#static-assets} -->
 
-## Recursos estáticos
+## Recursos estáticos {#static-assets}
 
 <!-- There are several ways to get the static assets necessary to host the Playground. -->
 
@@ -131,9 +127,9 @@ En orden de conveniencia y facilidad:
 - Hacer fork del repositorio y construir con GitHub Action
 - Construir localmente
 
-<!-- ### Download pre-built package -->
+<!-- ### Download pre-built package {#download-pre-built-package} -->
 
-### Descargar paquete pre-construido
+### Descargar paquete pre-construido {#download-pre-built-package}
 
 <!-- To host the Playground as is, without making changes, you can download the built artifact from [the latest successful GitHub Action](https://github.com/WordPress/wordpress-playground/actions/workflows/deploy-website.yml?query=is%3Asuccess). -->
 
@@ -147,9 +143,9 @@ Para hospedar el Playground tal como está, sin hacer cambios, puedes descargar 
 - En la sección **Artifacts** en la parte inferior de la página, haz clic en `playground-website`.
 - Es un paquete zip con los mismos archivos desplegados en el sitio público.
 
-<!-- ### Fork the repository and build with GitHub Action -->
+<!-- ### Fork the repository and build with GitHub Action {#fork-repository-and-build-with-github-actions} -->
 
-### Hacer fork del repositorio y construir con GitHub Action
+### Hacer fork del repositorio y construir con GitHub Action {#fork-repository-and-build-with-github-actions}
 
 <!-- To customize the Playground, you can [fork the Git repository](https://github.com/WordPress/wordpress-playground/fork). -->
 
@@ -159,9 +155,9 @@ Para personalizar el Playground, puedes [hacer fork del repositorio Git](https:/
 
 Constrúyelo desde la página de GitHub de tu fork yendo a: **Actions -> Deploy Playground website -> Run workflow**.
 
-<!-- ### Build locally -->
+<!-- ### Build locally {#build-locally} -->
 
-### Construir localmente
+### Construir localmente {#build-locally}
 
 <!-- The most flexible and customizable method is to build the site locally. -->
 
@@ -204,9 +200,9 @@ dist/packages/playground/wasm-wordpress-net
 
 El servicio completo del Playground consiste en el contenido de esta carpeta.
 
-<!-- ## Summary of included files -->
+<!-- ## Summary of included files {#summary-of-included-files} -->
 
-## Resumen de archivos incluidos
+## Resumen de archivos incluidos {#summary-of-included-files}
 
 <!-- The static assets include: -->
 
@@ -238,9 +234,9 @@ Es un sitio estático, excepto por estos aspectos dinámicos.
 
 Para que estos funcionen, necesitas un entorno de servidor con Apache y PHP instalados.
 
-<!-- ## NGINX configuration -->
+<!-- ## NGINX configuration {#nginx-configuration} -->
 
-## Configuración de NGINX
+## Configuración de NGINX {#nginx-configuration}
 
 <!-- As an alternative to Apache, here is an example of using NGINX to serve the Playground. -->
 
@@ -282,9 +278,9 @@ Puede que necesites ajustar lo anterior según las especificaciones del servidor
 
 [El servidor web Caddy](https://caddyserver.com) no requiere ninguna configuración especial para funcionar.
 
-<!-- ## Customize bundled data -->
+<!-- ## Customize bundled data {#customize-bundled-data} -->
 
-## Personalizar datos empaquetados
+## Personalizar datos empaquetados {#customize-bundled-data}
 
 <!-- The file `wp.zip` is a bundle of all the files for the virtual file system in Playground. There's a data file for each available WordPress version. -->
 
@@ -310,9 +306,9 @@ npm run rebuild:wordpress-builds
 
 Para reconstruir el sitio web para incluir los builds personalizados de WordPress, sigue las instrucciones [aquí](#build-locally).
 
-<!-- ### Install plugins -->
+<!-- ### Install plugins {#install-plugins} -->
 
-### Instalar plugins
+### Instalar plugins {#install-plugins}
 
 <!-- Here's an example of installing plugins for the data bundle. -->
 
@@ -352,9 +348,9 @@ COPY ./build-assets/*.zip /root/
 
 Luego coloca los archivos zip de plugins en `build-assets`. En este caso, puede que quieras añadir sus rutas a `.gitignore`.
 
-<!-- ### Import content -->
+<!-- ### Import content {#import-content} -->
 
-### Importar contenido
+### Importar contenido {#import-content}
 
 <!-- Here's an example of importing content. -->
 
@@ -373,9 +369,9 @@ RUN cd wordpress ; \
 
 Esto asume que has puesto un archivo de exportación WXR llamado `content.xml` en la carpeta `build-assets`. Puedes añadir su ruta a `.gitignore`.
 
-<!-- ## Production deployment checklist -->
+<!-- ## Production deployment checklist {#production-deployment-checklist} -->
 
-## Lista de verificación para despliegue en producción
+## Lista de verificación para despliegue en producción {#production-deployment-checklist}
 
 <!-- Before going live, verify your self-hosted Playground meets these requirements: -->
 
@@ -472,15 +468,3 @@ Antes de ir a producción, verifica que tu Playground auto-hospedado cumple esto
 1. Pre-instala plugins en tu build de WordPress en lugar de instalación en tiempo de ejecución
 2. Configura CDN con encabezados de caché adecuados
 3. Muestra indicadores de carga para establecer expectativas del usuario
-
-<!-- #### Safari-specific issues -->
-
-#### Problemas específicos de Safari
-
-<!-- :::info Recent improvements -->
-<!-- Most Safari issues were resolved in January 2026. If you're using a recent build from `playground.wordpress.net`, Safari should work reliably. The guidance below applies primarily to older self-hosted builds. -->
-<!-- ::: -->
-
-:::info Mejoras recientes
-La mayoría de los problemas de Safari se resolvieron en enero de 2026. Si estás usando un build reciente de `playground.wordpress.net`, Safari debería funcionar de manera confiable. La guía a continuación aplica principalmente a builds auto-hospedados más antiguos.
-:::
