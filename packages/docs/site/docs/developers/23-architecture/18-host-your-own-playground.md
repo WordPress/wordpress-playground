@@ -225,3 +225,59 @@ RUN cd wordpress ; \
 ```
 
 This assumes that you have put a WXR export file named `content.xml` in the folder `build-assets`. You can add its path to `.gitignore`.
+
+## Production deployment checklist
+
+Before going live, verify your self-hosted Playground meets these requirements:
+
+### Server configuration
+
+- [ ] **MIME types**: Ensure `.wasm` files are served with `application/wasm` content type
+- [ ] **CORS headers**: If embedding cross-origin, configure appropriate CORS headers
+- [ ] **Caching**: Set long cache times for WASM and static assets (they're versioned)
+- [ ] **Compression**: Enable gzip/brotli for faster file transfers
+- [ ] **HTTPS**: Required for service workers and some browser features
+
+### Performance optimization
+
+- [ ] **CDN**: Serve static assets from a CDN for faster global delivery
+- [ ] **Pre-installed plugins**: Bundle frequently-used plugins in your WordPress build
+- [ ] **Minimal blueprints**: Keep runtime plugin installations to a minimum
+
+## Troubleshooting
+
+### Common issues and solutions
+
+#### Playground fails to load or shows blank screen
+
+**Possible causes:**
+
+- Server doesn't serve WASM files with correct MIME type
+- Deployment missing required files
+- JavaScript errors in browser console
+
+**Solutions:**
+
+1. Check browser console for errors (F12 → Console tab)
+2. Verify `.wasm` files return `application/wasm` content type
+3. Verify you deployed all build files
+
+#### Slow initial loading (30+ seconds)
+
+**Possible causes:**
+
+- Installing large plugins at runtime
+- Missing CDN or caching configuration
+- User on slow network connection
+
+**Solutions:**
+
+1. Pre-install plugins in your WordPress build instead of runtime installation
+2. Configure CDN with proper caching headers
+3. Show loading indicators to set user expectations
+
+#### Safari-specific issues
+
+:::info Recent improvements
+Most Safari issues were resolved in January 2026. If you're using a recent build from `playground.wordpress.net`, Safari should work reliably. The guidance below applies primarily to older self-hosted builds.
+:::
