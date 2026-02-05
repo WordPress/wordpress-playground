@@ -192,7 +192,7 @@ Running a live website means every change risks breaking something. Playground l
 Curious about a new SEO plugin? Want to compare two contact form options? Install them in Playground first:
 -->
 
-একটি নতুন SEO প্লাগইন সম্পর্কে জানতে আগ্রহী? দুটি কন্টাক্ট ফর্মের তুলনা করতে চান? প্রথমে প্লেগ্রাউন্ডে সেগুলো ইনস্টল করুন:
+একটি নতুন এসইও প্লাগইন সম্পর্কে জানতে আগ্রহী? দুটি কন্টাক্ট ফর্মের তুলনা করতে চান? প্রথমে প্লেগ্রাউন্ডে সেগুলো ইনস্টল করুন:
 
 <!--
 1. Open [playground.wordpress.net](https://playground.wordpress.net)
