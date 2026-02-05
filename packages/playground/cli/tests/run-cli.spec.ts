@@ -1,7 +1,11 @@
 import path from 'node:path';
 import os from 'node:os';
 import http from 'node:http';
-import { runCLI, internalsKeyForTesting } from '../src/run-cli';
+import {
+	runCLI,
+	internalsKeyForTesting,
+	parseOptionsAndRunCLI,
+} from '../src/run-cli';
 import type { RunCLIArgs, RunCLIServer } from '../src/run-cli';
 import type { MockInstance } from 'vitest';
 import { vi } from 'vitest';
@@ -20,6 +24,7 @@ import {
 	rmSync,
 } from 'node:fs';
 import { createHash } from 'node:crypto';
+import { PHPMYADMIN_INSTALL_PATH } from '@wp-playground/tools';
 import { MinifiedWordPressVersionsList } from '@wp-playground/wordpress-builds';
 import { type Log, logger } from '@php-wasm/logger';
 
@@ -751,20 +756,25 @@ describe.each(blueprintVersions)(
 		});
 
 		describe('pathAliases', () => {
+			// Skip WordPress setup for pathAliases tests - they only need
+			// the server running, not a full WordPress installation.
+			const skipWordPressSetupForPathAliases =
+				version === 2
+					? { mode: 'mount-only' as const }
+					: {
+							wordpressInstallMode:
+								'do-not-attempt-installing' as const,
+							skipSqliteSetup: true,
+							blueprint: undefined,
+						};
+
 			test.skipIf(isBlueprintsV2OnWindows)(
 				'should serve static and PHP files from a path alias',
-				async ({ skip }) => {
-					if (version === 2) {
-						// @TODO: Fix path aliases for Blueprints v2
-						skip();
-					}
-
+				async () => {
 					await using cliServer = await runCLI({
 						...suiteCliArgs,
+						...skipWordPressSetupForPathAliases,
 						command: 'server',
-						wordpressInstallMode: 'do-not-attempt-installing',
-						skipSqliteSetup: true,
-						blueprint: undefined,
 						pathAliases: [
 							{
 								urlPrefix: '/my-alias',
@@ -806,6 +816,104 @@ describe.each(blueprintVersions)(
 						'PHP works in alias'
 					);
 				}
+			);
+		});
+
+		describe('phpMyAdmin', () => {
+			test.skipIf(isBlueprintsV2OnWindows)(
+				'should install phpMyAdmin when --phpmyadmin flag is set',
+				async () => {
+					await using cliServer = await runCLI({
+						...suiteCliArgs,
+						command: 'server',
+						phpmyadmin: '/phpmyadmin',
+					});
+
+					// Verify phpMyAdmin directory was created
+					const phpMyAdminExists = await cliServer.playground.isDir(
+						PHPMYADMIN_INSTALL_PATH
+					);
+					expect(phpMyAdminExists).toBe(true);
+
+					// Verify the custom DbiMysqli.php driver was installed
+					const dbiMysqliExists =
+						await cliServer.playground.fileExists(
+							`${PHPMYADMIN_INSTALL_PATH}/libraries/classes/Dbal/DbiMysqli.php`
+						);
+					expect(dbiMysqliExists).toBe(true);
+
+					// Verify config.inc.php was installed
+					const configExists = await cliServer.playground.fileExists(
+						`${PHPMYADMIN_INSTALL_PATH}/config.inc.php`
+					);
+					expect(configExists).toBe(true);
+
+					// Verify phpMyAdmin is accessible via rewrite rule
+					const phpMyAdminUrl = new URL(
+						'/phpmyadmin/index.php',
+						cliServer.serverUrl
+					);
+					const response = await fetch(phpMyAdminUrl);
+					expect(response.status).toBe(200);
+				},
+				120000
+			);
+
+			test.skipIf(isBlueprintsV2OnWindows)(
+				'should not install phpMyAdmin when flag is not set',
+				async () => {
+					await using cliServer = await runCLI({
+						...suiteCliArgs,
+						command: 'server',
+					});
+
+					// Verify phpMyAdmin directory was NOT created
+					const phpMyAdminExists = await cliServer.playground.isDir(
+						PHPMYADMIN_INSTALL_PATH
+					);
+					expect(phpMyAdminExists).toBe(false);
+				},
+				120000
+			);
+
+			test.skipIf(isBlueprintsV2OnWindows)(
+				'should default to /phpmyadmin path when phpmyadmin is set to true',
+				async () => {
+					await using cliServer = await runCLI({
+						...suiteCliArgs,
+						command: 'server',
+						phpmyadmin: true,
+					});
+
+					// When phpmyadmin is true (boolean), it should default to /phpmyadmin
+					const phpMyAdminUrl = new URL(
+						'/phpmyadmin/index.php',
+						cliServer.serverUrl
+					);
+					const response = await fetch(phpMyAdminUrl);
+					expect(response.status).toBe(200);
+				},
+				120000
+			);
+
+			test.skipIf(isBlueprintsV2OnWindows)(
+				'should install phpMyAdmin at a custom path',
+				async () => {
+					await using cliServer = await runCLI({
+						...suiteCliArgs,
+						command: 'server',
+						phpmyadmin: '/db-admin',
+					});
+
+					// Verify phpMyAdmin is accessible at the custom path
+					const phpMyAdminUrl = new URL(
+						'/db-admin/index.php',
+						cliServer.serverUrl
+					);
+					const response = await fetch(phpMyAdminUrl);
+					expect(response.status).toBe(200);
+				},
+				120000
 			);
 		});
 	},
@@ -1049,6 +1157,31 @@ describe('other run-cli behaviors', () => {
 			expect(res.headers['set-cookie']).toContain(
 				'playground_auto_login_already_happened=1; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=/'
 			);
+		});
+	});
+
+	describe('phpMyAdmin CLI argument validation', () => {
+		test('should reject --phpmyadmin with --skip-sqlite-setup', async () => {
+			// Suppress console.error during this test since yargs outputs to stderr
+			const consoleSpy = vi
+				.spyOn(console, 'error')
+				.mockImplementation(() => {});
+			const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
+				throw new Error('process.exit called');
+			});
+
+			try {
+				await expect(
+					parseOptionsAndRunCLI([
+						'server',
+						'--phpmyadmin',
+						'--skip-sqlite-setup',
+					])
+				).rejects.toThrow();
+			} finally {
+				consoleSpy.mockRestore();
+				exitSpy.mockRestore();
+			}
 		});
 	});
 
