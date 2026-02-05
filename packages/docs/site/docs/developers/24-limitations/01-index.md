@@ -57,6 +57,13 @@ Playground leverages modern web technologies and should function consistently ac
 
 Loading times vary based on what Playground needs to set up:
 
+| Scenario                               | Typical Load Time          |
+| -------------------------------------- | -------------------------- |
+| Fresh WordPress (no plugins)           | 5-10 seconds               |
+| With small plugins                     | 10-20 seconds              |
+| With large plugins (e.g., WooCommerce) | 30-60 seconds              |
+| On mobile devices                      | 1.5-2x slower than desktop |
+
 ![Save Button](@site/static/img/playground-performance-graph.webp)
 
 **Factors that affect performance:**
