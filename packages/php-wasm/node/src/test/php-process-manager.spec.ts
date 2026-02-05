@@ -143,15 +143,16 @@ describe('PHPProcessManager', () => {
 		 * set up the following testing scenario:
 		 *   - Pre-boot 2 PHP instances (primary + 1 additional instance).
 		 *   - Simulate 6 concurrent requests, each taking 50ms to complete.
-		 *   - Set a timeout to 200ms.
+		 *   - Set a timeout to 110ms (maximum time for a request to wait in queue).
 		 *
-		 * When the resources are used correctly, 6 requests taking 50ms each
-		 * should take 2 instances about 150ms to complete (3x50ms each).
+		 * When the resources are used correctly, 4 requests will complete within
+		 * 100ms and the last 2 requests will immideately start their execution,
+		 * managing to leave the queue within 110ms from the being enqueued.
 		 */
 		mgr = new PHPProcessManager({
 			phpFactory,
 			maxPhpInstances: 2,
-			timeout: 200,
+			timeout: 110,
 		});
 
 		// Pre-boot the PHP instances so that they are ready to process requests.
@@ -159,6 +160,9 @@ describe('PHPProcessManager', () => {
 		const { reap: reap2 } = await mgr.acquirePHPInstance();
 		reap1();
 		reap2();
+
+		// Use Vite's fake timers to make the test reliable.
+		vi.useFakeTimers();
 
 		// Simulate 6 concurrent requests, each taking 50ms.
 		const simulateRequest = async () => {
@@ -168,7 +172,7 @@ describe('PHPProcessManager', () => {
 			return php;
 		};
 
-		const results = await Promise.all([
+		const resultsPromise = Promise.all([
 			simulateRequest(),
 			simulateRequest(),
 			simulateRequest(),
@@ -177,11 +181,20 @@ describe('PHPProcessManager', () => {
 			simulateRequest(),
 		]);
 
+		// Run all timers, and switch back to real timers.
+		await vi.runAllTimersAsync();
+		const results = await resultsPromise;
+		await vi.useRealTimers();
+
 		// All 6 requests should complete successfully within the 200ms timeout.
 		expect(results).toHaveLength(6);
 		results.forEach((php) => expect(php).toBeInstanceOf(PHP));
 
 		// Only 2 instances should have been spawned (reused for all 6 requests).
 		expect(phpFactory).toHaveBeenCalledTimes(2);
+
+		// Only 2 distinct PHP instances should have been used across all 6 requests.
+		const uniquePhpInstances = new Set(results);
+		expect(uniquePhpInstances.size).toBe(2);
 	});
 });
