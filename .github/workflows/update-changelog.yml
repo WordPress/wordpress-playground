@@ -24,7 +24,8 @@ jobs:
                 github.actor == 'brandonpayton' ||
                 github.actor == 'zaerl' ||
                 github.actor == 'janjakes' ||
-                github.actor == 'mho22'
+                github.actor == 'mho22' ||
+                github.actor == 'ashfame'
             )
 
         # Specify runner + deployment step
