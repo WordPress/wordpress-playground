@@ -24,7 +24,7 @@
 	"main": "./index.cjs",
 	"types": "index.d.ts",
 	"engines": {
-		"node": ">=20.18.3",
-		"npm": ">=10.1.0"
+		"node": ">=22.12.0",
+		"npm": ">=10.9.0"
 	}
 }
