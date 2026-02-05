@@ -142,7 +142,7 @@ describe('PHPProcessManager', () => {
 		 * To test that PHP requests are queued and instances are reused correctly,
 		 * set up the following testing scenario:
 		 *   - Pre-boot 2 PHP instances (primary + 1 additional instance).
-		 *   - Simulate 6 concurrent, each taking 50ms to complete.
+		 *   - Simulate 6 concurrent requests, each taking 50ms to complete.
 		 *   - Set a timeout to 200ms.
 		 *
 		 * When the resources are used correctly, 6 requests taking 50ms each
