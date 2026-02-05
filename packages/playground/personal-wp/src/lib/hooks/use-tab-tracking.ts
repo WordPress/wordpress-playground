@@ -48,6 +48,9 @@ export function useTabTracking(
 		}
 	}, [hasOwnWorker]);
 
+	const onWorkerLostRef = useRef(options.onWorkerLost);
+	onWorkerLostRef.current = options.onWorkerLost;
+
 	const checkWorkerLost = useCallback(() => {
 		if (
 			!hasOwnWorkerRef.current &&
@@ -55,9 +58,9 @@ export function useTabTracking(
 			!recentlyBecameDependentRef.current
 		) {
 			setWorkerLost(true);
-			options.onWorkerLost?.();
+			onWorkerLostRef.current?.();
 		}
-	}, [options]);
+	}, []);
 
 	useEffect(() => {
 		if (!activeSite || !tabInfo) {

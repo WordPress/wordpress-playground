@@ -366,6 +366,9 @@ export function bootSiteClient(
 				const current = blueprint as BlueprintV1Declaration;
 				blueprint = {
 					...blueprint,
+					...(resolved.plugins?.length
+						? { plugins: resolved.plugins }
+						: {}),
 					landingPage: resolved.landingPage || current.landingPage,
 					steps: [
 						...(current.steps || []),

@@ -132,7 +132,60 @@
 		</main>
 		<script type="module">
 			if (!shouldLazyLoadPlayground) {
-				import('./src/main');
+				/**
+				 * Safari sometimes fail to import this script after playground.wordpress.net
+				 * is deployed. The error message is:
+				 *
+				 * ```
+				 * TypeError: Importing a module script failed.
+				 * ```
+				 *
+				 * It is very difficult to debug as Safari does not provide a useful stack trace,
+				 * line numbers, or any further error details. After some hours of debugging, the
+				 * issue was narrowed down to this import() call.
+				 *
+				 * Somehow, when this import() runs, Safari does not even start a network request
+				 * to fetch this script. The Service Worker `fetch` event handler is also not called.
+				 * It just fails on sight. The root cause is unclear. Everything is fine CORS-wise,
+				 * Safari Memory cache seems unlikely since the "network" devtools tab does not display
+				 * any attempts to fetch this script.
+				 *
+				 * Manually clearing Safari cache and reloading the page seems to resolve the issue.
+				 * It's not good enough, but it proves this is related to Safari cache.
+				 *
+				 * Therefore, we're bypassing the cached import by adding a cache busting query parameter
+				 * if the original import fails.
+				 */
+				import('./src/main').catch((e) => {
+					console.error('Failed to load main module:', e);
+					try {
+						/**
+						 * I couldn't find another way of baking the actual module URL directly into the
+						 * built file. Basically we're creating a function that calls import(), stringifying it,
+						 * extracting the module URL from the string, and adding a cache busting query parameter
+						 * to that URL before finally importing it.
+						 */
+						const stringifiedImport = (() =>
+							import('./src/main')).toString();
+						const moduleUrlString = stringifiedImport.match(
+							/import\(\s*['"](.+?)['"]\s*\)/
+						)[1];
+						if (moduleUrlString) {
+							const moduleUrl = new URL(
+								moduleUrlString,
+								import.meta.url
+							);
+							moduleUrl.searchParams.set(
+								'_ts',
+								String(Date.now())
+							);
+							return import(moduleUrl.toString());
+						}
+					} catch {
+						// Fall back to the original error
+					}
+					throw e;
+				});
 			}
 		</script>
 	</body>
