@@ -152,7 +152,7 @@ describe('PHPProcessManager', () => {
 		mgr = new PHPProcessManager({
 			phpFactory,
 			maxPhpInstances: 2,
-			timeout: 110,
+			timeout: 110, // 100ms for 4 requests + 10ms buffer to start the remaining 2
 		});
 
 		// Pre-boot the PHP instances so that they are ready to process requests.
