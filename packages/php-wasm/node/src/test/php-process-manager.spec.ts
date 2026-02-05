@@ -146,7 +146,7 @@ describe('PHPProcessManager', () => {
 		 *   - Set a timeout to 110ms (maximum time for a request to wait in queue).
 		 *
 		 * When the resources are used correctly, 4 requests will complete within
-		 * 100ms and the last 2 requests will immideately start their execution,
+		 * 100ms and the last 2 requests will immediately start their execution,
 		 * managing to leave the queue within 110ms from the being enqueued.
 		 */
 		mgr = new PHPProcessManager({
@@ -186,7 +186,7 @@ describe('PHPProcessManager', () => {
 		const results = await resultsPromise;
 		await vi.useRealTimers();
 
-		// All 6 requests should complete successfully within the 200ms timeout.
+		// All 6 requests should complete successfully without any timeouts.
 		expect(results).toHaveLength(6);
 		results.forEach((php) => expect(php).toBeInstanceOf(PHP));
 
