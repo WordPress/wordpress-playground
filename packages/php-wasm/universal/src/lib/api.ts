@@ -40,7 +40,10 @@ export function consumeAPI<APIType>(
 	setupTransferHandlers();
 
 	let endpoint;
-	const appearsToBeNodeEnvironment = import.meta.url.startsWith('file://');
+	const appearsToBeNodeEnvironment =
+		typeof process !== 'undefined' &&
+		typeof process.versions !== 'undefined' &&
+		typeof process.versions.node !== 'undefined';
 	if (appearsToBeNodeEnvironment) {
 		endpoint = nodeEndpoint(remote as NodeEndpoint);
 	} else {
