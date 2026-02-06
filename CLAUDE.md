@@ -146,6 +146,8 @@ Version-specific builds: `@php-wasm/web-7-4` through `@php-wasm/web-8-5` (and co
 - **Module boundaries**: Enforced via `@nx/enforce-module-boundaries`
     - Packages tagged `scope:web-client` cannot be depended on by others
     - `scope:independent-from-php-binaries` packages cannot depend on `scope:php-binaries`
+- **Function ordering:** First caller, then callee. When function A calls function B, write first A, then B.
+- **Method ordering:** First public, then protected, then private. Respect **Function ordering** as well.
 
 ### Testing
 

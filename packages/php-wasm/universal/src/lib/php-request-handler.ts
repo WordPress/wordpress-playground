@@ -318,31 +318,6 @@ export class PHPRequestHandler implements AsyncDisposable {
 	}
 
 	/**
-	 * Resolves a URL path to a filesystem path, checking path aliases first.
-	 *
-	 * If the URL path matches a configured alias prefix, the alias's
-	 * filesystem path is used instead of the document root.
-	 *
-	 * @param urlPath - The URL path to resolve (e.g., '/phpmyadmin/index.php')
-	 * @returns The resolved filesystem path
-	 */
-	#resolveToFsPath(urlPath: string): string {
-		// Check if the URL path matches any alias
-		for (const alias of this.#pathAliases) {
-			if (
-				urlPath === alias.urlPrefix ||
-				urlPath.startsWith(alias.urlPrefix + '/')
-			) {
-				// Replace the URL prefix with the filesystem path
-				const relativePath = urlPath.slice(alias.urlPrefix.length);
-				return joinPaths(alias.fsPath, relativePath);
-			}
-		}
-		// No alias matched, use the document root
-		return joinPaths(this.#DOCROOT, urlPath);
-	}
-
-	/**
 	 * Converts a path to an absolute URL based at the PHPRequestHandler
 	 * root.
 	 *
@@ -615,6 +590,31 @@ export class PHPRequestHandler implements AsyncDisposable {
 			rewrittenRequestUrl.searchParams.append(key, value);
 		}
 		return rewrittenRequestUrl;
+	}
+
+	/**
+	 * Resolves a URL path to a filesystem path, checking path aliases first.
+	 *
+	 * If the URL path matches a configured alias prefix, the alias's
+	 * filesystem path is used instead of the document root.
+	 *
+	 * @param urlPath - The URL path to resolve (e.g., '/phpmyadmin/index.php')
+	 * @returns The resolved filesystem path
+	 */
+	#resolveToFsPath(urlPath: string): string {
+		// Check if the URL path matches any alias
+		for (const alias of this.#pathAliases) {
+			if (
+				urlPath === alias.urlPrefix ||
+				urlPath.startsWith(alias.urlPrefix + '/')
+			) {
+				// Replace the URL prefix with the filesystem path
+				const relativePath = urlPath.slice(alias.urlPrefix.length);
+				return joinPaths(alias.fsPath, relativePath);
+			}
+		}
+		// No alias matched, use the document root
+		return joinPaths(this.#DOCROOT, urlPath);
 	}
 
 	/**
