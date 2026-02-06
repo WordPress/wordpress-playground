@@ -40,6 +40,13 @@ export function consumeAPI<APIType>(
 	setupTransferHandlers();
 
 	let endpoint;
+	/**
+	 * Previously we were checking for import.meta.url to use file:// paths
+	 * to identify whether we are running in Node.js. However, it can lead to
+	 * a false positive if webpack is also configured to use file:// paths for
+	 * whatever reason.
+	 * See https://github.com/WordPress/wordpress-playground/pull/3248
+	 */
 	const appearsToBeNodeEnvironment =
 		typeof process !== 'undefined' &&
 		typeof process.versions !== 'undefined' &&
