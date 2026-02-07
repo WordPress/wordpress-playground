@@ -92,6 +92,12 @@ export default defineConfig(({ mode }) => {
 			port: remoteDevServerPort,
 			host: remoteDevServerHost,
 			allowedHosts: ['playground.test', 'playground-preview.test'],
+			headers: {
+				// Enable cross-origin isolation via Document-Isolation-Policy
+				// so that SharedArrayBuffer is available in the web worker.
+				// This powers the SABMEMFS shared filesystem.
+				'Document-Isolation-Policy': 'isolate-and-credentialless',
+			},
 			proxy: {
 				// Proxy CORS requests to the local PHP CORS proxy server.
 				// This avoids Private Network Access (PNA) restrictions in Chrome

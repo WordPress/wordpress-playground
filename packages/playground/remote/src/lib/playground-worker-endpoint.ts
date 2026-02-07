@@ -76,6 +76,13 @@ export type WorkerBootOptions = {
 	 * Defaults to 'install-from-existing-files-if-needed'.
 	 */
 	wordpressInstallMode?: WordPressInstallMode;
+	/**
+	 * When true, mount a SharedArrayBuffer-backed filesystem at
+	 * /wordpress and /internal/shared. This enables multiple PHP
+	 * workers to share the same filesystem. Requires
+	 * crossOriginIsolated to be true.
+	 */
+	useSABMemFS?: boolean;
 };
 
 /** @inheritDoc PHPClient */

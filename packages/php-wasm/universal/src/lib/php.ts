@@ -1330,6 +1330,21 @@ export class PHP implements Disposable {
 	}
 
 	/**
+	 * Recursively copies all files and directories from one path to another.
+	 * Symlinks are recreated as symlinks. Directories are created as needed.
+	 *
+	 * @param fromPath - Source path
+	 * @param toPath   - Destination path
+	 */
+	copyRecursive(fromPath: string, toPath: string) {
+		FSHelpers.copyRecursive(
+			this[__private__dont__use].FS,
+			fromPath,
+			toPath
+		);
+	}
+
+	/**
 	 * Enables inline PHP runtime rotation after a certain number of requests
 	 * or an internal crash.
 	 */

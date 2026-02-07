@@ -1,4 +1,5 @@
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
+import { logger } from '@php-wasm/logger';
 import { exposeAPI } from '@php-wasm/web';
 import {
 	PlaygroundWorkerEndpoint,
@@ -16,6 +17,7 @@ import { directoryHandleFromMountDevice } from '@wp-playground/storage';
 import { bootWordPress } from '@wp-playground/wordpress';
 import { createDirectoryHandleMountHandler } from '@php-wasm/web';
 import type { PHP } from '@php-wasm/universal';
+import { createSABMemFSBuffers, sabMemFSMount } from '@php-wasm/universal';
 /* @ts-ignore */
 import { corsProxyUrl as defaultCorsProxyUrl } from 'virtual:cors-proxy-url';
 
@@ -44,6 +46,7 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 		shouldInstallWordPress = true,
 		wordpressInstallMode = 'install-from-existing-files-if-needed',
 		corsProxyUrl,
+		useSABMemFS = false,
 	}: WorkerBootOptions) {
 		if (this.booted) {
 			throw new Error('Playground already booted');
@@ -135,6 +138,23 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 				fetch(sqliteDriverModuleDetails.url)
 			);
 
+			// Detect early whether to use SABMEMFS so we can mount it
+			// before WordPress files are extracted. This way, all
+			// files go directly into the SharedArrayBuffer-backed FS
+			// and no post-boot copy is needed.
+			const enableSABMemFS =
+				useSABMemFS ||
+				(typeof SharedArrayBuffer !== 'undefined' &&
+					typeof crossOriginIsolated !== 'undefined' &&
+					crossOriginIsolated);
+			logger.log(
+				`[SABMEMFS] crossOriginIsolated=${typeof crossOriginIsolated !== 'undefined' ? crossOriginIsolated : 'N/A'}, enableSABMemFS=${enableSABMemFS}`
+			);
+
+			const wpBuffers = enableSABMemFS
+				? createSABMemFSBuffers()
+				: null;
+
 			await bootWordPress(requestHandler, {
 				siteUrl,
 				constants: shouldInstallWordPress
@@ -175,6 +195,23 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 					.then((b) => new File([b], 'sqlite.zip')),
 				hooks: {
 					async beforeWordPressFiles(php: PHP) {
+						// Mount SABMEMFS at /wordpress before WordPress
+						// files are extracted. This way all files go
+						// directly into SharedArrayBuffer storage and
+						// no post-boot copy step is needed.
+						if (wpBuffers) {
+							if (!php.fileExists('/wordpress')) {
+								php.mkdir('/wordpress');
+							}
+							await php.mount(
+								'/wordpress',
+								sabMemFSMount(wpBuffers)
+							);
+							logger.log(
+								'[SABMEMFS] Mounted at /wordpress before extraction'
+							);
+						}
+
 						for (const mount of mounts) {
 							const handle = await directoryHandleFromMountDevice(
 								mount.device
@@ -192,6 +229,10 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 					},
 				},
 			});
+
+			if (enableSABMemFS) {
+				logger.log('[SABMEMFS] WordPress booted on SABMEMFS');
+			}
 
 			await this.finalizeAfterBoot(
 				requestHandler,

@@ -319,7 +319,30 @@ self.addEventListener('fetch', (event) => {
 	 * details.
 	 */
 	if (url.pathname === '/remote.html' || url.pathname === '/') {
-		event.respondWith(networkFirstFetch(event.request));
+		event.respondWith(
+			networkFirstFetch(event.request).then((response) => {
+				// When the browser supports Document-Isolation-Policy,
+				// add it to remote.html so that crossOriginIsolated is
+				// true in the web worker spawned by remote.html. This
+				// enables SharedArrayBuffer for SABMEMFS.
+				if (
+					url.pathname === '/remote.html' &&
+					browserSupportsDocumentIsolationPolicy
+				) {
+					const newHeaders = new Headers(response.headers);
+					newHeaders.set(
+						'document-isolation-policy',
+						'isolate-and-credentialless'
+					);
+					return new Response(response.body, {
+						status: response.status,
+						statusText: response.statusText,
+						headers: newHeaders,
+					});
+				}
+				return response;
+			})
+		);
 		return;
 	}
 
