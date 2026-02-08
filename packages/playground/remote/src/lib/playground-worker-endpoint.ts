@@ -109,6 +109,12 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 
 	unmounts: Record<string, () => any> = {};
 
+	/**
+	 * PHP ini entries built during createRequestHandler(). Stored so
+	 * that sub-workers can be initialized with the same configuration.
+	 */
+	protected lastPhpIniEntries: Record<string, string> = {};
+
 	private networkTransport: WordPressFetchNetworkTransport | undefined;
 
 	protected downloadMonitor: EmscriptenDownloadMonitor;
@@ -190,6 +196,9 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 				.filter((n) => n)
 				.join(',');
 		}
+
+		// Store for sub-worker initialization
+		this.lastPhpIniEntries = { ...phpIniEntries };
 
 		const parsedSiteUrl = new URL(siteUrl);
 		const requestHandler = await bootRequestHandler({

@@ -110,6 +110,16 @@ export function createSABMemFSBuffers(
 	};
 }
 
+export interface SharedSABFSOptions {
+	/**
+	 * When true, use Atomics-based locking for safe concurrent access
+	 * from multiple workers sharing the same buffers.
+	 * When false (default), use plain array access for maximum speed
+	 * in the single-worker case.
+	 */
+	multiWorker?: boolean;
+}
+
 // ─────────────────────── Core filesystem factory ──────────────────────
 
 /**
@@ -119,8 +129,13 @@ export function createSABMemFSBuffers(
  *
  * @param FS  The Emscripten FS object (e.g. `Module.FS`).
  * @param buffers  The shared metadata + data buffers.
+ * @param options  Optional configuration.
  */
-export function SharedSABFS(FS: any, buffers: SABMemFSBuffers) {
+export function SharedSABFS(
+	FS: any,
+	buffers: SABMemFSBuffers,
+	options: SharedSABFSOptions = {}
+) {
 	const { metaBuf, dataBuf } = buffers;
 	const meta = new Int32Array(metaBuf);
 	const data8 = new Uint8Array(dataBuf);
@@ -135,7 +150,7 @@ export function SharedSABFS(FS: any, buffers: SABMemFSBuffers) {
 	// enableMultiWorkerLocking() to switch to Atomics-based
 	// synchronization when multiple workers share the buffers.
 
-	let multiWorker = false;
+	let multiWorker = options.multiWorker ?? false;
 
 	function lock() {
 		if (!multiWorker) return;
@@ -506,6 +521,7 @@ export function SharedSABFS(FS: any, buffers: SABMemFSBuffers) {
 			L(meta, off + I_RDEV)
 		);
 		node.sabId = id;
+		node.isSharedFS = true;
 		node.node_ops = node_ops;
 		node.stream_ops = FS.isChrdev(mode)
 			? FS.getDevice(node.rdev).stream_ops

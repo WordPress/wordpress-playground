@@ -34,9 +34,8 @@ export type {
 } from './php-instance-manager';
 export { SinglePHPInstanceManager } from './single-php-instance-manager';
 export type { SinglePHPInstanceManagerOptions } from './single-php-instance-manager';
-export { PHPProcessManager } from './php-process-manager';
+export { PHPProcessManager, MaxPhpInstancesError } from './php-process-manager';
 export type {
-	MaxPhpInstancesError,
 	PHPFactory,
 	PHPFactoryOptions,
 	ProcessManagerOptions,
@@ -101,4 +100,14 @@ export type { Remote } from './comlink-sync';
 
 export { createSABMemFSBuffers, sabMemFSMount } from './sabmemfs-mount';
 export { SharedSABFS } from './sabmemfs';
-export type { SABMemFSBuffers } from './sabmemfs-mount';
+export type { SABMemFSBuffers, SharedSABFSOptions } from './sabmemfs-mount';
+
+export type {
+	FileLockManager,
+	RequestedRangeLock,
+	WholeFileLock,
+	WholeFileLockOp,
+	Pid,
+	Fd,
+} from './file-lock-manager';
+export { InMemoryFileLockManager } from './in-memory-file-lock-manager';
