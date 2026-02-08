@@ -73,11 +73,9 @@ const I_NAME_WORDS = 32; // 128 bytes
 // POSIX mode bits
 const S_IFMT = 0o170000;
 const S_IFDIR = 0o040000;
-const S_IFREG = 0o100000;
 const S_IFLNK = 0o120000;
 
 const MODE_DIR = S_IFDIR | 0o777;
-const MODE_FILE = S_IFREG | 0o666;
 const MODE_SYMLINK = S_IFLNK | 0o777;
 
 const TE = new TextEncoder();
@@ -150,7 +148,7 @@ export function SharedSABFS(
 	// enableMultiWorkerLocking() to switch to Atomics-based
 	// synchronization when multiple workers share the buffers.
 
-	let multiWorker = options.multiWorker ?? false;
+	const multiWorker = options.multiWorker ?? false;
 
 	function lock() {
 		if (!multiWorker) return;
@@ -330,7 +328,7 @@ export function SharedSABFS(
 
 	/** Add child `childId` to directory at metadata offset `dirOff`. Must hold lock. */
 	function pushChild(dirOff: number, childId: number) {
-		let cnt = L(meta, dirOff + I_SIZEL);
+		const cnt = L(meta, dirOff + I_SIZEL);
 		let cap = L(meta, dirOff + I_CAP);
 		let start = L(meta, dirOff + I_DATA_OFF);
 
@@ -853,7 +851,9 @@ export function SharedSABFS(
 			stream: any,
 			length: number,
 			position: number,
-			prot: number,
+			// eslint-disable-next-line @typescript-eslint/no-unused-vars
+			_prot: number,
+			// eslint-disable-next-line @typescript-eslint/no-unused-vars
 			_flags: number
 		) {
 			if (!FS.isFile(stream.node.mode)) {

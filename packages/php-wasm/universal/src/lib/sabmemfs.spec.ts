@@ -39,7 +39,8 @@ function createMockFS() {
 		getDevice() {
 			return { stream_ops: {} };
 		},
-		mount(fsType: any, opts: any, _mountpoint: string) {
+		// eslint-disable-next-line @typescript-eslint/no-unused-vars
+	mount(fsType: any, opts: any, _mountpoint: string) {
 			return fsType.mount({ opts });
 		},
 		ErrnoError: class ErrnoError extends Error {
@@ -60,10 +61,12 @@ function createMockFS() {
 class FSDriver {
 	rootNode: any;
 
-	constructor(
-		private FS: any,
-		private buffers: SABMemFSBuffers
-	) {
+	private FS: any;
+	private buffers: SABMemFSBuffers;
+
+	constructor(FS: any, buffers: SABMemFSBuffers) {
+		this.FS = FS;
+		this.buffers = buffers;
 		const fsType = SharedSABFS(FS, buffers);
 		this.rootNode = fsType.mount({ opts: {} });
 	}
@@ -367,7 +370,6 @@ describe('SABMEMFS', () => {
 			const driver2 = new FSDriver(fs2, buffers);
 
 			driver.mkdir('/common');
-			const commonNode = driver.lookup('/common');
 			driver.createFile('/common/a.txt', 'A');
 			driver.createFile('/common/b.txt', 'B');
 
@@ -392,11 +394,7 @@ describe('SABMEMFS', () => {
 
 	describe('edge cases', () => {
 		it('should handle long filenames (up to 127 bytes)', () => {
-			const longName = 'a'.repeat(127) + '.txt';
-			// This should fail because 127 + 4 = 131 > 127
-			// Max is 127 bytes (128 - 1 null terminator)
-			// Actually our limit is I_NAME_WORDS * 4 - 1 = 127
-			// So 'a'.repeat(127) + '.txt' = 131 bytes, which exceeds
+			// Max is I_NAME_WORDS * 4 - 1 = 127 bytes
 			const shortName = 'a'.repeat(120) + '.txt';
 			const node = driver.createFile('/' + shortName, 'data');
 			expect(driver.readFileAsText(node)).toBe('data');

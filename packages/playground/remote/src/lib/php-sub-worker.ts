@@ -31,7 +31,7 @@ import type {
 	FileTree,
 	SABMemFSBuffers,
 } from '@php-wasm/universal';
-import { loadWebRuntime, generateCertificate, certificateToPEM } from '@php-wasm/web';
+import { loadWebRuntime, generateCertificate } from '@php-wasm/web';
 import type { TCPOverFetchOptions } from '@php-wasm/web';
 import { WordPressFetchNetworkTransport } from './wordpress-fetch-network-transport';
 
