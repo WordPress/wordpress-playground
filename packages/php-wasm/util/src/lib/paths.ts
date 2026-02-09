@@ -5,8 +5,6 @@
  * same path helpers.
  */
 
-import path from 'path';
-
 /**
  * Joins paths together.
  *
@@ -196,7 +194,7 @@ export function ensureAbsolutePath(path: string) {
  * @see https://github.com/emscripten-core/emscripten/issues/17829
  */
 export function toPosixPath(nativePath: string): string {
-	let result = nativePath.replaceAll(path.sep, path.posix.sep);
+	let result = nativePath.replaceAll('\\', '/');
 	// Handle Windows drive letter: C:/ → /C/
 	const driveMatch = result.match(/^([A-Za-z]):\//);
 	if (driveMatch) {
