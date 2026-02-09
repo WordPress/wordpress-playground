@@ -8,6 +8,8 @@
 /**
  * Joins paths together.
  *
+ * Joins paths together.
+ *
  * For example:
  *
  * > joinPaths('wordpress', 'wp-content')
