@@ -9,6 +9,7 @@ export {
 	normalizePath,
 	isParentOf,
 	ensureAbsolutePath,
+	toPosixPath,
 } from './paths';
 export { createSpawnHandler } from './create-spawn-handler';
 export { randomString } from './random-string';
