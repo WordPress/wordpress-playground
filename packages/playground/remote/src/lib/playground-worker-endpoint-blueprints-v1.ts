@@ -239,7 +239,7 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 				const primaryPhp = await requestHandler.getPrimaryPhp();
 				const workerPool = new WorkerPoolInstanceManager({
 					primaryPhp,
-					maxWorkers: 2,
+					maxWorkers: 3,
 					subWorkerConfig: {
 						phpVersion: phpVersion!,
 						withIntl,
@@ -266,7 +266,7 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 				requestHandler.instanceManager = workerPool;
 				this.workerPool = workerPool;
 				logger.log(
-					'[WorkerPool] Replaced instance manager with worker pool (maxWorkers=2)'
+					`[WorkerPool] Replaced instance manager with worker pool (maxWorkers=3)`
 				);
 			}
 
