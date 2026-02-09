@@ -161,6 +161,11 @@ export class WorkerPoolInstanceManager implements PHPInstanceManager {
 	private workers: PooledWorker[] = [];
 	private idleWorkers: PooledWorker[] = [];
 	private semaphore: Semaphore;
+	/**
+	 * Limits background (loopback) requests to maxWorkers - 1, so at
+	 * least one worker is always available for user-facing navigation.
+	 */
+	private backgroundSemaphore: Semaphore;
 	private nextWorkerId = 1;
 	/**
 	 * Resolves once all workers have been pre-spawned. Requests
@@ -173,9 +178,15 @@ export class WorkerPoolInstanceManager implements PHPInstanceManager {
 		this.primaryPhp = config.primaryPhp;
 		this.maxWorkers = config.maxWorkers;
 		this.subWorkerConfig = config.subWorkerConfig;
+
+		const timeout = config.timeout || 30000;
 		this.semaphore = new Semaphore({
 			concurrency: this.maxWorkers,
-			timeout: config.timeout || 30000,
+			timeout,
+		});
+		this.backgroundSemaphore = new Semaphore({
+			concurrency: Math.max(1, this.maxWorkers - 1),
+			timeout,
 		});
 
 		// Pre-spawn all workers eagerly so they're ready when the
@@ -198,14 +209,36 @@ export class WorkerPoolInstanceManager implements PHPInstanceManager {
 		return this.primaryPhp;
 	}
 
-	async acquirePHPInstance(): Promise<AcquiredPHP> {
+	async acquirePHPInstance(options?: {
+		priority?: 'normal' | 'background';
+	}): Promise<AcquiredPHP> {
 		// Wait for pre-spawned workers to be ready before acquiring.
 		await this.spawnReady;
+
+		const isBackground = options?.priority === 'background';
+		const tag = isBackground ? ' [bg]' : '';
+
+		// Background requests must acquire the background semaphore
+		// first, which limits them to maxWorkers - 1 so at least one
+		// worker stays free for user-facing navigation.
+		let releaseBackgroundSemaphore: (() => void) | undefined;
+		if (isBackground) {
+			try {
+				releaseBackgroundSemaphore =
+					await this.backgroundSemaphore.acquire();
+			} catch (error) {
+				if (error instanceof AcquireTimeoutError) {
+					throw new MaxPhpInstancesError(this.maxWorkers);
+				}
+				throw error;
+			}
+		}
 
 		let releaseSemaphore: () => void;
 		try {
 			releaseSemaphore = await this.semaphore.acquire();
 		} catch (error) {
+			releaseBackgroundSemaphore?.();
 			if (error instanceof AcquireTimeoutError) {
 				throw new MaxPhpInstancesError(this.maxWorkers);
 			}
@@ -217,6 +250,7 @@ export class WorkerPoolInstanceManager implements PHPInstanceManager {
 			pooledWorker = await this.getOrSpawnWorker();
 		} catch (error) {
 			releaseSemaphore();
+			releaseBackgroundSemaphore?.();
 			throw error;
 		}
 
@@ -224,7 +258,7 @@ export class WorkerPoolInstanceManager implements PHPInstanceManager {
 
 		const workerId = pooledWorker.id;
 		// eslint-disable-next-line no-console
-		console.log(`[WorkerPool] Worker #${workerId} acquired`);
+		console.log(`[WorkerPool] Worker #${workerId} acquired${tag}`);
 
 		return {
 			// Cast the proxy to PHP. PHPRequestHandler's #dispatchToPHP
@@ -232,10 +266,11 @@ export class WorkerPoolInstanceManager implements PHPInstanceManager {
 			php: pooledWorker.proxy as unknown as PHP,
 			reap: () => {
 				// eslint-disable-next-line no-console
-				console.log(`[WorkerPool] Worker #${workerId} released`);
+				console.log(`[WorkerPool] Worker #${workerId} released${tag}`);
 				pooledWorker.busy = false;
 				this.idleWorkers.push(pooledWorker);
 				releaseSemaphore();
+				releaseBackgroundSemaphore?.();
 			},
 		};
 	}

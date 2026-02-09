@@ -54,7 +54,9 @@ export class SinglePHPInstanceManager implements PHPInstanceManager {
 		return this.php;
 	}
 
-	async acquirePHPInstance(): Promise<AcquiredPHP> {
+	async acquirePHPInstance(_options?: {
+		priority?: 'normal' | 'background';
+	}): Promise<AcquiredPHP> {
 		if (this.isAcquired) {
 			throw new Error(
 				'The PHP instance already acquired. SinglePHPInstanceManager cannot spawn another PHP instance since, by definition, it only manages a single PHP instance.'

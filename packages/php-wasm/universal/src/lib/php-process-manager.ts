@@ -105,7 +105,9 @@ export class PHPProcessManager implements PHPInstanceManager {
 	 * @throws {MaxPhpInstancesError} when the timeout is reached waiting
 	 *                                for an available instance.
 	 */
-	async acquirePHPInstance(): Promise<AcquiredPHP> {
+	async acquirePHPInstance(_options?: {
+		priority?: 'normal' | 'background';
+	}): Promise<AcquiredPHP> {
 		let releaseSemaphore: () => void;
 		try {
 			releaseSemaphore = await this.semaphore.acquire();

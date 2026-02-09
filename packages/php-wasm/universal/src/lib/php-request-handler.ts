@@ -589,8 +589,12 @@ export class PHPRequestHandler implements AsyncDisposable {
 		scriptPath: string
 	): Promise<PHPResponse> {
 		let spawnedPHP: AcquiredPHP | undefined = undefined;
+		const isLoopback =
+			request.headers?.['x-playground-loopback'] === 'true';
 		try {
-			spawnedPHP = await this.instanceManager!.acquirePHPInstance();
+			spawnedPHP = await this.instanceManager!.acquirePHPInstance(
+				isLoopback ? { priority: 'background' } : undefined
+			);
 		} catch (e) {
 			if (e instanceof MaxPhpInstancesError) {
 				return PHPResponse.forHttpCode(502);

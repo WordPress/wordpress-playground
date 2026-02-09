@@ -150,6 +150,12 @@ export class WordPressFetchNetworkTransport {
 				data.headers = Object.fromEntries(data.headers);
 			}
 
+			// Tag every PHP-initiated fetch with a loopback header so
+			// the service worker → PHPRequestHandler path can
+			// identify these as background requests and limit their
+			// concurrency, reserving a worker for user navigation.
+			data.headers['x-playground-loopback'] = 'true';
+
 			const corsProxyUrl = this.options?.corsProxyUrl;
 			const playgroundUrl =
 				this.options?.siteUrl ?? (await playground.absoluteUrl);

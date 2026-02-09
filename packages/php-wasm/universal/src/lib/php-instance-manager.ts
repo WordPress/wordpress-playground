@@ -31,7 +31,12 @@ export interface PHPInstanceManager extends AsyncDisposable {
 	/**
 	 * Acquire a PHP instance for processing a request.
 	 *
+	 * @param options - Optional. Set priority to 'background' for
+	 *   internal loopback requests so that at least one worker
+	 *   remains available for user-facing navigation.
 	 * @returns An acquired PHP instance with a reap function.
 	 */
-	acquirePHPInstance(): Promise<AcquiredPHP>;
+	acquirePHPInstance(options?: {
+		priority?: 'normal' | 'background';
+	}): Promise<AcquiredPHP>;
 }
