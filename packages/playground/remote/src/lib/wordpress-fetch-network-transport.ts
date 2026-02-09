@@ -17,6 +17,14 @@ export interface RequestMessage {
 
 export interface SetupFetchNetworkTransportOptions {
 	corsProxyUrl?: string;
+	/**
+	 * The absolute site URL (e.g. "http://localhost/scope:xyz/").
+	 * When provided, this is used instead of `playground.absoluteUrl`
+	 * which requires a PHPRequestHandler to be attached to the PHP
+	 * instance. Sub-workers don't have a request handler, so they
+	 * pass the site URL explicitly.
+	 */
+	siteUrl?: string;
 }
 
 type WordPressRequest = {
@@ -143,7 +151,8 @@ export class WordPressFetchNetworkTransport {
 			}
 
 			const corsProxyUrl = this.options?.corsProxyUrl;
-			const playgroundUrl = await playground.absoluteUrl;
+			const playgroundUrl =
+				this.options?.siteUrl ?? (await playground.absoluteUrl);
 			return handleRequest(data, (url: any, options: any) =>
 				fetchWithCorsProxy(url, options, corsProxyUrl, playgroundUrl)
 			);

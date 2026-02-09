@@ -120,6 +120,7 @@ const methods: Record<string, (...args: any[]) => Promise<any>> = {
 		if (withNetworking) {
 			const transport = new WordPressFetchNetworkTransport({
 				corsProxyUrl,
+				siteUrl: config.siteUrl,
 			});
 			await transport.setupMessageHandler(php);
 			await transport.setEnabled(php, true);
