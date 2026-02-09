@@ -25,7 +25,6 @@ import {
 } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { PHPMYADMIN_INSTALL_PATH } from '@wp-playground/tools';
-import { MinifiedWordPressVersionsList } from '@wp-playground/wordpress-builds';
 import { type Log, logger } from '@php-wasm/logger';
 
 const blueprintVersions = [
@@ -201,6 +200,8 @@ describe.each(blueprintVersions)(
 		test.skipIf(isBlueprintsV2OnWindows)(
 			'should set WordPress version',
 			async () => {
+				const { MinifiedWordPressVersionsList } =
+					await import('@wp-playground/wordpress-builds');
 				const oldestSupportedVersion =
 					MinifiedWordPressVersionsList[
 						MinifiedWordPressVersionsList.length - 1

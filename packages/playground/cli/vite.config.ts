@@ -1,5 +1,7 @@
 /// <reference types="vitest" />
-import { join } from 'path';
+import { copyFileSync } from 'fs';
+import { createRequire } from 'module';
+import { dirname, join } from 'path';
 import { pathToFileURL } from 'url';
 import { type PluginOption, defineConfig } from 'vite';
 import dts from 'vite-plugin-dts';
@@ -133,6 +135,32 @@ const plugins = [
 					map: null,
 				};
 			}
+		},
+	},
+	/**
+	 * Copies the bundled SQLite integration plugin zip into the
+	 * output directory so the built CLI can read it at runtime.
+	 */
+	{
+		name: 'copy-sqlite-zip-to-output',
+
+		writeBundle(options) {
+			const outputDir = options.dir;
+			if (!outputDir) return;
+
+			const require = createRequire(import.meta.url);
+			const wpBuildsRoot = dirname(
+				require.resolve('@wp-playground/wordpress-builds/package.json')
+			);
+			copyFileSync(
+				join(
+					wpBuildsRoot,
+					'src',
+					'sqlite-database-integration',
+					'sqlite-database-integration-trunk.zip'
+				),
+				join(outputDir, 'sqlite-database-integration.zip')
+			);
 		},
 	},
 	...viteGlobalExtensions,

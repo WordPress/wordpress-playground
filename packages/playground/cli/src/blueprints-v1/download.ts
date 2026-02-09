@@ -1,19 +1,32 @@
 import type { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import fs from 'fs-extra';
+import { createRequire } from 'module';
 import os from 'os';
 import path, { basename } from 'path';
 
 export const CACHE_FOLDER = path.join(os.homedir(), '.wordpress-playground');
 
-export async function fetchSqliteIntegration(
-	monitor: EmscriptenDownloadMonitor
-) {
-	const sqliteZip = await cachedDownload(
-		'https://github.com/WordPress/sqlite-database-integration/archive/refs/heads/trunk.zip',
-		'sqlite.zip',
-		monitor
-	);
-	return sqliteZip;
+export async function fetchSqliteIntegration(): Promise<File> {
+	// Production builds: the ZIP sits next to the bundled JS.
+	const dir =
+		typeof __dirname !== 'undefined' ? __dirname : import.meta.dirname;
+	let zipPath = path.join(dir, 'sqlite-database-integration.zip');
+
+	// Dev mode: locate via the wordpress-builds package.
+	if (!fs.existsSync(zipPath)) {
+		const require = createRequire(import.meta.url);
+		const wpBuildsDir = path.dirname(
+			require.resolve('@wp-playground/wordpress-builds/package.json')
+		);
+		zipPath = path.join(
+			wpBuildsDir,
+			'src',
+			'sqlite-database-integration',
+			'sqlite-database-integration-trunk.zip'
+		);
+	}
+
+	return new File([await fs.readFile(zipPath)], path.basename(zipPath));
 }
 
 // @TODO: Support HTTP cache, invalidate the local file if the remote file has

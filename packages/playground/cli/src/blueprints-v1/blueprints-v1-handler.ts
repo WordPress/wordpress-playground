@@ -115,7 +115,7 @@ export class BlueprintsV1Handler {
 			sqliteIntegrationPluginZip = undefined;
 		} else {
 			this.cliOutput.updateProgress('Preparing SQLite database');
-			sqliteIntegrationPluginZip = await fetchSqliteIntegration(monitor);
+			sqliteIntegrationPluginZip = await fetchSqliteIntegration();
 		}
 
 		const followSymlinks = this.args.followSymlinks === true;
