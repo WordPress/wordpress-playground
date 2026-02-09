@@ -105,7 +105,7 @@ test('WordPress admin dashboard should load with SABMEMFS', async ({
 
 	// The dashboard should load without crashes
 	await expect(
-		wordpress.locator('#dashboard-widgets-wrap, .wrap h1')
+		wordpress.locator('#dashboard-widgets-wrap')
 	).toBeVisible({
 		timeout: 60000,
 	});
