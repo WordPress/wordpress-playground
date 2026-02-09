@@ -578,7 +578,7 @@ describe('SABMEMFS', () => {
 		it('should create buffers with default sizes', () => {
 			const b = createSABMemFSBuffers();
 			expect(b.metaBuf.byteLength).toBe(16 << 20); // 16 MB
-			expect(b.dataBuf.byteLength).toBe(256 << 20); // 256 MB
+			expect(b.dataBuf.byteLength).toBe(512 << 20); // 512 MB
 		});
 
 		it('should create buffers with custom sizes', () => {

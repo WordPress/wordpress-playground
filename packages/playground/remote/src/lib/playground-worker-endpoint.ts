@@ -28,7 +28,7 @@ import transportFetch from './playground-mu-plugin/playground-includes/wp_http_f
 /* @ts-ignore */
 import transportDummy from './playground-mu-plugin/playground-includes/wp_http_dummy.php?raw';
 import { logger } from '@php-wasm/logger';
-import type { PHP, SupportedPHPVersion } from '@php-wasm/universal';
+import type { PHP, SupportedPHPVersion, PHPRunOptions, StreamedPHPResponse } from '@php-wasm/universal';
 import {
 	PHPResponse,
 	PHPWorker,
@@ -377,6 +377,37 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 	}
 
 	// NOTE: Version-specific boot methods are implemented in the concrete worker entrypoints
+
+	/**
+	 * Override run() to always use the primary PHP instance.
+	 *
+	 * Blueprint steps call playground.writeFile() then playground.run()
+	 * and expect them to share the same local MEMFS (e.g. /tmp).
+	 * writeFile() always writes to the primary PHP's filesystem, so
+	 * run() must also use the primary PHP — not a sub-worker from
+	 * the pool — or the temp files won't be visible.
+	 *
+	 * HTTP requests still go through the pool via request() for
+	 * parallelism.
+	 */
+	override async run(
+		request: PHPRunOptions
+	): Promise<PHPResponse> {
+		const php = await this.__internal_getRequestHandler()!.getPrimaryPhp();
+		return await php.run(request);
+	}
+
+	/**
+	 * Override cli() to always use the primary PHP instance, for the
+	 * same reason as run() above.
+	 */
+	override async cli(
+		argv: string[],
+		options?: { env?: Record<string, string> }
+	): Promise<StreamedPHPResponse> {
+		const php = await this.__internal_getRequestHandler()!.getPrimaryPhp();
+		return await php.cli(argv, options);
+	}
 
 	/**
 	 * @returns WordPress module details, including the static assets directory and default theme.

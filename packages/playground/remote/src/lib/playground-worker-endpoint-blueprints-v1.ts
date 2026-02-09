@@ -236,12 +236,6 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 			if (enableSABMemFS && wpBuffers) {
 				logger.log('[SABMEMFS] WordPress booted on SABMEMFS');
 
-				// Replace the in-process PHPProcessManager with a
-				// WorkerPoolInstanceManager that runs each PHP
-				// instance in its own dedicated web worker.
-				// All sub-workers mount the same SABMEMFS buffers,
-				// so they share the /wordpress filesystem via
-				// SharedArrayBuffer while executing in parallel.
 				const primaryPhp = await requestHandler.getPrimaryPhp();
 				const workerPool = new WorkerPoolInstanceManager({
 					primaryPhp,
@@ -328,6 +322,33 @@ function readDirAsFileTree(php: PHP, dirPath: string): FileTree {
 	return tree;
 }
 
+/** Extensions that are safe to read as UTF-8 text. */
+const TEXT_EXTENSIONS = new Set([
+	'.php',
+	'.txt',
+	'.html',
+	'.htm',
+	'.css',
+	'.js',
+	'.json',
+	'.xml',
+	'.svg',
+	'.md',
+	'.crt',
+	'.pem',
+	'.ini',
+	'.yml',
+	'.yaml',
+	'.conf',
+	'.cfg',
+	'.htaccess',
+]);
+
+function isTextFile(name: string): boolean {
+	const dot = name.lastIndexOf('.');
+	return dot >= 0 && TEXT_EXTENSIONS.has(name.slice(dot).toLowerCase());
+}
+
 function readDirContents(php: PHP, dirPath: string): FileTree {
 	const tree: FileTree = {};
 	const entries = php.listFiles(dirPath);
@@ -335,8 +356,10 @@ function readDirContents(php: PHP, dirPath: string): FileTree {
 		const fullPath = dirPath + '/' + entry;
 		if (php.isDir(fullPath)) {
 			tree[entry] = readDirContents(php, fullPath);
-		} else {
+		} else if (isTextFile(entry)) {
 			tree[entry] = php.readFileAsText(fullPath);
+		} else {
+			tree[entry] = php.readFileAsBuffer(fullPath);
 		}
 	}
 	return tree;

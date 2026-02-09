@@ -29,12 +29,13 @@
  *    │  Name stored inline: 128 bytes = 32 int32s                     │
  *    └─────────────────────────────────────────────────────────────────┘
  *
- * 2. **Data buffer** (default 256 MiB) — viewed as Uint8Array
+ * 2. **Data buffer** (default 512 MiB) — viewed as Uint8Array
  *    Linear bump allocator. Once allocated, a region is never freed
  *    (files that grow get a new, larger allocation; the old region is
- *    abandoned). This is acceptable because Playground sessions are
- *    short-lived and the 256 MiB ceiling is generous for a WordPress
- *    install (~60 MiB typical).
+ *    abandoned). To minimise waste, `writeBytes` and `pushChild`
+ *    extend the current allocation in-place when it sits at the tip
+ *    of the bump pointer. This is the common case during ZIP
+ *    extraction where a file is written in sequential chunks.
  */
 
 // ────────────────────────────── Constants ──────────────────────────────
@@ -96,11 +97,11 @@ export type SABMemFSBuffers = {
  * Allocate a fresh pair of SharedArrayBuffers for a new SABMEMFS.
  *
  * @param metaBytes Size of the metadata buffer in bytes (default 16 MiB).
- * @param dataBytes Size of the data buffer in bytes (default 256 MiB).
+ * @param dataBytes Size of the data buffer in bytes (default 512 MiB).
  */
 export function createSABMemFSBuffers(
 	metaBytes = 16 << 20,
-	dataBytes = 256 << 20
+	dataBytes = 512 << 20
 ): SABMemFSBuffers {
 	return {
 		metaBuf: new SharedArrayBuffer(metaBytes),
@@ -301,6 +302,31 @@ export function SharedSABFS(
 		return cur;
 	}
 
+	/**
+	 * Try to extend an existing allocation at `start` with capacity
+	 * `oldCap` to `newCap` bytes. Returns true if the extension
+	 * succeeded (the allocation was at the tip of the bump pointer),
+	 * false otherwise. Must be called while holding the lock.
+	 */
+	function tryExtendAlloc(
+		start: number,
+		oldCap: number,
+		newCap: number
+	): boolean {
+		if (start < 0) return false;
+		const tipAligned = (L(meta, H_NEXT_DATA) + 3) & ~3;
+		if (start + oldCap === tipAligned) {
+			// This allocation is at the tip — extend in place.
+			const extra = newCap - oldCap;
+			if (tipAligned + extra > dataBuf.byteLength) {
+				return false; // would exceed buffer
+			}
+			S(meta, H_NEXT_DATA, tipAligned + extra);
+			return true;
+		}
+		return false;
+	}
+
 	// ────────────── Directory child vector helpers ──────────────
 
 	// Directory "contents" is an array of child inode IDs stored in the
@@ -333,19 +359,29 @@ export function SharedSABFS(
 		let start = L(meta, dirOff + I_DATA_OFF);
 
 		if (cnt >= cap) {
-			// Grow: allocate a new vector
+			// Grow: try in-place extension first, fall back to
+			// fresh allocation.
 			const newCap = Math.max(cap ? cap * 2 : 8, cnt + 1);
-			const newStart = allocData(newCap * 4);
-			// Copy old entries
-			if (cnt > 0 && start >= 0) {
-				const src = new Int32Array(dataBuf, start, cnt);
-				const dst = new Int32Array(dataBuf, newStart, newCap);
-				dst.set(src);
+			if (
+				start >= 0 &&
+				cap > 0 &&
+				tryExtendAlloc(start, cap * 4, newCap * 4)
+			) {
+				cap = newCap;
+				S(meta, dirOff + I_CAP, cap);
+			} else {
+				const newStart = allocData(newCap * 4);
+				// Copy old entries
+				if (cnt > 0 && start >= 0) {
+					const src = new Int32Array(dataBuf, start, cnt);
+					const dst = new Int32Array(dataBuf, newStart, newCap);
+					dst.set(src);
+				}
+				start = newStart;
+				cap = newCap;
+				S(meta, dirOff + I_DATA_OFF, start);
+				S(meta, dirOff + I_CAP, cap);
 			}
-			start = newStart;
-			cap = newCap;
-			S(meta, dirOff + I_DATA_OFF, start);
-			S(meta, dirOff + I_CAP, cap);
 		}
 
 		// Append
@@ -470,15 +506,31 @@ export function SharedSABFS(
 					end,
 					cap ? (cap < 1 << 20 ? cap * 2 : (cap * 9) >> 3) : 256
 				);
-				const nOff = allocData(ncap);
-				// Copy old data if any
-				if (size > 0 && start >= 0) {
-					data8.set(data8.slice(start, start + size), nOff);
+
+				// Try to extend the current allocation in place
+				// (common case: sequential writes during ZIP
+				// extraction).
+				if (
+					start >= 0 &&
+					cap > 0 &&
+					tryExtendAlloc(start, cap, ncap)
+				) {
+					cap = ncap;
+					S(meta, off + I_CAP, cap);
+				} else {
+					const nOff = allocData(ncap);
+					// Copy old data if any
+					if (size > 0 && start >= 0) {
+						data8.set(
+							data8.subarray(start, start + size),
+							nOff
+						);
+					}
+					start = nOff;
+					cap = ncap;
+					S(meta, off + I_DATA_OFF, start);
+					S(meta, off + I_CAP, cap);
 				}
-				start = nOff;
-				cap = ncap;
-				S(meta, off + I_DATA_OFF, start);
-				S(meta, off + I_CAP, cap);
 			}
 
 			// Zero-fill gap if writing past current end
@@ -638,10 +690,15 @@ export function SharedSABFS(
 		rename(o: any, nd: any, nn: string) {
 			lock();
 			try {
-				removeChild(ioff(L(meta, ioff(o.sabId) + I_PARENT)), o.sabId);
+				const oldParentId = L(meta, ioff(o.sabId) + I_PARENT);
+				removeChild(ioff(oldParentId), o.sabId);
 				S(meta, ioff(o.sabId) + I_PARENT, nd.sabId);
 				putName(ioff(o.sabId), nn);
 				pushChild(ioff(nd.sabId), o.sabId);
+				// Update Emscripten node properties so the hash
+				// table stays consistent after FS.rename().
+				o.name = nn;
+				o.parent = nd;
 			} finally {
 				unlock();
 			}
