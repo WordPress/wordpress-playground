@@ -18,6 +18,19 @@ export interface ServerOptions {
 	handleRequest: (request: PHPRequest) => Promise<StreamedPHPResponse>;
 }
 
+export function isPortInUse(port: number): Promise<boolean> {
+	return new Promise((resolve) => {
+		if (port === 0) return resolve(false);
+
+		const server = express().listen(port);
+
+		server.once('listening', () => server.close(() => resolve(false)));
+		server.once('error', (error: NodeJS.ErrnoException) =>
+			resolve(error.code === 'EADDRINUSE')
+		);
+	});
+}
+
 export async function startServer(
 	options: ServerOptions
 ): Promise<RunCLIServer | void> {

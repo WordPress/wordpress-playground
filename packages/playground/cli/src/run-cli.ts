@@ -40,7 +40,7 @@ import {
 	parseDefineBoolArguments,
 	parseDefineNumberArguments,
 } from './defines';
-import { startServer } from './start-server';
+import { isPortInUse, startServer } from './start-server';
 import type { PlaygroundCliBlueprintV1Worker } from './blueprints-v1/worker-thread-v1';
 import type { PlaygroundCliBlueprintV2Worker } from './blueprints-v2/worker-thread-v2';
 /* eslint-disable no-console */
@@ -338,7 +338,6 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 			port: {
 				describe: 'Port to listen on when serving.',
 				type: 'number',
-				default: 9400,
 			},
 			'experimental-multi-worker': {
 				deprecated:
@@ -382,7 +381,6 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 			port: {
 				describe: 'Port to listen on.',
 				type: 'number',
-				default: 9400,
 			},
 			blueprint: {
 				describe:
@@ -983,17 +981,13 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 	let isFirstRequest = true;
 
 	const server = await startServer({
-		port: selectedPort,
-		onError: (error: NodeJS.ErrnoException) => {
-			cliOutput.printError(error.message);
-			switch (error.code) {
-				case 'EADDRINUSE':
-					cliOutput.printInfo(
-						'Use the --port flag to specify a different port.',
-						true
-					);
-			}
-		},
+		port: args.port
+			? args.port
+			: !(await isPortInUse(selectedPort))
+				? selectedPort
+				: 0,
+		onError: (error: NodeJS.ErrnoException) =>
+			cliOutput.printError(error.message),
 		onBind: async (server: Server, port: number) => {
 			const host = '127.0.0.1';
 			const serverUrl = `http://${host}:${port}`;
