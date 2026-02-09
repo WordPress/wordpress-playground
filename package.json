@@ -98,7 +98,7 @@
 		"crc-32": "1.2.2",
 		"diff3": "0.0.4",
 		"express": "4.22.0",
-		"fast-xml-parser": "5.3.0",
+		"fast-xml-parser": "^5.3.4",
 		"file-saver": "^2.0.5",
 		"fs-extra": "11.1.1",
 		"ini": "4.1.2",
@@ -142,7 +142,7 @@
 		"@types/fs-extra": "11.0.4",
 		"@types/ini": "4.1.0",
 		"@types/jest": "29.5.14",
-		"@types/node": "20.14.8",
+		"@types/node": "22.19.8",
 		"@types/pako": "1.0.4",
 		"@types/react": "18.3.1",
 		"@types/react-dom": "18.3.0",
@@ -177,7 +177,6 @@
 		"eslint-plugin-playground-dev": "file:packages/meta/src/eslint-plugin-playground-dev",
 		"eslint-plugin-react": "7.37.5",
 		"eslint-plugin-react-hooks": "5.2.0",
-		"glob": "^9.3.0",
 		"husky": "8.0.3",
 		"jest": "29.7.0",
 		"jsdom": "22.1.0",
@@ -214,7 +213,9 @@
 		"@playwright/test": "1.55.1",
 		"ws": "8.18.3",
 		"tmp": "0.2.5",
-		"form-data": "^4.0.4"
+		"form-data": "^4.0.4",
+		"lodash": "^4.17.23",
+		"glob": "^9.3.0"
 	},
 	"workspaces": [
 		"packages/nx-extensions",
@@ -224,8 +225,8 @@
 		"packages/playground/*"
 	],
 	"engines": {
-		"node": ">=20.18.3",
-		"npm": ">=10.1.0"
+		"node": ">=22.12.0",
+		"npm": ">=10.9.0"
 	},
 	"optionalDependencies": {
 		"fs-ext": "2.1.1"

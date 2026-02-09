@@ -9,11 +9,24 @@ WordPress Playground is under active development and has some limitations you sh
 
 You can track the status of these issues on the [Playground Project board](https://github.com/orgs/WordPress/projects/180).
 
-## In the browser
+## In the browser {#in-the-browser}
 
-### Temporary by design
+### Temporary by design {#temporary-by-design}
 
-As Playground [streams rather than serves](/about#streamed-not-served) WordPress, all database changes and uploads will be gone when you refresh the page. To avoid losing your work, either [export your work](/quick-start-guide#save-your-site) before or enable storage in the browser/device via the "Save" button found in the top right on the side of the address bar.
+Playground creates fresh WordPress instances on each page load. Refreshing the browser page discards all database changes, uploads, and modifications.
+
+**Why this happens**: Playground streams WordPress directly to your browser rather than serving it from a traditional server. Each refresh starts a clean slate.
+
+**To persist your work:**
+
+- **Save**: Enable browser storage via the "Save" button (top right, next to address bar), before refreshing the page via the browser bar.
+- **For development**: Use [Playground CLI](/developers/local-development/wp-playground-cli) which supports persistent local storage
+
+:::tip
+The dedicated refresh button inside Playground only reloads WordPress content—it preserves your PHP/WP state. The browser's refresh button (F5 or Cmd+R) destroys the entire instance.
+:::
+
+![Refresh Playground Button](@site/static/img/refresh-playground-button.webp)
 
 <blockquote>
 <figure>
@@ -31,7 +44,7 @@ As Playground [streams rather than serves](/about#streamed-not-served) WordPress
 </figure>
 </blockquote>
 
-### Browser support
+### Browser support {#browser-support}
 
 WordPress Playground is designed to work across all major desktop and mobile browsers. This includes:
 
@@ -40,18 +53,38 @@ WordPress Playground is designed to work across all major desktop and mobile bro
 
 Playground leverages modern web technologies and should function consistently across these browser environments. However, some advanced features may have varying levels of support depending on the specific browser and its version.
 
+### Performance expectations {#performance-expectations}
+
+Loading times vary based on what Playground needs to set up:
+
+| Scenario                               | Typical Load Time          |
+| -------------------------------------- | -------------------------- |
+| Fresh WordPress (no plugins)           | 5-10 seconds               |
+| With small plugins                     | 10-20 seconds              |
+| With large plugins (e.g., WooCommerce) | 30-60 seconds              |
+| On mobile devices                      | 1.5-2x slower than desktop |
+
+![Save Button](@site/static/img/playground-performance-graph.webp)
+
+**Factors that affect performance:**
+
+- **Plugin size**: Large plugins take longer to install at runtime
+- **Network speed**: WASM files are 15-30MB
+- **Device memory**: Low-memory devices may experience slowdowns
+- **Browser**: Chrome/Edge perform best; Safari slightly slower
+
 <blockquote>
 <strong>Note:</strong> Opera Mini support is not currently confirmed.
 </blockquote>
 
-## When developing with Playground
+## When developing with Playground {#when-developing-with-playground}
 
-### Iframe quirks
+### Iframe quirks {#iframe-quirks}
 
 Playground renders WordPress in an [`iframe`](/developers/architecture/browser-iframe-rendering) so clicking links with `target="_top"` will reload the page you’re working on.
 Also, JavaScript popups originating in the `iframe` may not always display.
 
-### Run WordPress PHP functions
+### Run WordPress PHP functions {#run-wordpress-php-functions}
 
 Playground supports running PHP code in Blueprints using the [`runPHP` step](/blueprints/steps#RunPHPStep). To run WordPress-specific PHP functions, you’d need to first require [wp-load.php](https://github.com/WordPress/WordPress/blob/master/wp-load.php):
 
@@ -62,6 +95,6 @@ Playground supports running PHP code in Blueprints using the [`runPHP` step](/
 }
 ```
 
-### Using WP-CLI
+### Using WP-CLI {#using-wp-cli}
 
 You can execute `wp-cli` commands via the Blueprints [`wp-cli`](/blueprints/steps#WPCLIStep) step. However, since Playground runs in the browser, it doesn't support the [full array](https://developer.wordpress.org/cli/commands/) of available commands. While there is no definite list of supported commands, experimenting in [the online demo](https://playground.wordpress.net/demos/wp-cli.html) will help you assess what's possible.

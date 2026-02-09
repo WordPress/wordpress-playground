@@ -4,6 +4,72 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
+## [v3.0.47] (2026-02-02) 
+
+### Blueprints
+
+- Fix wp-cli step failing on STDERR output with successful exit codes. ([#3210](https://github.com/WordPress/wordpress-playground/pull/3210))
+
+### PHP WebAssembly
+
+- [PHP web] Lower initial memory allocation for PHP instances. ([#3192](https://github.com/WordPress/wordpress-playground/pull/3192))
+- [PHPProcessManager] Spawn at most 2 PHP instances. ([#3187](https://github.com/WordPress/wordpress-playground/pull/3187))
+- [PHP] Remove `considerPrimary` option from acquirePHPInstance. ([#3191](https://github.com/WordPress/wordpress-playground/pull/3191))
+
+### Website
+
+- Disable pattern picker modal to prevent iOS Safari OOM crashes. ([#3226](https://github.com/WordPress/wordpress-playground/pull/3226))
+- Fix Safari PWA cache failures by stripping Range headers. ([#3200](https://github.com/WordPress/wordpress-playground/pull/3200))
+- Replace .blob() with .arrayBuffer() to avoid disk space errors. ([#3212](https://github.com/WordPress/wordpress-playground/pull/3212))
+- Retry import("main.js") when it fails in Safari. ([#3216](https://github.com/WordPress/wordpress-playground/pull/3216))
+- Fix Safari loading stale index.html after deployments. ([#3208](https://github.com/WordPress/wordpress-playground/pull/3208))
+- Improve OAuth flow for private GitHub repositories. ([#3181](https://github.com/WordPress/wordpress-playground/pull/3181))
+
+### Internal
+
+- [php-wasm-progress] Add a throttle of 500 milliseconds to the notify function. ([#3198](https://github.com/WordPress/wordpress-playground/pull/3198))
+
+### Bug Fixes
+
+- Fix Bad Gateway and optimize PHP workers. ([#3219](https://github.com/WordPress/wordpress-playground/pull/3219))
+- Fix Xdebug hang in packaged Electron apps. ([#3125](https://github.com/WordPress/wordpress-playground/pull/3125))
+
+### Various
+
+- Load SQLite driver from `trunk` instead of `develop`. ([#3206](https://github.com/WordPress/wordpress-playground/pull/3206))
+- Translate title and description for 08-examples.md. ([#3166](https://github.com/WordPress/wordpress-playground/pull/3166))
+- [Docs] Document git:Directory resource options. ([#3179](https://github.com/WordPress/wordpress-playground/pull/3179))
+- [Docs] Update translations and configuration in docusaurus.config.js. ([#3176](https://github.com/WordPress/wordpress-playground/pull/3176))
+- [Personal-WP] Port Safari fixes from website package. ([#3221](https://github.com/WordPress/wordpress-playground/pull/3221))
+- [Website] Fix Safari failing to import main module after deployments. ([#3215](https://github.com/WordPress/wordpress-playground/pull/3215))
+- [Website] Fix plugin-proxy artifact lookup for busy repos. ([#3211](https://github.com/WordPress/wordpress-playground/pull/3211))
+- [docs] Enable Bengali at the language switcher dropdown. ([#3207](https://github.com/WordPress/wordpress-playground/pull/3207))
+- [i18n] Add Bengali translation for about/launch.md. ([#3183](https://github.com/WordPress/wordpress-playground/pull/3183))
+- [i18n] Add Bengali translation for intro.md. ([#3194](https://github.com/WordPress/wordpress-playground/pull/3194))
+- [i18n] Add Bengali translation for quick-start-guide.md. ([#3196](https://github.com/WordPress/wordpress-playground/pull/3196))
+- [i18n] Add Bengali translation for resources.md. ([#3201](https://github.com/WordPress/wordpress-playground/pull/3201))
+- [i18n] Add Bengali translation for web-instance.md. ([#3202](https://github.com/WordPress/wordpress-playground/pull/3202))
+- [website] Switch error modal Kapa widget to hcaptcha. ([#3209](https://github.com/WordPress/wordpress-playground/pull/3209))
+
+#### Personal Playground
+
+- [Personal-WP] Fix ?plugin= URL parameter not installing plugins. ([#3218](https://github.com/WordPress/wordpress-playground/pull/3218))
+- [Personal-WP] Fix broadcast message loop in tab coordinator. ([#3217](https://github.com/WordPress/wordpress-playground/pull/3217))
+- [Personal-WP] Improve recovery mode and add direct OPFS file browser access. ([#3182](https://github.com/WordPress/wordpress-playground/pull/3182))
+- [personal-wp] Add app catalog. ([#3173](https://github.com/WordPress/wordpress-playground/pull/3173))
+- [personal-wp] Add deployment workflow for my.wordpress.net. ([#3184](https://github.com/WordPress/wordpress-playground/pull/3184))
+- [personal-wp] Add multi-tab coordination. ([#3163](https://github.com/WordPress/wordpress-playground/pull/3163))
+- [personal-wp] Backup reminder UI. ([#3162](https://github.com/WordPress/wordpress-playground/pull/3162))
+- [personal-wp] Fix backup status showing "Infinity days since backup". ([#3213](https://github.com/WordPress/wordpress-playground/pull/3213))
+- [personal-wp] Skip CORS proxy for localhost requests. ([#3199](https://github.com/WordPress/wordpress-playground/pull/3199))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @akirk @beryl-dlg @epeicher @fellyph @JanJakes @mho22 @noruzzamans
+
+
 ## [v3.0.46] (2026-01-26) 
 
 ### PHP WebAssembly

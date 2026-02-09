@@ -262,7 +262,7 @@ Located in `packages/nx-extensions/src/executors/`:
 
 ## Node.js Version
 
-Review the package.json file for the required Node.js version. At the time of writing, it's Node.js >= 20.18.3 (LTS) and npm >= `npm@10.9.2`.
+Review the package.json file for the required Node.js version. At the time of writing, it's Node.js >= 22.12.0 (LTS) and npm >= `npm@10.9.2`.
 
 ## Documentation
 
