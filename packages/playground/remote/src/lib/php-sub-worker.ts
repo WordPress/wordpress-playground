@@ -147,6 +147,14 @@ const methods: Record<string, (...args: any[]) => Promise<any>> = {
 		});
 	},
 
+	async defineConstant(
+		key: string,
+		value: string | boolean | number | null
+	) {
+		assertInitialized();
+		php!.defineConstant(key, value);
+	},
+
 	async run(options: any) {
 		assertInitialized();
 		return await php!.run(options);

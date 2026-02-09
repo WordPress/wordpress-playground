@@ -264,6 +264,7 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 					},
 				});
 				requestHandler.instanceManager = workerPool;
+				this.workerPool = workerPool;
 				logger.log(
 					'[WorkerPool] Replaced instance manager with worker pool (maxWorkers=2)'
 				);

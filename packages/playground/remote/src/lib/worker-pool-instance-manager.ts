@@ -139,6 +139,8 @@ interface PooledWorker {
 	proxy: SubWorkerPHPProxy;
 	worker: Worker;
 	busy: boolean;
+	/** 1-based worker ID for console logging. */
+	id: number;
 }
 
 export interface WorkerPoolConfig {
@@ -159,6 +161,13 @@ export class WorkerPoolInstanceManager implements PHPInstanceManager {
 	private workers: PooledWorker[] = [];
 	private idleWorkers: PooledWorker[] = [];
 	private semaphore: Semaphore;
+	private nextWorkerId = 1;
+	/**
+	 * Resolves once all workers have been pre-spawned. Requests
+	 * arriving before this settles will await it so that all
+	 * workers are ready to handle traffic immediately.
+	 */
+	private spawnReady: Promise<void>;
 
 	constructor(config: WorkerPoolConfig) {
 		this.primaryPhp = config.primaryPhp;
@@ -168,6 +177,21 @@ export class WorkerPoolInstanceManager implements PHPInstanceManager {
 			concurrency: this.maxWorkers,
 			timeout: config.timeout || 30000,
 		});
+
+		// Pre-spawn all workers eagerly so they're ready when the
+		// first request arrives.
+		this.spawnReady = this.prespawnWorkers();
+	}
+
+	private async prespawnWorkers(): Promise<void> {
+		const spawns: Promise<PooledWorker>[] = [];
+		for (let i = 0; i < this.maxWorkers; i++) {
+			spawns.push(this.spawnWorker());
+		}
+		await Promise.all(spawns);
+		logger.log(
+			`[WorkerPool] All ${this.maxWorkers} workers pre-spawned and ready`
+		);
 	}
 
 	async getPrimaryPhp(): Promise<PHP> {
@@ -175,6 +199,9 @@ export class WorkerPoolInstanceManager implements PHPInstanceManager {
 	}
 
 	async acquirePHPInstance(): Promise<AcquiredPHP> {
+		// Wait for pre-spawned workers to be ready before acquiring.
+		await this.spawnReady;
+
 		let releaseSemaphore: () => void;
 		try {
 			releaseSemaphore = await this.semaphore.acquire();
@@ -195,11 +222,17 @@ export class WorkerPoolInstanceManager implements PHPInstanceManager {
 
 		pooledWorker.busy = true;
 
+		const workerId = pooledWorker.id;
+		// eslint-disable-next-line no-console
+		console.log(`[WorkerPool] Worker #${workerId} acquired`);
+
 		return {
 			// Cast the proxy to PHP. PHPRequestHandler's #dispatchToPHP
 			// only calls php.run() which our proxy implements.
 			php: pooledWorker.proxy as unknown as PHP,
 			reap: () => {
+				// eslint-disable-next-line no-console
+				console.log(`[WorkerPool] Worker #${workerId} released`);
 				pooledWorker.busy = false;
 				this.idleWorkers.push(pooledWorker);
 				releaseSemaphore();
@@ -255,7 +288,8 @@ export class WorkerPoolInstanceManager implements PHPInstanceManager {
 		});
 
 		const proxy = new SubWorkerPHPProxy(worker);
-		const pooledWorker: PooledWorker = { proxy, worker, busy: false };
+		const id = this.nextWorkerId++;
+		const pooledWorker: PooledWorker = { proxy, worker, busy: false, id };
 
 		// Set up handler for spawn handler callbacks from the sub-worker.
 		// When a sub-worker's PHP calls proc_open, the spawn handler
@@ -375,6 +409,21 @@ export class WorkerPoolInstanceManager implements PHPInstanceManager {
 			default:
 				throw new Error(`Unknown coordinator call: ${method}`);
 		}
+	}
+
+	/**
+	 * Forward a defineConstant call to all spawned sub-workers so
+	 * that constants set after boot (e.g. the login step's
+	 * PLAYGROUND_AUTO_LOGIN_AS_USER) are available in every worker.
+	 */
+	async defineConstant(
+		key: string,
+		value: string | boolean | number | null
+	) {
+		await this.spawnReady;
+		await Promise.all(
+			this.workers.map((w) => w.proxy.call('defineConstant', key, value))
+		);
 	}
 
 	async [Symbol.asyncDispose]() {

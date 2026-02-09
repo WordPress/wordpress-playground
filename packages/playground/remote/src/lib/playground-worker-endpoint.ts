@@ -110,6 +110,12 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 	unmounts: Record<string, () => any> = {};
 
 	/**
+	 * When a WorkerPoolInstanceManager is active, stores a reference
+	 * so that defineConstant() can forward to all sub-workers.
+	 */
+	protected workerPool: { defineConstant(key: string, value: string | boolean | number | null): Promise<void> } | null = null;
+
+	/**
 	 * PHP ini entries built during createRequestHandler(). Stored so
 	 * that sub-workers can be initialized with the same configuration.
 	 */
@@ -407,6 +413,22 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 	): Promise<StreamedPHPResponse> {
 		const php = await this.__internal_getRequestHandler()!.getPrimaryPhp();
 		return await php.cli(argv, options);
+	}
+
+	/**
+	 * Override defineConstant to propagate constants to all
+	 * sub-workers. Blueprint steps like "login" call defineConstant
+	 * after boot, and every worker needs the constant for the
+	 * auto-prepend script to pick it up.
+	 */
+	override defineConstant(
+		key: string,
+		value: string | boolean | number | null
+	): void {
+		super.defineConstant(key, value);
+		if (this.workerPool) {
+			this.workerPool.defineConstant(key, value);
+		}
 	}
 
 	/**
