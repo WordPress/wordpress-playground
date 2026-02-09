@@ -5,9 +5,9 @@
  * same path helpers.
  */
 
-import path from 'path';
-
 /**
+ * Joins paths together.
+ *
  * Joins paths together.
  *
  * For example:
