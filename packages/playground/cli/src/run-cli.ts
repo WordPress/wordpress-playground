@@ -661,13 +661,13 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 		const hasDebugDefine = (name: string) => {
 			return name in define || name in defineBool || name in defineNumber;
 		};
-		if ( !hasDebugDefine('WP_DEBUG') ) {
+		if (!hasDebugDefine('WP_DEBUG')) {
 			define['WP_DEBUG'] = 'true';
 		}
-		if ( !hasDebugDefine('WP_DEBUG_LOG') ) {
+		if (!hasDebugDefine('WP_DEBUG_LOG')) {
 			define['WP_DEBUG_LOG'] = 'true';
 		}
-		if ( !hasDebugDefine('WP_DEBUG_DISPLAY') ) {
+		if (!hasDebugDefine('WP_DEBUG_DISPLAY')) {
 			define['WP_DEBUG_DISPLAY'] = 'false';
 		}
 
