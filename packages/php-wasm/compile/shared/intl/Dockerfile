@@ -125,7 +125,7 @@ RUN set -euxo pipefail; \
 	# Replace the default compiler invocation ($CC) with emcc and force-link the required ICU static libraries
 	# into the shared object. The --whole-archive / --no-whole-archive flags ensure that *all* symbols from these
 	# archives are included, preventing missing symbol errors at runtime when loading the intl extension.
-	/root/replace.sh 's|^archive_cmds="\\\$CC|archive_cmds="emcc \\\$EMCC_FLAGS -shared --whole-archive /root/lib/libicudata.a /root/lib/libicui18n.a /root/lib/libicuuc.a --no-whole-archive|' libtool; \
+	/root/replace.sh 's|^archive_cmds="\\\$CC|archive_cmds="emcc \\\$EMCC_FLAGS -shared --whole-archive /root/lib/libicuio.a /root/lib/libicudata.a /root/lib/libicui18n.a /root/lib/libicuuc.a --no-whole-archive|' libtool; \
 
 	export EMCC_FLAGS="-sSIDE_MODULE -D__x86_64__"; \
 
@@ -158,3 +158,41 @@ RUN	mkdir -p /root/intl/modules; \
 
 RUN	mkdir -p /root/intl/data; \
 	mv /root/share/icu/74.2/icudt74l.dat /root/intl/data/icu.dat;
+
+# List globals symbols [ env func and globals without invoke_ and libc++(_Z) prefixed ones ]
+RUN if [ "$JSPI" = "yes" ]; then \
+		/root/emsdk/upstream/bin/wasm-dis /root/intl/modules/intl.so \
+		| sed -n 's/^[[:space:]]*(import "env" "\([^"]*\)"[[:space:]]*(\(func\|global\).*/\1/p' \
+		| sed '/^invoke_/d' \
+		| sed '/^_Z/d' \
+		| sed 's/^/_/' \
+		> /root/intl/modules/intl.globals.list; \
+		# Intl and ICU libraries pull in a very small subset
+		# of libc++ symbols that must be resolved by the PHP main module at runtime.
+		#
+		# These used for thread-safe static initialization and basic synchronization inside ICU:
+		#   - std::__call_once
+		#   - std::condition_variable::notify_all
+		#   - std::mutex::lock / std::mutex::unlock
+		#
+		# All other C++ standard library symbols are intentionally NOT exported:
+		#   - they are fully resolved inside intl.so
+		#   - exporting them would leak libc++ internals across module boundaries
+		#   - and would make the ABI fragile across compiler / ICU upgrades
+		#
+		# This list is intentionally minimal. Do not add additional libc++ symbols
+		# unless a new unresolved import is observed.
+		echo "__ZNSt3__211__call_onceERVmPvPFvS2_E" >> /root/intl/modules/intl.globals.list; \
+		echo "__ZNSt3__218condition_variable10notify_allEv" >> /root/intl/modules/intl.globals.list; \
+		echo "__ZNSt3__25mutex4lockEv" >> /root/intl/modules/intl.globals.list; \
+		echo "__ZNSt3__25mutex6unlockEv" >> /root/intl/modules/intl.globals.list; \
+		sort -u /root/intl/modules/intl.globals.list -o /root/intl/modules/intl.globals.list; \
+	fi;
+
+# List exports symbols [ GOT.meme and GOT.func globals ]
+RUN	if [ "$JSPI" = "yes" ]; then \
+		/root/emsdk/upstream/bin/wasm-dis /root/intl/modules/intl.so \
+		| sed -n 's/^[[:space:]]*(import "\(GOT\.mem\|GOT\.func\)" "\([^"]*\)"[[:space:]]*(global.*/\2/p' \
+		| sort \
+		> /root/intl/modules/intl.exports.list; \
+	fi;

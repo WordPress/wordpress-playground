@@ -35,7 +35,7 @@ export const phpVersions = [
 		version: '8.2',
 		loaderFilename: 'php_8_2.js',
 		wasmFilename: 'php_8_2.wasm',
-		lastRelease: '8.2.30',
+		lastRelease: '8.2.1',
 	},
 	{
 		version: '8.1',
