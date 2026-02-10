@@ -19,6 +19,7 @@ import { setSiteManagerOpen } from '../../lib/state/redux/slice-ui';
 import { SiteManagerIcon } from '@wp-playground/components';
 import { SavedPlaygroundsOverlay } from '../saved-playgrounds-overlay';
 import { SaveStatusIndicator } from './save-status-indicator';
+import { RecentSitesDropdown } from './recent-sites-dropdown';
 
 interface BrowserChromeProps {
 	children?: React.ReactNode;
@@ -76,6 +77,8 @@ export default function BrowserChrome({
 					</div>
 
 					<div className={css.toolbarButtons}>
+						<RecentSitesDropdown />
+
 						<Button
 							variant="browser-chrome"
 							aria-label="Saved Playgrounds"

@@ -6,6 +6,10 @@ export function redirectTo(url: string) {
 	window.history.pushState({}, '', url);
 }
 
+export function replaceUrl(url: string) {
+	window.history.replaceState({}, '', url);
+}
+
 interface QueryAPIParams {
 	name?: string;
 	wp?: string;

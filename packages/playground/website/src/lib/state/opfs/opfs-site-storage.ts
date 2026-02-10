@@ -60,7 +60,11 @@ class OpfsSiteStorage {
 		this.root = root;
 	}
 
-	async create(slug: string, metadata: SiteMetadata): Promise<void> {
+	async create(
+		slug: string,
+		metadata: SiteMetadata,
+		originalUrlParams?: SiteInfo['originalUrlParams']
+	): Promise<void> {
 		const newSiteDirName = getDirectoryNameForSlug(slug);
 		if (await opfsChildExists(this.root, newSiteDirName)) {
 			const dir = await this.root.getDirectoryHandle(newSiteDirName);
@@ -74,11 +78,15 @@ class OpfsSiteStorage {
 		});
 		await opfsWriteFile(
 			joinPaths(ROOT_PATH, newSiteDirName, SITE_METADATA_FILENAME),
-			await metadataToStoredFormat(slug, metadata)
+			await metadataToStoredFormat(slug, metadata, originalUrlParams)
 		);
 	}
 
-	async update(slug: string, metadata: SiteMetadata): Promise<void> {
+	async update(
+		slug: string,
+		metadata: SiteMetadata,
+		originalUrlParams?: SiteInfo['originalUrlParams']
+	): Promise<void> {
 		const newSiteDirName = getDirectoryNameForSlug(slug);
 		if (!(await opfsChildExists(this.root, newSiteDirName))) {
 			throw new Error(`Site with slug '${slug}' does not exist.`);
@@ -86,7 +94,7 @@ class OpfsSiteStorage {
 
 		await opfsWriteFile(
 			joinPaths(ROOT_PATH, newSiteDirName, SITE_METADATA_FILENAME),
-			await metadataToStoredFormat(slug, metadata)
+			await metadataToStoredFormat(slug, metadata, originalUrlParams)
 		);
 	}
 
@@ -175,11 +183,13 @@ export function getDirectoryNameForSlug(slug: string) {
 
 async function metadataToStoredFormat(
 	slug: string,
-	{ originalBlueprint, originalBlueprintSource, ...metadata }: SiteMetadata
+	{ originalBlueprint, originalBlueprintSource, ...metadata }: SiteMetadata,
+	originalUrlParams?: SiteInfo['originalUrlParams']
 ): Promise<string> {
 	return JSON.stringify(
 		{
 			slug,
+			originalUrlParams,
 			originalBlueprintSource,
 			// Only store the blueprint declaration if it's NOT a bundle directory.
 			// For bundle directories, the full bundle is stored separately.
@@ -195,7 +205,8 @@ async function metadataToStoredFormat(
 }
 
 function storedFormatToMetadata(data: string) {
-	const { slug, ...metadata } = JSON.parse(data) as StoredSiteMetadata;
+	const { slug, originalUrlParams, ...metadata } = JSON.parse(data) as
+		StoredSiteMetadata & { originalUrlParams?: SiteInfo['originalUrlParams'] };
 
 	/**
 	 * Migrate the legacy runtimeConfiguration data format to the new, flat one.
@@ -246,6 +257,7 @@ function storedFormatToMetadata(data: string) {
 
 	return {
 		slug,
+		originalUrlParams,
 		metadata,
 	};
 }

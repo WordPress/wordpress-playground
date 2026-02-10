@@ -9,6 +9,7 @@ export type SiteError =
 	| 'directory-handle-unknown-error'
 	// @TODO: Improve name?
 	| 'site-boot-failed'
+	| 'tab-superseded'
 	| 'github-artifact-expired'
 	| 'blueprint-fetch-failed'
 	| 'blueprint-filesystem-required'

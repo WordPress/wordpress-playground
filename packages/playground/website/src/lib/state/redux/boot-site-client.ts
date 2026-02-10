@@ -8,6 +8,7 @@ import {
 	addClientInfo,
 	removeClientInfo,
 	updateClientInfo,
+	selectClientInfoBySiteSlug,
 } from './slice-clients';
 import { logBlueprintEvents, logTrackingEvent } from '../../tracking';
 import {
@@ -35,6 +36,13 @@ import {
 	shouldShowGitHubAuthModal,
 } from '../../../github/git-auth-helpers';
 import { findFirewallErrorInCauseChain } from './error-utils';
+import { autoSaveSiteToOpfs } from './auto-save-site';
+import {
+	initTabCoordinator,
+	checkForExistingTabs,
+	requestStaleTabsShutdown,
+	setDependentMode,
+} from './tab-coordinator';
 
 export function bootSiteClient(
 	siteSlug: string,
@@ -113,6 +121,77 @@ export function bootSiteClient(
 		}
 
 		logTrackingEvent('load');
+
+		// Initialize tab coordination so this tab can respond to pings
+		// from other tabs opening the same site. We do this for all
+		// storage types because a temporary site may be auto-saved to
+		// OPFS during this session, and the coordinator needs to be
+		// running before that happens.
+		initTabCoordinator(
+			site.slug,
+			// onShutdownRequested — another tab asked us to close
+			(reason) => {
+				dispatch(
+					setActiveSiteError({
+						error: 'tab-superseded',
+						details: new Error(reason),
+					})
+				);
+			},
+			// onTakeoverRequested — another tab is becoming main,
+			// we switch to dependent mode
+			() => {
+				enterDependentMode(
+					site.slug,
+					iframe,
+					dispatch,
+					getState,
+					signal
+				);
+			},
+			// onBackupRequested — not implemented in playground-website
+			undefined,
+			// onSiteReset — site was deleted in another tab, reload fresh
+			() => {
+				window.location.href =
+					window.location.origin + window.location.pathname;
+			}
+		);
+
+		// For already-persisted sites, check whether another tab is
+		// already running the same site. If so, enter dependent mode
+		// to prevent data corruption from concurrent OPFS writes.
+		if (site.metadata.storage !== 'none') {
+			const { existingTabs, hasFreshTab, hasStaleTab } =
+				await checkForExistingTabs(site.slug);
+
+			if (hasStaleTab) {
+				requestStaleTabsShutdown(existingTabs);
+			}
+
+			if (hasFreshTab) {
+				// Another fresh tab already owns this site. Enter
+				// dependent mode: point the iframe at the existing
+				// service worker scope instead of starting a second
+				// PHP worker.
+				const existingClient = selectClientInfoBySiteSlug(
+					getState(),
+					site.slug
+				);
+				if (existingClient?.isDependentMode) {
+					return;
+				}
+
+				enterDependentMode(
+					site.slug,
+					iframe,
+					dispatch,
+					getState,
+					signal
+				);
+				return;
+			}
+		}
 
 		let blueprint: Blueprint;
 		if (isWordPressInstalled) {
@@ -255,6 +334,12 @@ export function bootSiteClient(
 			})
 		);
 
+		// Auto-save temporary sites to OPFS in the background.
+		// Don't await — this runs without blocking the user.
+		if (site.metadata.storage === 'none') {
+			dispatch(autoSaveSiteToOpfs(site.slug));
+		}
+
 		(playground as PlaygroundClient).onNavigation((url) => {
 			dispatch(
 				updateClientInfo({
@@ -268,6 +353,95 @@ export function bootSiteClient(
 
 		signal.onabort = null;
 	};
+}
+
+/**
+ * Enters dependent mode: instead of starting a new PHP worker, the iframe
+ * is pointed at the existing service worker scope so the user gets a live
+ * view of the site owned by another tab. OPFS is NOT mounted — the main
+ * tab handles all filesystem writes.
+ */
+function enterDependentMode(
+	siteSlug: string,
+	iframe: HTMLIFrameElement,
+	dispatch: PlaygroundDispatch,
+	getState: () => PlaygroundReduxState,
+	signal: AbortSignal
+) {
+	const remoteUrl = getRemoteUrl();
+	const scopedSiteUrl = `/scope:${encodeURIComponent(siteSlug)}/`;
+	const scopedUrl = new URL(scopedSiteUrl, remoteUrl);
+	scopedUrl.pathname += 'wp-admin/';
+	iframe.src = scopedUrl.toString();
+
+	const dependentModeClient = {
+		goTo: async (path: string) => {
+			const newUrl = new URL(
+				scopedSiteUrl + path.replace(/^\//, ''),
+				remoteUrl
+			);
+			iframe.src = newUrl.toString();
+		},
+		getCurrentURL: async () => {
+			try {
+				const iframeUrl = new URL(
+					iframe.contentWindow?.location?.href || ''
+				);
+				return iframeUrl.pathname.replace(
+					new RegExp(
+						`^${scopedSiteUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`
+					),
+					'/'
+				);
+			} catch {
+				return '/';
+			}
+		},
+	} as PlaygroundClient;
+
+	dispatch(
+		addClientInfo({
+			siteSlug,
+			url: '/wp-admin/',
+			client: dependentModeClient,
+			opfsMountDescriptor: undefined,
+			isDependentMode: true,
+		})
+	);
+
+	const handleIframeNavigation = () => {
+		try {
+			const iframeHref = iframe.contentWindow?.location?.href;
+			if (iframeHref) {
+				const iframeUrl = new URL(iframeHref);
+				const path = iframeUrl.pathname.replace(
+					new RegExp(
+						`^${scopedSiteUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`
+					),
+					'/'
+				);
+				dispatch(
+					updateClientInfo({
+						siteSlug,
+						changes: { url: path },
+					})
+				);
+			}
+		} catch {
+			// Cross-origin access denied
+		}
+	};
+
+	iframe.addEventListener('load', handleIframeNavigation);
+	signal.onabort = () => {
+		iframe.removeEventListener('load', handleIframeNavigation);
+		dispatch(removeClientInfo(siteSlug));
+	};
+
+	setDependentMode(true);
+	logger.info(
+		'Playground running in dependent mode — reusing existing service worker from another tab'
+	);
 }
 
 /**

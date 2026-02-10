@@ -43,6 +43,8 @@ export function getSiteErrorView(
 			return directoryHandlePermissionsExpiredView();
 		case 'directory-handle-directory-does-not-exist':
 			return directoryHandleDeletedView();
+		case 'tab-superseded':
+			return tabSupersededView();
 		case 'github-artifact-expired':
 			return githubArtifactExpiredView(context);
 		case 'blueprint-fetch-failed':
@@ -104,6 +106,36 @@ function directoryHandleDeletedView(): SiteErrorViewConfig {
 		),
 		actions: [],
 		detailSummaryOverride: undefined,
+	};
+}
+
+function tabSupersededView(): SiteErrorViewConfig {
+	return {
+		title: 'This site is managed by another tab',
+		isDeveloperError: false,
+		hideReportButton: true,
+		body: (
+			<>
+				<p className={css.errorLead}>
+					Another browser tab is already running this Playground site.
+					To prevent data corruption, only one tab can manage the
+					site's files at a time.
+				</p>
+				<p>
+					You can close this tab or reload it to take over from
+					the other tab.
+				</p>
+			</>
+		),
+		actions: [
+			<Button
+				variant="primary"
+				key="reload"
+				onClick={() => window.location.reload()}
+			>
+				Reload and take over
+			</Button>,
+		],
 	};
 }
 

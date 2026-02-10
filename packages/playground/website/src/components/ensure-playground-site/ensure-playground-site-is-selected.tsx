@@ -4,8 +4,9 @@ import { opfsSiteStorage } from '../../lib/state/opfs/opfs-site-storage';
 import {
 	OPFSSitesLoaded,
 	selectSiteBySlug,
-	setTemporarySiteSpec,
 	deriveSiteNameFromSlug,
+	findOrCreateSiteForUrl,
+	setTemporarySiteSpec,
 } from '../../lib/state/redux/slice-sites';
 import {
 	selectActiveSite,
@@ -107,7 +108,13 @@ export function EnsurePlaygroundSiteIsSelected({
 				return;
 			}
 
-			await createNewTemporarySite(dispatch);
+			// Look for an existing persisted site that matches the
+			// current URL params. If found, load it instead of creating
+			// a brand-new temporary site.
+			const result = await dispatch(
+				findOrCreateSiteForUrl(new URL(window.location.href))
+			);
+			await dispatch(setActiveSite(result.site.slug));
 		}
 
 		ensureSiteIsSelected();

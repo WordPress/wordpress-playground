@@ -25,6 +25,11 @@ import { logger } from '@php-wasm/logger';
 import { setActiveSiteError, type SiteError } from './slice-ui';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import { findFirewallErrorInCauseChain } from './error-utils';
+import {
+	findSiteMatchingUrlParams,
+	urlParamsMatch,
+} from '../url/url-params-matching';
+import { randomSiteName } from './random-site-name';
 
 /**
  * The Site model used to represent a site within Playground.
@@ -181,7 +186,8 @@ export function updateSite({
 		if (updatedSite.metadata.storage !== 'none') {
 			await opfsSiteStorage?.update(
 				updatedSite.slug,
-				updatedSite.metadata
+				updatedSite.metadata,
+				updatedSite.originalUrlParams
 			);
 		}
 	};
@@ -203,7 +209,11 @@ export function addSite(siteInfo: SiteInfo) {
 				'Cannot add a temporary site. Use setTemporarySiteSpec instead.'
 			);
 		}
-		await opfsSiteStorage?.create(siteInfo.slug, siteInfo.metadata);
+		await opfsSiteStorage?.create(
+			siteInfo.slug,
+			siteInfo.metadata,
+			siteInfo.originalUrlParams
+		);
 		dispatch(sitesSlice.actions.addSite(siteInfo));
 	};
 }
@@ -414,7 +424,7 @@ export function setTemporarySiteSpec(
 	};
 }
 
-function parseSearchParams(searchParams: URLSearchParams) {
+export function parseSearchParams(searchParams: URLSearchParams) {
 	const params: Record<string, any> = {};
 	for (const key of searchParams.keys()) {
 		const value = searchParams.getAll(key);
@@ -459,6 +469,12 @@ export interface SiteMetadata {
 	//       For a user, timestamps might be useful to disambiguate identically-named sites.
 	//       For playground, we might choose to sort by most recently used.
 	//whenLastLoaded: number;
+
+	/**
+	 * Whether this site was auto-saved to OPFS (as opposed to manually saved).
+	 * Used for cleanup (old auto-saved sites are pruned) and UI labeling.
+	 */
+	autoSaved?: boolean;
 
 	// @TODO: Accept any string as a php version?
 	runtimeConfiguration: RuntimeConfiguration;
@@ -513,5 +529,44 @@ export const selectSitesLoaded = createSelector(
 		((activeSite && activeSite.metadata.storage !== 'none') ||
 			firstTemporarySiteCreated)
 );
+
+/**
+ * Looks for an existing persisted site that was created from the same
+ * URL params. If one is found, returns it. Otherwise creates a new
+ * temporary site from the given URL.
+ */
+export function findOrCreateSiteForUrl(playgroundUrl: URL) {
+	return async (
+		dispatch: PlaygroundDispatch,
+		getState: () => PlaygroundReduxState
+	) => {
+		const urlParams = {
+			searchParams: parseSearchParams(playgroundUrl.searchParams),
+			hash: playgroundUrl.hash,
+		};
+
+		// Check persisted sites for a match.
+		const allSites = selectAllSites(getState());
+		const match = findSiteMatchingUrlParams(
+			allSites.filter((s) => s.metadata.storage !== 'none'),
+			urlParams
+		);
+		if (match) {
+			return { site: match, isExisting: true };
+		}
+
+		// Check the current temporary site — avoid re-creating if it matches.
+		const temp = selectTemporarySite(getState());
+		if (temp && urlParamsMatch(temp.originalUrlParams || {}, urlParams)) {
+			return { site: temp, isExisting: false };
+		}
+
+		// No match — create a new temporary site.
+		const site = await dispatch(
+			setTemporarySiteSpec(randomSiteName(), playgroundUrl)
+		);
+		return { site, isExisting: false };
+	};
+}
 
 export default sitesSlice.reducer;

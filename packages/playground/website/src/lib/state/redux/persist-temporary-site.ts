@@ -13,7 +13,11 @@ import {
 } from '@wp-playground/storage';
 import type { PlaygroundReduxState } from './store';
 import type store from './store';
-import { selectClientBySiteSlug, updateClientInfo } from './slice-clients';
+import {
+	selectClientBySiteSlug,
+	selectClientInfoBySiteSlug,
+	updateClientInfo,
+} from './slice-clients';
 import {
 	selectSiteBySlug,
 	updateSite,
@@ -38,6 +42,44 @@ export function persistTemporarySite(
 		getState: () => PlaygroundReduxState
 	) => {
 		const state = getState();
+
+		// If the site was already auto-saved to OPFS, skip the sync step —
+		// the files are already there. Just update the name if needed.
+		const existingSite = selectSiteBySlug(state, siteSlug);
+		if (existingSite?.metadata.storage === 'opfs') {
+			const trimmedName = options.siteName?.trim();
+			if (trimmedName && trimmedName !== existingSite.metadata.name) {
+				await dispatch(
+					updateSiteMetadata({
+						slug: siteSlug,
+						changes: { name: trimmedName },
+					})
+				);
+			}
+			// Mark it as no longer auto-saved (user took explicit action).
+			await dispatch(
+				updateSiteMetadata({
+					slug: siteSlug,
+					changes: { autoSaved: false },
+				})
+			);
+			const updatedSite = selectSiteBySlug(getState(), siteSlug)!;
+			redirectTo(PlaygroundRoute.site(updatedSite));
+			if (!options.skipRenameModal) {
+				dispatch(setActiveModal('rename-site'));
+			}
+			return;
+		}
+
+		// If an auto-save sync is in progress, wait for it or skip.
+		const clientInfo = selectClientInfoBySiteSlug(state, siteSlug);
+		if (clientInfo?.opfsSync?.status === 'syncing') {
+			logger.log(
+				'Auto-save sync is in progress. Skipping manual persist.'
+			);
+			return;
+		}
+
 		const playground = selectClientBySiteSlug(state, siteSlug);
 		if (!playground) {
 			throw new Error(

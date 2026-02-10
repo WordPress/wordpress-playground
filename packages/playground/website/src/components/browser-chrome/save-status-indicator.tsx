@@ -11,13 +11,17 @@ import { modalSlugs, setActiveModal } from '../../lib/state/redux/slice-ui';
 import { Icon } from '@wordpress/components';
 import { check, cautionFilled } from '@wordpress/icons';
 
-type SaveStatus = 'saved' | 'unsaved' | 'saving' | 'error';
+type SaveStatus = 'saved' | 'unsaved' | 'saving' | 'auto-saving' | 'error';
 
 function getSaveStatus(
 	storage: string | undefined,
 	opfsSync: { status: string } | undefined
 ): SaveStatus {
 	if (opfsSync?.status === 'syncing') {
+		// Distinguish auto-saving (storage still 'none') from manual saving.
+		if (storage === 'none' || !storage) {
+			return 'auto-saving';
+		}
 		return 'saving';
 	}
 	if (opfsSync?.status === 'error') {
@@ -51,18 +55,20 @@ export function SaveStatusIndicator() {
 		);
 	}
 
-	if (status === 'saving') {
+	if (status === 'auto-saving' || status === 'saving') {
 		const progress =
 			opfsSync?.status === 'syncing'
 				? (opfsSync as any).progress
 				: undefined;
+		const label =
+			status === 'auto-saving' ? 'Auto-saving' : 'Saving';
 		return (
 			<div className={classNames(css.indicator, css.saving)}>
 				<span className={css.spinner} />
 				<span className={css.label}>
 					{progress
-						? `Saving ${progress.files}/${progress.total}...`
-						: 'Saving...'}
+						? `${label} ${progress.files}/${progress.total}...`
+						: `${label}...`}
 				</span>
 			</div>
 		);
