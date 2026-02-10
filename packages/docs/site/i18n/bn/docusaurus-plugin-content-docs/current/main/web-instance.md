@@ -28,9 +28,9 @@ Some key features:
 -   **Testing Environment**: Ideal for testing plugins and themes.
 -->
 
--   **ব্রাউজার-ভিত্তিক**: কোনো লোকাল সার্ভার সেটআপের প্রয়োজন নেই।
--   **তাৎক্ষণিক সেটআপ**: এক ক্লিকেই ওয়ার্ডপ্রেস চালু করুন।
--   **টেস্টিং এনভায়রনমেন্ট**: প্লাগইন এবং থিম পরীক্ষার জন্য আদর্শ।
+- **ব্রাউজার-ভিত্তিক**: কোনো লোকাল সার্ভার সেটআপের প্রয়োজন নেই।
+- **তাৎক্ষণিক সেটআপ**: এক ক্লিকেই ওয়ার্ডপ্রেস চালু করুন।
+- **টেস্টিং এনভায়রনমেন্ট**: প্লাগইন এবং থিম পরীক্ষার জন্য আদর্শ।
 
 <!--
 The [Query Params API](/developers/apis/query-api/) allows you to directly load specific configurations into a Playground instance. This includes setting a particular WordPress version, theme, or plugin. You can also define more complex setups using blueprints (see [examples here](/quick-start-guide#try-a-block-a-theme-or-a-plugin)).
@@ -45,10 +45,10 @@ From the Playground website, some toolbars are also available to customize your 
 প্লেগ্রাউন্ড ওয়েবসাইট থেকে, আপনার প্লেগ্রাউন্ড ইনস্ট্যান্স কাস্টমাইজ করতে এবং কিছু রিসোর্স ও ইউটিলিটিতে দ্রুত অ্যাক্সেস পেতে কিছু টুলবারও উপলব্ধ।
 
 <!--
-![Playground Toolbar Snapshot](@site/static/img/about/toolbar-playground.webp)
+![Playground Toolbar Snapshot](@site/static/img/about/playground-toolbar.webp)
 -->
 
-![প্লেগ্রাউন্ড টুলবার স্ন্যাপশট](@site/static/img/about/toolbar-playground.webp)
+![প্লেগ্রাউন্ড টুলবার স্ন্যাপশট](@site/static/img/about/playground-toolbar.webp)
 
 <!--
 ## Customize Playground
@@ -67,8 +67,8 @@ On the toolbar, you'll find:
 -   **Playground Manager**: This panel lets you manage WordPress Playground instances, allowing you to save, import, and export them.
 -->
 
--   **প্লেগ্রাউন্ড সেটিংস**: আপনার বর্তমান ইনস্ট্যান্স কনফিগার করার জন্য একটি প্যানেল, যেমন PHP এবং ওয়ার্ডপ্রেস সংস্করণ।
--   **প্লেগ্রাউন্ড ম্যানেজার**: এই প্যানেলটি আপনাকে ওয়ার্ডপ্রেস প্লেগ্রাউন্ড ইনস্ট্যান্সগুলো পরিচালনা করতে দেয়, যার মাধ্যমে আপনি সেগুলোকে সংরক্ষণ, ইম্পোর্ট এবং এক্সপোর্ট করতে পারেন।
+- **প্লেগ্রাউন্ড সেটিংস**: আপনার বর্তমান ইনস্ট্যান্স কনফিগার করার জন্য একটি প্যানেল, যেমন PHP এবং ওয়ার্ডপ্রেস সংস্করণ।
+- **প্লেগ্রাউন্ড ম্যানেজার**: এই প্যানেলটি আপনাকে ওয়ার্ডপ্রেস প্লেগ্রাউন্ড ইনস্ট্যান্সগুলো পরিচালনা করতে দেয়, যার মাধ্যমে আপনি সেগুলোকে সংরক্ষণ, ইম্পোর্ট এবং এক্সপোর্ট করতে পারেন।
 
 <!--
 ### Playground Settings
@@ -96,11 +96,11 @@ The options available from the **Playground Settings Panel**, correspond to the 
 -   `wp`: Defines the WordPress version.
 -->
 
--   `language`: ওয়ার্ডপ্রেস ইনস্ট্যান্সের ভাষা সেট করে।
--   `multisite`: ওয়ার্ডপ্রেস মাল্টিসাইট সাপোর্ট চালু করে।
--   `networking`: নেটওয়ার্ক অ্যাক্সেস প্রদান করে, যা ওয়ার্ডপ্রেস প্লাগইন ডিরেক্টরি এবং অভ্যন্তরীণ ওয়ার্ডপ্রেস API গুলো থেকে ডেটা নিয়ে আসার সুযোগ দেয়।
--   `php`: ইনস্ট্যান্সের জন্য PHP সংস্করণ নির্দিষ্ট করে।
--   `wp`: ওয়ার্ডপ্রেস সংস্করণ নির্ধারণ করে।
+- `language`: ওয়ার্ডপ্রেস ইনস্ট্যান্সের ভাষা সেট করে।
+- `multisite`: ওয়ার্ডপ্রেস মাল্টিসাইট সাপোর্ট চালু করে।
+- `networking`: নেটওয়ার্ক অ্যাক্সেস প্রদান করে, যা ওয়ার্ডপ্রেস প্লাগইন ডিরেক্টরি এবং অভ্যন্তরীণ ওয়ার্ডপ্রেস API গুলো থেকে ডেটা নিয়ে আসার সুযোগ দেয়।
+- `php`: ইনস্ট্যান্সের জন্য PHP সংস্করণ নির্দিষ্ট করে।
+- `wp`: ওয়ার্ডপ্রেস সংস্করণ নির্ধারণ করে।
 
 <!--
 ## Playground Manager
@@ -109,10 +109,10 @@ The options available from the **Playground Settings Panel**, correspond to the 
 ## প্লেগ্রাউন্ড ম্যানেজার
 
 <!--
-![Playground settings panel allow users to manage multiple instances](@site/static/img/about/playground-manager-panel.webp)
+![Playground settings panel allow users to manage multiple instances](@site/static/img/about/playground-dashboard.webp)
 -->
 
-![প্লেগ্রাউন্ড সেটিংস প্যানেল ব্যবহারকারীদের একাধিক ইনস্ট্যান্স পরিচালনা করতে দেয়](@site/static/img/about/playground-manager-panel.webp)
+![প্লেগ্রাউন্ড সেটিংস প্যানেল ব্যবহারকারীদের একাধিক ইনস্ট্যান্স পরিচালনা করতে দেয়](@site/static/img/about/playground-dashboard.webp)
 
 <!--
 This panel enables users to manage Playground instances. It displays a list of saved Playgrounds and provides access to the current Playground's settings, along with a **Save Button** to store your configurations locally in your browser for later reloading.
@@ -121,10 +121,10 @@ This panel enables users to manage Playground instances. It displays a list of s
 এই প্যানেলটি ব্যবহারকারীদের প্লেগ্রাউন্ড ইনস্ট্যান্স পরিচালনা করতে সক্ষম করে। এটি সংরক্ষিত প্লেগ্রাউন্ডগুলোর একটি তালিকা প্রদর্শন করে এবং বর্তমান প্লেগ্রাউন্ডের সেটিংসে অ্যাক্সেস প্রদান করে, সাথে একটি **সেভ বাটন** থাকে যা আপনার কনফিগারেশনগুলো পরবর্তীতে পুনরায় লোড করার জন্য স্থানীয়ভাবে আপনার ব্রাউজারে সংরক্ষণ করে।
 
 <!--
-![Save Playground Button](@site/static/img/about/playground-manager-save-instance.webp)
+![Save Playground Button](@site/static/img/about/playground-dashboard-save.webp)
 -->
 
-![প্লেগ্রাউন্ড সেভ বাটন](@site/static/img/about/playground-manager-save-instance.webp)
+![প্লেগ্রাউন্ড সেভ বাটন](@site/static/img/about/playground-dashboard-save.webp)
 
 <!--
 Once you click on save, an instance will be stored with a generated name to be revisited anytime. The Playground Manager also has options to export(Additional actions menu) and import(Import actions menu) WordPress Playground instances:
@@ -151,10 +151,10 @@ Once you click on save, an instance will be stored with a generated name to be r
 -   **View Blueprint**: This option will open the current blueprint used for the Playground instance in the [Blueprints Builder tool](https://playground.wordpress.net/builder/builder.html). From this tool, you'll be able to edit the blueprint online and run a new Playground instance with your edited version of the blueprint.
 -->
 
--   **গিটহাবে পুল রিকোয়েস্ট এক্সপোর্ট করুন**: এই বিকল্পটি আপনাকে যেকোনো পাবলিক গিটহাব রিপোজিটরিতে পুল রিকোয়েস্ট হিসেবে ওয়ার্ডপ্রেস প্লাগইন, থিম এবং সম্পূর্ণ wp-content ডিরেক্টরি এক্সপোর্ট করতে দেয়। এই বিকল্পটি ব্যবহারের একটি ডেমো [এখানে](https://www.youtube.com/watch?v=gKrij8V3nK0&t=2488s) দেখুন।
--   **zip হিসেবে ডাউনলোড করুন**: এটি প্লেগ্রাউন্ড ইনস্ট্যান্সের সেটআপ সহ একটি `.zip` ফাইল তৈরি করে, যার মধ্যে ইনস্টল করা যেকোনো থিম বা প্লাগইন অন্তর্ভুক্ত থাকে। এই `.zip` ফাইলে কন্টেন্ট এবং ডাটাবেস পরিবর্তন অন্তর্ভুক্ত থাকবে না।
--   **ইনস্ট্যান্স সম্পর্কে**: আপনি যদি ওয়ার্ডপ্রেস প্লেগ্রাউন্ড নিয়ে কোনো সমস্যায় পড়েন, তবে এই বিকল্প থেকে উপলব্ধ ফর্ম ব্যবহার করে তা রিপোর্ট করতে পারেন। আপনি প্লেগ্রাউন্ডের নেপথ্যে থাকা ডেভেলপমেন্ট টিমের সাথে ত্রুটির বিবরণ শেয়ার করে প্লেগ্রাউন্ডের সমস্যা সমাধানে সহায়তা করতে পারেন।
--   **ব্লুপ্রিন্ট দেখুন**: এই বিকল্পটি প্লেগ্রাউন্ড ইনস্ট্যান্সের জন্য ব্যবহৃত বর্তমান ব্লুপ্রিন্টটি [ব্লুপ্রিন্ট বিল্ডার টুলে](https://playground.wordpress.net/builder/builder.html) খুলবে। এই টুল থেকে, আপনি অনলাইনে ব্লুপ্রিন্ট এডিট করতে পারবেন এবং আপনার ব্লুপ্রিন্টের এডিট করা সংস্করণ দিয়ে একটি নতুন প্লেগ্রাউন্ড ইনস্ট্যান্স চালাতে পারবেন।
+- **গিটহাবে পুল রিকোয়েস্ট এক্সপোর্ট করুন**: এই বিকল্পটি আপনাকে যেকোনো পাবলিক গিটহাব রিপোজিটরিতে পুল রিকোয়েস্ট হিসেবে ওয়ার্ডপ্রেস প্লাগইন, থিম এবং সম্পূর্ণ wp-content ডিরেক্টরি এক্সপোর্ট করতে দেয়। এই বিকল্পটি ব্যবহারের একটি ডেমো [এখানে](https://www.youtube.com/watch?v=gKrij8V3nK0&t=2488s) দেখুন।
+- **zip হিসেবে ডাউনলোড করুন**: এটি প্লেগ্রাউন্ড ইনস্ট্যান্সের সেটআপ সহ একটি `.zip` ফাইল তৈরি করে, যার মধ্যে ইনস্টল করা যেকোনো থিম বা প্লাগইন অন্তর্ভুক্ত থাকে। এই `.zip` ফাইলে কন্টেন্ট এবং ডাটাবেস পরিবর্তন অন্তর্ভুক্ত থাকবে না।
+- **ইনস্ট্যান্স সম্পর্কে**: আপনি যদি ওয়ার্ডপ্রেস প্লেগ্রাউন্ড নিয়ে কোনো সমস্যায় পড়েন, তবে এই বিকল্প থেকে উপলব্ধ ফর্ম ব্যবহার করে তা রিপোর্ট করতে পারেন। আপনি প্লেগ্রাউন্ডের নেপথ্যে থাকা ডেভেলপমেন্ট টিমের সাথে ত্রুটির বিবরণ শেয়ার করে প্লেগ্রাউন্ডের সমস্যা সমাধানে সহায়তা করতে পারেন।
+- **ব্লুপ্রিন্ট দেখুন**: এই বিকল্পটি প্লেগ্রাউন্ড ইনস্ট্যান্সের জন্য ব্যবহৃত বর্তমান ব্লুপ্রিন্টটি [ব্লুপ্রিন্ট বিল্ডার টুলে](https://playground.wordpress.net/builder/builder.html) খুলবে। এই টুল থেকে, আপনি অনলাইনে ব্লুপ্রিন্ট এডিট করতে পারবেন এবং আপনার ব্লুপ্রিন্টের এডিট করা সংস্করণ দিয়ে একটি নতুন প্লেগ্রাউন্ড ইনস্ট্যান্স চালাতে পারবেন।
 
 <!--
 <span id="edit-the-blueprint"></span>
@@ -163,10 +163,10 @@ Once you click on save, an instance will be stored with a generated name to be r
 <span id="edit-the-blueprint"></span>
 
 <!--
-[![snapshot of Builder mode of WordPress Playground](@site/static/img/about/blueprint-builder.webp)](https://playground.wordpress.net/builder/builder.html)
+[![snapshot of Builder mode of WordPress Playground](@site/static/img/about/playground-blueprint-editor.webp)](https://playground.wordpress.net/builder/builder.html)
 -->
 
-[![ওয়ার্ডপ্রেস প্লেগ্রাউন্ডের বিল্ডার মোডের স্ন্যাপশট](@site/static/img/about/blueprint-builder.webp)](https://playground.wordpress.net/builder/builder.html)
+[![ওয়ার্ডপ্রেস প্লেগ্রাউন্ডের বিল্ডার মোডের স্ন্যাপশট](@site/static/img/about/playground-blueprint-editor.webp)](https://playground.wordpress.net/builder/builder.html)
 
 <!--
 ### Import actions menu
@@ -186,9 +186,9 @@ Once you click on save, an instance will be stored with a generated name to be r
 -   **Import from GitHub**: This option allows you to import plugins, themes, and wp-content directories directly from your public GitHub repositories. To enable this feature, connect your GitHub account with WordPress Playground.
 -->
 
--   **.zip থেকে ইম্পোর্ট করুন**: এটি আপনাকে "Download as .zip" বিকল্প দিয়ে জেনারেট করা যেকোনো `.zip` ফাইল ব্যবহার করে একটি প্লেগ্রাউন্ড ইনস্ট্যান্স পুনরায় তৈরি করতে দেয়।
--   **গুটেনবার্গ পিআর প্রিভিউ করুন**: এটি টেস্টারদের গুটেনবার্গ রিপোজিটরি থেকে ব্রাঞ্চগুলো চালিয়ে তাৎক্ষণিকভাবে পুল রিকোয়েস্ট পরীক্ষা করার সুযোগ দেয়।
--   **গিটহাব থেকে ইম্পোর্ট করুন**: এই বিকল্পটি আপনাকে সরাসরি আপনার পাবলিক গিটহাব রিপোজিটরি থেকে প্লাগইন, থিম এবং wp-content ডিরেক্টরি ইম্পোর্ট করতে দেয়। এই ফিচারটি চালু করতে, ওয়ার্ডপ্রেস প্লেগ্রাউন্ডের সাথে আপনার গিটহাব অ্যাকাউন্ট সংযুক্ত করুন।
+- **.zip থেকে ইম্পোর্ট করুন**: এটি আপনাকে "Download as .zip" বিকল্প দিয়ে জেনারেট করা যেকোনো `.zip` ফাইল ব্যবহার করে একটি প্লেগ্রাউন্ড ইনস্ট্যান্স পুনরায় তৈরি করতে দেয়।
+- **গুটেনবার্গ পিআর প্রিভিউ করুন**: এটি টেস্টারদের গুটেনবার্গ রিপোজিটরি থেকে ব্রাঞ্চগুলো চালিয়ে তাৎক্ষণিকভাবে পুল রিকোয়েস্ট পরীক্ষা করার সুযোগ দেয়।
+- **গিটহাব থেকে ইম্পোর্ট করুন**: এই বিকল্পটি আপনাকে সরাসরি আপনার পাবলিক গিটহাব রিপোজিটরি থেকে প্লাগইন, থিম এবং wp-content ডিরেক্টরি ইম্পোর্ট করতে দেয়। এই ফিচারটি চালু করতে, ওয়ার্ডপ্রেস প্লেগ্রাউন্ডের সাথে আপনার গিটহাব অ্যাকাউন্ট সংযুক্ত করুন।
 
 <!--
 :::caution
