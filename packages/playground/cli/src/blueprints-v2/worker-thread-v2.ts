@@ -173,6 +173,7 @@ export type SecondaryWorkerBootArgs = {
 	withRedis?: boolean;
 	withMemcached?: boolean;
 	withXdebug?: boolean;
+	withSpx?: boolean;
 	mountsBeforeWpInstall?: Array<Mount>;
 	mountsAfterWpInstall?: Array<Mount>;
 };
@@ -483,6 +484,7 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 		withRedis,
 		withMemcached,
 		withXdebug,
+		withSpx,
 		onPHPInstanceCreated,
 		spawnHandler,
 	}: WorkerBootRequestHandlerOptions) {
@@ -522,6 +524,7 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 						withRedis,
 						withMemcached,
 						withXdebug,
+						withSpx,
 					});
 				},
 				maxPhpInstances: 1,
@@ -581,6 +584,7 @@ async function createPHPWorker(
 		trace,
 		nativeInternalDirPath,
 		withXdebug,
+		withSpx,
 		mountsBeforeWpInstall,
 		mountsAfterWpInstall,
 	}: SecondaryWorkerBootArgs,
@@ -604,6 +608,7 @@ async function createPHPWorker(
 		trace,
 		nativeInternalDirPath,
 		withXdebug,
+		withSpx,
 		mountsBeforeWpInstall,
 		mountsAfterWpInstall,
 	});

@@ -16,6 +16,7 @@ import {
 import { withIntl } from './extensions/intl/with-intl';
 import { withRedis } from './extensions/redis/with-redis';
 import { withMemcached } from './extensions/memcached/with-memcached';
+import { withSpx } from './extensions/spx/with-spx';
 import { joinPaths } from '@php-wasm/util';
 import type { Promised } from '@php-wasm/util';
 import { dirname } from 'path';
@@ -28,6 +29,7 @@ export interface PHPLoaderOptions {
 	withIntl?: boolean;
 	withRedis?: boolean;
 	withMemcached?: boolean;
+	withSpx?: boolean;
 }
 
 export type PHPLoaderOptionsForNode = PHPLoaderOptions & {
@@ -250,6 +252,10 @@ export async function loadNodeRuntime(
 
 	if (options?.withMemcached === true) {
 		emscriptenOptions = await withMemcached(phpVersion, emscriptenOptions);
+	}
+
+	if (options?.withSpx === true) {
+		emscriptenOptions = await withSpx(phpVersion, emscriptenOptions);
 	}
 
 	emscriptenOptions = await withNetworking(emscriptenOptions);

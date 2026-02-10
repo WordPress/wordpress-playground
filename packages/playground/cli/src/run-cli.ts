@@ -279,6 +279,11 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 				type: 'boolean',
 				default: false,
 			},
+			spx: {
+				describe: 'Enable SPX profiler.',
+				type: 'boolean',
+				default: false,
+			},
 			'experimental-unsafe-ide-integration': {
 				describe:
 					'Enable experimental IDE development tools. This option edits IDE config files ' +
@@ -371,6 +376,11 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 			},
 			xdebug: {
 				describe: 'Enable Xdebug for debugging.',
+				type: 'boolean',
+				default: false,
+			},
+			spx: {
+				describe: 'Enable SPX profiler.',
 				type: 'boolean',
 				default: false,
 			},

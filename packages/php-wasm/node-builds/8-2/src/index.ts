@@ -45,6 +45,22 @@ export async function getXdebugExtensionPath(): Promise<string> {
 	}
 }
 
+export async function getSpxExtensionPath(): Promise<string> {
+	if (await jspi()) {
+		return join(packageDir, 'jspi/extensions/spx/8_2/spx.so');
+	} else {
+		return join(packageDir, 'asyncify/extensions/spx/8_2/spx.so');
+	}
+}
+
+export async function getSpxWebUiPath(): Promise<string> {
+	if (await jspi()) {
+		return join(packageDir, 'jspi/extensions/spx/8_2/web-ui');
+	} else {
+		return join(packageDir, 'asyncify/extensions/spx/8_2/web-ui');
+	}
+}
+
 export async function getRedisExtensionPath(): Promise<string> {
 	if (await jspi()) {
 		return join(packageDir, 'jspi/extensions/redis/8_2/redis.so');

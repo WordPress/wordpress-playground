@@ -46,6 +46,7 @@ export type WorkerBootOptions = {
 	withRedis?: boolean;
 	withMemcached?: boolean;
 	withXdebug?: boolean;
+	withSpx?: boolean;
 	nativeInternalDirPath: string;
 	/**
 	 * PHP constants to define via php.defineConstant().
@@ -76,6 +77,7 @@ interface WorkerBootRequestHandlerOptions {
 	withRedis?: boolean;
 	withMemcached?: boolean;
 	withXdebug?: boolean;
+	withSpx?: boolean;
 }
 
 /**
@@ -306,6 +308,7 @@ function createPhpRuntimeFactory(
 				withRedis: options.withRedis,
 				withMemcached: options.withMemcached,
 				withXdebug: options.withXdebug,
+				withSpx: options.withSpx,
 			}
 		);
 	};

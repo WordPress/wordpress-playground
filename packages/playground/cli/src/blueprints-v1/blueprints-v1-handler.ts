@@ -160,6 +160,7 @@ export class BlueprintsV1Handler {
 			// until Playground has fully booted.
 			// TODO: Consider supporting Xdebug for the initial worker via a dedicated flag.
 			withXdebug: false,
+			withSpx: !!this.args.spx,
 			nativeInternalDirPath,
 			constants: mergeDefinedConstants(this.args),
 		});
@@ -215,6 +216,7 @@ export class BlueprintsV1Handler {
 			withRedis: this.args.redis,
 			withMemcached: this.args.memcached,
 			withXdebug: !!this.args.xdebug,
+			withSpx: !!this.args.spx,
 			nativeInternalDirPath,
 			constants: mergeDefinedConstants(this.args),
 		});

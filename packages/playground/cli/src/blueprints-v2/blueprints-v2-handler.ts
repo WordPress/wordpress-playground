@@ -71,6 +71,7 @@ export class BlueprintsV2Handler {
 			// until Playground has fully booted.
 			// TODO: Consider supporting Xdebug for the initial worker via a dedicated flag.
 			withXdebug: false,
+			withSpx: !!this.args.spx,
 			xdebug: undefined,
 			nativeInternalDirPath,
 			mountsBeforeWpInstall: this.args['mount-before-install'] || [],
@@ -109,6 +110,7 @@ export class BlueprintsV2Handler {
 			withRedis: this.args.redis,
 			withMemcached: this.args.memcached,
 			withXdebug: !!this.args.xdebug,
+			withSpx: !!this.args.spx,
 			nativeInternalDirPath,
 			mountsBeforeWpInstall: this.args['mount-before-install'] || [],
 			mountsAfterWpInstall: this.args.mount || [],
