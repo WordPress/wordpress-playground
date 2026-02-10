@@ -656,7 +656,7 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 		>;
 		const defineNumber = (args['define-number'] || {}) as Record<
 			string,
-			boolean
+			number
 		>;
 		const hasDebugDefine = (name: string) => {
 			return name in define || name in defineBool || name in defineNumber;
