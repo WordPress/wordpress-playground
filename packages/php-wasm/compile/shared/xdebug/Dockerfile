@@ -109,7 +109,7 @@ RUN	cd xdebug; \
 	# with the main module.
 	/root/replace.sh 's/^(XDEBUG_SHARED_LIBADD\s*=.*\s*)-lm\b/$1/' Makefile; \
 
-	export EMCC_FLAGS="-sSIDE_MODULE -D__x86_64__ -sWASM_BIGINT -Dsetsockopt=wasm_setsockopt -Drecv=wasm_recv"; \
+	export EMCC_FLAGS="-sSIDE_MODULE -D__x86_64__ -sWASM_BIGINT -Dsetsockopt=wasm_setsockopt -Drecv=wasm_recv -Dgetpid=__wrap_getpid"; \
 
 	if [ "$DEBUG" = "yes" ]; then \
 		export EMCC_FLAGS="${EMCC_FLAGS} -O0 -g3"; \
@@ -136,3 +136,22 @@ RUN	/root/emsdk/upstream/bin/wasm-opt -Oz \
 		--enable-exception-handling \
 		/root/xdebug/modules/xdebug.so \
 		-o /root/xdebug/modules/xdebug.so;
+
+# List globals symbols [ env func and globals without invoke_ and libc++(_Z) prefixed ones ]
+RUN	if [ "$JSPI" = "yes" ]; then \
+		/root/emsdk/upstream/bin/wasm-dis /root/xdebug/modules/xdebug.so \
+		| sed -n 's/^[[:space:]]*(import "env" "\([^"]*\)"[[:space:]]*(\(func\|global\).*/\1/p' \
+		| sed '/^invoke_/d' \
+		| sed '/^_Z/d' \
+		| sed 's/^/_/' \
+		| sort \
+		> /root/xdebug/modules/xdebug.globals.list; \
+	fi;
+
+# List exports symbols [ GOT.mem and GOT.func globals ]
+RUN	if [ "$JSPI" = "yes" ]; then \
+		/root/emsdk/upstream/bin/wasm-dis /root/xdebug/modules/xdebug.so \
+		| sed -n 's/^[[:space:]]*(import "\(GOT\.mem\|GOT\.func\)" "\([^"]*\)"[[:space:]]*(global.*/\2/p' \
+		| sort \
+		> /root/xdebug/modules/xdebug.exports.list; \
+	fi;
