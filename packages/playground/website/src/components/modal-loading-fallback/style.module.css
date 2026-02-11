@@ -1,12 +1,3 @@
-@keyframes fadeIn {
-	from {
-		opacity: 0;
-	}
-	to {
-		opacity: 1;
-	}
-}
-
 .fallback {
 	display: flex;
 	flex-direction: column;
@@ -15,7 +6,6 @@
 	min-height: 300px;
 	gap: 16px;
 	padding: 24px;
-	animation: fadeIn 0.3s ease-in;
 }
 
 .spinner {
