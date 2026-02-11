@@ -1214,8 +1214,8 @@ export class PHP implements Disposable {
 	 * Moves a file or directory in the PHP filesystem to a
 	 * new location.
 	 *
-	 * @param oldPath The path to rename.
-	 * @param newPath The new path.
+	 * @param fromPath The path to rename.
+	 * @param toPath The new path.
 	 */
 	mv(fromPath: string, toPath: string) {
 		const result = FSHelpers.mv(
@@ -1231,8 +1231,8 @@ export class PHP implements Disposable {
 	 * Copies a file or directory in the PHP filesystem to a
 	 * new location.
 	 *
-	 * @param oldPath The path to rename.
-	 * @param newPath The new path.
+	 * @param fromPath The source path.
+	 * @param toPath The target path.
 	 */
 	cp(fromPath: string, toPath: string) {
 		const result = FSHelpers.copyRecursive(

@@ -1607,6 +1607,154 @@ phpLoaderOptions.forEach((options) => {
 				expect(php.readFileAsText('/tmp/test.txt')).toEqual('contents');
 			});
 
+			it('cp() should copy a file', () => {
+				php.mkdir(testDirPath);
+				const file1 = testDirPath + '/1.txt';
+				const file2 = testDirPath + '/2.txt';
+
+				php.writeFile(file1, '1');
+				php.cp(file1, file2);
+
+				expect(php.fileExists(file1)).toEqual(true);
+				expect(php.fileExists(file2)).toEqual(true);
+				expect(php.readFileAsText(file2)).toEqual('1');
+			});
+
+			it('cp() should replace target file if it exists', () => {
+				php.mkdir(testDirPath);
+				const file1 = testDirPath + '/1.txt';
+				const file2 = testDirPath + '/2.txt';
+
+				php.writeFile(file1, '1');
+				php.writeFile(file2, '2');
+
+				php.cp(file1, file2);
+
+				expect(php.fileExists(file1)).toEqual(true);
+				expect(php.fileExists(file2)).toEqual(true);
+				expect(php.readFileAsText(file2)).toEqual('1');
+			});
+
+			it('cp() should recursively copy a directory', () => {
+				php.mkdir(testDirPath);
+				const sourceDir = testDirPath + '/dir1';
+				const targetDir = testDirPath + '/dir2';
+
+				php.mkdir(sourceDir);
+				php.writeFile(sourceDir + '/a.txt', 'A');
+				php.mkdir(sourceDir + '/nested');
+				php.writeFile(sourceDir + '/nested/b.txt', 'B');
+
+				php.cp(sourceDir, targetDir);
+
+				expect(php.fileExists(sourceDir + '/a.txt')).toEqual(true);
+				expect(php.fileExists(targetDir + '/a.txt')).toEqual(true);
+				expect(php.fileExists(targetDir + '/nested/b.txt')).toEqual(
+					true
+				);
+				expect(php.readFileAsText(targetDir + '/a.txt')).toEqual('A');
+				expect(php.readFileAsText(targetDir + '/nested/b.txt')).toEqual(
+					'B'
+				);
+			});
+
+			it('cp() should throw a useful error when source file does not exist', () => {
+				php.mkdir(testDirPath);
+				const file1 = testDirPath + '/1.txt';
+				const file2 = testDirPath + '/2.txt';
+
+				expect(() => {
+					php.cp(file1, file2);
+				}).toThrowError(
+					`Could not copy ${file1} to ${file2}: There is no such file or directory OR the parent directory does not exist.`
+				);
+			});
+
+			it('cp() should throw a useful error when target directory does not exist', () => {
+				php.mkdir(testDirPath);
+				const file1 = testDirPath + '/1.txt';
+				const file2 = testDirPath + '/nowhere/2.txt';
+
+				php.writeFile(file1, '1');
+
+				expect(() => {
+					php.cp(file1, file2);
+				}).toThrowError(
+					`Could not copy ${file1} to ${file2}: There is no such file or directory OR the parent directory does not exist.`
+				);
+			});
+
+			it('cp() should not allow copying a directory into itself', () => {
+				php.mkdir(testDirPath);
+				const dir = testDirPath + '/dir';
+
+				php.mkdir(dir);
+
+				expect(() => {
+					php.cp(dir, `${dir}/nested`);
+				}).toThrow(
+					`Could not copy ${dir} to ${dir}/nested: Invalid argument.`
+				);
+			});
+
+			it('cp() from NODEFS to MEMFS should work', () => {
+				mkdirSync(__dirname + '/test-data/mount-contents/copy-src', {
+					recursive: true,
+				});
+				writeFileSync(
+					__dirname + '/test-data/mount-contents/copy-src/test.txt',
+					'contents'
+				);
+
+				php.mount(
+					'/nodefs',
+					createNodeFsMountHandler(
+						__dirname + '/test-data/mount-contents'
+					)
+				);
+				php.cp('/nodefs/copy-src', '/tmp/copied-dir');
+
+				expect(php.fileExists('/tmp/copied-dir/test.txt')).toEqual(
+					true
+				);
+				expect(php.readFileAsText('/tmp/copied-dir/test.txt')).toEqual(
+					'contents'
+				);
+
+				rmSync(__dirname + '/test-data/mount-contents/copy-src', {
+					recursive: true,
+				});
+			});
+
+			it('cp() from NODEFS to MEMFS should work', () => {
+				mkdirSync(__dirname + '/test-data/mount-contents/copy-src', {
+					recursive: true,
+				});
+				writeFileSync(
+					__dirname + '/test-data/mount-contents/copy-src/test.txt',
+					'contents'
+				);
+
+				php.mount(
+					'/nodefs',
+					createNodeFsMountHandler(
+						__dirname + '/test-data/mount-contents'
+					)
+				);
+				php.cp('/nodefs/copy-src', '/tmp/copied-dir');
+
+				expect(php.fileExists('/tmp/copied-dir/test.txt')).toEqual(
+					true
+				);
+				expect(php.readFileAsText('/tmp/copied-dir/test.txt')).toEqual(
+					'contents'
+				);
+
+				rmSync(__dirname + '/test-data/mount-contents/copy-src', {
+					recursive: true,
+				});
+			});
+
 			it('mkdir() should create a directory', () => {
 				php.mkdir(testDirPath);
 				expect(php.fileExists(testDirPath)).toEqual(true);
