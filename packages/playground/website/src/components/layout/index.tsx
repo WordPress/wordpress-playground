@@ -98,15 +98,15 @@ export function Layout() {
 }
 
 /**
- * Modals component with code-split heavy modals wrapped in Suspense
+ * Renders the currently active modal. Heavy GitHub modals are
+ * lazy-loaded so they don't bloat the initial bundle.
  *
- * Architecture improvements:
- * - Heavy GitHub modals are now lazy-loaded to reduce initial bundle size (~30-50KB)
- * - Non-critical modals load on demand when user opens them
- * - Suspense boundary shows loading state while modal chunks load
- * - Priority system ensures critical modals (errors, logs) show before others
- *
- * @TODO: Implement mobile-friendly modal stacking and priority handling
+ * @TODO: Think through a mobile-friendly modal architecture that
+ * doesn't stack modals, allows dismissing, and understands some
+ * modals (e.g. fatal error report) might have priority over other
+ * modals (e.g. connect to GitHub). Discuss whether modals should
+ * be declared at the top level, like here, or contextual to where
+ * the "Show modal" button is rendered.
  */
 function Modals() {
 	const query = new URL(document.location.href).searchParams;
@@ -157,7 +157,6 @@ function Modals() {
 		(state: PlaygroundReduxState) => state.ui.activeModal
 	);
 
-	// Static modals (loaded with initial bundle - critical for UX)
 	if (currentModal === modalSlugs.LOG) {
 		return <LogModal />;
 	} else if (currentModal === modalSlugs.START_ERROR) {
@@ -174,8 +173,6 @@ function Modals() {
 		return <BlueprintUrlModal />;
 	}
 
-	// Lazy-loaded modals (code-split for performance)
-	// Wrapped in Suspense to show loading state while chunks load
 	if (currentModal === modalSlugs.PREVIEW_PR_WP) {
 		return (
 			<LazyModal>
