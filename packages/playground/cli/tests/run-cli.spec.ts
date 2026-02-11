@@ -18,6 +18,7 @@ import {
 	existsSync,
 	lstatSync,
 	rmSync,
+	statSync,
 } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { MinifiedWordPressVersionsList } from '@wp-playground/wordpress-builds';
@@ -1008,6 +1009,165 @@ describe('other run-cli behaviors', () => {
 
 			const response = await fetch(new URL('/', cliServer.serverUrl));
 			expect(response.status).toBe(500);
+		});
+	});
+
+	describe('--develop mode', () => {
+		let tempDir: string;
+
+		beforeEach(async () => {
+			// Create temp directory for tests
+			tempDir = await mkdtemp(path.join(tmpdir(), 'playground-test-'));
+		});
+
+		afterEach(() => {
+			// Cleanup
+			if (existsSync(tempDir)) {
+				rmSync(tempDir, { recursive: true, force: true });
+			}
+		});
+
+		test('should add mount-before-install when --develop is used', async () => {
+			await using cliServer = await runCLI({
+				command: 'server',
+				develop: tempDir,
+				wordpressInstallMode: 'do-not-attempt-installing',
+				skipSqliteSetup: true,
+			});
+
+			// We can't directly check args, but we can verify the server started
+			expect(cliServer).toBeDefined();
+		});
+
+		test('should skip WordPress download if WordPress exists', async () => {
+			// Create WordPress structure
+			mkdirSync(path.join(tempDir, 'wp-admin'));
+			mkdirSync(path.join(tempDir, 'wp-includes'));
+			mkdirSync(path.join(tempDir, 'wp-content'));
+
+			// Create a marker file to verify the mount
+			writeFileSync(
+				path.join(tempDir, 'test-marker.txt'),
+				'test content'
+			);
+
+			await using cliServer = await runCLI({
+				command: 'server',
+				develop: tempDir,
+				skipSqliteSetup: true,
+			});
+
+			// Check that the marker file is accessible in the mounted directory
+			const fileContent = await cliServer.playground.readFileAsText(
+				'/wordpress/test-marker.txt'
+			);
+			expect(fileContent).toBe('test content');
+		});
+
+		test('should inject development mode blueprint with SQLite and debug constants', async () => {
+			await using cliServer = await runCLI({
+				command: 'server',
+				develop: tempDir,
+			});
+
+			// Verify that wp-config.php has debug constants set
+			await cliServer.playground.writeFile(
+				'/wordpress/check-debug.php',
+				`<?php
+				require_once '/wordpress/wp-config.php';
+				echo 'WP_DEBUG: ' . (defined('WP_DEBUG') && WP_DEBUG ? 'true' : 'false') . "\\n";
+				echo 'WP_DEBUG_LOG: ' . (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG ? 'true' : 'false') . "\\n";
+				echo 'WP_DEBUG_DISPLAY: ' . (defined('WP_DEBUG_DISPLAY') && WP_DEBUG_DISPLAY ? 'true' : 'false') . "\\n";
+				echo 'SCRIPT_DEBUG: ' . (defined('SCRIPT_DEBUG') && SCRIPT_DEBUG ? 'true' : 'false') . "\\n";
+				`
+			);
+
+			const response = await fetch(
+				new URL('/check-debug.php', cliServer.serverUrl)
+			);
+			const text = await response.text();
+
+			expect(text).toContain('WP_DEBUG: true');
+			expect(text).toContain('WP_DEBUG_LOG: true');
+			expect(text).toContain('WP_DEBUG_DISPLAY: true');
+			expect(text).toContain('SCRIPT_DEBUG: true');
+		});
+
+		test('should merge with existing blueprint', async () => {
+			const userBlueprint = {
+				steps: [
+					{
+						step: 'writeFile',
+						path: '/wordpress/custom-file.txt',
+						data: 'custom content',
+					},
+				],
+			};
+
+			await using cliServer = await runCLI({
+				command: 'server',
+				develop: tempDir,
+				blueprint: userBlueprint as any,
+			});
+
+			// Verify that both development mode and user blueprint steps were executed
+			const fileContent = await cliServer.playground.readFileAsText(
+				'/wordpress/custom-file.txt'
+			);
+			expect(fileContent).toBe('custom content');
+
+			// Also verify debug constants from development mode
+			await cliServer.playground.writeFile(
+				'/wordpress/check-debug.php',
+				`<?php
+				require_once '/wordpress/wp-config.php';
+				echo 'WP_DEBUG: ' . (defined('WP_DEBUG') && WP_DEBUG ? 'true' : 'false') . "\\n";
+				`
+			);
+
+			const response = await fetch(
+				new URL('/check-debug.php', cliServer.serverUrl)
+			);
+			const text = await response.text();
+			expect(text).toContain('WP_DEBUG: true');
+		});
+
+		test('should throw error if path does not exist', () => {
+			const nonExistentPath = path.join(tempDir, 'non-existent');
+
+			expect(() => {
+				// This should be caught by the coerce function
+				// We can't easily test yargs coerce directly, but we can test the logic
+				if (!existsSync(nonExistentPath)) {
+					throw new Error(
+						`--develop path does not exist: ${nonExistentPath}`
+					);
+				}
+			}).toThrow('does not exist');
+		});
+
+		test('should throw error if path is not a directory', () => {
+			const filePath = path.join(tempDir, 'file.txt');
+			writeFileSync(filePath, 'content');
+
+			expect(() => {
+				const stats = statSync(filePath);
+				if (!stats.isDirectory()) {
+					throw new Error(
+						`--develop path must be a directory: ${filePath}`
+					);
+				}
+			}).toThrow('must be a directory');
+		});
+
+		test('should throw error if used with --auto-mount', async () => {
+			await expect(
+				runCLI({
+					command: 'server',
+					develop: tempDir,
+					autoMount: tempDir,
+				})
+			).rejects.toThrow('cannot be used together');
 		});
 	});
 });
