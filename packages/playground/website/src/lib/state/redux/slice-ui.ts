@@ -153,7 +153,6 @@ export interface UIState {
 
 const query = new URL(document.location.href).searchParams;
 const isEmbeddedInAnIframe = window.self !== window.top;
-const isSmallScreen = window.innerWidth < BREAKPOINTS.tablet;
 
 const shouldOpenSiteManagerByDefault = false;
 
@@ -185,7 +184,7 @@ const initialState: UIState = {
 		// Don't default to the site manager on small screens (mobile/tablet),
 		// as that would mean seeing something that's not Playground filling
 		// your entire screen – quite a confusing experience.
-		!isSmallScreen,
+		window.innerWidth >= BREAKPOINTS.tablet,
 	siteManagerSection: 'site-details',
 };
 

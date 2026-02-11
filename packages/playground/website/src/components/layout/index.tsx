@@ -98,8 +98,10 @@ export function Layout() {
 }
 
 /**
- * Renders the currently active modal. Heavy GitHub modals are
- * lazy-loaded so they don't bloat the initial bundle.
+ * Renders the currently active modal. Some modals are lazy loaded
+ * to reduce the initial bundle size. Every button that would open
+ * those modals must be disabled in the offline mode or else the
+ * UI will go blank when the user tries to open them.
  *
  * @TODO: Think through a mobile-friendly modal architecture that
  * doesn't stack modals, allows dismissing, and understands some
