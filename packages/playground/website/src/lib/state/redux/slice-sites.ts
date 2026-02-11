@@ -25,10 +25,7 @@ import { logger } from '@php-wasm/logger';
 import { setActiveSiteError, type SiteError } from './slice-ui';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import { findFirewallErrorInCauseChain } from './error-utils';
-import {
-	findSiteMatchingUrlParams,
-	urlParamsMatch,
-} from '../url/url-params-matching';
+import { urlParamsMatch } from '../url/url-params-matching';
 import { randomSiteName } from './random-site-name';
 
 /**
@@ -531,47 +528,29 @@ export const selectSitesLoaded = createSelector(
 );
 
 /**
- * Looks for an existing persisted site that was created from the same
- * URL params. If one is found, returns it. Otherwise creates a new
- * temporary site from the given URL.
+ * Creates a new temporary site from the given URL. If the current
+ * temporary site already matches the URL params, reuses it instead
+ * of creating a duplicate. Persisted sites are only loaded via their
+ * explicit ?site-slug= URL — never matched by query parameters.
  */
 export function findOrCreateSiteForUrl(playgroundUrl: URL) {
 	return async (
 		dispatch: PlaygroundDispatch,
 		getState: () => PlaygroundReduxState
 	) => {
-		// The 'random' param signals an explicit "New Playground" request
-		// (e.g. clicking "Unsaved Playground" in the overlay). Always
-		// create a fresh site in that case — never reuse an existing one.
-		if (playgroundUrl.searchParams.has('random')) {
-			const site = await dispatch(
-				setTemporarySiteSpec(randomSiteName(), playgroundUrl)
-			);
-			return { site, isExisting: false };
-		}
-
 		const urlParams = {
 			searchParams: parseSearchParams(playgroundUrl.searchParams),
 			hash: playgroundUrl.hash,
 		};
 
-		// Check persisted sites for a match.
-		const allSites = selectAllSites(getState());
-		const match = findSiteMatchingUrlParams(
-			allSites.filter((s) => s.metadata.storage !== 'none'),
-			urlParams
-		);
-		if (match) {
-			return { site: match, isExisting: true };
-		}
-
-		// Check the current temporary site — avoid re-creating if it matches.
+		// Reuse the current temporary site if it already matches,
+		// to avoid creating a duplicate on re-renders.
 		const temp = selectTemporarySite(getState());
 		if (temp && urlParamsMatch(temp.originalUrlParams || {}, urlParams)) {
 			return { site: temp, isExisting: false };
 		}
 
-		// No match — create a new temporary site.
+		// Create a new temporary site.
 		const site = await dispatch(
 			setTemporarySiteSpec(randomSiteName(), playgroundUrl)
 		);

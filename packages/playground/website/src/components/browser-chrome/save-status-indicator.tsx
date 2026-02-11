@@ -5,23 +5,18 @@ import {
 	useAppSelector,
 	getActiveClientInfo,
 	useActiveSite,
-	useAppDispatch,
 } from '../../lib/state/redux/store';
-import { modalSlugs, setActiveModal } from '../../lib/state/redux/slice-ui';
 import { Icon } from '@wordpress/components';
 import { check, cautionFilled } from '@wordpress/icons';
+import { isOpfsAvailable } from '../../lib/state/opfs/opfs-site-storage';
 
-type SaveStatus = 'saved' | 'unsaved' | 'saving' | 'auto-saving' | 'error';
+type SaveStatus = 'saved' | 'unsaved' | 'saving' | 'error';
 
 function getSaveStatus(
 	storage: string | undefined,
 	opfsSync: { status: string } | undefined
 ): SaveStatus {
 	if (opfsSync?.status === 'syncing') {
-		// Distinguish auto-saving (storage still 'none') from manual saving.
-		if (storage === 'none' || !storage) {
-			return 'auto-saving';
-		}
 		return 'saving';
 	}
 	if (opfsSync?.status === 'error') {
@@ -36,15 +31,10 @@ function getSaveStatus(
 export function SaveStatusIndicator() {
 	const clientInfo = useAppSelector(getActiveClientInfo);
 	const activeSite = useActiveSite();
-	const dispatch = useAppDispatch();
 
 	const storage = activeSite?.metadata?.storage;
 	const opfsSync = clientInfo?.opfsSync;
 	const status = getSaveStatus(storage, opfsSync);
-
-	const handleSaveClick = () => {
-		dispatch(setActiveModal(modalSlugs.SAVE_SITE));
-	};
 
 	if (status === 'saved') {
 		return (
@@ -55,50 +45,44 @@ export function SaveStatusIndicator() {
 		);
 	}
 
-	if (status === 'auto-saving' || status === 'saving') {
-		const progress =
-			opfsSync?.status === 'syncing'
-				? (opfsSync as any).progress
-				: undefined;
-		const label =
-			status === 'auto-saving' ? 'Auto-saving' : 'Saving';
+	if (status === 'error') {
 		return (
-			<div className={classNames(css.indicator, css.saving)}>
-				<span className={css.spinner} />
-				<span className={css.label}>
-					{progress
-						? `${label} ${progress.files}/${progress.total}...`
-						: `${label}...`}
-				</span>
+			<div className={classNames(css.indicator, css.error)}>
+				<Icon icon={cautionFilled} size={18} />
+				<span className={css.label}>Save failed</span>
 			</div>
 		);
 	}
 
-	if (status === 'error') {
+	// Saving — either auto-save just started or sync is in progress.
+	if (status === 'saving' || (status === 'unsaved' && isOpfsAvailable)) {
+		const progress =
+			opfsSync?.status === 'syncing'
+				? (opfsSync as any).progress
+				: undefined;
+		const pct =
+			progress && progress.total > 0
+				? Math.round((progress.files / progress.total) * 100)
+				: 0;
 		return (
-			<button
-				className={classNames(css.indicator, css.error)}
-				onClick={handleSaveClick}
-				type="button"
+			<div
+				className={classNames(css.indicator, css.saving)}
+				style={
+					{
+						'--save-progress': `${pct}%`,
+					} as React.CSSProperties
+				}
 			>
-				<Icon icon={cautionFilled} size={18} />
-				<span className={css.label}>Save failed</span>
-			</button>
+				<span className={css.label}>Saving Playground</span>
+			</div>
 		);
 	}
 
-	// Unsaved - temporary playground that will be lost on refresh
+	// No OPFS — truly unsaved, no auto-save possible.
 	return (
 		<div className={classNames(css.indicator, css.unsaved)}>
 			<Icon icon={cautionFilled} size={18} />
 			<span className={css.label}>Unsaved Playground</span>
-			<button
-				className={css.saveButton}
-				onClick={handleSaveClick}
-				type="button"
-			>
-				Save
-			</button>
 		</div>
 	);
 }

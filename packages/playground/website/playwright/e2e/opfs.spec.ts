@@ -68,13 +68,12 @@ test('should show auto-saving indicator during save', async ({
 
 	await website.goto('./');
 
-	// During auto-save, the save status indicator should show "Auto-saving..."
-	// This is transient — it appears while syncing and disappears when done.
-	await expect(website.page.getByText('Auto-saving')).toBeVisible({
+	// During auto-save, the save status indicator shows "Saving Playground".
+	await expect(website.page.getByText('Saving Playground')).toBeVisible({
 		timeout: 30000,
 	});
 
-	// Eventually transitions to "Saved Playground"
+	// Once complete, it transitions to "Saved Playground".
 	await expect(website.page.getByText('Saved Playground')).toBeVisible({
 		timeout: 120000,
 	});
