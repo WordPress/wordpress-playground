@@ -203,9 +203,13 @@ export const JustViewport = function JustViewport({
 	const site = useAppSelector((state) => selectSiteBySlug(state, siteSlug))!;
 
 	const dispatch = useAppDispatch();
-	const runtimeConfigString = JSON.stringify(
-		site.metadata.runtimeConfiguration
-	);
+	// Exclude `constants` from the serialized config that drives the
+	// boot effect.  Constants are applied during boot but changing them
+	// alone (e.g. auto-save persisting the running constants) should
+	// NOT tear down and reboot the whole Playground.
+	const { constants: _constants, ...runtimeConfigForBoot } =
+		site.metadata.runtimeConfiguration || {};
+	const runtimeConfigString = JSON.stringify(runtimeConfigForBoot);
 	useEffect(() => {
 		const iframe = iframeRef.current;
 		if (!iframe) {

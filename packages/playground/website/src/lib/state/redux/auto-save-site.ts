@@ -92,12 +92,19 @@ export function autoSaveSiteToOpfs(siteSlug: string) {
 				},
 				mountpoint: '/wordpress' as const,
 			};
+			let mountFinished = false;
 			await playground.mountOpfs(
 				{
 					...mountDescriptor,
 					initialSyncDirection: 'memfs-to-opfs',
 				},
 				(progress) => {
+					// Comlink progress callbacks arrive asynchronously and
+					// can land after mountOpfs() resolves. Guard against
+					// stale callbacks re-setting the syncing state.
+					if (mountFinished) {
+						return;
+					}
 					dispatch(
 						updateClientInfo({
 							siteSlug,
@@ -108,6 +115,7 @@ export function autoSaveSiteToOpfs(siteSlug: string) {
 					);
 				}
 			);
+			mountFinished = true;
 
 			// Clear syncing state, store mount descriptor.
 			dispatch(
@@ -120,7 +128,8 @@ export function autoSaveSiteToOpfs(siteSlug: string) {
 				})
 			);
 
-			// Update site metadata: storage → 'opfs', autoSaved → true.
+			// Update site metadata: storage → 'opfs', autoSaved → true,
+			// and persist the running PHP constants so they survive reload.
 			const constants = await getPlaygroundDefinedPHPConstants(playground);
 			await dispatch(
 				updateSiteMetadata({
@@ -128,7 +137,6 @@ export function autoSaveSiteToOpfs(siteSlug: string) {
 					changes: {
 						storage: 'opfs',
 						autoSaved: true,
-						whenCreated: Date.now(),
 						runtimeConfiguration: {
 							...site.metadata.runtimeConfiguration,
 							constants,
