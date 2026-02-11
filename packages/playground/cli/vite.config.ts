@@ -180,6 +180,7 @@ const external = [
 ];
 
 export default defineConfig({
+	root: __dirname,
 	base: './',
 	assetsInclude: ['**/*.ini'],
 	cacheDir: '../../../node_modules/.vite/php-cli',

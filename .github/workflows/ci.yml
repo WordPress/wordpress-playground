@@ -113,8 +113,8 @@ jobs:
                   submodules: true
             - uses: ./.github/actions/prepare-playground
               with:
-                  node-version: 24
-            - run: node --expose-gc node_modules/nx/bin/nx affected --target=${{ matrix.target }}
+                  node-version: 22
+            - run: node --expose-gc --experimental-wasm-jspi node_modules/nx/bin/nx affected --target=${{ matrix.target }}
               env:
                   MYSQL_DATABASE: test_db
                   MYSQL_USER: user
@@ -344,14 +344,14 @@ jobs:
                   submodules: true
             - uses: ./.github/actions/prepare-playground
               with:
-                  node-version: 24
+                  node-version: 22
             - name: Run Redis extension tests (JSPI)
-              run: node --expose-gc node_modules/nx/bin/nx run php-wasm-node:test-redis-extension-jspi
+              run: node --expose-gc --experimental-wasm-jspi node_modules/nx/bin/nx run php-wasm-node:test-redis-extension-jspi
               env:
                   REDIS_HOST: 127.0.0.1
                   REDIS_PORT: 6379
             - name: Run Redis network tests (JSPI)
-              run: node --expose-gc node_modules/nx/bin/nx run php-wasm-node:test-redis-network-jspi
+              run: node --expose-gc --experimental-wasm-jspi node_modules/nx/bin/nx run php-wasm-node:test-redis-network-jspi
               env:
                   REDIS_HOST: 127.0.0.1
                   REDIS_PORT: 6379
@@ -371,11 +371,11 @@ jobs:
                   submodules: true
             - uses: ./.github/actions/prepare-playground
               with:
-                  node-version: 24
+                  node-version: 22
             - name: Run memcached extension tests
-              run: node --expose-gc node_modules/nx/bin/nx run php-wasm-node:test-memcached-extension-jspi
+              run: node --expose-gc --experimental-wasm-jspi node_modules/nx/bin/nx run php-wasm-node:test-memcached-extension-jspi
             - name: Run memcached network tests
-              run: node --expose-gc node_modules/nx/bin/nx run php-wasm-node:test-memcached-network-jspi
+              run: node --expose-gc --experimental-wasm-jspi node_modules/nx/bin/nx run php-wasm-node:test-memcached-network-jspi
               env:
                   MEMCACHED_HOST: 127.0.0.1
                   MEMCACHED_PORT: 11211
