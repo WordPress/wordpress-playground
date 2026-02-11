@@ -40,7 +40,7 @@ export function persistTemporarySite(
 	return async (
 		dispatch: typeof store.dispatch,
 		getState: () => PlaygroundReduxState
-	) => {
+	): Promise<void> => {
 		const state = getState();
 
 		// If the site was already auto-saved to OPFS, skip the sync step —
