@@ -113,7 +113,7 @@ jobs:
                   submodules: true
             - uses: ./.github/actions/prepare-playground
               with:
-                  node-version: 23
+                  node-version: 24
             - run: node --expose-gc node_modules/nx/bin/nx affected --target=${{ matrix.target }}
               env:
                   MYSQL_DATABASE: test_db
@@ -312,6 +312,8 @@ jobs:
               with:
                   submodules: true
             - uses: ./.github/actions/prepare-playground
+              with:
+                  node-version: 22
             - run: packages/playground/cli/tests/test-running-unbuilt-cli.sh
 
     test-php-wasm-cli-smoke:
@@ -321,6 +323,8 @@ jobs:
               with:
                   submodules: true
             - uses: ./.github/actions/prepare-playground
+              with:
+                  node-version: 22
             - run: packages/php-wasm/cli/tests/smoke-test.sh
 
     # Redis extension tests - verifies the php-redis extension loads
@@ -340,7 +344,7 @@ jobs:
                   submodules: true
             - uses: ./.github/actions/prepare-playground
               with:
-                  node-version: 23
+                  node-version: 24
             - name: Run Redis extension tests (JSPI)
               run: node --expose-gc node_modules/nx/bin/nx run php-wasm-node:test-redis-extension-jspi
               env:
@@ -367,7 +371,7 @@ jobs:
                   submodules: true
             - uses: ./.github/actions/prepare-playground
               with:
-                  node-version: 23
+                  node-version: 24
             - name: Run memcached extension tests
               run: node --expose-gc node_modules/nx/bin/nx run php-wasm-node:test-memcached-extension-jspi
             - name: Run memcached network tests
@@ -383,6 +387,8 @@ jobs:
               with:
                   submodules: true
             - uses: ./.github/actions/prepare-playground
+              with:
+                  node-version: 22
             - run: |
                   if ADDITIONAL_REMOTE_ORIGINS=invalid-origin npx nx build playground-client; then
                     echo "The Playground client build should have failed due to an invalid additional origin."
