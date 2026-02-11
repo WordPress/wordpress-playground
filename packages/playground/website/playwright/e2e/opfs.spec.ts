@@ -537,6 +537,77 @@ test('should create temporary site when importing ZIP while on a saved site with
 	);
 });
 
+test('should not show missing-site modal when navigating to an auto-saved site by slug', async ({
+	website,
+	wordpress,
+	browserName,
+}) => {
+	test.skip(
+		browserName !== 'chromium',
+		`This test relies on OPFS which isn't available in Playwright's flavor of ${browserName}.`
+	);
+
+	// Use a blueprint with a custom landingPage and a marker file.
+	// When the auto-saved site is loaded from OPFS, the landing page
+	// should be preserved — the user should arrive at /marker.php,
+	// not the WordPress homepage.
+	const marker = 'AUTO_SAVE_SLUG_NAV_MARKER_99999';
+	const blueprint: Blueprint = {
+		landingPage: '/marker.php',
+		steps: [
+			{
+				step: 'writeFile',
+				path: '/wordpress/marker.php',
+				data: `<?php echo '${marker}';`,
+			},
+		],
+	};
+	await website.goto(`./#${JSON.stringify(blueprint)}`);
+
+	// Verify the marker is present on the original landing page.
+	await expect(wordpress.locator('body')).toContainText(marker, {
+		timeout: 120_000,
+	});
+
+	await website.ensureSiteManagerIsOpen();
+	await waitForAutoSave(website.page);
+
+	// Capture the slug from the URL
+	const urlAfterSave = website.page.url();
+	const siteSlug = new URL(urlAfterSave).searchParams.get('site-slug');
+	expect(siteSlug).toBeTruthy();
+
+	// Navigate to the auto-saved site using its slug URL. This is a
+	// full page navigation (not a reload), which exercises the same
+	// code path that runs when the user opens a bookmarked link or
+	// when auto-save's replaceUrl triggers a re-evaluation.
+	await website.goto(`./?site-slug=${siteSlug}`);
+	await website.waitForNestedIframes();
+
+	// The missing-site modal must NOT appear — the site exists in OPFS.
+	const dialog = website.page.getByRole('dialog', {
+		name: 'This is a dialog window which overlays the main content of the page. It offers the user a choice between using an Unsaved Playground and a persistent Playground that is saved to browser storage.',
+	});
+	// Give the modal 5 seconds to appear (it shouldn't).
+	const modalAppeared = await dialog
+		.waitFor({ state: 'visible', timeout: 5000 })
+		.then(() => true)
+		.catch(() => false);
+	expect(modalAppeared).toBe(false);
+
+	// The site should show "Saved Playground" (loaded from OPFS).
+	await expect(website.page.getByText('Saved Playground')).toBeVisible({
+		timeout: 120000,
+	});
+
+	// The saved content should be intact AND the landing page from
+	// the original blueprint should be applied, so marker.php is
+	// loaded instead of the WordPress homepage.
+	await expect(wordpress.locator('body')).toContainText(marker, {
+		timeout: 120_000,
+	});
+});
+
 // Missing site modal tests in a separate describe block to avoid state pollution
 test.describe('Missing site modal', () => {
 	// These tests also need serial mode since they use OPFS

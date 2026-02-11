@@ -207,6 +207,10 @@ export function bootSiteClient(
 				extraLibraries: site.metadata.runtimeConfiguration
 					.extraLibraries as any[],
 				constants: site.metadata.runtimeConfiguration.constants,
+				// Preserve the original landing page so returning visitors
+				// arrive at the same page they saw on first boot.
+				landingPage:
+					site.metadata.originalBlueprint?.landingPage,
 			};
 		} else {
 			blueprint = site.metadata.originalBlueprint;
