@@ -7,18 +7,12 @@ import {
 	selectActiveSite,
 } from '../../lib/state/redux/store';
 import { setActiveModal } from '../../lib/state/redux/slice-ui';
-import { selectClientInfoBySiteSlug } from '../../lib/state/redux/slice-clients';
 
 export function MissingSiteModal() {
 	const dispatch = useAppDispatch();
 	const closeModal = () => dispatch(setActiveModal(null));
 
 	const activeSite = useAppSelector((state) => selectActiveSite(state));
-	const clientInfo = useAppSelector(
-		(state) =>
-			activeSite?.slug &&
-			selectClientInfoBySiteSlug(state, activeSite?.slug)
-	);
 
 	if (!activeSite) {
 		return null;
@@ -73,10 +67,6 @@ export function MissingSiteModal() {
 				<FlexItem>
 					<Button
 						variant="link"
-						disabled={
-							!!clientInfo &&
-							clientInfo?.opfsSync?.status === 'syncing'
-						}
 						onClick={(e: React.MouseEvent) => {
 							e.preventDefault();
 							e.stopPropagation();

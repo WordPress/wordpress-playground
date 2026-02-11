@@ -22,54 +22,92 @@ async function createTestWordPressZip(markerContent: string): Promise<Buffer> {
 test.describe.configure({ mode: 'serial' });
 
 /**
- * Helper function to handle the save site modal flow
+ * Waits for the background auto-save to complete. After boot, Playground
+ * automatically syncs the site to OPFS. This helper waits until the title
+ * changes from "Unsaved Playground" to the persisted site name, which
+ * signals that storage has transitioned from 'none' to 'opfs'.
  */
-async function saveSiteViaModal(
-	page: Page,
-	options?: {
-		customName?: string;
-		storageType?: 'opfs' | 'local-fs';
-	}
-) {
-	const { customName, storageType = 'opfs' } = options || {};
-
-	// Click the "Save site locally" button in the temporary site notice to open the modal.
-	// This button is in the site manager panel and triggers the save flow via SitePersistButton.
-	const saveButton = page.getByRole('button', { name: 'Save site locally' });
-	await expect(saveButton).toBeEnabled();
-	await saveButton.click();
-
-	// Wait for the Save Playground dialog to appear
-	const dialog = page.getByRole('dialog', { name: 'Save Playground' });
-	await expect(dialog).toBeVisible({ timeout: 10000 });
-
-	// If a custom name is provided, update it
-	if (customName) {
-		const nameInput = dialog.getByLabel('Playground name');
-		await nameInput.fill('');
-		await nameInput.type(customName);
-	}
-
-	// Select storage location - wait for the radio button to be available first
-	if (storageType === 'opfs') {
-		// We shouldn't need to explicitly call .waitFor(), but the test fails without it.
-		// Playwright logs that something "intercepts pointer events", that's probably related.
-		await dialog.getByText('Save in this browser').waitFor();
-		await dialog.getByText('Save in this browser').click({ force: true });
-	} else {
-		await dialog.getByText('Save to a local directory').waitFor();
-		await dialog
-			.getByText('Save to a local directory')
-			.click({ force: true });
-	}
-
-	// Click the Save button in the modal
-	await dialog.getByRole('button', { name: 'Save' }).click();
-
-	// Wait for the dialog to close.
-	// The save operation syncs to OPFS which can take time, so we use a longer timeout.
-	await expect(dialog).not.toBeVisible({ timeout: 60000 });
+async function waitForAutoSave(page: Page) {
+	await expect(page.getByLabel('Playground title')).not.toContainText(
+		'Unsaved Playground',
+		{ timeout: 120000 }
+	);
 }
+
+test('should auto-save site to OPFS after boot', async ({
+	website,
+	browserName,
+}) => {
+	test.skip(
+		browserName !== 'chromium',
+		`This test relies on OPFS which isn't available in Playwright's flavor of ${browserName}.`
+	);
+
+	await website.goto('./');
+	await website.ensureSiteManagerIsOpen();
+
+	// Wait for auto-save to complete — title changes to the generated site name
+	await waitForAutoSave(website.page);
+
+	// The title should now be a generated name, not "Unsaved Playground"
+	const title = await website.page
+		.getByLabel('Playground title')
+		.textContent();
+	expect(title).toBeTruthy();
+	expect(title).not.toContain('Unsaved Playground');
+});
+
+test('should show auto-saving indicator during save', async ({
+	website,
+	browserName,
+}) => {
+	test.skip(
+		browserName !== 'chromium',
+		`This test relies on OPFS which isn't available in Playwright's flavor of ${browserName}.`
+	);
+
+	await website.goto('./');
+
+	// During auto-save, the save status indicator should show "Auto-saving..."
+	// This is transient — it appears while syncing and disappears when done.
+	await expect(website.page.getByText('Auto-saving')).toBeVisible({
+		timeout: 30000,
+	});
+
+	// Eventually transitions to "Saved Playground"
+	await expect(website.page.getByText('Saved Playground')).toBeVisible({
+		timeout: 120000,
+	});
+});
+
+test('should reload and restore auto-saved site', async ({
+	website,
+	browserName,
+}) => {
+	test.skip(
+		browserName !== 'chromium',
+		`This test relies on OPFS which isn't available in Playwright's flavor of ${browserName}.`
+	);
+
+	await website.goto('./');
+	await website.ensureSiteManagerIsOpen();
+	await waitForAutoSave(website.page);
+
+	// Remember the site name
+	const siteName = await website.page
+		.getByLabel('Playground title')
+		.textContent();
+
+	// Reload the page
+	await website.page.reload();
+	await website.waitForNestedIframes();
+	await website.ensureSiteManagerIsOpen();
+
+	// The same site should be loaded (not a new "Unsaved Playground")
+	await expect(website.page.getByLabel('Playground title')).toContainText(
+		siteName!
+	);
+});
 
 test('should switch between sites', async ({ website, browserName }) => {
 	test.skip(
@@ -78,39 +116,49 @@ test('should switch between sites', async ({ website, browserName }) => {
 	);
 
 	await website.goto('./');
-
 	await website.ensureSiteManagerIsOpen();
 
-	// Save the temporary site using the modal
-	await saveSiteViaModal(website.page);
+	// Wait for auto-save to complete
+	await waitForAutoSave(website.page);
 
-	await expect(website.page.getByLabel('Playground title')).not.toContainText(
-		'Unsaved Playground',
-		{
-			// Saving the site takes a while on CI
-			timeout: 90000,
-		}
-	);
+	const firstSiteName = await website.page
+		.getByLabel('Playground title')
+		.textContent();
 
-	// Open the saved playgrounds overlay to switch sites
+	// Open the saved playgrounds overlay and click on "Unsaved Playground"
+	// to create a new temporary site. This row always exists as a way to
+	// spin up a fresh playground.
 	await website.openSavedPlaygroundsOverlay();
-
-	// Click on Temporary Playground in the overlay's site list
 	await website.page
 		.locator('[class*="siteRowContent"]')
 		.filter({ hasText: 'Unsaved Playground' })
 		.click();
 
-	// The overlay closes and site manager opens with the selected site
+	// Wait for the new site to auto-save too
+	await website.ensureSiteManagerIsOpen();
+	await waitForAutoSave(website.page);
+
+	const secondSiteName = await website.page
+		.getByLabel('Playground title')
+		.textContent();
+	expect(secondSiteName).not.toBe(firstSiteName);
+
+	// Switch back to the first site
+	await website.openSavedPlaygroundsOverlay();
+	await website.page
+		.locator('[class*="siteRowContent"]')
+		.filter({ hasText: firstSiteName! })
+		.click();
+
 	await expect(website.page.getByLabel('Playground title')).toContainText(
-		'Unsaved Playground'
+		firstSiteName!
 	);
 });
 
-test('should preserve PHP constants when saving a temporary site to OPFS', async ({
+test('should preserve PHP constants when auto-saving to OPFS', async ({
 	website,
-	browserName,
 	wordpress,
+	browserName,
 }) => {
 	test.skip(
 		browserName !== 'chromium',
@@ -131,43 +179,34 @@ test('should preserve PHP constants when saving a temporary site to OPFS', async
 	};
 	await website.goto(`./#${JSON.stringify(blueprint)}`);
 
+	// Verify the constant works
+	await expect(wordpress.locator('body')).toContainText('E2E_TEST_VALUE');
+
 	await website.ensureSiteManagerIsOpen();
+	await waitForAutoSave(website.page);
 
-	// Save the temporary site using the modal
-	await saveSiteViaModal(website.page);
-
-	await expect(website.page.getByLabel('Playground title')).not.toContainText(
-		'Unsaved Playground',
-		{
-			// Saving the site takes a while on CI
-			timeout: 90000,
-		}
-	);
-
-	const storedPlaygroundTitleText = await website.page
+	const savedSiteName = await website.page
 		.getByLabel('Playground title')
 		.textContent();
-	await expect(storedPlaygroundTitleText).not.toBeNull();
-	await expect(storedPlaygroundTitleText).not.toMatch('Unsaved Playground');
 
-	// Open the saved playgrounds overlay to switch sites
+	// Open overlay and create a new site to switch away
 	await website.openSavedPlaygroundsOverlay();
-
-	// Switch to Temporary Playground
 	await website.page
 		.locator('[class*="siteRowContent"]')
 		.filter({ hasText: 'Unsaved Playground' })
 		.click();
 
-	// Open the overlay again to switch back to the stored site
-	await website.openSavedPlaygroundsOverlay();
+	// Wait for new site to settle, then switch back
+	await website.ensureSiteManagerIsOpen();
+	await waitForAutoSave(website.page);
 
-	// Switch back to the stored site and confirm the PHP constant is still present.
+	await website.openSavedPlaygroundsOverlay();
 	await website.page
 		.locator('[class*="siteRowContent"]')
-		.filter({ hasText: storedPlaygroundTitleText! })
+		.filter({ hasText: savedSiteName! })
 		.click();
 
+	// Confirm the PHP constant is still present after switching back
 	await expect(wordpress.locator('body')).toContainText('E2E_TEST_VALUE');
 });
 
@@ -183,15 +222,8 @@ test('should rename a saved Playground and persist after reload', async ({
 	await website.goto('./');
 	await website.ensureSiteManagerIsOpen();
 
-	// Save the temporary site to OPFS so rename is available
-	await saveSiteViaModal(website.page);
-
-	await expect(website.page.getByLabel('Playground title')).not.toContainText(
-		'Unsaved Playground',
-		{
-			timeout: 90000,
-		}
-	);
+	// Wait for auto-save to complete so rename is available
+	await waitForAutoSave(website.page);
 
 	// Click the pencil/edit button next to the playground name
 	await website.page
@@ -229,7 +261,7 @@ test('should rename a saved Playground and persist after reload', async ({
 	await website.closeSavedPlaygroundsOverlay();
 });
 
-test('should show save site modal with correct elements', async ({
+test('should have rename input text selected by default', async ({
 	website,
 	browserName,
 }) => {
@@ -240,107 +272,18 @@ test('should show save site modal with correct elements', async ({
 
 	await website.goto('./');
 	await website.ensureSiteManagerIsOpen();
+	await waitForAutoSave(website.page);
 
-	// Click the Save button in the site manager panel
-	const saveButton = website.page.getByRole('button', {
-		name: 'Save site locally',
-	});
-	await expect(saveButton).toBeEnabled();
-	await saveButton.click();
-
-	// Verify the modal appears with correct title
-	const dialog = website.page.getByRole('dialog', {
-		name: 'Save Playground',
-	});
-	await expect(dialog).toBeVisible({ timeout: 10000 });
-
-	// Verify the playground name input exists and has default value
-	const nameInput = dialog.getByLabel('Playground name');
-	await expect(nameInput).toBeVisible();
-	await expect(nameInput).toHaveValue(/.+/);
-
-	// Verify storage location radio buttons exist
-	await expect(dialog.getByText('Storage location')).toBeVisible();
-	await expect(dialog.getByText('Save in this browser')).toBeVisible();
-	await expect(dialog.getByText('Save to a local directory')).toBeVisible();
-
-	// Verify action buttons exist
-	await expect(dialog.getByRole('button', { name: 'Save' })).toBeVisible();
-	await expect(dialog.getByRole('button', { name: 'Cancel' })).toBeVisible();
-
-	// Close the modal
-	await dialog.getByRole('button', { name: 'Cancel' }).click();
-	await expect(dialog).not.toBeVisible();
-});
-
-test('should close save site modal without saving', async ({
-	website,
-	browserName,
-}) => {
-	test.skip(
-		browserName !== 'chromium',
-		`This test relies on OPFS which isn't available in Playwright's flavor of ${browserName}.`
-	);
-
-	await website.goto('./');
-	await website.ensureSiteManagerIsOpen();
-
-	// Open the modal
+	// Open the rename dialog
 	await website.page
-		.getByRole('button', { name: 'Save site locally' })
+		.getByRole('button', { name: 'Rename Playground' })
 		.click();
 	const dialog = website.page.getByRole('dialog', {
-		name: 'Save Playground',
+		name: 'Rename Playground',
 	});
 	await expect(dialog).toBeVisible({ timeout: 10000 });
 
-	// Close without saving using Cancel button
-	await dialog.getByRole('button', { name: 'Cancel' }).click();
-	await expect(dialog).not.toBeVisible();
-
-	// Verify the site is still temporary
-	await expect(website.page.getByLabel('Playground title')).toContainText(
-		'Unsaved Playground'
-	);
-
-	// Open the modal again
-	await website.page
-		.getByRole('button', { name: 'Save site locally' })
-		.click();
-	await expect(dialog).toBeVisible({ timeout: 10000 });
-
-	// Close using ESC key
-	await website.page.keyboard.press('Escape');
-	await expect(dialog).not.toBeVisible();
-
-	// Verify the site is still temporary
-	await expect(website.page.getByLabel('Playground title')).toContainText(
-		'Unsaved Playground'
-	);
-});
-
-test('should have playground name input text selected by default', async ({
-	website,
-	browserName,
-}) => {
-	test.skip(
-		browserName !== 'chromium',
-		`This test relies on OPFS which isn't available in Playwright's flavor of ${browserName}.`
-	);
-
-	await website.goto('./');
-	await website.ensureSiteManagerIsOpen();
-
-	// Open the modal
-	await website.page
-		.getByRole('button', { name: 'Save site locally' })
-		.click();
-	const dialog = website.page.getByRole('dialog', {
-		name: 'Save Playground',
-	});
-	await expect(dialog).toBeVisible({ timeout: 10000 });
-
-	const nameInput = dialog.getByLabel('Playground name');
+	const nameInput = dialog.getByRole('textbox', { name: 'Name' });
 
 	// Verify the input is focused
 	await expect(nameInput).toBeFocused();
@@ -353,11 +296,14 @@ test('should have playground name input text selected by default', async ({
 	await website.page.keyboard.type('New Name');
 	await expect(nameInput).toHaveValue('New Name');
 
-	// Close the modal
-	await dialog.getByRole('button', { name: 'Cancel' }).click();
+	// Close the dialog
+	await website.page.keyboard.press('Escape');
 });
 
-test('should save site with custom name', async ({ website, browserName }) => {
+test('should rename auto-saved site with custom name', async ({
+	website,
+	browserName,
+}) => {
 	test.skip(
 		browserName !== 'chromium',
 		`This test relies on OPFS which isn't available in Playwright's flavor of ${browserName}.`
@@ -365,18 +311,25 @@ test('should save site with custom name', async ({ website, browserName }) => {
 
 	await website.goto('./');
 	await website.ensureSiteManagerIsOpen();
+	await waitForAutoSave(website.page);
 
 	const customName = 'My Custom Playground Name';
 
-	// Save with custom name using the helper
-	await saveSiteViaModal(website.page, { customName });
+	// Rename via the dialog
+	await website.page
+		.getByRole('button', { name: 'Rename Playground' })
+		.click();
+	const dialog = website.page.getByRole('dialog', {
+		name: 'Rename Playground',
+	});
+	const nameInput = dialog.getByRole('textbox', { name: 'Name' });
+	await nameInput.fill('');
+	await nameInput.type(customName);
+	await nameInput.press('Enter');
 
-	// Verify the site was saved with the custom name
+	// Verify the site was renamed
 	await expect(website.page.getByLabel('Playground title')).toContainText(
-		customName,
-		{
-			timeout: 90000,
-		}
+		customName
 	);
 
 	// Verify the name also appears in the saved playgrounds overlay
@@ -385,74 +338,6 @@ test('should save site with custom name', async ({ website, browserName }) => {
 		website.page.locator('[class*="siteRowName"]', { hasText: customName })
 	).toBeVisible();
 	await website.closeSavedPlaygroundsOverlay();
-});
-
-test('should not persist save site modal through page refresh', async ({
-	website,
-	browserName,
-}) => {
-	test.skip(
-		browserName !== 'chromium',
-		`This test relies on OPFS which isn't available in Playwright's flavor of ${browserName}.`
-	);
-
-	await website.goto('./');
-	await website.ensureSiteManagerIsOpen();
-
-	// Open the save modal
-	await website.page
-		.getByRole('button', { name: 'Save site locally' })
-		.click();
-	const dialog = website.page.getByRole('dialog', {
-		name: 'Save Playground',
-	});
-	await expect(dialog).toBeVisible({ timeout: 10000 });
-
-	// Get the URL with the modal parameter
-	const urlWithModal = website.page.url();
-	expect(urlWithModal).toContain('modal=save-site');
-
-	// Reload the page
-	await website.page.reload();
-	await website.ensureSiteManagerIsOpen();
-
-	// Verify the modal is NOT shown after reload
-	await expect(dialog).not.toBeVisible();
-
-	// Verify the modal parameter was removed from the URL
-	const urlAfterReload = website.page.url();
-	expect(urlAfterReload).not.toContain('modal=save-site');
-});
-
-test('should display OPFS storage option as selected by default', async ({
-	website,
-	browserName,
-}) => {
-	test.skip(
-		browserName !== 'chromium',
-		`This test relies on OPFS which isn't available in Playwright's flavor of ${browserName}.`
-	);
-
-	await website.goto('./');
-	await website.ensureSiteManagerIsOpen();
-
-	// Open the save modal
-	await website.page
-		.getByRole('button', { name: 'Save site locally' })
-		.click();
-	const dialog = website.page.getByRole('dialog', {
-		name: 'Save Playground',
-	});
-	await expect(dialog).toBeVisible({ timeout: 10000 });
-
-	// Verify OPFS option is selected by default
-	const opfsRadio = dialog.getByRole('radio', {
-		name: /Save in this browser/,
-	});
-	await expect(opfsRadio).toBeChecked();
-
-	// Close the modal
-	await dialog.getByRole('button', { name: 'Cancel' }).click();
 });
 
 test('should import ZIP into temporary site when a saved site exists', async ({
@@ -484,15 +369,12 @@ test('should import ZIP into temporary site when a saved site exists', async ({
 
 	await website.ensureSiteManagerIsOpen();
 
-	// Save the site with a custom name
-	const savedSiteName = 'ZIP Import Test Site';
-	await saveSiteViaModal(website.page, { customName: savedSiteName });
+	// Wait for auto-save to complete
+	await waitForAutoSave(website.page);
 
-	// Wait for the site to be saved (title should change from "Temporary Playground")
-	await expect(website.page.getByLabel('Playground title')).toContainText(
-		savedSiteName,
-		{ timeout: 90000 }
-	);
+	const savedSiteName = await website.page
+		.getByLabel('Playground title')
+		.textContent();
 
 	// Open the saved playgrounds overlay
 	await website.openSavedPlaygroundsOverlay();
@@ -518,12 +400,15 @@ test('should import ZIP into temporary site when a saved site exists', async ({
 		buffer: zipBuffer,
 	});
 
-	// The import should switch us to a temporary playground.
-	// Wait for the site title to show "Temporary Playground"
-	await expect(website.page.getByLabel('Playground title')).toContainText(
-		'Unsaved Playground',
-		{ timeout: 30000 }
-	);
+	// The import creates a new temporary site that then auto-saves.
+	// Wait for it to settle.
+	await website.ensureSiteManagerIsOpen();
+	await waitForAutoSave(website.page);
+
+	const importedSiteName = await website.page
+		.getByLabel('Playground title')
+		.textContent();
+	expect(importedSiteName).not.toBe(savedSiteName);
 
 	// Now verify the saved site still has the original content.
 	// Open the saved playgrounds overlay and switch to the saved site
@@ -531,13 +416,13 @@ test('should import ZIP into temporary site when a saved site exists', async ({
 
 	await website.page
 		.locator('[class*="siteRowContent"]')
-		.filter({ hasText: savedSiteName })
+		.filter({ hasText: savedSiteName! })
 		.click();
 
 	// Wait for the saved site to load - this verifies the saved site wasn't overwritten
 	// by the ZIP import (which went to a temporary site instead)
 	await expect(website.page.getByLabel('Playground title')).toContainText(
-		savedSiteName,
+		savedSiteName!,
 		{ timeout: 30000 }
 	);
 });
@@ -569,14 +454,12 @@ test('should create temporary site when importing ZIP while on a saved site with
 
 	await website.ensureSiteManagerIsOpen();
 
-	// Save the site
-	const savedSiteName = 'Direct Slug Test Site';
-	await saveSiteViaModal(website.page, { customName: savedSiteName });
+	// Wait for auto-save
+	await waitForAutoSave(website.page);
 
-	await expect(website.page.getByLabel('Playground title')).toContainText(
-		savedSiteName,
-		{ timeout: 90000 }
-	);
+	const savedSiteName = await website.page
+		.getByLabel('Playground title')
+		.textContent();
 
 	// Get the site slug from the URL
 	const urlAfterSave = website.page.url();
@@ -592,19 +475,16 @@ test('should create temporary site when importing ZIP while on a saved site with
 
 	// Verify we're on the saved site
 	await expect(website.page.getByLabel('Playground title')).toContainText(
-		savedSiteName
+		savedSiteName!
 	);
 
 	// Open the saved playgrounds overlay
 	await website.openSavedPlaygroundsOverlay();
 
-	// Verify there's no "Temporary Playground" in the list initially
-	// (the temporary site row should show but clicking it would create one)
+	// Verify there's an "Unsaved Playground" row (for creating a new site)
 	const tempPlaygroundRow = website.page
 		.locator('[class*="siteRowContent"]')
 		.filter({ hasText: 'Unsaved Playground' });
-
-	// The row exists but it's for creating a new temporary playground
 	await expect(tempPlaygroundRow).toBeVisible();
 
 	// Create a test ZIP
@@ -628,25 +508,32 @@ test('should create temporary site when importing ZIP while on a saved site with
 		buffer: zipBuffer,
 	});
 
-	// The import should trigger creation of a new temporary site.
-	// Wait for the site title to show "Temporary Playground"
-	await expect(website.page.getByLabel('Playground title')).toContainText(
-		'Unsaved Playground',
-		{ timeout: 30000 }
-	);
+	// The import creates a new temporary site. The auto-save and the
+	// ZIP import run concurrently on the same Comlink client, so the
+	// auto-save may take longer than usual. Instead of waiting for
+	// auto-save, verify the site switch happened and that the saved
+	// site is still intact.
+	await website.waitForNestedIframes();
+	await website.ensureSiteManagerIsOpen();
+
+	// The title should have changed from the saved site name,
+	// confirming we're on a different (imported) site now.
+	await expect(
+		website.page.getByLabel('Playground title')
+	).not.toContainText(savedSiteName!, { timeout: 30000 });
 
 	// Verify the saved site is still intact by switching to it
 	await website.openSavedPlaygroundsOverlay();
 
 	await website.page
 		.locator('[class*="siteRowContent"]')
-		.filter({ hasText: savedSiteName })
+		.filter({ hasText: savedSiteName! })
 		.click();
 
 	// Wait for the saved site to load - this verifies the saved site wasn't overwritten
 	// by the ZIP import (which went to a temporary site instead)
 	await expect(website.page.getByLabel('Playground title')).toContainText(
-		savedSiteName,
+		savedSiteName!,
 		{ timeout: 30000 }
 	);
 });

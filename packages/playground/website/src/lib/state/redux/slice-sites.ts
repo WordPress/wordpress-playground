@@ -540,6 +540,16 @@ export function findOrCreateSiteForUrl(playgroundUrl: URL) {
 		dispatch: PlaygroundDispatch,
 		getState: () => PlaygroundReduxState
 	) => {
+		// The 'random' param signals an explicit "New Playground" request
+		// (e.g. clicking "Unsaved Playground" in the overlay). Always
+		// create a fresh site in that case — never reuse an existing one.
+		if (playgroundUrl.searchParams.has('random')) {
+			const site = await dispatch(
+				setTemporarySiteSpec(randomSiteName(), playgroundUrl)
+			);
+			return { site, isExisting: false };
+		}
+
 		const urlParams = {
 			searchParams: parseSearchParams(playgroundUrl.searchParams),
 			hash: playgroundUrl.hash,

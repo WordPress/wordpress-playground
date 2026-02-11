@@ -71,13 +71,19 @@ export function persistTemporarySite(
 			return;
 		}
 
-		// If an auto-save sync is in progress, wait for it or skip.
+		// If an auto-save sync is in progress, wait for it to finish
+		// and then treat the result like the "already saved" path above.
 		const clientInfo = selectClientInfoBySiteSlug(state, siteSlug);
 		if (clientInfo?.opfsSync?.status === 'syncing') {
 			logger.log(
-				'Auto-save sync is in progress. Skipping manual persist.'
+				'Auto-save sync is in progress. Waiting for it to complete.'
 			);
-			return;
+			await waitForAutoSaveToComplete(getState, siteSlug);
+			// Auto-save finished — re-enter persistTemporarySite
+			// to hit the "already opfs" path.
+			return dispatch(
+				persistTemporarySite(siteSlug, storageType, options)
+			);
 		}
 
 		const playground = selectClientBySiteSlug(state, siteSlug);
@@ -324,4 +330,25 @@ async function getPlaygroundDefinedPHPConstants(playground: PlaygroundClient) {
 		// Do nothing
 	}
 	return constants;
+}
+
+/**
+ * Polls the redux store until the auto-save sync for the given site
+ * finishes (opfsSync goes away or switches to 'error').
+ */
+function waitForAutoSaveToComplete(
+	getState: () => PlaygroundReduxState,
+	siteSlug: string
+): Promise<void> {
+	return new Promise((resolve) => {
+		const poll = () => {
+			const info = selectClientInfoBySiteSlug(getState(), siteSlug);
+			if (!info?.opfsSync || info.opfsSync.status !== 'syncing') {
+				resolve();
+				return;
+			}
+			setTimeout(poll, 200);
+		};
+		poll();
+	});
 }
