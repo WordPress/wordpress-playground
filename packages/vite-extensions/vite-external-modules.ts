@@ -17,6 +17,7 @@ export const getExternalModules = () => {
 		'node:fs',
 		'node:fs/promises',
 		'fs-extra',
+		'module',
 		'path',
 		'child_process',
 		'http',

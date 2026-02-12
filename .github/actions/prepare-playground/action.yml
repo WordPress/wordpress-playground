@@ -20,15 +20,15 @@ runs:
           id: cache-nodemodules
           uses: actions/cache@v4
           env:
-              cache-name: cache-node-modules
+              cache-name: cache-node-modules-v2
           with:
               # caching node_modules
               path: node_modules
               key: ${{ runner.os }}-${{ runner.arch }}-node-${{ inputs.node-version }}-build-${{ env.cache-name }}-${{ hashFiles('package-lock.json') }}
               restore-keys: |
-                  ${{ runner.os }}-build-${{ env.cache-name }}-
-                  ${{ runner.os }}-build-
-                  ${{ runner.os }}-
+                  ${{ runner.os }}-${{ runner.arch }}-node-${{ inputs.node-version }}-build-${{ env.cache-name }}-
+                  ${{ runner.os }}-${{ runner.arch }}-node-${{ inputs.node-version }}-build-
+                  ${{ runner.os }}-${{ runner.arch }}-node-${{ inputs.node-version }}-
         - name: Install Dependencies
           shell: bash
           if: steps.cache-nodemodules.outputs.cache-hit != 'true'

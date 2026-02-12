@@ -1,6 +1,6 @@
 import { logger } from '@php-wasm/logger';
 import type { UniversalPHP } from '@php-wasm/universal';
-import { fetchWithCorsProxy } from '@php-wasm/web';
+import { fetchWithCorsProxy } from '@php-wasm/web-service-worker';
 import { defineWpConfigConsts } from '@wp-playground/blueprints';
 
 export interface RequestData {

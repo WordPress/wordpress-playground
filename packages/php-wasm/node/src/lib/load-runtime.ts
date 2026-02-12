@@ -16,9 +16,8 @@ import {
 import { withIntl } from './extensions/intl/with-intl';
 import { withRedis } from './extensions/redis/with-redis';
 import { withMemcached } from './extensions/memcached/with-memcached';
-import { joinPaths } from '@php-wasm/util';
+import { dirname, joinPaths, toPosixPath } from '@php-wasm/util';
 import type { Promised } from '@php-wasm/util';
-import { dirname } from 'path';
 
 export interface PHPLoaderOptions {
 	emscriptenOptions?: EmscriptenOptions;
@@ -133,9 +132,11 @@ export async function loadNodeRuntime(
 								phpRuntime.FS.filesystems.NODEFS.realPath(node)
 							)
 						);
+
+					const normalizedPath = toPosixPath(absoluteSourcePath);
 					const symlinkMountPath = joinPaths(
 						`/internal/symlinks`,
-						absoluteSourcePath
+						normalizedPath
 					);
 					if (fs.existsSync(absoluteSourcePath)) {
 						if (
@@ -254,8 +255,8 @@ export async function loadNodeRuntime(
 
 	emscriptenOptions = await withNetworking(emscriptenOptions);
 
-	return await loadPHPRuntime(
-		await getPHPLoaderModule(phpVersion),
-		emscriptenOptions
-	);
+	const phpLoaderModule = await getPHPLoaderModule(phpVersion);
+
+	const runtimeId = await loadPHPRuntime(phpLoaderModule, emscriptenOptions);
+	return runtimeId;
 }

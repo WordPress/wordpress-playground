@@ -14,7 +14,7 @@ import {
 	sparseCheckout,
 } from '@wp-playground/storage';
 import { zipNameToHumanName } from '../utils/zip-name-to-human-name';
-import { fetchWithCorsProxy } from '@php-wasm/web';
+import { fetchWithCorsProxy } from '@php-wasm/web-service-worker';
 import {
 	StreamedFile,
 	encodeZip,

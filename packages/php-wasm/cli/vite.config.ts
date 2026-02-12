@@ -5,6 +5,7 @@ import { nxViteTsPaths } from '@nx/vite/plugins/nx-tsconfig-paths.plugin';
 import viteGlobalExtensions from '../../vite-extensions/vite-global-extensions';
 
 export default defineConfig({
+	root: __dirname,
 	assetsInclude: ['**/*.ini'],
 	cacheDir: '../../../node_modules/.vite/php-cli',
 

@@ -40,6 +40,15 @@ export function consumeAPI<APIType>(
 	setupTransferHandlers();
 
 	let endpoint;
+	/**
+	 * Previously we assumed we were running in a Node.js environment
+	 * when `import.meta.url` started with `file://`. But this assumption breaks
+	 * with webpack which emits file URLs for `import.meta.url`.
+	 * https://webpack.js.org/api/module-variables/#importmetaurl
+	 * 
+	 * We replaced this with a more explicit check for `process.versions.node`.
+	 * See https://github.com/WordPress/wordpress-playground/pull/3248
+	 */
 	const appearsToBeNodeEnvironment =
 		typeof process !== 'undefined' &&
 		typeof process.versions !== 'undefined' &&
