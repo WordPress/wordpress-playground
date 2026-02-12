@@ -101,14 +101,18 @@ async function handleStreamedResponse(
 				}
 			}
 		}
-		res.end();
+		if (!res.writableEnded && !res.destroyed) {
+			res.end();
+		}
 	} catch (error) {
 		logger.error('Error streaming response:', error);
 		// If we haven't sent headers yet, we can send an error response
 		if (!res.headersSent) {
 			res.statusCode = 500;
-			res.end('Stream error');
-		} else {
+			if (!res.writableEnded && !res.destroyed) {
+				res.end('Stream error');
+			}
+		} else if (!res.destroyed) {
 			// Headers already sent, just close the connection
 			res.destroy();
 		}
