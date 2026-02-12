@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { PHPRequestHandler } from './php-request-handler';
-import { PHPResponse } from './php-response';
+import { PHPResponse, StreamedPHPResponse } from './php-response';
 import type { PHP } from './php';
 
 /**
@@ -31,6 +31,17 @@ function createMockPHP(filesystem: Map<string, 'file' | 'dir'>) {
 					200,
 					{ 'Content-Type': ['text/html'] },
 					new Uint8Array(Buffer.from('<?php response'))
+				)
+			)
+		),
+		runStream: vi.fn(() =>
+			Promise.resolve(
+				StreamedPHPResponse.fromPHPResponse(
+					new PHPResponse(
+						200,
+						{ 'Content-Type': ['text/html'] },
+						new Uint8Array(Buffer.from('<?php response'))
+					)
 				)
 			)
 		),
