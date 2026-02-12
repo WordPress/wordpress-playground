@@ -33,7 +33,7 @@ jobs:
                   submodules: true
             - uses: ./.github/actions/prepare-playground
               with:
-                  node-version: 22
+                  node-version: 20
             - name: 'Recompile WordPress'
               shell: bash
               run: npx nx bundle-wordpress:nightly playground-wordpress-builds

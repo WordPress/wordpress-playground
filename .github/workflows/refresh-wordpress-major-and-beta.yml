@@ -40,7 +40,7 @@ jobs:
                   submodules: true
             - uses: ./.github/actions/prepare-playground
               with:
-                  node-version: 23
+                  node-version: 20
             - name: 'Recompile WordPress'
               id: build
               shell: bash
