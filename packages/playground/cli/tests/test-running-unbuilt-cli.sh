@@ -2,9 +2,9 @@
 
 set -euo pipefail
 
-if node -e 'if (parseInt(process.versions.node) < 22) { process.exit(0); }'; then
+if node -e 'if (parseInt(process.versions.node) < 24) { process.exit(0); }'; then
 	source ~/.nvm/nvm.sh
-	nvm install 22
+	nvm install 24
 	npm ci
 fi
 
