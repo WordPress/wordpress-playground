@@ -224,7 +224,7 @@
 		"order": 30
 	},
 	"blueprints/data-format": {
-		"title": "Blueprint data Format",
+		"title": "Blueprint data format",
 		"slug": "data-format",
 		"markdown_source": "https://raw.githubusercontent.com/WordPress/wordpress-playground/trunk/packages/docs/site/docs/blueprints/03-data-format.md",
 		"parent": "blueprints",
