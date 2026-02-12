@@ -80,8 +80,11 @@ async function handleStreamedResponse(
 
 	// Stream the response body
 	const reader = streamedResponse.stdout.getReader();
+	let readerDone = false;
 	res.on('close', () => {
-		reader.cancel();
+		if (!readerDone) {
+			reader.cancel().catch(() => {});
+		}
 	});
 
 	try {
@@ -117,7 +120,7 @@ async function handleStreamedResponse(
 			res.destroy();
 		}
 	} finally {
-		// Ensure the reader is released
+		readerDone = true;
 		try {
 			reader.releaseLock();
 		} catch {
