@@ -177,6 +177,7 @@
 		"eslint-plugin-playground-dev": "file:packages/meta/src/eslint-plugin-playground-dev",
 		"eslint-plugin-react": "7.37.5",
 		"eslint-plugin-react-hooks": "5.2.0",
+		"glob": "^9.3.0",
 		"husky": "8.0.3",
 		"jest": "29.7.0",
 		"jsdom": "22.1.0",

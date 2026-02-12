@@ -161,7 +161,7 @@
 				"testFiles": ["php-part-1.spec.ts"]
 			}
 		},
-		"test-group-2-asyncify": {
+		"test-group-2a-asyncify": {
 			"executor": "@nx/vite:test",
 			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/node"],
 			"options": {
@@ -169,14 +169,23 @@
 				"testFiles": [
 					"php-file-locking.spec.ts",
 					"file-lock-manager-for-node.spec.ts",
-					"php-imagick.spec.ts",
+					"php-imagick.spec.ts"
+				]
+			}
+		},
+		"test-group-2b-asyncify": {
+			"executor": "@nx/vite:test",
+			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/node"],
+			"options": {
+				"reportsDirectory": "../../../coverage/packages/php-wasm/node",
+				"testFiles": [
 					"php-soap.spec.ts",
 					"php-image-extensions.spec.ts",
 					"php-fsockopen.spec.ts"
 				]
 			}
 		},
-		"test-group-2-jspi": {
+		"test-group-2a-jspi": {
 			"executor": "@nx/vite:test",
 			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/node"],
 			"options": {
@@ -185,7 +194,17 @@
 				"testFiles": [
 					"php-file-locking.spec.ts",
 					"file-lock-manager-for-node.spec.ts",
-					"php-imagick.spec.ts",
+					"php-imagick.spec.ts"
+				]
+			}
+		},
+		"test-group-2b-jspi": {
+			"executor": "@nx/vite:test",
+			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/node"],
+			"options": {
+				"configFile": "packages/php-wasm/node/vite.jspi.config.ts",
+				"reportsDirectory": "../../../coverage/packages/php-wasm/node",
+				"testFiles": [
 					"php-soap.spec.ts",
 					"php-image-extensions.spec.ts",
 					"php-fsockopen.spec.ts"

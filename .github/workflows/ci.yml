@@ -31,19 +31,21 @@ jobs:
             fail-fast: false
             matrix:
                 include:
-                    - name: test-unit-asyncify (1/7)
+                    - name: test-unit-asyncify (1/8)
                       target: test
-                    - name: test-unit-asyncify (2/7)
+                    - name: test-unit-asyncify (2/8)
                       target: test-group-1-asyncify
-                    - name: test-unit-asyncify (3/7)
-                      target: test-group-2-asyncify
-                    - name: test-unit-asyncify (4/7)
+                    - name: test-unit-asyncify (3/8)
+                      target: test-group-2a-asyncify
+                    - name: test-unit-asyncify (4/8)
+                      target: test-group-2b-asyncify
+                    - name: test-unit-asyncify (5/8)
                       target: test-group-3-asyncify
-                    - name: test-unit-asyncify (5/7)
+                    - name: test-unit-asyncify (6/8)
                       target: test-group-4-asyncify
-                    - name: test-unit-asyncify (6/7)
+                    - name: test-unit-asyncify (7/8)
                       target: test-group-5-asyncify
-                    - name: test-unit-asyncify (7/7)
+                    - name: test-unit-asyncify (8/8)
                       target: test-group-6-asyncify
         name: ${{ matrix.name }}
         services:
@@ -79,17 +81,19 @@ jobs:
             fail-fast: false
             matrix:
                 include:
-                    - name: test-unit-jspi (1/6)
+                    - name: test-unit-jspi (1/7)
                       target: test-group-1-jspi
-                    - name: test-unit-jspi (2/6)
-                      target: test-group-2-jspi
-                    - name: test-unit-jspi (3/6)
+                    - name: test-unit-jspi (2/7)
+                      target: test-group-2a-jspi
+                    - name: test-unit-jspi (3/7)
+                      target: test-group-2b-jspi
+                    - name: test-unit-jspi (4/7)
                       target: test-group-3-jspi
-                    - name: test-unit-jspi (4/6)
+                    - name: test-unit-jspi (5/7)
                       target: test-group-4-jspi
-                    - name: test-unit-jspi (5/6)
+                    - name: test-unit-jspi (6/7)
                       target: test-group-5-jspi
-                    - name: test-unit-jspi (6/6)
+                    - name: test-unit-jspi (7/7)
                       target: test-group-6-jspi
         name: ${{ matrix.name }}
         services:
@@ -396,6 +400,8 @@ jobs:
                     exit 1
                   fi
                   npx nx affected --target=build --parallel=3 --verbose
+            - name: Verify npm pack works (catches override conflicts before publish)
+              run: npm pack --dry-run --workspace=packages/php-wasm/logger
 
     # Deploy documentation job
     deploy_docs:
