@@ -7,8 +7,7 @@ import {
 } from './urls';
 import type { PHP } from './php';
 import { normalizeHeaders } from './php';
-import { PHPResponse } from './php-response';
-import type { StreamedPHPResponse } from './php-response';
+import { PHPResponse, StreamedPHPResponse } from './php-response';
 import type { PHPRequest, PHPRunOptions } from './universal-php';
 import { encodeAsMultipart } from './encode-as-multipart';
 import type { PHPFactoryOptions } from './php-process-manager';
@@ -624,9 +623,13 @@ export class PHPRequestHandler implements AsyncDisposable {
 			spawnedPHP = await this.instanceManager!.acquirePHPInstance();
 		} catch (e) {
 			if (e instanceof MaxPhpInstancesError) {
-				throw new Error('Too many PHP instances');
+				return StreamedPHPResponse.fromPHPResponse(
+					PHPResponse.forHttpCode(502)
+				);
 			} else {
-				throw e;
+				return StreamedPHPResponse.fromPHPResponse(
+					PHPResponse.forHttpCode(500)
+				);
 			}
 		}
 
