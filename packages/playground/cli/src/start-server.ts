@@ -78,16 +78,14 @@ async function handleStreamedResponse(
 		res.setHeader(key, headers[key]);
 	}
 
-	// Set up cleanup on client disconnect
-	let streamCancelled = false;
-	res.on('close', () => {
-		streamCancelled = true;
-	});
-
 	// Stream the response body
 	const reader = streamedResponse.stdout.getReader();
+	res.on('close', () => {
+		reader.cancel();
+	});
+
 	try {
-		while (!streamCancelled) {
+		while (true) {
 			const { done, value } = await reader.read();
 			if (done) {
 				break;
