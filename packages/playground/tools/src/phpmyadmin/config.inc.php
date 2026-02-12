@@ -1,5 +1,12 @@
 <?php declare(strict_types = 1);
 
+// Configure session save path for Playground environment.
+$session_dir = '/tmp/phpmyadmin-sessions';
+if (!is_dir($session_dir)) {
+    mkdir($session_dir, 0700, true);
+}
+session_save_path($session_dir);
+
 // Enable development environment to display detailed error messages.
 $cfg['environment'] = 'development';
 

@@ -17,8 +17,15 @@ import Button from '../button';
 import { ActiveSiteSettingsForm } from '../site-manager/site-settings-form';
 import { setSiteManagerOpen } from '../../lib/state/redux/slice-ui';
 import { SiteManagerIcon } from '@wp-playground/components';
-import { SavedPlaygroundsOverlay } from '../saved-playgrounds-overlay';
+import {
+	SavedPlaygroundsOverlay,
+	type OverlayViewMode,
+} from '../saved-playgrounds-overlay';
 import { SaveStatusIndicator } from './save-status-indicator';
+
+const query = new URL(document.location.href).searchParams;
+const overlayParam = query.get('overlay');
+const shouldOpenOverlay = overlayParam !== null;
 
 interface BrowserChromeProps {
 	children?: React.ReactNode;
@@ -48,10 +55,24 @@ export default function BrowserChrome({
 	const isMobileUi = useMediaQuery('(max-width: 875px)');
 	const [isSettingsModalOpen, setIsSettingsModalOpen] = React.useState(false);
 	const [isPlaygroundsOverlayOpen, setIsPlaygroundsOverlayOpen] =
-		React.useState(false);
+		React.useState(shouldOpenOverlay);
+	const [overlayInitialViewMode, setOverlayInitialViewMode] =
+		React.useState<OverlayViewMode>(
+			overlayParam === 'blueprints' ? 'blueprints' : 'main'
+		);
 	const onSettingsToggle = () => setIsSettingsModalOpen(!isSettingsModalOpen);
 	const closeSettingsModal = () => setIsSettingsModalOpen(false);
-	const closePlaygroundsOverlay = () => setIsPlaygroundsOverlayOpen(false);
+	const closePlaygroundsOverlay = () => {
+		setIsPlaygroundsOverlayOpen(false);
+		setOverlayInitialViewMode('main'); // Reset for next manual open
+
+		// Remove overlay parameter from URL so reload doesn't reopen overlay
+		const url = new URL(window.location.href);
+		if (url.searchParams.has('overlay')) {
+			url.searchParams.delete('overlay');
+			window.history.replaceState({}, '', url.toString());
+		}
+	};
 
 	return (
 		<div className={wrapperClass} data-cy="simulated-browser">
@@ -184,7 +205,10 @@ export default function BrowserChrome({
 				<div className={css.content}>{children}</div>
 			</div>
 			{isPlaygroundsOverlayOpen && (
-				<SavedPlaygroundsOverlay onClose={closePlaygroundsOverlay} />
+				<SavedPlaygroundsOverlay
+					onClose={closePlaygroundsOverlay}
+					initialViewMode={overlayInitialViewMode}
+				/>
 			)}
 		</div>
 	);

@@ -1,7 +1,11 @@
 import type { FileLockManager } from '@php-wasm/node';
 import { loadNodeRuntime } from '@php-wasm/node';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
-import type { RemoteAPI, SupportedPHPVersion } from '@php-wasm/universal';
+import type {
+	PathAlias,
+	RemoteAPI,
+	SupportedPHPVersion,
+} from '@php-wasm/universal';
 import {
 	PHPWorker,
 	consumeAPI,
@@ -52,6 +56,11 @@ export type WorkerBootOptions = {
 	 * Process-specific, set for each PHP instance.
 	 */
 	constants?: Record<string, string | number | boolean | null>;
+	/**
+	 * Path aliases that map URL prefixes to filesystem paths outside
+	 * the document root. Similar to Nginx's `alias` directive.
+	 */
+	pathAliases?: PathAlias[];
 };
 
 export type PrimaryWorkerBootOptions = WorkerBootOptions & {
@@ -76,6 +85,7 @@ interface WorkerBootRequestHandlerOptions {
 	withRedis?: boolean;
 	withMemcached?: boolean;
 	withXdebug?: boolean;
+	pathAliases?: PathAlias[];
 }
 
 /**
@@ -189,6 +199,7 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 				},
 				cookieStore: internalCookieStore ? undefined : false,
 				dataSqlPath,
+				pathAliases: options.pathAliases,
 				spawnHandler: () =>
 					sandboxedSpawnHandlerFactory(() =>
 						createPHPWorker(options, this.fileLockManager!)
@@ -246,6 +257,7 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 				},
 				sapiName: 'cli',
 				cookieStore: false,
+				pathAliases: options.pathAliases,
 				spawnHandler: () =>
 					sandboxedSpawnHandlerFactory(() =>
 						createPHPWorker(options, this.fileLockManager!)

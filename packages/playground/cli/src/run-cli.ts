@@ -1,5 +1,6 @@
 import { errorLogPath, logger, LogSeverity } from '@php-wasm/logger';
 import type {
+	PathAlias,
 	PHPRequest,
 	RemoteAPI,
 	SupportedPHPVersion,
@@ -16,7 +17,10 @@ import type {
 	BlueprintV1Declaration,
 	BlueprintV2Declaration,
 } from '@wp-playground/blueprints';
-import { runBlueprintV1Steps } from '@wp-playground/blueprints';
+import {
+	compileBlueprintV1,
+	runBlueprintV1Steps,
+} from '@wp-playground/blueprints';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import fs, { existsSync, mkdirSync, readdirSync, rmdirSync } from 'fs';
 import type { Server } from 'http';
@@ -65,6 +69,11 @@ import {
 } from '@php-wasm/cli-util';
 import { createHash } from 'crypto';
 import { CLIOutput } from './cli-output';
+import {
+	getPhpMyAdminInstallSteps,
+	PHPMYADMIN_ENTRY_PATH,
+	PHPMYADMIN_INSTALL_PATH,
+} from '@wp-playground/tools';
 
 // Inlined worker URLs for static analysis by downstream bundlers
 // These are replaced at build time by the Vite plugin in vite.config.ts
@@ -308,6 +317,13 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 				// Remove the "hidden" flag once Blueprint V2 is fully supported
 				hidden: true,
 			},
+			phpmyadmin: {
+				describe:
+					'Install phpMyAdmin for database management. The phpMyAdmin URL will be printed after boot. Optionally specify a custom URL path (default: /phpmyadmin).',
+				type: 'string',
+				coerce: (value?: string) =>
+					'' === value ? '/phpmyadmin' : value,
+			},
 		};
 
 		const serverOnlyOptions: Record<string, YargsOptions> = {
@@ -416,6 +432,8 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 			define: sharedOptions['define'],
 			'define-bool': sharedOptions['define-bool'],
 			'define-number': sharedOptions['define-number'],
+			// Tools
+			phpmyadmin: sharedOptions['phpmyadmin'],
 		};
 
 		const buildSnapshotOnlyOptions: Record<string, YargsOptions> = {
@@ -732,11 +750,13 @@ export interface RunCLIArgs {
 	verbosity?: LogVerbosity;
 	wp?: string;
 	autoMount?: string;
+	pathAliases?: PathAlias[];
 	experimentalMultiWorker?: number;
 	experimentalTrace?: boolean;
 	internalCookieStore?: boolean;
 	'additional-blueprint-steps'?: any[];
 	intl?: boolean;
+	phpmyadmin?: boolean | string;
 	redis?: boolean;
 	memcached?: boolean;
 	xdebug?: boolean | { ideKey?: string };
@@ -897,6 +917,27 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 	// It requires JSPI support, so users must run with Node.js 23+ and --experimental-wasm-jspi flag.
 	if (args.memcached === undefined) {
 		args.memcached = await jspi();
+	}
+
+	// Setup phpMyAdmin if enabled.
+	if (args.phpmyadmin) {
+		if (true === args.phpmyadmin) {
+			args.phpmyadmin = '/phpmyadmin';
+		}
+
+		if (args.skipSqliteSetup) {
+			throw new Error(
+				'--phpmyadmin requires SQLite. Cannot be used with --skip-sqlite-setup.'
+			);
+		}
+
+		// Set up path alias for phpMyAdmin.
+		args['pathAliases'] = [
+			{
+				urlPrefix: args.phpmyadmin,
+				fsPath: PHPMYADMIN_INSTALL_PATH,
+			},
+		];
 	}
 
 	// Create CLI output handler
@@ -1145,6 +1186,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 
 			const userProvidableNativeSubdirs = [
 				'wordpress',
+				'tools',
 				// Note: These dirs are from Emscripten's "default dirs" list:
 				// https://github.com/emscripten-core/emscripten/blob/f431ec220e472e1f8d3db6b52fe23fb377facf30/src/lib/libfs.js#L1400-L1402
 				//
@@ -1311,6 +1353,21 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 						}
 					}
 
+					// If phpMyAdmin is enabled and not already installed, install it.
+					if (
+						args.phpmyadmin &&
+						!(await initialPlayground.fileExists(
+							`${PHPMYADMIN_INSTALL_PATH}/index.php`
+						))
+					) {
+						const steps = await getPhpMyAdminInstallSteps();
+						const compiled = await compileBlueprintV1({ steps });
+						await runBlueprintV1Steps(
+							compiled,
+							initialPlayground as UniversalPHP
+						);
+					}
+
 					if (args.command === 'build-snapshot') {
 						await zipSite(playground, args.outfile as string);
 						cliOutput.printStatus(`Exported to ${args.outfile}`);
@@ -1363,6 +1420,16 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 
 				cliOutput.finishProgress();
 				cliOutput.printReady(serverUrl, targetWorkerCount);
+
+				if (args.phpmyadmin) {
+					const phpMyAdminPath = path.join(
+						args.phpmyadmin as string,
+						PHPMYADMIN_ENTRY_PATH
+					);
+					cliOutput.printPhpMyAdminUrl(
+						new URL(phpMyAdminPath, serverUrl).toString()
+					);
+				}
 
 				if (args.xdebug && args.experimentalDevtools) {
 					const bridge = await startBridge({

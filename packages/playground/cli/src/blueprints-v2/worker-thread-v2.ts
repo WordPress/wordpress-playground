@@ -3,6 +3,7 @@ import type { FileLockManager } from '@php-wasm/node';
 import { createNodeFsMountHandler, loadNodeRuntime } from '@php-wasm/node';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import type {
+	PathAlias,
 	PHP,
 	FileTree,
 	RemoteAPI,
@@ -173,6 +174,7 @@ export type SecondaryWorkerBootArgs = {
 	withRedis?: boolean;
 	withMemcached?: boolean;
 	withXdebug?: boolean;
+	pathAliases?: PathAlias[];
 	mountsBeforeWpInstall?: Array<Mount>;
 	mountsAfterWpInstall?: Array<Mount>;
 };
@@ -483,6 +485,7 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 		withRedis,
 		withMemcached,
 		withXdebug,
+		pathAliases,
 		onPHPInstanceCreated,
 		spawnHandler,
 	}: WorkerBootRequestHandlerOptions) {
@@ -530,6 +533,7 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 				createFiles,
 				constants,
 				phpIniEntries,
+				pathAliases,
 				cookieStore: false,
 				spawnHandler,
 			});
@@ -581,6 +585,7 @@ async function createPHPWorker(
 		trace,
 		nativeInternalDirPath,
 		withXdebug,
+		pathAliases,
 		mountsBeforeWpInstall,
 		mountsAfterWpInstall,
 	}: SecondaryWorkerBootArgs,
@@ -604,6 +609,7 @@ async function createPHPWorker(
 		trace,
 		nativeInternalDirPath,
 		withXdebug,
+		pathAliases,
 		mountsBeforeWpInstall,
 		mountsAfterWpInstall,
 	});

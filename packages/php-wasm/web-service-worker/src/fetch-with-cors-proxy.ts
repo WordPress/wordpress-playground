@@ -1,4 +1,4 @@
-import { cloneRequest, teeRequest } from '@php-wasm/web-service-worker';
+import { cloneRequest, teeRequest } from './utils';
 import { FirewallInterferenceError } from './firewall-interference-error';
 
 const CORS_PROXY_HEADER = 'X-Playground-Cors-Proxy';

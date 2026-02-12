@@ -285,4 +285,15 @@ export class CLIOutput {
 
 		this.writeStream.write(`${this.yellow('Warning:')} ${message}\n`);
 	}
+
+	/**
+	 * Prints the phpMyAdmin URL when the --phpmyadmin flag is enabled.
+	 */
+	printPhpMyAdminUrl(url: string): void {
+		if (this.isQuiet) return;
+
+		this.writeStream.write(
+			`${this.cyan('phpMyAdmin')} available at ${this.bold(url)}\n\n`
+		);
+	}
 }

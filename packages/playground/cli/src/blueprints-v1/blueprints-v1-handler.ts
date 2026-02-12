@@ -115,7 +115,7 @@ export class BlueprintsV1Handler {
 			sqliteIntegrationPluginZip = undefined;
 		} else {
 			this.cliOutput.updateProgress('Preparing SQLite database');
-			sqliteIntegrationPluginZip = await fetchSqliteIntegration(monitor);
+			sqliteIntegrationPluginZip = await fetchSqliteIntegration();
 		}
 
 		const followSymlinks = this.args.followSymlinks === true;
@@ -162,6 +162,7 @@ export class BlueprintsV1Handler {
 			withXdebug: false,
 			nativeInternalDirPath,
 			constants: mergeDefinedConstants(this.args),
+			pathAliases: this.args.pathAliases,
 		});
 
 		if (
@@ -217,6 +218,7 @@ export class BlueprintsV1Handler {
 			withXdebug: !!this.args.xdebug,
 			nativeInternalDirPath,
 			constants: mergeDefinedConstants(this.args),
+			pathAliases: this.args.pathAliases,
 		});
 		await playground.isReady();
 		return playground;

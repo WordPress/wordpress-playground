@@ -33,6 +33,7 @@ export class BlueprintsV1Handler {
 			sqliteDriverVersion,
 			wordpressInstallMode,
 			onClientConnected,
+			pathAliases,
 		} = this.options;
 		const executionProgress = progressTracker!.stage(0.5);
 		const downloadProgress = progressTracker!.stage();
@@ -64,6 +65,7 @@ export class BlueprintsV1Handler {
 			withNetworking: runtimeConfiguration.networking,
 			corsProxyUrl: corsProxy,
 			sqliteDriverVersion,
+			pathAliases,
 		});
 		await playground.isReady();
 		downloadProgress.finish();

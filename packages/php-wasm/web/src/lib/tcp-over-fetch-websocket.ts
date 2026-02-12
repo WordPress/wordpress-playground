@@ -42,7 +42,7 @@ import { TLS_1_2_Connection } from './tls/1_2/connection';
 import type { GeneratedCertificate } from './tls/certificates';
 import { generateCertificate } from './tls/certificates';
 import { ContentTypes } from './tls/1_2/types';
-import { fetchWithCorsProxy } from './fetch-with-cors-proxy';
+import { fetchWithCorsProxy } from '@php-wasm/web-service-worker';
 import { ChunkedDecoderStream } from './chunked-decoder';
 import type { EmscriptenOptions } from '@php-wasm/universal';
 import { concatUint8Arrays } from '@php-wasm/util';

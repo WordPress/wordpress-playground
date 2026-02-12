@@ -59,6 +59,28 @@ export interface CookieStore {
 	getCookieRequestHeader(): string;
 }
 
+/**
+ * Maps a URL path prefix to an absolute filesystem path.
+ * Similar to Nginx's `alias` directive or Apache's `Alias` directive.
+ *
+ * @example
+ * ```ts
+ * // Requests to /phpmyadmin/* will be served from /tools/phpmyadmin/*
+ * { urlPrefix: '/phpmyadmin', fsPath: '/tools/phpmyadmin' }
+ * ```
+ */
+export type PathAlias = {
+	/**
+	 * The URL path prefix to match (e.g., '/phpmyadmin').
+	 */
+	urlPrefix: string;
+
+	/**
+	 * The absolute filesystem path to serve files from.
+	 */
+	fsPath: string;
+};
+
 interface BaseConfiguration {
 	/**
 	 * The directory in the PHP filesystem where the server will look
@@ -74,6 +96,19 @@ interface BaseConfiguration {
 	 * Rewrite rules
 	 */
 	rewriteRules?: RewriteRule[];
+
+	/**
+	 * Path aliases that map URL prefixes to filesystem paths outside
+	 * the document root. Similar to Nginx's `alias` directive.
+	 *
+	 * @example
+	 * ```ts
+	 * pathAliases: [
+	 *   { urlPrefix: '/phpmyadmin', fsPath: '/tools/phpmyadmin' }
+	 * ]
+	 * ```
+	 */
+	pathAliases?: PathAlias[];
 
 	/**
 	 * A callback that decides how to handle a file-not-found condition for a
@@ -174,6 +209,7 @@ export class PHPRequestHandler implements AsyncDisposable {
 	#PATHNAME: string;
 	#ABSOLUTE_URL: string;
 	#cookieStore: CookieStore | false;
+	#pathAliases: PathAlias[];
 	rewriteRules: RewriteRule[];
 	/**
 	 * The instance manager used for PHP instance lifecycle.
@@ -201,6 +237,7 @@ export class PHPRequestHandler implements AsyncDisposable {
 				? location.href
 				: DEFAULT_BASE_URL,
 			rewriteRules = [],
+			pathAliases = [],
 			getFileNotFoundAction = () => ({ type: '404' }),
 		} = config;
 
@@ -272,6 +309,7 @@ export class PHPRequestHandler implements AsyncDisposable {
 			this.#PATHNAME,
 		].join('');
 		this.rewriteRules = rewriteRules;
+		this.#pathAliases = pathAliases;
 		this.getFileNotFoundAction = getFileNotFoundAction;
 	}
 
@@ -381,21 +419,19 @@ export class PHPRequestHandler implements AsyncDisposable {
 
 		const rewrittenRequestUrl = this.#applyRewriteRules(originalRequestUrl);
 		const primaryPhp = await this.getPrimaryPhp();
-		let fsPath = joinPaths(
-			this.#DOCROOT,
+		/**
+		 * Turn a URL such as `https://playground/scope:my-site/wp-admin/index.php`
+		 * into a site-relative path, such as `/wp-admin/index.php`.
+		 */
+		const siteRelativePath = removePathPrefix(
 			/**
-			 * Turn a URL such as `https://playground/scope:my-site/wp-admin/index.php`
-			 * into a site-relative path, such as `/wp-admin/index.php`.
+			 * URL.pathname returns a URL-encoded path. We need to decode it
+			 * before using it as a filesystem path.
 			 */
-			removePathPrefix(
-				/**
-				 * URL.pathname returns a URL-encoded path. We need to decode it
-				 * before using it as a filesystem path.
-				 */
-				decodeURIComponent(rewrittenRequestUrl.pathname),
-				this.#PATHNAME
-			)
+			decodeURIComponent(rewrittenRequestUrl.pathname),
+			this.#PATHNAME
 		);
+		let fsPath = this.#resolveToFsPath(siteRelativePath);
 		if (primaryPhp.isDir(fsPath)) {
 			// Ensure directory URIs have a trailing slash. Otherwise,
 			// relative URIs in index.php or index.html files are relative
@@ -418,7 +454,7 @@ export class PHPRequestHandler implements AsyncDisposable {
 			// Otherwise, when viewing the WP admin dashboard at `/wp-admin`,
 			// links to other admin pages like `edit.php` will incorrectly
 			// resolve to `/edit.php` rather than `/wp-admin/edit.php`.
-			if (!fsPath.endsWith('/')) {
+			if (!siteRelativePath.endsWith('/')) {
 				return new PHPResponse(
 					301,
 					{ Location: [`${rewrittenRequestUrl.pathname}/`] },
@@ -455,19 +491,19 @@ export class PHPRequestHandler implements AsyncDisposable {
 			 * If /var/www/file.php/index.php does not exist, but /var/www/file.php does,
 			 * use /var/www/file.php. This is also what Apache and PHP Dev Server do.
 			 */
-			let pathToTry = rewrittenRequestUrl.pathname;
+			let pathToTry = siteRelativePath;
 			while (
 				pathToTry.startsWith('/') &&
 				pathToTry !== dirname(pathToTry)
 			) {
 				pathToTry = dirname(pathToTry);
-				const resolvedPathToTry = joinPaths(this.#DOCROOT, pathToTry);
+				const resolvedPathToTry = this.#resolveToFsPath(pathToTry);
 				if (
 					primaryPhp.isFile(resolvedPathToTry) &&
 					// Only run partial path resolution for PHP files.
 					resolvedPathToTry.endsWith('.php')
 				) {
-					fsPath = joinPaths(this.#DOCROOT, pathToTry);
+					fsPath = this.#resolveToFsPath(pathToTry);
 					break;
 				}
 			}
@@ -554,6 +590,31 @@ export class PHPRequestHandler implements AsyncDisposable {
 			rewrittenRequestUrl.searchParams.append(key, value);
 		}
 		return rewrittenRequestUrl;
+	}
+
+	/**
+	 * Resolves a URL path to a filesystem path, checking path aliases first.
+	 *
+	 * If the URL path matches a configured alias prefix, the alias's
+	 * filesystem path is used instead of the document root.
+	 *
+	 * @param urlPath - The URL path to resolve (e.g., '/phpmyadmin/index.php')
+	 * @returns The resolved filesystem path
+	 */
+	#resolveToFsPath(urlPath: string): string {
+		// Check if the URL path matches any alias
+		for (const alias of this.#pathAliases) {
+			if (
+				urlPath === alias.urlPrefix ||
+				urlPath.startsWith(alias.urlPrefix + '/')
+			) {
+				// Replace the URL prefix with the filesystem path
+				const relativePath = urlPath.slice(alias.urlPrefix.length);
+				return joinPaths(alias.fsPath, relativePath);
+			}
+		}
+		// No alias matched, use the document root
+		return joinPaths(this.#DOCROOT, urlPath);
 	}
 
 	/**

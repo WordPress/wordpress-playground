@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import { toPosixPath } from '@php-wasm/util';
 import type { Mount } from './mounts';
 import {
 	type X2jOptions,
@@ -695,8 +696,4 @@ function jsoncApplyEdits(content: string, edits: JSONC.Edit[]) {
 	}
 
 	return json;
-}
-
-function toPosixPath(pathStr: string) {
-	return pathStr.replaceAll(path.sep, path.posix.sep);
 }
