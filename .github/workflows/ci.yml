@@ -25,6 +25,7 @@ jobs:
             - run: npx nx affected --target=lint
             - run: npx nx affected --target=typecheck
             - run: npx nx check-orphan-pages docs-site
+            - run: bash tools/check-node-engine-alignment.sh
     test-unit-asyncify:
         runs-on: ubuntu-latest
         strategy:
