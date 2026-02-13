@@ -592,7 +592,7 @@ test.describe('Save Status Indicator', () => {
 		await website.ensureSiteManagerIsClosed();
 
 		const indicator = website.page.locator(
-			'div[class^="_save-status-slot"] div[class^="_indicator"]'
+			'div[data-testid="save-status-indicator"]'
 		);
 		await expect(indicator).toBeVisible();
 		await expect(indicator).toContainText('Unsaved Playground');
@@ -604,8 +604,8 @@ test.describe('Save Status Indicator', () => {
 		await website.goto('./');
 		await website.ensureSiteManagerIsOpen();
 
-		const indicator = website.page.getByText(
-			'This is an Unsaved Playground. Your changes will be lost on page refresh.'
+		const indicator = website.page.locator(
+			'div[data-testid="temporary-site-notice"]'
 		);
 		await expect(indicator).toBeVisible();
 		await expect(indicator).toHaveCount(1);
@@ -618,12 +618,12 @@ test.describe('Save Status Indicator', () => {
 		await website.ensureSiteManagerIsOpen();
 
 		const indicator = website.page.locator(
-			'div[class^="_save-status-slot"] div[class^="_indicator"]'
+			'div[data-testid="save-status-indicator"]'
 		);
 		await expect(indicator).toHaveCount(0);
 	});
 
-	test('should not see save playground message in the Site Manager', async ({
+	test('should not see save playground message in the Site Manager when "can-save=no" is set', async ({
 		website,
 	}) => {
 		await website.goto('./?can-save=no');

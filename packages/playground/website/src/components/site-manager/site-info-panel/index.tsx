@@ -416,9 +416,11 @@ export function SiteInfoPanel({
 									) : null}
 
 									{isTemporary ? (
-										<TemporarySiteNotice
-											className={css.siteNotice}
-										/>
+										<div data-testid="temporary-site-notice">
+											<TemporarySiteNotice
+												className={css.siteNotice}
+											/>
+										</div>
 									) : null}
 
 									<ActiveSiteSettingsForm />

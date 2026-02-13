@@ -94,7 +94,10 @@ export default function BrowserChrome({
 					</div>
 
 					{!disableSave && (
-						<div className={css.saveStatusSlot}>
+						<div
+							className={css.saveStatusSlot}
+							data-testid="save-status-indicator"
+						>
 							<SaveStatusIndicator />
 						</div>
 					)}
