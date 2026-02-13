@@ -103,22 +103,26 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 		 */
 		const sharedOptions: Record<string, YargsOptions> = {
 			'site-url': {
+				alias: 'u',
 				describe:
 					'Site URL to use for WordPress. Defaults to http://127.0.0.1:{port}',
 				type: 'string',
 			},
 			php: {
+				alias: 'P',
 				describe: 'PHP version to use.',
 				type: 'string',
 				default: RecommendedPHPVersion,
 				choices: SupportedPHPVersions,
 			},
 			wp: {
+				alias: 'W',
 				describe: 'WordPress version to use.',
 				type: 'string',
 				default: 'latest',
 			},
 			define: {
+				alias: 'D',
 				describe:
 					'Define PHP string constants (can be used multiple times). ' +
 					'Format: NAME value. ' +
@@ -130,6 +134,7 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 				coerce: parseDefineStringArguments,
 			},
 			'define-bool': {
+				alias: 'B',
 				describe:
 					'Define PHP boolean constants (can be used multiple times). ' +
 					'Format: NAME value. Value must be "true", "false", "1", or "0". ' +
@@ -140,6 +145,7 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 				coerce: parseDefineBoolArguments,
 			},
 			'define-number': {
+				alias: 'N',
 				describe:
 					'Define PHP number constants (can be used multiple times). ' +
 					'Format: NAME value. ' +
@@ -152,6 +158,7 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 			// @TODO: Support read-only mounts, e.g. via WORKERFS, a custom
 			// ReadOnlyNODEFS, or by copying the files into MEMFS
 			mount: {
+				alias: 'm',
 				describe:
 					'Mount a directory to the PHP runtime (can be used multiple times). Format: /host/path:/vfs/path',
 				type: 'array',
@@ -159,6 +166,7 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 				coerce: parseMountWithDelimiterArguments,
 			},
 			'mount-before-install': {
+				alias: 'M',
 				describe:
 					'Mount a directory to the PHP runtime before WordPress installation (can be used multiple times). Format: /host/path:/vfs/path',
 				type: 'array',
@@ -182,11 +190,13 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 				coerce: parseMountDirArguments,
 			},
 			login: {
+				alias: 'l',
 				describe: 'Should log the user in',
 				type: 'boolean',
 				default: false,
 			},
 			blueprint: {
+				alias: 'b',
 				describe: 'Blueprint to execute.',
 				type: 'string',
 			},
@@ -197,6 +207,7 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 				default: false,
 			},
 			'wordpress-install-mode': {
+				alias: 'i',
 				describe:
 					'Control how Playground prepares WordPress before booting.',
 				type: 'string',
@@ -221,12 +232,14 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 			},
 			// Hidden - Deprecated in favor of verbosity
 			quiet: {
+				alias: 'q',
 				describe: 'Do not output logs and progress messages.',
 				type: 'boolean',
 				default: false,
 				hidden: true,
 			},
 			verbosity: {
+				alias: 'v',
 				describe: 'Output logs and progress messages.',
 				type: 'string',
 				choices: Object.values(LogVerbosity).map(
@@ -243,10 +256,12 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 				hidden: true,
 			},
 			'auto-mount': {
+				alias: 'a',
 				describe: `Automatically mount the specified directory. If no path is provided, mount the current working directory. You can mount a WordPress directory, a plugin directory, a theme directory, a wp-content directory, or any directory containing PHP and HTML files.`,
 				type: 'string',
 			},
 			'follow-symlinks': {
+				alias: 'L',
 				describe:
 					'Allow Playground to follow symlinks by automatically mounting symlinked directories and files encountered in mounted directories. \nWarning: Following symlinks will expose files outside mounted directories to Playground and could be a security risk.',
 				type: 'boolean',
@@ -274,6 +289,7 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 				default: true,
 			},
 			redis: {
+				alias: 'r',
 				describe: 'Enable Redis (requires JSPI support).',
 				type: 'boolean',
 				// No default - will be determined at runtime based on JSPI availability
@@ -284,6 +300,7 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 				// No default - will be determined at runtime based on JSPI availability
 			},
 			xdebug: {
+				alias: 'x',
 				describe: 'Enable Xdebug.',
 				type: 'boolean',
 				default: false,
@@ -328,11 +345,13 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 
 		const serverOnlyOptions: Record<string, YargsOptions> = {
 			port: {
+				alias: 'p',
 				describe: 'Port to listen on when serving.',
 				type: 'number',
 				default: 9400,
 			},
 			'experimental-multi-worker': {
+				alias: 'w',
 				describe:
 					'Enable experimental multi-worker support which requires ' +
 					'a /wordpress directory backed by a real filesystem. ' +
@@ -342,6 +361,7 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 				coerce: (value?: number) => value ?? cpus().length - 1,
 			},
 			'experimental-devtools': {
+				alias: 'd',
 				describe: 'Enable experimental browser development tools.',
 				type: 'boolean',
 			},
@@ -360,32 +380,38 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 				default: process.cwd(),
 			},
 			php: {
+				alias: 'P',
 				describe: 'PHP version to use.',
 				type: 'string',
 				default: RecommendedPHPVersion,
 				choices: SupportedPHPVersions,
 			},
 			wp: {
+				alias: 'W',
 				describe: 'WordPress version to use.',
 				type: 'string',
 				default: 'latest',
 			},
 			port: {
+				alias: 'p',
 				describe: 'Port to listen on.',
 				type: 'number',
 				default: 9400,
 			},
 			blueprint: {
+				alias: 'b',
 				describe:
 					'Path to a Blueprint JSON file to execute on startup.',
 				type: 'string',
 			},
 			login: {
+				alias: 'l',
 				describe: 'Auto-login as the admin user.',
 				type: 'boolean',
 				default: true,
 			},
 			xdebug: {
+				alias: 'x',
 				describe: 'Enable Xdebug for debugging.',
 				type: 'boolean',
 				default: false,
@@ -393,23 +419,27 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 			'experimental-unsafe-ide-integration':
 				sharedOptions['experimental-unsafe-ide-integration'],
 			'skip-browser': {
+				alias: 's',
 				describe:
 					'Do not open the site in your default browser on startup.',
 				type: 'boolean',
 				default: false,
 			},
 			quiet: {
+				alias: 'q',
 				describe: 'Suppress non-essential output.',
 				type: 'boolean',
 				default: false,
 			},
 			// Advanced options for power users who need more control
 			'site-url': {
+				alias: 'u',
 				describe:
 					'Override the site URL. By default, derived from the port (http://127.0.0.1:<port>).',
 				type: 'string',
 			},
 			mount: {
+				alias: 'm',
 				describe:
 					'Mount a directory to the PHP runtime (can be used multiple times). Format: /host/path:/vfs/path. Use this for additional mounts beyond auto-detection.',
 				type: 'array',
@@ -417,6 +447,7 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 				coerce: parseMountWithDelimiterArguments,
 			},
 			reset: {
+				alias: 'R',
 				describe:
 					'Deletes the stored site directory and starts a new site from scratch.',
 				type: 'boolean',
@@ -438,6 +469,7 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 
 		const buildSnapshotOnlyOptions: Record<string, YargsOptions> = {
 			outfile: {
+				alias: 'o',
 				describe: 'When building, write to this output file.',
 				type: 'string',
 				default: 'wordpress.zip',
