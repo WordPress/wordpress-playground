@@ -129,6 +129,16 @@ export class StreamedPHPResponse {
 	}
 
 	/**
+	 * Creates a StreamedPHPResponse for a given HTTP status code.
+	 * Shorthand for `StreamedPHPResponse.fromPHPResponse(PHPResponse.forHttpCode(...))`.
+	 */
+	static forHttpCode(httpStatusCode: number, text = ''): StreamedPHPResponse {
+		return StreamedPHPResponse.fromPHPResponse(
+			PHPResponse.forHttpCode(httpStatusCode, text)
+		);
+	}
+
+	/**
 	 * Returns the raw headers stream for serialization purposes.
 	 * For parsed headers, use the `headers` property instead.
 	 */

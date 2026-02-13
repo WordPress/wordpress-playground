@@ -1467,8 +1467,9 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 		},
 		async handleRequest(request: PHPRequest): Promise<StreamedPHPResponse> {
 			if (!wordPressReady) {
-				return StreamedPHPResponse.fromPHPResponse(
-					PHPResponse.forHttpCode(502, 'WordPress is not ready yet')
+				return StreamedPHPResponse.forHttpCode(
+					502,
+					'WordPress is not ready yet'
 				);
 			}
 			// Clear the playground_auto_login_already_happened cookie on the first request.

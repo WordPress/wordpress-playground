@@ -684,13 +684,9 @@ export class PHPRequestHandler implements AsyncDisposable {
 			spawnedPHP = await this.instanceManager!.acquirePHPInstance();
 		} catch (e) {
 			if (e instanceof MaxPhpInstancesError) {
-				return StreamedPHPResponse.fromPHPResponse(
-					PHPResponse.forHttpCode(502)
-				);
+				return StreamedPHPResponse.forHttpCode(502);
 			} else {
-				return StreamedPHPResponse.fromPHPResponse(
-					PHPResponse.forHttpCode(500)
-				);
+				return StreamedPHPResponse.forHttpCode(500);
 			}
 		}
 
