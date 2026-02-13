@@ -36,7 +36,7 @@ describe('wp-config-transformer.php', () => {
 		php = new PHP(await loadNodeRuntime(RecommendedPHPVersion));
 	});
 
-	it('should dectect whether a constant is defined', async () => {
+	it('should detect whether a constant is defined', async () => {
 		const js = phpVars({ wpConfig: wpConfigSample });
 		const phpCode = `${wpConfigTransformer}
 		$transformer = new WP_Config_Transformer(${js.wpConfig});
@@ -87,7 +87,7 @@ describe('wp-config-transformer.php', () => {
 		});
 	});
 
-	it('should dectect whether anew constant is defined', async () => {
+	it('should detect whether a new constant is defined', async () => {
 		const js = phpVars({ wpConfig: wpConfigSample });
 		const phpCode = `${wpConfigTransformer}
 		$transformer = new WP_Config_Transformer(${js.wpConfig});
