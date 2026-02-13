@@ -117,8 +117,8 @@ class WP_Config_Transformer {
 		// The value of the constant, e.g.: "my-database-name"
 		$value_tokens = array_slice( $definition_tokens, 7, -4 );
 
-		// Modify the token array to define the constant.
-		$constant_updated = false;
+		// Collect all locations where the constant value needs to be updated.
+		$updates = array();
 		foreach ( $this->tokens as $i => $token ) {
 			$is_string_token = is_array( $token ) && T_STRING === $token[0];
 			if ( $is_string_token && 'define' === strtolower( $token[1] ) ) {
@@ -128,15 +128,20 @@ class WP_Config_Transformer {
 				);
 
 				if ( $name === $const_name ) {
-					list ( $value_start, $value_length ) = $args[1];
-					array_splice( $this->tokens, $value_start, $value_length, $value_tokens );
-					$constant_updated = true;
+					$updates[] = $args[1];
 				}
 			}
 		}
 
+		// Modify the token array to define the constant. Apply updates in reverse
+		// order, so splices at earlier positions don't shift indices after them.
+		for ( $i = count( $updates ) - 1; $i >= 0; $i -= 1 ) {
+			list ( $value_start, $value_length ) = $updates[ $i ];
+			array_splice( $this->tokens, $value_start, $value_length, $value_tokens );
+		}
+
 		// If it's a new constant, inject it at the anchor location.
-		if ( ! $constant_updated ) {
+		if ( 0 === count( $updates ) ) {
 			$anchor = $this->get_new_constant_location();
 			array_splice( $this->tokens, $anchor, 0, $define_tokens );
 

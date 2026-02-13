@@ -192,6 +192,34 @@ if ( 'production' === $env ) {
 `);
 	});
 
+	it('should update all occurrences when old and new values have different token counts', async () => {
+		const wpConfig = `<?php
+if ( 'production' === $env ) {
+	define( 'SITE_URL', 'http://production.example.com' );
+} else {
+	define( 'SITE_URL', 'http://dev.example.com' );
+}
+`;
+
+		const js = phpVars({ wpConfig });
+		const phpCode = `${wpConfigTransformer}
+
+		$transformer = new WP_Config_Transformer(${js.wpConfig});
+		$transformer->define_constant( 'SITE_URL', NULL );
+		echo $transformer->to_string();
+		`;
+
+		const response = await php.run({ code: phpCode });
+		expect(response.errors).toEqual('');
+		expect(response.text).toEqual(`<?php
+if ( 'production' === $env ) {
+	define( 'SITE_URL', NULL );
+} else {
+	define( 'SITE_URL', NULL );
+}
+`);
+	});
+
 	it('should define a new constant above the "That\'s all, stop editing!" comment', async () => {
 		const wpConfig = `<?php
 define( 'WP_DEBUG', false );
