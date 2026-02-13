@@ -6,6 +6,9 @@ import classNames from 'classnames';
 import { usePlaygroundClient } from '../../../lib/use-playground-client';
 import { useActiveSite } from '../../../lib/state/redux/store';
 
+const query = new URL(document.location.href).searchParams;
+const disableSave = query.get('can-save') === 'no';
+
 export function TemporarySiteNotice({
 	isDismissible = false,
 	className,
@@ -16,7 +19,7 @@ export function TemporarySiteNotice({
 	const [isDismissed, setIsDismissed] = useState(false);
 	const site = useActiveSite()!;
 	const playground = usePlaygroundClient(site.slug);
-	if (isDismissed) {
+	if (isDismissed || disableSave) {
 		return null;
 	}
 	return (

@@ -25,6 +25,7 @@ import { SaveStatusIndicator } from './save-status-indicator';
 
 const query = new URL(document.location.href).searchParams;
 const overlayParam = query.get('overlay');
+const disableSave = query.get('can-save') === 'no';
 const shouldOpenOverlay = overlayParam !== null;
 
 interface BrowserChromeProps {
@@ -92,9 +93,11 @@ export default function BrowserChrome({
 						/>
 					</div>
 
-					<div className={css.saveStatusSlot}>
-						<SaveStatusIndicator />
-					</div>
+					{!disableSave && (
+						<div className={css.saveStatusSlot}>
+							<SaveStatusIndicator />
+						</div>
+					)}
 
 					<div className={css.toolbarButtons}>
 						<Button
