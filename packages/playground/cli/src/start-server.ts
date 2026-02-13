@@ -3,6 +3,8 @@ import type { Request, Response } from 'express';
 import express from 'express';
 import type { IncomingMessage, Server, ServerResponse } from 'http';
 import type { AddressInfo } from 'net';
+import { Readable } from 'stream';
+import { pipeline } from 'stream/promises';
 import type { RunCLIServer } from './run-cli';
 import { logger } from '@php-wasm/logger';
 
@@ -78,65 +80,8 @@ async function handleStreamedResponse(
 		res.setHeader(key, headers[key]);
 	}
 
-	// Stream the response body
-	const reader = streamedResponse.stdout.getReader();
-	let readerDone = false;
-	res.on('close', () => {
-		if (!readerDone) {
-			reader.cancel().catch(() => {});
-		}
-	});
-
-	try {
-		while (true) {
-			const { done, value } = await reader.read();
-			if (done) {
-				break;
-			}
-			if (value && value.byteLength > 0) {
-				// Write chunk to response
-				const writeSuccessful = res.write(value);
-				if (!writeSuccessful) {
-					// Backpressure: wait for drain event before continuing
-					await new Promise<void>((resolve) =>
-						res.once('drain', resolve)
-					);
-				}
-			}
-		}
-		if (!res.writableEnded && !res.destroyed) {
-			res.end();
-		}
-	} catch (error) {
-		logger.error('Error streaming response:', error);
-		// If we haven't sent headers yet, we can send an error response
-		if (!res.headersSent) {
-			res.statusCode = 500;
-			if (!res.writableEnded && !res.destroyed) {
-				res.end('Stream error');
-			}
-		} else if (!res.destroyed) {
-			// Headers already sent, just close the connection
-			res.destroy();
-		}
-	} finally {
-		readerDone = true;
-		try {
-			reader.releaseLock();
-		} catch {
-			// Ignore errors during cleanup
-		}
-	}
-
-	// Wait for the PHP process to finish and check exit code
-	try {
-		const exitCode = await streamedResponse.exitCode;
-		if (exitCode !== 0) {
-			logger.warn(`PHP process exited with code ${exitCode}`);
-		}
-	} catch (error) {
-		logger.error('Error waiting for PHP process:', error);
-	}
+	const nodeStream = Readable.fromWeb(streamedResponse.stdout);
+	await pipeline(nodeStream, res);
 }
 
 const bufferRequestBody = async (req: Request): Promise<Uint8Array> =>
