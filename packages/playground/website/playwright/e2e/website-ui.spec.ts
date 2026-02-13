@@ -598,7 +598,7 @@ test.describe('Save Status Indicator', () => {
 		await expect(indicator).toContainText('Unsaved Playground');
 	});
 
-	test('should see save playground message Site Manager', async ({
+	test('should see save playground message in the Site Manager', async ({
 		website,
 	}) => {
 		await website.goto('./');
@@ -623,7 +623,7 @@ test.describe('Save Status Indicator', () => {
 		await expect(indicator).toHaveCount(0);
 	});
 
-	test('should not see save playground message Site Manager', async ({
+	test('should not see save playground message in the Site Manager', async ({
 		website,
 	}) => {
 		await website.goto('./?can-save=no');
