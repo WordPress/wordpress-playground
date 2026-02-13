@@ -72,38 +72,26 @@ export class LoadBalancer {
 
 		// TODO: Add trace facility to Playground CLI to observe internals like request routing.
 
-		const promiseForResponse = smallestWorkerLoad.worker
-			.requestStreamed(request)
-			.then((response) => {
-				// Convert PHPResponse (static files) to StreamedPHPResponse
-				// Use duck-typing instead of instanceof, which is
-				// unreliable across Comlink worker boundaries.
-				if ('bytes' in response) {
-					return StreamedPHPResponse.fromPHPResponse(
-						response as PHPResponse
-					);
-				}
-				return response;
-			});
+		const rawResponse =
+			await smallestWorkerLoad.worker.requestStreamed(request);
+
+		// Convert PHPResponse (static files) to StreamedPHPResponse
+		// Use duck-typing instead of instanceof, which is
+		// unreliable across Comlink worker boundaries.
+		const response =
+			'bytes' in rawResponse
+				? StreamedPHPResponse.fromPHPResponse(
+						rawResponse as PHPResponse
+					)
+				: rawResponse;
 
 		// Track the request while it's active
-		// Wait for the stream to finish before considering the request complete
-		const trackingPromise: Promise<void> = promiseForResponse
-			.then((response) => response.finished)
-			.catch(() => {
-				// Error handling is done in start-server.ts
-				// This catch prevents unhandled rejection warnings
-			});
+		const trackingPromise = response.finished;
 		smallestWorkerLoad.activeRequests.add(trackingPromise);
-
-		// Add URL to promise for use while debugging
-		(promiseForResponse as any).url = request.url;
-
-		// Clean up tracking when the response stream is fully consumed
 		trackingPromise.finally(() => {
 			smallestWorkerLoad.activeRequests.delete(trackingPromise);
 		});
 
-		return promiseForResponse;
+		return response;
 	}
 }
