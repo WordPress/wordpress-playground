@@ -412,12 +412,6 @@ export class PHPRequestHandler implements AsyncDisposable {
 	async request(request: PHPRequest): Promise<PHPResponse> {
 		const streamedResponse = await this.requestStreamed(request);
 
-		// If requestStreamed() returned a PHPResponse (static files, redirects, 404s),
-		// return it directly without conversion.
-		if (streamedResponse instanceof PHPResponse) {
-			return streamedResponse;
-		}
-
 		// Convert StreamedPHPResponse to buffered PHPResponse
 		const response =
 			await PHPResponse.fromStreamedResponse(streamedResponse);
@@ -451,11 +445,9 @@ export class PHPRequestHandler implements AsyncDisposable {
 	 * exceed JavaScript's Uint8Array size limits.
 	 *
 	 * @param request - PHP Request data.
-	 * @returns A StreamedPHPResponse or PHPResponse for non-PHP files.
+	 * @returns A StreamedPHPResponse.
 	 */
-	async requestStreamed(
-		request: PHPRequest
-	): Promise<StreamedPHPResponse | PHPResponse> {
+	async requestStreamed(request: PHPRequest): Promise<StreamedPHPResponse> {
 		const isAbsolute = looksLikeAbsoluteUrl(request.url);
 		const originalRequestUrl = new URL(
 			// Remove the hash part of the URL as it's not meant for the server.
@@ -501,10 +493,12 @@ export class PHPRequestHandler implements AsyncDisposable {
 			// links to other admin pages like `edit.php` will incorrectly
 			// resolve to `/edit.php` rather than `/wp-admin/edit.php`.
 			if (!siteRelativePath.endsWith('/')) {
-				return new PHPResponse(
-					301,
-					{ Location: [`${rewrittenRequestUrl.pathname}/`] },
-					new Uint8Array(0)
+				return StreamedPHPResponse.fromPHPResponse(
+					new PHPResponse(
+						301,
+						{ Location: [`${rewrittenRequestUrl.pathname}/`] },
+						new Uint8Array(0)
+					)
 				);
 			}
 
@@ -561,12 +555,14 @@ export class PHPRequestHandler implements AsyncDisposable {
 			);
 			switch (fileNotFoundAction.type) {
 				case 'response':
-					return fileNotFoundAction.response;
+					return StreamedPHPResponse.fromPHPResponse(
+						fileNotFoundAction.response
+					);
 				case 'internal-redirect':
 					fsPath = joinPaths(this.#DOCROOT, fileNotFoundAction.uri);
 					break;
 				case '404':
-					return PHPResponse.forHttpCode(404);
+					return StreamedPHPResponse.forHttpCode(404);
 				default:
 					throw new Error(
 						'Unsupported file-not-found action type: ' +
@@ -589,10 +585,12 @@ export class PHPRequestHandler implements AsyncDisposable {
 					fsPath
 				);
 			} else {
-				return this.#serveStaticFile(primaryPhp, fsPath);
+				return StreamedPHPResponse.fromPHPResponse(
+					this.#serveStaticFile(primaryPhp, fsPath)
+				);
 			}
 		} else {
-			return PHPResponse.forHttpCode(404);
+			return StreamedPHPResponse.forHttpCode(404);
 		}
 	}
 

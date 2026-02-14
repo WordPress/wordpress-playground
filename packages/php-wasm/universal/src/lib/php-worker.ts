@@ -188,9 +188,7 @@ export class PHPWorker implements LimitedPHPApi, AsyncDisposable {
 	 *
 	 * @param request - PHP Request data.
 	 */
-	async requestStreamed(
-		request: PHPRequest
-	): Promise<StreamedPHPResponse | PHPResponse> {
+	async requestStreamed(request: PHPRequest): Promise<StreamedPHPResponse> {
 		const requestHandler = _private.get(this)!.requestHandler!;
 		return await requestHandler.requestStreamed(request);
 	}

@@ -1,5 +1,8 @@
-import type { PHPRequest, PHPResponse, RemoteAPI } from '@php-wasm/universal';
-import { StreamedPHPResponse } from '@php-wasm/universal';
+import type {
+	PHPRequest,
+	RemoteAPI,
+	StreamedPHPResponse,
+} from '@php-wasm/universal';
 import type { PlaygroundCliBlueprintV1Worker as PlaygroundCliWorkerV1 } from './blueprints-v1/worker-thread-v1';
 import type { PlaygroundCliBlueprintV2Worker as PlaygroundCliWorkerV2 } from './blueprints-v2/worker-thread-v2';
 
@@ -72,18 +75,8 @@ export class LoadBalancer {
 
 		// TODO: Add trace facility to Playground CLI to observe internals like request routing.
 
-		const rawResponse =
-			await smallestWorkerLoad.worker.requestStreamed(request);
-
-		// Convert PHPResponse (static files) to StreamedPHPResponse
-		// Use duck-typing instead of instanceof, which is
-		// unreliable across Comlink worker boundaries.
 		const response =
-			'bytes' in rawResponse
-				? StreamedPHPResponse.fromPHPResponse(
-						rawResponse as PHPResponse
-					)
-				: rawResponse;
+			await smallestWorkerLoad.worker.requestStreamed(request);
 
 		// Track the request while it's active
 		const trackingPromise = response.finished;

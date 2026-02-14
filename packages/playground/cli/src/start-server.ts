@@ -80,7 +80,8 @@ async function handleStreamedResponse(
 		res.setHeader(key, headers[key]);
 	}
 
-	const nodeStream = Readable.fromWeb(streamedResponse.stdout);
+	// Cast needed: Web ReadableStream and Node.js ReadableStream types differ
+	const nodeStream = Readable.fromWeb(streamedResponse.stdout as any);
 	await pipeline(nodeStream, res);
 }
 
