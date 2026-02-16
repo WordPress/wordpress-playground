@@ -1,0 +1,23 @@
+{
+	"$schema": "https://json.schemastore.org/claude-code-settings.json",
+	"permissions": {
+		"allow": [
+			"Bash(npm run *)",
+			"Bash(npm test *)",
+			"Bash(npx nx *)",
+			"Bash(npx vitest *)",
+			"Bash(npx tsc *)",
+			"Bash(npx wp-playground *)",
+			"Bash(npx playwright *)",
+			"WebFetch(domain:blueprintlibrary.wordpress.com)",
+			"WebFetch(domain:playground.wordpress.net)",
+			"WebFetch(domain:public-api.wordpress.com)",
+			"WebFetch(domain:nx.dev)"
+		],
+		"deny": [
+			"Bash(npm run release*)",
+			"Bash(npm run deploy*)",
+			"Bash(npx nx publish*)"
+		]
+	}
+}
