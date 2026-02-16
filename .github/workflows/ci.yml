@@ -25,6 +25,7 @@ jobs:
             - run: npx nx affected --target=lint
             - run: npx nx affected --target=typecheck
             - run: npx nx check-orphan-pages docs-site
+            - run: bash tools/check-node-engine-alignment.sh
     test-unit-asyncify:
         runs-on: ubuntu-latest
         strategy:
@@ -69,7 +70,7 @@ jobs:
                   submodules: true
             - uses: ./.github/actions/prepare-playground
               with:
-                  node-version: 22
+                  node-version: 20
             - run: node --expose-gc node_modules/nx/bin/nx affected --target=${{ matrix.target }}
               env:
                   MYSQL_DATABASE: test_db
@@ -328,7 +329,7 @@ jobs:
                   submodules: true
             - uses: ./.github/actions/prepare-playground
               with:
-                  node-version: 22
+                  node-version: 20
             - run: packages/php-wasm/cli/tests/smoke-test.sh
 
     # Redis extension tests - verifies the php-redis extension loads
@@ -392,7 +393,7 @@ jobs:
                   submodules: true
             - uses: ./.github/actions/prepare-playground
               with:
-                  node-version: 22
+                  node-version: 20
             - run: |
                   if ADDITIONAL_REMOTE_ORIGINS=invalid-origin npx nx build playground-client; then
                     echo "The Playground client build should have failed due to an invalid additional origin."
