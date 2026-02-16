@@ -11,7 +11,6 @@ import { logger } from '@php-wasm/logger';
 export interface ServerOptions {
 	port: number;
 	onBind: (server: Server, port: number) => Promise<RunCLIServer | void>;
-	onError: (error: NodeJS.ErrnoException) => void;
 	/**
 	 * Handler for requests. Always returns StreamedPHPResponse.
 	 */
@@ -48,7 +47,7 @@ export async function startServer(
 					resolve(server);
 				}
 			})
-			.once('error', (error) => options.onError(error));
+			.once('error', reject);
 	});
 
 	app.use('/', async (req, res) => {
