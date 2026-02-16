@@ -175,6 +175,9 @@ packages/[layer]/[package-name]/
 └── README.md                 # Package documentation
 ```
 
+Some packages have their own `AGENTS.md` with package-specific guidance. Check
+for one when working within a package.
+
 ### Publishing
 
 - **Dual format**: All packages publish both ESM (`.js`) and CommonJS (`.cjs`)
