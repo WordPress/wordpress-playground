@@ -13,10 +13,11 @@ This file provides guidance to AI coding agents when working with code in this r
 
 ## Project Overview
 
-WordPress Playground is a monorepo that runs WordPress and PHP entirely in WebAssembly, enabling zero-setup WordPress environments in browsers, Node.js, and CLIs. The project consists of two major architectural layers:
+WordPress Playground is a monorepo that runs WordPress and PHP entirely in WebAssembly, enabling zero-setup WordPress environments in browsers, Node.js, and CLIs. The project consists of two major architectural layers and several supporting packages:
 
 1. **PHP-WASM Layer** (`packages/php-wasm/*`): Emscripten-compiled PHP runtime for web and Node.js
 2. **Playground Layer** (`packages/playground/*`): WordPress-specific tooling, client libraries, and applications
+3. **Supporting packages**: `packages/nx-extensions/` (custom NX executors), `packages/docs/` (Docusaurus documentation site), `packages/meta/` (ESLint plugin, changelog tooling), `packages/bun-extensions/` and `packages/vite-extensions/` (build tooling)
 
 ## Build System
 
