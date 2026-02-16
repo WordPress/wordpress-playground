@@ -35,11 +35,11 @@ npx nx dev playground-cli server         # Run CLI from source
 npm run build                            # Build all packages
 npm run build:website                    # Build the main website
 npm run build:docs                       # Build documentation
-npx nx build <package-name>             # Build specific package
+npx nx build <package-name>              # Build specific package
 
 # Testing
 npm test                                 # Run all tests
-npx nx test <package-name>              # Test specific package
+npx nx test <package-name>               # Test specific package
 npx nx e2e playground-website            # Run end-to-end tests
 
 # Running a single test file
