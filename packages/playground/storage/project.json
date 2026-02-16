@@ -3,6 +3,7 @@
 	"$schema": "../../../node_modules/nx/schemas/project-schema.json",
 	"sourceRoot": "packages/playground/storage/src",
 	"projectType": "library",
+	"tags": [],
 	"targets": {
 		"build": {
 			"executor": "nx:noop",
@@ -38,7 +39,7 @@
 			"dependsOn": ["build"]
 		},
 		"test": {
-			"executor": "@nx/vite:test",
+			"executor": "@nx/vitest:test",
 			"outputs": ["{workspaceRoot}/coverage/packages/playground/storage"],
 			"options": {
 				"passWithNoTests": true,
@@ -54,6 +55,5 @@
 				"maxWarnings": 0
 			}
 		}
-	},
-	"tags": []
+	}
 }

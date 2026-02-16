@@ -3,6 +3,15 @@
 	"$schema": "../../../node_modules/nx/schemas/project-schema.json",
 	"sourceRoot": "packages/php-wasm/universal/src",
 	"projectType": "library",
+	"typecheck": {
+		"executor": "nx:run-commands",
+		"options": {
+			"commands": [
+				"tsc -p packages/php-wasm/universal/tsconfig.lib.json --noEmit",
+				"tsc -p packages/php-wasm/universal/tsconfig.spec.json --noEmit"
+			]
+		}
+	},
 	"targets": {
 		"build": {
 			"executor": "nx:noop",
@@ -49,7 +58,7 @@
 			"dependsOn": ["build"]
 		},
 		"test:vite": {
-			"executor": "@nx/vite:test",
+			"executor": "@nx/vitest:test",
 			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/universal"],
 			"options": {
 				"passWithNoTests": true,
@@ -64,15 +73,6 @@
 				"lintFilePatterns": ["packages/php-wasm/universal/**/*.ts"],
 				"maxWarnings": 0
 			}
-		}
-	},
-	"typecheck": {
-		"executor": "nx:run-commands",
-		"options": {
-			"commands": [
-				"tsc -p packages/php-wasm/universal/tsconfig.lib.json --noEmit",
-				"tsc -p packages/php-wasm/universal/tsconfig.spec.json --noEmit"
-			]
 		}
 	}
 }
