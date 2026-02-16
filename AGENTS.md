@@ -247,6 +247,8 @@ npx nx recompile-php:all php-wasm-node -- --WITH_SOURCEMAPS=yes
 
 Located in `packages/nx-extensions/src/executors/`:
 
+- `build`: Builds packages
+- `built-script`: Runs scripts from built output
 - `package-json`: Generates package.json with correct exports
 - `assert-built-esm-and-cjs`: Verifies dual-format build
 - `package-for-self-hosting`: Creates distributable archives
