@@ -154,6 +154,7 @@
 		"@types/wordpress__block-editor": "11.5.15",
 		"@types/wordpress__blocks": "12.5.14",
 		"@typescript-eslint/eslint-plugin": "8.55.0",
+		"@typescript-eslint/parser": "8.55.0",
 		"@vitejs/plugin-react": "4.2.0",
 		"@wordpress/block-editor": "13.4.0",
 		"@wordpress/blocks": "13.4.0",
