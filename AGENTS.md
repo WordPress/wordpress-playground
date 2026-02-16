@@ -152,7 +152,7 @@ Version-specific builds: `@php-wasm/web-7-4` through `@php-wasm/web-8-5` (and co
 ### Testing
 
 - **Test files**: Co-located with implementation as `*.spec.ts`
-- **Test runner**: Vitest (via `@nx/vite:test`)
+- **Test runner**: Vitest (via `@nx/vite:test`) for most packages; some packages use Jest (via `@nx/jest`)
 - **Coverage**: Reports to `coverage/packages/<package-name>`
 - **E2E tests**: Playwright and Cypress for website testing
 - **Always fix failing tests**: Never skip failing tests; fix the code to make tests pass
