@@ -259,11 +259,15 @@ Located in `packages/nx-extensions/src/executors/`:
 - `nx.json`: NX workspace configuration
 - `tsconfig.base.json`: TypeScript path aliases and compiler options
 - `package.json`: Root package with all npm scripts
+- `lerna.json`: Version management and publish configuration
 - `.eslintrc.json`: ESLint rules including module boundaries
 - `packages/playground/blueprints/src/lib/steps/`: Blueprint step implementations
 - `packages/php-wasm/universal/`: Core PHP abstraction layer
+- `packages/php-wasm/compile/`: Docker/Emscripten PHP build pipeline
 - `packages/playground/website/`: Main demo application
 - `packages/playground/cli/`: CLI tool implementation
+- `packages/docs/`: Docusaurus documentation site
+- `packages/meta/`: Internal tooling (ESLint plugin, changelog)
 - `isomorphic-git/`: Git operations in browser (submodule)
 
 ## Node.js Version
