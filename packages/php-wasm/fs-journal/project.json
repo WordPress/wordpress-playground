@@ -3,16 +3,16 @@
 	"$schema": "../../../node_modules/nx/schemas/project-schema.json",
 	"sourceRoot": "packages/php-wasm/fs-journal/src",
 	"projectType": "library",
-	"typecheck": {
-		"executor": "nx:run-commands",
-		"options": {
-			"commands": [
-				"tsc -p packages/php-wasm/fs-journal/tsconfig.lib.json --noEmit",
-				"tsc -p packages/php-wasm/fs-journal/tsconfig.spec.json --noEmit"
-			]
-		}
-	},
 	"targets": {
+		"typecheck": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"tsc -p packages/php-wasm/fs-journal/tsconfig.lib.json --noEmit",
+					"tsc -p packages/php-wasm/fs-journal/tsconfig.spec.json --noEmit"
+				]
+			}
+		},
 		"build": {
 			"executor": "nx:noop",
 			"dependsOn": ["build:README"]

@@ -3,16 +3,16 @@
 	"$schema": "../../../node_modules/nx/schemas/project-schema.json",
 	"sourceRoot": "packages/php-wasm/universal/src",
 	"projectType": "library",
-	"typecheck": {
-		"executor": "nx:run-commands",
-		"options": {
-			"commands": [
-				"tsc -p packages/php-wasm/universal/tsconfig.lib.json --noEmit",
-				"tsc -p packages/php-wasm/universal/tsconfig.spec.json --noEmit"
-			]
-		}
-	},
 	"targets": {
+		"typecheck": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"tsc -p packages/php-wasm/universal/tsconfig.lib.json --noEmit",
+					"tsc -p packages/php-wasm/universal/tsconfig.spec.json --noEmit"
+				]
+			}
+		},
 		"build": {
 			"executor": "nx:noop",
 			"dependsOn": ["build:README"]
