@@ -221,6 +221,7 @@ npx nx dev playground-cli server --wp=6.8 --php=8.4 --auto-mount
 
 ### Git Operations
 
+- **Default branch**: `trunk` is the primary development branch
 - **Never use bare `git push`**: Always specify remote and branch explicitly
 - **Shallow clone recommended**: `git clone -b trunk --single-branch --depth 1 --recurse-submodules`
 - **Submodules**: isomorphic-git submodule provides browser-based git operations
