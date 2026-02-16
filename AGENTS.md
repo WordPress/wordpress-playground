@@ -180,7 +180,7 @@ packages/[layer]/[package-name]/
 - **publishConfig.directory**: Points to `dist/packages/[layer]/[package-name]`
 - **Lerna**: Used for coordinated multi-package publishing (`npm run release`)
 - **Exports field**: Defines both `import` and `require` conditions
-- Version management: All packages versioned together (currently 3.0.42)
+- Version management: All packages versioned together (see `lerna.json` for current version)
 
 ## Special Workflows
 
