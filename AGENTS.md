@@ -27,38 +27,38 @@ This is an NX monorepo with npm workspaces. All commands use NX for task orchest
 
 ```bash
 # Development
-npm run dev                    # Start website dev server (localhost:5400)
-npm run dev:docs              # Start documentation site
-npx nx dev playground-cli server  # Run CLI from source
+npm run dev                              # Start website dev server (localhost:5400)
+npm run dev:docs                         # Start documentation site
+npx nx dev playground-cli server         # Run CLI from source
 
 # Building
-npm run build                 # Build all packages
-npm run build:website         # Build the main website
-npm run build:docs           # Build documentation
-npx nx build <package-name>  # Build specific package
+npm run build                            # Build all packages
+npm run build:website                    # Build the main website
+npm run build:docs                       # Build documentation
+npx nx build <package-name>             # Build specific package
 
 # Testing
-npm test                      # Run all tests
-npx nx test <package-name>   # Test specific package
-npx nx e2e playground-website # Run end-to-end tests
+npm test                                 # Run all tests
+npx nx test <package-name>              # Test specific package
+npx nx e2e playground-website            # Run end-to-end tests
+
+# Running a single test file
+npx nx test <package-name> --testFile=<test-file-name>
 
 # Linting & Formatting
-npm run lint                  # Lint all packages
-npm run typecheck             # Type check all packages
-npm run format                # Format code with Prettier
-npm run format:uncommitted    # Format only uncommitted files
+npm run lint                             # Lint all packages
+npm run typecheck                        # Type check all packages
+npm run format                           # Format code with Prettier
+npm run format:uncommitted               # Format only uncommitted files
 
 # PHP Recompilation (advanced)
-npm run recompile:php:web     # Recompile all PHP versions for web
-npm run recompile:php:node    # Recompile all PHP versions for Node.js
+npm run recompile:php:web                # Recompile all PHP versions for web
+npm run recompile:php:node               # Recompile all PHP versions for Node.js
 npx nx recompile-php:jspi php-wasm-web -- --PHP_VERSION=8.4
 npx nx recompile-php:asyncify php-wasm-node -- --PHP_VERSION=8.3
 
 # WordPress Builds
-npm run rebuild:wordpress-builds  # Rebuild all WordPress versions
-
-# Running a single test file
-npx nx test <package-name> --testFile=<test-file-name>
+npm run rebuild:wordpress-builds         # Rebuild all WordPress versions
 ```
 
 ### Package Naming Convention
@@ -270,10 +270,6 @@ Located in `packages/nx-extensions/src/executors/`:
 - `packages/meta/`: Internal tooling (ESLint plugin, changelog)
 - `isomorphic-git/`: Git operations in browser (submodule)
 
-## Node.js Version
-
-Review the `engines` field in root `package.json` for the required Node.js and npm versions.
-
 ## Documentation
 
 - Main docs: https://wordpress.github.io/wordpress-playground/
@@ -282,6 +278,7 @@ Review the `engines` field in root `package.json` for the required Node.js and n
 
 ## Important Notes
 
+- **Node.js version**: See the `engines` field in root `package.json` for required Node.js and npm versions
 - **No backwards-compatibility guarantees**: This is experimental software
 - **Offline support**: Website can be built for offline use with service workers
 - **WordPress major and beta versions**: Auto-refreshed via GitHub Actions
