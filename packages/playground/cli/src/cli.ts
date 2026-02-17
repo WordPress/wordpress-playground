@@ -28,7 +28,9 @@ if (shouldRespawnWithJSPI()) {
 	}
 
 	// If spawn() itself fails (e.g. ENOENT), fall back to running
-	// without JSPI in this process.
+	// without JSPI in this process. We might be inside of a non-Node
+	// JavaScript runtime that refuses to boot when the `--experimental-wasm-jspi`
+	// flag is present.
 	child.on('error', () => {
 		runCLI();
 	});
