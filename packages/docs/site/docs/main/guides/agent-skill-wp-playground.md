@@ -20,7 +20,7 @@ Before installing the skill, confirm you have:
 | npm / npx                                  | Included with Node.js | `npx --version` |
 | Claude Code / Codex / Copilot / Gemini CLI | Latest                |                 |
 
-And the most important requirement is a coding agent that supports Agent Skills, Antigravity, Claude Code, Codex, Copilot, Cursor, and Gemini CLI. All support Agent skills on their latest version. Make sure to have your CLI or IDE updated; also keep in mind, the quality of the output will depend on the model that you are using to work. 
+And the most important requirement is a coding agent that supports Agent Skills, Antigravity, Claude Code, Codex, Copilot, Cursor, and Gemini CLI. All support Agent skills on their latest version. Make sure to have your CLI or IDE updated; also keep in mind, the quality of the output will depend on the model that you are using to work.
 
 ## Installation {#installation}
 
@@ -45,7 +45,9 @@ node shared/scripts/skillpack-build.mjs --clean
 # Install into your WordPress project
 node shared/scripts/skillpack-install.mjs --dest=../your-wp-project --targets=codex,vscode,claude,cursor
 ```
+
 This copies skills into:
+
 - `.github/skills/` for VS Code / GitHub Copilot
 - `.claude/skills/` for Claude Code (project-level)
 - `.cursor/skills/` for Cursor (project-level)
@@ -57,12 +59,11 @@ Verify the installation succeeded by checking that the skill file exists, callin
 ```bash
 claude /skills
 
-# or 
+# or
 gemini /skills list
 ```
 
 The command prints the list of installed skills.
-
 
 ## Use the skill in the terminal {#use-skill-in-the-terminal}
 
