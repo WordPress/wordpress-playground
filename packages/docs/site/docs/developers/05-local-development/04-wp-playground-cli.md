@@ -25,7 +25,7 @@ The Playground CLI requires Node.js 20.18 or higher, which is the recommended Lo
 
 ## Quickstart
 
-o run the Playground CLI, open a command line and use one of the following commands:
+To run the Playground CLI, open a command line and use one of the following commands:
 
 ### Using `start` (Simplified)
 
