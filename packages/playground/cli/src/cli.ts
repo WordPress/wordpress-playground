@@ -43,10 +43,19 @@ if (shouldRespawnWithJSPI()) {
 			return;
 		}
 
+		/**
+		 * We should always get either a code or a signal as per
+		 * https://nodejs.org/api/child_process.html#event-close:
+		 *
+		 * > If the process exited, code is the final exit code of the
+		 * > process, otherwise null. If the process terminated due to
+		 * > receipt of a signal, signal is the string name of the signal,
+		 * > otherwise null. **One of the two will always be non-null.**
+		 */
 		if (signal) {
 			process.kill(process.pid, signal);
 		} else {
-			process.exit(code ?? 1);
+			process.exit(code);
 		}
 	});
 } else {
