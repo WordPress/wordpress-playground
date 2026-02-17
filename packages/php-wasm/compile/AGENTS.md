@@ -41,6 +41,36 @@ Every library and the PHP binary are built in two variants:
 
 Libraries are stored under `<library>/{asyncify,jspi}/dist/`.
 
+### Asyncify and `ASYNCIFY_IMPORTS`
+
+Asyncify lets synchronous C code pause and resume across JavaScript async
+boundaries. This requires telling Emscripten which functions may appear on
+the call stack during an async operation. In `php/Dockerfile`:
+
+- **`ASYNCIFY_IMPORTS`** — Functions at the JS ↔ WASM boundary that trigger
+  async pauses: `invoke_*` glue functions (indirect calls) and JS bridge
+  functions like `js_open_process`, `js_fd_read`, `wasm_poll_socket`, etc.
+- **`ASYNCIFY_ONLY`** — Internal PHP/library functions that may be on the
+  stack when an async pause happens (~200+ functions covering networking,
+  image processing, XML/SOAP, etc.).
+
+If a function is missing from either list, the runtime crashes with
+**`RuntimeError: unreachable`**. The `@php-wasm/universal` package detects
+this and reports which functions may be missing.
+
+To fix missing functions, use the automated workflow:
+
+```bash
+npm run fix-asyncify
+```
+
+This iteratively recompiles PHP, runs tests, detects crashes, adds the
+missing functions to the Dockerfile, and repeats until all tests pass.
+
+JSPI does not need these lists — it uses native stack switching and only
+requires `JSPI_IMPORTS` (async boundary functions) and `JSPI_EXPORTS`
+(WASM functions callable from JS), both much smaller.
+
 ## Custom PHP Extensions
 
 Located in subdirectories of this package:
