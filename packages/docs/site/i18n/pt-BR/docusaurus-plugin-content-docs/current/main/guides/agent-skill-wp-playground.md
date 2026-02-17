@@ -389,13 +389,11 @@ Seu agente de codificação lê esses arquivos antes de gerar comandos, garantin
 ## Próximos passos {#next-steps}
 
 <!--
-- [Export to Production](/guides/export-to-production) — Deploy your Playground work to real hosting
 - [WordPress Playground for Plugin Developers](/guides/for-plugin-developers) — Showcase and develop plugins with Playground
 - [WordPress Playground for Theme Developers](/guides/for-theme-developers) — Build and demo themes using Playground
 - [Upstream Playground documentation](https://wordpress.github.io/wordpress-playground/) — Full reference for APIs, architecture, and advanced configuration
 -->
 
-- [Exportar para Produção](/guides/export-to-production) — Implante seu trabalho do Playground em hospedagem real
 - [WordPress Playground para Desenvolvedores de Plugins](/guides/for-plugin-developers) — Apresente e desenvolva plugins com Playground
 - [WordPress Playground para Desenvolvedores de Temas](/guides/for-theme-developers) — Construa e demonstre temas usando Playground
 - [Documentação upstream do Playground](https://wordpress.github.io/wordpress-playground/) — Referência completa para APIs, arquitetura e configuração avançada
