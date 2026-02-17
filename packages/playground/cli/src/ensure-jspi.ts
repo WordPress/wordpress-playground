@@ -19,6 +19,12 @@ export function shouldRespawnWithJSPI(): boolean {
 		return false;
 	}
 
+	// Explicit opt-out. The `unbuilt-asyncify` NX target sets this
+	// to prevent the respawn on Node versions that support JSPI.
+	if (process.env['PLAYGROUND_NO_JSPI_RESPAWN']) {
+		return false;
+	}
+
 	// The --experimental-wasm-jspi flag is Node.js-specific. Other
 	// runtimes (Bun, Deno) set process.versions.node for compat but
 	// don't support Node's V8 flags.
