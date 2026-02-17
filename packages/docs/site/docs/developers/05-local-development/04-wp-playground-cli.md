@@ -261,7 +261,7 @@ The `server` command supports the following optional arguments:
 - `--phpmyadmin[=<path>]`: Install phpMyAdmin for database management. The phpMyAdmin URL will be printed after boot. Optionally specify a custom URL path (default: `/phpmyadmin`).
 - `--xdebug`: Enable Xdebug. Defaults to false.
 - `--experimental-devtools`: Enable experimental browser development tools. Defaults to false.
-- `--experimental-unsafe-ide-integration=<ide>`: Set up the Xdebug integration on VS Code(`vscode`) and PhpStorm(`phpstorm`).
+- `--experimental-unsafe-ide-integration=<ide>`: Set up the Xdebug integration on VS Code (`vscode`) and PhpStorm (`phpstorm`).
 - `--experimental-multi-worker=<number>`: Enable experimental multi-worker support which requires a `/wordpress` directory backed by a real filesystem. Pass a positive number to specify the number of workers to use. Otherwise, defaults to the number of CPUs minus 1.
 
 :::caution
