@@ -21,7 +21,7 @@ The Playground CLI includes two main commands for running WordPress locally:
 
 ## Requirements
 
-The Playground CLI requires Node.js 22.12 or higher, which is the recommended Long-Term Support (LTS) version. You can download it from the [Node.js website](https://nodejs.org/en/download).
+The Playground CLI requires Node.js 20.18 or higher, which is the recommended Long-Term Support (LTS) version. You can download it from the [Node.js website](https://nodejs.org/en/download).
 
 ## Quickstart
 
