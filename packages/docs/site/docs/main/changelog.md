@@ -9,6 +9,20 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
+## [v3.0.53] (2026-02-16) 
+
+### Various
+
+- Further fixes for selected Node.js versions and related CI errors. ([#3265](https://github.com/WordPress/wordpress-playground/pull/3265))
+- Use Node.js 22 in refresh workflows to fix .mts loader errors. ([#3269](https://github.com/WordPress/wordpress-playground/pull/3269))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@brandonpayton
+
+
 ## [v3.0.52] (2026-02-12) 
 
 

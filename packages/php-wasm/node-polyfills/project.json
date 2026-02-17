@@ -3,6 +3,7 @@
 	"$schema": "../../../node_modules/nx/schemas/project-schema.json",
 	"sourceRoot": "packages/php-wasm/node-polyfills/src",
 	"projectType": "library",
+	"tags": [],
 	"targets": {
 		"build": {
 			"executor": "nx:run-commands",
@@ -45,7 +46,7 @@
 			"dependsOn": ["build"]
 		},
 		"test:vite:node": {
-			"executor": "@nx/vite:test",
+			"executor": "@nx/vitest:test",
 			"outputs": ["{options.reportsDirectory}"],
 			"options": {
 				"config": "packages/php-wasm/node-polyfills/vitest-node.config.ts",
@@ -54,7 +55,7 @@
 			}
 		},
 		"test:vite:jsdom": {
-			"executor": "@nx/vite:test",
+			"executor": "@nx/vitest:test",
 			"outputs": ["{options.reportsDirectory}"],
 			"options": {
 				"config": "packages/php-wasm/node-polyfills/vitest-jsdom.config.ts",
@@ -74,6 +75,5 @@
 				"maxWarnings": 0
 			}
 		}
-	},
-	"tags": []
+	}
 }

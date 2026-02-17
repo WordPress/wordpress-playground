@@ -3,6 +3,7 @@
 	"$schema": "../../../node_modules/nx/schemas/project-schema.json",
 	"sourceRoot": "packages/playground/client/src",
 	"projectType": "library",
+	"tags": ["scope:web-client"],
 	"targets": {
 		"build": {
 			"executor": "nx:noop",
@@ -99,7 +100,7 @@
 			"dependsOn": ["build"]
 		},
 		"test:vite": {
-			"executor": "@nx/vite:test",
+			"executor": "@nx/vitest:test",
 			"outputs": ["{workspaceRoot}/coverage/packages/playground/client"],
 			"options": {
 				"passWithNoTests": true,
@@ -115,6 +116,5 @@
 				]
 			}
 		}
-	},
-	"tags": ["scope:web-client"]
+	}
 }

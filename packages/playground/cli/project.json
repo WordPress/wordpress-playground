@@ -3,6 +3,7 @@
 	"$schema": "../../../node_modules/nx/schemas/project-schema.json",
 	"sourceRoot": "packages/playground/cli/src",
 	"projectType": "library",
+	"tags": ["scope:php-wasm-public"],
 	"targets": {
 		"build": {
 			"executor": "nx:noop",
@@ -133,7 +134,7 @@
 			}
 		},
 		"test-for-node-22-and-above": {
-			"executor": "@nx/vite:test",
+			"executor": "@nx/vitest:test",
 			"outputs": ["{workspaceRoot}/coverage/packages/playground/cli"],
 			"options": {
 				"passWithNoTests": true,
@@ -149,6 +150,5 @@
 				]
 			}
 		}
-	},
-	"tags": ["scope:php-wasm-public"]
+	}
 }

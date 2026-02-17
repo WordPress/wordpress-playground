@@ -3,6 +3,7 @@
 	"$schema": "../../node_modules/nx/schemas/project-schema.json",
 	"sourceRoot": "packages/nx-extensions/src",
 	"projectType": "library",
+	"tags": [],
 	"targets": {
 		"build": {
 			"executor": "@nx/js:tsc",
@@ -33,8 +34,7 @@
 						"glob": "executors.json",
 						"output": "."
 					}
-				],
-				"updateBuildableProjectDepsInPackageJson": true
+				]
 			}
 		},
 		"lint": {
@@ -52,7 +52,7 @@
 			}
 		},
 		"test": {
-			"executor": "@nx/vite:test",
+			"executor": "@nx/vitest:test",
 			"outputs": ["{workspaceRoot}/coverage/packages/nx-extensions"],
 			"options": {
 				"passWithNoTests": true,
@@ -71,6 +71,5 @@
 				]
 			}
 		}
-	},
-	"tags": []
+	}
 }
