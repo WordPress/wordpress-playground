@@ -4,6 +4,15 @@
 	"sourceRoot": "packages/php-wasm/fs-journal/src",
 	"projectType": "library",
 	"targets": {
+		"typecheck": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"tsc -p packages/php-wasm/fs-journal/tsconfig.lib.json --noEmit",
+					"tsc -p packages/php-wasm/fs-journal/tsconfig.spec.json --noEmit"
+				]
+			}
+		},
 		"build": {
 			"executor": "nx:noop",
 			"dependsOn": ["build:README"]
@@ -49,7 +58,7 @@
 			"dependsOn": ["build"]
 		},
 		"test:vite": {
-			"executor": "@nx/vite:test",
+			"executor": "@nx/vitest:test",
 			"outputs": [
 				"{workspaceRoot}/coverage/packages/php-wasm/fs-journal"
 			],
@@ -66,15 +75,6 @@
 				"lintFilePatterns": ["packages/php-wasm/fs-journal/**/*.ts"],
 				"maxWarnings": 0
 			}
-		}
-	},
-	"typecheck": {
-		"executor": "nx:run-commands",
-		"options": {
-			"commands": [
-				"tsc -p packages/php-wasm/fs-journal/tsconfig.lib.json --noEmit",
-				"tsc -p packages/php-wasm/fs-journal/tsconfig.spec.json --noEmit"
-			]
 		}
 	}
 }

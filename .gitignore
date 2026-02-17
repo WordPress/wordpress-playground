@@ -19,6 +19,9 @@ rollup.d.ts
 node_modules
 /__interactive-code-batteries
 
+# AI tooling
+.claude/settings.local.json
+
 # IDEs and editors
 /.idea
 /.local

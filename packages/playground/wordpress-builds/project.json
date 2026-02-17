@@ -3,6 +3,7 @@
 	"$schema": "../../../node_modules/nx/schemas/project-schema.json",
 	"sourceRoot": "packages/playground/wordpress-builds/src",
 	"projectType": "library",
+	"tags": [],
 	"targets": {
 		"build": {
 			"executor": "nx:noop",
@@ -107,7 +108,7 @@
 			"dependsOn": ["test:vite"]
 		},
 		"test:vite": {
-			"executor": "@nx/vite:test",
+			"executor": "@nx/vitest:test",
 			"outputs": [
 				"{workspaceRoot}/coverage/packages/playground/wordpress-builds"
 			],
@@ -128,6 +129,5 @@
 				"maxWarnings": 0
 			}
 		}
-	},
-	"tags": []
+	}
 }
