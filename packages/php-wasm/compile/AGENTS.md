@@ -41,19 +41,6 @@ Every library and the PHP binary are built in two variants:
 
 Libraries are stored under `<library>/{asyncify,jspi}/dist/`.
 
-## Library Dependency Graph
-
-Libraries are compiled independently via Docker, then linked when building PHP.
-Key dependencies (→ means "depends on"):
-
-- `libgd` → `libz`, `libpng16`, `libjpeg`, `libwebp`, `libavif`
-- `libcurl` → `libz`, `libopenssl`
-- `libavif` → `libaom`
-- `libImageMagick` → `libz`, `libjpeg`, `libpng16`, `libwebp`
-- `libzip`, `libpng16`, `libjpeg`, `libwebp`, `libxml2`, `libopenssl`,
-  `libsqlite3`, `libiconv` → `libz`
-- `oniguruma`, `libaom` → (base image only)
-
 ## Custom PHP Extensions
 
 Located in subdirectories of this package:
@@ -73,40 +60,3 @@ Located in subdirectories of this package:
 - **PHP version-specific patches** exist in `php/Dockerfile`, especially for OPcache
   (PHP 8.4 renamed configuration variables). Check version guards when adding support
   for new PHP versions.
-
-## Common Tasks
-
-### Rebuild a single library
-
-```bash
-cd packages/php-wasm/compile
-make libz_asyncify        # or libz_jspi
-```
-
-### Rebuild all libraries
-
-```bash
-cd packages/php-wasm/compile
-make all                  # builds all_asyncify + all_jspi
-```
-
-### Build PHP for a specific version and platform
-
-```bash
-node build.js --PHP_VERSION=8.4 --PLATFORM=web --JSPI
-node build.js --PHP_VERSION=8.3 --PLATFORM=node
-```
-
-### Build PHP via NX (typical workflow)
-
-```bash
-npx nx recompile-php:jspi php-wasm-web -- --PHP_VERSION=8.4
-npx nx recompile-php:asyncify php-wasm-node -- --PHP_VERSION=8.3
-```
-
-### Clean all library builds
-
-```bash
-cd packages/php-wasm/compile
-make clean
-```

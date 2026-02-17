@@ -110,6 +110,10 @@ Blueprints are declarative JSON configurations that define WordPress site states
 - `defineWpConfigConsts`: Modify wp-config.php
 - `importWxr`, `importWordPressFiles`: Import content
 
+**Schema generation:** Blueprint JSON schemas are auto-generated from TypeScript types.
+After modifying step interfaces, rebuild with `npx nx build playground-blueprints`.
+The schema is NOT auto-rebuilt in `npm run dev` mode.
+
 ### Storage & Sync
 
 - `@wp-playground/storage`: Provides filesystem backends (IndexedDB in browser, filesystem in Node)
