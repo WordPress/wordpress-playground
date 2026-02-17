@@ -4,13 +4,13 @@ slug: /guides/agent-skill-wp-playground
 description: Install and use the wp-playground agent skill to automate WordPress Playground workflows with Claude Code.
 ---
 
-# Using the WordPress Playground Agent Skill
+# Using the WordPress Playground Agent Skill {#using-wordpress-playground-agent-skill}
 
 Want an AI assistant that already knows how to spin up WordPress instances, run Blueprints, and debug plugins? The **wp-playground** agent skill teaches Claude Code the WordPress Playground CLI and browser workflows. You describe what you need in plain language. The agent handles the commands.
 
-Claude Code reads the skill reference — a document with CLI flags, procedures, and troubleshooting steps — before responding. This context ensures it runs Playground commands correctly.
+Claude Code, or your preferred code agent, reads the skill reference — a document with CLI flags, procedures, and troubleshooting steps — before responding. This context ensures it runs Playground commands correctly.
 
-## Prerequisites
+## Prerequisites {#prerequisites}
 
 Before installing the skill, confirm you have:
 
@@ -20,36 +20,51 @@ Before installing the skill, confirm you have:
 | npm / npx                                  | Included with Node.js | `npx --version` |
 | Claude Code / Codex / Copilot / Gemini CLI | Latest                |                 |
 
-:::caution Node.js version matters
-The Playground CLI requires Node.js 20.18 or later. Earlier versions will fail silently or produce confusing errors. Run `node -v` before proceeding.
-:::
+And the most important requirement is a coding agent that supports Agent Skills, Antigravity, Claude Code, Codex, Copilot, Cursor, and Gemini CLI. All support Agent skills on their latest version. Make sure to have your CLI or IDE updated; also keep in mind, the quality of the output will depend on the model that you are using to work. 
 
-## Installation
+## Installation {#installation}
 
-Install the skill using the `npx skills` CLI:
+### 1. Installing via terminal {#installing-via-terminal}
 
-```bash
-npx skills add anthropics/skills --skill wp-playground -a claude-code
-```
-
-:::info Repository path may vary
-The command above assumes the skill is published in the `anthropics/skills` repository. If the skill lives in `WordPress/playground-content`, adjust the path accordingly:
+The market offers tools to simplify installing agent skills. I will take as an example a skill package from Vercel, to install the skill using the `npx skills` CLI:
 
 ```bash
-npx skills add WordPress/playground-content --skill wp-playground -a claude-code
+npx skills add wordpress/agent-skills --skill wp-playground
 ```
 
-:::
-
-Verify the installation succeeded by checking that the skill file exists:
+### 2. Manual installation {#manual-installation}
 
 ```bash
-ls .claude/skills/wp-playground/SKILL.MD
+# Clone agent-skills
+git clone https://github.com/WordPress/agent-skills.git
+cd agent-skills
+
+# Build the distribution
+node shared/scripts/skillpack-build.mjs --clean
+
+# Install into your WordPress project
+node shared/scripts/skillpack-install.mjs --dest=../your-wp-project --targets=codex,vscode,claude,cursor
+```
+This copies skills into:
+- `.github/skills/` for VS Code / GitHub Copilot
+- `.claude/skills/` for Claude Code (project-level)
+- `.cursor/skills/` for Cursor (project-level)
+- `.agent/skills/` for Antigravity
+- `.gemini/skills/` for Gemini CLI
+
+Verify the installation succeeded by checking that the skill file exists, calling your preferable coding agent:
+
+```bash
+claude /skills
+
+# or 
+gemini /skills list
 ```
 
-The command prints the file path. Claude Code loads this skill automatically when your request matches Playground-related patterns.
+The command prints the list of installed skills.
 
-## Use the skill in the terminal
+
+## Use the skill in the terminal {#use-skill-in-the-terminal}
 
 With the skill installed, describe your WordPress environment to Claude Code. The agent builds the Blueprint, runs the CLI commands, and starts the server.
 
@@ -61,7 +76,7 @@ Open Claude Code in your terminal and type your request:
 
 Claude Code reads the skill reference, detects your project layout, and runs `server --auto-mount`. The instance starts at `http://localhost:9400`.
 
-### Generating content on the fly
+### Generating content on the fly {#generating-content-on-the-fly}
 
 Need sample data for testing or a demo? Describe the content structure you want:
 
@@ -87,7 +102,7 @@ More examples:
 
 Each prompt produces a complete Blueprint that runs locally, handling user creation, role assignment, post generation, and taxonomy setup through `runPHP` steps.
 
-### Installing plugins and themes
+### Installing plugins and themes {#installing-plugins-and-themes}
 
 Describe the stack you need:
 
@@ -114,7 +129,7 @@ Does your plugin work on older PHP versions? Ask directly:
 ```
 
 ```
-> Run my theme on the latest WordPress nightly with PHP 8.3
+> Run my theme on the latest WordPress nightly with PHP 8.5
 ```
 
 Claude Code adds `--wp` and `--php` flags to match your request. Common combinations:
@@ -203,7 +218,6 @@ Claude Code reads these files before generating commands, so it uses correct fla
 
 ## Next steps
 
-- [Export to Production](/guides/export-to-production) — Deploy your Playground work to real hosting
 - [WordPress Playground for Plugin Developers](/guides/for-plugin-developers) — Showcase and develop plugins with Playground
 - [WordPress Playground for Theme Developers](/guides/for-theme-developers) — Build and demo themes using Playground
 - [Upstream Playground documentation](https://wordpress.github.io/wordpress-playground/) — Full reference for APIs, architecture, and advanced configuration
