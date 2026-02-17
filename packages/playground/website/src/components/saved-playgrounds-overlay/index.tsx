@@ -54,8 +54,11 @@ type BlueprintsIndexEntry = {
 	featured?: boolean;
 };
 
+export type OverlayViewMode = 'main' | 'blueprints';
+
 interface SavedPlaygroundsOverlayProps {
 	onClose: () => void;
+	initialViewMode?: OverlayViewMode;
 }
 
 function PullRequestIcon() {
@@ -76,6 +79,7 @@ function GridIcon({ size = 20 }: { size?: number }) {
 
 export function SavedPlaygroundsOverlay({
 	onClose,
+	initialViewMode = 'main',
 }: SavedPlaygroundsOverlayProps) {
 	const offline = useAppSelector((state) => state.ui.offline);
 	const storedSites = useAppSelector(selectSortedSites).filter(
@@ -88,7 +92,7 @@ export function SavedPlaygroundsOverlay({
 	const playground = usePlaygroundClient();
 	const zipFileInputRef = useRef<HTMLInputElement>(null);
 
-	const [viewMode, setViewMode] = useState<'main' | 'blueprints'>('main');
+	const [viewMode, setViewMode] = useState<OverlayViewMode>(initialViewMode);
 	const [searchQuery, setSearchQuery] = useState('');
 	const [selectedTag, setSelectedTag] = useState<string | null>(null);
 	const [pendingZipFile, setPendingZipFile] = useState<File | null>(null);

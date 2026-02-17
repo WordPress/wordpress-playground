@@ -1,4 +1,4 @@
-import { FirewallInterferenceError } from '@php-wasm/web';
+import { FirewallInterferenceError } from '@php-wasm/web-service-worker';
 
 /**
  * Search through an error's cause chain to find a FirewallInterferenceError.

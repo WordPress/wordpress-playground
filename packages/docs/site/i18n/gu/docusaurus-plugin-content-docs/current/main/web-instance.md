@@ -4,75 +4,186 @@ slug: /web-instance
 description: playground.wordpress.net પર વેબ ઈન્ટરફેસ માટે વિગતવાર માર્ગદર્શિકા, જેમાં ટૂલબાર, સેટિંગ્સ, અને ઇન્સ્ટન્સ મેનેજર કવર છે.
 ---
 
-# વર્ડપ્રેસ પ્લેગ્રાઉન્ડ વેબ ઇન્સ્ટન્સ
+<!--
+# WordPress Playground web instance {#wordpress-playground-web-instance}
+-->
 
-[https://playground.wordpress.net/](https://playground.wordpress.net/) એ એક બહુહેતુક વેબ ટૂલ છે જે ડેવલોપર્સને બ્રાઉઝરમા વર્ડપ્રેસ ચલાવવાનો વિકલ્પ આપે છે — સર્વર વગર. આ એન્વાયરનમેન્ટ ખાસ કરીને પ્લગઈન્સ, થીમ્સ અને અન્ય વર્ડપ્રેસ સુવિધાઓનું ઝડપથી અને અસરકારક રીતે ટેસ્ટિંગ કરવા માટે ઉપયોગી છે.
+# વર્ડપ્રેસ પ્લેગ્રાઉન્ડ વેબ ઇન્સ્ટન્સ {#wordpress-playground-web-instance}
+
+<!--
+[https://playground.wordpress.net/](https://playground.wordpress.net/) lets developers run WordPress in a browser without a server. This environment makes testing plugins, themes, and features quick and easy.
+-->
+
+[https://playground.wordpress.net/](https://playground.wordpress.net/) ડેવલોપર્સને સર્વર વિના બ્રાઉઝરમાં વર્ડપ્રેસ ચલાવવાની મંજૂરી આપે છે. આ એન્વાયરનમેન્ટ પ્લગઈન્સ, થીમ્સ અને ફીચર્સના ટેસ્ટિંગને ઝડપી અને સરળ બનાવે છે.
+
+<!--
+Some key features:
+
+- **Browser-based**: No local server setup required.
+- **Instant Setup**: Run WordPress with a single click.
+- **Testing Environment**: Ideal for testing plugins and themes.
+-->
 
 કેટલીક મુખ્ય વિશેષતાઓ:
 
--   **બ્રાઉઝર આધારિત**: લોકલ સર્વર સેટઅપની જરૂર નથી.
--   **ઇનસ્ટન્ટ સેટઅપ**: એક ક્લિકમાં વર્ડપ્રેસ ચલાવો.
--   **ટેસ્ટિંગ એન્વાયરનમેન્ટ**: પ્લગઈન્સ અને થીમ્સ ટેસ્ટ કરવા માટે આદર્શ.
+- **બ્રાઉઝર આધારિત**: લોકલ સર્વર સેટઅપની જરૂર નથી.
+- **ઇનસ્ટન્ટ સેટઅપ**: એક ક્લિકમાં વર્ડપ્રેસ ચલાવો.
+- **ટેસ્ટિંગ એન્વાયરનમેન્ટ**: પ્લગઈન્સ અને થીમ્સ ટેસ્ટ કરવા માટે આદર્શ.
 
-[ક્વેરી પેરામ્સ API](/developers/apis/query-api/) સાથે તમે સીધા અલગ પ્રકારની સેટિંગ્સ સાથે પ્લેગ્રાઉન્ડ ઇન્સ્ટન્સ લોડીંગ કરી શકો છો, જેમ કે વિશિષ્ટ વર્ડપ્રેસ વર્ઝન, થીમ કે પ્લગઇન પસંદ કરી શકો છો. વધુ જટિલ સેટઅપ્સ માટે બ્લુપ્રીન્ટનો ઉપયોગ પણ કરી શકાય છે (ઉદાહરણ માટે [અહીં જુઓ](/quick-start-guide#try-a-block-a-theme-or-a-plugin)).
+<!--
+The [Query Params API](/developers/apis/query-api/) allows you to directly load specific configurations into a Playground instance. This includes setting a particular WordPress version, theme, or plugin. You can also define more complex setups using blueprints (see [examples here](/quick-start-guide#try-a-block-a-theme-or-a-plugin)).
+-->
 
-પ્લેગ્રાઉન્ડ વેબસાઇટ પરથી અમુક ટૂલબાર વિકલ્પો પણ ઉપલબ્ધ છે, જેથી તમે તમારી પ્લેગ્રાઉન્ડ ઇન્સ્ટન્સને પોતાની રીતે કસ્ટમાઇઝ કરી શકો છો અને ઝડપી રીતમાં કેટલીક સૂચનાઓ અને યૂટિલિટીઝને ઍક્સેસ કરી શકો છો.
+[ક્વેરી પેરામ્સ API](/developers/apis/query-api/) તમને પ્લેગ્રાઉન્ડ ઇન્સ્ટન્સમાં ચોક્કસ રૂપરેખાંકનો સીધા લોડ કરવાની મંજૂરી આપે છે. આમાં ચોક્કસ વર્ડપ્રેસ વર્ઝન, થીમ અથવા પ્લગઇન સેટ કરવાનો સમાવેશ થાય છે. તમે બ્લુપ્રીન્ટનો ઉપયોગ કરીને વધુ જટિલ સેટઅપ્સ પણ વ્યાખ્યાયિત કરી શકો છો ([અહીં ઉદાહરણો જુઓ](/quick-start-guide#try-a-block-a-theme-or-a-plugin)).
 
-![પ્લેગ્રાઉન્ડ ટૂલબાર સ્નેપશોટ](@site/static/img/about/toolbar-playground.webp)
+<!--
+The Playground website includes toolbars that customize your instance and provide quick access to resources and utilities.
+-->
 
-## કસ્ટમાઈઝ પ્લેગ્રાઉન્ડ
+પ્લેગ્રાઉન્ડ વેબસાઇટમાં ટૂલબાર્સ શામેલ છે જે તમારી ઇન્સ્ટન્સને કસ્ટમાઇઝ કરે છે અને સંસાધનો અને ઉપયોગિતાઓની ઝડપી ઍક્સેસ પ્રદાન કરે છે.
 
-આ ટૂલબારમાં તમને મળશે:
+![Playground Toolbar Snapshot](@site/static/img/about/playground-toolbar.webp)
 
--   **પ્લેગ્રાઉન્ડ સેટિંગ્સ**: હાલની ઇન્સ્ટન્સ માટે રૂપરેખાંકન પેનલ, જેમ કે PHP અને વર્ડપ્રેસ વર્ઝન.
--   **પ્લેગ્રાઉન્ડ મેનેજર**: અનેક પ્લેગ્રાઉન્ડ ઇન્સ્ટન્સ મેનેજ કરવાની સુવિધા, સેવ કરવા, આયાત/નિકાસ જેવી સગવડ.
+<!--
+## Customize Playground {#customize-playground}
+-->
 
-### પ્લેગ્રાઉન્ડ સેટિંગ્સ
+## પ્લેગ્રાઉન્ડ કસ્ટમાઇઝ કરો {#customize-playground}
 
-![પ્લેગ્રાઉન્ડ ઇન્સ્ટન્સ પર કસ્ટમાઇઝ પ્લેગ્રાઉન્ડ વિન્ડોનો સ્નેપશોટ](@site/static/img/about/playground-settings-panel.webp)
+<!--
+On the toolbar, you'll find:
 
-સેટિંગ્સ પેનલમાંથી ઉપલબ્ધ વિકલ્પો નીચે મુજબનાં [Query API options](/developers/apis/query-api#available-options) ને અનુરૂપ છે:
+- **Playground Settings**: A panel for configuring your current instance, like PHP and WordPress versions.
+- **Playground Dashboard**: This panel lets you manage WordPress Playground instances, save and export them, edit files from your WordPress instance, and create new Blueprints.
+- **Playground Launch Panel**: The Launch Panel shows all the ways to launch a WordPress Playground instance.
+-->
 
--   `language`: વર્ડપ્રેસ ઇન્સ્ટન્સ માટે ભાષા પસંદ કરો.
--   `multisite`: વર્ડપ્રેસ મલ્ટીસાઇટ સપોર્ટ એક્ટિવેટ કરો.
--   `networking`: વર્ડપ્રેસ પ્લગઇન ડિરેક્ટરી અને આંતરિક વર્ડપ્રેસ API માંથી ડેટા મેળવવાની મંજૂરી આપીને, નેટવર્ક ઍક્સેસ આપે છે.
--   `php`: ઇન્સ્ટન્સ માટે PHP વર્ઝન સ્પષ્ટ કરો.
--   `wp`: વર્ડપ્રેસ વર્ઝન નિર્ધારિત કરો.
+ટૂલબારમાં, તમને મળશે:
 
-## પ્લેગ્રાઉન્ડ મેનેજર
+- **પ્લેગ્રાઉન્ડ સેટિંગ્સ**: PHP અને વર્ડપ્રેસ વર્ઝન જેવી તમારી વર્તમાન ઇન્સ્ટન્સને ગોઠવવા માટેનું પેનલ.
+- **પ્લેગ્રાઉન્ડ ડેશબોર્ડ**: આ પેનલ તમને વર્ડપ્રેસ પ્લેગ્રાઉન્ડ ઇન્સ્ટન્સ મેનેજ કરવા, સેવ અને એક્સપોર્ટ કરવા, તમારી વર્ડપ્રેસ ઇન્સ્ટન્સમાંથી ફાઇલો એડિટ કરવા અને નવા બ્લુપ્રીન્ટ બનાવવાની મંજૂરી આપે છે.
+- **પ્લેગ્રાઉન્ડ લૉન્ચ પેનલ**: લૉન્ચ પેનલ વર્ડપ્રેસ પ્લેગ્રાઉન્ડ ઇન્સ્ટન્સ લૉન્ચ કરવાની બધી રીતો બતાવે છે.
 
-![પ્લેગ્રાઉન્ડ સેટિંગ્સ પેનલ યુઝર્સને બહુવિધ ઇન્સ્ટન્સ મેનેજ કરવાની મંજૂરી આપે છે.](@site/static/img/about/playground-manager-panel.webp)
+<!--
+### Playground Settings {#playground-settings}
+-->
 
-આ પેનલ યુઝર્સને પ્લેગ્રાઉન્ડ ઇન્સ્ટન્સ મેનેજ કરવા માટે સક્ષમ કરે છે. તે સેવ કરેલા પ્લેગ્રાઉન્ડની યાદી દર્શાવે છે અને વર્તમાન પ્લેગ્રાઉન્ડની સેટિંગ્સની ઍક્સેસ પ્રદાન કરે છે, જેમાં તમારી ગોઠવણીઓને પછીથી ફરીથી લોડ કરવા માટે તમારા બ્રાઉઝરમાં સ્થાનિક રીતે સ્ટોર કરવા માટે એક **Save Button** પણ સામેલ છે.
+### પ્લેગ્રાઉન્ડ સેટિંગ્સ {#playground-settings}
 
-![સેવ પ્લેગ્રાઉન્ડ બટન](@site/static/img/about/playground-manager-save-instance.webp)
+![snapshot of customize Playground window at Playground instance](@site/static/img/about/playground-settings-panel.webp)
 
-એકવાર તમે સેવ પર ક્લિક કરો, પછી એક ઇન્સ્ટન્સ જનરેટ થયેલા નામ સાથે સ્ટોર થશે, જેથી તેને ગમે ત્યારે ફરીથી જોઈ શકાય. પ્લેગ્રાઉન્ડ મેનેજરમાં વર્ડપ્રેસ પ્લેગ્રાઉન્ડ ઇન્સ્ટન્સને એક્સપોર્ટ (Additional actions menu) અને ઇમ્પોર્ટ (Import actions menu) કરવાના વિકલ્પો પણ છે.
+<!--
+The **Playground Settings Panel** includes these [Query API options](/developers/apis/query-api#available-options):
 
-### એડિશનલ એક્શન્‍સ મેનુ
+- `wp`: Defines the WordPress version.
+- `php`: Specifies the PHP version for the instance.
+- `language`: Sets the WordPress instance language.
+- `multisite`: Enables WordPress multisite support.
+- `networking`: Enables network access to the WordPress Plugin Directory and WordPress APIs.
+-->
 
-![એડિશનલ એક્શન્‍સ મેનુ](@site/static/img/about/playground-manager-additional-actions.webp)
+**પ્લેગ્રાઉન્ડ સેટિંગ્સ પેનલ** માં આ [ક્વેરી API વિકલ્પો](/developers/apis/query-api#available-options) શામેલ છે:
 
--   **પુલ રિક્વેસ્ટને ગિટહબમાં એક્સપોર્ટ કરો**: આ વિકલ્પ તમને વર્ડપ્રેસ પ્લગિન્સ, થીમ્સ અને સંપૂર્ણ wp-content ડિરેક્ટરીઝને પુલ રિક્વેસ્ટ તરીકે કોઈપણ સાર્વજનિક ગિટહબ રિપોઝીટરીમાં નિકાસ કરવાની મંજૂરી આપે છે. આ વિકલ્પનો ઉપયોગ કરવા માટેનો ડેમો [અહીં](https://www.youtube.com/watch?v=gKrij8V3nK0&t=2488s) જુઓ.
--   **ઝિપ તરીકે ડાઉનલોડ કરો**: તે પ્લેગ્રાઉન્ડ ઇન્સ્ટન્સના સેટઅપ સાથે એક `.zip` ફાઇલ બનાવે છે, જેમાં ઇન્સ્ટોલ કરેલી કોઈપણ થીમ અથવા પ્લગિન્સ શામેલ હોય છે. આ `.zip` માં કન્ટેન્ટ અને ડેટાબેઝના ફેરફારો શામેલ હશે નહીં.
--   **ભૂલની જાણ કરો**: જો તમને WP પ્લેગ્રાઉન્ડમાં કોઈ સમસ્યા હોય, તો તમે આ વિકલ્પમાં ઉપલબ્ધ ફોર્મનો ઉપયોગ કરીને તેની જાણ કરી શકો છો. પ્લેગ્રાઉન્ડની પાછળની ડેવલપમેન્ટ ટીમ સાથે ભૂલની વિગતો શેર કરીને તમે પ્લેગ્રાઉન્ડની સમસ્યાઓ ઉકેલવામાં મદદ કરી શકો છો.
--   **બ્લુપ્રિન્ટ જુઓ**: આ વિકલ્પ પ્લેગ્રાઉન્ડ ઇન્સ્ટન્સ માટે ઉપયોગમાં લેવાતી વર્તમાન બ્લુપ્રિન્ટને [બ્લુપ્રિન્ટ્સ બિલ્ડર ટૂલ](https://playground.wordpress.net/builder/builder.html) માં ખોલશે. આ ટૂલથી તમે બ્લુપ્રિન્ટને ઑનલાઇન એડિટ કરી શકશો અને બ્લુપ્રિન્ટના તમારા એડિટ કરેલા વર્ઝન સાથે એક નવું પ્લેગ્રાઉન્ડ ઇન્સ્ટન્સ રન કરી શકશો.
+- `wp`: વર્ડપ્રેસ વર્ઝન વ્યાખ્યાયિત કરે છે.
+- `php`: ઇન્સ્ટન્સ માટે PHP વર્ઝન સ્પષ્ટ કરે છે.
+- `language`: વર્ડપ્રેસ ઇન્સ્ટન્સની ભાષા સેટ કરે છે.
+- `multisite`: વર્ડપ્રેસ મલ્ટીસાઇટ સપોર્ટ સક્ષમ કરે છે.
+- `networking`: વર્ડપ્રેસ પ્લગઇન ડિરેક્ટરી અને વર્ડપ્રેસ API માટે નેટવર્ક ઍક્સેસ સક્ષમ કરે છે.
 
-<span id="edit-the-blueprint"></span>
+<!--
+## Playground Manager {#playground-manager}
+-->
 
-[![snapshot of Builder mode of WordPress Playground](@site/static/img/about/blueprint-builder.webp)](https://playground.wordpress.net/builder/builder.html)
+## પ્લેગ્રાઉન્ડ મેનેજર {#playground-manager}
 
-### ઇમ્પોર્ટ એક્શન મેનુ
+![Playground settings panel allow users to save export and edit the WordPress directly](@site/static/img/about/playground-dashboard.webp)
 
-![ઇમ્પોર્ટ એક્શન મેનુ](@site/static/img/about/playground-manager-import-actions.webp)
+<!--
+This panel lets you manage Playground instances and provides access to the following panels:
 
--   **ઝિપમાંથી ઇમ્પોર્ટ કરો**: તે તમને "Download as Zip" વિકલ્પથી બનાવેલી કોઈપણ `.zip` ફાઇલનો ઉપયોગ કરીને પ્લેગ્રાઉન્ડ ઇન્સ્ટન્સને ફરીથી બનાવવા દે છે.
--   **ગુટનબર્ગ પીઆરનું પૂર્વાવલોકન કરો**: ટેસ્ટર્સને પુલ રિક્વેસ્ટનું તાત્કાલિક પરીક્ષણ કરવા માટે ગુટેનબર્ગ રીપોઝીટરીમાંથી બ્રાન્ચીસ ચલાવવાની મંજૂરી આપો.
--   **ગિટહબમાંથી ઇમ્પોર્ટ કરો**: આ વિકલ્પ તમને તમારા સાર્વજનિક ગિટહબ રિપોઝીટરીઝમાંથી સીધા જ પ્લગિન્સ, થીમ્સ અને wp-content ડિરેક્ટરીઝને ઇમ્પોર્ટ કરવાની મંજૂરી આપે છે. આ સુવિધાને સક્ષમ કરવા માટે, તમારા ગિટહબ એકાઉન્ટને વર્ડપ્રેસ પ્લેગ્રાઉન્ડ સાથે કનેક્ટ કરો.
+- **Settings**: To manage the current Playground's settings
+- **File Browser**: Built-in IDE for editing files, uploading plugins and themes, and live editing. Playground auto-reloads changes in real time.
+- **Blueprint**: A Blueprint editor for creating, saving, and running Blueprints in your Playground web instance.
+- **Database**: Tools for managing the database with Adminer and phpMyAdmin, and downloading as a `.sqlite` file.
+- **Logs**: Displays log messages when something goes wrong.
+-->
+
+આ પેનલ તમને પ્લેગ્રાઉન્ડ ઇન્સ્ટન્સ મેનેજ કરવાની મંજૂરી આપે છે અને નીચેના પેનલ્સની ઍક્સેસ પ્રદાન કરે છે:
+
+- **સેટિંગ્સ**: વર્તમાન પ્લેગ્રાઉન્ડની સેટિંગ્સ મેનેજ કરવા માટે
+- **ફાઇલ બ્રાઉઝર**: ફાઇલો એડિટ કરવા, પ્લગઇન્સ અને થીમ્સ અપલોડ કરવા અને લાઇવ એડિટિંગ માટે બિલ્ટ-ઇન IDE. પ્લેગ્રાઉન્ડ રિયલ ટાઇમમાં ફેરફારો ઓટો-રીલોડ કરે છે.
+- **બ્લુપ્રીન્ટ**: તમારી પ્લેગ્રાઉન્ડ વેબ ઇન્સ્ટન્સમાં બ્લુપ્રીન્ટ બનાવવા, સેવ કરવા અને ચલાવવા માટે બ્લુપ્રીન્ટ એડિટર.
+- **ડેટાબેસ**: Adminer અને phpMyAdmin સાથે ડેટાબેસ મેનેજ કરવા અને `.sqlite` ફાઇલ તરીકે ડાઉનલોડ કરવાના સાધનો.
+- **લૉગ્સ**: કંઈક ખોટું થાય ત્યારે લૉગ મેસેજ દર્શાવે છે.
+
+![Save Playground Button](@site/static/img/about/playground-dashboard-save.webp)
+
+<!--
+Click "Save" to create an instance and list it in the Playground Launch Panel. The Playground Dashboard also offers export and download options through the Additional actions menu:
+-->
+
+ઇન્સ્ટન્સ બનાવવા અને પ્લેગ્રાઉન્ડ લૉન્ચ પેનલમાં સૂચિબદ્ધ કરવા માટે "Save" પર ક્લિક કરો. પ્લેગ્રાઉન્ડ ડેશબોર્ડ Additional actions મેનૂ દ્વારા એક્સપોર્ટ અને ડાઉનલોડ વિકલ્પો પણ આપે છે:
+
+<!--
+### Additional actions menu {#additional-actions-menu}
+-->
+
+### એડિશનલ એક્શન્‍સ મેનુ {#additional-actions-menu}
+
+![Additional actions Menu](@site/static/img/about/additional-options-playground-dashboard.webp)
+
+<!--
+- **Export Pull Request to GitHub**: Export WordPress plugins, themes, and entire wp-content directories as pull requests to any public GitHub repository. Watch a [demo of this feature](https://www.youtube.com/watch?v=gKrij8V3nK0&t=2488s).
+- **Download as .zip**: Creates a `.zip` file with the setup of the Playground instance, including any themes or plugins installed. This `.zip` excludes content and database changes.
+-->
+
+- **GitHub માં પુલ રિક્વેસ્ટ એક્સપોર્ટ કરો**: વર્ડપ્રેસ પ્લગઇન્સ, થીમ્સ અને સંપૂર્ણ wp-content ડિરેક્ટરીઝને કોઈપણ પબ્લિક GitHub રિપોઝીટરીમાં પુલ રિક્વેસ્ટ તરીકે એક્સપોર્ટ કરો. [આ ફીચરનો ડેમો](https://www.youtube.com/watch?v=gKrij8V3nK0&t=2488s) જુઓ.
+- **zip તરીકે ડાઉનલોડ કરો**: પ્લેગ્રાઉન્ડ ઇન્સ્ટન્સના સેટઅપ સાથે `.zip` ફાઇલ બનાવે છે, જેમાં કોઈપણ ઇન્સ્ટોલ કરેલી થીમ્સ અથવા પ્લગઇન્સ શામેલ છે. આ `.zip` કન્ટેન્ટ અને ડેટાબેસ ફેરફારો શામેલ કરતું નથી.
+
+<!--
+### Blueprint Editor {#blueprint-editor}
+-->
+
+### બ્લુપ્રીન્ટ એડિટર {#blueprint-editor}
+
+![Blueprint editor WordPress Playground](@site/static/img/about/playground-blueprint-editor.webp)
+
+<!--
+The Blueprint editor replaced the older Blueprint builder, offering the ability to manage multiple Blueprints and code validation.
+-->
+
+બ્લુપ્રીન્ટ એડિટરે જૂના બ્લુપ્રીન્ટ બિલ્ડરને બદલ્યું, જે બહુવિધ બ્લુપ્રીન્ટ મેનેજ કરવાની અને કોડ વેલિડેશનની ક્ષમતા આપે છે.
+
+<!--
+### Launch Playground Panel {#launch-playground-panel}
+-->
+
+### પ્લેગ્રાઉન્ડ લૉન્ચ પેનલ {#launch-playground-panel}
+
+![Playground Launch Panel](@site/static/img/dashboard/import-playground.webp)
+
+<!--
+This panel shows all the ways to launch WordPress Playground: import `.zip` files, load from GitHub repositories, and preview PRs from WordPress core and Gutenberg.
+
+The Launch Panel also lists more than 40 blueprints from the Blueprint Gallery and your Saved Playgrounds.
+-->
+
+આ પેનલ વર્ડપ્રેસ પ્લેગ્રાઉન્ડ લૉન્ચ કરવાની બધી રીતો બતાવે છે: `.zip` ફાઇલો ઇમ્પોર્ટ કરો, GitHub રિપોઝીટરીઝમાંથી લોડ કરો, અને વર્ડપ્રેસ કોર અને Gutenberg માંથી PR પ્રીવ્યુ કરો.
+
+લૉન્ચ પેનલ બ્લુપ્રીન્ટ ગેલેરીમાંથી 40 થી વધુ બ્લુપ્રીન્ટ અને તમારા સેવ કરેલા પ્લેગ્રાઉન્ડ પણ સૂચિબદ્ધ કરે છે.
+
+<!--
+:::caution
+
+The site at https://playground.wordpress.net is there to support the community, but there are no guarantees it will continue to work if the traffic grows significantly.
+
+If you need certain availability, you should [host your own WordPress Playground](/developers/architecture/host-your-own-playground).
+:::
+-->
 
 :::caution
 
-જે વેબસાઇટ [https://playground.wordpress.net](https://playground.wordpress.net) પર છે તે કોમ્યુનિટીને સહાય પૂરી પાડવા માટે છે, પરંતુ જો ટ્રાફિકમાં નોંધપાત્ર વધારો થાય તો તે કામ કરવાનું ચાલુ રાખશે તેવી કોઈ ગેરંટી નથી.
+https://playground.wordpress.net પરની સાઇટ સમુદાયને સમર્થન આપવા માટે છે, પરંતુ ટ્રાફિક નોંધપાત્ર રીતે વધે તો તે કામ કરવાનું ચાલુ રાખશે તેની કોઈ ગેરંટી નથી.
 
-જો તમને ચોક્કસ ઉપલબ્ધતા જોઈતી હોય, તો તમારે [તમારું પોતાનું વર્ડપ્રેસ પ્લેગ્રાઉન્ડ હોસ્ટ કરવું જોઈએ](https://www.google.com/search?q=/developers/architecture/host-your-own-playground).
+જો તમને ચોક્કસ ઉપલબ્ધતાની જરૂર હોય, તો તમારે [તમારું પોતાનું વર્ડપ્રેસ પ્લેગ્રાઉન્ડ હોસ્ટ કરવું](/developers/architecture/host-your-own-playground) જોઈએ.
 :::

@@ -3,6 +3,7 @@
 	"$schema": "../../../node_modules/nx/schemas/project-schema.json",
 	"sourceRoot": "packages/playground/personal-wp/src",
 	"projectType": "application",
+	"tags": ["scope:web-client"],
 	"implicitDependencies": ["playground-remote"],
 	"targets": {
 		"build": {
@@ -85,7 +86,7 @@
 			}
 		},
 		"test": {
-			"executor": "@nx/vite:test",
+			"executor": "@nx/vitest:test",
 			"outputs": [
 				"{workspaceRoot}/coverage/packages/playground/personal-wp"
 			],
@@ -95,7 +96,7 @@
 			}
 		},
 		"lint": {
-			"executor": "@nx/linter:eslint",
+			"executor": "@nx/eslint:lint",
 			"outputs": ["{options.outputFile}"],
 			"options": {
 				"useFlatConfig": false,
@@ -114,6 +115,5 @@
 				]
 			}
 		}
-	},
-	"tags": ["scope:web-client"]
+	}
 }

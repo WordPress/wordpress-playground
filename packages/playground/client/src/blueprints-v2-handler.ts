@@ -21,6 +21,7 @@ export class BlueprintsV2Handler {
 			mounts,
 			sapiName,
 			scope,
+			pathAliases,
 		} = this.options;
 		const downloadProgress = progressTracker!.stage(0.25);
 		const executionProgress = progressTracker!.stage(0.75);
@@ -95,6 +96,7 @@ export class BlueprintsV2Handler {
 			experimentalBlueprintsV2Runner: true,
 			// Pass the declaration directly – the worker runs the V2 runner.
 			blueprint: blueprint as any,
+			pathAliases,
 		} as any);
 
 		await playground.isReady();

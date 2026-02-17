@@ -61,6 +61,7 @@ export default defineConfig(({ mode }) => {
 	);
 
 	return {
+		root: __dirname,
 		assetsInclude: [
 			'**/*.wasm',
 			'**/*.so',

@@ -30,7 +30,8 @@ jobs:
               github.actor == 'brandonpayton' ||
               github.actor == 'zaerl' ||
               github.actor == 'janjakes' ||
-              github.actor == 'mho22'
+              github.actor == 'mho22' ||
+              github.actor == 'ashfame'
             )
 
         runs-on: ubuntu-latest
@@ -65,7 +66,7 @@ jobs:
             - name: Set up Node.js with OIDC
               uses: actions/setup-node@v4
               with:
-                  node-version: '22'
+                  node-version: '20'
                   registry-url: 'https://registry.npmjs.org'
                   cache: 'npm'
 

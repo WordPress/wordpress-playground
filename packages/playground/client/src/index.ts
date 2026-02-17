@@ -2,6 +2,7 @@ export * from '@wp-playground/blueprints';
 
 export type {
 	HTTPMethod,
+	PathAlias,
 	PHPRunOptions,
 	PHPRequest,
 	PHPResponse,
@@ -34,6 +35,7 @@ import type {
 import type { WordPressInstallMode } from '@wp-playground/wordpress';
 import { ProgressTracker } from '@php-wasm/progress';
 import type { MountDescriptor, PlaygroundClient } from '@wp-playground/remote';
+import type { PathAlias } from '@php-wasm/universal';
 import { additionalRemoteOrigins } from './additional-remote-origins';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { remoteDevServerHost, remoteDevServerPort } from '../../build-config';
@@ -102,6 +104,18 @@ export interface StartPlaygroundOptions {
 	 * Defaults to 'install-from-existing-files-if-needed'.
 	 */
 	wordpressInstallMode?: WordPressInstallMode;
+	/**
+	 * Path aliases that map URL prefixes to filesystem paths outside
+	 * the document root. Similar to Nginx's `alias` directive.
+	 *
+	 * @example
+	 * ```ts
+	 * pathAliases: [
+	 *   { urlPrefix: '/phpmyadmin', fsPath: '/tools/phpmyadmin' }
+	 * ]
+	 * ```
+	 */
+	pathAliases?: PathAlias[];
 }
 
 /**

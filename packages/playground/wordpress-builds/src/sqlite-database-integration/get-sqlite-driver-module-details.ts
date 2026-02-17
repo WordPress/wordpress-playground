@@ -23,7 +23,7 @@ export function getSqliteDriverModuleDetails(
 		case 'trunk':
 			/** @ts-ignore */
 			return {
-				size: 250536,
+				size: 250541,
 				url: url_trunk,
 			};
 		case 'v2.1.16':

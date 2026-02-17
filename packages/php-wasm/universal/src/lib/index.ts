@@ -67,6 +67,7 @@ export type {
 export type {
 	PHPRequestHandlerConfiguration,
 	RewriteRule,
+	PathAlias,
 } from './php-request-handler';
 export {
 	PHPRequestHandler,

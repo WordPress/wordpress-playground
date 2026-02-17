@@ -12,6 +12,7 @@ import { getExternalModules } from '../../vite-extensions/vite-external-modules'
 import viteGlobalExtensions from '../../vite-extensions/vite-global-extensions';
 
 export default defineConfig({
+	root: __dirname,
 	cacheDir: '../../../node_modules/.vite/php-wasm-logger',
 
 	plugins: [
