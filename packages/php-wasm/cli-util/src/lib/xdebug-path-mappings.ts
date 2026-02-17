@@ -687,7 +687,7 @@ export async function clearXdebugIDEConfig(name: string, cwd: string) {
  * @param pathSkippings The skipping paths options.
  * @returns Xdebug options
  */
-export function setXdebugConfig({
+export function makeXdebugConfig({
 	cwd,
 	mounts,
 	pathSkippings,

@@ -77,6 +77,9 @@ would not suffer fools gladly.`;
 const phpVersions =
 	'PHP' in process.env ? [process.env['PHP']!] : SupportedPHPVersions;
 
+// Tests are skipped when Xdebug is enabled because Xdebug alters PHP's
+// output format and process behavior, which breaks exact text assertions.
+// These tests cover core features that only need to run once without Xdebug.
 const phpLoaderOptions: PHPLoaderOptions[] = [{}, { withXdebug: true }];
 
 phpLoaderOptions.forEach((options) => {

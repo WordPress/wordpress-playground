@@ -71,7 +71,7 @@ import {
 	clearXdebugIDEConfig,
 	createTempDirSymlink,
 	removeTempDirSymlink,
-	setXdebugConfig,
+	makeXdebugConfig,
 } from '@php-wasm/cli-util';
 import { createHash } from 'crypto';
 import { CLIOutput } from './cli-output';
@@ -1022,15 +1022,20 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 
 			await removeTempDirSymlink(symlinkPath);
 
-			// Then, if xdebug is enabled and PHP >= 8.5,
-			// recreate the symlink pointing to the temporary
-			// directory and add the new Xdebug config.
+			// Then, if xdebug is enabled, recreate the symlink
+			// pointing to the temporary directory.
 			if (args.xdebug) {
+				const symlinkMount: Mount = {
+					hostPath: path.join('.', path.sep, symlinkName),
+					vfsPath: '/',
+				};
+
 				const isPHP85orHigher =
 					SupportedPHPVersions.indexOf(
 						args.php || RecommendedPHPVersion
 					) <= SupportedPHPVersions.indexOf('8.5');
 
+				// And, if PHP >= 8.5, add the new Xdebug config.
 				if (isPHP85orHigher) {
 					await createTempDirSymlink(
 						nativeDir.path,
@@ -1038,12 +1043,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 						process.platform
 					);
 
-					const symlinkMount: Mount = {
-						hostPath: path.join('.', path.sep, symlinkName),
-						vfsPath: '/',
-					};
-
-					args.xdebug = setXdebugConfig({
+					args.xdebug = makeXdebugConfig({
 						cwd: process.cwd(),
 						mounts: [
 							symlinkMount,
@@ -1070,20 +1070,14 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 							)
 					);
 				} else {
-					// Then, if experimental IDE are enabled,
-					// recreate the symlink pointing to the temporary
-					// directory and add the new IDE config.
+					// Or, if experimental IDE is enabled,
+					// add the IDE config.
 					if (args.experimentalUnsafeIdeIntegration) {
 						await createTempDirSymlink(
 							nativeDir.path,
 							symlinkPath,
 							process.platform
 						);
-
-						const symlinkMount: Mount = {
-							hostPath: path.join('.', path.sep, symlinkName),
-							vfsPath: '/',
-						};
 
 						try {
 							// NOTE: Both the 'clear' and 'add' operations can throw errors.

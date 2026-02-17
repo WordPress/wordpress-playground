@@ -11,7 +11,7 @@ import os from 'os';
 import { rootCertificates } from 'tls';
 /* eslint-disable no-console */
 import {
-	setXdebugConfig,
+	makeXdebugConfig,
 	addXdebugIDEConfig,
 	clearXdebugIDEConfig,
 } from '@php-wasm/cli-util';
@@ -134,7 +134,7 @@ ${process.argv[0]} ${process.execArgv.join(' ')} ${process.argv[1]}
 			},
 			withXdebug:
 				hasXdebugOption ??
-				setXdebugConfig({
+				makeXdebugConfig({
 					pathSkippings: [
 						'/dev/',
 						'/home/',

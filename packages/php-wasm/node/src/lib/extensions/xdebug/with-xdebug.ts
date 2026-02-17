@@ -81,14 +81,17 @@ export async function withXdebug(
 						'xdebug.mode=debug,develop',
 						'xdebug.start_with_request=yes',
 						`xdebug.idekey="${ideKey}"`,
-						// PHP8.5
+						// Path mapping is only available starting
+						// from Xdebug 3.5, which is used by PHP 8.5+
+						// Previous versions will ignore this entry.
 						'xdebug.path_mapping=yes',
 					].join('\n')
 				);
 			}
 			/*
-			 * Path mapping and skipping are
-			 * now parts of Xdebug in PHP 8.5
+			 * Path mapping and skipping is only
+			 * available starting from Xdebug 3.5,
+			 * which is used by PHP 8.5 or higher.
 			 */
 			const isPHP85orHigher =
 				SupportedPHPVersionsList.indexOf(version) <=
