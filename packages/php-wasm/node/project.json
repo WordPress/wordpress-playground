@@ -3,6 +3,7 @@
 	"$schema": "../../../node_modules/nx/schemas/project-schema.json",
 	"sourceRoot": "packages/php-wasm/node/src",
 	"projectType": "library",
+	"tags": ["scope:php-binaries"],
 	"implicitDependencies": ["php-wasm-compile"],
 	"targets": {
 		"build": {
@@ -123,7 +124,6 @@
 				"parallel": false
 			}
 		},
-
 		"package-json": {
 			"executor": "@wp-playground/nx-extensions:package-json",
 			"options": {
@@ -145,7 +145,7 @@
 			"dependsOn": ["build"]
 		},
 		"test-group-1-asyncify": {
-			"executor": "@nx/vite:test",
+			"executor": "@nx/vitest:test",
 			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/node"],
 			"options": {
 				"reportsDirectory": "../../../coverage/packages/php-wasm/node",
@@ -153,7 +153,7 @@
 			}
 		},
 		"test-group-1-jspi": {
-			"executor": "@nx/vite:test",
+			"executor": "@nx/vitest:test",
 			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/node"],
 			"options": {
 				"configFile": "packages/php-wasm/node/vite.jspi.config.ts",
@@ -162,7 +162,7 @@
 			}
 		},
 		"test-group-2a-asyncify": {
-			"executor": "@nx/vite:test",
+			"executor": "@nx/vitest:test",
 			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/node"],
 			"options": {
 				"reportsDirectory": "../../../coverage/packages/php-wasm/node",
@@ -174,7 +174,7 @@
 			}
 		},
 		"test-group-2b-asyncify": {
-			"executor": "@nx/vite:test",
+			"executor": "@nx/vitest:test",
 			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/node"],
 			"options": {
 				"reportsDirectory": "../../../coverage/packages/php-wasm/node",
@@ -186,7 +186,7 @@
 			}
 		},
 		"test-group-2a-jspi": {
-			"executor": "@nx/vite:test",
+			"executor": "@nx/vitest:test",
 			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/node"],
 			"options": {
 				"configFile": "packages/php-wasm/node/vite.jspi.config.ts",
@@ -199,7 +199,7 @@
 			}
 		},
 		"test-group-2b-jspi": {
-			"executor": "@nx/vite:test",
+			"executor": "@nx/vitest:test",
 			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/node"],
 			"options": {
 				"configFile": "packages/php-wasm/node/vite.jspi.config.ts",
@@ -212,7 +212,7 @@
 			}
 		},
 		"test-group-3-asyncify": {
-			"executor": "@nx/vite:test",
+			"executor": "@nx/vitest:test",
 			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/node"],
 			"options": {
 				"reportsDirectory": "../../../coverage/packages/php-wasm/node",
@@ -227,7 +227,7 @@
 			}
 		},
 		"test-group-3-jspi": {
-			"executor": "@nx/vite:test",
+			"executor": "@nx/vitest:test",
 			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/node"],
 			"options": {
 				"configFile": "packages/php-wasm/node/vite.jspi.config.ts",
@@ -243,7 +243,7 @@
 			}
 		},
 		"test-group-4-asyncify": {
-			"executor": "@nx/vite:test",
+			"executor": "@nx/vitest:test",
 			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/node"],
 			"options": {
 				"reportsDirectory": "../../../coverage/packages/php-wasm/node",
@@ -259,7 +259,7 @@
 			}
 		},
 		"test-group-4-jspi": {
-			"executor": "@nx/vite:test",
+			"executor": "@nx/vitest:test",
 			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/node"],
 			"options": {
 				"configFile": "packages/php-wasm/node/vite.jspi.config.ts",
@@ -276,7 +276,7 @@
 			}
 		},
 		"test-group-5-asyncify": {
-			"executor": "@nx/vite:test",
+			"executor": "@nx/vitest:test",
 			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/node"],
 			"options": {
 				"reportsDirectory": "../../../coverage/packages/php-wasm/node",
@@ -293,7 +293,7 @@
 			}
 		},
 		"test-group-5-jspi": {
-			"executor": "@nx/vite:test",
+			"executor": "@nx/vitest:test",
 			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/node"],
 			"options": {
 				"configFile": "packages/php-wasm/node/vite.jspi.config.ts",
@@ -310,7 +310,7 @@
 			}
 		},
 		"test-group-6-asyncify": {
-			"executor": "@nx/vite:test",
+			"executor": "@nx/vitest:test",
 			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/node"],
 			"options": {
 				"reportsDirectory": "../../../coverage/packages/php-wasm/node",
@@ -318,7 +318,7 @@
 			}
 		},
 		"test-group-6-jspi": {
-			"executor": "@nx/vite:test",
+			"executor": "@nx/vitest:test",
 			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/node"],
 			"options": {
 				"configFile": "packages/php-wasm/node/vite.jspi.config.ts",
@@ -327,7 +327,7 @@
 			}
 		},
 		"test-redis-extension-jspi": {
-			"executor": "@nx/vite:test",
+			"executor": "@nx/vitest:test",
 			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/node"],
 			"options": {
 				"configFile": "packages/php-wasm/node/vite.jspi.config.ts",
@@ -337,7 +337,7 @@
 			}
 		},
 		"test-redis-network-jspi": {
-			"executor": "@nx/vite:test",
+			"executor": "@nx/vitest:test",
 			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/node"],
 			"options": {
 				"configFile": "packages/php-wasm/node/vite.jspi.config.ts",
@@ -347,7 +347,7 @@
 			}
 		},
 		"test-memcached-extension-jspi": {
-			"executor": "@nx/vite:test",
+			"executor": "@nx/vitest:test",
 			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/node"],
 			"options": {
 				"configFile": "packages/php-wasm/node/vite.jspi.config.ts",
@@ -357,7 +357,7 @@
 			}
 		},
 		"test-memcached-network-jspi": {
-			"executor": "@nx/vite:test",
+			"executor": "@nx/vitest:test",
 			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/node"],
 			"options": {
 				"configFile": "packages/php-wasm/node/vite.jspi.config.ts",
@@ -384,6 +384,5 @@
 				]
 			}
 		}
-	},
-	"tags": ["scope:php-binaries"]
+	}
 }
