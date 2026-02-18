@@ -8,7 +8,7 @@ on:
                 required: true
                 default: 'patch'
             dist_tag:
-                description: 'Dist tag (latest, next, etc.)'
+                description: 'Dist tag (latest, next, etc.). Must be non-"latest" when publishing from a non-trunk branch.'
                 required: false
                 default: 'latest'
     schedule:
@@ -21,7 +21,8 @@ permissions:
 
 jobs:
     release:
-        # Only run this workflow from the trunk branch and when it's triggered by a Playground maintainer
+        # Only allow Playground maintainers to trigger this workflow.
+        # Non-trunk branches are allowed but require a custom dist tag (not "latest").
         if: >
             (
               github.actor == 'adamziel' ||
@@ -39,6 +40,13 @@ jobs:
             name: npm
 
         steps:
+            - name: Require custom dist tag for non-trunk branches
+              if: github.ref != 'refs/heads/trunk' && (inputs.dist_tag == 'latest' || inputs.dist_tag == '')
+              run: |
+                  echo "::error::Publishing from a non-trunk branch requires a custom dist tag (not 'latest')."
+                  echo "Please re-run this workflow and set the dist_tag input to something like 'next', 'canary', or 'beta'."
+                  exit 1
+
             - name: Free up runner disk space
               run: |
                   set -euo pipefail
@@ -52,7 +60,7 @@ jobs:
 
             - uses: actions/checkout@v4
               with:
-                  ref: trunk
+                  ref: ${{ github.ref }}
                   clean: true
                   persist-credentials: false
                   submodules: true
@@ -77,6 +85,12 @@ jobs:
             - uses: ./.github/actions/prepare-playground
 
             - name: Publish NPM packages
-              # Version bump, release, tag a new version on GitHub
+              # Version bump, release, tag a new version on GitHub.
+              # On non-trunk branches, --no-push avoids pushing the version
+              # bump commit back to the branch. The published packages still
+              # get the version bump in their package.json on npm.
               run: >
-                  lerna publish ${{ inputs.version_bump || 'patch' }} --yes --no-private --loglevel=verbose --dist-tag=${{ inputs.dist_tag || 'latest' }}
+                  lerna publish ${{ inputs.version_bump || 'patch' }}
+                  --yes --no-private --loglevel=verbose
+                  --dist-tag=${{ inputs.dist_tag || 'latest' }}
+                  ${{ github.ref != 'refs/heads/trunk' && '--no-push --no-git-tag-version' || '' }}
