@@ -192,7 +192,12 @@ export class FileLockIntervalTree {
 		a: RequestedRangeLock,
 		b: RequestedRangeLock
 	): boolean {
-		return a.start === b.start && a.end === b.end && a.pid === b.pid;
+		return (
+			a.start === b.start &&
+			a.end === b.end &&
+			a.pid === b.pid &&
+			a.fd === b.fd
+		);
 	}
 
 	private findLocksForProcessInNode(

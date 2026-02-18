@@ -111,6 +111,16 @@ describe('FileLockIntervalTree', () => {
 			]);
 		});
 
+		it('does not remove ranges with different fd', () => {
+			const lock1 = sharedLock(0n, 10n, 1, 1);
+			const lock2 = sharedLock(0n, 10n, 1, 2);
+			tree.insert(lock1);
+			tree.remove(lock2);
+			expect(tree.findOverlapping({ start: 0n, end: 10n })).toEqual([
+				lock1,
+			]);
+		});
+
 		it('only removes the matching range when multiple exist', () => {
 			const lock1 = sharedLock(0n, 10n);
 			const lock2 = sharedLock(5n, 15n);
