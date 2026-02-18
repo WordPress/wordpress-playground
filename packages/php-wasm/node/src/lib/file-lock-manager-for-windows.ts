@@ -265,6 +265,7 @@ export class FileLockManagerForWindows implements FileLockManager {
 					preexistingLock.start,
 					preexistingLock.end
 				);
+
 				if (!releasedPreexistingExclusiveLock) {
 					// This should never happen. Log and throw an error.
 					const message =
@@ -272,6 +273,8 @@ export class FileLockManagerForWindows implements FileLockManager {
 					logger.error(message);
 					throw new Error(message);
 				}
+
+				lockedRangeTree.remove(preexistingLock);
 			}
 
 			lockedRangeTree.insert(op as LockedRange);
