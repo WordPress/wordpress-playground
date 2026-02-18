@@ -10,6 +10,7 @@ import {
 } from '@php-wasm/universal';
 import {
 	PHPResponse,
+	HttpCookieStore,
 	exposeAPI,
 	exposeSyncAPI,
 	printDebugDetails,
@@ -861,6 +862,9 @@ export async function runCLI(
 export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void>;
 export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 	let playgroundPool: Pooled<PlaygroundCliWorker>;
+	const cookieStore = args.internalCookieStore
+		? new HttpCookieStore()
+		: undefined;
 
 	const spawnedWorkers: SpawnedWorker[] = [];
 	const workerToPlaygroundMap: Map<
@@ -1491,9 +1495,36 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 				}
 				return new PHPResponse(302, headers, new Uint8Array());
 			}
+			if (cookieStore) {
+				request = {
+					...request,
+					headers: {
+						...request.headers,
+						// While we have an internal cookie store, we
+						// completely replace the incoming request's Cookie
+						// header with the cookies from our store. This avoids
+						// getting into a strange state where both browser and
+						// server are managing cookies.
+						cookie: cookieStore.getCookieRequestHeader(),
+					},
+				};
+			}
+
 			// TODO: Explore switching to a worker thread method to adopt an entire HTTP connection
 			// It might be more efficient to let the worker respond directly
-			return await playgroundPool.request(request);
+			const response = await playgroundPool.request(request);
+
+			if (cookieStore) {
+				cookieStore.rememberCookiesFromResponseHeaders(
+					response.headers
+				);
+				// While we have an internal cookie store, we filter out the
+				// Set-Cookie headers from responses so the browser does not
+				// attempt to manage cookies at the same time as the server.
+				delete response.headers['set-cookie'];
+			}
+
+			return response;
 		},
 	});
 

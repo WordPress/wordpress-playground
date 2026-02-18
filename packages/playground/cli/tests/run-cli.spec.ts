@@ -1110,6 +1110,149 @@ describe('other run-cli behaviors', () => {
 		});
 	});
 
+	describe('internal cookie store', () => {
+		test('should persist cookies across requests when enabled', async () => {
+			await using cliServer = await runCLI({
+				command: 'server',
+				internalCookieStore: true,
+				wordpressInstallMode: 'do-not-attempt-installing',
+				skipSqliteSetup: true,
+				blueprint: undefined,
+			});
+
+			// Write a PHP script that sets a cookie
+			await cliServer.playground.writeFile(
+				'/wordpress/set-cookie.php',
+				'<?php setcookie("test_cookie", "hello", 0, "/"); echo "cookie set"; ?>'
+			);
+			// Write a PHP script that reads and echoes the cookie
+			await cliServer.playground.writeFile(
+				'/wordpress/read-cookie.php',
+				'<?php echo isset($_COOKIE["test_cookie"]) ? $_COOKIE["test_cookie"] : "no cookie"; ?>'
+			);
+
+			// First request: set the cookie
+			const setUrl = new URL('/set-cookie.php', cliServer.serverUrl);
+			const setResponse = await fetch(setUrl);
+			expect(setResponse.status).toBe(200);
+			expect(await setResponse.text()).toContain('cookie set');
+
+			// Second request: the cookie should be sent by the internal store
+			const readUrl = new URL('/read-cookie.php', cliServer.serverUrl);
+			const readResponse = await fetch(readUrl);
+			expect(readResponse.status).toBe(200);
+			expect(await readResponse.text()).toContain('hello');
+		});
+
+		test('should strip Set-Cookie headers from responses when enabled', async () => {
+			await using cliServer = await runCLI({
+				command: 'server',
+				internalCookieStore: true,
+				wordpressInstallMode: 'do-not-attempt-installing',
+				skipSqliteSetup: true,
+				blueprint: undefined,
+			});
+
+			await cliServer.playground.writeFile(
+				'/wordpress/set-cookie.php',
+				'<?php setcookie("test_cookie", "hello", 0, "/"); echo "ok"; ?>'
+			);
+
+			const url = new URL('/set-cookie.php', cliServer.serverUrl);
+			// Use http.get to inspect raw headers (fetch may hide some)
+			const res = await new Promise<http.IncomingMessage>(
+				(resolve, reject) => {
+					const req = http.get(url, resolve);
+					req.on('error', reject);
+					req.end();
+				}
+			);
+			// Set-Cookie should be stripped from the response
+			expect(res.headers['set-cookie']).toBeUndefined();
+		});
+
+		test('should not use internal cookie store when disabled', async () => {
+			await using cliServer = await runCLI({
+				command: 'server',
+				// internalCookieStore defaults to false
+				wordpressInstallMode: 'do-not-attempt-installing',
+				skipSqliteSetup: true,
+				blueprint: undefined,
+			});
+
+			await cliServer.playground.writeFile(
+				'/wordpress/set-cookie.php',
+				'<?php setcookie("test_cookie", "hello", 0, "/"); echo "cookie set"; ?>'
+			);
+			await cliServer.playground.writeFile(
+				'/wordpress/read-cookie.php',
+				'<?php echo isset($_COOKIE["test_cookie"]) ? $_COOKIE["test_cookie"] : "no cookie"; ?>'
+			);
+
+			// First request: set the cookie
+			const setUrl = new URL('/set-cookie.php', cliServer.serverUrl);
+			const setResponse = await fetch(setUrl);
+			expect(setResponse.status).toBe(200);
+
+			// Second request: cookie should NOT be present (no browser to store it)
+			const readUrl = new URL('/read-cookie.php', cliServer.serverUrl);
+			const readResponse = await fetch(readUrl);
+			expect(readResponse.status).toBe(200);
+			expect(await readResponse.text()).toContain('no cookie');
+		});
+
+		test('should replace browser-sent cookies with stored cookies when enabled', async () => {
+			await using cliServer = await runCLI({
+				command: 'server',
+				internalCookieStore: true,
+				wordpressInstallMode: 'do-not-attempt-installing',
+				skipSqliteSetup: true,
+				blueprint: undefined,
+			});
+
+			await cliServer.playground.writeFile(
+				'/wordpress/set-cookie.php',
+				'<?php setcookie("internal", "from_store", 0, "/"); echo "ok"; ?>'
+			);
+			await cliServer.playground.writeFile(
+				'/wordpress/read-cookies.php',
+				'<?php echo "internal=" . ($_COOKIE["internal"] ?? "none") . ";browser=" . ($_COOKIE["browser"] ?? "none"); ?>'
+			);
+
+			// First: set a cookie via the internal store
+			const setUrl = new URL('/set-cookie.php', cliServer.serverUrl);
+			await fetch(setUrl);
+
+			// Second: send a request with a browser cookie — it should be replaced
+			const readUrl = new URL('/read-cookies.php', cliServer.serverUrl);
+			const res = await new Promise<http.IncomingMessage>(
+				(resolve, reject) => {
+					const req = http.get(
+						readUrl,
+						{
+							headers: {
+								cookie: 'browser=from_browser',
+							},
+						},
+						resolve
+					);
+					req.on('error', reject);
+					req.end();
+				}
+			);
+
+			const chunks: Uint8Array[] = [];
+			for await (const chunk of res) {
+				chunks.push(chunk);
+			}
+			const body = Buffer.concat(chunks).toString();
+			// Internal store cookie should be present
+			expect(body).toContain('internal=from_store');
+			// Browser cookie should be replaced (not present)
+			expect(body).toContain('browser=none');
+		});
+	});
+
 	describe('signal handling', () => {
 		test.each(['SIGINT', 'SIGTERM'] as const)(
 			'should clean up and exit on %s',

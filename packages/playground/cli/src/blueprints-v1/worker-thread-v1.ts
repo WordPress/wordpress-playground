@@ -1,10 +1,7 @@
 import type { FileLockManager } from '@php-wasm/universal';
 import { loadNodeRuntime } from '@php-wasm/node';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
-import type {
-	PathAlias,
-	SupportedPHPVersion,
-} from '@php-wasm/universal';
+import type { PathAlias, SupportedPHPVersion } from '@php-wasm/universal';
 import {
 	PHPWorker,
 	releaseApiProxy,
@@ -49,16 +46,6 @@ interface WorkerBootRequestHandlerOptions {
 	nativeInternalDirPath: string;
 	mountsBeforeWpInstall: Array<Mount>;
 	mountsAfterWpInstall: Array<Mount>;
-	/**
-	 * When true, Playground will not send cookies to the client but will manage
-	 * them internally. This can be useful in environments that can't store cookies,
-	 * e.g. VS Code WebView.
-	 *
-	 * Default: false.
-	 */
-	// TODO: Internal cookie store support is broken. Fix before merge.
-	// Probably as part of the run-cli request/response routing.
-	internalCookieStore?: boolean;
 	followSymlinks: boolean;
 	withIntl?: boolean;
 	withRedis?: boolean;

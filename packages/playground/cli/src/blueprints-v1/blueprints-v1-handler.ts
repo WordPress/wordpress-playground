@@ -189,7 +189,6 @@ export class BlueprintsV1Handler {
 			processId: worker.processId,
 			followSymlinks: this.args.followSymlinks === true,
 			trace: this.args.experimentalTrace === true,
-			internalCookieStore: this.args.internalCookieStore,
 			withIntl: this.args.intl,
 			withRedis: this.args.redis,
 			withMemcached: this.args.memcached,
