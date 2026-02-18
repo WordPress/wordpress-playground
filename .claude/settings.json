@@ -12,6 +12,7 @@
 			"WebFetch(domain:blueprintlibrary.wordpress.com)",
 			"WebFetch(domain:playground.wordpress.net)",
 			"WebFetch(domain:public-api.wordpress.com)",
+			"WebFetch(domain:wordpress.github.io)",
 			"WebFetch(domain:nx.dev)"
 		],
 		"deny": [
