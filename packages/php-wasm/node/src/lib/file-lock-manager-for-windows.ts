@@ -366,8 +366,13 @@ export class FileLockManagerForWindows implements FileLockManager {
 
 		// With Windows, we cannot query existing locks,
 		// but we can try to lock the requested range.
-		const obtainedLock = this.lockFileByteRange(path, op, false);
+		const obtainedLock = !!this.lockFileByteRange(path, op, false);
+
+		// Immediately release the test lock
+		this.lockFileByteRange(path, { ...op, type: 'unlocked' }, false);
+
 		if (obtainedLock) {
+			// No conflicting lock.
 			return undefined;
 		}
 
@@ -375,7 +380,6 @@ export class FileLockManagerForWindows implements FileLockManager {
 		// what lock conflicts, report the entire range as locked. This
 		// is more honest than echoing back the requested range, which
 		// would imply we know the conflict matches the query exactly.
-		this.lockFileByteRange(path, { ...op, type: 'unlocked' }, true);
 		return {
 			type: 'exclusive',
 			start: 0n,
