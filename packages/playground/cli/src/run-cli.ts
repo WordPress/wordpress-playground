@@ -1423,9 +1423,6 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 				cliOutput.finishProgress();
 				cliOutput.printReady(serverUrl, targetWorkerCount);
 
-				cliOutput.finishProgress();
-				cliOutput.printReady(serverUrl, targetWorkerCount);
-
 				if (args.phpmyadmin) {
 					const phpMyAdminPath = path.join(
 						args.phpmyadmin as string,
