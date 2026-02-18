@@ -280,7 +280,7 @@ Located in `packages/nx-extensions/src/executors/`:
 
 ## Documentation
 
-- Main docs: https://wordpress.github.io/wordpress-playground/
+- Deployed to https://wordpress.github.io/wordpress-playground/
 - Built with Docusaurus in `packages/docs/`
 - API reference generated with TypeDoc from package source
 
