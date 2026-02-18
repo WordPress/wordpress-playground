@@ -332,11 +332,12 @@ export class FileLockManagerForWindows implements FileLockManager {
 			// ranged unlocks to approximate fcntl() semantics, even
 			// though our implementation doesn't yet handle range
 			// splitting or merging.
+			//
+			// Note that we do not filter on the `fd` property in order to respect
+			// fcntl() semantics where locks are process-level and not limited to a
+			// specific file descriptor.
 			const intersectingLocksForThisProcess = overlappingLocks
 				.filter((lock) => lock.pid === op.pid)
-				// On Windows, locks are handle-specific: UnlockFileEx
-				// requires the same handle that called LockFileEx.
-				.filter((lock) => lock.fd === op.fd)
 				.filter((lock) => lock.start >= op.start && lock.end <= op.end);
 
 			for (const lock of intersectingLocksForThisProcess) {
