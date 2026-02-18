@@ -126,7 +126,7 @@ export class FileLockManagerForWindows implements FileLockManager {
 					end
 				);
 
-				if (exclusiveUnlockSuccess) {
+				if (!exclusiveUnlockSuccess) {
 					// This should never happen. Log and throw an error.
 					const message =
 						'Failed to unlock preexisting exclusive lock after failing to obtain shared lock';
