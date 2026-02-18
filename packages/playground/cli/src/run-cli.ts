@@ -678,7 +678,7 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 			let promiseToCleanup: Promise<void>;
 
 			return async () => {
-				if (promiseToCleanup !== undefined) {
+				if (promiseToCleanup === undefined) {
 					promiseToCleanup = cliServer[Symbol.asyncDispose]();
 				}
 				await promiseToCleanup;
@@ -693,6 +693,15 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 		// NOTE: Windows does not support SIGTERM, but Node.js provides some emulation.
 		process.on('SIGINT', cleanUpCliAndExit);
 		process.on('SIGTERM', cleanUpCliAndExit);
+
+		return {
+			[Symbol.asyncDispose]: async () => {
+				process.off('SIGINT', cleanUpCliAndExit);
+				process.off('SIGTERM', cleanUpCliAndExit);
+				await cliServer[Symbol.asyncDispose]();
+			},
+			[internalsKeyForTesting]: { cliServer },
+		};
 	} catch (e) {
 		console.error(e);
 		if (!(e instanceof Error)) {
