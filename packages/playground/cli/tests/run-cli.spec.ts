@@ -1203,4 +1203,42 @@ describe('other run-cli behaviors', () => {
 			expect(response.status).toBe(500);
 		});
 	});
+
+	describe('WordPress version validation', () => {
+		test('should accept "latest" as a valid WordPress version', async () => {
+			cliServer = await runCLI({
+				...suiteCliArgs,
+				command: 'server',
+				wp: 'latest',
+			});
+			expect(cliServer).toBeDefined();
+		});
+
+		test('should accept "beta" as a valid WordPress version', async () => {
+			cliServer = await runCLI({
+				...suiteCliArgs,
+				command: 'server',
+				wp: 'beta',
+			});
+			expect(cliServer).toBeDefined();
+		});
+
+		test('should accept numeric version as valid WordPress version', async () => {
+			cliServer = await runCLI({
+				...suiteCliArgs,
+				command: 'server',
+				wp: '6.2',
+			});
+			expect(cliServer).toBeDefined();
+		});
+
+		test('should accept valid URL as WordPress version', async () => {
+			cliServer = await runCLI({
+				...suiteCliArgs,
+				command: 'server',
+				wp: 'https://downloads.wordpress.org/release/wordpress-6.2.zip',
+			});
+			expect(cliServer).toBeDefined();
+		});
+	});
 });
