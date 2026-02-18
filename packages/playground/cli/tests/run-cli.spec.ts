@@ -4,6 +4,7 @@ import http from 'node:http';
 import {
 	runCLI,
 	parseOptionsAndRunCLI,
+	internalsKeyForTesting,
 } from '../src/run-cli';
 import type { RunCLIArgs, RunCLIServer } from '../src/run-cli';
 import type { MockInstance } from 'vitest';
@@ -694,153 +695,133 @@ describe.each(blueprintVersions)(
 							blueprint: undefined,
 						};
 
-			test(
-				'should serve static and PHP files from a path alias',
-				async () => {
-					await using cliServer = await runCLI({
-						...suiteCliArgs,
-						...skipWordPressSetupForPathAliases,
-						command: 'server',
-						pathAliases: [
-							{
-								urlPrefix: '/my-alias',
-								fsPath: '/tools/my-alias',
-							},
-						],
-					});
+			test('should serve static and PHP files from a path alias', async () => {
+				await using cliServer = await runCLI({
+					...suiteCliArgs,
+					...skipWordPressSetupForPathAliases,
+					command: 'server',
+					pathAliases: [
+						{
+							urlPrefix: '/my-alias',
+							fsPath: '/tools/my-alias',
+						},
+					],
+				});
 
-					// Create the aliased directory and populate it with test files
-					await cliServer.playground.mkdir('/tools/my-alias');
-					await cliServer.playground.writeFile(
-						'/tools/my-alias/hello.txt',
-						'Hello from alias!'
-					);
-					await cliServer.playground.writeFile(
-						'/tools/my-alias/info.php',
-						'<?php echo "PHP works in alias"; ?>'
-					);
+				// Create the aliased directory and populate it with test files
+				await cliServer.playground.mkdir('/tools/my-alias');
+				await cliServer.playground.writeFile(
+					'/tools/my-alias/hello.txt',
+					'Hello from alias!'
+				);
+				await cliServer.playground.writeFile(
+					'/tools/my-alias/info.php',
+					'<?php echo "PHP works in alias"; ?>'
+				);
 
-					// Verify static file is served from the alias
-					const staticUrl = new URL(
-						'/my-alias/hello.txt',
-						cliServer.serverUrl
-					);
-					const staticResponse = await fetch(staticUrl);
-					expect(staticResponse.status).toBe(200);
-					expect(await staticResponse.text()).toContain(
-						'Hello from alias!'
-					);
+				// Verify static file is served from the alias
+				const staticUrl = new URL(
+					'/my-alias/hello.txt',
+					cliServer.serverUrl
+				);
+				const staticResponse = await fetch(staticUrl);
+				expect(staticResponse.status).toBe(200);
+				expect(await staticResponse.text()).toContain(
+					'Hello from alias!'
+				);
 
-					// Verify PHP file is executed and served from the alias
-					const phpUrl = new URL(
-						'/my-alias/info.php',
-						cliServer.serverUrl
-					);
-					const phpResponse = await fetch(phpUrl);
-					expect(phpResponse.status).toBe(200);
-					expect(await phpResponse.text()).toContain(
-						'PHP works in alias'
-					);
-				}
-			);
+				// Verify PHP file is executed and served from the alias
+				const phpUrl = new URL(
+					'/my-alias/info.php',
+					cliServer.serverUrl
+				);
+				const phpResponse = await fetch(phpUrl);
+				expect(phpResponse.status).toBe(200);
+				expect(await phpResponse.text()).toContain(
+					'PHP works in alias'
+				);
+			});
 		});
 
 		describe('phpMyAdmin', () => {
-			test(
-				'should install phpMyAdmin when --phpmyadmin flag is set',
-				async () => {
-					await using cliServer = await runCLI({
-						...suiteCliArgs,
-						command: 'server',
-						phpmyadmin: '/phpmyadmin',
-					});
+			test('should install phpMyAdmin when --phpmyadmin flag is set', async () => {
+				await using cliServer = await runCLI({
+					...suiteCliArgs,
+					command: 'server',
+					phpmyadmin: '/phpmyadmin',
+				});
 
-					// Verify phpMyAdmin directory was created
-					const phpMyAdminExists = await cliServer.playground.isDir(
-						PHPMYADMIN_INSTALL_PATH
-					);
-					expect(phpMyAdminExists).toBe(true);
+				// Verify phpMyAdmin directory was created
+				const phpMyAdminExists = await cliServer.playground.isDir(
+					PHPMYADMIN_INSTALL_PATH
+				);
+				expect(phpMyAdminExists).toBe(true);
 
-					// Verify the custom DbiMysqli.php driver was installed
-					const dbiMysqliExists =
-						await cliServer.playground.fileExists(
-							`${PHPMYADMIN_INSTALL_PATH}/libraries/classes/Dbal/DbiMysqli.php`
-						);
-					expect(dbiMysqliExists).toBe(true);
+				// Verify the custom DbiMysqli.php driver was installed
+				const dbiMysqliExists = await cliServer.playground.fileExists(
+					`${PHPMYADMIN_INSTALL_PATH}/libraries/classes/Dbal/DbiMysqli.php`
+				);
+				expect(dbiMysqliExists).toBe(true);
 
-					// Verify config.inc.php was installed
-					const configExists = await cliServer.playground.fileExists(
-						`${PHPMYADMIN_INSTALL_PATH}/config.inc.php`
-					);
-					expect(configExists).toBe(true);
+				// Verify config.inc.php was installed
+				const configExists = await cliServer.playground.fileExists(
+					`${PHPMYADMIN_INSTALL_PATH}/config.inc.php`
+				);
+				expect(configExists).toBe(true);
 
-					// Verify phpMyAdmin is accessible via rewrite rule
-					const phpMyAdminUrl = new URL(
-						'/phpmyadmin/index.php',
-						cliServer.serverUrl
-					);
-					const response = await fetch(phpMyAdminUrl);
-					expect(response.status).toBe(200);
-				},
-				120000
-			);
+				// Verify phpMyAdmin is accessible via rewrite rule
+				const phpMyAdminUrl = new URL(
+					'/phpmyadmin/index.php',
+					cliServer.serverUrl
+				);
+				const response = await fetch(phpMyAdminUrl);
+				expect(response.status).toBe(200);
+			}, 120000);
 
-			test(
-				'should not install phpMyAdmin when flag is not set',
-				async () => {
-					await using cliServer = await runCLI({
-						...suiteCliArgs,
-						command: 'server',
-					});
+			test('should not install phpMyAdmin when flag is not set', async () => {
+				await using cliServer = await runCLI({
+					...suiteCliArgs,
+					command: 'server',
+				});
 
-					// Verify phpMyAdmin directory was NOT created
-					const phpMyAdminExists = await cliServer.playground.isDir(
-						PHPMYADMIN_INSTALL_PATH
-					);
-					expect(phpMyAdminExists).toBe(false);
-				},
-				120000
-			);
+				// Verify phpMyAdmin directory was NOT created
+				const phpMyAdminExists = await cliServer.playground.isDir(
+					PHPMYADMIN_INSTALL_PATH
+				);
+				expect(phpMyAdminExists).toBe(false);
+			}, 120000);
 
-			test(
-				'should default to /phpmyadmin path when phpmyadmin is set to true',
-				async () => {
-					await using cliServer = await runCLI({
-						...suiteCliArgs,
-						command: 'server',
-						phpmyadmin: true,
-					});
+			test('should default to /phpmyadmin path when phpmyadmin is set to true', async () => {
+				await using cliServer = await runCLI({
+					...suiteCliArgs,
+					command: 'server',
+					phpmyadmin: true,
+				});
 
-					// When phpmyadmin is true (boolean), it should default to /phpmyadmin
-					const phpMyAdminUrl = new URL(
-						'/phpmyadmin/index.php',
-						cliServer.serverUrl
-					);
-					const response = await fetch(phpMyAdminUrl);
-					expect(response.status).toBe(200);
-				},
-				120000
-			);
+				// When phpmyadmin is true (boolean), it should default to /phpmyadmin
+				const phpMyAdminUrl = new URL(
+					'/phpmyadmin/index.php',
+					cliServer.serverUrl
+				);
+				const response = await fetch(phpMyAdminUrl);
+				expect(response.status).toBe(200);
+			}, 120000);
 
-			test(
-				'should install phpMyAdmin at a custom path',
-				async () => {
-					await using cliServer = await runCLI({
-						...suiteCliArgs,
-						command: 'server',
-						phpmyadmin: '/db-admin',
-					});
+			test('should install phpMyAdmin at a custom path', async () => {
+				await using cliServer = await runCLI({
+					...suiteCliArgs,
+					command: 'server',
+					phpmyadmin: '/db-admin',
+				});
 
-					// Verify phpMyAdmin is accessible at the custom path
-					const phpMyAdminUrl = new URL(
-						'/db-admin/index.php',
-						cliServer.serverUrl
-					);
-					const response = await fetch(phpMyAdminUrl);
-					expect(response.status).toBe(200);
-				},
-				120000
-			);
+				// Verify phpMyAdmin is accessible at the custom path
+				const phpMyAdminUrl = new URL(
+					'/db-admin/index.php',
+					cliServer.serverUrl
+				);
+				const response = await fetch(phpMyAdminUrl);
+				expect(response.status).toBe(200);
+			}, 120000);
 		});
 	},
 	60_000 * 5
@@ -1127,5 +1108,57 @@ describe('other run-cli behaviors', () => {
 			const response = await fetch(new URL('/', cliServer.serverUrl));
 			expect(response.status).toBe(500);
 		});
+	});
+
+	describe('signal handling', () => {
+		test.each(['SIGINT', 'SIGTERM'] as const)(
+			'should clean up and exit on %s',
+			async (signal) => {
+				const listenersBeforeRunCli = process.listeners(signal).slice();
+
+				const exitSpy = vi.spyOn(process, 'exit').mockImplementation(
+					// Stop the test from actually causing the process to exit.
+					(() => {}) as any
+				);
+
+				// eslint-disable-next-line @typescript-eslint/no-unused-vars
+				await using cliResult = await parseOptionsAndRunCLI([
+					'server',
+					'--wordpress-install-mode=do-not-attempt-installing',
+					'--skip-sqlite-setup',
+					'--verbosity=quiet',
+					'--port=0',
+				]);
+				const cliServer = cliResult[internalsKeyForTesting].cliServer;
+
+				const asyncDisposeSpy = vi
+					.spyOn(cliServer, Symbol.asyncDispose)
+					.mockImplementation((() => {}) as any);
+
+				try {
+					// process.exit should not have been called during startup
+					expect(exitSpy).not.toHaveBeenCalled();
+
+					// Find the handler registered by parseOptionsAndRunCLI
+					const newListenersAfterRunCli = process
+						.listeners(signal)
+						.filter((l) => !listenersBeforeRunCli.includes(l));
+					expect(newListenersAfterRunCli).toHaveLength(1);
+
+					// Invoke the handler and await its async cleanup
+					await Promise.all(
+						newListenersAfterRunCli
+							.map((listener) => listener as () => Promise<void>)
+							.map((listener) => listener())
+					);
+
+					expect(asyncDisposeSpy).toHaveBeenCalled();
+					expect(exitSpy).toHaveBeenCalledWith(0);
+				} finally {
+					exitSpy.mockRestore();
+					asyncDisposeSpy.mockRestore();
+				}
+			}
+		);
 	});
 });
