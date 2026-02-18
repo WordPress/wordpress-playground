@@ -16,7 +16,7 @@ function test_playground_cli() {
 	echo "Running Playground CLI with Nx target: $TARGET $@"
 	timeout -s TERM 30s npx nx "$TARGET" playground-cli server --php=8.3 $@ 2>&1 > playground-cli-test-output &
 	PID=$!
-	CLI_STARTUP_STRING='WordPress is running on http://127.0.0.1:9400'
+	CLI_STARTUP_STRING='WordPress is running on http://localhost:9400'
 
 	# Sleep until Playground CLI starts or the process times out.
 	while ps -p "$PID" > /dev/null && ! grep -q "$CLI_STARTUP_STRING" playground-cli-test-output; do
@@ -30,7 +30,7 @@ function test_playground_cli() {
 		echo "Playground CLI started successfully"
 		echo "Checking WordPress home page..."
 
-		HOME_PAGE_OUTPUT="$(curl -sL http://127.0.0.1:9400 || echo 'No output')"
+		HOME_PAGE_OUTPUT="$(curl -sL http://localhost:9400 || echo 'No output')"
 		if [[ $HOME_PAGE_OUTPUT != *"My WordPress Website"* ]]; then
 			echo "Home page output: $HOME_PAGE_OUTPUT"
 			echo "Error: Home page did not contain 'My WordPress Website'"

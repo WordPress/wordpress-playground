@@ -104,7 +104,7 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 		const sharedOptions: Record<string, YargsOptions> = {
 			'site-url': {
 				describe:
-					'Site URL to use for WordPress. Defaults to http://127.0.0.1:{port}',
+					'Site URL to use for WordPress. Defaults to http://localhost:{port}',
 				type: 'string',
 			},
 			php: {
@@ -406,7 +406,7 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 			// Advanced options for power users who need more control
 			'site-url': {
 				describe:
-					'Override the site URL. By default, derived from the port (http://127.0.0.1:<port>).',
+					'Override the site URL. By default, derived from the port (http://localhost:<port>).',
 				type: 'string',
 			},
 			mount: {
@@ -994,7 +994,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 	const server = await startServer({
 		port: selectedPort,
 		onBind: async (server: Server, port: number) => {
-			const host = '127.0.0.1';
+			const host = 'localhost';
 			const serverUrl = `http://${host}:${port}`;
 			const siteUrl = args['site-url'] || serverUrl;
 

@@ -193,7 +193,7 @@ describe.each(blueprintVersions)(
 				const response = await fetch(siteUrlTestUrl);
 				expect(response.status).toBe(200);
 				const text = await response.text();
-				expect(text).toContain('http://127.0.0.1:9500');
+				expect(text).toContain('http://localhost:9500');
 			}
 		);
 
@@ -691,7 +691,7 @@ describe.each(blueprintVersions)(
 					// Just verify the server started successfully.
 					expect(cliServer).toBeDefined();
 					expect(cliServer.serverUrl).toMatch(
-						/^http:\/\/127\.0\.0\.1:\d+$/
+						/^http:\/\/localhost:\d+$/
 					);
 				}
 			);
@@ -939,7 +939,7 @@ describe('start command', () => {
 		});
 
 		// Verify server started successfully
-		expect(cliServer.serverUrl).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/);
+		expect(cliServer.serverUrl).toMatch(/^http:\/\/localhost:\d+$/);
 	});
 
 	test('should persist site in home directory', async () => {
@@ -967,7 +967,7 @@ describe('start command', () => {
 		});
 
 		// Verify server started successfully
-		expect(cliServer.serverUrl).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/);
+		expect(cliServer.serverUrl).toMatch(/^http:\/\/localhost:\d+$/);
 
 		// Verify the site directory was created
 		expect(existsSync(expectedSitePath)).toBe(true);
@@ -1117,7 +1117,7 @@ describe('start command', () => {
 		});
 
 		// Verify server started successfully
-		expect(cliServer.serverUrl).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/);
+		expect(cliServer.serverUrl).toMatch(/^http:\/\/localhost:\d+$/);
 
 		// Verify WordPress files are in the explicit mount location
 		const wpContentPath = path.join(wordpressDir, 'wp-content');
