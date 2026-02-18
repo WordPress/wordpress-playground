@@ -23,6 +23,8 @@ WordPress Playground is a monorepo that runs WordPress and PHP entirely in WebAs
 
 This is an NX monorepo with npm workspaces. All commands use NX for task orchestration.
 
+**Node.js version**: This project requires a specific Node.js version (defined in `.nvmrc` and the `engines` field in root `package.json`). Before running any commands, ensure the correct version is active (e.g., via `nvm use` or other version manager).
+
 ### Common Commands
 
 ```bash
@@ -213,7 +215,6 @@ npx nx e2e playground-website
 The Playground CLI (`@wp-playground/cli`) can be run directly from source:
 
 ```bash
-nvm use
 npx nx dev playground-cli server --wp=6.8 --php=8.4 --auto-mount
 ```
 
@@ -285,7 +286,6 @@ Located in `packages/nx-extensions/src/executors/`:
 
 ## Important Notes
 
-- **Node.js version**: See the `engines` field in root `package.json` for required Node.js and npm versions
 - **No backwards-compatibility guarantees**: This is experimental software
 - **Offline support**: Website can be built for offline use with service workers
 - **WordPress major and beta versions**: Auto-refreshed via GitHub Actions
