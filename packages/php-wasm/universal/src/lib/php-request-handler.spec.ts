@@ -513,5 +513,40 @@ describe('PHPRequestHandler', () => {
 			expect(response.bytes).toBeInstanceOf(Uint8Array);
 			expect(typeof response.exitCode).toBe('number');
 		});
+
+		it('rewrites HTTP status to 500 when exit code is non-zero', async () => {
+			const filesystem = new Map<string, 'file' | 'dir'>([
+				['/www', 'dir'],
+				['/www/index.php', 'file'],
+			]);
+			const mockPHP = createMockPHP(filesystem);
+			// Override runStream to return a 200 response with non-zero exit code
+			mockPHP.runStream = vi.fn(() =>
+				Promise.resolve(
+					StreamedPHPResponse.fromPHPResponse(
+						new PHPResponse(
+							200,
+							{ 'Content-Type': ['text/html'] },
+							new Uint8Array(Buffer.from('partial output')),
+							'Fatal error',
+							1
+						)
+					)
+				)
+			) as any;
+
+			const handler = new PHPRequestHandler({
+				php: mockPHP,
+				documentRoot: '/www',
+				absoluteUrl: 'http://localhost/',
+			});
+
+			const response = await handler.request({
+				url: '/index.php',
+			});
+
+			expect(response.httpStatusCode).toBe(500);
+			expect(response.exitCode).toBe(1);
+		});
 	});
 });
