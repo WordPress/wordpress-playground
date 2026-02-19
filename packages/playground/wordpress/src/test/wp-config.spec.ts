@@ -110,7 +110,7 @@ describe('defineWpConfigConstants', () => {
 		expect(response.text).toContain('Constant SITE_URL already defined');
 	});
 
-	it('should define a new constants', async () => {
+	it('should define new constants', async () => {
 		php.writeFile(
 			wpConfigPath,
 			`<?php
