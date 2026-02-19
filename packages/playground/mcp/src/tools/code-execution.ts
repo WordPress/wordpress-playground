@@ -3,7 +3,7 @@ import { siteIdSchema, errorResult, decodeResponseBytes } from './utils';
 import type { SerializedPHPResponse, ToolRegistrar } from './utils';
 
 export const registerCodeExecutionTools: ToolRegistrar = (server, bridge) => {
-	const sendToSite = bridge.sendCommandToSite.bind(bridge);
+	const sendCommand = bridge.sendCommand.bind(bridge);
 
 	server.registerTool(
 		'playground_execute_php',
@@ -43,7 +43,7 @@ export const registerCodeExecutionTools: ToolRegistrar = (server, bridge) => {
 		},
 		async ({ siteId, code }) => {
 			try {
-				const response = (await sendToSite(siteId, 'run', [
+				const response = (await sendCommand(siteId, 'run', [
 					{ code },
 				])) as SerializedPHPResponse;
 				const text = decodeResponseBytes(response.bytes);
@@ -124,7 +124,7 @@ export const registerCodeExecutionTools: ToolRegistrar = (server, bridge) => {
 				if (body) {
 					requestOptions['body'] = body;
 				}
-				const response = (await sendToSite(siteId, 'request', [
+				const response = (await sendCommand(siteId, 'request', [
 					requestOptions,
 				])) as SerializedPHPResponse;
 				const text = decodeResponseBytes(response.bytes);

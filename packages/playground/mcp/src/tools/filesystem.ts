@@ -3,7 +3,7 @@ import { siteIdSchema, errorResult } from './utils';
 import type { ToolRegistrar } from './utils';
 
 export const registerFilesystemTools: ToolRegistrar = (server, bridge) => {
-	const sendToSite = bridge.sendCommandToSite.bind(bridge);
+	const sendCommand = bridge.sendCommand.bind(bridge);
 
 	server.registerTool(
 		'playground_read_file',
@@ -29,7 +29,7 @@ export const registerFilesystemTools: ToolRegistrar = (server, bridge) => {
 		},
 		async ({ siteId, path }) => {
 			try {
-				const contents = await sendToSite(siteId, 'readFileAsText', [
+				const contents = await sendCommand(siteId, 'readFileAsText', [
 					path,
 				]);
 				return {
@@ -78,7 +78,7 @@ export const registerFilesystemTools: ToolRegistrar = (server, bridge) => {
 		},
 		async ({ siteId, path, contents }) => {
 			try {
-				await sendToSite(siteId, 'writeFile', [path, contents]);
+				await sendCommand(siteId, 'writeFile', [path, contents]);
 				return {
 					content: [
 						{
@@ -117,7 +117,7 @@ export const registerFilesystemTools: ToolRegistrar = (server, bridge) => {
 		},
 		async ({ siteId, path }) => {
 			try {
-				const files = await sendToSite(siteId, 'listFiles', [path]);
+				const files = await sendCommand(siteId, 'listFiles', [path]);
 				return {
 					content: [
 						{
@@ -159,7 +159,7 @@ export const registerFilesystemTools: ToolRegistrar = (server, bridge) => {
 		},
 		async ({ siteId, path }) => {
 			try {
-				await sendToSite(siteId, 'mkdirTree', [path]);
+				await sendCommand(siteId, 'mkdirTree', [path]);
 				return {
 					content: [
 						{
@@ -192,7 +192,7 @@ export const registerFilesystemTools: ToolRegistrar = (server, bridge) => {
 		},
 		async ({ siteId, path }) => {
 			try {
-				await sendToSite(siteId, 'unlink', [path]);
+				await sendCommand(siteId, 'unlink', [path]);
 				return {
 					content: [
 						{
@@ -241,7 +241,7 @@ export const registerFilesystemTools: ToolRegistrar = (server, bridge) => {
 		},
 		async ({ siteId, path, recursive }) => {
 			try {
-				await sendToSite(siteId, 'rmdir', [path, { recursive }]);
+				await sendCommand(siteId, 'rmdir', [path, { recursive }]);
 				return {
 					content: [
 						{

@@ -207,7 +207,7 @@ export class PlaygroundBridge {
 				const wasActive = site.activeInTabs.length > 0;
 
 				// activeInTabs is ordered most-recently-active first.
-				// sendCommandToSite() always targets activeInTabs[0],
+				// sendCommand() always targets activeInTabs[0],
 				// so move this tab to the front.
 				const idx = site.activeInTabs.indexOf(tabId);
 				if (idx !== -1) {
@@ -230,7 +230,7 @@ export class PlaygroundBridge {
 		}
 	}
 
-	sendCommandToSite(
+	sendCommand(
 		siteId: string,
 		method: string,
 		args: unknown[] = []
@@ -239,62 +239,41 @@ export class PlaygroundBridge {
 		if (!site) {
 			return Promise.reject(new Error(`Unknown site: ${siteId}`));
 		}
-		if (site.activeInTabs.length === 0) {
-			return Promise.reject(
-				new Error(
-					`Site "${site.siteName}" (${siteId}) is not ` +
-						`active in any tab. Use open_site to activate it.`
-				)
+
+		const isBrowserCommand = method.startsWith('__');
+		let targetTabId: string;
+
+		if (isBrowserCommand) {
+			// Browser-level commands (e.g. __open_site, __rename_site)
+			// don't require the site to be active — just any connected
+			// tab, preferring one that reported this site.
+			if (this.connections.size === 0) {
+				return Promise.reject(new Error('No browser tabs connected'));
+			}
+			const reportingTabId = [...site.reportedByTabs].find((id) =>
+				this.connections.has(id)
 			);
+			targetTabId =
+				reportingTabId ?? this.connections.keys().next().value!;
+		} else {
+			// Site-level commands target the Playground client inside
+			// the iframe, so the site must be active in a tab.
+			if (site.activeInTabs.length === 0) {
+				return Promise.reject(
+					new Error(
+						`Site "${site.siteName}" (${siteId}) is not ` +
+							`active in any tab. Use open_site to ` +
+							`activate it.`
+					)
+				);
+			}
+			targetTabId = site.activeInTabs[0];
 		}
 
-		const targetTabId = site.activeInTabs[0];
 		const ws = this.connections.get(targetTabId);
 		if (!ws) {
 			return Promise.reject(new Error('Target browser tab disconnected'));
 		}
-
-		const id = String(++this.requestId);
-		return new Promise((resolve, reject) => {
-			this.pendingRequests.set(id, {
-				resolve,
-				reject,
-				tabId: targetTabId,
-			});
-			ws.send(
-				JSON.stringify({
-					id,
-					type: 'command',
-					method,
-					args,
-					siteSlug: site.siteSlug,
-				})
-			);
-		});
-	}
-
-	sendCommandToBrowser(
-		siteId: string,
-		method: string,
-		args: unknown[] = []
-	): Promise<unknown> {
-		const site = this.sites.get(siteId);
-		if (!site) {
-			return Promise.reject(new Error(`Unknown site: ${siteId}`));
-		}
-
-		if (this.connections.size === 0) {
-			return Promise.reject(new Error('No browser tabs connected'));
-		}
-
-		// Prefer a tab that actually reported this site so the
-		// browser-side Redux store is guaranteed to contain it.
-		const reportingTabId = [...site.reportedByTabs].find((id) =>
-			this.connections.has(id)
-		);
-		const targetTabId =
-			reportingTabId ?? this.connections.keys().next().value!;
-		const ws = this.connections.get(targetTabId)!;
 
 		const id = String(++this.requestId);
 		return new Promise((resolve, reject) => {

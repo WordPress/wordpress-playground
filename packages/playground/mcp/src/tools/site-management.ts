@@ -4,7 +4,7 @@ import { siteIdSchema, errorResult, decodeResponseBytes } from './utils';
 import type { SerializedPHPResponse, ToolRegistrar } from './utils';
 
 export const registerSiteManagementTools: ToolRegistrar = (server, bridge) => {
-	const sendToSite = bridge.sendCommandToSite.bind(bridge);
+	const sendCommand = bridge.sendCommand.bind(bridge);
 	server.registerTool(
 		'playground_list_sites',
 		{
@@ -84,7 +84,7 @@ export const registerSiteManagementTools: ToolRegistrar = (server, bridge) => {
 		},
 		async ({ siteId }) => {
 			try {
-				await bridge.sendCommandToBrowser(siteId, '__open_site');
+				await bridge.sendCommand(siteId, '__open_site');
 				const site = await bridge.waitForSiteActive(siteId, 30000);
 				return {
 					content: [
@@ -126,9 +126,7 @@ export const registerSiteManagementTools: ToolRegistrar = (server, bridge) => {
 		},
 		async ({ siteId, newName }) => {
 			try {
-				await bridge.sendCommandToBrowser(siteId, '__rename_site', [
-					newName,
-				]);
+				await bridge.sendCommand(siteId, '__rename_site', [newName]);
 				return {
 					content: [
 						{
@@ -197,7 +195,7 @@ export const registerSiteManagementTools: ToolRegistrar = (server, bridge) => {
 						],
 					};
 				}
-				const result = (await bridge.sendCommandToBrowser(
+				const result = (await bridge.sendCommand(
 					siteId,
 					'__save_site'
 				)) as { slug: string; storage: string };
@@ -241,8 +239,8 @@ export const registerSiteManagementTools: ToolRegistrar = (server, bridge) => {
 		async ({ siteId }) => {
 			try {
 				const [url, phpInfoResponse] = await Promise.all([
-					sendToSite(siteId, 'getCurrentURL'),
-					sendToSite(siteId, 'run', [
+					sendCommand(siteId, 'getCurrentURL'),
+					sendCommand(siteId, 'run', [
 						{
 							code: [
 								'<?php',
@@ -315,8 +313,8 @@ export const registerSiteManagementTools: ToolRegistrar = (server, bridge) => {
 		},
 		async ({ siteId, path }) => {
 			try {
-				await sendToSite(siteId, 'goTo', [path]);
-				const url = await sendToSite(siteId, 'getCurrentURL');
+				await sendCommand(siteId, 'goTo', [path]);
+				const url = await sendCommand(siteId, 'getCurrentURL');
 				return {
 					content: [
 						{
