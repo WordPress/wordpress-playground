@@ -31,7 +31,7 @@
 				"command": "node --experimental-strip-types --experimental-transform-types --import ./packages/meta/src/node-es-module-loader/register.mts ./packages/playground/mcp/src/index.ts"
 			}
 		},
-		"e2e": {
+		"test:mcp": {
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
