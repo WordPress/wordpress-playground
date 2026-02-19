@@ -97,7 +97,7 @@ export const registerCodeExecutionTools: ToolRegistrar = (server, bridge) => {
 						'HTTP method (GET, POST, PUT, DELETE, etc.). Defaults to GET.'
 					),
 				headers: z
-					.record(z.string())
+					.record(z.string(), z.string())
 					.optional()
 					.describe('Request headers as key-value pairs'),
 				body: z

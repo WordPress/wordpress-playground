@@ -19,7 +19,7 @@ export const registerSiteManagementTools: ToolRegistrar = (server, bridge) => {
 				'persist in the browser. Check this field before ' +
 				'doing significant work and call ' +
 				'playground_save_site if needed.',
-			inputSchema: {},
+			inputSchema: z.object({}),
 			annotations: {
 				readOnlyHint: true,
 				destructiveHint: false,
