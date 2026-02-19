@@ -251,9 +251,8 @@ export class ZipFilesystem implements ReadableFilesystemBackend {
 
 	/**
 	 * Returns the paths of all entries in the zip (file and directory names).
-	 * Used to locate blueprint.json when it may be at root or inside a directory.
 	 */
-	async getEntryPaths(): Promise<string[]> {
+	async getAllFilePaths(): Promise<string[]> {
 		const entries = await this.getEntries();
 		return Array.from(entries.keys());
 	}

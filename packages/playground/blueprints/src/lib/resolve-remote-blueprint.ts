@@ -96,7 +96,7 @@ async function createBlueprintBundleFromZip(
 	arrayBuffer: ArrayBuffer
 ): Promise<BlueprintBundle> {
 	const zipFs = ZipFilesystem.fromArrayBuffer(arrayBuffer);
-	const entryPaths = await zipFs.getEntryPaths();
+	const entryPaths = await zipFs.getAllFilePaths();
 	const blueprintPath = findBlueprintJsonPath(entryPaths);
 	if (!blueprintPath) {
 		throw new Error(
