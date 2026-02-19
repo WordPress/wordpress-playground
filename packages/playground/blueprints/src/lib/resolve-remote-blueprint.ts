@@ -2,7 +2,7 @@ import {
 	FetchFilesystem,
 	InMemoryFilesystem,
 	OverlayFilesystem,
-	PrefixFilesystem,
+	ChrootFilesystem,
 	ZipFilesystem,
 } from '@wp-playground/storage';
 import type { BlueprintBundle } from './types';
@@ -107,7 +107,7 @@ async function createBlueprintBundleFromZip(
 		blueprintPath === 'blueprint.json'
 			? ''
 			: blueprintPath.replace(/\/blueprint\.json$/, '/');
-	return prefix === '' ? zipFs : new PrefixFilesystem(prefix, zipFs);
+	return prefix === '' ? zipFs : new ChrootFilesystem(prefix, zipFs);
 }
 
 async function looksLikeZipFile(bytes: ArrayBuffer): Promise<boolean> {

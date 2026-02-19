@@ -1,6 +1,6 @@
 import { StreamedFile } from '@php-wasm/stream-compression';
 import type { FileTree } from '@php-wasm/universal';
-import { normalizePath } from '@php-wasm/util';
+import { joinPaths, normalizePath } from '@php-wasm/util';
 import type { Entry } from '@zip.js/zip.js';
 import { ZipReader, BlobWriter, BlobReader } from '@zip.js/zip.js';
 
@@ -260,27 +260,20 @@ export class ZipFilesystem implements ReadableFilesystemBackend {
 
 /**
  * A ReadableFilesystemBackend that exposes a subdirectory of another backend
- * as the root. Paths are resolved by prepending the prefix (e.g. "foo/").
+ * as the root, similar to chroot. Paths are resolved via joinPaths.
  */
-export class PrefixFilesystem implements ReadableFilesystemBackend {
-	private readonly prefix: string;
+export class ChrootFilesystem implements ReadableFilesystemBackend {
+	private readonly chroot: string;
 	private readonly backend: ReadableFilesystemBackend;
 
-	constructor(prefix: string, backend: ReadableFilesystemBackend) {
-		this.prefix = prefix;
+	constructor(chroot: string, backend: ReadableFilesystemBackend) {
+		this.chroot = chroot;
 		this.backend = backend;
 	}
 
 	async read(path: string): Promise<StreamedFile> {
-		// Strip leading / and ./, collapse /./ so paths like ./readymade.zip
-		// resolve correctly (zip entries are stored without ./).
-		const normalizedPath = path
-			.replace(/^\//, '')
-			.replace(/^\.\//, '')
-			.replace(/\/\.\//g, '/');
-		const prefixedPath =
-			this.prefix === '' ? normalizedPath : this.prefix + normalizedPath;
-		return this.backend.read(prefixedPath);
+		const chrootedPath = joinPaths(this.chroot, path);
+		return this.backend.read(chrootedPath);
 	}
 }
 
