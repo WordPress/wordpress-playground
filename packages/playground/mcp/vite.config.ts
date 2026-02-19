@@ -1,0 +1,43 @@
+import { defineConfig } from 'vite';
+
+import dts from 'vite-plugin-dts';
+import { join } from 'path';
+
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import { viteTsConfigPaths } from '../../vite-extensions/vite-ts-config-paths';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import { getExternalModules } from '../../vite-extensions/vite-external-modules';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import viteGlobalExtensions from '../../vite-extensions/vite-global-extensions';
+
+export default defineConfig({
+	root: __dirname,
+	cacheDir: '../../../node_modules/.vite/playground-mcp',
+
+	plugins: [
+		dts({
+			entryRoot: 'src',
+			tsconfigPath: join(__dirname, 'tsconfig.lib.json'),
+			pathsToAliases: false,
+		}),
+
+		viteTsConfigPaths({
+			root: '../../../',
+		}),
+
+		...viteGlobalExtensions,
+	],
+
+	build: {
+		lib: {
+			entry: 'src/index.ts',
+			name: 'playground-mcp',
+			fileName: 'index',
+			formats: ['es', 'cjs'],
+		},
+		sourcemap: true,
+		rollupOptions: {
+			external: getExternalModules(),
+		},
+	},
+});

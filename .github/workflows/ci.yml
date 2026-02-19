@@ -281,6 +281,24 @@ jobs:
                   path: packages/playground/components/playwright-report/
                   if-no-files-found: ignore
 
+    test-e2e-mcp:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  submodules: true
+            - uses: ./.github/actions/prepare-playground
+            - name: Install Playwright Browsers
+              run: npx playwright install --with-deps chromium
+            - name: Run MCP e2e tests
+              run: npx nx e2e playground-mcp
+            - uses: actions/upload-artifact@v4
+              if: ${{ !cancelled() }}
+              with:
+                  name: playwright-mcp-report
+                  path: packages/playground/mcp/playwright-report/
+                  if-no-files-found: ignore
+
     test-docs-api-reference:
         runs-on: ubuntu-latest
         steps:

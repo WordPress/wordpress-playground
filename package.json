@@ -86,6 +86,7 @@
 		"@codemirror/view": "6.38.3",
 		"@docusaurus/plugin-content-docs": "3.9.2",
 		"@docusaurus/theme-common": "3.9.2",
+		"@modelcontextprotocol/sdk": "1.26.0",
 		"@preact/signals-react": "1.3.6",
 		"@reduxjs/toolkit": "2.6.1",
 		"@types/xml2js": "0.4.14",
@@ -118,7 +119,8 @@
 		"tmp-promise": "3.0.3",
 		"wasm-feature-detect": "1.8.0",
 		"xml2js": "0.6.2",
-		"yargs": "17.7.2"
+		"yargs": "17.7.2",
+		"zod": "4.3.6"
 	},
 	"devDependencies": {
 		"@docusaurus/core": "3.9.2",

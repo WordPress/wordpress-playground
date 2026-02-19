@@ -1,0 +1,36 @@
+{
+	"name": "@wp-playground/mcp",
+	"version": "3.0.53",
+	"description": "MCP server for WordPress Playground - enables AI agents to interact with WordPress.",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/WordPress/wordpress-playground"
+	},
+	"homepage": "https://developer.wordpress.org/playground",
+	"author": "The WordPress contributors",
+	"license": "GPL-2.0-or-later",
+	"type": "module",
+	"bin": {
+		"wp-playground-mcp": "./src/index.ts"
+	},
+	"exports": {
+		".": {
+			"import": "./index.js",
+			"require": "./index.cjs"
+		},
+		"./bridge-client": {
+			"import": "./bridge-client.js",
+			"require": "./bridge-client.cjs"
+		},
+		"./package.json": "./package.json"
+	},
+	"publishConfig": {
+		"access": "public",
+		"directory": "../../../dist/packages/playground/mcp"
+	},
+	"types": "index.d.ts",
+	"dependencies": {
+		"@modelcontextprotocol/sdk": "^1.27.0",
+		"zod": "^3.25"
+	}
+}
