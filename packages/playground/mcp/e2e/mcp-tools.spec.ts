@@ -18,7 +18,7 @@ type McpWorkerFixtures = {
 
 const test = base.extend<{}, McpWorkerFixtures>({
 	mcpClient: [
-		async (_fixtures, use) => {
+		async ({}, use) => {
 			const transport = new StdioClientTransport({
 				command: 'node',
 				args: [
