@@ -8,6 +8,12 @@ import { joinPaths } from '@php-wasm/util';
 const documentRoot = '/tmp';
 const wpConfigPath = joinPaths(documentRoot, 'wp-config.php');
 
+/*
+ * Tests below execute the rewritten wp-config.php and assert on
+ * the JSON output, not just on define() substrings. This proves
+ * the file still parses and runs, constants have the expected
+ * runtime values, and no warnings or errors were introduced.
+ */
 describe('ensureWpConfig', () => {
 	let php: PHP;
 	beforeEach(async () => {
