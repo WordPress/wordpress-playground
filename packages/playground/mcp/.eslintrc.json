@@ -1,0 +1,27 @@
+{
+	"extends": ["../../../.eslintrc.json"],
+	"ignorePatterns": ["!**/*"],
+	"overrides": [
+		{
+			"files": ["*.ts", "*.tsx", "*.js", "*.jsx"],
+			"rules": {
+				"no-console": 0
+			}
+		},
+		{
+			"files": ["*.ts", "*.tsx"],
+			"rules": {}
+		},
+		{
+			"files": ["*.js", "*.jsx"],
+			"rules": {}
+		},
+		{
+			"files": ["*.spec.ts"],
+			"rules": {
+				"@typescript-eslint/no-empty-object-type": 0,
+				"no-empty-pattern": 0
+			}
+		}
+	]
+}
