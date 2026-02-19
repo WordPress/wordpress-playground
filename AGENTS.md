@@ -286,7 +286,10 @@ Located in `packages/nx-extensions/src/executors/`:
 
 ## Important Notes
 
-- **No backwards-compatibility guarantees**: This is experimental software
+- **Backwards compatibility**: Breaking changes are acceptable and often useful
+  during development, but must be surfaced to the developer. When creating a PR,
+  clearly document any breaking changes in the PR description. Key downstream
+  consumers include Telex, Studio, and wp-env
 - **Offline support**: Website can be built for offline use with service workers
 - **WordPress major and beta versions**: Auto-refreshed via GitHub Actions
 - **SQLite integration**: WordPress uses SQLite by default (no MySQL required)
