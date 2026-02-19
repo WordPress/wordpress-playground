@@ -1,5 +1,5 @@
 import { logger } from '@php-wasm/logger';
-import type { PHP, PHPWorker, RemoteAPI } from '@php-wasm/universal';
+import type { UniversalPHP } from '@php-wasm/universal';
 import { readdirSync, readFileSync, lstatSync } from 'fs';
 import path from 'path';
 import { CDPServer } from './cdp-server';
@@ -11,7 +11,7 @@ export type StartBridgeConfig = {
 	cdpHost?: string;
 	dbgpPort?: number;
 	phpRoot?: string;
-	phpInstance?: PHP | RemoteAPI<PHPWorker>;
+	phpInstance?: UniversalPHP;
 	getPHPFile?: (path: string) => string | Promise<string>;
 	breakOnFirstLine?: boolean;
 };
@@ -71,8 +71,8 @@ export async function startBridge(config: StartBridgeConfig) {
 	const getPHPFile = config.phpInstance
 		? (path: string) => config.phpInstance!.readFileAsText(path)
 		: config.getPHPFile
-		? config.getPHPFile
-		: (path: string) => readFileSync(path, 'utf-8');
+			? config.getPHPFile
+			: (path: string) => readFileSync(path, 'utf-8');
 
 	const phpFiles = await getPhpFiles(phpRoot);
 	return new XdebugCDPBridge(dbgpSession, cdpServer, {

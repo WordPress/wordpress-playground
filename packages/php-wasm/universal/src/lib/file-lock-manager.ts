@@ -1,3 +1,21 @@
+export const MAX_ADDRESSABLE_FILE_OFFSET = BigInt(Number.MAX_SAFE_INTEGER);
+// TODO: Use this BigInt once the native fs-ext-extra-prebuilt package supports it.
+//BigInt(2n ** 64n - 1n);
+
+/*
+ * NOTE: These types are not important structurally,
+ * but it helps clarity to use these aliases when making
+ * data structures based on them.
+ *
+ * For example, the type
+ *     `Map<Path, Map<Pid, Map<Fd, WholeFileLockOp>>>`
+ * conveys more intention to a reader than
+ *     `Map<string, Map<number, Map<number, WholeFileLockOp>>>`.
+ */
+export type Path = string;
+export type Pid = number;
+export type Fd = number;
+
 /**
  * This is an interface used to abstract byte range locking like fcntl()
  * and whole-file locking like flock().
@@ -14,7 +32,7 @@ export type FileLockManager = {
 	 * @param op - The operation to perform, including 'shared', 'exclusive', or 'unlock'.
 	 * @returns A promise for a boolean value.
 	 */
-	lockWholeFile: (path: string, op: WholeFileLockOp) => boolean;
+	lockWholeFile: (path: Path, op: WholeFileLockOp) => boolean;
 
 	/**
 	 * Update the lock on a byte range of a file.
@@ -25,13 +43,15 @@ export type FileLockManager = {
 	 * @param path - The path of the file to lock. This should be the path of the file in the
 	 *               underlying filesystem.
 	 * @param requestedLock - The lock to request, including start, end, type, and pid.
+	 * @param waitForLock - Whether to block until the lock is acquired.
 	 * @returns A promise for a boolean value.
 	 *          When locking: True if the lock was acquired, false if it was not.
 	 *          When unlocking: Always true.
 	 */
 	lockFileByteRange: (
-		path: string,
-		requestedLock: RequestedRangeLock
+		path: Path,
+		requestedLock: RequestedRangeLock,
+		waitForLock: boolean
 	) => boolean;
 
 	/**
@@ -47,7 +67,7 @@ export type FileLockManager = {
 	 *          or undefined if there is no conflict.
 	 */
 	findFirstConflictingByteRangeLock: (
-		path: string,
+		path: Path,
 		desiredLock: RequestedRangeLock
 	) => Omit<RequestedRangeLock, 'fd'> | undefined;
 
@@ -68,27 +88,39 @@ export type FileLockManager = {
 	 * @param path The path to the file to release locks for. This should be the path
 	 *             of the file in the underlying filesystem.
 	 */
-	releaseLocksForProcessFd: (pid: number, fd: number, path: string) => void;
+	releaseLocksOnFdClose: (pid: number, fd: number, path: Path) => void;
 };
 
-export type RequestedRangeLock = Readonly<{
-	/** The type of lock request */
-	type: 'shared' | 'exclusive' | 'unlocked';
-	/** The start offset of the lock range */
+export type ByteRange = {
 	start: bigint;
-	/** The end of the lock range */
 	// TODO: How to support special treatment of Infinity?
 	end: bigint;
+};
+
+export type RequestedRangeLock = ByteRange & {
+	/**
+	 * The type of lock request
+	 */
+	type: 'shared' | 'exclusive' | 'unlocked';
+	/**
+	 * The file descriptor to use. This should be the native file descriptor,
+	 * not the Emscripten file descriptor because it may be used to lock the file
+	 * using native OS file locking APIs.
+	 */
+	fd: Fd;
 	/** The process ID that owns this lock */
 	pid: Pid;
-}>;
+};
+
+export type LockedRange = RequestedRangeLock & {
+	type: Exclude<RequestedRangeLock['type'], 'unlocked'>;
+};
+
+export type ConflictingLockedRange = Omit<LockedRange, 'fd'>;
 
 export type WholeFileLock = Readonly<
 	WholeFileLock_Exclusive | WholeFileLock_Shared | WholeFileLock_Unlocked
 >;
-
-export type Pid = number;
-export type Fd = number;
 
 export type WholeFileLock_Exclusive = {
 	type: 'exclusive';
@@ -107,8 +139,16 @@ export type WholeFileLock_Unlocked = {
 	type: 'unlocked';
 };
 
-export type WholeFileLockOp = {
-	pid: number;
-	fd: number;
-	type: 'shared' | 'exclusive' | 'unlock';
-};
+export type WholeFileLockOp =
+	| {
+			pid: number;
+			fd: number;
+			type: 'shared' | 'exclusive';
+			/** Whether to block until the lock is acquired. */
+			waitForLock: boolean;
+	  }
+	| {
+			pid: number;
+			fd: number;
+			type: 'unlock';
+	  };

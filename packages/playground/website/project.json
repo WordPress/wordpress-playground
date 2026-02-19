@@ -3,6 +3,7 @@
 	"$schema": "../../../node_modules/nx/schemas/project-schema.json",
 	"sourceRoot": "packages/playground/website/src",
 	"projectType": "application",
+	"tags": ["scope:web-client"],
 	"implicitDependencies": ["playground-remote", "playground-website-extras"],
 	"targets": {
 		"build": {
@@ -100,7 +101,7 @@
 			}
 		},
 		"test": {
-			"executor": "@nx/vite:test",
+			"executor": "@nx/vitest:test",
 			"outputs": ["{workspaceRoot}/coverage/packages/playground/website"],
 			"options": {
 				"passWithNoTests": true,
@@ -220,6 +221,5 @@
 			},
 			"dependsOn": ["build"]
 		}
-	},
-	"tags": ["scope:web-client"]
+	}
 }

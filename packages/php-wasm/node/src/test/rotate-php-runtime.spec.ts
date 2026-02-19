@@ -28,16 +28,14 @@ describe.each([true, false])(
 			) =>
 				await loadNodeRuntime(phpVersion, {
 					emscriptenOptions: {
-						phpWasmInitOptions: {
-							/**
-							 * Test both with a natively mounted /internal directory, which
-							 * is what Playground CLI typically does, and without it, which
-							 * is what playground.wordpress.net does.
-							 */
-							nativeInternalDirPath: withNativeInternalDir
-								? nativeInternalDirPath
-								: undefined,
-						},
+						/**
+						 * Test both with a natively mounted /internal directory, which
+						 * is what Playground CLI typically does, and without it, which
+						 * is what playground.wordpress.net does.
+						 */
+						nativeInternalDirPath: withNativeInternalDir
+							? nativeInternalDirPath
+							: undefined,
 					},
 				});
 		});

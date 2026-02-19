@@ -1,14 +1,17 @@
 import { errorLogPath, logger, LogSeverity } from '@php-wasm/logger';
-import type {
-	PathAlias,
-	PHPRequest,
-	RemoteAPI,
-	SupportedPHPVersion,
-	UniversalPHP,
+import { ProcessIdAllocator } from './process-id-allocator';
+import {
+	createObjectPoolProxy,
+	type Pooled,
+	type PHPRequest,
+	type PathAlias,
+	type RemoteAPI,
+	type SupportedPHPVersion,
 } from '@php-wasm/universal';
 import {
 	PHPResponse,
 	StreamedPHPResponse,
+	HttpCookieStore,
 	exposeAPI,
 	exposeSyncAPI,
 	printDebugDetails,
@@ -40,12 +43,12 @@ import {
 import { startServer } from './start-server';
 import type { PlaygroundCliBlueprintV1Worker } from './blueprints-v1/worker-thread-v1';
 import type { PlaygroundCliBlueprintV2Worker } from './blueprints-v2/worker-thread-v2';
-import { FileLockManagerForNode } from '@php-wasm/node';
-import { LoadBalancer } from './load-balancer';
 /* eslint-disable no-console */
-import { SupportedPHPVersions } from '@php-wasm/universal';
+import {
+	SupportedPHPVersions,
+	FileLockManagerInMemory,
+} from '@php-wasm/universal';
 import { cpus } from 'os';
-import { jspi } from 'wasm-feature-detect';
 import type { MessagePort as NodeMessagePort } from 'worker_threads';
 import yargs, { type Argv, type Options as YargsOptions } from 'yargs';
 import { isValidWordPressSlug } from './is-valid-wordpress-slug';
@@ -75,6 +78,7 @@ import {
 	PHPMYADMIN_ENTRY_PATH,
 	PHPMYADMIN_INSTALL_PATH,
 } from '@wp-playground/tools';
+import { jspi } from 'wasm-feature-detect';
 
 // Inlined worker URLs for static analysis by downstream bundlers
 // These are replaced at build time by the Vite plugin in vite.config.ts
@@ -90,6 +94,9 @@ export const LogVerbosity = {
 type LogVerbosity = (typeof LogVerbosity)[keyof typeof LogVerbosity]['name'];
 
 export type WorkerType = 'v1' | 'v2';
+
+// TODO: Consider creating more workers on demand if other workers blocked to avoid deadlock.
+const MINIMUM_WORKER_COUNT = 10;
 
 /**
  * Parse the CLI args and run the appropriate command.
@@ -334,13 +341,14 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 				default: 9400,
 			},
 			'experimental-multi-worker': {
+				deprecated:
+					'This option is not needed. Multiple workers are always used.',
 				describe:
 					'Enable experimental multi-worker support which requires ' +
 					'a /wordpress directory backed by a real filesystem. ' +
 					'Pass a positive number to specify the number of workers to use. ' +
 					'Otherwise, default to the number of CPUs minus 1.',
 				type: 'number',
-				coerce: (value?: number) => value ?? cpus().length - 1,
 			},
 			'experimental-devtools': {
 				describe: 'Enable experimental browser development tools.',
@@ -564,25 +572,12 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 					}
 				}
 
-				if (args['experimental-multi-worker'] !== undefined) {
-					const cliCommand = args._[0] as string;
-					if (cliCommand !== 'server') {
-						throw new Error(
-							'The --experimental-multi-worker flag is only supported when running the server command.'
-						);
-					}
-					if (
-						args['experimental-multi-worker'] !== undefined &&
-						typeof args['experimental-multi-worker'] === 'number' &&
-						args['experimental-multi-worker'] <= 1
-					) {
-						throw new Error(
-							'The --experimental-multi-worker flag must be a positive integer greater than 1.'
-						);
-					}
-				}
-
 				if (args['experimental-blueprints-v2-runner'] === true) {
+					// TODO: Remove this once we have reworked the Blueprints v2 runner.
+					throw new Error(
+						'Blueprints v2 are temporarily disabled while we rework their runtime implementation.'
+					);
+
 					if (args['mode'] !== undefined) {
 						if (args['wordpress-install-mode'] !== undefined) {
 							throw new Error(
@@ -685,7 +680,7 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 			let promiseToCleanup: Promise<void>;
 
 			return async () => {
-				if (promiseToCleanup !== undefined) {
+				if (promiseToCleanup === undefined) {
 					promiseToCleanup = cliServer[Symbol.asyncDispose]();
 				}
 				await promiseToCleanup;
@@ -700,6 +695,15 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 		// NOTE: Windows does not support SIGTERM, but Node.js provides some emulation.
 		process.on('SIGINT', cleanUpCliAndExit);
 		process.on('SIGTERM', cleanUpCliAndExit);
+
+		return {
+			[Symbol.asyncDispose]: async () => {
+				process.off('SIGINT', cleanUpCliAndExit);
+				process.off('SIGTERM', cleanUpCliAndExit);
+				await cliServer[Symbol.asyncDispose]();
+			},
+			[internalsKeyForTesting]: { cliServer },
+		};
 	} catch (e) {
 		console.error(e);
 		if (!(e instanceof Error)) {
@@ -752,7 +756,6 @@ export interface RunCLIArgs {
 	wp?: string;
 	autoMount?: string;
 	pathAliases?: PathAlias[];
-	experimentalMultiWorker?: number;
 	experimentalTrace?: boolean;
 	internalCookieStore?: boolean;
 	'additional-blueprint-steps'?: any[];
@@ -806,14 +809,15 @@ export interface RunCLIArgs {
 	reset?: boolean;
 }
 
-type PlaygroundCliWorker =
+// TODO: Maybe we should just be declaring an interface instead of a type union
+export type PlaygroundCliWorker =
 	| PlaygroundCliBlueprintV1Worker
 	| PlaygroundCliBlueprintV2Worker;
 
 export const internalsKeyForTesting = Symbol('playground-cli-testing');
 
 export interface RunCLIServer extends AsyncDisposable {
-	playground: RemoteAPI<PlaygroundCliWorker>;
+	playground: Pooled<PlaygroundCliWorker>;
 	server: Server;
 	serverUrl: string;
 
@@ -822,7 +826,6 @@ export interface RunCLIServer extends AsyncDisposable {
 	// Provide some details and helpers for automated testing.
 	[internalsKeyForTesting]: {
 		workerThreadCount: number;
-		getWorkerNumberFromProcessId(processId: number): number;
 	};
 }
 
@@ -859,11 +862,15 @@ export async function runCLI(
 ): Promise<RunCLIServer>;
 export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void>;
 export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
-	let loadBalancer: LoadBalancer;
-	let playground: RemoteAPI<PlaygroundCliWorker>;
+	let playgroundPool: Pooled<PlaygroundCliWorker>;
+	const cookieStore = args.internalCookieStore
+		? new HttpCookieStore()
+		: undefined;
 
-	const playgroundsToCleanUp: Map<
-		Worker,
+	const spawnedWorkers: SpawnedWorker[] = [];
+	const workerToPlaygroundMap: Map<
+		// TODO: Can this just be the worker, not a data structure with a port?
+		SpawnedWorker,
 		RemoteAPI<PlaygroundCliWorker>
 	> = new Map();
 
@@ -971,23 +978,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 
 	// Declare file lock manager outside scope of startServer
 	// so we can look at it when debugging request handling.
-	const nativeFlockSync =
-		os.platform() === 'win32'
-			? // @TODO: Enable fs-ext here when it works with Windows.
-				undefined
-			: await import('fs-ext')
-					.then((m) => m.flockSync)
-					.catch(() => {
-						// Only show this in debug mode since it's technical and
-						// doesn't affect normal operation
-						logger.debug(
-							'The fs-ext package is not installed. ' +
-								'Internal file locking will not be integrated with ' +
-								'host OS file locking.'
-						);
-						return undefined;
-					});
-	const fileLockManager = new FileLockManagerForNode(nativeFlockSync);
+	const fileLockManager = new FileLockManagerInMemory();
 
 	let wordPressReady = false;
 	let isFirstRequest = true;
@@ -999,24 +990,9 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 			const serverUrl = `http://${host}:${port}`;
 			const siteUrl = args['site-url'] || serverUrl;
 
-			const targetWorkerCount =
-				args.command === 'server'
-					? (args.experimentalMultiWorker ?? 1)
-					: 1;
-			const totalWorkersToSpawn =
-				args.command === 'server'
-					? // Account for the initial worker which is discarded by the server after setup.
-						targetWorkerCount + 1
-					: targetWorkerCount;
-
-			// Process IDs appear to be defined as `int` in Emscripten:
-			// https://github.com/emscripten-core/emscripten/blob/95d2bf9c5c27b88ab7de6eba2d8e61ea1af977ac/system/lib/libc/musl/arch/emscripten/bits/alltypes.h#L290
-			// and those are typically 32 bits wide in both 32-bit and 64-bit systems.
-			// Apparently, this is a signed type, so we cannot use the leftmost bit.
-			const maxValueForSigned32BitInteger = 2 ** (32 - 1) - 1;
-			const maxProcessIdValue = maxValueForSigned32BitInteger;
-			const processIdSpaceLength = Math.floor(
-				maxProcessIdValue / totalWorkersToSpawn
+			const targetWorkerCount = Math.max(
+				cpus().length - 1,
+				MINIMUM_WORKER_COUNT
 			);
 
 			/*
@@ -1244,13 +1220,11 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 			if (args['experimental-blueprints-v2-runner']) {
 				handler = new BlueprintsV2Handler(args, {
 					siteUrl,
-					processIdSpaceLength,
 					cliOutput,
 				});
 			} else {
 				handler = new BlueprintsV1Handler(args, {
 					siteUrl,
-					processIdSpaceLength,
 					cliOutput,
 				});
 
@@ -1274,70 +1248,139 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 
 				disposing = true;
 				await Promise.all(
-					[...playgroundsToCleanUp].map(
-						async ([worker, playground]) => {
-							await playground.dispose();
-							await worker.terminate();
-						}
-					)
+					spawnedWorkers.map(async (spawnedWorker) => {
+						await workerToPlaygroundMap
+							.get(spawnedWorker)
+							?.dispose();
+						await spawnedWorker.worker.terminate();
+					})
 				);
 				if (server) {
-					await new Promise((resolve) => server.close(resolve));
+					await new Promise((resolve) => {
+						server.close(resolve);
+						server.closeAllConnections();
+					});
 				}
 				await nativeDir.cleanup();
 			};
 
-			// Kick off worker threads now to save time later.
-			// There is no need to wait for other async processes to complete.
-			const promisedWorkers = spawnWorkerThreads(
-				totalWorkersToSpawn,
-				handler.getWorkerType(),
-				({ exitCode, workerIndex }) => {
-					// We are already disposing, so worker exit is expected
-					// and does not need to be logged.
-					if (disposing) {
-						return;
-					}
-
-					if (exitCode !== 0) {
-						return;
-					}
-
-					logger.error(
-						`Worker ${workerIndex} exited with code ${exitCode}\n`
-					);
-					// @TODO: Should we respawn the worker if it exited with an error and the CLI is not shutting down?
-				}
-			);
-
-			cliOutput.startProgress('Starting...');
-
 			try {
-				const workers = await promisedWorkers;
+				const promisesToBoot = [];
+				const workerType = handler.getWorkerType();
+				for (
+					let workerIndex = 0;
+					workerIndex < targetWorkerCount;
+					workerIndex++
+				) {
+					const promiseToBoot = spawnWorkerThread(workerType, {
+						onExit: (exitCode: number) => {
+							// We are already disposing, so worker exit is expected
+							// and does not need to be logged.
+							if (disposing) {
+								return;
+							}
 
-				const fileLockManagerPort =
-					await exposeFileLockManager(fileLockManager);
+							if (exitCode !== 0) {
+								return;
+							}
+
+							logger.error(
+								`Worker ${workerIndex} exited with code ${exitCode}\n`
+							);
+							// @TODO: Should we respawn the worker if it exited with an error and the CLI is not shutting down?
+						},
+					}).then(
+						async (
+							spawnResult: SpawnedWorker
+						): Promise<
+							[
+								SpawnedWorker,
+								(
+									| RemoteAPI<PlaygroundCliBlueprintV1Worker>
+									| RemoteAPI<PlaygroundCliBlueprintV2Worker>
+								),
+							]
+						> => {
+							// Remember the worker process before booting the Playground
+							// so we can clean it up if there is an error during boot.
+							spawnedWorkers.push(spawnResult);
+
+							const fileLockManagerPort =
+								await exposeFileLockManager(fileLockManager);
+							const playgroundApi =
+								await handler.bootRequestHandler({
+									worker: spawnResult,
+									fileLockManagerPort,
+									nativeInternalDirPath,
+								});
+
+							workerToPlaygroundMap.set(
+								spawnResult,
+								playgroundApi
+							);
+
+							return [spawnResult, playgroundApi];
+						}
+					);
+
+					promisesToBoot.push(promiseToBoot);
+
+					// TODO: Remove this workaround after we remove the inherent race
+					// from @wp-playground/wordpress's bootRequestHandler() function.
+					if (workerIndex === 0) {
+						// Wait for the first worker to boot to avoid a race condition
+						// with writing initial PHP files in bootRequestHandler().
+						// This is the race condition:
+						// https://github.com/WordPress/wordpress-playground/blob/e758ee0893d199416a2d740195815234584b1b44/packages/playground/wordpress/src/boot.ts#L416-L426
+						// Multiple workers may detect that .boot-files-written does not exist
+						// and proceed to try to write initial boot files.
+						await promiseToBoot;
+					}
+				}
+
+				await Promise.all(promisesToBoot);
+				playgroundPool = createObjectPoolProxy(
+					spawnedWorkers.map(
+						(spawnedWorker) =>
+							workerToPlaygroundMap.get(spawnedWorker)!
+					)
+				);
 
 				// NOTE: Using a free-standing block to isolate initial boot vars
 				// while keeping the logic inline.
 				{
-					// Boot the primary worker using the handler
-					const initialWorker = workers.shift()!;
-					const initialPlayground =
-						await handler.bootAndSetUpInitialPlayground(
-							initialWorker.phpPort,
-							fileLockManagerPort,
-							nativeInternalDirPath
-						);
-					playgroundsToCleanUp.set(
-						initialWorker.worker,
-						initialPlayground
+					// TODO: Consider how to avoid Xdebug being enabled during boot.
+
+					const messageChannelForPostInstallMounts =
+						new NodeMessageChannel();
+					const mainThreadPostInstallMountsPort =
+						messageChannelForPostInstallMounts.port1;
+					const workerPostInstallMountsPort =
+						messageChannelForPostInstallMounts.port2;
+					await exposeAPI(
+						{
+							applyPostInstallMountsToAllWorkers: async () => {
+								await Promise.all(
+									Array.from(
+										workerToPlaygroundMap.values()
+									).map((playground) =>
+										playground!.mountAfterWordPressInstall(
+											args['mount'] || []
+										)
+									)
+								);
+							},
+						},
+						undefined,
+						mainThreadPostInstallMountsPort
 					);
+					await handler.bootWordPress(
+						playgroundPool,
+						workerPostInstallMountsPort
+					);
+					mainThreadPostInstallMountsPort.close();
 
-					await initialPlayground.isReady();
 					wordPressReady = true;
-
-					loadBalancer = new LoadBalancer(initialPlayground);
 
 					if (!args['experimental-blueprints-v2-runner']) {
 						const compiledBlueprint = await (
@@ -1349,7 +1392,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 						if (compiledBlueprint) {
 							await runBlueprintV1Steps(
 								compiledBlueprint,
-								initialPlayground as UniversalPHP
+								playgroundPool
 							);
 						}
 					}
@@ -1357,20 +1400,17 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 					// If phpMyAdmin is enabled and not already installed, install it.
 					if (
 						args.phpmyadmin &&
-						!(await initialPlayground.fileExists(
+						!(await playgroundPool.fileExists(
 							`${PHPMYADMIN_INSTALL_PATH}/index.php`
 						))
 					) {
 						const steps = await getPhpMyAdminInstallSteps();
 						const compiled = await compileBlueprintV1({ steps });
-						await runBlueprintV1Steps(
-							compiled,
-							initialPlayground as UniversalPHP
-						);
+						await runBlueprintV1Steps(compiled, playgroundPool);
 					}
 
 					if (args.command === 'build-snapshot') {
-						await zipSite(playground, args.outfile as string);
+						await zipSite(playgroundPool, args.outfile as string);
 						cliOutput.printStatus(`Exported to ${args.outfile}`);
 						await disposeCLI();
 						return;
@@ -1379,45 +1419,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 						await disposeCLI();
 						return;
 					}
-
-					// We discard the initial Playground worker because it can
-					// be configured differently than post-boot workers.
-					// For example, we do not enable Xdebug by default for the initial worker.
-					await loadBalancer.removeWorker(initialPlayground);
-					await initialPlayground.dispose();
-					await initialWorker.worker.terminate();
-					playgroundsToCleanUp.delete(initialWorker.worker);
 				}
-
-				// Boot additional workers using the handler
-				const initialWorkerProcessIdSpace = processIdSpaceLength;
-				// Just take the first Playground instance to be returned to the caller.
-				[playground] = await Promise.all(
-					workers.map(async (worker, index) => {
-						const firstProcessId =
-							initialWorkerProcessIdSpace +
-							index * processIdSpaceLength;
-
-						const fileLockManagerPort =
-							await exposeFileLockManager(fileLockManager);
-
-						const additionalPlayground =
-							await handler.bootPlayground({
-								worker,
-								fileLockManagerPort,
-								firstProcessId,
-								nativeInternalDirPath,
-							});
-
-						playgroundsToCleanUp.set(
-							worker.worker,
-							additionalPlayground
-						);
-						loadBalancer.addWorker(additionalPlayground);
-
-						return additionalPlayground;
-					})
-				);
 
 				cliOutput.finishProgress();
 				cliOutput.printReady(serverUrl, targetWorkerCount);
@@ -1434,7 +1436,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 
 				if (args.xdebug && args.experimentalDevtools) {
 					const bridge = await startBridge({
-						phpInstance: playground,
+						phpInstance: playgroundPool,
 						phpRoot: '/wordpress',
 					});
 
@@ -1442,15 +1444,12 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 				}
 
 				return {
-					playground,
+					playground: playgroundPool,
 					server,
 					serverUrl,
 					[Symbol.asyncDispose]: disposeCLI,
 					[internalsKeyForTesting]: {
 						workerThreadCount: targetWorkerCount,
-						getWorkerNumberFromProcessId: (processId: number) => {
-							return Math.floor(processId / processIdSpaceLength);
-						},
 					},
 				};
 			} catch (error) {
@@ -1458,8 +1457,8 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 					throw error;
 				}
 				let phpLogs = '';
-				if (await playground?.fileExists(errorLogPath)) {
-					phpLogs = await playground.readFileAsText(errorLogPath);
+				if (await playgroundPool?.fileExists(errorLogPath)) {
+					phpLogs = await playgroundPool.readFileAsText(errorLogPath);
 				}
 				await disposeCLI();
 				throw new Error(phpLogs, { cause: error });
@@ -1496,7 +1495,35 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 					new PHPResponse(302, headers, new Uint8Array())
 				);
 			}
-			return await loadBalancer.handleRequest(request);
+			if (cookieStore) {
+				request = {
+					...request,
+					headers: {
+						...request.headers,
+						// While we have an internal cookie store, we
+						// completely replace the incoming request's Cookie
+						// header with the cookies from our store. This avoids
+						// getting into a strange state where both browser and
+						// server are managing cookies.
+						cookie: cookieStore.getCookieRequestHeader(),
+					},
+				};
+			}
+
+			// TODO: Explore switching to a worker thread method to adopt an entire HTTP connection
+			// It might be more efficient to let the worker respond directly
+			const response = await playgroundPool.requestStreamed(request);
+
+			if (cookieStore) {
+				const headers = await response.headers;
+				cookieStore.rememberCookiesFromResponseHeaders(headers);
+				// While we have an internal cookie store, we filter out the
+				// Set-Cookie headers from responses so the browser does not
+				// attempt to manage cookies at the same time as the server.
+				delete headers['set-cookie'];
+			}
+
+			return response;
 		},
 	});
 
@@ -1606,29 +1633,13 @@ function expandStartCommandArgs(
 	return newArgs as RunCLIArgs;
 }
 
+const processIdAllocator = new ProcessIdAllocator();
+
 export type SpawnedWorker = {
+	processId: number;
 	worker: Worker;
 	phpPort: NodeMessagePort;
 };
-
-async function spawnWorkerThreads(
-	count: number,
-	workerType: WorkerType,
-	onWorkerExit: (options: { exitCode: number; workerIndex: number }) => void
-): Promise<SpawnedWorker[]> {
-	const promises = [];
-	for (let i = 0; i < count; i++) {
-		const onExit: (code: number) => void = (code: number) => {
-			onWorkerExit({
-				exitCode: code,
-				workerIndex: i,
-			});
-		};
-		const worker = spawnWorkerThread(workerType, { onExit });
-		promises.push(worker);
-	}
-	return Promise.all(promises);
-}
 
 /**
  * A statically analyzable function that spawns a worker thread of a given type.
@@ -1666,15 +1677,23 @@ export function spawnWorkerThread(
 	}
 
 	return new Promise<SpawnedWorker>((resolve, reject) => {
+		const processId = processIdAllocator.claim();
+
 		worker.once('message', function (message: any) {
 			// Let the worker confirm it has initialized.
 			// We could use the 'online' event to detect start of JS execution,
 			// but that would miss initialization errors.
 			if (message.command === 'worker-script-initialized') {
-				resolve({ worker, phpPort: message.phpPort });
+				resolve({
+					processId,
+					worker,
+					phpPort: message.phpPort,
+				});
 			}
 		});
 		worker.once('error', function (e: Error) {
+			processIdAllocator.release(processId);
+
 			console.error(e);
 			const error = new Error(
 				`Worker failed to load worker. ${
@@ -1688,6 +1707,8 @@ export function spawnWorkerThread(
 			spawned = true;
 		});
 		worker.once('exit', (code) => {
+			processIdAllocator.release(processId);
+
 			if (!spawned) {
 				reject(new Error(`Worker exited before spawning: ${code}`));
 			}
@@ -1702,27 +1723,18 @@ export function spawnWorkerThread(
  * @see comlink-sync.ts
  * @see phpwasm-emscripten-library-file-locking-for-node.js
  */
-async function exposeFileLockManager(fileLockManager: FileLockManagerForNode) {
+async function exposeFileLockManager(fileLockManager: FileLockManagerInMemory) {
 	const { port1, port2 } = new NodeMessageChannel();
-	if (await jspi()) {
-		/**
-		 * When JSPI is available, the worker thread expects an asynchronous API.
-		 *
-		 * @see worker-thread.ts
-		 * @see comlink-sync.ts
-		 * @see phpwasm-emscripten-library-file-locking-for-node.js
-		 */
-		exposeAPI(fileLockManager, null, port1);
-	} else {
-		/**
-		 * When JSPI is not available, the worker thread expects a synchronous API.
-		 *
-		 * @see worker-thread.ts
-		 * @see comlink-sync.ts
-		 * @see phpwasm-emscripten-library-file-locking-for-node.js
-		 */
-		await exposeSyncAPI(fileLockManager, port1);
-	}
+	/**
+	 * Always expose a synchronous API for the file lock manager
+	 * so our injected system call overrides don't have to switch
+	 * between synchronous and asynchronous APIs.
+	 *
+	 * @todo: Fill in the file containing the injected file locking system calls.
+	 * @see comlink-sync.ts
+	 * @see phpwasm-emscripten-library-file-locking-for-node.js
+	 */
+	await exposeSyncAPI(fileLockManager, port1);
 	return port2;
 }
 
@@ -1756,7 +1768,7 @@ function openInBrowser(url: string): void {
 }
 
 async function zipSite(
-	playground: RemoteAPI<PlaygroundCliWorker>,
+	playground: Pooled<PlaygroundCliWorker>,
 	outfile: string
 ) {
 	await playground.run({
