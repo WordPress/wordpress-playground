@@ -288,6 +288,8 @@ jobs:
               with:
                   submodules: true
             - uses: ./.github/actions/prepare-playground
+              with:
+                  node-version: '22'
             - name: Install Playwright Browsers
               run: npx playwright install --with-deps chromium
             - name: Run MCP e2e tests
