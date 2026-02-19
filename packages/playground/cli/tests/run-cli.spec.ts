@@ -1184,6 +1184,55 @@ describe('other run-cli behaviors', () => {
 			// is that the server does not crash.
 			expect(fatalResponse.status).toBeLessThan(600);
 		}, 60_000);
+
+		test('should handle client disconnect during streaming', async () => {
+			await using cliServer = await runCLI({
+				command: 'server',
+				wordpressInstallMode: 'do-not-attempt-installing',
+				skipSqliteSetup: true,
+				blueprint: undefined,
+			});
+
+			// PHP script that produces a large stream (enough to
+			// read a chunk, but finite so the worker is freed)
+			await cliServer.playground.writeFile(
+				'/wordpress/large-stream.php',
+				`<?php
+					for ($i = 0; $i < 1000; $i++) {
+						echo str_repeat("x", 1024) . "\\n";
+						flush();
+					}
+				`
+			);
+
+			const controller = new AbortController();
+			const response = await fetch(
+				new URL('/large-stream.php', cliServer.serverUrl),
+				{ signal: controller.signal }
+			);
+
+			// Read at least one chunk to confirm streaming started
+			const reader = response.body!.getReader();
+			const { done } = await reader.read();
+			expect(done).toBe(false);
+
+			// Abort mid-stream
+			reader.cancel();
+			controller.abort();
+
+			// Wait for the PHP script to finish and free the worker
+			await new Promise((r) => setTimeout(r, 2000));
+
+			// Server should still be responsive
+			await cliServer.playground.writeFile(
+				'/wordpress/health.php',
+				`<?php echo 'ok';`
+			);
+			const healthCheck = await fetch(
+				new URL('/health.php', cliServer.serverUrl)
+			);
+			expect(healthCheck.status).toBe(200);
+		}, 60_000);
 	});
 
 	describe('internal cookie store', () => {
