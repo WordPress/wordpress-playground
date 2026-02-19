@@ -341,46 +341,53 @@ describe('StreamedPHPResponse', () => {
 	});
 });
 
-describe('PHPResponse.fromStreamedResponse()', () => {
-	it('converts StreamedPHPResponse back to PHPResponse preserving all fields', async () => {
-		const body = new TextEncoder().encode('Response body');
-		const original = new PHPResponse(
-			201,
-			{ 'content-type': ['text/plain'], 'x-custom': ['val1', 'val2'] },
-			body,
-			'some stderr',
-			0
-		);
+describe('PHPResponse', () => {
+	describe('fromStreamedResponse()', () => {
+		it('converts StreamedPHPResponse back to PHPResponse preserving all fields', async () => {
+			const body = new TextEncoder().encode('Response body');
+			const original = new PHPResponse(
+				201,
+				{
+					'content-type': ['text/plain'],
+					'x-custom': ['val1', 'val2'],
+				},
+				body,
+				'some stderr',
+				0
+			);
 
-		const streamed = StreamedPHPResponse.fromPHPResponse(original);
-		const converted = await PHPResponse.fromStreamedResponse(streamed);
+			const streamed = StreamedPHPResponse.fromPHPResponse(original);
+			const converted =
+				await PHPResponse.fromStreamedResponse(streamed);
 
-		expect(converted.httpStatusCode).toBe(201);
-		expect(converted.headers).toEqual({
-			'content-type': ['text/plain'],
-			'x-custom': ['val1', 'val2'],
+			expect(converted.httpStatusCode).toBe(201);
+			expect(converted.headers).toEqual({
+				'content-type': ['text/plain'],
+				'x-custom': ['val1', 'val2'],
+			});
+			expect(converted.bytes).toEqual(body);
+			expect(converted.exitCode).toBe(0);
 		});
-		expect(converted.bytes).toEqual(body);
-		expect(converted.exitCode).toBe(0);
-	});
 
-	it('round-trip: PHPResponse -> StreamedPHPResponse -> PHPResponse preserves data', async () => {
-		const original = new PHPResponse(
-			404,
-			{ 'content-type': ['text/html'] },
-			new TextEncoder().encode('Not Found'),
-			'error log entry',
-			1
-		);
+		it('round-trip: PHPResponse -> StreamedPHPResponse -> PHPResponse preserves data', async () => {
+			const original = new PHPResponse(
+				404,
+				{ 'content-type': ['text/html'] },
+				new TextEncoder().encode('Not Found'),
+				'error log entry',
+				1
+			);
 
-		const streamed = StreamedPHPResponse.fromPHPResponse(original);
-		const roundTripped = await PHPResponse.fromStreamedResponse(streamed);
+			const streamed = StreamedPHPResponse.fromPHPResponse(original);
+			const roundTripped =
+				await PHPResponse.fromStreamedResponse(streamed);
 
-		expect(roundTripped.httpStatusCode).toBe(original.httpStatusCode);
-		expect(roundTripped.headers).toEqual(original.headers);
-		expect(roundTripped.bytes).toEqual(original.bytes);
-		expect(roundTripped.errors).toBe('');
-		expect(roundTripped.exitCode).toBe(original.exitCode);
-		expect(roundTripped.text).toBe(original.text);
+			expect(roundTripped.httpStatusCode).toBe(original.httpStatusCode);
+			expect(roundTripped.headers).toEqual(original.headers);
+			expect(roundTripped.bytes).toEqual(original.bytes);
+			expect(roundTripped.errors).toBe('');
+			expect(roundTripped.exitCode).toBe(original.exitCode);
+			expect(roundTripped.text).toBe(original.text);
+		});
 	});
 });
