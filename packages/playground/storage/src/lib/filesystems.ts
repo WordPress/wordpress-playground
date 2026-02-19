@@ -232,7 +232,8 @@ export class ZipFilesystem implements ReadableFilesystemBackend {
 
 	private async getEntry(relativePath: string): Promise<Entry> {
 		const entries = await this.getEntries();
-		const entry = entries.get(relativePath.replace(/^\//, ''));
+		const normalized = normalizePath(relativePath).replace(/^\//, '');
+		const entry = entries.get(normalized);
 		if (!entry) {
 			throw new Error(`File ${relativePath} not found in the zip.`);
 		}
