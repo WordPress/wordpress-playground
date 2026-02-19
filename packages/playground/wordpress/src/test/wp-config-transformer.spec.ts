@@ -181,7 +181,6 @@ if ( 'production' === $env ) {
 		`;
 
 		const response = await php.run({ code: phpCode });
-		console.log(response.errors);
 		expect(response.errors).toEqual('');
 		expect(response.text).toEqual(`<?php
 if ( 'production' === $env ) {
