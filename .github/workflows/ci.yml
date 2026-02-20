@@ -281,7 +281,7 @@ jobs:
                   path: packages/playground/components/playwright-report/
                   if-no-files-found: ignore
 
-	# Run MCP e2e tests independently from other tests because running a local version of the MCP server from TypeScript files requires Node 22+
+    # Run MCP e2e tests independently from other tests because running a local version of the MCP server from TypeScript files requires Node 22+
     test-e2e-mcp:
         runs-on: ubuntu-latest
         steps:

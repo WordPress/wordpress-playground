@@ -42,7 +42,9 @@ npm run dev
 
 ### 2. Configure your MCP client
 
-The repo includes a `.mcp.json` that runs the MCP server from source:
+> **Note:** Your default `node` must be Node 22+. If it isn't, replace `node` in the command below with the full path to Node 22+ (e.g. `/Users/ME/.nvm/versions/node/v22.22.0/bin/node`).
+
+Add to your MCP client config (e.g. Claude Code `.mcp.json` or Claude Desktop `claude_desktop_config.json`):
 
 ```json
 {
@@ -50,13 +52,13 @@ The repo includes a `.mcp.json` that runs the MCP server from source:
 		"wordpress-playground": {
 			"type": "stdio",
 			"command": "node",
-			"args": ["--experimental-strip-types", "--experimental-transform-types", "--import", "./packages/meta/src/node-es-module-loader/register.mts", "./packages/playground/mcp/src/index.ts"]
+			"args": ["--experimental-strip-types", "--experimental-transform-types", "--import", "ABS_PATH_TO_PLAYGROUND/packages/meta/src/node-es-module-loader/register.mts", "ABS_PATH_TO_PLAYGROUND/packages/playground/mcp/src/index.ts"]
 		}
 	}
 }
 ```
 
-The relative paths work with Claude Code's `.mcp.json` (resolved from the project root). For Claude Desktop's `claude_desktop_config.json`, use absolute paths.
+Replace `ABS_PATH_TO_PLAYGROUND` with the absolute path to your local checkout of this repository.
 
 ### 3. Open the Playground website
 

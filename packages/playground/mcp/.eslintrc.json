@@ -18,10 +18,7 @@
 		},
 		{
 			"files": ["*.spec.ts"],
-			"rules": {
-				"@typescript-eslint/no-empty-object-type": 0,
-				"no-empty-pattern": 0
-			}
+			"rules": {}
 		}
 	]
 }

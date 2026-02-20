@@ -30,9 +30,11 @@ export default defineConfig({
 
 	build: {
 		lib: {
-			entry: 'src/index.ts',
+			entry: {
+				index: 'src/index.ts',
+				'bridge-client': 'src/bridge-client.ts',
+			},
 			name: 'playground-mcp',
-			fileName: 'index',
 			formats: ['es', 'cjs'],
 		},
 		sourcemap: true,

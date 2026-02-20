@@ -2,22 +2,25 @@ import { test as base, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
-import { resolve, dirname } from 'path';
+import { dirname } from 'path';
 import { fileURLToPath } from 'url';
-
-const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../../../..');
 
 // Use a random port so tests are isolated from real browser tabs
 // that might also connect to the default MCP WebSocket port.
 const MCP_WS_PORT = 17999 + Math.floor(Math.random() * 1000);
+
+type McpTestFixtures = {
+	siteId: string;
+};
 
 type McpWorkerFixtures = {
 	mcpClient: Client;
 	playgroundPage: Page;
 };
 
-const test = base.extend<{}, McpWorkerFixtures>({
+const test = base.extend<McpTestFixtures, McpWorkerFixtures>({
 	mcpClient: [
+		// eslint-disable-next-line no-empty-pattern
 		async ({}, use) => {
 			const transport = new StdioClientTransport({
 				command: 'node',
@@ -25,11 +28,11 @@ const test = base.extend<{}, McpWorkerFixtures>({
 					'--experimental-strip-types',
 					'--experimental-transform-types',
 					'--import',
-					'./packages/meta/src/node-es-module-loader/register.mts',
-					'./packages/playground/mcp/src/index.ts',
+					'../../../meta/src/node-es-module-loader/register.mts',
+					'../src/index.ts',
 					`--port=${MCP_WS_PORT}`,
 				],
-				cwd: ROOT,
+				cwd: dirname(fileURLToPath(import.meta.url)),
 				env: {
 					...process.env,
 					NODE_NO_WARNINGS: '1',
@@ -78,6 +81,11 @@ const test = base.extend<{}, McpWorkerFixtures>({
 		},
 		{ scope: 'worker', auto: true },
 	],
+
+	siteId: async ({ mcpClient }, use) => {
+		const siteId = await waitForActiveSite(mcpClient, 30_000);
+		await use(siteId);
+	},
 });
 
 function resultText(result: Awaited<ReturnType<Client['callTool']>>): string {
@@ -136,14 +144,29 @@ async function waitForActiveSite(
 	throw lastError ?? new Error('Timeout waiting for active site');
 }
 
-/**
- * Get an active siteId, retrying through potential reconnections.
- * Each test calls this to handle the case where the MCP bridge
- * temporarily disconnected and reconnected.
- */
-async function getActiveSiteId(client: Client): Promise<string> {
-	return waitForActiveSite(client, 30_000);
-}
+test.afterEach(async ({ mcpClient, playgroundPage, browser }) => {
+	let needsReset = false;
+
+	for (const context of browser.contexts()) {
+		for (const page of context.pages()) {
+			if (page !== playgroundPage) {
+				await page.close();
+				needsReset = true;
+			}
+		}
+	}
+
+	if (!playgroundPage.url().includes('website-server')) {
+		needsReset = true;
+	}
+
+	if (needsReset) {
+		await playgroundPage.goto(
+			`http://127.0.0.1:5400/website-server/?mcpPort=${MCP_WS_PORT}`
+		);
+		await waitForActiveSite(mcpClient, 60_000, { probe: false });
+	}
+});
 
 test('lists all 14 registered tools', async ({ mcpClient }) => {
 	const result = await mcpClient.listTools();
@@ -170,89 +193,73 @@ test('lists all 14 registered tools', async ({ mcpClient }) => {
 test('playground_open_site activates an inactive site in a new tab', async ({
 	mcpClient,
 	playgroundPage,
-	browser,
+	siteId,
 }) => {
-	const siteId = await getActiveSiteId(mcpClient);
-
 	// Save the site so it persists in OPFS across page reloads
 	await mcpClient.callTool({
 		name: 'playground_save_site',
 		arguments: { siteId },
 	});
 
-	try {
-		// Reload the Playground without ?site-slug. This creates a
-		// new temporary site (active) while loading the saved site
-		// from OPFS (inactive).
-		await playgroundPage.goto(
-			`http://127.0.0.1:5400/website-server/?mcpPort=${MCP_WS_PORT}`
-		);
-		await expect(
-			playgroundPage
-				.frameLocator(
-					'#playground-viewport:visible,.playground-viewport:visible'
-				)
-				.frameLocator('#wp')
-				.locator('body')
-		).not.toBeEmpty();
-
-		// Wait for the saved site to appear as inactive
-		await expect
-			.poll(
-				async () => {
-					const result = await mcpClient.callTool({
-						name: 'playground_list_sites',
-						arguments: {},
-					});
-					const parsed = JSON.parse(resultText(result));
-					const site = parsed.sites.find((s) => s.siteId === siteId);
-					return site?.isActive;
-				},
-				{ timeout: 30_000, intervals: [2_000] }
+	// Reload the Playground without ?site-slug. This creates a
+	// new temporary site (active) while loading the saved site
+	// from OPFS (inactive).
+	await playgroundPage.goto(
+		`http://127.0.0.1:5400/website-server/?mcpPort=${MCP_WS_PORT}`
+	);
+	await expect(
+		playgroundPage
+			.frameLocator(
+				'#playground-viewport:visible,.playground-viewport:visible'
 			)
-			.toBe(false);
+			.frameLocator('#wp')
+			.locator('body')
+	).not.toBeEmpty();
 
-		// Open the inactive site — the browser calls window.open(),
-		// a new tab loads, and the site becomes active.
-		await mcpClient.callTool({
-			name: 'playground_open_site',
-			arguments: { siteId },
-		});
+	// Wait for the saved site to appear as inactive
+	await expect
+		.poll(
+			async () => {
+				const result = await mcpClient.callTool({
+					name: 'playground_list_sites',
+					arguments: {},
+				});
+				const parsed = JSON.parse(resultText(result));
+				const site = parsed.sites.find((s) => s.siteId === siteId);
+				return site?.isActive;
+			},
+			{ timeout: 30_000, intervals: [2_000] }
+		)
+		.toBe(false);
 
-		// Verify list_sites now reports the site as active
-		await expect
-			.poll(
-				async () => {
-					const result = await mcpClient.callTool({
-						name: 'playground_list_sites',
-						arguments: {},
-					});
-					const parsed = JSON.parse(resultText(result));
-					const site = parsed.sites.find((s) => s.siteId === siteId);
-					return site?.isActive;
-				},
-				{ timeout: 30_000, intervals: [2_000] }
-			)
-			.toBe(true);
-	} finally {
-		for (const context of browser.contexts()) {
-			for (const page of context.pages()) {
-				if (page !== playgroundPage) {
-					await page.close();
-				}
-			}
-		}
-		await playgroundPage.goto(
-			`http://127.0.0.1:5400/website-server/?mcpPort=${MCP_WS_PORT}`
-		);
-		await waitForActiveSite(mcpClient, 60_000, { probe: false });
-	}
+	// Open the inactive site — the browser calls window.open(),
+	// a new tab loads, and the site becomes active.
+	await mcpClient.callTool({
+		name: 'playground_open_site',
+		arguments: { siteId },
+	});
+
+	// Verify list_sites now reports the site as active
+	await expect
+		.poll(
+			async () => {
+				const result = await mcpClient.callTool({
+					name: 'playground_list_sites',
+					arguments: {},
+				});
+				const parsed = JSON.parse(resultText(result));
+				const site = parsed.sites.find((s) => s.siteId === siteId);
+				return site?.isActive;
+			},
+			{ timeout: 30_000, intervals: [2_000] }
+		)
+		.toBe(true);
 });
 
 test('playground_list_sites returns at least one site', async ({
 	mcpClient,
+	siteId,
 }) => {
-	await getActiveSiteId(mcpClient);
 	const result = await mcpClient.callTool({
 		name: 'playground_list_sites',
 		arguments: {},
@@ -260,10 +267,13 @@ test('playground_list_sites returns at least one site', async ({
 	const parsed = JSON.parse(resultText(result));
 	expect(parsed.connectedTabs).toBeGreaterThan(0);
 	expect(parsed.sites.length).toBeGreaterThan(0);
+	expect(parsed.sites.find((s) => s.siteId === siteId)).toBeTruthy();
 });
 
-test('playground_navigate goes to /wp-admin/', async ({ mcpClient }) => {
-	const siteId = await getActiveSiteId(mcpClient);
+test('playground_navigate goes to /wp-admin/', async ({
+	mcpClient,
+	siteId,
+}) => {
 	const result = await mcpClient.callTool({
 		name: 'playground_navigate',
 		arguments: { siteId, path: '/wp-admin/' },
@@ -274,8 +284,8 @@ test('playground_navigate goes to /wp-admin/', async ({ mcpClient }) => {
 
 test('playground_execute_php runs code and returns output', async ({
 	mcpClient,
+	siteId,
 }) => {
-	const siteId = await getActiveSiteId(mcpClient);
 	const result = await mcpClient.callTool({
 		name: 'playground_execute_php',
 		arguments: {
@@ -288,8 +298,10 @@ test('playground_execute_php runs code and returns output', async ({
 	expect(parsed.exitCode).toBe(0);
 });
 
-test('playground_request fetches the homepage', async ({ mcpClient }) => {
-	const siteId = await getActiveSiteId(mcpClient);
+test('playground_request fetches the homepage', async ({
+	mcpClient,
+	siteId,
+}) => {
 	const result = await mcpClient.callTool({
 		name: 'playground_request',
 		arguments: { siteId, url: '/wp-admin/' },
@@ -301,8 +313,8 @@ test('playground_request fetches the homepage', async ({ mcpClient }) => {
 
 test('playground_write_file, playground_read_file, and playground_delete_file', async ({
 	mcpClient,
+	siteId,
 }) => {
-	const siteId = await getActiveSiteId(mcpClient);
 	const testPath = '/wordpress/wp-content/e2e-test.txt';
 	const testContent = `E2E test at ${Date.now()}`;
 
@@ -332,8 +344,8 @@ test('playground_write_file, playground_read_file, and playground_delete_file', 
 
 test('playground_list_files lists the plugins directory', async ({
 	mcpClient,
+	siteId,
 }) => {
-	const siteId = await getActiveSiteId(mcpClient);
 	const result = await mcpClient.callTool({
 		name: 'playground_list_files',
 		arguments: { siteId, path: '/wordpress/' },
@@ -348,8 +360,8 @@ test('playground_list_files lists the plugins directory', async ({
 
 test('playground_mkdir creates and verifies a directory and playground_delete_directory removes it', async ({
 	mcpClient,
+	siteId,
 }) => {
-	const siteId = await getActiveSiteId(mcpClient);
 	const testDir = '/wordpress/wp-content/e2e-test-dir';
 
 	const mkdirResult = await mcpClient.callTool({
@@ -381,8 +393,8 @@ test('playground_mkdir creates and verifies a directory and playground_delete_di
 
 test('playground_get_site_info returns WordPress details', async ({
 	mcpClient,
+	siteId,
 }) => {
-	const siteId = await getActiveSiteId(mcpClient);
 	const result = await mcpClient.callTool({
 		name: 'playground_get_site_info',
 		arguments: { siteId },
@@ -396,9 +408,10 @@ test('playground_get_site_info returns WordPress details', async ({
 	expect(parsed.siteUrl).toMatch(new RegExp(`http(.)+`));
 });
 
-test('playground_rename_site renames an active site', async ({ mcpClient }) => {
-	const siteId = await getActiveSiteId(mcpClient);
-
+test('playground_rename_site renames an active site', async ({
+	mcpClient,
+	siteId,
+}) => {
 	// Get the original name so we can restore it
 	const listBefore = await mcpClient.callTool({
 		name: 'playground_list_sites',
@@ -438,9 +451,8 @@ test('playground_rename_site renames an active site', async ({ mcpClient }) => {
 
 test('playground_save_site persists a temporary site', async ({
 	mcpClient,
+	siteId,
 }) => {
-	const siteId = await getActiveSiteId(mcpClient);
-
 	const result = await mcpClient.callTool({
 		name: 'playground_save_site',
 		arguments: { siteId },
@@ -463,39 +475,21 @@ test('playground_save_site persists a temporary site', async ({
 test('playground_list_sites reports no browser when page navigates away', async ({
 	mcpClient,
 	playgroundPage,
-	browser,
 }) => {
-	// Close any extra pages opened by previous tests (e.g. open_site)
-	// so only playgroundPage remains.
-	for (const context of browser.contexts()) {
-		for (const page of context.pages()) {
-			if (page !== playgroundPage) {
-				await page.close();
-			}
-		}
-	}
-
 	await playgroundPage.goto('about:blank');
-	try {
-		await expect
-			.poll(
-				async () => {
-					const result = await mcpClient.callTool({
-						name: 'playground_list_sites',
-						arguments: {},
-					});
-					const parsed = JSON.parse(resultText(result));
-					return parsed.connectedTabs;
-				},
-				{ timeout: 15_000, intervals: [1_000] }
-			)
-			.toBe(0);
-	} finally {
-		await playgroundPage.goto(
-			`http://127.0.0.1:5400/website-server/?mcpPort=${MCP_WS_PORT}`
-		);
-		await waitForActiveSite(mcpClient, 60_000, { probe: false });
-	}
+	await expect
+		.poll(
+			async () => {
+				const result = await mcpClient.callTool({
+					name: 'playground_list_sites',
+					arguments: {},
+				});
+				const parsed = JSON.parse(resultText(result));
+				return parsed.connectedTabs;
+			},
+			{ timeout: 15_000, intervals: [1_000] }
+		)
+		.toBe(0);
 });
 
 test('playground_list_sites reports connected but no sites when browser has no playground tab', async ({
@@ -523,47 +517,39 @@ test('playground_list_sites reports connected but no sites when browser has no p
 	// Playground loaded.
 	const wsPort = MCP_WS_PORT;
 	const fakePage = await browser.newPage();
-	try {
-		await fakePage.evaluate((port) => {
-			return new Promise<void>((resolve, reject) => {
-				const ws = new WebSocket(`ws://127.0.0.1:${port}`);
-				ws.addEventListener('open', () => {
-					ws.send(
-						JSON.stringify({
-							type: 'register',
-							tabId: 'test-empty-tab',
-							sites: [],
-						})
-					);
-					resolve();
-				});
-				ws.addEventListener('error', () =>
-					reject(new Error('WebSocket failed'))
+	await fakePage.evaluate((port) => {
+		return new Promise<void>((resolve, reject) => {
+			const ws = new WebSocket(`ws://127.0.0.1:${port}`);
+			ws.addEventListener('open', () => {
+				ws.send(
+					JSON.stringify({
+						type: 'register',
+						tabId: 'test-empty-tab',
+						sites: [],
+					})
 				);
+				resolve();
 			});
-		}, wsPort);
+			ws.addEventListener('error', () =>
+				reject(new Error('WebSocket failed'))
+			);
+		});
+	}, wsPort);
 
-		await expect
-			.poll(
-				async () => {
-					const result = await mcpClient.callTool({
-						name: 'playground_list_sites',
-						arguments: {},
-					});
-					const parsed = JSON.parse(resultText(result));
-					return {
-						connectedTabs: parsed.connectedTabs,
-						siteCount: parsed.sites.length,
-					};
-				},
-				{ timeout: 15_000, intervals: [1_000] }
-			)
-			.toEqual({ connectedTabs: 1, siteCount: 0 });
-	} finally {
-		await fakePage.close();
-		await playgroundPage.goto(
-			`http://127.0.0.1:5400/website-server/?mcpPort=${MCP_WS_PORT}`
-		);
-		await waitForActiveSite(mcpClient, 60_000, { probe: false });
-	}
+	await expect
+		.poll(
+			async () => {
+				const result = await mcpClient.callTool({
+					name: 'playground_list_sites',
+					arguments: {},
+				});
+				const parsed = JSON.parse(resultText(result));
+				return {
+					connectedTabs: parsed.connectedTabs,
+					siteCount: parsed.sites.length,
+				};
+			},
+			{ timeout: 15_000, intervals: [1_000] }
+		)
+		.toEqual({ connectedTabs: 1, siteCount: 0 });
 });
