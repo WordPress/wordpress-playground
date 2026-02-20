@@ -22,10 +22,10 @@ import {
 	type OverlayViewMode,
 } from '../saved-playgrounds-overlay';
 import { SaveStatusIndicator } from './save-status-indicator';
+import { isSaveDisabledByQueryParam } from '../../lib/state/url/router';
 
 const query = new URL(document.location.href).searchParams;
 const overlayParam = query.get('overlay');
-const disableSave = query.get('can-save') === 'no';
 const shouldOpenOverlay = overlayParam !== null;
 
 interface BrowserChromeProps {
@@ -93,7 +93,7 @@ export default function BrowserChrome({
 						/>
 					</div>
 
-					{!disableSave && (
+					{!isSaveDisabledByQueryParam() && (
 						<div
 							className={css.saveStatusSlot}
 							data-testid="save-status-indicator"
