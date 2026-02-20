@@ -6,7 +6,6 @@ import type {
 	RmDirOptions,
 } from '@php-wasm/universal';
 import type { SiteRegistration } from './bridge-server';
-import { logger } from '@php-wasm/logger';
 
 export interface McpBridgeConfig {
 	getSites: () => SiteRegistration[];
@@ -50,7 +49,6 @@ export function startMcpBridge(config: McpBridgeConfig): McpBridgeHandle {
 		}
 
 		ws.addEventListener('open', () => {
-			logger.log('[MCP Bridge] Connected to MCP server');
 			previousSitesSerialized = '';
 			sendSitesRegistration(ws!);
 		});
