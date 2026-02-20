@@ -31,6 +31,6 @@
 	"types": "index.d.ts",
 	"dependencies": {
 		"@modelcontextprotocol/sdk": "^1.27.0",
-		"zod": "^3.25"
+		"zod": "^4.3"
 	}
 }

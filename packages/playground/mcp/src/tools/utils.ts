@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from 'zod/v3';
 import type { PHPResponseData } from '@php-wasm/universal';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { PlaygroundBridge } from '../bridge-server';

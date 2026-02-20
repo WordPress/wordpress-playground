@@ -34,6 +34,8 @@ export const getExternalModules = () => {
 		'readline',
 		'worker_threads',
 		'url',
+		'process',
+		'node:process',
 		/^@php-wasm\//,
 		/^@wp-playground\//,
 		...deps,

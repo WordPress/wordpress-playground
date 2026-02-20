@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from 'zod/v3';
 import { siteIdSchema, errorResult } from './utils';
 import type { ToolRegistrar } from './utils';
 

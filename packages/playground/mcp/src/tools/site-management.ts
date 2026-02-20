@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from 'zod/v3';
 import { presentStorage } from '../bridge-server';
 import { siteIdSchema, errorResult, decodeResponseBytes } from './utils';
 import type { SerializedPHPResponse, ToolRegistrar } from './utils';
