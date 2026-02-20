@@ -40,6 +40,10 @@ export default defineConfig({
 		sourcemap: true,
 		rollupOptions: {
 			external: getExternalModules(),
+			output: {
+				banner: (chunk) =>
+					chunk.fileName === 'index.js' ? '#!/usr/bin/env node' : '',
+			},
 		},
 	},
 });
