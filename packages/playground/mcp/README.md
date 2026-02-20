@@ -24,6 +24,21 @@ Add to your Claude Code `.mcp.json` or Claude Desktop `claude_desktop_config.jso
 }
 ```
 
+#### Gemini CLI
+
+Add to `~/.gemini/settings.json` (or `.gemini/settings.json` in your project):
+
+```json
+{
+	"mcpServers": {
+		"wordpress-playground": {
+			"command": "npx",
+			"args": ["@wp-playground/mcp"]
+		}
+	}
+}
+```
+
 ### 2. Open the Playground website
 
 Navigate to https://playground.wordpress.net in your browser. The MCP bridge connects automatically.
