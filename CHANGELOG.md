@@ -4,6 +4,57 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
+## [v3.1.1] (2026-02-18) 
+
+### Bug Fixes
+
+- [CLI] Eliminate duplicate Playground CLI Ready message. ([#3288](https://github.com/WordPress/wordpress-playground/pull/3288))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@brandonpayton
+
+
+## [v3.1.0] (2026-02-18) 
+
+### Bug Fixes
+
+- [CLI] Fix native file locking for Windows within same multi-threaded architecture. ([#3150](https://github.com/WordPress/wordpress-playground/pull/3150))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@brandonpayton
+
+
+## [v3.0.54] (2026-02-18) 
+
+### Blueprints
+
+- Define $_SERVER['HTTP_HOST'] in the enableMultisite step. ([#3214](https://github.com/WordPress/wordpress-playground/pull/3214))
+
+### Tools
+
+- Upgrade NX from 21.3.12 to 22.5.1. ([#3279](https://github.com/WordPress/wordpress-playground/pull/3279))
+- [AI] Add shared Claude Code settings. ([#3277](https://github.com/WordPress/wordpress-playground/pull/3277))
+
+### Various
+
+- Allow publishing npm packages from non-trunk branches. ([#3285](https://github.com/WordPress/wordpress-playground/pull/3285))
+- [docs] Correct "OpenAI" spacing. ([#3280](https://github.com/WordPress/wordpress-playground/pull/3280))
+- [i18n] Add Bengali translation for guides/for-plugin-developers.md. ([#3273](https://github.com/WordPress/wordpress-playground/pull/3273))
+- [i18n] ja translations developer Limitations. ([#3272](https://github.com/WordPress/wordpress-playground/pull/3272))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @bcotrim @bookchiq @JanJakes @noruzzamans @shimotmk
+
+
 ## [v3.0.53] (2026-02-16) 
 
 ### Various

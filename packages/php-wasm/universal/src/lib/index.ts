@@ -98,4 +98,14 @@ export { sandboxedSpawnHandlerFactory } from './sandboxed-spawn-handler-factory'
 
 export * from './api';
 export type { WithAPIState as WithIsReady } from './api';
+export type { NodeProcess } from './comlink-node-process-adapter';
+
+export * from './file-lock-manager';
+export * from './file-lock-manager-in-memory';
+export * from './file-lock-manager-composite';
+export * from './file-lock-interval-tree';
+
 export type { Remote } from './comlink-sync';
+
+export { createObjectPoolProxy } from './object-pool-proxy';
+export type { Pooled } from './object-pool-proxy';
