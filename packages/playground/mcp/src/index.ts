@@ -7,8 +7,8 @@ function getPort(): number {
 	if (portArg) {
 		return Number(portArg.split('=')[1]);
 	}
-	if (process.env.MCP_WS_PORT) {
-		return Number(process.env.MCP_WS_PORT);
+	if (process.env['MCP_WS_PORT']) {
+		return Number(process.env['MCP_WS_PORT']);
 	}
 	return DEFAULT_WS_PORT;
 }
