@@ -1,3 +1,8 @@
+---
+name: playground-website-debugging
+description: Debug the WordPress Playground website by running the dev server from source and interacting with it via Playwright MCP. Use when investigating UI bugs, testing website features, checking for JavaScript errors, debugging hanging requests, or verifying WordPress behavior in the browser-based Playground.
+---
+
 # Playground Dev Server Debugging with Playwright MCP
 
 Debug the WordPress Playground website by running the dev server from source and interacting with it via Playwright MCP.
@@ -7,7 +12,7 @@ Debug the WordPress Playground website by running the dev server from source and
 ## Quick Start
 
 ```bash
-# Use the correct Node version
+# Ensure the correct Node.js version is active as per .nvmrc
 nvm use
 
 # Kill any leftover dev server from a previous run
