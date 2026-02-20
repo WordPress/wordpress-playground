@@ -10,7 +10,7 @@
 const LibraryExample = {
 	// Emscripten dependencies:
 	$PHPWASM__deps: ['$allocateUTF8OnStack'],
-	$PHPWASM__postset: 'PHPWASM.init(PHPLoader?.phpWasmInitOptions);',
+	$PHPWASM__postset: 'PHPWASM.init();',
 
 	// Functions not exposed to C but available in the generated
 	// JavaScript library under the PHPWASM object:
@@ -28,7 +28,84 @@ const LibraryExample = {
 		// emscripten_O_NDELAY |
 		// emscripten_O_DIRECT |
 		// emscripten_O_NOATIME
-		init: function (phpWasmInitOptions) {
+		init: function () {
+			// TODO: Move this to a library function that is made an onInit callback by the `__postset` suffix.
+			if (PHPLoader.bindUserSpace) {
+				/**
+				 * We need to add an onInit callback to bind the user-space API
+				 * because some dependencies like wasmImports and wasmExports
+				 * are not yet assigned.
+				 */
+				addOnInit(() => {
+					if (typeof PHPLoader.processId !== 'number') {
+						throw new Error(
+							'PHPLoader.processId must be set before init'
+						);
+					}
+					Module['userSpace'] = PHPLoader.bindUserSpace({
+						pid: PHPLoader.processId,
+						constants: {
+							F_GETFL: Number('{{{cDefs.F_GETFL}}}'),
+							O_ACCMODE: Number('{{{cDefs.O_ACCMODE}}}'),
+							O_RDONLY: Number('{{{cDefs.O_RDONLY}}}'),
+							O_WRONLY: Number('{{{cDefs.O_WRONLY}}}'),
+							O_APPEND: Number('{{{cDefs.O_APPEND}}}'),
+							O_NONBLOCK: Number('{{{cDefs.O_NONBLOCK}}}'),
+							F_SETFL: Number('{{{cDefs.F_SETFL}}}'),
+							F_GETLK: Number('{{{cDefs.F_GETLK}}}'),
+							F_SETLK: Number('{{{cDefs.F_SETLK}}}'),
+							F_SETLKW: Number('{{{cDefs.F_SETLKW}}}'),
+							SEEK_SET: Number('{{{cDefs.SEEK_SET}}}'),
+							SEEK_CUR: Number('{{{cDefs.SEEK_CUR}}}'),
+							SEEK_END: Number('{{{cDefs.SEEK_END}}}'),
+							F_GETFL: Number('{{{cDefs.F_GETFL}}}'),
+							O_ACCMODE: Number('{{{cDefs.O_ACCMODE}}}'),
+							O_RDONLY: Number('{{{cDefs.O_RDONLY}}}'),
+							O_WRONLY: Number('{{{cDefs.O_WRONLY}}}'),
+							O_APPEND: Number('{{{cDefs.O_APPEND}}}'),
+							O_NONBLOCK: Number('{{{cDefs.O_NONBLOCK}}}'),
+							F_SETFL: Number('{{{cDefs.F_SETFL}}}'),
+							F_GETLK: Number('{{{cDefs.F_GETLK}}}'),
+							F_SETLK: Number('{{{cDefs.F_SETLK}}}'),
+							F_SETLKW: Number('{{{cDefs.F_SETLKW}}}'),
+							SEEK_SET: Number('{{{cDefs.SEEK_SET}}}'),
+							SEEK_CUR: Number('{{{cDefs.SEEK_CUR}}}'),
+							SEEK_END: Number('{{{cDefs.SEEK_END}}}'),
+							// From:
+							// https://github.com/emscripten-core/emscripten/blob/66d2137b0381ac35f7e2346b2d6a90abd0f1211a/system/lib/libc/musl/include/fcntl.h#L58-L60
+							F_RDLCK: 0,
+							F_WRLCK: 1,
+							F_UNLCK: 2,
+							// From:
+							// https://github.com/emscripten-core/emscripten/blob/81bbaa42a7827d88a71bd89701245052c622428c/system/lib/libc/musl/include/sys/file.h#L7-L10
+							LOCK_SH: 1,
+							LOCK_EX: 2,
+							LOCK_NB: 4, // Non-blocking lock
+							LOCK_UN: 8, // Unlock
+						},
+						errnoCodes: ERRNO_CODES,
+						memory: {
+							HEAP8,
+							HEAPU8,
+							HEAP16,
+							HEAPU16,
+							HEAP32,
+							HEAPU32,
+							HEAPF32,
+							HEAP64,
+							HEAPU64,
+							HEAPF64,
+						},
+						wasmImports,
+						wasmExports,
+						syscalls: SYSCALLS,
+						FS,
+						PROXYFS,
+						NODEFS,
+					});
+				});
+			}
+
 			Module['ENV'] = Module['ENV'] || {};
 			// Ensure a platform-level bin directory for a fallback `php` binary.
 			Module['ENV']['PATH'] = [
@@ -47,10 +124,10 @@ const LibraryExample = {
 			// and contains the php.ini, constants definitions, etc.
 			FS.mkdir('/internal');
 
-			if (phpWasmInitOptions?.nativeInternalDirPath) {
+			if (PHPLoader.nativeInternalDirPath) {
 				FS.mount(
 					FS.filesystems.NODEFS,
-					{ root: phpWasmInitOptions.nativeInternalDirPath },
+					{ root: PHPLoader.nativeInternalDirPath },
 					'/internal'
 				);
 			}

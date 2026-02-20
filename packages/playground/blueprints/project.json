@@ -3,6 +3,7 @@
 	"$schema": "../../../node_modules/nx/schemas/project-schema.json",
 	"sourceRoot": "packages/playground/blueprints/src",
 	"projectType": "library",
+	"tags": [],
 	"targets": {
 		"build": {
 			"executor": "nx:noop",
@@ -80,7 +81,7 @@
 			"dependsOn": ["build"]
 		},
 		"test:vite": {
-			"executor": "@nx/vite:test",
+			"executor": "@nx/vitest:test",
 			"outputs": [
 				"{workspaceRoot}/coverage/packages/playground/blueprints"
 			],
@@ -107,6 +108,5 @@
 				]
 			}
 		}
-	},
-	"tags": []
+	}
 }

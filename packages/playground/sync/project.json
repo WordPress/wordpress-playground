@@ -72,7 +72,7 @@
 			}
 		},
 		"test": {
-			"executor": "@nx/vite:test",
+			"executor": "@nx/vitest:test",
 			"outputs": ["{workspaceRoot}/coverage/packages/playground/sync"],
 			"options": {
 				"passWithNoTests": true,

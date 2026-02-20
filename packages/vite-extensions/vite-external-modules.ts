@@ -3,7 +3,9 @@ import packageJson from '../../package.json';
 const deps = [
 	...Object.keys(packageJson.dependencies || {}),
 	...Object.keys(packageJson.devDependencies || {}),
-	...Object.keys(packageJson.optionalDependencies || {}),
+	// NOTE: We may or may not currently have optionalDependencies,
+	// but let's make sure we handle them when they exist.
+	...Object.keys((packageJson as any).optionalDependencies || {}),
 ];
 export const getExternalModules = () => {
 	return [
@@ -18,10 +20,13 @@ export const getExternalModules = () => {
 		'node:fs/promises',
 		'fs-extra',
 		'module',
+		'fs-ext-extra-prebuilt',
 		'path',
 		'child_process',
 		'http',
 		'path',
+		'stream',
+		'stream/promises',
 		'tls',
 		'util',
 		'dns',

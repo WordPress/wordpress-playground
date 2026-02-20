@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { PHPRequestHandler } from './php-request-handler';
-import { PHPResponse } from './php-response';
+import { PHPResponse, StreamedPHPResponse } from './php-response';
 import type { PHP } from './php';
 
 /**
@@ -31,6 +31,17 @@ function createMockPHP(filesystem: Map<string, 'file' | 'dir'>) {
 					200,
 					{ 'Content-Type': ['text/html'] },
 					new Uint8Array(Buffer.from('<?php response'))
+				)
+			)
+		),
+		runStream: vi.fn(() =>
+			Promise.resolve(
+				StreamedPHPResponse.fromPHPResponse(
+					new PHPResponse(
+						200,
+						{ 'Content-Type': ['text/html'] },
+						new Uint8Array(Buffer.from('<?php response'))
+					)
 				)
 			)
 		),
@@ -278,6 +289,264 @@ describe('PHPRequestHandler', () => {
 			expect(response.httpStatusCode).toBe(200);
 			expect(response.text).toBe(cssContent);
 			expect(response.headers['content-type']).toEqual(['text/css']);
+		});
+	});
+
+	describe('requestStreamed', () => {
+		it('returns a StreamedPHPResponse for PHP files', async () => {
+			const filesystem = new Map<string, 'file' | 'dir'>([
+				['/www', 'dir'],
+				['/www/index.php', 'file'],
+			]);
+			const mockPHP = createMockPHP(filesystem);
+
+			const handler = new PHPRequestHandler({
+				php: mockPHP,
+				documentRoot: '/www',
+				absoluteUrl: 'http://localhost/',
+			});
+
+			const response = await handler.requestStreamed({
+				url: '/index.php',
+			});
+
+			expect(response).toBeInstanceOf(StreamedPHPResponse);
+		});
+
+		it('returns a StreamedPHPResponse for static files', async () => {
+			const filesystem = new Map<string, 'file' | 'dir'>([
+				['/www', 'dir'],
+				['/www/style.css', 'file'],
+			]);
+			const mockPHP = createMockPHP(filesystem);
+
+			const handler = new PHPRequestHandler({
+				php: mockPHP,
+				documentRoot: '/www',
+				absoluteUrl: 'http://localhost/',
+			});
+
+			const response = await handler.requestStreamed({
+				url: '/style.css',
+			});
+
+			expect(response).toBeInstanceOf(StreamedPHPResponse);
+		});
+
+		it('returns a StreamedPHPResponse for 404s', async () => {
+			const filesystem = new Map<string, 'file' | 'dir'>([
+				['/www', 'dir'],
+			]);
+			const mockPHP = createMockPHP(filesystem);
+
+			const handler = new PHPRequestHandler({
+				php: mockPHP,
+				documentRoot: '/www',
+				absoluteUrl: 'http://localhost/',
+			});
+
+			const response = await handler.requestStreamed({
+				url: '/nonexistent.txt',
+			});
+
+			expect(response).toBeInstanceOf(StreamedPHPResponse);
+			expect(await response.httpStatusCode).toBe(404);
+		});
+
+		it('returns a StreamedPHPResponse for directory redirects (301)', async () => {
+			const filesystem = new Map<string, 'file' | 'dir'>([
+				['/www', 'dir'],
+				['/www/subdir', 'dir'],
+				['/www/subdir/', 'dir'],
+				['/www/subdir/index.php', 'file'],
+			]);
+			const mockPHP = createMockPHP(filesystem);
+
+			const handler = new PHPRequestHandler({
+				php: mockPHP,
+				documentRoot: '/www',
+				absoluteUrl: 'http://localhost/',
+			});
+
+			const response = await handler.requestStreamed({
+				url: '/subdir',
+			});
+
+			expect(response).toBeInstanceOf(StreamedPHPResponse);
+			expect(await response.httpStatusCode).toBe(301);
+		});
+
+		it('static file content is accessible via stdoutBytes', async () => {
+			const cssContent = 'body { margin: 0; }';
+			const filesystem = new Map<string, 'file' | 'dir'>([
+				['/www', 'dir'],
+				['/www/app.css', 'file'],
+			]);
+			const mockPHP = createMockPHP(filesystem);
+			(
+				mockPHP.readFileAsBuffer as ReturnType<typeof vi.fn>
+			).mockImplementation((path: string) => {
+				if (path === '/www/app.css') {
+					return new Uint8Array(Buffer.from(cssContent));
+				}
+				throw new Error(`File not found: ${path}`);
+			});
+
+			const handler = new PHPRequestHandler({
+				php: mockPHP,
+				documentRoot: '/www',
+				absoluteUrl: 'http://localhost/',
+			});
+
+			const response = await handler.requestStreamed({
+				url: '/app.css',
+			});
+
+			const text = await response.stdoutText;
+			expect(text).toBe(cssContent);
+		});
+
+		it('returns correct content-type header for CSS files', async () => {
+			const filesystem = new Map<string, 'file' | 'dir'>([
+				['/www', 'dir'],
+				['/www/style.css', 'file'],
+			]);
+			const mockPHP = createMockPHP(filesystem);
+
+			const handler = new PHPRequestHandler({
+				php: mockPHP,
+				documentRoot: '/www',
+				absoluteUrl: 'http://localhost/',
+			});
+
+			const response = await handler.requestStreamed({
+				url: '/style.css',
+			});
+
+			const headers = await response.headers;
+			expect(headers['content-type']).toEqual(['text/css']);
+		});
+
+		it('returns correct content-type header for JS files', async () => {
+			const filesystem = new Map<string, 'file' | 'dir'>([
+				['/www', 'dir'],
+				['/www/app.js', 'file'],
+			]);
+			const mockPHP = createMockPHP(filesystem);
+
+			const handler = new PHPRequestHandler({
+				php: mockPHP,
+				documentRoot: '/www',
+				absoluteUrl: 'http://localhost/',
+			});
+
+			const response = await handler.requestStreamed({
+				url: '/app.js',
+			});
+
+			const headers = await response.headers;
+			expect(headers['content-type']).toEqual(['application/javascript']);
+		});
+
+		it('returns correct content-type header for image files', async () => {
+			const filesystem = new Map<string, 'file' | 'dir'>([
+				['/www', 'dir'],
+				['/www/logo.png', 'file'],
+			]);
+			const mockPHP = createMockPHP(filesystem);
+
+			const handler = new PHPRequestHandler({
+				php: mockPHP,
+				documentRoot: '/www',
+				absoluteUrl: 'http://localhost/',
+			});
+
+			const response = await handler.requestStreamed({
+				url: '/logo.png',
+			});
+
+			const headers = await response.headers;
+			expect(headers['content-type']).toEqual(['image/png']);
+		});
+	});
+
+	describe('request() integration', () => {
+		it('returns a buffered PHPResponse', async () => {
+			const filesystem = new Map<string, 'file' | 'dir'>([
+				['/www', 'dir'],
+				['/www/index.php', 'file'],
+			]);
+			const mockPHP = createMockPHP(filesystem);
+
+			const handler = new PHPRequestHandler({
+				php: mockPHP,
+				documentRoot: '/www',
+				absoluteUrl: 'http://localhost/',
+			});
+
+			const response = await handler.request({
+				url: '/index.php',
+			});
+
+			expect(response).toBeInstanceOf(PHPResponse);
+		});
+
+		it('result has all expected fields populated', async () => {
+			const filesystem = new Map<string, 'file' | 'dir'>([
+				['/www', 'dir'],
+				['/www/index.php', 'file'],
+			]);
+			const mockPHP = createMockPHP(filesystem);
+
+			const handler = new PHPRequestHandler({
+				php: mockPHP,
+				documentRoot: '/www',
+				absoluteUrl: 'http://localhost/',
+			});
+
+			const response = await handler.request({
+				url: '/index.php',
+			});
+
+			expect(response.httpStatusCode).toBeDefined();
+			expect(response.headers).toBeDefined();
+			expect(response.bytes).toBeInstanceOf(Uint8Array);
+			expect(typeof response.exitCode).toBe('number');
+		});
+
+		it('rewrites HTTP status to 500 when exit code is non-zero', async () => {
+			const filesystem = new Map<string, 'file' | 'dir'>([
+				['/www', 'dir'],
+				['/www/index.php', 'file'],
+			]);
+			const mockPHP = createMockPHP(filesystem);
+			// Override runStream to return a 200 response with non-zero exit code
+			mockPHP.runStream = vi.fn(() =>
+				Promise.resolve(
+					StreamedPHPResponse.fromPHPResponse(
+						new PHPResponse(
+							200,
+							{ 'Content-Type': ['text/html'] },
+							new Uint8Array(Buffer.from('partial output')),
+							'Fatal error',
+							1
+						)
+					)
+				)
+			) as any;
+
+			const handler = new PHPRequestHandler({
+				php: mockPHP,
+				documentRoot: '/www',
+				absoluteUrl: 'http://localhost/',
+			});
+
+			const response = await handler.request({
+				url: '/index.php',
+			});
+
+			expect(response.httpStatusCode).toBe(500);
+			expect(response.exitCode).toBe(1);
 		});
 	});
 });
