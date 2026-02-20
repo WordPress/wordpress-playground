@@ -11,7 +11,7 @@
 	"remoteEnv": {
 		"VITE_DEVCONTAINER": "true"
 	},
-	"postCreateCommand": "git submodule update --init --recursive; npm install",
+	"postCreateCommand": "echo \". $PWD/.devcontainer/welcome.sh\" >> /home/node/.bashrc; git submodule update --init --recursive; npm install",
 	"appPort": ["127.0.0.1:5400:5400", "127.0.0.1:9400:9400"],
 	"customizations": {
 		"vscode": {
