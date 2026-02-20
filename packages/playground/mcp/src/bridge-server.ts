@@ -57,7 +57,7 @@ export class PlaygroundBridge {
 
 	startWebSocketServer(port = DEFAULT_WS_PORT): Promise<WebSocketServer> {
 		return new Promise((resolve, reject) => {
-			const wss = new WebSocketServer({ port });
+			const wss = new WebSocketServer({ port, host: '127.0.0.1' });
 			this.wss = wss;
 
 			wss.on('error', (error: NodeJS.ErrnoException) => {
@@ -277,9 +277,24 @@ export class PlaygroundBridge {
 
 		const id = String(++this.requestId);
 		return new Promise((resolve, reject) => {
+			const timeoutMs = 300_000;
+			const timeout = setTimeout(() => {
+				this.pendingRequests.delete(id);
+				reject(
+					new Error(
+						`Command "${method}" timed out after ${timeoutMs / 1000} seconds`
+					)
+				);
+			}, timeoutMs);
 			this.pendingRequests.set(id, {
-				resolve,
-				reject,
+				resolve: (value: unknown) => {
+					clearTimeout(timeout);
+					resolve(value);
+				},
+				reject: (error: Error) => {
+					clearTimeout(timeout);
+					reject(error);
+				},
 				tabId: targetTabId,
 			});
 			ws.send(

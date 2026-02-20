@@ -73,10 +73,13 @@ startListening({
 			},
 		});
 
-		// Notify the bridge on every action so it can diff the
-		// site list and re-register when something changed.
+		// Notify the bridge when site-related state changes so it
+		// can diff the site list and re-register when needed.
 		startListening({
-			predicate: () => true,
+			predicate: (action) =>
+				typeof action.type === 'string' &&
+				(action.type.startsWith('sites/') ||
+					action.type === 'ui/setActiveSite'),
 			effect: () => {
 				handle.notifySitesChanged();
 			},

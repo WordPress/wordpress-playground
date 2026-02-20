@@ -37,6 +37,7 @@
 	},
 	"dependencies": {
 		"@modelcontextprotocol/sdk": "^1.27.0",
+		"ws": "^8.18.0",
 		"zod": "^4.3"
 	}
 }

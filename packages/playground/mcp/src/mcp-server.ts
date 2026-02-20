@@ -4,8 +4,6 @@ import { registerSiteManagementTools } from './tools/site-management';
 import { registerCodeExecutionTools } from './tools/code-execution';
 import { registerFilesystemTools } from './tools/filesystem';
 
-export { decodeResponseBytes } from './tools/utils';
-
 export function createServer(): McpServer {
 	return new McpServer({
 		name: 'wordpress-playground',

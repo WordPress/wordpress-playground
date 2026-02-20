@@ -6,6 +6,10 @@ MCP server that connects AI providers to a WordPress Playground running in the b
 
 ### 1. Configure your MCP client
 
+Pick the configuration for your AI tool:
+
+#### Claude Code / Claude Desktop
+
 Add to your Claude Code `.mcp.json` or Claude Desktop `claude_desktop_config.json`:
 
 ```json
@@ -20,15 +24,9 @@ Add to your Claude Code `.mcp.json` or Claude Desktop `claude_desktop_config.jso
 }
 ```
 
-Restart your client to pick up the configuration.
-
 ### 2. Open the Playground website
 
-Navigate to https://playground.wordpress.net in your browser. The MCP bridge connects automatically — check the browser console for:
-
-```
-[MCP Bridge] Connected to MCP server
-```
+Navigate to https://playground.wordpress.net in your browser. The MCP bridge connects automatically.
 
 ## Development
 
@@ -62,23 +60,20 @@ Replace `ABS_PATH_TO_PLAYGROUND` with the absolute path to your local checkout o
 
 ### 3. Open the Playground website
 
-Navigate to http://127.0.0.1:5400/website-server/ in your browser. The MCP bridge connects automatically — check the browser console for:
-
-```
-[MCP Bridge] Connected to MCP server
-```
+Navigate to http://127.0.0.1:5400/website-server/ in your browser. The MCP bridge connects automatically.
 
 ## How it works
 
 ```
-Claude (stdio) → MCP Server (Node.js, port 7999 WebSocket)
-                       ↕
-                 Browser (Playground website)
-                   └── mcp-bridge.ts → window.playground (PlaygroundClient)
+AI Client (stdio) → MCP Server (Node.js) → WebSocket (port 7999) → Browser (Playground website)
 ```
 
-The MCP server communicates with Claude via stdio and with the browser via WebSocket. A bridge script in `remote.html` auto-connects to the MCP WebSocket server and proxies commands to the PlaygroundClient API.
+The MCP server communicates with AI clients via stdio and with the browser via WebSocket. A bridge client (`bridge-client.ts`) integrated into the Playground website via Redux middleware auto-connects to the WebSocket server and proxies commands to the PlaygroundClient API.
 
 ## Available tools
 
-- `playground_list_sites` — List all connected sites, check connectivity, and discover site IDs required by all other tools.
+**Site management**: `playground_list_sites`, `playground_open_site`, `playground_rename_site`, `playground_save_site`, `playground_get_site_info`, `playground_navigate`
+
+**Code execution**: `playground_execute_php`, `playground_request`
+
+**Filesystem**: `playground_read_file`, `playground_write_file`, `playground_list_files`, `playground_mkdir`, `playground_delete_file`, `playground_delete_directory`

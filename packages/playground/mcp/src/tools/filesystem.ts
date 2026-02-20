@@ -24,7 +24,7 @@ export const registerFilesystemTools: ToolRegistrar = (server, bridge) => {
 			annotations: {
 				readOnlyHint: true,
 				destructiveHint: false,
-				openWorldHint: false,
+				openWorldHint: true,
 			},
 		},
 		async ({ siteId, path }) => {
@@ -73,7 +73,7 @@ export const registerFilesystemTools: ToolRegistrar = (server, bridge) => {
 				readOnlyHint: false,
 				destructiveHint: true,
 				idempotentHint: false,
-				openWorldHint: false,
+				openWorldHint: true,
 			},
 		},
 		async ({ siteId, path, contents }) => {
@@ -112,7 +112,7 @@ export const registerFilesystemTools: ToolRegistrar = (server, bridge) => {
 			annotations: {
 				readOnlyHint: true,
 				destructiveHint: false,
-				openWorldHint: false,
+				openWorldHint: true,
 			},
 		},
 		async ({ siteId, path }) => {
@@ -154,7 +154,7 @@ export const registerFilesystemTools: ToolRegistrar = (server, bridge) => {
 				readOnlyHint: false,
 				destructiveHint: false,
 				idempotentHint: true,
-				openWorldHint: false,
+				openWorldHint: true,
 			},
 		},
 		async ({ siteId, path }) => {
@@ -187,7 +187,7 @@ export const registerFilesystemTools: ToolRegistrar = (server, bridge) => {
 				readOnlyHint: false,
 				destructiveHint: true,
 				idempotentHint: false,
-				openWorldHint: false,
+				openWorldHint: true,
 			},
 		},
 		async ({ siteId, path }) => {
@@ -236,7 +236,7 @@ export const registerFilesystemTools: ToolRegistrar = (server, bridge) => {
 				readOnlyHint: false,
 				destructiveHint: true,
 				idempotentHint: false,
-				openWorldHint: false,
+				openWorldHint: true,
 			},
 		},
 		async ({ siteId, path, recursive }) => {

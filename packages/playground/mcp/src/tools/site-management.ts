@@ -23,7 +23,7 @@ export const registerSiteManagementTools: ToolRegistrar = (server, bridge) => {
 			annotations: {
 				readOnlyHint: true,
 				destructiveHint: false,
-				openWorldHint: false,
+				openWorldHint: true,
 			},
 		},
 		async () => {
@@ -79,7 +79,7 @@ export const registerSiteManagementTools: ToolRegistrar = (server, bridge) => {
 				readOnlyHint: false,
 				destructiveHint: false,
 				idempotentHint: false,
-				openWorldHint: false,
+				openWorldHint: true,
 			},
 		},
 		async ({ siteId }) => {
@@ -121,7 +121,7 @@ export const registerSiteManagementTools: ToolRegistrar = (server, bridge) => {
 				readOnlyHint: false,
 				destructiveHint: false,
 				idempotentHint: true,
-				openWorldHint: false,
+				openWorldHint: true,
 			},
 		},
 		async ({ siteId, newName }) => {
@@ -166,7 +166,7 @@ export const registerSiteManagementTools: ToolRegistrar = (server, bridge) => {
 				readOnlyHint: false,
 				destructiveHint: false,
 				idempotentHint: true,
-				openWorldHint: false,
+				openWorldHint: true,
 			},
 		},
 		async ({ siteId }) => {
@@ -233,7 +233,7 @@ export const registerSiteManagementTools: ToolRegistrar = (server, bridge) => {
 			annotations: {
 				readOnlyHint: true,
 				destructiveHint: false,
-				openWorldHint: false,
+				openWorldHint: true,
 			},
 		},
 		async ({ siteId }) => {
@@ -308,7 +308,7 @@ export const registerSiteManagementTools: ToolRegistrar = (server, bridge) => {
 				readOnlyHint: false,
 				destructiveHint: false,
 				idempotentHint: false,
-				openWorldHint: false,
+				openWorldHint: true,
 			},
 		},
 		async ({ siteId, path }) => {
