@@ -1,13 +1,10 @@
-import type { FileLockManager } from '@php-wasm/node';
+import type { FileLockManager } from '@php-wasm/universal';
 import { loadNodeRuntime } from '@php-wasm/node';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
-import type {
-	PathAlias,
-	RemoteAPI,
-	SupportedPHPVersion,
-} from '@php-wasm/universal';
+import type { PathAlias, SupportedPHPVersion } from '@php-wasm/universal';
 import {
 	PHPWorker,
+	releaseApiProxy,
 	consumeAPI,
 	consumeAPISync,
 	exposeAPI,
@@ -18,10 +15,9 @@ import { RecommendedPHPVersion } from '@wp-playground/common';
 import {
 	type WordPressInstallMode,
 	bootRequestHandler,
-	bootWordPressAndRequestHandler,
+	bootWordPress,
 } from '@wp-playground/wordpress';
 import { rootCertificates } from 'tls';
-import { jspi } from 'wasm-feature-detect';
 import { MessageChannel, type MessagePort, parentPort } from 'worker_threads';
 import { mountResources } from '../mounts';
 import { logger } from '@php-wasm/logger';
@@ -29,58 +25,28 @@ import { spawnWorkerThread } from '../run-cli';
 
 import type { Mount } from '@php-wasm/cli-util';
 
-export type WorkerBootOptions = {
-	phpVersion: SupportedPHPVersion;
+export type WorkerBootWordPressOptions = {
 	siteUrl: string;
-	mountsBeforeWpInstall: Array<Mount>;
-	mountsAfterWpInstall: Array<Mount>;
-	firstProcessId: number;
-	processIdSpaceLength: number;
-	followSymlinks: boolean;
-	trace: boolean;
-	/**
-	 * When true, Playground will not send cookies to the client but will manage
-	 * them internally. This can be useful in environments that can't store cookies,
-	 * e.g. VS Code WebView.
-	 *
-	 * Default: false.
-	 */
-	internalCookieStore?: boolean;
-	withIntl?: boolean;
-	withRedis?: boolean;
-	withMemcached?: boolean;
-	withXdebug?: boolean;
-	nativeInternalDirPath: string;
-	/**
-	 * PHP constants to define via php.defineConstant().
-	 * Process-specific, set for each PHP instance.
-	 */
-	constants?: Record<string, string | number | boolean | null>;
-	/**
-	 * Path aliases that map URL prefixes to filesystem paths outside
-	 * the document root. Similar to Nginx's `alias` directive.
-	 */
-	pathAliases?: PathAlias[];
-};
-
-export type PrimaryWorkerBootOptions = WorkerBootOptions & {
-	wordpressInstallMode: WordPressInstallMode;
 	wpVersion?: string;
+	wordpressInstallMode: WordPressInstallMode;
 	wordPressZip?: ArrayBuffer;
 	sqliteIntegrationPluginZip?: ArrayBuffer;
 	dataSqlPath?: string;
+	/**
+	 * PHP constants to define via php.defineConstant().
+	 */
+	constants?: Record<string, string | number | boolean>;
 };
 
 interface WorkerBootRequestHandlerOptions {
 	siteUrl: string;
-	followSymlinks: boolean;
 	phpVersion: SupportedPHPVersion;
-	firstProcessId: number;
-	processIdSpaceLength: number;
+	processId: number;
 	trace: boolean;
 	nativeInternalDirPath: string;
 	mountsBeforeWpInstall: Array<Mount>;
 	mountsAfterWpInstall: Array<Mount>;
+	followSymlinks: boolean;
 	withIntl?: boolean;
 	withRedis?: boolean;
 	withMemcached?: boolean;
@@ -105,8 +71,9 @@ function tracePhpWasm(processId: number, format: string, ...args: any[]) {
 }
 
 export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
-	booted = false;
-	fileLockManager: RemoteAPI<FileLockManager> | FileLockManager | undefined;
+	bootedRequestHandler = false;
+	bootedWordPress = false;
+	fileLockManager: FileLockManager | undefined;
 
 	constructor(monitor: EmscriptenDownloadMonitor) {
 		super(undefined, monitor);
@@ -122,58 +89,29 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 	 * @see phpwasm-emscripten-library-file-locking-for-node.js
 	 */
 	async useFileLockManager(port: MessagePort) {
-		if (await jspi()) {
-			/**
-			 * If JSPI is available, php.js supports both synchronous and asynchronous locking syscalls.
-			 * Web browsers, however, only support asynchronous message passing so let's use the
-			 * asynchronous API. Every method call will return a promise.
-			 *
-			 * @see comlink-sync.ts
-			 * @see phpwasm-emscripten-library-file-locking-for-node.js
-			 */
-			this.fileLockManager = consumeAPI<FileLockManager>(port);
-		} else {
-			/**
-			 * If JSPI is not available, php.js only supports synchronous locking syscalls.
-			 * Let's use the synchronous API. Every method call will block this thread
-			 * until the result is available.
-			 *
-			 * @see comlink-sync.ts
-			 * @see phpwasm-emscripten-library-file-locking-for-node.js
-			 */
-			this.fileLockManager = await consumeAPISync<FileLockManager>(port);
-		}
+		this.fileLockManager = await consumeAPISync<FileLockManager>(port);
 	}
 
-	async bootAndSetUpInitialWorker(options: PrimaryWorkerBootOptions) {
+	async bootWordPress(
+		options: WorkerBootWordPressOptions,
+		workerPostInstallMountsPort: MessagePort
+	) {
+		if (this.bootedWordPress) {
+			throw new Error('WordPress already booted');
+		}
+		this.bootedWordPress = true;
 		const {
 			siteUrl,
-			mountsBeforeWpInstall,
-			mountsAfterWpInstall,
 			wordpressInstallMode,
 			wordPressZip,
 			sqliteIntegrationPluginZip,
 			dataSqlPath,
-			internalCookieStore,
+			constants,
 		} = options;
-		if (this.booted) {
-			throw new Error('Playground already booted');
-		}
-		this.booted = true;
 
 		try {
-			// Start with CLI-provided constants (if any)
-			const constants: Record<string, string | number | boolean | null> =
-				{
-					...(options.constants || {}),
-				};
-			let wordpressBooted = false;
-			const requestHandler = await bootWordPressAndRequestHandler({
+			await bootWordPress(this.__internal_getRequestHandler()!, {
 				siteUrl,
-				createPhpRuntime: createPhpRuntimeFactory(
-					options,
-					this.fileLockManager!
-				),
 				wordpressInstallMode,
 				wordPressZip:
 					wordPressZip !== undefined
@@ -186,42 +124,26 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 								'sqlite-integration-plugin.zip'
 							)
 						: undefined,
-				sapiName: 'cli',
+				// TODO: Are these redundant creations?
 				createFiles: {
 					'/internal/shared/ca-bundle.crt':
 						rootCertificates.join('\n'),
 				},
-				constants,
 				phpIniEntries: {
 					'openssl.cafile': '/internal/shared/ca-bundle.crt',
 					allow_url_fopen: '1',
 					disable_functions: '',
 				},
-				cookieStore: internalCookieStore ? undefined : false,
 				dataSqlPath,
-				pathAliases: options.pathAliases,
-				spawnHandler: () =>
-					sandboxedSpawnHandlerFactory(() =>
-						createPHPWorker(options, this.fileLockManager!)
-					),
-				async onPHPInstanceCreated(php) {
-					await mountResources(php, mountsBeforeWpInstall);
-					if (wordpressBooted) {
-						await mountResources(php, mountsAfterWpInstall);
-					}
-				},
+				constants,
 			});
-			this.__internal_setRequestHandler(requestHandler);
-			wordpressBooted = true;
 
-			const primaryPhp = await requestHandler.getPrimaryPhp();
-			await this.setPrimaryPHP(primaryPhp);
-
-			// The primary PHP instance is persistent, so we need to apply
-			// post-install mounts now that WordPress has been booted.
-			// All secondary PHP instances created after WP boot will get
-			// these mounts automatically.
-			await mountResources(primaryPhp, mountsAfterWpInstall);
+			// Notify all workers to apply post-install mounts.
+			const postInstall = consumeAPI<{
+				applyPostInstallMountsToAllWorkers: () => Promise<void>;
+			}>(workerPostInstallMountsPort);
+			await postInstall.applyPostInstallMountsToAllWorkers();
+			postInstall[releaseApiProxy]();
 
 			setApiReady();
 		} catch (e) {
@@ -230,38 +152,51 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 		}
 	}
 
-	async hello() {
-		return 'hello';
-	}
-
-	async bootWorker(args: WorkerBootOptions) {
-		await this.bootRequestHandler(args);
-	}
-
 	async bootRequestHandler(options: WorkerBootRequestHandlerOptions) {
-		if (this.booted) {
+		if (this.bootedRequestHandler) {
 			throw new Error('Playground already booted');
 		}
-		this.booted = true;
+		this.bootedRequestHandler = true;
 
 		try {
 			const requestHandler = await bootRequestHandler({
 				siteUrl: options.siteUrl,
+				maxPhpInstances: 1,
 				createPhpRuntime: createPhpRuntimeFactory(
 					options,
 					this.fileLockManager!
 				),
 				onPHPInstanceCreated: async (php) => {
 					await mountResources(php, options.mountsBeforeWpInstall);
-					await mountResources(php, options.mountsAfterWpInstall);
+
+					// NOTE: We currently create all request workers up front
+					// and apply post-install mounts to all the workers immediately
+					// following WordPress install. But if we start creating
+					// request-handling workers on-demand, we will to apply post-install
+					// mounts here.
+					if (this.bootedWordPress) {
+						await mountResources(php, options.mountsAfterWpInstall);
+					}
 				},
 				sapiName: 'cli',
 				cookieStore: false,
 				pathAliases: options.pathAliases,
 				spawnHandler: () =>
-					sandboxedSpawnHandlerFactory(() =>
-						createPHPWorker(options, this.fileLockManager!)
-					),
+					sandboxedSpawnHandlerFactory(() => {
+						let effectiveOptions = options;
+						if (!this.bootedWordPress) {
+							// WordPress is not yet booted so skip the post-install mounts.
+							effectiveOptions = {
+								...options,
+								mountsAfterWpInstall: [],
+							};
+						}
+
+						return createPHPWorker(
+							effectiveOptions,
+							this.fileLockManager!
+						);
+					}),
 			});
 			this.__internal_setRequestHandler(requestHandler);
 
@@ -273,6 +208,14 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 			setAPIError(e as Error);
 			throw e;
 		}
+	}
+
+	async mountAfterWordPressInstall(mounts: Array<Mount>) {
+		// Make sure workers not involved in the WordPress install
+		// process know whether WordPress booted so they can
+		// apply post-install mounts when spawning new PHP workers.
+		this.bootedWordPress = true;
+		await mountResources(this.__internal_getPHP()!, mounts);
 	}
 
 	// Provide a named disposal method that can be invoked via comlink.
@@ -287,31 +230,17 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
  */
 function createPhpRuntimeFactory(
 	options: WorkerBootRequestHandlerOptions,
-	fileLockManager: FileLockManager | RemoteAPI<FileLockManager>
+	fileLockManager: FileLockManager
 ) {
-	let nextProcessId = options.firstProcessId;
-	const lastProcessId =
-		options.firstProcessId + options.processIdSpaceLength - 1;
 	return async () => {
-		const processId = nextProcessId;
-
-		if (nextProcessId < lastProcessId) {
-			nextProcessId++;
-		} else {
-			// We've reached the end of the process ID space. Start over.
-			nextProcessId = options.firstProcessId;
-		}
-
 		return await loadNodeRuntime(
 			options.phpVersion || RecommendedPHPVersion,
 			{
+				fileLockManager,
 				emscriptenOptions: {
-					fileLockManager,
-					processId,
+					processId: options.processId,
 					trace: options.trace ? tracePhpWasm : undefined,
-					phpWasmInitOptions: {
-						nativeInternalDirPath: options.nativeInternalDirPath,
-					},
+					nativeInternalDirPath: options.nativeInternalDirPath,
 				},
 				followSymlinks: options.followSymlinks,
 				withIntl: options.withIntl,
@@ -341,8 +270,11 @@ function createPhpRuntimeFactory(
  * @returns A promise that resolves to the PHP worker.
  */
 async function createPHPWorker(
-	options: WorkerBootRequestHandlerOptions,
-	fileLockManager: FileLockManager | RemoteAPI<FileLockManager>
+	// NOTE: We explicitly remove processId from the options
+	// type so the type system will catch if we try to reuse
+	// our parent's process ID.
+	options: Omit<WorkerBootRequestHandlerOptions, 'processId'>,
+	fileLockManager: FileLockManager
 ) {
 	const spawnedWorker = await spawnWorkerThread('v1');
 
@@ -350,7 +282,10 @@ async function createPHPWorker(
 		spawnedWorker.phpPort
 	);
 	handler.useFileLockManager(fileLockManager as any);
-	await handler.bootWorker(options);
+	await handler.bootRequestHandler({
+		...options,
+		processId: spawnedWorker.processId,
+	});
 
 	return {
 		php: handler,

@@ -1,14 +1,19 @@
-import type {
-	SupportedPHPVersion,
-	EmscriptenOptions,
-	PHPRuntime,
-	RemoteAPI,
+import {
+	type SupportedPHPVersion,
+	type EmscriptenOptions,
+	type PHPRuntime,
+	type FileLockManager,
+	loadPHPRuntime,
+	FSHelpers,
+	FileLockManagerComposite,
 } from '@php-wasm/universal';
-import { loadPHPRuntime, FSHelpers } from '@php-wasm/universal';
+import type { WasmUserSpaceAPI, WasmUserSpaceContext } from './wasm-user-space';
+import { bindUserSpace } from './wasm-user-space';
 import fs from 'fs';
 import { getPHPLoaderModule } from '.';
+import { FileLockManagerForPosix } from './file-lock-manager-for-posix';
+import { FileLockManagerForWindows } from './file-lock-manager-for-windows';
 import { withNetworking } from './networking/with-networking';
-import type { FileLockManager } from './file-lock-manager';
 import {
 	withXdebug,
 	type XdebugOptions,
@@ -17,10 +22,9 @@ import { withIntl } from './extensions/intl/with-intl';
 import { withRedis } from './extensions/redis/with-redis';
 import { withMemcached } from './extensions/memcached/with-memcached';
 import { dirname, joinPaths, toPosixPath } from '@php-wasm/util';
-import type { Promised } from '@php-wasm/util';
+import { platform } from 'os';
 
 export interface PHPLoaderOptions {
-	emscriptenOptions?: EmscriptenOptions;
 	followSymlinks?: boolean;
 	withXdebug?: boolean;
 	xdebug?: XdebugOptions;
@@ -30,6 +34,11 @@ export interface PHPLoaderOptions {
 }
 
 export type PHPLoaderOptionsForNode = PHPLoaderOptions & {
+	/**
+	 * A file lock manager to coordinate file locks between
+	 * multiple php-wasm instances and other OS processes.
+	 */
+	fileLockManager?: FileLockManager;
 	emscriptenOptions?: EmscriptenOptions & {
 		/**
 		 * The process ID for the PHP runtime.
@@ -42,19 +51,15 @@ export type PHPLoaderOptionsForNode = PHPLoaderOptions & {
 		processId?: number;
 
 		/**
-		 * An optional file lock manager to use for the PHP runtime.
-		 *
-		 * The lock manager is optional when running a single php-wasm process.
-		 *
-		 * When running with JSPI, both synchronous and asynchronous
-		 * file lock managers are supported.
-		 * When running with Asyncify, the file lock manager must be synchronous.
+		 * Factory called during WASM initialization to create
+		 * user-space syscall implementations (flock, fcntl, etc.)
+		 * for a PHP process. Receives process context (PID,
+		 * constants, errno codes) and returns the bound syscall
+		 * functions.
 		 */
-		fileLockManager?:
-			| RemoteAPI<FileLockManager>
-			// Allow promised type for testing without providing true RemoteAPI.
-			| Promised<FileLockManager>
-			| FileLockManager;
+		bindUserSpace?: (
+			userSpaceContext: WasmUserSpaceContext
+		) => WasmUserSpaceAPI;
 
 		/**
 		 * An optional function to collect trace messages.
@@ -66,16 +71,10 @@ export type PHPLoaderOptionsForNode = PHPLoaderOptions & {
 		trace?: (processId: number, format: string, ...args: any[]) => void;
 
 		/**
-		 * An optional object to pass to the PHP-WASM library's `init` function.
-		 *
-		 * phpWasmInitOptions.nativeInternalDirPath is used to mount a
-		 * real, native directory as the php-wasm /internal directory.
-		 *
-		 * @see https://github.com/php-wasm/php-wasm/blob/main/compile/php/phpwasm-emscripten-library.js#L100
+		 * An optional path used to a real, native directory
+		 * to be mounted as the php-wasm /internal directory.
 		 */
-		phpWasmInitOptions?: {
-			nativeInternalDirPath?: string;
-		};
+		nativeInternalDirPath?: string;
 	};
 };
 
@@ -100,6 +99,19 @@ export async function loadNodeRuntime(
 		 */
 		quit: function (code, error) {
 			throw error;
+		},
+		bindUserSpace: (userSpaceContext: WasmUserSpaceContext) => {
+			const nativeFileLockManager =
+				platform() === 'win32'
+					? new FileLockManagerForWindows()
+					: new FileLockManagerForPosix();
+			const fileLockManager = options.fileLockManager
+				? new FileLockManagerComposite({
+						nativeLockManager: nativeFileLockManager,
+						wasmLockManager: options.fileLockManager,
+					})
+				: nativeFileLockManager;
+			return bindUserSpace({ fileLockManager }, userSpaceContext);
 		},
 		...(options.emscriptenOptions || {}),
 		onRuntimeInitialized: (phpRuntime: PHPRuntime) => {

@@ -49,9 +49,9 @@ const responseTexts: Record<number, string> = {
 
 export class StreamedPHPResponse {
 	/**
-	 * Response headers.
+	 * Response headers stream (internal).
 	 */
-	private readonly headersStream: ReadableStream<Uint8Array>;
+	readonly #headersStream: ReadableStream<Uint8Array>;
 
 	/**
 	 * Response body. Contains the output from `echo`,
@@ -84,10 +84,66 @@ export class StreamedPHPResponse {
 		stderr: ReadableStream<Uint8Array>,
 		exitCode: Promise<number>
 	) {
-		this.headersStream = headers;
+		this.#headersStream = headers;
 		this.stdout = stdout;
 		this.stderr = stderr;
 		this.exitCode = exitCode;
+	}
+
+	/**
+	 * Creates a StreamedPHPResponse from a buffered PHPResponse.
+	 * Useful for unifying response handling when both types may be returned.
+	 */
+	static fromPHPResponse(response: PHPResponse): StreamedPHPResponse {
+		// Create a ReadableStream containing the response bytes
+		const stdout = new ReadableStream<Uint8Array>({
+			start(controller) {
+				controller.enqueue(response.bytes);
+				controller.close();
+			},
+		});
+
+		// Create empty streams for headers and stderr (won't be used since
+		// we set parsedHeaders directly below)
+		const emptyStream = () =>
+			new ReadableStream<Uint8Array>({
+				start(controller) {
+					controller.close();
+				},
+			});
+
+		const streamed = new StreamedPHPResponse(
+			emptyStream(),
+			stdout,
+			emptyStream(),
+			Promise.resolve(response.exitCode)
+		);
+
+		// Set pre-parsed headers to bypass header stream parsing
+		streamed.parsedHeaders = Promise.resolve({
+			headers: response.headers,
+			httpStatusCode: response.httpStatusCode,
+		});
+
+		return streamed;
+	}
+
+	/**
+	 * Creates a StreamedPHPResponse for a given HTTP status code.
+	 * Shorthand for `StreamedPHPResponse.fromPHPResponse(PHPResponse.forHttpCode(...))`.
+	 */
+	static forHttpCode(httpStatusCode: number, text = ''): StreamedPHPResponse {
+		return StreamedPHPResponse.fromPHPResponse(
+			PHPResponse.forHttpCode(httpStatusCode, text)
+		);
+	}
+
+	/**
+	 * Returns the raw headers stream for serialization purposes.
+	 * For parsed headers, use the `headers` property instead.
+	 */
+	getHeadersStream(): ReadableStream<Uint8Array> {
+		return this.#headersStream;
 	}
 
 	/**
@@ -169,7 +225,7 @@ export class StreamedPHPResponse {
 
 	private async getParsedHeaders() {
 		if (!this.parsedHeaders) {
-			this.parsedHeaders = parseHeadersStream(this.headersStream);
+			this.parsedHeaders = parseHeadersStream(this.#headersStream);
 		}
 		return await this.parsedHeaders;
 	}

@@ -14,7 +14,7 @@ export type {
 	PHPInstanceCreatedHook,
 	WordPressInstallMode,
 } from './boot';
-export { defineWpConfigConstants, ensureWpConfig } from './rewrite-wp-config';
+export { defineWpConfigConstants, ensureWpConfig } from './wp-config';
 export { getLoadedWordPressVersion } from './version-detect';
 
 export * from './version-detect';

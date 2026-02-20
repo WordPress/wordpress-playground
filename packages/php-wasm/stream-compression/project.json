@@ -3,6 +3,7 @@
 	"$schema": "../../../node_modules/nx/schemas/project-schema.json",
 	"sourceRoot": "packages/php-wasm/stream-compression/src",
 	"projectType": "library",
+	"tags": ["scope:independent-from-php-binaries"],
 	"targets": {
 		"build": {
 			"executor": "nx:noop",
@@ -38,7 +39,7 @@
 			"dependsOn": ["build"]
 		},
 		"test": {
-			"executor": "@nx/vite:test",
+			"executor": "@nx/vitest:test",
 			"outputs": ["{options.reportsDirectory}"],
 			"options": {
 				"passWithNoTests": true,
@@ -57,6 +58,5 @@
 				"maxWarnings": 0
 			}
 		}
-	},
-	"tags": ["scope:independent-from-php-binaries"]
+	}
 }

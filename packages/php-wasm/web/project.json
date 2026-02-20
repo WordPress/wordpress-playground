@@ -3,6 +3,7 @@
 	"$schema": "../../../node_modules/nx/schemas/project-schema.json",
 	"sourceRoot": "packages/php-wasm/web/src",
 	"projectType": "library",
+	"tags": ["scope:php-binaries"],
 	"implicitDependencies": ["php-wasm-compile"],
 	"targets": {
 		"build": {
@@ -129,7 +130,7 @@
 			"dependsOn": ["build"]
 		},
 		"test": {
-			"executor": "@nx/vite:test",
+			"executor": "@nx/vitest:test",
 			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/web"],
 			"options": {
 				"reportsDirectory": "../../coverage/packages/php-wasm/web",
@@ -166,6 +167,5 @@
 				]
 			}
 		}
-	},
-	"tags": ["scope:php-binaries"]
+	}
 }
