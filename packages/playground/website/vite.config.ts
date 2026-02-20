@@ -29,6 +29,13 @@ import virtualModule from '../../vite-extensions/vite-virtual-module';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import viteGlobalExtensions from '../../vite-extensions/vite-global-extensions';
 
+// Determine if we are running in a devcontainer.
+const isDevcontainer = process.env.VITE_DEVCONTAINER === 'true';
+
+// In a devcontainer, bind to 0.0.0.0 so the host can access the server through
+// a port that was published using the devcontainer "appPort" configuration.
+const serverHost = isDevcontainer ? '0.0.0.0' : websiteDevServerHost;
+
 const proxy: CommonServerOptions['proxy'] = {
 	'^/plugin-proxy': {
 		target: 'https://playground.wordpress.net',
@@ -66,13 +73,13 @@ export default defineConfig(({ command, mode }) => {
 
 		preview: {
 			port: websiteDevServerPort,
-			host: websiteDevServerHost,
+			host: serverHost,
 			proxy,
 		},
 
 		server: {
 			port: websiteDevServerPort,
-			host: websiteDevServerHost,
+			host: serverHost,
 			allowedHosts: ['playground.test', 'playground-preview.test'],
 			proxy: {
 				...proxy,
@@ -100,6 +107,21 @@ export default defineConfig(({ command, mode }) => {
 			},
 		},
 		plugins: [
+			// In a devcontainer, Vite prints container IP instead of host IP.
+			// Override the printed URL to show host IP instead (127.0.0.1).
+			isDevcontainer
+				? {
+						name: 'devcontainer-print-urls',
+						configureServer(server: ViteDevServer) {
+							server.printUrls = () => {
+								const url = `http://127.0.0.1:${websiteDevServerPort}/website-server/`;
+								server.config.logger.info(
+									`  \x1b[32m➜\x1b[0m  \x1b[1mLocal:\x1b[0m   \x1b[36m${url}\x1b[0m`
+								);
+							};
+						},
+					}
+				: null,
 			react({
 				jsxRuntime: 'automatic',
 			}),
