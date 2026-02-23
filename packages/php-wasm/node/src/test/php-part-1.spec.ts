@@ -9,7 +9,7 @@ import {
 } from '@php-wasm/universal';
 import { createSpawnHandler, phpVar } from '@php-wasm/util';
 import { RecommendedPHPVersion } from '@wp-playground/common';
-import { existsSync, mkdirSync, rmSync, writeFileSync } from 'fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'fs';
 import type { PHPLoaderOptions } from '..';
 import { loadNodeRuntime } from '..';
 import { createNodeFsMountHandler } from '../lib/node-fs-mount';
@@ -1698,61 +1698,89 @@ phpLoaderOptions.forEach((options) => {
 			});
 
 			it('cp() from NODEFS to MEMFS should work', () => {
-				mkdirSync(__dirname + '/test-data/mount-contents/copy-src', {
-					recursive: true,
-				});
-				writeFileSync(
-					__dirname + '/test-data/mount-contents/copy-src/test.txt',
-					'contents'
-				);
-
 				php.mount(
 					'/nodefs',
 					createNodeFsMountHandler(
 						__dirname + '/test-data/mount-contents'
 					)
 				);
-				php.cp('/nodefs/copy-src', '/tmp/copied-dir');
+				php.mkdir('/nodefs/tmp-dir-for-cp-test');
+				expect(
+					existsSync(
+						__dirname +
+							'/test-data/mount-contents/tmp-dir-for-cp-test'
+					)
+				).toEqual(true);
 
-				expect(php.fileExists('/tmp/copied-dir/test.txt')).toEqual(
-					true
-				);
-				expect(php.readFileAsText('/tmp/copied-dir/test.txt')).toEqual(
+				php.writeFile(
+					'/nodefs/tmp-dir-for-cp-test/test.txt',
 					'contents'
 				);
+				php.cp(
+					'/nodefs/tmp-dir-for-cp-test',
+					'/tmp/tmp-dir-for-cp-test'
+				);
+				expect(
+					existsSync(
+						__dirname +
+							'/test-data/mount-contents/tmp-dir-for-cp-test'
+					)
+				).toEqual(true);
+				expect(php.fileExists('/nodefs/tmp-dir-for-cp-test')).toEqual(
+					true
+				);
+				expect(php.fileExists('/tmp/tmp-dir-for-cp-test')).toEqual(
+					true
+				);
+				expect(
+					php.readFileAsText('/tmp/tmp-dir-for-cp-test/test.txt')
+				).toEqual('contents');
 
-				rmSync(__dirname + '/test-data/mount-contents/copy-src', {
-					recursive: true,
-				});
+				rmSync(
+					__dirname + '/test-data/mount-contents/tmp-dir-for-cp-test',
+					{
+						recursive: true,
+					}
+				);
 			});
 
-			it('cp() from NODEFS to MEMFS should work', () => {
-				mkdirSync(__dirname + '/test-data/mount-contents/copy-src', {
-					recursive: true,
-				});
-				writeFileSync(
-					__dirname + '/test-data/mount-contents/copy-src/test.txt',
-					'contents'
-				);
-
+			it('cp() from MEMFS to NODEFS should work', () => {
 				php.mount(
 					'/nodefs',
 					createNodeFsMountHandler(
 						__dirname + '/test-data/mount-contents'
 					)
 				);
-				php.cp('/nodefs/copy-src', '/tmp/copied-dir');
 
-				expect(php.fileExists('/tmp/copied-dir/test.txt')).toEqual(
+				php.mkdir('/tmp/tmp-dir-for-cp-test');
+				php.writeFile('/tmp/tmp-dir-for-cp-test/test.txt', 'contents');
+				php.cp(
+					'/tmp/tmp-dir-for-cp-test',
+					'/nodefs/tmp-dir-for-cp-test'
+				);
+				expect(php.fileExists('/tmp/tmp-dir-for-cp-test')).toEqual(
 					true
 				);
-				expect(php.readFileAsText('/tmp/copied-dir/test.txt')).toEqual(
-					'contents'
-				);
+				expect(
+					existsSync(
+						__dirname +
+							'/test-data/mount-contents/tmp-dir-for-cp-test'
+					)
+				).toEqual(true);
+				expect(
+					readFileSync(
+						__dirname +
+							'/test-data/mount-contents/tmp-dir-for-cp-test/test.txt',
+						'utf-8'
+					)
+				).toEqual('contents');
 
-				rmSync(__dirname + '/test-data/mount-contents/copy-src', {
-					recursive: true,
-				});
+				rmSync(
+					__dirname + '/test-data/mount-contents/tmp-dir-for-cp-test',
+					{
+						recursive: true,
+					}
+				);
 			});
 
 			it('mkdir() should create a directory', () => {
