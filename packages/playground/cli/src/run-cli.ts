@@ -336,7 +336,8 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 
 		const serverOnlyOptions: Record<string, YargsOptions> = {
 			port: {
-				describe: 'Port to listen on when serving.',
+				describe:
+					'Port to listen on when serving. Defaults to 9400 when available.',
 				type: 'number',
 			},
 			'experimental-multi-worker': {
@@ -379,7 +380,7 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 				default: 'latest',
 			},
 			port: {
-				describe: 'Port to listen on.',
+				describe: 'Port to listen on. Defaults to 9400 when available.',
 				type: 'number',
 			},
 			blueprint: {
