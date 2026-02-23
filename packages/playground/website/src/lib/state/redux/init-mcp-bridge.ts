@@ -9,8 +9,8 @@ import {
 } from './slice-sites';
 import { persistTemporarySite } from './persist-temporary-site';
 import { selectClientBySiteSlug } from './slice-clients';
-import type { McpBridgeHandle } from '@wp-playground/mcp/bridge-client';
-import { startMcpBridge } from '@wp-playground/mcp/bridge-client';
+import type { McpBridgeHandle } from '@wp-playground/mcp/client';
+import { startMcpBridge } from '@wp-playground/mcp/client';
 
 export const mcpListenerMiddleware = createListenerMiddleware();
 

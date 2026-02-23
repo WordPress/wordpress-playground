@@ -15,12 +15,12 @@
 	},
 	"exports": {
 		".": {
-			"import": "./index.js",
+			"import": "./src/index.ts",
 			"require": "./index.cjs"
 		},
-		"./bridge-client": {
-			"import": "./bridge-client.js",
-			"require": "./bridge-client.cjs"
+		"./client": {
+			"import": "./src/client.ts",
+			"require": "./client.cjs"
 		},
 		"./package.json": "./package.json"
 	},

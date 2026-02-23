@@ -7,7 +7,7 @@ import type {
 } from '@php-wasm/universal';
 import type { SiteRegistration } from './bridge-server';
 
-export interface McpBridgeConfig {
+export interface BridgeClientConfig {
 	getSites: () => SiteRegistration[];
 	getPlaygroundClient: (siteSlug: string) => PlaygroundClient | undefined;
 	renameSite?: (siteSlug: string, newName: string) => Promise<void>;
@@ -23,7 +23,7 @@ const RECONNECT_INTERVAL_MS = 5000;
 
 const tabId = crypto.randomUUID();
 
-export function startMcpBridge(config: McpBridgeConfig): McpBridgeHandle {
+export function startMcpBridge(config: BridgeClientConfig): McpBridgeHandle {
 	let ws: WebSocket | null = null;
 	let previousSitesSerialized = '';
 
@@ -108,7 +108,7 @@ export function startMcpBridge(config: McpBridgeConfig): McpBridgeHandle {
 }
 
 async function handleCommand(
-	config: McpBridgeConfig,
+	config: BridgeClientConfig,
 	method: string,
 	args: unknown[],
 	siteSlug: string
@@ -185,6 +185,10 @@ async function handleCommand(
 		case 'rmdir': {
 			const [path, options] = args as [string, RmDirOptions?];
 			return await client.rmdir(path, options);
+		}
+		case 'fileExists': {
+			const [path] = args as [string];
+			return await client.fileExists(path);
 		}
 		default:
 			throw new Error(`Unknown method: ${method}`);

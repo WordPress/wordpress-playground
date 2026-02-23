@@ -2,6 +2,7 @@ import { z } from 'zod/v3';
 import type { PHPResponseData } from '@php-wasm/universal';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { PlaygroundBridge } from '../bridge-server';
+import type { ToolParam } from './tool-definitions';
 
 /**
  * PHPResponseData after JSON round-trip through the WebSocket bridge.
@@ -60,3 +61,45 @@ export type ToolRegistrar = (
 	server: McpServer,
 	bridge: PlaygroundBridge
 ) => void;
+
+/**
+ * Convert shared ToolParam[] to a Zod schema object suitable
+ * for McpServer.registerTool(). Always includes siteId as the
+ * first parameter.
+ */
+export function paramsToZodSchema(
+	params: ToolParam[]
+): Record<string, z.ZodType> {
+	const schema: Record<string, z.ZodType> = {
+		siteId: siteIdSchema,
+	};
+
+	for (const param of params) {
+		let zodType: z.ZodType;
+		switch (param.type) {
+			case 'boolean':
+				zodType = z.boolean();
+				break;
+			case 'object':
+				zodType = z.record(z.string(), z.string());
+				break;
+			default:
+				zodType = z.string();
+				break;
+		}
+
+		if (!param.required) {
+			zodType = zodType.optional();
+			if (param.default !== undefined) {
+				zodType = (zodType as z.ZodOptional<z.ZodType>).default(
+					param.default
+				);
+			}
+		}
+
+		zodType = zodType.describe(param.description);
+		schema[param.name] = zodType;
+	}
+
+	return schema;
+}

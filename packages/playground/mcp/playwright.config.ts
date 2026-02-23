@@ -7,7 +7,7 @@ export default defineConfig({
 	retries: process.env.CI ? 2 : 0,
 	// Must be 1: the MCP server supports only one browser connection at a time.
 	workers: 1,
-	reporter: [['html'], ['list', { printSteps: true }]],
+	reporter: [['list', { printSteps: true }]],
 	use: {
 		baseURL: 'http://127.0.0.1:5400/website-server/',
 		trace: 'on-first-retry',

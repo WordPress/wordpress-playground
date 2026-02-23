@@ -32,7 +32,7 @@ export default defineConfig({
 		lib: {
 			entry: {
 				index: 'src/index.ts',
-				'bridge-client': 'src/bridge-client.ts',
+				client: 'src/client.ts',
 			},
 			name: 'playground-mcp',
 			formats: ['es', 'cjs'],

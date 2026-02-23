@@ -1,5 +1,6 @@
 import { WebSocketServer } from 'ws';
 import type { WebSocket } from 'ws';
+import { presentStorage } from './tools/tool-definitions';
 
 export interface SiteRegistration {
 	slug: string;
@@ -374,22 +375,5 @@ export class PlaygroundBridge {
 				resolve();
 			}
 		});
-	}
-}
-
-/**
- * Translate internal Playground storage types to MCP-facing names.
- *
- * Playground uses 'none' for temporary sites — we translate that to
- * 'temporary' so MCP clients can tell at a glance that the site
- * will be lost on reload. Other values (e.g. 'opfs') pass through
- * unchanged.
- */
-export function presentStorage(raw: string): string {
-	switch (raw) {
-		case 'none':
-			return 'temporary';
-		default:
-			return raw;
 	}
 }

@@ -168,14 +168,16 @@ test.afterEach(async ({ mcpClient, playgroundPage, browser }) => {
 	}
 });
 
-test('lists all 14 registered tools', async ({ mcpClient }) => {
+test('lists all 16 registered tools', async ({ mcpClient }) => {
 	const result = await mcpClient.listTools();
-	expect(result.tools).toHaveLength(14);
+	expect(result.tools).toHaveLength(16);
 	const names = result.tools.map((t) => t.name).sort();
 	expect(names).toEqual([
 		'playground_delete_directory',
 		'playground_delete_file',
 		'playground_execute_php',
+		'playground_file_exists',
+		'playground_get_current_url',
 		'playground_get_site_info',
 		'playground_list_files',
 		'playground_list_sites',
@@ -470,6 +472,41 @@ test('playground_save_site persists a temporary site', async ({
 		(s) => s.siteId === siteId
 	);
 	expect(savedSite?.storage).toBe('opfs');
+});
+
+test('playground_get_current_url returns a path', async ({
+	mcpClient,
+	siteId,
+}) => {
+	await mcpClient.callTool({
+		name: 'playground_navigate',
+		arguments: { siteId, path: '/wp-admin/' },
+	});
+	const result = await mcpClient.callTool({
+		name: 'playground_get_current_url',
+		arguments: { siteId },
+	});
+	const parsed = JSON.parse(resultText(result));
+	expect(parsed.url).toBe('/wp-admin/');
+});
+
+test('playground_file_exists checks for wp-config.php', async ({
+	mcpClient,
+	siteId,
+}) => {
+	const result = await mcpClient.callTool({
+		name: 'playground_file_exists',
+		arguments: { siteId, path: '/wordpress/wp-config.php' },
+	});
+	const parsed = JSON.parse(resultText(result));
+	expect(parsed.exists).toBe(true);
+
+	const missing = await mcpClient.callTool({
+		name: 'playground_file_exists',
+		arguments: { siteId, path: '/wordpress/does-not-exist.txt' },
+	});
+	const missingParsed = JSON.parse(resultText(missing));
+	expect(missingParsed.exists).toBe(false);
 });
 
 test('playground_list_sites reports no browser when page navigates away', async ({

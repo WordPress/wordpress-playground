@@ -1,6 +1,7 @@
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { PlaygroundBridge, DEFAULT_WS_PORT } from './bridge-server';
-import { createServer, registerTools } from './mcp-server';
+import { createServer } from './mcp-server';
+import { registerMcpServerTools } from './tools/register-mcp-server-tools';
 
 function getPort(): number {
 	const portArg = process.argv.find((a) => a.startsWith('--port='));
@@ -17,7 +18,7 @@ async function main() {
 	const bridge = new PlaygroundBridge();
 	await bridge.startWebSocketServer(getPort());
 	const server = createServer();
-	registerTools(server, bridge);
+	registerMcpServerTools(server, bridge);
 	const transport = new StdioServerTransport();
 	await server.connect(transport);
 	console.error('[MCP] WordPress Playground MCP server running on stdio');
