@@ -87,8 +87,10 @@ The MCP server communicates with AI clients via stdio and with the browser via W
 
 ## Available tools
 
-**Site management**: `playground_list_sites`, `playground_open_site`, `playground_rename_site`, `playground_save_site`, `playground_get_site_info`, `playground_navigate`
+**Site management**: `playground_list_sites`, `playground_open_site`, `playground_rename_site`, `playground_save_site`
 
 **Code execution**: `playground_execute_php`, `playground_request`
 
-**Filesystem**: `playground_read_file`, `playground_write_file`, `playground_list_files`, `playground_mkdir`, `playground_delete_file`, `playground_delete_directory`
+**Navigation & info**: `playground_navigate`, `playground_get_current_url`, `playground_get_site_info`
+
+**Filesystem**: `playground_read_file`, `playground_write_file`, `playground_list_files`, `playground_mkdir`, `playground_delete_file`, `playground_delete_directory`, `playground_file_exists`
