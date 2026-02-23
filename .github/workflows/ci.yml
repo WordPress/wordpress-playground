@@ -127,12 +127,7 @@ jobs:
     test-playground-cli:
         strategy:
             matrix:
-                # NOTE: macOS is currently skipped because tests were running into
-                # "EMFILE: too many open files" errors when running within the GH runner.
-                # It would be great to fix the issue and add macOS testing here.
-                # In the meantime, many of the current developers test locally on macOS.
-                # @TODO: Fix issues and re-enable macOS testing.
-                os: [ubuntu-latest, windows-latest]
+                os: [ubuntu-latest, windows-latest, macos-latest]
         continue-on-error: true
         runs-on: ${{ matrix.os }}
         name: 'test-playground-cli (${{ matrix.os }})'
@@ -144,14 +139,24 @@ jobs:
               with:
                   node-version: 22
             - name: Run full test suite
-              if: runner.os != 'Windows'
-              run: node node_modules/nx/bin/nx affected --target=test-for-node-22-and-above
-            # NOTE: We currently have to reduce the number of tests we run on Windows,
-            # and we do so by using Vitest's test.only() function. In order to use this
-            # within the `nx affected` command, we need to pass the Vitest arg --allowOnly.
-            - name: Run limited test suite on Windows
-              if: runner.os == 'Windows'
-              run: node node_modules/nx/bin/nx affected --target=test-for-node-22-and-above -- --allowOnly
+              run: node node_modules/nx/bin/nx affected --target=test-playground-cli
+    test-file-locking:
+        strategy:
+            matrix:
+                os: [ubuntu-latest, windows-latest, macos-latest]
+                async-strategy: [asyncify, jspi]
+        continue-on-error: true
+        runs-on: ${{ matrix.os }}
+        name: 'test-file-locking-${{ matrix.async-strategy }} (${{ matrix.os }})'
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  submodules: true
+            - uses: ./.github/actions/prepare-playground
+              with:
+                  node-version: 22
+            - name: Run full test suite
+              run: node node_modules/nx/bin/nx affected --target=test-file-locking-${{ matrix.async-strategy }}
     test-e2e-php-wasm-web-jspi:
         runs-on: ubuntu-latest
         steps:

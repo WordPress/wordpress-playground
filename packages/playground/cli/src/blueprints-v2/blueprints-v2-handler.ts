@@ -1,11 +1,12 @@
-import type { RemoteAPI, SupportedPHPVersion } from '@php-wasm/universal';
-import { consumeAPI } from '@php-wasm/universal';
+import type { Pooled, SupportedPHPVersion } from '@php-wasm/universal';
+import { consumeAPI, type RemoteAPI } from '@php-wasm/universal';
 import type {
 	PlaygroundCliBlueprintV2Worker,
 	SecondaryWorkerBootArgs,
 } from './worker-thread-v2';
 import type { MessagePort as NodeMessagePort } from 'worker_threads';
 import {
+	type PlaygroundCliWorker,
 	type RunCLIArgs,
 	type SpawnedWorker,
 	type WorkerType,
@@ -23,7 +24,6 @@ export class BlueprintsV2Handler {
 	private phpVersion: SupportedPHPVersion;
 
 	private siteUrl: string;
-	private processIdSpaceLength: number;
 	private args: RunCLIArgs;
 	private cliOutput: CLIOutput;
 
@@ -31,13 +31,11 @@ export class BlueprintsV2Handler {
 		args: RunCLIArgs,
 		options: {
 			siteUrl: string;
-			processIdSpaceLength: number;
 			cliOutput: CLIOutput;
 		}
 	) {
 		this.args = args;
 		this.siteUrl = options.siteUrl;
-		this.processIdSpaceLength = options.processIdSpaceLength;
 		this.phpVersion = args.php as SupportedPHPVersion;
 		this.cliOutput = options.cliOutput;
 	}
@@ -46,51 +44,31 @@ export class BlueprintsV2Handler {
 		return 'v2';
 	}
 
-	async bootAndSetUpInitialPlayground(
-		phpPort: NodeMessagePort,
-		fileLockManagerPort: NodeMessagePort,
-		nativeInternalDirPath: string
+	async bootWordPress(
+		playground: Pooled<PlaygroundCliWorker>,
+		workerPostInstallMountsPort: NodeMessagePort
 	) {
-		const playground: RemoteAPI<PlaygroundCliBlueprintV2Worker> =
-			consumeAPI(phpPort);
-
-		await playground.useFileLockManager(fileLockManagerPort);
 		const workerBootArgs = {
-			...this.args,
-			phpVersion: this.phpVersion,
+			command: this.args.command,
 			siteUrl: this.siteUrl,
-			firstProcessId: 1,
-			processIdSpaceLength: this.processIdSpaceLength,
-			trace: this.args.verbosity === 'debug',
 			blueprint: this.args.blueprint!,
-			withIntl: this.args.intl,
-			withRedis: this.args.redis,
-			withMemcached: this.args.memcached,
-			// We do not enable Xdebug by default for the initial worker
-			// because we do not imagine users expect to hit breakpoints
-			// until Playground has fully booted.
-			// TODO: Consider supporting Xdebug for the initial worker via a dedicated flag.
-			withXdebug: false,
-			xdebug: undefined,
-			nativeInternalDirPath,
-			mountsBeforeWpInstall: this.args['mount-before-install'] || [],
-			mountsAfterWpInstall: this.args.mount || [],
-			constants: mergeDefinedConstants(this.args),
+			workerPostInstallMountsPort,
 		};
 
-		await playground.bootAndSetUpInitialWorker(workerBootArgs);
+		// TODO: Fix this type issue that requires the cast to unknown
+		await (
+			playground as unknown as PlaygroundCliBlueprintV2Worker
+		).bootWordPress(workerBootArgs, workerPostInstallMountsPort);
 		return playground;
 	}
 
-	async bootPlayground({
+	async bootRequestHandler({
 		worker,
 		fileLockManagerPort,
-		firstProcessId,
 		nativeInternalDirPath,
 	}: {
 		worker: SpawnedWorker;
 		fileLockManagerPort: NodeMessagePort;
-		firstProcessId: number;
 		nativeInternalDirPath: string;
 	}) {
 		const playground: RemoteAPI<PlaygroundCliBlueprintV2Worker> =
@@ -102,8 +80,7 @@ export class BlueprintsV2Handler {
 			...this.args,
 			phpVersion: this.phpVersion,
 			siteUrl: this.siteUrl,
-			firstProcessId,
-			processIdSpaceLength: this.processIdSpaceLength,
+			processId: worker.processId,
 			trace: this.args.verbosity === 'debug',
 			withIntl: this.args.intl,
 			withRedis: this.args.redis,

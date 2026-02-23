@@ -12,6 +12,7 @@
 			"WebFetch(domain:blueprintlibrary.wordpress.com)",
 			"WebFetch(domain:playground.wordpress.net)",
 			"WebFetch(domain:public-api.wordpress.com)",
+			"WebFetch(domain:wordpress.github.io)",
 			"WebFetch(domain:nx.dev)"
 		],
 		"deny": [
@@ -19,5 +20,16 @@
 			"Bash(npm run deploy*)",
 			"Bash(npx nx publish*)"
 		]
+	},
+	"extraKnownMarketplaces": {
+		"nx-claude-plugins": {
+			"source": {
+				"source": "github",
+				"repo": "nrwl/nx-ai-agents-config"
+			}
+		}
+	},
+	"enabledPlugins": {
+		"nx@nx-claude-plugins": true
 	}
 }
