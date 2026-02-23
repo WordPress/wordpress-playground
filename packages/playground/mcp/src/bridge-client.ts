@@ -54,7 +54,12 @@ export function startMcpBridge(config: BridgeClientConfig): McpBridgeHandle {
 		});
 
 		ws.addEventListener('message', async (event) => {
-			const message = JSON.parse(event.data as string);
+			let message;
+			try {
+				message = JSON.parse(event.data as string);
+			} catch {
+				return;
+			}
 			if (message.type !== 'command') {
 				return;
 			}
@@ -67,17 +72,21 @@ export function startMcpBridge(config: BridgeClientConfig): McpBridgeHandle {
 					args || [],
 					siteSlug
 				);
-				ws!.send(JSON.stringify({ id, type: 'response', value }));
+				if (ws?.readyState === WebSocket.OPEN) {
+					ws.send(JSON.stringify({ id, type: 'response', value }));
+				}
 			} catch (error) {
 				const errorMsg =
 					error instanceof Error ? error.message : String(error);
-				ws!.send(
-					JSON.stringify({
-						id,
-						type: 'response',
-						error: errorMsg,
-					})
-				);
+				if (ws?.readyState === WebSocket.OPEN) {
+					ws.send(
+						JSON.stringify({
+							id,
+							type: 'response',
+							error: errorMsg,
+						})
+					);
+				}
 			}
 		});
 

@@ -9,7 +9,7 @@ export interface SiteRegistration {
 	isActive: boolean;
 }
 
-export interface SiteInfo {
+export interface BridgeSiteInfo {
 	siteId: string;
 	name: string;
 	storage: string;
@@ -29,7 +29,7 @@ interface ResponseMessage {
 	error?: unknown;
 }
 
-interface SiteEntry {
+export interface SiteEntry {
 	siteSlug: string;
 	siteName: string;
 	storage: string;
@@ -345,7 +345,7 @@ export class PlaygroundBridge {
 		}
 	}
 
-	listSites(): SiteInfo[] {
+	listSites(): BridgeSiteInfo[] {
 		return [...this.sites.entries()].map(([siteId, site]) => ({
 			siteId,
 			name: site.siteName,

@@ -77,6 +77,9 @@ export function paramsToZodSchema(
 	for (const param of params) {
 		let zodType: z.ZodType;
 		switch (param.type) {
+			case 'string':
+				zodType = z.string();
+				break;
 			case 'boolean':
 				zodType = z.boolean();
 				break;
@@ -84,8 +87,9 @@ export function paramsToZodSchema(
 				zodType = z.record(z.string(), z.string());
 				break;
 			default:
-				zodType = z.string();
-				break;
+				throw new Error(
+					`Unknown param type "${param.type}" for "${param.name}"`
+				);
 		}
 
 		if (!param.required) {
