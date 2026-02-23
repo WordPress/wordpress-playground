@@ -161,7 +161,7 @@
 				"testFiles": ["php-part-1.spec.ts"]
 			}
 		},
-		"test-group-2a-asyncify": {
+		"test-group-2-asyncify": {
 			"executor": "@nx/vitest:test",
 			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/node"],
 			"options": {
@@ -174,7 +174,7 @@
 				]
 			}
 		},
-		"test-group-2a-jspi": {
+		"test-group-2-jspi": {
 			"executor": "@nx/vitest:test",
 			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/node"],
 			"options": {
