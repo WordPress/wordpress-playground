@@ -28,6 +28,39 @@ type WordPressRequest = {
 };
 
 /**
+ * WordPress housekeeping endpoints that don't need real network
+ * round-trips in Playground. Matched against the URL pathname.
+ * Returning synthetic responses for these avoids slow CORS proxy
+ * retries and loopback deadlocks during boot.
+ */
+const SYNTHETIC_RESPONSES: Record<
+	string,
+	{ match: 'exact' | 'prefix'; status: number; body: string }
+> = {
+	// Connectivity check — WordPress just needs a 200 to confirm reachability
+	'/': {
+		match: 'exact',
+		status: 200,
+		body: '',
+	},
+	// Core file integrity check — not meaningful in Playground's WASM filesystem
+	'/core/checksums/': {
+		match: 'prefix',
+		status: 200,
+		body: JSON.stringify({ checksums: {} }),
+	},
+	// Browse-happy (browser version check) — sometimes not covered by prefetch
+	'/core/browse-happy/': {
+		match: 'prefix',
+		status: 200,
+		body: JSON.stringify({
+			platform: 'WordPress Playground',
+			upgrade: false,
+		}),
+	},
+};
+
+/**
  * Allow WordPress to make network requests via the fetch API.
  * On the WordPress side, this is handled by Requests_Transport_Fetch
  *
@@ -46,6 +79,7 @@ type WordPressRequest = {
  *
  * @param playground the Playground instance to set up with network support.
  */
+
 export class WordPressFetchNetworkTransport {
 	private options: SetupFetchNetworkTransportOptions;
 	private preloadedResponseCache = new Map<
@@ -131,6 +165,14 @@ export class WordPressFetchNetworkTransport {
 				this.preloadedResponseCache.delete(data.url);
 
 				return jointBuffer;
+			}
+
+			const syntheticResponse = getSyntheticResponseIfAvailable(
+				data.url,
+				await playground.absoluteUrl
+			);
+			if (syntheticResponse) {
+				return syntheticResponse;
 			}
 
 			// PHP encodes empty arrays as JSON arrays, not objects.
@@ -395,4 +437,60 @@ export async function handleRequest(data: RequestData, fetchFn = fetch) {
 	jointBuffer.set(bodyBuffer, headersBuffer.byteLength);
 
 	return jointBuffer;
+}
+
+/**
+ * Returns a synthetic HTTP response for WordPress housekeeping requests
+ * that don't need real network round-trips in Playground, or null if the
+ * request should proceed normally.
+ *
+ * This handles two categories:
+ * - api.wordpress.org housekeeping (connectivity checks, checksums)
+ * - Loopback requests (wp-cron.php) that would deadlock the PHP worker
+ */
+function getSyntheticResponseIfAvailable(
+	url: string,
+	playgroundUrl: string
+): Uint8Array | null {
+	try {
+		const parsed = new URL(url);
+
+		if (parsed.hostname === 'api.wordpress.org') {
+			const pathname = parsed.pathname.replace(/\/+$/, '/');
+			for (const [pattern, config] of Object.entries(
+				SYNTHETIC_RESPONSES
+			)) {
+				const matches =
+					config.match === 'exact'
+						? pathname === pattern
+						: pathname.startsWith(pattern);
+				if (matches) {
+					const contentType = config.body.startsWith('{')
+						? 'application/json'
+						: 'text/plain';
+					logger.info(
+						`[synthetic] Returning synthetic response for: ${url}`
+					);
+					return new TextEncoder().encode(
+						`HTTP/1.1 ${config.status} OK\r\ncontent-type: ${contentType}\r\n\r\n${config.body}`
+					);
+				}
+			}
+		}
+
+		// Loopback wp-cron.php requests deadlock the PHP worker since
+		// PHP is blocked on post_message_to_js() while the service worker
+		// tries to forward the cron request back to the same PHP worker.
+		if (url.startsWith(playgroundUrl) && url.includes('wp-cron.php')) {
+			logger.info(
+				`[synthetic] Returning synthetic response for loopback cron: ${url}`
+			);
+			return new TextEncoder().encode(
+				'HTTP/1.1 200 OK\r\ncontent-type: text/html\r\n\r\n'
+			);
+		}
+	} catch {
+		// Invalid URL — let the normal fetch path handle it
+	}
+	return null;
 }
