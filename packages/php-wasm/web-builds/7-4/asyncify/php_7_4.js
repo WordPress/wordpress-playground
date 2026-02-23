@@ -1,6 +1,6 @@
 import dependencyFilename from './7_4_33/php_7_4.wasm';
 export { dependencyFilename };
-export const dependenciesTotalSize = 20403516;
+export const dependenciesTotalSize = 20417296;
 const phpVersionString = '7.4.33';
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
@@ -4946,8 +4946,13 @@ export function init(RuntimeName, PHPLoader) {
 		init: function () {
 			if (PHPLoader.bindUserSpace) {
 				addOnInit(() => {
+					if (typeof PHPLoader.processId !== 'number') {
+						throw new Error(
+							'PHPLoader.processId must be set before init'
+						);
+					}
 					Module['userSpace'] = PHPLoader.bindUserSpace({
-						pid: PHPLoader.processId ?? 42,
+						pid: PHPLoader.processId,
 						constants: {
 							F_GETFL: Number('3'),
 							O_ACCMODE: Number('2097155'),

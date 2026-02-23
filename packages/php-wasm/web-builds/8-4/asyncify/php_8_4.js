@@ -1,7 +1,7 @@
-import dependencyFilename from './8_4_17/php_8_4.wasm';
+import dependencyFilename from './8_4_18/php_8_4.wasm';
 export { dependencyFilename };
-export const dependenciesTotalSize = 26691867;
-const phpVersionString = '8.4.17';
+export const dependenciesTotalSize = 26709629;
+const phpVersionString = '8.4.18';
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
 	var Module = typeof PHPLoader != 'undefined' ? PHPLoader : {};
@@ -4946,8 +4946,13 @@ export function init(RuntimeName, PHPLoader) {
 		init: function () {
 			if (PHPLoader.bindUserSpace) {
 				addOnInit(() => {
+					if (typeof PHPLoader.processId !== 'number') {
+						throw new Error(
+							'PHPLoader.processId must be set before init'
+						);
+					}
 					Module['userSpace'] = PHPLoader.bindUserSpace({
-						pid: PHPLoader.processId ?? 42,
+						pid: PHPLoader.processId,
 						constants: {
 							F_GETFL: Number('3'),
 							O_ACCMODE: Number('2097155'),
@@ -24890,13 +24895,13 @@ export function init(RuntimeName, PHPLoader) {
 	Module['_recv'] = _recv;
 	Module['_setsockopt'] = _setsockopt;
 	var ASM_CONSTS = {
-		15765201: ($0) => {
+		15766481: ($0) => {
 			if (!$0) {
 				AL.alcErr = 40964;
 				return 1;
 			}
 		},
-		15765249: ($0) => {
+		15766529: ($0) => {
 			if (!AL.currentCtx) {
 				err('alGetProcAddress() called without a valid context');
 				return 1;
@@ -25370,7 +25375,7 @@ export function init(RuntimeName, PHPLoader) {
 		__indirect_function_table = wasmTable =
 			wasmExports['__indirect_function_table'];
 	}
-	var ___heap_base = 17319360;
+	var ___heap_base = 17320640;
 	var wasmImports = {
 		IMG_Init: _IMG_Init,
 		IMG_Load: _IMG_Load,
