@@ -25,7 +25,7 @@ import {
 	readdirSync,
 	statSync,
 } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { join, resolve, relative, isAbsolute } from 'node:path';
 import { exec } from 'node:child_process';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { buildVersionPlugin } from '../../vite-extensions/vite-build-version';
@@ -241,7 +241,8 @@ export default defineConfig(({ command, mode }) => {
 							clientDistDir,
 							urlPath.slice('/client/'.length)
 						);
-						if (!filePath.startsWith(clientDistDir)) {
+						const rel = relative(clientDistDir, filePath);
+						if (rel.startsWith('..') || isAbsolute(rel)) {
 							res.statusCode = 403;
 							res.end();
 							return;
