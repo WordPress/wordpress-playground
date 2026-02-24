@@ -1,3 +1,6 @@
+// The MCP SDK expects Zod v3 schemas. We install zod@4 which
+// re-exports a v3-compatible API via the "zod/v3" subpath.
+// Once @modelcontextprotocol implements support for JSON schemas, we can remove the zod dependency.
 import { z } from 'zod/v3';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { PlaygroundBridge } from '../bridge-server';

@@ -1,5 +1,6 @@
 import { WebSocketServer } from 'ws';
 import type { WebSocket } from 'ws';
+import type { IncomingMessage } from 'http';
 import { presentStorage } from './tools/tool-definitions';
 
 export interface SiteRegistration {
@@ -39,6 +40,27 @@ export interface SiteEntry {
 
 export const DEFAULT_WS_PORT = 7999;
 
+/**
+ * Origins allowed to connect to the WebSocket bridge.
+ * Browser-based WebSocket connections include an Origin header
+ * that cannot be spoofed by JavaScript, so this prevents
+ * drive-by attacks from arbitrary web pages.
+ */
+const ALLOWED_ORIGIN_PATTERNS = [
+	/^https?:\/\/localhost(:\d+)?$/,
+	/^https?:\/\/127\.0\.0\.1(:\d+)?$/,
+	/^https?:\/\/playground\.wordpress\.net$/,
+];
+
+function isAllowedOrigin(origin: string | undefined): boolean {
+	// Non-browser clients (e.g. Node.js MCP clients) don't send
+	// an Origin header. Allow them — they're local processes.
+	if (!origin) {
+		return true;
+	}
+	return ALLOWED_ORIGIN_PATTERNS.some((pattern) => pattern.test(origin));
+}
+
 type SiteActivatedListener = (siteId: string) => void;
 
 export class PlaygroundBridge {
@@ -58,7 +80,28 @@ export class PlaygroundBridge {
 
 	startWebSocketServer(port = DEFAULT_WS_PORT): Promise<WebSocketServer> {
 		return new Promise((resolve, reject) => {
-			const wss = new WebSocketServer({ port, host: '127.0.0.1' });
+			const wss = new WebSocketServer({
+				port,
+				host: '127.0.0.1',
+				verifyClient: (
+					info: { origin: string; req: IncomingMessage },
+					callback: (
+						result: boolean,
+						code?: number,
+						message?: string
+					) => void
+				) => {
+					if (isAllowedOrigin(info.origin)) {
+						callback(true);
+					} else {
+						console.error(
+							`[MCP] Rejected WebSocket connection ` +
+								`from origin: ${info.origin}`
+						);
+						callback(false, 403, 'Forbidden');
+					}
+				},
+			});
 			this.wss = wss;
 
 			wss.on('error', (error: NodeJS.ErrnoException) => {

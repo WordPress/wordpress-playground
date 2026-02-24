@@ -1,8 +1,14 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { createRequire } from 'module';
+
+const require = createRequire(import.meta.url);
+const { version: packageVersion } =
+	require('../package.json') ?? require('./package.json');
+
 export function createServer(): McpServer {
 	return new McpServer({
 		name: 'wordpress-playground',
-		version: '0.1.0',
+		version: packageVersion,
 		description:
 			'Use this server when you need a live WordPress environment without any local setup. ' +
 			"WordPress Playground runs entirely in the user's browser tab via WebAssembly — no PHP, MySQL, " +

@@ -22,16 +22,18 @@ export interface PlaygroundConfig {
 
 export interface McpBridgeHandle {
 	notifySitesChanged: () => void;
+	stop: () => void;
 }
 
 const DEFAULT_MCP_WS_PORT = 7999;
 const RECONNECT_INTERVAL_MS = 5000;
 
-const tabId = crypto.randomUUID();
-
 export function startMcpBridge(config: PlaygroundConfig): McpBridgeHandle {
+	const tabId = crypto.randomUUID();
 	let ws: WebSocket | null = null;
 	let previousSitesSerialized = '';
+	let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+	let stopped = false;
 
 	function sendSitesRegistration(socket: WebSocket) {
 		const sites = config.getSites();
@@ -108,7 +110,10 @@ export function startMcpBridge(config: PlaygroundConfig): McpBridgeHandle {
 	}
 
 	function scheduleReconnect() {
-		setTimeout(connect, RECONNECT_INTERVAL_MS);
+		if (stopped) {
+			return;
+		}
+		reconnectTimer = setTimeout(connect, RECONNECT_INTERVAL_MS);
 	}
 
 	connect();
@@ -117,6 +122,17 @@ export function startMcpBridge(config: PlaygroundConfig): McpBridgeHandle {
 		notifySitesChanged: () => {
 			if (ws?.readyState === WebSocket.OPEN) {
 				sendSitesRegistration(ws);
+			}
+		},
+		stop: () => {
+			stopped = true;
+			if (reconnectTimer !== null) {
+				clearTimeout(reconnectTimer);
+				reconnectTimer = null;
+			}
+			if (ws) {
+				ws.close();
+				ws = null;
 			}
 		},
 	};
