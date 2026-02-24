@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { ProcessIdAllocator } from '../src/process-id-allocator';
+import { ProcessIdAllocator } from './process-id-allocator';
 
 describe('ProcessIdAllocator', () => {
 	it('claims IDs starting from initialId', () => {

@@ -1,5 +1,5 @@
 import { errorLogPath, logger, LogSeverity } from '@php-wasm/logger';
-import { ProcessIdAllocator } from './process-id-allocator';
+import { ProcessIdAllocator } from '@php-wasm/universal';
 import {
 	createObjectPoolProxy,
 	type Pooled,
