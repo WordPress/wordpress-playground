@@ -554,6 +554,9 @@ test('playground_list_sites reports connected but no sites when browser has no p
 	// Playground loaded.
 	const wsPort = MCP_WS_PORT;
 	const fakePage = await browser.newPage();
+	// Navigate to an allowed origin so the WebSocket connection
+	// passes the origin check in the bridge server.
+	await fakePage.goto(`http://127.0.0.1:5400`);
 	await fakePage.evaluate((port) => {
 		return new Promise<void>((resolve, reject) => {
 			const ws = new WebSocket(`ws://127.0.0.1:${port}`);
