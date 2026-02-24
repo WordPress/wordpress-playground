@@ -1,14 +1,20 @@
 import type { PlaygroundClient } from '@wp-playground/remote';
-import type {
-	PHPRunOptions,
-	PHPRequest,
-	ListFilesOptions,
-	RmDirOptions,
-} from '@php-wasm/universal';
-import type { SiteRegistration } from './bridge-server';
+import { createToolClient } from './tools/tool-executors';
+import type { ToolClient } from './tools/tool-executors';
 
-export interface BridgeClientConfig {
-	getSites: () => SiteRegistration[];
+/**
+ * Shared configuration for the MCP bridge client and WebMCP.
+ *
+ * Both transports need the same callbacks to interact with
+ * the Playground site list and active client.
+ */
+export interface PlaygroundConfig {
+	getSites: () => Array<{
+		slug: string;
+		name: string;
+		storage: string;
+		isActive: boolean;
+	}>;
 	getPlaygroundClient: (siteSlug: string) => PlaygroundClient | undefined;
 	renameSite?: (siteSlug: string, newName: string) => Promise<void>;
 	saveSite?: (siteSlug: string) => Promise<{ slug: string; storage: string }>;
@@ -23,7 +29,7 @@ const RECONNECT_INTERVAL_MS = 5000;
 
 const tabId = crypto.randomUUID();
 
-export function startMcpBridge(config: BridgeClientConfig): McpBridgeHandle {
+export function startMcpBridge(config: PlaygroundConfig): McpBridgeHandle {
 	let ws: WebSocket | null = null;
 	let previousSitesSerialized = '';
 
@@ -117,7 +123,7 @@ export function startMcpBridge(config: BridgeClientConfig): McpBridgeHandle {
 }
 
 async function handleCommand(
-	config: BridgeClientConfig,
+	config: PlaygroundConfig,
 	method: string,
 	args: unknown[],
 	siteSlug: string
@@ -151,55 +157,15 @@ async function handleCommand(
 		return await config.saveSite(siteSlug);
 	}
 
-	const client = config.getPlaygroundClient(siteSlug);
-	if (!client) {
+	const playgroundClient = config.getPlaygroundClient(siteSlug);
+	if (!playgroundClient) {
 		throw new Error(`No active client for site: ${siteSlug}`);
 	}
 
-	switch (method) {
-		case 'goTo': {
-			const [path] = args as [string];
-			return await client.goTo(path);
-		}
-		case 'getCurrentURL':
-			return await client.getCurrentURL();
-		case 'run': {
-			const [options] = args as [PHPRunOptions];
-			return await client.run(options);
-		}
-		case 'request': {
-			const [request] = args as [PHPRequest];
-			return await client.request(request);
-		}
-		case 'readFileAsText': {
-			const [path] = args as [string];
-			return await client.readFileAsText(path);
-		}
-		case 'writeFile': {
-			const [path, contents] = args as [string, string | Uint8Array];
-			return await client.writeFile(path, contents);
-		}
-		case 'listFiles': {
-			const [path, options] = args as [string, ListFilesOptions?];
-			return await client.listFiles(path, options);
-		}
-		case 'mkdirTree': {
-			const [path] = args as [string];
-			return await client.mkdirTree(path);
-		}
-		case 'unlink': {
-			const [path] = args as [string];
-			return await client.unlink(path);
-		}
-		case 'rmdir': {
-			const [path, options] = args as [string, RmDirOptions?];
-			return await client.rmdir(path, options);
-		}
-		case 'fileExists': {
-			const [path] = args as [string];
-			return await client.fileExists(path);
-		}
-		default:
-			throw new Error(`Unknown method: ${method}`);
+	const client = createToolClient(playgroundClient);
+	const fn = client[method as keyof ToolClient];
+	if (typeof fn !== 'function') {
+		throw new Error(`Unknown method: ${method}`);
 	}
+	return await (fn as (...a: unknown[]) => Promise<unknown>)(...args);
 }

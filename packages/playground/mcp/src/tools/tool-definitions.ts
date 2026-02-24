@@ -1,9 +1,9 @@
 /**
- * Tool metadata for WordPress Playground.
+ * Tool metadata and schema helpers for WordPress Playground.
  *
- * Pure data — no execution logic, no schema conversion.
- * Both the MCP server and WebMCP import these for consistent
- * names, descriptions, and annotations.
+ * Pure data — no execution logic. Both the MCP server and
+ * WebMCP import these for consistent descriptions, annotations,
+ * and schema conversion.
  */
 
 export interface ToolAnnotations {
@@ -13,9 +13,11 @@ export interface ToolAnnotations {
 	openWorldHint?: boolean;
 }
 
+export type ToolParamType = 'string' | 'boolean' | 'object';
+
 export interface ToolParam {
 	name: string;
-	type: string;
+	type: ToolParamType;
 	description: string;
 	required: boolean;
 	additionalProperties?: boolean;
@@ -23,9 +25,9 @@ export interface ToolParam {
 }
 
 export interface ToolDefinition {
-	name: string;
 	title: string;
 	description: string;
+	errorPrefix: string;
 	annotations: ToolAnnotations;
 	params: ToolParam[];
 }
@@ -34,8 +36,8 @@ export interface ToolDefinition {
 
 export const toolDefinitions: Record<string, ToolDefinition> = {
 	playground_execute_php: {
-		name: 'playground_execute_php',
 		title: 'Execute PHP Code',
+		errorPrefix: 'Error executing PHP',
 		description: `Run arbitrary PHP code in WordPress Playground
 			and return the output.
 
@@ -73,8 +75,8 @@ export const toolDefinitions: Record<string, ToolDefinition> = {
 		],
 	},
 	playground_request: {
-		name: 'playground_request',
 		title: 'HTTP Request',
+		errorPrefix: 'Error making request',
 		description: `Make an HTTP request to the WordPress site
 			running in Playground. Requests are authenticated
 			automatically via the browser session's cookie
@@ -131,8 +133,8 @@ export const toolDefinitions: Record<string, ToolDefinition> = {
 		],
 	},
 	playground_navigate: {
-		name: 'playground_navigate',
 		title: 'Navigate to URL',
+		errorPrefix: 'Error navigating',
 		description: `Navigate to a URL path in WordPress
 			Playground and return the final URL after any
 			redirects. Examples: "/wp-admin/",
@@ -160,8 +162,8 @@ export const toolDefinitions: Record<string, ToolDefinition> = {
 		],
 	},
 	playground_get_current_url: {
-		name: 'playground_get_current_url',
 		title: 'Get Current URL',
+		errorPrefix: 'Error getting current URL',
 		description: `Get the current URL path of the WordPress
 			site displayed in Playground. For additional
 			metadata (WordPress version, PHP version, document
@@ -174,8 +176,8 @@ export const toolDefinitions: Record<string, ToolDefinition> = {
 		params: [],
 	},
 	playground_get_site_info: {
-		name: 'playground_get_site_info',
 		title: 'Get Site Info',
+		errorPrefix: 'Error getting site info',
 		description: `Get metadata about the running WordPress
 			instance: current URL, document root, site URL,
 			WordPress version, and PHP version. Use this when
@@ -190,8 +192,8 @@ export const toolDefinitions: Record<string, ToolDefinition> = {
 		params: [],
 	},
 	playground_read_file: {
-		name: 'playground_read_file',
 		title: 'Read File',
+		errorPrefix: 'Error reading file',
 		description: `Read a file from the WordPress virtual
 			filesystem. Returns the file contents as text.`,
 		annotations: {
@@ -210,8 +212,8 @@ export const toolDefinitions: Record<string, ToolDefinition> = {
 		],
 	},
 	playground_write_file: {
-		name: 'playground_write_file',
 		title: 'Write File',
+		errorPrefix: 'Error writing file',
 		description: `Write content to a file in the WordPress
 			virtual filesystem.
 
@@ -248,8 +250,8 @@ export const toolDefinitions: Record<string, ToolDefinition> = {
 		],
 	},
 	playground_list_files: {
-		name: 'playground_list_files',
 		title: 'List Files',
+		errorPrefix: 'Error listing files',
 		description: `List files and directories at a given path
 			in the WordPress virtual filesystem. Returns a
 			flat, non-recursive listing of the immediate
@@ -271,8 +273,8 @@ export const toolDefinitions: Record<string, ToolDefinition> = {
 		],
 	},
 	playground_mkdir: {
-		name: 'playground_mkdir',
 		title: 'Create Directory',
+		errorPrefix: 'Error creating directory',
 		description: `Create a directory (and all required parent
 			directories) in the WordPress virtual filesystem.
 			Call this before playground_write_file when writing
@@ -296,8 +298,8 @@ export const toolDefinitions: Record<string, ToolDefinition> = {
 		],
 	},
 	playground_delete_file: {
-		name: 'playground_delete_file',
 		title: 'Delete File',
+		errorPrefix: 'Error deleting file',
 		description: `Delete a file from the WordPress virtual
 			filesystem.
 
@@ -321,8 +323,8 @@ export const toolDefinitions: Record<string, ToolDefinition> = {
 		],
 	},
 	playground_delete_directory: {
-		name: 'playground_delete_directory',
 		title: 'Delete Directory',
+		errorPrefix: 'Error deleting directory',
 		description: `Delete a directory from the WordPress
 			virtual filesystem.
 
@@ -356,8 +358,8 @@ export const toolDefinitions: Record<string, ToolDefinition> = {
 		],
 	},
 	playground_file_exists: {
-		name: 'playground_file_exists',
 		title: 'File Exists',
+		errorPrefix: 'Error checking file existence',
 		description: `Check whether a file or directory exists
 			in the WordPress virtual filesystem.`,
 		annotations: {
@@ -380,8 +382,8 @@ export const toolDefinitions: Record<string, ToolDefinition> = {
 
 export const siteToolDefinitions: Record<string, ToolDefinition> = {
 	playground_list_sites: {
-		name: 'playground_list_sites',
 		title: 'List Available Sites',
+		errorPrefix: 'Error listing sites',
 		description: `List all WordPress Playground sites
 			available. Call this before any other playground
 			tool — it returns the siteId required by every
@@ -398,8 +400,8 @@ export const siteToolDefinitions: Record<string, ToolDefinition> = {
 		params: [],
 	},
 	playground_open_site: {
-		name: 'playground_open_site',
 		title: 'Open Site in Browser',
+		errorPrefix: 'Error opening site',
 		description: `Open a WordPress Playground site in a new
 			browser tab. The site must appear in
 			playground_list_sites.
@@ -415,8 +417,8 @@ export const siteToolDefinitions: Record<string, ToolDefinition> = {
 		params: [],
 	},
 	playground_rename_site: {
-		name: 'playground_rename_site',
 		title: 'Rename Site',
+		errorPrefix: 'Error renaming site',
 		description: `Rename a WordPress Playground site. Updates
 			the display name shown in the browser UI.`,
 		annotations: {
@@ -433,8 +435,8 @@ export const siteToolDefinitions: Record<string, ToolDefinition> = {
 		],
 	},
 	playground_save_site: {
-		name: 'playground_save_site',
 		title: 'Save Site',
+		errorPrefix: 'Error saving site',
 		description: `Save a temporary WordPress Playground site
 			to browser storage so it survives page reloads.
 			Safe to call even if the site is already saved
@@ -452,6 +454,20 @@ export const siteToolDefinitions: Record<string, ToolDefinition> = {
 	},
 };
 
+export function stringifyError(error: unknown): string {
+	if (error instanceof Error) {
+		return error.message;
+	}
+	if (typeof error === 'string') {
+		return error;
+	}
+	try {
+		return JSON.stringify(error);
+	} catch {
+		return String(error);
+	}
+}
+
 /**
  * Translate internal Playground storage types to user-facing names.
  */
@@ -459,52 +475,39 @@ export function presentStorage(raw: string): string {
 	return raw === 'none' ? 'temporary' : raw;
 }
 
-// -- Shared utilities --
-
-export interface SiteInfo {
-	url: string;
-	documentRoot: string;
-	siteUrl: string;
-	wpVersion: string;
-	phpVersion: string;
-}
-
 /**
- * Execute the site-info composite tool.
- *
- * Transport-agnostic: callers provide thin callbacks that
- * abstract over PlaygroundClient vs bridge.sendCommand.
+ * Convert ToolParam[] to a plain JSON Schema object.
+ * Used by WebMCP which expects raw JSON Schema (not Zod).
  */
-export async function executeSiteInfo(
-	runPhp: (code: string) => Promise<string>,
-	getCurrentURL: () => Promise<string>
-): Promise<SiteInfo> {
-	const [url, infoText] = await Promise.all([
-		getCurrentURL(),
-		runPhp(
-			`<?php
-			require_once "/wordpress/wp-load.php";
-			echo json_encode([
-				"documentRoot" => ABSPATH,
-				"wpVersion" => get_bloginfo("version"),
-				"siteUrl" => get_site_url(),
-				"phpVersion" => phpversion(),
-			]);`
-		),
-	]);
+export function paramsToJsonSchema(
+	params: ToolParam[]
+): Record<string, unknown> {
+	const properties: Record<string, Record<string, unknown>> = {};
+	const required: string[] = [];
 
-	let info: Partial<Omit<SiteInfo, 'url'>>;
-	try {
-		info = JSON.parse(infoText);
-	} catch {
-		info = {};
+	for (const param of params) {
+		const prop: Record<string, unknown> = {
+			type: param.type,
+			description: param.description,
+		};
+		if (param.additionalProperties !== undefined) {
+			prop['additionalProperties'] = param.additionalProperties;
+		}
+		if (param.default !== undefined) {
+			prop['default'] = param.default;
+		}
+		properties[param.name] = prop;
+		if (param.required) {
+			required.push(param.name);
+		}
 	}
 
-	return {
-		url: String(url),
-		documentRoot: info.documentRoot ?? '/wordpress',
-		siteUrl: info.siteUrl ?? String(url),
-		wpVersion: info.wpVersion ?? 'unknown',
-		phpVersion: info.phpVersion ?? 'unknown',
+	const schema: Record<string, unknown> = {
+		type: 'object',
+		properties,
 	};
+	if (required.length > 0) {
+		schema['required'] = required;
+	}
+	return schema;
 }

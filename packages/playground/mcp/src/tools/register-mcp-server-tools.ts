@@ -1,17 +1,103 @@
 import { z } from 'zod/v3';
-import {
-	siteIdSchema,
-	errorResult,
-	decodeResponseBytes,
-	paramsToZodSchema,
-} from './utils';
-import type { SerializedPHPResponse, ToolRegistrar } from './utils';
+import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import type { PlaygroundBridge } from '../bridge-server';
 import {
 	toolDefinitions,
 	siteToolDefinitions,
 	presentStorage,
-	executeSiteInfo,
+	stringifyError,
 } from './tool-definitions';
+import type { ToolParam } from './tool-definitions';
+import { toolExecutors } from './tool-executors';
+import type { ToolClient } from './tool-executors';
+
+function errorResult(prefix: string, error: unknown) {
+	return {
+		content: [
+			{
+				type: 'text' as const,
+				text: `${prefix}: ${stringifyError(error)}`,
+			},
+		],
+		isError: true,
+	};
+}
+
+const siteIdSchema = z
+	.string()
+	.describe(
+		'Target site ID. Call playground_list_sites first to discover ' +
+			'available site IDs.'
+	);
+
+type ToolRegistrar = (server: McpServer, bridge: PlaygroundBridge) => void;
+
+/**
+ * Convert shared ToolParam[] to a Zod schema object suitable
+ * for McpServer.registerTool(). Always includes siteId as the
+ * first parameter.
+ */
+function paramsToZodSchema(params: ToolParam[]): Record<string, z.ZodType> {
+	const schema: Record<string, z.ZodType> = {
+		siteId: siteIdSchema,
+	};
+
+	for (const param of params) {
+		let zodType: z.ZodType;
+		switch (param.type) {
+			case 'string':
+				zodType = z.string();
+				break;
+			case 'boolean':
+				zodType = z.boolean();
+				break;
+			case 'object':
+				zodType = z.record(z.string(), z.string());
+				break;
+			default:
+				throw new Error(
+					`Unknown param type "${param.type}" for "${param.name}"`
+				);
+		}
+
+		if (!param.required) {
+			zodType = zodType.optional();
+			if (param.default !== undefined) {
+				zodType = (zodType as z.ZodOptional<z.ZodType>).default(
+					param.default
+				);
+			}
+		}
+
+		zodType = zodType.describe(param.description);
+		schema[param.name] = zodType;
+	}
+
+	return schema;
+}
+
+/**
+ * Create a ToolClient that delegates to bridge.sendCommand.
+ *
+ * Every method forwards its name and arguments over the WebSocket.
+ * The browser-side bridge-client decodes PHP/HTTP response bytes
+ * before sending, so results already contain plain strings.
+ */
+function createBridgeToolClient(
+	siteId: string,
+	sendCommand: (
+		siteId: string,
+		method: string,
+		args?: unknown[]
+	) => Promise<unknown>
+): ToolClient {
+	return new Proxy({} as ToolClient, {
+		get:
+			(_target, method: string) =>
+			(...args: unknown[]) =>
+				sendCommand(siteId, method, args),
+	});
+}
 
 export const registerMcpServerTools: ToolRegistrar = (server, bridge) => {
 	const sendCommand = bridge.sendCommand.bind(bridge);
@@ -22,7 +108,7 @@ export const registerMcpServerTools: ToolRegistrar = (server, bridge) => {
 
 	const listSites = siteToolDefinitions['playground_list_sites'];
 	server.registerTool(
-		listSites.name,
+		'playground_list_sites',
 		{
 			title: listSites.title,
 			description: listSites.description,
@@ -69,7 +155,7 @@ export const registerMcpServerTools: ToolRegistrar = (server, bridge) => {
 
 	const openSite = siteToolDefinitions['playground_open_site'];
 	server.registerTool(
-		openSite.name,
+		'playground_open_site',
 		{
 			title: openSite.title,
 			description: openSite.description,
@@ -95,14 +181,14 @@ export const registerMcpServerTools: ToolRegistrar = (server, bridge) => {
 					],
 				};
 			} catch (error) {
-				return errorResult('Error opening site', error);
+				return errorResult(openSite.errorPrefix, error);
 			}
 		}
 	);
 
 	const renameSite = siteToolDefinitions['playground_rename_site'];
 	server.registerTool(
-		renameSite.name,
+		'playground_rename_site',
 		{
 			title: renameSite.title,
 			description: renameSite.description,
@@ -125,14 +211,14 @@ export const registerMcpServerTools: ToolRegistrar = (server, bridge) => {
 					],
 				};
 			} catch (error) {
-				return errorResult('Error renaming site', error);
+				return errorResult(renameSite.errorPrefix, error);
 			}
 		}
 	);
 
 	const saveSite = siteToolDefinitions['playground_save_site'];
 	server.registerTool(
-		saveSite.name,
+		'playground_save_site',
 		{
 			title: saveSite.title,
 			description: saveSite.description,
@@ -186,369 +272,46 @@ export const registerMcpServerTools: ToolRegistrar = (server, bridge) => {
 					],
 				};
 			} catch (error) {
-				return errorResult('Error saving site', error);
+				return errorResult(saveSite.errorPrefix, error);
 			}
 		}
 	);
 
-	// -- Filesystem tools --
+	// -- Per-site tools (shared executors) --
 
-	const readFile = toolDefinitions['playground_read_file'];
-	server.registerTool(
-		readFile.name,
-		{
-			title: readFile.title,
-			description: readFile.description,
-			inputSchema: paramsToZodSchema(readFile.params),
-			annotations: readFile.annotations,
-		},
-		async ({ siteId, path }) => {
-			try {
-				const contents = await sendCommand(siteId, 'readFileAsText', [
-					path,
-				]);
-				return {
-					content: [
-						{
-							type: 'text' as const,
-							text: JSON.stringify({
-								contents: String(contents),
-							}),
-						},
-					],
-				};
-			} catch (error) {
-				return errorResult('Error reading file', error);
-			}
+	for (const [name, def] of Object.entries(toolDefinitions)) {
+		const executor = toolExecutors[name];
+		if (!executor) {
+			continue;
 		}
-	);
-
-	const writeFile = toolDefinitions['playground_write_file'];
-	server.registerTool(
-		writeFile.name,
-		{
-			title: writeFile.title,
-			description: writeFile.description,
-			inputSchema: paramsToZodSchema(writeFile.params),
-			annotations: writeFile.annotations,
-		},
-		async ({ siteId, path, contents }) => {
-			try {
-				await sendCommand(siteId, 'writeFile', [path, contents]);
-				return {
-					content: [
-						{
-							type: 'text' as const,
-							text: JSON.stringify({ success: true }),
-						},
-					],
-				};
-			} catch (error) {
-				return errorResult('Error writing file', error);
-			}
-		}
-	);
-
-	const listFiles = toolDefinitions['playground_list_files'];
-	server.registerTool(
-		listFiles.name,
-		{
-			title: listFiles.title,
-			description: listFiles.description,
-			inputSchema: paramsToZodSchema(listFiles.params),
-			annotations: listFiles.annotations,
-		},
-		async ({ siteId, path }) => {
-			try {
-				const files = await sendCommand(siteId, 'listFiles', [path]);
-				return {
-					content: [
-						{
-							type: 'text' as const,
-							text: JSON.stringify({ files }),
-						},
-					],
-				};
-			} catch (error) {
-				return errorResult('Error listing files', error);
-			}
-		}
-	);
-
-	const mkdirTool = toolDefinitions['playground_mkdir'];
-	server.registerTool(
-		mkdirTool.name,
-		{
-			title: mkdirTool.title,
-			description: mkdirTool.description,
-			inputSchema: paramsToZodSchema(mkdirTool.params),
-			annotations: mkdirTool.annotations,
-		},
-		async ({ siteId, path }) => {
-			try {
-				await sendCommand(siteId, 'mkdirTree', [path]);
-				return {
-					content: [
-						{
-							type: 'text' as const,
-							text: JSON.stringify({ success: true }),
-						},
-					],
-				};
-			} catch (error) {
-				return errorResult('Error creating directory', error);
-			}
-		}
-	);
-
-	const deleteFile = toolDefinitions['playground_delete_file'];
-	server.registerTool(
-		deleteFile.name,
-		{
-			title: deleteFile.title,
-			description: deleteFile.description,
-			inputSchema: paramsToZodSchema(deleteFile.params),
-			annotations: deleteFile.annotations,
-		},
-		async ({ siteId, path }) => {
-			try {
-				await sendCommand(siteId, 'unlink', [path]);
-				return {
-					content: [
-						{
-							type: 'text' as const,
-							text: JSON.stringify({ success: true }),
-						},
-					],
-				};
-			} catch (error) {
-				return errorResult('Error deleting file', error);
-			}
-		}
-	);
-
-	const deleteDirectory = toolDefinitions['playground_delete_directory'];
-	server.registerTool(
-		deleteDirectory.name,
-		{
-			title: deleteDirectory.title,
-			description: deleteDirectory.description,
-			inputSchema: paramsToZodSchema(deleteDirectory.params),
-			annotations: deleteDirectory.annotations,
-		},
-		async ({ siteId, path, recursive }) => {
-			try {
-				await sendCommand(siteId, 'rmdir', [
-					path,
-					{ recursive: recursive ?? false },
-				]);
-				return {
-					content: [
-						{
-							type: 'text' as const,
-							text: JSON.stringify({ success: true }),
-						},
-					],
-				};
-			} catch (error) {
-				return errorResult('Error deleting directory', error);
-			}
-		}
-	);
-
-	const fileExists = toolDefinitions['playground_file_exists'];
-	server.registerTool(
-		fileExists.name,
-		{
-			title: fileExists.title,
-			description: fileExists.description,
-			inputSchema: paramsToZodSchema(fileExists.params),
-			annotations: fileExists.annotations,
-		},
-		async ({ siteId, path }) => {
-			try {
-				const exists = await sendCommand(siteId, 'fileExists', [path]);
-				return {
-					content: [
-						{
-							type: 'text' as const,
-							text: JSON.stringify({ exists }),
-						},
-					],
-				};
-			} catch (error) {
-				return errorResult('Error checking file existence', error);
-			}
-		}
-	);
-
-	// -- Code execution tools --
-
-	const executePHP = toolDefinitions['playground_execute_php'];
-	const request = toolDefinitions['playground_request'];
-
-	server.registerTool(
-		executePHP.name,
-		{
-			title: executePHP.title,
-			description: executePHP.description,
-			inputSchema: paramsToZodSchema(executePHP.params),
-			annotations: executePHP.annotations,
-		},
-		async ({ siteId, code }) => {
-			try {
-				const response = (await sendCommand(siteId, 'run', [
-					{ code },
-				])) as SerializedPHPResponse;
-				const text = decodeResponseBytes(response.bytes);
-				return {
-					content: [
-						{
-							type: 'text' as const,
-							text: JSON.stringify({
-								text,
-								errors: response.errors,
-								exitCode: response.exitCode,
-							}),
-						},
-					],
-				};
-			} catch (error) {
-				return errorResult('Error executing PHP', error);
-			}
-		}
-	);
-
-	server.registerTool(
-		request.name,
-		{
-			title: request.title,
-			description: request.description,
-			inputSchema: paramsToZodSchema(request.params),
-			annotations: request.annotations,
-		},
-		async ({ siteId, url, method, headers, body }) => {
-			try {
-				const requestOptions: Record<string, unknown> = {
-					url,
-					method,
-				};
-				if (headers) {
-					requestOptions['headers'] = headers;
+		server.registerTool(
+			name,
+			{
+				title: def.title,
+				description: def.description,
+				inputSchema: paramsToZodSchema(def.params),
+				annotations: def.annotations,
+			},
+			async (args: Record<string, unknown>) => {
+				const { siteId, ...input } = args;
+				try {
+					const client = createBridgeToolClient(
+						siteId as string,
+						sendCommand
+					);
+					const result = await executor(client, input);
+					return {
+						content: [
+							{
+								type: 'text' as const,
+								text: JSON.stringify(result),
+							},
+						],
+					};
+				} catch (error) {
+					return errorResult(def.errorPrefix, error);
 				}
-				if (body) {
-					requestOptions['body'] = body;
-				}
-				const response = (await sendCommand(siteId, 'request', [
-					requestOptions,
-				])) as SerializedPHPResponse;
-				const text = decodeResponseBytes(response.bytes);
-				return {
-					content: [
-						{
-							type: 'text' as const,
-							text: JSON.stringify({
-								text,
-								httpStatusCode: response.httpStatusCode,
-								headers: response.headers,
-							}),
-						},
-					],
-				};
-			} catch (error) {
-				return errorResult('Error making request', error);
 			}
-		}
-	);
-
-	// -- Navigation tools --
-
-	const navigateTool = toolDefinitions['playground_navigate'];
-	const getCurrentUrlTool = toolDefinitions['playground_get_current_url'];
-	const siteInfoTool = toolDefinitions['playground_get_site_info'];
-
-	server.registerTool(
-		navigateTool.name,
-		{
-			title: navigateTool.title,
-			description: navigateTool.description,
-			inputSchema: paramsToZodSchema(navigateTool.params),
-			annotations: navigateTool.annotations,
-		},
-		async ({ siteId, path }) => {
-			try {
-				await sendCommand(siteId, 'goTo', [path]);
-				const url = await sendCommand(siteId, 'getCurrentURL');
-				return {
-					content: [
-						{
-							type: 'text' as const,
-							text: JSON.stringify({ url }),
-						},
-					],
-				};
-			} catch (error) {
-				return errorResult('Error navigating', error);
-			}
-		}
-	);
-
-	server.registerTool(
-		getCurrentUrlTool.name,
-		{
-			title: getCurrentUrlTool.title,
-			description: getCurrentUrlTool.description,
-			inputSchema: paramsToZodSchema(getCurrentUrlTool.params),
-			annotations: getCurrentUrlTool.annotations,
-		},
-		async ({ siteId }) => {
-			try {
-				const url = await sendCommand(siteId, 'getCurrentURL');
-				return {
-					content: [
-						{
-							type: 'text' as const,
-							text: JSON.stringify({ url }),
-						},
-					],
-				};
-			} catch (error) {
-				return errorResult('Error getting current URL', error);
-			}
-		}
-	);
-
-	server.registerTool(
-		siteInfoTool.name,
-		{
-			title: siteInfoTool.title,
-			description: siteInfoTool.description,
-			inputSchema: paramsToZodSchema(siteInfoTool.params),
-			annotations: siteInfoTool.annotations,
-		},
-		async ({ siteId }) => {
-			try {
-				const info = await executeSiteInfo(
-					async (code) => {
-						const resp = (await sendCommand(siteId, 'run', [
-							{ code },
-						])) as SerializedPHPResponse;
-						return decodeResponseBytes(resp.bytes);
-					},
-					() =>
-						sendCommand(siteId, 'getCurrentURL') as Promise<string>
-				);
-				return {
-					content: [
-						{
-							type: 'text' as const,
-							text: JSON.stringify(info),
-						},
-					],
-				};
-			} catch (error) {
-				return errorResult('Error getting site info', error);
-			}
-		}
-	);
+		);
+	}
 };
