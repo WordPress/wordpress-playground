@@ -301,7 +301,11 @@ export async function setupPlatformLevelMuPlugins(php: UniversalPHP) {
 
         $log_file = WP_CONTENT_DIR . '/debug.log';
         define('ERROR_LOG_FILE', $log_file);
-        ini_set('error_log', $log_file);
+        if ( defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+            ini_set('error_log', $log_file);
+        } else {
+            ini_set('log_errors', '0');
+        }
         ?>`
 	);
 
