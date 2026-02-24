@@ -179,7 +179,7 @@
 								'_ts',
 								String(Date.now())
 							);
-							return import(moduleUrl.toString());
+							return import(/* @vite-ignore */ moduleUrl.toString());
 						}
 					} catch {
 						// Fall back to the original error

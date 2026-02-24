@@ -1,6 +1,6 @@
 {
 	"name": "@wp-playground/tools",
-	"version": "3.1.1",
+	"version": "3.1.2",
 	"description": "Tools for WordPress Playground",
 	"repository": {
 		"type": "git",

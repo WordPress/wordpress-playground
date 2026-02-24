@@ -17,6 +17,19 @@ export interface ServerOptions {
 	handleRequest: (request: PHPRequest) => Promise<StreamedPHPResponse>;
 }
 
+export function isPortInUse(port: number): Promise<boolean> {
+	return new Promise((resolve) => {
+		if (port === 0) return resolve(false);
+
+		const server = express().listen(port);
+
+		server.once('listening', () => server.close(() => resolve(false)));
+		server.once('error', (error: NodeJS.ErrnoException) =>
+			resolve(error.code === 'EADDRINUSE')
+		);
+	});
+}
+
 export async function startServer(
 	options: ServerOptions
 ): Promise<RunCLIServer | void> {
@@ -25,14 +38,16 @@ export async function startServer(
 	const server = await new Promise<
 		Server<typeof IncomingMessage, typeof ServerResponse>
 	>((resolve, reject) => {
-		const server = app.listen(options.port, () => {
-			const address = server.address();
-			if (address === null || typeof address === 'string') {
-				reject(new Error('Server address is not available'));
-			} else {
-				resolve(server);
-			}
-		});
+		const server = app
+			.listen(options.port, () => {
+				const address = server.address();
+				if (address === null || typeof address === 'string') {
+					reject(new Error('Server address is not available'));
+				} else {
+					resolve(server);
+				}
+			})
+			.once('error', reject);
 	});
 
 	app.use('/', async (req, res) => {

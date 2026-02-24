@@ -1,6 +1,6 @@
 {
 	"name": "@php-wasm/web-8-2",
-	"version": "3.1.1",
+	"version": "3.1.2",
 	"description": "PHP 8.2 WebAssembly binaries for web",
 	"repository": {
 		"type": "git",

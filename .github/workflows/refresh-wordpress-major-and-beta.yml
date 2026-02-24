@@ -40,7 +40,9 @@ jobs:
                   submodules: true
             - uses: ./.github/actions/prepare-playground
               with:
-                  node-version: 22
+                  # The build uses JSPI which is supported in Node.js 23+.
+                  # Let's pick 24 as an LTS release.
+                  node-version: 24
             - name: 'Recompile WordPress'
               id: build
               shell: bash

@@ -40,7 +40,7 @@ import {
 	parseDefineBoolArguments,
 	parseDefineNumberArguments,
 } from './defines';
-import { startServer } from './start-server';
+import { isPortInUse, startServer } from './start-server';
 import type { PlaygroundCliBlueprintV1Worker } from './blueprints-v1/worker-thread-v1';
 import type { PlaygroundCliBlueprintV2Worker } from './blueprints-v2/worker-thread-v2';
 /* eslint-disable no-console */
@@ -336,9 +336,9 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 
 		const serverOnlyOptions: Record<string, YargsOptions> = {
 			port: {
-				describe: 'Port to listen on when serving.',
+				describe:
+					'Port to listen on when serving. Defaults to 9400 when available.',
 				type: 'number',
-				default: 9400,
 			},
 			'experimental-multi-worker': {
 				deprecated:
@@ -380,9 +380,8 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 				default: 'latest',
 			},
 			port: {
-				describe: 'Port to listen on.',
+				describe: 'Port to listen on. Defaults to 9400 when available.',
 				type: 'number',
-				default: 9400,
 			},
 			blueprint: {
 				describe:
@@ -959,7 +958,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 		cliOutput.printConfig({
 			phpVersion: args.php || RecommendedPHPVersion,
 			wpVersion: args.wp || 'latest',
-			port: (args['port'] as number) || 9400,
+			port: args.port ?? 9400,
 			xdebug: !!args.xdebug,
 			intl: !!args.intl,
 			redis: !!args.redis,
@@ -973,8 +972,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 		});
 	}
 
-	const selectedPort =
-		args.command === 'server' ? ((args['port'] as number) ?? 9400) : 0;
+	const selectedPort = args.command === 'server' ? (args.port ?? 9400) : 0;
 
 	// Declare file lock manager outside scope of startServer
 	// so we can look at it when debugging request handling.
@@ -984,7 +982,11 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 	let isFirstRequest = true;
 
 	const server = await startServer({
-		port: selectedPort,
+		port: args.port
+			? args.port
+			: !(await isPortInUse(selectedPort))
+				? selectedPort
+				: 0,
 		onBind: async (server: Server, port: number) => {
 			const host = '127.0.0.1';
 			const serverUrl = `http://${host}:${port}`;
@@ -1525,6 +1527,9 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 
 			return response;
 		},
+	}).catch((error) => {
+		cliOutput.printError(error.message);
+		process.exit(1);
 	});
 
 	if (server && args.command === 'start' && !args.skipBrowser) {

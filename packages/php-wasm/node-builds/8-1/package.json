@@ -1,6 +1,6 @@
 {
 	"name": "@php-wasm/node-8-1",
-	"version": "3.1.1",
+	"version": "3.1.2",
 	"description": "PHP 8.1 WebAssembly binaries for node",
 	"repository": {
 		"type": "git",

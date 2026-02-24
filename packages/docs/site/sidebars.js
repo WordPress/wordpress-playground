@@ -44,6 +44,7 @@ const sidebars = {
 						id: 'main/guides/index',
 					},
 					items: [
+						'main/guides/agent-skill-wp-playground',
 						'main/guides/wordpress-native-ios-app',
 						'main/guides/for-plugin-developers',
 						'main/guides/for-theme-developers',

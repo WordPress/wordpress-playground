@@ -20,5 +20,16 @@
 			"Bash(npm run deploy*)",
 			"Bash(npx nx publish*)"
 		]
+	},
+	"extraKnownMarketplaces": {
+		"nx-claude-plugins": {
+			"source": {
+				"source": "github",
+				"repo": "nrwl/nx-ai-agents-config"
+			}
+		}
+	},
+	"enabledPlugins": {
+		"nx@nx-claude-plugins": true
 	}
 }
