@@ -93,14 +93,7 @@ export default function BrowserChrome({
 						/>
 					</div>
 
-					{!isSaveDisabledByQueryParam() && (
-						<div
-							className={css.saveStatusSlot}
-							data-testid="save-status-indicator"
-						>
-							<SaveStatusIndicator />
-						</div>
-					)}
+					{!isSaveDisabledByQueryParam() && <SaveStatusIndicator />}
 
 					<div className={css.toolbarButtons}>
 						<Button
