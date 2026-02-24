@@ -239,8 +239,20 @@ export default defineConfig(({ command, mode }) => {
 						if (!existsSync(filePath)) {
 							return next();
 						}
+						const contentTypes: Record<string, string> = {
+							'.js': 'application/javascript',
+							'.cjs': 'application/javascript',
+							'.json': 'application/json',
+							'.map': 'application/json',
+						};
+						const ext = Object.keys(contentTypes).find((e) =>
+							filePath.endsWith(e)
+						);
 						res.setHeader('Access-Control-Allow-Origin', '*');
-						res.setHeader('Content-Type', 'application/javascript');
+						res.setHeader(
+							'Content-Type',
+							ext ? contentTypes[ext] : 'application/octet-stream'
+						);
 						res.end(readFileSync(filePath));
 					});
 				},
