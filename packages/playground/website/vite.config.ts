@@ -25,7 +25,8 @@ import {
 	readdirSync,
 	statSync,
 } from 'node:fs';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
+import { exec } from 'node:child_process';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { buildVersionPlugin } from '../../vite-extensions/vite-build-version';
 // eslint-disable-next-line @nx/enforce-module-boundaries
@@ -177,11 +178,10 @@ export default defineConfig(({ command, mode }) => {
 						server.config.logger.warn(
 							'\n  Building @wp-playground/client… Refresh when done.\n'
 						);
-						const { exec } = require('child_process');
 						exec(
 							'npx nx build playground-client',
 							{ cwd: repoRoot },
-							(error: unknown) => {
+							(error, stdout, stderr) => {
 								buildInProgress = false;
 								stalenessWarned = false;
 								if (error) {
@@ -189,6 +189,9 @@ export default defineConfig(({ command, mode }) => {
 										'  @wp-playground/client build failed. ' +
 											'Run manually: npx nx build playground-client\n'
 									);
+									if (stderr) {
+										server.config.logger.error(stderr);
+									}
 								} else {
 									server.config.logger.info(
 										'  @wp-playground/client built. Refresh to load.\n'
@@ -232,10 +235,17 @@ export default defineConfig(({ command, mode }) => {
 							}
 						}
 
-						const filePath = join(
+						const urlPath = new URL(req.url, 'http://localhost')
+							.pathname;
+						const filePath = resolve(
 							clientDistDir,
-							req.url.slice('/client/'.length)
+							urlPath.slice('/client/'.length)
 						);
+						if (!filePath.startsWith(clientDistDir)) {
+							res.statusCode = 403;
+							res.end();
+							return;
+						}
 						if (!existsSync(filePath)) {
 							return next();
 						}
