@@ -18,7 +18,13 @@ import {
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { oAuthMiddleware } from './vite.oauth';
 import { fileURLToPath } from 'node:url';
-import { copyFileSync, existsSync } from 'node:fs';
+import {
+	copyFileSync,
+	existsSync,
+	readFileSync,
+	readdirSync,
+	statSync,
+} from 'node:fs';
 import { join } from 'node:path';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { buildVersionPlugin } from '../../vite-extensions/vite-build-version';
@@ -121,6 +127,122 @@ export default defineConfig(({ command, mode }) => {
 				name: 'configure-server',
 				configureServer(server: ViteDevServer) {
 					server.middlewares.use(oAuthMiddleware);
+				},
+			},
+			// Serve the built @wp-playground/client library at /client/
+			// to match production where playground.wordpress.net/client/index.js
+			// is available. Auto-builds if missing, warns if stale.
+			{
+				name: 'serve-client-library',
+				configureServer(server: ViteDevServer) {
+					const repoRoot = join(__dirname, '../../../');
+					const clientDistDir = join(
+						repoRoot,
+						'dist/packages/playground/client'
+					);
+					const clientSrcDir = join(__dirname, '../client/src');
+					let buildInProgress = false;
+					let stalenessWarned = false;
+
+					function newestMtimeIn(dir: string): number {
+						let newest = 0;
+						try {
+							for (const entry of readdirSync(dir, {
+								withFileTypes: true,
+							})) {
+								const full = join(dir, entry.name);
+								if (entry.isDirectory()) {
+									newest = Math.max(
+										newest,
+										newestMtimeIn(full)
+									);
+								} else if (entry.isFile()) {
+									newest = Math.max(
+										newest,
+										statSync(full).mtimeMs
+									);
+								}
+							}
+						} catch {
+							// Directory may not exist yet
+						}
+						return newest;
+					}
+
+					function triggerClientBuild() {
+						if (buildInProgress) {
+							return;
+						}
+						buildInProgress = true;
+						server.config.logger.warn(
+							'\n  Building @wp-playground/client… Refresh when done.\n'
+						);
+						const { exec } = require('child_process');
+						exec(
+							'npx nx build playground-client',
+							{ cwd: repoRoot },
+							(error: unknown) => {
+								buildInProgress = false;
+								stalenessWarned = false;
+								if (error) {
+									server.config.logger.error(
+										'  @wp-playground/client build failed. ' +
+											'Run manually: npx nx build playground-client\n'
+									);
+								} else {
+									server.config.logger.info(
+										'  @wp-playground/client built. Refresh to load.\n'
+									);
+								}
+							}
+						);
+					}
+
+					server.middlewares.use((req, res, next) => {
+						if (!req.url?.startsWith('/client/')) {
+							return next();
+						}
+
+						const distIndexPath = join(clientDistDir, 'index.js');
+
+						if (!existsSync(distIndexPath)) {
+							triggerClientBuild();
+							res.setHeader('Access-Control-Allow-Origin', '*');
+							res.setHeader(
+								'Content-Type',
+								'application/javascript'
+							);
+							res.statusCode = 503;
+							res.end(
+								'throw new Error(' +
+									'"@wp-playground/client is not built yet. ' +
+									'A build was triggered automatically — refresh in a few seconds.\\n' +
+									'Or build manually: npx nx build playground-client"' +
+									');'
+							);
+							return;
+						}
+
+						if (!stalenessWarned && !buildInProgress) {
+							const distMtime = statSync(distIndexPath).mtimeMs;
+							const srcMtime = newestMtimeIn(clientSrcDir);
+							if (srcMtime > distMtime) {
+								stalenessWarned = true;
+								triggerClientBuild();
+							}
+						}
+
+						const filePath = join(
+							clientDistDir,
+							req.url.slice('/client/'.length)
+						);
+						if (!existsSync(filePath)) {
+							return next();
+						}
+						res.setHeader('Access-Control-Allow-Origin', '*');
+						res.setHeader('Content-Type', 'application/javascript');
+						res.end(readFileSync(filePath));
+					});
 				},
 			},
 			/**
