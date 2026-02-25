@@ -6,6 +6,7 @@ import {
 	loadPHPRuntime,
 	FSHelpers,
 	FileLockManagerComposite,
+	ProcessIdAllocator,
 } from '@php-wasm/universal';
 import type { WasmUserSpaceAPI, WasmUserSpaceContext } from './wasm-user-space';
 import { bindUserSpace } from './wasm-user-space';
@@ -79,6 +80,18 @@ export type PHPLoaderOptionsForNode = PHPLoaderOptions & {
 };
 
 /**
+ * In order to make loadNodeRuntime easier to use in testing,
+ * we provide default processIds for runtimes when none was provided.
+ * !! Do not assign default process IDs in production code.
+ * Otherwise, runtimes in different worker threads might end
+ * up with the same process ID, which could break file locking
+ * and lead to database corruption.
+ */
+const dangerousDefaultProcessIdAllocator = (process.env as any).VITEST
+	? new ProcessIdAllocator()
+	: undefined;
+
+/**
  * Does what load() does, but synchronously returns
  * an object with the PHP instance and a promise that
  * resolves when the PHP instance is ready.
@@ -89,7 +102,14 @@ export async function loadNodeRuntime(
 	phpVersion: SupportedPHPVersion,
 	options: PHPLoaderOptionsForNode = {}
 ) {
-	// TODO: Throw an error if a file lock manager is provided but not a process ID.
+	const processId =
+		options.emscriptenOptions?.processId ??
+		// !! Only assign a default process ID during test.
+		// Otherwise, multiple workers with duplicate process IDs
+		// could break file locking and lead to database corruption.
+		((process.env as any).VITEST
+			? dangerousDefaultProcessIdAllocator!.claim()
+			: undefined);
 
 	let emscriptenOptions: EmscriptenOptions = {
 		/**
@@ -114,6 +134,7 @@ export async function loadNodeRuntime(
 			return bindUserSpace({ fileLockManager }, userSpaceContext);
 		},
 		...(options.emscriptenOptions || {}),
+		processId,
 		onRuntimeInitialized: (phpRuntime: PHPRuntime) => {
 			/**
 			 * When users mount a directory using the `mount` function,
