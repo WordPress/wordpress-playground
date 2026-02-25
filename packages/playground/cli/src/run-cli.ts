@@ -981,12 +981,17 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 	let wordPressReady = false;
 	let isFirstRequest = true;
 
+	const existingSiteRootMount =
+		getMountForVfsPath(args['mount-before-install'] || [], '/wordpress') ||
+		getMountForVfsPath(args.mount || [], '/wordpress');
+
 	const server = await startServer({
 		port: args.port
 			? args.port
 			: !(await isPortInUse(selectedPort))
 				? selectedPort
 				: 0,
+		rootDir: existingSiteRootMount?.hostPath,
 		onBind: async (server: Server, port: number) => {
 			const host = '127.0.0.1';
 			const serverUrl = `http://${host}:${port}`;

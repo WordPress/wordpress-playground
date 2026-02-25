@@ -10,6 +10,7 @@ import { logger } from '@php-wasm/logger';
 
 export interface ServerOptions {
 	port: number;
+	rootDir?: string;
 	onBind: (server: Server, port: number) => Promise<RunCLIServer | void>;
 	/**
 	 * Handler for requests. Always returns StreamedPHPResponse.
@@ -49,6 +50,18 @@ export async function startServer(
 			})
 			.once('error', reject);
 	});
+
+	if (options.rootDir) {
+		const staticMiddleware = express.static(options.rootDir, {
+			index: false,
+		});
+		app.use('/', (req, res, next) => {
+			if (req.path.endsWith('.php')) {
+				return next();
+			}
+			return staticMiddleware(req, res, next);
+		});
+	}
 
 	app.use('/', async (req, res) => {
 		try {
