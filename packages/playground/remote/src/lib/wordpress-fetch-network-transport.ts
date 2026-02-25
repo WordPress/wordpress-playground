@@ -186,6 +186,28 @@ export class WordPressFetchNetworkTransport {
 				require_once '/wordpress/wp-admin/includes/misc.php';
 				require_once '/wordpress/wp-admin/includes/dashboard.php';
 				add_filter('pre_http_request', function($pre, $r, $url) {
+					// Exclude loopback requests from pre-fetching
+					$parsed_url_req = wp_parse_url($url);
+					$parsed_site_url = wp_parse_url(site_url());
+					$default_port = function($parsed) {
+						return ($parsed['scheme'] ?? 'http') === 'https' ? 443 : 80;
+					};
+					$site_port = $parsed_site_url['port'] ?? $default_port($parsed_site_url);
+					$req_port = $parsed_url_req['port'] ?? $default_port($parsed_url_req);
+					if (
+						isset(
+							$parsed_site_url['host'],
+							$parsed_url_req['host'],
+							$parsed_site_url['path'],
+							$parsed_url_req['path']
+						) &&
+						$parsed_site_url['host'] === $parsed_url_req['host'] &&
+						$site_port === $req_port &&
+						str_starts_with( $parsed_url_req['path'], $parsed_site_url['path'] )
+					) {
+						return new WP_Error( 'http_request_block', 'Loopback requests are not pre-fetched' );
+					}
+
 					post_message_to_js(json_encode([
 						'type' => 'parallelize_request',
 						'url' => $url,
