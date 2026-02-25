@@ -2170,14 +2170,30 @@ COPY ./compile/php/exported-functions.list /root/exported-functions.list
 RUN cat /root/exported-functions.list >> /root/.JS_ABI_EXPORTS
 
 COPY ./${EMSCRIPTEN_ENVIRONMENT}-builds/ /root/${EMSCRIPTEN_ENVIRONMENT}-builds
+COPY ./compile/shared/ /root/shared/
 RUN if [ "$WITH_JSPI" = "yes" ]; then \
 		set -eux; \
 		PHP_VERSION_DIR="$(echo "$PHP_VERSION" | cut -d. -f1,2 | tr . -)"; \
 		EXTENSIONS_DIR_PATH="/root/${EMSCRIPTEN_ENVIRONMENT}-builds/${PHP_VERSION_DIR}/jspi/extensions"; \
 		for path in "$EXTENSIONS_DIR_PATH"/*; do \
 			extension="${path##*/}"; \
-			cat "$EXTENSIONS_DIR_PATH/${extension}/${extension}.globals.list" >> /root/.JS_ABI_EXPORTS; \
-			cat "$EXTENSIONS_DIR_PATH/${extension}/${extension}.exports.list" >> /root/.WASM_ABI_EXPORTS; \
+			# List globals symbols [ env func and globals without invoke_ and libc++(_Z) prefixed ones ]
+			/root/emsdk/upstream/bin/wasm-dis "$EXTENSIONS_DIR_PATH/${extension}/${extension}.so" \
+			| sed -n 's/^[[:space:]]*(import "env" "\([^"]*\)"[[:space:]]*(\(func\|global\).*/\1/p' \
+			| sed '/^invoke_/d' \
+			| sed '/^_Z/d' \
+			| sed 's/^/_/' \
+			| sort \
+			>> /root/.JS_ABI_EXPORTS; \
+			# List exports symbols [ GOT.mem and GOT.func globals ]
+			/root/emsdk/upstream/bin/wasm-dis "$EXTENSIONS_DIR_PATH/${extension}/${extension}.so" \
+			| sed -n 's/^[[:space:]]*(import "\(GOT\.mem\|GOT\.func\)" "\([^"]*\)"[[:space:]]*(global.*/\2/p' \
+			| sort \
+			>> /root/.WASM_ABI_EXPORTS; \
+			# Inject extension-specific exported functions
+			if [ -f /root/shared/${extension}/exported-functions.list ]; then \
+				cat /root/shared/${extension}/exported-functions.list >> /root/.JS_ABI_EXPORTS; \
+			fi; \
 		done \
 	fi;
 
