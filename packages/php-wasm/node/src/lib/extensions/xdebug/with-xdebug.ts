@@ -1,3 +1,4 @@
+import { DEFAULT_IDE_KEY } from '@php-wasm/cli-util';
 import {
 	type EmscriptenOptions,
 	type PHPRuntime,
@@ -73,7 +74,7 @@ export async function withXdebug(
 					'/internal/shared/extensions/xdebug.ini'
 				)
 			) {
-				const ideKey = xdebugOptions.ideKey || 'PHPWASMCLI';
+				const ideKey = xdebugOptions.ideKey || DEFAULT_IDE_KEY;
 				phpRuntime.FS.writeFile(
 					'/internal/shared/extensions/xdebug.ini',
 					[

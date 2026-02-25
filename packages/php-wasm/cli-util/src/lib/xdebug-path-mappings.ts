@@ -16,6 +16,8 @@ export interface XdebugOptions {
 	pathSkippings?: string[];
 }
 
+export const DEFAULT_IDE_KEY = 'PHPWASMCLI';
+
 /**
  * Create a symlink to a tempory directory.
  *
@@ -487,7 +489,7 @@ export async function addXdebugIDEConfig({
 	port,
 	cwd,
 	mounts,
-	ideKey = 'PHPWASMCLI',
+	ideKey = DEFAULT_IDE_KEY,
 }: IDEConfig) {
 	const mappings = mounts ? filterLocalMounts(cwd, mounts) : [];
 	const modifiedConfig: Record<string, string> = {};

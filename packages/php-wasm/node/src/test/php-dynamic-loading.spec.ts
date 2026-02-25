@@ -1,4 +1,5 @@
 import { loadNodeRuntime } from '..';
+import { DEFAULT_IDE_KEY } from '@php-wasm/cli-util';
 import {
 	PHP,
 	proxyFileSystem,
@@ -77,7 +78,7 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 				'zend_extension=/internal/shared/extensions/xdebug.so',
 				'xdebug.mode=debug,develop',
 				'xdebug.start_with_request=yes',
-				'xdebug.idekey="PHPWASMCLI"',
+				`xdebug.idekey="${DEFAULT_IDE_KEY}"`,
 				'xdebug.path_mapping=yes',
 			].join('\n');
 
