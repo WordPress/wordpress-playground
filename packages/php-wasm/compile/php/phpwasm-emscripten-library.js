@@ -9,7 +9,7 @@
 
 const LibraryExample = {
 	// Emscripten dependencies:
-	$PHPWASM__deps: ['$allocateUTF8OnStack'],
+	$PHPWASM__deps: ['$allocateUTF8OnStack', '$addOnInit'],
 	$PHPWASM__postset: 'PHPWASM.init();',
 
 	// Functions not exposed to C but available in the generated

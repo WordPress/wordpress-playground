@@ -15,7 +15,7 @@ const currentDirPath =
 		: path.dirname(fileURLToPath(import.meta.url));
 const dependencyFilename = path.join(currentDirPath, '8_3_30', 'php_8_3.wasm');
 export { dependencyFilename }; 
-export const dependenciesTotalSize = 22831591; 
+export const dependenciesTotalSize = 22831590; 
 const phpVersionString = '8.3.30';
 export function init(RuntimeName, PHPLoader) {
     // The rest of the code comes from the built php.js file and esm-suffix.js
@@ -195,6 +195,7 @@ function initRuntime() {
   runtimeInitialized = true;
   callRuntimeCallbacks(__RELOC_FUNCS__);
   // Begin ATINITS hooks
+  callRuntimeCallbacks(onInits);
   if (!Module["noFSInit"] && !FS.initialized) FS.init();
   TTY.init();
   SOCKFS.root = FS.mount(SOCKFS, {}, null);
@@ -5390,6 +5391,10 @@ function ___syscall_chmod(path, mode) {
 ___syscall_chmod.sig = "ipi";
 
 var allocateUTF8OnStack = (...args) => stringToUTF8OnStack(...args);
+
+var onInits = [];
+
+var addOnInit = cb => onInits.push(cb);
 
 function _js_getpid() {
   return PHPLoader.processId ?? 42;
