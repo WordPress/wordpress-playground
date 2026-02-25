@@ -125,8 +125,13 @@ export class StreamedPHPResponse {
 			},
 		});
 
-		const emptyStream = new ReadableStream<Uint8Array>({
+		const stderr = new ReadableStream<Uint8Array>({
 			start(controller) {
+				if (response.errors.length > 0) {
+					controller.enqueue(
+						new TextEncoder().encode(response.errors)
+					);
+				}
 				controller.close();
 			},
 		});
@@ -134,7 +139,7 @@ export class StreamedPHPResponse {
 		const streamed = new StreamedPHPResponse(
 			headersStream,
 			stdout,
-			emptyStream,
+			stderr,
 			Promise.resolve(response.exitCode)
 		);
 

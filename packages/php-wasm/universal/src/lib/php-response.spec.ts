@@ -85,6 +85,7 @@ describe('StreamedPHPResponse', () => {
 			expect(await streamed.httpStatusCode).toBe(500);
 			expect(await streamed.exitCode).toBe(1);
 			expect(await streamed.stdoutText).toBe('error output');
+			expect(await streamed.stderrText).toBe('Fatal error on line 5');
 		});
 
 		it('encodes headers into headersStream for cross-thread serialization', async () => {
@@ -452,6 +453,7 @@ describe('PHPResponse', () => {
 				'x-custom': ['val1', 'val2'],
 			});
 			expect(converted.bytes).toEqual(body);
+			expect(converted.errors).toBe('some stderr');
 			expect(converted.exitCode).toBe(0);
 		});
 
@@ -471,7 +473,7 @@ describe('PHPResponse', () => {
 			expect(roundTripped.httpStatusCode).toBe(original.httpStatusCode);
 			expect(roundTripped.headers).toEqual(original.headers);
 			expect(roundTripped.bytes).toEqual(original.bytes);
-			expect(roundTripped.errors).toBe('');
+			expect(roundTripped.errors).toBe('error log entry');
 			expect(roundTripped.exitCode).toBe(original.exitCode);
 			expect(roundTripped.text).toBe(original.text);
 		});
