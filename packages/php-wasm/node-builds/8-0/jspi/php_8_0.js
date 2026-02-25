@@ -5556,7 +5556,11 @@ var PHPWASM = {
               }
             }
           },
-          wasmImports,
+          wasmImports: Object.assign({}, wasmImports, typeof _builtin_fd_close === "function" ? {
+            builtin_fd_close: _builtin_fd_close
+          } : {}, typeof _builtin_fcntl64 === "function" ? {
+            builtin_fcntl64: _builtin_fcntl64
+          } : {}),
           wasmExports,
           syscalls: SYSCALLS,
           FS,
