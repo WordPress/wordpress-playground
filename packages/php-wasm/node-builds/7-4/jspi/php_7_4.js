@@ -15,7 +15,7 @@ const currentDirPath =
 		: path.dirname(fileURLToPath(import.meta.url));
 const dependencyFilename = path.join(currentDirPath, '7_4_33', 'php_7_4.wasm');
 export { dependencyFilename }; 
-export const dependenciesTotalSize = 18200792; 
+export const dependenciesTotalSize = 18200791; 
 const phpVersionString = '7.4.33';
 export function init(RuntimeName, PHPLoader) {
     // The rest of the code comes from the built php.js file and esm-suffix.js
@@ -5556,7 +5556,11 @@ var PHPWASM = {
               }
             }
           },
-          wasmImports,
+          wasmImports: Object.assign({}, wasmImports, typeof _builtin_fd_close === "function" ? {
+            builtin_fd_close: _builtin_fd_close
+          } : {}, typeof _builtin_fcntl64 === "function" ? {
+            builtin_fcntl64: _builtin_fcntl64
+          } : {}),
           wasmExports,
           syscalls: SYSCALLS,
           FS,
