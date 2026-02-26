@@ -143,13 +143,6 @@ export class StreamedPHPResponse {
 			Promise.resolve(response.exitCode)
 		);
 
-		// Set pre-parsed headers as a fast-path for same-thread
-		// access (avoids re-parsing the stream we just created)
-		streamed.parsedHeaders = Promise.resolve({
-			headers: response.headers,
-			httpStatusCode: response.httpStatusCode,
-		});
-
 		return streamed;
 	}
 
