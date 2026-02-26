@@ -491,15 +491,20 @@ window.__playground_ControlledIframe = window.wp.element.forwardRef(function (pr
 				URL.revokeObjectURL(url);
 			}
 		};
+		const siteUrl = document.location.href.substring(0, document.location.href.indexOf('/wp-admin/'));
+		/**
+		 * Different WordPress versions use different ways of loading the editor iframe. Let's handle
+		 * all possible scenarios.
+		 */
 		if (props.srcDoc) {
 			// WordPress <= 6.2 uses a srcDoc that only contains a doctype.
-			return '/wp-includes/empty.html';
+			return siteUrl + '/wp-includes/empty.html';
 		} else if (props.src && props.src.startsWith('blob:')) {
-			// WordPress 6.3 uses a blob URL with doctype and a list of static assets.
+			// WordPress 6.3 and 7.0+ use a blob URL with doctype and a list of static assets.
 			// Let's pass the document content to empty.html and render it there.
-			return '/wp-includes/empty.html#' + encodeURIComponent(__playground_readBlobAsText(props.src));
+			return siteUrl + '/wp-includes/empty.html#' + encodeURIComponent(__playground_readBlobAsText(props.src));
 		} else {
-			// WordPress >= 6.4 uses a plain HTTPS URL that needs no correction.
+			// WordPress 6.4 – 6.9 uses a plain HTTPS URL that needs no correction.
 			return props.src;
 		}
 	}, [props.src]);
