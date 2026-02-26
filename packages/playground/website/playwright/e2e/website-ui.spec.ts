@@ -593,7 +593,7 @@ test.describe('Save Status Indicator', () => {
 
 		const indicator = website.page.getByText('Unsaved Playground');
 		await expect(indicator).toBeVisible();
-		await expect(indicator).toContainText('Unsaved Playground');
+		await expect(indicator).toHaveCount(1);
 	});
 
 	test('should see save playground message in the Site Manager', async ({
