@@ -95,9 +95,6 @@ type LogVerbosity = (typeof LogVerbosity)[keyof typeof LogVerbosity]['name'];
 
 export type WorkerType = 'v1' | 'v2';
 
-// TODO: Consider creating more workers on demand if other workers blocked to avoid deadlock.
-const MINIMUM_WORKER_COUNT = 10;
-
 /**
  * Parse the CLI args and run the appropriate command.
  *
