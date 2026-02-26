@@ -491,11 +491,15 @@ window.__playground_ControlledIframe = window.wp.element.forwardRef(function (pr
 				URL.revokeObjectURL(url);
 			}
 		};
-		const siteUrl = document.location.href.substring(0, document.location.href.indexOf('/wp-admin/'));
 		/**
 		 * Different WordPress versions use different ways of loading the editor iframe. Let's handle
 		 * all possible scenarios.
+		 *
+		 * Derive the site URL from ajaxurl, which WordPress always sets in the admin to
+		 * {siteUrl}/wp-admin/admin-ajax.php.
 		 */
+		const ajaxUrl = new URL(window.ajaxurl, document.location.href);
+		const siteUrl = ajaxUrl.origin + ajaxUrl.pathname.substring(0, ajaxUrl.pathname.length - '/wp-admin/admin-ajax.php'.length);
 		if (props.srcDoc) {
 			// WordPress <= 6.2 uses a srcDoc that only contains a doctype.
 			return siteUrl + '/wp-includes/empty.html';
