@@ -22,6 +22,12 @@
 // --- Constants ---
 
 export const REQUEST_SLEEP = 1;
+export const REQUEST_FETCH_URL = 2;
+export const REQUEST_FETCH_URL_CHUNK = 3;
+export const REQUEST_SOCKET_OPEN = 4;
+export const REQUEST_SOCKET_SEND = 5;
+export const REQUEST_SOCKET_RECV = 6;
+export const REQUEST_SOCKET_CLOSE = 7;
 export const HEADER_SIZE = 36;
 export const DEFAULT_DATA_SIZE = 1024 * 1024;
 
