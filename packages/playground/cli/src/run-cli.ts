@@ -48,7 +48,6 @@ import {
 	SupportedPHPVersions,
 	FileLockManagerInMemory,
 } from '@php-wasm/universal';
-import { cpus } from 'os';
 import type { MessagePort as NodeMessagePort } from 'worker_threads';
 import yargs, { type Argv, type Options as YargsOptions } from 'yargs';
 import { isValidWordPressSlug } from './is-valid-wordpress-slug';
@@ -989,16 +988,22 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 			const serverUrl = `http://${host}:${port}`;
 			const siteUrl = args['site-url'] || serverUrl;
 
-			// With HTTP 1.1, browsers typically support 6 parallel connections per domain. This is the
-			// upper limit to the number of workers we should run to optimize for performance. We also want
-			// to keep memory usage low by limiting the number of workers. Based on real world testing, five
-			// workers strikes a good balance. Keep at least three workers to preserve behavior that requires
-			// separate PHP processes (e.g. file locking tests and secondary-worker request handling) and to
-			// avoid two-worker deadlocks in lock coordination scenarios.
-			const targetWorkerCount = Math.max(
-				3,
-				Math.min(5, cpus().length - 1)
-			);
+			/**
+			 * With HTTP 1.1, browsers typically support 6 parallel connections per domain.
+			 * > browsers open several connections to each domain,
+			 * > sending parallel requests. Default was once 2 to 3 connections,
+			 * > but this has now increased to a more common use of 6 parallel connections.
+			 * https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Connection_management_in_HTTP_1.x#domain_sharding
+			 *
+			 * While our HTTP server only supports HTTP 1.1 and while we are trying to limit the
+			 * memory requirements of multiple workers, let's hard-code the number of request-handling
+			 * workers to 6.
+			 *
+			 * Going higher than browsers' max concurrent requests seems pointless,
+			 * and going lower may increase the likelihood of deadlock due to workers
+			 * blocking and waiting for file locks.
+			 */
+			const targetWorkerCount = 6;
 
 			/*
 			 * Use a real temp dir as a target for the following Playground paths
