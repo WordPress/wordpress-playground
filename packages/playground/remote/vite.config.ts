@@ -92,6 +92,10 @@ export default defineConfig(({ mode }) => {
 		server: {
 			port: remoteDevServerPort,
 			host: remoteDevServerHost,
+			headers: {
+				'Cross-Origin-Opener-Policy': 'same-origin',
+				'Cross-Origin-Embedder-Policy': 'credentialless',
+			},
 			allowedHosts: ['playground.test', 'playground-preview.test'],
 			proxy: {
 				// Proxy CORS requests to the local PHP CORS proxy server.

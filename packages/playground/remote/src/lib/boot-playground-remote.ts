@@ -5,6 +5,7 @@ import {
 	exposeAPI,
 	consumeAPI,
 	setupPostMessageRelay,
+	needsJspiPolyfill,
 } from '@php-wasm/web';
 
 import type {
@@ -119,6 +120,28 @@ export async function bootPlaygroundRemote() {
 				supported: isolationSupported,
 			});
 		});
+
+	/**
+	 * Enable cross-origin isolation for the JSPI polyfill.
+	 *
+	 * SharedArrayBuffer (needed by the polyfill) requires
+	 * COOP/COEP headers on the page. On the first load these
+	 * headers are absent, so we tell the service worker to
+	 * inject them and reload the page. On the second load
+	 * the headers are in place and SharedArrayBuffer is
+	 * available.
+	 */
+	if (await needsJspiPolyfill()) {
+		if (typeof SharedArrayBuffer === 'undefined') {
+			await enableCrossOriginIsolation(registration);
+			// Stop execution — the page will reload with
+			// COOP/COEP headers and SharedArrayBuffer.
+			return new Promise(() => {}) as never;
+		}
+		// Clean up the reload marker from a previous successful
+		// reload (SAB is available now, so isolation worked).
+		localStorage.removeItem(CROSS_ORIGIN_ISOLATION_RELOAD_KEY);
+	}
 
 	const workerUrl = new URL(getWorkerUrl(), origin) + '';
 
@@ -564,6 +587,105 @@ function detectDocumentIsolationPolicySuport(): Promise<boolean> {
 		};
 
 		document.body.appendChild(testFrame);
+	});
+}
+
+const CROSS_ORIGIN_ISOLATION_RELOAD_KEY = 'jspi-polyfill-reload';
+
+/**
+ * Tells the service worker to inject COOP/COEP headers and reloads the
+ * **top-level** page so that SharedArrayBuffer becomes available for the
+ * JSPI polyfill.
+ *
+ * Why the top-level page? COOP (Cross-Origin-Opener-Policy) is only
+ * effective on top-level documents — browsers ignore it on iframes.
+ * For the iframe to be cross-origin isolated, the top-level page must
+ * have both COOP and COEP. Reloading just the iframe wouldn't help.
+ *
+ * Uses a MessageChannel handshake to ensure the service worker has
+ * processed the request before reloading — otherwise the reload would
+ * race the postMessage and the headers would be missing again.
+ *
+ * Uses localStorage (not sessionStorage) for the infinite-loop guard
+ * because COOP: same-origin causes the browser to create a new
+ * browsing context group, which gets fresh sessionStorage.
+ */
+async function enableCrossOriginIsolation(
+	registration: ServiceWorkerRegistration
+): Promise<never> {
+	const reloadTimestamp = localStorage.getItem(
+		CROSS_ORIGIN_ISOLATION_RELOAD_KEY
+	);
+	if (reloadTimestamp && Date.now() - Number(reloadTimestamp) < 10000) {
+		localStorage.removeItem(CROSS_ORIGIN_ISOLATION_RELOAD_KEY);
+		throw new Error(
+			'SharedArrayBuffer is not available after enabling ' +
+				'cross-origin isolation. The JSPI polyfill requires ' +
+				'Cross-Origin-Opener-Policy and ' +
+				'Cross-Origin-Embedder-Policy HTTP headers on the ' +
+				'top-level document. Ensure the server sends these ' +
+				'headers.'
+		);
+	}
+
+	const sw = await waitForActiveServiceWorker(registration);
+
+	// Use a MessageChannel so we can wait for the SW's acknowledgment.
+	await new Promise<void>((resolve) => {
+		const mc = new MessageChannel();
+		mc.port1.onmessage = () => resolve();
+		sw.postMessage({ type: 'jspi-polyfill-mode', enabled: true }, [
+			mc.port2,
+		]);
+	});
+
+	localStorage.setItem(CROSS_ORIGIN_ISOLATION_RELOAD_KEY, String(Date.now()));
+
+	// Reload the top-level page, not just the iframe. COOP must be
+	// on the top-level document for the iframe to become
+	// cross-origin isolated.
+	window.top!.location.reload();
+	return new Promise(() => {}) as never;
+}
+
+/**
+ * Returns the active ServiceWorker, waiting for activation if the
+ * worker is still installing or waiting.
+ *
+ * On the very first visit, sw.register() resolves while the worker
+ * is still in the "installing" state. We need it to reach "activated"
+ * before we can send it messages.
+ */
+function waitForActiveServiceWorker(
+	registration: ServiceWorkerRegistration
+): Promise<ServiceWorker> {
+	if (registration.active) {
+		return Promise.resolve(registration.active);
+	}
+
+	const pending = registration.installing || registration.waiting;
+	if (!pending) {
+		return Promise.reject(
+			new Error(
+				'No service worker found — cannot enable ' +
+					'cross-origin isolation for the JSPI polyfill.'
+			)
+		);
+	}
+
+	return new Promise((resolve, reject) => {
+		pending.addEventListener('statechange', () => {
+			if (pending.state === 'activated') {
+				resolve(pending);
+			} else if (pending.state === 'redundant') {
+				reject(
+					new Error(
+						'Service worker became redundant — cannot ' +
+							'enable cross-origin isolation.'
+					)
+				);
+			}
+		});
 	});
 }
 

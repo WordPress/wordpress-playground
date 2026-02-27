@@ -219,9 +219,13 @@ self.addEventListener('fetch', (event) => {
 	if (isURLScoped(url)) {
 		const scope = getURLScope(url)!;
 		return event.respondWith(
-			handleScopedRequest(event, scope).then((response) =>
-				rewriteCoopHeadersToDocumentIsolationPolicy(response, scope)
-			)
+			handleScopedRequest(event, scope).then((response) => {
+				response = injectCrossOriginIsolationHeaders(response);
+				return rewriteCoopHeadersToDocumentIsolationPolicy(
+					response,
+					scope
+				);
+			})
 		);
 	}
 
@@ -235,9 +239,13 @@ self.addEventListener('fetch', (event) => {
 	if (referrerUrl && isURLScoped(referrerUrl)) {
 		const scope = getURLScope(referrerUrl)!;
 		return event.respondWith(
-			handleScopedRequest(event, scope).then((response) =>
-				rewriteCoopHeadersToDocumentIsolationPolicy(response, scope)
-			)
+			handleScopedRequest(event, scope).then((response) => {
+				response = injectCrossOriginIsolationHeaders(response);
+				return rewriteCoopHeadersToDocumentIsolationPolicy(
+					response,
+					scope
+				);
+			})
 		);
 	}
 
@@ -319,12 +327,20 @@ self.addEventListener('fetch', (event) => {
 	 * details.
 	 */
 	if (url.pathname === '/remote.html' || url.pathname === '/') {
-		event.respondWith(networkFirstFetch(event.request));
+		event.respondWith(
+			networkFirstFetch(event.request).then((response) =>
+				injectCrossOriginIsolationHeaders(response)
+			)
+		);
 		return;
 	}
 
 	// Use cache first strategy to serve regular static assets.
-	return event.respondWith(cacheFirstFetch(event.request));
+	return event.respondWith(
+		cacheFirstFetch(event.request).then((response) =>
+			injectCrossOriginIsolationHeaders(response)
+		)
+	);
 });
 
 /**
@@ -619,6 +635,17 @@ async function getScopedWpDetails(scope: string): Promise<WPModuleDetails> {
 let browserSupportsDocumentIsolationPolicy: boolean | undefined;
 
 /**
+ * Whether the JSPI polyfill mode is active.
+ *
+ * When true, the service worker injects COOP/COEP headers on
+ * scoped HTML responses to enable SharedArrayBuffer, which the
+ * JSPI polyfill needs for main-thread/worker communication.
+ *
+ * This is set via the 'message' event listener below.
+ */
+let jspiPolyfillMode = false;
+
+/**
  * Scopes that have cross-origin isolation enabled (COEP headers were rewritten to
  * Document-Isolation-Policy). This is used to determine whether empty.html should
  * also have Document-Isolation-Policy header.
@@ -629,7 +656,52 @@ self.addEventListener('message', (event) => {
 	if (event.data?.type === 'document-isolation-policy-support-check') {
 		browserSupportsDocumentIsolationPolicy = event.data.supported === true;
 	}
+	if (event.data?.type === 'jspi-polyfill-mode') {
+		jspiPolyfillMode = event.data.enabled === true;
+		// Acknowledge via MessageChannel so the page can safely
+		// reload after we've committed the flag.
+		if (event.ports?.[0]) {
+			event.ports[0].postMessage('ack');
+		}
+	}
 });
+
+/**
+ * Injects COOP/COEP headers on scoped HTML responses when the
+ * JSPI polyfill mode is active. This enables SharedArrayBuffer,
+ * which the polyfill needs for main-thread/worker communication.
+ *
+ * Only injects on HTML responses — non-HTML resources (JS, CSS,
+ * images) don't need document-level isolation headers.
+ *
+ * Uses `COEP: credentialless` instead of `require-corp` to avoid
+ * breaking cross-origin resources (YouTube embeds, external
+ * images, etc.) that don't set CORP headers.
+ *
+ * @param response The response to potentially modify
+ * @returns A new Response with COOP/COEP headers, or the
+ *          original response if conditions aren't met
+ */
+function injectCrossOriginIsolationHeaders(response: Response): Response {
+	if (!jspiPolyfillMode) {
+		return response;
+	}
+
+	const contentType = response.headers.get('content-type') ?? '';
+	if (!contentType.includes('text/html')) {
+		return response;
+	}
+
+	const newHeaders = new Headers(response.headers);
+	newHeaders.set('cross-origin-opener-policy', 'same-origin');
+	newHeaders.set('cross-origin-embedder-policy', 'credentialless');
+
+	return new Response(response.body, {
+		status: response.status,
+		statusText: response.statusText,
+		headers: newHeaders,
+	});
+}
 
 /**
  * Rewrites COEP/COOP headers to Document-Isolation-Policy for browsers that support it.
