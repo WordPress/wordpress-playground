@@ -200,9 +200,14 @@ export function waitForRequestAsync(
 	return { cancel };
 }
 
-// --- Private helpers ---
+// --- Helpers ---
 
-function wrapSharedChannel(sab: SharedArrayBuffer): SharedChannel {
+/**
+ * Wraps a raw SharedArrayBuffer into a SharedChannel.
+ * Useful when a worker receives a SAB from the main thread
+ * and needs to construct the typed views.
+ */
+export function wrapSharedChannel(sab: SharedArrayBuffer): SharedChannel {
 	const int32View = new Int32Array(sab, 0, HEADER_SIZE / 4);
 	const dataView = new Uint8Array(sab, HEADER_SIZE);
 	return { sab, int32View, dataView };

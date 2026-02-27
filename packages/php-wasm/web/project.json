@@ -139,7 +139,8 @@
 					"certificates.spec.ts",
 					"tcp-over-fetch-websocket.spec.ts",
 					"shared-channel.spec.ts",
-					"jspi-polyfill.spec.ts"
+					"jspi-polyfill.spec.ts",
+					"main-thread-handler.spec.ts"
 				]
 			}
 		},
