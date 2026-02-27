@@ -1,0 +1,24 @@
+{
+	"name": "php-wasm-web-binaries-8-1",
+	"$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+	"projectType": "library",
+	"targets": {
+		"build": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "node tools/scripts/build-wasm-binary-package.mjs --platform=web --version=8-1",
+				"parallel": false
+			}
+		},
+		"publish": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "cd dist/packages/php-wasm/web-binaries/8-1 && npm publish",
+				"parallel": false
+			},
+			"dependsOn": ["build"]
+		}
+	},
+	"tags": ["scope:php-binaries", "type:wasm-binary"],
+	"implicitDependencies": ["php-wasm-web-8-1"]
+}

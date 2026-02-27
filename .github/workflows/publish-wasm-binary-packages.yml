@@ -1,0 +1,66 @@
+name: Publish PHP WASM binary packages to GitHub Packages
+
+on:
+    push:
+        branches:
+            - trunk
+        paths:
+            - 'packages/php-wasm/web-builds/**'
+            - 'packages/php-wasm/node-builds/**'
+            - 'packages/php-wasm/supported-php-versions.mjs'
+    workflow_dispatch:
+
+permissions:
+    contents: read
+    packages: write
+
+jobs:
+    publish:
+        runs-on: ubuntu-latest
+
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  submodules: true
+
+            # prepare-playground installs dependencies (npm ci) and calls
+            # actions/setup-node without registry-url. This must run before
+            # the GitHub Packages setup below so that npm ci fetches @php-wasm/*
+            # packages from npmjs.org, not from GitHub Packages.
+            - uses: ./.github/actions/prepare-playground
+
+            # Redirect the @php-wasm scope to GitHub Packages for publishing.
+            # Must run after prepare-playground so npm ci is not affected.
+            - name: Set up Node.js for GitHub Packages
+              uses: actions/setup-node@v4
+              with:
+                  node-version: '20'
+                  registry-url: 'https://npm.pkg.github.com'
+                  scope: '@php-wasm'
+
+            - name: Build binary packages
+              run: npx nx run-many --target=build --projects=tag:type:wasm-binary --parallel=4
+
+            - name: Publish binary packages to GitHub Packages
+              run: |
+                  set -euo pipefail
+                  for platform in web node; do
+                    for version in 7-4 8-0 8-1 8-2 8-3 8-4 8-5; do
+                      dist="dist/packages/php-wasm/${platform}-binaries/${version}"
+                      name="@php-wasm-binaries/${platform}-${version}"
+                      ver=$(node -e "process.stdout.write(require('./${dist}/package.json').version)")
+
+                      echo "Publishing ${name}@${ver}..."
+                      out=$(cd "${dist}" && npm publish 2>&1) && echo "${out}" || {
+                        if echo "${out}" | grep -qiE "already exists|EPUBLISHCONFLICT|previously published|cannot publish over"; then
+                          echo "${out}"
+                          echo "  ${name}@${ver} already published, skipping."
+                        else
+                          echo "${out}" >&2
+                          exit 1
+                        fi
+                      }
+                    done
+                  done
+              env:
+                  NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
