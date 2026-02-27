@@ -14,9 +14,12 @@ import {
 	installJspiPolyfill,
 	createSharedChannel,
 	sendRequestFromWorker,
+	PolyfillProxyWebSocket,
+	setPolyfillChannel,
 	REQUEST_SLEEP,
 	REQUEST_FETCH_URL,
 	REQUEST_FETCH_URL_CHUNK,
+	REQUEST_SOCKET_RECV,
 } from './jspi-polyfill';
 
 export interface LoaderOptions {
@@ -100,6 +103,8 @@ export async function loadWebRuntime(
 		console.info('This browser does not support JSPI. Using a polyfill.');
 		installJspiPolyfill();
 		const channel = createSharedChannel();
+		setPolyfillChannel(channel);
+
 		// The main thread must install the SAB listener
 		// (setupJspiPolyfillListener) before the worker
 		// reaches this point. This is safe because the
@@ -110,8 +115,26 @@ export async function loadWebRuntime(
 		self.postMessage({
 			type: 'jspi-polyfill-channel',
 			sab: channel.sab,
+			tcpOverFetchOptions: loaderOptions.tcpOverFetch,
 		});
-		finalOptions = wrapInstantiateWasmForPolyfill(options, channel);
+
+		// Replace websocket decorator to use the SAB proxy
+		// instead of a real TCPOverFetchWebSocket on the
+		// worker (where the event loop is blocked).
+		if (loaderOptions.tcpOverFetch) {
+			finalOptions = {
+				...finalOptions,
+				websocket: {
+					url: (_: unknown, host: string, port: string) =>
+						`ws://playground.internal/?host=${host}&port=${port}`,
+					subprotocol: 'binary',
+					decorator: () =>
+						PolyfillProxyWebSocket as unknown as typeof WebSocket,
+				},
+			};
+		}
+
+		finalOptions = wrapInstantiateWasmForPolyfill(finalOptions, channel);
 	}
 
 	loaderOptions.onPhpLoaderModuleLoaded?.(phpLoaderModule);
@@ -194,6 +217,49 @@ function patchAsyncImports(
 				pnum,
 				perror
 			);
+		};
+	}
+
+	// wasm_recv / recv: route through SAB to main thread
+	// where the real TCPOverFetchWebSocket can read data.
+	// Both must be replaced — recv calls the original
+	// _wasm_recv JS function, not the WASM import.
+	const recvReplacement = (
+		sockfd: number,
+		buffer: number,
+		size: number
+	): number => {
+		return polyfillRecv(channel, wasmRefs, sockfd, buffer, size);
+	};
+	if (typeof env['wasm_recv'] === 'function') {
+		env['wasm_recv'] = recvReplacement;
+	}
+	if (typeof env['recv'] === 'function') {
+		env['recv'] = recvReplacement;
+	}
+
+	// __syscall_connect: wrap to capture sockfd → socketId
+	// mapping after each connect call.
+	if (typeof env['__syscall_connect'] === 'function') {
+		const original = env['__syscall_connect'] as (
+			sockfd: number,
+			addr: number,
+			addrlen: number
+		) => number;
+		env['__syscall_connect'] = (
+			sockfd: number,
+			addr: number,
+			addrlen: number
+		) => {
+			const result = original(sockfd, addr, addrlen);
+			if (PolyfillProxyWebSocket.lastCreatedSocketId > 0) {
+				PolyfillProxyWebSocket.sockfdToSocketId.set(
+					sockfd,
+					PolyfillProxyWebSocket.lastCreatedSocketId
+				);
+				PolyfillProxyWebSocket.lastCreatedSocketId = 0;
+			}
+			return result;
 		};
 	}
 
@@ -281,4 +347,25 @@ function polyfillEmscriptenWgetData(
 	view.setInt32(pbuffer, ptr, true);
 	view.setInt32(pnum, totalLength, true);
 	view.setInt32(perror, 0, true);
+}
+
+function polyfillRecv(
+	channel: SharedChannel,
+	wasmRefs: WasmRefs,
+	sockfd: number,
+	buffer: number,
+	size: number
+): number {
+	const socketId = PolyfillProxyWebSocket.sockfdToSocketId.get(sockfd);
+	if (socketId === undefined) return 0;
+
+	const response = sendRequestFromWorker(channel, REQUEST_SOCKET_RECV, [
+		socketId,
+		size,
+	]);
+	if (response.error !== 0 || response.responseLength === 0) return 0;
+
+	const mem = new Uint8Array(wasmRefs.memory!.buffer);
+	mem.set(response.data.subarray(0, response.responseLength), buffer);
+	return response.responseLength;
 }
