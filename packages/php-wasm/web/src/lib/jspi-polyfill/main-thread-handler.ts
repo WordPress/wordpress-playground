@@ -7,6 +7,8 @@
  * operation, and sends the response back.
  */
 
+import type { TCPOverFetchOptions } from '../tcp-over-fetch-websocket';
+import { MainThreadSocketManager } from './main-thread-socket-manager';
 import type { SharedChannel, MainThreadRequest } from './shared-channel';
 import {
 	readRequest,
@@ -15,6 +17,10 @@ import {
 	REQUEST_SLEEP,
 	REQUEST_FETCH_URL,
 	REQUEST_FETCH_URL_CHUNK,
+	REQUEST_SOCKET_OPEN,
+	REQUEST_SOCKET_SEND,
+	REQUEST_SOCKET_RECV,
+	REQUEST_SOCKET_CLOSE,
 } from './shared-channel';
 
 /**
@@ -22,10 +28,16 @@ import {
  * Returns a handle with a `cancel()` method to stop
  * listening.
  */
-export function startMainThreadHandler(channel: SharedChannel): {
+export function startMainThreadHandler(
+	channel: SharedChannel,
+	tcpOverFetchOptions?: TCPOverFetchOptions
+): {
 	cancel: () => void;
 } {
 	let storedFetchResponse: Uint8Array | null = null;
+	const socketManager = tcpOverFetchOptions
+		? new MainThreadSocketManager(tcpOverFetchOptions)
+		: null;
 
 	return waitForRequestAsync(channel, async () => {
 		const request = readRequest(channel);
@@ -39,6 +51,18 @@ export function startMainThreadHandler(channel: SharedChannel): {
 				break;
 			case REQUEST_FETCH_URL_CHUNK:
 				handleFetchUrlChunk(channel, request, storedFetchResponse);
+				break;
+			case REQUEST_SOCKET_OPEN:
+				handleSocketOpen(channel, request, socketManager);
+				break;
+			case REQUEST_SOCKET_SEND:
+				handleSocketSend(channel, request, socketManager);
+				break;
+			case REQUEST_SOCKET_RECV:
+				await handleSocketRecv(channel, request, socketManager);
+				break;
+			case REQUEST_SOCKET_CLOSE:
+				handleSocketClose(channel, request, socketManager);
 				break;
 			default:
 				// Unknown request type — respond with error.
@@ -104,4 +128,63 @@ function handleFetchUrlChunk(
 		0,
 		storedFetchResponse.subarray(offset, offset + chunkSize)
 	);
+}
+
+function handleSocketOpen(
+	channel: SharedChannel,
+	request: MainThreadRequest,
+	socketManager: MainThreadSocketManager | null
+): void {
+	if (!socketManager) {
+		sendResponseToWorker(channel, 1);
+		return;
+	}
+	const socketId = request.params[0];
+	const port = request.params[1];
+	const host = new TextDecoder().decode(request.data);
+	socketManager.createSocket(socketId, host, port);
+	sendResponseToWorker(channel, 0);
+}
+
+function handleSocketSend(
+	channel: SharedChannel,
+	request: MainThreadRequest,
+	socketManager: MainThreadSocketManager | null
+): void {
+	if (!socketManager) {
+		sendResponseToWorker(channel, 1);
+		return;
+	}
+	const socketId = request.params[0];
+	socketManager.sendToSocket(socketId, request.data);
+	sendResponseToWorker(channel, 0);
+}
+
+async function handleSocketRecv(
+	channel: SharedChannel,
+	request: MainThreadRequest,
+	socketManager: MainThreadSocketManager | null
+): Promise<void> {
+	if (!socketManager) {
+		sendResponseToWorker(channel, 1);
+		return;
+	}
+	const socketId = request.params[0];
+	const maxSize = request.params[1];
+	const data = await socketManager.recvFromSocket(socketId, maxSize);
+	sendResponseToWorker(channel, 0, data);
+}
+
+function handleSocketClose(
+	channel: SharedChannel,
+	request: MainThreadRequest,
+	socketManager: MainThreadSocketManager | null
+): void {
+	if (!socketManager) {
+		sendResponseToWorker(channel, 1);
+		return;
+	}
+	const socketId = request.params[0];
+	socketManager.closeSocket(socketId);
+	sendResponseToWorker(channel, 0);
 }

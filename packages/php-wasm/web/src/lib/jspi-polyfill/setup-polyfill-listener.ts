@@ -10,7 +10,7 @@ export function setupJspiPolyfillListener(worker: Worker): void {
 	worker.addEventListener('message', (event: MessageEvent) => {
 		if (event.data?.type === 'jspi-polyfill-channel') {
 			const channel = wrapSharedChannel(event.data.sab);
-			startMainThreadHandler(channel);
+			startMainThreadHandler(channel, event.data.tcpOverFetchOptions);
 		}
 	});
 }
