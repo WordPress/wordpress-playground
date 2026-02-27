@@ -15,6 +15,8 @@ import {
 	createSharedChannel,
 	sendRequestFromWorker,
 	REQUEST_SLEEP,
+	REQUEST_FETCH_URL,
+	REQUEST_FETCH_URL_CHUNK,
 } from './jspi-polyfill';
 
 export interface LoaderOptions {
@@ -117,10 +119,16 @@ export async function loadWebRuntime(
 	return await loadPHPRuntime(phpLoaderModule, finalOptions);
 }
 
+interface WasmRefs {
+	memory: WebAssembly.Memory | null;
+	malloc: ((size: number) => number) | null;
+}
+
 function wrapInstantiateWasmForPolyfill(
 	options: EmscriptenOptions,
 	channel: SharedChannel
 ): EmscriptenOptions {
+	const wasmRefs: WasmRefs = { memory: null, malloc: null };
 	const originalInstantiateWasm = options.instantiateWasm;
 	if (!originalInstantiateWasm) {
 		// When Module['instantiateWasm'] is set, Emscripten
@@ -143,20 +151,134 @@ function wrapInstantiateWasmForPolyfill(
 				module: WebAssembly.Module
 			) => void
 		) {
-			patchAsyncImports(info, channel);
-			return originalInstantiateWasm(info, receiveInstance);
+			patchAsyncImports(info, channel, wasmRefs);
+			return originalInstantiateWasm(info, (instance, module) => {
+				wasmRefs.memory = instance.exports[
+					'memory'
+				] as WebAssembly.Memory;
+				wasmRefs.malloc = instance.exports['malloc'] as (
+					n: number
+				) => number;
+				receiveInstance(instance, module);
+			});
 		},
 	};
 }
 
 function patchAsyncImports(
 	info: WebAssembly.Imports,
-	channel: SharedChannel
+	channel: SharedChannel,
+	wasmRefs: WasmRefs
 ): void {
 	const env = info['env'] as Record<string, unknown> | undefined;
-	if (env && typeof env['emscripten_sleep'] === 'function') {
+	if (!env) return;
+
+	if (typeof env['emscripten_sleep'] === 'function') {
 		env['emscripten_sleep'] = (ms: number) => {
 			sendRequestFromWorker(channel, REQUEST_SLEEP, [ms]);
 		};
 	}
+
+	if (typeof env['emscripten_wget_data'] === 'function') {
+		env['emscripten_wget_data'] = (
+			urlPtr: number,
+			pbuffer: number,
+			pnum: number,
+			perror: number
+		) => {
+			polyfillEmscriptenWgetData(
+				channel,
+				wasmRefs,
+				urlPtr,
+				pbuffer,
+				pnum,
+				perror
+			);
+		};
+	}
+
+	// fd_sync: no-op — the in-memory FS is already
+	// up-to-date; only IDB persistence is skipped.
+	if (typeof env['fd_sync'] === 'function') {
+		env['fd_sync'] = () => 0;
+	}
+	const wasi = info['wasi_snapshot_preview1'] as
+		| Record<string, unknown>
+		| undefined;
+	if (wasi && typeof wasi['fd_sync'] === 'function') {
+		wasi['fd_sync'] = () => 0;
+	}
+}
+
+function polyfillEmscriptenWgetData(
+	channel: SharedChannel,
+	wasmRefs: WasmRefs,
+	urlPtr: number,
+	pbuffer: number,
+	pnum: number,
+	perror: number
+): void {
+	// Read null-terminated UTF-8 URL from WASM memory.
+	const mem = new Uint8Array(wasmRefs.memory!.buffer);
+	let end = urlPtr;
+	while (mem[end] !== 0) end++;
+	const urlBytes = mem.slice(urlPtr, end);
+
+	// Send to main thread for fetching.
+	const response = sendRequestFromWorker(
+		channel,
+		REQUEST_FETCH_URL,
+		[],
+		urlBytes
+	);
+
+	if (response.error !== 0) {
+		const view = new DataView(wasmRefs.memory!.buffer);
+		view.setInt32(pbuffer, 0, true);
+		view.setInt32(pnum, 0, true);
+		view.setInt32(perror, 1, true);
+		return;
+	}
+
+	// Response layout: [4-byte total length (LE u32)] [first chunk]
+	const totalLength = new DataView(
+		response.data.buffer,
+		response.data.byteOffset,
+		4
+	).getUint32(0, true);
+	const chunks: Uint8Array[] = [];
+	const firstChunk = response.data.subarray(4);
+	chunks.push(firstChunk);
+	let received = firstChunk.length;
+
+	// Fetch remaining chunks if the response is larger
+	// than what fits in a single SAB transfer.
+	while (received < totalLength) {
+		const chunkResponse = sendRequestFromWorker(
+			channel,
+			REQUEST_FETCH_URL_CHUNK,
+			[received]
+		);
+		if (chunkResponse.error !== 0) break;
+		chunks.push(chunkResponse.data);
+		received += chunkResponse.data.length;
+	}
+
+	// Allocate WASM buffer via malloc.
+	const ptr = wasmRefs.malloc!(totalLength);
+
+	// Re-read memory.buffer after malloc — memory growth
+	// can detach the old ArrayBuffer.
+	const newMem = new Uint8Array(wasmRefs.memory!.buffer);
+	let offset = 0;
+	for (const chunk of chunks) {
+		newMem.set(chunk, ptr + offset);
+		offset += chunk.length;
+	}
+
+	// Write output pointers.
+	const view = new DataView(wasmRefs.memory!.buffer);
+	view.setInt32(pbuffer, ptr, true);
+	view.setInt32(pnum, totalLength, true);
+	view.setInt32(perror, 0, true);
 }
