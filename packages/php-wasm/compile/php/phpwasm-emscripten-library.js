@@ -84,17 +84,24 @@ const LibraryExample = {
 							LOCK_UN: 8, // Unlock
 						},
 						errnoCodes: ERRNO_CODES,
+						// Use getters so property access always returns
+						// the current typed arrays. After memory.grow(),
+						// Emscripten's updateMemoryViews() reassigns
+						// the module-scoped HEAP* variables to new
+						// typed arrays backed by the grown buffer.
+						// Plain properties would capture stale
+						// references to the old, detached ArrayBuffer.
 						memory: {
-							HEAP8,
-							HEAPU8,
-							HEAP16,
-							HEAPU16,
-							HEAP32,
-							HEAPU32,
-							HEAPF32,
-							HEAP64,
-							HEAPU64,
-							HEAPF64,
+							get HEAP8() { return HEAP8; },
+							get HEAPU8() { return HEAPU8; },
+							get HEAP16() { return HEAP16; },
+							get HEAPU16() { return HEAPU16; },
+							get HEAP32() { return HEAP32; },
+							get HEAPU32() { return HEAPU32; },
+							get HEAPF32() { return HEAPF32; },
+							get HEAP64() { return HEAP64; },
+							get HEAPU64() { return HEAPU64; },
+							get HEAPF64() { return HEAPF64; },
 						},
 						wasmImports,
 						wasmExports,
