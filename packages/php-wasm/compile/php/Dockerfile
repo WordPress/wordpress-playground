@@ -2396,6 +2396,20 @@ RUN set -euxo pipefail; \
 		# But the alternative `onExit()` handling is conditional and has different semantics.
 		# To avoid bugs due to this change, let's just restore support for quit callback customization.
 		/root/replace.sh "s/(if\s*\(Module\[['\"]thisProgram['\"]\]\)\s*thisProgram\s*=\s*Module\[['\"]thisProgram['\"]\];)/\$1\nif (Module[\"quit\"]) quit_=Module[\"quit\"];/" /root/output/php.js; \
+	# Cache Asyncify sleep data allocation to prevent memory growth corruption
+		#
+		# Emscripten's handleSleep() calls _malloc() on every async operation and
+		# _free() on every rewind. If _malloc triggers memory.grow(), the ArrayBuffer
+		# detaches and corrupts state. Fix: allocate once, reuse on subsequent sleeps.
+		# See: https://github.com/emscripten-core/emscripten/issues/21108
+		if [ "$WITH_JSPI" != "yes" ]; then \
+			/root/replace.sh \
+				's/Asyncify\.currData\s*=\s*Asyncify\.allocateData\(\)/if (!Asyncify._cachedData) { Asyncify._cachedData = Asyncify.allocateData(); } else { Asyncify.setDataHeader(Asyncify._cachedData, Asyncify._cachedData + 12, Asyncify.StackSize); Asyncify.setDataRewindFunc(Asyncify._cachedData); } Asyncify.currData = Asyncify._cachedData/' \
+				/root/output/php.js; \
+			/root/replace-across-lines.sh \
+				's/runAndAbortIfError\(_asyncify_stop_rewind\);\s*_free\(Asyncify\.currData\);/runAndAbortIfError(_asyncify_stop_rewind);/s' \
+				/root/output/php.js; \
+		fi; \
 	# Node.js: Create a require() function and add 'currentDirPath' declaration
 	# because Emscripten generates Node.js code that requires them.
 		if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then \
