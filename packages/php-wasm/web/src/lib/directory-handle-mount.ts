@@ -5,7 +5,7 @@ import { logger } from '@php-wasm/logger';
 import type { FilesystemOperation } from '@php-wasm/fs-journal';
 import { normalizeFilesystemOperations } from '@php-wasm/fs-journal';
 import { journalFSEvents } from '@php-wasm/fs-journal';
-import type { MountDevice as _MountDevice } from '@wp-playground/storage';
+import type { MountDevice } from '@wp-playground/storage';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import type * as pleaseLoadTypes from 'wicg-file-system-access';
 
@@ -28,7 +28,7 @@ declare global {
 }
 
 /** @deprecated Import MountDevice from '@wp-playground/storage' instead. */
-export type MountDevice = _MountDevice;
+export type { MountDevice };
 
 export interface MountOptions {
 	initialSync: {
