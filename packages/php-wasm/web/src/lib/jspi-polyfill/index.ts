@@ -24,3 +24,5 @@ export {
 } from './jspi-polyfill';
 
 export { startMainThreadHandler } from './main-thread-handler';
+
+export { setupJspiPolyfillListener } from './setup-polyfill-listener';

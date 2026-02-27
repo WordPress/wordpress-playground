@@ -8,6 +8,14 @@ import { getPHPLoaderModule } from './get-php-loader-module';
 import type { TCPOverFetchOptions } from './tcp-over-fetch-websocket';
 import { tcpOverFetchWebsocket } from './tcp-over-fetch-websocket';
 import { withIntl } from './extensions/intl/with-intl';
+import type { SharedChannel } from './jspi-polyfill';
+import {
+	needsJspiPolyfill,
+	installJspiPolyfill,
+	createSharedChannel,
+	sendRequestFromWorker,
+	REQUEST_SLEEP,
+} from './jspi-polyfill';
 
 export interface LoaderOptions {
 	emscriptenOptions?: EmscriptenOptions;
@@ -84,7 +92,71 @@ export async function loadWebRuntime(
 		emscriptenOptions,
 	]);
 
+	let finalOptions = options;
+	if (await needsJspiPolyfill()) {
+		// eslint-disable-next-line no-console
+		console.info('This browser does not support JSPI. Using a polyfill.');
+		installJspiPolyfill();
+		const channel = createSharedChannel();
+		// The main thread must install the SAB listener
+		// (setupJspiPolyfillListener) before the worker
+		// reaches this point. This is safe because the
+		// worker signals 'worker-script-started' first,
+		// the main thread installs the listener upon
+		// receiving it, and only then does the worker
+		// proceed to call loadWebRuntime().
+		self.postMessage({
+			type: 'jspi-polyfill-channel',
+			sab: channel.sab,
+		});
+		finalOptions = wrapInstantiateWasmForPolyfill(options, channel);
+	}
+
 	loaderOptions.onPhpLoaderModuleLoaded?.(phpLoaderModule);
 
-	return await loadPHPRuntime(phpLoaderModule, options);
+	return await loadPHPRuntime(phpLoaderModule, finalOptions);
+}
+
+function wrapInstantiateWasmForPolyfill(
+	options: EmscriptenOptions,
+	channel: SharedChannel
+): EmscriptenOptions {
+	const originalInstantiateWasm = options.instantiateWasm;
+	if (!originalInstantiateWasm) {
+		// When Module['instantiateWasm'] is set, Emscripten
+		// skips its default instantiation path entirely and
+		// expects the hook to call receiveInstance(). Without
+		// an original hook to delegate to, we cannot reliably
+		// locate and fetch the WASM binary ourselves.
+		throw new Error(
+			'JSPI polyfill requires emscriptenOptions.instantiateWasm. ' +
+				'Provide a custom instantiateWasm hook so the polyfill ' +
+				'can intercept WASM imports before instantiation.'
+		);
+	}
+	return {
+		...options,
+		instantiateWasm(
+			info: WebAssembly.Imports,
+			receiveInstance: (
+				instance: WebAssembly.Instance,
+				module: WebAssembly.Module
+			) => void
+		) {
+			patchAsyncImports(info, channel);
+			return originalInstantiateWasm(info, receiveInstance);
+		},
+	};
+}
+
+function patchAsyncImports(
+	info: WebAssembly.Imports,
+	channel: SharedChannel
+): void {
+	const env = info['env'] as Record<string, unknown> | undefined;
+	if (env && typeof env['emscripten_sleep'] === 'function') {
+		env['emscripten_sleep'] = (ms: number) => {
+			sendRequestFromWorker(channel, REQUEST_SLEEP, [ms]);
+		};
+	}
 }

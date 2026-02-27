@@ -6,6 +6,7 @@ import {
 	consumeAPI,
 	setupPostMessageRelay,
 	needsJspiPolyfill,
+	setupJspiPolyfillListener,
 } from '@php-wasm/web';
 
 import type {
@@ -145,9 +146,9 @@ export async function bootPlaygroundRemote() {
 
 	const workerUrl = new URL(getWorkerUrl(), origin) + '';
 
-	const phpWorkerApi = consumeAPI<PlaygroundWorkerEndpoint>(
-		await spawnPHPWorkerThread(workerUrl)
-	);
+	const worker = await spawnPHPWorkerThread(workerUrl);
+	setupJspiPolyfillListener(worker);
+	const phpWorkerApi = consumeAPI<PlaygroundWorkerEndpoint>(worker);
 
 	const wpFrame = document.querySelector('#wp') as HTMLIFrameElement;
 	const phpRemoteApi: WebClientMixin = {
@@ -334,7 +335,9 @@ export async function bootPlaygroundRemote() {
 			 *      the detailed context.
 			 */
 			const navigationComplete = new Promise<void>((resolve) => {
-				wpFrame.addEventListener('load', () => resolve(), { once: true });
+				wpFrame.addEventListener('load', () => resolve(), {
+					once: true,
+				});
 			});
 
 			// If the URL is the same, we need to force a reload
