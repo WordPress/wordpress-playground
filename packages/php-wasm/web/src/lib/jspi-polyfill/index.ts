@@ -31,4 +31,9 @@ export {
 
 export { startMainThreadHandler } from './main-thread-handler';
 
+export {
+	PolyfillProxyWebSocket,
+	setPolyfillChannel,
+} from './polyfill-proxy-websocket';
+
 export { setupJspiPolyfillListener } from './setup-polyfill-listener';
