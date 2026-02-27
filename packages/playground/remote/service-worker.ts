@@ -534,18 +534,19 @@ function emptyHtml(scope: string) {
 	};
 
 	/**
-	 * Only add Document-Isolation-Policy when the parent page also has cross-origin
-	 * isolation headers (COEP/COOP that were rewritten to Document-Isolation-Policy).
+	 * When the parent page is cross-origin isolated (via COEP/COOP),
+	 * the child iframe needs matching COEP headers. Without them:
+	 * - The browser may block the iframe (ERR_BLOCKED_BY_RESPONSE)
+	 * - The iframe loses its service worker controller because it
+	 *   ends up in a different browsing context group
 	 *
-	 * Without this header in empty.html, Gutenberg fails to populate the editor iframe
-	 * with the editor markup when the editor page is loaded with COOP/COEP headers set.
-	 *
-	 * However, adding this header unconditionally breaks REST API authentication because
-	 * `isolate-and-credentialless` causes cross-origin requests to be sent without
-	 * credentials (cookies), resulting in "Session expired" errors.
+	 * We always use COEP (never DIP) here because DIP would create
+	 * a new agent cluster, causing the browser to restart the
+	 * navigation outside the service worker's control.
 	 */
-	if (scopesWithCrossOriginIsolation.has(scope)) {
-		headers['Document-Isolation-Policy'] = 'isolate-and-credentialless';
+	const parentCoep = scopesWithCrossOriginIsolation.get(scope);
+	if (parentCoep) {
+		headers['Cross-Origin-Embedder-Policy'] = parentCoep;
 	}
 
 	return new Response(
@@ -628,11 +629,11 @@ async function getScopedWpDetails(scope: string): Promise<WPModuleDetails> {
 let browserSupportsDocumentIsolationPolicy: boolean | undefined;
 
 /**
- * Scopes that have cross-origin isolation enabled (COEP headers were rewritten to
- * Document-Isolation-Policy). This is used to determine whether empty.html should
- * also have Document-Isolation-Policy header.
+ * Scopes that have cross-origin isolation enabled via COEP headers.
+ * Stores the original COEP value so that empty.html can be served with
+ * matching headers regardless of whether Document-Isolation-Policy is supported.
  */
-const scopesWithCrossOriginIsolation = new Set<string>();
+const scopesWithCrossOriginIsolation = new Map<string, string>();
 
 self.addEventListener('message', (event) => {
 	if (event.data?.type === 'document-isolation-policy-support-check') {
@@ -659,26 +660,27 @@ function rewriteCoopHeadersToDocumentIsolationPolicy(
 	response: Response,
 	scope: string
 ): Response {
-	// If we don't know whether the browser supports Document-Isolation-Policy,
-	// or if it doesn't support it, return the original response unchanged.
-	if (!browserSupportsDocumentIsolationPolicy) {
-		return response;
-	}
-
-	// Check if the response has COEP or COOP headers that we should rewrite
-	if (
-		!response.headers.has('cross-origin-embedder-policy') &&
-		!response.headers.has('cross-origin-opener-policy')
-	) {
-		return response;
-	}
-
-	// Only rewrite if the response has COEP headers that indicate cross-origin isolation intent.
-	// COOP alone doesn't achieve cross-origin isolation, so we key off COEP.
+	// Only process responses that have COEP headers indicating cross-origin
+	// isolation intent. COOP alone doesn't achieve cross-origin isolation,
+	// so we key off COEP.
 	const coep = response.headers.get('cross-origin-embedder-policy');
 	if (!coep || (coep !== 'require-corp' && coep !== 'credentialless')) {
 		return response;
 	}
+
+	// Track that this scope uses cross-origin isolation, regardless of DIP
+	// support. This is needed so that emptyHtml() can serve matching headers.
+	scopesWithCrossOriginIsolation.set(scope, coep);
+
+	// Don't rewrite COEP/COOP to DIP. While DIP provides better
+	// cross-origin isolation semantics, it causes child iframes
+	// to lose their service worker controller. This breaks the
+	// Gutenberg editor iframe (empty.html) because sub-resource
+	// requests from the iframe bypass the service worker and 404.
+	//
+	// With COEP/COOP, same-origin child iframes keep their service
+	// worker controller and sub-resources load correctly.
+	return response;
 
 	/**
 	 * Map COEP value to the equivalent Document-Isolation-Policy value.
@@ -708,10 +710,6 @@ function rewriteCoopHeadersToDocumentIsolationPolicy(
 	newHeaders.delete('cross-origin-embedder-policy');
 	newHeaders.delete('cross-origin-opener-policy');
 	newHeaders.set('document-isolation-policy', documentIsolationPolicy);
-
-	// Track that this scope has cross-origin isolation enabled so that
-	// empty.html (the editor iframe) can also get the Document-Isolation-Policy header.
-	scopesWithCrossOriginIsolation.add(scope);
 
 	return new Response(response.body, {
 		status: response.status,
