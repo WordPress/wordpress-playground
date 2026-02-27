@@ -261,4 +261,5 @@ add_action('init', function() {
  * This has something to do with our /wp-includes/empty.html workaround.
  * @TODO: Let's find a solution that doesn't require us to disable client side media processing.
  */
-add_filter('wp_client_side_media_processing_enabled', '__return_false');
+// add_filter('wp_client_side_media_processing_enabled', '__return_false');
+define( 'DISABLE_WP_CRON', true );

@@ -93,6 +93,10 @@ export default defineConfig(({ mode }) => {
 			port: remoteDevServerPort,
 			host: remoteDevServerHost,
 			allowedHosts: ['playground.test', 'playground-preview.test'],
+			headers: {
+				'X-Server-By': 'vite-remote',
+				'Document-Isolation-Policy': 'isolate-and-credentialless',
+			},
 			proxy: {
 				// Proxy CORS requests to the local PHP CORS proxy server.
 				// This avoids Private Network Access (PNA) restrictions in Chrome

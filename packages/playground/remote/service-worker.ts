@@ -412,10 +412,16 @@ async function handleScopedRequest(event: FetchEvent, scope: string) {
 		unscopedUrl.pathname.endsWith('/block-editor/index.min.js')
 	) {
 		const script = await workerResponse.text();
-		const newScript = `${controlledIframe} ${script.replace(
-			/\(\s*"iframe",/,
-			'(__playground_ControlledIframe,'
-		)}`;
+		const newScript = `${controlledIframe} ${script
+			.replace(/\(\s*"iframe",/, '(__playground_ControlledIframe,')
+			// .replace(
+			// 	/"media-experiments\/disable-embed-previews",t/g,
+			// 	'"media-experiments/disable-embed-previews", function(){}'
+			// )
+			.replace(
+				/setAttribute\("src"/g,
+				'setAttribute("data-donotreplace"'
+			)}`;
 		return new Response(newScript, {
 			status: workerResponse.status,
 			statusText: workerResponse.statusText,
@@ -488,28 +494,29 @@ window.__playground_ControlledIframe = window.wp.element.forwardRef(function (pr
 			} catch(e) {
 				return '';
 			} finally {
-				URL.revokeObjectURL(url);
+				// URL.revokeObjectURL(url);
 			}
 		};
 		if (props.srcDoc) {
 			// WordPress <= 6.2 uses a srcDoc that only contains a doctype.
-			return '/wp-includes/empty.html';
+			return '../wp-includes/empty.html';
 		} else if (props.src && props.src.startsWith('blob:')) {
 			// WordPress 6.3 uses a blob URL with doctype and a list of static assets.
 			// Let's pass the document content to empty.html and render it there.
-			return '/wp-includes/empty.html#' + encodeURIComponent(__playground_readBlobAsText(props.src));
+			return '../wp-includes/empty.html#' + encodeURIComponent(__playground_readBlobAsText(props.src));
 		} else {
 			// WordPress >= 6.4 uses a plain HTTPS URL that needs no correction.
 			return props.src;
 		}
 	}, [props.src]);
+	const {crossorigin, ...restProps} = props;
 	return (
 		window.wp.element.createElement('iframe', {
-			...props,
+			...restProps,
 			ref: ref,
 			src: source,
 			// Make sure there's no srcDoc, as it would interfere with the src.
-			srcDoc: undefined
+			srcDoc: undefined,
 		})
 	)
 });`;
@@ -535,12 +542,17 @@ function emptyHtml(scope: string) {
 	 * `isolate-and-credentialless` causes cross-origin requests to be sent without
 	 * credentials (cookies), resulting in "Session expired" errors.
 	 */
-	if (scopesWithCrossOriginIsolation.has(scope)) {
-		headers['Document-Isolation-Policy'] = 'isolate-and-credentialless';
-	}
+	// if (scopesWithCrossOriginIsolation.has(scope)) {
+	headers['Document-Isolation-Policy'] = 'isolate-and-credentialless';
+	// }
 
 	return new Response(
-		'<!doctype html><script>const hash = window.location.hash.substring(1); if ( hash ) document.write(decodeURIComponent(hash))</script>',
+		`<!doctype html><script>
+			const hash = window.location.hash.substring(1);
+			if ( hash ) {
+				document.write(decodeURIComponent(hash))
+			}
+		</script>`,
 		{
 			status: 200,
 			headers,
@@ -656,7 +668,7 @@ function rewriteCoopHeadersToDocumentIsolationPolicy(
 	// If we don't know whether the browser supports Document-Isolation-Policy,
 	// or if it doesn't support it, return the original response unchanged.
 	if (!browserSupportsDocumentIsolationPolicy) {
-		return response;
+		// return response;
 	}
 
 	// Check if the response has COEP or COOP headers that we should rewrite
@@ -664,14 +676,14 @@ function rewriteCoopHeadersToDocumentIsolationPolicy(
 		!response.headers.has('cross-origin-embedder-policy') &&
 		!response.headers.has('cross-origin-opener-policy')
 	) {
-		return response;
+		// return response;
 	}
 
 	// Only rewrite if the response has COEP headers that indicate cross-origin isolation intent.
 	// COOP alone doesn't achieve cross-origin isolation, so we key off COEP.
 	const coep = response.headers.get('cross-origin-embedder-policy');
 	if (!coep || (coep !== 'require-corp' && coep !== 'credentialless')) {
-		return response;
+		// return response;
 	}
 
 	/**
@@ -701,11 +713,13 @@ function rewriteCoopHeadersToDocumentIsolationPolicy(
 	const newHeaders = new Headers(response.headers);
 	newHeaders.delete('cross-origin-embedder-policy');
 	newHeaders.delete('cross-origin-opener-policy');
+	// if (coep) {
 	newHeaders.set('document-isolation-policy', documentIsolationPolicy);
 
 	// Track that this scope has cross-origin isolation enabled so that
 	// empty.html (the editor iframe) can also get the Document-Isolation-Policy header.
 	scopesWithCrossOriginIsolation.add(scope);
+	// }
 
 	return new Response(response.body, {
 		status: response.status,
