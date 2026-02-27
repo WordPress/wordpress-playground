@@ -62,6 +62,24 @@ jobs:
                   if [ $? -eq 0 ]; then
                       git push origin HEAD:trunk
                   fi;
+            - name: Upload SQLite plugin to GitHub Releases
+              if: steps.changes.outputs.CHANGES == '1'
+              env:
+                  GH_TOKEN: ${{ github.token }}
+              run: |
+                  for ZIP in packages/playground/wordpress-builds/src/sqlite-database-integration/*.zip; do
+                      [ -f "${ZIP}" ] || continue
+                      FILENAME=$(basename "${ZIP}")
+                      SUFFIX="${FILENAME#sqlite-database-integration-}"
+                      SUFFIX="${SUFFIX%.zip}"
+                      TAG="sqlite-integration-${SUFFIX}"
+                      if ! gh release view "${TAG}" > /dev/null 2>&1; then
+                          gh release create "${TAG}" \
+                              --title "SQLite Integration Plugin ${SUFFIX}" \
+                              --notes "SQLite database integration plugin build for Playground."
+                      fi
+                      gh release upload "${TAG}" "${ZIP}" --clobber
+                  done
             - name: Deploy website
               if: steps.changes.outputs.CHANGES == '1'
               uses: benc-uk/workflow-dispatch@v1

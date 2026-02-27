@@ -1,0 +1,119 @@
+name: Publish PHP WASM Binaries
+
+on:
+    workflow_dispatch:
+    push:
+        branches:
+            - trunk
+        paths:
+            - 'packages/php-wasm/compile/**'
+
+jobs:
+    build:
+        name: 'Build PHP ${{ matrix.php-version }} (${{ matrix.platform }})'
+        runs-on: ubuntu-latest
+        strategy:
+            fail-fast: false
+            matrix:
+                php-version: ['7.4', '8.0', '8.1', '8.2', '8.3', '8.4', '8.5']
+                platform: ['web', 'node']
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  submodules: true
+            - name: Free up runner disk space
+              run: |
+                  set -euo pipefail
+                  sudo rm -rf /usr/local/lib/android
+                  sudo rm -rf /usr/share/dotnet
+                  sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+                  sudo rm -rf /opt/ghc
+                  sudo rm -rf /opt/hostedtoolcache/CodeQL
+            - uses: ./.github/actions/prepare-playground
+              with:
+                  node-version: 24
+              env:
+                  SKIP_BINARIES_DOWNLOAD: '1'
+            - name: Build asyncify
+              run: >
+                  node packages/php-wasm/compile/build.js
+                  --PLATFORM=${{ matrix.platform }}
+                  --PHP_VERSION=${{ matrix.php-version }}
+            - name: Build JSPI
+              run: >
+                  node packages/php-wasm/compile/build.js
+                  --PLATFORM=${{ matrix.platform }}
+                  --PHP_VERSION=${{ matrix.php-version }}
+                  --WITH_JSPI=yes
+            - name: Package binaries
+              id: package
+              run: |
+                  VER="${{ matrix.php-version }}"
+                  DIR="${VER//./-}"
+                  PLATFORM="${{ matrix.platform }}"
+                  FILENAME="${PLATFORM}-builds-${DIR}.tar.gz"
+                  tar czf "${FILENAME}" \
+                      -C "packages/php-wasm/${PLATFORM}-builds" \
+                      "${DIR}/asyncify" \
+                      "${DIR}/jspi"
+                  echo "filename=${FILENAME}" >> $GITHUB_OUTPUT
+            - uses: actions/upload-artifact@v4
+              with:
+                  name: binaries-${{ matrix.platform }}-${{ matrix.php-version }}
+                  path: ${{ steps.package.outputs.filename }}
+                  if-no-files-found: error
+
+    release:
+        name: Create GitHub Release
+        needs: build
+        runs-on: ubuntu-latest
+        permissions:
+            contents: write
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  clean: true
+                  persist-credentials: false
+                  submodules: false
+            - name: Download all artifacts
+              uses: actions/download-artifact@v4
+              with:
+                  path: /tmp/binaries
+                  merge-multiple: true
+            - name: Create release
+              id: create-release
+              env:
+                  GH_TOKEN: ${{ github.token }}
+              run: |
+                  SHA="${{ github.sha }}"
+                  SHORT_SHA="${SHA:0:8}"
+                  TAG="php-wasm-binaries-${SHORT_SHA}"
+                  echo "tag=${TAG}" >> $GITHUB_OUTPUT
+                  echo "short_sha=${SHORT_SHA}" >> $GITHUB_OUTPUT
+                  gh release create "${TAG}" \
+                      --title "PHP WASM Binaries ${SHORT_SHA}" \
+                      --notes "Automated PHP WASM binary builds from commit ${SHA}." \
+                      --prerelease \
+                      /tmp/binaries/*.tar.gz
+            - name: Update binaries manifest
+              run: |
+                  TAG="${{ steps.create-release.outputs.tag }}"
+                  SHA="${{ github.sha }}"
+                  printf '{\n  "releaseTag": "%s",\n  "commitSha": "%s"\n}\n' \
+                      "${TAG}" "${SHA}" > packages/php-wasm/binaries-manifest.json
+            - name: Push manifest update
+              env:
+                  GH_ACTOR: ${{ secrets.GH_ACTOR }}
+                  GH_TOKEN: ${{ secrets.GH_TOKEN }}
+              run: |
+                  SHORT_SHA="${{ steps.create-release.outputs.short_sha }}"
+                  git config user.name "deployment_bot"
+                  git config user.email "deployment_bot@users.noreply.github.com"
+                  git remote set-url origin \
+                      "https://${GH_ACTOR}:${GH_TOKEN}@github.com/${{ github.repository }}"
+                  git add packages/php-wasm/binaries-manifest.json
+                  git commit -m "Update PHP WASM binaries manifest [${SHORT_SHA}]"
+                  git pull --rebase
+                  if [ $? -eq 0 ]; then
+                      git push
+                  fi

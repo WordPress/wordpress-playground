@@ -1,0 +1,53 @@
+name: Cleanup PHP WASM Releases
+
+on:
+    schedule:
+        # Every Monday at 10am UTC, after the npm publish runs at 9am
+        - cron: '0 10 * * 1'
+    workflow_dispatch:
+        inputs:
+            keep_count:
+                description: 'Number of recent releases to keep'
+                required: false
+                default: '5'
+
+jobs:
+    cleanup:
+        runs-on: ubuntu-latest
+        permissions:
+            contents: write
+        steps:
+            - name: Delete old PHP WASM binary releases
+              env:
+                  GH_TOKEN: ${{ github.token }}
+              run: |
+                  KEEP=${{ inputs.keep_count || '5' }}
+
+                  # List all prerelease releases tagged php-wasm-binaries-*, sorted newest first
+                  RELEASES=$(gh release list \
+                      --repo "${{ github.repository }}" \
+                      --limit 100 \
+                      --json tagName,createdAt \
+                      --jq '[.[] | select(.tagName | startswith("php-wasm-binaries-"))] | sort_by(.createdAt) | reverse')
+
+                  TOTAL=$(echo "$RELEASES" | jq 'length')
+                  echo "Found ${TOTAL} PHP WASM binary releases, keeping ${KEEP}."
+
+                  TO_DELETE=$(echo "$RELEASES" | \
+                      jq -r "if length > ${KEEP} then .[${KEEP}:] | .[].tagName else empty end")
+
+                  if [ -z "$TO_DELETE" ]; then
+                      echo "Nothing to delete."
+                      exit 0
+                  fi
+
+                  echo "Deleting old releases:"
+                  echo "$TO_DELETE"
+
+                  while IFS= read -r TAG; do
+                      echo "Deleting release: ${TAG}"
+                      gh release delete "${TAG}" \
+                          --repo "${{ github.repository }}" \
+                          --yes \
+                          --cleanup-tag
+                  done <<< "$TO_DELETE"
