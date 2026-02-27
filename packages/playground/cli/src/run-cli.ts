@@ -992,8 +992,12 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 			// With HTTP 1.1, browsers typically support 6 parallel connections per domain. This is the
 			// upper limit to the number of workers we should run to optimize for performance. We also want
 			// to keep memory usage low by limiting the number of workers. Based on real world testing, five
-			// workers strikes a good balance.
-			const targetWorkerCount = Math.min(5, cpus().length - 1);
+			// workers strikes a good balance. Keep at least two workers to preserve behavior that requires
+			// separate PHP processes (e.g. file locking tests and secondary-worker request handling).
+			const targetWorkerCount = Math.max(
+				2,
+				Math.min(5, cpus().length - 1)
+			);
 
 			/*
 			 * Use a real temp dir as a target for the following Playground paths
