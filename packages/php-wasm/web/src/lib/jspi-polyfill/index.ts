@@ -36,4 +36,6 @@ export {
 	setPolyfillChannel,
 } from './polyfill-proxy-websocket';
 
+export { MainThreadSocketManager } from './main-thread-socket-manager';
+
 export { setupJspiPolyfillListener } from './setup-polyfill-listener';
