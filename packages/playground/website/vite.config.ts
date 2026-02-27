@@ -98,10 +98,6 @@ export default defineConfig(({ command, mode }) => {
 		server: {
 			port: websiteDevServerPort,
 			host: serverHost,
-			headers: {
-				'Cross-Origin-Opener-Policy': 'same-origin',
-				'Cross-Origin-Embedder-Policy': 'credentialless',
-			},
 			allowedHosts: [
 				'playground.test',
 				'playground-preview.test',
@@ -136,6 +132,13 @@ export default defineConfig(({ command, mode }) => {
 			},
 		},
 		plugins: [
+			// Enable cross-origin isolation on ALL dev server responses,
+			// including proxied ones (remote.html, WASM files, etc.).
+			// Vite's server.headers only applies to non-proxied
+			// responses, so a middleware plugin is needed instead.
+			// The JSPI polyfill requires SharedArrayBuffer, which is
+			// only available in cross-origin isolated contexts.
+			crossOriginIsolationPlugin(),
 			// In a devcontainer, Vite prints container IP instead of host IP.
 			// Override the printed URL to show host IP instead (127.0.0.1).
 			isDevcontainer
@@ -386,3 +389,41 @@ export default defineConfig(({ command, mode }) => {
 		},
 	};
 });
+
+/**
+ * Injects CORP headers on all dev-server responses.
+ *
+ * CORP is needed so that once the Service Worker enables
+ * cross-origin isolation (COEP require-corp) after its
+ * reload cycle, sub-resources served directly by Vite
+ * (JS modules, WASM, etc.) are allowed through.
+ *
+ * COEP/COOP are NOT set here — the SW injects them on
+ * its own responses after the page tells it to enable
+ * cross-origin isolation (matching production behavior).
+ */
+function injectCrossOriginHeaders(
+	_req: import('http').IncomingMessage,
+	res: import('http').ServerResponse,
+	next: () => void
+) {
+	const origWriteHead = res.writeHead.bind(res);
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	res.writeHead = (...args: any[]) => {
+		res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
+		return origWriteHead(...args);
+	};
+	next();
+}
+
+function crossOriginIsolationPlugin(): Plugin {
+	return {
+		name: 'cross-origin-isolation',
+		configureServer(server) {
+			server.middlewares.use(injectCrossOriginHeaders);
+		},
+		configurePreviewServer(server) {
+			server.middlewares.use(injectCrossOriginHeaders);
+		},
+	};
+}

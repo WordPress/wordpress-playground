@@ -220,6 +220,7 @@ self.addEventListener('fetch', (event) => {
 		const scope = getURLScope(url)!;
 		return event.respondWith(
 			handleScopedRequest(event, scope).then((response) => {
+				response = convertNavigationRedirect(response, event.request);
 				response = injectCrossOriginIsolationHeaders(response);
 				return rewriteCoopHeadersToDocumentIsolationPolicy(
 					response,
@@ -240,6 +241,7 @@ self.addEventListener('fetch', (event) => {
 		const scope = getURLScope(referrerUrl)!;
 		return event.respondWith(
 			handleScopedRequest(event, scope).then((response) => {
+				response = convertNavigationRedirect(response, event.request);
 				response = injectCrossOriginIsolationHeaders(response);
 				return rewriteCoopHeadersToDocumentIsolationPolicy(
 					response,
@@ -674,27 +676,69 @@ self.addEventListener('message', (event) => {
  * Only injects on HTML responses — non-HTML resources (JS, CSS,
  * images) don't need document-level isolation headers.
  *
- * Uses `COEP: credentialless` instead of `require-corp` to avoid
- * breaking cross-origin resources (YouTube embeds, external
- * images, etc.) that don't set CORP headers.
+ * Uses `COEP: require-corp` because WebKit/Safari doesn't support
+ * `credentialless`. This is acceptable here because this code path
+ * only runs for browsers without native JSPI (Safari, Firefox),
+ * and WordPress content is served from the same origin via the
+ * service worker.
  *
  * @param response The response to potentially modify
  * @returns A new Response with COOP/COEP headers, or the
  *          original response if conditions aren't met
  */
+/**
+ * Converts a service worker redirect response into a client-side
+ * redirect via a small HTML page. Only applies to navigation requests.
+ *
+ * WebKit blocks service worker redirect responses under
+ * COEP: require-corp, even when the redirect carries proper
+ * COEP/CORP headers. Regular server redirects work fine — only
+ * SW-generated redirects are affected. Using a 200 HTML response
+ * with a meta-refresh avoids this WebKit limitation.
+ */
+function convertNavigationRedirect(
+	response: Response,
+	request: Request
+): Response {
+	if (request.mode !== 'navigate') {
+		return response;
+	}
+
+	const location = response.headers.get('location');
+	if (response.status < 300 || response.status > 399 || !location) {
+		return response;
+	}
+
+	const escapedUrl = location.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+	const html =
+		'<!doctype html><meta http-equiv="refresh" ' +
+		`content="0;url=${escapedUrl}">`;
+	return new Response(html, {
+		status: 200,
+		headers: { 'content-type': 'text/html' },
+	});
+}
+
 function injectCrossOriginIsolationHeaders(response: Response): Response {
 	if (!jspiPolyfillMode) {
 		return response;
 	}
 
-	const contentType = response.headers.get('content-type') ?? '';
-	if (!contentType.includes('text/html')) {
-		return response;
+	const newHeaders = new Headers(response.headers);
+
+	// All responses need CORP so that COEP: require-corp on the
+	// parent document allows loading them.
+	if (!newHeaders.has('cross-origin-resource-policy')) {
+		newHeaders.set('cross-origin-resource-policy', 'same-origin');
 	}
 
-	const newHeaders = new Headers(response.headers);
-	newHeaders.set('cross-origin-opener-policy', 'same-origin');
-	newHeaders.set('cross-origin-embedder-policy', 'credentialless');
+	// HTML documents get COOP + COEP so they become cross-origin
+	// isolated contexts themselves.
+	const contentType = response.headers.get('content-type') ?? '';
+	if (contentType.includes('text/html')) {
+		newHeaders.set('cross-origin-opener-policy', 'same-origin');
+		newHeaders.set('cross-origin-embedder-policy', 'require-corp');
+	}
 
 	return new Response(response.body, {
 		status: response.status,
