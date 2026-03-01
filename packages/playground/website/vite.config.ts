@@ -30,6 +30,7 @@ import { listAssetsRequiredForOfflineMode } from '../../vite-extensions/vite-lis
 import virtualModule from '../../vite-extensions/vite-virtual-module';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import viteGlobalExtensions from '../../vite-extensions/vite-global-extensions';
+import { analyticsInjectionPlugin } from './vite-analytics-plugin';
 
 const exec = promisify(execCb);
 
@@ -254,6 +255,7 @@ export default defineConfig(({ command, mode }) => {
 					}
 				},
 			} as Plugin,
+			analyticsInjectionPlugin(),
 			{
 				name: 'inject-commit-id',
 				transformIndexHtml(html) {

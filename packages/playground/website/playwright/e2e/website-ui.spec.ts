@@ -632,3 +632,13 @@ test.describe('Save Status Indicator', () => {
 		await expect(indicator).toHaveCount(0);
 	});
 });
+
+test('should not include Google Analytics when VITE_GOOGLE_ANALYTICS_ID is not set', async ({
+	website,
+}) => {
+	await website.goto('./');
+	const gtmScripts = await website.page
+		.locator('script[src*="googletagmanager.com"]')
+		.count();
+	expect(gtmScripts).toBe(0);
+});
