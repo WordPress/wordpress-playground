@@ -1,6 +1,5 @@
 FS
 UTF8ToString
-___c_longjmp
 ___errno_location
 ___wrap_select
 _emscripten_sleep
