@@ -17,6 +17,8 @@ import {
 } from '../build-config';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { oAuthMiddleware } from './vite.oauth';
+import { exec as execCb } from 'node:child_process';
+import { promisify } from 'node:util';
 import { fileURLToPath } from 'node:url';
 import { copyFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
@@ -28,6 +30,32 @@ import { listAssetsRequiredForOfflineMode } from '../../vite-extensions/vite-lis
 import virtualModule from '../../vite-extensions/vite-virtual-module';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import viteGlobalExtensions from '../../vite-extensions/vite-global-extensions';
+
+const exec = promisify(execCb);
+
+// Determine if we are running in a devcontainer.
+const isDevcontainer = process.env.VITE_DEVCONTAINER === 'true';
+
+// In a devcontainer, bind to 0.0.0.0 so the host can access the server through
+// a port that was published using the devcontainer "appPort" configuration.
+const serverHost = isDevcontainer ? '0.0.0.0' : websiteDevServerHost;
+
+async function setCodespacesPortPublic(
+	port: number,
+	codespaceName: string
+) {
+	// eslint-disable-next-line no-console
+	console.log(`Publishing port ${port}...`);
+	const cmd = `gh codespace ports visibility ${port}:public -c ${codespaceName}`;
+	for (let i = 0; i < 10; i++) {
+		try {
+			await exec(cmd);
+			return;
+		} catch {
+			await new Promise((resolve) => setTimeout(resolve, 2000));
+		}
+	}
+}
 
 const proxy: CommonServerOptions['proxy'] = {
 	'^/plugin-proxy': {
@@ -66,14 +94,19 @@ export default defineConfig(({ command, mode }) => {
 
 		preview: {
 			port: websiteDevServerPort,
-			host: websiteDevServerHost,
+			host: serverHost,
 			proxy,
 		},
 
 		server: {
 			port: websiteDevServerPort,
-			host: websiteDevServerHost,
-			allowedHosts: ['playground.test', 'playground-preview.test'],
+			host: serverHost,
+			allowedHosts: [
+				'playground.test',
+				'playground-preview.test',
+				// Allow Codespaces forwarded port hosts.
+				...(process.env['CODESPACE_NAME'] ? ['.app.github.dev'] : []),
+			],
 			proxy: {
 				...proxy,
 				// Proxy CORS requests to the local PHP CORS proxy server.
@@ -88,11 +121,13 @@ export default defineConfig(({ command, mode }) => {
 				// Proxy requests to the website-extras
 				'^/website-extras/': {
 					target: `http://${websiteExtrasDevServerHost}:${websiteExtrasDevServerPort}`,
+					changeOrigin: true,
 				},
 				// Proxy requests to the remote content through this server for dev
 				// builds. See base config below.
 				'^[/]((?!website-server).)': {
 					target: `http://${remoteDevServerHost}:${remoteDevServerPort}`,
+					changeOrigin: true,
 				},
 			},
 			fs: {
@@ -100,6 +135,43 @@ export default defineConfig(({ command, mode }) => {
 			},
 		},
 		plugins: [
+			// In a devcontainer, Vite prints container IP instead of host IP.
+			// Override the printed URL to show host IP instead (127.0.0.1).
+			isDevcontainer
+				? {
+						name: 'devcontainer-print-urls',
+						configureServer(server: ViteDevServer) {
+							const codespaceName =
+								process.env['CODESPACE_NAME'];
+							const codespacesDomain =
+								process.env[
+									'GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN'
+								];
+							server.printUrls = () => {
+								const url =
+									codespacesDomain && codespaceName
+										? `https://${codespaceName}-${websiteDevServerPort}.${codespacesDomain}/website-server/`
+										: `http://127.0.0.1:${websiteDevServerPort}/website-server/`;
+								server.config.logger.info(
+									`  \x1b[32m➜\x1b[0m  \x1b[1mLocal:\x1b[0m   \x1b[36m${url}\x1b[0m`
+								);
+							};
+
+							// Codespaces ports default to private, breaking CORS.
+							// Publish once the tunnel is ready.
+							if (codespaceName) {
+								server.httpServer?.once(
+									'listening',
+									() =>
+										setCodespacesPortPublic(
+											websiteDevServerPort,
+											codespaceName
+										)
+								);
+							}
+						},
+					}
+				: null,
 			react({
 				jsxRuntime: 'automatic',
 			}),

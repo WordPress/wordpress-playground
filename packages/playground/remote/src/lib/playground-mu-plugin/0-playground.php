@@ -251,3 +251,14 @@ add_action('init', function() {
 	$prefs['core']['enableChoosePatternModal'] = false;
 	update_user_meta($user_id, 'wp_persisted_preferences', $prefs);
 });
+
+/**
+ * ¡TEMPORARY WORKAROUND!
+ * On 2026-02-26, with Gutenberg v22.6.0 and above, the site editor and post
+ * editor fail to load. This appears related the `cross-origin-embedder-policy: credentialless`
+ * header which is added when client side media is enabled by default.
+ *
+ * This has something to do with our /wp-includes/empty.html workaround.
+ * @TODO: Let's find a solution that doesn't require us to disable client side media processing.
+ */
+add_filter('wp_client_side_media_processing_enabled', '__return_false');
