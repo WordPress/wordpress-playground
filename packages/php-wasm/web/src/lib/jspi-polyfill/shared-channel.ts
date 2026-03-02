@@ -237,7 +237,14 @@ async function waitWithAtomicsWaitAsync(
 
 	const status = Atomics.load(channel.int32View, STATUS);
 	if (status === STATUS_REQUEST) {
-		await onRequest();
+		try {
+			await onRequest();
+		} catch {
+			// Handler errors are caught here only as a
+			// safety net to keep the listener alive. The
+			// handler itself is responsible for always
+			// calling sendResponseToWorker.
+		}
 		// After the handler runs, schedule next wait.
 		waitWithAtomicsWaitAsync(channel, onRequest, isCancelled);
 		return;
@@ -273,7 +280,11 @@ function waitWithPolling(
 
 		const status = Atomics.load(channel.int32View, STATUS);
 		if (status === STATUS_REQUEST) {
-			await onRequest();
+			try {
+				await onRequest();
+			} catch {
+				// Keep polling even if the handler throws.
+			}
 		}
 	}, 1);
 }
