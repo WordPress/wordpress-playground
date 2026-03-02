@@ -84,24 +84,56 @@ const LibraryExample = {
 							LOCK_UN: 8, // Unlock
 						},
 						errnoCodes: ERRNO_CODES,
-						// Use getters so property access always returns
-						// the current typed arrays. After memory.grow(),
+						// Use get/set closures instead of exposing
+						// typed arrays directly. After memory.grow(),
 						// Emscripten's updateMemoryViews() reassigns
-						// the module-scoped HEAP* variables to new
-						// typed arrays backed by the grown buffer.
-						// Plain properties would capture stale
-						// references to the old, detached ArrayBuffer.
+						// the module-scoped HEAP* variables. Closures
+						// always reference the current value, so
+						// accesses are never stale. The get/set
+						// interface also prevents callers from
+						// capturing a typed array reference that
+						// could become stale.
 						memory: {
-							get HEAP8() { return HEAP8; },
-							get HEAPU8() { return HEAPU8; },
-							get HEAP16() { return HEAP16; },
-							get HEAPU16() { return HEAPU16; },
-							get HEAP32() { return HEAP32; },
-							get HEAPU32() { return HEAPU32; },
-							get HEAPF32() { return HEAPF32; },
-							get HEAP64() { return HEAP64; },
-							get HEAPU64() { return HEAPU64; },
-							get HEAPF64() { return HEAPF64; },
+							HEAP8: {
+								get(offset) { return HEAP8[offset]; },
+								set(offset, value) { HEAP8[offset] = value; },
+							},
+							HEAPU8: {
+								get(offset) { return HEAPU8[offset]; },
+								set(offset, value) { HEAPU8[offset] = value; },
+							},
+							HEAP16: {
+								get(offset) { return HEAP16[offset]; },
+								set(offset, value) { HEAP16[offset] = value; },
+							},
+							HEAPU16: {
+								get(offset) { return HEAPU16[offset]; },
+								set(offset, value) { HEAPU16[offset] = value; },
+							},
+							HEAP32: {
+								get(offset) { return HEAP32[offset]; },
+								set(offset, value) { HEAP32[offset] = value; },
+							},
+							HEAPU32: {
+								get(offset) { return HEAPU32[offset]; },
+								set(offset, value) { HEAPU32[offset] = value; },
+							},
+							HEAPF32: {
+								get(offset) { return HEAPF32[offset]; },
+								set(offset, value) { HEAPF32[offset] = value; },
+							},
+							HEAP64: {
+								get(offset) { return HEAP64[offset]; },
+								set(offset, value) { HEAP64[offset] = value; },
+							},
+							HEAPU64: {
+								get(offset) { return HEAPU64[offset]; },
+								set(offset, value) { HEAPU64[offset] = value; },
+							},
+							HEAPF64: {
+								get(offset) { return HEAPF64[offset]; },
+								set(offset, value) { HEAPF64[offset] = value; },
+							},
 						},
 						wasmImports,
 						wasmExports,
