@@ -15,7 +15,7 @@ const currentDirPath =
 		: path.dirname(fileURLToPath(import.meta.url));
 const dependencyFilename = path.join(currentDirPath, '8_0_30', 'php_8_0.wasm');
 export { dependencyFilename };
-export const dependenciesTotalSize = 23248816;
+export const dependenciesTotalSize = 23248839;
 const phpVersionString = '8.0.30';
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
@@ -6611,17 +6611,96 @@ export function init(RuntimeName, PHPLoader) {
 							LOCK_UN: 8, // Unlock
 						},
 						errnoCodes: ERRNO_CODES,
+						// Use get/set closures instead of exposing
+						// typed arrays directly. After memory.grow(),
+						// Emscripten's updateMemoryViews() reassigns
+						// the module-scoped HEAP* variables. Closures
+						// always reference the current value, so
+						// accesses are never stale. The get/set
+						// interface also prevents callers from
+						// capturing a typed array reference that
+						// could become stale.
 						memory: {
-							HEAP8,
-							HEAPU8,
-							HEAP16,
-							HEAPU16,
-							HEAP32,
-							HEAPU32,
-							HEAPF32,
-							HEAP64,
-							HEAPU64,
-							HEAPF64,
+							HEAP8: {
+								get(offset) {
+									return HEAP8[offset];
+								},
+								set(offset, value) {
+									HEAP8[offset] = value;
+								},
+							},
+							HEAPU8: {
+								get(offset) {
+									return HEAPU8[offset];
+								},
+								set(offset, value) {
+									HEAPU8[offset] = value;
+								},
+							},
+							HEAP16: {
+								get(offset) {
+									return HEAP16[offset];
+								},
+								set(offset, value) {
+									HEAP16[offset] = value;
+								},
+							},
+							HEAPU16: {
+								get(offset) {
+									return HEAPU16[offset];
+								},
+								set(offset, value) {
+									HEAPU16[offset] = value;
+								},
+							},
+							HEAP32: {
+								get(offset) {
+									return HEAP32[offset];
+								},
+								set(offset, value) {
+									HEAP32[offset] = value;
+								},
+							},
+							HEAPU32: {
+								get(offset) {
+									return HEAPU32[offset];
+								},
+								set(offset, value) {
+									HEAPU32[offset] = value;
+								},
+							},
+							HEAPF32: {
+								get(offset) {
+									return HEAPF32[offset];
+								},
+								set(offset, value) {
+									HEAPF32[offset] = value;
+								},
+							},
+							HEAP64: {
+								get(offset) {
+									return HEAP64[offset];
+								},
+								set(offset, value) {
+									HEAP64[offset] = value;
+								},
+							},
+							HEAPU64: {
+								get(offset) {
+									return HEAPU64[offset];
+								},
+								set(offset, value) {
+									HEAPU64[offset] = value;
+								},
+							},
+							HEAPF64: {
+								get(offset) {
+									return HEAPF64[offset];
+								},
+								set(offset, value) {
+									HEAPF64[offset] = value;
+								},
+							},
 						},
 						wasmImports,
 						wasmExports,
@@ -17769,7 +17848,17 @@ export function init(RuntimeName, PHPLoader) {
 					// A true async operation was begun; start a sleep.
 					Asyncify.state = Asyncify.State.Unwinding;
 					// TODO: reuse, don't alloc/free every sleep
-					Asyncify.currData = Asyncify.allocateData();
+					if (!Asyncify._cachedData) {
+						Asyncify._cachedData = Asyncify.allocateData();
+					} else {
+						Asyncify.setDataHeader(
+							Asyncify._cachedData,
+							Asyncify._cachedData + 12,
+							Asyncify.StackSize
+						);
+						Asyncify.setDataRewindFunc(Asyncify._cachedData);
+					}
+					Asyncify.currData = Asyncify._cachedData;
 					if (typeof MainLoop != 'undefined' && MainLoop.func) {
 						MainLoop.pause();
 					}
@@ -17781,7 +17870,6 @@ export function init(RuntimeName, PHPLoader) {
 				// Stop a resume.
 				Asyncify.state = Asyncify.State.Normal;
 				runAndAbortIfError(_asyncify_stop_rewind);
-				_free(Asyncify.currData);
 				Asyncify.currData = null;
 				// Call all sleep callbacks now that the sleep-resume is all done.
 				Asyncify.sleepCallbacks.forEach(callUserCallback);
@@ -31278,13 +31366,13 @@ export function init(RuntimeName, PHPLoader) {
 	// end include: postlibrary.js
 
 	var ASM_CONSTS = {
-		12336641: ($0) => {
+		12336673: ($0) => {
 			if (!$0) {
 				AL.alcErr = 0xa004;
 				return 1;
 			}
 		},
-		12336689: ($0) => {
+		12336721: ($0) => {
 			if (!AL.currentCtx) {
 				err('alGetProcAddress() called without a valid context');
 				return 1;

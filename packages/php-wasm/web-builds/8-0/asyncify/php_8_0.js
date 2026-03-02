@@ -1,6 +1,6 @@
 import dependencyFilename from './8_0_30/php_8_0.wasm';
 export { dependencyFilename };
-export const dependenciesTotalSize = 20696382;
+export const dependenciesTotalSize = 20696416;
 const phpVersionString = '8.0.30';
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
@@ -4990,16 +4990,86 @@ export function init(RuntimeName, PHPLoader) {
 						},
 						errnoCodes: ERRNO_CODES,
 						memory: {
-							HEAP8,
-							HEAPU8,
-							HEAP16,
-							HEAPU16,
-							HEAP32,
-							HEAPU32,
-							HEAPF32,
-							HEAP64,
-							HEAPU64,
-							HEAPF64,
+							HEAP8: {
+								get(offset) {
+									return HEAP8[offset];
+								},
+								set(offset, value) {
+									HEAP8[offset] = value;
+								},
+							},
+							HEAPU8: {
+								get(offset) {
+									return HEAPU8[offset];
+								},
+								set(offset, value) {
+									HEAPU8[offset] = value;
+								},
+							},
+							HEAP16: {
+								get(offset) {
+									return HEAP16[offset];
+								},
+								set(offset, value) {
+									HEAP16[offset] = value;
+								},
+							},
+							HEAPU16: {
+								get(offset) {
+									return HEAPU16[offset];
+								},
+								set(offset, value) {
+									HEAPU16[offset] = value;
+								},
+							},
+							HEAP32: {
+								get(offset) {
+									return HEAP32[offset];
+								},
+								set(offset, value) {
+									HEAP32[offset] = value;
+								},
+							},
+							HEAPU32: {
+								get(offset) {
+									return HEAPU32[offset];
+								},
+								set(offset, value) {
+									HEAPU32[offset] = value;
+								},
+							},
+							HEAPF32: {
+								get(offset) {
+									return HEAPF32[offset];
+								},
+								set(offset, value) {
+									HEAPF32[offset] = value;
+								},
+							},
+							HEAP64: {
+								get(offset) {
+									return HEAP64[offset];
+								},
+								set(offset, value) {
+									HEAP64[offset] = value;
+								},
+							},
+							HEAPU64: {
+								get(offset) {
+									return HEAPU64[offset];
+								},
+								set(offset, value) {
+									HEAPU64[offset] = value;
+								},
+							},
+							HEAPF64: {
+								get(offset) {
+									return HEAPF64[offset];
+								},
+								set(offset, value) {
+									HEAPF64[offset] = value;
+								},
+							},
 						},
 						wasmImports,
 						wasmExports,
@@ -14251,7 +14321,17 @@ export function init(RuntimeName, PHPLoader) {
 				reachedAfterCallback = true;
 				if (!reachedCallback) {
 					Asyncify.state = Asyncify.State.Unwinding;
-					Asyncify.currData = Asyncify.allocateData();
+					if (!Asyncify._cachedData) {
+						Asyncify._cachedData = Asyncify.allocateData();
+					} else {
+						Asyncify.setDataHeader(
+							Asyncify._cachedData,
+							Asyncify._cachedData + 12,
+							Asyncify.StackSize
+						);
+						Asyncify.setDataRewindFunc(Asyncify._cachedData);
+					}
+					Asyncify.currData = Asyncify._cachedData;
 					if (typeof MainLoop != 'undefined' && MainLoop.func) {
 						MainLoop.pause();
 					}
@@ -14262,7 +14342,6 @@ export function init(RuntimeName, PHPLoader) {
 			} else if (Asyncify.state === Asyncify.State.Rewinding) {
 				Asyncify.state = Asyncify.State.Normal;
 				runAndAbortIfError(_asyncify_stop_rewind);
-				_free(Asyncify.currData);
 				Asyncify.currData = null;
 				Asyncify.sleepCallbacks.forEach(callUserCallback);
 			} else {
@@ -24895,13 +24974,13 @@ export function init(RuntimeName, PHPLoader) {
 	Module['_recv'] = _recv;
 	Module['_setsockopt'] = _setsockopt;
 	var ASM_CONSTS = {
-		12292609: ($0) => {
+		12292625: ($0) => {
 			if (!$0) {
 				AL.alcErr = 40964;
 				return 1;
 			}
 		},
-		12292657: ($0) => {
+		12292673: ($0) => {
 			if (!AL.currentCtx) {
 				err('alGetProcAddress() called without a valid context');
 				return 1;

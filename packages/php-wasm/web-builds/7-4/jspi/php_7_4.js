@@ -1,6 +1,6 @@
 import dependencyFilename from './7_4_33/php_7_4.wasm';
 export { dependencyFilename };
-export const dependenciesTotalSize = 19964839;
+export const dependenciesTotalSize = 19964876;
 const phpVersionString = '7.4.33';
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
@@ -4822,8 +4822,13 @@ export function init(RuntimeName, PHPLoader) {
 		init: function () {
 			if (PHPLoader.bindUserSpace) {
 				addOnInit(() => {
+					if (typeof PHPLoader.processId !== 'number') {
+						throw new Error(
+							'PHPLoader.processId must be set before init'
+						);
+					}
 					Module['userSpace'] = PHPLoader.bindUserSpace({
-						pid: PHPLoader.processId ?? 42,
+						pid: PHPLoader.processId,
 						constants: {
 							F_GETFL: Number('3'),
 							O_ACCMODE: Number('2097155'),
@@ -4861,16 +4866,86 @@ export function init(RuntimeName, PHPLoader) {
 						},
 						errnoCodes: ERRNO_CODES,
 						memory: {
-							HEAP8,
-							HEAPU8,
-							HEAP16,
-							HEAPU16,
-							HEAP32,
-							HEAPU32,
-							HEAPF32,
-							HEAP64,
-							HEAPU64,
-							HEAPF64,
+							HEAP8: {
+								get(offset) {
+									return HEAP8[offset];
+								},
+								set(offset, value) {
+									HEAP8[offset] = value;
+								},
+							},
+							HEAPU8: {
+								get(offset) {
+									return HEAPU8[offset];
+								},
+								set(offset, value) {
+									HEAPU8[offset] = value;
+								},
+							},
+							HEAP16: {
+								get(offset) {
+									return HEAP16[offset];
+								},
+								set(offset, value) {
+									HEAP16[offset] = value;
+								},
+							},
+							HEAPU16: {
+								get(offset) {
+									return HEAPU16[offset];
+								},
+								set(offset, value) {
+									HEAPU16[offset] = value;
+								},
+							},
+							HEAP32: {
+								get(offset) {
+									return HEAP32[offset];
+								},
+								set(offset, value) {
+									HEAP32[offset] = value;
+								},
+							},
+							HEAPU32: {
+								get(offset) {
+									return HEAPU32[offset];
+								},
+								set(offset, value) {
+									HEAPU32[offset] = value;
+								},
+							},
+							HEAPF32: {
+								get(offset) {
+									return HEAPF32[offset];
+								},
+								set(offset, value) {
+									HEAPF32[offset] = value;
+								},
+							},
+							HEAP64: {
+								get(offset) {
+									return HEAP64[offset];
+								},
+								set(offset, value) {
+									HEAP64[offset] = value;
+								},
+							},
+							HEAPU64: {
+								get(offset) {
+									return HEAPU64[offset];
+								},
+								set(offset, value) {
+									HEAPU64[offset] = value;
+								},
+							},
+							HEAPF64: {
+								get(offset) {
+									return HEAPF64[offset];
+								},
+								set(offset, value) {
+									HEAPF64[offset] = value;
+								},
+							},
 						},
 						wasmImports,
 						wasmExports,
@@ -24661,13 +24736,13 @@ export function init(RuntimeName, PHPLoader) {
 	Module['_recv'] = _recv;
 	Module['_setsockopt'] = _setsockopt;
 	var ASM_CONSTS = {
-		11264706: ($0) => {
+		11264738: ($0) => {
 			if (!$0) {
 				AL.alcErr = 40964;
 				return 1;
 			}
 		},
-		11264754: ($0) => {
+		11264786: ($0) => {
 			if (!AL.currentCtx) {
 				err('alGetProcAddress() called without a valid context');
 				return 1;
