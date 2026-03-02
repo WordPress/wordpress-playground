@@ -3,11 +3,8 @@ import { journalFSEvents, replayFSJournal } from '@php-wasm/fs-journal';
 import type { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import { setURLScope } from '@php-wasm/scopes';
 import { joinPaths } from '@php-wasm/util';
-import type {
-	MountDevice,
-	SyncProgressCallback,
-	TCPOverFetchOptions,
-} from '@php-wasm/web';
+import type { SyncProgressCallback, TCPOverFetchOptions } from '@php-wasm/web';
+import type { MountDevice } from '@wp-playground/storage';
 import {
 	createDirectoryHandleMountHandler,
 	loadWebRuntime,

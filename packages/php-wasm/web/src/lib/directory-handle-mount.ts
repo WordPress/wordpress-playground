@@ -5,6 +5,7 @@ import { logger } from '@php-wasm/logger';
 import type { FilesystemOperation } from '@php-wasm/fs-journal';
 import { normalizeFilesystemOperations } from '@php-wasm/fs-journal';
 import { journalFSEvents } from '@php-wasm/fs-journal';
+import type { MountDevice } from '@wp-playground/storage';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import type * as pleaseLoadTypes from 'wicg-file-system-access';
 
@@ -26,15 +27,8 @@ declare global {
 	}
 }
 
-export type MountDevice =
-	| {
-			type: 'opfs';
-			path: string;
-	  }
-	| {
-			type: 'local-fs';
-			handle: FileSystemDirectoryHandle;
-	  };
+/** @deprecated Import MountDevice from '@wp-playground/storage' instead. */
+export type { MountDevice };
 
 export interface MountOptions {
 	initialSync: {
@@ -260,9 +254,9 @@ async function overwriteOpfsFile(
 	const writer =
 		opfsFile.createWritable !== undefined
 			? // Google Chrome, Firefox, probably more browsers
-			  await opfsFile.createWritable()
+				await opfsFile.createWritable()
 			: // Safari
-			  await opfsFile.createSyncAccessHandle();
+				await opfsFile.createSyncAccessHandle();
 	try {
 		await writer.truncate(0);
 		await writer.write(buffer);

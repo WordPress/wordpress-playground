@@ -1,3 +1,5 @@
+import { exec as execCb } from 'child_process';
+import { promisify } from 'util';
 import type { PHPRequest, StreamedPHPResponse } from '@php-wasm/universal';
 import type { Request, Response } from 'express';
 import express from 'express';
@@ -7,6 +9,8 @@ import { Readable } from 'stream';
 import { pipeline } from 'stream/promises';
 import type { RunCLIServer } from './run-cli';
 import { logger } from '@php-wasm/logger';
+
+const exec = promisify(execCb);
 
 export interface ServerOptions {
 	port: number;
@@ -72,6 +76,14 @@ export async function startServer(
 
 	const address = server.address();
 	const port = (address! as AddressInfo).port;
+
+	// Codespaces ports default to private, breaking CORS.
+	// Publish once the tunnel is ready.
+	const codespaceName = process.env['CODESPACE_NAME'];
+	if (codespaceName) {
+		setCodespacesPortPublic(port, codespaceName);
+	}
+
 	return await options.onBind(server, port);
 }
 
@@ -110,6 +122,22 @@ const bufferRequestBody = async (req: Request): Promise<Uint8Array> =>
 			resolve(new Uint8Array(Buffer.concat(body)));
 		});
 	});
+
+async function setCodespacesPortPublic(
+	port: number,
+	codespaceName: string
+) {
+	logger.log(`Publishing port ${port}...`);
+	const cmd = `gh codespace ports visibility ${port}:public -c ${codespaceName}`;
+	for (let i = 0; i < 10; i++) {
+		try {
+			await exec(cmd);
+			return;
+		} catch {
+			await new Promise((resolve) => setTimeout(resolve, 2000));
+		}
+	}
+}
 
 const parseHeaders = (req: Request): Record<string, string> => {
 	const requestHeaders: Record<string, string> = {};

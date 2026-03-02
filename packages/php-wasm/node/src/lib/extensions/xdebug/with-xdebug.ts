@@ -1,20 +1,31 @@
-import type {
-	EmscriptenOptions,
-	PHPRuntime,
-	SupportedPHPVersion,
+import { DEFAULT_IDE_KEY } from '@php-wasm/cli-util';
+import {
+	type EmscriptenOptions,
+	type PHPRuntime,
+	type SupportedPHPVersion,
+	FSHelpers,
+	LatestSupportedPHPVersion,
+	SupportedPHPVersions,
+	SupportedPHPVersionsList,
 } from '@php-wasm/universal';
-import { LatestSupportedPHPVersion, FSHelpers } from '@php-wasm/universal';
 import fs from 'fs';
 import { getXdebugExtensionModule } from './get-xdebug-extension-module';
 
+export interface PathMapping {
+	hostPath: string;
+	vfsPath: string;
+}
+
 export interface XdebugOptions {
 	ideKey?: string;
+	pathMappings?: PathMapping[];
+	pathSkippings?: string[];
 }
 
 export async function withXdebug(
 	version: SupportedPHPVersion = LatestSupportedPHPVersion,
 	options: EmscriptenOptions,
-	xdebugOptions?: XdebugOptions
+	xdebugOptions: XdebugOptions
 ): Promise<EmscriptenOptions> {
 	const fileName = 'xdebug.so';
 	const filePath = await getXdebugExtensionModule(version);
@@ -30,7 +41,7 @@ export async function withXdebug(
 			if (options.onRuntimeInitialized) {
 				options.onRuntimeInitialized(phpRuntime);
 			}
-			/**
+			/*
 			 * The extension file previously read
 			 * is written inside the /extensions directory
 			 */
@@ -53,7 +64,8 @@ export async function withXdebug(
 					new Uint8Array(extension)
 				);
 			}
-			/* The extension has its share of ini entries
+			/*
+			 * The extension has its share of ini entries
 			 * to write in a separate ini file
 			 */
 			if (
@@ -62,7 +74,7 @@ export async function withXdebug(
 					'/internal/shared/extensions/xdebug.ini'
 				)
 			) {
-				const ideKey = xdebugOptions?.ideKey || 'PLAYGROUNDCLI';
+				const ideKey = xdebugOptions.ideKey || DEFAULT_IDE_KEY;
 				phpRuntime.FS.writeFile(
 					'/internal/shared/extensions/xdebug.ini',
 					[
@@ -70,31 +82,44 @@ export async function withXdebug(
 						'xdebug.mode=debug,develop',
 						'xdebug.start_with_request=yes',
 						`xdebug.idekey="${ideKey}"`,
+						// Path mapping is only available starting
+						// from Xdebug 3.5, which is used by PHP 8.5+
+						// Previous versions will ignore this entry.
+						'xdebug.path_mapping=yes',
 					].join('\n')
 				);
 			}
-			/* The extension needs to mount the current
-			 * working directory in order to sync with
-			 * the debugger.
-			 * This is currently the base step but
-			 * we may mount any path – cwd or not cwd.
-			 * We may also mount multiple paths in different locations,
-			 * or we may not mount any paths at all and just write a
-			 * bunch of PHP files into /wordpress, e.g.
-			 * when executing a Blueprint.
-			 *
-			 * Skip mounting if cwd is '/' (common in packaged Electron apps)
-			 * as mounting the entire root filesystem would hang.
+			/*
+			 * Path mapping and skipping is only
+			 * available starting from Xdebug 3.5,
+			 * which is used by PHP 8.5 or higher.
 			 */
-			const cwd = process.cwd();
-			if (cwd && cwd !== '/') {
-				phpRuntime.FS.mkdirTree(cwd);
-				phpRuntime.FS.mount(
-					phpRuntime.FS.filesystems['NODEFS'],
-					{ root: cwd },
-					cwd
-				);
-				phpRuntime.FS.chdir(cwd);
+			const isPHP85orHigher =
+				SupportedPHPVersionsList.indexOf(version) <=
+				SupportedPHPVersions.indexOf('8.5');
+
+			if (isPHP85orHigher) {
+				const { pathMappings, pathSkippings } = xdebugOptions;
+
+				if (!pathMappings && !pathSkippings) return;
+
+				phpRuntime.FS.mkdir('/.xdebug');
+				// Path mapping
+				if (pathMappings) {
+					phpRuntime.FS.writeFile(
+						'/.xdebug/path.map',
+						pathMappings
+							.map((map) => `${map.vfsPath} = ${map.hostPath}`)
+							.join('\n')
+					);
+				}
+				// Path skipping
+				if (pathSkippings) {
+					phpRuntime.FS.writeFile(
+						'/.xdebug/skip.map',
+						pathSkippings.map((path) => `${path} = SKIP`).join('\n')
+					);
+				}
 			}
 		},
 	};
