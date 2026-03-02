@@ -30,6 +30,11 @@ const phpVersions =
 const phpLoaderOptions: PHPLoaderOptions[] = [{}, { withXdebug: true }];
 
 phpLoaderOptions.forEach((options) => {
+	// Tests are skipped when Xdebug is enabled because Xdebug alters PHP's
+	// output format and process behavior, which breaks exact text assertions.
+	// These tests cover core features that only need to run once without Xdebug.
+	const skip = !!options.withXdebug;
+
 	describe.each(phpVersions)('PHP %s', (phpVersion) => {
 		let php: PHP;
 		beforeEach(async () => {
@@ -44,7 +49,7 @@ phpLoaderOptions.forEach((options) => {
 			php.exit();
 		});
 
-		describe('Exit codes', { skip: options.withXdebug }, () => {
+		describe('Exit codes', { skip }, () => {
 			describe('Returns exit code 0', () => {
 				const testsSnippets = {
 					'on empty code': '',
@@ -157,7 +162,7 @@ phpLoaderOptions.forEach((options) => {
 			});
 		});
 
-		describe('Stdio', { skip: options.withXdebug }, () => {
+		describe('Stdio', { skip }, () => {
 			it('should output strings (1)', async () => {
 				expect(
 					await php.run({ code: '<?php echo "Hello world!";' })
@@ -244,7 +249,7 @@ phpLoaderOptions.forEach((options) => {
 			});
 		});
 
-		describe('Interface', { skip: options.withXdebug }, () => {
+		describe('Interface', { skip }, () => {
 			it('run() should throw an error when neither `code` nor `scriptFile` is provided', async () => {
 				await expect(() => php.run({})).rejects.toThrowError(
 					/The request object must have either a `code` or a `scriptPath` property/
@@ -252,36 +257,32 @@ phpLoaderOptions.forEach((options) => {
 			});
 		});
 
-		describe(
-			'Startup sequence – basics',
-			{ skip: options.withXdebug },
-			() => {
-				/**
-				 * This test ensures that the PHP runtime can be loaded twice.
-				 *
-				 * It protects from a regression that happened in the past
-				 * after making the Emscripten module's main function the
-				 * default export. Turns out, the generated Emscripten code
-				 * replaces the default export with an instantiated module upon
-				 * the first call.
-				 */
-				it('Should spawn two PHP runtimes', async () => {
-					const phpLoaderModule1 = await getPHPLoaderModule(
-						phpVersion as any
-					);
-					const runtimeId1 = await loadPHPRuntime(phpLoaderModule1);
+		describe('Startup sequence – basics', { skip }, () => {
+			/**
+			 * This test ensures that the PHP runtime can be loaded twice.
+			 *
+			 * It protects from a regression that happened in the past
+			 * after making the Emscripten module's main function the
+			 * default export. Turns out, the generated Emscripten code
+			 * replaces the default export with an instantiated module upon
+			 * the first call.
+			 */
+			it('Should spawn two PHP runtimes', async () => {
+				const phpLoaderModule1 = await getPHPLoaderModule(
+					phpVersion as any
+				);
+				const runtimeId1 = await loadPHPRuntime(phpLoaderModule1);
 
-					const phpLoaderModule2 = await getPHPLoaderModule(
-						phpVersion as any
-					);
-					const runtimeId2 = await loadPHPRuntime(phpLoaderModule2);
+				const phpLoaderModule2 = await getPHPLoaderModule(
+					phpVersion as any
+				);
+				const runtimeId2 = await loadPHPRuntime(phpLoaderModule2);
 
-					expect(runtimeId1).not.toEqual(runtimeId2);
-				});
-			}
-		);
+				expect(runtimeId1).not.toEqual(runtimeId2);
+			});
+		});
 
-		describe('Startup sequence', { skip: options.withXdebug }, () => {
+		describe('Startup sequence', { skip }, () => {
 			const testScriptPath = '/test.php';
 			afterEach(() => {
 				if (existsSync(testScriptPath)) {
@@ -752,7 +753,7 @@ phpLoaderOptions.forEach((options) => {
 		 * libsqlite3 path needs to be explicitly provided in Dockerfile
 		 * for PHP < 7.4 – let's make sure it works
 		 */
-		describe('PDO SQLite support', { skip: options.withXdebug }, () => {
+		describe('PDO SQLite support', { skip }, () => {
 			it('Should be able to create a database', async () => {
 				const response = await php.run({
 					code: `<?php
@@ -790,7 +791,7 @@ phpLoaderOptions.forEach((options) => {
 		 * hash extension needs to be explicitly enabled in Dockerfile
 		 * for PHP < 7.4 – let's make sure it works
 		 */
-		describe('Hash extension support', { skip: options.withXdebug }, () => {
+		describe('Hash extension support', { skip }, () => {
 			it('Should be able to hash a string', async () => {
 				const response = await php.run({
 					code: `<?php
@@ -813,23 +814,19 @@ phpLoaderOptions.forEach((options) => {
 		/**
 		 * mbregex support
 		 */
-		describe(
-			'mbregex extension support',
-			{ skip: options.withXdebug },
-			() => {
-				it('Should be able to use mb_regex_encoding functions', async () => {
-					const promise = php.run({
-						code: `<?php
+		describe('mbregex extension support', { skip }, () => {
+			it('Should be able to use mb_regex_encoding functions', async () => {
+				const promise = php.run({
+					code: `<?php
 							mb_regex_encoding('UTF-8');
 						?>`,
-					});
-					const response = await promise;
-					expect(response.errors).toBe('');
 				});
-			}
-		);
+				const response = await promise;
+				expect(response.errors).toBe('');
+			});
+		});
 
-		describe('64 bit integer support', { skip: options.withXdebug }, () => {
+		describe('64 bit integer support', { skip }, () => {
 			it('Should be able to use 64 bit integers', async () => {
 				const response = await php.run({
 					code: `<?php echo json_encode(9223372036854775807);`,
@@ -914,30 +911,23 @@ phpLoaderOptions.forEach((options) => {
 		/**
 		 * fileinfo support
 		 */
-		describe(
-			'fileinfo extension support',
-			{ skip: options.withXdebug },
-			() => {
-				it('Should be able to use finfo_file', async () => {
-					await php.writeFile(
-						'/test.php',
-						'<?php echo "Hello world!";'
-					);
-					const response = await php.run({
-						code: `<?php
+		describe('fileinfo extension support', { skip }, () => {
+			it('Should be able to use finfo_file', async () => {
+				await php.writeFile('/test.php', '<?php echo "Hello world!";');
+				const response = await php.run({
+					code: `<?php
 							$finfo = new finfo(FILEINFO_MIME_TYPE);
 							echo $finfo->file('/test.php');
 						?>`,
-					});
-					expect(response.text).toEqual('text/x-php');
 				});
-			}
-		);
+				expect(response.text).toEqual('text/x-php');
+			});
+		});
 
 		/**
 		 *  exif support
 		 */
-		describe('exif extension support', { skip: options.withXdebug }, () => {
+		describe('exif extension support', { skip }, () => {
 			beforeEach(async () => {
 				await php.writeFile(
 					'/image.jpg',
@@ -995,7 +985,7 @@ phpLoaderOptions.forEach((options) => {
 			});
 		});
 
-		describe('onMessage', { skip: options.withXdebug }, () => {
+		describe('onMessage', { skip }, () => {
 			it('should pass messages to JS', async () => {
 				let messageReceived = '';
 				php.onMessage((message) => {
@@ -1048,7 +1038,7 @@ phpLoaderOptions.forEach((options) => {
 			});
 		});
 
-		describe('CLI', { skip: options.withXdebug }, () => {
+		describe('CLI', { skip }, () => {
 			let consoleLogMock: any;
 			let consoleErrorMock: any;
 			beforeEach(() => {
@@ -1098,7 +1088,7 @@ phpLoaderOptions.forEach((options) => {
 			});
 		});
 
-		describe('Response parsing', { skip: options.withXdebug }, () => {
+		describe('Response parsing', { skip }, () => {
 			it('should encode response headers', async () => {
 				const out = await php.run({
 					code: `<?php header('Location: /(?P<id>[\\d]+)');`,
@@ -1107,7 +1097,7 @@ phpLoaderOptions.forEach((options) => {
 			});
 		});
 
-		describe('Disk space', { skip: options.withXdebug }, () => {
+		describe('Disk space', { skip }, () => {
 			it('should return the correct total disk space', async () => {
 				const response = await php.run({
 					code: `<?php echo disk_total_space('/');`,
