@@ -28,6 +28,7 @@ export const REQUEST_SOCKET_OPEN = 4;
 export const REQUEST_SOCKET_SEND = 5;
 export const REQUEST_SOCKET_RECV = 6;
 export const REQUEST_SOCKET_CLOSE = 7;
+export const REQUEST_MESSAGE = 8;
 export const HEADER_SIZE = 36;
 export const DEFAULT_DATA_SIZE = 1024 * 1024;
 

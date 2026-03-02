@@ -20,6 +20,7 @@ import {
 	REQUEST_FETCH_URL,
 	REQUEST_FETCH_URL_CHUNK,
 	REQUEST_SOCKET_RECV,
+	REQUEST_MESSAGE,
 } from './jspi-polyfill';
 
 export interface LoaderOptions {
@@ -274,6 +275,26 @@ function patchAsyncImports(
 	if (wasi && typeof wasi['fd_sync'] === 'function') {
 		wasi['fd_sync'] = () => 0;
 	}
+
+	// js_module_onMessage: EM_ASYNC_JS function called by
+	// post_message_to_js(). Returns a Promise in JSPI mode
+	// which WASM can't suspend on with our polyfill. Replace
+	// with a synchronous SAB-based version that routes the
+	// message to the main thread for processing.
+	// EM_ASYNC_JS adds the __asyncjs__ prefix to the name.
+	if (typeof env['__asyncjs__js_module_onMessage'] === 'function') {
+		env['__asyncjs__js_module_onMessage'] = (
+			dataPtr: number,
+			responseBufferPtr: number
+		): number => {
+			return polyfillJsModuleOnMessage(
+				channel,
+				wasmRefs,
+				dataPtr,
+				responseBufferPtr
+			);
+		};
+	}
 }
 
 function polyfillEmscriptenWgetData(
@@ -368,4 +389,92 @@ function polyfillRecv(
 	const mem = new Uint8Array(wasmRefs.memory!.buffer);
 	mem.set(response.data.subarray(0, response.responseLength), buffer);
 	return response.responseLength;
+}
+
+/**
+ * Synchronous SAB replacement for js_module_onMessage
+ * (the EM_ASYNC_JS function behind post_message_to_js).
+ *
+ * Sends the message string to the main thread, receives
+ * the response bytes, allocates a WASM buffer via malloc,
+ * writes the pointer into response_buffer, and returns
+ * the response size (or -1 on error).
+ */
+function polyfillJsModuleOnMessage(
+	channel: SharedChannel,
+	wasmRefs: WasmRefs,
+	dataPtr: number,
+	responseBufferPtr: number
+): number {
+	// Read null-terminated UTF-8 message from WASM memory.
+	const mem = new Uint8Array(wasmRefs.memory!.buffer);
+	let end = dataPtr;
+	while (mem[end] !== 0) end++;
+	const messageBytes = mem.slice(dataPtr, end);
+
+	// Send to main thread for processing.
+	const response = sendRequestFromWorker(
+		channel,
+		REQUEST_MESSAGE,
+		[],
+		messageBytes
+	);
+
+	if (response.error !== 0) {
+		return -1;
+	}
+
+	// Response layout: [4-byte total length (LE u32)] [chunks]
+	const totalLength = new DataView(
+		response.data.buffer,
+		response.data.byteOffset,
+		4
+	).getUint32(0, true);
+
+	if (totalLength === 0) {
+		// Empty response — allocate 1 byte for the null
+		// terminator so the C caller gets a valid pointer.
+		const ptr = wasmRefs.malloc!(1);
+		const emptyMem = new Uint8Array(wasmRefs.memory!.buffer);
+		emptyMem[ptr] = 0;
+		const view = new DataView(wasmRefs.memory!.buffer);
+		view.setInt32(responseBufferPtr, ptr, true);
+		return 0;
+	}
+
+	const chunks: Uint8Array[] = [];
+	const firstChunk = response.data.subarray(4);
+	chunks.push(firstChunk);
+	let received = firstChunk.length;
+
+	// Fetch remaining chunks for large responses.
+	while (received < totalLength) {
+		const chunkResponse = sendRequestFromWorker(
+			channel,
+			REQUEST_FETCH_URL_CHUNK,
+			[received]
+		);
+		if (chunkResponse.error !== 0) break;
+		chunks.push(chunkResponse.data);
+		received += chunkResponse.data.length;
+	}
+
+	// Allocate WASM buffer via malloc (+1 for null terminator).
+	const ptr = wasmRefs.malloc!(totalLength + 1);
+
+	// Re-read memory.buffer after malloc — memory growth
+	// can detach the old ArrayBuffer.
+	const newMem = new Uint8Array(wasmRefs.memory!.buffer);
+	let offset = 0;
+	for (const chunk of chunks) {
+		newMem.set(chunk, ptr + offset);
+		offset += chunk.length;
+	}
+	newMem[ptr + totalLength] = 0;
+
+	// Write pointer to response_buffer (4 bytes LE).
+	const view = new DataView(wasmRefs.memory!.buffer);
+	view.setInt32(responseBufferPtr, ptr, true);
+
+	return totalLength;
 }
