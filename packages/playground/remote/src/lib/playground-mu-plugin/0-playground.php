@@ -272,7 +272,7 @@ add_filter('wp_client_side_media_processing_enabled', '__return_false');
  */
 define('DISABLE_WP_CRON', true);
 if(str_ends_with($_SERVER['PHP_SELF'], '/wp-cron.php')) {
-	http_response_code(400);
+	http_response_code(503);
 	header('Content-Type: text/plain');
 	echo 'WP Cron is temporarily disabled in the Playground.';
 	exit;
