@@ -61,9 +61,16 @@ export type WasmUserSpaceContext = {
 		EWOULDBLOCK: NonZeroNumber;
 	};
 	memory: {
+		HEAP8: HeapAccessor<number>;
+		HEAPU8: HeapAccessor<number>;
 		HEAP16: HeapAccessor<number>;
+		HEAPU16: HeapAccessor<number>;
 		HEAP32: HeapAccessor<number>;
+		HEAPU32: HeapAccessor<number>;
+		HEAPF32: HeapAccessor<number>;
 		HEAP64: HeapAccessor<bigint>;
+		HEAPU64: HeapAccessor<bigint>;
+		HEAPF64: HeapAccessor<bigint>;
 	};
 	// This is a collection of functions present in built php-wasm JS.
 	// By receiving the entire collection here, we can avoid recompiling
