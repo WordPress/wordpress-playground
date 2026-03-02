@@ -10,6 +10,7 @@ _wasm_add_ENV_entry
 _wasm_add_SERVER_entry
 _wasm_free
 _wasm_read
+_wasm_recv
 _wasm_sapi_handle_request
 _wasm_sapi_request_shutdown
 _wasm_set_content_length

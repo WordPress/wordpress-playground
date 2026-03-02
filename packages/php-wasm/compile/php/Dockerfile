@@ -2174,7 +2174,7 @@ RUN cat /root/exported-functions.list >> /root/.JS_ABI_EXPORTS
 # main exported-functions.list will cause Asyncify build errors,
 # so we dynamically add it here instead.
 RUN if [ "$WITH_JSPI" = "yes" ]; then \
-		echo '___c_longjmp' >> /root/.JS_ABI_EXPORTS \
+		echo '___c_longjmp' >> /root/.JS_ABI_EXPORTS; \
 	fi;
 
 COPY ./${EMSCRIPTEN_ENVIRONMENT}-builds/ /root/${EMSCRIPTEN_ENVIRONMENT}-builds
