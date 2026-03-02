@@ -211,8 +211,18 @@ curl_setopt(
         }
 
         if ($name === 'transfer-encoding' && stripos($value, 'chunked') !== false) {
-            $is_chunked_response = true;
-            header($header, false);
+            // When behind Apache/Nginx, forward the header and
+            // let the web server re-chunk the output properly.
+            // Under the PHP built-in server (cli-server), DON'T
+            // forward this header. Curl already decodes the
+            // chunked body before passing it to WRITEFUNCTION,
+            // and the built-in server will frame the response
+            // itself. Forwarding it causes manual re-chunking
+            // that Node.js's HTTP parser rejects.
+            if (php_sapi_name() !== 'cli-server') {
+                $is_chunked_response = true;
+                header($header, false);
+            }
             return $len;
         }
 
