@@ -3,7 +3,7 @@
 .site-info-panel {
 	--padding-size: 24px;
 
-	background: #ffffff;
+	background: var(--color-bg-surface);
 	box-shadow: 0px 5px 15px rgba(0, 0, 0, 0.08);
 	border-radius: var(--site-manager-border-radius);
 	overflow: hidden;
@@ -124,8 +124,8 @@
 	height: 48px;
 	margin-right: 8px;
 
-	background: #ffffff;
-	border: 1px solid rgba(0, 0, 0, 0.1);
+	background: var(--color-bg-surface);
+	border: 1px solid var(--color-overlay-dark);
 	border-radius: 4px;
 
 	flex: none;
@@ -188,7 +188,7 @@
 	/* identical to box height, or 154% */
 
 	/* Gutenberg/Gray 700 */
-	color: #757575;
+	color: var(--color-text-secondary);
 }
 
 .siteInfoHeaderTitleRow {
@@ -250,7 +250,7 @@
 	gap: 12px;
 	padding: 10px 20px 10px 16px;
 	border-bottom: 1px solid var(--color-gray-200);
-	background: #ffffff;
+	background: var(--color-bg-surface);
 	flex-wrap: wrap;
 }
 
@@ -285,7 +285,7 @@
 	flex: 1;
 	min-height: 0;
 	overflow: auto;
-	background: #ffffff;
+	background: var(--color-bg-surface);
 }
 
 .blueprint-editor :global(.cm-editor) {
@@ -298,10 +298,10 @@
 
 .blueprintNotice {
 	padding: 12px 16px;
-	background: #f0f6fc;
+	background: var(--color-bg-info);
 	border-bottom: 1px solid var(--color-gray-200);
 	font-size: 13px;
-	color: var(--color-gray-700);
+	color: var(--color-text-secondary);
 	line-height: 1.5;
 }
 
