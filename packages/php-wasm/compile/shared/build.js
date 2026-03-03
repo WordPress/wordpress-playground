@@ -87,6 +87,8 @@ await asyncSpawn(
 	{ cwd: path.dirname(sourceDir), stdio: 'inherit' }
 );
 
+const version = args['PHP_VERSION'].replace('.', '_');
+
 // Store the shared library in output directories
 await asyncSpawn(
 	'docker',
@@ -102,9 +104,9 @@ await asyncSpawn(
 		// they don't work without running cp through shell.
 		'sh',
 		'-c',
-		`rm -rf /output/extensions/${library} && \
-			mkdir -p /output/extensions/${library} && \
-			cp -rf /root/${library}/modules/* /output/extensions/${library}`,
+		`rm -rf /output/extensions/${library}/${version} && \
+			mkdir -p /output/extensions/${library}/${version} && \
+			cp -rf /root/${library}/modules/* /output/extensions/${library}/${version}`,
 	],
 	{ cwd: path.dirname(sourceDir), stdio: 'inherit' }
 );

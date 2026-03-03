@@ -487,8 +487,6 @@ window.__playground_ControlledIframe = window.wp.element.forwardRef(function (pr
 				return xhr.responseText;
 			} catch(e) {
 				return '';
-			} finally {
-				URL.revokeObjectURL(url);
 			}
 		};
 		if (props.srcDoc) {

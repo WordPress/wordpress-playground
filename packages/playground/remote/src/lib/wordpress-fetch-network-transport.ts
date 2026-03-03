@@ -8,6 +8,7 @@ export interface RequestData {
 	method?: string;
 	headers?: Record<string, string>;
 	data?: string;
+	blocking?: boolean;
 }
 
 export interface RequestMessage {
@@ -336,34 +337,48 @@ export class WordPressFetchNetworkTransport {
 		return fetchPromises;
 	}
 }
-
 export async function handleRequest(data: RequestData, fetchFn = fetch) {
-	let response;
-	try {
-		const fetchMethod = data.method || 'GET';
-		const fetchHeaders = data.headers || {};
+	const fetchMethod = data.method || 'GET';
+	const fetchHeaders = data.headers || {};
 
-		const hasContentTypeHeader = Object.keys(fetchHeaders).some(
-			(name) => name.toLowerCase() === 'content-type'
-		);
+	const hasContentTypeHeader = Object.keys(fetchHeaders).some(
+		(name) => name.toLowerCase() === 'content-type'
+	);
 
-		if (fetchMethod == 'POST' && !hasContentTypeHeader) {
-			fetchHeaders['Content-Type'] = 'application/x-www-form-urlencoded';
-		}
+	if (fetchMethod == 'POST' && !hasContentTypeHeader) {
+		fetchHeaders['Content-Type'] = 'application/x-www-form-urlencoded';
+	}
 
-		response = await fetchFn(data.url, {
-			method: fetchMethod,
-			headers: fetchHeaders,
-			body: fetchMethod === 'GET' ? undefined : data.data,
-			credentials: 'omit',
+	const fetchPromise = fetchFn(data.url, {
+		method: fetchMethod,
+		headers: fetchHeaders,
+		body: fetchMethod === 'GET' ? undefined : data.data,
+		credentials: 'omit',
+	});
+
+	/**
+	 * Maps to WordPress's `$args['blocking']` from WP_Http.
+	 * When false, the fetch fires in the background and PHP
+	 * gets an immediate empty 200 (fire-and-forget). Defaults
+	 * to true (wait for the full response).
+	 */
+	if (data.blocking === false) {
+		fetchPromise.catch((e: unknown) => {
+			logger.warn('Non-blocking request failed:', e);
 		});
+		return new TextEncoder().encode('HTTP/1.1 200 OK\r\n\r\n');
+	}
+
+	let response: Response;
+	try {
+		response = await fetchPromise;
 	} catch {
 		return new TextEncoder().encode(
 			`HTTP/1.1 400 Invalid Request\r\ncontent-type: text/plain\r\n\r\nPlayground could not serve the request.`
 		);
 	}
 	const responseHeaders: string[] = [];
-	response.headers.forEach((value, key) => {
+	response.headers.forEach((value: string, key: string) => {
 		responseHeaders.push(key + ': ' + value);
 	});
 
