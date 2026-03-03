@@ -13,7 +13,7 @@
 			var(--site-manager-site-list-width)
 	);
 	--site-view-min-width: 320px;
-	--site-manager-background-color: #1e1e1e;
+	--site-manager-background-color: var(--color-text-primary);
 	--site-manager-border-width: 12px;
 	--site-manager-border-radius: 12px;
 }
