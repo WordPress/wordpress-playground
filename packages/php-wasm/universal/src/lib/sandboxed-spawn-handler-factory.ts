@@ -167,9 +167,7 @@ export function sandboxedSpawnHandlerFactory(
 							force: ['f'],
 						},
 						boolean: ['recursive', 'force'],
-					}) as any;
-
-					console.log('Parsed rm args:', parsedArgs);
+					});
 
 					const targets = parsedArgs._.map(String);
 					const isRecursive = parsedArgs.recursive;
