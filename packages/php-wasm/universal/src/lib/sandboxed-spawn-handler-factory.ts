@@ -3,7 +3,7 @@ import type { PHP } from './php';
 import type { PHPWorker } from './php-worker';
 import type { Remote } from './comlink-sync';
 import { logger } from '@php-wasm/logger';
-import yargsParser from 'yargs-parser';
+import yargsParser from 'yargs-parser/browser';
 
 function wait(ms: number): Promise<void> {
 	return new Promise((resolve) => setTimeout(resolve, ms));
@@ -161,11 +161,19 @@ export function sandboxedSpawnHandlerFactory(
 					break;
 				}
 				case 'rm': {
-					const parsedArgs = yargsParser(args.slice(1)) as any;
+					const parsedArgs = yargsParser(args.slice(1), {
+						alias: {
+							recursive: ['r'],
+							force: ['f'],
+						},
+						boolean: ['recursive', 'force'],
+					}) as any;
+
+					console.log('Parsed rm args:', parsedArgs);
 
 					const targets = parsedArgs._.map(String);
-					const isRecursive = parsedArgs.recursive ?? parsedArgs.r;
-					const isForce = parsedArgs.force ?? parsedArgs.f;
+					const isRecursive = parsedArgs.recursive;
+					const isForce = parsedArgs.force;
 
 					const errorMessages = [] as string[];
 
