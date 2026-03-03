@@ -9,7 +9,7 @@
 
 const LibraryExample = {
 	// Emscripten dependencies:
-	$PHPWASM__deps: ['$allocateUTF8OnStack', '$addOnInit'],
+	$PHPWASM__deps: ['$allocateUTF8OnStack'],
 	$PHPWASM__postset: 'PHPWASM.init();',
 
 	// Functions not exposed to C but available in the generated
@@ -135,10 +135,7 @@ const LibraryExample = {
 								set(offset, value) { HEAPF64[offset] = value; },
 							},
 						},
-						wasmImports: Object.assign({}, wasmImports,
-							typeof _builtin_fd_close === 'function' ? { builtin_fd_close: _builtin_fd_close } : {},
-							typeof _builtin_fcntl64 === 'function' ? { builtin_fcntl64: _builtin_fcntl64 } : {}
-						),
+						wasmImports,
 						wasmExports,
 						syscalls: SYSCALLS,
 						FS,
@@ -474,9 +471,9 @@ const LibraryExample = {
 					args,
 					/**
 					 * We're providing the same extra options we would pass to child_process.spawn().
-					 *
+					 * 
 					 * Why?
-					 *
+					 * 
 					 * spawnProcess() follows the same interface as child_process.spawn()
 					 * and some consumers pass `child_process.spawn` directly to php.setSpawnHandler()
 					 */
@@ -492,7 +489,7 @@ const LibraryExample = {
 					 * Delaying it to the next tick via Promise.resolve() would create
 					 * a race condition where it might emit some events before the
 					 * caller has a chance to bind event listeners to them.
-					 *
+					 * 
 					 * Without this condition, this callback would be at least flaky:
 					 *
 					 *    php.setSpawnHandler(require('child_process').spawn);
@@ -868,9 +865,9 @@ const LibraryExample = {
 					if (!cp.stdin.closed) {
 						cp.stdin.end();
 					}
-					_wasm_free(buffer);
-					_wasm_free(iov);
-					_wasm_free(pnum);
+					_free(buffer);
+					_free(iov);
+					_free(pnum);
 				}
 
 				// pump() can never alter the result of this function.
@@ -1045,6 +1042,27 @@ const LibraryExample = {
 		ws.setSocketOpt(level, optionName, optionValuePtr);
 		return 0;
 	},
+
+	/**
+	 * Alias for wasm_recv to support dynamically loaded extensions like memcached
+	 * that import `recv` by its POSIX name instead of the WASM-specific name.
+	 *
+	 * This allows extensions compiled without the -Drecv=wasm_recv flag to still
+	 * benefit from the async-aware implementation.
+	 */
+	recv: function (sockfd, buffer, size, flags) {
+		return _wasm_recv(sockfd, buffer, size, flags);
+	},
+	recv__deps: ['wasm_recv'],
+
+	/**
+	 * Alias for wasm_setsockopt to support dynamically loaded extensions like memcached
+	 * that import `setsockopt` by its POSIX name instead of the WASM-specific name.
+	 */
+	setsockopt: function (socketd, level, optionName, optionValuePtr, optionLen) {
+		return _wasm_setsockopt(socketd, level, optionName, optionValuePtr, optionLen);
+	},
+	setsockopt__deps: ['wasm_setsockopt'],
 
 	/**
 	 * Async-aware connect(2) for WebSocket-based sockets.

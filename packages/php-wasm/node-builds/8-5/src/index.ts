@@ -31,23 +31,23 @@ export async function getPHPLoaderModule(): Promise<PHPLoaderModule> {
 
 export async function getIntlExtensionPath(): Promise<string> {
 	if (await jspi()) {
-		return join(packageDir, 'jspi/extensions/intl/intl.so');
+		return join(packageDir, 'jspi/extensions/intl/8_5/intl.so');
 	} else {
-		return join(packageDir, 'asyncify/extensions/intl/intl.so');
+		return join(packageDir, 'asyncify/extensions/intl/8_5/intl.so');
 	}
 }
 
 export async function getXdebugExtensionPath(): Promise<string> {
 	if (await jspi()) {
-		return join(packageDir, 'jspi/extensions/xdebug/xdebug.so');
+		return join(packageDir, 'jspi/extensions/xdebug/8_5/xdebug.so');
 	} else {
-		return join(packageDir, 'asyncify/extensions/xdebug/xdebug.so');
+		return join(packageDir, 'asyncify/extensions/xdebug/8_5/xdebug.so');
 	}
 }
 
 export async function getRedisExtensionPath(): Promise<string> {
 	if (await jspi()) {
-		return join(packageDir, 'jspi/extensions/redis/redis.so');
+		return join(packageDir, 'jspi/extensions/redis/8_5/redis.so');
 	}
 	throw new Error(
 		'The Redis extension requires JSPI (JavaScript Promise Integration) support. ' +
@@ -59,7 +59,7 @@ export async function getRedisExtensionPath(): Promise<string> {
 
 export async function getMemcachedExtensionPath(): Promise<string> {
 	if (await jspi()) {
-		return join(packageDir, 'jspi/extensions/memcached/memcached.so');
+		return join(packageDir, 'jspi/extensions/memcached/8_5/memcached.so');
 	}
 	throw new Error(
 		'The Memcached extension requires JSPI (JavaScript Promise Integration) support. ' +
