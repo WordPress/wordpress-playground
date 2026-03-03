@@ -2169,6 +2169,14 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 COPY ./compile/php/exported-functions.list /root/exported-functions.list
 RUN cat /root/exported-functions.list >> /root/.JS_ABI_EXPORTS
 
+# WORKAROUND: Asyncify builds do not currently include __c_longjmp,
+# but we require it for JSPI builds. Including the symbol in our
+# main exported-functions.list will cause Asyncify build errors,
+# so we dynamically add it here instead.
+RUN if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" && "$WITH_JSPI" = "yes" ]; then \
+		echo '___c_longjmp' >> /root/.JS_ABI_EXPORTS; \
+	fi;
+
 COPY ./${EMSCRIPTEN_ENVIRONMENT}-builds/ /root/${EMSCRIPTEN_ENVIRONMENT}-builds
 COPY ./compile/shared/ /root/shared/
 RUN if [ "$WITH_JSPI" = "yes" ]; then \
@@ -2390,7 +2398,9 @@ RUN set -euxo pipefail; \
 		# but the main module only exposes wasm_setsockopt in wasmImports.
 		# This alias ensure that dynamically loaded extensions can
 		# correctly resolve the required import.
-		/root/replace.sh 's/wasm_setsockopt:\s*_wasm_setsockopt,/wasm_setsockopt: _wasm_setsockopt,\n  \/** \@export *\/ wasm_recv: _wasm_recv,/g' /root/output/php.js; \
+		if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" && "$WITH_JSPI" = "yes" ]; then \
+			/root/replace.sh 's/wasm_setsockopt:\s*_wasm_setsockopt,/wasm_setsockopt: _wasm_setsockopt,\n  \/** \@export *\/ wasm_recv: _wasm_recv,/g' /root/output/php.js; \
+		fi; \
 	# Patch Emscripten exit status to include a stack trace
 		# Override Emscripten's default ExitStatus class which gets
 		# thrown on failure. Unfortunately, the default object is not
