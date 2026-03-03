@@ -15,7 +15,7 @@ const currentDirPath =
 		: path.dirname(fileURLToPath(import.meta.url));
 const dependencyFilename = path.join(currentDirPath, '8_2_30', 'php_8_2.wasm');
 export { dependencyFilename };
-export const dependenciesTotalSize = 27535296;
+export const dependenciesTotalSize = 27535196;
 const phpVersionString = '8.2.30';
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
@@ -6541,6 +6541,9 @@ export function init(RuntimeName, PHPLoader) {
 
 	var allocateUTF8OnStack = (...args) => stringToUTF8OnStack(...args);
 
+	var onInits = [];
+	var addOnInit = (cb) => onInits.push(cb);
+
 	function _js_getpid() {
 		return PHPLoader.processId ?? 42;
 	}
@@ -6702,7 +6705,16 @@ export function init(RuntimeName, PHPLoader) {
 								},
 							},
 						},
-						wasmImports,
+						wasmImports: Object.assign(
+							{},
+							wasmImports,
+							typeof _builtin_fd_close === 'function'
+								? { builtin_fd_close: _builtin_fd_close }
+								: {},
+							typeof _builtin_fcntl64 === 'function'
+								? { builtin_fcntl64: _builtin_fcntl64 }
+								: {}
+						),
 						wasmExports,
 						syscalls: SYSCALLS,
 						FS,
@@ -17127,9 +17139,9 @@ export function init(RuntimeName, PHPLoader) {
 					if (!cp.stdin.closed) {
 						cp.stdin.end();
 					}
-					_free(buffer);
-					_free(iov);
-					_free(pnum);
+					_wasm_free(buffer);
+					_wasm_free(iov);
+					_wasm_free(pnum);
 				}
 
 				// pump() can never alter the result of this function.
@@ -18313,10 +18325,6 @@ export function init(RuntimeName, PHPLoader) {
 		} while (HEAPU32[ptr >> 2]);
 	};
 	__emscripten_fs_load_embedded_files.sig = 'vp';
-
-	var onInits = [];
-
-	var addOnInit = (cb) => onInits.push(cb);
 
 	var onMains = [];
 
@@ -30833,26 +30841,6 @@ export function init(RuntimeName, PHPLoader) {
 		});
 	};
 
-	function _recv(sockfd, buffer, size, flags) {
-		return _wasm_recv(sockfd, buffer, size, flags);
-	}
-
-	function _setsockopt(
-		socketd,
-		level,
-		optionName,
-		optionValuePtr,
-		optionLen
-	) {
-		return _wasm_setsockopt(
-			socketd,
-			level,
-			optionName,
-			optionValuePtr,
-			optionLen
-		);
-	}
-
 	function ___emscripten_lookup_name(namePtr) {
 		if (!ENVIRONMENT_IS_NODE) {
 			return original__emscripten_lookup_name(namePtr);
@@ -31359,20 +31347,18 @@ export function init(RuntimeName, PHPLoader) {
 	Module['___cxa_rethrow_primary_exception'] =
 		___cxa_rethrow_primary_exception;
 	Module['___syscall_shutdown'] = ___syscall_shutdown;
-	Module['_recv'] = _recv;
-	Module['_setsockopt'] = _setsockopt;
 	// End JS library exports
 
 	// end include: postlibrary.js
 
 	var ASM_CONSTS = {
-		13131297: ($0) => {
+		13131041: ($0) => {
 			if (!$0) {
 				AL.alcErr = 0xa004;
 				return 1;
 			}
 		},
-		13131345: ($0) => {
+		13131089: ($0) => {
 			if (!AL.currentCtx) {
 				err('alGetProcAddress() called without a valid context');
 				return 1;
@@ -31747,7 +31733,7 @@ export function init(RuntimeName, PHPLoader) {
 		wasmMemory;
 
 	function assignWasmExports(wasmExports) {
-		_free = PHPLoader['free'] = wasmExports['free'];
+		_free = wasmExports['free'];
 		_memcmp = wasmExports['memcmp'];
 		_malloc =
 			PHPLoader['malloc'] =
@@ -31815,7 +31801,10 @@ export function init(RuntimeName, PHPLoader) {
 			wasmExports['wasm_sapi_handle_request'];
 		_php_wasm_init = Module['_php_wasm_init'] =
 			wasmExports['php_wasm_init'];
-		_wasm_free = Module['_wasm_free'] = wasmExports['wasm_free'];
+		_wasm_free =
+			PHPLoader['free'] =
+			Module['_wasm_free'] =
+				wasmExports['wasm_free'];
 		_wasm_get_end_offset = Module['_wasm_get_end_offset'] =
 			wasmExports['wasm_get_end_offset'];
 		___wrap_getpid = Module['___wrap_getpid'] =
@@ -31855,7 +31844,7 @@ export function init(RuntimeName, PHPLoader) {
 			wasmExports['__indirect_function_table'];
 	}
 
-	var ___heap_base = 14717568;
+	var ___heap_base = 14717312;
 
 	var wasmImports = {
 		/** @export */
@@ -34461,12 +34450,8 @@ export function init(RuntimeName, PHPLoader) {
 		wasm_poll_socket,
 		/** @export */
 		wasm_recv: _wasm_recv,
-		/**  */
-		recv: _recv,
 		/** @export */
 		wasm_setsockopt: _wasm_setsockopt,
-		/**  */
-		setsockopt: _setsockopt,
 		/** @export */
 		wasm_shutdown: _wasm_shutdown,
 		/** @export */
