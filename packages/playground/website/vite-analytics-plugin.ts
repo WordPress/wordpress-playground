@@ -4,7 +4,10 @@ import { join } from 'node:path';
 
 const GA4_ID_PATTERN = /^G-[A-Z0-9]+$/;
 
-const HTML_FILES = ['index.html', 'wordpress.html', 'gutenberg.html'];
+// These HTML files are not part of Vite's rollup inputs, so
+// transformIndexHtml cannot reach them. They are handled
+// separately in the writeBundle hook (build only).
+const EXTRA_HTML_FILES = ['wordpress.html', 'gutenberg.html'];
 
 function gtagSnippet(id: string): string {
 	return [
@@ -18,32 +21,44 @@ function gtagSnippet(id: string): string {
 	].join('\n');
 }
 
+function getValidGaId(): string | null {
+	const gaId = process.env.VITE_GOOGLE_ANALYTICS_ID;
+	if (!gaId) {
+		return null;
+	}
+	if (!GA4_ID_PATTERN.test(gaId)) {
+		// eslint-disable-next-line no-console
+		console.error(
+			`Invalid VITE_GOOGLE_ANALYTICS_ID: "${gaId}".` +
+				' Expected format: G-XXXXXXXXXX.'
+		);
+		return null;
+	}
+	return gaId;
+}
+
 export function analyticsInjectionPlugin(): Plugin {
 	return {
 		name: 'analytics-injection',
-		apply: 'build',
-		writeBundle({ dir: outputDir }) {
-			const gaId = process.env.VITE_GOOGLE_ANALYTICS_ID;
+		// Handles index.html in both dev and build modes.
+		transformIndexHtml(html) {
+			const gaId = getValidGaId();
 			if (!gaId) {
-				return;
+				return html;
 			}
-
-			if (!GA4_ID_PATTERN.test(gaId)) {
-				// eslint-disable-next-line no-console
-				console.error(
-					`Invalid VITE_GOOGLE_ANALYTICS_ID: "${gaId}".` +
-						' Expected format: G-XXXXXXXXXX.'
-				);
-				return;
-			}
-
-			if (!outputDir) {
+			return html.replace('</head>', gtagSnippet(gaId) + '\n</head>');
+		},
+		// Handles extra HTML files that are not Vite entry
+		// points (build only).
+		writeBundle({ dir: outputDir }) {
+			const gaId = getValidGaId();
+			if (!gaId || !outputDir) {
 				return;
 			}
 
 			const snippet = gtagSnippet(gaId);
 
-			for (const file of HTML_FILES) {
+			for (const file of EXTRA_HTML_FILES) {
 				const filePath = join(outputDir, file);
 				if (!existsSync(filePath)) {
 					continue;
