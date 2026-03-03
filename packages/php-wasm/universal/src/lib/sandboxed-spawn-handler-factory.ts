@@ -3,6 +3,7 @@ import type { PHP } from './php';
 import type { PHPWorker } from './php-worker';
 import type { Remote } from './comlink-sync';
 import { logger } from '@php-wasm/logger';
+import yargs from 'yargs';
 
 function wait(ms: number): Promise<void> {
 	return new Promise((resolve) => setTimeout(resolve, ms));
@@ -160,47 +161,54 @@ export function sandboxedSpawnHandlerFactory(
 					break;
 				}
 				case 'rm': {
-					const target = args[args.length - 1];
-					const flags = args.slice(1, -1).join(' ');
+					const parsedArgs = yargs(args.slice(1))
+						.option('r', {
+							alias: 'recursive',
+							type: 'boolean',
+							default: false,
+						})
+						.option('f', {
+							alias: 'force',
+							type: 'boolean',
+							default: false,
+						})
+						.parse() as any;
 
-					if (args.length < 2 || target.startsWith('-')) {
-						processApi.stderr('usage: rm [-rf] file\n');
-						// Technical limitation of subprocesses – we need to
-						// wait before exiting to give consumer a chance to read
-						// the output.
-						await wait(10);
-						processApi.exit(1);
-						break;
-					}
+					const targets = parsedArgs._.map(String);
+					const isRecursive = parsedArgs.recursive;
+					const isForce = parsedArgs.force;
 
-					const isRecursive = flags.includes('r');
-					const isForce = flags.includes('f');
+					const errorMessages = [] as string[];
 
-					let errorMessage = '';
-
-					if (await php.isDir(target)) {
-						if (isRecursive) {
-							await php.rmdir(target, { recursive: true });
-						} else {
-							errorMessage = `rm: cannot remove '${target}': Is a directory\n`;
+					for (const target of targets) {
+						if (await php.isDir(target)) {
+							if (isRecursive) {
+								await php.rmdir(target, { recursive: true });
+							} else {
+								errorMessages.push(
+									`rm: ${target}: is a directory`
+								);
+							}
+						} else if (await php.isFile(target)) {
+							await php.unlink(target);
+						} else if (!isForce) {
+							errorMessages.push(
+								`rm: ${target}: No such file or directory`
+							);
 						}
-					} else if (await php.isFile(target)) {
-						await php.unlink(target);
-					}
-					// Target doesn't exist and -f flag is not set
-					else if (!isForce) {
-						errorMessage = `rm: cannot remove '${target}': No such file or directory\n`;
 					}
 
-					if (errorMessage) {
-						processApi.stderr(errorMessage);
+					const hasErrors = errorMessages.length > 0;
+
+					if (hasErrors) {
+						processApi.stderr(errorMessages.join('\n'));
 						// Technical limitation of subprocesses – we need to
 						// wait before exiting to give consumer a chance to read
 						// the output.
 						await wait(10);
 					}
 
-					processApi.exit(errorMessage ? 1 : 0);
+					processApi.exit(hasErrors ? 1 : 0);
 					break;
 				}
 			}
