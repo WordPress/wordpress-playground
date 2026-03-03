@@ -2173,7 +2173,7 @@ RUN cat /root/exported-functions.list >> /root/.JS_ABI_EXPORTS
 # but we require it for JSPI builds. Including the symbol in our
 # main exported-functions.list will cause Asyncify build errors,
 # so we dynamically add it here instead.
-RUN if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" && "$WITH_JSPI" = "yes" ]; then \
+RUN if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ] && [ "$WITH_JSPI" = "yes" ]; then \
 		echo '___c_longjmp' >> /root/.JS_ABI_EXPORTS; \
 	fi;
 
@@ -2398,7 +2398,7 @@ RUN set -euxo pipefail; \
 		# but the main module only exposes wasm_setsockopt in wasmImports.
 		# This alias ensure that dynamically loaded extensions can
 		# correctly resolve the required import.
-		if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" && "$WITH_JSPI" = "yes" ]; then \
+		if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ] && [ "$WITH_JSPI" = "yes" ]; then \
 			/root/replace.sh 's/wasm_setsockopt:\s*_wasm_setsockopt,/wasm_setsockopt: _wasm_setsockopt,\n  \/** \@export *\/ wasm_recv: _wasm_recv,/g' /root/output/php.js; \
 		fi; \
 	# Patch Emscripten exit status to include a stack trace

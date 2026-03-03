@@ -15,7 +15,7 @@ const currentDirPath =
 		: path.dirname(fileURLToPath(import.meta.url));
 const dependencyFilename = path.join(currentDirPath, '7_4_33', 'php_7_4.wasm');
 export { dependencyFilename };
-export const dependenciesTotalSize = 18200778;
+export const dependenciesTotalSize = 18200805;
 const phpVersionString = '7.4.33';
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
@@ -10710,6 +10710,7 @@ export function init(RuntimeName, PHPLoader) {
 		memory,
 		___stack_pointer,
 		__indirect_function_table,
+		___c_longjmp,
 		wasmTable,
 		wasmMemory;
 
@@ -11543,6 +11544,7 @@ export function init(RuntimeName, PHPLoader) {
 			wasmExports['__stack_pointer'];
 		__indirect_function_table = wasmTable =
 			wasmExports['__indirect_function_table'];
+		___c_longjmp = Module['___c_longjmp'] = wasmExports['__c_longjmp'];
 	}
 
 	var _spl_ce_RuntimeException = (Module['_spl_ce_RuntimeException'] =
@@ -11747,6 +11749,7 @@ export function init(RuntimeName, PHPLoader) {
 		/** @export */ strptime: _strptime,
 		/** @export */ wasm_close: _wasm_close,
 		/** @export */ wasm_setsockopt: _wasm_setsockopt,
+		/** @export */ wasm_recv: _wasm_recv,
 		/** @export */ wasm_shutdown: _wasm_shutdown,
 	};
 
