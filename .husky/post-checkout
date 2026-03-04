@@ -1,0 +1,13 @@
+#!/usr/bin/env sh
+
+# $3 is 1 for a branch checkout, 0 for a file checkout — skip file checkouts.
+if [ "$3" != "1" ]; then
+	exit 0
+fi
+
+# Only act when a recompile has been requested on this branch.
+if [ ! -f "packages/php-wasm/.recompile-request.json" ]; then
+	exit 0
+fi
+
+npm run prepare-wasm

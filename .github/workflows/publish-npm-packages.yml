@@ -98,3 +98,20 @@ jobs:
                   --yes --no-private --loglevel=verbose
                   --dist-tag=${{ inputs.dist_tag || 'latest' }}
                   ${{ github.ref != 'refs/heads/trunk' && '--no-push --no-git-tag-version' || '' }}
+
+            - name: Update wasm-versions.json to new stable version
+              if: github.ref == 'refs/heads/trunk'
+              run: |
+                  node -e "
+                    const fs = require('fs');
+                    const versionsPath = 'packages/php-wasm/wasm-versions.json';
+                    const newVersion = require('./lerna.json').version;
+                    const versions = JSON.parse(fs.readFileSync(versionsPath, 'utf8'));
+                    for (const key of Object.keys(versions)) {
+                      versions[key] = newVersion;
+                    }
+                    fs.writeFileSync(versionsPath, JSON.stringify(versions, null, '\t') + '\n');
+                  "
+                  git add packages/php-wasm/wasm-versions.json
+                  git diff --staged --quiet || git commit -m "chore: update wasm-versions.json to $(node -e \"console.log(require('./lerna.json').version)\")"
+                  git push origin trunk

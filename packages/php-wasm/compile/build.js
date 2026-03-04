@@ -391,10 +391,50 @@ await asyncSpawn(
 	{ cwd: sourceDir, stdio: 'inherit' }
 );
 
+// Write .recompile-request.json so CI knows what to compile
+const repoRoot = path.resolve(sourceDir, '../../..');
+const triggerFilePath = path.join(
+	repoRoot,
+	'packages/php-wasm/.recompile-request.json'
+);
+const resolvedPHPVersion = fullyQualifiedPHPVersion(args.PHP_VERSION || '8.3');
+const [phpMajor, phpMinor] = resolvedPHPVersion.split('.');
+const phpVersionShort = `${phpMajor}.${phpMinor}`;
+
+let triggerData = { requestedAt: '', compilations: [] };
+
+if (fs.existsSync(triggerFilePath)) {
+	try {
+		triggerData = JSON.parse(fs.readFileSync(triggerFilePath, 'utf8'));
+	} catch {
+		// Ignore parse errors — start fresh
+	}
+}
+
+const entry = { platform: args.PLATFORM || 'web', phpVersion: phpVersionShort };
+const alreadyPresent = triggerData.compilations.some(
+	(c) => c.platform === entry.platform && c.phpVersion === entry.phpVersion
+);
+
+if (!alreadyPresent) {
+	triggerData.compilations.push(entry);
+}
+
+triggerData.requestedAt = new Date().toISOString();
+fs.writeFileSync(
+	triggerFilePath,
+	JSON.stringify(triggerData, null, '\t') + '\n'
+);
+console.log(
+	`Updated packages/php-wasm/.recompile-request.json for ${entry.platform} PHP ${phpVersionShort}`
+);
+
 function asyncSpawn(...args) {
 	console.log('Running', args[0], args[1].join(' '), '...');
+
 	return new Promise((resolve, reject) => {
 		const child = spawn(...args);
+
 		child.on('close', (code) => {
 			if (code === 0) resolve(code);
 			else reject(new Error(`Process exited with code ${code}`));
@@ -408,5 +448,6 @@ function fullyQualifiedPHPVersion(requestedVersion) {
 			return lastRelease;
 		}
 	}
+
 	return requestedVersion;
 }
