@@ -1071,6 +1071,25 @@ phpLoaderOptions.forEach((options) => {
 				);
 			});
 
+			it('should not change the working directory to the script directory', async () => {
+				php.mkdir('/test-dir');
+				php.mkdir('/test-dir/subdir');
+				php.writeFile(
+					'/test-dir/subdir/getcwd.php',
+					'<?php echo getcwd();'
+				);
+				php.chdir('/test-dir');
+
+				const response = await php.cli([
+					'php',
+					'/test-dir/subdir/getcwd.php',
+				]);
+				// CLI SAPI sets SAPI_OPTION_NO_CHDIR, so the CWD
+				// stays at /test-dir rather than changing to
+				// /test-dir/subdir.
+				expect(await response.stdoutText).toBe('/test-dir');
+			});
+
 			it('should support multiple calls to php.cli() and php.runStream() when runtime rotation is enabled', async () => {
 				php.enableRuntimeRotation({
 					maxRequests: 1,

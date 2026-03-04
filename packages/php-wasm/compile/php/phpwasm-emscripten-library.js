@@ -619,7 +619,31 @@ const LibraryExample = {
 			}
 		}
 
-		const cwdstr = cwdPtr ? UTF8ToString(cwdPtr) : FS.cwd();
+		/*
+		 * The Emscripten VFS CWD may point to a MEMFS path like
+		 * /internal/ that doesn't exist on the host filesystem.
+		 * Passing such a path to child_process.spawn() would cause
+		 * ENOENT errors, so we only forward VFS CWD when it maps
+		 * to a real NODEFS path on the host. When omitted,
+		 * spawn() defaults to process.cwd().
+		 */
+		let cwdstr = null;
+		if (cwdPtr) {
+			cwdstr = UTF8ToString(cwdPtr);
+		} else {
+			try {
+				const vfsCwd = FS.cwd();
+				const lookup = FS.lookupPath(vfsCwd);
+				if (typeof NODEFS !== 'undefined' && lookup.node.mount.type === NODEFS) {
+					cwdstr = NODEFS.realPath(lookup.node);
+				}
+			} catch (e) {
+				/*
+				 * FS.lookupPath() will throw an error for unknown paths.
+				 * In that case, we leave cwdstr as null to let spawn() use the default CWD.
+				 */
+			}
+		}
 		let envObject = null;
 
 		if (envLength) {

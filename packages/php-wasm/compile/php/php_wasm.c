@@ -1616,9 +1616,6 @@ int wasm_sapi_request_init()
 	zend_llist global_vars;
 	zend_llist_init(&global_vars, sizeof(char *), NULL, 0);
 
-	/* Set some Embedded PHP defaults */
-	SG(options) |= SAPI_OPTION_NO_CHDIR;
-
 	SG(server_context) = wasm_server_context;
 
 	SG(request_info).query_string = wasm_server_context->query_string;
