@@ -43,11 +43,6 @@ export function startMainThreadHandler(
 	return waitForRequestAsync(channel, async () => {
 		try {
 			const request = readRequest(channel);
-			// eslint-disable-next-line no-console
-			const debugLabel = `[JSPI] req=${request.requestType}`;
-			// eslint-disable-next-line no-console
-			console.log(debugLabel, 'start');
-			const t0 = performance.now();
 			switch (request.requestType) {
 				case REQUEST_SLEEP:
 					await handleSleep(request.params[0]);
@@ -86,11 +81,6 @@ export function startMainThreadHandler(
 					sendResponseToWorker(channel, 1);
 					break;
 			}
-			// eslint-disable-next-line no-console
-			console.log(
-				debugLabel,
-				`done ${Math.round(performance.now() - t0)}ms`
-			);
 		} catch (err) {
 			// Always unblock the worker. Without this,
 			// an uncaught exception leaves the worker
@@ -202,21 +192,11 @@ async function handleMessage(
 	}
 
 	if (envelope.type !== 'request' || !envelope.data) {
-		// eslint-disable-next-line no-console
-		console.log('[JSPI] MESSAGE non-request:', envelope.type);
 		sendEmptyChunkedResponse(channel);
 		return null;
 	}
 
-	// eslint-disable-next-line no-console
-	console.log(
-		'[JSPI] MESSAGE fetch:',
-		envelope.data.method || 'GET',
-		envelope.data.url?.substring(0, 120)
-	);
 	const body = await fetchAsRawHttp(envelope.data, corsProxyUrl);
-	// eslint-disable-next-line no-console
-	console.log('[JSPI] MESSAGE response:', body.length, 'bytes');
 
 	const maxChunk = channel.dataView.byteLength - 4;
 	const chunkSize = Math.min(body.length, maxChunk);

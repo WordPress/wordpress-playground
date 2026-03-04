@@ -289,11 +289,41 @@ self.addEventListener('fetch', (event) => {
 
 	if (!shouldCacheUrl(new URL(event.request.url))) {
 		if (jspiPolyfillMode) {
-			// In JSPI polyfill mode, non-cacheable URLs (e.g.
-			// dev server pages) still need cross-origin
-			// isolation headers for SharedArrayBuffer.
-			// Clone the request as 'navigate' mode to avoid
-			// Firefox rejecting worker-destination refetches.
+			const isCrossOrigin =
+				new URL(event.request.url).origin !== self.location.origin;
+
+			if (isCrossOrigin) {
+				// Cross-origin resources need CORP: cross-origin
+				// so the parent page's COEP allows loading them.
+				// Fetch with CORS to get a non-opaque response
+				// whose headers we can rewrite.
+				return event.respondWith(
+					fetch(event.request.url, {
+						mode: 'cors',
+						credentials: 'omit',
+					})
+						.then((response) => {
+							const h = new Headers(response.headers);
+							h.set(
+								'cross-origin-resource-policy',
+								'cross-origin'
+							);
+							return new Response(response.body, {
+								status: response.status,
+								statusText: response.statusText,
+								headers: h,
+							});
+						})
+						.catch(() =>
+							// CORS rejected — fall back to an opaque
+							// response (will be blocked by COEP anyway).
+							fetch(event.request)
+						)
+				);
+			}
+
+			// Same-origin dev URL: proxy and add isolation
+			// headers for SharedArrayBuffer support.
 			const proxyRequest = new Request(event.request.url, {
 				headers: event.request.headers,
 				method: event.request.method,
@@ -677,24 +707,6 @@ self.addEventListener('message', (event) => {
 });
 
 /**
- * Injects COOP/COEP headers on scoped HTML responses when the
- * JSPI polyfill mode is active. This enables SharedArrayBuffer,
- * which the polyfill needs for main-thread/worker communication.
- *
- * Only injects on HTML responses — non-HTML resources (JS, CSS,
- * images) don't need document-level isolation headers.
- *
- * Uses `COEP: require-corp` because WebKit/Safari doesn't support
- * `credentialless`. This is acceptable here because this code path
- * only runs for browsers without native JSPI (Safari, Firefox),
- * and WordPress content is served from the same origin via the
- * service worker.
- *
- * @param response The response to potentially modify
- * @returns A new Response with COOP/COEP headers, or the
- *          original response if conditions aren't met
- */
-/**
  * Converts a service worker redirect response into a client-side
  * redirect via a small HTML page. Only applies to navigation requests.
  *
@@ -727,14 +739,24 @@ function convertNavigationRedirect(
 	});
 }
 
+/**
+ * Firefox supports COEP: credentialless, which allows cross-origin
+ * no-cors sub-resources to load without CORP headers. Safari does
+ * not, so it must use require-corp (and the SW proxies cross-origin
+ * fetches to add CORP: cross-origin in the handler above).
+ */
+const coepValue =
+	/Firefox/i.test(self.navigator.userAgent) &&
+	!/Seamonkey/i.test(self.navigator.userAgent)
+		? 'credentialless'
+		: 'require-corp';
+
 function injectCrossOriginIsolationHeaders(response: Response): Response {
 	const newHeaders = new Headers(response.headers);
 
-	// All responses need CORP so that COEP: require-corp on the
-	// parent document allows loading them. This must be set
-	// unconditionally because the dev server injects COEP into
-	// HTTP responses for SharedArrayBuffer support, and COEP
-	// requires CORP on every sub-resource — including ones
+	// All responses need CORP so that COEP on the parent document
+	// allows loading them. This must be set unconditionally because
+	// COEP requires CORP on every sub-resource — including ones
 	// synthesized by this service worker.
 	if (!newHeaders.has('cross-origin-resource-policy')) {
 		newHeaders.set('cross-origin-resource-policy', 'same-origin');
@@ -746,7 +768,7 @@ function injectCrossOriginIsolationHeaders(response: Response): Response {
 		const contentType = response.headers.get('content-type') ?? '';
 		if (contentType.includes('text/html')) {
 			newHeaders.set('cross-origin-opener-policy', 'same-origin');
-			newHeaders.set('cross-origin-embedder-policy', 'require-corp');
+			newHeaders.set('cross-origin-embedder-policy', coepValue);
 		}
 	}
 

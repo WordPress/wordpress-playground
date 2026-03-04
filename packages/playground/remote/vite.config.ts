@@ -153,10 +153,6 @@ const plugins = [
 				// Extract the file path from the URL (strip query)
 				const urlPath = url.split('?')[0];
 				const entryPoint = path(`.${urlPath}`);
-				// eslint-disable-next-line no-console
-				console.log(
-					`[bundle-workers] Bundling ${urlPath} → ${entryPoint}`
-				);
 
 				try {
 					let buildVersion: string;
