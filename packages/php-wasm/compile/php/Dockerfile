@@ -2395,7 +2395,7 @@ RUN set -euxo pipefail; \
 		# but the main module only exposes wasm_setsockopt in wasmImports.
 		# This alias ensure that dynamically loaded extensions can
 		# correctly resolve the required import.
-		if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ] && [ "$WITH_JSPI" = "yes" ]; then \
+		if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then \
 			/root/replace.sh 's/wasm_setsockopt:\s*_wasm_setsockopt,/wasm_setsockopt: _wasm_setsockopt,\n  \/** \@export *\/ wasm_recv: _wasm_recv,/g' /root/output/php.js; \
 		fi; \
 	# Patch Emscripten exit status to include a stack trace

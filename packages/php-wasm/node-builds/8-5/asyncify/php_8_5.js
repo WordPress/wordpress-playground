@@ -12156,6 +12156,7 @@ export function init(RuntimeName, PHPLoader) {
 		/** @export */ wasm_close: _wasm_close,
 		/** @export */ wasm_poll_socket,
 		/** @export */ wasm_setsockopt: _wasm_setsockopt,
+		/** @export */ wasm_recv: _wasm_recv,
 		/** @export */ wasm_shutdown: _wasm_shutdown,
 	};
 
