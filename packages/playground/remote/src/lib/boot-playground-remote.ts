@@ -132,7 +132,8 @@ export async function bootPlaygroundRemote() {
 	 * the headers are in place and SharedArrayBuffer is
 	 * available.
 	 */
-	if (await needsJspiPolyfill()) {
+	const polyfillNeeded = await needsJspiPolyfill();
+	if (polyfillNeeded) {
 		if (typeof SharedArrayBuffer === 'undefined') {
 			await enableCrossOriginIsolation(registration);
 			// Stop execution — the page will reload with
@@ -144,7 +145,65 @@ export async function bootPlaygroundRemote() {
 		localStorage.removeItem(CROSS_ORIGIN_ISOLATION_RELOAD_KEY);
 	}
 
-	const workerUrl = new URL(getWorkerUrl(), origin) + '';
+	let workerUrl = new URL(getWorkerUrl(), origin) + '';
+
+	// Firefox cannot load module Workers through a Service Worker
+	// when cross-origin isolation (COEP) is active — it fails with
+	// NS_ERROR_BLOCKED_BY_POLICY. Work around this by fetching the
+	// bundled Worker code and creating a blob URL that bypasses the
+	// Service Worker entirely.
+	const isFirefox =
+		/Firefox/i.test(navigator.userAgent) &&
+		!/Seamonkey/i.test(navigator.userAgent);
+	if (polyfillNeeded && isFirefox) {
+		const response = await fetch(workerUrl);
+		let code = await response.text();
+		const workerOrigin = new URL(workerUrl).origin;
+		// Blob Workers have blob: URLs which break relative URL
+		// resolution via import.meta.url. Replace all references
+		// (including the defensive `(import.meta || {}).url`
+		// pattern emitted by esbuild) with the original HTTP URL.
+		const metaUrlPattern = /\(?import\.meta(?:\s*\|\|\s*\{\})?\)?\.url/g;
+		code = code.replace(metaUrlPattern, JSON.stringify(workerUrl));
+		// Blob Workers also can't resolve root-relative URLs in
+		// fetch() and Cache API because their origin is opaque.
+		// Wrap these APIs to resolve root-relative URLs against
+		// the original origin.
+		const originJson = JSON.stringify(workerOrigin);
+		const blobPatches = [
+			// Helper to resolve root-relative URL strings.
+			`function __resolveUrl(input) {`,
+			`  if (typeof input === 'string' && input.startsWith('/'))`,
+			`    return ${originJson} + input;`,
+			`  return input;`,
+			`}`,
+			// Wrap fetch.
+			`const __origFetch = self.fetch.bind(self);`,
+			`self.fetch = function(input, init) {`,
+			`  return __origFetch(__resolveUrl(input), init);`,
+			`};`,
+			// Wrap Cache.prototype.match/add/delete.
+			`for (const m of ['match', 'add', 'delete']) {`,
+			`  const orig = Cache.prototype[m];`,
+			`  Cache.prototype[m] = function(req, ...args) {`,
+			`    return orig.call(this, __resolveUrl(req), ...args);`,
+			`  };`,
+			`}`,
+			// Wrap Cache.prototype.addAll (takes an array).
+			`const __origAddAll = Cache.prototype.addAll;`,
+			`Cache.prototype.addAll = function(reqs) {`,
+			`  return __origAddAll.call(this, reqs.map(__resolveUrl));`,
+			`};`,
+			// Wrap CacheStorage.prototype.match.
+			`const __origCachesMatch = CacheStorage.prototype.match;`,
+			`CacheStorage.prototype.match = function(req, ...args) {`,
+			`  return __origCachesMatch.call(this, __resolveUrl(req), ...args);`,
+			`};`,
+		].join('\n');
+		code = blobPatches + '\n' + code;
+		const blob = new Blob([code], { type: 'application/javascript' });
+		workerUrl = URL.createObjectURL(blob);
+	}
 
 	const worker = await spawnPHPWorkerThread(workerUrl);
 	setupJspiPolyfillListener(worker);
