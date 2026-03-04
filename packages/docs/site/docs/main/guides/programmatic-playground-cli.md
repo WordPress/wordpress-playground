@@ -198,7 +198,9 @@ describe('My Plugin Tests', () => {
     );
     const response = await fetch(settingsUrl);
 
-    expect(response.status).toBe(200);
+    // Note: A plain `fetch` call does not send the admin session cookie set by `login: true`,
+    // so this request is typically redirected to the login page instead of returning 200.
+    expect(response.status).toBe(302);
   });
 });
 ```
