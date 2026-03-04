@@ -1,6 +1,6 @@
 import dependencyFilename from './8_1_34/php_8_1.wasm';
 export { dependencyFilename };
-export const dependenciesTotalSize = 24505837;
+export const dependenciesTotalSize = 24505763;
 const phpVersionString = '8.1.34';
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
@@ -4930,6 +4930,8 @@ export function init(RuntimeName, PHPLoader) {
 	}
 	___syscall_chmod.sig = 'ipi';
 	var allocateUTF8OnStack = (...args) => stringToUTF8OnStack(...args);
+	var onInits = [];
+	var addOnInit = (cb) => onInits.push(cb);
 	function _js_getpid() {
 		return PHPLoader.processId ?? 42;
 	}
@@ -5071,7 +5073,16 @@ export function init(RuntimeName, PHPLoader) {
 								},
 							},
 						},
-						wasmImports,
+						wasmImports: Object.assign(
+							{},
+							wasmImports,
+							typeof _builtin_fd_close === 'function'
+								? { builtin_fd_close: _builtin_fd_close }
+								: {},
+							typeof _builtin_fcntl64 === 'function'
+								? { builtin_fcntl64: _builtin_fcntl64 }
+								: {}
+						),
 						wasmExports,
 						syscalls: SYSCALLS,
 						FS,
@@ -13776,9 +13787,9 @@ export function init(RuntimeName, PHPLoader) {
 					if (!cp.stdin.closed) {
 						cp.stdin.end();
 					}
-					_free(buffer);
-					_free(iov);
-					_free(pnum);
+					_wasm_free(buffer);
+					_wasm_free(iov);
+					_wasm_free(pnum);
 				}
 				const interval = setInterval(pump, 20);
 				pump();
@@ -14672,8 +14683,6 @@ export function init(RuntimeName, PHPLoader) {
 		} while (HEAPU32[ptr >> 2]);
 	};
 	__emscripten_fs_load_embedded_files.sig = 'vp';
-	var onInits = [];
-	var addOnInit = (cb) => onInits.push(cb);
 	var onMains = [];
 	var addOnPreMain = (cb) => onMains.push(cb);
 	var onExits = [];
@@ -24580,24 +24589,6 @@ export function init(RuntimeName, PHPLoader) {
 			poll();
 		});
 	};
-	function _recv(sockfd, buffer, size, flags) {
-		return _wasm_recv(sockfd, buffer, size, flags);
-	}
-	function _setsockopt(
-		socketd,
-		level,
-		optionName,
-		optionValuePtr,
-		optionLen
-	) {
-		return _wasm_setsockopt(
-			socketd,
-			level,
-			optionName,
-			optionValuePtr,
-			optionLen
-		);
-	}
 	var _getdtablesize = () => abort('missing function: ${name}');
 	var webSockets = new HandleAllocator();
 	var WS = {
@@ -24971,8 +24962,6 @@ export function init(RuntimeName, PHPLoader) {
 	Module['___cxa_rethrow_primary_exception'] =
 		___cxa_rethrow_primary_exception;
 	Module['___syscall_shutdown'] = ___syscall_shutdown;
-	Module['_recv'] = _recv;
-	Module['_setsockopt'] = _setsockopt;
 	var ASM_CONSTS = {
 		13047425: ($0) => {
 			if (!$0) {
@@ -26812,11 +26801,7 @@ export function init(RuntimeName, PHPLoader) {
 		wasm_connect: _wasm_connect,
 		wasm_poll_socket,
 		wasm_recv: _wasm_recv,
-		/**  */
-		recv: _recv,
 		wasm_setsockopt: _wasm_setsockopt,
-		/**  */
-		setsockopt: _setsockopt,
 		wasm_shutdown: _wasm_shutdown,
 		zoomSurface: _zoomSurface,
 	};

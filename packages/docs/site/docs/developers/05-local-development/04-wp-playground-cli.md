@@ -14,13 +14,43 @@ Playground CLI supports auto-mounting a directory with a plugin, theme, or WordP
 - **Flexibility**: Allows for configuration to adapt to different scenarios.
 - **Simple Environment**: No extra configuration, just a compatible Node version, and you are ready to use it.
 
+The Playground CLI includes two main commands for running WordPress locally:
+
+- **`start`** (Simplified): Auto-detects your project type, persists sites between sessions, and opens a browser automatically.
+- **`server`** (Advanced): Provides full manual control over configuration. Best for custom setups, CI/CD pipelines, or when you need fine-grained control.
+
 ## Requirements
 
 The Playground CLI requires Node.js 20.18 or higher, which is the recommended Long-Term Support (LTS) version. You can download it from the [Node.js website](https://nodejs.org/en/download).
 
 ## Quickstart
 
-To run the Playground CLI, open a command line and use the following command:
+To run the Playground CLI, open a command line and use one of the following commands:
+
+### Using `start` (Simplified)
+
+The `start` command is the easiest way to get started. It automatically detects your project type, persists your site, and opens the browser:
+
+```bash
+npx @wp-playground/cli@latest start
+```
+
+When run inside a plugin or theme directory, `start` automatically mounts your project:
+
+```bash
+cd my-plugin
+npx @wp-playground/cli@latest start
+```
+
+**Key differences from `server`:**
+
+- Auto-login is enabled by default
+- Opens browser automatically
+- Auto-mounts the project by default
+
+### Using `server` (Advanced)
+
+The `server` command provides full control over configuration:
 
 ```bash
 npx @wp-playground/cli@latest server
@@ -28,12 +58,17 @@ npx @wp-playground/cli@latest server
 
 ![Playground CLI in Action](@site/static/img/developers/npx-wp-playground-server.gif)
 
-With the previous command, you only get a fresh WordPress instance to test. Most developers will want to test their own work. To test a plugin or a theme, navigate to your project folder and run the CLI with the `--auto-mount` flag:
+**Automatic site persistence:** By default, the `start` command keeps your WordPress site persistent across sessions. Your files and database are stored in `~/.wordpress-playground/sites/<path-hash>/`, where `<path-hash>` is derived from your project directory. This means you can stop and restart the CLI without losing your work.
 
-```bash
-cd my-plugin-or-theme-directory
-npx @wp-playground/cli@latest server --auto-mount
-```
+This is useful when:
+
+- You want a clean WordPress installation
+- Testing fresh installation scenarios
+- Your site data became corrupted or inconsistent
+
+:::info
+The `--reset` flag works only with `start`. For `server`, manually delete the persisted site directory at `~/.wordpress-playground/sites/<path-hash>/`.
+:::
 
 ### Choosing a WordPress and PHP Version
 
@@ -88,7 +123,7 @@ npx @wp-playground/cli@latest server --mount-before-install=.:/wordpress/
 On Windows, the path format `/host/path:/vfs/path` can cause issues. To resolve this, use the flags `--mount-dir` and `--mount-dir-before-install`. These flags let you specify host and virtual file system paths in an alternative format: `"/host/path"` `"/vfs/path"`.
 :::
 
-### Understanding Data Persistence and SQLite Location
+### Understanding Data Persistence and SQLite Location in `server` mode
 
 By default, Playground CLI stores WordPress files and the SQLite database in **temporary directories on your operating system**:
 
@@ -155,14 +190,51 @@ cd my-wordpress-project
 npx @wp-playground/cli@latest server --mount=./wp-content:/wordpress/wp-content
 ```
 
+### Data Persistence in `start` mode
+
+Running in `start` mode, Playground CLI **automatically persists** your WordPress site in a dedicated directory:
+
+```
+~/.wordpress-playground/sites/<path-hash>/
+├── wordpress/          # WordPress installation
+├── internal/          # Playground runtime config
+└── tmp/              # Temporary PHP files
+```
+
+The `<path-hash>` is derived from your project directory path. This ensures isolation between different projects while persisting changes automatically.
+
+#### Persistence behavior
+
+- **Default (no explicit mount)**: WordPress files and database persist in `~/.wordpress-playground/sites/<path-hash>/`. Changes survive between CLI restarts.
+- **Explicit `/wordpress` mount**: If you provide a mount path for `/wordpress`, automatic persistence is skipped. Your mount configuration takes precedence.
+
+The database location depends on your configuration:
+
+- **Default (automatic persistence)**:
+    - Database: `~/.wordpress-playground/sites/<path-hash>/wordpress/wp-content/database/.ht.sqlite`
+    - **Persisted automatically** between sessions
+
+#### Resetting a persisted site
+
+To start fresh, use the `--reset` flag with the `start` command:
+
+```bash
+npx @wp-playground/cli@latest start --reset
+```
+
 ## Command and Arguments
 
 Playground CLI is simple, configurable, and unopinionated. You can set it up according
 to your unique WordPress setup. With the Playground CLI, you can use the following top-level commands:
 
-- **`server`**: (Default) Starts a local WordPress server.
+- **`start`**: (Simplified) Starts a local WordPress server with automatic project detection, site persistence, and browser opening.
+- **`server`**: (Advanced) Starts a local WordPress server with full manual control over configuration.
 - **`run-blueprint`**: Executes a Blueprint file without starting a web server.
 - **`build-snapshot`**: Builds a ZIP snapshot of a WordPress site based on a Blueprint.
+
+The `start` command has a dedicated argument:
+
+- `--reset`: Delete the stored site and start fresh. Defaults to false.
 
 The `server` command supports the following optional arguments:
 
@@ -189,6 +261,7 @@ The `server` command supports the following optional arguments:
 - `--phpmyadmin[=<path>]`: Install phpMyAdmin for database management. The phpMyAdmin URL will be printed after boot. Optionally specify a custom URL path (default: `/phpmyadmin`).
 - `--xdebug`: Enable Xdebug. Defaults to false.
 - `--experimental-devtools`: Enable experimental browser development tools. Defaults to false.
+- `--experimental-unsafe-ide-integration=<ide>`: Set up the Xdebug integration on VS Code (`vscode`) and PhpStorm (`phpstorm`).
 - `--experimental-multi-worker=<number>`: Enable experimental multi-worker support which requires a `/wordpress` directory backed by a real filesystem. Pass a positive number to specify the number of workers to use. Otherwise, defaults to the number of CPUs minus 1.
 
 :::caution
