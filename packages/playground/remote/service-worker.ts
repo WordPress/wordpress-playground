@@ -288,15 +288,23 @@ self.addEventListener('fetch', (event) => {
 	}
 
 	if (!shouldCacheUrl(new URL(event.request.url))) {
-		/**
-		 * It's safe to use the regular `fetch` function here.
-		 *
-		 * This request won't be cached in the offline mode cache
-		 * and there's no risk of the two caches interfering with
-		 * each other.
-		 *
-		 * See service-worker.ts for more details.
-		 */
+		if (jspiPolyfillMode) {
+			// In JSPI polyfill mode, non-cacheable URLs (e.g.
+			// dev server pages) still need cross-origin
+			// isolation headers for SharedArrayBuffer.
+			// Clone the request as 'navigate' mode to avoid
+			// Firefox rejecting worker-destination refetches.
+			const proxyRequest = new Request(event.request.url, {
+				headers: event.request.headers,
+				method: event.request.method,
+				redirect: 'follow',
+			});
+			return event.respondWith(
+				fetch(proxyRequest).then((response) =>
+					injectCrossOriginIsolationHeaders(response)
+				)
+			);
+		}
 		return;
 	}
 
@@ -720,24 +728,26 @@ function convertNavigationRedirect(
 }
 
 function injectCrossOriginIsolationHeaders(response: Response): Response {
-	if (!jspiPolyfillMode) {
-		return response;
-	}
-
 	const newHeaders = new Headers(response.headers);
 
 	// All responses need CORP so that COEP: require-corp on the
-	// parent document allows loading them.
+	// parent document allows loading them. This must be set
+	// unconditionally because the dev server injects COEP into
+	// HTTP responses for SharedArrayBuffer support, and COEP
+	// requires CORP on every sub-resource — including ones
+	// synthesized by this service worker.
 	if (!newHeaders.has('cross-origin-resource-policy')) {
 		newHeaders.set('cross-origin-resource-policy', 'same-origin');
 	}
 
-	// HTML documents get COOP + COEP so they become cross-origin
-	// isolated contexts themselves.
-	const contentType = response.headers.get('content-type') ?? '';
-	if (contentType.includes('text/html')) {
-		newHeaders.set('cross-origin-opener-policy', 'same-origin');
-		newHeaders.set('cross-origin-embedder-policy', 'require-corp');
+	if (jspiPolyfillMode) {
+		// HTML documents get COOP + COEP so they become
+		// cross-origin isolated contexts themselves.
+		const contentType = response.headers.get('content-type') ?? '';
+		if (contentType.includes('text/html')) {
+			newHeaders.set('cross-origin-opener-policy', 'same-origin');
+			newHeaders.set('cross-origin-embedder-policy', 'require-corp');
+		}
 	}
 
 	return new Response(response.body, {
