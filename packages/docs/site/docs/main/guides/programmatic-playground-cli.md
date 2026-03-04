@@ -140,6 +140,7 @@ describe('My Plugin Tests', () => {
 
   afterEach(async () => {
     if (cliServer) {
+      // RunCLIServer exposes Symbol.asyncDispose as its public async cleanup API.
       await cliServer[Symbol.asyncDispose]();
     }
   });
