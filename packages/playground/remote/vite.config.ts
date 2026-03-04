@@ -3,11 +3,14 @@ import { defineConfig } from 'vite';
 import type { Plugin } from 'vite';
 import { join } from 'path';
 import dts from 'vite-plugin-dts';
+import { build as esbuildBuild } from 'esbuild';
+import { execSync } from 'child_process';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { remoteDevServerHost, remoteDevServerPort } from '../build-config';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { viteTsConfigPaths } from '../../vite-extensions/vite-ts-config-paths';
-import { copyFileSync, existsSync } from 'fs';
+import { copyFileSync, existsSync, readFileSync } from 'fs';
+import { relative } from 'path';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { buildVersionPlugin } from '../../vite-extensions/vite-build-version';
 // eslint-disable-next-line @nx/enforce-module-boundaries
@@ -17,7 +20,226 @@ import viteGlobalExtensions from '../../vite-extensions/vite-global-extensions';
 
 const path = (filename: string) => new URL(filename, import.meta.url).pathname;
 
+/**
+ * esbuild plugin that resolves Vite-specific imports for
+ * on-the-fly bundling of worker files in Firefox dev mode.
+ *
+ * Handles: virtual modules, ?raw text imports, ?url and
+ * binary asset imports (.wasm, .so, .dat, .zip, .phar).
+ */
+function firefoxBundlePlugin(
+	repoRoot: string,
+	buildVersion: string
+): import('esbuild').Plugin {
+	// Asset extensions that Vite handles as URL imports.
+	const assetExtensions = ['.wasm', '.so', '.dat', '.zip', '.phar'];
+
+	return {
+		name: 'firefox-bundle-vite-compat',
+		setup(build) {
+			// ── virtual:* modules ──
+			build.onResolve({ filter: /^virtual:/ }, (args) => ({
+				path: args.path,
+				namespace: 'virtual',
+			}));
+			build.onLoad({ filter: /.*/, namespace: 'virtual' }, (args) => {
+				if (args.path === 'virtual:remote-config') {
+					return {
+						contents: `export const buildVersion = ${JSON.stringify(buildVersion)};`,
+						loader: 'js',
+					};
+				}
+				if (args.path === 'virtual:cors-proxy-url') {
+					return {
+						contents: `export const corsProxyUrl = '/cors-proxy/?';`,
+						loader: 'js',
+					};
+				}
+				return { contents: '', loader: 'js' };
+			});
+
+			// ── ?raw text imports ──
+			build.onResolve({ filter: /\?raw$/ }, (args) => ({
+				path: join(args.resolveDir, args.path.replace(/\?raw$/, '')),
+				namespace: 'raw',
+			}));
+			build.onLoad({ filter: /.*/, namespace: 'raw' }, (args) => ({
+				contents: readFileSync(args.path, 'utf-8'),
+				loader: 'text',
+			}));
+
+			// ── ?base64 imports ──
+			build.onResolve({ filter: /\?base64$/ }, (args) => ({
+				path: join(args.resolveDir, args.path.replace(/\?base64$/, '')),
+				namespace: 'base64-asset',
+			}));
+			build.onLoad(
+				{ filter: /.*/, namespace: 'base64-asset' },
+				(args) => {
+					const data = readFileSync(args.path);
+					return {
+						contents: `export default ${JSON.stringify(data.toString('base64'))};`,
+						loader: 'js',
+					};
+				}
+			);
+
+			// ── ?url asset imports ──
+			build.onResolve({ filter: /\?url$/ }, (args) => ({
+				path: join(args.resolveDir, args.path.replace(/\?url$/, '')),
+				namespace: 'url-asset',
+			}));
+			build.onLoad({ filter: /.*/, namespace: 'url-asset' }, (args) => {
+				// Use Vite's /@fs/ prefix so the dev server
+				// can serve files outside the project root.
+				const fsUrl = '/@fs/' + args.path;
+				return {
+					contents: `export default ${JSON.stringify(fsUrl)};`,
+					loader: 'js',
+				};
+			});
+
+			// ── Binary asset imports (.wasm, .so, etc.) ──
+			// Vite returns a URL for these; we do the same.
+			for (const ext of assetExtensions) {
+				const escapedExt = ext.replace('.', '\\.');
+				build.onResolve(
+					{ filter: new RegExp(`${escapedExt}$`) },
+					(args) => {
+						// Skip if it has a special suffix (?raw,
+						// ?url) — those are handled above.
+						if (/\?(raw|url)$/.test(args.path)) {
+							return undefined;
+						}
+						return {
+							path: join(args.resolveDir, args.path),
+							namespace: 'url-asset',
+						};
+					}
+				);
+			}
+		},
+	};
+}
+
 const plugins = [
+	/**
+	 * Bundles worker files into single files in dev mode for Firefox.
+	 *
+	 * Firefox cannot use `import` statements in service workers
+	 * (Bug 1360870). It also fails to resolve module Worker imports
+	 * through a Service Worker fetch handler when COEP is active.
+	 * In production, Vite/Rollup bundles everything into single
+	 * files. This plugin uses esbuild to do the same on-the-fly
+	 * so Firefox works during development.
+	 */
+	{
+		name: 'bundle-workers-firefox-dev',
+		apply: 'serve',
+		configureServer(server: import('vite').ViteDevServer) {
+			server.middlewares.use(async (req, res, next) => {
+				const url = req.url ?? '';
+				const ua = req.headers['user-agent'] ?? '';
+				const isFirefox =
+					ua.includes('Firefox') && !ua.includes('Seamonkey');
+				if (
+					!isFirefox ||
+					!url.includes('worker_file') ||
+					url.includes('web-service-worker')
+				) {
+					return next();
+				}
+
+				// Extract the file path from the URL (strip query)
+				const urlPath = url.split('?')[0];
+				const entryPoint = path(`.${urlPath}`);
+				// eslint-disable-next-line no-console
+				console.log(
+					`[bundle-workers] Bundling ${urlPath} → ${entryPoint}`
+				);
+
+				try {
+					let buildVersion: string;
+					try {
+						buildVersion = execSync('git rev-parse HEAD')
+							.toString()
+							.trim();
+					} catch {
+						buildVersion = String(
+							(new Date().getTime() / 1000).toFixed(0)
+						);
+					}
+					const repoRoot = path('../../../');
+					const result = await esbuildBuild({
+						absWorkingDir: repoRoot,
+						entryPoints: [entryPoint],
+						bundle: true,
+						write: false,
+						format: 'esm',
+						target: 'esnext',
+						tsconfig: join(repoRoot, 'tsconfig.base.json'),
+						// Node.js built-in used behind a
+						// conditional check; keep it as a
+						// dynamic import in the output.
+						external: [
+							'worker_threads',
+							'fs',
+							'path',
+							'node:fs/promises',
+						],
+						plugins: [firefoxBundlePlugin(repoRoot, buildVersion)],
+						// Suppress known-harmless warnings from
+						// Emscripten-generated PHP code and
+						// isomorphic-git.
+						logLevel: 'error',
+					});
+
+					res.setHeader('Content-Type', 'text/javascript');
+					res.setHeader(
+						'Cross-Origin-Resource-Policy',
+						'same-origin'
+					);
+					res.end(result.outputFiles[0].text);
+				} catch (err) {
+					// eslint-disable-next-line no-console
+					console.error(
+						`Failed to bundle ${urlPath} for Firefox:`,
+						err
+					);
+					next();
+				}
+			});
+		},
+	} as Plugin,
+	/**
+	 * Injects CORP headers on all dev-server responses.
+	 *
+	 * CORP is needed so that once the Service Worker enables
+	 * cross-origin isolation (COEP require-corp) after its
+	 * reload cycle, sub-resources served directly by Vite
+	 * (JS modules, WASM, etc.) are allowed through.
+	 *
+	 * COEP/COOP are NOT set here — the SW injects them on
+	 * its own responses after the page tells it to enable
+	 * cross-origin isolation (matching production behavior).
+	 */
+	{
+		name: 'cross-origin-isolation',
+		configureServer(server: import('vite').ViteDevServer) {
+			server.middlewares.use((_req, res, next) => {
+				const origWriteHead = res.writeHead.bind(res);
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
+				res.writeHead = (...args: any[]) => {
+					res.setHeader(
+						'Cross-Origin-Resource-Policy',
+						'same-origin'
+					);
+					return origWriteHead(...args);
+				};
+				next();
+			});
+		},
+	} as Plugin,
 	viteTsConfigPaths({
 		root: '../../../',
 	}),
@@ -92,11 +314,6 @@ export default defineConfig(({ mode }) => {
 		server: {
 			port: remoteDevServerPort,
 			host: remoteDevServerHost,
-			headers: {
-				'Cross-Origin-Opener-Policy': 'same-origin',
-				'Cross-Origin-Embedder-Policy': 'require-corp',
-				'Cross-Origin-Resource-Policy': 'same-origin',
-			},
 			allowedHosts: ['playground.test', 'playground-preview.test'],
 			proxy: {
 				// Proxy CORS requests to the local PHP CORS proxy server.
