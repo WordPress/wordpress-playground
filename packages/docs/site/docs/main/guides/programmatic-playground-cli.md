@@ -269,7 +269,7 @@ import { runCLI } from "@wp-playground/cli";
 try {
   const cliServer = await runCLI({
     command: 'server',
-    debug: true // Enable PHP error logging
+    debug: true, // Enable PHP error logging.
   });
 
   // Your test code here
