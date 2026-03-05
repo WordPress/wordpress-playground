@@ -105,6 +105,8 @@ export function sandboxedSpawnHandlerFactory(
 			const cwd = await php.cwd();
 			switch (binaryName) {
 				case 'php': {
+					// eslint-disable-next-line no-console
+					console.log('[proc_open debug] spawn: calling cli()', args);
 					// Figure out more about setting env, putenv(), etc.
 					const result = await php.cli(args, {
 						env: {
@@ -158,6 +160,8 @@ export function sandboxedSpawnHandlerFactory(
 			}
 		} catch (e) {
 			// An exception here means the PHP runtime has crashed.
+			// eslint-disable-next-line no-console
+			console.error('[proc_open debug] spawn: CAUGHT ERROR in cli():', e);
 			processApi.exit(1);
 			throw e;
 		} finally {
