@@ -123,9 +123,26 @@ export async function bootPlaygroundRemote() {
 
 	const workerUrl = new URL(getWorkerUrl(), origin) + '';
 
-	const phpWorkerApi = consumeAPI<PlaygroundWorkerEndpoint>(
-		await spawnPHPWorkerThread(workerUrl)
-	);
+	const worker = await spawnPHPWorkerThread(workerUrl);
+
+	// Forward tcpOverFetchOptions from the PHP worker to
+	// the service worker. CryptoKey objects are only
+	// structured-clonable via postMessage (not serializable),
+	// so we relay through the main thread.
+	//
+	// Use navigator.serviceWorker.ready to ensure the SW is
+	// active before forwarding. On first load, .controller
+	// can be null until the SW calls clients.claim() — if we
+	// drop this message, initJspiHandler never runs and all
+	// polyfilled socket operations fail.
+	worker.addEventListener('message', async (event: MessageEvent) => {
+		if (event.data?.type === 'jspi-polyfill-options') {
+			const reg = await navigator.serviceWorker.ready;
+			reg.active?.postMessage(event.data);
+		}
+	});
+
+	const phpWorkerApi = consumeAPI<PlaygroundWorkerEndpoint>(worker);
 
 	const wpFrame = document.querySelector('#wp') as HTMLIFrameElement;
 	const phpRemoteApi: WebClientMixin = {

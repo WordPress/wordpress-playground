@@ -115,6 +115,11 @@ import {
 	broadcastMessageExpectReply,
 } from '@php-wasm/web-service-worker';
 import { wordPressRewriteRules } from '@wp-playground/wordpress';
+import {
+	isJspiRequest,
+	handleJspiRequest,
+	initJspiHandler,
+} from '@php-wasm/web';
 import { reportServiceWorkerMetrics } from '@php-wasm/logger';
 
 import {
@@ -215,6 +220,12 @@ self.addEventListener('fetch', (event) => {
 		url.pathname.startsWith('/client/index.js');
 	if (isReservedUrl) {
 		return;
+	}
+
+	// Handle JSPI polyfill requests from the PHP worker.
+	// These are synchronous XHRs that block until we respond.
+	if (isJspiRequest(url)) {
+		return event.respondWith(handleJspiRequest(url, event.request));
 	}
 
 	if (url.pathname === '/feature-detect/document-isolation-policy.html') {
@@ -644,6 +655,9 @@ const scopesWithCrossOriginIsolation = new Set<string>();
 self.addEventListener('message', (event) => {
 	if (event.data?.type === 'document-isolation-policy-support-check') {
 		browserSupportsDocumentIsolationPolicy = event.data.supported === true;
+	}
+	if (event.data?.type === 'jspi-polyfill-options') {
+		initJspiHandler(event.data.tcpOverFetchOptions);
 	}
 });
 
