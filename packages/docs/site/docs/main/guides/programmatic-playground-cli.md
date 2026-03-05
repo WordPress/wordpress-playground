@@ -140,6 +140,7 @@ describe('My Plugin Tests', () => {
 
   afterEach(async () => {
     if (cliServer) {
+      // RunCLIServer exposes Symbol.asyncDispose as its public async cleanup API.
       await cliServer[Symbol.asyncDispose]();
     }
   });
@@ -197,7 +198,9 @@ describe('My Plugin Tests', () => {
     );
     const response = await fetch(settingsUrl);
 
-    expect(response.status).toBe(200);
+    // Note: A plain `fetch` call does not send the admin session cookie set by `login: true`,
+    // so this request is typically redirected to the login page instead of returning 200.
+    expect(response.status).toBe(302);
   });
 });
 ```
@@ -269,7 +272,7 @@ import { runCLI } from "@wp-playground/cli";
 try {
   const cliServer = await runCLI({
     command: 'server',
-    debug: true // Enable PHP error logging
+    debug: true, // Enable PHP error logging.
   });
 
   // Your test code here
