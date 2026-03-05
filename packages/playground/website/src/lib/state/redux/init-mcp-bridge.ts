@@ -11,6 +11,7 @@ import { persistTemporarySite } from './persist-temporary-site';
 import { selectClientBySiteSlug } from './slice-clients';
 import type { McpBridgeHandle } from '@wp-playground/mcp/client';
 import { startMcpBridge } from '@wp-playground/mcp/client';
+import { isMcpServerEnabled } from '../url/router';
 
 export const mcpListenerMiddleware = createListenerMiddleware();
 
@@ -25,13 +26,14 @@ startListening({
 		// Only start the bridge once.
 		listenerApi.unsubscribe();
 
-		// Only start the MCP bridge when explicitly requested via ?mcp query parameter.
-		const query = new URLSearchParams(window.location.search);
-		if (!query.has('mcp')) {
+		// Only start the MCP bridge when explicitly requested via ?mcp=yes query parameter.
+		if (!isMcpServerEnabled()) {
 			return;
 		}
 
-		const mcpPort = query.get('mcp-port');
+		const mcpPort = new URLSearchParams(window.location.search).get(
+			'mcp-port'
+		);
 		const { getState, dispatch } = listenerApi;
 		const handle: McpBridgeHandle = startMcpBridge(
 			{

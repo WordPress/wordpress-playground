@@ -98,3 +98,10 @@ export function isSaveDisabledByQueryParam(): boolean {
 		new URL(document.location.href).searchParams.get('can-save') === 'no'
 	);
 }
+
+/**
+ * Checks if the MCP server bridge is enabled via the `?mcp=yes` query parameter.
+ */
+export function isMcpServerEnabled(): boolean {
+	return new URL(document.location.href).searchParams.get('mcp') === 'yes';
+}
