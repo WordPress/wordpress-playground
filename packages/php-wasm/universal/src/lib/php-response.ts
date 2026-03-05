@@ -103,23 +103,48 @@ export class StreamedPHPResponse {
 			},
 		});
 
-		// Create empty streams for headers and stderr (won't be used since
-		// we set parsedHeaders directly below)
-		const emptyStream = () =>
-			new ReadableStream<Uint8Array>({
-				start(controller) {
-					controller.close();
-				},
-			});
+		// Encode headers into the stream in the JSON format that
+		// parseHeadersStream expects. This is critical for when
+		// the response crosses a worker thread boundary via
+		// Comlink — only the raw headersStream is serialized,
+		// not the parsedHeaders property.
+		const headerLines: string[] = [];
+		for (const [name, values] of Object.entries(response.headers)) {
+			for (const value of values) {
+				headerLines.push(`${name}: ${value}`);
+			}
+		}
+		const headersJson = JSON.stringify({
+			status: response.httpStatusCode,
+			headers: headerLines,
+		});
+		const headersStream = new ReadableStream<Uint8Array>({
+			start(controller) {
+				controller.enqueue(new TextEncoder().encode(headersJson));
+				controller.close();
+			},
+		});
+
+		const stderr = new ReadableStream<Uint8Array>({
+			start(controller) {
+				if (response.errors.length > 0) {
+					controller.enqueue(
+						new TextEncoder().encode(response.errors)
+					);
+				}
+				controller.close();
+			},
+		});
 
 		const streamed = new StreamedPHPResponse(
-			emptyStream(),
+			headersStream,
 			stdout,
-			emptyStream(),
+			stderr,
 			Promise.resolve(response.exitCode)
 		);
 
-		// Set pre-parsed headers to bypass header stream parsing
+		// Set pre-parsed headers as a fast-path for same-thread
+		// access (avoids re-parsing the stream we just created)
 		streamed.parsedHeaders = Promise.resolve({
 			headers: response.headers,
 			httpStatusCode: response.httpStatusCode,

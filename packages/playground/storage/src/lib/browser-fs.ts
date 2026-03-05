@@ -1,6 +1,15 @@
-import type { MountDevice } from '@php-wasm/web';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import type * as pleaseLoadTypes from 'wicg-file-system-access';
+
+export type MountDevice =
+	| {
+			type: 'opfs';
+			path: string;
+	  }
+	| {
+			type: 'local-fs';
+			handle: FileSystemDirectoryHandle;
+	  };
 
 export async function directoryHandleFromMountDevice(
 	device: MountDevice

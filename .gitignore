@@ -51,6 +51,7 @@ testem.log
 /typings
 *.timestamp-1678999213403.mjs
 /.env
+packages/playground/website/.env
 packages/playground/website/cypress/downloads
 vite.config.ts.timestamp-*.mjs
 *.orig

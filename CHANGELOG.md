@@ -4,6 +4,50 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
+## [v3.1.3] (2026-03-02) 
+
+### Tools
+
+- [AI] Add devcontainer configuration. ([#3276](https://github.com/WordPress/wordpress-playground/pull/3276))
+
+### Documentation
+
+- Clarify Document-Isolation-Policy comments in service worker. ([#3319](https://github.com/WordPress/wordpress-playground/pull/3319))
+
+### PHP WebAssembly
+
+- [ xdebug ] Map paths and skip paths with Xdebug 3.5. ([#3115](https://github.com/WordPress/wordpress-playground/pull/3115))
+- [PHP] Add `cp` method to Universal PHP. ([#3234](https://github.com/WordPress/wordpress-playground/pull/3234))
+- [PHP] Add few more function names and Refactor test files. ([#3287](https://github.com/WordPress/wordpress-playground/pull/3287))
+
+### Website
+
+- [Web] Avoid cross-origin policy errors in editor. ([#3312](https://github.com/WordPress/wordpress-playground/pull/3312))
+
+### Bug Fixes
+
+- Fix /wp-admin blank page when response crosses Comlink worker boundary. ([#3301](https://github.com/WordPress/wordpress-playground/pull/3301))
+- [Playground CLI] Return a readable error and hint when given port is already in use. ([#3238](https://github.com/WordPress/wordpress-playground/pull/3238))
+- [WordPress Builds] Fix semver crash on two-part WordPress versions. ([#3299](https://github.com/WordPress/wordpress-playground/pull/3299))
+- [WordPress Builds] Remove || true artifact in wordpress build. ([#3296](https://github.com/WordPress/wordpress-playground/pull/3296))
+
+### Various
+
+- Add ability to disable save. ([#3271](https://github.com/WordPress/wordpress-playground/pull/3271))
+- Correct plugin directory reference in documentation. ([#3323](https://github.com/WordPress/wordpress-playground/pull/3323))
+- Move MountDevice type declaration to @wp-playground/storage. ([#3315](https://github.com/WordPress/wordpress-playground/pull/3315))
+- Reduce Playground CLI target worker count to five. ([#3308](https://github.com/WordPress/wordpress-playground/pull/3308))
+- Update .nvmrc from Node 20 to Node 22. ([#3297](https://github.com/WordPress/wordpress-playground/pull/3297))
+- [AI] Symlink .claude/skills to .agents/skills. ([#3293](https://github.com/WordPress/wordpress-playground/pull/3293))
+- [docs] Adding skills guide. ([#3282](https://github.com/WordPress/wordpress-playground/pull/3282))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @brandonpayton @dd32 @epeicher @fellyph @fredrikekelund @JanJakes @mho22 @n8finch @zaerl
+
+
 ## [v3.1.2] (2026-02-23) 
 
 ### Tools

@@ -10,7 +10,11 @@ import { chmodSync, existsSync, mkdtempSync, writeFileSync } from 'fs';
 import os from 'os';
 import { rootCertificates } from 'tls';
 /* eslint-disable no-console */
-import { addXdebugIDEConfig, clearXdebugIDEConfig } from '@php-wasm/cli-util';
+import {
+	makeXdebugConfig,
+	addXdebugIDEConfig,
+	clearXdebugIDEConfig,
+} from '@php-wasm/cli-util';
 import { loadNodeRuntime, useHostFilesystem } from '@php-wasm/node';
 import {
 	type SupportedPHPVersion,
@@ -128,7 +132,17 @@ ${process.argv[0]} ${process.execArgv.join(' ')} ${process.argv[1]}
 					PATH: `${tempDir}:${envVariables['PATH']}`,
 				},
 			},
-			withXdebug: hasXdebugOption,
+			withXdebug:
+				hasXdebugOption ??
+				makeXdebugConfig({
+					pathSkippings: [
+						'/dev/',
+						'/home/',
+						'/internal/',
+						'/request/',
+						'/proc/',
+					],
+				}),
 		})
 	);
 	php.setSpawnHandler((command: string, args: string[]): any =>

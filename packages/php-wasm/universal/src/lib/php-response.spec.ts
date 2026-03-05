@@ -85,6 +85,94 @@ describe('StreamedPHPResponse', () => {
 			expect(await streamed.httpStatusCode).toBe(500);
 			expect(await streamed.exitCode).toBe(1);
 			expect(await streamed.stdoutText).toBe('error output');
+			expect(await streamed.stderrText).toBe('Fatal error on line 5');
+		});
+
+		it('encodes headers into headersStream for cross-thread serialization', async () => {
+			const original = new PHPResponse(
+				301,
+				{ location: ['/wp-admin/'] },
+				new Uint8Array(0),
+				'',
+				0
+			);
+
+			const streamed = StreamedPHPResponse.fromPHPResponse(original);
+
+			// Simulate what Comlink's transfer handler does:
+			// it reads the raw headersStream and ignores parsedHeaders.
+			const rawStream = streamed.getHeadersStream();
+			const reader = rawStream
+				.pipeThrough(new TextDecoderStream())
+				.getReader();
+			let text = '';
+			while (true) {
+				const { done, value } = await reader.read();
+				if (done) break;
+				text += value;
+			}
+
+			const parsed = JSON.parse(text);
+			expect(parsed.status).toBe(301);
+			expect(parsed.headers).toEqual(['location: /wp-admin/']);
+
+			// Reconstruct a StreamedPHPResponse from the raw stream
+			// as the Comlink deserializer would
+			const reconstructed = new StreamedPHPResponse(
+				new ReadableStream<Uint8Array>({
+					start(controller) {
+						controller.enqueue(new TextEncoder().encode(text));
+						controller.close();
+					},
+				}),
+				new ReadableStream<Uint8Array>({
+					start(controller) {
+						controller.close();
+					},
+				}),
+				new ReadableStream<Uint8Array>({
+					start(controller) {
+						controller.close();
+					},
+				}),
+				Promise.resolve(0)
+			);
+
+			expect(await reconstructed.httpStatusCode).toBe(301);
+			expect(await reconstructed.headers).toEqual({
+				location: ['/wp-admin/'],
+			});
+		});
+
+		it('encodes multi-value headers into headersStream', async () => {
+			const original = new PHPResponse(
+				200,
+				{
+					'set-cookie': ['a=1', 'b=2'],
+					'content-type': ['text/html'],
+				},
+				new Uint8Array(0),
+				'',
+				0
+			);
+
+			const streamed = StreamedPHPResponse.fromPHPResponse(original);
+			const rawStream = streamed.getHeadersStream();
+			const reader = rawStream
+				.pipeThrough(new TextDecoderStream())
+				.getReader();
+			let text = '';
+			while (true) {
+				const { done, value } = await reader.read();
+				if (done) break;
+				text += value;
+			}
+
+			const parsed = JSON.parse(text);
+			expect(parsed.status).toBe(200);
+			expect(parsed.headers).toContain('set-cookie: a=1');
+			expect(parsed.headers).toContain('set-cookie: b=2');
+			expect(parsed.headers).toContain('content-type: text/html');
 		});
 	});
 
@@ -357,8 +445,7 @@ describe('PHPResponse', () => {
 			);
 
 			const streamed = StreamedPHPResponse.fromPHPResponse(original);
-			const converted =
-				await PHPResponse.fromStreamedResponse(streamed);
+			const converted = await PHPResponse.fromStreamedResponse(streamed);
 
 			expect(converted.httpStatusCode).toBe(201);
 			expect(converted.headers).toEqual({
@@ -366,6 +453,7 @@ describe('PHPResponse', () => {
 				'x-custom': ['val1', 'val2'],
 			});
 			expect(converted.bytes).toEqual(body);
+			expect(converted.errors).toBe('some stderr');
 			expect(converted.exitCode).toBe(0);
 		});
 
@@ -385,7 +473,7 @@ describe('PHPResponse', () => {
 			expect(roundTripped.httpStatusCode).toBe(original.httpStatusCode);
 			expect(roundTripped.headers).toEqual(original.headers);
 			expect(roundTripped.bytes).toEqual(original.bytes);
-			expect(roundTripped.errors).toBe('');
+			expect(roundTripped.errors).toBe('error log entry');
 			expect(roundTripped.exitCode).toBe(original.exitCode);
 			expect(roundTripped.text).toBe(original.text);
 		});

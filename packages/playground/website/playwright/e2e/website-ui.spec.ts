@@ -582,3 +582,63 @@ test.describe('Database panel', () => {
 		await newPage.close();
 	});
 });
+
+// Test saving playgrounds by default and when the "can-save" URL parameter is set to "no".
+test.describe('Save Status Indicator', () => {
+	test('should show "Unsaved Playground" status for temporary playgrounds', async ({
+		website,
+	}) => {
+		await website.goto('./');
+		await website.ensureSiteManagerIsClosed();
+
+		const indicator = website.page.getByText('Unsaved Playground');
+		await expect(indicator).toBeVisible();
+		await expect(indicator).toHaveCount(1);
+	});
+
+	test('should see save playground message in the Site Manager', async ({
+		website,
+	}) => {
+		await website.goto('./');
+		await website.ensureSiteManagerIsOpen();
+
+		const indicator = website.page.getByText(
+			'This is an Unsaved Playground. Your changes will be lost on page refresh.'
+		);
+
+		await expect(indicator).toBeVisible();
+		await expect(indicator).toHaveCount(1);
+	});
+
+	test('should not show "Unsaved Playground" status when "can-save=no" is set', async ({
+		website,
+	}) => {
+		await website.goto('./?can-save=no');
+		await website.ensureSiteManagerIsClosed();
+
+		const indicator = website.page.getByText('Unsaved Playground');
+		await expect(indicator).toHaveCount(0);
+	});
+
+	test('should not see save playground message in the Site Manager when "can-save=no" is set', async ({
+		website,
+	}) => {
+		await website.goto('./?can-save=no');
+		await website.ensureSiteManagerIsOpen();
+
+		const indicator = website.page.getByText(
+			'This is an Unsaved Playground. Your changes will be lost on page refresh.'
+		);
+		await expect(indicator).toHaveCount(0);
+	});
+});
+
+test('should not include Google Analytics when VITE_GOOGLE_ANALYTICS_ID is not set', async ({
+	website,
+}) => {
+	await website.goto('./');
+	const gtmScripts = await website.page
+		.locator('script[src*="googletagmanager.com"]')
+		.count();
+	expect(gtmScripts).toBe(0);
+});

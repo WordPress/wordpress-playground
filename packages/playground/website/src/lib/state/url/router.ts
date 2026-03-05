@@ -87,3 +87,14 @@ export class PlaygroundRoute {
 		);
 	}
 }
+
+/**
+ * Checks if the URL has a query parameter that disables saving.
+ *
+ * @returns {boolean} True if saving is disabled by the query parameter, false otherwise.
+ */
+export function isSaveDisabledByQueryParam(): boolean {
+	return (
+		new URL(document.location.href).searchParams.get('can-save') === 'no'
+	);
+}

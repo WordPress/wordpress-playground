@@ -1,6 +1,6 @@
 import dependencyFilename from './8_0_30/php_8_0.wasm';
 export { dependencyFilename };
-export const dependenciesTotalSize = 20696382;
+export const dependenciesTotalSize = 20696339;
 const phpVersionString = '8.0.30';
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
@@ -4930,6 +4930,8 @@ export function init(RuntimeName, PHPLoader) {
 	}
 	___syscall_chmod.sig = 'ipi';
 	var allocateUTF8OnStack = (...args) => stringToUTF8OnStack(...args);
+	var onInits = [];
+	var addOnInit = (cb) => onInits.push(cb);
 	function _js_getpid() {
 		return PHPLoader.processId ?? 42;
 	}
@@ -4990,18 +4992,97 @@ export function init(RuntimeName, PHPLoader) {
 						},
 						errnoCodes: ERRNO_CODES,
 						memory: {
-							HEAP8,
-							HEAPU8,
-							HEAP16,
-							HEAPU16,
-							HEAP32,
-							HEAPU32,
-							HEAPF32,
-							HEAP64,
-							HEAPU64,
-							HEAPF64,
+							HEAP8: {
+								get(offset) {
+									return HEAP8[offset];
+								},
+								set(offset, value) {
+									HEAP8[offset] = value;
+								},
+							},
+							HEAPU8: {
+								get(offset) {
+									return HEAPU8[offset];
+								},
+								set(offset, value) {
+									HEAPU8[offset] = value;
+								},
+							},
+							HEAP16: {
+								get(offset) {
+									return HEAP16[offset];
+								},
+								set(offset, value) {
+									HEAP16[offset] = value;
+								},
+							},
+							HEAPU16: {
+								get(offset) {
+									return HEAPU16[offset];
+								},
+								set(offset, value) {
+									HEAPU16[offset] = value;
+								},
+							},
+							HEAP32: {
+								get(offset) {
+									return HEAP32[offset];
+								},
+								set(offset, value) {
+									HEAP32[offset] = value;
+								},
+							},
+							HEAPU32: {
+								get(offset) {
+									return HEAPU32[offset];
+								},
+								set(offset, value) {
+									HEAPU32[offset] = value;
+								},
+							},
+							HEAPF32: {
+								get(offset) {
+									return HEAPF32[offset];
+								},
+								set(offset, value) {
+									HEAPF32[offset] = value;
+								},
+							},
+							HEAP64: {
+								get(offset) {
+									return HEAP64[offset];
+								},
+								set(offset, value) {
+									HEAP64[offset] = value;
+								},
+							},
+							HEAPU64: {
+								get(offset) {
+									return HEAPU64[offset];
+								},
+								set(offset, value) {
+									HEAPU64[offset] = value;
+								},
+							},
+							HEAPF64: {
+								get(offset) {
+									return HEAPF64[offset];
+								},
+								set(offset, value) {
+									HEAPF64[offset] = value;
+								},
+							},
 						},
-						wasmImports,
+						wasmImports: Object.assign(
+							{},
+							wasmImports,
+							typeof _builtin_fd_close === 'function'
+								? { builtin_fd_close: _builtin_fd_close }
+								: {},
+							typeof _builtin_fcntl64 === 'function'
+								? { builtin_fcntl64: _builtin_fcntl64 }
+								: {}
+						),
 						wasmExports,
 						syscalls: SYSCALLS,
 						FS,
@@ -13705,9 +13786,9 @@ export function init(RuntimeName, PHPLoader) {
 					if (!cp.stdin.closed) {
 						cp.stdin.end();
 					}
-					_free(buffer);
-					_free(iov);
-					_free(pnum);
+					_wasm_free(buffer);
+					_wasm_free(iov);
+					_wasm_free(pnum);
 				}
 				const interval = setInterval(pump, 20);
 				pump();
@@ -14251,7 +14332,17 @@ export function init(RuntimeName, PHPLoader) {
 				reachedAfterCallback = true;
 				if (!reachedCallback) {
 					Asyncify.state = Asyncify.State.Unwinding;
-					Asyncify.currData = Asyncify.allocateData();
+					if (!Asyncify._cachedData) {
+						Asyncify._cachedData = Asyncify.allocateData();
+					} else {
+						Asyncify.setDataHeader(
+							Asyncify._cachedData,
+							Asyncify._cachedData + 12,
+							Asyncify.StackSize
+						);
+						Asyncify.setDataRewindFunc(Asyncify._cachedData);
+					}
+					Asyncify.currData = Asyncify._cachedData;
 					if (typeof MainLoop != 'undefined' && MainLoop.func) {
 						MainLoop.pause();
 					}
@@ -14262,7 +14353,6 @@ export function init(RuntimeName, PHPLoader) {
 			} else if (Asyncify.state === Asyncify.State.Rewinding) {
 				Asyncify.state = Asyncify.State.Normal;
 				runAndAbortIfError(_asyncify_stop_rewind);
-				_free(Asyncify.currData);
 				Asyncify.currData = null;
 				Asyncify.sleepCallbacks.forEach(callUserCallback);
 			} else {
@@ -14590,8 +14680,6 @@ export function init(RuntimeName, PHPLoader) {
 		} while (HEAPU32[ptr >> 2]);
 	};
 	__emscripten_fs_load_embedded_files.sig = 'vp';
-	var onInits = [];
-	var addOnInit = (cb) => onInits.push(cb);
 	var onMains = [];
 	var addOnPreMain = (cb) => onMains.push(cb);
 	var onExits = [];
@@ -24498,24 +24586,6 @@ export function init(RuntimeName, PHPLoader) {
 			poll();
 		});
 	};
-	function _recv(sockfd, buffer, size, flags) {
-		return _wasm_recv(sockfd, buffer, size, flags);
-	}
-	function _setsockopt(
-		socketd,
-		level,
-		optionName,
-		optionValuePtr,
-		optionLen
-	) {
-		return _wasm_setsockopt(
-			socketd,
-			level,
-			optionName,
-			optionValuePtr,
-			optionLen
-		);
-	}
 	var _getcontext = () => abort('missing function: ${name}');
 	var _makecontext = () => abort('missing function: ${name}');
 	var _swapcontext = () => abort('missing function: ${name}');
@@ -24892,16 +24962,14 @@ export function init(RuntimeName, PHPLoader) {
 	Module['___cxa_rethrow_primary_exception'] =
 		___cxa_rethrow_primary_exception;
 	Module['___syscall_shutdown'] = ___syscall_shutdown;
-	Module['_recv'] = _recv;
-	Module['_setsockopt'] = _setsockopt;
 	var ASM_CONSTS = {
-		12292609: ($0) => {
+		12292545: ($0) => {
 			if (!$0) {
 				AL.alcErr = 40964;
 				return 1;
 			}
 		},
-		12292657: ($0) => {
+		12292593: ($0) => {
 			if (!AL.currentCtx) {
 				err('alGetProcAddress() called without a valid context');
 				return 1;
@@ -25375,7 +25443,7 @@ export function init(RuntimeName, PHPLoader) {
 		__indirect_function_table = wasmTable =
 			wasmExports['__indirect_function_table'];
 	}
-	var ___heap_base = 13572672;
+	var ___heap_base = 13572608;
 	var wasmImports = {
 		IMG_Init: _IMG_Init,
 		IMG_Load: _IMG_Load,
@@ -26726,11 +26794,7 @@ export function init(RuntimeName, PHPLoader) {
 		wasm_connect: _wasm_connect,
 		wasm_poll_socket,
 		wasm_recv: _wasm_recv,
-		/**  */
-		recv: _recv,
 		wasm_setsockopt: _wasm_setsockopt,
-		/**  */
-		setsockopt: _setsockopt,
 		wasm_shutdown: _wasm_shutdown,
 		zoomSurface: _zoomSurface,
 	};
