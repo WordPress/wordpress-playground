@@ -666,6 +666,15 @@ export class PHP implements Disposable {
 				if (typeof request.code === 'string') {
 					this.writeFile('/internal/eval.php', request.code);
 					this.#setScriptPath('/internal/eval.php');
+					/**
+					 * Prevent PHP from changing CWD to /internal/.
+					 *
+					 * The code is expected to run inside the
+					 * current working directory, but the script must
+					 * be stored in /internal/ to avoid polluting the
+					 * CWD with temporary scripts.
+					 */
+					this.#setRequestNoChdir();
 				} else if (typeof request.scriptPath === 'string') {
 					this.#setScriptPath(request.scriptPath || '');
 				} else {
@@ -911,6 +920,15 @@ export class PHP implements Disposable {
 			null,
 			[STRING],
 			[path]
+		);
+	}
+
+	#setRequestNoChdir() {
+		this[__private__dont__use].ccall(
+			'wasm_set_request_no_chdir',
+			null,
+			[NUMBER],
+			[1]
 		);
 	}
 

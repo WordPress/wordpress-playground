@@ -1590,6 +1590,20 @@ static void wasm_sapi_register_server_variables(zval *track_vars_array TSRMLS_DC
 	}
 }
 
+static int wasm_request_no_chdir = 0;
+
+/**
+ * Function: wasm_set_request_no_chdir
+ * ----------------------------
+ *   When set, the next request preserves the current working directory
+ *   instead of changing to the script's directory. Only applies to the
+ *   next request.
+ */
+void EMSCRIPTEN_KEEPALIVE wasm_set_request_no_chdir(int no_chdir)
+{
+	wasm_request_no_chdir = no_chdir;
+}
+
 /**
  * Function: wasm_sapi_request_init
  * ----------------------------
@@ -1617,6 +1631,14 @@ int wasm_sapi_request_init()
 	zend_llist_init(&global_vars, sizeof(char *), NULL, 0);
 
 	SG(server_context) = wasm_server_context;
+
+	// SAPI_OPTION_NO_CHDIR prevents php_request_startup() from
+	// chdir'ing to the script directory. Reset the flag after use.
+	if (wasm_request_no_chdir)
+	{
+		SG(options) |= SAPI_OPTION_NO_CHDIR;
+		wasm_request_no_chdir = 0;
+	}
 
 	SG(request_info).query_string = wasm_server_context->query_string;
 	SG(request_info).path_translated = wasm_server_context->path_translated;
