@@ -471,6 +471,8 @@ reportServiceWorkerMetrics(self);
  */
 const controlledIframe = `
 window.__playground_ControlledIframe = window.wp.element.forwardRef(function (props, ref) {
+	var lastContentRef = window.wp.element.useRef(null);
+	var lastSourceRef = window.wp.element.useRef(null);
 	const source = window.wp.element.useMemo(function () {
 		/**
 		 * A synchronous function to read a blob URL as text.
@@ -478,9 +480,9 @@ window.__playground_ControlledIframe = window.wp.element.forwardRef(function (pr
 		 * @param {string} url
 		 * @returns {string}
 		 */
-		const __playground_readBlobAsText = function (url) {
+		var __playground_readBlobAsText = function (url) {
 			try {
-				let xhr = new XMLHttpRequest();
+				var xhr = new XMLHttpRequest();
 				xhr.open('GET', url, false);
 				xhr.overrideMimeType('text/plain;charset=utf-8');
 				xhr.send();
@@ -489,24 +491,41 @@ window.__playground_ControlledIframe = window.wp.element.forwardRef(function (pr
 				return '';
 			}
 		};
+		var content;
+		var newSource;
 		if (props.srcDoc) {
-			// WordPress <= 6.2 uses a srcDoc that only contains a doctype.
-			return '/wp-includes/empty.html';
+			// WordPress <= 6.2 uses a srcDoc that only contains
+			// a doctype.
+			content = props.srcDoc;
+			newSource = '/wp-includes/empty.html';
 		} else if (props.src && props.src.startsWith('blob:')) {
-			// WordPress 6.3 uses a blob URL with doctype and a list of static assets.
-			// Let's pass the document content to empty.html and render it there.
-			return '/wp-includes/empty.html#' + encodeURIComponent(__playground_readBlobAsText(props.src));
+			// WordPress 6.3 and 7.0+ use a blob URL with doctype
+			// and a list of static assets. Pass the document
+			// content to empty.html and render it there.
+			content = __playground_readBlobAsText(props.src);
+			newSource = '/wp-includes/empty.html#' + encodeURIComponent(content);
 		} else {
-			// WordPress >= 6.4 uses a plain HTTPS URL that needs no correction.
+			// WordPress 6.4-6.9 uses a plain HTTPS URL that needs
+			// no correction.
 			return props.src;
 		}
-	}, [props.src]);
+		// If the resolved content hasn't changed, reuse the
+		// previous source URL so React won't touch the iframe's
+		// src attribute and the browser won't reload it.
+		if (content === lastContentRef.current) {
+			return lastSourceRef.current;
+		}
+		lastContentRef.current = content;
+		lastSourceRef.current = newSource;
+		return newSource;
+	}, [props.src, props.srcDoc]);
 	return (
 		window.wp.element.createElement('iframe', {
 			...props,
 			ref: ref,
 			src: source,
-			// Make sure there's no srcDoc, as it would interfere with the src.
+			// Make sure there's no srcDoc, as it would
+			// interfere with the src.
 			srcDoc: undefined
 		})
 	)
