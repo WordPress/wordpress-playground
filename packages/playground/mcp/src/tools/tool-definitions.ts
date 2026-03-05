@@ -32,6 +32,15 @@ export interface ToolDefinition {
 	params: ToolParam[];
 }
 
+const PLAYGROUND_BASE_URL = 'https://playground.wordpress.net/';
+
+export function playgroundUrl(port?: number): string {
+	if (port) {
+		return `${PLAYGROUND_BASE_URL}?mcp=yes&mcp-port=${port}`;
+	}
+	return `${PLAYGROUND_BASE_URL}?mcp=yes`;
+}
+
 // -- Per-site tool definitions --
 
 export const toolDefinitions: Record<string, ToolDefinition> = {
@@ -380,33 +389,36 @@ export const toolDefinitions: Record<string, ToolDefinition> = {
 
 // -- Site management tool definitions --
 
-export const siteToolDefinitions: Record<string, ToolDefinition> = {
-	playground_list_sites: {
-		title: 'List Available Sites',
-		errorPrefix: 'Error listing sites',
-		description: `List all WordPress Playground sites
+export function getSiteToolDefinitions(
+	port?: number
+): Record<string, ToolDefinition> {
+	const url = playgroundUrl(port);
+	return {
+		playground_list_sites: {
+			title: 'List Available Sites',
+			errorPrefix: 'Error listing sites',
+			description: `List all WordPress Playground sites
 			available. Call this before any other playground
 			tool — it returns the siteId required by every
 			other operation.
 
 			If this returns no sites, the user may need to
-			open Playground with the ?mcp query parameter
-			(e.g. https://playground.wordpress.net/?mcp).
+			open Playground at ${url} .
 
 			Returns site names and storage type. "temporary"
 			sites are lost on page reload, "opfs" sites persist
 			across reloads. Call playground_save_site to persist
 			a temporary site.`,
-		annotations: {
-			readOnlyHint: true,
-			destructiveHint: false,
+			annotations: {
+				readOnlyHint: true,
+				destructiveHint: false,
+			},
+			params: [],
 		},
-		params: [],
-	},
-	playground_open_site: {
-		title: 'Open Site in Browser',
-		errorPrefix: 'Error opening site',
-		description: `Open a WordPress Playground site in a new
+		playground_open_site: {
+			title: 'Open Site in Browser',
+			errorPrefix: 'Error opening site',
+			description: `Open a WordPress Playground site in a new
 			browser tab. The site must appear in
 			playground_list_sites.
 
@@ -414,34 +426,34 @@ export const siteToolDefinitions: Record<string, ToolDefinition> = {
 			site is already open in a tab, calling this tool
 			will open a second tab rather than switching to
 			the existing one.`,
-		annotations: {
-			readOnlyHint: false,
-			destructiveHint: false,
-		},
-		params: [],
-	},
-	playground_rename_site: {
-		title: 'Rename Site',
-		errorPrefix: 'Error renaming site',
-		description: `Rename a WordPress Playground site. Updates
-			the display name shown in the browser UI.`,
-		annotations: {
-			readOnlyHint: false,
-			destructiveHint: false,
-		},
-		params: [
-			{
-				name: 'newName',
-				type: 'string',
-				description: 'The new display name for the site',
-				required: true,
+			annotations: {
+				readOnlyHint: false,
+				destructiveHint: false,
 			},
-		],
-	},
-	playground_save_site: {
-		title: 'Save Site',
-		errorPrefix: 'Error saving site',
-		description: `Save a temporary WordPress Playground site
+			params: [],
+		},
+		playground_rename_site: {
+			title: 'Rename Site',
+			errorPrefix: 'Error renaming site',
+			description: `Rename a WordPress Playground site. Updates
+			the display name shown in the browser UI.`,
+			annotations: {
+				readOnlyHint: false,
+				destructiveHint: false,
+			},
+			params: [
+				{
+					name: 'newName',
+					type: 'string',
+					description: 'The new display name for the site',
+					required: true,
+				},
+			],
+		},
+		playground_save_site: {
+			title: 'Save Site',
+			errorPrefix: 'Error saving site',
+			description: `Save a temporary WordPress Playground site
 			to browser storage so it survives page reloads.
 			Safe to call even if the site is already saved
 			(no-op).
@@ -450,13 +462,14 @@ export const siteToolDefinitions: Record<string, ToolDefinition> = {
 			when the browser tab is closed or the page is
 			reloaded. Call this early in any multi-step
 			workflow where losing progress would be costly.`,
-		annotations: {
-			readOnlyHint: false,
-			destructiveHint: false,
+			annotations: {
+				readOnlyHint: false,
+				destructiveHint: false,
+			},
+			params: [],
 		},
-		params: [],
-	},
-};
+	};
+}
 
 export function stringifyError(error: unknown): string {
 	if (error instanceof Error) {

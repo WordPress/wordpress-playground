@@ -106,11 +106,10 @@ export class PlaygroundBridge {
 
 			wss.on('error', (error: NodeJS.ErrnoException) => {
 				if (error.code === 'EADDRINUSE') {
-					// TODO: How can users change the port? Can we do it automatically?
 					console.error(
 						`[MCP] Port ${port} is already in use. ` +
 							`Kill the other process (lsof -i :${port}) or ` +
-							`change WS_PORT.`
+							`use --port=<number> or set MCP_WS_PORT.`
 					);
 				}
 				reject(error);

@@ -6,7 +6,8 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { PlaygroundBridge } from '../bridge-server';
 import {
 	toolDefinitions,
-	siteToolDefinitions,
+	getSiteToolDefinitions,
+	playgroundUrl,
 	presentStorage,
 	stringifyError,
 } from './tool-definitions';
@@ -33,7 +34,11 @@ const siteIdSchema = z
 			'available site IDs.'
 	);
 
-type ToolRegistrar = (server: McpServer, bridge: PlaygroundBridge) => void;
+type ToolRegistrar = (
+	server: McpServer,
+	bridge: PlaygroundBridge,
+	port?: number
+) => void;
 
 /**
  * Convert shared ToolParam[] to a Zod schema object suitable
@@ -102,12 +107,14 @@ function createBridgeToolClient(
 	});
 }
 
-export const registerMcpServerTools: ToolRegistrar = (server, bridge) => {
+export const registerMcpServerTools: ToolRegistrar = (server, bridge, port) => {
 	const sendCommand = bridge.sendCommand.bind(bridge);
+	const siteToolDefinitions = getSiteToolDefinitions(port);
+	const url = playgroundUrl(port);
 
 	// -- Site management tools --
 	// These operate on the bridge itself, not on a PlaygroundClient.
-	// Definitions are shared with WebMCP via siteToolDefinitions.
+	// Definitions are shared with WebMCP via getSiteToolDefinitions.
 
 	const listSites = siteToolDefinitions['playground_list_sites'];
 	server.registerTool(
@@ -131,7 +138,7 @@ export const registerMcpServerTools: ToolRegistrar = (server, bridge) => {
 								sites: [],
 								message: bridge.isConnected()
 									? 'No sites are loaded.'
-									: 'No browser connected. Open the Playground website at https://playground.wordpress.net to connect.',
+									: `No browser connected. Open the Playground website at ${url} to connect.`,
 							}),
 						},
 					],

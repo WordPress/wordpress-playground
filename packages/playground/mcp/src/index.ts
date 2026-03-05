@@ -15,10 +15,12 @@ function getPort(): number {
 }
 
 async function main() {
+	const port = getPort();
+	const nonDefaultPort = port !== DEFAULT_WS_PORT ? port : undefined;
 	const bridge = new PlaygroundBridge();
-	await bridge.startWebSocketServer(getPort());
-	const server = createServer();
-	registerMcpServerTools(server, bridge);
+	await bridge.startWebSocketServer(port);
+	const server = createServer(nonDefaultPort);
+	registerMcpServerTools(server, bridge, nonDefaultPort);
 	const transport = new StdioServerTransport();
 	await server.connect(transport);
 	console.error('[MCP] WordPress Playground MCP server running on stdio');
