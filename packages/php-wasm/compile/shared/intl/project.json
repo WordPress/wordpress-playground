@@ -21,9 +21,7 @@
 					"nx run php-wasm-compile-shared-intl:node:jspi --PHP_VERSION=8.2",
 					"nx run php-wasm-compile-shared-intl:node:jspi --PHP_VERSION=8.1",
 					"nx run php-wasm-compile-shared-intl:node:jspi --PHP_VERSION=8.0",
-					"nx run php-wasm-compile-shared-intl:node:jspi --PHP_VERSION=7.4",
-					"nx run php-wasm-compile-shared-intl:node:jspi --PHP_VERSION=7.3",
-					"nx run php-wasm-compile-shared-intl:node:jspi --PHP_VERSION=7.2"
+					"nx run php-wasm-compile-shared-intl:node:jspi --PHP_VERSION=7.4"
 				],
 				"parallel": false
 			}
@@ -47,9 +45,7 @@
 					"nx run php-wasm-compile-shared-intl:node:asyncify --PHP_VERSION=8.2",
 					"nx run php-wasm-compile-shared-intl:node:asyncify --PHP_VERSION=8.1",
 					"nx run php-wasm-compile-shared-intl:node:asyncify --PHP_VERSION=8.0",
-					"nx run php-wasm-compile-shared-intl:node:asyncify --PHP_VERSION=7.4",
-					"nx run php-wasm-compile-shared-intl:node:asyncify --PHP_VERSION=7.3",
-					"nx run php-wasm-compile-shared-intl:node:asyncify --PHP_VERSION=7.2"
+					"nx run php-wasm-compile-shared-intl:node:asyncify --PHP_VERSION=7.4"
 				],
 				"parallel": false
 			}
@@ -73,9 +69,7 @@
 					"nx run php-wasm-compile-shared-intl:web:jspi --PHP_VERSION=8.2",
 					"nx run php-wasm-compile-shared-intl:web:jspi --PHP_VERSION=8.1",
 					"nx run php-wasm-compile-shared-intl:web:jspi --PHP_VERSION=8.0",
-					"nx run php-wasm-compile-shared-intl:web:jspi --PHP_VERSION=7.4",
-					"nx run php-wasm-compile-shared-intl:web:jspi --PHP_VERSION=7.3",
-					"nx run php-wasm-compile-shared-intl:web:jspi --PHP_VERSION=7.2"
+					"nx run php-wasm-compile-shared-intl:web:jspi --PHP_VERSION=7.4"
 				],
 				"parallel": false
 			}
@@ -99,9 +93,7 @@
 					"nx run php-wasm-compile-shared-intl:web:asyncify --PHP_VERSION=8.2",
 					"nx run php-wasm-compile-shared-intl:web:asyncify --PHP_VERSION=8.1",
 					"nx run php-wasm-compile-shared-intl:web:asyncify --PHP_VERSION=8.0",
-					"nx run php-wasm-compile-shared-intl:web:asyncify --PHP_VERSION=7.4",
-					"nx run php-wasm-compile-shared-intl:web:asyncify --PHP_VERSION=7.3",
-					"nx run php-wasm-compile-shared-intl:web:asyncify --PHP_VERSION=7.2"
+					"nx run php-wasm-compile-shared-intl:web:asyncify --PHP_VERSION=7.4"
 				],
 				"parallel": false
 			}

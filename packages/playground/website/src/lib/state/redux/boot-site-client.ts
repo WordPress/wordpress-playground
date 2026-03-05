@@ -35,6 +35,7 @@ import {
 	shouldShowGitHubAuthModal,
 } from '../../../github/git-auth-helpers';
 import { findFirewallErrorInCauseChain } from './error-utils';
+import { PHPMYADMIN_INSTALL_PATH } from '@wp-playground/tools';
 
 export function bootSiteClient(
 	siteSlug: string,
@@ -164,6 +165,12 @@ export function bootSiteClient(
 				shouldInstallWordPress: !isWordPressInstalled,
 				corsProxy: corsProxyUrl,
 				gitAdditionalHeadersCallback: createGitAuthHeaders(),
+				pathAliases: [
+					{
+						urlPrefix: '/phpmyadmin',
+						fsPath: PHPMYADMIN_INSTALL_PATH,
+					},
+				],
 			});
 		} catch (e) {
 			logger.error(e);
@@ -236,6 +243,8 @@ export function bootSiteClient(
 					})
 				);
 			}
+			// Don't continue to client setup after an error
+			return;
 		}
 
 		if (signal.aborted || !playground) {

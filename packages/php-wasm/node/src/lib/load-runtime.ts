@@ -1,29 +1,44 @@
-import type {
-	SupportedPHPVersion,
-	EmscriptenOptions,
-	PHPRuntime,
-	RemoteAPI,
+import {
+	type SupportedPHPVersion,
+	type EmscriptenOptions,
+	type PHPRuntime,
+	type FileLockManager,
+	loadPHPRuntime,
+	FSHelpers,
+	FileLockManagerComposite,
+	ProcessIdAllocator,
 } from '@php-wasm/universal';
-import { loadPHPRuntime, FSHelpers } from '@php-wasm/universal';
+import type { WasmUserSpaceAPI, WasmUserSpaceContext } from './wasm-user-space';
+import { bindUserSpace } from './wasm-user-space';
 import fs from 'fs';
 import { getPHPLoaderModule } from '.';
+import { FileLockManagerForPosix } from './file-lock-manager-for-posix';
+import { FileLockManagerForWindows } from './file-lock-manager-for-windows';
 import { withNetworking } from './networking/with-networking';
-import type { FileLockManager } from './file-lock-manager';
-import { withXdebug, type XdebugOptions } from './extensions/xdebug/with-xdebug';
+import {
+	withXdebug,
+	type XdebugOptions,
+} from './extensions/xdebug/with-xdebug';
 import { withIntl } from './extensions/intl/with-intl';
-import { joinPaths } from '@php-wasm/util';
-import type { Promised } from '@php-wasm/util';
-import { dirname } from 'path';
+import { withRedis } from './extensions/redis/with-redis';
+import { withMemcached } from './extensions/memcached/with-memcached';
+import { dirname, joinPaths, toPosixPath } from '@php-wasm/util';
+import { platform } from 'os';
 
 export interface PHPLoaderOptions {
-	emscriptenOptions?: EmscriptenOptions;
 	followSymlinks?: boolean;
-	withXdebug?: boolean;
-	xdebug?: XdebugOptions;
+	withXdebug?: boolean | XdebugOptions;
 	withIntl?: boolean;
+	withRedis?: boolean;
+	withMemcached?: boolean;
 }
 
-type PHPLoaderOptionsForNode = PHPLoaderOptions & {
+export type PHPLoaderOptionsForNode = PHPLoaderOptions & {
+	/**
+	 * A file lock manager to coordinate file locks between
+	 * multiple php-wasm instances and other OS processes.
+	 */
+	fileLockManager?: FileLockManager;
 	emscriptenOptions?: EmscriptenOptions & {
 		/**
 		 * The process ID for the PHP runtime.
@@ -36,19 +51,15 @@ type PHPLoaderOptionsForNode = PHPLoaderOptions & {
 		processId?: number;
 
 		/**
-		 * An optional file lock manager to use for the PHP runtime.
-		 *
-		 * The lock manager is optional when running a single php-wasm process.
-		 *
-		 * When running with JSPI, both synchronous and asynchronous
-		 * file lock managers are supported.
-		 * When running with Asyncify, the file lock manager must be synchronous.
+		 * Factory called during WASM initialization to create
+		 * user-space syscall implementations (flock, fcntl, etc.)
+		 * for a PHP process. Receives process context (PID,
+		 * constants, errno codes) and returns the bound syscall
+		 * functions.
 		 */
-		fileLockManager?:
-			| RemoteAPI<FileLockManager>
-			// Allow promised type for testing without providing true RemoteAPI.
-			| Promised<FileLockManager>
-			| FileLockManager;
+		bindUserSpace?: (
+			userSpaceContext: WasmUserSpaceContext
+		) => WasmUserSpaceAPI;
 
 		/**
 		 * An optional function to collect trace messages.
@@ -60,18 +71,24 @@ type PHPLoaderOptionsForNode = PHPLoaderOptions & {
 		trace?: (processId: number, format: string, ...args: any[]) => void;
 
 		/**
-		 * An optional object to pass to the PHP-WASM library's `init` function.
-		 *
-		 * phpWasmInitOptions.nativeInternalDirPath is used to mount a
-		 * real, native directory as the php-wasm /internal directory.
-		 *
-		 * @see https://github.com/php-wasm/php-wasm/blob/main/compile/php/phpwasm-emscripten-library.js#L100
+		 * An optional path used to a real, native directory
+		 * to be mounted as the php-wasm /internal directory.
 		 */
-		phpWasmInitOptions?: {
-			nativeInternalDirPath?: string;
-		};
+		nativeInternalDirPath?: string;
 	};
 };
+
+/**
+ * In order to make loadNodeRuntime easier to use in testing,
+ * we provide default processIds for runtimes when none was provided.
+ * !! Do not assign default process IDs in production code.
+ * Otherwise, runtimes in different worker threads might end
+ * up with the same process ID, which could break file locking
+ * and lead to database corruption.
+ */
+const dangerousDefaultProcessIdAllocator = (process.env as any).VITEST
+	? new ProcessIdAllocator()
+	: undefined;
 
 /**
  * Does what load() does, but synchronously returns
@@ -84,7 +101,14 @@ export async function loadNodeRuntime(
 	phpVersion: SupportedPHPVersion,
 	options: PHPLoaderOptionsForNode = {}
 ) {
-	// TODO: Throw an error if a file lock manager is provided but not a process ID.
+	const processId =
+		options.emscriptenOptions?.processId ??
+		// !! Only assign a default process ID during test.
+		// Otherwise, multiple workers with duplicate process IDs
+		// could break file locking and lead to database corruption.
+		((process.env as any).VITEST
+			? dangerousDefaultProcessIdAllocator!.claim()
+			: undefined);
 
 	let emscriptenOptions: EmscriptenOptions = {
 		/**
@@ -95,7 +119,21 @@ export async function loadNodeRuntime(
 		quit: function (code, error) {
 			throw error;
 		},
+		bindUserSpace: (userSpaceContext: WasmUserSpaceContext) => {
+			const nativeFileLockManager =
+				platform() === 'win32'
+					? new FileLockManagerForWindows()
+					: new FileLockManagerForPosix();
+			const fileLockManager = options.fileLockManager
+				? new FileLockManagerComposite({
+						nativeLockManager: nativeFileLockManager,
+						wasmLockManager: options.fileLockManager,
+					})
+				: nativeFileLockManager;
+			return bindUserSpace({ fileLockManager }, userSpaceContext);
+		},
 		...(options.emscriptenOptions || {}),
+		processId,
 		onRuntimeInitialized: (phpRuntime: PHPRuntime) => {
 			/**
 			 * When users mount a directory using the `mount` function,
@@ -126,9 +164,11 @@ export async function loadNodeRuntime(
 								phpRuntime.FS.filesystems.NODEFS.realPath(node)
 							)
 						);
+
+					const normalizedPath = toPosixPath(absoluteSourcePath);
 					const symlinkMountPath = joinPaths(
 						`/internal/symlinks`,
-						absoluteSourcePath
+						normalizedPath
 					);
 					if (fs.existsSync(absoluteSourcePath)) {
 						if (
@@ -225,11 +265,11 @@ export async function loadNodeRuntime(
 		},
 	};
 
-	if (options?.withXdebug === true) {
+	if (options?.withXdebug) {
 		emscriptenOptions = await withXdebug(
 			phpVersion,
 			emscriptenOptions,
-			options.xdebug
+			typeof options.withXdebug === 'object' ? options.withXdebug : {}
 		);
 	}
 
@@ -237,10 +277,18 @@ export async function loadNodeRuntime(
 		emscriptenOptions = await withIntl(phpVersion, emscriptenOptions);
 	}
 
+	if (options?.withRedis === true) {
+		emscriptenOptions = await withRedis(phpVersion, emscriptenOptions);
+	}
+
+	if (options?.withMemcached === true) {
+		emscriptenOptions = await withMemcached(phpVersion, emscriptenOptions);
+	}
+
 	emscriptenOptions = await withNetworking(emscriptenOptions);
 
-	return await loadPHPRuntime(
-		await getPHPLoaderModule(phpVersion),
-		emscriptenOptions
-	);
+	const phpLoaderModule = await getPHPLoaderModule(phpVersion);
+
+	const runtimeId = await loadPHPRuntime(phpLoaderModule, emscriptenOptions);
+	return runtimeId;
 }

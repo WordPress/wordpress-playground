@@ -28,6 +28,7 @@ export default defineConfig(({ mode }) => {
 				: 'http://127.0.0.1:5263/cors-proxy.php?';
 
 	return {
+		root: __dirname,
 		base: mode === 'production' ? '/' : '/website-extras/',
 
 		assetsInclude: ['**/*.so'],

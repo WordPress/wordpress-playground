@@ -86,11 +86,11 @@ The `preferredVersions` property declares your preferred PHP and WordPress versi
 A propriedade `preferredVersions` declara suas versões preferidas de PHP e WordPress. Ela pode conter as seguintes propriedades:
 
 <!--
-- `php` (string): Loads the specified PHP version. Accepts `7.0`, `7.1`, `7.2`, `7.3`, `7.4`, `8.0`, `8.1`, `8.2`, `8.3`, `8.4`, `8.5`, or `latest`. Minor versions like `7.4.1` are not supported.
+- `php` (string): Loads the specified PHP version. Accepts `7.4`, `8.0`, `8.1`, `8.2`, `8.3`, `8.4`, `8.5`, or `latest`. Minor versions like `7.4.1` are not supported.
 - `wp` (string): Loads the specified WordPress version. Accepts the last six major WordPress versions. As of September 1, 2025, that's `6.3`, `6.4`, `6.5`, `6.6`, `6.7` or `6.8`. You can also use the generic values `latest`, `nightly`, or `beta`. To use a pre-release version of WordPress, `beta` will load the latest beta or release candidate versions of a release cycle (Beta or RC).
 -->
 
-- `php` (string): Carrega a versão PHP especificada. Aceita `7.0`, `7.1`, `7.2`, `7.3`, `7.4`, `8.0`, `8.1`, `8.2`, `8.3`, `8.4`, `8.5` ou `latest`. Versões menores como `7.4.1` não são suportadas.
+- `php` (string): Carrega a versão PHP especificada. Aceita `7.4`, `8.0`, `8.1`, `8.2`, `8.3`, `8.4`, `8.5` ou `latest`. Versões menores como `7.4.1` não são suportadas.
 - `wp` (string): Carrega a versão WordPress especificada. Aceita as últimas seis versões principais do WordPress. A partir de 1º de setembro de 2025, são `6.3`, `6.4`, `6.5`, `6.6`, `6.7` ou `6.8`. Você também pode usar os valores genéricos `latest`, `nightly` ou `beta`. Para usar uma versão pré-lançamento do WordPress, `beta` carregará as versões mais recentes de beta ou candidato a lançamento de um ciclo de lançamento (Beta ou RC).
 
 ```js

@@ -1,0 +1,103 @@
+.tabInfoWindow {
+	position: absolute;
+	top: 36px;
+	right: 30px;
+	background: #2c3338;
+	border: 1px solid #3c4349;
+	border-radius: 8px;
+	padding: 16px;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	font-size: 13px;
+	color: #9ca3af;
+	min-width: 200px;
+	max-width: 280px;
+	z-index: 1;
+}
+
+.infoRow {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: 16px;
+}
+
+.clickable {
+	cursor: pointer;
+	transition: background-color 0.15s ease;
+	padding: 4px 8px;
+	margin: -4px -8px;
+	border-radius: 4px;
+}
+
+.clickable:hover {
+	background-color: rgba(255, 255, 255, 0.05);
+}
+
+.label {
+	color: #6b7280;
+	font-weight: 500;
+}
+
+.value {
+	color: #fff;
+	font-weight: 500;
+	font-variant-numeric: tabular-nums;
+}
+
+.timeValue {
+	color: #fff;
+	font-weight: 500;
+	font-variant-numeric: tabular-nums;
+	min-width: 85px;
+	text-align: right;
+}
+
+.expandIcon {
+	font-size: 10px;
+	opacity: 0.7;
+}
+
+.accordionSection {
+	display: flex;
+	flex-direction: column;
+}
+
+.tabList {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	margin-top: 8px;
+	padding-left: 8px;
+}
+
+.tabItem {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 4px 0;
+}
+
+.tabTime {
+	color: #9ca3af;
+	font-size: 12px;
+	font-variant-numeric: tabular-nums;
+}
+
+.workerBadge {
+	font-size: 10px;
+	font-weight: 600;
+	color: #3858e9;
+	padding: 2px 4px;
+	text-transform: uppercase;
+	letter-spacing: 0.5px;
+}
+
+@media (max-width: 768px) {
+	.tabInfoWindow {
+		position: static;
+		max-width: 100%;
+		margin-bottom: 24px;
+	}
+}

@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import { toPosixPath } from '@php-wasm/util';
 import type { Mount } from './mounts';
 import {
 	type X2jOptions,
@@ -8,6 +9,14 @@ import {
 	XMLBuilder,
 } from 'fast-xml-parser';
 import * as JSONC from 'jsonc-parser';
+
+export interface XdebugOptions {
+	ideKey?: string;
+	pathMappings?: Mount[];
+	pathSkippings?: string[];
+}
+
+export const DEFAULT_IDE_KEY = 'PHPWASMCLI';
 
 /**
  * Create a symlink to a tempory directory.
@@ -67,6 +76,21 @@ function filterLocalMounts(cwd: string, mounts: Mount[]) {
 	});
 }
 
+export type XdebugConfig = {
+	/**
+	 * The current working directory to consider for debugger path mapping.
+	 */
+	cwd?: string;
+	/**
+	 * The mounts to consider for debugger path mapping.
+	 */
+	mounts?: Mount[];
+	/**
+	 * The paths to consider for debugger path skipping.
+	 */
+	pathSkippings?: string[];
+};
+
 export type IDEConfig = {
 	/**
 	 * The name of the configuration within the IDE configuration.
@@ -93,7 +117,7 @@ export type IDEConfig = {
 	 */
 	mounts?: Mount[];
 	/**
-	 * The IDE key to use for the debug configuration. Defaults to 'PLAYGROUNDCLI'.
+	 * The IDE key to use for the debug configuration. Defaults to 'PHPWASMCLI'.
 	 */
 	ideKey?: string;
 };
@@ -175,7 +199,7 @@ export type PhpStormConfigOptions = {
 };
 
 /**
- * Pure function to update PHPStorm XML config with XDebug server and run configuration.
+ * Pure function to update PHPStorm XML config with Xdebug server and run configuration.
  *
  * @param xmlContent The original XML content of workspace.xml
  * @param options Configuration options for the server
@@ -368,7 +392,7 @@ export type VSCodeConfigOptions = {
 };
 
 /**
- * Pure function to update VS Code launch.json config with XDebug configuration.
+ * Pure function to update VS Code JSON config with Xdebug configuration.
  *
  * @param jsonContent The original JSON content of launch.json
  * @param options Configuration options
@@ -465,7 +489,7 @@ export async function addXdebugIDEConfig({
 	port,
 	cwd,
 	mounts,
-	ideKey = 'PHPWASMCLI',
+	ideKey = DEFAULT_IDE_KEY,
 }: IDEConfig) {
 	const mappings = mounts ? filterLocalMounts(cwd, mounts) : [];
 	const modifiedConfig: Record<string, string> = {};
@@ -657,6 +681,25 @@ export async function clearXdebugIDEConfig(name: string, cwd: string) {
 	}
 }
 
+/**
+ * Implement path mapping and path skipping in Xdebug.
+ *
+ * @param name The configuration name.
+ * @param mounts The mounts options.
+ * @param pathSkippings The skipping paths options.
+ * @returns Xdebug options
+ */
+export function makeXdebugConfig({
+	cwd,
+	mounts,
+	pathSkippings,
+}: XdebugConfig): XdebugOptions {
+	const pathMappings =
+		cwd && mounts ? filterLocalMounts(cwd, mounts) : undefined;
+
+	return { pathMappings, pathSkippings };
+}
+
 function jsoncApplyEdits(content: string, edits: JSONC.Edit[]) {
 	const errors: JSONC.ParseError[] = [];
 	const json = JSONC.applyEdits(content, edits);
@@ -695,8 +738,4 @@ function jsoncApplyEdits(content: string, edits: JSONC.Edit[]) {
 	}
 
 	return json;
-}
-
-function toPosixPath(pathStr: string) {
-	return pathStr.replaceAll(path.sep, path.posix.sep);
 }

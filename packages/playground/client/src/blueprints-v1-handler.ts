@@ -31,7 +31,9 @@ export class BlueprintsV1Handler {
 			scope,
 			shouldInstallWordPress,
 			sqliteDriverVersion,
+			wordpressInstallMode,
 			onClientConnected,
+			pathAliases,
 		} = this.options;
 		const executionProgress = progressTracker!.stage(0.5);
 		const downloadProgress = progressTracker!.stage();
@@ -56,12 +58,14 @@ export class BlueprintsV1Handler {
 			sapiName,
 			scope: scope ?? Math.random().toFixed(16),
 			shouldInstallWordPress,
+			wordpressInstallMode,
 			phpVersion: runtimeConfiguration.phpVersion,
 			wpVersion: runtimeConfiguration.wpVersion,
 			withIntl: runtimeConfiguration.intl,
 			withNetworking: runtimeConfiguration.networking,
 			corsProxyUrl: corsProxy,
 			sqliteDriverVersion,
+			pathAliases,
 		});
 		await playground.isReady();
 		downloadProgress.finish();

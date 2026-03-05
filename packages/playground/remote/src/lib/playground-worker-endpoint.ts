@@ -3,11 +3,8 @@ import { journalFSEvents, replayFSJournal } from '@php-wasm/fs-journal';
 import type { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import { setURLScope } from '@php-wasm/scopes';
 import { joinPaths } from '@php-wasm/util';
-import type {
-	MountDevice,
-	SyncProgressCallback,
-	TCPOverFetchOptions,
-} from '@php-wasm/web';
+import type { SyncProgressCallback, TCPOverFetchOptions } from '@php-wasm/web';
+import type { MountDevice } from '@wp-playground/storage';
 import {
 	createDirectoryHandleMountHandler,
 	loadWebRuntime,
@@ -28,7 +25,7 @@ import transportFetch from './playground-mu-plugin/playground-includes/wp_http_f
 /* @ts-ignore */
 import transportDummy from './playground-mu-plugin/playground-includes/wp_http_dummy.php?raw';
 import { logger } from '@php-wasm/logger';
-import type { PHP, SupportedPHPVersion } from '@php-wasm/universal';
+import type { PathAlias, PHP, SupportedPHPVersion } from '@php-wasm/universal';
 import {
 	PHPResponse,
 	PHPWorker,
@@ -38,6 +35,7 @@ import {
 } from '@php-wasm/universal';
 import { certificateToPEM, generateCertificate } from '@php-wasm/web';
 import type { BlueprintDeclaration } from '@wp-playground/blueprints';
+import type { WordPressInstallMode } from '@wp-playground/wordpress';
 import {
 	bootRequestHandler,
 	getFileNotFoundActionForWordPress,
@@ -70,6 +68,16 @@ export type WorkerBootOptions = {
 	experimentalBlueprintsV2Runner?: boolean;
 	/** Blueprint v2 declaration to run in the worker when experimental mode is on */
 	blueprint?: BlueprintDeclaration;
+	/**
+	 * How to handle WordPress installation.
+	 * Defaults to 'install-from-existing-files-if-needed'.
+	 */
+	wordpressInstallMode?: WordPressInstallMode;
+	/**
+	 * Path aliases that map URL prefixes to filesystem paths outside
+	 * the document root. Similar to Nginx's `alias` directive.
+	 */
+	pathAliases?: PathAlias[];
 };
 
 /** @inheritDoc PHPClient */
@@ -124,6 +132,7 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		withIntl,
 		withNetworking,
 		phpVersion,
+		pathAliases,
 	}: {
 		siteUrl: string;
 		sapiName: string;
@@ -132,6 +141,7 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		withIntl: boolean;
 		withNetworking: boolean;
 		phpVersion: SupportedPHPVersion;
+		pathAliases?: PathAlias[];
 	}) {
 		const phpIniEntries: Record<string, string> = {
 			'openssl.cafile': '/internal/shared/ca-bundle.crt',
@@ -238,6 +248,7 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 			spawnHandler: sandboxedSpawnHandlerFactory,
 			sapiName,
 			phpIniEntries,
+			pathAliases,
 			createFiles: {
 				'/internal/shared/ca-bundle.crt': caBundleContent,
 				'/internal/shared/mu-plugins': {

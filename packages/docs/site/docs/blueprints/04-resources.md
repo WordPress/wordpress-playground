@@ -58,7 +58,8 @@ type GitDirectoryReference = {
 	resource: 'git:directory';
 	url: string; // Repository URL (https://, ssh git@..., etc.)
 	path?: string; // Optional subdirectory inside the repository
-	ref?: string; // Optional branch, tag, or commit SHA
+	ref?: string; // Branch, tag, or commit SHA (defaults to HEAD)
+	refType?: 'branch' | 'tag' | 'commit'; // Hint for resolving the ref
 	'.git'?: boolean; // Experimental: include a .git directory with fetched metadata
 };
 ```
@@ -75,17 +76,20 @@ type GitDirectoryReference = {
 		"path": "plugins/data-basics-59c8f8"
 	},
 	"options": {
-		"activate": true
+		"activate": true,
+		"targetFolderName": "data-basics"
 	}
 }
 ```
 
 **Notes:**
 
--   Playground automatically detects providers like GitHub and GitLab.
--   It handles CORS-proxied fetches and sparse checkouts, so you can use URLs that point to specific subdirectories or branches.
--   This resource can be used with steps like [`installPlugin`](/blueprints/steps#InstallPluginStep) and [`installTheme`](/blueprints/steps#InstallThemeStep).
--   Set `".git": true` to include a `.git` folder containing packfiles and refs so Git-aware tooling can detect the checkout. This currently mirrors a shallow clone of the selected ref.
+- When using a branch or tag name for `ref`, you must specify `refType` (e.g. `"refType": "branch"`). Without it, only `HEAD` is reliably resolved.
+- Playground automatically detects providers like GitHub and GitLab.
+- It handles CORS-proxied fetches and sparse checkouts, so you can use URLs that point to specific subdirectories or branches.
+- This resource can be used with steps like [`installPlugin`](/blueprints/steps#InstallPluginStep) and [`installTheme`](/blueprints/steps#InstallThemeStep).
+- Set `".git": true` to include a `.git` folder containing packfiles and refs so Git-aware tooling can detect the checkout. This currently mirrors a shallow clone of the selected ref.
+- The folder name is derived from the URL by default (e.g. `https-github-com-WordPress-block-development-examples-HEAD-at-plugins-data-basics-59c8f8`). Use `options.targetFolderName` in the step to override it, as shown in the example above.
 
 ### CoreThemeReference
 
@@ -193,8 +197,8 @@ To use the `BundledReference` resource, you need to provide the relative path to
 
 Blueprint bundles can be distributed in various formats, including:
 
--   ZIP files with a top-level `blueprint.json` file
--   Directories containing a `blueprint.json` file and related resources
--   Remote URLs where the Blueprint and its resources are hosted together
+- ZIP files with a top-level `blueprint.json` file
+- Directories containing a `blueprint.json` file and related resources
+- Remote URLs where the Blueprint and its resources are hosted together
 
 For more information on Blueprint bundles, see the [Blueprint Bundles](/blueprints/bundles) documentation.

@@ -16,7 +16,7 @@ Discover how to [Build](/about/build), [Test](/about/test), and [Launch](/about/
 
 ## Launching a Playground instance with a plugin
 
-### Plugin in the WordPress themes directory
+### Plugin in the WordPress plugins directory
 
 With WordPress Playground, you can quickly launch a WordPress installation with almost any plugin available in the [WordPress Plugins Directory](https://wordpress.org/plugins/) installed and activated. All you need to do is to add the `plugin` [query parameter](/developers/apis/query-api) to the [Playground URL](https://playground.wordpress.net) and use the slug of the plugin from the WordPress directory as a value. For example: https://playground.wordpress.net/?plugin=create-block-theme
 

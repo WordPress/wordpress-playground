@@ -1,6 +1,10 @@
 import { logger } from '@php-wasm/logger';
 import { EmscriptenDownloadMonitor, ProgressTracker } from '@php-wasm/progress';
-import { consumeAPI } from '@php-wasm/universal';
+import {
+	consumeAPI,
+	type Pooled,
+	type UniversalPHP,
+} from '@php-wasm/universal';
 import type { BlueprintV1Declaration } from '@wp-playground/blueprints';
 import {
 	compileBlueprintV1,
@@ -20,9 +24,11 @@ import {
 import type { PlaygroundCliBlueprintV1Worker } from './worker-thread-v1';
 import type { MessagePort as NodeMessagePort } from 'worker_threads';
 import {
+	type PlaygroundCliWorker,
 	type RunCLIArgs,
 	type SpawnedWorker,
 	type WorkerType,
+	mergeDefinedConstants,
 } from '../run-cli';
 import type { CLIOutput } from '../cli-output';
 
@@ -34,7 +40,6 @@ import type { CLIOutput } from '../cli-output';
  */
 export class BlueprintsV1Handler {
 	private siteUrl: string;
-	private processIdSpaceLength: number;
 	private args: RunCLIArgs;
 	private cliOutput: CLIOutput;
 
@@ -42,13 +47,11 @@ export class BlueprintsV1Handler {
 		args: RunCLIArgs,
 		options: {
 			siteUrl: string;
-			processIdSpaceLength: number;
 			cliOutput: CLIOutput;
 		}
 	) {
 		this.args = args;
 		this.siteUrl = options.siteUrl;
-		this.processIdSpaceLength = options.processIdSpaceLength;
 		this.cliOutput = options.cliOutput;
 	}
 
@@ -56,10 +59,9 @@ export class BlueprintsV1Handler {
 		return 'v1';
 	}
 
-	async bootAndSetUpInitialPlayground(
-		phpPort: NodeMessagePort,
-		fileLockManagerPort: NodeMessagePort,
-		nativeInternalDirPath: string
+	async bootWordPress(
+		playground: Pooled<PlaygroundCliWorker>,
+		workerPostInstallMountsPort: NodeMessagePort
 	) {
 		let wpDetails: any = undefined;
 		let wordPressZip: any = undefined;
@@ -114,19 +116,8 @@ export class BlueprintsV1Handler {
 			sqliteIntegrationPluginZip = undefined;
 		} else {
 			this.cliOutput.updateProgress('Preparing SQLite database');
-			sqliteIntegrationPluginZip = await fetchSqliteIntegration(monitor);
+			sqliteIntegrationPluginZip = await fetchSqliteIntegration();
 		}
-
-		const followSymlinks = this.args.followSymlinks === true;
-		const trace = this.args.experimentalTrace === true;
-
-		const mountsBeforeWpInstall = this.args['mount-before-install'] || [];
-		const mountsAfterWpInstall = this.args.mount || [];
-
-		const playground = consumeAPI<PlaygroundCliBlueprintV1Worker>(phpPort);
-
-		// Comlink communication proxy
-		await playground.isConnected();
 
 		this.cliOutput.updateProgress('Booting WordPress');
 
@@ -134,31 +125,23 @@ export class BlueprintsV1Handler {
 			this.getEffectiveBlueprint()
 		);
 
-		await playground.useFileLockManager(fileLockManagerPort);
-		await playground.bootAndSetUpInitialWorker({
-			phpVersion: runtimeConfiguration.phpVersion,
-			wpVersion: runtimeConfiguration.wpVersion,
-			siteUrl: this.siteUrl,
-			mountsBeforeWpInstall,
-			mountsAfterWpInstall,
-			wordpressInstallMode:
-				this.args.wordpressInstallMode || 'download-and-install',
-			wordPressZip: wordPressZip && (await wordPressZip!.arrayBuffer()),
-			sqliteIntegrationPluginZip:
-				await sqliteIntegrationPluginZip?.arrayBuffer(),
-			firstProcessId: 0,
-			processIdSpaceLength: this.processIdSpaceLength,
-			followSymlinks,
-			trace,
-			internalCookieStore: this.args.internalCookieStore,
-			withIntl: this.args.intl,
-			// We do not enable Xdebug by default for the initial worker
-			// because we do not imagine users expect to hit breakpoints
-			// until Playground has fully booted.
-			// TODO: Consider supporting Xdebug for the initial worker via a dedicated flag.
-			withXdebug: false,
-			nativeInternalDirPath,
-		});
+		// TODO: Fix this type issue that requires the cast to unknown
+		await (
+			playground as unknown as PlaygroundCliBlueprintV1Worker
+		).bootWordPress(
+			{
+				wpVersion: runtimeConfiguration.wpVersion,
+				siteUrl: this.siteUrl,
+				wordpressInstallMode:
+					this.args.wordpressInstallMode || 'download-and-install',
+				wordPressZip:
+					wordPressZip && (await wordPressZip!.arrayBuffer()),
+				sqliteIntegrationPluginZip:
+					await sqliteIntegrationPluginZip?.arrayBuffer(),
+				constants: mergeDefinedConstants(this.args),
+			},
+			workerPostInstallMountsPort
+		);
 
 		if (
 			preinstalledWpContentPath &&
@@ -168,22 +151,25 @@ export class BlueprintsV1Handler {
 			this.cliOutput.updateProgress('Caching WordPress for next boot');
 			fs.writeFileSync(
 				preinstalledWpContentPath,
-				(await zipDirectory(playground, '/wordpress'))!
+				// Comlink proxy is not assignable to UniversalPHP but
+				// proxies all method calls transparently at runtime.
+				(await zipDirectory(
+					playground as unknown as UniversalPHP,
+					'/wordpress'
+				))!
 			);
 		}
 
 		return playground;
 	}
 
-	async bootPlayground({
+	async bootRequestHandler({
 		worker,
 		fileLockManagerPort,
-		firstProcessId,
 		nativeInternalDirPath,
 	}: {
 		worker: SpawnedWorker;
 		fileLockManagerPort: NodeMessagePort;
-		firstProcessId: number;
 		nativeInternalDirPath: string;
 	}) {
 		const playground = consumeAPI<PlaygroundCliBlueprintV1Worker>(
@@ -195,21 +181,20 @@ export class BlueprintsV1Handler {
 			this.getEffectiveBlueprint()
 		);
 		await playground.useFileLockManager(fileLockManagerPort);
-		await playground.bootWorker({
+		await playground.bootRequestHandler({
 			phpVersion: runtimeConfiguration.phpVersion,
 			siteUrl: this.siteUrl,
 			mountsBeforeWpInstall: this.args['mount-before-install'] || [],
 			mountsAfterWpInstall: this.args['mount'] || [],
-			firstProcessId,
-			processIdSpaceLength: this.processIdSpaceLength,
+			processId: worker.processId,
 			followSymlinks: this.args.followSymlinks === true,
 			trace: this.args.experimentalTrace === true,
-			// @TODO: Move this to the request handler or else every worker
-			//        will have a separate cookie store.
-			internalCookieStore: this.args.internalCookieStore,
 			withIntl: this.args.intl,
+			withRedis: this.args.redis,
+			withMemcached: this.args.memcached,
 			withXdebug: !!this.args.xdebug,
 			nativeInternalDirPath,
+			pathAliases: this.args.pathAliases,
 		});
 		await playground.isReady();
 		return playground;
@@ -233,6 +218,7 @@ export class BlueprintsV1Handler {
 				e.detail.caption || lastCaption || 'Running Blueprint';
 			this.cliOutput.updateProgress(lastCaption.trim(), progressInteger);
 		});
+
 		return await compileBlueprintV1(blueprint as BlueprintV1Declaration, {
 			progress: tracker,
 			additionalSteps: additionalBlueprintSteps,

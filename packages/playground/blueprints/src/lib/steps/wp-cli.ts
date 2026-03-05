@@ -153,7 +153,7 @@ This will ensure your code works reliably regardless of the current working dire
 		scriptPath: joinPaths(documentRoot, 'run-cli.php'),
 	});
 
-	if (result.errors) {
+	if (result.exitCode !== 0) {
 		throw new Error(result.errors);
 	}
 

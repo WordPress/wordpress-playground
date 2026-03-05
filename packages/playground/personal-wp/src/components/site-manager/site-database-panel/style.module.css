@@ -1,0 +1,43 @@
+.databaseInfo {
+	display: grid;
+	grid-template-columns: auto 1fr;
+	gap: 8px 12px;
+	align-items: baseline;
+}
+
+.label {
+	font-weight: 600;
+	color: #1e1e1e;
+	white-space: nowrap;
+}
+
+.value {
+	color: #1e1e1e;
+	word-break: break-all;
+}
+
+.value code {
+	background: #f0f0f0;
+	padding: 2px 6px;
+	border-radius: 3px;
+	font-size: 12px;
+	font-family:
+		'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+}
+
+.error {
+	color: #cc1818;
+	font-size: 13px;
+	margin-top: 8px;
+}
+
+.siteNotice {
+	padding: 24px;
+	background-color: #f3f6fd;
+}
+
+.buttonGroup {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 12px;
+}

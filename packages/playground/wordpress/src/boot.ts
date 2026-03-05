@@ -3,6 +3,7 @@ import type {
 	FileNotFoundAction,
 	FileNotFoundGetActionCallback,
 	FileTree,
+	PathAlias,
 	PHPWorker,
 	SpawnHandler,
 	Remote,
@@ -24,7 +25,7 @@ import {
 } from '.';
 import { basename, dirname, joinPaths } from '@php-wasm/util';
 import { logger } from '@php-wasm/logger';
-import { ensureWpConfig } from './rewrite-wp-config';
+import { ensureWpConfig } from './wp-config';
 
 export type PhpIniOptions = Record<string, string>;
 export type Hook = (php: PHP) => void | Promise<void>;
@@ -104,6 +105,19 @@ export interface BootRequestHandlerOptions {
 	getFileNotFoundAction?: FileNotFoundGetActionCallback;
 
 	/**
+	 * Path aliases that map URL prefixes to filesystem paths outside
+	 * the document root. Similar to Nginx's `alias` directive.
+	 *
+	 * @example
+	 * ```ts
+	 * pathAliases: [
+	 *   { urlPrefix: '/phpmyadmin', fsPath: '/tools/phpmyadmin' }
+	 * ]
+	 * ```
+	 */
+	pathAliases?: PathAlias[];
+
+	/**
 	 * The CookieStore instance to use.
 	 *
 	 * If not provided, Playground will use the HttpCookieStore by default.
@@ -148,6 +162,28 @@ export interface BootWordPressOptions {
 	 */
 	constants?: Record<string, string | number | boolean | null>;
 	/**
+	 * PHP.ini entries to define before running any code. They'll
+	 * be used for all requests.
+	 */
+	phpIniEntries?: PhpIniOptions;
+	/**
+	 * Files to create in the filesystem before any mounts are applied.
+	 *
+	 * Example:
+	 *
+	 * ```ts
+	 * {
+	 * 		createFiles: {
+	 * 			'/tmp/hello.txt': 'Hello, World!',
+	 * 			'/internal/preload': {
+	 * 				'1-custom-mu-plugin.php': '<?php echo "Hello, World!";',
+	 * 			}
+	 * 		}
+	 * }
+	 * ```
+	 */
+	createFiles?: FileTree;
+	/**
 	 * URL to use as the site URL. This is used to set the WP_HOME
 	 * and WP_SITEURL constants in WordPress.
 	 */
@@ -184,7 +220,7 @@ export async function bootWordPress(
 
 	if (options.constants) {
 		for (const key in options.constants) {
-			php.defineConstant(key, options.constants[key] as string);
+			php.defineConstant(key, options.constants[key]);
 		}
 	}
 
@@ -384,6 +420,13 @@ export async function bootRequestHandler(options: BootRequestHandlerOptions) {
 		//         https://github.com/WordPress/sqlite-database-integration/issues/195
 		php.defineConstant('WP_SQLITE_AST_DRIVER', true);
 
+		// Define any custom constants provided via CLI or configuration
+		if (options.constants) {
+			for (const key in options.constants) {
+				php.defineConstant(key, options.constants[key]);
+			}
+		}
+
 		/**
 		 * Set up mu-plugins in /internal/mu-plugins
 		 * using auto_prepend_file to provide platform-level
@@ -408,6 +451,7 @@ export async function bootRequestHandler(options: BootRequestHandlerOptions) {
 			 */
 			!php.isFile('/internal/.boot-files-written')
 		) {
+			// TODO: There is a race here when multiple workers are calling bootRequestHandler(). Fix it.
 			await setupPlatformLevelMuPlugins(php);
 			await writeFiles(php, '/', options.createFiles || {});
 			await preloadPhpInfoRoute(
@@ -426,11 +470,7 @@ export async function bootRequestHandler(options: BootRequestHandlerOptions) {
 				createSpawnHandler(
 					requestHandler
 						? () =>
-								requestHandler.instanceManager.acquirePHPInstance(
-									{
-										considerPrimary: false,
-									}
-								)
+								requestHandler.instanceManager.acquirePHPInstance()
 						: undefined
 				)
 			);
@@ -454,6 +494,7 @@ export async function bootRequestHandler(options: BootRequestHandlerOptions) {
 		documentRoot: options.documentRoot || '/wordpress',
 		absoluteUrl: options.siteUrl,
 		rewriteRules: wordPressRewriteRules,
+		pathAliases: options.pathAliases,
 		getFileNotFoundAction:
 			options.getFileNotFoundAction ?? getFileNotFoundActionForWordPress,
 		cookieStore: options.cookieStore,
@@ -471,7 +512,7 @@ export async function bootRequestHandler(options: BootRequestHandlerOptions) {
 		/**
 		 * If maxPhpInstances is not 1, the PHPRequestHandler constructor needs
 		 * a PHP factory function. Internally, it creates a PHPProcessManager that
-		 * dynamically starts new PHP instances and reaps them after they're used.
+		 * maintains a pool of reusable PHP instances.
 		 */
 		phpFactory:
 			options.maxPhpInstances !== 1

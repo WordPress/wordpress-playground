@@ -167,7 +167,7 @@ export const setSiteLanguage: StepHandler<SetSiteLanguageStep> = async (
 				await unzipFile(
 					playground,
 					new File(
-						[await response.blob()],
+						[await response.arrayBuffer()],
 						`${language}-${type}.zip`
 					),
 					destination

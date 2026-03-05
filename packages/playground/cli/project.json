@@ -3,6 +3,7 @@
 	"$schema": "../../../node_modules/nx/schemas/project-schema.json",
 	"sourceRoot": "packages/playground/cli/src",
 	"projectType": "library",
+	"tags": ["scope:php-wasm-public"],
 	"targets": {
 		"build": {
 			"executor": "nx:noop",
@@ -12,8 +13,7 @@
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
-					"cp packages/playground/cli/README.md dist/packages/playground/cli",
-					"cp packages/playground/wordpress-builds/src/sqlite-database-integration/sqlite-database-integration-develop.zip dist/packages/playground/cli/sqlite-database-integration-develop.zip"
+					"cp packages/playground/cli/README.md dist/packages/playground/cli"
 				]
 			},
 			"dependsOn": ["build:package-json"]
@@ -125,7 +125,7 @@
 			"dependsOn": ["build"]
 		},
 		"lint": {
-			"executor": "@nx/linter:eslint",
+			"executor": "@nx/eslint:lint",
 			"outputs": ["{options.outputFile}"],
 			"options": {
 				"useFlatConfig": false,
@@ -133,7 +133,7 @@
 				"maxWarnings": 0
 			}
 		},
-		"test-for-node-22-and-above": {
+		"test-playground-cli": {
 			"executor": "@nx/vite:test",
 			"outputs": ["{workspaceRoot}/coverage/packages/playground/cli"],
 			"options": {
@@ -150,6 +150,5 @@
 				]
 			}
 		}
-	},
-	"tags": ["scope:php-wasm-public"]
+	}
 }

@@ -55,6 +55,25 @@ describe('handleRequest', () => {
 			`HTTP/1.1 200 OK\r\ncontent-type: text/html\r\n\r\nHello, world!`
 		);
 	});
+	it('Should return an immediate empty 200 for non-blocking requests', async () => {
+		const fetchMock = vitest.fn(
+			async () =>
+				new Promise<Response>(() => {
+					/* never resolves */
+				})
+		);
+		const response = await handleRequest(
+			{
+				url: 'https://playground.wordpress.net/',
+				blocking: false,
+			},
+			fetchMock as any
+		);
+		expect(fetchMock).toHaveBeenCalled();
+		expect(new TextDecoder().decode(response)).toBe(
+			'HTTP/1.1 200 OK\r\n\r\n'
+		);
+	});
 	it('Should reject responses with malicious headers trying to terminate the headers section early', async () => {
 		const fetchMock = vitest.fn(async () => {
 			return {

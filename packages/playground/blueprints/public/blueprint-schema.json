@@ -47,14 +47,14 @@
 						"php": {
 							"anyOf": [
 								{
-									"$ref": "#/definitions/SupportedPHPVersion"
+									"$ref": "#/definitions/BlueprintPHPVersion"
 								},
 								{
 									"type": "string",
 									"const": "latest"
 								}
 							],
-							"description": "The preferred PHP version to use. If not specified, the latest supported version will be used"
+							"description": "The preferred PHP version to use. If not specified, the latest supported version will be used.\n\nNote: PHP 7.2 and 7.3 are deprecated and will be automatically upgraded to 7.4."
 						},
 						"wp": {
 							"type": "string",
@@ -172,19 +172,25 @@
 			"additionalProperties": false,
 			"description": "The Blueprint declaration, typically stored in a blueprint.json file."
 		},
+		"BlueprintPHPVersion": {
+			"anyOf": [
+				{
+					"$ref": "#/definitions/SupportedPHPVersion"
+				},
+				{
+					"type": "string",
+					"const": "7.2"
+				},
+				{
+					"type": "string",
+					"const": "7.3"
+				}
+			],
+			"description": "PHP versions accepted in Blueprint schema. Includes deprecated versions (7.2, 7.3) which are automatically upgraded to 7.4 during compilation."
+		},
 		"SupportedPHPVersion": {
 			"type": "string",
-			"enum": [
-				"8.5",
-				"8.4",
-				"8.3",
-				"8.2",
-				"8.1",
-				"8.0",
-				"7.4",
-				"7.3",
-				"7.2"
-			]
+			"enum": ["8.5", "8.4", "8.3", "8.2", "8.1", "8.0", "7.4"]
 		},
 		"ExtraLibrary": {
 			"type": "string",

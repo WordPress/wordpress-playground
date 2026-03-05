@@ -42,7 +42,9 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 		withIntl = false,
 		withNetworking = true,
 		shouldInstallWordPress = true,
+		wordpressInstallMode = 'install-from-existing-files-if-needed',
 		corsProxyUrl,
+		pathAliases,
 	}: WorkerBootOptions) {
 		if (this.booted) {
 			throw new Error('Playground already booted');
@@ -67,6 +69,7 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 				withIntl,
 				withNetworking,
 				phpVersion: phpVersion!,
+				pathAliases,
 			});
 
 			this.requestedWordPressVersion =
@@ -157,15 +160,20 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 				// saves around 600ms during the boot on a macbook pro so it's worth it.
 				// @TODO: Deprecate the `shouldInstallWordPress` semantics entirely and get the client
 				//        and the Playground website to pass `wordpressInstallMode` directly.
-				wordpressInstallMode: 'install-from-existing-files-if-needed',
+				wordpressInstallMode,
 				// Do not await the WordPress download or the sqlite integration download.
 				// Let bootWordPress start the PHP runtime download first, and then await
 				// all the ZIP files right before they're used.
+
+				// We use .arrayBuffer() and not .blob() here because blob() throws when the
+				// client is low on disk space. Blobs tend to be stored as temporary files,
+				// array buffers tend to be stored in memory.
+				// @see https://github.com/WordPress/wordpress-playground/issues/2769
 				wordPressZip: wordPressRequest
-					?.then((r) => r.blob())
+					?.then((r) => r.arrayBuffer())
 					.then((b) => new File([b], 'wp.zip')),
 				sqliteIntegrationPluginZip: sqliteIntegrationRequest
-					.then((r) => r.blob())
+					.then((r) => r.arrayBuffer())
 					.then((b) => new File([b], 'sqlite.zip')),
 				hooks: {
 					async beforeWordPressFiles(php: PHP) {
