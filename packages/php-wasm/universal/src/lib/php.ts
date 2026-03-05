@@ -972,17 +972,7 @@ export class PHP implements Disposable {
 			this.#rotationOptions.enabled &&
 			this.#rotationOptions.needsRotating
 		) {
-			// eslint-disable-next-line no-console
-			console.log('[proc_open debug] Rotating runtime before execution');
-			try {
-				await this.rotateRuntime();
-				// eslint-disable-next-line no-console
-				console.log('[proc_open debug] Rotation succeeded');
-			} catch (e) {
-				// eslint-disable-next-line no-console
-				console.error('[proc_open debug] Rotation FAILED:', e);
-				throw e;
-			}
+			await this.rotateRuntime();
 		}
 		++this.#rotationOptions.requestsMade;
 		if (
@@ -1068,8 +1058,6 @@ export class PHP implements Disposable {
 				}
 
 				// Non-exit-code errors indicate a WASM runtime crash. Let's clean up and throw.
-				// eslint-disable-next-line no-console
-				console.error('[proc_open debug] WASM CRASH (non-exit-code error):', e);
 				stdout.controller.error(e);
 				stderr.controller.error(e);
 				headers.controller.error(e);
@@ -1402,12 +1390,8 @@ export class PHP implements Disposable {
 		// old PHP runtime without propagating them to the new
 		// runtime.
 
-		// eslint-disable-next-line no-console
-		console.log('[proc_open debug] hotSwapPHPRuntime: starting');
 		const oldFS = this[__private__dont__use].FS;
 		const oldRootLevelPaths = this.listFiles('/').map((file) => `/${file}`);
-		// eslint-disable-next-line no-console
-		console.log('[proc_open debug] hotSwapPHPRuntime: oldRootLevelPaths =', oldRootLevelPaths);
 		const oldSpawnProcess = this[__private__dont__use].spawnProcess;
 
 		// Temporarily set CWD to / and restore it at the end of this method.
@@ -1457,8 +1441,6 @@ export class PHP implements Disposable {
 
 		// Initialize the new runtime
 		this.initializeRuntime(runtime);
-		// eslint-disable-next-line no-console
-		console.log('[proc_open debug] hotSwapPHPRuntime: new runtime initialized');
 
 		if (oldSpawnProcess) {
 			this[__private__dont__use].spawnProcess = oldSpawnProcess;
@@ -1583,7 +1565,14 @@ export class PHP implements Disposable {
 				return response;
 			})
 			.finally(() => {
-				this.#rotationOptions.needsRotating = true;
+				// Only schedule rotation for instances that have served
+				// HTTP requests via run(). Subprocess-only instances
+				// (used by proc_open) never set phpWasmInitCalled, so
+				// they skip rotation — creating a new WASM module for
+				// each CLI call is unnecessary and fails in browsers.
+				if (this.#phpWasmInitCalled) {
+					this.#rotationOptions.needsRotating = true;
+				}
 			});
 	}
 

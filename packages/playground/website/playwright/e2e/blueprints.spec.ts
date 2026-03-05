@@ -59,26 +59,7 @@ test('spawning less should work', async ({ website, wordpress }) => {
 test('proc_open(php) should work multiple times in a row', async ({
 	website,
 	wordpress,
-	page,
 }) => {
-	// Capture console logs from all contexts for debugging
-	const logs: string[] = [];
-	page.on('console', (msg) => {
-		const text = msg.text();
-		if (text.includes('proc_open debug')) {
-			logs.push(`[page:${msg.type()}] ${text}`);
-		}
-	});
-	// Also capture worker console logs
-	page.on('worker', (worker) => {
-		worker.on('console', (msg: any) => {
-			const text = String(msg);
-			if (text.includes('proc_open debug')) {
-				logs.push(`[worker] ${text}`);
-			}
-		});
-	});
-
 	const blueprint: Blueprint = {
 		landingPage: '/proc-open-test.php',
 		steps: [
@@ -114,18 +95,10 @@ test('proc_open(php) should work multiple times in a row', async ({
 
 	const encodedBlueprint = encodeStringAsBase64(JSON.stringify(blueprint));
 	await website.goto(`/#${encodedBlueprint}`);
-	// Wait for page to load and show results
 	await expect(wordpress.locator('body')).toContainText('out=', {
 		timeout: 120000,
 	});
 	const bodyText = await wordpress.locator('body').innerText();
-	// eslint-disable-next-line no-console
-	console.log('=== proc_open diagnostic output ===');
-	// eslint-disable-next-line no-console
-	console.log(bodyText);
-	// eslint-disable-next-line no-console
-	console.log('=== end diagnostic output ===');
-	// Verify all three calls produced correct output
 	expect(bodyText).toContain("out='1'");
 	expect(bodyText).toContain("out='2'");
 	expect(bodyText).toContain("out='3'");
