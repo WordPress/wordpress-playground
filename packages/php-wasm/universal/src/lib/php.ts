@@ -1518,9 +1518,7 @@ export class PHP implements Disposable {
 			newFs.chdir(oldCWD);
 		} catch (e) {
 			// The old CWD may not exist on the new runtime – e.g.
-			// /wordpress on subprocess instances is a non-MEMFS mount
-			// (PROXYFS) that isn't registered in #mounts and can't be
-			// re-applied during rotation. Fall back to '/'.
+			// if a mount failed to re-apply. Fall back to '/'.
 			logger.warn(
 				`Could not restore CWD to ${oldCWD} after PHP runtime rotation, falling back to /. Cause: ${e}`
 			);
