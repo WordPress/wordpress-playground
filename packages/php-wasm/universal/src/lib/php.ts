@@ -1578,7 +1578,11 @@ export class PHP implements Disposable {
 			return this.subProcess(argv, options);
 		}
 
-		if (this.#phpWasmInitCalled) {
+		// On JSPI, main()→exit() throws before run_cli() can restore
+		// stdout/stderr, so a module that has already called cli() once
+		// cannot call it again without rotation. On asyncify the C-level
+		// cleanup runs normally, but rotation is still safe.
+		if (this.#cliDirtiedRuntime || this.#phpWasmInitCalled) {
 			this.#rotationOptions.needsRotating = true;
 		}
 
