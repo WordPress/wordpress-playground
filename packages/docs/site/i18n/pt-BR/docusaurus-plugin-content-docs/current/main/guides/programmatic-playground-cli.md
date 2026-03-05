@@ -64,7 +64,7 @@ Você pode fornecer um blueprint de duas formas: como um objeto literal passado 
 ```TypeScript
 import { runCLI, RunCLIServer } from "@wp-playground/cli";
 
-let cliServer: RunCLIServer;
+const cliServer: RunCLIServer;
 
 cliServer = await runCLI({
   command: 'server',
@@ -149,7 +149,7 @@ Você pode combinar a montagem de partes do projeto com blueprints, por exemplo:
 ```TypeScript
 import { runCLI, RunCLIServer } from "@wp-playground/cli";
 
-let cliServer: RunCLIServer;
+const cliServer: RunCLIServer;
 
 cliServer = await runCLI({
     command: 'server',
@@ -196,7 +196,7 @@ import { describe, test, expect, afterEach } from 'vitest';
 import { runCLI, RunCLIServer } from "@wp-playground/cli";
 
 describe('My Plugin Tests', () => {
-  let cliServer: RunCLIServer;
+  const cliServer: RunCLIServer;
 
   afterEach(async () => {
     if (cliServer) {
