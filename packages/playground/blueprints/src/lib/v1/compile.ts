@@ -797,8 +797,16 @@ export async function runBlueprintV1Steps(
 }
 
 function isGitRepoUrl(url: string): boolean {
-	if (/^https?:\/\/.+\.git\/?$/.test(url)) {
+	if (/^https:\/\/.+\.git\/?$/.test(url)) {
 		return true;
 	}
-	return /^https:\/\/(github|gitlab)\.com\/[^/]+\/[^/]+\/?$/.test(url);
+	// GitHub: exactly /owner/repo
+	if (/^https:\/\/github\.com\/[^/]+\/[^/]+\/?$/.test(url)) {
+		return true;
+	}
+	// GitLab: /group[/subgroup...]/project (2+ path segments)
+	if (/^https:\/\/gitlab\.com\/[^/]+\/[^/]+(\/[^/]+)*\/?$/.test(url)) {
+		return true;
+	}
+	return false;
 }

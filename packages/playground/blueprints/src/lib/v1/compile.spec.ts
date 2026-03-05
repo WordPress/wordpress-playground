@@ -352,6 +352,29 @@ describe('Blueprints', () => {
 			});
 		});
 
+		it('should convert a nested GitLab subgroup URL to a zip(git:directory) resource', async () => {
+			let validatedBlueprint: any;
+			await compileBlueprintV1(
+				{
+					plugins: ['https://gitlab.com/group/subgroup/project'],
+				},
+				{
+					onBlueprintValidated: (bp) => {
+						validatedBlueprint = bp;
+					},
+				}
+			);
+			const step = validatedBlueprint.steps[0];
+			expect(step.pluginData).toEqual({
+				resource: 'zip',
+				inner: {
+					resource: 'git:directory',
+					url: 'https://gitlab.com/group/subgroup/project',
+					ref: 'HEAD',
+				},
+			});
+		});
+
 		it('should convert a self-hosted .git URL to a zip(git:directory) resource', async () => {
 			let validatedBlueprint: any;
 			await compileBlueprintV1(
