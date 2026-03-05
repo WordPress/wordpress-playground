@@ -56,6 +56,41 @@ test('spawning less should work', async ({ website, wordpress }) => {
 	await expect(wordpress.locator('body')).toContainText('Hello, world!');
 });
 
+test('proc_open(php) should work multiple times in a row', async ({
+	website,
+	wordpress,
+}) => {
+	const blueprint: Blueprint = {
+		landingPage: '/proc-open-test.php',
+		steps: [
+			{
+				step: 'writeFile',
+				path: '/wordpress/proc-open-test.php',
+				data: `<?php
+				$results = [];
+				for ($i = 1; $i <= 3; $i++) {
+					$proc = proc_open(
+						'php -r "echo ' . $i . ';"',
+						[1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
+						$pipes
+					);
+					$stdout = stream_get_contents($pipes[1]);
+					fclose($pipes[1]);
+					fclose($pipes[2]);
+					proc_close($proc);
+					$results[] = $stdout;
+				}
+				echo implode(',', $results);
+			`,
+			},
+		],
+	};
+
+	const encodedBlueprint = encodeStringAsBase64(JSON.stringify(blueprint));
+	await website.goto(`/#${encodedBlueprint}`);
+	await expect(wordpress.locator('body')).toContainText('1,2,3');
+});
+
 test('?blueprint-url=... should work with simple blueprints', async ({
 	page,
 	website,

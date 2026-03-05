@@ -1225,4 +1225,30 @@ describe('sandboxedSpawnHandlerFactory', () => {
 			['README.md', 'code', ''].join('\n')
 		);
 	});
+
+	it('Should be able to call proc_open(php ...) multiple times in a row', async () => {
+		const response = await php.run({
+			code: `<?php
+				$results = [];
+				for ($i = 1; $i <= 3; $i++) {
+					$descriptorspec = [
+						1 => ["pipe", "w"],
+						2 => ["pipe", "w"]
+					];
+					$proc = proc_open(
+						'php -r "echo ' . $i . ';"',
+						$descriptorspec,
+						$pipes
+					);
+					$stdout = stream_get_contents($pipes[1]);
+					fclose($pipes[1]);
+					fclose($pipes[2]);
+					proc_close($proc);
+					$results[] = $stdout;
+				}
+				echo implode(',', $results);
+			`,
+		});
+		expect(response.text).toEqual('1,2,3');
+	}, 30000);
 });

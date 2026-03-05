@@ -1053,7 +1053,22 @@ int run_cli()
 		current_arg = current_arg->next;
 	}
 
-	int result = main(cli_argc, cli_argv_array);
+	// Reset the CLI arguments linked list now so the next run_cli() call
+	// starts fresh. We must do this before calling main() because PHP's
+	// main() calls exit(), which in Emscripten throws an exception that
+	// unwinds the stack – any cleanup code after main() never runs.
+	// The values are still accessible through cli_argv_array.
+	wasm_cli_arg_t *arg_to_free = cli_argv;
+	while (arg_to_free != NULL) {
+		wasm_cli_arg_t *next = arg_to_free->next;
+		free(arg_to_free);
+		arg_to_free = next;
+	}
+	cli_argv = NULL;
+	int saved_argc = cli_argc;
+	cli_argc = 0;
+
+	int result = main(saved_argc, cli_argv_array);
 
 	// Clear the environment variables
 	while (current_env_entry != NULL) {
@@ -1066,6 +1081,9 @@ int run_cli()
 	restore_stream_handler(stdout, stdout_replacement);
 	restore_stream_handler(stderr, stderr_replacement);
 
+	// Free the argv array. The string values were owned by the linked list
+	// entries which were already freed above, so only the array itself
+	// needs freeing here.
 	free(cli_argv_array);
 
 	return result;
