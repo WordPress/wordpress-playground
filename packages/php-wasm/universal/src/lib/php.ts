@@ -1534,13 +1534,9 @@ export class PHP implements Disposable {
 			return this.subProcess(argv, options);
 		}
 
-		// Don't trigger runtime rotation before CLI calls. Unlike HTTP
-		// requests (run()), CLI calls via run_cli() handle their own
-		// state reset in C (cli_argv/cli_argc are cleared before main()),
-		// and runtime rotation breaks subprocess instances because the
-		// rotated filesystem lacks mount points like /wordpress.
-		const savedNeedsRotating = this.#rotationOptions.needsRotating;
-		this.#rotationOptions.needsRotating = false;
+		if (this.#phpWasmInitCalled) {
+			this.#rotationOptions.needsRotating = true;
+		}
 
 		const release = await this.semaphore.acquire();
 
@@ -1569,9 +1565,7 @@ export class PHP implements Disposable {
 				return response;
 			})
 			.finally(() => {
-				// Restore the rotation flag so the next run() call
-				// (HTTP request) can rotate as needed.
-				this.#rotationOptions.needsRotating = savedNeedsRotating;
+				this.#rotationOptions.needsRotating = true;
 			});
 	}
 
