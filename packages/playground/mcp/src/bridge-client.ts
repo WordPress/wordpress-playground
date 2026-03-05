@@ -18,6 +18,7 @@ export interface PlaygroundConfig {
 	getPlaygroundClient: (siteSlug: string) => PlaygroundClient | undefined;
 	renameSite?: (siteSlug: string, newName: string) => Promise<void>;
 	saveSite?: (siteSlug: string) => Promise<{ slug: string; storage: string }>;
+	onConnect?: () => void;
 }
 
 export interface McpBridgeHandle {
@@ -61,6 +62,7 @@ export function startMcpBridge(
 		ws.addEventListener('open', () => {
 			previousSitesSerialized = '';
 			sendSitesRegistration(ws!);
+			config.onConnect?.();
 		});
 
 		ws.addEventListener('message', async (event) => {

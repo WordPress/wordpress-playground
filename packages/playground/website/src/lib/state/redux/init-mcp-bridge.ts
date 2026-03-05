@@ -12,6 +12,7 @@ import { selectClientBySiteSlug } from './slice-clients';
 import type { McpBridgeHandle } from '@wp-playground/mcp/client';
 import { startMcpBridge } from '@wp-playground/mcp/client';
 import { isMcpServerEnabled } from '../url/router';
+import { logTrackingEvent } from '../../tracking';
 
 export const mcpListenerMiddleware = createListenerMiddleware();
 
@@ -57,6 +58,9 @@ startListening({
 							changes: { name: newName },
 						})
 					);
+				},
+				onConnect: () => {
+					logTrackingEvent('mcpConnect');
 				},
 				saveSite: async (siteSlug: string) => {
 					const state = getState();
