@@ -41,7 +41,7 @@ Add to `~/.gemini/settings.json` (or `.gemini/settings.json` in your project):
 
 ### 2. Open the Playground website
 
-Navigate to https://playground.wordpress.net in your browser. The MCP bridge connects automatically.
+Navigate to https://playground.wordpress.net/?mcp=yes in your browser. The MCP bridge connects automatically.
 
 ## Development
 
@@ -75,7 +75,7 @@ Replace `ABS_PATH_TO_PLAYGROUND` with the absolute path to your local checkout o
 
 ### 3. Open the Playground website
 
-Navigate to http://127.0.0.1:5400/website-server/ in your browser. The MCP bridge connects automatically.
+Navigate to http://127.0.0.1:5400/website-server/?mcp=yes in your browser. The MCP bridge connects automatically.
 
 ## How it works
 
