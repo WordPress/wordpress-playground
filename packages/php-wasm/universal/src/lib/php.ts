@@ -995,9 +995,8 @@ export class PHP implements Disposable {
 		}
 		++this.#rotationOptions.requestsMade;
 		if (
-			this.#phpWasmInitCalled &&
 			this.#rotationOptions.requestsMade >=
-				this.#rotationOptions.maxRequests
+			this.#rotationOptions.maxRequests
 		) {
 			this.#rotationOptions.needsRotating = true;
 		}
