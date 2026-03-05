@@ -900,6 +900,7 @@ static void wasm_sapi_send_header(sapi_header_struct *sapi_header, void *server_
 static char *wasm_sapi_read_cookies(TSRMLS_D);
 static void wasm_sapi_register_server_variables(zval *track_vars_array TSRMLS_DC);
 void wasm_init_server_context();
+static void wasm_ensure_server_context();
 static char *int_to_string(int i);
 
 
@@ -913,6 +914,9 @@ static char *wasm_sapi_getenv(char *name, unsigned long name_len)
 #endif
 #endif
 {
+	if (wasm_server_context == NULL) {
+		return NULL;
+	}
 	wasm_array_entry_t *current_entry = wasm_server_context->env_array_entries;
 	while (current_entry != NULL)
 	{
@@ -1032,6 +1036,10 @@ int run_cli()
 	{
 		return -1;
 	}
+
+	// Ensure the server context is allocated – it may be NULL on a
+	// freshly rotated WASM module that hasn't served any HTTP requests yet.
+	wasm_ensure_server_context();
 
 	// Set the environment variables
 	wasm_array_entry_t *current_env_entry = wasm_server_context->env_array_entries;
@@ -1198,6 +1206,22 @@ void wasm_add_SERVER_entry(char *key, char *value)
 }
 
 /**
+ * Function: wasm_ensure_server_context
+ * ----------------------------
+ *   Ensures that the wasm_server_context is allocated and initialized.
+ *   This is needed because run_cli() may be called on a fresh WASM
+ *   module (e.g. after runtime rotation) without php_wasm_init()
+ *   having been called first.
+ */
+static void wasm_ensure_server_context()
+{
+	if (wasm_server_context == NULL) {
+		wasm_server_context = malloc(sizeof(wasm_server_context_t));
+		wasm_init_server_context();
+	}
+}
+
+/**
  * Function: wasm_add_ENV_entry
  * ----------------------------
  *   Exposes a new entry to the getenv() function.
@@ -1207,6 +1231,7 @@ void wasm_add_SERVER_entry(char *key, char *value)
  */
 void wasm_add_ENV_entry(char *key, char *value)
 {
+	wasm_ensure_server_context();
 	wasm_array_entry_t *entry = (wasm_array_entry_t *)malloc(sizeof(wasm_array_entry_t));
 	entry->key = strdup(key);
 	entry->value = strdup(value);
