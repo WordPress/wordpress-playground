@@ -1174,6 +1174,16 @@ describe('sandboxedSpawnHandlerFactory', () => {
 						processManager.acquirePHPInstance()
 					)
 				);
+				// Match production behavior (boot.ts): enable runtime
+				// rotation so subprocess instances get a fresh WASM
+				// module after each cli() call. Without this, the
+				// second use of a subprocess instance hangs on JSPI
+				// because exit() leaves the module unusable.
+				php.enableRuntimeRotation({
+					recreateRuntime: () =>
+						loadNodeRuntime(phpVersion as any, {}),
+					maxRequests: 400,
+				});
 				return php;
 			},
 			maxPhpInstances: 5,
@@ -1250,5 +1260,5 @@ describe('sandboxedSpawnHandlerFactory', () => {
 			`,
 		});
 		expect(response.text).toEqual('1,2,3');
-	}, 30000);
+	}, 60000);
 });
