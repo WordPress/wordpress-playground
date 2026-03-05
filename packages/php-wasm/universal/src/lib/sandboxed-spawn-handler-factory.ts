@@ -160,8 +160,8 @@ export function sandboxedSpawnHandlerFactory(
 			}
 		} catch (e) {
 			// An exception here means the PHP runtime has crashed.
-			// eslint-disable-next-line no-console
-			console.error('[proc_open debug] spawn: CAUGHT ERROR in cli():', e);
+			const errMsg = e instanceof Error ? e.message + '\n' + e.stack : String(e);
+			processApi.stderr(`[spawn error] ${errMsg}`);
 			processApi.exit(1);
 			throw e;
 		} finally {
