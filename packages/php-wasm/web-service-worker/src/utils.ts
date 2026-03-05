@@ -55,9 +55,43 @@ export async function convertFetchEventToPHPRequest(event: FetchEvent) {
 		const requestId = await broadcastMessageExpectReply(message, scope);
 		phpResponse = await awaitReply(self, requestId);
 
-		// X-frame-options gets in a way when PHP is
+		// X-frame-options gets in the way when PHP is
 		// being displayed in an iframe.
 		delete phpResponse.headers['x-frame-options'];
+
+		/*
+		 * Content-Security-Policy can get in the way when PHP is
+		 * being displayed in an iframe. WordPress 6.9 added a new
+		 * `Content-Security-Policy: frame-ancestors 'self';` header that
+		 * is breaking folks who embed a Playground from another origin.
+		 * https://core.trac.wordpress.org/changeset/60657/
+		 *
+		 * Let's prune the frame-ancestors and avoid clobbering other CSP directives.
+		 *
+		 * NOTE: We expect all header names to be lowercase.
+		 */
+		if (phpResponse.headers['content-security-policy']) {
+			const filteredCspHeaders = phpResponse.headers[
+				'content-security-policy'
+			]
+				// Remove any frame-ancestors directives.
+				.map((originalValue: string) =>
+					removeContentSecurityPolicyDirective(
+						'frame-ancestors',
+						originalValue
+					)
+				)
+				// Remove empty or whitespace-only values.
+				.filter((value: string) => value.trim().length > 0);
+
+			if (filteredCspHeaders.length > 0) {
+				phpResponse.headers['content-security-policy'] =
+					filteredCspHeaders;
+			} else {
+				// There are no remaining CSP directives, so let's remove the header altogether.
+				delete phpResponse.headers['content-security-policy'];
+			}
+		}
 	} catch (e) {
 		console.error(e, { url: url.toString() });
 		throw e;
@@ -83,7 +117,7 @@ export async function convertFetchEventToPHPRequest(event: FetchEvent) {
 		phpResponse.headers['location']
 	) {
 		return Response.redirect(
-			phpResponse.headers['location'][0],
+			new URL(phpResponse.headers['location'][0], url.toString()),
 			phpResponse.httpStatusCode
 		);
 	}
@@ -166,10 +200,23 @@ export async function cloneRequest(
 	request: Request,
 	overrides: Record<string, any>
 ): Promise<Request> {
-	const body =
-		['GET', 'HEAD'].includes(request.method) || 'body' in overrides
-			? undefined
-			: await request.blob();
+	let body: ArrayBuffer | ReadableStream | undefined;
+
+	if (['GET', 'HEAD'].includes(request.method) || 'body' in overrides) {
+		body = undefined;
+	} else if (!request.bodyUsed && request.body) {
+		// If the body hasn't been consumed yet, we can reuse the stream directly
+		// This avoids the hang that occurs when trying to read from a stream
+		// that's still waiting for more data
+		body = request.body;
+	} else {
+		// Otherwise, we need to read the body as an arrayBuffer.
+		// We don't use .blob() because it throws when the client is low
+		// on disk space (blobs tend to be stored as temporary files, array
+		// buffers tend to be stored in memory).
+		// see https://github.com/WordPress/wordpress-playground/issues/2769
+		body = await request.arrayBuffer();
+	}
 
 	return new Request(overrides['url'] || request.url, {
 		body,
@@ -182,6 +229,7 @@ export async function cloneRequest(
 		cache: request.cache,
 		redirect: request.redirect,
 		integrity: request.integrity,
+		...(body && { duplex: 'half' }),
 		...overrides,
 	});
 }
@@ -218,4 +266,56 @@ export function getRequestHeaders(request: Request) {
 		headers[key] = value;
 	});
 	return headers;
+}
+
+/**
+ * Removes the specified directive from the Content-Security-Policy header value.
+ *
+ * @param directiveToRemove The directive name to remove.
+ * @param cspHeader The Content-Security-Policy header value to filter.
+ * @returns The filtered Content-Security-Policy header value.
+ */
+export function removeContentSecurityPolicyDirective(
+	directiveToRemove: string,
+	cspHeader: string
+) {
+	// ASCII whitespace:
+	// @see https://infra.spec.whatwg.org/#ascii-whitespace
+	// eslint-disable-next-line no-control-regex
+	const leadingAsciiWhitespace = /^[\u{9}\u{A}\u{C}\u{D}\u{20}]+/u;
+	// eslint-disable-next-line no-control-regex
+	const trailingAsciiWhitespace = /[\u{9}\u{A}\u{C}\u{D}\u{20}]+$/u;
+	// eslint-disable-next-line no-control-regex
+	const asciiWhitespace = /[\u{9}\u{A}\u{C}\u{D}\u{20}]/u;
+
+	// Parse based on the CSP spec:
+	// https://w3c.github.io/webappsec-csp/#parse-serialized-policy
+	return (
+		cspHeader
+			// "For each token returned by strictly splitting serialized
+			// on the U+003B SEMICOLON character (;):"
+			.split(';')
+			.filter((rawDirective: string) => {
+				// "Strip leading and trailing ASCII whitespace from token."
+				const trimmedDirective = rawDirective
+					.replace(leadingAsciiWhitespace, '')
+					.replace(trailingAsciiWhitespace, '');
+
+				// "Let directive name be the result of collecting a sequence
+				// of code points from token which are not ASCII whitespace."
+				const [directiveName] = trimmedDirective.split(
+					asciiWhitespace,
+					// The directive name is the first token.
+					1
+				);
+
+				// "Directive names are case-insensitive, that is:
+				// script-SRC 'none' and ScRiPt-sRc 'none' are equivalent."
+				return (
+					directiveName.toLowerCase() !==
+					directiveToRemove.toLowerCase()
+				);
+			})
+			.join(';')
+	);
 }

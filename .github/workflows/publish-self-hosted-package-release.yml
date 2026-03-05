@@ -25,7 +25,9 @@ jobs:
                 github.actor == 'brandonpayton' ||
                 github.actor == 'zaerl' ||
                 github.actor == 'ashfame' ||
-                github.actor == 'janjakes'
+                github.actor == 'janjakes' ||
+                github.actor == 'mho22' ||
+                github.actor == 'ashfame'
             )
 
         # Specify runner + deployment step
@@ -51,7 +53,7 @@ jobs:
             - name: Bump package versions
               shell: bash
               if: inputs.should_bump_version == true
-              run: npx lerna@6.6.2 version ${{ inputs.version_bump || 'patch' }} --yes --no-private --loglevel=verbose
+              run: npx lerna@9 version ${{ inputs.version_bump || 'patch' }} --yes --no-private --loglevel=verbose
             - name: Set up deployment environment vars
               run: |
                   export LATEST_PACKAGE_VERSION=$(cat packages/php-wasm/universal/package.json | jq -r '.version')

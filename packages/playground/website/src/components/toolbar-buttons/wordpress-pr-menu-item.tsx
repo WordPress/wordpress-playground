@@ -1,8 +1,7 @@
 import { MenuItem } from '@wordpress/components';
-import { setActiveModal } from '../../lib/state/redux/slice-ui';
+import { modalSlugs, setActiveModal } from '../../lib/state/redux/slice-ui';
 import type { PlaygroundDispatch } from '../../lib/state/redux/store';
 import { useDispatch } from 'react-redux';
-import { modalSlugs } from '../layout';
 
 interface Props {
 	onClose: () => void;
@@ -12,14 +11,14 @@ export function WordPressPRMenuItem({ onClose, disabled }: Props) {
 	const dispatch: PlaygroundDispatch = useDispatch();
 	return (
 		<MenuItem
-			aria-label="Preview WordPress PR."
+			aria-label="Preview WordPress Core PR"
 			disabled={disabled}
 			onClick={() => {
 				dispatch(setActiveModal(modalSlugs.PREVIEW_PR_WP));
 				onClose();
 			}}
 		>
-			Preview a WordPress PR
+			WordPress Core PR
 		</MenuItem>
 	);
 }

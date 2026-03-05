@@ -9,6 +9,7 @@ jobs:
     # This step:
     # * Warms up the node_modules cache
     # * Performs linting and typechecking
+    # * Checks for orphaned documentation pages
     #
     # The linting tasks take ~5s to complete and it doesn't
     # make sense to separate them into separate steps that would
@@ -23,29 +24,28 @@ jobs:
             - uses: ./.github/actions/prepare-playground
             - run: npx nx affected --target=lint
             - run: npx nx affected --target=typecheck
+            - run: npx nx check-orphan-pages docs-site
+            - run: bash tools/check-node-engine-alignment.sh
     test-unit-asyncify:
         runs-on: ubuntu-latest
-        needs: [lint-and-typecheck]
         strategy:
             fail-fast: false
             matrix:
                 include:
-                    - name: test-unit-asyncify (1/8)
+                    - name: test-unit-asyncify (1/7)
                       target: test
-                    - name: test-unit-asyncify (2/8)
-                      target: test-asyncify
-                    - name: test-unit-asyncify (3/8)
-                      target: test-php-file-get-contents-asyncify
-                    - name: test-unit-asyncify (4/8)
-                      target: test-php-fopen-asyncify
-                    - name: test-unit-asyncify (5/8)
-                      target: test-php-fsockopen-asyncify
-                    - name: test-unit-asyncify (6/8)
-                      target: test-php-gethostbyname-asyncify
-                    - name: test-unit-asyncify (7/8)
-                      target: test-php-mysqli-asyncify
-                    - name: test-unit-asyncify (8/8)
-                      target: test-php-sqlite3-asyncify
+                    - name: test-unit-asyncify (2/7)
+                      target: test-group-1-asyncify
+                    - name: test-unit-asyncify (3/7)
+                      target: test-group-2-asyncify
+                    - name: test-unit-asyncify (4/7)
+                      target: test-group-3-asyncify
+                    - name: test-unit-asyncify (5/7)
+                      target: test-group-4-asyncify
+                    - name: test-unit-asyncify (6/7)
+                      target: test-group-5-asyncify
+                    - name: test-unit-asyncify (7/7)
+                      target: test-group-6-asyncify
         name: ${{ matrix.name }}
         services:
             mysql:
@@ -76,25 +76,22 @@ jobs:
                   MYSQL_PASSWORD: password
     test-unit-jspi:
         runs-on: ubuntu-latest
-        needs: [lint-and-typecheck]
         strategy:
             fail-fast: false
             matrix:
                 include:
-                    - name: test-unit-jspi (1/7)
-                      target: test-jspi
-                    - name: test-unit-jspi (2/7)
-                      target: test-php-file-get-contents-jspi
-                    - name: test-unit-jspi (3/7)
-                      target: test-php-fopen-jspi
-                    - name: test-unit-jspi (4/7)
-                      target: test-php-fsockopen-jspi
-                    - name: test-unit-jspi (5/7)
-                      target: test-php-gethostbyname-jspi
-                    - name: test-unit-jspi (6/7)
-                      target: test-php-mysqli-jspi
-                    - name: test-unit-jspi (7/7)
-                      target: test-php-sqlite3-jspi
+                    - name: test-unit-jspi (1/6)
+                      target: test-group-1-jspi
+                    - name: test-unit-jspi (2/6)
+                      target: test-group-2-jspi
+                    - name: test-unit-jspi (3/6)
+                      target: test-group-3-jspi
+                    - name: test-unit-jspi (4/6)
+                      target: test-group-4-jspi
+                    - name: test-unit-jspi (5/6)
+                      target: test-group-5-jspi
+                    - name: test-unit-jspi (6/6)
+                      target: test-group-6-jspi
         name: ${{ matrix.name }}
         services:
             mysql:
@@ -117,15 +114,19 @@ jobs:
                   submodules: true
             - uses: ./.github/actions/prepare-playground
               with:
-                  node-version: 23
+                  node-version: 24
             - run: node --expose-gc node_modules/nx/bin/nx affected --target=${{ matrix.target }}
               env:
                   MYSQL_DATABASE: test_db
                   MYSQL_USER: user
                   MYSQL_PASSWORD: password
     test-playground-cli:
-        runs-on: ubuntu-latest
-        needs: [lint-and-typecheck]
+        strategy:
+            matrix:
+                os: [ubuntu-latest, windows-latest, macos-latest]
+        continue-on-error: true
+        runs-on: ${{ matrix.os }}
+        name: 'test-playground-cli (${{ matrix.os }})'
         steps:
             - uses: actions/checkout@v4
               with:
@@ -133,10 +134,45 @@ jobs:
             - uses: ./.github/actions/prepare-playground
               with:
                   node-version: 22
-            - run: node node_modules/nx/bin/nx affected --target=test-for-node-22-and-above
+            - name: Run full test suite
+              run: node node_modules/nx/bin/nx affected --target=test-playground-cli
+    test-file-locking:
+        strategy:
+            matrix:
+                os: [ubuntu-latest, windows-latest, macos-latest]
+                async-strategy: [asyncify, jspi]
+        continue-on-error: true
+        runs-on: ${{ matrix.os }}
+        name: 'test-file-locking-${{ matrix.async-strategy }} (${{ matrix.os }})'
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  submodules: true
+            - uses: ./.github/actions/prepare-playground
+              with:
+                  node-version: 22
+            - name: Run full test suite
+              run: node node_modules/nx/bin/nx affected --target=test-file-locking-${{ matrix.async-strategy }}
+    test-e2e-php-wasm-web-jspi:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  submodules: true
+            - uses: ./.github/actions/prepare-playground
+            - run: sudo npx playwright install
+            - run: sudo CI=true JSPI=true npx nx e2e php-wasm-web
+    test-e2e-php-wasm-web-asyncify:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  submodules: true
+            - uses: ./.github/actions/prepare-playground
+            - run: sudo npx playwright install
+            - run: sudo CI=true npx nx e2e php-wasm-web
     test-e2e:
         runs-on: ubuntu-latest
-        needs: [lint-and-typecheck]
         # Run as root to allow node to bind to port 80
         steps:
             - uses: actions/checkout@v4
@@ -151,75 +187,120 @@ jobs:
               with:
                   name: cypress-screenshots
                   path: dist/cypress/packages/playground/website/screenshots
-
-    test-e2e-playwright-prepare:
+    # E2E Playwright tests - builds inline per runner for faster parallel execution
+    # Previously used a prepare job + artifact sharing, but inline builds allow
+    # all shards to start immediately in parallel, reducing total wall time.
+    test-e2e-playwright:
         runs-on: ubuntu-latest
-        needs: [lint-and-typecheck]
+        strategy:
+            fail-fast: false
+            matrix:
+                # 3 shards per browser for balanced parallel execution
+                # (4 shards caused uneven distribution due to serial test files)
+                # WebKit disabled - random failures, see PR #2475
+                include:
+                    - browser: 'chromium'
+                      shard: '1/3'
+                      shard_name: '1-of-3'
+                    - browser: 'chromium'
+                      shard: '2/3'
+                      shard_name: '2-of-3'
+                    - browser: 'chromium'
+                      shard: '3/3'
+                      shard_name: '3-of-3'
+                    - browser: 'firefox'
+                      shard: '1/3'
+                      shard_name: '1-of-3'
+                    - browser: 'firefox'
+                      shard: '2/3'
+                      shard_name: '2-of-3'
+                    - browser: 'firefox'
+                      shard: '3/3'
+                      shard_name: '3-of-3'
+        steps:
+            - name: Free up runner disk space
+              shell: bash
+              run: |
+                  set -euo pipefail
+                  echo "Disk usage before cleanup:"
+                  df -h
+                  sudo rm -rf /usr/local/lib/android
+                  sudo rm -rf /usr/share/dotnet
+                  sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+                  sudo rm -rf /opt/ghc
+                  sudo rm -rf /opt/hostedtoolcache/CodeQL
+                  echo "Disk usage after cleanup:"
+                  df -h
+            - uses: actions/checkout@v4
+              with:
+                  submodules: true
+            - uses: ./.github/actions/prepare-playground
+            - name: Install Playwright Browser
+              run: sudo npx playwright install ${{ matrix.browser }} --with-deps
+            - name: Build app for E2E tests
+              run: CORS_PROXY_URL=http://127.0.0.1:5263/cors-proxy.php? npx nx e2e:playwright:prepare-app-deploy-and-offline-mode playground-website
+            - name: Run Playwright tests - ${{ matrix.browser }}${{ matrix.shard && format(' (shard {0})', matrix.shard) || '' }}
+              run: |
+                  SHARD_ARG=""
+                  if [ -n "${{ matrix.shard }}" ]; then
+                    SHARD_ARG="--shard=${{ matrix.shard }}"
+                  fi
+                  if [ "${{ matrix.browser }}" = "firefox" ]; then
+                    sudo -E HOME=/root XDG_RUNTIME_DIR=/root CI=true npx playwright test --config=packages/playground/website/playwright/playwright.ci.config.ts --project=${{ matrix.browser }} $SHARD_ARG
+                  else
+                    sudo CI=true npx playwright test --config=packages/playground/website/playwright/playwright.ci.config.ts --project=${{ matrix.browser }} $SHARD_ARG
+                  fi
+            - uses: actions/upload-artifact@v4
+              if: ${{ !cancelled() }}
+              with:
+                  name: playwright-report-${{ matrix.browser }}${{ matrix.shard_name && format('-shard-{0}', matrix.shard_name) || '' }}
+                  path: packages/playground/website/playwright-report/
+                  if-no-files-found: ignore
+            - uses: actions/upload-artifact@v4
+              if: ${{ !cancelled() }}
+              with:
+                  name: playwright-snapshots-${{ matrix.browser }}${{ matrix.shard_name && format('-shard-{0}', matrix.shard_name) || '' }}
+                  path: packages/playground/website/playwright/e2e/deployment.spec.ts-snapshots/
+                  if-no-files-found: ignore
+
+    test-e2e-components:
+        runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v4
               with:
                   submodules: true
             - uses: ./.github/actions/prepare-playground
             - name: Install Playwright Browsers
-              run: sudo npx playwright install --with-deps
-            - name: Prepare app deploy and offline mode
-              run: CORS_PROXY_URL=http://127.0.0.1:5263/cors-proxy.php? npx nx e2e:playwright:prepare-app-deploy-and-offline-mode playground-website
-            - name: Zip dist
-              run: zip -r dist.zip dist
-            - name: Upload dist
-              uses: actions/upload-artifact@v4
+              run: npx playwright install --with-deps chromium
+            - name: Run Playwright tests for components
+              run: npx nx e2e playground-components
+            - uses: actions/upload-artifact@v4
+              if: ${{ !cancelled() }}
               with:
-                  name: playwright-dist
-                  path: dist.zip
-    test-e2e-playwright:
+                  name: playwright-components-report
+                  path: packages/playground/components/playwright-report/
+                  if-no-files-found: ignore
+
+    test-docs-api-reference:
         runs-on: ubuntu-latest
-        needs: [test-e2e-playwright-prepare]
-        strategy:
-            fail-fast: false
-            matrix:
-                # WebKit runner is disabled in CI – it used to be enabled but the tests
-                # failed randomly without any obvious reason.
-                # @see https://github.com/WordPress/wordpress-playground/pull/2475
-                part: ['chromium', 'firefox']
         steps:
             - uses: actions/checkout@v4
               with:
                   submodules: true
             - uses: ./.github/actions/prepare-playground
-            - name: Download dist
-              uses: actions/download-artifact@v4
-              with:
-                  name: playwright-dist
-            - name: Unzip dist
-              run: unzip dist.zip
-            - name: Install Playwright Browser
-              run: sudo npx playwright install ${{ matrix.part }} --with-deps
-            - name: Run Playwright tests - ${{ matrix.part }}
-              run: |
-                  if [ "${{ matrix.part }}" = "firefox" ]; then
-                    sudo -E HOME=/root XDG_RUNTIME_DIR=/root CI=true npx playwright test --config=packages/playground/website/playwright/playwright.ci.config.ts --project=${{ matrix.part }}
-                  else
-                    sudo CI=true npx playwright test --config=packages/playground/website/playwright/playwright.ci.config.ts --project=${{ matrix.part }}
-                  fi
+            - name: Install Playwright Browsers
+              run: npx playwright install --with-deps chromium
+            - name: Verify docs API reference
+              run: npx nx run docs-site:api-e2e
             - uses: actions/upload-artifact@v4
               if: ${{ !cancelled() }}
               with:
-                  name: playwright-report-${{ matrix.part }}
-                  path: packages/playground/website/playwright-report/
+                  name: docs-api-e2e-report
+                  path: packages/docs/site/test-results/
                   if-no-files-found: ignore
-            - uses: actions/upload-artifact@v4
-              if: ${{ !cancelled() }}
-              with:
-                  name: playwright-snapshots-${{ matrix.part }}
-                  path: packages/playground/website/playwright/e2e/deployment.spec.ts-snapshots/
-                  if-no-files-found: ignore
-            - name: Delete playwright-dist artifact
-              uses: geekyeggo/delete-artifact@v5
-              with:
-                  name: playwright-dist
+
     test-built-npm-packages:
         runs-on: ubuntu-latest
-        needs: [lint-and-typecheck]
         steps:
             - uses: actions/checkout@v4
               with:
@@ -227,104 +308,93 @@ jobs:
             - uses: ./.github/actions/prepare-playground
               with:
                   node-version: 22
-            - name: Generate a mock version number (for releasing the packages in a local registry) and store it as a global variable
-              run: |
-                  VERSION=$(date +%s)
-                  PORT=9934
-                  PACKAGE_BASE_URL=http://127.0.0.1:$PORT/$VERSION
-                  echo "VERSION=$VERSION" >> $GITHUB_ENV
-                  echo "PORT=$PORT" >> $GITHUB_ENV
-                  echo "PACKAGE_BASE_URL=$PACKAGE_BASE_URL" >> $GITHUB_ENV
-                  echo "PACKAGE_URL=$PACKAGE_BASE_URL/v$VERSION/@wp-playground-cli-$VERSION.tar.gz" >> $GITHUB_ENV
-                  echo "HOST_PATH=./dist/packages-for-self-hosting/http%3A%2F%2F127.0.0.1%3A$PORT%2F$VERSION" >> $GITHUB_ENV
-            - name: Update package.json versions
-              run: |
-                  VERSION=$(date +%s)
-                  for package in packages/*/*/package.json; do
-                    jq --arg version "$VERSION" '.version = $version' "$package" > "$package.tmp"
-                    mv "$package.tmp" "$package"
-                  done
-            - name: Package repository
-              run: |
-                  npx nx run-many --all --target=package-for-self-hosting -- --hostingBaseUrl="$PACKAGE_BASE_URL"
-            - name: Start a local node package registry server
-              run: |
-                  source ~/.nvm/nvm.sh;
-                  nvm install 22;
-                  cd $HOST_PATH
-                  RUNNER_TRACKING_ID="" && ( \
-                    nohup python3 -c "import http.server
-                  import socketserver
-                  from urllib.parse import unquote
-
-                  class PrefixHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
-                      def do_GET(self):
-                          if self.path.startswith('/${{ env.VERSION }}/'):
-                              self.path = self.path[len('/${{ env.VERSION }}'):]
-                          elif self.path == '/${{ env.VERSION }}':
-                              self.path = '/'
-                          super().do_GET()
-
-                  with socketserver.TCPServer(('127.0.0.1', ${{ env.PORT }}), PrefixHTTPRequestHandler) as httpd:
-                      httpd.serve_forever()
-                  "&
-                  );
-            - name: Wait for the package server to be ready
-              run: |
-                  for i in {1..60}; do
-                      curl_output=$(curl -v $PACKAGE_URL 2>&1)
-                      if [ $? -eq 0 ]; then
-                          break
-                      fi
-                      sleep 1
-                  done
-            - name: Run integration tests in an ES Modules project
-              run: |
-                  cd packages/playground/test-built-npm-packages/es-modules-and-vitest
-                  jq --arg package_url "$PACKAGE_URL" '.devDependencies["@wp-playground/cli"] = $package_url' package.json > package.json.tmp
-                  mv package.json.tmp package.json
-                  npm install
-                  INSTALLED_VERSION=$(npm ls @wp-playground/cli version --depth=0 | tail -n 2 | head -n 1 | cut -d ' ' -f 2)
-                  if [ "$INSTALLED_VERSION" != "@wp-playground/cli@$VERSION" ]; then
-                    echo "The installed version of @wp-playground/cli is not the same as the expected version."
-                    echo "Expected: $VERSION"
-                    echo "Installed: $INSTALLED_VERSION"
-                    exit 1
-                  fi
-                  npm run test
-            - name: Run integration tests in a CommonJS project
-              run: |
-                  cd packages/playground/test-built-npm-packages/commonjs-and-jest
-                  jq --arg package_url "$PACKAGE_URL" '.devDependencies["@wp-playground/cli"] = $package_url' package.json > package.json.tmp
-                  mv package.json.tmp package.json
-                  npm install
-                  INSTALLED_VERSION=$(npm ls @wp-playground/cli version --depth=0 | tail -n 2 | head -n 1 | cut -d ' ' -f 2)
-                  if [ "$INSTALLED_VERSION" != "@wp-playground/cli@$VERSION" ]; then
-                    echo "The installed version of @wp-playground/cli is not the same as the expected version."
-                    echo "Expected: $VERSION"
-                    echo "Installed: $INSTALLED_VERSION"
-                    exit 1
-                  fi
-                  npm run test
+            - name: Build packages, start local registry, and run integration tests
+              run: packages/playground/test-built-npm-packages/run-tests.sh
 
     test-running-unbuilt-playground-cli:
         runs-on: ubuntu-latest
-        needs: [lint-and-typecheck]
         steps:
             - uses: actions/checkout@v4
               with:
                   submodules: true
             - uses: ./.github/actions/prepare-playground
+              with:
+                  node-version: 22
             - run: packages/playground/cli/tests/test-running-unbuilt-cli.sh
+
+    test-php-wasm-cli-smoke:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  submodules: true
+            - uses: ./.github/actions/prepare-playground
+              with:
+                  node-version: 20
+            - run: packages/php-wasm/cli/tests/smoke-test.sh
+
+    # Redis extension tests - verifies the php-redis extension loads
+    # and provides the expected API, and can connect to a real Redis server.
+    # Redis requires JSPI because asyncify cannot properly handle exceptions
+    # during network I/O. Attempting to load Redis with asyncify throws an error.
+    test-redis-extension:
+        runs-on: ubuntu-latest
+        services:
+            redis:
+                image: redis:7-alpine
+                ports:
+                    - 6379:6379
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  submodules: true
+            - uses: ./.github/actions/prepare-playground
+              with:
+                  node-version: 24
+            - name: Run Redis extension tests (JSPI)
+              run: node --expose-gc node_modules/nx/bin/nx run php-wasm-node:test-redis-extension-jspi
+              env:
+                  REDIS_HOST: 127.0.0.1
+                  REDIS_PORT: 6379
+            - name: Run Redis network tests (JSPI)
+              run: node --expose-gc node_modules/nx/bin/nx run php-wasm-node:test-redis-network-jspi
+              env:
+                  REDIS_HOST: 127.0.0.1
+                  REDIS_PORT: 6379
+
+    # Memcached extension tests - verifies the php-memcached extension loads
+    # and provides the expected API, and can connect to a real memcached server.
+    test-memcached-extension:
+        runs-on: ubuntu-latest
+        services:
+            memcached:
+                image: memcached:1.6-alpine
+                ports:
+                    - 11211:11211
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  submodules: true
+            - uses: ./.github/actions/prepare-playground
+              with:
+                  node-version: 24
+            - name: Run memcached extension tests
+              run: node --expose-gc node_modules/nx/bin/nx run php-wasm-node:test-memcached-extension-jspi
+            - name: Run memcached network tests
+              run: node --expose-gc node_modules/nx/bin/nx run php-wasm-node:test-memcached-network-jspi
+              env:
+                  MEMCACHED_HOST: 127.0.0.1
+                  MEMCACHED_PORT: 11211
 
     build:
         runs-on: ubuntu-latest
-        needs: [lint-and-typecheck]
         steps:
             - uses: actions/checkout@v4
               with:
                   submodules: true
             - uses: ./.github/actions/prepare-playground
+              with:
+                  node-version: 20
             - run: |
                   if ADDITIONAL_REMOTE_ORIGINS=invalid-origin npx nx build playground-client; then
                     echo "The Playground client build should have failed due to an invalid additional origin."
@@ -332,6 +402,8 @@ jobs:
                     exit 1
                   fi
                   npx nx affected --target=build --parallel=3 --verbose
+            - name: Verify npm pack works (catches override conflicts before publish)
+              run: npm pack --dry-run --workspace=packages/php-wasm/logger
 
     # Deploy documentation job
     deploy_docs:
@@ -341,7 +413,7 @@ jobs:
             github.ref == 'refs/heads/trunk' &&
             github.event_name == 'push'
         # Add a dependency to the build job
-        needs: [test-unit-asyncify, test-e2e, build]
+        needs: [test-unit-asyncify, test-e2e, test-e2e-components, build]
         name: 'Deploy doc site'
 
         # Grant GITHUB_TOKEN the permissions required to make a Pages deployment

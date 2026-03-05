@@ -24,13 +24,22 @@ export { HttpCookieStore } from './http-cookie-store';
 export type { IteratePhpFilesOptions as IterateFilesOptions } from './iterate-files';
 export { iteratePhpFiles as iterateFiles } from './iterate-files';
 export { writeFilesStreamToPhp } from './write-files-stream-to-php';
+export type {
+	PHPInstanceManager,
+	AcquiredPHP,
+	/**
+	 * Backwards compatibility alias.
+	 */
+	AcquiredPHP as SpawnedPHP,
+} from './php-instance-manager';
+export { SinglePHPInstanceManager } from './single-php-instance-manager';
+export type { SinglePHPInstanceManagerOptions } from './single-php-instance-manager';
 export { PHPProcessManager } from './php-process-manager';
 export type {
 	MaxPhpInstancesError,
 	PHPFactory,
 	PHPFactoryOptions,
 	ProcessManagerOptions,
-	SpawnedPHP,
 } from './php-process-manager';
 
 export { PHPResponse, StreamedPHPResponse } from './php-response';
@@ -44,7 +53,7 @@ export {
 export type { SupportedPHPVersion } from './supported-php-versions';
 export { PHP, __private__dont__use, PHPExecutionFailureError } from './php';
 export type { MountHandler, UnmountFunction } from './php';
-export { loadPHPRuntime, getLoadedRuntime } from './load-php-runtime';
+export { loadPHPRuntime, popLoadedRuntime } from './load-php-runtime';
 export type { Emscripten } from './emscripten-types';
 export type {
 	DataModule,
@@ -58,8 +67,13 @@ export type {
 export type {
 	PHPRequestHandlerConfiguration,
 	RewriteRule,
+	PathAlias,
 } from './php-request-handler';
-export { PHPRequestHandler, applyRewriteRules } from './php-request-handler';
+export {
+	PHPRequestHandler,
+	applyRewriteRules,
+	inferMimeType,
+} from './php-request-handler';
 export type {
 	FileNotFoundGetActionCallback,
 	FileNotFoundToInternalRedirect,
@@ -79,8 +93,21 @@ export {
 } from './urls';
 
 export { isExitCode } from './is-exit-code';
-export { proxyFileSystem } from './proxy-file-system';
+export { proxyFileSystem, isPathToSharedFS } from './proxy-file-system';
 export { sandboxedSpawnHandlerFactory } from './sandboxed-spawn-handler-factory';
 
 export * from './api';
 export type { WithAPIState as WithIsReady } from './api';
+export type { NodeProcess } from './comlink-node-process-adapter';
+
+export * from './file-lock-manager';
+export * from './file-lock-manager-in-memory';
+export * from './file-lock-manager-composite';
+export * from './file-lock-interval-tree';
+
+export type { Remote } from './comlink-sync';
+
+export { createObjectPoolProxy } from './object-pool-proxy';
+export type { Pooled } from './object-pool-proxy';
+
+export * from './process-id-allocator';

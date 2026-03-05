@@ -2,10 +2,19 @@ import {
 	TCPOverFetchWebsocket,
 	RawBytesFetch,
 } from './tcp-over-fetch-websocket';
-import express from 'express';
-import type http from 'http';
+import express, { type Express } from 'express';
+import http from 'http';
+import https from 'https';
+import tls from 'tls';
+import { Duplex } from 'stream';
 import type { AddressInfo } from 'net';
 import zlib from 'zlib';
+import { generateCertificate as generateCACertificate } from './tls/certificates';
+import type { GeneratedCertificate } from './tls/certificates';
+import {
+	generateCertificate,
+	cleanupCertificate,
+} from './test-utils/generate-certificate';
 
 const pygmalion = `PREFACE TO PYGMALION.
 
@@ -57,87 +66,214 @@ destructive results fifty years hence. He was, I believe, not in the
 least an ill-natured man: very much the opposite, I should say; but he
 would not suffer fools gladly.`;
 
+function createTestApp(): Express {
+	const app = express();
+
+	// Set up all routes BEFORE creating the server
+	app.get('/simple', (req, res) => {
+		res.send('Hello, World!');
+	});
+
+	app.get('/slow', (req, res) => {
+		setTimeout(() => {
+			res.send('Slow response');
+		}, 1000);
+	});
+
+	app.get('/stream', (req, res) => {
+		res.flushHeaders();
+		res.write('Part 1');
+		setTimeout(() => {
+			res.write('Part 2');
+			res.end();
+		}, 1500);
+	});
+
+	app.get('/headers', (req, res) => {
+		res.set('X-Custom-Header', 'TestValue');
+		res.send('OK');
+	});
+
+	app.get('/gzipped', (req, res) => {
+		const gzip = zlib.createGzip();
+		gzip.write(pygmalion);
+		gzip.end();
+
+		const gzippedChunks: Uint8Array[] = [];
+		gzip.on('data', (chunk) => {
+			gzippedChunks.push(chunk);
+		});
+		gzip.on('end', () => {
+			const length = gzippedChunks.reduce(
+				(acc, chunk) => acc + chunk.length,
+				0
+			);
+			res.setHeader('Content-Encoding', 'gzip');
+			res.setHeader('Content-Length', length.toString());
+			for (const chunk of gzippedChunks) {
+				res.write(chunk);
+			}
+			res.end();
+		});
+	});
+
+	app.post('/echo', (req, res) => {
+		// Set appropriate headers
+		res.setHeader(
+			'Content-Type',
+			req.headers['content-type'] || 'text/plain'
+		);
+		res.setHeader('Transfer-Encoding', 'chunked');
+		// Create readable stream from request body
+		const stream = req;
+
+		// Pipe the input stream directly to the response
+		stream.pipe(res);
+
+		// Handle errors
+		stream.on('error', (error) => {
+			console.error('Stream error:', error);
+			res.status(500).end();
+		});
+	});
+
+	app.get('/error', (req, res) => {
+		res.status(500).send('Internal Server Error');
+	});
+
+	return app;
+}
+
 describe('TCPOverFetchWebsocket', () => {
+	let server: https.Server;
+	let host: string;
+	let port: number;
+	let CAroot: GeneratedCertificate;
+	let originalRejectUnauthorized: string | undefined;
+
+	beforeAll(async () => {
+		// Allow self-signed certificates for testing
+		originalRejectUnauthorized =
+			process.env['NODE_TLS_REJECT_UNAUTHORIZED'];
+		process.env['NODE_TLS_REJECT_UNAUTHORIZED'] = '0';
+
+		CAroot = await generateCACertificate({
+			subject: {
+				countryName: 'US',
+				organizationName: 'Test CA',
+				commonName: 'test-ca.local',
+			},
+			basicConstraints: {
+				ca: true,
+			},
+		});
+
+		const app = createTestApp();
+		const { cert, key } = await generateCertificate();
+		server = https.createServer({ cert, key }, app);
+
+		// Wait for server to start listening
+		await new Promise<void>((resolve) => {
+			server.listen(0, () => resolve());
+		});
+
+		const address = server.address() as AddressInfo;
+		host = '127.0.0.1';
+		port = address.port;
+	});
+
+	afterAll(() => {
+		server.close();
+		cleanupCertificate();
+		// Restore original NODE_TLS_REJECT_UNAUTHORIZED value
+		if (originalRejectUnauthorized !== undefined) {
+			process.env['NODE_TLS_REJECT_UNAUTHORIZED'] =
+				originalRejectUnauthorized;
+		} else {
+			delete process.env['NODE_TLS_REJECT_UNAUTHORIZED'];
+		}
+	});
+
+	it('should handle a simple HTTPS request via TLS path', async () => {
+		const socket = new TCPOverFetchWebsocket(
+			`ws://playground.internal/?host=${host}&port=443`,
+			[],
+			{ CAroot, outputType: 'stream' }
+		);
+
+		const duplexStream = new Duplex({
+			read() {},
+			write(chunk, encoding, callback) {
+				socket.send(chunk);
+				callback();
+			},
+		});
+
+		const reader = socket.clientDownstream.readable.getReader();
+		(async () => {
+			try {
+				while (true) {
+					const { done, value } = await reader.read();
+					if (done) {
+						duplexStream.push(null);
+						break;
+					}
+					duplexStream.push(value);
+				}
+			} catch {
+				duplexStream.destroy();
+			}
+		})();
+
+		const crypto = await import('crypto');
+		const tlsSocket = tls.connect({
+			socket: duplexStream,
+			rejectUnauthorized: false,
+			secureOptions:
+				crypto.constants.SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION,
+		});
+
+		const response = await new Promise<string>((resolve, reject) => {
+			let data = '';
+
+			tlsSocket.on('secureConnect', () => {
+				const request = `GET /simple HTTP/1.1\r\nHost: ${host}:${port}\r\n\r\n`;
+				tlsSocket.write(request);
+			});
+
+			tlsSocket.on('data', (chunk) => {
+				data += chunk.toString();
+				if (data.includes('Hello, World!')) {
+					tlsSocket.end();
+					resolve(data);
+				}
+			});
+
+			tlsSocket.on('error', reject);
+			tlsSocket.on('end', () => resolve(data));
+		});
+
+		expect(response).toContain('HTTP/1.1 200 OK');
+		expect(response).toContain('Hello, World!');
+	});
+});
+
+describe('TCPOverFetchWebsocket over HTTP', () => {
 	let server: http.Server;
 	let host: string;
 	let port: number;
 
 	beforeAll(async () => {
-		const app = express();
-		server = app.listen(0);
+		const app = createTestApp();
+		server = http.createServer(app);
+
+		await new Promise<void>((resolve) => {
+			server.listen(0, () => resolve());
+		});
+
 		const address = server.address() as AddressInfo;
 		host = `127.0.0.1`;
 		port = address.port;
-		app.get('/simple', (req, res) => {
-			res.send('Hello, World!');
-		});
-
-		app.get('/slow', (req, res) => {
-			setTimeout(() => {
-				res.send('Slow response');
-			}, 1000);
-		});
-
-		app.get('/stream', (req, res) => {
-			res.flushHeaders();
-			res.write('Part 1');
-			setTimeout(() => {
-				res.write('Part 2');
-				res.end();
-			}, 1500);
-		});
-
-		app.get('/headers', (req, res) => {
-			res.set('X-Custom-Header', 'TestValue');
-			res.send('OK');
-		});
-
-		app.get('/gzipped', (req, res) => {
-			const gzip = zlib.createGzip();
-			gzip.write(pygmalion);
-			gzip.end();
-
-			const gzippedChunks: Uint8Array[] = [];
-			gzip.on('data', (chunk) => {
-				gzippedChunks.push(chunk);
-			});
-			gzip.on('end', () => {
-				const length = gzippedChunks.reduce(
-					(acc, chunk) => acc + chunk.length,
-					0
-				);
-				res.setHeader('Content-Encoding', 'gzip');
-				res.setHeader('Content-Length', length.toString());
-				for (const chunk of gzippedChunks) {
-					res.write(chunk);
-				}
-				res.end();
-			});
-		});
-
-		app.post('/echo', (req, res) => {
-			// Set appropriate headers
-			res.setHeader(
-				'Content-Type',
-				req.headers['content-type'] || 'text/plain'
-			);
-			res.setHeader('Transfer-Encoding', 'chunked');
-			// Create readable stream from request body
-			const stream = req;
-
-			// Pipe the input stream directly to the response
-			stream.pipe(res);
-
-			// Handle errors
-			stream.on('error', (error) => {
-				console.error('Stream error:', error);
-				res.status(500).end();
-			});
-		});
-
-		app.get('/error', (req, res) => {
-			res.status(500).send('Internal Server Error');
-		});
 	});
 
 	afterAll(() => {
@@ -368,6 +504,150 @@ describe('RawBytesFetch', () => {
 		);
 		expect(decodedRequestBody).toEqual(encodedBodyBytes);
 	});
+
+	it('parseHttpRequest should handle a path and query string', async () => {
+		const requestBytes = `GET /core/version-check/1.7/?channel=beta HTTP/1.1\r\nHost: playground.internal\r\n\r\n`;
+		const request = await RawBytesFetch.parseHttpRequest(
+			new ReadableStream({
+				start(controller) {
+					controller.enqueue(new TextEncoder().encode(requestBytes));
+					controller.close();
+				},
+			}),
+			'playground.internal',
+			'http'
+		);
+		expect(request.url).toEqual(
+			'http://playground.internal/core/version-check/1.7/?channel=beta'
+		);
+	});
+
+	it('parseHttpRequest should handle a simple path without query string', async () => {
+		const requestBytes = `GET /api/users HTTP/1.1\r\nHost: example.com\r\n\r\n`;
+		const request = await RawBytesFetch.parseHttpRequest(
+			new ReadableStream({
+				start(controller) {
+					controller.enqueue(new TextEncoder().encode(requestBytes));
+					controller.close();
+				},
+			}),
+			'example.com',
+			'http'
+		);
+		expect(request.url).toEqual('http://example.com/api/users');
+	});
+
+	it('parseHttpRequest should handle root path', async () => {
+		const requestBytes = `GET / HTTP/1.1\r\nHost: example.com\r\n\r\n`;
+		const request = await RawBytesFetch.parseHttpRequest(
+			new ReadableStream({
+				start(controller) {
+					controller.enqueue(new TextEncoder().encode(requestBytes));
+					controller.close();
+				},
+			}),
+			'example.com',
+			'https'
+		);
+		expect(request.url).toEqual('https://example.com/');
+	});
+
+	it('parseHttpRequest should handle URL-encoded characters in path', async () => {
+		const requestBytes = `GET /search/hello%20world HTTP/1.1\r\nHost: example.com\r\n\r\n`;
+		const request = await RawBytesFetch.parseHttpRequest(
+			new ReadableStream({
+				start(controller) {
+					controller.enqueue(new TextEncoder().encode(requestBytes));
+					controller.close();
+				},
+			}),
+			'example.com',
+			'http'
+		);
+		expect(request.url).toEqual('http://example.com/search/hello%20world');
+	});
+
+	it('parseHttpRequest should handle URL-encoded characters in query string', async () => {
+		const requestBytes = `GET /search?q=hello+world&filter=a%26b HTTP/1.1\r\nHost: example.com\r\n\r\n`;
+		const request = await RawBytesFetch.parseHttpRequest(
+			new ReadableStream({
+				start(controller) {
+					controller.enqueue(new TextEncoder().encode(requestBytes));
+					controller.close();
+				},
+			}),
+			'example.com',
+			'http'
+		);
+		expect(request.url).toEqual(
+			'http://example.com/search?q=hello+world&filter=a%26b'
+		);
+	});
+
+	it('parseHttpRequest should handle empty query parameter values', async () => {
+		const requestBytes = `GET /api?key1=&key2=value2 HTTP/1.1\r\nHost: example.com\r\n\r\n`;
+		const request = await RawBytesFetch.parseHttpRequest(
+			new ReadableStream({
+				start(controller) {
+					controller.enqueue(new TextEncoder().encode(requestBytes));
+					controller.close();
+				},
+			}),
+			'example.com',
+			'http'
+		);
+		expect(request.url).toEqual('http://example.com/api?key1=&key2=value2');
+	});
+
+	it('parseHttpRequest should handle path with hash fragment', async () => {
+		// Note: Hash fragments are typically not sent in HTTP requests,
+		// but if they are, the URL constructor should handle them
+		const requestBytes = `GET /page#section HTTP/1.1\r\nHost: example.com\r\n\r\n`;
+		const request = await RawBytesFetch.parseHttpRequest(
+			new ReadableStream({
+				start(controller) {
+					controller.enqueue(new TextEncoder().encode(requestBytes));
+					controller.close();
+				},
+			}),
+			'example.com',
+			'http'
+		);
+		expect(request.url).toEqual('http://example.com/page#section');
+	});
+
+	it('parseHttpRequest should handle path with query and hash', async () => {
+		const requestBytes = `GET /page?param=value#section HTTP/1.1\r\nHost: example.com\r\n\r\n`;
+		const request = await RawBytesFetch.parseHttpRequest(
+			new ReadableStream({
+				start(controller) {
+					controller.enqueue(new TextEncoder().encode(requestBytes));
+					controller.close();
+				},
+			}),
+			'example.com',
+			'http'
+		);
+		expect(request.url).toEqual(
+			'http://example.com/page?param=value#section'
+		);
+	});
+
+	it('parseHttpRequest should preserve Host header over default host', async () => {
+		const requestBytes = `GET /api HTTP/1.1\r\nHost: custom.host.com\r\n\r\n`;
+		const request = await RawBytesFetch.parseHttpRequest(
+			new ReadableStream({
+				start(controller) {
+					controller.enqueue(new TextEncoder().encode(requestBytes));
+					controller.close();
+				},
+			}),
+			'default.host.com', // Different from Host header
+			'https'
+		);
+		// Should use the Host header, not the default host parameter
+		expect(request.url).toEqual('https://custom.host.com/api');
+	});
 });
 
 type MakeRequestOptions = {
@@ -401,17 +681,30 @@ async function makeRequest({
 }
 
 async function bufferResponse(socket: TCPOverFetchWebsocket): Promise<string> {
-	return new Promise((resolve) => {
+	return new Promise((resolve, reject) => {
 		let response = '';
-		socket.clientDownstream.readable.pipeTo(
-			new WritableStream({
-				write(chunk) {
-					response += new TextDecoder().decode(chunk);
-				},
-				close() {
-					resolve(response);
-				},
-			})
-		);
+
+		// Add error listener
+		socket.on('error', (error) => {
+			reject(error);
+		});
+
+		socket.clientDownstream.readable
+			.pipeTo(
+				new WritableStream({
+					write(chunk) {
+						response += new TextDecoder().decode(chunk);
+					},
+					close() {
+						resolve(response);
+					},
+					abort(error) {
+						reject(error);
+					},
+				})
+			)
+			.catch((error) => {
+				reject(error);
+			});
 	});
 }

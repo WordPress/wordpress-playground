@@ -23,16 +23,25 @@ export default async function* packageJsonExecutor(
 	options: PackageJsonExecutorSchema,
 	context: ExecutorContext
 ) {
+	// Ensure externalNodes exists to prevent "Cannot read properties of undefined"
+	// errors in NX's createPackageJson. This can happen when NX's native module
+	// doesn't track lockfiles (e.g., package-lock.json), causing the js plugin's
+	// createNodes to never populate externalNodes.
+	if (!context.projectGraph.externalNodes) {
+		context.projectGraph.externalNodes = {};
+	}
+
 	const helperDependencies = getHelperDependenciesFromProjectGraph(
 		context.root,
 		context.projectName,
 		context.projectGraph
-	);
+	).filter((dep) => dep.target in context.projectGraph.externalNodes);
 
 	const importHelpers = !!readTsConfig(options.tsConfig).options
 		.importHelpers;
 	const shouldAddHelperDependency =
 		importHelpers &&
+		HelperDependency.tsc in context.projectGraph.externalNodes &&
 		helperDependencies.every((dep) => dep.target !== HelperDependency.tsc);
 
 	if (shouldAddHelperDependency) {

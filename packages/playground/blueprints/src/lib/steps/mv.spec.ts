@@ -18,6 +18,7 @@ describe('Blueprint step mv()', () => {
 
 	afterEach(() => {
 		loggerErrorSpy.mockRestore();
+		php.exit();
 	});
 
 	it('should move a file', async () => {

@@ -1,12 +1,16 @@
 import { logger } from '@php-wasm/logger';
 import { EmscriptenDownloadMonitor, ProgressTracker } from '@php-wasm/progress';
-import type { SupportedPHPVersion } from '@php-wasm/universal';
-import { consumeAPI } from '@php-wasm/universal';
-import type {
-	BlueprintBundle,
-	BlueprintDeclaration,
+import {
+	consumeAPI,
+	type Pooled,
+	type UniversalPHP,
+} from '@php-wasm/universal';
+import type { BlueprintV1Declaration } from '@wp-playground/blueprints';
+import {
+	compileBlueprintV1,
+	isBlueprintBundle,
+	resolveRuntimeConfiguration,
 } from '@wp-playground/blueprints';
-import { compileBlueprint, isBlueprintBundle } from '@wp-playground/blueprints';
 import { RecommendedPHPVersion, zipDirectory } from '@wp-playground/common';
 import fs from 'fs';
 import path from 'path';
@@ -18,10 +22,15 @@ import {
 	readAsFile,
 } from './download';
 import type { PlaygroundCliBlueprintV1Worker } from './worker-thread-v1';
-// @ts-ignore
-import importedWorkerV1UrlString from './worker-thread-v1?worker&url';
 import type { MessagePort as NodeMessagePort } from 'worker_threads';
-import type { RunCLIArgs, SpawnedWorker } from '../run-cli';
+import {
+	type PlaygroundCliWorker,
+	type RunCLIArgs,
+	type SpawnedWorker,
+	type WorkerType,
+	mergeDefinedConstants,
+} from '../run-cli';
+import type { CLIOutput } from '../cli-output';
 
 /**
  * Boots Playground CLI workers using Blueprint version 1.
@@ -30,55 +39,37 @@ import type { RunCLIArgs, SpawnedWorker } from '../run-cli';
  * implemented in TypeScript and orchestrated by this class.
  */
 export class BlueprintsV1Handler {
-	private phpVersion: SupportedPHPVersion | undefined;
-	private lastProgressMessage = '';
-
 	private siteUrl: string;
-	private processIdSpaceLength: number;
 	private args: RunCLIArgs;
+	private cliOutput: CLIOutput;
 
 	constructor(
 		args: RunCLIArgs,
 		options: {
 			siteUrl: string;
-			processIdSpaceLength: number;
+			cliOutput: CLIOutput;
 		}
 	) {
 		this.args = args;
 		this.siteUrl = options.siteUrl;
-		this.processIdSpaceLength = options.processIdSpaceLength;
+		this.cliOutput = options.cliOutput;
 	}
 
-	getWorkerUrl() {
-		if (
-			process.env['VITEST'] &&
-			importedWorkerV1UrlString.startsWith('/src/')
-		) {
-			// Work around issue where Vitest cannot find the worker script.
-			return path.join(
-				import.meta.dirname,
-				'..',
-				'..',
-				importedWorkerV1UrlString
-			);
-		}
-		return importedWorkerV1UrlString;
+	getWorkerType(): WorkerType {
+		return 'v1';
 	}
 
-	async bootPrimaryWorker(
-		phpPort: NodeMessagePort,
-		fileLockManagerPort: NodeMessagePort
+	async bootWordPress(
+		playground: Pooled<PlaygroundCliWorker>,
+		workerPostInstallMountsPort: NodeMessagePort
 	) {
-		const compiledBlueprint = await this.compileInputBlueprint(
-			this.args['additional-blueprint-steps'] || []
-		);
-		this.phpVersion = compiledBlueprint.versions.php;
-
 		let wpDetails: any = undefined;
+		let wordPressZip: any = undefined;
+		let preinstalledWpContentPath: string | undefined = undefined;
 		// @TODO: Rename to FetchProgressMonitor. There's nothing Emscripten
 		// about that class anymore.
 		const monitor = new EmscriptenDownloadMonitor();
-		if (!this.args.skipWordPressSetup) {
+		if (this.args.wordpressInstallMode === 'download-and-install') {
 			let progressReached100 = false;
 			monitor.addEventListener('progress', ((
 				e: CustomEvent<ProgressEvent & { finished: boolean }>
@@ -96,157 +87,121 @@ export class BlueprintsV1Handler {
 				);
 				progressReached100 = percentProgress === 100;
 
-				if (!this.args.quiet) {
-					this.writeProgressUpdate(
-						process.stdout,
-						`Downloading WordPress ${percentProgress}%...`,
-						progressReached100
-					);
-				}
+				this.cliOutput.updateProgress(
+					'Downloading WordPress',
+					percentProgress
+				);
 			}) as any);
 
 			wpDetails = await resolveWordPressRelease(this.args.wp);
-			logger.log(
+			preinstalledWpContentPath = path.join(
+				CACHE_FOLDER,
+				`prebuilt-wp-content-for-wp-${wpDetails.version}.zip`
+			);
+			wordPressZip = fs.existsSync(preinstalledWpContentPath)
+				? readAsFile(preinstalledWpContentPath)
+				: await cachedDownload(
+						wpDetails.releaseUrl,
+						`${wpDetails.version}.zip`,
+						monitor
+					);
+			logger.debug(
 				`Resolved WordPress release URL: ${wpDetails?.releaseUrl}`
 			);
 		}
 
-		const preinstalledWpContentPath =
-			wpDetails &&
-			path.join(
-				CACHE_FOLDER,
-				`prebuilt-wp-content-for-wp-${wpDetails.version}.zip`
-			);
-		const wordPressZip = !wpDetails
-			? undefined
-			: fs.existsSync(preinstalledWpContentPath)
-			? readAsFile(preinstalledWpContentPath)
-			: await cachedDownload(
-					wpDetails.releaseUrl,
-					`${wpDetails.version}.zip`,
-					monitor
-			  );
+		let sqliteIntegrationPluginZip;
+		if (this.args.skipSqliteSetup) {
+			logger.debug(`Skipping SQLite integration plugin setup...`);
+			sqliteIntegrationPluginZip = undefined;
+		} else {
+			this.cliOutput.updateProgress('Preparing SQLite database');
+			sqliteIntegrationPluginZip = await fetchSqliteIntegration();
+		}
 
-		logger.log(`Fetching SQLite integration plugin...`);
-		const sqliteIntegrationPluginZip = this.args.skipSqliteSetup
-			? undefined
-			: await fetchSqliteIntegration(monitor);
+		this.cliOutput.updateProgress('Booting WordPress');
 
-		const followSymlinks = this.args.followSymlinks === true;
-		const trace = this.args.experimentalTrace === true;
+		const runtimeConfiguration = await resolveRuntimeConfiguration(
+			this.getEffectiveBlueprint()
+		);
 
-		const mountsBeforeWpInstall = this.args['mount-before-install'] || [];
-		const mountsAfterWpInstall = this.args.mount || [];
-
-		const playground = consumeAPI<PlaygroundCliBlueprintV1Worker>(phpPort);
-
-		// Comlink communication proxy
-		await playground.isConnected();
-
-		logger.log(`Booting WordPress...`);
-
-		await playground.useFileLockManager(fileLockManagerPort);
-		await playground.bootAsPrimaryWorker({
-			phpVersion: this.phpVersion,
-			wpVersion: compiledBlueprint.versions.wp,
-			absoluteUrl: this.siteUrl,
-			mountsBeforeWpInstall,
-			mountsAfterWpInstall,
-			wordPressZip: wordPressZip && (await wordPressZip!.arrayBuffer()),
-			sqliteIntegrationPluginZip:
-				await sqliteIntegrationPluginZip?.arrayBuffer(),
-			firstProcessId: 0,
-			processIdSpaceLength: this.processIdSpaceLength,
-			followSymlinks,
-			trace,
-			internalCookieStore: this.args.internalCookieStore,
-			withXdebug: this.args.xdebug,
-		});
+		// TODO: Fix this type issue that requires the cast to unknown
+		await (
+			playground as unknown as PlaygroundCliBlueprintV1Worker
+		).bootWordPress(
+			{
+				wpVersion: runtimeConfiguration.wpVersion,
+				siteUrl: this.siteUrl,
+				wordpressInstallMode:
+					this.args.wordpressInstallMode || 'download-and-install',
+				wordPressZip:
+					wordPressZip && (await wordPressZip!.arrayBuffer()),
+				sqliteIntegrationPluginZip:
+					await sqliteIntegrationPluginZip?.arrayBuffer(),
+				constants: mergeDefinedConstants(this.args),
+			},
+			workerPostInstallMountsPort
+		);
 
 		if (
-			wpDetails &&
+			preinstalledWpContentPath &&
 			!this.args['mount-before-install'] &&
 			!fs.existsSync(preinstalledWpContentPath)
 		) {
-			logger.log(`Caching preinstalled WordPress for the next boot...`);
+			this.cliOutput.updateProgress('Caching WordPress for next boot');
 			fs.writeFileSync(
 				preinstalledWpContentPath,
-				(await zipDirectory(playground, '/wordpress'))!
+				// Comlink proxy is not assignable to UniversalPHP but
+				// proxies all method calls transparently at runtime.
+				(await zipDirectory(
+					playground as unknown as UniversalPHP,
+					'/wordpress'
+				))!
 			);
-			logger.log(`Cached!`);
 		}
 
 		return playground;
 	}
 
-	async bootSecondaryWorker({
+	async bootRequestHandler({
 		worker,
 		fileLockManagerPort,
-		firstProcessId,
+		nativeInternalDirPath,
 	}: {
 		worker: SpawnedWorker;
 		fileLockManagerPort: NodeMessagePort;
-		firstProcessId: number;
+		nativeInternalDirPath: string;
 	}) {
-		const additionalPlayground = consumeAPI<PlaygroundCliBlueprintV1Worker>(
+		const playground = consumeAPI<PlaygroundCliBlueprintV1Worker>(
 			worker.phpPort
 		);
 
-		await additionalPlayground.isConnected();
-		await additionalPlayground.useFileLockManager(fileLockManagerPort);
-		await additionalPlayground.bootAsSecondaryWorker({
-			phpVersion: this.phpVersion,
-			absoluteUrl: this.siteUrl,
+		await playground.isConnected();
+		const runtimeConfiguration = await resolveRuntimeConfiguration(
+			this.getEffectiveBlueprint()
+		);
+		await playground.useFileLockManager(fileLockManagerPort);
+		await playground.bootRequestHandler({
+			phpVersion: runtimeConfiguration.phpVersion,
+			siteUrl: this.siteUrl,
 			mountsBeforeWpInstall: this.args['mount-before-install'] || [],
 			mountsAfterWpInstall: this.args['mount'] || [],
-			// Skip WordPress zip because we share the /wordpress directory
-			// populated by the initial worker.
-			wordPressZip: undefined,
-			// Skip SQLite integration plugin for now because we
-			// will copy it from primary's `/internal` directory.
-			sqliteIntegrationPluginZip: undefined,
-			dataSqlPath: '/wordpress/wp-content/database/.ht.sqlite',
-			firstProcessId,
-			processIdSpaceLength: this.processIdSpaceLength,
+			processId: worker.processId,
 			followSymlinks: this.args.followSymlinks === true,
 			trace: this.args.experimentalTrace === true,
-			// @TODO: Move this to the request handler or else every worker
-			//        will have a separate cookie store.
-			internalCookieStore: this.args.internalCookieStore,
-			withXdebug: this.args.xdebug,
+			withIntl: this.args.intl,
+			withRedis: this.args.redis,
+			withMemcached: this.args.memcached,
+			withXdebug: !!this.args.xdebug,
+			nativeInternalDirPath,
+			pathAliases: this.args.pathAliases,
 		});
-		await additionalPlayground.isReady();
-		return additionalPlayground;
+		await playground.isReady();
+		return playground;
 	}
 
 	async compileInputBlueprint(additionalBlueprintSteps: any[]) {
-		const args = this.args;
-		const resolvedBlueprint = args.blueprint as BlueprintDeclaration;
-		/**
-		 * @TODO This looks similar to the resolveBlueprint() call in the website package:
-		 * 	     https://github.com/WordPress/wordpress-playground/blob/ce586059e5885d185376184fdd2f52335cca32b0/packages/playground/website/src/main.tsx#L41
-		 *
-		 * 		 Also the Blueprint Builder tool does something similar.
-		 *       Perhaps all these cases could be handled by the same function?
-		 */
-		const blueprint: BlueprintDeclaration | BlueprintBundle =
-			isBlueprintBundle(resolvedBlueprint)
-				? resolvedBlueprint
-				: {
-						login: args.login,
-						...(resolvedBlueprint || {}),
-						preferredVersions: {
-							php:
-								args.php ??
-								resolvedBlueprint?.preferredVersions?.php ??
-								RecommendedPHPVersion,
-							wp:
-								args.wp ??
-								resolvedBlueprint?.preferredVersions?.wp ??
-								'latest',
-							...(resolvedBlueprint?.preferredVersions || {}),
-						},
-				  };
+		const blueprint = this.getEffectiveBlueprint();
 
 		const tracker = new ProgressTracker();
 		let lastCaption = '';
@@ -260,45 +215,41 @@ export class BlueprintsV1Handler {
 			// Use floor() so we don't report 100% until truly there.
 			const progressInteger = Math.floor(e.detail.progress);
 			lastCaption =
-				e.detail.caption || lastCaption || 'Running the Blueprint';
-			const message = `${lastCaption.trim()} – ${progressInteger}%`;
-			if (!args.quiet) {
-				this.writeProgressUpdate(
-					process.stdout,
-					message,
-					progressReached100
-				);
-			}
+				e.detail.caption || lastCaption || 'Running Blueprint';
+			this.cliOutput.updateProgress(lastCaption.trim(), progressInteger);
 		});
-		return await compileBlueprint(blueprint as BlueprintDeclaration, {
+
+		return await compileBlueprintV1(blueprint as BlueprintV1Declaration, {
 			progress: tracker,
 			additionalSteps: additionalBlueprintSteps,
 		});
 	}
 
-	writeProgressUpdate(
-		writeStream: NodeJS.WriteStream,
-		message: string,
-		finalUpdate: boolean
-	) {
-		if (message === this.lastProgressMessage) {
-			// Avoid repeating the same message
-			return;
-		}
-		this.lastProgressMessage = message;
-
-		if (writeStream.isTTY) {
-			// Overwrite previous progress updates in-place for a quieter UX.
-			writeStream.cursorTo(0);
-			writeStream.write(message);
-			writeStream.clearLine(1);
-
-			if (finalUpdate) {
-				writeStream.write('\n');
-			}
-		} else {
-			// Fall back to writing one line per progress update
-			writeStream.write(`${message}\n`);
-		}
+	private getEffectiveBlueprint() {
+		const resolvedBlueprint = this.args.blueprint as BlueprintV1Declaration;
+		/**
+		 * @TODO This looks similar to the resolveBlueprint() call in the website package:
+		 * 	     https://github.com/WordPress/wordpress-playground/blob/ce586059e5885d185376184fdd2f52335cca32b0/packages/playground/website/src/main.tsx#L41
+		 *
+		 * 		 Also the Blueprint Builder tool does something similar.
+		 *       Perhaps all these cases could be handled by the same function?
+		 */
+		return isBlueprintBundle(resolvedBlueprint)
+			? resolvedBlueprint
+			: {
+					login: this.args.login,
+					...(resolvedBlueprint || {}),
+					preferredVersions: {
+						php:
+							this.args.php ??
+							resolvedBlueprint?.preferredVersions?.php ??
+							RecommendedPHPVersion,
+						wp:
+							this.args.wp ??
+							resolvedBlueprint?.preferredVersions?.wp ??
+							'latest',
+						...(resolvedBlueprint?.preferredVersions || {}),
+					},
+				};
 	}
 }

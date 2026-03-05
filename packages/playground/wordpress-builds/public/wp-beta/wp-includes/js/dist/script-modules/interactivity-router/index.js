@@ -1,214 +1,716 @@
-import * as __WEBPACK_EXTERNAL_MODULE__wordpress_interactivity_8e89b257__ from "@wordpress/interactivity";
-/******/ var __webpack_modules__ = ({
+// packages/interactivity-router/build-module/index.mjs
+import { store, privateApis, getConfig } from "@wordpress/interactivity";
 
-/***/ 317:
-/***/ ((module) => {
-
-module.exports = import("@wordpress/a11y");;
-
-/***/ })
-
-/******/ });
-/************************************************************************/
-/******/ // The module cache
-/******/ var __webpack_module_cache__ = {};
-/******/ 
-/******/ // The require function
-/******/ function __webpack_require__(moduleId) {
-/******/ 	// Check if module is in cache
-/******/ 	var cachedModule = __webpack_module_cache__[moduleId];
-/******/ 	if (cachedModule !== undefined) {
-/******/ 		return cachedModule.exports;
-/******/ 	}
-/******/ 	// Create a new module (and put it into the cache)
-/******/ 	var module = __webpack_module_cache__[moduleId] = {
-/******/ 		// no module.id needed
-/******/ 		// no module.loaded needed
-/******/ 		exports: {}
-/******/ 	};
-/******/ 
-/******/ 	// Execute the module function
-/******/ 	__webpack_modules__[moduleId](module, module.exports, __webpack_require__);
-/******/ 
-/******/ 	// Return the exports of the module
-/******/ 	return module.exports;
-/******/ }
-/******/ 
-/************************************************************************/
-/******/ /* webpack/runtime/define property getters */
-/******/ (() => {
-/******/ 	// define getter functions for harmony exports
-/******/ 	__webpack_require__.d = (exports, definition) => {
-/******/ 		for(var key in definition) {
-/******/ 			if(__webpack_require__.o(definition, key) && !__webpack_require__.o(exports, key)) {
-/******/ 				Object.defineProperty(exports, key, { enumerable: true, get: definition[key] });
-/******/ 			}
-/******/ 		}
-/******/ 	};
-/******/ })();
-/******/ 
-/******/ /* webpack/runtime/hasOwnProperty shorthand */
-/******/ (() => {
-/******/ 	__webpack_require__.o = (obj, prop) => (Object.prototype.hasOwnProperty.call(obj, prop))
-/******/ })();
-/******/ 
-/************************************************************************/
-var __webpack_exports__ = {};
-
-// EXPORTS
-__webpack_require__.d(__webpack_exports__, {
-  o: () => (/* binding */ actions),
-  w: () => (/* binding */ state)
-});
-
-;// external "@wordpress/interactivity"
-var x = (y) => {
-	var x = {}; __webpack_require__.d(x, y); return x
-} 
-var y = (x) => (() => (x))
-const interactivity_namespaceObject = x({ ["getConfig"]: () => (__WEBPACK_EXTERNAL_MODULE__wordpress_interactivity_8e89b257__.getConfig), ["privateApis"]: () => (__WEBPACK_EXTERNAL_MODULE__wordpress_interactivity_8e89b257__.privateApis), ["store"]: () => (__WEBPACK_EXTERNAL_MODULE__wordpress_interactivity_8e89b257__.store) });
-;// ./node_modules/@wordpress/interactivity-router/build-module/head.js
-/**
- * The cache of prefetched stylesheets and scripts.
- */
-const headElements = new Map();
-
-/**
- * Helper to update only the necessary tags in the head.
- *
- * @async
- * @param newHead The head elements of the new page.
- */
-const updateHead = async newHead => {
-  // Helper to get the tag id store in the cache.
-  const getTagId = tag => tag.id || tag.outerHTML;
-
-  // Map incoming head tags by their content.
-  const newHeadMap = new Map();
-  for (const child of newHead) {
-    newHeadMap.set(getTagId(child), child);
+// packages/interactivity-router/build-module/assets/scs.mjs
+function shortestCommonSupersequence(X, Y, isEqual = (a, b) => a === b) {
+  const m = X.length;
+  const n = Y.length;
+  const dp = Array.from(
+    { length: m + 1 },
+    () => Array(n + 1).fill(null)
+  );
+  for (let i = 0; i <= m; i++) {
+    dp[i][0] = X.slice(0, i);
   }
-  const toRemove = [];
-
-  // Detect nodes that should be added or removed.
-  for (const child of document.head.children) {
-    const id = getTagId(child);
-    // Always remove styles and links as they might change.
-    if (child.nodeName === 'LINK' || child.nodeName === 'STYLE') {
-      toRemove.push(child);
-    } else if (newHeadMap.has(id)) {
-      newHeadMap.delete(id);
-    } else if (child.nodeName !== 'SCRIPT' && child.nodeName !== 'META') {
-      toRemove.push(child);
-    }
+  for (let j = 0; j <= n; j++) {
+    dp[0][j] = Y.slice(0, j);
   }
-  await Promise.all([...headElements.entries()].filter(([, {
-    tag
-  }]) => tag.nodeName === 'SCRIPT').map(async ([url]) => {
-    await import(/* webpackIgnore: true */url);
-  }));
-
-  // Prepare new assets.
-  const toAppend = [...newHeadMap.values()];
-
-  // Apply the changes.
-  toRemove.forEach(n => n.remove());
-  document.head.append(...toAppend);
-};
-
-/**
- * Fetches and processes head assets (stylesheets and scripts) from a specified document.
- *
- * @async
- * @param doc The document from which to fetch head assets. It should support standard DOM querying methods.
- *
- * @return Returns an array of HTML elements representing the head assets.
- */
-const fetchHeadAssets = async doc => {
-  const headTags = [];
-
-  // We only want to fetch module scripts because regular scripts (without
-  // `async` or `defer` attributes) can depend on the execution of other scripts.
-  // Scripts found in the head are blocking and must be executed in order.
-  const scripts = doc.querySelectorAll('script[type="module"][src]');
-  scripts.forEach(script => {
-    const src = script.getAttribute('src');
-    if (!headElements.has(src)) {
-      // add the <link> elements to prefetch the module scripts
-      const link = doc.createElement('link');
-      link.rel = 'modulepreload';
-      link.href = src;
-      document.head.append(link);
-      headElements.set(src, {
-        tag: script
-      });
-    }
-  });
-  const stylesheets = doc.querySelectorAll('link[rel=stylesheet]');
-  await Promise.all(Array.from(stylesheets).map(async tag => {
-    const href = tag.getAttribute('href');
-    if (!href) {
-      return;
-    }
-    if (!headElements.has(href)) {
-      try {
-        const response = await fetch(href);
-        const text = await response.text();
-        headElements.set(href, {
-          tag,
-          text
-        });
-      } catch (e) {
-        // eslint-disable-next-line no-console
-        console.error(e);
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      if (isEqual(X[i - 1], Y[j - 1])) {
+        dp[i][j] = dp[i - 1][j - 1].concat(X[i - 1]);
+      } else {
+        const option1 = dp[i - 1][j].concat(X[i - 1]);
+        const option2 = dp[i][j - 1].concat(Y[j - 1]);
+        dp[i][j] = option1.length <= option2.length ? option1 : option2;
       }
     }
-    const headElement = headElements.get(href);
-    const styleElement = doc.createElement('style');
-    styleElement.textContent = headElement.text;
-    headTags.push(styleElement);
-  }));
-  return [doc.querySelector('title'), ...doc.querySelectorAll('style'), ...headTags];
+  }
+  return dp[m][n];
+}
+
+// packages/interactivity-router/build-module/assets/styles.mjs
+var areNodesEqual = (a, b) => a.isEqualNode(b);
+var normalizeMedia = (element) => {
+  element = element.cloneNode(true);
+  const media = element.media;
+  const { originalMedia } = element.dataset;
+  if (media === "preload") {
+    element.media = originalMedia || "all";
+    element.removeAttribute("data-original-media");
+  } else if (!element.media) {
+    element.media = "all";
+  }
+  return element;
+};
+function updateStylesWithSCS(X, Y, parent = window.document.head) {
+  if (X.length === 0) {
+    return Y.map((element) => {
+      const promise = prepareStylePromise(element);
+      parent.appendChild(element);
+      return promise;
+    });
+  }
+  const xNormalized = X.map(normalizeMedia);
+  const yNormalized = Y.map(normalizeMedia);
+  const scs = shortestCommonSupersequence(
+    xNormalized,
+    yNormalized,
+    areNodesEqual
+  );
+  const xLength = X.length;
+  const yLength = Y.length;
+  const promises = [];
+  let last = X[xLength - 1];
+  let xIndex = 0;
+  let yIndex = 0;
+  for (const scsElement of scs) {
+    const xElement = X[xIndex];
+    const yElement = Y[yIndex];
+    const xNormEl = xNormalized[xIndex];
+    const yNormEl = yNormalized[yIndex];
+    if (xIndex < xLength && areNodesEqual(xNormEl, scsElement)) {
+      if (yIndex < yLength && areNodesEqual(yNormEl, scsElement)) {
+        promises.push(prepareStylePromise(xElement));
+        yIndex++;
+      }
+      xIndex++;
+    } else {
+      promises.push(prepareStylePromise(yElement));
+      if (xIndex < xLength) {
+        xElement.before(yElement);
+      } else {
+        last.after(yElement);
+        last = yElement;
+      }
+      yIndex++;
+    }
+  }
+  return promises;
+}
+var stylePromiseCache = /* @__PURE__ */ new WeakMap();
+var prepareStylePromise = (element) => {
+  if (stylePromiseCache.has(element)) {
+    return stylePromiseCache.get(element);
+  }
+  if (window.document.contains(element) && element.media !== "preload") {
+    const promise2 = Promise.resolve(element);
+    stylePromiseCache.set(element, promise2);
+    return promise2;
+  }
+  if (element.hasAttribute("media") && element.media !== "all") {
+    element.dataset.originalMedia = element.media;
+  }
+  element.media = "preload";
+  if (element instanceof HTMLStyleElement) {
+    const promise2 = Promise.resolve(element);
+    stylePromiseCache.set(element, promise2);
+    return promise2;
+  }
+  const promise = new Promise((resolve2, reject) => {
+    element.addEventListener("load", () => resolve2(element));
+    element.addEventListener("error", (event) => {
+      const { href } = event.target;
+      reject(
+        Error(
+          `The style sheet with the following URL failed to load: ${href}`
+        )
+      );
+    });
+  });
+  stylePromiseCache.set(element, promise);
+  return promise;
+};
+var preloadStyles = (doc) => {
+  const currentStyleElements = Array.from(
+    window.document.querySelectorAll(
+      "style,link[rel=stylesheet]"
+    )
+  );
+  const newStyleElements = Array.from(
+    doc.querySelectorAll("style,link[rel=stylesheet]")
+  );
+  return updateStylesWithSCS(currentStyleElements, newStyleElements);
+};
+var applyStyles = (styles) => {
+  window.document.querySelectorAll("style,link[rel=stylesheet]").forEach((el) => {
+    if (el.sheet) {
+      if (styles.includes(el)) {
+        if (el.sheet.media.mediaText === "preload") {
+          const { originalMedia = "all" } = el.dataset;
+          el.sheet.media.mediaText = originalMedia;
+        }
+        el.sheet.disabled = false;
+      } else {
+        el.sheet.disabled = true;
+      }
+    }
+  });
 };
 
-;// ./node_modules/@wordpress/interactivity-router/build-module/index.js
-var _getConfig$navigation;
-/**
- * WordPress dependencies
- */
+// packages/interactivity-router/build-module/assets/dynamic-importmap/resolver.mjs
+var backslashRegEx = /\\/g;
+function isURL(url) {
+  if (url.indexOf(":") === -1) {
+    return false;
+  }
+  try {
+    new URL(url);
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+function resolveIfNotPlainOrUrl(relUrl, parentUrl) {
+  const hIdx = parentUrl.indexOf("#"), qIdx = parentUrl.indexOf("?");
+  if (hIdx + qIdx > -2) {
+    parentUrl = parentUrl.slice(
+      0,
+      // eslint-disable-next-line no-nested-ternary
+      hIdx === -1 ? qIdx : qIdx === -1 || qIdx > hIdx ? hIdx : qIdx
+    );
+  }
+  if (relUrl.indexOf("\\") !== -1) {
+    relUrl = relUrl.replace(backslashRegEx, "/");
+  }
+  if (relUrl[0] === "/" && relUrl[1] === "/") {
+    return parentUrl.slice(0, parentUrl.indexOf(":") + 1) + relUrl;
+  } else if (relUrl[0] === "." && (relUrl[1] === "/" || relUrl[1] === "." && (relUrl[2] === "/" || relUrl.length === 2 && (relUrl += "/")) || relUrl.length === 1 && (relUrl += "/")) || relUrl[0] === "/") {
+    const parentProtocol = parentUrl.slice(
+      0,
+      parentUrl.indexOf(":") + 1
+    );
+    let pathname;
+    if (parentUrl[parentProtocol.length + 1] === "/") {
+      if (parentProtocol !== "file:") {
+        pathname = parentUrl.slice(parentProtocol.length + 2);
+        pathname = pathname.slice(pathname.indexOf("/") + 1);
+      } else {
+        pathname = parentUrl.slice(8);
+      }
+    } else {
+      pathname = parentUrl.slice(
+        parentProtocol.length + (parentUrl[parentProtocol.length] === "/")
+      );
+    }
+    if (relUrl[0] === "/") {
+      return parentUrl.slice(0, parentUrl.length - pathname.length - 1) + relUrl;
+    }
+    const segmented = pathname.slice(0, pathname.lastIndexOf("/") + 1) + relUrl;
+    const output = [];
+    let segmentIndex = -1;
+    for (let i = 0; i < segmented.length; i++) {
+      if (segmentIndex !== -1) {
+        if (segmented[i] === "/") {
+          output.push(segmented.slice(segmentIndex, i + 1));
+          segmentIndex = -1;
+        }
+        continue;
+      } else if (segmented[i] === ".") {
+        if (segmented[i + 1] === "." && (segmented[i + 2] === "/" || i + 2 === segmented.length)) {
+          output.pop();
+          i += 2;
+          continue;
+        } else if (segmented[i + 1] === "/" || i + 1 === segmented.length) {
+          i += 1;
+          continue;
+        }
+      }
+      while (segmented[i] === "/") {
+        i++;
+      }
+      segmentIndex = i;
+    }
+    if (segmentIndex !== -1) {
+      output.push(segmented.slice(segmentIndex));
+    }
+    return parentUrl.slice(0, parentUrl.length - pathname.length) + output.join("");
+  }
+}
+function resolveUrl(relUrl, parentUrl) {
+  return resolveIfNotPlainOrUrl(relUrl, parentUrl) || (isURL(relUrl) ? relUrl : resolveIfNotPlainOrUrl("./" + relUrl, parentUrl));
+}
+function getMatch(path, matchObj) {
+  if (matchObj[path]) {
+    return path;
+  }
+  let sepIndex = path.length;
+  do {
+    const segment = path.slice(0, sepIndex + 1);
+    if (segment in matchObj) {
+      return segment;
+    }
+  } while ((sepIndex = path.lastIndexOf("/", sepIndex - 1)) !== -1);
+}
+function applyPackages(id, packages) {
+  const pkgName = getMatch(id, packages);
+  if (pkgName) {
+    const pkg = packages[pkgName];
+    if (pkg === null) {
+      return;
+    }
+    return pkg + id.slice(pkgName.length);
+  }
+}
+function resolveImportMap(importMap2, resolvedOrPlain, parentUrl) {
+  let scopeUrl = parentUrl && getMatch(parentUrl, importMap2.scopes);
+  while (scopeUrl) {
+    const packageResolution = applyPackages(
+      resolvedOrPlain,
+      importMap2.scopes[scopeUrl]
+    );
+    if (packageResolution) {
+      return packageResolution;
+    }
+    scopeUrl = getMatch(
+      scopeUrl.slice(0, scopeUrl.lastIndexOf("/")),
+      importMap2.scopes
+    );
+  }
+  return applyPackages(resolvedOrPlain, importMap2.imports) || resolvedOrPlain.indexOf(":") !== -1 && resolvedOrPlain;
+}
+function resolveAndComposePackages(packages, outPackages, baseUrl22, parentMap) {
+  for (const p in packages) {
+    const resolvedLhs = resolveIfNotPlainOrUrl(p, baseUrl22) || p;
+    const target = packages[p];
+    if (typeof target !== "string") {
+      continue;
+    }
+    const mapped = resolveImportMap(
+      parentMap,
+      resolveIfNotPlainOrUrl(target, baseUrl22) || target,
+      baseUrl22
+    );
+    if (mapped) {
+      outPackages[resolvedLhs] = mapped;
+      continue;
+    }
+  }
+}
+function resolveAndComposeImportMap(json, baseUrl22, parentMap) {
+  const outMap = {
+    imports: Object.assign({}, parentMap.imports),
+    scopes: Object.assign({}, parentMap.scopes)
+  };
+  if (json.imports) {
+    resolveAndComposePackages(
+      json.imports,
+      outMap.imports,
+      baseUrl22,
+      parentMap
+    );
+  }
+  if (json.scopes) {
+    for (const s in json.scopes) {
+      const resolvedScope = resolveUrl(s, baseUrl22);
+      resolveAndComposePackages(
+        json.scopes[s],
+        outMap.scopes[resolvedScope] || (outMap.scopes[resolvedScope] = {}),
+        baseUrl22,
+        parentMap
+      );
+    }
+  }
+  return outMap;
+}
+var importMap = { imports: {}, scopes: {} };
+var baseUrl = document.baseURI;
+var pageBaseUrl = baseUrl;
+function addImportMap(importMapIn) {
+  importMap = resolveAndComposeImportMap(
+    importMapIn,
+    pageBaseUrl,
+    importMap
+  );
+}
+function resolve(id, parentUrl) {
+  const urlResolved = resolveIfNotPlainOrUrl(id, parentUrl);
+  return resolveImportMap(importMap, urlResolved || id, parentUrl) || id;
+}
 
+// node_modules/es-module-lexer/dist/lexer.js
+var ImportType;
+!(function(A2) {
+  A2[A2.Static = 1] = "Static", A2[A2.Dynamic = 2] = "Dynamic", A2[A2.ImportMeta = 3] = "ImportMeta", A2[A2.StaticSourcePhase = 4] = "StaticSourcePhase", A2[A2.DynamicSourcePhase = 5] = "DynamicSourcePhase";
+})(ImportType || (ImportType = {}));
+var A = 1 === new Uint8Array(new Uint16Array([1]).buffer)[0];
+function parse(E2, g = "@") {
+  if (!C) return init.then((() => parse(E2)));
+  const I = E2.length + 1, w = (C.__heap_base.value || C.__heap_base) + 4 * I - C.memory.buffer.byteLength;
+  w > 0 && C.memory.grow(Math.ceil(w / 65536));
+  const K = C.sa(I - 1);
+  if ((A ? B : Q)(E2, new Uint16Array(C.memory.buffer, K, I)), !C.parse()) throw Object.assign(new Error(`Parse error ${g}:${E2.slice(0, C.e()).split("\n").length}:${C.e() - E2.lastIndexOf("\n", C.e() - 1)}`), { idx: C.e() });
+  const D = [], o = [];
+  for (; C.ri(); ) {
+    const A2 = C.is(), Q2 = C.ie(), B2 = C.it(), g2 = C.ai(), I2 = C.id(), w2 = C.ss(), K2 = C.se();
+    let o2;
+    C.ip() && (o2 = k(E2.slice(-1 === I2 ? A2 - 1 : A2, -1 === I2 ? Q2 + 1 : Q2))), D.push({ n: o2, t: B2, s: A2, e: Q2, ss: w2, se: K2, d: I2, a: g2 });
+  }
+  for (; C.re(); ) {
+    const A2 = C.es(), Q2 = C.ee(), B2 = C.els(), g2 = C.ele(), I2 = E2.slice(A2, Q2), w2 = I2[0], K2 = B2 < 0 ? void 0 : E2.slice(B2, g2), D2 = K2 ? K2[0] : "";
+    o.push({ s: A2, e: Q2, ls: B2, le: g2, n: '"' === w2 || "'" === w2 ? k(I2) : I2, ln: '"' === D2 || "'" === D2 ? k(K2) : K2 });
+  }
+  function k(A2) {
+    try {
+      return (0, eval)(A2);
+    } catch (A3) {
+    }
+  }
+  return [D, o, !!C.f(), !!C.ms()];
+}
+function Q(A2, Q2) {
+  const B2 = A2.length;
+  let C2 = 0;
+  for (; C2 < B2; ) {
+    const B3 = A2.charCodeAt(C2);
+    Q2[C2++] = (255 & B3) << 8 | B3 >>> 8;
+  }
+}
+function B(A2, Q2) {
+  const B2 = A2.length;
+  let C2 = 0;
+  for (; C2 < B2; ) Q2[C2] = A2.charCodeAt(C2++);
+}
+var C;
+var init = WebAssembly.compile((E = "AGFzbQEAAAABKwhgAX8Bf2AEf39/fwBgAAF/YAAAYAF/AGADf39/AX9gAn9/AX9gA39/fwADMTAAAQECAgICAgICAgICAgICAgICAgIAAwMDBAQAAAUAAAAAAAMDAwAGAAAABwAGAgUEBQFwAQEBBQMBAAEGDwJ/AUHA8gALfwBBwPIACwd6FQZtZW1vcnkCAAJzYQAAAWUAAwJpcwAEAmllAAUCc3MABgJzZQAHAml0AAgCYWkACQJpZAAKAmlwAAsCZXMADAJlZQANA2VscwAOA2VsZQAPAnJpABACcmUAEQFmABICbXMAEwVwYXJzZQAUC19faGVhcF9iYXNlAwEKm0EwaAEBf0EAIAA2AoAKQQAoAtwJIgEgAEEBdGoiAEEAOwEAQQAgAEECaiIANgKECkEAIAA2AogKQQBBADYC4AlBAEEANgLwCUEAQQA2AugJQQBBADYC5AlBAEEANgL4CUEAQQA2AuwJIAEL0wEBA39BACgC8AkhBEEAQQAoAogKIgU2AvAJQQAgBDYC9AlBACAFQSRqNgKICiAEQSBqQeAJIAQbIAU2AgBBACgC1AkhBEEAKALQCSEGIAUgATYCACAFIAA2AgggBSACIAJBAmpBACAGIANGIgAbIAQgA0YiBBs2AgwgBSADNgIUIAVBADYCECAFIAI2AgQgBUEANgIgIAVBA0EBQQIgABsgBBs2AhwgBUEAKALQCSADRiICOgAYAkACQCACDQBBACgC1AkgA0cNAQtBAEEBOgCMCgsLXgEBf0EAKAL4CSIEQRBqQeQJIAQbQQAoAogKIgQ2AgBBACAENgL4CUEAIARBFGo2AogKQQBBAToAjAogBEEANgIQIAQgAzYCDCAEIAI2AgggBCABNgIEIAQgADYCAAsIAEEAKAKQCgsVAEEAKALoCSgCAEEAKALcCWtBAXULHgEBf0EAKALoCSgCBCIAQQAoAtwJa0EBdUF/IAAbCxUAQQAoAugJKAIIQQAoAtwJa0EBdQseAQF/QQAoAugJKAIMIgBBACgC3AlrQQF1QX8gABsLCwBBACgC6AkoAhwLHgEBf0EAKALoCSgCECIAQQAoAtwJa0EBdUF/IAAbCzsBAX8CQEEAKALoCSgCFCIAQQAoAtAJRw0AQX8PCwJAIABBACgC1AlHDQBBfg8LIABBACgC3AlrQQF1CwsAQQAoAugJLQAYCxUAQQAoAuwJKAIAQQAoAtwJa0EBdQsVAEEAKALsCSgCBEEAKALcCWtBAXULHgEBf0EAKALsCSgCCCIAQQAoAtwJa0EBdUF/IAAbCx4BAX9BACgC7AkoAgwiAEEAKALcCWtBAXVBfyAAGwslAQF/QQBBACgC6AkiAEEgakHgCSAAGygCACIANgLoCSAAQQBHCyUBAX9BAEEAKALsCSIAQRBqQeQJIAAbKAIAIgA2AuwJIABBAEcLCABBAC0AlAoLCABBAC0AjAoL3Q0BBX8jAEGA0ABrIgAkAEEAQQE6AJQKQQBBACgC2Ak2ApwKQQBBACgC3AlBfmoiATYCsApBACABQQAoAoAKQQF0aiICNgK0CkEAQQA6AIwKQQBBADsBlgpBAEEAOwGYCkEAQQA6AKAKQQBBADYCkApBAEEAOgD8CUEAIABBgBBqNgKkCkEAIAA2AqgKQQBBADoArAoCQAJAAkACQANAQQAgAUECaiIDNgKwCiABIAJPDQECQCADLwEAIgJBd2pBBUkNAAJAAkACQAJAAkAgAkGbf2oOBQEICAgCAAsgAkEgRg0EIAJBL0YNAyACQTtGDQIMBwtBAC8BmAoNASADEBVFDQEgAUEEakGCCEEKEC8NARAWQQAtAJQKDQFBAEEAKAKwCiIBNgKcCgwHCyADEBVFDQAgAUEEakGMCEEKEC8NABAXC0EAQQAoArAKNgKcCgwBCwJAIAEvAQQiA0EqRg0AIANBL0cNBBAYDAELQQEQGQtBACgCtAohAkEAKAKwCiEBDAALC0EAIQIgAyEBQQAtAPwJDQIMAQtBACABNgKwCkEAQQA6AJQKCwNAQQAgAUECaiIDNgKwCgJAAkACQAJAAkACQAJAIAFBACgCtApPDQAgAy8BACICQXdqQQVJDQYCQAJAAkACQAJAAkACQAJAAkACQCACQWBqDgoQDwYPDw8PBQECAAsCQAJAAkACQCACQaB/ag4KCxISAxIBEhISAgALIAJBhX9qDgMFEQYJC0EALwGYCg0QIAMQFUUNECABQQRqQYIIQQoQLw0QEBYMEAsgAxAVRQ0PIAFBBGpBjAhBChAvDQ8QFwwPCyADEBVFDQ4gASkABELsgISDsI7AOVINDiABLwEMIgNBd2oiAUEXSw0MQQEgAXRBn4CABHFFDQwMDQtBAEEALwGYCiIBQQFqOwGYCkEAKAKkCiABQQN0aiIBQQE2AgAgAUEAKAKcCjYCBAwNC0EALwGYCiIDRQ0JQQAgA0F/aiIDOwGYCkEALwGWCiICRQ0MQQAoAqQKIANB//8DcUEDdGooAgBBBUcNDAJAIAJBAnRBACgCqApqQXxqKAIAIgMoAgQNACADQQAoApwKQQJqNgIEC0EAIAJBf2o7AZYKIAMgAUEEajYCDAwMCwJAQQAoApwKIgEvAQBBKUcNAEEAKALwCSIDRQ0AIAMoAgQgAUcNAEEAQQAoAvQJIgM2AvAJAkAgA0UNACADQQA2AiAMAQtBAEEANgLgCQtBAEEALwGYCiIDQQFqOwGYCkEAKAKkCiADQQN0aiIDQQZBAkEALQCsChs2AgAgAyABNgIEQQBBADoArAoMCwtBAC8BmAoiAUUNB0EAIAFBf2oiATsBmApBACgCpAogAUH//wNxQQN0aigCAEEERg0EDAoLQScQGgwJC0EiEBoMCAsgAkEvRw0HAkACQCABLwEEIgFBKkYNACABQS9HDQEQGAwKC0EBEBkMCQsCQAJAAkACQEEAKAKcCiIBLwEAIgMQG0UNAAJAAkAgA0FVag4EAAkBAwkLIAFBfmovAQBBK0YNAwwICyABQX5qLwEAQS1GDQIMBwsgA0EpRw0BQQAoAqQKQQAvAZgKIgJBA3RqKAIEEBxFDQIMBgsgAUF+ai8BAEFQakH//wNxQQpPDQULQQAvAZgKIQILAkACQCACQf//A3EiAkUNACADQeYARw0AQQAoAqQKIAJBf2pBA3RqIgQoAgBBAUcNACABQX5qLwEAQe8ARw0BIAQoAgRBlghBAxAdRQ0BDAULIANB/QBHDQBBACgCpAogAkEDdGoiAigCBBAeDQQgAigCAEEGRg0ECyABEB8NAyADRQ0DIANBL0ZBAC0AoApBAEdxDQMCQEEAKAL4CSICRQ0AIAEgAigCAEkNACABIAIoAgRNDQQLIAFBfmohAUEAKALcCSECAkADQCABQQJqIgQgAk0NAUEAIAE2ApwKIAEvAQAhAyABQX5qIgQhASADECBFDQALIARBAmohBAsCQCADQf//A3EQIUUNACAEQX5qIQECQANAIAFBAmoiAyACTQ0BQQAgATYCnAogAS8BACEDIAFBfmoiBCEBIAMQIQ0ACyAEQQJqIQMLIAMQIg0EC0EAQQE6AKAKDAcLQQAoAqQKQQAvAZgKIgFBA3QiA2pBACgCnAo2AgRBACABQQFqOwGYCkEAKAKkCiADakEDNgIACxAjDAULQQAtAPwJQQAvAZYKQQAvAZgKcnJFIQIMBwsQJEEAQQA6AKAKDAMLECVBACECDAULIANBoAFHDQELQQBBAToArAoLQQBBACgCsAo2ApwKC0EAKAKwCiEBDAALCyAAQYDQAGokACACCxoAAkBBACgC3AkgAEcNAEEBDwsgAEF+ahAmC/4KAQZ/QQBBACgCsAoiAEEMaiIBNgKwCkEAKAL4CSECQQEQKSEDAkACQAJAAkACQAJAAkACQAJAQQAoArAKIgQgAUcNACADEChFDQELAkACQAJAAkACQAJAAkAgA0EqRg0AIANB+wBHDQFBACAEQQJqNgKwCkEBECkhA0EAKAKwCiEEA0ACQAJAIANB//8DcSIDQSJGDQAgA0EnRg0AIAMQLBpBACgCsAohAwwBCyADEBpBAEEAKAKwCkECaiIDNgKwCgtBARApGgJAIAQgAxAtIgNBLEcNAEEAQQAoArAKQQJqNgKwCkEBECkhAwsgA0H9AEYNA0EAKAKwCiIFIARGDQ8gBSEEIAVBACgCtApNDQAMDwsLQQAgBEECajYCsApBARApGkEAKAKwCiIDIAMQLRoMAgtBAEEAOgCUCgJAAkACQAJAAkACQCADQZ9/ag4MAgsEAQsDCwsLCwsFAAsgA0H2AEYNBAwKC0EAIARBDmoiAzYCsAoCQAJAAkBBARApQZ9/ag4GABICEhIBEgtBACgCsAoiBSkAAkLzgOSD4I3AMVINESAFLwEKECFFDRFBACAFQQpqNgKwCkEAECkaC0EAKAKwCiIFQQJqQbIIQQ4QLw0QIAUvARAiAkF3aiIBQRdLDQ1BASABdEGfgIAEcUUNDQwOC0EAKAKwCiIFKQACQuyAhIOwjsA5Ug0PIAUvAQoiAkF3aiIBQRdNDQYMCgtBACAEQQpqNgKwCkEAECkaQQAoArAKIQQLQQAgBEEQajYCsAoCQEEBECkiBEEqRw0AQQBBACgCsApBAmo2ArAKQQEQKSEEC0EAKAKwCiEDIAQQLBogA0EAKAKwCiIEIAMgBBACQQBBACgCsApBfmo2ArAKDwsCQCAEKQACQuyAhIOwjsA5Ug0AIAQvAQoQIEUNAEEAIARBCmo2ArAKQQEQKSEEQQAoArAKIQMgBBAsGiADQQAoArAKIgQgAyAEEAJBAEEAKAKwCkF+ajYCsAoPC0EAIARBBGoiBDYCsAoLQQAgBEEGajYCsApBAEEAOgCUCkEBECkhBEEAKAKwCiEDIAQQLCEEQQAoArAKIQIgBEHf/wNxIgFB2wBHDQNBACACQQJqNgKwCkEBECkhBUEAKAKwCiEDQQAhBAwEC0EAQQE6AIwKQQBBACgCsApBAmo2ArAKC0EBECkhBEEAKAKwCiEDAkAgBEHmAEcNACADQQJqQawIQQYQLw0AQQAgA0EIajYCsAogAEEBEClBABArIAJBEGpB5AkgAhshAwNAIAMoAgAiA0UNBSADQgA3AgggA0EQaiEDDAALC0EAIANBfmo2ArAKDAMLQQEgAXRBn4CABHFFDQMMBAtBASEECwNAAkACQCAEDgIAAQELIAVB//8DcRAsGkEBIQQMAQsCQAJAQQAoArAKIgQgA0YNACADIAQgAyAEEAJBARApIQQCQCABQdsARw0AIARBIHJB/QBGDQQLQQAoArAKIQMCQCAEQSxHDQBBACADQQJqNgKwCkEBECkhBUEAKAKwCiEDIAVBIHJB+wBHDQILQQAgA0F+ajYCsAoLIAFB2wBHDQJBACACQX5qNgKwCg8LQQAhBAwACwsPCyACQaABRg0AIAJB+wBHDQQLQQAgBUEKajYCsApBARApIgVB+wBGDQMMAgsCQCACQVhqDgMBAwEACyACQaABRw0CC0EAIAVBEGo2ArAKAkBBARApIgVBKkcNAEEAQQAoArAKQQJqNgKwCkEBECkhBQsgBUEoRg0BC0EAKAKwCiEBIAUQLBpBACgCsAoiBSABTQ0AIAQgAyABIAUQAkEAQQAoArAKQX5qNgKwCg8LIAQgA0EAQQAQAkEAIARBDGo2ArAKDwsQJQvcCAEGf0EAIQBBAEEAKAKwCiIBQQxqIgI2ArAKQQEQKSEDQQAoArAKIQQCQAJAAkACQAJAAkACQAJAIANBLkcNAEEAIARBAmo2ArAKAkBBARApIgNB8wBGDQAgA0HtAEcNB0EAKAKwCiIDQQJqQZwIQQYQLw0HAkBBACgCnAoiBBAqDQAgBC8BAEEuRg0ICyABIAEgA0EIakEAKALUCRABDwtBACgCsAoiA0ECakGiCEEKEC8NBgJAQQAoApwKIgQQKg0AIAQvAQBBLkYNBwsgA0EMaiEDDAELIANB8wBHDQEgBCACTQ0BQQYhAEEAIQIgBEECakGiCEEKEC8NAiAEQQxqIQMCQCAELwEMIgVBd2oiBEEXSw0AQQEgBHRBn4CABHENAQsgBUGgAUcNAgtBACADNgKwCkEBIQBBARApIQMLAkACQAJAAkAgA0H7AEYNACADQShHDQFBACgCpApBAC8BmAoiA0EDdGoiBEEAKAKwCjYCBEEAIANBAWo7AZgKIARBBTYCAEEAKAKcCi8BAEEuRg0HQQBBACgCsAoiBEECajYCsApBARApIQMgAUEAKAKwCkEAIAQQAQJAAkAgAA0AQQAoAvAJIQQMAQtBACgC8AkiBEEFNgIcC0EAQQAvAZYKIgBBAWo7AZYKQQAoAqgKIABBAnRqIAQ2AgACQCADQSJGDQAgA0EnRg0AQQBBACgCsApBfmo2ArAKDwsgAxAaQQBBACgCsApBAmoiAzYCsAoCQAJAAkBBARApQVdqDgQBAgIAAgtBAEEAKAKwCkECajYCsApBARApGkEAKALwCSIEIAM2AgQgBEEBOgAYIARBACgCsAoiAzYCEEEAIANBfmo2ArAKDwtBACgC8AkiBCADNgIEIARBAToAGEEAQQAvAZgKQX9qOwGYCiAEQQAoArAKQQJqNgIMQQBBAC8BlgpBf2o7AZYKDwtBAEEAKAKwCkF+ajYCsAoPCyAADQJBACgCsAohA0EALwGYCg0BA0ACQAJAAkAgA0EAKAK0Ck8NAEEBECkiA0EiRg0BIANBJ0YNASADQf0ARw0CQQBBACgCsApBAmo2ArAKC0EBECkhBEEAKAKwCiEDAkAgBEHmAEcNACADQQJqQawIQQYQLw0JC0EAIANBCGo2ArAKAkBBARApIgNBIkYNACADQSdHDQkLIAEgA0EAECsPCyADEBoLQQBBACgCsApBAmoiAzYCsAoMAAsLIAANAUEGIQBBACECAkAgA0FZag4EBAMDBAALIANBIkYNAwwCC0EAIANBfmo2ArAKDwtBDCEAQQEhAgtBACgCsAoiAyABIABBAXRqRw0AQQAgA0F+ajYCsAoPC0EALwGYCg0CQQAoArAKIQNBACgCtAohAANAIAMgAE8NAQJAAkAgAy8BACIEQSdGDQAgBEEiRw0BCyABIAQgAhArDwtBACADQQJqIgM2ArAKDAALCxAlCw8LQQBBACgCsApBfmo2ArAKC0cBA39BACgCsApBAmohAEEAKAK0CiEBAkADQCAAIgJBfmogAU8NASACQQJqIQAgAi8BAEF2ag4EAQAAAQALC0EAIAI2ArAKC5gBAQN/QQBBACgCsAoiAUECajYCsAogAUEGaiEBQQAoArQKIQIDQAJAAkACQCABQXxqIAJPDQAgAUF+ai8BACEDAkACQCAADQAgA0EqRg0BIANBdmoOBAIEBAIECyADQSpHDQMLIAEvAQBBL0cNAkEAIAFBfmo2ArAKDAELIAFBfmohAQtBACABNgKwCg8LIAFBAmohAQwACwuIAQEEf0EAKAKwCiEBQQAoArQKIQICQAJAA0AgASIDQQJqIQEgAyACTw0BIAEvAQAiBCAARg0CAkAgBEHcAEYNACAEQXZqDgQCAQECAQsgA0EEaiEBIAMvAQRBDUcNACADQQZqIAEgAy8BBkEKRhshAQwACwtBACABNgKwChAlDwtBACABNgKwCgtsAQF/AkACQCAAQV9qIgFBBUsNAEEBIAF0QTFxDQELIABBRmpB//8DcUEGSQ0AIABBKUcgAEFYakH//wNxQQdJcQ0AAkAgAEGlf2oOBAEAAAEACyAAQf0ARyAAQYV/akH//wNxQQRJcQ8LQQELLgEBf0EBIQECQCAAQaYJQQUQHQ0AIABBlghBAxAdDQAgAEGwCUECEB0hAQsgAQtGAQN/QQAhAwJAIAAgAkEBdCICayIEQQJqIgBBACgC3AkiBUkNACAAIAEgAhAvDQACQCAAIAVHDQBBAQ8LIAQQJiEDCyADC4MBAQJ/QQEhAQJAAkACQAJAAkACQCAALwEAIgJBRWoOBAUEBAEACwJAIAJBm39qDgQDBAQCAAsgAkEpRg0EIAJB+QBHDQMgAEF+akG8CUEGEB0PCyAAQX5qLwEAQT1GDwsgAEF+akG0CUEEEB0PCyAAQX5qQcgJQQMQHQ8LQQAhAQsgAQu0AwECf0EAIQECQAJAAkACQAJAAkACQAJAAkACQCAALwEAQZx/ag4UAAECCQkJCQMJCQQFCQkGCQcJCQgJCwJAAkAgAEF+ai8BAEGXf2oOBAAKCgEKCyAAQXxqQcoIQQIQHQ8LIABBfGpBzghBAxAdDwsCQAJAAkAgAEF+ai8BAEGNf2oOAwABAgoLAkAgAEF8ai8BACICQeEARg0AIAJB7ABHDQogAEF6akHlABAnDwsgAEF6akHjABAnDwsgAEF8akHUCEEEEB0PCyAAQXxqQdwIQQYQHQ8LIABBfmovAQBB7wBHDQYgAEF8ai8BAEHlAEcNBgJAIABBemovAQAiAkHwAEYNACACQeMARw0HIABBeGpB6AhBBhAdDwsgAEF4akH0CEECEB0PCyAAQX5qQfgIQQQQHQ8LQQEhASAAQX5qIgBB6QAQJw0EIABBgAlBBRAdDwsgAEF+akHkABAnDwsgAEF+akGKCUEHEB0PCyAAQX5qQZgJQQQQHQ8LAkAgAEF+ai8BACICQe8ARg0AIAJB5QBHDQEgAEF8akHuABAnDwsgAEF8akGgCUEDEB0hAQsgAQs0AQF/QQEhAQJAIABBd2pB//8DcUEFSQ0AIABBgAFyQaABRg0AIABBLkcgABAocSEBCyABCzABAX8CQAJAIABBd2oiAUEXSw0AQQEgAXRBjYCABHENAQsgAEGgAUYNAEEADwtBAQtOAQJ/QQAhAQJAAkAgAC8BACICQeUARg0AIAJB6wBHDQEgAEF+akH4CEEEEB0PCyAAQX5qLwEAQfUARw0AIABBfGpB3AhBBhAdIQELIAEL3gEBBH9BACgCsAohAEEAKAK0CiEBAkACQAJAA0AgACICQQJqIQAgAiABTw0BAkACQAJAIAAvAQAiA0Gkf2oOBQIDAwMBAAsgA0EkRw0CIAIvAQRB+wBHDQJBACACQQRqIgA2ArAKQQBBAC8BmAoiAkEBajsBmApBACgCpAogAkEDdGoiAkEENgIAIAIgADYCBA8LQQAgADYCsApBAEEALwGYCkF/aiIAOwGYCkEAKAKkCiAAQf//A3FBA3RqKAIAQQNHDQMMBAsgAkEEaiEADAALC0EAIAA2ArAKCxAlCwtwAQJ/AkACQANAQQBBACgCsAoiAEECaiIBNgKwCiAAQQAoArQKTw0BAkACQAJAIAEvAQAiAUGlf2oOAgECAAsCQCABQXZqDgQEAwMEAAsgAUEvRw0CDAQLEC4aDAELQQAgAEEEajYCsAoMAAsLECULCzUBAX9BAEEBOgD8CUEAKAKwCiEAQQBBACgCtApBAmo2ArAKQQAgAEEAKALcCWtBAXU2ApAKC0MBAn9BASEBAkAgAC8BACICQXdqQf//A3FBBUkNACACQYABckGgAUYNAEEAIQEgAhAoRQ0AIAJBLkcgABAqcg8LIAELPQECf0EAIQICQEEAKALcCSIDIABLDQAgAC8BACABRw0AAkAgAyAARw0AQQEPCyAAQX5qLwEAECAhAgsgAgtoAQJ/QQEhAQJAAkAgAEFfaiICQQVLDQBBASACdEExcQ0BCyAAQfj/A3FBKEYNACAAQUZqQf//A3FBBkkNAAJAIABBpX9qIgJBA0sNACACQQFHDQELIABBhX9qQf//A3FBBEkhAQsgAQucAQEDf0EAKAKwCiEBAkADQAJAAkAgAS8BACICQS9HDQACQCABLwECIgFBKkYNACABQS9HDQQQGAwCCyAAEBkMAQsCQAJAIABFDQAgAkF3aiIBQRdLDQFBASABdEGfgIAEcUUNAQwCCyACECFFDQMMAQsgAkGgAUcNAgtBAEEAKAKwCiIDQQJqIgE2ArAKIANBACgCtApJDQALCyACCzEBAX9BACEBAkAgAC8BAEEuRw0AIABBfmovAQBBLkcNACAAQXxqLwEAQS5GIQELIAELnAQBAX8CQCABQSJGDQAgAUEnRg0AECUPC0EAKAKwCiEDIAEQGiAAIANBAmpBACgCsApBACgC0AkQAQJAIAJFDQBBACgC8AlBBDYCHAtBAEEAKAKwCkECajYCsAoCQAJAAkACQEEAECkiAUHhAEYNACABQfcARg0BQQAoArAKIQEMAgtBACgCsAoiAUECakHACEEKEC8NAUEGIQAMAgtBACgCsAoiAS8BAkHpAEcNACABLwEEQfQARw0AQQQhACABLwEGQegARg0BC0EAIAFBfmo2ArAKDwtBACABIABBAXRqNgKwCgJAQQEQKUH7AEYNAEEAIAE2ArAKDwtBACgCsAoiAiEAA0BBACAAQQJqNgKwCgJAAkACQEEBECkiAEEiRg0AIABBJ0cNAUEnEBpBAEEAKAKwCkECajYCsApBARApIQAMAgtBIhAaQQBBACgCsApBAmo2ArAKQQEQKSEADAELIAAQLCEACwJAIABBOkYNAEEAIAE2ArAKDwtBAEEAKAKwCkECajYCsAoCQEEBECkiAEEiRg0AIABBJ0YNAEEAIAE2ArAKDwsgABAaQQBBACgCsApBAmo2ArAKAkACQEEBECkiAEEsRg0AIABB/QBGDQFBACABNgKwCg8LQQBBACgCsApBAmo2ArAKQQEQKUH9AEYNAEEAKAKwCiEADAELC0EAKALwCSIBIAI2AhAgAUEAKAKwCkECajYCDAttAQJ/AkACQANAAkAgAEH//wNxIgFBd2oiAkEXSw0AQQEgAnRBn4CABHENAgsgAUGgAUYNASAAIQIgARAoDQJBACECQQBBACgCsAoiAEECajYCsAogAC8BAiIADQAMAgsLIAAhAgsgAkH//wNxC6sBAQR/AkACQEEAKAKwCiICLwEAIgNB4QBGDQAgASEEIAAhBQwBC0EAIAJBBGo2ArAKQQEQKSECQQAoArAKIQUCQAJAIAJBIkYNACACQSdGDQAgAhAsGkEAKAKwCiEEDAELIAIQGkEAQQAoArAKQQJqIgQ2ArAKC0EBECkhA0EAKAKwCiECCwJAIAIgBUYNACAFIARBACAAIAAgAUYiAhtBACABIAIbEAILIAMLcgEEf0EAKAKwCiEAQQAoArQKIQECQAJAA0AgAEECaiECIAAgAU8NAQJAAkAgAi8BACIDQaR/ag4CAQQACyACIQAgA0F2ag4EAgEBAgELIABBBGohAAwACwtBACACNgKwChAlQQAPC0EAIAI2ArAKQd0AC0kBA39BACEDAkAgAkUNAAJAA0AgAC0AACIEIAEtAAAiBUcNASABQQFqIQEgAEEBaiEAIAJBf2oiAg0ADAILCyAEIAVrIQMLIAMLC+wBAgBBgAgLzgEAAHgAcABvAHIAdABtAHAAbwByAHQAZgBvAHIAZQB0AGEAbwB1AHIAYwBlAHIAbwBtAHUAbgBjAHQAaQBvAG4AcwBzAGUAcgB0AHYAbwB5AGkAZQBkAGUAbABlAGMAbwBuAHQAaQBuAGkAbgBzAHQAYQBuAHQAeQBiAHIAZQBhAHIAZQB0AHUAcgBkAGUAYgB1AGcAZwBlAGEAdwBhAGkAdABoAHIAdwBoAGkAbABlAGkAZgBjAGEAdABjAGYAaQBuAGEAbABsAGUAbABzAABB0AkLEAEAAAACAAAAAAQAAEA5AAA=", "undefined" != typeof Buffer ? Buffer.from(E, "base64") : Uint8Array.from(atob(E), ((A2) => A2.charCodeAt(0))))).then(WebAssembly.instantiate).then((({ exports: A2 }) => {
+  C = A2;
+}));
+var E;
 
-/**
- * Internal dependencies
- */
+// packages/interactivity-router/build-module/assets/dynamic-importmap/fetch.mjs
+var fetching = (url, parent) => {
+  return ` fetching ${url}${parent ? ` from ${parent}` : ""}`;
+};
+var jsContentType = /^(text|application)\/(x-)?javascript(;|$)/;
+async function fetchModule(url, fetchOpts, parent) {
+  let res;
+  try {
+    res = await fetch(url, fetchOpts);
+  } catch (e) {
+    throw Error(`Network error${fetching(url, parent)}.`);
+  }
+  if (!res.ok) {
+    throw Error(`Error ${res.status}${fetching(url, parent)}.`);
+  }
+  const contentType = res.headers.get("content-type");
+  if (!jsContentType.test(contentType)) {
+    throw Error(
+      `Bad Content-Type "${contentType}"${fetching(url, parent)}.`
+    );
+  }
+  return { responseUrl: res.url, source: await res.text() };
+}
 
-const {
-  directivePrefix,
+// packages/interactivity-router/build-module/assets/dynamic-importmap/loader.mjs
+var initPromise = init;
+var initialImportMapElement = window.document.querySelector(
+  "script#wp-importmap[type=importmap]"
+);
+var initialImportMap = initialImportMapElement ? JSON.parse(initialImportMapElement.text) : { imports: {}, scopes: {} };
+var skip = (id) => Object.keys(initialImportMap.imports).includes(id);
+var fetchCache = {};
+var registry = {};
+Object.keys(initialImportMap.imports).forEach((id) => {
+  registry[id] = {
+    blobUrl: id
+  };
+});
+async function loadAll(load, seen) {
+  if (load.blobUrl || seen[load.url]) {
+    return;
+  }
+  seen[load.url] = 1;
+  await load.linkPromise;
+  await Promise.all(load.deps.map((dep) => loadAll(dep, seen)));
+}
+function urlJsString(url) {
+  return `'${url.replace(/'/g, "\\'")}'`;
+}
+var createBlob = (source, type = "text/javascript") => URL.createObjectURL(new Blob([source], { type }));
+function resolveDeps(load, seen) {
+  if (load.blobUrl || !seen[load.url]) {
+    return;
+  }
+  seen[load.url] = 0;
+  for (const dep of load.deps) {
+    resolveDeps(dep, seen);
+  }
+  const [imports, exports] = load.analysis;
+  const source = load.source;
+  let resolvedSource = "";
+  if (!imports.length) {
+    resolvedSource += source;
+  } else {
+    let pushStringTo = function(originalIndex) {
+      while (dynamicImportEndStack.length && dynamicImportEndStack[dynamicImportEndStack.length - 1] < originalIndex) {
+        const dynamicImportEnd = dynamicImportEndStack.pop();
+        resolvedSource += `${source.slice(
+          lastIndex,
+          dynamicImportEnd
+        )}, ${urlJsString(load.responseUrl)}`;
+        lastIndex = dynamicImportEnd;
+      }
+      resolvedSource += source.slice(lastIndex, originalIndex);
+      lastIndex = originalIndex;
+    };
+    let lastIndex = 0;
+    let depIndex = 0;
+    const dynamicImportEndStack = [];
+    for (const {
+      s: start,
+      ss: statementStart,
+      se: statementEnd,
+      d: dynamicImportIndex
+    } of imports) {
+      if (dynamicImportIndex === -1) {
+        const depLoad = load.deps[depIndex++];
+        let blobUrl = depLoad.blobUrl;
+        const cycleShell = !blobUrl;
+        if (cycleShell) {
+          if (!(blobUrl = depLoad.shellUrl)) {
+            blobUrl = depLoad.shellUrl = createBlob(
+              `export function u$_(m){${depLoad.analysis[1].map(({ s, e }, i) => {
+                const q = depLoad.source[s] === '"' || depLoad.source[s] === "'";
+                return `e$_${i}=m${q ? `[` : "."}${depLoad.source.slice(s, e)}${q ? `]` : ""}`;
+              }).join(",")}}${depLoad.analysis[1].length ? `let ${depLoad.analysis[1].map((_, i) => `e$_${i}`).join(",")};` : ""}export {${depLoad.analysis[1].map(
+                ({ s, e }, i) => `e$_${i} as ${depLoad.source.slice(
+                  s,
+                  e
+                )}`
+              ).join(",")}}
+//# sourceURL=${depLoad.responseUrl}?cycle`
+            );
+          }
+        }
+        pushStringTo(start - 1);
+        resolvedSource += `/*${source.slice(
+          start - 1,
+          statementEnd
+        )}*/${urlJsString(blobUrl)}`;
+        if (!cycleShell && depLoad.shellUrl) {
+          resolvedSource += `;import*as m$_${depIndex} from'${depLoad.blobUrl}';import{u$_ as u$_${depIndex}}from'${depLoad.shellUrl}';u$_${depIndex}(m$_${depIndex})`;
+          depLoad.shellUrl = void 0;
+        }
+        lastIndex = statementEnd;
+      } else if (dynamicImportIndex === -2) {
+        throw Error("The import.meta property is not supported.");
+      } else {
+        pushStringTo(statementStart);
+        resolvedSource += `wpInteractivityRouterImport(`;
+        dynamicImportEndStack.push(statementEnd - 1);
+        lastIndex = start;
+      }
+    }
+    if (load.shellUrl) {
+      resolvedSource += `
+;import{u$_}from'${load.shellUrl}';try{u$_({${exports.filter((e) => e.ln).map(({ s, e, ln }) => `${source.slice(s, e)}:${ln}`).join(",")}})}catch(_){};
+`;
+    }
+    pushStringTo(source.length);
+  }
+  let hasSourceURL = false;
+  resolvedSource = resolvedSource.replace(
+    sourceMapURLRegEx,
+    (match, isMapping, url) => {
+      hasSourceURL = !isMapping;
+      return match.replace(
+        url,
+        () => new URL(url, load.responseUrl).toString()
+      );
+    }
+  );
+  if (!hasSourceURL) {
+    resolvedSource += "\n//# sourceURL=" + load.responseUrl;
+  }
+  load.blobUrl = createBlob(resolvedSource);
+  load.source = void 0;
+}
+var sourceMapURLRegEx = /\n\/\/# source(Mapping)?URL=([^\n]+)\s*((;|\/\/[^#][^\n]*)\s*)*$/;
+function getOrCreateLoad(url, fetchOpts, parent) {
+  let load = registry[url];
+  if (load) {
+    return load;
+  }
+  load = { url };
+  if (registry[url]) {
+    let i = 0;
+    while (registry[load.url + ++i]) {
+    }
+    load.url += i;
+  }
+  registry[load.url] = load;
+  load.fetchPromise = (async () => {
+    let source;
+    ({ responseUrl: load.responseUrl, source } = await (fetchCache[url] || fetchModule(url, fetchOpts, parent)));
+    try {
+      load.analysis = parse(source, load.url);
+    } catch (e) {
+      console.error(e);
+      load.analysis = [[], [], false, false];
+    }
+    load.source = source;
+    return load;
+  })();
+  load.linkPromise = load.fetchPromise.then(async () => {
+    let childFetchOpts = fetchOpts;
+    load.deps = (await Promise.all(
+      load.analysis[0].map(async ({ n, d }) => {
+        if (d !== -1 || !n) {
+          return void 0;
+        }
+        const responseUrl = resolve(
+          n,
+          load.responseUrl || load.url
+        );
+        if (skip && skip(responseUrl)) {
+          return { blobUrl: responseUrl };
+        }
+        if (childFetchOpts.integrity) {
+          childFetchOpts = {
+            ...childFetchOpts,
+            integrity: void 0
+          };
+        }
+        return getOrCreateLoad(
+          responseUrl,
+          childFetchOpts,
+          load.responseUrl
+        ).fetchPromise;
+      })
+    )).filter((l) => l);
+  });
+  return load;
+}
+var dynamicImport = (u) => import(
+  /* webpackIgnore: true */
+  u
+);
+async function preloadModule(url, fetchOpts) {
+  await initPromise;
+  const load = getOrCreateLoad(url, fetchOpts, null);
+  const seen = {};
+  await loadAll(load, seen);
+  resolveDeps(load, seen);
+  await Promise.resolve();
+  return load;
+}
+async function importPreloadedModule(load) {
+  const module = await dynamicImport(load.blobUrl);
+  if (load.shellUrl) {
+    (await dynamicImport(load.shellUrl)).u$_(module);
+  }
+  return module;
+}
+async function topLevelLoad(url, fetchOpts) {
+  const load = await preloadModule(url, fetchOpts);
+  return importPreloadedModule(load);
+}
+
+// packages/interactivity-router/build-module/assets/dynamic-importmap/index.mjs
+var baseUrl2 = document.baseURI;
+var pageBaseUrl2 = baseUrl2;
+Object.defineProperty(self, "wpInteractivityRouterImport", {
+  value: importShim,
+  writable: false,
+  enumerable: false,
+  configurable: false
+});
+async function importShim(id) {
+  await initPromise;
+  return topLevelLoad(resolve(id, pageBaseUrl2), {
+    credentials: "same-origin"
+  });
+}
+async function preloadWithMap(id, importMapIn) {
+  addImportMap(importMapIn);
+  await initPromise;
+  return preloadModule(resolve(id, pageBaseUrl2), {
+    credentials: "same-origin"
+  });
+}
+
+// packages/interactivity-router/build-module/assets/script-modules.mjs
+var resolvedScriptModules = /* @__PURE__ */ new Set();
+var markScriptModuleAsResolved = (url) => {
+  resolvedScriptModules.add(url);
+};
+var preloadScriptModules = (doc) => {
+  const importMapElement = doc.querySelector(
+    "script#wp-importmap[type=importmap]"
+  );
+  const importMap2 = importMapElement ? JSON.parse(importMapElement.text) : { imports: {}, scopes: {} };
+  for (const key in initialImportMap.imports) {
+    delete importMap2.imports[key];
+  }
+  const moduleUrls = [
+    ...doc.querySelectorAll(
+      "script[type=module][src][data-wp-router-options]"
+    )
+  ].filter((script) => {
+    try {
+      const parsed = JSON.parse(
+        script.getAttribute("data-wp-router-options")
+      );
+      return parsed?.loadOnClientNavigation === true;
+    } catch {
+      return false;
+    }
+  }).map((script) => script.src);
+  return moduleUrls.filter((url) => !resolvedScriptModules.has(url)).map((url) => preloadWithMap(url, importMap2));
+};
+var importScriptModules = (modules) => Promise.all(modules.map((m) => importPreloadedModule(m)));
+
+// packages/interactivity-router/build-module/index.mjs
+var {
   getRegionRootFragment,
   initialVdom,
   toVdom,
   render,
   parseServerData,
   populateServerData,
-  batch
-} = (0,interactivity_namespaceObject.privateApis)('I acknowledge that using private APIs means my theme or plugin will inevitably break in the next version of WordPress.');
-// Check if the navigation mode is full page or region based.
-const navigationMode = (_getConfig$navigation = (0,interactivity_namespaceObject.getConfig)('core/router').navigationMode) !== null && _getConfig$navigation !== void 0 ? _getConfig$navigation : 'regionBased';
-
-// The cache of visited and prefetched pages, stylesheets and scripts.
-const pages = new Map();
-
-// Helper to remove domain and hash from the URL. We are only interesting in
-// caching the path and the query.
-const getPagePath = url => {
+  batch,
+  routerRegions,
+  h: createElement,
+  navigationSignal,
+  warn
+} = privateApis(
+  "I acknowledge that using private APIs means my theme or plugin will inevitably break in the next version of WordPress."
+);
+var regionAttr = `data-wp-router-region`;
+var interactiveAttr = `data-wp-interactive`;
+var regionsSelector = `[${interactiveAttr}][${regionAttr}], [${interactiveAttr}] [${interactiveAttr}][${regionAttr}]`;
+var pages = /* @__PURE__ */ new Map();
+var getPagePath = (url) => {
   const u = new URL(url, window.location.href);
   return u.pathname + u.search;
 };
-
-// Fetch a new page and convert it to a static virtual DOM.
-const fetchPage = async (url, {
-  html
-}) => {
+var parseRegionAttribute = (region) => {
+  const value = region.getAttribute(regionAttr);
+  try {
+    const { id, attachTo } = JSON.parse(value);
+    return { id, attachTo };
+  } catch (e) {
+    return { id: value };
+  }
+};
+var cloneRouterRegionContent = (vdom) => {
+  if (!vdom) {
+    return vdom;
+  }
+  const allPriorityLevels = vdom.props.priorityLevels;
+  const routerRegionLevel = allPriorityLevels.findIndex(
+    (level) => level.includes("router-region")
+  );
+  const priorityLevels = routerRegionLevel !== -1 ? allPriorityLevels.slice(routerRegionLevel + 1) : allPriorityLevels;
+  return priorityLevels.length > 0 ? createElement(vdom.type, {
+    ...vdom.props,
+    priorityLevels
+  }) : vdom.props.element;
+};
+var regionsToAttachByParent = /* @__PURE__ */ new WeakMap();
+var rootFragmentsByParent = /* @__PURE__ */ new WeakMap();
+var initialRegionsToAttach = /* @__PURE__ */ new Set();
+var fetchPage = async (url, { html }) => {
   try {
     if (!html) {
       const res = await window.fetch(url);
@@ -217,126 +719,153 @@ const fetchPage = async (url, {
       }
       html = await res.text();
     }
-    const dom = new window.DOMParser().parseFromString(html, 'text/html');
-    return regionsToVdom(dom);
+    const dom = new window.DOMParser().parseFromString(html, "text/html");
+    return await preparePage(url, dom);
   } catch (e) {
     return false;
   }
 };
-
-// Return an object with VDOM trees of those HTML regions marked with a
-// `router-region` directive.
-const regionsToVdom = async (dom, {
-  vdom
-} = {}) => {
-  const regions = {
-    body: undefined
-  };
-  let head;
-  if (false) {}
-  if (navigationMode === 'regionBased') {
-    const attrName = `data-${directivePrefix}-router-region`;
-    dom.querySelectorAll(`[${attrName}]`).forEach(region => {
-      const id = region.getAttribute(attrName);
+var preparePage = async (url, dom, { vdom } = {}) => {
+  dom.querySelectorAll("noscript").forEach((el) => el.remove());
+  const regions = {};
+  const regionsToAttach = {};
+  dom.querySelectorAll(regionsSelector).forEach((region) => {
+    const { id, attachTo } = parseRegionAttribute(region);
+    if (region.parentElement.closest(`[${regionAttr}]`)) {
+      regions[id] = void 0;
+    } else {
       regions[id] = vdom?.has(region) ? vdom.get(region) : toVdom(region);
-    });
-  }
-  const title = dom.querySelector('title')?.innerText;
+    }
+    if (attachTo && !initialRegionsToAttach.has(id)) {
+      regionsToAttach[id] = attachTo;
+    }
+  });
+  const title = dom.querySelector("title")?.innerText;
   const initialData = parseServerData(dom);
+  const [styles, scriptModules] = await Promise.all([
+    Promise.all(preloadStyles(dom)),
+    Promise.all(preloadScriptModules(dom))
+  ]);
   return {
     regions,
-    head,
+    regionsToAttach,
+    styles,
+    scriptModules,
     title,
-    initialData
+    initialData,
+    url
   };
 };
-
-// Render all interactive regions contained in the given page.
-const renderRegions = async page => {
-  if (false) {}
-  if (navigationMode === 'regionBased') {
-    const attrName = `data-${directivePrefix}-router-region`;
-    batch(() => {
-      populateServerData(page.initialData);
-      document.querySelectorAll(`[${attrName}]`).forEach(region => {
-        const id = region.getAttribute(attrName);
-        const fragment = getRegionRootFragment(region);
-        render(page.regions[id], fragment);
-      });
+var renderPage = (page) => {
+  applyStyles(page.styles);
+  const regionsToAttach = { ...page.regionsToAttach };
+  batch(() => {
+    populateServerData(page.initialData);
+    navigationSignal.value += 1;
+    routerRegions.forEach((signal) => {
+      signal.value = null;
     });
-  }
+    const parentsToUpdate = /* @__PURE__ */ new Set();
+    for (const id in regionsToAttach) {
+      const parent = document.querySelector(regionsToAttach[id]);
+      if (!regionsToAttachByParent.has(parent)) {
+        regionsToAttachByParent.set(parent, []);
+      }
+      const regions = regionsToAttachByParent.get(parent);
+      if (!regions.includes(id)) {
+        regions.push(id);
+        parentsToUpdate.add(parent);
+      }
+    }
+    for (const id in page.regions) {
+      if (routerRegions.has(id)) {
+        routerRegions.get(id).value = cloneRouterRegionContent(
+          page.regions[id]
+        );
+      }
+    }
+    parentsToUpdate.forEach((parent) => {
+      const ids = regionsToAttachByParent.get(parent);
+      const vdoms = ids.map((id) => page.regions[id]);
+      if (!rootFragmentsByParent.has(parent)) {
+        const regions = vdoms.map(({ props, type }) => {
+          const elementType = typeof type === "function" ? props.type : type;
+          const region = document.createElement(elementType);
+          parent.appendChild(region);
+          return region;
+        });
+        rootFragmentsByParent.set(
+          parent,
+          getRegionRootFragment(regions)
+        );
+      }
+      const fragment = rootFragmentsByParent.get(parent);
+      render(vdoms, fragment);
+    });
+  });
   if (page.title) {
     document.title = page.title;
   }
 };
-
-/**
- * Load the given page forcing a full page reload.
- *
- * The function returns a promise that won't resolve, useful to prevent any
- * potential feedback indicating that the navigation has finished while the new
- * page is being loaded.
- *
- * @param href The page href.
- * @return Promise that never resolves.
- */
-const forcePageReload = href => {
+var forcePageReload = (href) => {
   window.location.assign(href);
-  return new Promise(() => {});
+  return new Promise(() => {
+  });
 };
-
-// Listen to the back and forward buttons and restore the page if it's in the
-// cache.
-window.addEventListener('popstate', async () => {
-  const pagePath = getPagePath(window.location.href); // Remove hash.
-  const page = pages.has(pagePath) && (await pages.get(pagePath));
+window.addEventListener("popstate", async () => {
+  const pagePath = getPagePath(window.location.href);
+  const page = pages.has(pagePath) && await pages.get(pagePath);
   if (page) {
-    await renderRegions(page);
-    // Update the URL in the state.
-    state.url = window.location.href;
+    batch(() => {
+      state.url = window.location.href;
+      renderPage(page);
+    });
   } else {
     window.location.reload();
   }
 });
-
-// Initialize the router and cache the initial page using the initial vDOM.
-// Once this code is tested and more mature, the head should be updated for
-// region based navigation as well.
-if (false) {}
-pages.set(getPagePath(window.location.href), Promise.resolve(regionsToVdom(document, {
-  vdom: initialVdom
-})));
-
-// Check if the link is valid for client-side navigation.
-const isValidLink = ref => ref && ref instanceof window.HTMLAnchorElement && ref.href && (!ref.target || ref.target === '_self') && ref.origin === window.location.origin && !ref.pathname.startsWith('/wp-admin') && !ref.pathname.startsWith('/wp-login.php') && !ref.getAttribute('href').startsWith('#') && !new URL(ref.href).searchParams.has('_wpnonce');
-
-// Check if the event is valid for client-side navigation.
-const isValidEvent = event => event && event.button === 0 &&
-// Left clicks only.
-!event.metaKey &&
-// Open in new tab (Mac).
-!event.ctrlKey &&
-// Open in new tab (Windows).
-!event.altKey &&
-// Download.
-!event.shiftKey && !event.defaultPrevented;
-
-// Variable to store the current navigation.
-let navigatingTo = '';
-let hasLoadedNavigationTextsData = false;
-const navigationTexts = {
-  loading: 'Loading page, please wait.',
-  loaded: 'Page Loaded.'
+document.querySelectorAll(regionsSelector).forEach((region) => {
+  const { id, attachTo } = parseRegionAttribute(region);
+  if (attachTo) {
+    initialRegionsToAttach.add(id);
+  }
+});
+window.document.querySelectorAll("script[type=module][src]").forEach(({ src }) => markScriptModuleAsResolved(src));
+pages.set(
+  getPagePath(window.location.href),
+  Promise.resolve(
+    preparePage(getPagePath(window.location.href), document, {
+      vdom: initialVdom
+    })
+  )
+);
+var navigatingTo = "";
+var hasLoadedNavigationTextsData = false;
+var navigationTexts = {
+  loading: "Loading page, please wait.",
+  loaded: "Page Loaded."
 };
-const {
-  state,
-  actions
-} = (0,interactivity_namespaceObject.store)('core/router', {
+var { state: privateState } = store(
+  "core/router/private",
+  {
+    state: {
+      navigation: {
+        hasStarted: false,
+        hasFinished: false
+      }
+    }
+  },
+  { lock: true }
+);
+var { state, actions } = store("core/router", {
   state: {
-    url: window.location.href,
-    navigation: {
-      hasStarted: false,
-      hasFinished: false
+    get navigation() {
+      if (true) {
+        warn(
+          `The usage of state.navigation.{hasStarted|hasFinished} from core/router is deprecated and will stop working in WordPress 7.1.`
+        );
+      }
+      return privateState.navigation;
     }
   },
   actions: {
@@ -359,29 +888,22 @@ const {
      * @return  Promise that resolves once the navigation is completed or aborted.
      */
     *navigate(href, options = {}) {
-      const {
-        clientNavigationDisabled
-      } = (0,interactivity_namespaceObject.getConfig)();
+      const { clientNavigationDisabled } = getConfig();
       if (clientNavigationDisabled) {
         yield forcePageReload(href);
       }
       const pagePath = getPagePath(href);
-      const {
-        navigation
-      } = state;
+      const { navigation } = privateState;
       const {
         loadingAnimation = true,
         screenReaderAnnouncement = true,
-        timeout = 10000
+        timeout = 1e4
       } = options;
       navigatingTo = href;
       actions.prefetch(pagePath, options);
-
-      // Create a promise that resolves when the specified timeout ends.
-      // The timeout value is 10 seconds by default.
-      const timeoutPromise = new Promise(resolve => setTimeout(resolve, timeout));
-
-      // Don't update the navigation status immediately, wait 400 ms.
+      const timeoutPromise = new Promise(
+        (resolve2) => setTimeout(resolve2, timeout)
+      );
       const loadingTimeout = setTimeout(() => {
         if (navigatingTo !== href) {
           return;
@@ -391,41 +913,32 @@ const {
           navigation.hasFinished = false;
         }
         if (screenReaderAnnouncement) {
-          a11ySpeak('loading');
+          a11ySpeak("loading");
         }
       }, 400);
-      const page = yield Promise.race([pages.get(pagePath), timeoutPromise]);
-
-      // Dismiss loading message if it hasn't been added yet.
+      const page = yield Promise.race([
+        pages.get(pagePath),
+        timeoutPromise
+      ]);
       clearTimeout(loadingTimeout);
-
-      // Once the page is fetched, the destination URL could have changed
-      // (e.g., by clicking another link in the meantime). If so, bail
-      // out, and let the newer execution to update the HTML.
       if (navigatingTo !== href) {
         return;
       }
-      if (page && !page.initialData?.config?.['core/router']?.clientNavigationDisabled) {
-        yield renderRegions(page);
-        window.history[options.replace ? 'replaceState' : 'pushState']({}, '', href);
-
-        // Update the URL in the state.
-        state.url = href;
-
-        // Update the navigation status once the the new page rendering
-        // has been completed.
-        if (loadingAnimation) {
-          navigation.hasStarted = false;
-          navigation.hasFinished = true;
-        }
+      if (page && !page.initialData?.config?.["core/router"]?.clientNavigationDisabled) {
+        yield importScriptModules(page.scriptModules);
+        batch(() => {
+          state.url = href;
+          if (loadingAnimation) {
+            navigation.hasStarted = false;
+            navigation.hasFinished = true;
+          }
+          renderPage(page);
+        });
+        window.history[options.replace ? "replaceState" : "pushState"]({}, "", href);
         if (screenReaderAnnouncement) {
-          a11ySpeak('loaded');
+          a11ySpeak("loaded");
         }
-
-        // Scroll to the anchor if exits in the link.
-        const {
-          hash
-        } = new URL(href, window.location.href);
+        const { hash } = new URL(href, window.location.href);
         if (hash) {
           document.querySelector(hash)?.scrollIntoView();
         }
@@ -443,73 +956,61 @@ const {
      * @param [options]       Options object.
      * @param [options.force] Force fetching the URL again.
      * @param [options.html]  HTML string to be used instead of fetching the requested URL.
+     *
+     * @return  Promise that resolves once the page has been fetched.
      */
-    prefetch(url, options = {}) {
-      const {
-        clientNavigationDisabled
-      } = (0,interactivity_namespaceObject.getConfig)();
+    *prefetch(url, options = {}) {
+      const { clientNavigationDisabled } = getConfig();
       if (clientNavigationDisabled) {
         return;
       }
       const pagePath = getPagePath(url);
       if (options.force || !pages.has(pagePath)) {
-        pages.set(pagePath, fetchPage(pagePath, {
-          html: options.html
-        }));
+        pages.set(
+          pagePath,
+          fetchPage(pagePath, { html: options.html })
+        );
       }
+      yield pages.get(pagePath);
     }
   }
 });
-
-/**
- * Announces a message to screen readers.
- *
- * This is a wrapper around the `@wordpress/a11y` package's `speak` function. It handles importing
- * the package on demand and should be used instead of calling `ally.speak` direacly.
- *
- * @param messageKey The message to be announced by assistive technologies.
- */
+state.url = state.url || window.location.href;
 function a11ySpeak(messageKey) {
   if (!hasLoadedNavigationTextsData) {
     hasLoadedNavigationTextsData = true;
-    const content = document.getElementById('wp-script-module-data-@wordpress/interactivity-router')?.textContent;
+    const content = document.getElementById(
+      "wp-script-module-data-@wordpress/interactivity-router"
+    )?.textContent;
     if (content) {
       try {
         const parsed = JSON.parse(content);
-        if (typeof parsed?.i18n?.loading === 'string') {
+        if (typeof parsed?.i18n?.loading === "string") {
           navigationTexts.loading = parsed.i18n.loading;
         }
-        if (typeof parsed?.i18n?.loaded === 'string') {
+        if (typeof parsed?.i18n?.loaded === "string") {
           navigationTexts.loaded = parsed.i18n.loaded;
         }
-      } catch {}
+      } catch {
+      }
     } else {
-      // Fallback to localized strings from Interactivity API state.
-      // @todo This block is for Core < 6.7.0. Remove when support is dropped.
-
-      // @ts-expect-error
       if (state.navigation.texts?.loading) {
-        // @ts-expect-error
         navigationTexts.loading = state.navigation.texts.loading;
       }
-      // @ts-expect-error
       if (state.navigation.texts?.loaded) {
-        // @ts-expect-error
         navigationTexts.loaded = state.navigation.texts.loaded;
       }
     }
   }
   const message = navigationTexts[messageKey];
-  Promise.resolve(/* import() */).then(__webpack_require__.bind(__webpack_require__, 317)).then(({
-    speak
-  }) => speak(message),
-  // Ignore failures to load the a11y module.
-  () => {});
+  import("@wordpress/a11y").then(
+    ({ speak }) => speak(message),
+    // Ignore failures to load the a11y module.
+    () => {
+    }
+  );
 }
-
-// Add click and prefetch to all links.
-if (false) {}
-
-var __webpack_exports__actions = __webpack_exports__.o;
-var __webpack_exports__state = __webpack_exports__.w;
-export { __webpack_exports__actions as actions, __webpack_exports__state as state };
+export {
+  actions,
+  state
+};

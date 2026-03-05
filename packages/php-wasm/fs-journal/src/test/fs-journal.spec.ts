@@ -453,4 +453,54 @@ describe('normalizeFilesystemOperations()', () => {
 			])
 		).toEqual([]);
 	});
+	it('Normalizes long rename sequences without overflowing the stack', () => {
+		const renameCount = 350;
+		const journal: FilesystemOperation[] = [];
+		for (let i = 0; i < renameCount; i++) {
+			journal.push({
+				operation: 'CREATE',
+				path: `/file-${i}`,
+				nodeType: 'file',
+			});
+			journal.push({
+				operation: 'RENAME',
+				path: `/file-${i}`,
+				toPath: `/renamed-${i}`,
+				nodeType: 'file',
+			});
+		}
+		const normalized = normalizeFilesystemOperations(journal);
+		expect(normalized).toEqual(
+			Array.from({ length: renameCount }, (_, i) => ({
+				operation: 'CREATE',
+				path: `/renamed-${i}`,
+				nodeType: 'file',
+			}))
+		);
+	});
+	it('Normalizes even a handful of recursive rewrites', () => {
+		const journal: FilesystemOperation[] = [
+			{ operation: 'CREATE', path: '/dir', nodeType: 'directory' },
+			{ operation: 'CREATE', path: '/dir/a', nodeType: 'directory' },
+			{
+				operation: 'RENAME',
+				path: '/dir',
+				toPath: '/dir/a',
+				nodeType: 'directory',
+			},
+			{ operation: 'DELETE', path: '/dir/a', nodeType: 'directory' },
+			{
+				operation: 'RENAME',
+				path: '/dir/a',
+				toPath: '/dir/a/b',
+				nodeType: 'directory',
+			},
+			{ operation: 'DELETE', path: '/dir/a/b', nodeType: 'directory' },
+		];
+		const normalized = normalizeFilesystemOperations([...journal]);
+		expect(normalized).toEqual([
+			{ operation: 'CREATE', path: '/dir/a', nodeType: 'directory' },
+			{ operation: 'CREATE', path: '/dir/a/a', nodeType: 'directory' },
+		]);
+	});
 });

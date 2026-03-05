@@ -6,7 +6,7 @@ import * as MinifiedWordPressVersions from '../../../wordpress-builds/src/wordpr
 
 const LatestSupportedWordPressVersion = Object.keys(
 	MinifiedWordPressVersions
-).filter((x) => !['nightly', 'beta'].includes(x))[0];
+).filter((x) => !['trunk', 'beta'].includes(x))[0];
 
 describe('Query API', () => {
 	describe('option `php`', () => {
@@ -127,14 +127,18 @@ describe('Query API', () => {
 
 	describe('option `login`', () => {
 		it('should log the user in as an admin', () => {
-			cy.visit('/');
+			// Specify initial WP URL because the Playground has changed
+			// its default WP URL in the past.
+			cy.visit('/?url=%2F');
 			cy.wordPressDocument()
 				.its('body')
 				.should('have.class', 'logged-in');
 		});
 
 		it('should not log the user in as an admin when not requested', () => {
-			cy.visit('/?login=no');
+			// Specify initial WP URL because the Playground has changed
+			// its default WP URL in the past.
+			cy.visit('/?login=no&url=%2F');
 			cy.wordPressDocument()
 				.its('body')
 				.should('not.have.class', 'logged-in');
@@ -152,7 +156,9 @@ describe('Query API', () => {
 
 	describe('option `lazy`', () => {
 		it('should defer loading the Playground assets until someone clicks on the "Run" button', () => {
-			cy.visit('/?lazy');
+			// Specify initial WP URL because the Playground has changed
+			// its default WP URL in the past.
+			cy.visit('/?lazy&url=%2F');
 			cy.get('#lazy-load-initiator').should('exist');
 			cy.get('.playground-viewport').should('not.exist');
 

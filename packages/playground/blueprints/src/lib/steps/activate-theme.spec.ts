@@ -8,13 +8,13 @@ import {
 import { activateTheme } from './activate-theme';
 import { phpVar } from '@php-wasm/util';
 import type { PHPRequestHandler } from '@php-wasm/universal';
-import { bootWordPress } from '@wp-playground/wordpress';
+import { bootWordPressAndRequestHandler } from '@wp-playground/wordpress';
 
 describe('Blueprint step activateTheme()', () => {
 	let php: PHP;
 	let handler: PHPRequestHandler;
 	beforeEach(async () => {
-		handler = await bootWordPress({
+		handler = await bootWordPressAndRequestHandler({
 			createPhpRuntime: async () =>
 				await loadNodeRuntime(RecommendedPHPVersion),
 			siteUrl: 'http://playground-domain/',
@@ -23,6 +23,11 @@ describe('Blueprint step activateTheme()', () => {
 			sqliteIntegrationPluginZip: await getSqliteDriverModule(),
 		});
 		php = await handler.getPrimaryPhp();
+	});
+
+	afterEach(async () => {
+		php.exit();
+		await handler[Symbol.asyncDispose]();
 	});
 
 	it('should activate the theme', async () => {

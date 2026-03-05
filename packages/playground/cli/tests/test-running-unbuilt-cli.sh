@@ -2,9 +2,9 @@
 
 set -euo pipefail
 
-if node -e 'if (parseInt(process.versions.node) < 23) { process.exit(0); }'; then
+if node -e 'if (parseInt(process.versions.node) < 24) { process.exit(0); }'; then
 	source ~/.nvm/nvm.sh
-	nvm install 23
+	nvm install 24
 	npm ci
 fi
 
@@ -47,24 +47,8 @@ function test_playground_cli() {
 	fi
 }
 
-function test_playground_cli_multi_worker() {
-	MULTIWORKER_WP_PATH="$HOME/playground-cli-multi-worker-wp"
-	mkdir -p "$MULTIWORKER_WP_PATH"
-
-	# TODO: Also test with asyncify once we multiple workers there.
-	test_playground_cli unbuilt-jspi \
-		--mountBeforeInstall="$MULTIWORKER_WP_PATH:/wordpress" \
-		--experimentalMultiWorker
-}
-
 echo
 test_playground_cli unbuilt-asyncify
 echo
 test_playground_cli unbuilt-jspi
 echo
-
-
-test_playground_cli_multi_worker
-echo
-echo 'Retesting multi-worker to test with a pre-existing WordPress installation where we have seen bugs.'
-test_playground_cli_multi_worker

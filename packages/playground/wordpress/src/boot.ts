@@ -3,14 +3,14 @@ import type {
 	FileNotFoundAction,
 	FileNotFoundGetActionCallback,
 	FileTree,
-	PHPProcessManager,
+	PathAlias,
+	PHPWorker,
 	SpawnHandler,
+	Remote,
 } from '@php-wasm/universal';
 import {
 	PHP,
 	PHPRequestHandler,
-	proxyFileSystem,
-	rotatePHPRuntime,
 	sandboxedSpawnHandlerFactory,
 	setPhpIniEntries,
 	withPHPIniValues,
@@ -25,7 +25,7 @@ import {
 } from '.';
 import { basename, dirname, joinPaths } from '@php-wasm/util';
 import { logger } from '@php-wasm/logger';
-import { ensureWpConfig } from './rewrite-wp-config';
+import { ensureWpConfig } from './wp-config';
 
 export type PhpIniOptions = Record<string, string>;
 export type Hook = (php: PHP) => void | Promise<void>;
@@ -34,11 +34,25 @@ export interface Hooks {
 	beforeDatabaseSetup?: Hook;
 }
 
+export type PHPInstanceCreatedHook = (
+	php: PHP,
+	{ isPrimary }: { isPrimary: boolean }
+) => Promise<void>;
+
 export type DatabaseType = 'sqlite' | 'mysql' | 'custom';
 
+export async function bootWordPressAndRequestHandler(
+	options: BootRequestHandlerOptions & BootWordPressOptions
+) {
+	const requestHandler = await bootRequestHandler(options);
+	await bootWordPress(requestHandler, options);
+	return requestHandler;
+}
+
 export interface BootRequestHandlerOptions {
-	createPhpRuntime: () => Promise<number>;
-	onPHPInstanceCreated?: (php: PHP) => Promise<void>;
+	createPhpRuntime: (isPrimary?: boolean) => Promise<number>;
+	onPHPInstanceCreated?: PHPInstanceCreatedHook;
+	maxPhpInstances?: number;
 	/**
 	 * PHP SAPI name to be returned by get_sapi_name(). Overriding
 	 * it is useful for running programs that check for this value,
@@ -51,7 +65,12 @@ export interface BootRequestHandlerOptions {
 	 */
 	siteUrl: string;
 	documentRoot?: string;
-	spawnHandler?: (processManager: PHPProcessManager) => SpawnHandler;
+	spawnHandler?: (
+		getPHPInstance?: () => Promise<{
+			php: PHP | Remote<PHPWorker>;
+			reap: () => void;
+		}>
+	) => SpawnHandler;
 	/**
 	 * PHP.ini entries to define before running any code. They'll
 	 * be used for all requests.
@@ -86,6 +105,19 @@ export interface BootRequestHandlerOptions {
 	getFileNotFoundAction?: FileNotFoundGetActionCallback;
 
 	/**
+	 * Path aliases that map URL prefixes to filesystem paths outside
+	 * the document root. Similar to Nginx's `alias` directive.
+	 *
+	 * @example
+	 * ```ts
+	 * pathAliases: [
+	 *   { urlPrefix: '/phpmyadmin', fsPath: '/tools/phpmyadmin' }
+	 * ]
+	 * ```
+	 */
+	pathAliases?: PathAlias[];
+
+	/**
 	 * The CookieStore instance to use.
 	 *
 	 * If not provided, Playground will use the HttpCookieStore by default.
@@ -102,7 +134,13 @@ export interface BootRequestHandlerOptions {
 	cookieStore?: CookieStore | false;
 }
 
-export interface BootOptions extends BootRequestHandlerOptions {
+export type WordPressInstallMode =
+	| 'download-and-install'
+	| 'install-from-existing-files'
+	| 'install-from-existing-files-if-needed'
+	| 'do-not-attempt-installing';
+
+export interface BootWordPressOptions {
 	/**
 	 * Mounting and Copying is handled via hooks for starters.
 	 *
@@ -113,10 +151,43 @@ export interface BootOptions extends BootRequestHandlerOptions {
 	hooks?: Hooks;
 	/** SQL file to load instead of installing WordPress. */
 	dataSqlPath?: string;
+	/** How to handle WordPress installation. */
+	wordpressInstallMode?: WordPressInstallMode;
 	/** Zip with the WordPress installation to extract in /wordpress. */
 	wordPressZip?: File | Promise<File> | undefined;
 	/** Preloaded SQLite integration plugin. */
 	sqliteIntegrationPluginZip?: File | Promise<File>;
+	/**
+	 * PHP constants to define for every request.
+	 */
+	constants?: Record<string, string | number | boolean | null>;
+	/**
+	 * PHP.ini entries to define before running any code. They'll
+	 * be used for all requests.
+	 */
+	phpIniEntries?: PhpIniOptions;
+	/**
+	 * Files to create in the filesystem before any mounts are applied.
+	 *
+	 * Example:
+	 *
+	 * ```ts
+	 * {
+	 * 		createFiles: {
+	 * 			'/tmp/hello.txt': 'Hello, World!',
+	 * 			'/internal/preload': {
+	 * 				'1-custom-mu-plugin.php': '<?php echo "Hello, World!";',
+	 * 			}
+	 * 		}
+	 * }
+	 * ```
+	 */
+	createFiles?: FileTree;
+	/**
+	 * URL to use as the site URL. This is used to set the WP_HOME
+	 * and WP_SITEURL constants in WordPress.
+	 */
+	siteUrl: string;
 }
 
 /**
@@ -134,9 +205,10 @@ export interface BootOptions extends BootRequestHandlerOptions {
  * @param options Boot configuration options
  * @return PHPRequestHandler instance with WordPress installed.
  */
-export async function bootWordPress(options: BootOptions) {
-	const requestHandler = await bootRequestHandler(options);
-
+export async function bootWordPress(
+	requestHandler: PHPRequestHandler,
+	options: BootWordPressOptions
+) {
 	const php = await requestHandler.getPrimaryPhp();
 	if (options.hooks?.beforeWordPressFiles) {
 		await options.hooks.beforeWordPressFiles(php);
@@ -148,7 +220,7 @@ export async function bootWordPress(options: BootOptions) {
 
 	if (options.constants) {
 		for (const key in options.constants) {
-			php.defineConstant(key, options.constants[key] as string);
+			php.defineConstant(key, options.constants[key]);
 		}
 	}
 
@@ -173,66 +245,166 @@ export async function bootWordPress(options: BootOptions) {
 
 	// @TODO Assert WordPress core files are in place
 
+	let usesSqlite = false;
 	if (options.sqliteIntegrationPluginZip) {
+		usesSqlite = true;
 		await preloadSqliteIntegration(
 			php,
 			await options.sqliteIntegrationPluginZip
 		);
 	}
 
-	if (!options.dataSqlPath) {
+	const installationMode =
+		options['wordpressInstallMode'] ?? 'download-and-install';
+	const hasCustomDatabasePath = !!options.dataSqlPath;
+
+	if (
+		['download-and-install', 'install-from-existing-files'].includes(
+			installationMode
+		)
+	) {
+		// Check database prerequisites before attempting installation
+		await assertDatabasePrerequisites(requestHandler, {
+			usesSqlite,
+			hasCustomDatabasePath,
+		});
+		// Install WordPress if it's not installed.
+		try {
+			await installWordPress(php);
+		} catch (error) {
+			// If installation failed, check if it's a database issue
+			// to provide a more specific error message (but skip if user provided custom DB path)
+			if (!hasCustomDatabasePath) {
+				await assertValidDatabaseConnection(requestHandler);
+			}
+			// If we get here, the database is valid but installation failed for another reason
+			throw error;
+		}
+		// Validate the database connection after installation (skip if user provided custom DB path)
+		if (!hasCustomDatabasePath) {
+			await assertValidDatabaseConnection(requestHandler);
+		}
+	} else if ('install-from-existing-files-if-needed' === installationMode) {
+		// Check database prerequisites before attempting installation
+		await assertDatabasePrerequisites(requestHandler, {
+			usesSqlite,
+			hasCustomDatabasePath,
+		});
 		if (!(await isWordPressInstalled(php))) {
 			// Install WordPress if it's not installed.
-			await installWordPress(php);
-		}
-
-		if (!(await isWordPressInstalled(php))) {
-			// Check if the database connection (MySQL or SQLite) is up and running.
-			const validConnection = await isDatabaseConnectionValid(php);
-
-			if (validConnection) {
-				// The database connection is valid, but WordPress installation has failed.
-				// Throw a generic error, not related to the database connection.
-				throw new Error('WordPress installation has failed.');
-			} else {
-				if (php.isFile('/internal/shared/preload/0-sqlite.php')) {
-					// The core SQLite integration has been installed, but the database connection is not valid.
-					throw new Error('Error connecting to the SQLite database.');
+			try {
+				await installWordPress(php);
+			} catch (error) {
+				// If installation failed, check if it's a database issue
+				// to provide a more specific error message (but skip if user provided custom DB path)
+				if (!hasCustomDatabasePath) {
+					await assertValidDatabaseConnection(requestHandler);
 				}
-
-				// Check if a SQLite integration plugin has not been provided.
-				if (!options.sqliteIntegrationPluginZip) {
-					const sqlitePluginPath = joinPaths(
-						requestHandler.documentRoot,
-						'wp-content/mu-plugins/sqlite-database-integration'
-					);
-
-					if (php.isDir(sqlitePluginPath)) {
-						// The mu-plugin has been installed, but the database connection is not valid.
-						throw new Error(
-							'Error connecting to the SQLite database.'
-						);
-					}
-				}
-
-				// 1. No core SQLite integration has been installed.
-				// 2. No valid SQLite integration plugin has been provided.
-				// The MySQL database connection is not valid.
-				throw new Error('Error connecting to the MySQL database.');
+				// If we get here, the database is valid but installation failed for another reason
+				throw error;
 			}
+		}
+		// Validate the database connection after installation (skip if user provided custom DB path)
+		if (!hasCustomDatabasePath) {
+			await assertValidDatabaseConnection(requestHandler);
 		}
 	}
 
 	return requestHandler;
 }
 
+/**
+ * Checks if database prerequisites are in place before attempting WordPress installation.
+ * This performs lightweight checks that don't require WordPress to be installed.
+ */
+async function assertDatabasePrerequisites(
+	requestHandler: PHPRequestHandler,
+	{
+		usesSqlite,
+		hasCustomDatabasePath,
+	}: {
+		usesSqlite: boolean;
+		hasCustomDatabasePath: boolean;
+	}
+) {
+	const php = await requestHandler.getPrimaryPhp();
+
+	// If SQLite integration is preloaded via core, we're good
+	if (php.isFile('/internal/shared/preload/0-sqlite.php')) {
+		return;
+	}
+
+	// Check if a SQLite integration plugin directory exists (even if not provided via zip)
+	// This handles cases where the directory is mounted via hooks
+	const sqlitePluginPath = joinPaths(
+		requestHandler.documentRoot,
+		'wp-content/mu-plugins/sqlite-database-integration'
+	);
+
+	if (php.isDir(sqlitePluginPath)) {
+		// The directory exists, we'll validate it after WordPress is installed
+		return;
+	}
+
+	// Check if we provided a SQLite integration zip
+	if (usesSqlite) {
+		// We provided a zip, so SQLite will be set up during boot
+		return;
+	}
+
+	// If we have a custom database path (dataSqlPath option was provided),
+	// assume it's configured - the actual connection will be validated after installation
+	if (hasCustomDatabasePath) {
+		return;
+	}
+
+	// No SQLite integration and no MySQL support available
+	// Throw early to avoid attempting installation with no database
+	throw new Error('Error connecting to the MySQL database.');
+}
+
+async function assertValidDatabaseConnection(
+	requestHandler: PHPRequestHandler
+) {
+	const php = await requestHandler.getPrimaryPhp();
+	// Check if the database connection (MySQL or SQLite) is up and running.
+	const validConnection = await isDatabaseConnectionValid(php);
+	if (validConnection) {
+		return;
+	}
+
+	if (php.isFile('/internal/shared/preload/0-sqlite.php')) {
+		// The core SQLite integration has been installed, but the database connection is not valid.
+		throw new Error('Error connecting to the SQLite database.');
+	}
+
+	// Check if a SQLite integration plugin directory exists (even if not provided via zip)
+	// This handles cases where the directory is mounted via hooks
+	const sqlitePluginPath = joinPaths(
+		requestHandler.documentRoot,
+		'wp-content/mu-plugins/sqlite-database-integration'
+	);
+
+	if (php.isDir(sqlitePluginPath)) {
+		// The mu-plugin directory exists, but the database connection is not valid.
+		throw new Error('Error connecting to the SQLite database.');
+	}
+
+	// 1. No core SQLite integration has been installed.
+	// 2. No SQLite integration plugin directory exists.
+	// The MySQL database connection is not valid.
+	throw new Error('Error connecting to the MySQL database.');
+}
+
 export async function bootRequestHandler(options: BootRequestHandlerOptions) {
-	const spawnHandler = options.spawnHandler ?? sandboxedSpawnHandlerFactory;
+	const createSpawnHandler =
+		options.spawnHandler ?? sandboxedSpawnHandlerFactory;
 	async function createPhp(
-		requestHandler: PHPRequestHandler,
-		isPrimary: boolean
+		requestHandler?: PHPRequestHandler,
+		isPrimary = false
 	) {
-		const php = new PHP(await options.createPhpRuntime());
+		const runtimeId = await options.createPhpRuntime(isPrimary);
+		const php = new PHP(runtimeId);
 		if (options.sapiName) {
 			php.setSapiName(options.sapiName);
 		}
@@ -242,8 +414,21 @@ export async function bootRequestHandler(options: BootRequestHandlerOptions) {
 		if (options.phpIniEntries) {
 			setPhpIniEntries(php, options.phpIniEntries);
 		}
+
+		// Use the new AST-based SQLite driver.
+		// TODO: Remove this once the new driver is the default; when this is closed:
+		//         https://github.com/WordPress/sqlite-database-integration/issues/195
+		php.defineConstant('WP_SQLITE_AST_DRIVER', true);
+
+		// Define any custom constants provided via CLI or configuration
+		if (options.constants) {
+			for (const key in options.constants) {
+				php.defineConstant(key, options.constants[key]);
+			}
+		}
+
 		/**
-		 * Set up mu-plugins in /internal/shared/mu-plugins
+		 * Set up mu-plugins in /internal/mu-plugins
 		 * using auto_prepend_file to provide platform-level
 		 * customization without altering the installed WordPress
 		 * site.
@@ -252,57 +437,88 @@ export async function bootRequestHandler(options: BootRequestHandlerOptions) {
 		 * the filesystem there is the source of truth
 		 * for all other PHP instances.
 		 */
-		if (isPrimary) {
+		if (
+			isPrimary &&
+			/**
+			 * Only the first PHP instance of the first worker created
+			 * during WordPress boot writes these files – otherwise we'll keep
+			 * overwriting them with concurrent writers living in other worker
+			 * threads.
+			 *
+			 * The `.boot-files-written` file is our primitive synchronization
+			 * mechanism. It works, because secondary workers are only booted
+			 * once the primary worker has fully booted.
+			 */
+			!php.isFile('/internal/.boot-files-written')
+		) {
+			// TODO: There is a race here when multiple workers are calling bootRequestHandler(). Fix it.
 			await setupPlatformLevelMuPlugins(php);
 			await writeFiles(php, '/', options.createFiles || {});
 			await preloadPhpInfoRoute(
 				php,
 				joinPaths(new URL(options.siteUrl).pathname, 'phpinfo.php')
 			);
-		} else {
-			// Proxy the filesystem for all secondary PHP instances to
-			// the primary one.
-			proxyFileSystem(await requestHandler.getPrimaryPhp(), php, [
-				'/tmp',
-				requestHandler.documentRoot,
-				'/internal/shared',
-				'/internal/symlinks',
-			]);
+			await writeFiles(php, '/internal', {
+				'.boot-files-written': '',
+			});
 		}
 
 		// Spawn handler is responsible for spawning processes for all the
 		// `popen()`, `proc_open()` etc. calls.
-		if (spawnHandler) {
+		if (createSpawnHandler) {
 			await php.setSpawnHandler(
-				spawnHandler(requestHandler.processManager)
+				createSpawnHandler(
+					requestHandler
+						? () =>
+								requestHandler.instanceManager.acquirePHPInstance()
+						: undefined
+				)
 			);
 		}
 
 		// Rotate the PHP runtime periodically to avoid memory leak-related crashes.
 		// @see https://github.com/WordPress/wordpress-playground/pull/990 for more context
-		rotatePHPRuntime({
-			php,
-			cwd: requestHandler.documentRoot,
+		php.enableRuntimeRotation({
 			recreateRuntime: options.createPhpRuntime,
 			maxRequests: 400,
 		});
 
 		if (options.onPHPInstanceCreated) {
-			await options.onPHPInstanceCreated(php);
+			await options.onPHPInstanceCreated(php, { isPrimary });
 		}
 
 		return php;
 	}
 
 	const requestHandler: PHPRequestHandler = new PHPRequestHandler({
-		phpFactory: async ({ isPrimary }) =>
-			createPhp(requestHandler, isPrimary),
 		documentRoot: options.documentRoot || '/wordpress',
 		absoluteUrl: options.siteUrl,
 		rewriteRules: wordPressRewriteRules,
+		pathAliases: options.pathAliases,
 		getFileNotFoundAction:
 			options.getFileNotFoundAction ?? getFileNotFoundActionForWordPress,
 		cookieStore: options.cookieStore,
+
+		/**
+		 * If maxPhpInstances is 1, the PHPRequestHandler constructor needs
+		 * a PHP instance. Internally, it creates a SinglePHPInstanceManager
+		 * and uses the same PHP instance to handle all requests.
+		 */
+		php:
+			options.maxPhpInstances === 1
+				? await createPhp(undefined, true)
+				: undefined,
+
+		/**
+		 * If maxPhpInstances is not 1, the PHPRequestHandler constructor needs
+		 * a PHP factory function. Internally, it creates a PHPProcessManager that
+		 * maintains a pool of reusable PHP instances.
+		 */
+		phpFactory:
+			options.maxPhpInstances !== 1
+				? async ({ isPrimary }) => createPhp(requestHandler, isPrimary)
+				: (undefined as any),
+		maxPhpInstances: options.maxPhpInstances,
 	});
 
 	return requestHandler;
@@ -336,10 +552,18 @@ export async function isWordPressInstalled(php: PHP) {
 	return result.text === '1';
 }
 
+/**
+ * Runs the WordPress installation wizard.
+ *
+ * Before running the installer this function disables networking
+ * to avoid loopback requests and also speed it up.
+ *
+ * These PHP.ini make for a *major speed improvement*.
+ * Without them, the installer may take 60 seconds,
+ * 300 seconds, or even more to complete.
+ */
 async function installWordPress(php: PHP) {
-	// Disables networking for the installation wizard
-	// to avoid loopback requests and also speed it up.
-	await withPHPIniValues(
+	const response = await withPHPIniValues(
 		php,
 		{
 			disable_functions: 'fsockopen',
@@ -364,6 +588,15 @@ async function installWordPress(php: PHP) {
 			})
 	);
 
+	if (!(await isWordPressInstalled(php))) {
+		throw new Error(
+			`Failed to install WordPress – installer responded with "${response.text?.substring(
+				0,
+				100
+			)}"`
+		);
+	}
+
 	const defaultedToPrettyPermalinks = await php.run({
 		code: `<?php
 			ob_start();
@@ -373,12 +606,17 @@ async function installWordPress(php: PHP) {
 				exit;
 			}
 			require $wp_load;
+			$nice_permalinks = '/%year%/%monthnum%/%day%/%postname%/';
 			$option_result = update_option(
 				'permalink_structure',
-				'/%year%/%monthnum%/%day%/%postname%/'
+				$nice_permalinks
 			);
 			ob_clean();
-			echo $option_result ? '1' : '0';
+			if ( get_option( 'permalink_structure' ) === $nice_permalinks ) {
+				echo '1';
+			} else {
+				echo '0';
+			}
 			ob_end_flush();
 		`,
 		env: {
@@ -414,7 +652,7 @@ async function isDatabaseConnectionValid(php: PHP) {
 			}
 			require $wp_load;
 			ob_clean();
-			echo $wpdb->check_connection( false) ? '1' : '0';
+			echo $wpdb->check_connection( false ) ? '1' : '0';
 			ob_end_flush();
 		`,
 		env: {

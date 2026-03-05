@@ -1,6 +1,7 @@
 ---
 title: Primeiros passos
 slug: /quick-start-guide
+description: Um guia de 5 minutos para começar a usar o Playground. Aprenda a testar plugins, temas e usar diferentes versões de WP/PHP.
 ---
 
 import ThisIsQueryApi from '@site/docs/\_fragments/\_this_is_query_api.md';
@@ -105,6 +106,14 @@ https://playground.wordpress.net/?theme=pendant
 You can also mix and match these parameters and even add multiple plugins:
 -->
 
+<!--
+In case you would like to install multiple themes and plugins, it is possible to repeat the `theme` or `plugin` parameters:
+-->
+
+Caso você queira instalar vários temas e plugins, é possível repetir os parâmetros `theme` ou `plugin`:
+
+https://playground.wordpress.net/?theme=pendant&theme=acai
+
 Você também pode misturar e combinar esses parâmetros e até mesmo adicionar vários plugins:
 
 https://playground.wordpress.net/?plugin=coblocks&plugin=friends&theme=pendant
@@ -121,17 +130,27 @@ https://playground.wordpress.net/?plugin=coblocks&plugin=friends&theme=pendant
 To keep your WordPress Playground site for longer than a single browser session, you can export it as a zip file.
 -->
 
-Para manter o seu site WordPress Playground por mais de uma sessão do navegador, você pode exporta-lo como um arquivo `.zip`.
-
-Abra o gerenciador de sites
-![Gerenciador de sites](@site/static/img/open-site-manager.webp)
-
 <!--
-Use the "Export" button in the top bar:
+To keep your WordPress Playground site for longer than a single browser session, you can export it as a `.zip` file.
 -->
 
-Use o botão "Download como .zip" no menu de ações adicionais
-![Export button](@site/static/img/site-manager-menu.webp)
+Para manter o seu site WordPress Playground por mais de uma sessão do navegador, você pode exporta-lo como um arquivo `.zip`.
+
+<!--
+1. Open the Playground site manager panel:
+-->
+
+1. Abra o painel do gerenciador de sites do Playground:
+
+![Site Manager](@site/static/img/site-manager/open-site-manager.webp)
+
+<!--
+2. Use the "Download as .zip" button in the additional actions menu
+-->
+
+2. Use o botão "Download como .zip" no menu de ações adicionais
+
+![Export button](@site/static/img/site-manager/export-zip-file.webp)
 
 <!--
 The exported file contains the complete site you've built. You could host it on any server that supports PHP and SQLite. All WordPress core files, plugins, themes, and everything else you've added to your site are in there.
@@ -152,12 +171,26 @@ O arquivo de banco de dados SQLite também está incluído na exportação. Voc�
 ## Restaurando um site salvo
 
 <!--
-You can restore the site you saved by using the import button in WordPress Playground:
+You can restore the saved site using the "Import from .zip" button in the Playground dashboard panel:
 -->
 
-Você pode restaurar o site salvo usando o botão de "Importação de .zip" no painel de gerenciamento de sites, no menu de ações de importação:
+Você pode restaurar o site salvo usando o botão "Importar de .zip" no painel do painel de controle do Playground:
 
-![Botão de importação de .zip](@site/static/img/site-manager-import-actions-menu.webp)
+<!--
+1. Open the Playground dashboard panel:
+-->
+
+1. Abra o painel do painel de controle do Playground:
+
+![Open Playground Dashboard](@site/static/img/dashboard/open-playground-dashboard.webp)
+
+<!--
+1. Use the "Import .zip" button at the end of the "Start a new Playground" section
+-->
+
+1. Use o botão "Importar .zip" no final da seção "Iniciar um novo Playground"
+
+![Open Playground Dashboard](@site/static/img/dashboard/import-playground.webp)
 
 <!--
 ## Use a specific WordPress or PHP version
@@ -187,16 +220,22 @@ Testes de compatibilidade com tantas versões do WordPress e do PHP sempre foram
 :::
 
 <!--
-You can also use the `wp` and `php` query parameters to open the Playground with the specific versions already loaded:
+You can also use the `wp` and `php` [query parameters](/developers/apis/query-api) to open Playground with the right versions already loaded:
 -->
 
-Você também pode usar os parâmetros de consulta `wp` e `php` para abrir o Playground com as versões específicas já carregadas:
+Você também pode usar os [parâmetros de consulta](/developers/apis/query-api) `wp` e `php` para abrir o Playground com as versões certas já carregadas:
 
--   https://playground.wordpress.net/?wp=6.7
--   https://playground.wordpress.net/?php=7.4
--   https://playground.wordpress.net/?php=8.2&wp=6.2
+- https://playground.wordpress.net/?wp=6.5
+- https://playground.wordpress.net/?php=8.3
+- https://playground.wordpress.net/?php=8.2&wp=6.2
 
 <ThisIsQueryApi />
+
+<!--
+To learn more about preparing content for demos, see the [providing content for your demo guide](/guides/providing-content-for-your-demo).
+-->
+
+Para saber mais sobre como preparar conteúdo para demonstrações, consulte o [guia de fornecimento de conteúdo para sua demonstração](/guides/providing-content-for-your-demo).
 
 <!--
 :::info Major versions only
@@ -243,10 +282,10 @@ Isso é diferente do recurso de importação descrito acima. O recurso de import
 ## Crie aplicativos com o WordPress Playground
 
 <!--
-WordPress Playground is programmable, which means you can build WordPress apps, set up plugin demos, and even use it as a zero-setup local development environment.
+WordPress Playground is programmable, which means you can [build WordPress apps](/developers/build-your-first-app), setup plugin demos, and even use it as a zero-setup [local development environment](/developers/local-development/).
 -->
 
-O WordPress Playground é programável, o que significa que você pode criar aplicativos WordPress, configurar demonstrações de plugins e até mesmo usá-lo como um ambiente de desenvolvimento local sem necessidade de configuração.
+O WordPress Playground é programável, o que significa que você pode [criar aplicativos WordPress](/developers/build-your-first-app), configurar demonstrações de plugins e até mesmo usá-lo como um [ambiente de desenvolvimento local](/developers/local-development/) sem necessidade de configuração.
 
 <!--
 To learn more about developing with WordPress Playground, check out the [development quick start](/developers/build-your-first-app) section.

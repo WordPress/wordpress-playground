@@ -4,9 +4,9 @@ slug: /developers/architecture/browser-service-workers
 
 # Service Workers
 
-[A Service Worker](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API/Using_Service_Workers) is used to handle the HTTP traffic using the in-browser PHPRequestHandler.
+[A Service Worker](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API/Using_Service_Workers) is used to handle the HTTP traffic using the in-browser [`PHPRequestHandler`](/developers/architecture/browser-concepts).
 
-Imagine your PHP script renders the following page [in the iframe viewport](#iframe-based-rendering):
+Imagine your PHP script renders the following page [in the iframe viewport](/developers/architecture/browser-iframe-rendering):
 
 ```html
 <html>
@@ -25,7 +25,7 @@ When the user clicks, say the `Blog` link, the browser would normally send a HTT
 
 Enter [Service Workers](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API/Using_Service_Workers) – a tool to intercept the HTTP requests and handle them inside the browser:
 
-![Service worker data flow](@site/static/img/workers-diagram.png)
+![Service worker data flow](@site/static/img/workers-diagram.webp)
 
 ### Service Worker setup
 

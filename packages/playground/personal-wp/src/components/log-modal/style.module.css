@@ -1,0 +1,39 @@
+.logs-inside-modal {
+	.log__search {
+		/* Title margin bottom + log margin top */
+		margin-bottom: 1.33rem;
+	}
+
+	.log__empty_placeholder {
+		/* text-align: center; */
+		font-size: 1.3rem;
+		padding-bottom: 20px;
+	}
+
+	.logs-component {
+		padding: 1rem;
+	}
+}
+
+.logs-component {
+	width: 100%;
+	display: flex;
+	flex-direction: column;
+}
+
+.log__content-container {
+	flex-grow: 1;
+}
+
+.log__entry {
+	font-family: monospace;
+	word-wrap: break-word;
+	padding: 0.5rem 0;
+	margin: 0.5rem 0;
+	white-space-collapse: preserve-breaks;
+	border-block-end: 1px dashed currentcolor;
+}
+
+.log__entry:has(mark) {
+	background-color: ivory;
+}

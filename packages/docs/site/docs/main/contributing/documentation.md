@@ -1,5 +1,7 @@
 ---
 slug: /contributing/documentation
+title: Documentation Contributions
+description: A guide on how to contribute to the Playground documentation, from opening issues to submitting pull requests.
 ---
 
 # Documentation contributions
@@ -14,11 +16,13 @@ You can contribute by [opening an issue in the project repository](https://githu
 
 If you feel up to it, write the content in the issue description, and the project contributors will take care of the rest.
 
+Would you like to see the documentation in your language? Check the [Translation section](/contributing/translations).
+
 ### Forking the repo, edit files locally and opening Pull Requests
 
 If you are familiar with markdown, you can [fork](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/working-with-forks/fork-a-repo) the `wordpress-playground` repo and propose changes and new documentation pages by submitting a Pull Request.
 
-The process of creating a branch to open new PRs with translated pages on the [WordPress/wordpress-playground](https://github.com/WordPress/wordpress-playground) repository is the same than contributing to other WordPress repositories such as gutenberg:
+The process of creating a branch to open new PRs with translated pages on the [WordPress/wordpress-playground](https://github.com/WordPress/wordpress-playground) repository is the same as contributing to other WordPress repositories such as Gutenberg:
 https://developer.wordpress.org/block-editor/contributors/code/git-workflow/
 
 The documentation files (`.md` files) are stored in Playground's GitHub repository, [under `/packages/docs/site/docs`](https://github.com/WordPress/wordpress-playground/tree/trunk/packages/docs/site/docs) for English and [`/packages/docs/site/i18n`](https://github.com/WordPress/wordpress-playground/tree/trunk/packages/docs/site/i18n) for other languages.

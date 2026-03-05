@@ -20,11 +20,11 @@ import { loadNodeRuntime } from '@php-wasm/node';
 
 const php = new PHP(await loadNodeRuntime('8.3'));
 
-const output = await php.run({
+const output = await php.runStream({
 	code: '<?php phpinfo(); ?>',
 });
 
-console.log(response.text);
+console.log(await output.stdoutText);
 ```
 
 ## Attribution

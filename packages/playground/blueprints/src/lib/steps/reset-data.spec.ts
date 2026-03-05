@@ -5,14 +5,14 @@ import {
 	getSqliteDriverModule,
 	getWordPressModule,
 } from '@wp-playground/wordpress-builds';
-import { bootWordPress } from '@wp-playground/wordpress';
+import { bootWordPressAndRequestHandler } from '@wp-playground/wordpress';
 import { loadNodeRuntime } from '@php-wasm/node';
 
 const docroot = '/php';
 describe('Blueprint step resetData()', () => {
 	let php: PHP;
 	beforeEach(async () => {
-		const handler = await bootWordPress({
+		const handler = await bootWordPressAndRequestHandler({
 			createPhpRuntime: async () =>
 				await loadNodeRuntime(RecommendedPHPVersion),
 			siteUrl: 'http://playground-domain/',
@@ -24,11 +24,15 @@ describe('Blueprint step resetData()', () => {
 		php = await handler.getPrimaryPhp();
 	});
 
+	afterEach(() => {
+		php.exit();
+	});
+
 	it('should assign ID=1 to the first post created after applying the resetData step', async () => {
 		php.writeFile(`${docroot}/index.php`, `<?php echo 'Hello World';`);
 		await resetData(php, {});
 		const result = await php.run({
-			code: `<?php 
+			code: `<?php
 			require "/php/wp-load.php";
 			// Create a new WordPress post
 			$postId = wp_insert_post([

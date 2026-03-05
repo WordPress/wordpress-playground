@@ -8,13 +8,13 @@ import { activatePlugin } from './activate-plugin';
 import { phpVar } from '@php-wasm/util';
 import type { PHPRequestHandler } from '@php-wasm/universal';
 import { loadNodeRuntime } from '@php-wasm/node';
-import { bootWordPress } from '@wp-playground/wordpress';
+import { bootWordPressAndRequestHandler } from '@wp-playground/wordpress';
 
 describe('Blueprint step activatePlugin()', () => {
 	let php: PHP;
 	let handler: PHPRequestHandler;
 	beforeEach(async () => {
-		handler = await bootWordPress({
+		handler = await bootWordPressAndRequestHandler({
 			createPhpRuntime: async () =>
 				await loadNodeRuntime(RecommendedPHPVersion),
 			siteUrl: 'http://playground-domain/',
@@ -23,6 +23,11 @@ describe('Blueprint step activatePlugin()', () => {
 			sqliteIntegrationPluginZip: await getSqliteDriverModule(),
 		});
 		php = await handler.getPrimaryPhp();
+	}, 30_000);
+
+	afterEach(async () => {
+		php.exit();
+		await handler[Symbol.asyncDispose]();
 	});
 
 	it('should activate a plugin file located in the plugins directory', async () => {
@@ -178,6 +183,52 @@ describe('Blueprint step activatePlugin()', () => {
 				pluginPath: 'test-plugin.php',
 			})
 		).resolves.not.toThrow();
+	});
+
+	it('should log noisy activation output and still treat the plugin as active', async () => {
+		const docroot = handler.documentRoot;
+		php.writeFile(
+			`${docroot}/wp-content/plugins/noisy-plugin.php`,
+			`<?php
+			/**
+			 * Plugin Name: Noisy Plugin
+			 */
+			register_activation_hook( __FILE__, function() {
+				echo 'Activation says hi';
+			} );
+
+			register_shutdown_function( function() {
+				echo 'Shutdown chimes in too';
+			} );
+			`
+		);
+
+		await expect(
+			activatePlugin(php, {
+				pluginPath: 'noisy-plugin.php',
+			})
+		).resolves.not.toThrow();
+	});
+
+	it('should throw an error if the plugin was not activated and noisy output is present', async () => {
+		const docroot = handler.documentRoot;
+		php.writeFile(
+			`${docroot}/wp-content/plugins/noisy-plugin.php`,
+			`<?php
+			/**
+			 * Plugin Name: Noisy Plugin
+			 */
+			register_activation_hook( __FILE__, function() {
+				throw new Exception( 'Activation failed' );
+			} );
+			`
+		);
+
+		await expect(
+			activatePlugin(php, {
+				pluginPath: 'noisy-plugin.php',
+			})
+		).rejects.toThrow(/Uncaught Exception: Activation failed/);
 	});
 
 	it('should not throw an error if the plugin is already active', async () => {

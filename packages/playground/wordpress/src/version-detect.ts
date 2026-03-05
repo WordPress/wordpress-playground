@@ -4,9 +4,7 @@ export async function getLoadedWordPressVersion(
 	requestHandler: PHPRequestHandler
 ): Promise<string> {
 	const { php, reap } =
-		await requestHandler.processManager.acquirePHPInstance({
-			considerPrimary: true,
-		});
+		await requestHandler.instanceManager.acquirePHPInstance();
 	try {
 		const result = await php.run({
 			code: `<?php
@@ -46,7 +44,7 @@ export function versionStringToLoadedWordPressVersion(
 ): string {
 	const nightlyPattern = /-(alpha|beta|RC)\d*-\d+$/;
 	if (nightlyPattern.test(wpVersionString)) {
-		return 'nightly';
+		return 'trunk';
 	}
 
 	// TODO: Tighten this to detect specific old beta version, like 6.2-beta.

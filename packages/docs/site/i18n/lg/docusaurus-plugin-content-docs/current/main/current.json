@@ -1,0 +1,54 @@
+{
+	"version.label": {
+		"message": "Ekiddako",
+		"description": "The label for version current"
+	},
+	"sidebar.mainSidebar.category.Documentation": {
+		"message": "Ebiwandiiko",
+		"description": "The label for category Documentation in sidebar mainSidebar"
+	},
+	"sidebar.mainSidebar.category.About Playground": {
+		"message": "Ebikwata ku Playground",
+		"description": "The label for category About Playground in sidebar mainSidebar"
+	},
+	"sidebar.mainSidebar.category.Guides": {
+		"message": "Endagiriro",
+		"description": "The label for category Guides in sidebar mainSidebar"
+	},
+	"sidebar.mainSidebar.category.Contributing": {
+		"message": "Okwongerako",
+		"description": "The label for category Contributing in sidebar mainSidebar"
+	},
+	"sidebar.blueprintsSidebar.category.Blueprints": {
+		"message": "Blueprints",
+		"description": "The label for category Blueprints in sidebar blueprintsSidebar"
+	},
+	"sidebar.blueprintsSidebar.category.Tutorial": {
+		"message": "Essomo",
+		"description": "The label for category Tutorial in sidebar blueprintsSidebar"
+	},
+	"sidebar.blueprintsSidebar.category.Steps": {
+		"message": "Emitendera",
+		"description": "The label for category Steps in sidebar blueprintsSidebar"
+	},
+	"sidebar.developersSidebar.category.Developers": {
+		"message": "Abakozi",
+		"description": "The label for category Developers in sidebar developersSidebar"
+	},
+	"sidebar.developersSidebar.category.Local Development": {
+		"message": "Okukola ku Kompyuta yo",
+		"description": "The label for category Local Development in sidebar developersSidebar"
+	},
+	"sidebar.developersSidebar.category.Playground APIs": {
+		"message": "Playground APIs",
+		"description": "The label for category Playground APIs in sidebar developersSidebar"
+	},
+	"sidebar.developersSidebar.category.Javascript API": {
+		"message": "Javascript API",
+		"description": "The label for category Javascript API in sidebar developersSidebar"
+	},
+	"sidebar.developersSidebar.category.Architecture": {
+		"message": "Ensengeka",
+		"description": "The label for category Architecture in sidebar developersSidebar"
+	}
+}

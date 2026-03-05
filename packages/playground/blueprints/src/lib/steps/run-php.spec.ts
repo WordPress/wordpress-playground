@@ -17,6 +17,7 @@ describe('Blueprint step runPHP', () => {
 
 	afterEach(() => {
 		loggerErrorSpy.mockRestore();
+		php.exit();
 	});
 
 	it('should run PHP code', async () => {

@@ -1,5 +1,8 @@
-import { createSpawnHandler } from '@php-wasm/util';
-import type { PHPProcessManager } from './php-process-manager';
+import { createSpawnHandler, splitShellCommand } from '@php-wasm/util';
+import type { PHP } from './php';
+import type { PHPWorker } from './php-worker';
+import type { Remote } from './comlink-sync';
+import { logger } from '@php-wasm/logger';
 
 /**
  * An isomorphic proc_open() handler that implements typical shell in TypeScript
@@ -12,10 +15,31 @@ import type { PHPProcessManager } from './php-process-manager';
  * parser.
  */
 export function sandboxedSpawnHandlerFactory(
-	processManager: PHPProcessManager
+	getPHPInstance?: () => Promise<{
+		php: PHP | Remote<PHPWorker>;
+		reap: () => void;
+	}>
 ) {
 	return createSpawnHandler(async function (args, processApi, options) {
 		processApi.notifySpawn();
+		/**
+		 * Blueprints v2 spawn through the Symfony Process class, which wraps the command in
+		 *
+		 * `/bin/sh -c "exec ..."`
+		 *
+		 * We need to unwrap it.
+		 *
+		 * We can't just call the /bin/sh binary because we're running a sandboxed shell handler with
+		 * no access to OS binaries. The OS binaries wouldn't be able to resolve PHP VFS paths anyway.
+		 */
+		if (
+			args?.[0] === '/bin/sh' &&
+			args?.[1] === '-c' &&
+			typeof args[2] === 'string'
+		) {
+			args = splitShellCommand(args[2]);
+		}
+
 		if (args[0] === 'exec') {
 			args.shift();
 		}
@@ -44,53 +68,100 @@ export function sandboxedSpawnHandlerFactory(
 			processApi.stdout(`140`);
 			processApi.exit(0);
 		} else if (binaryName === 'less') {
-			processApi.on('stdin', (data: Uint8Array) => {
+			processApi.on('stdin', (data) => {
 				processApi.stdout(data);
 			});
-			processApi.exit(0);
-		} else if (binaryName === 'php') {
-			const { php, reap } = await processManager.acquirePHPInstance({
-				considerPrimary: false,
-			});
-
-			php.chdir(options.cwd as string);
-			try {
-				// Figure out more about setting env, putenv(), etc.
-				const result = await php.cli(args, {
-					env: {
-						...options.env,
-						SCRIPT_PATH: args[1],
-						// Set SHELL_PIPE to 0 to ensure WP-CLI formats
-						// the output as ASCII tables.
-						// @see https://github.com/wp-cli/wp-cli/issues/1102
-						SHELL_PIPE: '0',
-					},
+			// Exit after the stdin stream is exhausted.
+			await new Promise((resolve) => {
+				processApi.childProcess.stdin.on('finish', () => {
+					resolve(true);
 				});
+			});
+			processApi.exit(0);
+			return;
+		}
 
-				result.stdout.pipeTo(
-					new WritableStream({
-						write(chunk) {
-							processApi.stdout(chunk);
-						},
-					})
-				);
-				result.stderr.pipeTo(
-					new WritableStream({
-						write(chunk) {
-							processApi.stderr(chunk);
-						},
-					})
-				);
-				processApi.exit(await result.exitCode);
-			} catch (e) {
-				// An exception here means the PHP runtime has crashed.
-				processApi.exit(1);
-				throw e;
-			} finally {
-				reap();
+		if (!['php', 'ls', 'pwd'].includes(binaryName ?? '')) {
+			// 127 is the exit code "for command not found".
+			processApi.exit(127);
+			return;
+		}
+
+		if (!getPHPInstance) {
+			logger.warn(
+				'Tried to spawn a PHP subprocess, but the sandboxed spawn handler was created without a getPHPInstance function.'
+			);
+			processApi.exit(127);
+			return;
+		}
+
+		const { php, reap } = await getPHPInstance();
+
+		try {
+			if (options.cwd) {
+				await php.chdir(options.cwd as string);
 			}
-		} else {
+
+			const cwd = await php.cwd();
+			switch (binaryName) {
+				case 'php': {
+					// Figure out more about setting env, putenv(), etc.
+					const result = await php.cli(args, {
+						env: {
+							...options.env,
+							SCRIPT_PATH: args[1],
+							// Set SHELL_PIPE to 0 to ensure WP-CLI formats
+							// the output as ASCII tables.
+							// @see https://github.com/wp-cli/wp-cli/issues/1102
+							SHELL_PIPE: '0',
+						},
+					});
+
+					result.stdout.pipeTo(
+						new WritableStream({
+							write(chunk) {
+								processApi.stdout(chunk as any as ArrayBuffer);
+							},
+						})
+					);
+					result.stderr.pipeTo(
+						new WritableStream({
+							write(chunk) {
+								processApi.stderr(chunk as any as ArrayBuffer);
+							},
+						})
+					);
+					processApi.exit(await result.exitCode);
+					break;
+				}
+				case 'ls': {
+					const files = await php.listFiles(args[1] ?? cwd);
+					for (const file of files) {
+						processApi.stdout(file + '\n');
+					}
+					// Technical limitation of subprocesses – we need to
+					// wait before exiting to give consumer a chance to read
+					// the output.
+					await new Promise((resolve) => setTimeout(resolve, 10));
+					processApi.exit(0);
+					break;
+				}
+				case 'pwd': {
+					processApi.stdout(cwd + '\n');
+					// Technical limitation of subprocesses – we need to
+					// wait before exiting to give consumer a chance to read
+					// the output.
+					await new Promise((resolve) => setTimeout(resolve, 10));
+					processApi.exit(0);
+					break;
+				}
+			}
+		} catch (e) {
+			// An exception here means the PHP runtime has crashed.
 			processApi.exit(1);
+			throw e;
+		} finally {
+			reap();
 		}
 	});
 }

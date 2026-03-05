@@ -54,7 +54,7 @@ display={`{
     },
     {
       "step": "runPHP",
-      "code": "<?php include 'wordpress/wp-load.php'; wp_insert_post(array('post_title' => 'Post title', 'post_content' => 'Post content', 'post_status' => 'publish', 'post_author' => 1)); ?>"
+      "code": "<?php require_once '/wordpress/wp-load.php'; wp_insert_post(array('post_title' => 'Post title', 'post_content' => 'Post content', 'post_status' => 'publish', 'post_author' => 1)); ?>"
     }
   ]
 }` }
@@ -73,7 +73,7 @@ blueprint={{
 			{
 				"step": "runPHP",
 				"code": `<?php
-include 'wordpress/wp-load.php';
+require_once '/wordpress/wp-load.php';
 wp_insert_post(array(
 'post_title' => 'Post title',
 'post_content' => 'Post content',
@@ -95,7 +95,7 @@ Blueprints play a significant role in WordPress Playground, so they have their o
 
 ### JavaScript API
 
-The `@wp-playground/client` package provides a JavaScript API you can use to fully control your Playground instance. Here's a very example of what you can do:
+The `@wp-playground/client` package provides a JavaScript API you can use to fully control your Playground instance. Here's a simple example of what you can do:
 
 import JSApiShortExample from '@site/docs/\_fragments/\_js_api_short_example.mdx';
 

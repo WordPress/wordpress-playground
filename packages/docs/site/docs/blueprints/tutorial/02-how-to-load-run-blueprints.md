@@ -1,7 +1,7 @@
 ---
 title: How to run Blueprints
 slug: /blueprints/tutorial/how-to-load-run-blueprints
-description: Learn about the multiple ways to use blueprints
+description: Learn the various methods for loading and running Blueprints, including using a URL fragment or the blueprint-url parameter.
 ---
 
 # How to load and run Blueprints
@@ -40,7 +40,7 @@ When your Blueprint gets too wieldy, you can load it via the `?blueprint-url` qu
 
 [https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/latest-gutenberg/blueprint.json](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/latest-gutenberg/blueprint.json)
 
-Note that the Blueprint must be publicly accessible and served with [the correct `Access-Control-Allow-Origin` header](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin):
+Note that the Blueprint must be publicly accessible and served with [the correct `Access-Control-Allow-Origin` header](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Access-Control-Allow-Origin):
 
 ```
 Access-Control-Allow-Origin: *

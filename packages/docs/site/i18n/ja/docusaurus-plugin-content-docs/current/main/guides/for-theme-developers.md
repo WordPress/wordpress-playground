@@ -1,7 +1,7 @@
 ---
-title: テーマ開発者のための Playground
+title: テーマ開発者のためのWordPressプレイグラウンド
 slug: /guides/for-theme-developers
-description: テーマ開発者のための WordPress プレイグラウンド
+description: Playground を使用して、Blueprints でテーマのライブ デモを構築、テスト、作成するためのテーマ開発者向けガイドです。
 ---
 
 WordPress Playground は、テーマ開発者がブラウザ環境で直接テーマを構築、テスト、紹介できる革新的なツールです。
@@ -72,7 +72,7 @@ You can also load any theme from the WordPress themes directory by setting the [
 }
 ```
 
-[<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](https://playground.wordpress.net/builder/builder.html#{%22steps%22:[{%22step%22:%22installTheme%22,%22themeData%22:{%22resource%22:%22wordpress.org/themes%22,%22slug%22:%22twentytwenty%22},%22options%22:{%22activate%22:true,%22importStarterContent%22:true}}]})
+[<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](https://playground.wordpress.net/builder/builder.html#{%22steps%22:[{%22step%22:%22installTheme%22,%22themeData%22:{%22resource%22:%22wordpress.org/themes%22,%22slug%22:%22twentytwenty%22},%22options%22:{%22activate%22:true,%22importStarterContent%22:true}}]})
 
 ### GitHub リポジトリ内のテーマ
 
@@ -86,32 +86,26 @@ GitHub リポジトリに保存されているテーマは、Blueprints を使�
 A theme stored in a GitHub repository can also be loaded in a Playground instance with Blueprints.
 -->
 
-[`installTheme` ブループリント ステップ](/blueprints/steps#InstallThemeStep) の `themeData` プロパティで、Playground インスタンスにロードするテーマを含む `.zip` ファイルの場所を指す [`url` リソース](/blueprints/steps/resources#urlreference) を定義できます。
+[`installTheme` ブループリント ステップ](/blueprints/steps#InstallThemeStep)の`themeData`プロパティを使用して、Playgroundインスタンス内のリポジトリのファイルからテーマを構築する[`git:directory`リソース](/blueprints/steps/resources#gitdirectoryreference)を定義できます。
 
 <!--
-In the `themeData` property of the [`installTheme` blueprint step](/blueprints/steps#InstallThemeStep), you can define a [`url` resource](/blueprints/steps/resources#urlreference) that points to the location of the `.zip` file containing the theme you want to load in the Playground instance.
+With the `themeData` property of the [`installTheme` blueprint step](/blueprints/steps#InstallThemeStep), you can define a [`git:directory` resource](/blueprints/steps/resources#gitdirectoryreference) that will build a theme from the files from a repository in the Playground instance.
 -->
 
-CORS の問題を回避するために、Playground プロジェクトでは [GitHub プロキシ](https://playground.wordpress.net/proxy) が提供されており、これを使用すると、自分のテーマを含むリポジトリ (またはリポジトリ内のフォルダー) から `.zip` を生成できます。
-
-<!--
-To avoid CORS issues, the Playground project provides a [GitHub proxy](https://playground.wordpress.net/proxy) that allows you to generate a `.zip` from a repository (or even a folder inside a repo) containing your or theme.
--->
-
-:::tip
-[GitHub プロキシ](https://playground.wordpress.net/proxy) は、特定のブランチ、特定のディレクトリ、特定のコミット、または特定の PR からテーマを読み込むことができるため、GitHub リポジトリからテーマを読み込むのに非常に便利なツールです。
+:::info
+ここ数ヶ月、[GitHubプロキシ](https://playground.wordpress.net/proxy)はGitHubリポジトリからテーマを読み込むための非常に便利なツールでした。特定のブランチ、特定のディレクトリ、特定のコミット、または特定のPRからテーマを読み込むことができました。しかし、Playgroundの最近の改善により、この機能は不要になりました。GitHubプロキシはまもなく廃止されるため、ブループリントを`git:directory`リソースに更新してください。
 :::
 
 <!--
-:::tip
-[GitHub proxy](https://playground.wordpress.net/proxy) is an incredibly useful tool to load themes from GitHub repositories as it allows you to load a theme from a specific branch, a specific directory, a specific commit or a specific PR.
+:::info
+For the past few months, the [GitHub proxy](https://playground.wordpress.net/proxy) was an incredibly useful tool to load themes from GitHub repositories, as it allows you to load a theme from a specific branch, a specific directory, a specific commit, or a specific PR. But with the recent improvements to Playground, this feature is no longer necessary. The GitHub Proxy will be discontinued soon, please update your blueprints to `git:directory` resource.
 :::
 -->
 
-たとえば、次の `blueprint.json` は、https://github-proxy.com ツールを使用して GitHub リポジトリからテーマをインストールします。
+たとえば、次の `blueprint.json` は GitHub リポジトリからテーマをインストールします。
 
 <!--
-For example the following `blueprint.json` installs a theme from a GitHub repository leveraging the https://github-proxy.com tool:
+For example the following `blueprint.json` installs a theme from a GitHub repository:
 -->
 
 ```json
@@ -120,8 +114,10 @@ For example the following `blueprint.json` installs a theme from a GitHub reposi
 		{
 			"step": "installTheme",
 			"themeData": {
-				"resource": "url",
-				"url": "https://github-proxy.com/proxy/?repo=Automattic/themes&branch=trunk&directory=assembler"
+				"resource": "git:directory",
+				"url": "https://github.com/Automattic/themes",
+				"ref": "trunk",
+				"path": "assembler"
 			},
 			"options": {
 				"activate": true
@@ -131,7 +127,17 @@ For example the following `blueprint.json` installs a theme from a GitHub reposi
 }
 ```
 
-[<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](https://playground.wordpress.net/builder/builder.html#{%22steps%22:[{%22step%22:%22installTheme%22,%22themeData%22:{%22resource%22:%22url%22,%22url%22:%22https://github-proxy.com/proxy/?repo=Automattic/themes&branch=trunk&directory=assembler%22},%22options%22:{%22activate%22:true}}]})
+:::tip
+テーマがGitHubでホストされている場合、Playground PR Preview GitHub Actionを使用して、プルリクエストにプレビューボタンを自動的に追加できます。これにより、レビュアーは設定なしですぐに変更をテストできます。詳細については、[GitHub Actionsを使用したPRプレビューボタンの追加](/guides/github-action-pr-preview)を参照してください。
+:::
+
+<!--
+:::tip
+If your theme is hosted on GitHub, you can automatically add preview buttons to your pull requests using the Playground PR Preview GitHub Action. This lets reviewers test your changes instantly without any setup. See [Adding PR Preview Buttons with GitHub Actions](/guides/github-action-pr-preview) for details.
+:::
+-->
+
+[<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](https://playground.wordpress.net/#{%22steps%22:[{%22step%22:%22installTheme%22,%22themeData%22:{%22resource%22:%22git:directory%22,%22url%22:%22https://github.com/Automattic/themes%22,%22ref%22:%22trunk%22,%22path%22:%22assembler%22},%22options%22:{%22activate%22:true}}],%22$schema%22:%22https://playground.wordpress.net/blueprint-schema.json%22,%22meta%22:{%22title%22:%22Empty%20Blueprint%22,%22author%22:%22https://github.com/akirk/playground-step-library%22}})
 
 ブループリントは、[いくつかの方法](/blueprints/using-blueprints)で Playground インスタンスに渡すことができます。
 
@@ -155,9 +161,9 @@ When providing a link to a WordPress Playground instance with a specific theme a
 
 Playground プロジェクトでは、ブループリントを操作するために、以下の便利なツールとリソースを提供しています。
 
--   [ブループリント ギャラリー](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) では、WordPress Playground を使用して様々な設定で WordPress サイトを立ち上げる実際のコード例をご覧いただけます。
--   [WordPress Playground ステップ ライブラリ](https://akirk.github.io/playground-step-library/#) ツールは、ステップをドラッグまたはクリックして WordPress Playground のブループリントを作成するためのビジュアルインターフェースを提供します。独自のステップを作成することもできます。
--   [ブループリント ビルダー](https://playground.wordpress.net/builder/builder.html) ツールを使用すると、ブループリントをオンラインで編集し、Playground インスタンスで直接実行できます。
+- [ブループリント ギャラリー](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) では、WordPress Playground を使用して様々な設定で WordPress サイトを立ち上げる実際のコード例をご覧いただけます。
+- [WordPress Playground ステップ ライブラリ](https://akirk.github.io/playground-step-library/#) ツールは、ステップをドラッグまたはクリックして WordPress Playground のブループリントを作成するためのビジュアルインターフェースを提供します。独自のステップを作成することもできます。
+- [ブループリント ビルダー](https://playground.wordpress.net/builder/builder.html) ツールを使用すると、ブループリントをオンラインで編集し、Playground インスタンスで直接実行できます。
 
 :::
 
@@ -211,7 +217,7 @@ With the [`resetData`](/blueprints/steps#resetData) step, you can remove the def
 ]
 ```
 
-[<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/install-activate-setup-theme-from-gh-repo/blueprint.json) &nbsp; [<kbd> &nbsp; See <code>blueprint.json</code> &nbsp; </kbd>](https://github.com/WordPress/blueprints/blob/eb6da7dfa295a095eea2e424c0ae83a219803a8d/blueprints/install-activate-setup-theme-from-gh-repo/blueprint.json#L16)
+[<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/install-activate-setup-theme-from-gh-repo/blueprint.json) &nbsp; [<kbd> &nbsp; See <code>blueprint.json</code> &nbsp; </kbd>](https://github.com/WordPress/blueprints/blob/eb6da7dfa295a095eea2e424c0ae83a219803a8d/blueprints/install-activate-setup-theme-from-gh-repo/blueprint.json#L16)
 
 ### `writeFile`
 
@@ -235,7 +241,7 @@ One of the things you can do through this step is to enable pretty permalinks fo
 ]
 ```
 
-[<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/install-activate-setup-theme-from-gh-repo/blueprint.json) &nbsp; [<kbd> &nbsp; See <code>blueprint.json</code> &nbsp; </kbd>](https://github.com/WordPress/blueprints/blob/eb6da7dfa295a095eea2e424c0ae83a219803a8d/blueprints/install-activate-setup-theme-from-gh-repo/blueprint.json#L19)
+[<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/install-activate-setup-theme-from-gh-repo/blueprint.json) &nbsp; [<kbd> &nbsp; See <code>blueprint.json</code> &nbsp; </kbd>](https://github.com/WordPress/blueprints/blob/eb6da7dfa295a095eea2e424c0ae83a219803a8d/blueprints/install-activate-setup-theme-from-gh-repo/blueprint.json#L19)
 
 ### `updateUserMeta`
 
@@ -261,7 +267,7 @@ With the [`updateUserMeta`](/blueprints/steps#updateUserMeta) step, you can upda
 ]
 ```
 
-[<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/install-activate-setup-theme-from-gh-repo/blueprint.json) &nbsp; [<kbd> &nbsp; See <code>blueprint.json</code> &nbsp; </kbd>](https://github.com/WordPress/blueprints/blob/eb6da7dfa295a095eea2e424c0ae83a219803a8d/blueprints/install-activate-setup-theme-from-gh-repo/blueprint.json#L24)
+[<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/install-activate-setup-theme-from-gh-repo/blueprint.json) &nbsp; [<kbd> &nbsp; See <code>blueprint.json</code> &nbsp; </kbd>](https://github.com/WordPress/blueprints/blob/eb6da7dfa295a095eea2e424c0ae83a219803a8d/blueprints/install-activate-setup-theme-from-gh-repo/blueprint.json#L24)
 
 ### `setSiteOptions`
 
@@ -288,7 +294,7 @@ With the [`setSiteOptions`](/blueprints/steps#setSiteOptions) step, you can set 
 ]
 ```
 
-[<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/install-activate-setup-theme-from-gh-repo/blueprint.json) &nbsp; [<kbd> &nbsp; See <code>blueprint.json</code> &nbsp; </kbd>](https://github.com/WordPress/blueprints/blob/eb6da7dfa295a095eea2e424c0ae83a219803a8d/blueprints/install-activate-setup-theme-from-gh-repo/blueprint.json#L50)
+[<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/install-activate-setup-theme-from-gh-repo/blueprint.json) &nbsp; [<kbd> &nbsp; See <code>blueprint.json</code> &nbsp; </kbd>](https://github.com/WordPress/blueprints/blob/eb6da7dfa295a095eea2e424c0ae83a219803a8d/blueprints/install-activate-setup-theme-from-gh-repo/blueprint.json#L50)
 
 `setSiteOptions` ステップの代わりに使用できる [`siteOptions`](/blueprints/steps/shorthands#siteoptions) ショートカットもあります。
 
@@ -308,7 +314,7 @@ With the [`plugins`](/blueprints/steps/shorthands#plugins) shorthand you can set
 "plugins": ["todo-list-block", "markdown-comment-block"]
 ```
 
-[<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/install-activate-setup-theme-from-gh-repo/blueprint.json) &nbsp; [<kbd> &nbsp; See <code>blueprint.json</code> &nbsp; </kbd>](https://github.com/WordPress/blueprints/blob/eb6da7dfa295a095eea2e424c0ae83a219803a8d/blueprints/install-activate-setup-theme-from-gh-repo/blueprint.json#L60)
+[<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/install-activate-setup-theme-from-gh-repo/blueprint.json) &nbsp; [<kbd> &nbsp; See <code>blueprint.json</code> &nbsp; </kbd>](https://github.com/WordPress/blueprints/blob/eb6da7dfa295a095eea2e424c0ae83a219803a8d/blueprints/install-activate-setup-theme-from-gh-repo/blueprint.json#L60)
 
 [`installPlugin`](/blueprints/steps#installPlugin) ステップを使用して、Playground インスタンスのプラグインをインストールしてアクティブ化することもできますが、簡単な方法が推奨されます。
 
@@ -328,7 +334,7 @@ With the [`login`](/blueprints/steps/shorthands#login) shorthand you can launch 
  "login": true,
 ```
 
-[<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/install-activate-setup-theme-from-gh-repo/blueprint.json) &nbsp; [<kbd> &nbsp; See <code>blueprint.json</code> &nbsp; </kbd>](https://github.com/WordPress/blueprints/blob/eb6da7dfa295a095eea2e424c0ae83a219803a8d/blueprints/install-activate-setup-theme-from-gh-repo/blueprint.json#L10)
+[<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/install-activate-setup-theme-from-gh-repo/blueprint.json) &nbsp; [<kbd> &nbsp; See <code>blueprint.json</code> &nbsp; </kbd>](https://github.com/WordPress/blueprints/blob/eb6da7dfa295a095eea2e424c0ae83a219803a8d/blueprints/install-activate-setup-theme-from-gh-repo/blueprint.json#L10)
 
 [`login`](/blueprints/steps#login) ステップを使用して、特定のユーザーでログインした状態で Playground インスタンスを起動することもできます。
 
@@ -387,7 +393,7 @@ npx @wp-playground/cli server --auto-mount
 Playground インスタンスを GitHub リポジトリに接続し、[Create Block Theme](https://wordpress.org/plugins/create-block-theme/)プラグインを活用することで、Playground インスタンス内の WordPress UI から行った変更を反映させたプルリクエストを作成できます。また、そのテーマに変更を加えて zip ファイルをエクスポートすることもできます。
 
 <!--
-You can connect your Playground instance to a GitHub repository and create a Pull Request with the changes you’ve done through the WordPress UI in the Playground instance, leveraging the [Create Block Theme](https://wordpress.org/plugins/create-block-theme/) plugin. You can also make changes to that theme and export a zip.
+You can connect your Playground instance to a GitHub repository and create a Pull Request with the changes you've done through the WordPress UI in the Playground instance, leveraging the [Create Block Theme](https://wordpress.org/plugins/create-block-theme/) plugin. You can also make changes to that theme and export a zip.
 -->
 
 このワークフローを使用するには、[Create Block Theme](https://wordpress.org/plugins/create-block-theme/) プラグインを Playground インスタンスにインストールして有効化する必要があることに注意してください。

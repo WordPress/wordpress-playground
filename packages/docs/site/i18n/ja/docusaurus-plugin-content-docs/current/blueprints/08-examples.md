@@ -64,7 +64,7 @@ display={`{
 	"steps": [
 		{
 			"step": "runPHP",
-			"code": "<?php include 'wordpress/wp-load.php'; wp_insert_post(array( 'post_title' => 'Post title', 'post_content' => 'Post content', 'post_status' => 'publish', 'post_author' => 1 )); "
+			"code": "<?php require_once '/wordpress/wp-load.php'; wp_insert_post(array( 'post_title' => 'Post title', 'post_content' => 'Post content', 'post_status' => 'publish', 'post_author' => 1 )); "
 		}
 	]
 }` }
@@ -73,7 +73,7 @@ blueprint={{
 			{
 				"step": "runPHP",
 				"code": `<?php
-include 'wordpress/wp-load.php';
+require_once '/wordpress/wp-load.php';
 wp_insert_post(array(
 'post_title' => 'Post title',
 'post_content' => 'Post content',

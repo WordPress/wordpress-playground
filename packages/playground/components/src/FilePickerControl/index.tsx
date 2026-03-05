@@ -2,21 +2,17 @@ import React, { useState } from 'react';
 import { Button, Modal } from '@wordpress/components';
 import { PathPreview } from './PathPreview';
 import css from './style.module.css';
-import type { FileNode } from '../FilePickerTree';
-import FilePickerTree from '../FilePickerTree';
+import type { AsyncWritableFilesystem } from '@wp-playground/storage';
+import { FilePickerTree } from '../FilePickerTree';
 
 export function FilePickerControl({
 	value = '',
 	onChange,
-	files = [],
-	isLoading = false,
-	error = undefined,
+	filesystem,
 }: {
 	value?: string;
 	onChange: (selectedPath: string) => void;
-	files?: FileNode[];
-	isLoading?: boolean;
-	error?: string;
+	filesystem: AsyncWritableFilesystem;
 }) {
 	const [isOpen, setOpen] = useState(false);
 	const openModal = () => setOpen(true);
@@ -49,11 +45,9 @@ export function FilePickerControl({
 				>
 					<form onSubmit={handleSubmit}>
 						<FilePickerTree
-							files={files}
-							initialPath={value}
+							filesystem={filesystem}
+							initialSelectedPath={value}
 							onSelect={setLastSelectedPath}
-							isLoading={isLoading}
-							error={error}
 						/>
 						<div className={css['modalFooter']}>
 							<Button type="submit" variant="primary">

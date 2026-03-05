@@ -1,7 +1,7 @@
 ---
 title: Providing content for your demo with Playground
 slug: /guides/providing-content-for-your-demo
-description: Providing content for your demo with WordPress Playground
+description: Learn how to populate your Playground demo with content using Blueprints, WP-CLI, or PHP to showcase themes and plugins.
 ---
 
 One of the things you may want to do to provide a good demo with WordPress Playground is to load default content to better highlight the features of your plugin or theme. This default content may include images or other assets.
@@ -146,7 +146,7 @@ Another way of generating content for your theme or plugin is via the `wp-cli` s
 
 [<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](https://playground.wordpress.net/builder/builder.html#{%22landingPage%22:%22/wp-admin/edit.php%22,%22login%22:true,%22steps%22:[{%22step%22:%22wp-cli%22,%22command%22:%22wp%20post%20generate%20--count=20%20--post_type=post%20--post_date=1999-01-04%22}]})
 
-You can also use the `wp-cli` step in combination with the `writeFile` step to create posts based on existing content and to import images to the Playground instance:
+You can also use the [`wp-cli` step](/blueprints/steps#WPCliStep) in combination with the [`writeFile` step](/blueprints/steps#WriteFileStep) to create posts based on existing content and to import images to the Playground instance:
 
 ```json
 {
@@ -192,7 +192,7 @@ Check the ["Use wp-cli to add a post with image"](https://github.com/WordPress/b
 
 ## `runPHP`
 
-With the [`runPHP` step](https://wordpress.github.io/wordpress-playground/blueprints/steps#runPHP) you can run any PHP code you require to insert info into your WordPress installation, for example by using the [`wp_insert_post` function](https://developer.wordpress.org/reference/functions/wp_insert_post/).
+With the [`runPHP` step](/blueprints/steps#runPHP) you can run any PHP code you require to insert info into your WordPress installation, for example by using the [`wp_insert_post` function](https://developer.wordpress.org/reference/functions/wp_insert_post/).
 
 ```json
 {
@@ -201,10 +201,10 @@ With the [`runPHP` step](https://wordpress.github.io/wordpress-playground/bluepr
 	"steps": [
 		{
 			"step": "runPHP",
-			"code": "<?php require_once 'wordpress/wp-load.php'; wp_insert_post(array('post_title' => 'Simple post from PHP', 'post_content'  => '<!-- wp:paragraph --><p>This is a simple post inserted with wp_insert_post</p><!-- /wp:paragraph -->', 'post_author'   => 1, 'post_status' => 'publish')); ?>"
+			"code": "<?php require_once '/wordpress/wp-load.php'; wp_insert_post(array('post_title' => 'Simple post from PHP', 'post_content'  => '<!-- wp:paragraph --><p>This is a simple post inserted with wp_insert_post</p><!-- /wp:paragraph -->', 'post_author'   => 1, 'post_status' => 'publish')); ?>"
 		}
 	]
 }
 ```
 
-[<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](<https://playground.wordpress.net/builder/builder.html#{%22landingPage%22:%22/wp-admin/edit.php%22,%22login%22:true,%22steps%22:[{%22step%22:%22runPHP%22,%22code%22:%22%3C?php%20require_once%20'wordpress/wp-load.php';%20wp_insert_post(array('post_title'%20=%3E%20'Simple%20post%20from%20wp_insert_post',%20'post_content'%20%20=%3E%20'%3C!--%20wp:paragraph%20--%3E%3Cp%3EThis%20is%20a%20simple%20post%20inserted%20with%20wp_insert_post%3C/p%3E%3C!--%20/wp:paragraph%20--%3E',%20'post_author'%20%20%20=%3E%201,%20'post_status'%20=%3E%20'publish'));%20?%3E%22}]}>)
+[<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](<https://playground.wordpress.net/builder/builder.html#{%22landingPage%22:%22/wp-admin/edit.php%22,%22login%22:true,%22steps%22:[{%22step%22:%22runPHP%22,%22code%22:%22%3C?php%20require_once%20'/wordpress/wp-load.php';%20wp_insert_post(array('post_title'%20=%3E%20'Simple%20post%20from%20wp_insert_post',%20'post_content'%20%20=%3E%20'%3C!--%20wp:paragraph%20--%3E%3Cp%3EThis%20is%20a%20simple%20post%20inserted%20with%20wp_insert_post%3C/p%3E%3C!--%20/wp:paragraph%20--%3E',%20'post_author'%20%20%20=%3E%201,%20'post_status'%20=%3E%20'publish'));%20?%3E%22}]}>)

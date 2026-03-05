@@ -1,7 +1,7 @@
-/*
- * This file is a dummy file for the opcache extension. It is used to build the
- * opcache extension as a static extension.
-*/
+/**
+ * This file is glue code for the opcache extension. It is used to build
+ * the opcache extension as a static extension.
+ */
 
 #ifndef PHP_OPCACHE_H
 #define PHP_OPCACHE_H

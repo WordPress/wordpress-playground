@@ -1,6 +1,7 @@
 ---
 title: API Consistency
 slug: /blueprints/steps/api-consistency
+description: Learn about the relationship between the Blueprint JSON format and the underlying JavaScript function API used to execute steps.
 ---
 
 # JSON API and Function API

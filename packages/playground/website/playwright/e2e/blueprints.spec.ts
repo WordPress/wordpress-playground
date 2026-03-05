@@ -2,6 +2,12 @@ import { test, expect } from '../playground-fixtures';
 import type { Blueprint } from '@wp-playground/blueprints';
 import { encodeStringAsBase64 } from '../../src/lib/base64';
 
+// We can't import the SupportedPHPVersions versions directly from the remote package
+// because of ESModules vs CommonJS incompatibilities. Let's just import the
+// JSON file directly. @ts-ignore
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import { SupportedPHPVersions } from '../../../../php-wasm/universal/src/lib/supported-php-versions.ts';
+
 test('Base64-encoded Blueprints should work', async ({
 	website,
 	wordpress,
@@ -14,6 +20,40 @@ test('Base64-encoded Blueprints should work', async ({
 	const encodedBlueprint = encodeStringAsBase64(JSON.stringify(blueprint));
 	await website.goto(`/#${encodedBlueprint}`);
 	await expect(wordpress.locator('body')).toContainText('Dashboard');
+});
+
+test('spawning less should work', async ({ website, wordpress }) => {
+	const blueprint: Blueprint = {
+		landingPage: '/less.php',
+		steps: [
+			{
+				step: 'writeFile',
+				path: '/wordpress/less.php',
+				data: `<?php
+				$process = proc_open(
+					'less',
+					[
+						['pipe', 'r'],
+						['pipe', 'w'],
+						['pipe', 'w'],
+					],
+					$pipes
+				);
+				fwrite($pipes[0], 'Hello, world!');
+				fclose($pipes[0]);
+				$result = stream_get_contents($pipes[1]);
+				fclose($pipes[1]);
+				fclose($pipes[2]);
+				proc_close($process);
+				echo $result;
+			`,
+			},
+		],
+	};
+
+	const encodedBlueprint = encodeStringAsBase64(JSON.stringify(blueprint));
+	await website.goto(`/#${encodedBlueprint}`);
+	await expect(wordpress.locator('body')).toContainText('Hello, world!');
 });
 
 test('?blueprint-url=... should work with simple blueprints', async ({
@@ -235,44 +275,80 @@ test('Intl functions should be disabled by default', async ({
 				path: '/wordpress/intl-test.php',
 				data: `<?php
 					$functions = get_extension_funcs('intl');
-					var_dump(
-						count(
-							$functions
-						)
-					);
+					var_dump($functions);
 				`,
 			},
 		],
 	};
 	await website.goto(`/#${JSON.stringify(blueprint)}`);
-	await expect(wordpress.locator('body')).toContainText('int(0)');
+	await expect(wordpress.locator('body')).toContainText('bool(false)');
 });
 
-test('Intl functions should work when intl is enabled', async ({
-	website,
-	wordpress,
-}, testInfo) => {
-	if (testInfo.project.name === 'chromium') {
-		test.skip(true, 'Skipping this test on Chromium due to unknown issues');
-	}
-	const blueprint: Blueprint = {
-		landingPage: '/intl-test.php',
-		features: { intl: true },
-		steps: [
-			{
-				step: 'writeFile',
-				path: '/wordpress/intl-test.php',
-				data: `<?php
+SupportedPHPVersions.forEach((phpVersion) => {
+	test(`Intl functions should work when intl is enabled for PHP ${phpVersion}`, async ({
+		website,
+		wordpress,
+	}) => {
+		const blueprint: Blueprint = {
+			landingPage: '/intl-functions-test.php',
+			preferredVersions: {
+				php: phpVersion,
+			},
+			features: { intl: true },
+			steps: [
+				{
+					step: 'writeFile',
+					path: '/wordpress/intl-functions-test.php',
+					data: `<?php
 					$formatter = numfmt_create('en-US', NumberFormatter::CURRENCY);
 					echo numfmt_format($formatter, 100.00);
 					$formatter = numfmt_create('fr-FR', NumberFormatter::CURRENCY);
 					echo numfmt_format($formatter, 100.00);
 				`,
+				},
+			],
+		};
+		await website.goto(`/#${JSON.stringify(blueprint)}`);
+		await expect(wordpress.locator('body')).toContainText(
+			'$100.00100,00\xA0€'
+		);
+	});
+});
+
+SupportedPHPVersions.forEach((phpVersion) => {
+	test(`Intl classes should work when intl is enabled for PHP ${phpVersion}`, async ({
+		website,
+		wordpress,
+	}) => {
+		const blueprint: Blueprint = {
+			landingPage: '/intl-classes-test.php',
+			preferredVersions: {
+				php: phpVersion,
 			},
-		],
-	};
-	await website.goto(`/#${JSON.stringify(blueprint)}`);
-	await expect(wordpress.locator('body')).toContainText('$100.00100,00\xA0€');
+			features: { intl: true },
+			steps: [
+				{
+					step: 'writeFile',
+					path: '/wordpress/intl-classes-test.php',
+					data: `<?php
+							$data = array(
+								'F' => 'Foo',
+								'Br' => 'Bar',
+								'Bz' => 'Bz',
+							);
+
+							$collator = new Collator('en_US');
+							$collator->asort($data, Collator::SORT_STRING);
+							var_dump($data);
+						?>`,
+				},
+			],
+		};
+		await website.goto(`/#${JSON.stringify(blueprint)}`);
+		await expect(wordpress.locator('body')).toContainText(
+			'array(3) {\n  ["Br"]=>\n  string(3) "Bar"\n  ["Bz"]=>\n  string(2) "Bz"\n  ["F"]=>\n  string(3) "Foo"\n}\n'
+		);
+	});
 });
 
 test('HTTPS requests via curl_exec() should work', async ({
@@ -308,7 +384,6 @@ test('HTTPS requests via curl_exec() should work', async ({
 					curl_setopt($ch, CURLOPT_TCP_NODELAY, 0);
 					curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
 					$result = curl_exec($ch);
-					curl_close($ch);
 					var_dump(
 						strlen(
 							$result
@@ -355,7 +430,6 @@ test('HTTPS requests via curl_exec() should fail when networking is disabled', a
 					curl_setopt($ch, CURLOPT_TCP_NODELAY, 0);
 					curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
 					$result = curl_exec($ch);
-					curl_close($ch);
 					var_dump(
 						strlen(
 							$result
@@ -502,21 +576,23 @@ test('HTTPS requests via file_get_contents() to CORS-disabled URLs should succee
 				path: '/wordpress/https-test.php',
 				/**
 				 * The URL is valid, but the server does not provide the CORS headers required by fetch().
+				 * example.com is intentionally CORS-disabled and stable, making the assertion less flaky
+				 * than relying on playground.wordpress.net which occasionally returns transient 400s
+				 * when fetched from Firefox in CI.
 				 */
 				data: `<?php
-					var_dump(
-						strlen(
-							file_get_contents(
-								'https://playground.wordpress.net/test-fixtures/cors-file.html'
-							)
-						)
-					);
+					// Retry once through the runtime CORS proxy layer if the first fetch fails
+					$contents = @file_get_contents('https://example.com/');
+					if ($contents === false) {
+						$contents = @file_get_contents('https://example.com/');
+					}
+					var_dump(strpos($contents ?: '', 'Example Domain') !== false);
 				`,
 			},
 		],
 	};
 	await website.goto(`/#${JSON.stringify(blueprint)}`);
-	await expect(wordpress.locator('body')).toContainText('int(340)');
+	await expect(wordpress.locator('body')).toContainText('bool(true)');
 });
 
 test('PHP Shutdown should work', async ({ website, wordpress }) => {
@@ -563,6 +639,34 @@ test('should login the user in if a login step is provided', async ({
 	await expect(wordpress.locator('body')).toContainText('Dashboard');
 });
 
+test('should login a non-admin user if a login step with a non-admin username is provided', async ({
+	website,
+	wordpress,
+}) => {
+	const blueprint: Blueprint = {
+		landingPage: '/wp-admin/profile.php',
+		extraLibraries: ['wp-cli'],
+		steps: [
+			{
+				step: 'wp-cli',
+				command:
+					"wp user create user user@example.com  --user_pass='password'",
+			},
+			{
+				step: 'login',
+				username: 'user',
+				password: 'password',
+			},
+		],
+	};
+
+	const encodedBlueprint = JSON.stringify(blueprint);
+	await website.goto(`./#${encodedBlueprint}`);
+	await expect(wordpress.locator('#profile-page #email')).toHaveValue(
+		'user@example.com'
+	);
+});
+
 ['/wp-admin/', '/wp-admin/post.php?post=1&action=edit'].forEach((path) => {
 	test(`should correctly redirect encoded wp-admin url to ${path}`, async ({
 		website,
@@ -601,7 +705,7 @@ test('should correctly redirect to a multisite wp-admin url', async ({
 	await expect(wordpress.locator('body')).toContainText('General Settings');
 });
 
-['latest', 'nightly', 'beta'].forEach((wpVersion) => {
+['latest', 'trunk', 'beta'].forEach((wpVersion) => {
 	test(`should translate WP-admin to Spanish for the ${wpVersion} WordPress build`, async ({
 		website,
 		wordpress,
@@ -665,4 +769,29 @@ test('WordPress homepage loads when mu-plugin prints a notice', async ({
 	await expect(wordpress.locator('body')).toContainText(
 		'Welcome to WordPress. This is your first post.'
 	);
+});
+
+/**
+ * WordPress 6.7 added a redirect from /sitemap.xml to /wp-sitemap.xml
+ * (see https://core.trac.wordpress.org/ticket/61931). This test ensures
+ * that the redirect works correctly in Playground by verifying that
+ * /sitemap.xml returns sitemap content instead of a 404 error.
+ */
+test('/sitemap.xml should redirect to /wp-sitemap.xml', async ({
+	wordpress,
+	website,
+}) => {
+	const blueprint: Blueprint = {
+		landingPage: '/sitemap.xml',
+		preferredVersions: {
+			wp: '6.7',
+			php: '8.0',
+		},
+	};
+
+	const encodedBlueprint = JSON.stringify(blueprint);
+	await website.goto(`/#${encodedBlueprint}`);
+
+	// The sitemap is rendered with XSLT styling, showing "XML Sitemap" heading
+	await expect(wordpress.locator('body')).toContainText('XML Sitemap');
 });

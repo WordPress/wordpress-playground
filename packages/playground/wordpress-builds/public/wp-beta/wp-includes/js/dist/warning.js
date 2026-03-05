@@ -1,92 +1,51 @@
-/******/ (() => { // webpackBootstrap
-/******/ 	"use strict";
-/******/ 	// The require scope
-/******/ 	var __webpack_require__ = {};
-/******/ 	
-/************************************************************************/
-/******/ 	/* webpack/runtime/define property getters */
-/******/ 	(() => {
-/******/ 		// define getter functions for harmony exports
-/******/ 		__webpack_require__.d = (exports, definition) => {
-/******/ 			for(var key in definition) {
-/******/ 				if(__webpack_require__.o(definition, key) && !__webpack_require__.o(exports, key)) {
-/******/ 					Object.defineProperty(exports, key, { enumerable: true, get: definition[key] });
-/******/ 				}
-/******/ 			}
-/******/ 		};
-/******/ 	})();
-/******/ 	
-/******/ 	/* webpack/runtime/hasOwnProperty shorthand */
-/******/ 	(() => {
-/******/ 		__webpack_require__.o = (obj, prop) => (Object.prototype.hasOwnProperty.call(obj, prop))
-/******/ 	})();
-/******/ 	
-/************************************************************************/
-var __webpack_exports__ = {};
+"use strict";
+var wp;
+(wp ||= {}).warning = (() => {
+  var __defProp = Object.defineProperty;
+  var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
+  var __getOwnPropNames = Object.getOwnPropertyNames;
+  var __hasOwnProp = Object.prototype.hasOwnProperty;
+  var __export = (target, all) => {
+    for (var name in all)
+      __defProp(target, name, { get: all[name], enumerable: true });
+  };
+  var __copyProps = (to, from, except, desc) => {
+    if (from && typeof from === "object" || typeof from === "function") {
+      for (let key of __getOwnPropNames(from))
+        if (!__hasOwnProp.call(to, key) && key !== except)
+          __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
+    }
+    return to;
+  };
+  var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
-// EXPORTS
-__webpack_require__.d(__webpack_exports__, {
-  "default": () => (/* binding */ warning)
-});
+  // packages/warning/build-module/index.mjs
+  var index_exports = {};
+  __export(index_exports, {
+    default: () => warning
+  });
 
-;// ./node_modules/@wordpress/warning/build-module/utils.js
-/**
- * Object map tracking messages which have been logged, for use in ensuring a
- * message is only logged once.
- */
-const logged = new Set();
+  // packages/warning/build-module/utils.mjs
+  var logged = /* @__PURE__ */ new Set();
 
-;// ./node_modules/@wordpress/warning/build-module/index.js
-/**
- * Internal dependencies
- */
-
-function isDev() {
-  // eslint-disable-next-line @wordpress/wp-global-usage
-  return true === true;
-}
-
-/**
- * Shows a warning with `message` if environment is not `production`.
- *
- * @param message Message to show in the warning.
- *
- * @example
- * ```js
- * import warning from '@wordpress/warning';
- *
- * function MyComponent( props ) {
- *   if ( ! props.title ) {
- *     warning( '`props.title` was not passed' );
- *   }
- *   ...
- * }
- * ```
- */
-function warning(message) {
-  if (!isDev()) {
-    return;
+  // packages/warning/build-module/index.mjs
+  function isDev() {
+    return true;
   }
-
-  // Skip if already logged.
-  if (logged.has(message)) {
-    return;
+  function warning(message) {
+    if (!isDev()) {
+      return;
+    }
+    if (logged.has(message)) {
+      return;
+    }
+    console.warn(message);
+    try {
+      throw Error(message);
+    } catch (x) {
+    }
+    logged.add(message);
   }
-
-  // eslint-disable-next-line no-console
-  console.warn(message);
-
-  // Throwing an error and catching it immediately to improve debugging
-  // A consumer can use 'pause on caught exceptions'
-  // https://github.com/facebook/react/issues/4216
-  try {
-    throw Error(message);
-  } catch (x) {
-    // Do nothing.
-  }
-  logged.add(message);
-}
-
-(window.wp = window.wp || {}).warning = __webpack_exports__["default"];
-/******/ })()
-;
+  return __toCommonJS(index_exports);
+})();
+if (typeof wp.warning === 'object' && wp.warning.default) { wp.warning = wp.warning.default; }

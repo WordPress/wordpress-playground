@@ -16,7 +16,9 @@ jobs:
                 github.actor == 'bgrgicak' ||
                 github.actor == 'brandonpayton' ||
                 github.actor == 'zaerl' ||
-                github.actor == 'janjakes'
+                github.actor == 'janjakes' ||
+                github.actor == 'mho22' ||
+                github.actor == 'ashfame'
             )
 
         runs-on: ubuntu-latest
@@ -33,7 +35,7 @@ jobs:
                   submodules: true
             - uses: ./.github/actions/prepare-playground
               with:
-                  node-version: 23
+                  node-version: 22
             - name: 'Refresh the SQLite bundle'
               shell: bash
               run: npx nx bundle-sqlite-database playground-wordpress-builds
@@ -64,5 +66,5 @@ jobs:
               if: steps.changes.outputs.CHANGES == '1'
               uses: benc-uk/workflow-dispatch@v1
               with:
-                  workflow: build-website.yml
+                  workflow: deploy-website.yml
                   token: ${{ secrets.GITHUB_TOKEN }}

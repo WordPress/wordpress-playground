@@ -21,14 +21,21 @@ function red(text: string) {
 type Result = {
 	phpVersion: string;
 	code: number | null;
+	timeout?: boolean;
 };
 
 const results: Result[] = [];
+const timeoutMs = Number.parseInt(
+	process.env.PER_PHP_TEST_TIMEOUT_MS ?? '60000',
+	10
+);
+if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
+	throw new Error(
+		`Invalid PER_PHP_TEST_TIMEOUT_MS value: "${process.env.PER_PHP_TEST_TIMEOUT_MS}"`
+	);
+}
 
-// Exclude PHP 7.2 – it often times out on CI.
-for (const phpVersion of SupportedPHPVersions.filter(
-	(phpVersion: string) => !['7.2', '7.3'].includes(phpVersion)
-)) {
+for (const phpVersion of SupportedPHPVersions) {
 	console.log(`\nRunning tests for PHP ${phpVersion}...`);
 
 	const child = spawn(
@@ -37,45 +44,76 @@ for (const phpVersion of SupportedPHPVersions.filter(
 			'--experimental-strip-types',
 			'--experimental-transform-types',
 			'--test',
+			'--test-concurrency=1',
 			'./tests/wp.spec.ts',
 		],
 		{
 			env: {
+				...process.env,
 				PHP_VERSION: phpVersion,
 			},
 			stdio: 'inherit',
 		}
 	);
 
-	await new Promise<void>((resolve) => {
-		child.on('close', (code) => {
-			results.push({
-				phpVersion,
-				code,
-			});
-			resolve();
-		});
+	let timeoutHandle: NodeJS.Timeout | undefined;
+	const promiseToClose = new Promise<number | null>((resolve) => {
+		child.on('close', (code) => resolve(code));
 	});
+	const promiseToTimeout = new Promise<never>((_, reject) => {
+		timeoutHandle = setTimeout(() => {
+			reject(new Error(`Test timed out after ${timeoutMs}ms`));
+		}, timeoutMs);
+	});
+
+	try {
+		const code = await Promise.race([promiseToClose, promiseToTimeout]);
+		results.push({
+			phpVersion,
+			code,
+		});
+	} catch (e) {
+		console.error(`PHP ${phpVersion}: timed out after ${timeoutMs}ms.`);
+		results.push({
+			phpVersion,
+			code: null,
+			timeout: true,
+		});
+		child.kill('SIGKILL');
+		await promiseToClose;
+	} finally {
+		if (timeoutHandle) {
+			clearTimeout(timeoutHandle);
+		}
+	}
 }
 
 console.log('Results:');
 for (const result of results) {
-	console.log(
-		`PHP ${result.phpVersion}: ${
-			result.code === 0 ? green('PASS') : red('FAIL')
-		} with exit code ${result.code}`
-	);
+	if (result.timeout) {
+		console.log(red(`PHP ${result.phpVersion}: ${red('timed out')}.`));
+	} else {
+		console.log(
+			`PHP ${result.phpVersion}: ${
+				result.code === 0 ? green('PASS') : red('FAIL')
+			} with exit code ${result.code}`
+		);
+	}
 }
 
 const numPassed = results.filter((r) => r.code === 0).length;
-const numFailed = results.filter((r) => r.code !== 0).length;
+const numFailed = results.filter((r) => r.code !== 0 && !r.timeout).length;
+const numTimedOut = results.filter((r) => r.timeout).length;
 if (numPassed > 0) {
 	console.log(green(`${numPassed} / ${results.length} tests passed`));
 }
 if (numFailed > 0) {
 	console.log(red(`${numFailed} / ${results.length} tests failed`));
 }
+if (numTimedOut > 0) {
+	console.log(red(`${numTimedOut} / ${results.length} tests timed out`));
+}
 
-if (numFailed > 0) {
+if (numFailed > 0 || numTimedOut > 0) {
 	process.exit(1);
 }

@@ -1,6 +1,7 @@
 ---
 title: Blueprint Bundles
 slug: /blueprints/bundles
+description: Learn about Blueprint bundles, self-contained packages that include a blueprint.json file and all its required resources.
 ---
 
 # Blueprint Bundles

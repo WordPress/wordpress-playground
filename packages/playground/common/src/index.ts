@@ -19,13 +19,17 @@ export const RecommendedPHPVersion = '8.3';
 /**
  * Unzip a zip file inside Playground.
  */
-const tmpPath = '/tmp/file.zip';
 export const unzipFile = async (
 	php: UniversalPHP,
 	zipPath: string | File,
 	extractToPath: string,
 	overwriteFiles = true
 ) => {
+	/**
+	 * Use a random file name to avoid conflicts across concurrent unzipFile()
+	 * calls.
+	 */
+	const tmpPath = `/tmp/file-${Math.random()}.zip`;
 	if (zipPath instanceof File) {
 		const zipFile = zipPath;
 		zipPath = tmpPath;
@@ -62,7 +66,8 @@ export const unzipFile = async (
 				$zip->close();
 				chmod($extractTo, 0777);
             } else {
-                throw new Exception("Could not unzip file: " . $zip->getStatusString());
+                $fileSize = file_exists($zipPath) ? filesize($zipPath) : 'unknown';
+                throw new Exception("Could not unzip file. Error code: " . $res . ". File size: " . $fileSize . " bytes.");
             }
         }
         unzip(${js.zipPath}, ${js.extractToPath}, ${js.overwriteFiles});

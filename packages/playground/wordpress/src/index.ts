@@ -5,10 +5,16 @@ import { logger } from '@php-wasm/logger';
 
 export {
 	bootWordPress,
+	bootWordPressAndRequestHandler,
 	bootRequestHandler,
 	getFileNotFoundActionForWordPress,
 } from './boot';
-export { defineWpConfigConstants, ensureWpConfig } from './rewrite-wp-config';
+export type {
+	PhpIniOptions,
+	PHPInstanceCreatedHook,
+	WordPressInstallMode,
+} from './boot';
+export { defineWpConfigConstants, ensureWpConfig } from './wp-config';
 export { getLoadedWordPressVersion } from './version-detect';
 
 export * from './version-detect';
@@ -265,6 +271,26 @@ export async function setupPlatformLevelMuPlugins(php: UniversalPHP) {
             );
         } );
 
+		/**
+		 * Prevents wp_http_validate_url() from universally failing.
+		 *
+		 * wp_http_validate_url() calls gethostbyname() to verify whether the host
+		 * is external. If it is internal, the URL validation fails and WordPress
+		 * refuses to make a request.
+		 *
+		 * However, in EMscripten, gethostbyname() returns a private network IP address.
+		 * This causes wp_http_validate_url() to return false for all URLs.
+		 *
+		 * This filter ensures that all URLs are considered external. In production
+		 * environments, this would be considered a security risk. However, Playground
+		 * already provides multiple code execution vectors as features (e.g. Blueprints).
+		 *
+		 * If someone wants to poke around local IP addresses, they already have multiple
+		 * tools at their disposal. Therefore, this is not a real security risk in context
+		 * of WordPress Playground or Playground CLI.
+		 */
+		add_filter('http_request_host_is_external', '__return_true');
+
 		// Support pretty permalinks
         add_filter( 'got_url_rewrite', '__return_true' );
 
@@ -277,6 +303,43 @@ export async function setupPlatformLevelMuPlugins(php: UniversalPHP) {
         define('ERROR_LOG_FILE', $log_file);
         ini_set('error_log', $log_file);
         ?>`
+	);
+
+	/**
+	 * WordPress 6.7+ only generates the sitemap.xml → wp-sitemap.xml rewrite
+	 * rule when installed at the domain root. Since Playground may use non-root
+	 * installations, the rule isn't generated. This mu-plugin handles the
+	 * redirect manually by using the site URL to determine the correct base path.
+	 *
+	 * @see https://github.com/WordPress/wordpress-playground/issues/2051
+	 */
+	await php.writeFile(
+		'/internal/shared/mu-plugins/sitemap-redirect.php',
+		`<?php
+		/**
+		 * Redirect sitemap.xml to wp-sitemap.xml for non-root installations.
+		 *
+		 * WordPress seems to only generate the sitemap.xml → wp-sitemap.xml rewrite
+		 * rule when installed at the domain root. This mu-plugin handles the
+		 * redirect for non-root installations.
+		 */
+		if (isset($_SERVER['REQUEST_URI'])) {
+			$site_url = site_url();
+			$parsed = parse_url($site_url);
+			$base_path = isset($parsed['path']) ? rtrim($parsed['path'], '/') : '';
+
+			$request_uri = $_SERVER['REQUEST_URI'];
+			if (
+				$request_uri === $base_path . '/sitemap.xml' ||
+				strpos($request_uri, $base_path . '/sitemap.xml?') === 0 ||
+				strpos($request_uri, $base_path . '/sitemap.xml/') === 0
+			) {
+				$query_string = strpos($request_uri, '?') !== false ? substr($request_uri, strpos($request_uri, '?')) : '';
+				header('Location: ' . $base_path . '/wp-sitemap.xml' . $query_string, true, 301);
+				exit;
+			}
+		}
+		`
 	);
 
 	// Load the error handler before any other PHP file to ensure it
@@ -376,11 +439,6 @@ export async function preloadSqliteIntegration(
 		(await php.listFiles('/tmp/sqlite-database-integration'))[0]
 	}`;
 	await php.mv(temporarySqlitePluginFolder, SQLITE_PLUGIN_FOLDER);
-
-	// Use the new AST-based SQLite driver.
-	// TODO: Remove this once the new driver is the default; when this is closed:
-	//         https://github.com/WordPress/sqlite-database-integration/issues/195
-	php.defineConstant('WP_SQLITE_AST_DRIVER', true);
 
 	// Prevents the SQLite integration from trying to call activate_plugin()
 	await php.defineConstant('SQLITE_MAIN_FILE', '1');
@@ -540,8 +598,8 @@ export async function unzipWordPress(php: PHP, wpZip: File) {
 	let wpPath = php.fileExists('/tmp/unzipped-wordpress/wordpress')
 		? '/tmp/unzipped-wordpress/wordpress'
 		: php.fileExists('/tmp/unzipped-wordpress/build')
-		? '/tmp/unzipped-wordpress/build'
-		: '/tmp/unzipped-wordpress';
+			? '/tmp/unzipped-wordpress/build'
+			: '/tmp/unzipped-wordpress';
 
 	// Dive one directory deeper if the zip root does not contain the sample
 	// config file. This is relevant when unzipping a zipped branch from the
@@ -580,7 +638,7 @@ export async function unzipWordPress(php: PHP, wpZip: File) {
 					'/'
 				);
 				logger.warn(
-					`Skipping ${wpPath} because something exists at the target path.`
+					`Cannot unzip WordPress files at ${target}: ${wpPath} already exists.`
 				);
 				return;
 			}
@@ -627,8 +685,13 @@ const memoizedFetch = createMemoizedFetch(fetch);
  * @param versionQuery - The WordPress version query string to resolve.
  * @returns The resolved WordPress release URL and version string.
  */
+const WORDPRESS_TRUNK_ZIP_URL =
+	'https://github.com/WordPress/WordPress/archive/refs/heads/master.zip';
+
 export async function resolveWordPressRelease(versionQuery = 'latest') {
-	if (
+	if (versionQuery === null) {
+		versionQuery = 'latest';
+	} else if (
 		versionQuery.startsWith('https://') ||
 		versionQuery.startsWith('http://')
 	) {
@@ -645,10 +708,10 @@ export async function resolveWordPressRelease(versionQuery = 'latest') {
 			source: 'inferred',
 		};
 	} else if (versionQuery === 'trunk' || versionQuery === 'nightly') {
+		const cacheBust = new Date().toISOString().split('T')[0];
 		return {
-			releaseUrl:
-				'https://wordpress.org/nightly-builds/wordpress-latest.zip',
-			version: 'nightly-' + new Date().toISOString().split('T')[0],
+			releaseUrl: `${WORDPRESS_TRUNK_ZIP_URL}?ts=${cacheBust}`,
+			version: 'trunk',
 			source: 'inferred',
 		};
 	}
@@ -663,7 +726,11 @@ export async function resolveWordPressRelease(versionQuery = 'latest') {
 	);
 
 	for (const apiVersion of latestVersions) {
-		if (versionQuery === 'beta' && apiVersion.version.includes('beta')) {
+		if (
+			versionQuery === 'beta' &&
+			(apiVersion.version.includes('beta') ||
+				apiVersion.version.includes('RC'))
+		) {
 			return {
 				releaseUrl: apiVersion.download,
 				version: apiVersion.version,
@@ -671,7 +738,8 @@ export async function resolveWordPressRelease(versionQuery = 'latest') {
 			};
 		} else if (
 			versionQuery === 'latest' &&
-			!apiVersion.version.includes('beta')
+			!apiVersion.version.includes('beta') &&
+			!apiVersion.version.includes('RC')
 		) {
 			// The first non-beta item in the list is the latest version.
 			return {
@@ -689,6 +757,20 @@ export async function resolveWordPressRelease(versionQuery = 'latest') {
 				source: 'api',
 			};
 		}
+	}
+
+	/**
+	 * Replace "6.8.0" with "6.8" to support installing the exact "6.8.0" release.
+	 *
+	 * The remote release ZIP file URL for 6.8.0 is `https://wordpress.org/wordpress-6.8.zip`.
+	 * However, we already resolve `6.8` to the latest patch version, so that's not an option.
+	 * Therefore, version "6.8.0" can be resolved by requesting a version string "6.8.0", which
+	 * we then convert to "6.8" to construct the correct remote ZIP file URL.
+	 *
+	 * @see https://github.com/WordPress/wordpress-playground/issues/2749
+	 */
+	if (versionQuery.match(/^\d+\.\d+\.0$/)) {
+		versionQuery = versionQuery.split('.').slice(0, 2).join('.');
 	}
 
 	return {

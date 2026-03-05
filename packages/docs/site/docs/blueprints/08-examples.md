@@ -2,6 +2,7 @@
 sidebar_position: 8
 title: Examples
 slug: /blueprints/examples
+description: A gallery of practical Blueprint examples for various tasks, such as installing themes, running PHP, and enabling features.
 ---
 
 import BlueprintExample from '@site/src/components/Blueprints/BlueprintExample.mdx';
@@ -35,6 +36,36 @@ Let's see some cool things you can do with Blueprints.
 	]
 }} />
 
+## The `meta` object
+
+The optional `meta` object provides descriptive information about your Blueprint. While it doesn't affect how the Blueprint executes, this information is crucial for display purposes in galleries, Blueprint selectors, and integrated tools like [WordPress Studio](https://developer.wordpress.com/studio/) and [Blueprints Gallery](https://wordpress.github.io/blueprints/).
+
+### Properties
+
+| Field             | Type            | Description                                      |
+| :---------------- | :-------------- | :----------------------------------------------- |
+| **`title`**       | `string`        | A short, human-readable name for the Blueprint.  |
+| **`description`** | `string`        | A brief summary explaining the setup.            |
+| **`author`**      | `string`        | The name or handle of the creator.               |
+| **`categories`**  | `array<string>` | Tags used for filtering and grouping Blueprints. |
+
+```json
+{
+	"$schema": "https://playground.wordpress.net/blueprint-schema.json",
+	"meta": {
+		"title": "Default Playground Setup",
+		"description": "A basic setup for a new WordPress site with the latest versions.",
+		"author": "Playground Team",
+		"categories": ["starter", "default"]
+	},
+	"landingPage": "/wp-admin/",
+	"preferredVersions": {
+		"php": "8.3",
+		"wp": "latest"
+	}
+}
+```
+
 ## Run custom PHP code
 
 <BlueprintExample
@@ -42,7 +73,7 @@ display={`{
 	"steps": [
 		{
 			"step": "runPHP",
-			"code": "<?php include 'wordpress/wp-load.php'; wp_insert_post(array( 'post_title' => 'Post title', 'post_content' => 'Post content', 'post_status' => 'publish', 'post_author' => 1 )); "
+			"code": "<?php require_once '/wordpress/wp-load.php'; wp_insert_post(array( 'post_title' => 'Post title', 'post_content' => 'Post content', 'post_status' => 'publish', 'post_author' => 1 )); "
 		}
 	]
 }` }
@@ -51,7 +82,7 @@ blueprint={{
 			{
 				"step": "runPHP",
 				"code": `<?php
-include 'wordpress/wp-load.php';
+require_once '/wordpress/wp-load.php';
 wp_insert_post(array(
 'post_title' => 'Post title',
 'post_content' => 'Post content',
@@ -84,6 +115,24 @@ blueprint={{
 			}
 		]
 }} />
+
+## How to work with WP-CLI from the terminal and Playground
+
+You can run WP-CLI commands on a Playground instance either from your terminal or directly within a Blueprint.
+
+To use your terminal, you must first mount the `/wordpress/` directory and ensure the SQLite database integration is configured. This is because Playground's internal database doesn't persist on a mounted site, so you must explicitly install the database plugin via a Blueprint. This allows WP-CLI to recognize the WordPress installation and connect to its database.
+
+:::note
+If you run WP-CLI commands as steps within your Blueprint file, this manual setup is not needed.
+:::
+
+The following Blueprint snippet handles this setup:
+
+<BlueprintExample blueprint={{
+    "plugins": [ "sqlite-database-integration" ]
+}} />
+
+For a detailed explanation of why this is needed, refer to the [Troubleshoot and Debug Blueprints](/blueprints/troubleshoot-and-debug#wp-cli-error-establishing-a-database-connection-on-mounted-sites) section.
 
 ## Showcase a product demo
 
@@ -266,10 +315,10 @@ Here's an example of a Blueprint that uses bundled resources from a Blueprint bu
 
 This Blueprint bundle would be zip file containing the following files:
 
--   `/blueprint.json` - The blueprint declaration outlined above
--   `/my-theme.zip` - A theme package
--   `/my-plugin.zip` - A plugin package
--   `/assets/custom-page.html` - A custom HTML file
+- `/blueprint.json` - The blueprint declaration outlined above
+- `/my-theme.zip` - A theme package
+- `/my-plugin.zip` - A plugin package
+- `/assets/custom-page.html` - A custom HTML file
 
 You can use this Blueprint bundle by:
 

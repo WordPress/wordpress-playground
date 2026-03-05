@@ -1,15 +1,25 @@
 import type { PHPResponseData } from './php-response';
-import { PHPResponse } from './php-response';
+import { PHPResponse, StreamedPHPResponse } from './php-response';
 import * as Comlink from './comlink-sync';
 import {
 	NodeSABSyncReceiveMessageTransport,
-	nodeEndpoint,
-	type NodeEndpoint,
+	nodeEndpoint as nodeWorkerEndpoint,
+	releaseProxy,
+	type NodeEndpoint as NodeWorker,
 	type Remote,
 	type Endpoint,
 	type IsomorphicMessagePort,
+	type ProxyMethods,
 } from './comlink-sync';
+import {
+	type NodeProcess,
+	nodeProcessEndpoint,
+} from './comlink-node-process-adapter';
 import * as ErrorSerializer from './serialize-error';
+
+// NOTE: It seems like we wouldn't have to explicitly specify
+// symbol type here, but it seems to resolve some type errors.
+export const releaseApiProxy: typeof releaseProxy = releaseProxy;
 
 export type WithAPIState = {
 	/**
@@ -23,7 +33,7 @@ export type WithAPIState = {
 	 */
 	isReady: () => Promise<void>;
 };
-export type RemoteAPI<T> = Remote<T> & WithAPIState;
+export type RemoteAPI<T> = Remote<T> & ProxyMethods & WithAPIState;
 
 export async function consumeAPISync<APIType>(
 	remote: IsomorphicMessagePort
@@ -34,15 +44,35 @@ export async function consumeAPISync<APIType>(
 }
 
 export function consumeAPI<APIType>(
-	remote: Worker | Window | NodeEndpoint,
+	remote: Worker | Window | NodeWorker | NodeProcess,
 	context: undefined | EventTarget = undefined
 ): RemoteAPI<APIType> {
 	setupTransferHandlers();
 
 	let endpoint;
-	const appearsToBeNodeEnvironment = import.meta.url.startsWith('file://');
+	/**
+	 * Previously we assumed we were running in a Node.js environment
+	 * when `import.meta.url` started with `file://`. But this assumption breaks
+	 * with webpack which emits file URLs for `import.meta.url`.
+	 * https://webpack.js.org/api/module-variables/#importmetaurl
+	 * 
+	 * We replaced this with a more explicit check for `process.versions.node`.
+	 * See https://github.com/WordPress/wordpress-playground/pull/3248
+	 */
+	const appearsToBeNodeEnvironment =
+		typeof process !== 'undefined' &&
+		typeof process.versions !== 'undefined' &&
+		typeof process.versions.node !== 'undefined';
 	if (appearsToBeNodeEnvironment) {
-		endpoint = nodeEndpoint(remote as NodeEndpoint);
+		if ('postMessage' in remote) {
+			endpoint = nodeWorkerEndpoint(remote as NodeWorker);
+		} else if ('send' in remote && 'addListener' in remote) {
+			endpoint = nodeProcessEndpoint(remote as NodeProcess);
+		} else {
+			throw new Error(
+				'consumeAPI: remote does not look like a Worker, MessagePort, or Process'
+			);
+		}
 	} else {
 		endpoint =
 			remote instanceof Worker
@@ -102,7 +132,7 @@ export type PublicAPI<Methods, PipedAPI = unknown> = RemoteAPI<
 export function exposeAPI<Methods, PipedAPI>(
 	apiMethods?: Methods,
 	pipedApi?: PipedAPI,
-	targetWorker?: NodeEndpoint
+	targetWorker?: MessagePort | NodeWorker | NodeProcess
 ): [() => void, (e: Error) => void, PublicAPI<Methods, PipedAPI>] {
 	const { setReady, setFailed, exposedApi } = prepareForExpose(
 		apiMethods,
@@ -110,9 +140,19 @@ export function exposeAPI<Methods, PipedAPI>(
 	);
 	let endpoint: Endpoint | undefined;
 	if (targetWorker) {
-		// NOTE: If there are other target types, we could expand this later,
-		// but for now, we only need support for NodeEndpoints.
-		endpoint = nodeEndpoint(targetWorker);
+		if ('addEventListener' in targetWorker) {
+			// TODO: MessagePort satisfies Endpoint at runtime but its
+			// addEventListener overloads don't exactly match EventSource.
+			endpoint = targetWorker as Endpoint;
+		} else if ('postMessage' in targetWorker) {
+			endpoint = nodeWorkerEndpoint(targetWorker);
+		} else if ('send' in targetWorker && 'addListener' in targetWorker) {
+			endpoint = nodeProcessEndpoint(targetWorker);
+		} else {
+			throw new Error(
+				'exposeAPI: targetWorker does not look like a Worker, MessagePort, or Process'
+			);
+		}
 	} else {
 		endpoint =
 			typeof window !== 'undefined'
@@ -129,7 +169,7 @@ export async function exposeSyncAPI<Methods>(
 ): Promise<[() => void, (e: Error) => void, Methods]> {
 	const { setReady, setFailed, exposedApi } = prepareForExpose(apiMethods);
 	const transport = await NodeSABSyncReceiveMessageTransport.create();
-	const endpoint = nodeEndpoint(port as any);
+	const endpoint = nodeWorkerEndpoint(port as any);
 	Comlink.exposeSync(exposedApi, endpoint, transport);
 	return [setReady, setFailed, exposedApi as Methods];
 }
@@ -218,7 +258,14 @@ function setupTransferHandlers() {
 			'exitCode' in obj &&
 			'httpStatusCode' in obj,
 		serialize(obj: PHPResponse): [PHPResponseData, Transferable[]] {
-			return [obj.toRawData(), []];
+			const data = obj.toRawData();
+			// Transfer the ArrayBuffer instead of cloning it to avoid
+			// "could not be cloned" errors when the buffer is detached
+			const transferables: Transferable[] = [];
+			if (data.bytes.buffer.byteLength > 0) {
+				transferables.push(data.bytes.buffer);
+			}
+			return [data, transferables];
 		},
 		deserialize(responseData: PHPResponseData): PHPResponse {
 			return PHPResponse.fromRawData(responseData);
@@ -240,6 +287,314 @@ function setupTransferHandlers() {
 		}
 		return serialized;
 	};
+
+	Comlink.transferHandlers.set('StreamedPHPResponse', {
+		canHandle: (obj: unknown): obj is StreamedPHPResponse =>
+			obj instanceof StreamedPHPResponse,
+		serialize(obj: StreamedPHPResponse): [any, Transferable[]] {
+			const supportsStreams = supportsTransferableStreams();
+			const exitCodePort = promiseToPort(obj.exitCode);
+			const headersStream = obj.getHeadersStream();
+			if (supportsStreams) {
+				const payload = {
+					__type: 'StreamedPHPResponse',
+					headers: headersStream,
+					stdout: obj.stdout,
+					stderr: obj.stderr,
+					exitCodePort,
+				};
+				// ReadableStreams must be explicitly transferred
+				return [
+					payload,
+					[
+						headersStream as unknown as Transferable,
+						obj.stdout as unknown as Transferable,
+						obj.stderr as unknown as Transferable,
+						exitCodePort,
+					],
+				];
+			}
+			// Fallback: bridge streams via MessagePorts
+			const headersPort = streamToPort(headersStream);
+			const stdoutPort = streamToPort(obj.stdout);
+			const stderrPort = streamToPort(obj.stderr);
+			const payload = {
+				__type: 'StreamedPHPResponse',
+				headersPort,
+				stdoutPort,
+				stderrPort,
+				exitCodePort,
+			};
+			return [
+				payload,
+				[headersPort, stdoutPort, stderrPort, exitCodePort],
+			];
+		},
+		deserialize(data: any): StreamedPHPResponse {
+			if (data.headers && data.stdout && data.stderr) {
+				const exitCode = portToPromise(
+					data.exitCodePort as MessagePort
+				);
+				return new StreamedPHPResponse(
+					data.headers as ReadableStream<Uint8Array>,
+					data.stdout as ReadableStream<Uint8Array>,
+					data.stderr as ReadableStream<Uint8Array>,
+					exitCode
+				);
+			}
+			const headers = portToStream(data.headersPort as MessagePort);
+			const stdout = portToStream(data.stdoutPort as MessagePort);
+			const stderr = portToStream(data.stderrPort as MessagePort);
+			const exitCode = portToPromise(data.exitCodePort as MessagePort);
+			return new StreamedPHPResponse(headers, stdout, stderr, exitCode);
+		},
+	});
+}
+
+// Utilities for transferring ReadableStreams and Promises via MessagePorts:
+
+/**
+ * Safari does not support transferable streams, so we need to fallback to
+ * MessagePorts.
+ * Feature-detects whether this runtime supports transferring ReadableStreams
+ * directly through postMessage (aka "transferable streams"). When false,
+ * we must fall back to port-bridged streaming.
+ */
+function supportsTransferableStreams(): boolean {
+	try {
+		if (typeof ReadableStream === 'undefined') return false;
+		const { port1 } = new MessageChannel();
+		const rs = new ReadableStream();
+		port1.postMessage(rs as any);
+		try {
+			port1.close();
+		} catch (_e) {
+			void _e;
+		}
+		return true;
+	} catch (_e) {
+		void _e;
+		return false;
+	}
+}
+
+/**
+ * Bridges a ReadableStream to a MessagePort by reading chunks and posting
+ * messages to the port. Used as a fallback when transferable streams are not
+ * supported (e.g., Safari).
+ *
+ * Protocol of the returned MessagePort:
+ *
+ *   { t: 'chunk', b: ArrayBuffer } – next binary chunk
+ *   { t: 'close' }                 – end of stream
+ *   { t: 'error', m: string }      – terminal error
+ */
+function streamToPort(stream: ReadableStream<Uint8Array>): MessagePort {
+	const { port1, port2 } = new MessageChannel();
+	(async () => {
+		const reader = stream.getReader();
+		try {
+			while (true) {
+				const { done, value } = await reader.read();
+				if (done) {
+					try {
+						port1.postMessage({ t: 'close' });
+					} catch {
+						// Ignore error
+					}
+					try {
+						port1.close();
+					} catch {
+						// Ignore error
+					}
+					break;
+				}
+				if (value) {
+					// Ensure we transfer an owned buffer
+					const owned =
+						value.byteOffset === 0 &&
+						value.byteLength === value.buffer.byteLength
+							? value
+							: value.slice();
+					const buf = owned.buffer;
+					try {
+						port1.postMessage({ t: 'chunk', b: buf }, [
+							buf as unknown as Transferable,
+						]);
+					} catch {
+						port1.postMessage({
+							t: 'chunk',
+							b: owned.buffer.slice(0),
+						});
+					}
+				}
+			}
+		} catch (e: any) {
+			try {
+				port1.postMessage({ t: 'error', m: e?.message || String(e) });
+			} catch {
+				// Ignore error
+			}
+		} finally {
+			try {
+				port1.close();
+			} catch {
+				// Ignore error
+			}
+		}
+	})();
+	return port2;
+}
+
+/**
+ * Reconstructs a ReadableStream from a MessagePort using the inverse of the
+ * streamToPort protocol. Each message enqueues data, closes, or errors.
+ */
+function portToStream(port: MessagePort): ReadableStream<Uint8Array> {
+	return new ReadableStream<Uint8Array>({
+		start(controller) {
+			const onMessage = (ev: MessageEvent) => {
+				const data: any = (ev as any).data;
+				if (!data) return;
+				switch (data.t) {
+					case 'chunk':
+						controller.enqueue(new Uint8Array(data.b));
+						break;
+					case 'close':
+						controller.close();
+						cleanup();
+						break;
+					case 'error':
+						controller.error(new Error(data.m || 'Stream error'));
+						cleanup();
+						break;
+				}
+			};
+			const cleanup = () => {
+				try {
+					port.removeEventListener?.('message', onMessage as any);
+				} catch {
+					// Ignore error
+				}
+				try {
+					port.onmessage = null;
+				} catch {
+					// Ignore error
+				}
+				try {
+					port.close();
+				} catch {
+					// Ignore error
+				}
+			};
+			if (port.addEventListener) {
+				port.addEventListener('message', onMessage as any);
+			} else if ((port as any).on) {
+				(port as any).on('message', (data: any) =>
+					onMessage({ data } as any)
+				);
+			} else {
+				port.onmessage = onMessage as any;
+			}
+			if (typeof port.start === 'function') {
+				port.start();
+			}
+		},
+		cancel() {
+			try {
+				port.close();
+			} catch {
+				// Ignore error
+			}
+		},
+	});
+}
+
+/**
+ * Bridges a Promise to a MessagePort so it can be delivered across threads.
+ *
+ * Protocol of the returned MessagePort:
+ *
+ *   { t: 'resolve', v: any } – promise resolved with value v
+ *   { t: 'reject',  m: str } – promise rejected with message m
+ */
+function promiseToPort(promise: Promise<any>): MessagePort {
+	const { port1, port2 } = new MessageChannel();
+	promise
+		.then((value) => {
+			try {
+				port1.postMessage({ t: 'resolve', v: value });
+			} catch {
+				// Ignore error
+			}
+		})
+		.catch((err) => {
+			try {
+				port1.postMessage({
+					t: 'reject',
+					m: (err as any)?.message || String(err),
+				});
+			} catch {
+				// Ignore error
+			}
+		})
+		.finally(() => {
+			try {
+				port1.close();
+			} catch {
+				// Ignore error
+			}
+		});
+	return port2;
+}
+
+/**
+ * Reconstructs a Promise from a MessagePort using the inverse of
+ * promiseToPort. Resolves or rejects when the corresponding message arrives.
+ */
+function portToPromise(port: MessagePort): Promise<any> {
+	return new Promise((resolve, reject) => {
+		const onMessage = (ev: MessageEvent) => {
+			const data: any = (ev as any).data;
+			if (!data) return;
+			if (data.t === 'resolve') {
+				cleanup();
+				resolve(data.v);
+			} else if (data.t === 'reject') {
+				cleanup();
+				reject(new Error(data.m || ''));
+			}
+		};
+		const cleanup = () => {
+			try {
+				port.removeEventListener?.('message', onMessage as any);
+			} catch {
+				// Ignore error
+			}
+			try {
+				port.onmessage = null;
+			} catch {
+				// Ignore error
+			}
+			try {
+				port.close();
+			} catch {
+				// Ignore error
+			}
+		};
+		if (port.addEventListener) {
+			port.addEventListener('message', onMessage as any);
+		} else if ((port as any).on) {
+			(port as any).on('message', (data: any) =>
+				onMessage({ data } as any)
+			);
+		} else {
+			port.onmessage = onMessage as any;
+		}
+		if (typeof port.start === 'function') {
+			port.start();
+		}
+	});
 }
 
 // Augment Comlink's throw handler to include all the information carried by

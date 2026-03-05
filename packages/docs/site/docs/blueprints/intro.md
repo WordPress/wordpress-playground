@@ -2,6 +2,7 @@
 title: Introduction
 slug: /blueprints
 id: introduction
+description: The main introduction to the Blueprints documentation. Discover the structure of the docs and find key sections.
 ---
 
 import BlueprintExample from '@site/src/components/Blueprints/BlueprintExample.mdx';

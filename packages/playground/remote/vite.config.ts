@@ -12,6 +12,8 @@ import { copyFileSync, existsSync } from 'fs';
 import { buildVersionPlugin } from '../../vite-extensions/vite-build-version';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import virtualModule from '../../vite-extensions/vite-virtual-module';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import viteGlobalExtensions from '../../vite-extensions/vite-global-extensions';
 
 const path = (filename: string) => new URL(filename, import.meta.url).pathname;
 
@@ -38,6 +40,7 @@ const plugins = [
 			}
 		},
 	} as Plugin,
+	...viteGlobalExtensions,
 	buildVersionPlugin('remote-config'),
 ];
 
@@ -46,8 +49,8 @@ export default defineConfig(({ mode }) => {
 		'CORS_PROXY_URL' in process.env
 			? process.env['CORS_PROXY_URL']
 			: mode === 'production'
-			? 'https://wordpress-playground-cors-proxy.net/?'
-			: 'http://127.0.0.1:5263/cors-proxy.php?';
+				? 'https://wordpress-playground-cors-proxy.net/?'
+				: '/cors-proxy/?';
 
 	plugins.push(
 		virtualModule({
@@ -58,7 +61,14 @@ export default defineConfig(({ mode }) => {
 	);
 
 	return {
-		assetsInclude: ['**/*.wasm', '**/*.dat', '*.zip'],
+		root: __dirname,
+		assetsInclude: [
+			'**/*.wasm',
+			'**/*.so',
+			'**/*.dat',
+			'**/*.phar',
+			'*.zip',
+		],
 		cacheDir: '../../../node_modules/.vite/playground',
 		// Bundled WordPress files live in a separate dependency-free `wordpress`
 		// package so that every package may use them without causing circular
@@ -82,7 +92,18 @@ export default defineConfig(({ mode }) => {
 		server: {
 			port: remoteDevServerPort,
 			host: remoteDevServerHost,
-			allowedHosts: ['playground.test'],
+			allowedHosts: ['playground.test', 'playground-preview.test'],
+			proxy: {
+				// Proxy CORS requests to the local PHP CORS proxy server.
+				// This avoids Private Network Access (PNA) restrictions in Chrome
+				// when making cross-origin requests between different local ports.
+				'/cors-proxy': {
+					target: 'http://127.0.0.1:5263',
+					changeOrigin: true,
+					rewrite: (path) =>
+						path.replace(/^\/cors-proxy\/\?/, '/cors-proxy.php?'),
+				},
+			},
 			fs: {
 				// Allow serving files from the 'packages' directory
 				allow: ['../../'],
@@ -96,6 +117,29 @@ export default defineConfig(({ mode }) => {
 			plugins: () => plugins,
 			rollupOptions: {
 				output: {
+					assetFileNames: (chunkInfo) => {
+						// Split Extensions or associated shared files into separate chunks
+						// that will be placed in assets/extensions/ directory
+						if (
+							chunkInfo.names?.[0]?.endsWith('.so') ||
+							chunkInfo.names?.[0]?.endsWith('.dat')
+						) {
+							return 'assets/extensions/[name]-[hash][extname]';
+						}
+
+						return 'assets/[name]-[hash][extname]';
+					},
+					chunkFileNames: (chunkInfo: any) => {
+						// Split Extensions or associated shared files into separate chunks
+						// that will be placed in assets/extensions/ directory
+						if (
+							chunkInfo.facadeModuleId?.endsWith('.so') ||
+							chunkInfo.facadeModuleId?.endsWith('.dat')
+						) {
+							return 'assets/extensions/[name]-[hash].js';
+						}
+						return 'assets/[name]-[hash].js';
+					},
 					// Ensure the service worker always has the same name
 					entryFileNames: (chunkInfo: any) => {
 						if (chunkInfo.name === 'service-worker') {
@@ -119,7 +163,24 @@ export default defineConfig(({ mode }) => {
 				input: {
 					wordpress: path('/remote.html'),
 				},
+				output: {
+					assetFileNames: (chunkInfo) => {
+						// Split Extensions or associated shared files into separate chunks
+						// that will be placed in assets/extensions/ directory
+						if (
+							chunkInfo.names?.[0]?.endsWith('.so') ||
+							chunkInfo.names?.[0]?.endsWith('.dat')
+						) {
+							return 'assets/extensions/[name]-[hash][extname]';
+						}
+
+						return 'assets/[name]-[hash][extname]';
+					},
+				},
 			},
+			// Clean the output directory to make sure we include only the
+			// latest WordPress builds.
+			emptyOutDir: true,
 		},
 
 		test: {

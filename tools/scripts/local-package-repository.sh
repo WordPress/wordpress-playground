@@ -44,4 +44,4 @@ node \
   ./packages/playground/cli/src/cli.ts server \
   --port=$PORT \
   --mount="$HOST_PATH:/wordpress/$VERSION" \
-  --quiet
+  --verbosity=quiet

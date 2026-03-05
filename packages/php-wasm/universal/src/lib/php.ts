@@ -1,27 +1,33 @@
-import { PHPResponse, StreamedPHPResponse } from './php-response';
-import { getLoadedRuntime } from './load-php-runtime';
+import { logger } from '@php-wasm/logger';
+import {
+	Semaphore,
+	basename,
+	createSpawnHandler,
+	joinPaths,
+} from '@php-wasm/util';
+import type { Emscripten } from './emscripten-types';
+import type { ListFilesOptions, RmDirOptions } from './fs-helpers';
+import { FSHelpers } from './fs-helpers';
+import { isExitCode } from './is-exit-code';
 import type { PHPRuntimeId } from './load-php-runtime';
+import { popLoadedRuntime } from './load-php-runtime';
+import type { PHPRequestHandler } from './php-request-handler';
+import { PHPResponse, StreamedPHPResponse } from './php-response';
 import type {
+	ChildProcess,
 	MessageListener,
+	PHPEvent,
+	PHPEventListener,
 	PHPRequest,
 	PHPRequestHeaders,
 	PHPRunOptions,
 	SpawnHandler,
-	PHPEventListener,
-	PHPEvent,
 } from './universal-php';
-import type { RmDirOptions, ListFilesOptions } from './fs-helpers';
-import { FSHelpers } from './fs-helpers';
 import type { UnhandledRejectionsTarget } from './wasm-error-reporting';
 import {
 	getFunctionsMaybeMissingFromAsyncify,
 	improveWASMErrorReporting,
 } from './wasm-error-reporting';
-import { Semaphore, createSpawnHandler, joinPaths } from '@php-wasm/util';
-import type { PHPRequestHandler } from './php-request-handler';
-import { logger } from '@php-wasm/logger';
-import { isExitCode } from './is-exit-code';
-import type { Emscripten } from './emscripten-types';
 
 const STRING = 'string';
 const NUMBER = 'number';
@@ -69,14 +75,29 @@ type MountObject = {
 export class PHP implements Disposable {
 	protected [__private__dont__use]: any;
 	#sapiName?: string;
-	#webSapiInitialized = false;
+	#phpWasmInitCalled = false;
 	#wasmErrorsTarget: UnhandledRejectionsTarget | null = null;
-	#eventListeners: Map<string, Set<PHPEventListener>> = new Map();
+	#eventListeners: Map<string, Set<PHPEventListener>> = new Map([
+		// Listen to all events
+		['*', new Set()],
+	]);
 	#messageListeners: MessageListener[] = [];
 	#mounts: Record<string, MountObject> = {};
+	#rotationOptions: {
+		enabled: boolean;
+		recreateRuntime: () => Promise<number> | number;
+		needsRotating: boolean;
+		maxRequests: number;
+		requestsMade: number;
+	} = {
+		enabled: false,
+		recreateRuntime: () => 0,
+		needsRotating: false,
+		maxRequests: 400,
+		requestsMade: 0,
+	};
+
 	requestHandler?: PHPRequestHandler;
-	private cliCalled = false;
-	private runStreamCalled = false;
 
 	/**
 	 * An exclusive lock that prevent multiple requests from running at
@@ -96,14 +117,28 @@ export class PHP implements Disposable {
 		if (PHPRuntimeId !== undefined) {
 			this.initializeRuntime(PHPRuntimeId);
 		}
+		/**
+		 * Listen to PHP runtime crashes.
+		 *
+		 * Registering an actual event listener helps with testing. The
+		 * test cases can dispatch synthetic error events and confirm the
+		 * PHP runtime is properly rotated.
+		 */
+		this.addEventListener('request.error', (event: any) => {
+			if (event.source === 'php-wasm') {
+				this.#rotationOptions.needsRotating = true;
+			}
+		});
 	}
-
 	/**
 	 * Adds an event listener for a PHP event.
 	 * @param eventType - The type of event to listen for.
 	 * @param listener - The listener function to be called when the event is triggered.
 	 */
-	addEventListener(eventType: PHPEvent['type'], listener: PHPEventListener) {
+	addEventListener(
+		eventType: PHPEvent['type'] | '*',
+		listener: PHPEventListener
+	) {
 		if (!this.#eventListeners.has(eventType)) {
 			this.#eventListeners.set(eventType, new Set());
 		}
@@ -116,18 +151,20 @@ export class PHP implements Disposable {
 	 * @param listener - The listener function to be removed.
 	 */
 	removeEventListener(
-		eventType: PHPEvent['type'],
+		eventType: PHPEvent['type'] | '*',
 		listener: PHPEventListener
 	) {
 		this.#eventListeners.get(eventType)?.delete(listener);
 	}
 
 	dispatchEvent<Event extends PHPEvent>(event: Event) {
-		const listeners = this.#eventListeners.get(event.type);
+		const listeners = [
+			...(this.#eventListeners.get(event.type) || []),
+			...(this.#eventListeners.get('*') || []),
+		];
 		if (!listeners) {
 			return;
 		}
-
 		for (const listener of listeners) {
 			listener(event);
 		}
@@ -221,7 +258,7 @@ export class PHP implements Disposable {
 		if (this[__private__dont__use]) {
 			throw new Error('PHP runtime already initialized.');
 		}
-		const runtime = getLoadedRuntime(runtimeId);
+		const runtime = popLoadedRuntime(runtimeId);
 		if (!runtime) {
 			throw new Error('Invalid PHP runtime id.');
 		}
@@ -248,7 +285,7 @@ export class PHP implements Disposable {
 						// Always enable the file cache.
 						'opcache.file_cache_only = 1',
 						'opcache.file_cache_consistency_checks = 1',
-				  ]
+					]
 				: [];
 
 			/*if (
@@ -366,6 +403,15 @@ export class PHP implements Disposable {
 	}
 
 	/**
+	 * Gets the current working directory in the PHP filesystem.
+	 *
+	 * @returns The current working directory.
+	 */
+	cwd() {
+		return this[__private__dont__use].FS.cwd();
+	}
+
+	/**
 	 * Changes the permissions of a file or directory.
 	 * @param path - The path to the file or directory.
 	 * @param mode - The new permissions.
@@ -379,7 +425,7 @@ export class PHP implements Disposable {
 	 * @deprecated
 	 */
 	async request(request: PHPRequest): Promise<PHPResponse> {
-		logger.warn(
+		logger.debug(
 			'PHP.request() is deprecated. Please use new PHPRequestHandler() instead.'
 		);
 		if (!this.requestHandler) {
@@ -462,9 +508,8 @@ export class PHP implements Disposable {
 	 */
 	async run(request: PHPRunOptions): Promise<PHPResponse> {
 		const streamedResponse = await this.runStream(request);
-		const syncResponse = await PHPResponse.fromStreamedResponse(
-			streamedResponse
-		);
+		const syncResponse =
+			await PHPResponse.fromStreamedResponse(streamedResponse);
 
 		if (syncResponse.exitCode !== 0) {
 			// Legacy run() behavior: throw if PHP exited with a non-zero exit code.
@@ -573,14 +618,6 @@ export class PHP implements Disposable {
 	 * @returns A StreamedPHPResponse object.
 	 */
 	async runStream(request: PHPRunOptions): Promise<StreamedPHPResponse> {
-		if (this.cliCalled) {
-			throw new Error(
-				'php.runStream() can only be called if php.cli() was not called before. The two methods set a conflicting ' +
-					'C-level global state.'
-			);
-		}
-		this.runStreamCalled = true;
-
 		/*
 		 * Prevent multiple requests from running at the same time.
 		 * For example, if a request is made to a PHP file that
@@ -591,9 +628,17 @@ export class PHP implements Disposable {
 		let heapBodyPointer: number | undefined;
 		const streamedResponsePromise = this.#executeWithErrorHandling(
 			async () => {
-				if (!this.#webSapiInitialized) {
-					await this.#initWebRuntime();
-					this.#webSapiInitialized = true;
+				if (!this.#phpWasmInitCalled) {
+					await this[__private__dont__use].ccall(
+						'php_wasm_init',
+						null,
+						[],
+						[],
+						{
+							isAsync: true,
+						}
+					);
+					this.#phpWasmInitCalled = true;
 				}
 				if (
 					request.scriptPath &&
@@ -635,6 +680,7 @@ export class PHP implements Disposable {
 					requestHeaders,
 					port
 				);
+
 				for (const key in $_SERVER) {
 					this.#setServerGlobalEntry(key, $_SERVER[key]);
 				}
@@ -667,8 +713,7 @@ export class PHP implements Disposable {
 			release();
 
 			/**
-			 * Notify the filesystem journal and rotatePHPRuntime() that we've handled
-			 * another request.
+			 * Notify the filesystem journal (and any other listeners) that the request has ended.
 			 */
 			this.dispatchEvent({
 				type: 'request.end',
@@ -682,9 +727,14 @@ export class PHP implements Disposable {
 				return streamedResponse;
 			},
 			(error) => {
-				// If we couldn't even get the response,
-				cleanup();
-				throw error;
+				try {
+					cleanup();
+				} catch {
+					// ... do nothing, just rethrow the original error in the finally section belos ...
+				} finally {
+					// eslint-disable-next-line no-unsafe-finally
+					throw error;
+				}
 			}
 		);
 	}
@@ -721,12 +771,6 @@ export class PHP implements Disposable {
 				headers[name];
 		}
 		return $_SERVER;
-	}
-
-	#initWebRuntime() {
-		return this[__private__dont__use].ccall('php_wasm_init', null, [], [], {
-			isAsync: true,
-		});
 	}
 
 	#setRelativeRequestUri(uri: string) {
@@ -924,6 +968,20 @@ export class PHP implements Disposable {
 	async #executeWithErrorHandling(
 		executionFn: () => any
 	): Promise<StreamedPHPResponse> {
+		if (
+			this.#rotationOptions.enabled &&
+			this.#rotationOptions.needsRotating
+		) {
+			await this.rotateRuntime();
+		}
+		++this.#rotationOptions.requestsMade;
+		if (
+			this.#rotationOptions.requestsMade >=
+			this.#rotationOptions.maxRequests
+		) {
+			this.#rotationOptions.needsRotating = true;
+		}
+
 		const emscriptenModule = this[__private__dont__use];
 
 		const headers = await createInvertedReadableStream<Uint8Array>();
@@ -1062,11 +1120,12 @@ export class PHP implements Disposable {
 				/**
 				 * Emit all other errors.
 				 */
+				// Distinguish between PHP request and PHP-wasm errors
+				const source = (error as any).source ?? 'php-wasm';
 				this.dispatchEvent({
 					type: 'request.error',
 					error: error as any as Error,
-					// Distinguish between PHP request and PHP-wasm errors
-					source: (error as any).source ?? 'php-wasm',
+					source,
 				});
 				throw error;
 			}
@@ -1088,7 +1147,9 @@ export class PHP implements Disposable {
 	 * @param  path - The directory path to create.
 	 */
 	mkdir(path: string) {
-		return FSHelpers.mkdir(this[__private__dont__use].FS, path);
+		const result = FSHelpers.mkdir(this[__private__dont__use].FS, path);
+		this.dispatchEvent({ type: 'filesystem.write' });
+		return result;
 	}
 
 	/**
@@ -1127,8 +1188,14 @@ export class PHP implements Disposable {
 	 * @param  path - The file path to write to.
 	 * @param  data - The data to write to the file.
 	 */
-	writeFile(path: string, data: string | Uint8Array) {
-		return FSHelpers.writeFile(this[__private__dont__use].FS, path, data);
+	writeFile(path: string, data: string | Uint8Array | Buffer) {
+		const result = FSHelpers.writeFile(
+			this[__private__dont__use].FS,
+			path,
+			data
+		);
+		this.dispatchEvent({ type: 'filesystem.write' });
+		return result;
 	}
 
 	/**
@@ -1138,18 +1205,43 @@ export class PHP implements Disposable {
 	 * @param  path - The file path to remove.
 	 */
 	unlink(path: string) {
-		return FSHelpers.unlink(this[__private__dont__use].FS, path);
+		const result = FSHelpers.unlink(this[__private__dont__use].FS, path);
+		this.dispatchEvent({ type: 'filesystem.write' });
+		return result;
 	}
 
 	/**
 	 * Moves a file or directory in the PHP filesystem to a
 	 * new location.
 	 *
-	 * @param oldPath The path to rename.
-	 * @param newPath The new path.
+	 * @param fromPath The path to rename.
+	 * @param toPath The new path.
 	 */
 	mv(fromPath: string, toPath: string) {
-		return FSHelpers.mv(this[__private__dont__use].FS, fromPath, toPath);
+		const result = FSHelpers.mv(
+			this[__private__dont__use].FS,
+			fromPath,
+			toPath
+		);
+		this.dispatchEvent({ type: 'filesystem.write' });
+		return result;
+	}
+
+	/**
+	 * Copies a file or directory in the PHP filesystem to a
+	 * new location.
+	 *
+	 * @param fromPath The source path.
+	 * @param toPath The target path.
+	 */
+	cp(fromPath: string, toPath: string) {
+		const result = FSHelpers.copyRecursive(
+			this[__private__dont__use].FS,
+			fromPath,
+			toPath
+		);
+		this.dispatchEvent({ type: 'filesystem.write' });
+		return result;
 	}
 
 	/**
@@ -1159,7 +1251,13 @@ export class PHP implements Disposable {
 	 * @param options Options for the removal.
 	 */
 	rmdir(path: string, options: RmDirOptions = { recursive: true }) {
-		return FSHelpers.rmdir(this[__private__dont__use].FS, path, options);
+		const result = FSHelpers.rmdir(
+			this[__private__dont__use].FS,
+			path,
+			options
+		);
+		this.dispatchEvent({ type: 'filesystem.write' });
+		return result;
 	}
 
 	/**
@@ -1249,16 +1347,41 @@ export class PHP implements Disposable {
 	}
 
 	/**
+	 * Enables inline PHP runtime rotation after a certain number of requests
+	 * or an internal crash.
+	 */
+	enableRuntimeRotation(options: {
+		recreateRuntime: () => Promise<number> | number;
+		maxRequests?: number;
+	}) {
+		this.#rotationOptions = {
+			...this.#rotationOptions,
+			enabled: true,
+			recreateRuntime: options.recreateRuntime,
+			maxRequests: options.maxRequests ?? 400,
+		};
+	}
+
+	private async rotateRuntime() {
+		if (!this.#rotationOptions.enabled) {
+			throw new Error(
+				'Runtime rotation is not enabled. Call enableRuntimeRotation() first.'
+			);
+		}
+		await this.hotSwapPHPRuntime(
+			await this.#rotationOptions.recreateRuntime()
+		);
+		this.#rotationOptions.requestsMade = 0;
+		this.#rotationOptions.needsRotating = false;
+	}
+
+	/**
 	 * Hot-swaps the PHP runtime for a new one without
 	 * interrupting the operations of this PHP instance.
 	 *
 	 * @param runtime
-	 * @param cwd. Internal, the VFS path to recreate in the new runtime.
-	 *             This arg is temporary and will be removed once BasePHP
-	 *             is fully decoupled from the request handler and
-	 *             accepts a constructor-level cwd argument.
 	 */
-	async hotSwapPHPRuntime(runtime: number, cwd?: string) {
+	async hotSwapPHPRuntime(runtime: number) {
 		// Once we secure the lock and have the new runtime ready,
 		// the rest of the swap handler is synchronous to make sure
 		// no other operations acts on the old runtime or FS.
@@ -1268,12 +1391,44 @@ export class PHP implements Disposable {
 		// runtime.
 
 		const oldFS = this[__private__dont__use].FS;
+		const oldRootLevelPaths = this.listFiles('/').map((file) => `/${file}`);
+		const oldSpawnProcess = this[__private__dont__use].spawnProcess;
 
-		// Unmount all the mount handlers
-		const mountHandlers: { mountHandler: MountHandler; vfsPath: string }[] =
-			[];
-		for (const [vfsPath, mount] of Object.entries(this.#mounts)) {
-			mountHandlers.push({ mountHandler: mount.mountHandler, vfsPath });
+		// Temporarily set CWD to / and restore it at the end of this method.
+		//
+		// There's a chance cleaning up old mounts via mount.unmount()
+		// will attempt removing the CWD. Normally, this would throw
+		// FS.ErrnoError(10) EBUSY and interrupt the PHP runtime rotation,
+		// leaving us in a broken state.
+		//
+		// Even though removing the CWD directory is not allowed by the
+		// filesystem, we don't care that much here – we're merely freeing
+		// all the resources allocated by the old filesystem before it's
+		// garbage collected. We are about to recreate the same filesystem
+		// structure and mounts in another PHP runtime.
+		//
+		// Therefore, let's suspend the strict EBUSY check by setting the CWD
+		// to / for the cleanup purposes. We'll attempt to restore the original
+		// CWD on the new runtime once we re-apply all the mounts there. We'll
+		// only have a real reason to throw an error if the CWD path does not
+		// exist in the new filesystem after the rotation.
+		const oldCWD = oldFS.cwd();
+		oldFS.chdir('/');
+
+		// Remember mounts to apply to new runtime
+		const mountHandlersToReapplyInOrder = Object.entries(this.#mounts).map(
+			([vfsPath, mount]) => ({
+				mountHandler: mount.mountHandler,
+				vfsPath,
+			})
+		);
+
+		// Unmount all the mount handlers in reverse order because each nested
+		// mount depends upon the parent mount which preceded it.
+		const mountsToUnmountInReverseOrder = Object.values(
+			this.#mounts
+		).reverse();
+		for (const mount of mountsToUnmountInReverseOrder) {
 			await mount.unmount();
 		}
 
@@ -1287,22 +1442,45 @@ export class PHP implements Disposable {
 		// Initialize the new runtime
 		this.initializeRuntime(runtime);
 
+		if (oldSpawnProcess) {
+			this[__private__dont__use].spawnProcess = oldSpawnProcess;
+		}
+
 		if (this.#sapiName) {
 			this.setSapiName(this.#sapiName);
 		}
 
-		// Copy the old /internal directory to the new filesystem
-		copyFS(oldFS, this[__private__dont__use].FS, '/internal');
-
-		// Copy the MEMFS directory structure from the old FS to the new one
-		if (cwd) {
-			copyFS(oldFS, this[__private__dont__use].FS, cwd);
+		/**
+		 * Ensure the new PHP instance has the same file structure as the old one.
+		 *
+		 * Catch: The underlying filesystems may be completely separate but they may be
+		 * partially shared via NODEFS or PROXYFS mounts. We need to be careful and only
+		 * recreate the MEMFS directories that aren't already shared – otherwise we'll
+		 * write data to shared paths that other, concurrent workers may be using.
+		 */
+		const newFs = this[__private__dont__use].FS;
+		for (const path of oldRootLevelPaths) {
+			// The /request directory holds per-request state that is isolated to a
+			// single PHP instance. Let's not copy it.
+			if (path && path !== '/request') {
+				copyMEMFSNodes(oldFS, newFs, path);
+			}
 		}
 
-		// Re-mount all the mount handlers
-		for (const { mountHandler, vfsPath } of mountHandlers) {
+		// Re-mount all the mount handlers in order
+		for (const { mountHandler, vfsPath } of mountHandlersToReapplyInOrder) {
 			this.mkdir(vfsPath);
 			await this.mount(vfsPath, mountHandler);
+		}
+		try {
+			newFs.chdir(oldCWD);
+		} catch (e) {
+			throw new Error(
+				`Failed to restore CWD to ${oldCWD} after PHP runtime rotation.`,
+				{
+					cause: e,
+				}
+			);
 		}
 	}
 
@@ -1350,45 +1528,118 @@ export class PHP implements Disposable {
 	 */
 	async cli(
 		argv: string[],
-		options: { env?: Record<string, string> } = {}
+		options: { env?: Record<string, string>; cwd?: string } = {}
 	): Promise<StreamedPHPResponse> {
-		if (this.cliCalled) {
-			throw new Error(
-				'php.cli() can only be called once. The method sets a C-level global state that does not allow repeated calls.'
-			);
+		if (basename(argv[0] ?? '') !== 'php') {
+			return this.subProcess(argv, options);
 		}
-		if (this.runStreamCalled) {
-			throw new Error(
-				'php.cli() can only be called if php.runStream() was not called before. The two methods set a conflicting ' +
-					'C-level global state.'
-			);
+
+		if (this.#phpWasmInitCalled) {
+			this.#rotationOptions.needsRotating = true;
 		}
-		this.cliCalled = true;
+
 		const release = await this.semaphore.acquire();
 
-		const env = options.env || {};
-		for (const [key, value] of Object.entries(env)) {
-			this.#setEnv(key, value);
-		}
-		// Enforce the use of the internal php.ini file.
-		argv = [argv[0], '-c', PHP_INI_PATH, ...argv.slice(1)];
-		for (const arg of argv) {
-			this[__private__dont__use].ccall(
-				'wasm_add_cli_arg',
-				null,
-				[STRING],
-				[arg]
-			);
-		}
-
 		return await this.#executeWithErrorHandling(() => {
+			const env = options.env || {};
+			for (const [key, value] of Object.entries(env)) {
+				this.#setEnv(key, value);
+			}
+			// Enforce the use of the internal php.ini file.
+			argv = [argv[0], '-c', PHP_INI_PATH, ...argv.slice(1)];
+			for (const arg of argv) {
+				this[__private__dont__use].ccall(
+					'wasm_add_cli_arg',
+					null,
+					[STRING],
+					[arg]
+				);
+			}
+
 			return this[__private__dont__use].ccall('run_cli', null, [], [], {
 				async: true,
 			});
-		}).then((response) => {
-			response.exitCode.finally(release);
-			return response;
+		})
+			.then((response) => {
+				response.exitCode.finally(release);
+				return response;
+			})
+			.finally(() => {
+				this.#rotationOptions.needsRotating = true;
+			});
+	}
+
+	/**
+	 * Runs an arbitrary CLI command using the spawn handler associated
+	 * with this PHP instance.
+	 *
+	 * @param argv
+	 * @param options
+	 * @returns StreamedPHPResponse.
+	 */
+	private async subProcess(
+		argv: string[],
+		options: { env?: Record<string, string>; cwd?: string } = {}
+	): Promise<StreamedPHPResponse> {
+		const process = this[__private__dont__use].spawnProcess(
+			argv[0],
+			argv.slice(1),
+			{
+				env: options.env,
+				cwd: options.cwd ?? this.cwd(),
+			}
+		) as ChildProcess;
+
+		const stderrStream = await createInvertedReadableStream<Uint8Array>();
+		process.on('error', (error) => {
+			stderrStream.controller.error(error);
 		});
+		process.stderr.on('data', (data) => {
+			stderrStream.controller.enqueue(data);
+		});
+
+		const stdoutStream = await createInvertedReadableStream<Uint8Array>();
+		process.stdout.on('data', (data) => {
+			stdoutStream.controller.enqueue(data);
+		});
+
+		process.on('exit', () => {
+			// Delay until next tick to ensure we don't close the streams before
+			// emitting the error event on the stderrStream.
+			setTimeout(() => {
+				/**
+				 * Ignore any close() errors, e.g. "stream already closed". We just
+				 * need to try to call close() and forget about this subprocess.
+				 */
+				try {
+					stderrStream.controller.close();
+				} catch {
+					// Ignore error
+				}
+				try {
+					stdoutStream.controller.close();
+				} catch {
+					// Ignore error
+				}
+			}, 0);
+		});
+
+		return new StreamedPHPResponse(
+			// Headers stream
+			new ReadableStream({
+				start(controller) {
+					controller.close();
+				},
+			}),
+			stdoutStream.stream,
+			stderrStream.stream,
+			// Exit code
+			new Promise((resolve) => {
+				process.on('exit', (code) => {
+					resolve(code);
+				});
+			})
+		);
 	}
 
 	setSkipShebang(shouldSkip: boolean) {
@@ -1402,7 +1653,7 @@ export class PHP implements Disposable {
 
 	exit(code = 0) {
 		this.dispatchEvent({
-			type: 'runtime.beforedestroy',
+			type: 'runtime.beforeExit',
 		});
 		try {
 			this[__private__dont__use]._exit(code);
@@ -1411,7 +1662,7 @@ export class PHP implements Disposable {
 		}
 
 		// Clean up any initialized state
-		this.#webSapiInitialized = false;
+		this.#phpWasmInitCalled = false;
 
 		// Delete any links between this PHP instance and the runtime
 		this.#wasmErrorsTarget = null;
@@ -1423,9 +1674,7 @@ export class PHP implements Disposable {
 	}
 
 	[Symbol.dispose]() {
-		if (this.#webSapiInitialized) {
-			this.exit(0);
-		}
+		this.exit(0);
 	}
 }
 
@@ -1443,38 +1692,19 @@ export function normalizeHeaders(
  * Copies the MEMFS directory structure from one FS in another FS.
  * Non-MEMFS nodes are ignored.
  */
-function copyFS(
+function copyMEMFSNodes(
 	source: Emscripten.FileSystemInstance,
 	target: Emscripten.FileSystemInstance,
 	path: string
 ) {
-	let oldNode;
-	try {
-		oldNode = source.lookupPath(path);
-	} catch {
-		return;
-	}
-	// MEMFS nodes have a `contents` property. NODEFS nodes don't.
-	// We only want to copy MEMFS nodes here.
-	if (!('contents' in oldNode.node)) {
+	if (
+		getNodeType(source, path) !== 'memfs' ||
+		!['memfs', 'missing'].includes(getNodeType(target, path))
+	) {
 		return;
 	}
 
-	// Let's be extra careful and only proceed if newFs doesn't
-	// already have a node at the given path.
-	try {
-		// @TODO: Figure out the right thing to do. In Parent -> child PHP case,
-		//        we indeed want to synchronize the entire filesystem. However,
-		//        this approach seems slow and inefficient. Instead of exhaustively
-		//        iterating, could we just mark directories as dirty on write? And
-		//        how do we sync in both directions?
-		// target = target.lookupPath(path);
-		// return;
-	} catch {
-		// There's no such node in the new FS. Good,
-		// we may proceed.
-	}
-
+	const oldNode = source.lookupPath(path);
 	if (!source.isDir(oldNode.node.mode)) {
 		target.writeFile(path, source.readFile(path));
 		return;
@@ -1485,12 +1715,26 @@ function copyFS(
 		.readdir(path)
 		.filter((name: string) => name !== '.' && name !== '..');
 	for (const filename of filenames) {
-		copyFS(source, target, joinPaths(path, filename));
+		copyMEMFSNodes(source, target, joinPaths(path, filename));
 	}
 }
+
+/**
+ * Creates a readable stream with inverted control flow,
+ * based on the specified underlying source.
+ *
+ * In this case, inverting control flow means exposing the controller
+ * so the consumer can insert data into the stream.
+ *
+ * @param source - The underlying source to use.
+ * @returns The resulting stream and its associated controller.
+ */
 async function createInvertedReadableStream<T = BufferSource>(
 	source: UnderlyingSource<T> = {}
-) {
+): Promise<{
+	stream: ReadableStream<T>;
+	controller: ReadableStreamDefaultController<T>;
+}> {
 	let controllerResolve: (
 		controller: ReadableStreamDefaultController<T>
 	) => void;
@@ -1519,3 +1763,17 @@ async function createInvertedReadableStream<T = BufferSource>(
 		controller,
 	};
 }
+
+const getNodeType = (fs: Emscripten.FileSystemInstance, path: string) => {
+	try {
+		const target = fs.lookupPath(path, { follow: true });
+		return 'contents' in target.node
+			? 'memfs'
+			: /**
+				 * Could be NODEFS, PROXYFS, etc.
+				 */
+				'not-memfs';
+	} catch {
+		return 'missing';
+	}
+};

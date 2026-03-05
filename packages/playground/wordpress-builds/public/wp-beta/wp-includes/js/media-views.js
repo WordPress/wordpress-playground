@@ -1303,7 +1303,7 @@ var Button = wp.media.View.extend(/** @lends wp.media.view.Button.prototype */{
 		this.model = new Backbone.Model( this.defaults );
 
 		// If any of the `options` have a key from `defaults`, apply its
-		// value to the `model` and remove it from the `options object.
+		// value to the `model` and remove it from the `options` object.
 		_.each( this.defaults, function( def, key ) {
 			var value = this.options[ key ];
 			if ( _.isUndefined( value ) ) {
@@ -3033,7 +3033,7 @@ MediaFrame = Frame.extend(/** @lends wp.media.view.MediaFrame.prototype */{
 			tabPanelEl = this.$el.find( '.media-frame-tab-panel' ),
 			ariaLabelledby;
 
-		tabPanelEl.removeAttr( 'role aria-labelledby tabindex' );
+		tabPanelEl.removeAttr( 'role aria-labelledby' );
 
 		if ( this.state().get( 'menu' ) && this.menuView && this.menuView.isVisible ) {
 			ariaLabelledby = 'menu-item-' + stateId;
@@ -3043,7 +3043,6 @@ MediaFrame = Frame.extend(/** @lends wp.media.view.MediaFrame.prototype */{
 				.attr( {
 					role: 'tabpanel',
 					'aria-labelledby': ariaLabelledby,
-					tabIndex: '0'
 				} );
 		}
 	},
@@ -3059,7 +3058,7 @@ MediaFrame = Frame.extend(/** @lends wp.media.view.MediaFrame.prototype */{
 		var tabPanelEl = this.$el.find( '.media-frame-content' ),
 			ariaLabelledby;
 
-		tabPanelEl.removeAttr( 'role aria-labelledby tabindex' );
+		tabPanelEl.removeAttr( 'role aria-labelledby' );
 
 		// Set the tab panel attributes only if the tabs are visible.
 		if ( this.state().get( 'router' ) && this.routerView && this.routerView.isVisible && this.content._mode ) {
@@ -3069,7 +3068,6 @@ MediaFrame = Frame.extend(/** @lends wp.media.view.MediaFrame.prototype */{
 				.attr( {
 					role: 'tabpanel',
 					'aria-labelledby': ariaLabelledby,
-					tabIndex: '0'
 				} );
 		}
 	},
@@ -7889,7 +7887,9 @@ var Selection = wp.media.model.Selection,
  * @param {Object}                     [attributes]                         The attributes hash passed to the state.
  * @param {string}                     [attributes.id=gallery-library]      Unique identifier.
  * @param {string}                     [attributes.title=Add to Gallery]    Title for the state. Displays in the frame's title region.
- * @param {boolean}                    [attributes.multiple=add]            Whether multi-select is enabled. @todo 'add' doesn't seem do anything special, and gets used as a boolean.
+ * @param {boolean|string}             [attributes.multiple=add]            Whether multi-select is enabled. Accepts 'add' or true.
+ *                                                                          When set to true, requires Shift or Cmd/Ctrl to select multiple items.
+ *                                                                          When set to 'add', allows selecting multiple items by clicking thumbnails.
  * @param {wp.media.model.Attachments} [attributes.library]                 The attachments collection to browse.
  *                                                                          If one is not supplied, a collection of all images will be created.
  * @param {boolean|string}             [attributes.filterable=uploaded]     Whether the library is filterable, and if so what filters should be shown.
@@ -8000,7 +8000,9 @@ var Selection = wp.media.model.Selection,
  * @param {object}                     [attributes]                         The attributes hash passed to the state.
  * @param {string}                     [attributes.id=library]              Unique identifier.
  * @param {string}                     attributes.title                     Title for the state. Displays in the frame's title region.
- * @param {boolean}                    [attributes.multiple=add]            Whether multi-select is enabled. @todo 'add' doesn't seem do anything special, and gets used as a boolean.
+ * @param {boolean|string}             [attributes.multiple=add]            Whether multi-select is enabled. Accepts 'add' or true.
+ *                                                                          When set to true, requires Shift or Cmd/Ctrl to select multiple items.
+ *                                                                          When set to 'add', allows selecting multiple items by clicking thumbnails.
  * @param {wp.media.model.Attachments} [attributes.library]                 The attachments collection to browse.
  *                                                                          If one is not supplied, a collection of attachments of the specified type will be created.
  * @param {boolean|string}             [attributes.filterable=uploaded]     Whether the library is filterable, and if so what filters should be shown.
@@ -9311,8 +9313,11 @@ UploaderStatus = View.extend(/** @lends wp.media.view.UploaderStatus.prototype *
 		this.views.add( '.upload-errors', statusError, { at: 0 } );
 		_.delay( function() {
 			buttonClose.trigger( 'focus' );
-			wp.a11y.speak( error.get( 'message' ), 'assertive' );
 		}, 1000 );
+
+		_.delay( function() {
+			wp.a11y.speak( error.get( 'message' ) );
+		}, 1500 );
 	},
 
 	dismiss: function() {
@@ -9322,6 +9327,7 @@ UploaderStatus = View.extend(/** @lends wp.media.view.UploaderStatus.prototype *
 			_.invoke( errors, 'remove' );
 		}
 		wp.Uploader.errors.reset();
+		wp.a11y.speak( wp.i18n.__( 'Error dismissed.' ) );
 		// Move focus to the modal after the dismiss button gets removed from the DOM.
 		if ( this.controller.modal ) {
 			this.controller.modal.focusManager.focus();

@@ -1,4 +1,4 @@
-import type { Logger } from '../logger';
+import { type Logger, LogSeverity } from '../logger';
 
 /**
  * Log Windows errors.
@@ -9,7 +9,7 @@ import type { Logger } from '../logger';
 const logWindowErrorEvent = (loggerInstance: Logger, event: ErrorEvent) => {
 	loggerInstance.logMessage({
 		message: `${event.message} in ${event.filename} on line ${event.lineno}:${event.colno}`,
-		severity: 'Error',
+		severity: LogSeverity.Error,
 	});
 };
 
@@ -30,7 +30,7 @@ const logPromiseRejection = (
 	const message = event?.reason.stack ?? event.reason;
 	loggerInstance.logMessage({
 		message,
-		severity: 'Error',
+		severity: LogSeverity.Error,
 	});
 };
 

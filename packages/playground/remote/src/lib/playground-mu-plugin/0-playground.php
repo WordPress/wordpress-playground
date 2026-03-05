@@ -100,7 +100,7 @@ function playground_add_target_blank_to_external_links() {
 	if (empty($_SERVER['REQUEST_URI']) || wp_doing_ajax() || wp_doing_cron()) {
 		return;
 	}
-	
+
 	?>
 	<script>
 		function addTargetBlankToExternalLinks() {
@@ -116,10 +116,14 @@ function playground_add_target_blank_to_external_links() {
 			document.querySelectorAll('a[href]').forEach(a => {
 				addTargetBlank(a);
 			});
-			
+
 			// Set target="_blank" for external links when clicked.
 			// This covers links that are added after the page has loaded.
 			document.addEventListener('click', e => {
+				// window, document, SVG Text nodes etc. don't have the `closest` method
+				if ( !e.target?.closest ) {
+					return;
+				}
 				const a = e.target.closest('a[href]');
 				if (!a) return;
 				addTargetBlank(a);
@@ -128,7 +132,11 @@ function playground_add_target_blank_to_external_links() {
 			// Also handle focus events to cover keyboard navigation on
 			// links that are added after the page has loaded.
 			document.addEventListener('focus', e => {
-				const a = e.target.closest('a[href]');
+				// window, document, SVG Text nodes etc. don't have the `closest` method
+				if ( !e.target?.closest ) {
+					return;
+				}
+				const a = e.target?.closest('a[href]');
 				if (!a) return;
 				addTargetBlank(a);
 			}, true);
@@ -145,6 +153,34 @@ function playground_add_target_blank_to_external_links() {
 }
 add_action('wp_head', 'playground_add_target_blank_to_external_links');
 add_action('admin_head', 'playground_add_target_blank_to_external_links');
+
+/**
+ * Reports the current URL to the parent frame.
+ *
+ * When Document-Isolation-Policy is enabled, the parent frame can't access
+ * the iframe's location.href due to cross-origin restrictions. This script
+ * posts a message to the parent frame with the current URL so the address
+ * bar can be updated.
+ *
+ * @see https://github.com/WordPress/wordpress-playground/issues/2954
+ */
+function playground_report_url_to_parent() {
+	?>
+	<script>
+		if (window.parent !== window) {
+			window.parent.postMessage(
+				JSON.stringify({
+					type: 'playground-url-change',
+					url: window.location.href
+				}),
+				'*'
+			);
+		}
+	</script>
+	<?php
+}
+add_action('wp_head', 'playground_report_url_to_parent');
+add_action('admin_head', 'playground_report_url_to_parent');
 
 /**
  * The default WordPress requests transports have been disabled
@@ -188,11 +224,6 @@ if (defined('USE_FETCH_FOR_REQUESTS') && USE_FETCH_FOR_REQUESTS) {
 	add_filter('wp_signature_hosts', function ($hosts) {
 		return [];
 	});
-
-	// add_filter('http_request_host_is_external', function ($arg) {
-	// 	return true;
-	// });
-	add_filter('http_request_host_is_external', '__return_true');
 } else {
 	require(__DIR__ . '/playground-includes/wp_http_dummy.php');
 	$__requests_class::add_transport('Wp_Http_Dummy');
@@ -204,4 +235,45 @@ if (defined('USE_FETCH_FOR_REQUESTS') && USE_FETCH_FOR_REQUESTS) {
 	add_filter('http_api_transports', function() {
 		return [ 'Dummy' ];
 	});
+}
+
+/**
+ * Disable the pattern picker modal to prevent iOS Safari memory crashes.
+ * @see https://github.com/WordPress/gutenberg/issues/75019
+ */
+add_action('init', function() {
+	if (defined('PLAYGROUND_ALLOW_PATTERN_PICKER') && PLAYGROUND_ALLOW_PATTERN_PICKER) return;
+	$user_id = get_current_user_id();
+	if (!$user_id) return;
+
+	$prefs = get_user_meta($user_id, 'wp_persisted_preferences', true) ?: [];
+	if (!isset($prefs['core'])) $prefs['core'] = [];
+	$prefs['core']['enableChoosePatternModal'] = false;
+	update_user_meta($user_id, 'wp_persisted_preferences', $prefs);
+});
+
+/**
+ * ¡TEMPORARY WORKAROUND!
+ * On 2026-02-26, with Gutenberg v22.6.0 and above, the site editor and post
+ * editor fail to load. This appears related the `cross-origin-embedder-policy: credentialless`
+ * header which is added when client side media is enabled by default.
+ *
+ * This has something to do with our /wp-includes/empty.html workaround.
+ * @TODO: Let's find a solution that doesn't require us to disable client side media processing.
+ */
+add_filter('wp_client_side_media_processing_enabled', '__return_false');
+
+/**
+ * Disable the WP Cron.
+ * 
+ * Around WordPress 7.0 beta 1, many wp-cron requests in the Playground started
+ * taking the full 30 seconds to complete. Since we're running PHP on a single
+ * worker, that blocks every other request from running until WP Cron completes.
+ */
+define('DISABLE_WP_CRON', true);
+if(str_ends_with($_SERVER['PHP_SELF'], '/wp-cron.php')) {
+	http_response_code(503);
+	header('Content-Type: text/plain');
+	echo 'WP Cron is temporarily disabled in the Playground.';
+	exit;
 }

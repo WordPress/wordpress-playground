@@ -1,7 +1,7 @@
 ---
-title: Playground for Theme Developers
+title: WordPress Playground para desenvolvedores de temas
 slug: /guides/for-theme-developers
-description: WordPress Playground for Theme Developers
+description: Um guia para desenvolvedores de temas sobre como usar o Playground para construir, testar e criar demos de seus temas com Blueprints.
 ---
 
 <!--
@@ -89,32 +89,26 @@ A theme stored in a GitHub repository can also be loaded in a Playground instanc
 Um tema armazenado em um repositório GitHub também pode ser carregado em uma instância do Playground com Blueprints.
 
 <!--
-In the `themeData` property of the [`installTheme` blueprint step](/blueprints/steps#InstallThemeStep), you can define a [`url` resource](/blueprints/steps/resources#urlreference) that points to the location of the `.zip` file containing the theme you want to load in the Playground instance.
+With the `themeData` property of the [`installTheme` blueprint step](/blueprints/steps#InstallThemeStep), you can define a [`git:directory` resource](/blueprints/steps/resources#gitdirectoryreference) that will build a theme from the files from a repository in the Playground instance.
 -->
 
-Na propriedade `themeData` do [passo blueprint `installTheme`](/blueprints/steps#InstallThemeStep), você pode definir um [recurso `url`](/blueprints/steps/resources#urlreference) que aponta para a localização do arquivo `.zip` contendo o tema que você deseja carregar na instância do Playground.
+Com a propriedade `themeData` do [passo do blueprint `installTheme`](/blueprints/steps#InstallThemeStep), você pode definir um [recurso `git:directory`](/blueprints/steps/resources#gitdirectoryreference) que criará um tema a partir dos arquivos de um repositório na instância do Playground.
 
 <!--
-To avoid CORS issues, the Playground project provides a [GitHub proxy](https://github-proxy.com/) that allows you to generate a `.zip` from a repository (or even a folder inside a repo) containing your or theme.
--->
-
-Para evitar problemas de CORS, o projeto Playground fornece um [proxy GitHub](https://github-proxy.com/) que permite gerar um `.zip` de um repositório (ou mesmo uma pasta dentro de um repo) contendo seu tema.
-
-<!--
-:::tip
-[GitHub proxy](https://playground.wordpress.net/proxy) is an incredibly useful tool to load themes from GitHub repositories as it allows you to load a theme from a specific branch, a specific directory, a specific commit or a specific PR.
+:::info
+For the past few months, the [GitHub proxy](https://playground.wordpress.net/proxy) was an incredibly useful tool to load themes from GitHub repositories, as it allows you to load a theme from a specific branch, a specific directory, a specific commit, or a specific PR. But with the recent improvements to Playground, this feature is no longer necessary. The GitHub Proxy will be discontinued soon, please update your blueprints to `git:directory` resource.
 :::
 -->
 
-:::tip
-O [proxy GitHub](https://github-proxy.com/) é uma ferramenta incrivelmente útil para carregar temas de repositórios GitHub, pois permite carregar um tema de uma branch específica, um diretório específico, um commit específico ou um PR específico.
+:::info
+Durante os últimos meses, o [proxy do GitHub](https://playground.wordpress.net/proxy) foi uma ferramenta incrivelmente útil para carregar temas de repositórios do GitHub, pois permitia carregar um tema de uma branch específica, um diretório específico, um commit específico ou um PR específico. Mas com as melhorias recentes no Playground, esse recurso não é mais necessário. O Proxy do GitHub será descontinuado em breve, por favor atualize seus blueprints para o recurso `git:directory`.
 :::
 
 <!--
-For example the following `blueprint.json` installs a theme from a GitHub repository leveraging the https://github-proxy.com tool:
+For example the following `blueprint.json` installs a theme from a GitHub repository:
 -->
 
-Por exemplo, o seguinte `blueprint.json` instala um tema de um repositório GitHub aproveitando a ferramenta https://github-proxy.com:
+Por exemplo, o seguinte `blueprint.json` instala um tema de um repositório GitHub:
 
 ```json
 {
@@ -122,8 +116,10 @@ Por exemplo, o seguinte `blueprint.json` instala um tema de um repositório GitH
 		{
 			"step": "installTheme",
 			"themeData": {
-				"resource": "url",
-				"url": "https://github-proxy.com/proxy/?repo=Automattic/themes&branch=trunk&directory=assembler"
+				"resource": "git:directory",
+				"url": "https://github.com/Automattic/themes",
+				"ref": "trunk",
+				"path": "assembler"
 			},
 			"options": {
 				"activate": true
@@ -134,10 +130,20 @@ Por exemplo, o seguinte `blueprint.json` instala um tema de um repositório GitH
 ```
 
 <!--
-[<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](https://playground.wordpress.net/builder/builder.html#{%22steps%22:[{%22step%22:%22installTheme%22,%22themeData%22:{%22resource%22:%22url%22,%22url%22:%22https://github-proxy.com/proxy/?repo=Automattic/themes&branch=trunk&directory=assembler%22},%22options%22:{%22activate%22:true}}]})
+:::tip
+If your theme is hosted on GitHub, you can automatically add preview buttons to your pull requests using the Playground PR Preview GitHub Action. This lets reviewers test your changes instantly without any setup. See [Adding PR Preview Buttons with GitHub Actions](/guides/github-action-pr-preview) for details.
+:::
 -->
 
-[<kbd> &nbsp; Executar Blueprint &nbsp; </kbd>](https://playground.wordpress.net/builder/builder.html#{%22steps%22:[{%22step%22:%22installTheme%22,%22themeData%22:{%22resource%22:%22url%22,%22url%22:%22https://github-proxy.com/proxy/?repo=Automattic/themes&branch=trunk&directory=assembler%22},%22options%22:{%22activate%22:true}}]})
+:::tip
+Se o seu tema estiver hospedado no GitHub, você pode adicionar automaticamente botões de visualização às suas solicitações pull usando o GitHub Action Playground PR Preview. Isso permite que os revisores testem suas alterações instantaneamente, sem qualquer configuração. Consulte [Adicionando botões de visualização de PR com ações do GitHub](/guides/github-action-pr-preview) para obter detalhes.
+:::
+
+<!--
+[<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](https://playground.wordpress.net/builder/builder.html#{%22steps%22:[{%22step%22:%22installTheme%22,%22themeData%22:{%22resource%22:%22git:directory%22,%22url%22:%22https://github.com/Automattic/themes%22,%22ref%22:%22trunk%22,%22path%22:%22assembler%22},%22options%22:{%22activate%22:true}}]})
+-->
+
+[<kbd> &nbsp; Executar Blueprint &nbsp; </kbd>](https://playground.wordpress.net/#{%22steps%22:[{%22step%22:%22installTheme%22,%22themeData%22:{%22resource%22:%22git:directory%22,%22url%22:%22https://github.com/Automattic/themes%22,%22ref%22:%22trunk%22,%22path%22:%22assembler%22},%22options%22:{%22activate%22:true}}],%22$schema%22:%22https://playground.wordpress.net/blueprint-schema.json%22,%22meta%22:{%22title%22:%22Empty%20Blueprint%22,%22author%22:%22https://github.com/akirk/playground-step-library%22}})
 
 <!--
 A blueprint can be passed to a Playground instance [in several ways](/blueprints/using-blueprints).
@@ -173,9 +179,9 @@ Some useful tools and resources provided by the Playground project to work with 
 
 Algumas ferramentas e recursos úteis fornecidos pelo projeto Playground para trabalhar com blueprints são:
 
--   Verifique a [Galeria de Blueprints](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) para explorar exemplos de código reais de uso do WordPress Playground para iniciar um site WordPress com várias configurações.
--   A ferramenta [Biblioteca de Passos do WordPress Playground](https://akirk.github.io/playground-step-library/#) fornece uma interface visual para arrastar ou clicar nos passos para criar um blueprint para o WordPress Playground. Você também pode criar seus próprios passos!
--   A ferramenta [Construtor de Blueprints](https://playground.wordpress.net/builder/builder.html) permite editar seu blueprint online e executá-lo diretamente em uma instância do Playground.
+- Verifique a [Galeria de Blueprints](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) para explorar exemplos de código reais de uso do WordPress Playground para iniciar um site WordPress com várias configurações.
+- A ferramenta [Biblioteca de Passos do WordPress Playground](https://akirk.github.io/playground-step-library/#) fornece uma interface visual para arrastar ou clicar nos passos para criar um blueprint para o WordPress Playground. Você também pode criar seus próprios passos!
+- A ferramenta [Construtor de Blueprints](https://playground.wordpress.net/builder/builder.html) permite editar seu blueprint online e executá-lo diretamente em uma instância do Playground.
 
 :::
 

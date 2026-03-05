@@ -1,0 +1,556 @@
+:global(:root) {
+	color-scheme: light;
+}
+
+:global(html),
+:global(body) {
+	margin: 0;
+	height: 100%;
+	display: flex;
+	flex-direction: column;
+	font-family: system-ui, sans-serif;
+}
+
+.root {
+	flex: 1;
+	display: flex;
+	min-height: 0;
+	height: 100vh;
+	width: 100%;
+}
+
+.app {
+	flex: 1;
+	display: flex;
+	min-height: 0;
+	height: 100%;
+}
+
+.editorPane {
+	display: flex;
+	flex-direction: column;
+	min-width: 280px;
+	min-height: 0;
+	height: 100%;
+	overflow: auto;
+}
+
+.controls {
+	padding: 8px 12px;
+	background: #f5f5f5;
+	border-bottom: 1px solid #ddd;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	font-size: 16px;
+}
+
+.controls,
+.controls * {
+	font-size: 16px;
+}
+
+.controlsTitle {
+	margin: 0;
+	font-size: 18px;
+	font-weight: 600;
+	color: #333;
+}
+
+.controlsRight {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.runButton {
+	padding: 6px 12px;
+	border: 1px solid #ccc;
+	border-radius: 4px;
+	background: white;
+	cursor: pointer;
+	transition: background-color 0.2s;
+}
+
+.runButton:hover {
+	background: #f0f0f0;
+}
+
+.select {
+	padding: 6px 8px;
+	border: 1px solid #ccc;
+	border-radius: 4px;
+	background: white;
+}
+
+.helpLink {
+	color: #0073aa;
+	text-decoration: none;
+	font-size: 14px;
+	margin-left: 8px;
+}
+
+.helpLink:hover {
+	text-decoration: underline;
+}
+
+.editorContent {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	min-height: 0;
+}
+
+.filePathBar {
+	box-sizing: border-box;
+	padding: 6px 10px;
+	background: #fafafa;
+	border-bottom: 1px solid #eee;
+	color: #666;
+	font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas,
+		'Courier New', monospace;
+	font-size: 12px;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.filePathText {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	display: inline-block;
+	max-width: 100%;
+}
+
+.editorSplitGroup {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	min-height: 0;
+}
+
+.editor {
+	flex: 1;
+	min-height: 0;
+	font-size: 14px;
+}
+
+:global(#editor .cm-editor) {
+	font-size: 14px;
+	line-height: 1.4;
+}
+
+:global(#editor .cm-content) {
+	font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas,
+		'Courier New', monospace;
+}
+
+:global(#editor .cm-editor .tok-keyword) {
+	color: #0969da;
+	font-weight: 600;
+}
+
+:global(#editor .cm-editor .tok-string) {
+	color: #032f62;
+}
+
+:global(#editor .cm-editor .tok-comment) {
+	color: #6a737d;
+	font-style: italic;
+}
+
+:global(#editor .cm-editor .tok-variableName) {
+	color: #d73a49;
+}
+
+:global(#editor .cm-editor .tok-number) {
+	color: #005cc5;
+}
+
+:global(#editor .cm-editor .tok-operator) {
+	color: #d73a49;
+}
+
+:global(#editor .cm-editor .tok-punctuation) {
+	color: #24292e;
+}
+
+:global(#editor .cm-editor .tok-typeName) {
+	color: #6f42c1;
+}
+
+:global(#editor .cm-editor .tok-propertyName) {
+	color: #005cc5;
+}
+
+:global(#editor .cm-editor .tok-function) {
+	color: #6f42c1;
+	font-weight: 600;
+}
+
+.previewPane {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	min-width: 320px;
+	height: 100%;
+}
+
+.preview {
+	position: static;
+	flex: 1;
+	width: 100%;
+	height: 100%;
+	border: 0;
+}
+
+.horizontalHandle {
+	width: 8px;
+	background: #e5e5e5;
+	cursor: col-resize;
+	flex-shrink: 0;
+}
+
+.horizontalHandle[data-resize-handle-active='true'],
+.horizontalHandle[data-panel-resize-handle-active='true'] {
+	background: #c7c7c7;
+}
+
+.verticalHandle {
+	height: 8px;
+	background: #202020;
+	cursor: ns-resize;
+	flex-shrink: 0;
+}
+
+.verticalHandle[data-resize-handle-active='true'],
+.verticalHandle[data-panel-resize-handle-active='true'] {
+	background: #2f2f2f;
+}
+
+.terminalPanel {
+	display: flex;
+	flex-direction: column;
+	min-height: 0;
+}
+
+.terminalSection {
+	height: 100%;
+	background: #111;
+	color: #fff;
+	font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas,
+		'Courier New', monospace;
+	display: flex;
+	flex-direction: column;
+	border-top: 1px solid #333;
+	position: relative;
+}
+
+.terminalSectionCollapsed .terminalPane {
+	display: none;
+}
+
+.terminalHeader {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 8px 16px;
+	background: #1a1a1a;
+	gap: 12px;
+	cursor: pointer;
+	&:hover {
+		opacity: 0.8;
+	}
+}
+
+.terminalResizeHandle {
+	height: 6px;
+	cursor: ns-resize;
+	background: #202020;
+	touch-action: none;
+}
+
+.terminalResizeHandle:hover,
+.terminalResizeHandleDragging {
+	background: #2f2f2f;
+}
+
+.terminalPane {
+	box-sizing: border-box;
+	overflow: auto;
+	padding: 8px;
+	flex: 1;
+}
+
+.terminal {
+	width: 100%;
+	height: 100%;
+}
+
+/* Placeholder UI for pre-boot states */
+.placeholderContainer {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	height: 100%;
+	padding: 12px;
+	color: #666;
+	background: #fafafa;
+	border-top: 1px solid #eee;
+}
+
+.placeholderContent {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 8px;
+}
+
+.placeholderHeading {
+	font-size: 13px;
+	font-weight: 600;
+	color: #333;
+}
+
+.placeholderSubtext {
+	font-size: 12px;
+	color: #666;
+}
+
+.skeletonList {
+	width: 100%;
+	max-width: 220px;
+	margin-top: 6px;
+}
+
+.skeletonLine {
+	height: 10px;
+	border-radius: 6px;
+	background: linear-gradient(90deg, #ececec, #f5f5f5, #ececec);
+	background-size: 200% 100%;
+	animation: skeletonShimmer 1.2s ease-in-out infinite;
+	margin: 8px 0;
+}
+
+.skeletonLineShort {
+	width: 70%;
+}
+
+@keyframes skeletonShimmer {
+	0% {
+		background-position: 200% 0;
+	}
+	100% {
+		background-position: -200% 0;
+	}
+}
+
+/* Terminal overlay while booting */
+.terminalOverlay {
+	position: absolute;
+	inset: 0;
+	background: rgba(17, 17, 17, 0.9);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	z-index: 1;
+}
+
+.terminalOverlayContent {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 8px;
+	color: #e5e5e5;
+	font-size: 13px;
+}
+
+.modal {
+	display: none;
+	position: fixed;
+	z-index: 1000;
+	left: 0;
+	top: 0;
+	width: 100%;
+	height: 100%;
+	background-color: rgba(0, 0, 0, 0.5);
+}
+
+.modalVisible {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.modalContent {
+	background: white;
+	border-radius: 8px;
+	padding: 24px;
+	max-width: 600px;
+	max-height: 80vh;
+	overflow-y: auto;
+	position: relative;
+	margin: 20px;
+	box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+.modalHeader {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: 16px;
+	padding-bottom: 16px;
+	border-bottom: 1px solid #ddd;
+}
+
+.modalTitle {
+	margin: 0;
+	color: #333;
+	font-size: 20px;
+}
+
+.closeButton {
+	background: none;
+	border: none;
+	font-size: 24px;
+	cursor: pointer;
+	color: #666;
+	padding: 0;
+	width: 30px;
+	height: 30px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.closeButton:hover {
+	color: #333;
+}
+
+.modalBody {
+	line-height: 1.6;
+	color: #555;
+}
+
+.modalBodyHeading {
+	color: #333;
+	margin-top: 20px;
+	margin-bottom: 8px;
+}
+
+.modalBodyList {
+	padding-left: 20px;
+}
+
+.modalBodyLink {
+	color: #0073aa;
+	text-decoration: none;
+}
+
+.modalBodyLink:hover {
+	text-decoration: underline;
+}
+
+.modalBodyCode {
+	background: #f5f5f5;
+	padding: 2px 4px;
+	border-radius: 3px;
+	font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas,
+		'Courier New', monospace;
+	font-size: 14px;
+}
+
+@media (max-width: 1200px) {
+	.app {
+		flex-direction: column;
+	}
+	.previewPane {
+		height: 45vh;
+		min-width: 0;
+	}
+	.editorPane {
+		min-width: 0;
+	}
+}
+
+@media (max-width: 900px) {
+	.controlsTitle {
+		font-size: 16px;
+	}
+	.controlsRight {
+		gap: 6px;
+	}
+	.controlsRight label,
+	.controlsRight select,
+	.controlsRight button,
+	.controlsRight a {
+		font-size: 14px;
+	}
+	.previewPane {
+		height: 40vh;
+	}
+}
+
+@media (max-width: 768px) {
+	.controls {
+		flex-direction: column;
+		align-items: stretch;
+		gap: 8px;
+		padding: 12px;
+	}
+	.controlsTitle {
+		font-size: 14px;
+		text-align: center;
+		margin-bottom: 4px;
+	}
+	.controlsRight {
+		justify-content: center;
+		flex-wrap: wrap;
+		gap: 8px;
+	}
+	.runButton,
+	.select {
+		padding: 8px 12px;
+		min-height: 44px;
+	}
+	.previewPane {
+		height: 35vh;
+	}
+	:global(#editor .cm-editor) {
+		font-size: 13px;
+	}
+	.terminalPane {
+		height: 200px;
+	}
+}
+
+@media (max-width: 480px) {
+	.controls {
+		padding: 8px;
+	}
+	.controlsTitle {
+		font-size: 13px;
+	}
+	.controlsRight {
+		font-size: 13px;
+	}
+	.runButton,
+	.select {
+		min-height: 40px;
+		font-size: 13px;
+	}
+	.helpLink {
+		font-size: 12px;
+	}
+	.previewPane {
+		height: 30vh;
+	}
+	:global(#editor .cm-editor) {
+		font-size: 12px;
+		line-height: 1.3;
+	}
+	.terminalPane {
+		height: 160px;
+	}
+}

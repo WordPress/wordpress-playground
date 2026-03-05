@@ -5,8 +5,11 @@ import dts from 'vite-plugin-dts';
 import viteTsConfigPaths from 'vite-tsconfig-paths';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { getExternalModules } from '../../vite-extensions/vite-external-modules';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import viteGlobalExtensions from '../../vite-extensions/vite-global-extensions';
 
 export default defineConfig({
+	root: __dirname,
 	cacheDir: '../../../node_modules/.vite/php-wasm-node-polyfills',
 
 	plugins: [
@@ -18,6 +21,8 @@ export default defineConfig({
 			tsconfigPath: join(__dirname, 'tsconfig.lib.json'),
 			pathsToAliases: false,
 		}),
+
+		...viteGlobalExtensions,
 	],
 
 	// Uncomment this if you are using workers.

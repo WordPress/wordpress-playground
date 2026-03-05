@@ -4,7 +4,17 @@ import {
 	OverlayFilesystem,
 	ZipFilesystem,
 } from '@wp-playground/storage';
-import type { BlueprintBundle } from './blueprint';
+import type { BlueprintBundle } from './types';
+
+export class BlueprintFetchError extends Error {
+	public readonly url: string;
+
+	constructor(message: string, url: string, options?: ErrorOptions) {
+		super(message, options);
+		this.name = 'BlueprintFetchError';
+		this.url = url;
+	}
+}
 
 /**
  * Resolves a remote blueprint from a URL.
@@ -15,13 +25,23 @@ import type { BlueprintBundle } from './blueprint';
 export async function resolveRemoteBlueprint(
 	url: string
 ): Promise<BlueprintBundle> {
-	const response = await fetch(url, {
-		credentials: 'omit',
-	});
-	if (!response.ok) {
-		throw new Error(`Failed to fetch blueprint from ${url}`);
+	let blueprintBytes: ArrayBuffer;
+	try {
+		const response = await fetch(url, {
+			credentials: 'omit',
+		});
+		if (!response.ok) {
+			throw new Error(`Failed to fetch blueprint from ${url}`);
+		}
+		blueprintBytes = await response.arrayBuffer();
+	} catch (error) {
+		throw new BlueprintFetchError(
+			`Blueprint file could not be resolved from ${url}: ${error instanceof Error ? error.message : String(error)}`,
+			url,
+			{ cause: error }
+		);
 	}
-	const blueprintBytes = await response.arrayBuffer();
+
 	try {
 		const blueprintText = new TextDecoder().decode(blueprintBytes);
 		JSON.parse(blueprintText);
@@ -36,13 +56,14 @@ export async function resolveRemoteBlueprint(
 				baseUrl: url,
 			}),
 		]);
-	} catch {
+	} catch (error) {
 		// If the blueprint is not a JSON file, check if it's a ZIP file.
 		if (await looksLikeZipFile(blueprintBytes)) {
 			return ZipFilesystem.fromArrayBuffer(blueprintBytes);
 		}
 		throw new Error(
-			`Blueprint file at ${url} is neither a valid JSON nor a ZIP file.`
+			`Blueprint file at ${url} is neither a valid JSON nor a ZIP file.`,
+			{ cause: error }
 		);
 	}
 }

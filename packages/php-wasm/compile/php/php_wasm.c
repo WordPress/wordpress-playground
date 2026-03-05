@@ -241,7 +241,7 @@ EM_JS(int, wasm_poll_socket, (php_socket_t socketd, int events, int timeout), {
 						if (stream.stream_ops?.poll) {
 							mask = stream.stream_ops.poll(stream, -1);
 						}
-						
+
 						mask &= events | POLLERR | POLLHUP;
 						if (mask) {
 							return mask;
@@ -418,7 +418,7 @@ EM_JS(__wasi_errno_t, js_fd_read, (__wasi_fd_t fd, const __wasi_iovec_t *iov, si
                 HEAPU32[pnum >> 2] = num;
                 return wakeUp(returnCode);
             }
-            
+
             // It's a blocking stream and we Blocking stream with no data available yet.
             // Let's poll up to a timeout.
             await new Promise(resolve => setTimeout(resolve, interval));
@@ -1026,8 +1026,8 @@ int main(int argc, char *argv[]);
 int run_cli()
 {
 	// See wasm_sapi_request_init() for details on why we need to redirect stdout and stderr.
-	stdout_replacement = redirect_stream_to_file(stdout, "/internal/stdout");
-	stderr_replacement = redirect_stream_to_file(stderr, "/internal/stderr");
+	stdout_replacement = redirect_stream_to_file(stdout, "/request/stdout");
+	stderr_replacement = redirect_stream_to_file(stderr, "/request/stderr");
 	if (stdout_replacement == -1 || stderr_replacement == -1)
 	{
 		return -1;
@@ -1337,7 +1337,7 @@ void wasm_set_request_port(int port)
  *
  *   stream: The stream to redirect, e.g. stdout or stderr.
  *
- *   path: The path to the file to redirect to, e.g. "/internal/stdout".
+ *   path: The path to the file to redirect to, e.g. "/request/stdout".
  *
  *   returns: The exit code: 0 on success, -1 on failure.
  */
@@ -1451,6 +1451,11 @@ static void wasm_sapi_register_server_variables(zval *track_vars_array TSRMLS_DC
 	value = SG(request_info).request_uri;
 	if (value != NULL)
 	{
+		/**
+		 * REQUEST_URI represents the requested path relative to the site root.
+		 * This is **before** any URL rewriting rules (e.g. apache .htaccess) have been
+		 * applied.
+		 */
 		php_register_variable("REQUEST_URI", value, track_vars_array TSRMLS_CC);
 	}
 
@@ -1459,7 +1464,9 @@ static void wasm_sapi_register_server_variables(zval *track_vars_array TSRMLS_DC
 	{
 		// Confirm path translated starts with the document root
 		/**
-		 * PHP_SELF is the script path relative to the document root.
+		 * PHP_SELF represents the requested script path resolved to a filesystem path relative to the document
+		 * root. This is after any URL rewriting rules (e.g. apache .htaccess)
+		 * have been applied.
 		 *
 		 * For example:
 		 *
@@ -1478,6 +1485,10 @@ static void wasm_sapi_register_server_variables(zval *track_vars_array TSRMLS_DC
 			char *script_name = wasm_server_context->path_translated + strlen(wasm_server_context->document_root);
 			char *script_filename = wasm_server_context->path_translated;
 			char *php_self = wasm_server_context->path_translated + strlen(wasm_server_context->document_root);
+			/**
+			 * SCRIPT_NAME represents the path to the PHP script being executed after
+			 * any URL rewriting rules (e.g. apache .htaccess) have been applied.
+			 */
 			php_register_variable("SCRIPT_NAME", estrdup(script_name), track_vars_array TSRMLS_CC);
 			php_register_variable("SCRIPT_FILENAME", estrdup(script_filename), track_vars_array TSRMLS_CC);
 			php_register_variable("PHP_SELF", estrdup(php_self), track_vars_array TSRMLS_CC);
@@ -1559,11 +1570,11 @@ int wasm_sapi_request_init()
 	// Write to files instead of stdout and stderr because Emscripten truncates null
 	// bytes from stdout and stderr, and null bytes are a valid output when streaming
 	// binary data.
-	// We use our custom Emscripten-defined /internal/std* devices and handle the output in JavaScript.
+	// We use our custom Emscripten-defined /request/std* devices and handle the output in JavaScript.
 	// These /internal devices are not thread-safe and should always stay in per-process MEMFS space.
 	// Sharing them between PHP instances may cause intertwined output.
-	stdout_replacement = redirect_stream_to_file(stdout, "/internal/stdout");
-	stderr_replacement = redirect_stream_to_file(stderr, "/internal/stderr");
+	stdout_replacement = redirect_stream_to_file(stdout, "/request/stdout");
+	stderr_replacement = redirect_stream_to_file(stderr, "/request/stderr");
 	if (stdout_replacement == -1 || stderr_replacement == -1)
 	{
 		return -1;
@@ -1662,7 +1673,7 @@ int EMSCRIPTEN_KEEPALIVE wasm_sapi_handle_request()
 	zend_file_handle file_handle;
 
 	file_handle.type = ZEND_HANDLE_FILENAME;
-#if PHP_MAJOR_VERSION >= 8
+#if PHP_MAJOR_VERSION > 8 || (PHP_MAJOR_VERSION == 8 && PHP_MINOR_VERSION >= 1)
 	zend_string *filename = zend_string_init(
 		SG(request_info).path_translated,
 		strlen(SG(request_info).path_translated),
@@ -1821,7 +1832,7 @@ FILE *headers_file;
  */
 static int wasm_sapi_send_headers(sapi_headers_struct *sapi_headers TSRMLS_DC)
 {
-	headers_file = fopen("/internal/headers", "w");
+	headers_file = fopen("/request/headers", "w");
 	if (headers_file == NULL)
 	{
 		return FAILURE;

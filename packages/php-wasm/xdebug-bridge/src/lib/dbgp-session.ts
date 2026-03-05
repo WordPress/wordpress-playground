@@ -1,3 +1,4 @@
+import { logger } from '@php-wasm/logger';
 import { EventEmitter } from 'events';
 import net from 'net';
 
@@ -22,7 +23,7 @@ export class DbgpSession extends EventEmitter {
 			socket.on('data', (data: Buffer) => this.onData(data.toString()));
 			socket.on('close', () => {
 				this.socket = null;
-				this.emit('close');
+				this.emit('disconnected');
 			});
 			socket.on('error', (err) => {
 				// Forward error events if needed
@@ -33,7 +34,7 @@ export class DbgpSession extends EventEmitter {
 	}
 
 	private onData(data: string) {
-		console.log('\x1b[1;32m[XDebug][received]]\x1b[0m', data);
+		logger.debug('\x1b[1;32m[XDebug][received]]\x1b[0m', data);
 		this.buffer += data;
 		while (true) {
 			if (this.expectedLength === null) {
@@ -78,6 +79,11 @@ export class DbgpSession extends EventEmitter {
 	sendCommand(command: string) {
 		if (!this.socket) return;
 		// Commands must end with null terminator
+		logger.debug('\x1b[1;32m[XDebug][send]\x1b[0m', command);
 		this.socket.write(command + '\x00');
+	}
+
+	close() {
+		this.server.close();
 	}
 }

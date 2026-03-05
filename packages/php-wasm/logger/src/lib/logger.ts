@@ -12,7 +12,7 @@ export { errorLogPath } from './collectors/collect-php-logs';
 
 export type Log = {
 	message: any;
-	severity?: LogSeverity;
+	severity: LogSeverity;
 	prefix?: LogPrefix;
 	raw?: boolean;
 };
@@ -20,12 +20,27 @@ export type Log = {
 /**
  * Log severity levels.
  */
-export type LogSeverity = 'Debug' | 'Info' | 'Warn' | 'Error' | 'Fatal';
+export const LogSeverity = {
+	Fatal: { name: 'fatal', level: 0 },
+	Error: { name: 'error', level: 1 },
+	Warn: { name: 'warn', level: 2 },
+	Log: { name: 'log', level: 3 },
+	Info: { name: 'info', level: 4 },
+	Debug: { name: 'debug', level: 5 },
+} as const;
+
+export type LogSeverity = (typeof LogSeverity)[keyof typeof LogSeverity];
 
 /**
  * Log prefix.
  */
-export type LogPrefix = 'WASM Crash' | 'PHP' | 'JavaScript';
+export const LogPrefix = {
+	WASM: 'Wasm Crash',
+	PHP: 'PHP',
+	JS: 'JavaScript',
+} as const;
+
+export type LogPrefix = (typeof LogPrefix)[keyof typeof LogPrefix];
 
 /**
  * A logger for Playground.
@@ -33,6 +48,7 @@ export type LogPrefix = 'WASM Crash' | 'PHP' | 'JavaScript';
 export class Logger extends EventTarget {
 	public readonly fatalErrorEvent = 'playground-fatal-error';
 	private readonly handlers: LogHandler[];
+	private severity: LogSeverity = LogSeverity.Info;
 
 	// constructor
 	constructor(
@@ -62,15 +78,30 @@ export class Logger extends EventTarget {
 	/**
 	 * Log message with severity.
 	 *
-	 * @param message any
-	 * @param severity LogSeverity
-	 * @param raw boolean
+	 * @param log Log
 	 * @param args any
 	 */
-	public logMessage(log: Log, ...args: any[]): void {
+	public logMessage(
+		log: Omit<Log, 'severity'> & { severity?: LogSeverity },
+		...args: any[]
+	): void {
+		const logWithSeverity: Log = {
+			...log,
+			severity: log.severity ?? LogSeverity.Log,
+		};
 		for (const handler of this.handlers) {
-			handler(log, ...args);
+			if (logWithSeverity.severity.level <= this.severity.level) {
+				handler(logWithSeverity, ...args);
+			}
 		}
+	}
+
+	/**
+	 * Filter message based on severity
+	 * @param severity LogSeverity
+	 */
+	public setSeverityFilterLevel(severity: LogSeverity): void {
+		this.severity = severity;
 	}
 
 	/**
@@ -83,8 +114,8 @@ export class Logger extends EventTarget {
 		this.logMessage(
 			{
 				message,
-				severity: undefined,
-				prefix: 'JavaScript',
+				severity: LogSeverity.Log,
+				prefix: LogPrefix.JS,
 				raw: false,
 			},
 			...args
@@ -101,8 +132,8 @@ export class Logger extends EventTarget {
 		this.logMessage(
 			{
 				message,
-				severity: 'Debug',
-				prefix: 'JavaScript',
+				severity: LogSeverity.Debug,
+				prefix: LogPrefix.JS,
 				raw: false,
 			},
 			...args
@@ -119,8 +150,8 @@ export class Logger extends EventTarget {
 		this.logMessage(
 			{
 				message,
-				severity: 'Info',
-				prefix: 'JavaScript',
+				severity: LogSeverity.Info,
+				prefix: LogPrefix.JS,
 				raw: false,
 			},
 			...args
@@ -137,8 +168,8 @@ export class Logger extends EventTarget {
 		this.logMessage(
 			{
 				message,
-				severity: 'Warn',
-				prefix: 'JavaScript',
+				severity: LogSeverity.Warn,
+				prefix: LogPrefix.JS,
 				raw: false,
 			},
 			...args
@@ -155,8 +186,8 @@ export class Logger extends EventTarget {
 		this.logMessage(
 			{
 				message,
-				severity: 'Error',
-				prefix: 'JavaScript',
+				severity: LogSeverity.Error,
+				prefix: LogPrefix.JS,
 				raw: false,
 			},
 			...args
@@ -209,7 +240,7 @@ export const formatLogEntry = (
 	}).format(date);
 	const now = formattedDate + ' ' + formattedTime;
 	message = prepareLogMessage(message);
-	return `[${now}] ${prefix} ${severity}: ${message}`;
+	return `[${now}] ${prefix} ${severity.name}: ${message}`;
 };
 
 /**

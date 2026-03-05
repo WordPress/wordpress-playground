@@ -6,9 +6,12 @@ import dts from 'vite-plugin-dts';
 import { viteTsConfigPaths } from '../../vite-extensions/vite-ts-config-paths';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { getExternalModules } from '../../vite-extensions/vite-external-modules';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import viteGlobalExtensions from '../../vite-extensions/vite-global-extensions';
 
 const path = (filename: string) => new URL(filename, import.meta.url).pathname;
 export default defineConfig({
+	root: __dirname,
 	assetsInclude: ['**/*.wasm', '**/*.dat', '*.zip'],
 	cacheDir: '../../../node_modules/.vite/playground-wordpress',
 	plugins: [
@@ -40,6 +43,8 @@ export default defineConfig({
 				return code;
 			},
 		} as Plugin,
+
+		...viteGlobalExtensions,
 	],
 
 	build: {

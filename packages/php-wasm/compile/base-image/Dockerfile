@@ -47,10 +47,14 @@ RUN set -euxo pipefail;\
 #
 # WASM libraries to rebuild live here:
 # https://github.com/WordPress/wordpress-playground/tree/67d916b5eccfe78e26e9c953598cc1a81f316931/packages/php-wasm/compile
+#
+# Version 4.0.19 is required. MAIN_MODULE should not be built as RELOCATABLE.
+# https://github.com/emscripten-core/emscripten/commit/4d16f757adcc801fb3f990ccb6100b747c815650
+#
 RUN ln -s /usr/bin/python3 /usr/bin/python
 RUN git clone https://github.com/emscripten-core/emsdk.git && \
-    ./emsdk/emsdk install 4.0.5 && \
-    /root/emsdk/emsdk activate 4.0.5
+    ./emsdk/emsdk install 4.0.19 && \
+    /root/emsdk/emsdk activate 4.0.19
 
 RUN mkdir -p /root/lib/lib /root/lib/include /root/lib/share /root/lib/bin
 
@@ -68,6 +72,9 @@ COPY ./replace-across-lines.sh /root/replace-across-lines.sh
 RUN chmod a+x /root/replace-across-lines.sh
 
 COPY ./emcc-for-php-wasm.sh /root/emcc-for-php-wasm.sh
+
+# Disable compiler-rt profiling runtime introduced by emscripten 4.0.11 #24160
+RUN /root/replace.sh "s/src_files\s*\+=\s*glob_in_path\(profile_src_dir,\s*'\*\.cpp'\)//g" /root/emsdk/upstream/emscripten/tools/system_libs.py
 
 # Patch emcc to allow skipping flags and passing additional flags using environment variables.
 #

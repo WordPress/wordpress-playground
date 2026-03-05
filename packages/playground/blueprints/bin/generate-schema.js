@@ -8,7 +8,7 @@ import prettier from 'prettier';
 const config = {
 	path: 'packages/playground/blueprints/src/rollup.d.ts',
 	tsconfig: './tsconfig.base.json',
-	type: 'BlueprintDeclaration',
+	type: 'BlueprintV1Declaration',
 	skipTypeCheck: true,
 };
 
@@ -42,7 +42,7 @@ const schema = await exponentialBackoff(() =>
 );
 
 schema.$schema = 'http://json-schema.org/schema';
-schema.definitions.BlueprintDeclaration.properties.$schema = {
+schema.definitions.BlueprintV1Declaration.properties.$schema = {
 	type: 'string',
 };
 
@@ -67,7 +67,7 @@ const rawSchemaString = JSON.stringify(schema, null, 2)
 // Use prettier to make the generated text more readable
 // and to avoid differing with the files formatted by pre-commit hook.
 const prettierConfig = JSON.parse(fs.readFileSync('.prettierrc', 'utf8'));
-const formattedSchemaString = prettier.format(rawSchemaString, {
+const formattedSchemaString = await prettier.format(rawSchemaString, {
 	...prettierConfig,
 	parser: 'json',
 });
@@ -84,8 +84,8 @@ const ajv = new Ajv({
 const validate = ajv.compile(schema);
 const rawValidationCode = ajvStandaloneCode(ajv, validate);
 
-const formattedValidationCode = prettier.format(
-	rawValidationCode,
-	prettierConfig
-);
+const formattedValidationCode = await prettier.format(rawValidationCode, {
+	...prettierConfig,
+	parser: 'babel',
+});
 fs.writeFileSync(validator_output_path, formattedValidationCode);

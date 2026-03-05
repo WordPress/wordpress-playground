@@ -2,6 +2,7 @@
 title: Introduction
 slug: /
 id: introduction
+description: Welcome to the WordPress Playground docs! This page introduces the documentation structure and helps you find your way around.
 ---
 
 # WordPress Playground Docs

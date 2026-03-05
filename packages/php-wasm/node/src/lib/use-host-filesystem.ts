@@ -16,6 +16,10 @@ export function useHostFilesystem(php: PHP) {
 		 * Don't mount the dev directory – it's polyfilled by Emscripten.
 		 */
 		.filter((file) => file !== 'dev')
+		/*
+		 * Don't mount the proc directory – it's polyfilled by Emscripten.
+		 */
+		.filter((file) => file !== 'proc')
 		.map((file) => `/${file}`)
 		.filter((file) => {
 			try {

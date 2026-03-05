@@ -12,7 +12,7 @@ Hi! Welcome to WordPress Playground Developer documentation.
 
 -   [**Documentation**](/) – Introduction to WP Playground, starter guides and your entry point to WP Playground Docs.
 -   [**Blueprints**](/blueprints) – Blueprints are JSON files for setting up your WordPress Playground instance. Learn about their possibilities from the Blueprints docs hub.
--   👉 [**Developers**](/developers) (you're here)– WordPress Playground was created as a programmable tool. Discover all the things you can do with it from your code in this Developers docs hub.
+-   👉 [**Developers**](/developers) (you're here) – WordPress Playground was created as a programmable tool. Discover all the things you can do with it from your code in this Developers docs hub.
 -   [**API Reference**](/api) – All the APIs exposed by WordPress Playground
 
 ## Navigating the Developers documentation hub

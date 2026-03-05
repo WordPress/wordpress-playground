@@ -25,15 +25,14 @@ export async function acquireOAuthTokenIfNeeded() {
 		});
 		const body = await response.json();
 		setOAuthToken(body.access_token);
+
+		const url = new URL(window.location.href);
+		url.searchParams.delete('code');
+		window.history.replaceState({}, '', url.toString());
 	} finally {
 		oAuthState.value = {
 			...oAuthState.value,
 			isAuthorizing: false,
 		};
 	}
-
-	// Remove the ?code=... from the URL
-	const url = new URL(window.location.href);
-	url.searchParams.delete('code');
-	window.history.replaceState(null, '', url.toString());
 }

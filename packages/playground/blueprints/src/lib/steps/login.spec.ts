@@ -6,7 +6,7 @@ import {
 } from '@wp-playground/wordpress-builds';
 import { login } from './login';
 import type { PHPRequestHandler } from '@php-wasm/universal';
-import { bootWordPress } from '@wp-playground/wordpress';
+import { bootWordPressAndRequestHandler } from '@wp-playground/wordpress';
 import { loadNodeRuntime } from '@php-wasm/node';
 import { defineWpConfigConsts } from './define-wp-config-consts';
 import { joinPaths, phpVar } from '@php-wasm/util';
@@ -15,7 +15,7 @@ describe('Blueprint step login', () => {
 	let php: PHP;
 	let handler: PHPRequestHandler;
 	beforeEach(async () => {
-		handler = await bootWordPress({
+		handler = await bootWordPressAndRequestHandler({
 			createPhpRuntime: async () =>
 				await loadNodeRuntime(RecommendedPHPVersion),
 			siteUrl: 'http://playground-domain/',
@@ -24,6 +24,11 @@ describe('Blueprint step login', () => {
 			sqliteIntegrationPluginZip: await getSqliteDriverModule(),
 		});
 		php = await handler.getPrimaryPhp();
+	});
+
+	afterEach(async () => {
+		php.exit();
+		await handler[Symbol.asyncDispose]();
 	});
 
 	const requestFollowRedirects = async (request: PHPRequest) => {

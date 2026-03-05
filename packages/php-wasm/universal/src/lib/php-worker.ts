@@ -1,15 +1,14 @@
 import type { EmscriptenDownloadMonitor } from '@php-wasm/progress';
+import type { ListFilesOptions, RmDirOptions } from './fs-helpers';
 import type { PHP } from './php';
 import type { PHPRequestHandler } from './php-request-handler';
-import type { PHPResponse } from './php-response';
+import type { PHPResponse, StreamedPHPResponse } from './php-response';
 import type {
-	PHPRequest,
-	PHPRunOptions,
 	MessageListener,
 	PHPEvent,
-	PHPEventListener,
+	PHPRequest,
+	PHPRunOptions,
 } from './universal-php';
-import type { RmDirOptions, ListFilesOptions } from './fs-helpers';
 
 const _private = new WeakMap<
 	PHPWorker,
@@ -24,8 +23,6 @@ export type LimitedPHPApi = Pick<
 	PHP,
 	| 'request'
 	| 'defineConstant'
-	| 'addEventListener'
-	| 'removeEventListener'
 	| 'mkdir'
 	| 'mkdirTree'
 	| 'readFileAsText'
@@ -43,8 +40,16 @@ export type LimitedPHPApi = Pick<
 > & {
 	documentRoot: PHP['documentRoot'];
 	absoluteUrl: PHP['absoluteUrl'];
+	addEventListener:
+		| PHP['addEventListener']
+		| ((event: string, listener: (event: any) => any) => void);
+	removeEventListener:
+		| PHP['removeEventListener']
+		| ((event: string, listener: (event: any) => any) => void);
 };
 
+export type PHPWorkerEvent = PHPEvent | { type: string };
+export type PHPWorkerEventListener = (event: PHPWorkerEvent) => void;
 /**
  * A PHP client that can be used to run PHP code in the browser.
  */
@@ -54,6 +59,11 @@ export class PHPWorker implements LimitedPHPApi, AsyncDisposable {
 	/** @inheritDoc @php-wasm/universal!RequestHandler.documentRoot  */
 	documentRoot = '';
 
+	private chroot: string | null = null;
+
+	#eventListeners: Map<string, Set<PHPWorkerEventListener>> = new Map();
+
+	onMessageListeners: MessageListener[] = [];
 	/** @inheritDoc */
 	constructor(
 		requestHandler?: PHPRequestHandler,
@@ -93,6 +103,7 @@ export class PHPWorker implements LimitedPHPApi, AsyncDisposable {
 	public __internal_setRequestHandler(requestHandler: PHPRequestHandler) {
 		this.absoluteUrl = requestHandler.absoluteUrl;
 		this.documentRoot = requestHandler.documentRoot;
+		this.chroot = this.documentRoot;
 		_private.set(this, {
 			..._private.get(this),
 			requestHandler,
@@ -167,11 +178,24 @@ export class PHPWorker implements LimitedPHPApi, AsyncDisposable {
 		return await requestHandler.request(request);
 	}
 
+	/**
+	 * Handles a request with streaming support for large responses.
+	 * Returns a StreamedPHPResponse that allows processing the response
+	 * body incrementally without buffering the entire response in memory.
+	 *
+	 * This is useful for large file downloads (>2GB) that would otherwise
+	 * exceed JavaScript's Uint8Array size limits.
+	 *
+	 * @param request - PHP Request data.
+	 */
+	async requestStreamed(request: PHPRequest): Promise<StreamedPHPResponse> {
+		const requestHandler = _private.get(this)!.requestHandler!;
+		return await requestHandler.requestStreamed(request);
+	}
+
 	/** @inheritDoc @php-wasm/universal!/PHP.run */
 	async run(request: PHPRunOptions): Promise<PHPResponse> {
-		const { php, reap } = await _private
-			.get(this)!
-			.requestHandler!.processManager.acquirePHPInstance();
+		const { php, reap } = await this.acquirePHPInstance();
 		try {
 			return await php.run(request);
 		} finally {
@@ -179,9 +203,55 @@ export class PHPWorker implements LimitedPHPApi, AsyncDisposable {
 		}
 	}
 
+	/** @inheritDoc @php-wasm/universal!/PHP.cli */
+	async cli(
+		argv: string[],
+		options?: { env?: Record<string, string> }
+	): Promise<StreamedPHPResponse> {
+		const { php, reap } = await this.acquirePHPInstance();
+		let response: StreamedPHPResponse;
+		try {
+			response = await php.cli(argv, options);
+		} catch (error) {
+			reap();
+			throw error;
+		}
+		/**
+		 * Register the reap() callback to run asynchronously once
+		 * the response is finished.
+		 *
+		 * We don't await for response.finished here. It is a
+		 * `StreamedPHPResponse` instance and the caller may want
+		 * to start processing the streamed data immediately.
+		 */
+		response.finished.finally(reap);
+		return response;
+	}
+
 	/** @inheritDoc @php-wasm/universal!/PHP.chdir */
 	chdir(path: string): void {
+		// Remember the new chroot for all PHP instances yet to be acquired.
+		this.chroot = path;
 		return _private.get(this)!.php!.chdir(path);
+	}
+
+	/** @inheritDoc @php-wasm/universal!/PHP.chdir */
+	cwd(): string {
+		return _private.get(this)!.php!.cwd();
+	}
+
+	/**
+	 * @returns A PHP instance with a consistent chroot.
+	 */
+	private async acquirePHPInstance() {
+		const { php, reap } = await _private
+			.get(this)!
+			.requestHandler!.instanceManager.acquirePHPInstance();
+		if (this.chroot !== null) {
+			php.chdir(this.chroot);
+		}
+		this.registerWorkerListeners(php);
+		return { php, reap };
 	}
 
 	/** @inheritDoc @php-wasm/universal!/PHP.setSapiName */
@@ -241,7 +311,12 @@ export class PHPWorker implements LimitedPHPApi, AsyncDisposable {
 
 	/** @inheritDoc @php-wasm/universal!/PHP.onMessage */
 	onMessage(listener: MessageListener) {
-		return _private.get(this)!.php!.onMessage(listener);
+		this.onMessageListeners.push(listener);
+		return async () => {
+			this.onMessageListeners = this.onMessageListeners.filter(
+				(l) => l !== listener
+			);
+		};
 	}
 
 	/** @inheritDoc @php-wasm/universal!/PHP.defineConstant */
@@ -251,18 +326,50 @@ export class PHPWorker implements LimitedPHPApi, AsyncDisposable {
 
 	/** @inheritDoc @php-wasm/universal!/PHP.addEventListener */
 	addEventListener(
-		eventType: PHPEvent['type'],
-		listener: PHPEventListener
+		eventType: PHPWorkerEvent['type'],
+		listener: PHPWorkerEventListener
 	): void {
-		_private.get(this)!.php!.addEventListener(eventType, listener);
+		if (!this.#eventListeners.has(eventType)) {
+			this.#eventListeners.set(eventType, new Set());
+		}
+		this.#eventListeners.get(eventType)!.add(listener);
 	}
 
-	/** @inheritDoc @php-wasm/universal!/PHP.removeEventListener */
+	/**
+	 * Removes an event listener for a PHP event.
+	 * @param eventType - The type of event to remove the listener from.
+	 * @param listener - The listener function to be removed.
+	 */
 	removeEventListener(
-		eventType: PHPEvent['type'],
-		listener: PHPEventListener
-	): void {
-		_private.get(this)!.php!.removeEventListener(eventType, listener);
+		eventType: PHPWorkerEvent['type'],
+		listener: PHPWorkerEventListener
+	) {
+		this.#eventListeners.get(eventType)?.delete(listener);
+	}
+
+	protected dispatchEvent<Event extends PHPWorkerEvent>(event: Event) {
+		const listeners = this.#eventListeners.get(event.type);
+		if (!listeners) {
+			return;
+		}
+		for (const listener of listeners) {
+			listener(event);
+		}
+	}
+
+	protected registerWorkerListeners(php: PHP) {
+		php.addEventListener('*', async (event) => {
+			this.dispatchEvent(event);
+		});
+		php.onMessage(async (message) => {
+			for (const listener of this.onMessageListeners) {
+				const returnData = await listener(message);
+				if (returnData) {
+					return returnData;
+				}
+			}
+			return '';
+		});
 	}
 
 	async [Symbol.asyncDispose]() {

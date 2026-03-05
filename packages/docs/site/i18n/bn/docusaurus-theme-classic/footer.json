@@ -1,0 +1,42 @@
+{
+	"link.title.Docs": {
+		"message": "ডকুমেন্টেশন",
+		"description": "ফুটারে Docs শিরোনাম সহ পাদচরণ লিঙ্ক কলামের শিরোনাম"
+	},
+	"link.title.Community": {
+		"message": "সম্প্রদায়",
+		"description": "ফুটারে Community শিরোনাম সহ পাদচরণ লিঙ্ক কলামের শিরোনাম"
+	},
+	"link.item.label.Documentation": {
+		"message": "ডকুমেন্টেশন",
+		"description": "/ এ লিঙ্ক করা Documentation লেবেল সহ ফুটার লিঙ্কের লেবেল"
+	},
+	"link.item.label.Blueprints": {
+		"message": "ব্লুপ্রিন্ট",
+		"description": "/blueprints এ লিঙ্ক করা Blueprints লেবেল সহ ফুটার লিঙ্কের লেবেল"
+	},
+	"link.item.label.Developers": {
+		"message": "ডেভেলপার",
+		"description": "/developers এ লিঙ্ক করা Developers লেবেল সহ ফুটার লিঙ্কের লেবেল"
+	},
+	"link.item.label.API Reference": {
+		"message": "API রেফারেন্স",
+		"description": "/api এ লিঙ্ক করা API Reference লেবেল সহ পাদচরণ লিঙ্কের লেবেল"
+	},
+	"link.item.label.GitHub": {
+		"message": "GitHub",
+		"description": "https://github.com/WordPress/wordpress-playground এ লিঙ্ক করা GitHub লেবেল সহ ফুটার লিঙ্কের লেবেল"
+	},
+	"link.item.label.#playground on Slack": {
+		"message": "Slack এ #playground",
+		"description": "https://make.wordpress.org/chat এ লিঙ্ক করা #playground on Slack লেবেল সহ ফুটার লিঙ্কের লেবেল"
+	},
+	"copyright": {
+		"message": "কপিরাইট © 2024 WordPress Playground, Inc. Docusaurus দিয়ে নির্মিত।",
+		"description": "ফুটার কপিরাইট"
+	},
+	"logo.alt": {
+		"message": "কোড হলো কবিতা",
+		"description": "ফুটার কপিরাইট"
+	}
+}

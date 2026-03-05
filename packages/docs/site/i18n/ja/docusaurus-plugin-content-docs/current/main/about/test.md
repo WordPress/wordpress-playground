@@ -1,6 +1,7 @@
 ---
 title: テスト
 slug: /about/test
+description: Playground を使用してテーマ、プラグイン、プルリクエスト、WordPress と PHP のさまざまなバージョンをテストする方法を説明します。
 ---
 
 # テスト

@@ -15,7 +15,12 @@ export type {
 
 export * from './tls/certificates';
 export type { TCPOverFetchOptions } from './tcp-over-fetch-websocket';
-export { fetchWithCorsProxy } from './fetch-with-cors-proxy';
+// Re-export from web-service-worker to preserve previous exports of
+// the same names from this package.
+export {
+	fetchWithCorsProxy,
+	FirewallInterferenceError,
+} from '@php-wasm/web-service-worker';
 export {
 	consumeAPI,
 	exposeAPI,

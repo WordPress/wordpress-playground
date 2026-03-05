@@ -1,6 +1,10 @@
 {
 	"name": "@wp-playground/components",
-	"version": "2.0.8",
+	"version": "3.1.4",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/WordPress/wordpress-playground"
+	},
 	"exports": {
 		".": {
 			"import": "./index.js",
@@ -23,7 +27,21 @@
 	},
 	"gitHead": "2f8d8f3cea548fbd75111e8659a92f601cddc593",
 	"engines": {
-		"node": ">=20.18.3",
-		"npm": ">=10.1.0"
+		"node": ">=20.10.0",
+		"npm": ">=10.2.3"
+	},
+	"peerDependencies": {
+		"@codemirror/autocomplete": "^6.18.6",
+		"@codemirror/commands": "^6.8.0",
+		"@codemirror/lang-css": "^6.3.1",
+		"@codemirror/lang-html": "^6.4.9",
+		"@codemirror/lang-javascript": "^6.2.4",
+		"@codemirror/lang-json": "^6.0.1",
+		"@codemirror/lang-markdown": "^6.3.2",
+		"@codemirror/lang-php": "^6.0.1",
+		"@codemirror/language": "^6.11.0",
+		"@codemirror/search": "^6.5.10",
+		"@codemirror/state": "^6.5.2",
+		"@codemirror/view": "^6.36.2"
 	}
 }

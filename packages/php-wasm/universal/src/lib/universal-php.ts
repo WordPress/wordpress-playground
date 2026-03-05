@@ -1,4 +1,5 @@
 import type { Remote } from './comlink-sync';
+import type { Pooled } from './object-pool-proxy';
 import type { LimitedPHPApi } from './php-worker';
 
 /**
@@ -25,10 +26,18 @@ export interface PHPRuntimeInitializedEvent {
 }
 
 /**
- * Represents a PHP runtime destruction event.
+ * Emitted before the exit() method of the PHP Emscripten runtime is called.
  */
-export interface PHPRuntimeBeforeDestroyEvent {
-	type: 'runtime.beforedestroy';
+export interface PHPRuntimeBeforeExitEvent {
+	type: 'runtime.beforeExit';
+}
+
+/**
+ * Emitted when a filesystem write operation occurs (writeFile, mkdir, rmdir, mv, unlink).
+ * This event is used to trigger journal flushing for persistent storage.
+ */
+export interface PHPFilesystemWriteEvent {
+	type: 'filesystem.write';
 }
 
 /**
@@ -40,14 +49,18 @@ export type PHPEvent =
 	| PHPRequestEndEvent
 	| PHPRequestErrorEvent
 	| PHPRuntimeInitializedEvent
-	| PHPRuntimeBeforeDestroyEvent;
+	| PHPRuntimeBeforeExitEvent
+	| PHPFilesystemWriteEvent;
 
 /**
  * A callback function that handles PHP events.
  */
 export type PHPEventListener = (event: PHPEvent) => void;
 
-export type UniversalPHP = LimitedPHPApi | Remote<LimitedPHPApi>;
+export type UniversalPHP =
+	| LimitedPHPApi
+	| Remote<LimitedPHPApi>
+	| Pooled<LimitedPHPApi>;
 
 export type MessageListener = (
 	data: string
@@ -106,7 +119,9 @@ export interface PHPRequest {
 
 export interface PHPRunOptions {
 	/**
-	 * Request path following the domain:port part.
+	 * Request path following the domain:port part –
+	 * after any URL rewriting rules (e.g. apache .htaccess)
+	 * have been applied.
 	 */
 	relativeUri?: string;
 

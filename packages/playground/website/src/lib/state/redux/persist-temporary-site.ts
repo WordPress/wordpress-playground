@@ -6,6 +6,11 @@ import {
 	opfsSiteStorage,
 	getDirectoryPathForSlug,
 } from '../opfs/opfs-site-storage';
+import { persistBlueprintBundle } from '../opfs/opfs-blueprint-bundle-storage';
+import {
+	type TraversableFilesystemBackend,
+	OpfsFilesystemBackend,
+} from '@wp-playground/storage';
 import type { PlaygroundReduxState } from './store';
 import type store from './store';
 import { selectClientBySiteSlug, updateClientInfo } from './slice-clients';
@@ -15,11 +20,17 @@ import {
 	updateSiteMetadata,
 } from './slice-sites';
 import { PlaygroundRoute, redirectTo } from '../url/router';
-import type { SiteStorageType } from '../../site-metadata';
+import type { SiteStorageType } from './slice-sites';
+import { setActiveModal } from './slice-ui';
 
 export function persistTemporarySite(
 	siteSlug: string,
-	storageType: Extract<SiteStorageType, 'opfs' | 'local-fs'>
+	storageType: Extract<SiteStorageType, 'opfs' | 'local-fs'>,
+	options: {
+		localFsHandle?: FileSystemDirectoryHandle;
+		siteName?: string;
+		skipRenameModal?: boolean;
+	} = {}
 ) {
 	// @TODO: Handle errors
 	return async (
@@ -34,9 +45,19 @@ export function persistTemporarySite(
 			);
 		}
 
-		const siteInfo = selectSiteBySlug(state, siteSlug)!;
+		let siteInfo = selectSiteBySlug(state, siteSlug)!;
 		if (!siteInfo) {
 			throw new Error(`Cannot find site ${siteSlug} to save.`);
+		}
+		const trimmedName = options.siteName?.trim();
+		if (trimmedName && trimmedName !== siteInfo.metadata.name) {
+			await dispatch(
+				updateSiteMetadata({
+					slug: siteSlug,
+					changes: { name: trimmedName },
+				})
+			);
+			siteInfo = selectSiteBySlug(getState(), siteSlug)!;
 		}
 
 		try {
@@ -61,6 +82,47 @@ export function persistTemporarySite(
 			storage: 'none',
 		});
 
+		// Persist the blueprint bundle if available.
+		// First, check if originalBlueprint is already a filesystem (from clicking "Run Blueprint").
+		// If not, check if there's an autosaved bundle in OPFS (from editing without running).
+		let bundleToPersist: TraversableFilesystemBackend | null = null;
+
+		const originalBlueprint = siteInfo.metadata.originalBlueprint;
+		if (
+			originalBlueprint &&
+			typeof originalBlueprint === 'object' &&
+			'read' in originalBlueprint &&
+			'listFiles' in originalBlueprint &&
+			'isDir' in originalBlueprint
+		) {
+			bundleToPersist =
+				originalBlueprint as unknown as TraversableFilesystemBackend;
+		} else {
+			// Check if there's an autosaved bundle from the blueprint editor.
+			try {
+				const opfsBackend = await OpfsFilesystemBackend.fromPath(
+					'blueprints/last-edited-bundle'
+				);
+				const files = await opfsBackend.listFiles('/');
+				if (files.length > 0) {
+					bundleToPersist = opfsBackend;
+				}
+			} catch {
+				// No autosaved bundle available
+			}
+		}
+
+		let bundleWasPersisted = false;
+		if (bundleToPersist) {
+			try {
+				await persistBlueprintBundle(siteSlug, bundleToPersist);
+				bundleWasPersisted = true;
+			} catch (error) {
+				logger.error('Failed to persist blueprint bundle', error);
+				// Continue with the save - the bundle is optional
+			}
+		}
+
 		let mountDescriptor: Omit<MountDescriptor, 'initialSyncDirection'>;
 		if (storageType === 'opfs') {
 			mountDescriptor = {
@@ -71,28 +133,30 @@ export function persistTemporarySite(
 				mountpoint: '/wordpress',
 			} as const;
 		} else if (storageType === 'local-fs') {
-			let dirHandle: FileSystemDirectoryHandle;
-			try {
-				// Request permission to access the directory.
-				// https://developer.mozilla.org/en-US/docs/Web/API/Window/showDirectoryPicker
-				dirHandle = await (window as any).showDirectoryPicker({
-					// By specifying an ID, the browser can remember different directories
-					// for different IDs.If the same ID is used for another picker, the
-					// picker opens in the same directory.
-					id: 'playground-directory',
-					mode: 'readwrite',
-				});
-			} catch (e) {
-				// No directory selected but log the error just in case.
-				logger.error(e);
-				return;
+			let dirHandle = options.localFsHandle;
+			if (!dirHandle) {
+				try {
+					// Request permission to access the directory.
+					// https://developer.mozilla.org/en-US/docs/Web/API/Window/showDirectoryPicker
+					dirHandle = await (window as any).showDirectoryPicker({
+						// By specifying an ID, the browser can remember different directories
+						// for different IDs.If the same ID is used for another picker, the
+						// picker opens in the same directory.
+						id: 'playground-directory',
+						mode: 'readwrite',
+					});
+				} catch (e) {
+					// No directory selected but log the error just in case.
+					logger.error(e);
+					return;
+				}
 			}
-			await saveDirectoryHandle(siteSlug, dirHandle);
+			await saveDirectoryHandle(siteSlug, dirHandle!);
 
 			mountDescriptor = {
 				device: {
 					type: 'local-fs',
-					handle: dirHandle,
+					handle: dirHandle!,
 				},
 				mountpoint: '/wordpress',
 			} as const;
@@ -174,10 +238,19 @@ export function persistTemporarySite(
 					// on the next page load.
 					runtimeConfiguration: {
 						...siteInfo.metadata.runtimeConfiguration,
-						constants: await getPlaygroundDefinedPHPConstants(
-							playground
-						),
+						constants:
+							await getPlaygroundDefinedPHPConstants(playground),
 					},
+					// If we persisted a blueprint bundle, point to it so we can
+					// load the full bundle (not just the declaration) on next load.
+					...(bundleWasPersisted
+						? {
+								originalBlueprintSource: {
+									type: 'opfs-site' as const,
+								},
+							}
+						: {}),
+					...(trimmedName ? { name: trimmedName } : {}),
 				},
 			})
 		);
@@ -193,6 +266,9 @@ export function persistTemporarySite(
 		const updatedSite = selectSiteBySlug(updatedState, siteSlug);
 		const persistentSiteUrl = PlaygroundRoute.site(updatedSite!);
 		redirectTo(persistentSiteUrl);
+		if (!options.skipRenameModal) {
+			dispatch(setActiveModal('rename-site'));
+		}
 	};
 }
 

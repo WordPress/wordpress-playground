@@ -1,13 +1,14 @@
 ---
-title: イントロダクション
+title: WordPress Playgroundプロジェクトへの貢献
 slug: /contributing
 id: introduction
+description: WordPress Playground への貢献の出発点です。コード、ドキュメント、バグ報告に関するガイドラインをご覧ください。
 ---
 
-# WP Playground プロジェクトへの貢献
+# WordPress Playground プロジェクトへの貢献
 
 <!--
-# Contributing to WP Playground project
+# Contributing to WordPress Playground project
 -->
 
 WordPress Playground は、コードからデザイン、ドキュメントからトリアージまで、あらゆる種類の貢献者を歓迎するオープンソース プロジェクトです。

@@ -6,17 +6,17 @@ slug: /developers/architecture/wasm-php-overview
 
 WordPress Playground build [the PHP interpreter](https://github.com/php/php-src) to WebAssembly using [Emscripten](https://emscripten.org/docs/porting/networking.html) and a [dedicated pipeline](https://github.com/WordPress/wordpress-playground/blob/0d451c33936a8db5b7a158fa8aad288c19370a7d/packages/php-wasm/compile/Dockerfile).
 
-![Building C programs to WebAssembly](@site/static/img/c-programs-general.png)
+![Building C programs to WebAssembly](@site/static/img/c-programs-general.webp)
 
 Building PHP to WebAssembly is very similar to building vanilla PHP. The wasm build required [adjusting a function signature here](https://github.com/WordPress/wordpress-playground/blob/0d451c33936a8db5b7a158fa8aad288c19370a7d/packages/php-wasm/compile/build-assets/php7.1.patch#L8-L9), [forcing a config variable there](https://github.com/WordPress/wordpress-playground/blob/0d451c33936a8db5b7a158fa8aad288c19370a7d/packages/php-wasm/compile/Dockerfile#L495), and applying [a few small patches](https://github.com/WordPress/wordpress-playground/tree/0d451c33936a8db5b7a158fa8aad288c19370a7d/packages/php-wasm/compile/build-assets), but there's relatively few adjustments involved.
 
-![Building PHP to WebAssembly](@site/static/img/c-programs-php.png)
+![Building PHP to WebAssembly](@site/static/img/c-programs-php.webp)
 
 However, vanilla PHP builds aren't very useful in the browser. As a server software, PHP doesn't have a JavaScript API to pass the request body, upload files, or populate the `php://stdin` stream. WordPress Playground had to build one from scratch. The WebAssembly binary comes with a [dedicated PHP API module](https://github.com/WordPress/wordpress-playground/blob/0d451c33936a8db5b7a158fa8aad288c19370a7d/packages/php-wasm/compile/build-assets/php_wasm.c) written in C and a [JavaScript PHP class](https://github.com/WordPress/wordpress-playground/blob/da38192af57a95699d8731c855b82ac0222df61b/packages/php-wasm/common/src/lib/php.ts) that exposes methods like writeFile() or run().
 
 Because every PHP version is just a static .wasm file, the PHP version switcher is actually pretty boring. It simply tells the browser to download, for example, `php_7_3.wasm` instead of, say, `php_8_2.wasm`.
 
-![Building different versions of PHP to WebAssembly](@site/static/img/c-programs-php-versions.png)
+![Building different versions of PHP to WebAssembly](@site/static/img/c-programs-php-versions.webp)
 
 ### Networking support varies between platforms
 
@@ -26,5 +26,5 @@ In Node.js, the answer involves a WebSocket to TCP socket proxy, [Asyncify](http
 
 In the browser, networking is supported in two ways:
 
--   A fast transport for `wp_safe_remote_get` to translate them into `fetch()` calls.
--   A slower transport for all other network calls that [parses the TLS transmission](https://github.com/WordPress/wordpress-playground/pull/1926) initiated by PHP and translates it to a `fetch()` call.
+- A fast transport for `wp_safe_remote_get` to translate them into `fetch()` calls.
+- A slower transport for all other network calls that [parses the TLS transmission](https://github.com/WordPress/wordpress-playground/pull/1926) initiated by PHP and translates it to a `fetch()` call.

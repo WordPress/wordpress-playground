@@ -1,6 +1,6 @@
 ---
 title: Blueprints 101
-description: Entrance to a short course on Blueprints
+description: The landing page for the "Blueprints 101" crash course. This short tutorial covers everything you need to get started.
 hide_table_of_contents: false
 slug: /blueprints/tutorial
 ---

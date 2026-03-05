@@ -1,0 +1,9 @@
+{
+	"version": "0.0.1",
+	"type": "commonjs",
+	"private": true,
+	"name": "@wp-playground/website-extras",
+	"devDependencies": {
+		"@wordpress/a11y": "4.36.0"
+	}
+}

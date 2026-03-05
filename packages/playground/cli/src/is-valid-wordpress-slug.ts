@@ -5,7 +5,7 @@
  * The version string can be one of the following formats:
  * - "latest"
  * - "trunk"
- * - "nightly"
+ * - "trunk" (legacy alias: "nightly")
  * - "x.y" (x and y are integers) e.g. "6.2"
  * - "x.y.z" (x, y and z are integers) e.g. "6.2.1"
  * - "x.y.z-betaN" (N is an integer) e.g. "6.2.1-beta1"

@@ -6,14 +6,14 @@ import {
 } from '@wp-playground/wordpress-builds';
 import { setSiteOptions } from './site-data';
 import type { PHPRequestHandler } from '@php-wasm/universal';
-import { bootWordPress } from '@wp-playground/wordpress';
+import { bootWordPressAndRequestHandler } from '@wp-playground/wordpress';
 import { loadNodeRuntime } from '@php-wasm/node';
 
 describe('Blueprint step setSiteOptions()', () => {
 	let php: PHP;
 	let handler: PHPRequestHandler;
 	beforeEach(async () => {
-		handler = await bootWordPress({
+		handler = await bootWordPressAndRequestHandler({
 			createPhpRuntime: async () =>
 				await loadNodeRuntime(RecommendedPHPVersion),
 			siteUrl: 'http://playground-domain/',
@@ -22,6 +22,11 @@ describe('Blueprint step setSiteOptions()', () => {
 			sqliteIntegrationPluginZip: await getSqliteDriverModule(),
 		});
 		php = await handler.getPrimaryPhp();
+	});
+
+	afterEach(async () => {
+		php.exit();
+		await handler[Symbol.asyncDispose]();
 	});
 
 	it('should set the site option', async () => {

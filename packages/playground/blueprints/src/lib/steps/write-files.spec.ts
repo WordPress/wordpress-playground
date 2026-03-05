@@ -16,6 +16,11 @@ describe('writeFiles', () => {
 		php = await handler.getPrimaryPhp();
 	});
 
+	afterEach(async () => {
+		php.exit();
+		await handler[Symbol.asyncDispose]();
+	});
+
 	it('should write files to the document root', async () => {
 		await writeFiles(php, {
 			writeToPath: '/wordpress/wp-content/plugins/test-plugin',

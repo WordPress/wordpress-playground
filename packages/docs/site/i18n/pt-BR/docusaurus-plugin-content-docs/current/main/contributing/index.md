@@ -1,7 +1,8 @@
 ---
-title: Introdução
+title: Contribuindo para o projeto WordPress Playground
 slug: /contributing
 id: introduction
+description: Seu ponto de partida para contribuir com o WordPress Playground. Encontre diretrizes para código, documentação e reporte de bugs.
 ---
 
 <!--

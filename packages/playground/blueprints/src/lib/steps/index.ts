@@ -4,7 +4,7 @@ import type {
 	FileReference,
 	DirectoryReference,
 	Directory,
-} from '../resources';
+} from '../v1/resources';
 import type { ActivatePluginStep } from './activate-plugin';
 import type { DefineSiteUrlStep } from './define-site-url';
 import type { InstallPluginStep, InstallPluginOptions } from './install-plugin';

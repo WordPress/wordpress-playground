@@ -8,14 +8,15 @@ const patternsToNotCache = [
 	/**
 	 * Static files that are not needed for the website to function offline.
 	 */
-	'/package.json',
-	'/README.md',
-	'/.DS_Store',
+	/\/package\.json$/i,
+	/\/README\.md$/i,
+	/\.DS_Store$/i,
 	'/index.cjs',
 	/\/.*\.d\.ts$/, // No type declarations are needed at runtime.
 	/\/lib\/.*/, // Remote lib files
 	/\/test-fixtures\/.*/, // Test fixtures
 	'/index.js',
+
 	/**
 	 * Source maps are not required to run the site and can be quite large.
 	 */
@@ -61,6 +62,21 @@ const patternsToNotCache = [
 	/^\/assets\/php_.*\.js$/, // PHP JS files
 	/^\/assets\/wp-.*\.zip$/, // Minified WordPress builds and static assets bundles
 	/^\/assets\/sqlite-database-integration-[\w]+\.zip/, // SQLite plugin
+	/^\/assets\/blueprints-.*\.phar$/, // Blueprints v2 runner
+
+	/**
+	 * Optional assets directory contains non-critical dependencies like CodeMirror
+	 * and its language extensions. These are large packages (~500KB+) that are only
+	 * used for the code editor feature, which is not critical for offline functionality.
+	 * Excluding them significantly reduces the offline mode cache size and initial load time.
+	 *
+	 * Optional chunks are placed in assets/optional/ via vite.config.ts manualChunks configuration.
+	 * Extension chunks are placed in assets/extensions/ via vite.config.ts assetFileNames configuration.
+	 */
+	/^\/assets\/optional\/.*/, // All optional assets (CodeMirror, language extensions, etc.)
+	/^\/assets\/extensions\/.*/, // All extension assets (Intl, ICU, etc.)
+	/^\/client\/.*/, // Client package files arent't used by the web version of Playground
+	'/php-playground.html', // The PHP playground is a separate page that is not part of the web version of Playground
 ];
 
 function listFiles(dirPath: string, fileList: string[] = []) {
@@ -103,10 +119,7 @@ export const listAssetsRequiredForOfflineMode = ({
 				return listFiles(absoluteDirPath)
 					.map((file) => {
 						file = file.replace(absoluteDirPath, '');
-						if (file.startsWith('/')) {
-							return file;
-						}
-						return `/${file}`;
+						return join('/', file);
 					})
 					.filter((item) => {
 						return !patternsToNotCache.some((pattern) => {

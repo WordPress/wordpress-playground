@@ -1,35 +1,76 @@
-import classNames from 'classnames';
-import css from './style.module.css';
-import { getLogoDataURL, WordPressIcon } from '@wp-playground/components';
 import {
 	Button,
+	DropdownMenu,
 	Flex,
 	FlexItem,
 	Icon,
-	DropdownMenu,
 	MenuGroup,
 	MenuItem,
 	TabPanel,
 } from '@wordpress/components';
-import { moreVertical, external, chevronLeft } from '@wordpress/icons';
-import { SiteLogs } from '../../log-modal';
+import { chevronLeft, edit, moreVertical } from '@wordpress/icons';
+import { getLogoDataURL, WordPressIcon } from '@wp-playground/components';
+import classNames from 'classnames';
+import { lazy, Suspense, useEffect, useState } from 'react';
+import { getRelativeDate } from '../../../lib/get-relative-date';
+import { selectClientInfoBySiteSlug } from '../../../lib/state/redux/slice-clients';
+import type { SiteInfo } from '../../../lib/state/redux/slice-sites';
+import { removeSite } from '../../../lib/state/redux/slice-sites';
+import {
+	modalSlugs,
+	setActiveModal,
+	setSiteManagerOpen,
+	setSiteManagerSection,
+	setSiteSlugToRename,
+} from '../../../lib/state/redux/slice-ui';
 import { useAppDispatch, useAppSelector } from '../../../lib/state/redux/store';
 import { usePlaygroundClientInfo } from '../../../lib/use-playground-client';
+import { SiteLogs } from '../../log-modal';
 import { OfflineNotice } from '../../offline-notice';
 import { DownloadAsZipMenuItem } from '../../toolbar-buttons/download-as-zip';
 import { GithubExportMenuItem } from '../../toolbar-buttons/github-export-menu-item';
-import { ReportError } from '../../toolbar-buttons/report-error';
-import { TemporarySiteNotice } from '../temporary-site-notice';
-import type { SiteInfo } from '../../../lib/state/redux/slice-sites';
-import {
-	setSiteManagerOpen,
-	setSiteManagerSection,
-} from '../../../lib/state/redux/slice-ui';
-import { selectClientInfoBySiteSlug } from '../../../lib/state/redux/slice-clients';
-import { encodeStringAsBase64 } from '../../../lib/base64';
+import { SiteDatabasePanel } from '../site-database-panel';
 import { ActiveSiteSettingsForm } from '../site-settings-form/active-site-settings-form';
-import { getRelativeDate } from '../../../lib/get-relative-date';
-import { removeSite } from '../../../lib/state/redux/slice-sites';
+import { TemporarySiteNotice } from '../temporary-site-notice';
+import css from './style.module.css';
+
+const SiteFileBrowser = lazy(() =>
+	import('../site-file-browser').then((m) => ({ default: m.SiteFileBrowser }))
+);
+
+const AutosavedBlueprintBundleEditor = lazy(() =>
+	import('../../blueprint-editor/AutosavedBlueprintBundleEditor').then(
+		(m) => ({
+			default: m.AutosavedBlueprintBundleEditor,
+		})
+	)
+);
+
+const LAST_TAB_STORAGE_KEY = 'playground-site-last-tabs';
+
+function getSiteLastTab(siteSlug: string): string | null {
+	try {
+		const stored = localStorage.getItem(LAST_TAB_STORAGE_KEY);
+		if (!stored) {
+			return null;
+		}
+		const tabs = JSON.parse(stored);
+		return tabs[siteSlug] || null;
+	} catch {
+		return null;
+	}
+}
+
+function setSiteLastTab(siteSlug: string, tabName: string): void {
+	try {
+		const stored = localStorage.getItem(LAST_TAB_STORAGE_KEY);
+		const tabs = stored ? JSON.parse(stored) : {};
+		tabs[siteSlug] = tabName;
+		localStorage.setItem(LAST_TAB_STORAGE_KEY, JSON.stringify(tabs));
+	} catch {
+		// Silently fail if localStorage is not available
+	}
+}
 
 export function SiteInfoPanel({
 	className,
@@ -44,6 +85,23 @@ export function SiteInfoPanel({
 }) {
 	const offline = useAppSelector((state) => state.ui.offline);
 	const dispatch = useAppDispatch();
+
+	// Load the last active tab for this site
+	const [initialTabName] = useState(() => {
+		const lastTab = getSiteLastTab(site.slug);
+		return lastTab || 'settings';
+	});
+
+	// Resolve documentRoot from playground client
+	const [documentRoot, setDocumentRoot] = useState<string | null>(null);
+
+	// Save the tab when it changes
+	const handleTabSelect = (tabName: string) => {
+		setSiteLastTab(site.slug, tabName);
+	};
+
+	const isTemporary = site.metadata.storage === 'none';
+
 	const removeSiteAndCloseMenu = async (onClose: () => void) => {
 		// TODO: Replace with HTML-based dialog
 		const proceed = window.confirm(
@@ -60,6 +118,18 @@ export function SiteInfoPanel({
 	);
 	const playground = clientInfo?.client;
 
+	// Resolve documentRoot from playground
+	useEffect(() => {
+		if (!playground) {
+			setDocumentRoot(null);
+			return;
+		}
+
+		void playground.documentRoot.then((root) => {
+			setDocumentRoot(root);
+		});
+	}, [playground]);
+
 	function navigateTo(path: string) {
 		if (siteViewHidden) {
 			// Close the site manager so the site view is visible.
@@ -70,7 +140,6 @@ export function SiteInfoPanel({
 			playground.goTo(path);
 		}
 	}
-	const isTemporary = site.metadata.storage === 'none';
 
 	const { opfsMountDescriptor } = usePlaygroundClientInfo(site.slug) || {};
 
@@ -78,6 +147,11 @@ export function SiteInfoPanel({
 		site.metadata?.storage === 'local-fs'
 			? (opfsMountDescriptor as any)?.device?.handle?.name
 			: undefined;
+
+	const title = isTemporary ? 'Unsaved Playground' : site.metadata.name;
+	const titleWords = title.split(' ');
+	const titleStart = titleWords.slice(0, -1).join(' ');
+	const titleEnd = titleWords[titleWords.length - 1];
 
 	return (
 		<section
@@ -97,24 +171,22 @@ export function SiteInfoPanel({
 						direction="row"
 						gap={2}
 						justify="space-between"
-						align="center"
+						align="flex-start"
 						expanded={true}
-						className={css.padded}
+						className={`${css.padded} ${css.siteInfoHeader}`}
 						style={{ paddingBottom: 10 }}
 					>
 						{mobileUi && (
 							<FlexItem style={{ marginLeft: -20 }}>
 								<Button
 									variant="link"
-									label="Back to sites list"
+									label="Back to Playground"
 									icon={() => (
 										<Icon icon={chevronLeft} size={38} />
 									)}
 									className={css.grayLinkDark}
 									onClick={() => {
-										dispatch(
-											setSiteManagerSection('sidebar')
-										);
+										dispatch(setSiteManagerOpen(false));
 									}}
 								/>
 							</FlexItem>
@@ -133,14 +205,61 @@ export function SiteInfoPanel({
 						</FlexItem>
 						<FlexItem style={{ flexGrow: 1 }}>
 							<Flex direction="column" gap={0.25} expanded={true}>
-								<h1
-									className={css.siteInfoHeaderDetailsName}
-									aria-label="Playground title"
+								<Flex
+									direction="row"
+									align="flex-start"
+									className={css.siteInfoHeaderTitleRow}
 								>
-									{isTemporary
-										? 'Temporary Playground'
-										: site.metadata.name}
-								</h1>
+									<FlexItem
+										className={css.siteInfoHeaderTitle}
+									>
+										<h1
+											className={
+												css.siteInfoHeaderDetailsName
+											}
+											aria-label="Playground title"
+										>
+											<span
+												className={
+													css.siteInfoHeaderDetailsNameText
+												}
+											>
+												{titleStart}{' '}
+												<span
+													className={
+														css.siteInfoHeaderDetailsNameTextEnd
+													}
+												>
+													{titleEnd}
+													{!isTemporary && (
+														<Button
+															className={
+																css.siteInfoRenameButton
+															}
+															icon={edit}
+															label="Rename Playground"
+															showTooltip={true}
+															variant="tertiary"
+															isSmall={true}
+															onClick={() => {
+																dispatch(
+																	setSiteSlugToRename(
+																		site.slug
+																	)
+																);
+																dispatch(
+																	setActiveModal(
+																		modalSlugs.RENAME_SITE
+																	)
+																);
+															}}
+														/>
+													)}
+												</span>
+											</span>
+										</h1>
+									</FlexItem>
+								</Flex>
 								{!isTemporary && (
 									<span
 										className={
@@ -158,7 +277,7 @@ export function SiteInfoPanel({
 															site.metadata
 																.whenCreated - 2
 														)
-												  )
+													)
 												: '';
 											switch (site.metadata.storage) {
 												case 'local-fs':
@@ -190,7 +309,7 @@ export function SiteInfoPanel({
 							</FlexItem>
 						) : (
 							<>
-								<FlexItem>
+								<FlexItem className={css.siteInfoHeaderAction}>
 									<Button
 										variant="tertiary"
 										disabled={!playground}
@@ -199,7 +318,7 @@ export function SiteInfoPanel({
 										WP Admin
 									</Button>
 								</FlexItem>
-								<FlexItem>
+								<FlexItem className={css.siteInfoHeaderAction}>
 									<Button
 										variant="secondary"
 										disabled={!playground}
@@ -210,7 +329,7 @@ export function SiteInfoPanel({
 								</FlexItem>
 							</>
 						)}
-						<FlexItem>
+						<FlexItem className={css.siteInfoHeaderAction}>
 							<DropdownMenu
 								icon={moreVertical}
 								label="Additional actions"
@@ -247,31 +366,6 @@ export function SiteInfoPanel({
 												disabled={!playground}
 											/>
 										</MenuGroup>
-										<MenuGroup>
-											<MenuItem
-												// @ts-ignore
-												href={`/builder/builder.html#${encodeStringAsBase64(
-													JSON.stringify(
-														site.metadata
-															.originalBlueprint as any
-													) as string
-												)}`}
-												target="_blank"
-												rel="noopener noreferrer"
-												icon={external}
-												iconPosition="right"
-												aria-label="View Blueprint"
-												disabled={offline}
-											>
-												View Blueprint
-											</MenuItem>
-										</MenuGroup>
-										<MenuGroup>
-											<ReportError
-												onClose={onClose}
-												disabled={offline}
-											/>
-										</MenuGroup>
 									</>
 								)}
 							</DropdownMenu>
@@ -281,11 +375,24 @@ export function SiteInfoPanel({
 				<FlexItem style={{ flexGrow: 1 }}>
 					<TabPanel
 						className={css.tabs}
-						onSelect={function noRefCheck() {}}
+						initialTabName={initialTabName}
+						onSelect={handleTabSelect}
 						tabs={[
 							{
 								name: 'settings',
 								title: 'Settings',
+							},
+							{
+								name: 'files',
+								title: 'File browser',
+							},
+							{
+								name: 'blueprint',
+								title: 'Blueprint',
+							},
+							{
+								name: 'database',
+								title: 'Database',
 							},
 							{
 								name: 'logs',
@@ -295,43 +402,124 @@ export function SiteInfoPanel({
 					>
 						{(tab) => (
 							<>
-								{tab.name === 'settings' && (
-									<div
-										className={classNames(css.tabContents)}
-									>
-										{offline ? (
-											<div className={css.padded}>
-												<OfflineNotice />
-											</div>
-										) : null}
+								<div
+									className={classNames(css.tabContents, {
+										[css.tabHidden]:
+											tab.name !== 'settings',
+									})}
+									hidden={tab.name !== 'settings'}
+								>
+									{offline ? (
+										<div className={css.padded}>
+											<OfflineNotice />
+										</div>
+									) : null}
 
-										{isTemporary ? (
+									{isTemporary ? (
+										<div data-testid="temporary-site-notice">
 											<TemporarySiteNotice
 												className={css.siteNotice}
 											/>
-										) : null}
-
-										<ActiveSiteSettingsForm />
-									</div>
-								)}
-								{tab.name === 'logs' && (
-									<div
-										className={classNames(
-											css.tabContents,
-											css.padded
-										)}
-									>
-										<div
-											className={classNames(
-												css.logsWrapper
-											)}
-										>
-											<SiteLogs
-												className={css.logsSection}
-											/>
 										</div>
+									) : null}
+
+									<ActiveSiteSettingsForm />
+								</div>
+								<div
+									className={classNames(
+										css.tabContents,
+										css.fileBrowserTab,
+										{
+											[css.tabHidden]:
+												tab.name !== 'files',
+										}
+									)}
+									hidden={tab.name !== 'files'}
+								>
+									<Suspense
+										fallback={
+											<div className={css.padded}>
+												Loading file browser...
+											</div>
+										}
+									>
+										{documentRoot && (
+											<SiteFileBrowser
+												key={site.slug}
+												site={site}
+												isVisible={tab.name === 'files'}
+												documentRoot={documentRoot}
+											/>
+										)}
+									</Suspense>
+								</div>
+								<div
+									className={classNames(
+										css.blueprintWrapper,
+										{
+											[css.tabHidden]:
+												tab.name !== 'blueprint',
+										}
+									)}
+									hidden={tab.name !== 'blueprint'}
+								>
+									{!isTemporary && (
+										<div className={css.blueprintNotice}>
+											This Blueprint is read-only for
+											saved Playgrounds. Create an Unsaved
+											Playground to edit and test
+											Blueprint changes.
+										</div>
+									)}
+									<Suspense
+										fallback={
+											<div>
+												Loading Blueprint editor...
+											</div>
+										}
+									>
+										<AutosavedBlueprintBundleEditor
+											key={site.slug}
+											site={site}
+											isVisible={tab.name === 'blueprint'}
+											className={classNames(
+												css.blueprintEditor
+											)}
+										/>
+									</Suspense>
+								</div>
+								<div
+									className={classNames(
+										css.tabContents,
+										css.padded,
+										{
+											[css.tabHidden]:
+												tab.name !== 'database',
+										}
+									)}
+									hidden={tab.name !== 'database'}
+								>
+									<SiteDatabasePanel
+										playground={playground}
+									/>
+								</div>
+								<div
+									className={classNames(
+										css.tabContents,
+										css.padded,
+										{
+											[css.tabHidden]:
+												tab.name !== 'logs',
+										}
+									)}
+									hidden={tab.name !== 'logs'}
+								>
+									<div
+										className={classNames(css.logsWrapper)}
+									>
+										<SiteLogs className={css.logsSection} />
 									</div>
-								)}
+								</div>
 							</>
 						)}
 					</TabPanel>

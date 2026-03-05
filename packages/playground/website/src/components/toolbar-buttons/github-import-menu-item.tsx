@@ -1,8 +1,7 @@
 import { MenuItem } from '@wordpress/components';
-import { setActiveModal } from '../../lib/state/redux/slice-ui';
+import { modalSlugs, setActiveModal } from '../../lib/state/redux/slice-ui';
 import type { PlaygroundDispatch } from '../../lib/state/redux/store';
 import { useDispatch } from 'react-redux';
-import { modalSlugs } from '../layout';
 
 interface Props {
 	onClose: () => void;
@@ -19,7 +18,7 @@ export function GithubImportMenuItem({ onClose, disabled }: Props) {
 				onClose();
 			}}
 		>
-			Import from GitHub
+			GitHub repository
 		</MenuItem>
 	);
 }

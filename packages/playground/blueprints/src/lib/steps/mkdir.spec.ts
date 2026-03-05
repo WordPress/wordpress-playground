@@ -16,6 +16,7 @@ describe('Blueprint step mkdir', () => {
 
 	afterEach(() => {
 		loggerErrorSpy.mockRestore();
+		php.exit();
 	});
 
 	it('should create a directory', async () => {

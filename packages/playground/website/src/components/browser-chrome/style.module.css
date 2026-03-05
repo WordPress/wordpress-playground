@@ -46,21 +46,19 @@ body.is-embedded .fake-window-wrapper {
 	background: #1e2327;
 	width: 100%;
 	margin: 0 auto;
-	padding: 0 22px;
+	padding: 0 12px;
 	height: 50px;
 	align-items: center;
 	max-height: 100px;
 	overflow: hidden;
-	transition: max-height 0.2s ease-in-out;
+	transition:
+		max-height 0.2s ease-in-out,
+		padding 0.2s ease-in-out;
 	gap: 10px;
 }
 
-.toolbar-hidden {
-	max-height: 0;
-}
-
-.window-controls {
-	display: flex;
+.toolbar.with-sidebar-open {
+	padding: 0 4px;
 }
 
 .toolbar-buttons:empty {
@@ -69,11 +67,17 @@ body.is-embedded .fake-window-wrapper {
 
 .toolbar-buttons {
 	display: flex;
-	gap: 10px;
+	gap: 0;
 	color: #fff;
 }
 
+.save-status-slot {
+	display: flex;
+	align-items: center;
+}
+
 .address-bar-slot {
+	display: flex;
 	flex-grow: 1;
 	min-width: 200px;
 	width: 100%;
@@ -84,6 +88,26 @@ body.is-embedded .fake-window-wrapper {
 .address-bar-slot.is-hidden {
 	opacity: 0;
 	pointer-events: none;
+}
+
+.saved-playgrounds-button {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 8px;
+	background: transparent;
+	border: none;
+	cursor: pointer;
+	flex-shrink: 0;
+}
+
+.saved-playgrounds-button svg {
+	fill: #fff;
+}
+
+.saved-playgrounds-button:hover {
+	background: rgba(255, 255, 255, 0.1);
+	border-radius: 4px;
 }
 
 .padded {
@@ -117,5 +141,32 @@ body.is-embedded .fake-window-wrapper {
 	}
 	.toolbar-buttons {
 		padding: 0;
+	}
+}
+
+/* Mobile: split toolbar into two lines */
+@media (max-width: 500px) {
+	.toolbar {
+		flex-wrap: wrap;
+		height: auto;
+		max-height: none;
+		overflow: visible;
+		padding: 8px;
+		gap: 8px;
+	}
+
+	.address-bar-slot {
+		order: 2;
+		flex-basis: 100%;
+		min-width: 0;
+	}
+
+	.save-status-slot {
+		order: 1;
+		margin-left: auto;
+	}
+
+	.toolbar-buttons {
+		order: 1;
 	}
 }

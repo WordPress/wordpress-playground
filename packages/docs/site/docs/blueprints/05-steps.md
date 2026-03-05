@@ -1,6 +1,7 @@
 ---
 sidebar_position: 3
 slug: /blueprints/steps
+description: The main API reference for the steps property. Discover all available step types you can use in a Blueprint.
 ---
 
 # Steps
