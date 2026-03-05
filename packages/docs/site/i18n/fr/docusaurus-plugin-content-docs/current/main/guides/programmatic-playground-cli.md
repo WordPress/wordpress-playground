@@ -122,6 +122,8 @@ You can mount local directories programmatically using `runCLI`. The options `mo
 Vous pouvez monter des répertoires locaux de manière programmatique avec `runCLI`. Les options `mount` et `mount-before-install` sont disponibles. La propriété `hostPath` attend un chemin vers un répertoire sur votre machine locale. Ce chemin doit être relatif à l’endroit d’où votre script est exécuté.
 
 ```TypeScript
+import { runCLI } from "@wp-playground/cli";
+
 cliServer = await runCLI({
   command: 'server',
   login: true,

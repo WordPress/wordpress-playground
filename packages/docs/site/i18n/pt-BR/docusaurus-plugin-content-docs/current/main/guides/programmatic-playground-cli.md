@@ -64,9 +64,7 @@ Você pode fornecer um blueprint de duas formas: como um objeto literal passado 
 ```TypeScript
 import { runCLI, RunCLIServer } from "@wp-playground/cli";
 
-const cliServer: RunCLIServer;
-
-cliServer = await runCLI({
+const cliServer: RunCLIServer = await runCLI({
   command: 'server',
   wp: 'latest',
   blueprint: {
@@ -122,6 +120,8 @@ You can mount local directories programmatically using `runCLI`. The options `mo
 Você pode montar diretórios locais de forma programática usando `runCLI`. As opções `mount` e `mount-before-install` estão disponíveis. A propriedade `hostPath` espera um caminho para um diretório na sua máquina local. Esse caminho deve ser relativo ao local de onde seu script está sendo executado.
 
 ```TypeScript
+import { runCLI } from "@wp-playground/cli";
+
 cliServer = await runCLI({
   command: 'server',
   login: true,

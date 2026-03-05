@@ -36,9 +36,7 @@ You can provide a blueprint in two ways: either as an object literal directly pa
 ```TypeScript
 import { runCLI, RunCLIServer } from "@wp-playground/cli";
 
-const cliServer: RunCLIServer;
-
-cliServer = await runCLI({
+const cliServer: RunCLIServer = await runCLI({
   command: 'server',
   wp: 'latest',
   blueprint: {
@@ -82,7 +80,9 @@ const myBlueprint: BlueprintDeclaration = {
 You can mount local directories programmatically using `runCLI`. The options `mount` and `mount-before-install` are available. The `hostPath` property expects a path to a directory on your local machine. This path should be relative to where your script is being executed.
 
 ```TypeScript
-cliServer = await runCLI({
+import { runCLI } from "@wp-playground/cli";
+
+const cliServer = await runCLI({
   command: 'server',
   login: true,
   'mount-before-install': [
@@ -101,9 +101,7 @@ You can combine mounting parts of the project with blueprints, for example:
 ```TypeScript
 import { runCLI, RunCLIServer } from "@wp-playground/cli";
 
-const cliServer: RunCLIServer;
-
-cliServer = await runCLI({
+const cliServer: RunCLIServer = await runCLI({
     command: 'server',
     php: '8.3',
     wp: 'latest',
