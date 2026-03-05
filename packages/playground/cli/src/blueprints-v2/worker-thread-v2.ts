@@ -18,7 +18,6 @@ import type {
 import {
 	PHPExecutionFailureError,
 	PHPResponse,
-	PHPWorker,
 	releaseApiProxy,
 	consumeAPI,
 	consumeAPISync,
@@ -53,6 +52,7 @@ import type {
 } from '@wp-playground/wordpress';
 import { shouldRenderProgress } from '../utils/progress';
 import type { Mount } from '@php-wasm/cli-util';
+import { PlaygroundCliWorker } from '../playground-cli-worker';
 
 async function mountResources(php: PHP, mounts: Mount[]) {
 	for (const mount of mounts) {
@@ -185,7 +185,7 @@ export type WorkerBootRequestHandlerOptions = Omit<
 	spawnHandler: () => SpawnHandler;
 };
 
-export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
+export class PlaygroundCliBlueprintV2Worker extends PlaygroundCliWorker {
 	booted = false;
 	blueprintTargetResolved = false;
 	phpInstancesThatNeedMountsAfterTargetResolved = new Set<PHP>();
@@ -517,7 +517,7 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 		}
 	}
 
-	async mountAfterWordPressInstall(mounts: Array<Mount>) {
+	override async mountAfterWordPressInstall(mounts: Array<Mount>) {
 		await mountResources(this.__internal_getPHP()!, mounts);
 	}
 
@@ -529,11 +529,6 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 		>(postInstallMountsPort);
 		await applyPostInstallMountsToAllWorkers();
 		applyPostInstallMountsToAllWorkers[releaseApiProxy]();
-	}
-
-	// Provide a named disposal method that can be invoked via comlink.
-	async dispose() {
-		await this[Symbol.asyncDispose]();
 	}
 }
 

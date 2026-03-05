@@ -3,7 +3,6 @@ import { loadNodeRuntime } from '@php-wasm/node';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import type { PathAlias, SupportedPHPVersion } from '@php-wasm/universal';
 import {
-	PHPWorker,
 	releaseApiProxy,
 	consumeAPI,
 	consumeAPISync,
@@ -22,6 +21,7 @@ import { MessageChannel, type MessagePort, parentPort } from 'worker_threads';
 import { mountResources } from '../mounts';
 import { logger } from '@php-wasm/logger';
 import { spawnWorkerThread } from '../run-cli';
+import { PlaygroundCliWorker } from '../playground-cli-worker';
 
 import type { Mount } from '@php-wasm/cli-util';
 
@@ -70,7 +70,7 @@ function tracePhpWasm(processId: number, format: string, ...args: any[]) {
 	);
 }
 
-export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
+export class PlaygroundCliBlueprintV1Worker extends PlaygroundCliWorker {
 	bootedRequestHandler = false;
 	bootedWordPress = false;
 	fileLockManager: FileLockManager | undefined;
@@ -210,17 +210,12 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 		}
 	}
 
-	async mountAfterWordPressInstall(mounts: Array<Mount>) {
+	override async mountAfterWordPressInstall(mounts: Array<Mount>) {
 		// Make sure workers not involved in the WordPress install
 		// process know whether WordPress booted so they can
 		// apply post-install mounts when spawning new PHP workers.
 		this.bootedWordPress = true;
 		await mountResources(this.__internal_getPHP()!, mounts);
-	}
-
-	// Provide a named disposal method that can be invoked via comlink.
-	async dispose() {
-		await this[Symbol.asyncDispose]();
 	}
 }
 
