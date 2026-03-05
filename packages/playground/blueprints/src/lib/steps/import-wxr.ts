@@ -74,8 +74,8 @@ async function importWithDefaultImporter(
 		},
 		code: `<?php
 	define('WP_LOAD_IMPORTERS', true);
-	require 'wp-load.php';
-	require 'wp-admin/includes/admin.php';
+	require getenv('DOCROOT') . '/wp-load.php';
+	require getenv('DOCROOT') . '/wp-admin/includes/admin.php';
 
 	/**
 	 * Disable all kses filters to prevent content sanitization during import.
@@ -123,6 +123,7 @@ async function importWithDefaultImporter(
 	] );
 	`,
 		env: {
+			DOCROOT: await playground.documentRoot,
 			IMPORT_FILE: '/tmp/import.wxr',
 			FETCH_ATTACHMENTS: 'true',
 		},
