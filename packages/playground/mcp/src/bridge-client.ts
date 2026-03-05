@@ -28,7 +28,10 @@ export interface McpBridgeHandle {
 const DEFAULT_MCP_WS_PORT = 7999;
 const RECONNECT_INTERVAL_MS = 5000;
 
-export function startMcpBridge(config: PlaygroundConfig): McpBridgeHandle {
+export function startMcpBridge(
+	config: PlaygroundConfig,
+	port?: number
+): McpBridgeHandle {
 	const tabId = crypto.randomUUID();
 	let ws: WebSocket | null = null;
 	let previousSitesSerialized = '';
@@ -46,11 +49,10 @@ export function startMcpBridge(config: PlaygroundConfig): McpBridgeHandle {
 	}
 
 	function connect() {
-		const params = new URLSearchParams(window.location.search);
-		const port = params.get('mcpPort') ?? String(DEFAULT_MCP_WS_PORT);
+		const wsPort = port ?? DEFAULT_MCP_WS_PORT;
 
 		try {
-			ws = new WebSocket(`ws://127.0.0.1:${port}`);
+			ws = new WebSocket(`ws://127.0.0.1:${wsPort}`);
 		} catch {
 			scheduleReconnect();
 			return;

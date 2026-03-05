@@ -25,53 +25,63 @@ startListening({
 		// Only start the bridge once.
 		listenerApi.unsubscribe();
 
+		// Only start the MCP bridge when explicitly requested via ?mcp query parameter.
+		const query = new URLSearchParams(window.location.search);
+		if (!query.has('mcp')) {
+			return;
+		}
+
+		const mcpPort = query.get('mcp-port');
 		const { getState, dispatch } = listenerApi;
-		const handle: McpBridgeHandle = startMcpBridge({
-			getSites: () => {
-				const state = getState();
-				const allSites = selectAllSites(state);
-				const active = selectActiveSite(state);
-				return allSites.map((s) => ({
-					slug: s.slug,
-					name: s.metadata.name,
-					storage: s.metadata.storage,
-					isActive: s.slug === active?.slug,
-				}));
-			},
-			getPlaygroundClient: (siteSlug: string) =>
-				selectClientBySiteSlug(getState(), siteSlug),
-			renameSite: async (siteSlug: string, newName: string) => {
-				await dispatch(
-					updateSiteMetadata({
-						slug: siteSlug,
-						changes: { name: newName },
-					})
-				);
-			},
-			saveSite: async (siteSlug: string) => {
-				const state = getState();
-				const site = selectSiteBySlug(state, siteSlug);
-				if (!site) {
-					throw new Error(`Site not found: ${siteSlug}`);
-				}
-				if (site.metadata.storage !== 'none') {
+		const handle: McpBridgeHandle = startMcpBridge(
+			{
+				getSites: () => {
+					const state = getState();
+					const allSites = selectAllSites(state);
+					const active = selectActiveSite(state);
+					return allSites.map((s) => ({
+						slug: s.slug,
+						name: s.metadata.name,
+						storage: s.metadata.storage,
+						isActive: s.slug === active?.slug,
+					}));
+				},
+				getPlaygroundClient: (siteSlug: string) =>
+					selectClientBySiteSlug(getState(), siteSlug),
+				renameSite: async (siteSlug: string, newName: string) => {
+					await dispatch(
+						updateSiteMetadata({
+							slug: siteSlug,
+							changes: { name: newName },
+						})
+					);
+				},
+				saveSite: async (siteSlug: string) => {
+					const state = getState();
+					const site = selectSiteBySlug(state, siteSlug);
+					if (!site) {
+						throw new Error(`Site not found: ${siteSlug}`);
+					}
+					if (site.metadata.storage !== 'none') {
+						return {
+							slug: siteSlug,
+							storage: site.metadata.storage,
+						};
+					}
+					await dispatch(
+						persistTemporarySite(siteSlug, 'opfs', {
+							skipRenameModal: true,
+						})
+					);
+					const updatedSite = selectSiteBySlug(getState(), siteSlug);
 					return {
 						slug: siteSlug,
-						storage: site.metadata.storage,
+						storage: updatedSite?.metadata.storage ?? 'none',
 					};
-				}
-				await dispatch(
-					persistTemporarySite(siteSlug, 'opfs', {
-						skipRenameModal: true,
-					})
-				);
-				const updatedSite = selectSiteBySlug(getState(), siteSlug);
-				return {
-					slug: siteSlug,
-					storage: updatedSite?.metadata.storage ?? 'none',
-				};
+				},
 			},
-		});
+			mcpPort ? Number(mcpPort) : undefined
+		);
 
 		// Notify the bridge when site-related state changes so it
 		// can diff the site list and re-register when needed.

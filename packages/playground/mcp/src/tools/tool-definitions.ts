@@ -389,6 +389,10 @@ export const siteToolDefinitions: Record<string, ToolDefinition> = {
 			tool — it returns the siteId required by every
 			other operation.
 
+			If this returns no sites, the user may need to
+			open Playground with the ?mcp query parameter
+			(e.g. https://playground.wordpress.net/?mcp).
+
 			Returns site names and storage type. "temporary"
 			sites are lost on page reload, "opfs" sites persist
 			across reloads. Call playground_save_site to persist
