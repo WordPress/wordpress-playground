@@ -26,7 +26,7 @@ Le Playground CLI peut également être contrôlé de manière programmatique de
 Using the `runCLI` function, you can specify options like the PHP and WordPress versions. In the example below, we request PHP 8.3, the latest version of WordPress, and to be automatically logged in. All supported arguments are defined in the `RunCLIArgs` type.
 -->
 
-Avec la fonction `runCLI`, vous pouvez préciser des options comme les versions de PHP et de WordPress. Dans l'exemple ci-dessous, nous demandons PHP 8.3, la dernière version de WordPress et une connexion automatique. Tous les arguments pris en charge sont définis dans le type `RunCLIArgs`.
+Avec la fonction `runCLI`, vous pouvez préciser des options comme les versions de PHP et de WordPress. Dans l'exemple ci-dessous, nous demandons la version PHP 8.3, la dernière version de WordPress et une connexion automatique. Tous les arguments pris en charge sont définis dans le type `RunCLIArgs`.
 
 ```TypeScript
 import { runCLI } from "@wp-playground/cli";
@@ -43,7 +43,7 @@ const cliServer = await runCLI({
 Run the code above using your preferred TypeScript runtime, e.g. `tsx`:
 -->
 
-Exécutez le code ci-dessus avec votre runtime TypeScript préféré, par exemple `tsx` :
+Exécutez le code ci-dessus avec votre environnement d'éxécution Typescript préféré, par exemple `tsx` :
 
 ```sh
 npx tsx my-script.ts
@@ -113,7 +113,7 @@ const myBlueprint: BlueprintDeclaration = {
 ## Mounting a plugin programmatically
 -->
 
-## Monter un plugin de manière programmatique
+## Monter une extension de manière programmatique
 
 <!--
 You can mount local directories programmatically using `runCLI`. The options `mount` and `mount-before-install` are available. The `hostPath` property expects a path to a directory on your local machine. This path should be relative to where your script is being executed.
