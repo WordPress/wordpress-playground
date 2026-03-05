@@ -138,7 +138,11 @@
 					"prf.spec.ts",
 					"certificates.spec.ts",
 					"tcp-over-fetch-websocket.spec.ts",
-					"jspi-polyfill.spec.ts"
+					"jspi-polyfill.spec.ts",
+					"sw-handler.spec.ts",
+					"main-thread-socket-manager.spec.ts",
+					"polyfill-proxy-websocket.spec.ts",
+					"sync-xhr-channel.spec.ts"
 				]
 			}
 		},
