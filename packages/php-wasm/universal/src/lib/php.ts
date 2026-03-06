@@ -96,14 +96,6 @@ export class PHP implements Disposable {
 		maxRequests: 400,
 		requestsMade: 0,
 	};
-	/**
-	 * Tracks whether cli() was called, which on JSPI leaves
-	 * stdout/stderr redirected (main→exit() throws before cleanup).
-	 * Used to force rotation before a subsequent HTTP request so
-	 * the request runs on a clean WASM module.
-	 */
-	#cliDirtiedRuntime = false;
-
 	requestHandler?: PHPRequestHandler;
 
 	/**
@@ -132,12 +124,7 @@ export class PHP implements Disposable {
 		 * PHP runtime is properly rotated.
 		 */
 		this.addEventListener('request.error', (event: any) => {
-			// Only schedule rotation after errors if this instance has
-			// served HTTP requests (phpWasmInitCalled). CLI-only
-			// instances (proc_open subprocesses) must not rotate because
-			// their /wordpress is a PROXYFS mount that isn't registered
-			// in #mounts and would be lost after rotation.
-			if (event.source === 'php-wasm' && this.#phpWasmInitCalled) {
+			if (event.source === 'php-wasm') {
 				this.#rotationOptions.needsRotating = true;
 			}
 		});
@@ -630,13 +617,6 @@ export class PHP implements Disposable {
 	 * @returns A StreamedPHPResponse object.
 	 */
 	async runStream(request: PHPRunOptions): Promise<StreamedPHPResponse> {
-		// If cli() was called previously, the WASM module's
-		// stdout/stderr may be left redirected (on JSPI, main→exit()
-		// throws before cleanup). We must rotate to get a clean
-		// module before serving HTTP requests.
-		if (this.#cliDirtiedRuntime && this.#rotationOptions.enabled) {
-			this.#rotationOptions.needsRotating = true;
-		}
 		/*
 		 * Prevent multiple requests from running at the same time.
 		 * For example, if a request is made to a PHP file that
@@ -1392,7 +1372,6 @@ export class PHP implements Disposable {
 		);
 		this.#rotationOptions.requestsMade = 0;
 		this.#rotationOptions.needsRotating = false;
-		this.#cliDirtiedRuntime = false;
 	}
 
 	/**
@@ -1452,24 +1431,6 @@ export class PHP implements Disposable {
 			await mount.unmount();
 		}
 
-		/**
-		 * Snapshot the MEMFS data BEFORE calling exit(). After exit(),
-		 * the WASM memory backing the old FS may be detached (especially
-		 * in web browsers), making FS read operations fail. By capturing
-		 * the data into plain JS objects first, we ensure we can restore
-		 * it on the new runtime regardless of what exit() does.
-		 */
-		const memfsSnapshot: Array<{
-			path: string;
-			type: 'dir' | 'file';
-			data?: Uint8Array;
-		}> = [];
-		for (const path of oldRootLevelPaths) {
-			if (path && path !== '/request') {
-				snapshotMEMFSNodes(oldFS, path, memfsSnapshot);
-			}
-		}
-
 		// Kill the current runtime
 		try {
 			this.exit();
@@ -1491,21 +1452,17 @@ export class PHP implements Disposable {
 		/**
 		 * Ensure the new PHP instance has the same file structure as the old one.
 		 *
-		 * Restore the MEMFS snapshot captured before exit(). Only MEMFS
-		 * nodes are restored – NODEFS, PROXYFS etc. mounts are re-applied
-		 * separately below.
+		 * Catch: The underlying filesystems may be completely separate but they may be
+		 * partially shared via NODEFS or PROXYFS mounts. We need to be careful and only
+		 * recreate the MEMFS directories that aren't already shared – otherwise we'll
+		 * write data to shared paths that other, concurrent workers may be using.
 		 */
 		const newFs = this[__private__dont__use].FS;
-		for (const entry of memfsSnapshot) {
-			if (
-				!['memfs', 'missing'].includes(getNodeType(newFs, entry.path))
-			) {
-				continue;
-			}
-			if (entry.type === 'dir') {
-				newFs.mkdirTree(entry.path);
-			} else if (entry.data) {
-				newFs.writeFile(entry.path, entry.data);
+		for (const path of oldRootLevelPaths) {
+			// The /request directory holds per-request state that is isolated to a
+			// single PHP instance. Let's not copy it.
+			if (path && path !== '/request') {
+				copyMEMFSNodes(oldFS, newFs, path);
 			}
 		}
 
@@ -1576,11 +1533,9 @@ export class PHP implements Disposable {
 			return this.subProcess(argv, options);
 		}
 
-		// On JSPI, main()→exit() throws before run_cli() can restore
-		// stdout/stderr, so a module that has already called cli() once
-		// cannot call it again without rotation. On asyncify the C-level
-		// cleanup runs normally, but rotation is still safe.
-		if (this.#cliDirtiedRuntime || this.#phpWasmInitCalled) {
+		// A module that has served HTTP requests needs rotation before
+		// running CLI (different SAPI initialization).
+		if (this.#phpWasmInitCalled) {
 			this.#rotationOptions.needsRotating = true;
 		}
 
@@ -1611,16 +1566,9 @@ export class PHP implements Disposable {
 				return response;
 			})
 			.finally(() => {
-				// On JSPI, main()→exit() throws before run_cli() can
-				// restore stdout/stderr, leaving the module dirty.
-				// If a subsequent HTTP request is made (run/runStream),
-				// it needs rotation to get a clean module. CLI-only
-				// subprocess instances skip rotation because their
-				// /wordpress is a PROXYFS mount not in #mounts.
-				this.#cliDirtiedRuntime = true;
-				if (this.#phpWasmInitCalled) {
-					this.#rotationOptions.needsRotating = true;
-				}
+				// main() calls exit() which throws ExitStatus, leaving
+				// the module dirty. Mark for rotation.
+				this.#rotationOptions.needsRotating = true;
 			});
 	}
 
@@ -1743,38 +1691,30 @@ export function normalizeHeaders(
 	return normalized;
 }
 
-/**
- * Captures MEMFS nodes into a flat list of plain JS objects.
- * File data is copied into new Uint8Arrays not backed by WASM memory,
- * so the snapshot remains valid even after the WASM module is exited.
- */
-function snapshotMEMFSNodes(
+function copyMEMFSNodes(
 	source: Emscripten.FileSystemInstance,
-	path: string,
-	result: Array<{ path: string; type: 'dir' | 'file'; data?: Uint8Array }>
+	target: Emscripten.FileSystemInstance,
+	path: string
 ) {
-	if (getNodeType(source, path) !== 'memfs') {
+	if (
+		getNodeType(source, path) !== 'memfs' ||
+		!['memfs', 'missing'].includes(getNodeType(target, path))
+	) {
 		return;
 	}
 
-	const node = source.lookupPath(path);
-	if (!source.isDir(node.node.mode)) {
-		// .slice() copies the data out of WASM memory into a
-		// standalone JS Uint8Array.
-		result.push({
-			path,
-			type: 'file',
-			data: source.readFile(path).slice(),
-		});
+	const oldNode = source.lookupPath(path);
+	if (!source.isDir(oldNode.node.mode)) {
+		target.writeFile(path, source.readFile(path));
 		return;
 	}
 
-	result.push({ path, type: 'dir' });
+	target.mkdirTree(path);
 	const filenames = source
 		.readdir(path)
 		.filter((name: string) => name !== '.' && name !== '..');
 	for (const filename of filenames) {
-		snapshotMEMFSNodes(source, joinPaths(path, filename), result);
+		copyMEMFSNodes(source, target, joinPaths(path, filename));
 	}
 }
 

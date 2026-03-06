@@ -1025,7 +1025,10 @@ void wasm_add_cli_arg(char *arg)
 int main(int argc, char *argv[]);
 int run_cli()
 {
-	// See wasm_sapi_request_init() for details on why we need to redirect stdout and stderr.
+	// Redirect stdout/stderr to /request/stdout and /request/stderr devices.
+	// Emscripten's default stdout/stderr handling truncates null bytes, which
+	// breaks binary output. These device files call PHPWASM.onStdout/onStderr
+	// in JavaScript, preserving all bytes.
 	stdout_replacement = redirect_stream_to_file(stdout, "/request/stdout");
 	stderr_replacement = redirect_stream_to_file(stderr, "/request/stderr");
 	if (stdout_replacement == -1 || stderr_replacement == -1)
@@ -1053,22 +1056,13 @@ int run_cli()
 		current_arg = current_arg->next;
 	}
 
-	int result = main(cli_argc, cli_argv_array);
+	// main() never returns – PHP CLI always calls exit(), which Emscripten
+	// turns into a thrown ExitStatus exception. The WASM module is replaced
+	// by runtime rotation after each cli() call, so no cleanup is needed.
+	main(cli_argc, cli_argv_array);
 
-	// Clear the environment variables
-	while (current_env_entry != NULL) {
-		char *env_string = malloc(strlen(current_env_entry->key) + strlen(current_env_entry->value) + 2);
-		sprintf(env_string, "%s=", current_env_entry->key);
-		putenv(env_string);
-		current_env_entry = current_env_entry->next;
-	}
-
-	restore_stream_handler(stdout, stdout_replacement);
-	restore_stream_handler(stderr, stderr_replacement);
-
-	free(cli_argv_array);
-
-	return result;
+	// Unreachable – main() calls exit() which throws ExitStatus.
+	return 0;
 }
 
 #else

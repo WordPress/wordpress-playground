@@ -320,10 +320,6 @@ describe.each([true, false])(
 				recreateRuntime: recreateRuntimeSpy,
 				maxRequests: 1234,
 			});
-			// Run an HTTP request first so the instance is marked as
-			// HTTP-capable (phpWasmInitCalled). Only HTTP instances
-			// schedule rotation on request.error — CLI-only instances
-			// skip rotation to preserve PROXYFS mounts.
 			await php.run({ code: `` });
 			// Cause a PHP runtime rotation due to error
 			php.dispatchEvent({
