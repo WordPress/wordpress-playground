@@ -1488,4 +1488,121 @@ describe('other run-cli behaviors', () => {
 			}
 		});
 	});
+
+	describe('php command', () => {
+		class ProcessExitCalled extends Error {
+			exitCode: number;
+			constructor(exitCode: number) {
+				super(`process.exit(${exitCode})`);
+				this.exitCode = exitCode;
+			}
+		}
+
+		test('should run a PHP script and capture output', async () => {
+			const stdoutChunks: string[] = [];
+			const stdoutSpy = vi
+				.spyOn(process.stdout, 'write')
+				.mockImplementation((chunk: any) => {
+					stdoutChunks.push(
+						typeof chunk === 'string'
+							? chunk
+							: new TextDecoder().decode(chunk)
+					);
+					return true;
+				});
+			const exitSpy = vi
+				.spyOn(process, 'exit')
+				.mockImplementation((code?: number) => {
+					throw new ProcessExitCalled(code ?? 0);
+				});
+
+			try {
+				await expect(
+					runCLI({
+						command: 'php',
+						_: ['php', '-r', 'echo "hello from php";'],
+						wordpressInstallMode: 'do-not-attempt-installing',
+						skipSqliteSetup: true,
+						blueprint: undefined,
+					})
+				).rejects.toThrow(ProcessExitCalled);
+				expect(exitSpy).toHaveBeenCalledWith(0);
+				expect(stdoutChunks.join('')).toContain('hello from php');
+			} finally {
+				stdoutSpy.mockRestore();
+				exitSpy.mockRestore();
+			}
+		});
+
+		test('should exit with non-zero code on PHP error', async () => {
+			const stdoutSpy = vi
+				.spyOn(process.stdout, 'write')
+				.mockImplementation(() => true);
+			const stderrSpy = vi
+				.spyOn(process.stderr, 'write')
+				.mockImplementation(() => true);
+			const exitSpy = vi
+				.spyOn(process, 'exit')
+				.mockImplementation((code?: number) => {
+					throw new ProcessExitCalled(code ?? 0);
+				});
+
+			try {
+				await expect(
+					runCLI({
+						command: 'php',
+						_: ['php', '-r', 'exit(42);'],
+						wordpressInstallMode: 'do-not-attempt-installing',
+						skipSqliteSetup: true,
+						blueprint: undefined,
+					})
+				).rejects.toThrow(ProcessExitCalled);
+				expect(exitSpy).toHaveBeenCalledWith(42);
+			} finally {
+				stdoutSpy.mockRestore();
+				stderrSpy.mockRestore();
+				exitSpy.mockRestore();
+			}
+		});
+
+		test('should capture stderr output', async () => {
+			const stderrChunks: string[] = [];
+			const stdoutSpy = vi
+				.spyOn(process.stdout, 'write')
+				.mockImplementation(() => true);
+			const stderrSpy = vi
+				.spyOn(process.stderr, 'write')
+				.mockImplementation((chunk: any) => {
+					stderrChunks.push(
+						typeof chunk === 'string'
+							? chunk
+							: new TextDecoder().decode(chunk)
+					);
+					return true;
+				});
+			const exitSpy = vi
+				.spyOn(process, 'exit')
+				.mockImplementation((code?: number) => {
+					throw new ProcessExitCalled(code ?? 0);
+				});
+
+			try {
+				await expect(
+					runCLI({
+						command: 'php',
+						_: ['php', '-r', 'error_log("test error");'],
+						wordpressInstallMode: 'do-not-attempt-installing',
+						skipSqliteSetup: true,
+						blueprint: undefined,
+					})
+				).rejects.toThrow(ProcessExitCalled);
+				expect(exitSpy).toHaveBeenCalledWith(0);
+				expect(stderrChunks.join('')).toContain('test error');
+			} finally {
+				stdoutSpy.mockRestore();
+				stderrSpy.mockRestore();
+				exitSpy.mockRestore();
+			}
+		});
+	});
 });
