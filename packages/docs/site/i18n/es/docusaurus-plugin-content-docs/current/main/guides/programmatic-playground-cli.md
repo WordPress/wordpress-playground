@@ -16,6 +16,8 @@ The Playground CLI can also be controlled programmatically from your JavaScript/
 
 El Playground CLI también puede controlarse de forma programática desde tu código JavaScript/TypeScript usando la función `runCLI`. Esto te da acceso directo a todas las funcionalidades del CLI en tu código, lo cual es útil para automatizar pruebas de extremo a extremo. Las opciones que pasas a `runCLI` se corresponden directamente con las [opciones del CLI](/developers/local-development/wp-playground-cli#command-and-arguments).
 
+<iframe width="800" src="https://www.youtube.com/embed/rmNf3CfXbtA?si=cduqQYbBWc6zAPVj" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen title="Running WordPress Directly from the JavaScript Code with runCLI"></iframe>
+
 <!--
 ## Running a WordPress instance with a specific version
 -->
