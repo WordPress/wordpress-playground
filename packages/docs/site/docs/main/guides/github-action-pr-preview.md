@@ -272,7 +272,7 @@ Configuration options: [Expose Artifact Inputs](https://github.com/WordPress/act
 
 More: [workflow README](https://github.com/WordPress/action-wp-playground-pr-preview/tree/v2)
 
-## Other ways of previewing git repository
+## Other ways of previewing a git repository
 
 <iframe width="800" src="https://www.youtube.com/embed/2VQkCPYyabQ?si=g5zkAZelHZ9bkN1X" title="Previewing GitHub branches with WordPress Playground" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
