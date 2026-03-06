@@ -408,6 +408,7 @@ function should_respond_with_cors_headers($host, $origin) {
     }
 
     $supported_origins = array(
+        'https://playground-preview.test',
         'https://playground.wordpress.net',
         'http://localhost',
         'http://127.0.0.1',
