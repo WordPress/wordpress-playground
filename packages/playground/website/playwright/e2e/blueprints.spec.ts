@@ -56,6 +56,54 @@ test('spawning less should work', async ({ website, wordpress }) => {
 	await expect(wordpress.locator('body')).toContainText('Hello, world!');
 });
 
+test('proc_open(php) should work multiple times in a row', async ({
+	website,
+	wordpress,
+}) => {
+	const blueprint: Blueprint = {
+		landingPage: '/proc-open-test.php',
+		steps: [
+			{
+				step: 'writeFile',
+				path: '/wordpress/proc-open-test.php',
+				data: `<?php
+				$results = [];
+				for ($i = 1; $i <= 3; $i++) {
+					$proc = proc_open(
+						'php -r "echo ' . $i . ';"',
+						[1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
+						$pipes
+					);
+					if (!is_resource($proc)) {
+						$results[] = "PROC_OPEN_FAILED";
+						continue;
+					}
+					$stdout = stream_get_contents($pipes[1]);
+					$stderr = stream_get_contents($pipes[2]);
+					fclose($pipes[1]);
+					fclose($pipes[2]);
+					$exitCode = proc_close($proc);
+					$results[] = "out=" . var_export($stdout, true)
+						. " err=" . var_export($stderr, true)
+						. " exit=" . $exitCode;
+				}
+				echo implode("\\n", $results);
+			`,
+			},
+		],
+	};
+
+	const encodedBlueprint = encodeStringAsBase64(JSON.stringify(blueprint));
+	await website.goto(`/#${encodedBlueprint}`);
+	await expect(wordpress.locator('body')).toContainText('out=', {
+		timeout: 120000,
+	});
+	const bodyText = await wordpress.locator('body').innerText();
+	expect(bodyText).toContain("out='1'");
+	expect(bodyText).toContain("out='2'");
+	expect(bodyText).toContain("out='3'");
+});
+
 test('?blueprint-url=... should work with simple blueprints', async ({
 	page,
 	website,

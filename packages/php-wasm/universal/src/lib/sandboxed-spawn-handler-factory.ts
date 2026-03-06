@@ -158,6 +158,8 @@ export function sandboxedSpawnHandlerFactory(
 			}
 		} catch (e) {
 			// An exception here means the PHP runtime has crashed.
+			const errMsg = e instanceof Error ? e.message + '\n' + e.stack : String(e);
+			processApi.stderr(`[spawn error] ${errMsg}`);
 			processApi.exit(1);
 			throw e;
 		} finally {
