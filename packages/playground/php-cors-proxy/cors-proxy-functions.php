@@ -74,8 +74,10 @@ function url_validate_and_resolve($url, $resolve_function='gethostbynamel') {
     ];
 }
 
-function is_private_ip($ip) {
-    return IpUtils::isPrivateIp($ip);
+if (!function_exists('is_private_ip')) {
+    function is_private_ip($ip) {
+        return IpUtils::isPrivateIp($ip);
+    }
 }
 
 class IpUtils
@@ -405,6 +407,14 @@ function rewrite_relative_redirect(
 function should_respond_with_cors_headers($host, $origin) {
     if (empty($origin)) {
         return false;
+    }
+
+    // The Origin header is the literal string "null" when the request
+    // comes from a sandboxed iframe, a data: URL, a file: URL, or a
+    // cross-origin redirect. WordPress Playground runs inside a
+    // sandboxed iframe, so we need to accept "null" as a valid origin.
+    if ($origin === 'null') {
+        return true;
     }
 
     $supported_origins = array(
