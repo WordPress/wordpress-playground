@@ -1512,8 +1512,10 @@ describe('other run-cli behaviors', () => {
 				});
 			const exitSpy = vi
 				.spyOn(process, 'exit')
-				.mockImplementation((code?: number) => {
-					throw new ProcessExitCalled(code ?? 0);
+				.mockImplementation((code?: string | number | null) => {
+					throw new ProcessExitCalled(
+						typeof code === 'number' ? code : 0
+					);
 				});
 
 			try {
@@ -1543,8 +1545,10 @@ describe('other run-cli behaviors', () => {
 				.mockImplementation(() => true);
 			const exitSpy = vi
 				.spyOn(process, 'exit')
-				.mockImplementation((code?: number) => {
-					throw new ProcessExitCalled(code ?? 0);
+				.mockImplementation((code?: string | number | null) => {
+					throw new ProcessExitCalled(
+						typeof code === 'number' ? code : 0
+					);
 				});
 
 			try {
@@ -1582,8 +1586,10 @@ describe('other run-cli behaviors', () => {
 				});
 			const exitSpy = vi
 				.spyOn(process, 'exit')
-				.mockImplementation((code?: number) => {
-					throw new ProcessExitCalled(code ?? 0);
+				.mockImplementation((code?: string | number | null) => {
+					throw new ProcessExitCalled(
+						typeof code === 'number' ? code : 0
+					);
 				});
 
 			try {
