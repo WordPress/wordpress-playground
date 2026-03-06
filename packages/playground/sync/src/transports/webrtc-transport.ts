@@ -45,6 +45,7 @@ export class WebRTCTransport implements PlaygroundSyncTransport {
 	private pc: RTCPeerConnection | null = null;
 	private dataChannel: RTCDataChannel | null = null;
 	private changesCallback: ChangesCallback | null = null;
+	private receiveQueue: TransportEnvelope[] = [];
 	private sendQueue: Uint8Array[] = [];
 	private messageId = 0;
 	private assembler = new MessageAssembler();
@@ -101,6 +102,10 @@ export class WebRTCTransport implements PlaygroundSyncTransport {
 
 	onChangesReceived(fn: ChangesCallback): void {
 		this.changesCallback = fn;
+		for (const envelope of this.receiveQueue) {
+			fn(envelope);
+		}
+		this.receiveQueue = [];
 	}
 
 	close(): void {
@@ -176,9 +181,13 @@ export class WebRTCTransport implements PlaygroundSyncTransport {
 		dc.addEventListener('message', (event) => {
 			const data = new Uint8Array(event.data as ArrayBuffer);
 			const assembled = this.assembler.addChunk(data);
-			if (assembled && this.changesCallback) {
+			if (assembled) {
 				const envelope = deserializeEnvelope(assembled);
-				this.changesCallback(envelope);
+				if (this.changesCallback) {
+					this.changesCallback(envelope);
+				} else {
+					this.receiveQueue.push(envelope);
+				}
 			}
 		});
 
