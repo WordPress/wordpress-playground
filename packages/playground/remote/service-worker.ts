@@ -333,7 +333,6 @@ self.addEventListener('fetch', (event) => {
  */
 async function handleScopedRequest(event: FetchEvent, scope: string) {
 	const fullUrl = new URL(event.request.url);
-	const unscopedUrl = removeURLScope(fullUrl);
 	if (fullUrl.pathname.endsWith('/wp-includes/empty.html')) {
 		return emptyHtml(scope);
 	}
@@ -400,136 +399,10 @@ async function handleScopedRequest(event: FetchEvent, scope: string) {
 		});
 	}
 
-	// Path the block-editor.js file to ensure the site editor's iframe
-	// inherits the service worker.
-	// @see controlledIframe below for more details.
-	if (
-		// WordPress Core version of block-editor.js
-		unscopedUrl.pathname.endsWith('/block-editor.js') ||
-		unscopedUrl.pathname.endsWith('/block-editor.min.js') ||
-		// Gutenberg version of block-editor.js
-		unscopedUrl.pathname.endsWith('/block-editor/index.js') ||
-		unscopedUrl.pathname.endsWith('/block-editor/index.min.js')
-	) {
-		const script = await workerResponse.text();
-		const newScript = `${controlledIframe} ${script.replace(
-			/\(\s*"iframe",/,
-			'(__playground_ControlledIframe,'
-		)}`;
-		return new Response(newScript, {
-			status: workerResponse.status,
-			statusText: workerResponse.statusText,
-			headers: workerResponse.headers,
-		});
-	}
-
 	return workerResponse;
 }
 
 reportServiceWorkerMetrics(self);
-
-/**
- * Pair the site editor's nested iframe to the Service Worker.
- *
- * Without the patch below, the site editor initiates network requests that
- * aren't routed through the service worker. That's a known browser issue:
- *
- * * https://bugs.chromium.org/p/chromium/issues/detail?id=880768
- * * https://bugzilla.mozilla.org/show_bug.cgi?id=1293277
- * * https://github.com/w3c/ServiceWorker/issues/765
- *
- * The problem with iframes using srcDoc and src="about:blank" as they
- * fail to inherit the root site's service worker.
- *
- * Gutenberg loads the site editor using <iframe srcDoc="<!doctype html">
- * to force the standards mode and not the quirks mode:
- *
- * https://github.com/WordPress/gutenberg/pull/38855
- *
- * This commit patches the site editor to achieve the same result via
- * <iframe src="/doctype.html"> and a doctype.html file containing just
- * `<!doctype html>`. This allows the iframe to inherit the service worker
- * and correctly load all the css, js, fonts, images, and other assets.
- *
- * Ideally this issue would be fixed directly in Gutenberg and the patch
- * below would be removed.
- *
- * See https://github.com/WordPress/wordpress-playground/issues/42 for more details
- *
- * ## Why does this code live in the service worker?
- *
- * There's many ways to install the Gutenberg plugin:
- *
- * * Install plugin step
- * * Import a site
- * * Install Gutenberg from the plugin directory
- * * Upload a Gutenberg zip
- *
- * It's too difficult to patch Gutenberg in all these cases, so we
- * blanket-patch all the scripts requested over the network whose names seem to
- * indicate they're related to the Gutenberg plugin.
- */
-const controlledIframe = `
-window.__playground_ControlledIframe = window.wp.element.forwardRef(function (props, ref) {
-	var lastContentRef = window.wp.element.useRef(null);
-	var lastSourceRef = window.wp.element.useRef(null);
-	const source = window.wp.element.useMemo(function () {
-		/**
-		 * A synchronous function to read a blob URL as text.
-		 *
-		 * @param {string} url
-		 * @returns {string}
-		 */
-		var __playground_readBlobAsText = function (url) {
-			try {
-				var xhr = new XMLHttpRequest();
-				xhr.open('GET', url, false);
-				xhr.overrideMimeType('text/plain;charset=utf-8');
-				xhr.send();
-				return xhr.responseText;
-			} catch(e) {
-				return '';
-			}
-		};
-		var content;
-		var newSource;
-		if (props.srcDoc) {
-			// WordPress <= 6.2 uses a srcDoc that only contains
-			// a doctype.
-			content = props.srcDoc;
-			newSource = '/wp-includes/empty.html';
-		} else if (props.src && props.src.startsWith('blob:')) {
-			// WordPress 6.3 and 7.0+ use a blob URL with doctype
-			// and a list of static assets. Pass the document
-			// content to empty.html and render it there.
-			content = __playground_readBlobAsText(props.src);
-			newSource = '/wp-includes/empty.html#' + encodeURIComponent(content);
-		} else {
-			// WordPress 6.4-6.9 uses a plain HTTPS URL that needs
-			// no correction.
-			return props.src;
-		}
-		// If the resolved content hasn't changed, reuse the
-		// previous source URL so React won't touch the iframe's
-		// src attribute and the browser won't reload it.
-		if (content === lastContentRef.current) {
-			return lastSourceRef.current;
-		}
-		lastContentRef.current = content;
-		lastSourceRef.current = newSource;
-		return newSource;
-	}, [props.src, props.srcDoc]);
-	return (
-		window.wp.element.createElement('iframe', {
-			...props,
-			ref: ref,
-			src: source,
-			// Make sure there's no srcDoc, as it would
-			// interfere with the src.
-			srcDoc: undefined
-		})
-	)
-});`;
 
 /**
  * The empty HTML file loaded by the patched editor iframe.

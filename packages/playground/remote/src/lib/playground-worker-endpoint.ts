@@ -24,6 +24,8 @@ import {
 import transportFetch from './playground-mu-plugin/playground-includes/wp_http_fetch.php?raw';
 /* @ts-ignore */
 import transportDummy from './playground-mu-plugin/playground-includes/wp_http_dummy.php?raw';
+/* @ts-ignore */
+import iframeFix from './playground-mu-plugin/playground-includes/wp_iframe_fix.php?raw';
 import { logger } from '@php-wasm/logger';
 import type { PathAlias, PHP, SupportedPHPVersion } from '@php-wasm/universal';
 import {
@@ -256,6 +258,7 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 					'playground-includes': {
 						'wp_http_dummy.php': transportDummy,
 						'wp_http_fetch.php': transportFetch,
+						'wp_iframe_fix.php': iframeFix,
 					},
 				},
 			},

@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/playground-includes/wp_iframe_fix.php';
+
 /**
  * Add a notice to wp-login.php offering the username and password.
  */
