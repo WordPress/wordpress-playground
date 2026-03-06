@@ -17,6 +17,8 @@ import {
 } from '../build-config';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { oAuthMiddleware } from './vite.oauth';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import { signalingMiddleware } from './vite.signaling';
 import { exec as execCb } from 'node:child_process';
 import { promisify } from 'node:util';
 import { fileURLToPath } from 'node:url';
@@ -41,10 +43,7 @@ const isDevcontainer = process.env.VITE_DEVCONTAINER === 'true';
 // a port that was published using the devcontainer "appPort" configuration.
 const serverHost = isDevcontainer ? '0.0.0.0' : websiteDevServerHost;
 
-async function setCodespacesPortPublic(
-	port: number,
-	codespaceName: string
-) {
+async function setCodespacesPortPublic(port: number, codespaceName: string) {
 	// eslint-disable-next-line no-console
 	console.log(`Publishing port ${port}...`);
 	const cmd = `gh codespace ports visibility ${port}:public -c ${codespaceName}`;
@@ -142,8 +141,7 @@ export default defineConfig(({ command, mode }) => {
 				? {
 						name: 'devcontainer-print-urls',
 						configureServer(server: ViteDevServer) {
-							const codespaceName =
-								process.env['CODESPACE_NAME'];
+							const codespaceName = process.env['CODESPACE_NAME'];
 							const codespacesDomain =
 								process.env[
 									'GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN'
@@ -161,13 +159,11 @@ export default defineConfig(({ command, mode }) => {
 							// Codespaces ports default to private, breaking CORS.
 							// Publish once the tunnel is ready.
 							if (codespaceName) {
-								server.httpServer?.once(
-									'listening',
-									() =>
-										setCodespacesPortPublic(
-											websiteDevServerPort,
-											codespaceName
-										)
+								server.httpServer?.once('listening', () =>
+									setCodespacesPortPublic(
+										websiteDevServerPort,
+										codespaceName
+									)
 								);
 							}
 						},
@@ -194,6 +190,7 @@ export default defineConfig(({ command, mode }) => {
 				name: 'configure-server',
 				configureServer(server: ViteDevServer) {
 					server.middlewares.use(oAuthMiddleware);
+					server.middlewares.use(signalingMiddleware);
 				},
 			},
 			/**
@@ -305,6 +302,9 @@ export default defineConfig(({ command, mode }) => {
 					),
 					'time-traveling.html': fileURLToPath(
 						new URL('./demos/time-traveling.html', import.meta.url)
+					),
+					'webrtc-sync.html': fileURLToPath(
+						new URL('./demos/webrtc-sync.html', import.meta.url)
 					),
 					'builder/builder.html': fileURLToPath(
 						new URL('./builder/builder.html', import.meta.url)
