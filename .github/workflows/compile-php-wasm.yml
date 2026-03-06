@@ -38,6 +38,7 @@ jobs:
                     const items = data.compilations.map(c => ({
                       platform: c.platform,
                       phpVersion: c.phpVersion,
+                      phpVersionSlug: c.phpVersion.replace('.', '-'),
                       packageSuffix: c.platform + '-' + c.phpVersion.replace('.', '-')
                     }));
                     console.log(JSON.stringify({ include: items }));
@@ -89,7 +90,7 @@ jobs:
               uses: actions/upload-artifact@v4
               with:
                   name: php-wasm-${{ matrix.packageSuffix }}
-                  path: packages/php-wasm/${{ matrix.platform }}-builds/${{ matrix.phpVersion.replace('.', '-') }}/
+                  path: packages/php-wasm/${{ matrix.platform }}-builds/${{ matrix.phpVersionSlug }}/
                   retention-days: 3
 
     publish:
@@ -121,7 +122,7 @@ jobs:
               uses: actions/download-artifact@v4
               with:
                   name: php-wasm-${{ matrix.packageSuffix }}
-                  path: packages/php-wasm/${{ matrix.platform }}-builds/${{ matrix.phpVersion.replace('.', '-') }}/
+                  path: packages/php-wasm/${{ matrix.platform }}-builds/${{ matrix.phpVersionSlug }}/
 
             - name: Build package
               run: >
@@ -144,7 +145,7 @@ jobs:
             - name: Inject PR version into dist package.json
               run: |
                   node -e "
-                    const pkgPath = 'dist/packages/php-wasm/${{ matrix.platform }}-builds/${{ matrix.phpVersion.replace('.', '-') }}/package.json';
+                    const pkgPath = 'dist/packages/php-wasm/${{ matrix.platform }}-builds/${{ matrix.phpVersionSlug }}/package.json';
                     const pkg = JSON.parse(require('fs').readFileSync(pkgPath, 'utf8'));
                     pkg.version = '${{ steps.version.outputs.version }}';
                     require('fs').writeFileSync(pkgPath, JSON.stringify(pkg, null, '\t') + '\n');
@@ -155,7 +156,7 @@ jobs:
                   npm publish
                   --tag pr-${{ github.event.pull_request.number || github.run_number }}
                   --access public
-              working-directory: dist/packages/php-wasm/${{ matrix.platform }}-builds/${{ matrix.phpVersion.replace('.', '-') }}
+              working-directory: dist/packages/php-wasm/${{ matrix.platform }}-builds/${{ matrix.phpVersionSlug }}
               env:
                   NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
