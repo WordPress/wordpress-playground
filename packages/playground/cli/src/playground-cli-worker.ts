@@ -11,23 +11,28 @@ export class PlaygroundCliWorker extends PHPWorker {
 	async runCLIScript(
 		argv: string[],
 		options: { env?: Record<string, string> } = {}
-	) {
+	): Promise<number> {
 		const streamedResponse = await this.cli(argv, options);
-		streamedResponse.stdout.pipeTo(
+		const stdoutDone = streamedResponse.stdout.pipeTo(
 			new WritableStream({
 				write(chunk) {
 					process.stdout.write(chunk);
 				},
 			})
 		);
-		streamedResponse.stderr.pipeTo(
+		const stderrDone = streamedResponse.stderr.pipeTo(
 			new WritableStream({
 				write(chunk) {
 					process.stderr.write(chunk);
 				},
 			})
 		);
-		return await streamedResponse.exitCode;
+		const [, , exitCode] = await Promise.all([
+			stdoutDone,
+			stderrDone,
+			streamedResponse.exitCode,
+		]);
+		return exitCode;
 	}
 
 	// Provide a named disposal method that can be invoked via comlink.

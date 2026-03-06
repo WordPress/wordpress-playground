@@ -1498,10 +1498,10 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 						];
 						const exitCode =
 							await playgroundPool.runCLIScript(argv);
-						// Wait until the next tick before exiting to
-						// ensure the output is flushed.
-						await new Promise((resolve) => setTimeout(resolve, 0));
 						await disposeCLI();
+						// Streams are drained by runCLIScript, but
+						// use process.exit as a hard cut-off to ensure
+						// Node doesn't hang on open handles.
 						process.exit(exitCode);
 					}
 				}
