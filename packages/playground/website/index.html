@@ -167,12 +167,34 @@
 								'_ts',
 								String(Date.now())
 							);
-							return import(/* @vite-ignore */ moduleUrl.toString());
+							return import(
+								/* @vite-ignore */ moduleUrl.toString()
+							);
 						}
 					} catch {
 						// Fall back to the original error
 					}
-					throw e;
+					/**
+					 * If we get here, the app module completely failed to load.
+					 * React is not available, so render a plain HTML error message.
+					 */
+					const root = document.getElementById('root');
+					if (root) {
+						root.innerHTML = [
+							'<div style="max-width:520px;margin:80px auto;font-family:system-ui,sans-serif;text-align:center;padding:0 20px">',
+							'<h1 style="font-size:1.4rem;margin-bottom:12px">Could not load Playground</h1>',
+							'<p style="color:#555;line-height:1.5">',
+							'The application failed to load. This is usually caused by a network issue.',
+							'</p>',
+							'<p style="color:#555;line-height:1.5;margin-top:8px">',
+							'Check your internet connection, disable any VPN or ad blocker that might interfere, then try again.',
+							'</p>',
+							'<button onclick="location.reload()" style="margin-top:20px;padding:10px 24px;font-size:1rem;cursor:pointer;border:1px solid #ccc;border-radius:4px;background:#fff">',
+							'Reload page',
+							'</button>',
+							'</div>',
+						].join('');
+					}
 				});
 			}
 		</script>

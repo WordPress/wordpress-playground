@@ -32,7 +32,10 @@ import {
 } from './slice-sites';
 // @ts-ignore
 import { corsProxyUrl } from 'virtual:cors-proxy-url';
-import { findFirewallErrorInCauseChain } from './error-utils';
+import {
+	findFirewallErrorInCauseChain,
+	findDownloadErrorInCauseChain,
+} from './error-utils';
 import {
 	initTabCoordinator,
 	checkForExistingTabs,
@@ -461,6 +464,13 @@ export function bootSiteClient(
 					setActiveSiteError({
 						error: 'network-firewall-interference',
 						details: firewallError,
+					})
+				);
+			} else if (findDownloadErrorInCauseChain(e)) {
+				dispatch(
+					setActiveSiteError({
+						error: 'resource-download-failed',
+						details: e,
 					})
 				);
 			} else {
