@@ -192,11 +192,6 @@ class ProxyFunctionsTests extends TestCase
 
     static public function providerShouldRespondWithCorsHeaders() {
         return [
-            'null origin is accepted' => [
-                'cors.playground.wordpress.net',
-                'null',
-                true,
-            ],
             'known origin http://localhost:5400' => [
                 'cors.playground.wordpress.net',
                 'http://localhost:5400',

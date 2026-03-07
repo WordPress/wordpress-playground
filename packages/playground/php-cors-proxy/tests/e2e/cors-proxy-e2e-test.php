@@ -52,17 +52,22 @@ $proxy_proc = start_php_server($proxy_port, $proxy_router, $proxy_dir);
 
 $upstream_url = "http://127.0.0.1:$upstream_port/plain-text";
 
+// These e2e tests run against the PHP built-in dev server (cli-server),
+// which accepts every origin. This mirrors the real dev environment where
+// the CORS proxy is accessed via a same-origin Vite proxy and the browser
+// may not send an Origin header at all.
+
 // ──────────────────────────────────────────────
-// Test 1: Origin: null gets CORS headers back
+// Test 1: Request with Origin echoes it back
 // ──────────────────────────────────────────────
-echo "\nTest 1: Origin: null gets CORS headers\n";
+echo "\nTest 1: Request with Origin echoes it back\n";
 $response = proxy_request($proxy_port, $upstream_url, [
-    'Origin: null',
+    'Origin: http://localhost:5400',
 ]);
 assert_contains(
-    'access-control-allow-origin: null',
+    'access-control-allow-origin: http://localhost:5400',
     strtolower($response['headers_raw']),
-    'Response should include Access-Control-Allow-Origin: null'
+    'Response should echo back the provided Origin'
 );
 assert_contains(
     'x-playground-cors-proxy: true',
@@ -71,16 +76,16 @@ assert_contains(
 );
 
 // ──────────────────────────────────────────────
-// Test 2: Origin: null preflight (OPTIONS) works
+// Test 2: Preflight (OPTIONS) works
 // ──────────────────────────────────────────────
-echo "\nTest 2: Origin: null preflight (OPTIONS)\n";
+echo "\nTest 2: Preflight (OPTIONS)\n";
 $response = proxy_options($proxy_port, $upstream_url, [
-    'Origin: null',
+    'Origin: http://localhost:5400',
 ]);
 assert_contains(
-    'access-control-allow-origin: null',
+    'access-control-allow-origin: http://localhost:5400',
     strtolower($response['headers_raw']),
-    'OPTIONS response should include Access-Control-Allow-Origin: null'
+    'OPTIONS response should include Access-Control-Allow-Origin'
 );
 assert_contains(
     'access-control-allow-methods:',
@@ -89,40 +94,37 @@ assert_contains(
 );
 
 // ──────────────────────────────────────────────
-// Test 3: Known origin gets CORS headers
+// Test 3: Missing Origin uses wildcard
 // ──────────────────────────────────────────────
-echo "\nTest 3: Known origin gets CORS headers\n";
+echo "\nTest 3: Missing Origin uses wildcard on dev server\n";
+$response = proxy_request($proxy_port, $upstream_url, []);
+assert_contains(
+    'access-control-allow-origin: *',
+    strtolower($response['headers_raw']),
+    'Dev server should respond with Access-Control-Allow-Origin: * when no Origin sent'
+);
+assert_contains(
+    'x-playground-cors-proxy: true',
+    strtolower($response['headers_raw']),
+    'Dev server should always include X-Playground-Cors-Proxy header'
+);
+
+// ──────────────────────────────────────────────
+// Test 4: Any origin is accepted on dev server
+// ──────────────────────────────────────────────
+echo "\nTest 4: Any origin is accepted on dev server\n";
 $response = proxy_request($proxy_port, $upstream_url, [
-    'Origin: http://localhost:5400',
+    'Origin: https://any-origin.example.com',
 ]);
 assert_contains(
-    'access-control-allow-origin: http://localhost:5400',
+    'access-control-allow-origin: https://any-origin.example.com',
     strtolower($response['headers_raw']),
-    'Response should include Access-Control-Allow-Origin for known origin'
+    'Dev server should accept any origin'
 );
-
-// ──────────────────────────────────────────────
-// Test 4: Unknown origin does NOT get CORS headers
-// ──────────────────────────────────────────────
-echo "\nTest 4: Unknown origin does not get CORS headers\n";
-$response = proxy_request($proxy_port, $upstream_url, [
-    'Origin: https://evil.example.com',
-]);
-assert_not_contains(
-    'access-control-allow-origin:',
+assert_contains(
+    'x-playground-cors-proxy: true',
     strtolower($response['headers_raw']),
-    'Response should NOT include Access-Control-Allow-Origin for unknown origin'
-);
-
-// ──────────────────────────────────────────────
-// Test 5: Missing Origin does NOT get CORS headers
-// ──────────────────────────────────────────────
-echo "\nTest 5: Missing Origin does not get CORS headers\n";
-$response = proxy_request($proxy_port, $upstream_url, []);
-assert_not_contains(
-    'access-control-allow-origin:',
-    strtolower($response['headers_raw']),
-    'Response should NOT include Access-Control-Allow-Origin when no Origin sent'
+    'Dev server should include X-Playground-Cors-Proxy for any origin'
 );
 
 // ──────────────────────────────────────────────

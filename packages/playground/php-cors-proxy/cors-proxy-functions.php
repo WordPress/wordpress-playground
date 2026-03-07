@@ -405,18 +405,20 @@ function rewrite_relative_redirect(
  * Answers whether CORS is allowed for the specified origin.
  */
 function should_respond_with_cors_headers($host, $origin) {
+    // When running on the PHP built-in dev server, accept any origin.
+    // In dev, the CORS proxy is accessed via a same-origin Vite proxy,
+    // so the browser doesn't send an Origin header at all. We still
+    // need to respond with the X-Playground-Cors-Proxy marker so the
+    // client doesn't mistake the response for a firewall interception.
+    if (php_sapi_name() === 'cli-server') {
+        return true;
+    }
+
     if (empty($origin)) {
         return false;
     }
 
     $supported_origins = array(
-        // The Origin header is the literal string "null" when the request
-        // comes from a sandboxed iframe, a data: URL, a file: URL, or a
-        // cross-origin redirect. WordPress Playground runs inside a
-        // sandboxed iframe, so we need to accept "null" as a valid origin.
-        // Production deployments that override this list via
-        // PLAYGROUND_CORS_PROXY_SUPPORTED_ORIGINS must include 'null' too.
-        'null',
         'https://playground-preview.test',
         'https://playground.wordpress.net',
         'http://localhost',
