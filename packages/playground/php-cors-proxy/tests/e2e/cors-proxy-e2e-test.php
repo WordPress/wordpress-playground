@@ -1,9 +1,9 @@
 <?php
 /**
- * End-to-end tests for the CORS proxy Origin handling.
+ * End-to-end tests for the CORS proxy.
  *
  * Starts a mock upstream server and the CORS proxy, then sends real HTTP
- * requests through the proxy and asserts on CORS headers.
+ * requests through the proxy and asserts on CORS headers and response handling.
  *
  * Run: php tests/e2e/cors-proxy-e2e-test.php
  */
@@ -25,6 +25,14 @@ function assert_contains($needle, $haystack, $message) {
     assert_true(
         strpos($haystack, $needle) !== false,
         "$message (looking for '$needle')"
+    );
+}
+
+function assert_equals($expected, $actual, $message) {
+    assert_true(
+        $expected === $actual,
+        "$message\n    Expected: " . var_export($expected, true) .
+        "\n    Actual:   " . var_export($actual, true)
     );
 }
 
@@ -123,6 +131,57 @@ assert_not_contains(
     'access-control-allow-origin:',
     strtolower($response['headers_raw']),
     'Response should NOT include Access-Control-Allow-Origin when no Origin sent'
+);
+
+// ──────────────────────────────────────────────
+// Test 6: Brotli Content-Encoding is stripped and body is decompressed
+// ──────────────────────────────────────────────
+echo "\nTest 6: Content-Encoding: br is stripped, body is decompressed\n";
+$brotli_url = "http://127.0.0.1:$upstream_port/brotli-compressed";
+$response = proxy_request($proxy_port, $brotli_url, [
+    'Origin: null',
+]);
+assert_not_contains(
+    'content-encoding:',
+    strtolower($response['headers_raw']),
+    'Response should NOT include Content-Encoding header'
+);
+assert_equals(
+    'Hello from brotli-compressed endpoint',
+    trim($response['body']),
+    'Body should be the decompressed plain text'
+);
+
+// ──────────────────────────────────────────────
+// Test 7: Gzip Content-Encoding is stripped and body is decompressed
+// ──────────────────────────────────────────────
+echo "\nTest 7: Content-Encoding: gzip is stripped, body is decompressed\n";
+$gzip_url = "http://127.0.0.1:$upstream_port/gzip-compressed";
+$response = proxy_request($proxy_port, $gzip_url, [
+    'Origin: null',
+]);
+assert_not_contains(
+    'content-encoding:',
+    strtolower($response['headers_raw']),
+    'Response should NOT include Content-Encoding header for gzip'
+);
+assert_equals(
+    'Hello from gzip-compressed endpoint',
+    trim($response['body']),
+    'Body should be the decompressed plain text (gzip)'
+);
+
+// ──────────────────────────────────────────────
+// Test 8: Uncompressed responses pass through normally
+// ──────────────────────────────────────────────
+echo "\nTest 8: Uncompressed responses pass through normally\n";
+$response = proxy_request($proxy_port, $upstream_url, [
+    'Origin: null',
+]);
+assert_equals(
+    'Hello from plain-text endpoint',
+    trim($response['body']),
+    'Uncompressed body should pass through unchanged'
 );
 
 // ──────────────────────────────────────────────

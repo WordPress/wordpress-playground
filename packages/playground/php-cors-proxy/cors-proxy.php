@@ -177,6 +177,12 @@ curl_setopt(
 // Set options to stream data
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, false);
 curl_setopt($ch, CURLOPT_FOLLOWLOCATION, false);
+// Accept compressed responses and auto-decompress them. We strip the
+// Content-Encoding header below to avoid sending clients a compression
+// header that doesn't match the actual (now decompressed) body. Without
+// this, a remote server responding with Content-Encoding: br would cause
+// failures for clients that don't support brotli (e.g., older curl builds).
+curl_setopt($ch, CURLOPT_ENCODING, '');
 curl_setopt(
     $ch,
     CURLOPT_HEADERFUNCTION,
@@ -248,7 +254,13 @@ curl_setopt(
             // allow any remote site to decide on the CORS proxy HSTS policy.
             // Besides, they won't work with the http-only local dev server.
             stripos($header, 'Strict-Transport-Security:') !== 0 &&
-            stripos($header, 'Upgrade-Insecure-Requests:') !== 0
+            stripos($header, 'Upgrade-Insecure-Requests:') !== 0 &&
+            // We set CURLOPT_ENCODING to auto-decompress responses, so the
+            // body we relay is always uncompressed. Passing through a
+            // Content-Encoding header would tell clients the body is still
+            // compressed, causing decode failures (e.g., curl rejecting
+            // an unrecognized "br" encoding).
+            stripos($header, 'Content-Encoding:') !== 0
         ) {
             header($header, false);
         }
