@@ -13,7 +13,6 @@ export async function withRedis(
 ): Promise<EmscriptenOptions> {
 	const extensionName = 'redis.so';
 	const extensionPath = await getRedisExtensionModule(version);
-	const extension = fs.readFileSync(extensionPath);
 
 	return {
 		...options,
@@ -25,10 +24,6 @@ export async function withRedis(
 			if (options.onRuntimeInitialized) {
 				options.onRuntimeInitialized(phpRuntime);
 			}
-			/*
-			 * The extension file previously read
-			 * is written inside the /extensions directory
-			 */
 			if (
 				!FSHelpers.fileExists(
 					phpRuntime.FS,
@@ -37,6 +32,10 @@ export async function withRedis(
 			) {
 				phpRuntime.FS.mkdirTree('/internal/shared/extensions');
 			}
+			/*
+			 * Only read the extension binary from disk if it hasn't
+			 * already been written to the shared VFS by another worker.
+			 */
 			if (
 				!FSHelpers.fileExists(
 					phpRuntime.FS,
@@ -45,7 +44,7 @@ export async function withRedis(
 			) {
 				phpRuntime.FS.writeFile(
 					`/internal/shared/extensions/${extensionName}`,
-					new Uint8Array(extension)
+					new Uint8Array(fs.readFileSync(extensionPath))
 				);
 			}
 			/* The extension has its share of ini entries

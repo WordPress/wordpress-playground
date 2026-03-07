@@ -14,13 +14,11 @@ export async function withIntl(
 ): Promise<EmscriptenOptions> {
 	const extensionName = 'intl.so';
 	const extensionPath = await getIntlExtensionModule(version);
-	const extension = fs.readFileSync(extensionPath);
 
 	const dataName = 'icu.dat';
 	const moduleDir =
 		typeof __dirname !== 'undefined' ? __dirname : import.meta.dirname;
 	const dataPath = path.join(moduleDir, 'shared', dataName);
-	const ICUData = fs.readFileSync(dataPath);
 
 	return {
 		...options,
@@ -33,10 +31,6 @@ export async function withIntl(
 			if (options.onRuntimeInitialized) {
 				options.onRuntimeInitialized(phpRuntime);
 			}
-			/*
-			 * The extension file previously read
-			 * is written inside the /extensions directory
-			 */
 			if (
 				!FSHelpers.fileExists(
 					phpRuntime.FS,
@@ -45,6 +39,10 @@ export async function withIntl(
 			) {
 				phpRuntime.FS.mkdirTree('/internal/shared/extensions');
 			}
+			/*
+			 * Only read the extension binary from disk if it hasn't
+			 * already been written to the shared VFS by another worker.
+			 */
 			if (
 				!FSHelpers.fileExists(
 					phpRuntime.FS,
@@ -53,12 +51,9 @@ export async function withIntl(
 			) {
 				phpRuntime.FS.writeFile(
 					`/internal/shared/extensions/${extensionName}`,
-					new Uint8Array(extension)
+					new Uint8Array(fs.readFileSync(extensionPath))
 				);
 			}
-			/* The extension has its share of ini entries
-			 * to write in a separate ini file
-			 */
 			if (
 				!FSHelpers.fileExists(
 					phpRuntime.FS,
@@ -74,13 +69,10 @@ export async function withIntl(
 			}
 			/*
 			 * An ICU data file must be loaded to support Intl extension.
-			 * To achieve this, a shared directory is mounted and referenced
-			 * via the ICU_DATA environment variable.
-			 * By default, this variable is set to '/internal/shared',
-			 * which corresponds to the actual file location.
-			 *
-			 * The Intl extension is hard-coded to look for the `icudt74l` filename,
-			 * which means the ICU data file must use that exact name.
+			 * The Intl extension is hard-coded to look for the `icudt74l`
+			 * filename, which means the ICU data file must use that exact
+			 * name. Only read the 30MB file from disk when it hasn't
+			 * already been placed in the shared VFS by another worker.
 			 */
 			if (
 				!FSHelpers.fileExists(
@@ -91,7 +83,7 @@ export async function withIntl(
 				phpRuntime.FS.mkdirTree(phpRuntime.ENV.ICU_DATA);
 				phpRuntime.FS.writeFile(
 					`${phpRuntime.ENV.ICU_DATA}/icudt74l.dat`,
-					new Uint8Array(ICUData)
+					new Uint8Array(fs.readFileSync(dataPath))
 				);
 			}
 		},

@@ -29,7 +29,6 @@ export async function withXdebug(
 ): Promise<EmscriptenOptions> {
 	const fileName = 'xdebug.so';
 	const filePath = await getXdebugExtensionModule(version);
-	const extension = fs.readFileSync(filePath);
 
 	return {
 		...options,
@@ -41,10 +40,6 @@ export async function withXdebug(
 			if (options.onRuntimeInitialized) {
 				options.onRuntimeInitialized(phpRuntime);
 			}
-			/*
-			 * The extension file previously read
-			 * is written inside the /extensions directory
-			 */
 			if (
 				!FSHelpers.fileExists(
 					phpRuntime.FS,
@@ -53,6 +48,10 @@ export async function withXdebug(
 			) {
 				phpRuntime.FS.mkdirTree('/internal/shared/extensions');
 			}
+			/*
+			 * Only read the extension binary from disk if it hasn't
+			 * already been written to the shared VFS by another worker.
+			 */
 			if (
 				!FSHelpers.fileExists(
 					phpRuntime.FS,
@@ -61,7 +60,7 @@ export async function withXdebug(
 			) {
 				phpRuntime.FS.writeFile(
 					`/internal/shared/extensions/${fileName}`,
-					new Uint8Array(extension)
+					new Uint8Array(fs.readFileSync(filePath))
 				);
 			}
 			/*
