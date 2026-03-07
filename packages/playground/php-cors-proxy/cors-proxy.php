@@ -16,7 +16,10 @@ $server_host = $_SERVER['HTTP_HOST'] ?? '';
 $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
 
 if (should_respond_with_cors_headers($server_host, $origin)) {
-    header('Access-Control-Allow-Origin: ' . ($origin ?: '*'));
+    // On the dev server, the browser doesn't send an Origin header
+    // (same-origin request via Vite proxy), so fall back to wildcard.
+    $allow_origin = (is_local_dev_server() && empty($origin)) ? '*' : $origin;
+    header('Access-Control-Allow-Origin: ' . $allow_origin);
     header('Access-Control-Allow-Credentials: true');
     header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
     header('Access-Control-Allow-Headers: Accept, Authorization, Content-Type, git-protocol, wp_blog, wp_install, x-cors-proxy-allowed-request-headers');

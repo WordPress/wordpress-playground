@@ -402,15 +402,23 @@ function rewrite_relative_redirect(
 }
 
 /**
+ * Whether the CORS proxy is running on the PHP built-in dev server.
+ *
+ * In dev, the proxy is accessed via a same-origin Vite proxy, so the
+ * browser doesn't send an Origin header at all. We accept any origin
+ * in this context so the X-Playground-Cors-Proxy marker is always
+ * present and the client doesn't mistake the response for a firewall
+ * interception.
+ */
+function is_local_dev_server() {
+    return php_sapi_name() === 'cli-server';
+}
+
+/**
  * Answers whether CORS is allowed for the specified origin.
  */
 function should_respond_with_cors_headers($host, $origin) {
-    // When running on the PHP built-in dev server, accept any origin.
-    // In dev, the CORS proxy is accessed via a same-origin Vite proxy,
-    // so the browser doesn't send an Origin header at all. We still
-    // need to respond with the X-Playground-Cors-Proxy marker so the
-    // client doesn't mistake the response for a firewall interception.
-    if (php_sapi_name() === 'cli-server') {
+    if (is_local_dev_server()) {
         return true;
     }
 
