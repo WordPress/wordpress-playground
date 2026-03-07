@@ -116,8 +116,9 @@ test.describe('PHP networking through tcp-over-fetch bridge', () => {
 					]);
 				`,
 			});
+			const text = await response.stdoutText;
 			php.exit();
-			return await response.stdoutText;
+			return text;
 		}, serverUrl);
 
 		const parsed = JSON.parse(result);
@@ -167,8 +168,9 @@ test.describe('PHP networking through tcp-over-fetch bridge', () => {
 					]);
 				`,
 			});
+			const text = await response.stdoutText;
 			php.exit();
-			return await response.stdoutText;
+			return text;
 		}, serverUrl);
 
 		const parsed = JSON.parse(result);
