@@ -382,17 +382,16 @@ async function handleScopedRequest(event: FetchEvent, scope: string) {
 		 * request to the remote server as it is and let WordPress manage its
 		 * own HTTP caching.
 		 */
-		console.log('request', request);
 		return fetch(request).catch((e) => {
 			if (e?.name === 'TypeError') {
 				// This could be an ERR_HTTP2_PROTOCOL_ERROR that sometimes
 				// happen on playground.wordpress.net. Let's add a randomized
 				// delay and retry once
 				return new Promise((resolve) => {
-					setTimeout(() => {
-						console.log('request 2', request);
-						resolve(fetch(request));
-					}, Math.random() * 1500);
+					setTimeout(
+						() => resolve(fetch(request)),
+						Math.random() * 1500
+					);
 				}) as Promise<Response>;
 			}
 
