@@ -96,6 +96,7 @@ export class PHP implements Disposable {
 		maxRequests: 400,
 		requestsMade: 0,
 	};
+
 	requestHandler?: PHPRequestHandler;
 
 	/**
@@ -1474,12 +1475,12 @@ export class PHP implements Disposable {
 		try {
 			newFs.chdir(oldCWD);
 		} catch (e) {
-			// The old CWD may not exist on the new runtime – e.g.
-			// if a mount failed to re-apply. Fall back to '/'.
-			logger.warn(
-				`Could not restore CWD to ${oldCWD} after PHP runtime rotation, falling back to /. Cause: ${e}`
+			throw new Error(
+				`Failed to restore CWD to ${oldCWD} after PHP runtime rotation.`,
+				{
+					cause: e,
+				}
 			);
-			newFs.chdir('/');
 		}
 	}
 
@@ -1533,8 +1534,6 @@ export class PHP implements Disposable {
 			return this.subProcess(argv, options);
 		}
 
-		// A module that has served HTTP requests needs rotation before
-		// running CLI (different SAPI initialization).
 		if (this.#phpWasmInitCalled) {
 			this.#rotationOptions.needsRotating = true;
 		}
@@ -1566,8 +1565,6 @@ export class PHP implements Disposable {
 				return response;
 			})
 			.finally(() => {
-				// main() calls exit() which throws ExitStatus, leaving
-				// the module dirty. Mark for rotation.
 				this.#rotationOptions.needsRotating = true;
 			});
 	}
@@ -1691,6 +1688,10 @@ export function normalizeHeaders(
 	return normalized;
 }
 
+/**
+ * Copies the MEMFS directory structure from one FS in another FS.
+ * Non-MEMFS nodes are ignored.
+ */
 function copyMEMFSNodes(
 	source: Emscripten.FileSystemInstance,
 	target: Emscripten.FileSystemInstance,

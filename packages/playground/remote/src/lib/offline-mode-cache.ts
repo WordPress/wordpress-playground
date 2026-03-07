@@ -34,7 +34,7 @@ export async function cacheFirstFetch(request: Request): Promise<Response> {
 	 * See service-worker.ts for more details.
 	 */
 	const response = await fetchFresh(requestWithoutRangeHeader);
-	if (response.ok) {
+	if (response.ok && request.method === 'GET') {
 		/**
 		 * Confirm the current service worker is still active
 		 * when the asset is fetched. Caching a stale request
