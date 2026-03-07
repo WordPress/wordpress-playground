@@ -609,6 +609,12 @@ export class RawBytesFetch {
 		 * for the details.
 		 */
 		delete headersObject['content-length'];
+		// The browser decompresses the response body transparently, but
+		// the Content-Encoding header may still be present. Passing it
+		// through would tell PHP's curl the body is compressed when it's
+		// actually already decompressed, causing decode failures (e.g.,
+		// curl rejecting an unrecognized "br" encoding).
+		delete headersObject['content-encoding'];
 		headersObject['transfer-encoding'] = 'chunked';
 
 		const headers: string[] = [];

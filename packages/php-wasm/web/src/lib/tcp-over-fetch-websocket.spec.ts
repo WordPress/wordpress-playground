@@ -565,6 +565,9 @@ describe('TCPOverFetchWebsocket over HTTP', () => {
 		// Confirm we're using transfer-encoding: chunked
 		expect(response).not.toContain('content-length');
 		expect(response).toContain('transfer-encoding: chunked');
+		// The browser decompresses the body, so Content-Encoding must
+		// be stripped to avoid telling PHP the body is still compressed.
+		expect(response).not.toContain('content-encoding');
 
 		// Confirm the response is not truncated
 		expect(response.length).toBeGreaterThan(pygmalion.length);
@@ -717,6 +720,47 @@ describe('TCPOverFetchWebsocket with CORS proxy', () => {
 });
 
 describe('RawBytesFetch', () => {
+	it('fetchRawResponseBytes should strip content-encoding from response headers', async () => {
+		// Simulate a response where the browser has already decompressed
+		// the body but the Content-Encoding header is still present.
+		const bodyText = 'decompressed body content';
+		const mockResponse = new Response(bodyText, {
+			status: 200,
+			statusText: 'OK',
+			headers: {
+				'Content-Type': 'text/plain',
+				'Content-Encoding': 'br',
+				'X-Custom': 'kept',
+			},
+		});
+
+		const originalFetch = globalThis.fetch;
+		globalThis.fetch = async () => mockResponse;
+		try {
+			const stream = RawBytesFetch.fetchRawResponseBytes(
+				new Request('https://example.com/test')
+			);
+			const reader = stream.getReader();
+			let raw = '';
+			while (true) {
+				const { done, value } = await reader.read();
+				if (done) break;
+				raw += new TextDecoder().decode(value);
+			}
+
+			// The raw HTTP response should NOT contain content-encoding
+			const headerSection = raw.split('\r\n\r\n')[0].toLowerCase();
+			expect(headerSection).not.toContain('content-encoding');
+			// Other headers should still be present
+			expect(headerSection).toContain('x-custom: kept');
+			expect(headerSection).toContain('transfer-encoding: chunked');
+			// Body should be present (chunked encoded)
+			expect(raw).toContain(bodyText);
+		} finally {
+			globalThis.fetch = originalFetch;
+		}
+	});
+
 	it('parseHttpRequest should handle an transfer-encoding: chunked POST requests', async () => {
 		const encodedBodyBytes = 'abcde';
 		const encodedChunkedBodyBytes = `${encodedBodyBytes.length}\r\n${encodedBodyBytes}\r\n0\r\n\r\n`;
