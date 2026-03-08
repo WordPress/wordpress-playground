@@ -229,7 +229,7 @@ export async function cloneRequest(
 		cache: request.cache,
 		redirect: request.redirect,
 		integrity: request.integrity,
-		...(body && { duplex: 'half' }),
+		...(body instanceof ReadableStream && { duplex: 'half' }),
 		...overrides,
 	});
 }

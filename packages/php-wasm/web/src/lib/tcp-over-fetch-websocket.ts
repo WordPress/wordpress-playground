@@ -323,47 +323,22 @@ export class TCPOverFetchWebsocket {
 			this.CAroot.certificate,
 		]);
 
-		await this.parseRequestAndFetch(
-			tlsConnection.serverEnd.upstream.readable,
-			tlsConnection.serverEnd.downstream.writable,
-			'https'
-		);
-	}
-
-	async fetchOverHTTP() {
-		await this.parseRequestAndFetch(
-			this.clientUpstream.readable,
-			this.clientDownstream.writable,
-			'http'
-		);
-	}
-
-	/**
-	 * Parses a raw HTTP request from the given byte stream, handles
-	 * the `Expect: 100-continue` handshake, and pipes the fetch()
-	 * response to the given writable stream.
-	 */
-	async parseRequestAndFetch(
-		requestBytesStream: ReadableStream<Uint8Array>,
-		responseWritable: WritableStream<Uint8Array>,
-		protocol: 'http' | 'https'
-	) {
+		// Connect the TLS server end to the fetch() request
 		const { request, expectsContinue } =
 			await RawBytesFetch.parseHttpRequest(
-				requestBytesStream,
+				tlsConnection.serverEnd.upstream.readable,
 				this.host,
-				protocol
+				'https'
 			);
 		// When PHP's curl sends "Expect: 100-continue" (e.g. for CurlFile
 		// uploads with bodies > 1024 bytes), it pauses after sending the
 		// headers and waits for a "100 Continue" response before sending
-		// the body. We must send that response back to unblock curl,
-		// otherwise the body stream will never arrive and we'll deadlock.
-		//
-		// IMPORTANT: This must happen BEFORE fetchRawResponseBytes, otherwise
-		// curl won't send the body and we'll deadlock.
+		// the body. We must send that response back through the TLS tunnel
+		// to unblock curl, otherwise the body stream will never arrive
+		// and we'll deadlock.
 		if (expectsContinue) {
-			const writer = responseWritable.getWriter();
+			const writer =
+				tlsConnection.serverEnd.downstream.writable.getWriter();
 			await writer.write(
 				new TextEncoder().encode('HTTP/1.1 100 Continue\r\n\r\n')
 			);
@@ -373,7 +348,42 @@ export class TCPOverFetchWebsocket {
 			await RawBytesFetch.fetchRawResponseBytes(
 				request,
 				this.corsProxyUrl
-			).pipeTo(responseWritable);
+			).pipeTo(tlsConnection.serverEnd.downstream.writable);
+		} catch {
+			// Ignore errors from fetch()
+			// They are handled in the constructor
+			// via this.clientDownstream.readable.pipeTo()
+			// and if we let the failures they would be logged
+			// as an unhandled promise rejection.
+		}
+	}
+
+	async fetchOverHTTP() {
+		// Connect this WebSocket's client end to the fetch() request
+		const { request, expectsContinue } =
+			await RawBytesFetch.parseHttpRequest(
+				this.clientUpstream.readable,
+				this.host,
+				'http'
+			);
+		// When PHP's curl sends "Expect: 100-continue" (e.g. for CurlFile
+		// uploads with bodies > 1024 bytes), it pauses after sending the
+		// headers and waits for a "100 Continue" response before sending
+		// the body. We must send that response back to unblock curl,
+		// otherwise the body stream will never arrive and we'll deadlock.
+		if (expectsContinue) {
+			const writer = this.clientDownstream.writable.getWriter();
+			await writer.write(
+				new TextEncoder().encode('HTTP/1.1 100 Continue\r\n\r\n')
+			);
+			writer.releaseLock();
+		}
+
+		try {
+			await RawBytesFetch.fetchRawResponseBytes(
+				request,
+				this.corsProxyUrl
+			).pipeTo(this.clientDownstream.writable);
 		} catch {
 			// Ignore errors from fetch()
 			// They are handled in the constructor
