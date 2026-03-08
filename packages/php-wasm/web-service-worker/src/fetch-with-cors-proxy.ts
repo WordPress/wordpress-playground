@@ -3,53 +3,6 @@ import { FirewallInterferenceError } from './firewall-interference-error';
 
 const CORS_PROXY_HEADER = 'X-Playground-Cors-Proxy';
 
-/**
- * A version of fetch() that buffers the request body for http:// requests.
- *
- * Chrome does not support using a ReadableStream request body
- * with HTTP/1.1 requests. If we just always set `duplex: 'half'`,
- * we'll get an ERR_ALPN_NEGOTIATION_FAILED error as Chrome will
- * refuse to use duplex over HTTP/1.1 and will switch to HTTP/2.
- * A HTTP/1.1-only server, however, will still reply with a HTTP/1.1
- * response, causing that ALPN error.
- *
- * We do not know upfront what kind of server we're talking to,
- * so we'll make a guess. Most servers do not support HTTP >= 2
- * without TLS, so we can assume that anything starting with `http://`
- * requires buffering the body stream. This solves the ALPN negotiation
- * problem on the local dev server.
- *
- * There will, inevitably, be some ancient HTTP/1.1+TLS servers on
- * the internet that will fall into the `duplex: half` trap. This
- * is not a big problem, though, since those requests will fail
- * and be retried over the CORS proxy which runs alongside Playground
- * and speaks either HTTP/1.1 in the local dev server or HTTP/2+ in
- * production.
- */
-async function duplexSafeFetch(
-	request: Request,
-	init?: RequestInit
-): Promise<Response> {
-	// Combine the base request and init into a single effective Request so that
-	// any overrides in init (including body) are taken into account before
-	// applying HTTP/1.1 streaming safeguards.
-	let effectiveRequest = init ? new Request(request, init) : request;
-
-	if (
-		new URL(effectiveRequest.url).protocol === 'http:' &&
-		effectiveRequest.body
-	) {
-		const body = await new Response(effectiveRequest.body).arrayBuffer();
-		effectiveRequest = await cloneRequest(effectiveRequest, {
-			body,
-		});
-	}
-
-	// Call fetch() with the fully prepared Request so the buffered body is
-	// guaranteed to be what is actually sent.
-	return fetch(effectiveRequest);
-}
-
 export async function fetchWithCorsProxy(
 	input: RequestInfo,
 	init?: RequestInit,
@@ -139,4 +92,51 @@ export async function fetchWithCorsProxy(
 
 		return response;
 	}
+}
+
+/**
+ * A version of fetch() that buffers the request body for http:// requests.
+ *
+ * Chrome does not support using a ReadableStream request body
+ * with HTTP/1.1 requests. If we just always set `duplex: 'half'`,
+ * we'll get an ERR_ALPN_NEGOTIATION_FAILED error as Chrome will
+ * refuse to use duplex over HTTP/1.1 and will switch to HTTP/2.
+ * A HTTP/1.1-only server, however, will still reply with a HTTP/1.1
+ * response, causing that ALPN error.
+ *
+ * We do not know upfront what kind of server we're talking to,
+ * so we'll make a guess. Most servers do not support HTTP >= 2
+ * without TLS, so we can assume that anything starting with `http://`
+ * requires buffering the body stream. This solves the ALPN negotiation
+ * problem on the local dev server.
+ *
+ * There will, inevitably, be some ancient HTTP/1.1+TLS servers on
+ * the internet that will fall into the `duplex: half` trap. This
+ * is not a big problem, though, since those requests will fail
+ * and be retried over the CORS proxy which runs alongside Playground
+ * and speaks either HTTP/1.1 in the local dev server or HTTP/2+ in
+ * production.
+ */
+async function duplexSafeFetch(
+	request: Request,
+	init?: RequestInit
+): Promise<Response> {
+	// Combine the base request and init into a single effective Request so that
+	// any overrides in init (including body) are taken into account before
+	// applying HTTP/1.1 streaming safeguards.
+	let effectiveRequest = init ? new Request(request, init) : request;
+
+	if (
+		new URL(effectiveRequest.url).protocol === 'http:' &&
+		effectiveRequest.body
+	) {
+		const body = await new Response(effectiveRequest.body).arrayBuffer();
+		effectiveRequest = await cloneRequest(effectiveRequest, {
+			body,
+		});
+	}
+
+	// Call fetch() with the fully prepared Request so the buffered body is
+	// guaranteed to be what is actually sent.
+	return fetch(effectiveRequest);
 }
