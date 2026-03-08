@@ -14,11 +14,22 @@ async function httpSafeFetch(
 	request: Request,
 	init?: RequestInit
 ): Promise<Response> {
-	if (new URL(request.url).protocol === 'http:' && request.body) {
-		const body = await new Response(request.body).arrayBuffer();
-		request = await cloneRequest(request, { body });
+	// Combine the base request and init into a single effective Request so that
+	// any overrides in init (including body) are taken into account before
+	// applying HTTP/1.1 streaming safeguards.
+	let effectiveRequest = init ? new Request(request, init) : request;
+
+	if (
+		new URL(effectiveRequest.url).protocol === 'http:' &&
+		effectiveRequest.body
+	) {
+		const body = await new Response(effectiveRequest.body).arrayBuffer();
+		effectiveRequest = await cloneRequest(effectiveRequest, { body });
 	}
-	return fetch(request, init);
+
+	// Call fetch() with the fully prepared Request so the buffered body is
+	// guaranteed to be what is actually sent.
+	return fetch(effectiveRequest);
 }
 
 export async function fetchWithCorsProxy(
