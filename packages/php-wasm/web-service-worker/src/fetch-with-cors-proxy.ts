@@ -3,6 +3,24 @@ import { FirewallInterferenceError } from './firewall-interference-error';
 
 const CORS_PROXY_HEADER = 'X-Playground-Cors-Proxy';
 
+/**
+ * Chrome cannot use a streaming request body (`duplex: 'half'`) with
+ * HTTP/1.1 servers – it requires HTTP/2 and fails with
+ * ERR_ALPN_NEGOTIATION_FAILED otherwise. This wrapper buffers the
+ * request body when the target URL is `http://` so `fetch()` sends
+ * it as a regular, non-streaming request.
+ */
+async function httpSafeFetch(
+	request: Request,
+	init?: RequestInit
+): Promise<Response> {
+	if (new URL(request.url).protocol === 'http:' && request.body) {
+		const body = await new Response(request.body).arrayBuffer();
+		request = await cloneRequest(request, { body });
+	}
+	return fetch(request, init);
+}
+
 export async function fetchWithCorsProxy(
 	input: RequestInfo,
 	init?: RequestInit,
@@ -26,7 +44,7 @@ export async function fetchWithCorsProxy(
 		requestUrlObj.hostname === '[::1]' ||
 		requestUrlObj.hostname === '::1';
 	if (isLocalhost) {
-		return await fetch(requestObject);
+		return await httpSafeFetch(requestObject);
 	}
 
 	if (requestUrlObj.protocol === 'http:') {
@@ -36,7 +54,7 @@ export async function fetchWithCorsProxy(
 		requestUrlObj = new URL(httpsUrl);
 	}
 	if (!corsProxyUrl) {
-		return await fetch(requestObject);
+		return await httpSafeFetch(requestObject);
 	}
 
 	/**
@@ -51,7 +69,7 @@ export async function fetchWithCorsProxy(
 		requestUrlObj.port === playgroundUrlObj.port &&
 		requestUrlObj.pathname.startsWith(playgroundUrlObj.pathname)
 	) {
-		return await fetch(requestObject);
+		return await httpSafeFetch(requestObject);
 	}
 
 	// Tee the request to avoid consuming the request body stream on the initial
@@ -59,7 +77,7 @@ export async function fetchWithCorsProxy(
 	const [request1, request2] = await teeRequest(requestObject);
 
 	try {
-		return await fetch(request1);
+		return await httpSafeFetch(request1);
 	} catch {
 		// If the developer has explicitly allowed the request to pass the
 		// credentials headers with the X-Cors-Proxy-Allowed-Request-Headers header,
@@ -77,7 +95,7 @@ export async function fetchWithCorsProxy(
 			...(requestIntendsToPassCredentials && { credentials: 'include' }),
 		});
 
-		const response = await fetch(newRequest, init);
+		const response = await httpSafeFetch(newRequest, init);
 
 		// Check for firewall interference: if we got a response but it's
 		// missing the CORS proxy identification header, the response likely

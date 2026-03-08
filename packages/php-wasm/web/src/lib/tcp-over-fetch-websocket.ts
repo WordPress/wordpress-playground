@@ -323,22 +323,47 @@ export class TCPOverFetchWebsocket {
 			this.CAroot.certificate,
 		]);
 
-		// Connect the TLS server end to the fetch() request
+		await this.parseRequestAndFetch(
+			tlsConnection.serverEnd.upstream.readable,
+			tlsConnection.serverEnd.downstream.writable,
+			'https'
+		);
+	}
+
+	async fetchOverHTTP() {
+		await this.parseRequestAndFetch(
+			this.clientUpstream.readable,
+			this.clientDownstream.writable,
+			'http'
+		);
+	}
+
+	/**
+	 * Parses a raw HTTP request from the given byte stream, handles
+	 * the `Expect: 100-continue` handshake, and pipes the fetch()
+	 * response to the given writable stream.
+	 */
+	async parseRequestAndFetch(
+		requestBytesStream: ReadableStream<Uint8Array>,
+		responseWritable: WritableStream<Uint8Array>,
+		protocol: 'http' | 'https'
+	) {
 		const { request, expectsContinue } =
 			await RawBytesFetch.parseHttpRequest(
-				tlsConnection.serverEnd.upstream.readable,
+				requestBytesStream,
 				this.host,
-				'https'
+				protocol
 			);
 		// When PHP's curl sends "Expect: 100-continue" (e.g. for CurlFile
 		// uploads with bodies > 1024 bytes), it pauses after sending the
 		// headers and waits for a "100 Continue" response before sending
-		// the body. We must send that response back through the TLS tunnel
-		// to unblock curl, otherwise the body stream will never arrive
-		// and we'll deadlock.
+		// the body. We must send that response back to unblock curl,
+		// otherwise the body stream will never arrive and we'll deadlock.
+		//
+		// IMPORTANT: This must happen BEFORE fetchRawResponseBytes, otherwise
+		// curl won't send the body and we'll deadlock.
 		if (expectsContinue) {
-			const writer =
-				tlsConnection.serverEnd.downstream.writable.getWriter();
+			const writer = responseWritable.getWriter();
 			await writer.write(
 				new TextEncoder().encode('HTTP/1.1 100 Continue\r\n\r\n')
 			);
@@ -348,75 +373,7 @@ export class TCPOverFetchWebsocket {
 			await RawBytesFetch.fetchRawResponseBytes(
 				request,
 				this.corsProxyUrl
-			).pipeTo(tlsConnection.serverEnd.downstream.writable);
-		} catch {
-			// Ignore errors from fetch()
-			// They are handled in the constructor
-			// via this.clientDownstream.readable.pipeTo()
-			// and if we let the failures they would be logged
-			// as an unhandled promise rejection.
-		}
-	}
-
-	async fetchOverHTTP() {
-		// Connect this WebSocket's client end to the fetch() request
-		const { request, expectsContinue, needsBodyBuffering } =
-			await RawBytesFetch.parseHttpRequest(
-				this.clientUpstream.readable,
-				this.host,
-				'http'
-			);
-		// When PHP's curl sends "Expect: 100-continue" (e.g. for CurlFile
-		// uploads with bodies > 1024 bytes), it pauses after sending the
-		// headers and waits for a "100 Continue" response before sending
-		// the body. We must send that response back to unblock curl,
-		// otherwise the body stream will never arrive and we'll deadlock.
-		if (expectsContinue) {
-			const writer = this.clientDownstream.writable.getWriter();
-			await writer.write(
-				new TextEncoder().encode('HTTP/1.1 100 Continue\r\n\r\n')
-			);
-			writer.releaseLock();
-		}
-		/**
-		 * Chrome does not support using a ReadableStream request body
-		 * with HTTP/1.1 requests. If we just always set `duplex: 'half'`,
-		 * we'll get an ERR_ALPN_NEGOTIATION_FAILED error as Chrome will
-		 * refuse to use duplex over HTTP/1.1 and will switch to HTTP/2.
-		 * A HTTP/1.1-only server, however, will still reply with a HTTP/1.1
-		 * response, causing that ALPN error.
-		 *
-		 * We do not know upfront what kind of server we're talking to,
-		 * so we'll make a guess. Most servers do not support HTTP >= 2
-		 * without TLS, so we can assume that anything starting with `http://`
-		 * requires buffering the body stream. This solves the ALPN negotiation
-		 * problem on the local dev server.
-		 *
-		 * There will, inevitably, be some ancient HTTP/1.1+TLS servers on
-		 * the internet that will fall into the `duplex: half` trap. This
-		 * is not a big problem, though, since those requests will fail
-		 * and be retried over the CORS proxy which runs alongside Playground
-		 * and speaks either HTTP/1.1 in the local dev server or HTTP/2+ in
-		 * production.
-		 *
-		 * IMPORTANT: Body buffering must happen AFTER the 100 Continue
-		 * response is sent (above), otherwise curl won't send the body
-		 * and we'll deadlock.
-		 */
-		let bufferedRequest = request;
-		if (needsBodyBuffering && request.body) {
-			const body = await new Response(request.body).arrayBuffer();
-			bufferedRequest = new Request(request.url, {
-				method: request.method,
-				headers: request.headers,
-				body,
-			});
-		}
-		try {
-			await RawBytesFetch.fetchRawResponseBytes(
-				bufferedRequest,
-				this.corsProxyUrl
-			).pipeTo(this.clientDownstream.writable);
+			).pipeTo(responseWritable);
 		} catch {
 			// Ignore errors from fetch()
 			// They are handled in the constructor
@@ -775,7 +732,6 @@ export class RawBytesFetch {
 		return {
 			request,
 			expectsContinue: parsedHeaders.expectsContinue,
-			needsBodyBuffering: protocol === 'http',
 		};
 	}
 
