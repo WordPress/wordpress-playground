@@ -144,6 +144,10 @@ describe('fetchWithCorsProxy', () => {
 		const fetchMock = vi
 			.spyOn(globalThis, 'fetch')
 			.mockResolvedValue(new Response('ok'));
+		// Spy on the exact method duplexSafeFetch uses to buffer:
+		// new Response(body).arrayBuffer(). If it was called, the body
+		// was read into an ArrayBuffer and re-attached to a new Request.
+		const arrayBufferSpy = vi.spyOn(Response.prototype, 'arrayBuffer');
 
 		const body = new ReadableStream({
 			start(controller) {
@@ -162,10 +166,12 @@ describe('fetchWithCorsProxy', () => {
 
 		expect(fetchMock).toHaveBeenCalledTimes(1);
 		const sentRequest = fetchMock.mock.calls[0][0] as Request;
-		// The body should have been re-created (buffered), not the
-		// original ReadableStream.
-		expect(sentRequest.body).not.toBe(body);
-		// The body content should be preserved.
+
+		// The body was buffered via Response.arrayBuffer().
+		expect(arrayBufferSpy).toHaveBeenCalledTimes(1);
+		// The request was re-created from the buffered body.
+		expect(sentRequest).not.toBe(request);
+		// The buffered content should be faithfully re-attached.
 		expect(await new Response(sentRequest.body).text()).toBe(
 			'streamed data'
 		);
@@ -175,6 +181,7 @@ describe('fetchWithCorsProxy', () => {
 		const fetchMock = vi
 			.spyOn(globalThis, 'fetch')
 			.mockResolvedValue(new Response('ok'));
+		const arrayBufferSpy = vi.spyOn(Response.prototype, 'arrayBuffer');
 
 		const body = new ReadableStream({
 			start(controller) {
@@ -194,7 +201,10 @@ describe('fetchWithCorsProxy', () => {
 
 		expect(fetchMock).toHaveBeenCalledTimes(1);
 		const sentRequest = fetchMock.mock.calls[0][0] as Request;
-		// For HTTPS the request should pass through without buffering.
+		// No buffering should have occurred for https://.
+		expect(arrayBufferSpy).not.toHaveBeenCalled();
+		// The exact same Request object should reach fetch() –
+		// no cloning, no buffering, just a pass-through.
 		expect(sentRequest).toBe(request);
 	});
 
@@ -208,6 +218,7 @@ describe('fetchWithCorsProxy', () => {
 			.mockResolvedValueOnce(
 				new Response('proxied', { headers: corsProxyHeaders })
 			);
+		const arrayBufferSpy = vi.spyOn(Response.prototype, 'arrayBuffer');
 
 		const body = new ReadableStream({
 			start(controller) {
@@ -229,12 +240,16 @@ describe('fetchWithCorsProxy', () => {
 		);
 
 		expect(fetchMock).toHaveBeenCalledTimes(2);
-		// The second call is the CORS-proxy retry to an http:// URL,
-		// so the body must have been buffered.
+		// The first call (direct https://) should NOT trigger buffering.
+		// The second call (http:// CORS proxy) should.
+		expect(arrayBufferSpy).toHaveBeenCalledTimes(1);
+
 		const proxyRequest = fetchMock.mock.calls[1][0] as Request;
 		expect(proxyRequest.url).toBe(
 			'http://localhost:5400/cors-proxy/?url=https://example.com/api'
 		);
+		// The buffered content should survive the tee → clone → buffer
+		// pipeline intact.
 		expect(await new Response(proxyRequest.body).text()).toBe(
 			'upload payload'
 		);
@@ -251,16 +266,20 @@ describe('fetchWithCorsProxy', () => {
 			.mockResolvedValueOnce(
 				new Response('proxied', { headers: corsProxyHeaders })
 			);
+		const arrayBufferSpy = vi.spyOn(Response.prototype, 'arrayBuffer');
 
 		// When input is a string, init builds the initial Request and
 		// is also forwarded to duplexSafeFetch in the retry path.
-		await fetchWithCorsProxy(
+		const response = await fetchWithCorsProxy(
 			'https://example.com/api',
 			{ method: 'POST', body: 'form data' },
 			'http://localhost:5400/cors-proxy/?url='
 		);
 
 		expect(fetchMock).toHaveBeenCalledTimes(2);
+		// The http:// CORS proxy URL triggers buffering.
+		expect(arrayBufferSpy).toHaveBeenCalledTimes(1);
+
 		const proxyRequest = fetchMock.mock.calls[1][0] as Request;
 		expect(proxyRequest.url).toBe(
 			'http://localhost:5400/cors-proxy/?url=https://example.com/api'
@@ -268,5 +287,6 @@ describe('fetchWithCorsProxy', () => {
 		// The body from init should survive the tee → clone → buffer
 		// pipeline.
 		expect(await new Response(proxyRequest.body).text()).toBe('form data');
+		expect(await response.text()).toBe('proxied');
 	});
 });
