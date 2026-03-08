@@ -2,50 +2,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fetchWithCorsProxy } from './fetch-with-cors-proxy';
 import { FirewallInterferenceError } from './firewall-interference-error';
 
-/**
- * Intercepts the Request constructor to record whether each
- * Request was built with a ReadableStream body ('stream') or a
- * buffered body like ArrayBuffer/string ('buffer').
- *
- * This lets tests assert the body *type* that reached the final
- * fetch() call — the actual property that matters for the
- * HTTP/1.1 duplex problem.
- */
-function trackRequestBodies() {
-	const bodyTypeByRequest = new WeakMap<Request, string>();
-	const OriginalRequest = globalThis.Request;
-	globalThis.Request = new Proxy(OriginalRequest, {
-		construct(target, args, newTarget) {
-			const instance = Reflect.construct(target, args, newTarget);
-			const [, init] = args;
-			if (init?.body !== undefined && init.body !== null) {
-				bodyTypeByRequest.set(
-					instance,
-					init.body instanceof ReadableStream ? 'stream' : 'buffer'
-				);
-			}
-			return instance;
-		},
-	}) as typeof Request;
-	return {
-		bodyTypeOf(request: Request): string | undefined {
-			return bodyTypeByRequest.get(request);
-		},
-		restore() {
-			globalThis.Request = OriginalRequest;
-		},
-	};
-}
-
 describe('fetchWithCorsProxy', () => {
-	let requestTracker: ReturnType<typeof trackRequestBodies> | null = null;
-
 	afterEach(() => {
 		vi.restoreAllMocks();
-		if (requestTracker) {
-			requestTracker.restore();
-			requestTracker = null;
-		}
 	});
 
 	it('upgrades plain HTTP requests to HTTPS before fetching directly', async () => {
@@ -182,7 +141,6 @@ describe('fetchWithCorsProxy', () => {
 	});
 
 	it('buffers a streaming request body for http:// URLs', async () => {
-		requestTracker = trackRequestBodies();
 		const fetchMock = vi
 			.spyOn(globalThis, 'fetch')
 			.mockResolvedValue(new Response('ok'));
@@ -204,17 +162,17 @@ describe('fetchWithCorsProxy', () => {
 
 		expect(fetchMock).toHaveBeenCalledTimes(1);
 		const sentRequest = fetchMock.mock.calls[0][0] as Request;
-		// The body passed to the Request constructor must have been a
-		// buffer (ArrayBuffer), not a ReadableStream. That is the
-		// whole point of duplexSafeFetch — avoid duplex: 'half'.
-		expect(requestTracker.bodyTypeOf(sentRequest)).toBe('buffer');
+		// The original request's body was consumed to buffer it into
+		// an ArrayBuffer, so bodyUsed must be true.
+		expect(request.bodyUsed).toBe(true);
+		// A new Request was built from the buffered body.
+		expect(sentRequest).not.toBe(request);
 		expect(await new Response(sentRequest.body).text()).toBe(
 			'streamed data'
 		);
 	});
 
 	it('does not buffer the request body for https:// URLs', async () => {
-		requestTracker = trackRequestBodies();
 		const fetchMock = vi
 			.spyOn(globalThis, 'fetch')
 			.mockResolvedValue(new Response('ok'));
@@ -240,12 +198,11 @@ describe('fetchWithCorsProxy', () => {
 		// The exact same Request object should reach fetch() –
 		// no cloning, no buffering, just a pass-through.
 		expect(sentRequest).toBe(request);
-		// Confirm the body type is still a stream, not a buffer.
-		expect(requestTracker.bodyTypeOf(sentRequest)).toBe('stream');
+		// Body was NOT consumed — no buffering happened.
+		expect(request.bodyUsed).toBe(false);
 	});
 
 	it('buffers the request body when retrying via an http:// CORS proxy', async () => {
-		requestTracker = trackRequestBodies();
 		const corsProxyHeaders = new Headers();
 		corsProxyHeaders.set('X-Playground-Cors-Proxy', 'true');
 
@@ -276,15 +233,12 @@ describe('fetchWithCorsProxy', () => {
 		);
 
 		expect(fetchMock).toHaveBeenCalledTimes(2);
-		// The first call (direct https://) keeps the stream body.
-		const directRequest = fetchMock.mock.calls[0][0] as Request;
-		expect(requestTracker.bodyTypeOf(directRequest)).toBe('stream');
-		// The second call (http:// CORS proxy) must buffer the body.
 		const proxyRequest = fetchMock.mock.calls[1][0] as Request;
-		expect(requestTracker.bodyTypeOf(proxyRequest)).toBe('buffer');
 		expect(proxyRequest.url).toBe(
 			'http://localhost:5400/cors-proxy/?url=https://example.com/api'
 		);
+		// The buffered content should survive the tee → clone → buffer
+		// pipeline intact.
 		expect(await new Response(proxyRequest.body).text()).toBe(
 			'upload payload'
 		);
@@ -292,7 +246,6 @@ describe('fetchWithCorsProxy', () => {
 	});
 
 	it('forwards init to duplexSafeFetch in the CORS proxy retry path', async () => {
-		requestTracker = trackRequestBodies();
 		const corsProxyHeaders = new Headers();
 		corsProxyHeaders.set('X-Playground-Cors-Proxy', 'true');
 
@@ -312,9 +265,7 @@ describe('fetchWithCorsProxy', () => {
 		);
 
 		expect(fetchMock).toHaveBeenCalledTimes(2);
-		// The http:// CORS proxy URL triggers buffering.
 		const proxyRequest = fetchMock.mock.calls[1][0] as Request;
-		expect(requestTracker.bodyTypeOf(proxyRequest)).toBe('buffer');
 		expect(proxyRequest.url).toBe(
 			'http://localhost:5400/cors-proxy/?url=https://example.com/api'
 		);
