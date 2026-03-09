@@ -70,7 +70,7 @@ export class StreamedPHPResponse {
 	 */
 	readonly exitCode: Promise<number>;
 
-	private parsedHeaders: Promise<{
+	private cachedParsedHeaders: Promise<{
 		headers: Record<string, string[]>;
 		httpStatusCode: number;
 	}> | null = null;
@@ -136,21 +136,12 @@ export class StreamedPHPResponse {
 			},
 		});
 
-		const streamed = new StreamedPHPResponse(
+		return new StreamedPHPResponse(
 			headersStream,
 			stdout,
 			stderr,
 			Promise.resolve(response.exitCode)
 		);
-
-		// Set pre-parsed headers as a fast-path for same-thread
-		// access (avoids re-parsing the stream we just created)
-		streamed.parsedHeaders = Promise.resolve({
-			headers: response.headers,
-			httpStatusCode: response.httpStatusCode,
-		});
-
-		return streamed;
 	}
 
 	/**
@@ -249,10 +240,10 @@ export class StreamedPHPResponse {
 	}
 
 	private async getParsedHeaders() {
-		if (!this.parsedHeaders) {
-			this.parsedHeaders = parseHeadersStream(this.#headersStream);
+		if (!this.cachedParsedHeaders) {
+			this.cachedParsedHeaders = parseHeadersStream(this.#headersStream);
 		}
-		return await this.parsedHeaders;
+		return await this.cachedParsedHeaders;
 	}
 }
 
