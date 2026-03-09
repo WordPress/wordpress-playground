@@ -3,8 +3,13 @@ import { createRequire } from 'module';
 import { playgroundUrl } from './tools/tool-definitions';
 
 const require = createRequire(import.meta.url);
-const { version: packageVersion } =
-	require('../package.json') ?? require('./package.json');
+let packageVersion: string;
+try {
+	packageVersion = require('./package.json').version;
+} catch {
+	// In the development environment, the package.json file is located in the parent directory.
+	packageVersion = require('../package.json').version;
+}
 
 export function createServer(port?: number): McpServer {
 	const url = playgroundUrl(port);
