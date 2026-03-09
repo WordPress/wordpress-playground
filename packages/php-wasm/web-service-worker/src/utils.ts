@@ -140,6 +140,12 @@ export async function convertFetchEventToPHPRequest(event: FetchEvent) {
 	// transferable streams — only MessagePort transfers work on that channel.
 	// Falls back to the legacy buffered `bytes` payload for backwards
 	// compatibility with older main-thread code.
+	// The main thread streams the response body via a MessagePort bridge
+	// (using streamToPort/portToStream). We can't transfer ReadableStreams
+	// directly because ServiceWorker.postMessage() silently drops the
+	// entire message when the transfer list contains a ReadableStream.
+	// Falls back to the legacy buffered `bytes` payload for backwards
+	// compatibility with older main-thread code.
 	let responseBody: ReadableStream<Uint8Array> | Uint8Array | null = null;
 	if (!isNullBodyCode) {
 		if (phpResponse.bodyPort) {

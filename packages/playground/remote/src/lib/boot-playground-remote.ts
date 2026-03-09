@@ -437,18 +437,25 @@ export async function bootPlaygroundRemote() {
 						// only covers the time until PHP outputs response
 						// headers. Body streaming happens after, with no
 						// timeout.
-						// eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
-						const streamedResponse = await (
-							phpWorkerApi.requestStreamed as Function
-						)(...args);
+						const streamedResponse =
+							await // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
+							(phpWorkerApi.requestStreamed as Function)(...args);
 						const httpStatusCode =
 							await streamedResponse.httpStatusCode;
 						const headers = await streamedResponse.headers;
 
-						// Bridge the body stream via a MessagePort.
-						// We can't transfer a ReadableStream directly
-						// to a ServiceWorker — only MessagePort
-						// transfers are supported on that channel.
+						// We must bridge the body stream via a MessagePort.
+						// ServiceWorker.postMessage() silently drops the
+						// entire message when the transfer list contains a
+						// ReadableStream — the call succeeds and the stream
+						// detaches from the sender, but the message never
+						// arrives at the service worker. This affects all
+						// browsers. Service workers live in a different
+						// agent cluster than their clients, which limits
+						// what can be transferred on this channel.
+						// See https://github.com/whatwg/streams/issues/1063
+						// and the discussion in
+						// https://github.com/whatwg/streams/issues/276
 						const bodyPort = streamToPort(streamedResponse.stdout);
 						(event.source! as ServiceWorker).postMessage(
 							responseTo(event.data.requestId, {
