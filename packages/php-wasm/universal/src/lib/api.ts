@@ -360,21 +360,30 @@ function setupTransferHandlers() {
  * directly through postMessage (aka "transferable streams"). When false,
  * we must fall back to port-bridged streaming.
  */
-export function supportsTransferableStreams(): boolean {
+let _cachedSupportsTransferableStreams: boolean | undefined;
+function supportsTransferableStreams(): boolean {
+	if (_cachedSupportsTransferableStreams !== undefined) {
+		return _cachedSupportsTransferableStreams;
+	}
 	try {
-		if (typeof ReadableStream === 'undefined') return false;
+		if (typeof ReadableStream === 'undefined') {
+			return (_cachedSupportsTransferableStreams = false);
+		}
 		const { port1 } = new MessageChannel();
 		const rs = new ReadableStream();
-		port1.postMessage(rs as any);
+		// The stream must be in the transfer list — without it,
+		// postMessage tries to clone (which always fails for
+		// ReadableStream) instead of transferring.
+		port1.postMessage(rs, [rs as unknown as Transferable]);
 		try {
 			port1.close();
 		} catch (_e) {
 			void _e;
 		}
-		return true;
+		return (_cachedSupportsTransferableStreams = true);
 	} catch (_e) {
 		void _e;
-		return false;
+		return (_cachedSupportsTransferableStreams = false);
 	}
 }
 

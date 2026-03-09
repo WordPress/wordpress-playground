@@ -444,6 +444,11 @@ export async function bootPlaygroundRemote() {
 						const httpStatusCode =
 							await streamedResponse.httpStatusCode;
 						const headers = await streamedResponse.headers;
+
+						// Bridge the body stream via a MessagePort.
+						// We can't transfer a ReadableStream directly
+						// to a ServiceWorker — only MessagePort
+						// transfers are supported on that channel.
 						const bodyPort = streamToPort(streamedResponse.stdout);
 						(event.source! as ServiceWorker).postMessage(
 							responseTo(event.data.requestId, {
