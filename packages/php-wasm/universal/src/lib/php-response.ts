@@ -49,9 +49,17 @@ const responseTexts: Record<number, string> = {
 
 export class StreamedPHPResponse {
 	/**
-	 * Response headers stream (internal).
+	 * Headers stream reserved for serialization (Comlink transfer).
+	 * The constructor tees the incoming headers stream so that
+	 * getParsedHeaders() can consume one branch without locking
+	 * the stream that getHeadersStream() hands to the transport.
 	 */
 	readonly #headersStream: ReadableStream<Uint8Array>;
+
+	/**
+	 * Headers stream reserved for internal parsing.
+	 */
+	readonly #headersStreamForParsing: ReadableStream<Uint8Array>;
 
 	/**
 	 * Response body. Contains the output from `echo`,
@@ -70,7 +78,7 @@ export class StreamedPHPResponse {
 	 */
 	readonly exitCode: Promise<number>;
 
-	private parsedHeaders: Promise<{
+	private cachedParsedHeaders: Promise<{
 		headers: Record<string, string[]>;
 		httpStatusCode: number;
 	}> | null = null;
@@ -84,7 +92,9 @@ export class StreamedPHPResponse {
 		stderr: ReadableStream<Uint8Array>,
 		exitCode: Promise<number>
 	) {
-		this.#headersStream = headers;
+		const [forTransport, forParsing] = headers.tee();
+		this.#headersStream = forTransport;
+		this.#headersStreamForParsing = forParsing;
 		this.stdout = stdout;
 		this.stderr = stderr;
 		this.exitCode = exitCode;
@@ -136,21 +146,12 @@ export class StreamedPHPResponse {
 			},
 		});
 
-		const streamed = new StreamedPHPResponse(
+		return new StreamedPHPResponse(
 			headersStream,
 			stdout,
 			stderr,
 			Promise.resolve(response.exitCode)
 		);
-
-		// Set pre-parsed headers as a fast-path for same-thread
-		// access (avoids re-parsing the stream we just created)
-		streamed.parsedHeaders = Promise.resolve({
-			headers: response.headers,
-			httpStatusCode: response.httpStatusCode,
-		});
-
-		return streamed;
 	}
 
 	/**
@@ -169,17 +170,6 @@ export class StreamedPHPResponse {
 	 */
 	getHeadersStream(): ReadableStream<Uint8Array> {
 		return this.#headersStream;
-	}
-
-	/**
-	 * Whether the headers stream has already been consumed
-	 * (e.g. by the cookie handler in PHPRequestHandler).
-	 * When true, the serialization layer should use `headers`
-	 * and `httpStatusCode` to build a fresh stream instead of
-	 * transferring the original one.
-	 */
-	get headersStreamConsumed(): boolean {
-		return this.parsedHeaders !== null;
 	}
 
 	/**
@@ -260,10 +250,12 @@ export class StreamedPHPResponse {
 	}
 
 	private async getParsedHeaders() {
-		if (!this.parsedHeaders) {
-			this.parsedHeaders = parseHeadersStream(this.#headersStream);
+		if (!this.cachedParsedHeaders) {
+			this.cachedParsedHeaders = parseHeadersStream(
+				this.#headersStreamForParsing
+			);
 		}
-		return await this.parsedHeaders;
+		return await this.cachedParsedHeaders;
 	}
 }
 
