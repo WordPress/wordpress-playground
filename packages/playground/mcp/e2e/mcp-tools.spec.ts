@@ -393,6 +393,47 @@ test('playground_mkdir creates and verifies a directory and playground_delete_di
 	expect(filesAfterDelete).not.toContain('e2e-test-dir');
 });
 
+test('playground_delete_directory with recursive=true removes a non-empty directory', async ({
+	mcpClient,
+	siteId,
+}) => {
+	const testDir = '/wordpress/wp-content/e2e-recursive-dir';
+	const nestedFile = `${testDir}/subdir/nested.txt`;
+
+	// Create a nested structure: e2e-recursive-dir/subdir/nested.txt
+	await mcpClient.callTool({
+		name: 'playground_mkdir',
+		arguments: { siteId, path: `${testDir}/subdir` },
+	});
+	await mcpClient.callTool({
+		name: 'playground_write_file',
+		arguments: { siteId, path: nestedFile, contents: 'nested content' },
+	});
+
+	// Verify the file exists
+	const readResult = await mcpClient.callTool({
+		name: 'playground_read_file',
+		arguments: { siteId, path: nestedFile },
+	});
+	expect(JSON.parse(resultText(readResult)).contents).toBe('nested content');
+
+	// Recursive delete should remove the entire tree
+	const deleteResult = await mcpClient.callTool({
+		name: 'playground_delete_directory',
+		arguments: { siteId, path: testDir, recursive: true },
+	});
+	expect(JSON.parse(resultText(deleteResult)).success).toBe(true);
+
+	// Verify the directory is gone
+	const listAfterDelete = await mcpClient.callTool({
+		name: 'playground_list_files',
+		arguments: { siteId, path: '/wordpress/wp-content' },
+	});
+	const filesAfterDelete = JSON.parse(resultText(listAfterDelete))
+		.files as string[];
+	expect(filesAfterDelete).not.toContain('e2e-recursive-dir');
+});
+
 test('playground_get_site_info returns WordPress details', async ({
 	mcpClient,
 	siteId,
