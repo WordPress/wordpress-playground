@@ -294,7 +294,14 @@ function setupTransferHandlers() {
 		serialize(obj: StreamedPHPResponse): [any, Transferable[]] {
 			const supportsStreams = supportsTransferableStreams();
 			const exitCodePort = promiseToPort(obj.exitCode);
-			const headersStream = obj.getHeadersStream();
+
+			// The headers stream may already be consumed (e.g. by the
+			// cookie handler in PHPRequestHandler). If so, synthesize
+			// a fresh stream from the already-parsed header data.
+			const headersStream = obj.headersStreamConsumed
+				? headersToStream(obj.headers, obj.httpStatusCode)
+				: obj.getHeadersStream();
+
 			if (supportsStreams) {
 				const payload = {
 					__type: 'StreamedPHPResponse',
@@ -385,6 +392,37 @@ function supportsTransferableStreams(): boolean {
 		void _e;
 		return (_cachedSupportsTransferableStreams = false);
 	}
+}
+
+/**
+ * Synthesizes a headers ReadableStream from already-parsed header data.
+ * Used by the Comlink transfer handler when the original headers stream
+ * has already been consumed on the worker side.
+ */
+function headersToStream(
+	headersPromise: Promise<Record<string, string[]>>,
+	httpStatusCodePromise: Promise<number>
+): ReadableStream<Uint8Array> {
+	return new ReadableStream<Uint8Array>({
+		async start(controller) {
+			const [headers, httpStatusCode] = await Promise.all([
+				headersPromise,
+				httpStatusCodePromise,
+			]);
+			const headerLines: string[] = [];
+			for (const [name, values] of Object.entries(headers)) {
+				for (const value of values) {
+					headerLines.push(`${name}: ${value}`);
+				}
+			}
+			const json = JSON.stringify({
+				status: httpStatusCode,
+				headers: headerLines,
+			});
+			controller.enqueue(new TextEncoder().encode(json));
+			controller.close();
+		},
+	});
 }
 
 /**

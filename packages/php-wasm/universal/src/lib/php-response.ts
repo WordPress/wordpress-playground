@@ -166,36 +166,20 @@ export class StreamedPHPResponse {
 	/**
 	 * Returns the raw headers stream for serialization purposes.
 	 * For parsed headers, use the `headers` property instead.
-	 *
-	 * If the original headers stream has already been consumed
-	 * (e.g. by the cookie handler in PHPRequestHandler), a fresh
-	 * stream is synthesized from the already-parsed header data.
-	 * This ensures the response can still be serialized via Comlink
-	 * even after the headers have been read on the worker side.
 	 */
 	getHeadersStream(): ReadableStream<Uint8Array> {
-		if (this.parsedHeaders) {
-			const parsedHeadersPromise = this.parsedHeaders;
-			return new ReadableStream<Uint8Array>({
-				async start(controller) {
-					const { headers, httpStatusCode } =
-						await parsedHeadersPromise;
-					const headerLines: string[] = [];
-					for (const [name, values] of Object.entries(headers)) {
-						for (const value of values) {
-							headerLines.push(`${name}: ${value}`);
-						}
-					}
-					const json = JSON.stringify({
-						status: httpStatusCode,
-						headers: headerLines,
-					});
-					controller.enqueue(new TextEncoder().encode(json));
-					controller.close();
-				},
-			});
-		}
 		return this.#headersStream;
+	}
+
+	/**
+	 * Whether the headers stream has already been consumed
+	 * (e.g. by the cookie handler in PHPRequestHandler).
+	 * When true, the serialization layer should use `headers`
+	 * and `httpStatusCode` to build a fresh stream instead of
+	 * transferring the original one.
+	 */
+	get headersStreamConsumed(): boolean {
+		return this.parsedHeaders !== null;
 	}
 
 	/**
