@@ -14,7 +14,6 @@ import {
 import type { ToolParam } from './tool-definitions';
 import { toolExecutors } from './tool-executors';
 import type { ToolClient } from './tool-executors';
-
 function errorResult(prefix: string, error: unknown) {
 	return {
 		content: [
@@ -76,29 +75,6 @@ function paramsToZodSchema(params: ToolParam[]): Record<string, z.ZodType> {
 	}
 
 	return schema;
-}
-
-/**
- * Create a ToolClient that delegates to bridge.sendCommand.
- *
- * Every method forwards its name and arguments over the WebSocket.
- * The browser-side bridge-client decodes PHP/HTTP response bytes
- * before sending, so results already contain plain strings.
- */
-function createBridgeToolClient(
-	siteId: string,
-	sendCommand: (
-		siteId: string,
-		method: string,
-		args?: unknown[]
-	) => Promise<unknown>
-): ToolClient {
-	return new Proxy({} as ToolClient, {
-		get:
-			(_target, method: string) =>
-			(...args: unknown[]) =>
-				sendCommand(siteId, method, args),
-	});
 }
 
 export function registerMcpServerTools(
@@ -303,10 +279,55 @@ export function registerMcpServerTools(
 			async (args: Record<string, unknown>) => {
 				const { siteId, ...input } = args;
 				try {
-					const client = createBridgeToolClient(
-						siteId as string,
-						sendCommand
-					);
+					const id = siteId as string;
+					const client: ToolClient = {
+						run: (...args) =>
+							sendCommand(id, 'run', args) as ReturnType<
+								ToolClient['run']
+							>,
+						request: (...args) =>
+							sendCommand(id, 'request', args) as ReturnType<
+								ToolClient['request']
+							>,
+						goTo: (...args) =>
+							sendCommand(id, 'goTo', args) as ReturnType<
+								ToolClient['goTo']
+							>,
+						getCurrentURL: () =>
+							sendCommand(id, 'getCurrentURL', []) as ReturnType<
+								ToolClient['getCurrentURL']
+							>,
+						readFileAsText: (...args) =>
+							sendCommand(
+								id,
+								'readFileAsText',
+								args
+							) as ReturnType<ToolClient['readFileAsText']>,
+						writeFile: (...args) =>
+							sendCommand(id, 'writeFile', args) as ReturnType<
+								ToolClient['writeFile']
+							>,
+						listFiles: (...args) =>
+							sendCommand(id, 'listFiles', args) as ReturnType<
+								ToolClient['listFiles']
+							>,
+						mkdirTree: (...args) =>
+							sendCommand(id, 'mkdirTree', args) as ReturnType<
+								ToolClient['mkdirTree']
+							>,
+						unlink: (...args) =>
+							sendCommand(id, 'unlink', args) as ReturnType<
+								ToolClient['unlink']
+							>,
+						rmdir: (...args) =>
+							sendCommand(id, 'rmdir', args) as ReturnType<
+								ToolClient['rmdir']
+							>,
+						fileExists: (...args) =>
+							sendCommand(id, 'fileExists', args) as ReturnType<
+								ToolClient['fileExists']
+							>,
+					};
 					const result = await executor(client, input);
 					return {
 						content: [
