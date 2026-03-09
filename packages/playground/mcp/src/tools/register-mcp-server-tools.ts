@@ -34,12 +34,6 @@ const siteIdSchema = z
 			'available site IDs.'
 	);
 
-type ToolRegistrar = (
-	server: McpServer,
-	bridge: PlaygroundBridge,
-	port?: number
-) => void;
-
 /**
  * Convert shared ToolParam[] to a Zod schema object suitable
  * for McpServer.registerTool(). Always includes siteId as the
@@ -107,7 +101,11 @@ function createBridgeToolClient(
 	});
 }
 
-export const registerMcpServerTools: ToolRegistrar = (server, bridge, port) => {
+export function registerMcpServerTools(
+	server: McpServer,
+	bridge: PlaygroundBridge,
+	port?: number
+) {
 	const sendCommand = bridge.sendCommand.bind(bridge);
 	const siteToolDefinitions = getSiteToolDefinitions(port);
 	const url = playgroundUrl(port);
@@ -324,4 +322,4 @@ export const registerMcpServerTools: ToolRegistrar = (server, bridge, port) => {
 			}
 		);
 	}
-};
+}
