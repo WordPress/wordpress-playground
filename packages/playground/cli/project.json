@@ -3,7 +3,7 @@
 	"$schema": "../../../node_modules/nx/schemas/project-schema.json",
 	"sourceRoot": "packages/playground/cli/src",
 	"projectType": "library",
-	"tags": ["scope:php-wasm-public"],
+	"tags": ["scope:php-wasm-public", "scope:cli"],
 	"targets": {
 		"build": {
 			"executor": "nx:noop",
