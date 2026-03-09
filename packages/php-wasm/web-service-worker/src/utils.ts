@@ -3,6 +3,7 @@ declare const self: ServiceWorkerGlobalScope;
 
 import { awaitReply, getNextRequestId } from './messaging';
 import { getURLScope, isURLScoped, setURLScope } from '@php-wasm/scopes';
+import { portToStream } from '@php-wasm/universal';
 
 export async function convertFetchEventToPHPRequest(event: FetchEvent) {
 	let url = new URL(event.request.url);
@@ -132,7 +133,21 @@ export async function convertFetchEventToPHPRequest(event: FetchEvent) {
 	const isNullBodyCode = [101, 103, 204, 205, 304].includes(
 		phpResponse.httpStatusCode
 	);
-	const responseBody = isNullBodyCode ? null : phpResponse.bytes;
+
+	// Determine response body: prefer a streamed body (bridged via
+	// MessagePort) when available, fall back to the legacy buffered
+	// `bytes` payload for backwards compatibility with older
+	// main-thread code.
+	let responseBody: ReadableStream<Uint8Array> | Uint8Array | null = null;
+	if (!isNullBodyCode) {
+		if (phpResponse.bodyPort) {
+			responseBody = portToStream(phpResponse.bodyPort);
+		} else {
+			// Backwards compat: buffered response
+			responseBody = phpResponse.bytes;
+		}
+	}
+
 	return new Response(responseBody, {
 		headers: phpResponse.headers,
 		status: phpResponse.httpStatusCode,

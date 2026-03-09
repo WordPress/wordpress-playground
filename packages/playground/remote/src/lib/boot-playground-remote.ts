@@ -1,4 +1,5 @@
 import type { MessageListener } from '@php-wasm/universal';
+import { streamToPort } from '@php-wasm/universal';
 import type { SyncProgressCallback } from '@php-wasm/web';
 import {
 	spawnPHPWorkerThread,
@@ -311,7 +312,9 @@ export async function bootPlaygroundRemote() {
 			 *      the detailed context.
 			 */
 			const navigationComplete = new Promise<void>((resolve) => {
-				wpFrame.addEventListener('load', () => resolve(), { once: true });
+				wpFrame.addEventListener('load', () => resolve(), {
+					once: true,
+				});
 			});
 
 			// If the URL is the same, we need to force a reload
@@ -423,17 +426,42 @@ export async function bootPlaygroundRemote() {
 						return;
 					}
 
-					// Wait for the PHP API client to be set by bootPlaygroundRemote
 					const args = event.data.args || [];
 					const method = event.data
 						.method as keyof PlaygroundWorkerEndpoint;
-					// eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
-					const result = await (phpWorkerApi[method] as Function)(
-						...args
-					);
-					event.source!.postMessage(
-						responseTo(event.data.requestId, result)
-					);
+
+					if (method === 'request') {
+						// Stream the PHP response body through the
+						// service worker instead of buffering the entire
+						// response in memory. The 25s awaitReply timeout
+						// only covers the time until PHP outputs response
+						// headers. Body streaming happens after, with no
+						// timeout.
+						// eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
+						const streamedResponse = await (
+							phpWorkerApi.requestStreamed as Function
+						)(...args);
+						const httpStatusCode =
+							await streamedResponse.httpStatusCode;
+						const headers = await streamedResponse.headers;
+						const bodyPort = streamToPort(streamedResponse.stdout);
+						(event.source! as ServiceWorker).postMessage(
+							responseTo(event.data.requestId, {
+								httpStatusCode,
+								headers,
+								bodyPort,
+							}),
+							[bodyPort]
+						);
+					} else {
+						// eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
+						const result = await (phpWorkerApi[method] as Function)(
+							...args
+						);
+						event.source!.postMessage(
+							responseTo(event.data.requestId, result)
+						);
+					}
 				}
 			);
 			sw.startMessages();
