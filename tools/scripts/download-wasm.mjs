@@ -13,7 +13,9 @@ import { execSync } from 'child_process';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
+import tarFs from 'tar-fs';
 import { fileURLToPath } from 'url';
+import { createGunzip } from 'zlib';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, '../../');
@@ -99,11 +101,15 @@ for (const [key, version] of Object.entries(versions)) {
 		}
 		const tarball = path.join(tmpDir, tarballs[0]);
 
-		// Extract tarball
+		// Extract tarball (pure Node.js — avoids system tar issues on Windows)
 		const extractDir = path.join(tmpDir, 'extracted');
 		fs.mkdirSync(extractDir);
-		execSync(`tar -xzf "${tarball}" -C "${extractDir}"`, {
-			stdio: 'pipe',
+		await new Promise((resolve, reject) => {
+			fs.createReadStream(tarball)
+				.pipe(createGunzip())
+				.pipe(tarFs.extract(extractDir))
+				.on('finish', resolve)
+				.on('error', reject);
 		});
 
 		// The tarball contains a "package/" directory
