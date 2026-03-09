@@ -4,6 +4,40 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
+## [v3.1.5] (2026-03-09) 
+
+### Documentation
+
+- [Docs] Updating run cli demos. ([#2833](https://github.com/WordPress/wordpress-playground/pull/2833))
+- [docs] Adding runCLI and git action video to the documentation. ([#3101](https://github.com/WordPress/wordpress-playground/pull/3101))
+
+### PHP WebAssembly
+
+- [Website] Support CURLFile uploads. ([#3341](https://github.com/WordPress/wordpress-playground/pull/3341))
+- [tcp-over-fetch] Buffer request body for non-HTTPS fetches. ([#3356](https://github.com/WordPress/wordpress-playground/pull/3356))
+- [tcp-over-fetch] Strip Content-Encoding from response headers. ([#3355](https://github.com/WordPress/wordpress-playground/pull/3355))
+- [PHP] Recompile PHP.wasm JSPI with `MAIN_MODULE` set to 2. ([#3332](https://github.com/WordPress/wordpress-playground/pull/3332))
+
+### Website
+
+- Allow web deploy from WP update workflow. ([#3343](https://github.com/WordPress/wordpress-playground/pull/3343))
+
+### Various
+
+- Ignore `ERR_STREAM_PREMATURE_CLOSE` in CLI server. ([#3304](https://github.com/WordPress/wordpress-playground/pull/3304))
+- Make error logging conditional on WP_DEBUG_LOG. ([#3300](https://github.com/WordPress/wordpress-playground/pull/3300))
+- [CORS Proxy] Fix FirewallInterferenceError on local dev server. ([#3353](https://github.com/WordPress/wordpress-playground/pull/3353))
+- [Website] Make Google Analytics configurable via environment variable. ([#3322](https://github.com/WordPress/wordpress-playground/pull/3322))
+- [Website] Support Git repo URLs in ?plugin= Query API parameter. ([#3339](https://github.com/WordPress/wordpress-playground/pull/3339))
+- [docs] Adding cli start command. ([#3239](https://github.com/WordPress/wordpress-playground/pull/3239))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @andreilupu @bcotrim @brandonpayton @dd32 @fellyph @JanJakes @mho22
+
+
 ## [v3.1.3] (2026-03-02) 
 
 ### Tools

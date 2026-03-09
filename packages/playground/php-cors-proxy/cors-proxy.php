@@ -16,7 +16,10 @@ $server_host = $_SERVER['HTTP_HOST'] ?? '';
 $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
 
 if (should_respond_with_cors_headers($server_host, $origin)) {
-    header('Access-Control-Allow-Origin: ' . $origin);
+    // On the dev server, the browser doesn't send an Origin header
+    // (same-origin request via Vite proxy), so fall back to wildcard.
+    $allow_origin = (is_local_dev_server() && empty($origin)) ? '*' : $origin;
+    header('Access-Control-Allow-Origin: ' . $allow_origin);
     header('Access-Control-Allow-Credentials: true');
     header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
     header('Access-Control-Allow-Headers: Accept, Authorization, Content-Type, git-protocol, wp_blog, wp_install, x-cors-proxy-allowed-request-headers');
@@ -243,7 +246,12 @@ curl_setopt(
             stripos($header, 'Access-Control-Allow-Origin:') !== 0 &&
             stripos($header, 'Access-Control-Allow-Credentials:') !== 0 &&
             stripos($header, 'Access-Control-Allow-Methods:') !== 0 &&
-            stripos($header, 'Access-Control-Allow-Headers:') !== 0
+            stripos($header, 'Access-Control-Allow-Headers:') !== 0 &&
+            // HSTS headers have consequences for the entire domain. Let's not
+            // allow any remote site to decide on the CORS proxy HSTS policy.
+            // Besides, they won't work with the http-only local dev server.
+            stripos($header, 'Strict-Transport-Security:') !== 0 &&
+            stripos($header, 'Upgrade-Insecure-Requests:') !== 0
         ) {
             header($header, false);
         }
@@ -261,10 +269,43 @@ $requestMethod = $_SERVER['REQUEST_METHOD'];
 curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $requestMethod);
 
 if ($requestMethod !== 'GET' && $requestMethod !== 'HEAD' && $requestMethod !== 'OPTIONS') {
-    $input = fopen('php://input', 'r');
-    curl_setopt($ch, CURLOPT_UPLOAD, true);
-    curl_setopt($ch, CURLOPT_INFILE, $input);
-    curl_setopt($ch, CURLOPT_INFILESIZE, $_SERVER['CONTENT_LENGTH']);
+    // php://input is not available for multipart/form-data requests
+    // because PHP parses the body into $_POST and $_FILES, consuming
+    // the input stream. For such requests, we reconstruct the body
+    // using CURLOPT_POSTFIELDS with CURLFile objects for any uploaded
+    // files.
+    $contentType = $_SERVER['CONTENT_TYPE'] ?? '';
+    if (stripos($contentType, 'multipart/form-data') !== false && (!empty($_POST) || !empty($_FILES))) {
+        $postFields = $_POST;
+        foreach ($_FILES as $name => $fileInfo) {
+            $postFields[$name] = new CURLFile(
+                $fileInfo['tmp_name'],
+                $fileInfo['type'] ?: 'application/octet-stream',
+                $fileInfo['name']
+            );
+        }
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $postFields);
+        // Strip the incoming Content-Type and Content-Length headers.
+        // CURLOPT_POSTFIELDS with an array generates a new multipart
+        // boundary, and we must let PHP curl set its own Content-Type
+        // to match. The original Content-Type from the browser has a
+        // different boundary that doesn't match the reconstructed body.
+        $filteredHeaders = array_values(array_filter(
+            $curlHeaders,
+            fn($h) => stripos($h, 'Content-Type:') !== 0
+                   && stripos($h, 'Content-Length:') !== 0
+        ));
+        curl_setopt($ch, CURLOPT_HTTPHEADER, array_merge(
+            $filteredHeaders,
+            ["Host: $host"],
+        ));
+    } else {
+        $input = fopen('php://input', 'r');
+        curl_setopt($ch, CURLOPT_UPLOAD, true);
+        curl_setopt($ch, CURLOPT_INFILE, $input);
+        curl_setopt($ch, CURLOPT_INFILESIZE, $_SERVER['CONTENT_LENGTH']);
+    }
 }
 
 // Execute cURL session

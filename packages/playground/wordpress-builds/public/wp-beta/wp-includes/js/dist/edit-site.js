@@ -23836,7 +23836,7 @@ var wp;
   // packages/edit-site/build-module/components/page-patterns/index.mjs
   var import_i18n139 = __toESM(require_i18n(), 1);
   var import_element141 = __toESM(require_element(), 1);
-  var import_block_editor24 = __toESM(require_block_editor(), 1);
+  var import_block_editor25 = __toESM(require_block_editor(), 1);
 
   // packages/dataviews/build-module/dataviews/index.mjs
   var import_element121 = __toESM(require_element(), 1);
@@ -25606,6 +25606,15 @@ var wp;
 
   // packages/dataviews/build-module/components/dataviews-layouts/table/index.mjs
   var import_jsx_runtime191 = __toESM(require_jsx_runtime(), 1);
+  function getEffectiveAlign(explicitAlign, fieldType) {
+    if (explicitAlign) {
+      return explicitAlign;
+    }
+    if (fieldType === "integer" || fieldType === "number") {
+      return "end";
+    }
+    return void 0;
+  }
   function TableColumnField({
     item,
     fields,
@@ -25711,6 +25720,8 @@ var wp;
           ) }),
           columns.map((column) => {
             const { width, maxWidth, minWidth, align } = view.layout?.styles?.[column] ?? {};
+            const field = fields.find((f2) => f2.id === column);
+            const effectiveAlign = getEffectiveAlign(align, field?.type);
             return /* @__PURE__ */ (0, import_jsx_runtime191.jsx)(
               "td",
               {
@@ -25725,7 +25736,7 @@ var wp;
                     fields,
                     item,
                     column,
-                    align
+                    align: effectiveAlign
                   }
                 )
               },
@@ -25935,6 +25946,13 @@ var wp;
               ) }),
               columns.map((column, index) => {
                 const { width, maxWidth, minWidth, align } = view.layout?.styles?.[column] ?? {};
+                const field = fields.find(
+                  (f2) => f2.id === column
+                );
+                const effectiveAlign = getEffectiveAlign(
+                  align,
+                  field?.type
+                );
                 const canInsertOrMove = view.layout?.enableMoving ?? true;
                 return /* @__PURE__ */ (0, import_jsx_runtime191.jsx)(
                   "th",
@@ -25943,7 +25961,7 @@ var wp;
                       width,
                       maxWidth,
                       minWidth,
-                      textAlign: align
+                      textAlign: effectiveAlign
                     },
                     "aria-sort": view.sort?.direction && view.sort?.field === column ? sortValues[view.sort.direction] : void 0,
                     scope: "col",
@@ -35601,11 +35619,10 @@ If there's a particular need for this, please submit a feature request at https:
       },
       [onChangeView, setIsShowingFilter]
     );
-    const visibleFilters = filters.filter((filter) => filter.isVisible);
-    const hasVisibleFilters = !!visibleFilters.length;
     if (filters.length === 0) {
       return null;
     }
+    const hasVisibleFilters = filters.some((filter) => filter.isVisible);
     const addFilterButtonProps = {
       label: (0, import_i18n109.__)("Add filter"),
       "aria-expanded": false,
@@ -35622,6 +35639,9 @@ If there's a particular need for this, please submit a feature request at https:
         setIsShowingFilter(!isShowingFilter);
       }
     };
+    const hasPrimaryOrLockedFilters = filters.some(
+      (filter) => filter.isPrimary || filter.isLocked
+    );
     const buttonComponent = /* @__PURE__ */ (0, import_jsx_runtime221.jsx)(
       import_components115.Button,
       {
@@ -35629,6 +35649,8 @@ If there's a particular need for this, please submit a feature request at https:
         className: "dataviews-filters__visibility-toggle",
         size: "compact",
         icon: funnel_default,
+        disabled: hasPrimaryOrLockedFilters,
+        accessibleWhenDisabled: true,
         ...hasVisibleFilters ? toggleFiltersButtonProps : addFilterButtonProps
       }
     );
@@ -36382,14 +36404,11 @@ If there's a particular need for this, please submit a feature request at https:
   // packages/dataviews/build-module/components/dataform-controls/datetime.mjs
   var import_jsx_runtime231 = __toESM(require_jsx_runtime(), 1);
   var { DateCalendar, ValidatedInputControl } = unlock3(import_components122.privateApis);
-  var formatDateTime = (date) => {
-    if (!date) {
+  var formatDateTime = (value) => {
+    if (!value) {
       return "";
     }
-    if (typeof date === "string") {
-      return date;
-    }
-    return format(date, "yyyy-MM-dd'T'HH:mm");
+    return (0, import_date4.dateI18n)("Y-m-d\\TH:i", (0, import_date4.getDate)(value));
   };
   function CalendarDateTimeControl({
     data,
@@ -36424,17 +36443,14 @@ If there's a particular need for this, please submit a feature request at https:
       (newDate) => {
         let dateTimeValue;
         if (newDate) {
-          let finalDateTime = newDate;
+          const wpDate = (0, import_date4.dateI18n)("Y-m-d", newDate);
+          let wpTime;
           if (value) {
-            const currentDateTime = parseDateTime(value);
-            if (currentDateTime) {
-              finalDateTime = new Date(newDate);
-              finalDateTime.setHours(currentDateTime.getHours());
-              finalDateTime.setMinutes(
-                currentDateTime.getMinutes()
-              );
-            }
+            wpTime = (0, import_date4.dateI18n)("H:i", (0, import_date4.getDate)(value));
+          } else {
+            wpTime = (0, import_date4.dateI18n)("H:i", newDate);
           }
+          const finalDateTime = (0, import_date4.getDate)(`${wpDate}T${wpTime}`);
           dateTimeValue = finalDateTime.toISOString();
           onChangeCallback(dateTimeValue);
           if (validationTimeoutRef.current) {
@@ -36460,7 +36476,7 @@ If there's a particular need for this, please submit a feature request at https:
     const handleManualDateTimeChange = (0, import_element107.useCallback)(
       (newValue) => {
         if (newValue) {
-          const dateTime = new Date(newValue);
+          const dateTime = (0, import_date4.getDate)(newValue);
           onChangeCallback(dateTime.toISOString());
           const parsedDate = parseDateTime(dateTime.toISOString());
           if (parsedDate) {
@@ -36513,9 +36529,7 @@ If there's a particular need for this, please submit a feature request at https:
               type: "datetime-local",
               label: (0, import_i18n115.__)("Date time"),
               hideLabelFromVision: true,
-              value: value ? formatDateTime(
-                parseDateTime(value) || void 0
-              ) : "",
+              value: formatDateTime(value),
               onChange: handleManualDateTimeChange
             }
           )
@@ -39531,8 +39545,8 @@ If there's a particular need for this, please submit a feature request at https:
   function getLabelContent(showError, errorMessage, fieldLabel) {
     return showError ? /* @__PURE__ */ (0, import_jsx_runtime256.jsx)(import_components138.Tooltip, { text: errorMessage, placement: "top", children: /* @__PURE__ */ (0, import_jsx_runtime256.jsxs)("span", { className: "dataforms-layouts-panel__field-label-error-content", children: [
       /* @__PURE__ */ (0, import_jsx_runtime256.jsx)(import_components138.Icon, { icon: error_default, size: 16 }),
-      /* @__PURE__ */ (0, import_jsx_runtime256.jsx)(import_components138.BaseControl.VisualLabel, { children: fieldLabel })
-    ] }) }) : /* @__PURE__ */ (0, import_jsx_runtime256.jsx)(import_components138.BaseControl.VisualLabel, { children: fieldLabel });
+      fieldLabel
+    ] }) }) : fieldLabel;
   }
   var get_label_content_default = getLabelContent;
 
@@ -41376,11 +41390,26 @@ If there's a particular need for this, please submit a feature request at https:
   }
 
   // packages/views/build-module/filter-utils.mjs
+  var SCALAR_VALUES = [
+    "titleField",
+    "mediaField",
+    "descriptionField",
+    "showTitle",
+    "showMedia",
+    "showDescription",
+    "showLevels",
+    "infiniteScrollEnabled"
+  ];
   function mergeActiveViewOverrides(view, activeViewOverrides, defaultView) {
     if (!activeViewOverrides) {
       return view;
     }
     let result = view;
+    for (const key of SCALAR_VALUES) {
+      if (key in activeViewOverrides) {
+        result = { ...result, [key]: activeViewOverrides[key] };
+      }
+    }
     if (activeViewOverrides.filters && activeViewOverrides.filters.length > 0) {
       const activeFields = new Set(
         activeViewOverrides.filters.map((f2) => f2.field)
@@ -41402,6 +41431,21 @@ If there's a particular need for this, please submit a feature request at https:
         };
       }
     }
+    if (activeViewOverrides.layout) {
+      result = {
+        ...result,
+        layout: {
+          ...result.layout,
+          ...activeViewOverrides.layout
+        }
+      };
+    }
+    if (activeViewOverrides.groupBy) {
+      result = {
+        ...result,
+        groupBy: activeViewOverrides.groupBy
+      };
+    }
     return result;
   }
   function stripActiveViewOverrides(view, activeViewOverrides, defaultView) {
@@ -41409,6 +41453,12 @@ If there's a particular need for this, please submit a feature request at https:
       return view;
     }
     let result = view;
+    for (const key of SCALAR_VALUES) {
+      if (key in activeViewOverrides) {
+        const { [key]: _, ...rest } = result;
+        result = rest;
+      }
+    }
     if (activeViewOverrides.filters && activeViewOverrides.filters.length > 0) {
       const activeFields = new Set(
         activeViewOverrides.filters.map((f2) => f2.field)
@@ -41425,6 +41475,20 @@ If there's a particular need for this, please submit a feature request at https:
         ...result,
         sort: defaultView?.sort
       };
+    }
+    if (activeViewOverrides.layout && "layout" in result && result.layout) {
+      const layout = { ...result.layout };
+      for (const key of Object.keys(activeViewOverrides.layout)) {
+        delete layout[key];
+      }
+      result = {
+        ...result,
+        layout: Object.keys(layout).length > 0 ? layout : void 0
+      };
+    }
+    if (activeViewOverrides.groupBy && "groupBy" in result) {
+      const { groupBy: _, ...rest } = result;
+      result = rest;
     }
     return result;
   }
@@ -41559,8 +41623,10 @@ If there's a particular need for this, please submit a feature request at https:
   var import_core_data43 = __toESM(require_core_data(), 1);
   var import_data66 = __toESM(require_data(), 1);
   var import_element135 = __toESM(require_element(), 1);
+  var import_block_editor23 = __toESM(require_block_editor(), 1);
   var import_editor28 = __toESM(require_editor(), 1);
   var { useGlobalStyles: useGlobalStyles3 } = unlock(import_editor28.privateApis);
+  var { globalStylesDataKey } = unlock(import_block_editor23.privateApis);
   function usePatternSettings() {
     const { merged: mergedConfig } = useGlobalStyles3();
     const storedSettings = (0, import_data66.useSelect)((select3) => {
@@ -41596,10 +41662,17 @@ If there's a particular need for this, please submit a feature request at https:
         ...restStoredSettings,
         styles: globalStyles,
         __experimentalFeatures: globalSettings,
+        [globalStylesDataKey]: mergedConfig.styles ?? {},
         __experimentalBlockPatterns: blockPatterns,
         isPreviewMode: true
       };
-    }, [storedSettings, blockPatterns, globalStyles, globalSettings]);
+    }, [
+      storedSettings,
+      blockPatterns,
+      globalStyles,
+      globalSettings,
+      mergedConfig
+    ]);
     return settings2;
   }
 
@@ -42069,7 +42142,7 @@ If there's a particular need for this, please submit a feature request at https:
   var import_components148 = __toESM(require_components(), 1);
   var import_i18n138 = __toESM(require_i18n(), 1);
   var import_element140 = __toESM(require_element(), 1);
-  var import_block_editor23 = __toESM(require_block_editor(), 1);
+  var import_block_editor24 = __toESM(require_block_editor(), 1);
   var import_blocks12 = __toESM(require_blocks(), 1);
   var import_editor30 = __toESM(require_editor(), 1);
 
@@ -42160,8 +42233,8 @@ If there's a particular need for this, please submit a feature request at https:
         children: [
           isEmpty3 && isTemplatePart2 && (0, import_i18n138.__)("Empty template part"),
           isEmpty3 && !isTemplatePart2 && (0, import_i18n138.__)("Empty pattern"),
-          !isEmpty3 && /* @__PURE__ */ (0, import_jsx_runtime272.jsx)(import_block_editor23.BlockPreview.Async, { children: /* @__PURE__ */ (0, import_jsx_runtime272.jsx)(
-            import_block_editor23.BlockPreview,
+          !isEmpty3 && /* @__PURE__ */ (0, import_jsx_runtime272.jsx)(import_block_editor24.BlockPreview.Async, { children: /* @__PURE__ */ (0, import_jsx_runtime272.jsx)(
+            import_block_editor24.BlockPreview,
             {
               blocks,
               viewportWidth: item.viewportWidth
@@ -42248,7 +42321,7 @@ If there's a particular need for this, please submit a feature request at https:
 
   // packages/edit-site/build-module/components/page-patterns/index.mjs
   var import_jsx_runtime273 = __toESM(require_jsx_runtime(), 1);
-  var { ExperimentalBlockEditorProvider } = unlock(import_block_editor24.privateApis);
+  var { ExperimentalBlockEditorProvider } = unlock(import_block_editor25.privateApis);
   var { usePostActions, patternTitleField } = unlock(import_editor31.privateApis);
   var { useLocation: useLocation27, useHistory: useHistory20 } = unlock(import_router31.privateApis);
   var EMPTY_ARRAY11 = [];
@@ -43950,7 +44023,7 @@ If there's a particular need for this, please submit a feature request at https:
   var import_element148 = __toESM(require_element(), 1);
   var import_html_entities13 = __toESM(require_html_entities(), 1);
   var import_blocks13 = __toESM(require_blocks(), 1);
-  var import_block_editor25 = __toESM(require_block_editor(), 1);
+  var import_block_editor26 = __toESM(require_block_editor(), 1);
   var import_editor34 = __toESM(require_editor(), 1);
   var import_core_data54 = __toESM(require_core_data(), 1);
   var import_data74 = __toESM(require_data(), 1);
@@ -43989,7 +44062,7 @@ If there's a particular need for this, please submit a feature request at https:
         style: { backgroundColor },
         children: [
           isEmpty3 && (0, import_i18n147.__)("Empty template"),
-          !isEmpty3 && /* @__PURE__ */ (0, import_jsx_runtime283.jsx)(import_block_editor25.BlockPreview.Async, { children: /* @__PURE__ */ (0, import_jsx_runtime283.jsx)(import_block_editor25.BlockPreview, { blocks }) })
+          !isEmpty3 && /* @__PURE__ */ (0, import_jsx_runtime283.jsx)(import_block_editor26.BlockPreview.Async, { children: /* @__PURE__ */ (0, import_jsx_runtime283.jsx)(import_block_editor26.BlockPreview, { blocks }) })
         ]
       }
     ) });
@@ -46016,7 +46089,15 @@ If there's a particular need for this, please submit a feature request at https:
   // packages/edit-site/build-module/components/post-list/view-utils.mjs
   var import_i18n154 = __toESM(require_i18n(), 1);
   var defaultLayouts3 = {
-    table: {},
+    table: {
+      layout: {
+        styles: {
+          author: {
+            align: "start"
+          }
+        }
+      }
+    },
     grid: {},
     list: {}
   };
@@ -46151,11 +46232,15 @@ If there's a particular need for this, please submit a feature request at https:
     trash: "trash"
   };
   function getActiveViewOverridesForTab2(activeView) {
+    const base = {
+      ...defaultLayouts3.table
+    };
     const status = SLUG_TO_STATUS[activeView];
     if (!status) {
-      return {};
+      return base;
     }
     return {
+      ...base,
       filters: [
         {
           field: "status",

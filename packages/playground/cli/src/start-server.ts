@@ -109,7 +109,20 @@ async function handleStreamedResponse(
 
 	// Cast needed: Web ReadableStream and Node.js ReadableStream types differ
 	const nodeStream = Readable.fromWeb(streamedResponse.stdout as any);
-	await pipeline(nodeStream, res);
+	try {
+		await pipeline(nodeStream, res);
+	} catch (error: unknown) {
+		// Ignore "ERR_STREAM_PREMATURE_CLOSE". It means the client disconnected
+		// before the response finished (e.g. a redirect or mid-load navigation).
+		if (
+			error instanceof Error &&
+			'code' in error &&
+			error.code === 'ERR_STREAM_PREMATURE_CLOSE'
+		) {
+			return;
+		}
+		throw error;
+	}
 }
 
 const bufferRequestBody = async (req: Request): Promise<Uint8Array> =>

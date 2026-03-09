@@ -398,6 +398,149 @@ test('HTTPS requests via curl_exec() should work', async ({
 	await expect(wordpress.locator('body')).toContainText('int(13061)');
 });
 
+test('CURLFile uploads via curl_exec() should work', async ({
+	website,
+	wordpress,
+	browserName,
+}) => {
+	test.skip(
+		browserName === 'firefox' || browserName === 'webkit',
+		`The curl_exec() tests often fail in CI on Firefox and WebKit. The root cause is unknown, ` +
+			'but the issue does not occur in local testing or on https://playground.wordpress.net/. ' +
+			'Perhaps it is something highly specific to the CI runtime.'
+	);
+	const blueprint: Blueprint = {
+		landingPage: '/curlfile-test.php',
+		features: { networking: true },
+		steps: [
+			{
+				step: 'writeFile',
+				path: '/wordpress/curlfile-test.php',
+				/**
+				 * Test CURLFile upload: creates a temp file > 1024 bytes
+				 * (triggering Expect: 100-continue), uploads it via curl
+				 * to a known endpoint, and verifies it succeeds.
+				 *
+				 * The URL:
+				 *
+				 * * Is served over HTTPS.
+				 * * Echoes back the uploaded file contents.
+				 * * The response is proxied through the CORS proxy.
+				 */
+				data: `<?php
+					$tmpFile = tempnam(sys_get_temp_dir(), 'curltest');
+					file_put_contents($tmpFile, str_repeat('PLAYGROUND_TEST_CONTENT ', 100));
+					$ch = curl_init();
+					curl_setopt($ch, CURLOPT_URL, "https://httpbin.org/post");
+					curl_setopt($ch, CURLOPT_POST, true);
+					curl_setopt($ch, CURLOPT_POSTFIELDS, [
+						'file' => new CURLFile($tmpFile, 'text/plain', 'test-upload.txt'),
+					]);
+					curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+					$result = curl_exec($ch);
+					$error = curl_error($ch);
+					$httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+					curl_close($ch);
+					unlink($tmpFile);
+					if ($error) {
+						echo "CURL_ERROR:" . $error;
+					} else {
+						echo "HTTP_CODE:" . $httpCode;
+						$decoded = json_decode($result, true);
+						if (isset($decoded['files']['file'])) {
+							echo " FILE_RECEIVED:YES";
+							echo " CONTENT_MATCH:" . (strpos($decoded['files']['file'], 'PLAYGROUND_TEST_CONTENT') !== false ? 'YES' : 'NO');
+						} else {
+							echo " FILE_RECEIVED:NO";
+							echo " BODY:" . substr($result, 0, 500);
+						}
+					}
+				`,
+			},
+		],
+	};
+	await website.goto(`/#${JSON.stringify(blueprint)}`);
+	await expect(wordpress.locator('body')).toContainText('HTTP_CODE:200');
+	await expect(wordpress.locator('body')).toContainText('FILE_RECEIVED:YES');
+	await expect(wordpress.locator('body')).toContainText('CONTENT_MATCH:YES');
+});
+
+/**
+ * Regression test: CURLFile uploads to non-CORS sites previously caused
+ * the entire page to hang indefinitely due to three bugs:
+ *
+ * 1. php://input is not available for multipart/form-data in the CORS
+ *    proxy PHP, so the forwarded request had an empty body (502 error).
+ * 2. PHP curl sends "Expect: 100-continue" for bodies > 1024 bytes,
+ *    then waits for a 100 Continue response before sending the body.
+ *    Our code waited for the body before fetching, causing a deadlock.
+ * 3. When the full body arrived with the headers (small POST bodies),
+ *    the body stream's pull() blocked forever waiting for more data.
+ *
+ * This test verifies both a CURLFile upload and a simple POST to a
+ * non-CORS site (which forces the CORS proxy path) complete without
+ * hanging.
+ */
+test('CURLFile uploads via CORS proxy should not hang', async ({
+	website,
+	wordpress,
+	browserName,
+}) => {
+	test.skip(
+		browserName === 'firefox' || browserName === 'webkit',
+		`The curl_exec() tests often fail in CI on Firefox and WebKit. The root cause is unknown, ` +
+			'but the issue does not occur in local testing or on https://playground.wordpress.net/. ' +
+			'Perhaps it is something highly specific to the CI runtime.'
+	);
+	const blueprint: Blueprint = {
+		landingPage: '/curlfile-cors-test.php',
+		features: { networking: true },
+		steps: [
+			{
+				step: 'writeFile',
+				path: '/wordpress/curlfile-cors-test.php',
+				data: `<?php
+					echo '<h1>CURLFile CORS Proxy Test</h1>';
+
+					// 1. CURLFile upload (body > 1024 bytes, triggers Expect: 100-continue)
+					$tmpFile = tempnam(sys_get_temp_dir(), 'curltest');
+					file_put_contents($tmpFile, str_repeat('Playground test data ', 100));
+					$ch = curl_init();
+					curl_setopt($ch, CURLOPT_URL, "https://w.org");
+					curl_setopt($ch, CURLOPT_POST, true);
+					curl_setopt($ch, CURLOPT_POSTFIELDS, [
+						'file' => new CURLFile($tmpFile, 'text/plain', 'test-upload.txt'),
+					]);
+					curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+					$result = curl_exec($ch);
+					$httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+					$error = curl_error($ch);
+					curl_close($ch);
+					unlink($tmpFile);
+					echo "UPLOAD_DONE:" . ($error ? "ERROR" : $httpCode);
+
+					// 2. Simple POST (small body, no Expect: 100-continue)
+					$ch2 = curl_init();
+					curl_setopt($ch2, CURLOPT_URL, "https://w.org");
+					curl_setopt($ch2, CURLOPT_POST, true);
+					curl_setopt($ch2, CURLOPT_POSTFIELDS, 'hello=world');
+					curl_setopt($ch2, CURLOPT_RETURNTRANSFER, true);
+					$result2 = curl_exec($ch2);
+					$httpCode2 = curl_getinfo($ch2, CURLINFO_HTTP_CODE);
+					$error2 = curl_error($ch2);
+					curl_close($ch2);
+					echo " POST_DONE:" . ($error2 ? "ERROR" : $httpCode2);
+				`,
+			},
+		],
+	};
+	await website.goto(`/#${JSON.stringify(blueprint)}`);
+	// Both requests must complete. The exact HTTP codes don't matter –
+	// the critical thing is that neither request hangs indefinitely.
+	await expect(wordpress.locator('body')).toContainText('UPLOAD_DONE:');
+	await expect(wordpress.locator('body')).toContainText('POST_DONE:');
+});
+
 test('HTTPS requests via curl_exec() should fail when networking is disabled', async ({
 	website,
 	wordpress,
