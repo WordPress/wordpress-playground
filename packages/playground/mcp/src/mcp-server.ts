@@ -11,7 +11,7 @@ try {
 	packageVersion = require('../package.json').version;
 }
 
-export function createServer(port?: number): McpServer {
+export function createServer(port: number): McpServer {
 	const url = playgroundUrl(port);
 	return new McpServer({
 		name: 'wordpress-playground',

@@ -4,6 +4,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { dirname } from 'path';
 import { fileURLToPath } from 'url';
+import WebSocket from 'ws';
 
 // Use a random port so tests are isolated from real browser tabs
 // that might also connect to the default MCP WebSocket port.
@@ -598,9 +599,13 @@ test('playground_list_sites reports connected but no sites when browser has no p
 	// Navigate to an allowed origin so the WebSocket connection
 	// passes the origin check in the bridge server.
 	await fakePage.goto(`http://127.0.0.1:5400`);
-	await fakePage.evaluate((port) => {
+	await fakePage.evaluate(async (port) => {
+		// Fetch the session token before connecting
+		const res = await fetch(`http://127.0.0.1:${port}/bridge-token`);
+		const { token } = await res.json();
+
 		return new Promise<void>((resolve, reject) => {
-			const ws = new WebSocket(`ws://127.0.0.1:${port}`);
+			const ws = new WebSocket(`ws://127.0.0.1:${port}?token=${token}`);
 			ws.addEventListener('open', () => {
 				ws.send(
 					JSON.stringify({
@@ -633,4 +638,26 @@ test('playground_list_sites reports connected but no sites when browser has no p
 			{ timeout: 15_000, intervals: [1_000] }
 		)
 		.toEqual({ connectedTabs: 1, siteCount: 0 });
+});
+
+test('rejects WebSocket connections without a valid token', async ({
+	mcpClient,
+}) => {
+	// Verify the bridge is running
+	const tools = await mcpClient.listTools();
+	expect(tools.tools.length).toBeGreaterThan(0);
+
+	// Try connecting without a token — should be rejected.
+	// The server rejects during the HTTP upgrade with 401,
+	// which the ws library surfaces as an 'unexpected-response'
+	// event (or an error + close).
+	const ws = new WebSocket(`ws://127.0.0.1:${MCP_WS_PORT}`);
+	const rejected = new Promise<void>((resolve) => {
+		ws.on('unexpected-response', (_req, res) => {
+			expect(res.statusCode).toBe(401);
+			resolve();
+		});
+	});
+
+	await rejected;
 });

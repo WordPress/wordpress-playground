@@ -1,6 +1,9 @@
 import { WebSocketServer } from 'ws';
 import type { WebSocket } from 'ws';
-import type { IncomingMessage } from 'http';
+import { createServer as createHttpServer } from 'node:http';
+import type { IncomingMessage, ServerResponse } from 'node:http';
+import type { AddressInfo } from 'node:net';
+import { randomUUID } from 'node:crypto';
 import { presentStorage } from './tools/tool-definitions';
 
 export interface SiteRegistration {
@@ -38,8 +41,6 @@ export interface SiteEntry {
 	activeInTabs: string[];
 }
 
-export const DEFAULT_WS_PORT = 7999;
-
 /**
  * Origins allowed to connect to the WebSocket bridge.
  * Browser-based WebSocket connections include an Origin header
@@ -76,13 +77,27 @@ export class PlaygroundBridge {
 	>();
 	private requestId = 0;
 	private wss: WebSocketServer | undefined;
+	private httpServer: ReturnType<typeof createHttpServer> | undefined;
+	private sessionToken = randomUUID();
 	private siteActivatedListeners: SiteActivatedListener[] = [];
 
-	startWebSocketServer(port = DEFAULT_WS_PORT): Promise<WebSocketServer> {
+	getPort(): number {
+		const addr = this.httpServer?.address() as AddressInfo | null;
+		if (!addr) {
+			throw new Error('WebSocket server is not running');
+		}
+		return addr.port;
+	}
+
+	startWebSocketServer(port = 0): Promise<WebSocketServer> {
 		return new Promise((resolve, reject) => {
+			const httpServer = createHttpServer((req, res) => {
+				this.handleHttpRequest(req, res);
+			});
+			this.httpServer = httpServer;
+
 			const wss = new WebSocketServer({
-				port,
-				host: '127.0.0.1',
+				server: httpServer,
 				verifyClient: (
 					info: { origin: string; req: IncomingMessage },
 					callback: (
@@ -91,33 +106,50 @@ export class PlaygroundBridge {
 						message?: string
 					) => void
 				) => {
-					if (isAllowedOrigin(info.origin)) {
-						callback(true);
-					} else {
+					if (!isAllowedOrigin(info.origin)) {
 						console.error(
 							`[MCP] Rejected WebSocket connection ` +
 								`from origin: ${info.origin}`
 						);
 						callback(false, 403, 'Forbidden');
+						return;
 					}
+
+					const url = new URL(
+						info.req.url ?? '/',
+						`http://${info.req.headers.host}`
+					);
+					const token = url.searchParams.get('token');
+					if (token !== this.sessionToken) {
+						console.error(
+							'[MCP] Rejected WebSocket connection: ' +
+								'invalid token'
+						);
+						callback(false, 401, 'Invalid token');
+						return;
+					}
+
+					callback(true);
 				},
 			});
 			this.wss = wss;
 
-			wss.on('error', (error: NodeJS.ErrnoException) => {
+			httpServer.on('error', (error: NodeJS.ErrnoException) => {
 				if (error.code === 'EADDRINUSE') {
 					console.error(
 						`[MCP] Port ${port} is already in use. ` +
-							`Kill the other process (lsof -i :${port}) or ` +
-							`use --port=<number> or set MCP_WS_PORT.`
+							`Kill the other process ` +
+							`(lsof -i :${port}).`
 					);
 				}
 				reject(error);
 			});
 
-			wss.on('listening', () => {
+			httpServer.listen(port, '127.0.0.1', () => {
+				const actualPort = this.getPort();
 				console.error(
-					`[MCP] WebSocket server listening on ws://127.0.0.1:${port}`
+					`[MCP] WebSocket server listening on ` +
+						`ws://127.0.0.1:${actualPort}`
 				);
 				resolve(wss);
 			});
@@ -126,6 +158,31 @@ export class PlaygroundBridge {
 				this.handleConnection(ws);
 			});
 		});
+	}
+
+	private handleHttpRequest(req: IncomingMessage, res: ServerResponse) {
+		if (req.url === '/bridge-token') {
+			const origin = req.headers.origin;
+			if (!origin || !isAllowedOrigin(origin)) {
+				res.writeHead(403);
+				res.end('Forbidden');
+				return;
+			}
+			res.setHeader('Access-Control-Allow-Origin', origin);
+			res.setHeader('Access-Control-Allow-Methods', 'GET');
+
+			if (req.method === 'OPTIONS') {
+				res.writeHead(204);
+				res.end();
+				return;
+			}
+
+			res.writeHead(200, { 'Content-Type': 'application/json' });
+			res.end(JSON.stringify({ token: this.sessionToken }));
+			return;
+		}
+		res.writeHead(404);
+		res.end();
 	}
 
 	private handleConnection(ws: WebSocket) {
@@ -411,10 +468,17 @@ export class PlaygroundBridge {
 			}
 		}
 		return new Promise<void>((resolve) => {
+			const closeHttp = () => {
+				if (this.httpServer) {
+					this.httpServer.close(() => resolve());
+				} else {
+					resolve();
+				}
+			};
 			if (this.wss) {
-				this.wss.close(() => resolve());
+				this.wss.close(() => closeHttp());
 			} else {
-				resolve();
+				closeHttp();
 			}
 		});
 	}

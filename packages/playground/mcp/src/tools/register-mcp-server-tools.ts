@@ -80,7 +80,7 @@ function paramsToZodSchema(params: ToolParam[]): Record<string, z.ZodType> {
 export function registerMcpServerTools(
 	server: McpServer,
 	bridge: PlaygroundBridge,
-	port?: number
+	port: number
 ) {
 	const sendCommand = bridge.sendCommand.bind(bridge);
 	const siteToolDefinitions = getSiteToolDefinitions(port);

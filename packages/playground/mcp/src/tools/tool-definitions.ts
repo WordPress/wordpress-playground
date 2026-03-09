@@ -34,11 +34,8 @@ export interface ToolDefinition {
 
 const PLAYGROUND_BASE_URL = 'https://playground.wordpress.net/';
 
-export function playgroundUrl(port?: number): string {
-	if (port) {
-		return `${PLAYGROUND_BASE_URL}?mcp=yes&mcp-port=${port}`;
-	}
-	return `${PLAYGROUND_BASE_URL}?mcp=yes`;
+export function playgroundUrl(port: number): string {
+	return `${PLAYGROUND_BASE_URL}?mcp=yes&mcp-port=${port}`;
 }
 
 // -- Per-site tool definitions --
@@ -390,7 +387,7 @@ export const toolDefinitions: Record<string, ToolDefinition> = {
 // -- Site management tool definitions --
 
 export function getSiteToolDefinitions(
-	port?: number
+	port: number
 ): Record<string, ToolDefinition> {
 	const url = playgroundUrl(port);
 	return {
