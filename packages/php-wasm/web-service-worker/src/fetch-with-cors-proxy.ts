@@ -56,15 +56,15 @@ export async function fetchWithCorsProxy(
 
 	// Tee the request to avoid consuming the request body stream on the initial
 	// fetch() so that we can retry through the cors proxy.
-	const [request1, request2] = await teeRequest(requestObject);
+	const [directRequest, corsProxyRequest] = await teeRequest(requestObject);
 
 	try {
-		return await duplexSafeFetch(request1);
+		return await duplexSafeFetch(directRequest);
 	} catch {
 		// If the developer has explicitly allowed the request to pass the
 		// credentials headers with the X-Cors-Proxy-Allowed-Request-Headers header,
 		// then let's include those credentials in the fetch() request.
-		const headers = new Headers(request2.headers);
+		const headers = new Headers(corsProxyRequest.headers);
 		const corsProxyAllowedHeaders =
 			headers.get('x-cors-proxy-allowed-request-headers')?.split(',') ||
 			[];
@@ -86,16 +86,13 @@ export async function fetchWithCorsProxy(
 			headers.set('content-type', 'application/octet-stream');
 		}
 
-		const newRequest = await cloneRequest(request2, {
+		const newRequest = await cloneRequest(corsProxyRequest, {
 			url: `${corsProxyUrl}${requestObject.url}`,
 			headers,
 			...(requestIntendsToPassCredentials && { credentials: 'include' }),
 		});
 
-		// Don't pass `init` here – it was already folded into
-		// `requestObject` at the top of this function. Passing it again
-		// would let it override the proxy URL, wrapped headers, and
-		// buffered body we just prepared.
+		// Skip the `init`, it's already folded into `requestObject`.
 		const response = await duplexSafeFetch(newRequest);
 
 		// Check for firewall interference: if we got a response but it's
