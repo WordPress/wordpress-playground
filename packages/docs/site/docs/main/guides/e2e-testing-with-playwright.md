@@ -13,7 +13,7 @@ This guide assumes familiarity with WordPress plugin or theme development. For a
 
 ## Prerequisites
 
-- **Node.js 20+** and np
+- **Node.js 20+** and up
 - A WordPress plugin or theme to test
 - **Recommended:** enable the `@typescript-eslint/no-floating-promises` ESLint rule to catch missing `await` on async Playwright calls
 
