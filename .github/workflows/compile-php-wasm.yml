@@ -181,30 +181,30 @@ jobs:
               with:
                   node-version: '20'
 
-            - name: Update wasm-versions.json
+            - name: Bump package.json versions to PR/SHA pre-release
               run: |
                   node -e "
                     const fs = require('fs');
-                    const versionsPath = 'packages/php-wasm/wasm-versions.json';
-                    const versions = JSON.parse(fs.readFileSync(versionsPath, 'utf8'));
                     const matrix = ${{ needs.read-matrix.outputs.matrix }};
                     const currentVersion = require('./lerna.json').version;
                     const pr = '${{ github.event.pull_request.number || '' }}';
                     const run = '${{ github.run_number }}';
+                    const sha = require('child_process').execSync('git rev-parse --short HEAD').toString().trim();
+                    const version = pr
+                      ? \`\${currentVersion}-pr.\${pr}.\${run}\`
+                      : \`\${currentVersion}-sha.\${sha}.\${run}\`;
                     for (const item of matrix.include) {
-                      const key = item.packageSuffix;
-                      const version = pr
-                        ? \`\${currentVersion}-pr.\${pr}.\${run}\`
-                        : \`\${currentVersion}-sha.\${require('child_process').execSync('git rev-parse --short HEAD').toString().trim()}.\${run}\`;
-                      versions[key] = version;
+                      const pkgPath = \`packages/php-wasm/\${item.platform}-builds/\${item.phpVersionSlug}/package.json\`;
+                      const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+                      pkg.version = version;
+                      fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, '\t') + '\n');
                     }
-                    fs.writeFileSync(versionsPath, JSON.stringify(versions, null, '\t') + '\n');
                   "
 
-            - name: Commit updated wasm-versions.json
+            - name: Commit updated package.json files
               run: |
-                  git add packages/php-wasm/wasm-versions.json
-                  git diff --staged --quiet || git commit -m "chore: update wasm-versions.json for PHP WASM recompile [skip ci]"
+                  git add packages/php-wasm/web-builds packages/php-wasm/node-builds
+                  git diff --staged --quiet || git commit -m "chore: bump WASM package versions for PHP WASM recompile [skip ci]"
                   git push
 
             - name: Post PR comment
@@ -228,7 +228,7 @@ jobs:
                         ...lines,
                         '',
                         'These packages will be available until the PR is merged.',
-                        'The `wasm-versions.json` has been updated on this branch.',
+                        'The `package.json` files have been updated on this branch.',
                       ].join('\n');
                       await github.rest.issues.createComment({
                         owner: context.repo.owner,

@@ -5,10 +5,9 @@
  * Used by local developers (after git bisect, fresh clone) and by CI jobs
  * before building wasm-dependent packages.
  *
- * Package versions default to the current lerna.json version. The file
- * packages/php-wasm/wasm-versions.json is an optional sparse overrides map
- * used during active WASM recompiles to point specific packages at PR/SHA
- * pre-release builds. It is reset to {} on every stable release.
+ * The version to download for each package is read directly from its
+ * package.json. Stable releases use the lerna version; PR/SHA recompiles
+ * temporarily bump the package.json to a pre-release version.
  */
 
 import { execSync } from 'child_process';
@@ -21,20 +20,8 @@ import { createGunzip } from 'zlib';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, '../../');
-const versionsFile = path.join(
-	repoRoot,
-	'packages/php-wasm/wasm-versions.json'
-);
 
-// Default version comes from lerna.json (the current stable release).
-// wasm-versions.json only stores overrides for PR/SHA pre-release builds.
-const defaultVersion = JSON.parse(
-	fs.readFileSync(path.join(repoRoot, 'lerna.json'), 'utf8')
-).version;
-const versions = JSON.parse(fs.readFileSync(versionsFile, 'utf8'));
-
-// Build the full list of packages from the filesystem so wasm-versions.json
-// only needs to contain overrides, not every entry.
+// Discover all WASM packages from the filesystem.
 const allKeys = [];
 for (const platform of ['web', 'node']) {
 	const buildsDir = path.join(
@@ -64,8 +51,14 @@ if (fs.existsSync(triggerFile)) {
 	const stale = (trigger.compilations ?? []).filter(
 		({ platform, phpVersion }) => {
 			const [major, minor] = phpVersion.split('.');
-			const key = `${platform}-${major}-${minor}`;
-			const version = versions[key] ?? defaultVersion;
+			const pkgPath = path.join(
+				repoRoot,
+				`packages/php-wasm/${platform}-builds/${major}-${minor}/package.json`
+			);
+			if (!fs.existsSync(pkgPath)) return false;
+			const version = JSON.parse(
+				fs.readFileSync(pkgPath, 'utf8')
+			).version;
 			return !version.includes('-pr.');
 		}
 	);
@@ -75,8 +68,8 @@ if (fs.existsSync(triggerFile)) {
 			.map((c) => `  - ${c.platform} PHP ${c.phpVersion}`)
 			.join('\n');
 		console.warn(
-			`\nWARNING: .recompile-request.json exists but wasm-versions.json still points\n` +
-				`to stable versions for the following entries (CI may not have finished yet):\n` +
+			`\nWARNING: .recompile-request.json exists but the following packages\n` +
+				`still have a stable version (CI may not have finished yet):\n` +
 				`${list}\n` +
 				`You are downloading the previous stable binaries — not the recompiled ones.\n` +
 				`Wait for the "Compile PHP WASM" CI job to complete and re-run prepare-wasm.\n`
@@ -88,7 +81,6 @@ let downloaded = 0;
 let skipped = 0;
 
 for (const key of allKeys) {
-	const version = versions[key] ?? defaultVersion;
 	// key format: "{platform}-{major}-{minor}" e.g. "web-8-5"
 	const parts = key.split('-');
 	const platform = parts[0]; // "web" or "node"
@@ -99,6 +91,11 @@ for (const key of allKeys) {
 		repoRoot,
 		`packages/php-wasm/${platform}-builds/${versionDir}`
 	);
+
+	const version = JSON.parse(
+		fs.readFileSync(path.join(buildsDir, 'package.json'), 'utf8')
+	).version;
+
 	const jspiDir = path.join(buildsDir, 'jspi');
 	const asyncifyDir = path.join(buildsDir, 'asyncify');
 
