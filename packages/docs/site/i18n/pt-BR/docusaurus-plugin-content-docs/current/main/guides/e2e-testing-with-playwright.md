@@ -247,9 +247,11 @@ await page.locator("#submit").click();
 
 ### Mesmo elemento, três abordagens
 
+> Observação: o WordPress Playground usa a interface de administração em inglês por padrão, então os textos dos botões (como "Save Changes") aparecem em inglês.
+
 ```typescript
 // ✅ Preferido: localizador semântico (funciona porque o WP renderiza um <button> real)
-await page.getByRole("button", { name: "Salvar alterações" }).click();
+await page.getByRole("button", { name: "Save Changes" }).click();
 
 // ⚠️ Aceitável: ID de teste que você adicionou à marcação do seu plugin
 await page.getByTestId("save-settings").click();
