@@ -281,6 +281,27 @@ jobs:
                   path: packages/playground/components/playwright-report/
                   if-no-files-found: ignore
 
+    # Run MCP e2e tests independently from other tests because running a local version of the MCP server from TypeScript files requires Node 22+
+    test-e2e-mcp:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  submodules: true
+            - uses: ./.github/actions/prepare-playground
+              with:
+                  node-version: '22'
+            - name: Install Playwright Browsers
+              run: npx playwright install --with-deps chromium
+            - name: Run MCP e2e tests
+              run: npx nx test:mcp playground-mcp
+            - uses: actions/upload-artifact@v4
+              if: ${{ !cancelled() }}
+              with:
+                  name: playwright-mcp-report
+                  path: packages/playground/mcp/playwright-report/
+                  if-no-files-found: ignore
+
     test-docs-api-reference:
         runs-on: ubuntu-latest
         steps:

@@ -40,3 +40,7 @@ Automate WordPress Playground workflows with Claude Code. Learn how to install t
 ## [Programmatic Usage of Playground CLI](/guides/programmatic-playground-cli)
 
 Learn how to use the `runCLI` function to control WordPress Playground programmatically from JavaScript/TypeScript for automation, end-to-end testing, and CI/CD pipelines.
+
+## [E2E Testing with Playwright and WordPress Playground](/guides/e2e-testing-with-playwright)
+
+Set up automated end-to-end tests for your WordPress plugins and themes using Playwright and the WordPress Playground CLI.
