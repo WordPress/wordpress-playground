@@ -39,7 +39,7 @@ On pourrait penser que rien ne se passe, mais ce blueprint lance déjà un site 
 
 :::tip **Auto-complétion**
 
-Si vous utiliez un IDE tel que VS Code ou PHPStorm, vous pouvez utilisez le [Schéma JSON Blueprint] (https://playground.wordpress.net/blueprint-schema.json)  pour activer l'auto-complétion pendant votre développement. Ajoutez la ligne qui suit au début de votre fichier `blueprint.json` :
+Si vous utilisez un IDE tel que VS Code ou PHPStorm, vous pouvez utiliser le [Schéma JSON Blueprint](https://playground.wordpress.net/blueprint-schema.json) pour activer l'auto-complétion pendant votre développement. Ajoutez la ligne qui suit au début de votre fichier `blueprint.json` :
 
 ```json
 {
