@@ -94,7 +94,7 @@ export default defineConfig({
 WordPress Playground needs more time to start than a typical web app. The 120-second test timeout and 30-second assertion timeout account for WordPress boot time and page loads. Setting `workers: 1` prevents port conflicts when multiple tests share a Playground server.
 -->
 
-WordPress Playground necesita más tiempo para iniciarse que una aplicación web típica. El timeout de prueba de 120 segundos y el timeout de aserción de 30 segundos tienen en cuenta el tiempo de arranque de WordPress y la carga de páginas. Configurar `workers: 1` evita conflictos de puertos cuando varios pruebas comparten un servidor Playground.
+WordPress Playground necesita más tiempo para iniciarse que una aplicación web típica. El timeout de prueba de 120 segundos y el timeout de aserción de 30 segundos tienen en cuenta el tiempo de arranque de WordPress y la carga de páginas. Configurar `workers: 1` evita conflictos de puertos cuando varias pruebas comparten un servidor Playground.
 
 <!--
 :::tip[Using baseURL with dynamic ports]
