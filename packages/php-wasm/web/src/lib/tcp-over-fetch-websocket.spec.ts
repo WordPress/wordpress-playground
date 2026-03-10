@@ -606,14 +606,19 @@ describe('TCPOverFetchWebsocket with CORS proxy', () => {
 				targetPath = '/';
 			}
 
-			// Forward to the local target server
+			// Forward to the local target server.
+			// Restore the original Content-Type if it was wrapped by
+			// fetchWithCorsProxy to prevent PHP from auto-parsing
+			// multipart/form-data bodies.
 			const targetReq = http.request(
 				`http://127.0.0.1:${targetPort}${targetPath}`,
 				{
 					method: 'POST',
 					headers: {
 						'content-type':
-							req.headers['content-type'] || 'text/plain',
+							req.headers['x-cors-proxy-content-type'] ||
+							req.headers['content-type'] ||
+							'text/plain',
 					},
 				},
 				(targetRes) => {
