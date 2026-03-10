@@ -87,36 +87,35 @@ export async function fetchWithCorsProxy(
 		}
 
 		/**
-		 * Buffer the cors proxy request body into an ArrayBuffer before calling fetch().
+		 * Buffer the cors proxy request body into an ArrayBuffer if talking to a `http://` URL.
 		 *
-		 * This is necessary, because Chrome only supports using a ReadableStream request body
-		 * when fetch() is called with the `duplex: 'half'` option. However, duplex connections
-		 * are problematic:
+		 * Streaming request bodies don't work with the local dev server, which uses http://
+		 * as a protocol. However, with a streamed request body, Chrome silently upgrades a
+		 * HTTP/1.1 request to HTTP/2. However, our HTTP/1.1-only local dev server still replies
+		 * with a HTTP/1.1 response. Chrome then treats the request as failed with an
+		 * ERR_ALPN_NEGOTIATION_FAILED error.
 		 *
-		 * 1. They don't work with the local dev server, which runs at a http:// URL.
-		 *    When the duplex option is set, Chrome silently upgrades a HTTP/1.1 request
-		 *    to HTTP/2. However, our HTTP/1.1-only local dev server still replies
-		 *    with a HTTP/1.1 response. Chrome then treats the request as failed with an
-		 *    ERR_ALPN_NEGOTIATION_FAILED error.
+		 * Inferring the HTTP version from the URL protocol is unreliable and will fail
+		 * if the CORS proxy is hosted on a `https://` URL that speaks HTTP < 2. This is
+		 * a recognized limitation of the CORS proxy feature. If you host it on an `https://` URL,
+		 * make sure to use HTTP/2.
 		 *
-		 * 2. They don't work with the official Playground CORS proxy at https://wordpress-playground-cors-proxy.net/.
-		 *    The server infrastructure just can't handle duplex POST requests. Something between
-		 *    the browser and the cors-proxy.php runtime buffers the entire body anyway. When
-		 *    it can't, it treats the request body as empty and fails with a 400 Bad Request error
-		 *    as 0 bytes were sent instead of the expected Content-Length. This can be true
-		 *    for any PHP-hosted script out there. An edge proxy, a load balancer, a reverse proxy
-		 *    may not support duplex POST requests either.
-		 *
-		 * We're already in the final `} catch {` block. We've already failed to send a direct
-		 * fetch with a streamed body. Maybe it was due to the duplex problem, maybe not, but
-		 * this is our last chance so let's maximize the probability of success. The entire request
-		 * body must have been produced by now anyway, since the prior fetch() had to send it,
-		 * so it's likely buffered somewhere in the browser's memory. We're just changing the
-		 * data type from ReadableStream to ArrayBuffer to make that explicit.
+		 * See: https://developer.chrome.com/docs/capabilities/web-apis/fetch-streaming-requests
 		 */
-		const body = corsProxyRequest.body
-			? await new Response(corsProxyRequest.body).arrayBuffer()
-			: undefined;
+
+		// In development, corsProxyUrl may be /cors-proxy/. We need to resolve the absolute URL
+		// to access the protocol.
+		const rootUrl = new URL(import.meta.url);
+		rootUrl.pathname = '';
+		rootUrl.search = '';
+		rootUrl.hash = '';
+		const corsProxyUrlObj = new URL(corsProxyUrl, rootUrl.toString());
+
+		let body: ArrayBuffer | ReadableStream<Uint8Array> | null =
+			corsProxyRequest.body;
+		if (body && new URL(corsProxyUrlObj).protocol === 'http:') {
+			body = await new Response(body).arrayBuffer();
+		}
 
 		const newRequest = await cloneRequest(corsProxyRequest, {
 			url: `${corsProxyUrl}${requestObject.url}`,

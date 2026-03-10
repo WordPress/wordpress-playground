@@ -216,8 +216,10 @@ export async function cloneRequest(
 ): Promise<Request> {
 	let body: ArrayBuffer | ReadableStream | undefined;
 
-	if (['GET', 'HEAD'].includes(request.method) || 'body' in overrides) {
+	if (['GET', 'HEAD'].includes(request.method)) {
 		body = undefined;
+	} else if ('body' in overrides) {
+		body = overrides['body'];
 	} else if (!request.bodyUsed && request.body) {
 		// If the body hasn't been consumed yet, we can reuse the stream directly
 		// This avoids the hang that occurs when trying to read from a stream
@@ -244,16 +246,14 @@ export async function cloneRequest(
 		redirect: request.redirect,
 		integrity: request.integrity,
 		/**
-		 * We're forced to infer the duplex value. We cannot read it directly in a
-		 * reliable way from the body type because of this issue:
+		 * Infer the duplex value in a way that's consistent across browsers. Web browsers
+		 * only support 'half' as of January 2026, but other values may be supported in the future.
+		 * Unfortunately, also as of January 2026, we cannot read the duplex value directly from the
+		 * request object:
 		 *
 		 * > Although duplex can be passed as an option when constructing a Request,
 		 * > it is not currently exposed as a readable property on the resulting Request
 		 * > object in all browsers.
-		 *
-		 * We could read it when it's available and infer it otherwise, but that would
-		 * just create more ways in which the code can execute. Let's just use the same
-		 * lowest common denominator in all browsers.
 		 *
 		 * See MDN: https://developer.mozilla.org/en-US/docs/Web/API/Request/duplex
 		 */
