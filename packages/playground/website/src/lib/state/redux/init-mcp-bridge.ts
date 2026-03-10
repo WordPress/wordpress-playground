@@ -35,6 +35,9 @@ startListening({
 		const mcpPort = new URLSearchParams(window.location.search).get(
 			'mcp-port'
 		);
+		if (!mcpPort) {
+			return;
+		}
 		const { getState, dispatch } = listenerApi;
 		const handle: McpBridgeHandle = startMcpBridge(
 			{
@@ -86,7 +89,7 @@ startListening({
 					};
 				},
 			},
-			mcpPort ? Number(mcpPort) : undefined
+			Number(mcpPort)
 		);
 
 		// Notify the bridge when site-related state changes so it
