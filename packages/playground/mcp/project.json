@@ -23,6 +23,15 @@
 			"options": {
 				"emptyOutDir": false,
 				"outputPath": "dist/packages/playground/mcp"
+			},
+			"defaultConfiguration": "production",
+			"configurations": {
+				"development": {
+					"minify": false
+				},
+				"production": {
+					"minify": true
+				}
 			}
 		},
 		"test:mcp": {
