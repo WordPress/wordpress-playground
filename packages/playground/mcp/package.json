@@ -15,11 +15,11 @@
 	},
 	"exports": {
 		".": {
-			"import": "./src/index.ts",
+			"import": "./index.js",
 			"require": "./index.cjs"
 		},
 		"./client": {
-			"import": "./src/client.ts",
+			"import": "./client.js",
 			"require": "./client.cjs"
 		},
 		"./package.json": "./package.json"
