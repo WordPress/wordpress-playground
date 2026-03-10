@@ -5,8 +5,10 @@
  * Used by local developers (after git bisect, fresh clone) and by CI jobs
  * before building wasm-dependent packages.
  *
- * Reads packages/php-wasm/wasm-versions.json and fetches each package if the
- * local jspi/ or asyncify/ directories are missing or empty.
+ * Package versions default to the current lerna.json version. The file
+ * packages/php-wasm/wasm-versions.json is an optional sparse overrides map
+ * used during active WASM recompiles to point specific packages at PR/SHA
+ * pre-release builds. It is reset to {} on every stable release.
  */
 
 import { execSync } from 'child_process';
@@ -24,7 +26,32 @@ const versionsFile = path.join(
 	'packages/php-wasm/wasm-versions.json'
 );
 
+// Default version comes from lerna.json (the current stable release).
+// wasm-versions.json only stores overrides for PR/SHA pre-release builds.
+const defaultVersion = JSON.parse(
+	fs.readFileSync(path.join(repoRoot, 'lerna.json'), 'utf8')
+).version;
 const versions = JSON.parse(fs.readFileSync(versionsFile, 'utf8'));
+
+// Build the full list of packages from the filesystem so wasm-versions.json
+// only needs to contain overrides, not every entry.
+const allKeys = [];
+for (const platform of ['web', 'node']) {
+	const buildsDir = path.join(
+		repoRoot,
+		`packages/php-wasm/${platform}-builds`
+	);
+
+	if (fs.existsSync(buildsDir)) {
+		for (const entry of fs.readdirSync(buildsDir, {
+			withFileTypes: true,
+		})) {
+			if (entry.isDirectory() && /^\d+-\d+$/.test(entry.name)) {
+				allKeys.push(`${platform}-${entry.name}`);
+			}
+		}
+	}
+}
 
 // Warn if a recompile was requested but CI hasn't published PR builds yet.
 const triggerFile = path.join(
@@ -38,7 +65,8 @@ if (fs.existsSync(triggerFile)) {
 		({ platform, phpVersion }) => {
 			const [major, minor] = phpVersion.split('.');
 			const key = `${platform}-${major}-${minor}`;
-			return key in versions && !versions[key].includes('-pr.');
+			const version = versions[key] ?? defaultVersion;
+			return !version.includes('-pr.');
 		}
 	);
 
@@ -59,7 +87,8 @@ if (fs.existsSync(triggerFile)) {
 let downloaded = 0;
 let skipped = 0;
 
-for (const [key, version] of Object.entries(versions)) {
+for (const key of allKeys) {
+	const version = versions[key] ?? defaultVersion;
 	// key format: "{platform}-{major}-{minor}" e.g. "web-8-5"
 	const parts = key.split('-');
 	const platform = parts[0]; // "web" or "node"

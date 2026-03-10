@@ -88,30 +88,39 @@ jobs:
 
             - uses: ./.github/actions/prepare-playground
 
-            - name: Publish NPM packages
-              # Version bump, release, tag a new version on GitHub.
-              # On non-trunk branches, --no-push avoids pushing the version
-              # bump commit back to the branch. The published packages still
-              # get the version bump in their package.json on npm.
+            - name: Bump version (trunk)
+              # Bump all package versions and create a local git commit + tag,
+              # but do not push yet — we amend the commit in the next step to
+              # include the wasm-versions.json reset so both land as one commit.
+              if: github.ref == 'refs/heads/trunk'
+              run: lerna version ${{ inputs.version_bump || 'patch' }} --yes --no-push
+
+            - name: Clear wasm-versions.json overrides and push (trunk)
+              # wasm-versions.json may contain PR/SHA pre-release overrides from
+              # the last WASM recompile. Reset it to {} so download-wasm.mjs
+              # falls back to the lerna version for all packages.
+              if: github.ref == 'refs/heads/trunk'
+              run: |
+                  echo '{}' > packages/php-wasm/wasm-versions.json
+                  git add packages/php-wasm/wasm-versions.json
+                  git commit --amend --no-edit
+                  NEW_VERSION=$(node -e "console.log(require('./lerna.json').version)")
+                  git tag -f "v${NEW_VERSION}"
+                  git push origin trunk --follow-tags
+
+            - name: Publish NPM packages (trunk)
+              if: github.ref == 'refs/heads/trunk'
+              run: >
+                  lerna publish from-git
+                  --yes --no-private --loglevel=verbose
+                  --dist-tag=${{ inputs.dist_tag || 'latest' }}
+
+            - name: Publish NPM packages (non-trunk)
+              # On non-trunk branches no commit or tag is created — the version
+              # bump only affects the published package.json on npm.
+              if: github.ref != 'refs/heads/trunk'
               run: >
                   lerna publish ${{ inputs.version_bump || 'patch' }}
                   --yes --no-private --loglevel=verbose
                   --dist-tag=${{ inputs.dist_tag || 'latest' }}
-                  ${{ github.ref != 'refs/heads/trunk' && '--no-push --no-git-tag-version' || '' }}
-
-            - name: Update wasm-versions.json to new stable version
-              if: github.ref == 'refs/heads/trunk'
-              run: |
-                  node -e "
-                    const fs = require('fs');
-                    const versionsPath = 'packages/php-wasm/wasm-versions.json';
-                    const newVersion = require('./lerna.json').version;
-                    const versions = JSON.parse(fs.readFileSync(versionsPath, 'utf8'));
-                    for (const key of Object.keys(versions)) {
-                      versions[key] = newVersion;
-                    }
-                    fs.writeFileSync(versionsPath, JSON.stringify(versions, null, '\t') + '\n');
-                  "
-                  git add packages/php-wasm/wasm-versions.json
-                  git diff --staged --quiet || git commit -m "chore: update wasm-versions.json to $(node -e \"console.log(require('./lerna.json').version)\")"
-                  git push origin trunk
+                  --no-push --no-git-tag-version
