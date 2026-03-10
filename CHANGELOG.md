@@ -4,6 +4,34 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
+## [v3.1.7] (2026-03-10) 
+
+
+
+
+## [v3.1.6] (2026-03-10) 
+
+### PHP WebAssembly
+
+- [PHP] Call php.mount instead of php.FS.mount in proxyFileSystem. ([#3346](https://github.com/WordPress/wordpress-playground/pull/3346))
+
+### Website
+
+- Support streamed PHP responses in the service worker. ([#3361](https://github.com/WordPress/wordpress-playground/pull/3361))
+- [Playground Website] Playground MCP server. ([#3290](https://github.com/WordPress/wordpress-playground/pull/3290))
+
+### Various
+
+- Correct error message formatting in resources.ts. ([#3363](https://github.com/WordPress/wordpress-playground/pull/3363))
+- [docs] Adding playwright guide. ([#3360](https://github.com/WordPress/wordpress-playground/pull/3360))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @bgrgicak @fellyph @pkevan
+
+
 ## [v3.1.5] (2026-03-09) 
 
 ### Documentation
