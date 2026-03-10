@@ -12,3 +12,7 @@ packages/php-wasm/node/src/test/__test*
 *.timestamp-1678999213403.mjs
 .local
 .vscode
+# Worktree directories – without these, Nx treats nested worktrees as
+# projects and breaks when running from the repo root or inside a worktree.
+.worktrees
+.claude
