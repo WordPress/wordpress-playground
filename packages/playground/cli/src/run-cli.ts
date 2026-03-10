@@ -1109,6 +1109,13 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 									...(args['mount-before-install'] || []),
 									...(args.mount || []),
 								],
+								pathSkippings: [
+									'/dev/',
+									'/home/',
+									'/internal/',
+									'/request/',
+									'/proc/',
+								],
 								ideKey:
 									xdebugOptions.ideKey || 'WPPLAYGROUNDCLI',
 							});

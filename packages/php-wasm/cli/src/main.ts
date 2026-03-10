@@ -170,6 +170,13 @@ ${process.argv[0]} ${process.execArgv.join(' ')} ${process.argv[1]}
 				port: 443,
 				ides: ides,
 				cwd: process.cwd(),
+				pathSkippings: [
+					'/dev/',
+					'/home/',
+					'/internal/',
+					'/request/',
+					'/proc/',
+				],
 			});
 
 			// Display IDE-specific instructions
