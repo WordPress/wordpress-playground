@@ -3,6 +3,7 @@ declare const self: ServiceWorkerGlobalScope;
 
 import { awaitReply, getNextRequestId } from './messaging';
 import { getURLScope, isURLScoped, setURLScope } from '@php-wasm/scopes';
+import { portToStream } from '@php-wasm/universal';
 
 export async function convertFetchEventToPHPRequest(event: FetchEvent) {
 	let url = new URL(event.request.url);
@@ -132,7 +133,20 @@ export async function convertFetchEventToPHPRequest(event: FetchEvent) {
 	const isNullBodyCode = [101, 103, 204, 205, 304].includes(
 		phpResponse.httpStatusCode
 	);
-	const responseBody = isNullBodyCode ? null : phpResponse.bytes;
+
+	let responseBody: ReadableStream<Uint8Array> | Uint8Array | null = null;
+	if (!isNullBodyCode) {
+		if (phpResponse.bodyPort) {
+			// Reconstruct the body ReadableStream from the MessagePort.
+			// We couldn't just transfer it directly as this kind of transfer
+			// doesn't seem to be supported between the document and the service worker.
+			responseBody = portToStream(phpResponse.bodyPort);
+		} else {
+			// Fallback: buffered response bytes
+			responseBody = phpResponse.bytes;
+		}
+	}
+
 	return new Response(responseBody, {
 		headers: phpResponse.headers,
 		status: phpResponse.httpStatusCode,

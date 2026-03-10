@@ -496,7 +496,7 @@ export class PHPRequestHandler implements AsyncDisposable {
 				return StreamedPHPResponse.fromPHPResponse(
 					new PHPResponse(
 						301,
-						{ Location: [`${rewrittenRequestUrl.pathname}/`] },
+						{ location: [`${rewrittenRequestUrl.pathname}/`] },
 						new Uint8Array(0)
 					)
 				);
