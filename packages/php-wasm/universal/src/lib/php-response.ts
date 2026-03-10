@@ -49,17 +49,18 @@ const responseTexts: Record<number, string> = {
 
 export class StreamedPHPResponse {
 	/**
-	 * Headers stream reserved for serialization (Comlink transfer).
-	 * The constructor tees the incoming headers stream so that
-	 * getParsedHeaders() can consume one branch without locking
-	 * the stream that getHeadersStream() hands to the transport.
+	 * Headers stream that doesn't get locked when the consumer
+	 * reads the parsed headers. api.ts transfers the obj.getHeadersStream(),
+	 * and boot-playground-remote.ts copies the streamedResponse.headers.
+	 * Both streams must be readable when the StreamedPHPResponse is transferred
+	 * from the worker thread into the service worker.
 	 */
-	readonly #headersStream: ReadableStream<Uint8Array>;
+	readonly #rawHeadersStream: ReadableStream<Uint8Array>;
 
 	/**
 	 * Headers stream reserved for internal parsing.
 	 */
-	readonly #headersStreamForParsing: ReadableStream<Uint8Array>;
+	readonly #copiedHeadersStreamForParsing: ReadableStream<Uint8Array>;
 
 	/**
 	 * Response body. Contains the output from `echo`,
@@ -93,8 +94,8 @@ export class StreamedPHPResponse {
 		exitCode: Promise<number>
 	) {
 		const [forTransport, forParsing] = headers.tee();
-		this.#headersStream = forTransport;
-		this.#headersStreamForParsing = forParsing;
+		this.#rawHeadersStream = forTransport;
+		this.#copiedHeadersStreamForParsing = forParsing;
 		this.stdout = stdout;
 		this.stderr = stderr;
 		this.exitCode = exitCode;
@@ -169,7 +170,7 @@ export class StreamedPHPResponse {
 	 * For parsed headers, use the `headers` property instead.
 	 */
 	getHeadersStream(): ReadableStream<Uint8Array> {
-		return this.#headersStream;
+		return this.#rawHeadersStream;
 	}
 
 	/**
@@ -252,7 +253,7 @@ export class StreamedPHPResponse {
 	private async getParsedHeaders() {
 		if (!this.cachedParsedHeaders) {
 			this.cachedParsedHeaders = parseHeadersStream(
-				this.#headersStreamForParsing
+				this.#copiedHeadersStreamForParsing
 			);
 		}
 		return await this.cachedParsedHeaders;

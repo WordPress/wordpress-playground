@@ -363,29 +363,26 @@ function setupTransferHandlers() {
  */
 let _cachedSupportsTransferableStreams: boolean | undefined;
 function supportsTransferableStreams(): boolean {
-	if (_cachedSupportsTransferableStreams !== undefined) {
-		return _cachedSupportsTransferableStreams;
+	if (typeof ReadableStream === 'undefined') {
+		_cachedSupportsTransferableStreams = false;
 	}
-	try {
-		if (typeof ReadableStream === 'undefined') {
-			return (_cachedSupportsTransferableStreams = false);
-		}
-		const { port1 } = new MessageChannel();
-		const rs = new ReadableStream();
-		// The stream must be in the transfer list — without it,
-		// postMessage tries to clone (which always fails for
-		// ReadableStream) instead of transferring.
-		port1.postMessage(rs, [rs as unknown as Transferable]);
+	if (_cachedSupportsTransferableStreams === undefined) {
 		try {
-			port1.close();
+			const { port1 } = new MessageChannel();
+			const rs = new ReadableStream();
+			port1.postMessage(rs, [rs as unknown as Transferable]);
+			try {
+				port1.close();
+			} catch (_e) {
+				void _e;
+			}
+			_cachedSupportsTransferableStreams = true;
 		} catch (_e) {
 			void _e;
+			_cachedSupportsTransferableStreams = false;
 		}
-		return (_cachedSupportsTransferableStreams = true);
-	} catch (_e) {
-		void _e;
-		return (_cachedSupportsTransferableStreams = false);
 	}
+	return _cachedSupportsTransferableStreams;
 }
 
 /**

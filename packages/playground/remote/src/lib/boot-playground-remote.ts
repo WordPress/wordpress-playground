@@ -431,31 +431,29 @@ export async function bootPlaygroundRemote() {
 						.method as keyof PlaygroundWorkerEndpoint;
 
 					if (method === 'request') {
-						// Stream the PHP response body through the
-						// service worker instead of buffering the entire
-						// response in memory. The 25s awaitReply timeout
-						// only covers the time until PHP outputs response
-						// headers. Body streaming happens after, with no
-						// timeout.
-						const streamedResponse =
-							await // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
-							(phpWorkerApi.requestStreamed as Function)(...args);
+						const streamedResponse = await (
+							phpWorkerApi.requestStreamed as any
+						)(...args);
 						const httpStatusCode =
 							await streamedResponse.httpStatusCode;
 						const headers = await streamedResponse.headers;
 
-						// We must bridge the body stream via a MessagePort.
-						// ServiceWorker.postMessage() silently drops the
-						// entire message when the transfer list contains a
-						// ReadableStream — the call succeeds and the stream
-						// detaches from the sender, but the message never
-						// arrives at the service worker. This affects all
-						// browsers. Service workers live in a different
-						// agent cluster than their clients, which limits
-						// what can be transferred on this channel.
-						// See https://github.com/whatwg/streams/issues/1063
-						// and the discussion in
-						// https://github.com/whatwg/streams/issues/276
+						/**
+						 * ReadableStreams are transferable, but cannot be
+						 * transferred to the service worker.
+						 *
+						 * In Chrome, ServiceWorker.postMessage() silently drops the entire
+						 * message when the transfer list contains a ReadableStream.
+						 * The call succeeds and the stream detaches from the sender,
+						 * but the message never arrives at the service worker.
+						 *
+						 * To work around this, we bridge the body stream via a MessagePort.
+						 *
+						 * See:
+						 * * https://github.com/whatwg/streams/issues/1063
+						 * * https://github.com/whatwg/streams/issues/276
+						 * * https://groups.google.com/a/chromium.org/g/chromium-discuss/c/90Esr_dE6U4
+						 */
 						const bodyPort = streamToPort(streamedResponse.stdout);
 						(event.source! as ServiceWorker).postMessage(
 							responseTo(event.data.requestId, {
