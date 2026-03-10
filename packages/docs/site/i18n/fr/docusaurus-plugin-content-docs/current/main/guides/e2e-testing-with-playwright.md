@@ -9,7 +9,7 @@ sidebar_class_name: navbar-build-item
 End-to-end testing verifies that your WordPress plugin or theme works correctly from a user's perspective — clicking buttons, filling forms, and navigating pages in a real browser. This guide shows how to combine [Playwright](https://playwright.dev/) with the [WordPress Playground CLI](/developers/local-development/wp-playground-cli) to write reliable E2E tests without Docker, databases, or manual setup.
 -->
 
-Les tests de bout en bout vérifient que votre plugin ou thème WordPress fonctionne correctement du point de vue de l'utilisateur — cliquer sur des boutons, remplir des formulaires et naviguer sur les pages dans un véritable navigateur. Ce guide montre comment combiner [Playwright](https://playwright.dev/) avec la [CLI WordPress Playground](/developers/local-development/wp-playground-cli) pour écrire des tests E2E fiables sans Docker, bases de données ou configuration manuelle.
+Les tests de bout en bout vérifient que votre extension ou thème WordPress fonctionne correctement du point de vue de l'utilisateur — cliquer sur des boutons, remplir des formulaires et naviguer sur les pages dans un véritable navigateur. Ce guide montre comment combiner [Playwright](https://playwright.dev/) avec la [CLI WordPress Playground](/developers/local-development/wp-playground-cli) pour écrire des tests E2E fiables sans Docker, bases de données ou configuration manuelle.
 
 <!--
 :::info
@@ -18,7 +18,7 @@ This guide assumes familiarity with WordPress plugin or theme development. For a
 -->
 
 :::info
-Ce guide suppose une familiarité avec le développement de plugins ou thèmes WordPress. Pour une introduction à l'utilisation de Playground dans votre flux de développement, consultez [WordPress Playground pour développeurs de plugins](/guides/for-plugin-developers). Pour les détails de configuration des Blueprints, voir [Démarrage avec Blueprints](/blueprints/getting-started).
+Ce guide suppose une familiarité avec le développement d’extensions ou de thèmes WordPress. Pour une introduction à l'utilisation de Playground dans votre flux de développement, consultez [WordPress Playground pour développeurs de plugins](/guides/for-plugin-developers). Pour les détails de configuration des Blueprints, voir [Démarrage avec Blueprints](/blueprints/getting-started).
 :::
 
 <!--
@@ -32,7 +32,7 @@ Ce guide suppose une familiarité avec le développement de plugins ou thèmes W
 ## Prérequis
 
 - **Node.js 20+** et supérieur
-- Un plugin/thème WordPress ou un site WordPress complet à tester
+- Une extension/thème WordPress ou un site WordPress complet à tester
 - **Recommandé :** activez la règle ESLint `@typescript-eslint/no-floating-promises` pour détecter les `await` manquants dans les appels asynchrones Playwright
 
 <!--
@@ -47,7 +47,7 @@ From your plugin or theme root directory:
 
 ### Installer les dépendances
 
-Depuis le répertoire racine de votre plugin ou thème :
+Depuis le répertoire racine de votre extension ou thème :
 
 ```bash
 npm init -y
@@ -198,7 +198,7 @@ Playwright provides several ways to find elements on the page. Prefer locators t
 
 Playwright offre plusieurs façons de trouver les éléments sur la page. Préférez les localisateurs qui reflètent la façon dont les utilisateurs voient la page, en utilisant les sélecteurs CSS uniquement en dernier recours.
 
-**Priorité des localisateurs** (du plus au moins préféré) :
+**Priorité des localisateurs** (du plus au moins recommandé) :
 
 1. `page.getByRole()` — boutons, titres, liens, contrôles de formulaire
 2. `page.getByLabel()` — champs de formulaire avec étiquettes associées
@@ -272,16 +272,16 @@ Playwright locators wait automatically for elements to appear, become visible, a
 Web-first assertions auto-retry until the condition passes or the timeout expires. Always prefer them over manual checks:
 -->
 
-## Auto-attente et assertions web-first
+## Auto-attente et assertions orientée web
 
 Les localisateurs Playwright attendent automatiquement que les éléments apparaissent, deviennent visibles et actionnables. Dans la plupart des cas, vous n'avez pas besoin d'appels manuels à `waitForSelector`.
 
-### Assertions web-first
+### Assertions orientée web
 
-Les assertions web-first réessaient automatiquement jusqu'à ce que la condition soit remplie ou que le délai expire. Préférez-les toujours aux vérifications manuelles :
+Les assertions orientée web réessaient automatiquement jusqu'à ce que la condition soit remplie ou que le délai expire. Préférez-les toujours aux vérifications manuelles :
 
 ```typescript
-// ✅ Assertion web-first (réessaie jusqu'à visible ou timeout)
+// ✅ Assertion orientée web (réessaie jusqu'à visible ou timeout)
 await expect(page.getByText("Paramètres enregistrés")).toBeVisible();
 
 // ❌ Vérification manuelle (sans retry — instable si l'élément apparaît en retard)
@@ -801,7 +801,7 @@ When a test fails, Playwright provides several tools to investigate:
 
 ## Dépannage
 
-**Erreurs de timeout** — Augmentez `timeout` dans `playwright.config.ts`. Le temps de démarrage de WordPress varie selon l'environnement. Les runners CI ont souvent besoin de 120–180 secondes.
+**Erreurs de timeout** — Augmentez `timeout` dans `playwright.config.ts`. Le temps de démarrage de WordPress varie selon l'environnement. Les exécuteurs CI ont souvent besoin de 120–180 secondes.
 
 **Conflits de ports** — Laissez Playground attribuer les ports automatiquement. Ne codez pas en dur les numéros de port dans votre configuration. La propriété `serverUrl` retourne la bonne URL.
 
@@ -809,7 +809,7 @@ When a test fails, Playwright provides several tools to investigate:
 
 **WordPress ne charge pas** — Vérifiez la syntaxe de votre Blueprint par rapport au [schéma Blueprint](https://playground.wordpress.net/blueprint-schema.json). Les étapes invalides échouent silencieusement dans certains cas.
 
-**Les tests passent en local mais échouent en CI** — Les runners CI ont moins de mémoire et de CPU. Augmentez les timeouts, réduisez les workers parallèles et assurez-vous que `workers: 1` est dans la config.
+**Les tests passent en local mais échouent en CI** — Les exécuteurs CI ont moins de mémoire et de CPU. Augmentez les délais d'expiration, réduisez les processus parallèles et assurez-vous que `workers: 1` est dans la config.
 
 ## Déboguer les tests
 
@@ -855,7 +855,7 @@ npx playwright show-trace test-results/plugin-spec-ts/trace.zip
 npx playwright test --ui
 ```
 
-**Capture d'écran en cas d'échec** — la configuration `screenshot: "only-on-failure"` dans le config sauvegarde une capture d'écran à chaque échec de test. Trouvez les captures dans le répertoire `test-results/`.
+**Capture d'écran en cas d'échec** — la configuration `screenshot: "only-on-failure"` dans le configuration sauvegarde une capture d'écran à chaque échec de test. Trouvez les captures dans le répertoire `test-results/`.
 
 <!--
 :::tip
