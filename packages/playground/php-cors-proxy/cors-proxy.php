@@ -22,7 +22,7 @@ if (should_respond_with_cors_headers($server_host, $origin)) {
     header('Access-Control-Allow-Origin: ' . $allow_origin);
     header('Access-Control-Allow-Credentials: true');
     header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
-    header('Access-Control-Allow-Headers: Accept, Authorization, Content-Type, git-protocol, wp_blog, wp_install, x-cors-proxy-allowed-request-headers');
+    header('Access-Control-Allow-Headers: Accept, Authorization, Content-Type, git-protocol, wp_blog, wp_install, x-cors-proxy-allowed-request-headers, x-cors-proxy-content-type');
     // Identify this response as coming from the legitimate CORS proxy.
     // Network firewalls may intercept requests and return error responses
     // without this header, allowing clients to detect interference.
@@ -138,13 +138,31 @@ curl_setopt($ch, CURLOPT_RESOLVE, [
     "$host:443:$resolvedIp"
 ]);
 
+$allHeaders = getallheaders();
+
+// If the browser wrapped Content-Type to prevent PHP from consuming
+// multipart/form-data bodies, extract the original value to restore
+// it for the outgoing request. PHP automatically parses
+// multipart/form-data into $_POST/$_FILES, emptying php://input and
+// making it impossible for the proxy to forward the raw body.
+$originalContentType = null;
+foreach ($allHeaders as $name => $value) {
+    if (strcasecmp($name, 'X-Cors-Proxy-Content-Type') === 0) {
+        $originalContentType = $value;
+        break;
+    }
+}
+
 $strictly_disallowed_headers = [
     // Cookies represent a relationship between the proxy server
     // and the client, so it is inappropriate to forward them.
     'Cookie',
     // Drop the incoming Host header because it identifies the
     // proxy server, not the target server.
-    'Host'
+    'Host',
+    // Internal header for Content-Type wrapping. Must not be
+    // forwarded to the target server.
+    'X-Cors-Proxy-Content-Type',
 ];
 $headers_requiring_opt_in = [
     // Allow Authorization header to be forwarded only if the client
@@ -155,11 +173,23 @@ $headers_requiring_opt_in = [
 ];
 $curlHeaders = kv_headers_to_curl_format(
     filter_headers_by_name(
-        getallheaders(),
+        $allHeaders,
         $strictly_disallowed_headers,
         $headers_requiring_opt_in,
     )
 );
+
+// If Content-Type was wrapped, replace the placeholder
+// application/octet-stream with the original value so the target
+// server receives the correct Content-Type.
+if ($originalContentType) {
+    $curlHeaders = array_values(array_filter(
+        $curlHeaders,
+        fn($h) => stripos($h, 'Content-Type:') !== 0
+    ));
+    $curlHeaders[] = 'Content-Type: ' . $originalContentType;
+}
+
 curl_setopt(
     $ch,
     CURLOPT_HTTPHEADER,

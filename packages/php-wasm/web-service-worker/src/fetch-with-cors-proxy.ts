@@ -72,12 +72,41 @@ export async function fetchWithCorsProxy(
 			corsProxyAllowedHeaders.includes('authorization') ||
 			corsProxyAllowedHeaders.includes('cookie');
 
+		// Wrap multipart/form-data Content-Type to prevent the CORS
+		// proxy's PHP from auto-parsing the body. PHP consumes
+		// multipart/form-data bodies into $_POST/$_FILES, emptying
+		// php://input and making it impossible for the proxy to
+		// forward the raw body to the target server.
+		const contentType = headers.get('content-type');
+		if (
+			contentType &&
+			contentType.toLowerCase().includes('multipart/form-data')
+		) {
+			headers.set('x-cors-proxy-content-type', contentType);
+			headers.set('content-type', 'application/octet-stream');
+		}
+
+		// Buffer the request body before sending through the CORS proxy.
+		// The body arrives as a ReadableStream with duplex: 'half' from
+		// the TLS decryption layer. Production CORS proxies (behind CDNs,
+		// load balancers, or PHP's multipart parsing) may not correctly
+		// forward a half-duplex streaming body. Buffering it as an
+		// ArrayBuffer ensures the full body is sent as a single chunk.
+		// This is safe because the CORS proxy already caps requests at
+		// 1MB (MAX_REQUEST_SIZE).
+		let bufferedBody: ArrayBuffer | undefined;
+		if (request2.body) {
+			bufferedBody = await new Response(request2.body).arrayBuffer();
+		}
+
 		const newRequest = await cloneRequest(request2, {
 			url: `${corsProxyUrl}${requestObject.url}`,
+			body: bufferedBody,
+			headers,
 			...(requestIntendsToPassCredentials && { credentials: 'include' }),
 		});
 
-		const response = await duplexSafeFetch(newRequest, init);
+		const response = await duplexSafeFetch(newRequest);
 
 		// Check for firewall interference: if we got a response but it's
 		// missing the CORS proxy identification header, the response likely
