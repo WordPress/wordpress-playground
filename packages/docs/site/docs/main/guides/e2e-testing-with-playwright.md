@@ -464,7 +464,7 @@ for (const { php, wp } of versionMatrix) {
 }
 ```
 
-The `preferredVersions` property in the Blueprint controls which PHP and WordPress versions the Playground instance uses. Supported ranges: PHP 7.0–8.4, WordPress 6.3–6.8+, plus `latest`, `nightly`, and `beta`.
+The `preferredVersions` property in the Blueprint controls which PHP and WordPress versions the Playground instance uses. Supported ranges: PHP 7.4–8.5, WordPress 6.3–6.8+, plus `latest`, `nightly`, and `beta`. For type-safe PHP version values, use the `SupportedPHPVersion` type from `@php-wasm/universal`.
 
 ## Running tests in CI/CD
 

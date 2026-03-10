@@ -663,7 +663,7 @@ for (const { php, wp } of versionMatrix) {
 ```
 
 <!--
-The `preferredVersions` property in the Blueprint controls which PHP and WordPress versions the Playground instance uses. Supported ranges: PHP 7.0–8.4, WordPress 6.3–6.8+, plus `latest`, `nightly`, and `beta`.
+The `preferredVersions` property in the Blueprint controls which PHP and WordPress versions the Playground instance uses. Supported ranges: PHP 7.4–8.5, WordPress 6.3–6.8+, plus `latest`, `nightly`, and `beta`. For type-safe PHP version values, use the `SupportedPHPVersion` type from `@php-wasm/universal`.
 
 ## Running tests in CI/CD
 
@@ -672,7 +672,7 @@ The `preferredVersions` property in the Blueprint controls which PHP and WordPre
 Create `.github/workflows/e2e-tests.yml`:
 -->
 
-A propriedade `preferredVersions` no Blueprint controla quais versões de PHP e WordPress a instância Playground usa. Intervalos suportados: PHP 7.0–8.4, WordPress 6.3–6.8+, além de `latest`, `nightly` e `beta`.
+A propriedade `preferredVersions` no Blueprint controla quais versões de PHP e WordPress a instância Playground usa. Intervalos suportados: PHP 7.4–8.5, WordPress 6.3–6.8+, além de `latest`, `nightly` e `beta`. Para valores de versão PHP com segurança de tipos, use o tipo `SupportedPHPVersion` de `@php-wasm/universal`.
 
 ## Executando testes em CI/CD
 
