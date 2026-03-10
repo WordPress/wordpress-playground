@@ -99,7 +99,7 @@
 		"crc-32": "1.2.2",
 		"diff3": "0.0.4",
 		"express": "4.22.0",
-		"fast-xml-parser": "^5.3.4",
+		"fast-xml-parser": "^5.5.1",
 		"file-saver": "^2.0.5",
 		"fs-ext-extra-prebuilt": "2.2.7",
 		"fs-extra": "11.1.1",
