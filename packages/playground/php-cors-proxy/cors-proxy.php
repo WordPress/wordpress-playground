@@ -148,7 +148,10 @@ $allHeaders = getallheaders();
 $originalContentType = null;
 foreach ($allHeaders as $name => $value) {
     if (strcasecmp($name, 'X-Cors-Proxy-Content-Type') === 0) {
-        $originalContentType = $value;
+        // Reject values containing CR/LF to prevent header injection.
+        if (!preg_match('/[\r\n]/', $value)) {
+            $originalContentType = $value;
+        }
         break;
     }
 }
@@ -182,7 +185,7 @@ $curlHeaders = kv_headers_to_curl_format(
 // If Content-Type was wrapped, replace the placeholder
 // application/octet-stream with the original value so the target
 // server receives the correct Content-Type.
-if ($originalContentType) {
+if ($originalContentType !== null) {
     $curlHeaders = array_values(array_filter(
         $curlHeaders,
         fn($h) => stripos($h, 'Content-Type:') !== 0

@@ -106,6 +106,10 @@ export async function fetchWithCorsProxy(
 			...(requestIntendsToPassCredentials && { credentials: 'include' }),
 		});
 
+		// Don't pass `init` here – it was already folded into
+		// `requestObject` at the top of this function. Passing it again
+		// would let it override the proxy URL, wrapped headers, and
+		// buffered body we just prepared.
 		const response = await duplexSafeFetch(newRequest);
 
 		// Check for firewall interference: if we got a response but it's
