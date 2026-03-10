@@ -14,7 +14,7 @@ This guide assumes familiarity with WordPress plugin or theme development. For a
 ## Prerequisites
 
 - **Node.js 20+** and up
-- A WordPress plugin or theme to test
+- A WordPress plugin/theme or an entire WordPress site to test
 - **Recommended:** enable the `@typescript-eslint/no-floating-promises` ESLint rule to catch missing `await` on async Playwright calls
 
 ## Project setup
@@ -59,13 +59,13 @@ export default defineConfig({
 WordPress Playground needs more time to start than a typical web app. The 120-second test timeout and 30-second assertion timeout account for WordPress boot time and page loads. Setting `workers: 1` prevents port conflicts when multiple tests share a Playground server.
 
 :::tip[Using baseURL with dynamic ports]
-The `runCLI` function assigns a random port each time. If you want a stable `baseURL` in your Playwright config, pass `port: 9400` in the `runCLI` options to lock the port:
+By default, Playground will sign the port `9400`. If you want to select a different port, pass `port: [NEW_PORT_NUMBER]` in the `runCLI` options to select a different port:
 
 ```typescript
-const cli = await runCLI({ command: "server", port: 9400, blueprint });
+const cli = await runCLI({ command: "server", port: 9500, blueprint });
 ```
 
-Then add `baseURL: "http://localhost:9400"` to the `use` section above. Note that `testMatch` defaults to `**/*.spec.ts` — customize it if your test files use a different naming pattern.
+Then add `baseURL: "http://localhost:9500"` to the `use` section above. Note that `testMatch` defaults to `**/*.spec.ts` — customize it if your test files use a different naming pattern.
 :::
 
 :::tip
@@ -272,7 +272,7 @@ const cli = await runCLI({
 });
 ```
 
-This maps your current directory to the plugin path inside WordPress, then activates the plugin. Changes to your local files reflect immediately.
+This maps your current directory to the plugin path inside WordPress, then activates the plugin. Changes to your local files are reflected immediately. The user can set the `autoMount` property to identify plugins and themes, but the `mount` property will provide more control to the user to set different folders in the project.
 
 #### Setting options and creating content
 
