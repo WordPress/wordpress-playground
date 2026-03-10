@@ -41,9 +41,9 @@ import {
 	parseDefineNumberArguments,
 } from './defines';
 import { isPortInUse, startServer } from './start-server';
+import type { PlaygroundCliBlueprintV1Worker } from './blueprints-v1/worker-thread-v1';
+import type { PlaygroundCliBlueprintV2Worker } from './blueprints-v2/worker-thread-v2';
 import type { XdebugOptions } from '@php-wasm/node';
-import type { PlaygroundCliWorker } from './playground-cli-worker';
-export type { PlaygroundCliWorker } from './playground-cli-worker';
 /* eslint-disable no-console */
 import {
 	SupportedPHPVersions,
@@ -820,6 +820,11 @@ export interface RunCLIArgs {
 	reset?: boolean;
 }
 
+// TODO: Maybe we should just be declaring an interface instead of a type union
+export type PlaygroundCliWorker =
+	| PlaygroundCliBlueprintV1Worker
+	| PlaygroundCliBlueprintV2Worker;
+
 export const internalsKeyForTesting = Symbol('playground-cli-testing');
 
 export interface RunCLIServer extends AsyncDisposable {
@@ -1494,10 +1499,26 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 							// @TODO: Import this from somewhere?
 							// Hardcoding it feels fragile.
 							'/internal/shared/bin/php',
-							...((args as any)['_'] || []).slice(1),
+							...(args['_'] || []).slice(1),
 						];
-						const exitCode =
-							await playgroundPool.runCLIScript(argv);
+						const response = await playgroundPool.cli(argv);
+						const [exitCode] = await Promise.all([
+							response.exitCode,
+							response.stdout.pipeTo(
+								new WritableStream({
+									write(chunk) {
+										process.stdout.write(chunk);
+									},
+								})
+							),
+							response.stderr.pipeTo(
+								new WritableStream({
+									write(chunk) {
+										process.stderr.write(chunk);
+									},
+								})
+							),
+						]);
 						await disposeCLI();
 						// Streams are drained by runCLIScript, but
 						// use process.exit as a hard cut-off to ensure
