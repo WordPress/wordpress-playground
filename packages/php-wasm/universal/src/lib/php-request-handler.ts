@@ -760,13 +760,8 @@ export class PHPRequestHandler implements AsyncDisposable {
 			headers,
 		});
 
-		// Await the response headers before returning so the cookie
-		// store is populated before the next request arrives. Headers
-		// are available as soon as PHP flushes them, well before the
-		// body finishes streaming, so this does not hurt throughput.
-		// A floating .then() here would be a race condition: the next
-		// redirect request can arrive before cookies are stored,
-		// causing infinite redirect loops with playground_auto_login.
+		// Wait until the streamed response cookies arrive so they can be
+		// sent with the next request.
 		if (this.#cookieStore) {
 			const responseHeaders = await response.headers;
 			this.#cookieStore.rememberCookiesFromResponseHeaders(
