@@ -24,7 +24,7 @@ Construisons un blueprint élémentaire qui :
 ## 1. Créer un nouveau site WordPress
 <!-- ## 1. Create a new WordPress site -->
 
-Commençons par créer un ficher `blueprint.json` avec le contenu suivant :
+Commençons par créer un fichier `blueprint.json` avec le contenu suivant :
 <!-- Let's start by creating a `blueprint.json` file with the following contents: -->
 
 ```json
