@@ -294,7 +294,7 @@ expect(await page.getByText("Paramètres enregistrés").isVisible()).toBe(true);
 Use `expect.soft()` to check multiple things on one page without stopping at the first failure. All failures appear in the test report:
 -->
 
-### Assertions molles
+### Assertions souples
 
 Utilisez `expect.soft()` pour vérifier plusieurs éléments sur une page sans s'arrêter au premier échec. Tous les échecs apparaissent dans le rapport de test :
 
