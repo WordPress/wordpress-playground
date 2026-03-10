@@ -308,7 +308,7 @@ Vous pouvez utiliser l’étape [installPlugin](/blueprints/steps#InstallPluginS
 Voici à quoi ça ressemble dans un blueprint : 
 <!-- Here's what that looks like in a Blueprint: -->
 
-```json
+```jsonc
 {
         // ...
         "steps": [
