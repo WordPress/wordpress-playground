@@ -172,7 +172,7 @@ describe('fetchWithCorsProxy', () => {
 		);
 	});
 
-	it('does not buffer the request body for https:// URLs', async () => {
+	it('buffers the request body for https:// URLs too', async () => {
 		const fetchMock = vi
 			.spyOn(globalThis, 'fetch')
 			.mockResolvedValue(new Response('ok'));
@@ -195,11 +195,13 @@ describe('fetchWithCorsProxy', () => {
 
 		expect(fetchMock).toHaveBeenCalledTimes(1);
 		const sentRequest = fetchMock.mock.calls[0][0] as Request;
-		// The exact same Request object should reach fetch() –
-		// no cloning, no buffering, just a pass-through.
-		expect(sentRequest).toBe(request);
-		// Body was NOT consumed — no buffering happened.
-		expect(request.bodyUsed).toBe(false);
+		// The body was consumed to buffer it into an ArrayBuffer.
+		expect(request.bodyUsed).toBe(true);
+		// A new Request was built from the buffered body.
+		expect(sentRequest).not.toBe(request);
+		expect(await new Response(sentRequest.body).text()).toBe(
+			'streamed data'
+		);
 	});
 
 	it('buffers the request body when retrying via an http:// CORS proxy', async () => {

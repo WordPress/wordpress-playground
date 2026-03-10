@@ -86,22 +86,8 @@ export async function fetchWithCorsProxy(
 			headers.set('content-type', 'application/octet-stream');
 		}
 
-		// Buffer the request body before sending through the CORS proxy.
-		// The body arrives as a ReadableStream with duplex: 'half' from
-		// the TLS decryption layer. Production CORS proxies (behind CDNs,
-		// load balancers, or PHP's multipart parsing) may not correctly
-		// forward a half-duplex streaming body. Buffering it as an
-		// ArrayBuffer ensures the full body is sent as a single chunk.
-		// This is safe because the CORS proxy already caps requests at
-		// 1MB (MAX_REQUEST_SIZE).
-		let bufferedBody: ArrayBuffer | undefined;
-		if (request2.body) {
-			bufferedBody = await new Response(request2.body).arrayBuffer();
-		}
-
 		const newRequest = await cloneRequest(request2, {
 			url: `${corsProxyUrl}${requestObject.url}`,
-			body: bufferedBody,
 			headers,
 			...(requestIntendsToPassCredentials && { credentials: 'include' }),
 		});
@@ -128,27 +114,22 @@ export async function fetchWithCorsProxy(
 }
 
 /**
- * A version of fetch() that buffers the request body for http:// requests.
+ * A version of fetch() that buffers streaming request bodies into an
+ * ArrayBuffer before calling fetch().
  *
- * Chrome does not support using a ReadableStream request body
- * with HTTP/1.1 requests. If we just always set `duplex: 'half'`,
- * we'll get an ERR_ALPN_NEGOTIATION_FAILED error as Chrome will
- * refuse to use duplex over HTTP/1.1 and will switch to HTTP/2.
- * A HTTP/1.1-only server, however, will still reply with a HTTP/1.1
- * response, causing that ALPN error.
+ * This is necessary for two reasons:
  *
- * We do not know upfront what kind of server we're talking to,
- * so we'll make a guess. Most servers do not support HTTP >= 2
- * without TLS, so we can assume that anything starting with `http://`
- * requires buffering the body stream. This solves the ALPN negotiation
- * problem on the local dev server.
+ * 1. Chrome does not support using a ReadableStream request body
+ *    with HTTP/1.1 requests. If we just always set `duplex: 'half'`,
+ *    we'll get an ERR_ALPN_NEGOTIATION_FAILED error as Chrome will
+ *    refuse to use duplex over HTTP/1.1 and will switch to HTTP/2.
+ *    A HTTP/1.1-only server, however, will still reply with a HTTP/1.1
+ *    response, causing that ALPN error.
  *
- * There will, inevitably, be some ancient HTTP/1.1+TLS servers on
- * the internet that will fall into the `duplex: half` trap. This
- * is not a big problem, though, since those requests will fail
- * and be retried over the CORS proxy which runs alongside Playground
- * and speaks either HTTP/1.1 in the local dev server or HTTP/2+ in
- * production.
+ * 2. Production CORS proxies (behind CDNs, load balancers, or PHP's
+ *    multipart parsing) may not correctly forward a half-duplex
+ *    streaming body. Buffering ensures the full body is sent as a
+ *    single chunk.
  */
 async function duplexSafeFetch(
 	request: Request,
@@ -156,20 +137,15 @@ async function duplexSafeFetch(
 ): Promise<Response> {
 	// Combine the base request and init into a single effective Request so that
 	// any overrides in init (including body) are taken into account before
-	// applying HTTP/1.1 streaming safeguards.
+	// buffering.
 	let effectiveRequest = init ? new Request(request, init) : request;
 
-	if (
-		new URL(effectiveRequest.url).protocol === 'http:' &&
-		effectiveRequest.body
-	) {
+	if (effectiveRequest.body) {
 		const body = await new Response(effectiveRequest.body).arrayBuffer();
 		effectiveRequest = await cloneRequest(effectiveRequest, {
 			body,
 		});
 	}
 
-	// Call fetch() with the fully prepared Request so the buffered body is
-	// guaranteed to be what is actually sent.
 	return fetch(effectiveRequest);
 }
