@@ -129,6 +129,7 @@ export function registerMcpServerTools(
 								name: s.name,
 								storage: s.storage,
 								isActive: s.isActive,
+								url: url,
 							})),
 						}),
 					},

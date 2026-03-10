@@ -20,8 +20,7 @@ export function createServer(port: number): McpServer {
 			WordPress Playground runs entirely in the user's browser tab via WebAssembly — no PHP, MySQL, \
 			or server required. You are automatically authenticated as an admin user.\n\n\
 			PREREQUISITE: The user must have WordPress Playground open in their browser at \
-			${url} . Without the ?mcp parameter, the MCP bridge \
-			is not active and no tools will work.\n\n\
+			${url} . Ask the user to open this URL if it is not already open.\n\n\
 			Typical workflow: playground_list_sites → playground_save_site → filesystem/PHP operations \
 			→ playground_navigate to verify results.\n\n\
 			Capabilities: execute arbitrary PHP with full WordPress access, read/write files in the virtual filesystem \

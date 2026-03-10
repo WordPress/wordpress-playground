@@ -193,6 +193,22 @@ test('lists all 16 registered tools', async ({ mcpClient }) => {
 	]);
 });
 
+test('playground_list_sites includes playground url with mcp params', async ({
+	mcpClient,
+	siteId,
+}) => {
+	const result = await mcpClient.callTool({
+		name: 'playground_list_sites',
+		arguments: {},
+	});
+	const parsed = JSON.parse(resultText(result));
+	const site = parsed.sites.find(
+		(s: { siteId: string }) => s.siteId === siteId
+	);
+	expect(site).toBeDefined();
+	expect(site.url).toMatch(new RegExp(`\\?mcp=yes&mcp-port=${MCP_WS_PORT}$`));
+});
+
 test('playground_open_site activates an inactive site in a new tab', async ({
 	mcpClient,
 	playgroundPage,
