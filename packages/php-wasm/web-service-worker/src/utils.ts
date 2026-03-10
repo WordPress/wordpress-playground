@@ -99,29 +99,34 @@ export async function convertFetchEventToPHPRequest(event: FetchEvent) {
 	}
 
 	/**
-	 * Safari has a bug that prevents Service Workers from redirecting relative URLs.
-	 * When attempting to redirect to a relative URL, the network request will return an error.
-	 * See the Webkit bug for details: https://bugs.webkit.org/show_bug.cgi?id=282427.
+	 * Redirect responses need `Response.redirect()` because Safari
+	 * service workers cannot redirect via a plain
+	 * `new Response(body, { status: 302, headers: { location } })`.
+	 * See https://bugs.webkit.org/show_bug.cgi?id=282427
 	 *
-	 * Because PHP and WordPress can redirect to both relative and absolute URLs
-	 * using the `location` header we need to ensure redirects are processed
-	 * correctly by the Service Worker.
-	 *
-	 * As a workaround for Safari Service Workers, we use `Response.redirect()`
-	 * for all redirect responses (300-399 status codes) coming from PHP.
-	 * This solution was suggested in the Webkit bug comment:
-	 * https://bugs.webkit.org/show_bug.cgi?id=282427#c2
+	 * Before redirecting, re-scope the Location URL. PHP and WordPress
+	 * emit unscoped paths (e.g. `/wp-admin/`). Resolving against the
+	 * origin would lose the `/scope:…/` prefix, so we add it back.
 	 */
 	if (
 		phpResponse.httpStatusCode >= 300 &&
 		phpResponse.httpStatusCode <= 399 &&
 		phpResponse.headers['location']
 	) {
+		const scope = getURLScope(url);
+		let redirectTarget = new URL(
+			phpResponse.headers['location'][0],
+			url.toString()
+		);
+		if (scope && !isURLScoped(redirectTarget)) {
+			redirectTarget = setURLScope(redirectTarget, scope);
+		}
 		return Response.redirect(
-			new URL(phpResponse.headers['location'][0], url.toString()),
+			redirectTarget.toString(),
 			phpResponse.httpStatusCode
 		);
 	}
+
 	/**
 	 * Make sure we don't pass an actual body string to new Response()
 	 * if the status is a null body status (101, 103, 204, 205, or 304).

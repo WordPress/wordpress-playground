@@ -453,25 +453,11 @@ function compileBlueprintJson(
 					 * Use an intermediate redirection step to ensure the login cookies
 					 * are set before we redirecting to the landing page.
 					 *
-					 * Pass the landing page as a relative path (e.g. `./wp-admin/`
-					 * instead of `/wp-admin/`) so that the service worker's
-					 * `Response.redirect()` Safari workaround resolves it against
-					 * the scoped request URL, preserving the scope prefix.
-					 *
-					 * An absolute path like `/wp-admin/` would lose the scope prefix:
-					 * `new URL('/wp-admin/', 'http://…/scope:abc/index.php')` resolves
-					 * to `http://…/wp-admin/` which the service worker does not route
-					 * to PHP, resulting in an empty page.
-					 *
 					 * @see playground_auto_login_redirect_target in the @wp-playground/wordpress package.
-					 * @see packages/php-wasm/web-service-worker/src/utils.ts
 					 */
-					const landingPage = blueprint.landingPage || '/';
-					// Convert absolute paths to relative (./wp-admin/) so the scope
-					// is preserved after URL resolution in the service worker.
-					const targetUrl = landingPage.startsWith('/')
-						? '.' + landingPage
-						: landingPage;
+					const targetUrl = await (
+						playground as any
+					).pathToInternalUrl(blueprint.landingPage || '/');
 					await (playground as any).goTo(
 						'/index.php?playground-redirection-handler&next=' +
 							encodeURIComponent(targetUrl)
