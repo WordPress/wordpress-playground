@@ -24,15 +24,15 @@ Este guia pressupõe familiaridade com desenvolvimento de plugins ou temas WordP
 <!--
 ## Prerequisites
 
-- **Node.js 20+** and npm
-- A WordPress plugin or theme to test
+- **Node.js 20+** and up
+- A WordPress plugin/theme or an entire WordPress site to test
 - **Recommended:** enable the `@typescript-eslint/no-floating-promises` ESLint rule to catch missing `await` on async Playwright calls
 -->
 
 ## Pré-requisitos
 
-- **Node.js 20+** e npm
-- Um plugin ou tema WordPress para testar
+- **Node.js 20+** e superior
+- Um plugin/tema WordPress ou um site WordPress completo para testar
 - **Recomendado:** habilite a regra ESLint `@typescript-eslint/no-floating-promises` para detectar `await` ausente em chamadas assíncronas do Playwright
 
 <!--
@@ -104,24 +104,24 @@ O WordPress Playground precisa de mais tempo para iniciar do que uma aplicação
 
 <!--
 :::tip[Using baseURL with dynamic ports]
-The `runCLI` function assigns a random port each time. If you want a stable `baseURL` in your Playwright config, pass `--port=9400` to lock the port:
+By default, Playground will sign the port `9400`. If you want to select a different port, pass `port: [NEW_PORT_NUMBER]` in the `runCLI` options to select a different port:
 
 ```typescript
-const cli = await runCLI({ command: "server", port: 9400, blueprint });
+const cli = await runCLI({ command: "server", port: 9500, blueprint });
 ```
 
-Then add `baseURL: "http://localhost:9400"` to the `use` section above. Note that `testMatch` defaults to `**/*.spec.ts` — customize it if your test files use a different naming pattern.
+Then add `baseURL: "http://localhost:9500"` to the `use` section above. Note that `testMatch` defaults to `**/*.spec.ts` — customize it if your test files use a different naming pattern.
 :::
 -->
 
 :::tip[Usando baseURL com portas dinâmicas]
-A função `runCLI` atribui uma porta aleatória a cada vez. Se você quiser um `baseURL` estável na sua configuração do Playwright, passe `--port=9400` para fixar a porta:
+Por padrão, o Playground usará a porta `9400`. Se você quiser selecionar uma porta diferente, passe `port: [NOVO_NÚMERO_DE_PORTA]` nas opções do `runCLI` para selecionar uma porta diferente:
 
 ```typescript
-const cli = await runCLI({ command: "server", port: 9400, blueprint });
+const cli = await runCLI({ command: "server", port: 9500, blueprint });
 ```
 
-Em seguida, adicione `baseURL: "http://localhost:9400"` na seção `use` acima. Observe que `testMatch` tem como padrão `**/*.spec.ts` — personalize se seus arquivos de teste usarem um padrão de nomenclatura diferente.
+Em seguida, adicione `baseURL: "http://localhost:9500"` na seção `use` acima. Observe que `testMatch` tem como padrão `**/*.spec.ts` — personalize se seus arquivos de teste usarem um padrão de nomenclatura diferente.
 :::
 
 <!--
@@ -454,12 +454,12 @@ const cli = await runCLI({
 ```
 
 <!--
-This maps your current directory to the plugin path inside WordPress, then activates the plugin. Changes to your local files reflect immediately.
+This maps your current directory to the plugin path inside WordPress, then activates the plugin. Changes to your local files are reflected immediately. The user can set the `autoMount` property to identify plugins and themes, but the `mount` property will provide more control to the user to set different folders in the project.
 
 #### Setting options and creating content
 -->
 
-Isso mapeia seu diretório atual para o caminho do plugin dentro do WordPress e, em seguida, ativa o plugin. As alterações nos seus arquivos locais refletem imediatamente.
+Isso mapeia seu diretório atual para o caminho do plugin dentro do WordPress e, em seguida, ativa o plugin. As alterações nos seus arquivos locais refletem imediatamente. O usuário pode configurar a propriedade `autoMount` para identificar plugins e temas, mas a propriedade `mount` proporcionará mais controle ao usuário para definir diferentes pastas no projeto.
 
 #### Definindo opções e criando conteúdo
 
@@ -557,12 +557,16 @@ await page.getByRole("link", { name: "My Plugin" }).first().click();
 
 ```typescript
 test("plugin shortcode renders on front end", async ({ page }) => {
+  // Navigate to a page with the shortcode
   await page.goto(`${cli.serverUrl}/?p=2`);
 
+  // Recommend: add data-testid="my-plugin-widget" to your plugin markup
   await expect(page.getByTestId("my-plugin-widget")).toBeVisible();
   await expect(page.getByTestId("my-plugin-widget")).toContainText(
     "Expected content"
   );
+  // Or use CSS if you don't control the markup:
+  // await expect(page.locator(".my-plugin-widget")).toBeVisible();
 });
 
 test("theme displays post correctly", async ({ page }) => {
@@ -657,7 +661,41 @@ const versionMatrix = [
 
 for (const { php, wp } of versionMatrix) {
   test.describe(`PHP ${php} + WP ${wp}`, () => {
-    // ... test setup and assertions
+    let versionCli: Awaited<ReturnType<typeof runCLI>>;
+
+    test.beforeAll(async () => {
+      versionCli = await runCLI({
+        command: "server",
+        blueprint: {
+          preferredVersions: { php, wp },
+          login: true,
+          steps: [
+            {
+              step: "activatePlugin",
+              pluginPath: "my-plugin/my-plugin.php",
+            },
+          ],
+        },
+      });
+    });
+
+    test("admin page loads without errors", async ({ page }) => {
+      await page.goto(
+        `${versionCli.serverUrl}/wp-admin/options-general.php?page=my-plugin`
+      );
+      // WordPress core elements use CSS selectors — no ARIA roles available
+      await expect(page.locator(".error")).not.toBeVisible();
+      await expect(page.locator("#wpbody-content")).toBeVisible();
+    });
+
+    test("front-end output renders", async ({ page }) => {
+      await page.goto(versionCli.serverUrl);
+      await expect(page.getByTestId("my-plugin-widget")).toBeVisible();
+    });
+
+    test.afterAll(async () => {
+      await versionCli?.server?.close();
+    });
   });
 }
 ```
@@ -743,11 +781,6 @@ npx playwright test --shard=1/3
 npx playwright test --shard=2/3
 npx playwright test --shard=3/3
 ```
-
-<!--
-Create three parallel jobs in your workflow matrix, each running a different shard. This reduces total CI time proportionally.
-:::
--->
 
 Crie três jobs paralelos na matriz do seu workflow, cada um executando um fragmento diferente. Isso reduz o tempo total de CI proporcionalmente.
 :::
