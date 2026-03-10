@@ -140,7 +140,7 @@ describe('fetchWithCorsProxy', () => {
 		expect(request.url).toBe('http://localhost:1234/v1/chat/completions');
 	});
 
-	it('buffers a streaming request body for http:// URLs', async () => {
+	it('passes request through to fetch for localhost http:// URLs', async () => {
 		const fetchMock = vi
 			.spyOn(globalThis, 'fetch')
 			.mockResolvedValue(new Response('ok'));
@@ -162,17 +162,12 @@ describe('fetchWithCorsProxy', () => {
 
 		expect(fetchMock).toHaveBeenCalledTimes(1);
 		const sentRequest = fetchMock.mock.calls[0][0] as Request;
-		// The original request's body was consumed to buffer it into
-		// an ArrayBuffer, so bodyUsed must be true.
-		expect(request.bodyUsed).toBe(true);
-		// A new Request was built from the buffered body.
-		expect(sentRequest).not.toBe(request);
-		expect(await new Response(sentRequest.body).text()).toBe(
-			'streamed data'
-		);
+		// Direct fetch — no buffering, same Request passed through.
+		expect(sentRequest).toBe(request);
+		expect(request.bodyUsed).toBe(false);
 	});
 
-	it('buffers the request body for https:// URLs too', async () => {
+	it('passes request through to fetch for https:// URLs without proxy', async () => {
 		const fetchMock = vi
 			.spyOn(globalThis, 'fetch')
 			.mockResolvedValue(new Response('ok'));
@@ -195,13 +190,9 @@ describe('fetchWithCorsProxy', () => {
 
 		expect(fetchMock).toHaveBeenCalledTimes(1);
 		const sentRequest = fetchMock.mock.calls[0][0] as Request;
-		// The body was consumed to buffer it into an ArrayBuffer.
-		expect(request.bodyUsed).toBe(true);
-		// A new Request was built from the buffered body.
-		expect(sentRequest).not.toBe(request);
-		expect(await new Response(sentRequest.body).text()).toBe(
-			'streamed data'
-		);
+		// Direct fetch — no buffering, same Request passed through.
+		expect(sentRequest).toBe(request);
+		expect(request.bodyUsed).toBe(false);
 	});
 
 	it('buffers the request body when retrying via an http:// CORS proxy', async () => {
