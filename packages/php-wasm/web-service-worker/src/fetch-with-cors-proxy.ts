@@ -26,7 +26,7 @@ export async function fetchWithCorsProxy(
 		requestUrlObj.hostname === '[::1]' ||
 		requestUrlObj.hostname === '::1';
 	if (isLocalhost) {
-		return await duplexSafeFetch(requestObject);
+		return await fetch(requestObject);
 	}
 
 	if (requestUrlObj.protocol === 'http:') {
@@ -36,7 +36,7 @@ export async function fetchWithCorsProxy(
 		requestUrlObj = new URL(httpsUrl);
 	}
 	if (!corsProxyUrl) {
-		return await duplexSafeFetch(requestObject);
+		return await fetch(requestObject);
 	}
 
 	/**
@@ -51,7 +51,7 @@ export async function fetchWithCorsProxy(
 		requestUrlObj.port === playgroundUrlObj.port &&
 		requestUrlObj.pathname.startsWith(playgroundUrlObj.pathname)
 	) {
-		return await duplexSafeFetch(requestObject);
+		return await fetch(requestObject);
 	}
 
 	// Tee the request to avoid consuming the request body stream on the initial
@@ -59,7 +59,7 @@ export async function fetchWithCorsProxy(
 	const [directRequest, corsProxyRequest] = await teeRequest(requestObject);
 
 	try {
-		return await duplexSafeFetch(directRequest);
+		return await fetch(directRequest);
 	} catch {
 		// If the developer has explicitly allowed the request to pass the
 		// credentials headers with the X-Cors-Proxy-Allowed-Request-Headers header,
@@ -86,14 +86,47 @@ export async function fetchWithCorsProxy(
 			headers.set('content-type', 'application/octet-stream');
 		}
 
+		/**
+		 * Buffer the cors proxy request body into an ArrayBuffer before calling fetch().
+		 *
+		 * This is necessary, because Chrome only supports using a ReadableStream request body
+		 * when fetch() is called with the `duplex: 'half'` option. However, duplex connections
+		 * are problematic:
+		 *
+		 * 1. They don't work with the local dev server, which runs at a http:// URL.
+		 *    When the duplex option is set, Chrome silently upgrades a HTTP/1.1 request
+		 *    to HTTP/2. However, our HTTP/1.1-only local dev server still replies
+		 *    with a HTTP/1.1 response. Chrome then treats the request as failed with an
+		 *    ERR_ALPN_NEGOTIATION_FAILED error.
+		 *
+		 * 2. They don't work with the official Playground CORS proxy at https://wordpress-playground-cors-proxy.net/.
+		 *    The server infrastructure just can't handle duplex POST requests. Something between
+		 *    the browser and the cors-proxy.php runtime buffers the entire body anyway. When
+		 *    it can't, it treats the request body as empty and fails with a 400 Bad Request error
+		 *    as 0 bytes were sent instead of the expected Content-Length. This can be true
+		 *    for any PHP-hosted script out there. An edge proxy, a load balancer, a reverse proxy
+		 *    may not support duplex POST requests either.
+		 *
+		 * We're already in the final `} catch {` block. We've already failed to send a direct
+		 * fetch with a streamed body. Maybe it was due to the duplex problem, maybe not, but
+		 * this is our last chance so let's maximize the probability of success. The entire request
+		 * body must have been produced by now anyway, since the prior fetch() had to send it,
+		 * so it's likely buffered somewhere in the browser's memory. We're just changing the
+		 * data type from ReadableStream to ArrayBuffer to make that explicit.
+		 */
+		const body = corsProxyRequest.body
+			? await new Response(corsProxyRequest.body).arrayBuffer()
+			: undefined;
+
 		const newRequest = await cloneRequest(corsProxyRequest, {
 			url: `${corsProxyUrl}${requestObject.url}`,
 			headers,
+			body,
 			...(requestIntendsToPassCredentials && { credentials: 'include' }),
 		});
 
 		// Skip the `init`, it's already folded into `requestObject`.
-		const response = await duplexSafeFetch(newRequest);
+		const response = await fetch(newRequest);
 
 		// Check for firewall interference: if we got a response but it's
 		// missing the CORS proxy identification header, the response likely
@@ -108,41 +141,4 @@ export async function fetchWithCorsProxy(
 
 		return response;
 	}
-}
-
-/**
- * A version of fetch() that buffers streaming request bodies into an
- * ArrayBuffer before calling fetch().
- *
- * This is necessary for two reasons:
- *
- * 1. Chrome does not support using a ReadableStream request body
- *    with HTTP/1.1 requests. If we just always set `duplex: 'half'`,
- *    we'll get an ERR_ALPN_NEGOTIATION_FAILED error as Chrome will
- *    refuse to use duplex over HTTP/1.1 and will switch to HTTP/2.
- *    A HTTP/1.1-only server, however, will still reply with a HTTP/1.1
- *    response, causing that ALPN error.
- *
- * 2. Production CORS proxies (behind CDNs, load balancers, or PHP's
- *    multipart parsing) may not correctly forward a half-duplex
- *    streaming body. Buffering ensures the full body is sent as a
- *    single chunk.
- */
-async function duplexSafeFetch(
-	request: Request,
-	init?: RequestInit
-): Promise<Response> {
-	// Combine the base request and init into a single effective Request so that
-	// any overrides in init (including body) are taken into account before
-	// buffering.
-	let effectiveRequest = init ? new Request(request, init) : request;
-
-	if (effectiveRequest.body) {
-		const body = await new Response(effectiveRequest.body).arrayBuffer();
-		effectiveRequest = await cloneRequest(effectiveRequest, {
-			body,
-		});
-	}
-
-	return fetch(effectiveRequest);
 }

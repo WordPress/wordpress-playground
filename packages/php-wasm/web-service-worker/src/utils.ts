@@ -243,6 +243,20 @@ export async function cloneRequest(
 		cache: request.cache,
 		redirect: request.redirect,
 		integrity: request.integrity,
+		/**
+		 * We're forced to infer the duplex value. We cannot read it directly in a
+		 * reliable way from the body type because of this issue:
+		 *
+		 * > Although duplex can be passed as an option when constructing a Request,
+		 * > it is not currently exposed as a readable property on the resulting Request
+		 * > object in all browsers.
+		 *
+		 * We could read it when it's available and infer it otherwise, but that would
+		 * just create more ways in which the code can execute. Let's just use the same
+		 * lowest common denominator in all browsers.
+		 *
+		 * See MDN: https://developer.mozilla.org/en-US/docs/Web/API/Request/duplex
+		 */
 		...(body instanceof ReadableStream && { duplex: 'half' }),
 		...overrides,
 	});
