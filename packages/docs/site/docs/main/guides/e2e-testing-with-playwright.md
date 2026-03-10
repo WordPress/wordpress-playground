@@ -59,7 +59,7 @@ export default defineConfig({
 WordPress Playground needs more time to start than a typical web app. The 120-second test timeout and 30-second assertion timeout account for WordPress boot time and page loads. Setting `workers: 1` prevents port conflicts when multiple tests share a Playground server.
 
 :::tip[Using baseURL with dynamic ports]
-The `runCLI` function assigns a random port each time. If you want a stable `baseURL` in your Playwright config, pass `--port=9400` to lock the port:
+The `runCLI` function assigns a random port each time. If you want a stable `baseURL` in your Playwright config, pass `port: 9400` in the `runCLI` options to lock the port:
 
 ```typescript
 const cli = await runCLI({ command: "server", port: 9400, blueprint });
