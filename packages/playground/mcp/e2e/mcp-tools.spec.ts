@@ -171,7 +171,6 @@ test.afterEach(async ({ mcpClient, playgroundPage, browser }) => {
 
 test('lists all registered tools', async ({ mcpClient }) => {
 	const result = await mcpClient.listTools();
-	expect(result.tools).toHaveLength(17);
 	const names = result.tools.map((t) => t.name).sort();
 	expect(names).toEqual([
 		'playground_delete_directory',
