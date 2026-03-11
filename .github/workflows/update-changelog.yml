@@ -45,6 +45,7 @@ jobs:
                   submodules: recursive
                   ref: trunk
                   clean: true
+                  persist-credentials: true
                   ssh-key: ${{ secrets.DEPLOY_KEY }}
             - name: 'Install bun (for the changelog)'
               run: |

@@ -39,6 +39,7 @@ jobs:
                   ref: trunk
                   clean: true
                   fetch-depth: 1
+                  persist-credentials: true
                   ssh-key: ${{ secrets.DEPLOY_KEY }}
                   submodules: true
 

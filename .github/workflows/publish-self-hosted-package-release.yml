@@ -41,6 +41,7 @@ jobs:
               with:
                   ref: ${{ github.event.pull_request.head.ref }}
                   clean: true
+                  persist-credentials: true
                   ssh-key: ${{ secrets.DEPLOY_KEY }}
                   submodules: true
             - name: Config git user
