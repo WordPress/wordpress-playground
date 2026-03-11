@@ -27,7 +27,7 @@
 			"Bash(*npx nx publish*)",
 			"Bash(*git push*--force*)",
 			"Bash(*git push*-f*)",
-			"Bash(*git push * trunk)",
+			"Bash(*git push * trunk*)",
 			"Bash(*git reset --hard*)",
 			"Bash(*git clean -f *)",
 			"Bash(*rm -rf *)",
