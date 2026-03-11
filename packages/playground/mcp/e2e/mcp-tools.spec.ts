@@ -169,9 +169,9 @@ test.afterEach(async ({ mcpClient, playgroundPage, browser }) => {
 	}
 });
 
-test('lists all 16 registered tools', async ({ mcpClient }) => {
+test('lists all registered tools', async ({ mcpClient }) => {
 	const result = await mcpClient.listTools();
-	expect(result.tools).toHaveLength(16);
+	expect(result.tools).toHaveLength(17);
 	const names = result.tools.map((t) => t.name).sort();
 	expect(names).toEqual([
 		'playground_delete_directory',
@@ -180,6 +180,7 @@ test('lists all 16 registered tools', async ({ mcpClient }) => {
 		'playground_file_exists',
 		'playground_get_current_url',
 		'playground_get_site_info',
+		'playground_get_website_url',
 		'playground_list_files',
 		'playground_list_sites',
 		'playground_mkdir',
