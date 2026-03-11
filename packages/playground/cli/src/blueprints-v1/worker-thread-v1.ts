@@ -3,6 +3,7 @@ import { loadNodeRuntime } from '@php-wasm/node';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import type { PathAlias, SupportedPHPVersion } from '@php-wasm/universal';
 import {
+	PHPWorker,
 	releaseApiProxy,
 	consumeAPI,
 	consumeAPISync,
@@ -21,7 +22,6 @@ import { MessageChannel, type MessagePort, parentPort } from 'worker_threads';
 import { mountResources } from '../mounts';
 import { logger } from '@php-wasm/logger';
 import { spawnWorkerThread } from '../run-cli';
-import { PHPWorker } from '@php-wasm/universal';
 
 import type { Mount } from '@php-wasm/cli-util';
 
