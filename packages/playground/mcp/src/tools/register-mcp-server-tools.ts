@@ -83,7 +83,7 @@ export function registerMcpServerTools(
 	port: number
 ) {
 	const sendCommand = bridge.sendCommand.bind(bridge);
-	const siteToolDefinitions = getSiteToolDefinitions(port);
+	const siteToolDefinitions = getSiteToolDefinitions();
 	const url = playgroundUrl(port);
 
 	// -- Site management tools --

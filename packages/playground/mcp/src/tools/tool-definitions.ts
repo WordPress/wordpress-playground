@@ -386,10 +386,7 @@ export const toolDefinitions: Record<string, ToolDefinition> = {
 
 // -- Site management tool definitions --
 
-export function getSiteToolDefinitions(
-	port: number
-): Record<string, ToolDefinition> {
-	const url = playgroundUrl(port);
+export function getSiteToolDefinitions(): Record<string, ToolDefinition> {
 	return {
 		playground_list_sites: {
 			title: 'List Available Sites',

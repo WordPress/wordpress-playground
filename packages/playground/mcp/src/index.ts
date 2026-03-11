@@ -15,7 +15,7 @@ async function main() {
 	const bridge = new PlaygroundBridge();
 	await bridge.startWebSocketServer(getPortFromArgs());
 	const port = bridge.getPort();
-	const server = createServer(port);
+	const server = createServer();
 	registerMcpServerTools(server, bridge, port);
 	const transport = new StdioServerTransport();
 	await server.connect(transport);
