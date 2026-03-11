@@ -29,6 +29,7 @@
 			"Bash(*git clean -f *)",
 			"Bash(*rm -rf *)",
 			"Bash(*sudo *)",
+			"Bash(*sudo)",
 			"Bash(*gh pr merge*)",
 			"Bash(*gh pr close*)"
 		]
