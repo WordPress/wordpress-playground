@@ -9,6 +9,9 @@
 			"Bash(npx tsc *)",
 			"Bash(npx wp-playground *)",
 			"Bash(npx playwright *)",
+			"Bash(git diff *)",
+			"Bash(git status *)",
+			"Bash(git log *)",
 			"WebFetch(domain:blueprintlibrary.wordpress.com)",
 			"WebFetch(domain:playground.wordpress.net)",
 			"WebFetch(domain:public-api.wordpress.com)",
@@ -16,9 +19,21 @@
 			"WebFetch(domain:nx.dev)"
 		],
 		"deny": [
-			"Bash(npm run release*)",
-			"Bash(npm run deploy*)",
-			"Bash(npx nx publish*)"
+			"Bash(*npm run release*)",
+			"Bash(*npm run deploy*)",
+			"Bash(*npx nx publish*)",
+			"Bash(*git push --force*)",
+			"Bash(*git push -f*)",
+			"Bash(*git push * --force*)",
+			"Bash(*git push * -f *)",
+			"Bash(*git push * -f)",
+			"Bash(*git push * trunk)",
+			"Bash(*git reset --hard*)",
+			"Bash(*git clean -f *)",
+			"Bash(*rm -rf *)",
+			"Bash(*sudo *)",
+			"Bash(*gh pr merge*)",
+			"Bash(*gh pr close*)"
 		]
 	},
 	"extraKnownMarketplaces": {
