@@ -14,6 +14,7 @@ import { tmpdir } from 'node:os';
 import { promisify } from 'node:util';
 import { exec } from 'node:child_process';
 import {
+	copyFileSync,
 	mkdirSync,
 	readdirSync,
 	writeFileSync,
@@ -1566,6 +1567,134 @@ describe('other run-cli behaviors', () => {
 				stdoutSpy.mockRestore();
 				stderrSpy.mockRestore();
 				exitSpy.mockRestore();
+			}
+		});
+
+		test('should run wp-cli.phar --version', async () => {
+			const tmpDir = await mkdtemp(
+				path.join(tmpdir(), 'playground-wpcli-test-')
+			);
+			const wpCliSource = path.resolve(
+				import.meta.dirname,
+				'../../blueprints/tests/fixtures/wp-cli.phar'
+			);
+			copyFileSync(wpCliSource, path.join(tmpDir, 'wp-cli.phar'));
+
+			const stdoutChunks: string[] = [];
+			const stdoutSpy = vi
+				.spyOn(process.stdout, 'write')
+				.mockImplementation((chunk: any) => {
+					stdoutChunks.push(
+						typeof chunk === 'string'
+							? chunk
+							: new TextDecoder().decode(chunk)
+					);
+					return true;
+				});
+			const stderrSpy = vi
+				.spyOn(process.stderr, 'write')
+				.mockImplementation(() => true);
+			const exitSpy = vi
+				.spyOn(process, 'exit')
+				.mockImplementation((code?: string | number | null) => {
+					throw new ProcessExitCalled(
+						typeof code === 'number' ? code : 0
+					);
+				});
+
+			try {
+				await expect(
+					runCLI({
+						command: 'php',
+						_: ['php', '/tools/wp-cli.phar', '--version'],
+						wordpressInstallMode: 'do-not-attempt-installing',
+						skipSqliteSetup: true,
+						blueprint: undefined,
+						'mount-before-install': [
+							{
+								hostPath: tmpDir,
+								vfsPath: '/tools',
+							},
+						],
+					})
+				).rejects.toThrow(ProcessExitCalled);
+				expect(exitSpy).toHaveBeenCalledWith(0);
+				expect(stdoutChunks.join('')).toMatch(/WP-CLI \d+\.\d+/);
+			} finally {
+				stdoutSpy.mockRestore();
+				stderrSpy.mockRestore();
+				exitSpy.mockRestore();
+				rmSync(tmpDir, { recursive: true });
+			}
+		});
+
+		test('should run composer.phar --version', async () => {
+			const tmpDir = await mkdtemp(
+				path.join(tmpdir(), 'playground-composer-test-')
+			);
+
+			try {
+				const composerPharPath = path.join(tmpDir, 'composer.phar');
+				const response = await fetch(
+					'https://getcomposer.org/download/latest-stable/composer.phar'
+				);
+				if (!response.ok) {
+					throw new Error(
+						`Failed to download composer.phar: ${response.status}`
+					);
+				}
+				const buffer = Buffer.from(await response.arrayBuffer());
+				writeFileSync(composerPharPath, buffer);
+
+				const stdoutChunks: string[] = [];
+				const stdoutSpy = vi
+					.spyOn(process.stdout, 'write')
+					.mockImplementation((chunk: any) => {
+						stdoutChunks.push(
+							typeof chunk === 'string'
+								? chunk
+								: new TextDecoder().decode(chunk)
+						);
+						return true;
+					});
+				const stderrSpy = vi
+					.spyOn(process.stderr, 'write')
+					.mockImplementation(() => true);
+				const exitSpy = vi
+					.spyOn(process, 'exit')
+					.mockImplementation((code?: string | number | null) => {
+						throw new ProcessExitCalled(
+							typeof code === 'number' ? code : 0
+						);
+					});
+
+				try {
+					await expect(
+						runCLI({
+							command: 'php',
+							_: ['php', '/tools/composer.phar', '--version'],
+							wordpressInstallMode: 'do-not-attempt-installing',
+							skipSqliteSetup: true,
+							blueprint: undefined,
+							'mount-before-install': [
+								{
+									hostPath: tmpDir,
+									vfsPath: '/tools',
+								},
+							],
+						})
+					).rejects.toThrow(ProcessExitCalled);
+					expect(exitSpy).toHaveBeenCalledWith(0);
+					expect(stdoutChunks.join('')).toMatch(
+						/Composer version \d+\.\d+/
+					);
+				} finally {
+					stdoutSpy.mockRestore();
+					stderrSpy.mockRestore();
+					exitSpy.mockRestore();
+				}
+			} finally {
+				rmSync(tmpDir, { recursive: true });
 			}
 		});
 
