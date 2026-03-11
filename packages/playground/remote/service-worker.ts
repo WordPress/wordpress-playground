@@ -239,7 +239,7 @@ self.addEventListener('fetch', (event) => {
 
 	if (referrerUrl && isURLScoped(referrerUrl)) {
 		if (url.origin !== referrerUrl.origin) {
-			// Cross-origin requests can handled by the service worker when they
+			// Cross-origin requests can be handled by the service worker when they
 			// are initiated from a page in the service worker's scope.
 			// If this request doesn't have the referrer scope's origin,
 			// let's not intercept it or send it to the scope's WordPress.
