@@ -1520,8 +1520,8 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 							),
 						]);
 						await disposeCLI();
-						// Streams are drained by runCLIScript, but
-						// use process.exit as a hard cut-off to ensure
+						// stdout and stderr streams are drained above,
+						// but we  use process.exit as a hard cut-off to ensure
 						// Node doesn't hang on open handles.
 						process.exit(exitCode);
 					}
