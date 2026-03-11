@@ -17,6 +17,13 @@ export interface XdebugOptions {
 }
 
 export const DEFAULT_IDE_KEY = 'PHPWASMCLI';
+export const DEFAULT_PATH_SKIPPINGS = [
+	'/dev/',
+	'/home/',
+	'/internal/',
+	'/request/',
+	'/proc/',
+];
 
 /**
  * Create a symlink to a tempory directory.

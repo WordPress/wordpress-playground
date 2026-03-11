@@ -71,6 +71,7 @@ import {
 	createTempDirSymlink,
 	removeTempDirSymlink,
 	makeXdebugConfig,
+	DEFAULT_PATH_SKIPPINGS,
 } from '@php-wasm/cli-util';
 import { createHash } from 'crypto';
 import { CLIOutput } from './cli-output';
@@ -1058,13 +1059,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 							...(args['mount-before-install'] || []),
 							...(args.mount || []),
 						],
-						pathSkippings: [
-							'/dev/',
-							'/home/',
-							'/internal/',
-							'/request/',
-							'/proc/',
-						],
+						pathSkippings: [...DEFAULT_PATH_SKIPPINGS],
 					});
 
 					console.log(bold(`Xdebug configured successfully`));
@@ -1109,13 +1104,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 									...(args['mount-before-install'] || []),
 									...(args.mount || []),
 								],
-								pathSkippings: [
-									'/dev/',
-									'/home/',
-									'/internal/',
-									'/request/',
-									'/proc/',
-								],
+								pathSkippings: [...DEFAULT_PATH_SKIPPINGS],
 								ideKey:
 									xdebugOptions.ideKey || 'WPPLAYGROUNDCLI',
 							});
