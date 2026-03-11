@@ -27,26 +27,37 @@ jobs:
         runs-on: ubuntu-latest
         outputs:
             matrix: ${{ steps.set-matrix.outputs.matrix }}
+            has_compilations: ${{ steps.set-matrix.outputs.has_compilations }}
         steps:
             - uses: actions/checkout@v4
 
             - name: Build job matrix from .recompile-request.json
               id: set-matrix
               run: |
+                  if [ ! -f packages/php-wasm/.recompile-request.json ]; then
+                    echo "has_compilations=false" >> "$GITHUB_OUTPUT"
+                    echo "matrix={\"include\":[]}" >> "$GITHUB_OUTPUT"
+                    exit 0
+                  fi
                   MATRIX=$(node -e "
                     const data = JSON.parse(require('fs').readFileSync('packages/php-wasm/.recompile-request.json', 'utf8'));
-                    const items = data.compilations.map(c => ({
-                      platform: c.platform,
-                      phpVersion: c.phpVersion,
-                      phpVersionSlug: c.phpVersion.replace('.', '-'),
-                      packageSuffix: c.platform + '-' + c.phpVersion.replace('.', '-')
-                    }));
+                    const items = (data.compilations ?? [])
+                      .filter(c => c.requestedAt)
+                      .map(c => ({
+                        platform: c.platform,
+                        phpVersion: c.phpVersion,
+                        phpVersionSlug: c.phpVersion.replace('.', '-'),
+                        packageSuffix: c.platform + '-' + c.phpVersion.replace('.', '-'),
+                        requestedAt: c.requestedAt
+                      }));
                     console.log(JSON.stringify({ include: items }));
                   ")
                   echo "matrix=$MATRIX" >> "$GITHUB_OUTPUT"
+                  echo "has_compilations=true" >> "$GITHUB_OUTPUT"
 
     compile:
         needs: read-matrix
+        if: needs.read-matrix.outputs.has_compilations == 'true'
         runs-on: ubuntu-latest
         strategy:
             fail-fast: false
@@ -95,6 +106,7 @@ jobs:
 
     publish:
         needs: [read-matrix, compile]
+        if: needs.read-matrix.outputs.has_compilations == 'true'
         runs-on: ubuntu-latest
         environment:
             name: npm
@@ -129,20 +141,19 @@ jobs:
                   npx nx build
                   php-wasm-${{ matrix.packageSuffix }}
 
-            - name: Determine PR version
+            - name: Determine version
+              # Version is derived from the entry's requestedAt timestamp in
+              # .recompile-request.json — the same value download-wasm.mjs uses
+              # locally. No bot commit needed: the version is deterministic from
+              # file content already in the repository.
               id: version
               run: |
                   CURRENT=$(node -e "console.log(require('./lerna.json').version)")
-                  PR_NUMBER=${{ github.event.pull_request.number || '' }}
-                  RUN_NUMBER=${{ github.run_number }}
-                  if [ -n "$PR_NUMBER" ]; then
-                    VERSION="${CURRENT}-pr.${PR_NUMBER}.${RUN_NUMBER}"
-                  else
-                    VERSION="${CURRENT}-sha.$(git rev-parse --short HEAD).${RUN_NUMBER}"
-                  fi
+                  COMPACT=$(node -e "console.log('${{ matrix.requestedAt }}'.replace(/[-:.Z]/g, '').slice(0, 15))")
+                  VERSION="${CURRENT}-wasm.${COMPACT}"
                   echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
-            - name: Inject PR version into dist package.json
+            - name: Inject version into dist package.json
               run: |
                   node -e "
                     const pkgPath = 'dist/packages/php-wasm/${{ matrix.platform }}-builds/${{ matrix.phpVersionSlug }}/package.json';
@@ -154,7 +165,7 @@ jobs:
             - name: Publish to npm
               run: >
                   npm publish
-                  --tag pr-${{ github.event.pull_request.number || github.run_number }}
+                  --tag wasm
                   --access public
               working-directory: dist/packages/php-wasm/${{ matrix.platform }}-builds/${{ matrix.phpVersionSlug }}
               env:
@@ -163,61 +174,22 @@ jobs:
             - name: Output published version
               run: echo "Published @php-wasm/${{ matrix.packageSuffix }}@${{ steps.version.outputs.version }}"
 
-    update-versions:
+    post-comment:
         needs: [read-matrix, publish]
         runs-on: ubuntu-latest
+        if: needs.read-matrix.outputs.has_compilations == 'true' && github.event.pull_request.number != ''
         steps:
             - uses: actions/checkout@v4
-              with:
-                  ref: ${{ github.head_ref || github.ref_name }}
-                  token: ${{ secrets.GH_TOKEN }}
-
-            - name: Configure git
-              run: |
-                  git config user.name "deployment_bot"
-                  git config user.email "deployment_bot@users.noreply.github.com"
-
-            - uses: actions/setup-node@v4
-              with:
-                  node-version: '20'
-
-            - name: Bump package.json versions to PR/SHA pre-release
-              run: |
-                  node -e "
-                    const fs = require('fs');
-                    const matrix = ${{ needs.read-matrix.outputs.matrix }};
-                    const currentVersion = require('./lerna.json').version;
-                    const pr = '${{ github.event.pull_request.number || '' }}';
-                    const run = '${{ github.run_number }}';
-                    const sha = require('child_process').execSync('git rev-parse --short HEAD').toString().trim();
-                    const version = pr
-                      ? \`\${currentVersion}-pr.\${pr}.\${run}\`
-                      : \`\${currentVersion}-sha.\${sha}.\${run}\`;
-                    for (const item of matrix.include) {
-                      const pkgPath = \`packages/php-wasm/\${item.platform}-builds/\${item.phpVersionSlug}/package.json\`;
-                      const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
-                      pkg.version = version;
-                      fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, '\t') + '\n');
-                    }
-                  "
-
-            - name: Commit updated package.json files
-              run: |
-                  git add packages/php-wasm/web-builds packages/php-wasm/node-builds
-                  git diff --staged --quiet || git commit -m "chore: bump WASM package versions for PHP WASM recompile [skip ci]"
-                  git push
 
             - name: Post PR comment
-              if: github.event.pull_request.number != ''
               uses: actions/github-script@v7
               with:
                   script: |
                       const matrix = ${{ needs.read-matrix.outputs.matrix }};
-                      const currentVersion = require('./lerna.json').version;
-                      const pr = context.payload.pull_request?.number;
-                      const run = context.runNumber;
+                      const lernaVersion = require('./lerna.json').version;
                       const lines = matrix.include.map(item => {
-                        const version = `${currentVersion}-pr.${pr}.${run}`;
+                        const compact = item.requestedAt.replace(/[-:.Z]/g, '').slice(0, 15);
+                        const version = `${lernaVersion}-wasm.${compact}`;
                         return `- \`@php-wasm/${item.packageSuffix}@${version}\``;
                       });
                       const body = [
@@ -227,12 +199,11 @@ jobs:
                         '',
                         ...lines,
                         '',
-                        'These packages will be available until the PR is merged.',
-                        'The `package.json` files have been updated on this branch.',
+                        'Run `npm run prepare-wasm` to download them locally.',
                       ].join('\n');
                       await github.rest.issues.createComment({
                         owner: context.repo.owner,
                         repo: context.repo.repo,
-                        issue_number: pr,
+                        issue_number: context.payload.pull_request.number,
                         body,
                       });

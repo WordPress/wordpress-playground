@@ -411,16 +411,28 @@ if (fs.existsSync(triggerFilePath)) {
 	}
 }
 
-const entry = { platform: args.PLATFORM || 'web', phpVersion: phpVersionShort };
-const alreadyPresent = triggerData.compilations.some(
-	(c) => c.platform === entry.platform && c.phpVersion === entry.phpVersion
+// requestedAt is stored per-entry so each compilation has its own timestamp.
+// This allows download-wasm.mjs to compute a deterministic npm version for
+// each package independently, even when multiple recompiles accumulate.
+const now = new Date().toISOString();
+const existingIndex = triggerData.compilations.findIndex(
+	(c) =>
+		c.platform === (args.PLATFORM || 'web') &&
+		c.phpVersion === phpVersionShort
 );
 
-if (!alreadyPresent) {
-	triggerData.compilations.push(entry);
+if (existingIndex === -1) {
+	triggerData.compilations.push({
+		platform: args.PLATFORM || 'web',
+		phpVersion: phpVersionShort,
+		requestedAt: now,
+	});
+} else {
+	triggerData.compilations[existingIndex].requestedAt = now;
 }
 
-triggerData.requestedAt = new Date().toISOString();
+// Remove legacy top-level requestedAt if present.
+delete triggerData.requestedAt;
 fs.writeFileSync(
 	triggerFilePath,
 	JSON.stringify(triggerData, null, '\t') + '\n'

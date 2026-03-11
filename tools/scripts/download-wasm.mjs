@@ -5,9 +5,13 @@
  * Used by local developers (after git bisect, fresh clone) and by CI jobs
  * before building wasm-dependent packages.
  *
- * The version to download for each package is read directly from its
- * package.json. Stable releases use the lerna version; PR/SHA recompiles
- * temporarily bump the package.json to a pre-release version.
+ * Version resolution per package:
+ *   1. If .recompile-request.json has a compilation entry for the package,
+ *      compute a deterministic pre-release version from the entry's requestedAt
+ *      timestamp: {lernaVersion}-wasm.{YYYYMMDDTHHmmss}
+ *   2. If that pre-release package is not yet on npm (CI still running),
+ *      warn and fall back to the stable version from the package's package.json.
+ *   3. Otherwise use the stable version from package.json.
  */
 
 import { execSync } from 'child_process';
@@ -20,6 +24,31 @@ import { createGunzip } from 'zlib';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, '../../');
+
+// Read current lerna version as the stable baseline.
+const lernaVersion = JSON.parse(
+	fs.readFileSync(path.join(repoRoot, 'lerna.json'), 'utf8')
+).version;
+
+// Read per-entry recompile overrides from .recompile-request.json.
+// Each entry carries its own requestedAt timestamp so multiple accumulated
+// recompiles each have an independent, deterministic version.
+const triggerFile = path.join(
+	repoRoot,
+	'packages/php-wasm/.recompile-request.json'
+);
+const recompileEntries = new Map(); // key -> requestedAt
+
+if (fs.existsSync(triggerFile)) {
+	const trigger = JSON.parse(fs.readFileSync(triggerFile, 'utf8'));
+	for (const { platform, phpVersion, requestedAt } of trigger.compilations ??
+		[]) {
+		if (requestedAt) {
+			const [major, minor] = phpVersion.split('.');
+			recompileEntries.set(`${platform}-${major}-${minor}`, requestedAt);
+		}
+	}
+}
 
 // Discover all WASM packages from the filesystem.
 const allKeys = [];
@@ -40,43 +69,6 @@ for (const platform of ['web', 'node']) {
 	}
 }
 
-// Warn if a recompile was requested but CI hasn't published PR builds yet.
-const triggerFile = path.join(
-	repoRoot,
-	'packages/php-wasm/.recompile-request.json'
-);
-
-if (fs.existsSync(triggerFile)) {
-	const trigger = JSON.parse(fs.readFileSync(triggerFile, 'utf8'));
-	const stale = (trigger.compilations ?? []).filter(
-		({ platform, phpVersion }) => {
-			const [major, minor] = phpVersion.split('.');
-			const pkgPath = path.join(
-				repoRoot,
-				`packages/php-wasm/${platform}-builds/${major}-${minor}/package.json`
-			);
-			if (!fs.existsSync(pkgPath)) return false;
-			const version = JSON.parse(
-				fs.readFileSync(pkgPath, 'utf8')
-			).version;
-			return !version.includes('-pr.');
-		}
-	);
-
-	if (stale.length > 0) {
-		const list = stale
-			.map((c) => `  - ${c.platform} PHP ${c.phpVersion}`)
-			.join('\n');
-		console.warn(
-			`\nWARNING: .recompile-request.json exists but the following packages\n` +
-				`still have a stable version (CI may not have finished yet):\n` +
-				`${list}\n` +
-				`You are downloading the previous stable binaries — not the recompiled ones.\n` +
-				`Wait for the "Compile PHP WASM" CI job to complete and re-run prepare-wasm.\n`
-		);
-	}
-}
-
 let downloaded = 0;
 let skipped = 0;
 
@@ -92,17 +84,35 @@ for (const key of allKeys) {
 		`packages/php-wasm/${platform}-builds/${versionDir}`
 	);
 
-	const version = JSON.parse(
-		fs.readFileSync(path.join(buildsDir, 'package.json'), 'utf8')
-	).version;
+	const stableVersion = packageVersion(platform, major, minor);
+	let version = stableVersion;
+
+	// If a recompile was requested for this package, compute the pre-release
+	// version from its requestedAt timestamp.
+	const requestedAt = recompileEntries.get(key);
+	if (requestedAt) {
+		const compact = requestedAt.replace(/[-:.Z]/g, '').slice(0, 15);
+		const wasmVersion = `${lernaVersion}-wasm.${compact}`;
+
+		// Check whether CI has already published this pre-release version.
+		try {
+			execSync(`npm view @php-wasm/${key}@${wasmVersion} version`, {
+				stdio: 'pipe',
+			});
+			version = wasmVersion;
+		} catch {
+			console.warn(
+				`[warn] @php-wasm/${key}@${wasmVersion} not yet on npm.\n` +
+					`       CI may still be running. Using stable binaries for now.\n` +
+					`       Re-run prepare-wasm once the "Compile PHP WASM" job completes.\n`
+			);
+		}
+	}
 
 	const jspiDir = path.join(buildsDir, 'jspi');
 	const asyncifyDir = path.join(buildsDir, 'asyncify');
 
-	const jspiExists = hasWasmFiles(jspiDir);
-	const asyncifyExists = hasWasmFiles(asyncifyDir);
-
-	if (jspiExists && asyncifyExists) {
+	if (hasWasmFiles(jspiDir) && hasWasmFiles(asyncifyDir)) {
 		console.log(`[skip] @php-wasm/${key}@${version} — already present`);
 		skipped++;
 		continue;
@@ -164,6 +174,15 @@ for (const key of allKeys) {
 }
 
 console.log(`\nDone: ${downloaded} downloaded, ${skipped} skipped.`);
+
+function packageVersion(platform, major, minor) {
+	const pkgPath = path.join(
+		repoRoot,
+		`packages/php-wasm/${platform}-builds/${major}-${minor}/package.json`
+	);
+
+	return JSON.parse(fs.readFileSync(pkgPath, 'utf8')).version;
+}
 
 function hasWasmFiles(dir) {
 	if (!fs.existsSync(dir)) return false;
