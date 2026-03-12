@@ -171,13 +171,13 @@ export async function loadNodeRuntime(
 						normalizedPath
 					);
 					if (fs.existsSync(absoluteSourcePath)) {
-						const sourceStat = fs.statSync(absoluteSourcePath);
 						if (
 							!FSHelpers.fileExists(
 								phpRuntime.FS,
 								symlinkMountPath
 							)
 						) {
+							const sourceStat = fs.statSync(absoluteSourcePath);
 							if (sourceStat.isDirectory()) {
 								phpRuntime.FS.mkdirTree(symlinkMountPath);
 							} else if (sourceStat.isFile()) {
@@ -193,40 +193,35 @@ export async function loadNodeRuntime(
 						}
 
 						/**
-						 * For file symlinks, mount the parent directory instead
-						 * of just the file. When PHP resolves __DIR__ inside a
-						 * mounted file, it gets the parent path — which would be
-						 * an empty MEMFS directory if only the file were mounted.
-						 * Mounting the parent directory ensures sibling files
-						 * (e.g. wp-includes/version.php next to wp-load.php)
-						 * are accessible.
+						 * Mount the host filesystem root at /internal/symlinks
+						 * so that any depth of upward traversal from __DIR__
+						 * (e.g. __DIR__ . '/../../') resolves through NODEFS
+						 * instead of hitting empty MEMFS scaffolding.
+						 *
+						 * On the first call the mkdirTree above creates
+						 * /internal/symlinks as a MEMFS directory. The mount
+						 * then shadows that subtree with NODEFS. On subsequent
+						 * calls the mount already exists and the scaffolding
+						 * is skipped because the file is found through NODEFS.
 						 */
-						const mountPath = sourceStat.isFile()
-							? dirname(symlinkMountPath)
-							: symlinkMountPath;
-						const mountRoot = sourceStat.isFile()
-							? dirname(normalizedPath)
-							: absoluteSourcePath;
-
+						const symlinksMountPath = '/internal/symlinks';
 						const mountNode =
-							phpRuntime.FS.lookupPath(mountPath).node;
+							phpRuntime.FS.lookupPath(symlinksMountPath).node;
 
 						/**
-						 * If another PHP instance has already resolved a symlink
-						 * to the same absolute path, a corresponding mount point will
-						 * exist in the shared filesystem, but we do not know whether
-						 * the target path has been mounted to this PHP's VFS.
-						 * If the VFS node at the symlink mount path has its own path
-						 * as the mount point, we know there is a mount at that path.
+						 * If another PHP instance has already resolved a symlink,
+						 * a mount point will exist in the shared filesystem, but
+						 * we do not know whether it has been mounted in this
+						 * PHP's VFS. Check the mountpoint to find out.
 						 */
 						const isMounted =
-							mountNode.mount.mountpoint === mountPath;
+							mountNode.mount.mountpoint === symlinksMountPath;
 
 						if (!isMounted) {
 							phpRuntime.FS.mount(
 								phpRuntime.FS.filesystems.NODEFS,
-								{ root: mountRoot },
-								mountPath
+								{ root: '/' },
+								symlinksMountPath
 							);
 						}
 					}
