@@ -30,7 +30,9 @@ RUN set -euxo pipefail;\
     wget \
     unzip \
     cmake \
-    python3
+    python3; \
+    apt-get clean; \
+    rm -rf /var/lib/apt/lists/*
 
 # Install Emscripten from the repository. We'd use the official
 # Docker image, but there is no arm64 image available which makes

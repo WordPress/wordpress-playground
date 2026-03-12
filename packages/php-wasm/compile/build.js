@@ -236,18 +236,19 @@ if (!requestedVersion || requestedVersion === 'undefined') {
 
 const sourceDir = path.dirname(new URL(import.meta.url).pathname);
 
+// Extract major.minor from the PHP version (e.g., "8.4.16" -> "8-4")
+const phpVersion = args.PHP_VERSION || '8.3';
+const [phpMajor, phpMinor] = phpVersion.split('.');
+// Check both --JSPI (boolean) and --WITH_JSPI=yes (string from legacy format)
+const isJspi = args.JSPI || args.WITH_JSPI === 'yes';
+const jspiOrAsyncify = isJspi ? 'jspi' : 'asyncify';
+
 // Compute output directory if not provided
 function computeOutputDir() {
 	if (args.outputDir) {
 		return path.resolve(process.cwd(), args.outputDir);
 	}
-	// Extract major.minor from the PHP version (e.g., "8.4.16" -> "8-4")
-	const phpVersion = args.PHP_VERSION || '8.3';
-	const [major, minor] = phpVersion.split('.');
-	const versionDir = `${major}-${minor}`;
-	// Check both --JSPI (boolean) and --WITH_JSPI=yes (string from legacy format)
-	const isJspi = args.JSPI || args.WITH_JSPI === 'yes';
-	const jspiOrAsyncify = isJspi ? 'jspi' : 'asyncify';
+	const versionDir = `${phpMajor}-${phpMinor}`;
 	const platformDir = platform === 'node' ? 'node-builds' : 'web-builds';
 	return path.resolve(
 		process.cwd(),
@@ -257,15 +258,16 @@ function computeOutputDir() {
 
 const outputDir = computeOutputDir();
 
+// Unique Docker image tag per build to allow parallel builds
+const dockerTag = `php-wasm-${phpMajor}-${phpMinor}-${platform}-${jspiOrAsyncify}`;
+
 // Clean up outdated minor versions in the output directory to avoid shipping
 // multiple binaries for the same major.minor PHP version.
 async function cleanupOldMinorVersions() {
 	if (!fs.existsSync(outputDir)) {
 		return;
 	}
-	const phpVersion = args.PHP_VERSION || '8.3';
-	const [major, minor] = phpVersion.split('.');
-	const versionPrefix = `${major}_${minor}`;
+	const versionPrefix = `${phpMajor}_${phpMinor}`;
 
 	const entries = fs.readdirSync(outputDir);
 	for (const entry of entries) {
@@ -273,7 +275,7 @@ async function cleanupOldMinorVersions() {
 		// that belong to the same major.minor version
 		if (
 			entry.startsWith(versionPrefix) ||
-			entry.startsWith(`php_${major}_${minor}`)
+			entry.startsWith(`php_${phpMajor}_${phpMinor}`)
 		) {
 			const fullPath = path.join(outputDir, entry);
 			console.log(`Removing outdated: ${fullPath}`);
@@ -284,8 +286,23 @@ async function cleanupOldMinorVersions() {
 
 await cleanupOldMinorVersions();
 
-// Build the base image
-await asyncSpawn('make', ['base-image'], { cwd: sourceDir, stdio: 'inherit' });
+// Build the base image only if it doesn't already exist, to avoid
+// conflicts when multiple builds run in parallel.
+const baseImageExists = await asyncSpawn(
+	'docker',
+	['image', 'inspect', 'playground-php-wasm:base'],
+	{ cwd: sourceDir, stdio: 'ignore' }
+).then(
+	() => true,
+	() => false
+);
+
+if (!baseImageExists) {
+	await asyncSpawn('make', ['base-image'], {
+		cwd: sourceDir,
+		stdio: 'inherit',
+	});
+}
 
 const phpVersionForDockerfile = getArg('PHP_VERSION').replace('PHP_VERSION=', '');
 const dockerfile = phpVersionForDockerfile.startsWith('5.2')
@@ -299,7 +316,7 @@ await asyncSpawn(
 		'-f',
 		dockerfile,
 		'..',
-		'--tag=php-wasm',
+		`--tag=${dockerTag}`,
 		'--progress=plain',
 		'--build-arg',
 		getArg('PHP_VERSION'),
@@ -362,6 +379,10 @@ await asyncSpawn(
 		getArg('WITH_OPCACHE'),
 		'--build-arg',
 		getArg('STACK_SIZE'),
+		'--build-arg',
+		`PHP_VERSION_DIR=${phpMajor}-${phpMinor}`,
+		'--build-arg',
+		`ASYNCIFY_OR_JSPI_DIR=${jspiOrAsyncify}`,
 	],
 	{ cwd: sourceDir, stdio: 'inherit' }
 );
@@ -373,11 +394,11 @@ await asyncSpawn(
 	[
 		'run',
 		'--name',
-		'php-wasm-tmp',
+		`${dockerTag}-tmp`,
 		'--rm',
 		'-v',
 		`${outputDir}:/output`,
-		'php-wasm',
+		dockerTag,
 		// Use sh -c because wildcards are a shell feature and
 		// they don't work without running cp through shell.
 		'sh',
@@ -397,49 +418,74 @@ const triggerFilePath = path.join(
 	repoRoot,
 	'packages/php-wasm/.recompile-request.json'
 );
-const resolvedPHPVersion = fullyQualifiedPHPVersion(args.PHP_VERSION || '8.3');
-const [phpMajor, phpMinor] = resolvedPHPVersion.split('.');
+const lockFilePath = triggerFilePath + '.lock';
 const phpVersionShort = `${phpMajor}.${phpMinor}`;
 
-let triggerData = { requestedAt: '', compilations: [] };
+// Acquire an exclusive lock by atomically creating a lock file.
+// Retries every 100ms for up to 30 seconds.
+async function acquireLock() {
+	const deadline = Date.now() + 30_000;
+	while (Date.now() < deadline) {
+		try {
+			fs.writeFileSync(lockFilePath, String(process.pid), { flag: 'wx' });
+			return;
+		} catch {
+			await new Promise((resolve) => setTimeout(resolve, 100));
+		}
+	}
+	throw new Error('Timed out waiting for lock on .recompile-request.json');
+}
 
-if (fs.existsSync(triggerFilePath)) {
+function releaseLock() {
 	try {
-		triggerData = JSON.parse(fs.readFileSync(triggerFilePath, 'utf8'));
+		fs.unlinkSync(lockFilePath);
 	} catch {
-		// Ignore parse errors — start fresh
+		// Ignore — lock file may already be gone
 	}
 }
 
-// requestedAt is stored per-entry so each compilation has its own timestamp.
-// This allows download-wasm.mjs to compute a deterministic npm version for
-// each package independently, even when multiple recompiles accumulate.
-const now = new Date().toISOString();
-const existingIndex = triggerData.compilations.findIndex(
-	(c) =>
-		c.platform === (args.PLATFORM || 'web') &&
-		c.phpVersion === phpVersionShort
-);
+await acquireLock();
+try {
+	let triggerData = { compilations: [] };
 
-if (existingIndex === -1) {
-	triggerData.compilations.push({
-		platform: args.PLATFORM || 'web',
-		phpVersion: phpVersionShort,
-		requestedAt: now,
-	});
-} else {
-	triggerData.compilations[existingIndex].requestedAt = now;
+	if (fs.existsSync(triggerFilePath)) {
+		try {
+			triggerData = JSON.parse(fs.readFileSync(triggerFilePath, 'utf8'));
+		} catch {
+			// Ignore parse errors — start fresh
+		}
+	}
+
+	// requestedAt is stored per-entry so each compilation has its own timestamp.
+	// This allows download-wasm.mjs to compute a deterministic npm version for
+	// each package independently, even when multiple recompiles accumulate.
+	const now = new Date().toISOString();
+	const existingIndex = triggerData.compilations.findIndex(
+		(c) => c.platform === platform && c.phpVersion === phpVersionShort
+	);
+
+	if (existingIndex === -1) {
+		triggerData.compilations.push({
+			platform,
+			phpVersion: phpVersionShort,
+			requestedAt: now,
+		});
+	} else {
+		triggerData.compilations[existingIndex].requestedAt = now;
+	}
+
+	// Remove legacy top-level requestedAt if present.
+	delete triggerData.requestedAt;
+	fs.writeFileSync(
+		triggerFilePath,
+		JSON.stringify(triggerData, null, '\t') + '\n'
+	);
+	console.log(
+		`Updated packages/php-wasm/.recompile-request.json for ${platform} PHP ${phpVersionShort}`
+	);
+} finally {
+	releaseLock();
 }
-
-// Remove legacy top-level requestedAt if present.
-delete triggerData.requestedAt;
-fs.writeFileSync(
-	triggerFilePath,
-	JSON.stringify(triggerData, null, '\t') + '\n'
-);
-console.log(
-	`Updated packages/php-wasm/.recompile-request.json for ${platform} PHP ${phpVersionShort}`
-);
 
 function asyncSpawn(...args) {
 	console.log('Running', args[0], args[1].join(' '), '...');
