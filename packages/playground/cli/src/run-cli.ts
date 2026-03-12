@@ -5,6 +5,7 @@ import {
 	type Pooled,
 	type PHPRequest,
 	type PathAlias,
+	type RewriteRule,
 	type RemoteAPI,
 	type SupportedPHPVersion,
 } from '@php-wasm/universal';
@@ -767,6 +768,7 @@ export interface RunCLIArgs {
 	wp?: string;
 	autoMount?: string;
 	pathAliases?: PathAlias[];
+	rewriteRules?: RewriteRule[];
 	experimentalTrace?: boolean;
 	internalCookieStore?: boolean;
 	'additional-blueprint-steps'?: any[];

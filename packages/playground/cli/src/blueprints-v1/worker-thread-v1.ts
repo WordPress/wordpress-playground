@@ -1,7 +1,11 @@
 import type { FileLockManager } from '@php-wasm/universal';
 import { loadNodeRuntime } from '@php-wasm/node';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
-import type { PathAlias, SupportedPHPVersion } from '@php-wasm/universal';
+import type {
+	PathAlias,
+	RewriteRule,
+	SupportedPHPVersion,
+} from '@php-wasm/universal';
 import {
 	PHPWorker,
 	releaseApiProxy,
@@ -52,6 +56,7 @@ interface WorkerBootRequestHandlerOptions {
 	withMemcached?: boolean;
 	withXdebug?: boolean;
 	pathAliases?: PathAlias[];
+	rewriteRules?: RewriteRule[];
 }
 
 /**
@@ -181,6 +186,7 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 				sapiName: 'cli',
 				cookieStore: false,
 				pathAliases: options.pathAliases,
+				rewriteRules: options.rewriteRules,
 				spawnHandler: () =>
 					sandboxedSpawnHandlerFactory(() => {
 						let effectiveOptions = options;

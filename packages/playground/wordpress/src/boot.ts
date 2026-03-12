@@ -5,6 +5,7 @@ import type {
 	FileTree,
 	PathAlias,
 	PHPWorker,
+	RewriteRule,
 	SpawnHandler,
 	Remote,
 } from '@php-wasm/universal';
@@ -116,6 +117,13 @@ export interface BootRequestHandlerOptions {
 	 * ```
 	 */
 	pathAliases?: PathAlias[];
+
+	/**
+	 * Additional rewrite rules to apply on top of the default WordPress
+	 * rewrite rules.  Each rule maps a regex pattern to a replacement
+	 * path, similar to Apache/Nginx rewrite directives.
+	 */
+	rewriteRules?: RewriteRule[];
 
 	/**
 	 * The CookieStore instance to use.
@@ -493,7 +501,10 @@ export async function bootRequestHandler(options: BootRequestHandlerOptions) {
 	const requestHandler: PHPRequestHandler = new PHPRequestHandler({
 		documentRoot: options.documentRoot || '/wordpress',
 		absoluteUrl: options.siteUrl,
-		rewriteRules: wordPressRewriteRules,
+		rewriteRules: [
+			...wordPressRewriteRules,
+			...(options.rewriteRules || []),
+		],
 		pathAliases: options.pathAliases,
 		getFileNotFoundAction:
 			options.getFileNotFoundAction ?? getFileNotFoundActionForWordPress,

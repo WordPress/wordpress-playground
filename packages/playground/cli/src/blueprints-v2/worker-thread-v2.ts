@@ -11,6 +11,7 @@ import type {
 	PathAlias,
 	PHP,
 	FileTree,
+	RewriteRule,
 	RemoteAPI,
 	SupportedPHPVersion,
 	SpawnHandler,
@@ -173,6 +174,7 @@ export type SecondaryWorkerBootArgs = {
 	withMemcached?: boolean;
 	withXdebug?: boolean;
 	pathAliases?: PathAlias[];
+	rewriteRules?: RewriteRule[];
 	mountsBeforeWpInstall?: Array<Mount>;
 	mountsAfterWpInstall?: Array<Mount>;
 };
@@ -456,6 +458,7 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 		withMemcached,
 		withXdebug,
 		pathAliases,
+		rewriteRules,
 		onPHPInstanceCreated,
 		spawnHandler,
 	}: WorkerBootRequestHandlerOptions) {
@@ -502,6 +505,7 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 				constants,
 				phpIniEntries,
 				pathAliases,
+				rewriteRules,
 				cookieStore: false,
 				spawnHandler,
 			});
@@ -566,6 +570,7 @@ async function createPHPWorker(
 		nativeInternalDirPath,
 		withXdebug,
 		pathAliases,
+		rewriteRules,
 		mountsBeforeWpInstall,
 		mountsAfterWpInstall,
 	}: // NOTE: We explicitly remove processId from the options
@@ -592,6 +597,7 @@ async function createPHPWorker(
 		nativeInternalDirPath,
 		withXdebug,
 		pathAliases,
+		rewriteRules,
 		mountsBeforeWpInstall,
 		mountsAfterWpInstall,
 	});
