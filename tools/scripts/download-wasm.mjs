@@ -96,7 +96,7 @@ for (const key of allKeys) {
 		`packages/php-wasm/${platform}-builds/${versionDir}/${variant}`
 	);
 
-	const stableVersion = packageVersion(platform, major, minor, variant);
+	const stableVersion = packageVersion(platform, major, minor);
 	let version = stableVersion;
 
 	// If a recompile was requested for this package, compute the pre-release
@@ -177,10 +177,10 @@ for (const key of allKeys) {
 
 console.log(`\nDone: ${downloaded} downloaded, ${skipped} skipped.`);
 
-function packageVersion(platform, major, minor, variant) {
+function packageVersion(platform, major, minor) {
 	const pkgPath = path.join(
 		repoRoot,
-		`packages/php-wasm/${platform}-builds/${major}-${minor}/${variant}/package.json`
+		`packages/php-wasm/${platform}-builds/${major}-${minor}/package.json`
 	);
 
 	return JSON.parse(fs.readFileSync(pkgPath, 'utf8')).version;
