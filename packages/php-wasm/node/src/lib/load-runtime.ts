@@ -171,13 +171,13 @@ export async function loadNodeRuntime(
 						normalizedPath
 					);
 					if (fs.existsSync(absoluteSourcePath)) {
+						const sourceStat = fs.statSync(absoluteSourcePath);
 						if (
 							!FSHelpers.fileExists(
 								phpRuntime.FS,
 								symlinkMountPath
 							)
 						) {
-							const sourceStat = fs.statSync(absoluteSourcePath);
 							if (sourceStat.isDirectory()) {
 								phpRuntime.FS.mkdirTree(symlinkMountPath);
 							} else if (sourceStat.isFile()) {
@@ -192,8 +192,24 @@ export async function loadNodeRuntime(
 							}
 						}
 
-						const symlinkMountNode =
-							phpRuntime.FS.lookupPath(symlinkMountPath).node;
+						/**
+						 * For file symlinks, mount the parent directory instead
+						 * of just the file. When PHP resolves __DIR__ inside a
+						 * mounted file, it gets the parent path — which would be
+						 * an empty MEMFS directory if only the file were mounted.
+						 * Mounting the parent directory ensures sibling files
+						 * (e.g. wp-includes/version.php next to wp-load.php)
+						 * are accessible.
+						 */
+						const mountPath = sourceStat.isFile()
+							? dirname(symlinkMountPath)
+							: symlinkMountPath;
+						const mountRoot = sourceStat.isFile()
+							? dirname(normalizedPath)
+							: absoluteSourcePath;
+
+						const mountNode =
+							phpRuntime.FS.lookupPath(mountPath).node;
 
 						/**
 						 * If another PHP instance has already resolved a symlink
@@ -203,15 +219,14 @@ export async function loadNodeRuntime(
 						 * If the VFS node at the symlink mount path has its own path
 						 * as the mount point, we know there is a mount at that path.
 						 */
-						const isSymlinkMounted =
-							symlinkMountNode.mount.mountpoint ===
-							symlinkMountPath;
+						const isMounted =
+							mountNode.mount.mountpoint === mountPath;
 
-						if (!isSymlinkMounted) {
+						if (!isMounted) {
 							phpRuntime.FS.mount(
 								phpRuntime.FS.filesystems.NODEFS,
-								{ root: absoluteSourcePath },
-								symlinkMountPath
+								{ root: mountRoot },
+								mountPath
 							);
 						}
 					}
