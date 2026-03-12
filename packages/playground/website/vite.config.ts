@@ -1,5 +1,4 @@
-/// <reference types="vitest" />
-import { defineConfig } from 'vite';
+import { defineConfig } from 'vitest/config';
 import type { CommonServerOptions, Plugin, ViteDevServer } from 'vite';
 import react from '@vitejs/plugin-react';
 // eslint-disable-next-line @nx/enforce-module-boundaries

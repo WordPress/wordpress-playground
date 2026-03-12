@@ -1,5 +1,4 @@
-/// <reference types="vitest" />
-import { defineConfig } from 'vite';
+import { defineConfig } from 'vitest/config';
 import { nxViteTsPaths } from '@nx/vite/plugins/nx-tsconfig-paths.plugin';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import viteGlobalExtensions from '../../vite-extensions/vite-global-extensions';

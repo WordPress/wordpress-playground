@@ -1,5 +1,4 @@
-/// <reference types="vitest" />
-import { defineConfig } from 'vite';
+import { defineConfig } from 'vitest/config';
 import type { Plugin } from 'vite';
 import { join } from 'path';
 import dts from 'vite-plugin-dts';

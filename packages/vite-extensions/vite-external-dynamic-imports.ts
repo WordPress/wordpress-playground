@@ -12,13 +12,17 @@ export interface ExternalDynamicImportRule {
  * Without this plugin, dynamic imports like `import('../../public/php/jspi/php_8_4.js')`
  * would either be bundled (inlining 5MB+ of WASM as base64) or break entirely.
  *
- * This plugin works together with rollup's `external` option:
+ * This plugin works together with Rolldown's `external` option:
  * 1. This plugin rewrites the import paths to be relative to the dist output location
  * 2. The `external` option marks these imports as external so they're preserved as
  *    literal `import()` statements in the bundle
  *
  * The result is that the final bundle contains imports like `import('./php/jspi/php_8_4.js')`
  * which allows consumers to provide their own loaders for these files.
+ *
+ * In Rolldown (Vite 8), resolveDynamicImport is not called when the internal
+ * resolver can already find the file on disk. We intercept via both resolveId
+ * (with enforce:'pre') and resolveDynamicImport for maximum compatibility.
  */
 export function viteExternalDynamicImports(
 	rules: ExternalDynamicImportRule[]
@@ -29,9 +33,23 @@ export function viteExternalDynamicImports(
 
 	return {
 		name: 'vite-external-dynamic-imports',
+		enforce: 'pre' as const,
 
 		configResolved(config) {
 			command = config.command;
+		},
+
+		resolveId(source) {
+			if (command !== 'build') return;
+
+			for (const rule of rules) {
+				if (new RegExp(rule.regex).test(source)) {
+					matchedRules.add(rule);
+					return { id: rule.transform(source), external: true };
+				}
+			}
+
+			return null;
 		},
 
 		resolveDynamicImport(specifier) {
@@ -40,7 +58,7 @@ export function viteExternalDynamicImports(
 			for (const rule of rules) {
 				if (new RegExp(rule.regex).test(specifier)) {
 					matchedRules.add(rule);
-					return rule.transform(specifier);
+					return { id: rule.transform(specifier), external: true };
 				}
 			}
 

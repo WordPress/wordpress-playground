@@ -1,6 +1,6 @@
 /// <reference types='vitest' />
 import { join } from 'path';
-import { defineConfig } from 'vite';
+import { defineConfig } from 'vitest/config';
 import dts from 'vite-plugin-dts';
 import viteTsConfigPaths from 'vite-tsconfig-paths';
 // eslint-disable-next-line @nx/enforce-module-boundaries

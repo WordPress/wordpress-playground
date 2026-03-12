@@ -1,8 +1,7 @@
-/// <reference types="vitest" />
 import { fileURLToPath } from 'node:url';
 import { copyFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { defineConfig } from 'vite';
+import { defineConfig } from 'vitest/config';
 import type { CommonServerOptions, Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 // eslint-disable-next-line @nx/enforce-module-boundaries

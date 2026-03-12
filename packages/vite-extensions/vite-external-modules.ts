@@ -40,6 +40,7 @@ export const getExternalModules = () => {
 		'node:process',
 		/^@php-wasm\//,
 		/^@wp-playground\//,
+		/^isomorphic-git/,
 		...deps,
 	];
 };

@@ -1,14 +1,11 @@
-/// <reference types="vitest" />
 import path from 'path';
-import { defineConfig } from 'vite';
+import { defineConfig } from 'vitest/config';
 import dts from 'vite-plugin-dts';
 
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { viteTsConfigPaths } from '../../vite-extensions/vite-ts-config-paths';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { viteIgnoreImports } from '../../vite-extensions/vite-ignore-imports';
-// eslint-disable-next-line @nx/enforce-module-boundaries
-import { viteExternalDynamicImports } from '../../vite-extensions/vite-external-dynamic-imports';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import viteGlobalExtensions from '../../vite-extensions/vite-global-extensions';
 // eslint-disable-next-line @nx/enforce-module-boundaries
@@ -28,25 +25,27 @@ export default defineConfig({
 			pathsToAliases: false,
 		}),
 		viteIgnoreImports({
-			extensions: ['wasm', 'so', 'dat'],
+			extensions: ['wasm', 'so'],
 		}),
 		/*
-		 * This transforms rewrite dynamic import paths so they work from the dist output.
+		 * Externalize the icu.dat import and rewrite its path so the output
+		 * contains import('./shared/icu.dat') relative to the dist root.
 		 *
-		 * Why the '../../../' prefix? Rollup computes the final import path relative to
-		 * where the source file was located. Since everything gets bundled into
-		 * index.js at the dist root, we need to "climb out" of the source directory
-		 * structure. Rollup then normalizes '../../../foo' to './foo' in the output.
+		 * In Rolldown (Vite 8), resolveDynamicImport is not called for
+		 * files that Rolldown can resolve internally. We intercept via
+		 * resolveId instead: when a .dat file resolves to an absolute path,
+		 * we mark it as external and rewrite to the desired output path.
 		 */
-		viteExternalDynamicImports([
-			{
-				// Source: src/lib/extensions/intl/with-intl.ts
-				// Input:  './lib/extensions/intl/shared/icu.dat'
-				// Output: './shared/icu.dat'
-				regex: /icu\.dat$/,
-				transform: (specifier) => `../../../${specifier}`,
+		{
+			name: 'externalize-icu-dat',
+			enforce: 'pre' as const,
+			resolveId(source) {
+				if (/icu\.dat$/.test(source)) {
+					return { id: './shared/icu.dat', external: true };
+				}
+				return null;
 			},
-		]),
+		},
 		...viteGlobalExtensions,
 	],
 
@@ -66,7 +65,6 @@ export default defineConfig({
 			// PHP loaders are now in version-specific packages like @php-wasm/web-8-4
 			external: [
 				/^@php-wasm\/web-\d+-\d+$/,
-				/icu.dat$/,
 				/intl.so$/,
 				...getExternalModules(),
 			],

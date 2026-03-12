@@ -1,11 +1,12 @@
-/// <reference types="vitest" />
-import { defineConfig } from 'vite';
+import { defineConfig } from 'vitest/config';
 import dts from 'vite-plugin-dts';
 import { join } from 'path';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { viteTsConfigPaths } from '../../vite-extensions/vite-ts-config-paths';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { viteIgnoreImports } from '../../vite-extensions/vite-ignore-imports';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import { getExternalModules } from '../../vite-extensions/vite-external-modules';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { buildVersionPlugin } from '../../vite-extensions/vite-build-version';
 // eslint-disable-next-line @nx/enforce-module-boundaries
@@ -88,6 +89,9 @@ export default defineConfig({
 			name: 'playground-client',
 			fileName: 'index',
 			formats: ['es', 'cjs'],
+		},
+		rolldownOptions: {
+			external: getExternalModules(),
 		},
 	},
 

@@ -1,4 +1,3 @@
-/// <reference types="vitest" />
 import { copyFileSync } from 'fs';
 import { createRequire } from 'module';
 import { dirname, join } from 'path';

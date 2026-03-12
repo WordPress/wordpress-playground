@@ -2,8 +2,7 @@
  * For Vitest only! The module is built with esbuild which is configured
  * in project.json.
  */
-/// <reference types="vitest" />
-import { defineConfig } from 'vite';
+import { defineConfig } from 'vitest/config';
 import viteTsConfigPaths from 'vite-tsconfig-paths';
 import path from 'path';
 import type { Plugin } from 'vite';

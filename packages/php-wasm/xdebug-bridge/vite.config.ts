@@ -1,4 +1,3 @@
-/// <reference types="vitest" />
 import { join } from 'path';
 import { defineConfig, type Plugin } from 'vite';
 import path from 'path';

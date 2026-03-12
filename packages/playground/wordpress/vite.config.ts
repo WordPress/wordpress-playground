@@ -1,5 +1,5 @@
 /// <reference types='vitest' />
-import { defineConfig } from 'vite';
+import { defineConfig } from 'vitest/config';
 import type { Plugin } from 'vite';
 import dts from 'vite-plugin-dts';
 // eslint-disable-next-line @nx/enforce-module-boundaries
