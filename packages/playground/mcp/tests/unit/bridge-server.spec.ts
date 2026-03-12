@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import WebSocket from 'ws';
-import { PlaygroundBridge } from './bridge-server';
+import { PlaygroundBridge } from '../../src/bridge-server';
 
 // Use high random port to avoid conflicts
 const getPort = () => 19000 + Math.floor(Math.random() * 1000);
