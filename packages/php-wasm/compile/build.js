@@ -438,7 +438,7 @@ fs.writeFileSync(
 	JSON.stringify(triggerData, null, '\t') + '\n'
 );
 console.log(
-	`Updated packages/php-wasm/.recompile-request.json for ${entry.platform} PHP ${phpVersionShort}`
+	`Updated packages/php-wasm/.recompile-request.json for ${platform} PHP ${phpVersionShort}`
 );
 
 function asyncSpawn(...args) {
