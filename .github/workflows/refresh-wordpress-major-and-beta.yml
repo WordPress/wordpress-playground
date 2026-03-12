@@ -32,6 +32,8 @@ jobs:
         runs-on: ubuntu-latest
         environment:
             name: wordpress-assets
+        # Be conservative and set _some_ timeout to prevent a hanging
+        # job from blocking the queue of scheduled runs.
         timeout-minutes: 120
         steps:
             - uses: actions/checkout@v4
