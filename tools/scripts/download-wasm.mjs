@@ -33,6 +33,7 @@ const lernaVersion = JSON.parse(
 // Read per-entry recompile overrides from .recompile-request.json.
 // Each entry carries its own requestedAt timestamp so multiple accumulated
 // recompiles each have an independent, deterministic version.
+// key format: "{platform}-{major}-{minor}-{variant}" e.g. "web-8-5-jspi"
 const triggerFile = path.join(
 	repoRoot,
 	'packages/php-wasm/.recompile-request.json'
@@ -49,7 +50,6 @@ if (fs.existsSync(triggerFile)) {
 	} of trigger.compilations ?? []) {
 		if (requestedAt) {
 			const [major, minor] = phpVersion.split('.');
-			// key format: "{platform}-{major}-{minor}-{variant}" e.g. "web-8-5-jspi"
 			recompileEntries.set(
 				`${platform}-${major}-${minor}-${variant}`,
 				requestedAt
@@ -59,7 +59,7 @@ if (fs.existsSync(triggerFile)) {
 }
 
 // Discover all WASM packages from the filesystem.
-// key format: "{platform}-{major}-{minor}-{variant}" e.g. "web-8-5-jspi"
+// key format: "{platform}-{major}-{minor}" e.g. "web-8-5"
 const allKeys = [];
 for (const platform of ['web', 'node']) {
 	const buildsDir = path.join(
@@ -72,9 +72,7 @@ for (const platform of ['web', 'node']) {
 			withFileTypes: true,
 		})) {
 			if (entry.isDirectory() && /^\d+-\d+$/.test(entry.name)) {
-				for (const variant of ['jspi', 'asyncify']) {
-					allKeys.push(`${platform}-${entry.name}-${variant}`);
-				}
+				allKeys.push(`${platform}-${entry.name}`);
 			}
 		}
 	}
@@ -84,26 +82,49 @@ let downloaded = 0;
 let skipped = 0;
 
 for (const key of allKeys) {
-	// key format: "{platform}-{major}-{minor}-{variant}" e.g. "web-8-5-jspi"
+	// key format: "{platform}-{major}-{minor}" e.g. "web-8-5"
 	const parts = key.split('-');
 	const platform = parts[0]; // "web" or "node"
 	const major = parts[1];
 	const minor = parts[2];
-	const variant = parts[3]; // "jspi" or "asyncify"
 	const versionDir = `${major}-${minor}`;
-	const variantDir = path.join(
+	const buildsDir = path.join(
 		repoRoot,
-		`packages/php-wasm/${platform}-builds/${versionDir}/${variant}`
+		`packages/php-wasm/${platform}-builds/${versionDir}`
 	);
 
+	// Determine which variants are missing.
+	const missingVariants = ['jspi', 'asyncify'].filter(
+		(variant) => !hasWasmFiles(path.join(buildsDir, variant))
+	);
+
+	if (missingVariants.length === 0) {
+		const stableVersion = packageVersion(platform, major, minor);
+		console.log(
+			`[skip] @php-wasm/${key}@${stableVersion} — already present`
+		);
+		skipped++;
+		continue;
+	}
+
+	// Determine the version to download. If any missing variant has a recompile
+	// entry, use the latest requestedAt among them for the pre-release version.
 	const stableVersion = packageVersion(platform, major, minor);
 	let version = stableVersion;
 
-	// If a recompile was requested for this package, compute the pre-release
-	// version from its requestedAt timestamp.
-	const requestedAt = recompileEntries.get(key);
-	if (requestedAt) {
-		const compact = requestedAt.replace(/[-:.Z]/g, '').slice(0, 15);
+	let latestRequestedAt = null;
+	for (const variant of missingVariants) {
+		const requestedAt = recompileEntries.get(`${key}-${variant}`);
+		if (
+			requestedAt &&
+			(!latestRequestedAt || requestedAt > latestRequestedAt)
+		) {
+			latestRequestedAt = requestedAt;
+		}
+	}
+
+	if (latestRequestedAt) {
+		const compact = latestRequestedAt.replace(/[-:.Z]/g, '').slice(0, 15);
 		const wasmVersion = `${lernaVersion}-wasm.${compact}`;
 
 		// Check whether CI has already published this pre-release version.
@@ -121,13 +142,9 @@ for (const key of allKeys) {
 		}
 	}
 
-	if (hasWasmFiles(variantDir)) {
-		console.log(`[skip] @php-wasm/${key}@${version} — already present`);
-		skipped++;
-		continue;
-	}
-
-	console.log(`[download] @php-wasm/${key}@${version}`);
+	console.log(
+		`[download] @php-wasm/${key}@${version} (missing: ${missingVariants.join(', ')})`
+	);
 	const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), `php-wasm-${key}-`));
 
 	try {
@@ -157,14 +174,18 @@ for (const key of allKeys) {
 				.on('error', reject);
 		});
 
-		// The tarball contains a "package/" directory with only the one variant
-		const packageDir = path.join(extractDir, 'package');
-
-		fs.mkdirSync(variantDir, { recursive: true });
-		copyDir(packageDir, variantDir);
+		// Copy only the missing variant directories from the tarball.
+		for (const variant of missingVariants) {
+			const srcVariantDir = path.join(extractDir, 'package', variant);
+			const destVariantDir = path.join(buildsDir, variant);
+			if (fs.existsSync(srcVariantDir)) {
+				fs.mkdirSync(destVariantDir, { recursive: true });
+				copyDir(srcVariantDir, destVariantDir);
+				console.log(`  -> extracted ${variant} to ${destVariantDir}`);
+			}
+		}
 
 		++downloaded;
-		console.log(`  -> extracted to ${variantDir}`);
 	} catch (err) {
 		console.error(
 			`[error] Failed to download @php-wasm/${key}@${version}: ${err.message}`
