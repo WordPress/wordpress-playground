@@ -29,7 +29,7 @@
 			"Bash(*git push*-f*)",
 			"Bash(*git push * trunk*)",
 			"Bash(*git reset --hard*)",
-			"Bash(*git clean -f *)",
+			"Bash(*git clean*)",
 			"Bash(*rm -rf *)",
 			"Bash(*sudo *)",
 			"Bash(*sudo)",
