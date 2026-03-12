@@ -456,18 +456,27 @@ try {
 		}
 	}
 
-	// requestedAt is stored per-entry so each compilation has its own timestamp.
+	// `requestedAt` is stored per-entry so each compilation has its own timestamp.
 	// This allows download-wasm.mjs to compute a deterministic npm version for
 	// each package independently, even when multiple recompiles accumulate.
 	const now = new Date().toISOString();
+
+	if (!Array.isArray(triggerData.compilations)) {
+		triggerData.compilations = [];
+	}
+
 	const existingIndex = triggerData.compilations.findIndex(
-		(c) => c.platform === platform && c.phpVersion === phpVersionShort
+		(c) =>
+			c.platform === platform &&
+			c.phpVersion === phpVersionShort &&
+			c.variant === jspiOrAsyncify
 	);
 
 	if (existingIndex === -1) {
 		triggerData.compilations.push({
 			platform,
 			phpVersion: phpVersionShort,
+			variant: jspiOrAsyncify,
 			requestedAt: now,
 		});
 	} else {
@@ -481,7 +490,7 @@ try {
 		JSON.stringify(triggerData, null, '\t') + '\n'
 	);
 	console.log(
-		`Updated packages/php-wasm/.recompile-request.json for ${platform} PHP ${phpVersionShort}`
+		`Updated packages/php-wasm/.recompile-request.json for ${platform} PHP ${phpVersionShort} (${jspiOrAsyncify})`
 	);
 } finally {
 	releaseLock();

@@ -26,7 +26,8 @@ jobs:
             )
         runs-on: ubuntu-latest
         outputs:
-            matrix: ${{ steps.set-matrix.outputs.matrix }}
+            compile_matrix: ${{ steps.set-matrix.outputs.compile_matrix }}
+            publish_matrix: ${{ steps.set-matrix.outputs.publish_matrix }}
             has_compilations: ${{ steps.set-matrix.outputs.has_compilations }}
         steps:
             - uses: actions/checkout@v4
@@ -36,23 +37,44 @@ jobs:
               run: |
                   if [ ! -f packages/php-wasm/.recompile-request.json ]; then
                     echo "has_compilations=false" >> "$GITHUB_OUTPUT"
-                    echo "matrix={\"include\":[]}" >> "$GITHUB_OUTPUT"
+                    echo "compile_matrix={\"include\":[]}" >> "$GITHUB_OUTPUT"
+                    echo "publish_matrix={\"include\":[]}" >> "$GITHUB_OUTPUT"
                     exit 0
                   fi
-                  MATRIX=$(node -e "
+                  node -e "
                     const data = JSON.parse(require('fs').readFileSync('packages/php-wasm/.recompile-request.json', 'utf8'));
-                    const items = (data.compilations ?? [])
-                      .filter(c => c.requestedAt)
-                      .map(c => ({
-                        platform: c.platform,
-                        phpVersion: c.phpVersion,
-                        phpVersionSlug: c.phpVersion.replace('.', '-'),
-                        packageSuffix: c.platform + '-' + c.phpVersion.replace('.', '-'),
-                        requestedAt: c.requestedAt
-                      }));
-                    console.log(JSON.stringify({ include: items }));
-                  ")
-                  echo "matrix=$MATRIX" >> "$GITHUB_OUTPUT"
+                    const compilations = (data.compilations ?? []).filter(c => c.requestedAt);
+
+                    // One compile job per platform+version+variant
+                    const compileItems = compilations.map(c => ({
+                      platform: c.platform,
+                      phpVersion: c.phpVersion,
+                      phpVersionSlug: c.phpVersion.replace('.', '-'),
+                      variant: c.variant,
+                      artifactSuffix: c.platform + '-' + c.phpVersion.replace('.', '-') + '-' + c.variant,
+                      requestedAt: c.requestedAt
+                    }));
+
+                    // One publish job per unique platform+version, using the latest requestedAt
+                    const publishMap = new Map();
+                    for (const c of compilations) {
+                      const key = c.platform + '-' + c.phpVersion;
+                      const existing = publishMap.get(key);
+                      if (!existing || c.requestedAt > existing.requestedAt) {
+                        publishMap.set(key, {
+                          platform: c.platform,
+                          phpVersion: c.phpVersion,
+                          phpVersionSlug: c.phpVersion.replace('.', '-'),
+                          packageSuffix: c.platform + '-' + c.phpVersion.replace('.', '-'),
+                          requestedAt: c.requestedAt
+                        });
+                      }
+                    }
+
+                    const fs = require('fs');
+                    fs.appendFileSync(process.env.GITHUB_OUTPUT, 'compile_matrix=' + JSON.stringify({ include: compileItems }) + '\n');
+                    fs.appendFileSync(process.env.GITHUB_OUTPUT, 'publish_matrix=' + JSON.stringify({ include: [...publishMap.values()] }) + '\n');
+                  "
                   echo "has_compilations=true" >> "$GITHUB_OUTPUT"
 
     compile:
@@ -61,7 +83,7 @@ jobs:
         runs-on: ubuntu-latest
         strategy:
             fail-fast: false
-            matrix: ${{ fromJSON(needs.read-matrix.outputs.matrix) }}
+            matrix: ${{ fromJSON(needs.read-matrix.outputs.compile_matrix) }}
         steps:
             - uses: actions/checkout@v4
               with:
@@ -83,25 +105,18 @@ jobs:
                   sudo rm -rf /opt/ghc
                   sudo rm -rf /opt/hostedtoolcache/CodeQL
 
-            - name: Compile JSPI variant
+            - name: Compile ${{ matrix.variant }} variant
               run: >
                   node packages/php-wasm/compile/build.js
                   --PLATFORM=${{ matrix.platform }}
                   --PHP_VERSION=${{ matrix.phpVersion }}
-                  --JSPI=true
-
-            - name: Compile Asyncify variant
-              run: >
-                  node packages/php-wasm/compile/build.js
-                  --PLATFORM=${{ matrix.platform }}
-                  --PHP_VERSION=${{ matrix.phpVersion }}
-                  --JSPI=false
+                  --JSPI=${{ matrix.variant == 'jspi' && 'true' || 'false' }}
 
             - name: Upload compiled artifact
               uses: actions/upload-artifact@v4
               with:
-                  name: php-wasm-${{ matrix.packageSuffix }}
-                  path: packages/php-wasm/${{ matrix.platform }}-builds/${{ matrix.phpVersionSlug }}/
+                  name: php-wasm-${{ matrix.artifactSuffix }}
+                  path: packages/php-wasm/${{ matrix.platform }}-builds/${{ matrix.phpVersionSlug }}/${{ matrix.variant }}/
                   retention-days: 3
 
     publish:
@@ -112,7 +127,7 @@ jobs:
             name: npm
         strategy:
             fail-fast: false
-            matrix: ${{ fromJSON(needs.read-matrix.outputs.matrix) }}
+            matrix: ${{ fromJSON(needs.read-matrix.outputs.publish_matrix) }}
         steps:
             - uses: actions/checkout@v4
               with:
@@ -130,11 +145,19 @@ jobs:
             - name: Install dependencies
               run: npm ci
 
-            - name: Download compiled artifact
+            - name: Download jspi artifact
               uses: actions/download-artifact@v4
               with:
-                  name: php-wasm-${{ matrix.packageSuffix }}
-                  path: packages/php-wasm/${{ matrix.platform }}-builds/${{ matrix.phpVersionSlug }}/
+                  name: php-wasm-${{ matrix.packageSuffix }}-jspi
+                  path: packages/php-wasm/${{ matrix.platform }}-builds/${{ matrix.phpVersionSlug }}/jspi/
+              continue-on-error: true
+
+            - name: Download asyncify artifact
+              uses: actions/download-artifact@v4
+              with:
+                  name: php-wasm-${{ matrix.packageSuffix }}-asyncify
+                  path: packages/php-wasm/${{ matrix.platform }}-builds/${{ matrix.phpVersionSlug }}/asyncify/
+              continue-on-error: true
 
             - name: Build package
               run: >
@@ -185,7 +208,7 @@ jobs:
               uses: actions/github-script@v7
               with:
                   script: |
-                      const matrix = ${{ needs.read-matrix.outputs.matrix }};
+                      const matrix = ${{ needs.read-matrix.outputs.publish_matrix }};
                       const lernaVersion = require('./lerna.json').version;
                       const lines = matrix.include.map(item => {
                         const compact = item.requestedAt.replace(/[-:.Z]/g, '').slice(0, 15);

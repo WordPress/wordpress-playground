@@ -41,16 +41,25 @@ const recompileEntries = new Map(); // key -> requestedAt
 
 if (fs.existsSync(triggerFile)) {
 	const trigger = JSON.parse(fs.readFileSync(triggerFile, 'utf8'));
-	for (const { platform, phpVersion, requestedAt } of trigger.compilations ??
-		[]) {
+	for (const {
+		platform,
+		phpVersion,
+		variant,
+		requestedAt,
+	} of trigger.compilations ?? []) {
 		if (requestedAt) {
 			const [major, minor] = phpVersion.split('.');
-			recompileEntries.set(`${platform}-${major}-${minor}`, requestedAt);
+			// key format: "{platform}-{major}-{minor}-{variant}" e.g. "web-8-5-jspi"
+			recompileEntries.set(
+				`${platform}-${major}-${minor}-${variant}`,
+				requestedAt
+			);
 		}
 	}
 }
 
 // Discover all WASM packages from the filesystem.
+// key format: "{platform}-{major}-{minor}-{variant}" e.g. "web-8-5-jspi"
 const allKeys = [];
 for (const platform of ['web', 'node']) {
 	const buildsDir = path.join(
@@ -63,7 +72,9 @@ for (const platform of ['web', 'node']) {
 			withFileTypes: true,
 		})) {
 			if (entry.isDirectory() && /^\d+-\d+$/.test(entry.name)) {
-				allKeys.push(`${platform}-${entry.name}`);
+				for (const variant of ['jspi', 'asyncify']) {
+					allKeys.push(`${platform}-${entry.name}-${variant}`);
+				}
 			}
 		}
 	}
@@ -73,18 +84,19 @@ let downloaded = 0;
 let skipped = 0;
 
 for (const key of allKeys) {
-	// key format: "{platform}-{major}-{minor}" e.g. "web-8-5"
+	// key format: "{platform}-{major}-{minor}-{variant}" e.g. "web-8-5-jspi"
 	const parts = key.split('-');
 	const platform = parts[0]; // "web" or "node"
 	const major = parts[1];
 	const minor = parts[2];
+	const variant = parts[3]; // "jspi" or "asyncify"
 	const versionDir = `${major}-${minor}`;
-	const buildsDir = path.join(
+	const variantDir = path.join(
 		repoRoot,
-		`packages/php-wasm/${platform}-builds/${versionDir}`
+		`packages/php-wasm/${platform}-builds/${versionDir}/${variant}`
 	);
 
-	const stableVersion = packageVersion(platform, major, minor);
+	const stableVersion = packageVersion(platform, major, minor, variant);
 	let version = stableVersion;
 
 	// If a recompile was requested for this package, compute the pre-release
@@ -109,10 +121,7 @@ for (const key of allKeys) {
 		}
 	}
 
-	const jspiDir = path.join(buildsDir, 'jspi');
-	const asyncifyDir = path.join(buildsDir, 'asyncify');
-
-	if (hasWasmFiles(jspiDir) && hasWasmFiles(asyncifyDir)) {
+	if (hasWasmFiles(variantDir)) {
 		console.log(`[skip] @php-wasm/${key}@${version} — already present`);
 		skipped++;
 		continue;
@@ -148,21 +157,14 @@ for (const key of allKeys) {
 				.on('error', reject);
 		});
 
-		// The tarball contains a "package/" directory
+		// The tarball contains a "package/" directory with only the one variant
 		const packageDir = path.join(extractDir, 'package');
 
-		// Copy jspi/ and asyncify/ directories to the source path
-		for (const variant of ['jspi', 'asyncify']) {
-			const srcVariantDir = path.join(packageDir, variant);
-			const destVariantDir = path.join(buildsDir, variant);
-			if (fs.existsSync(srcVariantDir)) {
-				fs.mkdirSync(destVariantDir, { recursive: true });
-				copyDir(srcVariantDir, destVariantDir);
-			}
-		}
+		fs.mkdirSync(variantDir, { recursive: true });
+		copyDir(packageDir, variantDir);
 
 		++downloaded;
-		console.log(`  -> extracted to ${buildsDir}`);
+		console.log(`  -> extracted to ${variantDir}`);
 	} catch (err) {
 		console.error(
 			`[error] Failed to download @php-wasm/${key}@${version}: ${err.message}`
@@ -175,10 +177,10 @@ for (const key of allKeys) {
 
 console.log(`\nDone: ${downloaded} downloaded, ${skipped} skipped.`);
 
-function packageVersion(platform, major, minor) {
+function packageVersion(platform, major, minor, variant) {
 	const pkgPath = path.join(
 		repoRoot,
-		`packages/php-wasm/${platform}-builds/${major}-${minor}/package.json`
+		`packages/php-wasm/${platform}-builds/${major}-${minor}/${variant}/package.json`
 	);
 
 	return JSON.parse(fs.readFileSync(pkgPath, 'utf8')).version;
