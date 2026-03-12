@@ -10,7 +10,7 @@ import {
 import { persistTemporarySite } from './persist-temporary-site';
 import { selectClientBySiteSlug } from './slice-clients';
 import type { McpBridgeHandle } from '@wp-playground/mcp/client';
-import { startMcpBridge } from '@wp-playground/mcp/client';
+import { registerWebMCPTools, startMcpBridge } from '@wp-playground/mcp/client';
 import { isMcpServerEnabled } from '../url/router';
 import { logTrackingEvent } from '../../tracking';
 
@@ -27,7 +27,64 @@ startListening({
 		// Only start the bridge once.
 		listenerApi.unsubscribe();
 
-		// Only start the MCP bridge when explicitly requested via ?mcp=yes query parameter.
+		const { getState, dispatch } = listenerApi;
+
+		const mcpConfig = {
+			getSites: () => {
+				const state = getState();
+				const allSites = selectAllSites(state);
+				const active = selectActiveSite(state);
+				return allSites.map((s) => ({
+					slug: s.slug,
+					name: s.metadata.name,
+					storage: s.metadata.storage,
+					isActive: s.slug === active?.slug,
+				}));
+			},
+			getPlaygroundClient: (siteSlug: string) =>
+				selectClientBySiteSlug(getState(), siteSlug),
+			renameSite: async (siteSlug: string, newName: string) => {
+				await dispatch(
+					updateSiteMetadata({
+						slug: siteSlug,
+						changes: { name: newName },
+					})
+				);
+			},
+			onConnect: () => {
+				logTrackingEvent('mcpConnect');
+			},
+			saveSite: async (siteSlug: string) => {
+				const state = getState();
+				const site = selectSiteBySlug(state, siteSlug);
+				if (!site) {
+					throw new Error(`Site not found: ${siteSlug}`);
+				}
+				if (site.metadata.storage !== 'none') {
+					return {
+						slug: siteSlug,
+						storage: site.metadata.storage,
+					};
+				}
+				await dispatch(
+					persistTemporarySite(siteSlug, 'opfs', {
+						skipRenameModal: true,
+					})
+				);
+				const updatedSite = selectSiteBySlug(getState(), siteSlug);
+				return {
+					slug: siteSlug,
+					storage: updatedSite?.metadata.storage ?? 'none',
+				};
+			},
+		};
+
+		// Register WebMCP tools regardless of ?mcp=yes — they only
+		// activate when navigator.modelContext is available.
+		registerWebMCPTools(mcpConfig);
+
+		// Only start the WebSocket bridge when explicitly requested
+		// via ?mcp=yes and a port is provided.
 		if (!isMcpServerEnabled()) {
 			return;
 		}
@@ -38,57 +95,9 @@ startListening({
 		if (!mcpPort) {
 			return;
 		}
-		const { getState, dispatch } = listenerApi;
+
 		const handle: McpBridgeHandle = startMcpBridge(
-			{
-				getSites: () => {
-					const state = getState();
-					const allSites = selectAllSites(state);
-					const active = selectActiveSite(state);
-					return allSites.map((s) => ({
-						slug: s.slug,
-						name: s.metadata.name,
-						storage: s.metadata.storage,
-						isActive: s.slug === active?.slug,
-					}));
-				},
-				getPlaygroundClient: (siteSlug: string) =>
-					selectClientBySiteSlug(getState(), siteSlug),
-				renameSite: async (siteSlug: string, newName: string) => {
-					await dispatch(
-						updateSiteMetadata({
-							slug: siteSlug,
-							changes: { name: newName },
-						})
-					);
-				},
-				onConnect: () => {
-					logTrackingEvent('mcpConnect');
-				},
-				saveSite: async (siteSlug: string) => {
-					const state = getState();
-					const site = selectSiteBySlug(state, siteSlug);
-					if (!site) {
-						throw new Error(`Site not found: ${siteSlug}`);
-					}
-					if (site.metadata.storage !== 'none') {
-						return {
-							slug: siteSlug,
-							storage: site.metadata.storage,
-						};
-					}
-					await dispatch(
-						persistTemporarySite(siteSlug, 'opfs', {
-							skipRenameModal: true,
-						})
-					);
-					const updatedSite = selectSiteBySlug(getState(), siteSlug);
-					return {
-						slug: siteSlug,
-						storage: updatedSite?.metadata.storage ?? 'none',
-					};
-				},
-			},
+			mcpConfig,
 			Number(mcpPort)
 		);
 
