@@ -115,7 +115,7 @@ export default defineConfig(({ mode }) => {
 		worker: {
 			format: 'es',
 			plugins: () => plugins,
-			rollupOptions: {
+			rolldownOptions: {
 				output: {
 					assetFileNames: (chunkInfo) => {
 						// Split Extensions or associated shared files into separate chunks
@@ -159,7 +159,7 @@ export default defineConfig(({ mode }) => {
 			// @see https://github.com/vitejs/vite/issues/3295
 			assetsInlineLimit: 0,
 			sourcemap: true,
-			rollupOptions: {
+			rolldownOptions: {
 				input: {
 					wordpress: path('/remote.html'),
 				},
@@ -185,9 +185,6 @@ export default defineConfig(({ mode }) => {
 
 		test: {
 			globals: true,
-			cache: {
-				dir: '../../../node_modules/.vitest',
-			},
 			environment: 'node',
 			include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
 			reporters: ['default'],

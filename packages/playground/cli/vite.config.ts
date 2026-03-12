@@ -190,7 +190,7 @@ export default defineConfig({
 	worker: {
 		format: 'es',
 		plugins: () => plugins,
-		rollupOptions: {
+		rolldownOptions: {
 			external,
 			output: {
 				entryFileNames: (chunkInfo: any) => {
@@ -214,7 +214,7 @@ export default defineConfig({
 		assetsInlineLimit: 0,
 		target: 'es2020',
 		sourcemap: true,
-		rollupOptions: {
+		rolldownOptions: {
 			external,
 		},
 		lib: {
@@ -231,9 +231,6 @@ export default defineConfig({
 
 	test: {
 		globals: true,
-		cache: {
-			dir: '../../../node_modules/.vitest',
-		},
 		environment: 'node',
 		include: ['tests/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
 		reporters: ['default'],

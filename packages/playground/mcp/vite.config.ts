@@ -38,7 +38,7 @@ export default defineConfig({
 			formats: ['es', 'cjs'],
 		},
 		sourcemap: true,
-		rollupOptions: {
+		rolldownOptions: {
 			external: getExternalModules(),
 			output: {
 				banner: (chunk) =>

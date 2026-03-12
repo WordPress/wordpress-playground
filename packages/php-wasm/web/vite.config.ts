@@ -61,7 +61,7 @@ export default defineConfig({
 			formats: ['es', 'cjs'],
 		},
 		sourcemap: true,
-		rollupOptions: {
+		rolldownOptions: {
 			// Don't bundle the PHP loaders or extensions in the final build.
 			// PHP loaders are now in version-specific packages like @php-wasm/web-8-4
 			external: [

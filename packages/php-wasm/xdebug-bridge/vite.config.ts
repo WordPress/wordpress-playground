@@ -67,7 +67,7 @@ export default defineConfig({
 			name: 'php-wasm-xdebug-bridge',
 			formats: ['es', 'cjs'],
 		},
-		rollupOptions: {
+		rolldownOptions: {
 			external: [
 				'assert',
 				'crypto',

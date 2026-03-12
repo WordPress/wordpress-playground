@@ -80,7 +80,7 @@ export default defineConfig(({ mode }) => {
 		build: {
 			target: 'esnext',
 			sourcemap: true,
-			rollupOptions: {
+			rolldownOptions: {
 				input: {
 					'beta-php-playground.html': fileURLToPath(
 						new URL('./beta-php-playground.html', import.meta.url)
@@ -98,9 +98,6 @@ export default defineConfig(({ mode }) => {
 
 		test: {
 			globals: true,
-			cache: {
-				dir: '../../../node_modules/.vitest',
-			},
 			environment: 'node',
 			include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
 			reporters: ['default'],

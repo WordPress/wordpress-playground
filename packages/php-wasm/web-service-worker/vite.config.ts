@@ -37,7 +37,7 @@ export default defineConfig({
 			fileName: 'index',
 			formats: ['es', 'cjs'],
 		},
-		rollupOptions: {
+		rolldownOptions: {
 			// External packages that should not be bundled into your library.
 			external: getExternalModules(),
 		},
@@ -45,9 +45,6 @@ export default defineConfig({
 
 	test: {
 		globals: true,
-		cache: {
-			dir: '../../../node_modules/.vitest',
-		},
 		environment: 'node',
 		include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
 		reporters: ['default'],

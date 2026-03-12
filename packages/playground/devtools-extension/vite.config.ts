@@ -99,7 +99,7 @@ export default defineConfig({
 	build: {
 		outDir: '../../../dist/packages/playground/devtools-extension',
 		emptyDirBeforeWrite: true,
-		rollupOptions: {
+		rolldownOptions: {
 			input: {
 				'panel/index': resolve(__dirname, 'src/panel/index.html'),
 				'devtools/index': resolve(__dirname, 'src/devtools/index.html'),

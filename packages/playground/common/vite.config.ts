@@ -36,16 +36,13 @@ export default defineConfig({
 			formats: ['es', 'cjs'],
 		},
 		sourcemap: true,
-		rollupOptions: {
+		rolldownOptions: {
 			external: getExternalModules(),
 		},
 	},
 
 	test: {
 		globals: true,
-		cache: {
-			dir: '../../../node_modules/.vitest',
-		},
 		environment: 'node',
 		include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
 		reporters: ['default'],

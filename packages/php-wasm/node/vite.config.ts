@@ -71,7 +71,7 @@ export default defineConfig(function () {
 				formats: ['es'],
 			},
 			sourcemap: true,
-			rollupOptions: {
+			rolldownOptions: {
 				external: getExternalModules(),
 				output: {
 					entryFileNames: '[name].js',
@@ -82,9 +82,6 @@ export default defineConfig(function () {
 
 		test: {
 			globals: true,
-			cache: {
-				dir: '../../../node_modules/.vitest',
-			},
 			env: {
 				TEST: JSON.stringify(true),
 			},

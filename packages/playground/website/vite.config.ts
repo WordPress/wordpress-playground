@@ -277,7 +277,7 @@ export default defineConfig(({ command, mode }) => {
 		build: {
 			target: 'esnext',
 			sourcemap: true,
-			rollupOptions: {
+			rolldownOptions: {
 				input: {
 					index: fileURLToPath(
 						new URL('./index.html', import.meta.url)
@@ -375,9 +375,6 @@ export default defineConfig(({ command, mode }) => {
 
 		test: {
 			globals: true,
-			cache: {
-				dir: '../../../node_modules/.vitest',
-			},
 			environment: 'node',
 			include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
 			reporters: ['default'],

@@ -45,24 +45,12 @@ export default defineConfig({
 			formats: ['es', 'cjs'],
 		},
 		sourcemap: true,
-		rollupOptions: {
+		rolldownOptions: {
 			external: getExternalModules(),
 		},
 	},
-	resolve: {
-		// @ts-ignore
-		alias: {
-			// This makes sure Vite doesn't stub it
-			fs: false,
-			'fs/promises': false,
-		},
-	},
-
 	test: {
 		globals: true,
-		cache: {
-			dir: '../../../node_modules/.vitest',
-		},
 		testTimeout: 10000,
 		hookTimeout: 30000,
 		environment: 'node',

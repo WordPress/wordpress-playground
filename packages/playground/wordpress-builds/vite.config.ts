@@ -55,7 +55,7 @@ export default defineConfig({
 		// @see https://github.com/vitejs/vite/issues/3295
 		assetsInlineLimit: 0,
 		sourcemap: true,
-		rollupOptions: {
+		rolldownOptions: {
 			external: getExternalModules(),
 			input: path('src/index.ts'),
 			// These additional options are required to preserve
@@ -77,9 +77,6 @@ export default defineConfig({
 
 	test: {
 		globals: true,
-		cache: {
-			dir: '../../../node_modules/.vitest',
-		},
 		environment: 'node',
 		include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
 		reporters: ['default'],

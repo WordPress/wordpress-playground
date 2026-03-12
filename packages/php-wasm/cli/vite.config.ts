@@ -17,7 +17,7 @@ export default defineConfig({
 		assetsInlineLimit: 0,
 		target: 'es2020',
 		sourcemap: true,
-		rollupOptions: {
+		rolldownOptions: {
 			external: [
 				'@php-wasm/node',
 				'@php-wasm/universal',
@@ -47,9 +47,6 @@ export default defineConfig({
 
 	test: {
 		globals: true,
-		cache: {
-			dir: '../../../node_modules/.vitest',
-		},
 		environment: 'node',
 		include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
 		reporters: ['default'],
