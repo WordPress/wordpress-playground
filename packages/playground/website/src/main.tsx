@@ -3,17 +3,15 @@ import './styles.css';
 
 import { collectWindowErrors, logger } from '@php-wasm/logger';
 import { Provider } from 'react-redux';
-import store from './lib/state/redux/store';
-import { Layout } from './components/layout';
 import { EnsurePlaygroundSite } from './components/ensure-playground-site';
-import { SafariWebviewNotice } from './components/safari-webview-notice';
+import { Layout } from './components/layout';
+import store from './lib/state/redux/store';
 
 collectWindowErrors(logger);
 
 const root = createRoot(document.getElementById('root')!);
 root.render(
 	<Provider store={store}>
-		<SafariWebviewNotice />
 		<EnsurePlaygroundSite>
 			<Layout />
 		</EnsurePlaygroundSite>
