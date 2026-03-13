@@ -80,14 +80,17 @@ error_log = ${errorLogPath}
 		return php;
 	}
 
-	describe('SQLite DB locking (relying upon fcntl())', () => {
-		const dbFileName = 'test.db';
-		const vfsDbFilePath = `${vfsMountPoint}/${dbFileName}`;
+	describe(
+		'SQLite DB locking (relying upon fcntl())',
+		{ timeout: 5000 },
+		() => {
+			const dbFileName = 'test.db';
+			const vfsDbFilePath = `${vfsMountPoint}/${dbFileName}`;
 
-		beforeEach(async () => {
-			using php = await createPhpRuntimeWithFileLockingAndTestMount();
-			const result = await php.runStream({
-				code: `<?php
+			beforeEach(async () => {
+				using php = await createPhpRuntimeWithFileLockingAndTestMount();
+				const result = await php.runStream({
+					code: `<?php
 					$db = new SQLite3('${vfsDbFilePath}');
 					$result = $db->exec('CREATE TABLE test (id INTEGER PRIMARY KEY, name TEXT)');
 					if ($result === false) {
@@ -96,41 +99,43 @@ error_log = ${errorLogPath}
 					}
 					$db->close();
 				`,
+				});
+				// TODO: Why does this DB file check fail for PHP 8.0 and under? The tests pass. The DB must exist.
+				//       This is only a problem in JSPI builds. Sleeping for 501ms avoids the issue.
+				// const dbFilePath = join(tempDir, dbFileName);
+				// if (!existsSync(dbFilePath)) {
+				// 	throw new Error(`Database file not created: ${dbFilePath}`);
+				// }
+				if ((await result.exitCode) !== 0) {
+					throw new Error(
+						`Failed to create table: ${await result.stdoutText} ${
+							(await result.stderrText) || 'Unknown error'
+						}`
+					);
+				}
 			});
-			// TODO: Why does this DB file check fail for PHP 8.0 and under? The tests pass. The DB must exist.
-			//       This is only a problem in JSPI builds. Sleeping for 501ms avoids the issue.
-			// const dbFilePath = join(tempDir, dbFileName);
-			// if (!existsSync(dbFilePath)) {
-			// 	throw new Error(`Database file not created: ${dbFilePath}`);
-			// }
-			if ((await result.exitCode) !== 0) {
-				throw new Error(
-					`Failed to create table: ${await result.stdoutText} ${
-						(await result.stderrText) || 'Unknown error'
-					}`
+
+			it('cannot write to DB while another process has an exclusive lock', async () => {
+				using php1 =
+					await createPhpRuntimeWithFileLockingAndTestMount();
+				using php2 =
+					await createPhpRuntimeWithFileLockingAndTestMount();
+
+				const phpCoordinationFile = join(
+					tempDir,
+					'php-instance-coordination'
 				);
-			}
-		});
+				const vfsPhpCoordinationFile = `${vfsMountPoint}/php-instance-coordination`;
+				const stages = {
+					php1Locking: 'php1-locking',
+					php1Locked: 'php1-locked',
+					php2ReadyForUnlock: 'php2-ready-for-unlock',
+					php1Unlocked: 'php1-unlocked',
+				} as const;
 
-		it('cannot write to DB while another process has an exclusive lock', async () => {
-			using php1 = await createPhpRuntimeWithFileLockingAndTestMount();
-			using php2 = await createPhpRuntimeWithFileLockingAndTestMount();
-
-			const phpCoordinationFile = join(
-				tempDir,
-				'php-instance-coordination'
-			);
-			const vfsPhpCoordinationFile = `${vfsMountPoint}/php-instance-coordination`;
-			const stages = {
-				php1Locking: 'php1-locking',
-				php1Locked: 'php1-locked',
-				php2ReadyForUnlock: 'php2-ready-for-unlock',
-				php1Unlocked: 'php1-unlocked',
-			} as const;
-
-			writeFileSync(phpCoordinationFile, stages.php1Locking);
-			const promisedPhp1Result = php1.run({
-				code: `<?php
+				writeFileSync(phpCoordinationFile, stages.php1Locking);
+				const promisedPhp1Result = php1.run({
+					code: `<?php
 					$db = new SQLite3('${vfsDbFilePath}');
 					$db->exec('BEGIN EXCLUSIVE;');
 
@@ -147,9 +152,9 @@ error_log = ${errorLogPath}
 					$db->close();
 					file_put_contents('${vfsPhpCoordinationFile}', '${stages.php1Unlocked}');
 				`,
-			});
-			const promisedPhp2Result = php2.run({
-				code: `<?php
+				});
+				const promisedPhp2Result = php2.run({
+					code: `<?php
 					while (
 						file_get_contents('${vfsPhpCoordinationFile}') !== '${stages.php1Locked}'
 					) {
@@ -182,43 +187,47 @@ error_log = ${errorLogPath}
 					]);
 					$db->close();
 				`,
-			});
+				});
 
-			const [php1Result, php2Result] = await Promise.all([
-				promisedPhp1Result,
-				promisedPhp2Result,
-			]);
-			expect(php1Result.exitCode).toBe(0);
-			expect(php2Result.exitCode).toBe(0);
-			const result2Data = JSON.parse(php2Result.text || '{}');
-			expect(result2Data.attempt_while_exclusively_locked).toMatchObject({
-				lastErrorCode: 5, // SQLITE_BUSY
-				lastErrorMsg: 'database is locked',
+				const [php1Result, php2Result] = await Promise.all([
+					promisedPhp1Result,
+					promisedPhp2Result,
+				]);
+				expect(php1Result.exitCode).toBe(0);
+				expect(php2Result.exitCode).toBe(0);
+				const result2Data = JSON.parse(php2Result.text || '{}');
+				expect(
+					result2Data.attempt_while_exclusively_locked
+				).toMatchObject({
+					lastErrorCode: 5, // SQLITE_BUSY
+					lastErrorMsg: 'database is locked',
+				});
+				expect(result2Data.attempt_while_unlocked).toMatchObject({
+					lastErrorCode: 0,
+					lastErrorMsg: 'not an error',
+				});
 			});
-			expect(result2Data.attempt_while_unlocked).toMatchObject({
-				lastErrorCode: 0,
-				lastErrorMsg: 'not an error',
-			});
-		});
-		it('cannot read from DB while another process has an exclusive lock', async () => {
-			using php1 = await createPhpRuntimeWithFileLockingAndTestMount();
-			using php2 = await createPhpRuntimeWithFileLockingAndTestMount();
+			it('cannot read from DB while another process has an exclusive lock', async () => {
+				using php1 =
+					await createPhpRuntimeWithFileLockingAndTestMount();
+				using php2 =
+					await createPhpRuntimeWithFileLockingAndTestMount();
 
-			const phpCoordinationFile = join(
-				tempDir,
-				'php-instance-coordination'
-			);
-			const vfsPhpCoordinationFile = `${vfsMountPoint}/php-instance-coordination`;
-			const stages = {
-				php1Locking: 'php1-locking',
-				php1WaitingForPhp2ToTry: 'php1-waiting-for-php2-to-try',
-				php2ReadyForUnlock: 'php2-ready-for-unlock',
-				php1Unlocked: 'php1-unlocked',
-			} as const;
+				const phpCoordinationFile = join(
+					tempDir,
+					'php-instance-coordination'
+				);
+				const vfsPhpCoordinationFile = `${vfsMountPoint}/php-instance-coordination`;
+				const stages = {
+					php1Locking: 'php1-locking',
+					php1WaitingForPhp2ToTry: 'php1-waiting-for-php2-to-try',
+					php2ReadyForUnlock: 'php2-ready-for-unlock',
+					php1Unlocked: 'php1-unlocked',
+				} as const;
 
-			writeFileSync(phpCoordinationFile, stages.php1Locking);
-			const promisedPhp1Result = php1.run({
-				code: `<?php
+				writeFileSync(phpCoordinationFile, stages.php1Locking);
+				const promisedPhp1Result = php1.run({
+					code: `<?php
 					$db = new SQLite3('${vfsDbFilePath}');
 					$db->exec('BEGIN EXCLUSIVE;');
 					$db->exec('INSERT INTO test (name) VALUES ("test1")');
@@ -235,9 +244,9 @@ error_log = ${errorLogPath}
 					$db->close();
 					file_put_contents('${vfsPhpCoordinationFile}', '${stages.php1Unlocked}');
 				`,
-			});
-			const promisedPhp2Result = php2.run({
-				code: `<?php
+				});
+				const promisedPhp2Result = php2.run({
+					code: `<?php
 					while (
 						file_get_contents('${vfsPhpCoordinationFile}') !== '${stages.php1WaitingForPhp2ToTry}'
 					) {
@@ -270,43 +279,47 @@ error_log = ${errorLogPath}
 					]);
 					$db->close();
 				`,
-			});
+				});
 
-			const [php1Result, php2Result] = await Promise.all([
-				promisedPhp1Result,
-				promisedPhp2Result,
-			]);
-			expect(php1Result.exitCode).toBe(0);
-			expect(php2Result.exitCode).toBe(0);
-			const result2Data = JSON.parse(php2Result.text || '{}');
-			expect(result2Data.attempt_while_exclusively_locked).toMatchObject({
-				lastErrorCode: 5, // SQLITE_BUSY
-				lastErrorMsg: 'database is locked',
+				const [php1Result, php2Result] = await Promise.all([
+					promisedPhp1Result,
+					promisedPhp2Result,
+				]);
+				expect(php1Result.exitCode).toBe(0);
+				expect(php2Result.exitCode).toBe(0);
+				const result2Data = JSON.parse(php2Result.text || '{}');
+				expect(
+					result2Data.attempt_while_exclusively_locked
+				).toMatchObject({
+					lastErrorCode: 5, // SQLITE_BUSY
+					lastErrorMsg: 'database is locked',
+				});
+				expect(result2Data.attempt_while_unlocked).toMatchObject({
+					lastErrorCode: 0,
+					lastErrorMsg: 'not an error',
+				});
 			});
-			expect(result2Data.attempt_while_unlocked).toMatchObject({
-				lastErrorCode: 0,
-				lastErrorMsg: 'not an error',
-			});
-		});
-		it('cannot write to DB while another process has a shared lock', async () => {
-			using php1 = await createPhpRuntimeWithFileLockingAndTestMount();
-			using php2 = await createPhpRuntimeWithFileLockingAndTestMount();
+			it('cannot write to DB while another process has a shared lock', async () => {
+				using php1 =
+					await createPhpRuntimeWithFileLockingAndTestMount();
+				using php2 =
+					await createPhpRuntimeWithFileLockingAndTestMount();
 
-			const phpCoordinationFile = join(
-				tempDir,
-				'php-instance-coordination'
-			);
-			const vfsPhpCoordinationFile = `${vfsMountPoint}/php-instance-coordination`;
-			const stages = {
-				php1Locking: 'php1-locking',
-				php1WaitingForPhp2ToTry: 'php1-waiting-for-php2-to-try',
-				php2ReadyForUnlock: 'php2-ready-for-unlock',
-				php1Unlocked: 'php1-unlocked',
-			} as const;
+				const phpCoordinationFile = join(
+					tempDir,
+					'php-instance-coordination'
+				);
+				const vfsPhpCoordinationFile = `${vfsMountPoint}/php-instance-coordination`;
+				const stages = {
+					php1Locking: 'php1-locking',
+					php1WaitingForPhp2ToTry: 'php1-waiting-for-php2-to-try',
+					php2ReadyForUnlock: 'php2-ready-for-unlock',
+					php1Unlocked: 'php1-unlocked',
+				} as const;
 
-			writeFileSync(phpCoordinationFile, stages.php1Locking);
-			const promisedPhp1Result = php1.run({
-				code: `<?php
+				writeFileSync(phpCoordinationFile, stages.php1Locking);
+				const promisedPhp1Result = php1.run({
+					code: `<?php
 					$db = new SQLite3('${vfsDbFilePath}');
 					$db->exec('BEGIN;'); // Shared lock (read transaction)
 					$db->querySingle('SELECT COUNT(*) FROM test');
@@ -323,9 +336,9 @@ error_log = ${errorLogPath}
 					$db->close();
 					file_put_contents('${vfsPhpCoordinationFile}', '${stages.php1Unlocked}');
 				`,
-			});
-			const promisedPhp2Result = php2.run({
-				code: `<?php
+				});
+				const promisedPhp2Result = php2.run({
+					code: `<?php
 					while (
 						file_get_contents('${vfsPhpCoordinationFile}') !== '${stages.php1WaitingForPhp2ToTry}'
 					) {
@@ -358,43 +371,45 @@ error_log = ${errorLogPath}
 					]);
 					$db->close();
 				`,
-			});
+				});
 
-			const [php1Result, php2Result] = await Promise.all([
-				promisedPhp1Result,
-				promisedPhp2Result,
-			]);
-			expect(php1Result.exitCode).toBe(0);
-			expect(php2Result.exitCode).toBe(0);
-			const result2Data = JSON.parse(php2Result.text || '{}');
-			expect(result2Data.attempt_while_shared_locked).toMatchObject({
-				lastErrorCode: 5, // SQLITE_BUSY
-				lastErrorMsg: 'database is locked',
+				const [php1Result, php2Result] = await Promise.all([
+					promisedPhp1Result,
+					promisedPhp2Result,
+				]);
+				expect(php1Result.exitCode).toBe(0);
+				expect(php2Result.exitCode).toBe(0);
+				const result2Data = JSON.parse(php2Result.text || '{}');
+				expect(result2Data.attempt_while_shared_locked).toMatchObject({
+					lastErrorCode: 5, // SQLITE_BUSY
+					lastErrorMsg: 'database is locked',
+				});
+				expect(result2Data.attempt_while_unlocked).toMatchObject({
+					lastErrorCode: 0,
+					lastErrorMsg: 'not an error',
+				});
 			});
-			expect(result2Data.attempt_while_unlocked).toMatchObject({
-				lastErrorCode: 0,
-				lastErrorMsg: 'not an error',
-			});
-		});
-		it('can read from DB while another process has a shared lock', async () => {
-			using php1 = await createPhpRuntimeWithFileLockingAndTestMount();
-			using php2 = await createPhpRuntimeWithFileLockingAndTestMount();
+			it('can read from DB while another process has a shared lock', async () => {
+				using php1 =
+					await createPhpRuntimeWithFileLockingAndTestMount();
+				using php2 =
+					await createPhpRuntimeWithFileLockingAndTestMount();
 
-			const phpCoordinationFile = join(
-				tempDir,
-				'php-instance-coordination'
-			);
-			const vfsPhpCoordinationFile = `${vfsMountPoint}/php-instance-coordination`;
-			const stages = {
-				php1Locking: 'php1-locking',
-				php1WaitingForPhp2ToTry: 'php1-waiting-for-php2-to-try',
-				php2ReadyForUnlock: 'php2-ready-for-unlock',
-				php1Unlocked: 'php1-unlocked',
-			} as const;
+				const phpCoordinationFile = join(
+					tempDir,
+					'php-instance-coordination'
+				);
+				const vfsPhpCoordinationFile = `${vfsMountPoint}/php-instance-coordination`;
+				const stages = {
+					php1Locking: 'php1-locking',
+					php1WaitingForPhp2ToTry: 'php1-waiting-for-php2-to-try',
+					php2ReadyForUnlock: 'php2-ready-for-unlock',
+					php1Unlocked: 'php1-unlocked',
+				} as const;
 
-			writeFileSync(phpCoordinationFile, stages.php1Locking);
-			const promisedPhp1Result = php1.run({
-				code: `<?php
+				writeFileSync(phpCoordinationFile, stages.php1Locking);
+				const promisedPhp1Result = php1.run({
+					code: `<?php
 					$db = new SQLite3('${vfsDbFilePath}');
 					$db->exec('BEGIN;'); // Shared lock (read transaction)
 					$db->querySingle('SELECT COUNT(*) FROM test');
@@ -411,9 +426,9 @@ error_log = ${errorLogPath}
 					$db->close();
 					file_put_contents('${vfsPhpCoordinationFile}', '${stages.php1Unlocked}');
 				`,
-			});
-			const promisedPhp2Result = php2.run({
-				code: `<?php
+				});
+				const promisedPhp2Result = php2.run({
+					code: `<?php
 					while (
 						file_get_contents('${vfsPhpCoordinationFile}') !== '${stages.php1WaitingForPhp2ToTry}'
 					) {
@@ -448,44 +463,46 @@ error_log = ${errorLogPath}
 					]);
 					$db->close();
 				`,
-			});
+				});
 
-			const [php1Result, php2Result] = await Promise.all([
-				promisedPhp1Result,
-				promisedPhp2Result,
-			]);
-			expect(php1Result.exitCode).toBe(0);
-			expect(php2Result.exitCode).toBe(0);
-			const result2Data = JSON.parse(php2Result.text || '{}');
-			// Both reads should succeed with shared locks
-			expect(result2Data.attempt_while_shared_locked).toMatchObject({
-				lastErrorCode: 0,
-				lastErrorMsg: 'not an error',
+				const [php1Result, php2Result] = await Promise.all([
+					promisedPhp1Result,
+					promisedPhp2Result,
+				]);
+				expect(php1Result.exitCode).toBe(0);
+				expect(php2Result.exitCode).toBe(0);
+				const result2Data = JSON.parse(php2Result.text || '{}');
+				// Both reads should succeed with shared locks
+				expect(result2Data.attempt_while_shared_locked).toMatchObject({
+					lastErrorCode: 0,
+					lastErrorMsg: 'not an error',
+				});
+				expect(result2Data.attempt_while_unlocked).toMatchObject({
+					lastErrorCode: 0,
+					lastErrorMsg: 'not an error',
+				});
 			});
-			expect(result2Data.attempt_while_unlocked).toMatchObject({
-				lastErrorCode: 0,
-				lastErrorMsg: 'not an error',
-			});
-		});
-		it('should release a shared lock when its associated process exits', async () => {
-			using php1 = await createPhpRuntimeWithFileLockingAndTestMount();
-			using php2 = await createPhpRuntimeWithFileLockingAndTestMount();
+			it('should release a shared lock when its associated process exits', async () => {
+				using php1 =
+					await createPhpRuntimeWithFileLockingAndTestMount();
+				using php2 =
+					await createPhpRuntimeWithFileLockingAndTestMount();
 
-			const phpCoordinationFile = join(
-				tempDir,
-				'php-instance-coordination'
-			);
-			const vfsPhpCoordinationFile = `${vfsMountPoint}/php-instance-coordination`;
-			const stages = {
-				php1Locking: 'php1-locking',
-				php1Locked: 'php1-locked',
-				php2ConfirmedDbLocked: 'php2-confirmed-db-locked',
-				php1EndOfScript: 'php1-end-of-script',
-			} as const;
+				const phpCoordinationFile = join(
+					tempDir,
+					'php-instance-coordination'
+				);
+				const vfsPhpCoordinationFile = `${vfsMountPoint}/php-instance-coordination`;
+				const stages = {
+					php1Locking: 'php1-locking',
+					php1Locked: 'php1-locked',
+					php2ConfirmedDbLocked: 'php2-confirmed-db-locked',
+					php1EndOfScript: 'php1-end-of-script',
+				} as const;
 
-			writeFileSync(phpCoordinationFile, stages.php1Locking);
-			const promisedPhp1Result = php1.run({
-				code: `<?php
+				writeFileSync(phpCoordinationFile, stages.php1Locking);
+				const promisedPhp1Result = php1.run({
+					code: `<?php
 					$db = new SQLite3('${vfsDbFilePath}');
 					$db->exec('BEGIN;'); // Shared lock (read transaction)
 					$db->querySingle('SELECT COUNT(*) FROM test');
@@ -500,10 +517,10 @@ error_log = ${errorLogPath}
 
 					// NOTE: We intentionally skip closing the database connection.
 				`,
-			});
+				});
 
-			const promisedPhp2Result = php2.run({
-				code: `<?php
+				const promisedPhp2Result = php2.run({
+					code: `<?php
 					while (
 						file_get_contents('${vfsPhpCoordinationFile}') !== '${stages.php1Locked}'
 					) {
@@ -537,43 +554,45 @@ error_log = ${errorLogPath}
 						'attempt_after_exit' => $attempt_after_exit,
 					]);
 				`,
+				});
+
+				// Wait for php1 to exit before notifying php2.
+				await promisedPhp1Result;
+				writeFileSync(phpCoordinationFile, stages.php1EndOfScript);
+
+				const php2Result = await promisedPhp2Result;
+				expect(php2Result.exitCode).toBe(0);
+				const result2Data = JSON.parse(php2Result.text || '{}');
+				expect(result2Data.attempt_while_locked).toMatchObject({
+					lastErrorCode: 5, // SQLITE_BUSY
+					lastErrorMsg: 'database is locked',
+				});
+				expect(result2Data.attempt_after_exit).toMatchObject({
+					lastErrorCode: 0,
+					lastErrorMsg: 'not an error',
+				});
 			});
+			it('should release an exclusive lock when its associated process exits', async () => {
+				using php1 =
+					await createPhpRuntimeWithFileLockingAndTestMount();
+				using php2 =
+					await createPhpRuntimeWithFileLockingAndTestMount();
 
-			// Wait for php1 to exit before notifying php2.
-			await promisedPhp1Result;
-			writeFileSync(phpCoordinationFile, stages.php1EndOfScript);
+				const phpCoordinationFile = join(
+					tempDir,
+					'php-instance-coordination'
+				);
+				const vfsPhpCoordinationFile = `${vfsMountPoint}/php-instance-coordination`;
+				const stages = {
+					php1Locking: 'php1-locking',
+					php1Locked: 'php1-locked',
+					php2ConfirmedDbLocked: 'php2-confirmed-db-locked',
+					php1EndOfScript: 'php1-end-of-script',
+				} as const;
 
-			const php2Result = await promisedPhp2Result;
-			expect(php2Result.exitCode).toBe(0);
-			const result2Data = JSON.parse(php2Result.text || '{}');
-			expect(result2Data.attempt_while_locked).toMatchObject({
-				lastErrorCode: 5, // SQLITE_BUSY
-				lastErrorMsg: 'database is locked',
-			});
-			expect(result2Data.attempt_after_exit).toMatchObject({
-				lastErrorCode: 0,
-				lastErrorMsg: 'not an error',
-			});
-		});
-		it('should release an exclusive lock when its associated process exits', async () => {
-			using php1 = await createPhpRuntimeWithFileLockingAndTestMount();
-			using php2 = await createPhpRuntimeWithFileLockingAndTestMount();
-
-			const phpCoordinationFile = join(
-				tempDir,
-				'php-instance-coordination'
-			);
-			const vfsPhpCoordinationFile = `${vfsMountPoint}/php-instance-coordination`;
-			const stages = {
-				php1Locking: 'php1-locking',
-				php1Locked: 'php1-locked',
-				php2ConfirmedDbLocked: 'php2-confirmed-db-locked',
-				php1EndOfScript: 'php1-end-of-script',
-			} as const;
-
-			writeFileSync(phpCoordinationFile, stages.php1Locking);
-			const promisedPhp1Result = php1.run({
-				code: `<?php
+				writeFileSync(phpCoordinationFile, stages.php1Locking);
+				const promisedPhp1Result = php1.run({
+					code: `<?php
 					$db = new SQLite3('${vfsDbFilePath}');
 					$db->exec('BEGIN EXCLUSIVE;'); // Exclusive lock (write transaction)
 					$db->querySingle('SELECT COUNT(*) FROM test');
@@ -588,10 +607,10 @@ error_log = ${errorLogPath}
 
 					// NOTE: We intentionally skip closing the database connection.
 				`,
-			});
+				});
 
-			const promisedPhp2Result = php2.run({
-				code: `<?php
+				const promisedPhp2Result = php2.run({
+					code: `<?php
 					while (
 						file_get_contents('${vfsPhpCoordinationFile}') !== '${stages.php1Locked}'
 					) {
@@ -625,43 +644,45 @@ error_log = ${errorLogPath}
 						'attempt_after_exit' => $attempt_after_exit,
 					]);
 				`,
+				});
+
+				// Wait for php1 to exit before notifying php2.
+				await promisedPhp1Result;
+				writeFileSync(phpCoordinationFile, stages.php1EndOfScript);
+
+				const php2Result = await promisedPhp2Result;
+				expect(php2Result.exitCode).toBe(0);
+				const result2Data = JSON.parse(php2Result.text || '{}');
+				expect(result2Data.attempt_while_locked).toMatchObject({
+					lastErrorCode: 5, // SQLITE_BUSY
+					lastErrorMsg: 'database is locked',
+				});
+				expect(result2Data.attempt_after_exit).toMatchObject({
+					lastErrorCode: 0,
+					lastErrorMsg: 'not an error',
+				});
 			});
+			it('should release a lock when its database connection is closed', async () => {
+				using php1 =
+					await createPhpRuntimeWithFileLockingAndTestMount();
+				using php2 =
+					await createPhpRuntimeWithFileLockingAndTestMount();
 
-			// Wait for php1 to exit before notifying php2.
-			await promisedPhp1Result;
-			writeFileSync(phpCoordinationFile, stages.php1EndOfScript);
+				const phpCoordinationFile = join(
+					tempDir,
+					'php-instance-coordination'
+				);
+				const vfsPhpCoordinationFile = `${vfsMountPoint}/php-instance-coordination`;
+				const stages = {
+					php1Locking: 'php1-locking',
+					php1WaitingForPhp2ToTry: 'php1-waiting-for-php2-to-try',
+					php2ReadyForUnlock: 'php2-ready-for-unlock',
+					php1ClosedDbConnection: 'php1-closed-db-connection',
+				} as const;
 
-			const php2Result = await promisedPhp2Result;
-			expect(php2Result.exitCode).toBe(0);
-			const result2Data = JSON.parse(php2Result.text || '{}');
-			expect(result2Data.attempt_while_locked).toMatchObject({
-				lastErrorCode: 5, // SQLITE_BUSY
-				lastErrorMsg: 'database is locked',
-			});
-			expect(result2Data.attempt_after_exit).toMatchObject({
-				lastErrorCode: 0,
-				lastErrorMsg: 'not an error',
-			});
-		});
-		it('should release a lock when its database connection is closed', async () => {
-			using php1 = await createPhpRuntimeWithFileLockingAndTestMount();
-			using php2 = await createPhpRuntimeWithFileLockingAndTestMount();
-
-			const phpCoordinationFile = join(
-				tempDir,
-				'php-instance-coordination'
-			);
-			const vfsPhpCoordinationFile = `${vfsMountPoint}/php-instance-coordination`;
-			const stages = {
-				php1Locking: 'php1-locking',
-				php1WaitingForPhp2ToTry: 'php1-waiting-for-php2-to-try',
-				php2ReadyForUnlock: 'php2-ready-for-unlock',
-				php1ClosedDbConnection: 'php1-closed-db-connection',
-			} as const;
-
-			writeFileSync(phpCoordinationFile, stages.php1Locking);
-			const promisedPhp1Result = php1.run({
-				code: `<?php
+				writeFileSync(phpCoordinationFile, stages.php1Locking);
+				const promisedPhp1Result = php1.run({
+					code: `<?php
 					$db = new SQLite3('${vfsDbFilePath}');
 					$db->exec('BEGIN EXCLUSIVE;');
 					$db->exec('INSERT INTO test (name) VALUES ("test1")');
@@ -685,9 +706,9 @@ error_log = ${errorLogPath}
 						usleep(100 * 1000);
 					}
 				`,
-			});
-			const promisedPhp2Result = php2.run({
-				code: `<?php
+				});
+				const promisedPhp2Result = php2.run({
+					code: `<?php
 					while (
 						file_get_contents('${vfsPhpCoordinationFile}') !== '${stages.php1WaitingForPhp2ToTry}'
 					) {
@@ -723,27 +744,28 @@ error_log = ${errorLogPath}
 					// Signal php1 to exit
 					file_put_contents('${vfsPhpCoordinationFile}', 'done');
 				`,
-			});
+				});
 
-			const [php1Result, php2Result] = await Promise.all([
-				promisedPhp1Result,
-				promisedPhp2Result,
-			]);
-			expect(php1Result.exitCode).toBe(0);
-			expect(php2Result.exitCode).toBe(0);
-			const result2Data = JSON.parse(php2Result.text || '{}');
-			expect(result2Data.attempt_while_locked).toMatchObject({
-				lastErrorCode: 5, // SQLITE_BUSY
-				lastErrorMsg: 'database is locked',
+				const [php1Result, php2Result] = await Promise.all([
+					promisedPhp1Result,
+					promisedPhp2Result,
+				]);
+				expect(php1Result.exitCode).toBe(0);
+				expect(php2Result.exitCode).toBe(0);
+				const result2Data = JSON.parse(php2Result.text || '{}');
+				expect(result2Data.attempt_while_locked).toMatchObject({
+					lastErrorCode: 5, // SQLITE_BUSY
+					lastErrorMsg: 'database is locked',
+				});
+				expect(result2Data.attempt_after_fd_closed).toMatchObject({
+					lastErrorCode: 0,
+					lastErrorMsg: 'not an error',
+				});
 			});
-			expect(result2Data.attempt_after_fd_closed).toMatchObject({
-				lastErrorCode: 0,
-				lastErrorMsg: 'not an error',
-			});
-		});
-	}, 5000);
+		}
+	);
 
-	describe('PHP flock()', () => {
+	describe('PHP flock()', { timeout: 5000 }, () => {
 		it('should be able to acquire an exclusive lock on a file', async () => {
 			using php = await createPhpRuntimeWithFileLockingAndTestMount();
 
@@ -1414,7 +1436,7 @@ error_log = ${errorLogPath}
 			expect(result2Data.attempt_while_locked).toBe(false);
 			expect(result2Data.attempt_after_exit).toBe(true);
 		});
-	}, 5000);
+	});
 
 	describe(`Additional tests with multiple php-wasm instances`, async () => {
 		function createMockFileLockManager(): FileLockManager {

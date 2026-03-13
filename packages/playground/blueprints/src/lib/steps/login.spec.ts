@@ -41,23 +41,23 @@ describe('Blueprint step login', () => {
 		return response;
 	};
 
-	it('should log the user in', async () => {
+	it('should log the user in', { timeout: 10000 }, async () => {
 		await login(php, {});
 		const response = await requestFollowRedirects({
 			url: '/',
 		});
 		expect(response.httpStatusCode).toBe(200);
 		expect(response.text).toContain('Edit Site');
-	}, 10000);
+	});
 
-	it('should log the user into wp-admin', async () => {
+	it('should log the user into wp-admin', { timeout: 10000 }, async () => {
 		await login(php, {});
 		const response = await requestFollowRedirects({
 			url: '/wp-admin/',
 		});
 		expect(response.httpStatusCode).toBe(200);
 		expect(response.text).toContain('Dashboard');
-	}, 10000);
+	});
 
 	it('should log the user in if the playground_force_auto_login_as_user query parameter is set', async () => {
 		await defineWpConfigConsts(php, {

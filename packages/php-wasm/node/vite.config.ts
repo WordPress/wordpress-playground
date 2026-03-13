@@ -84,6 +84,9 @@ export default defineConfig(function () {
 			env: {
 				TEST: JSON.stringify(true),
 			},
+			// Vitest 3+ defaults to 'threads' which doesn't support
+			// execArgv. Use 'forks' to pass --expose-gc to test workers.
+			pool: 'forks',
 			poolOptions: {
 				// This is needed to allow `--expose-gc` to be passed to the
 				// forked test process.

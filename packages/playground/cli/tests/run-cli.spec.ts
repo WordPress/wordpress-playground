@@ -40,6 +40,7 @@ const blueprintVersions = [
 
 describe.each(blueprintVersions)(
 	'run-cli with Blueprints v$version',
+	{ timeout: 60_000 * 5 },
 	({ version, suiteCliArgs, expectedHomePageTitle }) => {
 		test('should set PHP version', async () => {
 			await using cliServer = await runCLI({
@@ -411,29 +412,35 @@ describe.each(blueprintVersions)(
 				);
 			});
 
-			test('should put WordPress in the document root', async () => {
-				const tmpDir = await mkdtemp(
-					path.join(tmpdir(), 'playground-test-')
-				);
+			test(
+				'should put WordPress in the document root',
+				{ timeout: 60000 },
+				async () => {
+					const tmpDir = await mkdtemp(
+						path.join(tmpdir(), 'playground-test-')
+					);
 
-				// Create a new site so we can load it as an existing site later.
-				// eslint-disable-next-line
-				await using cliServer = await runCLI({
-					...suiteCliArgs,
-					'site-url': 'http://playground-domain/',
-					'db-engine': 'sqlite',
-					command: 'server',
-					mode: 'create-new-site',
-					'mount-before-install': [
-						{
-							hostPath: tmpDir,
-							vfsPath: '/wordpress',
-						},
-					],
-				});
-				const wpContentDirPath = path.join(tmpDir, 'wp-content');
-				expect(lstatSync(wpContentDirPath)?.isDirectory()).toBe(true);
-			}, 60000);
+					// Create a new site so we can load it as an existing site later.
+					// eslint-disable-next-line
+					await using cliServer = await runCLI({
+						...suiteCliArgs,
+						'site-url': 'http://playground-domain/',
+						'db-engine': 'sqlite',
+						command: 'server',
+						mode: 'create-new-site',
+						'mount-before-install': [
+							{
+								hostPath: tmpDir,
+								vfsPath: '/wordpress',
+							},
+						],
+					});
+					const wpContentDirPath = path.join(tmpDir, 'wp-content');
+					expect(lstatSync(wpContentDirPath)?.isDirectory()).toBe(
+						true
+					);
+				}
+			);
 		}
 
 		// TODO: Test resolving absolute symlinks within a mounted dir with and without follow-symlinks
@@ -745,87 +752,103 @@ describe.each(blueprintVersions)(
 		});
 
 		describe('phpMyAdmin', () => {
-			test('should install phpMyAdmin when --phpmyadmin flag is set', async () => {
-				await using cliServer = await runCLI({
-					...suiteCliArgs,
-					command: 'server',
-					phpmyadmin: '/phpmyadmin',
-				});
+			test(
+				'should install phpMyAdmin when --phpmyadmin flag is set',
+				{ timeout: 120000 },
+				async () => {
+					await using cliServer = await runCLI({
+						...suiteCliArgs,
+						command: 'server',
+						phpmyadmin: '/phpmyadmin',
+					});
 
-				// Verify phpMyAdmin directory was created
-				const phpMyAdminExists = await cliServer.playground.isDir(
-					PHPMYADMIN_INSTALL_PATH
-				);
-				expect(phpMyAdminExists).toBe(true);
+					// Verify phpMyAdmin directory was created
+					const phpMyAdminExists = await cliServer.playground.isDir(
+						PHPMYADMIN_INSTALL_PATH
+					);
+					expect(phpMyAdminExists).toBe(true);
 
-				// Verify the custom DbiMysqli.php driver was installed
-				const dbiMysqliExists = await cliServer.playground.fileExists(
-					`${PHPMYADMIN_INSTALL_PATH}/libraries/classes/Dbal/DbiMysqli.php`
-				);
-				expect(dbiMysqliExists).toBe(true);
+					// Verify the custom DbiMysqli.php driver was installed
+					const dbiMysqliExists =
+						await cliServer.playground.fileExists(
+							`${PHPMYADMIN_INSTALL_PATH}/libraries/classes/Dbal/DbiMysqli.php`
+						);
+					expect(dbiMysqliExists).toBe(true);
 
-				// Verify config.inc.php was installed
-				const configExists = await cliServer.playground.fileExists(
-					`${PHPMYADMIN_INSTALL_PATH}/config.inc.php`
-				);
-				expect(configExists).toBe(true);
+					// Verify config.inc.php was installed
+					const configExists = await cliServer.playground.fileExists(
+						`${PHPMYADMIN_INSTALL_PATH}/config.inc.php`
+					);
+					expect(configExists).toBe(true);
 
-				// Verify phpMyAdmin is accessible via rewrite rule
-				const phpMyAdminUrl = new URL(
-					'/phpmyadmin/index.php',
-					cliServer.serverUrl
-				);
-				const response = await fetch(phpMyAdminUrl);
-				expect(response.status).toBe(200);
-			}, 120000);
+					// Verify phpMyAdmin is accessible via rewrite rule
+					const phpMyAdminUrl = new URL(
+						'/phpmyadmin/index.php',
+						cliServer.serverUrl
+					);
+					const response = await fetch(phpMyAdminUrl);
+					expect(response.status).toBe(200);
+				}
+			);
 
-			test('should not install phpMyAdmin when flag is not set', async () => {
-				await using cliServer = await runCLI({
-					...suiteCliArgs,
-					command: 'server',
-				});
+			test(
+				'should not install phpMyAdmin when flag is not set',
+				{ timeout: 120000 },
+				async () => {
+					await using cliServer = await runCLI({
+						...suiteCliArgs,
+						command: 'server',
+					});
 
-				// Verify phpMyAdmin directory was NOT created
-				const phpMyAdminExists = await cliServer.playground.isDir(
-					PHPMYADMIN_INSTALL_PATH
-				);
-				expect(phpMyAdminExists).toBe(false);
-			}, 120000);
+					// Verify phpMyAdmin directory was NOT created
+					const phpMyAdminExists = await cliServer.playground.isDir(
+						PHPMYADMIN_INSTALL_PATH
+					);
+					expect(phpMyAdminExists).toBe(false);
+				}
+			);
 
-			test('should default to /phpmyadmin path when phpmyadmin is set to true', async () => {
-				await using cliServer = await runCLI({
-					...suiteCliArgs,
-					command: 'server',
-					phpmyadmin: true,
-				});
+			test(
+				'should default to /phpmyadmin path when phpmyadmin is set to true',
+				{ timeout: 120000 },
+				async () => {
+					await using cliServer = await runCLI({
+						...suiteCliArgs,
+						command: 'server',
+						phpmyadmin: true,
+					});
 
-				// When phpmyadmin is true (boolean), it should default to /phpmyadmin
-				const phpMyAdminUrl = new URL(
-					'/phpmyadmin/index.php',
-					cliServer.serverUrl
-				);
-				const response = await fetch(phpMyAdminUrl);
-				expect(response.status).toBe(200);
-			}, 120000);
+					// When phpmyadmin is true (boolean), it should default to /phpmyadmin
+					const phpMyAdminUrl = new URL(
+						'/phpmyadmin/index.php',
+						cliServer.serverUrl
+					);
+					const response = await fetch(phpMyAdminUrl);
+					expect(response.status).toBe(200);
+				}
+			);
 
-			test('should install phpMyAdmin at a custom path', async () => {
-				await using cliServer = await runCLI({
-					...suiteCliArgs,
-					command: 'server',
-					phpmyadmin: '/db-admin',
-				});
+			test(
+				'should install phpMyAdmin at a custom path',
+				{ timeout: 120000 },
+				async () => {
+					await using cliServer = await runCLI({
+						...suiteCliArgs,
+						command: 'server',
+						phpmyadmin: '/db-admin',
+					});
 
-				// Verify phpMyAdmin is accessible at the custom path
-				const phpMyAdminUrl = new URL(
-					'/db-admin/index.php',
-					cliServer.serverUrl
-				);
-				const response = await fetch(phpMyAdminUrl);
-				expect(response.status).toBe(200);
-			}, 120000);
+					// Verify phpMyAdmin is accessible at the custom path
+					const phpMyAdminUrl = new URL(
+						'/db-admin/index.php',
+						cliServer.serverUrl
+					);
+					const response = await fetch(phpMyAdminUrl);
+					expect(response.status).toBe(200);
+				}
+			);
 		});
-	},
-	60_000 * 5
+	}
 );
 
 describe('start command', () => {
@@ -849,188 +872,213 @@ describe('start command', () => {
 		expect(cliServer.serverUrl).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/);
 	});
 
-	test('should persist site in home directory', async () => {
-		const tmpDir = await mkdtemp(path.join(tmpdir(), 'playground-test-'));
-		const homeDir = os.homedir();
-		const currentSiteHash = createHash('sha256')
-			.update(tmpDir)
-			.digest('hex');
-		const expectedSitePath = path.join(
-			homeDir,
-			'.wordpress-playground/sites',
-			currentSiteHash
-		);
+	test(
+		'should persist site in home directory',
+		{ timeout: 120000 },
+		async () => {
+			const tmpDir = await mkdtemp(
+				path.join(tmpdir(), 'playground-test-')
+			);
+			const homeDir = os.homedir();
+			const currentSiteHash = createHash('sha256')
+				.update(tmpDir)
+				.digest('hex');
+			const expectedSitePath = path.join(
+				homeDir,
+				'.wordpress-playground/sites',
+				currentSiteHash
+			);
 
-		// Clean up if the site directory already exists
-		if (existsSync(expectedSitePath)) {
-			rmSync(expectedSitePath, { recursive: true, force: true });
-		}
+			// Clean up if the site directory already exists
+			if (existsSync(expectedSitePath)) {
+				rmSync(expectedSitePath, { recursive: true, force: true });
+			}
 
-		vi.spyOn(process, 'cwd').mockReturnValue(tmpDir);
+			vi.spyOn(process, 'cwd').mockReturnValue(tmpDir);
 
-		await using cliServer = await runCLI({
-			command: 'start',
-			skipBrowser: true,
-		});
-
-		// Verify server started successfully
-		expect(cliServer.serverUrl).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/);
-
-		// Verify the site directory was created
-		expect(existsSync(expectedSitePath)).toBe(true);
-		expect(lstatSync(expectedSitePath).isDirectory()).toBe(true);
-
-		// Verify WordPress files exist in the persisted directory
-		const wpContentPath = path.join(expectedSitePath, 'wp-content');
-		expect(existsSync(wpContentPath)).toBe(true);
-		expect(lstatSync(wpContentPath).isDirectory()).toBe(true);
-
-		// Clean up
-		if ((process.cwd as unknown as MockInstance).mockRestore) {
-			(process.cwd as unknown as MockInstance).mockRestore();
-		}
-	}, 120000);
-
-	test('should reuse existing persisted site on subsequent runs', async () => {
-		const tmpDir = await mkdtemp(path.join(tmpdir(), 'playground-test-'));
-		const homeDir = os.homedir();
-		const currentSiteHash = createHash('sha256')
-			.update(tmpDir)
-			.digest('hex');
-		const expectedSitePath = path.join(
-			homeDir,
-			'.wordpress-playground/sites',
-			currentSiteHash
-		);
-
-		// Clean up if the site directory already exists
-		if (existsSync(expectedSitePath)) {
-			rmSync(expectedSitePath, { recursive: true, force: true });
-		}
-
-		vi.spyOn(process, 'cwd').mockReturnValue(tmpDir);
-
-		// First run - create the site
-		{
 			await using cliServer = await runCLI({
 				command: 'start',
 				skipBrowser: true,
 			});
 
-			// Add a marker file to verify the site is reused
-			await cliServer.playground.writeFile(
-				'/wordpress/marker.txt',
-				'site-marker'
-			);
-		}
+			// Verify server started successfully
+			expect(cliServer.serverUrl).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/);
 
-		// Second run - should reuse the same site
-		{
-			await using cliServer = await runCLI({
-				command: 'start',
-				skipBrowser: true,
-			});
+			// Verify the site directory was created
+			expect(existsSync(expectedSitePath)).toBe(true);
+			expect(lstatSync(expectedSitePath).isDirectory()).toBe(true);
 
-			// Verify the marker file exists
-			const markerExists = await cliServer.playground.fileExists(
-				'/wordpress/marker.txt'
-			);
-			expect(markerExists).toBe(true);
+			// Verify WordPress files exist in the persisted directory
+			const wpContentPath = path.join(expectedSitePath, 'wp-content');
+			expect(existsSync(wpContentPath)).toBe(true);
+			expect(lstatSync(wpContentPath).isDirectory()).toBe(true);
 
-			if (markerExists) {
-				const markerContent = await cliServer.playground.readFileAsText(
-					'/wordpress/marker.txt'
-				);
-				expect(markerContent).toBe('site-marker');
+			// Clean up
+			if ((process.cwd as unknown as MockInstance).mockRestore) {
+				(process.cwd as unknown as MockInstance).mockRestore();
 			}
 		}
+	);
 
-		// Clean up
-		if ((process.cwd as unknown as MockInstance).mockRestore) {
-			(process.cwd as unknown as MockInstance).mockRestore();
+	test(
+		'should reuse existing persisted site on subsequent runs',
+		{ timeout: 180000 },
+		async () => {
+			const tmpDir = await mkdtemp(
+				path.join(tmpdir(), 'playground-test-')
+			);
+			const homeDir = os.homedir();
+			const currentSiteHash = createHash('sha256')
+				.update(tmpDir)
+				.digest('hex');
+			const expectedSitePath = path.join(
+				homeDir,
+				'.wordpress-playground/sites',
+				currentSiteHash
+			);
+
+			// Clean up if the site directory already exists
+			if (existsSync(expectedSitePath)) {
+				rmSync(expectedSitePath, { recursive: true, force: true });
+			}
+
+			vi.spyOn(process, 'cwd').mockReturnValue(tmpDir);
+
+			// First run - create the site
+			{
+				await using cliServer = await runCLI({
+					command: 'start',
+					skipBrowser: true,
+				});
+
+				// Add a marker file to verify the site is reused
+				await cliServer.playground.writeFile(
+					'/wordpress/marker.txt',
+					'site-marker'
+				);
+			}
+
+			// Second run - should reuse the same site
+			{
+				await using cliServer = await runCLI({
+					command: 'start',
+					skipBrowser: true,
+				});
+
+				// Verify the marker file exists
+				const markerExists = await cliServer.playground.fileExists(
+					'/wordpress/marker.txt'
+				);
+				expect(markerExists).toBe(true);
+
+				if (markerExists) {
+					const markerContent =
+						await cliServer.playground.readFileAsText(
+							'/wordpress/marker.txt'
+						);
+					expect(markerContent).toBe('site-marker');
+				}
+			}
+
+			// Clean up
+			if ((process.cwd as unknown as MockInstance).mockRestore) {
+				(process.cwd as unknown as MockInstance).mockRestore();
+			}
 		}
-	}, 180000);
+	);
 
-	test('should reset site when --reset is provided', async () => {
-		const tmpDir = await mkdtemp(path.join(tmpdir(), 'playground-test-'));
-		const homeDir = os.homedir();
-		const currentSiteHash = createHash('sha256')
-			.update(tmpDir)
-			.digest('hex');
-		const expectedSitePath = path.join(
-			homeDir,
-			'.wordpress-playground/sites',
-			currentSiteHash
-		);
+	test(
+		'should reset site when --reset is provided',
+		{ timeout: 180000 },
+		async () => {
+			const tmpDir = await mkdtemp(
+				path.join(tmpdir(), 'playground-test-')
+			);
+			const homeDir = os.homedir();
+			const currentSiteHash = createHash('sha256')
+				.update(tmpDir)
+				.digest('hex');
+			const expectedSitePath = path.join(
+				homeDir,
+				'.wordpress-playground/sites',
+				currentSiteHash
+			);
 
-		// Clean up if the site directory already exists
-		if (existsSync(expectedSitePath)) {
-			rmSync(expectedSitePath, { recursive: true, force: true });
+			// Clean up if the site directory already exists
+			if (existsSync(expectedSitePath)) {
+				rmSync(expectedSitePath, { recursive: true, force: true });
+			}
+
+			vi.spyOn(process, 'cwd').mockReturnValue(tmpDir);
+
+			// First run - create the site with a marker
+			{
+				await using cliServer = await runCLI({
+					command: 'start',
+					skipBrowser: true,
+				});
+
+				// Add a marker file
+				await cliServer.playground.writeFile(
+					'/wordpress/marker.txt',
+					'should-be-deleted'
+				);
+			}
+
+			// Second run with --reset - should delete the old site
+			{
+				await using cliServer = await runCLI({
+					command: 'start',
+					skipBrowser: true,
+					reset: true,
+				});
+
+				// Verify the marker file does not exist
+				const markerExists = await cliServer.playground.fileExists(
+					'/wordpress/marker.txt'
+				);
+				expect(markerExists).toBe(false);
+			}
+
+			// Clean up
+			if ((process.cwd as unknown as MockInstance).mockRestore) {
+				(process.cwd as unknown as MockInstance).mockRestore();
+			}
 		}
+	);
 
-		vi.spyOn(process, 'cwd').mockReturnValue(tmpDir);
+	test(
+		'should not persist when using explicit mount for /wordpress',
+		{ timeout: 120000 },
+		async () => {
+			const tmpDir = await mkdtemp(
+				path.join(tmpdir(), 'playground-test-')
+			);
+			const wordpressDir = path.join(tmpDir, 'wordpress-custom');
+			mkdirSync(wordpressDir, { recursive: true });
 
-		// First run - create the site with a marker
-		{
+			// When we explicitly mount /wordpress, the site should be stored there,
+			// not in ~/.wordpress-playground/sites/
 			await using cliServer = await runCLI({
 				command: 'start',
 				skipBrowser: true,
+				'mount-before-install': [
+					{
+						hostPath: wordpressDir,
+						vfsPath: '/wordpress',
+					},
+				],
 			});
 
-			// Add a marker file
-			await cliServer.playground.writeFile(
-				'/wordpress/marker.txt',
-				'should-be-deleted'
-			);
+			// Verify server started successfully
+			expect(cliServer.serverUrl).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/);
+
+			// Verify WordPress files are in the explicit mount location
+			const wpContentPath = path.join(wordpressDir, 'wp-content');
+			expect(existsSync(wpContentPath)).toBe(true);
+			expect(lstatSync(wpContentPath).isDirectory()).toBe(true);
 		}
-
-		// Second run with --reset - should delete the old site
-		{
-			await using cliServer = await runCLI({
-				command: 'start',
-				skipBrowser: true,
-				reset: true,
-			});
-
-			// Verify the marker file does not exist
-			const markerExists = await cliServer.playground.fileExists(
-				'/wordpress/marker.txt'
-			);
-			expect(markerExists).toBe(false);
-		}
-
-		// Clean up
-		if ((process.cwd as unknown as MockInstance).mockRestore) {
-			(process.cwd as unknown as MockInstance).mockRestore();
-		}
-	}, 180000);
-
-	test('should not persist when using explicit mount for /wordpress', async () => {
-		const tmpDir = await mkdtemp(path.join(tmpdir(), 'playground-test-'));
-		const wordpressDir = path.join(tmpDir, 'wordpress-custom');
-		mkdirSync(wordpressDir, { recursive: true });
-
-		// When we explicitly mount /wordpress, the site should be stored there,
-		// not in ~/.wordpress-playground/sites/
-		await using cliServer = await runCLI({
-			command: 'start',
-			skipBrowser: true,
-			'mount-before-install': [
-				{
-					hostPath: wordpressDir,
-					vfsPath: '/wordpress',
-				},
-			],
-		});
-
-		// Verify server started successfully
-		expect(cliServer.serverUrl).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/);
-
-		// Verify WordPress files are in the explicit mount location
-		const wpContentPath = path.join(wordpressDir, 'wp-content');
-		expect(existsSync(wpContentPath)).toBe(true);
-		expect(lstatSync(wpContentPath).isDirectory()).toBe(true);
-	}, 120000);
+	);
 });
 
 describe('other run-cli behaviors', () => {
@@ -1112,128 +1160,136 @@ describe('other run-cli behaviors', () => {
 	});
 
 	describe('streaming responses', () => {
-		test('should handle streaming responses correctly', async () => {
-			await using cliServer = await runCLI({
-				command: 'server',
-				wordpressInstallMode: 'do-not-attempt-installing',
-				skipSqliteSetup: true,
-				blueprint: undefined,
-			});
+		test(
+			'should handle streaming responses correctly',
+			{ timeout: 60_000 },
+			async () => {
+				await using cliServer = await runCLI({
+					command: 'server',
+					wordpressInstallMode: 'do-not-attempt-installing',
+					skipSqliteSetup: true,
+					blueprint: undefined,
+				});
 
-			// Custom headers are returned in HTTP response
-			await cliServer.playground.writeFile(
-				'/wordpress/custom-headers.php',
-				`<?php
+				// Custom headers are returned in HTTP response
+				await cliServer.playground.writeFile(
+					'/wordpress/custom-headers.php',
+					`<?php
 					header('X-Custom-Header: test-value');
 					header('X-Another: hello');
 					echo 'done';
 					`
-			);
-			const headersResponse = await fetch(
-				new URL('/custom-headers.php', cliServer.serverUrl)
-			);
-			expect(headersResponse.status).toBe(200);
-			expect(headersResponse.headers.get('x-custom-header')).toBe(
-				'test-value'
-			);
-			expect(headersResponse.headers.get('x-another')).toBe('hello');
-			expect(await headersResponse.text()).toBe('done');
+				);
+				const headersResponse = await fetch(
+					new URL('/custom-headers.php', cliServer.serverUrl)
+				);
+				expect(headersResponse.status).toBe(200);
+				expect(headersResponse.headers.get('x-custom-header')).toBe(
+					'test-value'
+				);
+				expect(headersResponse.headers.get('x-another')).toBe('hello');
+				expect(await headersResponse.text()).toBe('done');
 
-			// Status codes are propagated from PHP
-			await cliServer.playground.writeFile(
-				'/wordpress/not-found.php',
-				`<?php
+				// Status codes are propagated from PHP
+				await cliServer.playground.writeFile(
+					'/wordpress/not-found.php',
+					`<?php
 					http_response_code(404);
 					echo 'Not Found';
 					`
-			);
-			const notFoundResponse = await fetch(
-				new URL('/not-found.php', cliServer.serverUrl)
-			);
-			expect(notFoundResponse.status).toBe(404);
+				);
+				const notFoundResponse = await fetch(
+					new URL('/not-found.php', cliServer.serverUrl)
+				);
+				expect(notFoundResponse.status).toBe(404);
 
-			// Large streaming output is returned completely
-			await cliServer.playground.writeFile(
-				'/wordpress/large-output.php',
-				`<?php
+				// Large streaming output is returned completely
+				await cliServer.playground.writeFile(
+					'/wordpress/large-output.php',
+					`<?php
 					for ($i = 0; $i < 100; $i++) {
 						echo "Line $i\\n";
 					}
 					`
-			);
-			const largeResponse = await fetch(
-				new URL('/large-output.php', cliServer.serverUrl)
-			);
-			expect(largeResponse.status).toBe(200);
-			const largeText = await largeResponse.text();
-			expect(largeText).toContain('Line 0');
-			expect(largeText).toContain('Line 99');
-			expect(largeText.trim().split('\n')).toHaveLength(100);
+				);
+				const largeResponse = await fetch(
+					new URL('/large-output.php', cliServer.serverUrl)
+				);
+				expect(largeResponse.status).toBe(200);
+				const largeText = await largeResponse.text();
+				expect(largeText).toContain('Line 0');
+				expect(largeText).toContain('Line 99');
+				expect(largeText.trim().split('\n')).toHaveLength(100);
 
-			// PHP fatal error does not crash the server
-			await cliServer.playground.writeFile(
-				'/wordpress/fatal.php',
-				`<?php
+				// PHP fatal error does not crash the server
+				await cliServer.playground.writeFile(
+					'/wordpress/fatal.php',
+					`<?php
 					undefined_function_that_does_not_exist();
 					`
-			);
-			const fatalResponse = await fetch(
-				new URL('/fatal.php', cliServer.serverUrl)
-			);
-			// In streaming mode, headers are sent before exit code
-			// is known, so the status may be 200. The key assertion
-			// is that the server does not crash.
-			expect(fatalResponse.status).toBeLessThan(600);
-		}, 60_000);
+				);
+				const fatalResponse = await fetch(
+					new URL('/fatal.php', cliServer.serverUrl)
+				);
+				// In streaming mode, headers are sent before exit code
+				// is known, so the status may be 200. The key assertion
+				// is that the server does not crash.
+				expect(fatalResponse.status).toBeLessThan(600);
+			}
+		);
 
-		test('should handle client disconnect during streaming', async () => {
-			await using cliServer = await runCLI({
-				command: 'server',
-				wordpressInstallMode: 'do-not-attempt-installing',
-				skipSqliteSetup: true,
-				blueprint: undefined,
-			});
+		test(
+			'should handle client disconnect during streaming',
+			{ timeout: 60_000 },
+			async () => {
+				await using cliServer = await runCLI({
+					command: 'server',
+					wordpressInstallMode: 'do-not-attempt-installing',
+					skipSqliteSetup: true,
+					blueprint: undefined,
+				});
 
-			// PHP script that produces a large stream (enough to
-			// read a chunk, but finite so the worker is freed)
-			await cliServer.playground.writeFile(
-				'/wordpress/large-stream.php',
-				`<?php
+				// PHP script that produces a large stream (enough to
+				// read a chunk, but finite so the worker is freed)
+				await cliServer.playground.writeFile(
+					'/wordpress/large-stream.php',
+					`<?php
 					for ($i = 0; $i < 1000; $i++) {
 						echo str_repeat("x", 1024) . "\\n";
 						flush();
 					}
 				`
-			);
+				);
 
-			const controller = new AbortController();
-			const response = await fetch(
-				new URL('/large-stream.php', cliServer.serverUrl),
-				{ signal: controller.signal }
-			);
+				const controller = new AbortController();
+				const response = await fetch(
+					new URL('/large-stream.php', cliServer.serverUrl),
+					{ signal: controller.signal }
+				);
 
-			// Read at least one chunk to confirm streaming started
-			const reader = response.body!.getReader();
-			const { done } = await reader.read();
-			expect(done).toBe(false);
+				// Read at least one chunk to confirm streaming started
+				const reader = response.body!.getReader();
+				const { done } = await reader.read();
+				expect(done).toBe(false);
 
-			// Abort mid-stream
-			reader.cancel();
-			controller.abort();
+				// Abort mid-stream
+				reader.cancel();
+				controller.abort();
 
-			// Wait for the PHP script to finish and free the worker
-			await new Promise((r) => setTimeout(r, 2000));
+				// Wait for the PHP script to finish and free the worker
+				await new Promise((r) => setTimeout(r, 2000));
 
-			// Server should still be responsive
-			await cliServer.playground.writeFile(
-				'/wordpress/health.php',
-				`<?php echo 'ok';`
-			);
-			const healthCheck = await fetch(
-				new URL('/health.php', cliServer.serverUrl)
-			);
-			expect(healthCheck.status).toBe(200);
-		}, 60_000);
+				// Server should still be responsive
+				await cliServer.playground.writeFile(
+					'/wordpress/health.php',
+					`<?php echo 'ok';`
+				);
+				const healthCheck = await fetch(
+					new URL('/health.php', cliServer.serverUrl)
+				);
+				expect(healthCheck.status).toBe(200);
+			}
+		);
 	});
 
 	describe('internal cookie store', () => {

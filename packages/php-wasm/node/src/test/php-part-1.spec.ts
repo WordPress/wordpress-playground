@@ -756,6 +756,7 @@ phpLoaderOptions.forEach((options) => {
 
 			it(
 				'cat: stdin=pipe, stdout=file, stderr=file, file_get_contents',
+				{ timeout: 10000 },
 				async () => {
 					const result = await php.run({
 						code: `<?php
@@ -782,8 +783,7 @@ phpLoaderOptions.forEach((options) => {
 					expect(result.text).toEqual(
 						'stdout: WordPress\nstderr: \n'
 					);
-				},
-				{ timeout: 10000 }
+				}
 			);
 
 			it('cat: stdin=file, stdout=file, stderr=file, file_get_contents', async () => {
@@ -1355,26 +1355,29 @@ phpLoaderOptions.forEach((options) => {
 				);
 			});
 
-			it('A process that reports being spawned does not timeout', async () => {
-				let spawnHandlerCalled = false;
-				const handler = createSpawnHandler(
-					async (command: string[], processApi: any) => {
-						spawnHandlerCalled = true;
-						// Avoid the timeout by reporting that the process has been spawned
-						processApi.notifySpawn();
-						// Take 6 seconds to exit
-						await new Promise((resolve) =>
-							setTimeout(resolve, 6000)
-						);
-						processApi.exit(0);
-					}
-				);
+			it(
+				'A process that reports being spawned does not timeout',
+				{ timeout: 10000 },
+				async () => {
+					let spawnHandlerCalled = false;
+					const handler = createSpawnHandler(
+						async (command: string[], processApi: any) => {
+							spawnHandlerCalled = true;
+							// Avoid the timeout by reporting that the process has been spawned
+							processApi.notifySpawn();
+							// Take 6 seconds to exit
+							await new Promise((resolve) =>
+								setTimeout(resolve, 6000)
+							);
+							processApi.exit(0);
+						}
+					);
 
-				php.setSpawnHandler(handler);
+					php.setSpawnHandler(handler);
 
-				const startTime = Date.now();
-				await php.run({
-					code: `<?php
+					const startTime = Date.now();
+					await php.run({
+						code: `<?php
 					$res = proc_open(
 						"hanging_command",
 						array(
@@ -1387,29 +1390,33 @@ phpLoaderOptions.forEach((options) => {
 					// Wait for the process to exit
 					proc_close($res);
 				`,
-				});
-				const elapsed = Date.now() - startTime;
-				// Should not timeout after 5 seconds
-				expect(elapsed).toBeGreaterThan(6000);
-				expect(elapsed).toBeLessThan(6500);
-				expect(spawnHandlerCalled).toBe(true);
-			}, 10000);
+					});
+					const elapsed = Date.now() - startTime;
+					// Should not timeout after 5 seconds
+					expect(elapsed).toBeGreaterThan(6000);
+					expect(elapsed).toBeLessThan(6500);
+					expect(spawnHandlerCalled).toBe(true);
+				}
+			);
 
-			it('Handle process spawn timeout gracefully', async () => {
-				let spawnHandlerCalled = false;
-				const handler = createSpawnHandler(async () => {
-					spawnHandlerCalled = true;
-					// Don't call processApi.notifySpawn() or processApi.exit()
-					// to simulate a hanging process that never starts
-					await new Promise(() => {}); // Never resolves
-				});
+			it(
+				'Handle process spawn timeout gracefully',
+				{ timeout: 10000 },
+				async () => {
+					let spawnHandlerCalled = false;
+					const handler = createSpawnHandler(async () => {
+						spawnHandlerCalled = true;
+						// Don't call processApi.notifySpawn() or processApi.exit()
+						// to simulate a hanging process that never starts
+						await new Promise(() => {}); // Never resolves
+					});
 
-				php.setSpawnHandler(handler);
+					php.setSpawnHandler(handler);
 
-				const startTime = Date.now();
-				try {
-					await php.run({
-						code: `<?php
+					const startTime = Date.now();
+					try {
+						await php.run({
+							code: `<?php
 							$res = proc_open(
 								"hanging_command",
 								array(
@@ -1423,18 +1430,19 @@ phpLoaderOptions.forEach((options) => {
 							// output any data.
 							fread($pipes[1], 1024);
 						`,
-					});
-					// Should not reach here
-					expect(false).toBe(true);
-				} catch (e) {
-					console.log(e);
-					const elapsed = Date.now() - startTime;
-					// Should timeout around 5 seconds (allowing some margin)
-					expect(elapsed).toBeGreaterThan(4500);
-					expect(elapsed).toBeLessThan(6000);
-					expect(spawnHandlerCalled).toBe(true);
+						});
+						// Should not reach here
+						expect(false).toBe(true);
+					} catch (e) {
+						console.log(e);
+						const elapsed = Date.now() - startTime;
+						// Should timeout around 5 seconds (allowing some margin)
+						expect(elapsed).toBeGreaterThan(4500);
+						expect(elapsed).toBeLessThan(6000);
+						expect(spawnHandlerCalled).toBe(true);
+					}
 				}
-			}, 10000);
+			);
 		});
 
 		describe('Filesystem', { skip }, () => {

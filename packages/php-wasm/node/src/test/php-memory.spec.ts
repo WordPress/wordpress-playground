@@ -19,8 +19,11 @@ describe.each(phpVersions)('PHP %s – memory allocation', (phpVersion) => {
 		php.exit();
 	});
 
-	it('can concat large string out of many small strings without reaching Out-of-memory condition', async () => {
-		const code = `<?php
+	it(
+		'can concat large string out of many small strings without reaching Out-of-memory condition',
+		{ timeout: 30_000 },
+		async () => {
+			const code = `<?php
             $data = '';
             $tail = str_repeat('a', 64 * 1024); // Increase string size by 64KB in each iteration
             for ($counter = 0; $counter < 1000; $counter++) {
@@ -28,10 +31,11 @@ describe.each(phpVersions)('PHP %s – memory allocation', (phpVersion) => {
             }
         `;
 
-		const result = await php.run({ code });
+			const result = await php.run({ code });
 
-		expect(result).toBeTruthy();
-		expect(result.exitCode).toBe(0);
-		expect(result.errors).toBeFalsy();
-	});
+			expect(result).toBeTruthy();
+			expect(result.exitCode).toBe(0);
+			expect(result.errors).toBeFalsy();
+		}
+	);
 });

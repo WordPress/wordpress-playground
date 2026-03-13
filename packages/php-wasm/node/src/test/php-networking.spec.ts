@@ -97,19 +97,22 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 			}
 		});
 
-		it('should support fopen() and fread() until EOF', async () => {
-			let php: PHP | undefined;
-			try {
-				const serverUrl = await startServer();
-				php = new PHP(await loadNodeRuntime(phpVersion, options));
-				await setPhpIniEntries(php, {
-					allow_url_fopen: 1,
-					disable_functions: '',
-				});
+		it(
+			'should support fopen() and fread() until EOF',
+			{ timeout: 10000 },
+			async () => {
+				let php: PHP | undefined;
+				try {
+					const serverUrl = await startServer();
+					php = new PHP(await loadNodeRuntime(phpVersion, options));
+					await setPhpIniEntries(php, {
+						allow_url_fopen: 1,
+						disable_functions: '',
+					});
 
-				php.writeFile(
-					'/tmp/test.php',
-					`<?php
+					php.writeFile(
+						'/tmp/test.php',
+						`<?php
 					$url = str_replace('http://', '', "${serverUrl}");
 					list($host, $port) = explode(':', $url);
 
@@ -163,16 +166,17 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 					echo "Stream select result: $result\n";
 					fclose($handle);
 					`
-				);
-				const { text } = await php.run({
-					scriptPath: '/tmp/test.php',
-				});
-				expect(text).toContain('Stream select result: 1');
-			} finally {
-				php?.exit();
-				await stopServer(server);
+					);
+					const { text } = await php.run({
+						scriptPath: '/tmp/test.php',
+					});
+					expect(text).toContain('Stream select result: 1');
+				} finally {
+					php?.exit();
+					await stopServer(server);
+				}
 			}
-		}, 10000);
+		);
 
 		describe('cURL', () => {
 			it('should support single handle requests', async () => {
@@ -206,6 +210,7 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 
 			it(
 				'should support multi handle requests',
+				{ timeout: 20_000 },
 				async () => {
 					let php: PHP | undefined;
 					try {
@@ -268,8 +273,7 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 						}
 						await stopServer(server);
 					}
-				},
-				{ timeout: 20_000 }
+				}
 			);
 
 			it('should follow redirects', async () => {
@@ -304,6 +308,7 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 
 			it(
 				'should support HTTPS requests',
+				{ timeout: 2000, retry: 4 },
 				async () => {
 					const php = new PHP(
 						await loadNodeRuntime(phpVersion, options)
@@ -331,12 +336,12 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 					});
 					php.exit();
 					expect(text).toContain('bool(true)');
-				},
-				{ timeout: 2000, retry: 4 }
+				}
 			);
 
 			it(
 				'should support HTTPS requests when certificate verification is disabled',
+				{ timeout: 2000, retry: 4 },
 				async () => {
 					const php = new PHP(
 						await loadNodeRuntime(phpVersion, options)
@@ -361,12 +366,12 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 					});
 					php.exit();
 					expect(text).toContain('bool(true)');
-				},
-				{ timeout: 2000, retry: 4 }
+				}
 			);
 
 			it(
 				'should support CURLFile uploads',
+				{ timeout: 15000 },
 				async () => {
 					let php: PHP | undefined;
 					try {
@@ -413,8 +418,7 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 						php?.exit();
 						await stopServer(server);
 					}
-				},
-				{ timeout: 15000 }
+				}
 			);
 
 			it('should close server when runtime is exited', async () => {

@@ -1236,9 +1236,12 @@ describe('sandboxedSpawnHandlerFactory', () => {
 		);
 	});
 
-	it('Should be able to call proc_open(php ...) multiple times in a row', async () => {
-		const response = await php.run({
-			code: `<?php
+	it(
+		'Should be able to call proc_open(php ...) multiple times in a row',
+		{ timeout: 60000 },
+		async () => {
+			const response = await php.run({
+				code: `<?php
 				$results = [];
 				for ($i = 1; $i <= 3; $i++) {
 					$descriptorspec = [
@@ -1258,7 +1261,8 @@ describe('sandboxedSpawnHandlerFactory', () => {
 				}
 				echo implode(',', $results);
 			`,
-		});
-		expect(response.text).toEqual('1,2,3');
-	}, 60000);
+			});
+			expect(response.text).toEqual('1,2,3');
+		}
+	);
 });
