@@ -195,7 +195,11 @@ RUN if [ "$WITH_SOAP" = "yes" ]; \
 RUN if [ "$WITH_SQLITE" = "yes" ]; \
 	then \
 		echo -n ' --with-sqlite3 --enable-pdo --with-pdo-sqlite=/root/lib ' >> /root/.php-configure-flags; \
-		echo -n ' /root/lib/lib/libsqlite3.a ' >> /root/.emcc-php-wasm-sources; \
+		# PHP 5.6 bundles its own sqlite3 in ext/sqlite3/libsqlite/, so linking the
+		# external libsqlite3.a would cause duplicate symbol errors.
+		if [ "${PHP_VERSION%%.*}" -ge "7" ]; then \
+			echo -n ' /root/lib/lib/libsqlite3.a ' >> /root/.emcc-php-wasm-sources; \
+		fi; \
 	else \
 		echo -n ' --without-sqlite3 --disable-pdo ' >> /root/.php-configure-flags; \
 	fi
@@ -256,6 +260,12 @@ RUN if [ "$WITH_CURL" = "yes" ]; \
 	then \
 		echo -n ' --with-curl=/root/lib ' >> /root/.php-configure-flags; \
 		echo -n ' /root/lib/lib/libcurl.a ' >> /root/.emcc-php-wasm-sources; \
+		# PHP 5.x uses curl-config to detect cURL instead of pkg-config.
+		# Provide a shim so configure can find the pre-built library.
+		if [ "${PHP_VERSION%%.*}" -le "5" ]; then \
+			printf '#!/bin/sh\ncase "$1" in\n--version) echo "7.80.0" ;;\n--cflags) echo "-I/root/lib/include" ;;\n--libs) echo "-L/root/lib/lib -lcurl" ;;\n--prefix) echo "/root/lib" ;;\nesac\n' > /usr/local/bin/curl-config && \
+			chmod +x /usr/local/bin/curl-config; \
+		fi; \
 	fi;
 
 # Add mbstring if needed
@@ -402,6 +412,12 @@ RUN source /root/emsdk/emsdk_env.sh && \
 # @TODO: Identify the root cause behind these errors and fix them properly
 RUN echo '#define ZEND_MM_ERROR 0' >> /root/php-src/main/php_config.h;
 
+# PHP 5.6's configure detects "old" readdir_r (2-arg) but Emscripten provides
+# the modern 3-arg version. Undefine the old variant.
+RUN if grep -q 'HAVE_OLD_READDIR_R' /root/php-src/main/php_config.h 2>/dev/null; then \
+		echo '#undef HAVE_OLD_READDIR_R' >> /root/php-src/main/php_config.h; \
+	fi
+
 # Force GD JPEG/PNG/WebP/AVIF support for external GD builds (PHP 8.1+)
 # Configure checks may fail during cross-compilation, so we explicitly enable them
 # after verifying the external libgd was built with these features.
@@ -440,12 +456,26 @@ RUN echo '#define HAVE_ASM_GOTO 0' >> /root/php-src/main/php_config.h;
 RUN if [ -f /root/php-src/Zend/zend_operators.h ] && grep -q 'ZEND_USE_ASM_ARITHMETIC' /root/php-src/Zend/zend_operators.h; then \
 		/root/replace.sh 's/ZEND_USE_ASM_ARITHMETIC 1/ZEND_USE_ASM_ARITHMETIC 0/g' /root/php-src/Zend/zend_operators.h; \
 	fi
+# PHP 5.x uses __GNUC__ && __x86_64__ guards for inline asm in zend_operators.h
+# and zend_alloc.c instead of ZEND_USE_ASM_ARITHMETIC. Disable those too.
+RUN if [ -f /root/php-src/Zend/zend_operators.h ] && ! grep -q 'ZEND_USE_ASM_ARITHMETIC' /root/php-src/Zend/zend_operators.h; then \
+		/root/replace.sh 's/defined\(__GNUC__\) && defined\(__x86_64__\)/0/g' /root/php-src/Zend/zend_operators.h; \
+		/root/replace.sh 's/defined\(__GNUC__\) && defined\(__i386__\)/0/g' /root/php-src/Zend/zend_operators.h || true; \
+	fi
+RUN if [ -f /root/php-src/Zend/zend_alloc.c ] && ! grep -q 'ZEND_USE_ASM_ARITHMETIC' /root/php-src/Zend/zend_alloc.c; then \
+		/root/replace.sh 's/defined\(__GNUC__\) && defined\(__x86_64__\)/0/g' /root/php-src/Zend/zend_alloc.c; \
+		/root/replace.sh 's/defined\(__GNUC__\) && defined\(__i386__\)/0/g' /root/php-src/Zend/zend_alloc.c || true; \
+	fi
 RUN if [ -f /root/php-src/Zend/zend_multiply.h ]; then \
 		/root/replace.sh 's/defined\(__GNUC__\)/0/g' /root/php-src/Zend/zend_multiply.h; \
 	fi
 RUN if [ -f /root/php-src/Zend/zend_cpuinfo.c ]; then \
 		/root/replace.sh 's/defined\(__GNUC__\)/0/g' /root/php-src/Zend/zend_cpuinfo.c; \
 		/root/replace.sh 's/defined\(__clang__\)/0/g' /root/php-src/Zend/zend_cpuinfo.c; \
+	fi
+# PHP 5.6 bundles PCRE with JIT hardcoded in config.h. Disable it for WASM.
+RUN if [ -f /root/php-src/ext/pcre/pcrelib/config.h ] && grep -q '^#define SUPPORT_JIT' /root/php-src/ext/pcre/pcrelib/config.h; then \
+		/root/replace.sh 's/^#define SUPPORT_JIT/#undef SUPPORT_JIT/g' /root/php-src/ext/pcre/pcrelib/config.h; \
 	fi
 # }}}
 
@@ -519,8 +549,12 @@ RUN source /root/emsdk/emsdk_env.sh && \
 	# We're compiling PHP as emscripten's side module...
 	export JSPI_FLAGS=$(if [ "$WITH_JSPI" = "yes" ]; then echo "-sSUPPORT_LONGJMP=wasm -fwasm-exceptions"; else echo ""; fi) && \
 	export PHP_VERSION_ESCAPED="${PHP_VERSION//./_}" && \
+	# PHP 5.x has function pointer type mismatches, deprecated non-prototype
+	# function definitions, and implicit function declarations that are
+	# errors in modern clang/emcc
+	export PHP5_FLAGS=$(if [ "${PHP_VERSION:0:1}" -le "5" ]; then echo "-Wno-incompatible-function-pointer-types -Wno-deprecated-non-prototype -Wno-implicit-function-declaration -Wno-incompatible-pointer-types -Wno-implicit-int"; else echo ""; fi) && \
 	EMCC_FLAGS=" -D__x86_64__ -sSIDE_MODULE -Dsetsockopt=wasm_setsockopt -Dphp_exec=wasm_php_exec \
-		$JSPI_FLAGS \
+		$JSPI_FLAGS $PHP5_FLAGS \
 		-fdebug-compilation-dir=${DEBUG_DWARF_COMPILATION_DIR}/ \
 		-fdebug-prefix-map=/root/php-src/=${OUTPUT_DIR_ON_HOST}/${PHP_VERSION_ESCAPED}/php-src/ " \
 	# ...which means we must skip all the libraries - they will be provided in the final linking step.

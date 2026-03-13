@@ -1,7 +1,6 @@
-diff --git a/php-src/ext/standard/file.c b/php-src/ext/standard/file.c
---- a/php-src/ext/standard/file.c
-+++ b/php-src/ext/standard/file.c
-@@ -1627,6 +1627,19 @@
+--- a/php-src/ext/standard/file.c	2026-03-12 23:02:36.638186358 +0100
++++ b/php-src/ext/standard/file.c	2026-03-12 23:02:43.652954816 +0100
+@@ -1668,6 +1668,20 @@
  			goto safe_to_copy;
  			break;
  		case 0:

@@ -8,7 +8,7 @@
  * Run independently with:
  *   npx nx run php-wasm-node:test-legacy-php
  */
-import { existsSync } from 'fs';
+import { existsSync, readdirSync } from 'fs';
 import { resolve } from 'path';
 import { spawn } from 'child_process';
 import { PHP, setPhpIniEntries } from '@php-wasm/universal';
@@ -19,13 +19,32 @@ const legacyVersions = ['5.6'] as const;
 const nodeBuildsRoot = resolve(__dirname, '../../../node-builds');
 
 /**
- * Check if a legacy PHP version has binaries available by looking
- * for the build directory on disk, without spinning up a PHP instance.
+ * Check if a legacy PHP version has actual compiled WASM binaries
+ * available, not just placeholder directories. Checks both asyncify
+ * and jspi variants — if either has a real .wasm file, the version
+ * is considered built.
  */
 function isVersionBuilt(version: string): boolean {
 	const dirName = version.replace('.', '-');
-	const buildDir = resolve(nodeBuildsRoot, dirName, 'asyncify');
-	return existsSync(buildDir);
+	const [major, minor] = version.split('.');
+	const wasmFilename = `php_${major}_${minor}.wasm`;
+	for (const variant of ['asyncify', 'jspi']) {
+		const wasmDir = resolve(nodeBuildsRoot, dirName, variant);
+		// Check for the actual WASM binary in the patch-version subdirectory
+		const entries = existsSync(wasmDir)
+			? readdirSync(wasmDir).filter((e) =>
+					e.startsWith(`${major}_${minor}`)
+				)
+			: [];
+		for (const entry of entries) {
+			if (
+				existsSync(resolve(wasmDir, entry, wasmFilename))
+			) {
+				return true;
+			}
+		}
+	}
+	return false;
 }
 
 describe('Legacy PHP versions (5.x)', () => {
