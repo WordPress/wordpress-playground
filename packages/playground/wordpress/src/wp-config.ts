@@ -51,6 +51,20 @@ export async function ensureWpConfig(
 		return;
 	}
 
+	// Fast path: read wp-config.php and check if all required constants
+	// are already defined. This avoids launching PHP just to verify
+	// that the defaults are present, which is the common case on
+	// subsequent boots.
+	const wpConfigContents = new TextDecoder().decode(
+		await php.readFileAsBuffer(wpConfigPath)
+	);
+	const missingConstants = Object.keys(defaults).filter(
+		(name) => !wpConfigContents.includes(name)
+	);
+	if (missingConstants.length === 0) {
+		return;
+	}
+
 	// Ensure required constants are defined.
 	const js = phpVars({ wpConfigPath, constants: defaults });
 	const result = await php.run({
