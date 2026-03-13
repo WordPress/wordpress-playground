@@ -2,21 +2,21 @@
 <html lang="en">
 	<head>
 		<meta charset="utf-8" />
-		<title>WordPress Playground</title>
+		<title>My WordPress</title>
 		<base href="/" />
 		<meta
 			property="og:image"
-			content="https://playground.wordpress.net/ogimage.png"
+			content="https://playground.wordpress.net/ogimage-mywp.png"
 		/>
-		<meta property="og:title" content="WordPress Playground" />
+		<meta property="og:title" content="My WordPress" />
 		<meta
 			property="og:description"
-			content="WordPress running in your browser for learning, testing, and developing with WordPress!"
+			content="Run a private, persistent WordPress directly in your browser. No signup or hosting needed. Start creating instantly."
 		/>
-		<meta property="og:url" content="https://playground.wordpress.net/" />
+		<meta property="og:url" content="https://my.wordpress.net/" />
 		<meta
 			name="description"
-			content="WordPress running in your browser for learning, testing, and developing with WordPress!"
+			content="Run a private, persistent WordPress directly in your browser. No signup or hosting needed. Start creating instantly."
 		/>
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<link rel="icon" type="image/x-icon" href="/favicon.ico" />
@@ -167,7 +167,9 @@
 								'_ts',
 								String(Date.now())
 							);
-							return import(/* @vite-ignore */ moduleUrl.toString());
+							return import(
+								/* @vite-ignore */ moduleUrl.toString()
+							);
 						}
 					} catch {
 						// Fall back to the original error
