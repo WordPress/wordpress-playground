@@ -170,12 +170,7 @@
 						navigator.share({ url: window.location.href });
 					});
 				} else {
-					safariLink.href =
-						'x-safari-https://' +
-						window.location.host +
-						window.location.pathname +
-						window.location.search +
-						window.location.hash;
+					safariLink.href = 'open-in-safari://';
 				}
 
 				document
