@@ -3,9 +3,9 @@ import './styles.css';
 
 import { collectWindowErrors, logger } from '@php-wasm/logger';
 import { Provider } from 'react-redux';
-import { EnsurePlaygroundSite } from './components/ensure-playground-site';
-import { Layout } from './components/layout';
 import store from './lib/state/redux/store';
+import { Layout } from './components/layout';
+import { EnsurePlaygroundSite } from './components/ensure-playground-site';
 
 collectWindowErrors(logger);
 
