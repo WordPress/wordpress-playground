@@ -94,6 +94,9 @@ export default defineConfig(function () {
 					// execArgv: ['--expose-gc', '--max-old-space-size=9216'],
 					execArgv: ['--expose-gc'],
 				},
+				threads: {
+					execArgv: ['--expose-gc'],
+				},
 			},
 			environment: 'node',
 			reporters: ['default'],

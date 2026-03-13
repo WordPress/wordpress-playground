@@ -9,22 +9,57 @@ import { XdebugCDPBridge } from '../lib/xdebug-cdp-bridge';
 import { startBridge } from '../lib/start-bridge';
 import { type Log, logger, LogSeverity } from '@php-wasm/logger';
 
+/**
+ * A mock CDPServer that extends EventEmitter just like the
+ * real one, but skips creating a WebSocketServer. Instead,
+ * it immediately emits 'clientConnected' when a listener is
+ * registered for that event, simulating a connected Chrome
+ * DevTools client.
+ */
+class MockCDPServer extends EventEmitter {
+	private ws: WebSocket | null = null;
+
+	constructor() {
+		super();
+		// When someone listens for 'clientConnected', fire it
+		// immediately via setImmediate so the promise in
+		// startBridge resolves.
+		this.on('newListener', (event: string) => {
+			if (event === 'clientConnected') {
+				setImmediate(() => this.emit('clientConnected'));
+			}
+		});
+	}
+
+	sendMessage(message: any) {
+		if (!this.ws || (this.ws as any).readyState !== (this.ws as any).OPEN) {
+			return;
+		}
+		const json = JSON.stringify(message);
+		logger.debug('\x1b[1;32m[CDP][send]\x1b[0m', json);
+		this.ws.send(json);
+	}
+
+	close = vi.fn();
+}
+
 describe('Bridge', () => {
+	let CDPServerSpy: MockInstance;
+
 	beforeAll(() => {
 		vi.spyOn(global, 'setTimeout').mockImplementation(
 			(cb) => global.setImmediate(() => cb()) as unknown as NodeJS.Timeout
 		);
-		vi.spyOn(EventEmitter.prototype, 'on').mockImplementation(function (
-			this: EventEmitter,
-			event,
-			cb
-		) {
-			if (event === 'clientConnected') {
-				setTimeout(cb, 0);
-			}
+	});
 
-			return this;
-		});
+	beforeEach(async () => {
+		CDPServerSpy = vi
+			.spyOn(await import('../lib/cdp-server'), 'CDPServer')
+			.mockImplementation((() => new MockCDPServer()) as any);
+	});
+
+	afterEach(() => {
+		CDPServerSpy.mockRestore();
 	});
 
 	afterAll(() => {
@@ -32,14 +67,10 @@ describe('Bridge', () => {
 	});
 
 	describe('Start', () => {
-		let CDPServerSpy: MockInstance;
 		let DbgpSessionSpy: MockInstance;
 		let XdebugCDPBridgeSpy: MockInstance;
 
 		beforeEach(async () => {
-			CDPServerSpy = vi
-				.spyOn(await import('../lib/cdp-server'), 'CDPServer')
-				.mockReturnThis();
 			DbgpSessionSpy = vi
 				.spyOn(await import('../lib/dbgp-session'), 'DbgpSession')
 				.mockReturnThis();
@@ -52,7 +83,6 @@ describe('Bridge', () => {
 		});
 
 		afterEach(() => {
-			CDPServerSpy.mockRestore();
 			DbgpSessionSpy.mockRestore();
 			XdebugCDPBridgeSpy.mockRestore();
 		});

@@ -15,6 +15,14 @@ export default defineConfig((env) =>
 							'--experimental-wasm-jspi',
 						],
 					},
+					threads: {
+						execArgv: [
+							'--expose-gc',
+							'--stack-trace-limit=100',
+							'--experimental-wasm-stack-switching',
+							'--experimental-wasm-jspi',
+						],
+					},
 				},
 			},
 		})

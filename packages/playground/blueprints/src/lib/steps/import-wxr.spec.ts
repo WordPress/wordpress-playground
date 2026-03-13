@@ -98,6 +98,7 @@ describe('Blueprint step importWxr', () => {
 
 	it(
 		'Should import a WXR file with JSON-encoded UTF-8 characters',
+		{ timeout: 30_000 },
 		async () => {
 			const fileData = await readFile(
 				__dirname + '/fixtures/import-wxr-slash-issue.xml'
@@ -127,12 +128,12 @@ describe('Blueprint step importWxr', () => {
 
 			expect(json.post_content).toEqual(expectedPostContent);
 			expect(json.post_title).toEqual(`"Issue\\Issue"`);
-		},
-		{ timeout: 30_000 }
+		}
 	);
 
 	it(
 		'Should create and associate wp_theme taxonomy terms for Site Editor templates',
+		{ timeout: 30_000 },
 		async () => {
 			const fileData = await readFile(
 				__dirname + '/fixtures/import-wxr-site-editor-template.xml'
@@ -150,12 +151,12 @@ describe('Blueprint step importWxr', () => {
 			expect(json.terms_associated_count).toBe(1);
 			expect(json.adonay_term_exists).toBe(true);
 			expect(json.associated_term_slugs).toEqual(['adonay']);
-		},
-		{ timeout: 30_000 }
+		}
 	);
 
 	it(
 		'Should rewrite site URLs in the imported content',
+		{ timeout: 30_000 },
 		async () => {
 			const fileData = await readFile(
 				__dirname + '/fixtures/import-wxr-base-url-rewriting.xml'
@@ -203,12 +204,12 @@ describe('Blueprint step importWxr', () => {
 `;
 
 			expect(json.post_content).toEqual(expectedPostContent);
-		},
-		{ timeout: 30_000 }
+		}
 	);
 
 	it(
 		'Should rewrite site URLs in the imported content (tt5 playground content)',
+		{ timeout: 30_000 },
 		async () => {
 			const fileData = await readFile(
 				__dirname +
@@ -257,12 +258,12 @@ describe('Blueprint step importWxr', () => {
 <!-- /wp:paragraph -->`;
 
 			expect(json.post_content).toEqual(expectedPostContent);
-		},
-		{ timeout: 30_000 }
+		}
 	);
 
 	it(
 		'Should replace all post authors with admin user',
+		{ timeout: 30_000 },
 		async () => {
 			const fileData = await readFile(
 				__dirname + '/fixtures/import-wxr-comprehensive.xml'
@@ -331,7 +332,6 @@ describe('Blueprint step importWxr', () => {
 			const postTitles = json.post_authors.map((p: any) => p.post_title);
 			expect(postTitles).toContain('Comprehensive Post');
 			expect(postTitles).toContain('Comprehensive Page');
-		},
-		{ timeout: 30_000 }
+		}
 	);
 });

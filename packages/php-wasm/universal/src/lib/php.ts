@@ -357,10 +357,17 @@ export class PHP implements Disposable {
 			data: string
 		): Promise<string | Uint8Array> => {
 			for (const listener of this.#messageListeners) {
-				const returnData = await listener(data);
+				try {
+					const returnData = await listener(data);
 
-				if (returnData) {
-					return returnData;
+					if (returnData) {
+						return returnData;
+					}
+				} catch (e) {
+					// Catch listener errors so they don't become
+					// unhandled rejections that bleed into unrelated
+					// code paths.
+					return '';
 				}
 			}
 
