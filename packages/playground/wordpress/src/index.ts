@@ -424,6 +424,16 @@ export async function preloadSqliteIntegration(
 	php: UniversalPHP,
 	sqliteZip: File
 ) {
+	// Skip setup if the SQLite integration files are already in place,
+	// e.g. when pre-extracted to the native filesystem by the CLI.
+	if (
+		php.isFile('/internal/shared/preload/0-sqlite.php') &&
+		php.isDir('/internal/shared/sqlite-database-integration')
+	) {
+		await php.defineConstant('SQLITE_MAIN_FILE', '1');
+		return;
+	}
+
 	if (await php.isDir('/tmp/sqlite-database-integration')) {
 		await php.rmdir('/tmp/sqlite-database-integration', {
 			recursive: true,
