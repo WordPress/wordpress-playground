@@ -156,11 +156,7 @@
 					.classList.add('is-visible');
 
 				document.getElementById('wkwebview-safari-link').href =
-					'x-safari-https://' +
-					window.location.host +
-					window.location.pathname +
-					window.location.search +
-					window.location.hash;
+					'open-in-safari://';
 
 				let safariLink = document.getElementById(
 					'wkwebview-safari-link'
