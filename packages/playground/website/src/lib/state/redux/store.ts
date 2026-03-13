@@ -138,4 +138,8 @@ export type PlaygroundReduxState = ReturnType<typeof store.getState>;
 // Define AppDispatch type
 export type PlaygroundDispatch = typeof store.dispatch;
 
+if (import.meta.env?.DEV) {
+	(window as any).__PLAYGROUND_STORE__ = store;
+}
+
 export default store;

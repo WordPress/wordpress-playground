@@ -156,7 +156,7 @@
 				 * Therefore, we're bypassing the cached import by adding a cache busting query parameter
 				 * if the original import fails.
 				 */
-				import('./src/main').catch((e) => {
+				import('./src/main').catch(async (e) => {
 					console.error('Failed to load main module:', e);
 					try {
 						/**
@@ -179,7 +179,10 @@
 								'_ts',
 								String(Date.now())
 							);
-							return import(/* @vite-ignore */ moduleUrl.toString());
+							await import(
+								/* @vite-ignore */ moduleUrl.toString()
+							);
+							return;
 						}
 					} catch {
 						// Fall back to the original error

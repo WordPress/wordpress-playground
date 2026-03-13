@@ -1,4 +1,8 @@
-import { findDownloadErrorInCauseChain } from './error-utils';
+import { FirewallInterferenceError } from '@php-wasm/web-service-worker';
+import {
+	findDownloadErrorInCauseChain,
+	findFirewallErrorInCauseChain,
+} from './error-utils';
 
 describe('findDownloadErrorInCauseChain', () => {
 	it('should detect TypeError with "Failed to fetch"', () => {
@@ -86,5 +90,117 @@ describe('findDownloadErrorInCauseChain', () => {
 	it('should be case-insensitive for message matching', () => {
 		const error = new TypeError('FAILED TO FETCH');
 		expect(findDownloadErrorInCauseChain(error)).toBe(error);
+	});
+
+	it('should detect LinkError via originalErrorClassName (Comlink)', () => {
+		const error = new Error('import object field is not a Function');
+		(error as any).originalErrorClassName = 'LinkError';
+		expect(findDownloadErrorInCauseChain(error)).toBe(error);
+	});
+
+	it('should return the first matching error in the chain', () => {
+		const deeper = new TypeError('Load failed');
+		const shallower = new TypeError('Failed to fetch', {
+			cause: deeper,
+		});
+		const outer = new Error('Boot failed', { cause: shallower });
+		expect(findDownloadErrorInCauseChain(outer)).toBe(shallower);
+	});
+
+	it('should return undefined for an error with non-Error cause', () => {
+		const error = new Error('Wrapper');
+		(error as any).cause = 'not an error object';
+		expect(findDownloadErrorInCauseChain(error)).toBeUndefined();
+	});
+});
+
+describe('findFirewallErrorInCauseChain', () => {
+	it('should detect FirewallInterferenceError via instanceof', () => {
+		const error = new FirewallInterferenceError(
+			'https://example.com',
+			403,
+			'Forbidden'
+		);
+		expect(findFirewallErrorInCauseChain(error)).toBe(error);
+	});
+
+	it('should detect FirewallInterferenceError by name property', () => {
+		const error = new Error('Could not fetch https://example.com');
+		error.name = 'FirewallInterferenceError';
+		expect(findFirewallErrorInCauseChain(error)).toBe(error);
+	});
+
+	it('should find FirewallInterferenceError nested in cause chain', () => {
+		const firewallError = new FirewallInterferenceError(
+			'https://example.com',
+			403,
+			'Forbidden'
+		);
+		const wrapper = new Error('Boot failed', {
+			cause: firewallError,
+		});
+		expect(findFirewallErrorInCauseChain(wrapper)).toBe(firewallError);
+	});
+
+	it('should find FirewallInterferenceError deeply nested', () => {
+		const firewallError = new FirewallInterferenceError(
+			'https://example.com',
+			403,
+			'Forbidden'
+		);
+		const mid = new Error('Step failed', { cause: firewallError });
+		const outer = new Error('Boot failed', { cause: mid });
+		expect(findFirewallErrorInCauseChain(outer)).toBe(firewallError);
+	});
+
+	it('should find by name when deeply nested', () => {
+		const firewallError = new Error('Could not fetch');
+		firewallError.name = 'FirewallInterferenceError';
+		const mid = new Error('Step failed', { cause: firewallError });
+		const outer = new Error('Boot failed', { cause: mid });
+		expect(findFirewallErrorInCauseChain(outer)).toBe(firewallError);
+	});
+
+	it('should return undefined for non-firewall errors', () => {
+		const error = new Error('Something else went wrong');
+		expect(findFirewallErrorInCauseChain(error)).toBeUndefined();
+	});
+
+	it('should return undefined for null/undefined', () => {
+		expect(findFirewallErrorInCauseChain(null)).toBeUndefined();
+		expect(findFirewallErrorInCauseChain(undefined)).toBeUndefined();
+	});
+
+	it('should return undefined for non-Error objects', () => {
+		expect(
+			findFirewallErrorInCauseChain('FirewallInterferenceError')
+		).toBeUndefined();
+	});
+
+	it('should not match errors with similar but different names', () => {
+		const error = new Error('Some error');
+		error.name = 'NotAFirewallInterferenceError';
+		expect(findFirewallErrorInCauseChain(error)).toBeUndefined();
+	});
+
+	it('should not match errors that mention firewall in the message', () => {
+		const error = new Error('firewall blocked the request');
+		expect(findFirewallErrorInCauseChain(error)).toBeUndefined();
+	});
+
+	it('should prefer instanceof match over name match', () => {
+		const realFirewall = new FirewallInterferenceError(
+			'https://example.com',
+			403,
+			'Forbidden'
+		);
+		const namedError = new Error('fake');
+		namedError.name = 'FirewallInterferenceError';
+		const wrapper = new Error('outer', {
+			cause: namedError,
+		});
+		// realFirewall is the outermost, should be found first
+		const outerWrapper = new Error('top', { cause: realFirewall });
+		expect(findFirewallErrorInCauseChain(outerWrapper)).toBe(realFirewall);
 	});
 });
