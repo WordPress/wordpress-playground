@@ -49,7 +49,7 @@ With the [`importWxr`](/blueprints/steps#importWxr) step, you can import your ow
 To include images in your imported content, a good approach is to upload the images to your GitHub repo and search/replace the path for them in the exported `.xml` file using the URL format: `https://raw.githubusercontent.com/{repo}/{branch}/{image_path}`.
 -->
 
-:::তথ্য
+:::info
 আপনার ইমপোর্ট করা কন্টেন্টে ইমেজ অন্তর্ভুক্ত করতে, একটি ভালো পদ্ধতি হলো ইমেজগুলো আপনার গিটহাব রিপোতে আপলোড করা এবং এক্সপোর্ট করা `.xml` ফাইলে তাদের জন্য পাথ সার্চ/রিপ্লেস করা এই URL ফরম্যাট ব্যবহার করে: `https://raw.githubusercontent.com/{repo}/{branch}/{image_path}`।
 
 ```html
