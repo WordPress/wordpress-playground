@@ -55,7 +55,9 @@ describe('Bridge', () => {
 	beforeEach(async () => {
 		CDPServerSpy = vi
 			.spyOn(await import('../lib/cdp-server'), 'CDPServer')
-			.mockImplementation((() => new MockCDPServer()) as any);
+			.mockImplementation(function () {
+				return new MockCDPServer();
+			} as any);
 	});
 
 	afterEach(() => {

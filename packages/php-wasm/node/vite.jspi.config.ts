@@ -6,24 +6,13 @@ export default defineConfig((env) =>
 		config(env),
 		defineConfig({
 			test: {
-				poolOptions: {
-					forks: {
-						execArgv: [
-							'--expose-gc',
-							'--stack-trace-limit=100',
-							'--experimental-wasm-stack-switching',
-							'--experimental-wasm-jspi',
-						],
-					},
-					threads: {
-						execArgv: [
-							'--expose-gc',
-							'--stack-trace-limit=100',
-							'--experimental-wasm-stack-switching',
-							'--experimental-wasm-jspi',
-						],
-					},
-				},
+				// Vitest 4 moved poolOptions to top-level test options.
+				execArgv: [
+					'--expose-gc',
+					'--stack-trace-limit=100',
+					'--experimental-wasm-stack-switching',
+					'--experimental-wasm-jspi',
+				],
 			},
 		})
 	)

@@ -237,23 +237,20 @@ export default defineConfig({
 		// - Ensure CLI tests can download WordPress
 		// - Ensure worker threads have time to boot
 		testTimeout: 30000,
-		poolOptions: {
-			forks: {
-				execArgv: [
-					'--experimental-strip-types',
-					'--experimental-transform-types',
-					'--disable-warning=ExperimentalWarning',
-					// Use our own ESM loader to help resolve modules within the Worker script.
-					'--import',
-					// Convert path to file:// URL because it is required for running in Windows.
-					pathToFileURL(
-						join(
-							import.meta.dirname,
-							'../../meta/src/node-es-module-loader/register.mts'
-						)
-					).href,
-				],
-			},
-		},
+		// Vitest 4 moved poolOptions to top-level test options.
+		execArgv: [
+			'--experimental-strip-types',
+			'--experimental-transform-types',
+			'--disable-warning=ExperimentalWarning',
+			// Use our own ESM loader to help resolve modules within the Worker script.
+			'--import',
+			// Convert path to file:// URL because it is required for running in Windows.
+			pathToFileURL(
+				join(
+					import.meta.dirname,
+					'../../meta/src/node-es-module-loader/register.mts'
+				)
+			).href,
+		],
 	},
 });

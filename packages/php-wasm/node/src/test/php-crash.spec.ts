@@ -132,62 +132,66 @@ describe.each(phpVersions)('PHP %s – ', async (phpVersion) => {
 			}
 		});
 
-		it('Does not leak memory when creating and destroying instances', async () => {
-			if (!global.gc) {
-				console.error(
-					`\u001b[33mAlert! node must be run with --expose-gc to test properly!\u001b[0m\n` +
-						`\u001b[33mnx can pass the switch with:\u001b[0m\n` +
-						`\u001b[33m\tnode --expose-gc  node_modules/nx/bin/nx\u001b[0m`
-				);
-			}
-
-			expect(global).toHaveProperty('gc');
-			expect(global.gc).toBeDefined();
-
-			let refCount = 0;
-
-			const registry = new FinalizationRegistry(() => --refCount);
-
-			const concurrent = 25;
-			const steps = 5;
-
-			const delay = (ms: number) =>
-				new Promise((accept) => setTimeout(accept, ms));
-
-			for (let i = 0; i < steps; i++) {
-				const instances = new Set<PHP>();
-
-				for (let j = 0; j < concurrent; j++) {
-					instances.add(
-						new PHP(await loadNodeRuntime(phpVersion as any))
+		it(
+			'Does not leak memory when creating and destroying instances',
+			{ timeout: 500_000 },
+			async () => {
+				if (!global.gc) {
+					console.error(
+						`\u001b[33mAlert! node must be run with --expose-gc to test properly!\u001b[0m\n` +
+							`\u001b[33mnx can pass the switch with:\u001b[0m\n` +
+							`\u001b[33m\tnode --expose-gc  node_modules/nx/bin/nx\u001b[0m`
 					);
 				}
 
-				refCount += instances.size;
+				expect(global).toHaveProperty('gc');
+				expect(global.gc).toBeDefined();
 
-				for (const instance of instances) {
-					registry.register(instance, null);
-					await instance
-						.run({ code: `<?php 2+2;` })
-						.then(() => instance.exit())
-						.catch(() => {});
+				let refCount = 0;
+
+				const registry = new FinalizationRegistry(() => --refCount);
+
+				const concurrent = 25;
+				const steps = 5;
+
+				const delay = (ms: number) =>
+					new Promise((accept) => setTimeout(accept, ms));
+
+				for (let i = 0; i < steps; i++) {
+					const instances = new Set<PHP>();
+
+					for (let j = 0; j < concurrent; j++) {
+						instances.add(
+							new PHP(await loadNodeRuntime(phpVersion as any))
+						);
+					}
+
+					refCount += instances.size;
+
+					for (const instance of instances) {
+						registry.register(instance, null);
+						await instance
+							.run({ code: `<?php 2+2;` })
+							.then(() => instance.exit())
+							.catch(() => {});
+					}
+
+					instances.clear();
+
+					await delay(10);
+					if (global.gc) {
+						global.gc();
+					}
 				}
 
-				instances.clear();
-
-				await delay(10);
+				await delay(100);
 				if (global.gc) {
 					global.gc();
 				}
-			}
 
-			await delay(100);
-			if (global.gc) {
-				global.gc();
+				expect(refCount).lessThanOrEqual(10);
 			}
-
-			expect(refCount).lessThanOrEqual(10);
-		}, 500_000);
+		);
 	});
 
 	describe('emscripten options', () => {

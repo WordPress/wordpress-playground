@@ -6,6 +6,13 @@ export interface IgnoreImportsOptions {
 
 export function viteIgnoreImports(options: IgnoreImportsOptions): Plugin {
 	let command: 'build' | 'serve';
+	/**
+	 * Track resolved IDs that originated from ?url imports.
+	 * Rolldown (Vite 8) may strip query strings before calling
+	 * the load hook, so we record them during resolveId to
+	 * prevent this plugin from intercepting asset URL imports.
+	 */
+	const urlImportIds = new Set<string>();
 
 	return {
 		/**
@@ -21,10 +28,6 @@ export function viteIgnoreImports(options: IgnoreImportsOptions): Plugin {
 		 *
 		 * Only active during build — in dev mode, these files are served by
 		 * Vite's asset pipeline (e.g. ?url imports return a URL string).
-		 * In Vite 8, Rolldown's internal resolver may strip query strings
-		 * before calling the load hook, which would cause this plugin to
-		 * intercept ?url asset imports and return a noop instead of letting
-		 * Vite serve the actual file URL.
 		 */
 		name: 'vite-ignore-imports',
 
@@ -32,9 +35,26 @@ export function viteIgnoreImports(options: IgnoreImportsOptions): Plugin {
 			command = config.command;
 		},
 
+		resolveId(source) {
+			if (source.includes('?url')) {
+				urlImportIds.add(source.replace(/\?.*$/, ''));
+			}
+			return null;
+		},
+
 		load(id) {
 			if (command !== 'build') return null;
-			if (options.extensions.some((ext) => id.endsWith(`.${ext}`))) {
+			// Don't intercept ?url imports — Vite handles those as
+			// asset URLs. Check both the id directly and the tracked
+			// set (Rolldown may strip query strings before load).
+			if (id.includes('?url')) return null;
+			const idWithoutQuery = id.replace(/\?.*$/, '');
+			if (urlImportIds.has(idWithoutQuery)) return null;
+			if (
+				options.extensions.some((ext) =>
+					idWithoutQuery.endsWith(`.${ext}`)
+				)
+			) {
 				return {
 					code: 'export default {};',
 					map: null,

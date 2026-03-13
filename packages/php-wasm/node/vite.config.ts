@@ -84,20 +84,10 @@ export default defineConfig(function () {
 			env: {
 				TEST: JSON.stringify(true),
 			},
-			// Vitest 3+ defaults to 'threads' which doesn't support
-			// execArgv. Use 'forks' to pass --expose-gc to test workers.
-			pool: 'forks',
-			poolOptions: {
-				// This is needed to allow `--expose-gc` to be passed to the
-				// forked test process.
-				forks: {
-					// execArgv: ['--expose-gc', '--max-old-space-size=9216'],
-					execArgv: ['--expose-gc'],
-				},
-				threads: {
-					execArgv: ['--expose-gc'],
-				},
-			},
+			// Vitest 4 moved poolOptions to top-level test options.
+			// This passes --expose-gc to forked test workers so that
+			// tests like php-crash.spec.ts can call global.gc().
+			execArgv: ['--expose-gc'],
 			environment: 'node',
 			reporters: ['default'],
 		},

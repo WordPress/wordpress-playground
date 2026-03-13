@@ -44,41 +44,45 @@ describe.each([true, false])(
 			fs.rmSync(nativeInternalDirPath, { recursive: true });
 		});
 
-		it('Preserves the /internal directory through PHP runtime recreation', async () => {
-			// Rotate the PHP runtime
-			const recreateRuntimeSpy = vitest.fn(recreateRuntime);
+		it(
+			'Preserves the /internal directory through PHP runtime recreation',
+			{ timeout: 30_000 },
+			async () => {
+				// Rotate the PHP runtime
+				const recreateRuntimeSpy = vitest.fn(recreateRuntime);
 
-			const php = new PHP(await recreateRuntime());
-			php.enableRuntimeRotation({
-				recreateRuntime: recreateRuntimeSpy,
-				maxRequests: 10,
-			});
+				const php = new PHP(await recreateRuntime());
+				php.enableRuntimeRotation({
+					recreateRuntime: recreateRuntimeSpy,
+					maxRequests: 10,
+				});
 
-			// Create a temporary directory and a file in it
-			const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'temp-'));
-			const tempFile = path.join(tempDir, 'file');
-			fs.writeFileSync(tempFile, 'playground');
+				// Create a temporary directory and a file in it
+				const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'temp-'));
+				const tempFile = path.join(tempDir, 'file');
+				fs.writeFileSync(tempFile, 'playground');
 
-			// Mount the temporary directory
-			php.mkdir('/internal/shared');
-			php.writeFile('/internal/shared/test', 'playground');
+				// Mount the temporary directory
+				php.mkdir('/internal/shared');
+				php.writeFile('/internal/shared/test', 'playground');
 
-			// Confirm the file is there
-			expect(php.fileExists('/internal/shared/test')).toBe(true);
+				// Confirm the file is there
+				expect(php.fileExists('/internal/shared/test')).toBe(true);
 
-			// Rotate the PHP runtime
-			for (let i = 0; i < 15; i++) {
-				await php.run({ code: `` });
+				// Rotate the PHP runtime
+				for (let i = 0; i < 15; i++) {
+					await php.run({ code: `` });
+				}
+
+				expect(recreateRuntimeSpy).toHaveBeenCalledTimes(1);
+
+				// Confirm the file is still there
+				expect(php.fileExists('/internal/shared/test')).toBe(true);
+				expect(php.readFileAsText('/internal/shared/test')).toBe(
+					'playground'
+				);
 			}
-
-			expect(recreateRuntimeSpy).toHaveBeenCalledTimes(1);
-
-			// Confirm the file is still there
-			expect(php.fileExists('/internal/shared/test')).toBe(true);
-			expect(php.readFileAsText('/internal/shared/test')).toBe(
-				'playground'
-			);
-		}, 30_000);
+		);
 
 		it('Preserves a single NODEFS mount through PHP runtime recreation', async () => {
 			// Rotate the PHP runtime
@@ -265,139 +269,165 @@ describe.each([true, false])(
 			expect(php.readFileAsText(scriptPath)).toBe(parentPhpCode);
 		});
 
-		it('Free up the available PHP memory', async () => {
-			const freeMemory = (php: PHP) =>
-				php[__private__dont__use].HEAPU32.reduce(
-					(count: number, byte: number) =>
-						byte === 0 ? count + 1 : count,
-					0
-				);
+		it(
+			'Free up the available PHP memory',
+			{ timeout: 45_000 },
+			async () => {
+				const freeMemory = (php: PHP) =>
+					php[__private__dont__use].HEAPU32.reduce(
+						(count: number, byte: number) =>
+							byte === 0 ? count + 1 : count,
+						0
+					);
 
-			const recreateRuntimeSpy = vitest.fn(recreateRuntime);
-			// Rotate the PHP runtime
-			const php = new PHP(await recreateRuntime());
-			php.enableRuntimeRotation({
-				recreateRuntime: recreateRuntimeSpy,
-				maxRequests: 1000,
-			});
-			const freeInitially = freeMemory(php);
-			for (let i = 0; i < 1000; i++) {
-				await php.run({
-					code: `<?php
+				const recreateRuntimeSpy = vitest.fn(recreateRuntime);
+				// Rotate the PHP runtime
+				const php = new PHP(await recreateRuntime());
+				php.enableRuntimeRotation({
+					recreateRuntime: recreateRuntimeSpy,
+					maxRequests: 1000,
+				});
+				const freeInitially = freeMemory(php);
+				for (let i = 0; i < 1000; i++) {
+					await php.run({
+						code: `<?php
 			// Do some string allocations
 			for($i=0;$i<10;$i++) {
 				echo "abc";
 			}
 			file_put_contents('./test', 'test');
 			`,
-				});
-			}
-			const freeAfter1000Requests = freeMemory(php);
-			expect(freeAfter1000Requests).toBeLessThan(freeInitially);
-
-			// Rotate the PHP runtime
-			await php.run({ code: `<?php echo "abc";` });
-			const freeAfterRotation = freeMemory(php);
-			expect(freeAfterRotation).toBeGreaterThan(freeAfter1000Requests);
-		}, 45_000);
-
-		it('Should recreate the PHP runtime after maxRequests', async () => {
-			const recreateRuntimeSpy = vitest.fn(recreateRuntime);
-			const php = new PHP(await recreateRuntimeSpy());
-			php.enableRuntimeRotation({
-				recreateRuntime: recreateRuntimeSpy,
-				maxRequests: 1,
-			});
-			// Rotate the PHP runtime
-			await php.run({ code: `` });
-			await php.run({ code: `` });
-			expect(recreateRuntimeSpy).toHaveBeenCalledTimes(2);
-		}, 30_000);
-
-		it('Should recreate the PHP runtime after a PHP runtime crash', async () => {
-			const recreateRuntimeSpy = vitest.fn(recreateRuntime);
-			const php = new PHP(await recreateRuntimeSpy());
-			php.enableRuntimeRotation({
-				recreateRuntime: recreateRuntimeSpy,
-				maxRequests: 1234,
-			});
-			await php.run({ code: `` });
-			// Cause a PHP runtime rotation due to error
-			php.dispatchEvent({
-				type: 'request.error',
-				error: new Error('mock error'),
-				source: 'php-wasm',
-			});
-			await php.run({ code: `` });
-			expect(recreateRuntimeSpy).toHaveBeenCalledTimes(2);
-		}, 30_000);
-
-		it('Should not recreate the PHP runtime after a PHP fatal', async () => {
-			const recreateRuntimeSpy = vitest.fn(recreateRuntime);
-			const php = new PHP(await recreateRuntimeSpy());
-			php.enableRuntimeRotation({
-				recreateRuntime: recreateRuntimeSpy,
-				maxRequests: 1234,
-			});
-			// Trigger error with no `source`
-			await php.dispatchEvent({
-				type: 'request.error',
-				error: new Error('mock error'),
-			});
-			// Trigger error with request `source`
-			await php.dispatchEvent({
-				type: 'request.error',
-				error: new Error('mock error'),
-				source: 'request',
-			});
-			expect(recreateRuntimeSpy).toHaveBeenCalledTimes(1);
-		}, 30_000);
-
-		it('Should hotswap the PHP runtime from 8.2 to 8.3', async () => {
-			let nbCalls = 0;
-			const recreateRuntimeSpy = vitest.fn(() => {
-				if (nbCalls === 0) {
-					++nbCalls;
-					return recreateRuntime('8.2');
+					});
 				}
-				return recreateRuntime('8.3');
-			});
-			const php = new PHP(await recreateRuntimeSpy());
-			php.enableRuntimeRotation({
-				recreateRuntime: recreateRuntimeSpy,
-				maxRequests: 1,
-			});
-			const version1 = (
-				await php.run({
-					code: `<?php echo PHP_VERSION;`,
-				})
-			).text;
-			const version2 = (
-				await php.run({
-					code: `<?php echo PHP_VERSION;`,
-				})
-			).text;
-			expect(version1).toMatch(/^8\.2/);
-			expect(version2).toMatch(/^8\.3/);
-		}, 30_000);
+				const freeAfter1000Requests = freeMemory(php);
+				expect(freeAfter1000Requests).toBeLessThan(freeInitially);
 
-		it('Should preserve the custom SAPI name', async () => {
-			const php = new PHP(await recreateRuntime());
-			php.enableRuntimeRotation({
-				recreateRuntime,
-				maxRequests: 1,
-			});
-			php.setSapiName('custom SAPI');
+				// Rotate the PHP runtime
+				await php.run({ code: `<?php echo "abc";` });
+				const freeAfterRotation = freeMemory(php);
+				expect(freeAfterRotation).toBeGreaterThan(
+					freeAfter1000Requests
+				);
+			}
+		);
 
-			// Rotate the PHP runtime
-			await php.run({ code: `` });
-			const result = await php.run({
-				code: `<?php echo php_sapi_name();`,
-			});
-			expect(result.text).toBe('custom SAPI');
-		}, 30_000);
+		it(
+			'Should recreate the PHP runtime after maxRequests',
+			{ timeout: 30_000 },
+			async () => {
+				const recreateRuntimeSpy = vitest.fn(recreateRuntime);
+				const php = new PHP(await recreateRuntimeSpy());
+				php.enableRuntimeRotation({
+					recreateRuntime: recreateRuntimeSpy,
+					maxRequests: 1,
+				});
+				// Rotate the PHP runtime
+				await php.run({ code: `` });
+				await php.run({ code: `` });
+				expect(recreateRuntimeSpy).toHaveBeenCalledTimes(2);
+			}
+		);
 
-		it('Should preserve the MEMFS files', async () => {
+		it(
+			'Should recreate the PHP runtime after a PHP runtime crash',
+			{ timeout: 30_000 },
+			async () => {
+				const recreateRuntimeSpy = vitest.fn(recreateRuntime);
+				const php = new PHP(await recreateRuntimeSpy());
+				php.enableRuntimeRotation({
+					recreateRuntime: recreateRuntimeSpy,
+					maxRequests: 1234,
+				});
+				await php.run({ code: `` });
+				// Cause a PHP runtime rotation due to error
+				php.dispatchEvent({
+					type: 'request.error',
+					error: new Error('mock error'),
+					source: 'php-wasm',
+				});
+				await php.run({ code: `` });
+				expect(recreateRuntimeSpy).toHaveBeenCalledTimes(2);
+			}
+		);
+
+		it(
+			'Should not recreate the PHP runtime after a PHP fatal',
+			{ timeout: 30_000 },
+			async () => {
+				const recreateRuntimeSpy = vitest.fn(recreateRuntime);
+				const php = new PHP(await recreateRuntimeSpy());
+				php.enableRuntimeRotation({
+					recreateRuntime: recreateRuntimeSpy,
+					maxRequests: 1234,
+				});
+				// Trigger error with no `source`
+				await php.dispatchEvent({
+					type: 'request.error',
+					error: new Error('mock error'),
+				});
+				// Trigger error with request `source`
+				await php.dispatchEvent({
+					type: 'request.error',
+					error: new Error('mock error'),
+					source: 'request',
+				});
+				expect(recreateRuntimeSpy).toHaveBeenCalledTimes(1);
+			}
+		);
+
+		it(
+			'Should hotswap the PHP runtime from 8.2 to 8.3',
+			{ timeout: 30_000 },
+			async () => {
+				let nbCalls = 0;
+				const recreateRuntimeSpy = vitest.fn(() => {
+					if (nbCalls === 0) {
+						++nbCalls;
+						return recreateRuntime('8.2');
+					}
+					return recreateRuntime('8.3');
+				});
+				const php = new PHP(await recreateRuntimeSpy());
+				php.enableRuntimeRotation({
+					recreateRuntime: recreateRuntimeSpy,
+					maxRequests: 1,
+				});
+				const version1 = (
+					await php.run({
+						code: `<?php echo PHP_VERSION;`,
+					})
+				).text;
+				const version2 = (
+					await php.run({
+						code: `<?php echo PHP_VERSION;`,
+					})
+				).text;
+				expect(version1).toMatch(/^8\.2/);
+				expect(version2).toMatch(/^8\.3/);
+			}
+		);
+
+		it(
+			'Should preserve the custom SAPI name',
+			{ timeout: 30_000 },
+			async () => {
+				const php = new PHP(await recreateRuntime());
+				php.enableRuntimeRotation({
+					recreateRuntime,
+					maxRequests: 1,
+				});
+				php.setSapiName('custom SAPI');
+
+				// Rotate the PHP runtime
+				await php.run({ code: `` });
+				const result = await php.run({
+					code: `<?php echo php_sapi_name();`,
+				});
+				expect(result.text).toBe('custom SAPI');
+			}
+		);
+
+		it('Should preserve the MEMFS files', { timeout: 30_000 }, async () => {
 			const php = new PHP(await recreateRuntime());
 			php.enableRuntimeRotation({
 				recreateRuntime,
@@ -417,194 +447,220 @@ describe.each([true, false])(
 			expect(php.readFileAsText('/test-root/index.php')).toBe(
 				'<?php echo "hi";'
 			);
-		}, 30_000);
+		});
 
-		it('Should not overwrite the NODEFS files', async () => {
-			const php = new PHP(await recreateRuntime());
-			php.enableRuntimeRotation({
-				recreateRuntime,
-				maxRequests: 1,
-			});
+		it(
+			'Should not overwrite the NODEFS files',
+			{ timeout: 30_000 },
+			async () => {
+				const php = new PHP(await recreateRuntime());
+				php.enableRuntimeRotation({
+					recreateRuntime,
+					maxRequests: 1,
+				});
 
-			// Rotate the PHP runtime
-			const result = await php.run({ code: `` });
-			await result.text;
+				// Rotate the PHP runtime
+				const result = await php.run({ code: `` });
+				await result.text;
 
-			php.mkdir('/test-root');
-			php.writeFile('/test-root/index.php', 'test');
+				php.mkdir('/test-root');
+				php.writeFile('/test-root/index.php', 'test');
 
-			const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'temp-'));
-			const tempFile = path.join(tempDir, 'file');
-			fs.writeFileSync(tempFile, 'playground');
-			const date = new Date();
-			date.setFullYear(date.getFullYear() - 1);
-			fs.utimesSync(tempFile, date, date);
-			try {
-				await php.mount(
-					'/test-root/nodefs',
-					createNodeFsMountHandler(tempDir)
+				const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'temp-'));
+				const tempFile = path.join(tempDir, 'file');
+				fs.writeFileSync(tempFile, 'playground');
+				const date = new Date();
+				date.setFullYear(date.getFullYear() - 1);
+				fs.utimesSync(tempFile, date, date);
+				try {
+					await php.mount(
+						'/test-root/nodefs',
+						createNodeFsMountHandler(tempDir)
+					);
+
+					// Rotate the PHP runtime
+					await php.run({ code: `` });
+
+					// Expect the file to still have the same utime
+					const stats = fs.statSync(tempFile);
+					expect(Math.round(stats.atimeMs)).toBe(
+						Math.round(date.getTime())
+					);
+
+					// The MEMFS file should still be there
+					expect(php.fileExists('/test-root/index.php')).toBe(true);
+				} finally {
+					fs.rmSync(tempFile);
+					fs.rmdirSync(tempDir);
+					php.exit();
+				}
+			}
+		);
+
+		it(
+			'Should preserve the spawn handler through PHP runtime recreation',
+			{ timeout: 30_000 },
+			async () => {
+				const php = new PHP(await recreateRuntime());
+				php.enableRuntimeRotation({
+					recreateRuntime,
+					maxRequests: 1,
+				});
+
+				// Set up a custom spawn handler that tracks calls
+				let spawnHandlerCallCount = 0;
+				const customSpawnHandler = createSpawnHandler(
+					async (command: string[], processApi: any) => {
+						spawnHandlerCallCount++;
+						// Simple echo command handler
+						if (command[0] === 'echo') {
+							processApi.stdout(
+								new TextEncoder().encode(
+									command.slice(1).join(' ') + '\n'
+								)
+							);
+						}
+						processApi.exit(0);
+					}
 				);
+
+				php.setSpawnHandler(customSpawnHandler);
+
+				// Test the spawn handler works before rotation
+				const result1 = await php.run({
+					code: `<?php echo exec("echo Hello World");`,
+				});
+				expect(result1.text).toBe('Hello World');
+				expect(spawnHandlerCallCount).toBe(1);
 
 				// Rotate the PHP runtime
 				await php.run({ code: `` });
 
-				// Expect the file to still have the same utime
-				const stats = fs.statSync(tempFile);
-				expect(Math.round(stats.atimeMs)).toBe(
-					Math.round(date.getTime())
+				// Test the spawn handler still works after rotation
+				const result2 = await php.run({
+					code: `<?php echo exec("echo Hello Again");`,
+				});
+				expect(result2.text).toBe('Hello Again');
+				expect(spawnHandlerCallCount).toBe(2);
+			}
+		);
+
+		it(
+			'Should preserve PROXYFS mounts through PHP runtime recreation',
+			{ timeout: 30_000 },
+			async () => {
+				const recreateRuntimeSpy = vitest.fn(recreateRuntime);
+
+				// sourceOfTruth holds the files; replica accesses them via PROXYFS.
+				using sourceOfTruth = new PHP(await recreateRuntime());
+				const replica = new PHP(await recreateRuntimeSpy());
+				replica.enableRuntimeRotation({
+					recreateRuntime: recreateRuntimeSpy,
+					maxRequests: 1,
+				});
+
+				sourceOfTruth.mkdir('/shared');
+				sourceOfTruth.writeFile('/shared/hello.txt', 'from source');
+
+				await proxyFileSystem(sourceOfTruth, replica, ['/shared']);
+
+				// Verify PROXYFS works before rotation
+				expect(replica.readFileAsText('/shared/hello.txt')).toBe(
+					'from source'
 				);
 
-				// The MEMFS file should still be there
-				expect(php.fileExists('/test-root/index.php')).toBe(true);
-			} finally {
-				fs.rmSync(tempFile);
-				fs.rmdirSync(tempDir);
-				php.exit();
+				// Trigger rotation (maxRequests=1, so second request rotates)
+				await replica.run({ code: `<?php echo "trigger rotation";` });
+				await replica.run({ code: `<?php echo "after rotation";` });
+
+				expect(recreateRuntimeSpy).toHaveBeenCalledTimes(2);
+
+				// Verify PROXYFS mount survived rotation
+				expect(replica.fileExists('/shared/hello.txt')).toBe(true);
+				expect(replica.readFileAsText('/shared/hello.txt')).toBe(
+					'from source'
+				);
+
+				// Verify the proxy is live — writes on sourceOfTruth are visible
+				sourceOfTruth.writeFile(
+					'/shared/new.txt',
+					'added after rotation'
+				);
+				expect(replica.readFileAsText('/shared/new.txt')).toBe(
+					'added after rotation'
+				);
+
+				replica.exit();
 			}
-		}, 30_000);
+		);
 
-		it('Should preserve the spawn handler through PHP runtime recreation', async () => {
-			const php = new PHP(await recreateRuntime());
-			php.enableRuntimeRotation({
-				recreateRuntime,
-				maxRequests: 1,
-			});
+		it(
+			'Should preserve NODEFS mount when CWD is the same as mount point',
+			{ timeout: 30_000 },
+			async () => {
+				const php = new PHP(await recreateRuntime());
+				php.enableRuntimeRotation({
+					recreateRuntime,
+					maxRequests: 1,
+				});
 
-			// Set up a custom spawn handler that tracks calls
-			let spawnHandlerCallCount = 0;
-			const customSpawnHandler = createSpawnHandler(
-				async (command: string[], processApi: any) => {
-					spawnHandlerCallCount++;
-					// Simple echo command handler
-					if (command[0] === 'echo') {
-						processApi.stdout(
-							new TextEncoder().encode(
-								command.slice(1).join(' ') + '\n'
-							)
-						);
-					}
-					processApi.exit(0);
+				// Create a temporary directory to mount
+				const tempDir = fs.mkdtempSync(
+					path.join(os.tmpdir(), 'nodefs-mount-')
+				);
+				const testFile = path.join(tempDir, 'test.txt');
+				fs.writeFileSync(testFile, 'Hello from NODEFS');
+
+				try {
+					// Mount the temp directory at /wordpress
+					await php.mount(
+						'/wordpress',
+						createNodeFsMountHandler(tempDir)
+					);
+
+					// Set CWD to the mount point
+					php.chdir('/wordpress');
+					expect(php.cwd()).toBe('/wordpress');
+
+					// Verify the mounted file is accessible
+					expect(php.fileExists('/wordpress/test.txt')).toBe(true);
+					expect(php.readFileAsText('/wordpress/test.txt')).toBe(
+						'Hello from NODEFS'
+					);
+
+					// Trigger runtime rotation by making a request
+					await php.run({
+						code: `<?php echo "Triggering rotation";`,
+					});
+					await php.run({
+						code: `<?php echo "Triggering rotation";`,
+					});
+
+					// Verify CWD is preserved after rotation
+					expect(php.cwd()).toBe('/wordpress');
+
+					// Verify the mount is still accessible after rotation
+					expect(php.fileExists('/wordpress/test.txt')).toBe(true);
+					expect(php.readFileAsText('/wordpress/test.txt')).toBe(
+						'Hello from NODEFS'
+					);
+
+					// Test that we can still write to the mounted directory
+					php.writeFile(
+						'/wordpress/new-file.txt',
+						'Created after rotation'
+					);
+					expect(
+						fs.readFileSync(
+							path.join(tempDir, 'new-file.txt'),
+							'utf8'
+						)
+					).toBe('Created after rotation');
+				} finally {
+					fs.rmSync(tempDir, { recursive: true });
+					php.exit();
 				}
-			);
-
-			php.setSpawnHandler(customSpawnHandler);
-
-			// Test the spawn handler works before rotation
-			const result1 = await php.run({
-				code: `<?php echo exec("echo Hello World");`,
-			});
-			expect(result1.text).toBe('Hello World');
-			expect(spawnHandlerCallCount).toBe(1);
-
-			// Rotate the PHP runtime
-			await php.run({ code: `` });
-
-			// Test the spawn handler still works after rotation
-			const result2 = await php.run({
-				code: `<?php echo exec("echo Hello Again");`,
-			});
-			expect(result2.text).toBe('Hello Again');
-			expect(spawnHandlerCallCount).toBe(2);
-		}, 30_000);
-
-		it('Should preserve PROXYFS mounts through PHP runtime recreation', async () => {
-			const recreateRuntimeSpy = vitest.fn(recreateRuntime);
-
-			// sourceOfTruth holds the files; replica accesses them via PROXYFS.
-			using sourceOfTruth = new PHP(await recreateRuntime());
-			const replica = new PHP(await recreateRuntimeSpy());
-			replica.enableRuntimeRotation({
-				recreateRuntime: recreateRuntimeSpy,
-				maxRequests: 1,
-			});
-
-			sourceOfTruth.mkdir('/shared');
-			sourceOfTruth.writeFile('/shared/hello.txt', 'from source');
-
-			await proxyFileSystem(sourceOfTruth, replica, ['/shared']);
-
-			// Verify PROXYFS works before rotation
-			expect(replica.readFileAsText('/shared/hello.txt')).toBe(
-				'from source'
-			);
-
-			// Trigger rotation (maxRequests=1, so second request rotates)
-			await replica.run({ code: `<?php echo "trigger rotation";` });
-			await replica.run({ code: `<?php echo "after rotation";` });
-
-			expect(recreateRuntimeSpy).toHaveBeenCalledTimes(2);
-
-			// Verify PROXYFS mount survived rotation
-			expect(replica.fileExists('/shared/hello.txt')).toBe(true);
-			expect(replica.readFileAsText('/shared/hello.txt')).toBe(
-				'from source'
-			);
-
-			// Verify the proxy is live — writes on sourceOfTruth are visible
-			sourceOfTruth.writeFile('/shared/new.txt', 'added after rotation');
-			expect(replica.readFileAsText('/shared/new.txt')).toBe(
-				'added after rotation'
-			);
-
-			replica.exit();
-		}, 30_000);
-
-		it('Should preserve NODEFS mount when CWD is the same as mount point', async () => {
-			const php = new PHP(await recreateRuntime());
-			php.enableRuntimeRotation({
-				recreateRuntime,
-				maxRequests: 1,
-			});
-
-			// Create a temporary directory to mount
-			const tempDir = fs.mkdtempSync(
-				path.join(os.tmpdir(), 'nodefs-mount-')
-			);
-			const testFile = path.join(tempDir, 'test.txt');
-			fs.writeFileSync(testFile, 'Hello from NODEFS');
-
-			try {
-				// Mount the temp directory at /wordpress
-				await php.mount(
-					'/wordpress',
-					createNodeFsMountHandler(tempDir)
-				);
-
-				// Set CWD to the mount point
-				php.chdir('/wordpress');
-				expect(php.cwd()).toBe('/wordpress');
-
-				// Verify the mounted file is accessible
-				expect(php.fileExists('/wordpress/test.txt')).toBe(true);
-				expect(php.readFileAsText('/wordpress/test.txt')).toBe(
-					'Hello from NODEFS'
-				);
-
-				// Trigger runtime rotation by making a request
-				await php.run({ code: `<?php echo "Triggering rotation";` });
-				await php.run({ code: `<?php echo "Triggering rotation";` });
-
-				// Verify CWD is preserved after rotation
-				expect(php.cwd()).toBe('/wordpress');
-
-				// Verify the mount is still accessible after rotation
-				expect(php.fileExists('/wordpress/test.txt')).toBe(true);
-				expect(php.readFileAsText('/wordpress/test.txt')).toBe(
-					'Hello from NODEFS'
-				);
-
-				// Test that we can still write to the mounted directory
-				php.writeFile(
-					'/wordpress/new-file.txt',
-					'Created after rotation'
-				);
-				expect(
-					fs.readFileSync(path.join(tempDir, 'new-file.txt'), 'utf8')
-				).toBe('Created after rotation');
-			} finally {
-				fs.rmSync(tempDir, { recursive: true });
-				php.exit();
 			}
-		}, 30_000);
+		);
 	}
 );
