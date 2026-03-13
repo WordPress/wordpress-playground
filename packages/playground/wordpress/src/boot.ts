@@ -237,7 +237,9 @@ export async function bootWordPress(
 	 * This is needed, because some WordPress backups and exports may not include
 	 * definitions for some of the necessary constants.
 	 */
+
 	await ensureWpConfig(php, requestHandler.documentRoot);
+
 	// Run "before database" hooks to mount/copy more files in
 	if (options.hooks?.beforeDatabaseSetup) {
 		await options.hooks.beforeDatabaseSetup(php);
@@ -290,7 +292,22 @@ export async function bootWordPress(
 			usesSqlite,
 			hasCustomDatabasePath,
 		});
-		if (!(await isWordPressInstalled(php))) {
+
+		// Use a fast filesystem check to avoid bootstrapping WordPress
+		// just to determine whether it's already installed. When the
+		// SQLite database file exists and has data, the site was
+		// previously installed and we can skip the expensive
+		// isWordPressInstalled() and assertValidDatabaseConnection()
+		// calls, each of which loads all of WordPress via wp-load.php.
+		const sqliteDbPath =
+			options.dataSqlPath ??
+			joinPaths(
+				requestHandler.documentRoot,
+				'wp-content/database/.ht.sqlite'
+			);
+		const hasSqliteDb = usesSqlite && php.isFile(sqliteDbPath);
+
+		if (!hasSqliteDb && !(await isWordPressInstalled(php))) {
 			// Install WordPress if it's not installed.
 			try {
 				await installWordPress(php);
@@ -304,8 +321,10 @@ export async function bootWordPress(
 				throw error;
 			}
 		}
-		// Validate the database connection after installation (skip if user provided custom DB path)
-		if (!hasCustomDatabasePath) {
+		// Validate the database connection after installation (skip if user provided custom DB path).
+		// Skip this check when the SQLite database already existed, as the file's presence
+		// already confirms a working database connection.
+		if (!hasCustomDatabasePath && !hasSqliteDb) {
 			await assertValidDatabaseConnection(requestHandler);
 		}
 	}
