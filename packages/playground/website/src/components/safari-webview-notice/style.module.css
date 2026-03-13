@@ -1,0 +1,103 @@
+.overlay {
+	position: fixed;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	background: #1e2327;
+	z-index: 9999;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 20px;
+	animation: fadeIn 0.15s ease-out;
+}
+
+@keyframes fadeIn {
+	from {
+		opacity: 0;
+	}
+	to {
+		opacity: 1;
+	}
+}
+
+.content {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	text-align: center;
+	max-width: 400px;
+	width: 100%;
+}
+
+.content > :first-child {
+	margin-bottom: 2rem;
+}
+
+.title {
+	font-size: clamp(20px, 2vw, 24px);
+	font-weight: 600;
+	color: #fff;
+	margin: 0 0 1rem;
+}
+
+.description {
+	font-size: clamp(14px, 1.4vw, 15px);
+	color: #9ca3af;
+	line-height: 1.5;
+	margin: 0 0 2rem;
+}
+
+.actions {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	width: 100%;
+}
+
+.primaryButton {
+	background: #3858e9;
+	color: #fff;
+	border: none;
+	border-radius: 6px;
+	padding: 0.75rem 1.5rem;
+	font-size: 1rem;
+	font-weight: 600;
+	cursor: pointer;
+	width: 100%;
+	transition: background 0.15s;
+}
+
+.primaryButton:hover,
+.primaryButton:focus-visible {
+	background: #2a45d0;
+	outline: 2px solid #3858e9;
+	outline-offset: 2px;
+}
+
+.secondaryButton {
+	background: #2c3338;
+	color: #e5e6e6;
+	border: 1px solid #3c4349;
+	border-radius: 6px;
+	padding: 0.75rem 1.5rem;
+	font-size: 1rem;
+	font-weight: 500;
+	cursor: pointer;
+	width: 100%;
+	transition: background 0.15s;
+}
+
+.secondaryButton:hover,
+.secondaryButton:focus-visible {
+	background: #353b41;
+	outline: 2px solid #3c4349;
+	outline-offset: 2px;
+}
+
+.hint {
+	margin: 1rem 0 0;
+	font-size: clamp(12px, 1.2vw, 13px);
+	color: #6b7280;
+}

@@ -6,12 +6,14 @@ import { Provider } from 'react-redux';
 import store from './lib/state/redux/store';
 import { Layout } from './components/layout';
 import { EnsurePlaygroundSite } from './components/ensure-playground-site';
+import { SafariWebviewNotice } from './components/safari-webview-notice';
 
 collectWindowErrors(logger);
 
 const root = createRoot(document.getElementById('root')!);
 root.render(
 	<Provider store={store}>
+		<SafariWebviewNotice />
 		<EnsurePlaygroundSite>
 			<Layout />
 		</EnsurePlaygroundSite>

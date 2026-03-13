@@ -11,7 +11,7 @@ import { close, arrowLeft } from '@wordpress/icons';
 import store from '../../lib/state/redux/store';
 import css from './style.module.css';
 
-function PlaygroundLogo() {
+export function PlaygroundLogo() {
 	return (
 		<div className={css.logo}>
 			<svg
