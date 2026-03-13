@@ -159,12 +159,25 @@
 					.getElementById('wkwebview-notice')
 					.classList.add('is-visible');
 
-				document.getElementById('wkwebview-safari-link').href =
-					'x-safari-https://' +
-					window.location.host +
-					window.location.pathname +
-					window.location.search +
-					window.location.hash;
+				let safariLink = document.getElementById(
+					'wkwebview-safari-link'
+				);
+
+				if (/Twitter for iPhone/i.test(ua)) {
+					safariLink.textContent = 'Share link';
+					safariLink.removeAttribute('href');
+					safariLink.addEventListener('click', function (e) {
+						e.preventDefault();
+						navigator.share({ url: window.location.href });
+					});
+				} else {
+					safariLink.href =
+						'x-safari-https://' +
+						window.location.host +
+						window.location.pathname +
+						window.location.search +
+						window.location.hash;
+				}
 
 				document
 					.getElementById('wkwebview-copy-btn')
