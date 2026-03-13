@@ -1,6 +1,22 @@
-import { existsSync, readFileSync, lstatSync } from 'fs';
+import { readFileSync, statSync } from 'fs';
 import { fileURLToPath, pathToFileURL } from 'url';
 import { join, resolve as resolvePath, dirname } from 'path';
+
+// Cache stat results to avoid repeated filesystem calls on Windows
+// where syscalls are expensive.
+const statCache = new Map<string, { isFile: boolean; isDir: boolean } | null>();
+function cachedStat(path: string) {
+	let result = statCache.get(path);
+	if (result !== undefined) return result;
+	try {
+		const s = statSync(path);
+		result = { isFile: s.isFile(), isDir: s.isDirectory() };
+	} catch {
+		result = null;
+	}
+	statCache.set(path, result);
+	return result;
+}
 
 interface TsConfig {
 	compilerOptions: {
@@ -33,6 +49,9 @@ for (const [alias, paths] of Object.entries(pathAliases)) {
 	aliasMap.set(alias, resolvedPathUrl);
 }
 
+// Cache resolved specifiers to avoid repeated filesystem checks.
+const resolveCache = new Map<string, ResolveResult>();
+
 interface ResolveContext {
 	conditions: string[];
 	importAssertions: Record<string, string>;
@@ -46,6 +65,24 @@ interface ResolveResult {
 }
 
 export async function resolve(
+	specifier: string,
+	context: ResolveContext,
+	nextResolve: (
+		specifier: string,
+		context: ResolveContext
+	) => Promise<ResolveResult>
+): Promise<ResolveResult> {
+	const cacheKey = `${specifier}\0${context.parentURL ?? ''}`;
+	const cached = resolveCache.get(cacheKey);
+	if (cached) {
+		return cached;
+	}
+	const result = await resolveUncached(specifier, context, nextResolve);
+	resolveCache.set(cacheKey, result);
+	return result;
+}
+
+async function resolveUncached(
 	specifier: string,
 	context: ResolveContext,
 	nextResolve: (
@@ -90,7 +127,15 @@ export async function resolve(
 		// resolution and Node.js module resolution:
 		// - Node.js would not find the module without its .mjs extension.
 		// - TypeScript could not resolve import's .d.ts file when the .mjs extension was added.
+
+		// Fast path: try the specifier as-is first (most common case).
+		try {
+			return await nextResolve(specifier, context);
+		} catch {}
+
+		// If that failed, try adding extensions.
 		for (const extension of possibleModuleExtensions) {
+			if (extension === '') continue; // Already tried bare specifier.
 			try {
 				const candidate = `${specifier}${extension}`;
 				return await nextResolve(candidate, context);
@@ -110,10 +155,8 @@ export async function resolve(
 		const relativeImportBase = dirname(moduleDoingRelativeImport);
 
 		let resolvedImportPath = resolvePath(relativeImportBase, specifierPath);
-		if (
-			existsSync(resolvedImportPath) &&
-			lstatSync(resolvedImportPath).isDirectory()
-		) {
+		const dirStat = cachedStat(resolvedImportPath);
+		if (dirStat?.isDir) {
 			// This is a directory. Let's try the index file.
 			resolvedImportPath = join(resolvedImportPath, 'index');
 		}
@@ -146,14 +189,14 @@ export async function resolve(
 		}
 	}
 
+	const specifierPath = fileURLToPath(specifier);
 	for (const extension of possibleModuleExtensions) {
-		const specifierPath = fileURLToPath(specifier);
 		const candidateFilePath = `${specifierPath}${extension}`;
+		const fileStat = cachedStat(candidateFilePath);
 
-		if (
-			existsSync(candidateFilePath) &&
-			lstatSync(candidateFilePath).isFile()
-		) {
+		if (fileStat) {
+			// For bare specifier (no extension), must be a file not a directory.
+			if (extension === '' && !fileStat.isFile) continue;
 			specifier = pathToFileURL(candidateFilePath).href;
 			return nextResolve(specifier, context);
 		}
