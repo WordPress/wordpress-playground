@@ -5,7 +5,7 @@
 	"scope": "/",
 	"start_url": "/",
 	"short_name": "My WordPress",
-	"description": "A personal WordPress playground for building and testing sites.",
+	"description": "A WordPress directly in your browser: personal, private, and persistent.",
 	"name": "My WordPress",
 	"icons": [
 		{
