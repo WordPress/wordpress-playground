@@ -35,7 +35,7 @@ export type Pooled<T extends object> = Omit<
  */
 export function createObjectPoolProxy<T extends object>(
 	instances: T[]
-): Pooled<T> {
+): Pooled<T> & { addInstance(instance: T): void } {
 	if (instances.length === 0) {
 		throw new Error('At least one instance is required');
 	}
@@ -88,46 +88,58 @@ export function createObjectPoolProxy<T extends object>(
 		});
 	}
 
-	return new Proxy({} as Pooled<T>, {
-		get(_target, prop: string | symbol) {
-			// Support returning assigned target properties.
-			// The main reason for this is to allow us to override methods
-			// for testing purposes.
-			// TODO: Add test for this feature?
-			if (prop in _target) {
-				return (_target as any)[prop];
-			}
+	function addInstance(instance: T): void {
+		instances.push(instance);
+		release(instance);
+	}
 
-			// Prevent the proxy from being treated as a thenable,
-			// which would interfere with Promise resolution.
-			if (prop === 'then') {
-				return undefined;
-			}
+	const proxy = new Proxy(
+		{} as Pooled<T> & { addInstance(instance: T): void },
+		{
+			get(_target, prop: string | symbol) {
+				// Support returning assigned target properties.
+				// The main reason for this is to allow us to override methods
+				// for testing purposes.
+				// TODO: Add test for this feature?
+				if (prop in _target) {
+					return (_target as any)[prop];
+				}
 
-			// Return a dual-purpose proxy that works as both a method call
-			// and a property access. This mirrors how comlink proxies handle
-			// the ambiguity — the call site determines the behavior:
-			//   - playground.run(opts)       → apply trap → method call
-			//   - await playground.docroot   → .then accessed → property get
-			//
-			// We can't sample typeof on the instance to decide, because
-			// comlink proxies are always functions regardless of whether
-			// the remote value is a method or a property.
-			return new Proxy(function () {}, {
-				apply(_target, _thisArg, args: any[]) {
-					return withInstance((inst) => (inst as any)[prop](...args));
-				},
-				get(_target, innerProp) {
-					if (innerProp === 'then') {
-						return (resolve: any, reject: any) =>
-							withInstance((inst) => (inst as any)[prop]).then(
-								resolve,
-								reject
-							);
-					}
+				// Prevent the proxy from being treated as a thenable,
+				// which would interfere with Promise resolution.
+				if (prop === 'then') {
 					return undefined;
-				},
-			});
-		},
-	});
+				}
+
+				// Return a dual-purpose proxy that works as both a method call
+				// and a property access. This mirrors how comlink proxies handle
+				// the ambiguity — the call site determines the behavior:
+				//   - playground.run(opts)       → apply trap → method call
+				//   - await playground.docroot   → .then accessed → property get
+				//
+				// We can't sample typeof on the instance to decide, because
+				// comlink proxies are always functions regardless of whether
+				// the remote value is a method or a property.
+				return new Proxy(function () {}, {
+					apply(_target, _thisArg, args: any[]) {
+						return withInstance((inst) =>
+							(inst as any)[prop](...args)
+						);
+					},
+					get(_target, innerProp) {
+						if (innerProp === 'then') {
+							return (resolve: any, reject: any) =>
+								withInstance(
+									(inst) => (inst as any)[prop]
+								).then(resolve, reject);
+						}
+						return undefined;
+					},
+				});
+			},
+		}
+	);
+
+	proxy.addInstance = addInstance;
+	return proxy;
 }
