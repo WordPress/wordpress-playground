@@ -166,6 +166,7 @@
 				);
 
 				if (/Twitter for iPhone/i.test(ua)) {
+					// This is tested with the X mobile app.
 					safariLink.textContent = 'Share link';
 					safariLink.removeAttribute('href');
 					safariLink.addEventListener('click', function (e) {
@@ -173,7 +174,17 @@
 						navigator.share({ url: window.location.href });
 					});
 				} else {
-					safariLink.href = 'open-in-safari://';
+					// The `x-safari-http(s)://` scheme doesn't work in a WKWebView running in iOS simulator
+					// when running http://127.0.0.1:5400/website-server/, the `open-in-safari://` instead works,
+					// but not in other environments.
+					// This is tested with the Linkedin mobile app.
+					// TODO: test with other mobile apps.
+					safariLink.href =
+						'x-safari-https://' +
+						window.location.host +
+						window.location.pathname +
+						window.location.search +
+						window.location.hash;
 				}
 
 				document
