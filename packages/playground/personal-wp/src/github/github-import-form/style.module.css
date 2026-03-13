@@ -1,0 +1,33 @@
+.screenreader-text {
+	display: none;
+}
+
+.modal-text-list {
+	padding-left: 15px;
+}
+
+.repo-input {
+	width: 100%;
+	font-size: 18px;
+	padding: 5px;
+	margin-top: 5px;
+}
+
+.notice {
+	margin: 20px 0 !important;
+}
+
+.examples-dl {
+	display: flex;
+	flex-direction: column;
+	margin: 0;
+}
+
+.examples-dl dt {
+	font-weight: 500;
+	margin-bottom: 2px;
+}
+
+.examples-dl dd {
+	margin-bottom: 10px;
+}

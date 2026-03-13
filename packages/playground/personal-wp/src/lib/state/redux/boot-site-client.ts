@@ -21,7 +21,16 @@ import { setupPostMessageRelay } from '@php-wasm/web';
 import { startPlaygroundWeb } from '@wp-playground/client';
 import type { PlaygroundClient } from '@wp-playground/remote';
 import { getRemoteUrl } from '../../config';
-import { setActiveSiteError } from './slice-ui';
+import {
+	setActiveSiteError,
+	setActiveModal,
+	setGitHubAuthRepoUrl,
+	modalSlugs,
+} from './slice-ui';
+import {
+	createGitAuthHeaders,
+	shouldShowGitHubAuthModal,
+} from '../../../github/git-auth-helpers';
 import type { PlaygroundDispatch, PlaygroundReduxState } from './store';
 import {
 	selectSiteBySlug,
@@ -421,6 +430,7 @@ export function bootSiteClient(
 					: [],
 				shouldInstallWordPress: !isWordPressInstalled,
 				corsProxy: corsProxyUrl,
+				gitAdditionalHeadersCallback: createGitAuthHeaders(),
 			});
 		} catch (e) {
 			logger.error(e);
@@ -456,6 +466,33 @@ export function bootSiteClient(
 						details: firewallError,
 					})
 				);
+			} else if (
+				(e as any).name === 'GitAuthenticationError' ||
+				(e as any).originalErrorClassName ===
+					'GitAuthenticationError' ||
+				(e as any).cause?.name === 'GitAuthenticationError'
+			) {
+				const repoUrl =
+					(e as any).repoUrl ||
+					(e as any).cause?.repoUrl ||
+					undefined;
+
+				if (shouldShowGitHubAuthModal(repoUrl)) {
+					if (repoUrl) {
+						dispatch(setGitHubAuthRepoUrl(repoUrl));
+					}
+					dispatch(
+						setActiveModal(modalSlugs.GITHUB_PRIVATE_REPO_AUTH)
+					);
+				} else {
+					dispatch(
+						setActiveSiteError({
+							error: 'site-boot-failed',
+							details: e,
+						})
+					);
+					dispatch(setActiveModal(modalSlugs.ERROR_REPORT));
+				}
 			} else {
 				dispatch(
 					setActiveSiteError({
@@ -464,6 +501,8 @@ export function bootSiteClient(
 					})
 				);
 			}
+			// Don't continue to URL clearing or client setup after an error
+			return;
 		}
 
 		if (signal.aborted || !playground) {

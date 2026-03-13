@@ -23,6 +23,7 @@ import { listAssetsRequiredForOfflineMode } from '../../vite-extensions/vite-lis
 import virtualModule from '../../vite-extensions/vite-virtual-module';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import viteGlobalExtensions from '../../vite-extensions/vite-global-extensions';
+import { oAuthMiddleware } from './vite.oauth';
 
 const personalWPDevServerPort = 5401;
 
@@ -123,6 +124,7 @@ export default defineConfig(({ command, mode }) => {
 			{
 				name: 'configure-server',
 				configureServer(server) {
+					server.middlewares.use(oAuthMiddleware);
 					server.printUrls = () => {
 						const url = `http://${websiteDevServerHost}:${personalWPDevServerPort}/website-server/`;
 						// eslint-disable-next-line no-console
