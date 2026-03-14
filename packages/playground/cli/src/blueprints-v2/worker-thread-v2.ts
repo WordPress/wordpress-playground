@@ -1,6 +1,11 @@
 import { errorLogPath, logger } from '@php-wasm/logger';
-import type { FileLockManager } from '@php-wasm/node';
-import { createNodeFsMountHandler, loadNodeRuntime } from '@php-wasm/node';
+import type { FileLockManager } from '@php-wasm/universal';
+import {
+	bindUserSpace,
+	createNodeFsMountHandler,
+	loadNodeRuntime,
+	type WasmUserSpaceContext,
+} from '@php-wasm/node';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import type {
 	PathAlias,
@@ -14,12 +19,15 @@ import {
 	PHPExecutionFailureError,
 	PHPResponse,
 	PHPWorker,
+	releaseApiProxy,
 	consumeAPI,
 	consumeAPISync,
 	exposeAPI,
 	sandboxedSpawnHandlerFactory,
+	setPhpIniEntries,
+	writeFiles,
 } from '@php-wasm/universal';
-import { sprintf } from '@php-wasm/util';
+import { joinPaths, sprintf } from '@php-wasm/util';
 import {
 	type BlueprintMessage,
 	runBlueprintV2,
@@ -29,13 +37,16 @@ import {
 	type ParsedBlueprintV2String,
 	type RawBlueprintV2Data,
 } from '@wp-playground/blueprints';
-import { bootRequestHandler } from '@wp-playground/wordpress';
+import {
+	bootRequestHandler,
+	preloadPhpInfoRoute,
+	setupPlatformLevelMuPlugins,
+} from '@wp-playground/wordpress';
 import { existsSync } from 'fs';
 import path from 'path';
 import { rootCertificates } from 'tls';
 import { MessageChannel, type MessagePort, parentPort } from 'worker_threads';
-import { jspi } from 'wasm-feature-detect';
-import { spawnWorkerThread, type RunCLIArgs } from '../run-cli';
+import { type RunCLIArgs, spawnWorkerThread } from '../run-cli';
 import type {
 	PhpIniOptions,
 	PHPInstanceCreatedHook,
@@ -124,27 +135,15 @@ const output = {
 	},
 };
 
-export type PrimaryWorkerBootArgs = Omit<
+export type WorkerWordPressBootArgs = Omit<
 	RunCLIArgs,
 	'mount-before-install' | 'mount'
 > & {
-	phpVersion: SupportedPHPVersion;
 	siteUrl: string;
-	firstProcessId: number;
-	processIdSpaceLength: number;
-	trace: boolean;
 	blueprint:
 		| RawBlueprintV2Data
 		| ParsedBlueprintV2String
 		| BlueprintV1Declaration;
-	nativeInternalDirPath: string;
-	mountsBeforeWpInstall?: Array<Mount>;
-	mountsAfterWpInstall?: Array<Mount>;
-	/**
-	 * PHP constants to define via php.defineConstant().
-	 * Process-specific, set for each PHP instance.
-	 */
-	constants?: Record<string, string | number | boolean | null>;
 };
 
 type WorkerRunBlueprintArgs = Omit<
@@ -166,8 +165,7 @@ export type SecondaryWorkerBootArgs = {
 	phpIniEntries?: PhpIniOptions;
 	constants?: Record<string, string | number | boolean | null>;
 	createFiles?: FileTree;
-	firstProcessId: number;
-	processIdSpaceLength: number;
+	processId: number;
 	trace: boolean;
 	nativeInternalDirPath: string;
 	withIntl?: boolean;
@@ -191,7 +189,7 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 	booted = false;
 	blueprintTargetResolved = false;
 	phpInstancesThatNeedMountsAfterTargetResolved = new Set<PHP>();
-	fileLockManager: RemoteAPI<FileLockManager> | FileLockManager | undefined;
+	fileLockManager: FileLockManager | undefined;
 
 	constructor(monitor: EmscriptenDownloadMonitor) {
 		super(undefined, monitor);
@@ -207,81 +205,59 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 	 * @see phpwasm-emscripten-library-file-locking-for-node.js
 	 */
 	async useFileLockManager(port: MessagePort) {
-		if (await jspi()) {
-			/**
-			 * If JSPI is available, php.js supports both synchronous and asynchronous locking syscalls.
-			 * Web browsers, however, only support asynchronous message passing so let's use the
-			 * asynchronous API. Every method call will return a promise.
-			 *
-			 * @see comlink-sync.ts
-			 * @see phpwasm-emscripten-library-file-locking-for-node.js
-			 */
-			this.fileLockManager = consumeAPI<FileLockManager>(port);
-		} else {
-			/**
-			 * If JSPI is not available, php.js only supports synchronous locking syscalls.
-			 * Let's use the synchronous API. Every method call will block this thread
-			 * until the result is available.
-			 *
-			 * @see comlink-sync.ts
-			 * @see phpwasm-emscripten-library-file-locking-for-node.js
-			 */
-			this.fileLockManager = await consumeAPISync<FileLockManager>(port);
-		}
+		/**
+		 * If JSPI is not available, php.js only supports synchronous locking syscalls.
+		 * Let's use the synchronous API. Every method call will block this thread
+		 * until the result is available.
+		 *
+		 * @see comlink-sync.ts
+		 * @see phpwasm-emscripten-library-file-locking-for-node.js
+		 */
+		this.fileLockManager = await consumeAPISync<FileLockManager>(port);
 	}
 
-	async bootAndSetUpInitialWorker(args: PrimaryWorkerBootArgs) {
-		// Start with CLI-provided constants (if any)
-		const constants = {
-			...(args.constants || {}),
-		};
-		const requestHandlerOptions: WorkerBootRequestHandlerOptions = {
-			...args,
-			createFiles: {
-				'/internal/shared/ca-bundle.crt': rootCertificates.join('\n'),
-			},
-			constants,
-			phpIniEntries: {
-				'openssl.cafile': '/internal/shared/ca-bundle.crt',
-			},
-			onPHPInstanceCreated: async (php: PHP) => {
-				await mountResources(php, args.mountsBeforeWpInstall || []);
-				if (this.blueprintTargetResolved) {
-					await mountResources(php, args.mountsAfterWpInstall || []);
-				} else {
-					// NOTE: Today (2025-09-11), during boot with a plugin auto-mount,
-					// the Blueprint runner fails unless post-resolution mounts are
-					// added to existing PHP instances. So we track them here so they
-					// can be mounted at the necessary time.
-					// Only plugin auto-mounts seem to need this, so perhaps there
-					// is a change we can make to the Blueprint runner so such
-					// a dance is unnecessary.
-					this.phpInstancesThatNeedMountsAfterTargetResolved.add(php);
-					php.addEventListener('runtime.beforeExit', () => {
-						this.phpInstancesThatNeedMountsAfterTargetResolved.delete(
-							php
-						);
-					});
-				}
-			},
-			spawnHandler: () =>
-				sandboxedSpawnHandlerFactory(() =>
-					createPHPWorker(args, this.fileLockManager!)
-				),
-		};
-		await this.bootRequestHandler(requestHandlerOptions);
+	async bootWordPress(
+		args: WorkerWordPressBootArgs,
+		workerPostInstallMountsPort: MessagePort
+	) {
+		// TODO: Should we move a process like this back into the
+		// `@wp-playground/wordpress` package?
+		const php = await this.__internal_getRequestHandler()!.getPrimaryPhp();
+		php.defineConstant('WP_DEBUG', 'true');
+		php.defineConstant('WP_DEBUG_LOG', 'true');
+		php.defineConstant('WP_DEBUG_DISPLAY', 'false');
+		php.defineConstant('WP_HOME', args.siteUrl);
+		php.defineConstant('WP_SITEURL', args.siteUrl);
 
-		const primaryPhp = this.__internal_getPHP()!;
+		await setPhpIniEntries(php, {
+			'openssl.cafile': '/internal/shared/ca-bundle.crt',
+			allow_url_fopen: '1',
+			disable_functions: '',
+		});
+
+		await setupPlatformLevelMuPlugins(php);
+		await writeFiles(php, '/', {
+			'/internal/shared/ca-bundle.crt': rootCertificates.join('\n'),
+		});
+		await preloadPhpInfoRoute(
+			php,
+			joinPaths(new URL(args.siteUrl).pathname, 'phpinfo.php')
+		);
 
 		if (args.mode === 'mount-only') {
-			await mountResources(primaryPhp, args.mountsAfterWpInstall || []);
+			await this.applyPostInstallMountsToAllWorkers(
+				workerPostInstallMountsPort
+			);
 			return;
 		}
 
-		await this.runBlueprintV2({
-			...args,
-			mountsAfterWpInstall: args.mountsAfterWpInstall || [],
-		});
+		await this.runBlueprintV2(
+			{
+				// TODO: Do we really want to create a new object or can we pass args directly?
+				...args,
+			},
+			workerPostInstallMountsPort
+		);
 	}
 
 	async bootWorker(args: SecondaryWorkerBootArgs) {
@@ -323,7 +299,10 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 		});
 	}
 
-	async runBlueprintV2(args: WorkerRunBlueprintArgs) {
+	async runBlueprintV2(
+		args: WorkerRunBlueprintArgs,
+		workerPostInstallMountsPort: MessagePort
+	) {
 		const requestHandler = this.__internal_getRequestHandler()!;
 		const { php, reap } =
 			await requestHandler.instanceManager.acquirePHPInstance();
@@ -377,17 +356,9 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 						case 'blueprint.target_resolved': {
 							if (!this.blueprintTargetResolved) {
 								this.blueprintTargetResolved = true;
-								for (const php of this
-									.phpInstancesThatNeedMountsAfterTargetResolved) {
-									// console.log('mounting resources for php', php);
-									this.phpInstancesThatNeedMountsAfterTargetResolved.delete(
-										php
-									);
-									await mountResources(
-										php,
-										args.mountsAfterWpInstall || []
-									);
-								}
+								await this.applyPostInstallMountsToAllWorkers(
+									workerPostInstallMountsPort
+								);
 							}
 							break;
 						}
@@ -474,11 +445,10 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 		siteUrl,
 		allow,
 		phpVersion,
+		processId,
 		createFiles,
 		constants,
 		phpIniEntries,
-		firstProcessId,
-		processIdSpaceLength,
 		trace,
 		nativeInternalDirPath,
 		withIntl,
@@ -494,31 +464,29 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 		}
 		this.booted = true;
 
-		let nextProcessId = firstProcessId;
-		const lastProcessId = firstProcessId + processIdSpaceLength - 1;
-
 		try {
 			const requestHandler = await bootRequestHandler({
 				siteUrl,
 				createPhpRuntime: async () => {
-					const processId = nextProcessId;
-
-					if (nextProcessId < lastProcessId) {
-						nextProcessId++;
-					} else {
-						// We've reached the end of the process ID space. Start over.
-						nextProcessId = firstProcessId;
-					}
-
 					return await loadNodeRuntime(phpVersion, {
+						fileLockManager: this.fileLockManager!,
 						emscriptenOptions: {
-							fileLockManager: this.fileLockManager!,
 							processId,
 							trace: trace ? tracePhpWasm : undefined,
 							ENV: {
 								DOCROOT: '/wordpress',
 							},
-							phpWasmInitOptions: { nativeInternalDirPath },
+							nativeInternalDirPath,
+							bindUserSpace: (
+								userSpaceContext: WasmUserSpaceContext
+							) => {
+								return bindUserSpace(
+									{
+										fileLockManager: this.fileLockManager!,
+									},
+									userSpaceContext
+								);
+							},
 						},
 						followSymlinks: allow?.includes('follow-symlinks'),
 						withIntl: withIntl,
@@ -547,6 +515,20 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 			setAPIError(e as Error);
 			throw e;
 		}
+	}
+
+	async mountAfterWordPressInstall(mounts: Array<Mount>) {
+		await mountResources(this.__internal_getPHP()!, mounts);
+	}
+
+	async applyPostInstallMountsToAllWorkers(
+		postInstallMountsPort: MessagePort
+	): Promise<void> {
+		const applyPostInstallMountsToAllWorkers = consumeAPI<
+			() => Promise<void>
+		>(postInstallMountsPort);
+		await applyPostInstallMountsToAllWorkers();
+		applyPostInstallMountsToAllWorkers[releaseApiProxy]();
 	}
 
 	// Provide a named disposal method that can be invoked via comlink.
@@ -580,15 +562,16 @@ async function createPHPWorker(
 		createFiles,
 		constants,
 		phpIniEntries,
-		firstProcessId,
-		processIdSpaceLength,
 		trace,
 		nativeInternalDirPath,
 		withXdebug,
 		pathAliases,
 		mountsBeforeWpInstall,
 		mountsAfterWpInstall,
-	}: SecondaryWorkerBootArgs,
+	}: // NOTE: We explicitly remove processId from the options
+	// type so the type system will catch if we try to reuse
+	// our parent's process ID.
+	Omit<SecondaryWorkerBootArgs, 'processId'>,
 	fileLockManager: FileLockManager | RemoteAPI<FileLockManager>
 ) {
 	const spawnedWorker = await spawnWorkerThread('v2');
@@ -604,8 +587,7 @@ async function createPHPWorker(
 		createFiles,
 		constants,
 		phpIniEntries,
-		firstProcessId,
-		processIdSpaceLength,
+		processId: spawnedWorker.processId,
 		trace,
 		nativeInternalDirPath,
 		withXdebug,

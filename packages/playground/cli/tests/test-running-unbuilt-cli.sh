@@ -52,8 +52,3 @@ test_playground_cli unbuilt-asyncify
 echo
 test_playground_cli unbuilt-jspi
 echo
-
-test_playground_cli unbuilt-asyncify --experimental-multi-worker
-echo
-test_playground_cli unbuilt-jspi --experimental-multi-worker
-echo
