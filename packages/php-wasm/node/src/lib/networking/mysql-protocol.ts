@@ -23,7 +23,6 @@ export const CLIENT_DEPRECATE_EOF = 0x01000000;
 export const COM_QUIT = 0x01;
 export const COM_INIT_DB = 0x02;
 export const COM_QUERY = 0x03;
-export const COM_FIELD_LIST = 0x04;
 export const COM_PING = 0x0e;
 
 // MySQL column types
