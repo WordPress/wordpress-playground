@@ -729,12 +729,17 @@ async function bootLegacyWordPress(
 		await options.hooks.beforeDatabaseSetup(php);
 	}
 
-	if (options.mysqlProxyPort) {
-		await configureWordPressForMySQLProxy(php, options.mysqlProxyPort);
-	}
-
 	await setupLegacyWordPressCompat(php);
 	await ensureWpConfig(php, requestHandler.documentRoot);
+
+	if (options.mysqlProxyPort) {
+		await configureWordPressForMySQLProxy(
+			php,
+			requestHandler.documentRoot,
+			options.mysqlProxyPort
+		);
+	}
+
 	await installLegacyWordPress(php, options.siteUrl);
 }
 
@@ -762,6 +767,22 @@ async function setupLegacyWordPressCompat(php: PHP): Promise<void> {
 		$GLOBALS['HTTP_SERVER_VARS'] = &$_SERVER;
 		$GLOBALS['HTTP_COOKIE_VARS'] = &$_COOKIE;
 		$GLOBALS['HTTP_ENV_VARS'] = &$_ENV;
+
+		/**
+		 * Emulate register_globals for WordPress 1.x.
+		 *
+		 * WordPress 1.x was written for PHP with register_globals=On,
+		 * which auto-imports GET/POST/COOKIE values into the global
+		 * scope. This was removed in PHP 5.4. We emulate it here by
+		 * extracting superglobals into $GLOBALS at the start of each
+		 * request, matching the EGPCS (env, get, post, cookie, server)
+		 * order that PHP used by default.
+		 */
+		foreach (array($_ENV, $_GET, $_POST, $_COOKIE, $_SERVER) as $arr) {
+			foreach ($arr as $key => $value) {
+				$GLOBALS[$key] = $value;
+			}
+		}
 		`
 	);
 }
@@ -785,17 +806,27 @@ async function installLegacyWordPress(
 	siteUrl: string
 ): Promise<void> {
 	// Step 1: Create links tables
-	await php.request({
+	const step1 = await php.request({
 		url: '/wp-admin/install.php?step=1',
 	});
+	if (step1.httpStatusCode >= 500) {
+		throw new Error(
+			`WordPress 1.x install step 1 failed with HTTP ${step1.httpStatusCode}: ${step1.text.substring(0, 500)}`
+		);
+	}
 
 	// Step 2: Create main blog tables (posts, categories, comments, options)
-	await php.request({
+	const step2 = await php.request({
 		url: '/wp-admin/install.php?step=2',
 	});
+	if (step2.httpStatusCode >= 500) {
+		throw new Error(
+			`WordPress 1.x install step 2 failed with HTTP ${step2.httpStatusCode}: ${step2.text.substring(0, 500)}`
+		);
+	}
 
 	// Step 3: Set site URL and create admin user
-	await php.request({
+	const step3 = await php.request({
 		url: '/wp-admin/install.php?step=3',
 		method: 'POST',
 		body: {
@@ -803,6 +834,20 @@ async function installLegacyWordPress(
 			url: siteUrl,
 		},
 	});
+	if (step3.httpStatusCode >= 500) {
+		throw new Error(
+			`WordPress 1.x install step 3 failed with HTTP ${step3.httpStatusCode}: ${step3.text.substring(0, 500)}`
+		);
+	}
+
+	// Verify the installation succeeded by checking the homepage.
+	// A working WordPress 1.x install returns 200 with HTML content.
+	const homepage = await php.request({ url: '/' });
+	if (homepage.httpStatusCode >= 400) {
+		throw new Error(
+			`WordPress 1.x installation verification failed: homepage returned HTTP ${homepage.httpStatusCode}`
+		);
+	}
 }
 
 /**

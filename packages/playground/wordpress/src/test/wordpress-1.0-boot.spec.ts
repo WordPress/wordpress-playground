@@ -12,6 +12,11 @@ import { unzipFile } from '@wp-playground/common';
 import { bootWordPressAndRequestHandler } from '../boot';
 import type { MySQLProxyServer } from '@php-wasm/node';
 
+/**
+ * This test downloads WordPress 1.0.2 from wordpress.org at runtime
+ * because it is not bundled in the repository. It requires network
+ * access and will fail in fully offline environments.
+ */
 describe('WordPress 1.0 boot (PHP 5.6 + MySQL proxy)', () => {
 	let proxyPhp: PHP;
 	let proxy: MySQLProxyServer;
@@ -83,7 +88,8 @@ describe('WordPress 1.0 boot (PHP 5.6 + MySQL proxy)', () => {
 			const response = await handler.request({
 				url: '/',
 			});
-			expect(response.httpStatusCode).toBeLessThan(500);
+			expect(response.httpStatusCode).toBe(200);
+			expect(response.text).toContain('<html');
 			expect(response.text).toContain('WordPress');
 		},
 		{ timeout: 120_000 }
