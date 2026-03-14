@@ -1,5 +1,7 @@
 import { FirewallInterferenceError } from '@php-wasm/web-service-worker';
 
+const MAX_CAUSE_CHAIN_DEPTH = 100;
+
 /**
  * Search through an error's cause chain to find a FirewallInterferenceError.
  * Checks both instanceof and the error's name property to handle cases where
@@ -11,7 +13,15 @@ export function findFirewallErrorInCauseChain(
 	error: unknown
 ): FirewallInterferenceError | Error | undefined {
 	let current: unknown = error;
-	while (current) {
+	const seen = new Set<Error>();
+	let depth = 0;
+	while (current && depth < MAX_CAUSE_CHAIN_DEPTH) {
+		if (current instanceof Error) {
+			if (seen.has(current)) {
+				break;
+			}
+			seen.add(current);
+		}
 		if (current instanceof FirewallInterferenceError) {
 			return current;
 		}
@@ -23,6 +33,7 @@ export function findFirewallErrorInCauseChain(
 		}
 		current =
 			current instanceof Error ? (current as Error).cause : undefined;
+		depth++;
 	}
 	return undefined;
 }
@@ -67,8 +78,14 @@ export function findDownloadErrorInCauseChain(
 	error: unknown
 ): Error | undefined {
 	let current: unknown = error;
-	while (current) {
+	const seen = new Set<Error>();
+	let depth = 0;
+	while (current && depth < MAX_CAUSE_CHAIN_DEPTH) {
 		if (current instanceof Error) {
+			if (seen.has(current)) {
+				break;
+			}
+			seen.add(current);
 			const message = current.message || '';
 			for (const pattern of DOWNLOAD_ERROR_PATTERNS) {
 				if (message.toLowerCase().includes(pattern.toLowerCase())) {
@@ -82,6 +99,7 @@ export function findDownloadErrorInCauseChain(
 			}
 		}
 		current = current instanceof Error ? current.cause : undefined;
+		depth++;
 	}
 	return undefined;
 }
