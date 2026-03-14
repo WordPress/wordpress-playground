@@ -188,19 +188,19 @@ describe('findFirewallErrorInCauseChain', () => {
 		expect(findFirewallErrorInCauseChain(error)).toBeUndefined();
 	});
 
-	it('should prefer instanceof match over name match', () => {
+	it('should return the first match when both instanceof and name matches exist in the chain', () => {
+		const namedError = new Error('fake');
+		namedError.name = 'FirewallInterferenceError';
 		const realFirewall = new FirewallInterferenceError(
 			'https://example.com',
 			403,
 			'Forbidden'
 		);
-		const namedError = new Error('fake');
-		namedError.name = 'FirewallInterferenceError';
-		const wrapper = new Error('outer', {
-			cause: namedError,
-		});
-		// realFirewall is the outermost, should be found first
-		const outerWrapper = new Error('top', { cause: realFirewall });
-		expect(findFirewallErrorInCauseChain(outerWrapper)).toBe(realFirewall);
+		// Chain: outer → namedError → realFirewall
+		// namedError is encountered first while walking the chain
+		(realFirewall as any).cause = undefined;
+		(namedError as any).cause = realFirewall;
+		const outer = new Error('top', { cause: namedError });
+		expect(findFirewallErrorInCauseChain(outer)).toBe(namedError);
 	});
 });
