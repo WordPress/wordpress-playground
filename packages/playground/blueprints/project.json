@@ -45,7 +45,7 @@
 			"options": {
 				"commands": [
 					"mkdir -p dist/packages/playground/blueprints",
-					"npx dts-bundle-generator -o packages/playground/blueprints/src/rollup.d.ts -- packages/playground/blueprints/src/index.ts"
+					"npx dts-bundle-generator --project packages/playground/blueprints/tsconfig.lib.json -o packages/playground/blueprints/src/rollup.d.ts -- packages/playground/blueprints/src/index.ts"
 				],
 				"parallel": false
 			},

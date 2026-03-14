@@ -1466,9 +1466,7 @@ phpLoaderOptions.forEach((options) => {
 				expect(() => {
 					php.writeFile('/dir', 'Hello World!');
 				}).toThrowError(
-					new Error(
-						`Could not write to "/dir": There is a directory under that path.`
-					)
+					`Could not write to "/dir": There is a directory under that path.`
 				);
 			});
 

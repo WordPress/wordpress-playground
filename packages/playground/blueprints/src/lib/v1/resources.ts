@@ -952,8 +952,6 @@ export function toDirectoryZipName(rawInput: string) {
 export class CachedResource<
 	T extends File | Directory,
 > extends ResourceDecorator<T> {
-	protected override promise?: Promise<T>;
-
 	/** @inheritDoc */
 	override async resolve() {
 		if (!this.promise) {

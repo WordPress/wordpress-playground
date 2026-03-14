@@ -39,6 +39,7 @@ export default defineConfig({
 		{
 			name: 'externalize-icu-dat',
 			enforce: 'pre' as const,
+			apply: 'build' as const,
 			resolveId(source) {
 				if (/icu\.dat$/.test(source)) {
 					return { id: './shared/icu.dat', external: true };

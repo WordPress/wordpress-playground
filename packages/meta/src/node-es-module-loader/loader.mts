@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, lstatSync } from 'fs';
 import { fileURLToPath, pathToFileURL } from 'url';
 import { join, resolve as resolvePath, dirname } from 'path';
+import { builtinModules } from 'module';
 
 interface TsConfig {
 	compilerOptions: {
@@ -53,6 +54,17 @@ export async function resolve(
 		context: ResolveContext
 	) => Promise<ResolveResult>
 ): Promise<ResolveResult> {
+	// Node.js built-in modules (e.g. 'tls', 'http', 'node:fs') should be
+	// resolved by Node itself, not by our custom loader. Without this
+	// guard, Vitest 4's module-evaluator can cause built-ins like 'tls'
+	// to be treated as relative file paths.
+	const bareSpecifier = specifier.startsWith('node:')
+		? specifier.slice(5)
+		: specifier;
+	if (builtinModules.includes(bareSpecifier)) {
+		return nextResolve(specifier, context);
+	}
+
 	// Resolve aliases to paths
 	for (const [alias, aliasTargetUrl] of aliasMap.entries()) {
 		if (specifier === alias && aliasTargetUrl.pathname.endsWith('.ts')) {
@@ -143,6 +155,18 @@ export async function resolve(
 				format,
 				shortCircuit: true,
 			};
+		}
+	}
+
+	// Vitest 4's module evaluator sometimes resolves bare Node.js built-in
+	// module names (e.g. 'tls') into file:// URLs relative to the project
+	// root before calling our loader. Detect this pattern and redirect to
+	// the proper node: protocol so Node resolves the built-in module.
+	{
+		const specifierPath = fileURLToPath(specifier);
+		const moduleName = specifierPath.split('/').pop()!;
+		if (builtinModules.includes(moduleName) && !existsSync(specifierPath)) {
+			return nextResolve(`node:${moduleName}`, context);
 		}
 	}
 

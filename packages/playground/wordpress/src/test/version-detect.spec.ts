@@ -18,6 +18,7 @@ describe('Test WP version detection', async () => {
 	)) {
 		it(
 			`detects WP ${expectedWordPressVersion} at runtime`,
+			{ timeout: 30_000 },
 			async () => {
 				const handler = await bootWordPressAndRequestHandler({
 					createPhpRuntime: async () =>
@@ -33,8 +34,7 @@ describe('Test WP version detection', async () => {
 				expect(loadedWordPressVersion).to.equal(
 					expectedWordPressVersion
 				);
-			},
-			{ timeout: 30_000 }
+			}
 		);
 	}
 
@@ -95,13 +95,9 @@ describe('Test WP version detection', async () => {
 	};
 
 	for (const [input, expected] of Object.entries(versionMap)) {
-		it(
-			`maps '${input}' to '${expected}'`,
-			() => {
-				const result = versionStringToLoadedWordPressVersion(input);
-				expect(result).to.equal(expected);
-			},
-			{ timeout: 30_000 }
-		);
+		it(`maps '${input}' to '${expected}'`, { timeout: 30_000 }, () => {
+			const result = versionStringToLoadedWordPressVersion(input);
+			expect(result).to.equal(expected);
+		});
 	}
 });

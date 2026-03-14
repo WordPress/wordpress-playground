@@ -51,6 +51,7 @@ describe('Test database', () => {
 
 	it(
 		'should install WordPress when SQL data path specified, even without SQLite ZIP path or SQLite driver directory',
+		{ timeout: 30_000 },
 		async () => {
 			await using handler = await bootWordPressAndRequestHandler({
 				createPhpRuntime: async () =>
@@ -67,8 +68,7 @@ describe('Test database', () => {
 			expect(Object.keys(MinifiedWordPressVersions)).toContain(
 				loadedWordPressVersion
 			);
-		},
-		{ timeout: 30_000 }
+		}
 	);
 
 	it("should fail when the SQLite driver directory exists, but doesn't contain a valid driver", async () => {

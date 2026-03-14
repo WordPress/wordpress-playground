@@ -37,7 +37,7 @@ export default defineConfig(() =>
 							const filePath = id.slice('\0asset-url:'.length);
 							// Vite's dev server serves files
 							// from disk via the /@fs/ prefix.
-							const url = `/@fs/${filePath}`;
+							const url = `/@fs${filePath}`;
 							return `export default ${JSON.stringify(url)};`;
 						}
 						return null;
@@ -73,6 +73,15 @@ export default defineConfig(() =>
 					},
 				},
 			],
+
+			server: {
+				fs: {
+					// Allow serving files from the entire monorepo root.
+					// Needed because intl .so files live in web-builds/
+					// which is a sibling of the web/ package.
+					allow: ['../../..'],
+				},
+			},
 
 			resolve: {
 				alias: {

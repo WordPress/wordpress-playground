@@ -46,10 +46,18 @@ class MockCDPServer extends EventEmitter {
 describe('Bridge', () => {
 	let CDPServerSpy: MockInstance;
 
+	const realSetTimeout = globalThis.setTimeout;
 	beforeAll(() => {
-		vi.spyOn(global, 'setTimeout').mockImplementation(
-			(cb) => global.setImmediate(() => cb()) as unknown as NodeJS.Timeout
-		);
+		// Replace setTimeout with a zero-delay version so tests
+		// don't wait for the 2-second delay in startBridge.
+		// We avoid vi.spyOn because Vitest 4's spy wrapper on
+		// global.setTimeout causes infinite recursion.
+		(globalThis as any).setTimeout = ((cb: () => void) =>
+			realSetTimeout(cb, 0)) as typeof setTimeout;
+	});
+
+	afterAll(() => {
+		(globalThis as any).setTimeout = realSetTimeout;
 	});
 
 	beforeEach(async () => {
