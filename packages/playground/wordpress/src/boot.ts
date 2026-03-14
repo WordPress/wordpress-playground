@@ -369,8 +369,9 @@ async function assertDatabasePrerequisites(
 ) {
 	const php = await requestHandler.getPrimaryPhp();
 
-	// If a MySQL proxy is configured (usesSqlite is true in that case),
-	// the database is handled through the proxy. Skip further checks.
+	// If the SQLite preload file exists (installed by preloadSqliteIntegration
+	// or mounted externally via hooks), the database integration is already
+	// in place. Skip further checks.
 	if (php.isFile('/internal/shared/preload/0-sqlite.php')) {
 		return;
 	}
