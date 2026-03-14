@@ -92,6 +92,42 @@
 		/>
 	</head>
 	<body>
+		<template id="load-error-fallback">
+			<!-- Use inline styles in case we are having trouble loading other resources -->
+			<div
+				style="
+					padding: 20px;
+					max-width: 800px;
+					margin: 0 auto;
+					font-family: Arial, Helvetica, sans-serif;
+					font-size: 20px;
+					line-height: 1.4;
+				"
+			>
+				<p>There was an error loading WordPress Playground.</p>
+				<p>This is usually caused by a network issue.</p>
+				<button
+					onclick="location.reload()"
+					style="
+						margin-top: 15px;
+						margin-bottom: 15px;
+						font-size: 20px;
+						padding: 5px 10px;
+						cursor: pointer;
+					"
+				>
+					Try again
+				</button>
+				<p>
+					If the problem persists, please
+					<a
+						href="https://github.com/WordPress/wordpress-playground/issues/new"
+						target="_blank"
+						>report an issue on GitHub</a
+					>.
+				</p>
+			</div>
+		</template>
 		<!--
 			Shown before React loads when an iOS WKWebView (in-app browser) is
 			detected. The detection script below reveals this and skips the
@@ -279,7 +315,7 @@
 								'_ts',
 								String(Date.now())
 							);
-							return import(
+							return await import(
 								/* @vite-ignore */ moduleUrl.toString()
 							);
 						}
@@ -291,22 +327,10 @@
 					 * React is not available, so render a plain HTML error message.
 					 */
 					const root = document.getElementById('root');
-					if (root) {
-						root.innerHTML = [
-							'<div style="max-width:520px;margin:80px auto;font-family:system-ui,sans-serif;text-align:center;padding:0 20px">',
-							'<h1 style="font-size:1.4rem;margin-bottom:12px">Could not load Playground</h1>',
-							'<p style="color:#555;line-height:1.5">',
-							'The application failed to load. This is usually caused by a network issue.',
-							'</p>',
-							'<p style="color:#555;line-height:1.5;margin-top:8px">',
-							'Check your internet connection, disable any VPN or ad blocker that might interfere, then try again.',
-							'</p>',
-							'<button onclick="location.reload()" style="margin-top:20px;padding:10px 24px;font-size:1rem;cursor:pointer;border:1px solid #ccc;border-radius:4px;background:#fff">',
-							'Reload page',
-							'</button>',
-							'</div>',
-						].join('');
-					}
+					const template = document.getElementById(
+						'load-error-fallback'
+					);
+					root.replaceChildren(template.content.cloneNode(true));
 				});
 			}
 		</script>
