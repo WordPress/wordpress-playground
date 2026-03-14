@@ -8,8 +8,8 @@ test('should show inline fallback when the main module fails to load', async ({
 
 	await page.goto('./');
 
-	const heading = page.locator('p', {
-		hasText: 'There was an error loading WordPress Playground.',
+	const heading = page.locator('h1', {
+		hasText: 'Could not load WordPress Playground',
 	});
 	await expect(heading).toBeVisible();
 

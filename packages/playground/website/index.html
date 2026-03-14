@@ -96,16 +96,24 @@
 			<!-- Use inline styles in case we are having trouble loading other resources -->
 			<div
 				style="
-					padding: 20px;
-					max-width: 800px;
-					margin: 0 auto;
-					font-family: Arial, Helvetica, sans-serif;
-					font-size: 20px;
-					line-height: 1.4;
+					max-width: 520px;
+					margin: 80px auto;
+					font-family: system-ui, sans-serif;
+					text-align: center;
+					padding: 0 20px;
 				"
 			>
-				<p>There was an error loading WordPress Playground.</p>
-				<p>This is usually caused by a network issue.</p>
+				<h1 style="font-size: 1.4rem; margin-bottom: 12px">
+					Could not load WordPress Playground
+				</h1>
+				<p style="line-height: 1.5">
+					The application failed to load. This is often caused by a
+					network issue.
+				</p>
+				<p style="line-height: 1.5; margin-top: 8px">
+					Check your internet connection, disable any VPN or ad
+					blocker that might interfere, and try again.
+				</p>
 				<button
 					onclick="location.reload()"
 					style="
