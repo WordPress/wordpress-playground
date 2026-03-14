@@ -25,7 +25,7 @@ import {
 } from '.';
 import { basename, dirname, joinPaths } from '@php-wasm/util';
 import { logger } from '@php-wasm/logger';
-import { ensureWpConfig } from './wp-config';
+import { ensureWpConfig, defineWpConfigConstants } from './wp-config';
 
 export type PhpIniOptions = Record<string, string>;
 export type Hook = (php: PHP) => void | Promise<void>;
@@ -256,8 +256,8 @@ export async function bootWordPress(
 	// @TODO Assert WordPress core files are in place
 
 	let usesSqlite = false;
-	const usesMyqlProxy = !!options.mysqlProxyPort;
-	if (usesMyqlProxy) {
+	const usesMysqlProxy = !!options.mysqlProxyPort;
+	if (usesMysqlProxy) {
 		/**
 		 * When a MySQL proxy is configured, WordPress connects to it
 		 * via standard MySQL functions (mysqli). No db.php drop-in
@@ -265,7 +265,11 @@ export async function bootWordPress(
 		 * sqlite-database-integration plugin can't run directly.
 		 */
 		usesSqlite = true;
-		await configureWordPressForMySQLProxy(php, options.mysqlProxyPort!);
+		await configureWordPressForMySQLProxy(
+			php,
+			requestHandler.documentRoot,
+			options.mysqlProxyPort!
+		);
 	} else if (options.sqliteIntegrationPluginZip) {
 		usesSqlite = true;
 		await preloadSqliteIntegration(
@@ -685,21 +689,31 @@ async function isDatabaseConnectionValid(php: PHP) {
 
 /**
  * Configures WordPress to connect to a MySQL proxy instead of
- * using the SQLite db.php drop-in. This writes wp-config.php
- * constants that point to the local MySQL proxy server.
+ * using the SQLite db.php drop-in. This rewrites the database
+ * constants directly in wp-config.php so they're only defined
+ * once — avoiding duplicate define() notices that would occur
+ * if we set them via auto_prepend_file while wp-config.php
+ * also calls define() for the same constants.
  *
  * Used for PHP 5.6, where the modern sqlite-database-integration
  * plugin can't run directly. A separate PHP 8.x instance handles
  * the query translation behind the MySQL wire protocol proxy.
+ *
+ * Requires that wp-config.php already exists (call ensureWpConfig
+ * before this function).
  */
 async function configureWordPressForMySQLProxy(
 	php: PHP,
+	documentRoot: string,
 	proxyPort: number
 ): Promise<void> {
-	php.defineConstant('DB_NAME', 'wordpress');
-	php.defineConstant('DB_USER', 'root');
-	php.defineConstant('DB_PASSWORD', '');
-	php.defineConstant('DB_HOST', `127.0.0.1:${proxyPort}`);
-	php.defineConstant('DB_CHARSET', 'utf8');
-	php.defineConstant('DB_COLLATE', '');
+	const wpConfigPath = joinPaths(documentRoot, 'wp-config.php');
+	await defineWpConfigConstants(php, wpConfigPath, {
+		DB_NAME: 'wordpress',
+		DB_USER: 'root',
+		DB_PASSWORD: '',
+		DB_HOST: `127.0.0.1:${proxyPort}`,
+		DB_CHARSET: 'utf8',
+		DB_COLLATE: '',
+	});
 }

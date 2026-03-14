@@ -80,6 +80,7 @@ function createSqliteQueryHandler(
 	sqliteDatabasePath: string
 ): QueryHandler {
 	let initialized = false;
+	let queryFileCounter = 0;
 
 	return async (query: string): Promise<QueryResult | null> => {
 		if (!initialized) {
@@ -87,14 +88,17 @@ function createSqliteQueryHandler(
 			initialized = true;
 		}
 
-		// Write the query to a temp file to avoid escaping issues
-		// with embedded quotes, backslashes, etc.
-		php.writeFile('/tmp/mysql-proxy-query.sql', query);
+		// Write the query to a unique temp file to avoid collisions
+		// if multiple queries are somehow dispatched concurrently.
+		const queryFile = `/tmp/mysql-proxy-query-${++queryFileCounter}.sql`;
+		php.writeFile(queryFile, query);
 
 		const result = await php.run({
 			code: `<?php
 				$driver = $GLOBALS['_mysql_proxy_driver'];
-				$query = file_get_contents('/tmp/mysql-proxy-query.sql');
+				$query_file = '${escapePhpStringLiteral(queryFile)}';
+				$query = file_get_contents($query_file);
+				@unlink($query_file);
 
 				try {
 					$results = $driver->query($query);
@@ -225,8 +229,8 @@ async function initializeDriver(
 	const result = await php.run({
 		code: `<?php
 			// Load the standalone MySQL-on-SQLite driver
-			$plugin_path = '${sqlitePluginPath}';
-			$db_path = '${sqliteDatabasePath}';
+			$plugin_path = '${escapePhpStringLiteral(sqlitePluginPath)}';
+			$db_path = '${escapePhpStringLiteral(sqliteDatabasePath)}';
 
 			// The AST driver entry point
 			$driver_file = $plugin_path . '/wp-pdo-mysql-on-sqlite.php';
@@ -277,4 +281,13 @@ async function initializeDriver(
 			`Failed to initialize SQLite driver: ${json.error}`
 		);
 	}
+}
+
+/**
+ * Escapes a string for safe embedding in a PHP single-quoted
+ * string literal. Prevents injection if a path contains single
+ * quotes or backslashes.
+ */
+function escapePhpStringLiteral(str: string): string {
+	return str.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 }

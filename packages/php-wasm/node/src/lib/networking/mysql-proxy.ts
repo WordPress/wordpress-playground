@@ -27,7 +27,6 @@ import {
 	MYSQL_TYPE_VAR_STRING,
 } from './mysql-protocol';
 import type { QueryResult, ColumnDefinition } from './mysql-protocol';
-import { findFreePorts } from './utils';
 import { debugLog } from './utils';
 
 export type { QueryResult, ColumnDefinition };
@@ -84,18 +83,20 @@ export async function startMySQLProxy(
 	options: MySQLProxyOptions
 ): Promise<MySQLProxyServer> {
 	const host = options.host ?? '127.0.0.1';
-	let port = options.port ?? 0;
-
-	if (port === 0) {
-		const [freePort] = await findFreePorts(1);
-		port = freePort;
-	}
+	const port = options.port ?? 0;
 
 	let threadIdCounter = 1;
+	const activeSockets = new Set<net.Socket>();
 
 	const server = net.createServer((socket) => {
 		const threadId = threadIdCounter++;
 		log(`New connection #${threadId}`);
+
+		activeSockets.add(socket);
+		socket.on('close', () => {
+			activeSockets.delete(socket);
+			log(`#${threadId} Connection closed`);
+		});
 
 		const parser = new MySQLPacketParser();
 		let handshakeDone = false;
@@ -105,106 +106,132 @@ export async function startMySQLProxy(
 			buildHandshakePacket(threadId);
 		socket.write(handshakePacket);
 
-		socket.on('data', async (data) => {
+		/**
+		 * Serial queue for processing packets on this connection.
+		 *
+		 * The MySQL protocol is strictly sequential — a client sends
+		 * one command and waits for the full response before sending
+		 * the next. However, if TCP delivers two data events in quick
+		 * succession, two async handlers could overlap without this
+		 * queue. The promise chain guarantees that each packet is
+		 * fully processed (including any awaited query execution)
+		 * before the next one starts.
+		 */
+		let processingChain = Promise.resolve();
+
+		socket.on('data', (data) => {
 			const packets = parser.feed(data);
 
 			for (const { sequenceId, payload } of packets) {
-				try {
-					if (!handshakeDone) {
-						// This is the client's handshake response
-						const { username, database } =
-							parseHandshakeResponse(payload);
+				processingChain = processingChain.then(async () => {
+					try {
+						if (!handshakeDone) {
+							// This is the client's handshake response
+							const { username, database } =
+								parseHandshakeResponse(payload);
+							log(
+								`Auth from user=${username}, db=${database}`
+							);
+							handshakeDone = true;
+							// Accept any credentials
+							socket.write(
+								buildOkPacket(sequenceId + 1)
+							);
+							return;
+						}
+
+						// Command phase
+						const commandByte = payload.readUInt8(0);
+						const commandPayload = payload.subarray(1);
+
+						switch (commandByte) {
+							case COM_QUIT:
+								log(`#${threadId} COM_QUIT`);
+								socket.end();
+								break;
+
+							case COM_PING:
+								log(`#${threadId} COM_PING`);
+								socket.write(
+									buildOkPacket(sequenceId + 1)
+								);
+								break;
+
+							case COM_INIT_DB: {
+								const dbName =
+									commandPayload.toString('utf8');
+								log(
+									`#${threadId} COM_INIT_DB: ${dbName}`
+								);
+								socket.write(
+									buildOkPacket(sequenceId + 1)
+								);
+								break;
+							}
+
+							case COM_QUERY: {
+								const query =
+									commandPayload.toString('utf8');
+								log(
+									`#${threadId} COM_QUERY: ${query.substring(0, 200)}`
+								);
+								await handleQuery(
+									socket,
+									sequenceId + 1,
+									query,
+									options.queryHandler
+								);
+								break;
+							}
+
+							default:
+								log(
+									`#${threadId} Unknown command: 0x${commandByte.toString(16)}`
+								);
+								socket.write(
+									buildErrPacket(
+										sequenceId + 1,
+										1047,
+										'08S01',
+										`Unknown command: 0x${commandByte.toString(16)}`
+									)
+								);
+								break;
+						}
+					} catch (err: any) {
 						log(
-							`Auth from user=${username}, db=${database}`
+							`#${threadId} Error processing packet:`,
+							err
 						);
-						handshakeDone = true;
-						// Accept any credentials
-						socket.write(buildOkPacket(sequenceId + 1));
-						continue;
-					}
-
-					// Command phase
-					const commandByte = payload.readUInt8(0);
-					const commandPayload = payload.subarray(1);
-
-					switch (commandByte) {
-						case COM_QUIT:
-							log(`#${threadId} COM_QUIT`);
-							socket.end();
-							break;
-
-						case COM_PING:
-							log(`#${threadId} COM_PING`);
-							socket.write(buildOkPacket(sequenceId + 1));
-							break;
-
-						case COM_INIT_DB: {
-							const dbName =
-								commandPayload.toString('utf8');
-							log(`#${threadId} COM_INIT_DB: ${dbName}`);
-							socket.write(buildOkPacket(sequenceId + 1));
-							break;
-						}
-
-						case COM_QUERY: {
-							const query =
-								commandPayload.toString('utf8');
-							log(
-								`#${threadId} COM_QUERY: ${query.substring(0, 200)}`
-							);
-							await handleQuery(
-								socket,
-								sequenceId + 1,
-								query,
-								options.queryHandler
-							);
-							break;
-						}
-
-						default:
-							log(
-								`#${threadId} Unknown command: 0x${commandByte.toString(16)}`
-							);
+						try {
 							socket.write(
 								buildErrPacket(
 									sequenceId + 1,
-									1047,
-									'08S01',
-									`Unknown command: 0x${commandByte.toString(16)}`
+									1105,
+									'HY000',
+									err.message ||
+										'Internal proxy error'
 								)
 							);
-							break;
+						} catch {
+							// Socket may already be closed
+						}
 					}
-				} catch (err: any) {
-					log(
-						`#${threadId} Error processing packet:`,
-						err
-					);
-					try {
-						socket.write(
-							buildErrPacket(
-								sequenceId + 1,
-								1105,
-								'HY000',
-								err.message || 'Internal proxy error'
-							)
-						);
-					} catch {
-						// Socket may already be closed
-					}
-				}
+				});
 			}
 		});
 
 		socket.on('error', (err) => {
 			log(`#${threadId} Socket error:`, err.message);
 		});
-
-		socket.on('close', () => {
-			log(`#${threadId} Connection closed`);
-		});
 	});
 
+	/**
+	 * Pass port directly to server.listen() instead of pre-allocating
+	 * with findFreePorts(). When port is 0, the OS assigns a free port
+	 * atomically — no TOCTOU race between finding and binding.
+	 * The actual port is read from server.address() after binding.
+	 */
 	return new Promise((resolve, reject) => {
 		server.on('error', reject);
 		server.listen(port, host, () => {
@@ -215,9 +242,12 @@ export async function startMySQLProxy(
 				host: addr.address,
 				close: () =>
 					new Promise<void>((res) => {
+						// Destroy all active client connections so
+						// server.close() can complete immediately.
+						for (const s of activeSockets) {
+							s.destroy();
+						}
 						server.close(() => res());
-						// Force close all existing connections
-						server.unref();
 					}),
 			});
 		});

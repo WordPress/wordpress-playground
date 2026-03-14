@@ -76,8 +76,9 @@ describe('MySQL proxy boot (PHP 5.6)', () => {
 			const response = await handler.request({
 				url: '/',
 			});
-			expect(response.httpStatusCode).toBeLessThan(500);
-			expect(response.text).toContain('WordPress');
+			expect(response.httpStatusCode).toBe(200);
+			expect(response.text).toContain('<html');
+			expect(response.text).toContain('My WordPress Website');
 		},
 		{ timeout: 120_000 }
 	);
