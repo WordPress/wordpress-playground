@@ -3,8 +3,10 @@ import { test, expect } from '@playwright/test';
 test('should show inline fallback when the main module fails to load', async ({
 	page,
 }) => {
-	// Block all requests for the main app module (initial + cache-busted retry)
-	await page.route(/\/src\/main/, (route) => route.abort('failed'));
+	// Block all requests for the main app module (initial + cache-busted retry).
+	// In dev mode Vite serves `/src/main.tsx`; in production builds
+	// it becomes `/assets/main-[hash].js`.
+	await page.route(/\/(src|assets)\/main/, (route) => route.abort('failed'));
 
 	await page.goto('./');
 
@@ -22,28 +24,15 @@ test('should show inline fallback when the main module fails to load', async ({
 test('should show download error modal when a resource download fails', async ({
 	page,
 }) => {
-	await page.goto('./');
+	// Block plugin downloads so the blueprint step triggers a real
+	// resource-download-failed error through the normal error pipeline.
+	await page.route(/downloads\.wordpress\.org/, (route) =>
+		route.abort('failed')
+	);
 
-	// Wait for the Redux store to be available and an active site
-	// to exist (the store is exposed on window in dev mode).
-	await page.waitForFunction(() => {
-		const store = (window as any).__PLAYGROUND_STORE__;
-		return store && store.getState().ui.activeSite?.slug;
-	});
-
-	// Dispatch a resource-download-failed error through the store.
-	// The error detection logic is covered by unit tests; this E2E
-	// test verifies that the modal renders the right content.
-	await page.evaluate(() => {
-		const store = (window as any).__PLAYGROUND_STORE__;
-		store.dispatch({
-			type: 'ui/setActiveSiteError',
-			payload: {
-				error: 'resource-download-failed',
-				details: 'TypeError: Failed to fetch',
-			},
-		});
-	});
+	// The ?plugin param adds an installPlugin blueprint step that
+	// fetches the zip from downloads.wordpress.org via the CORS proxy.
+	await page.goto('./?plugin=hello-dolly');
 
 	const title = page.getByText('Could not download required files');
 	await expect(title).toBeVisible();
