@@ -88,12 +88,18 @@ export function getWordPressModuleDetails(wpVersion: string = "6.9"): { size: nu
 			};
 			
 		
+		case '1.0':
+			return {
+				size: 272606,
+				url: "https://wordpress.org/wordpress-1.0.2.zip",
+			};
+
 		case 'nightly':
 			return {
 				size: 0,
 				url: "https://github.com/WordPress/WordPress/archive/refs/heads/master.zip",
 			};
-		
+
 
 	}
 	throw new Error('Unsupported WordPress module: ' + wpVersion);

@@ -239,6 +239,22 @@ export async function bootWordPress(
 		php.defineConstant('DB_FILE', basename(options.dataSqlPath));
 	}
 
+	/**
+	 * WordPress versions before 2.6 don't have wp-load.php.
+	 * They use a completely different file structure and installation
+	 * process. For these legacy versions, we use a separate boot path
+	 * that handles the multi-step installer and sets up PHP compat shims
+	 * for old superglobals like $HTTP_GET_VARS.
+	 */
+	const isLegacyWordPress = !php.fileExists(
+		joinPaths(php.documentRoot, 'wp-load.php')
+	);
+
+	if (isLegacyWordPress) {
+		await bootLegacyWordPress(php, requestHandler, options);
+		return requestHandler;
+	}
+
 	php.defineConstant('WP_HOME', options.siteUrl);
 	php.defineConstant('WP_SITEURL', options.siteUrl);
 
@@ -685,6 +701,108 @@ async function isDatabaseConnectionValid(php: PHP) {
 		},
 	});
 	return result.text === '1';
+}
+
+/**
+ * Boots a legacy WordPress version (pre-2.6, no wp-load.php).
+ *
+ * Legacy WordPress versions like 1.0 have a completely different
+ * file structure, installation process, and PHP API surface:
+ *
+ * - No wp-load.php (introduced in WP 2.6)
+ * - Multi-step installer (steps 1, 2, 3 instead of a single POST)
+ * - Uses old PHP superglobals ($HTTP_GET_VARS, $HTTP_POST_VARS)
+ *   that were removed in PHP 5.4
+ * - Uses the old mysql_* extension instead of mysqli_*
+ * - No mu-plugins, no modern hooks infrastructure
+ * - Site URL stored in an options table row, not as a constant
+ *
+ * This function sets up the necessary compatibility shims and
+ * runs the legacy installer.
+ */
+async function bootLegacyWordPress(
+	php: PHP,
+	requestHandler: PHPRequestHandler,
+	options: BootWordPressOptions
+): Promise<void> {
+	if (options.hooks?.beforeDatabaseSetup) {
+		await options.hooks.beforeDatabaseSetup(php);
+	}
+
+	if (options.mysqlProxyPort) {
+		await configureWordPressForMySQLProxy(php, options.mysqlProxyPort);
+	}
+
+	await setupLegacyWordPressCompat(php);
+	await ensureWpConfig(php, requestHandler.documentRoot);
+	await installLegacyWordPress(php, options.siteUrl);
+}
+
+/**
+ * Sets up PHP compatibility shims for legacy WordPress versions.
+ *
+ * WordPress 1.x/2.x used $HTTP_GET_VARS, $HTTP_POST_VARS, and
+ * $HTTP_SERVER_VARS which were removed in PHP 5.4. This writes
+ * a preload file that aliases them to $_GET, $_POST, $_SERVER.
+ */
+async function setupLegacyWordPressCompat(php: PHP): Promise<void> {
+	await php.writeFile(
+		'/internal/shared/preload/legacy-wp-compat.php',
+		`<?php
+		/**
+		 * Compatibility shim for WordPress 1.x/2.x running on PHP 5.6.
+		 *
+		 * These long-form superglobals were removed in PHP 5.4 but
+		 * WordPress 1.x relies on them throughout its codebase.
+		 * Creating them as references to the modern superglobals
+		 * restores the expected behavior.
+		 */
+		$GLOBALS['HTTP_GET_VARS'] = &$_GET;
+		$GLOBALS['HTTP_POST_VARS'] = &$_POST;
+		$GLOBALS['HTTP_SERVER_VARS'] = &$_SERVER;
+		$GLOBALS['HTTP_COOKIE_VARS'] = &$_COOKIE;
+		$GLOBALS['HTTP_ENV_VARS'] = &$_ENV;
+		`
+	);
+}
+
+/**
+ * Runs the WordPress 1.x multi-step installer.
+ *
+ * WordPress 1.x has a three-step installation process:
+ * - Step 1: Creates the links and link categories tables
+ * - Step 2: Creates posts, categories, comments, options, and
+ *           other core tables; inserts default data
+ * - Step 3: Creates the users table, sets the site URL,
+ *           and creates the admin user with a random password
+ *
+ * Unlike modern WordPress (which uses a single POST request),
+ * each step must be requested separately. Steps 1 and 2 are
+ * GET requests, step 3 is a POST with the site URL.
+ */
+async function installLegacyWordPress(
+	php: PHP,
+	siteUrl: string
+): Promise<void> {
+	// Step 1: Create links tables
+	await php.request({
+		url: '/wp-admin/install.php?step=1',
+	});
+
+	// Step 2: Create main blog tables (posts, categories, comments, options)
+	await php.request({
+		url: '/wp-admin/install.php?step=2',
+	});
+
+	// Step 3: Set site URL and create admin user
+	await php.request({
+		url: '/wp-admin/install.php?step=3',
+		method: 'POST',
+		body: {
+			step: '3',
+			url: siteUrl,
+		},
+	});
 }
 
 /**
