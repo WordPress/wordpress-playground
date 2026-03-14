@@ -24,14 +24,26 @@ test('should show inline fallback when the main module fails to load', async ({
 test('should show download error modal when a resource download fails', async ({
 	page,
 }) => {
-	// Block plugin downloads so the blueprint step triggers a real
-	// resource-download-failed error through the normal error pipeline.
-	await page.route(/downloads\.wordpress\.org/, (route) =>
-		route.abort('failed')
-	);
+	// Patch fetch so that any request to downloads.wordpress.org
+	// rejects with a TypeError. Using addInitScript rather than
+	// page.route because the CORS proxy puts the target URL in
+	// the query string and WebKit's page.route does not match
+	// regex patterns against query parameters.
+	await page.addInitScript(() => {
+		const originalFetch = window.fetch;
+		window.fetch = function (input: RequestInfo | URL, init?: RequestInit) {
+			const url = input instanceof Request ? input.url : String(input);
+			if (url.includes('downloads.wordpress.org')) {
+				return Promise.reject(new TypeError('Failed to fetch'));
+			}
+			return originalFetch.call(this, input, init);
+		} as typeof fetch;
+	});
 
 	// The ?plugin param adds an installPlugin blueprint step that
-	// fetches the zip from downloads.wordpress.org via the CORS proxy.
+	// fetches the zip from downloads.wordpress.org via the CORS
+	// proxy, triggering the resource-download-failed error through
+	// the normal pipeline.
 	await page.goto('./?plugin=hello-dolly');
 
 	const title = page.getByText('Could not download required files');
