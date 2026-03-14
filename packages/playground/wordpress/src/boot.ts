@@ -158,6 +158,16 @@ export interface BootWordPressOptions {
 	/** Preloaded SQLite integration plugin. */
 	sqliteIntegrationPluginZip?: File | Promise<File>;
 	/**
+	 * When set, WordPress will connect to a MySQL proxy at
+	 * 127.0.0.1:<port> instead of using the SQLite db.php drop-in.
+	 *
+	 * This is used for PHP 5.6, which can't run the modern
+	 * sqlite-database-integration plugin directly. A separate
+	 * PHP 8.x instance runs the query translation behind a
+	 * MySQL wire protocol proxy.
+	 */
+	mysqlProxyPort?: number;
+	/**
 	 * PHP constants to define for every request.
 	 */
 	constants?: Record<string, string | number | boolean | null>;
@@ -246,7 +256,17 @@ export async function bootWordPress(
 	// @TODO Assert WordPress core files are in place
 
 	let usesSqlite = false;
-	if (options.sqliteIntegrationPluginZip) {
+	const usesMyqlProxy = !!options.mysqlProxyPort;
+	if (usesMyqlProxy) {
+		/**
+		 * When a MySQL proxy is configured, WordPress connects to it
+		 * via standard MySQL functions (mysqli). No db.php drop-in
+		 * is needed. This is used for PHP 5.6 where the modern
+		 * sqlite-database-integration plugin can't run directly.
+		 */
+		usesSqlite = true;
+		await configureWordPressForMySQLProxy(php, options.mysqlProxyPort!);
+	} else if (options.sqliteIntegrationPluginZip) {
 		usesSqlite = true;
 		await preloadSqliteIntegration(
 			php,
@@ -329,7 +349,8 @@ async function assertDatabasePrerequisites(
 ) {
 	const php = await requestHandler.getPrimaryPhp();
 
-	// If SQLite integration is preloaded via core, we're good
+	// If a MySQL proxy is configured (usesSqlite is true in that case),
+	// the database is handled through the proxy. Skip further checks.
 	if (php.isFile('/internal/shared/preload/0-sqlite.php')) {
 		return;
 	}
@@ -660,4 +681,25 @@ async function isDatabaseConnectionValid(php: PHP) {
 		},
 	});
 	return result.text === '1';
+}
+
+/**
+ * Configures WordPress to connect to a MySQL proxy instead of
+ * using the SQLite db.php drop-in. This writes wp-config.php
+ * constants that point to the local MySQL proxy server.
+ *
+ * Used for PHP 5.6, where the modern sqlite-database-integration
+ * plugin can't run directly. A separate PHP 8.x instance handles
+ * the query translation behind the MySQL wire protocol proxy.
+ */
+async function configureWordPressForMySQLProxy(
+	php: PHP,
+	proxyPort: number
+): Promise<void> {
+	php.defineConstant('DB_NAME', 'wordpress');
+	php.defineConstant('DB_USER', 'root');
+	php.defineConstant('DB_PASSWORD', '');
+	php.defineConstant('DB_HOST', `127.0.0.1:${proxyPort}`);
+	php.defineConstant('DB_CHARSET', 'utf8');
+	php.defineConstant('DB_COLLATE', '');
 }
