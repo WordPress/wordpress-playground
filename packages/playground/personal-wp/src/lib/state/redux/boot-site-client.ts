@@ -10,7 +10,6 @@ import {
 	updateClientInfo,
 	selectClientInfoBySiteSlug,
 } from './slice-clients';
-import { logBlueprintEvents, logTrackingEvent } from '../../tracking';
 import {
 	type Blueprint,
 	type BlueprintV1Declaration,
@@ -138,8 +137,6 @@ export function bootSiteClient(
 				return;
 			}
 		}
-
-		logTrackingEvent('load');
 
 		// Initialize tab coordinator for multi-tab detection
 		// Only for persistent sites - temporary sites don't need coordination
@@ -417,8 +414,6 @@ export function bootSiteClient(
 					playground = (window as any)['playground'] =
 						playgroundClient;
 				},
-				// Log Blueprint events
-				onBlueprintValidated: logBlueprintEvents,
 				mounts: mountDescriptor
 					? [
 							{
@@ -432,8 +427,6 @@ export function bootSiteClient(
 			});
 		} catch (e) {
 			logger.error(e);
-			logTrackingEvent('error', { source: 'bootSiteClient' });
-
 			const firewallError = findFirewallErrorInCauseChain(e);
 			if (
 				(e as any).name === 'ArtifactExpiredError' ||

@@ -3,7 +3,7 @@
 @import url('../../../../node_modules/@wordpress/components/build-style/style.css');
 @import url('../../../../node_modules/@wordpress/dataviews/build-style/style.css');
 
-/* http://meyerweb.com/eric/tools/css/reset/ 
+/* http://meyerweb.com/eric/tools/css/reset/
    v2.0 | 20110126
    License: none (public domain)
 */
@@ -262,4 +262,102 @@ h4 {
 
 .typography p {
 	margin: 10px 0;
+}
+
+/* WKWebView / in-app browser notice */
+
+#wkwebview-notice {
+	display: none;
+	position: fixed;
+	inset: 0;
+	background: #1e2327;
+	z-index: 9999;
+	align-items: center;
+	justify-content: center;
+	padding: 20px;
+	font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+#wkwebview-notice.is-visible {
+	display: flex;
+}
+
+#wkwebview-notice .card {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	text-align: center;
+	max-width: 400px;
+	width: 100%;
+}
+
+#wkwebview-notice .logo {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	margin-bottom: 2rem;
+}
+
+#wkwebview-notice .logo img {
+	width: 40px;
+	height: 40px;
+}
+
+#wkwebview-notice .logo span {
+	font-size: 22px;
+	font-weight: 600;
+	color: #fff;
+}
+
+#wkwebview-notice h1 {
+	font-size: 24px;
+	font-weight: 600;
+	color: #fff;
+	margin: 0 0 1rem;
+}
+
+#wkwebview-notice p {
+	font-size: 15px;
+	color: #9ca3af;
+	line-height: 1.5;
+	margin: 0 0 2rem;
+}
+
+#wkwebview-notice .actions {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	width: 100%;
+}
+
+#wkwebview-notice a,
+#wkwebview-notice button {
+	display: block;
+	width: 100%;
+	padding: 12px 24px;
+	border-radius: 6px;
+	font-size: 16px;
+	font-weight: 600;
+	cursor: pointer;
+	text-decoration: none;
+	border: none;
+}
+
+#wkwebview-notice .primary {
+	background: #3858e9;
+	color: #fff;
+}
+
+#wkwebview-notice .secondary {
+	background: #2c3338;
+	color: #e5e6e6;
+	border: 1px solid #3c4349;
+	font-weight: 500;
+}
+
+#wkwebview-notice .hint {
+	font-size: 13px;
+	color: #6b7280;
+	margin-top: 1rem;
+	margin-bottom: 0;
 }

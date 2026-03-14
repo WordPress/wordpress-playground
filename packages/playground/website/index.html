@@ -92,6 +92,118 @@
 		/>
 	</head>
 	<body>
+		<!--
+			Shown before React loads when an iOS WKWebView (in-app browser) is
+			detected. The detection script below reveals this and skips the
+			React app, since WKWebView lacks the features Playground requires.
+		-->
+		<div id="wkwebview-notice" role="dialog" aria-modal="true">
+			<div class="card">
+				<div class="logo">
+					<img
+						src="./src/playground-logo.svg"
+						alt="WordPress Playground logo"
+						width="40"
+						height="40"
+					/>
+					<span>Playground</span>
+				</div>
+				<h1>Open in your browser</h1>
+				<p>
+					WordPress Playground requires features that are not
+					available in in-app browsers. Please open this page in
+					Safari or your preferred browser to continue.
+				</p>
+				<div class="actions">
+					<a id="wkwebview-safari-link" class="primary" href=""
+						>Open in Safari</a
+					>
+					<button
+						id="wkwebview-copy-btn"
+						class="secondary"
+						type="button"
+					>
+						Copy URL
+					</button>
+				</div>
+				<p class="hint">
+					Copy the URL and paste it in Safari or any other browser.
+				</p>
+			</div>
+		</div>
+
+		<script>
+			/**
+			 * Detects iOS WKWebView (in-app browser) before the React app loads.
+			 * Safari proper includes "Version/" in its UA; WKWebViews don't.
+			 * If detected, reveal the notice above and skip loading the main app.
+			 */
+			(function () {
+				var ua = navigator.userAgent;
+				var isIOS =
+					/iPad|iPhone|iPod/.test(ua) ||
+					(navigator.platform === 'MacIntel' &&
+						navigator.maxTouchPoints > 1 &&
+						/Mobile\//.test(ua));
+				var isWebView =
+					isIOS &&
+					!/Version\//.test(ua) &&
+					!/CriOS\//.test(ua) &&
+					!/FxiOS\//.test(ua);
+
+				if (!isWebView) {
+					return;
+				}
+
+				window.__isWKWebView = true;
+
+				document
+					.getElementById('wkwebview-notice')
+					.classList.add('is-visible');
+
+				let safariLink = document.getElementById(
+					'wkwebview-safari-link'
+				);
+
+				if (/Twitter for iPhone/i.test(ua)) {
+					// This is tested with the X mobile app.
+					safariLink.textContent = 'Share link';
+					safariLink.removeAttribute('href');
+					safariLink.addEventListener('click', function (e) {
+						e.preventDefault();
+						navigator.share({ url: window.location.href });
+					});
+				} else {
+					// The `x-safari-http(s)://` scheme doesn't work in a WKWebView running in iOS simulator
+					// when running http://127.0.0.1:5400/website-server/, the `open-in-safari://` instead works,
+					// but not in other environments.
+					// This is tested with the Linkedin mobile app.
+					// TODO: test with other mobile apps.
+					safariLink.href =
+						'x-safari-https://' +
+						window.location.host +
+						window.location.pathname +
+						window.location.search +
+						window.location.hash;
+				}
+
+				document
+					.getElementById('wkwebview-copy-btn')
+					.addEventListener('click', function () {
+						var btn = this;
+						navigator.clipboard
+							.writeText(window.location.href)
+							.then(function () {
+								var original = btn.textContent;
+								btn.textContent = 'Copied!';
+								setTimeout(function () {
+									btn.textContent = original;
+								}, 2000);
+							});
+					});
+			})();
+		</script>
+
 		<main id="root" aria-label="WordPress Playground">
 			<script>
 				const query = new URLSearchParams(window.location.search);
@@ -119,7 +231,7 @@
 			</script>
 		</main>
 		<script type="module">
-			if (!shouldLazyLoadPlayground) {
+			if (!shouldLazyLoadPlayground && !window.__isWKWebView) {
 				/**
 				 * Safari sometimes fail to import this script after playground.wordpress.net
 				 * is deployed. The error message is:
@@ -167,10 +279,9 @@
 								'_ts',
 								String(Date.now())
 							);
-							await import(
+							return import(
 								/* @vite-ignore */ moduleUrl.toString()
 							);
-							return;
 						}
 					} catch {
 						// Fall back to the original error
