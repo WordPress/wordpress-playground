@@ -5,13 +5,6 @@ import {
 	createSelector,
 } from '@reduxjs/toolkit';
 import type { PlaygroundDispatch, PlaygroundReduxState } from './store';
-
-// Local selector to avoid circular dependency with store.ts.
-// Rolldown's async init wrappers deadlock on circular ES module imports.
-const selectActiveSite = (state: PlaygroundReduxState): SiteInfo | undefined =>
-	state.ui.activeSite?.slug
-		? state.sites.entities[state.ui.activeSite.slug]
-		: undefined;
 import { opfsSiteStorage } from '../opfs/opfs-site-storage';
 import {
 	type BlueprintV1,
@@ -31,6 +24,13 @@ import { logger } from '@php-wasm/logger';
 import { setActiveSiteError, type SiteError } from './slice-ui';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import { findFirewallErrorInCauseChain } from './error-utils';
+
+// Local selector to avoid circular dependency with store.ts.
+// Rolldown's async init wrappers deadlock on circular ES module imports.
+const selectActiveSite = (state: PlaygroundReduxState): SiteInfo | undefined =>
+	state.ui.activeSite?.slug
+		? state.sites.entities[state.ui.activeSite.slug]
+		: undefined;
 
 /**
  * The Site model used to represent a site within Playground.

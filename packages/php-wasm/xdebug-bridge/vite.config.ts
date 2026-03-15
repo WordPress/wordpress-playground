@@ -82,6 +82,13 @@ export default defineConfig({
 			],
 			output: {
 				exports: 'named',
+				// Rolldown's ESM output doesn't provide `require()`, but
+				// bundled CJS dependencies use it for external modules.
+				// Inject createRequire so those calls succeed at runtime.
+				banner: (chunk) =>
+					chunk.fileName.endsWith('.cjs')
+						? ''
+						: "import { createRequire as __createRequire } from 'module';\nconst require = __createRequire(import.meta.url);",
 			},
 		},
 		sourcemap: false,

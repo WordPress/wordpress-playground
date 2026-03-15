@@ -9,6 +9,10 @@ import {
 } from './slice-sites';
 import { persistTemporarySite } from './persist-temporary-site';
 import { selectClientBySiteSlug } from './slice-clients';
+import type { McpBridgeHandle } from '@wp-playground/mcp/client';
+import { startMcpBridge } from '@wp-playground/mcp/client';
+import { isMcpServerEnabled } from '../url/router';
+import { logTrackingEvent } from '../../tracking';
 
 // Local selector to avoid circular dependency with store.ts.
 // Rolldown's async init wrappers deadlock on circular ES module imports.
@@ -16,10 +20,6 @@ const selectActiveSite = (state: PlaygroundReduxState): SiteInfo | undefined =>
 	state.ui.activeSite?.slug
 		? state.sites.entities[state.ui.activeSite.slug]
 		: undefined;
-import type { McpBridgeHandle } from '@wp-playground/mcp/client';
-import { startMcpBridge } from '@wp-playground/mcp/client';
-import { isMcpServerEnabled } from '../url/router';
-import { logTrackingEvent } from '../../tracking';
 
 export const mcpListenerMiddleware = createListenerMiddleware();
 

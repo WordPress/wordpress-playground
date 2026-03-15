@@ -93,6 +93,14 @@ const plugins = [
 				patternV2,
 				`new URL(${JSON.stringify(v2)}, import.meta.url)`
 			);
+			// In CJS output, Rolldown replaces import.meta.url with {}.url
+			// which evaluates to undefined. Replace with CJS equivalent.
+			if (isCjs) {
+				transformed = transformed.replaceAll(
+					'{}.url',
+					'require("url").pathToFileURL(__filename).href'
+				);
+			}
 			if (transformed !== code) {
 				return { code: transformed, map: null };
 			}
