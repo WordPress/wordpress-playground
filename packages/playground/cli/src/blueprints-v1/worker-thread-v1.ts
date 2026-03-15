@@ -211,9 +211,16 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 	}
 
 	async mountAfterWordPressInstall(mounts: Array<Mount>) {
-		// Make sure workers not involved in the WordPress install
-		// process know whether WordPress booted so they can
-		// apply post-install mounts when spawning new PHP workers.
+		// Idempotent: the batch callback and the individual
+		// .then() in run-cli.ts may both call this for
+		// workers that finish during the batch window.
+		if (this.bootedWordPress) {
+			return;
+		}
+		// Make sure workers not involved in the WordPress
+		// install process know whether WordPress booted so
+		// they can apply post-install mounts when spawning
+		// new PHP workers.
 		this.bootedWordPress = true;
 		await mountResources(this.__internal_getPHP()!, mounts);
 	}
