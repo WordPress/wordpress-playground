@@ -90,6 +90,10 @@ export default defineConfig(function () {
 			execArgv: ['--expose-gc'],
 			environment: 'node',
 			reporters: ['default'],
+			// The ~400MB heap tests run close to the default 5s timeout.
+			// Vitest 4's worker pool adds slight overhead that pushes
+			// them past the limit.
+			testTimeout: 30000,
 		},
 
 		define: {
