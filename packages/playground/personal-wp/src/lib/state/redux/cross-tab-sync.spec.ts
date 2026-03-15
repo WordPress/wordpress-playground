@@ -63,7 +63,8 @@ class MockBroadcastChannel {
 }
 
 describe('cross-tab-sync', () => {
-	let mockDispatch: ReturnType<typeof vi.fn>;
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	let mockDispatch: any;
 
 	beforeEach(() => {
 		MockBroadcastChannel.reset();

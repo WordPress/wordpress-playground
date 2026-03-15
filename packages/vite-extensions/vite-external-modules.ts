@@ -34,6 +34,7 @@ export const getExternalModules = () => {
 		'readline',
 		'worker_threads',
 		'url',
+		'timers',
 		'node:crypto',
 		'node:http',
 		'node:net',

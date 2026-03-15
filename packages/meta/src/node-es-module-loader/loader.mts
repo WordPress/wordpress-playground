@@ -1,6 +1,6 @@
 import { existsSync, readFileSync, lstatSync } from 'fs';
 import { fileURLToPath, pathToFileURL } from 'url';
-import { join, resolve as resolvePath, dirname } from 'path';
+import { join, resolve as resolvePath, dirname, basename } from 'path';
 import { builtinModules } from 'module';
 
 interface TsConfig {
@@ -164,7 +164,7 @@ export async function resolve(
 	// the proper node: protocol so Node resolves the built-in module.
 	{
 		const specifierPath = fileURLToPath(specifier);
-		const moduleName = specifierPath.split('/').pop()!;
+		const moduleName = basename(specifierPath);
 		if (builtinModules.includes(moduleName) && !existsSync(specifierPath)) {
 			return nextResolve(`node:${moduleName}`, context);
 		}

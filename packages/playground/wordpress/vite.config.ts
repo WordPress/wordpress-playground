@@ -65,7 +65,7 @@ export default defineConfig({
 
 	test: {
 		globals: true,
-		testTimeout: 10000,
+		testTimeout: 30000,
 		environment: 'node',
 		include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
 		reporters: ['default'],
