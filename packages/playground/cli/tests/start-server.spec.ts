@@ -74,6 +74,19 @@ describe('startServer', () => {
 			await new Promise((r) => setTimeout(r, 200));
 			req.destroy();
 
+			// Confirm the ERR_STREAM_UNABLE_TO_PIPE error was
+			// actually produced by the pipeline call.
+			expect(pipelineMock).toHaveBeenCalled();
+			const pipelineResult = pipelineMock.mock.results[0];
+			expect(pipelineResult.type).toBe('return');
+			const pipelineError = await (
+				pipelineResult.value as Promise<void>
+			).catch((e: Error) => e);
+			expect(pipelineError).toBeInstanceOf(Error);
+			expect((pipelineError as NodeJS.ErrnoException).code).toBe(
+				'ERR_STREAM_UNABLE_TO_PIPE'
+			);
+
 			// Confirm the error was NOT logged.
 			expect(logger.error).not.toHaveBeenCalled();
 		} finally {
