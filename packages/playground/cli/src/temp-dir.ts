@@ -166,7 +166,16 @@ async function appearsToBeStalePlaygroundTempDir(
 	return false;
 }
 
-function doesProcessExist(pid: string, _executableName: string) {
+function doesProcessExist(
+	pid: string,
+	// NOTE: We used to use the executable name as well to reduce the risk
+	// of PID reuse causing false positives, but confirming process name has
+	// been slow on Windows and doesn't seem to be worth the cost. The worst
+	// that happens when a PID is reused by another process is that we don't
+	// delete a stale temp dir.
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+	_executableName: string
+) {
 	// Use process.kill with signal 0 to check if the process exists.
 	// Signal 0 doesn't actually send a signal — it just checks whether
 	// the process is running. This is instant on all platforms, unlike
