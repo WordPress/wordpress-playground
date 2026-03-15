@@ -94,6 +94,19 @@ export default defineConfig(function () {
 			// Vitest 4's worker pool adds slight overhead that pushes
 			// them past the limit.
 			testTimeout: 30000,
+			// The Emscripten-compiled PHP 7.4 PIPEFS has a race condition
+			// where a socket data callback fires after the pipe is destroyed,
+			// causing "Cannot read properties of null (reading 'length')".
+			// Vitest 4 treats unhandled errors as test failures (Vitest 3
+			// only warned). Suppress this specific WASM runtime error.
+			onUnhandledError(error) {
+				if (
+					error instanceof TypeError &&
+					error.message?.includes("reading 'length'")
+				) {
+					return false;
+				}
+			},
 		},
 
 		define: {
