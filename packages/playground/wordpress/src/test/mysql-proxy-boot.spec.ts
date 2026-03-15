@@ -12,7 +12,7 @@ import { unzipFile } from '@wp-playground/common';
 import { bootWordPressAndRequestHandler } from '../boot';
 import type { MySQLProxyServer } from '@php-wasm/node';
 
-describe('MySQL proxy boot (PHP 5.6)', () => {
+describe('MySQL proxy boot (PHP 7.4)', () => {
 	let proxyPhp: PHP;
 	let proxy: MySQLProxyServer;
 
@@ -62,11 +62,13 @@ describe('MySQL proxy boot (PHP 5.6)', () => {
 					'/wordpress/wp-content/database/.ht.sqlite',
 			});
 
-			// Boot WordPress using PHP 5.6 connected to the MySQL proxy.
-			// PHP 5.6 thinks it's talking to a real MySQL server.
+			// Boot WordPress using PHP 7.4 connected to the MySQL proxy.
+			// Modern WordPress requires PHP 7.2+, and the wp-config
+			// transformer uses PHP 7.1+ syntax. PHP 7.4 is the oldest
+			// version that satisfies both constraints.
 			await using handler = await bootWordPressAndRequestHandler({
 				createPhpRuntime: async () =>
-					await loadNodeRuntime('5.6' as any),
+					await loadNodeRuntime('7.4' as any),
 				siteUrl: 'http://playground-domain/',
 				wordPressZip: await getWordPressModule(),
 				mysqlProxyPort: proxy.port,

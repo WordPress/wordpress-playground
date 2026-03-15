@@ -25,7 +25,14 @@ import {
 } from '.';
 import { basename, dirname, joinPaths } from '@php-wasm/util';
 import { logger } from '@php-wasm/logger';
-import { ensureWpConfig, defineWpConfigConstants } from './wp-config';
+import {
+	ensureWpConfig,
+	defineWpConfigConstants,
+	ensureLegacyWpConfig,
+	defineLegacyWpConfigConstants,
+} from './wp-config';
+/* @ts-ignore */
+import legacyMysqlPolyfill from './legacy-mysql-polyfill.php?raw';
 
 export type PhpIniOptions = Record<string, string>;
 export type Hook = (php: PHP) => void | Promise<void>;
@@ -731,14 +738,81 @@ async function bootLegacyWordPress(
 	}
 
 	await setupLegacyWordPressCompat(php);
-	await ensureWpConfig(php, requestHandler.documentRoot);
 
-	if (options.mysqlProxyPort) {
-		await configureWordPressForMySQLProxy(
-			php,
-			requestHandler.documentRoot,
-			options.mysqlProxyPort
+	/**
+	 * WordPress 1.x uses old-style class constructors where the
+	 * constructor method has the same name as the class:
+	 *
+	 *   class wpdb { function wpdb() { ... } }
+	 *
+	 * These were deprecated in PHP 7.0 and REMOVED in PHP 8.0.
+	 * No function-level polyfill can restore this behavior — it
+	 * requires engine-level support. WordPress 1.x works on PHP
+	 * 5.6 through 7.4. On PHP 8.0+ the class files produce fatal
+	 * errors and the site returns HTTP 500 on every request.
+	 */
+	const versionResult = await php.run({
+		code: `<?php echo PHP_MAJOR_VERSION;`,
+	});
+	const phpMajorVersion = parseInt(versionResult.text, 10);
+	if (phpMajorVersion >= 8) {
+		throw new Error(
+			`WordPress 1.x requires PHP 7.4 or earlier, but the current ` +
+				`PHP version is ${phpMajorVersion}.x. WordPress 1.x uses ` +
+				`old-style class constructors (e.g. "class wpdb { function ` +
+				`wpdb() {} }") that were removed in PHP 8.0. Please select ` +
+				`PHP 7.4 or earlier to run this WordPress version.`
 		);
+	}
+
+	/**
+	 * Use TypeScript-based wp-config manipulation instead of the
+	 * PHP-based WP_Config_Transformer. The transformer class uses
+	 * PHP 7.0+ return type declarations (`: self`, `: string`,
+	 * `: void`) and PHP 7.1+ nullable types (`?string`, `?int`)
+	 * throughout. On PHP 5.6 these produce a parse error, and
+	 * php.run() throws PHPExecutionFailureError — crashing the
+	 * entire boot before reaching the installer.
+	 */
+	await ensureLegacyWpConfig(php, requestHandler.documentRoot);
+
+	/**
+	 * The mysqlProxyPort config only takes effect in Node.js where
+	 * the native mysql extension is compiled into PHP 5.6. In that
+	 * case the polyfill file (legacy-mysql-polyfill.php) is skipped
+	 * entirely and the real mysql_connect() uses the host/port from
+	 * wp-config.php to connect to the MySQL wire protocol proxy.
+	 *
+	 * In the browser (WASM), the native mysql extension is absent
+	 * and TCP sockets are not available, so the polyfill activates
+	 * and stores data in a local SQLite file regardless of these
+	 * wp-config constants. This is intentional — the polyfill IS
+	 * the database layer in the browser.
+	 */
+	if (options.mysqlProxyPort) {
+		const wpConfigPath = joinPaths(
+			requestHandler.documentRoot,
+			'wp-config.php'
+		);
+		await defineLegacyWpConfigConstants(php, wpConfigPath, {
+			DB_NAME: 'wordpress',
+			DB_USER: 'root',
+			DB_PASSWORD: '',
+			DB_HOST: `127.0.0.1:${options.mysqlProxyPort}`,
+			DB_CHARSET: 'utf8',
+			DB_COLLATE: '',
+		});
+	}
+
+	// Ensure the SQLite database directory exists. The mysql_*
+	// polyfill (written by setupLegacyWordPressCompat) stores its
+	// database here when the native mysql extension isn't available.
+	const dbDir = joinPaths(
+		requestHandler.documentRoot,
+		'wp-content/database'
+	);
+	if (!php.isDir(dbDir)) {
+		php.mkdir(dbDir);
 	}
 
 	await installLegacyWordPress(php, options.siteUrl);
@@ -750,13 +824,21 @@ async function bootLegacyWordPress(
  * WordPress 1.x/2.x used $HTTP_GET_VARS, $HTTP_POST_VARS, and
  * $HTTP_SERVER_VARS which were removed in PHP 5.4. This writes
  * a preload file that aliases them to $_GET, $_POST, $_SERVER.
+ *
+ * Also writes a mysql_* function polyfill that uses PDO SQLite
+ * as the storage backend. The PHP 5.6 web (WASM) build does not
+ * include the native mysql extension, so WordPress 1.x's calls
+ * to mysql_connect(), mysql_query(), etc. would hit "undefined
+ * function" fatal errors without this polyfill. When the native
+ * extension IS available (e.g. in the Node.js build connected to
+ * a MySQL proxy), the polyfill detects this and stays dormant.
  */
 async function setupLegacyWordPressCompat(php: PHP): Promise<void> {
 	await php.writeFile(
 		'/internal/shared/preload/legacy-wp-compat.php',
 		`<?php
 		/**
-		 * Compatibility shim for WordPress 1.x/2.x running on PHP 5.6.
+		 * Compatibility shim for WordPress 1.x/2.x.
 		 *
 		 * These long-form superglobals were removed in PHP 5.4 but
 		 * WordPress 1.x relies on them throughout its codebase.
@@ -784,9 +866,131 @@ async function setupLegacyWordPressCompat(php: PHP): Promise<void> {
 				$GLOBALS[$key] = $value;
 			}
 		}
+
+		/**
+		 * POSIX regex function polyfills.
+		 *
+		 * The ereg family of functions was removed in PHP 7.0.
+		 * WordPress 1.x uses ereg() and split() in core files
+		 * like wp-includes/functions.php and wp-includes/vars.php.
+		 * These polyfills wrap the PCRE equivalents (preg_match,
+		 * preg_replace, preg_split) with automatic delimiter
+		 * insertion and POSIX-compatible return values.
+		 */
+		if (!function_exists('ereg')) {
+			function ereg($pattern, $string, &$regs = null) {
+				$p = '/' . str_replace('/', '\\\\/', $pattern) . '/';
+				if (func_num_args() >= 3) {
+					$r = preg_match($p, $string, $regs);
+					return $r ? (int)strlen($regs[0]) : false;
+				}
+				return preg_match($p, $string) ? 1 : false;
+			}
+		}
+
+		if (!function_exists('eregi')) {
+			function eregi($pattern, $string, &$regs = null) {
+				$p = '/' . str_replace('/', '\\\\/', $pattern) . '/i';
+				if (func_num_args() >= 3) {
+					$r = preg_match($p, $string, $regs);
+					return $r ? (int)strlen($regs[0]) : false;
+				}
+				return preg_match($p, $string) ? 1 : false;
+			}
+		}
+
+		if (!function_exists('ereg_replace')) {
+			function ereg_replace($pattern, $replacement, $string) {
+				$p = '/' . str_replace('/', '\\\\/', $pattern) . '/';
+				return preg_replace($p, $replacement, $string);
+			}
+		}
+
+		if (!function_exists('eregi_replace')) {
+			function eregi_replace($pattern, $replacement, $string) {
+				$p = '/' . str_replace('/', '\\\\/', $pattern) . '/i';
+				return preg_replace($p, $replacement, $string);
+			}
+		}
+
+		if (!function_exists('split')) {
+			function split($pattern, $string, $limit = -1) {
+				$p = '/' . str_replace('/', '\\\\/', $pattern) . '/';
+				return preg_split($p, $string, $limit);
+			}
+		}
+
+		if (!function_exists('spliti')) {
+			function spliti($pattern, $string, $limit = -1) {
+				$p = '/' . str_replace('/', '\\\\/', $pattern) . '/i';
+				return preg_split($p, $string, $limit);
+			}
+		}
+
+		/**
+		 * Magic quotes polyfills.
+		 *
+		 * set_magic_quotes_runtime() was removed in PHP 7.0,
+		 * get_magic_quotes_runtime() and get_magic_quotes_gpc()
+		 * were removed in PHP 8.0. WordPress 1.x calls all three.
+		 * They are no-ops that return false/0 since magic quotes
+		 * have been disabled since PHP 5.4.
+		 */
+		if (!function_exists('set_magic_quotes_runtime')) {
+			function set_magic_quotes_runtime($new_setting) {
+				return false;
+			}
+		}
+
+		if (!function_exists('get_magic_quotes_runtime')) {
+			function get_magic_quotes_runtime() {
+				return 0;
+			}
+		}
+
+		if (!function_exists('get_magic_quotes_gpc')) {
+			function get_magic_quotes_gpc() {
+				return 0;
+			}
+		}
+
+		/**
+		 * Session registration polyfills.
+		 *
+		 * session_register() and friends were removed in PHP 5.4.
+		 * WordPress 1.x may call them during cookie/session setup.
+		 */
+		if (!function_exists('session_register')) {
+			function session_register() {
+				$args = func_get_args();
+				foreach ($args as $key) {
+					$_SESSION[$key] = isset($GLOBALS[$key]) ? $GLOBALS[$key] : null;
+				}
+				return true;
+			}
+		}
+
+		if (!function_exists('session_unregister')) {
+			function session_unregister($name) {
+				unset($_SESSION[$name]);
+				return true;
+			}
+		}
+
+		if (!function_exists('session_is_registered')) {
+			function session_is_registered($name) {
+				return isset($_SESSION[$name]);
+			}
+		}
 		`
 	);
+
+	await php.writeFile(
+		'/internal/shared/preload/legacy-mysql-polyfill.php',
+		legacyMysqlPolyfill
+	);
 }
+
 
 /**
  * Runs the WordPress 1.x multi-step installer.
