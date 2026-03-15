@@ -1362,9 +1362,6 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 							if (disposing) {
 								return;
 							}
-							if (exitCode !== 0) {
-								return;
-							}
 							logger.error(
 								`Worker ${workerIndex} exited with code ${exitCode}\n`
 							);
