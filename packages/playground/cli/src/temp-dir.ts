@@ -185,18 +185,36 @@ function doesProcessExist(
 		process.kill(Number(pid), 0);
 		return true;
 	} catch (error: unknown) {
-		if (
-			error instanceof Error &&
-			'code' in error &&
-			error.code === 'ESRCH'
-		) {
+		const errorWithCode = error as { code?: unknown };
+		const code =
+			errorWithCode && typeof errorWithCode.code === 'string'
+				? errorWithCode.code
+				: undefined;
+
+		if (code === 'ESRCH') {
 			// ESRCH means the process does not exist.
 			return false;
 		}
-		// EPERM means the process exists but we lack permission to signal
-		// it. For any other unexpected error, assume the process exists to
+
+		if (code === 'EPERM' || code === 'EACCES') {
+			// EPERM/EACCES mean the process exists but we lack permission to signal
+			// it. This is expected on some systems for certain PIDs, so only log
+			// at debug level to avoid noisy logs during normal operation.
+			logger.debug(
+				`Permission denied while checking if process ${pid} exists (code: ${code}).`,
+				error
+			);
+			return true;
+		}
+
+		// For any other unexpected error, assume the process exists to
 		// avoid accidentally deleting a temp dir that may still be in use.
-		logger.warn(`Could not determine if process ${pid} exists: ${error}`);
+		logger.warn(
+			`Could not determine if process ${pid} exists due to unexpected error${
+				code ? ` (code: ${code})` : ''
+			}.`,
+			error
+		);
 		return true;
 	}
 }
