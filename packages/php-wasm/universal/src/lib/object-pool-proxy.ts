@@ -25,6 +25,19 @@ export type Pooled<T extends object> = Omit<
 >;
 
 /**
+ * Symbol used to add instances to a pool created by
+ * `createObjectPoolProxy`. Using a symbol avoids collisions
+ * with the pooled object's own interface.
+ *
+ * @example
+ * ```ts
+ * const pool = createObjectPoolProxy([worker1]);
+ * pool[poolAddInstance](worker2);
+ * ```
+ */
+export const poolAddInstance: unique symbol = Symbol('poolAddInstance');
+
+/**
  * Creates a proxy that distributes method calls and property accesses
  * across a pool of object instances. Only one ongoing access per
  * instance is allowed at a time. If all instances are busy, accesses
@@ -35,7 +48,7 @@ export type Pooled<T extends object> = Omit<
  */
 export function createObjectPoolProxy<T extends object>(
 	instances: T[]
-): Pooled<T> & { addInstance(instance: T): void } {
+): Pooled<T> & { [poolAddInstance](instance: T): void } {
 	if (instances.length === 0) {
 		throw new Error('At least one instance is required');
 	}
@@ -94,7 +107,7 @@ export function createObjectPoolProxy<T extends object>(
 	}
 
 	const proxy = new Proxy(
-		{} as Pooled<T> & { addInstance(instance: T): void },
+		{} as Pooled<T> & { [poolAddInstance](instance: T): void },
 		{
 			get(_target, prop: string | symbol) {
 				// Support returning assigned target properties.
@@ -140,6 +153,6 @@ export function createObjectPoolProxy<T extends object>(
 		}
 	);
 
-	proxy.addInstance = addInstance;
+	(proxy as any)[poolAddInstance] = addInstance;
 	return proxy;
 }

@@ -2,6 +2,7 @@ import { errorLogPath, logger, LogSeverity } from '@php-wasm/logger';
 import { ProcessIdAllocator } from '@php-wasm/universal';
 import {
 	createObjectPoolProxy,
+	poolAddInstance,
 	type Pooled,
 	type PHPRequest,
 	type PathAlias,
@@ -851,7 +852,9 @@ export async function runCLI(
 ): Promise<RunCLIServer>;
 export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void>;
 export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
-	let playgroundPool: Pooled<PlaygroundCliWorker>;
+	let playgroundPool: Pooled<PlaygroundCliWorker> & {
+		[poolAddInstance](instance: PlaygroundCliWorker): void;
+	};
 	const cookieStore = args.internalCookieStore
 		? new HttpCookieStore()
 		: undefined;
@@ -1443,7 +1446,9 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 					sqlitePreExtractPromise,
 				]);
 
-				playgroundPool = createObjectPoolProxy([firstWorkerApi]);
+				playgroundPool = createObjectPoolProxy([
+					firstWorkerApi as PlaygroundCliWorker,
+				]);
 
 				// Phase 2: Start background workers now so their
 				// WASM compilation overlaps with WordPress boot.
@@ -1462,7 +1467,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 									args['mount'] || []
 								);
 							}
-							playgroundPool.addInstance(api);
+							playgroundPool[poolAddInstance](api);
 						},
 						(error) => {
 							logger.error(
