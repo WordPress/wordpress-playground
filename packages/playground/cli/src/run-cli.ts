@@ -49,7 +49,10 @@ import {
 import type { MessagePort as NodeMessagePort } from 'worker_threads';
 import yargs, { type Argv, type Options as YargsOptions } from 'yargs';
 import { isValidWordPressSlug } from './is-valid-wordpress-slug';
-// resolveBlueprint is lazy-loaded when needed
+import { resolveBlueprint } from './resolve-blueprint';
+import { BlueprintsV2Handler } from './blueprints-v2/blueprints-v2-handler';
+import { BlueprintsV1Handler } from './blueprints-v1/blueprints-v1-handler';
+import { startBridge } from '@php-wasm/xdebug-bridge';
 import path from 'path';
 import os from 'os';
 import { exec } from 'child_process';
@@ -58,21 +61,26 @@ import {
 	createPlaygroundCliTempDir,
 } from './temp-dir';
 import { type WordPressInstallMode } from '@wp-playground/wordpress';
-import type { Mount } from '@php-wasm/cli-util';
-// addXdebugIDEConfig, clearXdebugIDEConfig, createTempDirSymlink,
-// removeTempDirSymlink, makeXdebugConfig are lazy-loaded from
-// @php-wasm/cli-util when needed
+import {
+	type Mount,
+	addXdebugIDEConfig,
+	clearXdebugIDEConfig,
+	createTempDirSymlink,
+	removeTempDirSymlink,
+	makeXdebugConfig,
+} from '@php-wasm/cli-util';
 import { createHash } from 'crypto';
 import { CLIOutput } from './cli-output';
-// Lazy-loaded after boot to reduce startup module count:
-// - @wp-playground/blueprints (compileBlueprintV1, runBlueprintV1Steps)
-// - @wp-playground/tools (getPhpMyAdminInstallSteps, PHPMYADMIN_*)
-// - @php-wasm/xdebug-bridge (startBridge)
-// - ./blueprints-v1/blueprints-v1-handler (BlueprintsV1Handler)
-// - ./blueprints-v2/blueprints-v2-handler (BlueprintsV2Handler)
+import {
+	compileBlueprintV1,
+	runBlueprintV1Steps,
+} from '@wp-playground/blueprints';
+import {
+	getPhpMyAdminInstallSteps,
+	PHPMYADMIN_ENTRY_PATH,
+	PHPMYADMIN_INSTALL_PATH,
+} from '@wp-playground/tools';
 import { jspi } from 'wasm-feature-detect';
-// @zip.js/zip.js and fetchSqliteIntegration are lazy-loaded in
-// preExtractSqliteIntegration()
 
 // Inlined worker URLs for static analysis by downstream bundlers
 // These are replaced at build time by the Vite plugin in vite.config.ts
@@ -946,8 +954,6 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 		}
 
 		// Set up path alias for phpMyAdmin.
-		const { PHPMYADMIN_INSTALL_PATH } =
-			await import('@wp-playground/tools');
 		args['pathAliases'] = [
 			{
 				urlPrefix: args.phpmyadmin,
@@ -1039,13 +1045,6 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 			const symlinkName = '.playground-xdebug-root';
 			const symlinkPath = path.join(process.cwd(), symlinkName);
 
-			const {
-				removeTempDirSymlink,
-				createTempDirSymlink,
-				makeXdebugConfig,
-				clearXdebugIDEConfig,
-				addXdebugIDEConfig,
-			} = await import('@php-wasm/cli-util');
 			await removeTempDirSymlink(symlinkPath);
 
 			// Then, if xdebug is enabled, recreate the symlink
@@ -1302,38 +1301,25 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 				}
 			}
 
-			// Determine worker type without importing the full handler
-			// module tree, so we can spawn the worker immediately.
+			let handler: BlueprintsV1Handler | BlueprintsV2Handler;
 			const workerType = args['experimental-blueprints-v2-runner']
 				? 'v2'
 				: 'v1';
 
-			// Create the handler using the preloaded module (loading
-			// started at module init, before yargs parsing).
-			const handlerPromise = (async () => {
-				if (args['experimental-blueprints-v2-runner']) {
-					const { BlueprintsV2Handler } =
-						await import('./blueprints-v2/blueprints-v2-handler');
-					return new BlueprintsV2Handler(args, {
-						siteUrl,
-						cliOutput,
-					});
-				} else {
-					const { BlueprintsV1Handler } =
-						await import('./blueprints-v1/blueprints-v1-handler');
-					return new BlueprintsV1Handler(args, {
-						siteUrl,
-						cliOutput,
-					});
-				}
-			})();
+			if (args['experimental-blueprints-v2-runner']) {
+				handler = new BlueprintsV2Handler(args, {
+					siteUrl,
+					cliOutput,
+				});
+			} else {
+				handler = new BlueprintsV1Handler(args, {
+					siteUrl,
+					cliOutput,
+				});
+			}
 
-			let handler: any;
-			// This block kept for the blueprint resolution path
 			if (!args['experimental-blueprints-v2-runner']) {
 				if (typeof args.blueprint === 'string') {
-					const { resolveBlueprint } =
-						await import('./resolve-blueprint');
 					args.blueprint = await resolveBlueprint({
 						sourceString: args.blueprint,
 						blueprintMayReadAdjacentFiles:
@@ -1389,9 +1375,6 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 
 					const fileLockManagerPort =
 						await exposeFileLockManager(fileLockManager);
-					// Ensure handler is loaded (runs in parallel with
-					// worker spawn + WASM compilation).
-					handler = await handlerPromise;
 					const playgroundApi = await handler.bootRequestHandler({
 						worker: spawnResult,
 						fileLockManagerPort,
@@ -1403,26 +1386,14 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 					return playgroundApi;
 				};
 
-				// Pre-extract the SQLite integration to the native filesystem
-				// in parallel with worker spawning. This way the worker's
-				// preloadSqliteIntegration() finds the files already in
-				// place and skips the expensive PHP-based unzip.
-
-				const sqlitePreExtractPromise = args.skipSqliteSetup
-					? Promise.resolve()
-					: preExtractSqliteIntegration(
-							nativeInternalDirPath,
-							'/wordpress'
-						);
-
 				// === Worker boot strategy ===
 				//
 				// Workers are launched in two phases to balance
 				// time-to-ready with resource contention:
 				//
-				// Phase 1 – Boot worker 0 and pre-extract SQLite
-				// in parallel. Worker 0 is the only worker needed
-				// to install WordPress and start serving requests.
+				// Phase 1 – Boot worker 0. Worker 0 is the only
+				// worker needed to install WordPress and start
+				// serving requests.
 				//
 				// Phase 2 – Start spawning remaining workers (1-N)
 				// during WordPress installation. Their WASM
@@ -1454,14 +1425,11 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 				// is idempotent so overlapping calls (batch +
 				// individual) are harmless.
 
-				// Phase 1: Boot worker 0 + pre-extract SQLite.
-				const [firstWorkerApi] = await Promise.all([
-					spawnAndBootWorker(0),
-					sqlitePreExtractPromise,
-				]);
+				// Phase 1: Boot worker 0.
+				const firstWorkerApi = await spawnAndBootWorker(0);
 
 				playgroundPool = createObjectPoolProxy([
-					firstWorkerApi as PlaygroundCliWorker,
+					firstWorkerApi as unknown as PlaygroundCliWorker,
 				]);
 
 				// Phase 2: Start background workers now so their
@@ -1481,7 +1449,9 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 									args['mount'] || []
 								);
 							}
-							playgroundPool[poolAddInstance](api);
+							playgroundPool[poolAddInstance](
+								api as unknown as PlaygroundCliWorker
+							);
 						},
 						(error) => {
 							logger.error(
@@ -1539,14 +1509,13 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 					mainThreadPostInstallMountsPort.close();
 
 					if (!args['experimental-blueprints-v2-runner']) {
-						const compiledBlueprint =
-							await handler.compileInputBlueprint(
-								args['additional-blueprint-steps'] || []
-							);
+						const compiledBlueprint = await (
+							handler as BlueprintsV1Handler
+						).compileInputBlueprint(
+							args['additional-blueprint-steps'] || []
+						);
 
 						if (compiledBlueprint) {
-							const { runBlueprintV1Steps } =
-								await import('@wp-playground/blueprints');
 							await runBlueprintV1Steps(
 								compiledBlueprint,
 								playgroundPool
@@ -1556,24 +1525,15 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 
 					// If phpMyAdmin is enabled and not already
 					// installed, install it.
-					if (args.phpmyadmin) {
-						const {
-							getPhpMyAdminInstallSteps,
-							PHPMYADMIN_INSTALL_PATH,
-						} = await import('@wp-playground/tools');
-						if (
-							!(await playgroundPool.fileExists(
-								`${PHPMYADMIN_INSTALL_PATH}/index.php`
-							))
-						) {
-							const { compileBlueprintV1, runBlueprintV1Steps } =
-								await import('@wp-playground/blueprints');
-							const steps = await getPhpMyAdminInstallSteps();
-							const compiled = await compileBlueprintV1({
-								steps,
-							});
-							await runBlueprintV1Steps(compiled, playgroundPool);
-						}
+					if (
+						args.phpmyadmin &&
+						!(await playgroundPool.fileExists(
+							`${PHPMYADMIN_INSTALL_PATH}/index.php`
+						))
+					) {
+						const steps = await getPhpMyAdminInstallSteps();
+						const compiled = await compileBlueprintV1({ steps });
+						await runBlueprintV1Steps(compiled, playgroundPool);
 					}
 
 					if (args.command === 'build-snapshot') {
@@ -1622,8 +1582,6 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 				cliOutput.printReady(serverUrl, targetWorkerCount);
 
 				if (args.phpmyadmin) {
-					const { PHPMYADMIN_ENTRY_PATH } =
-						await import('@wp-playground/tools');
 					const phpMyAdminPath = path.join(
 						args.phpmyadmin as string,
 						PHPMYADMIN_ENTRY_PATH
@@ -1634,8 +1592,6 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 				}
 
 				if (args.xdebug && args.experimentalDevtools) {
-					const { startBridge } =
-						await import('@php-wasm/xdebug-bridge');
 					const bridge = await startBridge({
 						phpInstance: playgroundPool,
 						phpRoot: '/wordpress',
@@ -1969,161 +1925,6 @@ function openInBrowser(url: string): void {
 			logger.debug(`Could not open browser: ${error.message}`);
 		}
 	});
-}
-
-/**
- * Pre-extract the SQLite integration plugin to the native filesystem
- * so the worker thread can skip the expensive PHP-based unzip.
- *
- * The worker's preloadSqliteIntegration() checks for these files
- * and returns early if they already exist.
- */
-async function preExtractSqliteIntegration(
-	nativeInternalDirPath: string,
-	documentRoot: string
-) {
-	const { fetchSqliteIntegration } = await import('./blueprints-v1/download');
-	const { BlobReader, ZipReader, Uint8ArrayWriter } =
-		await import('@zip.js/zip.js');
-	const sqliteZipFile = await fetchSqliteIntegration();
-	const zipData = new Uint8Array(await sqliteZipFile.arrayBuffer());
-
-	const zipReader = new ZipReader(new BlobReader(new Blob([zipData])));
-	const entries = await zipReader.getEntries();
-
-	const sharedDir = path.join(nativeInternalDirPath, 'shared');
-	const sqliteDir = path.join(sharedDir, 'sqlite-database-integration');
-
-	// Extract zip entries. The zip contains a top-level directory
-	// (e.g. "sqlite-database-integration-trunk/") that we strip.
-	let topLevelPrefix = '';
-	for (const entry of entries) {
-		if (!topLevelPrefix && entry.directory) {
-			topLevelPrefix = entry.filename;
-			continue;
-		}
-
-		const relativePath = topLevelPrefix
-			? entry.filename.slice(topLevelPrefix.length)
-			: entry.filename;
-
-		if (!relativePath) {
-			continue;
-		}
-
-		const targetPath = path.join(sqliteDir, relativePath);
-		if (entry.directory) {
-			fs.mkdirSync(targetPath, { recursive: true });
-		} else if (entry.getData) {
-			fs.mkdirSync(path.dirname(targetPath), { recursive: true });
-			const data = await entry.getData(new Uint8ArrayWriter());
-			fs.writeFileSync(targetPath, data);
-		}
-	}
-	await zipReader.close();
-
-	// Generate the PHP glue files that preloadSqliteIntegration() creates.
-	const SQLITE_PLUGIN_FOLDER = '/internal/shared/sqlite-database-integration';
-	const SQLITE_MUPLUGIN_PATH =
-		'/internal/shared/mu-plugins/sqlite-database-integration.php';
-
-	const dbCopyPath = path.join(sqliteDir, 'db.copy');
-	const dbCopy = fs.readFileSync(dbCopyPath, 'utf8');
-
-	const phpEscape = (s: string) => "'" + s.replace(/'/g, "\\'") + "'";
-	const dbPhp = dbCopy
-		.replace(
-			"'{SQLITE_IMPLEMENTATION_FOLDER_PATH}'",
-			phpEscape(SQLITE_PLUGIN_FOLDER)
-		)
-		.replace(
-			"'{SQLITE_PLUGIN}'",
-			phpEscape(SQLITE_PLUGIN_FOLDER + '/load.php')
-		);
-
-	const dbPhpPath = documentRoot + '/wp-content/db.php';
-	const stopIfDbPhpExists = `<?php
-	// Do not preload this if WordPress comes with a custom db.php file.
-	if(file_exists(${phpEscape(dbPhpPath)})) {
-		return;
-	}
-	?>`;
-
-	// Write mu-plugin
-	const muPluginsDir = path.join(sharedDir, 'mu-plugins');
-	fs.mkdirSync(muPluginsDir, { recursive: true });
-	fs.writeFileSync(
-		path.join(muPluginsDir, 'sqlite-database-integration.php'),
-		stopIfDbPhpExists + dbPhp
-	);
-
-	// Write preload script
-	const preloadDir = path.join(sharedDir, 'preload');
-	fs.mkdirSync(preloadDir, { recursive: true });
-	fs.writeFileSync(
-		path.join(preloadDir, '0-sqlite.php'),
-		stopIfDbPhpExists +
-			`<?php
-
-/**
- * Loads the SQLite integration plugin before WordPress is loaded
- * and without creating a drop-in "db.php" file.
- */
-class Playground_SQLite_Integration_Loader {
-	public function __call($name, $arguments) {
-		$this->load_sqlite_integration();
-		if($GLOBALS['wpdb'] === $this) {
-			throw new Exception('Infinite loop detected in $wpdb \\u2013 SQLite integration plugin could not be loaded');
-		}
-		return call_user_func_array(
-			array($GLOBALS['wpdb'], $name),
-			$arguments
-		);
-	}
-	public function __get($name) {
-		$this->load_sqlite_integration();
-		if($GLOBALS['wpdb'] === $this) {
-			throw new Exception('Infinite loop detected in $wpdb \\u2013 SQLite integration plugin could not be loaded');
-		}
-		return $GLOBALS['wpdb']->$name;
-	}
-	public function __set($name, $value) {
-		$this->load_sqlite_integration();
-		if($GLOBALS['wpdb'] === $this) {
-			throw new Exception('Infinite loop detected in $wpdb \\u2013 SQLite integration plugin could not be loaded');
-		}
-		$GLOBALS['wpdb']->$name = $value;
-	}
-    protected function load_sqlite_integration() {
-        require_once ${phpEscape(SQLITE_MUPLUGIN_PATH)};
-    }
-}
-/**
- * The Query Monitor plugin short-circuits in the CLI SAPI. However, in Playground,
- * the SAPI is always "cli" at the moment. Let's set a constant to disable the CLI
- * detection.
- */
-define('QM_TESTS', true);
-$wpdb = $GLOBALS['wpdb'] = new Playground_SQLite_Integration_Loader();
-
-if(!function_exists('mysqli_connect')) {
-	function mysqli_connect() {}
-}
-
-		`
-	);
-
-	// Write SQLite test mu-plugin
-	fs.writeFileSync(
-		path.join(muPluginsDir, 'sqlite-test.php'),
-		`<?php
-		global $wpdb;
-		if(!($wpdb instanceof WP_SQLite_DB)) {
-			var_dump(isset($wpdb));
-			die("SQLite integration not loaded " . get_class($wpdb));
-		}
-		`
-	);
 }
 
 async function zipSite(
