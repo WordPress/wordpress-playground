@@ -21,12 +21,19 @@ describe('startServer', () => {
 		pipelineMock.mockClear();
 		(logger.error as Mock<typeof logger.error>).mockClear();
 
+		const expectedErrorBefore = new Error('handler failure before');
+		const expectedErrorAfter = new Error('handler failure after');
 		const unableToPipeError = Object.assign(
 			new Error('Cannot pipe to a closed or destroyed stream'),
 			{ code: 'ERR_STREAM_UNABLE_TO_PIPE' }
 		);
 
 		const repondersForHandleRequest = [
+			// Demonstrate logged error before the ignored error
+			// to confirm the logger was working beforehand.
+			async () => {
+				throw expectedErrorBefore;
+			},
 			async () =>
 				new StreamedPHPResponse(
 					new ReadableStream({
@@ -50,6 +57,11 @@ describe('startServer', () => {
 					new ReadableStream({ start: (c) => c.close() }),
 					Promise.resolve(0)
 				),
+			// Demonstrate logged error after the ignored error
+			// to confirm the logger was working afterward.
+			async () => {
+				throw expectedErrorAfter;
+			},
 		];
 
 		// Mock pipeline to reject with ERR_STREAM_UNABLE_TO_PIPE,
@@ -67,6 +79,16 @@ describe('startServer', () => {
 		const { server, port } = cliServer as any;
 
 		try {
+			// Demonstrate that error logging is working before the test.
+			await new Promise<void>((resolve) => {
+				http.get(`http://127.0.0.1:${port}/`, (res) => {
+					res.resume();
+					res.on('end', () => resolve());
+				});
+			});
+			expect(logger.error).toHaveBeenCalledWith(expectedErrorBefore);
+			(logger.error as Mock<typeof logger.error>).mockClear();
+
 			// Make a request. The mocked pipeline will reject, so the
 			// response won't complete – ignore the client-side error.
 			const req = http.get(`http://127.0.0.1:${port}/`);
@@ -89,6 +111,15 @@ describe('startServer', () => {
 
 			// Confirm the error was NOT logged.
 			expect(logger.error).not.toHaveBeenCalled();
+
+			// Demonstrate that error logging remains working after the test.
+			await new Promise<void>((resolve) => {
+				http.get(`http://127.0.0.1:${port}/`, (res) => {
+					res.resume();
+					res.on('end', () => resolve());
+				});
+			});
+			expect(logger.error).toHaveBeenCalledWith(expectedErrorAfter);
 		} finally {
 			server.close();
 		}
