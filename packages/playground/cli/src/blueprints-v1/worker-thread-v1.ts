@@ -73,6 +73,7 @@ function tracePhpWasm(processId: number, format: string, ...args: any[]) {
 export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 	bootedRequestHandler = false;
 	bootedWordPress = false;
+	private postInstallMountsApplied = false;
 	fileLockManager: FileLockManager | undefined;
 
 	constructor(monitor: EmscriptenDownloadMonitor) {
@@ -214,9 +215,14 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 		// Idempotent: the batch callback and the individual
 		// .then() in run-cli.ts may both call this for
 		// workers that finish during the batch window.
-		if (this.bootedWordPress) {
+		// Uses a separate flag from bootedWordPress because
+		// bootWordPress() sets bootedWordPress=true before
+		// install completes — using it here would block
+		// worker 0's post-install mounts.
+		if (this.postInstallMountsApplied) {
 			return;
 		}
+		this.postInstallMountsApplied = true;
 		// Make sure workers not involved in the WordPress
 		// install process know whether WordPress booted so
 		// they can apply post-install mounts when spawning
