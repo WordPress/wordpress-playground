@@ -22,6 +22,7 @@
 		"test": "node --expose-gc node_modules/nx/bin/nx run-many --all --target=test",
 		"fix-asyncify": "node packages/php-wasm/node/bin/rebuild-while-asyncify-functions-missing.mjs",
 		"typecheck": "nx run-many --all --target=typecheck",
+		"postinstall": "node -e \"const fs=require('fs');const p='node_modules/@vitejs/plugin-react/dist/index.d.ts';if(fs.existsSync(p)){let c=fs.readFileSync(p,'utf8');c=c.replace(/,\\s*viteReactForCjs as \\\"module\\.exports\\\"/g,'');fs.writeFileSync(p,c)}\"",
 		"prepare": "husky install",
 		"reset": "nx reset",
 		"local-package-repository": "./tools/scripts/local-package-repository.sh",

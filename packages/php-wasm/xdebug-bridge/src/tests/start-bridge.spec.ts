@@ -1,5 +1,5 @@
 import './mocker';
-import { type MockInstance, vi } from 'vitest';
+import { vi } from 'vitest';
 import { WebSocket } from 'ws';
 import { type PHP } from '@php-wasm/universal';
 import { EventEmitter } from 'events';
@@ -44,7 +44,8 @@ class MockCDPServer extends EventEmitter {
 }
 
 describe('Bridge', () => {
-	let CDPServerSpy: MockInstance;
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	let CDPServerSpy: any;
 
 	const realSetTimeout = globalThis.setTimeout;
 	beforeAll(() => {
@@ -77,8 +78,10 @@ describe('Bridge', () => {
 	});
 
 	describe('Start', () => {
-		let DbgpSessionSpy: MockInstance;
-		let XdebugCDPBridgeSpy: MockInstance;
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		let DbgpSessionSpy: any;
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		let XdebugCDPBridgeSpy: any;
 
 		beforeEach(async () => {
 			DbgpSessionSpy = vi

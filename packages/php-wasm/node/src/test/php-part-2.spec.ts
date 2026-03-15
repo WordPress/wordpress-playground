@@ -1041,13 +1041,21 @@ phpLoaderOptions.forEach((options) => {
 		describe('CLI', { skip }, () => {
 			let consoleLogMock: any;
 			let consoleErrorMock: any;
-			beforeEach(() => {
+			beforeEach(async () => {
 				consoleLogMock = vi
 					.spyOn(console, 'log')
 					.mockImplementation(() => {});
 				consoleErrorMock = vi
 					.spyOn(console, 'error')
 					.mockImplementation(() => {});
+				// Flush any delayed callbacks from previous tests
+				// (e.g. the EM_ASYNC_JS .catch() handler calls
+				// console.error when a message handler rejects).
+				// Without this, the call leaks into our spy across
+				// describe.each PHP version boundaries.
+				await new Promise((r) => setTimeout(r, 0));
+				consoleLogMock.mockClear();
+				consoleErrorMock.mockClear();
 			});
 
 			afterAll(() => {

@@ -185,7 +185,8 @@ describe('XdebugCDPBridge', () => {
 		});
 
 		await new Promise<void>((resolve) => {
-			const originalSendMessage = cdpServer.sendMessage.bind(cdpServer);
+			const originalSendMessage =
+				CDPServer.prototype.sendMessage.bind(cdpServer);
 			vi.spyOn(cdpServer, 'sendMessage').mockImplementation((message) => {
 				if (message.method === 'Debugger.paused') resolve();
 				return originalSendMessage(message);
@@ -237,7 +238,8 @@ describe('XdebugCDPBridge', () => {
 			{};
 
 		await new Promise<void>((resolve) => {
-			const originalSendMessage = cdpServer.sendMessage.bind(cdpServer);
+			const originalSendMessage =
+				CDPServer.prototype.sendMessage.bind(cdpServer);
 			vi.spyOn(cdpServer, 'sendMessage').mockImplementation((message) => {
 				if (message.method === 'Debugger.paused') {
 					if (steps == 5) {
@@ -326,7 +328,8 @@ describe('XdebugCDPBridge', () => {
 		});
 
 		await new Promise<void>((resolve) => {
-			const originalSendMessage = cdpServer.sendMessage.bind(cdpServer);
+			const originalSendMessage =
+				CDPServer.prototype.sendMessage.bind(cdpServer);
 			vi.spyOn(cdpServer, 'sendMessage').mockImplementation((message) => {
 				if (message.method === 'Debugger.paused') resolve();
 				return originalSendMessage(message);
@@ -360,7 +363,8 @@ describe('XdebugCDPBridge', () => {
 		let script;
 
 		await new Promise<void>((resolve) => {
-			const originalSendMessage = cdpServer.sendMessage.bind(cdpServer);
+			const originalSendMessage =
+				CDPServer.prototype.sendMessage.bind(cdpServer);
 			vi.spyOn(cdpServer, 'sendMessage').mockImplementation((message) => {
 				if (message.method === 'Debugger.scriptParsed') {
 					script = message;
@@ -423,7 +427,8 @@ describe('XdebugCDPBridge', () => {
 		});
 
 		await new Promise<void>((resolve) => {
-			const originalSendMessage = cdpServer.sendMessage.bind(cdpServer);
+			const originalSendMessage =
+				CDPServer.prototype.sendMessage.bind(cdpServer);
 			vi.spyOn(cdpServer, 'sendMessage').mockImplementation((message) => {
 				if (message.method === 'Debugger.resumed') resolve();
 				return originalSendMessage(message);

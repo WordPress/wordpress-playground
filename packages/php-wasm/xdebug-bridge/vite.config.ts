@@ -1,5 +1,6 @@
 import { join } from 'path';
-import { defineConfig, type Plugin } from 'vite';
+import { defineConfig } from 'vitest/config';
+import type { Plugin } from 'vite';
 import path from 'path';
 import dts from 'vite-plugin-dts';
 
