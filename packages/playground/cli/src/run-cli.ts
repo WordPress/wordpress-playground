@@ -1398,9 +1398,46 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 							'/wordpress'
 						);
 
-				// Boot the first worker and use it to set up WordPress.
-				// Remaining workers are deferred until after WordPress is
-				// ready so the server can start accepting requests sooner.
+				// === Worker boot strategy ===
+				//
+				// Workers are launched in two phases to balance
+				// time-to-ready with resource contention:
+				//
+				// Phase 1 – Boot worker 0 and pre-extract SQLite
+				// in parallel. Worker 0 is the only worker needed
+				// to install WordPress and start serving requests.
+				//
+				// Phase 2 – Start spawning remaining workers (1-N)
+				// during WordPress installation. Their WASM
+				// compilation runs on separate threads, overlapping
+				// with the single-threaded WordPress install on
+				// worker 0. Each background worker joins the pool
+				// as soon as it finishes booting.
+				//
+				// Post-install mount timing:
+				//
+				// Workers that finish booting before WordPress
+				// install completes join the pool immediately
+				// without post-install mounts. When WordPress
+				// install completes, applyPostInstallMountsToAllWorkers
+				// applies mounts to every worker in
+				// workerToPlaygroundMap — including any background
+				// workers that are already there.
+				//
+				// Workers that finish booting after WordPress
+				// install completes see wordPressReady=true and
+				// apply their own post-install mounts before
+				// joining the pool.
+				//
+				// To close the race window between the batch
+				// callback's map snapshot and later .then()
+				// callbacks, applyPostInstallMountsToAllWorkers
+				// sets wordPressReady=true synchronously before
+				// iterating the map. mountAfterWordPressInstall
+				// is idempotent so overlapping calls (batch +
+				// individual) are harmless.
+
+				// Phase 1: Boot worker 0 + pre-extract SQLite.
 				const [firstWorkerApi] = await Promise.all([
 					spawnAndBootWorker(0),
 					sqlitePreExtractPromise,
@@ -1408,10 +1445,38 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 
 				playgroundPool = createObjectPoolProxy([firstWorkerApi]);
 
-				// NOTE: Using a free-standing block to isolate initial boot vars
-				// while keeping the logic inline.
+				// Phase 2: Start background workers now so their
+				// WASM compilation overlaps with WordPress boot.
+				// Each worker joins the pool as soon as it is
+				// ready; post-install mounts are applied at the
+				// earliest possible moment (see comment above).
+				for (
+					let workerIndex = 1;
+					workerIndex < targetWorkerCount;
+					workerIndex++
+				) {
+					spawnAndBootWorker(workerIndex).then(
+						async (api) => {
+							if (wordPressReady) {
+								await api.mountAfterWordPressInstall(
+									args['mount'] || []
+								);
+							}
+							playgroundPool.addInstance(api);
+						},
+						(error) => {
+							logger.error(
+								`Failed to boot background worker ${workerIndex}: ${error}`
+							);
+						}
+					);
+				}
+
+				// NOTE: Using a free-standing block to isolate
+				// initial boot vars while keeping the logic inline.
 				{
-					// TODO: Consider how to avoid Xdebug being enabled during boot.
+					// TODO: Consider how to avoid Xdebug being
+					// enabled during boot.
 
 					const messageChannelForPostInstallMounts =
 						new NodeMessageChannel();
@@ -1419,9 +1484,19 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 						messageChannelForPostInstallMounts.port1;
 					const workerPostInstallMountsPort =
 						messageChannelForPostInstallMounts.port2;
+
 					await exposeAPI(
 						{
 							applyPostInstallMountsToAllWorkers: async () => {
+								// Set the flag synchronously before
+								// iterating the map. Any background
+								// worker whose .then() fires after
+								// this point will see the flag and
+								// apply its own mounts before joining
+								// the pool. Workers already in the
+								// map are covered by the iteration
+								// below.
+								wordPressReady = true;
 								await Promise.all(
 									Array.from(
 										workerToPlaygroundMap.values()
@@ -1444,8 +1519,6 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 
 					mainThreadPostInstallMountsPort.close();
 
-					wordPressReady = true;
-
 					if (!args['experimental-blueprints-v2-runner']) {
 						const compiledBlueprint =
 							await handler.compileInputBlueprint(
@@ -1462,7 +1535,8 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 						}
 					}
 
-					// If phpMyAdmin is enabled and not already installed, install it.
+					// If phpMyAdmin is enabled and not already
+					// installed, install it.
 					if (args.phpmyadmin) {
 						const {
 							getPhpMyAdminInstallSteps,
@@ -1497,28 +1571,6 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 
 				cliOutput.finishProgress();
 				cliOutput.printReady(serverUrl, targetWorkerCount);
-
-				// Boot remaining workers in the background. They will be
-				// added to the pool as they become ready, progressively
-				// increasing concurrency up to targetWorkerCount.
-				for (
-					let workerIndex = 1;
-					workerIndex < targetWorkerCount;
-					workerIndex++
-				) {
-					spawnAndBootWorker(workerIndex).then(
-						(api) => {
-							playgroundPool.addInstance(api);
-							// Apply post-install mounts to the new worker
-							api.mountAfterWordPressInstall(args['mount'] || []);
-						},
-						(error) => {
-							logger.error(
-								`Failed to boot background worker ${workerIndex}: ${error}`
-							);
-						}
-					);
-				}
 
 				if (args.phpmyadmin) {
 					const { PHPMYADMIN_ENTRY_PATH } =
