@@ -28,7 +28,7 @@
 			"Bash(*git push*)",
 			"Bash(*git reset*--hard*)",
 			"Bash(*git clean*)",
-			"Bash(*rm -rf *)",
+			"Bash(*rm *)",
 			"Bash(*sudo *)",
 			"Bash(*sudo)",
 			"Bash(*gh pr merge*)",
