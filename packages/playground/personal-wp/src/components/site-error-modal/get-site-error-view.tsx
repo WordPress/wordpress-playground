@@ -476,8 +476,8 @@ function resourceDownloadFailedView(): SiteErrorViewConfig {
 		body: (
 			<>
 				<p className={css.errorLead}>
-					Playground could not download one or more files it needs to
-					run. This is usually caused by a network problem.
+					Your WordPress could not download one or more files it needs
+					to run. This is usually caused by a network problem.
 				</p>
 				<ul className={css.errorList}>
 					<li>Check your internet connection and try again.</li>
