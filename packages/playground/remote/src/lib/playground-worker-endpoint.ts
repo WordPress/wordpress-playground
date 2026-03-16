@@ -25,7 +25,7 @@ import transportFetch from './playground-mu-plugin/playground-includes/wp_http_f
 /* @ts-ignore */
 import transportDummy from './playground-mu-plugin/playground-includes/wp_http_dummy.php?raw';
 import { logger } from '@php-wasm/logger';
-import type { PathAlias, PHP, SupportedPHPVersion } from '@php-wasm/universal';
+import type { AnyPHPVersion, PathAlias, PHP } from '@php-wasm/universal';
 import {
 	PHPResponse,
 	PHPWorker,
@@ -56,7 +56,7 @@ export interface MountDescriptor {
 export type WorkerBootOptions = {
 	wpVersion?: string;
 	sqliteDriverVersion?: string;
-	phpVersion?: SupportedPHPVersion;
+	phpVersion?: AnyPHPVersion;
 	sapiName?: string;
 	scope: string;
 	withIntl: boolean;
@@ -140,7 +140,7 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		knownRemoteAssetPaths: Set<string>;
 		withIntl: boolean;
 		withNetworking: boolean;
-		phpVersion: SupportedPHPVersion;
+		phpVersion: AnyPHPVersion;
 		pathAliases?: PathAlias[];
 	}) {
 		const phpIniEntries: Record<string, string> = {

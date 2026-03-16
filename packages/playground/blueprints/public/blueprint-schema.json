@@ -179,6 +179,10 @@
 				},
 				{
 					"type": "string",
+					"const": "5.6"
+				},
+				{
+					"type": "string",
 					"const": "7.2"
 				},
 				{
@@ -186,7 +190,7 @@
 					"const": "7.3"
 				}
 			],
-			"description": "PHP versions accepted in Blueprint schema. Includes deprecated versions (7.2, 7.3) which are automatically upgraded to 7.4 during compilation."
+			"description": "PHP versions accepted in Blueprint schema. Includes deprecated versions (7.2, 7.3) which are automatically upgraded to 7.4 during compilation, and legacy version 5.6 for running old WordPress versions (1.x through 4.x)."
 		},
 		"SupportedPHPVersion": {
 			"type": "string",

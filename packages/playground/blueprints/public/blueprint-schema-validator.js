@@ -161,11 +161,12 @@ const schema11 = {
 		BlueprintPHPVersion: {
 			anyOf: [
 				{ $ref: '#/definitions/SupportedPHPVersion' },
+				{ type: 'string', const: '5.6' },
 				{ type: 'string', const: '7.2' },
 				{ type: 'string', const: '7.3' },
 			],
 			description:
-				'PHP versions accepted in Blueprint schema. Includes deprecated versions (7.2, 7.3) which are automatically upgraded to 7.4 during compilation.',
+				'PHP versions accepted in Blueprint schema. Includes deprecated versions (7.2, 7.3) which are automatically upgraded to 7.4 during compilation, and legacy version 5.6 for running old WordPress versions (1.x through 4.x).',
 		},
 		SupportedPHPVersion: {
 			type: 'string',
@@ -1570,11 +1571,12 @@ const func2 = Object.prototype.hasOwnProperty;
 const schema13 = {
 	anyOf: [
 		{ $ref: '#/definitions/SupportedPHPVersion' },
+		{ type: 'string', const: '5.6' },
 		{ type: 'string', const: '7.2' },
 		{ type: 'string', const: '7.3' },
 	],
 	description:
-		'PHP versions accepted in Blueprint schema. Includes deprecated versions (7.2, 7.3) which are automatically upgraded to 7.4 during compilation.',
+		'PHP versions accepted in Blueprint schema. Includes deprecated versions (7.2, 7.3) which are automatically upgraded to 7.4 during compilation, and legacy version 5.6 for running old WordPress versions (1.x through 4.x).',
 };
 const schema14 = {
 	type: 'string',
@@ -1648,12 +1650,12 @@ function validate12(
 			}
 			errors++;
 		}
-		if ('7.2' !== data) {
+		if ('5.6' !== data) {
 			const err3 = {
 				instancePath,
 				schemaPath: '#/anyOf/1/const',
 				keyword: 'const',
-				params: { allowedValue: '7.2' },
+				params: { allowedValue: '5.6' },
 				message: 'must be equal to constant',
 			};
 			if (vErrors === null) {
@@ -1682,12 +1684,12 @@ function validate12(
 				}
 				errors++;
 			}
-			if ('7.3' !== data) {
+			if ('7.2' !== data) {
 				const err5 = {
 					instancePath,
 					schemaPath: '#/anyOf/2/const',
 					keyword: 'const',
-					params: { allowedValue: '7.3' },
+					params: { allowedValue: '7.2' },
 					message: 'must be equal to constant',
 				};
 				if (vErrors === null) {
@@ -1699,10 +1701,45 @@ function validate12(
 			}
 			var _valid0 = _errs6 === errors;
 			valid0 = valid0 || _valid0;
+			if (!valid0) {
+				const _errs8 = errors;
+				if (typeof data !== 'string') {
+					const err6 = {
+						instancePath,
+						schemaPath: '#/anyOf/3/type',
+						keyword: 'type',
+						params: { type: 'string' },
+						message: 'must be string',
+					};
+					if (vErrors === null) {
+						vErrors = [err6];
+					} else {
+						vErrors.push(err6);
+					}
+					errors++;
+				}
+				if ('7.3' !== data) {
+					const err7 = {
+						instancePath,
+						schemaPath: '#/anyOf/3/const',
+						keyword: 'const',
+						params: { allowedValue: '7.3' },
+						message: 'must be equal to constant',
+					};
+					if (vErrors === null) {
+						vErrors = [err7];
+					} else {
+						vErrors.push(err7);
+					}
+					errors++;
+				}
+				var _valid0 = _errs8 === errors;
+				valid0 = valid0 || _valid0;
+			}
 		}
 	}
 	if (!valid0) {
-		const err6 = {
+		const err8 = {
 			instancePath,
 			schemaPath: '#/anyOf',
 			keyword: 'anyOf',
@@ -1710,9 +1747,9 @@ function validate12(
 			message: 'must match a schema in anyOf',
 		};
 		if (vErrors === null) {
-			vErrors = [err6];
+			vErrors = [err8];
 		} else {
-			vErrors.push(err6);
+			vErrors.push(err8);
 		}
 		errors++;
 		validate12.errors = vErrors;

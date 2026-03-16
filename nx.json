@@ -5,6 +5,11 @@
 			"analyzeSourceFiles": true
 		}
 	},
+	"tasksRunnerOptions": {
+		"default": {
+			"runner": "nx/tasks-runners/default-tasks-runner"
+		}
+	},
 	"targetDefaults": {
 		"build": {
 			"dependsOn": ["^build"],

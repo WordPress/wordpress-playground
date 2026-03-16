@@ -355,10 +355,13 @@ export async function setupPlatformLevelMuPlugins(php: UniversalPHP) {
 	await php.writeFile(
 		'/internal/shared/preload/error-handler.php',
 		`<?php
-		(function() {
-			$playground_consts = [];
+		// Use call_user_func instead of (function(){})() IIFE syntax
+		// for PHP 5.6 compatibility.
+		call_user_func(function() {
+			$playground_consts = array();
 			if(file_exists('/internal/shared/consts.json')) {
-				$playground_consts = @json_decode(file_get_contents('/internal/shared/consts.json'), true) ?: [];
+				$playground_consts = @json_decode(file_get_contents('/internal/shared/consts.json'), true);
+				if (!$playground_consts) { $playground_consts = array(); }
 				$playground_consts = array_keys($playground_consts);
 			}
 			set_error_handler(function($severity, $message, $file, $line) use($playground_consts) {
@@ -402,7 +405,7 @@ export async function setupPlatformLevelMuPlugins(php: UniversalPHP) {
 				}
 				return false;
 			});
-		})();`
+		});`
 	);
 }
 

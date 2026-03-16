@@ -6,14 +6,39 @@ export async function getLoadedWordPressVersion(
 	const { php, reap } =
 		await requestHandler.instanceManager.acquirePHPInstance();
 	try {
-		const result = await php.run({
-			code: `<?php
-				require '${requestHandler.documentRoot}/wp-includes/version.php';
-				echo $wp_version;
-			`,
-		});
+		// wp-includes/version.php was introduced in WordPress 1.2.
+		// Earlier versions (e.g. 1.0) don't have it — fall back to
+		// checking wp-includes/vars.php which defines $wp_version
+		// in those builds.
+		const versionFile = php.fileExists(
+			`${requestHandler.documentRoot}/wp-includes/version.php`
+		)
+			? 'wp-includes/version.php'
+			: 'wp-includes/vars.php';
 
-		const versionString = result.text;
+		let versionString: string;
+		try {
+			const result = await php.run({
+				code: `<?php
+					@require '${requestHandler.documentRoot}/${versionFile}';
+					if (isset($wp_version)) {
+						echo $wp_version;
+					}
+				`,
+			});
+			versionString = result.text;
+		} catch (e) {
+			// WordPress 1.x vars.php may reference functions or
+			// globals that only exist during a full request, causing
+			// a fatal error when loaded in isolation. Fall back to
+			// extracting the version string with a regex instead.
+			const rawPHP = php.readFileAsText(
+				`${requestHandler.documentRoot}/${versionFile}`
+			);
+			const match = rawPHP.match(/\$wp_version\s*=\s*['"]([^'"]+)['"]/);
+			versionString = match ? match[1] : '';
+		}
+
 		if (!versionString) {
 			throw new Error('Unable to read loaded WordPress version.');
 		}

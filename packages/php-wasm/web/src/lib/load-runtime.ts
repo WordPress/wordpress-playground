@@ -1,9 +1,10 @@
 import type {
-	SupportedPHPVersion,
+	AnyPHPVersion,
 	EmscriptenOptions,
 	PHPLoaderModule,
+	SupportedPHPVersion,
 } from '@php-wasm/universal';
-import { loadPHPRuntime } from '@php-wasm/universal';
+import { loadPHPRuntime, LegacyPHPVersions } from '@php-wasm/universal';
 import { getPHPLoaderModule } from './get-php-loader-module';
 import type { TCPOverFetchOptions } from './tcp-over-fetch-websocket';
 import { tcpOverFetchWebsocket } from './tcp-over-fetch-websocket';
@@ -47,7 +48,7 @@ interface PHPWorkerGlobalScope extends WorkerGlobalScope {
 }
 
 export async function loadWebRuntime(
-	phpVersion: SupportedPHPVersion,
+	phpVersion: AnyPHPVersion,
 	loaderOptions: LoaderOptions = {}
 ) {
 	/*
@@ -75,8 +76,14 @@ export async function loadWebRuntime(
 		);
 	}
 
-	if (loaderOptions.withIntl) {
-		emscriptenOptions = withIntl(phpVersion, emscriptenOptions);
+	const isLegacyPHP = (LegacyPHPVersions as readonly string[]).includes(
+		phpVersion
+	);
+	if (loaderOptions.withIntl && !isLegacyPHP) {
+		emscriptenOptions = withIntl(
+			phpVersion as SupportedPHPVersion,
+			emscriptenOptions
+		);
 	}
 
 	const [phpLoaderModule, options] = await Promise.all([

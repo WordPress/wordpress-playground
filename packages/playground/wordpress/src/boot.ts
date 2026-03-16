@@ -807,15 +807,130 @@ async function bootLegacyWordPress(
 	// Ensure the SQLite database directory exists. The mysql_*
 	// polyfill (written by setupLegacyWordPressCompat) stores its
 	// database here when the native mysql extension isn't available.
-	const dbDir = joinPaths(
-		requestHandler.documentRoot,
-		'wp-content/database'
-	);
+	const dbDir = joinPaths(requestHandler.documentRoot, 'wp-content/database');
 	if (!php.isDir(dbDir)) {
 		php.mkdir(dbDir);
 	}
 
-	await installLegacyWordPress(php, options.siteUrl);
+	// Step-by-step diagnostic — log each step immediately so we
+	// can see exactly where the boot process hangs or crashes.
+	// Check filesystem state after extraction
+	logger.log(
+		'[diag] files at ' +
+			php.documentRoot +
+			': ' +
+			php.listFiles(php.documentRoot).join(', ')
+	);
+	logger.log(
+		'[diag] wp-config.php exists: ' +
+			php.fileExists(joinPaths(php.documentRoot, 'wp-config.php'))
+	);
+	logger.log(
+		'[diag] wp-config-sample.php exists: ' +
+			php.fileExists(joinPaths(php.documentRoot, 'wp-config-sample.php'))
+	);
+	logger.log('[diag] sort test...');
+	try {
+		const r6 = await php.run({
+			code: `<?php $a = array(3,1,2); sort($a); echo implode(',', $a);`,
+		});
+		logger.log('[diag] sort: ' + r6.text);
+	} catch (e: any) {
+		logger.log('[diag] sort FAILED: ' + e.message);
+	}
+	logger.log('[diag] mysql polyfill test...');
+	try {
+		const r9 = await php.run({
+			code: `<?php
+				error_reporting(E_ALL);
+				require_once '/internal/shared/preload/legacy-mysql-polyfill.php';
+				echo 'polyfill loaded, ';
+				$conn = mysql_connect('localhost', 'root', '');
+				echo 'connect=' . ($conn ? 'ok' : 'fail') . ', ';
+				if ($conn) {
+					mysql_select_db('wordpress', $conn);
+					mysql_query("CREATE TABLE IF NOT EXISTS _test_tbl (id INTEGER PRIMARY KEY)", $conn);
+					echo 'table created, ';
+					mysql_query("INSERT INTO _test_tbl (id) VALUES (1)", $conn);
+					$r = mysql_query("SELECT id FROM _test_tbl", $conn);
+					$row = mysql_fetch_assoc($r);
+					echo 'query=' . ($row ? $row['id'] : 'null');
+					mysql_query("DROP TABLE _test_tbl", $conn);
+				}
+			`,
+		});
+		logger.log('[diag] mysql polyfill: ' + r9.text);
+	} catch (e: any) {
+		logger.log('[diag] mysql polyfill FAILED: ' + e.message);
+	}
+	/**
+	 * Patch WordPress source to avoid uniqid().
+	 *
+	 * PHP 5.6's uniqid() calls usleep(1) in its C implementation
+	 * to ensure microsecond uniqueness. In the WASM environment,
+	 * usleep() triggers an "unreachable" trap because it requires
+	 * async suspension that isn't available inside synchronous
+	 * C function calls. We replace all uniqid() calls in the
+	 * WordPress source tree with a safe alternative.
+	 */
+	const filesToPatch = [
+		'wp-admin/install.php',
+		'wp-admin/upgrade-functions.php',
+		'wp-includes/functions.php',
+		'wp-includes/pluggable-functions.php',
+	];
+	for (const relPath of filesToPatch) {
+		const absPath = joinPaths(php.documentRoot, relPath);
+		if (!php.fileExists(absPath)) continue;
+		let src = php.readFileAsText(absPath);
+		let modified = false;
+		if (src.includes('uniqid')) {
+			// Replace all uniqid() calls with safe alternatives.
+			// uniqid() calls usleep(1) in C which crashes in WASM.
+			// Match any uniqid(...) call, including those with nested
+			// function calls like uniqid("random", true) or uniqid(microtime()).
+			src = src.replace(
+				/\buniqid\s*\(([^()]*(?:\([^()]*\)[^()]*)*)\)/g,
+				'md5(microtime() . mt_rand())'
+			);
+			modified = true;
+		}
+		if (modified) {
+			await php.writeFile(absPath, src);
+		}
+	}
+
+	/**
+	 * Suppress E_DEPRECATED warnings in WordPress 1.x.
+	 *
+	 * WordPress 1.x's functions.php uses the preg_replace() /e
+	 * modifier which was deprecated in PHP 5.5. The warnings
+	 * pollute the page title and RSS links, making the rendered
+	 * page unusable. Suppressing E_DEPRECATED lets the /e calls
+	 * execute without filling the output with warnings.
+	 */
+	const settingsPath = joinPaths(php.documentRoot, 'wp-settings.php');
+	if (php.fileExists(settingsPath)) {
+		let settings = php.readFileAsText(settingsPath);
+		if (
+			settings.includes('E_ALL ^ E_NOTICE') &&
+			!settings.includes('E_DEPRECATED')
+		) {
+			settings = settings.replace(
+				'E_ALL ^ E_NOTICE',
+				'E_ALL ^ E_NOTICE ^ E_DEPRECATED'
+			);
+			await php.writeFile(settingsPath, settings);
+		}
+	}
+
+	try {
+		await installLegacyWordPress(php, options.siteUrl);
+		logger.log('Legacy WP install: completed successfully');
+	} catch (e: any) {
+		logger.log('Legacy WP install FAILED: ' + e.message);
+		throw e;
+	}
 }
 
 /**
@@ -837,6 +952,59 @@ async function setupLegacyWordPressCompat(php: PHP): Promise<void> {
 	await php.writeFile(
 		'/internal/shared/preload/legacy-wp-compat.php',
 		`<?php
+		/**
+		 * Ensure fatal errors are visible in the response body.
+		 *
+		 * PHP WASM may discard output buffer contents on fatal errors.
+		 * Register a shutdown function that checks for the last error
+		 * and echoes it, ensuring we can diagnose crashes in the
+		 * browser where we can't see stderr.
+		 */
+		ini_set('display_errors', '1');
+		/**
+		 * Suppress deprecation and strict-standards warnings.
+		 *
+		 * WordPress 1.x triggers many PHP 5.6 deprecation warnings
+		 * (preg_replace /e modifier, old-style constructors, etc.)
+		 * that are harmless but clutter the page. Show only errors,
+		 * warnings, and notices — the things that actually matter.
+		 */
+		error_reporting(E_ALL & ~E_DEPRECATED & ~E_STRICT);
+		/**
+		 * Set default timezone to avoid date() warnings.
+		 *
+		 * PHP 5.3+ requires an explicit timezone. WordPress 1.x
+		 * predates this requirement and never sets one.
+		 */
+		date_default_timezone_set('UTC');
+		register_shutdown_function(function() {
+			$e = error_get_last();
+			if ($e && ($e['type'] & (E_ERROR | E_PARSE | E_CORE_ERROR | E_COMPILE_ERROR))) {
+				echo "\\n<!-- FATAL PHP ERROR: " . $e['message']
+				     . " in " . $e['file'] . " on line " . $e['line'] . " -->";
+			}
+		});
+
+		/**
+		 * Set the working directory to the script's directory.
+		 *
+		 * In Apache with mod_php, the cwd is typically set to the
+		 * directory of the executing script. WordPress 1.x relies on
+		 * this in places like wp-admin/install.php where it uses
+		 * file_exists('../wp-config.php') — a relative path that
+		 * only resolves correctly when the cwd is the script's own
+		 * directory, not the document root.
+		 *
+		 * The REQUEST_URI check ensures this only runs during HTTP
+		 * requests (php.request()), not during php.run() calls where
+		 * SCRIPT_FILENAME may be a temporary file.
+		 */
+		if (isset($_SERVER['REQUEST_URI']) && isset($_SERVER['SCRIPT_FILENAME'])
+		    && $_SERVER['SCRIPT_FILENAME'] !== '') {
+			$dir = dirname($_SERVER['SCRIPT_FILENAME']);
+			if (is_dir($dir)) { chdir($dir); }
+		}
+
 		/**
 		 * Compatibility shim for WordPress 1.x/2.x.
 		 *
@@ -991,7 +1159,6 @@ async function setupLegacyWordPressCompat(php: PHP): Promise<void> {
 	);
 }
 
-
 /**
  * Runs the WordPress 1.x multi-step installer.
  *
@@ -1014,6 +1181,9 @@ async function installLegacyWordPress(
 	const step1 = await php.request({
 		url: '/wp-admin/install.php?step=1',
 	});
+	logger.log(
+		`WP install step1: HTTP ${step1.httpStatusCode}, body=${step1.text.substring(0, 300)}`
+	);
 	if (step1.httpStatusCode >= 500) {
 		throw new Error(
 			`WordPress 1.x install step 1 failed with HTTP ${step1.httpStatusCode}: ${step1.text.substring(0, 500)}`
@@ -1024,6 +1194,9 @@ async function installLegacyWordPress(
 	const step2 = await php.request({
 		url: '/wp-admin/install.php?step=2',
 	});
+	logger.log(
+		`WP install step2: HTTP ${step2.httpStatusCode}, body=${step2.text.substring(0, 300)}`
+	);
 	if (step2.httpStatusCode >= 500) {
 		throw new Error(
 			`WordPress 1.x install step 2 failed with HTTP ${step2.httpStatusCode}: ${step2.text.substring(0, 500)}`
@@ -1039,15 +1212,26 @@ async function installLegacyWordPress(
 			url: siteUrl,
 		},
 	});
+	// Strip HTML tags and show meaningful excerpt
+	const step3Body = step3.text
+		.replace(/<[^>]*>/g, ' ')
+		.replace(/\s+/g, ' ')
+		.trim();
+	logger.log(
+		`WP install step3: HTTP ${step3.httpStatusCode}, body=${step3Body.substring(0, 500)}, errors=${step3.errors}`
+	);
 	if (step3.httpStatusCode >= 500) {
 		throw new Error(
-			`WordPress 1.x install step 3 failed with HTTP ${step3.httpStatusCode}: ${step3.text.substring(0, 500)}`
+			`WordPress 1.x install step 3 failed with HTTP ${step3.httpStatusCode}: ${step3.text.substring(0, 1500)}`
 		);
 	}
 
 	// Verify the installation succeeded by checking the homepage.
 	// A working WordPress 1.x install returns 200 with HTML content.
 	const homepage = await php.request({ url: '/' });
+	logger.log(
+		`WP install homepage: HTTP ${homepage.httpStatusCode}, body=${homepage.text.substring(0, 300)}`
+	);
 	if (homepage.httpStatusCode >= 400) {
 		throw new Error(
 			`WordPress 1.x installation verification failed: homepage returned HTTP ${homepage.httpStatusCode}`

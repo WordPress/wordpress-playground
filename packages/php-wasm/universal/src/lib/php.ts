@@ -271,7 +271,11 @@ export class PHP implements Disposable {
 		);
 
 		if (!this.fileExists(PHP_INI_PATH)) {
-			const opcacheConfig = USE_OPCACHE
+			// Disable opcache for legacy PHP versions (e.g. 5.6) – the
+			// compiled-in opcache tries to allocate 64 MB of shared memory
+			// which is unsupported in the WASM environment and crashes.
+			const enableOpcache = USE_OPCACHE && runtime.phpVersion.major >= 7;
+			const opcacheConfig = enableOpcache
 				? [
 						// OPCache
 						'opcache.enable = 1',

@@ -166,6 +166,11 @@ export class WordPressFetchNetworkTransport {
 	async prefetchUpdateChecks(
 		playground: UniversalPHP
 	): Promise<Promise<any>[]> {
+		// Legacy WordPress versions (before 2.6) don't have wp-load.php
+		// or the update-check infrastructure this method relies on.
+		if (!(await playground.fileExists('/wordpress/wp-load.php'))) {
+			return [];
+		}
 		const requests: Record<string, WordPressRequest> = {};
 		const unbind = await playground.onMessage((message) => {
 			const parsed = JSON.parse(message);

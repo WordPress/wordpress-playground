@@ -17,9 +17,10 @@ export type BlueprintV1 = BlueprintV1Declaration | BlueprintBundle;
 /**
  * PHP versions accepted in Blueprint schema.
  * Includes deprecated versions (7.2, 7.3) which are automatically
- * upgraded to 7.4 during compilation.
+ * upgraded to 7.4 during compilation, and legacy version 5.6 for
+ * running old WordPress versions (1.x through 4.x).
  */
-export type BlueprintPHPVersion = SupportedPHPVersion | '7.2' | '7.3';
+export type BlueprintPHPVersion = SupportedPHPVersion | '5.6' | '7.2' | '7.3';
 
 /**
  * The Blueprint declaration, typically stored in a blueprint.json file.

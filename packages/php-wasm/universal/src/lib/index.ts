@@ -46,12 +46,15 @@ export { PHPResponse, StreamedPHPResponse } from './php-response';
 export type { PHPResponseData } from './php-response';
 export type { ErrnoError } from './rethrow-file-system-error';
 export {
+	AllPHPVersions,
+	AllPHPVersionsList,
 	LatestSupportedPHPVersion,
 	LegacyPHPVersions,
 	SupportedPHPVersions,
 	SupportedPHPVersionsList,
 } from './supported-php-versions';
 export type {
+	AnyPHPVersion,
 	LegacyPHPVersion,
 	SupportedPHPVersion,
 } from './supported-php-versions';

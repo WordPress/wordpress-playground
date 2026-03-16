@@ -1,5 +1,5 @@
-import type { SupportedPHPVersion } from '@php-wasm/universal';
-import { SupportedPHPVersionsList } from '@php-wasm/universal';
+import type { AnyPHPVersion } from '@php-wasm/universal';
+import { AllPHPVersionsList } from '@php-wasm/universal';
 import css from './style.module.css';
 import { CheckboxControl, SelectControl } from '@wordpress/components';
 import { useEffect } from 'react';
@@ -8,6 +8,15 @@ import classNames from 'classnames';
 import { __experimentalVStack as VStack } from '@wordpress/components';
 import { useSupportedWordPressVersions } from './use-supported-wordpress-versions';
 import { RecommendedPHPVersion } from '@wp-playground/common';
+
+/**
+ * WordPress versions that require a legacy PHP version (7.4 or earlier).
+ * WordPress 1.x uses old-style class constructors that were removed
+ * in PHP 8.0, and mysql_* functions removed in PHP 7.0.
+ * PHP 5.6 is the best choice: it has native support for these features.
+ */
+const LEGACY_WP_VERSIONS = ['1.0'];
+const LEGACY_PHP_DEFAULT = '5.6';
 
 type ConfigurableFields = Record<
 	keyof SiteFormData & ('wpVersion' | 'language' | 'multisite'),
@@ -24,7 +33,7 @@ export interface SiteSettingsFormProps {
 }
 
 export interface SiteFormData {
-	phpVersion: SupportedPHPVersion;
+	phpVersion: AnyPHPVersion;
 	wpVersion: string;
 	language: string;
 	withNetworking: boolean;
@@ -72,6 +81,8 @@ export function UnconnectedSiteSettingsForm({
 			setValue('wpVersion', latestWPVersion);
 		}
 	}, [latestWPVersion, setValue, getValues]);
+
+	const watchedWpVersion = getValues('wpVersion');
 
 	return (
 		<form
@@ -122,6 +133,20 @@ export function UnconnectedSiteSettingsForm({
 								}
 								onChange={(value, extra) => {
 									onChange(extra?.event);
+									if (LEGACY_WP_VERSIONS.includes(value)) {
+										setValue(
+											'phpVersion',
+											LEGACY_PHP_DEFAULT as AnyPHPVersion
+										);
+									} else if (
+										getValues('phpVersion') ===
+										LEGACY_PHP_DEFAULT
+									) {
+										setValue(
+											'phpVersion',
+											RecommendedPHPVersion as AnyPHPVersion
+										);
+									}
 								}}
 								{...rest}
 							/>
@@ -159,12 +184,10 @@ export function UnconnectedSiteSettingsForm({
 							className={classNames(css.addSiteInput, {
 								[css.invalidInput]: !!errors.phpVersion,
 							})}
-							options={SupportedPHPVersionsList.map(
-								(version) => ({
-									label: `PHP ${version}`,
-									value: version,
-								})
-							)}
+							options={AllPHPVersionsList.map((version) => ({
+								label: `PHP ${version}`,
+								value: version,
+							}))}
 							onChange={(value, extra) => {
 								onChange(extra?.event);
 							}}
