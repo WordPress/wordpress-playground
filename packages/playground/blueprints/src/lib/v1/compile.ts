@@ -258,7 +258,18 @@ function compileBlueprintJson(
 		const steps = blueprint.plugins
 			.map((value) => {
 				if (typeof value === 'string') {
-					if (value.startsWith('https://')) {
+					if (isGitRepoUrl(value)) {
+						return {
+							resource: 'zip',
+							inner: {
+								resource: 'git:directory',
+								url: value
+									.replace(/\.git\/?$/, '')
+									.replace(/\/$/, ''),
+								ref: 'HEAD',
+							},
+						} as FileReference;
+					} else if (value.startsWith('https://')) {
 						return {
 							resource: 'url',
 							url: value,
@@ -783,4 +794,19 @@ export async function runBlueprintV1Steps(
 	playground: UniversalPHP
 ) {
 	await compiledBlueprint.run(playground);
+}
+
+function isGitRepoUrl(url: string): boolean {
+	if (/^https:\/\/.+\.git\/?$/.test(url)) {
+		return true;
+	}
+	// GitHub: exactly /owner/repo
+	if (/^https:\/\/github\.com\/[^/]+\/[^/]+\/?$/.test(url)) {
+		return true;
+	}
+	// GitLab: /group[/subgroup...]/project (2+ path segments)
+	if (/^https:\/\/gitlab\.com\/[^/]+\/[^/]+(\/[^/]+)*\/?$/.test(url)) {
+		return true;
+	}
+	return false;
 }

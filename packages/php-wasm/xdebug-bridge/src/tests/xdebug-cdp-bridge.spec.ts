@@ -6,7 +6,7 @@ import { CDPServer } from '../lib/cdp-server';
 import { XdebugCDPBridge } from '../lib/xdebug-cdp-bridge';
 import { PHP } from '@php-wasm/universal';
 import { RecommendedPHPVersion } from '@wp-playground/common';
-import { loadNodeRuntime } from '@php-wasm/node';
+import { loadNodeRuntime, useHostFilesystem } from '@php-wasm/node';
 
 describe('XdebugCDPBridge', () => {
 	let php: PHP;
@@ -26,6 +26,8 @@ describe('XdebugCDPBridge', () => {
 		php = new PHP(
 			await loadNodeRuntime(RecommendedPHPVersion, { withXdebug: true })
 		);
+
+		useHostFilesystem(php);
 
 		fixtures = `${import.meta.dirname}/fixtures`;
 

@@ -9,8 +9,8 @@
 
 const LibraryExample = {
 	// Emscripten dependencies:
-	$PHPWASM__deps: ['$allocateUTF8OnStack'],
-	$PHPWASM__postset: 'PHPWASM.init(PHPLoader?.phpWasmInitOptions);',
+	$PHPWASM__deps: ['$allocateUTF8OnStack', '$addOnInit'],
+	$PHPWASM__postset: 'PHPWASM.init();',
 
 	// Functions not exposed to C but available in the generated
 	// JavaScript library under the PHPWASM object:
@@ -28,7 +28,126 @@ const LibraryExample = {
 		// emscripten_O_NDELAY |
 		// emscripten_O_DIRECT |
 		// emscripten_O_NOATIME
-		init: function (phpWasmInitOptions) {
+		init: function () {
+			// TODO: Move this to a library function that is made an onInit callback by the `__postset` suffix.
+			if (PHPLoader.bindUserSpace) {
+				/**
+				 * We need to add an onInit callback to bind the user-space API
+				 * because some dependencies like wasmImports and wasmExports
+				 * are not yet assigned.
+				 */
+				addOnInit(() => {
+					if (typeof PHPLoader.processId !== 'number') {
+						throw new Error(
+							'PHPLoader.processId must be set before init'
+						);
+					}
+					Module['userSpace'] = PHPLoader.bindUserSpace({
+						pid: PHPLoader.processId,
+						constants: {
+							F_GETFL: Number('{{{cDefs.F_GETFL}}}'),
+							O_ACCMODE: Number('{{{cDefs.O_ACCMODE}}}'),
+							O_RDONLY: Number('{{{cDefs.O_RDONLY}}}'),
+							O_WRONLY: Number('{{{cDefs.O_WRONLY}}}'),
+							O_APPEND: Number('{{{cDefs.O_APPEND}}}'),
+							O_NONBLOCK: Number('{{{cDefs.O_NONBLOCK}}}'),
+							F_SETFL: Number('{{{cDefs.F_SETFL}}}'),
+							F_GETLK: Number('{{{cDefs.F_GETLK}}}'),
+							F_SETLK: Number('{{{cDefs.F_SETLK}}}'),
+							F_SETLKW: Number('{{{cDefs.F_SETLKW}}}'),
+							SEEK_SET: Number('{{{cDefs.SEEK_SET}}}'),
+							SEEK_CUR: Number('{{{cDefs.SEEK_CUR}}}'),
+							SEEK_END: Number('{{{cDefs.SEEK_END}}}'),
+							F_GETFL: Number('{{{cDefs.F_GETFL}}}'),
+							O_ACCMODE: Number('{{{cDefs.O_ACCMODE}}}'),
+							O_RDONLY: Number('{{{cDefs.O_RDONLY}}}'),
+							O_WRONLY: Number('{{{cDefs.O_WRONLY}}}'),
+							O_APPEND: Number('{{{cDefs.O_APPEND}}}'),
+							O_NONBLOCK: Number('{{{cDefs.O_NONBLOCK}}}'),
+							F_SETFL: Number('{{{cDefs.F_SETFL}}}'),
+							F_GETLK: Number('{{{cDefs.F_GETLK}}}'),
+							F_SETLK: Number('{{{cDefs.F_SETLK}}}'),
+							F_SETLKW: Number('{{{cDefs.F_SETLKW}}}'),
+							SEEK_SET: Number('{{{cDefs.SEEK_SET}}}'),
+							SEEK_CUR: Number('{{{cDefs.SEEK_CUR}}}'),
+							SEEK_END: Number('{{{cDefs.SEEK_END}}}'),
+							// From:
+							// https://github.com/emscripten-core/emscripten/blob/66d2137b0381ac35f7e2346b2d6a90abd0f1211a/system/lib/libc/musl/include/fcntl.h#L58-L60
+							F_RDLCK: 0,
+							F_WRLCK: 1,
+							F_UNLCK: 2,
+							// From:
+							// https://github.com/emscripten-core/emscripten/blob/81bbaa42a7827d88a71bd89701245052c622428c/system/lib/libc/musl/include/sys/file.h#L7-L10
+							LOCK_SH: 1,
+							LOCK_EX: 2,
+							LOCK_NB: 4, // Non-blocking lock
+							LOCK_UN: 8, // Unlock
+						},
+						errnoCodes: ERRNO_CODES,
+						// Use get/set closures instead of exposing
+						// typed arrays directly. After memory.grow(),
+						// Emscripten's updateMemoryViews() reassigns
+						// the module-scoped HEAP* variables. Closures
+						// always reference the current value, so
+						// accesses are never stale. The get/set
+						// interface also prevents callers from
+						// capturing a typed array reference that
+						// could become stale.
+						memory: {
+							HEAP8: {
+								get(offset) { return HEAP8[offset]; },
+								set(offset, value) { HEAP8[offset] = value; },
+							},
+							HEAPU8: {
+								get(offset) { return HEAPU8[offset]; },
+								set(offset, value) { HEAPU8[offset] = value; },
+							},
+							HEAP16: {
+								get(offset) { return HEAP16[offset]; },
+								set(offset, value) { HEAP16[offset] = value; },
+							},
+							HEAPU16: {
+								get(offset) { return HEAPU16[offset]; },
+								set(offset, value) { HEAPU16[offset] = value; },
+							},
+							HEAP32: {
+								get(offset) { return HEAP32[offset]; },
+								set(offset, value) { HEAP32[offset] = value; },
+							},
+							HEAPU32: {
+								get(offset) { return HEAPU32[offset]; },
+								set(offset, value) { HEAPU32[offset] = value; },
+							},
+							HEAPF32: {
+								get(offset) { return HEAPF32[offset]; },
+								set(offset, value) { HEAPF32[offset] = value; },
+							},
+							HEAP64: {
+								get(offset) { return HEAP64[offset]; },
+								set(offset, value) { HEAP64[offset] = value; },
+							},
+							HEAPU64: {
+								get(offset) { return HEAPU64[offset]; },
+								set(offset, value) { HEAPU64[offset] = value; },
+							},
+							HEAPF64: {
+								get(offset) { return HEAPF64[offset]; },
+								set(offset, value) { HEAPF64[offset] = value; },
+							},
+						},
+						wasmImports: Object.assign({}, wasmImports,
+							typeof _builtin_fd_close === 'function' ? { builtin_fd_close: _builtin_fd_close } : {},
+							typeof _builtin_fcntl64 === 'function' ? { builtin_fcntl64: _builtin_fcntl64 } : {}
+						),
+						wasmExports,
+						syscalls: SYSCALLS,
+						FS,
+						PROXYFS,
+						NODEFS,
+					});
+				});
+			}
+
 			Module['ENV'] = Module['ENV'] || {};
 			// Ensure a platform-level bin directory for a fallback `php` binary.
 			Module['ENV']['PATH'] = [
@@ -47,10 +166,10 @@ const LibraryExample = {
 			// and contains the php.ini, constants definitions, etc.
 			FS.mkdir('/internal');
 
-			if (phpWasmInitOptions?.nativeInternalDirPath) {
+			if (PHPLoader.nativeInternalDirPath) {
 				FS.mount(
 					FS.filesystems.NODEFS,
-					{ root: phpWasmInitOptions.nativeInternalDirPath },
+					{ root: PHPLoader.nativeInternalDirPath },
 					'/internal'
 				);
 			}
@@ -355,9 +474,9 @@ const LibraryExample = {
 					args,
 					/**
 					 * We're providing the same extra options we would pass to child_process.spawn().
-					 * 
+					 *
 					 * Why?
-					 * 
+					 *
 					 * spawnProcess() follows the same interface as child_process.spawn()
 					 * and some consumers pass `child_process.spawn` directly to php.setSpawnHandler()
 					 */
@@ -373,7 +492,7 @@ const LibraryExample = {
 					 * Delaying it to the next tick via Promise.resolve() would create
 					 * a race condition where it might emit some events before the
 					 * caller has a chance to bind event listeners to them.
-					 * 
+					 *
 					 * Without this condition, this callback would be at least flaky:
 					 *
 					 *    php.setSpawnHandler(require('child_process').spawn);
@@ -749,9 +868,9 @@ const LibraryExample = {
 					if (!cp.stdin.closed) {
 						cp.stdin.end();
 					}
-					_free(buffer);
-					_free(iov);
-					_free(pnum);
+					_wasm_free(buffer);
+					_wasm_free(iov);
+					_wasm_free(pnum);
 				}
 
 				// pump() can never alter the result of this function.
@@ -926,27 +1045,6 @@ const LibraryExample = {
 		ws.setSocketOpt(level, optionName, optionValuePtr);
 		return 0;
 	},
-
-	/**
-	 * Alias for wasm_recv to support dynamically loaded extensions like memcached
-	 * that import `recv` by its POSIX name instead of the WASM-specific name.
-	 *
-	 * This allows extensions compiled without the -Drecv=wasm_recv flag to still
-	 * benefit from the async-aware implementation.
-	 */
-	recv: function (sockfd, buffer, size, flags) {
-		return _wasm_recv(sockfd, buffer, size, flags);
-	},
-	recv__deps: ['wasm_recv'],
-
-	/**
-	 * Alias for wasm_setsockopt to support dynamically loaded extensions like memcached
-	 * that import `setsockopt` by its POSIX name instead of the WASM-specific name.
-	 */
-	setsockopt: function (socketd, level, optionName, optionValuePtr, optionLen) {
-		return _wasm_setsockopt(socketd, level, optionName, optionValuePtr, optionLen);
-	},
-	setsockopt__deps: ['wasm_setsockopt'],
 
 	/**
 	 * Async-aware connect(2) for WebSocket-based sockets.

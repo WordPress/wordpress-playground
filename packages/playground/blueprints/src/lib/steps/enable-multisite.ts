@@ -1,3 +1,4 @@
+import { phpVar } from '@php-wasm/util';
 import type { StepHandler } from '.';
 import { defineWpConfigConsts } from './define-wp-config-consts';
 import { setSiteOptions } from './site-data';
@@ -60,4 +61,18 @@ export const enableMultisite: StepHandler<EnableMultisiteStep> = async (
 	await wpCLI(playground, {
 		command: `wp core multisite-convert --base="${sitePath}"`,
 	});
+
+	// Set $_SERVER['HTTP_HOST'] in wp-config.php for multisite support.
+	// https://make.wordpress.org/cli/handbook/guides/common-issues/#php-notice-undefined-index-on-_server-superglobal
+	const docRoot = await playground.documentRoot;
+	const wpConfigPath = `${docRoot}/wp-config.php`;
+	const wpConfig = await playground.readFileAsText(wpConfigPath);
+	let newWpConfig = wpConfig;
+	if (!wpConfig.includes("$_SERVER['HTTP_HOST']")) {
+		newWpConfig = wpConfig.replace(
+			/^<\?php\s*/i,
+			`<?php\n$_SERVER['HTTP_HOST'] = ${phpVar(url.hostname)};\n`
+		);
+	}
+	await playground.writeFile(wpConfigPath, newWpConfig);
 };

@@ -44,12 +44,15 @@ const sidebars = {
 						id: 'main/guides/index',
 					},
 					items: [
+						'main/guides/agent-skill-wp-playground',
 						'main/guides/wordpress-native-ios-app',
 						'main/guides/for-plugin-developers',
 						'main/guides/for-theme-developers',
 						'main/guides/providing-content-for-your-demo',
 						'main/guides/github-action-pr-preview',
 						'main/guides/playground-for-everyone',
+						'main/guides/programmatic-playground-cli',
+						'main/guides/e2e-testing-with-playwright',
 					],
 				},
 				{

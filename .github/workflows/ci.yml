@@ -32,21 +32,19 @@ jobs:
             fail-fast: false
             matrix:
                 include:
-                    - name: test-unit-asyncify (1/8)
+                    - name: test-unit-asyncify (1/7)
                       target: test
-                    - name: test-unit-asyncify (2/8)
+                    - name: test-unit-asyncify (2/7)
                       target: test-group-1-asyncify
-                    - name: test-unit-asyncify (3/8)
-                      target: test-group-2a-asyncify
-                    - name: test-unit-asyncify (4/8)
-                      target: test-group-2b-asyncify
-                    - name: test-unit-asyncify (5/8)
+                    - name: test-unit-asyncify (3/7)
+                      target: test-group-2-asyncify
+                    - name: test-unit-asyncify (4/7)
                       target: test-group-3-asyncify
-                    - name: test-unit-asyncify (6/8)
+                    - name: test-unit-asyncify (5/7)
                       target: test-group-4-asyncify
-                    - name: test-unit-asyncify (7/8)
+                    - name: test-unit-asyncify (6/7)
                       target: test-group-5-asyncify
-                    - name: test-unit-asyncify (8/8)
+                    - name: test-unit-asyncify (7/7)
                       target: test-group-6-asyncify
         name: ${{ matrix.name }}
         services:
@@ -82,19 +80,17 @@ jobs:
             fail-fast: false
             matrix:
                 include:
-                    - name: test-unit-jspi (1/7)
+                    - name: test-unit-jspi (1/6)
                       target: test-group-1-jspi
-                    - name: test-unit-jspi (2/7)
-                      target: test-group-2a-jspi
-                    - name: test-unit-jspi (3/7)
-                      target: test-group-2b-jspi
-                    - name: test-unit-jspi (4/7)
+                    - name: test-unit-jspi (2/6)
+                      target: test-group-2-jspi
+                    - name: test-unit-jspi (3/6)
                       target: test-group-3-jspi
-                    - name: test-unit-jspi (5/7)
+                    - name: test-unit-jspi (4/6)
                       target: test-group-4-jspi
-                    - name: test-unit-jspi (6/7)
+                    - name: test-unit-jspi (5/6)
                       target: test-group-5-jspi
-                    - name: test-unit-jspi (7/7)
+                    - name: test-unit-jspi (6/6)
                       target: test-group-6-jspi
         name: ${{ matrix.name }}
         services:
@@ -127,12 +123,7 @@ jobs:
     test-playground-cli:
         strategy:
             matrix:
-                # NOTE: macOS is currently skipped because tests were running into
-                # "EMFILE: too many open files" errors when running within the GH runner.
-                # It would be great to fix the issue and add macOS testing here.
-                # In the meantime, many of the current developers test locally on macOS.
-                # @TODO: Fix issues and re-enable macOS testing.
-                os: [ubuntu-latest, windows-latest]
+                os: [ubuntu-latest, windows-latest, macos-latest]
         continue-on-error: true
         runs-on: ${{ matrix.os }}
         name: 'test-playground-cli (${{ matrix.os }})'
@@ -144,14 +135,24 @@ jobs:
               with:
                   node-version: 22
             - name: Run full test suite
-              if: runner.os != 'Windows'
-              run: node node_modules/nx/bin/nx affected --target=test-for-node-22-and-above
-            # NOTE: We currently have to reduce the number of tests we run on Windows,
-            # and we do so by using Vitest's test.only() function. In order to use this
-            # within the `nx affected` command, we need to pass the Vitest arg --allowOnly.
-            - name: Run limited test suite on Windows
-              if: runner.os == 'Windows'
-              run: node node_modules/nx/bin/nx affected --target=test-for-node-22-and-above -- --allowOnly
+              run: node node_modules/nx/bin/nx affected --target=test-playground-cli
+    test-file-locking:
+        strategy:
+            matrix:
+                os: [ubuntu-latest, windows-latest, macos-latest]
+                async-strategy: [asyncify, jspi]
+        continue-on-error: true
+        runs-on: ${{ matrix.os }}
+        name: 'test-file-locking-${{ matrix.async-strategy }} (${{ matrix.os }})'
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  submodules: true
+            - uses: ./.github/actions/prepare-playground
+              with:
+                  node-version: 22
+            - name: Run full test suite
+              run: node node_modules/nx/bin/nx affected --target=test-file-locking-${{ matrix.async-strategy }}
     test-e2e-php-wasm-web-jspi:
         runs-on: ubuntu-latest
         steps:
@@ -196,7 +197,6 @@ jobs:
             matrix:
                 # 3 shards per browser for balanced parallel execution
                 # (4 shards caused uneven distribution due to serial test files)
-                # WebKit disabled - random failures, see PR #2475
                 include:
                     - browser: 'chromium'
                       shard: '1/3'
@@ -214,6 +214,15 @@ jobs:
                       shard: '2/3'
                       shard_name: '2-of-3'
                     - browser: 'firefox'
+                      shard: '3/3'
+                      shard_name: '3-of-3'
+                    - browser: 'webkit'
+                      shard: '1/3'
+                      shard_name: '1-of-3'
+                    - browser: 'webkit'
+                      shard: '2/3'
+                      shard_name: '2-of-3'
+                    - browser: 'webkit'
                       shard: '3/3'
                       shard_name: '3-of-3'
         steps:
@@ -278,6 +287,27 @@ jobs:
               with:
                   name: playwright-components-report
                   path: packages/playground/components/playwright-report/
+                  if-no-files-found: ignore
+
+    # Run MCP e2e tests independently from other tests because running a local version of the MCP server from TypeScript files requires Node 22+
+    test-e2e-mcp:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  submodules: true
+            - uses: ./.github/actions/prepare-playground
+              with:
+                  node-version: '22'
+            - name: Install Playwright Browsers
+              run: npx playwright install --with-deps chromium
+            - name: Run MCP e2e tests
+              run: npx nx test:mcp playground-mcp
+            - uses: actions/upload-artifact@v4
+              if: ${{ !cancelled() }}
+              with:
+                  name: playwright-mcp-report
+                  path: packages/playground/mcp/playwright-report/
                   if-no-files-found: ignore
 
     test-docs-api-reference:

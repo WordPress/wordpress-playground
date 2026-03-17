@@ -100,11 +100,11 @@ RUN git clone https://github.com/phpredis/phpredis.git /root/phpredis \
 # Build Redis extension
 RUN set -euxo pipefail; \
 	cd /root/phpredis; \
-	\
+
 	phpize . ; \
-	\
+
 	source /root/emsdk/emsdk_env.sh; \
-	\
+
 	# Use non-linux host type or configure will try to require linux kernel
 	# features that are unsupported by emscripten (e.g., rtnetlink.h).
 	# ZEND_ENABLE_ZVAL_LONG64 is required to match PHP's zend_long type (64-bit)
@@ -121,25 +121,28 @@ RUN set -euxo pipefail; \
 		--disable-redis-lzf \
 		--disable-redis-zstd \
 		--disable-redis-lz4; \
-	\
-	export EMCC_FLAGS="-sSIDE_MODULE -fPIC"; \
-	\
+
+	export EMCC_FLAGS="-sSIDE_MODULE -D__x86_64__ -sWASM_BIGINT -Dsetsockopt=wasm_setsockopt -Dusleep=__wrap_usleep"; \
+
 	if [ "$DEBUG" = "yes" ]; then \
 		export EMCC_FLAGS="${EMCC_FLAGS} -O0 -g3"; \
 	else \
 		export EMCC_FLAGS="${EMCC_FLAGS} -O3"; \
 	fi; \
-	\
+
 	if [ "$JSPI" = "yes" ]; then \
 		export EMCC_FLAGS="${EMCC_FLAGS} -sSUPPORT_LONGJMP=wasm -fwasm-exceptions -sJSPI"; \
 	else \
 		export EMCC_FLAGS="${EMCC_FLAGS} -sASYNCIFY -sASYNCIFY_ADVISE"; \
 	fi; \
-	\
+
 	# Patch the libtool to use emcc for linking
 	/root/replace.sh 's|^archive_cmds="\\\$CC|archive_cmds="emcc \\\$EMCC_FLAGS|' libtool; \
-	\
+
 	emmake make -j1;
+
+RUN	mkdir -p /root/redis/modules; \
+	mv /root/phpredis/modules/* /root/redis/modules;
 
 # Post-process with wasm-opt
 RUN	/root/emsdk/upstream/bin/wasm-opt -Oz \
@@ -148,8 +151,5 @@ RUN	/root/emsdk/upstream/bin/wasm-opt -Oz \
 		--enable-sign-ext \
 		--enable-mutable-globals \
 		--enable-exception-handling \
-		/root/phpredis/modules/redis.so \
-		-o /root/phpredis/modules/redis.so;
-
-RUN	mkdir -p /root/redis/modules; \
-	mv /root/phpredis/modules/* /root/redis/modules;
+		/root/redis/modules/redis.so \
+		-o /root/redis/modules/redis.so;
