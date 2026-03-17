@@ -38,11 +38,24 @@ function reexecWithJspiIfNeeded(): boolean {
 				env: process.env,
 			}
 		);
-	} catch (error: any) {
-		// execFileSync throws on non-zero exit codes. Forward the exit code.
-		process.exit(error.status ?? 1);
+		process.exit(0);
+	} catch (error: unknown) {
+		if (
+			error instanceof Error &&
+			'status' in error &&
+			typeof (error as any).status === 'number'
+		) {
+			process.exit((error as any).status);
+		}
+		if (
+			error instanceof Error &&
+			'signal' in error &&
+			(error as any).signal
+		) {
+			process.kill(process.pid, (error as any).signal);
+		}
+		process.exit(1);
 	}
-	return true;
 }
 
 if (!reexecWithJspiIfNeeded()) {
