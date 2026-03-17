@@ -85,7 +85,7 @@ export async function measureSiteEditor(
 			timeout: 120_000,
 		});
 
-		const frame = findEditorCanvasFrame(page);
+		const frame = await findEditorCanvasFrame(page);
 		if (!frame) {
 			throw new Error('Editor canvas frame not found');
 		}
@@ -129,7 +129,7 @@ export async function measureSiteEditor(
 			timeout: 60_000,
 		});
 
-		const templateFrame = findEditorCanvasFrame(page);
+		const templateFrame = await findEditorCanvasFrame(page);
 		if (!templateFrame) {
 			throw new Error('Template editor frame not found');
 		}
@@ -195,8 +195,19 @@ export async function measureSiteEditor(
 	return result;
 }
 
-function findEditorCanvasFrame(page: Page): Frame | null {
-	return page.frame({ name: 'editor-canvas' });
+async function findEditorCanvasFrame(
+	page: Page,
+	timeoutMs = 30_000
+): Promise<Frame | null> {
+	const start = Date.now();
+	while (Date.now() - start < timeoutMs) {
+		const frame = page.frame({ name: 'editor-canvas' });
+		if (frame) {
+			return frame;
+		}
+		await page.waitForTimeout(200);
+	}
+	return null;
 }
 
 async function dismissWelcomeModal(page: Page): Promise<void> {
