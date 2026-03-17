@@ -262,7 +262,6 @@ function buildNxCommand(
 		`--wp=${opts.wp}`,
 		`--php=${opts.php}`,
 		'--login',
-		'--skip-browser',
 	];
 
 	if (blueprintPath) {
