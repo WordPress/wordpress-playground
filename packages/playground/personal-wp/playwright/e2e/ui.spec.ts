@@ -32,8 +32,12 @@ test('should open the menu overlay', async ({ website }) => {
 	await expect(
 		website.page.getByRole('heading', { name: 'Backup' })
 	).toBeVisible();
-	await expect(website.page.getByText('Start over')).toBeVisible();
-	await expect(website.page.getByText('Recovery')).toBeVisible();
+	await expect(
+		website.page.getByRole('heading', { name: 'Start over' })
+	).toBeVisible();
+	await expect(
+		website.page.getByRole('heading', { name: 'Recovery' })
+	).toBeVisible();
 });
 
 test('should close the menu overlay with Escape', async ({ website }) => {
