@@ -155,6 +155,7 @@ async function main() {
 function getOptions(): Options {
 	const { values } = parseArgs({
 		options: {
+			help: { type: 'boolean', default: false },
 			rounds: { type: 'string', default: '3' },
 			mode: { type: 'string', default: 'unbuilt-jspi' },
 			'with-plugins': { type: 'boolean', default: false },
@@ -166,6 +167,23 @@ function getOptions(): Options {
 		strict: false,
 		allowPositionals: true,
 	});
+
+	if (values.help) {
+		console.log(`Usage: npx nx perf playground-cli [-- <options>]
+
+Measure WordPress site editor performance in a Playground CLI environment.
+
+Options:
+  --rounds=N         Number of benchmark rounds (default: 3)
+  --mode=<mode>      "unbuilt-jspi" or "built" (default: unbuilt-jspi)
+  --with-plugins     Also benchmark with a plugins blueprint
+  --headed           Run Chromium in headed mode (for debugging)
+  --port=<port>      Server port (default: 9876)
+  --wp=<version>     WordPress version (default: latest)
+  --php=<version>    PHP version (default: 8.2)
+  --help             Show this help message`);
+		process.exit(0);
+	}
 
 	const mode = values.mode as string;
 	if (mode !== 'unbuilt-jspi' && mode !== 'built') {
