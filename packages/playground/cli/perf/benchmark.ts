@@ -24,7 +24,7 @@
  *   --php=<version>   PHP version (default: 8.2)
  */
 
-import { spawn } from 'child_process';
+import { execSync, spawn } from 'child_process';
 import type { ChildProcess } from 'child_process';
 import fs from 'fs';
 import os from 'os';
@@ -95,6 +95,9 @@ async function main() {
 			} catch {
 				// Already gone
 			}
+		}
+		if (activeHandle?.url) {
+			killProcessesOnPort(activeHandle.url);
 		}
 	};
 	process.on('SIGINT', () => {
@@ -229,25 +232,50 @@ async function startServer(
 }
 
 async function stopServer(handle: ServerHandle): Promise<void> {
-	if (!handle.process.pid) {
-		return;
+	// Kill the process group we spawned
+	if (handle.process.pid) {
+		try {
+			if (process.platform === 'win32') {
+				spawn('taskkill', [
+					'/F',
+					'/T',
+					'/PID',
+					String(handle.process.pid),
+				]);
+			} else {
+				process.kill(-handle.process.pid, 'SIGTERM');
+			}
+		} catch {
+			// Process may have already exited
+		}
+		await sleep(2000);
+		try {
+			process.kill(-handle.process.pid, 'SIGKILL');
+		} catch {
+			// Already gone
+		}
 	}
+	// Also kill anything still listening on the port — the actual
+	// CLI server is a grandchild of npx and may not share the
+	// same process group.
+	killProcessesOnPort(handle.url);
+}
+
+function killProcessesOnPort(url: string): void {
 	try {
+		const port = new URL(url).port;
 		if (process.platform === 'win32') {
-			spawn('taskkill', ['/F', '/T', '/PID', String(handle.process.pid)]);
+			execSync(
+				`for /f "tokens=5" %a in ('netstat -aon ^| find ":${port}"') do taskkill /F /PID %a`,
+				{ stdio: 'ignore' }
+			);
 		} else {
-			process.kill(-handle.process.pid, 'SIGTERM');
+			execSync(`lsof -ti:${port} | xargs kill -9 2>/dev/null || true`, {
+				stdio: 'ignore',
+			});
 		}
 	} catch {
-		// Process may have already exited
-	}
-	// Wait for graceful shutdown
-	await sleep(3000);
-	// Force-kill any remaining processes
-	try {
-		process.kill(-handle.process.pid, 'SIGKILL');
-	} catch {
-		// Already gone
+		// Nothing listening, that's fine
 	}
 }
 
@@ -412,6 +440,10 @@ async function waitForServer(
 	while (Date.now() - start < timeoutMs) {
 		try {
 			const response = await fetch(url);
+			// Consume the body to free the connection back to the
+			// pool — without this, undici's per-origin connection
+			// limit (~10) is exhausted and subsequent fetches hang.
+			await response.body?.cancel();
 			if (
 				response.ok ||
 				response.status === 302 ||
