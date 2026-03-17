@@ -149,6 +149,13 @@
 					"tsc -p packages/playground/cli/tsconfig.spec.json --noEmit"
 				]
 			}
+		},
+		"perf": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "node --experimental-strip-types --experimental-transform-types --disable-warning=ExperimentalWarning --import ./packages/meta/src/node-es-module-loader/register.mts packages/playground/cli/perf/benchmark.ts",
+				"tty": true
+			}
 		}
 	}
 }
