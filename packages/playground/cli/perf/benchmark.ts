@@ -50,6 +50,7 @@ interface Options {
 interface ServerHandle {
 	process: ChildProcess;
 	url: string;
+	startupMs: number;
 }
 
 interface BenchmarkResult {
@@ -123,6 +124,7 @@ async function main() {
 
 		try {
 			activeHandle = await startServer(opts, env.blueprintPath);
+			console.log(`  Startup: ${formatDuration(activeHandle.startupMs)}`);
 			const metrics = await runBenchmark(
 				activeHandle.url,
 				opts.rounds,
@@ -132,7 +134,10 @@ async function main() {
 			if (metrics) {
 				allResults.push({
 					environment: env.name,
-					metrics,
+					metrics: {
+						serverStartup: activeHandle.startupMs,
+						...metrics,
+					},
 				});
 				console.log('  Done.');
 			} else {
@@ -206,6 +211,7 @@ async function startServer(
 
 	console.log(`  Starting CLI: ${command} ${args.join(' ')}`);
 
+	const startTime = Date.now();
 	const proc = spawn(command, args, {
 		cwd: WORKSPACE_ROOT,
 		stdio: ['ignore', 'pipe', 'pipe'],
@@ -237,8 +243,9 @@ async function startServer(
 		);
 	}
 
+	const startupMs = Date.now() - startTime;
 	console.log(`  Server ready at ${url}`);
-	return { process: proc, url };
+	return { process: proc, url, startupMs };
 }
 
 async function stopServer(handle: ServerHandle): Promise<void> {
