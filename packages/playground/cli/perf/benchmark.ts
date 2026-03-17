@@ -210,7 +210,7 @@ async function startServer(
 	opts: Options,
 	blueprintPath?: string
 ): Promise<ServerHandle> {
-	const { command, args } = buildNxCommand(opts, blueprintPath);
+	const { command, args } = buildCommand(opts, blueprintPath);
 
 	console.log(`  Starting CLI: ${command} ${args.join(' ')}`);
 
@@ -299,11 +299,10 @@ function killProcessesOnPort(url: string): void {
 	}
 }
 
-function buildNxCommand(
+function buildCommand(
 	opts: Options,
 	blueprintPath?: string
 ): { command: string; args: string[] } {
-	const nxTarget = opts.mode === 'built' ? 'start' : opts.mode;
 	const cliArgs = [
 		'server',
 		`--port=${opts.port}`,
@@ -316,9 +315,33 @@ function buildNxCommand(
 		cliArgs.push(`--blueprint=${blueprintPath}`);
 	}
 
+	const nodeFlags = [
+		'--experimental-strip-types',
+		'--experimental-transform-types',
+		'--disable-warning=ExperimentalWarning',
+		'--import',
+		'./packages/meta/src/node-es-module-loader/register.mts',
+	];
+
+	if (opts.mode === 'built') {
+		return {
+			command: process.execPath,
+			args: [
+				...nodeFlags,
+				'dist/packages/playground/cli/wp-playground.js',
+				...cliArgs,
+			],
+		};
+	}
+
 	return {
-		command: 'npx',
-		args: ['nx', nxTarget, 'playground-cli', '--', ...cliArgs],
+		command: process.execPath,
+		args: [
+			'--experimental-wasm-jspi',
+			...nodeFlags,
+			'./packages/playground/cli/src/cli.ts',
+			...cliArgs,
+		],
 	};
 }
 
