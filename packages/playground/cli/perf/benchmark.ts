@@ -122,20 +122,16 @@ async function main() {
 				opts.headed
 			);
 
-			if (metrics) {
-				allResults.push({
-					environment: env.name,
-					metrics: {
-						serverStartup: activeHandle.startupMs,
-						...metrics,
-					},
-				});
-				console.log('  Done.');
-			} else {
-				console.log('  Failed — no successful rounds.');
-			}
+			allResults.push({
+				environment: env.name,
+				metrics: {
+					serverStartup: activeHandle.startupMs,
+					...metrics,
+				},
+			});
+			console.log('  Done.');
 		} catch (err) {
-			console.error(`  Error: ${err}`);
+			console.error(`  FAILED: ${err}`);
 		} finally {
 			if (activeHandle) {
 				console.log('  Stopping server...');
@@ -149,6 +145,12 @@ async function main() {
 	const savedPath = saveResults(allResults);
 	console.log(`\nResults saved to: ${savedPath}`);
 
+	if (allResults.length < environments.length) {
+		console.error(
+			`\n${environments.length - allResults.length} environment(s) failed.`
+		);
+		process.exit(1);
+	}
 	process.exit(0);
 }
 
@@ -174,7 +176,7 @@ function getOptions(): Options {
 Measure WordPress site editor performance in a Playground CLI environment.
 
 Options:
-  --rounds=N         Number of benchmark rounds (default: 3)
+  --rounds=N         Successful rounds required (default: 3, retries up to 2x)
   --mode=<mode>      "unbuilt-jspi" or "built" (default: unbuilt-jspi)
   --with-plugins     Also benchmark with a plugins blueprint
   --headed           Run Chromium in headed mode (for debugging)
@@ -324,15 +326,24 @@ async function runBenchmark(
 	url: string,
 	rounds: number,
 	headed: boolean
-): Promise<Record<string, number> | null> {
-	console.log(`  Running ${rounds} round${rounds > 1 ? 's' : ''}...`);
+): Promise<Record<string, number>> {
+	const maxAttempts = rounds * 2;
+	console.log(
+		`  Collecting ${rounds} successful round${rounds > 1 ? 's' : ''} (up to ${maxAttempts} attempts)...`
+	);
 
 	const allMeasurements: MeasurementResult[] = [];
+	let attempts = 0;
 
-	for (let round = 1; round <= rounds; round++) {
-		if (rounds > 1) {
-			console.log(`    Round ${round}/${rounds}...`);
-		}
+	while (allMeasurements.length < rounds && attempts < maxAttempts) {
+		attempts++;
+		const label =
+			`${allMeasurements.length + 1}/${rounds}` +
+			(attempts > allMeasurements.length + 1
+				? ` (attempt ${attempts}/${maxAttempts})`
+				: '');
+		console.log(`    Round ${label}...`);
+
 		try {
 			const result = await Promise.race([
 				measureSiteEditor({ url, headed }),
@@ -347,16 +358,19 @@ async function runBenchmark(
 				.join(', ');
 			console.log(`    ${parts}`);
 		} catch (err) {
-			console.warn(`    Round ${round} failed: ${err}`);
+			console.warn(`    Attempt ${attempts} failed: ${err}`);
 		}
 
-		if (round < rounds) {
+		if (allMeasurements.length < rounds) {
 			await sleep(1000);
 		}
 	}
 
-	if (allMeasurements.length === 0) {
-		return null;
+	if (allMeasurements.length < rounds) {
+		throw new Error(
+			`Only ${allMeasurements.length}/${rounds} rounds succeeded` +
+				` after ${maxAttempts} attempts`
+		);
 	}
 
 	const medians: Record<string, number> = {};
