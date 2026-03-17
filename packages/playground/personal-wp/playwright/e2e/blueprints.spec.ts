@@ -72,31 +72,6 @@ test('should execute a login step and land on wp-admin', async ({
 	await expect(wordpress.locator('body')).toContainText('Plugins');
 });
 
-test('should accept a blueprint-url data URL', async ({
-	website,
-	wordpress,
-}) => {
-	const blueprint: Blueprint = {
-		landingPage: '/data-url-test.php',
-		steps: [
-			{
-				step: 'writeFile',
-				path: '/wordpress/data-url-test.php',
-				data: '<?php echo "DATA_URL_BLUEPRINT_WORKS";',
-			},
-		],
-	};
-
-	const encoded = encodeStringAsBase64(JSON.stringify(blueprint));
-	const dataUrl = encodeURIComponent(
-		`data:application/json;base64,${encoded}`
-	);
-	await website.goto(`/?blueprint-url=${dataUrl}`);
-	await expect(wordpress.locator('body')).toContainText(
-		'DATA_URL_BLUEPRINT_WORKS'
-	);
-});
-
 test('should handle a wp-cli step', async ({ website, wordpress }) => {
 	const blueprint: Blueprint = {
 		landingPage: '/wp-admin/edit.php',

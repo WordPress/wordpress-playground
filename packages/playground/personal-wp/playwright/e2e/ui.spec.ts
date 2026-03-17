@@ -4,7 +4,7 @@ test('should show the address bar reflecting the current WordPress URL', async (
 	website,
 }) => {
 	await website.goto('./');
-	const addressBar = website.page.locator('input[type="text"]').first();
+	const addressBar = website.addressBar();
 	await expect(addressBar).toBeVisible();
 	await expect(addressBar).toHaveValue(/\/wp-admin\//);
 });
@@ -29,7 +29,9 @@ test('should open the menu overlay', async ({ website }) => {
 	await website.openMenuOverlay();
 
 	await expect(website.page.getByText('Install Apps')).toBeVisible();
-	await expect(website.page.getByText('Backup')).toBeVisible();
+	await expect(
+		website.page.getByRole('heading', { name: 'Backup' })
+	).toBeVisible();
 	await expect(website.page.getByText('Start over')).toBeVisible();
 	await expect(website.page.getByText('Recovery')).toBeVisible();
 });
@@ -55,7 +57,7 @@ test('should navigate within WordPress when address bar URL changes', async ({
 }) => {
 	await website.goto('./');
 
-	const addressBar = website.page.locator('input[type="text"]').first();
+	const addressBar = website.addressBar();
 	await addressBar.click();
 	await addressBar.fill('/wp-admin/edit.php');
 	await addressBar.press('Enter');

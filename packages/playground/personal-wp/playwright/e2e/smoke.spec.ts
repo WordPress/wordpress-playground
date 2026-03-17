@@ -10,7 +10,7 @@ test('should boot WordPress and land on wp-admin dashboard', async ({
 
 test('should auto-login the user', async ({ website, wordpress }) => {
 	await website.goto('./');
-	await expect(wordpress.locator('#wpadminbar')).toBeVisible();
+	await expect(wordpress.locator('body')).toContainText('Howdy');
 });
 
 test('should display the toolbar with address bar', async ({ website }) => {

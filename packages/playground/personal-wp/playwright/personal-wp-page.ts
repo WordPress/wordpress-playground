@@ -16,7 +16,7 @@ export class PersonalWPPage {
 				)
 				.frameLocator('#wp')
 				.locator('body')
-		).not.toBeEmpty();
+		).toBeVisible();
 	}
 
 	wordpress(page = this.page) {
@@ -27,7 +27,7 @@ export class PersonalWPPage {
 			.frameLocator('#wp');
 	}
 
-	async goto(url: string, options?: any) {
+	async goto(url: string, options?: Parameters<Page['goto']>[1]) {
 		const originalGoto = this.page.goto.bind(this.page);
 		const response = await originalGoto(url, options);
 		await this.waitForNestedIframes();
@@ -58,10 +58,13 @@ export class PersonalWPPage {
 			.click();
 	}
 
+	addressBar() {
+		return this.page
+			.locator('header[aria-label="Playground toolbar"]')
+			.locator('input[type="text"]');
+	}
+
 	async getAddressBarValue(): Promise<string> {
-		return await this.page
-			.locator('input[type="text"]')
-			.first()
-			.inputValue();
+		return await this.addressBar().inputValue();
 	}
 }

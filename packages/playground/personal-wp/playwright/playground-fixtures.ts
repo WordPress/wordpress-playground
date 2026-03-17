@@ -21,4 +21,5 @@ export const test = base.extend<PersonalWPFixtures>({
 	},
 });
 
-export { expect, Page } from '@playwright/test';
+export { expect } from '@playwright/test';
+export type { Page } from '@playwright/test';
