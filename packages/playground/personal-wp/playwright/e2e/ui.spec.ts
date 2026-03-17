@@ -1,0 +1,64 @@
+import { test, expect } from '../playground-fixtures';
+
+test('should show the address bar reflecting the current WordPress URL', async ({
+	website,
+}) => {
+	await website.goto('./');
+	const addressBar = website.page.locator('input[type="text"]').first();
+	await expect(addressBar).toBeVisible();
+	await expect(addressBar).toHaveValue(/\/wp-admin\//);
+});
+
+test('should open and close the Site Tools panel', async ({ website }) => {
+	await website.goto('./');
+
+	await website.ensureSiteToolsIsOpen();
+	await expect(
+		website.page.getByRole('button', { name: /Close Site Tools/ })
+	).toBeVisible();
+
+	await website.ensureSiteToolsIsClosed();
+	await expect(
+		website.page.getByRole('button', { name: /Open Site Tools/ })
+	).toBeVisible();
+});
+
+test('should open the menu overlay', async ({ website }) => {
+	await website.goto('./');
+
+	await website.openMenuOverlay();
+
+	await expect(website.page.getByText('Install Apps')).toBeVisible();
+	await expect(website.page.getByText('Backup')).toBeVisible();
+	await expect(website.page.getByText('Start over')).toBeVisible();
+	await expect(website.page.getByText('Recovery')).toBeVisible();
+});
+
+test('should close the menu overlay with Escape', async ({ website }) => {
+	await website.goto('./');
+
+	await website.openMenuOverlay();
+	await expect(website.page.getByText('Install Apps')).toBeVisible();
+
+	await website.page.keyboard.press('Escape');
+	await expect(website.page.getByText('Install Apps')).not.toBeVisible();
+});
+
+test('should display the page title as "My WordPress"', async ({ website }) => {
+	await website.goto('./');
+	await expect(website.page).toHaveTitle('My WordPress');
+});
+
+test('should navigate within WordPress when address bar URL changes', async ({
+	website,
+	wordpress,
+}) => {
+	await website.goto('./');
+
+	const addressBar = website.page.locator('input[type="text"]').first();
+	await addressBar.click();
+	await addressBar.fill('/wp-admin/edit.php');
+	await addressBar.press('Enter');
+
+	await expect(wordpress.locator('body')).toContainText('Posts');
+});
