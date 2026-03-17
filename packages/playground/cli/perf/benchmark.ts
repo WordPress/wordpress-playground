@@ -33,10 +33,6 @@ import { parseArgs } from 'util';
 import { measureSiteEditor, METRIC_NAMES } from './measure-site-editor.ts';
 import type { MeasurementResult } from './measure-site-editor.ts';
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
 interface Options {
 	rounds: number;
 	mode: 'unbuilt-jspi' | 'built';
@@ -58,15 +54,7 @@ interface BenchmarkResult {
 	metrics: Record<string, number>;
 }
 
-// ---------------------------------------------------------------------------
-// Workspace root (four levels up from perf/)
-// ---------------------------------------------------------------------------
-
 const WORKSPACE_ROOT = path.resolve(import.meta.dirname, '../../../..');
-
-// ---------------------------------------------------------------------------
-// Main (caller first, then callees)
-// ---------------------------------------------------------------------------
 
 async function main() {
 	const opts = getOptions();
@@ -161,10 +149,6 @@ async function main() {
 	process.exit(0);
 }
 
-// ---------------------------------------------------------------------------
-// Argument parsing
-// ---------------------------------------------------------------------------
-
 function getOptions(): Options {
 	const { values } = parseArgs({
 		options: {
@@ -198,10 +182,6 @@ function getOptions(): Options {
 		php: values.php as string,
 	};
 }
-
-// ---------------------------------------------------------------------------
-// CLI server management
-// ---------------------------------------------------------------------------
 
 async function startServer(
 	opts: Options,
@@ -295,10 +275,6 @@ function buildNxCommand(
 	};
 }
 
-// ---------------------------------------------------------------------------
-// Benchmark runner
-// ---------------------------------------------------------------------------
-
 async function runBenchmark(
 	url: string,
 	rounds: number,
@@ -350,10 +326,6 @@ async function runBenchmark(
 
 	return medians;
 }
-
-// ---------------------------------------------------------------------------
-// Results formatting and persistence
-// ---------------------------------------------------------------------------
 
 function printResultsTable(results: BenchmarkResult[]): void {
 	if (results.length === 0) {
@@ -415,10 +387,6 @@ function saveResults(results: BenchmarkResult[]): string {
 	return summaryPath;
 }
 
-// ---------------------------------------------------------------------------
-// Utility helpers
-// ---------------------------------------------------------------------------
-
 function median(values: number[]): number {
 	if (values.length === 0) return 0;
 	const sorted = [...values].sort((a, b) => a - b);
@@ -459,10 +427,6 @@ async function waitForServer(
 	}
 	return false;
 }
-
-// ---------------------------------------------------------------------------
-// Entry point
-// ---------------------------------------------------------------------------
 
 main().catch((err) => {
 	console.error('Benchmark failed:', err);

@@ -12,10 +12,6 @@
 import { chromium } from '@playwright/test';
 import type { Page, Frame } from '@playwright/test';
 
-// ---------------------------------------------------------------------------
-// Metric names and types
-// ---------------------------------------------------------------------------
-
 export const METRIC_NAMES = [
 	'siteEditorLoad',
 	'templatesViewLoad',
@@ -36,10 +32,6 @@ export interface MeasureOptions {
 	/** Launch browser in headed mode for debugging. */
 	headed?: boolean;
 }
-
-// ---------------------------------------------------------------------------
-// Measurement (caller first, helpers below)
-// ---------------------------------------------------------------------------
 
 /**
  * Runs a single benchmark measurement pass against a Playground CLI
@@ -202,10 +194,6 @@ export async function measureSiteEditor(
 
 	return result;
 }
-
-// ---------------------------------------------------------------------------
-// Helpers (callees after caller)
-// ---------------------------------------------------------------------------
 
 function findEditorCanvasFrame(page: Page): Frame | null {
 	return page.frame({ name: 'editor-canvas' });
