@@ -445,6 +445,7 @@ async function waitForServer(
 			// minutes waiting for response headers.
 			const response = await fetch(url, {
 				signal: AbortSignal.timeout(10_000),
+				redirect: 'manual',
 			});
 			await response.body?.cancel();
 			if (
