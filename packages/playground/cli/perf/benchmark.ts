@@ -439,10 +439,13 @@ async function waitForServer(
 	const start = Date.now();
 	while (Date.now() - start < timeoutMs) {
 		try {
-			const response = await fetch(url);
-			// Consume the body to free the connection back to the
-			// pool — without this, undici's per-origin connection
-			// limit (~10) is exhausted and subsequent fetches hang.
+			// Abort individual requests after 10s — the Express
+			// server accepts connections before WordPress finishes
+			// booting in WASM, so a single fetch can hang for
+			// minutes waiting for response headers.
+			const response = await fetch(url, {
+				signal: AbortSignal.timeout(10_000),
+			});
 			await response.body?.cancel();
 			if (
 				response.ok ||
