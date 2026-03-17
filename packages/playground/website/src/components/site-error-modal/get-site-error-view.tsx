@@ -21,6 +21,7 @@ export interface SiteErrorViewConfig {
 	isDeveloperError: boolean;
 	detailSummaryOverride?: string;
 	hideReportButton?: boolean;
+	hideTroubleshootWithAiButton?: boolean;
 	body: React.ReactNode;
 	actions: React.ReactNode[];
 }
@@ -472,6 +473,7 @@ function resourceDownloadFailedView(): SiteErrorViewConfig {
 		title: 'Could not download required files',
 		isDeveloperError: false,
 		hideReportButton: true,
+		hideTroubleshootWithAiButton: true,
 		detailSummaryOverride: 'Technical details',
 		body: (
 			<>
