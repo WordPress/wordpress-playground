@@ -6,9 +6,10 @@
  * ## Playground must be upgraded as early as possible after a new release
  *
  * New service workers call .skipWaiting(), immediately claim all the clients
- * that were controlled by the previous service worker and clears the offline
- * cache. The claimed clients are not forcibly refreshed. They just continue
- * running under the new service worker.
+ * that were controlled by the previous service worker, and purge excess old
+ * caches (keeping the most recent one so old tabs can still find their
+ * hashed assets). The claimed clients are not forcibly refreshed. They just
+ * continue running under the new service worker.
  *
  * Why?
  *
@@ -122,7 +123,7 @@ import {
 	networkFirstFetch,
 	cacheOfflineModeAssetsForCurrentRelease,
 	isCurrentServiceWorkerActive,
-	purgeEverythingFromPreviousRelease,
+	purgeExcessOldCaches,
 	shouldCacheUrl,
 } from './src/lib/offline-mode-cache';
 
@@ -191,7 +192,7 @@ self.addEventListener('activate', function (event) {
 		await self.clients.claim();
 
 		if (shouldCacheUrl(new URL(location.href))) {
-			await purgeEverythingFromPreviousRelease();
+			await purgeExcessOldCaches();
 			cacheOfflineModeAssetsForCurrentRelease();
 		}
 	}
