@@ -1,0 +1,61 @@
+.iosPwaNotice {
+	margin: 0;
+	color: #1e1e1e;
+	font-size: inherit;
+	border-left-color: #dba617;
+
+	.components-notice__content {
+		margin-right: 0;
+	}
+}
+
+.content {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.headline {
+	margin: 0;
+	font-size: 13px;
+	line-height: 1.4;
+}
+
+.body {
+	margin: 0;
+	font-size: 13px;
+	line-height: 1.5;
+}
+
+.instructions {
+	margin: 4px 0 0;
+}
+
+.step {
+	margin: 0;
+	font-size: 13px;
+	line-height: 1.5;
+}
+
+.shareIcon {
+	display: inline-flex;
+	align-items: center;
+	vertical-align: middle;
+}
+
+.shareIcon svg {
+	width: 14px;
+	height: 14px;
+	vertical-align: middle;
+	margin: 0 1px;
+}
+
+.actions {
+	display: flex;
+	justify-content: flex-end;
+	margin-top: 4px;
+}
+
+.dismissButton {
+	font-size: 12px;
+}

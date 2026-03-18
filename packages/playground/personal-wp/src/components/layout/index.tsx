@@ -15,6 +15,7 @@ import { MissingSiteModal } from '../missing-site-modal';
 import { modalSlugs } from '../../lib/state/redux/slice-ui';
 import { SiteManager } from '../site-manager';
 import { useAutoBackup } from '../../lib/hooks/use-auto-backup';
+import { IosPwaNotice } from '../ios-pwa-notice';
 
 const displayMode = getDisplayModeFromQuery();
 function getDisplayModeFromQuery(): DisplayMode {
@@ -35,6 +36,7 @@ export function Layout() {
 	return (
 		<div className={`${css.layout}`}>
 			<Modals />
+			<IosPwaNotice />
 			<CSSTransition
 				nodeRef={siteManagerWrapperRef}
 				in={siteManagerIsOpen}
