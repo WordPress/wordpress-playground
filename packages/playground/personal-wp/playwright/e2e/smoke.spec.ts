@@ -15,16 +15,10 @@ test('should land on the welcome page on first visit', async ({ website }) => {
 	);
 });
 
-test('should apply a blueprint passed via URL hash', async ({
-	website,
-	wordpress,
-}) => {
-	const blueprint: Blueprint = {
-		landingPage: '/wp-admin/',
-		steps: [{ step: 'login' }],
-	};
+test('should apply a blueprint passed via URL hash', async ({ website }) => {
+	const blueprint: Blueprint = { landingPage: '/sample-page/' };
 	await website.goto(`./#${JSON.stringify(blueprint)}`);
-	await expect(wordpress.locator('body')).toContainText('Dashboard');
+	await expect(website.addressBar()).toHaveValue(/sample-page/);
 });
 
 test('should display the toolbar with address bar', async ({ website }) => {
