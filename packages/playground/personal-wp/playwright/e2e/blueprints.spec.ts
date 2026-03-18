@@ -13,7 +13,7 @@ test('should apply a base64-encoded Blueprint from the URL hash', async ({
 
 	const encodedBlueprint = encodeStringAsBase64(JSON.stringify(blueprint));
 	await website.goto(`/#${encodedBlueprint}`);
-	await expect(wordpress.locator('body')).toContainText('Dashboard');
+	await expect(wordpress.locator('body')).toContainText('At a Glance');
 });
 
 test('should apply a JSON Blueprint from the URL hash', async ({
