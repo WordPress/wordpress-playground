@@ -18,6 +18,14 @@ export async function cacheFirstFetch(request: Request): Promise<Response> {
 		return cachedResponse;
 	}
 
+	// After a service worker update, old tabs may still reference
+	// hashed asset URLs from the previous build. Search older
+	// caches before going to the network so those tabs don't 404.
+	const previousVersionResponse = await matchInPreviousVersionCaches(request);
+	if (previousVersionResponse) {
+		return previousVersionResponse;
+	}
+
 	/**
 	 * Strip the Range header if present. Safari sometimes adds Range headers
 	 * to requests, which results in 206 Partial Content responses that can't
@@ -151,6 +159,55 @@ export async function purgeEverythingFromPreviousRelease() {
 		(key) => key.startsWith(CACHE_NAME_PREFIX) && key !== LATEST_CACHE_NAME
 	);
 	return Promise.all(oldKeys.map((key) => caches.delete(key)));
+}
+
+/**
+ * Deletes all but the most recent old cache so that tabs still
+ * running the previous build can find their hashed assets.
+ *
+ * Bounds total cache storage to ~3 versions (current + up to 2 old).
+ * The single surviving old cache will be cleaned up on the *next*
+ * deploy's activation.
+ */
+export async function purgeExcessOldCaches() {
+	const allNames = await caches.keys();
+	const oldNames = allNames.filter(
+		(name) =>
+			name.startsWith(CACHE_NAME_PREFIX) && name !== LATEST_CACHE_NAME
+	);
+	if (oldNames.length <= 1) {
+		return;
+	}
+	// Keep the last entry (typically the most recent old cache)
+	// and delete the rest.
+	const toDelete = oldNames.slice(0, -1);
+	await Promise.all(toDelete.map((name) => caches.delete(name)));
+}
+
+/**
+ * Searches all previous-version playground caches for a matching
+ * response. Used as a fallback in `cacheFirstFetch` so that old
+ * tabs can still load hashed assets after a service worker update.
+ */
+async function matchInPreviousVersionCaches(
+	request: Request
+): Promise<Response | undefined> {
+	const allCacheNames = await caches.keys();
+	for (const cacheName of allCacheNames) {
+		if (
+			cacheName.startsWith(CACHE_NAME_PREFIX) &&
+			cacheName !== LATEST_CACHE_NAME
+		) {
+			const cache = await caches.open(cacheName);
+			const response = await cache.match(request, {
+				ignoreSearch: true,
+			});
+			if (response) {
+				return response;
+			}
+		}
+	}
+	return undefined;
 }
 
 /**
