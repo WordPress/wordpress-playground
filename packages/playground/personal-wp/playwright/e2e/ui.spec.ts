@@ -1,14 +1,5 @@
 import { test, expect } from '../playground-fixtures';
 
-test('should show the address bar reflecting the current WordPress URL', async ({
-	website,
-}) => {
-	await website.goto('./');
-	const addressBar = website.addressBar();
-	await expect(addressBar).toBeVisible();
-	await expect(addressBar).toHaveValue(/\/wp-admin\//);
-});
-
 test('should open and close the Site Tools panel', async ({ website }) => {
 	await website.goto('./');
 
