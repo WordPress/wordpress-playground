@@ -273,19 +273,23 @@ jobs:
 
     test-e2e-personal-wp:
         runs-on: ubuntu-latest
+        strategy:
+            fail-fast: false
+            matrix:
+                browser: [chromium, firefox, webkit]
         steps:
             - uses: actions/checkout@v4
               with:
                   submodules: true
             - uses: ./.github/actions/prepare-playground
-            - name: Install Playwright Browsers
-              run: npx playwright install --with-deps chromium
-            - name: Run personal-wp Playwright e2e tests
-              run: CI=true npx playwright test --config=packages/playground/personal-wp/playwright/playwright.config.ts --project=chromium
+            - name: Install Playwright Browser
+              run: npx playwright install ${{ matrix.browser }} --with-deps
+            - name: Run personal-wp Playwright e2e tests - ${{ matrix.browser }}
+              run: CI=true npx playwright test --config=packages/playground/personal-wp/playwright/playwright.config.ts --project=${{ matrix.browser }}
             - uses: actions/upload-artifact@v4
               if: ${{ !cancelled() }}
               with:
-                  name: playwright-personal-wp-report
+                  name: playwright-personal-wp-report-${{ matrix.browser }}
                   path: packages/playground/personal-wp/playwright-report/
                   if-no-files-found: ignore
 
