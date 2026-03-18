@@ -63,8 +63,4 @@ export class PersonalWPPage {
 			.locator('header[aria-label="Playground toolbar"]')
 			.locator('input[type="text"]');
 	}
-
-	async getAddressBarValue(): Promise<string> {
-		return await this.addressBar().inputValue();
-	}
 }
