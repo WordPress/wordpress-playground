@@ -20,7 +20,7 @@
  *   --with-plugins    Also run with the plugins blueprint
  *   --headed          Chromium in headed mode for debugging
  *   --wp=<version>    WordPress version (default: latest)
- *   --php=<version>   PHP version (default: 8.2)
+ *   --php=<version>   PHP version (default: Current Playground recommended PHP version)
  */
 
 import { spawn } from 'child_process';
@@ -29,8 +29,12 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { parseArgs } from 'util';
-import { measureSiteEditor, METRIC_NAMES } from './measure-site-editor.ts';
-import type { MeasurementResult } from './measure-site-editor.ts';
+import {
+	measureSiteEditor,
+	METRIC_NAMES,
+	type MeasurementResult,
+} from './measure-site-editor';
+import { RecommendedPHPVersion } from '@wp-playground/common';
 
 interface Options {
 	rounds: number;
@@ -158,7 +162,7 @@ function getOptions(): Options {
 			'with-plugins': { type: 'boolean', default: false },
 			headed: { type: 'boolean', default: false },
 			wp: { type: 'string', default: 'latest' },
-			php: { type: 'string', default: '8.2' },
+			php: { type: 'string', default: RecommendedPHPVersion },
 		},
 		strict: false,
 		allowPositionals: true,
@@ -175,7 +179,7 @@ Options:
   --with-plugins     Also benchmark with a plugins blueprint
   --headed           Run Chromium in headed mode (for debugging)
   --wp=<version>     WordPress version (default: latest)
-  --php=<version>    PHP version (default: 8.2)
+  --php=<version>    PHP version (default: Current Playground recommended PHP version: ${RecommendedPHPVersion})
   --help             Show this help message`);
 		process.exit(0);
 	}
