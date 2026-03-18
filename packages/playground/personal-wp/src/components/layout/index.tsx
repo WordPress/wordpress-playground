@@ -36,7 +36,6 @@ export function Layout() {
 	return (
 		<div className={`${css.layout}`}>
 			<Modals />
-			<IosPwaNotice />
 			<CSSTransition
 				nodeRef={siteManagerWrapperRef}
 				in={siteManagerIsOpen}
@@ -57,6 +56,7 @@ export function Layout() {
 				</div>
 			</CSSTransition>
 			<div className={css.siteView}>
+				<IosPwaNotice />
 				<div className={css.siteViewContent}>
 					<PlaygroundViewport displayMode={displayMode} />
 				</div>
