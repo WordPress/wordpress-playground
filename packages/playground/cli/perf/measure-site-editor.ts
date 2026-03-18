@@ -167,19 +167,15 @@ export async function measureSiteEditor(
 		// Step 5: Save the template
 		const templateSaveStart = Date.now();
 
-		const saveButton = page.getByRole('button', { name: 'Save' }).first();
+		const saveButton = page.getByRole('button', {
+			name: 'Save',
+			exact: true,
+		});
 		await saveButton.click();
-		const saveButtonHandle = await saveButton.elementHandle();
+		await saveButton.waitFor({ state: 'visible', timeout: 30_000 });
 		await page.waitForFunction(
-			(button: HTMLButtonElement | null) => {
-				if (!button) {
-					return false;
-				}
-				const text = button.textContent || '';
-				const aria = (button.getAttribute('aria-label') || '').toLowerCase();
-				return text.includes('Saved') || aria.includes('saved');
-			},
-			saveButtonHandle,
+			(btn) => btn?.getAttribute('aria-disabled') === 'true',
+			await saveButton.elementHandle(),
 			{ timeout: 30_000 }
 		);
 
