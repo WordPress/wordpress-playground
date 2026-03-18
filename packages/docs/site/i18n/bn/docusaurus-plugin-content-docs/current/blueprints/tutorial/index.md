@@ -33,6 +33,6 @@ If you encounter any issues while following this tutorial, refer to the [Trouble
 :::
 -->
 
-:::পরামর্শ
+:::tip
 এই টিউটোরিয়াল অনুসরণ করার সময় আপনি যদি কোনো সমস্যার সম্মুখীন হন, তাহলে সেগুলি সমাধান করতে সাহায্য করার জন্য পরামর্শ এবং টুলের জন্য [ব্লুপ্রিন্ট ট্রাবলশুট এবং ডিবাগ করা](/blueprints/troubleshoot-and-debug) বিভাগটি দেখুন।
 :::
