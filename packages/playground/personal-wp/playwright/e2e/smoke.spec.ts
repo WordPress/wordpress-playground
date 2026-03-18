@@ -15,6 +15,25 @@ test('should land on the welcome page on first visit', async ({ website }) => {
 	);
 });
 
+test('should complete welcome flow and update site title', async ({
+	website,
+	wordpress,
+}) => {
+	await website.goto('./');
+	await expect(website.addressBar()).toHaveValue(
+		/\/wp-admin\/tools\.php\?page=playground-welcome/
+	);
+
+	const nameInput = wordpress.locator('#display_name');
+	await nameInput.fill('John Doe');
+	await nameInput.press('Enter');
+
+	await expect(website.addressBar()).toHaveValue(/\/$/);
+	await expect(wordpress.locator('p.wp-block-site-title')).toHaveText(
+		"John Doe's WordPress"
+	);
+});
+
 test('should apply a blueprint passed via URL hash', async ({ website }) => {
 	const blueprint: Blueprint = { landingPage: '/sample-page/' };
 	await website.goto(`./#${JSON.stringify(blueprint)}`);
