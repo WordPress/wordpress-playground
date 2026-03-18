@@ -57,5 +57,5 @@ test('should navigate within WordPress when address bar URL changes', async ({
 	await addressBar.fill('/wp-admin/edit.php');
 	await addressBar.press('Enter');
 
-	await expect(wordpress.locator('body')).toContainText('Posts');
+	await expect(wordpress.locator('h1.wp-heading-inline')).toHaveText('Posts');
 });
