@@ -245,9 +245,15 @@ function fetchFresh(resource: RequestInfo | URL, init?: RequestInit) {
 }
 
 export function isCurrentServiceWorkerActive() {
-	// @ts-ignore
-	// Firefox doesn't support serviceWorker.state
-	if (!('serviceWorker' in self) || !('state' in self.serviceWorker)) {
+	// self.serviceWorker.state is available in all major browsers
+	// (Firefox added support in v120, Nov 2023). The guard below
+	// is kept as a safety net for unusual environments.
+	if (
+		!('serviceWorker' in self) ||
+		// @ts-ignore – ServiceWorkerGlobalScope.serviceWorker is
+		// typed without `state` in older lib definitions.
+		!('state' in self.serviceWorker)
+	) {
 		return true;
 	}
 	// @ts-ignore
