@@ -22,6 +22,13 @@ export const playwrightConfig: PlaywrightTestConfig = {
 	timeout: 300000,
 	expect: { timeout: 60000 },
 
+	// Firefox and WebKit can't run personal-wp via the Vite dev server:
+	// the WASM PHP runtime requires SharedArrayBuffer, which needs
+	// cross-origin isolation headers (COEP/COOP). These are provided by
+	// the service worker after it claims the page, but on first load the
+	// service worker isn't active yet and the runtime fails to start.
+	// The core playground-website E2E tests cover Firefox/WebKit via a
+	// built app served with proper headers.
 	projects: [
 		{
 			name: 'chromium',
@@ -31,14 +38,6 @@ export const playwrightConfig: PlaywrightTestConfig = {
 					args: ['--js-flags=--enable-experimental-webassembly-jspi'],
 				},
 			},
-		},
-		{
-			name: 'firefox',
-			use: { ...devices['Desktop Firefox'] },
-		},
-		{
-			name: 'webkit',
-			use: { ...devices['Desktop Safari'] },
 		},
 	],
 

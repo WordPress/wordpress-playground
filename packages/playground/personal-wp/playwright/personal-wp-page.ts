@@ -9,11 +9,6 @@ export class PersonalWPPage {
 	}
 
 	async waitForNestedIframes(page = this.page) {
-		// Use not.toBeEmpty() instead of toBeVisible() — in Firefox/WebKit
-		// (Asyncify mode) the body may be CSS-hidden while WordPress boots.
-		// Longer timeout because personal-wp boots are heavier than the core
-		// website (OPFS + default blueprint fetches a plugin from GitHub),
-		// and Asyncify mode is slower than JSPI.
 		await expect(
 			page
 				.frameLocator(
@@ -21,7 +16,7 @@ export class PersonalWPPage {
 				)
 				.frameLocator('#wp')
 				.locator('body')
-		).not.toBeEmpty({ timeout: 180000 });
+		).not.toBeEmpty();
 	}
 
 	wordpress(page = this.page) {
