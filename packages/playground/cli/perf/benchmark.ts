@@ -19,12 +19,11 @@
  *   --mode=<mode>     "unbuilt-jspi" (default) or "built"
  *   --with-plugins    Also run with the plugins blueprint
  *   --headed          Chromium in headed mode for debugging
- *   --port=<port>     Server port (default: 9876)
  *   --wp=<version>    WordPress version (default: latest)
  *   --php=<version>   PHP version (default: 8.2)
  */
 
-import { execSync, spawn } from 'child_process';
+import { spawn } from 'child_process';
 import type { ChildProcess } from 'child_process';
 import fs from 'fs';
 import os from 'os';
@@ -38,7 +37,6 @@ interface Options {
 	mode: 'unbuilt-jspi' | 'built';
 	withPlugins: boolean;
 	headed: boolean;
-	port: number;
 	wp: string;
 	php: string;
 }
@@ -95,9 +93,6 @@ async function main() {
 			} catch {
 				// Already gone
 			}
-		}
-		if (activeHandle?.url) {
-			killProcessesOnPort(activeHandle.url);
 		}
 	};
 	process.on('SIGINT', () => {
@@ -162,7 +157,6 @@ function getOptions(): Options {
 			mode: { type: 'string', default: 'unbuilt-jspi' },
 			'with-plugins': { type: 'boolean', default: false },
 			headed: { type: 'boolean', default: false },
-			port: { type: 'string', default: '9876' },
 			wp: { type: 'string', default: 'latest' },
 			php: { type: 'string', default: '8.2' },
 		},
@@ -180,7 +174,6 @@ Options:
   --mode=<mode>      "unbuilt-jspi" or "built" (default: unbuilt-jspi)
   --with-plugins     Also benchmark with a plugins blueprint
   --headed           Run Chromium in headed mode (for debugging)
-  --port=<port>      Server port (default: 9876)
   --wp=<version>     WordPress version (default: latest)
   --php=<version>    PHP version (default: 8.2)
   --help             Show this help message`);
@@ -200,7 +193,6 @@ Options:
 		mode,
 		withPlugins: values['with-plugins'] as boolean,
 		headed: values.headed as boolean,
-		port: parseInt(values.port as string, 10),
 		wp: values.wp as string,
 		php: values.php as string,
 	};
@@ -227,24 +219,43 @@ async function startServer(
 	proc.stderr?.on('data', (data) => {
 		stderr += data.toString();
 	});
-	proc.stdout?.on('data', (data) => {
-		const line = data.toString().trim();
-		if (line) {
-			console.log(`  [cli] ${line}`);
-		}
-	});
 
-	const url = `http://127.0.0.1:${opts.port}`;
-	const ready = await waitForServer(url);
-	if (!ready) {
-		proc.kill('SIGKILL');
-		if (stderr) {
-			console.error(stderr.slice(0, 1000));
-		}
-		throw new Error(
-			`Playground CLI server failed to start on port ${opts.port}`
-		);
-	}
+	const url = await new Promise<string>((resolve, reject) => {
+		const readyPattern = /running on (https?:\/\/\S+)/i;
+		const timeoutId = setTimeout(() => {
+			reject(
+				new Error(
+					'Playground CLI server did not print a ready URL' +
+						(stderr ? `\nstderr: ${stderr.slice(0, 1000)}` : '')
+				)
+			);
+		}, 180_000);
+
+		proc.stdout?.on('data', (data) => {
+			const text = data.toString();
+			for (const line of text.split('\n')) {
+				const trimmed = line.trim();
+				if (trimmed) {
+					console.log(`  [cli] ${trimmed}`);
+				}
+			}
+			const match = text.match(readyPattern);
+			if (match) {
+				clearTimeout(timeoutId);
+				resolve(match[1]);
+			}
+		});
+
+		proc.on('exit', (code) => {
+			clearTimeout(timeoutId);
+			reject(
+				new Error(
+					`CLI exited with code ${code}` +
+						(stderr ? `\nstderr: ${stderr.slice(0, 1000)}` : '')
+				)
+			);
+		});
+	});
 
 	const startupMs = Date.now() - startTime;
 	console.log(`  Server ready at ${url}`);
@@ -252,50 +263,23 @@ async function startServer(
 }
 
 async function stopServer(handle: ServerHandle): Promise<void> {
-	// Kill the process group we spawned
-	if (handle.process.pid) {
-		try {
-			if (process.platform === 'win32') {
-				spawn('taskkill', [
-					'/F',
-					'/T',
-					'/PID',
-					String(handle.process.pid),
-				]);
-			} else {
-				process.kill(-handle.process.pid, 'SIGTERM');
-			}
-		} catch {
-			// Process may have already exited
-		}
-		await sleep(2000);
-		try {
-			process.kill(-handle.process.pid, 'SIGKILL');
-		} catch {
-			// Already gone
-		}
+	if (!handle.process.pid) {
+		return;
 	}
-	// Also kill anything still listening on the port — the actual
-	// CLI server is a grandchild of npx and may not share the
-	// same process group.
-	killProcessesOnPort(handle.url);
-}
-
-function killProcessesOnPort(url: string): void {
 	try {
-		const port = new URL(url).port;
 		if (process.platform === 'win32') {
-			execSync(
-				`for /f "tokens=5" %a in ('netstat -aon ^| find ":${port}"') do taskkill /F /PID %a`,
-				{ stdio: 'ignore' }
-			);
+			spawn('taskkill', ['/F', '/T', '/PID', String(handle.process.pid)]);
 		} else {
-			execSync(`lsof -ti:${port} | xargs kill -9 2>/dev/null || true`, {
-				stdio: 'ignore',
-			});
+			process.kill(-handle.process.pid, 'SIGTERM');
 		}
 	} catch {
-		// Nothing listening, that's fine
+		// Process may have already exited
+	}
+	await sleep(2000);
+	try {
+		process.kill(-handle.process.pid, 'SIGKILL');
+	} catch {
+		// Already gone
 	}
 }
 
@@ -305,7 +289,6 @@ function buildCommand(
 ): { command: string; args: string[] } {
 	const cliArgs = [
 		'server',
-		`--port=${opts.port}`,
 		`--wp=${opts.wp}`,
 		`--php=${opts.php}`,
 		'--login',
@@ -485,37 +468,6 @@ function formatDuration(ms: number): string {
 
 function sleep(ms: number): Promise<void> {
 	return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-async function waitForServer(
-	url: string,
-	timeoutMs = 180_000
-): Promise<boolean> {
-	const start = Date.now();
-	while (Date.now() - start < timeoutMs) {
-		try {
-			// Abort individual requests after 10s — the Express
-			// server accepts connections before WordPress finishes
-			// booting in WASM, so a single fetch can hang for
-			// minutes waiting for response headers.
-			const response = await fetch(url, {
-				signal: AbortSignal.timeout(10_000),
-				redirect: 'manual',
-			});
-			await response.body?.cancel();
-			if (
-				response.ok ||
-				response.status === 302 ||
-				response.status === 301
-			) {
-				return true;
-			}
-		} catch {
-			// Server not ready yet
-		}
-		await sleep(1000);
-	}
-	return false;
 }
 
 main().catch((err) => {
