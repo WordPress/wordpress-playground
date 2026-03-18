@@ -5,6 +5,23 @@ import css from './style.module.css';
 
 const DISMISS_KEY = 'playground-ios-pwa-notice-dismissed';
 
+function isDismissedInStorage(): boolean {
+	try {
+		return localStorage.getItem(DISMISS_KEY) === 'true';
+	} catch {
+		return false;
+	}
+}
+
+function persistDismissal(): void {
+	try {
+		localStorage.setItem(DISMISS_KEY, 'true');
+	} catch {
+		// Storage unavailable — the notice will reappear on
+		// next visit, which is acceptable.
+	}
+}
+
 /**
  * A dismissible notice shown to iOS/iPadOS Safari users who have
  * not installed the app as a PWA. It explains the risk of data
@@ -14,16 +31,14 @@ const DISMISS_KEY = 'playground-ios-pwa-notice-dismissed';
  * Home Screen.
  */
 export function IosPwaNotice() {
-	const [dismissed, setDismissed] = useState(
-		() => localStorage.getItem(DISMISS_KEY) === 'true'
-	);
+	const [dismissed, setDismissed] = useState(isDismissedInStorage);
 
 	if (dismissed || !isIOSSafari() || isRunningAsPWA()) {
 		return null;
 	}
 
 	const handleDismiss = () => {
-		localStorage.setItem(DISMISS_KEY, 'true');
+		persistDismissal();
 		setDismissed(true);
 	};
 
@@ -54,7 +69,6 @@ export function IosPwaNotice() {
 								role="img"
 								aria-label="share"
 							>
-								&#xFEFF;
 								{/* Safari share icon (box with arrow) */}
 								<svg
 									xmlns="http://www.w3.org/2000/svg"
