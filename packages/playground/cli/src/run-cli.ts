@@ -944,12 +944,6 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 			args.phpmyadmin = '/phpmyadmin';
 		}
 
-		if (args.skipSqliteSetup) {
-			throw new Error(
-				'--phpmyadmin requires SQLite. Cannot be used with --skip-sqlite-setup.'
-			);
-		}
-
 		// Set up path alias for phpMyAdmin.
 		args['pathAliases'] = [
 			{
