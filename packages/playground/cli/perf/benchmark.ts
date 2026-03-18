@@ -187,9 +187,16 @@ Options:
 		);
 		process.exit(1);
 	}
+	const rounds = parseInt(values.rounds as string, 10);
+	if (!Number.isInteger(rounds) || rounds < 1) {
+		console.error(
+			`Invalid --rounds: ${values.rounds}. Must be an integer >= 1.`
+		);
+		process.exit(1);
+	}
 
 	return {
-		rounds: parseInt(values.rounds as string, 10),
+		rounds,
 		mode,
 		withPlugins: values['with-plugins'] as boolean,
 		headed: values.headed as boolean,
