@@ -92,6 +92,50 @@
 		/>
 	</head>
 	<body>
+		<template id="load-error-fallback">
+			<!-- Use inline styles in case we are having trouble loading other resources -->
+			<div
+				style="
+					max-width: 520px;
+					margin: 80px auto;
+					font-family: system-ui, sans-serif;
+					text-align: center;
+					padding: 0 20px;
+				"
+			>
+				<h1 style="font-size: 1.4rem; margin-bottom: 12px">
+					Could not load Your WordPress
+				</h1>
+				<p style="line-height: 1.5">
+					The application failed to load. This is often caused by a
+					network issue.
+				</p>
+				<p style="line-height: 1.5; margin-top: 8px">
+					Check your internet connection, disable any VPN or ad
+					blocker that might interfere, and try again.
+				</p>
+				<button
+					onclick="location.reload()"
+					style="
+						margin-top: 15px;
+						margin-bottom: 15px;
+						font-size: 20px;
+						padding: 5px 10px;
+						cursor: pointer;
+					"
+				>
+					Try again
+				</button>
+				<p>
+					If the problem persists, please
+					<a
+						href="https://github.com/WordPress/wordpress-playground/issues/new"
+						target="_blank"
+						>report an issue on GitHub</a
+					>.
+				</p>
+			</div>
+		</template>
 		<!--
 			Shown before React loads when an iOS WKWebView (in-app browser) is
 			detected. The detection script below reveals this and skips the
@@ -250,7 +294,7 @@
 				 * Therefore, we're bypassing the cached import by adding a cache busting query parameter
 				 * if the original import fails.
 				 */
-				import('./src/main').catch((e) => {
+				import('./src/main').catch(async (e) => {
 					console.error('Failed to load main module:', e);
 					try {
 						/**
@@ -273,14 +317,23 @@
 								'_ts',
 								String(Date.now())
 							);
-							return import(
+							return await import(
 								/* @vite-ignore */ moduleUrl.toString()
 							);
 						}
 					} catch {
 						// Fall back to the original error
 					}
-					throw e;
+					/**
+					 * If we get here, the app module completely failed to load.
+					 * React is not available, so render a plain HTML
+					 * error message.
+					 */
+					const root = document.getElementById('root');
+					const template = document.getElementById(
+						'load-error-fallback'
+					);
+					root.replaceChildren(template.content.cloneNode(true));
 				});
 			}
 		</script>

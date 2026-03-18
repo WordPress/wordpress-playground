@@ -23,6 +23,7 @@
 		"fix-asyncify": "node packages/php-wasm/node/bin/rebuild-while-asyncify-functions-missing.mjs",
 		"typecheck": "nx run-many --all --target=typecheck",
 		"prepare": "husky install",
+		"playground-cli:perf": "node --experimental-strip-types --experimental-transform-types --disable-warning=ExperimentalWarning --import ./packages/meta/src/node-es-module-loader/register.mts packages/playground/cli/perf/benchmark.ts",
 		"reset": "nx reset",
 		"local-package-repository": "./tools/scripts/local-package-repository.sh",
 		"recompile:php": "npm run recompile:php:web && npm run recompile:php:node",
