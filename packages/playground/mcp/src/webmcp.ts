@@ -14,10 +14,10 @@ import {
 	paramsToJsonSchema,
 	stringifyError,
 } from './tools/tool-definitions';
-
-const siteToolDefinitions = getSiteToolDefinitions();
 import { toolExecutors, createToolClient } from './tools/tool-executors';
 import type { PlaygroundConfig } from './bridge-client';
+
+const siteToolDefinitions = getSiteToolDefinitions();
 
 // -- WebMCP type declarations --
 
