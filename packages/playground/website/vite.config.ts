@@ -143,7 +143,8 @@ export default defineConfig(({ command, mode }) => {
 					);
 					const clientSrcDir = join(__dirname, '../client/src');
 					let buildInProgress = false;
-					let stalenessWarned = false;
+					let stalenessChecked = false;
+					let sourcesDirty = false;
 
 					function newestMtimeIn(dir: string): number {
 						let newest = 0;
@@ -183,7 +184,8 @@ export default defineConfig(({ command, mode }) => {
 							{ cwd: repoRoot },
 							(error, stdout, stderr) => {
 								buildInProgress = false;
-								stalenessWarned = false;
+								stalenessChecked = true;
+								sourcesDirty = false;
 								if (error) {
 									server.config.logger.error(
 										'  @wp-playground/client build failed. ' +
@@ -200,6 +202,14 @@ export default defineConfig(({ command, mode }) => {
 							}
 						);
 					}
+
+					server.watcher.add(clientSrcDir);
+					server.watcher.on('change', (changedPath) => {
+						if (changedPath.startsWith(clientSrcDir)) {
+							sourcesDirty = true;
+							stalenessChecked = false;
+						}
+					});
 
 					server.middlewares.use((req, res, next) => {
 						if (!req.url?.startsWith('/client/')) {
@@ -226,13 +236,21 @@ export default defineConfig(({ command, mode }) => {
 							return;
 						}
 
-						if (!stalenessWarned && !buildInProgress) {
-							const distMtime = statSync(distIndexPath).mtimeMs;
+						if (
+							!stalenessChecked &&
+							!buildInProgress
+						) {
+							stalenessChecked = true;
+							const distMtime =
+								statSync(distIndexPath).mtimeMs;
 							const srcMtime = newestMtimeIn(clientSrcDir);
 							if (srcMtime > distMtime) {
-								stalenessWarned = true;
-								triggerClientBuild();
+								sourcesDirty = true;
 							}
+						}
+						if (sourcesDirty && !buildInProgress) {
+							sourcesDirty = false;
+							triggerClientBuild();
 						}
 
 						const urlPath = new URL(req.url, 'http://localhost')
