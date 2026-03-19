@@ -21,6 +21,9 @@ const test = base.extend<{ webmcpPage: Page }>({
 			(window as any).__webmcpExecutors = {};
 
 			(navigator as any).modelContext = {
+				get tools() {
+					return registeredTools;
+				},
 				registerTool(tool: (typeof registeredTools)[0]) {
 					registeredTools.push(tool);
 					// Expose on window so tests can inspect and invoke
