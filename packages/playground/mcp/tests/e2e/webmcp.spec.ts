@@ -23,6 +23,9 @@ const test = base.extend<{ webmcpPage: Page }>({
 			Object.defineProperty(navigator as any, 'modelContext', {
 				configurable: true,
 				value: {
+					get tools() {
+						return registeredTools;
+					},
 					clearContext() {
 						registeredTools.length = 0;
 						(window as any).__webmcpExecutors = {};
