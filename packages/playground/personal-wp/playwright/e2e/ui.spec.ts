@@ -29,6 +29,21 @@ test('should open the menu overlay', async ({ website }) => {
 	await expect(
 		website.page.getByRole('heading', { name: 'Recovery' })
 	).toBeVisible();
+
+	await website.page
+		.getByRole('button', { name: 'you can reset this WordPress' })
+		.click();
+	await expect(
+		website.page.getByRole('button', { name: 'Delete everything' })
+	).toBeVisible();
+	await website.page
+		.getByRole('button', { name: 'you can troubleshoot' })
+		.click();
+	await expect(
+		website.page.getByRole('link', {
+			name: 'Install Health Check & Troubleshoot',
+		})
+	).toBeVisible();
 });
 
 test('should close the menu overlay with Escape', async ({ website }) => {
