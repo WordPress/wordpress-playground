@@ -7,12 +7,7 @@
  * files change (detected via Vite's file watcher).
  */
 import type { Plugin, ViteDevServer } from 'vite';
-import {
-	existsSync,
-	readFileSync,
-	readdirSync,
-	statSync,
-} from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, resolve, relative, isAbsolute } from 'node:path';
 import { exec } from 'node:child_process';
 
@@ -38,15 +33,9 @@ export function serveClientLibrary(): Plugin {
 					})) {
 						const full = join(dir, entry.name);
 						if (entry.isDirectory()) {
-							newest = Math.max(
-								newest,
-								newestMtimeIn(full)
-							);
+							newest = Math.max(newest, newestMtimeIn(full));
 						} else if (entry.isFile()) {
-							newest = Math.max(
-								newest,
-								statSync(full).mtimeMs
-							);
+							newest = Math.max(newest, statSync(full).mtimeMs);
 						}
 					}
 				} catch {
@@ -88,8 +77,9 @@ export function serveClientLibrary(): Plugin {
 			}
 
 			server.watcher.add(clientSrcDir);
-			server.watcher.on('change', (changedPath) => {
-				if (changedPath.startsWith(clientSrcDir)) {
+			server.watcher.on('all', (_event, changedPath) => {
+				const rel = relative(clientSrcDir, changedPath);
+				if (!rel.startsWith('..') && !isAbsolute(rel)) {
 					sourcesDirty = true;
 					stalenessChecked = false;
 				}
@@ -105,10 +95,7 @@ export function serveClientLibrary(): Plugin {
 				if (!existsSync(distIndexPath)) {
 					triggerClientBuild();
 					res.setHeader('Access-Control-Allow-Origin', '*');
-					res.setHeader(
-						'Content-Type',
-						'application/javascript'
-					);
+					res.setHeader('Content-Type', 'application/javascript');
 					res.statusCode = 503;
 					res.end(
 						'throw new Error(' +
@@ -120,13 +107,9 @@ export function serveClientLibrary(): Plugin {
 					return;
 				}
 
-				if (
-					!stalenessChecked &&
-					!buildInProgress
-				) {
+				if (!stalenessChecked && !buildInProgress) {
 					stalenessChecked = true;
-					const distMtime =
-						statSync(distIndexPath).mtimeMs;
+					const distMtime = statSync(distIndexPath).mtimeMs;
 					const srcMtime = newestMtimeIn(clientSrcDir);
 					if (srcMtime > distMtime) {
 						sourcesDirty = true;
@@ -139,8 +122,7 @@ export function serveClientLibrary(): Plugin {
 
 				let urlPath: string;
 				try {
-					urlPath = new URL(req.url, 'http://localhost')
-						.pathname;
+					urlPath = new URL(req.url, 'http://localhost').pathname;
 				} catch {
 					res.statusCode = 400;
 					res.end('Invalid request URL');
@@ -156,7 +138,7 @@ export function serveClientLibrary(): Plugin {
 					res.end();
 					return;
 				}
-				if (!existsSync(filePath)) {
+				if (!existsSync(filePath) || statSync(filePath).isDirectory()) {
 					return next();
 				}
 				const contentTypes: Record<string, string> = {
