@@ -38,9 +38,7 @@ interface ModelContextClient {
 
 interface ModelContext {
 	provideContext(options: { tools: ModelContextTool[] }): void;
-	clearContext(): void;
 	registerTool(tool: ModelContextTool): void;
-	unregisterTool(name: string): void;
 }
 
 declare global {
@@ -50,6 +48,8 @@ declare global {
 }
 
 // -- Registration --
+
+const registeredToolNames = new Set<string>();
 
 export function registerWebMCPTools(config: PlaygroundConfig): void {
 	if (typeof navigator === 'undefined' || !navigator.modelContext) {
@@ -99,7 +99,10 @@ export function registerWebMCPTools(config: PlaygroundConfig): void {
 	tools.push(...createSiteManagementTools(config));
 
 	for (const tool of tools) {
-		navigator.modelContext.registerTool(tool);
+		if (!registeredToolNames.has(tool.name)) {
+			navigator.modelContext.registerTool(tool);
+			registeredToolNames.add(tool.name);
+		}
 	}
 }
 

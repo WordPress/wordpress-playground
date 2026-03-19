@@ -21,10 +21,6 @@ const test = base.extend<{ webmcpPage: Page }>({
 			(window as any).__webmcpExecutors = {};
 
 			(navigator as any).modelContext = {
-				clearContext() {
-					registeredTools.length = 0;
-					(window as any).__webmcpExecutors = {};
-				},
 				registerTool(tool: (typeof registeredTools)[0]) {
 					registeredTools.push(tool);
 					// Expose on window so tests can inspect and invoke
@@ -32,15 +28,6 @@ const test = base.extend<{ webmcpPage: Page }>({
 					(window as any).__webmcpExecutors[tool.name] = (
 						input: Record<string, unknown>
 					) => tool.execute(input);
-				},
-				unregisterTool(name: string) {
-					const idx = registeredTools.findIndex(
-						(t) => t.name === name
-					);
-					if (idx !== -1) {
-						registeredTools.splice(idx, 1);
-						delete (window as any).__webmcpExecutors[name];
-					}
 				},
 			};
 		});
