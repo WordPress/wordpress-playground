@@ -16,7 +16,13 @@ declare global {
 /**
  * Google Analytics event names
  */
-type GAEvent = 'load' | 'step' | 'installPlugin' | 'installTheme' | 'error';
+type GAEvent =
+	| 'load'
+	| 'step'
+	| 'installPlugin'
+	| 'installTheme'
+	| 'error'
+	| 'mcpConnect';
 
 /**
  * Log a tracking event to Google Analytics

@@ -41,13 +41,13 @@ jobs:
               with:
                   ref: ${{ github.event.pull_request.head.ref }}
                   clean: true
-                  persist-credentials: false
+                  persist-credentials: true
+                  ssh-key: ${{ secrets.DEPLOY_KEY }}
                   submodules: true
             - name: Config git user
               run: |
                   git config --global user.name "deployment_bot"
                   git config --global user.email "deployment_bot@users.noreply.github.com"
-                  git remote set-url origin https://${{ github.actor }}:${{ github.token }}@github.com/${{ github.repository }}
             - uses: ./.github/actions/prepare-playground
             # Version bump, release, tag a new version on GitHub
             - name: Bump package versions

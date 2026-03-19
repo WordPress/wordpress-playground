@@ -162,6 +162,7 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 					'Mount a directory to the PHP runtime (can be used multiple times). Format: /host/path:/vfs/path',
 				type: 'array',
 				string: true,
+				nargs: 1,
 				coerce: parseMountWithDelimiterArguments,
 			},
 			'mount-before-install': {
@@ -169,6 +170,7 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 					'Mount a directory to the PHP runtime before WordPress installation (can be used multiple times). Format: /host/path:/vfs/path',
 				type: 'array',
 				string: true,
+				nargs: 1,
 				coerce: parseMountWithDelimiterArguments,
 			},
 			'mount-dir': {
@@ -495,6 +497,9 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 						...buildSnapshotOnlyOptions,
 					})
 			)
+			.command('php', 'Run a PHP script', (yargsInstance: Argv) =>
+				yargsInstance.options({ ...sharedOptions })
+			)
 			.demandCommand(1, 'Please specify a command')
 			.strictCommands()
 			.conflicts(
@@ -632,9 +637,13 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 		const command = args._[0] as string;
 
 		if (
-			!['start', 'run-blueprint', 'server', 'build-snapshot'].includes(
-				command
-			)
+			![
+				'start',
+				'run-blueprint',
+				'server',
+				'build-snapshot',
+				'php',
+			].includes(command)
 		) {
 			yargsObject.showHelp();
 			process.exit(1);
@@ -735,11 +744,16 @@ function getMountForVfsPath(
 }
 
 export interface RunCLIArgs {
+	/**
+	 * `_` holds positional tokens in the order they appeared.
+	 * `_[0]` will typically be the command name.
+	 */
+	_?: string[];
 	blueprint?:
 		| BlueprintV1Declaration
 		| BlueprintV2Declaration
 		| BlueprintBundle;
-	command: 'start' | 'server' | 'run-blueprint' | 'build-snapshot';
+	command: 'start' | 'server' | 'run-blueprint' | 'build-snapshot' | 'php';
 	debug?: boolean;
 	login?: boolean;
 	mount?: Mount[];
@@ -849,7 +863,7 @@ const highlight = (text: string) =>
 export { mergeDefinedConstants } from './defines';
 
 export async function runCLI(
-	args: RunCLIArgs & { command: 'build-snapshot' | 'run-blueprint' }
+	args: RunCLIArgs & { command: 'build-snapshot' | 'run-blueprint' | 'php' }
 ): Promise<void>;
 export async function runCLI(
 	args: RunCLIArgs & { command: 'start' }
@@ -1361,13 +1375,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 						async (
 							spawnResult: SpawnedWorker
 						): Promise<
-							[
-								SpawnedWorker,
-								(
-									| RemoteAPI<PlaygroundCliBlueprintV1Worker>
-									| RemoteAPI<PlaygroundCliBlueprintV2Worker>
-								),
-							]
+							[SpawnedWorker, RemoteAPI<PlaygroundCliWorker>]
 						> => {
 							// Remember the worker process before booting the Playground
 							// so we can clean it up if there is an error during boot.
@@ -1486,6 +1494,36 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 						cliOutput.finishProgress('Done');
 						await disposeCLI();
 						return;
+					} else if (args.command === 'php') {
+						const argv = [
+							// @TODO: Import this from somewhere?
+							// Hardcoding it feels fragile.
+							'/internal/shared/bin/php',
+							...(args['_'] || []).slice(1),
+						];
+						const response = await playgroundPool.cli(argv);
+						const [exitCode] = await Promise.all([
+							response.exitCode,
+							response.stdout.pipeTo(
+								new WritableStream({
+									write(chunk) {
+										process.stdout.write(chunk);
+									},
+								})
+							),
+							response.stderr.pipeTo(
+								new WritableStream({
+									write(chunk) {
+										process.stderr.write(chunk);
+									},
+								})
+							),
+						]);
+						await disposeCLI();
+						// stdout and stderr streams are drained above,
+						// but we  use process.exit as a hard cut-off to ensure
+						// Node doesn't hang on open handles.
+						process.exit(exitCode);
 					}
 				}
 
