@@ -3,11 +3,8 @@ import { journalFSEvents, replayFSJournal } from '@php-wasm/fs-journal';
 import type { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import { setURLScope } from '@php-wasm/scopes';
 import { joinPaths } from '@php-wasm/util';
-import type {
-	MountDevice,
-	SyncProgressCallback,
-	TCPOverFetchOptions,
-} from '@php-wasm/web';
+import type { SyncProgressCallback, TCPOverFetchOptions } from '@php-wasm/web';
+import type { MountDevice } from '@wp-playground/storage';
 import {
 	createDirectoryHandleMountHandler,
 	loadWebRuntime,
@@ -238,7 +235,7 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 					// TODO: Document that this shift is a breaking change.
 					// Proxy the filesystem for all secondary PHP instances to
 					// the primary one.
-					proxyFileSystem(
+					await proxyFileSystem(
 						await requestHandler.getPrimaryPhp(),
 						php,
 						pathsToProxy

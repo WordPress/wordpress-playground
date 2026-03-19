@@ -29,10 +29,9 @@ This is an NX monorepo with npm workspaces. All commands use NX for task orchest
 
 ```bash
 # Development
-npm run dev                              # Start website dev server (localhost:5400)
+npm run dev                              # Start website dev server (localhost:5400); auto-reloads on code changes, no restart needed
 npm run dev:docs                         # Start documentation site
 npx nx dev playground-cli server         # Run CLI from source
-
 # Building
 npm run build                            # Build all packages
 npm run build:website                    # Build the main website

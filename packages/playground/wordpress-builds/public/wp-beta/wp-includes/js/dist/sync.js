@@ -9161,14 +9161,13 @@ var wp;
   var CRDT_DOC_VERSION = 1;
   var CRDT_DOC_META_PERSISTENCE_KEY = "fromPersistence";
   var CRDT_RECORD_MAP_KEY = "document";
-  var CRDT_RECORD_METADATA_MAP_KEY = "documentMeta";
-  var CRDT_RECORD_METADATA_SAVED_AT_KEY = "savedAt";
-  var CRDT_RECORD_METADATA_SAVED_BY_KEY = "savedBy";
   var CRDT_STATE_MAP_KEY = "state";
-  var CRDT_STATE_VERSION_KEY = "version";
+  var CRDT_STATE_MAP_SAVED_AT_KEY = "savedAt";
+  var CRDT_STATE_MAP_SAVED_BY_KEY = "savedBy";
+  var CRDT_STATE_MAP_VERSION_KEY = "version";
   var LOCAL_EDITOR_ORIGIN = "gutenberg";
   var LOCAL_SYNC_MANAGER_ORIGIN = "syncManager";
-  var WORDPRESS_META_KEY_FOR_CRDT_DOC_PERSISTENCE = "_crdt_document";
+  var LOCAL_UNDO_IGNORED_ORIGIN = "gutenberg-undo-ignored";
 
   // packages/sync/build-module/lock-unlock.mjs
   var import_private_apis = __toESM(require_private_apis(), 1);
@@ -9183,7 +9182,9 @@ var wp;
       const start = performance.now();
       const result = fn.apply(this, args2);
       const end = performance.now();
-      console.log(`${fn.name} took ${(end - start).toFixed(2)} ms`);
+      console.log(
+        `[SyncManager][performance]: ${fn.name} took ${(end - start).toFixed(2)} ms`
+      );
       return result;
     };
   }
@@ -9195,61 +9196,6 @@ var wp;
       setTimeout(() => {
         fn.apply(this, args2);
       }, 0);
-    };
-  }
-
-  // packages/sync/build-module/utils.mjs
-  function createYjsDoc(documentMeta = {}) {
-    const metaMap = new Map(
-      Object.entries(documentMeta)
-    );
-    const ydoc = new Doc({ meta: metaMap });
-    const stateMap = ydoc.getMap(CRDT_STATE_MAP_KEY);
-    stateMap.set(CRDT_STATE_VERSION_KEY, CRDT_DOC_VERSION);
-    return ydoc;
-  }
-  function markEntityAsSaved(ydoc) {
-    const recordMeta = ydoc.getMap(CRDT_RECORD_METADATA_MAP_KEY);
-    recordMeta.set(CRDT_RECORD_METADATA_SAVED_AT_KEY, Date.now());
-    recordMeta.set(CRDT_RECORD_METADATA_SAVED_BY_KEY, ydoc.clientID);
-  }
-  function pseudoRandomID() {
-    return Math.floor(Math.random() * 1e9);
-  }
-  function serializeCrdtDoc(crdtDoc) {
-    return JSON.stringify({
-      document: toBase64(encodeStateAsUpdateV2(crdtDoc)),
-      updateId: pseudoRandomID()
-      // helps with debugging
-    });
-  }
-  function deserializeCrdtDoc(serializedCrdtDoc) {
-    try {
-      const { document: document2 } = JSON.parse(serializedCrdtDoc);
-      const docMeta = {
-        [CRDT_DOC_META_PERSISTENCE_KEY]: true
-      };
-      const ydoc = createYjsDoc(docMeta);
-      const yupdate = fromBase64(document2);
-      applyUpdateV2(ydoc, yupdate);
-      ydoc.clientID = pseudoRandomID();
-      return ydoc;
-    } catch (e) {
-      return null;
-    }
-  }
-
-  // packages/sync/build-module/persistence.mjs
-  function getPersistedCrdtDoc(record) {
-    const serializedCrdtDoc = record.meta?.[WORDPRESS_META_KEY_FOR_CRDT_DOC_PERSISTENCE];
-    if (serializedCrdtDoc) {
-      return deserializeCrdtDoc(serializedCrdtDoc);
-    }
-    return null;
-  }
-  function createPersistedCRDTDoc(ydoc) {
-    return {
-      [WORDPRESS_META_KEY_FOR_CRDT_DOC_PERSISTENCE]: serializeCrdtDoc(ydoc)
     };
   }
 
@@ -9394,10 +9340,25 @@ var wp;
     }
     return await response.json();
   }
+  function postSyncUpdateNonBlocking(payload) {
+    if (payload.rooms.length === 0) {
+      return;
+    }
+    (0, import_api_fetch.default)({
+      body: JSON.stringify(payload),
+      headers: { "Content-Type": "application/json" },
+      keepalive: true,
+      method: "POST",
+      parse: false,
+      path: SYNC_API_PATH
+    }).catch(() => {
+    });
+  }
 
   // packages/sync/build-module/providers/http-polling/polling-manager.mjs
   var POLLING_INTERVAL_IN_MS = 1e3;
   var POLLING_INTERVAL_WITH_COLLABORATORS_IN_MS = 250;
+  var POLLING_INTERVAL_BACKGROUND_TAB_IN_MS = 25 * 1e3;
   var MAX_ERROR_BACKOFF_IN_MS = 30 * 1e3;
   var POLLING_MANAGER_ORIGIN = "polling-manager";
   var roomStates = /* @__PURE__ */ new Map();
@@ -9408,7 +9369,7 @@ var wp;
       )
     ).map((u) => base64ToUint8Array(u.data));
     return createSyncUpdate(
-      mergeUpdates(mergeable),
+      mergeUpdatesV2(mergeable),
       SyncUpdateType.COMPACTION
     );
   }
@@ -9500,19 +9461,52 @@ var wp;
       }
       case SyncUpdateType.COMPACTION:
       case SyncUpdateType.UPDATE: {
-        applyUpdate(doc2, data, POLLING_MANAGER_ORIGIN);
+        applyUpdateV2(doc2, data, POLLING_MANAGER_ORIGIN);
       }
     }
   }
+  var areListenersRegistered = false;
+  var hasCollaborators = false;
+  var isActiveBrowser = "visible" === document.visibilityState;
   var isPolling = false;
+  var isUnloadPending = false;
   var pollInterval = POLLING_INTERVAL_IN_MS;
+  var pollingTimeoutId = null;
+  function handleBeforeUnload() {
+    isUnloadPending = true;
+  }
+  function handlePageHide() {
+    const rooms = Array.from(roomStates.entries()).map(
+      ([room, state]) => ({
+        after: 0,
+        awareness: null,
+        client_id: state.clientId,
+        room,
+        updates: []
+      })
+    );
+    postSyncUpdateNonBlocking({ rooms });
+  }
+  function handleVisibilityChange() {
+    const wasActive = isActiveBrowser;
+    isActiveBrowser = document.visibilityState === "visible";
+    if (isActiveBrowser && !wasActive) {
+      if (pollingTimeoutId) {
+        clearTimeout(pollingTimeoutId);
+        pollingTimeoutId = null;
+        poll();
+      }
+    }
+  }
   function poll() {
     isPolling = true;
+    pollingTimeoutId = null;
     async function start() {
       if (0 === roomStates.size) {
         isPolling = false;
         return;
       }
+      isUnloadPending = false;
       roomStates.forEach((state) => {
         state.onStatusChange({ status: "connecting" });
       });
@@ -9529,7 +9523,6 @@ var wp;
       };
       try {
         const { rooms } = await postSyncUpdate(payload);
-        pollInterval = POLLING_INTERVAL_IN_MS;
         roomStates.forEach((state) => {
           state.onStatusChange({ status: "connected" });
         });
@@ -9541,7 +9534,7 @@ var wp;
           roomState.endCursor = room.end_cursor;
           roomState.processAwarenessUpdate(room.awareness);
           if (Object.keys(room.awareness).length > 1) {
-            pollInterval = POLLING_INTERVAL_WITH_COLLABORATORS_IN_MS;
+            hasCollaborators = true;
             roomState.updateQueue.resume();
           }
           const responseUpdates = room.updates.map((update) => roomState.processDocUpdate(update)).filter(
@@ -9563,6 +9556,13 @@ var wp;
             );
           }
         });
+        if (isActiveBrowser && hasCollaborators) {
+          pollInterval = POLLING_INTERVAL_WITH_COLLABORATORS_IN_MS;
+        } else if (isActiveBrowser) {
+          pollInterval = POLLING_INTERVAL_IN_MS;
+        } else {
+          pollInterval = POLLING_INTERVAL_BACKGROUND_TAB_IN_MS;
+        }
       } catch (error) {
         pollInterval = Math.min(
           pollInterval * 2,
@@ -9582,11 +9582,16 @@ var wp;
             }
           );
         }
-        roomStates.forEach((state) => {
-          state.onStatusChange({ status: "disconnected" });
-        });
+        if (!isUnloadPending) {
+          roomStates.forEach((state) => {
+            state.onStatusChange({
+              status: "disconnected",
+              retryInMs: pollInterval
+            });
+          });
+        }
       }
-      setTimeout(poll, pollInterval);
+      pollingTimeoutId = setTimeout(poll, pollInterval);
     }
     void start();
   }
@@ -9612,14 +9617,14 @@ var wp;
       updateQueue.add(createSyncUpdate(update, SyncUpdateType.UPDATE));
     }
     function unregister() {
-      doc2.off("update", onDocUpdate);
+      doc2.off("updateV2", onDocUpdate);
       awareness.off("change", onAwarenessUpdate);
       updateQueue.clear();
     }
     const roomState = {
       clientId: doc2.clientID,
       createCompactionUpdate: () => createSyncUpdate(
-        encodeStateAsUpdate(doc2),
+        encodeStateAsUpdateV2(doc2),
         SyncUpdateType.COMPACTION
       ),
       endCursor: 0,
@@ -9631,19 +9636,56 @@ var wp;
       unregister,
       updateQueue
     };
-    doc2.on("update", onDocUpdate);
+    doc2.on("updateV2", onDocUpdate);
     awareness.on("change", onAwarenessUpdate);
     roomStates.set(room, roomState);
+    if (!areListenersRegistered) {
+      window.addEventListener("beforeunload", handleBeforeUnload);
+      window.addEventListener("pagehide", handlePageHide);
+      document.addEventListener("visibilitychange", handleVisibilityChange);
+      areListenersRegistered = true;
+    }
     if (!isPolling) {
       poll();
     }
   }
   function unregisterRoom(room) {
-    roomStates.get(room)?.unregister();
-    roomStates.delete(room);
+    const state = roomStates.get(room);
+    if (state) {
+      const rooms = [
+        {
+          after: 0,
+          awareness: null,
+          client_id: state.clientId,
+          room,
+          updates: []
+        }
+      ];
+      postSyncUpdateNonBlocking({ rooms });
+      state.unregister();
+      roomStates.delete(room);
+    }
+    if (0 === roomStates.size && areListenersRegistered) {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+      window.removeEventListener("pagehide", handlePageHide);
+      document.removeEventListener(
+        "visibilitychange",
+        handleVisibilityChange
+      );
+      areListenersRegistered = false;
+    }
+  }
+  function retryNow() {
+    pollInterval = POLLING_INTERVAL_IN_MS * 2;
+    if (pollingTimeoutId) {
+      clearTimeout(pollingTimeoutId);
+      pollingTimeoutId = null;
+      poll();
+    }
   }
   var pollingManager = {
     registerRoom,
+    retryNow,
     unregisterRoom
   };
 
@@ -9689,13 +9731,14 @@ var wp;
       this.emitStatus({ status: "disconnected" });
     }
     /**
-     * Emit connection status.
+     * Emit connection status, passing the full object through so that
+     * additional fields (e.g. `retryInMs`) are preserved for consumers.
      *
-     * @param status        The connection status
-     * @param status.error  Optional error information when status is 'disconnected'
-     * @param status.status The connection status ('connected', 'connecting', 'disconnected')
+     * @param connectionStatus The connection status object
      */
-    emitStatus = ({ error, status }) => {
+    emitStatus = (connectionStatus) => {
+      const { status } = connectionStatus;
+      const error = status === "disconnected" ? connectionStatus.error : void 0;
       if (this.status === status && !error) {
         return;
       }
@@ -9704,7 +9747,7 @@ var wp;
       }
       this.log("Status change", { status, error });
       this.status = status;
-      this.emit("status", [{ error, status }]);
+      this.emit("status", [connectionStatus]);
     };
     /**
      * Log debug messages if debugging is enabled.
@@ -10060,6 +10103,48 @@ var wp;
     };
   }
 
+  // packages/sync/build-module/utils.mjs
+  function createYjsDoc(documentMeta = {}) {
+    const metaMap = new Map(
+      Object.entries(documentMeta)
+    );
+    return new Doc({ meta: metaMap });
+  }
+  function initializeYjsDoc(ydoc) {
+    const stateMap = ydoc.getMap(CRDT_STATE_MAP_KEY);
+    stateMap.set(CRDT_STATE_MAP_VERSION_KEY, CRDT_DOC_VERSION);
+  }
+  function markEntityAsSaved(ydoc) {
+    const recordMeta = ydoc.getMap(CRDT_STATE_MAP_KEY);
+    recordMeta.set(CRDT_STATE_MAP_SAVED_AT_KEY, Date.now());
+    recordMeta.set(CRDT_STATE_MAP_SAVED_BY_KEY, ydoc.clientID);
+  }
+  function pseudoRandomID() {
+    return Math.floor(Math.random() * 1e9);
+  }
+  function serializeCrdtDoc(crdtDoc) {
+    return JSON.stringify({
+      document: toBase64(encodeStateAsUpdateV2(crdtDoc)),
+      updateId: pseudoRandomID()
+      // helps with debugging
+    });
+  }
+  function deserializeCrdtDoc(serializedCrdtDoc) {
+    try {
+      const { document: document2 } = JSON.parse(serializedCrdtDoc);
+      const docMeta = {
+        [CRDT_DOC_META_PERSISTENCE_KEY]: true
+      };
+      const ydoc = createYjsDoc(docMeta);
+      const yupdate = fromBase64(document2);
+      applyUpdateV2(ydoc, yupdate);
+      ydoc.clientID = pseudoRandomID();
+      return ydoc;
+    } catch (e) {
+      return null;
+    }
+  }
+
   // packages/sync/build-module/manager.mjs
   function getEntityId(objectType, objectId) {
     return `${objectType}_${objectId}`;
@@ -10069,15 +10154,27 @@ var wp;
     const collectionStates = /* @__PURE__ */ new Map();
     const entityStates = /* @__PURE__ */ new Map();
     let undoManager;
+    function log(component, message, entityId, context = {}) {
+      if (!debug) {
+        return;
+      }
+      console.log(`[SyncManager][${component}]: ${message}`, {
+        ...context,
+        entityId
+      });
+    }
     async function loadEntity(syncConfig, objectType, objectId, record, handlers) {
       const providerCreators2 = getProviderCreators();
-      if (0 === providerCreators2.length) {
-        return;
-      }
       const entityId = getEntityId(objectType, objectId);
-      if (entityStates.has(entityId)) {
+      if (0 === providerCreators2.length) {
+        log("loadEntity", "no providers, skipping", entityId);
         return;
       }
+      if (entityStates.has(entityId)) {
+        log("loadEntity", "already loaded", entityId);
+        return;
+      }
+      log("loadEntity", "loading", entityId);
       handlers = {
         addUndoMeta: debugWrap(handlers.addUndoMeta),
         editRecord: debugWrap(handlers.editRecord),
@@ -10089,13 +10186,14 @@ var wp;
       };
       const ydoc = createYjsDoc({ objectType });
       const recordMap = ydoc.getMap(CRDT_RECORD_MAP_KEY);
-      const recordMetaMap = ydoc.getMap(CRDT_RECORD_METADATA_MAP_KEY);
+      const stateMap = ydoc.getMap(CRDT_STATE_MAP_KEY);
       const now = Date.now();
       const unload = () => {
+        log("loadEntity", "unloading", entityId);
         providerResults.forEach((result) => result.destroy());
         handlers.onStatusChange(null);
         recordMap.unobserveDeep(onRecordUpdate);
-        recordMetaMap.unobserve(onRecordMetaUpdate);
+        stateMap.unobserve(onStateMapUpdate);
         ydoc.destroy();
         entityStates.delete(entityId);
       };
@@ -10106,15 +10204,16 @@ var wp;
         }
         void internal.updateEntityRecord(objectType, objectId);
       };
-      const onRecordMetaUpdate = (event, transaction) => {
+      const onStateMapUpdate = (event, transaction) => {
         if (transaction.local) {
           return;
         }
         event.keysChanged.forEach((key) => {
           switch (key) {
-            case CRDT_RECORD_METADATA_SAVED_AT_KEY:
-              const newValue = recordMetaMap.get(CRDT_RECORD_METADATA_SAVED_AT_KEY);
+            case CRDT_STATE_MAP_SAVED_AT_KEY:
+              const newValue = stateMap.get(CRDT_STATE_MAP_SAVED_AT_KEY);
               if ("number" === typeof newValue && newValue > now) {
+                log("loadEntity", "refetching record", entityId);
                 void handlers.refetchRecord().catch(() => {
                 });
               }
@@ -10140,6 +10239,7 @@ var wp;
         ydoc
       };
       entityStates.set(entityId, entityState);
+      log("loadEntity", "connecting", entityId);
       const providerResults = await Promise.all(
         providerCreators2.map(async (create7) => {
           const provider = await create7({
@@ -10153,35 +10253,41 @@ var wp;
         })
       );
       recordMap.observeDeep(onRecordUpdate);
-      recordMetaMap.observe(onRecordMetaUpdate);
+      stateMap.observe(onStateMapUpdate);
+      initializeYjsDoc(ydoc);
       internal.applyPersistedCrdtDoc(objectType, objectId, record);
     }
     async function loadCollection(syncConfig, objectType, handlers) {
       const providerCreators2 = getProviderCreators();
+      const entityId = getEntityId(objectType, null);
       if (0 === providerCreators2.length) {
+        log("loadCollection", "no providers, skipping", entityId);
         return;
       }
       if (collectionStates.has(objectType)) {
+        log("loadCollection", "already loaded", entityId);
         return;
       }
+      log("loadCollection", "loading", entityId);
       const ydoc = createYjsDoc({ collection: true, objectType });
-      const recordMetaMap = ydoc.getMap(CRDT_RECORD_METADATA_MAP_KEY);
+      const stateMap = ydoc.getMap(CRDT_STATE_MAP_KEY);
       const now = Date.now();
       const unload = () => {
+        log("loadCollection", "unloading", entityId);
         providerResults.forEach((result) => result.destroy());
         handlers.onStatusChange(null);
-        recordMetaMap.unobserve(onRecordMetaUpdate);
+        stateMap.unobserve(onStateMapUpdate);
         ydoc.destroy();
         collectionStates.delete(objectType);
       };
-      const onRecordMetaUpdate = (event, transaction) => {
+      const onStateMapUpdate = (event, transaction) => {
         if (transaction.local) {
           return;
         }
         event.keysChanged.forEach((key) => {
           switch (key) {
-            case CRDT_RECORD_METADATA_SAVED_AT_KEY:
-              const newValue = recordMetaMap.get(CRDT_RECORD_METADATA_SAVED_AT_KEY);
+            case CRDT_STATE_MAP_SAVED_AT_KEY:
+              const newValue = stateMap.get(CRDT_STATE_MAP_SAVED_AT_KEY);
               if ("number" === typeof newValue && newValue > now) {
                 void handlers.refetchRecords().catch(() => {
                 });
@@ -10199,6 +10305,7 @@ var wp;
         ydoc
       };
       collectionStates.set(objectType, collectionState);
+      log("loadCollection", "connecting", entityId);
       const providerResults = await Promise.all(
         providerCreators2.map(async (create7) => {
           const provider = await create7({
@@ -10211,10 +10318,13 @@ var wp;
           return provider;
         })
       );
-      recordMetaMap.observe(onRecordMetaUpdate);
+      stateMap.observe(onStateMapUpdate);
+      initializeYjsDoc(ydoc);
     }
     function unloadEntity(objectType, objectId) {
-      entityStates.get(getEntityId(objectType, objectId))?.unload();
+      const entityId = getEntityId(objectType, objectId);
+      log("unloadEntity", "unloading", entityId);
+      entityStates.get(entityId)?.unload();
       updateCRDTDoc(objectType, null, {}, origin, { isSave: true });
     }
     function getAwareness(objectType, objectId) {
@@ -10229,6 +10339,7 @@ var wp;
       const entityId = getEntityId(objectType, objectId);
       const entityState = entityStates.get(entityId);
       if (!entityState) {
+        log("applyPersistedCrdtDoc", "no entity state", entityId);
         return;
       }
       const {
@@ -10236,23 +10347,17 @@ var wp;
         syncConfig: {
           applyChangesToCRDTDoc,
           getChangesFromCRDTDoc,
-          supports
+          getPersistedCRDTDoc
         },
         ydoc: targetDoc
       } = entityState;
-      if (!supports?.crdtPersistence) {
-        targetDoc.transact(() => {
-          applyChangesToCRDTDoc(targetDoc, record);
-        }, LOCAL_SYNC_MANAGER_ORIGIN);
-        return;
-      }
-      const tempDoc = getPersistedCrdtDoc(record);
+      const serialized = getPersistedCRDTDoc?.(record);
+      const tempDoc = serialized ? deserializeCrdtDoc(serialized) : null;
       if (!tempDoc) {
+        log("applyPersistedCrdtDoc", "no persisted doc", entityId);
         targetDoc.transact(() => {
           applyChangesToCRDTDoc(targetDoc, record);
-          if ("auto-draft" !== record.status) {
-            handlers.saveRecord();
-          }
+          handlers.saveRecord();
         }, LOCAL_SYNC_MANAGER_ORIGIN);
         return;
       }
@@ -10262,8 +10367,12 @@ var wp;
       const invalidatedKeys = Object.keys(invalidations);
       tempDoc.destroy();
       if (0 === invalidatedKeys.length) {
+        log("applyPersistedCrdtDoc", "valid persisted doc", entityId);
         return;
       }
+      log("applyPersistedCrdtDoc", "invalidated keys", entityId, {
+        invalidatedKeys
+      });
       const changes = invalidatedKeys.reduce(
         (acc, key) => Object.assign(acc, {
           [key]: record[key]
@@ -10286,6 +10395,9 @@ var wp;
           undoManager.stopCapturing?.();
         }
         ydoc.transact(() => {
+          log("updateCRDTDoc", "applying changes", entityId, {
+            changedKeys: Object.keys(changes)
+          });
           syncConfig.applyChangesToCRDTDoc(ydoc, changes);
           if (isSave) {
             markEntityAsSaved(ydoc);
@@ -10302,6 +10414,7 @@ var wp;
       const entityId = getEntityId(objectType, objectId);
       const entityState = entityStates.get(entityId);
       if (!entityState) {
+        log("updateEntityRecord", "no entity state", entityId);
         return;
       }
       const { handlers, syncConfig, ydoc } = entityState;
@@ -10309,25 +10422,30 @@ var wp;
         ydoc,
         await handlers.getEditedRecord()
       );
-      if (0 === Object.keys(changes).length) {
+      const changedKeys = Object.keys(changes);
+      if (0 === changedKeys.length) {
         return;
       }
+      log("updateEntityRecord", "changes", entityId, {
+        changedKeys
+      });
       handlers.editRecord(changes);
     }
-    function createEntityMeta(objectType, objectId) {
+    async function createPersistedCRDTDoc(objectType, objectId) {
       const entityId = getEntityId(objectType, objectId);
       const entityState = entityStates.get(entityId);
-      if (!entityState?.syncConfig.supports?.crdtPersistence) {
-        return {};
+      if (!entityState?.ydoc) {
+        return null;
       }
-      return createPersistedCRDTDoc(entityState.ydoc);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      return serializeCrdtDoc(entityState.ydoc);
     }
     const internal = {
       applyPersistedCrdtDoc: debugWrap(_applyPersistedCrdtDoc),
       updateEntityRecord: debugWrap(_updateEntityRecord)
     };
     return {
-      createMeta: debugWrap(createEntityMeta),
+      createPersistedCRDTDoc: debugWrap(createPersistedCRDTDoc),
       getAwareness,
       load: debugWrap(loadEntity),
       loadCollection: debugWrap(loadCollection),
@@ -10754,6 +10872,12 @@ var wp;
     return JSON.parse(JSON.stringify(value));
   }
   var NULL_CHARACTER = String.fromCharCode(0);
+  function normalizeChangeCounts(changes) {
+    return changes.map((change) => ({
+      ...change,
+      count: change.value.length
+    }));
+  }
   var getEmbedTypeAndData = (a, b) => {
     if (typeof a !== "object" || a === null) {
       throw new Error(`cannot retain a ${typeof a}`);
@@ -11015,7 +11139,9 @@ var wp;
         return new _Delta();
       }
       const strings = this.deltasToStrings(other);
-      const diffResult = diffChars(strings[0], strings[1]);
+      const diffResult = normalizeChangeCounts(
+        diffChars(strings[0], strings[1])
+      );
       const thisIter = new Iterator(this.ops);
       const otherIter = new Iterator(other.ops);
       const retDelta = this.convertChangesToDelta(
@@ -11185,7 +11311,9 @@ var wp;
         return this.diff(other);
       }
       const strings = this.deltasToStrings(other);
-      let diffs = diffChars(strings[0], strings[1]);
+      let diffs = normalizeChangeCounts(
+        diffChars(strings[0], strings[1])
+      );
       let lastDiffPosition = 0;
       const adjustedDiffs = [];
       for (let i = 0; i < diffs.length; i++) {
@@ -11413,12 +11541,9 @@ var wp;
     Delta: Delta_default,
     CRDT_DOC_META_PERSISTENCE_KEY,
     CRDT_RECORD_MAP_KEY,
-    CRDT_RECORD_METADATA_MAP_KEY,
-    CRDT_RECORD_METADATA_SAVED_AT_KEY,
-    CRDT_RECORD_METADATA_SAVED_BY_KEY,
     LOCAL_EDITOR_ORIGIN,
-    LOCAL_SYNC_MANAGER_ORIGIN,
-    WORDPRESS_META_KEY_FOR_CRDT_DOC_PERSISTENCE
+    LOCAL_UNDO_IGNORED_ORIGIN,
+    retrySyncConnection: () => pollingManager.retryNow()
   });
 
   // packages/sync/build-module/index.mjs

@@ -14,6 +14,7 @@ export type SiteError =
 	| 'blueprint-filesystem-required'
 	| 'blueprint-validation-failed'
 	| 'network-firewall-interference'
+	| 'resource-download-failed'
 	| 'tab-superseded';
 
 export type SiteManagerSection = 'sidebar' | 'site-details' | 'blueprints';

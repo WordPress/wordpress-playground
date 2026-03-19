@@ -524,6 +524,12 @@ var wp;
     if (fileOrBlob instanceof File) {
       return fileOrBlob;
     }
+    if ("name" in fileOrBlob && typeof fileOrBlob.name === "string") {
+      return new File([fileOrBlob], fileOrBlob.name, {
+        type: fileOrBlob.type,
+        lastModified: fileOrBlob.lastModified
+      });
+    }
     const ext = fileOrBlob.type.split("/")[1];
     const mediaType = "application/pdf" === fileOrBlob.type ? "document" : fileOrBlob.type.split("/")[0];
     return new File([fileOrBlob], `${mediaType}.${ext}`, {
@@ -581,7 +587,7 @@ var wp;
     }
     return hasTransparency(await response.arrayBuffer());
   }
-  async function vipsResizeImage(id, file, resize, smartCrop, addSuffix, signal, scaledSuffix) {
+  async function vipsResizeImage(id, file, resize, smartCrop, addSuffix, signal, scaledSuffix, quality) {
     if (signal?.aborted) {
       throw new Error("Operation aborted");
     }
@@ -591,7 +597,8 @@ var wp;
       await file.arrayBuffer(),
       file.type,
       resize,
-      smartCrop
+      smartCrop,
+      quality
     );
     let fileName = file.name;
     const wasResized = originalWidth > width || originalHeight > height;
@@ -1230,19 +1237,7 @@ var wp;
         file.type
       );
       if (isImage && isVipsSupported) {
-        const { bigImageSizeThreshold, imageOutputFormats } = settings;
-        if (bigImageSizeThreshold) {
-          operations.push([
-            OperationType.ResizeCrop,
-            {
-              resize: {
-                width: bigImageSizeThreshold,
-                height: bigImageSizeThreshold
-              },
-              isThresholdResize: true
-            }
-          ]);
-        }
+        const { imageOutputFormats } = settings;
         const outputMimeType = imageOutputFormats?.[file.type];
         if (outputMimeType && outputMimeType !== file.type) {
           const transcodeOperation = await getTranscodeImageOperation(
@@ -1511,7 +1506,7 @@ var wp;
         }
       }
       if (!item.parentId && attachment.missing_image_sizes && attachment.missing_image_sizes.length > 0) {
-        const file = attachment.media_filename ? renameFile(item.sourceFile, attachment.media_filename) : item.sourceFile;
+        const file = attachment.filename ? renameFile(item.sourceFile, attachment.filename) : item.sourceFile;
         const batchId = v4_default();
         const settings = select2.getSettings();
         const allImageSizes = settings.allImageSizes || {};
@@ -1560,6 +1555,48 @@ var wp;
             },
             operations: thumbnailOperations
           });
+        }
+        const { bigImageSizeThreshold } = settings;
+        if (bigImageSizeThreshold && attachment.id) {
+          const bitmap = await createImageBitmap(item.sourceFile);
+          const needsScaling = bitmap.width > bigImageSizeThreshold || bitmap.height > bigImageSizeThreshold;
+          bitmap.close();
+          if (needsScaling) {
+            const sourceForScaled = attachment.filename ? renameFile(item.sourceFile, attachment.filename) : item.sourceFile;
+            const scaledOperations = [
+              [
+                OperationType.ResizeCrop,
+                {
+                  resize: {
+                    width: bigImageSizeThreshold,
+                    height: bigImageSizeThreshold
+                  },
+                  isThresholdResize: true
+                }
+              ]
+            ];
+            if (thumbnailTranscodeOperation) {
+              scaledOperations.push(thumbnailTranscodeOperation);
+            }
+            scaledOperations.push(OperationType.Upload);
+            dispatch.addSideloadItem({
+              file: sourceForScaled,
+              onChange: ([updatedAttachment]) => {
+                if ((0, import_blob.isBlobURL)(updatedAttachment.url)) {
+                  return;
+                }
+                item.onChange?.([updatedAttachment]);
+              },
+              batchId,
+              parentId: item.id,
+              additionalData: {
+                post: attachment.id,
+                image_size: "scaled",
+                convert_format: false
+              },
+              operations: scaledOperations
+            });
+          }
         }
       }
       dispatch.finishOperation(id, {});
@@ -1677,7 +1714,7 @@ var wp;
     if (typeof WebAssembly === "undefined") {
       cachedResult = {
         supported: false,
-        reason: "WebAssembly is not supported in this browser"
+        reason: "WebAssembly is not supported in this browser."
       };
       return cachedResult;
     }
@@ -1688,7 +1725,47 @@ var wp;
       };
       return cachedResult;
     }
-    if (typeof window !== "undefined" && typeof Worker !== "undefined") {
+    if (typeof Worker === "undefined") {
+      cachedResult = {
+        supported: false,
+        reason: "Web Workers are not supported in this browser."
+      };
+      return cachedResult;
+    }
+    if (typeof navigator !== "undefined" && "deviceMemory" in navigator && navigator.deviceMemory <= 2) {
+      cachedResult = {
+        supported: false,
+        reason: "Device has insufficient memory for client-side media processing."
+      };
+      return cachedResult;
+    }
+    if (typeof navigator !== "undefined" && "hardwareConcurrency" in navigator && navigator.hardwareConcurrency < 4) {
+      cachedResult = {
+        supported: false,
+        reason: "Device has insufficient CPU cores for client-side media processing."
+      };
+      return cachedResult;
+    }
+    if (typeof navigator !== "undefined") {
+      const connection = navigator.connection;
+      if (connection) {
+        if (connection.saveData) {
+          cachedResult = {
+            supported: false,
+            reason: "Data saver mode is enabled."
+          };
+          return cachedResult;
+        }
+        if (connection.effectiveType === "slow-2g" || connection.effectiveType === "2g" || connection.effectiveType === "3g") {
+          cachedResult = {
+            supported: false,
+            reason: "Network connection is too slow for client-side media processing."
+          };
+          return cachedResult;
+        }
+      }
+    }
+    if (typeof window !== "undefined") {
       try {
         const testBlob = new Blob([""], {
           type: "application/javascript"

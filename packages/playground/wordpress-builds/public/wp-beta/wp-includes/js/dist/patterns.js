@@ -886,7 +886,6 @@ var wp;
         });
         replaceBlocks(clientIds, newBlock);
         setEditingPattern2(newBlock.clientId, true);
-        closeBlockSettingsMenu();
       }
       createSuccessNotice(
         pattern.wp_pattern_sync_status === PATTERN_SYNC_TYPES.unsynced ? (0, import_i18n6.sprintf)(
@@ -904,6 +903,7 @@ var wp;
         }
       );
       setIsModalOpen(false);
+      closeBlockSettingsMenu();
     };
     return /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(import_jsx_runtime7.Fragment, { children: [
       /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
@@ -928,6 +928,7 @@ var wp;
           },
           onClose: () => {
             setIsModalOpen(false);
+            closeBlockSettingsMenu();
           }
         }
       )
@@ -943,17 +944,18 @@ var wp;
   var import_url = __toESM(require_url(), 1);
   var import_core_data7 = __toESM(require_core_data(), 1);
   var import_jsx_runtime8 = __toESM(require_jsx_runtime(), 1);
-  function PatternsManageButton({ clientId }) {
+  function PatternsManageButton({ clientId, onClose }) {
     const {
       attributes,
       canDetach,
       isVisible,
       managePatternsUrl,
       isSyncedPattern,
-      isUnsyncedPattern
+      isUnsyncedPattern,
+      canEdit
     } = (0, import_data9.useSelect)(
       (select) => {
-        const { canRemoveBlock, getBlock } = select(import_block_editor4.store);
+        const { canRemoveBlock, getBlock, canEditBlock } = select(import_block_editor4.store);
         const { canUser } = select(import_core_data7.store);
         const block = getBlock(clientId);
         const _isUnsyncedPattern = !!block?.attributes?.metadata?.patternName;
@@ -964,6 +966,7 @@ var wp;
         });
         return {
           attributes: block.attributes,
+          canEdit: canEditBlock(clientId),
           // For unsynced patterns, detaching is simply removing the `patternName` attribute.
           // For synced patterns, the `core:block` block is replaced with its inner blocks,
           // so checking whether `canRemoveBlock` is possible is required.
@@ -990,7 +993,7 @@ var wp;
     const { convertSyncedPatternToStatic: convertSyncedPatternToStatic2 } = unlock(
       (0, import_data9.useDispatch)(store)
     );
-    if (!isVisible) {
+    if (!isVisible || !canEdit) {
       return null;
     }
     return /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(import_jsx_runtime8.Fragment, { children: [
@@ -1010,8 +1013,9 @@ var wp;
                 metadata: attributesWithoutPatternName
               });
             }
+            onClose?.();
           },
-          children: (0, import_i18n7.__)("Disconnect pattern")
+          children: isSyncedPattern ? (0, import_i18n7.__)("Disconnect pattern") : (0, import_i18n7.__)("Detach pattern")
         }
       ),
       /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_components6.MenuItem, { href: managePatternsUrl, children: (0, import_i18n7.__)("Manage patterns") })
@@ -1034,7 +1038,8 @@ var wp;
       selectedClientIds.length === 1 && /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
         patterns_manage_button_default,
         {
-          clientId: selectedClientIds[0]
+          clientId: selectedClientIds[0],
+          onClose
         }
       )
     ] }) });

@@ -14,11 +14,10 @@ export async function getPHPLoaderModule(): Promise<PHPLoaderModule> {
 export async function getIntlExtensionPath(): Promise<string> {
 	if (await jspi()) {
 		// @ts-ignore
-		return (await import('../jspi/extensions/intl/8_4/intl.so?url'))
-			.default;
+		return (await import('../jspi/extensions/intl/intl.so?url')).default;
 	} else {
 		// @ts-ignore
-		return (await import('../asyncify/extensions/intl/8_4/intl.so?url'))
+		return (await import('../asyncify/extensions/intl/intl.so?url'))
 			.default;
 	}
 }

@@ -55,7 +55,7 @@ export function consumeAPI<APIType>(
 	 * when `import.meta.url` started with `file://`. But this assumption breaks
 	 * with webpack which emits file URLs for `import.meta.url`.
 	 * https://webpack.js.org/api/module-variables/#importmetaurl
-	 * 
+	 *
 	 * We replaced this with a more explicit check for `process.versions.node`.
 	 * See https://github.com/WordPress/wordpress-playground/pull/3248
 	 */
@@ -295,6 +295,7 @@ function setupTransferHandlers() {
 			const supportsStreams = supportsTransferableStreams();
 			const exitCodePort = promiseToPort(obj.exitCode);
 			const headersStream = obj.getHeadersStream();
+
 			if (supportsStreams) {
 				const payload = {
 					__type: 'StreamedPHPResponse',
@@ -360,22 +361,28 @@ function setupTransferHandlers() {
  * directly through postMessage (aka "transferable streams"). When false,
  * we must fall back to port-bridged streaming.
  */
+let _cachedSupportsTransferableStreams: boolean | undefined;
 function supportsTransferableStreams(): boolean {
-	try {
-		if (typeof ReadableStream === 'undefined') return false;
-		const { port1 } = new MessageChannel();
-		const rs = new ReadableStream();
-		port1.postMessage(rs as any);
+	if (typeof ReadableStream === 'undefined') {
+		_cachedSupportsTransferableStreams = false;
+	}
+	if (_cachedSupportsTransferableStreams === undefined) {
 		try {
-			port1.close();
+			const { port1 } = new MessageChannel();
+			const rs = new ReadableStream();
+			port1.postMessage(rs, [rs as unknown as Transferable]);
+			try {
+				port1.close();
+			} catch (_e) {
+				void _e;
+			}
+			_cachedSupportsTransferableStreams = true;
 		} catch (_e) {
 			void _e;
+			_cachedSupportsTransferableStreams = false;
 		}
-		return true;
-	} catch (_e) {
-		void _e;
-		return false;
 	}
+	return _cachedSupportsTransferableStreams;
 }
 
 /**
@@ -389,7 +396,7 @@ function supportsTransferableStreams(): boolean {
  *   { t: 'close' }                 – end of stream
  *   { t: 'error', m: string }      – terminal error
  */
-function streamToPort(stream: ReadableStream<Uint8Array>): MessagePort {
+export function streamToPort(stream: ReadableStream<Uint8Array>): MessagePort {
 	const { port1, port2 } = new MessageChannel();
 	(async () => {
 		const reader = stream.getReader();
@@ -450,7 +457,7 @@ function streamToPort(stream: ReadableStream<Uint8Array>): MessagePort {
  * Reconstructs a ReadableStream from a MessagePort using the inverse of the
  * streamToPort protocol. Each message enqueues data, closes, or errors.
  */
-function portToStream(port: MessagePort): ReadableStream<Uint8Array> {
+export function portToStream(port: MessagePort): ReadableStream<Uint8Array> {
 	return new ReadableStream<Uint8Array>({
 		start(controller) {
 			const onMessage = (ev: MessageEvent) => {

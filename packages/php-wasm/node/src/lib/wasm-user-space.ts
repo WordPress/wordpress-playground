@@ -15,6 +15,11 @@ import { lookup } from 'dns/promises';
 
 type FSNode = Emscripten.FS.FSNode;
 
+type HeapAccessor<T> = {
+	get(offset: number): T;
+	set(offset: number, value: T): void;
+};
+
 type NonZeroNumber = Exclude<number, 0>;
 type ResultTuple<T> =
 	| [value: T, errorCode: 0]
@@ -56,16 +61,16 @@ export type WasmUserSpaceContext = {
 		EWOULDBLOCK: NonZeroNumber;
 	};
 	memory: {
-		HEAP8: Int8Array;
-		HEAPU8: Uint8Array;
-		HEAP16: Int16Array;
-		HEAPU16: Uint16Array;
-		HEAP32: Int32Array;
-		HEAPU32: Uint32Array;
-		HEAPF32: Float32Array;
-		HEAP64: BigInt64Array;
-		HEAPU64: BigUint64Array;
-		HEAPF64: Float64Array;
+		HEAP8: HeapAccessor<number>;
+		HEAPU8: HeapAccessor<number>;
+		HEAP16: HeapAccessor<number>;
+		HEAPU16: HeapAccessor<number>;
+		HEAP32: HeapAccessor<number>;
+		HEAPU32: HeapAccessor<number>;
+		HEAPF32: HeapAccessor<number>;
+		HEAP64: HeapAccessor<bigint>;
+		HEAPU64: HeapAccessor<bigint>;
+		HEAPF64: HeapAccessor<bigint>;
 	};
 	// This is a collection of functions present in built php-wasm JS.
 	// By receiving the entire collection here, we can avoid recompiling
@@ -110,7 +115,7 @@ export function bindUserSpace(
 	{ fileLockManager }: WasmKernelSpace,
 	{
 		pid,
-		memory: { HEAP16, HEAP64, HEAP32 },
+		memory,
 		constants: {
 			F_RDLCK,
 			F_WRLCK,
@@ -156,7 +161,7 @@ export function bindUserSpace(
 		getNextAsInt(): number {
 			// Shift right by 2 to divide by 2^2.
 			const fourByteOffset = this.argsAddr >> 2;
-			const value = HEAP32[fourByteOffset];
+			const value = memory.HEAP32.get(fourByteOffset);
 			this.argsAddr += 4;
 			return value;
 		}
@@ -317,28 +322,26 @@ export function bindUserSpace(
 		 * We get a word offset by dividing the byte offset by the word size.
 		 */
 		return {
-			l_type: HEAP16[
+			l_type: memory.HEAP16.get(
 				// Shift right by 1 to divide by 2^1.
 				(flockStructAddress + emscripten_flock_l_type_offset) >> 1
-			],
-			l_whence:
-				HEAP16[
-					// Shift right by 1 to divide by 2^1.
-					(flockStructAddress + emscripten_flock_l_whence_offset) >> 1
-				],
-			l_start:
-				HEAP64[
-					// Shift right by 3 to divide by 2^3.
-					(flockStructAddress + emscripten_flock_l_start_offset) >> 3
-				],
-			l_len: HEAP64[
+			),
+			l_whence: memory.HEAP16.get(
+				// Shift right by 1 to divide by 2^1.
+				(flockStructAddress + emscripten_flock_l_whence_offset) >> 1
+			),
+			l_start: memory.HEAP64.get(
+				// Shift right by 3 to divide by 2^3.
+				(flockStructAddress + emscripten_flock_l_start_offset) >> 3
+			),
+			l_len: memory.HEAP64.get(
 				// Shift right by 3 to divide by 2^3.
 				(flockStructAddress + emscripten_flock_l_len_offset) >> 3
-			],
-			l_pid: HEAP32[
+			),
+			l_pid: memory.HEAP32.get(
 				// Shift right by 2 to divide by 2^2.
 				(flockStructAddress + emscripten_flock_l_pid_offset) >> 2
-			],
+			),
 		};
 	}
 
@@ -365,34 +368,39 @@ export function bindUserSpace(
 		 * We get a word offset by dividing the byte offset by the word size.
 		 */
 		if (fields.l_type !== undefined) {
-			HEAP16[
+			memory.HEAP16.set(
 				// Shift right by 1 to divide by 2^1.
-				(flockStructAddress + emscripten_flock_l_type_offset) >> 1
-			] = fields.l_type;
+				(flockStructAddress + emscripten_flock_l_type_offset) >> 1,
+				fields.l_type
+			);
 		}
 		if (fields.l_whence !== undefined) {
-			HEAP16[
+			memory.HEAP16.set(
 				// Shift right by 1 to divide by 2^1.
-				(flockStructAddress + emscripten_flock_l_whence_offset) >> 1
-			] = fields.l_whence;
+				(flockStructAddress + emscripten_flock_l_whence_offset) >> 1,
+				fields.l_whence
+			);
 		}
 		if (fields.l_start !== undefined) {
-			HEAP64[
+			memory.HEAP64.set(
 				// Shift right by 3 to divide by 2^3.
-				(flockStructAddress + emscripten_flock_l_start_offset) >> 3
-			] = fields.l_start;
+				(flockStructAddress + emscripten_flock_l_start_offset) >> 3,
+				fields.l_start
+			);
 		}
 		if (fields.l_len !== undefined) {
-			HEAP64[
+			memory.HEAP64.set(
 				// Shift right by 3 to divide by 2^3.
-				(flockStructAddress + emscripten_flock_l_len_offset) >> 3
-			] = fields.l_len;
+				(flockStructAddress + emscripten_flock_l_len_offset) >> 3,
+				fields.l_len
+			);
 		}
 		if (fields.l_pid !== undefined) {
-			HEAP32[
+			memory.HEAP32.set(
 				// Shift right by 2 to divide by 2^2.
-				(flockStructAddress + emscripten_flock_l_pid_offset) >> 2
-			] = fields.l_pid;
+				(flockStructAddress + emscripten_flock_l_pid_offset) >> 2,
+				fields.l_pid
+			);
 		}
 	}
 

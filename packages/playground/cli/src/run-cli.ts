@@ -43,12 +43,12 @@ import {
 import { isPortInUse, startServer } from './start-server';
 import type { PlaygroundCliBlueprintV1Worker } from './blueprints-v1/worker-thread-v1';
 import type { PlaygroundCliBlueprintV2Worker } from './blueprints-v2/worker-thread-v2';
+import type { XdebugOptions } from '@php-wasm/node';
 /* eslint-disable no-console */
 import {
 	SupportedPHPVersions,
 	FileLockManagerInMemory,
 } from '@php-wasm/universal';
-import { cpus } from 'os';
 import type { MessagePort as NodeMessagePort } from 'worker_threads';
 import yargs, { type Argv, type Options as YargsOptions } from 'yargs';
 import { isValidWordPressSlug } from './is-valid-wordpress-slug';
@@ -70,6 +70,7 @@ import {
 	clearXdebugIDEConfig,
 	createTempDirSymlink,
 	removeTempDirSymlink,
+	makeXdebugConfig,
 } from '@php-wasm/cli-util';
 import { createHash } from 'crypto';
 import { CLIOutput } from './cli-output';
@@ -94,9 +95,6 @@ export const LogVerbosity = {
 type LogVerbosity = (typeof LogVerbosity)[keyof typeof LogVerbosity]['name'];
 
 export type WorkerType = 'v1' | 'v2';
-
-// TODO: Consider creating more workers on demand if other workers blocked to avoid deadlock.
-const MINIMUM_WORKER_COUNT = 10;
 
 /**
  * Parse the CLI args and run the appropriate command.
@@ -164,6 +162,7 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 					'Mount a directory to the PHP runtime (can be used multiple times). Format: /host/path:/vfs/path',
 				type: 'array',
 				string: true,
+				nargs: 1,
 				coerce: parseMountWithDelimiterArguments,
 			},
 			'mount-before-install': {
@@ -171,6 +170,7 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 					'Mount a directory to the PHP runtime before WordPress installation (can be used multiple times). Format: /host/path:/vfs/path',
 				type: 'array',
 				string: true,
+				nargs: 1,
 				coerce: parseMountWithDelimiterArguments,
 			},
 			'mount-dir': {
@@ -497,6 +497,9 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 						...buildSnapshotOnlyOptions,
 					})
 			)
+			.command('php', 'Run a PHP script', (yargsInstance: Argv) =>
+				yargsInstance.options({ ...sharedOptions })
+			)
 			.demandCommand(1, 'Please specify a command')
 			.strictCommands()
 			.conflicts(
@@ -634,9 +637,13 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 		const command = args._[0] as string;
 
 		if (
-			!['start', 'run-blueprint', 'server', 'build-snapshot'].includes(
-				command
-			)
+			![
+				'start',
+				'run-blueprint',
+				'server',
+				'build-snapshot',
+				'php',
+			].includes(command)
 		) {
 			yargsObject.showHelp();
 			process.exit(1);
@@ -737,11 +744,16 @@ function getMountForVfsPath(
 }
 
 export interface RunCLIArgs {
+	/**
+	 * `_` holds positional tokens in the order they appeared.
+	 * `_[0]` will typically be the command name.
+	 */
+	_?: string[];
 	blueprint?:
 		| BlueprintV1Declaration
 		| BlueprintV2Declaration
 		| BlueprintBundle;
-	command: 'start' | 'server' | 'run-blueprint' | 'build-snapshot';
+	command: 'start' | 'server' | 'run-blueprint' | 'build-snapshot' | 'php';
 	debug?: boolean;
 	login?: boolean;
 	mount?: Mount[];
@@ -762,7 +774,7 @@ export interface RunCLIArgs {
 	phpmyadmin?: boolean | string;
 	redis?: boolean;
 	memcached?: boolean;
-	xdebug?: boolean | { ideKey?: string };
+	xdebug?: boolean | XdebugOptions;
 	experimentalUnsafeIdeIntegration?: string[];
 	experimentalDevtools?: boolean;
 	'experimental-blueprints-v2-runner'?: boolean;
@@ -851,7 +863,7 @@ const highlight = (text: string) =>
 export { mergeDefinedConstants } from './defines';
 
 export async function runCLI(
-	args: RunCLIArgs & { command: 'build-snapshot' | 'run-blueprint' }
+	args: RunCLIArgs & { command: 'build-snapshot' | 'run-blueprint' | 'php' }
 ): Promise<void>;
 export async function runCLI(
 	args: RunCLIArgs & { command: 'start' }
@@ -932,12 +944,6 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 			args.phpmyadmin = '/phpmyadmin';
 		}
 
-		if (args.skipSqliteSetup) {
-			throw new Error(
-				'--phpmyadmin requires SQLite. Cannot be used with --skip-sqlite-setup.'
-			);
-		}
-
 		// Set up path alias for phpMyAdmin.
 		args['pathAliases'] = [
 			{
@@ -992,10 +998,22 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 			const serverUrl = `http://${host}:${port}`;
 			const siteUrl = args['site-url'] || serverUrl;
 
-			const targetWorkerCount = Math.max(
-				cpus().length - 1,
-				MINIMUM_WORKER_COUNT
-			);
+			/**
+			 * With HTTP 1.1, browsers typically support 6 parallel connections per domain.
+			 * > browsers open several connections to each domain,
+			 * > sending parallel requests. Default was once 2 to 3 connections,
+			 * > but this has now increased to a more common use of 6 parallel connections.
+			 * https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Connection_management_in_HTTP_1.x#domain_sharding
+			 *
+			 * While our HTTP server only supports HTTP 1.1 and while we are trying to limit the
+			 * memory requirements of multiple workers, let's hard-code the number of request-handling
+			 * workers to 6.
+			 *
+			 * Going higher than browsers' max concurrent requests seems pointless,
+			 * and going lower may increase the likelihood of deadlock due to workers
+			 * blocking and waiting for file locks.
+			 */
+			const targetWorkerCount = 6;
 
 			/*
 			 * Use a real temp dir as a target for the following Playground paths
@@ -1020,126 +1038,182 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 
 			await removeTempDirSymlink(symlinkPath);
 
-			// Then, if xdebug, and experimental IDE are enabled,
-			// recreate the symlink pointing to the temporary
-			// directory and add the new IDE config.
-			if (args.xdebug && args.experimentalUnsafeIdeIntegration) {
-				await createTempDirSymlink(
-					nativeDir.path,
-					symlinkPath,
-					process.platform
-				);
-
+			// Then, if xdebug is enabled, recreate the symlink
+			// pointing to the temporary directory.
+			if (args.xdebug) {
 				const symlinkMount: Mount = {
 					hostPath: path.join('.', path.sep, symlinkName),
 					vfsPath: '/',
 				};
 
-				try {
-					// NOTE: Both the 'clear' and 'add' operations can throw errors.
-					await clearXdebugIDEConfig(IDEConfigName, process.cwd());
+				const isPHP85orHigher =
+					SupportedPHPVersions.indexOf(
+						args.php || RecommendedPHPVersion
+					) <= SupportedPHPVersions.indexOf('8.5');
 
-					const xdebugOptions =
-						typeof args.xdebug === 'object'
-							? args.xdebug
-							: undefined;
-					const modifiedConfig = await addXdebugIDEConfig({
-						name: IDEConfigName,
-						host: host,
-						port: port,
-						ides: args.experimentalUnsafeIdeIntegration!,
+				// And, if PHP >= 8.5, add the new Xdebug config.
+				if (isPHP85orHigher) {
+					await createTempDirSymlink(
+						nativeDir.path,
+						symlinkPath,
+						process.platform
+					);
+
+					args.xdebug = makeXdebugConfig({
 						cwd: process.cwd(),
 						mounts: [
 							symlinkMount,
 							...(args['mount-before-install'] || []),
 							...(args.mount || []),
 						],
-						ideKey: xdebugOptions?.ideKey,
+						pathSkippings: [
+							'/dev/',
+							'/home/',
+							'/internal/',
+							'/request/',
+							'/proc/',
+						],
 					});
 
-					// Display IDE-specific instructions
-					const ides = args.experimentalUnsafeIdeIntegration;
-					const hasVSCode = ides.includes('vscode');
-					const hasPhpStorm = ides.includes('phpstorm');
-					const configFiles = Object.values(modifiedConfig);
-
-					console.log('');
-
-					if (configFiles.length > 0) {
-						console.log(bold(`Xdebug configured successfully`));
-						console.log(
-							highlight(`Updated IDE config: `) +
-								configFiles.join(' ')
-						);
-						console.log(
-							highlight('Playground source root: ') +
-								`.playground-xdebug-root` +
-								italic(
-									dim(
-										` – you can set breakpoints and preview Playground's VFS structure in there.`
-									)
+					console.log(bold(`Xdebug configured successfully`));
+					console.log(
+						highlight('Playground source root: ') +
+							`.playground-xdebug-root` +
+							italic(
+								dim(
+									` – you can set breakpoints and preview Playground's VFS structure in there.`
 								)
+							)
+					);
+				} else {
+					// Or, if experimental IDE is enabled,
+					// add the IDE config.
+					if (args.experimentalUnsafeIdeIntegration) {
+						await createTempDirSymlink(
+							nativeDir.path,
+							symlinkPath,
+							process.platform
 						);
-					} else {
-						console.log(bold(`Xdebug configuration failed.`));
-						console.log(
-							'No IDE-specific project settings directory was found in the current working directory.'
-						);
-					}
 
-					console.log('');
+						try {
+							// NOTE: Both the 'clear' and 'add' operations can throw errors.
+							await clearXdebugIDEConfig(
+								IDEConfigName,
+								process.cwd()
+							);
 
-					if (hasVSCode && modifiedConfig['vscode']) {
-						console.log(bold('VS Code / Cursor instructions:'));
-						console.log(
-							'  1. Ensure you have installed an IDE extension for PHP Debugging'
-						);
-						console.log(
-							`     (The ${bold('PHP Debug')} extension by ${bold(
-								'Xdebug'
-							)} has been a solid option)`
-						);
-						console.log(
-							'  2. Open the Run and Debug panel on the left sidebar'
-						);
-						console.log(
-							`  3. Select "${italic(
-								IDEConfigName
-							)}" from the dropdown`
-						);
-						console.log('  3. Click "start debugging"');
-						console.log(
-							'  5. Set a breakpoint. For example, in .playground-xdebug-root/wordpress/index.php'
-						);
-						console.log(
-							'  6. Visit Playground in your browser to hit the breakpoint'
-						);
-						if (hasPhpStorm) {
+							const xdebugOptions =
+								typeof args.xdebug === 'object'
+									? args.xdebug
+									: {};
+							const modifiedConfig = await addXdebugIDEConfig({
+								name: IDEConfigName,
+								host: host,
+								port: port,
+								ides: args.experimentalUnsafeIdeIntegration!,
+								cwd: process.cwd(),
+								mounts: [
+									symlinkMount,
+									...(args['mount-before-install'] || []),
+									...(args.mount || []),
+								],
+								ideKey:
+									xdebugOptions.ideKey || 'WPPLAYGROUNDCLI',
+							});
+
+							// Display IDE-specific instructions
+							const ides = args.experimentalUnsafeIdeIntegration;
+							const hasVSCode = ides.includes('vscode');
+							const hasPhpStorm = ides.includes('phpstorm');
+							const configFiles = Object.values(modifiedConfig);
+
 							console.log('');
+
+							if (configFiles.length > 0) {
+								console.log(
+									bold(`Xdebug configured successfully`)
+								);
+								console.log(
+									highlight(`Updated IDE config: `) +
+										configFiles.join(' ')
+								);
+								console.log(
+									highlight('Playground source root: ') +
+										`.playground-xdebug-root` +
+										italic(
+											dim(
+												` – you can set breakpoints and preview Playground's VFS structure in there.`
+											)
+										)
+								);
+							} else {
+								console.log(
+									bold(`Xdebug configuration failed.`)
+								);
+								console.log(
+									'No IDE-specific project settings directory was found in the current working directory.'
+								);
+							}
+
+							console.log('');
+
+							if (hasVSCode && modifiedConfig['vscode']) {
+								console.log(
+									bold('VS Code / Cursor instructions:')
+								);
+								console.log(
+									'  1. Ensure you have installed an IDE extension for PHP Debugging'
+								);
+								console.log(
+									`     (The ${bold('PHP Debug')} extension by ${bold(
+										'Xdebug'
+									)} has been a solid option)`
+								);
+								console.log(
+									'  2. Open the Run and Debug panel on the left sidebar'
+								);
+								console.log(
+									`  3. Select "${italic(
+										IDEConfigName
+									)}" from the dropdown`
+								);
+								console.log('  3. Click "start debugging"');
+								console.log(
+									'  5. Set a breakpoint. For example, in .playground-xdebug-root/wordpress/index.php'
+								);
+								console.log(
+									'  6. Visit Playground in your browser to hit the breakpoint'
+								);
+								if (hasPhpStorm) {
+									console.log('');
+								}
+							}
+
+							if (hasPhpStorm && modifiedConfig['phpstorm']) {
+								console.log(bold('PhpStorm instructions:'));
+								console.log(
+									`  1. Choose "${italic(
+										IDEConfigName
+									)}" debug configuration in the toolbar`
+								);
+								console.log(
+									'  2. Click the debug button (bug icon)`'
+								);
+								console.log(
+									'  3. Set a breakpoint. For example, in .playground-xdebug-root/wordpress/index.php'
+								);
+								console.log(
+									'  4. Visit Playground in your browser to hit the breakpoint'
+								);
+							}
+
+							console.log('');
+						} catch (error) {
+							throw new Error('Could not configure Xdebug', {
+								cause: error,
+							});
 						}
 					}
-
-					if (hasPhpStorm && modifiedConfig['phpstorm']) {
-						console.log(bold('PhpStorm instructions:'));
-						console.log(
-							`  1. Choose "${italic(
-								IDEConfigName
-							)}" debug configuration in the toolbar`
-						);
-						console.log('  2. Click the debug button (bug icon)`');
-						console.log(
-							'  3. Set a breakpoint. For example, in .playground-xdebug-root/wordpress/index.php'
-						);
-						console.log(
-							'  4. Visit Playground in your browser to hit the breakpoint'
-						);
-					}
-
-					console.log('');
-				} catch (error) {
-					throw new Error('Could not configure Xdebug', {
-						cause: error,
-					});
 				}
 			}
 
@@ -1295,13 +1369,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 						async (
 							spawnResult: SpawnedWorker
 						): Promise<
-							[
-								SpawnedWorker,
-								(
-									| RemoteAPI<PlaygroundCliBlueprintV1Worker>
-									| RemoteAPI<PlaygroundCliBlueprintV2Worker>
-								),
-							]
+							[SpawnedWorker, RemoteAPI<PlaygroundCliWorker>]
 						> => {
 							// Remember the worker process before booting the Playground
 							// so we can clean it up if there is an error during boot.
@@ -1420,6 +1488,36 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 						cliOutput.finishProgress('Done');
 						await disposeCLI();
 						return;
+					} else if (args.command === 'php') {
+						const argv = [
+							// @TODO: Import this from somewhere?
+							// Hardcoding it feels fragile.
+							'/internal/shared/bin/php',
+							...(args['_'] || []).slice(1),
+						];
+						const response = await playgroundPool.cli(argv);
+						const [exitCode] = await Promise.all([
+							response.exitCode,
+							response.stdout.pipeTo(
+								new WritableStream({
+									write(chunk) {
+										process.stdout.write(chunk);
+									},
+								})
+							),
+							response.stderr.pipeTo(
+								new WritableStream({
+									write(chunk) {
+										process.stderr.write(chunk);
+									},
+								})
+							),
+						]);
+						await disposeCLI();
+						// stdout and stderr streams are drained above,
+						// but we  use process.exit as a hard cut-off to ensure
+						// Node doesn't hang on open handles.
+						process.exit(exitCode);
 					}
 				}
 

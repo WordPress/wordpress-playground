@@ -251,3 +251,29 @@ add_action('init', function() {
 	$prefs['core']['enableChoosePatternModal'] = false;
 	update_user_meta($user_id, 'wp_persisted_preferences', $prefs);
 });
+
+/**
+ * ¡TEMPORARY WORKAROUND!
+ * On 2026-02-26, with Gutenberg v22.6.0 and above, the site editor and post
+ * editor fail to load. This appears related the `cross-origin-embedder-policy: credentialless`
+ * header which is added when client side media is enabled by default.
+ *
+ * This has something to do with our /wp-includes/empty.html workaround.
+ * @TODO: Let's find a solution that doesn't require us to disable client side media processing.
+ */
+add_filter('wp_client_side_media_processing_enabled', '__return_false');
+
+/**
+ * Disable the WP Cron.
+ * 
+ * Around WordPress 7.0 beta 1, many wp-cron requests in the Playground started
+ * taking the full 30 seconds to complete. Since we're running PHP on a single
+ * worker, that blocks every other request from running until WP Cron completes.
+ */
+define('DISABLE_WP_CRON', true);
+if(str_ends_with($_SERVER['PHP_SELF'], '/wp-cron.php')) {
+	http_response_code(503);
+	header('Content-Type: text/plain');
+	echo 'WP Cron is temporarily disabled in the Playground.';
+	exit;
+}

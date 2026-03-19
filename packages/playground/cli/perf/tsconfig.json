@@ -1,0 +1,14 @@
+{
+	"extends": "../../../../tsconfig.base.json",
+	"compilerOptions": {
+		"moduleResolution": "node",
+		"forceConsistentCasingInFileNames": true,
+		"strict": true,
+		"noImplicitOverride": true,
+		"noPropertyAccessFromIndexSignature": true,
+		"noImplicitReturns": true,
+		"noFallthroughCasesInSwitch": true
+	},
+	"files": [],
+	"include": ["./**/*.ts"]
+}
