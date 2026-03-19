@@ -8,13 +8,8 @@ type PersonalWPFixtures = {
 };
 
 export const test = base.extend<PersonalWPFixtures>({
-	wordpress: async ({ page }, use) => {
-		const wpPage = page
-			.frameLocator(
-				'#playground-viewport:visible,.playground-viewport:visible'
-			)
-			.frameLocator('#wp');
-		await use(wpPage);
+	wordpress: async ({ website }, use) => {
+		await use(website.wordpress());
 	},
 	website: async ({ page }, use) => {
 		await use(new PersonalWPPage(page));

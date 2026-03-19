@@ -9,14 +9,7 @@ export class PersonalWPPage {
 	}
 
 	async waitForNestedIframes(page = this.page) {
-		await expect(
-			page
-				.frameLocator(
-					'#playground-viewport:visible,.playground-viewport:visible'
-				)
-				.frameLocator('#wp')
-				.locator('body')
-		).not.toBeEmpty();
+		await expect(this.wordpress(page).locator('body')).not.toBeEmpty();
 	}
 
 	wordpress(page = this.page) {
