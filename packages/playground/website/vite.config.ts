@@ -253,8 +253,15 @@ export default defineConfig(({ command, mode }) => {
 							triggerClientBuild();
 						}
 
-						const urlPath = new URL(req.url, 'http://localhost')
-							.pathname;
+						let urlPath: string;
+						try {
+							urlPath = new URL(req.url, 'http://localhost')
+								.pathname;
+						} catch {
+							res.statusCode = 400;
+							res.end('Invalid request URL');
+							return;
+						}
 						const filePath = resolve(
 							clientDistDir,
 							urlPath.slice('/client/'.length)
