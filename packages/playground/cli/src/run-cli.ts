@@ -1046,22 +1046,10 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 			const serverUrl = `${scheme}://${host}:${port}`;
 			const siteUrl = args['site-url'] || serverUrl;
 
-			/**
-			 * With HTTP 1.1, browsers typically support 6 parallel connections per domain.
-			 * > browsers open several connections to each domain,
-			 * > sending parallel requests. Default was once 2 to 3 connections,
-			 * > but this has now increased to a more common use of 6 parallel connections.
-			 * https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Connection_management_in_HTTP_1.x#domain_sharding
-			 *
-			 * While our HTTP server only supports HTTP 1.1 and while we are trying to limit the
-			 * memory requirements of multiple workers, let's hard-code the number of request-handling
-			 * workers to 6.
-			 *
-			 * Going higher than browsers' max concurrent requests seems pointless,
-			 * and going lower may increase the likelihood of deadlock due to workers
-			 * blocking and waiting for file locks.
-			 */
-			const targetWorkerCount = 6;
+			const targetWorkerCount = computeWorkerCount(
+				args['min-workers'] as number,
+				args['max-workers'] as number
+			);
 
 			/*
 			 * Use a real temp dir as a target for the following Playground paths
@@ -1916,6 +1904,25 @@ function openInBrowser(url: string): void {
 			logger.debug(`Could not open browser: ${error.message}`);
 		}
 	});
+}
+
+const ESTIMATED_WORKER_MEMORY_BYTES = 100 * 1024 * 1024; // ~100MB per worker
+
+/**
+ * Determines the number of PHP worker threads to spawn based on
+ * available system memory, clamped to [minWorkers, maxWorkers].
+ *
+ * Uses 50% of free memory as the budget for workers so the system
+ * has headroom for the OS, browser, and other processes.
+ */
+function computeWorkerCount(minWorkers: number, maxWorkers: number): number {
+	const freeMemory = os.freemem();
+	const memoryBased = Math.floor(
+		(freeMemory * 0.5) / ESTIMATED_WORKER_MEMORY_BYTES
+	);
+	const count = Math.max(minWorkers, Math.min(memoryBased, maxWorkers));
+	logger.log(`Worker count: ${count} (free memory: ${Math.round(freeMemory / 1024 / 1024)}MB)`);
+	return count;
 }
 
 async function zipSite(
