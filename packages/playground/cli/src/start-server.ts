@@ -1,7 +1,6 @@
 import { exec as execCb } from 'child_process';
 import { promisify } from 'util';
 import type { PHPRequest, StreamedPHPResponse } from '@php-wasm/universal';
-import type { Request, Response } from 'express';
 import express from 'express';
 import type { IncomingMessage, Server, ServerResponse } from 'http';
 import type { AddressInfo } from 'net';
@@ -9,6 +8,8 @@ import { Readable } from 'stream';
 import { pipeline } from 'stream/promises';
 import type { RunCLIServer } from './run-cli';
 import { logger } from '@php-wasm/logger';
+import http2 from 'http2';
+import type { TlsCertificates } from './tls';
 
 const exec = promisify(execCb);
 
@@ -19,6 +20,8 @@ export interface ServerOptions {
 	 * Handler for requests. Always returns StreamedPHPResponse.
 	 */
 	handleRequest: (request: PHPRequest) => Promise<StreamedPHPResponse>;
+	http2?: boolean;
+	tlsCertificates?: TlsCertificates;
 }
 
 export function isPortInUse(port: number): Promise<boolean> {
@@ -37,6 +40,66 @@ export function isPortInUse(port: number): Promise<boolean> {
 export async function startServer(
 	options: ServerOptions
 ): Promise<RunCLIServer | void> {
+	const requestListener = createRequestListener(options.handleRequest);
+
+	// TODO: Remove Express path when HTTP/2 becomes the default
+	const server = options.http2
+		? await startHttp2Server(options, requestListener)
+		: await startExpressServer(options, requestListener);
+
+	const address = server.address();
+	const port = (address! as AddressInfo).port;
+
+	// Codespaces ports default to private, breaking CORS.
+	// Publish once the tunnel is ready.
+	const codespaceName = process.env['CODESPACE_NAME'];
+	if (codespaceName) {
+		setCodespacesPortPublic(port, codespaceName);
+	}
+
+	return await options.onBind(server, port);
+}
+
+type RequestListener = (
+	req: { url?: string; method?: string; headers: Record<string, any> } & {
+		on: (event: string, cb: (...args: any[]) => void) => void;
+	},
+	res: {
+		statusCode: number;
+		headersSent: boolean;
+		setHeader: (name: string, value: string) => void;
+		end: (data?: string) => void;
+	} & NodeJS.WritableStream
+) => Promise<void>;
+
+function createRequestListener(
+	handleRequest: ServerOptions['handleRequest']
+): RequestListener {
+	return async (req, res) => {
+		try {
+			const phpRequest: PHPRequest = {
+				url: req.url ?? '/',
+				headers: parseHeaders(req.headers),
+				method: (req.method ?? 'GET') as any,
+				body: await bufferRequestBody(req),
+			};
+
+			const response = await handleRequest(phpRequest);
+			await handleStreamedResponse(response, res as any);
+		} catch (error) {
+			logger.error(error);
+			if (!res.headersSent) {
+				res.statusCode = 500;
+				res.end('Internal Server Error');
+			}
+		}
+	};
+}
+
+async function startExpressServer(
+	options: ServerOptions,
+	requestListener: RequestListener
+): Promise<Server<typeof IncomingMessage, typeof ServerResponse>> {
 	const app = express();
 
 	const server = await new Promise<
@@ -54,37 +117,48 @@ export async function startServer(
 			.once('error', reject);
 	});
 
-	app.use('/', async (req, res) => {
-		try {
-			const phpRequest: PHPRequest = {
-				url: req.url,
-				headers: parseHeaders(req),
-				method: req.method as any,
-				body: await bufferRequestBody(req),
-			};
-
-			const response = await options.handleRequest(phpRequest);
-			await handleStreamedResponse(response, res);
-		} catch (error) {
-			logger.error(error);
-			if (!res.headersSent) {
-				res.statusCode = 500;
-				res.end('Internal Server Error');
-			}
-		}
+	app.use('/', (req, res) => {
+		requestListener(req, res);
 	});
 
-	const address = server.address();
-	const port = (address! as AddressInfo).port;
+	return server;
+}
 
-	// Codespaces ports default to private, breaking CORS.
-	// Publish once the tunnel is ready.
-	const codespaceName = process.env['CODESPACE_NAME'];
-	if (codespaceName) {
-		setCodespacesPortPublic(port, codespaceName);
+async function startHttp2Server(
+	options: ServerOptions,
+	requestListener: RequestListener
+): Promise<Server> {
+	if (!options.tlsCertificates) {
+		throw new Error('TLS certificates are required for HTTP/2.');
 	}
 
-	return await options.onBind(server, port);
+	const server = await new Promise<http2.Http2SecureServer>(
+		(resolve, reject) => {
+			const h2Server = http2.createSecureServer(
+				{
+					key: options.tlsCertificates!.key,
+					cert: options.tlsCertificates!.cert,
+					allowHTTP1: true,
+				},
+				(req, res) => {
+					requestListener(req, res);
+				}
+			);
+
+			h2Server
+				.listen(options.port, () => {
+					const address = h2Server.address();
+					if (address === null || typeof address === 'string') {
+						reject(new Error('Server address is not available'));
+					} else {
+						resolve(h2Server);
+					}
+				})
+				.once('error', reject);
+		}
+	);
+
+	return server as unknown as Server;
 }
 
 /**
@@ -93,7 +167,7 @@ export async function startServer(
  */
 async function handleStreamedResponse(
 	streamedResponse: StreamedPHPResponse,
-	res: Response
+	res: { statusCode: number; setHeader(name: string, value: string): void } & NodeJS.WritableStream
 ): Promise<void> {
 	// Wait for headers to be available
 	const [headers, httpStatusCode] = await Promise.all([
@@ -128,10 +202,12 @@ async function handleStreamedResponse(
 	}
 }
 
-const bufferRequestBody = async (req: Request): Promise<Uint8Array> =>
+const bufferRequestBody = async (
+	req: { on(event: string, cb: (...args: any[]) => void): void }
+): Promise<Uint8Array> =>
 	await new Promise((resolve) => {
 		const body: Uint8Array[] = [];
-		req.on('data', (chunk) => {
+		req.on('data', (chunk: Buffer) => {
 			body.push(chunk);
 		});
 		req.on('end', () => {
@@ -152,12 +228,21 @@ async function setCodespacesPortPublic(port: number, codespaceName: string) {
 	}
 }
 
-const parseHeaders = (req: Request): Record<string, string> => {
+/**
+ * Parses headers from an HTTP request object into a flat record.
+ * Filters out HTTP/2 pseudo-headers (keys starting with `:`) since
+ * PHP doesn't understand them.
+ */
+const parseHeaders = (
+	headers: Record<string, any>
+): Record<string, string> => {
 	const requestHeaders: Record<string, string> = {};
-	if (req.rawHeaders && req.rawHeaders.length) {
-		for (let i = 0; i < req.rawHeaders.length; i += 2) {
-			requestHeaders[req.rawHeaders[i].toLowerCase()] =
-				req.rawHeaders[i + 1];
+	for (const [key, value] of Object.entries(headers)) {
+		if (key.startsWith(':')) {
+			continue;
+		}
+		if (value !== undefined) {
+			requestHeaders[key.toLowerCase()] = String(value);
 		}
 	}
 	return requestHeaders;

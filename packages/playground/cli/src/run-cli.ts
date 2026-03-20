@@ -41,6 +41,7 @@ import {
 	parseDefineNumberArguments,
 } from './defines';
 import { isPortInUse, startServer } from './start-server';
+import { resolveTlsCertificates } from './tls';
 import type { PlaygroundCliBlueprintV1Worker } from './blueprints-v1/worker-thread-v1';
 import type { PlaygroundCliBlueprintV2Worker } from './blueprints-v2/worker-thread-v2';
 import type { XdebugOptions } from '@php-wasm/node';
@@ -340,6 +341,35 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 					'Port to listen on when serving. Defaults to 9400 when available.',
 				type: 'number',
 			},
+			http2: {
+				describe:
+					'Enable HTTP/2 with TLS. Requires HTTPS certificates ' +
+					'(auto-provisioned via mkcert or self-signed if not supplied).',
+				type: 'boolean',
+				default: false,
+			},
+			'ssl-cert': {
+				describe:
+					'Path to a TLS certificate file (PEM format). Used with --http2.',
+				type: 'string',
+			},
+			'ssl-key': {
+				describe:
+					'Path to a TLS private key file (PEM format). Used with --http2.',
+				type: 'string',
+			},
+			'min-workers': {
+				describe:
+					'Minimum number of PHP worker threads. Defaults to 2.',
+				type: 'number',
+				default: 2,
+			},
+			'max-workers': {
+				describe:
+					'Maximum number of PHP worker threads. Defaults to 12.',
+				type: 'number',
+				default: 12,
+			},
 			'experimental-multi-worker': {
 				deprecated:
 					'This option is not needed. Multiple workers are always used.',
@@ -436,6 +466,13 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 				type: 'boolean',
 				default: false,
 			},
+			// HTTP/2 and TLS
+			http2: serverOnlyOptions['http2'],
+			'ssl-cert': serverOnlyOptions['ssl-cert'],
+			'ssl-key': serverOnlyOptions['ssl-key'],
+			// Worker pool
+			'min-workers': serverOnlyOptions['min-workers'],
+			'max-workers': serverOnlyOptions['max-workers'],
 			// Define constants
 			define: sharedOptions['define'],
 			'define-bool': sharedOptions['define-bool'],
@@ -987,15 +1024,26 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 	let wordPressReady = false;
 	let isFirstRequest = true;
 
+	const useHttp2 = !!args.http2;
+	const tlsCertificates = useHttp2
+		? resolveTlsCertificates({
+				sslCert: args['ssl-cert'] as string | undefined,
+				sslKey: args['ssl-key'] as string | undefined,
+			})
+		: undefined;
+
 	const server = await startServer({
 		port: args.port
 			? args.port
 			: !(await isPortInUse(selectedPort))
 				? selectedPort
 				: 0,
+		http2: useHttp2,
+		tlsCertificates,
 		onBind: async (server: Server, port: number) => {
 			const host = '127.0.0.1';
-			const serverUrl = `http://${host}:${port}`;
+			const scheme = useHttp2 ? 'https' : 'http';
+			const serverUrl = `${scheme}://${host}:${port}`;
 			const siteUrl = args['site-url'] || serverUrl;
 
 			/**
