@@ -22,8 +22,19 @@ use Throwable;
 use WP_SQLite_Connection;
 use WP_SQLite_Driver;
 
-// Load the SQLite driver.
-require_once '/internal/shared/sqlite-database-integration/wp-pdo-mysql-on-sqlite.php';
+// Load the SQLite driver from the first available location.
+// The path varies depending on the environment (Playground, Studio, etc.).
+$sqlite_driver_locations = array(
+	'/internal/shared/sqlite-database-integration/wp-pdo-mysql-on-sqlite.php',
+	'/wordpress/wp-content/mu-plugins/sqlite-database-integration/wp-pdo-mysql-on-sqlite.php',
+	'/wordpress/wp-content/plugins/sqlite-database-integration/wp-pdo-mysql-on-sqlite.php',
+);
+foreach ($sqlite_driver_locations as $sqlite_driver_path) {
+	if (file_exists($sqlite_driver_path)) {
+		require_once $sqlite_driver_path;
+		break;
+	}
+}
 
 // Supress the following phpMyAdmin warning:
 //   "The mysqlnd extension is missing. Please check your PHP configuration."
