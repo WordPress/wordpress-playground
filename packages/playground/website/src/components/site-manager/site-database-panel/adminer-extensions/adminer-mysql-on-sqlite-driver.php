@@ -16,11 +16,10 @@ namespace Adminer;
 // The path varies depending on the environment (Playground, Studio, etc.).
 $sqlite_driver_locations = array(
 	'/internal/shared/sqlite-database-integration/wp-pdo-mysql-on-sqlite.php',
-	'/wordpress/wp-content/mu-plugins/sqlite-database-integration/wp-pdo-mysql-on-sqlite.php',
-	'/wordpress/wp-content/plugins/sqlite-database-integration/wp-pdo-mysql-on-sqlite.php',
+	defined( 'WP_SQLITE_LOCATION' ) ? WP_SQLITE_LOCATION . '/wp-pdo-mysql-on-sqlite.php' : false,
 );
 foreach ($sqlite_driver_locations as $sqlite_driver_path) {
-	if (file_exists($sqlite_driver_path)) {
+	if ($sqlite_driver_path && file_exists($sqlite_driver_path)) {
 		require_once $sqlite_driver_path;
 		break;
 	}
