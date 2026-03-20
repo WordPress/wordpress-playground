@@ -6,6 +6,71 @@ const loadedRuntimes: Map<number, PHPRuntime> = new Map();
 let lastRuntimeId = 0;
 
 /**
+ * Patches the Emscripten PIPEFS write handler to guard against a race
+ * condition where an async callback (e.g. a Node.js socket data event
+ * or a web spawnHandler's stdout.on('data')) fires after a pipe has
+ * been destroyed (pipe.buckets set to null by PIPEFS close()).
+ *
+ * The proc_open implementation in the compiled PHP binary registers
+ * stdout/stderr data callbacks that call stream.stream_ops.write()
+ * directly. If the child process emits data after PHP has closed both
+ * ends of the pipe, the write handler crashes with "Cannot read
+ * properties of null (reading 'length')" because pipe.buckets is null.
+ *
+ * All pipe streams share a single stream_ops object, so patching it
+ * once fixes all pipes. We intercept FS.createStream to detect the
+ * first pipe stream, then wrap stream_ops.write with a null guard.
+ */
+const PIPEFS_PATCHED = Symbol('pipefsPatched');
+function patchPipefsRaceCondition(phpRuntime: PHPRuntime) {
+	const FS = phpRuntime.FS;
+
+	// Guard against repeated patching on runtime rotation — each new
+	// PHPRuntime shares the same FS object, so we'd stack wrappers.
+	if ((FS.createStream as any)[PIPEFS_PATCHED]) {
+		return;
+	}
+
+	const origCreateStream = FS.createStream.bind(FS);
+	let pipeStreamOpsPatched = false;
+
+	const wrappedCreateStream = function (streamObj: any, ...args: any[]) {
+		const stream = origCreateStream(streamObj, ...args);
+
+		if (!pipeStreamOpsPatched && stream.node?.pipe) {
+			pipeStreamOpsPatched = true;
+			const origWrite = stream.stream_ops.write;
+			stream.stream_ops.write = function (
+				s: any,
+				buffer: any,
+				offset: any,
+				length: any,
+				position: any
+			) {
+				if (s.node?.pipe?.buckets === null) {
+					// Pipe was already destroyed. Return 0 bytes written
+					// instead of crashing. The caller (socket data callback)
+					// does not check the return value, so this is safe.
+					return 0;
+				}
+				return origWrite.call(
+					this,
+					s,
+					buffer,
+					offset,
+					length,
+					position
+				);
+			};
+		}
+
+		return stream;
+	};
+	(wrappedCreateStream as any)[PIPEFS_PATCHED] = true;
+	FS.createStream = wrappedCreateStream;
+}
+
+/**
  * Loads the PHP runtime with the given arguments and data dependencies.
  *
  * This function handles the entire PHP initialization pipeline. In particular,
@@ -156,6 +221,8 @@ export async function loadPHPRuntime(
 	});
 
 	await phpReady;
+
+	patchPipefsRaceCondition(PHPRuntime);
 
 	const id = ++lastRuntimeId;
 
