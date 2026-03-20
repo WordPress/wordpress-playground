@@ -9,7 +9,7 @@ import { pipeline } from 'stream/promises';
 import type { RunCLIServer } from './run-cli';
 import { logger } from '@php-wasm/logger';
 import http2 from 'http2';
-import type { TlsCertificates } from './tls';
+import type { TlsCertificate } from './tls';
 
 const exec = promisify(execCb);
 
@@ -21,7 +21,7 @@ export interface ServerOptions {
 	 */
 	handleRequest: (request: PHPRequest) => Promise<StreamedPHPResponse>;
 	http2?: boolean;
-	tlsCertificates?: TlsCertificates;
+	tlsCertificate?: TlsCertificate;
 }
 
 export function isPortInUse(port: number): Promise<boolean> {
@@ -132,16 +132,16 @@ async function startHttp2Server(
 	options: ServerOptions,
 	requestListener: RequestListener
 ): Promise<Server> {
-	if (!options.tlsCertificates) {
-		throw new Error('TLS certificates are required for HTTP/2.');
+	if (!options.tlsCertificate) {
+		throw new Error('TLS certificate is required for HTTP/2.');
 	}
 
 	const server = await new Promise<http2.Http2SecureServer>(
 		(resolve, reject) => {
 			const h2Server = http2.createSecureServer(
 				{
-					key: options.tlsCertificates!.key,
-					cert: options.tlsCertificates!.cert,
+					key: options.tlsCertificate!.key,
+					cert: options.tlsCertificate!.cert,
 					allowHTTP1: true,
 				},
 				(req, res) => {
@@ -171,7 +171,10 @@ async function startHttp2Server(
  */
 async function handleStreamedResponse(
 	streamedResponse: StreamedPHPResponse,
-	res: { statusCode: number; setHeader(name: string, value: string): void } & NodeJS.WritableStream
+	res: {
+		statusCode: number;
+		setHeader(name: string, value: string): void;
+	} & NodeJS.WritableStream
 ): Promise<void> {
 	// Wait for headers to be available
 	const [headers, httpStatusCode] = await Promise.all([
@@ -206,9 +209,9 @@ async function handleStreamedResponse(
 	}
 }
 
-const bufferRequestBody = async (
-	req: { on(event: string, cb: (...args: any[]) => void): void }
-): Promise<Uint8Array> =>
+const bufferRequestBody = async (req: {
+	on(event: string, cb: (...args: any[]) => void): void;
+}): Promise<Uint8Array> =>
 	await new Promise((resolve) => {
 		const body: Uint8Array[] = [];
 		req.on('data', (chunk: Buffer) => {
@@ -237,9 +240,7 @@ async function setCodespacesPortPublic(port: number, codespaceName: string) {
  * Filters out HTTP/2 pseudo-headers (keys starting with `:`) since
  * PHP doesn't understand them.
  */
-const parseHeaders = (
-	headers: Record<string, any>
-): Record<string, string> => {
+const parseHeaders = (headers: Record<string, any>): Record<string, string> => {
 	const requestHeaders: Record<string, string> = {};
 	for (const [key, value] of Object.entries(headers)) {
 		if (key.startsWith(':')) {

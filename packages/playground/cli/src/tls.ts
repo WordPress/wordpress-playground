@@ -4,7 +4,7 @@ import { join } from 'path';
 import { tmpdir } from 'os';
 import { logger } from '@php-wasm/logger';
 
-export interface TlsCertificates {
+export interface TlsCertificate {
 	key: string;
 	cert: string;
 }
@@ -16,7 +16,7 @@ export interface TlsCertificates {
  * The certificate is valid for localhost and 127.0.0.1, expires in
  * 30 days, and is intended for local development only.
  */
-export function generateSelfSignedCert(): TlsCertificates {
+export function generateSelfSignedCert(): TlsCertificate {
 	const tempDir = mkdtempSync(join(tmpdir(), 'playground-tls-'));
 	const keyPath = join(tempDir, 'key.pem');
 	const certPath = join(tempDir, 'cert.pem');
@@ -104,7 +104,7 @@ export function getMkcertCaRoot(): string | null {
  * Generates a locally-trusted TLS certificate using mkcert.
  * Requires mkcert to be installed with its CA root set up.
  */
-export function generateMkcertCert(): TlsCertificates {
+export function generateMkcertCert(): TlsCertificate {
 	const tempDir = mkdtempSync(join(tmpdir(), 'playground-tls-'));
 	const keyPath = join(tempDir, 'key.pem');
 	const certPath = join(tempDir, 'cert.pem');
@@ -142,10 +142,10 @@ export function generateMkcertCert(): TlsCertificates {
  * 2. mkcert (if installed with trusted CA)
  * 3. Self-signed fallback
  */
-export function resolveTlsCertificates(options: {
+export function resolveTlsCertificate(options: {
 	sslCert?: string;
 	sslKey?: string;
-}): TlsCertificates {
+}): TlsCertificate {
 	if (options.sslCert && options.sslKey) {
 		logger.log('Using user-supplied TLS certificates.');
 		return {

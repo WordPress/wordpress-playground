@@ -41,7 +41,7 @@ import {
 	parseDefineNumberArguments,
 } from './defines';
 import { isPortInUse, startServer } from './start-server';
-import { resolveTlsCertificates } from './tls';
+import { resolveTlsCertificate } from './tls';
 import type { PlaygroundCliBlueprintV1Worker } from './blueprints-v1/worker-thread-v1';
 import type { PlaygroundCliBlueprintV2Worker } from './blueprints-v2/worker-thread-v2';
 import type { XdebugOptions } from '@php-wasm/node';
@@ -1025,8 +1025,8 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 	let isFirstRequest = true;
 
 	const useHttp2 = !!args.http2;
-	const tlsCertificates = useHttp2
-		? resolveTlsCertificates({
+	const tlsCertificate = useHttp2
+		? resolveTlsCertificate({
 				sslCert: args['ssl-cert'] as string | undefined,
 				sslKey: args['ssl-key'] as string | undefined,
 			})
@@ -1039,7 +1039,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 				? selectedPort
 				: 0,
 		http2: useHttp2,
-		tlsCertificates,
+		tlsCertificate,
 		onBind: async (server: Server, port: number) => {
 			const host = '127.0.0.1';
 			const scheme = useHttp2 ? 'https' : 'http';
@@ -1921,7 +1921,9 @@ function computeWorkerCount(minWorkers: number, maxWorkers: number): number {
 		(freeMemory * 0.5) / ESTIMATED_WORKER_MEMORY_BYTES
 	);
 	const count = Math.max(minWorkers, Math.min(memoryBased, maxWorkers));
-	logger.log(`Worker count: ${count} (free memory: ${Math.round(freeMemory / 1024 / 1024)}MB)`);
+	logger.log(
+		`Worker count: ${count} (free memory: ${Math.round(freeMemory / 1024 / 1024)}MB)`
+	);
 	return count;
 }
 
