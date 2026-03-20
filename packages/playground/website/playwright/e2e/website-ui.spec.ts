@@ -324,8 +324,8 @@ test('should copy blueprint link to clipboard when share button is clicked', asy
 	browserName,
 }) => {
 	test.skip(
-		browserName === 'firefox',
-		'Firefox does not support clipboard-read permission through Playwright'
+		browserName === 'firefox' || browserName === 'webkit',
+		'Firefox and WebKit do not support clipboard permissions through Playwright'
 	);
 
 	// Grant clipboard permissions

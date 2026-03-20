@@ -112,12 +112,15 @@ async function handleStreamedResponse(
 	try {
 		await pipeline(nodeStream, res);
 	} catch (error: unknown) {
-		// Ignore "ERR_STREAM_PREMATURE_CLOSE". It means the client disconnected
-		// before the response finished (e.g. a redirect or mid-load navigation).
+		// Ignore client-disconnect errors. These occur when the browser
+		// navigates away or refreshes before the response finishes:
+		// - ERR_STREAM_PREMATURE_CLOSE: stream was open but closed early
+		// - ERR_STREAM_UNABLE_TO_PIPE: stream was already destroyed
 		if (
 			error instanceof Error &&
 			'code' in error &&
-			error.code === 'ERR_STREAM_PREMATURE_CLOSE'
+			(error.code === 'ERR_STREAM_PREMATURE_CLOSE' ||
+				error.code === 'ERR_STREAM_UNABLE_TO_PIPE')
 		) {
 			return;
 		}
@@ -136,10 +139,7 @@ const bufferRequestBody = async (req: Request): Promise<Uint8Array> =>
 		});
 	});
 
-async function setCodespacesPortPublic(
-	port: number,
-	codespaceName: string
-) {
+async function setCodespacesPortPublic(port: number, codespaceName: string) {
 	logger.log(`Publishing port ${port}...`);
 	const cmd = `gh codespace ports visibility ${port}:public -c ${codespaceName}`;
 	for (let i = 0; i < 10; i++) {

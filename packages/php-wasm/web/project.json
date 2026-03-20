@@ -3,7 +3,7 @@
 	"$schema": "../../../node_modules/nx/schemas/project-schema.json",
 	"sourceRoot": "packages/php-wasm/web/src",
 	"projectType": "library",
-	"tags": ["scope:php-binaries"],
+	"tags": ["scope:php-binaries", "scope:browser-only"],
 	"implicitDependencies": ["php-wasm-compile"],
 	"targets": {
 		"build": {
