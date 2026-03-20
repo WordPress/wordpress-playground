@@ -34,6 +34,9 @@ foreach ($sqlite_driver_locations as $sqlite_driver_path) {
 		break;
 	}
 }
+if (!class_exists('WP_SQLite_Driver')) {
+	die('Error: Could not load the SQLite driver.');
+}
 
 // Supress the following phpMyAdmin warning:
 //   "The mysqlnd extension is missing. Please check your PHP configuration."
