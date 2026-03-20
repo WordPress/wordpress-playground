@@ -753,7 +753,8 @@ export class PHPRequestHandler implements AsyncDisposable {
 			$_SERVER: this.prepare_$_SERVER_superglobal(
 				originalRequestUrl,
 				rewrittenRequestUrl,
-				scriptPath
+				scriptPath,
+				request.protocolVersion
 			),
 			body,
 			scriptPath,
@@ -863,12 +864,14 @@ export class PHPRequestHandler implements AsyncDisposable {
 	private prepare_$_SERVER_superglobal(
 		originalRequestUrl: URL,
 		rewrittenRequestUrl: URL,
-		resolvedScriptPath: string
+		resolvedScriptPath: string,
+		protocolVersion?: string
 	): Record<string, string> {
 		const $_SERVER: Record<string, string> = {
 			REMOTE_ADDR: '127.0.0.1',
 			DOCUMENT_ROOT: this.#DOCROOT,
 			HTTPS: this.#ABSOLUTE_URL.startsWith('https://') ? 'on' : '',
+			SERVER_PROTOCOL: protocolVersion || 'HTTP/1.1',
 		};
 
 		/**

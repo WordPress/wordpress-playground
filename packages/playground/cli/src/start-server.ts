@@ -77,11 +77,15 @@ function createRequestListener(
 ): RequestListener {
 	return async (req, res) => {
 		try {
+			const httpVersion = (req as any).httpVersion;
 			const phpRequest: PHPRequest = {
 				url: req.url ?? '/',
 				headers: parseHeaders(req.headers),
 				method: (req.method ?? 'GET') as any,
 				body: await bufferRequestBody(req),
+				protocolVersion: httpVersion
+					? `HTTP/${httpVersion}`
+					: undefined,
 			};
 
 			const response = await handleRequest(phpRequest);

@@ -115,6 +115,13 @@ export interface PHPRequest {
 	 * and sent with a `multipart/form-data` header.
 	 */
 	body?: string | Uint8Array | Record<string, string | Uint8Array | File>;
+
+	/**
+	 * HTTP protocol version string for $_SERVER['SERVER_PROTOCOL'].
+	 * Examples: 'HTTP/1.0', 'HTTP/1.1', 'HTTP/2.0'.
+	 * Default: 'HTTP/1.1'.
+	 */
+	protocolVersion?: string;
 }
 
 export interface PHPRunOptions {
