@@ -271,6 +271,24 @@ jobs:
                   path: packages/playground/website/playwright/e2e/deployment.spec.ts-snapshots/
                   if-no-files-found: ignore
 
+    test-e2e-personal-wp:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  submodules: true
+            - uses: ./.github/actions/prepare-playground
+            - name: Install Playwright Browser
+              run: npx playwright install chromium --with-deps
+            - name: Run personal-wp Playwright e2e tests
+              run: CI=true npx playwright test --config=packages/playground/personal-wp/playwright/playwright.config.ts --project=chromium
+            - uses: actions/upload-artifact@v4
+              if: ${{ !cancelled() }}
+              with:
+                  name: playwright-personal-wp-report
+                  path: packages/playground/personal-wp/playwright-report/
+                  if-no-files-found: ignore
+
     test-e2e-components:
         runs-on: ubuntu-latest
         steps:
