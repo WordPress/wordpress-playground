@@ -23,7 +23,13 @@ use WP_SQLite_Connection;
 use WP_SQLite_Driver;
 
 // Load the SQLite driver.
-require_once '/internal/shared/sqlite-database-integration/wp-pdo-mysql-on-sqlite.php';
+global $wp_env;
+$wp_env = require '/internal/shared/wp-env.php';
+if ($wp_env['db']['type'] === 'sqlite') {
+	require_once $wp_env['db']['driver_path'];
+} else {
+	die('Error: Unsupported database type: ' . $wp_env['db']['type']);
+}
 
 // Supress the following phpMyAdmin warning:
 //   "The mysqlnd extension is missing. Please check your PHP configuration."
@@ -253,7 +259,8 @@ class DbiMysqli implements DbiExtension {
 	private $last_error_number = 0;
 
     public function connect($user, $password, array $server) {
-		$pdo = new PDO('sqlite:/wordpress/wp-content/database/.ht.sqlite');
+		global $wp_env;
+		$pdo = new PDO('sqlite:' . $wp_env['db']['path']);
 		$pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
         $this->driver = new WP_SQLite_Driver(
 			new WP_SQLite_Connection(array('pdo' => $pdo)),
