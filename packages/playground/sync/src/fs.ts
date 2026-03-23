@@ -10,7 +10,9 @@ export async function journalFSOperations(
 		async (entry: FilesystemOperation) => {
 			if (
 				entry.path.endsWith('/.ht.sqlite.php') ||
-				entry.path.endsWith('/.ht.sqlite.php-journal')
+				entry.path.endsWith('/.ht.sqlite.php-journal') ||
+				entry.path.endsWith('/.ht.sqlite') ||
+				entry.path.endsWith('/.ht.sqlite-journal')
 			) {
 				return;
 			}
