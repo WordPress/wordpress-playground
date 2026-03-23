@@ -135,6 +135,8 @@ async function startHttp2Server(
 		throw new Error('TLS certificate is required for HTTP/2.');
 	}
 
+	const activeSessions = new Set<http2.Http2Session>();
+
 	const server = await new Promise<http2.Http2SecureServer>(
 		(resolve, reject) => {
 			const h2Server = http2.createSecureServer(
@@ -148,6 +150,11 @@ async function startHttp2Server(
 				}
 			);
 
+			h2Server.on('session', (session) => {
+				activeSessions.add(session);
+				session.on('close', () => activeSessions.delete(session));
+			});
+
 			h2Server
 				.listen(options.port, () => {
 					const address = h2Server.address();
@@ -160,6 +167,16 @@ async function startHttp2Server(
 				.once('error', reject);
 		}
 	);
+
+	// Http2SecureServer doesn't have closeAllConnections() (only
+	// http.Server does). Provide one so the shutdown code in run-cli.ts
+	// can force-close long-lived HTTP/2 sessions the same way it does
+	// for HTTP/1.1 connections.
+	(server as any).closeAllConnections = () => {
+		for (const session of activeSessions) {
+			session.destroy();
+		}
+	};
 
 	return server as unknown as Server;
 }
