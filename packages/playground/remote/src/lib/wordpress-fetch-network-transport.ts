@@ -206,7 +206,7 @@ export class WordPressFetchNetworkTransport {
 							$site_port === $req_port &&
 							strpos( $parsed_url_req['path'], $parsed_site_url['path'] ) === 0
 						) {
-							return new WP_Error( 'http_request_block', 'Loopback requests are not pre-fetched' );
+							return new WP_Error( 'http_request_block', 'Loopback requests are not to be pre-fetched' );
 						}
 					}
 
