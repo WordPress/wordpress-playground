@@ -2,7 +2,7 @@ name: Publish GitHub Release
 
 on:
     workflow_run:
-        workflows: [Update CHANGELOG.md]
+        workflows: [Release NPM packages]
         types:
             - completed
 
@@ -11,7 +11,7 @@ permissions:
 
 jobs:
     create-release:
-        # Only create a release when the changelog update succeeded on trunk
+        # Only create a release after a successful npm publish on trunk
         if: >
             github.event.workflow_run.conclusion == 'success' &&
             github.event.workflow_run.head_branch == 'trunk'
@@ -74,4 +74,4 @@ jobs:
                   gh release create "$TAG" \
                       --title "WordPress Playground $TAG" \
                       --notes-file /tmp/release-body.md \
-                      --verify-tag
+                      --target trunk
