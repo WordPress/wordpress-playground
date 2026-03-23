@@ -13,12 +13,15 @@ Construisons un blueprint élémentaire qui :
 4. Installe l’extension _Hello Dolly_ depuis le répertoire WordPress
 5. Installe une extension personnalisée
 6. Modifie le contenu du site
-<!-- 1. Creates a new WordPress site
+
+<!-- 
+1. Creates a new WordPress site
 2. Sets the site title to "My first Blueprint"
 3. Installs the _Adventurer_ theme
 4. Installs the _Hello Dolly_ plugin from the WordPress plugin directory
 5. Installs a custom plugin
-6. Changes the site content -->
+6. Changes the site content 
+-->
 
 
 ## 1. Créer un nouveau site WordPress
@@ -49,17 +52,11 @@ Si vous utilisez un IDE tel que VS Code ou PHPStorm, vous pouvez utiliser le [Sc
 
 ::: 
 
-<!-- :::tip **Autocomplete**
+<!-- 
+**Autocomplete**
 
 If you use an IDE, like VS Code or PHPStorm, you can use the [Blueprint JSON Schema](https://playground.wordpress.net/blueprint-schema.json) for an autocompleted Blueprint development experience. Add the following line at the top of your `blueprint.json` file:
-
-```json
-{
-        "$schema": "https://playground.wordpress.net/blueprint-schema.json"
-}
-```
-
-::: -->
+-->
 
 Voici ce à quoi ça ressemble dans VS Code :
 <!-- Here’s what it looks like in VS Code: -->
@@ -100,20 +97,6 @@ WordPress conserve le titre du site dans l’option `blogname`. Ajoutez votre pr
 }
 ```
 
-<!-- ```json
-{
-        "$schema": "https://playground.wordpress.net/blueprint-schema.json",
-        "steps": [
-                {
-                        "step": "setSiteOptions",
-                        "options": {
-                                "blogname": "My first Blueprint"
-                        }
-                }
-        ]
-}
-``` -->
-
 [<kbd> &nbsp; Lancer blueprint &nbsp; </kbd>](https://playground.wordpress.net/#eyIkc2NoZW1hIjoiaHR0cHM6Ly9wbGF5Z3JvdW5kLndvcmRwcmVzcy5uZXQvYmx1ZXByaW50LXNjaGVtYS5qc29uIiwic3RlcHMiOlt7InN0ZXAiOiJzZXRTaXRlT3B0aW9ucyIsIm9wdGlvbnMiOnsiYmxvZ25hbWUiOiJNeSBmaXJzdCBCbHVlcHJpbnQifX1dfQ==)
 
 <!-- [<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](https://playground.wordpress.net/#eyIkc2NoZW1hIjoiaHR0cHM6Ly9wbGF5Z3JvdW5kLndvcmRwcmVzcy5uZXQvYmx1ZXByaW50LXNjaGVtYS5qc29uIiwic3RlcHMiOlt7InN0ZXAiOiJzZXRTaXRlT3B0aW9ucyIsIm9wdGlvbnMiOnsiYmxvZ25hbWUiOiJNeSBmaXJzdCBCbHVlcHJpbnQifX1dfQ==) -->
@@ -136,18 +119,11 @@ Vous pouvez définir certaines étapes en utilisant la forme courte. Par exemple
 }
 ```
 
-
-<!--  ```json
-{
-        "$schema": "https://playground.wordpress.net/blueprint-schema.json",
-        "siteOptions": {
-                "blogname": "My first Blueprint"
-        }
-}
-``` -->
-
 La forme courte et la syntaxe par étapes sont équivalentes. Chaque étape définie avec la forme courte est automatiquement ajoutée au début du tableau `steps` dans un ordre arbitraire. Laquelle choisir ? Utilisez la forme courte lorsque la concision est votre principale préoccupation, utilisez les étapes lorsque vous avez besoin d’un meilleur contrôle sur l’ordre d’exécution.
-<!-- The shorthand syntax and the step syntax correspond with each other. Every step specified with the shorthand syntax is automatically added at the beginning of the `steps` array in an arbitrary order. Which should you choose? Use shorthands when brevity is your main concern, use steps when you need more control over the order of execution. -->
+
+<!-- 
+The shorthand syntax and the step syntax correspond with each other. Every step specified with the shorthand syntax is automatically added at the beginning of the `steps` array in an arbitrary order. Which should you choose? Use shorthands when brevity is your main concern, use steps when you need more control over the order of execution.
+-->
 
 ## 3. Installer le thème _Adventurer_
 <!-- ## 3. Install the _Adventurer_ theme -->
@@ -187,16 +163,19 @@ Le site devrait maintenant ressembler à la capture d’écran ci-dessous :
 Le `themeData` définit une [ressource](/blueprints/steps/resources) et fait référence à un fichier externe nécessaire pour finaliser l’étape. Playground prend en charge différents types de ressources, et notamment
 <!-- The `themeData` defines a [resource](/blueprints/steps/resources) and references an external file required to complete the step. Playground supports different types of resources, including -->
 
-`url`,
+- `url`,
 -   `wordpress.org/themes`,
 -   `wordpress.org/plugins`,
 -   `vfs`(système de fichier virtuel), ou
 -   `literal`. 
-<!-- -   `url`,
+
+<!-- 
+   `url`,
 -   `wordpress.org/themes`,
 -   `wordpress.org/plugins`,
 -   `vfs`(virtual file system), or
--   `literal`. -->
+-   `literal`. 
+-->
 
 Cet exemple utilise la ressource `wordpress.org/themes`, qui nécessite un `slug` identique à celui utilisé dans le répertoire de thème WordPress :
 <!-- The example uses the `wordpress.org/themes` resource, which requires a `slug` identical to the one used in WordPress theme directory: -->
@@ -207,9 +186,11 @@ Dans ce cas, `https://wordpress.org/themes/<slug>/` devient `https://wordpress.o
 :::note
 Pour en savoir plus sur les ressources prises en charge, consultez le [Référenciel API des ressources blueprint](/blueprints/steps/resources/).
 ::: 
-<!-- :::note
+<!-- 
+:::note
 Learn more about the supported resources in the [Blueprint Resources API Reference](/blueprints/steps/resources/).
-::: -->
+:::
+-->
 
 ## 4. Installer l’extension _Hello Dolly_
 <!-- ## 4. Install the _Hello Dolly_ plugin -->
@@ -239,30 +220,7 @@ Une extension WordPress classique qui affiche des paroles aléatoires de la chan
                 }
         ]
 }
-``` 
-<!-- ```json
-{
-        "siteOptions": {
-                "blogname": "My first Blueprint"
-        },
-        "steps": [
-                {
-                        "step": "installTheme",
-                        "themeData": {
-                                "resource": "wordpress.org/themes",
-                                "slug": "adventurer"
-                        }
-                },
-                {
-                        "step": "installPlugin",
-                        "pluginData": {
-                                "resource": "wordpress.org/plugins",
-                                "slug": "hello-dolly"
-                        }
-                }
-        ]
-}
-``` -->
+```
 
 [<kbd> &nbsp; Lancer Blueprint &nbsp; </kbd>](https://playground.wordpress.net/#eyJzaXRlT3B0aW9ucyI6eyJibG9nbmFtZSI6Ik15IGZpcnN0IEJsdWVwcmludCJ9LCJzdGVwcyI6W3sic3RlcCI6Imluc3RhbGxUaGVtZSIsInRoZW1lWmlwRmlsZSI6eyJyZXNvdXJjZSI6IndvcmRwcmVzcy5vcmcvdGhlbWVzIiwic2x1ZyI6ImFkdmVudHVyZXIifX0seyJzdGVwIjoiaW5zdGFsbFBsdWdpbiIsInBsdWdpblppcEZpbGUiOnsicmVzb3VyY2UiOiJ3b3JkcHJlc3Mub3JnL3BsdWdpbnMiLCJzbHVnIjoiaGVsbG8tZG9sbHkifX1dfQ==)
 <!-- [<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](https://playground.wordpress.net/#eyJzaXRlT3B0aW9ucyI6eyJibG9nbmFtZSI6Ik15IGZpcnN0IEJsdWVwcmludCJ9LCJzdGVwcyI6W3sic3RlcCI6Imluc3RhbGxUaGVtZSIsInRoZW1lWmlwRmlsZSI6eyJyZXNvdXJjZSI6IndvcmRwcmVzcy5vcmcvdGhlbWVzIiwic2x1ZyI6ImFkdmVudHVyZXIifX0seyJzdGVwIjoiaW5zdGFsbFBsdWdpbiIsInBsdWdpblppcEZpbGUiOnsicmVzb3VyY2UiOiJ3b3JkcHJlc3Mub3JnL3BsdWdpbnMiLCJzbHVnIjoiaGVsbG8tZG9sbHkifX1dfQ==) -->
