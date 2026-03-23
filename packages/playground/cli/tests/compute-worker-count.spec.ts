@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
+import type * as PhpWasmLoggerModule from '@php-wasm/logger';
 import os from 'os';
 import {
 	computeWorkerCount,
@@ -6,7 +7,7 @@ import {
 } from '../src/run-cli';
 
 vi.mock('@php-wasm/logger', async (importOriginal) => {
-	const actual = await importOriginal<typeof import('@php-wasm/logger')>();
+	const actual = await importOriginal<typeof PhpWasmLoggerModule>();
 	return {
 		...actual,
 		logger: { log: vi.fn(), error: vi.fn(), debug: vi.fn() },

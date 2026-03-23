@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeAll } from 'vitest';
+import type * as ChildProcessModule from 'child_process';
 import { X509Certificate } from 'crypto';
 import { writeFileSync, mkdtempSync } from 'fs';
 import { join } from 'path';
@@ -42,8 +43,7 @@ describe('getMkcertCaRoot', () => {
 	it('returns null when mkcert is not installed', async () => {
 		vi.resetModules();
 		vi.doMock('child_process', async (importOriginal) => {
-			const actual =
-				await importOriginal<typeof import('child_process')>();
+			const actual = await importOriginal<typeof ChildProcessModule>();
 			return {
 				...actual,
 				execSync: (cmd: string, ...args: any[]) => {
@@ -82,8 +82,7 @@ describe('resolveTlsCertificate', () => {
 	it('falls back to self-signed cert when no user certs and no mkcert', async () => {
 		vi.resetModules();
 		vi.doMock('child_process', async (importOriginal) => {
-			const actual =
-				await importOriginal<typeof import('child_process')>();
+			const actual = await importOriginal<typeof ChildProcessModule>();
 			return {
 				...actual,
 				execSync: (cmd: string, ...args: any[]) => {
