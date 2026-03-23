@@ -67,8 +67,7 @@ type RequestListener = (
 	res: {
 		statusCode: number;
 		headersSent: boolean;
-		setHeader: (name: string, value: string) => void;
-		end: (data?: string) => void;
+		setHeader: (name: string, value: string | string[]) => void;
 	} & NodeJS.WritableStream
 ) => Promise<void>;
 
@@ -173,7 +172,7 @@ async function handleStreamedResponse(
 	streamedResponse: StreamedPHPResponse,
 	res: {
 		statusCode: number;
-		setHeader(name: string, value: string): void;
+		setHeader(name: string, value: string | string[]): void;
 	} & NodeJS.WritableStream
 ): Promise<void> {
 	// Wait for headers to be available
