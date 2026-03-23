@@ -84,3 +84,6 @@ default.profraw
 
 # Indexing by Serena for MCP
 .serena
+
+# Git worktrees – a convenient, non-agent-specific place for worktrees
+.worktrees

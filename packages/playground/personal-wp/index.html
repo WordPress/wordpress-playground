@@ -2,21 +2,21 @@
 <html lang="en">
 	<head>
 		<meta charset="utf-8" />
-		<title>WordPress Playground</title>
+		<title>My WordPress</title>
 		<base href="/" />
 		<meta
 			property="og:image"
-			content="https://playground.wordpress.net/ogimage.png"
+			content="https://my.wordpress.net/ogimage-mywp.png"
 		/>
-		<meta property="og:title" content="WordPress Playground" />
+		<meta property="og:title" content="My WordPress" />
 		<meta
 			property="og:description"
-			content="WordPress running in your browser for learning, testing, and developing with WordPress!"
+			content="Run a private, persistent WordPress directly in your browser. No signup or hosting needed. Start creating instantly."
 		/>
-		<meta property="og:url" content="https://playground.wordpress.net/" />
+		<meta property="og:url" content="https://my.wordpress.net/" />
 		<meta
 			name="description"
-			content="WordPress running in your browser for learning, testing, and developing with WordPress!"
+			content="Run a private, persistent WordPress directly in your browser. No signup or hosting needed. Start creating instantly."
 		/>
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<link rel="icon" type="image/x-icon" href="/favicon.ico" />
@@ -90,20 +90,158 @@
 			href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&display=swap"
 			rel="stylesheet"
 		/>
-		<script
-			async
-			src="https://www.googletagmanager.com/gtag/js?id=G-SVTNFCP8T7"
-		></script>
-		<script>
-			window.dataLayer = window.dataLayer || [];
-			function gtag() {
-				dataLayer.push(arguments);
-			}
-			gtag('js', new Date());
-			gtag('config', 'G-SVTNFCP8T7');
-		</script>
 	</head>
 	<body>
+		<template id="load-error-fallback">
+			<!-- Use inline styles in case we are having trouble loading other resources -->
+			<div
+				style="
+					max-width: 520px;
+					margin: 80px auto;
+					font-family: system-ui, sans-serif;
+					text-align: center;
+					padding: 0 20px;
+				"
+			>
+				<h1 style="font-size: 1.4rem; margin-bottom: 12px">
+					Could not load Your WordPress
+				</h1>
+				<p style="line-height: 1.5">
+					The application failed to load. This is often caused by a
+					network issue.
+				</p>
+				<p style="line-height: 1.5; margin-top: 8px">
+					Check your internet connection, disable any VPN or ad
+					blocker that might interfere, and try again.
+				</p>
+				<button
+					onclick="location.reload()"
+					style="
+						margin-top: 15px;
+						margin-bottom: 15px;
+						font-size: 20px;
+						padding: 5px 10px;
+						cursor: pointer;
+					"
+				>
+					Try again
+				</button>
+				<p>
+					If the problem persists, please
+					<a
+						href="https://github.com/WordPress/wordpress-playground/issues/new"
+						target="_blank"
+						>report an issue on GitHub</a
+					>.
+				</p>
+			</div>
+		</template>
+		<!--
+			Shown before React loads when an iOS WKWebView (in-app browser) is
+			detected. The detection script below reveals this and skips the
+			React app, since WKWebView lacks the features Playground requires.
+		-->
+		<div id="wkwebview-notice" role="dialog" aria-modal="true">
+			<div class="card">
+				<div class="logo">
+					<span>Your WordPress</span>
+				</div>
+				<h1>Open in your browser</h1>
+				<p>
+					WordPress Playground requires features that are not
+					available in in-app browsers. Please open this page in
+					Safari or your preferred browser to continue.
+				</p>
+				<div class="actions">
+					<a id="wkwebview-safari-link" class="primary" href=""
+						>Open in Safari</a
+					>
+					<button
+						id="wkwebview-copy-btn"
+						class="secondary"
+						type="button"
+					>
+						Copy URL
+					</button>
+				</div>
+				<p class="hint">
+					Copy the URL and paste it in Safari or any other browser.
+				</p>
+			</div>
+		</div>
+
+		<script>
+			/**
+			 * Detects iOS WKWebView (in-app browser) before the React app loads.
+			 * Safari proper includes "Version/" in its UA; WKWebViews don't.
+			 * If detected, reveal the notice above and skip loading the main app.
+			 */
+			(function () {
+				var ua = navigator.userAgent;
+				var isIOS =
+					/iPad|iPhone|iPod/.test(ua) ||
+					(navigator.platform === 'MacIntel' &&
+						navigator.maxTouchPoints > 1 &&
+						/Mobile\//.test(ua));
+				var isWebView =
+					isIOS &&
+					!/Version\//.test(ua) &&
+					!/CriOS\//.test(ua) &&
+					!/FxiOS\//.test(ua);
+
+				if (!isWebView) {
+					return;
+				}
+
+				window.__isWKWebView = true;
+
+				document
+					.getElementById('wkwebview-notice')
+					.classList.add('is-visible');
+
+				let safariLink = document.getElementById(
+					'wkwebview-safari-link'
+				);
+
+				if (/Twitter for iPhone/i.test(ua)) {
+					// This is tested with the X mobile app.
+					safariLink.textContent = 'Share link';
+					safariLink.removeAttribute('href');
+					safariLink.addEventListener('click', function (e) {
+						e.preventDefault();
+						navigator.share({ url: window.location.href });
+					});
+				} else {
+					// The `x-safari-http(s)://` scheme doesn't work in a WKWebView running in iOS simulator
+					// when running http://127.0.0.1:5400/website-server/, the `open-in-safari://` instead works,
+					// but not in other environments.
+					// This is tested with the Linkedin mobile app.
+					// TODO: test with other mobile apps.
+					safariLink.href =
+						'x-safari-https://' +
+						window.location.host +
+						window.location.pathname +
+						window.location.search +
+						window.location.hash;
+				}
+
+				document
+					.getElementById('wkwebview-copy-btn')
+					.addEventListener('click', function () {
+						var btn = this;
+						navigator.clipboard
+							.writeText(window.location.href)
+							.then(function () {
+								var original = btn.textContent;
+								btn.textContent = 'Copied!';
+								setTimeout(function () {
+									btn.textContent = original;
+								}, 2000);
+							});
+					});
+			})();
+		</script>
+
 		<main id="root" aria-label="WordPress Playground">
 			<script>
 				const query = new URLSearchParams(window.location.search);
@@ -131,7 +269,7 @@
 			</script>
 		</main>
 		<script type="module">
-			if (!shouldLazyLoadPlayground) {
+			if (!shouldLazyLoadPlayground && !window.__isWKWebView) {
 				/**
 				 * Safari sometimes fail to import this script after playground.wordpress.net
 				 * is deployed. The error message is:
@@ -156,7 +294,7 @@
 				 * Therefore, we're bypassing the cached import by adding a cache busting query parameter
 				 * if the original import fails.
 				 */
-				import('./src/main').catch((e) => {
+				import('./src/main').catch(async (e) => {
 					console.error('Failed to load main module:', e);
 					try {
 						/**
@@ -179,12 +317,23 @@
 								'_ts',
 								String(Date.now())
 							);
-							return import(/* @vite-ignore */ moduleUrl.toString());
+							return await import(
+								/* @vite-ignore */ moduleUrl.toString()
+							);
 						}
 					} catch {
 						// Fall back to the original error
 					}
-					throw e;
+					/**
+					 * If we get here, the app module completely failed to load.
+					 * React is not available, so render a plain HTML
+					 * error message.
+					 */
+					const root = document.getElementById('root');
+					const template = document.getElementById(
+						'load-error-fallback'
+					);
+					root.replaceChildren(template.content.cloneNode(true));
 				});
 			}
 		</script>

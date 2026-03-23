@@ -496,7 +496,7 @@ export class PHPRequestHandler implements AsyncDisposable {
 				return StreamedPHPResponse.fromPHPResponse(
 					new PHPResponse(
 						301,
-						{ Location: [`${rewrittenRequestUrl.pathname}/`] },
+						{ location: [`${rewrittenRequestUrl.pathname}/`] },
 						new Uint8Array(0)
 					)
 				);
@@ -760,12 +760,13 @@ export class PHPRequestHandler implements AsyncDisposable {
 			headers,
 		});
 
-		// Handle cookies from streaming response
+		// Wait until the streamed response cookies arrive so they can be
+		// sent with the next request.
 		if (this.#cookieStore) {
-			const cookieStore = this.#cookieStore;
-			response.headers.then((responseHeaders) => {
-				cookieStore.rememberCookiesFromResponseHeaders(responseHeaders);
-			});
+			const responseHeaders = await response.headers;
+			this.#cookieStore.rememberCookiesFromResponseHeaders(
+				responseHeaders
+			);
 		}
 
 		return response;

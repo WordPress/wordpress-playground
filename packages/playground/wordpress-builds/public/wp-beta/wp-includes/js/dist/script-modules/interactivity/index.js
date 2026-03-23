@@ -3134,7 +3134,7 @@ window.history.replaceState(
   ""
 );
 window.addEventListener("popstate", (event) => {
-  if (event.state?.wpInteractivityId !== sessionId) {
+  if (event.state !== null && event.state?.wpInteractivityId !== sessionId) {
     window.location.reload();
   }
 });

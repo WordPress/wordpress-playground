@@ -2179,31 +2179,30 @@ RUN if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ] && [ "$WITH_JSPI" = "yes" ]; then 
 
 COPY ./${EMSCRIPTEN_ENVIRONMENT}-builds/ /root/${EMSCRIPTEN_ENVIRONMENT}-builds
 COPY ./compile/shared/ /root/shared/
-RUN if [ "$WITH_JSPI" = "yes" ]; then \
-		set -eux; \
-		PHP_VERSION_DIR="$(echo "$PHP_VERSION" | cut -d. -f1,2 | tr . -)"; \
-		EXTENSIONS_DIR_PATH="/root/${EMSCRIPTEN_ENVIRONMENT}-builds/${PHP_VERSION_DIR}/jspi/extensions"; \
-		for path in "$EXTENSIONS_DIR_PATH"/*; do \
-			extension="${path##*/}"; \
-			# List globals symbols [ env func and globals without invoke_ and libc++(_Z) prefixed ones ]
-			/root/emsdk/upstream/bin/wasm-dis "$EXTENSIONS_DIR_PATH/${extension}/${extension}.so" \
-			| sed -n 's/^[[:space:]]*(import "env" "\([^"]*\)"[[:space:]]*(\(func\|global\).*/\1/p' \
-			| sed '/^invoke_/d' \
-			| sed '/^_Z/d' \
-			| sed 's/^/_/' \
-			| sort \
-			>> /root/.JS_ABI_EXPORTS; \
-			# List exports symbols [ GOT.mem and GOT.func globals ]
-			/root/emsdk/upstream/bin/wasm-dis "$EXTENSIONS_DIR_PATH/${extension}/${extension}.so" \
-			| sed -n 's/^[[:space:]]*(import "\(GOT\.mem\|GOT\.func\)" "\([^"]*\)"[[:space:]]*(global.*/\2/p' \
-			| sort \
-			>> /root/.WASM_ABI_EXPORTS; \
-			# Inject extension-specific exported functions
-			if [ -f /root/shared/${extension}/exported-functions.list ]; then \
-				cat /root/shared/${extension}/exported-functions.list >> /root/.JS_ABI_EXPORTS; \
-			fi; \
-		done \
-	fi;
+RUN	set -eux; \
+	PHP_VERSION_DIR="$(echo "$PHP_VERSION" | cut -d. -f1,2 | tr . -)"; \
+	ASYNCIFY_OR_JSPI_DIR=$( [ "$WITH_JSPI" = "yes" ] && echo "jspi" || echo "asyncify" ); \
+	EXTENSIONS_DIR_PATH="/root/${EMSCRIPTEN_ENVIRONMENT}-builds/${PHP_VERSION_DIR}/${ASYNCIFY_OR_JSPI_DIR}/extensions"; \
+	for path in "$EXTENSIONS_DIR_PATH"/*; do \
+		extension="${path##*/}"; \
+		# List globals symbols [ env func and globals without invoke_ and libc++(_Z) prefixed ones ]
+		/root/emsdk/upstream/bin/wasm-dis "$EXTENSIONS_DIR_PATH/${extension}/${extension}.so" \
+		| sed -n 's/^[[:space:]]*(import "env" "\([^"]*\)"[[:space:]]*(\(func\|global\).*/\1/p' \
+		| sed '/^invoke_/d' \
+		| sed '/^_Z/d' \
+		| sed 's/^/_/' \
+		| sort \
+		>> /root/.JS_ABI_EXPORTS; \
+		# List exports symbols [ GOT.mem and GOT.func globals ]
+		/root/emsdk/upstream/bin/wasm-dis "$EXTENSIONS_DIR_PATH/${extension}/${extension}.so" \
+		| sed -n 's/^[[:space:]]*(import "\(GOT\.mem\|GOT\.func\)" "\([^"]*\)"[[:space:]]*(global.*/\2/p' \
+		| sort \
+		>> /root/.WASM_ABI_EXPORTS; \
+		# Inject extension-specific exported functions
+		if [ -f /root/shared/${extension}/exported-functions.list ]; then \
+			cat /root/shared/${extension}/exported-functions.list >> /root/.JS_ABI_EXPORTS; \
+		fi; \
+	done
 
 RUN set -eux; \
 	sort -u /root/.JS_ABI_EXPORTS | \
@@ -2234,12 +2233,10 @@ RUN set -euxo pipefail; \
 	mkdir -p /build/output; \
 	source /root/emsdk/emsdk_env.sh; \
 	if [ "$WITH_JSPI" = "yes" ]; then \
-		export MAIN_MODULE=2; \
 		# Both imports and exports are required for inter-module communication with wrapped methods, e.g., wasm_recv.
 		export ASYNCIFY_FLAGS=" -s ASYNCIFY=2 -sSUPPORT_LONGJMP=wasm -fwasm-exceptions -sJSPI_IMPORTS=js_open_process,js_fd_read,js_waitpid,js_process_status,js_create_input_device,wasm_setsockopt,wasm_shutdown,wasm_close,wasm_recv,wasm_connect,__syscall_fcntl64,js_flock,js_release_file_locks,js_waitpid -sJSPI_EXPORTS=php_wasm_init,wasm_sleep,wasm_read,emscripten_sleep,wasm_sapi_handle_request,wasm_sapi_request_shutdown,wasm_poll_socket,wrap_select,__wrap_select,select,php_pollfd_for,fflush,wasm_popen,wasm_read,wasm_php_exec,run_cli,wasm_recv,wasm_connect,__wasm_call_ctors,__errno_location,__funcs_on_exit -s EXPORTED_RUNTIME_METHODS=HEAPU32,HEAPU8,ccall,PROXYFS,wasmExports "; \
 		echo '#define PLAYGROUND_JSPI 1' > /root/php_wasm_asyncify.h; \
 	else \
-		export MAIN_MODULE=1; \
 		export ASYNCIFY_FLAGS=" -s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1 -s EXPORTED_RUNTIME_METHODS=HEAPU32,HEAPU8,ccall,PROXYFS,wasmExports,UTF8ToString,lengthBytesUTF8,stringToUTF8 $(cat /root/.emcc-php-asyncify-flags) "; \
 		echo '' > /root/php_wasm_asyncify.h; \
 	fi; \
@@ -2276,7 +2273,7 @@ RUN set -euxo pipefail; \
 	-lproxyfs.js \
 	$ASYNCIFY_FLAGS \
 	$(cat /root/.emcc-php-wasm-flags) \
-	-s MAIN_MODULE="$MAIN_MODULE" \
+	-s MAIN_MODULE=2 \
 	-s EXPORTED_FUNCTIONS="@/root/.exported-functions" \
 	-s WASM_BIGINT=1 \
 	-s MIN_NODE_VERSION=200900 \
@@ -2398,7 +2395,7 @@ RUN set -euxo pipefail; \
 		# but the main module only exposes wasm_setsockopt in wasmImports.
 		# This alias ensure that dynamically loaded extensions can
 		# correctly resolve the required import.
-		if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ] && [ "$WITH_JSPI" = "yes" ]; then \
+		if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then \
 			/root/replace.sh 's/wasm_setsockopt:\s*_wasm_setsockopt,/wasm_setsockopt: _wasm_setsockopt,\n  \/** \@export *\/ wasm_recv: _wasm_recv,/g' /root/output/php.js; \
 		fi; \
 	# Patch Emscripten exit status to include a stack trace
