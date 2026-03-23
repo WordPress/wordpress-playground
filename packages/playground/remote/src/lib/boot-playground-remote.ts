@@ -1,4 +1,5 @@
 import type { MessageListener } from '@php-wasm/universal';
+import { streamToPort } from '@php-wasm/universal';
 import type { SyncProgressCallback } from '@php-wasm/web';
 import {
 	spawnPHPWorkerThread,
@@ -311,7 +312,9 @@ export async function bootPlaygroundRemote() {
 			 *      the detailed context.
 			 */
 			const navigationComplete = new Promise<void>((resolve) => {
-				wpFrame.addEventListener('load', () => resolve(), { once: true });
+				wpFrame.addEventListener('load', () => resolve(), {
+					once: true,
+				});
 			});
 
 			// If the URL is the same, we need to force a reload
@@ -423,17 +426,52 @@ export async function bootPlaygroundRemote() {
 						return;
 					}
 
-					// Wait for the PHP API client to be set by bootPlaygroundRemote
 					const args = event.data.args || [];
 					const method = event.data
 						.method as keyof PlaygroundWorkerEndpoint;
-					// eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
-					const result = await (phpWorkerApi[method] as Function)(
-						...args
-					);
-					event.source!.postMessage(
-						responseTo(event.data.requestId, result)
-					);
+
+					if (method === 'request') {
+						const streamedResponse = await (
+							phpWorkerApi.requestStreamed as any
+						)(...args);
+						const httpStatusCode =
+							await streamedResponse.httpStatusCode;
+						const headers = await streamedResponse.headers;
+
+						/**
+						 * ReadableStreams are transferable, but cannot be
+						 * transferred to the service worker.
+						 *
+						 * In Chrome, ServiceWorker.postMessage() silently drops the entire
+						 * message when the transfer list contains a ReadableStream.
+						 * The call succeeds and the stream detaches from the sender,
+						 * but the message never arrives at the service worker.
+						 *
+						 * To work around this, we bridge the body stream via a MessagePort.
+						 *
+						 * See:
+						 * * https://github.com/whatwg/streams/issues/1063
+						 * * https://github.com/whatwg/streams/issues/276
+						 * * https://groups.google.com/a/chromium.org/g/chromium-discuss/c/90Esr_dE6U4
+						 */
+						const bodyPort = streamToPort(streamedResponse.stdout);
+						(event.source! as ServiceWorker).postMessage(
+							responseTo(event.data.requestId, {
+								httpStatusCode,
+								headers,
+								bodyPort,
+							}),
+							[bodyPort]
+						);
+					} else {
+						// eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
+						const result = await (phpWorkerApi[method] as Function)(
+							...args
+						);
+						event.source!.postMessage(
+							responseTo(event.data.requestId, result)
+						);
+					}
 				}
 			);
 			sw.startMessages();

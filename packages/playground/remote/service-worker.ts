@@ -101,7 +101,12 @@
 
 declare const self: ServiceWorkerGlobalScope;
 
-import { getURLScope, isURLScoped, removeURLScope } from '@php-wasm/scopes';
+import {
+	getURLScope,
+	isURLScoped,
+	removeURLScope,
+	setURLScope,
+} from '@php-wasm/scopes';
 import { applyRewriteRules } from '@php-wasm/universal';
 import {
 	awaitReply,
@@ -233,12 +238,23 @@ self.addEventListener('fetch', (event) => {
 	}
 
 	if (referrerUrl && isURLScoped(referrerUrl)) {
+		if (url.origin !== referrerUrl.origin) {
+			// Cross-origin requests can be handled by the service worker when they
+			// are initiated from a page in the service worker's scope.
+			// If this request doesn't have the referrer scope's origin,
+			// let's not intercept it or send it to the scope's WordPress.
+			return;
+		}
+
 		const scope = getURLScope(referrerUrl)!;
-		return event.respondWith(
-			handleScopedRequest(event, scope).then((response) =>
-				rewriteCoopHeadersToDocumentIsolationPolicy(response, scope)
-			)
-		);
+
+		// Let's redirect to a scope URL so that no unscoped page is loaded
+		// while navigating around a scoped WordPress. Otherwise, clicking an
+		// unscoped link from an unscoped page will lose the scope entirely,
+		// and the service worker won't be able to match the request with
+		// the right WordPress instance.
+		const scopedRedirectTarget = setURLScope(event.request.url, scope);
+		return event.respondWith(Response.redirect(scopedRedirectTarget));
 	}
 
 	/**

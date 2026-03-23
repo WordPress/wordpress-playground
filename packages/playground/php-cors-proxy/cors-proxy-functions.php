@@ -433,6 +433,8 @@ function should_respond_with_cors_headers($host, $origin) {
         'http://127.0.0.1',
         'http://127.0.0.1:5400',
         'http://localhost:5400',
+        'http://127.0.0.1:5401',
+        'http://localhost:5401',
         'http://127.0.0.1:4400',
         'http://localhost:4400',
     );

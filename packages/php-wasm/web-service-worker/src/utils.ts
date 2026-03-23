@@ -3,6 +3,7 @@ declare const self: ServiceWorkerGlobalScope;
 
 import { awaitReply, getNextRequestId } from './messaging';
 import { getURLScope, isURLScoped, setURLScope } from '@php-wasm/scopes';
+import { portToStream } from '@php-wasm/universal';
 
 export async function convertFetchEventToPHPRequest(event: FetchEvent) {
 	let url = new URL(event.request.url);
@@ -98,29 +99,34 @@ export async function convertFetchEventToPHPRequest(event: FetchEvent) {
 	}
 
 	/**
-	 * Safari has a bug that prevents Service Workers from redirecting relative URLs.
-	 * When attempting to redirect to a relative URL, the network request will return an error.
-	 * See the Webkit bug for details: https://bugs.webkit.org/show_bug.cgi?id=282427.
+	 * Redirect responses need `Response.redirect()` because Safari
+	 * service workers cannot redirect via a plain
+	 * `new Response(body, { status: 302, headers: { location } })`.
+	 * See https://bugs.webkit.org/show_bug.cgi?id=282427
 	 *
-	 * Because PHP and WordPress can redirect to both relative and absolute URLs
-	 * using the `location` header we need to ensure redirects are processed
-	 * correctly by the Service Worker.
-	 *
-	 * As a workaround for Safari Service Workers, we use `Response.redirect()`
-	 * for all redirect responses (300-399 status codes) coming from PHP.
-	 * This solution was suggested in the Webkit bug comment:
-	 * https://bugs.webkit.org/show_bug.cgi?id=282427#c2
+	 * Before redirecting, re-scope the Location URL. PHP and WordPress
+	 * emit unscoped paths (e.g. `/wp-admin/`). Resolving against the
+	 * origin would lose the `/scope:…/` prefix, so we add it back.
 	 */
 	if (
 		phpResponse.httpStatusCode >= 300 &&
 		phpResponse.httpStatusCode <= 399 &&
 		phpResponse.headers['location']
 	) {
+		const scope = getURLScope(url);
+		let redirectTarget = new URL(
+			phpResponse.headers['location'][0],
+			url.toString()
+		);
+		if (scope && !isURLScoped(redirectTarget)) {
+			redirectTarget = setURLScope(redirectTarget, scope);
+		}
 		return Response.redirect(
-			new URL(phpResponse.headers['location'][0], url.toString()),
+			redirectTarget.toString(),
 			phpResponse.httpStatusCode
 		);
 	}
+
 	/**
 	 * Make sure we don't pass an actual body string to new Response()
 	 * if the status is a null body status (101, 103, 204, 205, or 304).
@@ -132,7 +138,20 @@ export async function convertFetchEventToPHPRequest(event: FetchEvent) {
 	const isNullBodyCode = [101, 103, 204, 205, 304].includes(
 		phpResponse.httpStatusCode
 	);
-	const responseBody = isNullBodyCode ? null : phpResponse.bytes;
+
+	let responseBody: ReadableStream<Uint8Array> | Uint8Array | null = null;
+	if (!isNullBodyCode) {
+		if (phpResponse.bodyPort) {
+			// Reconstruct the body ReadableStream from the MessagePort.
+			// We couldn't just transfer it directly as this kind of transfer
+			// doesn't seem to be supported between the document and the service worker.
+			responseBody = portToStream(phpResponse.bodyPort);
+		} else {
+			// Fallback: buffered response bytes
+			responseBody = phpResponse.bytes;
+		}
+	}
+
 	return new Response(responseBody, {
 		headers: phpResponse.headers,
 		status: phpResponse.httpStatusCode,
@@ -202,8 +221,10 @@ export async function cloneRequest(
 ): Promise<Request> {
 	let body: ArrayBuffer | ReadableStream | undefined;
 
-	if (['GET', 'HEAD'].includes(request.method) || 'body' in overrides) {
+	if (['GET', 'HEAD'].includes(request.method)) {
 		body = undefined;
+	} else if ('body' in overrides) {
+		body = overrides['body'];
 	} else if (!request.bodyUsed && request.body) {
 		// If the body hasn't been consumed yet, we can reuse the stream directly
 		// This avoids the hang that occurs when trying to read from a stream
@@ -229,6 +250,18 @@ export async function cloneRequest(
 		cache: request.cache,
 		redirect: request.redirect,
 		integrity: request.integrity,
+		/**
+		 * Infer the duplex value in a way that's consistent across browsers. Web browsers
+		 * only support 'half' as of January 2026, but other values may be supported in the future.
+		 * Unfortunately, also as of January 2026, we cannot read the duplex value directly from the
+		 * request object:
+		 *
+		 * > Although duplex can be passed as an option when constructing a Request,
+		 * > it is not currently exposed as a readable property on the resulting Request
+		 * > object in all browsers.
+		 *
+		 * See MDN: https://developer.mozilla.org/en-US/docs/Web/API/Request/duplex
+		 */
 		...(body instanceof ReadableStream && { duplex: 'half' }),
 		...overrides,
 	});

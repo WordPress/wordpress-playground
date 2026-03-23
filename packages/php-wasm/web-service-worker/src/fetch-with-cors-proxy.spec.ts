@@ -140,7 +140,7 @@ describe('fetchWithCorsProxy', () => {
 		expect(request.url).toBe('http://localhost:1234/v1/chat/completions');
 	});
 
-	it('buffers a streaming request body for http:// URLs', async () => {
+	it('passes request through to fetch for localhost http:// URLs', async () => {
 		const fetchMock = vi
 			.spyOn(globalThis, 'fetch')
 			.mockResolvedValue(new Response('ok'));
@@ -162,17 +162,12 @@ describe('fetchWithCorsProxy', () => {
 
 		expect(fetchMock).toHaveBeenCalledTimes(1);
 		const sentRequest = fetchMock.mock.calls[0][0] as Request;
-		// The original request's body was consumed to buffer it into
-		// an ArrayBuffer, so bodyUsed must be true.
-		expect(request.bodyUsed).toBe(true);
-		// A new Request was built from the buffered body.
-		expect(sentRequest).not.toBe(request);
-		expect(await new Response(sentRequest.body).text()).toBe(
-			'streamed data'
-		);
+		// Direct fetch — no buffering, same Request passed through.
+		expect(sentRequest).toBe(request);
+		expect(request.bodyUsed).toBe(false);
 	});
 
-	it('does not buffer the request body for https:// URLs', async () => {
+	it('passes request through to fetch for https:// URLs without proxy', async () => {
 		const fetchMock = vi
 			.spyOn(globalThis, 'fetch')
 			.mockResolvedValue(new Response('ok'));
@@ -195,10 +190,8 @@ describe('fetchWithCorsProxy', () => {
 
 		expect(fetchMock).toHaveBeenCalledTimes(1);
 		const sentRequest = fetchMock.mock.calls[0][0] as Request;
-		// The exact same Request object should reach fetch() –
-		// no cloning, no buffering, just a pass-through.
+		// Direct fetch — no buffering, same Request passed through.
 		expect(sentRequest).toBe(request);
-		// Body was NOT consumed — no buffering happened.
 		expect(request.bodyUsed).toBe(false);
 	});
 
@@ -243,6 +236,46 @@ describe('fetchWithCorsProxy', () => {
 			'upload payload'
 		);
 		expect(await response.text()).toBe('proxied');
+	});
+
+	it('wraps multipart/form-data Content-Type when retrying via CORS proxy', async () => {
+		const corsProxyHeaders = new Headers();
+		corsProxyHeaders.set('X-Playground-Cors-Proxy', 'true');
+
+		const fetchMock = vi
+			.spyOn(globalThis, 'fetch')
+			.mockRejectedValueOnce(new Error('CORS'))
+			.mockResolvedValueOnce(
+				new Response('proxied', { headers: corsProxyHeaders })
+			);
+
+		const boundary = '----WebKitFormBoundary7MA4YWxk';
+		const body = `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="data.json"\r\nContent-Type: application/json\r\n\r\n["/path/to/file"]\r\n--${boundary}--\r\n`;
+		const request = new Request('https://example.com/api', {
+			method: 'POST',
+			headers: {
+				'Content-Type': `multipart/form-data; boundary=${boundary}`,
+			},
+			body,
+		});
+
+		await fetchWithCorsProxy(
+			request,
+			undefined,
+			'https://proxy.test/?url='
+		);
+
+		expect(fetchMock).toHaveBeenCalledTimes(2);
+		const proxyRequest = fetchMock.mock.calls[1][0] as Request;
+		// Content-Type should be wrapped to prevent PHP auto-parsing
+		expect(proxyRequest.headers.get('content-type')).toBe(
+			'application/octet-stream'
+		);
+		expect(proxyRequest.headers.get('x-cors-proxy-content-type')).toBe(
+			`multipart/form-data; boundary=${boundary}`
+		);
+		// The body should survive intact
+		expect(await new Response(proxyRequest.body).text()).toBe(body);
 	});
 
 	it('forwards init to duplexSafeFetch in the CORS proxy retry path', async () => {
