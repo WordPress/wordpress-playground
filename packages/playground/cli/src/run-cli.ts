@@ -1053,10 +1053,30 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 			const serverUrl = `${scheme}://${host}:${port}`;
 			const siteUrl = args['site-url'] || serverUrl;
 
-			const targetWorkerCount = computeWorkerCount(
-				args['min-workers'] as number,
-				args['max-workers'] as number
-			);
+			/**
+			 * With HTTP/1.1, browsers typically support 6 parallel
+			 * connections per domain.
+			 * > browsers open several connections to each domain,
+			 * > sending parallel requests. Default was once 2 to 3
+			 * > connections, but this has now increased to a more
+			 * > common use of 6 parallel connections.
+			 * https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Connection_management_in_HTTP_1.x#domain_sharding
+			 *
+			 * Going higher than browsers' max concurrent requests
+			 * seems pointless, and going lower may increase the
+			 * likelihood of deadlock due to workers blocking and
+			 * waiting for file locks.
+			 *
+			 * With HTTP/2, multiplexing removes the per-domain
+			 * connection limit, so we size the pool based on
+			 * available system memory instead.
+			 */
+			const targetWorkerCount = useHttp2
+				? computeWorkerCount(
+						args['min-workers'] as number,
+						args['max-workers'] as number
+					)
+				: 6;
 
 			/*
 			 * Use a real temp dir as a target for the following Playground paths
