@@ -850,6 +850,13 @@ export interface RunCLIArgs {
 	'truncate-new-site-directory'?: boolean;
 	allow?: string;
 
+	// --------- Server command args -----------
+	http2?: boolean;
+	'ssl-cert'?: string;
+	'ssl-key'?: string;
+	'min-workers'?: number;
+	'max-workers'?: number;
+
 	// --------- Start command args -----------
 	path?: string;
 	skipBrowser?: boolean;
