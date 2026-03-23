@@ -4,6 +4,12 @@ import { join } from 'path';
 import { tmpdir } from 'os';
 import { logger } from '@php-wasm/logger';
 
+// Flip to true to surface openssl/mkcert output for debugging
+const DEBUG_CERT_GENERATION = false;
+const CERT_STDIO: ('pipe' | 'inherit')[] = DEBUG_CERT_GENERATION
+	? ['inherit', 'inherit', 'inherit']
+	: ['pipe', 'pipe', 'pipe'];
+
 export interface TlsCertificate {
 	key: string;
 	cert: string;
@@ -50,7 +56,7 @@ subjectAltName = DNS:localhost,IP:127.0.0.1
 			'30',
 			'-config',
 			confPath,
-		]);
+		], { stdio: CERT_STDIO });
 		return {
 			key: readFileSync(keyPath, 'utf8'),
 			cert: readFileSync(certPath, 'utf8'),
@@ -117,7 +123,7 @@ export function generateMkcertCert(): TlsCertificate {
 			certPath,
 			'localhost',
 			'127.0.0.1',
-		]);
+		], { stdio: CERT_STDIO });
 		return {
 			key: readFileSync(keyPath, 'utf8'),
 			cert: readFileSync(certPath, 'utf8'),
@@ -147,7 +153,7 @@ export function resolveTlsCertificate(options: {
 	sslKey?: string;
 }): TlsCertificate {
 	if (options.sslCert && options.sslKey) {
-		logger.log('Using user-supplied TLS certificates.');
+		logger.log('TLS: using provided certificates');
 		return {
 			key: readFileSync(options.sslKey, 'utf8'),
 			cert: readFileSync(options.sslCert, 'utf8'),
@@ -156,13 +162,13 @@ export function resolveTlsCertificate(options: {
 
 	const caRoot = getMkcertCaRoot();
 	if (caRoot) {
-		logger.log('Using mkcert for locally-trusted TLS certificates.');
+		logger.log('TLS: using mkcert (locally-trusted)');
 		return generateMkcertCert();
 	}
 
-	logger.log('Generating self-signed TLS certificate for HTTPS.');
 	logger.log(
-		'Tip: Install mkcert (https://github.com/FiloSottile/mkcert) for warning-free HTTPS.'
+		'TLS: using self-signed certificate' +
+			' (install mkcert for warning-free HTTPS)'
 	);
 	return generateSelfSignedCert();
 }
