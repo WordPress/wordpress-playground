@@ -1036,6 +1036,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 		? resolveTlsCertificate({
 				sslCert: args['ssl-cert'] as string | undefined,
 				sslKey: args['ssl-key'] as string | undefined,
+				debug: args.verbosity === 'debug',
 			})
 		: undefined;
 
@@ -1933,7 +1934,7 @@ function openInBrowser(url: string): void {
 	});
 }
 
-const ESTIMATED_WORKER_MEMORY_BYTES = 100 * 1024 * 1024; // ~100MB per worker
+export const ESTIMATED_WORKER_MEMORY_BYTES = 100 * 1024 * 1024; // ~100MB per worker
 
 /**
  * Determines the number of PHP worker threads to spawn based on
@@ -1942,7 +1943,10 @@ const ESTIMATED_WORKER_MEMORY_BYTES = 100 * 1024 * 1024; // ~100MB per worker
  * Uses 50% of free memory as the budget for workers so the system
  * has headroom for the OS, browser, and other processes.
  */
-function computeWorkerCount(minWorkers: number, maxWorkers: number): number {
+export function computeWorkerCount(
+	minWorkers: number,
+	maxWorkers: number
+): number {
 	const freeMemory = os.freemem();
 	const memoryBased = Math.floor(
 		(freeMemory * 0.5) / ESTIMATED_WORKER_MEMORY_BYTES

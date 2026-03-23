@@ -1,6 +1,8 @@
 import path from 'node:path';
 import os from 'node:os';
 import http from 'node:http';
+import http2 from 'node:http2';
+import https from 'node:https';
 import {
 	runCLI,
 	parseOptionsAndRunCLI,
@@ -1723,3 +1725,106 @@ describe('other run-cli behaviors', () => {
 		});
 	});
 });
+
+describe(
+	'HTTP/2 integration',
+	() => {
+		function h2Get(url: string): Promise<{ status: number; body: string }> {
+			const parsed = new URL(url);
+			return new Promise((resolve, reject) => {
+				const client = http2.connect(parsed.origin, {
+					rejectUnauthorized: false,
+				});
+				client.on('error', reject);
+				const req = client.request({ ':path': parsed.pathname });
+				let body = '';
+				let status = 0;
+				req.on('response', (headers) => {
+					status = headers[':status'] as number;
+				});
+				req.on('data', (chunk: Buffer) => {
+					body += chunk.toString();
+				});
+				req.on('end', () => {
+					client.close();
+					resolve({ status, body });
+				});
+				req.on('error', reject);
+				req.end();
+			});
+		}
+
+		test('serves over HTTPS, reports correct SERVER_PROTOCOL for h2 and h1, and filters pseudo-headers', async () => {
+			await using cliServer = await runCLI({
+				command: 'server',
+				http2: true,
+				'min-workers': 2,
+				'max-workers': 4,
+				wordpressInstallMode: 'do-not-attempt-installing',
+				skipSqliteSetup: true,
+				blueprint: undefined,
+			});
+
+			// serverUrl uses https:// scheme with --http2
+			expect(cliServer.serverUrl).toMatch(/^https:\/\//);
+
+			// Consume the auto-login 302 redirect on the first request
+			await h2Get(new URL('/', cliServer.serverUrl).href);
+
+			// Write test PHP files
+			await cliServer.playground.writeFile(
+				'/wordpress/protocol.php',
+				'<?php echo $_SERVER["SERVER_PROTOCOL"]; ?>'
+			);
+			await cliServer.playground.writeFile(
+				'/wordpress/headers.php',
+				`<?php
+			header('Content-Type: application/json');
+			$pseudo = array_filter(
+				$_SERVER,
+				fn($k) => str_starts_with($k, 'HTTP_:'),
+				ARRAY_FILTER_USE_KEY
+			);
+			echo json_encode($pseudo);
+			?>`
+			);
+
+			// $_SERVER['SERVER_PROTOCOL'] reports HTTP/2.0 for h2 requests
+			const h2Result = await h2Get(
+				new URL('/protocol.php', cliServer.serverUrl).href
+			);
+			expect(h2Result.status).toBe(200);
+			expect(h2Result.body).toBe('HTTP/2.0');
+
+			// $_SERVER['SERVER_PROTOCOL'] reports HTTP/1.1 for h1 fallback
+			const h1Body = await new Promise<string>((resolve, reject) => {
+				const req = https.get(
+					new URL('/protocol.php', cliServer.serverUrl).href,
+					{ rejectUnauthorized: false },
+					(res) => {
+						let data = '';
+						res.on('data', (chunk: Buffer) => {
+							data += chunk.toString();
+						});
+						res.on('end', () => resolve(data));
+					}
+				);
+				req.on('error', reject);
+			});
+			expect(h1Body).toBe('HTTP/1.1');
+
+			// No HTTP/2 pseudo-headers leak into $_SERVER
+			const headersResult = await h2Get(
+				new URL('/headers.php', cliServer.serverUrl).href
+			);
+			expect(headersResult.status).toBe(200);
+			const pseudoHeaders = JSON.parse(headersResult.body);
+			expect(
+				Array.isArray(pseudoHeaders)
+					? pseudoHeaders.length
+					: Object.keys(pseudoHeaders).length
+			).toBe(0);
+		});
+	},
+	60_000 * 5
+);

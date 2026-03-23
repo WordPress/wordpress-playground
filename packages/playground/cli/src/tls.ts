@@ -4,11 +4,9 @@ import { join } from 'path';
 import { tmpdir } from 'os';
 import { logger } from '@php-wasm/logger';
 
-// Flip to true to surface openssl/mkcert output for debugging
-const DEBUG_CERT_GENERATION = false;
-const CERT_STDIO: ('pipe' | 'inherit')[] = DEBUG_CERT_GENERATION
-	? ['inherit', 'inherit', 'inherit']
-	: ['pipe', 'pipe', 'pipe'];
+function certStdio(debug: boolean): ('pipe' | 'inherit')[] {
+	return debug ? ['inherit', 'inherit', 'inherit'] : ['pipe', 'pipe', 'pipe'];
+}
 
 export interface TlsCertificate {
 	key: string;
@@ -22,7 +20,7 @@ export interface TlsCertificate {
  * The certificate is valid for localhost and 127.0.0.1, expires in
  * 30 days, and is intended for local development only.
  */
-export function generateSelfSignedCert(): TlsCertificate {
+export function generateSelfSignedCert(debug = false): TlsCertificate {
 	const tempDir = mkdtempSync(join(tmpdir(), 'playground-tls-'));
 	const keyPath = join(tempDir, 'key.pem');
 	const certPath = join(tempDir, 'cert.pem');
@@ -42,21 +40,25 @@ subjectAltName = DNS:localhost,IP:127.0.0.1
 
 	try {
 		writeFileSync(confPath, opensslConf);
-		execFileSync('openssl', [
-			'req',
-			'-x509',
-			'-newkey',
-			'rsa:2048',
-			'-nodes',
-			'-keyout',
-			keyPath,
-			'-out',
-			certPath,
-			'-days',
-			'30',
-			'-config',
-			confPath,
-		], { stdio: CERT_STDIO });
+		execFileSync(
+			'openssl',
+			[
+				'req',
+				'-x509',
+				'-newkey',
+				'rsa:2048',
+				'-nodes',
+				'-keyout',
+				keyPath,
+				'-out',
+				certPath,
+				'-days',
+				'30',
+				'-config',
+				confPath,
+			],
+			{ stdio: certStdio(debug) }
+		);
 		return {
 			key: readFileSync(keyPath, 'utf8'),
 			cert: readFileSync(certPath, 'utf8'),
@@ -110,20 +112,24 @@ export function getMkcertCaRoot(): string | null {
  * Generates a locally-trusted TLS certificate using mkcert.
  * Requires mkcert to be installed with its CA root set up.
  */
-export function generateMkcertCert(): TlsCertificate {
+export function generateMkcertCert(debug = false): TlsCertificate {
 	const tempDir = mkdtempSync(join(tmpdir(), 'playground-tls-'));
 	const keyPath = join(tempDir, 'key.pem');
 	const certPath = join(tempDir, 'cert.pem');
 
 	try {
-		execFileSync('mkcert', [
-			'-key-file',
-			keyPath,
-			'-cert-file',
-			certPath,
-			'localhost',
-			'127.0.0.1',
-		], { stdio: CERT_STDIO });
+		execFileSync(
+			'mkcert',
+			[
+				'-key-file',
+				keyPath,
+				'-cert-file',
+				certPath,
+				'localhost',
+				'127.0.0.1',
+			],
+			{ stdio: certStdio(debug) }
+		);
 		return {
 			key: readFileSync(keyPath, 'utf8'),
 			cert: readFileSync(certPath, 'utf8'),
@@ -151,6 +157,7 @@ export function generateMkcertCert(): TlsCertificate {
 export function resolveTlsCertificate(options: {
 	sslCert?: string;
 	sslKey?: string;
+	debug?: boolean;
 }): TlsCertificate {
 	if (options.sslCert && options.sslKey) {
 		logger.log('TLS: using provided certificates');
@@ -160,15 +167,16 @@ export function resolveTlsCertificate(options: {
 		};
 	}
 
+	const debug = !!options.debug;
 	const caRoot = getMkcertCaRoot();
 	if (caRoot) {
 		logger.log('TLS: using mkcert (locally-trusted)');
-		return generateMkcertCert();
+		return generateMkcertCert(debug);
 	}
 
 	logger.log(
 		'TLS: using self-signed certificate' +
 			' (install mkcert for warning-free HTTPS)'
 	);
-	return generateSelfSignedCert();
+	return generateSelfSignedCert(debug);
 }

@@ -1,19 +1,46 @@
-import { describe, it, expect, vi, type Mock } from 'vitest';
+import { describe, it, expect, vi, beforeAll, type Mock } from 'vitest';
 import http from 'http';
+import https from 'https';
+import http2 from 'http2';
 import { pipeline } from 'stream/promises';
+import type { PHPRequest } from '@php-wasm/universal';
 import { StreamedPHPResponse } from '@php-wasm/universal';
 import { startServer } from '../src/start-server';
+import { generateSelfSignedCert, type TlsCertificate } from '../src/tls';
 import { logger } from '@php-wasm/logger';
 import type StreamPromisesModule from 'stream/promises';
 
 vi.mock('@php-wasm/logger', () => ({
-	logger: { error: vi.fn() },
+	logger: { log: vi.fn(), error: vi.fn() },
 }));
 
 vi.mock('stream/promises', async (importOriginal) => {
 	const actual = await importOriginal<typeof StreamPromisesModule>();
 	return { ...actual, pipeline: vi.fn(actual.pipeline) };
 });
+
+function makeOkResponse(body: string): StreamedPHPResponse {
+	return new StreamedPHPResponse(
+		new ReadableStream({
+			start(controller) {
+				const json = JSON.stringify({
+					status: 200,
+					headers: ['content-type: text/plain'],
+				});
+				controller.enqueue(new TextEncoder().encode(json));
+				controller.close();
+			},
+		}),
+		new ReadableStream({
+			start(controller) {
+				controller.enqueue(new TextEncoder().encode(body));
+				controller.close();
+			},
+		}),
+		new ReadableStream({ start: (c) => c.close() }),
+		Promise.resolve(0)
+	);
+}
 
 describe('startServer', () => {
 	it('does not log an error when piping to a destroyed stream (ERR_STREAM_UNABLE_TO_PIPE)', async () => {
@@ -231,5 +258,200 @@ describe('startServer', () => {
 		} finally {
 			server.close();
 		}
+	});
+});
+
+describe('startServer with HTTP/2', () => {
+	let tlsCert: TlsCertificate;
+
+	beforeAll(() => {
+		tlsCert = generateSelfSignedCert();
+	});
+
+	function h2Request(
+		port: number,
+		path: string
+	): Promise<{ status: number; body: string }> {
+		return new Promise((resolve, reject) => {
+			const client = http2.connect(`https://127.0.0.1:${port}`, {
+				rejectUnauthorized: false,
+			});
+			client.on('error', reject);
+			const req = client.request({ ':path': path });
+			let body = '';
+			let status = 0;
+			req.on('response', (headers) => {
+				status = headers[':status'] as number;
+			});
+			req.on('data', (chunk: Buffer) => {
+				body += chunk.toString();
+			});
+			req.on('end', () => {
+				client.close();
+				resolve({ status, body });
+			});
+			req.on('error', reject);
+			req.end();
+		});
+	}
+
+	function startH2Server(
+		handleRequest: (request: PHPRequest) => Promise<StreamedPHPResponse>
+	) {
+		return startServer({
+			port: 0,
+			http2: true,
+			tlsCertificate: tlsCert,
+			handleRequest,
+			async onBind(server, port) {
+				return { server, port } as any;
+			},
+		});
+	}
+
+	it('starts and responds to HTTP/2 requests', async () => {
+		const cliServer = await startH2Server(async () =>
+			makeOkResponse('h2 works')
+		);
+		const { server, port } = cliServer as any;
+
+		try {
+			const { status, body } = await h2Request(port, '/');
+			expect(status).toBe(200);
+			expect(body).toBe('h2 works');
+		} finally {
+			server.close();
+			(server as any).closeAllConnections();
+		}
+	});
+
+	it('passes protocolVersion HTTP/2.0 to handleRequest', async () => {
+		let capturedRequest: PHPRequest | undefined;
+		const cliServer = await startH2Server(async (req) => {
+			capturedRequest = req;
+			return makeOkResponse('ok');
+		});
+		const { server, port } = cliServer as any;
+
+		try {
+			await h2Request(port, '/test');
+			expect(capturedRequest).toBeDefined();
+			expect(capturedRequest!.protocolVersion).toBe('HTTP/2.0');
+		} finally {
+			server.close();
+			(server as any).closeAllConnections();
+		}
+	});
+
+	it('filters HTTP/2 pseudo-headers from request', async () => {
+		let capturedRequest: PHPRequest | undefined;
+		const cliServer = await startH2Server(async (req) => {
+			capturedRequest = req;
+			return makeOkResponse('ok');
+		});
+		const { server, port } = cliServer as any;
+
+		try {
+			await h2Request(port, '/test');
+			expect(capturedRequest).toBeDefined();
+			const pseudoHeaders = Object.keys(capturedRequest!.headers).filter(
+				(k) => k.startsWith(':')
+			);
+			expect(pseudoHeaders).toHaveLength(0);
+		} finally {
+			server.close();
+			(server as any).closeAllConnections();
+		}
+	});
+
+	it('includes host header with no pseudo-headers leaking', async () => {
+		let capturedRequest: PHPRequest | undefined;
+		const cliServer = await startServer({
+			port: 0,
+			http2: true,
+			tlsCertificate: tlsCert,
+			handleRequest: async (req) => {
+				capturedRequest = req;
+				return makeOkResponse('ok');
+			},
+			async onBind(server, port) {
+				return { server, port } as any;
+			},
+		});
+		const { server, port } = cliServer as any;
+
+		try {
+			// Send a request with an explicit host-like header
+			await new Promise<void>((resolve, reject) => {
+				const client = http2.connect(`https://127.0.0.1:${port}`, {
+					rejectUnauthorized: false,
+				});
+				client.on('error', reject);
+				const req = client.request({
+					':path': '/',
+					':method': 'GET',
+				});
+				req.on('response', () => {});
+				req.on('data', () => {});
+				req.on('end', () => {
+					client.close();
+					resolve();
+				});
+				req.on('error', reject);
+				req.end();
+			});
+			expect(capturedRequest).toBeDefined();
+			// Pseudo-headers must not leak through to PHP
+			const headerKeys = Object.keys(capturedRequest!.headers);
+			expect(headerKeys.filter((k) => k.startsWith(':'))).toHaveLength(0);
+		} finally {
+			server.close();
+			(server as any).closeAllConnections();
+		}
+	});
+
+	it('supports HTTP/1.1 fallback via allowHTTP1', async () => {
+		let capturedRequest: PHPRequest | undefined;
+		const cliServer = await startH2Server(async (req) => {
+			capturedRequest = req;
+			return makeOkResponse('h1 fallback');
+		});
+		const { server, port } = cliServer as any;
+
+		try {
+			const body = await new Promise<string>((resolve, reject) => {
+				const req = https.get(
+					`https://127.0.0.1:${port}/`,
+					{ rejectUnauthorized: false },
+					(res) => {
+						let data = '';
+						res.on('data', (chunk: Buffer) => {
+							data += chunk.toString();
+						});
+						res.on('end', () => resolve(data));
+					}
+				);
+				req.on('error', reject);
+			});
+			expect(body).toBe('h1 fallback');
+			expect(capturedRequest).toBeDefined();
+			expect(capturedRequest!.protocolVersion).toBe('HTTP/1.1');
+		} finally {
+			server.close();
+			(server as any).closeAllConnections();
+		}
+	});
+
+	it('throws when HTTP/2 is requested without TLS certificate', async () => {
+		await expect(
+			startServer({
+				port: 0,
+				http2: true,
+				handleRequest: async () => makeOkResponse('nope'),
+				async onBind(server, port) {
+					return { server, port } as any;
+				},
+			})
+		).rejects.toThrow('TLS certificate is required for HTTP/2.');
 	});
 });
