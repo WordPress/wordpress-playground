@@ -354,9 +354,9 @@ describe('startServer with HTTP/2', () => {
 		try {
 			await h2Request(port, '/test');
 			expect(capturedRequest).toBeDefined();
-			const pseudoHeaders = Object.keys(capturedRequest!.headers).filter(
-				(k) => k.startsWith(':')
-			);
+			const pseudoHeaders = Object.keys(
+				capturedRequest!.headers ?? {}
+			).filter((k) => k.startsWith(':'));
 			expect(pseudoHeaders).toHaveLength(0);
 		} finally {
 			server.close();
@@ -402,7 +402,7 @@ describe('startServer with HTTP/2', () => {
 			});
 			expect(capturedRequest).toBeDefined();
 			// Pseudo-headers must not leak through to PHP
-			const headerKeys = Object.keys(capturedRequest!.headers);
+			const headerKeys = Object.keys(capturedRequest!.headers ?? {});
 			expect(headerKeys.filter((k) => k.startsWith(':'))).toHaveLength(0);
 		} finally {
 			server.close();
