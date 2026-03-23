@@ -323,11 +323,11 @@ Mount before WP install: /wordpress ->
 The database location depends on what you mount:
 
 - **Auto-mounting wp-content or full WordPress**:
-    - Database: `<your-local-project>/wp-content/database/.ht.sqlite`
+    - Database: `<your-local-project>/wp-content/database/.ht.sqlite.php`
     - ✅ **Persisted locally** in your project folder
 
 - **Auto-mounting plugin/theme only**:
-    - Database: `<OS-TEMP-DIR>/playground-<id>/wordpress/wp-content/database/.ht.sqlite`
+    - Database: `<OS-TEMP-DIR>/playground-<id>/wordpress/wp-content/database/.ht.sqlite.php`
     - ⚠️ **Lost when server stops** (temp directories are cleaned up)
 
 - **Custom mounts**: Database location follows your mount configuration
@@ -346,11 +346,11 @@ Playground CLI automatically removes temp directories that are:
 La ubicación de la base de datos depende de lo que montes:
 
 - **Montaje automático de wp-content o WordPress completo**:
-    - Base de datos: `<tu-proyecto-local>/wp-content/database/.ht.sqlite`
+    - Base de datos: `<tu-proyecto-local>/wp-content/database/.ht.sqlite.php`
     - ✅ **Persistida localmente** en la carpeta de tu proyecto
 
 - **Solo montaje automático de plugin/tema**:
-    - Base de datos: `<OS-TEMP-DIR>/playground-<id>/wordpress/wp-content/database/.ht.sqlite`
+    - Base de datos: `<OS-TEMP-DIR>/playground-<id>/wordpress/wp-content/database/.ht.sqlite.php`
     - ⚠️ **Se pierde al detener el servidor** (los directorios temporales se eliminan)
 
 - **Montajes personalizados**: La ubicación de la base de datos sigue tu configuración de montaje
@@ -409,7 +409,7 @@ El `<path-hash>` se deriva de la ruta del directorio de tu proyecto. Así se aí
 The database location depends on your configuration:
 
 - **Default (automatic persistence)**:
-    - Database: `~/.wordpress-playground/sites/<path-hash>/wordpress/wp-content/database/.ht.sqlite`
+    - Database: `~/.wordpress-playground/sites/<path-hash>/wordpress/wp-content/database/.ht.sqlite.php`
     - **Persisted automatically** between sessions
 -->
 
@@ -421,7 +421,7 @@ The database location depends on your configuration:
 La ubicación de la base de datos depende de tu configuración:
 
 - **Por defecto (persistencia automática)**:
-    - Base de datos: `~/.wordpress-playground/sites/<path-hash>/wordpress/wp-content/database/.ht.sqlite`
+    - Base de datos: `~/.wordpress-playground/sites/<path-hash>/wordpress/wp-content/database/.ht.sqlite.php`
     - **Persistida automáticamente** entre sesiones
 
 <!--

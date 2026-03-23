@@ -58,7 +58,7 @@ describe('Test database', () => {
 				siteUrl: 'http://playground-domain/',
 				wordPressZip: await getWordPressModule(),
 				sqliteIntegrationPluginZip: await getSqliteDriverModule(),
-				dataSqlPath: '/wordpress/wp-content/database/.ht.sqlite',
+				dataSqlPath: '/wordpress/wp-content/database/.ht.sqlite.php',
 			});
 
 			const loadedWordPressVersion =

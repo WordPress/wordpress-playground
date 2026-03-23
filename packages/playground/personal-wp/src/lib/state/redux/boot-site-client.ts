@@ -551,7 +551,7 @@ export async function playgroundAvailableInOpfs(
 		/**
 		 * Assume it's a Playground directory if these files exist:
 		 * - wp-config.php
-		 * - wp-content/database/.ht.sqlite
+		 * - wp-content/database/.ht.sqlite.php
 		 */
 		await dirHandle.getFileHandle('wp-config.php', { create: false });
 		const wpContent = await dirHandle.getDirectoryHandle('wp-content', {
@@ -560,7 +560,7 @@ export async function playgroundAvailableInOpfs(
 		const database = await wpContent.getDirectoryHandle('database', {
 			create: false,
 		});
-		await database.getFileHandle('.ht.sqlite', { create: false });
+		await database.getFileHandle('.ht.sqlite.php', { create: false });
 	} catch {
 		return false;
 	}
