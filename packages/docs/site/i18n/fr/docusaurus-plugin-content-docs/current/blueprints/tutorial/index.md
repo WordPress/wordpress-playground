@@ -14,16 +14,20 @@ Bienvenue dans ce cours accéléré sur les blueprints où vous trouverez tout c
 1. [Que sont les Blueprints et que pouvez-vous faire avec ?](/blueprints/tutorial/what-are-blueprints-what-you-can-do-with-them)
 2. [Comment charger et exécuter des blueprints](/blueprints/tutorial/how-to-load-run-blueprints)
 3. [Créer votre premier blueprint](/blueprints/tutorial/build-your-first-blueprint)
-<!-- 1. [What are Blueprints, and what can you do with them?](/blueprints/tutorial/what-are-blueprints-what-you-can-do-with-them)
+
+<!-- 
+1. [What are Blueprints, and what can you do with them?](/blueprints/tutorial/what-are-blueprints-what-you-can-do-with-them)
 2. [How to load and run Blueprints](/blueprints/tutorial/how-to-load-run-blueprints)
 3. [Build your first Blueprint](/blueprints/tutorial/build-your-first-blueprint)
- -->
+-->
+
 :::tip
 Si vous rencontrez des difficultés en suivant ce tutoriel, consultez la section [Dépanner et déboguer les blueprints](/blueprints/troubleshoot-and-debug) pour des conseils et des outils pour vous aider à les résoudre.
 :::
-<!-- :::tip
+
+<!-- 
 If you encounter any issues while following this tutorial, refer to the [Troubleshoot and debug Blueprints](/blueprints/troubleshoot-and-debug) section for tips and tools to help you solve them.
-::: -->
+-->
 
 :::info
 Traduction par [@sophiecaperaa](https://profiles.wordpress.org/sophiecaperaa/) et relecture par [@beryl-dlg](https://profiles.wordpress.org/beryl-dlg/)
