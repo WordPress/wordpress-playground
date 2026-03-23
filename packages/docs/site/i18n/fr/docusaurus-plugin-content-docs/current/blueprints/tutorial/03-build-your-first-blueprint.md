@@ -259,9 +259,12 @@ Vous pouvez utiliser l’étape [installPlugin](/blueprints/steps#InstallPluginS
 1. Créez un répertoire `wp-content/plugins/hello-from-the-dashboard` en utilisant l’[étape `mkdir`](/blueprints/steps#MkdirStep).
 2. Écrivez un fichier `plugin.php` en utilisant l’[étape `writeFile`](/blueprints/steps#WriteFileStep).
 3. Activez l’extension en utilisant l’[étape `activatePlugin`](/blueprints/steps#ActivatePluginStep).
-<!-- 1. Create a `wp-content/plugins/hello-from-the-dashboard` directory using the [`mkdir` step](/blueprints/steps#MkdirStep).
+
+<!-- 
+1. Create a `wp-content/plugins/hello-from-the-dashboard` directory using the [`mkdir` step](/blueprints/steps#MkdirStep).
 2. Write a `plugin.php` file using the [`writeFile` step](/blueprints/steps#WriteFileStep).
-3. Activate the plugin using the [`activatePlugin` step](/blueprints/steps#ActivatePluginStep). -->
+3. Activate the plugin using the [`activatePlugin` step](/blueprints/steps#ActivatePluginStep). 
+-->
 
 Voici à quoi ça ressemble dans un blueprint : 
 <!-- Here's what that looks like in a Blueprint: -->
