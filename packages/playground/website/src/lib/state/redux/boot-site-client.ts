@@ -34,7 +34,10 @@ import {
 	createGitAuthHeaders,
 	shouldShowGitHubAuthModal,
 } from '../../../github/git-auth-helpers';
-import { findFirewallErrorInCauseChain } from './error-utils';
+import {
+	findFirewallErrorInCauseChain,
+	findDownloadErrorInCauseChain,
+} from './error-utils';
 import { PHPMYADMIN_INSTALL_PATH } from '@wp-playground/tools';
 
 export function bootSiteClient(
@@ -206,6 +209,13 @@ export function bootSiteClient(
 					setActiveSiteError({
 						error: 'network-firewall-interference',
 						details: firewallError,
+					})
+				);
+			} else if (findDownloadErrorInCauseChain(e)) {
+				dispatch(
+					setActiveSiteError({
+						error: 'resource-download-failed',
+						details: e,
 					})
 				);
 			} else if (
