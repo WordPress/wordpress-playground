@@ -13,6 +13,7 @@
  *   npx nx perf playground-cli
  *   npx nx perf playground-cli -- --rounds=3 --mode=built
  *   npx nx perf playground-cli -- --with-plugins
+ *   npx nx perf playground-cli -- --http2
  *
  * Options:
  *   --rounds=N        Benchmark rounds (default: 3)
@@ -21,6 +22,8 @@
  *   --headed          Chromium in headed mode for debugging
  *   --wp=<version>    WordPress version (default: latest)
  *   --php=<version>   PHP version (default: Current Playground recommended PHP version)
+ *
+ * Any unrecognized flags/arguments are forwarded to the CLI server command.
  */
 
 import { spawn } from 'child_process';
@@ -43,6 +46,7 @@ interface Options {
 	headed: boolean;
 	wp: string;
 	php: string;
+	extraCliArgs: string[];
 }
 
 interface ServerHandle {
@@ -68,6 +72,9 @@ async function main() {
 	console.log(`Rounds: ${opts.rounds}`);
 	console.log(`Mode: ${opts.mode}`);
 	console.log(`WordPress: ${opts.wp}, PHP: ${opts.php}`);
+	if (opts.extraCliArgs.length > 0) {
+		console.log(`Extra CLI args: ${opts.extraCliArgs.join(' ')}`);
+	}
 	console.log(`Date: ${new Date().toISOString()}`);
 	console.log('');
 
@@ -154,7 +161,17 @@ async function main() {
 }
 
 function getOptions(): Options {
-	const { values } = parseArgs({
+	const KNOWN_OPTIONS = new Set([
+		'help',
+		'rounds',
+		'mode',
+		'with-plugins',
+		'headed',
+		'wp',
+		'php',
+	]);
+
+	const { values, positionals } = parseArgs({
 		options: {
 			help: { type: 'boolean', default: false },
 			rounds: { type: 'string', default: '3' },
@@ -169,7 +186,7 @@ function getOptions(): Options {
 	});
 
 	if (values.help) {
-		console.log(`Usage: npx nx perf playground-cli [-- <options>]
+		console.log(`Usage: npx nx perf playground-cli [-- <options>] [<extra-cli-flags>]
 
 Measure WordPress site editor performance in a Playground CLI environment.
 
@@ -180,7 +197,10 @@ Options:
   --headed           Run Chromium in headed mode (for debugging)
   --wp=<version>     WordPress version (default: latest)
   --php=<version>    PHP version (default: Current Playground recommended PHP version: ${RecommendedPHPVersion})
-  --help             Show this help message`);
+  --help             Show this help message
+
+Any unrecognized flags are forwarded to the CLI server command.
+Example: npx nx perf playground-cli -- --http2`);
 		process.exit(0);
 	}
 
@@ -199,6 +219,18 @@ Options:
 		process.exit(1);
 	}
 
+	const extraCliArgs = [...positionals];
+	for (const [key, val] of Object.entries(values)) {
+		if (KNOWN_OPTIONS.has(key)) {
+			continue;
+		}
+		if (val === true) {
+			extraCliArgs.push(`--${key}`);
+		} else if (typeof val === 'string') {
+			extraCliArgs.push(`--${key}=${val}`);
+		}
+	}
+
 	return {
 		rounds,
 		mode,
@@ -206,6 +238,7 @@ Options:
 		headed: values.headed as boolean,
 		wp: values.wp as string,
 		php: values.php as string,
+		extraCliArgs,
 	};
 }
 
@@ -303,6 +336,7 @@ function buildCommand(
 		`--wp=${opts.wp}`,
 		`--php=${opts.php}`,
 		'--login',
+		...opts.extraCliArgs,
 	];
 
 	if (blueprintPath) {
