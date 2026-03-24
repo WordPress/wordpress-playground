@@ -37,8 +37,12 @@ jobs:
                   # Extract the section between this version's heading and the next version heading.
                   # The changelog uses "## [vX.Y.Z]" headings.
                   CHANGELOG=$(awk -v ver="$VERSION" '
-                      # When we hit the heading for this version, start capturing from the next line.
-                      $0 == "## [v" ver "]" {
+                      # When we hit the heading for this version, start capturing
+                      # from the next line. The heading format is:
+                      #   ## [vX.Y.Z] (YYYY-MM-DD)
+                      # so we match the prefix "## [vX.Y.Z]" and allow anything
+                      # after the closing bracket (like the date).
+                      index($0, "## [v" ver "]") == 1 {
                           found = 1
                           next
                       }
