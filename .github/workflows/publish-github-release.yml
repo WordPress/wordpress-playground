@@ -36,8 +36,21 @@ jobs:
                   VERSION="${{ steps.version.outputs.version }}"
                   # Extract the section between this version's heading and the next version heading.
                   # The changelog uses "## [vX.Y.Z]" headings.
-                  CHANGELOG=$(awk "/^## \\[v${VERSION}\\]/{found=1; next} /^## \\[v[0-9]/{if(found) exit} found" CHANGELOG.md)
+                  CHANGELOG=$(awk -v ver="$VERSION" '
+                      # When we hit the heading for this version, start capturing from the next line.
+                      $0 == "## [v" ver "]" {
+                          found = 1
+                          next
+                      }
 
+                      # When we hit the next version heading after starting, stop.
+                      /^## \[v[0-9]/ {
+                          if (found) exit
+                      }
+
+                      # While in the section for this version, print lines.
+                      found
+                  ' CHANGELOG.md)
                   if [ -z "$CHANGELOG" ]; then
                       CHANGELOG="No changelog entries for this release."
                   fi
