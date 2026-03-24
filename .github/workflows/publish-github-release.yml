@@ -1,6 +1,7 @@
 name: Publish GitHub Release
 
 on:
+    workflow_dispatch:
     workflow_run:
         workflows: [Release NPM packages]
         types:
@@ -11,17 +12,21 @@ permissions:
 
 jobs:
     create-release:
-        # Only create a release after a successful npm publish on trunk
+        # Only create a release after a successful npm publish on trunk,
+        # or when triggered manually.
         if: >
-            github.event.workflow_run.conclusion == 'success' &&
-            github.event.workflow_run.head_branch == 'trunk'
+            github.event_name == 'workflow_dispatch' ||
+            (
+                github.event.workflow_run.conclusion == 'success' &&
+                github.event.workflow_run.head_branch == 'trunk'
+            )
 
         runs-on: ubuntu-latest
 
         steps:
             - uses: actions/checkout@v4
               with:
-                  ref: ${{ github.event.workflow_run.head_sha }}
+                  ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
             - name: Read version from lerna.json
               id: version
