@@ -96,11 +96,6 @@ const argParser = yargs(process.argv.slice(2))
 			choices: ['yes', 'no'],
 			description: 'Build with mbregex support',
 		},
-		WITH_INTL: {
-			type: 'string',
-			choices: ['yes', 'no'],
-			description: 'Build with intl support',
-		},
 		WITH_CLI_SAPI: {
 			type: 'string',
 			choices: ['yes', 'no'],
@@ -163,8 +158,8 @@ const argParser = yargs(process.argv.slice(2))
 		},
 		['output-dir']: {
 			type: 'string',
-			description: 'The output directory',
-			required: true,
+			description:
+				'The output directory. If not provided, it will be computed from the PHP version and platform.',
 		},
 		WITH_OPENSSL_VERSION: {
 			type: 'string',
@@ -207,9 +202,7 @@ const platformDefaults = {
 		WITH_IMAGICK: 'no',
 		STACK_SIZE: '1MB',
 	},
-	web: {
-		WITH_INTL: 'yes',
-	},
+	web: {},
 	node: {
 		WITH_NODEFS: 'yes',
 		WITH_MYSQL: 'yes',
@@ -224,10 +217,10 @@ const getArg = (name) => {
 		name in args
 			? args[name]
 			: name in platformDefaults[platform]
-			? platformDefaults[platform][name]
-			: name in platformDefaults.all
-			? platformDefaults.all[name]
-			: 'no';
+				? platformDefaults[platform][name]
+				: name in platformDefaults.all
+					? platformDefaults.all[name]
+					: 'no';
 	if (name === 'PHP_VERSION') {
 		value = fullyQualifiedPHPVersion(value);
 	}
@@ -242,7 +235,54 @@ if (!requestedVersion || requestedVersion === 'undefined') {
 }
 
 const sourceDir = path.dirname(new URL(import.meta.url).pathname);
-const outputDir = path.resolve(process.cwd(), args.outputDir);
+
+// Compute output directory if not provided
+function computeOutputDir() {
+	if (args.outputDir) {
+		return path.resolve(process.cwd(), args.outputDir);
+	}
+	// Extract major.minor from the PHP version (e.g., "8.4.16" -> "8-4")
+	const phpVersion = args.PHP_VERSION || '8.3';
+	const [major, minor] = phpVersion.split('.');
+	const versionDir = `${major}-${minor}`;
+	// Check both --JSPI (boolean) and --WITH_JSPI=yes (string from legacy format)
+	const isJspi = args.JSPI || args.WITH_JSPI === 'yes';
+	const jspiOrAsyncify = isJspi ? 'jspi' : 'asyncify';
+	const platformDir = platform === 'node' ? 'node-builds' : 'web-builds';
+	return path.resolve(
+		process.cwd(),
+		`packages/php-wasm/${platformDir}/${versionDir}/${jspiOrAsyncify}`
+	);
+}
+
+const outputDir = computeOutputDir();
+
+// Clean up outdated minor versions in the output directory to avoid shipping
+// multiple binaries for the same major.minor PHP version.
+async function cleanupOldMinorVersions() {
+	if (!fs.existsSync(outputDir)) {
+		return;
+	}
+	const phpVersion = args.PHP_VERSION || '8.3';
+	const [major, minor] = phpVersion.split('.');
+	const versionPrefix = `${major}_${minor}`;
+
+	const entries = fs.readdirSync(outputDir);
+	for (const entry of entries) {
+		// Match files and directories like "8_4_15", "php_8_4.js", etc.
+		// that belong to the same major.minor version
+		if (
+			entry.startsWith(versionPrefix) ||
+			entry.startsWith(`php_${major}_${minor}`)
+		) {
+			const fullPath = path.join(outputDir, entry);
+			console.log(`Removing outdated: ${fullPath}`);
+			await rmAsync(fullPath, { recursive: true, force: true });
+		}
+	}
+}
+
+await cleanupOldMinorVersions();
 
 // Build the base image
 await asyncSpawn('make', ['base-image'], { cwd: sourceDir, stdio: 'inherit' });
@@ -253,7 +293,7 @@ await asyncSpawn(
 		'build',
 		'-f',
 		'php/Dockerfile',
-		'.',
+		'..',
 		'--tag=php-wasm',
 		'--progress=plain',
 		'--build-arg',
@@ -276,8 +316,6 @@ await asyncSpawn(
 		getArg('WITH_MBSTRING'),
 		'--build-arg',
 		getArg('WITH_MBREGEX'),
-		'--build-arg',
-		getArg('WITH_INTL'),
 		'--build-arg',
 		getArg('WITH_CLI_SAPI'),
 		'--build-arg',
@@ -347,17 +385,6 @@ await asyncSpawn(
 	],
 	{ cwd: sourceDir, stdio: 'inherit' }
 );
-
-// Copy data files
-const libDir = path.resolve(process.cwd(), 'packages/php-wasm/compile');
-const publicDir = `${path.dirname(path.dirname(outputDir))}`;
-if (getArg('WITH_INTL').endsWith('yes') && platform === 'web') {
-	await asyncSpawn(
-		'cp',
-		[`${libDir}/libintl/icudt74l.dat`, `${publicDir}/shared/icudt74l.dat`],
-		{ cwd: sourceDir, stdio: 'inherit' }
-	);
-}
 
 function asyncSpawn(...args) {
 	console.log('Running', args[0], args[1].join(' '), '...');

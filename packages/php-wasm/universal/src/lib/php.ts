@@ -10,7 +10,7 @@ import type { ListFilesOptions, RmDirOptions } from './fs-helpers';
 import { FSHelpers } from './fs-helpers';
 import { isExitCode } from './is-exit-code';
 import type { PHPRuntimeId } from './load-php-runtime';
-import { getLoadedRuntime } from './load-php-runtime';
+import { popLoadedRuntime } from './load-php-runtime';
 import type { PHPRequestHandler } from './php-request-handler';
 import { PHPResponse, StreamedPHPResponse } from './php-response';
 import type {
@@ -258,7 +258,7 @@ export class PHP implements Disposable {
 		if (this[__private__dont__use]) {
 			throw new Error('PHP runtime already initialized.');
 		}
-		const runtime = getLoadedRuntime(runtimeId);
+		const runtime = popLoadedRuntime(runtimeId);
 		if (!runtime) {
 			throw new Error('Invalid PHP runtime id.');
 		}
@@ -425,7 +425,7 @@ export class PHP implements Disposable {
 	 * @deprecated
 	 */
 	async request(request: PHPRequest): Promise<PHPResponse> {
-		logger.warn(
+		logger.debug(
 			'PHP.request() is deprecated. Please use new PHPRequestHandler() instead.'
 		);
 		if (!this.requestHandler) {
@@ -1214,11 +1214,28 @@ export class PHP implements Disposable {
 	 * Moves a file or directory in the PHP filesystem to a
 	 * new location.
 	 *
-	 * @param oldPath The path to rename.
-	 * @param newPath The new path.
+	 * @param fromPath The path to rename.
+	 * @param toPath The new path.
 	 */
 	mv(fromPath: string, toPath: string) {
 		const result = FSHelpers.mv(
+			this[__private__dont__use].FS,
+			fromPath,
+			toPath
+		);
+		this.dispatchEvent({ type: 'filesystem.write' });
+		return result;
+	}
+
+	/**
+	 * Copies a file or directory in the PHP filesystem to a
+	 * new location.
+	 *
+	 * @param fromPath The source path.
+	 * @param toPath The target path.
+	 */
+	cp(fromPath: string, toPath: string) {
+		const result = FSHelpers.copyRecursive(
 			this[__private__dont__use].FS,
 			fromPath,
 			toPath

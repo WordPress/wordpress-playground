@@ -1,6 +1,7 @@
 import type { Filesystem } from './filesystems';
 import {
 	InMemoryFilesystem,
+	InMemoryFilesystemBackend,
 	ZipFilesystem,
 	OverlayFilesystem,
 	FetchFilesystem,
@@ -438,5 +439,226 @@ describe('NodeJsFilesystem', () => {
 		await expect(filesystem.read('../../pygmalion.txt')).rejects.toThrow(
 			'Refused to read a file outside of the root directory'
 		);
+	});
+});
+
+describe('InMemoryFilesystemBackend', () => {
+	let backend: InMemoryFilesystemBackend;
+
+	beforeEach(() => {
+		backend = new InMemoryFilesystemBackend();
+	});
+
+	describe('fileExists', () => {
+		it('should return true for root directory', async () => {
+			expect(await backend.fileExists('/')).toBe(true);
+		});
+
+		it('should return true for existing files', async () => {
+			await backend.writeFile('/test.txt', new Uint8Array([1, 2, 3]));
+			expect(await backend.fileExists('/test.txt')).toBe(true);
+		});
+
+		it('should return true for existing directories', async () => {
+			await backend.mkdir('/mydir');
+			expect(await backend.fileExists('/mydir')).toBe(true);
+		});
+
+		it('should return false for non-existent paths', async () => {
+			expect(await backend.fileExists('/nonexistent')).toBe(false);
+		});
+
+		it('should return true for nested directories', async () => {
+			await backend.mkdir('/parent/child', true);
+			expect(await backend.fileExists('/parent')).toBe(true);
+			expect(await backend.fileExists('/parent/child')).toBe(true);
+		});
+	});
+
+	describe('isDir', () => {
+		it('should return true for root directory', async () => {
+			expect(await backend.isDir('/')).toBe(true);
+		});
+
+		it('should return true for directories', async () => {
+			await backend.mkdir('/mydir');
+			expect(await backend.isDir('/mydir')).toBe(true);
+		});
+
+		it('should return false for files', async () => {
+			await backend.writeFile('/test.txt', new Uint8Array([1, 2, 3]));
+			expect(await backend.isDir('/test.txt')).toBe(false);
+		});
+
+		it('should return false for non-existent paths', async () => {
+			expect(await backend.isDir('/nonexistent')).toBe(false);
+		});
+	});
+
+	describe('mkdir', () => {
+		it('should create a directory', async () => {
+			await backend.mkdir('/newdir');
+			expect(await backend.isDir('/newdir')).toBe(true);
+		});
+
+		it('should throw when creating nested directories without recursive flag', async () => {
+			await expect(
+				backend.mkdir('/parent/child/grandchild')
+			).rejects.toThrow();
+		});
+
+		it('should create nested directories with recursive flag', async () => {
+			await backend.mkdir('/parent/child/grandchild', true);
+			expect(await backend.isDir('/parent')).toBe(true);
+			expect(await backend.isDir('/parent/child')).toBe(true);
+			expect(await backend.isDir('/parent/child/grandchild')).toBe(true);
+		});
+
+		it('should not fail when directory already exists', async () => {
+			await backend.mkdir('/mydir');
+			await backend.mkdir('/mydir');
+			expect(await backend.isDir('/mydir')).toBe(true);
+		});
+
+		it('should be a no-op for root directory', async () => {
+			// mkdir('/') should not throw, root always exists
+			await backend.mkdir('/');
+			expect(await backend.isDir('/')).toBe(true);
+		});
+	});
+
+	describe('writeFile and read', () => {
+		it('should write and read a file', async () => {
+			const data = new Uint8Array([72, 101, 108, 108, 111]); // "Hello"
+			await backend.writeFile('/test.txt', data);
+
+			const file = await backend.read('/test.txt');
+			const content = new Uint8Array(await file.arrayBuffer());
+			expect(content).toEqual(data);
+		});
+
+		it('should throw when parent directory does not exist', async () => {
+			const data = new Uint8Array([1, 2, 3]);
+			await expect(
+				backend.writeFile('/nonexistent/file.txt', data)
+			).rejects.toThrow();
+		});
+
+		it('should write to existing nested directory', async () => {
+			await backend.mkdir('/deep/nested', true);
+			const data = new Uint8Array([1, 2, 3]);
+			await backend.writeFile('/deep/nested/file.txt', data);
+			expect(await backend.fileExists('/deep/nested/file.txt')).toBe(
+				true
+			);
+		});
+	});
+
+	describe('listFiles', () => {
+		it('should list files in root directory', async () => {
+			await backend.writeFile('/file1.txt', new Uint8Array([1]));
+			await backend.writeFile('/file2.txt', new Uint8Array([2]));
+			await backend.mkdir('/dir1');
+
+			const files = await backend.listFiles('/');
+			expect(files).toContain('file1.txt');
+			expect(files).toContain('file2.txt');
+			expect(files).toContain('dir1');
+		});
+
+		it('should list files in subdirectory', async () => {
+			await backend.mkdir('/mydir');
+			await backend.writeFile('/mydir/nested.txt', new Uint8Array([1]));
+
+			const files = await backend.listFiles('/mydir');
+			expect(files).toContain('nested.txt');
+		});
+
+		it('should return empty array for non-existent paths', async () => {
+			const files = await backend.listFiles('/nonexistent');
+			expect(files).toEqual([]);
+		});
+
+		it('should return empty array when listing a file path', async () => {
+			await backend.writeFile('/file.txt', new Uint8Array([1]));
+			const files = await backend.listFiles('/file.txt');
+			expect(files).toEqual([]);
+		});
+
+		it('should not write LLVM profiling data at runtime', async () => {
+			const files = await backend.listFiles('/');
+			expect(files).not.toContain('default.profraw');
+		});
+	});
+
+	describe('unlink', () => {
+		it('should delete a file', async () => {
+			await backend.writeFile('/test.txt', new Uint8Array([1]));
+			expect(await backend.fileExists('/test.txt')).toBe(true);
+
+			await backend.unlink('/test.txt');
+			expect(await backend.fileExists('/test.txt')).toBe(false);
+		});
+	});
+
+	describe('rmdir', () => {
+		it('should delete an empty directory', async () => {
+			await backend.mkdir('/emptydir');
+			await backend.rmdir('/emptydir', false);
+			expect(await backend.fileExists('/emptydir')).toBe(false);
+		});
+
+		it('should delete a directory recursively', async () => {
+			await backend.mkdir('/parent/child', true);
+			await backend.writeFile(
+				'/parent/child/file.txt',
+				new Uint8Array([1])
+			);
+
+			await backend.rmdir('/parent', true);
+			expect(await backend.fileExists('/parent')).toBe(false);
+		});
+
+		it('should throw when deleting non-empty directory without recursive flag', async () => {
+			await backend.mkdir('/parent');
+			await backend.writeFile('/parent/file.txt', new Uint8Array([1]));
+
+			await expect(backend.rmdir('/parent', false)).rejects.toThrow(
+				'Directory not empty'
+			);
+		});
+	});
+
+	describe('mv', () => {
+		it('should move a file', async () => {
+			await backend.writeFile('/source.txt', new Uint8Array([1, 2, 3]));
+			await backend.mv('/source.txt', '/dest.txt');
+
+			expect(await backend.fileExists('/source.txt')).toBe(false);
+			expect(await backend.fileExists('/dest.txt')).toBe(true);
+		});
+
+		it('should move a directory', async () => {
+			await backend.mkdir('/srcdir');
+			await backend.writeFile('/srcdir/file.txt', new Uint8Array([1]));
+			await backend.mv('/srcdir', '/dstdir');
+
+			expect(await backend.fileExists('/srcdir')).toBe(false);
+			expect(await backend.fileExists('/dstdir')).toBe(true);
+			expect(await backend.fileExists('/dstdir/file.txt')).toBe(true);
+		});
+	});
+
+	describe('clear', () => {
+		it('should remove all files and directories', async () => {
+			await backend.mkdir('/dir1');
+			await backend.writeFile('/file1.txt', new Uint8Array([1]));
+			await backend.writeFile('/dir1/nested.txt', new Uint8Array([2]));
+
+			await backend.clear();
+
+			const files = await backend.listFiles('/');
+			expect(files).toHaveLength(0);
+		});
 	});
 });

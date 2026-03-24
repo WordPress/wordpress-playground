@@ -1,0 +1,43 @@
+.stringEditorModal {
+	max-width: 800px;
+	width: 90vw;
+}
+
+.languageSelector {
+	margin-bottom: 12px;
+}
+
+.languageSelector label {
+	font-weight: 500;
+	margin-bottom: 4px;
+}
+
+.editorContainer {
+	height: 400px;
+	border: 1px solid #ddd;
+	border-radius: 4px;
+	overflow: hidden;
+	background: #fff;
+}
+
+.editorContainer :global(.cm-editor) {
+	height: 100%;
+}
+
+.editorContainer :global(.cm-scroller) {
+	overflow: auto;
+	font-family:
+		ui-monospace,
+		SFMono-Regular,
+		SF Mono,
+		Menlo,
+		Consolas,
+		Liberation Mono,
+		monospace;
+	font-size: 13px;
+	line-height: 1.5;
+}
+
+.buttons {
+	margin-top: 16px;
+}

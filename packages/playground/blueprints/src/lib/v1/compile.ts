@@ -44,9 +44,12 @@ import { defaultWpCliPath, defaultWpCliResource } from '../steps/wp-cli';
 import type { ErrorObject } from 'ajv';
 
 export class InvalidBlueprintError extends Error {
-	constructor(message: string, public readonly validationErrors?: unknown) {
+	public readonly validationErrors?: unknown;
+
+	constructor(message: string, validationErrors?: unknown) {
 		super(message);
 		this.name = 'InvalidBlueprintError';
+		this.validationErrors = validationErrors;
 	}
 }
 
@@ -95,6 +98,7 @@ export interface CompiledBlueprintV1 {
 		wp: string;
 	};
 	features: {
+		/** Should boot with support for Intl dynamic extension */
 		intl: boolean;
 		/** Should boot with support for network request via wp_safe_remote_get? */
 		networking: boolean;
@@ -254,7 +258,18 @@ function compileBlueprintJson(
 		const steps = blueprint.plugins
 			.map((value) => {
 				if (typeof value === 'string') {
-					if (value.startsWith('https://')) {
+					if (isGitRepoUrl(value)) {
+						return {
+							resource: 'zip',
+							inner: {
+								resource: 'git:directory',
+								url: value
+									.replace(/\.git\/?$/, '')
+									.replace(/\/$/, ''),
+								ref: 'HEAD',
+							},
+						} as FileReference;
+					} else if (value.startsWith('https://')) {
 						return {
 							resource: 'url',
 							url: value,
@@ -349,15 +364,14 @@ function compileBlueprintJson(
 		});
 	}
 
-	const { valid, errors } = validateBlueprint(blueprint);
-	if (!valid) {
-		const formattedErrors = formatValidationErrors(blueprint, errors ?? []);
+	const validationResult = validateBlueprint(blueprint);
+	if (!validationResult.valid) {
+		const { errors } = validationResult;
+		const formattedErrors = formatValidationErrors(blueprint, errors);
 
 		throw new InvalidBlueprintError(
 			`Invalid Blueprint: The Blueprint does not conform to the schema.\n\n` +
-				`Found ${
-					errors!.length
-				} validation error(s):\n\n${formattedErrors}\n\n` +
+				`Found ${errors.length} validation error(s):\n\n${formattedErrors}\n\n` +
 				`Please review your Blueprint and fix these issues. ` +
 				`Learn more about the Blueprint format: https://wordpress.github.io/wordpress-playground/blueprints/data-format`,
 			errors
@@ -540,7 +554,13 @@ function formatValidationErrors(
 		.join('\n\n');
 }
 
-export function validateBlueprint(blueprintMaybe: object) {
+export type BlueprintValidationResult =
+	| { valid: true }
+	| { valid: false; errors: ErrorObject[] };
+
+export function validateBlueprint(
+	blueprintMaybe: object
+): BlueprintValidationResult {
 	const valid = blueprintValidator(blueprintMaybe);
 	if (valid) {
 		return { valid };
@@ -565,16 +585,18 @@ export function validateBlueprint(blueprintMaybe: object) {
 			hasErrorsDifferentThanAnyOf.add(error.instancePath);
 		}
 	}
-	const errors = blueprintValidator.errors?.filter(
-		(error) =>
-			!(
-				error.schemaPath.startsWith('#/properties/steps/items/anyOf') &&
-				hasErrorsDifferentThanAnyOf.has(error.instancePath)
-			)
-	);
+	const errors =
+		blueprintValidator.errors?.filter(
+			(error) =>
+				!(
+					error.schemaPath.startsWith(
+						'#/properties/steps/items/anyOf'
+					) && hasErrorsDifferentThanAnyOf.has(error.instancePath)
+				)
+		) ?? [];
 
 	return {
-		valid,
+		valid: false,
 		errors,
 	};
 }
@@ -592,6 +614,14 @@ function compileVersion<T>(
 	supported: readonly T[],
 	latest: string
 ): T {
+	// Upgrade deprecated PHP versions 7.2 and 7.3 to 7.4
+	if (value === '7.2' || value === '7.3') {
+		logger.warn(
+			`PHP ${value} is no longer supported. Automatically upgrading to PHP 7.4.`
+		);
+		value = '7.4';
+	}
+
 	if (value && supported.includes(value as any)) {
 		return value as T;
 	}
@@ -604,7 +634,7 @@ function compileVersion<T>(
  * @param step The object to test
  * @returns Whether the object is a StepDefinition
  */
-function isStepDefinition(
+export function isStepDefinition(
 	step: Step | string | undefined | false | null
 ): step is StepDefinition {
 	return !!(typeof step === 'object' && step);
@@ -764,4 +794,19 @@ export async function runBlueprintV1Steps(
 	playground: UniversalPHP
 ) {
 	await compiledBlueprint.run(playground);
+}
+
+function isGitRepoUrl(url: string): boolean {
+	if (/^https:\/\/.+\.git\/?$/.test(url)) {
+		return true;
+	}
+	// GitHub: exactly /owner/repo
+	if (/^https:\/\/github\.com\/[^/]+\/[^/]+\/?$/.test(url)) {
+		return true;
+	}
+	// GitLab: /group[/subgroup...]/project (2+ path segments)
+	if (/^https:\/\/gitlab\.com\/[^/]+\/[^/]+(\/[^/]+)*\/?$/.test(url)) {
+		return true;
+	}
+	return false;
 }

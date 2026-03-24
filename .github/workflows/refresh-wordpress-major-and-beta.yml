@@ -11,6 +11,9 @@ on:
     schedule:
         - cron: '*/20 * * * *'
 
+concurrency:
+    group: refresh-wordpress-major-and-beta
+
 jobs:
     build_wordpress_major_and_beta_push_to_github_and_deploy_website:
         # Only run this workflow from the trunk branch and when it's triggered by a Playground maintainer
@@ -21,24 +24,30 @@ jobs:
                 github.actor == 'bgrgicak' ||
                 github.actor == 'brandonpayton' ||
                 github.actor == 'zaerl' ||
-                github.actor == 'janjakes'
+                github.actor == 'janjakes' ||
+                github.actor == 'mho22' ||
+                github.actor == 'ashfame'
             )
 
         runs-on: ubuntu-latest
         environment:
             name: wordpress-assets
-        concurrency:
-            group: check-version-and-run-build
+        # Be conservative and set _some_ timeout to prevent a hanging
+        # job from blocking the queue of scheduled runs.
+        timeout-minutes: 120
         steps:
             - uses: actions/checkout@v4
               with:
                   ref: ${{ github.event.pull_request.head.ref }}
                   clean: true
-                  persist-credentials: false
+                  persist-credentials: true
+                  ssh-key: ${{ secrets.DEPLOY_KEY }}
                   submodules: true
             - uses: ./.github/actions/prepare-playground
               with:
-                  node-version: 23
+                  # The build uses JSPI which is supported in Node.js 23+.
+                  # Let's pick 24 as an LTS release.
+                  node-version: 24
             - name: 'Recompile WordPress'
               id: build
               shell: bash
@@ -63,7 +72,6 @@ jobs:
                   sudo chown -R "$(whoami):$(id -gn)" packages/playground/wordpress-builds/public
                   git config --global user.name "deployment_bot"
                   git config --global user.email "deployment_bot@users.noreply.github.com"
-                  git remote set-url origin https://${{ secrets.GH_ACTOR }}:${{ secrets.GH_TOKEN }}@github.com/${{ github.repository }}
                   git add -A
                   git commit -a -m "Recompile WordPress major and beta versions"
                   git pull --rebase

@@ -20,8 +20,8 @@ slug: /developers/local-development/vscode-extension
 Key Features:
 -->
 
--   **統合開発**: VS Code 内で直接 WordPress サイトを開発できます。
--   **使いやすさ**: 統合ツールにより開発ワークフローが簡素化されます。
+- **統合開発**: VS Code 内で直接 WordPress サイトを開発できます。
+- **使いやすさ**: 統合ツールにより開発ワークフローが簡素化されます。
 
 <!--
 -   **Integrated Development**: Develop WordPress sites directly within VS Code.
@@ -65,6 +65,6 @@ The extension ships with a portable WebAssembly version of PHP and sets up WordP
 -->
 
 import Image from '@theme/IdealImage';
-import vsCodeScreenshot from '@site/static/img/start-wordpress-server.png';
+import vsCodeScreenshot from '@site/static/img/start-wordpress-server.webp';
 
 <div style={{maxWidth:350}}><Image img={vsCodeScreenshot} /></div>

@@ -28,9 +28,9 @@ test.describe('Docs API reference', () => {
 		});
 
 		await page.goto(apiPath, {
-			waitUntil: 'networkidle',
+			waitUntil: 'domcontentloaded',
 		});
-		await expect(page.locator('.apiPage')).toBeVisible();
+		await expect(page.locator('.apiPage')).toBeVisible({ timeout: 30000 });
 
 		expect(
 			pageErrors,

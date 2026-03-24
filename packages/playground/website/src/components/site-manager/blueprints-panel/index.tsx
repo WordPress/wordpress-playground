@@ -17,10 +17,7 @@ import { useState } from 'react';
 import { PlaygroundRoute, redirectTo } from '../../../lib/state/url/router';
 import useFetch from '../../../lib/hooks/use-fetch';
 import { useAppDispatch } from '../../../lib/state/redux/store';
-import {
-	setSiteManagerOpen,
-	setSiteManagerSection,
-} from '../../../lib/state/redux/slice-ui';
+import { setSiteManagerOpen } from '../../../lib/state/redux/slice-ui';
 
 type BlueprintsIndexEntry = {
 	title: string;
@@ -145,7 +142,7 @@ export function BlueprintsPanel({
 								<FlexItem style={{ marginLeft: -17 }}>
 									<Button
 										variant="link"
-										label="Back to sites list"
+										label="Back to Playground"
 										icon={() => (
 											<Icon
 												icon={chevronLeft}
@@ -154,9 +151,7 @@ export function BlueprintsPanel({
 										)}
 										className={css.grayLinkDark}
 										onClick={() => {
-											dispatch(
-												setSiteManagerSection('sidebar')
-											);
+											dispatch(setSiteManagerOpen(false));
 										}}
 									/>
 								</FlexItem>

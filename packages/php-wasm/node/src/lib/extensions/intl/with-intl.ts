@@ -5,6 +5,7 @@ import type {
 } from '@php-wasm/universal';
 import { LatestSupportedPHPVersion, FSHelpers } from '@php-wasm/universal';
 import fs from 'fs';
+import path from 'path';
 import { getIntlExtensionModule } from './get-intl-extension-module';
 
 export async function withIntl(
@@ -15,8 +16,10 @@ export async function withIntl(
 	const extensionPath = await getIntlExtensionModule(version);
 	const extension = fs.readFileSync(extensionPath);
 
-	const dataName = 'icudt74l.dat';
-	const dataPath = `${__dirname}/shared/${dataName}`;
+	const dataName = 'icu.dat';
+	const moduleDir =
+		typeof __dirname !== 'undefined' ? __dirname : import.meta.dirname;
+	const dataPath = path.join(moduleDir, 'shared', dataName);
 	const ICUData = fs.readFileSync(dataPath);
 
 	return {
@@ -30,7 +33,7 @@ export async function withIntl(
 			if (options.onRuntimeInitialized) {
 				options.onRuntimeInitialized(phpRuntime);
 			}
-			/**
+			/*
 			 * The extension file previously read
 			 * is written inside the /extensions directory
 			 */
@@ -75,6 +78,9 @@ export async function withIntl(
 			 * via the ICU_DATA environment variable.
 			 * By default, this variable is set to '/internal/shared',
 			 * which corresponds to the actual file location.
+			 *
+			 * The Intl extension is hard-coded to look for the `icudt74l` filename,
+			 * which means the ICU data file must use that exact name.
 			 */
 			if (
 				!FSHelpers.fileExists(
@@ -84,7 +90,7 @@ export async function withIntl(
 			) {
 				phpRuntime.FS.mkdirTree(phpRuntime.ENV.ICU_DATA);
 				phpRuntime.FS.writeFile(
-					`${phpRuntime.ENV.ICU_DATA}/${dataName}`,
+					`${phpRuntime.ENV.ICU_DATA}/icudt74l.dat`,
 					new Uint8Array(ICUData)
 				);
 			}

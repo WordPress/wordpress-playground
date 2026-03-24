@@ -1,17 +1,21 @@
 import React, { useMemo, useState } from 'react';
 import { TextControl } from '@wordpress/components';
 import { useAppDispatch, useAppSelector } from '../../lib/state/redux/store';
-import { setActiveModal } from '../../lib/state/redux/slice-ui';
+import {
+	setActiveModal,
+	setSiteSlugToRename,
+} from '../../lib/state/redux/slice-ui';
 import { updateSiteMetadata } from '../../lib/state/redux/slice-sites';
 import { Modal } from '../modal';
 import ModalButtons from '../modal/modal-buttons';
 
 export function RenameSiteModal() {
 	const dispatch = useAppDispatch();
+	const siteSlugToRename = useAppSelector(
+		(state) => state.ui.siteSlugToRename
+	);
 	const site = useAppSelector((state) =>
-		state.ui.activeSite?.slug
-			? state.sites.entities[state.ui.activeSite.slug]
-			: undefined
+		siteSlugToRename ? state.sites.entities[siteSlugToRename] : undefined
 	);
 
 	const initialName = useMemo(() => site?.metadata?.name ?? '', [site]);
@@ -23,7 +27,10 @@ export function RenameSiteModal() {
 		return null;
 	}
 
-	const closeModal = () => dispatch(setActiveModal(null));
+	const closeModal = () => {
+		dispatch(setActiveModal(null));
+		dispatch(setSiteSlugToRename(undefined));
+	};
 
 	const handleSubmit = async () => {
 		const trimmed = name.trim();

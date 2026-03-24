@@ -1,5 +1,5 @@
 import { expect, type Locator, type Page, test } from '@playwright/test';
-import type { AsyncWritableFilesystem } from '../../src/FilePickerTree';
+import type { AsyncWritableFilesystem } from '@wp-playground/storage';
 
 type HarnessFilesystem = Pick<
 	AsyncWritableFilesystem,
@@ -81,7 +81,7 @@ const expectSelected = async (page: Page, path: string) => {
 
 const callFilesystem = async <
 	K extends keyof HarnessFilesystem,
-	R = Awaited<ReturnType<HarnessFilesystem[K]>>
+	R = Awaited<ReturnType<HarnessFilesystem[K]>>,
 >(
 	page: Page,
 	method: K,

@@ -1,0 +1,10 @@
+{
+	"extends": "./tsconfig.json",
+	"compilerOptions": {
+		"outDir": "../../../../dist/packages/php-wasm/web-builds/7-4",
+		"declaration": true,
+		"types": ["node"]
+	},
+	"include": ["src/**/*.ts"],
+	"exclude": ["**/*.spec.ts", "**/*.test.ts"]
+}

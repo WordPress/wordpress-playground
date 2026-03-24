@@ -1,4 +1,4 @@
-import type { Filesystem } from '@wp-playground/storage';
+import type { ReadableFilesystemBackend } from '@wp-playground/storage';
 import type {
 	BlueprintV1,
 	BlueprintV1Declaration,
@@ -15,7 +15,7 @@ import type { SupportedPHPVersion } from '@php-wasm/universal';
  * A filesystem structure containing a /blueprint.json file and any
  * resources referenced by that blueprint.
  */
-export type BlueprintBundle = Filesystem;
+export type BlueprintBundle = ReadableFilesystemBackend;
 
 export type BlueprintDeclaration =
 	| BlueprintV1Declaration

@@ -28,32 +28,27 @@ describe('PHP Worker', () => {
 		expect(worker.cwd()).toBe('/tmp');
 	});
 
-	it.each(['primary', 'non-primary'])(
-		'chdir() should change cwd for the %s PHP instances',
-		async (instanceType) => {
-			worker.chdir('/tmp');
+	it('chdir() should change cwd for the PHP instances', async () => {
+		worker.chdir('/tmp');
 
-			/**
-			 * Block the primary PHP instance to ensure run()
-			 * creates a fresh PHP instance.
-			 */
-			const { reap } = await handler.processManager.acquirePHPInstance({
-				considerPrimary: instanceType === 'primary',
+		/**
+		 * Block the primary PHP instance to ensure run()
+		 * creates a fresh PHP instance.
+		 */
+		const { reap } = await handler.instanceManager.acquirePHPInstance();
+		try {
+			const response = await worker.run({
+				code: `<?php echo getcwd();`,
 			});
-			try {
-				const response = await worker.run({
-					code: `<?php echo getcwd();`,
-				});
-				expect(response.text).toBe('/tmp');
-			} finally {
-				reap();
-			}
+			expect(response.text).toBe('/tmp');
+		} finally {
+			reap();
 		}
-	);
+	});
 
 	it('addEventListener() should add a listener for all PHP instances spawned by the worker', async () => {
 		const received: any[] = [];
-		worker.addEventListener('runtime.beforeExit', (event) => {
+		worker.addEventListener('request.end', (event) => {
 			received.push(event);
 		});
 		await worker.run({

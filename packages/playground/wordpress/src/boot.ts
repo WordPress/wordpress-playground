@@ -3,8 +3,10 @@ import type {
 	FileNotFoundAction,
 	FileNotFoundGetActionCallback,
 	FileTree,
-	PHPProcessManager,
+	PathAlias,
+	PHPWorker,
 	SpawnHandler,
+	Remote,
 } from '@php-wasm/universal';
 import {
 	PHP,
@@ -23,7 +25,7 @@ import {
 } from '.';
 import { basename, dirname, joinPaths } from '@php-wasm/util';
 import { logger } from '@php-wasm/logger';
-import { ensureWpConfig } from './rewrite-wp-config';
+import { ensureWpConfig } from './wp-config';
 
 export type PhpIniOptions = Record<string, string>;
 export type Hook = (php: PHP) => void | Promise<void>;
@@ -50,6 +52,7 @@ export async function bootWordPressAndRequestHandler(
 export interface BootRequestHandlerOptions {
 	createPhpRuntime: (isPrimary?: boolean) => Promise<number>;
 	onPHPInstanceCreated?: PHPInstanceCreatedHook;
+	maxPhpInstances?: number;
 	/**
 	 * PHP SAPI name to be returned by get_sapi_name(). Overriding
 	 * it is useful for running programs that check for this value,
@@ -62,7 +65,12 @@ export interface BootRequestHandlerOptions {
 	 */
 	siteUrl: string;
 	documentRoot?: string;
-	spawnHandler?: (processManager: PHPProcessManager) => SpawnHandler;
+	spawnHandler?: (
+		getPHPInstance?: () => Promise<{
+			php: PHP | Remote<PHPWorker>;
+			reap: () => void;
+		}>
+	) => SpawnHandler;
 	/**
 	 * PHP.ini entries to define before running any code. They'll
 	 * be used for all requests.
@@ -95,6 +103,19 @@ export interface BootRequestHandlerOptions {
 	 * given request URI.
 	 */
 	getFileNotFoundAction?: FileNotFoundGetActionCallback;
+
+	/**
+	 * Path aliases that map URL prefixes to filesystem paths outside
+	 * the document root. Similar to Nginx's `alias` directive.
+	 *
+	 * @example
+	 * ```ts
+	 * pathAliases: [
+	 *   { urlPrefix: '/phpmyadmin', fsPath: '/tools/phpmyadmin' }
+	 * ]
+	 * ```
+	 */
+	pathAliases?: PathAlias[];
 
 	/**
 	 * The CookieStore instance to use.
@@ -141,6 +162,28 @@ export interface BootWordPressOptions {
 	 */
 	constants?: Record<string, string | number | boolean | null>;
 	/**
+	 * PHP.ini entries to define before running any code. They'll
+	 * be used for all requests.
+	 */
+	phpIniEntries?: PhpIniOptions;
+	/**
+	 * Files to create in the filesystem before any mounts are applied.
+	 *
+	 * Example:
+	 *
+	 * ```ts
+	 * {
+	 * 		createFiles: {
+	 * 			'/tmp/hello.txt': 'Hello, World!',
+	 * 			'/internal/preload': {
+	 * 				'1-custom-mu-plugin.php': '<?php echo "Hello, World!";',
+	 * 			}
+	 * 		}
+	 * }
+	 * ```
+	 */
+	createFiles?: FileTree;
+	/**
 	 * URL to use as the site URL. This is used to set the WP_HOME
 	 * and WP_SITEURL constants in WordPress.
 	 */
@@ -177,7 +220,7 @@ export async function bootWordPress(
 
 	if (options.constants) {
 		for (const key in options.constants) {
-			php.defineConstant(key, options.constants[key] as string);
+			php.defineConstant(key, options.constants[key]);
 		}
 	}
 
@@ -354,10 +397,11 @@ async function assertValidDatabaseConnection(
 }
 
 export async function bootRequestHandler(options: BootRequestHandlerOptions) {
-	const spawnHandler = options.spawnHandler ?? sandboxedSpawnHandlerFactory;
+	const createSpawnHandler =
+		options.spawnHandler ?? sandboxedSpawnHandlerFactory;
 	async function createPhp(
-		requestHandler: PHPRequestHandler,
-		isPrimary: boolean
+		requestHandler?: PHPRequestHandler,
+		isPrimary = false
 	) {
 		const runtimeId = await options.createPhpRuntime(isPrimary);
 		const php = new PHP(runtimeId);
@@ -375,6 +419,13 @@ export async function bootRequestHandler(options: BootRequestHandlerOptions) {
 		// TODO: Remove this once the new driver is the default; when this is closed:
 		//         https://github.com/WordPress/sqlite-database-integration/issues/195
 		php.defineConstant('WP_SQLITE_AST_DRIVER', true);
+
+		// Define any custom constants provided via CLI or configuration
+		if (options.constants) {
+			for (const key in options.constants) {
+				php.defineConstant(key, options.constants[key]);
+			}
+		}
 
 		/**
 		 * Set up mu-plugins in /internal/mu-plugins
@@ -400,6 +451,7 @@ export async function bootRequestHandler(options: BootRequestHandlerOptions) {
 			 */
 			!php.isFile('/internal/.boot-files-written')
 		) {
+			// TODO: There is a race here when multiple workers are calling bootRequestHandler(). Fix it.
 			await setupPlatformLevelMuPlugins(php);
 			await writeFiles(php, '/', options.createFiles || {});
 			await preloadPhpInfoRoute(
@@ -413,9 +465,14 @@ export async function bootRequestHandler(options: BootRequestHandlerOptions) {
 
 		// Spawn handler is responsible for spawning processes for all the
 		// `popen()`, `proc_open()` etc. calls.
-		if (spawnHandler) {
+		if (createSpawnHandler) {
 			await php.setSpawnHandler(
-				spawnHandler(requestHandler.processManager)
+				createSpawnHandler(
+					requestHandler
+						? () =>
+								requestHandler.instanceManager.acquirePHPInstance()
+						: undefined
+				)
 			);
 		}
 
@@ -434,14 +491,34 @@ export async function bootRequestHandler(options: BootRequestHandlerOptions) {
 	}
 
 	const requestHandler: PHPRequestHandler = new PHPRequestHandler({
-		phpFactory: async ({ isPrimary }) =>
-			createPhp(requestHandler, isPrimary),
 		documentRoot: options.documentRoot || '/wordpress',
 		absoluteUrl: options.siteUrl,
 		rewriteRules: wordPressRewriteRules,
+		pathAliases: options.pathAliases,
 		getFileNotFoundAction:
 			options.getFileNotFoundAction ?? getFileNotFoundActionForWordPress,
 		cookieStore: options.cookieStore,
+
+		/**
+		 * If maxPhpInstances is 1, the PHPRequestHandler constructor needs
+		 * a PHP instance. Internally, it creates a SinglePHPInstanceManager
+		 * and uses the same PHP instance to handle all requests.
+		 */
+		php:
+			options.maxPhpInstances === 1
+				? await createPhp(undefined, true)
+				: undefined,
+
+		/**
+		 * If maxPhpInstances is not 1, the PHPRequestHandler constructor needs
+		 * a PHP factory function. Internally, it creates a PHPProcessManager that
+		 * maintains a pool of reusable PHP instances.
+		 */
+		phpFactory:
+			options.maxPhpInstances !== 1
+				? async ({ isPrimary }) => createPhp(requestHandler, isPrimary)
+				: (undefined as any),
+		maxPhpInstances: options.maxPhpInstances,
 	});
 
 	return requestHandler;

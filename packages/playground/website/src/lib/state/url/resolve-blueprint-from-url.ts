@@ -9,9 +9,11 @@ import {
 	isBlueprintBundle,
 	resolveRemoteBlueprint,
 } from '@wp-playground/client';
-import { parseBlueprint } from './router';
+import { OpfsFilesystemBackend } from '@wp-playground/storage';
+import { parseBlueprint, isMcpServerEnabled } from './router';
 import { OverlayFilesystem, InMemoryFilesystem } from '@wp-playground/storage';
 import { RecommendedPHPVersion } from '@wp-playground/common';
+import { logger } from '@php-wasm/logger';
 
 export type BlueprintSource =
 	| {
@@ -19,10 +21,16 @@ export type BlueprintSource =
 			url: string;
 	  }
 	| {
+			type: 'last-autosave';
+	  }
+	| {
 			type: 'inline-string';
 	  }
 	| {
 			type: 'none';
+	  }
+	| {
+			type: 'opfs-site';
 	  };
 
 export type ResolvedBlueprint = {
@@ -78,6 +86,14 @@ export async function resolveBlueprintFromURL(
 			},
 		};
 	} else if (query.has('blueprint-url')) {
+		if (isMcpServerEnabled()) {
+			throw new Error(
+				`Starting a new Playground from a Blueprint is disabled when the MCP server
+				is active to prevent potential prompt injection vulnerabilities.
+				Please remove the "blueprint-url" query parameter to proceed or
+				disable the MCP server by removing the "mcp=yes" query parameter.`
+			);
+		}
 		/*
 		 * Support passing blueprints via query parameter, e.g.:
 		 * ?blueprint-url=https://example.com/blueprint.json
@@ -90,7 +106,34 @@ export async function resolveBlueprintFromURL(
 				url: blueprintUrl,
 			},
 		};
+	} else if (fragment === 'last-autosave') {
+		let bundle = undefined;
+		try {
+			bundle = await OpfsFilesystemBackend.fromPath(
+				'blueprints/last-edited-bundle',
+				true
+			);
+		} catch (error) {
+			logger.error(
+				'Failed to load the last edited blueprint from OPFS',
+				error
+			);
+		}
+		return {
+			blueprint:
+				bundle ||
+				((await resolveRemoteBlueprint(url.href)) as BlueprintV1),
+			source: { type: 'last-autosave' },
+		};
 	} else if (fragment.length) {
+		if (isMcpServerEnabled()) {
+			throw new Error(
+				`Starting a new Playground from a Blueprint is disabled when the MCP server
+				is active to prevent potential prompt injection vulnerabilities.
+				Please remove the Blueprint hash from your URL or
+				disable the MCP server by removing the "mcp=yes" query parameter.`
+			);
+		}
 		/*
 		 * Support passing blueprints in the URI fragment, e.g.:
 		 * /#{"landingPage": "/?p=4"}

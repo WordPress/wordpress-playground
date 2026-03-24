@@ -197,8 +197,8 @@ Para usar Playground como un previsualizador de PR, necesitas:
 -   Public access to the generated `.zip` file
 -->
 
--   Un pipeline de CI que empaquete tu plugin o tema
--   Acceso público al archivo `.zip` generado
+- Un pipeline de CI que empaquete tu plugin o tema
+- Acceso público al archivo `.zip` generado
 
 <!--
 Those zip bundles aren't any different from regular WordPress Plugins, which means you can install them in Playground using the [JSON Blueprints](/blueprints) API. Once you expose an endpoint like https://your-site.com/pull-request-1234.zip, the following Blueprint will do the rest:
@@ -287,9 +287,9 @@ Puedes previsualizar pull requests específicos de los repositorios de WordPress
 -   Preview the Gutenberg trunk branch: `https://playground.wordpress.net/?gutenberg-branch=trunk`
 -->
 
--   Previsualizar un PR específico de WordPress Core: `https://playground.wordpress.net/?core-pr=9500`
--   Previsualizar un PR específico de Gutenberg: `https://playground.wordpress.net/?gutenberg-pr=73010`
--   Previsualizar la rama trunk de Gutenberg: `https://playground.wordpress.net/?gutenberg-branch=trunk`
+- Previsualizar un PR específico de WordPress Core: `https://playground.wordpress.net/?core-pr=9500`
+- Previsualizar un PR específico de Gutenberg: `https://playground.wordpress.net/?gutenberg-pr=73010`
+- Previsualizar la rama trunk de Gutenberg: `https://playground.wordpress.net/?gutenberg-branch=trunk`
 
 <!--
 ## Build a compatibility testing environment

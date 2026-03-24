@@ -16,7 +16,9 @@ jobs:
                 github.actor == 'bgrgicak' ||
                 github.actor == 'brandonpayton' ||
                 github.actor == 'zaerl' ||
-                github.actor == 'janjakes'
+                github.actor == 'janjakes' ||
+                github.actor == 'mho22' ||
+                github.actor == 'ashfame'
             )
 
         runs-on: ubuntu-latest
@@ -29,11 +31,12 @@ jobs:
               with:
                   ref: ${{ github.event.pull_request.head.ref }}
                   clean: true
-                  persist-credentials: false
+                  persist-credentials: true
+                  ssh-key: ${{ secrets.DEPLOY_KEY }}
                   submodules: true
             - uses: ./.github/actions/prepare-playground
               with:
-                  node-version: 23
+                  node-version: 22
             - name: 'Refresh the SQLite bundle'
               shell: bash
               run: npx nx bundle-sqlite-database playground-wordpress-builds
@@ -52,7 +55,6 @@ jobs:
               run: |
                   git config --global user.name "deployment_bot"
                   git config --global user.email "deployment_bot@users.noreply.github.com"
-                  git remote set-url origin https://${{ secrets.GH_ACTOR }}:${{ secrets.GH_TOKEN }}@github.com/${{ github.repository }}
                   git add -A
                   git commit -a -m "Refresh SQLite integration plugin"
                   git pull --rebase

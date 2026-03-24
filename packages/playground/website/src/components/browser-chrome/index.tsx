@@ -12,11 +12,21 @@ import {
 import { SyncLocalFilesButton } from '../sync-local-files-button';
 import { Dropdown, Icon } from '@wordpress/components';
 import { Modal } from '../../components/modal';
-import { cog } from '@wordpress/icons';
+import { cog, category } from '@wordpress/icons';
 import Button from '../button';
 import { ActiveSiteSettingsForm } from '../site-manager/site-settings-form';
 import { setSiteManagerOpen } from '../../lib/state/redux/slice-ui';
 import { SiteManagerIcon } from '@wp-playground/components';
+import {
+	SavedPlaygroundsOverlay,
+	type OverlayViewMode,
+} from '../saved-playgrounds-overlay';
+import { SaveStatusIndicator } from './save-status-indicator';
+import { isSaveDisabledByQueryParam } from '../../lib/state/url/router';
+
+const query = new URL(document.location.href).searchParams;
+const overlayParam = query.get('overlay');
+const shouldOpenOverlay = overlayParam !== null;
 
 interface BrowserChromeProps {
 	children?: React.ReactNode;
@@ -44,9 +54,26 @@ export default function BrowserChrome({
 		className
 	);
 	const isMobileUi = useMediaQuery('(max-width: 875px)');
-	const [isModalOpen, setIsModalOpen] = React.useState(false);
-	const onToggle = () => setIsModalOpen(!isModalOpen);
-	const closeModal = () => setIsModalOpen(false);
+	const [isSettingsModalOpen, setIsSettingsModalOpen] = React.useState(false);
+	const [isPlaygroundsOverlayOpen, setIsPlaygroundsOverlayOpen] =
+		React.useState(shouldOpenOverlay);
+	const [overlayInitialViewMode, setOverlayInitialViewMode] =
+		React.useState<OverlayViewMode>(
+			overlayParam === 'blueprints' ? 'blueprints' : 'main'
+		);
+	const onSettingsToggle = () => setIsSettingsModalOpen(!isSettingsModalOpen);
+	const closeSettingsModal = () => setIsSettingsModalOpen(false);
+	const closePlaygroundsOverlay = () => {
+		setIsPlaygroundsOverlayOpen(false);
+		setOverlayInitialViewMode('main'); // Reset for next manual open
+
+		// Remove overlay parameter from URL so reload doesn't reopen overlay
+		const url = new URL(window.location.href);
+		if (url.searchParams.has('overlay')) {
+			url.searchParams.delete('overlay');
+			window.history.replaceState({}, '', url.toString());
+		}
+	};
 
 	return (
 		<div className={wrapperClass} data-cy="simulated-browser">
@@ -66,7 +93,19 @@ export default function BrowserChrome({
 						/>
 					</div>
 
+					{!isSaveDisabledByQueryParam() && <SaveStatusIndicator />}
+
 					<div className={css.toolbarButtons}>
+						<Button
+							variant="browser-chrome"
+							aria-label="Saved Playgrounds"
+							onClick={() => setIsPlaygroundsOverlayOpen(true)}
+							aria-expanded={isPlaygroundsOverlayOpen}
+							className={css.savedPlaygroundsButton}
+						>
+							<Icon icon={category} size={20} />
+						</Button>
+
 						<Button
 							variant="browser-chrome"
 							aria-label={
@@ -95,8 +134,8 @@ export default function BrowserChrome({
 								<Button
 									variant="browser-chrome"
 									aria-label="Edit Playground settings"
-									onClick={onToggle}
-									aria-expanded={isModalOpen}
+									onClick={onSettingsToggle}
+									aria-expanded={isSettingsModalOpen}
 									style={{
 										fill: '#FFF',
 										alignItems: 'center',
@@ -105,14 +144,14 @@ export default function BrowserChrome({
 								>
 									<Icon icon={cog} size={28} />
 								</Button>
-								{isModalOpen && (
+								{isSettingsModalOpen && (
 									<Modal
 										isFullScreen={true}
 										title="Playground settings"
-										onRequestClose={closeModal}
+										onRequestClose={closeSettingsModal}
 									>
 										<ActiveSiteSettingsForm
-											onSubmit={closeModal}
+											onSubmit={closeSettingsModal}
 										/>
 									</Modal>
 								)}
@@ -164,6 +203,12 @@ export default function BrowserChrome({
 				</header>
 				<div className={css.content}>{children}</div>
 			</div>
+			{isPlaygroundsOverlayOpen && (
+				<SavedPlaygroundsOverlay
+					onClose={closePlaygroundsOverlay}
+					initialViewMode={overlayInitialViewMode}
+				/>
+			)}
 		</div>
 	);
 }

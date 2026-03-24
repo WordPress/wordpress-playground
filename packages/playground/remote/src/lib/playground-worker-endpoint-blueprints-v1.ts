@@ -1,6 +1,9 @@
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import { exposeAPI } from '@php-wasm/web';
-import { PlaygroundWorkerEndpoint } from './playground-worker-endpoint';
+import {
+	PlaygroundWorkerEndpoint,
+	type WorkerBootOptions,
+} from './playground-worker-endpoint';
 import { randomString } from '@php-wasm/util';
 import {
 	getSqliteDriverModuleDetails,
@@ -15,7 +18,6 @@ import { createDirectoryHandleMountHandler } from '@php-wasm/web';
 import type { PHP } from '@php-wasm/universal';
 /* @ts-ignore */
 import { corsProxyUrl as defaultCorsProxyUrl } from 'virtual:cors-proxy-url';
-import type { WorkerBootOptions } from './playground-worker-endpoint';
 
 // post message to parent
 self.postMessage('worker-script-started');
@@ -37,10 +39,12 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 		sqliteDriverVersion = LatestSqliteDriverVersion,
 		phpVersion,
 		sapiName = 'cli',
-		withICU = false,
+		withIntl = false,
 		withNetworking = true,
 		shouldInstallWordPress = true,
+		wordpressInstallMode = 'install-from-existing-files-if-needed',
 		corsProxyUrl,
+		pathAliases,
 	}: WorkerBootOptions) {
 		if (this.booted) {
 			throw new Error('Playground already booted');
@@ -60,11 +64,12 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 			const requestHandler = await this.createRequestHandler({
 				siteUrl,
 				sapiName,
-				withICU,
 				corsProxyUrl,
 				knownRemoteAssetPaths,
+				withIntl,
 				withNetworking,
 				phpVersion: phpVersion!,
+				pathAliases,
 			});
 
 			this.requestedWordPressVersion =
@@ -122,14 +127,13 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 				}
 			}
 
-			let sqliteIntegrationRequest: Promise<Response> | null = null;
 			const sqliteDriverModuleDetails = getSqliteDriverModuleDetails(
 				sqliteDriverVersion!
 			);
 			this.downloadMonitor.expectAssets({
 				[sqliteDriverModuleDetails.url]: sqliteDriverModuleDetails.size,
 			});
-			sqliteIntegrationRequest = this.downloadMonitor.monitorFetch(
+			const sqliteIntegrationRequest = this.downloadMonitor.monitorFetch(
 				fetch(sqliteDriverModuleDetails.url)
 			);
 
@@ -148,21 +152,29 @@ class PlaygroundWorkerEndpointBlueprintsV1 extends PlaygroundWorkerEndpoint {
 							SECURE_AUTH_SALT: randomString(40),
 							LOGGED_IN_SALT: randomString(40),
 							NONCE_SALT: randomString(40),
-					  }
+						}
 					: {},
+				// Passing this even when shouldInstallWordPress is false is counter-intuitive.
+				// Before this line was introduced, `wordpressInstallMode` was always undefined
+				// which defaulted to 'install-from-existing-files'. Using the `-if-needed` variant
+				// saves around 600ms during the boot on a macbook pro so it's worth it.
+				// @TODO: Deprecate the `shouldInstallWordPress` semantics entirely and get the client
+				//        and the Playground website to pass `wordpressInstallMode` directly.
+				wordpressInstallMode,
 				// Do not await the WordPress download or the sqlite integration download.
 				// Let bootWordPress start the PHP runtime download first, and then await
 				// all the ZIP files right before they're used.
-				wordPressZip: shouldInstallWordPress
-					? wordPressRequest!
-							.then((r) => r.blob())
-							.then((b) => new File([b], 'wp.zip'))
-					: undefined,
+
+				// We use .arrayBuffer() and not .blob() here because blob() throws when the
+				// client is low on disk space. Blobs tend to be stored as temporary files,
+				// array buffers tend to be stored in memory.
+				// @see https://github.com/WordPress/wordpress-playground/issues/2769
+				wordPressZip: wordPressRequest
+					?.then((r) => r.arrayBuffer())
+					.then((b) => new File([b], 'wp.zip')),
 				sqliteIntegrationPluginZip: sqliteIntegrationRequest
-					? sqliteIntegrationRequest
-							.then((r) => r.blob())
-							.then((b) => new File([b], 'sqlite.zip'))
-					: undefined,
+					.then((r) => r.arrayBuffer())
+					.then((b) => new File([b], 'sqlite.zip')),
 				hooks: {
 					async beforeWordPressFiles(php: PHP) {
 						for (const mount of mounts) {

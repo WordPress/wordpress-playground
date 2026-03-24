@@ -24,6 +24,7 @@ import {
 import { logger } from '@php-wasm/logger';
 import { setActiveSiteError, type SiteError } from './slice-ui';
 import { RecommendedPHPVersion } from '@wp-playground/common';
+import { findFirewallErrorInCauseChain } from './error-utils';
 
 /**
  * The Site model used to represent a site within Playground.
@@ -136,6 +137,9 @@ export function updateSiteMetadata({
 		getState: () => PlaygroundReduxState
 	) => {
 		const storedSite = selectSiteBySlug(getState(), slug);
+		if (!storedSite) {
+			throw new Error(`Site not found: ${slug}`);
+		}
 		await dispatch(
 			updateSite({
 				slug,
@@ -223,7 +227,11 @@ export function removeSite(slug: string) {
 		if (siteInfo.metadata.storage === 'none') {
 			throw new Error('Cannot remove a temporary site.');
 		}
-		await opfsSiteStorage?.delete(siteInfo.slug);
+		try {
+			await opfsSiteStorage?.delete(siteInfo.slug);
+		} catch (error: any) {
+			logger.error('Error deleting site from OPFS:', error);
+		}
 		dispatch(sitesSlice.actions.removeSite(siteInfo.slug));
 
 		// Select the most recently created site
@@ -337,7 +345,7 @@ export function setTemporarySiteSpec(
 
 		// Then create a new temporary site
 		const defaultBlueprint =
-			'https://raw.githubusercontent.com/WordPress/blueprints/refs/heads/trunk/blueprints/welcome/blueprint.json';
+			'https://raw.githubusercontent.com/WordPress/blueprints/trunk/blueprints/welcome/blueprint.json';
 
 		let resolvedBlueprint: ResolvedBlueprint | undefined = undefined;
 		try {
@@ -350,6 +358,14 @@ export function setTemporarySiteSpec(
 				'Error resolving blueprint: Blueprint could not be downloaded or loaded.',
 				e
 			);
+
+			// Check if the error (or its cause chain) is a FirewallInterferenceError
+			if (findFirewallErrorInCauseChain(e)) {
+				return showTemporarySiteError({
+					error: 'network-firewall-interference',
+					details: e,
+				});
+			}
 
 			return showTemporarySiteError({
 				error: 'blueprint-fetch-failed',

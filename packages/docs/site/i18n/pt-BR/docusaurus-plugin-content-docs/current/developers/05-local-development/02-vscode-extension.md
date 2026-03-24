@@ -17,8 +17,8 @@ Inicie um ambiente de desenvolvimento sem configuração usando a [extensão do 
 <!-- -   **Integrated Development**: Develop WordPress sites directly within VS Code. -->
 <!-- -   **Ease of Use**: Simplifies the development workflow with integrated tools. -->
 
--   **Desenvolvimento Integrado**: Desenvolva sites WordPress diretamente dentro do VS Code.
--   **Facilidade de Uso**: Simplifica o fluxo de trabalho de desenvolvimento com ferramentas integradas.
+- **Desenvolvimento Integrado**: Desenvolva sites WordPress diretamente dentro do VS Code.
+- **Facilidade de Uso**: Simplifica o fluxo de trabalho de desenvolvimento com ferramentas integradas.
 
 <!-- :::info **Documentation** -->
 
@@ -47,6 +47,6 @@ A extensão do VS Code é mantida em um repositório GitHub diferente, [Playgrou
 A extensão vem com uma versão portátil WebAssembly do PHP e configura o WordPress para usar SQLite. Uma vez instalada, tudo que você precisa fazer é clicar no botão **Start WordPress Server** no VS Code:
 
 import Image from '@theme/IdealImage';
-import vsCodeScreenshot from '@site/static/img/start-wordpress-server.png';
+import vsCodeScreenshot from '@site/static/img/start-wordpress-server.webp';
 
 <div style={{maxWidth:350}}><Image img={vsCodeScreenshot} /></div>

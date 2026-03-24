@@ -8,7 +8,7 @@ const baseURL =
 export const playwrightConfig: PlaywrightTestConfig = {
 	testDir: './e2e',
 	/* Run tests in files in parallel */
-	fullyParallel: false,
+	fullyParallel: true,
 	/* Fail the build on CI if you accidentally left test.only in the source code. */
 	forbidOnly: !!process.env.CI,
 	retries: 3,
@@ -39,19 +39,15 @@ export const playwrightConfig: PlaywrightTestConfig = {
 				},
 			},
 		},
-
 		{
 			name: 'firefox',
 			use: { ...devices['Desktop Firefox'] },
 		},
 
-		// Safari runner is disabled in CI – it used to be enabled but the tests
-		// failed randomly without any obvious reason.
-		// @see https://github.com/WordPress/wordpress-playground/pull/2475
-		// {
-		// 	name: 'webkit',
-		// 	use: { ...devices['Desktop Safari'] },
-		// },
+		{
+			name: 'webkit',
+			use: { ...devices['Desktop Safari'] },
+		},
 
 		/* Test against mobile viewports. */
 		// {

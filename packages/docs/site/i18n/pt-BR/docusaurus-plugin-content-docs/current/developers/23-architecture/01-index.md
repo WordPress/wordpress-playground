@@ -17,11 +17,11 @@ O WordPress Playground consiste nos seguintes componentes de alto nível:
 -   Node.js bindings via [@php-wasm/node](https://npmjs.com/package/@php-wasm/node)
 -   [Public API](/developers/apis/) -->
 
--   [WordPress](/developers/architecture/wordpress)
--   [WebAssembly PHP](/developers/architecture/wasm-php-overview)
--   [Vinculações do navegador](/developers/architecture/browser-concepts)
--   Vinculações Node.js via [@php-wasm/node](https://npmjs.com/package/@php-wasm/node)
--   [API Pública](/developers/apis/)
+- [WordPress](/developers/architecture/wordpress)
+- [WebAssembly PHP](/developers/architecture/wasm-php-overview)
+- [Vinculações do navegador](/developers/architecture/browser-concepts)
+- Vinculações Node.js via [@php-wasm/node](https://npmjs.com/package/@php-wasm/node)
+- [API Pública](/developers/apis/)
 
 <!-- Visit each section to learn more about the specific parts of the architecture. -->
 
@@ -42,7 +42,7 @@ O WordPress Playground usa [NX](https://nx.dev/), um sistema de build projetado 
 <!-- The dependencies between Playground packages and projects [are too complex](https://github.com/WordPress/wordpress-playground/pull/151) for a bundler like Webpack, and NX handles this complexity much better: -->
 
 As dependências entre pacotes e projetos do Playground [são muito complexas](https://github.com/WordPress/wordpress-playground/pull/151) para um bundler como Webpack, e o NX lida com essa complexidade muito melhor:
-![Dependency graph](@site/static/img/dependencies.png)
+![Dependency graph](@site/static/img/dependencies.webp)
 
 <!-- To learn more, head over to the [NX developer docs](https://nx.dev/getting-started/intro). -->
 

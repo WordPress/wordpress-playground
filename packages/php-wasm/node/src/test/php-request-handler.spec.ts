@@ -277,7 +277,7 @@ describe.each(configsForRequestTests)(
 						: joinPaths(
 								new URL(absoluteUrl as string).pathname,
 								nonExistentFileUri
-						  );
+							);
 				expect(response).toEqual({
 					httpStatusCode: 200,
 					headers: expect.any(Object),
@@ -343,7 +343,7 @@ describe.each(configsForRequestTests)(
 			expect(response).toEqual({
 				httpStatusCode: 301,
 				headers: {
-					Location: ['/folder/'],
+					location: ['/folder/'],
 				},
 				bytes: expect.any(Uint8Array),
 				errors: '',
@@ -989,7 +989,7 @@ describe('PHPRequestHandler – Loopback call', () => {
 						);
 					}
 					const { php, reap } =
-						await handler.processManager.acquirePHPInstance();
+						await handler.instanceManager.acquirePHPInstance();
 					const result = await php.run({
 						scriptPath: args[1],
 						env: options.env,

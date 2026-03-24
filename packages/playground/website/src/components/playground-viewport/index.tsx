@@ -11,7 +11,6 @@ import {
 } from '../../lib/state/redux/store';
 import { removeClientInfo } from '../../lib/state/redux/slice-clients';
 import { bootSiteClient } from '../../lib/state/redux/boot-site-client';
-import { Spinner } from '@wordpress/components';
 import {
 	selectSiteBySlug,
 	selectSitesLoaded,
@@ -58,6 +57,11 @@ export const PlaygroundViewport = ({
 export const KeepAliveTemporarySitesViewport = () => {
 	const temporarySites = useAppSelector(selectTemporarySites);
 	const activeSite = useActiveSite();
+	// Check if a site slug is set (even if the entity doesn't exist yet).
+	// This handles the transitional state when navigating to create a new site.
+	const activeSiteSlugIsSet = useAppSelector(
+		(state) => !!state.ui.activeSite?.slug
+	);
 	const siteSlugsToRender = useMemo(() => {
 		let sites = temporarySites.filter(
 			(site) => site.slug !== activeSite?.slug
@@ -124,25 +128,25 @@ export const KeepAliveTemporarySitesViewport = () => {
 		]);
 	}, [siteSlugsToRender]);
 
+	const hasVisibleSite = !!slugsSeenSoFar.find(
+		(slug) => slug === activeSite?.slug
+	);
+
 	const sitesFinishedLoading = useAppSelector(selectSitesLoaded);
 	if (!sitesFinishedLoading) {
 		return (
-			<div
-				className={css.fullSize}
-				style={{
-					display: 'flex',
-					justifyContent: 'center',
-					alignItems: 'center',
-				}}
-			>
-				<Spinner style={{ width: '60px', height: '60px' }} />
+			<div className={css.loadingViewport}>
+				<h3 className={css.loadingCaption}>&nbsp;</h3>
+				<div className={css.progressWrapper}>
+					<div className={css.progressBar} />
+				</div>
 			</div>
 		);
 	}
 
 	return (
 		<>
-			{!activeSite && (
+			{!activeSite && !activeSiteSlugIsSet && (
 				// @TODO: Use the dedicated design for this
 				// (the one in Figma with white background and pretty fonts.)
 				<div className={css.fullSize}>
@@ -157,6 +161,14 @@ export const KeepAliveTemporarySitesViewport = () => {
 								Playground.
 							</p>
 						</div>
+					</div>
+				</div>
+			)}
+			{!hasVisibleSite && (
+				<div className={css.loadingViewport}>
+					<h3 className={css.loadingCaption}>&nbsp;</h3>
+					<div className={css.progressWrapper}>
+						<div className={css.progressBar} />
 					</div>
 				</div>
 			)}

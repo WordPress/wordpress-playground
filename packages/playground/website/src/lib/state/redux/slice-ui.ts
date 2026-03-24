@@ -1,6 +1,7 @@
 import type { PayloadAction, Middleware } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
 import { BlueprintStepExecutionError } from '@wp-playground/blueprints';
+import { BREAKPOINTS } from '../../constants/breakpoints';
 
 export type SiteError =
 	| 'directory-handle-not-found-in-indexeddb'
@@ -12,7 +13,9 @@ export type SiteError =
 	| 'github-artifact-expired'
 	| 'blueprint-fetch-failed'
 	| 'blueprint-filesystem-required'
-	| 'blueprint-validation-failed';
+	| 'blueprint-validation-failed'
+	| 'network-firewall-interference'
+	| 'resource-download-failed';
 
 export type SiteManagerSection = 'sidebar' | 'site-details' | 'blueprints';
 
@@ -20,7 +23,6 @@ export const modalSlugs = {
 	LOG: 'log',
 	ERROR_REPORT: 'error-report',
 	START_ERROR: 'start-error',
-	IMPORT_FORM: 'import-form',
 	GITHUB_IMPORT: 'github-import',
 	GITHUB_EXPORT: 'github-export',
 	GITHUB_PRIVATE_REPO_AUTH: 'github-private-repo-auth',
@@ -29,16 +31,17 @@ export const modalSlugs = {
 	MISSING_SITE_PROMPT: 'missing-site-prompt',
 	RENAME_SITE: 'rename-site',
 	SAVE_SITE: 'save-site',
+	BLUEPRINT_URL: 'blueprint-url',
 } as const;
 
 export type SerializedPlainErrorDetails = {
 	message?: string;
 	name?: string;
 	stack?: string;
+	url?: string;
 };
 
-export interface SerializedBlueprintStepErrorDetails
-	extends SerializedPlainErrorDetails {
+export interface SerializedBlueprintStepErrorDetails extends SerializedPlainErrorDetails {
 	type: 'blueprint-step-error';
 	stepNumber: number;
 	step: Record<string, unknown>;
@@ -55,6 +58,21 @@ const serializeSiteErrorDetails = (
 	details?: unknown
 ): SerializedSiteErrorDetails | undefined => {
 	if (details instanceof BlueprintStepExecutionError) {
+		// Look for a url property in the cause chain
+		let url: string | undefined;
+		let current: unknown = details.cause;
+		while (current && !url) {
+			if (
+				current &&
+				typeof current === 'object' &&
+				'url' in current &&
+				typeof (current as any).url === 'string'
+			) {
+				url = (current as any).url;
+			}
+			current = current instanceof Error ? current.cause : undefined;
+		}
+
 		return {
 			type: 'blueprint-step-error',
 			stepNumber: details.stepNumber,
@@ -67,6 +85,7 @@ const serializeSiteErrorDetails = (
 					: details.message,
 			name: details.name,
 			stack: details.stack,
+			url,
 		};
 	}
 	if (details instanceof Error) {
@@ -74,6 +93,10 @@ const serializeSiteErrorDetails = (
 			message: details.message,
 			name: details.name,
 			stack: details.stack,
+			url:
+				'url' in details && typeof details.url === 'string'
+					? details.url
+					: undefined,
 		};
 	}
 	if (typeof details === 'string') {
@@ -95,11 +118,16 @@ const serializeSiteErrorDetails = (
 			'stack' in details && typeof (details as any).stack === 'string'
 				? (details as any).stack
 				: undefined;
-		if (maybeMessage || maybeName || maybeStack) {
+		const maybeUrl =
+			'url' in details && typeof (details as any).url === 'string'
+				? (details as any).url
+				: undefined;
+		if (maybeMessage || maybeName || maybeStack || maybeUrl) {
 			return {
 				message: maybeMessage,
 				name: maybeName,
 				stack: maybeStack,
+				url: maybeUrl,
 			};
 		}
 	}
@@ -117,6 +145,7 @@ export interface UIState {
 		errorDetails?: SerializedSiteErrorDetails;
 	};
 	activeModal: string | null;
+	siteSlugToRename?: string;
 	githubAuthRepoUrl?: string;
 	offline: boolean;
 	siteManagerIsOpen: boolean;
@@ -125,8 +154,6 @@ export interface UIState {
 
 const query = new URL(document.location.href).searchParams;
 const isEmbeddedInAnIframe = window.self !== window.top;
-// @TODO: Centralize these breakpoint sizes.
-const isMobile = window.innerWidth < 875;
 
 const shouldOpenSiteManagerByDefault = false;
 
@@ -155,10 +182,10 @@ const initialState: UIState = {
 		query.get('mode') !== 'seamless' &&
 		// We do not expect to render the Playground app UI in an iframe.
 		!isEmbeddedInAnIframe &&
-		// Don't default to the site manager on mobile, as that would mean
-		// seeing something that's not Playground filling your entire screen –
-		// quite a confusing experience.
-		!isMobile,
+		// Don't default to the site manager on small screens (mobile/tablet),
+		// as that would mean seeing something that's not Playground filling
+		// your entire screen – quite a confusing experience.
+		window.innerWidth >= BREAKPOINTS.tablet,
 	siteManagerSection: 'site-details',
 };
 
@@ -230,6 +257,12 @@ const uiSlice = createSlice({
 		) => {
 			state.siteManagerSection = action.payload;
 		},
+		setSiteSlugToRename: (
+			state,
+			action: PayloadAction<string | undefined>
+		) => {
+			state.siteSlugToRename = action.payload;
+		},
 	},
 });
 
@@ -274,6 +307,7 @@ export const {
 	setOffline,
 	setSiteManagerOpen,
 	setSiteManagerSection,
+	setSiteSlugToRename,
 } = uiSlice.actions;
 
 export default uiSlice.reducer;

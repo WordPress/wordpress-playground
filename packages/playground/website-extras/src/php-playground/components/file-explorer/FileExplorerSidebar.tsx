@@ -1,10 +1,10 @@
 import React, { useMemo, useRef, useState } from 'react';
 import styles from './FileExplorer.module.css';
-import { FilePickerTree } from '@wp-playground/components';
-import type {
-	AsyncWritableFilesystem,
-	FilePickerTreeHandle,
+import {
+	FilePickerTree,
+	type FilePickerTreeHandle,
 } from '@wp-playground/components';
+import type { AsyncWritableFilesystem } from '@wp-playground/storage';
 import { useAppDispatch } from '../../hooks';
 import { setCode, setCurrentPath } from '../../store';
 import { DEFAULT_WORKSPACE_DIR } from '../../constants';
@@ -83,7 +83,7 @@ export default function FileExplorerSidebar({
 			forceSelectedPath ??
 				(currentPath
 					? dirnameSafe(currentPath)
-					: selectedDirPath ?? DEFAULT_WORKSPACE_DIR)
+					: (selectedDirPath ?? DEFAULT_WORKSPACE_DIR))
 		);
 		// Remove selectedDirPath from dependencies to prevent unwanted updates
 		// eslint-disable-next-line react-hooks/exhaustive-deps
@@ -161,8 +161,9 @@ export default function FileExplorerSidebar({
 							return;
 						}
 						try {
-							const data = await filesystem.readFileAsBuffer(
-								path
+							const file = await filesystem.read(path);
+							const data = new Uint8Array(
+								await file.arrayBuffer()
 							);
 							const size = data.byteLength;
 							if (size > MAX_INLINE_BYTES) {

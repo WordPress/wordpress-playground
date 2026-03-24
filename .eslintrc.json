@@ -22,6 +22,12 @@
 								"notDependOnLibsWithTags": [
 									"scope:php-binaries"
 								]
+							},
+							{
+								"sourceTag": "scope:cli",
+								"notDependOnLibsWithTags": [
+									"scope:browser-only"
+								]
 							}
 						]
 					}
@@ -78,7 +84,9 @@
 				"no-constant-condition": 0,
 				"playground-dev/avoid-wordpress-builds-dependency": "error",
 				// Node.js type stripping requires explicit type imports.
-				"@typescript-eslint/consistent-type-imports": "error"
+				"@typescript-eslint/consistent-type-imports": "error",
+				// Disallow TypeScript parameter properties unsupported by Node.js type stripping.
+				"@typescript-eslint/parameter-properties": "error"
 			}
 		},
 		{

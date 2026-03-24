@@ -305,23 +305,39 @@ export class FSHelpers {
 		fromPath: string,
 		toPath: string
 	) {
-		const fromNode = FS.lookupPath(fromPath).node;
-		if (FS.isDir(fromNode.mode)) {
-			FS.mkdirTree(toPath);
-			const filenames = FS.readdir(fromPath).filter(
-				(name: string) => name !== '.' && name !== '..'
-			);
-			for (const filename of filenames) {
-				FSHelpers.copyRecursive(
-					FS,
-					joinPaths(fromPath, filename),
-					joinPaths(toPath, filename)
+		try {
+			const fromNode = FS.lookupPath(fromPath).node;
+			if (FS.isDir(fromNode.mode)) {
+				// Prevent copying directory into itself
+				if (fromPath === toPath || toPath.startsWith(`${fromPath}/`))
+					throw new ErrnoError(28);
+				FS.mkdirTree(toPath);
+				const filenames = FS.readdir(fromPath).filter(
+					(name: string) => name !== '.' && name !== '..'
 				);
+				for (const filename of filenames) {
+					FSHelpers.copyRecursive(
+						FS,
+						joinPaths(fromPath, filename),
+						joinPaths(toPath, filename)
+					);
+				}
+			} else if (FS.isLink(fromNode.mode)) {
+				FS.symlink(FS.readlink(fromPath), toPath);
+			} else {
+				FS.writeFile(toPath, FS.readFile(fromPath));
 			}
-		} else if (FS.isLink(fromNode.mode)) {
-			FS.symlink(FS.readlink(fromPath), toPath);
-		} else {
-			FS.writeFile(toPath, FS.readFile(fromPath));
+		} catch (e) {
+			const errmsg = getEmscriptenFsError(e);
+			if (!errmsg) {
+				throw e;
+			}
+			throw new Error(
+				`Could not copy ${fromPath} to ${toPath}: ${errmsg}`,
+				{
+					cause: e,
+				}
+			);
 		}
 	}
 }
@@ -363,6 +379,3 @@ FSHelpers.fileExists = rethrowFileSystemError('Could not stat "{path}"')(
 FSHelpers.mkdir = rethrowFileSystemError('Could not create directory "{path}"')(
 	FSHelpers.mkdir
 );
-FSHelpers.copyRecursive = rethrowFileSystemError(
-	'Could not copy files from "{path}"'
-)(FSHelpers.copyRecursive);

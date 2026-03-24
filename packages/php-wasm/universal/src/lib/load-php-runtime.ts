@@ -186,8 +186,56 @@ declare const WorkerGlobalScope: object | undefined;
 
 export type PHPRuntimeId = number;
 
-export function getLoadedRuntime(id: PHPRuntimeId): PHPRuntime {
-	return loadedRuntimes.get(id);
+/**
+ * Retrieves a PHP runtime by its ID and removes it from the internal registry.
+ *
+ * When you call `loadPHPRuntime()`, it creates an Emscripten-based PHP instance and
+ * stores it in a module-level Map keyed by a numeric ID. This function is the only
+ * way to retrieve that runtime object so you can actually use it.
+ *
+ * The "pop" semantic is intentional: retrieving a runtime also removes it from the
+ * registry. This prevents memory leaks since the registry would otherwise hold
+ * references to every runtime ever created. Once you pop a runtime, you own it and
+ * are responsible for its lifecycle.
+ *
+ * Typical usage flow:
+ * ```ts
+ * // 1. Load a PHP runtime (returns just the ID)
+ * const runtimeId = await loadPHPRuntime(phpLoaderModule);
+ *
+ * // 2. Pop the runtime to get the actual Emscripten module
+ * const phpRuntime = popLoadedRuntime(runtimeId);
+ *
+ * // 3. Now you can use phpRuntime to run PHP code, access the filesystem, etc.
+ * ```
+ *
+ * @param id - The numeric ID returned by `loadPHPRuntime()`.
+ * @param options.dangerouslyKeepTheRuntimeInTheMap - Test-only escape hatch. When true,
+ *        retrieves the runtime without removing it from the registry. This violates
+ *        the function's contract and only works when `process.env.TEST` is set.
+ *        Never use this in production code.
+ * @returns The PHP runtime object (an Emscripten module instance).
+ * @throws If no runtime exists with the given ID.
+ */
+export function popLoadedRuntime(
+	id: PHPRuntimeId,
+	{
+		dangerouslyKeepTheRuntimeInTheMap = false,
+	}: { dangerouslyKeepTheRuntimeInTheMap?: boolean } = {}
+): PHPRuntime {
+	const runtime = loadedRuntimes.get(id);
+	if (!runtime) {
+		throw new Error(`Runtime with id ${id} not found`);
+	}
+	if (dangerouslyKeepTheRuntimeInTheMap) {
+		if (!process?.env?.['TEST']) {
+			throw new Error('Cannot pop runtime in non-test environment');
+		}
+		return runtime;
+	}
+
+	loadedRuntimes.delete(id);
+	return runtime;
 }
 
 export const currentJsRuntime = (function () {

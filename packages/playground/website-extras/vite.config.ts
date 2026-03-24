@@ -4,9 +4,7 @@ import react from '@vitejs/plugin-react';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { viteTsConfigPaths } from '../../vite-extensions/vite-ts-config-paths';
 // eslint-disable-next-line @nx/enforce-module-boundaries
-import ignoreWasmImports from '../ignore-wasm-imports';
-// eslint-disable-next-line @nx/enforce-module-boundaries
-import ignoreDataImports from '../ignore-data-imports';
+import { viteIgnoreImports } from '../../vite-extensions/vite-ignore-imports';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import {
 	websiteExtrasDevServerPort,
@@ -26,11 +24,14 @@ export default defineConfig(({ mode }) => {
 		'CORS_PROXY_URL' in process.env
 			? process.env.CORS_PROXY_URL
 			: mode === 'production'
-			? 'https://wordpress-playground-cors-proxy.net/?'
-			: 'http://127.0.0.1:5263/cors-proxy.php?';
+				? 'https://wordpress-playground-cors-proxy.net/?'
+				: 'http://127.0.0.1:5263/cors-proxy.php?';
 
 	return {
+		root: __dirname,
 		base: mode === 'production' ? '/' : '/website-extras/',
+
+		assetsInclude: ['**/*.so'],
 
 		cacheDir:
 			'../../../node_modules/.vite/packages-playground-website-extras',
@@ -62,8 +63,9 @@ export default defineConfig(({ mode }) => {
 			viteTsConfigPaths({
 				root: '../../../',
 			}),
-			ignoreWasmImports(),
-			ignoreDataImports(),
+			viteIgnoreImports({
+				extensions: ['wasm', 'dat'],
+			}),
 			...viteGlobalExtensions,
 			buildVersionPlugin('website-config'),
 			virtualModule({
@@ -82,6 +84,12 @@ export default defineConfig(({ mode }) => {
 				input: {
 					'beta-php-playground.html': fileURLToPath(
 						new URL('./beta-php-playground.html', import.meta.url)
+					),
+					'playground-block-frame.html': fileURLToPath(
+						new URL(
+							'./playground-block-frame.html',
+							import.meta.url
+						)
 					),
 				},
 				external: [],

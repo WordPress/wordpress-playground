@@ -9,7 +9,7 @@ import {
 	removeClientInfo,
 	updateClientInfo,
 } from './slice-clients';
-import { logTrackingEvent } from '../../tracking';
+import { logBlueprintEvents, logTrackingEvent } from '../../tracking';
 import {
 	type Blueprint,
 	BlueprintFilesystemRequiredError,
@@ -34,6 +34,11 @@ import {
 	createGitAuthHeaders,
 	shouldShowGitHubAuthModal,
 } from '../../../github/git-auth-helpers';
+import {
+	findFirewallErrorInCauseChain,
+	findDownloadErrorInCauseChain,
+} from './error-utils';
+import { PHPMYADMIN_INSTALL_PATH } from '@wp-playground/tools';
 
 export function bootSiteClient(
 	siteSlug: string,
@@ -150,16 +155,8 @@ export function bootSiteClient(
 					playground = (window as any)['playground'] =
 						playgroundClient;
 				},
-				// Log the names of provided Blueprint's steps.
-				// Only the names (e.g. "runPhp" or "login") are logged. Step options like
-				// code, password, URLs are never sent anywhere.
-				onBlueprintValidated: (blueprint) => {
-					for (const step of blueprint.steps || []) {
-						if (typeof step === 'object' && step?.step) {
-							logTrackingEvent('step', { step: step.step });
-						}
-					}
-				},
+				// Log Blueprint events
+				onBlueprintValidated: logBlueprintEvents,
 				mounts: mountDescriptor
 					? [
 							{
@@ -171,10 +168,18 @@ export function bootSiteClient(
 				shouldInstallWordPress: !isWordPressInstalled,
 				corsProxy: corsProxyUrl,
 				gitAdditionalHeadersCallback: createGitAuthHeaders(),
+				pathAliases: [
+					{
+						urlPrefix: '/phpmyadmin',
+						fsPath: PHPMYADMIN_INSTALL_PATH,
+					},
+				],
 			});
 		} catch (e) {
 			logger.error(e);
+			logTrackingEvent('error', { source: 'bootSiteClient' });
 
+			const firewallError = findFirewallErrorInCauseChain(e);
 			if (
 				(e as any).name === 'ArtifactExpiredError' ||
 				(e as any).originalErrorClassName === 'ArtifactExpiredError'
@@ -196,6 +201,20 @@ export function bootSiteClient(
 				dispatch(
 					setActiveSiteError({
 						error: 'blueprint-validation-failed',
+						details: e,
+					})
+				);
+			} else if (firewallError) {
+				dispatch(
+					setActiveSiteError({
+						error: 'network-firewall-interference',
+						details: firewallError,
+					})
+				);
+			} else if (findDownloadErrorInCauseChain(e)) {
+				dispatch(
+					setActiveSiteError({
+						error: 'resource-download-failed',
 						details: e,
 					})
 				);
@@ -234,6 +253,8 @@ export function bootSiteClient(
 					})
 				);
 			}
+			// Don't continue to client setup after an error
+			return;
 		}
 
 		if (signal.aborted || !playground) {
@@ -294,7 +315,7 @@ export async function playgroundAvailableInOpfs(
 		/**
 		 * Assume it's a Playground directory if these files exist:
 		 * - wp-config.php
-		 * - wp-content/database/.ht.sqlite
+		 * - wp-content/database/.ht.sqlite.php
 		 */
 		await dirHandle.getFileHandle('wp-config.php', { create: false });
 		const wpContent = await dirHandle.getDirectoryHandle('wp-content', {
@@ -303,7 +324,7 @@ export async function playgroundAvailableInOpfs(
 		const database = await wpContent.getDirectoryHandle('database', {
 			create: false,
 		});
-		await database.getFileHandle('.ht.sqlite', { create: false });
+		await database.getFileHandle('.ht.sqlite.php', { create: false });
 	} catch {
 		return false;
 	}

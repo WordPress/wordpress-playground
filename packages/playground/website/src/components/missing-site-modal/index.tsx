@@ -32,7 +32,7 @@ export function MissingSiteModal() {
 		<Modal
 			title="Save to browser storage?"
 			contentLabel="This is a dialog window which overlays the main content of the
-				page. It offers the user a choice between using a temporary Playground
+				page. It offers the user a choice between using an Unsaved Playground
 				and a persistent Playground that is saved to browser storage."
 			isDismissible={false}
 			shouldCloseOnClickOutside={false}
@@ -40,7 +40,7 @@ export function MissingSiteModal() {
 		>
 			<p>
 				The <b>{activeSite.metadata.name}</b> Playground does not exist,
-				so we loaded a temporary Playground instead.
+				so we loaded an Unsaved Playground instead.
 			</p>
 			<p>
 				If you want to preserve your changes, you can save the
@@ -83,7 +83,7 @@ export function MissingSiteModal() {
 							closeModal();
 						}}
 					>
-						Keep using a temporary Playground
+						Keep using an Unsaved Playground
 					</Button>
 				</FlexItem>
 			</Flex>

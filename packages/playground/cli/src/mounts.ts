@@ -3,11 +3,7 @@ import type { PHP } from '@php-wasm/universal';
 import fs, { existsSync } from 'fs';
 import path, { basename, join } from 'path';
 import type { RunCLIArgs } from './run-cli';
-
-export interface Mount {
-	hostPath: string;
-	vfsPath: string;
-}
+import type { Mount } from '@php-wasm/cli-util';
 
 /**
  * Parse an array of mount argument strings where the host path and VFS path
@@ -125,11 +121,13 @@ export function expandAutoMounts(args: RunCLIArgs): RunCLIArgs {
 		],
 	};
 
-	if (isPluginFilename(path)) {
+	if (isPluginDirectory(path)) {
 		const pluginName = basename(path);
+		const vfsPath = `/wordpress/wp-content/plugins/${pluginName}`;
 		mount.push({
 			hostPath: path,
-			vfsPath: `/wordpress/wp-content/plugins/${pluginName}`,
+			vfsPath,
+			autoMounted: true,
 		});
 		newArgs['additional-blueprint-steps'].push({
 			step: 'activatePlugin',
@@ -137,20 +135,22 @@ export function expandAutoMounts(args: RunCLIArgs): RunCLIArgs {
 		});
 	} else if (isThemeDirectory(path)) {
 		const themeName = basename(path);
+		const vfsPath = `/wordpress/wp-content/themes/${themeName}`;
 		mount.push({
 			hostPath: path,
-			vfsPath: `/wordpress/wp-content/themes/${themeName}`,
+			vfsPath,
+			autoMounted: true,
 		});
 		newArgs['additional-blueprint-steps'].push(
 			args['experimental-blueprints-v2-runner']
 				? {
 						step: 'activateTheme',
 						themeDirectoryName: themeName,
-				  }
+					}
 				: {
 						step: 'activateTheme',
 						themeFolderName: themeName,
-				  }
+					}
 		);
 	} else if (containsWpContentDirectories(path)) {
 		/**
@@ -169,11 +169,16 @@ export function expandAutoMounts(args: RunCLIArgs): RunCLIArgs {
 			mount.push({
 				hostPath: `${path}/${file}`,
 				vfsPath: `/wordpress/wp-content/${file}`,
+				autoMounted: true,
 			});
 		}
 		newArgs['additional-blueprint-steps'].push(ACTIVATE_FIRST_THEME_STEP);
 	} else if (containsFullWordPressInstallation(path)) {
-		mountBeforeInstall.push({ hostPath: path, vfsPath: '/wordpress' });
+		mountBeforeInstall.push({
+			hostPath: path,
+			vfsPath: '/wordpress',
+			autoMounted: true,
+		});
 		// @TODO: If overriding another mode, throw an error or print a warning.
 		newArgs.mode = 'apply-to-existing-site';
 		newArgs['additional-blueprint-steps'].push(ACTIVATE_FIRST_THEME_STEP);
@@ -181,14 +186,6 @@ export function expandAutoMounts(args: RunCLIArgs): RunCLIArgs {
 			newArgs.wordpressInstallMode =
 				'install-from-existing-files-if-needed';
 		}
-	} else {
-		/**
-		 * By default, mount the current working directory as the Playground root.
-		 * This allows users to run and PHP or HTML files using the Playground CLI.
-		 */
-		mount.push({ hostPath: path, vfsPath: '/wordpress' });
-		// @TODO: If overriding another mode, throw an error or print a warning.
-		newArgs.mode = 'mount-only';
 	}
 
 	return newArgs as RunCLIArgs;
@@ -223,7 +220,7 @@ export function isThemeDirectory(path: string): boolean {
 	return !!themeNameRegex.exec(styleCssContent);
 }
 
-export function isPluginFilename(path: string): boolean {
+export function isPluginDirectory(path: string): boolean {
 	const files = fs.readdirSync(path);
 	const pluginNameRegex = /^(?:[ \t]*<\?php)?[ \t/*#@]*Plugin Name:(.*)$/im;
 	const pluginNameMatch = files

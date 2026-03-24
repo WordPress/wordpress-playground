@@ -2,73 +2,95 @@ name: Release NPM packages
 
 on:
     workflow_dispatch:
-        # Require a version bump (patch, minor, major) and an optional dist tag
         inputs:
             version_bump:
                 description: 'Version bump (patch, minor, or major)'
                 required: true
                 default: 'patch'
             dist_tag:
-                description: 'Dist tag (latest, next, etc.)'
+                description: 'Dist tag (latest, next, etc.). Must be non-"latest" when publishing from a non-trunk branch.'
                 required: false
                 default: 'latest'
     schedule:
         # Auto-publish every Monday
         - cron: '0 9 * * 1'
 
+permissions:
+    id-token: write
+    contents: write
+
 jobs:
     release:
-        # Only run this workflow from the trunk branch and when it's triggered by a Playground maintainer
+        # Only allow Playground maintainers to trigger this workflow.
+        # Non-trunk branches are allowed but require a custom dist tag (not "latest").
         if: >
-            github.ref == 'refs/heads/trunk' && (
-                github.actor == 'adamziel' ||
-                github.actor == 'dmsnell' ||
-                github.actor == 'bgrgicak' ||
-                github.actor == 'brandonpayton' ||
-                github.actor == 'zaerl' ||
-                github.actor == 'janjakes'
+            (
+              github.actor == 'adamziel' ||
+              github.actor == 'dmsnell' ||
+              github.actor == 'bgrgicak' ||
+              github.actor == 'brandonpayton' ||
+              github.actor == 'zaerl' ||
+              github.actor == 'janjakes' ||
+              github.actor == 'mho22' ||
+              github.actor == 'ashfame'
             )
 
-        # Specify runner + deployment step
         runs-on: ubuntu-latest
         environment:
             name: npm
-        env:
-            NPM_TOKEN: ${{ secrets.NPM_AUTOMATION_TOKEN }}
-            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
         steps:
+            - name: Require custom dist tag for non-trunk branches
+              if: github.ref != 'refs/heads/trunk' && (inputs.dist_tag == 'latest' || inputs.dist_tag == '')
+              run: |
+                  echo "::error::Publishing from a non-trunk branch requires a custom dist tag (not 'latest')."
+                  echo "Please re-run this workflow and set the dist_tag input to something like 'next', 'canary', or 'beta'."
+                  exit 1
+
             - name: Free up runner disk space
-              shell: bash
               run: |
                   set -euo pipefail
-                  echo "Disk usage before cleanup:"
                   df -h
                   sudo rm -rf /usr/local/lib/android
                   sudo rm -rf /usr/share/dotnet
                   sudo rm -rf "$AGENT_TOOLSDIRECTORY"
                   sudo rm -rf /opt/ghc
                   sudo rm -rf /opt/hostedtoolcache/CodeQL
-                  echo "Disk usage after cleanup:"
                   df -h
+
             - uses: actions/checkout@v4
               with:
-                  ref: ${{ github.event.pull_request.head.ref }}
+                  ref: ${{ github.ref }}
                   clean: true
-                  persist-credentials: false
+                  persist-credentials: true
+                  ssh-key: ${{ secrets.DEPLOY_KEY }}
                   submodules: true
-            - name: Config git user
+
+            - name: Configure git
               run: |
                   git config --global user.name "deployment_bot"
                   git config --global user.email "deployment_bot@users.noreply.github.com"
-                  git remote set-url origin https://${{ secrets.GH_ACTOR }}:${{ secrets.GH_TOKEN }}@github.com/${{ github.repository }}
-            - name: Authenticate with Registry
-              run: |
-                  echo "@php-wasm:registry=https://registry.npmjs.org/" > ~/.npmrc
-                  echo "@wp-playground:registry=https://registry.npmjs.org/" >> ~/.npmrc
-                  echo "registry=https://registry.npmjs.org/" >> ~/.npmrc
-                  echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
+
+            - name: Set up Node.js with OIDC
+              uses: actions/setup-node@v4
+              with:
+                  node-version: '20'
+                  registry-url: 'https://registry.npmjs.org'
+                  cache: 'npm'
+
+            # npm 11.5.1+ is required for trusted publisher OIDC authentication
+            - name: Upgrade npm for trusted publishing
+              run: npm install -g npm@latest lerna@9
+
             - uses: ./.github/actions/prepare-playground
-            # Version bump, release, tag a new version on GitHub
-            - name: Release new version of NPM packages
-              shell: bash
-              run: npx lerna@6.6.2 publish ${{ inputs.version_bump || 'patch' }} --yes --no-private --loglevel=verbose --dist-tag=${{ inputs.dist_tag || 'latest' }}
+
+            - name: Publish NPM packages
+              # Version bump, release, tag a new version on GitHub.
+              # On non-trunk branches, --no-push avoids pushing the version
+              # bump commit back to the branch. The published packages still
+              # get the version bump in their package.json on npm.
+              run: >
+                  lerna publish ${{ inputs.version_bump || 'patch' }}
+                  --yes --no-private --loglevel=verbose
+                  --dist-tag=${{ inputs.dist_tag || 'latest' }}
+                  ${{ github.ref != 'refs/heads/trunk' && '--no-push --no-git-tag-version' || '' }}

@@ -42,7 +42,7 @@ import { TLS_1_2_Connection } from './tls/1_2/connection';
 import type { GeneratedCertificate } from './tls/certificates';
 import { generateCertificate } from './tls/certificates';
 import { ContentTypes } from './tls/1_2/types';
-import { fetchWithCorsProxy } from './fetch-with-cors-proxy';
+import { fetchWithCorsProxy } from '@php-wasm/web-service-worker';
 import { ChunkedDecoderStream } from './chunked-decoder';
 import type { EmscriptenOptions } from '@php-wasm/universal';
 import { concatUint8Arrays } from '@php-wasm/util';
@@ -324,11 +324,26 @@ export class TCPOverFetchWebsocket {
 		]);
 
 		// Connect the TLS server end to the fetch() request
-		const request = await RawBytesFetch.parseHttpRequest(
-			tlsConnection.serverEnd.upstream.readable,
-			this.host,
-			'https'
-		);
+		const { request, expectsContinue } =
+			await RawBytesFetch.parseHttpRequest(
+				tlsConnection.serverEnd.upstream.readable,
+				this.host,
+				'https'
+			);
+		// When PHP's curl sends "Expect: 100-continue" (e.g. for CurlFile
+		// uploads with bodies > 1024 bytes), it pauses after sending the
+		// headers and waits for a "100 Continue" response before sending
+		// the body. We must send that response back through the TLS tunnel
+		// to unblock curl, otherwise the body stream will never arrive
+		// and we'll deadlock.
+		if (expectsContinue) {
+			const writer =
+				tlsConnection.serverEnd.downstream.writable.getWriter();
+			await writer.write(
+				new TextEncoder().encode('HTTP/1.1 100 Continue\r\n\r\n')
+			);
+			writer.releaseLock();
+		}
 		try {
 			await RawBytesFetch.fetchRawResponseBytes(
 				request,
@@ -345,11 +360,25 @@ export class TCPOverFetchWebsocket {
 
 	async fetchOverHTTP() {
 		// Connect this WebSocket's client end to the fetch() request
-		const request = await RawBytesFetch.parseHttpRequest(
-			this.clientUpstream.readable,
-			this.host,
-			'http'
-		);
+		const { request, expectsContinue } =
+			await RawBytesFetch.parseHttpRequest(
+				this.clientUpstream.readable,
+				this.host,
+				'http'
+			);
+		// When PHP's curl sends "Expect: 100-continue" (e.g. for CurlFile
+		// uploads with bodies > 1024 bytes), it pauses after sending the
+		// headers and waits for a "100 Continue" response before sending
+		// the body. We must send that response back to unblock curl,
+		// otherwise the body stream will never arrive and we'll deadlock.
+		if (expectsContinue) {
+			const writer = this.clientDownstream.writable.getWriter();
+			await writer.write(
+				new TextEncoder().encode('HTTP/1.1 100 Continue\r\n\r\n')
+			);
+			writer.releaseLock();
+		}
+
 		try {
 			await RawBytesFetch.fetchRawResponseBytes(
 				request,
@@ -547,6 +576,12 @@ export class RawBytesFetch {
 		 * for the details.
 		 */
 		delete headersObject['content-length'];
+		// The browser decompresses the response body transparently, but
+		// the Content-Encoding header may still be present. Passing it
+		// through would tell PHP's curl the body is compressed when it's
+		// actually already decompressed, causing decode failures (e.g.,
+		// curl rejecting an unrecognized "br" encoding).
+		delete headersObject['content-encoding'];
 		headersObject['transfer-encoding'] = 'chunked';
 
 		const headers: string[] = [];
@@ -614,7 +649,17 @@ export class RawBytesFetch {
 					if (bodyBytes.length > 0) {
 						controller.enqueue(bodyBytes);
 					}
-					if (requestDataExhausted) {
+					// Close the stream immediately if we already have the
+					// full body. This happens when curl sends the headers
+					// and body together (small bodies without Expect:
+					// 100-continue). Without this check, pull() would
+					// block forever waiting for upstream data that will
+					// never arrive.
+					const bodyAlreadyComplete =
+						terminationMode === 'content-length' &&
+						contentLength !== undefined &&
+						seenBytes >= contentLength;
+					if (requestDataExhausted || bodyAlreadyComplete) {
 						controller.close();
 					}
 				},
@@ -687,15 +732,17 @@ export class RawBytesFetch {
 		const hostname = parsedHeaders.headers.get('Host') ?? host;
 		const url = new URL(parsedHeaders.path, protocol + '://' + hostname);
 
-		return new Request(url.toString(), {
+		const request = new Request(url.toString(), {
 			method: parsedHeaders.method,
 			headers: parsedHeaders.headers,
 			body: outboundBodyStream,
-			// In Node.js, duplex: 'half' is required when
-			// the body stream is provided.
-			// @ts-expect-error
-			duplex: 'half',
+			// @ts-expect-error duplex is required for streaming request bodies
+			duplex: outboundBodyStream ? 'half' : undefined,
 		});
+		return {
+			request,
+			expectsContinue: parsedHeaders.expectsContinue,
+		};
 	}
 
 	private static parseRequestHeaders(httpRequestBytes: Uint8Array) {
@@ -708,11 +755,26 @@ export class RawBytesFetch {
 			if (line === '') {
 				break;
 			}
-			const [name, value] = line.split(': ');
-			headers.set(name, value);
+			const colonIndex = line.indexOf(':');
+			if (colonIndex === -1) {
+				continue;
+			}
+			const name = line.slice(0, colonIndex).trim();
+			const value = line.slice(colonIndex + 1).trimStart();
+			if (name !== '') {
+				headers.set(name, value);
+			}
 		}
 
-		return { method, path, headers };
+		// Strip the Expect header. PHP's curl sends
+		// "Expect: 100-continue" for POST bodies > 1024 bytes
+		// (e.g. CURLFile uploads). The fetch() API does not
+		// support this header and will reject the request.
+		const expectsContinue =
+			headers.get('Expect')?.toLowerCase() === '100-continue';
+		headers.delete('Expect');
+
+		return { method, path, headers, expectsContinue };
 	}
 }
 

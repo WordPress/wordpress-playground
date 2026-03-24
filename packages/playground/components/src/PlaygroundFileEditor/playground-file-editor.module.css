@@ -1,0 +1,210 @@
+.container {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	min-height: 0;
+}
+
+.content {
+	position: relative;
+	flex: 1;
+	display: flex;
+	min-height: 0;
+	background: var(--color-gray-000);
+}
+
+.sidebarWrapper {
+	display: flex;
+	flex-direction: column;
+	width: 280px;
+	max-width: 360px;
+	min-width: 220px;
+	border-right: 1px solid var(--color-gray-200);
+	background: #ffffff;
+	z-index: 3;
+}
+
+.editorWrapper {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	flex: 1;
+	min-width: 0;
+	min-height: 0;
+}
+
+.editorHeader {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	flex-wrap: wrap;
+	gap: 8px 12px;
+	padding: 12px 16px;
+	border-bottom: 1px solid var(--color-gray-200);
+	background: #ffffff;
+	z-index: 1;
+}
+
+.editorPath {
+	flex: 1;
+	min-width: 0;
+	font-family:
+		'SFMono-Regular', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+		'Liberation Mono', 'Courier New', monospace;
+	font-size: 12px;
+	color: var(--color-gray-700);
+	word-break: break-all;
+}
+
+.editorPathPlaceholder {
+	color: var(--color-gray-500);
+}
+
+.editorHeaderActions {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-shrink: 0;
+}
+
+.saveStatus {
+	font-size: 12px;
+	line-height: 16px;
+	color: var(--color-gray-600);
+	white-space: nowrap;
+}
+
+.saveStatusSaving,
+.saveStatusPending {
+	color: var(--color-gray-900);
+}
+
+.saveStatusError {
+	color: var(--color-alert-red);
+	font-weight: 500;
+}
+
+.editor {
+	flex: 1;
+	min-height: 0;
+	background: #ffffff;
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+}
+
+.editor :global(.cm-editor) {
+	height: 100%;
+}
+
+.editor :global(.cm-scroller) {
+	overflow: auto;
+}
+
+.placeholder {
+	flex: 1;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 32px;
+	text-align: center;
+	color: var(--color-gray-700);
+	background: #ffffff;
+}
+
+.messageArea {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	justify-content: flex-start;
+	padding: 16px 20px;
+	background: #ffffff;
+	overflow: auto;
+	font-family:
+		'SFMono-Regular', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+		'Liberation Mono', 'Courier New', monospace;
+	font-size: 13px;
+	line-height: 1.6;
+}
+
+.messageArea p {
+	margin: 0;
+	padding: 0;
+	display: block;
+}
+
+.messageArea p + p {
+	margin-top: 4px;
+}
+
+.messageArea a {
+	color: #2271b1;
+	text-decoration: underline;
+	cursor: pointer;
+}
+
+.messageArea a:hover {
+	color: #135e96;
+}
+
+.mobileToggle {
+	display: none;
+}
+
+.mobileOverlay {
+	display: none;
+}
+
+@media (max-width: 960px) {
+	.sidebarWrapper {
+		position: absolute;
+		top: 0;
+		bottom: 0;
+		left: 0;
+		width: min(85%, 340px);
+		box-shadow: 0 18px 40px rgba(0, 0, 0, 0.2);
+		display: none;
+	}
+
+	.sidebarOpen {
+		/* Marker class applied in JS when the sidebar should be visible on mobile. */
+	}
+
+	.sidebarOpen .sidebarWrapper {
+		display: flex;
+	}
+
+	.mobileOverlay {
+		position: absolute;
+		inset: 0;
+		background: rgba(0, 0, 0, 0.3);
+		z-index: 2;
+		display: none;
+	}
+
+	.sidebarOpen .mobileOverlay {
+		display: block;
+	}
+
+	.editorHeader {
+		flex-wrap: wrap;
+		gap: 8px;
+		background: #ffffff;
+	}
+
+	.editorPath {
+		width: 100%;
+		order: 2;
+	}
+
+	.mobileToggle {
+		display: inline-flex;
+		order: 1;
+	}
+
+	.content {
+		flex-direction: column;
+	}
+}

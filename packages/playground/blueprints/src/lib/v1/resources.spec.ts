@@ -2,6 +2,10 @@ import {
 	UrlResource,
 	GitDirectoryResource,
 	BundledResource,
+	isGithubProxyUrl,
+	rewriteGithubProxyUrl,
+	ZipResource,
+	Resource,
 } from './resources';
 import { expect, describe, it, vi, beforeEach, afterEach } from 'vitest';
 import { StreamedFile } from '@php-wasm/stream-compression';
@@ -397,5 +401,207 @@ describe('BlueprintResource', () => {
 			/This Blueprint refers to a/
 		);
 		expect(streamFile).toHaveBeenCalledWith('missing.txt');
+	});
+});
+
+describe('isGithubProxyUrl', () => {
+	it('should return true for github-proxy.com URLs', () => {
+		expect(
+			isGithubProxyUrl('https://github-proxy.com/proxy/?repo=owner/name')
+		).toBe(true);
+		expect(
+			isGithubProxyUrl(
+				'https://github-proxy.com/https://github.com/owner/repo'
+			)
+		).toBe(true);
+	});
+
+	it('should return false for non-github-proxy.com URLs', () => {
+		expect(isGithubProxyUrl('https://example.com/file.zip')).toBe(false);
+		expect(isGithubProxyUrl('https://github.com/owner/repo')).toBe(false);
+	});
+
+	it('should return false for invalid URLs', () => {
+		expect(isGithubProxyUrl('not a url')).toBe(false);
+	});
+});
+
+describe('rewriteGithubProxyUrl', () => {
+	it('should return null for non-github-proxy.com URLs', () => {
+		expect(
+			rewriteGithubProxyUrl('https://example.com/file.zip')
+		).toBeNull();
+		expect(
+			rewriteGithubProxyUrl('https://github.com/owner/repo')
+		).toBeNull();
+	});
+
+	it('should return null for invalid URLs', () => {
+		expect(rewriteGithubProxyUrl('not a url')).toBeNull();
+	});
+
+	it('should return null for github-proxy.com URLs without repo parameter', () => {
+		expect(
+			rewriteGithubProxyUrl(
+				'https://github-proxy.com/proxy/?branch=trunk'
+			)
+		).toBeNull();
+	});
+
+	it('should rewrite basic repo URL (default branch)', () => {
+		const result = rewriteGithubProxyUrl(
+			'https://github-proxy.com/proxy/?repo=owner/name'
+		);
+		expect(result).toEqual({
+			resource: 'zip',
+			inner: {
+				resource: 'git:directory',
+				url: 'https://github.com/owner/name',
+				ref: 'HEAD',
+			},
+		});
+	});
+
+	it('should rewrite repo URL with branch', () => {
+		const result = rewriteGithubProxyUrl(
+			'https://github-proxy.com/proxy/?repo=owner/name&branch=trunk'
+		);
+		expect(result).toEqual({
+			resource: 'zip',
+			inner: {
+				resource: 'git:directory',
+				url: 'https://github.com/owner/name',
+				ref: 'trunk',
+			},
+		});
+	});
+});
+
+describe('ZipResource', () => {
+	it('should wrap a literal directory resource in a ZIP', async () => {
+		const innerResource = Resource.create(
+			{
+				resource: 'literal:directory',
+				name: 'my-plugin',
+				files: {
+					'readme.txt': 'Hello World',
+					'plugin.php': '<?php // Plugin',
+				},
+			},
+			{}
+		);
+
+		const zipResource = new ZipResource(
+			{
+				resource: 'zip',
+				inner: {
+					resource: 'literal:directory',
+					name: 'my-plugin',
+					files: {},
+				},
+			},
+			innerResource
+		);
+
+		const zipFile = await zipResource.resolve();
+
+		expect(zipFile).toBeInstanceOf(File);
+		expect(zipFile.name).toBe('my-plugin.zip');
+		expect(zipFile.size).toBeGreaterThan(0);
+	});
+
+	it('should use custom name if provided', async () => {
+		const innerResource = Resource.create(
+			{
+				resource: 'literal:directory',
+				name: 'my-plugin',
+				files: { 'test.txt': 'test' },
+			},
+			{}
+		);
+
+		const zipResource = new ZipResource(
+			{
+				resource: 'zip',
+				inner: {
+					resource: 'literal:directory',
+					name: 'my-plugin',
+					files: {},
+				},
+				name: 'custom.zip',
+			},
+			innerResource
+		);
+
+		const zipFile = await zipResource.resolve();
+		expect(zipFile.name).toBe('custom.zip');
+	});
+
+	it('should not double .zip extension', async () => {
+		const innerResource = Resource.create(
+			{
+				resource: 'literal:directory',
+				name: 'already.zip',
+				files: { 'test.txt': 'test' },
+			},
+			{}
+		);
+
+		const zipResource = new ZipResource(
+			{
+				resource: 'zip',
+				inner: {
+					resource: 'literal:directory',
+					name: 'already.zip',
+					files: {},
+				},
+			},
+			innerResource
+		);
+
+		const zipFile = await zipResource.resolve();
+		expect(zipFile.name).toBe('already.zip');
+	});
+});
+
+describe('Resource.create with github-proxy.com URLs', () => {
+	let consoleWarnSpy: ReturnType<typeof vi.spyOn>;
+
+	beforeEach(() => {
+		consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+	});
+
+	afterEach(() => {
+		consoleWarnSpy.mockRestore();
+	});
+
+	it('should rewrite github-proxy.com URL to zip resource and emit warning', () => {
+		const resource = Resource.create(
+			{
+				resource: 'url',
+				url: 'https://github-proxy.com/proxy/?repo=owner/name&branch=trunk',
+			},
+			{}
+		);
+
+		// Check that a warning was emitted
+		expect(consoleWarnSpy).toHaveBeenCalledWith(
+			expect.stringContaining('github-proxy.com is deprecated')
+		);
+
+		// The resource should be a ZipResource (wrapped in decorators)
+		expect(resource).toBeDefined();
+	});
+
+	it('should not emit warning for non-github-proxy.com URLs', () => {
+		Resource.create(
+			{
+				resource: 'url',
+				url: 'https://example.com/file.zip',
+			},
+			{}
+		);
+
+		expect(consoleWarnSpy).not.toHaveBeenCalled();
 	});
 });

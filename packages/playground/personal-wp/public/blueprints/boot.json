@@ -1,0 +1,10 @@
+{
+	"$schema": "https://playground.wordpress.net/blueprint-schema.json",
+	"landingPage": "/wp-admin/",
+	"steps": [
+		{
+			"step": "login",
+			"username": "admin"
+		}
+	]
+}

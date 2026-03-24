@@ -22,6 +22,7 @@ interface QueryAPIParams {
 	'import-content'?: string;
 	url?: string;
 	'blueprint-url'?: string;
+	'page-title'?: string;
 }
 
 export function parseBlueprint(rawData: string) {
@@ -42,7 +43,16 @@ export class PlaygroundRoute {
 			return updateUrl(baseUrl, site.originalUrlParams || {});
 		} else {
 			const baseParams = new URLSearchParams(baseUrl.split('?')[1]);
-			const preserveParamsKeys = ['mode', 'networking', 'login', 'url'];
+			const preserveParamsKeys = [
+				'mode',
+				'networking',
+				'login',
+				'url',
+				'page-title',
+				'mcp',
+				'mcp-port',
+				'can-save',
+			];
 			const preserveParams: Record<string, string | null> = {};
 			for (const param of preserveParamsKeys) {
 				if (baseParams.has(param)) {
@@ -79,4 +89,22 @@ export class PlaygroundRoute {
 			'replace'
 		);
 	}
+}
+
+/**
+ * Checks if the URL has a query parameter that disables saving.
+ *
+ * @returns {boolean} True if saving is disabled by the query parameter, false otherwise.
+ */
+export function isSaveDisabledByQueryParam(): boolean {
+	return (
+		new URL(document.location.href).searchParams.get('can-save') === 'no'
+	);
+}
+
+/**
+ * Checks if the MCP server bridge is enabled via the `?mcp=yes` query parameter.
+ */
+export function isMcpServerEnabled(): boolean {
+	return new URL(document.location.href).searchParams.get('mcp') === 'yes';
 }

@@ -1,15 +1,20 @@
 /// <reference types="vitest" />
 import { defineConfig } from 'vite';
+
+import dts from 'vite-plugin-dts';
+import { join } from 'path';
+
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { viteTsConfigPaths } from '../../vite-extensions/vite-ts-config-paths';
 // eslint-disable-next-line @nx/enforce-module-boundaries
-import ignoreWasmImports from '../ignore-wasm-imports';
+import { viteIgnoreImports } from '../../vite-extensions/vite-ignore-imports';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { getExternalModules } from '../../vite-extensions/vite-external-modules';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import viteGlobalExtensions from '../../vite-extensions/vite-global-extensions';
 
 export default defineConfig({
+	root: __dirname,
 	base: '/',
 
 	cacheDir: '../../../node_modules/.vite/packages-playground-storage',
@@ -21,11 +26,17 @@ export default defineConfig({
 	},
 
 	plugins: [
+		dts({
+			entryRoot: 'src',
+			tsconfigPath: join(__dirname, 'tsconfig.lib.json'),
+			pathsToAliases: false,
+		}),
 		viteTsConfigPaths({
 			root: '../../../',
 		}),
-		ignoreWasmImports(),
-
+		viteIgnoreImports({
+			extensions: ['wasm'],
+		}),
 		...viteGlobalExtensions,
 	],
 

@@ -3,13 +3,23 @@ import { PHPResponse, StreamedPHPResponse } from './php-response';
 import * as Comlink from './comlink-sync';
 import {
 	NodeSABSyncReceiveMessageTransport,
-	nodeEndpoint,
-	type NodeEndpoint,
+	nodeEndpoint as nodeWorkerEndpoint,
+	releaseProxy,
+	type NodeEndpoint as NodeWorker,
 	type Remote,
 	type Endpoint,
 	type IsomorphicMessagePort,
+	type ProxyMethods,
 } from './comlink-sync';
+import {
+	type NodeProcess,
+	nodeProcessEndpoint,
+} from './comlink-node-process-adapter';
 import * as ErrorSerializer from './serialize-error';
+
+// NOTE: It seems like we wouldn't have to explicitly specify
+// symbol type here, but it seems to resolve some type errors.
+export const releaseApiProxy: typeof releaseProxy = releaseProxy;
 
 export type WithAPIState = {
 	/**
@@ -23,7 +33,7 @@ export type WithAPIState = {
 	 */
 	isReady: () => Promise<void>;
 };
-export type RemoteAPI<T> = Remote<T> & WithAPIState;
+export type RemoteAPI<T> = Remote<T> & ProxyMethods & WithAPIState;
 
 export async function consumeAPISync<APIType>(
 	remote: IsomorphicMessagePort
@@ -34,15 +44,35 @@ export async function consumeAPISync<APIType>(
 }
 
 export function consumeAPI<APIType>(
-	remote: Worker | Window | NodeEndpoint,
+	remote: Worker | Window | NodeWorker | NodeProcess,
 	context: undefined | EventTarget = undefined
 ): RemoteAPI<APIType> {
 	setupTransferHandlers();
 
 	let endpoint;
-	const appearsToBeNodeEnvironment = import.meta.url.startsWith('file://');
+	/**
+	 * Previously we assumed we were running in a Node.js environment
+	 * when `import.meta.url` started with `file://`. But this assumption breaks
+	 * with webpack which emits file URLs for `import.meta.url`.
+	 * https://webpack.js.org/api/module-variables/#importmetaurl
+	 *
+	 * We replaced this with a more explicit check for `process.versions.node`.
+	 * See https://github.com/WordPress/wordpress-playground/pull/3248
+	 */
+	const appearsToBeNodeEnvironment =
+		typeof process !== 'undefined' &&
+		typeof process.versions !== 'undefined' &&
+		typeof process.versions.node !== 'undefined';
 	if (appearsToBeNodeEnvironment) {
-		endpoint = nodeEndpoint(remote as NodeEndpoint);
+		if ('postMessage' in remote) {
+			endpoint = nodeWorkerEndpoint(remote as NodeWorker);
+		} else if ('send' in remote && 'addListener' in remote) {
+			endpoint = nodeProcessEndpoint(remote as NodeProcess);
+		} else {
+			throw new Error(
+				'consumeAPI: remote does not look like a Worker, MessagePort, or Process'
+			);
+		}
 	} else {
 		endpoint =
 			remote instanceof Worker
@@ -102,7 +132,7 @@ export type PublicAPI<Methods, PipedAPI = unknown> = RemoteAPI<
 export function exposeAPI<Methods, PipedAPI>(
 	apiMethods?: Methods,
 	pipedApi?: PipedAPI,
-	targetWorker?: NodeEndpoint
+	targetWorker?: MessagePort | NodeWorker | NodeProcess
 ): [() => void, (e: Error) => void, PublicAPI<Methods, PipedAPI>] {
 	const { setReady, setFailed, exposedApi } = prepareForExpose(
 		apiMethods,
@@ -110,9 +140,19 @@ export function exposeAPI<Methods, PipedAPI>(
 	);
 	let endpoint: Endpoint | undefined;
 	if (targetWorker) {
-		// NOTE: If there are other target types, we could expand this later,
-		// but for now, we only need support for NodeEndpoints.
-		endpoint = nodeEndpoint(targetWorker);
+		if ('addEventListener' in targetWorker) {
+			// TODO: MessagePort satisfies Endpoint at runtime but its
+			// addEventListener overloads don't exactly match EventSource.
+			endpoint = targetWorker as Endpoint;
+		} else if ('postMessage' in targetWorker) {
+			endpoint = nodeWorkerEndpoint(targetWorker);
+		} else if ('send' in targetWorker && 'addListener' in targetWorker) {
+			endpoint = nodeProcessEndpoint(targetWorker);
+		} else {
+			throw new Error(
+				'exposeAPI: targetWorker does not look like a Worker, MessagePort, or Process'
+			);
+		}
 	} else {
 		endpoint =
 			typeof window !== 'undefined'
@@ -129,7 +169,7 @@ export async function exposeSyncAPI<Methods>(
 ): Promise<[() => void, (e: Error) => void, Methods]> {
 	const { setReady, setFailed, exposedApi } = prepareForExpose(apiMethods);
 	const transport = await NodeSABSyncReceiveMessageTransport.create();
-	const endpoint = nodeEndpoint(port as any);
+	const endpoint = nodeWorkerEndpoint(port as any);
 	Comlink.exposeSync(exposedApi, endpoint, transport);
 	return [setReady, setFailed, exposedApi as Methods];
 }
@@ -218,7 +258,14 @@ function setupTransferHandlers() {
 			'exitCode' in obj &&
 			'httpStatusCode' in obj,
 		serialize(obj: PHPResponse): [PHPResponseData, Transferable[]] {
-			return [obj.toRawData(), []];
+			const data = obj.toRawData();
+			// Transfer the ArrayBuffer instead of cloning it to avoid
+			// "could not be cloned" errors when the buffer is detached
+			const transferables: Transferable[] = [];
+			if (data.bytes.buffer.byteLength > 0) {
+				transferables.push(data.bytes.buffer);
+			}
+			return [data, transferables];
 		},
 		deserialize(responseData: PHPResponseData): PHPResponse {
 			return PHPResponse.fromRawData(responseData);
@@ -247,18 +294,29 @@ function setupTransferHandlers() {
 		serialize(obj: StreamedPHPResponse): [any, Transferable[]] {
 			const supportsStreams = supportsTransferableStreams();
 			const exitCodePort = promiseToPort(obj.exitCode);
+			const headersStream = obj.getHeadersStream();
+
 			if (supportsStreams) {
 				const payload = {
 					__type: 'StreamedPHPResponse',
-					headers: (obj as any)['headersStream'],
+					headers: headersStream,
 					stdout: obj.stdout,
 					stderr: obj.stderr,
 					exitCodePort,
 				};
-				return [payload, [exitCodePort]];
+				// ReadableStreams must be explicitly transferred
+				return [
+					payload,
+					[
+						headersStream as unknown as Transferable,
+						obj.stdout as unknown as Transferable,
+						obj.stderr as unknown as Transferable,
+						exitCodePort,
+					],
+				];
 			}
 			// Fallback: bridge streams via MessagePorts
-			const headersPort = streamToPort((obj as any)['headersStream']);
+			const headersPort = streamToPort(headersStream);
 			const stdoutPort = streamToPort(obj.stdout);
 			const stderrPort = streamToPort(obj.stderr);
 			const payload = {
@@ -303,22 +361,28 @@ function setupTransferHandlers() {
  * directly through postMessage (aka "transferable streams"). When false,
  * we must fall back to port-bridged streaming.
  */
+let _cachedSupportsTransferableStreams: boolean | undefined;
 function supportsTransferableStreams(): boolean {
-	try {
-		if (typeof ReadableStream === 'undefined') return false;
-		const { port1 } = new MessageChannel();
-		const rs = new ReadableStream();
-		port1.postMessage(rs as any);
+	if (typeof ReadableStream === 'undefined') {
+		_cachedSupportsTransferableStreams = false;
+	}
+	if (_cachedSupportsTransferableStreams === undefined) {
 		try {
-			port1.close();
+			const { port1 } = new MessageChannel();
+			const rs = new ReadableStream();
+			port1.postMessage(rs, [rs as unknown as Transferable]);
+			try {
+				port1.close();
+			} catch (_e) {
+				void _e;
+			}
+			_cachedSupportsTransferableStreams = true;
 		} catch (_e) {
 			void _e;
+			_cachedSupportsTransferableStreams = false;
 		}
-		return true;
-	} catch (_e) {
-		void _e;
-		return false;
 	}
+	return _cachedSupportsTransferableStreams;
 }
 
 /**
@@ -332,7 +396,7 @@ function supportsTransferableStreams(): boolean {
  *   { t: 'close' }                 – end of stream
  *   { t: 'error', m: string }      – terminal error
  */
-function streamToPort(stream: ReadableStream<Uint8Array>): MessagePort {
+export function streamToPort(stream: ReadableStream<Uint8Array>): MessagePort {
 	const { port1, port2 } = new MessageChannel();
 	(async () => {
 		const reader = stream.getReader();
@@ -393,7 +457,7 @@ function streamToPort(stream: ReadableStream<Uint8Array>): MessagePort {
  * Reconstructs a ReadableStream from a MessagePort using the inverse of the
  * streamToPort protocol. Each message enqueues data, closes, or errors.
  */
-function portToStream(port: MessagePort): ReadableStream<Uint8Array> {
+export function portToStream(port: MessagePort): ReadableStream<Uint8Array> {
 	return new ReadableStream<Uint8Array>({
 		start(controller) {
 			const onMessage = (ev: MessageEvent) => {

@@ -6,6 +6,7 @@
 		"types": ["node"]
 	},
 	"include": [
+		"vite.config.ts",
 		"src/**/*.ts",
 		"../common/src/lib/api.ts",
 		"../web-service-worker/src/lib/index.ts",
@@ -15,5 +16,5 @@
 		"../universal/src/lib/php-worker.ts",
 		"src/lib/tls/certificates.ts"
 	],
-	"exclude": ["jest.config.ts", "src/**/*.spec.ts", "src/**/*.test.ts"]
+	"exclude": ["playwright.config.ts", "src/**/*.spec.*"]
 }

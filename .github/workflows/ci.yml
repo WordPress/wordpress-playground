@@ -25,6 +25,7 @@ jobs:
             - run: npx nx affected --target=lint
             - run: npx nx affected --target=typecheck
             - run: npx nx check-orphan-pages docs-site
+            - run: bash tools/check-node-engine-alignment.sh
     test-unit-asyncify:
         runs-on: ubuntu-latest
         strategy:
@@ -113,7 +114,7 @@ jobs:
                   submodules: true
             - uses: ./.github/actions/prepare-playground
               with:
-                  node-version: 23
+                  node-version: 24
             - run: node --expose-gc node_modules/nx/bin/nx affected --target=${{ matrix.target }}
               env:
                   MYSQL_DATABASE: test_db
@@ -122,12 +123,7 @@ jobs:
     test-playground-cli:
         strategy:
             matrix:
-                # NOTE: macOS is currently skipped because tests were running into
-                # "EMFILE: too many open files" errors when running within the GH runner.
-                # It would be great to fix the issue and add macOS testing here.
-                # In the meantime, many of the current developers test locally on macOS.
-                # @TODO: Fix issues and re-enable macOS testing.
-                os: [ubuntu-latest, windows-latest]
+                os: [ubuntu-latest, windows-latest, macos-latest]
         continue-on-error: true
         runs-on: ${{ matrix.os }}
         name: 'test-playground-cli (${{ matrix.os }})'
@@ -139,14 +135,42 @@ jobs:
               with:
                   node-version: 22
             - name: Run full test suite
-              if: runner.os != 'Windows'
-              run: node node_modules/nx/bin/nx affected --target=test-for-node-22-and-above
-            # NOTE: We currently have to reduce the number of tests we run on Windows,
-            # and we do so by using Vitest's test.only() function. In order to use this
-            # within the `nx affected` command, we need to pass the Vitest arg --allowOnly.
-            - name: Run limited test suite on Windows
-              if: runner.os == 'Windows'
-              run: node node_modules/nx/bin/nx affected --target=test-for-node-22-and-above -- --allowOnly
+              run: node node_modules/nx/bin/nx affected --target=test-playground-cli
+    test-file-locking:
+        strategy:
+            matrix:
+                os: [ubuntu-latest, windows-latest, macos-latest]
+                async-strategy: [asyncify, jspi]
+        continue-on-error: true
+        runs-on: ${{ matrix.os }}
+        name: 'test-file-locking-${{ matrix.async-strategy }} (${{ matrix.os }})'
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  submodules: true
+            - uses: ./.github/actions/prepare-playground
+              with:
+                  node-version: 22
+            - name: Run full test suite
+              run: node node_modules/nx/bin/nx affected --target=test-file-locking-${{ matrix.async-strategy }}
+    test-e2e-php-wasm-web-jspi:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  submodules: true
+            - uses: ./.github/actions/prepare-playground
+            - run: sudo npx playwright install
+            - run: sudo CI=true JSPI=true npx nx e2e php-wasm-web
+    test-e2e-php-wasm-web-asyncify:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  submodules: true
+            - uses: ./.github/actions/prepare-playground
+            - run: sudo npx playwright install
+            - run: sudo CI=true npx nx e2e php-wasm-web
     test-e2e:
         runs-on: ubuntu-latest
         # Run as root to allow node to bind to port 80
@@ -163,9 +187,44 @@ jobs:
               with:
                   name: cypress-screenshots
                   path: dist/cypress/packages/playground/website/screenshots
-
-    test-e2e-playwright-prepare:
+    # E2E Playwright tests - builds inline per runner for faster parallel execution
+    # Previously used a prepare job + artifact sharing, but inline builds allow
+    # all shards to start immediately in parallel, reducing total wall time.
+    test-e2e-playwright:
         runs-on: ubuntu-latest
+        strategy:
+            fail-fast: false
+            matrix:
+                # 3 shards per browser for balanced parallel execution
+                # (4 shards caused uneven distribution due to serial test files)
+                include:
+                    - browser: 'chromium'
+                      shard: '1/3'
+                      shard_name: '1-of-3'
+                    - browser: 'chromium'
+                      shard: '2/3'
+                      shard_name: '2-of-3'
+                    - browser: 'chromium'
+                      shard: '3/3'
+                      shard_name: '3-of-3'
+                    - browser: 'firefox'
+                      shard: '1/3'
+                      shard_name: '1-of-3'
+                    - browser: 'firefox'
+                      shard: '2/3'
+                      shard_name: '2-of-3'
+                    - browser: 'firefox'
+                      shard: '3/3'
+                      shard_name: '3-of-3'
+                    - browser: 'webkit'
+                      shard: '1/3'
+                      shard_name: '1-of-3'
+                    - browser: 'webkit'
+                      shard: '2/3'
+                      shard_name: '2-of-3'
+                    - browser: 'webkit'
+                      shard: '3/3'
+                      shard_name: '3-of-3'
         steps:
             - name: Free up runner disk space
               shell: bash
@@ -184,68 +243,51 @@ jobs:
               with:
                   submodules: true
             - uses: ./.github/actions/prepare-playground
-            - name: Install Playwright Browsers
-              run: sudo npx playwright install --with-deps
-            - name: Prepare app deploy and offline mode
-              run: CORS_PROXY_URL=http://127.0.0.1:5263/cors-proxy.php? npx nx e2e:playwright:prepare-app-deploy-and-offline-mode playground-website
-            - name: Zip dist
-              run: zip -r dist.zip dist
-            - name: Upload dist
-              uses: actions/upload-artifact@v4
-              with:
-                  name: playwright-dist
-                  path: dist.zip
-    test-e2e-playwright:
-        runs-on: ubuntu-latest
-        needs: [test-e2e-playwright-prepare]
-        strategy:
-            fail-fast: false
-            matrix:
-                # WebKit runner is disabled in CI – it used to be enabled but the tests
-                # failed randomly without any obvious reason.
-                # @see https://github.com/WordPress/wordpress-playground/pull/2475
-                part: ['chromium', 'firefox']
-        steps:
-            - uses: actions/checkout@v4
-              with:
-                  submodules: true
-            - uses: ./.github/actions/prepare-playground
-            - name: Download dist
-              uses: actions/download-artifact@v4
-              with:
-                  name: playwright-dist
-            - name: Unzip dist
-              run: unzip dist.zip
             - name: Install Playwright Browser
-              run: sudo npx playwright install ${{ matrix.part }} --with-deps
-            - name: Run Playwright tests - ${{ matrix.part }}
+              run: sudo npx playwright install ${{ matrix.browser }} --with-deps
+            - name: Build app for E2E tests
+              run: CORS_PROXY_URL=http://127.0.0.1:5263/cors-proxy.php? npx nx e2e:playwright:prepare-app-deploy-and-offline-mode playground-website
+            - name: Run Playwright tests - ${{ matrix.browser }}${{ matrix.shard && format(' (shard {0})', matrix.shard) || '' }}
               run: |
-                  if [ "${{ matrix.part }}" = "firefox" ]; then
-                    sudo -E HOME=/root XDG_RUNTIME_DIR=/root CI=true npx playwright test --config=packages/playground/website/playwright/playwright.ci.config.ts --project=${{ matrix.part }}
+                  SHARD_ARG=""
+                  if [ -n "${{ matrix.shard }}" ]; then
+                    SHARD_ARG="--shard=${{ matrix.shard }}"
+                  fi
+                  if [ "${{ matrix.browser }}" = "firefox" ]; then
+                    sudo -E HOME=/root XDG_RUNTIME_DIR=/root CI=true npx playwright test --config=packages/playground/website/playwright/playwright.ci.config.ts --project=${{ matrix.browser }} $SHARD_ARG
                   else
-                    sudo CI=true npx playwright test --config=packages/playground/website/playwright/playwright.ci.config.ts --project=${{ matrix.part }}
+                    sudo CI=true npx playwright test --config=packages/playground/website/playwright/playwright.ci.config.ts --project=${{ matrix.browser }} $SHARD_ARG
                   fi
             - uses: actions/upload-artifact@v4
               if: ${{ !cancelled() }}
               with:
-                  name: playwright-report-${{ matrix.part }}
+                  name: playwright-report-${{ matrix.browser }}${{ matrix.shard_name && format('-shard-{0}', matrix.shard_name) || '' }}
                   path: packages/playground/website/playwright-report/
                   if-no-files-found: ignore
             - uses: actions/upload-artifact@v4
               if: ${{ !cancelled() }}
               with:
-                  name: playwright-snapshots-${{ matrix.part }}
+                  name: playwright-snapshots-${{ matrix.browser }}${{ matrix.shard_name && format('-shard-{0}', matrix.shard_name) || '' }}
                   path: packages/playground/website/playwright/e2e/deployment.spec.ts-snapshots/
                   if-no-files-found: ignore
-    test-e2e-playwright-cleanup:
+
+    test-e2e-personal-wp:
         runs-on: ubuntu-latest
-        needs: [test-e2e-playwright]
         steps:
-            - name: Delete playwright-dist artifact
-              uses: geekyeggo/delete-artifact@v5
-              if: ${{ success() }}
+            - uses: actions/checkout@v4
               with:
-                  name: playwright-dist
+                  submodules: true
+            - uses: ./.github/actions/prepare-playground
+            - name: Install Playwright Browser
+              run: npx playwright install chromium --with-deps
+            - name: Run personal-wp Playwright e2e tests
+              run: CI=true npx playwright test --config=packages/playground/personal-wp/playwright/playwright.config.ts --project=chromium
+            - uses: actions/upload-artifact@v4
+              if: ${{ !cancelled() }}
+              with:
+                  name: playwright-personal-wp-report
+                  path: packages/playground/personal-wp/playwright-report/
+                  if-no-files-found: ignore
 
     test-e2e-components:
         runs-on: ubuntu-latest
@@ -265,6 +307,27 @@ jobs:
                   path: packages/playground/components/playwright-report/
                   if-no-files-found: ignore
 
+    # Run MCP e2e tests independently from other tests because running a local version of the MCP server from TypeScript files requires Node 22+
+    test-e2e-mcp:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  submodules: true
+            - uses: ./.github/actions/prepare-playground
+              with:
+                  node-version: '22'
+            - name: Install Playwright Browsers
+              run: npx playwright install --with-deps chromium
+            - name: Run MCP e2e tests
+              run: npx nx test:mcp playground-mcp
+            - uses: actions/upload-artifact@v4
+              if: ${{ !cancelled() }}
+              with:
+                  name: playwright-mcp-report
+                  path: packages/playground/mcp/playwright-report/
+                  if-no-files-found: ignore
+
     test-docs-api-reference:
         runs-on: ubuntu-latest
         steps:
@@ -276,6 +339,12 @@ jobs:
               run: npx playwright install --with-deps chromium
             - name: Verify docs API reference
               run: npx nx run docs-site:api-e2e
+            - uses: actions/upload-artifact@v4
+              if: ${{ !cancelled() }}
+              with:
+                  name: docs-api-e2e-report
+                  path: packages/docs/site/test-results/
+                  if-no-files-found: ignore
 
     test-built-npm-packages:
         runs-on: ubuntu-latest
@@ -286,85 +355,8 @@ jobs:
             - uses: ./.github/actions/prepare-playground
               with:
                   node-version: 22
-            - name: Generate a mock version number (for releasing the packages in a local registry) and store it as a global variable
-              run: |
-                  VERSION=$(date +%s)
-                  PORT=9934
-                  PACKAGE_BASE_URL=http://127.0.0.1:$PORT/$VERSION
-                  echo "VERSION=$VERSION" >> $GITHUB_ENV
-                  echo "PORT=$PORT" >> $GITHUB_ENV
-                  echo "PACKAGE_BASE_URL=$PACKAGE_BASE_URL" >> $GITHUB_ENV
-                  echo "PACKAGE_URL=$PACKAGE_BASE_URL/v$VERSION/@wp-playground-cli-$VERSION.tar.gz" >> $GITHUB_ENV
-                  echo "HOST_PATH=./dist/packages-for-self-hosting/http%3A%2F%2F127.0.0.1%3A$PORT%2F$VERSION" >> $GITHUB_ENV
-            - name: Update package.json versions
-              run: |
-                  VERSION=$(date +%s)
-                  for package in packages/*/*/package.json; do
-                    jq --arg version "$VERSION" '.version = $version' "$package" > "$package.tmp"
-                    mv "$package.tmp" "$package"
-                  done
-            - name: Package repository
-              run: |
-                  npx nx run-many --all --target=package-for-self-hosting -- --hostingBaseUrl="$PACKAGE_BASE_URL"
-            - name: Start a local node package registry server
-              run: |
-                  source ~/.nvm/nvm.sh;
-                  nvm install 22;
-                  cd $HOST_PATH
-                  RUNNER_TRACKING_ID="" && ( \
-                    nohup python3 -c "import http.server
-                  import socketserver
-                  from urllib.parse import unquote
-
-                  class PrefixHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
-                      def do_GET(self):
-                          if self.path.startswith('/${{ env.VERSION }}/'):
-                              self.path = self.path[len('/${{ env.VERSION }}'):]
-                          elif self.path == '/${{ env.VERSION }}':
-                              self.path = '/'
-                          super().do_GET()
-
-                  with socketserver.TCPServer(('127.0.0.1', ${{ env.PORT }}), PrefixHTTPRequestHandler) as httpd:
-                      httpd.serve_forever()
-                  "&
-                  );
-            - name: Wait for the package server to be ready
-              run: |
-                  for i in {1..60}; do
-                      curl_output=$(curl -v $PACKAGE_URL 2>&1)
-                      if [ $? -eq 0 ]; then
-                          break
-                      fi
-                      sleep 1
-                  done
-            - name: Run integration tests in an ES Modules project
-              run: |
-                  cd packages/playground/test-built-npm-packages/es-modules-and-vitest
-                  jq --arg package_url "$PACKAGE_URL" '.devDependencies["@wp-playground/cli"] = $package_url' package.json > package.json.tmp
-                  mv package.json.tmp package.json
-                  npm install
-                  INSTALLED_VERSION=$(npm ls @wp-playground/cli version --depth=0 | tail -n 2 | head -n 1 | cut -d ' ' -f 2)
-                  if [ "$INSTALLED_VERSION" != "@wp-playground/cli@$VERSION" ]; then
-                    echo "The installed version of @wp-playground/cli is not the same as the expected version."
-                    echo "Expected: $VERSION"
-                    echo "Installed: $INSTALLED_VERSION"
-                    exit 1
-                  fi
-                  npm run test
-            - name: Run integration tests in a CommonJS project
-              run: |
-                  cd packages/playground/test-built-npm-packages/commonjs-and-jest
-                  jq --arg package_url "$PACKAGE_URL" '.devDependencies["@wp-playground/cli"] = $package_url' package.json > package.json.tmp
-                  mv package.json.tmp package.json
-                  npm install
-                  INSTALLED_VERSION=$(npm ls @wp-playground/cli version --depth=0 | tail -n 2 | head -n 1 | cut -d ' ' -f 2)
-                  if [ "$INSTALLED_VERSION" != "@wp-playground/cli@$VERSION" ]; then
-                    echo "The installed version of @wp-playground/cli is not the same as the expected version."
-                    echo "Expected: $VERSION"
-                    echo "Installed: $INSTALLED_VERSION"
-                    exit 1
-                  fi
-                  npm run test
+            - name: Build packages, start local registry, and run integration tests
+              run: packages/playground/test-built-npm-packages/run-tests.sh
 
     test-running-unbuilt-playground-cli:
         runs-on: ubuntu-latest
@@ -373,7 +365,73 @@ jobs:
               with:
                   submodules: true
             - uses: ./.github/actions/prepare-playground
+              with:
+                  node-version: 22
             - run: packages/playground/cli/tests/test-running-unbuilt-cli.sh
+
+    test-php-wasm-cli-smoke:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  submodules: true
+            - uses: ./.github/actions/prepare-playground
+              with:
+                  node-version: 20
+            - run: packages/php-wasm/cli/tests/smoke-test.sh
+
+    # Redis extension tests - verifies the php-redis extension loads
+    # and provides the expected API, and can connect to a real Redis server.
+    # Redis requires JSPI because asyncify cannot properly handle exceptions
+    # during network I/O. Attempting to load Redis with asyncify throws an error.
+    test-redis-extension:
+        runs-on: ubuntu-latest
+        services:
+            redis:
+                image: redis:7-alpine
+                ports:
+                    - 6379:6379
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  submodules: true
+            - uses: ./.github/actions/prepare-playground
+              with:
+                  node-version: 24
+            - name: Run Redis extension tests (JSPI)
+              run: node --expose-gc node_modules/nx/bin/nx run php-wasm-node:test-redis-extension-jspi
+              env:
+                  REDIS_HOST: 127.0.0.1
+                  REDIS_PORT: 6379
+            - name: Run Redis network tests (JSPI)
+              run: node --expose-gc node_modules/nx/bin/nx run php-wasm-node:test-redis-network-jspi
+              env:
+                  REDIS_HOST: 127.0.0.1
+                  REDIS_PORT: 6379
+
+    # Memcached extension tests - verifies the php-memcached extension loads
+    # and provides the expected API, and can connect to a real memcached server.
+    test-memcached-extension:
+        runs-on: ubuntu-latest
+        services:
+            memcached:
+                image: memcached:1.6-alpine
+                ports:
+                    - 11211:11211
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  submodules: true
+            - uses: ./.github/actions/prepare-playground
+              with:
+                  node-version: 24
+            - name: Run memcached extension tests
+              run: node --expose-gc node_modules/nx/bin/nx run php-wasm-node:test-memcached-extension-jspi
+            - name: Run memcached network tests
+              run: node --expose-gc node_modules/nx/bin/nx run php-wasm-node:test-memcached-network-jspi
+              env:
+                  MEMCACHED_HOST: 127.0.0.1
+                  MEMCACHED_PORT: 11211
 
     build:
         runs-on: ubuntu-latest
@@ -382,6 +440,8 @@ jobs:
               with:
                   submodules: true
             - uses: ./.github/actions/prepare-playground
+              with:
+                  node-version: 20
             - run: |
                   if ADDITIONAL_REMOTE_ORIGINS=invalid-origin npx nx build playground-client; then
                     echo "The Playground client build should have failed due to an invalid additional origin."
@@ -389,6 +449,8 @@ jobs:
                     exit 1
                   fi
                   npx nx affected --target=build --parallel=3 --verbose
+            - name: Verify npm pack works (catches override conflicts before publish)
+              run: npm pack --dry-run --workspace=packages/php-wasm/logger
 
     # Deploy documentation job
     deploy_docs:

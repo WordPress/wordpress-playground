@@ -244,4 +244,236 @@ describe('Blueprints', () => {
 			});
 		});
 	});
+
+	describe('plugins shorthand', () => {
+		it('should convert a slug string to a wordpress.org/plugins resource', async () => {
+			let validatedBlueprint: any;
+			await compileBlueprintV1(
+				{ plugins: ['gutenberg'] },
+				{
+					onBlueprintValidated: (bp) => {
+						validatedBlueprint = bp;
+					},
+				}
+			);
+			const step = validatedBlueprint.steps[0];
+			expect(step.step).toBe('installPlugin');
+			expect(step.pluginData).toEqual({
+				resource: 'wordpress.org/plugins',
+				slug: 'gutenberg',
+			});
+		});
+
+		it('should convert a ZIP URL to a url resource', async () => {
+			let validatedBlueprint: any;
+			await compileBlueprintV1(
+				{
+					plugins: ['https://example.com/my-plugin.zip'],
+				},
+				{
+					onBlueprintValidated: (bp) => {
+						validatedBlueprint = bp;
+					},
+				}
+			);
+			const step = validatedBlueprint.steps[0];
+			expect(step.pluginData).toEqual({
+				resource: 'url',
+				url: 'https://example.com/my-plugin.zip',
+			});
+		});
+
+		it('should convert a GitHub repo URL to a zip(git:directory) resource', async () => {
+			let validatedBlueprint: any;
+			await compileBlueprintV1(
+				{
+					plugins: ['https://github.com/user/project'],
+				},
+				{
+					onBlueprintValidated: (bp) => {
+						validatedBlueprint = bp;
+					},
+				}
+			);
+			const step = validatedBlueprint.steps[0];
+			expect(step.pluginData).toEqual({
+				resource: 'zip',
+				inner: {
+					resource: 'git:directory',
+					url: 'https://github.com/user/project',
+					ref: 'HEAD',
+				},
+			});
+		});
+
+		it('should handle a GitHub repo URL with trailing slash', async () => {
+			let validatedBlueprint: any;
+			await compileBlueprintV1(
+				{
+					plugins: ['https://github.com/user/project/'],
+				},
+				{
+					onBlueprintValidated: (bp) => {
+						validatedBlueprint = bp;
+					},
+				}
+			);
+			const step = validatedBlueprint.steps[0];
+			expect(step.pluginData).toEqual({
+				resource: 'zip',
+				inner: {
+					resource: 'git:directory',
+					url: 'https://github.com/user/project',
+					ref: 'HEAD',
+				},
+			});
+		});
+
+		it('should convert a GitLab .git URL to a zip(git:directory) resource', async () => {
+			let validatedBlueprint: any;
+			await compileBlueprintV1(
+				{
+					plugins: ['https://gitlab.com/group/project.git'],
+				},
+				{
+					onBlueprintValidated: (bp) => {
+						validatedBlueprint = bp;
+					},
+				}
+			);
+			const step = validatedBlueprint.steps[0];
+			expect(step.pluginData).toEqual({
+				resource: 'zip',
+				inner: {
+					resource: 'git:directory',
+					url: 'https://gitlab.com/group/project',
+					ref: 'HEAD',
+				},
+			});
+		});
+
+		it('should convert a nested GitLab subgroup URL to a zip(git:directory) resource', async () => {
+			let validatedBlueprint: any;
+			await compileBlueprintV1(
+				{
+					plugins: ['https://gitlab.com/group/subgroup/project'],
+				},
+				{
+					onBlueprintValidated: (bp) => {
+						validatedBlueprint = bp;
+					},
+				}
+			);
+			const step = validatedBlueprint.steps[0];
+			expect(step.pluginData).toEqual({
+				resource: 'zip',
+				inner: {
+					resource: 'git:directory',
+					url: 'https://gitlab.com/group/subgroup/project',
+					ref: 'HEAD',
+				},
+			});
+		});
+
+		it('should convert a self-hosted .git URL to a zip(git:directory) resource', async () => {
+			let validatedBlueprint: any;
+			await compileBlueprintV1(
+				{
+					plugins: ['https://git.example.com/org/repo.git'],
+				},
+				{
+					onBlueprintValidated: (bp) => {
+						validatedBlueprint = bp;
+					},
+				}
+			);
+			const step = validatedBlueprint.steps[0];
+			expect(step.pluginData).toEqual({
+				resource: 'zip',
+				inner: {
+					resource: 'git:directory',
+					url: 'https://git.example.com/org/repo',
+					ref: 'HEAD',
+				},
+			});
+		});
+
+		it('should treat a GitHub archive URL as a url resource, not a repo', async () => {
+			let validatedBlueprint: any;
+			await compileBlueprintV1(
+				{
+					plugins: [
+						'https://github.com/user/project/archive/refs/heads/main.zip',
+					],
+				},
+				{
+					onBlueprintValidated: (bp) => {
+						validatedBlueprint = bp;
+					},
+				}
+			);
+			const step = validatedBlueprint.steps[0];
+			expect(step.pluginData).toEqual({
+				resource: 'url',
+				url: 'https://github.com/user/project/archive/refs/heads/main.zip',
+			});
+		});
+	});
+
+	describe('Deprecated PHP version upgrade', () => {
+		it('should accept PHP 7.2 in blueprint and upgrade to 7.4', async () => {
+			const blueprint = {
+				preferredVersions: {
+					php: '7.2' as any,
+					wp: 'latest',
+				},
+			};
+
+			// Should pass validation
+			const validationResult = validateBlueprint(blueprint);
+			expect(validationResult).toEqual({ valid: true });
+
+			// Should compile and upgrade to 7.4
+			const compiled = await compileBlueprintV1(blueprint);
+			expect(compiled.versions.php).toBe('7.4');
+		});
+
+		it('should accept PHP 7.3 in blueprint and upgrade to 7.4', async () => {
+			const blueprint = {
+				preferredVersions: {
+					php: '7.3' as any,
+					wp: 'latest',
+				},
+			};
+
+			// Should pass validation
+			const validationResult = validateBlueprint(blueprint);
+			expect(validationResult).toEqual({ valid: true });
+
+			// Should compile and upgrade to 7.4
+			const compiled = await compileBlueprintV1(blueprint);
+			expect(compiled.versions.php).toBe('7.4');
+		});
+
+		it('should accept PHP 7.4 and later versions without changes', async () => {
+			const versions = ['7.4', '8.0', '8.1', '8.2', '8.3', '8.4', '8.5'];
+
+			for (const version of versions) {
+				const blueprint = {
+					preferredVersions: {
+						php: version as any,
+						wp: 'latest',
+					},
+				};
+
+				// Should pass validation
+				const validationResult = validateBlueprint(blueprint);
+				expect(validationResult).toEqual({ valid: true });
+
+				// Should compile without changing the version
+				const compiled = await compileBlueprintV1(blueprint);
+				expect(compiled.versions.php).toBe(version);
+			}
+		});
+	});
 });

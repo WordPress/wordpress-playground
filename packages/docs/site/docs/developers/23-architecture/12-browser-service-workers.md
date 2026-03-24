@@ -25,7 +25,7 @@ When the user clicks, say the `Blog` link, the browser would normally send a HTT
 
 Enter [Service Workers](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API/Using_Service_Workers) – a tool to intercept the HTTP requests and handle them inside the browser:
 
-![Service worker data flow](@site/static/img/workers-diagram.png)
+![Service worker data flow](@site/static/img/workers-diagram.webp)
 
 ### Service Worker setup
 

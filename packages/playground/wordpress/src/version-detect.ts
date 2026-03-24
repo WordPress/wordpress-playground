@@ -4,9 +4,7 @@ export async function getLoadedWordPressVersion(
 	requestHandler: PHPRequestHandler
 ): Promise<string> {
 	const { php, reap } =
-		await requestHandler.processManager.acquirePHPInstance({
-			considerPrimary: true,
-		});
+		await requestHandler.instanceManager.acquirePHPInstance();
 	try {
 		const result = await php.run({
 			code: `<?php

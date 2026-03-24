@@ -1,0 +1,31 @@
+{
+	"name": "php-wasm-compile-shared-memcached",
+	"$schema": "../../../../../node_modules/nx/schemas/project-schema.json",
+	"targets": {
+		"jspi": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"node packages/php-wasm/compile/shared/build.js --LIBRARY=memcached --PLATFORM=node --JSPI=yes"
+				],
+				"parallel": false
+			}
+		},
+		"jspi:all": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"nx run php-wasm-compile-shared-memcached:jspi --PHP_VERSION=8.5",
+					"nx run php-wasm-compile-shared-memcached:jspi --PHP_VERSION=8.4",
+					"nx run php-wasm-compile-shared-memcached:jspi --PHP_VERSION=8.3",
+					"nx run php-wasm-compile-shared-memcached:jspi --PHP_VERSION=8.2",
+					"nx run php-wasm-compile-shared-memcached:jspi --PHP_VERSION=8.1",
+					"nx run php-wasm-compile-shared-memcached:jspi --PHP_VERSION=8.0",
+					"nx run php-wasm-compile-shared-memcached:jspi --PHP_VERSION=7.4"
+				],
+				"parallel": false
+			}
+		}
+	},
+	"tags": []
+}

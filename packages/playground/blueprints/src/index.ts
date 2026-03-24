@@ -21,16 +21,19 @@ export {
 	runBlueprintV1Steps,
 	InvalidBlueprintError,
 	BlueprintStepExecutionError,
+	validateBlueprint,
 
 	// BC:
 	compileBlueprintV1 as compileBlueprint,
 	runBlueprintV1Steps as runBlueprintSteps,
+	isStepDefinition,
 } from './lib/v1/compile';
 export type {
 	CompileBlueprintV1Options,
 	CompiledBlueprintV1,
 	CompiledV1Step,
 	OnStepCompleted,
+	BlueprintValidationResult,
 } from './lib/v1/compile';
 export type {
 	CachedResource,
@@ -51,7 +54,10 @@ export type {
 	VFSReference,
 	VFSResource,
 } from './lib/v1/resources';
-export { BlueprintFilesystemRequiredError } from './lib/v1/resources';
+export {
+	BlueprintFilesystemRequiredError,
+	ResourceDownloadError,
+} from './lib/v1/resources';
 export * from './lib/steps';
 export * from './lib/steps/handlers';
 export type {

@@ -15,13 +15,16 @@ jobs:
         if: >
             github.ref == 'refs/heads/trunk' && (
                 github.event_name == 'workflow_run' ||
-                github.event_name == 'workflow_dispatch' ||
+                (github.event_name == 'workflow_dispatch' && github.actor == 'github-actions[bot]') ||
                 github.actor == 'adamziel' ||
+                github.actor == 'akirk' ||
                 github.actor == 'dmsnell' ||
                 github.actor == 'bgrgicak' ||
                 github.actor == 'brandonpayton' ||
                 github.actor == 'zaerl' ||
-                github.actor == 'janjakes'
+                github.actor == 'janjakes' ||
+                github.actor == 'mho22' ||
+                github.actor == 'ashfame'
             )
 
         # Specify runner + deployment step
@@ -38,6 +41,7 @@ jobs:
             - run: npx nx build playground-website
               env:
                   CORS_PROXY_URL: ${{ vars.CORS_PROXY_URL }}
+                  VITE_GOOGLE_ANALYTICS_ID: G-SVTNFCP8T7
             - run: tar -czf wasm-wordpress-net.tar.gz dist/packages/playground/wasm-wordpress-net
             # Store dist/packages/artifacts/wasm-wordpress-net as a build artifact
             - uses: actions/upload-artifact@v4

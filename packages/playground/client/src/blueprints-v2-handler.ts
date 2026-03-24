@@ -4,7 +4,11 @@ import { collectPhpLogs, logger } from '@php-wasm/logger';
 import { consumeAPI } from '@php-wasm/universal';
 
 export class BlueprintsV2Handler {
-	constructor(private readonly options: StartPlaygroundOptions) {}
+	private readonly options: StartPlaygroundOptions;
+
+	constructor(options: StartPlaygroundOptions) {
+		this.options = options;
+	}
 
 	async bootPlayground(
 		iframe: HTMLIFrameElement,
@@ -17,6 +21,7 @@ export class BlueprintsV2Handler {
 			mounts,
 			sapiName,
 			scope,
+			pathAliases,
 		} = this.options;
 		const downloadProgress = progressTracker!.stage(0.25);
 		const executionProgress = progressTracker!.stage(0.75);
@@ -91,6 +96,7 @@ export class BlueprintsV2Handler {
 			experimentalBlueprintsV2Runner: true,
 			// Pass the declaration directly – the worker runs the V2 runner.
 			blueprint: blueprint as any,
+			pathAliases,
 		} as any);
 
 		await playground.isReady();

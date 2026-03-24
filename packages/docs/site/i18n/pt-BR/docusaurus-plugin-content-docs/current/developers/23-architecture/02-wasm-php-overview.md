@@ -10,13 +10,13 @@ slug: /developers/architecture/wasm-php-overview
 
 O WordPress Playground constrói [o interpretador PHP](https://github.com/php/php-src) para WebAssembly usando [Emscripten](https://emscripten.org/docs/porting/networking.html) e um [pipeline dedicado](https://github.com/WordPress/wordpress-playground/blob/0d451c33936a8db5b7a158fa8aad288c19370a7d/packages/php-wasm/compile/Dockerfile).
 
-![Building C programs to WebAssembly](@site/static/img/c-programs-general.png)
+![Building C programs to WebAssembly](@site/static/img/c-programs-general.webp)
 
 <!-- Building PHP to WebAssembly is very similar to building vanilla PHP. The wasm build required [adjusting a function signature here](https://github.com/WordPress/wordpress-playground/blob/0d451c33936a8db5b7a158fa8aad288c19370a7d/packages/php-wasm/compile/build-assets/php7.1.patch#L8-L9), [forcing a config variable there](https://github.com/WordPress/wordpress-playground/blob/0d451c33936a8db5b7a158fa8aad288c19370a7d/packages/php-wasm/compile/Dockerfile#L495), and applying [a few small patches](https://github.com/WordPress/wordpress-playground/tree/0d451c33936a8db5b7a158fa8aad288c19370a7d/packages/php-wasm/compile/build-assets), but there's relatively few adjustments involved. -->
 
 Construir PHP para WebAssembly é muito similar a construir PHP vanilla. A build wasm exigiu [ajustar uma assinatura de função aqui](https://github.com/WordPress/wordpress-playground/blob/0d451c33936a8db5b7a158fa8aad288c19370a7d/packages/php-wasm/compile/build-assets/php7.1.patch#L8-L9), [forçar uma variável de configuração ali](https://github.com/WordPress/wordpress-playground/blob/0d451c33936a8db5b7a158fa8aad288c19370a7d/packages/php-wasm/compile/Dockerfile#L495), e aplicar [alguns pequenos patches](https://github.com/WordPress/wordpress-playground/tree/0d451c33936a8db5b7a158fa8aad288c19370a7d/packages/php-wasm/compile/build-assets), mas há relativamente poucos ajustes envolvidos.
 
-![Building PHP to WebAssembly](@site/static/img/c-programs-php.png)
+![Building PHP to WebAssembly](@site/static/img/c-programs-php.webp)
 
 <!-- However, vanilla PHP builds aren't very useful in the browser. As a server software, PHP doesn't have a JavaScript API to pass the request body, upload files, or populate the `php://stdin` stream. WordPress Playground had to build one from scratch. The WebAssembly binary comes with a [dedicated PHP API module](https://github.com/WordPress/wordpress-playground/blob/0d451c33936a8db5b7a158fa8aad288c19370a7d/packages/php-wasm/compile/build-assets/php_wasm.c) written in C and a [JavaScript PHP class](https://github.com/WordPress/wordpress-playground/blob/da38192af57a95699d8731c855b82ac0222df61b/packages/php-wasm/common/src/lib/php.ts) that exposes methods like writeFile() or run(). -->
 
@@ -26,7 +26,7 @@ No entanto, builds PHP vanilla não são muito úteis no navegador. Como um soft
 
 Como cada versão do PHP é apenas um arquivo .wasm estático, o seletor de versão do PHP é na verdade bem simples. Ele simplesmente diz ao navegador para baixar, por exemplo, `php_7_3.wasm` em vez de, digamos, `php_8_2.wasm`.
 
-![Building different versions of PHP to WebAssembly](@site/static/img/c-programs-php-versions.png)
+![Building different versions of PHP to WebAssembly](@site/static/img/c-programs-php-versions.webp)
 
 <!-- ### Networking support varies between platforms -->
 
@@ -47,5 +47,5 @@ No navegador, a rede é suportada de duas maneiras:
 <!-- -   A fast transport for `wp_safe_remote_get` to translate them into `fetch()` calls.
 -   A slower transport for all other network calls that [parses the TLS transmission](https://github.com/WordPress/wordpress-playground/pull/1926) initiated by PHP and translates it to a `fetch()` call. -->
 
--   Um transporte rápido para `wp_safe_remote_get` para traduzi-los em chamadas `fetch()`.
--   Um transporte mais lento para todas as outras chamadas de rede que [analisa a transmissão TLS](https://github.com/WordPress/wordpress-playground/pull/1926) iniciada pelo PHP e a traduz para uma chamada `fetch()`.
+- Um transporte rápido para `wp_safe_remote_get` para traduzi-los em chamadas `fetch()`.
+- Um transporte mais lento para todas as outras chamadas de rede que [analisa a transmissão TLS](https://github.com/WordPress/wordpress-playground/pull/1926) iniciada pelo PHP e a traduz para uma chamada `fetch()`.

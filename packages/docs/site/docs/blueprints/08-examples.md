@@ -36,6 +36,36 @@ Let's see some cool things you can do with Blueprints.
 	]
 }} />
 
+## The `meta` object
+
+The optional `meta` object provides descriptive information about your Blueprint. While it doesn't affect how the Blueprint executes, this information is crucial for display purposes in galleries, Blueprint selectors, and integrated tools like [WordPress Studio](https://developer.wordpress.com/studio/) and [Blueprints Gallery](https://wordpress.github.io/blueprints/).
+
+### Properties
+
+| Field             | Type            | Description                                      |
+| :---------------- | :-------------- | :----------------------------------------------- |
+| **`title`**       | `string`        | A short, human-readable name for the Blueprint.  |
+| **`description`** | `string`        | A brief summary explaining the setup.            |
+| **`author`**      | `string`        | The name or handle of the creator.               |
+| **`categories`**  | `array<string>` | Tags used for filtering and grouping Blueprints. |
+
+```json
+{
+	"$schema": "https://playground.wordpress.net/blueprint-schema.json",
+	"meta": {
+		"title": "Default Playground Setup",
+		"description": "A basic setup for a new WordPress site with the latest versions.",
+		"author": "Playground Team",
+		"categories": ["starter", "default"]
+	},
+	"landingPage": "/wp-admin/",
+	"preferredVersions": {
+		"php": "8.3",
+		"wp": "latest"
+	}
+}
+```
+
 ## Run custom PHP code
 
 <BlueprintExample
@@ -285,10 +315,10 @@ Here's an example of a Blueprint that uses bundled resources from a Blueprint bu
 
 This Blueprint bundle would be zip file containing the following files:
 
--   `/blueprint.json` - The blueprint declaration outlined above
--   `/my-theme.zip` - A theme package
--   `/my-plugin.zip` - A plugin package
--   `/assets/custom-page.html` - A custom HTML file
+- `/blueprint.json` - The blueprint declaration outlined above
+- `/my-theme.zip` - A theme package
+- `/my-plugin.zip` - A plugin package
+- `/assets/custom-page.html` - A custom HTML file
 
 You can use this Blueprint bundle by:
 

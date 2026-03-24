@@ -17,13 +17,13 @@ describe('PHP OPcache', () => {
 		expect(loadedExtensions).toContain('Zend OPcache');
 	});
 
-	it('is disabled in CLI', async () => {
+	it('is enabled in CLI', async () => {
 		const response = await php.runStream({
 			code: '<?php phpinfo();',
 		});
 
 		expect(await response.stdoutText).toContain(
-			'Opcode Caching is only supported in Apache, FPM, FastCGI'
+			'<td class="e">Opcode Caching </td><td class="v">Up and Running </td>'
 		);
 	});
 });

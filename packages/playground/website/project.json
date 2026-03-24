@@ -3,6 +3,7 @@
 	"$schema": "../../../node_modules/nx/schemas/project-schema.json",
 	"sourceRoot": "packages/playground/website/src",
 	"projectType": "application",
+	"tags": ["scope:web-client"],
 	"implicitDependencies": ["playground-remote", "playground-website-extras"],
 	"targets": {
 		"build": {
@@ -45,7 +46,10 @@
 					"logLevel": "info"
 				}
 			},
-			"dependsOn": ["^build"]
+			"dependsOn": [
+				"^build",
+				"playground-blueprints:build:blueprint-schema"
+			]
 		},
 		"dev": {
 			"executor": "nx:run-commands",
@@ -97,7 +101,7 @@
 			}
 		},
 		"test": {
-			"executor": "@nx/vite:test",
+			"executor": "@nx/vitest:test",
 			"outputs": ["{workspaceRoot}/coverage/packages/playground/website"],
 			"options": {
 				"passWithNoTests": true,
@@ -105,7 +109,7 @@
 			}
 		},
 		"lint": {
-			"executor": "@nx/linter:eslint",
+			"executor": "@nx/eslint:lint",
 			"outputs": ["{options.outputFile}"],
 			"options": {
 				"useFlatConfig": false,
@@ -217,6 +221,5 @@
 			},
 			"dependsOn": ["build"]
 		}
-	},
-	"tags": ["scope:web-client"]
+	}
 }

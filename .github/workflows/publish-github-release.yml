@@ -1,0 +1,94 @@
+name: Publish GitHub Release
+
+on:
+    workflow_run:
+        workflows: [Release NPM packages]
+        types:
+            - completed
+
+permissions:
+    contents: write
+
+jobs:
+    create-release:
+        # Only create a release after a successful npm publish on trunk
+        if: >
+            github.event.workflow_run.conclusion == 'success' &&
+            github.event.workflow_run.head_branch == 'trunk'
+
+        runs-on: ubuntu-latest
+
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  ref: ${{ github.event.workflow_run.head_sha }}
+
+            - name: Read version from lerna.json
+              id: version
+              run: |
+                  VERSION=$(jq -r '.version' lerna.json)
+                  echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+                  echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+
+            - name: Extract changelog for this version
+              id: changelog
+              run: |
+                  VERSION="${{ steps.version.outputs.version }}"
+                  # Extract the section between this version's heading and the next version heading.
+                  # The changelog uses "## [vX.Y.Z]" headings.
+                  CHANGELOG=$(awk -v ver="$VERSION" '
+                      # When we hit the heading for this version, start capturing
+                      # from the next line. The heading format is:
+                      #   ## [vX.Y.Z] (YYYY-MM-DD)
+                      # so we match the prefix "## [vX.Y.Z]" and allow anything
+                      # after the closing bracket (like the date).
+                      index($0, "## [v" ver "]") == 1 {
+                          found = 1
+                          next
+                      }
+
+                      # When we hit the next version heading after starting, stop.
+                      /^## \[v[0-9]/ {
+                          if (found) exit
+                      }
+
+                      # While in the section for this version, print lines.
+                      found
+                  ' CHANGELOG.md)
+                  if [ -z "$CHANGELOG" ]; then
+                      CHANGELOG="No changelog entries for this release."
+                  fi
+
+                  # Write to file to avoid escaping issues
+                  {
+                      echo "$CHANGELOG"
+                      echo ""
+                      echo "---"
+                      echo ""
+                      echo "**Install via npm:**"
+                      echo ""
+                      echo '```'
+                      echo "npm install @wp-playground/client@${VERSION}"
+                      echo '```'
+                      echo ""
+                      echo "Or browse all packages on [npm](https://www.npmjs.com/search?q=%40wp-playground)."
+                      echo ""
+                      echo "> **Stay up to date:** Click **Watch → Custom → Releases** at the top of this repository to get notified of new releases."
+                  } > /tmp/release-body.md
+
+            - name: Create GitHub Release
+              env:
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              run: |
+                  TAG="${{ steps.version.outputs.tag }}"
+
+                  # Check if this release already exists
+                  if gh release view "$TAG" &>/dev/null; then
+                      echo "Release $TAG already exists, skipping."
+                      exit 0
+                  fi
+
+                  gh release create "$TAG" \
+                      --title "WordPress Playground $TAG" \
+                      --notes-file /tmp/release-body.md \
+                      --target trunk

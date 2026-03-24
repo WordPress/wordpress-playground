@@ -47,14 +47,14 @@
 						"php": {
 							"anyOf": [
 								{
-									"$ref": "#/definitions/SupportedPHPVersion"
+									"$ref": "#/definitions/BlueprintPHPVersion"
 								},
 								{
 									"type": "string",
 									"const": "latest"
 								}
 							],
-							"description": "The preferred PHP version to use. If not specified, the latest supported version will be used"
+							"description": "The preferred PHP version to use. If not specified, the latest supported version will be used.\n\nNote: PHP 7.2 and 7.3 are deprecated and will be automatically upgraded to 7.4."
 						},
 						"wp": {
 							"type": "string",
@@ -69,7 +69,8 @@
 					"type": "object",
 					"properties": {
 						"intl": {
-							"type": "boolean"
+							"type": "boolean",
+							"description": "Should boot with support for Intl dynamic extension"
 						},
 						"networking": {
 							"type": "boolean",
@@ -171,9 +172,25 @@
 			"additionalProperties": false,
 			"description": "The Blueprint declaration, typically stored in a blueprint.json file."
 		},
+		"BlueprintPHPVersion": {
+			"anyOf": [
+				{
+					"$ref": "#/definitions/SupportedPHPVersion"
+				},
+				{
+					"type": "string",
+					"const": "7.2"
+				},
+				{
+					"type": "string",
+					"const": "7.3"
+				}
+			],
+			"description": "PHP versions accepted in Blueprint schema. Includes deprecated versions (7.2, 7.3) which are automatically upgraded to 7.4 during compilation."
+		},
 		"SupportedPHPVersion": {
 			"type": "string",
-			"enum": ["8.4", "8.3", "8.2", "8.1", "8.0", "7.4", "7.3", "7.2"]
+			"enum": ["8.5", "8.4", "8.3", "8.2", "8.1", "8.0", "7.4"]
 		},
 		"ExtraLibrary": {
 			"type": "string",
@@ -204,6 +221,9 @@
 				},
 				{
 					"$ref": "#/definitions/BundledReference"
+				},
+				{
+					"$ref": "#/definitions/ZipWrapperReference"
 				}
 			]
 		},
@@ -351,6 +371,111 @@
 			},
 			"required": ["resource", "path"],
 			"additionalProperties": false
+		},
+		"ZipWrapperReference": {
+			"type": "object",
+			"properties": {
+				"resource": {
+					"type": "string",
+					"const": "zip",
+					"description": "Identifies the resource as a ZIP wrapper"
+				},
+				"inner": {
+					"anyOf": [
+						{
+							"$ref": "#/definitions/FileReference"
+						},
+						{
+							"$ref": "#/definitions/DirectoryReference"
+						}
+					],
+					"description": "The inner resource to wrap in a ZIP file"
+				},
+				"name": {
+					"type": "string",
+					"description": "Optional filename for the ZIP (defaults to inner resource name + .zip)"
+				}
+			},
+			"required": ["resource", "inner"],
+			"additionalProperties": false
+		},
+		"DirectoryReference": {
+			"anyOf": [
+				{
+					"$ref": "#/definitions/GitDirectoryReference"
+				},
+				{
+					"$ref": "#/definitions/DirectoryLiteralReference"
+				}
+			]
+		},
+		"GitDirectoryReference": {
+			"type": "object",
+			"properties": {
+				"resource": {
+					"type": "string",
+					"const": "git:directory",
+					"description": "Identifies the file resource as a git directory"
+				},
+				"url": {
+					"type": "string",
+					"description": "The URL of the git repository"
+				},
+				"ref": {
+					"type": "string",
+					"description": "The ref (branch, tag, or commit) of the git repository"
+				},
+				"refType": {
+					"$ref": "#/definitions/GitDirectoryRefType",
+					"description": "Explicit hint about the ref type (branch, tag, commit, refname)"
+				},
+				"path": {
+					"type": "string",
+					"description": "The path to the directory in the git repository. Defaults to the repo root."
+				},
+				".git": {
+					"type": "boolean",
+					"description": "When true, include a `.git` directory with Git metadata (experimental)."
+				}
+			},
+			"required": ["resource", "url", "ref"],
+			"additionalProperties": false
+		},
+		"GitDirectoryRefType": {
+			"type": "string",
+			"enum": ["branch", "tag", "commit", "refname"]
+		},
+		"DirectoryLiteralReference": {
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"resource": {
+					"type": "string",
+					"const": "literal:directory",
+					"description": "Identifies the file resource as a git directory"
+				},
+				"files": {
+					"$ref": "#/definitions/FileTree"
+				},
+				"name": {
+					"type": "string"
+				}
+			},
+			"required": ["files", "name", "resource"]
+		},
+		"FileTree": {
+			"type": "object",
+			"additionalProperties": {
+				"anyOf": [
+					{
+						"$ref": "#/definitions/FileTree"
+					},
+					{
+						"type": ["object", "string"]
+					}
+				]
+			},
+			"properties": {}
 		},
 		"StepDefinition": {
 			"type": "object",
@@ -1320,84 +1445,6 @@
 					"required": ["language", "step"]
 				}
 			]
-		},
-		"DirectoryReference": {
-			"anyOf": [
-				{
-					"$ref": "#/definitions/GitDirectoryReference"
-				},
-				{
-					"$ref": "#/definitions/DirectoryLiteralReference"
-				}
-			]
-		},
-		"GitDirectoryReference": {
-			"type": "object",
-			"properties": {
-				"resource": {
-					"type": "string",
-					"const": "git:directory",
-					"description": "Identifies the file resource as a git directory"
-				},
-				"url": {
-					"type": "string",
-					"description": "The URL of the git repository"
-				},
-				"ref": {
-					"type": "string",
-					"description": "The ref (branch, tag, or commit) of the git repository"
-				},
-				"refType": {
-					"$ref": "#/definitions/GitDirectoryRefType",
-					"description": "Explicit hint about the ref type (branch, tag, commit, refname)"
-				},
-				"path": {
-					"type": "string",
-					"description": "The path to the directory in the git repository. Defaults to the repo root."
-				},
-				".git": {
-					"type": "boolean",
-					"description": "When true, include a `.git` directory with Git metadata (experimental)."
-				}
-			},
-			"required": ["resource", "url", "ref"],
-			"additionalProperties": false
-		},
-		"GitDirectoryRefType": {
-			"type": "string",
-			"enum": ["branch", "tag", "commit", "refname"]
-		},
-		"DirectoryLiteralReference": {
-			"type": "object",
-			"additionalProperties": false,
-			"properties": {
-				"resource": {
-					"type": "string",
-					"const": "literal:directory",
-					"description": "Identifies the file resource as a git directory"
-				},
-				"files": {
-					"$ref": "#/definitions/FileTree"
-				},
-				"name": {
-					"type": "string"
-				}
-			},
-			"required": ["files", "name", "resource"]
-		},
-		"FileTree": {
-			"type": "object",
-			"additionalProperties": {
-				"anyOf": [
-					{
-						"$ref": "#/definitions/FileTree"
-					},
-					{
-						"type": ["object", "string"]
-					}
-				]
-			},
-			"properties": {}
 		},
 		"InstallPluginOptions": {
 			"type": "object",

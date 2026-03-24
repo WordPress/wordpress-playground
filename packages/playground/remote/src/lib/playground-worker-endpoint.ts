@@ -3,11 +3,8 @@ import { journalFSEvents, replayFSJournal } from '@php-wasm/fs-journal';
 import type { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import { setURLScope } from '@php-wasm/scopes';
 import { joinPaths } from '@php-wasm/util';
-import type {
-	MountDevice,
-	SyncProgressCallback,
-	TCPOverFetchOptions,
-} from '@php-wasm/web';
+import type { SyncProgressCallback, TCPOverFetchOptions } from '@php-wasm/web';
+import type { MountDevice } from '@wp-playground/storage';
 import {
 	createDirectoryHandleMountHandler,
 	loadWebRuntime,
@@ -28,7 +25,7 @@ import transportFetch from './playground-mu-plugin/playground-includes/wp_http_f
 /* @ts-ignore */
 import transportDummy from './playground-mu-plugin/playground-includes/wp_http_dummy.php?raw';
 import { logger } from '@php-wasm/logger';
-import type { PHP, SupportedPHPVersion } from '@php-wasm/universal';
+import type { PathAlias, PHP, SupportedPHPVersion } from '@php-wasm/universal';
 import {
 	PHPResponse,
 	PHPWorker,
@@ -38,16 +35,14 @@ import {
 } from '@php-wasm/universal';
 import { certificateToPEM, generateCertificate } from '@php-wasm/web';
 import type { BlueprintDeclaration } from '@wp-playground/blueprints';
+import type { WordPressInstallMode } from '@wp-playground/wordpress';
 import {
 	bootRequestHandler,
 	getFileNotFoundActionForWordPress,
 	getLoadedWordPressVersion,
 } from '@wp-playground/wordpress';
 import { wpVersionToStaticAssetsDirectory } from '@wp-playground/wordpress-builds';
-import {
-	intlDisabledFunctions,
-	networkingDisabledFunctions,
-} from './disabled-functions';
+import { networkingDisabledFunctions } from './disabled-functions';
 /* @ts-ignore */
 import playgroundWebMuPlugin from './playground-mu-plugin/0-playground.php?raw';
 import { WordPressFetchNetworkTransport } from './wordpress-fetch-network-transport';
@@ -64,7 +59,7 @@ export type WorkerBootOptions = {
 	phpVersion?: SupportedPHPVersion;
 	sapiName?: string;
 	scope: string;
-	withICU: boolean;
+	withIntl: boolean;
 	withNetworking: boolean;
 	mounts?: Array<MountDescriptor>;
 	shouldInstallWordPress?: boolean;
@@ -73,6 +68,16 @@ export type WorkerBootOptions = {
 	experimentalBlueprintsV2Runner?: boolean;
 	/** Blueprint v2 declaration to run in the worker when experimental mode is on */
 	blueprint?: BlueprintDeclaration;
+	/**
+	 * How to handle WordPress installation.
+	 * Defaults to 'install-from-existing-files-if-needed'.
+	 */
+	wordpressInstallMode?: WordPressInstallMode;
+	/**
+	 * Path aliases that map URL prefixes to filesystem paths outside
+	 * the document root. Similar to Nginx's `alias` directive.
+	 */
+	pathAliases?: PathAlias[];
 };
 
 /** @inheritDoc PHPClient */
@@ -106,6 +111,7 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 
 	constructor(monitor: EmscriptenDownloadMonitor) {
 		super(undefined, monitor);
+
 		this.downloadMonitor = monitor;
 		const monitoredFetch = (input: RequestInfo | URL, init?: RequestInit) =>
 			this.downloadMonitor.monitorFetch(fetch(input, init));
@@ -121,32 +127,25 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 	protected async createRequestHandler({
 		siteUrl,
 		sapiName,
-		withICU,
 		corsProxyUrl,
 		knownRemoteAssetPaths,
+		withIntl,
 		withNetworking,
 		phpVersion,
+		pathAliases,
 	}: {
 		siteUrl: string;
 		sapiName: string;
-		withICU: boolean;
 		corsProxyUrl?: string;
 		knownRemoteAssetPaths: Set<string>;
+		withIntl: boolean;
 		withNetworking: boolean;
 		phpVersion: SupportedPHPVersion;
+		pathAliases?: PathAlias[];
 	}) {
 		const phpIniEntries: Record<string, string> = {
 			'openssl.cafile': '/internal/shared/ca-bundle.crt',
 		};
-		if (!withICU) {
-			phpIniEntries['disable_functions'] = (
-				phpIniEntries['disable_functions'] ?? ''
-			)
-				.split(',')
-				.concat(intlDisabledFunctions)
-				.filter((n) => n)
-				.join(',');
-		}
 
 		let tcpOverFetch: TCPOverFetchOptions | undefined = undefined;
 		let caBundleContent = '';
@@ -195,7 +194,7 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 			createPhpRuntime: async () => {
 				let wasmUrl = '';
 				return await loadWebRuntime(phpVersion, {
-					withICU,
+					withIntl,
 					tcpOverFetch,
 					onPhpLoaderModuleLoaded: (phpLoaderModule) => {
 						wasmUrl = phpLoaderModule.dependencyFilename;
@@ -236,7 +235,7 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 					// TODO: Document that this shift is a breaking change.
 					// Proxy the filesystem for all secondary PHP instances to
 					// the primary one.
-					proxyFileSystem(
+					await proxyFileSystem(
 						await requestHandler.getPrimaryPhp(),
 						php,
 						pathsToProxy
@@ -249,6 +248,7 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 			spawnHandler: sandboxedSpawnHandlerFactory,
 			sapiName,
 			phpIniEntries,
+			pathAliases,
 			createFiles: {
 				'/internal/shared/ca-bundle.crt': caBundleContent,
 				'/internal/shared/mu-plugins': {
@@ -317,9 +317,8 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		// from browser storage is the default version when it is actually something else.
 		// Assuming an incorrect WP version would break remote asset retrieval for minified
 		// WP builds – we would download the wrong assets pack.
-		this.loadedWordPressVersion = await getLoadedWordPressVersion(
-			requestHandler
-		);
+		this.loadedWordPressVersion =
+			await getLoadedWordPressVersion(requestHandler);
 		if (this.requestedWordPressVersion !== this.loadedWordPressVersion) {
 			logger.warn(
 				`Loaded WordPress version (${this.loadedWordPressVersion}) differs ` +

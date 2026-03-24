@@ -48,16 +48,31 @@ class PluginDownloader
 	private function streamArtifactFromBranch($organization, $repo, $branchName, $workflow_name, $artifact_name)
 	{
 		$branchName = urlencode($branchName);
-		$ciRuns = $this->gitHubRequest("https://api.github.com/repos/$organization/$repo/actions/runs?branch=$branchName")['body'];
-		if (!$ciRuns) {
+
+		$workflows = $this->gitHubRequest("https://api.github.com/repos/$organization/$repo/actions/workflows")['body'];
+		if (!$workflows || !$workflows->workflows) {
+			throw new ApiException('no_workflows_found');
+		}
+
+		$workflow_id = null;
+		foreach ($workflows->workflows as $workflow) {
+			if ($workflow->name === $workflow_name) {
+				$workflow_id = $workflow->id;
+				break;
+			}
+		}
+		if (!$workflow_id) {
+			throw new ApiException('workflow_not_found');
+		}
+
+		$ciRuns = $this->gitHubRequest("https://api.github.com/repos/$organization/$repo/actions/workflows/$workflow_id/runs?branch=$branchName")['body'];
+		if (!$ciRuns || !$ciRuns->workflow_runs) {
 			throw new ApiException('no_ci_runs');
 		}
 
 		$artifactsUrls = [];
 		foreach ($ciRuns->workflow_runs as $run) {
-			if ($run->name === $workflow_name) {
-				$artifactsUrls[] = $run->artifacts_url;
-			}
+			$artifactsUrls[] = $run->artifacts_url;
 		}
 		if (!$artifactsUrls) {
 			throw new ApiException('artifact_not_found');

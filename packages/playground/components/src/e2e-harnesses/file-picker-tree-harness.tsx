@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo } from 'react';
 import { FilePickerTree } from '../FilePickerTree';
-import type { AsyncWritableFilesystem } from '../FilePickerTree';
+import type { AsyncWritableFilesystem } from '@wp-playground/storage';
 import { normalizePath } from '@php-wasm/util';
 
 const DEFAULT_SELECTED_PATH = '/wordpress/workspace';
@@ -100,10 +100,14 @@ const baseFilesystem: DirNode = {
 
 const cloneStructure = <T,>(value: T): T => structuredClone(value);
 
-class InMemoryFilesystem implements AsyncWritableFilesystem {
+class InMemoryFilesystem
+	extends EventTarget
+	implements AsyncWritableFilesystem
+{
 	private root: DirNode;
 
 	constructor(snapshot: DirNode) {
+		super();
 		this.root = snapshot;
 	}
 
@@ -171,9 +175,12 @@ class InMemoryFilesystem implements AsyncWritableFilesystem {
 		return !!node && node.type === 'file';
 	}
 
-	async readFileAsBuffer(path: string): Promise<Uint8Array> {
+	async read(path: string): Promise<{ arrayBuffer(): Promise<ArrayBuffer> }> {
 		const text = await this.readFileAsText(path);
-		return new TextEncoder().encode(text);
+		const buffer = new TextEncoder().encode(text);
+		return {
+			arrayBuffer: async () => buffer.buffer,
+		};
 	}
 
 	async readFileAsText(path: string): Promise<string> {

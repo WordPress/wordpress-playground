@@ -1,7 +1,9 @@
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import { exposeAPI } from '@php-wasm/web';
-import { PlaygroundWorkerEndpoint } from './playground-worker-endpoint';
-import type { WorkerBootOptions } from './playground-worker-endpoint';
+import {
+	PlaygroundWorkerEndpoint,
+	type WorkerBootOptions,
+} from './playground-worker-endpoint';
 import { runBlueprintV2 } from '@wp-playground/blueprints';
 import type { BlueprintV2Declaration } from '@wp-playground/blueprints';
 /* @ts-ignore */
@@ -19,10 +21,11 @@ class PlaygroundWorkerEndpointV2 extends PlaygroundWorkerEndpoint {
 		wpVersion,
 		phpVersion,
 		sapiName = 'cli',
-		withICU = false,
+		withIntl = false,
 		withNetworking = true,
 		corsProxyUrl,
 		blueprint,
+		pathAliases,
 	}: WorkerBootOptions) {
 		if (this.booted) {
 			throw new Error('Playground already booted');
@@ -40,11 +43,12 @@ class PlaygroundWorkerEndpointV2 extends PlaygroundWorkerEndpoint {
 			const requestHandler = await this.createRequestHandler({
 				siteUrl,
 				sapiName,
-				withICU,
 				corsProxyUrl,
 				knownRemoteAssetPaths,
+				withIntl,
 				withNetworking,
 				phpVersion: phpVersion!,
+				pathAliases,
 			});
 			const primaryPhp = await requestHandler.getPrimaryPhp();
 

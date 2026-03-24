@@ -1,5 +1,8 @@
-import { createSpawnHandler } from '@php-wasm/util';
-import type { PHPProcessManager } from './php-process-manager';
+import { createSpawnHandler, splitShellCommand } from '@php-wasm/util';
+import type { PHP } from './php';
+import type { PHPWorker } from './php-worker';
+import type { Remote } from './comlink-sync';
+import { logger } from '@php-wasm/logger';
 
 /**
  * An isomorphic proc_open() handler that implements typical shell in TypeScript
@@ -12,10 +15,31 @@ import type { PHPProcessManager } from './php-process-manager';
  * parser.
  */
 export function sandboxedSpawnHandlerFactory(
-	processManager: PHPProcessManager
+	getPHPInstance?: () => Promise<{
+		php: PHP | Remote<PHPWorker>;
+		reap: () => void;
+	}>
 ) {
 	return createSpawnHandler(async function (args, processApi, options) {
 		processApi.notifySpawn();
+		/**
+		 * Blueprints v2 spawn through the Symfony Process class, which wraps the command in
+		 *
+		 * `/bin/sh -c "exec ..."`
+		 *
+		 * We need to unwrap it.
+		 *
+		 * We can't just call the /bin/sh binary because we're running a sandboxed shell handler with
+		 * no access to OS binaries. The OS binaries wouldn't be able to resolve PHP VFS paths anyway.
+		 */
+		if (
+			args?.[0] === '/bin/sh' &&
+			args?.[1] === '-c' &&
+			typeof args[2] === 'string'
+		) {
+			args = splitShellCommand(args[2]);
+		}
+
 		if (args[0] === 'exec') {
 			args.shift();
 		}
@@ -63,16 +87,22 @@ export function sandboxedSpawnHandlerFactory(
 			return;
 		}
 
-		const { php, reap } = await processManager.acquirePHPInstance({
-			considerPrimary: false,
-		});
+		if (!getPHPInstance) {
+			logger.warn(
+				'Tried to spawn a PHP subprocess, but the sandboxed spawn handler was created without a getPHPInstance function.'
+			);
+			processApi.exit(127);
+			return;
+		}
+
+		const { php, reap } = await getPHPInstance();
 
 		try {
 			if (options.cwd) {
-				php.chdir(options.cwd as string);
+				await php.chdir(options.cwd as string);
 			}
 
-			const cwd = php.cwd();
+			const cwd = await php.cwd();
 			switch (binaryName) {
 				case 'php': {
 					// Figure out more about setting env, putenv(), etc.
@@ -105,7 +135,7 @@ export function sandboxedSpawnHandlerFactory(
 					break;
 				}
 				case 'ls': {
-					const files = php.listFiles(args[1] ?? cwd);
+					const files = await php.listFiles(args[1] ?? cwd);
 					for (const file of files) {
 						processApi.stdout(file + '\n');
 					}
@@ -128,6 +158,12 @@ export function sandboxedSpawnHandlerFactory(
 			}
 		} catch (e) {
 			// An exception here means the PHP runtime has crashed.
+			const errMsg = e instanceof Error
+				? e.message + '\n' + e.stack
+				: typeof e === 'object' && e !== null
+					? JSON.stringify(e, Object.getOwnPropertyNames(e))
+					: String(e);
+			processApi.stderr(`[spawn error] ${errMsg}`);
 			processApi.exit(1);
 			throw e;
 		} finally {
