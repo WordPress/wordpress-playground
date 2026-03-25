@@ -1,12 +1,39 @@
 #!/usr/bin/env bash
 #
 # Compare HTTP/1.1 vs HTTP/2 performance for Playground CLI.
-# Usage: ./packages/playground/cli/perf/compare-http2.sh
+# Usage: ./packages/playground/cli/perf/compare-http2.sh [--rounds=<n>] [--workers=<n>]
 
-ROUNDS=4
+ROUNDS=5
+WORKERS=6
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ARTIFACTS_DIR="$SCRIPT_DIR/artifacts"
 WORKSPACE_ROOT="$(cd "$SCRIPT_DIR/../../../.." && pwd)"
+
+for arg in "$@"; do
+  case "$arg" in
+    --rounds=*)
+      ROUNDS="${arg#*=}"
+      ;;
+    --workers=*)
+      WORKERS="${arg#*=}"
+      ;;
+    *)
+      echo "Unknown argument: $arg"
+      echo "Usage: $0 [--rounds=<n>] [--workers=<n>]"
+      exit 1
+      ;;
+  esac
+done
+
+if ! [[ "$ROUNDS" =~ ^[0-9]+$ ]] || [ "$ROUNDS" -lt 1 ]; then
+  echo "Invalid rounds value: $ROUNDS (must be a positive integer)"
+  exit 1
+fi
+
+if ! [[ "$WORKERS" =~ ^[0-9]+$ ]] || [ "$WORKERS" -lt 1 ]; then
+  echo "Invalid workers value: $WORKERS (must be a positive integer)"
+  exit 1
+fi
 
 cd "$WORKSPACE_ROOT"
 
@@ -14,6 +41,7 @@ echo "============================================"
 echo " HTTP/1.1 vs HTTP/2 Benchmark Comparison"
 echo "============================================"
 echo "Rounds per environment: $ROUNDS"
+echo "Workers: $WORKERS"
 echo ""
 
 BASELINE_FILE=""
@@ -22,7 +50,7 @@ HTTP2_FILE=""
 # --- Run 1: Baseline (HTTP/1.1) ---
 echo ">>> [1/2] Running baseline (HTTP/1.1)..."
 echo ""
-if npx nx perf playground-cli -- --rounds="$ROUNDS"; then
+if npx nx perf playground-cli -- --rounds="$ROUNDS" --workers="$WORKERS"; then
   BASELINE_FILE=$(ls -t "$ARTIFACTS_DIR"/benchmark-*.json | head -1)
   echo ""
   echo "Baseline results saved: $BASELINE_FILE"
@@ -46,7 +74,7 @@ sleep 10
 # --- Run 2: HTTP/2 ---
 echo ">>> [2/2] Running HTTP/2..."
 echo ""
-if npx nx perf playground-cli -- --rounds="$ROUNDS" --http2; then
+if npx nx perf playground-cli -- --rounds="$ROUNDS" --workers="$WORKERS" --http2; then
   HTTP2_FILE=$(ls -t "$ARTIFACTS_DIR"/benchmark-*.json | head -1)
   echo ""
   echo "HTTP/2 results saved: $HTTP2_FILE"
