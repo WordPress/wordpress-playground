@@ -174,10 +174,10 @@ To keep your WordPress Playground site for longer than a single browser session,
 The exported file contains the complete site you've built. You could host it on any server that supports PHP and SQLite. All WordPress core files, plugins, themes, and everything else you've added to your site are in there.
  -->
 
-SQLite データベースファイルもエクスポートに含まれており、`wp-content/database/.ht.sqlite`にあります。ドットで始まるファイルは、ほとんどのオペレーティングシステムでデフォルトで非表示になっているため、ファイルマネージャーで「隠しファイルを表示する」オプションを有効にする必要がある場合があります。
+SQLite データベースファイルもエクスポートに含まれており、`wp-content/database/.ht.sqlite.php`にあります。ドットで始まるファイルは、ほとんどのオペレーティングシステムでデフォルトで非表示になっているため、ファイルマネージャーで「隠しファイルを表示する」オプションを有効にする必要がある場合があります。
 
 <!--
-The SQLite database file is also included in the export, you'll find it `wp-content/database/.ht.sqlite`. Keep in mind that files starting with a dot are hidden by default on most operating systems so you might need to enable the "Show hidden files" option in your file manager.
+The SQLite database file is also included in the export, you'll find it `wp-content/database/.ht.sqlite.php`. Keep in mind that files starting with a dot are hidden by default on most operating systems so you might need to enable the "Show hidden files" option in your file manager.
  -->
 
 ## 保存したサイトを復元する

@@ -323,11 +323,11 @@ Mount before WP install: /wordpress ->
 The database location depends on what you mount:
 
 - **Auto-mounting wp-content or full WordPress**:
-    - Database: `<your-local-project>/wp-content/database/.ht.sqlite`
+    - Database: `<your-local-project>/wp-content/database/.ht.sqlite.php`
     - ✅ **Persisted locally** in your project folder
 
 - **Auto-mounting plugin/theme only**:
-    - Database: `<OS-TEMP-DIR>/playground-<id>/wordpress/wp-content/database/.ht.sqlite`
+    - Database: `<OS-TEMP-DIR>/playground-<id>/wordpress/wp-content/database/.ht.sqlite.php`
     - ⚠️ **Lost when server stops** (temp directories are cleaned up)
 
 - **Custom mounts**: Database location follows your mount configuration
@@ -346,11 +346,11 @@ Playground CLI automatically removes temp directories that are:
 A localização do banco depende do que você monta:
 
 - **Montagem automática de wp-content ou WordPress completo**:
-    - Banco: `<seu-projeto-local>/wp-content/database/.ht.sqlite`
+    - Banco: `<seu-projeto-local>/wp-content/database/.ht.sqlite.php`
     - ✅ **Persistido localmente** na pasta do seu projeto
 
 - **Montagem automática só de plugin/tema**:
-    - Banco: `<OS-TEMP-DIR>/playground-<id>/wordpress/wp-content/database/.ht.sqlite`
+    - Banco: `<OS-TEMP-DIR>/playground-<id>/wordpress/wp-content/database/.ht.sqlite.php`
     - ⚠️ **Perdido quando o servidor para** (diretórios temporários são removidos)
 
 - **Montagens customizadas**: A localização do banco segue sua configuração de montagem
@@ -409,7 +409,7 @@ O `<path-hash>` é derivado do caminho do diretório do seu projeto. Isso garant
 The database location depends on your configuration:
 
 - **Default (automatic persistence)**:
-    - Database: `~/.wordpress-playground/sites/<path-hash>/wordpress/wp-content/database/.ht.sqlite`
+    - Database: `~/.wordpress-playground/sites/<path-hash>/wordpress/wp-content/database/.ht.sqlite.php`
     - **Persisted automatically** between sessions
 -->
 
@@ -421,7 +421,7 @@ The database location depends on your configuration:
 A localização do banco depende da sua configuração:
 
 - **Padrão (persistência automática)**:
-    - Banco: `~/.wordpress-playground/sites/<path-hash>/wordpress/wp-content/database/.ht.sqlite`
+    - Banco: `~/.wordpress-playground/sites/<path-hash>/wordpress/wp-content/database/.ht.sqlite.php`
     - **Persistido automaticamente** entre sessões
 
 <!--

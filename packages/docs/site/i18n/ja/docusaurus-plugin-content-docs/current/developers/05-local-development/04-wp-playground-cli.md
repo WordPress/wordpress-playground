@@ -322,11 +322,11 @@ Mount before WP install: /wordpress ->
 The database location depends on what you mount:
 
 - **Auto-mounting wp-content or full WordPress**:
-    - Database: `<your-local-project>/wp-content/database/.ht.sqlite`
+    - Database: `<your-local-project>/wp-content/database/.ht.sqlite.php`
     - ✅ **Persisted locally** in your project folder
 
 - **Auto-mounting plugin/theme only**:
-    - Database: `<OS-TEMP-DIR>/playground-<id>/wordpress/wp-content/database/.ht.sqlite`
+    - Database: `<OS-TEMP-DIR>/playground-<id>/wordpress/wp-content/database/.ht.sqlite.php`
     - ⚠️ **Lost when server stops** (temp directories are cleaned up)
 
 - **Custom mounts**: Database location follows your mount configuration
@@ -345,11 +345,11 @@ Playground CLI automatically removes temp directories that are:
 マウント内容によってデータベースの場所が変わります:
 
 - **wp-content または WordPress 全体の自動マウント**:
-    - データベース: `<プロジェクト>/wp-content/database/.ht.sqlite`
+    - データベース: `<プロジェクト>/wp-content/database/.ht.sqlite.php`
     - ✅ プロジェクトフォルダに **ローカル永続化**
 
 - **プラグイン/テーマのみ自動マウント**:
-    - データベース: `<OS-TEMP-DIR>/playground-<id>/wordpress/wp-content/database/.ht.sqlite`
+    - データベース: `<OS-TEMP-DIR>/playground-<id>/wordpress/wp-content/database/.ht.sqlite.php`
     - ⚠️ サーバー停止時に **削除**（一時ディレクトリはクリーンアップされる）
 
 - **カスタムマウント**: マウント設定に従う
@@ -407,7 +407,7 @@ The `<path-hash>` is derived from your project directory path. This ensures isol
 The database location depends on your configuration:
 
 - **Default (automatic persistence)**:
-    - Database: `~/.wordpress-playground/sites/<path-hash>/wordpress/wp-content/database/.ht.sqlite`
+    - Database: `~/.wordpress-playground/sites/<path-hash>/wordpress/wp-content/database/.ht.sqlite.php`
     - **Persisted automatically** between sessions
 -->
 
@@ -419,7 +419,7 @@ The database location depends on your configuration:
 データベースの場所は設定により異なります:
 
 - **デフォルト（自動永続化）**:
-    - データベース: `~/.wordpress-playground/sites/<path-hash>/wordpress/wp-content/database/.ht.sqlite`
+    - データベース: `~/.wordpress-playground/sites/<path-hash>/wordpress/wp-content/database/.ht.sqlite.php`
     - セッション間で **自動永続化**
 
 <!--

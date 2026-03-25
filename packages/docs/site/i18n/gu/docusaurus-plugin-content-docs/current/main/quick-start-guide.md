@@ -123,9 +123,9 @@ https://playground.wordpress.net/?plugin=coblocks&plugin=friends&theme=pendant
 
 એક્સપોર્ટ કરેલી ફાઇલમાં તમે બનાવેલી સંપૂર્ણ સાઇટ સામેલ છે. તમે તેને કોઈપણ સર્વર પર હોસ્ટ કરી શકો છો જે PHP અને SQLite ને સપોર્ટ કરે છે. તમામ વર્ડપ્રેસ કોર ફાઇલો, પ્લગિન્સ, થીમ્સ અને તમે તમારી સાઇટમાં ઉમેરેલી બધી અન્ય વસ્તુઓ તેમાં સામેલ છે.
 
-<!-- The SQLite database file is also included in the export, you'll find it `wp-content/database/.ht.sqlite`. Keep in mind that files starting with a dot are hidden by default on most operating systems so you might need to enable the "Show hidden files" option in your file manager. -->
+<!-- The SQLite database file is also included in the export, you'll find it `wp-content/database/.ht.sqlite.php`. Keep in mind that files starting with a dot are hidden by default on most operating systems so you might need to enable the "Show hidden files" option in your file manager. -->
 
-SQLite ડેટાબેસ ફાઇલ પણ એક્સપોર્ટમાં સામેલ છે, તમે તેને `wp-content/database/.ht.sqlite` માં શોધી શકો છો. ધ્યાનમાં રાખો કે ડોટ (.) થી શરૂ થતી ફાઇલો મોટાભાગની ઓપરેટિંગ સિસ્ટમમાં ડિફૉલ્ટ મુજબ છુપાયેલી હોય છે, તેથી તમને તમારા ફાઇલ મેનેજરમાં "Show hidden files" વિકલ્પ સક્રિય કરવાની જરૂર પડી શકે છે.
+SQLite ડેટાબેસ ફાઇલ પણ એક્સપોર્ટમાં સામેલ છે, તમે તેને `wp-content/database/.ht.sqlite.php` માં શોધી શકો છો. ધ્યાનમાં રાખો કે ડોટ (.) થી શરૂ થતી ફાઇલો મોટાભાગની ઓપરેટિંગ સિસ્ટમમાં ડિફૉલ્ટ મુજબ છુપાયેલી હોય છે, તેથી તમને તમારા ફાઇલ મેનેજરમાં "Show hidden files" વિકલ્પ સક્રિય કરવાની જરૂર પડી શકે છે.
 
 <!-- ## Restore a saved site -->
 
