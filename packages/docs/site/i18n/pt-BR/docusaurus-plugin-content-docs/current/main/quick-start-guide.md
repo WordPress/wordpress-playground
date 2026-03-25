@@ -159,10 +159,10 @@ The exported file contains the complete site you've built. You could host it on 
 O arquivo exportado contém o site completo que você criou. Você pode hospedá-lo em qualquer servidor compatível com PHP e SQLite. Todos os arquivos principais do WordPress, plugins, temas e tudo o mais que você adicionou ao seu site estarão lá.
 
 <!--
-The SQLite database file is also included in the export, you'll find it `wp-content/database/.ht.sqlite.php`. Keep in mind that files starting with a dot are hidden by default on most operating systems so you might need to enable the "Show hidden files" option in your file manager.
+The SQLite database file is also included in the export, you'll find it `wp-content/database/.ht.sqlite`. Keep in mind that files starting with a dot are hidden by default on most operating systems so you might need to enable the "Show hidden files" option in your file manager.
 -->
 
-O arquivo de banco de dados SQLite também está incluído na exportação. Você o encontrará em `wp-content/database/.ht.sqlite.php`. Lembre-se de que arquivos que começam com um ponto ficam ocultos por padrão na maioria dos sistemas operacionais, portanto, pode ser necessário habilitar a opção "Mostrar arquivos ocultos" no seu gerenciador de arquivos.
+O arquivo de banco de dados SQLite também está incluído na exportação. Você o encontrará em `wp-content/database/.ht.sqlite`. Lembre-se de que arquivos que começam com um ponto ficam ocultos por padrão na maioria dos sistemas operacionais, portanto, pode ser necessário habilitar a opção "Mostrar arquivos ocultos" no seu gerenciador de arquivos.
 
 <!--
 ## Restore a saved site

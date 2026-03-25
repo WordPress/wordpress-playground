@@ -96,7 +96,7 @@ if (!defined('Adminer\DRIVER')) {
 		public $driver;
 
 		function attach($server, $username, $password) {
-			$pdo = new PDO('sqlite:/wordpress/wp-content/database/.ht.sqlite.php');
+			$pdo = new PDO('sqlite:/wordpress/wp-content/database/.ht.sqlite');
 			$pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 			$this->driver = new WP_SQLite_Driver(
 				new WP_SQLite_Connection(array('pdo' => $pdo)),

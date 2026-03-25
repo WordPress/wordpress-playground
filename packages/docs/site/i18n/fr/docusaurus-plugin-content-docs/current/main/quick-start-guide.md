@@ -117,9 +117,9 @@ Pour conserver votre site WordPress Playground au delà d’une seule session de
 
 Le fichier exporté contient la totalité du site que vous avez créé. Vous pouvez l’héberger sur n’importe quel serveur prenant en charge PHP et SQLite. Tous les fichiers de base WordPress, les extensions, les thèmes et tout ce que vous avez ajouté d’autre à votre site s’y trouvent.
 
-<!-- The SQLite database file is also included in the export, you'll find it `wp-content/database/.ht.sqlite.php`. Keep in mind that files starting with a dot are hidden by default on most operating systems so you might need to enable the "Show hidden files" option in your file manager. -->
+<!-- The SQLite database file is also included in the export, you'll find it `wp-content/database/.ht.sqlite`. Keep in mind that files starting with a dot are hidden by default on most operating systems so you might need to enable the "Show hidden files" option in your file manager. -->
 
-Le fichier de base de données SQLite est également inclus dans l’export, vous le trouverez `wp-content/database/.ht.sqlite.php`. Gardez à l’esprit que les fichiers commençant par un point sont masqués par défaut sur la plupart des systèmes d’exploitation, vous devrez donc peut-être activer l’option « Afficher les fichiers masqués » dans votre gestionnaire de fichiers.
+Le fichier de base de données SQLite est également inclus dans l’export, vous le trouverez `wp-content/database/.ht.sqlite`. Gardez à l’esprit que les fichiers commençant par un point sont masqués par défaut sur la plupart des systèmes d’exploitation, vous devrez donc peut-être activer l’option « Afficher les fichiers masqués » dans votre gestionnaire de fichiers.
 
 <!-- ## Restore a saved site -->
 
