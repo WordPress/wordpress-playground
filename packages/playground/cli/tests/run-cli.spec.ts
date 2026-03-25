@@ -1758,8 +1758,7 @@ describe(
 			await using cliServer = await runCLI({
 				command: 'server',
 				http2: true,
-				'min-workers': 2,
-				'max-workers': 4,
+				workers: 4,
 				wordpressInstallMode: 'do-not-attempt-installing',
 				skipSqliteSetup: true,
 				blueprint: undefined,

@@ -358,17 +358,11 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 					'Path to a TLS private key file (PEM format). Used with --http2.',
 				type: 'string',
 			},
-			'min-workers': {
+			workers: {
 				describe:
-					'Minimum number of PHP worker threads. Defaults to 2.',
+					'Number of PHP worker threads to spawn. Defaults to 6.',
 				type: 'number',
-				default: 2,
-			},
-			'max-workers': {
-				describe:
-					'Maximum number of PHP worker threads. Defaults to 12.',
-				type: 'number',
-				default: 12,
+				default: 6,
 			},
 			'experimental-multi-worker': {
 				deprecated:
@@ -471,8 +465,7 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 			'ssl-cert': serverOnlyOptions['ssl-cert'],
 			'ssl-key': serverOnlyOptions['ssl-key'],
 			// Worker pool
-			'min-workers': serverOnlyOptions['min-workers'],
-			'max-workers': serverOnlyOptions['max-workers'],
+			workers: serverOnlyOptions['workers'],
 			// Define constants
 			define: sharedOptions['define'],
 			'define-bool': sharedOptions['define-bool'],
@@ -854,8 +847,7 @@ export interface RunCLIArgs {
 	http2?: boolean;
 	'ssl-cert'?: string;
 	'ssl-key'?: string;
-	'min-workers'?: number;
-	'max-workers'?: number;
+	workers?: number;
 
 	// --------- Start command args -----------
 	path?: string;
@@ -1072,12 +1064,8 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 			 * connection limit, so we size the pool based on
 			 * available system memory instead.
 			 */
-			const targetWorkerCount = useHttp2
-				? computeWorkerCount(
-						args['min-workers'] as number,
-						args['max-workers'] as number
-					)
-				: 6;
+			const targetWorkerCount = (args.workers as number) ?? 6;
+			warnIfInsufficientMemoryForWorkers(targetWorkerCount);
 
 			/*
 			 * Use a real temp dir as a target for the following Playground paths
@@ -1937,25 +1925,29 @@ function openInBrowser(url: string): void {
 export const ESTIMATED_WORKER_MEMORY_BYTES = 100 * 1024 * 1024; // ~100MB per worker
 
 /**
- * Determines the number of PHP worker threads to spawn based on
- * available system memory, clamped to [minWorkers, maxWorkers].
+ * Logs a warning when selected worker count appears too high for
+ * currently free system memory.
  *
- * Uses 50% of free memory as the budget for workers so the system
+ * Uses 50% of free memory as the recommended worker budget so the system
  * has headroom for the OS, browser, and other processes.
  */
-export function computeWorkerCount(
-	minWorkers: number,
-	maxWorkers: number
-): number {
+export function warnIfInsufficientMemoryForWorkers(workerCount: number): void {
 	const freeMemory = os.freemem();
-	const memoryBased = Math.floor(
+	const recommendedByMemory = Math.floor(
 		(freeMemory * 0.5) / ESTIMATED_WORKER_MEMORY_BYTES
 	);
-	const count = Math.max(minWorkers, Math.min(memoryBased, maxWorkers));
-	logger.log(
-		`Worker count: ${count} (free memory: ${Math.round(freeMemory / 1024 / 1024)}MB)`
-	);
-	return count;
+	const freeMemoryMb = Math.round(freeMemory / 1024 / 1024);
+	if (workerCount > recommendedByMemory) {
+		logger.warn(
+			`Selected workers (${workerCount}) may exceed available free memory budget ` +
+				`(free memory: ${freeMemoryMb}MB, recommended max: ${recommendedByMemory}). ` +
+				'Continuing with requested worker count.'
+		);
+	} else {
+		logger.log(
+			`Worker count: ${workerCount} (free memory: ${freeMemoryMb}MB)`
+		);
+	}
 }
 
 async function zipSite(
