@@ -11,6 +11,9 @@ on:
     schedule:
         - cron: '*/20 * * * *'
 
+concurrency:
+    group: refresh-wordpress-major-and-beta
+
 jobs:
     build_wordpress_major_and_beta_push_to_github_and_deploy_website:
         # Only run this workflow from the trunk branch and when it's triggered by a Playground maintainer
@@ -29,8 +32,9 @@ jobs:
         runs-on: ubuntu-latest
         environment:
             name: wordpress-assets
-        concurrency:
-            group: check-version-and-run-build
+        # Be conservative and set _some_ timeout to prevent a hanging
+        # job from blocking the queue of scheduled runs.
+        timeout-minutes: 120
         steps:
             - uses: actions/checkout@v4
               with:

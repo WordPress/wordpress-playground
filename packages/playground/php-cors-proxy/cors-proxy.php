@@ -1,7 +1,7 @@
 <?php
 // Set error reporting
 error_reporting(E_ALL);
-ini_set('display_errors', 1);
+ini_set('display_errors', 0);
 
 define('MAX_REQUEST_SIZE', 1 * 1024 * 1024); // 1MB
 define('MAX_RESPONSE_SIZE', 100 * 1024 * 1024); // 100MB
@@ -124,7 +124,7 @@ function send_response_chunk($data) {
 /**
  * We need to manually chunk the response when running the PHP
  * dev server AND the transfer-encoding header is set to chunked.
- * 
+ *
  * Apache, Nginx, etc. will handle the chunking for us.
  */
 function should_send_as_chunked_response() {
@@ -228,11 +228,11 @@ curl_setopt(
 
         $len = strlen($header);
         $colonPos = strpos($header, ':');
-        
+
         if ($colonPos === false) {
             return $len;
         }
-        
+
         $name = strtolower(substr($header, 0, $colonPos));
         $value = trim(substr($header, $colonPos + 1));
 
@@ -349,7 +349,11 @@ if (!curl_exec($ch)) {
     @$relay_http_code_and_initial_headers_if_not_already_sent();
 }
 // Close cURL session
-curl_close($ch);
+if (version_compare(PHP_VERSION, '8.5', '<')) {
+    // curl_close is deprecated in PHP 8.5 and later.
+    // See https://www.php.net/manual/en/migration85.deprecated.php#migration85.deprecated.curl
+    curl_close($ch);
+}
 
 // Only send chunked transfer encoding footer if we're using chunked encoding.
 // We need to manually send the footer when running in the PHP built-in server
