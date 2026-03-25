@@ -185,29 +185,45 @@ export class WordPressFetchNetworkTransport {
 				require_once '/wordpress/wp-load.php';
 				require_once '/wordpress/wp-admin/includes/misc.php';
 				require_once '/wordpress/wp-admin/includes/dashboard.php';
+
+				function _wppg_is_loopback_request( $url ) {
+					$parsed_url_req  = wp_parse_url( $url );
+					$parsed_site_url = wp_parse_url( site_url() );
+					if ( ! is_array( $parsed_url_req ) || ! is_array( $parsed_site_url ) ) {
+						return false;
+					}
+
+					if (
+						! isset(
+							$parsed_site_url['host'],
+							$parsed_url_req['host'],
+							$parsed_site_url['path'],
+							$parsed_url_req['path']
+						)
+					) {
+						return false;
+					}
+
+					$site_port =
+						$parsed_site_url['port'] ??
+						( ( $parsed_site_url['scheme'] ?? 'http' ) === 'https' ? 443 : 80 );
+					$req_port =
+						$parsed_url_req['port'] ??
+						( ( $parsed_url_req['scheme'] ?? 'http' ) === 'https' ? 443 : 80 );
+
+					return
+						$parsed_site_url['host'] === $parsed_url_req['host'] &&
+						$site_port === $req_port &&
+						strpos( $parsed_url_req['path'], $parsed_site_url['path'] ) === 0;
+				}
+
 				add_filter('pre_http_request', function($pre, $r, $url) {
 					// Exclude loopback requests from pre-fetching
-					$parsed_url_req = wp_parse_url($url);
-					$parsed_site_url = wp_parse_url(site_url());
-					if ( is_array($parsed_url_req) && is_array($parsed_site_url) ) {
-						$default_port = function($parsed) {
-							return ($parsed['scheme'] ?? 'http') === 'https' ? 443 : 80;
-						};
-						$site_port = $parsed_site_url['port'] ?? $default_port($parsed_site_url);
-						$req_port = $parsed_url_req['port'] ?? $default_port($parsed_url_req);
-						if (
-							isset(
-								$parsed_site_url['host'],
-								$parsed_url_req['host'],
-								$parsed_site_url['path'],
-								$parsed_url_req['path']
-							) &&
-							$parsed_site_url['host'] === $parsed_url_req['host'] &&
-							$site_port === $req_port &&
-							strpos( $parsed_url_req['path'], $parsed_site_url['path'] ) === 0
-						) {
-							return new WP_Error( 'http_request_block', 'Loopback requests are not to be pre-fetched' );
-						}
+					if ( _wppg_is_loopback_request( $url ) ) {
+						return new WP_Error(
+							'http_request_block',
+							'Loopback requests are not to be pre-fetched'
+						);
 					}
 
 					post_message_to_js(json_encode([
