@@ -14,7 +14,7 @@ PHP WASM CLI debugs any PHP code—you don't need WordPress. This works for all 
 
 You need an IDE that supports Xdebug and its configuration file.
 
--   **A configuration file:** For example, `.vscode/launch.json` for VS Code-based IDEs and `.idea/workspace.xml` for PhpStorm
+-   **A configuration file:** For example, `.vscode/launch.json` for VS Code-based IDEs, or a Run/Debug Configuration created via **Run ▸ Edit Configurations…** in PhpStorm
 -   **VS Code / Cursor:** We recommend the official [PHP Debug extension](https://marketplace.visualstudio.com/items?itemName=xdebug.php-debug).
 -   **PhpStorm:** supports Xdebug natively.
 
@@ -24,7 +24,7 @@ You need an IDE that supports Xdebug and its configuration file.
 
 This example demonstrates Xdebug debugging:
 
-```PHP
+```php
 <?php
 
 $test = 42; // Set a breakpoint on this line
@@ -68,7 +68,7 @@ npx @php-wasm/cli@latest --xdebug src/test.php
 
 > **Note:** Start your IDE's debug listener before running this command. Otherwise, Xdebug waits indefinitely for the connection.
 
-![PhpStorm running Xdebug with PHP WASM](@site/static/img/developers/xdebug/xdebug-with-php-wasm.web)
+![PhpStorm running Xdebug with PHP WASM](@site/static/img/developers/xdebug/xdebug-with-php-wasm.webp)
 
 If you don't have the IDE set up, you can use the experimental flag `--experimental-unsafe-ide-integration`, passing the IDE that you would like to set, `vscode` or `phpstorm`. The flag is also set as unsafe because it can overwrite the previous configuration of your IDE.
 
