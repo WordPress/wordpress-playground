@@ -49,68 +49,6 @@ export class FSHelpers {
 	}
 
 	/**
-	 * Reads a file from the PHP filesystem and returns it as a
-	 * ReadableStream, reading in chunks to avoid buffering the
-	 * entire file in memory at once.
-	 *
-	 * @throws {@link @php-wasm/universal:ErrnoError} – If the file
-	 *   doesn't exist.
-	 * @param FS
-	 * @param path - The file path to read.
-	 * @param chunkSize - The size of each chunk in bytes.
-	 * @returns An object with the file size and a ReadableStream of
-	 *   the file contents.
-	 */
-	static streamFile(
-		FS: Emscripten.RootFS,
-		path: string,
-		chunkSize = 64 * 1024
-	): { fileSize: number; stream: ReadableStream<Uint8Array> } {
-		const stat = FS.stat(path);
-		const fileSize = stat.size;
-
-		// For NODEFS-backed files, use Node.js
-		// fs.createReadStream() for efficient streaming
-		// directly from the host filesystem.
-		const lookup = FS.lookupPath(path, { follow: true });
-		const isNodeFS = !('contents' in lookup.node);
-		if (isNodeFS) {
-			const hostPath = resolveNodeFSPath(lookup.node);
-			if (hostPath !== null) {
-				return {
-					fileSize,
-					stream: createNodeReadStream(hostPath),
-				};
-			}
-		}
-
-		// For MEMFS files (or if host path resolution
-		// failed), read in chunks via Emscripten's FS API.
-		const fsStream = FS.open(path, 'r');
-		let offset = 0;
-
-		const stream = new ReadableStream<Uint8Array>({
-			pull(controller) {
-				const bytesToRead = Math.min(chunkSize, fileSize - offset);
-				if (bytesToRead <= 0) {
-					FS.close(fsStream);
-					controller.close();
-					return;
-				}
-				const buf = new Uint8Array(bytesToRead);
-				FS.read(fsStream, buf, 0, bytesToRead, offset);
-				offset += bytesToRead;
-				controller.enqueue(buf);
-			},
-			cancel() {
-				FS.close(fsStream);
-			},
-		});
-
-		return { fileSize, stream };
-	}
-
-	/**
 	 * Overwrites data in a file in the PHP filesystem.
 	 * Creates a new file if one doesn't exist yet.
 	 *
@@ -414,9 +352,6 @@ FSHelpers.readFileAsText = rethrowFileSystemError('Could not read "{path}"')(
 FSHelpers.readFileAsBuffer = rethrowFileSystemError('Could not read "{path}"')(
 	FSHelpers.readFileAsBuffer
 );
-FSHelpers.streamFile = rethrowFileSystemError('Could not read "{path}"')(
-	FSHelpers.streamFile
-);
 FSHelpers.writeFile = rethrowFileSystemError('Could not write to "{path}"')(
 	FSHelpers.writeFile
 );
@@ -444,62 +379,3 @@ FSHelpers.fileExists = rethrowFileSystemError('Could not stat "{path}"')(
 FSHelpers.mkdir = rethrowFileSystemError('Could not create directory "{path}"')(
 	FSHelpers.mkdir
 );
-
-/**
- * Resolves the host filesystem path for a NODEFS-backed
- * Emscripten FS node. Uses the same algorithm as
- * Emscripten's internal NODEFS.realPath(): walk the node's
- * parent chain and prepend the mount's root option.
- *
- * Returns null if the mount doesn't have a root option
- * (i.e. it's not a NODEFS mount).
- */
-function resolveNodeFSPath(node: Emscripten.FS.FSNode): string | null {
-	const root = node.mount?.opts?.['root'];
-	if (typeof root !== 'string') {
-		return null;
-	}
-	const parts: string[] = [];
-	let current = node;
-	while (current.parent !== current) {
-		parts.push(current.name);
-		current = current.parent;
-	}
-	parts.push(root);
-	parts.reverse();
-	return parts.join('/');
-}
-
-/**
- * Creates a web ReadableStream backed by Node.js
- * fs.createReadStream(). The dynamic import of 'fs'
- * happens lazily inside the stream's start callback
- * so the function can return synchronously and the
- * module is only loaded in Node.js environments.
- */
-function createNodeReadStream(hostPath: string): ReadableStream<Uint8Array> {
-	let nodeStream: any;
-
-	return new ReadableStream<Uint8Array>({
-		async start(controller) {
-			// Dynamic module name prevents bundlers from
-			// resolving this import in browser builds.
-			const fsModule = 'fs';
-			const fs = await import(/* webpackIgnore: true */ fsModule);
-			nodeStream = fs.createReadStream(hostPath);
-
-			nodeStream.on('data', (chunk: Buffer) => {
-				controller.enqueue(new Uint8Array(chunk));
-			});
-			nodeStream.on('end', () => {
-				controller.close();
-			});
-			nodeStream.on('error', (err: Error) => {
-				controller.error(err);
-			});
-		},
-		cancel() {
-			nodeStream?.destroy();
-		},
-	});
-}

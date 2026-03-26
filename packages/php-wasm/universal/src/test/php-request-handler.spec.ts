@@ -19,21 +19,6 @@ function createMockPHP(filesystem: Map<string, 'file' | 'dir'>) {
 			}
 			throw new Error(`File not found: ${path}`);
 		}),
-		streamFile: vi.fn((path: string) => {
-			if (filesystem.get(path) === 'file') {
-				const bytes = new Uint8Array(Buffer.from(`Content of ${path}`));
-				return {
-					fileSize: bytes.byteLength,
-					stream: new ReadableStream<Uint8Array>({
-						start(controller) {
-							controller.enqueue(bytes);
-							controller.close();
-						},
-					}),
-				};
-			}
-			throw new Error(`File not found: ${path}`);
-		}),
 		addEventListener: vi.fn(),
 		onMessage: vi.fn(() => Promise.resolve(() => {})),
 		dispatchEvent: vi.fn(),
@@ -278,23 +263,14 @@ describe('PHPRequestHandler', () => {
 				['/tools/phpmyadmin/styles.css', 'file'],
 			]);
 			const mockPHP = createMockPHP(filesystem);
-			(mockPHP.streamFile as ReturnType<typeof vi.fn>).mockImplementation(
-				(path: string) => {
-					if (path === '/tools/phpmyadmin/styles.css') {
-						const bytes = new Uint8Array(Buffer.from(cssContent));
-						return {
-							fileSize: bytes.byteLength,
-							stream: new ReadableStream<Uint8Array>({
-								start(controller) {
-									controller.enqueue(bytes);
-									controller.close();
-								},
-							}),
-						};
-					}
-					throw new Error(`File not found: ${path}`);
+			(
+				mockPHP.readFileAsBuffer as ReturnType<typeof vi.fn>
+			).mockImplementation((path: string) => {
+				if (path === '/tools/phpmyadmin/styles.css') {
+					return new Uint8Array(Buffer.from(cssContent));
 				}
-			);
+				throw new Error(`File not found: ${path}`);
+			});
 
 			const handler = new PHPRequestHandler({
 				php: mockPHP,
@@ -406,23 +382,14 @@ describe('PHPRequestHandler', () => {
 				['/www/app.css', 'file'],
 			]);
 			const mockPHP = createMockPHP(filesystem);
-			(mockPHP.streamFile as ReturnType<typeof vi.fn>).mockImplementation(
-				(path: string) => {
-					if (path === '/www/app.css') {
-						const bytes = new Uint8Array(Buffer.from(cssContent));
-						return {
-							fileSize: bytes.byteLength,
-							stream: new ReadableStream<Uint8Array>({
-								start(controller) {
-									controller.enqueue(bytes);
-									controller.close();
-								},
-							}),
-						};
-					}
-					throw new Error(`File not found: ${path}`);
+			(
+				mockPHP.readFileAsBuffer as ReturnType<typeof vi.fn>
+			).mockImplementation((path: string) => {
+				if (path === '/www/app.css') {
+					return new Uint8Array(Buffer.from(cssContent));
 				}
-			);
+				throw new Error(`File not found: ${path}`);
+			});
 
 			const handler = new PHPRequestHandler({
 				php: mockPHP,

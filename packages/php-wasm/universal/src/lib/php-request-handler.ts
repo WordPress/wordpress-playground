@@ -458,7 +458,9 @@ export class PHPRequestHandler implements AsyncDisposable {
 
 		switch (route.type) {
 			case 'static-file':
-				return this.#streamStaticFile(primaryPhp, route.fsPath);
+				return StreamedPHPResponse.fromPHPResponse(
+					this.#serveStaticFile(primaryPhp, route.fsPath)
+				);
 			case 'php': {
 				const isAbsolute = looksLikeAbsoluteUrl(request.url);
 				const originalRequestUrl = new URL(
@@ -538,54 +540,26 @@ export class PHPRequestHandler implements AsyncDisposable {
 	}
 
 	/**
-	 * Streams a static file from the PHP filesystem
-	 * without buffering it entirely in memory.
+	 * Serves a static file from the PHP filesystem.
 	 *
-	 * @param fsPath - Absolute path of the static file.
-	 * @returns A streamed response.
+	 * @param  fsPath - Absolute path of the static file to serve.
+	 * @returns The response.
 	 */
-	#streamStaticFile(php: PHP, fsPath: string): StreamedPHPResponse {
-		const { fileSize, stream: stdout } = php.streamFile(fsPath);
-
-		const headers: Record<string, string[]> = {
-			'content-length': [`${fileSize}`],
-			// @TODO: Infer the content-type from the file
-			// contents instead of the file path. The code
-			// below won't return the correct mime-type if
-			// the extension was tampered with.
-			'content-type': [inferMimeType(fsPath)],
-			'accept-ranges': ['bytes'],
-			'cache-control': ['public, max-age=0'],
-		};
-
-		const headerLines: string[] = [];
-		for (const [name, values] of Object.entries(headers)) {
-			for (const value of values) {
-				headerLines.push(`${name}: ${value}`);
-			}
-		}
-		const headersJson = JSON.stringify({
-			status: 200,
-			headers: headerLines,
-		});
-		const headersStream = new ReadableStream<Uint8Array>({
-			start(controller) {
-				controller.enqueue(new TextEncoder().encode(headersJson));
-				controller.close();
+	#serveStaticFile(php: PHP, fsPath: string): PHPResponse {
+		const arrayBuffer = php.readFileAsBuffer(fsPath);
+		return new PHPResponse(
+			200,
+			{
+				'content-length': [`${arrayBuffer.byteLength}`],
+				// @TODO: Infer the content-type from the
+				// arrayBuffer instead of the file path.
+				// The code below won't return the correct
+				// mime-type if the extension was tampered with.
+				'content-type': [inferMimeType(fsPath)],
+				'accept-ranges': ['bytes'],
+				'cache-control': ['public, max-age=0'],
 			},
-		});
-
-		const stderr = new ReadableStream<Uint8Array>({
-			start(controller) {
-				controller.close();
-			},
-		});
-
-		return new StreamedPHPResponse(
-			headersStream,
-			stdout,
-			stderr,
-			Promise.resolve(0)
+			arrayBuffer
 		);
 	}
 
