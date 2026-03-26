@@ -1205,6 +1205,29 @@ export class PHP implements Disposable {
 	}
 
 	/**
+	 * Reads a file from the PHP filesystem and returns it as a
+	 * ReadableStream, reading in chunks to avoid buffering the
+	 * entire file in memory at once.
+	 *
+	 * @throws {@link @php-wasm/universal:ErrnoError} – If the file
+	 *   doesn't exist.
+	 * @param path - The file path to read.
+	 * @param chunkSize - The size of each chunk in bytes.
+	 * @returns An object with the file size and a ReadableStream
+	 *   of the file contents.
+	 */
+	streamFile(
+		path: string,
+		chunkSize?: number
+	): { fileSize: number; stream: ReadableStream<Uint8Array> } {
+		return FSHelpers.streamFile(
+			this[__private__dont__use].FS,
+			path,
+			chunkSize
+		);
+	}
+
+	/**
 	 * Overwrites data in a file in the PHP filesystem.
 	 * Creates a new file if one doesn't exist yet.
 	 *
