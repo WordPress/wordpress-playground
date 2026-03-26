@@ -155,10 +155,10 @@ The exported file contains the complete site you've built. You could host it on 
 এক্সপোর্ট করা ফাইলে আপনার তৈরি করা সম্পূর্ণ সাইটটি থাকে। আপনি এটিকে PHP এবং SQLite সাপোর্ট করে এমন যেকোনো সার্ভারে হোস্ট করতে পারেন। ওয়ার্ডপ্রেসের সমস্ত কোর ফাইল, প্লাগইন, থিম এবং আপনি আপনার সাইটে যা যা যোগ করেছেন তার সবকিছুই সেখানে থাকে।
 
 <!--
-The SQLite database file is also included in the export, you'll find it `wp-content/database/.ht.sqlite.php`. Keep in mind that files starting with a dot are hidden by default on most operating systems so you might need to enable the "Show hidden files" option in your file manager.
+The SQLite database file is also included in the export, you'll find it `wp-content/database/.ht.sqlite`. Keep in mind that files starting with a dot are hidden by default on most operating systems so you might need to enable the "Show hidden files" option in your file manager.
 -->
 
-এক্সপোর্টের সাথে SQLite ডাটাবেস ফাইলটিও অন্তর্ভুক্ত থাকে, যা আপনি `wp-content/database/.ht.sqlite.php` ঠিকানায় পাবেন। মনে রাখবেন যে, ডট (.) দিয়ে শুরু হওয়া ফাইলগুলো সাধারণত অধিকাংশ অপারেটিং সিস্টেমে ডিফল্টভাবে লুকানো থাকে, তাই আপনার ফাইল ম্যানেজারে "Show hidden files" অপশনটি চালু করার প্রয়োজন হতে পারে।
+এক্সপোর্টের সাথে SQLite ডাটাবেস ফাইলটিও অন্তর্ভুক্ত থাকে, যা আপনি `wp-content/database/.ht.sqlite` ঠিকানায় পাবেন। মনে রাখবেন যে, ডট (.) দিয়ে শুরু হওয়া ফাইলগুলো সাধারণত অধিকাংশ অপারেটিং সিস্টেমে ডিফল্টভাবে লুকানো থাকে, তাই আপনার ফাইল ম্যানেজারে "Show hidden files" অপশনটি চালু করার প্রয়োজন হতে পারে।
 
 <!--
 ## Restore a saved site
