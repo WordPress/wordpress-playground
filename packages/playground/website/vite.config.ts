@@ -30,6 +30,7 @@ import { listAssetsRequiredForOfflineMode } from '../../vite-extensions/vite-lis
 import virtualModule from '../../vite-extensions/vite-virtual-module';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import viteGlobalExtensions from '../../vite-extensions/vite-global-extensions';
+import { analyticsInjectionPlugin } from './vite-analytics-plugin';
 
 const exec = promisify(execCb);
 
@@ -40,10 +41,7 @@ const isDevcontainer = process.env.VITE_DEVCONTAINER === 'true';
 // a port that was published using the devcontainer "appPort" configuration.
 const serverHost = isDevcontainer ? '0.0.0.0' : websiteDevServerHost;
 
-async function setCodespacesPortPublic(
-	port: number,
-	codespaceName: string
-) {
+async function setCodespacesPortPublic(port: number, codespaceName: string) {
 	// eslint-disable-next-line no-console
 	console.log(`Publishing port ${port}...`);
 	const cmd = `gh codespace ports visibility ${port}:public -c ${codespaceName}`;
@@ -141,8 +139,7 @@ export default defineConfig(({ command, mode }) => {
 				? {
 						name: 'devcontainer-print-urls',
 						configureServer(server: ViteDevServer) {
-							const codespaceName =
-								process.env['CODESPACE_NAME'];
+							const codespaceName = process.env['CODESPACE_NAME'];
 							const codespacesDomain =
 								process.env[
 									'GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN'
@@ -160,13 +157,11 @@ export default defineConfig(({ command, mode }) => {
 							// Codespaces ports default to private, breaking CORS.
 							// Publish once the tunnel is ready.
 							if (codespaceName) {
-								server.httpServer?.once(
-									'listening',
-									() =>
-										setCodespacesPortPublic(
-											websiteDevServerPort,
-											codespaceName
-										)
+								server.httpServer?.once('listening', () =>
+									setCodespacesPortPublic(
+										websiteDevServerPort,
+										codespaceName
+									)
 								);
 							}
 						},
@@ -254,6 +249,7 @@ export default defineConfig(({ command, mode }) => {
 					}
 				},
 			} as Plugin,
+			analyticsInjectionPlugin(),
 			{
 				name: 'inject-commit-id',
 				transformIndexHtml(html) {

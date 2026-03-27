@@ -179,6 +179,42 @@ class ProxyFunctionsTests extends TestCase
         );
     }
 
+    /**
+     * @dataProvider providerShouldRespondWithCorsHeaders
+     */
+    public function testShouldRespondWithCorsHeaders($host, $origin, $expected)
+    {
+        $this->assertEquals(
+            $expected,
+            should_respond_with_cors_headers($host, $origin)
+        );
+    }
+
+    static public function providerShouldRespondWithCorsHeaders() {
+        return [
+            'known origin http://localhost:5400' => [
+                'cors.playground.wordpress.net',
+                'http://localhost:5400',
+                true,
+            ],
+            'known origin https://playground.wordpress.net' => [
+                'cors.playground.wordpress.net',
+                'https://playground.wordpress.net',
+                true,
+            ],
+            'unknown origin is rejected' => [
+                'cors.playground.wordpress.net',
+                'https://evil.example.com',
+                false,
+            ],
+            'empty origin is rejected' => [
+                'cors.playground.wordpress.net',
+                '',
+                false,
+            ],
+        ];
+    }
+
     public function testFilterHeaderStringsWithAdditionalAllowedHeaders()
     {
         $original_headers = [

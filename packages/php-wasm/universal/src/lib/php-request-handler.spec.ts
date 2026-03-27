@@ -448,6 +448,48 @@ describe('PHPRequestHandler', () => {
 			expect(headers['content-type']).toEqual(['application/javascript']);
 		});
 
+		it('returns correct content-type header for .mjs files', async () => {
+			const filesystem = new Map<string, 'file' | 'dir'>([
+				['/www', 'dir'],
+				['/www/app.mjs', 'file'],
+			]);
+			const mockPHP = createMockPHP(filesystem);
+
+			const handler = new PHPRequestHandler({
+				php: mockPHP,
+				documentRoot: '/www',
+				absoluteUrl: 'http://localhost/',
+			});
+
+			const response = await handler.requestStreamed({
+				url: '/app.mjs',
+			});
+
+			const headers = await response.headers;
+			expect(headers['content-type']).toEqual(['application/javascript']);
+		});
+
+		it('returns correct content-type header for .cjs files', async () => {
+			const filesystem = new Map<string, 'file' | 'dir'>([
+				['/www', 'dir'],
+				['/www/app.cjs', 'file'],
+			]);
+			const mockPHP = createMockPHP(filesystem);
+
+			const handler = new PHPRequestHandler({
+				php: mockPHP,
+				documentRoot: '/www',
+				absoluteUrl: 'http://localhost/',
+			});
+
+			const response = await handler.requestStreamed({
+				url: '/app.cjs',
+			});
+
+			const headers = await response.headers;
+			expect(headers['content-type']).toEqual(['application/javascript']);
+		});
+
 		it('returns correct content-type header for image files', async () => {
 			const filesystem = new Map<string, 'file' | 'dir'>([
 				['/www', 'dir'],

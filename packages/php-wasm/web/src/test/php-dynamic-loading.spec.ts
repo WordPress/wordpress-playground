@@ -122,7 +122,9 @@ SupportedPHPVersions.forEach((phpVersion) => {
 					})
 				);
 
-				window.proxyFileSystem(oldPhp, newPhp, ['/internal/shared']);
+				await window.proxyFileSystem(oldPhp, newPhp, [
+					'/internal/shared',
+				]);
 
 				const response = await newPhp.runStream({
 					code: `<?php

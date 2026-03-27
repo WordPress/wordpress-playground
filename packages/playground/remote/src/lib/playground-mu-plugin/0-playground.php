@@ -262,3 +262,18 @@ add_action('init', function() {
  * @TODO: Let's find a solution that doesn't require us to disable client side media processing.
  */
 add_filter('wp_client_side_media_processing_enabled', '__return_false');
+
+/**
+ * Disable the WP Cron.
+ * 
+ * Around WordPress 7.0 beta 1, many wp-cron requests in the Playground started
+ * taking the full 30 seconds to complete. Since we're running PHP on a single
+ * worker, that blocks every other request from running until WP Cron completes.
+ */
+define('DISABLE_WP_CRON', true);
+if(str_ends_with($_SERVER['PHP_SELF'], '/wp-cron.php')) {
+	http_response_code(503);
+	header('Content-Type: text/plain');
+	echo 'WP Cron is temporarily disabled in the Playground.';
+	exit;
+}

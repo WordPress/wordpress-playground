@@ -44,13 +44,10 @@ export const playwrightConfig: PlaywrightTestConfig = {
 			use: { ...devices['Desktop Firefox'] },
 		},
 
-		// Safari runner is disabled in CI – it used to be enabled but the tests
-		// failed randomly without any obvious reason.
-		// @see https://github.com/WordPress/wordpress-playground/pull/2475
-		// {
-		// 	name: 'webkit',
-		// 	use: { ...devices['Desktop Safari'] },
-		// },
+		{
+			name: 'webkit',
+			use: { ...devices['Desktop Safari'] },
+		},
 
 		/* Test against mobile viewports. */
 		// {

@@ -15,6 +15,7 @@ jobs:
         if: >
             github.ref == 'refs/heads/trunk' && (
                 github.event_name == 'workflow_run' ||
+                (github.event_name == 'workflow_dispatch' && github.actor == 'github-actions[bot]') ||
                 github.actor == 'adamziel' ||
                 github.actor == 'akirk' ||
                 github.actor == 'dmsnell' ||

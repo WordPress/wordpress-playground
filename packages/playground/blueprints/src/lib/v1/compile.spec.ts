@@ -245,6 +245,181 @@ describe('Blueprints', () => {
 		});
 	});
 
+	describe('plugins shorthand', () => {
+		it('should convert a slug string to a wordpress.org/plugins resource', async () => {
+			let validatedBlueprint: any;
+			await compileBlueprintV1(
+				{ plugins: ['gutenberg'] },
+				{
+					onBlueprintValidated: (bp) => {
+						validatedBlueprint = bp;
+					},
+				}
+			);
+			const step = validatedBlueprint.steps[0];
+			expect(step.step).toBe('installPlugin');
+			expect(step.pluginData).toEqual({
+				resource: 'wordpress.org/plugins',
+				slug: 'gutenberg',
+			});
+		});
+
+		it('should convert a ZIP URL to a url resource', async () => {
+			let validatedBlueprint: any;
+			await compileBlueprintV1(
+				{
+					plugins: ['https://example.com/my-plugin.zip'],
+				},
+				{
+					onBlueprintValidated: (bp) => {
+						validatedBlueprint = bp;
+					},
+				}
+			);
+			const step = validatedBlueprint.steps[0];
+			expect(step.pluginData).toEqual({
+				resource: 'url',
+				url: 'https://example.com/my-plugin.zip',
+			});
+		});
+
+		it('should convert a GitHub repo URL to a zip(git:directory) resource', async () => {
+			let validatedBlueprint: any;
+			await compileBlueprintV1(
+				{
+					plugins: ['https://github.com/user/project'],
+				},
+				{
+					onBlueprintValidated: (bp) => {
+						validatedBlueprint = bp;
+					},
+				}
+			);
+			const step = validatedBlueprint.steps[0];
+			expect(step.pluginData).toEqual({
+				resource: 'zip',
+				inner: {
+					resource: 'git:directory',
+					url: 'https://github.com/user/project',
+					ref: 'HEAD',
+				},
+			});
+		});
+
+		it('should handle a GitHub repo URL with trailing slash', async () => {
+			let validatedBlueprint: any;
+			await compileBlueprintV1(
+				{
+					plugins: ['https://github.com/user/project/'],
+				},
+				{
+					onBlueprintValidated: (bp) => {
+						validatedBlueprint = bp;
+					},
+				}
+			);
+			const step = validatedBlueprint.steps[0];
+			expect(step.pluginData).toEqual({
+				resource: 'zip',
+				inner: {
+					resource: 'git:directory',
+					url: 'https://github.com/user/project',
+					ref: 'HEAD',
+				},
+			});
+		});
+
+		it('should convert a GitLab .git URL to a zip(git:directory) resource', async () => {
+			let validatedBlueprint: any;
+			await compileBlueprintV1(
+				{
+					plugins: ['https://gitlab.com/group/project.git'],
+				},
+				{
+					onBlueprintValidated: (bp) => {
+						validatedBlueprint = bp;
+					},
+				}
+			);
+			const step = validatedBlueprint.steps[0];
+			expect(step.pluginData).toEqual({
+				resource: 'zip',
+				inner: {
+					resource: 'git:directory',
+					url: 'https://gitlab.com/group/project',
+					ref: 'HEAD',
+				},
+			});
+		});
+
+		it('should convert a nested GitLab subgroup URL to a zip(git:directory) resource', async () => {
+			let validatedBlueprint: any;
+			await compileBlueprintV1(
+				{
+					plugins: ['https://gitlab.com/group/subgroup/project'],
+				},
+				{
+					onBlueprintValidated: (bp) => {
+						validatedBlueprint = bp;
+					},
+				}
+			);
+			const step = validatedBlueprint.steps[0];
+			expect(step.pluginData).toEqual({
+				resource: 'zip',
+				inner: {
+					resource: 'git:directory',
+					url: 'https://gitlab.com/group/subgroup/project',
+					ref: 'HEAD',
+				},
+			});
+		});
+
+		it('should convert a self-hosted .git URL to a zip(git:directory) resource', async () => {
+			let validatedBlueprint: any;
+			await compileBlueprintV1(
+				{
+					plugins: ['https://git.example.com/org/repo.git'],
+				},
+				{
+					onBlueprintValidated: (bp) => {
+						validatedBlueprint = bp;
+					},
+				}
+			);
+			const step = validatedBlueprint.steps[0];
+			expect(step.pluginData).toEqual({
+				resource: 'zip',
+				inner: {
+					resource: 'git:directory',
+					url: 'https://git.example.com/org/repo',
+					ref: 'HEAD',
+				},
+			});
+		});
+
+		it('should treat a GitHub archive URL as a url resource, not a repo', async () => {
+			let validatedBlueprint: any;
+			await compileBlueprintV1(
+				{
+					plugins: [
+						'https://github.com/user/project/archive/refs/heads/main.zip',
+					],
+				},
+				{
+					onBlueprintValidated: (bp) => {
+						validatedBlueprint = bp;
+					},
+				}
+			);
+			const step = validatedBlueprint.steps[0];
+			expect(step.pluginData).toEqual({
+				resource: 'url',
+				url: 'https://github.com/user/project/archive/refs/heads/main.zip',
+			});
+		});
+	});
+
 	describe('Deprecated PHP version upgrade', () => {
 		it('should accept PHP 7.2 in blueprint and upgrade to 7.4', async () => {
 			const blueprint = {

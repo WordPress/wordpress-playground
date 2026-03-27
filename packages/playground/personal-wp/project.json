@@ -95,6 +95,15 @@
 				"reportsDirectory": "../../../coverage/packages/playground/personal-wp"
 			}
 		},
+		"e2e:playwright": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"npx playwright test --config=packages/playground/personal-wp/playwright/playwright.config.ts"
+				],
+				"parallel": false
+			}
+		},
 		"lint": {
 			"executor": "@nx/eslint:lint",
 			"outputs": ["{options.outputFile}"],
