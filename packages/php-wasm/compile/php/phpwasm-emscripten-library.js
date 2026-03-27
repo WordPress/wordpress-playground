@@ -620,12 +620,13 @@ const LibraryExample = {
 		}
 
 		/*
-		 * The Emscripten VFS CWD may point to a MEMFS path like
-		 * /internal/ that doesn't exist on the host filesystem.
-		 * Passing such a path to child_process.spawn() would cause
-		 * ENOENT errors, so we only forward VFS CWD when it maps
-		 * to a real NODEFS path on the host. When omitted,
-		 * spawn() defaults to process.cwd().
+		 * child_process.spawn() runs on the host OS, not inside
+		 * the Emscripten VFS. The VFS CWD may point to a MEMFS-only
+		 * path like /internal/ that has no counterpart on the host
+		 * filesystem. Passing such a path as the `cwd` option to
+		 * spawn() causes ENOENT errors, so we only forward the VFS
+		 * CWD when it maps to a real NODEFS-mounted path on the
+		 * host. When omitted, spawn() defaults to process.cwd().
 		 */
 		let cwdstr = null;
 		if (cwdPtr) {

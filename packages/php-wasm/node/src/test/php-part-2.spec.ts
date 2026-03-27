@@ -1071,7 +1071,7 @@ phpLoaderOptions.forEach((options) => {
 				);
 			});
 
-			it('should not change the working directory to the script directory', async () => {
+			it('CLI should preserve the working directory instead of changing to the script directory', async () => {
 				php.mkdir('/test-dir');
 				php.mkdir('/test-dir/subdir');
 				php.writeFile(
