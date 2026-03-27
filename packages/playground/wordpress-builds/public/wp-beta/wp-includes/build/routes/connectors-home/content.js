@@ -52,6 +52,20 @@ var require_element = __commonJS({
   }
 });
 
+// vendor-external:react
+var require_react = __commonJS({
+  "vendor-external:react"(exports, module) {
+    module.exports = window.React;
+  }
+});
+
+// package-external:@wordpress/private-apis
+var require_private_apis = __commonJS({
+  "package-external:@wordpress/private-apis"(exports, module) {
+    module.exports = window.wp.privateApis;
+  }
+});
+
 // package-external:@wordpress/data
 var require_data = __commonJS({
   "package-external:@wordpress/data"(exports, module) {
@@ -66,17 +80,10 @@ var require_core_data = __commonJS({
   }
 });
 
-// vendor-external:react
-var require_react = __commonJS({
-  "vendor-external:react"(exports, module) {
-    module.exports = window.React;
-  }
-});
-
-// package-external:@wordpress/private-apis
-var require_private_apis = __commonJS({
-  "package-external:@wordpress/private-apis"(exports, module) {
-    module.exports = window.wp.privateApis;
+// package-external:@wordpress/url
+var require_url = __commonJS({
+  "package-external:@wordpress/url"(exports, module) {
+    module.exports = window.wp.url;
   }
 });
 
@@ -117,117 +124,6 @@ var NavigableRegion = (0, import_element.forwardRef)(
 );
 NavigableRegion.displayName = "NavigableRegion";
 var navigable_region_default = NavigableRegion;
-
-// packages/admin-ui/build-module/page/header.mjs
-var import_components2 = __toESM(require_components(), 1);
-
-// packages/admin-ui/build-module/page/sidebar-toggle-slot.mjs
-var import_components = __toESM(require_components(), 1);
-var { Fill: SidebarToggleFill, Slot: SidebarToggleSlot } = (0, import_components.createSlotFill)("SidebarToggle");
-
-// packages/admin-ui/build-module/page/header.mjs
-var import_jsx_runtime2 = __toESM(require_jsx_runtime(), 1);
-function Header({
-  breadcrumbs,
-  badges,
-  title,
-  subTitle,
-  actions,
-  showSidebarToggle = true
-}) {
-  return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(import_components2.__experimentalVStack, { className: "admin-ui-page__header", as: "header", children: [
-    /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(import_components2.__experimentalHStack, { justify: "space-between", spacing: 2, children: [
-      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(import_components2.__experimentalHStack, { spacing: 2, justify: "left", children: [
-        showSidebarToggle && /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
-          SidebarToggleSlot,
-          {
-            bubblesVirtually: true,
-            className: "admin-ui-page__sidebar-toggle-slot"
-          }
-        ),
-        title && /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(import_components2.__experimentalHeading, { as: "h2", level: 3, weight: 500, truncate: true, children: title }),
-        breadcrumbs,
-        badges
-      ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
-        import_components2.__experimentalHStack,
-        {
-          style: { width: "auto", flexShrink: 0 },
-          spacing: 2,
-          className: "admin-ui-page__header-actions",
-          children: actions
-        }
-      )
-    ] }),
-    subTitle && /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("p", { className: "admin-ui-page__header-subtitle", children: subTitle })
-  ] });
-}
-
-// packages/admin-ui/build-module/page/index.mjs
-var import_jsx_runtime3 = __toESM(require_jsx_runtime(), 1);
-function Page({
-  breadcrumbs,
-  badges,
-  title,
-  subTitle,
-  children,
-  className,
-  actions,
-  hasPadding = false,
-  showSidebarToggle = true
-}) {
-  const classes = clsx_default("admin-ui-page", className);
-  return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(navigable_region_default, { className: classes, ariaLabel: title, children: [
-    (title || breadcrumbs || badges) && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
-      Header,
-      {
-        breadcrumbs,
-        badges,
-        title,
-        subTitle,
-        actions,
-        showSidebarToggle
-      }
-    ),
-    hasPadding ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "admin-ui-page__content has-padding", children }) : children
-  ] });
-}
-Page.SidebarToggleFill = SidebarToggleFill;
-var page_default = Page;
-
-// routes/connectors-home/stage.tsx
-var import_components5 = __toESM(require_components());
-var import_data3 = __toESM(require_data());
-var import_element5 = __toESM(require_element());
-var import_i18n4 = __toESM(require_i18n());
-var import_core_data3 = __toESM(require_core_data());
-import {
-  privateApis as connectorsPrivateApis
-} from "@wordpress/connectors";
-
-// routes/connectors-home/style.scss
-if (typeof document !== "undefined" && !document.head.querySelector("style[data-wp-hash='f68f821d0d']")) {
-  const style = document.createElement("style");
-  style.setAttribute("data-wp-hash", "f68f821d0d");
-  style.appendChild(document.createTextNode(".connectors-page{box-sizing:border-box;margin:0 auto;max-width:680px;padding:24px;width:100%}.connectors-page .components-item{background:#fff;border:1px solid #ddd;border-radius:8px;overflow:hidden;padding:20px}.connectors-page .connector-settings .components-text-control__input{font-family:monospace}.connectors-page--empty{align-items:center;display:flex;flex-direction:column;flex-grow:1;gap:32px;justify-content:center;text-align:center}.connectors-page .ai-plugin-callout{background:linear-gradient(90deg,#fff9,#fff9),linear-gradient(90deg,#89dcdc,#c7eb5c 46.15%,#a920c1);border-radius:8px;overflow:hidden;padding:24px 220px 24px 24px;position:relative}.connectors-page .ai-plugin-callout__content{display:flex;flex-direction:column;gap:12px;padding-top:2px}.connectors-page .ai-plugin-callout__content p{font-size:13px;line-height:20px;margin:0}.connectors-page .ai-plugin-callout__actions{align-items:center;display:flex;gap:12px}.connectors-page .ai-plugin-callout__decoration{height:248px;position:absolute;right:8px;top:-15px;width:248px}.connectors-page>p{color:#949494;text-align:center}@media (max-width:680px){.connectors-page .ai-plugin-callout{padding:12px 84px 12px 12px}.connectors-page .ai-plugin-callout__decoration{height:134px;right:4px;top:-8px;width:134px}}@media (max-width:480px){.connectors-page{padding:8px}.connectors-page .components-item{padding:12px}.connectors-page .components-item>.components-v-stack>.components-h-stack:first-child svg{height:32px;width:32px}.connectors-page .components-item>.components-v-stack>.components-h-stack:first-child>.components-h-stack:last-child{align-items:flex-end;flex-direction:column}}"));
-  document.head.appendChild(style);
-}
-
-// routes/connectors-home/ai-plugin-callout.tsx
-var import_components4 = __toESM(require_components());
-var import_core_data2 = __toESM(require_core_data());
-var import_data2 = __toESM(require_data());
-var import_element4 = __toESM(require_element());
-var import_i18n3 = __toESM(require_i18n());
-
-// routes/connectors-home/default-connectors.tsx
-var import_components3 = __toESM(require_components());
-var import_i18n2 = __toESM(require_i18n());
-import {
-  __experimentalRegisterConnector as registerConnector,
-  __experimentalConnectorItem as ConnectorItem,
-  __experimentalDefaultConnectorSettings as DefaultConnectorSettings
-} from "@wordpress/connectors";
 
 // node_modules/@base-ui/utils/esm/useRefWithInit.js
 var React2 = __toESM(require_react(), 1);
@@ -640,23 +536,184 @@ var Badge = (0, import_element2.forwardRef)(function Badge2({ children, intent =
   return element;
 });
 
+// packages/ui/build-module/stack/stack.mjs
+var import_element3 = __toESM(require_element(), 1);
+if (typeof document !== "undefined" && !document.head.querySelector("style[data-wp-hash='71d20935c2']")) {
+  const style = document.createElement("style");
+  style.setAttribute("data-wp-hash", "71d20935c2");
+  style.appendChild(document.createTextNode("@layer wp-ui-utilities, wp-ui-components, wp-ui-compositions, wp-ui-overrides;@layer wp-ui-components{._19ce0419607e1896__stack{display:flex}}"));
+  document.head.appendChild(style);
+}
+var style_default2 = { "stack": "_19ce0419607e1896__stack" };
+var gapTokens = {
+  xs: "var(--wpds-dimension-gap-xs, 4px)",
+  sm: "var(--wpds-dimension-gap-sm, 8px)",
+  md: "var(--wpds-dimension-gap-md, 12px)",
+  lg: "var(--wpds-dimension-gap-lg, 16px)",
+  xl: "var(--wpds-dimension-gap-xl, 24px)",
+  "2xl": "var(--wpds-dimension-gap-2xl, 32px)",
+  "3xl": "var(--wpds-dimension-gap-3xl, 40px)"
+};
+var Stack = (0, import_element3.forwardRef)(function Stack2({ direction, gap, align, justify, wrap, render, ...props }, ref) {
+  const style = {
+    gap: gap && gapTokens[gap],
+    alignItems: align,
+    justifyContent: justify,
+    flexDirection: direction,
+    flexWrap: wrap
+  };
+  const element = useRender({
+    render,
+    ref,
+    props: mergeProps(props, { style, className: style_default2.stack })
+  });
+  return element;
+});
+
+// packages/admin-ui/build-module/page/sidebar-toggle-slot.mjs
+var import_components = __toESM(require_components(), 1);
+var { Fill: SidebarToggleFill, Slot: SidebarToggleSlot } = (0, import_components.createSlotFill)("SidebarToggle");
+
+// packages/admin-ui/build-module/page/header.mjs
+var import_jsx_runtime2 = __toESM(require_jsx_runtime(), 1);
+function Header({
+  headingLevel = 2,
+  breadcrumbs,
+  badges,
+  title,
+  subTitle,
+  actions,
+  showSidebarToggle = true
+}) {
+  const HeadingTag = `h${headingLevel}`;
+  return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(
+    Stack,
+    {
+      direction: "column",
+      className: "admin-ui-page__header",
+      render: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("header", {}),
+      children: [
+        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(Stack, { direction: "row", justify: "space-between", gap: "sm", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(Stack, { direction: "row", gap: "sm", align: "center", justify: "start", children: [
+            showSidebarToggle && /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+              SidebarToggleSlot,
+              {
+                bubblesVirtually: true,
+                className: "admin-ui-page__sidebar-toggle-slot"
+              }
+            ),
+            title && /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(HeadingTag, { className: "admin-ui-page__header-title", children: title }),
+            breadcrumbs,
+            badges
+          ] }),
+          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+            Stack,
+            {
+              direction: "row",
+              gap: "sm",
+              style: { width: "auto", flexShrink: 0 },
+              className: "admin-ui-page__header-actions",
+              align: "center",
+              children: actions
+            }
+          )
+        ] }),
+        subTitle && /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("p", { className: "admin-ui-page__header-subtitle", children: subTitle })
+      ]
+    }
+  );
+}
+
+// packages/admin-ui/build-module/page/index.mjs
+var import_jsx_runtime3 = __toESM(require_jsx_runtime(), 1);
+function Page({
+  headingLevel,
+  breadcrumbs,
+  badges,
+  title,
+  subTitle,
+  children,
+  className,
+  actions,
+  hasPadding = false,
+  showSidebarToggle = true
+}) {
+  const classes = clsx_default("admin-ui-page", className);
+  return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(navigable_region_default, { className: classes, ariaLabel: title, children: [
+    (title || breadcrumbs || badges) && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+      Header,
+      {
+        headingLevel,
+        breadcrumbs,
+        badges,
+        title,
+        subTitle,
+        actions,
+        showSidebarToggle
+      }
+    ),
+    hasPadding ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "admin-ui-page__content has-padding", children }) : children
+  ] });
+}
+Page.SidebarToggleFill = SidebarToggleFill;
+var page_default = Page;
+
+// routes/connectors-home/stage.tsx
+var import_components4 = __toESM(require_components());
+var import_data3 = __toESM(require_data());
+var import_element7 = __toESM(require_element());
+var import_i18n4 = __toESM(require_i18n());
+var import_core_data3 = __toESM(require_core_data());
+import {
+  privateApis as connectorsPrivateApis
+} from "@wordpress/connectors";
+
+// routes/connectors-home/style.scss
+if (typeof document !== "undefined" && !document.head.querySelector("style[data-wp-hash='1b00f16b8d']")) {
+  const style = document.createElement("style");
+  style.setAttribute("data-wp-hash", "1b00f16b8d");
+  style.appendChild(document.createTextNode(".connectors-page{box-sizing:border-box;margin:0 auto;max-width:680px;padding:24px;width:100%}.connectors-page .components-item{background:#fff;border:1px solid #ddd;border-radius:8px;overflow:hidden;padding:20px;scroll-margin-top:120px}.connectors-page .connector-settings__error{color:#cc1818}.connectors-page .connector-settings .components-text-control__input{font-family:monospace;scroll-margin-top:120px}.connectors-page--empty{align-items:center;display:flex;flex-direction:column;flex-grow:1;gap:32px;justify-content:center;text-align:center}.connectors-page .ai-plugin-callout{background:linear-gradient(90deg,#fff9,#fff9),linear-gradient(90deg,#89dcdc,#c7eb5c 46.15%,#a920c1);border-radius:8px;overflow:hidden;padding:24px;padding-inline-end:220px;position:relative}[dir=rtl] .connectors-page .ai-plugin-callout{background:linear-gradient(270deg,#fff9,#fff9),linear-gradient(270deg,#89dcdc,#c7eb5c 46.15%,#a920c1)}.connectors-page .ai-plugin-callout__content{align-items:flex-start;display:flex;flex-direction:column;gap:12px;padding-top:2px}.connectors-page .ai-plugin-callout__content p{font-size:13px;line-height:20px;margin:0}.connectors-page .ai-plugin-callout__decoration{height:248px;inset-inline-end:8px;position:absolute;top:-15px;width:248px}.connectors-page>p{color:#949494;text-align:center}@media (max-width:680px){.connectors-page .ai-plugin-callout{padding:12px;padding-inline-end:84px}.connectors-page .ai-plugin-callout__decoration{height:134px;inset-inline-end:4px;top:-8px;width:134px}}@media (max-width:480px){.connectors-page{padding:8px}.connectors-page .components-item{padding:12px}.connectors-page .components-item>.components-v-stack>.components-h-stack:first-child svg{height:32px;width:32px}.connectors-page .components-item>.components-v-stack>.components-h-stack:first-child>.components-h-stack:last-child{align-items:flex-end;flex-direction:column}}"));
+  document.head.appendChild(style);
+}
+
+// routes/connectors-home/ai-plugin-callout.tsx
+var import_components3 = __toESM(require_components());
+var import_core_data2 = __toESM(require_core_data());
+var import_data2 = __toESM(require_data());
+var import_element6 = __toESM(require_element());
+var import_i18n3 = __toESM(require_i18n());
+var import_url = __toESM(require_url());
+import { speak as speak2 } from "@wordpress/a11y";
+
+// routes/connectors-home/default-connectors.tsx
+var import_components2 = __toESM(require_components());
+var import_element5 = __toESM(require_element());
+var import_i18n2 = __toESM(require_i18n());
+import {
+  __experimentalRegisterConnector as registerConnector,
+  __experimentalConnectorItem as ConnectorItem,
+  __experimentalDefaultConnectorSettings as DefaultConnectorSettings
+} from "@wordpress/connectors";
+
 // routes/connectors-home/use-connector-plugin.ts
 var import_core_data = __toESM(require_core_data());
 var import_data = __toESM(require_data());
-var import_element3 = __toESM(require_element());
+var import_element4 = __toESM(require_element());
 var import_i18n = __toESM(require_i18n());
+import { speak } from "@wordpress/a11y";
 function useConnectorPlugin({
   pluginSlug,
   settingName,
+  connectorName,
   isInstalled,
   isActivated,
   keySource = "none",
   initialIsConnected = false
 }) {
-  const [isExpanded, setIsExpanded] = (0, import_element3.useState)(false);
-  const [isBusy, setIsBusy] = (0, import_element3.useState)(false);
-  const [connectedState, setConnectedState] = (0, import_element3.useState)(initialIsConnected);
-  const [pluginStatusOverride, setPluginStatusOverride] = (0, import_element3.useState)(null);
+  const [isExpanded, setIsExpanded] = (0, import_element4.useState)(false);
+  const [isBusy, setIsBusy] = (0, import_element4.useState)(false);
+  const [connectedState, setConnectedState] = (0, import_element4.useState)(initialIsConnected);
+  const [pluginStatusOverride, setPluginStatusOverride] = (0, import_element4.useState)(null);
   const {
     derivedPluginStatus,
     canManagePlugins,
@@ -683,46 +740,41 @@ function useConnectorPlugin({
           canInstallPlugins: canCreate
         };
       }
-      const plugins = store2.getEntityRecords(
+      const pluginId = `${pluginSlug}/plugin`;
+      const plugin = store2.getEntityRecord(
         "root",
-        "plugin"
+        "plugin",
+        pluginId
       );
-      if (plugins === null) {
-        const hasFinished = store2.hasFinishedResolution(
-          "getEntityRecords",
-          ["root", "plugin"]
-        );
-        if (!hasFinished) {
-          return {
-            derivedPluginStatus: "checking",
-            canManagePlugins: void 0,
-            currentApiKey: apiKey,
-            canInstallPlugins: canCreate
-          };
-        }
-        let status2 = "not-installed";
-        if (isActivated) {
-          status2 = "active";
-        } else if (isInstalled) {
-          status2 = "inactive";
-        }
+      const hasFinished = store2.hasFinishedResolution(
+        "getEntityRecord",
+        ["root", "plugin", pluginId]
+      );
+      if (!hasFinished) {
         return {
-          derivedPluginStatus: status2,
-          canManagePlugins: false,
+          derivedPluginStatus: "checking",
+          canManagePlugins: void 0,
           currentApiKey: apiKey,
           canInstallPlugins: canCreate
         };
       }
-      const plugin = plugins.find(
-        (p) => p.plugin === `${pluginSlug}/plugin`
-      );
-      let status = "not-installed";
       if (plugin) {
-        status = plugin.status === "active" ? "active" : "inactive";
+        return {
+          derivedPluginStatus: plugin.status === "active" ? "active" : "inactive",
+          canManagePlugins: true,
+          currentApiKey: apiKey,
+          canInstallPlugins: canCreate
+        };
+      }
+      let status = "not-installed";
+      if (isActivated) {
+        status = "active";
+      } else if (isInstalled) {
+        status = "inactive";
       }
       return {
         derivedPluginStatus: status,
-        canManagePlugins: true,
+        canManagePlugins: false,
         currentApiKey: apiKey,
         canInstallPlugins: canCreate
       };
@@ -750,7 +802,22 @@ function useConnectorPlugin({
       setPluginStatusOverride("active");
       invalidateResolution("getEntityRecord", ["root", "site"]);
       setIsExpanded(true);
+      speak(
+        (0, import_i18n.sprintf)(
+          /* translators: %s: Name of the connector (e.g. "OpenAI"). */
+          (0, import_i18n.__)("Plugin for %s installed and activated successfully."),
+          connectorName
+        )
+      );
     } catch {
+      speak(
+        (0, import_i18n.sprintf)(
+          /* translators: %s: Name of the connector (e.g. "OpenAI"). */
+          (0, import_i18n.__)("Failed to install plugin for %s."),
+          connectorName
+        ),
+        "assertive"
+      );
     } finally {
       setIsBusy(false);
     }
@@ -770,7 +837,22 @@ function useConnectorPlugin({
       setPluginStatusOverride("active");
       invalidateResolution("getEntityRecord", ["root", "site"]);
       setIsExpanded(true);
+      speak(
+        (0, import_i18n.sprintf)(
+          /* translators: %s: Name of the connector (e.g. "OpenAI"). */
+          (0, import_i18n.__)("Plugin for %s activated successfully."),
+          connectorName
+        )
+      );
     } catch {
+      speak(
+        (0, import_i18n.sprintf)(
+          /* translators: %s: Name of the connector (e.g. "OpenAI"). */
+          (0, import_i18n.__)("Failed to activate plugin for %s."),
+          connectorName
+        ),
+        "assertive"
+      );
     } finally {
       setIsBusy(false);
     }
@@ -828,6 +910,13 @@ function useConnectorPlugin({
         );
       }
       setConnectedState(true);
+      speak(
+        (0, import_i18n.sprintf)(
+          /* translators: %s: Name of the connector (e.g. "OpenAI"). */
+          (0, import_i18n.__)("%s connected successfully."),
+          connectorName
+        )
+      );
     } catch (error) {
       console.error("Failed to save API key:", error);
       throw error;
@@ -842,8 +931,23 @@ function useConnectorPlugin({
         { throwOnError: true }
       );
       setConnectedState(false);
+      speak(
+        (0, import_i18n.sprintf)(
+          /* translators: %s: Name of the connector (e.g. "OpenAI"). */
+          (0, import_i18n.__)("%s disconnected."),
+          connectorName
+        )
+      );
     } catch (error) {
       console.error("Failed to remove API key:", error);
+      speak(
+        (0, import_i18n.sprintf)(
+          /* translators: %s: Name of the connector (e.g. "OpenAI"). */
+          (0, import_i18n.__)("Failed to disconnect %s."),
+          connectorName
+        ),
+        "assertive"
+      );
       throw error;
     }
   };
@@ -872,7 +976,8 @@ var OpenAILogo = () => /* @__PURE__ */ React.createElement(
     height: "40",
     viewBox: "0 0 24 24",
     fill: "none",
-    xmlns: "http://www.w3.org/2000/svg"
+    xmlns: "http://www.w3.org/2000/svg",
+    "aria-hidden": "true"
   },
   /* @__PURE__ */ React.createElement(
     "path",
@@ -889,7 +994,8 @@ var ClaudeLogo = () => /* @__PURE__ */ React.createElement(
     height: "40",
     viewBox: "0 0 32 32",
     fill: "none",
-    xmlns: "http://www.w3.org/2000/svg"
+    xmlns: "http://www.w3.org/2000/svg",
+    "aria-hidden": "true"
   },
   /* @__PURE__ */ React.createElement(
     "path",
@@ -906,7 +1012,8 @@ var DefaultConnectorLogo = () => /* @__PURE__ */ React.createElement(
     height: "40",
     viewBox: "0 0 32 32",
     fill: "none",
-    xmlns: "http://www.w3.org/2000/svg"
+    xmlns: "http://www.w3.org/2000/svg",
+    "aria-hidden": "true"
   },
   /* @__PURE__ */ React.createElement(
     "path",
@@ -930,7 +1037,8 @@ var GeminiLogo = () => /* @__PURE__ */ React.createElement(
     height: "40",
     style: { flex: "none", lineHeight: 1 },
     viewBox: "0 0 24 24",
-    xmlns: "http://www.w3.org/2000/svg"
+    xmlns: "http://www.w3.org/2000/svg",
+    "aria-hidden": "true"
   },
   /* @__PURE__ */ React.createElement(
     "path",
@@ -1017,9 +1125,9 @@ var CONNECTOR_LOGOS = {
   openai: OpenAILogo,
   anthropic: ClaudeLogo
 };
-function getConnectorLogo(connectorId, name, logoUrl) {
+function getConnectorLogo(connectorId, logoUrl) {
   if (logoUrl) {
-    return /* @__PURE__ */ React.createElement("img", { src: logoUrl, alt: name, width: 40, height: 40 });
+    return /* @__PURE__ */ React.createElement("img", { src: logoUrl, alt: "", width: 40, height: 40 });
   }
   const Logo = CONNECTOR_LOGOS[connectorId];
   if (Logo) {
@@ -1044,17 +1152,16 @@ var ConnectedBadge = () => /* @__PURE__ */ React.createElement(
 );
 var UnavailableActionBadge = () => /* @__PURE__ */ React.createElement(Badge, null, (0, import_i18n2.__)("Not available"));
 function ApiKeyConnector({
-  label,
+  name,
   description,
-  pluginSlug,
-  settingName,
-  helpUrl,
-  icon,
-  isInstalled,
-  isActivated,
-  keySource: initialKeySource,
-  initialIsConnected
+  logo,
+  authentication,
+  plugin
 }) {
+  const auth = authentication?.method === "api_key" ? authentication : void 0;
+  const settingName = auth?.settingName ?? "";
+  const helpUrl = auth?.credentialsUrl ?? void 0;
+  const pluginSlug = plugin?.slug;
   let helpLabel;
   try {
     if (helpUrl) {
@@ -1079,30 +1186,45 @@ function ApiKeyConnector({
   } = useConnectorPlugin({
     pluginSlug,
     settingName,
-    isInstalled,
-    isActivated,
-    keySource: initialKeySource,
-    initialIsConnected
+    connectorName: name,
+    isInstalled: plugin?.isInstalled,
+    isActivated: plugin?.isActivated,
+    keySource: auth?.keySource,
+    initialIsConnected: auth?.isConnected
   });
   const isExternallyConfigured = keySource === "env" || keySource === "constant";
   const showUnavailableBadge = pluginStatus === "not-installed" && canInstallPlugins === false || pluginStatus === "inactive" && canActivatePlugins === false;
   const showActionButton = !showUnavailableBadge;
+  const actionButtonRef = (0, import_element5.useRef)(null);
+  const pendingFocusRef = (0, import_element5.useRef)(false);
+  (0, import_element5.useEffect)(() => {
+    if (pendingFocusRef.current && !isBusy) {
+      pendingFocusRef.current = false;
+      actionButtonRef.current?.focus();
+    }
+  }, [isBusy, isExpanded, isConnected]);
+  const handleActionClick = () => {
+    if (pluginStatus === "not-installed" || pluginStatus === "inactive") {
+      pendingFocusRef.current = true;
+    }
+    handleButtonClick();
+  };
   return /* @__PURE__ */ React.createElement(
     ConnectorItem,
     {
       className: pluginSlug ? `connector-item--${pluginSlug}` : void 0,
-      icon,
-      name: label,
+      logo,
+      name,
       description,
-      actionArea: /* @__PURE__ */ React.createElement(import_components3.__experimentalHStack, { spacing: 3, expanded: false }, isConnected && /* @__PURE__ */ React.createElement(ConnectedBadge, null), showUnavailableBadge && /* @__PURE__ */ React.createElement(UnavailableActionBadge, null), showActionButton && /* @__PURE__ */ React.createElement(
-        import_components3.Button,
+      actionArea: /* @__PURE__ */ React.createElement(import_components2.__experimentalHStack, { spacing: 3, expanded: false }, isConnected && /* @__PURE__ */ React.createElement(ConnectedBadge, null), showUnavailableBadge && /* @__PURE__ */ React.createElement(UnavailableActionBadge, null), showActionButton && /* @__PURE__ */ React.createElement(
+        import_components2.Button,
         {
+          ref: actionButtonRef,
           variant: isExpanded || isConnected ? "tertiary" : "secondary",
-          size: isExpanded || isConnected ? void 0 : "compact",
-          onClick: handleButtonClick,
+          size: "compact",
+          onClick: handleActionClick,
           disabled: pluginStatus === "checking" || isBusy,
-          isBusy,
-          "aria-expanded": isExpanded
+          isBusy
         },
         getButtonLabel()
       ))
@@ -1116,9 +1238,17 @@ function ApiKeyConnector({
         helpLabel,
         readOnly: isConnected || isExternallyConfigured,
         keySource,
-        onRemove: isExternallyConfigured ? void 0 : removeApiKey,
+        onRemove: isExternallyConfigured ? void 0 : async () => {
+          pendingFocusRef.current = true;
+          try {
+            await removeApiKey();
+          } catch {
+            pendingFocusRef.current = false;
+          }
+        },
         onSave: async (apiKey) => {
           await saveApiKey(apiKey);
+          pendingFocusRef.current = true;
           setIsExpanded(false);
         }
       }
@@ -1127,37 +1257,21 @@ function ApiKeyConnector({
 }
 function registerDefaultConnectors() {
   const connectors = getConnectorData();
-  const sanitize = (s) => s.replace(/[^a-z0-9-]/gi, "-");
+  const sanitize = (s) => s.replace(/[^a-z0-9-_]/gi, "-");
   for (const [connectorId, data] of Object.entries(connectors)) {
     const { authentication } = data;
-    if (data.type !== "ai_provider" || authentication.method !== "api_key") {
-      continue;
-    }
-    const connectorName = `${sanitize(data.type)}/${sanitize(
-      connectorId
-    )}`;
-    registerConnector(connectorName, {
-      label: data.name,
+    const connectorName = sanitize(connectorId);
+    const args = {
+      name: data.name,
       description: data.description,
-      render: (props) => /* @__PURE__ */ React.createElement(
-        ApiKeyConnector,
-        {
-          ...props,
-          pluginSlug: data.plugin?.slug,
-          settingName: authentication.settingName,
-          helpUrl: authentication.credentialsUrl ?? void 0,
-          icon: getConnectorLogo(
-            connectorId,
-            data.name,
-            data.logoUrl
-          ),
-          isInstalled: data.plugin?.isInstalled,
-          isActivated: data.plugin?.isActivated,
-          keySource: authentication.keySource,
-          initialIsConnected: authentication.isConnected
-        }
-      )
-    });
+      logo: getConnectorLogo(connectorId, data.logoUrl),
+      authentication,
+      plugin: data.plugin
+    };
+    if (data.type === "ai_provider" && authentication.method === "api_key") {
+      args.render = ApiKeyConnector;
+    }
+    registerConnector(connectorName, args);
   }
 }
 
@@ -1217,9 +1331,15 @@ for (const c of connectorDataValues) {
   }
 }
 function AiPluginCallout() {
-  const [isBusy, setIsBusy] = (0, import_element4.useState)(false);
-  const [justActivated, setJustActivated] = (0, import_element4.useState)(false);
-  const initialHasConnectedProvider = (0, import_element4.useRef)(
+  const [isBusy, setIsBusy] = (0, import_element6.useState)(false);
+  const [justActivated, setJustActivated] = (0, import_element6.useState)(false);
+  const actionButtonRef = (0, import_element6.useRef)(null);
+  (0, import_element6.useEffect)(() => {
+    if (justActivated) {
+      actionButtonRef.current?.focus();
+    }
+  }, [justActivated]);
+  const initialHasConnectedProvider = (0, import_element6.useRef)(
     connectorDataValues.some(
       (c) => c.type === "ai_provider" && c.authentication.method === "api_key" && c.authentication.isConnected
     )
@@ -1283,7 +1403,9 @@ function AiPluginCallout() {
         { throwOnError: true }
       );
       setJustActivated(true);
+      speak2((0, import_i18n3.__)("AI plugin installed and activated successfully."));
     } catch {
+      speak2((0, import_i18n3.__)("Failed to install the AI plugin."), "assertive");
     } finally {
       setIsBusy(false);
     }
@@ -1298,7 +1420,9 @@ function AiPluginCallout() {
         { throwOnError: true }
       );
       setJustActivated(true);
+      speak2((0, import_i18n3.__)("AI plugin activated successfully."));
     } catch {
+      speak2((0, import_i18n3.__)("Failed to activate the AI plugin."), "assertive");
     } finally {
       setIsBusy(false);
     }
@@ -1324,36 +1448,38 @@ function AiPluginCallout() {
   const getMessage = () => {
     if (isJustConnected) {
       return (0, import_i18n3.__)(
-        "The <strong>AI plugin</strong> is ready to use. You can use it to generate featured images, alt text, titles, excerpts and more."
+        "The <strong>AI plugin</strong> is ready to use. You can use it to generate featured images, alt text, titles, excerpts and more. <a>Learn more</a>"
       );
     }
     if (isActiveNoProvider) {
       return (0, import_i18n3.__)(
-        "The <strong>AI plugin</strong> is installed. Connect a provider below to generate featured images, alt text, titles, excerpts, and more."
+        "The <strong>AI plugin</strong> is installed. Connect a provider below to generate featured images, alt text, titles, excerpts, and more. <a>Learn more</a>"
       );
     }
     return (0, import_i18n3.__)(
-      "The <strong>AI plugin</strong> can use your connectors to generate featured images, alt text, titles, excerpts and more."
+      "The <strong>AI plugin</strong> can use your connectors to generate featured images, alt text, titles, excerpts and more. <a>Learn more</a>"
     );
   };
   const getPrimaryButtonProps = () => {
     if (pluginStatus === "not-installed") {
       return {
-        label: isBusy ? (0, import_i18n3.__)("Installing\u2026") : (0, import_i18n3.__)("Install AI Experiments"),
+        label: isBusy ? (0, import_i18n3.__)("Installing\u2026") : (0, import_i18n3.__)("Install the AI plugin"),
         disabled: isBusy,
         onClick: isBusy ? void 0 : installPlugin
       };
     }
     return {
-      label: isBusy ? (0, import_i18n3.__)("Activating\u2026") : (0, import_i18n3.__)("Activate AI Experiments"),
+      label: isBusy ? (0, import_i18n3.__)("Activating\u2026") : (0, import_i18n3.__)("Activate the AI plugin"),
       disabled: isBusy,
       onClick: isBusy ? void 0 : activatePlugin
     };
   };
-  return /* @__PURE__ */ React.createElement("div", { className: "ai-plugin-callout" }, /* @__PURE__ */ React.createElement("div", { className: "ai-plugin-callout__content" }, /* @__PURE__ */ React.createElement("p", null, (0, import_element4.createInterpolateElement)(getMessage(), {
-    strong: /* @__PURE__ */ React.createElement("strong", null)
-  })), /* @__PURE__ */ React.createElement("div", { className: "ai-plugin-callout__actions" }, showInstallActivate && /* @__PURE__ */ React.createElement(
-    import_components4.Button,
+  return /* @__PURE__ */ React.createElement("div", { className: "ai-plugin-callout" }, /* @__PURE__ */ React.createElement("div", { className: "ai-plugin-callout__content" }, /* @__PURE__ */ React.createElement("p", null, (0, import_element6.createInterpolateElement)(getMessage(), {
+    strong: /* @__PURE__ */ React.createElement("strong", null),
+    // @ts-ignore children are injected by createInterpolateElement at runtime.
+    a: /* @__PURE__ */ React.createElement(import_components3.ExternalLink, { href: AI_PLUGIN_URL })
+  })), showInstallActivate ? /* @__PURE__ */ React.createElement(
+    import_components3.Button,
     {
       variant: "primary",
       size: "compact",
@@ -1363,16 +1489,18 @@ function AiPluginCallout() {
       onClick: getPrimaryButtonProps().onClick
     },
     getPrimaryButtonProps().label
-  ), /* @__PURE__ */ React.createElement(
-    import_components4.Button,
+  ) : /* @__PURE__ */ React.createElement(
+    import_components3.Button,
     {
-      variant: "tertiary",
-      href: AI_PLUGIN_URL,
-      target: "_blank",
-      rel: "noopener noreferrer"
+      ref: actionButtonRef,
+      variant: "secondary",
+      size: "compact",
+      href: (0, import_url.addQueryArgs)("options-general.php", {
+        page: AI_PLUGIN_SLUG
+      })
     },
-    (0, import_i18n3.__)("Learn more")
-  ))), /* @__PURE__ */ React.createElement(WpLogoDecoration, null));
+    (0, import_i18n3.__)("Control features in the AI plugin")
+  )), /* @__PURE__ */ React.createElement(WpLogoDecoration, null));
 }
 
 // routes/lock-unlock.ts
@@ -1396,11 +1524,15 @@ function ConnectorsPage() {
     }),
     []
   );
-  const isEmpty = connectors.length === 0;
+  const renderableConnectors = connectors.filter(
+    (connector) => connector.render
+  );
+  const isEmpty = renderableConnectors.length === 0;
   return /* @__PURE__ */ React.createElement(
     page_default,
     {
       title: (0, import_i18n4.__)("Connectors"),
+      headingLevel: 1,
       subTitle: (0, import_i18n4.__)(
         "All of your API keys and credentials are stored here and shared across plugins. Configure once and use everywhere."
       )
@@ -1411,38 +1543,41 @@ function ConnectorsPage() {
         className: `connectors-page${isEmpty ? " connectors-page--empty" : ""}`
       },
       isEmpty ? /* @__PURE__ */ React.createElement(
-        import_components5.__experimentalVStack,
+        import_components4.__experimentalVStack,
         {
           alignment: "center",
           spacing: 3,
           style: { maxWidth: 480 }
         },
-        /* @__PURE__ */ React.createElement(import_components5.__experimentalVStack, { alignment: "center", spacing: 2 }, /* @__PURE__ */ React.createElement(import_components5.__experimentalHeading, { level: 2, size: 15, weight: 600 }, (0, import_i18n4.__)("No connectors yet")), /* @__PURE__ */ React.createElement(import_components5.__experimentalText, { size: 12 }, (0, import_i18n4.__)(
+        /* @__PURE__ */ React.createElement(import_components4.__experimentalVStack, { alignment: "center", spacing: 2 }, /* @__PURE__ */ React.createElement(import_components4.__experimentalHeading, { level: 2, size: 15, weight: 600 }, (0, import_i18n4.__)("No connectors yet")), /* @__PURE__ */ React.createElement(import_components4.__experimentalText, { size: 12 }, (0, import_i18n4.__)(
           "Connectors appear here when you install plugins that use external services. Each plugin registers the API keys it needs, and you manage them all in one place."
         ))),
-        /* @__PURE__ */ React.createElement(import_components5.Button, { variant: "secondary", href: "plugin-install.php" }, (0, import_i18n4.__)("Learn more"))
-      ) : /* @__PURE__ */ React.createElement(import_components5.__experimentalVStack, { spacing: 3 }, /* @__PURE__ */ React.createElement(AiPluginCallout, null), connectors.map((connector) => {
+        /* @__PURE__ */ React.createElement(import_components4.Button, { variant: "secondary", href: "plugin-install.php" }, (0, import_i18n4.__)("Learn more"))
+      ) : /* @__PURE__ */ React.createElement(import_components4.__experimentalVStack, { spacing: 3 }, /* @__PURE__ */ React.createElement(AiPluginCallout, null), connectors.map((connector) => {
         if (connector.render) {
           return /* @__PURE__ */ React.createElement(
             connector.render,
             {
               key: connector.slug,
               slug: connector.slug,
-              label: connector.label,
-              description: connector.description
+              name: connector.name,
+              description: connector.description,
+              logo: connector.logo,
+              authentication: connector.authentication,
+              plugin: connector.plugin
             }
           );
         }
         return null;
       })),
-      canInstallPlugins && /* @__PURE__ */ React.createElement("p", null, (0, import_element5.createInterpolateElement)(
+      canInstallPlugins && /* @__PURE__ */ React.createElement("p", null, (0, import_element7.createInterpolateElement)(
         (0, import_i18n4.__)(
-          "Find more connectors in <a>the plugin directory</a>"
+          "If the connector you need is not listed, <a>search the plugin directory</a> to see if a connector is available."
         ),
         {
           a: (
             // eslint-disable-next-line jsx-a11y/anchor-has-content
-            /* @__PURE__ */ React.createElement("a", { href: "plugin-install.php" })
+            /* @__PURE__ */ React.createElement("a", { href: "plugin-install.php?s=connector&tab=search&type=tag" })
           )
         }
       ))
