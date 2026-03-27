@@ -84,18 +84,31 @@ export const toolDefinitions: Record<string, ToolDefinition> = {
 		title: 'HTTP Request',
 		errorPrefix: 'Error making request',
 		description: `Make an HTTP request to the WordPress site
-			running in Playground. Requests are authenticated
-			automatically via the browser session's cookie
-			store.
+			running in Playground. REST API requests
+			(/wp-json/* or ?rest_route=) are automatically
+			authenticated with a valid nonce — no manual
+			auth needed.
 
-			Prefer playground_execute_php for reading WordPress
-			data (posts, options, plugin state) — it is faster
-			and returns only what you echo. Use this tool only
-			when the HTTP layer itself is what you are testing,
-			for example: verifying that a URL returns a 301
-			redirect, that a form submission sets a cookie, or
-			that a REST endpoint returns the correct status
-			code.
+			Tool selection guide:
+			1. Use this tool (playground_request) with the
+			   REST API for standard content CRUD — posts,
+			   pages, users, terms, comments, settings, etc.
+			   The REST API handles serialization, pagination,
+			   and field filtering for you.
+			2. Use playground_execute_php when the data you
+			   need is not exposed by the REST API (e.g.
+			   raw options, direct database queries, or
+			   custom table access).
+			3. Use this tool as a plain HTTP request (non-REST)
+			   when the HTTP layer itself matters: verifying
+			   redirects, status codes, cookies, or response
+			   headers.
+
+			The response JSON contains three fields:
+			- "text": the response body as a string
+			- "httpStatusCode": HTTP status code (200, 404…)
+			- "headers": response headers as key-value pairs
+			Check "httpStatusCode" to determine success.
 
 			Note: full HTML responses can be very large and may
 			fill the context window. To change the URL the user
@@ -126,7 +139,9 @@ export const toolDefinitions: Record<string, ToolDefinition> = {
 			{
 				name: 'headers',
 				type: 'object',
-				description: 'Request headers as key-value pairs',
+				description: `Request headers as string key-value
+					pairs, e.g. {"Content-Type":
+					"application/json"}`,
 				required: false,
 				additionalProperties: true,
 			},
