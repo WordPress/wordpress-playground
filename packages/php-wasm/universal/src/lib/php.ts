@@ -1057,10 +1057,14 @@ export class PHP implements Disposable {
 					return e.status;
 				}
 
-				// Non-exit-code errors indicate a WASM runtime crash. Let's clean up and throw.
-				stdout.controller.error(e);
-				stderr.controller.error(e);
-				headers.controller.error(e);
+				// Non-exit-code errors indicate a WASM runtime crash.
+				// Let's clean up and throw. We use safeStreamError()
+				// because the headers controller may already be closed
+				// if onStdout fired before the crash (onStdout calls
+				// closeHeadersStream()).
+				safeStreamError(stdout.controller, e);
+				safeStreamError(stderr.controller, e);
+				safeStreamError(headers.controller, e);
 				streamsClosed = true;
 
 				/**
@@ -1083,8 +1087,11 @@ export class PHP implements Disposable {
 				throw e;
 			} finally {
 				if (!streamsClosed) {
-					stdout.controller.close();
-					stderr.controller.close();
+					// Close each stream individually so that a failure
+					// in one (e.g. stream cancelled by the consumer)
+					// doesn't prevent the others from being closed.
+					safeStreamClose(stdout.controller);
+					safeStreamClose(stderr.controller);
 					closeHeadersStream();
 					streamsClosed = true;
 				}
@@ -1592,15 +1599,23 @@ export class PHP implements Disposable {
 
 		const stderrStream = await createInvertedReadableStream<Uint8Array>();
 		process.on('error', (error) => {
-			stderrStream.controller.error(error);
+			safeStreamError(stderrStream.controller, error);
 		});
 		process.stderr.on('data', (data) => {
-			stderrStream.controller.enqueue(data);
+			try {
+				stderrStream.controller.enqueue(data);
+			} catch {
+				// Stream may have been cancelled by the consumer.
+			}
 		});
 
 		const stdoutStream = await createInvertedReadableStream<Uint8Array>();
 		process.stdout.on('data', (data) => {
-			stdoutStream.controller.enqueue(data);
+			try {
+				stdoutStream.controller.enqueue(data);
+			} catch {
+				// Stream may have been cancelled by the consumer.
+			}
 		});
 
 		process.on('exit', () => {
@@ -1762,6 +1777,37 @@ async function createInvertedReadableStream<T = BufferSource>(
 		stream,
 		controller,
 	};
+}
+
+/**
+ * Calls controller.error() but silently ignores the call if the
+ * controller's stream is already closed or errored. This happens
+ * when, e.g., onStdout closes the headers stream before a WASM
+ * crash propagates to the error-handling code.
+ */
+function safeStreamError(
+	controller: ReadableStreamDefaultController,
+	error: unknown
+) {
+	try {
+		controller.error(error);
+	} catch {
+		// The stream was already closed or errored – nothing to do.
+	}
+}
+
+/**
+ * Calls controller.close() but silently ignores the call if the
+ * controller's stream is already closed. This guards against a
+ * failure in one stream preventing sibling streams from being
+ * cleaned up.
+ */
+function safeStreamClose(controller: ReadableStreamDefaultController) {
+	try {
+		controller.close();
+	} catch {
+		// The stream was already closed or errored – nothing to do.
+	}
 }
 
 const getNodeType = (fs: Emscripten.FileSystemInstance, path: string) => {

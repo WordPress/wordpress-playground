@@ -132,6 +132,53 @@ describe.each(phpVersions)('PHP %s – ', async (phpVersion) => {
 			}
 		});
 
+		it('Does not throw "Controller is already closed" when stream is cancelled before PHP exits', async () => {
+			// Reproduce the scenario where a stream consumer (e.g., the
+			// HTTP response pipeline in the CLI server) cancels the
+			// stdout stream before PHP finishes executing. Cancellation
+			// propagates to the controller, and then the finally block
+			// in #executeWithErrorHandling tries to close() the
+			// already-cancelled controller. Before the fix, this threw
+			// "Invalid state: Controller is already closed" and crashed
+			// the Node host process.
+			let resolveExecution!: (value: number) => void;
+			const spy = vi.spyOn(
+				php[__private__dont__use],
+				'ccall'
+			);
+			spy.mockImplementation((c_func) => {
+				if (c_func === 'wasm_sapi_handle_request') {
+					// Simulate PHP writing some output
+					php[__private__dont__use].onStdout?.(
+						new Uint8Array([72, 101, 108, 108, 111])
+					);
+					// Return a promise we control so we can cancel
+					// the stream before PHP "exits".
+					return new Promise((resolve) => {
+						resolveExecution = resolve;
+					});
+				}
+			});
+
+			const response = await php.runStream({
+				code: `<?php echo "test";`,
+			});
+
+			// Cancel the stdout stream — this simulates a client
+			// disconnect that destroys the HTTP response pipeline.
+			// The cancellation propagates to the controller.
+			await response.stdout.cancel('client disconnected');
+
+			// Now PHP "finishes". This triggers the finally block
+			// which calls controller.close() on the now-cancelled
+			// stdout controller. Before the fix, this threw.
+			resolveExecution(0);
+
+			// If the fix works, the exit code resolves normally.
+			const exitCode = await response.exitCode;
+			expect(exitCode).toBe(0);
+		});
+
 		it('Does not leak memory when creating and destroying instances', async () => {
 			if (!global.gc) {
 				console.error(

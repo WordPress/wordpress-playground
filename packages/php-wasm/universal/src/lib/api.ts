@@ -463,18 +463,31 @@ export function portToStream(port: MessagePort): ReadableStream<Uint8Array> {
 			const onMessage = (ev: MessageEvent) => {
 				const data: any = (ev as any).data;
 				if (!data) return;
-				switch (data.t) {
-					case 'chunk':
-						controller.enqueue(new Uint8Array(data.b));
-						break;
-					case 'close':
-						controller.close();
-						cleanup();
-						break;
-					case 'error':
-						controller.error(new Error(data.m || 'Stream error'));
-						cleanup();
-						break;
+				// Guard every controller operation with try-catch.
+				// The stream may have been cancelled by the consumer
+				// (e.g. HTTP client disconnect), which puts the
+				// controller in a closed state. Calling enqueue(),
+				// close(), or error() on a closed controller throws
+				// "Invalid state: Controller is already closed".
+				try {
+					switch (data.t) {
+						case 'chunk':
+							controller.enqueue(new Uint8Array(data.b));
+							break;
+						case 'close':
+							controller.close();
+							cleanup();
+							break;
+						case 'error':
+							controller.error(
+								new Error(data.m || 'Stream error')
+							);
+							cleanup();
+							break;
+					}
+				} catch {
+					// Stream already closed or errored — clean up.
+					cleanup();
 				}
 			};
 			const cleanup = () => {
