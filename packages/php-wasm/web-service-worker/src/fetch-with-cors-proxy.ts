@@ -1,4 +1,4 @@
-import { cloneRequest, teeRequest } from './utils';
+import { cloneRequest } from './utils';
 import { FirewallInterferenceError } from './firewall-interference-error';
 
 const CORS_PROXY_HEADER = 'X-Playground-Cors-Proxy';
@@ -54,17 +54,24 @@ export async function fetchWithCorsProxy(
 		return await fetch(requestObject);
 	}
 
-	// Tee the request to avoid consuming the request body stream on the initial
-	// fetch() so that we can retry through the cors proxy.
-	const [directRequest, corsProxyRequest] = await teeRequest(requestObject);
+	/**
+	 * Buffer the request body so it can be reused across the direct fetch
+	 * attempt and the CORS proxy fallback. We buffer into an ArrayBuffer
+	 * instead of using ReadableStream.tee() because Safari does not support
+	 * ReadableStream as a fetch() request body ("ReadableStream uploading
+	 * is not supported").
+	 */
+	let bufferedBody: ArrayBuffer | null = null;
+	if (requestObject.body) {
+		bufferedBody = await new Response(requestObject.body).arrayBuffer();
+	}
 
 	try {
-		return await fetch(directRequest);
+		return await fetch(
+			await cloneRequest(requestObject, { body: bufferedBody })
+		);
 	} catch {
-		// If the developer has explicitly allowed the request to pass the
-		// credentials headers with the X-Cors-Proxy-Allowed-Request-Headers header,
-		// then let's include those credentials in the fetch() request.
-		const headers = new Headers(corsProxyRequest.headers);
+		const headers = new Headers(requestObject.headers);
 		const corsProxyAllowedHeaders =
 			headers.get('x-cors-proxy-allowed-request-headers')?.split(',') ||
 			[];
@@ -86,41 +93,10 @@ export async function fetchWithCorsProxy(
 			headers.set('content-type', 'application/octet-stream');
 		}
 
-		/**
-		 * Buffer the cors proxy request body into an ArrayBuffer if talking to a `http://` URL.
-		 *
-		 * Streaming request bodies don't work with the local dev server, which uses http://
-		 * as a protocol. However, with a streamed request body, Chrome silently upgrades a
-		 * HTTP/1.1 request to HTTP/2. However, our HTTP/1.1-only local dev server still replies
-		 * with a HTTP/1.1 response. Chrome then treats the request as failed with an
-		 * ERR_ALPN_NEGOTIATION_FAILED error.
-		 *
-		 * Inferring the HTTP version from the URL protocol is unreliable and will fail
-		 * if the CORS proxy is hosted on a `https://` URL that speaks HTTP < 2. This is
-		 * a recognized limitation of the CORS proxy feature. If you host it on an `https://` URL,
-		 * make sure to use HTTP/2.
-		 *
-		 * See: https://developer.chrome.com/docs/capabilities/web-apis/fetch-streaming-requests
-		 */
-
-		// In development, corsProxyUrl may be /cors-proxy/. We need to resolve the absolute URL
-		// to access the protocol.
-		const rootUrl = new URL(import.meta.url);
-		rootUrl.pathname = '';
-		rootUrl.search = '';
-		rootUrl.hash = '';
-		const corsProxyUrlObj = new URL(corsProxyUrl, rootUrl.toString());
-
-		let body: ArrayBuffer | ReadableStream<Uint8Array> | null =
-			corsProxyRequest.body;
-		if (body && new URL(corsProxyUrlObj).protocol === 'http:') {
-			body = await new Response(body).arrayBuffer();
-		}
-
-		const newRequest = await cloneRequest(corsProxyRequest, {
+		const newRequest = await cloneRequest(requestObject, {
 			url: `${corsProxyUrl}${requestObject.url}`,
 			headers,
-			body,
+			body: bufferedBody,
 			...(requestIntendsToPassCredentials && { credentials: 'include' }),
 		});
 
