@@ -1,6 +1,11 @@
 /// <reference types="vitest" />
 import { defineConfig } from 'vite';
-import type { CommonServerOptions, Plugin, ViteDevServer } from 'vite';
+import type {
+	CommonServerOptions,
+	Plugin,
+	UserConfig,
+	ViteDevServer,
+} from 'vite';
 import react from '@vitejs/plugin-react';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { viteTsConfigPaths } from '../../vite-extensions/vite-ts-config-paths';
@@ -22,7 +27,7 @@ import { exec as execCb } from 'node:child_process';
 import { promisify } from 'node:util';
 import { fileURLToPath } from 'node:url';
 import { copyFileSync, existsSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { buildVersionPlugin } from '../../vite-extensions/vite-build-version';
 // eslint-disable-next-line @nx/enforce-module-boundaries
@@ -73,7 +78,7 @@ export default defineConfig(({ command, mode }) => {
 				? 'https://wordpress-playground-cors-proxy.net/?'
 				: '/cors-proxy/?';
 
-	return {
+	const config: UserConfig = {
 		root: __dirname,
 		// Split traffic from this server on dev so that the iframe content and
 		// outer content can be served from the same origin. In production it's
@@ -385,4 +390,19 @@ export default defineConfig(({ command, mode }) => {
 			reporters: ['default'],
 		},
 	};
+
+	if (command === 'serve') {
+		config.resolve = {
+			...(config.resolve ?? {}),
+			alias: {
+				...(config.resolve?.alias ?? {}),
+				'/client/index.js': resolve(
+					__dirname,
+					'../client/src/index.ts'
+				),
+			},
+		};
+	}
+
+	return config;
 });
