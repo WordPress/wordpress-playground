@@ -1721,7 +1721,7 @@ describe('other run-cli behaviors', () => {
 			expect(constants.WP_DEBUG_DISPLAY).toBe(true);
 		});
 
-		test('should override WP_DEBUG constants via --define-bool', async () => {
+		test('should override WP_DEBUG constants via --define-number', async () => {
 			// Confirm default values before confirming they can be overridden.
 			const defaultConstantss = await getConstants([]);
 			expect(defaultConstantss.WP_DEBUG).toBe('true');
@@ -1737,11 +1737,11 @@ describe('other run-cli behaviors', () => {
 				'0',
 				'--define-number',
 				'WP_DEBUG_DISPLAY',
-				'0',
+				'1',
 			]);
-			expect(constants.WP_DEBUG).toBe(false);
-			expect(constants.WP_DEBUG_LOG).toBe(false);
-			expect(constants.WP_DEBUG_DISPLAY).toBe(true);
+			expect(constants.WP_DEBUG).toBe(0);
+			expect(constants.WP_DEBUG_LOG).toBe(0);
+			expect(constants.WP_DEBUG_DISPLAY).toBe(1);
 		});
 
 		test('should override WP_DEBUG constants via --define', async () => {
