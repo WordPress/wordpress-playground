@@ -68,7 +68,7 @@ Para hindi mawala ang iyong site pagkatapos ng single browser session, i-export 
 
 ![Export button](@site/static/img/site-manager/export-zip-file.webp)
 
-Ang na-export na file ay naglalaman ng buong site na iyong binuo, kasama ang database (`wp-content/database/.ht.sqlite.php`). Tandaan na ang mga nak начин ng tuldok ay nakatago, kaya maaaring kailangan mong i-enable ang "Show hidden files."
+Ang na-export na file ay naglalaman ng buong site na iyong binuo, kasama ang database (`wp-content/database/.ht.sqlite`). Tandaan na ang mga nak начин ng tuldok ay nakatago, kaya maaaring kailangan mong i-enable ang "Show hidden files."
 
 ## I-restore ang na-save na site
 

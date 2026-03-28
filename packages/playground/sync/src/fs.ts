@@ -9,8 +9,6 @@ export async function journalFSOperations(
 		'/wordpress/wp-content',
 		async (entry: FilesystemOperation) => {
 			if (
-				entry.path.endsWith('/.ht.sqlite.php') ||
-				entry.path.endsWith('/.ht.sqlite.php-journal') ||
 				entry.path.endsWith('/.ht.sqlite') ||
 				entry.path.endsWith('/.ht.sqlite-journal')
 			) {
