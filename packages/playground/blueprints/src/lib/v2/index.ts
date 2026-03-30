@@ -26,7 +26,11 @@ export {
 } from './types';
 
 // V2 compilation
-export { compileBlueprintV2 } from './compile/compile';
+export { compileBlueprintV2, extractRuntimeConfig } from './compile/compile';
+
+// V2 validation
+export { validateBlueprintV2, KNOWN_V2_STEP_NAMES } from './compile/validate';
+export type { BlueprintValidationV2Result } from './compile/validate';
 
 // V2 step handlers (for extensibility)
 export { v2StepHandlers, registerV2StepHandler } from './steps/index';
