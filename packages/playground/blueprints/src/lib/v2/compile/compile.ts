@@ -1,3 +1,4 @@
+import { ProgressTracker } from '@php-wasm/progress';
 import type { UniversalPHP } from '@php-wasm/universal';
 import type {
 	BlueprintV2Declaration,
@@ -12,7 +13,10 @@ import {
 	BlueprintV2StepExecutionError,
 	InvalidBlueprintV2Error,
 } from '../types';
+import type { DataReferenceResolverConfig } from '../data-references/types';
+import { DataReferenceResolverImpl } from '../data-references/resolver';
 import { v2StepHandlers } from '../steps/index';
+import { validateBlueprintV2 } from './validate';
 import { transpileDeclarativeToSteps } from './transpile-declarative';
 
 /**
@@ -27,7 +31,14 @@ export async function compileBlueprintV2(
 	blueprint: BlueprintV2Declaration,
 	options: CompileBlueprintV2Options = {}
 ): Promise<CompiledBlueprintV2> {
-	// TODO: Task 6 — validate against JSON schema
+	const validation = validateBlueprintV2(blueprint);
+	if (!validation.valid) {
+		throw new InvalidBlueprintV2Error(
+			'Blueprint validation failed: ' + validation.errors.join('; '),
+			validation.errors
+		);
+	}
+
 	// TODO: Task 25 — detect V1 and transpile to V2
 
 	const runtimeConfig = extractRuntimeConfig(blueprint);
@@ -112,10 +123,58 @@ function toVersionConstraint(value: unknown): V2VersionConstraint | undefined {
 	return undefined;
 }
 
+/**
+ * Executes an ordered list of compiled steps against a PHP
+ * runtime. Each step is dispatched to its registered handler.
+ * Progress reporting, data reference resolution, and error
+ * wrapping are handled automatically.
+ */
 async function executeSteps(
-	_playground: UniversalPHP,
-	_steps: CompiledV2Step[],
-	_options: CompileBlueprintV2Options
+	playground: UniversalPHP,
+	steps: CompiledV2Step[],
+	options: CompileBlueprintV2Options
 ): Promise<void> {
-	// TODO: Task 9 — implement step execution loop
+	const resolverConfig: DataReferenceResolverConfig = {
+		semaphore: options.semaphore,
+		corsProxy: options.corsProxy,
+		executionContext: options.executionContext,
+	};
+	const resolver = new DataReferenceResolverImpl(resolverConfig);
+
+	const context: StepExecutionContext = {
+		php: playground,
+		progress: options.progress ?? new ProgressTracker(),
+		dataReferenceResolver: resolver,
+	};
+
+	for (let i = 0; i < steps.length; i++) {
+		const step = steps[i];
+		const handler = v2StepHandlers[step.step];
+
+		if (!handler) {
+			throw new BlueprintV2StepExecutionError(
+				step.step,
+				`Unknown step handler: "${step.step}"`
+			);
+		}
+
+		try {
+			if (step.progressHints?.caption) {
+				context.progress.setCaption(step.progressHints.caption);
+			}
+			await handler(step.args, context);
+			options.onStepCompleted?.(step.step, i);
+		} catch (error) {
+			if (error instanceof BlueprintV2StepExecutionError) {
+				throw error;
+			}
+			throw new BlueprintV2StepExecutionError(
+				step.step,
+				`Step "${step.step}" (index ${i}) failed: ${
+					error instanceof Error ? error.message : String(error)
+				}`,
+				error
+			);
+		}
+	}
 }
