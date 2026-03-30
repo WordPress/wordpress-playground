@@ -5,6 +5,7 @@ import type {
 	CompiledV2Step,
 	CompileBlueprintV2Options,
 	V2RuntimeConfig,
+	V2VersionConstraint,
 	StepExecutionContext,
 } from '../types';
 import {
@@ -40,11 +41,74 @@ export async function compileBlueprintV2(
 	};
 }
 
-function extractRuntimeConfig(
-	_blueprint: BlueprintV2Declaration
+/**
+ * Extracts runtime configuration from a V2 blueprint declaration.
+ *
+ * Converts phpVersion / wordpressVersion strings into
+ * `V2VersionConstraint` objects and passes applicationOptions
+ * through as-is.
+ */
+export function extractRuntimeConfig(
+	blueprint: BlueprintV2Declaration
 ): V2RuntimeConfig {
-	// TODO: Task 7 — implement runtime config extraction
-	return {};
+	const config: V2RuntimeConfig = {};
+
+	if (blueprint.phpVersion !== undefined) {
+		config.phpVersion = toVersionConstraint(blueprint.phpVersion);
+	}
+
+	if (blueprint.wordpressVersion !== undefined) {
+		config.wordpressVersion = toVersionConstraint(
+			blueprint.wordpressVersion
+		);
+	}
+
+	if (blueprint.applicationOptions !== undefined) {
+		config.applicationOptions = blueprint.applicationOptions;
+	}
+
+	return config;
+}
+
+/**
+ * Normalizes a version field into a `V2VersionConstraint`.
+ *
+ * - Plain strings (e.g. `"8.1"`, `"latest"`) become
+ *   `{ preferred: "<value>" }`.
+ * - Objects that look like version constraints are mapped
+ *   field-by-field, using `preferred` or `recommended` as
+ *   the preferred key.
+ * - Other values (e.g. DataReferences like URLs) are not
+ *   representable as a version constraint and are ignored.
+ */
+function toVersionConstraint(value: unknown): V2VersionConstraint | undefined {
+	if (typeof value === 'string') {
+		return { preferred: value };
+	}
+
+	if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+		const obj = value as Record<string, unknown>;
+		const constraint: V2VersionConstraint = {};
+		if (typeof obj.min === 'string') {
+			constraint.min = obj.min;
+		}
+		if (typeof obj.max === 'string') {
+			constraint.max = obj.max;
+		}
+		// The PHP schema uses "recommended"; WordPress uses
+		// "preferred". Accept both.
+		if (typeof obj.preferred === 'string') {
+			constraint.preferred = obj.preferred;
+		} else if (typeof obj.recommended === 'string') {
+			constraint.preferred = obj.recommended;
+		}
+		return constraint;
+	}
+
+	// DataReference values (URLs, paths, etc.) cannot be
+	// represented as a simple version constraint — return
+	// undefined so the caller knows no constraint was set.
+	return undefined;
 }
 
 function transpileDeclarativeToSteps(
