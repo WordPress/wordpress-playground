@@ -15,3 +15,12 @@ export function registerV2StepHandler(
 ): void {
 	v2StepHandlers[stepName] = handler;
 }
+
+// Side-effect imports: each module registers its handlers
+// when loaded.
+import './filesystem';
+import './define-constants';
+import './set-site-options';
+import './run-php';
+import './wp-cli';
+import './write-files';
