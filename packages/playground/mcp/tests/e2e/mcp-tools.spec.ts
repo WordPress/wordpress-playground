@@ -677,3 +677,153 @@ test('rejects WebSocket connections without a valid token', async ({
 
 	await rejected;
 });
+
+// -- REST API authentication tests --
+// These must run in order: CRUD while logged in, then logout,
+// then verify logged-out behavior.
+test.describe.serial('playground_request REST API auth', () => {
+	test('authenticated CRUD', async ({ mcpClient, siteId }) => {
+		// CREATE
+		const createResult = await mcpClient.callTool({
+			name: 'playground_request',
+			arguments: {
+				siteId,
+				url: '/wp-json/wp/v2/posts',
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					title: 'E2E REST Test',
+					content: 'Created via MCP',
+					status: 'publish',
+				}),
+			},
+		});
+		const created = JSON.parse(resultText(createResult));
+		expect(created.httpStatusCode).toBe(201);
+		const body = JSON.parse(created.text);
+		expect(body.title.raw).toBe('E2E REST Test');
+		const postId = body.id;
+
+		// READ
+		const readResult = await mcpClient.callTool({
+			name: 'playground_request',
+			arguments: { siteId, url: `/wp-json/wp/v2/posts/${postId}` },
+		});
+		const read = JSON.parse(resultText(readResult));
+		expect(read.httpStatusCode).toBe(200);
+		expect(JSON.parse(read.text).title.rendered).toBe('E2E REST Test');
+
+		// UPDATE
+		const updateResult = await mcpClient.callTool({
+			name: 'playground_request',
+			arguments: {
+				siteId,
+				url: `/wp-json/wp/v2/posts/${postId}`,
+				method: 'PUT',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ title: 'E2E REST Test Updated' }),
+			},
+		});
+		const updated = JSON.parse(resultText(updateResult));
+		expect(updated.httpStatusCode).toBe(200);
+		expect(JSON.parse(updated.text).title.raw).toBe(
+			'E2E REST Test Updated'
+		);
+
+		// DELETE
+		const deleteResult = await mcpClient.callTool({
+			name: 'playground_request',
+			arguments: {
+				siteId,
+				url: `/wp-json/wp/v2/posts/${postId}?force=true`,
+				method: 'DELETE',
+			},
+		});
+		const deleted = JSON.parse(resultText(deleteResult));
+		expect(deleted.httpStatusCode).toBe(200);
+		expect(JSON.parse(deleted.text).deleted).toBe(true);
+
+		// Verify gone
+		const goneResult = await mcpClient.callTool({
+			name: 'playground_request',
+			arguments: {
+				siteId,
+				url: `/wp-json/wp/v2/posts/${postId}`,
+			},
+		});
+		const gone = JSON.parse(resultText(goneResult));
+		expect(JSON.parse(gone.text).code).toBe('rest_post_invalid_id');
+	});
+
+	test('logged-out user cannot create posts', async ({
+		mcpClient,
+		siteId,
+	}) => {
+		// Log out first
+		const logoutEndpoint = '/wordpress/wp-content/mcp-logout.php';
+		const logoutPhp = `<?php
+require_once '/wordpress/wp-load.php';
+wp_logout();
+wp_set_current_user(0);
+echo json_encode(array('loggedOut' => true, 'user' => get_current_user_id()));
+`;
+		await mcpClient.callTool({
+			name: 'playground_write_file',
+			arguments: {
+				siteId,
+				path: logoutEndpoint,
+				contents: logoutPhp,
+			},
+		});
+		try {
+			const logoutResult = await mcpClient.callTool({
+				name: 'playground_request',
+				arguments: {
+					siteId,
+					url: '/wp-content/mcp-logout.php',
+					headers: {},
+				},
+			});
+			const logoutResp = JSON.parse(resultText(logoutResult));
+			expect(logoutResp.httpStatusCode).toBe(200);
+			const logoutBody = JSON.parse(logoutResp.text);
+			expect(logoutBody.loggedOut).toBe(true);
+			expect(logoutBody.user).toBe(0);
+		} finally {
+			await mcpClient.callTool({
+				name: 'playground_delete_file',
+				arguments: { siteId, path: logoutEndpoint },
+			});
+		}
+
+		const result = await mcpClient.callTool({
+			name: 'playground_request',
+			arguments: {
+				siteId,
+				url: '/wp-json/wp/v2/posts',
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					title: 'Should fail',
+					status: 'publish',
+				}),
+			},
+		});
+		const resp = JSON.parse(resultText(result));
+		expect(resp.httpStatusCode).toBe(401);
+	});
+
+	test('logged-out user can read public posts', async ({
+		mcpClient,
+		siteId,
+	}) => {
+		const result = await mcpClient.callTool({
+			name: 'playground_request',
+			arguments: { siteId, url: '/wp-json/wp/v2/posts' },
+		});
+		const resp = JSON.parse(resultText(result));
+		expect(resp.httpStatusCode).toBe(200);
+		const posts = JSON.parse(resp.text);
+		expect(Array.isArray(posts)).toBe(true);
+	});
+});
