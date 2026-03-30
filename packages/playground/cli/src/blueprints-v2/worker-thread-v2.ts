@@ -16,8 +16,6 @@ import type {
 	SpawnHandler,
 } from '@php-wasm/universal';
 import {
-	PHPExecutionFailureError,
-	PHPResponse,
 	PHPWorker,
 	releaseApiProxy,
 	consumeAPI,
@@ -29,10 +27,11 @@ import {
 } from '@php-wasm/universal';
 import { joinPaths, sprintf } from '@php-wasm/util';
 import {
-	type BlueprintMessage,
-	runBlueprintV2,
+	compileBlueprintV2,
+	type BlueprintV2Declaration,
 	type BlueprintV1Declaration,
 } from '@wp-playground/blueprints';
+import { ProgressTracker } from '@php-wasm/progress';
 import {
 	type ParsedBlueprintV2String,
 	type RawBlueprintV2Data,
@@ -327,113 +326,46 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 		}
 
 		try {
-			const cliArgsToPass: (keyof WorkerRunBlueprintArgs)[] = [
-				'mode',
-				'db-engine',
-				'db-host',
-				'db-user',
-				'db-pass',
-				'db-name',
-				'db-path',
-				'truncate-new-site-directory',
-				'allow',
-			];
-			const cliArgs = cliArgsToPass
-				.filter((arg) => arg in args)
-				.map((arg) => `--${arg}=${args[arg]}`);
-			cliArgs.push(`--site-url=${args.siteUrl}`);
+			const progress = new ProgressTracker();
+			progress.addEventListener('progress', ((event: CustomEvent) => {
+				const caption = (event.detail.caption ?? '').trim();
+				const pct = (event.detail.progress * 100).toFixed(2);
+				output.progress(`${caption} – ${pct}%`);
+			}) as EventListener);
 
-			const streamedResponse = await runBlueprintV2({
-				php,
-				blueprint: args.blueprint,
-				blueprintOverrides: {
-					additionalSteps: args['additional-blueprint-steps'],
-					wordpressVersion: args.wp,
-				},
-				cliArgs,
-				onMessage: async (message: BlueprintMessage) => {
-					switch (message.type) {
-						case 'blueprint.target_resolved': {
-							if (!this.blueprintTargetResolved) {
-								this.blueprintTargetResolved = true;
-								await this.applyPostInstallMountsToAllWorkers(
-									workerPostInstallMountsPort
-								);
-							}
-							break;
-						}
-						case 'blueprint.progress': {
-							const progressMessage = `${message.caption.trim()} – ${message.progress.toFixed(
-								2
-							)}%`;
-							output.progress(progressMessage);
-							break;
-						}
-						case 'blueprint.error': {
-							const red = '\x1b[31m';
-							const bold = '\x1b[1m';
-							const reset = '\x1b[0m';
-							if (args.verbosity === 'debug' && message.details) {
-								output.stderr(
-									`${red}${bold}Fatal error:${reset} Uncaught ${message.details.exception}: ${message.details.message}\n` +
-										`  at ${message.details.file}:${message.details.line}\n` +
-										(message.details.trace
-											? message.details.trace + '\n'
-											: '')
-								);
-							} else {
-								output.stderr(
-									`${red}${bold}Error:${reset} ${message.message}\n`
-								);
-							}
-							break;
-						}
-					}
-				},
-			});
-			/**
-			 * When we're debugging, every bit of information matters – let's immediately output
-			 * everything we get from the PHP output streams.
-			 */
-			if (args.verbosity === 'debug') {
-				streamedResponse!.stdout.pipeTo(
-					new WritableStream({
-						write(chunk) {
-							process.stdout.write(chunk);
-						},
-					})
-				);
-				streamedResponse!.stderr.pipeTo(
-					new WritableStream({
-						write(chunk) {
-							process.stderr.write(chunk);
-						},
-					})
+			const compiled = await compileBlueprintV2(
+				args.blueprint as BlueprintV2Declaration,
+				{ progress }
+			);
+
+			// Apply post-install mounts once we know the
+			// blueprint target has been resolved.
+			if (!this.blueprintTargetResolved) {
+				this.blueprintTargetResolved = true;
+				await this.applyPostInstallMountsToAllWorkers(
+					workerPostInstallMountsPort
 				);
 			}
-			await streamedResponse!.finished;
-			if ((await streamedResponse!.exitCode) !== 0) {
-				// exitCode != 1 means the blueprint execution failed. Let's throw an error.
-				// and clean up.
-				const syncResponse =
-					await PHPResponse.fromStreamedResponse(streamedResponse);
-				throw new PHPExecutionFailureError(
-					`PHP.run() failed with exit code ${syncResponse.exitCode}. ${syncResponse.errors} ${syncResponse.text}`,
-					syncResponse,
-					'request'
-				);
-			}
+
+			await compiled.run(php);
 		} catch (error) {
-			// Capture the PHP error log details to provide more context for debugging.
+			// Capture the PHP error log details for debugging.
 			let phpLogs = '';
 			try {
-				// @TODO: Don't assume errorLogPath starts with /wordpress/
-				//        ...or maybe we can assume that in Playground CLI?
 				phpLogs = php.readFileAsText(errorLogPath);
 			} catch {
 				// Ignore errors reading the PHP error log.
 			}
 			(error as any).phpLogs = phpLogs;
+
+			const red = '\x1b[31m';
+			const bold = '\x1b[1m';
+			const reset = '\x1b[0m';
+			output.stderr(
+				`${red}${bold}Error:${reset} ${
+					error instanceof Error ? error.message : String(error)
+				}\n`
+			);
 			throw error;
 		} finally {
 			reap();
