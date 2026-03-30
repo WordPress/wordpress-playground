@@ -1601,22 +1601,36 @@ export class PHP implements Disposable {
 		process.on('error', (error) => {
 			safeStreamError(stderrStream.controller, error);
 		});
-		process.stderr.on('data', (data) => {
+		const onStderrData = (data: Uint8Array) => {
 			try {
 				stderrStream.controller.enqueue(data);
 			} catch {
-				// Stream may have been cancelled by the consumer.
+				// enqueue() throws when the stream is no longer
+				// readable — the consumer cancelled it, someone
+				// called controller.error(), or the stream was
+				// already closed. We swallow the error because
+				// the consumer already knows why the stream ended
+				// (they cancelled, or received the error, or read
+				// all the data). Re-throwing here would propagate
+				// into Node's EventEmitter and crash the process,
+				// which is exactly what this PR fixes. The only
+				// actionable response is to detach the listener
+				// so we stop receiving data we can't deliver.
+				process.stderr.off('data', onStderrData);
 			}
-		});
+		};
+		process.stderr.on('data', onStderrData);
 
 		const stdoutStream = await createInvertedReadableStream<Uint8Array>();
-		process.stdout.on('data', (data) => {
+		const onStdoutData = (data: Uint8Array) => {
 			try {
 				stdoutStream.controller.enqueue(data);
 			} catch {
-				// Stream may have been cancelled by the consumer.
+				// See the comment in onStderrData above.
+				process.stdout.off('data', onStdoutData);
 			}
-		});
+		};
+		process.stdout.on('data', onStdoutData);
 
 		process.on('exit', () => {
 			// Delay until next tick to ensure we don't close the streams before
@@ -1780,10 +1794,12 @@ async function createInvertedReadableStream<T = BufferSource>(
 }
 
 /**
- * Calls controller.error() but silently ignores the call if the
- * controller's stream is already closed or errored. This happens
- * when, e.g., onStdout closes the headers stream before a WASM
- * crash propagates to the error-handling code.
+ * Calls controller.error() without throwing if the stream is
+ * already closed or errored. We swallow the error because the
+ * consumer already has the terminal state — re-throwing would
+ * crash the Node process for no benefit. This commonly happens
+ * when onStdout closes the headers stream before a WASM crash
+ * propagates to the error-handling code.
  */
 function safeStreamError(
 	controller: ReadableStreamDefaultController,
@@ -1792,21 +1808,22 @@ function safeStreamError(
 	try {
 		controller.error(error);
 	} catch {
-		// The stream was already closed or errored – nothing to do.
+		// Stream already in a terminal state.
 	}
 }
 
 /**
- * Calls controller.close() but silently ignores the call if the
- * controller's stream is already closed. This guards against a
- * failure in one stream preventing sibling streams from being
- * cleaned up.
+ * Calls controller.close() without throwing if the stream is
+ * already closed or errored. We swallow the error because the
+ * consumer already has the terminal state — re-throwing would
+ * prevent sibling streams from being cleaned up and crash the
+ * Node process.
  */
 function safeStreamClose(controller: ReadableStreamDefaultController) {
 	try {
 		controller.close();
 	} catch {
-		// The stream was already closed or errored – nothing to do.
+		// Stream already in a terminal state.
 	}
 }
 

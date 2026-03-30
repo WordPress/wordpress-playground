@@ -463,31 +463,34 @@ export function portToStream(port: MessagePort): ReadableStream<Uint8Array> {
 			const onMessage = (ev: MessageEvent) => {
 				const data: any = (ev as any).data;
 				if (!data) return;
-				// Guard every controller operation with try-catch.
-				// The stream may have been cancelled by the consumer
-				// (e.g. HTTP client disconnect), which puts the
-				// controller in a closed state. Calling enqueue(),
-				// close(), or error() on a closed controller throws
-				// "Invalid state: Controller is already closed".
-				try {
-					switch (data.t) {
-						case 'chunk':
+				switch (data.t) {
+					case 'chunk':
+						try {
 							controller.enqueue(new Uint8Array(data.b));
-							break;
-						case 'close':
-							controller.close();
+						} catch {
+							// enqueue() throws when the stream is no
+							// longer readable — the consumer cancelled
+							// it, someone called controller.error(),
+							// or the stream was already closed. We
+							// swallow the error because the consumer
+							// already knows why the stream ended. The
+							// only actionable response is to close
+							// the port so the remote side stops
+							// sending.
 							cleanup();
-							break;
-						case 'error':
-							controller.error(
-								new Error(data.m || 'Stream error')
-							);
-							cleanup();
-							break;
-					}
-				} catch {
-					// Stream already closed or errored — clean up.
-					cleanup();
+						}
+						break;
+					case 'close':
+						safeStreamClose(controller);
+						cleanup();
+						break;
+					case 'error':
+						safeStreamError(
+							controller,
+							new Error(data.m || 'Stream error')
+						);
+						cleanup();
+						break;
 				}
 			};
 			const cleanup = () => {
@@ -696,4 +699,35 @@ function proxyClone(object: any): any {
 			}
 		},
 	});
+}
+
+/**
+ * Calls controller.error() without throwing if the stream is
+ * already closed or errored. We swallow the error because the
+ * consumer already has the terminal state — re-throwing would
+ * crash the Node process for no benefit.
+ */
+function safeStreamError(
+	controller: ReadableStreamDefaultController,
+	error: unknown
+) {
+	try {
+		controller.error(error);
+	} catch {
+		// Stream already in a terminal state.
+	}
+}
+
+/**
+ * Calls controller.close() without throwing if the stream is
+ * already closed or errored. We swallow the error because the
+ * consumer already has the terminal state — re-throwing would
+ * crash the Node process for no benefit.
+ */
+function safeStreamClose(controller: ReadableStreamDefaultController) {
+	try {
+		controller.close();
+	} catch {
+		// Stream already in a terminal state.
+	}
 }
