@@ -83,11 +83,6 @@ export type {
 	V2RuntimeConfig,
 } from './lib/v2/index';
 
-// Legacy V2 PHP runner exports (to be removed in cleanup phase)
-export { getV2Runner } from './lib/v2/get-v2-runner';
-export { runBlueprintV2 } from './lib/v2/run-blueprint-v2';
-export type { BlueprintMessage } from './lib/v2/run-blueprint-v2';
-
 export {
 	resolveRemoteBlueprint,
 	BlueprintFetchError,
