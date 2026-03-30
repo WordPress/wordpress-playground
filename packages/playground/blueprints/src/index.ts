@@ -60,12 +60,30 @@ export {
 } from './lib/v1/resources';
 export * from './lib/steps';
 export * from './lib/steps/handlers';
+// V2 Blueprint types (keep existing type exports for now)
 export type {
 	BlueprintV2,
 	BlueprintV2Declaration,
 	RawBlueprintV2Data,
 	ParsedBlueprintV1orV2String as ParsedBlueprintV2String,
 } from './lib/v2/blueprint-v2-declaration';
+
+// V2 TypeScript runner (new)
+export {
+	compileBlueprintV2,
+	InvalidBlueprintV2Error,
+	BlueprintV2StepExecutionError,
+	DataReferenceResolutionError,
+	BlueprintMergeConflictError,
+} from './lib/v2/index';
+
+export type {
+	CompiledBlueprintV2,
+	CompileBlueprintV2Options,
+	V2RuntimeConfig,
+} from './lib/v2/index';
+
+// Legacy V2 PHP runner exports (to be removed in cleanup phase)
 export { getV2Runner } from './lib/v2/get-v2-runner';
 export { runBlueprintV2 } from './lib/v2/run-blueprint-v2';
 export type { BlueprintMessage } from './lib/v2/run-blueprint-v2';

@@ -1,18 +1,11 @@
 import type { ProgressTracker } from '@php-wasm/progress';
 import type { UniversalPHP } from '@php-wasm/universal';
 import type { Semaphore } from '@php-wasm/util';
-import type { V2Schema } from './wep-1-blueprint-v2-schema/appendix-A-blueprint-v2-schema';
+import type { BlueprintV2Declaration } from './blueprint-v2-declaration';
 import type { DataSources } from './wep-1-blueprint-v2-schema/appendix-B-data-sources';
 
-// =====================================================================
-// Blueprint V2 Declaration (re-export from schema)
-// =====================================================================
-
-/**
- * The raw Blueprint V2 declaration as authored by users in
- * blueprint.json files, directly reflecting the V2 JSON schema.
- */
-export type BlueprintV2Declaration = V2Schema.BlueprintV2;
+// Re-export for convenience within the v2/ subtree.
+export type { BlueprintV2Declaration };
 
 // =====================================================================
 // Compiled Blueprint V2
