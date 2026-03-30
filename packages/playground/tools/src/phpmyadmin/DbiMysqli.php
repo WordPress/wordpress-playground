@@ -15,7 +15,6 @@ namespace PhpMyAdmin\Dbal;
 use Closure;
 use Exception;
 use Generator;
-use PDO;
 use PhpMyAdmin\FieldMetadata;
 use PhpMyAdmin\Query\Utilities;
 use Throwable;
@@ -260,10 +259,8 @@ class DbiMysqli implements DbiExtension {
 
     public function connect($user, $password, array $server) {
 		global $wp_env;
-		$pdo = new PDO('sqlite:' . $wp_env['db']['path']);
-		$pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
         $this->driver = new WP_SQLite_Driver(
-			new WP_SQLite_Connection(array('pdo' => $pdo)),
+			new WP_SQLite_Connection(array('path' => $wp_env['db']['path'])),
 			'wordpress'
 		);
 		return $this->driver;

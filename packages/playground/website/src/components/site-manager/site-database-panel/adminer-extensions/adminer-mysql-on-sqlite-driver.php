@@ -24,8 +24,6 @@ if ($wp_env['db']['type'] === 'sqlite') {
 use Throwable;
 use WP_SQLite_Driver;
 use WP_SQLite_Connection;
-use PDO;
-
 SqlDriver::$drivers = array("server" => "MySQL / MariaDB") + SqlDriver::$drivers;
 
 if (!defined('Adminer\DRIVER')) {
@@ -103,10 +101,8 @@ if (!defined('Adminer\DRIVER')) {
 
 		function attach($server, $username, $password) {
 			global $wp_env;
-			$pdo = new PDO('sqlite:' . $wp_env['db']['path']);
-			$pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 			$this->driver = new WP_SQLite_Driver(
-				new WP_SQLite_Connection(array('pdo' => $pdo)),
+				new WP_SQLite_Connection(array('path' => $wp_env['db']['path'])),
 				'wordpress'
 			);
 			return $this;
