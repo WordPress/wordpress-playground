@@ -31,6 +31,9 @@ export { compileBlueprintV2, extractRuntimeConfig } from './compile/compile';
 // V1 → V2 transpilation
 export { transpileV1toV2 } from './compile/v1-to-v2-transpiler';
 
+// V2 blueprint composition
+export { mergeBlueprintsV2 } from './compile/merge';
+
 // V2 validation
 export { validateBlueprintV2, KNOWN_V2_STEP_NAMES } from './compile/validate';
 export type { BlueprintValidationV2Result } from './compile/validate';
