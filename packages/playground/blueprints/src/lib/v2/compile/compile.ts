@@ -18,6 +18,7 @@ import { DataReferenceResolverImpl } from '../data-references/resolver';
 import { v2StepHandlers } from '../steps/index';
 import { validateBlueprintV2 } from './validate';
 import { transpileDeclarativeToSteps } from './transpile-declarative';
+import { transpileV1toV2 } from './v1-to-v2-transpiler';
 
 /**
  * Compiles a V2 blueprint declaration into an executable form.
@@ -31,7 +32,16 @@ export async function compileBlueprintV2(
 	blueprint: BlueprintV2Declaration,
 	options: CompileBlueprintV2Options = {}
 ): Promise<CompiledBlueprintV2> {
-	const validation = validateBlueprintV2(blueprint);
+	// Detect V1 blueprints (no `version` property) and
+	// transpile to V2 before proceeding.
+	let effectiveBlueprint = blueprint;
+	if (!hasVersionProperty(blueprint)) {
+		effectiveBlueprint = transpileV1toV2(
+			blueprint as unknown as Record<string, unknown>
+		);
+	}
+
+	const validation = validateBlueprintV2(effectiveBlueprint);
 	if (!validation.valid) {
 		throw new InvalidBlueprintV2Error(
 			'Blueprint validation failed: ' + validation.errors.join('; '),
@@ -39,10 +49,8 @@ export async function compileBlueprintV2(
 		);
 	}
 
-	// TODO: Task 25 — detect V1 and transpile to V2
-
-	const runtimeConfig = extractRuntimeConfig(blueprint);
-	const steps = transpileDeclarativeToSteps(blueprint);
+	const runtimeConfig = extractRuntimeConfig(effectiveBlueprint);
+	const steps = transpileDeclarativeToSteps(effectiveBlueprint);
 
 	return {
 		runtimeConfig,
@@ -121,6 +129,19 @@ function toVersionConstraint(value: unknown): V2VersionConstraint | undefined {
 	// represented as a simple version constraint — return
 	// undefined so the caller knows no constraint was set.
 	return undefined;
+}
+
+/**
+ * Returns true if the blueprint has a `version` property,
+ * indicating it's a V2 blueprint (or at least declares a
+ * version). Blueprints without this property are V1.
+ */
+function hasVersionProperty(blueprint: unknown): boolean {
+	return (
+		typeof blueprint === 'object' &&
+		blueprint !== null &&
+		'version' in blueprint
+	);
 }
 
 /**
