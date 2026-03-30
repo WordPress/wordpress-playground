@@ -650,14 +650,25 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 		}
 
 		const define = (args['define'] || {}) as Record<string, string>;
-		if (
-			!('WP_DEBUG' in define) &&
-			!('WP_DEBUG_LOG' in define) &&
-			!('WP_DEBUG_DISPLAY' in define)
-		) {
+		const defineBool = (args['define-bool'] || {}) as Record<
+			string,
+			boolean
+		>;
+		const defineNumber = (args['define-number'] || {}) as Record<
+			string,
+			number
+		>;
+		const hasDebugDefine = (name: string) => {
+			return name in define || name in defineBool || name in defineNumber;
+		};
+		if (!hasDebugDefine('WP_DEBUG')) {
 			define['WP_DEBUG'] = 'true';
+		}
+		if (!hasDebugDefine('WP_DEBUG_LOG')) {
 			define['WP_DEBUG_LOG'] = 'true';
-			define['WP_DEBUG_DISPLAY'] = 'true';
+		}
+		if (!hasDebugDefine('WP_DEBUG_DISPLAY')) {
+			define['WP_DEBUG_DISPLAY'] = 'false';
 		}
 
 		const cliArgs = {
