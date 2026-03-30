@@ -38,7 +38,10 @@ interface ModelContextClient {
 
 interface ModelContext {
 	provideContext(options: { tools: ModelContextTool[] }): void;
-	registerTool(tool: ModelContextTool): void;
+	registerTool(
+		tool: ModelContextTool,
+		options?: { signal?: AbortSignal }
+	): void;
 	readonly tools: ModelContextTool[];
 }
 
@@ -50,10 +53,17 @@ declare global {
 
 // -- Registration --
 
+let registrationController: AbortController | null = null;
+
 export function registerWebMCPTools(config: PlaygroundConfig): void {
 	if (typeof navigator === 'undefined' || !navigator.modelContext) {
 		return;
 	}
+
+	// Abort any previous registration before re-registering.
+	registrationController?.abort();
+	registrationController = new AbortController();
+	const signal = registrationController.signal;
 
 	function getActiveClient(): PlaygroundClient {
 		const sites = config.getSites();
@@ -98,12 +108,7 @@ export function registerWebMCPTools(config: PlaygroundConfig): void {
 	tools.push(...createSiteManagementTools(config));
 
 	for (const tool of tools) {
-		const alreadyRegistered = navigator.modelContext.tools.some(
-			(t) => t.name === tool.name
-		);
-		if (!alreadyRegistered) {
-			navigator.modelContext.registerTool(tool);
-		}
+		navigator.modelContext.registerTool(tool, { signal });
 	}
 }
 

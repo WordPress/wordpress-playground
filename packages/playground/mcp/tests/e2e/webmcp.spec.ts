@@ -30,22 +30,27 @@ const test = base.extend<{ webmcpPage: Page }>({
 						registeredTools.length = 0;
 						(window as any).__webmcpExecutors = {};
 					},
-					registerTool(tool: (typeof registeredTools)[0]) {
+					registerTool(
+						tool: (typeof registeredTools)[0],
+						options?: { signal?: AbortSignal }
+					) {
 						registeredTools.push(tool);
 						// Expose on window so tests can inspect and invoke
 						(window as any).__webmcpTools = registeredTools;
 						(window as any).__webmcpExecutors[tool.name] = (
 							input: Record<string, unknown>
 						) => tool.execute(input);
-					},
-					unregisterTool(name: string) {
-						const idx = registeredTools.findIndex(
-							(t) => t.name === name
-						);
-						if (idx !== -1) {
-							registeredTools.splice(idx, 1);
-							delete (window as any).__webmcpExecutors[name];
-						}
+						options?.signal?.addEventListener('abort', () => {
+							const idx = registeredTools.findIndex(
+								(t) => t.name === tool.name
+							);
+							if (idx !== -1) {
+								registeredTools.splice(idx, 1);
+								delete (window as any).__webmcpExecutors[
+									tool.name
+								];
+							}
+						});
 					},
 				},
 			});
