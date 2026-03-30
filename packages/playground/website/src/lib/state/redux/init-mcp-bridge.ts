@@ -13,6 +13,7 @@ import type { McpBridgeHandle } from '@wp-playground/mcp/client';
 import { registerWebMCPTools, startMcpBridge } from '@wp-playground/mcp/client';
 import { isMcpServerEnabled } from '../url/router';
 import { logTrackingEvent } from '../../tracking';
+import { logger } from '@php-wasm/logger';
 
 export const mcpListenerMiddleware = createListenerMiddleware();
 
@@ -90,7 +91,7 @@ startListening({
 		try {
 			registerWebMCPTools(mcpConfig);
 		} catch (error) {
-			console.warn('WebMCP registration failed:', error);
+			logger.warn('WebMCP registration failed:', error);
 		}
 
 		// Only start the WebSocket bridge when explicitly requested
