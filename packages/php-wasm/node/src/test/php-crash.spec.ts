@@ -142,11 +142,12 @@ describe.each(phpVersions)('PHP %s – ', async (phpVersion) => {
 			// "Invalid state: Controller is already closed" and crashed
 			// the Node host process.
 			let resolveExecution!: (value: number) => void;
-			const spy = vi.spyOn(
-				php[__private__dont__use],
-				'ccall'
+			const originalCcall = php[__private__dont__use].ccall.bind(
+				php[__private__dont__use]
 			);
-			spy.mockImplementation((c_func) => {
+			const spy = vi.spyOn(php[__private__dont__use], 'ccall');
+			spy.mockImplementation((...args) => {
+				const [c_func] = args;
 				if (c_func === 'wasm_sapi_handle_request') {
 					// Simulate PHP writing some output
 					php[__private__dont__use].onStdout?.(
@@ -158,7 +159,7 @@ describe.each(phpVersions)('PHP %s – ', async (phpVersion) => {
 						resolveExecution = resolve;
 					});
 				}
-				return undefined as any;
+				return originalCcall(...args);
 			});
 
 			const response = await php.runStream({
@@ -188,11 +189,12 @@ describe.each(phpVersions)('PHP %s – ', async (phpVersion) => {
 			// headers.controller.error() on the already-closed headers
 			// controller. Before the fix, this threw "Invalid state:
 			// Controller is already closed" and crashed the Node host.
-			const spy = vi.spyOn(
-				php[__private__dont__use],
-				'ccall'
+			const originalCcall = php[__private__dont__use].ccall.bind(
+				php[__private__dont__use]
 			);
-			spy.mockImplementation((c_func) => {
+			const spy = vi.spyOn(php[__private__dont__use], 'ccall');
+			spy.mockImplementation((...args) => {
+				const [c_func] = args;
 				if (c_func === 'wasm_sapi_handle_request') {
 					// Simulate PHP writing output — this triggers
 					// onStdout which calls closeHeadersStream(),
@@ -205,7 +207,7 @@ describe.each(phpVersions)('PHP %s – ', async (phpVersion) => {
 					// accessing an unmounted filesystem path.
 					throw new Error('Simulated WASM crash');
 				}
-				return undefined as any;
+				return originalCcall(...args);
 			});
 
 			// runStream returns a StreamedPHPResponse. The WASM
