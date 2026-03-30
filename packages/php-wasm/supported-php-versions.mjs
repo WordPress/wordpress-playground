@@ -17,7 +17,7 @@ export const phpVersions = [
 		version: '8.5',
 		loaderFilename: 'php_8_5.js',
 		wasmFilename: 'php_8_5.wasm',
-		lastRelease: '8.5.3',
+		lastRelease: '8.5.4',
 	},
 	{
 		version: '8.4',
