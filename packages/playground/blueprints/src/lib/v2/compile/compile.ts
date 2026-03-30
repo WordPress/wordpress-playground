@@ -13,6 +13,7 @@ import {
 	InvalidBlueprintV2Error,
 } from '../types';
 import { v2StepHandlers } from '../steps/index';
+import { transpileDeclarativeToSteps } from './transpile-declarative';
 
 /**
  * Compiles a V2 blueprint declaration into an executable form.
@@ -109,13 +110,6 @@ function toVersionConstraint(value: unknown): V2VersionConstraint | undefined {
 	// represented as a simple version constraint — return
 	// undefined so the caller knows no constraint was set.
 	return undefined;
-}
-
-function transpileDeclarativeToSteps(
-	_blueprint: BlueprintV2Declaration
-): CompiledV2Step[] {
-	// TODO: Task 8 — implement declarative-to-step transpilation
-	return [];
 }
 
 async function executeSteps(
