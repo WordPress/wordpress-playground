@@ -158,6 +158,7 @@ describe.each(phpVersions)('PHP %s – ', async (phpVersion) => {
 						resolveExecution = resolve;
 					});
 				}
+				return undefined as any;
 			});
 
 			const response = await php.runStream({
@@ -204,6 +205,7 @@ describe.each(phpVersions)('PHP %s – ', async (phpVersion) => {
 					// accessing an unmounted filesystem path.
 					throw new Error('Simulated WASM crash');
 				}
+				return undefined as any;
 			});
 
 			// runStream returns a StreamedPHPResponse. The WASM
