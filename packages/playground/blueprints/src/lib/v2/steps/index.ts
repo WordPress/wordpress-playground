@@ -16,11 +16,20 @@ export function registerV2StepHandler(
 	v2StepHandlers[stepName] = handler;
 }
 
-// Side-effect imports: each module registers its handlers
-// when loaded.
+// Side-effect imports: each module self-registers its handler.
 import './filesystem';
 import './define-constants';
 import './set-site-options';
 import './run-php';
 import './wp-cli';
 import './write-files';
+import './install-plugin';
+import './activate-plugin';
+import './install-theme';
+import './activate-theme';
+import './set-site-language';
+import './unzip';
+import './import-content';
+import './import-media';
+import './import-theme-starter-content';
+import './run-sql';
