@@ -1,8 +1,27 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { fetchWithCorsProxy } from './fetch-with-cors-proxy';
 import { FirewallInterferenceError } from './firewall-interference-error';
 
 describe('fetchWithCorsProxy', () => {
+	beforeAll(async () => {
+		// Pre-warm the one-time ReadableStream body feature detection
+		// cache so its internal fetch() call doesn't consume mock
+		// responses set up by individual tests.
+		const tempMock = vi
+			.spyOn(globalThis, 'fetch')
+			.mockResolvedValue(new Response(''));
+		try {
+			await fetchWithCorsProxy(
+				'https://warmup.invalid/',
+				undefined,
+				'https://proxy.test/?url='
+			);
+		} catch {
+			// Expected — we only need the detection side-effect.
+		}
+		tempMock.mockRestore();
+	});
+
 	afterEach(() => {
 		vi.restoreAllMocks();
 	});
