@@ -1,7 +1,30 @@
-import { cloneRequest } from './utils';
+import { cloneRequest, teeRequest } from './utils';
 import { FirewallInterferenceError } from './firewall-interference-error';
 
 const CORS_PROXY_HEADER = 'X-Playground-Cors-Proxy';
+
+let streamBodySupported: boolean | undefined;
+async function supportsReadableStreamBody(): Promise<boolean> {
+	if (streamBodySupported !== undefined) {
+		return streamBodySupported;
+	}
+	try {
+		const stream = new ReadableStream({
+			start(controller) {
+				controller.close();
+			},
+		});
+		await fetch('data:a/a,', {
+			method: 'POST',
+			body: stream,
+			duplex: 'half',
+		} as RequestInit);
+		streamBodySupported = true;
+	} catch {
+		streamBodySupported = false;
+	}
+	return streamBodySupported;
+}
 
 export async function fetchWithCorsProxy(
 	input: RequestInfo,
@@ -54,22 +77,34 @@ export async function fetchWithCorsProxy(
 		return await fetch(requestObject);
 	}
 
-	/**
-	 * Buffer the request body so it can be reused across the direct fetch
-	 * attempt and the CORS proxy fallback. We buffer into an ArrayBuffer
-	 * instead of using ReadableStream.tee() because Safari does not support
-	 * ReadableStream as a fetch() request body ("ReadableStream uploading
-	 * is not supported").
-	 */
-	let bufferedBody: ArrayBuffer | null = null;
-	if (requestObject.body) {
-		bufferedBody = await new Response(requestObject.body).arrayBuffer();
+	const useStreaming = await supportsReadableStreamBody();
+
+	let directRequest: Request;
+	let corsProxyBody: ArrayBuffer | ReadableStream<Uint8Array> | null;
+
+	if (useStreaming) {
+		const [teedDirect, teedProxy] = await teeRequest(requestObject);
+		directRequest = teedDirect;
+		corsProxyBody = teedProxy.body;
+	} else {
+		/**
+		 * Buffer the request body so it can be reused across the direct
+		 * fetch attempt and the CORS proxy fallback. Safari does not
+		 * support ReadableStream as a fetch() request body
+		 * ("ReadableStream uploading is not supported").
+		 */
+		let bufferedBody: ArrayBuffer | null = null;
+		if (requestObject.body) {
+			bufferedBody = await new Response(requestObject.body).arrayBuffer();
+		}
+		directRequest = await cloneRequest(requestObject, {
+			body: bufferedBody,
+		});
+		corsProxyBody = bufferedBody;
 	}
 
 	try {
-		return await fetch(
-			await cloneRequest(requestObject, { body: bufferedBody })
-		);
+		return await fetch(directRequest);
 	} catch {
 		const headers = new Headers(requestObject.headers);
 		const corsProxyAllowedHeaders =
@@ -93,10 +128,30 @@ export async function fetchWithCorsProxy(
 			headers.set('content-type', 'application/octet-stream');
 		}
 
+		/**
+		 * When using streaming bodies, buffer into an ArrayBuffer if the
+		 * CORS proxy uses `http:`. Streaming request bodies cause Chrome
+		 * to silently upgrade HTTP/1.1 to HTTP/2, but an HTTP/1.1-only
+		 * server replies with HTTP/1.1, triggering ERR_ALPN_NEGOTIATION_FAILED.
+		 *
+		 * @see https://developer.chrome.com/docs/capabilities/web-apis/fetch-streaming-requests
+		 */
+		let body = corsProxyBody;
+		if (useStreaming && body) {
+			const rootUrl = new URL(import.meta.url);
+			rootUrl.pathname = '';
+			rootUrl.search = '';
+			rootUrl.hash = '';
+			const corsProxyUrlObj = new URL(corsProxyUrl, rootUrl.toString());
+			if (corsProxyUrlObj.protocol === 'http:') {
+				body = await new Response(body).arrayBuffer();
+			}
+		}
+
 		const newRequest = await cloneRequest(requestObject, {
 			url: `${corsProxyUrl}${requestObject.url}`,
 			headers,
-			body: bufferedBody,
+			body,
 			...(requestIntendsToPassCredentials && { credentials: 'include' }),
 		});
 
