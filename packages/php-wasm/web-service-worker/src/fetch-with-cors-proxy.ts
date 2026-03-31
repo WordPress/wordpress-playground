@@ -97,9 +97,14 @@ export async function fetchWithCorsProxy(
 		if (requestObject.body) {
 			bufferedBody = await new Response(requestObject.body).arrayBuffer();
 		}
-		directRequest = await cloneRequest(requestObject, {
-			body: bufferedBody,
-		});
+		if (bufferedBody !== null) {
+			directRequest = await cloneRequest(requestObject, {
+				body: bufferedBody,
+			});
+		} else {
+			// No body to buffer; reuse the original request without overriding `body`.
+			directRequest = requestObject;
+		}
 		corsProxyBody = bufferedBody;
 	}
 
