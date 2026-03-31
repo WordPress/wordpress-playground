@@ -55,6 +55,15 @@ declare global {
 
 let registrationController: AbortController | null = null;
 
+function getActiveSite(config: PlaygroundConfig) {
+	const sites = config.getSites();
+	const active = sites.find((s) => s.isActive);
+	if (!active) {
+		throw new Error('No active Playground site');
+	}
+	return active;
+}
+
 export function registerWebMCPTools(config: PlaygroundConfig): void {
 	if (typeof navigator === 'undefined' || !navigator.modelContext) {
 		return;
@@ -66,14 +75,10 @@ export function registerWebMCPTools(config: PlaygroundConfig): void {
 	const signal = registrationController.signal;
 
 	function getActiveClient(): PlaygroundClient {
-		const sites = config.getSites();
-		const active = sites.find((s) => s.isActive);
-		if (!active) {
-			throw new Error('No active Playground site');
-		}
-		const client = config.getPlaygroundClient(active.slug);
+		const site = getActiveSite(config);
+		const client = config.getPlaygroundClient(site.slug);
 		if (!client) {
-			throw new Error(`No client for active site: ${active.slug}`);
+			throw new Error(`No client for active site: ${site.slug}`);
 		}
 		return client;
 	}
@@ -115,15 +120,6 @@ export function registerWebMCPTools(config: PlaygroundConfig): void {
 function createSiteManagementTools(
 	config: PlaygroundConfig
 ): ModelContextTool[] {
-	function getActiveSite() {
-		const sites = config.getSites();
-		const active = sites.find((s) => s.isActive);
-		if (!active) {
-			throw new Error('No active Playground site');
-		}
-		return active;
-	}
-
 	const listDef = siteToolDefinitions['playground_list_sites'];
 	const saveDef = siteToolDefinitions['playground_save_site'];
 	const renameDef = siteToolDefinitions['playground_rename_site'];
@@ -161,7 +157,7 @@ function createSiteManagementTools(
 			annotations: saveDef.annotations,
 			execute: async () => {
 				try {
-					const site = getActiveSite();
+					const site = getActiveSite(config);
 					const storage = presentStorage(site.storage);
 					if (storage !== 'temporary') {
 						return {
@@ -197,7 +193,7 @@ function createSiteManagementTools(
 			annotations: renameDef.annotations,
 			execute: async (input) => {
 				try {
-					const site = getActiveSite();
+					const site = getActiveSite(config);
 					const newName = input['newName'] as string;
 					await config.renameSite!(site.slug, newName);
 					return { success: true, siteId: site.slug, newName };
