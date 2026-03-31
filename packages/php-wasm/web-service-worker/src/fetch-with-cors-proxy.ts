@@ -5,13 +5,12 @@ const CORS_PROXY_HEADER = 'X-Playground-Cors-Proxy';
 
 let streamBodySupported: boolean | undefined;
 
-/**
- * @internal Exposed only for tests that need to exercise both the
- * streaming (tee) and non-streaming (buffer) code paths.
- */
-export function resetStreamBodySupportedForTesting(): void {
-	streamBodySupported = undefined;
-}
+/** @internal Test-only utilities — not part of the public API. */
+export const __testing = {
+	resetStreamBodySupported(): void {
+		streamBodySupported = undefined;
+	},
+};
 
 async function supportsReadableStreamBody(): Promise<boolean> {
 	if (streamBodySupported !== undefined) {

@@ -7,10 +7,7 @@ import {
 	it,
 	vi,
 } from 'vitest';
-import {
-	fetchWithCorsProxy,
-	resetStreamBodySupportedForTesting,
-} from './fetch-with-cors-proxy';
+import { fetchWithCorsProxy, __testing } from './fetch-with-cors-proxy';
 import { FirewallInterferenceError } from './firewall-interference-error';
 
 describe('fetchWithCorsProxy', () => {
@@ -340,7 +337,7 @@ describe('fetchWithCorsProxy', () => {
 
 	describe('non-streaming fallback (Safari)', () => {
 		beforeEach(() => {
-			resetStreamBodySupportedForTesting();
+			__testing.resetStreamBodySupported();
 		});
 
 		/**
