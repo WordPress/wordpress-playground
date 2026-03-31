@@ -114,7 +114,7 @@ export async function fetchWithCorsProxy(
 		// If the developer has explicitly allowed the request to pass the
 		// credentials headers with the X-Cors-Proxy-Allowed-Request-Headers header,
 		// then let's include those credentials in the fetch() request.
-		const headers = new Headers(requestObject.headers);
+		const headers = new Headers(directRequest.headers);
 		const corsProxyAllowedHeaders =
 			headers.get('x-cors-proxy-allowed-request-headers')?.split(',') ||
 			[];
@@ -163,8 +163,8 @@ export async function fetchWithCorsProxy(
 			}
 		}
 
-		const newRequest = await cloneRequest(requestObject, {
-			url: `${corsProxyUrl}${requestObject.url}`,
+		const newRequest = await cloneRequest(directRequest, {
+			url: `${corsProxyUrl}${directRequest.url}`,
 			headers,
 			body,
 			...(requestIntendsToPassCredentials && { credentials: 'include' }),
@@ -178,7 +178,7 @@ export async function fetchWithCorsProxy(
 		// came from a network firewall rather than the actual CORS proxy.
 		if (!response.headers.has(CORS_PROXY_HEADER)) {
 			throw new FirewallInterferenceError(
-				requestObject.url,
+				directRequest.url,
 				response.status,
 				response.statusText
 			);
