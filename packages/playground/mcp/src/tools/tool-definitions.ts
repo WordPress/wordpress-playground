@@ -418,7 +418,7 @@ export function getSiteToolDefinitions(): Record<string, ToolDefinition> {
 
 			Returns site names and storage type. "temporary"
 			sites are lost on page reload, "opfs" sites persist
-			across reloads. Call playground_save_site to persist
+			across reloads. Call playground_save_in_browser to persist
 			a temporary site.`,
 			annotations: {
 				readOnlyHint: true,
@@ -426,9 +426,9 @@ export function getSiteToolDefinitions(): Record<string, ToolDefinition> {
 			},
 			params: [],
 		},
-		playground_open_site: {
-			title: 'Open Site in Browser',
-			errorPrefix: 'Error opening site',
+		playground_open_site_in_new_tab: {
+			title: 'Open Site in New Tab',
+			errorPrefix: 'Error opening site in new tab',
 			description: `Open a WordPress Playground site in a new
 			browser tab. The site must appear in
 			playground_list_sites.
@@ -461,8 +461,8 @@ export function getSiteToolDefinitions(): Record<string, ToolDefinition> {
 				},
 			],
 		},
-		playground_save_site: {
-			title: 'Save Site',
+		playground_save_in_browser: {
+			title: 'Save in Browser',
 			errorPrefix: 'Error saving site',
 			description: `Save a temporary WordPress Playground site
 			to browser storage so it survives page reloads.
@@ -516,7 +516,7 @@ export function stringifyError(error: unknown): string {
 /**
  * Translate internal Playground storage types to user-facing names.
  */
-export function presentStorage(raw: string): string {
+export function formatStorageLabel(raw: string): string {
 	return raw === 'none' ? 'temporary' : raw;
 }
 

@@ -29,8 +29,8 @@ const test = base.extend<McpTestFixtures, McpWorkerFixtures>({
 					'--experimental-strip-types',
 					'--experimental-transform-types',
 					'--import',
-					'../../../meta/src/node-es-module-loader/register.mts',
-					'../src/index.ts',
+					'../../../../meta/src/node-es-module-loader/register.mts',
+					'../../src/index.ts',
 					`--port=${MCP_WS_PORT}`,
 				],
 				cwd: dirname(fileURLToPath(import.meta.url)),
@@ -184,11 +184,11 @@ test('lists all registered tools', async ({ mcpClient }) => {
 		'playground_list_sites',
 		'playground_mkdir',
 		'playground_navigate',
-		'playground_open_site',
+		'playground_open_site_in_new_tab',
 		'playground_read_file',
 		'playground_rename_site',
 		'playground_request',
-		'playground_save_site',
+		'playground_save_in_browser',
 		'playground_write_file',
 	]);
 });
@@ -209,14 +209,14 @@ test('playground_list_sites includes playground url with mcp params', async ({
 	expect(site.url).toMatch(new RegExp(`\\?mcp=yes&mcp-port=${MCP_WS_PORT}$`));
 });
 
-test('playground_open_site activates an inactive site in a new tab', async ({
+test('playground_open_site_in_new_tab activates an inactive site in a new tab', async ({
 	mcpClient,
 	playgroundPage,
 	siteId,
 }) => {
 	// Save the site so it persists in OPFS across page reloads
 	await mcpClient.callTool({
-		name: 'playground_save_site',
+		name: 'playground_save_in_browser',
 		arguments: { siteId },
 	});
 
@@ -254,7 +254,7 @@ test('playground_open_site activates an inactive site in a new tab', async ({
 	// Open the inactive site — the browser calls window.open(),
 	// a new tab loads, and the site becomes active.
 	await mcpClient.callTool({
-		name: 'playground_open_site',
+		name: 'playground_open_site_in_new_tab',
 		arguments: { siteId },
 	});
 
@@ -472,6 +472,13 @@ test('playground_rename_site renames an active site', async ({
 	mcpClient,
 	siteId,
 }) => {
+	// Save the site first — temporary sites cannot be renamed.
+	const saveResult = await mcpClient.callTool({
+		name: 'playground_save_in_browser',
+		arguments: { siteId },
+	});
+	expect(saveResult.isError).toBeFalsy();
+
 	// Get the original name so we can restore it
 	const listBefore = await mcpClient.callTool({
 		name: 'playground_list_sites',
@@ -509,12 +516,12 @@ test('playground_rename_site renames an active site', async ({
 	}
 });
 
-test('playground_save_site persists a temporary site', async ({
+test('playground_save_in_browser persists a temporary site', async ({
 	mcpClient,
 	siteId,
 }) => {
 	const result = await mcpClient.callTool({
-		name: 'playground_save_site',
+		name: 'playground_save_in_browser',
 		arguments: { siteId },
 	});
 	expect(result.isError).toBeFalsy();

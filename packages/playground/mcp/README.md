@@ -51,6 +51,12 @@ AI Client (stdio) → MCP Server (Node.js) → WebSocket (port 7999) → Browser
 
 The MCP server communicates with AI clients via stdio and with the browser via WebSocket. A bridge client (`bridge-client.ts`) integrated into the Playground website via Redux middleware auto-connects to the WebSocket server and proxies commands to the PlaygroundClient API.
 
+## WebMCP
+
+The [Playground Website](https://playground.wordpress.net/) also supports [WebMCP](https://github.com/webmachinelearning/webmcp) — a browser-native MCP proposal that exposes tools via `navigator.modelContext`. When a Playground site loads, its tools are registered automatically with no CLI or WebSocket bridge needed.
+
+> **Note:** WebMCP is still a draft proposal and not widely supported.
+
 ## Security
 
 The MCP bridge runs locally and is only accessible from your machine — connections are origin-restricted and require a token generated at server startup, preventing other websites from hijacking it.

@@ -43,7 +43,15 @@
 				}
 			}
 		},
-		"test:mcp": {
+		"test:unit": {
+			"executor": "@nx/vite:test",
+			"outputs": ["{workspaceRoot}/coverage/packages/playground/mcp"],
+			"options": {
+				"passWithNoTests": true,
+				"reportsDirectory": "../../../coverage/packages/playground/mcp"
+			}
+		},
+		"test:e2e": {
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
@@ -55,6 +63,10 @@
 				],
 				"parallel": false
 			}
+		},
+		"test:mcp": {
+			"executor": "nx:noop",
+			"dependsOn": ["test:unit", "test:e2e"]
 		},
 		"package-for-self-hosting": {
 			"executor": "@wp-playground/nx-extensions:package-for-self-hosting",

@@ -4,7 +4,7 @@ import { createServer as createHttpServer } from 'node:http';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { randomUUID } from 'node:crypto';
-import { presentStorage } from './tools/tool-definitions';
+import { formatStorageLabel } from './tools/tool-definitions';
 
 export interface SiteRegistration {
 	slug: string;
@@ -344,7 +344,7 @@ export class PlaygroundBridge {
 		let targetTabId: string;
 
 		if (isBrowserCommand) {
-			// Browser-level commands (e.g. __open_site, __rename_site)
+			// Browser-level commands (e.g. __open_site_in_new_tab, __rename_site)
 			// don't require the site to be active — just any connected
 			// tab, preferring one that reported this site.
 			if (this.connections.size === 0) {
@@ -362,7 +362,7 @@ export class PlaygroundBridge {
 				return Promise.reject(
 					new Error(
 						`Site "${site.siteName}" (${siteId}) is not ` +
-							`active in any tab. Use open_site to ` +
+							`active in any tab. Use open_site_in_new_tab to ` +
 							`activate it.`
 					)
 				);
@@ -448,7 +448,7 @@ export class PlaygroundBridge {
 		return [...this.sites.entries()].map(([siteId, site]) => ({
 			siteId,
 			name: site.siteName,
-			storage: presentStorage(site.storage),
+			storage: formatStorageLabel(site.storage),
 			isActive: site.activeInTabs.length > 0,
 		}));
 	}

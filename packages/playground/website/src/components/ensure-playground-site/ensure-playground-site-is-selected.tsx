@@ -4,12 +4,9 @@ import { opfsSiteStorage } from '../../lib/state/opfs/opfs-site-storage';
 import {
 	OPFSSitesLoaded,
 	selectSiteBySlug,
-	setTemporarySiteSpec,
-	deriveSiteNameFromSlug,
 } from '../../lib/state/redux/slice-sites';
 import {
 	selectActiveSite,
-	setActiveSite,
 	useAppDispatch,
 	useAppSelector,
 } from '../../lib/state/redux/store';
@@ -17,7 +14,7 @@ import { logger } from '@php-wasm/logger';
 import { usePrevious } from '../../lib/hooks/use-previous';
 import { modalSlugs, setActiveModal } from '../../lib/state/redux/slice-ui';
 import { selectClientBySiteSlug } from '../../lib/state/redux/slice-clients';
-import { randomSiteName } from '../../lib/state/redux/random-site-name';
+import { useSitesAPI } from '../../lib/state/redux/site-management-api-middleware';
 
 /**
  * Ensures the redux store always has an activeSite value.
@@ -37,6 +34,7 @@ export function EnsurePlaygroundSiteIsSelected({
 	);
 	const activeSite = useAppSelector((state) => selectActiveSite(state));
 	const dispatch = useAppDispatch();
+	const sitesAPI = useSitesAPI();
 	const url = useCurrentUrl();
 	const requestedSiteSlug = url.searchParams.get('site-slug');
 	const requestedSiteObject = useAppSelector((state) =>
@@ -86,12 +84,12 @@ export function EnsurePlaygroundSiteIsSelected({
 						'The requested site was not found. Creating a new temporary site.'
 					);
 
-					await createNewTemporarySite(dispatch, requestedSiteSlug);
+					await sitesAPI.createNewTemporarySite(requestedSiteSlug);
 					setNeedMissingSitePromptForSlug(requestedSiteSlug);
 					return;
 				}
 
-				dispatch(setActiveSite(requestedSiteSlug));
+				await sitesAPI.setActiveSite(requestedSiteSlug);
 				return;
 			}
 
@@ -107,7 +105,7 @@ export function EnsurePlaygroundSiteIsSelected({
 				return;
 			}
 
-			await createNewTemporarySite(dispatch);
+			await sitesAPI.createNewTemporarySite();
 		}
 
 		ensureSiteIsSelected();
@@ -138,18 +136,4 @@ export function EnsurePlaygroundSiteIsSelected({
 	}, [url.searchParams]);
 
 	return children;
-}
-
-async function createNewTemporarySite(
-	dispatch: ReturnType<typeof useAppDispatch>,
-	requestedSiteSlug?: string
-) {
-	// If the site slug is missing, create a new temporary site.
-	const siteName = requestedSiteSlug
-		? deriveSiteNameFromSlug(requestedSiteSlug)
-		: randomSiteName();
-	const newSiteInfo = await dispatch(
-		setTemporarySiteSpec(siteName, new URL(window.location.href))
-	);
-	await dispatch(setActiveSite(newSiteInfo.slug));
 }
