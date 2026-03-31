@@ -141,9 +141,7 @@ export function createSitesAPI(
 			const updatedSite = selectSiteBySlug(getState(), site.slug);
 			const storage = updatedSite?.metadata.storage ?? 'none';
 			if (storage === 'none') {
-				throw new Error(
-					'Failed to save the site — the storage is still temporary after persist.'
-				);
+				throw new Error('Failed to save the site. Please try again.');
 			}
 			return { slug: site.slug, storage };
 		},
@@ -169,9 +167,7 @@ export function createSitesAPI(
 			const updatedSite = selectSiteBySlug(getState(), site.slug);
 			const storage = updatedSite?.metadata.storage ?? 'none';
 			if (storage === 'none') {
-				throw new Error(
-					'Failed to save the site — the storage is still temporary after persist.'
-				);
+				throw new Error('Failed to save the site. Please try again.');
 			}
 			return { slug: site.slug, storage };
 		},
@@ -229,7 +225,7 @@ export function createSitesAPI(
 			}
 			if (site.metadata.storage === 'none') {
 				throw new Error(
-					'Cannot delete a temporary site. It will be removed automatically when you close the tab.'
+					'Cannot delete a temporary site. It will be reset on the next page load.'
 				);
 			}
 			await dispatch(removeSite(siteSlug));
