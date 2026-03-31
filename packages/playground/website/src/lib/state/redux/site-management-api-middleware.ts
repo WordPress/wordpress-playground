@@ -78,14 +78,6 @@ export function createSitesAPI(
 	getState: () => PlaygroundReduxState,
 	dispatch: PlaygroundDispatch
 ): PlaygroundSitesAPI {
-	function getActiveSiteOrThrow() {
-		const site = selectActiveSite(getState());
-		if (!site) {
-			throw new Error('No active site');
-		}
-		return site;
-	}
-
 	const api: PlaygroundSitesAPI = {
 		list() {
 			const state = getState();
@@ -107,12 +99,18 @@ export function createSitesAPI(
 		},
 
 		getClient() {
-			const site = getActiveSiteOrThrow();
+			const site = selectActiveSite(getState());
+			if (!site) {
+				throw new Error('No active site selected');
+			}
 			return selectClientBySiteSlug(getState(), site.slug);
 		},
 
 		async rename(newName: string) {
-			const site = getActiveSiteOrThrow();
+			const site = selectActiveSite(getState());
+			if (!site) {
+				throw new Error('No active site selected');
+			}
 			if (site.metadata.storage === 'none') {
 				throw new Error(
 					'Cannot rename a temporary site. Save it first.'
@@ -127,7 +125,10 @@ export function createSitesAPI(
 		},
 
 		async saveInBrowser(name?: string) {
-			const site = getActiveSiteOrThrow();
+			const site = selectActiveSite(getState());
+			if (!site) {
+				throw new Error('No active site selected');
+			}
 			if (site.metadata.storage !== 'none') {
 				return { slug: site.slug, storage: site.metadata.storage };
 			}
@@ -151,7 +152,10 @@ export function createSitesAPI(
 			name?: string,
 			localFsHandle?: FileSystemDirectoryHandle
 		) {
-			const site = getActiveSiteOrThrow();
+			const site = selectActiveSite(getState());
+			if (!site) {
+				throw new Error('No active site selected');
+			}
 			if (site.metadata.storage !== 'none') {
 				return { slug: site.slug, storage: site.metadata.storage };
 			}
@@ -173,7 +177,10 @@ export function createSitesAPI(
 		},
 
 		async setPhpVersion(version: SupportedPHPVersion) {
-			const site = getActiveSiteOrThrow();
+			const site = selectActiveSite(getState());
+			if (!site) {
+				throw new Error('No active site selected');
+			}
 			if (site.metadata.storage === 'none') {
 				throw new Error(
 					'Cannot update settings on a temporary site. Save it first.'
@@ -193,7 +200,10 @@ export function createSitesAPI(
 		},
 
 		async setNetworking(enabled: boolean) {
-			const site = getActiveSiteOrThrow();
+			const site = selectActiveSite(getState());
+			if (!site) {
+				throw new Error('No active site selected');
+			}
 			if (site.metadata.storage === 'none') {
 				throw new Error(
 					'Cannot update settings on a temporary site. Save it first.'
