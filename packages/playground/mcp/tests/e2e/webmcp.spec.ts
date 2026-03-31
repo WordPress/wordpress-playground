@@ -4,8 +4,8 @@ import type { Page } from '@playwright/test';
 const test = base.extend<{ webmcpPage: Page }>({
 	webmcpPage: async ({ page }, use) => {
 		// WebMCP (navigator.modelContext) is only available in
-		// Chrome 146+ Canary behind the "WebMCP for testing"
-		// flag. Playwright uses a stock Chromium that doesn't
+		// Chrome 148+ Canary behind chrome://flags/#enable-webmcp-testing.
+		// Playwright uses a stock Chromium that doesn't
 		// expose the API, so we inject a mock before the page
 		// loads. The mock captures registered tools so we can
 		// inspect and invoke them from tests.
