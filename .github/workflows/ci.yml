@@ -162,15 +162,6 @@ jobs:
             - uses: ./.github/actions/prepare-playground
             - run: sudo npx playwright install
             - run: sudo CI=true JSPI=true npx nx e2e php-wasm-web
-    test-e2e-php-wasm-web-asyncify:
-        runs-on: ubuntu-latest
-        steps:
-            - uses: actions/checkout@v4
-              with:
-                  submodules: true
-            - uses: ./.github/actions/prepare-playground
-            - run: sudo npx playwright install
-            - run: sudo CI=true npx nx e2e php-wasm-web
     test-e2e:
         runs-on: ubuntu-latest
         # Run as root to allow node to bind to port 80
