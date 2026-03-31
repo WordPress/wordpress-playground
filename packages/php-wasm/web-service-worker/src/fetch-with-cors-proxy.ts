@@ -106,6 +106,9 @@ export async function fetchWithCorsProxy(
 	try {
 		return await fetch(directRequest);
 	} catch {
+		// If the developer has explicitly allowed the request to pass the
+		// credentials headers with the X-Cors-Proxy-Allowed-Request-Headers header,
+		// then let's include those credentials in the fetch() request.
 		const headers = new Headers(requestObject.headers);
 		const corsProxyAllowedHeaders =
 			headers.get('x-cors-proxy-allowed-request-headers')?.split(',') ||
@@ -134,10 +137,17 @@ export async function fetchWithCorsProxy(
 		 * to silently upgrade HTTP/1.1 to HTTP/2, but an HTTP/1.1-only
 		 * server replies with HTTP/1.1, triggering ERR_ALPN_NEGOTIATION_FAILED.
 		 *
+		 * Inferring the HTTP version from the URL protocol is unreliable and will fail
+		 * if the CORS proxy is hosted on a `https://` URL that speaks HTTP < 2. This is
+		 * a recognized limitation of the CORS proxy feature. If you host it on an `https://` URL,
+		 * make sure to use HTTP/2.
+		 *
 		 * @see https://developer.chrome.com/docs/capabilities/web-apis/fetch-streaming-requests
 		 */
 		let body = corsProxyBody;
 		if (useStreaming && body) {
+			// In development, corsProxyUrl may be /cors-proxy/. We need to resolve the absolute URL
+			// to access the protocol.
 			const rootUrl = new URL(import.meta.url);
 			rootUrl.pathname = '';
 			rootUrl.search = '';
