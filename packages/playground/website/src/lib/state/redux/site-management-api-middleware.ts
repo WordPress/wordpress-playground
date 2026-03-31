@@ -212,9 +212,6 @@ export function createSitesAPI(
 			);
 			const updatedSite = selectSiteBySlug(getState(), site.slug);
 			const storage = updatedSite?.metadata.storage ?? 'none';
-			if (storage === 'none') {
-				throw new Error('Failed to save the site. Please try again.');
-			}
 			return { slug: site.slug, storage };
 		},
 
@@ -238,9 +235,6 @@ export function createSitesAPI(
 			);
 			const updatedSite = selectSiteBySlug(getState(), site.slug);
 			const storage = updatedSite?.metadata.storage ?? 'none';
-			if (storage === 'none') {
-				throw new Error('Failed to save the site. Please try again.');
-			}
 			return { slug: site.slug, storage };
 		},
 
