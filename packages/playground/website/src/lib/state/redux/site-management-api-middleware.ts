@@ -1,12 +1,3 @@
-/**
- * Centralized Playground site management middleware.
- *
- * Provides a unified API for listing, renaming, saving, and opening
- * Playground sites. Used by the MCP bridge, the browser DevTools global
- * (`window.playgroundSites`), and any other part of the Playground
- * Website that needs programmatic site access.
- */
-
 import { useMemo } from 'react';
 import { useStore } from 'react-redux';
 import { createListenerMiddleware } from '@reduxjs/toolkit';
@@ -37,24 +28,105 @@ export interface SiteSettings {
 	multisite?: boolean;
 }
 
+/**
+ * API for listing, renaming, saving, and opening Playground
+ * sites. Used by the MCP bridge, the `window.playgroundSites`
+ * DevTools global, and UI components.
+ */
 export interface PlaygroundSitesAPI {
+	/**
+	 * Lists all known sites.
+	 *
+	 * @returns List of site info objects.
+	 */
 	list(): Array<{
 		slug: string;
 		name: string;
 		storage: string;
 		isActive: boolean;
 	}>;
+
+	/**
+	 * Returns the PlaygroundClient for the active site.
+	 *
+	 * @returns The client, or `undefined` if not yet booted.
+	 * @throws When no site is selected.
+	 */
 	getClient(): PlaygroundClient | undefined;
+
+	/**
+	 * Renames the active site.
+	 *
+	 * @param newName The new display name.
+	 * @throws When no site is selected or the site is
+	 *   temporary.
+	 */
 	rename(newName: string): Promise<void>;
+
+	/**
+	 * Persists the active temporary site to OPFS.
+	 *
+	 * @param name Optional display name for the saved site.
+	 * @returns The site's slug and storage type.
+	 * @throws When no site is selected or saving fails.
+	 */
 	saveInBrowser(name?: string): Promise<{ slug: string; storage: string }>;
+
+	/**
+	 * Persists the active temporary site to a local directory.
+	 *
+	 * @param name Optional display name for the saved site.
+	 * @param localFsHandle Directory handle. When omitted the
+	 *   browser prompts the user to pick one.
+	 * @returns The site's slug and storage type.
+	 * @throws When no site is selected or saving fails.
+	 */
 	saveToLocalFileSystem(
 		name?: string,
 		localFsHandle?: FileSystemDirectoryHandle
 	): Promise<{ slug: string; storage: string }>;
+
+	/**
+	 * Changes the PHP version for the active site and reboots it.
+	 *
+	 * @param version The PHP version to use (e.g. `"8.4"`).
+	 * @throws When no site is selected or the site is temporary.
+	 */
 	setPhpVersion(version: SupportedPHPVersion): Promise<void>;
+
+	/**
+	 * Enables or disables network access for the active site
+	 * and reboots it.
+	 *
+	 * @param enabled Whether networking should be on.
+	 * @throws When no site is selected or the site is temporary.
+	 */
 	setNetworking(enabled: boolean): Promise<void>;
+
+	/**
+	 * Deletes a saved site by slug.
+	 *
+	 * @param siteSlug The slug of the site to delete.
+	 * @throws When the site is not found or the site is temporary.
+	 */
 	delete(siteSlug: string): Promise<void>;
+
+	/**
+	 * Switches to a different site and boots it.
+	 *
+	 * @param siteSlug The slug of the site to activate.
+	 * @throws When the site is not found or fails to boot.
+	 */
 	setActiveSite(siteSlug: string): Promise<void>;
+
+	/**
+	 * Creates a new temporary site and boots it.
+	 *
+	 * @param siteSlug Optional slug hint. A random name is
+	 *   generated when omitted.
+	 * @param settings Optional site settings.
+	 * @returns The new site's slug.
+	 */
 	createNewTemporarySite(
 		siteSlug?: string,
 		settings?: SiteSettings
