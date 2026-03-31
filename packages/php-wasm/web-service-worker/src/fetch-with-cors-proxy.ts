@@ -4,6 +4,15 @@ import { FirewallInterferenceError } from './firewall-interference-error';
 const CORS_PROXY_HEADER = 'X-Playground-Cors-Proxy';
 
 let streamBodySupported: boolean | undefined;
+
+/**
+ * @internal Exposed only for tests that need to exercise both the
+ * streaming (tee) and non-streaming (buffer) code paths.
+ */
+export function resetStreamBodySupportedForTesting(): void {
+	streamBodySupported = undefined;
+}
+
 async function supportsReadableStreamBody(): Promise<boolean> {
 	if (streamBodySupported !== undefined) {
 		return streamBodySupported;

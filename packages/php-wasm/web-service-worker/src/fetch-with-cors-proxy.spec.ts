@@ -1,5 +1,16 @@
-import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import { fetchWithCorsProxy } from './fetch-with-cors-proxy';
+import {
+	afterEach,
+	beforeAll,
+	beforeEach,
+	describe,
+	expect,
+	it,
+	vi,
+} from 'vitest';
+import {
+	fetchWithCorsProxy,
+	resetStreamBodySupportedForTesting,
+} from './fetch-with-cors-proxy';
 import { FirewallInterferenceError } from './firewall-interference-error';
 
 describe('fetchWithCorsProxy', () => {
@@ -325,5 +336,108 @@ describe('fetchWithCorsProxy', () => {
 		// pipeline.
 		expect(await new Response(proxyRequest.body).text()).toBe('form data');
 		expect(await response.text()).toBe('proxied');
+	});
+
+	describe('non-streaming fallback (Safari)', () => {
+		beforeEach(() => {
+			resetStreamBodySupportedForTesting();
+		});
+
+		/**
+		 * Helper that sets up a fetch mock whose first call (the
+		 * ReadableStream body feature-detection probe) always rejects,
+		 * forcing the non-streaming/buffering code path.
+		 */
+		function mockFetchWithoutStreamingSupport(
+			...responses: Array<Response | Error>
+		) {
+			const mock = vi.spyOn(globalThis, 'fetch');
+			// Detection probe — reject to simulate Safari.
+			mock.mockRejectedValueOnce(
+				new TypeError('ReadableStream uploading is not supported')
+			);
+			for (const r of responses) {
+				if (r instanceof Error) {
+					mock.mockRejectedValueOnce(r);
+				} else {
+					mock.mockResolvedValueOnce(r);
+				}
+			}
+			return mock;
+		}
+
+		it('buffers the POST body as ArrayBuffer for the direct fetch', async () => {
+			const fetchMock = mockFetchWithoutStreamingSupport(
+				new Response('ok')
+			);
+
+			const request = new Request('https://example.com/api', {
+				method: 'POST',
+				body: 'buffered payload',
+			});
+
+			await fetchWithCorsProxy(
+				request,
+				undefined,
+				'https://proxy.test/?url='
+			);
+
+			// detection + direct fetch
+			expect(fetchMock).toHaveBeenCalledTimes(2);
+			const directReq = fetchMock.mock.calls[1][0] as Request;
+			expect(directReq.url).toBe('https://example.com/api');
+			expect(await new Response(directReq.body).text()).toBe(
+				'buffered payload'
+			);
+		});
+
+		it('preserves the buffered body through to the CORS proxy fallback', async () => {
+			const corsProxyHeaders = new Headers();
+			corsProxyHeaders.set('X-Playground-Cors-Proxy', 'true');
+
+			const fetchMock = mockFetchWithoutStreamingSupport(
+				new Error('CORS'),
+				new Response('proxied', { headers: corsProxyHeaders })
+			);
+
+			const request = new Request('https://example.com/upload', {
+				method: 'POST',
+				body: 'safari payload',
+			});
+
+			const response = await fetchWithCorsProxy(
+				request,
+				undefined,
+				'https://proxy.test/?url='
+			);
+
+			// detection + direct + proxy
+			expect(fetchMock).toHaveBeenCalledTimes(3);
+			const proxyReq = fetchMock.mock.calls[2][0] as Request;
+			expect(proxyReq.url).toBe(
+				'https://proxy.test/?url=https://example.com/upload'
+			);
+			expect(await new Response(proxyReq.body).text()).toBe(
+				'safari payload'
+			);
+			expect(await response.text()).toBe('proxied');
+		});
+
+		it('handles GET requests with no body in non-streaming mode', async () => {
+			const fetchMock = mockFetchWithoutStreamingSupport(
+				new Response('ok')
+			);
+
+			await fetchWithCorsProxy(
+				'https://example.com/page',
+				undefined,
+				'https://proxy.test/?url='
+			);
+
+			// detection + direct fetch
+			expect(fetchMock).toHaveBeenCalledTimes(2);
+			const directReq = fetchMock.mock.calls[1][0] as Request;
+			expect(directReq.url).toBe('https://example.com/page');
+		});
 	});
 });
