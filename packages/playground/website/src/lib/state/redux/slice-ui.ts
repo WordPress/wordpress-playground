@@ -31,6 +31,7 @@ export const modalSlugs = {
 	MISSING_SITE_PROMPT: 'missing-site-prompt',
 	RENAME_SITE: 'rename-site',
 	SAVE_SITE: 'save-site',
+	DELETE_SITE: 'delete-site',
 	BLUEPRINT_URL: 'blueprint-url',
 } as const;
 
@@ -146,6 +147,7 @@ export interface UIState {
 	};
 	activeModal: string | null;
 	siteSlugToRename?: string;
+	siteSlugToDelete?: string;
 	githubAuthRepoUrl?: string;
 	offline: boolean;
 	siteManagerIsOpen: boolean;
@@ -263,6 +265,12 @@ const uiSlice = createSlice({
 		) => {
 			state.siteSlugToRename = action.payload;
 		},
+		setSiteSlugToDelete: (
+			state,
+			action: PayloadAction<string | undefined>
+		) => {
+			state.siteSlugToDelete = action.payload;
+		},
 	},
 });
 
@@ -308,6 +316,7 @@ export const {
 	setSiteManagerOpen,
 	setSiteManagerSection,
 	setSiteSlugToRename,
+	setSiteSlugToDelete,
 } = uiSlice.actions;
 
 export default uiSlice.reducer;
