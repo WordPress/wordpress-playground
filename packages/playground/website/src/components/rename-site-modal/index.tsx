@@ -8,6 +8,7 @@ import {
 import { useSitesAPI } from '../../lib/state/redux/site-management-api-middleware';
 import { Modal } from '../modal';
 import ModalButtons from '../modal/modal-buttons';
+import css from '../modal/style.module.css';
 
 export function RenameSiteModal() {
 	const dispatch = useAppDispatch();
@@ -67,7 +68,7 @@ export function RenameSiteModal() {
 					e.preventDefault();
 					handleSubmit();
 				}}
-				style={{ display: 'flex', flexDirection: 'column', gap: 12 }}
+				className={css.modalForm}
 			>
 				<TextControl
 					__nextHasNoMarginBottom

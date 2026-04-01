@@ -31,11 +31,6 @@ const helpTextStyle: CSSProperties = {
 	marginTop: 8,
 };
 
-const errorTextStyle: CSSProperties = {
-	color: '#d63638',
-	marginTop: 8,
-};
-
 export function SaveSiteModal() {
 	const dispatch = useAppDispatch();
 	const sitesAPI = useSitesAPI();
@@ -375,7 +370,9 @@ export function SaveSiteModal() {
 							</Button>
 						</div>
 						{directoryError ? (
-							<p style={errorTextStyle}>{directoryError}</p>
+							<Notice status="error" isDismissible={false}>
+								{directoryError}
+							</Notice>
 						) : null}
 					</BaseControl>
 				)}
