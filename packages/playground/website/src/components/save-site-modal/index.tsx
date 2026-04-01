@@ -10,6 +10,7 @@ import {
 	BaseControl,
 	TextControl,
 	RadioControl,
+	Notice,
 } from '@wordpress/components';
 import { Modal } from '../modal';
 import ModalButtons from '../modal/modal-buttons';
@@ -261,7 +262,11 @@ export function SaveSiteModal() {
 			// Don't close modal here - useEffect will close it when save completes
 		} catch (error) {
 			logger.error(error);
-			setSubmitError('Saving failed. Please try again.');
+			setSubmitError(
+				error instanceof Error
+					? error.message
+					: 'Saving failed. Please try again.'
+			);
 			setIsSubmitting(false);
 		}
 	};
@@ -389,6 +394,11 @@ export function SaveSiteModal() {
 						</p>
 					</div>
 				)}
+				{submitError ? (
+					<Notice status="error" isDismissible={false}>
+						{submitError}
+					</Notice>
+				) : null}
 				<ModalButtons
 					submitText="Save"
 					onCancel={handleRequestClose}
@@ -396,9 +406,6 @@ export function SaveSiteModal() {
 					areBusy={false}
 					style={{ marginTop: 0 }}
 				/>
-				{submitError ? (
-					<p style={errorTextStyle}>{submitError}</p>
-				) : null}
 			</form>
 		</Modal>
 	);
