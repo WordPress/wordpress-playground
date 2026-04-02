@@ -9,8 +9,8 @@ import { spawn } from 'child_process';
 import { chmodSync, existsSync, mkdtempSync, writeFileSync } from 'fs';
 import os from 'os';
 import { rootCertificates } from 'tls';
-/* eslint-disable no-console */
 import {
+	CLIOutput,
 	makeXdebugConfig,
 	addXdebugIDEConfig,
 	clearXdebugIDEConfig,
@@ -30,14 +30,7 @@ if (!args.length) {
 	args = ['--help'];
 }
 
-const bold = (text: string) =>
-	process.stdout.isTTY ? '\x1b[1m' + text + '\x1b[0m' : text;
-
-const italic = (text: string) =>
-	process.stdout.isTTY ? `\x1b[3m${text}\x1b[0m` : text;
-
-const highlight = (text: string) =>
-	process.stdout.isTTY ? `\x1b[33m${text}\x1b[0m` : text;
+const cliOutput = new CLIOutput({ verbosity: 'normal' });
 
 const baseUrl = (import.meta || {}).url;
 
@@ -173,59 +166,64 @@ ${process.argv[0]} ${process.execArgv.join(' ')} ${process.argv[1]}
 			const hasPhpStorm = ides.includes('phpstorm');
 			const configFiles = Object.values(modifiedConfig);
 
-			console.log('');
+			cliOutput.print('');
 
 			if (configFiles.length > 0) {
-				console.log(bold(`Xdebug configured successfully`));
-				console.log(
-					highlight(`Updated IDE config: `) + configFiles.join(' ')
+				cliOutput.print(
+					cliOutput.bold(`Xdebug configured successfully`)
+				);
+				cliOutput.print(
+					cliOutput.highlight(`Updated IDE config: `) +
+						configFiles.join(' ')
 				);
 			} else {
-				console.log(bold(`Xdebug configuration failed.`));
-				console.log(
+				cliOutput.print(cliOutput.bold(`Xdebug configuration failed.`));
+				cliOutput.print(
 					'No IDE-specific project settings directory was found in the current working directory.'
 				);
 			}
 
-			console.log('');
+			cliOutput.print('');
 
 			if (hasVSCode && modifiedConfig['vscode']) {
-				console.log(bold('VS Code / Cursor instructions:'));
-				console.log(
+				cliOutput.print(
+					cliOutput.bold('VS Code / Cursor instructions:')
+				);
+				cliOutput.print(
 					'  1. Ensure you have installed an IDE extension for PHP Debugging'
 				);
-				console.log(
-					`     (The ${bold('PHP Debug')} extension by ${bold(
+				cliOutput.print(
+					`     (The ${cliOutput.bold('PHP Debug')} extension by ${cliOutput.bold(
 						'Xdebug'
 					)} has been a solid option)`
 				);
-				console.log(
+				cliOutput.print(
 					'  2. Open the Run and Debug panel on the left sidebar'
 				);
-				console.log(
-					`  3. Select "${italic(IDEConfigName)}" from the dropdown`
+				cliOutput.print(
+					`  3. Select "${cliOutput.italic(IDEConfigName)}" from the dropdown`
 				);
-				console.log('  3. Click "start debugging"');
-				console.log('  5. Set a breakpoint.');
-				console.log('  6. Run your command with PHP.wasm CLI.');
+				cliOutput.print('  3. Click "start debugging"');
+				cliOutput.print('  5. Set a breakpoint.');
+				cliOutput.print('  6. Run your command with PHP.wasm CLI.');
 				if (hasPhpStorm) {
-					console.log('');
+					cliOutput.print('');
 				}
 			}
 
 			if (hasPhpStorm && modifiedConfig['phpstorm']) {
-				console.log(bold('PhpStorm instructions:'));
-				console.log(
-					`  1. Choose "${italic(
+				cliOutput.print(cliOutput.bold('PhpStorm instructions:'));
+				cliOutput.print(
+					`  1. Choose "${cliOutput.italic(
 						IDEConfigName
 					)}" debug configuration in the toolbar`
 				);
-				console.log('  2. Click the debug button (bug icon)`');
-				console.log('  3. Set a breakpoint.');
-				console.log('  4. Run your command with PHP.wasm CLI.');
+				cliOutput.print('  2. Click the debug button (bug icon)`');
+				cliOutput.print('  3. Set a breakpoint.');
+				cliOutput.print('  4. Run your command with PHP.wasm CLI.');
 			}
 
-			console.log('');
+			cliOutput.print('');
 		} catch (error) {
 			throw new Error('Could not configure Xdebug', {
 				cause: error,
