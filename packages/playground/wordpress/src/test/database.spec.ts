@@ -91,12 +91,15 @@ describe('Test database', () => {
 						await loadNodeRuntime(RecommendedPHPVersion),
 					siteUrl: 'http://playground-domain/',
 					wordPressZip: await getWordPressModule(),
+					// Simulates --skip-sqlite-setup from the CLI
 					sqliteIntegrationPluginZip: undefined,
 					hooks: {
 						beforeDatabaseSetup: async (php) => {
 							php.writeFile(
 								'/wordpress/wp-config.php',
 								wpConfigContent
+									.replace('database_name_here', 'foo')
+									.replace('username_here', 'bar')
 							);
 							php.mkdir('/wordpress/wp-content');
 							php.writeFile(
