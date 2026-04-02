@@ -28,12 +28,11 @@ import {
 	writeFiles,
 } from '@php-wasm/universal';
 import { joinPaths, sprintf } from '@php-wasm/util';
+// eslint-disable-next-line @nx/enforce-module-boundaries
 import {
 	type BlueprintMessage,
 	runBlueprintV2,
 	type BlueprintV1Declaration,
-} from '@wp-playground/blueprints';
-import {
 	type ParsedBlueprintV2String,
 	type RawBlueprintV2Data,
 } from '@wp-playground/blueprints';
@@ -517,7 +516,15 @@ export class PlaygroundCliBlueprintV2Worker extends PHPWorker {
 		}
 	}
 
+	private postInstallMountsApplied = false;
 	async mountAfterWordPressInstall(mounts: Array<Mount>) {
+		// Idempotent: the batch callback and the individual
+		// .then() in run-cli.ts may both call this for
+		// workers that finish during the batch window.
+		if (this.postInstallMountsApplied) {
+			return;
+		}
+		this.postInstallMountsApplied = true;
 		await mountResources(this.__internal_getPHP()!, mounts);
 	}
 

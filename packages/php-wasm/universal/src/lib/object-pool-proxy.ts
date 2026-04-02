@@ -22,7 +22,20 @@ type Promisified<T extends object> = {
 export type Pooled<T extends object> = Omit<
 	Promisified<T>,
 	typeof Symbol.dispose | typeof Symbol.asyncDispose
->;
+> & { [poolAddInstance](instance: T): void };
+
+/**
+ * Symbol used to add instances to a pool created by
+ * `createObjectPoolProxy`. Using a symbol avoids collisions
+ * with the pooled object's own interface.
+ *
+ * @example
+ * ```ts
+ * const pool = createObjectPoolProxy([worker1]);
+ * pool[poolAddInstance](worker2);
+ * ```
+ */
+export const poolAddInstance: unique symbol = Symbol('poolAddInstance');
 
 /**
  * Creates a proxy that distributes method calls and property accesses
@@ -88,7 +101,12 @@ export function createObjectPoolProxy<T extends object>(
 		});
 	}
 
-	return new Proxy({} as Pooled<T>, {
+	function addInstance(instance: T): void {
+		instances.push(instance);
+		release(instance);
+	}
+
+	const proxy = new Proxy({} as Pooled<T>, {
 		get(_target, prop: string | symbol) {
 			// Support returning assigned target properties.
 			// The main reason for this is to allow us to override methods
@@ -130,4 +148,7 @@ export function createObjectPoolProxy<T extends object>(
 			});
 		},
 	});
+
+	(proxy as any)[poolAddInstance] = addInstance;
+	return proxy;
 }

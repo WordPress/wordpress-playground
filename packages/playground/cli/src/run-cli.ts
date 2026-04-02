@@ -2,6 +2,7 @@ import { errorLogPath, logger, LogSeverity } from '@php-wasm/logger';
 import { ProcessIdAllocator } from '@php-wasm/universal';
 import {
 	createObjectPoolProxy,
+	poolAddInstance,
 	type Pooled,
 	type PHPRequest,
 	type PathAlias,
@@ -20,10 +21,6 @@ import type {
 	BlueprintBundle,
 	BlueprintV1Declaration,
 	BlueprintV2Declaration,
-} from '@wp-playground/blueprints';
-import {
-	compileBlueprintV1,
-	runBlueprintV1Steps,
 } from '@wp-playground/blueprints';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import fs, { existsSync, mkdirSync, readdirSync, rmdirSync } from 'fs';
@@ -74,6 +71,10 @@ import {
 } from '@php-wasm/cli-util';
 import { createHash } from 'crypto';
 import { CLIOutput } from './cli-output';
+import {
+	compileBlueprintV1,
+	runBlueprintV1Steps,
+} from '@wp-playground/blueprints';
 import {
 	getPhpMyAdminInstallSteps,
 	PHPMYADMIN_ENTRY_PATH,
@@ -884,7 +885,9 @@ export async function runCLI(
 ): Promise<RunCLIServer>;
 export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void>;
 export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
-	let playgroundPool: Pooled<PlaygroundCliWorker>;
+	let playgroundPool: Pooled<PlaygroundCliWorker> & {
+		[poolAddInstance](instance: PlaygroundCliWorker): void;
+	};
 	const cookieStore = args.internalCookieStore
 		? new HttpCookieStore()
 		: undefined;
@@ -1304,6 +1307,10 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 			}
 
 			let handler: BlueprintsV1Handler | BlueprintsV2Handler;
+			const workerType = args['experimental-blueprints-v2-runner']
+				? 'v2'
+				: 'v1';
+
 			if (args['experimental-blueprints-v2-runner']) {
 				handler = new BlueprintsV2Handler(args, {
 					siteUrl,
@@ -1314,7 +1321,9 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 					siteUrl,
 					cliOutput,
 				});
+			}
 
+			if (!args['experimental-blueprints-v2-runner']) {
 				if (typeof args.blueprint === 'string') {
 					args.blueprint = await resolveBlueprint({
 						sourceString: args.blueprint,
@@ -1352,85 +1361,113 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 			};
 
 			try {
-				const promisesToBoot = [];
-				const workerType = handler.getWorkerType();
-				for (
-					let workerIndex = 0;
-					workerIndex < targetWorkerCount;
-					workerIndex++
-				) {
-					const promiseToBoot = spawnWorkerThread(workerType, {
+				const spawnAndBootWorker = async (workerIndex: number) => {
+					const spawnResult = await spawnWorkerThread(workerType, {
 						onExit: (exitCode: number) => {
-							// We are already disposing, so worker exit is expected
-							// and does not need to be logged.
 							if (disposing) {
 								return;
 							}
-
-							if (exitCode !== 0) {
-								return;
-							}
-
 							logger.error(
 								`Worker ${workerIndex} exited with code ${exitCode}\n`
 							);
-							// @TODO: Should we respawn the worker if it exited with an error and the CLI is not shutting down?
 						},
-					}).then(
-						async (
-							spawnResult: SpawnedWorker
-						): Promise<
-							[SpawnedWorker, RemoteAPI<PlaygroundCliWorker>]
-						> => {
-							// Remember the worker process before booting the Playground
-							// so we can clean it up if there is an error during boot.
-							spawnedWorkers.push(spawnResult);
+					});
 
-							const fileLockManagerPort =
-								await exposeFileLockManager(fileLockManager);
-							const playgroundApi =
-								await handler.bootRequestHandler({
-									worker: spawnResult,
-									fileLockManagerPort,
-									nativeInternalDirPath,
-								});
+					spawnedWorkers.push(spawnResult);
 
-							workerToPlaygroundMap.set(
-								spawnResult,
-								playgroundApi
+					const fileLockManagerPort =
+						await exposeFileLockManager(fileLockManager);
+					const playgroundApi = await handler.bootRequestHandler({
+						worker: spawnResult,
+						fileLockManagerPort,
+						nativeInternalDirPath,
+					});
+
+					workerToPlaygroundMap.set(spawnResult, playgroundApi);
+
+					return playgroundApi;
+				};
+
+				// === Worker boot strategy ===
+				//
+				// Workers are launched in two phases to balance
+				// time-to-ready with resource contention:
+				//
+				// Phase 1 – Boot worker 0. Worker 0 is the only
+				// worker needed to install WordPress and start
+				// serving requests.
+				//
+				// Phase 2 – Start spawning remaining workers (1-N)
+				// during WordPress installation. Their WASM
+				// compilation runs on separate threads, overlapping
+				// with the single-threaded WordPress install on
+				// worker 0. Each background worker joins the pool
+				// as soon as it finishes booting.
+				//
+				// Post-install mount timing:
+				//
+				// Workers that finish booting before WordPress
+				// install completes join the pool immediately
+				// without post-install mounts. When WordPress
+				// install completes, applyPostInstallMountsToAllWorkers
+				// applies mounts to every worker in
+				// workerToPlaygroundMap — including any background
+				// workers that are already there.
+				//
+				// Workers that finish booting after WordPress
+				// install completes see wordPressReady=true and
+				// apply their own post-install mounts before
+				// joining the pool.
+				//
+				// To close the race window between the batch
+				// callback's map snapshot and later .then()
+				// callbacks, applyPostInstallMountsToAllWorkers
+				// sets wordPressReady=true synchronously before
+				// iterating the map. mountAfterWordPressInstall
+				// is idempotent so overlapping calls (batch +
+				// individual) are harmless.
+
+				// Phase 1: Boot worker 0.
+				const firstWorkerApi = await spawnAndBootWorker(0);
+
+				playgroundPool = createObjectPoolProxy([
+					firstWorkerApi as unknown as PlaygroundCliWorker,
+				]);
+
+				// Phase 2: Start background workers now so their
+				// WASM compilation overlaps with WordPress boot.
+				// Each worker joins the pool as soon as it is
+				// ready; post-install mounts are applied at the
+				// earliest possible moment (see comment above).
+				for (
+					let workerIndex = 1;
+					workerIndex < targetWorkerCount;
+					workerIndex++
+				) {
+					spawnAndBootWorker(workerIndex).then(
+						async (api) => {
+							if (wordPressReady) {
+								await api.mountAfterWordPressInstall(
+									args['mount'] || []
+								);
+							}
+							playgroundPool[poolAddInstance](
+								api as unknown as PlaygroundCliWorker
 							);
-
-							return [spawnResult, playgroundApi];
+						},
+						(error) => {
+							logger.error(
+								`Failed to boot background worker ${workerIndex}: ${error}`
+							);
 						}
 					);
-
-					promisesToBoot.push(promiseToBoot);
-
-					// TODO: Remove this workaround after we remove the inherent race
-					// from @wp-playground/wordpress's bootRequestHandler() function.
-					if (workerIndex === 0) {
-						// Wait for the first worker to boot to avoid a race condition
-						// with writing initial PHP files in bootRequestHandler().
-						// This is the race condition:
-						// https://github.com/WordPress/wordpress-playground/blob/e758ee0893d199416a2d740195815234584b1b44/packages/playground/wordpress/src/boot.ts#L416-L426
-						// Multiple workers may detect that .boot-files-written does not exist
-						// and proceed to try to write initial boot files.
-						await promiseToBoot;
-					}
 				}
 
-				await Promise.all(promisesToBoot);
-				playgroundPool = createObjectPoolProxy(
-					spawnedWorkers.map(
-						(spawnedWorker) =>
-							workerToPlaygroundMap.get(spawnedWorker)!
-					)
-				);
-
-				// NOTE: Using a free-standing block to isolate initial boot vars
-				// while keeping the logic inline.
+				// NOTE: Using a free-standing block to isolate
+				// initial boot vars while keeping the logic inline.
 				{
-					// TODO: Consider how to avoid Xdebug being enabled during boot.
+					// TODO: Consider how to avoid Xdebug being
+					// enabled during boot.
 
 					const messageChannelForPostInstallMounts =
 						new NodeMessageChannel();
@@ -1438,9 +1475,19 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 						messageChannelForPostInstallMounts.port1;
 					const workerPostInstallMountsPort =
 						messageChannelForPostInstallMounts.port2;
+
 					await exposeAPI(
 						{
 							applyPostInstallMountsToAllWorkers: async () => {
+								// Set the flag synchronously before
+								// iterating the map. Any background
+								// worker whose .then() fires after
+								// this point will see the flag and
+								// apply its own mounts before joining
+								// the pool. Workers already in the
+								// map are covered by the iteration
+								// below.
+								wordPressReady = true;
 								await Promise.all(
 									Array.from(
 										workerToPlaygroundMap.values()
@@ -1455,13 +1502,13 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 						undefined,
 						mainThreadPostInstallMountsPort
 					);
+
 					await handler.bootWordPress(
 						playgroundPool,
 						workerPostInstallMountsPort
 					);
-					mainThreadPostInstallMountsPort.close();
 
-					wordPressReady = true;
+					mainThreadPostInstallMountsPort.close();
 
 					if (!args['experimental-blueprints-v2-runner']) {
 						const compiledBlueprint = await (
@@ -1478,7 +1525,8 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 						}
 					}
 
-					// If phpMyAdmin is enabled and not already installed, install it.
+					// If phpMyAdmin is enabled and not already
+					// installed, install it.
 					if (
 						args.phpmyadmin &&
 						!(await playgroundPool.fileExists(

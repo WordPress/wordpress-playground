@@ -107,7 +107,7 @@ export * from './file-lock-interval-tree';
 
 export type { Remote } from './comlink-sync';
 
-export { createObjectPoolProxy } from './object-pool-proxy';
+export { createObjectPoolProxy, poolAddInstance } from './object-pool-proxy';
 export type { Pooled } from './object-pool-proxy';
 
 export * from './process-id-allocator';
