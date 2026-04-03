@@ -163,7 +163,7 @@ Loading times vary based on what Playground needs to set up:
 ![Save Button](@site/static/img/playground-performance-graph.webp)
 -->
 
-**Facteurs qui influencent les performances :**
+**Facteurs qui influençants les performances :**
 
 <!--
 **Factors that affect performance:**
