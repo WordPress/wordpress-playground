@@ -5,10 +5,10 @@ description: ツールバー、設定、インスタンス マネージャーを
 ---
 
 <!--
-# WordPress Playground web instance {#wordpress-playground-web-instance}
+# WordPress Playground web instance
 -->
 
-# WordPress Playground ウェブ インスタンス {#wordpress-playground-web-instance}
+# WordPress Playground ウェブ インスタンス
 
 <!--
 [https://playground.wordpress.net/](https://playground.wordpress.net/) lets developers run WordPress in a browser without a server. This environment makes testing plugins, themes, and features quick and easy.
@@ -45,10 +45,10 @@ Playground Web サイトには、インスタンスをカスタマイズした�
 ![Playground Toolbar Snapshot](@site/static/img/about/playground-toolbar.webp)
 
 <!--
-## Customize Playground {#customize-playground}
+## Customize Playground
 -->
 
-## Playground をカスタマイズする {#customize-playground}
+## Playground をカスタマイズする
 
 <!--
 On the toolbar, you'll find:
@@ -65,10 +65,10 @@ On the toolbar, you'll find:
 - **Playground 起動パネル**: WordPress Playground インスタンスを起動するさまざまな方法を表示するパネルです。
 
 <!--
-### Playground Settings {#playground-settings}
+### Playground Settings
 -->
 
-### Playground 設定 {#playground-settings}
+### Playground 設定
 
 ![snapshot of customize Playground window at Playground instance](@site/static/img/about/playground-settings-panel.webp)
 
@@ -91,10 +91,10 @@ The **Playground Settings Panel** includes these [Query API options](/developers
 - `networking`: WordPress プラグインディレクトリと WordPress API へのネットワークアクセスを有効にします。
 
 <!--
-## Playground Manager {#playground-manager}
+## Playground Manager
 -->
 
-## Playground マネージャー {#playground-manager}
+## Playground マネージャー
 
 ![Playground settings panel allow users to save export and edit the WordPress directly](@site/static/img/about/playground-dashboard.webp)
 
@@ -125,10 +125,10 @@ Click "Save" to create an instance and list it in the Playground Launch Panel. T
 「保存」をクリックすると、インスタンスが作成され、Playground 起動パネルにリストされます。Playground ダッシュボードでは、追加アクションメニューからエクスポートやダウンロードオプションも利用できます:
 
 <!--
-### Additional actions menu {#additional-actions-menu}
+### Additional actions menu
 -->
 
-### 追加アクションメニュー {#additional-actions-menu}
+### 追加アクションメニュー
 
 ![Additional actions Menu](@site/static/img/about/additional-options-playground-dashboard.webp)
 
@@ -141,10 +141,10 @@ Click "Save" to create an instance and list it in the Playground Launch Panel. T
 - **zip としてダウンロード**: テーマやプラグインがインストールされた状態を含む、Playground インスタンスのセットアップを含む `.zip` ファイルが作成されます。この `.zip` ファイルには、コンテンツやデータベースの変更は含まれません。
 
 <!--
-### Blueprint Editor {#blueprint-editor}
+### Blueprint Editor
 -->
 
-### ブループリントエディタ {#blueprint-editor}
+### ブループリントエディタ
 
 ![Blueprint editor WordPress Playground](@site/static/img/about/playground-blueprint-editor.webp)
 
@@ -155,10 +155,10 @@ The Blueprint editor replaced the older Blueprint builder, offering the ability 
 ブループリントエディタは、以前のブループリントビルダーに代わるもので、複数のブループリントを管理し、コード検証を行う機能を提供します。
 
 <!--
-### Launch Playground Panel {#launch-playground-panel}
+### Launch Playground Panel
 -->
 
-### Playground 起動パネル {#launch-playground-panel}
+### Playground 起動パネル
 
 ![Playground Launch Panel](@site/static/img/dashboard/import-playground.webp)
 

@@ -21,16 +21,16 @@ WordPress Playground is under active development and has some limitations you sh
 You can track the status of these issues on the [Playground Project board](https://github.com/orgs/WordPress/projects/180).
 -->
 
-## ブラウザの中で {#in-the-browser}
+## ブラウザの中で
 
 <!--
-## In the browser {#in-the-browser}
+## In the browser
 -->
 
-### 設計上は一時的なもの {#temporary-by-design}
+### 設計上は一時的なもの
 
 <!--
-### Temporary by design {#temporary-by-design}
+### Temporary by design
 -->
 
 Playground は、ページを読み込むたびに新しい WordPress インスタンスを作成します。そのため、ブラウザを更新すると、データベースの変更、アップロード、修正はすべて破棄されます。
@@ -105,10 +105,10 @@ The dedicated refresh button inside Playground only reloads WordPress content—
 </blockquote>
 -->
 
-### ブラウザサポート {#browser-support}
+### ブラウザサポート
 
 <!--
-### Browser support {#browser-support}
+### Browser support
 -->
 
 WordPress Playgroundは、主要なデスクトップおよびモバイルブラウザすべてで動作するように設計されています。対応ブラウザは以下の通りです。
@@ -134,7 +134,7 @@ Playground leverages modern web technologies and should function consistently ac
 ### パフォーマンスに関する注意点
 
 <!--
-### Performance expectations {#performance-expectations}
+### Performance expectations
 -->
 
 Playgroundがセットアップする内容によって、読み込み時間は異なります。
@@ -187,16 +187,16 @@ Loading times vary based on what Playground needs to set up:
 <strong>Note:</strong> Opera Mini support is not currently confirmed.
 </blockquote>
 
-## Playground で開発する場合 {#when-developing-with-playground}
+## Playground で開発する場合
 
 <!--
-## When developing with Playground {#when-developing-with-playground}
+## When developing with Playground
 -->
 
-### iframe の癖 {#iframe-quirks}
+### iframe の癖
 
 <!--
-### Iframe quirks {#iframe-quirks}
+### Iframe quirks
 -->
 
 Playground は WordPress を [`iframe`](/developers/architecture/browser-iframe-rendering) でレンダリングするため、`target="_top"` を含むリンクをクリックすると作業中のページがリロードされます。
@@ -207,10 +207,10 @@ Playground renders WordPress in an [`iframe`](/developers/architecture/browser-i
 Also, JavaScript popups originating in the `iframe` may not always display.
 -->
 
-### WordPress PHP 関数を実行する {#run-wordpress-php-functions}
+### WordPress PHP 関数を実行する
 
 <!--
-### Run WordPress PHP functions {#run-wordpress-php-functions}
+### Run WordPress PHP functions
 -->
 
 Playgroundでは、`runPHP`ステップを使ってブループリント内でPHPコードを実行できます。WordPress固有のPHP関数を実行するには、まず`wp-load.php`を読み込む必要があります。
@@ -226,10 +226,10 @@ Playground supports running PHP code in Blueprints using the [`runPHP` step](/
 }
 ```
 
-### WP-CLI の使用 {#using-wp-cli}
+### WP-CLI の使用
 
 <!--
-### Using WP-CLI {#using-wp-cli}
+### Using WP-CLI
 -->
 
 ブループリントの[`wp-cli`](/blueprints/steps#WPCLIStep)ステップから`wp-cli`コマンドを実行できます。ただし、Playground はブラウザ内で実行されるため、[利用可能なコマンドの全て](https://developer.wordpress.org/cli/commands/)をサポートしているわけではありません。サポートされているコマンドの明確なリストはありませんが、[オンラインデモ](https://playground.wordpress.net/demos/wp-cli.html)で試してみることで、どのようなことが可能かを確認するのに役立ちます。
