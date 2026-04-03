@@ -143,7 +143,7 @@ Loading times vary based on what Playground needs to set up:
 
 | Scénario                                        | Temps de chargement typique           |
 | ----------------------------------------------- | ------------------------------------- |
-| WordPress neuf (sans extensions)                | 5 à 10 secondes                       |
+| WordPress seul (sans extensions)                | 5 à 10 secondes                       |
 | Avec de petites extensions                      | 10 à 20 secondes                      |
 | Avec de grosses extensions (p. ex. WooCommerce) | 30 à 60 secondes                      |
 | Sur appareils mobiles                           | 1,5 à 2× plus lent que sur ordinateur |
