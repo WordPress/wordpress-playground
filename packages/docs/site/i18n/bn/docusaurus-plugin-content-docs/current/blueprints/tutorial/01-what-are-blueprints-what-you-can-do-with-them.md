@@ -116,7 +116,7 @@ Visit these links to learn more about the (endless) possibilities of Blueprints:
 :::
 -->
 
-:::তথ্য **আরও রিসোর্স**
+:::info **আরও রিসোর্স**
 ব্লুপ্রিন্টের (অসীম) সম্ভাবনা সম্পর্কে আরও জানতে এই লিংকগুলি ভিজিট করুন:
 
 - [ওয়ার্ডপ্রেস প্লেগ্রাউন্ডের ভূমিকা](https://developer.wordpress.org/news/2024/04/05/introduction-to-playground-running-wordpress-in-the-browser/)
