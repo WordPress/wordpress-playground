@@ -62,11 +62,11 @@ Para hindi mawala ang iyong site pagkatapos ng single browser session, i-export 
 
 1. Buksan ang Site Manager panel:
 
-![Site Manager](@site/static/img/site-manager/open-site-manager.webp)
+![Site Manager](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/site-manager/open-site-manager.webp)
 
 2. Gamitin ang button na "Download as .zip" sa additional actions menu:
 
-![Export button](@site/static/img/site-manager/export-zip-file.webp)
+![Export button](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/site-manager/export-zip-file.webp)
 
 Ang na-export na file ay naglalaman ng buong site na iyong binuo, kasama ang database (`wp-content/database/.ht.sqlite`). Tandaan na ang mga nak начин ng tuldok ay nakatago, kaya maaaring kailangan mong i-enable ang "Show hidden files."
 
@@ -76,17 +76,17 @@ Maaari mong i-restore ang na-save na site gamit ang "Import from .zip" button sa
 
 1. Buksan ang Playground dashboard panel:
 
-![Open Playground Dashboard](@site/static/img/dashboard/open-playground-dashboard.webp)
+![Open Playground Dashboard](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dashboard/open-playground-dashboard.webp)
 
 1. Gamitin ang "Import .zip" button sa dulo ng "Start a new Playground" section
 
-![Open Playground Dashboard](@site/static/img/dashboard/import-playground.webp)
+![Open Playground Dashboard](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dashboard/import-playground.webp)
 
 ## Gamitin ang tiyak na bersyon ng WordPress o PHP
 
 Ang pinakamabilis na paraan para baguhin ang bersyon ng WordPress o PHP ay sa settings panel sa [opisyal na demo site](https://playground.wordpress.net/):
 
-![WordPress Playground Settings menu](@site/static/img/playground-settings-menu.webp)
+![WordPress Playground Settings menu](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/playground-settings-menu.webp)
 
 :::info Subukan ang iyong plugin o theme
 

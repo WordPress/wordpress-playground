@@ -50,14 +50,14 @@ Playground crée des instances WordPress fraîches à chaque chargement de page.
 Le bouton d'actualisation dédié dans Playground ne recharge que le contenu WordPress—il préserve votre état PHP/WP. Le bouton d'actualisation du navigateur (F5 ou Cmd+R) détruit l'instance entière.
 :::
 
-![Refresh Button](@site/static/img/refresh-playground-button.webp)
+![Refresh Button](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/refresh-playground-button.webp)
 
 <blockquote>
 <figure>
 <!-- <figcaption><i>1. Exporting Playground:</i></figcaption> -->
 <figcaption><i>1. Exportation de Playground :</i></figcaption>
 
-![Save Button](@site/static/img/export-playground.webp)
+![Save Button](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/export-playground.webp)
 
 </figure>
 
@@ -65,7 +65,7 @@ Le bouton d'actualisation dédié dans Playground ne recharge que le contenu Wor
 <!-- <figcaption><i>2. Save button:</i></figcaption> -->
 <figcaption><i>2. Bouton Enregistrer :</i></figcaption>
 
-![Save Button](@site/static/img/saving-playground.webp)
+![Save Button](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/saving-playground.webp)
 
 </figure>
 </blockquote>
@@ -96,7 +96,7 @@ Playground exploite les technologies web modernes et devrait fonctionner de mani
 
 Les temps de chargement varient en fonction de ce que Playground doit configurer :
 
-![Save Button](@site/static/img/playground-performance-graph.webp)
+![Save Button](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/playground-performance-graph.webp)
 
 <!-- **Factors that affect performance:** -->
 

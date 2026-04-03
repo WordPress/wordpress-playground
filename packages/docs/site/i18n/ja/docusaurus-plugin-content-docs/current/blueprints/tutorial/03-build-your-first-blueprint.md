@@ -82,7 +82,7 @@ VS Code では次のようになります。
 Here's what it looks like in VS Code:
 -->
 
-![Autocompletion visualized](@site/static/img/blueprints/schema-autocompletion.webp)
+![Autocompletion visualized](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/blueprints/schema-autocompletion.webp)
 
 ## 2. サイトのタイトルを「My first Blueprint」に設定する
 
@@ -247,7 +247,7 @@ Adventurer is an open-source theme [available in the WordPress theme directory](
 The site should now look like the screenshot below:
 -->
 
-![Site with the adventurer theme](@site/static/img/blueprints/installed-adventurer-theme.webp)
+![Site with the adventurer theme](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/blueprints/installed-adventurer-theme.webp)
 
 ### リソース
 
@@ -261,11 +261,11 @@ The site should now look like the screenshot below:
 The `themeData` defines a [resource](/blueprints/steps/resources) and referrences an external file required to complete the step. Playground supports different types of resources, including
 -->
 
--   `url`,
--   `wordpress.org/themes`,
--   `wordpress.org/plugins`,
--   `vfs`(仮想的なファイルシステム), または
--   `literal`.
+- `url`,
+- `wordpress.org/themes`,
+- `wordpress.org/plugins`,
+- `vfs`(仮想的なファイルシステム), または
+- `literal`.
 
 <!--
 -   `url`,
@@ -554,7 +554,7 @@ Here's the complete Blueprint:
 That's what it looks like when you navigate to the dashboard:
 -->
 
-![Site with the custom plugin](@site/static/img/blueprints/installed-custom-plugin.webp)
+![Site with the custom plugin](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/blueprints/installed-custom-plugin.webp)
 
 ### プラグインを作成して圧縮する
 
