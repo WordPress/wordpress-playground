@@ -182,7 +182,7 @@ Loading times vary based on what Playground needs to set up:
 -->
 
 <blockquote>
-<strong>Nota:</strong> El soporte de Opera Mini no está confirmado por ahora.
+<strong>Nota:</strong> el soporte de Opera Mini no está confirmado por ahora.
 </blockquote>
 
 <!--
