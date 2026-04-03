@@ -22,7 +22,7 @@ async function supportsReadableStreamBody(): Promise<boolean> {
 				controller.close();
 			},
 		});
-		await fetch('data:a/a,', {
+		await fetch('data:,', {
 			method: 'POST',
 			body: stream,
 			duplex: 'half',
