@@ -209,7 +209,7 @@ Playground muestra WordPress en un [`iframe`](/developers/architecture/browser-i
 Playground renders WordPress in an [`iframe`](/developers/architecture/browser-iframe-rendering) so clicking links with `target="_top"` will reload the page you're working on.
 -->
 
-Además, las ventanas emergentes de JavaScript que originan en el `iframe` no siempre se muestran.
+Además, las ventanas emergentes de JavaScript que se originan en el `iframe` no siempre se muestran.
 
 <!--
 Also, JavaScript popups originating in the `iframe` may not always display.
