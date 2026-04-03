@@ -96,10 +96,11 @@ export async function fetchWithCorsProxy(
 		corsProxyBody = teedProxy.body;
 	} else {
 		/**
-		 * Buffer the request body so it can be reused across the direct
-		 * fetch attempt and the CORS proxy fallback. Safari does not
-		 * support ReadableStream as a fetch() request body
-		 * ("ReadableStream uploading is not supported").
+		 * As of April 2026, Safari does not currently support using a ReadableStream
+		 * as a fetch() request body ("ReadableStream uploading is not supported").
+		 * Buffer the body so we can reuse it for the direct fetch and the CORS proxy
+		 * fallback. Safari support is in progress via Interop 2026; see
+		 * https://web.dev/blog/interop-2026#fetch_uploads_and_ranges
 		 */
 		let bufferedBody: ArrayBuffer | null = null;
 		if (requestObject.body) {
