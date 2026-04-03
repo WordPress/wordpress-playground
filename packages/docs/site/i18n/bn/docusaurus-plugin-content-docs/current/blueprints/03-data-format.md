@@ -1,5 +1,5 @@
 ---
-sidebar_position: 1
+sidebar_position: 3
 title: ব্লুপ্রিন্ট ডেটা ফরম্যাট
 slug: /blueprints/data-format
 description: ব্লুপ্রিন্ট ডেটা ফরম্যাটের একটি ওভারভিউ। landingPage, preferredVersions এবং steps এর মতো মূল প্রপার্টি সম্পর্কে জানুন।
