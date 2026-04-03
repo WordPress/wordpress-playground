@@ -7,12 +7,12 @@ import { Modal } from '../modal';
 import css from './style.module.css';
 import { useAppDispatch } from '../../lib/state/redux/store';
 import { removeClientInfo } from '../../lib/state/redux/slice-clients';
-import { removeSite } from '../../lib/state/redux/slice-sites';
 import {
 	clearActiveSiteError,
 	type SerializedBlueprintStepErrorDetails,
 	type SerializedSiteErrorDetails,
 } from '../../lib/state/redux/slice-ui';
+import { useSitesAPI } from '../../lib/state/redux/site-management-api-middleware';
 import type {
 	SiteErrorModalProps,
 	PresentationHelpers,
@@ -29,6 +29,7 @@ export function SiteErrorModal({
 	errorDetails,
 }: SiteErrorModalProps) {
 	const dispatch = useAppDispatch();
+	const sitesAPI = useSitesAPI();
 	const {
 		isReporting,
 		setIsReporting,
@@ -42,10 +43,14 @@ export function SiteErrorModal({
 	const kapaAI = useKapaAI();
 
 	const helpers: PresentationHelpers = {
-		deleteSite: () => {
-			dispatch(removeSite(siteSlug));
-			dispatch(removeClientInfo(siteSlug));
-			dispatch(clearActiveSiteError());
+		deleteSite: async () => {
+			try {
+				await sitesAPI.delete(siteSlug);
+				dispatch(removeClientInfo(siteSlug));
+				dispatch(clearActiveSiteError());
+			} catch (error) {
+				logger.error('Failed to delete site', error);
+			}
 		},
 		restartWithoutPr: () => {
 			const url = new URL(window.location.href);

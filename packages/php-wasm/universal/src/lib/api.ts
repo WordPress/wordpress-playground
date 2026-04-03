@@ -465,14 +465,30 @@ export function portToStream(port: MessagePort): ReadableStream<Uint8Array> {
 				if (!data) return;
 				switch (data.t) {
 					case 'chunk':
-						controller.enqueue(new Uint8Array(data.b));
+						try {
+							controller.enqueue(new Uint8Array(data.b));
+						} catch {
+							// enqueue() throws when the stream is no
+							// longer readable — the consumer cancelled
+							// it, someone called controller.error(),
+							// or the stream was already closed. We
+							// swallow the error because the consumer
+							// already knows why the stream ended. The
+							// only actionable response is to close
+							// the port so the remote side stops
+							// sending.
+							cleanup();
+						}
 						break;
 					case 'close':
-						controller.close();
+						safeStreamClose(controller);
 						cleanup();
 						break;
 					case 'error':
-						controller.error(new Error(data.m || 'Stream error'));
+						safeStreamError(
+							controller,
+							new Error(data.m || 'Stream error')
+						);
 						cleanup();
 						break;
 				}
@@ -683,4 +699,35 @@ function proxyClone(object: any): any {
 			}
 		},
 	});
+}
+
+/**
+ * Calls controller.error() without throwing if the stream is
+ * already closed or errored. We swallow the error because the
+ * consumer already has the terminal state — re-throwing would
+ * crash the Node process for no benefit.
+ */
+function safeStreamError(
+	controller: ReadableStreamDefaultController,
+	error: unknown
+) {
+	try {
+		controller.error(error);
+	} catch {
+		// Stream already in a terminal state.
+	}
+}
+
+/**
+ * Calls controller.close() without throwing if the stream is
+ * already closed or errored. We swallow the error because the
+ * consumer already has the terminal state — re-throwing would
+ * crash the Node process for no benefit.
+ */
+function safeStreamClose(controller: ReadableStreamDefaultController) {
+	try {
+		controller.close();
+	} catch {
+		// Stream already in a terminal state.
+	}
 }
