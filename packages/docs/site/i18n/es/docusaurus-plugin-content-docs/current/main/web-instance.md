@@ -42,7 +42,7 @@ The Playground website includes toolbars that customize your instance and provid
 
 El sitio web de Playground incluye barras de herramientas que personalizan tu instancia y proporcionan acceso rápido a recursos y utilidades.
 
-![Playground Toolbar Snapshot](@site/static/img/about/playground-toolbar.webp)
+![Playground Toolbar Snapshot](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/about/playground-toolbar.webp)
 
 <!--
 ## Customize Playground {#customize-playground}
@@ -70,7 +70,7 @@ En la barra de herramientas, encontrarás:
 
 ### Configuración de Playground {#playground-settings}
 
-![snapshot of customize Playground window at Playground instance](@site/static/img/about/playground-settings-panel.webp)
+![snapshot of customize Playground window at Playground instance](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/about/playground-settings-panel.webp)
 
 <!--
 The **Playground Settings Panel** includes these [Query API options](/developers/apis/query-api#available-options):
@@ -96,7 +96,7 @@ El **Panel de Configuración de Playground** incluye estas [opciones de la API d
 
 ## Administrador de Playground {#playground-manager}
 
-![Playground settings panel allow users to save export and edit the WordPress directly](@site/static/img/about/playground-dashboard.webp)
+![Playground settings panel allow users to save export and edit the WordPress directly](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/about/playground-dashboard.webp)
 
 <!--
 This panel lets you manage Playground instances and provides access to the following panels:
@@ -116,7 +116,7 @@ Este panel te permite administrar instancias de Playground y proporciona acceso 
 - **Base de Datos**: Herramientas para administrar la base de datos con Adminer y phpMyAdmin, y descargar como archivo `.sqlite`.
 - **Registros**: Muestra mensajes de registro cuando algo sale mal.
 
-![Save Playground Button](@site/static/img/about/playground-dashboard-save.webp)
+![Save Playground Button](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/about/playground-dashboard-save.webp)
 
 <!--
 Click "Save" to create an instance and list it in the Playground Launch Panel. The Playground Dashboard also offers export and download options through the Additional actions menu:
@@ -130,7 +130,7 @@ Haz clic en "Guardar" para crear una instancia y listarla en el Panel de Lanzami
 
 ### Menú de acciones adicionales {#additional-actions-menu}
 
-![Additional actions Menu](@site/static/img/about/additional-options-playground-dashboard.webp)
+![Additional actions Menu](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/about/additional-options-playground-dashboard.webp)
 
 <!--
 - **Export Pull Request to GitHub**: Export WordPress plugins, themes, and entire wp-content directories as pull requests to any public GitHub repository. Watch a [demo of this feature](https://www.youtube.com/watch?v=gKrij8V3nK0&t=2488s).
@@ -146,7 +146,7 @@ Haz clic en "Guardar" para crear una instancia y listarla en el Panel de Lanzami
 
 ### Editor de Blueprint {#blueprint-editor}
 
-![Blueprint editor WordPress Playground](@site/static/img/about/playground-blueprint-editor.webp)
+![Blueprint editor WordPress Playground](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/about/playground-blueprint-editor.webp)
 
 <!--
 The Blueprint editor replaced the older Blueprint builder, offering the ability to manage multiple Blueprints and code validation.
@@ -160,7 +160,7 @@ El editor de Blueprint reemplazó al antiguo constructor de Blueprint, ofreciend
 
 ### Panel de Lanzamiento de Playground {#launch-playground-panel}
 
-![Playground Launch Panel](@site/static/img/dashboard/import-playground.webp)
+![Playground Launch Panel](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dashboard/import-playground.webp)
 
 <!--
 This panel shows all the ways to launch WordPress Playground: import `.zip` files, load from GitHub repositories, and preview PRs from WordPress core and Gutenberg.
