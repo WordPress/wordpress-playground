@@ -30,9 +30,9 @@ description: URL ফ্র্যাগমেন্ট বা blueprint-url প�
 
 ### Base64 এনকোডেড ব্লুপ্রিন্ট
 
-কিছু টুল, যেমন GitHub, URL-এ পেস্ট করার সময় ব্লুপ্রিন্টটি সঠিকভাবে ফরম্যাট নাও করতে পারে। এই ক্ষেত্রে, [আপনার ব্লুপ্রিন্টটি Base64-এ এনকোড করুন](https://www.base64encode.org) এবং এটি URL-এ যুক্ত করুন। উদাহরণস্বরূপ, এটি উপরের ব্লুপ্রিন্টের Base64 ফরম্যাট: `eyJwcmVmZXJyZWRWZXJzaW9ucyI6IHsicGhwIjoiNy40IiwgIndwIjoiNS45In19`।
+কিছু টুল, যেমন GitHub, URL-এ পেস্ট করার সময় ব্লুপ্রিন্টটি সঠিকভাবে ফরম্যাট নাও করতে পারে। এই ক্ষেত্রে, [আপনার ব্লুপ্রিন্টটি Base64-এ এনকোড করুন](https://www.base64encode.org) এবং এটি URL-এ যুক্ত করুন। উদাহরণস্বরূপ, এটি উপরের ব্লুপ্রিন্টের Base64 ফরম্যাট: `eyJwcmVmZXJyZWRWZXJzaW9ucyI6IHsicGhwIjoiOC4zIiwgIndwIjoiNS45In19`।
 
-এটি চালাতে, [https://playground.wordpress.net/#eyJwcmVmZXJyZWRWZXJzaW9ucyI6IHsicGhwIjoiNy40IiwgIndwIjoiNS45In19](https://playground.wordpress.net/#eyJwcmVmZXJyZWRWZXJzaW9ucyI6IHsicGhwIjoiNy40IiwgIndwIjoiNS45In19) এ যান
+এটি চালাতে, [https://playground.wordpress.net/#eyJwcmVmZXJyZWRWZXJzaW9ucyI6IHsicGhwIjoiOC4zIiwgIndwIjoiNS45In19](https://playground.wordpress.net/#eyJwcmVmZXJyZWRWZXJzaW9ucyI6IHsicGhwIjoiOC4zIiwgIndwIjoiNS45In19) এ যান
 
 ### URL থেকে ব্লুপ্রিন্ট লোড করুন
 
