@@ -40,7 +40,7 @@ type URLReference = {
 ```
 
 রিসোর্স `url` টাইপ ব্লুপ্রিন্ট স্টেপ যেমন [`installPlugin`](/blueprints/steps#InstallPluginStep) বা
-[`installTheme`](http://localhost:3000/wordpress-playground/blueprints/steps#InstallThemeStep) এর সাথে সত্যিই ভালভাবে কাজ করে।
+[`installTheme`](/blueprints/steps#InstallThemeStep) এর সাথে সত্যিই ভালভাবে কাজ করে।
 এই স্টেপগুলির জন্য ইনস্টল করার জন্য প্লাগইন বা থিমের অবস্থান সংজ্ঞায়িত করতে একটি `ResourceType` প্রয়োজন।
 
 একটি `"resource": "url"` দিয়ে আমরা একটি URL এর মাধ্যমে প্লাগইন/থিম ধারণকারী একটি `.zip` এর অবস্থান সংজ্ঞায়িত করতে পারি যা সরাসরি একটি GitHub রিপোতে নির্দেশ করতে পারে।
