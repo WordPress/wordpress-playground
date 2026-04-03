@@ -1,16 +1,17 @@
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { TextControl } from '@wordpress/components';
 import { useAppDispatch, useAppSelector } from '../../lib/state/redux/store';
 import {
 	setActiveModal,
 	setSiteSlugToRename,
 } from '../../lib/state/redux/slice-ui';
-import { updateSiteMetadata } from '../../lib/state/redux/slice-sites';
+import { useSitesAPI } from '../../lib/state/redux/site-management-api-middleware';
 import { Modal } from '../modal';
 import ModalButtons from '../modal/modal-buttons';
 
 export function RenameSiteModal() {
 	const dispatch = useAppDispatch();
+	const sitesAPI = useSitesAPI();
 	const siteSlugToRename = useAppSelector(
 		(state) => state.ui.siteSlugToRename
 	);
@@ -39,12 +40,7 @@ export function RenameSiteModal() {
 		}
 		try {
 			setIsSubmitting(true);
-			await dispatch(
-				updateSiteMetadata({
-					slug: site.slug,
-					changes: { name: trimmed },
-				}) as any
-			);
+			await sitesAPI.rename(trimmed);
 			closeModal();
 		} finally {
 			setIsSubmitting(false);

@@ -8,7 +8,7 @@ import {
 	toolDefinitions,
 	getSiteToolDefinitions,
 	playgroundUrl,
-	presentStorage,
+	formatStorageLabel,
 	stringifyError,
 } from './tool-definitions';
 import type { ToolParam } from './tool-definitions';
@@ -138,20 +138,21 @@ export function registerMcpServerTools(
 		}
 	);
 
-	const openSite = siteToolDefinitions['playground_open_site'];
+	const openSiteInNewTab =
+		siteToolDefinitions['playground_open_site_in_new_tab'];
 	server.registerTool(
-		'playground_open_site',
+		'playground_open_site_in_new_tab',
 		{
-			title: openSite.title,
-			description: openSite.description,
+			title: openSiteInNewTab.title,
+			description: openSiteInNewTab.description,
 			inputSchema: {
 				siteId: siteIdSchema,
 			},
-			annotations: openSite.annotations,
+			annotations: openSiteInNewTab.annotations,
 		},
 		async ({ siteId }) => {
 			try {
-				await bridge.sendCommand(siteId, '__open_site');
+				await bridge.sendCommand(siteId, '__open_site_in_new_tab');
 				const site = await bridge.waitForSiteActive(siteId, 30000);
 				return {
 					content: [
@@ -166,7 +167,7 @@ export function registerMcpServerTools(
 					],
 				};
 			} catch (error) {
-				return errorResult(openSite.errorPrefix, error);
+				return errorResult(openSiteInNewTab.errorPrefix, error);
 			}
 		}
 	);
@@ -220,9 +221,9 @@ export function registerMcpServerTools(
 		})
 	);
 
-	const saveSite = siteToolDefinitions['playground_save_site'];
+	const saveSite = siteToolDefinitions['playground_save_in_browser'];
 	server.registerTool(
-		'playground_save_site',
+		'playground_save_in_browser',
 		{
 			title: saveSite.title,
 			description: saveSite.description,
@@ -270,7 +271,7 @@ export function registerMcpServerTools(
 								alreadySaved: false,
 								siteId,
 								name: site.name,
-								storage: presentStorage(result.storage),
+								storage: formatStorageLabel(result.storage),
 							}),
 						},
 					],

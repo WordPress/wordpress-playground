@@ -2965,6 +2965,10 @@ button.wp-block-navigation-item__content {
 .wp-block-navigation__responsive-container.disable-default-overlay.is-menu-open .wp-block-navigation__responsive-container-content .wp-block-navigation__overlay-container {
   display: block;
 }
+.wp-block-navigation__responsive-container.disable-default-overlay.is-menu-open .wp-block-navigation__responsive-container-content .wp-block-navigation__overlay-container .wp-block-navigation__submenu-container {
+  right: auto;
+  left: 0;
+}
 @media (min-width: 600px) {
   .wp-block-navigation__responsive-container:not(.hidden-by-default):not(.is-menu-open) {
     display: block;
@@ -3106,7 +3110,7 @@ html.has-modal-open {
   align-items: center;
   justify-content: center;
   gap: 0.5em;
-  padding: 0.5em;
+  padding: 0;
   border: none;
   background: transparent;
   cursor: pointer;
@@ -3116,8 +3120,8 @@ html.has-modal-open {
   outline-offset: 2px;
 }
 .wp-block-navigation-overlay-close svg {
-  width: 1.5em;
-  height: 1.5em;
+  width: 24px;
+  height: 24px;
   fill: currentColor;
   display: block;
   flex-shrink: 0;

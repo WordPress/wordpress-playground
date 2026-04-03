@@ -19,13 +19,13 @@ export function createServer(): McpServer {
 			or server required. You are automatically authenticated as an admin user.\n\n\
 			PREREQUISITE: Call playground_list_sites first. If no browser is connected, \
 			call playground_get_website_url to get the exact URL and ask the user to open it. \n\n\
-			Typical workflow: playground_list_sites → playground_save_site \
+			Typical workflow: playground_list_sites → playground_save_in_browser \
 			→ filesystem/PHP operations → playground_navigate to verify results.\n\n\
 			Capabilities: execute arbitrary PHP with full WordPress access, read/write files in the virtual filesystem \
 			(WordPress root: /wordpress/), make HTTP requests to the site, navigate the browser, \
 			and manage multiple Playground sites simultaneously.\n\n\
 			Important: sites are temporary by default and not persisted between sessions. \
-			Call playground_save_site early in any multi-step workflow where losing progress would be costly.\n\n\
+			Call playground_save_in_browser early in any multi-step workflow where losing progress would be costly.\n\n\
 			Error handling: tool failures are returned as thrown exceptions with descriptive messages, \
 			not as silent failures.`,
 	});

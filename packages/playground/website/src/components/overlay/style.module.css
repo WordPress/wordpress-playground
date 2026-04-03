@@ -57,12 +57,12 @@
 }
 
 .logoIcon {
-	width: 32px;
-	height: 32px;
+	display: flex;
 }
 
-.logoIcon path {
-	fill: #3858e9;
+.logoIcon svg {
+	width: 32px;
+	height: 32px;
 }
 
 .logoText {

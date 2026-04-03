@@ -31,7 +31,8 @@ jobs:
               with:
                   ref: ${{ github.event.pull_request.head.ref }}
                   clean: true
-                  persist-credentials: false
+                  persist-credentials: true
+                  ssh-key: ${{ secrets.DEPLOY_KEY }}
                   submodules: true
             - uses: ./.github/actions/prepare-playground
               with:
@@ -54,7 +55,6 @@ jobs:
               run: |
                   git config --global user.name "deployment_bot"
                   git config --global user.email "deployment_bot@users.noreply.github.com"
-                  git remote set-url origin https://${{ secrets.GH_ACTOR }}:${{ secrets.GH_TOKEN }}@github.com/${{ github.repository }}
                   git add -A
                   git commit -a -m "Refresh SQLite integration plugin"
                   git pull --rebase
