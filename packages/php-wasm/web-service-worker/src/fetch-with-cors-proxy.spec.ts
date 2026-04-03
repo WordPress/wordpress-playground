@@ -215,7 +215,7 @@ describe('fetchWithCorsProxy', () => {
 			duplex: 'half',
 		});
 
-		// No corsProxyUrl → direct fetch, no tee/clone involved.
+		// No corsProxyUrl → direct fetch, no retry-preparation pipeline involved.
 		await fetchWithCorsProxy(request);
 
 		expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -260,8 +260,7 @@ describe('fetchWithCorsProxy', () => {
 		expect(proxyRequest.url).toBe(
 			'http://localhost:5400/cors-proxy/?url=https://example.com/api'
 		);
-		// The buffered content should survive the tee → clone → buffer
-		// pipeline intact.
+		// The content should survive request preparation and proxy retry intact.
 		expect(await new Response(proxyRequest.body).text()).toBe(
 			'upload payload'
 		);
@@ -308,7 +307,7 @@ describe('fetchWithCorsProxy', () => {
 		expect(await new Response(proxyRequest.body).text()).toBe(body);
 	});
 
-	it('forwards init to duplexSafeFetch in the CORS proxy retry path', async () => {
+	it('applies init values in the CORS proxy retry path', async () => {
 		const corsProxyHeaders = new Headers();
 		corsProxyHeaders.set('X-Playground-Cors-Proxy', 'true');
 
@@ -319,8 +318,8 @@ describe('fetchWithCorsProxy', () => {
 				new Response('proxied', { headers: corsProxyHeaders })
 			);
 
-		// When input is a string, init builds the initial Request and
-		// is also forwarded to duplexSafeFetch in the retry path.
+		// When input is a string, init builds the initial request used in
+		// direct fetch and proxy retry preparation.
 		const response = await fetchWithCorsProxy(
 			'https://example.com/api',
 			{ method: 'POST', body: 'form data' },
@@ -332,8 +331,7 @@ describe('fetchWithCorsProxy', () => {
 		expect(proxyRequest.url).toBe(
 			'http://localhost:5400/cors-proxy/?url=https://example.com/api'
 		);
-		// The body from init should survive the tee → clone → buffer
-		// pipeline.
+		// The body from init should survive request preparation and retry.
 		expect(await new Response(proxyRequest.body).text()).toBe('form data');
 		expect(await response.text()).toBe('proxied');
 	});
