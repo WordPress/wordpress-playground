@@ -13,7 +13,7 @@ description: Learn about the current limitations of WordPress Playground, includ
 # Limitations
 -->
 
-WordPress Playground est en développement actif et présente certaines limitations à garder à l’esprit lorsque vous l’utilisez ou développez avec.
+WordPress Playground est en développement actif et présente certaines limitations à garder à l’esprit lorsque vous l’utilisez.
 
 <!--
 WordPress Playground is under active development and has some limitations you should keep in mind when running it and developing with it.
