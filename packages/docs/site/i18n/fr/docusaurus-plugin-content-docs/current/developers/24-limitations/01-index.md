@@ -264,7 +264,7 @@ Plusieurs limitations antérieures ont été levées dans des versions récentes
 Several previous limitations have been addressed in recent releases:
 -->
 
-- **Téléchargements de fichiers volumineux (>2 Go)** : les exportations et téléchargements sont désormais diffusés en flux direct plutôt qu’en mémoire tampon, ce qui permet d’exporter de gros sites (p. ex. sauvegardes All-in-One WP Migration) qui échouaient auparavant.
+- **Téléchargements de fichiers volumineux (>2 Go)** : les exportations et téléchargements sont désormais diffusés en flux direct plutôt qu’en mémoire tampon, ce qui permet d’exporter des sites volumineux (p. ex. sauvegardes All-in-One WP Migration) qui échouaient auparavant.
 - **Téléversements de fichiers cURL en PHP** : les envois de formulaires multipart via `CURLFile` fonctionnent correctement dans le navigateur. Le blocage lié à `Expect: 100-continue` et les problèmes de transmission multipart via le proxy CORS sont résolus.
 - **Réponses PHP longues** : le service worker diffuse désormais les réponses PHP au lieu de les mettre en mémoire tampon, ce qui supprime le délai d’expiration de 25 secondes qui faisait échouer les importations de site et d’autres opérations longues.
 - **Gestion des erreurs de téléchargement** : en cas d’échec du téléchargement de WASM ou de scripts (réseau, bloqueur de publicités, etc.), Playground affiche une boîte d’erreur utile au lieu d’une page vide.
