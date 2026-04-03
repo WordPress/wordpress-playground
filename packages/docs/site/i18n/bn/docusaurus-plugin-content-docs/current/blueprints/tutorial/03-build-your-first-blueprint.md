@@ -69,7 +69,7 @@ WordPress সাইটের শিরোনাম `blogname` অপশনে �
 }
 ```
 
-[<kbd> &nbsp; ব্লুপ্রিন্ট চালান &nbsp; </kbd>](https://playground.wordpress.net/#https://playground.wordpress.net/#eyIkc2NoZW1hIjoiaHR0cHM6Ly9wbGF5Z3JvdW5kLndvcmRwcmVzcy5uZXQvYmx1ZXByaW50LXNjaGVtYS5qc29uIiwic3RlcHMiOlt7InN0ZXAiOiJzZXRTaXRlT3B0aW9ucyIsIm9wdGlvbnMiOnsiYmxvZ25hbWUiOiJNeSBmaXJzdCBCbHVlcHJpbnQifX1dfQ==)
+[<kbd> &nbsp; ব্লুপ্রিন্ট চালান &nbsp; </kbd>](https://playground.wordpress.net/#eyIkc2NoZW1hIjoiaHR0cHM6Ly9wbGF5Z3JvdW5kLndvcmRwcmVzcy5uZXQvYmx1ZXByaW50LXNjaGVtYS5qc29uIiwic3RlcHMiOlt7InN0ZXAiOiJzZXRTaXRlT3B0aW9ucyIsIm9wdGlvbnMiOnsiYmxvZ25hbWUiOiJNeSBmaXJzdCBCbHVlcHJpbnQifX1dfQ==)
 
 [`setSiteOptions` স্টেপ](/blueprints/steps#SetSiteOptionsStep) WordPress ডাটাবেসে সাইট অপশনগুলি নির্দিষ্ট করে। `options` অবজেক্টে সেট করার জন্য কী-ভ্যালু পেয়ার রয়েছে। এই ক্ষেত্রে, আপনি `blogname` কী-এর মান "My first Blueprint" এ পরিবর্তন করেছেন। আপনি [Blueprint Steps API Reference](/blueprints/steps) এ সমস্ত উপলব্ধ স্টেপ সম্পর্কে আরও পড়তে পারেন।
 
