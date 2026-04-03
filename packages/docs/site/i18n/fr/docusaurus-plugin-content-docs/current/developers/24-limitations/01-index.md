@@ -172,7 +172,7 @@ Loading times vary based on what Playground needs to set up:
 - **Taille des extensions** : les grosses extensions mettent plus longtemps à s’installer à l’exécution
 - **Débit réseau** : les fichiers WASM font environ 5 à 15 Mo par version de PHP (réduits nettement grâce à l’optimisation de compilation `MAIN_MODULE=2`)
 - **Mémoire de l’appareil** : l’allocation mémoire WASM initiale est de 64 Mo, puis augmente dynamiquement si besoin. Les appareils peu dotés en mémoire peuvent ralentir
-- **Navigateur** : Chrome et Edge offrent en général les meilleures performances ; Safari est un peu plus lent
+- **Navigateur** : Chrome et Edge offrent en général les meilleures performances ; Safari est légèrement plus lent
 
 <!--
 - **Plugin size**: Large plugins take longer to install at runtime
