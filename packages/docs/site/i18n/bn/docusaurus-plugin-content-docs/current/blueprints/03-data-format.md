@@ -35,9 +35,9 @@ import BlueprintExample from '@site/src/components/Blueprints/BlueprintExample.m
 
 JSON ফাইল লেখা ক্লান্তিকর এবং ভুল করা সহজ হতে পারে। এতে সাহায্য করার জন্য, Playground একটি [JSON schema](https://playground.wordpress.net/blueprint-schema.json) ফাইল প্রদান করে যা আপনি আপনার এডিটরে অটো-কমপ্লিশন এবং ভ্যালিডেশন পেতে ব্যবহার করতে পারেন। শুধু `$schema` প্রপার্টি নিম্নলিখিতভাবে সেট করুন:
 
-```js
+```json
 {
-	"$schema": "https://playground.wordpress.net/blueprint-schema.json",
+	"$schema": "https://playground.wordpress.net/blueprint-schema.json"
 }
 ```
 
