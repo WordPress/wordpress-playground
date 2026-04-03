@@ -222,9 +222,9 @@ add_action('admin_notices', 'my_custom_plugin');
 ```json
 {
 	"login": true,
-	"steps": {
+	"steps": [
 		// ...
-	}
+	]
 }
 ```
 
