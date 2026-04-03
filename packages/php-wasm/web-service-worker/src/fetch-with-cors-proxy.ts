@@ -1,38 +1,7 @@
-import { cloneRequest, teeRequest } from './utils';
+import { cloneRequest, prepareRequestForRetry } from './utils';
 import { FirewallInterferenceError } from './firewall-interference-error';
 
 const CORS_PROXY_HEADER = 'X-Playground-Cors-Proxy';
-
-let streamBodySupported: boolean | undefined;
-
-/** @internal Test-only utilities — not part of the public API. */
-export const __testing = {
-	resetStreamBodySupported(): void {
-		streamBodySupported = undefined;
-	},
-};
-
-async function supportsReadableStreamBody(): Promise<boolean> {
-	if (streamBodySupported !== undefined) {
-		return streamBodySupported;
-	}
-	try {
-		const stream = new ReadableStream({
-			start(controller) {
-				controller.close();
-			},
-		});
-		await fetch('data:,', {
-			method: 'POST',
-			body: stream,
-			duplex: 'half',
-		} as RequestInit);
-		streamBodySupported = true;
-	} catch {
-		streamBodySupported = false;
-	}
-	return streamBodySupported;
-}
 
 export async function fetchWithCorsProxy(
 	input: RequestInfo,
@@ -85,37 +54,11 @@ export async function fetchWithCorsProxy(
 		return await fetch(requestObject);
 	}
 
-	const useStreaming = await supportsReadableStreamBody();
-
-	let directRequest: Request;
-	let corsProxyBody: ArrayBuffer | ReadableStream<Uint8Array> | null;
-
-	if (useStreaming) {
-		const [teedDirect, teedProxy] = await teeRequest(requestObject);
-		directRequest = teedDirect;
-		corsProxyBody = teedProxy.body;
-	} else {
-		/**
-		 * As of April 2026, Safari does not currently support using a ReadableStream
-		 * as a fetch() request body ("ReadableStream uploading is not supported").
-		 * Buffer the body so we can reuse it for the direct fetch and the CORS proxy
-		 * fallback. Safari support is in progress via Interop 2026; see
-		 * https://web.dev/blog/interop-2026#fetch_uploads_and_ranges
-		 */
-		let bufferedBody: ArrayBuffer | null = null;
-		if (requestObject.body) {
-			bufferedBody = await new Response(requestObject.body).arrayBuffer();
-		}
-		if (bufferedBody !== null) {
-			directRequest = await cloneRequest(requestObject, {
-				body: bufferedBody,
-			});
-		} else {
-			// No body to buffer; reuse the original request without overriding `body`.
-			directRequest = requestObject;
-		}
-		corsProxyBody = bufferedBody;
-	}
+	const {
+		directRequest,
+		retryBody: corsProxyBody,
+		useStreamingBody,
+	} = await prepareRequestForRetry(requestObject);
 
 	try {
 		return await fetch(directRequest);
@@ -160,7 +103,7 @@ export async function fetchWithCorsProxy(
 		 */
 		let body = corsProxyBody;
 		if (
-			useStreaming &&
+			useStreamingBody &&
 			body &&
 			new URL(corsProxyUrl, import.meta.url).protocol === 'http:'
 		) {

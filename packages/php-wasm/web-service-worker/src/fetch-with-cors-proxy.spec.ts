@@ -7,26 +7,29 @@ import {
 	it,
 	vi,
 } from 'vitest';
-import { fetchWithCorsProxy, __testing } from './fetch-with-cors-proxy';
+import { fetchWithCorsProxy } from './fetch-with-cors-proxy';
 import { FirewallInterferenceError } from './firewall-interference-error';
+import { __testing, prepareRequestForRetry } from './utils';
 
 describe('fetchWithCorsProxy', () => {
 	beforeAll(async () => {
-		// Pre-warm the one-time ReadableStream body feature detection
-		// cache so its internal fetch() call doesn't consume mock
-		// responses set up by individual tests.
+		// Pre-warm the one-time ReadableStream body feature detection cache so
+		// its internal fetch() probe doesn't consume test-specific mock calls.
 		const tempMock = vi
 			.spyOn(globalThis, 'fetch')
 			.mockResolvedValue(new Response(''));
-		try {
-			await fetchWithCorsProxy(
-				'https://warmup.invalid/',
-				undefined,
-				'https://proxy.test/?url='
-			);
-		} catch {
-			// Expected — we only need the detection side-effect.
-		}
+		const stream = new ReadableStream({
+			start(controller) {
+				controller.close();
+			},
+		});
+		const request = new Request('https://warmup.invalid/', {
+			method: 'POST',
+			body: stream,
+			// @ts-expect-error duplex is required for streaming bodies
+			duplex: 'half',
+		});
+		await prepareRequestForRetry(request);
 		tempMock.mockRestore();
 	});
 
@@ -421,9 +424,9 @@ describe('fetchWithCorsProxy', () => {
 		});
 
 		it('handles GET requests with no body in non-streaming mode', async () => {
-			const fetchMock = mockFetchWithoutStreamingSupport(
-				new Response('ok')
-			);
+			const fetchMock = vi
+				.spyOn(globalThis, 'fetch')
+				.mockResolvedValue(new Response('ok'));
 
 			await fetchWithCorsProxy(
 				'https://example.com/page',
@@ -431,9 +434,9 @@ describe('fetchWithCorsProxy', () => {
 				'https://proxy.test/?url='
 			);
 
-			// detection + direct fetch
-			expect(fetchMock).toHaveBeenCalledTimes(2);
-			const directReq = fetchMock.mock.calls[1][0] as Request;
+			// No body means no stream-support probe, even with a reset cache.
+			expect(fetchMock).toHaveBeenCalledTimes(1);
+			const directReq = fetchMock.mock.calls[0][0] as Request;
 			expect(directReq.url).toBe('https://example.com/page');
 		});
 	});

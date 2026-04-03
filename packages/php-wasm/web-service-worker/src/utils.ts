@@ -152,7 +152,7 @@ export async function convertFetchEventToPHPRequest(event: FetchEvent) {
 		}
 	}
 
-	return new Response(responseBody, {
+	return new Response(responseBody as BodyInit | null, {
 		headers: phpResponse.headers,
 		status: phpResponse.httpStatusCode,
 	});
@@ -267,20 +267,90 @@ export async function cloneRequest(
 	});
 }
 
+let streamBodySupported: boolean | undefined;
+
+/** @internal Test-only utilities — not part of the public API. */
+export const __testing = {
+	resetStreamBodySupported(): void {
+		streamBodySupported = undefined;
+	},
+};
+
 /**
- * Tee a request to ensure the body stream is not consumed
- * when executing or cloning the request.
+ * Prepares a request for one direct fetch attempt and one retry.
+ *
+ * When streaming request bodies are supported, we tee the body stream so both
+ * attempts can read it. Otherwise (e.g. Safari), we buffer the body to support
+ * retries without ReadableStream upload support.
  *
  * @param request
- * @returns
+ * @returns A direct request plus a retry body payload.
  */
-export async function teeRequest(
+export async function prepareRequestForRetry(request: Request): Promise<{
+	directRequest: Request;
+	retryBody: ArrayBuffer | ReadableStream<Uint8Array> | null;
+	useStreamingBody: boolean;
+}> {
+	if (!request.body) {
+		return {
+			directRequest: request,
+			retryBody: null,
+			useStreamingBody: false,
+		};
+	}
+
+	const useStreamingBody = await supportsReadableStreamBody();
+	if (useStreamingBody) {
+		const [directRequest, retryRequest] =
+			await splitRequestBodyStream(request);
+		return {
+			directRequest,
+			retryBody: retryRequest.body,
+			useStreamingBody: true,
+		};
+	}
+
+	/**
+	 * As of April 2026, Safari does not currently support using a ReadableStream
+	 * as a fetch() request body ("ReadableStream uploading is not supported").
+	 * Buffer the body so we can reuse it for the direct fetch and a retry.
+	 * Safari support is in progress via Interop 2026; see
+	 * https://web.dev/blog/interop-2026#fetch_uploads_and_ranges
+	 */
+	const bufferedBody = await new Response(request.body).arrayBuffer();
+	return {
+		directRequest: await cloneRequest(request, { body: bufferedBody }),
+		retryBody: bufferedBody,
+		useStreamingBody: false,
+	};
+}
+
+async function supportsReadableStreamBody(): Promise<boolean> {
+	if (streamBodySupported !== undefined) {
+		return streamBodySupported;
+	}
+	try {
+		const stream = new ReadableStream({
+			start(controller) {
+				controller.close();
+			},
+		});
+		await fetch('data:,', {
+			method: 'POST',
+			body: stream,
+			duplex: 'half',
+		} as RequestInit);
+		streamBodySupported = true;
+	} catch {
+		streamBodySupported = false;
+	}
+	return streamBodySupported;
+}
+
+async function splitRequestBodyStream(
 	request: Request
 ): Promise<[Request, Request]> {
-	if (!request.body) {
-		return [request, request];
-	}
-	const [body1, body2] = request.body.tee();
+	const [body1, body2] = request.body!.tee();
 	return [
 		await cloneRequest(request, { body: body1, duplex: 'half' }),
 		await cloneRequest(request, { body: body2, duplex: 'half' }),
