@@ -159,17 +159,12 @@ export async function fetchWithCorsProxy(
 		 * @see https://developer.chrome.com/docs/capabilities/web-apis/fetch-streaming-requests
 		 */
 		let body = corsProxyBody;
-		if (useStreaming && body) {
-			// In development, corsProxyUrl may be /cors-proxy/. We need to resolve the absolute URL
-			// to access the protocol.
-			const rootUrl = new URL(import.meta.url);
-			rootUrl.pathname = '';
-			rootUrl.search = '';
-			rootUrl.hash = '';
-			const corsProxyUrlObj = new URL(corsProxyUrl, rootUrl.toString());
-			if (corsProxyUrlObj.protocol === 'http:') {
-				body = await new Response(body).arrayBuffer();
-			}
+		if (
+			useStreaming &&
+			body &&
+			new URL(corsProxyUrl, import.meta.url).protocol === 'http:'
+		) {
+			body = await new Response(body).arrayBuffer();
 		}
 
 		const newRequest = await cloneRequest(directRequest, {
