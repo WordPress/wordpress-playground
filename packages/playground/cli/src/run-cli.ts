@@ -712,25 +712,65 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 		};
 	} catch (e) {
 		console.error(e);
-		if (!(e instanceof Error)) {
-			throw e;
-		}
 		const debug = process.argv.includes('--debug');
-		if (debug) {
-			printDebugDetails(e);
+		if (e instanceof Error) {
+			if (debug) {
+				printDebugDetails(e);
+			} else {
+				const messageChain = [];
+				let currentError: Error | undefined = e;
+				do {
+					messageChain.push(currentError.message);
+					currentError = currentError.cause as Error;
+				} while (currentError instanceof Error);
+				console.error(
+					'\x1b[1m' +
+						messageChain.join(' caused by: ') +
+						'\x1b[0m'
+				);
+			}
 		} else {
-			const messageChain = [];
-			let currentError = e;
-			do {
-				messageChain.push(currentError.message);
-				currentError = currentError.cause as Error;
-			} while (currentError instanceof Error);
-			console.error(
-				'\x1b[1m' + messageChain.join(' caused by: ') + '\x1b[0m'
-			);
+			console.error('\x1b[1m' + describeError(e) + '\x1b[0m');
 		}
 		process.exit(1);
 	}
+}
+
+/**
+ * Describe an error for display. Handles Error instances, Comlink-serialized
+ * plain objects (which lose their Error prototype during worker thread
+ * transfer), and arbitrary values.
+ */
+function describeError(error: unknown): string {
+	if (error instanceof Error) {
+		return error.message;
+	}
+	if (error && typeof error === 'object') {
+		// Comlink-serialized errors arrive as plain objects like
+		// { name: 'ErrnoError', errno: 20 } with no .message.
+		const parts = [];
+		const obj = error as Record<string, unknown>;
+		if (obj.name) {
+			parts.push(String(obj.name));
+		}
+		if (obj.message) {
+			parts.push(String(obj.message));
+		}
+		if (obj.errno !== undefined) {
+			parts.push(`errno: ${obj.errno}`);
+		}
+		if (parts.length > 0) {
+			return parts.join(' — ');
+		}
+		// Last resort: JSON-serialize the object so we at least see
+		// what fields it has.
+		try {
+			return JSON.stringify(error);
+		} catch {
+			return String(error);
+		}
+	}
+	return String(error);
 }
 
 function getMountForVfsPath(
@@ -1362,7 +1402,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 								return;
 							}
 
-							if (exitCode !== 0) {
+							if (exitCode === 0) {
 								return;
 							}
 
@@ -1436,15 +1476,16 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 					await exposeAPI(
 						{
 							applyPostInstallMountsToAllWorkers: async () => {
-								await Promise.all(
-									Array.from(
-										workerToPlaygroundMap.values()
-									).map((playground) =>
-										playground!.mountAfterWordPressInstall(
-											args['mount'] || []
-										)
-									)
-								);
+								// Apply post-install mounts to workers
+								// one at a time. Each worker's mount handler
+								// creates placeholder files on the shared
+								// host filesystem via NODEFS before mounting.
+								// Concurrent creation races cause ENOTDIR.
+								for (const playground of workerToPlaygroundMap.values()) {
+									await playground!.mountAfterWordPressInstall(
+										args['mount'] || []
+									);
+								}
 							},
 						},
 						undefined,
@@ -1632,7 +1673,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 			return response;
 		},
 	}).catch((error) => {
-		cliOutput.printError(error.message);
+		cliOutput.printError(describeError(error));
 		process.exit(1);
 	});
 
@@ -1804,10 +1845,11 @@ export function spawnWorkerThread(
 			processIdAllocator.release(processId);
 
 			console.error(e);
+			const originalMessage =
+				e?.message || (e ? String(e) : 'unknown error');
 			const error = new Error(
-				`Worker failed to load worker. ${
-					e.message ? `Original error: ${e.message}` : ''
-				}`
+				`Worker failed to load. Original error: ${originalMessage}`,
+				{ cause: e }
 			);
 			reject(error);
 		});
