@@ -750,14 +750,14 @@ function describeError(error: unknown): string {
 		// { name: 'ErrnoError', errno: 20 } with no .message.
 		const parts = [];
 		const obj = error as Record<string, unknown>;
-		if (obj.name) {
-			parts.push(String(obj.name));
+		if (obj['name']) {
+			parts.push(String(obj['name']));
 		}
-		if (obj.message) {
-			parts.push(String(obj.message));
+		if (obj['message']) {
+			parts.push(String(obj['message']));
 		}
-		if (obj.errno !== undefined) {
-			parts.push(`errno: ${obj.errno}`);
+		if (obj['errno'] !== undefined) {
+			parts.push(`errno: ${obj['errno']}`);
 		}
 		if (parts.length > 0) {
 			return parts.join(' — ');
