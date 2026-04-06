@@ -75,7 +75,7 @@ If you run into a crash like the one above, you can fix it by:
 1. Identifier un chemin de code PHP qui déclenche le plantage — la trace de pile dans le terminal devrait aider.
 2. Ajouter un cas de test qui reproduit le plantage dans `packages/php-wasm/node/src/test/php-asyncify.spec.ts`
 3. Exécuter : `npm run fix-asyncify`
-4. Commiter le cas de test, le Dockerfile mis à jour et le PHP.wasm reconstruit
+4. Commiter le cas de test, le fichier `Dockerfile` mis à jour et le fichier `PHP.wasm` reconstruit
 
 <!--
 1. Identifying a PHP code path that triggers the crash – the stack trace in the terminal should help with that.
