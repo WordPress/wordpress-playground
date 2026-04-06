@@ -661,12 +661,7 @@ const LibraryExample = {
 				stdoutParentFd = std[1]?.parent,
 				stderrChildFd = std[2]?.child,
 				stderrParentFd = std[2]?.parent;
-			const detachPipeDataListeners = [];
-
 			cp.on('exit', function (code) {
-				for (const detach of detachPipeDataListeners) {
-					detach();
-				}
 				for (const fd of [
 					// The child process exited. Let's clean up its output streams:
 					stdoutChildFd,
@@ -693,27 +688,16 @@ const LibraryExample = {
 					stdoutChildFd
 				);
 				let stdoutAt = 0;
-				const onStdoutData = function (data) {
-					try {
-						stdoutStream.stream_ops.write(
-							stdoutStream,
-							data,
-							0,
-							data.length,
-							stdoutAt
-						);
-						stdoutAt += data.length;
-					} catch {
-						// PHP may close the child pipe before Node finishes
-						// draining already-buffered stdout data. Late chunks are
-						// no longer deliverable, so detach the listener and stop.
-						cp.stdout.off('data', onStdoutData);
-					}
-				};
-				cp.stdout.on('data', onStdoutData);
-				detachPipeDataListeners.push(() =>
-					cp.stdout.off('data', onStdoutData)
-				);
+				cp.stdout.on('data', function (data) {
+					stdoutStream.stream_ops.write(
+						stdoutStream,
+						data,
+						0,
+						data.length,
+						stdoutAt
+					);
+					stdoutAt += data.length;
+				});
 			}
 
 			// Pass data from child process's stderr to PHP's end of the stdout pipe.
@@ -722,24 +706,16 @@ const LibraryExample = {
 					stderrChildFd
 				);
 				let stderrAt = 0;
-				const onStderrData = function (data) {
-					try {
-						stderrStream.stream_ops.write(
-							stderrStream,
-							data,
-							0,
-							data.length,
-							stderrAt
-						);
-						stderrAt += data.length;
-					} catch {
-						cp.stderr.off('data', onStderrData);
-					}
-				};
-				cp.stderr.on('data', onStderrData);
-				detachPipeDataListeners.push(() =>
-					cp.stderr.off('data', onStderrData)
-				);
+				cp.stderr.on('data', function (data) {
+					stderrStream.stream_ops.write(
+						stderrStream,
+						data,
+						0,
+						data.length,
+						stderrAt
+					);
+					stderrAt += data.length;
+				});
 			}
 
 			/**

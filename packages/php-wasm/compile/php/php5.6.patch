@@ -1,0 +1,46 @@
+--- a/php-src/ext/standard/file.c	2026-03-12 23:02:36.638186358 +0100
++++ b/php-src/ext/standard/file.c	2026-03-12 23:02:43.652954816 +0100
+@@ -1668,6 +1668,20 @@
+ 			goto safe_to_copy;
+ 			break;
+ 		case 0:
++			// Fix for https://github.com/WordPress/wordpress-playground/issues/54:
++			// Problem: Calling copy() on an empty source file crashes the JavaScript
++			//          runtime.
++			// Solution: Avoid copying empty files. Just create an empty
++			//           destination file and return.
++			if (src_s.sb.st_size == 0) {
++				char *opened_path = NULL;
++				php_stream *stream = php_stream_open_wrapper(dest, "w", REPORT_ERRORS, &opened_path);
++				if (stream) {
++					php_stream_close(stream);
++					return SUCCESS;
++				}
++				return FAILURE;
++			}
+ 			break;
+ 		default: /* failed to stat file, does not exist? */
+ 			return ret;
+--- a/php-src/Zend/zend_qsort.c
++++ b/php-src/Zend/zend_qsort.c
+@@ -118,8 +118,19 @@
+ 	}
+ }
+
++/* Wrapper with correct compare_r_func_t signature that delegates to a
++ * compare_func_t passed via the arg pointer.  This avoids casting a
++ * 2-parameter function pointer to a 3-parameter type, which is undefined
++ * behavior in C and causes "null function or function signature mismatch"
++ * traps in WebAssembly. */
++static int _zend_qsort_compare_wrapper(const void *a, const void *b TSRMLS_DC, void *arg)
++{
++	compare_func_t compare = (compare_func_t)arg;
++	return compare(a, b TSRMLS_CC);
++}
++
+ ZEND_API void zend_qsort(void *base, size_t nmemb, size_t siz, compare_func_t compare TSRMLS_DC)
+ {
+-	zend_qsort_r(base, nmemb, siz, (compare_r_func_t)compare, NULL TSRMLS_CC);
++	zend_qsort_r(base, nmemb, siz, _zend_qsort_compare_wrapper, (void *)compare TSRMLS_CC);
+ }
+

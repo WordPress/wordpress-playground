@@ -34,7 +34,11 @@
 #include "php_globals.h"
 #include "SAPI.h"
 #include "main/php_network.h"
+#if PHP_MAJOR_VERSION >= 7
 #include "zend_smart_string.h"
+#else
+#include "ext/standard/php_smart_str.h"
+#endif
 
 #if HAVE_SYS_WAIT_H
 #include <sys/wait.h>
@@ -51,6 +55,9 @@
 #include "proc_open.h"
 
 static int le_proc_open;
+
+#if PHP_MAJOR_VERSION >= 7
+/* ============ PHP 7+ implementation ============ */
 
 /* {{{ _php_array_to_envp */
 static php_process_env_t _php_array_to_envp(zval *environment, int is_persistent)
@@ -713,3 +720,74 @@ exit_fail:
 	RETURN_FALSE;
 }
 /* }}} */
+
+#else /* PHP_MAJOR_VERSION < 7 */
+/* ============ PHP 5.x stub implementation ============ */
+/* proc_open and related functions are provided as stubs for PHP 5.x
+ * because process spawning doesn't truly work in WebAssembly anyway.
+ * The functions need to exist to satisfy the linker. */
+
+static void proc_open_rsrc_dtor_legacy(zend_rsrc_list_entry *rsrc TSRMLS_DC)
+{
+	struct php_process_handle *proc = (struct php_process_handle*)rsrc->ptr;
+	if (proc) {
+		if (proc->pipes) {
+			pefree(proc->pipes, proc->is_persistent);
+		}
+		if (proc->command) {
+			pefree(proc->command, proc->is_persistent);
+		}
+		if (proc->env.envarray) {
+			pefree(proc->env.envarray, proc->is_persistent);
+		}
+		if (proc->env.envp) {
+			pefree(proc->env.envp, proc->is_persistent);
+		}
+		pefree(proc, proc->is_persistent);
+	}
+}
+
+PHP_MINIT_FUNCTION(proc_open)
+{
+	le_proc_open = zend_register_list_destructors_ex(
+		proc_open_rsrc_dtor_legacy, NULL, "process", module_number);
+	return SUCCESS;
+}
+
+PHP_FUNCTION(proc_terminate)
+{
+	php_error_docref(NULL TSRMLS_CC, E_WARNING,
+		"proc_terminate is not supported in this WASM build");
+	RETURN_FALSE;
+}
+
+PHP_FUNCTION(proc_close)
+{
+	php_error_docref(NULL TSRMLS_CC, E_WARNING,
+		"proc_close is not supported in this WASM build");
+	RETURN_LONG(-1);
+}
+
+PHP_FUNCTION(proc_get_status)
+{
+	php_error_docref(NULL TSRMLS_CC, E_WARNING,
+		"proc_get_status is not supported in this WASM build");
+	array_init(return_value);
+	add_assoc_string(return_value, "command", "", 1);
+	add_assoc_long(return_value, "pid", 0);
+	add_assoc_bool(return_value, "running", 0);
+	add_assoc_bool(return_value, "signaled", 0);
+	add_assoc_bool(return_value, "stopped", 0);
+	add_assoc_long(return_value, "exitcode", -1);
+	add_assoc_long(return_value, "termsig", 0);
+	add_assoc_long(return_value, "stopsig", 0);
+}
+
+PHP_FUNCTION(proc_open)
+{
+	php_error_docref(NULL TSRMLS_CC, E_WARNING,
+		"proc_open is not fully supported in this WASM build");
+	RETURN_FALSE;
+}
+
+#endif /* PHP_MAJOR_VERSION >= 7 */

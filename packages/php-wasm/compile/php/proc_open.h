@@ -16,6 +16,8 @@
    +----------------------------------------------------------------------+
  */
 
+#include "php.h"
+
 typedef int php_file_descriptor_t;
 typedef pid_t php_process_id_t;
 
@@ -31,7 +33,11 @@ typedef struct _php_process_env {
 struct php_process_handle {
 	php_process_id_t child;
 	int npipes;
+#if PHP_MAJOR_VERSION >= 7
 	zend_resource **pipes;
+#else
+	void **pipes;
+#endif
 	char *command;
 	int is_persistent;
 	php_process_env_t env;

@@ -617,7 +617,11 @@ static size_t handle_line(int type, zval *array, char *buf, size_t bufl)
 	else if (type == 2)
 	{
 		bufl = strip_trailing_whitespace(buf, bufl);
+#if PHP_MAJOR_VERSION >= 7
 		add_next_index_stringl(array, buf, bufl);
+#else
+		add_next_index_stringl(array, buf, bufl, 1);
+#endif
 	}
 	return bufl;
 }
@@ -720,7 +724,11 @@ EMSCRIPTEN_KEEPALIVE int wasm_php_exec(int type, const char *cmd, zval *array, z
 
 			/* Return last line from the shell command */
 			bufl = strip_trailing_whitespace(buf, bufl);
+#if PHP_MAJOR_VERSION >= 7
 			RETVAL_STRINGL(buf, bufl);
+#else
+			RETVAL_STRINGL(buf, bufl, 1);
+#endif
 		}
 		else
 		{ /* should return NULL, but for BC we return "" */
@@ -883,8 +891,13 @@ int wasm_sapi_module_startup(sapi_module_struct *sapi_module);
 int wasm_sapi_shutdown_wrapper(sapi_module_struct *sapi_globals);
 void wasm_sapi_module_shutdown();
 static int wasm_sapi_deactivate(TSRMLS_D);
+#if PHP_MAJOR_VERSION >= 7
 static size_t wasm_sapi_ub_write(const char *str, size_t str_length TSRMLS_DC);
 static size_t wasm_sapi_read_post_body(char *buffer, size_t count_bytes);
+#else
+static int wasm_sapi_ub_write(const char *str, unsigned int str_length TSRMLS_DC);
+static int wasm_sapi_read_post_body(char *buffer, unsigned int count_bytes);
+#endif
 #if PHP_MAJOR_VERSION >= 8
 static void wasm_sapi_log_message(const char *message TSRMLS_DC, int syslog_type_int);
 #else
@@ -1395,7 +1408,11 @@ static char *wasm_sapi_read_cookies(TSRMLS_D)
  *   buffer: the buffer to read the request body into
  *   count_bytes: the number of bytes to read
  */
+#if PHP_MAJOR_VERSION >= 7
 static size_t wasm_sapi_read_post_body(char *buffer, size_t count_bytes)
+#else
+static int wasm_sapi_read_post_body(char *buffer, unsigned int count_bytes)
+#endif
 {
 	if (wasm_server_context == NULL || wasm_server_context->request_body == NULL)
 	{
@@ -1779,7 +1796,11 @@ static inline size_t wasm_sapi_single_write(const char *str, uint str_length)
  *   str: the string to write.
  *   str_length: the length of the string.
  */
+#if PHP_MAJOR_VERSION >= 7
 static size_t wasm_sapi_ub_write(const char *str, size_t str_length TSRMLS_DC)
+#else
+static int wasm_sapi_ub_write(const char *str, unsigned int str_length TSRMLS_DC)
+#endif
 {
 	const char *ptr = str;
 	uint remaining = str_length;

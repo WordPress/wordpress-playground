@@ -1,9 +1,10 @@
 import type {
-	SupportedPHPVersion,
+	AllPHPVersion,
 	EmscriptenOptions,
 	PHPLoaderModule,
+	SupportedPHPVersion,
 } from '@php-wasm/universal';
-import { loadPHPRuntime } from '@php-wasm/universal';
+import { LegacyPHPVersions, loadPHPRuntime } from '@php-wasm/universal';
 import { getPHPLoaderModule } from './get-php-loader-module';
 import type { TCPOverFetchOptions } from './tcp-over-fetch-websocket';
 import { tcpOverFetchWebsocket } from './tcp-over-fetch-websocket';
@@ -47,7 +48,7 @@ interface PHPWorkerGlobalScope extends WorkerGlobalScope {
 }
 
 export async function loadWebRuntime(
-	phpVersion: SupportedPHPVersion,
+	phpVersion: AllPHPVersion,
 	loaderOptions: LoaderOptions = {}
 ) {
 	/*
@@ -75,8 +76,65 @@ export async function loadWebRuntime(
 		);
 	}
 
+	const isLegacy = (LegacyPHPVersions as readonly string[]).includes(
+		phpVersion
+	);
+
+	// For legacy PHP: pre-create php.ini with disable_functions BEFORE
+	// the PHP SAPI starts. ini_get_all() crashes PHP 5.6 WASM (null
+	// function pointer in asyncify instrumentation), and OPcache's
+	// shared memory allocation fails. preRun runs before initRuntime().
+	if (isLegacy) {
+		const resolvedOptions = await emscriptenOptions;
+		// eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
+		const existingPreRun: Function[] = resolvedOptions['preRun'] || [];
+		emscriptenOptions = {
+			...resolvedOptions,
+			['preRun']: [
+				...existingPreRun,
+				(module: any) => {
+					module.FS.mkdirTree('/internal/shared');
+					module.FS.writeFile(
+						'/internal/shared/php.ini',
+						[
+							'auto_prepend_file=/internal/shared/auto_prepend_file.php',
+							'memory_limit=256M',
+							'ignore_repeated_errors = 1',
+							'error_reporting = E_ALL',
+							'display_errors = 1',
+							'html_errors = 1',
+							'display_startup_errors = On',
+							'log_errors = 1',
+							'always_populate_raw_post_data = -1',
+							'upload_max_filesize = 2000M',
+							'post_max_size = 2000M',
+							'allow_url_fopen = On',
+							'allow_url_include = Off',
+							'session.save_path = /home/web_user',
+							'implicit_flush = 1',
+							'output_buffering = 0',
+							'max_execution_time = 0',
+							'max_input_time = -1',
+							'disable_functions = ini_get_all',
+							'opcache.enable = 0',
+							'opcache.enable_cli = 0',
+						].join('\n')
+					);
+				},
+			],
+		};
+	}
+
 	if (loaderOptions.withIntl) {
-		emscriptenOptions = withIntl(phpVersion, emscriptenOptions);
+		if (isLegacy) {
+			throw new Error(
+				`The intl extension is not available for legacy PHP ${phpVersion}.`
+			);
+		}
+		emscriptenOptions = withIntl(
+			phpVersion as SupportedPHPVersion,
+			emscriptenOptions
+		);
 	}
 
 	const [phpLoaderModule, options] = await Promise.all([

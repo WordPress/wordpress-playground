@@ -1,7 +1,7 @@
 import type {
 	EmscriptenOptions,
 	PHPRuntime,
-	SupportedPHPVersion,
+	AllPHPVersion,
 } from '@php-wasm/universal';
 import { LatestSupportedPHPVersion, FSHelpers } from '@php-wasm/universal';
 import fs from 'fs';
@@ -9,7 +9,7 @@ import path from 'path';
 import { getIntlExtensionModule } from './get-intl-extension-module';
 
 export async function withIntl(
-	version: SupportedPHPVersion = LatestSupportedPHPVersion,
+	version: AllPHPVersion = LatestSupportedPHPVersion,
 	options: EmscriptenOptions
 ): Promise<EmscriptenOptions> {
 	const extensionName = 'intl.so';

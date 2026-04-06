@@ -142,10 +142,17 @@ RUN apt install -y bison;
 
 # Add libzip and zlib files if needed
 RUN if [ "$WITH_LIBZIP" = "yes" ]; then \
-		cp -r /libs/libzip/1.9.2/* /root/lib; \
-		# https://www.php.net/manual/en/zlib.installation.php
-		echo -n ' --with-zlib --with-zlib-dir=/root/lib --with-zip ' >> /root/.php-configure-flags; \
-		echo -n ' /root/lib/lib/libzip.a /root/lib/lib/libz.a ' >> /root/.emcc-php-wasm-sources; \
+		if [ "${PHP_VERSION%%.*}" -ge "7" ]; then \
+			cp -r /libs/libzip/1.9.2/* /root/lib; \
+			# https://www.php.net/manual/en/zlib.installation.php
+			echo -n ' --with-zlib --with-zlib-dir=/root/lib --with-zip ' >> /root/.php-configure-flags; \
+			echo -n ' /root/lib/lib/libzip.a /root/lib/lib/libz.a ' >> /root/.emcc-php-wasm-sources; \
+		else \
+			# PHP 5.x has a bundled zip extension that uses --enable-zip
+			cp -r /libs/libzip/1.2.0/* /root/lib; \
+			echo -n ' --with-zlib --with-zlib-dir=/root/lib --enable-zip ' >> /root/.php-configure-flags; \
+			echo -n ' /root/lib/lib/libz.a ' >> /root/.emcc-php-wasm-sources; \
+		fi; \
 	fi;
 
 # Add ncurses if needed and libedit if needed
@@ -195,8 +202,17 @@ RUN if [ "$WITH_SOAP" = "yes" ]; \
 # Add sqlite3 if needed
 RUN if [ "$WITH_SQLITE" = "yes" ]; \
 	then \
-		echo -n ' --with-sqlite3 --enable-pdo --with-pdo-sqlite=/root/lib ' >> /root/.php-configure-flags; \
+		echo -n ' --enable-pdo --with-pdo-sqlite=/root/lib ' >> /root/.php-configure-flags; \
 		echo -n ' /root/lib/lib/libsqlite3.a ' >> /root/.emcc-php-wasm-sources; \
+		# PHP 5.6 bundles an old SQLite 3.8.10.2 in ext/sqlite3/libsqlite/. \
+		# Remove the bundled source so configure uses the external library. \
+		if [ "${PHP_VERSION%%.*}" -lt "7" ]; then \
+			rm -f /root/php-src/ext/sqlite3/libsqlite/sqlite3.c \
+				  /root/php-src/ext/sqlite3/libsqlite/sqlite3.h; \
+			echo -n ' --with-sqlite3=/root/lib ' >> /root/.php-configure-flags; \
+		else \
+			echo -n ' --with-sqlite3 ' >> /root/.php-configure-flags; \
+		fi; \
 	else \
 		echo -n ' --without-sqlite3 --disable-pdo ' >> /root/.php-configure-flags; \
 	fi
@@ -257,6 +273,12 @@ RUN if [ "$WITH_CURL" = "yes" ]; \
 	then \
 		echo -n ' --with-curl=/root/lib ' >> /root/.php-configure-flags; \
 		echo -n ' /root/lib/lib/libcurl.a ' >> /root/.emcc-php-wasm-sources; \
+		# PHP 5.x uses curl-config to detect cURL instead of pkg-config.
+		# Provide a shim so configure can find the pre-built library.
+		if [ "${PHP_VERSION%%.*}" -le "5" ]; then \
+			printf '#!/bin/sh\ncase "$1" in\n--version) echo "7.80.0" ;;\n--cflags) echo "-I/root/lib/include" ;;\n--libs) echo "-L/root/lib/lib -lcurl" ;;\n--prefix) echo "/root/lib" ;;\nesac\n' > /usr/local/bin/curl-config && \
+			chmod +x /usr/local/bin/curl-config; \
+		fi; \
 	fi;
 
 # Add mbstring if needed
@@ -290,14 +312,16 @@ RUN cd /root && \
 	git apply --no-index /root/php${PHP_VERSION:0:3}*.patch -v && \
 	chmod +x /root/apply-mysqlnd-patch.sh && \
 	/root/apply-mysqlnd-patch.sh && \
-	if [[ "${PHP_VERSION:0:3}" < '8.3' ]]; then \
-		git apply --no-index /root/php-chunk-alloc-zend-assert-up-to-8.2.patch -v; \
-	elif [[ "${PHP_VERSION:0:3}" == '8.3' ]]; then \
-		git apply --no-index /root/php-chunk-alloc-zend-assert-8.3.patch -v; \
-	elif [[ "${PHP_VERSION:0:3}" == '8.4' ]]; then \
-		git apply --no-index /root/php-chunk-alloc-zend-assert-8.4.patch -v; \
-	elif [[ "${PHP_VERSION:0:3}" == '8.5' ]]; then \
-		git apply --no-index /root/php-chunk-alloc-zend-assert-8.5.patch -v; \
+	if [[ "${PHP_VERSION:0:1}" -ge "7" ]]; then \
+		if [[ "${PHP_VERSION:0:3}" < '8.3' ]]; then \
+			git apply --no-index /root/php-chunk-alloc-zend-assert-up-to-8.2.patch -v; \
+		elif [[ "${PHP_VERSION:0:3}" == '8.3' ]]; then \
+			git apply --no-index /root/php-chunk-alloc-zend-assert-8.3.patch -v; \
+		elif [[ "${PHP_VERSION:0:3}" == '8.4' ]]; then \
+			git apply --no-index /root/php-chunk-alloc-zend-assert-8.4.patch -v; \
+		elif [[ "${PHP_VERSION:0:3}" == '8.5' ]]; then \
+			git apply --no-index /root/php-chunk-alloc-zend-assert-8.5.patch -v; \
+		fi; \
 	fi && \
 	touch php-src/patched
 
@@ -309,7 +333,9 @@ RUN if [ "$WITH_MYSQL" = "yes" ]; then \
 
 # Download and prepare imagick extension if needed (PHP 7.4+)
 # Use version 3.7.0 for PHP 7.x, master for PHP 8.x
-RUN 	if [ "${PHP_VERSION:0:1}" -eq "7" ]; then \
+# Skip entirely for PHP 5.x (imagick 3.7+ requires PHP 7+)
+RUN if [ "${PHP_VERSION:0:1}" -ge "7" ]; then \
+		if [ "${PHP_VERSION:0:1}" -eq "7" ]; then \
 			IMAGICK_BRANCH="3.7.0"; \
 		else \
 			IMAGICK_BRANCH="master"; \
@@ -331,12 +357,21 @@ RUN 	if [ "${PHP_VERSION:0:1}" -eq "7" ]; then \
 			./buildconf --force; \
 		fi && \
 		echo -n ' --with-imagick=/root/lib --with-imagick-config=/root/lib/bin/wasm32-unknown-emscripten-MagickWand-config ' >> /root/.php-configure-flags && \
-		echo -n ' /root/lib/lib/libMagickWand-7.Q16HDRI.a /root/lib/lib/libMagickCore-7.Q16HDRI.a ' >> /root/.emcc-php-wasm-sources
+		echo -n ' /root/lib/lib/libMagickWand-7.Q16HDRI.a /root/lib/lib/libMagickCore-7.Q16HDRI.a ' >> /root/.emcc-php-wasm-sources; \
+	fi
 
 # Disable phar.php generation for all builds (WASM binaries can't execute during build)
 # This must run after buildconf but before configure
 RUN /root/replace.sh 's/pharcmd=pharcmd/pharcmd=/g' /root/php-src/configure && \
 	/root/replace.sh 's/pharcmd_install=install-pharcmd/pharcmd_install=/g' /root/php-src/configure
+
+# Fibers are a PHP 8.1+ feature. They are compiled as a custom assembly
+# implementation by default. However, that implementation does not work with
+# emscripten. The line below disables it for PHP 8.1+.
+# See https://github.com/WordPress/wordpress-playground/issues/92
+RUN if [[ "${PHP_VERSION:0:1}" -gt "8" || ( "${PHP_VERSION:0:1}" -eq "8" && "${PHP_VERSION:2:1}" -ge "1" ) ]]; then \
+		echo -n ' --disable-fiber-asm ' >> /root/.php-configure-flags; \
+	fi
 
 # Build the patched PHP
 WORKDIR /root/php-src
@@ -356,16 +391,8 @@ RUN source /root/emsdk/emsdk_env.sh && \
 	PKG_CONFIG_PATH="/root/lib/lib/pkgconfig:${PKG_CONFIG_PATH}" \
 		emconfigure ./configure \
 		PKG_CONFIG_PATH=$PKG_CONFIG_PATH \
-	# Fibers are a PHP 8.1+ feature. They are compiled as
-	# a custom assembly implementation by default. However,
-	# that implementation does not work with emscripten.
+	# --disable-fiber-asm is added via .php-configure-flags for PHP 8.1+ only
 	#
-	# The line below disables it, forcing PHP to use the
-	# C implementation instead.
-	#
-	# See https://github.com/WordPress/wordpress-playground/issues/92
-	# for more context.
-	--disable-fiber-asm \
 	--enable-phar \
 	# --enable-json for PHP < 8.0:
 	--enable-json      \
@@ -396,6 +423,12 @@ RUN source /root/emsdk/emsdk_env.sh && \
 # Silence the errors "munmap() failed: [28] Invalid argument"
 # @TODO: Identify the root cause behind these errors and fix them properly
 RUN echo '#define ZEND_MM_ERROR 0' >> /root/php-src/main/php_config.h;
+
+# PHP 5.6's configure detects "old" readdir_r (2-arg) but Emscripten provides
+# the modern 3-arg version. Undefine the old variant.
+RUN if grep -q 'HAVE_OLD_READDIR_R' /root/php-src/main/php_config.h 2>/dev/null; then \
+		echo '#undef HAVE_OLD_READDIR_R' >> /root/php-src/main/php_config.h; \
+	fi
 
 # Force GD JPEG/PNG/WebP/AVIF support for external GD builds (PHP 8.1+)
 # Configure checks may fail during cross-compilation, so we explicitly enable them
@@ -431,10 +464,31 @@ fi;
 RUN echo '#undef HAVE_ASM_GOTO' >> /root/php-src/main/php_config.h;
 RUN echo '#define HAVE_ASM_GOTO 0' >> /root/php-src/main/php_config.h;
 # Disable asm arithmetic.
-RUN /root/replace.sh 's/ZEND_USE_ASM_ARITHMETIC 1/ZEND_USE_ASM_ARITHMETIC 0/g' /root/php-src/Zend/zend_operators.h;
-RUN /root/replace.sh 's/defined\(__GNUC__\)/0/g' /root/php-src/Zend/zend_multiply.h
-RUN /root/replace.sh 's/defined\(__GNUC__\)/0/g' /root/php-src/Zend/zend_cpuinfo.c
-RUN /root/replace.sh 's/defined\(__clang__\)/0/g' /root/php-src/Zend/zend_cpuinfo.c
+# ZEND_USE_ASM_ARITHMETIC was introduced in PHP 7.x, zend_cpuinfo.c in PHP 7.1
+RUN if [ -f /root/php-src/Zend/zend_operators.h ] && grep -q 'ZEND_USE_ASM_ARITHMETIC' /root/php-src/Zend/zend_operators.h; then \
+		/root/replace.sh 's/ZEND_USE_ASM_ARITHMETIC 1/ZEND_USE_ASM_ARITHMETIC 0/g' /root/php-src/Zend/zend_operators.h; \
+	fi
+# PHP 5.x uses __GNUC__ && __x86_64__ guards for inline asm in zend_operators.h
+# and zend_alloc.c instead of ZEND_USE_ASM_ARITHMETIC. Disable those too.
+RUN if [ -f /root/php-src/Zend/zend_operators.h ] && ! grep -q 'ZEND_USE_ASM_ARITHMETIC' /root/php-src/Zend/zend_operators.h; then \
+		/root/replace.sh 's/defined\(__GNUC__\) && defined\(__x86_64__\)/0/g' /root/php-src/Zend/zend_operators.h; \
+		/root/replace.sh 's/defined\(__GNUC__\) && defined\(__i386__\)/0/g' /root/php-src/Zend/zend_operators.h || true; \
+	fi
+RUN if [ -f /root/php-src/Zend/zend_alloc.c ] && ! grep -q 'ZEND_USE_ASM_ARITHMETIC' /root/php-src/Zend/zend_alloc.c; then \
+		/root/replace.sh 's/defined\(__GNUC__\) && defined\(__x86_64__\)/0/g' /root/php-src/Zend/zend_alloc.c; \
+		/root/replace.sh 's/defined\(__GNUC__\) && defined\(__i386__\)/0/g' /root/php-src/Zend/zend_alloc.c || true; \
+	fi
+RUN if [ -f /root/php-src/Zend/zend_multiply.h ]; then \
+		/root/replace.sh 's/defined\(__GNUC__\)/0/g' /root/php-src/Zend/zend_multiply.h; \
+	fi
+RUN if [ -f /root/php-src/Zend/zend_cpuinfo.c ]; then \
+		/root/replace.sh 's/defined\(__GNUC__\)/0/g' /root/php-src/Zend/zend_cpuinfo.c; \
+		/root/replace.sh 's/defined\(__clang__\)/0/g' /root/php-src/Zend/zend_cpuinfo.c; \
+	fi
+# PHP 5.6 bundles PCRE with JIT hardcoded in config.h. Disable it for WASM.
+RUN if [ -f /root/php-src/ext/pcre/pcrelib/config.h ] && grep -q '^#define SUPPORT_JIT' /root/php-src/ext/pcre/pcrelib/config.h; then \
+		/root/replace.sh 's/^#define SUPPORT_JIT/#undef SUPPORT_JIT/g' /root/php-src/ext/pcre/pcrelib/config.h; \
+	fi
 # }}}
 
 # With HAVE_UNISTD_H=1 PHP complains about the missing getdtablesize() function
@@ -461,8 +515,11 @@ RUN /root/replace.sh 's/#define VCWD_POPEN.+/#define VCWD_POPEN(command, type) w
 RUN echo 'extern FILE *wasm_popen(const char *cmd, const char *mode);' >> /root/php-src/Zend/zend_virtual_cwd.h
 
 # Provide a custom implementation of the shutdown() function.
-RUN perl -pi.bak -e $'s/(\s+)shutdown\(/$1 wasm_shutdown(/g' /root/php-src/sapi/cli/php_cli_server.c
-RUN perl -pi.bak -e $'s/(\s+)closesocket\(/$1 wasm_close(/g' /root/php-src/sapi/cli/php_cli_server.c
+# php_cli_server.c exists in PHP 5.4+ (built-in server added in 5.4)
+RUN if [ -f /root/php-src/sapi/cli/php_cli_server.c ]; then \
+		perl -pi.bak -e $'s/(\\s+)shutdown\\(/$1 wasm_shutdown(/g' /root/php-src/sapi/cli/php_cli_server.c; \
+		perl -pi.bak -e $'s/(\\s+)closesocket\\(/$1 wasm_close(/g' /root/php-src/sapi/cli/php_cli_server.c; \
+	fi
 
 # Provide custom implementation fo the shutdown() function.
 # This is used by intl ( which links C++ code ) and need C linkage.
@@ -504,8 +561,12 @@ RUN source /root/emsdk/emsdk_env.sh && \
 	# We're compiling PHP as emscripten's side module...
 	export JSPI_FLAGS=$(if [ "$WITH_JSPI" = "yes" ]; then echo "-sSUPPORT_LONGJMP=wasm -fwasm-exceptions"; else echo ""; fi) && \
 	export PHP_VERSION_ESCAPED="${PHP_VERSION//./_}" && \
+	# PHP 5.x has function pointer type mismatches, deprecated non-prototype
+	# function definitions, and implicit function declarations that are
+	# errors in modern clang/emcc
+	export PHP5_FLAGS=$(if [ "${PHP_VERSION:0:1}" -le "5" ]; then echo "-Wno-incompatible-function-pointer-types -Wno-deprecated-non-prototype -Wno-implicit-function-declaration -Wno-incompatible-pointer-types -Wno-implicit-int"; else echo ""; fi) && \
 	EMCC_FLAGS=" -D__x86_64__ -sSIDE_MODULE -Dsetsockopt=wasm_setsockopt -Dphp_exec=wasm_php_exec \
-		$JSPI_FLAGS \
+		$JSPI_FLAGS $PHP5_FLAGS \
 		-fdebug-compilation-dir=${DEBUG_DWARF_COMPILATION_DIR}/ \
 		-fdebug-prefix-map=/root/php-src/=${OUTPUT_DIR_ON_HOST}/${PHP_VERSION_ESCAPED}/php-src/ " \
 	# ...which means we must skip all the libraries - they will be provided in the final linking step.
@@ -2155,12 +2216,7 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "zval_try_get_string_func",\
 "zval_undefined_cv",\
 "zval_update_constant_ex"';\
-	# If pointer casts are enabled, we need to asyncify both the prefixed and unprefixed names
-	if [ "${PHP_VERSION:0:1}" -lt "8" ]; then \
-		export ASYNCIFY_ONLY="$ASYNCIFY_ONLY_UNPREFIXED,"$(echo "$ASYNCIFY_ONLY_UNPREFIXED" | sed -E $'s/"([a-zA-Z])/"byn$fpcast-emu$\\1/g'); \
-	else \
-		export ASYNCIFY_ONLY="$ASYNCIFY_ONLY_UNPREFIXED"; \
-	fi; \
+	export ASYNCIFY_ONLY="$ASYNCIFY_ONLY_UNPREFIXED"; \
 
 	echo -n ' -s ASYNCIFY_ONLY=['$ASYNCIFY_ONLY'] '| tr -d "\n" >> /root/.emcc-php-asyncify-flags;
 
@@ -2396,7 +2452,9 @@ RUN set -euxo pipefail; \
 		# This alias ensure that dynamically loaded extensions can
 		# correctly resolve the required import.
 		if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then \
-			/root/replace.sh 's/wasm_setsockopt:\s*_wasm_setsockopt,/wasm_setsockopt: _wasm_setsockopt,\n  \/** \@export *\/ wasm_recv: _wasm_recv,/g' /root/output/php.js; \
+			# Patch wasm_recv export alongside wasm_setsockopt. The pattern
+			# may not match in PHP 5.x builds, so allow the replace to fail.
+			/root/replace.sh 's/wasm_setsockopt:\s*_wasm_setsockopt,/wasm_setsockopt: _wasm_setsockopt,\n  \/** \@export *\/ wasm_recv: _wasm_recv,/g' /root/output/php.js || true; \
 		fi; \
 	# Patch Emscripten exit status to include a stack trace
 		# Override Emscripten's default ExitStatus class which gets

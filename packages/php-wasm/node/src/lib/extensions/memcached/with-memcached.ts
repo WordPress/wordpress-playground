@@ -1,14 +1,14 @@
 import type {
 	EmscriptenOptions,
 	PHPRuntime,
-	SupportedPHPVersion,
+	AllPHPVersion,
 } from '@php-wasm/universal';
 import { LatestSupportedPHPVersion, FSHelpers } from '@php-wasm/universal';
 import fs from 'fs';
 import { getMemcachedExtensionModule } from './get-memcached-extension-module';
 
 export async function withMemcached(
-	version: SupportedPHPVersion = LatestSupportedPHPVersion,
+	version: AllPHPVersion = LatestSupportedPHPVersion,
 	options: EmscriptenOptions
 ): Promise<EmscriptenOptions> {
 	const extensionName = 'memcached.so';

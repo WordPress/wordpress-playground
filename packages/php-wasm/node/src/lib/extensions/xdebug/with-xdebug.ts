@@ -2,7 +2,7 @@ import { DEFAULT_IDE_KEY } from '@php-wasm/cli-util';
 import {
 	type EmscriptenOptions,
 	type PHPRuntime,
-	type SupportedPHPVersion,
+	type AllPHPVersion,
 	FSHelpers,
 	LatestSupportedPHPVersion,
 	SupportedPHPVersions,
@@ -23,7 +23,7 @@ export interface XdebugOptions {
 }
 
 export async function withXdebug(
-	version: SupportedPHPVersion = LatestSupportedPHPVersion,
+	version: AllPHPVersion = LatestSupportedPHPVersion,
 	options: EmscriptenOptions,
 	xdebugOptions: XdebugOptions
 ): Promise<EmscriptenOptions> {

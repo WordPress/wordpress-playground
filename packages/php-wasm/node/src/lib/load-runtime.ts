@@ -1,4 +1,5 @@
 import {
+	type AllPHPVersion,
 	type SupportedPHPVersion,
 	type EmscriptenOptions,
 	type PHPRuntime,
@@ -6,6 +7,7 @@ import {
 	loadPHPRuntime,
 	FSHelpers,
 	FileLockManagerComposite,
+	LegacyPHPVersions,
 	ProcessIdAllocator,
 } from '@php-wasm/universal';
 import type { WasmUserSpaceAPI, WasmUserSpaceContext } from './wasm-user-space';
@@ -98,7 +100,7 @@ const dangerousDefaultProcessIdAllocator = (process.env as any).VITEST
  * @see load
  */
 export async function loadNodeRuntime(
-	phpVersion: SupportedPHPVersion,
+	phpVersion: AllPHPVersion,
 	options: PHPLoaderOptionsForNode = {}
 ) {
 	const processId =
@@ -109,6 +111,10 @@ export async function loadNodeRuntime(
 		((process.env as any).VITEST
 			? dangerousDefaultProcessIdAllocator!.claim()
 			: undefined);
+
+	const isLegacy = (LegacyPHPVersions as readonly string[]).includes(
+		phpVersion
+	);
 
 	let emscriptenOptions: EmscriptenOptions = {
 		/**
@@ -134,6 +140,50 @@ export async function loadNodeRuntime(
 		},
 		...(options.emscriptenOptions || {}),
 		processId,
+		// For legacy PHP: pre-create php.ini with disable_functions BEFORE
+		// the PHP SAPI starts. initRuntime() calls __wasm_call_ctors which
+		// triggers wasm_sapi_module_startup -> php_module_startup, and
+		// disable_functions is processed during php_module_startup.
+		// This preRun callback runs before initRuntime().
+		preRun: isLegacy
+			? [
+					(module: any) => {
+						// Pre-create php.ini with ALL default settings
+						// PLUS disable_functions=ini_get_all. This must
+						// be done before SAPI startup which processes
+						// disable_functions at module init time.
+						// PHP.initializeRuntime skips writing php.ini
+						// if the file already exists.
+						module.FS.mkdirTree('/internal/shared');
+						module.FS.writeFile(
+							'/internal/shared/php.ini',
+							[
+								'auto_prepend_file=/internal/shared/auto_prepend_file.php',
+								'memory_limit=256M',
+								'ignore_repeated_errors = 1',
+								'error_reporting = E_ALL',
+								'display_errors = 1',
+								'html_errors = 1',
+								'display_startup_errors = On',
+								'log_errors = 1',
+								'always_populate_raw_post_data = -1',
+								'upload_max_filesize = 2000M',
+								'post_max_size = 2000M',
+								'allow_url_fopen = On',
+								'allow_url_include = Off',
+								'session.save_path = /home/web_user',
+								'implicit_flush = 1',
+								'output_buffering = 0',
+								'max_execution_time = 0',
+								'max_input_time = -1',
+								'disable_functions = ini_get_all',
+								'opcache.enable = 0',
+								'opcache.enable_cli = 0',
+							].join('\n')
+						);
+					},
+				]
+			: undefined,
 		onRuntimeInitialized: (phpRuntime: PHPRuntime) => {
 			/**
 			 * When users mount a directory using the `mount` function,
@@ -287,24 +337,45 @@ export async function loadNodeRuntime(
 		},
 	};
 
-	if (options?.withXdebug) {
-		emscriptenOptions = await withXdebug(
-			phpVersion,
-			emscriptenOptions,
-			typeof options.withXdebug === 'object' ? options.withXdebug : {}
-		);
-	}
-
-	if (options?.withIntl === true) {
-		emscriptenOptions = await withIntl(phpVersion, emscriptenOptions);
-	}
-
-	if (options?.withRedis === true) {
-		emscriptenOptions = await withRedis(phpVersion, emscriptenOptions);
-	}
-
-	if (options?.withMemcached === true) {
-		emscriptenOptions = await withMemcached(phpVersion, emscriptenOptions);
+	if (isLegacy) {
+		if (
+			options?.withXdebug ||
+			options?.withIntl ||
+			options?.withRedis ||
+			options?.withMemcached
+		) {
+			throw new Error(
+				`Extensions (xdebug, intl, redis, memcached) are not ` +
+					`available for legacy PHP ${phpVersion}.`
+			);
+		}
+	} else {
+		const modernVersion = phpVersion as SupportedPHPVersion;
+		if (options?.withXdebug) {
+			emscriptenOptions = await withXdebug(
+				modernVersion,
+				emscriptenOptions,
+				typeof options.withXdebug === 'object' ? options.withXdebug : {}
+			);
+		}
+		if (options?.withIntl === true) {
+			emscriptenOptions = await withIntl(
+				modernVersion,
+				emscriptenOptions
+			);
+		}
+		if (options?.withRedis === true) {
+			emscriptenOptions = await withRedis(
+				modernVersion,
+				emscriptenOptions
+			);
+		}
+		if (options?.withMemcached === true) {
+			emscriptenOptions = await withMemcached(
+				modernVersion,
+				emscriptenOptions
+			);
+		}
 	}
 
 	emscriptenOptions = await withNetworking(emscriptenOptions);

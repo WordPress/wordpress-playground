@@ -1,5 +1,5 @@
 import { LatestSupportedPHPVersion } from '@php-wasm/universal';
-import type { SupportedPHPVersion } from '@php-wasm/universal';
+import type { AllPHPVersion } from '@php-wasm/universal';
 
 /**
  * Returns the path to the memcached extension for the specified PHP version.
@@ -11,30 +11,44 @@ import type { SupportedPHPVersion } from '@php-wasm/universal';
  * - etc.
  */
 export async function getMemcachedExtensionModule(
-	version: SupportedPHPVersion = LatestSupportedPHPVersion
+	version: AllPHPVersion = LatestSupportedPHPVersion
 ): Promise<any> {
 	switch (version) {
 		case '8.5':
 			// @ts-ignore
-			return (await import('@php-wasm/node-8-5')).getMemcachedExtensionPath();
+			return (
+				await import('@php-wasm/node-8-5')
+			).getMemcachedExtensionPath();
 		case '8.4':
 			// @ts-ignore
-			return (await import('@php-wasm/node-8-4')).getMemcachedExtensionPath();
+			return (
+				await import('@php-wasm/node-8-4')
+			).getMemcachedExtensionPath();
 		case '8.3':
 			// @ts-ignore
-			return (await import('@php-wasm/node-8-3')).getMemcachedExtensionPath();
+			return (
+				await import('@php-wasm/node-8-3')
+			).getMemcachedExtensionPath();
 		case '8.2':
 			// @ts-ignore
-			return (await import('@php-wasm/node-8-2')).getMemcachedExtensionPath();
+			return (
+				await import('@php-wasm/node-8-2')
+			).getMemcachedExtensionPath();
 		case '8.1':
 			// @ts-ignore
-			return (await import('@php-wasm/node-8-1')).getMemcachedExtensionPath();
+			return (
+				await import('@php-wasm/node-8-1')
+			).getMemcachedExtensionPath();
 		case '8.0':
 			// @ts-ignore
-			return (await import('@php-wasm/node-8-0')).getMemcachedExtensionPath();
+			return (
+				await import('@php-wasm/node-8-0')
+			).getMemcachedExtensionPath();
 		case '7.4':
 			// @ts-ignore
-			return (await import('@php-wasm/node-7-4')).getMemcachedExtensionPath();
+			return (
+				await import('@php-wasm/node-7-4')
+			).getMemcachedExtensionPath();
 	}
 	throw new Error(`Unsupported PHP version ${version}`);
 }

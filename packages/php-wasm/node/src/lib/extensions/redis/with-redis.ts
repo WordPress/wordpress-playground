@@ -1,14 +1,14 @@
 import type {
 	EmscriptenOptions,
 	PHPRuntime,
-	SupportedPHPVersion,
+	AllPHPVersion,
 } from '@php-wasm/universal';
 import { LatestSupportedPHPVersion, FSHelpers } from '@php-wasm/universal';
 import fs from 'fs';
 import { getRedisExtensionModule } from './get-redis-extension-module';
 
 export async function withRedis(
-	version: SupportedPHPVersion = LatestSupportedPHPVersion,
+	version: AllPHPVersion = LatestSupportedPHPVersion,
 	options: EmscriptenOptions
 ): Promise<EmscriptenOptions> {
 	const extensionName = 'redis.so';

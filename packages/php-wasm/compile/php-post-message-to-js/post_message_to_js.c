@@ -14,16 +14,22 @@ PHP_FUNCTION(post_message_to_js)
     char *data;
     int data_len;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s", &data, &data_len) == FAILURE) {
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &data, &data_len) == FAILURE) {
         return;
     }
 
     char *response;
     size_t response_len = js_module_onMessage(data, &response);
-    if (response_len != -1) {
+    if (response_len != (size_t)-1) {
+#if PHP_MAJOR_VERSION >= 7
         zend_string *return_string = zend_string_init(response, response_len, 0);
         free(response);
         RETURN_NEW_STR(return_string);
+#else
+        RETVAL_STRINGL(response, response_len, 1);
+        free(response);
+        return;
+#endif
     } else {
         RETURN_NULL();
     }

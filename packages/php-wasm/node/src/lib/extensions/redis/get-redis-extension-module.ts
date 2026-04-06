@@ -1,5 +1,5 @@
 import { LatestSupportedPHPVersion } from '@php-wasm/universal';
-import type { SupportedPHPVersion } from '@php-wasm/universal';
+import type { AllPHPVersion } from '@php-wasm/universal';
 
 /**
  * Returns the path to the redis extension for the specified PHP version.
@@ -11,7 +11,7 @@ import type { SupportedPHPVersion } from '@php-wasm/universal';
  * - etc.
  */
 export async function getRedisExtensionModule(
-	version: SupportedPHPVersion = LatestSupportedPHPVersion
+	version: AllPHPVersion = LatestSupportedPHPVersion
 ): Promise<any> {
 	switch (version) {
 		case '8.5':
