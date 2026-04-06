@@ -48,7 +48,7 @@ Asyncify peut lister automatiquement toutes les fonctions C requises lorsqu’il
 Asyncify can auto-list all the required C functions when built without `ASYNCIFY_ONLY`, but that auto-detection is overeager and ends up listing about 70,000 C functions which increases the startup time to 4.5s. That's why we maintain the list manually.
 -->
 
-Pour en savoir plus, voir [l’issue GitHub 251](https://github.com/WordPress/wordpress-playground/issues/251).
+Pour en savoir plus, consultez [l’issue GitHub 251](https://github.com/WordPress/wordpress-playground/issues/251).
 
 <!--
 If you are interested in more details, [see GitHub issue 251](https://github.com/WordPress/wordpress-playground/issues/251).
