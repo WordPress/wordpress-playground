@@ -336,6 +336,21 @@ describe('fetchWithCorsProxy', () => {
 		expect(await response.text()).toBe('proxied');
 	});
 
+	/**
+	 * These tests do not prove streaming vs buffered upload from the `Response`
+	 * (that is not exposed). They also cannot use `fetch` mock `Request.body`:
+	 * even when our code buffers to an `ArrayBuffer` and passes it into
+	 * `new Request()`, the Fetch API still exposes `request.body` as a
+	 * `ReadableStream`, same as the tee/streaming path — so `instanceof
+	 * ArrayBuffer` on outgoing requests is not a valid signal in this runtime.
+	 *
+	 * Instead, the Safari (buffer) *preparation* path is selected by mocking the
+	 * first `fetch` (the `supportsReadableStreamBody` probe) to reject; then we
+	 * assert call counts, URLs, and that body bytes round-trip correctly.
+	 *
+	 * The GET case has no request body, so there is no probe and no tee vs
+	 * buffer fork; only direct-fetch behavior is exercised.
+	 */
 	describe('non-streaming fallback (Safari)', () => {
 		beforeEach(() => {
 			__testing.resetStreamBodySupported();

@@ -267,6 +267,7 @@ export async function cloneRequest(
 	});
 }
 
+// Cached result of supportsReadableStreamBody(); undefined means not probed yet.
 let streamBodySupported: boolean | undefined;
 
 /** @internal Test-only utilities — not part of the public API. */
