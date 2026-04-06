@@ -10,7 +10,7 @@
 [Asyncify](https://emscripten.org/docs/porting/asyncify.html) lets synchronous C or C++ code interact with asynchronous JavaScript. Technically, it saves the entire C call stack before yielding control back to JavaScript, and then restores it when the asynchronous call is finished. This is called **stack switching**.
 -->
 
-La prise en charge du réseau dans la compilation WebAssembly de PHP est implémentée avec Asyncify. Lorsque PHP effectue une requête réseau, il rend la main au JavaScript, qui exécute la requête, puis reprend PHP lorsque la réponse est prête. Cela fonctionne suffisamment bien pour que la compilation PHP puisse appeler des API web, installer des paquets Composer et même se connecter à un serveur MySQL.
+La prise en charge du réseau dans la compilation WebAssembly de PHP est implémentée avec Asyncify. Lorsque PHP effectue une requête réseau, il rend la main au JavaScript, qui exécute la requête, puis reprend PHP lorsque la réponse est prête. Cela fonctionne suffisamment bien pour que la compilation PHP puisse appeler des API web, installer des dépendances Composer et même se connecter à un serveur MySQL.
 
 <!--
 Networking support in the WebAssembly PHP build is implemented using Asyncify. When PHP makes a network request, it yields control back to JavaScript, which makes the request, and then resumes PHP when the response is ready. It works well enough that PHP build can request web APIs, install composer packages, and even connect to a MySQL server.
