@@ -42,7 +42,7 @@ Unfortunately, missing even a single item from that list results in a WebAssembl
 ![A screenshot of an asyncify error in the terminal](@site/static/img/developers/asyncify-error.webp)
 -->
 
-Asyncify peut lister automatiquement toutes les fonctions C requises lorsqu’il est compilé sans `ASYNCIFY_ONLY`, mais cette détection automatique est trop agressive et finit par lister environ 70 000 fonctions C, ce qui porte le temps de démarrage à 4,5 s. C’est pourquoi nous maintenons la liste à la main.
+Asyncify peut lister automatiquement toutes les fonctions C requises lorsqu’il est compilé sans `ASYNCIFY_ONLY`, mais cette détection automatique est trop agressive et finit par lister environ 70 000 fonctions C, ce qui porte le temps de démarrage à 4,5 secondes. C’est pourquoi nous maintenons la liste à la main.
 
 <!--
 Asyncify can auto-list all the required C functions when built without `ASYNCIFY_ONLY`, but that auto-detection is overeager and ends up listing about 70,000 C functions which increases the startup time to 4.5s. That's why we maintain the list manually.
