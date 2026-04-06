@@ -36,7 +36,7 @@ Malheureusement, l’absence d’un seul élément de cette liste provoque un pl
 Unfortunately, missing even a single item from that list results in a WebAssembly crash whenever that function is a part of the call stack when an asynchronous call is made. It looks like this:
 -->
 
-![Capture d’écran d’une erreur asyncify dans le terminal](@site/static/img/developers/asyncify-error.webp)
+![Capture d’écran d’une erreur Asyncify dans le terminal](@site/static/img/developers/asyncify-error.webp)
 
 <!--
 ![A screenshot of an asyncify error in the terminal](@site/static/img/developers/asyncify-error.webp)
