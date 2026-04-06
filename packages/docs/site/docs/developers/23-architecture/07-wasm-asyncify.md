@@ -27,7 +27,7 @@ If you run into a crash like the one above, you can fix it by:
 1. Identifying a PHP code path that triggers the crash – the stack trace in the terminal should help with that.
 2. Adding a test case that triggers a crash to `packages/php-wasm/node/src/test/php-asyncify.spec.ts`
 3. Running: `npm run fix-asyncify`
-4. Committing the test case, the updated Dockerfile, and the rebuilt PHP.wasm
+4. Committing the test case, the updated `Dockerfile`, and the rebuilt `PHP.wasm`
 
 ## JSPI: The Modern Alternative to Asyncify
 
