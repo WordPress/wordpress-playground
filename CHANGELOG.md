@@ -4,6 +4,31 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
+## [v3.1.16] (2026-04-06) 
+
+### Website
+
+- Add WebMCP support to the Playground website. ([#3298](https://github.com/WordPress/wordpress-playground/pull/3298))
+- Centralized site management API and expose as window.playgroundSites. ([#3401](https://github.com/WordPress/wordpress-playground/pull/3401))
+
+### Bug Fixes
+
+- Fix phpMyAdmin and Adminer crash on PHP 8.5. ([#3444](https://github.com/WordPress/wordpress-playground/pull/3444))
+- [CLI] Fix `--skip-sqlite-setup` false pre-flight database error. ([#3456](https://github.com/WordPress/wordpress-playground/pull/3456))
+
+### Various
+
+- Update SQLite refresh script to support the SQLite monorepo. ([#3452](https://github.com/WordPress/wordpress-playground/pull/3452))
+- [i18n] Add Bengali translation for blueprints/05-steps.md. ([#3432](https://github.com/WordPress/wordpress-playground/pull/3432))
+- [i18n] ja translations developer architecture Service Workers and Scopes. ([#3431](https://github.com/WordPress/wordpress-playground/pull/3431))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@bgrgicak @JanJakes @mho22 @noruzzamans @shimotmk
+
+
 ## [v3.1.15] (2026-03-31) 
 
 ### PHP WebAssembly

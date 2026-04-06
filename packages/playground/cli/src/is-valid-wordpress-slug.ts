@@ -4,6 +4,7 @@
  * The Regex is based on the releases on https://wordpress.org/download/releases/#betas
  * The version string can be one of the following formats:
  * - "latest"
+ * - "beta"
  * - "trunk"
  * - "trunk" (legacy alias: "nightly")
  * - "x.y" (x and y are integers) e.g. "6.2"
@@ -16,6 +17,6 @@
  */
 export function isValidWordPressSlug(version: string): boolean {
 	const versionPattern =
-		/^latest$|^trunk$|^nightly$|^(?:(\d+)\.(\d+)(?:\.(\d+))?)((?:-beta(?:\d+)?)|(?:-RC(?:\d+)?))?$/;
+		/^latest$|^beta$|^trunk$|^nightly$|^(?:(\d+)\.(\d+)(?:\.(\d+))?)((?:-beta(?:\d+)?)|(?:-RC(?:\d+)?))?$/;
 	return versionPattern.test(version);
 }
