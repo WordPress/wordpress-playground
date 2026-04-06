@@ -4,8 +4,6 @@ slug: /quick-start-guide
 description: Un guide de 5 minutes pour débuter avec Playground. Apprenez à tester des extensions, à essayer des thèmes et à utiliser différentes versions WP/PHP.
 ---
 
-import ThisIsQueryApi from '@site/docs/\_fragments/\_this_is_query_api.md';
-
 <!-- # Start using WordPress Playground in 5 minutes -->
 
 # Commencez à utiliser WordPress Playground en 5 minutes
@@ -87,7 +85,7 @@ Vous pouvez également mélanger et faire correspondre ces paramètres et même 
 
 https://playground.wordpress.net/?plugin=coblocks&plugin=friends&theme=pendant
 
-<ThisIsQueryApi />
+This is called [Query API](/developers/apis/query-api/) and you can learn more about it [here](/developers/apis/query-api/).
 
 <!-- ## Save your site -->
 
@@ -175,7 +173,7 @@ Vous pouvez également utiliser les [paramètres de requête](/developers/apis/q
 - https://playground.wordpress.net/?php=8.3
 - https://playground.wordpress.net/?php=8.2&wp=6.2
 
-<ThisIsQueryApi />
+This is called [Query API](/developers/apis/query-api/) and you can learn more about it [here](/developers/apis/query-api/).
 
 <!-- To learn more about preparing content for demos, see the [providing content for your demo guide](/guides/providing-content-for-your-demo). -->
 
