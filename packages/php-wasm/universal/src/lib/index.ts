@@ -46,11 +46,17 @@ export { PHPResponse, StreamedPHPResponse } from './php-response';
 export type { PHPResponseData } from './php-response';
 export type { ErrnoError } from './rethrow-file-system-error';
 export {
+	AllPHPVersions,
 	LatestSupportedPHPVersion,
+	LegacyPHPVersions,
 	SupportedPHPVersions,
 	SupportedPHPVersionsList,
 } from './supported-php-versions';
-export type { SupportedPHPVersion } from './supported-php-versions';
+export type {
+	AllPHPVersion,
+	LegacyPHPVersion,
+	SupportedPHPVersion,
+} from './supported-php-versions';
 export { PHP, __private__dont__use, PHPExecutionFailureError } from './php';
 export type { MountHandler, UnmountFunction } from './php';
 export { loadPHPRuntime, popLoadedRuntime } from './load-php-runtime';
