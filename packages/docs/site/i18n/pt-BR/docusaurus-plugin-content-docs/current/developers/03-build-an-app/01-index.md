@@ -32,9 +32,13 @@ O Playground pode ser incorporado no seu site usando a tag HTML `<iframe>` da se
 
 Cada visitante receberá sua própria instância privada do WordPress gratuitamente. Você pode então personalizá-la usando uma das [APIs do Playground](/developers/apis/).
 
-import PlaygroundWpNetWarning from '@site/docs/\_fragments/\_playground_wp_net_may_stop_working.md';
+:::caution Careful with the demo site
 
-<PlaygroundWpNetWarning />
+The site at https://playground.wordpress.net is there to support the community, but there are no guarantees it will continue to work if the traffic grows significantly.
+
+If you need certain availability, you should [host your own WordPress Playground](/developers/architecture/host-your-own-playground).
+
+:::
 
 <!-- ## Control the embedded website -->
 
@@ -44,9 +48,9 @@ import PlaygroundWpNetWarning from '@site/docs/\_fragments/\_playground_wp_net_m
 
 O WordPress Playground fornece três APIs que você pode usar para controlar o site incorporado em iframe. Todos os exemplos nesta seção são construídos usando uma delas:
 
-import APIList from '@site/docs/\_fragments/\_api_list.mdx';
-
-<APIList />
+- [Query API](/developers/apis/query-api) enable basic operations using only query parameters
+- [Blueprints API](/blueprints) give you a great degree of control with a simple JSON file
+- [JavaScript API](/developers/apis/javascript-api) give you full control via a JavaScript client from an npm package
 
 <!-- Learn more about each of these APIs in the [APIs overview section](/developers/apis/). -->
 
@@ -56,13 +60,11 @@ Saiba mais sobre cada uma dessas APIs na [seção de visão geral das APIs](/dev
 
 ## Apresentar um plugin ou tema do diretório WordPress
 
-import ThisIsQueryApi from '@site/docs/\_fragments/\_this_is_query_api.md';
-
 <!-- You can install plugins and themes from the WordPress directory with only URL parameters. This iframe preinstalls the `coblocks` and `friends` plugins and the `pendant` theme. -->
 
 Você pode instalar plugins e temas do diretório WordPress apenas com parâmetros de URL. Este iframe pré-instala os plugins `coblocks` e `friends` e o tema `pendant`.
 
-<ThisIsQueryApi />
+This is called [Query API](/developers/apis/query-api/) and you can learn more about it [here](/developers/apis/query-api/).
 
 ```html
 <iframe src="https://playground.wordpress.net/?plugin=coblocks"></iframe>
