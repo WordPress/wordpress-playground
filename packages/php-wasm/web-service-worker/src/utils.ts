@@ -285,7 +285,8 @@ export const __testing = {
  * retries without ReadableStream upload support.
  *
  * @param request
- * @returns A direct request plus a retry body payload.
+ * @returns `directRequest` for the first fetch, `retryBody` for a retry (or null if no
+ *     body), and `useStreamingBody` (whether the body was teed as streams vs buffered).
  */
 export async function prepareRequestForRetry(request: Request): Promise<{
 	directRequest: Request;
