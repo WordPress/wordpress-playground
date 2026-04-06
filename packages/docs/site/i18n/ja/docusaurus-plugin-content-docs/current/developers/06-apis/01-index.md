@@ -3,8 +3,6 @@ title: API の概要
 slug: /developers/apis/
 ---
 
-import ThisIsQueryApi from '@site/docs/\_fragments/\_this_is_query_api.md';
-
 ## WordPress Playground API の概要
 
 <!--
@@ -43,7 +41,7 @@ Or a theme:
 
 [https://playground.wordpress.net/?theme=pendant](https://playground.wordpress.net/?theme=pendant)
 
-<ThisIsQueryApi /> 気に入った URL ができたら、iframe を使用して Web サイトに埋め込むことができます。
+This is called [Query API](/developers/apis/query-api/) and you can learn more about it [here](/developers/apis/query-api/). 気に入った URL ができたら、iframe を使用して Web サイトに埋め込むことができます。
 
 <!--
 <ThisIsQueryApi /> Once you have a URL that you like, you can embed it in your website using an iframe:
@@ -151,9 +149,20 @@ Blueprints play a significant role in WordPress Playground, so they have their o
 The `@wp-playground/client` package provides a JavaScript API you can use to fully control your Playground instance. Here's a very example of what you can do:
 -->
 
-import JSApiShortExample from '@site/docs/\_fragments/\_js_api_short_example.mdx';
+```html
+<iframe id="wp" style="width: 100%; height: 300px; border: 1px solid #000;"></iframe>
+<script type="module">
+	// Use unpkg for convenience
+	import { startPlaygroundWeb } from 'https://playground.wordpress.net/client/index.js';
 
-<JSApiShortExample />
+	const client = await startPlaygroundWeb({
+		iframe: document.getElementById('wp'),
+		remoteUrl: `https://playground.wordpress.net/remote.html`,
+	});
+	// Let's wait until Playground is fully loaded
+	await client.isReady();
+</script>
+```
 
 :::info
 詳細については、[JavaScript API](/developers/apis/javascript-api/) セクションをご覧ください。
@@ -223,8 +232,8 @@ Playground インスタンスをカスタマイズするには、次の操作を
 To customize that Playground instance, you can:
 -->
 
--   [クエリ API](/developers/apis/query-api) (簡単) または [JSON ブループリント API](/blueprints) (中) を使用して用意された専用リンクから読み込みます。
--   [JavaScript API](/developers/apis/javascript-api/) を使用して制御します。
+- [クエリ API](/developers/apis/query-api) (簡単) または [JSON ブループリント API](/blueprints) (中) を使用して用意された専用リンクから読み込みます。
+- [JavaScript API](/developers/apis/javascript-api/) を使用して制御します。
 
 <!--
 -   Load it from special link prepared using the [Query API](/developers/apis/query-api) (easy) or the [JSON Blueprints API](/blueprints) (medium).
@@ -237,9 +246,13 @@ JavaScript API を使用すると、最も多くの制御が可能になりま�
 The JavaScript API gives you the most control, but it is also the least convenient option as it requires loading the Playground Client library.
 -->
 
-import PlaygroundWpNetWarning from '@site/docs/\_fragments/\_playground_wp_net_may_stop_working.md';
+:::caution Careful with the demo site
 
-<PlaygroundWpNetWarning />
+The site at https://playground.wordpress.net is there to support the community, but there are no guarantees it will continue to work if the traffic grows significantly.
+
+If you need certain availability, you should [host your own WordPress Playground](/developers/architecture/host-your-own-playground).
+
+:::
 
 ### ブラウザ APIs
 
@@ -253,9 +266,9 @@ import PlaygroundWpNetWarning from '@site/docs/\_fragments/\_playground_wp_net_m
 The following Playground APIs are available in the browser:
 -->
 
-import APIList from '@site/docs/\_fragments/\_api_list.mdx';
-
-<APIList />
+- [Query API](/developers/apis/query-api) enable basic operations using only query parameters
+- [Blueprints API](/blueprints) give you a great degree of control with a simple JSON file
+- [JavaScript API](/developers/apis/javascript-api) give you full control via a JavaScript client from an npm package
 
 ### Node.js の場合
 
@@ -269,8 +282,8 @@ Node.js では次の Playground API が利用できます。
 The following Playground APIs are available in Node.js:
 -->
 
--   [JSON ブループリント API](/blueprints)
--   [JavaScript API](/developers/apis/javascript-api/)
+- [JSON ブループリント API](/blueprints)
+- [JavaScript API](/developers/apis/javascript-api/)
 
 <!--
 -   [JSON Blueprints API](/blueprints)
