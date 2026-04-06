@@ -142,7 +142,7 @@ Both Asyncify and JSPI builds are compiled with Emscripten's `MAIN_MODULE=2` fla
 - JavaScript glue code reduced by **14.5 MB** (63%)
 -->
 
-Cette optimisation s’applique à toutes les versions de PHP (7.4–8.5) pour les cibles Node.js et Web. La liste des symboles exportés est centralisée dans le Dockerfile, avec des exports conditionnels pour certaines extensions (par ex. `__c_longjmp` pour Xdebug, `_wasm_recv` pour Memcached).
+Cette optimisation s’applique à toutes les versions de PHP (7.4–8.5) pour les cibles Node.js et Web. La liste des symboles exportés est centralisée dans le fichier `Dockerfile`, avec des exports conditionnels pour certaines extensions (par ex. `__c_longjmp` pour Xdebug, `_wasm_recv` pour Memcached).
 
 <!--
 This optimization applies across all PHP versions (7.4–8.5) for both Node.js and Web targets. The exported symbol list is centrally managed in the Dockerfile, with conditional exports for specific extensions (e.g., `__c_longjmp` for Xdebug, `_wasm_recv` for Memcached).
