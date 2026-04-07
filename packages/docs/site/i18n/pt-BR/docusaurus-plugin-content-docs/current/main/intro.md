@@ -132,12 +132,12 @@ Se você é um desenvolvedor ou um usuário técnico, talvez queira ver diretame
 -   Dive into the [architecture](/developers/architecture) and learn how it all works
 -->
 
-- Leia sobre [APIs do Playground](/developers/apis/) e alguns conceitos básicos.
+- Leia sobre [APIs do Playground](/developers/apis/) e sobre alguns conceitos básicos.
 - [Links e recursos](/resources)
 - Escolha a API adequada para a sua aplicação:
-    - [Query API](/developers/apis/query-api) enable basic operations using only query parameters
-    - [Blueprints API](/blueprints) give you a great degree of control with a simple JSON file
-    - [JavaScript API](/developers/apis/javascript-api) give you full control via a JavaScript client from an npm package
+    - [API de Consulta](/developers/apis/query-api) permite realizar operações básicas usando apenas parâmetros de consulta.
+	- [API de Blueprints](/blueprints) oferece um alto grau de controle com um único arquivo JSON.
+	- [API JavaScript](/developers/apis/javascript-api) oferece controle total por meio de um cliente JavaScript a partir de um pacote npm.
 - Aprofunde-se na [arquitetura](/developers/architecture) e aprenda como o WP Playground funciona internamente.
 
 <!--
