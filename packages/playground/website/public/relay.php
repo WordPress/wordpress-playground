@@ -519,33 +519,52 @@ function handleResponse(string $sessionId, string $requestId): void {
  * Guest makes a request through the relay.
  */
 function handleGuestRequest(string $sessionId, string $requestPath): void {
-    $session = withSession($sessionId, function (array &$session) {
-        // Age-out check here too so a guest request that arrives
-        // first after the host disappears doesn't pin a worker for
-        // 30s waiting on a response that will never come.
-        $now = nowMs();
-        if (
-            !empty($session['hostConnected']) &&
-            ($session['lastPollAt'] ?? 0) > 0 &&
-            $now - $session['lastPollAt'] > HOST_DEAD_AFTER_MS
-        ) {
-            markHostDisconnected($session, 'guest request: no poll');
+    // Briefly wait for the host to be polling. There is an inherent
+    // race between the host calling startSharing (which kicks off
+    // /poll in the background, not awaited) and a guest opening the
+    // share link milliseconds later: the guest's first /request/ may
+    // land on the relay before the host's first /poll has set
+    // hostConnected. With an in-process middleware everything is
+    // synchronous and the race is invisible, but the file-based PHP
+    // relay loses it routinely. Cap the wait at HOST_CONNECT_WAIT_SEC
+    // so a genuinely stale share link still 503s in good time.
+    $connectDeadline = time() + 5;
+    $session = null;
+    while (true) {
+        $session = withSession($sessionId, function (array &$session) {
+            // Age-out check so a guest request that arrives first
+            // after the host disappears doesn't pin a worker for
+            // 30s waiting on a response that will never come.
+            $now = nowMs();
+            if (
+                !empty($session['hostConnected']) &&
+                ($session['lastPollAt'] ?? 0) > 0 &&
+                $now - $session['lastPollAt'] > HOST_DEAD_AFTER_MS
+            ) {
+                markHostDisconnected($session, 'guest request: no poll');
+            }
+            return $session;
+        });
+
+        if (!$session) {
+            http_response_code(404);
+            header('Content-Type: application/json');
+            echo json_encode(['error' => 'Session not found']);
+            return;
         }
-        return $session;
-    });
 
-    if (!$session) {
-        http_response_code(404);
-        header('Content-Type: application/json');
-        echo json_encode(['error' => 'Session not found']);
-        return;
-    }
+        if (!empty($session['hostConnected'])) {
+            break;
+        }
 
-    if (!$session['hostConnected']) {
-        http_response_code(503);
-        header('Content-Type: application/json');
-        echo json_encode(['error' => 'Host not connected']);
-        return;
+        if (time() >= $connectDeadline) {
+            http_response_code(503);
+            header('Content-Type: application/json');
+            echo json_encode(['error' => 'Host not connected']);
+            return;
+        }
+
+        usleep(100000); // 100ms
     }
 
     $requestId = generateUuid();
@@ -560,6 +579,17 @@ function handleGuestRequest(string $sessionId, string $requestPath): void {
     }
     if (isset($_SERVER['CONTENT_TYPE'])) {
         $headers['content-type'] = $_SERVER['CONTENT_TYPE'];
+    }
+    // When the relay sits behind a reverse proxy (vite dev's
+    // changeOrigin proxy, Atomic's load balancer, …) the Host header
+    // arriving here points at the relay process itself rather than
+    // at the public website the guest actually loaded. The host's
+    // TunnelHost uses this header to rewrite absolute WordPress URLs
+    // in the HTML response, so passing the wrong value silently
+    // breaks asset loading on the guest. Prefer X-Forwarded-Host
+    // when present so the host sees the public origin.
+    if (!empty($_SERVER['HTTP_X_FORWARDED_HOST'])) {
+        $headers['host'] = $_SERVER['HTTP_X_FORWARDED_HOST'];
     }
 
     // Read request body
