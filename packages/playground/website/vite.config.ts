@@ -19,8 +19,6 @@ import {
 import { oAuthMiddleware } from './vite.oauth';
 import { exec as execCb } from 'node:child_process';
 import { promisify } from 'node:util';
-// eslint-disable-next-line @nx/enforce-module-boundaries
-import { createRelayMiddleware } from './src/lib/relay-server/relay-middleware';
 import { fileURLToPath } from 'node:url';
 import { copyFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
@@ -42,6 +40,12 @@ const isDevcontainer = process.env.VITE_DEVCONTAINER === 'true';
 // In a devcontainer, bind to 0.0.0.0 so the host can access the server through
 // a port that was published using the devcontainer "appPort" configuration.
 const serverHost = isDevcontainer ? '0.0.0.0' : websiteDevServerHost;
+
+// `npm run dev` spawns `php -S 127.0.0.1:5264 relay.php` alongside the vite
+// server (see the dev:relay-php target in playground-website's project.json),
+// and we proxy /relay/* there. The same relay.php is what gets served in
+// production by Atomic / static hosts, so dev and prod run identical code.
+const phpRelayUrl = 'http://127.0.0.1:5264';
 
 async function setCodespacesPortPublic(port: number, codespaceName: string) {
 	// eslint-disable-next-line no-console
@@ -123,6 +127,19 @@ export default defineConfig(({ command, mode }) => {
 					target: `http://${websiteExtrasDevServerHost}:${websiteExtrasDevServerPort}`,
 					changeOrigin: true,
 				},
+				// All /relay/* traffic goes to the dedicated PHP relay
+				// server (php -S, started by the dev:relay-php nx target).
+				// We forward the original Host header so relay.php can
+				// build share URLs that point back at the vite dev server
+				// instead of the PHP server it happens to live on.
+				'^/relay/': {
+					target: phpRelayUrl,
+					changeOrigin: true,
+					headers: {
+						'X-Forwarded-Host': `${serverHost}:${websiteDevServerPort}`,
+						'X-Forwarded-Proto': 'http',
+					},
+				},
 				// Proxy requests to the remote content through this server for dev
 				// builds. See base config below.
 				// Exclude /relay/ which is handled by the relay middleware for peer-to-peer sharing.
@@ -186,18 +203,15 @@ export default defineConfig(({ command, mode }) => {
 				content: `
 				export const corsProxyUrl = ${JSON.stringify(corsProxyUrl || undefined)};`,
 			}),
-			// GitHub OAuth flow and relay server for sharing
+			// GitHub OAuth callback handler. The peer-to-peer sharing
+			// relay used to live here as a TypeScript middleware too,
+			// but we deleted it — /relay/* is now proxied straight to
+			// `php -S 127.0.0.1:5264 relay.php` (see the proxy block
+			// above) so dev and prod run the exact same PHP code.
 			{
 				name: 'configure-server',
 				configureServer(server: ViteDevServer) {
 					server.middlewares.use(oAuthMiddleware);
-					// Add PHP relay middleware for peer-to-peer sharing
-					// Uses PHP WASM to run the same PHP code in dev and production
-					const relayBasePath =
-						mode === 'production' ? '/' : '/website-server/';
-					server.middlewares.use(
-						createRelayMiddleware({ basePath: relayBasePath })
-					);
 				},
 			},
 			/**

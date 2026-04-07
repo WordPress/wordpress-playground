@@ -37,7 +37,10 @@ async function getPhp(): Promise<PHPType> {
 
 		const php = new PHP(await loadNodeRuntime('8.2'));
 
-		// Create the relay data directory in PHP's virtual filesystem
+		// Create the relay data directory in PHP's virtual filesystem.
+		// relay.php picks this up via PLAYGROUND_RELAY_DATA_DIR (set
+		// per-request in the env vars below) so we don't have to
+		// monkey-patch the script's source any more.
 		php.mkdir('/relay-data');
 		php.mkdir('/relay-data/sessions');
 		php.mkdir('/relay-data/requests');
@@ -67,12 +70,6 @@ async function getPhp(): Promise<PHPType> {
 			}
 		}
 
-		// Modify the PHP script to use the virtual filesystem data directory
-		relayPhpContent = relayPhpContent.replace(
-			"define('DATA_DIR', __DIR__ . '/relay-data');",
-			"define('DATA_DIR', '/relay-data');"
-		);
-
 		php.writeFile('/relay.php', relayPhpContent);
 
 		phpInstance = php;
@@ -91,9 +88,15 @@ function buildServerVars(
 	path: string
 ): Record<string, string> {
 	const headers = req.headers;
+	// Pull QUERY_STRING out of the URL so PHP's $_GET superglobal
+	// gets populated. The relay's /status endpoint reads ?gid=… from
+	// it; without this, the heartbeat would silently no-op.
+	const url = req.url || '/';
+	const queryIdx = url.indexOf('?');
+	const queryString = queryIdx >= 0 ? url.slice(queryIdx + 1) : '';
 	const server: Record<string, string> = {
 		REQUEST_METHOD: req.method || 'GET',
-		REQUEST_URI: req.url || '/',
+		REQUEST_URI: url,
 		SCRIPT_NAME: '/relay.php',
 		SCRIPT_FILENAME: '/relay.php',
 		PHP_SELF: '/relay.php',
@@ -101,7 +104,11 @@ function buildServerVars(
 		SERVER_PORT: (headers.host as string)?.split(':')[1] || '80',
 		HTTP_HOST: headers.host as string || 'localhost',
 		DOCUMENT_ROOT: '/',
-		QUERY_STRING: '',
+		QUERY_STRING: queryString,
+		// Tell relay.php where to put session/request files inside
+		// the PHP-WASM virtual filesystem. This replaces the old
+		// string-replace hack that hard-coded the data dir.
+		PLAYGROUND_RELAY_DATA_DIR: '/relay-data',
 	};
 
 	// Add HTTP headers
