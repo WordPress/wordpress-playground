@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Notice, __experimentalText as Text } from '@wordpress/components';
 import { useAppDispatch, useAppSelector } from '../../lib/state/redux/store';
 import {
@@ -23,7 +23,15 @@ export function DeleteSiteModal() {
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 
-	if (!site || site.metadata.storage === 'none') {
+	useEffect(() => {
+		if (!siteSlugToDelete) return;
+		if (!site) {
+			dispatch(setActiveModal(null));
+			dispatch(setSiteSlugToDelete(undefined));
+		}
+	}, [site, siteSlugToDelete, dispatch]);
+
+	if (!site) {
 		return null;
 	}
 
