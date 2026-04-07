@@ -260,17 +260,21 @@ for (const wp of WP_VERSIONS) {
 					} else {
 						// Check for admin indicators across all WP eras:
 						// - "Dashboard" (WP 2.7+)
-						// - "Write" / "Manage" / "Options" (WP 1.x-2.6)
-						// - "Log Out" or "Settings" links
+						// - "Write" / "Manage" / "Options" (WP 1.5-2.6)
+						// - "Create New Post" / "Logout" (WP 1.0-1.2)
+						// - "Log Out" / "Settings" links (WP 2.0+)
 						const adminIndicators = [
 							'Dashboard',
 							'Write',
 							'Manage',
 							'Options',
 							'Log Out',
+							'Logout',
 							'Settings',
 							'Posts',
 							'Plugins',
+							'Create New Post',
+							'My Profile',
 						];
 						const hasAdmin = adminIndicators.some((ind) =>
 							wp2.body.includes(ind)
