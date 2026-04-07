@@ -63,9 +63,9 @@ If you're a developer or tech user, you may want to check directly the APIs avai
 - Read about [Playground APIs](/developers/apis/) and basic concepts
 - Review [links and resources](/resources)
 - Choose the right API for your app:
-    - [Query API](/developers/apis/query-api) enable basic operations using only query parameters
-    - [Blueprints API](/blueprints) give you a great degree of control with a simple JSON file
-    - [JavaScript API](/developers/apis/javascript-api) give you full control via a JavaScript client from an npm package
+    - [Query API](/developers/apis/query-api) enables basic operations using only query parameters
+    - [Blueprints API](/blueprints) gives you a great degree of control with a simple JSON file
+    - [JavaScript API](/developers/apis/javascript-api) gives you full control via a JavaScript client from an npm package
 - Dive into the [architecture](/developers/architecture) and learn how it all works
 
 ## Get Involved
