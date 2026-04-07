@@ -14,16 +14,35 @@
  * - POST /relay/{sessionId}/close             Host explicitly tears down session
  * - ANY  /relay/{sessionId}/request/*         Guest requests (proxied to host)
  *
- * Sessions and pending requests are stored under DATA_DIR. The session JSON
- * is read and written under flock() so concurrent polls cannot dispatch the
- * same request twice. The data dir defaults to a per-system temp folder so
- * the relay does not write under the web root.
+ * Sessions, requests and responses live behind a small storage interface
+ * with two interchangeable backends:
+ *
+ * - file (default): JSON files under DATA_DIR. Sessions are read and
+ *   written under flock() so concurrent polls cannot dispatch the same
+ *   request twice. Good for dev, single-host setups, and Atomic-style
+ *   filesystems where every PHP worker shares the same disk.
+ * - mysql: relational tables in a MySQL database. Sessions and per-
+ *   request rows are coordinated with InnoDB row-level locks
+ *   (SELECT ... FOR UPDATE inside short transactions), giving the
+ *   same exclusivity guarantees as flock() but across multiple hosts.
+ *
+ * Pick the backend with the PLAYGROUND_RELAY_BACKEND env var. The
+ * default is `file`, so an out-of-the-box checkout still works without
+ * any database setup.
  *
  * Configuration env vars:
- * - PLAYGROUND_RELAY_DATA_DIR        Directory for session/request files.
+ * - PLAYGROUND_RELAY_BACKEND         "file" (default) or "mysql".
+ * - PLAYGROUND_RELAY_DATA_DIR        Directory for session/request files
+ *                                    (file backend only).
  * - PLAYGROUND_RELAY_PUBLIC_BASE_URL Public-facing base URL for share links,
  *                                    e.g. http://localhost:5400/website-server/
  *                                    Falls back to deriving from request headers.
+ *
+ * MySQL credentials are read from the standard WordPress DB_HOST,
+ * DB_USER, DB_PASSWORD, DB_NAME (and optional DB_PORT) constants when
+ * defined — so the relay can drop into a wp-config environment with
+ * zero extra setup — and fall back to env vars of the same name
+ * otherwise.
  */
 
 // Configuration
@@ -58,12 +77,677 @@ define(
         ?: sys_get_temp_dir() . '/playground-relay'
 );
 
-// Ensure data directory exists. Use mkdir-then-recheck so two
-// concurrent requests racing to create the same dir don't blow up.
-ensureDir(DATA_DIR);
-ensureDir(DATA_DIR . '/sessions');
-ensureDir(DATA_DIR . '/requests');
-ensureDir(DATA_DIR . '/responses');
+/**
+ * Storage abstraction. The relay never touches files or SQL directly
+ * — it goes through this interface so the request handlers don't have
+ * to care which backend is in use.
+ *
+ * Atomicity guarantees the implementations must provide:
+ *
+ * - withSession() runs the callback with an exclusive hold on the
+ *   session row/file so concurrent /poll, /status and /close requests
+ *   can't interleave their reads and writes. lastActivity is bumped
+ *   on every successful return so the caller never has to remember.
+ *
+ * - claimNextRequest() returns at most one undispatched request and
+ *   atomically marks it dispatched. Two pollers racing on the same
+ *   session must never both walk away with the same request.
+ */
+interface RelayStorage {
+    /**
+     * Persist a freshly-built session. Called from /session.
+     */
+    public function createSession(string $sessionId, array $session): void;
+
+    /**
+     * Hand the parsed session to $cb under an exclusive lock, then
+     * write it back. Returns whatever the callback returned, or null
+     * when the session does not exist or has expired.
+     *
+     * The callback receives the session by reference and may mutate
+     * it freely. lastActivity is bumped automatically on write so the
+     * caller never has to remember.
+     *
+     * This is the only correct way to read or modify a session —
+     * direct reads race with the host poll and the cleanup task.
+     */
+    public function withSession(string $sessionId, Closure $cb);
+
+    /**
+     * Atomically claim the next undispatched request for a session
+     * and return its tunnel-request payload. Returns null when there
+     * is nothing to dispatch.
+     */
+    public function claimNextRequest(string $sessionId): ?array;
+
+    /**
+     * Queue a new tunnel request for the host to pick up.
+     */
+    public function saveRequest(string $sessionId, string $requestId, array $request): void;
+
+    /**
+     * Whether a queued request is still in storage. Used by the
+     * guest wait loop to detect a /close that wiped its request.
+     */
+    public function requestExists(string $sessionId, string $requestId): bool;
+
+    /**
+     * Remove a queued request. Called from the guest wait loop after
+     * the response has been delivered, on timeout, and on disconnect.
+     */
+    public function deleteRequest(string $sessionId, string $requestId): void;
+
+    /**
+     * Persist a tunnel response sent by the host.
+     */
+    public function saveResponse(string $sessionId, string $requestId, array $response): void;
+
+    /**
+     * Fetch a stored response, or null if the host hasn't replied yet.
+     */
+    public function getResponse(string $sessionId, string $requestId): ?array;
+
+    /**
+     * Remove a stored response after it has been delivered.
+     */
+    public function deleteResponse(string $sessionId, string $requestId): void;
+
+    /**
+     * Drop every queued request for a session. Used by /close
+     * (and would-be cleanup paths) so guest wait loops time out fast
+     * instead of hanging until REQUEST_TIMEOUT_SEC.
+     */
+    public function rejectPendingRequests(string $sessionId): void;
+
+    /**
+     * Periodic garbage collection. Removes expired sessions, their
+     * requests, and any orphaned response rows. Called from the
+     * 1%-per-request cleanup hook.
+     */
+    public function cleanup(int $now): void;
+}
+
+/**
+ * File-system backed storage. JSON files live under $dataDir, with
+ * one directory per category:
+ *
+ *   sessions/{sid}.json       — single session record
+ *   requests/{sid}/{rid}.json — one file per queued tunnel request
+ *   responses/{sid}/{rid}.json — one file per pending host response
+ *
+ * Concurrency is handled with flock(): a per-file LOCK_EX for sessions
+ * and per-request LOCK_EX|LOCK_NB for the dispatch race in claimNextRequest.
+ */
+final class FileRelayStorage implements RelayStorage {
+    private string $dataDir;
+
+    public function __construct(string $dataDir) {
+        $this->dataDir = $dataDir;
+        // Ensure data directory exists. Use mkdir-then-recheck so two
+        // concurrent requests racing to create the same dir don't blow up.
+        $this->ensureDir($dataDir);
+        $this->ensureDir($dataDir . '/sessions');
+        $this->ensureDir($dataDir . '/requests');
+        $this->ensureDir($dataDir . '/responses');
+    }
+
+    public function createSession(string $sessionId, array $session): void {
+        $file = $this->dataDir . '/sessions/' . $sessionId . '.json';
+        file_put_contents($file, json_encode($session));
+    }
+
+    public function withSession(string $sessionId, Closure $cb) {
+        $file = $this->dataDir . '/sessions/' . $sessionId . '.json';
+        if (!file_exists($file)) {
+            return null;
+        }
+        $fh = @fopen($file, 'r+');
+        if (!$fh) {
+            return null;
+        }
+        // Best-effort lock. On real PHP this serialises concurrent
+        // access; on PHP-WASM (single-threaded) flock is a no-op which
+        // is fine because there is no concurrency to protect against.
+        @flock($fh, LOCK_EX);
+        $contents = stream_get_contents($fh);
+        $session = $contents ? json_decode($contents, true) : null;
+
+        if (!$session) {
+            @flock($fh, LOCK_UN);
+            fclose($fh);
+            @unlink($file);
+            return null;
+        }
+
+        // Check expiry while we hold the lock so a request that
+        // arrives during cleanup races correctly.
+        if (nowMs() - ($session['lastActivity'] ?? 0) > SESSION_TIMEOUT_MS) {
+            @flock($fh, LOCK_UN);
+            fclose($fh);
+            @unlink($file);
+            return null;
+        }
+
+        $result = $cb($session);
+
+        $session['lastActivity'] = nowMs();
+        rewind($fh);
+        ftruncate($fh, 0);
+        fwrite($fh, json_encode($session));
+        fflush($fh);
+        @flock($fh, LOCK_UN);
+        fclose($fh);
+
+        return $result;
+    }
+
+    public function claimNextRequest(string $sessionId): ?array {
+        $requestsDir = $this->dataDir . '/requests/' . $sessionId;
+        $this->ensureDir($requestsDir);
+        $files = glob($requestsDir . '/*.json') ?: [];
+        // Each candidate request file is opened under flock() so two
+        // pollers cannot dispatch the same request twice (the original
+        // code did a racy read-modify-write that could double-deliver).
+        foreach ($files as $file) {
+            $fh = @fopen($file, 'r+');
+            if (!$fh) {
+                continue;
+            }
+            // Non-blocking try-lock so a long-running response
+            // upload from the host doesn't block the poll loop.
+            if (!@flock($fh, LOCK_EX | LOCK_NB)) {
+                fclose($fh);
+                continue;
+            }
+            $contents = stream_get_contents($fh);
+            $request = $contents ? json_decode($contents, true) : null;
+            if ($request && empty($request['dispatched'])) {
+                $request['dispatched'] = true;
+                rewind($fh);
+                ftruncate($fh, 0);
+                fwrite($fh, json_encode($request));
+                fflush($fh);
+                @flock($fh, LOCK_UN);
+                fclose($fh);
+                return $request['request'];
+            }
+            @flock($fh, LOCK_UN);
+            fclose($fh);
+        }
+        return null;
+    }
+
+    public function saveRequest(string $sessionId, string $requestId, array $request): void {
+        $requestsDir = $this->dataDir . '/requests/' . $sessionId;
+        $this->ensureDir($requestsDir);
+        file_put_contents(
+            $requestsDir . '/' . $requestId . '.json',
+            json_encode([
+                'request' => $request,
+                'dispatched' => false,
+                'createdAt' => nowMs(),
+            ])
+        );
+    }
+
+    public function requestExists(string $sessionId, string $requestId): bool {
+        return file_exists($this->requestPath($sessionId, $requestId));
+    }
+
+    public function deleteRequest(string $sessionId, string $requestId): void {
+        @unlink($this->requestPath($sessionId, $requestId));
+    }
+
+    public function saveResponse(string $sessionId, string $requestId, array $response): void {
+        $responsesDir = $this->dataDir . '/responses/' . $sessionId;
+        $this->ensureDir($responsesDir);
+        file_put_contents(
+            $responsesDir . '/' . $requestId . '.json',
+            json_encode($response)
+        );
+    }
+
+    public function getResponse(string $sessionId, string $requestId): ?array {
+        $file = $this->responsePath($sessionId, $requestId);
+        if (!file_exists($file)) {
+            return null;
+        }
+        $contents = @file_get_contents($file);
+        if ($contents === false) {
+            return null;
+        }
+        $decoded = json_decode($contents, true);
+        return is_array($decoded) ? $decoded : null;
+    }
+
+    public function deleteResponse(string $sessionId, string $requestId): void {
+        @unlink($this->responsePath($sessionId, $requestId));
+    }
+
+    public function rejectPendingRequests(string $sessionId): void {
+        $dir = $this->dataDir . '/requests/' . $sessionId;
+        if (!is_dir($dir)) {
+            return;
+        }
+        foreach (glob($dir . '/*.json') ?: [] as $file) {
+            @unlink($file);
+        }
+    }
+
+    public function cleanup(int $now): void {
+        // Clean up old sessions
+        $sessionFiles = glob($this->dataDir . '/sessions/*.json') ?: [];
+        foreach ($sessionFiles as $file) {
+            $session = json_decode(@file_get_contents($file) ?: '', true);
+            if ($session && $now - ($session['lastActivity'] ?? 0) > SESSION_TIMEOUT_MS) {
+                $sessionId = $session['sessionId'];
+                @unlink($file);
+
+                // Clean up session's requests and responses
+                $requestsDir = $this->dataDir . '/requests/' . $sessionId;
+                if (is_dir($requestsDir)) {
+                    array_map('unlink', glob($requestsDir . '/*.json') ?: []);
+                    @rmdir($requestsDir);
+                }
+
+                $responsesDir = $this->dataDir . '/responses/' . $sessionId;
+                if (is_dir($responsesDir)) {
+                    array_map('unlink', glob($responsesDir . '/*.json') ?: []);
+                    @rmdir($responsesDir);
+                }
+            }
+        }
+
+        // Clean up orphaned request files (older than REQUEST_TIMEOUT_SEC * 2)
+        $requestDirs = glob($this->dataDir . '/requests/*', GLOB_ONLYDIR) ?: [];
+        foreach ($requestDirs as $dir) {
+            $files = glob($dir . '/*.json') ?: [];
+            foreach ($files as $file) {
+                if ($now / 1000 - filemtime($file) > REQUEST_TIMEOUT_SEC * 2) {
+                    @unlink($file);
+                }
+            }
+        }
+    }
+
+    private function requestPath(string $sessionId, string $requestId): string {
+        return $this->dataDir . '/requests/' . $sessionId . '/' . $requestId . '.json';
+    }
+
+    private function responsePath(string $sessionId, string $requestId): string {
+        return $this->dataDir . '/responses/' . $sessionId . '/' . $requestId . '.json';
+    }
+
+    /**
+     * Create a directory if it doesn't already exist. Safe to call from
+     * multiple processes at once: mkdir() is the only TOCTOU-free check —
+     * we ignore its failure and only error out if the directory still
+     * isn't there afterwards.
+     */
+    private function ensureDir(string $dir): void {
+        if (!is_dir($dir) && !@mkdir($dir, 0777, true) && !is_dir($dir)) {
+            throw new RuntimeException("Failed to create directory: $dir");
+        }
+    }
+}
+
+/**
+ * MySQL backed storage. Three tables, one per category, all using
+ * InnoDB so the row-level locks underpinning withSession() and
+ * claimNextRequest() actually work. Schema is created lazily on
+ * first connect via CREATE TABLE IF NOT EXISTS.
+ *
+ * Connection lifetime: a fresh PDO is opened on each PHP request,
+ * which is fine for php -S / PHP-FPM / Atomic since each long-poll
+ * iteration runs a short transaction (begin → SELECT FOR UPDATE →
+ * UPDATE → commit) and then yields back to the loop.
+ */
+final class MysqlRelayStorage implements RelayStorage {
+    private PDO $pdo;
+    private string $sessionsTable = 'playground_relay_sessions';
+    private string $requestsTable = 'playground_relay_requests';
+    private string $responsesTable = 'playground_relay_responses';
+
+    public function __construct() {
+        $host     = self::config('DB_HOST', 'localhost');
+        $user     = self::config('DB_USER', 'root');
+        $password = self::config('DB_PASSWORD', '');
+        $name     = self::config('DB_NAME', 'playground_relay');
+        $port     = (int) self::config('DB_PORT', '3306');
+
+        $dsn = "mysql:host={$host};port={$port};dbname={$name};charset=utf8mb4";
+        $this->pdo = new PDO($dsn, $user, $password, [
+            PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+            PDO::ATTR_EMULATE_PREPARES   => false,
+        ]);
+
+        // Cap row-lock waits at a small value so a crashed worker
+        // holding a stale FOR UPDATE lock can't block a new poll for
+        // the default 50 seconds. The relay's own retry loops will
+        // catch any contention from this much faster.
+        try {
+            $this->pdo->exec('SET SESSION innodb_lock_wait_timeout = 5');
+        } catch (Throwable $_) {
+            // Older MySQL versions or non-InnoDB defaults — non-fatal.
+        }
+
+        $this->ensureSchema();
+    }
+
+    /**
+     * Resolve a config value from a WordPress-style constant first,
+     * then env vars (getenv() and $_SERVER for PHP-WASM), then a
+     * default. The constant path lets the relay drop into a
+     * wp-config.php environment without any extra wiring.
+     */
+    private static function config(string $key, string $default): string {
+        if (defined($key)) {
+            $val = constant($key);
+            if ($val !== '' && $val !== false && $val !== null) {
+                return (string) $val;
+            }
+        }
+        $env = getenv($key);
+        if ($env !== false && $env !== '') {
+            return $env;
+        }
+        if (isset($_SERVER[$key]) && $_SERVER[$key] !== '') {
+            return (string) $_SERVER[$key];
+        }
+        return $default;
+    }
+
+    /**
+     * Idempotent table creation. Each PHP request re-issues these
+     * statements; the cost is a couple of cheap metadata lookups
+     * once the tables already exist, and we get zero-setup behaviour
+     * for fresh databases.
+     */
+    private function ensureSchema(): void {
+        $this->pdo->exec(
+            "CREATE TABLE IF NOT EXISTS `{$this->sessionsTable}` (
+                session_id VARCHAR(64) NOT NULL PRIMARY KEY,
+                payload LONGTEXT NOT NULL,
+                last_activity BIGINT NOT NULL,
+                INDEX idx_last_activity (last_activity)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
+        );
+        $this->pdo->exec(
+            "CREATE TABLE IF NOT EXISTS `{$this->requestsTable}` (
+                session_id VARCHAR(64) NOT NULL,
+                request_id VARCHAR(64) NOT NULL,
+                payload LONGTEXT NOT NULL,
+                dispatched TINYINT(1) NOT NULL DEFAULT 0,
+                created_at BIGINT NOT NULL,
+                PRIMARY KEY (session_id, request_id),
+                INDEX idx_pending (session_id, dispatched, created_at),
+                INDEX idx_created (created_at)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
+        );
+        $this->pdo->exec(
+            "CREATE TABLE IF NOT EXISTS `{$this->responsesTable}` (
+                session_id VARCHAR(64) NOT NULL,
+                request_id VARCHAR(64) NOT NULL,
+                payload LONGTEXT NOT NULL,
+                PRIMARY KEY (session_id, request_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
+        );
+    }
+
+    public function createSession(string $sessionId, array $session): void {
+        $stmt = $this->pdo->prepare(
+            "INSERT INTO `{$this->sessionsTable}` (session_id, payload, last_activity)
+             VALUES (?, ?, ?)"
+        );
+        $stmt->execute([
+            $sessionId,
+            json_encode($session),
+            (int) ($session['lastActivity'] ?? nowMs()),
+        ]);
+    }
+
+    public function withSession(string $sessionId, Closure $cb) {
+        // SELECT ... FOR UPDATE inside a transaction gives us the
+        // same serialise-concurrent-modifications guarantee as the
+        // file backend's flock(). The transaction stays short — we
+        // read, hand the parsed payload to the callback, then either
+        // UPDATE or DELETE before COMMIT.
+        $this->pdo->beginTransaction();
+        try {
+            $stmt = $this->pdo->prepare(
+                "SELECT payload FROM `{$this->sessionsTable}`
+                 WHERE session_id = ? FOR UPDATE"
+            );
+            $stmt->execute([$sessionId]);
+            $row = $stmt->fetch();
+            if (!$row) {
+                $this->pdo->rollBack();
+                return null;
+            }
+            $session = json_decode($row['payload'], true);
+            if (!is_array($session)) {
+                // Corrupt row — drop it like the file backend drops
+                // an unparsable session file.
+                $this->pdo
+                    ->prepare("DELETE FROM `{$this->sessionsTable}` WHERE session_id = ?")
+                    ->execute([$sessionId]);
+                $this->pdo->commit();
+                return null;
+            }
+
+            // Check expiry while we still hold the row lock so a
+            // request arriving during cleanup races correctly.
+            if (nowMs() - ($session['lastActivity'] ?? 0) > SESSION_TIMEOUT_MS) {
+                $this->pdo
+                    ->prepare("DELETE FROM `{$this->sessionsTable}` WHERE session_id = ?")
+                    ->execute([$sessionId]);
+                $this->pdo->commit();
+                return null;
+            }
+
+            $result = $cb($session);
+
+            $session['lastActivity'] = nowMs();
+            $update = $this->pdo->prepare(
+                "UPDATE `{$this->sessionsTable}`
+                 SET payload = ?, last_activity = ?
+                 WHERE session_id = ?"
+            );
+            $update->execute([
+                json_encode($session),
+                (int) $session['lastActivity'],
+                $sessionId,
+            ]);
+            $this->pdo->commit();
+            return $result;
+        } catch (Throwable $e) {
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+            throw $e;
+        }
+    }
+
+    public function claimNextRequest(string $sessionId): ?array {
+        // SELECT ... FOR UPDATE picks the next undispatched request
+        // and locks the row so a concurrent poll can't grab it. We
+        // mark it dispatched in the same transaction and commit,
+        // releasing the lock immediately.
+        $this->pdo->beginTransaction();
+        try {
+            $stmt = $this->pdo->prepare(
+                "SELECT request_id, payload
+                 FROM `{$this->requestsTable}`
+                 WHERE session_id = ? AND dispatched = 0
+                 ORDER BY created_at ASC
+                 LIMIT 1
+                 FOR UPDATE"
+            );
+            $stmt->execute([$sessionId]);
+            $row = $stmt->fetch();
+            if (!$row) {
+                $this->pdo->commit();
+                return null;
+            }
+            $update = $this->pdo->prepare(
+                "UPDATE `{$this->requestsTable}`
+                 SET dispatched = 1
+                 WHERE session_id = ? AND request_id = ?"
+            );
+            $update->execute([$sessionId, $row['request_id']]);
+            $this->pdo->commit();
+
+            $envelope = json_decode($row['payload'], true);
+            if (!is_array($envelope) || !isset($envelope['request'])) {
+                return null;
+            }
+            return $envelope['request'];
+        } catch (Throwable $e) {
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+            throw $e;
+        }
+    }
+
+    public function saveRequest(string $sessionId, string $requestId, array $request): void {
+        $envelope = [
+            'request' => $request,
+            'dispatched' => false,
+            'createdAt' => nowMs(),
+        ];
+        $stmt = $this->pdo->prepare(
+            "INSERT INTO `{$this->requestsTable}`
+             (session_id, request_id, payload, dispatched, created_at)
+             VALUES (?, ?, ?, 0, ?)"
+        );
+        $stmt->execute([
+            $sessionId,
+            $requestId,
+            json_encode($envelope),
+            (int) $envelope['createdAt'],
+        ]);
+    }
+
+    public function requestExists(string $sessionId, string $requestId): bool {
+        $stmt = $this->pdo->prepare(
+            "SELECT 1 FROM `{$this->requestsTable}`
+             WHERE session_id = ? AND request_id = ?"
+        );
+        $stmt->execute([$sessionId, $requestId]);
+        return (bool) $stmt->fetchColumn();
+    }
+
+    public function deleteRequest(string $sessionId, string $requestId): void {
+        $stmt = $this->pdo->prepare(
+            "DELETE FROM `{$this->requestsTable}`
+             WHERE session_id = ? AND request_id = ?"
+        );
+        $stmt->execute([$sessionId, $requestId]);
+    }
+
+    public function saveResponse(string $sessionId, string $requestId, array $response): void {
+        // The host should never deliver two responses for the same
+        // request, but ON DUPLICATE KEY UPDATE keeps the relay
+        // forgiving in case of a retry.
+        $stmt = $this->pdo->prepare(
+            "INSERT INTO `{$this->responsesTable}`
+             (session_id, request_id, payload)
+             VALUES (?, ?, ?)
+             ON DUPLICATE KEY UPDATE payload = VALUES(payload)"
+        );
+        $stmt->execute([$sessionId, $requestId, json_encode($response)]);
+    }
+
+    public function getResponse(string $sessionId, string $requestId): ?array {
+        $stmt = $this->pdo->prepare(
+            "SELECT payload FROM `{$this->responsesTable}`
+             WHERE session_id = ? AND request_id = ?"
+        );
+        $stmt->execute([$sessionId, $requestId]);
+        $row = $stmt->fetch();
+        if (!$row) {
+            return null;
+        }
+        $decoded = json_decode($row['payload'], true);
+        return is_array($decoded) ? $decoded : null;
+    }
+
+    public function deleteResponse(string $sessionId, string $requestId): void {
+        $stmt = $this->pdo->prepare(
+            "DELETE FROM `{$this->responsesTable}`
+             WHERE session_id = ? AND request_id = ?"
+        );
+        $stmt->execute([$sessionId, $requestId]);
+    }
+
+    public function rejectPendingRequests(string $sessionId): void {
+        $stmt = $this->pdo->prepare(
+            "DELETE FROM `{$this->requestsTable}` WHERE session_id = ?"
+        );
+        $stmt->execute([$sessionId]);
+    }
+
+    public function cleanup(int $now): void {
+        // Drop expired sessions and the requests / responses that
+        // belong to them. Sessions go first so the orphan cleanup
+        // below has a complete picture of who's still around.
+        $sessionDeadline = $now - SESSION_TIMEOUT_MS;
+
+        $expired = $this->pdo->prepare(
+            "SELECT session_id FROM `{$this->sessionsTable}`
+             WHERE last_activity < ?"
+        );
+        $expired->execute([$sessionDeadline]);
+        $expiredIds = $expired->fetchAll(PDO::FETCH_COLUMN, 0);
+        if ($expiredIds) {
+            $placeholders = implode(',', array_fill(0, count($expiredIds), '?'));
+            $this->pdo
+                ->prepare("DELETE FROM `{$this->sessionsTable}` WHERE session_id IN ({$placeholders})")
+                ->execute($expiredIds);
+            $this->pdo
+                ->prepare("DELETE FROM `{$this->requestsTable}` WHERE session_id IN ({$placeholders})")
+                ->execute($expiredIds);
+            $this->pdo
+                ->prepare("DELETE FROM `{$this->responsesTable}` WHERE session_id IN ({$placeholders})")
+                ->execute($expiredIds);
+        }
+
+        // Drop request rows that have lingered past the long-wait
+        // window — same `REQUEST_TIMEOUT_SEC * 2` heuristic the
+        // file backend uses for orphaned files.
+        $requestDeadline = $now - REQUEST_TIMEOUT_SEC * 2 * 1000;
+        $this->pdo
+            ->prepare("DELETE FROM `{$this->requestsTable}` WHERE created_at < ?")
+            ->execute([$requestDeadline]);
+
+        // Sweep response rows whose session is gone. Responses don't
+        // carry their own timestamp; they're cheap to leave behind
+        // for short windows but we still want them gone eventually.
+        $this->pdo->exec(
+            "DELETE r FROM `{$this->responsesTable}` r
+             LEFT JOIN `{$this->sessionsTable}` s
+               ON s.session_id = r.session_id
+             WHERE s.session_id IS NULL"
+        );
+    }
+}
+
+/**
+ * Pick a backend based on PLAYGROUND_RELAY_BACKEND. Defaults to the
+ * file backend so a fresh checkout works without any database setup.
+ */
+function makeRelayStorage(): RelayStorage {
+    $backend = getenv('PLAYGROUND_RELAY_BACKEND')
+        ?: ($_SERVER['PLAYGROUND_RELAY_BACKEND'] ?? 'file');
+    if ($backend === 'mysql') {
+        return new MysqlRelayStorage();
+    }
+    return new FileRelayStorage(DATA_DIR);
+}
+
+$storage = makeRelayStorage();
 
 // CORS headers
 header('Access-Control-Allow-Origin: *');
@@ -86,17 +770,17 @@ $path = preg_replace('#^/website-server#', '', $path);
 
 // Route the request
 if ($path === '/relay/session' && $_SERVER['REQUEST_METHOD'] === 'POST') {
-    handleCreateSession();
+    handleCreateSession($storage);
 } elseif (preg_match('#^/relay/([^/]+)/poll$#', $path, $matches)) {
-    handlePoll($matches[1]);
+    handlePoll($storage, $matches[1]);
 } elseif (preg_match('#^/relay/([^/]+)/status$#', $path, $matches) && $_SERVER['REQUEST_METHOD'] === 'GET') {
-    handleStatus($matches[1]);
+    handleStatus($storage, $matches[1]);
 } elseif (preg_match('#^/relay/([^/]+)/close$#', $path, $matches) && $_SERVER['REQUEST_METHOD'] === 'POST') {
-    handleClose($matches[1]);
+    handleClose($storage, $matches[1]);
 } elseif (preg_match('#^/relay/([^/]+)/response/([^/]+)$#', $path, $matches) && $_SERVER['REQUEST_METHOD'] === 'POST') {
-    handleResponse($matches[1], $matches[2]);
+    handleResponse($storage, $matches[1], $matches[2]);
 } elseif (preg_match('#^/relay/([^/]+)/request(/.*)?$#', $path, $matches)) {
-    handleGuestRequest($matches[1], $matches[2] ?? '/');
+    handleGuestRequest($storage, $matches[1], $matches[2] ?? '/');
 } else {
     http_response_code(404);
     echo json_encode(['error' => 'Not found']);
@@ -104,19 +788,7 @@ if ($path === '/relay/session' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // Run cleanup occasionally (1% chance per request)
 if (rand(1, 100) === 1) {
-    cleanup();
-}
-
-/**
- * Create a directory if it doesn't already exist. Safe to call from
- * multiple processes at once: mkdir() is the only TOCTOU-free check —
- * we ignore its failure and only error out if the directory still
- * isn't there afterwards.
- */
-function ensureDir(string $dir): void {
-    if (!is_dir($dir) && !@mkdir($dir, 0777, true) && !is_dir($dir)) {
-        throw new RuntimeException("Failed to create directory: $dir");
-    }
+    $storage->cleanup(nowMs());
 }
 
 /**
@@ -136,64 +808,6 @@ function generateUuid(): string {
  */
 function nowMs(): int {
     return (int) (microtime(true) * 1000);
-}
-
-/**
- * Open a session file under an exclusive lock, hand the parsed
- * session array to the callback, then write the (possibly mutated)
- * session back. Returns whatever the callback returned, or null when
- * the session does not exist or has expired.
- *
- * The callback receives the session by reference and may mutate it
- * freely. lastActivity is bumped automatically on write so the
- * caller never has to remember.
- *
- * This is the only correct way to read or modify a session — direct
- * file_get_contents() races with the host poll and the cleanup task.
- */
-function withSession(string $sessionId, Closure $cb) {
-    $file = DATA_DIR . '/sessions/' . $sessionId . '.json';
-    if (!file_exists($file)) {
-        return null;
-    }
-    $fh = @fopen($file, 'r+');
-    if (!$fh) {
-        return null;
-    }
-    // Best-effort lock. On real PHP this serialises concurrent
-    // access; on PHP-WASM (single-threaded) flock is a no-op which
-    // is fine because there is no concurrency to protect against.
-    @flock($fh, LOCK_EX);
-    $contents = stream_get_contents($fh);
-    $session = $contents ? json_decode($contents, true) : null;
-
-    if (!$session) {
-        @flock($fh, LOCK_UN);
-        fclose($fh);
-        @unlink($file);
-        return null;
-    }
-
-    // Check expiry while we hold the lock so a request that
-    // arrives during cleanup races correctly.
-    if (nowMs() - ($session['lastActivity'] ?? 0) > SESSION_TIMEOUT_MS) {
-        @flock($fh, LOCK_UN);
-        fclose($fh);
-        @unlink($file);
-        return null;
-    }
-
-    $result = $cb($session);
-
-    $session['lastActivity'] = nowMs();
-    rewind($fh);
-    ftruncate($fh, 0);
-    fwrite($fh, json_encode($session));
-    fflush($fh);
-    @flock($fh, LOCK_UN);
-    fclose($fh);
-
-    return $result;
 }
 
 /**
@@ -261,21 +875,6 @@ function markHostDisconnected(array &$session, string $reason): void {
 }
 
 /**
- * Delete every queued request file for a session. Used by /close
- * (and would-be cleanup paths) so guest wait loops time out fast
- * instead of hanging until REQUEST_TIMEOUT_SEC.
- */
-function rejectPendingRequests(string $sessionId): void {
-    $dir = DATA_DIR . '/requests/' . $sessionId;
-    if (!is_dir($dir)) {
-        return;
-    }
-    foreach (glob($dir . '/*.json') ?: [] as $file) {
-        @unlink($file);
-    }
-}
-
-/**
  * Build the public-facing share URL. Honors
  * PLAYGROUND_RELAY_PUBLIC_BASE_URL when set so a relay running
  * behind a proxy on a different host/port can still hand out a
@@ -308,7 +907,7 @@ function buildShareUrl(string $sessionId): string {
 /**
  * Create a new sharing session.
  */
-function handleCreateSession(): void {
+function handleCreateSession(RelayStorage $storage): void {
     $sessionId = generateUuid();
     $now = nowMs();
 
@@ -322,8 +921,7 @@ function handleCreateSession(): void {
         'nextGuestOrdinal' => 1,
     ];
 
-    $file = DATA_DIR . '/sessions/' . $sessionId . '.json';
-    file_put_contents($file, json_encode($session));
+    $storage->createSession($sessionId, $session);
 
     header('Content-Type: application/json');
     echo json_encode([
@@ -335,10 +933,10 @@ function handleCreateSession(): void {
 /**
  * Host polls for guest requests.
  */
-function handlePoll(string $sessionId): void {
+function handlePoll(RelayStorage $storage, string $sessionId): void {
     // Mark host as connected and record this poll's timestamp under
     // a session lock so concurrent /status requests see fresh data.
-    $session = withSession($sessionId, function (array &$session) {
+    $session = $storage->withSession($sessionId, function (array &$session) {
         $session['hostConnected'] = true;
         $session['lastPollAt'] = nowMs();
         pruneGuests($session, nowMs());
@@ -352,47 +950,19 @@ function handlePoll(string $sessionId): void {
         return;
     }
 
-    $requestsDir = DATA_DIR . '/requests/' . $sessionId;
-    ensureDir($requestsDir);
-
     $startTime = time();
 
-    // Long-poll: check for requests periodically. Each candidate
-    // request file is opened under flock() so two pollers cannot
-    // dispatch the same request twice (the original code did a
-    // racy read-modify-write that could double-deliver).
+    // Long-poll: ask the storage for an undispatched request every
+    // 100ms. The storage's claimNextRequest() handles the dispatch
+    // race for us — file backend uses flock(), MySQL uses
+    // SELECT ... FOR UPDATE.
     while (time() - $startTime < POLL_TIMEOUT_SEC) {
-        $files = glob($requestsDir . '/*.json') ?: [];
-        foreach ($files as $file) {
-            $fh = @fopen($file, 'r+');
-            if (!$fh) {
-                continue;
-            }
-            // Non-blocking try-lock so a long-running response
-            // upload from the host doesn't block the poll loop.
-            if (!@flock($fh, LOCK_EX | LOCK_NB)) {
-                fclose($fh);
-                continue;
-            }
-            $contents = stream_get_contents($fh);
-            $request = $contents ? json_decode($contents, true) : null;
-            if ($request && empty($request['dispatched'])) {
-                $request['dispatched'] = true;
-                rewind($fh);
-                ftruncate($fh, 0);
-                fwrite($fh, json_encode($request));
-                fflush($fh);
-                @flock($fh, LOCK_UN);
-                fclose($fh);
-
-                header('Content-Type: application/json');
-                echo json_encode(['request' => $request['request']]);
-                return;
-            }
-            @flock($fh, LOCK_UN);
-            fclose($fh);
+        $request = $storage->claimNextRequest($sessionId);
+        if ($request !== null) {
+            header('Content-Type: application/json');
+            echo json_encode(['request' => $request]);
+            return;
         }
-
         usleep(100000); // 100ms
     }
 
@@ -409,14 +979,14 @@ function handlePoll(string $sessionId): void {
  * the same endpoint without a gid to see who is currently
  * connected.
  */
-function handleStatus(string $sessionId): void {
+function handleStatus(RelayStorage $storage, string $sessionId): void {
     $now = nowMs();
 
     $queryString = parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_QUERY) ?? '';
     parse_str($queryString, $queryParams);
     $guestId = isset($queryParams['gid']) ? (string) $queryParams['gid'] : null;
 
-    $result = withSession($sessionId, function (array &$session) use ($guestId, $now) {
+    $result = $storage->withSession($sessionId, function (array &$session) use ($guestId, $now) {
         // Proactively age-out a silent host so the very first
         // status request after a host disappears already reports
         // disconnected.
@@ -464,13 +1034,13 @@ function handleStatus(string $sessionId): void {
  * navigator.sendBeacon on pagehide so guests see the disconnect
  * immediately instead of after the dead-host timer.
  */
-function handleClose(string $sessionId): void {
-    withSession($sessionId, function (array &$session) {
+function handleClose(RelayStorage $storage, string $sessionId): void {
+    $storage->withSession($sessionId, function (array &$session) {
         markHostDisconnected($session, 'host requested close');
     });
     // Drop in-flight guest requests so their long-wait loops bail
     // out instead of hanging for the full REQUEST_TIMEOUT_SEC.
-    rejectPendingRequests($sessionId);
+    $storage->rejectPendingRequests($sessionId);
 
     header('Content-Type: application/json');
     echo json_encode(['ok' => true]);
@@ -479,8 +1049,8 @@ function handleClose(string $sessionId): void {
 /**
  * Host sends response for a request.
  */
-function handleResponse(string $sessionId, string $requestId): void {
-    $session = withSession($sessionId, function (array &$session) {
+function handleResponse(RelayStorage $storage, string $sessionId, string $requestId): void {
+    $session = $storage->withSession($sessionId, function (array &$session) {
         return $session;
     });
 
@@ -502,14 +1072,7 @@ function handleResponse(string $sessionId, string $requestId): void {
         return;
     }
 
-    // Save response
-    $responsesDir = DATA_DIR . '/responses/' . $sessionId;
-    ensureDir($responsesDir);
-
-    file_put_contents(
-        $responsesDir . '/' . $requestId . '.json',
-        json_encode($response)
-    );
+    $storage->saveResponse($sessionId, $requestId, $response);
 
     header('Content-Type: application/json');
     echo json_encode(['ok' => true]);
@@ -518,7 +1081,7 @@ function handleResponse(string $sessionId, string $requestId): void {
 /**
  * Guest makes a request through the relay.
  */
-function handleGuestRequest(string $sessionId, string $requestPath): void {
+function handleGuestRequest(RelayStorage $storage, string $sessionId, string $requestPath): void {
     // Briefly wait for the host to be polling. There is an inherent
     // race between the host calling startSharing (which kicks off
     // /poll in the background, not awaited) and a guest opening the
@@ -531,7 +1094,7 @@ function handleGuestRequest(string $sessionId, string $requestPath): void {
     $connectDeadline = time() + 5;
     $session = null;
     while (true) {
-        $session = withSession($sessionId, function (array &$session) {
+        $session = $storage->withSession($sessionId, function (array &$session) {
             // Age-out check so a guest request that arrives first
             // after the host disappears doesn't pin a worker for
             // 30s waiting on a response that will never come.
@@ -605,60 +1168,43 @@ function handleGuestRequest(string $sessionId, string $requestPath): void {
     ];
 
     // Save the request for the host to pick up
-    $requestsDir = DATA_DIR . '/requests/' . $sessionId;
-    ensureDir($requestsDir);
-
-    $requestFile = $requestsDir . '/' . $requestId . '.json';
-    file_put_contents(
-        $requestFile,
-        json_encode([
-            'request' => $tunnelRequest,
-            'dispatched' => false,
-            'createdAt' => nowMs(),
-        ])
-    );
+    $storage->saveRequest($sessionId, $requestId, $tunnelRequest);
 
     // Wait for response. Re-check session health every ~1s so we
     // can fail fast if the host disconnects mid-wait instead of
     // sitting around for the full timeout.
-    $responsesDir = DATA_DIR . '/responses/' . $sessionId;
-    $responseFile = $responsesDir . '/' . $requestId . '.json';
-
     $startTime = time();
     $lastHealthCheck = 0;
 
     while (time() - $startTime < REQUEST_TIMEOUT_SEC) {
-        if (file_exists($responseFile)) {
-            $response = json_decode(file_get_contents($responseFile), true);
-
+        $response = $storage->getResponse($sessionId, $requestId);
+        if ($response !== null) {
             // Clean up
-            @unlink($responseFile);
-            @unlink($requestFile);
+            $storage->deleteResponse($sessionId, $requestId);
+            $storage->deleteRequest($sessionId, $requestId);
 
-            if ($response) {
-                // Send the response
-                http_response_code($response['status']);
+            // Send the response
+            http_response_code($response['status']);
 
-                foreach ($response['headers'] as $name => $value) {
-                    // Skip certain headers
-                    $lowerName = strtolower($name);
-                    if (in_array($lowerName, ['transfer-encoding', 'connection', 'keep-alive'])) {
-                        continue;
-                    }
-                    header("{$name}: {$value}");
+            foreach ($response['headers'] as $name => $value) {
+                // Skip certain headers
+                $lowerName = strtolower($name);
+                if (in_array($lowerName, ['transfer-encoding', 'connection', 'keep-alive'])) {
+                    continue;
                 }
-
-                // Decode base64 body
-                if (!empty($response['body'])) {
-                    echo base64_decode($response['body']);
-                }
-                return;
+                header("{$name}: {$value}");
             }
+
+            // Decode base64 body
+            if (!empty($response['body'])) {
+                echo base64_decode($response['body']);
+            }
+            return;
         }
 
-        // If close() deleted our request file, the host won't see
-        // it any more — bail out instead of waiting for the timer.
-        if (!file_exists($requestFile)) {
+        // If close() deleted our request, the host won't see it
+        // any more — bail out instead of waiting for the timer.
+        if (!$storage->requestExists($sessionId, $requestId)) {
             http_response_code(503);
             header('Content-Type: application/json');
             echo json_encode(['error' => 'Host disconnected']);
@@ -671,7 +1217,7 @@ function handleGuestRequest(string $sessionId, string $requestPath): void {
         $nowSec = time();
         if ($nowSec - $lastHealthCheck >= 1) {
             $lastHealthCheck = $nowSec;
-            $check = withSession($sessionId, function (array &$session) {
+            $check = $storage->withSession($sessionId, function (array &$session) {
                 $now = nowMs();
                 if (
                     !empty($session['hostConnected']) &&
@@ -683,7 +1229,7 @@ function handleGuestRequest(string $sessionId, string $requestPath): void {
                 return $session;
             });
             if (!$check || !$check['hostConnected']) {
-                @unlink($requestFile);
+                $storage->deleteRequest($sessionId, $requestId);
                 http_response_code(503);
                 header('Content-Type: application/json');
                 echo json_encode(['error' => 'Host disconnected']);
@@ -695,50 +1241,9 @@ function handleGuestRequest(string $sessionId, string $requestPath): void {
     }
 
     // Timeout - clean up and return error
-    @unlink($requestFile);
+    $storage->deleteRequest($sessionId, $requestId);
 
     http_response_code(504);
     header('Content-Type: application/json');
     echo json_encode(['error' => 'Gateway timeout']);
-}
-
-/**
- * Clean up old sessions and requests (call periodically).
- */
-function cleanup(): void {
-    $now = nowMs();
-
-    // Clean up old sessions
-    $sessionFiles = glob(DATA_DIR . '/sessions/*.json') ?: [];
-    foreach ($sessionFiles as $file) {
-        $session = json_decode(@file_get_contents($file) ?: '', true);
-        if ($session && $now - ($session['lastActivity'] ?? 0) > SESSION_TIMEOUT_MS) {
-            $sessionId = $session['sessionId'];
-            @unlink($file);
-
-            // Clean up session's requests and responses
-            $requestsDir = DATA_DIR . '/requests/' . $sessionId;
-            if (is_dir($requestsDir)) {
-                array_map('unlink', glob($requestsDir . '/*.json') ?: []);
-                @rmdir($requestsDir);
-            }
-
-            $responsesDir = DATA_DIR . '/responses/' . $sessionId;
-            if (is_dir($responsesDir)) {
-                array_map('unlink', glob($responsesDir . '/*.json') ?: []);
-                @rmdir($responsesDir);
-            }
-        }
-    }
-
-    // Clean up orphaned request files (older than REQUEST_TIMEOUT_SEC * 2)
-    $requestDirs = glob(DATA_DIR . '/requests/*', GLOB_ONLYDIR) ?: [];
-    foreach ($requestDirs as $dir) {
-        $files = glob($dir . '/*.json') ?: [];
-        foreach ($files as $file) {
-            if ($now / 1000 - filemtime($file) > REQUEST_TIMEOUT_SEC * 2) {
-                @unlink($file);
-            }
-        }
-    }
 }
