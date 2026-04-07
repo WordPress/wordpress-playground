@@ -427,7 +427,7 @@ En cas de problème avec les paquets Blueprint :
 If you encounter issues with Blueprint bundles:
 -->
 
-1. Vérifiez que `blueprint.json` est à la racine du ZIP ou dans un seul répertoire de premier niveau
+1. Vérifiez que le fichier `blueprint.json` se trouve à la racine du ZIP ou dans un seul répertoire de premier niveau
 2. Contrôlez que tous les chemins des références aux ressources groupées sont corrects
 3. Vérifiez que le fichier ZIP est correctement formé
 4. Avec la CLI, vérifiez si le drapeau `--blueprint-may-read-adjacent-files` est nécessaire
