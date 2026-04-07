@@ -15,7 +15,7 @@ description: Learn about Blueprint bundles, self-contained packages that include
 # Blueprint Bundles
 -->
 
-Les paquets Blueprint sont des packages autonomes qui contiennent une déclaration Blueprint (`blueprint.json`) ainsi que toutes les ressources supplémentaires nécessaires pour le compiler et l’exécuter. Cela facilite la distribution et le partage d’installations WordPress Playground complètes.
+Les paquets Blueprint sont des dépendances autonomes qui contiennent une déclaration Blueprint (`blueprint.json`) ainsi que toutes les ressources supplémentaires nécessaires pour le compiler et l’exécuter. Cela facilite la distribution et le partage d’installations WordPress Playground complètes.
 
 <!--
 Blueprint bundles are self-contained packages that include a Blueprint declaration (`blueprint.json`) along with all the additional resources required to compile and run it. This makes it easier to distribute and share complete WordPress Playground setups.
