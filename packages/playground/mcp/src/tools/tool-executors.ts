@@ -92,22 +92,64 @@ export const toolExecutors: Record<
 		client.run({ code: input['code'] as string }),
 
 	playground_request: async (client, input) => {
-		const options: {
-			url: string;
-			method: string;
-			headers?: Record<string, string>;
-			body?: string;
-		} = {
-			url: input['url'] as string,
-			method: (input['method'] as string) ?? 'GET',
+		const url = input['url'] as string;
+		const method = (input['method'] as string) ?? 'GET';
+		const headers = {
+			...((input['headers'] as Record<string, string>) ?? {}),
 		};
-		if (input['headers']) {
-			options.headers = input['headers'] as Record<string, string>;
+		const body = input['body'] as string | undefined;
+
+		try {
+			const parsedUrl = new URL(url, 'http://localhost');
+			const isRestApi =
+				url.includes('/wp-json/') ||
+				parsedUrl.searchParams.has('rest_route');
+
+			// Auto-set Content-Type for REST API JSON bodies.
+			if (
+				isRestApi &&
+				body &&
+				!Object.keys(headers).some(
+					(k) => k.toLowerCase() === 'content-type'
+				)
+			) {
+				headers['Content-Type'] = 'application/json';
+			}
+
+			const hasNonce = Object.keys(headers).some(
+				(k) => k.toLowerCase() === 'x-wp-nonce'
+			);
+
+			if (isRestApi && !hasNonce) {
+				// Generate the nonce via a temporary PHP file requested
+				// through request() — not run() — so that the cookie
+				// store is included and WordPress ties the nonce to
+				// the logged-in user.
+				const nonceId = Math.random().toString(36).slice(2, 10);
+				const noncePath = `/wordpress/wp-content/mcp-nonce-${nonceId}.php`;
+				const nonceUrl = `/wp-content/mcp-nonce-${nonceId}.php`;
+				const nonceCode =
+					"<?php require_once '/wordpress/wp-load.php'; echo wp_create_nonce('wp_rest');";
+				await client.writeFile(noncePath, nonceCode);
+				let nonce = '';
+				try {
+					const nonceResp = await client.request({
+						url: nonceUrl,
+						method: 'GET',
+					});
+					nonce = nonceResp.text.trim();
+				} finally {
+					await client.unlink(noncePath);
+				}
+				if (nonce && nonce !== '0') {
+					headers['X-WP-Nonce'] = nonce;
+				}
+			}
+		} catch {
+			// Nonce generation failed — proceed without it.
 		}
-		if (input['body']) {
-			options.body = input['body'] as string;
-		}
-		return await client.request(options);
+
+		return await client.request({ url, method, headers, body });
 	},
 
 	playground_navigate: async (client, input) => {

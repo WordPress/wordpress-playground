@@ -2,7 +2,7 @@ import type { SupportedPHPVersion } from '@php-wasm/universal';
 import { SupportedPHPVersionsList } from '@php-wasm/universal';
 import css from './style.module.css';
 import { CheckboxControl, SelectControl } from '@wordpress/components';
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import classNames from 'classnames';
 import { __experimentalVStack as VStack } from '@wordpress/components';
@@ -43,14 +43,17 @@ export function UnconnectedSiteSettingsForm({
 		multisite: true,
 	},
 }: SiteSettingsFormProps) {
-	defaultValues = {
-		phpVersion: RecommendedPHPVersion,
-		wpVersion: 'latest',
-		language: '',
-		withNetworking: true,
-		multisite: false,
-		...defaultValues,
-	};
+	const mergedDefaults = useMemo<SiteFormData>(
+		() => ({
+			phpVersion: RecommendedPHPVersion as SupportedPHPVersion,
+			wpVersion: 'latest',
+			language: '',
+			withNetworking: true,
+			multisite: false,
+			...defaultValues,
+		}),
+		[defaultValues]
+	);
 	const {
 		handleSubmit,
 		setValue,
@@ -58,7 +61,8 @@ export function UnconnectedSiteSettingsForm({
 		control,
 		formState: { errors },
 	} = useForm<SiteFormData>({
-		defaultValues,
+		defaultValues: mergedDefaults,
+		values: mergedDefaults,
 	});
 
 	const { supportedWPVersions, latestWPVersion } =

@@ -69,20 +69,20 @@ The dedicated refresh button inside Playground only reloads WordPress content—
 :::
 -->
 
-![Refresh Playground Button](@site/static/img/refresh-playground-button.webp)
+![Refresh Playground Button](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/refresh-playground-button.webp)
 
 <blockquote>
 <figure>
 <figcaption><i>1. Playgroundのエクスポート</i></figcaption>
 
-![Save Button](@site/static/img/export-playground.webp)
+![Save Button](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/export-playground.webp)
 
 </figure>
 
 <figure>
 <figcaption><i>2. 保存ボタン:</i></figcaption>
 
-![Save Button](@site/static/img/saving-playground.webp)
+![Save Button](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/saving-playground.webp)
 
 </figure>
 </blockquote>
@@ -92,14 +92,14 @@ The dedicated refresh button inside Playground only reloads WordPress content—
 <figure>
 <figcaption><i>1. Exporting Playground:</i></figcaption>
 
-![Save Button](@site/static/img/export-playground.webp)
+![Save Button](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/export-playground.webp)
 
 </figure>
 
 <figure>
 <figcaption><i>2. Save button:</i></figcaption>
 
-![Save Button](@site/static/img/saving-playground.webp)
+![Save Button](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/saving-playground.webp)
 
 </figure>
 </blockquote>
@@ -159,7 +159,7 @@ Loading times vary based on what Playground needs to set up:
 | On mobile devices                      | 1.5-2x slower than desktop |
 -->
 
-![Save Button](@site/static/img/playground-performance-graph.webp)
+![Save Button](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/playground-performance-graph.webp)
 
 **パフォーマンスに影響を与える要因**
 

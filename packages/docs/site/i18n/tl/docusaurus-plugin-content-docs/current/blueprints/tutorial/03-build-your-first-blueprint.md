@@ -38,7 +38,7 @@ Kung gumagamit ka ng IDE, tulad ng VS Code o PHPStorm, maaari mong gamitin ang [
 :::
 Ganito ang itsura nito sa VS Code:
 
-![Autocompletion visualized](@site/static/img/blueprints/schema-autocompletion.webp)
+![Autocompletion visualized](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/blueprints/schema-autocompletion.webp)
 
 ## 2. I-set ang site title sa "My first Blueprint"
 
@@ -113,17 +113,17 @@ Ang Adventurer ay isang open-source theme na [available sa WordPress theme direc
 
 Ang site ay dapat na mukhang ganito sa screenshot sa ibaba:
 
-![Site with the adventurer theme](@site/static/img/blueprints/installed-adventurer-theme.webp)
+![Site with the adventurer theme](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/blueprints/installed-adventurer-theme.webp)
 
 ### Mga Resource
 
 Ang `themeData` ay nagde-define ng [resource](/blueprints/steps/resources) at nagre-reference ng external file na kailangan para makumpleto ang step. Ang Playground ay sumusuporta sa iba't ibang uri ng resources, kasama ang
 
--   `url`,
--   `wordpress.org/themes`,
--   `wordpress.org/plugins`,
--   `vfs`(virtual file system), o
--   `literal`.
+- `url`,
+- `wordpress.org/themes`,
+- `wordpress.org/plugins`,
+- `vfs`(virtual file system), o
+- `literal`.
 
 Ang example ay gumagamit ng `wordpress.org/themes` resource, na nangangailangan ng `slug` na identical sa ginagamit sa WordPress theme directory:
 
@@ -273,7 +273,7 @@ Narito ang kumpletong Blueprint:
 
 Ganito ang itsura nito kapag nag-navigate ka sa dashboard:
 
-![Site with the custom plugin](@site/static/img/blueprints/installed-custom-plugin.webp)
+![Site with the custom plugin](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/blueprints/installed-custom-plugin.webp)
 
 ### Gumawa ng plugin at i-zip ito
 

@@ -537,7 +537,7 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 						new URL(args['wp']);
 					} catch {
 						throw new Error(
-							'Unrecognized WordPress version. Please use "latest", a URL, or a numeric version such as "6.2", "6.0.1", "6.2-beta1", or "6.2-RC1"'
+							'Unrecognized WordPress version. Please use "latest", "beta", "trunk", "nightly", a URL, or a numeric version such as "6.2", "6.0.1", "6.2-beta1", or "6.2-RC1" (see --help for details).'
 						);
 					}
 				}
@@ -650,14 +650,25 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 		}
 
 		const define = (args['define'] || {}) as Record<string, string>;
-		if (
-			!('WP_DEBUG' in define) &&
-			!('WP_DEBUG_LOG' in define) &&
-			!('WP_DEBUG_DISPLAY' in define)
-		) {
+		const defineBool = (args['define-bool'] || {}) as Record<
+			string,
+			boolean
+		>;
+		const defineNumber = (args['define-number'] || {}) as Record<
+			string,
+			number
+		>;
+		const hasDebugDefine = (name: string) => {
+			return name in define || name in defineBool || name in defineNumber;
+		};
+		if (!hasDebugDefine('WP_DEBUG')) {
 			define['WP_DEBUG'] = 'true';
+		}
+		if (!hasDebugDefine('WP_DEBUG_LOG')) {
 			define['WP_DEBUG_LOG'] = 'true';
-			define['WP_DEBUG_DISPLAY'] = 'true';
+		}
+		if (!hasDebugDefine('WP_DEBUG_DISPLAY')) {
+			define['WP_DEBUG_DISPLAY'] = 'false';
 		}
 
 		const cliArgs = {

@@ -38,7 +38,7 @@ If you use an IDE, like VS Code or PHPStorm, you can use the [Blueprint JSON Sch
 :::
 Here's what it looks like in VS Code:
 
-![Autocompletion visualized](@site/static/img/blueprints/schema-autocompletion.webp)
+![Autocompletion visualized](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/blueprints/schema-autocompletion.webp)
 
 ## 2. Set the site title to "My first Blueprint"
 
@@ -113,17 +113,17 @@ Adventurer is an open-source theme [available in the WordPress theme directory](
 
 The site should now look like the screenshot below:
 
-![Site with the adventurer theme](@site/static/img/blueprints/installed-adventurer-theme.webp)
+![Site with the adventurer theme](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/blueprints/installed-adventurer-theme.webp)
 
 ### Resources
 
 The `themeData` defines a [resource](/blueprints/steps/resources) and references an external file required to complete the step. Playground supports different types of resources, including
 
--   `url`,
--   `wordpress.org/themes`,
--   `wordpress.org/plugins`,
--   `vfs`(virtual file system), or
--   `literal`.
+- `url`,
+- `wordpress.org/themes`,
+- `wordpress.org/plugins`,
+- `vfs`(virtual file system), or
+- `literal`.
 
 The example uses the `wordpress.org/themes` resource, which requires a `slug` identical to the one used in WordPress theme directory:
 
@@ -273,7 +273,7 @@ Here's the complete Blueprint:
 
 That's what it looks like when you navigate to the dashboard:
 
-![Site with the custom plugin](@site/static/img/blueprints/installed-custom-plugin.webp)
+![Site with the custom plugin](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/blueprints/installed-custom-plugin.webp)
 
 ### Create a plugin and zip it
 

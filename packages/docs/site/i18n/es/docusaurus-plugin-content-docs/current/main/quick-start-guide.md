@@ -136,7 +136,7 @@ Para mantener tu sitio de WordPress Playground por más tiempo que una sola sesi
 
 1. Abre el panel del administrador de sitios de Playground:
 
-![Site Manager](@site/static/img/site-manager/open-site-manager.webp)
+![Site Manager](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/site-manager/open-site-manager.webp)
 
 <!--
 2. Use the "Download as .zip" button in the additional actions menu
@@ -144,7 +144,7 @@ Para mantener tu sitio de WordPress Playground por más tiempo que una sola sesi
 
 2. Usa el botón "Descargar como .zip" en el menú de acciones adicionales
 
-![Export button](@site/static/img/site-manager/export-zip-file.webp)
+![Export button](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/site-manager/export-zip-file.webp)
 
 <!--
 The exported file contains the complete site you've built. You could host it on any server that supports PHP and SQLite. All WordPress core files, plugins, themes, and everything else you've added to your site are in there.
@@ -176,7 +176,7 @@ Puedes restaurar el sitio guardado usando el botón "Importar desde .zip" en el 
 
 1. Abre el panel del tablero de Playground:
 
-![Open Playground Dashboard](@site/static/img/dashboard/open-playground-dashboard.webp)
+![Open Playground Dashboard](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dashboard/open-playground-dashboard.webp)
 
 <!--
 1. Use the "Import .zip" button at the end of the "Start a new Playground" section
@@ -184,7 +184,7 @@ Puedes restaurar el sitio guardado usando el botón "Importar desde .zip" en el 
 
 1. Usa el botón "Importar .zip" al final de la sección "Iniciar un nuevo Playground"
 
-![Open Playground Dashboard](@site/static/img/dashboard/import-playground.webp)
+![Open Playground Dashboard](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dashboard/import-playground.webp)
 
 <!--
 ## Use a specific WordPress or PHP version
@@ -198,7 +198,7 @@ The quickest way to change the version of WordPress or PHP is by using the setti
 
 La forma más rápida de cambiar la versión de WordPress o PHP es usando el panel de configuración en el [sitio de demostración oficial](https://playground.wordpress.net/):
 
-![WordPress Playground Settings menu](@site/static/img/playground-settings-menu.webp)
+![WordPress Playground Settings menu](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/playground-settings-menu.webp)
 
 <!--
 :::info Test your plugin or theme

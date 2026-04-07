@@ -106,6 +106,15 @@ export function bootSiteClient(
 					);
 					return;
 				}
+				if (e instanceof DOMException && e.name === 'NotAllowedError') {
+					dispatch(
+						setActiveSiteError({
+							error: 'directory-handle-permission-denied',
+							details: e,
+						})
+					);
+					return;
+				}
 				dispatch(
 					setActiveSiteError({
 						error: 'directory-handle-unknown-error',

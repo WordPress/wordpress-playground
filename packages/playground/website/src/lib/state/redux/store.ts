@@ -4,7 +4,8 @@ import uiReducer, {
 	__internal_uiSlice,
 	listenToOnlineOfflineEventsMiddleware,
 } from './slice-ui';
-import { mcpListenerMiddleware } from './init-mcp-bridge';
+import { siteManagementMiddleware } from './site-management-api-middleware';
+import { mcpBridgeMiddleware } from './init-mcp-bridge';
 import type { SiteInfo } from './slice-sites';
 import sitesReducer, {
 	selectSiteBySlug,
@@ -63,7 +64,8 @@ const store = configureStore({
 	middleware: (getDefaultMiddleware) =>
 		ignoreSerializableCheck(getDefaultMiddleware)
 			.concat(listenToOnlineOfflineEventsMiddleware)
-			.concat(mcpListenerMiddleware.middleware),
+			.concat(siteManagementMiddleware.middleware)
+			.concat(mcpBridgeMiddleware.middleware),
 });
 
 export type RootState = ReturnType<typeof store.getState>;

@@ -3,21 +3,21 @@ import { createToolClient } from './tools/tool-executors';
 import type { ToolClient } from './tools/tool-executors';
 
 /**
- * Shared configuration for the MCP bridge client and WebMCP.
- *
- * Both transports need the same callbacks to interact with
- * the Playground site list and active client.
+ * Configuration accepted by `startMcpBridge`. Only includes the
+ * methods the bridge actually calls — callers can pass any wider
+ * object (e.g. the full site-management API) and TypeScript will
+ * accept it structurally.
  */
-export interface PlaygroundConfig {
-	getSites: () => Array<{
+export interface PlaygroundBridgeConfig {
+	list(): Array<{
 		slug: string;
 		name: string;
 		storage: string;
 		isActive: boolean;
 	}>;
-	getPlaygroundClient: (siteSlug: string) => PlaygroundClient | undefined;
-	renameSite?: (siteSlug: string, newName: string) => Promise<void>;
-	saveSite?: (siteSlug: string) => Promise<{ slug: string; storage: string }>;
+	getClient(): PlaygroundClient | undefined;
+	rename(newName: string): Promise<void>;
+	saveInBrowser(): Promise<{ slug: string; storage: string }>;
 	onConnect?: () => void;
 }
 
@@ -29,7 +29,7 @@ export interface McpBridgeHandle {
 const RECONNECT_INTERVAL_MS = 5000;
 
 export function startMcpBridge(
-	config: PlaygroundConfig,
+	config: PlaygroundBridgeConfig,
 	port: number
 ): McpBridgeHandle {
 	const tabId = crypto.randomUUID();
@@ -39,7 +39,7 @@ export function startMcpBridge(
 	let stopped = false;
 
 	function sendSitesRegistration(socket: WebSocket) {
-		const sites = config.getSites();
+		const sites = config.list();
 		const serialized = JSON.stringify(sites);
 		if (serialized === previousSitesSerialized) {
 			return;
@@ -149,13 +149,13 @@ export function startMcpBridge(
 }
 
 async function handleCommand(
-	config: PlaygroundConfig,
+	config: PlaygroundBridgeConfig,
 	method: string,
 	args: unknown[],
 	siteSlug: string,
 	port: number
 ): Promise<unknown> {
-	if (method === '__open_site') {
+	if (method === '__open_site_in_new_tab') {
 		const url = new URL(window.location.href);
 		url.searchParams.set('mcp', 'yes');
 		url.searchParams.set('mcp-port', String(port));
@@ -171,22 +171,16 @@ async function handleCommand(
 	}
 
 	if (method === '__rename_site') {
-		if (!config.renameSite) {
-			throw new Error('renameSite not configured');
-		}
 		const [newName] = args as [string];
-		await config.renameSite(siteSlug, newName);
+		await config.rename(newName);
 		return true;
 	}
 
 	if (method === '__save_site') {
-		if (!config.saveSite) {
-			throw new Error('saveSite not configured');
-		}
-		return await config.saveSite(siteSlug);
+		return await config.saveInBrowser();
 	}
 
-	const playgroundClient = config.getPlaygroundClient(siteSlug);
+	const playgroundClient = config.getClient();
 	if (!playgroundClient) {
 		throw new Error(`No active client for site: ${siteSlug}`);
 	}
