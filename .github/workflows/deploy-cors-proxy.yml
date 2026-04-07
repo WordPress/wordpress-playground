@@ -8,9 +8,10 @@ concurrency:
 
 jobs:
     build_and_deploy:
-        # Only run this workflow from the trunk branch and when it's triggered by a maintainer listed below
+        # Only run this workflow on the playground repo, from the trunk branch, and when triggered by a maintainer listed below
         # TODO: Can we check for group membership?
         if: >
+            github.repository == 'WordPress/wordpress-playground' &&
             github.ref == 'refs/heads/trunk' && (
                 github.event_name == 'workflow_run' ||
                 github.event_name == 'workflow_dispatch' ||
