@@ -125,7 +125,7 @@ The `server` command provides full control over configuration:
 npx @wp-playground/cli@latest server
 ```
 
-![Playground CLI in Action](@site/static/img/developers/npx-wp-playground-server.gif)
+![Playground CLI in Action](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/developers/npx-wp-playground-server.gif)
 
 <!--
 **Automatic site persistence:** By default, the `start` command keeps your WordPress site persistent across sessions. Your files and database are stored in `~/.wordpress-playground/sites/<path-hash>/`, where `<path-hash>` is derived from your project directory. This means you can stop and restart the CLI without losing your work.

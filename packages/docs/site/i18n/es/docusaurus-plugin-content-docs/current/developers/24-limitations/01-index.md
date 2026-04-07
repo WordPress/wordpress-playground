@@ -67,17 +67,7 @@ Playground creates fresh WordPress instances on each page load. Refreshing the b
 El botón de actualización integrado en Playground solo vuelve a cargar el contenido de WordPress: conserva el estado de PHP/WP. El botón de actualización del navegador (F5 o Cmd+R) destruye toda la instancia.
 :::
 
-<!--
-:::tip
-The dedicated refresh button inside Playground only reloads WordPress content—it preserves your PHP/WP state. The browser's refresh button (F5 or Cmd+R) destroys the entire instance.
-:::
--->
-
-![Botón Actualizar Playground](@site/static/img/refresh-playground-button.webp)
-
-<!--
-![Refresh Playground Button](@site/static/img/refresh-playground-button.webp)
--->
+![Refresh Button](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/refresh-playground-button.webp)
 
 <blockquote>
 <figure>
@@ -87,7 +77,7 @@ The dedicated refresh button inside Playground only reloads WordPress content—
 <figcaption><i>1. Exporting Playground:</i></figcaption>
 -->
 
-![Save Button](@site/static/img/export-playground.webp)
+![Save Button](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/export-playground.webp)
 
 </figure>
 
@@ -98,7 +88,7 @@ The dedicated refresh button inside Playground only reloads WordPress content—
 <figcaption><i>2. Save button:</i></figcaption>
 -->
 
-![Save Button](@site/static/img/saving-playground.webp)
+![Save Button](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/saving-playground.webp)
 
 </figure>
 </blockquote>
@@ -157,11 +147,7 @@ Loading times vary based on what Playground needs to set up:
 | On mobile devices                      | 1.5-2x slower than desktop |
 -->
 
-![Save Button](@site/static/img/playground-performance-graph.webp)
-
-<!--
-![Save Button](@site/static/img/playground-performance-graph.webp)
--->
+![Save Button](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/playground-performance-graph.webp)
 
 **Factores que influyen en el rendimiento:**
 

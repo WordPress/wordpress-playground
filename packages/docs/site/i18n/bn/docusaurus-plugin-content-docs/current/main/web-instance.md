@@ -45,10 +45,10 @@ From the Playground website, some toolbars are also available to customize your 
 প্লেগ্রাউন্ড ওয়েবসাইট থেকে, আপনার প্লেগ্রাউন্ড ইনস্ট্যান্স কাস্টমাইজ করতে এবং কিছু রিসোর্স ও ইউটিলিটিতে দ্রুত অ্যাক্সেস পেতে কিছু টুলবারও উপলব্ধ।
 
 <!--
-![Playground Toolbar Snapshot](@site/static/img/about/playground-toolbar.webp)
+![Playground Toolbar Snapshot](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/about/playground-toolbar.webp)
 -->
 
-![প্লেগ্রাউন্ড টুলবার স্ন্যাপশট](@site/static/img/about/playground-toolbar.webp)
+![প্লেগ্রাউন্ড টুলবার স্ন্যাপশট](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/about/playground-toolbar.webp)
 
 <!--
 ## Customize Playground
@@ -77,10 +77,10 @@ On the toolbar, you'll find:
 ### প্লেগ্রাউন্ড সেটিংস
 
 <!--
-![snapshot of customize Playground window at Playground instance](@site/static/img/about/playground-settings-panel.webp)
+![snapshot of customize Playground window at Playground instance](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/about/playground-settings-panel.webp)
 -->
 
-![প্লেগ্রাউন্ড ইনস্ট্যান্সে কাস্টমাইজ প্লেগ্রাউন্ড উইন্ডোর স্ন্যাপশট](@site/static/img/about/playground-settings-panel.webp)
+![প্লেগ্রাউন্ড ইনস্ট্যান্সে কাস্টমাইজ প্লেগ্রাউন্ড উইন্ডোর স্ন্যাপশট](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/about/playground-settings-panel.webp)
 
 <!--
 The options available from the **Playground Settings Panel**, correspond to the following [Query API options](/developers/apis/query-api#available-options):
@@ -109,10 +109,10 @@ The options available from the **Playground Settings Panel**, correspond to the 
 ## প্লেগ্রাউন্ড ম্যানেজার
 
 <!--
-![Playground settings panel allow users to manage multiple instances](@site/static/img/about/playground-dashboard.webp)
+![Playground settings panel allow users to manage multiple instances](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/about/playground-dashboard.webp)
 -->
 
-![প্লেগ্রাউন্ড সেটিংস প্যানেল ব্যবহারকারীদের একাধিক ইনস্ট্যান্স পরিচালনা করতে দেয়](@site/static/img/about/playground-dashboard.webp)
+![প্লেগ্রাউন্ড সেটিংস প্যানেল ব্যবহারকারীদের একাধিক ইনস্ট্যান্স পরিচালনা করতে দেয়](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/about/playground-dashboard.webp)
 
 <!--
 This panel enables users to manage Playground instances. It displays a list of saved Playgrounds and provides access to the current Playground's settings, along with a **Save Button** to store your configurations locally in your browser for later reloading.
@@ -121,10 +121,10 @@ This panel enables users to manage Playground instances. It displays a list of s
 এই প্যানেলটি ব্যবহারকারীদের প্লেগ্রাউন্ড ইনস্ট্যান্স পরিচালনা করতে সক্ষম করে। এটি সংরক্ষিত প্লেগ্রাউন্ডগুলোর একটি তালিকা প্রদর্শন করে এবং বর্তমান প্লেগ্রাউন্ডের সেটিংসে অ্যাক্সেস প্রদান করে, সাথে একটি **সেভ বাটন** থাকে যা আপনার কনফিগারেশনগুলো পরবর্তীতে পুনরায় লোড করার জন্য স্থানীয়ভাবে আপনার ব্রাউজারে সংরক্ষণ করে।
 
 <!--
-![Save Playground Button](@site/static/img/about/playground-dashboard-save.webp)
+![Save Playground Button](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/about/playground-dashboard-save.webp)
 -->
 
-![প্লেগ্রাউন্ড সেভ বাটন](@site/static/img/about/playground-dashboard-save.webp)
+![প্লেগ্রাউন্ড সেভ বাটন](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/about/playground-dashboard-save.webp)
 
 <!--
 Once you click on save, an instance will be stored with a generated name to be revisited anytime. The Playground Manager also has options to export(Additional actions menu) and import(Import actions menu) WordPress Playground instances:
@@ -139,10 +139,10 @@ Once you click on save, an instance will be stored with a generated name to be r
 ### অতিরিক্ত অ্যাকশন মেনু
 
 <!--
-![Additional actions Menu](@site/static/img/about/playground-manager-additional-actions.webp)
+![Additional actions Menu](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/about/playground-manager-additional-actions.webp)
 -->
 
-![অতিরিক্ত অ্যাকশন মেনু](@site/static/img/about/playground-manager-additional-actions.webp)
+![অতিরিক্ত অ্যাকশন মেনু](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/about/playground-manager-additional-actions.webp)
 
 <!--
 -   **Export Pull Request to GitHub**: This option allows you to export WordPress plugins, themes, and entire wp-content directories as pull requests to any public GitHub repository. Check [here](https://www.youtube.com/watch?v=gKrij8V3nK0&t=2488s) a demo of using this option.
@@ -163,10 +163,10 @@ Once you click on save, an instance will be stored with a generated name to be r
 <span id="edit-the-blueprint"></span>
 
 <!--
-[![snapshot of Builder mode of WordPress Playground](@site/static/img/about/playground-blueprint-editor.webp)](https://playground.wordpress.net/builder/builder.html)
+[![snapshot of Builder mode of WordPress Playground](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/about/playground-blueprint-editor.webp)](https://playground.wordpress.net/builder/builder.html)
 -->
 
-[![ওয়ার্ডপ্রেস প্লেগ্রাউন্ডের বিল্ডার মোডের স্ন্যাপশট](@site/static/img/about/playground-blueprint-editor.webp)](https://playground.wordpress.net/builder/builder.html)
+[![ওয়ার্ডপ্রেস প্লেগ্রাউন্ডের বিল্ডার মোডের স্ন্যাপশট](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/about/playground-blueprint-editor.webp)](https://playground.wordpress.net/builder/builder.html)
 
 <!--
 ### Import actions menu
@@ -175,10 +175,10 @@ Once you click on save, an instance will be stored with a generated name to be r
 ### ইম্পোর্ট অ্যাকশন মেনু
 
 <!--
-![Import actions Menu](@site/static/img/about/playground-manager-import-actions.webp)
+![Import actions Menu](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/about/playground-manager-import-actions.webp)
 -->
 
-![ইম্পোর্ট অ্যাকশন মেনু](@site/static/img/about/playground-manager-import-actions.webp)
+![ইম্পোর্ট অ্যাকশন মেনু](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/about/playground-manager-import-actions.webp)
 
 <!--
 -   **Import from .zip**: Allows you to recreate a Playground instance using any `.zip` file generated with the "Download as .zip" option.
