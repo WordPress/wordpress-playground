@@ -431,7 +431,7 @@ If you encounter issues with Blueprint bundles:
 2. Contrôlez l'exactitude des chemins référençant les ressources groupées
 3. Vérifiez l'intégrité du fichier ZIP
 4. Avec la CLI, vérifiez si le drapeau `--blueprint-may-read-adjacent-files` est nécessaire
-5. Assurez-vous que toutes les ressources requises sont incluses dans le paquet
+5. Assurez-vous de la présence de toutes les ressources nécessaires dans le paquet
 
 <!--
 1. Ensure your `blueprint.json` file is at the root level of your ZIP file or inside a single top-level directory
