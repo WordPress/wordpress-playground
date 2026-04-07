@@ -35,7 +35,16 @@
 			"dependsOn": ["^build"]
 		},
 		"test": {
-			"executor": "nx:noop"
+			"executor": "nx:noop",
+			"dependsOn": ["test:vite"]
+		},
+		"test:vite": {
+			"executor": "@nx/vitest:test",
+			"outputs": ["{workspaceRoot}/coverage/packages/playground/mariadb"],
+			"options": {
+				"passWithNoTests": true,
+				"reportsDirectory": "../../../coverage/packages/playground/mariadb"
+			}
 		},
 		"lint": {
 			"executor": "@nx/eslint:lint",
