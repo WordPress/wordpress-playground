@@ -25,7 +25,7 @@ import {
 } from '.';
 import { basename, dirname, joinPaths } from '@php-wasm/util';
 import { logger } from '@php-wasm/logger';
-import { ensureWpConfig } from './wp-config';
+import { ensureWpConfig, defineWpConfigConstants } from './wp-config';
 
 export type PhpIniOptions = Record<string, string>;
 export type Hook = (php: PHP) => void | Promise<void>;
@@ -238,6 +238,34 @@ export async function bootWordPress(
 	 * definitions for some of the necessary constants.
 	 */
 	await ensureWpConfig(php, requestHandler.documentRoot);
+
+	// When database credentials are provided as runtime constants (e.g.
+	// when using MariaDB WASM), also write them into wp-config.php so
+	// that pre-boot checks like hasValidMySQLCredentials() can find them
+	// by reading the file text.
+	if (options.constants) {
+		const dbKeys = ['DB_HOST', 'DB_USER', 'DB_PASSWORD', 'DB_NAME'];
+		const dbConstants: Record<string, unknown> = {};
+		for (const key of dbKeys) {
+			if (key in options.constants) {
+				dbConstants[key] = options.constants[key];
+			}
+		}
+		if (Object.keys(dbConstants).length > 0) {
+			const wpConfigPath = joinPaths(
+				requestHandler.documentRoot,
+				'wp-config.php'
+			);
+			if (php.fileExists(wpConfigPath)) {
+				await defineWpConfigConstants(
+					php,
+					wpConfigPath,
+					dbConstants
+				);
+			}
+		}
+	}
+
 	// Run "before database" hooks to mount/copy more files in
 	if (options.hooks?.beforeDatabaseSetup) {
 		await options.hooks.beforeDatabaseSetup(php);

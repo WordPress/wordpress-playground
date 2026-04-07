@@ -34,6 +34,7 @@ export interface ConfigSummary {
 	/** All mounts (both manual and auto-detected). Auto-mounts have autoMounted: true */
 	mounts: Mount[];
 	blueprint?: string;
+	database?: string;
 }
 
 export class CLIOutput {
@@ -119,6 +120,13 @@ export class CLIOutput {
 		lines.push(
 			`${this.dim('PHP')} ${this.cyan(config.phpVersion)}  ${this.dim('WordPress')} ${this.cyan(config.wpVersion)}`
 		);
+
+		// Database engine
+		if (config.database === 'mariadb') {
+			lines.push(
+				`${this.dim('Database')} ${this.cyan('MariaDB WASM')}`
+			);
+		}
 
 		// Extensions
 		const extensions: string[] = [];

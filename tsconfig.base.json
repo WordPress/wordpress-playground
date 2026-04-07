@@ -109,6 +109,9 @@
 			"@wp-playground/common": [
 				"packages/playground/common/src/index.ts"
 			],
+			"@wp-playground/mariadb": [
+				"packages/playground/mariadb/src/index.ts"
+			],
 			"@wp-playground/mcp": ["packages/playground/mcp/src/index.ts"],
 			"@wp-playground/mcp/client": [
 				"packages/playground/mcp/src/client.ts"

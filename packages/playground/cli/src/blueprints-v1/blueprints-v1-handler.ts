@@ -125,6 +125,20 @@ export class BlueprintsV1Handler {
 			this.getEffectiveBlueprint()
 		);
 
+		// When using MariaDB WASM, define the MySQL credentials
+		// as PHP constants so WordPress connects to the protocol
+		// server instead of trying to use SQLite.
+		let constants = mergeDefinedConstants(this.args);
+		if (this.args.database === 'mariadb' && this.args.mariadbPort) {
+			constants = {
+				...constants,
+				DB_HOST: `127.0.0.1:${this.args.mariadbPort}`,
+				DB_USER: 'root',
+				DB_PASSWORD: '',
+				DB_NAME: 'wordpress',
+			};
+		}
+
 		// TODO: Fix this type issue that requires the cast to unknown
 		await (
 			playground as unknown as PlaygroundCliBlueprintV1Worker
@@ -138,7 +152,7 @@ export class BlueprintsV1Handler {
 					wordPressZip && (await wordPressZip!.arrayBuffer()),
 				sqliteIntegrationPluginZip:
 					await sqliteIntegrationPluginZip?.arrayBuffer(),
-				constants: mergeDefinedConstants(this.args),
+				constants,
 			},
 			workerPostInstallMountsPort
 		);

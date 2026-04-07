@@ -80,6 +80,7 @@ import {
 	PHPMYADMIN_INSTALL_PATH,
 } from '@wp-playground/tools';
 import { jspi } from 'wasm-feature-detect';
+import type { MariaDBServer } from '@wp-playground/mariadb';
 
 // Inlined worker URLs for static analysis by downstream bundlers
 // These are replaced at build time by the Vite plugin in vite.config.ts
@@ -226,6 +227,20 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 					'Skip the SQLite integration plugin setup to allow the WordPress site to use MySQL.',
 				type: 'boolean',
 				default: false,
+			},
+			database: {
+				describe:
+					'Database engine to use. "sqlite" uses the bundled SQLite integration plugin. ' +
+					'"mariadb" starts a MariaDB WASM server in-process and connects WordPress via MySQL protocol.',
+				type: 'string',
+				choices: ['sqlite', 'mariadb'] as const,
+				default: 'sqlite',
+			},
+			'mariadb-wasm-module': {
+				describe:
+					'Path to the mariadb.js Emscripten module produced by the mariadb-wasm build. ' +
+					'Required when --database=mariadb. The mariadb.wasm file must be in the same directory.',
+				type: 'string',
 			},
 			// Hidden - Deprecated in favor of verbosity
 			quiet: {
@@ -442,6 +457,9 @@ export async function parseOptionsAndRunCLI(argsToParse: string[]) {
 			'define-number': sharedOptions['define-number'],
 			// Tools
 			phpmyadmin: sharedOptions['phpmyadmin'],
+			// Database
+			database: sharedOptions['database'],
+			'mariadb-wasm-module': sharedOptions['mariadb-wasm-module'],
 		};
 
 		const buildSnapshotOnlyOptions: Record<string, YargsOptions> = {
@@ -846,6 +864,15 @@ export interface RunCLIArgs {
 	 */
 	'define-number'?: Record<string, number>;
 
+	// --------- Database args -----------
+	database?: 'sqlite' | 'mariadb';
+	'mariadb-wasm-module'?: string;
+	/**
+	 * When --database=mariadb, the main thread starts a MySQL protocol
+	 * server and stores its port here so workers can connect.
+	 */
+	mariadbPort?: number;
+
 	// --------- Blueprint V1 args -----------
 	skipSqliteSetup?: boolean;
 	followSymlinks?: boolean;
@@ -989,6 +1016,18 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 		args.memcached = await jspi();
 	}
 
+	// When --database=mariadb is selected, skip SQLite setup and validate
+	// that the WASM module path is provided.
+	if (args.database === 'mariadb') {
+		args.skipSqliteSetup = true;
+		if (!args['mariadb-wasm-module']) {
+			throw new Error(
+				'--mariadb-wasm-module is required when --database=mariadb. ' +
+					'Provide the path to the mariadb.js file produced by the mariadb-wasm build.'
+			);
+		}
+	}
+
 	// Setup phpMyAdmin if enabled.
 	if (args.phpmyadmin) {
 		if (true === args.phpmyadmin) {
@@ -1026,6 +1065,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 			],
 			blueprint:
 				typeof args.blueprint === 'string' ? args.blueprint : undefined,
+			database: args.database,
 		});
 	}
 
@@ -1037,6 +1077,7 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 
 	let wordPressReady = false;
 	let isFirstRequest = true;
+	let mariadbServer: MariaDBServer | undefined;
 
 	const server = await startServer({
 		port: args.port
@@ -1048,6 +1089,27 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 			const host = '127.0.0.1';
 			const serverUrl = `http://${host}:${port}`;
 			const siteUrl = args['site-url'] || serverUrl;
+
+			// Start MariaDB WASM server if --database=mariadb.
+			// This must happen before worker threads are spawned so
+			// the MySQL port is available when PHP boots.
+			if (args.database === 'mariadb') {
+				const { loadMariaDBModule, startMySQLProtocolServer } =
+					await import('@wp-playground/mariadb');
+
+				cliOutput.updateProgress('Starting MariaDB WASM');
+				const bridge = await loadMariaDBModule(
+					args['mariadb-wasm-module']!
+				);
+				mariadbServer = await startMySQLProtocolServer({
+					bridge,
+					defaultDatabase: 'wordpress',
+				});
+				args.mariadbPort = mariadbServer.port;
+				logger.debug(
+					`MariaDB WASM server listening on port ${mariadbServer.port}`
+				);
+			}
 
 			/**
 			 * With HTTP 1.1, browsers typically support 6 parallel connections per domain.
@@ -1387,6 +1449,9 @@ export async function runCLI(args: RunCLIArgs): Promise<RunCLIServer | void> {
 						server.close(resolve);
 						server.closeAllConnections();
 					});
+				}
+				if (mariadbServer) {
+					await mariadbServer.close();
 				}
 				await nativeDir.cleanup();
 			};

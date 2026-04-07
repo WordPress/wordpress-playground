@@ -1,0 +1,50 @@
+{
+	"name": "playground-mariadb",
+	"$schema": "../../../node_modules/nx/schemas/project-schema.json",
+	"sourceRoot": "packages/playground/mariadb/src",
+	"projectType": "library",
+	"tags": [],
+	"targets": {
+		"build": {
+			"executor": "nx:noop",
+			"dependsOn": ["build:package-json"]
+		},
+		"build:package-json": {
+			"executor": "@wp-playground/nx-extensions:package-json",
+			"options": {
+				"tsConfig": "packages/playground/mariadb/tsconfig.lib.json",
+				"outputPath": "dist/packages/playground/mariadb",
+				"buildTarget": "playground-mariadb:build:bundle:production"
+			}
+		},
+		"build:bundle": {
+			"executor": "@nx/vite:build",
+			"outputs": ["{options.outputPath}"],
+			"defaultConfiguration": "production",
+			"options": {
+				"outputPath": "dist/packages/playground/mariadb"
+			},
+			"configurations": {
+				"development": {
+					"mode": "development"
+				},
+				"production": {
+					"mode": "production"
+				}
+			},
+			"dependsOn": ["^build"]
+		},
+		"test": {
+			"executor": "nx:noop"
+		},
+		"lint": {
+			"executor": "@nx/eslint:lint",
+			"outputs": ["{options.outputFile}"],
+			"options": {
+				"useFlatConfig": false,
+				"lintFilePatterns": ["packages/playground/mariadb/**/*.ts"],
+				"maxWarnings": 0
+			}
+		}
+	}
+}
