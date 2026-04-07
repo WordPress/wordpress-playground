@@ -1,3 +1,4 @@
+import type { Page } from '@playwright/test';
 import { test, expect } from '../playground-fixtures.ts';
 
 type Website = Awaited<Parameters<Parameters<typeof test>[1]>[0]['website']>;
@@ -60,9 +61,7 @@ async function startSharingFromToolbar(website: Website): Promise<string> {
  * "should allow guest to view host playground through relay" test,
  * which lets the timer run naturally.
  */
-async function pingGuestHeartbeat(
-	guest: import('@playwright/test').Page
-): Promise<void> {
+async function pingGuestHeartbeat(guest: Page): Promise<void> {
 	await guest.evaluate(async () => {
 		const m = window.location.search.match(/[?&]share=([^&]+)/);
 		if (!m) throw new Error('guest page has no ?share= param');

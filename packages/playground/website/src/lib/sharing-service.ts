@@ -6,13 +6,14 @@
  * complex object with methods and callbacks that doesn't serialize well.
  */
 
+import { logger } from '@php-wasm/logger';
 import type { PlaygroundClient } from '@wp-playground/remote';
 import { TunnelHost, type TunnelHostStatus } from './relay-server';
 
 let tunnelHost: TunnelHost | null = null;
 let currentSessionId: string | null = null;
 let currentShareUrl: string | null = null;
-let statusListeners: Set<(status: SharingStatus) => void> = new Set();
+const statusListeners: Set<(status: SharingStatus) => void> = new Set();
 
 export interface SharingStatus {
 	isActive: boolean;
@@ -65,13 +66,12 @@ export async function startSharing(
 	const relayUrl = window.location.origin;
 	tunnelHost = new TunnelHost(playgroundClient, relayUrl);
 
-	tunnelHost.on('statusChange', (status) => {
-		console.log('[SharingService] Status changed:', status);
+	tunnelHost.on('statusChange', () => {
 		notifyListeners();
 	});
 
 	tunnelHost.on('error', (error) => {
-		console.error('[SharingService] Error:', error);
+		logger.error('[SharingService] Error:', error);
 		notifyListeners();
 	});
 

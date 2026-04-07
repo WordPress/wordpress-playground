@@ -5,6 +5,7 @@
  * through the local Playground instance, and sends responses back.
  */
 
+import { logger } from '@php-wasm/logger';
 import type { PlaygroundClient } from '@wp-playground/remote';
 import type {
 	TunnelRequest,
@@ -113,16 +114,24 @@ export interface TunnelHostEvents {
 	error: (error: Error) => void;
 }
 
+/**
+ * Internal listener storage. We keep one Set per event name and type
+ * each Set with the actual listener signature for that event so the
+ * `on()`/`emit()` plumbing stays type-safe end-to-end.
+ */
+type ListenerMap = {
+	[K in keyof TunnelHostEvents]: Set<TunnelHostEvents[K]>;
+};
+
 export class TunnelHost {
+	private readonly playgroundClient: PlaygroundClient;
+	private readonly relayUrl: string;
 	private sessionId: string | null = null;
 	private shareUrl: string | null = null;
 	private pollAbortController: AbortController | null = null;
 	private isActive = false;
 	private status: TunnelHostStatus = 'disconnected';
-	private reconnectAttempts = 0;
-	private maxReconnectAttempts = 5;
-	private reconnectDelay = 1000;
-	private listeners: Map<keyof TunnelHostEvents, Set<Function>> = new Map();
+	private listeners: Partial<ListenerMap> = {};
 
 	/**
 	 * Queue of pending requests to process sequentially.
@@ -139,10 +148,10 @@ export class TunnelHost {
 	 */
 	private pagehideHandler: (() => void) | null = null;
 
-	constructor(
-		private playgroundClient: PlaygroundClient,
-		private relayUrl: string
-	) {}
+	constructor(playgroundClient: PlaygroundClient, relayUrl: string) {
+		this.playgroundClient = playgroundClient;
+		this.relayUrl = relayUrl;
+	}
 
 	/**
 	 * Start a sharing session and return the share URL.
@@ -169,7 +178,6 @@ export class TunnelHost {
 			this.sessionId = data.sessionId;
 			this.shareUrl = data.shareUrl;
 			this.isActive = true;
-			this.reconnectAttempts = 0;
 
 			this.setStatus('connected');
 			this.startPolling();
@@ -206,7 +214,7 @@ export class TunnelHost {
 				);
 			} catch (e) {
 				// Non-fatal — relay will fall back to the dead-host timer.
-				console.warn('[TunnelHost] Close request failed:', e);
+				logger.warn('[TunnelHost] Close request failed:', e);
 			}
 		}
 	}
@@ -263,7 +271,6 @@ export class TunnelHost {
 	 */
 	private async processQueue(): Promise<void> {
 		if (this.isProcessingRequest) {
-			console.log('[TunnelHost] Queue processor already running, request will be processed in turn');
 			return;
 		}
 		if (this.requestQueue.length === 0) {
@@ -271,21 +278,20 @@ export class TunnelHost {
 		}
 
 		this.isProcessingRequest = true;
-		console.log('[TunnelHost] Starting queue processor');
 
 		while (this.requestQueue.length > 0 && this.isActive) {
 			const request = this.requestQueue.shift()!;
-			console.log(`[TunnelHost] Processing request ${request.requestId} for ${request.path}, queue length: ${this.requestQueue.length}`);
 			try {
 				await this.handleRequest(request);
-				console.log(`[TunnelHost] Completed request ${request.requestId}`);
 			} catch (error) {
-				console.error(`[TunnelHost] Error handling request ${request.requestId}:`, error);
+				logger.error(
+					`[TunnelHost] Error handling request ${request.requestId}:`,
+					error
+				);
 				this.emit('error', error as Error);
 			}
 		}
 
-		console.log('[TunnelHost] Queue processor finished');
 		this.isProcessingRequest = false;
 	}
 
@@ -317,22 +323,34 @@ export class TunnelHost {
 		event: K,
 		listener: TunnelHostEvents[K]
 	): () => void {
-		if (!this.listeners.has(event)) {
-			this.listeners.set(event, new Set());
+		let set = this.listeners[event] as Set<TunnelHostEvents[K]> | undefined;
+		if (!set) {
+			set = new Set<TunnelHostEvents[K]>();
+			this.listeners[event] = set as ListenerMap[K];
 		}
-		this.listeners.get(event)!.add(listener);
-		return () => this.listeners.get(event)?.delete(listener);
+		set.add(listener);
+		return () => {
+			(this.listeners[event] as Set<TunnelHostEvents[K]> | undefined)?.delete(
+				listener
+			);
+		};
 	}
 
 	private emit<K extends keyof TunnelHostEvents>(
 		event: K,
 		...args: Parameters<TunnelHostEvents[K]>
 	): void {
-		this.listeners.get(event)?.forEach((listener) => {
+		const set = this.listeners[event] as
+			| Set<TunnelHostEvents[K]>
+			| undefined;
+		set?.forEach((listener) => {
 			try {
-				(listener as Function)(...args);
-			} catch (e) {
-				console.error('Error in event listener:', e);
+				(listener as (...a: Parameters<TunnelHostEvents[K]>) => void)(
+					...args
+				);
+			} catch {
+				// Listener errors are intentionally swallowed so one bad
+				// subscriber can't take down the rest of the chain.
 			}
 		});
 	}
@@ -348,7 +366,6 @@ export class TunnelHost {
 	 * Main polling loop - continuously polls for guest requests.
 	 */
 	private async startPolling(): Promise<void> {
-		console.log('[TunnelHost] Starting polling loop');
 		while (this.isActive && this.sessionId) {
 			try {
 				this.pollAbortController = new AbortController();
@@ -363,7 +380,6 @@ export class TunnelHost {
 				if (!response.ok) {
 					if (response.status === 404) {
 						// Session expired
-						console.log('[TunnelHost] Session expired or not found');
 						this.emit(
 							'error',
 							new Error('Session expired or not found')
@@ -376,44 +392,39 @@ export class TunnelHost {
 
 				const data: PollResponse = await response.json();
 
-				// Reset reconnect counter on successful poll
-				this.reconnectAttempts = 0;
-
 				if (data.timeout) {
 					// No request available, continue polling
-					console.log('[TunnelHost] Poll timeout, continuing...');
 					continue;
 				}
 
 				if (data.request) {
-					console.log(`[TunnelHost] Received request ${data.request.requestId} for ${data.request.path}`);
 					// Process request in background - don't wait, keep polling
 					this.handleRequest(data.request).catch((error) => {
-						console.error(`[TunnelHost] Error handling request:`, error);
+						logger.error(
+							'[TunnelHost] Error handling request:',
+							error
+						);
 					});
 				}
 			} catch (error) {
 				if ((error as Error).name === 'AbortError') {
 					// Polling was intentionally stopped
-					console.log('[TunnelHost] Polling aborted');
 					break;
 				}
 
-				console.error('[TunnelHost] Polling error:', error);
+				logger.warn('[TunnelHost] Polling error:', error);
 
 				// Brief pause before retrying, but don't give up
 				await new Promise((resolve) => setTimeout(resolve, 1000));
 				// Keep polling - don't give up on transient errors
 			}
 		}
-		console.log('[TunnelHost] Polling loop exited, isActive:', this.isActive);
 	}
 
 	/**
 	 * Process an incoming request through the Playground.
 	 */
 	private async handleRequest(tunnelRequest: TunnelRequest): Promise<void> {
-		const startTime = Date.now();
 		try {
 			// Convert tunnel request to PHPRequest format
 			const phpRequest = {
@@ -425,15 +436,16 @@ export class TunnelHost {
 					: undefined,
 			};
 
-			console.log(`[TunnelHost] Calling playgroundClient.request for ${tunnelRequest.path}`);
 			// Process through Playground with a timeout to prevent hanging
 			const phpResponse = await Promise.race([
 				this.playgroundClient.request(phpRequest),
 				new Promise<never>((_, reject) =>
-					setTimeout(() => reject(new Error('PHP request timeout')), 25000)
+					setTimeout(
+						() => reject(new Error('PHP request timeout')),
+						25000
+					)
 				),
 			]);
-			console.log(`[TunnelHost] playgroundClient.request completed in ${Date.now() - startTime}ms, status: ${phpResponse.httpStatusCode}`);
 
 			// Convert headers from Record<string, string[]> to Record<string, string>
 			// and rewrite Location headers for redirects to go through the relay
@@ -446,7 +458,6 @@ export class TunnelHost {
 				if (key.toLowerCase() === 'location' && value) {
 					if (value.startsWith('/') && !value.startsWith('/relay/')) {
 						value = `${relayPrefix}${value}`;
-						console.log(`[TunnelHost] Rewrote Location header to: ${value}`);
 					}
 				}
 
@@ -484,7 +495,7 @@ export class TunnelHost {
 
 			this.emit('requestProcessed', tunnelRequest);
 		} catch (error) {
-			console.error('Error processing request:', error);
+			logger.error('Error processing request:', error);
 
 			// Send error response
 			const errorResponse: TunnelResponse = {
@@ -498,7 +509,12 @@ export class TunnelHost {
 				),
 			};
 
-			await this.sendResponse(errorResponse).catch(console.error);
+			await this.sendResponse(errorResponse).catch((sendError) => {
+				logger.error(
+					'[TunnelHost] Failed to send error response:',
+					sendError
+				);
+			});
 		}
 	}
 
@@ -506,7 +522,6 @@ export class TunnelHost {
 	 * Send a response back to the relay server.
 	 */
 	private async sendResponse(response: TunnelResponse): Promise<void> {
-		console.log(`[TunnelHost] Sending response for ${response.requestId}`);
 		const res = await fetch(
 			`${this.relayUrl}/relay/${this.sessionId}/response/${response.requestId}`,
 			{
@@ -519,9 +534,10 @@ export class TunnelHost {
 		);
 
 		if (!res.ok) {
-			console.error(`[TunnelHost] Failed to send response: ${res.statusText}`);
+			logger.error(
+				`[TunnelHost] Failed to send response: ${res.statusText}`
+			);
 			throw new Error(`Failed to send response: ${res.statusText}`);
 		}
-		console.log(`[TunnelHost] Response sent successfully for ${response.requestId}`);
 	}
 }

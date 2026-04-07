@@ -79,7 +79,7 @@ export function SharedPlaygroundViewer({
 					setError(`Connection failed: ${response.statusText}`);
 					setStatus('error');
 				}
-			} catch (err) {
+			} catch {
 				setError(
 					'Unable to connect to the shared Playground. Please check your connection.'
 				);
