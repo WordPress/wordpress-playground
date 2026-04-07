@@ -6,6 +6,30 @@ interface SharedPlaygroundViewerProps {
 	sessionId: string;
 }
 
+/**
+ * A stable per-tab UUID. We persist it on `sessionStorage` so a soft
+ * reload keeps the same identity, but a brand new tab gets its own —
+ * which is exactly the granularity the host wants for the collaborator
+ * list ("Guest 1", "Guest 2", …).
+ */
+function getOrCreateGuestId(): string {
+	const KEY = 'wp-playground-share-guest-id';
+	try {
+		const existing = sessionStorage.getItem(KEY);
+		if (existing) {
+			return existing;
+		}
+		const fresh = crypto.randomUUID();
+		sessionStorage.setItem(KEY, fresh);
+		return fresh;
+	} catch {
+		// sessionStorage may be unavailable (e.g. cookies blocked) — fall
+		// back to an in-memory id, which is fine for the duration of the
+		// page load.
+		return crypto.randomUUID();
+	}
+}
+
 type ConnectionStatus =
 	| 'connecting'
 	| 'connected'
@@ -23,7 +47,13 @@ export function SharedPlaygroundViewer({
 
 	// The relay request URL for this session
 	const relayBaseUrl = `${window.location.origin}/relay/${sessionId}/request`;
-	const statusUrl = `${window.location.origin}/relay/${sessionId}/status`;
+	// We tag every status fetch with our per-tab guest id so the relay
+	// can build the host-side collaborator list. The status endpoint
+	// doubles as the heartbeat — no separate ping needed.
+	const guestId = useRef<string>(getOrCreateGuestId()).current;
+	const statusUrl = `${window.location.origin}/relay/${sessionId}/status?gid=${encodeURIComponent(
+		guestId
+	)}`;
 
 	// Check if the session is valid by making a test request
 	useEffect(() => {

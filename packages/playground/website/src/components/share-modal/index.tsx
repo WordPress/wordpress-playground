@@ -13,6 +13,10 @@ import {
 	subscribeToSharingStatus,
 	type SharingStatus,
 } from '../../lib/sharing-service';
+import type {
+	GuestInfo,
+	SessionStatusResponse,
+} from '../../lib/relay-server/types';
 
 type ShareState = 'idle' | 'connecting' | 'sharing' | 'error';
 
@@ -22,6 +26,8 @@ export function ShareModal() {
 	const [shareUrl, setShareUrl] = useState<string | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	const [copied, setCopied] = useState(false);
+	const [guests, setGuests] = useState<GuestInfo[]>([]);
+	const [sessionId, setSessionId] = useState<string | null>(null);
 
 	const clientInfo = useAppSelector((state) =>
 		state.ui.activeSite?.slug
@@ -37,6 +43,7 @@ export function ShareModal() {
 	// Sync state with sharing service
 	const updateFromSharingStatus = useCallback((status: SharingStatus) => {
 		setShareUrl(status.shareUrl);
+		setSessionId(status.sessionId);
 
 		if (!status.isActive) {
 			setShareState('idle');
@@ -67,6 +74,36 @@ export function ShareModal() {
 		const unsubscribe = subscribeToSharingStatus(updateFromSharingStatus);
 		return unsubscribe;
 	}, [updateFromSharingStatus]);
+
+	// Poll the relay's status endpoint while a session is live so the
+	// modal shows a real-time list of connected collaborators. We don't
+	// pass a `gid` here — the host shouldn't show up in its own list.
+	useEffect(() => {
+		if (shareState !== 'sharing' || !sessionId) {
+			setGuests([]);
+			return;
+		}
+		let cancelled = false;
+		const tick = async () => {
+			try {
+				const res = await fetch(
+					`${window.location.origin}/relay/${sessionId}/status`
+				);
+				if (cancelled || !res.ok) return;
+				const data = (await res.json()) as SessionStatusResponse;
+				if (cancelled) return;
+				setGuests(data.guests || []);
+			} catch {
+				// ignore — next tick will retry
+			}
+		};
+		tick();
+		const interval = setInterval(tick, 3000);
+		return () => {
+			cancelled = true;
+			clearInterval(interval);
+		};
+	}, [shareState, sessionId]);
 
 	const handleStartSharing = async () => {
 		if (!playground) {
@@ -169,6 +206,85 @@ export function ShareModal() {
 							>
 								{copied ? 'Copied!' : 'Copy'}
 							</Button>
+						</div>
+						<div
+							style={{
+								border: '1px solid #ddd',
+								borderRadius: 4,
+								padding: '10px 12px',
+								background: '#fafafa',
+							}}
+						>
+							<div
+								style={{
+									display: 'flex',
+									alignItems: 'center',
+									justifyContent: 'space-between',
+									marginBottom: guests.length > 0 ? 8 : 0,
+								}}
+							>
+								<strong style={{ color: '#1e1e1e' }}>
+									{guests.length === 0
+										? 'No collaborators yet'
+										: `${guests.length} collaborator${
+												guests.length === 1 ? '' : 's'
+										  } connected`}
+								</strong>
+								<span
+									style={{
+										width: 8,
+										height: 8,
+										borderRadius: '50%',
+										background:
+											guests.length > 0
+												? '#46b450'
+												: '#ccc',
+										display: 'inline-block',
+									}}
+									aria-hidden="true"
+								/>
+							</div>
+							{guests.length > 0 && (
+								<ul
+									data-testid="collaborators-list"
+									style={{
+										listStyle: 'none',
+										padding: 0,
+										margin: 0,
+										display: 'flex',
+										flexWrap: 'wrap',
+										gap: 6,
+									}}
+								>
+									{guests.map((g) => (
+										<li
+											key={g.id}
+											style={{
+												background: '#fff',
+												border: '1px solid #ddd',
+												borderRadius: 12,
+												padding: '2px 10px',
+												fontSize: 13,
+												color: '#1e1e1e',
+											}}
+										>
+											{g.label}
+										</li>
+									))}
+								</ul>
+							)}
+							{guests.length === 0 && (
+								<p
+									style={{
+										margin: '6px 0 0',
+										color: '#757575',
+										fontSize: 12,
+									}}
+								>
+									Share the link above. Collaborators will
+									appear here as they join.
+								</p>
+							)}
 						</div>
 						<p
 							style={{
