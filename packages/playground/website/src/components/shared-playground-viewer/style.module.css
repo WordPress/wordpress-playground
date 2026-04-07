@@ -41,6 +41,49 @@
 	font-size: 12px;
 }
 
+.statusDisconnected {
+	color: #ffb3b3;
+	font-size: 12px;
+}
+
+.disconnectedOverlay {
+	position: absolute;
+	inset: 0;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	background: rgba(17, 17, 17, 0.72);
+	backdrop-filter: blur(2px);
+	z-index: 10;
+}
+
+.disconnectedCard {
+	background: white;
+	padding: 32px 40px;
+	border-radius: 8px;
+	box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+	max-width: 440px;
+	text-align: center;
+}
+
+.disconnectedCard h2 {
+	margin: 0 0 12px 0;
+	color: #d63638;
+	font-size: 20px;
+}
+
+.disconnectedCard p {
+	margin: 0 0 20px 0;
+	color: #555;
+	line-height: 1.5;
+}
+
+.iframeWrapper {
+	position: relative;
+	flex: 1;
+	display: flex;
+}
+
 .createOwnButton {
 	background: rgba(255, 255, 255, 0.2);
 	color: white;

@@ -33,9 +33,27 @@ export interface TunnelSession {
 	sessionId: string;
 	createdAt: number;
 	lastActivity: number;
+	/**
+	 * Last time the host successfully hit the long-poll endpoint. Used to
+	 * detect a host that stopped polling (e.g. closed the tab) without
+	 * waiting for the full session timeout.
+	 */
+	lastPollAt: number;
 	hostConnected: boolean;
 	pendingRequests: Map<string, QueuedRequest>;
 	pollResolvers: Array<(request: TunnelRequest | null) => void>;
+}
+
+export interface SessionStatusResponse {
+	sessionId: string;
+	hostConnected: boolean;
+	/**
+	 * True when the host is connected AND has polled recently enough that
+	 * we still consider the session live. The guest uses this to decide
+	 * whether to render a "host disconnected" overlay.
+	 */
+	hostAlive: boolean;
+	lastPollAgoMs: number;
 }
 
 export interface CreateSessionResponse {

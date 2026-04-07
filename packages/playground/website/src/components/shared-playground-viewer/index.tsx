@@ -1,11 +1,18 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import css from './style.module.css';
+import type { SessionStatusResponse } from '../../lib/relay-server/types';
 
 interface SharedPlaygroundViewerProps {
 	sessionId: string;
 }
 
-type ConnectionStatus = 'connecting' | 'connected' | 'error' | 'disconnected';
+type ConnectionStatus =
+	| 'connecting'
+	| 'connected'
+	| 'error'
+	| 'disconnected'
+	// Host was reachable at least once but has since stopped polling.
+	| 'host-disconnected';
 
 export function SharedPlaygroundViewer({
 	sessionId,
@@ -16,6 +23,7 @@ export function SharedPlaygroundViewer({
 
 	// The relay request URL for this session
 	const relayBaseUrl = `${window.location.origin}/relay/${sessionId}/request`;
+	const statusUrl = `${window.location.origin}/relay/${sessionId}/status`;
 
 	// Check if the session is valid by making a test request
 	useEffect(() => {
@@ -52,6 +60,47 @@ export function SharedPlaygroundViewer({
 		checkSession();
 	}, [relayBaseUrl]);
 
+	// Poll the relay's session status endpoint so we can flip to a
+	// "host disconnected" state as soon as the host stops polling,
+	// instead of waiting for an iframe request to time out.
+	useEffect(() => {
+		let cancelled = false;
+		let sawHostAlive = false;
+
+		const tick = async () => {
+			try {
+				const res = await fetch(statusUrl);
+				if (cancelled) return;
+				if (res.status === 404) {
+					setError(
+						'This sharing session has expired or does not exist.'
+					);
+					setStatus('error');
+					return;
+				}
+				if (!res.ok) return;
+				const data = (await res.json()) as SessionStatusResponse;
+				if (cancelled) return;
+				if (data.hostAlive) {
+					sawHostAlive = true;
+				} else if (sawHostAlive) {
+					// Host was reachable before, now it's gone. This is the
+					// disconnect case we want to surface clearly.
+					setStatus('host-disconnected');
+				}
+			} catch {
+				// network hiccup — ignore, we'll retry on the next tick
+			}
+		};
+
+		tick();
+		const interval = setInterval(tick, 3000);
+		return () => {
+			cancelled = true;
+			clearInterval(interval);
+		};
+	}, [statusUrl]);
+
 	const handleIframeLoad = useCallback(() => {
 		setStatus('connected');
 	}, []);
@@ -79,6 +128,11 @@ export function SharedPlaygroundViewer({
 					{status === 'connecting' && (
 						<span className={css.statusConnecting}>
 							● Connecting...
+						</span>
+					)}
+					{status === 'host-disconnected' && (
+						<span className={css.statusDisconnected}>
+							● Host disconnected
 						</span>
 					)}
 				</div>
@@ -119,17 +173,43 @@ export function SharedPlaygroundViewer({
 				</div>
 			)}
 
-			{(status === 'connected' || status === 'connecting') && (
-				<iframe
-					ref={iframeRef}
-					src={`${relayBaseUrl}/`}
-					className={css.iframe}
-					onLoad={handleIframeLoad}
-					title="Shared WordPress Playground"
-					style={{
-						opacity: status === 'connected' ? 1 : 0,
-					}}
-				/>
+			{(status === 'connected' ||
+				status === 'connecting' ||
+				status === 'host-disconnected') && (
+				<div className={css.iframeWrapper}>
+					<iframe
+						ref={iframeRef}
+						src={`${relayBaseUrl}/`}
+						className={css.iframe}
+						onLoad={handleIframeLoad}
+						title="Shared WordPress Playground"
+						style={{
+							opacity:
+								status === 'connected' ||
+								status === 'host-disconnected'
+									? 1
+									: 0,
+						}}
+					/>
+					{status === 'host-disconnected' && (
+						<div className={css.disconnectedOverlay}>
+							<div className={css.disconnectedCard}>
+								<h2>Host disconnected</h2>
+								<p>
+									The person sharing this Playground closed
+									their tab. The session is frozen at its
+									last state and new actions won't work
+									until they come back.
+								</p>
+								<div className={css.errorActions}>
+									<a href="/" className={css.retryButton}>
+										Create your own Playground
+									</a>
+								</div>
+							</div>
+						</div>
+					)}
+				</div>
 			)}
 		</div>
 	);

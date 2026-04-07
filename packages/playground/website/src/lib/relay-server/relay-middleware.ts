@@ -20,11 +20,19 @@ import type {
 	QueuedRequest,
 	CreateSessionResponse,
 	PollResponse,
+	SessionStatusResponse,
 } from './types';
 
 const SESSION_TIMEOUT = 30 * 60 * 1000; // 30 minutes
 const POLL_TIMEOUT = 25 * 1000; // 25 seconds
 const REQUEST_TIMEOUT = 30 * 1000; // 30 seconds
+/**
+ * How long without a host poll before we consider the host "dead". A
+ * healthy host re-polls immediately after each timeout (25s), so ~40s
+ * gives one poll's worth of slack for network hiccups before we flip
+ * hostConnected to false and fail pending guest requests fast.
+ */
+const HOST_DEAD_AFTER_MS = 40 * 1000;
 
 const sessions = new Map<string, TunnelSession>();
 
@@ -36,9 +44,38 @@ function generateRequestId(): string {
 	return crypto.randomUUID();
 }
 
+/**
+ * Mark a session's host as disconnected and fail anything that was
+ * waiting on it. Safe to call multiple times.
+ */
+function markHostDisconnected(session: TunnelSession, reason: string): void {
+	if (session.hostConnected) {
+		console.log(
+			`[Relay] Marking host disconnected for session ${session.sessionId}: ${reason}`
+		);
+	}
+	session.hostConnected = false;
+	for (const queued of session.pendingRequests.values()) {
+		clearTimeout(queued.timeoutId);
+		queued.reject(new Error('Host disconnected'));
+	}
+	session.pendingRequests.clear();
+}
+
 function cleanupExpiredSessions(): void {
 	const now = Date.now();
 	for (const [sessionId, session] of sessions) {
+		// Detect hosts that stopped polling. We do this before the full
+		// session timeout so guests see a "host disconnected" state
+		// within seconds instead of half a minute.
+		if (
+			session.hostConnected &&
+			session.lastPollAt > 0 &&
+			now - session.lastPollAt > HOST_DEAD_AFTER_MS
+		) {
+			markHostDisconnected(session, 'no poll received');
+		}
+
 		if (now - session.lastActivity > SESSION_TIMEOUT) {
 			// Reject any pending requests
 			for (const queued of session.pendingRequests.values()) {
@@ -54,8 +91,8 @@ function cleanupExpiredSessions(): void {
 	}
 }
 
-// Run cleanup every minute
-setInterval(cleanupExpiredSessions, 60 * 1000);
+// Run cleanup every 5 seconds so the host-dead detection reacts quickly.
+setInterval(cleanupExpiredSessions, 5 * 1000);
 
 function getSession(sessionId: string): TunnelSession | undefined {
 	const session = sessions.get(sessionId);
@@ -139,6 +176,7 @@ export function createRelayMiddleware(
 				sessionId,
 				createdAt: Date.now(),
 				lastActivity: Date.now(),
+				lastPollAt: 0,
 				hostConnected: false,
 				pendingRequests: new Map(),
 				pollResolvers: [],
@@ -171,6 +209,7 @@ export function createRelayMiddleware(
 			}
 
 			session.hostConnected = true;
+			session.lastPollAt = Date.now();
 			console.log(`[Relay] Poll: session ${sessionId}, pending requests: ${session.pendingRequests.size}`);
 
 			// Check if there are pending requests that haven't been dispatched yet
@@ -261,6 +300,62 @@ export function createRelayMiddleware(
 			session.pendingRequests.delete(requestId);
 			queued.resolve(tunnelResponse);
 
+			sendJson(res, 200, { ok: true });
+			return;
+		}
+
+		// GET /relay/:sessionId/status - Guest polls session health.
+		// Lets the guest UI flip to a "host disconnected" state without
+		// waiting for a tunneled request to time out.
+		const statusMatch = url.match(/^\/relay\/([^/]+)\/status$/);
+		if (req.method === 'GET' && statusMatch) {
+			const sessionId = statusMatch[1];
+			const session = sessions.get(sessionId);
+			if (!session) {
+				sendError(res, 404, 'Session not found');
+				return;
+			}
+			const now = Date.now();
+			// Proactively age-out a silent host so the very first status
+			// request after a host disappears already reports disconnected.
+			if (
+				session.hostConnected &&
+				session.lastPollAt > 0 &&
+				now - session.lastPollAt > HOST_DEAD_AFTER_MS
+			) {
+				markHostDisconnected(session, 'status check: no poll');
+			}
+			const lastPollAgoMs =
+				session.lastPollAt > 0 ? now - session.lastPollAt : -1;
+			const response: SessionStatusResponse = {
+				sessionId,
+				hostConnected: session.hostConnected,
+				hostAlive:
+					session.hostConnected &&
+					session.lastPollAt > 0 &&
+					lastPollAgoMs < HOST_DEAD_AFTER_MS,
+				lastPollAgoMs,
+			};
+			sendJson(res, 200, response);
+			return;
+		}
+
+		// POST /relay/:sessionId/close - Host explicitly closes the session.
+		// Sent via navigator.sendBeacon on pagehide so guests see the
+		// disconnect immediately instead of after the dead-host timer.
+		const closeMatch = url.match(/^\/relay\/([^/]+)\/close$/);
+		if (req.method === 'POST' && closeMatch) {
+			const sessionId = closeMatch[1];
+			const session = sessions.get(sessionId);
+			if (session) {
+				markHostDisconnected(session, 'host requested close');
+				// Wake any pending polls so long-running host fetches
+				// don't hold the connection open after close.
+				while (session.pollResolvers.length > 0) {
+					const resolver = session.pollResolvers.shift();
+					resolver?.(null);
+				}
+			}
 			sendJson(res, 200, { ok: true });
 			return;
 		}

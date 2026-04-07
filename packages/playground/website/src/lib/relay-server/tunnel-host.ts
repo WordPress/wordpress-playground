@@ -132,6 +132,13 @@ export class TunnelHost {
 	private requestQueue: TunnelRequest[] = [];
 	private isProcessingRequest = false;
 
+	/**
+	 * Reference we keep so we can remove the pagehide listener on stop.
+	 * Fires a sendBeacon POST to /relay/:id/close so guests see the
+	 * disconnect immediately instead of waiting for the dead-host timer.
+	 */
+	private pagehideHandler: (() => void) | null = null;
+
 	constructor(
 		private playgroundClient: PlaygroundClient,
 		private relayUrl: string
@@ -166,6 +173,7 @@ export class TunnelHost {
 
 			this.setStatus('connected');
 			this.startPolling();
+			this.installPagehideBeacon();
 
 			return this.shareUrl;
 		} catch (error) {
@@ -178,6 +186,7 @@ export class TunnelHost {
 	 * Stop the sharing session.
 	 */
 	async stopSharing(): Promise<void> {
+		const sessionIdToClose = this.sessionId;
 		this.isActive = false;
 		this.pollAbortController?.abort();
 		this.pollAbortController = null;
@@ -185,7 +194,59 @@ export class TunnelHost {
 		this.shareUrl = null;
 		this.requestQueue = [];
 		this.isProcessingRequest = false;
+		this.removePagehideBeacon();
 		this.setStatus('disconnected');
+
+		// Best-effort close on the relay so guests disconnect immediately.
+		if (sessionIdToClose) {
+			try {
+				await fetch(
+					`${this.relayUrl}/relay/${sessionIdToClose}/close`,
+					{ method: 'POST', keepalive: true }
+				);
+			} catch (e) {
+				// Non-fatal — relay will fall back to the dead-host timer.
+				console.warn('[TunnelHost] Close request failed:', e);
+			}
+		}
+	}
+
+	/**
+	 * Wire a pagehide listener that fires a close beacon to the relay.
+	 * sendBeacon is the only reliable way to ship a request during
+	 * unload, so even a hard tab close notifies the relay right away.
+	 */
+	private installPagehideBeacon(): void {
+		if (typeof window === 'undefined' || this.pagehideHandler) {
+			return;
+		}
+		const relayUrl = this.relayUrl;
+		const sessionIdRef = () => this.sessionId;
+		this.pagehideHandler = () => {
+			const sid = sessionIdRef();
+			if (!sid) return;
+			const url = `${relayUrl}/relay/${sid}/close`;
+			try {
+				if (navigator.sendBeacon) {
+					navigator.sendBeacon(url, new Blob([], { type: 'text/plain' }));
+				} else {
+					fetch(url, { method: 'POST', keepalive: true }).catch(
+						() => {}
+					);
+				}
+			} catch {
+				// swallow — best-effort
+			}
+		};
+		window.addEventListener('pagehide', this.pagehideHandler);
+	}
+
+	private removePagehideBeacon(): void {
+		if (typeof window === 'undefined' || !this.pagehideHandler) {
+			return;
+		}
+		window.removeEventListener('pagehide', this.pagehideHandler);
+		this.pagehideHandler = null;
 	}
 
 	/**
