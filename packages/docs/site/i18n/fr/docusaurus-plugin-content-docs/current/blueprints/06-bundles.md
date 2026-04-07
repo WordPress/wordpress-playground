@@ -356,7 +356,7 @@ Blueprint bundles support `blueprint.json` at two locations within a ZIP file:
 -->
 
 1. **À la racine** (habituel) : `blueprint.json` est directement à la racine du ZIP
-2. **Un niveau de dossier** : `blueprint.json` se trouve dans un seul répertoire de premier niveau
+2. **Un niveau de dossier** : le fichier `blueprint.json` se trouve dans un seul répertoire de premier niveau
 
 <!--
 1. **Root level** (standard): `blueprint.json` sits directly at the ZIP root
